@@ -161,7 +161,12 @@ func (f *Fetcher) nearestNextQueryTime(now, nextQuery time.Time) time.Time {
 
 func earlyContext(ctx context.Context, leadTime time.Duration) (context.Context, func()) {
 	if deadline, ok := ctx.Deadline(); ok {
-		return context.WithDeadline(ctx, deadline.Add(-leadTime))
+		// Only use early deadline if it is satisfiable and far enough in the
+		// future. Cutting the request time too short is worse than timing
+		// out during verification.
+		if withLead := deadline.Add(-leadTime); time.Until(withLead) > leadTime {
+			return context.WithDeadline(ctx, withLead)
+		}
 	}
 	return ctx, func() {}
 }

@@ -15,6 +15,7 @@
 package dataplane
 
 import (
+	"io"
 	"sync"
 
 	"github.com/google/gopacket/layers"
@@ -58,18 +59,13 @@ func (t *AtomicRoutingTable) RouteIPv6(packet layers.IPv6) control.PktWriter {
 	return table.RouteIPv6(packet)
 }
 
-func (t *AtomicRoutingTable) SetRoutingTable(table control.RoutingTable) {
+func (t *AtomicRoutingTable) SetRoutingTable(table control.RoutingTable) io.Closer {
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
 
-	if t.table != nil {
-		t.table.Deactivate()
-	}
-
+	oldTable := t.table
 	t.table = table
-	if t.table != nil {
-		t.table.Activate()
-	}
+	return oldTable
 }
 
 func (t *AtomicRoutingTable) getPointer() control.RoutingTable {

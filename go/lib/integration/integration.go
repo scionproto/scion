@@ -35,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
@@ -44,7 +45,7 @@ const (
 	// StartServerTimeout is the timeout for starting a server.
 	StartServerTimeout = 40 * time.Second
 	// DefaultRunTimeout is the timeout when running a server or a client.
-	DefaultRunTimeout = 8 * time.Second
+	DefaultRunTimeout = 20 * time.Second
 	// CtxTimeout is the timeout a context waits before being killed
 	CtxTimeout = 2 * time.Second
 	// RetryTimeout is the timeout between different attempts
@@ -309,15 +310,18 @@ func RunClient(in Integration, pair IAPair, timeout time.Duration,
 	defer cancel()
 	c, err := in.StartClient(ctx, pair.Src, pair.Dst)
 	if err != nil {
-		return err
+		return serrors.WrapStr("starting client", err)
 	}
 	if err = c.Wait(); err != nil {
-		return err
+		return serrors.WrapStr("waiting for completion", err)
 	}
 	if checkOutput == nil {
 		return nil
 	}
-	return checkOutput(c.Output())
+	if err := checkOutput(c.Output()); err != nil {
+		return serrors.WrapStr("checking output", err)
+	}
+	return nil
 }
 
 // ExecuteTimed executes f and prints how long f took to StdOut. Returns the error of f.

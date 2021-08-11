@@ -19,7 +19,9 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -44,7 +46,8 @@ The chain must be a PEM bundle with the AS certificate first, and the CA
 certificate second.
 `,
 		Example: fmt.Sprintf(
-			`  %[1]s verify --trc ISD1-B1-S1.trc,ISD1-B1-S2.trc ISD1-ASff00_0_110.pem`,
+			`  %[1]s verify --trc ISD1-B1-S1.trc,ISD1-B1-S2.trc ISD1-ASff00_0_110.pem
+  %[1]s verify --trc ISD1-*.trc ISD1-ASff00_0_110.pem`,
 			pather.CommandPath(),
 		),
 		Args: cobra.ExactArgs(1),
@@ -60,7 +63,7 @@ certificate second.
 			}
 
 			if flags.unixTime != 0 && len(flags.trcFiles) != 1 {
-				return serrors.New("seelcting TRC for specific time is not supported yet.")
+				return serrors.New("selecting TRC for specific time is not supported yet.")
 			}
 
 			opts := cppki.VerifyOptions{TRC: trcs}
@@ -78,10 +81,13 @@ certificate second.
 	}
 
 	cmd.Flags().StringSliceVar(&flags.trcFiles, "trc", []string{},
-		"Comma-separated trusted TRCs. If more than two TRCs are specified, only up to "+
-			"two active TRCs with the highest Base version are used (required)")
+		"Comma-separated list of trusted TRC files or glob patterns. "+
+			"If more than two TRCs are specified,\n only up to two active TRCs "+
+			"with the highest Base version are used (required)",
+	)
 	cmd.Flags().Int64Var(&flags.unixTime, "currenttime", 0,
-		"Optional unix timestamp that sets the current time")
+		"Optional unix timestamp that sets the current time",
+	)
 	cmd.MarkFlagRequired("trc")
 
 	joined := command.Join(pather, cmd)
@@ -172,8 +178,22 @@ func loadTRC(trcFile string) (cppki.SignedTRC, error) {
 // loadTRCs is a helper function to load the two latest TRCs from files. If any
 // file cannot be read, a nil slice is returned and an error.
 func loadTRCs(trcFiles []string) ([]*cppki.TRC, error) {
-	var signedTRCs []cppki.SignedTRC
+	// Resolve all glob patterns.
+	var resolvedTRCFiles []string
 	for _, trcFile := range trcFiles {
+		if !strings.Contains(trcFile, "*") {
+			resolvedTRCFiles = append(resolvedTRCFiles, trcFile)
+			continue
+		}
+		files, err := filepath.Glob(trcFile)
+		if err != nil {
+			return nil, serrors.WrapStr("resolving TRC glob pattern", err)
+		}
+		resolvedTRCFiles = append(resolvedTRCFiles, files...)
+	}
+
+	var signedTRCs []cppki.SignedTRC
+	for _, trcFile := range resolvedTRCFiles {
 		signedTRC, err := loadTRC(trcFile)
 		if err != nil {
 			return nil, serrors.WrapStr("loading from disk", err)
@@ -203,7 +223,6 @@ func selectLatestTRCs(trcs []cppki.SignedTRC) ([]cppki.SignedTRC, error) {
 	if len(trcs) == 0 {
 		return nil, serrors.New("no TRCs in slice")
 	}
-
 	if len(trcs) == 1 {
 		return []cppki.SignedTRC{trcs[0]}, nil
 	}

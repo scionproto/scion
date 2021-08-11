@@ -60,12 +60,12 @@ gen_bazel_test_steps() {
 
         ret=$(bazel query "attr(tags, '\\bskip\\b', $test)" 2>/dev/null)
         if [[ $ret != "" ]]; then
-          skip="true"
+          continue
         fi
 
         if [ -n "${SINGLE_TEST}" ]; then
           if [[ ! "${name}" =~ "${SINGLE_TEST}" ]]; then
-            skip="true"
+            continue
           fi
           cache="--nocache_test_results"
         fi

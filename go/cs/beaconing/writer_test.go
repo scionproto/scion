@@ -126,7 +126,11 @@ func TestRegistrarRun(t *testing.T) {
 			segStore.EXPECT().StoreSegs(gomock.Any(), gomock.Any()).DoAndReturn(
 				func(_ context.Context, segs []*seg.Meta) (seghandler.SegStats, error) {
 					stored = append(stored, segs...)
-					return seghandler.SegStats{}, nil
+					var inserted []string
+					for _, seg := range segs {
+						inserted = append(inserted, seg.Segment.GetLoggingID())
+					}
+					return seghandler.SegStats{InsertedSegs: inserted}, nil
 				},
 			)
 

@@ -22,8 +22,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	pb "google.golang.org/grpc/examples/helloworld/helloworld"
+	helloworldpb "google.golang.org/grpc/examples/helloworld/helloworld"
 	"google.golang.org/grpc/resolver"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -32,43 +33,80 @@ import (
 
 func TestTCPDial(t *testing.T) {
 	lis, err := net.Listen("tcp4", "127.0.0.1:0")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer lis.Close()
 
+	noGRPCLis, err := net.Listen("tcp4", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer noGRPCLis.Close()
+
 	s := grpc.NewServer()
-	pb.RegisterGreeterServer(s, &server{})
+	helloworldpb.RegisterGreeterServer(s, &server{})
 	go func() { s.Serve(lis) }()
 	defer s.Stop()
 
+	getUnusedAddr := func(t *testing.T) string {
+		l, err := net.Listen("tcp4", "127.0.0.1:0")
+		require.NoError(t, err)
+		t.Cleanup(func() { l.Close() })
+		return l.Addr().String()
+	}
+
 	t.Run("cases", func(t *testing.T) {
 		testCases := map[string]struct {
-			svcResolve func(addr.HostSVC) []resolver.Address
-			dst        net.Addr
-			asserError assert.ErrorAssertionFunc
+			svcResolve      func(*testing.T, addr.HostSVC) []resolver.Address
+			dst             net.Addr
+			assertDialError assert.ErrorAssertionFunc
+			assertCallError assert.ErrorAssertionFunc
 		}{
 			"valid tcp address": {
 				dst: lis.Addr(),
-				svcResolve: func(addr.HostSVC) []resolver.Address {
+				svcResolve: func(*testing.T, addr.HostSVC) []resolver.Address {
 					return nil
 				},
-				asserError: assert.NoError,
+				assertDialError: assert.NoError,
+				assertCallError: assert.NoError,
 			},
 			"valid cs svc address": {
 				dst: addr.SvcCS,
-				svcResolve: func(addr.HostSVC) []resolver.Address {
+				svcResolve: func(*testing.T, addr.HostSVC) []resolver.Address {
 					return []resolver.Address{
 						{Addr: lis.Addr().String()},
-						{Addr: "127.0.0.1:9898"},
+						{Addr: getUnusedAddr(t)},
 					}
 				},
-				asserError: assert.NoError,
+				assertDialError: assert.NoError,
+				assertCallError: assert.NoError,
+			},
+			"valid cs svc address second": {
+				dst: addr.SvcCS,
+				svcResolve: func(*testing.T, addr.HostSVC) []resolver.Address {
+					return []resolver.Address{
+						{Addr: getUnusedAddr(t)},
+						{Addr: lis.Addr().String()},
+					}
+				},
+				assertDialError: assert.NoError,
+				assertCallError: assert.NoError,
+			},
+			"valid, one server with no gRPC": {
+				dst: addr.SvcCS,
+				svcResolve: func(*testing.T, addr.HostSVC) []resolver.Address {
+					return []resolver.Address{
+						{Addr: noGRPCLis.Addr().String()},
+						{Addr: lis.Addr().String()},
+					}
+				},
+				assertDialError: assert.NoError,
+				assertCallError: assert.NoError,
 			},
 			"invalid": {
 				dst: addr.SvcCS,
-				svcResolve: func(addr.HostSVC) []resolver.Address {
+				svcResolve: func(*testing.T, addr.HostSVC) []resolver.Address {
 					return nil
 				},
-				asserError: assert.Error,
+				assertDialError: assert.Error,
+				assertCallError: assert.Error,
 			},
 		}
 
@@ -81,18 +119,20 @@ func TestTCPDial(t *testing.T) {
 				defer cancel()
 
 				dialer := libgrpc.TCPDialer{
-					SvcResolver: tc.svcResolve,
+					SvcResolver: func(svc addr.HostSVC) []resolver.Address {
+						return tc.svcResolve(t, svc)
+					},
 				}
 
 				for i := 0; i < 20; i++ {
 					conn, err := dialer.Dial(ctx, tc.dst)
-					tc.asserError(t, err)
+					tc.assertDialError(t, err)
 					if err != nil {
 						return
 					}
-					c := pb.NewGreeterClient(conn)
-					_, err = c.SayHello(ctx, &pb.HelloRequest{Name: "dummy"})
-					tc.asserError(t, err)
+					c := helloworldpb.NewGreeterClient(conn)
+					_, err = c.SayHello(ctx, &helloworldpb.HelloRequest{Name: "dummy"})
+					tc.assertCallError(t, err)
 				}
 			})
 		}
@@ -102,11 +142,13 @@ func TestTCPDial(t *testing.T) {
 
 // server is used to implement helloworld.GreeterServer.
 type server struct {
-	pb.UnimplementedGreeterServer
+	helloworldpb.UnimplementedGreeterServer
 }
 
 // SayHello implements helloworld.GreeterServer
-func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
+func (s *server) SayHello(ctx context.Context,
+	in *helloworldpb.HelloRequest) (*helloworldpb.HelloReply, error) {
+
 	log.Printf("Received: %v", in.GetName())
-	return &pb.HelloReply{Message: "Hello " + in.GetName()}, nil
+	return &helloworldpb.HelloReply{Message: "Hello " + in.GetName()}, nil
 }

@@ -1,0 +1,13 @@
+load("//lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["buildkite.go"],
+    importpath = "github.com/scionproto/scion/go/tools/buildkite_artifacts/buildkite",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/serrors:go_default_library",
+        "@com_github_buildkite_go_buildkite_v2//buildkite:go_default_library",
+        "@org_golang_x_sync//errgroup:go_default_library",
+    ],
+)

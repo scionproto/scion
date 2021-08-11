@@ -114,7 +114,7 @@ func (r *WriteScheduler) Run(ctx context.Context) {
 }
 
 func (r *WriteScheduler) run(ctx context.Context) error {
-	if r.Tick.Now().Sub(r.lastWrite) < r.Tick.Period() && !r.Tick.Passed() {
+	if !(r.Tick.Overdue(r.lastWrite) || r.Tick.Passed()) {
 		return nil
 	}
 	segments, err := r.Provider.SegmentsToRegister(ctx, r.Type)
@@ -126,7 +126,6 @@ func (r *WriteScheduler) run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	r.lastWrite = r.Tick.Now()
 	r.logSummary(log.FromCtx(ctx), &summary{count: stats.Count, srcs: stats.StartIAs})
 	if stats.Count > 0 {
 		r.lastWrite = r.Tick.Now()

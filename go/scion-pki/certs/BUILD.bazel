@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "certs.go",
         "create.go",
+        "match.go",
         "observability.go",
         "renew.go",
         "verify.go",

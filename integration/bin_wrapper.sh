@@ -20,6 +20,6 @@ log "bin_wrapper: Starting $PROG $@"
 exit_status=$?
 set +o noglob
 
-log "bin_wrapper: Stopped"
+log "bin_wrapper: Stopped, exit code: $exit_status"
 
 exit $exit_status

@@ -17,7 +17,6 @@
 package launcher
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net"
@@ -25,7 +24,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -73,10 +71,10 @@ type Application struct {
 	ShortName string
 
 	// RequiredIPs should return the IPs that this application wants to listen
-	// on. The launcher will wait until those IPs can be listened on with a
-	// timeout of 10s. The function is called after the configuration has been
-	// initialized. If this function is not set the launcher will immediately
-	// start the application without waiting for any IPs.
+	// on. The launcher will wait until those IPs can be listened on. The
+	// function is called after the configuration has been  initialized. If this
+	// function is not set the launcher will immediately start the application
+	// without waiting for any IPs.
 	RequiredIPs func() ([]net.IP, error)
 
 	// Main is the custom logic of the application. If nil, no custom logic is executed
@@ -187,12 +185,7 @@ func (a *Application) executeCommand(shortName string) error {
 		if err != nil {
 			return serrors.WrapStr("loading required IPs", err)
 		}
-		waitCtx, cancelF := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancelF()
-		if err := WaitForNetworkReady(waitCtx, ips); err != nil {
-			return serrors.WrapStr("waiting for network to be ready", err)
-		}
-		cancelF()
+		WaitForNetworkReady(ips)
 	}
 	if err := env.LogAppStarted(shortName, a.config.GetString(cfgGeneralID)); err != nil {
 		return err

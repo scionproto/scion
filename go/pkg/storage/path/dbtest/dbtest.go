@@ -547,6 +547,7 @@ func checkResult(t *testing.T, results query.Results, expectedSeg *seg.PathSegme
 
 	require.Equal(t, 1, len(results), "Expect one result")
 
+	assert.Equal(t, expectedSeg.Info.Timestamp, results[0].Seg.Info.Timestamp)
 	assert.Equal(t, expectedSeg.MaxIdx(), results[0].Seg.MaxIdx())
 	for i := range expectedSeg.ASEntries {
 		expected := seg.ASEntry{

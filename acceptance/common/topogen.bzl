@@ -50,7 +50,6 @@ def topogen_test(
         "--executables=scion-pki:$(location //go/scion-pki)",
         "--executables=topogen:$(location //python/topology:topogen)",
         "--topo=$(location %s)" % topo,
-        "--containers_tar=$(location :%s_containers.tar)" % name,
         "--setup-params='%s'" % setup_params,
     ]
     common_data = [
@@ -58,8 +57,12 @@ def topogen_test(
         "//python/topology:topogen",
         "//tools:docker_ip",
         topo,
-        ":%s_containers.tar" % name,
     ]
+    loaders = container_loaders(tester, gateway)
+    for tag in loaders:
+        loader = loaders[tag]
+        common_data = common_data + ["%s" % loader]
+        common_args = common_args + ["--container_loader=%s#$(location %s)" % (tag, loader)]
 
     py_binary(
         name = "%s_setup" % name,
@@ -99,6 +102,7 @@ def topogen_test(
         tags = ["integration"],
     )
 
+def container_loaders(tester, gateway):
     images = {
         "control:latest": "//docker:control",
         "daemon:latest": "//docker:daemon",
@@ -108,8 +112,4 @@ def topogen_test(
     }
     if gateway:
         images["posix-gateway:latest"] = "//docker:posix_gateway"
-
-    container_bundle(
-        name = "%s_containers" % name,
-        images = images,
-    )
+    return images

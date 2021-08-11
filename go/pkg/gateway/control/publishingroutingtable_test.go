@@ -57,72 +57,6 @@ func getRoutingChains(t *testing.T) ([]*control.RoutingChain, control.Route, con
 		}
 }
 
-func TestNewPublishingRoutingTableEarlyNoActivate(t *testing.T) {
-	// Test that adding routes before activation doesn't publish them.
-
-	chains, _, _ := getRoutingChains(t)
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	publisher := mock_control.NewMockPublisher(ctrl)
-
-	routingTable := mock_control.NewMockRoutingTable(ctrl)
-
-	rtw := control.NewPublishingRoutingTable(chains, routingTable, publisher, net.IP{},
-		routeSourceIPv4, routeSourceIPv6)
-
-	require.NoError(t, rtw.SetSession(1, testPktWriter{}))
-	require.NoError(t, rtw.ClearSession(1))
-}
-
-func TestNewPublishingRoutingTableEarlyActivate(t *testing.T) {
-	// Test that route added before activation get published after activation.
-
-	chains, routeV4, routeV6 := getRoutingChains(t)
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	publisher := mock_control.NewMockPublisher(ctrl)
-	publisher.EXPECT().AddRoute(routeV4)
-	publisher.EXPECT().AddRoute(routeV6)
-	publisher.EXPECT().Close().Times(1)
-
-	routingTable := mock_control.NewMockRoutingTable(ctrl)
-	routingTable.EXPECT().SetSession(1, gomock.Any()).Times(1)
-	routingTable.EXPECT().Activate().Times(1)
-	routingTable.EXPECT().Deactivate().Times(1)
-
-	rtw := control.NewPublishingRoutingTable(chains, routingTable, publisher, net.IP{},
-		routeSourceIPv4, routeSourceIPv6)
-
-	require.NoError(t, rtw.SetSession(1, testPktWriter{}))
-	rtw.Activate()
-	rtw.Deactivate()
-}
-
-func TestNewPublishingRoutingTableEarlyAddDelete(t *testing.T) {
-	// Test that route added and deleted before activation doesn't get published.
-
-	chains, _, _ := getRoutingChains(t)
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	publisher := mock_control.NewMockPublisher(ctrl)
-
-	routingTable := mock_control.NewMockRoutingTable(ctrl)
-	routingTable.EXPECT().Activate().Times(1)
-
-	rtw := control.NewPublishingRoutingTable(chains, routingTable, publisher, net.IP{},
-		routeSourceIPv4, routeSourceIPv6)
-
-	require.NoError(t, rtw.SetSession(1, testPktWriter{}))
-	require.NoError(t, rtw.ClearSession(1))
-	rtw.Activate()
-}
-
 func TestNewPublishingRoutingTableLate(t *testing.T) {
 	// Test whether adding/removing routes in active state works.
 
@@ -139,18 +73,16 @@ func TestNewPublishingRoutingTableLate(t *testing.T) {
 	publisher.EXPECT().Close().Times(1)
 
 	routingTable := mock_control.NewMockRoutingTable(ctrl)
-	routingTable.EXPECT().Activate().Times(1)
-	routingTable.EXPECT().Deactivate().Times(1)
 	routingTable.EXPECT().SetSession(1, gomock.Any()).Times(1)
 	routingTable.EXPECT().ClearSession(1).Times(1)
+	routingTable.EXPECT().Close().Times(1)
 
 	rtw := control.NewPublishingRoutingTable(chains, routingTable, publisher, net.IP{},
 		routeSourceIPv4, routeSourceIPv6)
 
-	rtw.Activate()
 	require.NoError(t, rtw.SetSession(1, testPktWriter{}))
 	require.NoError(t, rtw.ClearSession(1))
-	rtw.Deactivate()
+	require.NoError(t, rtw.Close())
 }
 
 func TestNewPublishingRoutingTableHealthiness(t *testing.T) {
@@ -166,7 +98,6 @@ func TestNewPublishingRoutingTableHealthiness(t *testing.T) {
 	publisher.EXPECT().AddRoute(routeV6)
 
 	routingTable := mock_control.NewMockRoutingTable(ctrl)
-	routingTable.EXPECT().Activate().Times(1)
 	routingTable.EXPECT().SetSession(1, gomock.Any()).Times(1)
 	routingTable.EXPECT().SetSession(2, gomock.Any()).Times(1)
 	routingTable.EXPECT().ClearSession(1).Times(1)
@@ -174,7 +105,6 @@ func TestNewPublishingRoutingTableHealthiness(t *testing.T) {
 	rtw := control.NewPublishingRoutingTable(chains, routingTable, publisher, net.IP{},
 		routeSourceIPv4, routeSourceIPv6)
 
-	rtw.Activate()
 	require.NoError(t, rtw.SetSession(1, testPktWriter{}))
 	require.NoError(t, rtw.SetSession(2, testPktWriter{}))
 	require.NoError(t, rtw.ClearSession(1))

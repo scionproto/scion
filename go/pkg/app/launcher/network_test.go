@@ -15,51 +15,26 @@
 package launcher_test
 
 import (
-	"context"
 	"net"
 	"testing"
-	"time"
-
-	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/pkg/app/launcher"
 )
 
 func TestWaitForNetworkReady(t *testing.T) {
 	testCases := map[string]struct {
-		IPs       []net.IP
-		Setup     func(t *testing.T) (context.Context, func())
-		AssertErr assert.ErrorAssertionFunc
+		IPs []net.IP
 	}{
 		"no IPs": {
 			IPs: nil,
-			Setup: func(_ *testing.T) (context.Context, func()) {
-				return context.Background(), func() {}
-			},
-			AssertErr: assert.NoError,
-		},
-		"IPs not found time out": {
-			IPs: []net.IP{net.ParseIP("192.0.2.42")},
-			Setup: func(_ *testing.T) (context.Context, func()) {
-				ctx, cancelF := context.WithTimeout(context.Background(), time.Millisecond*200)
-				return ctx, cancelF
-			},
-			AssertErr: assert.Error,
 		},
 		"localhost": {
 			IPs: []net.IP{net.ParseIP("127.0.0.1")},
-			Setup: func(_ *testing.T) (context.Context, func()) {
-				ctx, cancelF := context.WithTimeout(context.Background(), time.Millisecond*500)
-				return ctx, cancelF
-			},
-			AssertErr: assert.NoError,
 		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			ctx, cleanup := tc.Setup(t)
-			defer cleanup()
-			tc.AssertErr(t, launcher.WaitForNetworkReady(ctx, tc.IPs))
+			launcher.WaitForNetworkReady(tc.IPs)
 		})
 	}
 }

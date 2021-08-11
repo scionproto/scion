@@ -19,10 +19,13 @@ import (
 	"net"
 	"time"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/peer"
+
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/pkg/grpc"
+	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
@@ -41,37 +44,40 @@ const (
 // Requester fetches segments from a remote using gRPC.
 type Requester struct {
 	// Dialer dials a new gRPC connection.
-	Dialer grpc.Dialer
+	Dialer libgrpc.Dialer
 }
 
 func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,
-	server net.Addr) ([]*seg.Meta, error) {
+	server net.Addr) (segfetcher.SegmentsReply, error) {
 
 	dialCtx, cancelF := context.WithTimeout(ctx, DefaultRPCDialTimeout)
 	defer cancelF()
 	conn, err := f.Dialer.Dial(dialCtx, server)
 	if err != nil {
-		return nil, err
+		return segfetcher.SegmentsReply{}, err
 	}
 	defer conn.Close()
 
+	var segPeer peer.Peer
 	client := cppb.NewSegmentLookupServiceClient(conn)
 	rep, err := client.Segments(ctx,
 		&cppb.SegmentsRequest{
 			SrcIsdAs: uint64(req.Src.IAInt()),
 			DstIsdAs: uint64(req.Dst.IAInt()),
 		},
-		grpc.RetryProfile...,
+		libgrpc.RetryOption,
+		grpc.Peer(&segPeer),
 	)
 	if err != nil {
-		return nil, err
+		return segfetcher.SegmentsReply{}, err
 	}
 	var segs []*seg.Meta
 	for segType, segments := range rep.Segments {
 		for i, pb := range segments.Segments {
 			ps, err := seg.SegmentFromPB(pb)
 			if err != nil {
-				return nil, serrors.WrapStr("parsing segments", err, "index", i)
+				return segfetcher.SegmentsReply{},
+					serrors.WrapStr("parsing segments", err, "index", i)
 			}
 			segs = append(segs, &seg.Meta{
 				Type:    seg.Type(segType),
@@ -79,5 +85,5 @@ func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,
 			})
 		}
 	}
-	return segs, nil
+	return segfetcher.SegmentsReply{Segments: segs, Peer: segPeer.Addr}, nil
 }

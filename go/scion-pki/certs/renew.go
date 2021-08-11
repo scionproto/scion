@@ -439,9 +439,10 @@ The template is expressed in JSON. A valid example:
 		"The common name that replaces the common name in the subject template",
 	)
 	cmd.Flags().StringSliceVar(&flags.trcFiles, "trc", []string{},
-		"Comma-separated list of trusted TRC files. If more than two TRCs are specified,\n"+
-			"only up to two active TRCs with the highest Base version are used (required)")
-
+		"Comma-separated list of trusted TRC files or glob patterns. "+
+			"If more than two TRCs are specified,\n only up to two active TRCs "+
+			"with the highest Base version are used (required)",
+	)
 	cmd.Flags().BoolVar(&flags.reuseKey, "reuse-key", false,
 		"Reuse the provided private key instead of creating a fresh private key",
 	)
