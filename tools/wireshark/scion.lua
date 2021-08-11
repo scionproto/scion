@@ -590,6 +590,19 @@ function epic_path_dissect(tvbuf, pktinfo, root)
         return
     end
 
+    -- Parse EPIC fields
+    local packetIdTree = tree:add(tvbuf, "Packet ID")
+    local packetTsTree = packetIdTree:add(tvbuf, "Timestamp")
+    local epicTs = tvbuf(0, 4):uint()
+    local epicTsRelNs = (epicTs+1) * 21 * 1000
+    local epicTsRelSec = epicTsRelNs/10^9
+    epicTsRelNs = epicTsRelNs % 10^9
+    packetTsTree:add(epath_ts, tvbuf(0, 4), epicTs)
+    packetTsTree:add(epath_ts_rel, tvbuf(0, 4), NSTime.new(epicTsRelSec, epicTsRelNs))
+    packetIdTree:add(epath_counter, tvbuf(4, 4))
+    tree:add(epath_phvf, tvbuf(8, 4))
+    tree:add(epath_lhvf, tvbuf(12, 4))
+
     -- Parse the SCION path type fields
     ok = scion_path_dissect(tvbuf(16), pktinfo, root)
     if not ok then
@@ -599,19 +612,10 @@ function epic_path_dissect(tvbuf, pktinfo, root)
     -- Get the timestamp of the first InfoField
     -- (No checks needed, as SCION path type parsing was successful)
     local tsInfo = tvbuf(24, 4):uint()
-
-    -- Parse EPIC fields
-    local packetIdTree = tree:add(tvbuf, "Packet ID")
-    local epicTs = tvbuf(0, 4):uint()
-    local epicTsRelNs = (epicTs+1) * 21 * 1000
-    local epicTsRelSec = epicTsRelNs/10^9
-    epicTsRelNs = epicTsRelNs % 10^9
-    packetIdTree:add(epath_ts, tvbuf(0, 4), epicTs)
-    packetIdTree:add(epath_ts_rel, tvbuf(0, 4), NSTime.new(epicTsRelSec, epicTsRelNs))
-    packetIdTree:add(epath_ts_abs, tvbuf(0, 4), NSTime.new(tsInfo+epicTsRelSec, epicTsRelNs))
-    packetIdTree:add(epath_counter, tvbuf(4, 4))
-    tree:add(epath_phvf, tvbuf(8, 4))
-    tree:add(epath_lhvf, tvbuf(12, 4))
+    
+    -- Calculate and add the EPIC timestamp (absolute)
+    -- (depends on the timestamp of the first InfoField)
+    packetTsTree:add(epath_ts_abs, tvbuf(0, 4), NSTime.new(tsInfo+epicTsRelSec, epicTsRelNs))
 
     return true
 end
