@@ -136,72 +136,42 @@ load("@io_bazel_rules_docker//go:image.bzl", _go_image_repos = "repositories")
 
 _go_image_repos()
 
-# Distroless
-git_repository(
-    name = "distroless",
-    commit = "48dba0a4ace4fcb4fdd8d7e1f7dc1a9ed8b38f7c",
-    remote = "https://github.com/GoogleContainerTools/distroless.git",
-    shallow_since = "1582150737 -0500",
+http_archive(
+    name = "rules_deb_packages",
+    sha256 = "674ce7b66c345aaa9ab898608618a0a0db857cbed8e8d0794ca46e375fd5ff76",
+    urls = ["https://github.com/petermylemans/rules_deb_packages/releases/download/v0.4.0/rules_deb_packages.tar.gz"],
 )
 
-# Debian packages to install in containers
-load("@distroless//package_manager:package_manager.bzl", "package_manager_repositories")
-load("@distroless//package_manager:dpkg.bzl", "dpkg_list", "dpkg_src")
+load("@rules_deb_packages//:repositories.bzl", "deb_packages_dependencies")
 
-package_manager_repositories()
+deb_packages_dependencies()
 
-dpkg_src(
-    name = "debian10_snap",
+load("@rules_deb_packages//:deb_packages.bzl", "deb_packages")
+
+deb_packages(
+    name = "debian_buster_amd64",
     arch = "amd64",
-    distro = "buster",
-    sha256 = "b044c73a46671536011a26aedd8490dd31140538264ac12f26dc6dd0b4f0fcb8",
-    snapshot = "20210404T202957Z",
-    url = "https://snapshot.debian.org/archive",
-)
-
-dpkg_src(
-    name = "debian10_updates_snap",
-    arch = "amd64",
-    distro = "buster-updates",
-    sha256 = "0c3115aeed29d5a8626633de68f2e409b2d182d7351521c46999634f62606de5",
-    snapshot = "20210404T202957Z",
-    url = "https://snapshot.debian.org/archive",
-)
-
-dpkg_src(
-    name = "debian10_security_snap",
-    package_prefix = "https://snapshot.debian.org/archive/debian-security/20210404T121356Z/",
-    packages_gz_url = "https://snapshot.debian.org/archive/debian-security/20210404T121356Z/dists/buster/updates/main/binary-amd64/Packages.gz",
-    sha256 = "5a21ba772818036ba9df9a200544fd10cb4a4685d928d018f472ef19d0f0442c",
-)
-
-dpkg_list(
-    name = "packages_debian10",
-    packages = [
-        "libc6",
-        "libcap2",
-        "libcap2-bin",
-        "libgcc1",
-        "libstdc++6",
-        # These are needed by distroless.
-        "base-files",
-        "ca-certificates",
-        "libssl1.1",
-        "netbase",
-        "openssl",
-        "tzdata",
-        # Needed to add network capabilities to apps.
-        "libcap2",
-        "libcap2-bin",
-    ],
-    # From Distroless WORKSPACE:
-    # Takes the first package found: security updates should go first
-    # If there was a security fix to a package before the stable release, this will find
-    # the older security release. This happened for stretch libc6.
+    packages = {
+        "libc6": "pool/main/g/glibc/libc6_2.28-10_amd64.deb",
+        "libcap2": "pool/main/libc/libcap2/libcap2_2.25-2_amd64.deb",
+        "libcap2-bin": "pool/main/libc/libcap2/libcap2-bin_2.25-2_amd64.deb",
+    },
+    packages_sha256 = {
+        "libc6": "6f703e27185f594f8633159d00180ea1df12d84f152261b6e88af75667195a79",
+        "libcap2": "8f93459c99e9143dfb458353336c5171276860896fd3e10060a515cd3ea3987b",
+        "libcap2-bin": "3c8c5b1410447356125fd8f5af36d0c28853b97c072037af4a1250421008b781",
+    },
     sources = [
-        "@debian10_security_snap//file:Packages.json",
-        "@debian10_updates_snap//file:Packages.json",
-        "@debian10_snap//file:Packages.json",
+        "http://deb.debian.org/debian buster main",
+        "http://deb.debian.org/debian buster-updates main",
+        "http://deb.debian.org/debian-security buster/updates main",
+    ],
+    timestamp = "20210812T060609Z",
+    urls = [
+        "http://deb.debian.org/debian/$(package_path)",
+        "http://deb.debian.org/debian-security/$(package_path)",
+        "https://snapshot.debian.org/archive/debian/$(timestamp)/$(package_path)",  # Needed in case of supersed archive no more available on the mirrors
+        "https://snapshot.debian.org/archive/debian-security/$(timestamp)/$(package_path)",  # Needed in case of supersed archive no more available on the mirrors
     ],
 )
 
@@ -227,25 +197,6 @@ container_pull(
     registry = "index.docker.io",
     repository = "library/debian",
     tag = "10",
-)
-
-container_pull(
-    name = "node_slim",
-    digest = "sha256:1e33616579a5d5de9ec0a861798fb45602a1332be32a67a1cb227b667a5a4d63",
-    registry = "index.docker.io",
-    repository = "library/node",
-    tag = "10.16-slim",
-)
-
-# Busybox (used in debug docker images)
-http_file(
-    name = "busybox",
-    executable = True,
-    sha256 = "b51b9328eb4e60748912e1c1867954a5cf7e9d5294781cae59ce225ed110523c",
-    urls = [
-        "https://busybox.net/downloads/binaries/1.27.1-i686/busybox",
-        "https://drive.google.com/uc?id=1RqCvs8CJubqzHYwJO5MI9UqPixMModWX",
-    ],
 )
 
 # protobuf/gRPC

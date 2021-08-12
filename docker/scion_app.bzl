@@ -1,6 +1,6 @@
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@io_bazel_rules_docker//container:container.bzl", "container_image", "container_layer")
-load("@packages_debian10//file:packages.bzl", "packages")
+load("@debian_buster_amd64//debs:deb_packages.bzl", packages = "debian_buster_amd64")
 load(":caps.bzl", "container_image_setcap")
 
 # Defines a common base image for all app images.
