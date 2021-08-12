@@ -1,3 +1,5 @@
+env:
+  GOPROXY: "http://localhost:3200|https://proxy.golang.org|https://goproxy.io|direct"
 steps:
   - label: "build scion code :bazel:"
     if: build.message !~ /\[doc\]/
