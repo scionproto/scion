@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -41,7 +42,6 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/topology"
 	underlayconn "github.com/scionproto/scion/go/lib/underlay/conn"
-	"github.com/scionproto/scion/go/lib/underlay/conn/mock_conn"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/router"
@@ -56,7 +56,7 @@ func TestDataPlaneAddInternalInterface(t *testing.T) {
 
 		d := &router.DataPlane{}
 		d.FakeStart()
-		assert.Error(t, d.AddInternalInterface(mock_conn.NewMockConn(ctrl), net.IP{}))
+		assert.Error(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), net.IP{}))
 	})
 	t.Run("setting nil value is not allowed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -70,15 +70,15 @@ func TestDataPlaneAddInternalInterface(t *testing.T) {
 		defer ctrl.Finish()
 
 		d := &router.DataPlane{}
-		assert.NoError(t, d.AddInternalInterface(mock_conn.NewMockConn(ctrl), net.IP{}))
+		assert.NoError(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), net.IP{}))
 	})
 	t.Run("double set fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
 		d := &router.DataPlane{}
-		assert.NoError(t, d.AddInternalInterface(mock_conn.NewMockConn(ctrl), net.IP{}))
-		assert.Error(t, d.AddInternalInterface(mock_conn.NewMockConn(ctrl), net.IP{}))
+		assert.NoError(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), net.IP{}))
+		assert.Error(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), net.IP{}))
 	})
 }
 
@@ -111,7 +111,7 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 
 		d := &router.DataPlane{}
 		d.FakeStart()
-		assert.Error(t, d.AddExternalInterface(42, mock_conn.NewMockConn(ctrl)))
+		assert.Error(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl)))
 	})
 	t.Run("setting nil value is not allowed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -125,16 +125,16 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 		defer ctrl.Finish()
 
 		d := &router.DataPlane{}
-		assert.NoError(t, d.AddExternalInterface(42, mock_conn.NewMockConn(ctrl)))
-		assert.NoError(t, d.AddExternalInterface(45, mock_conn.NewMockConn(ctrl)))
+		assert.NoError(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl)))
+		assert.NoError(t, d.AddExternalInterface(45, mock_router.NewMockBatchConn(ctrl)))
 	})
 	t.Run("overwrite fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
 		d := &router.DataPlane{}
-		assert.NoError(t, d.AddExternalInterface(42, mock_conn.NewMockConn(ctrl)))
-		assert.Error(t, d.AddExternalInterface(42, mock_conn.NewMockConn(ctrl)))
+		assert.NoError(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl)))
+		assert.Error(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl)))
 	})
 }
 
@@ -203,12 +203,13 @@ func TestDataPlaneRun(t *testing.T) {
 				mInternal := mock_router.NewMockBatchConn(ctrl)
 				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
+				matchFlags := gomock.Eq(syscall.MSG_DONTWAIT)
 				for i := 0; i < 10; i++ {
 					ii := i
-					mInternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).DoAndReturn(
-						func(data []byte, _ net.Addr) (int, error) {
+					mInternal.EXPECT().WriteBatch(gomock.Any(), matchFlags).DoAndReturn(
+						func(ms underlayconn.Messages, flags int) (int, error) {
 							want := bytes.Repeat([]byte("actualpayloadbytes"), ii)
-							if len(data) != len(want)+84 {
+							if len(ms[0].Buffers[0]) != len(want)+84 {
 								return 1, nil
 							}
 							totalCount--

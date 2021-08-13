@@ -25,6 +25,7 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/google/gopacket"
@@ -77,6 +78,7 @@ type bfdSession interface {
 type BatchConn interface {
 	ReadBatch(underlayconn.Messages) (int, error)
 	WriteTo([]byte, *net.UDPAddr) (int, error)
+	WriteBatch(msgs underlayconn.Messages, flags int) (int, error)
 	Close() error
 }
 
@@ -445,6 +447,8 @@ func (d *DataPlane) Run() error {
 		for _, msg := range msgs {
 			msg.Buffers[0] = make([]byte, bufSize)
 		}
+		writeMsgs := make(underlayconn.Messages, 1)
+		writeMsgs[0].Buffers = make([][]byte, 1)
 
 		processor := newPacketProcessor(d, ingressID)
 		var scmpErr scmpError
@@ -484,10 +488,25 @@ func (d *DataPlane) Run() error {
 				if result.OutConn == nil { // e.g. BFD case no message is forwarded
 					continue
 				}
-				_, err = result.OutConn.WriteTo(result.OutPkt, result.OutAddr)
+
+				// Write to OutConn; drop the packet if this would block.
+				// Use WriteBatch because it's the only available function that
+				// supports MSG_DONTWAIT.
+				writeMsgs[0].Buffers[0] = result.OutPkt
+				writeMsgs[0].Addr = nil
+				if result.OutAddr != nil { // don't assign directly to net.Addr, typed nil!
+					writeMsgs[0].Addr = result.OutAddr
+				}
+
+				_, err = result.OutConn.WriteBatch(writeMsgs, syscall.MSG_DONTWAIT)
 				if err != nil {
-					log.Debug("Error writing packet", "err", err)
-					// error metric
+					var errno syscall.Errno
+					if !errors.As(err, &errno) ||
+						!(errno == syscall.EAGAIN || errno == syscall.EWOULDBLOCK) {
+						log.Debug("Error writing packet", "err", err)
+						// error metric
+					}
+					inputCounters.DroppedPacketsTotal.Inc()
 					continue
 				}
 				// ok metric
