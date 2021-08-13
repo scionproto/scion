@@ -46,6 +46,8 @@ package config
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -235,4 +237,15 @@ func LoadResource(location string) (io.ReadCloser, error) {
 		return nil, serrors.WrapStr("loading config from disk", err)
 	}
 	return rc, nil
+}
+
+// Digest calculates a digest of the configuration by attempting to encode the configuration as
+// JSON object and then calculate the SHA256 sum on the resulting encoding.
+func Digest(cfg Config) ([]byte, error) {
+	h := sha256.New()
+	enc := json.NewEncoder(h)
+	if err := enc.Encode(cfg); err != nil {
+		return nil, err
+	}
+	return h.Sum(nil), nil
 }

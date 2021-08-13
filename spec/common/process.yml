@@ -80,6 +80,21 @@ paths:
                   $ref: "#/components/schemas/Topology"
           "400":
             $ref: "./base.yml#/components/responses/BadRequest"
+  /digests/config:
+    get:
+      tags:
+        - common
+      summary: Prints the sha256 digest of the service configuration (.toml).
+      operationId: get-config-digest
+      responses:
+        "200":
+          description: Successful Operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Digest"
+        "400":
+          $ref: "./base.yml#/components/responses/BadRequest"
 components:
   schemas:
     LogLevel:
@@ -102,3 +117,11 @@ components:
       type: string
       pattern: '^\d+-([a-f0-9]{1,4}:){2}([a-f0-9]{1,4})|\d+$'
       example: 1-ff00:0:110
+    Digest:
+      type: object
+      properties:
+        digest:
+          type: string
+          format: byte
+      required:
+        - digest

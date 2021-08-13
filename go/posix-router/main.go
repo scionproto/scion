@@ -101,9 +101,10 @@ func loadControlConfig() (*control.Config, error) {
 
 func setupHTTPHandlers() error {
 	statusPages := service.StatusPages{
-		"info":      service.NewInfoStatusPage(),
-		"config":    service.NewConfigStatusPage(globalCfg),
-		"log/level": service.NewLogLevelStatusPage(),
+		"info":           service.NewInfoStatusPage(),
+		"config":         service.NewConfigStatusPage(globalCfg),
+		"log/level":      service.NewLogLevelStatusPage(),
+		"digests/config": service.NewConfigDigestStatusPage(&globalCfg),
 		// TODO: Add topology page
 	}
 	if err := statusPages.Register(http.DefaultServeMux, globalCfg.General.ID); err != nil {

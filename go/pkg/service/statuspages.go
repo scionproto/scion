@@ -16,6 +16,7 @@ package service
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -26,6 +27,7 @@ import (
 	toml "github.com/pelletier/go-toml"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -118,6 +120,28 @@ func NewConfigStatusPage(config interface{}) StatusPage {
 	return StatusPage{Handler: handler}
 }
 
+func NewConfigDigestStatusPage(cfg config.Config) StatusPage {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		digest, err := config.Digest(cfg)
+		if err != nil {
+			http.Error(w, "Unable to calculate digest", http.StatusInternalServerError)
+			return
+		}
+		response := struct {
+			Digest []byte `json:"digest"`
+		}{
+			Digest: digest,
+		}
+		enc := json.NewEncoder(w)
+		if err := enc.Encode(response); err != nil {
+			http.Error(w, "Unable to marshal response", http.StatusInternalServerError)
+			return
+		}
+	}
+	return StatusPage{Handler: handler}
+}
+
 // NewInfoStatusPage returns a page with basic info about the process.
 func NewInfoStatusPage() StatusPage {
 	handler := func(w http.ResponseWriter, r *http.Request) {
@@ -130,7 +154,7 @@ func NewInfoStatusPage() StatusPage {
 		info += fmt.Sprintf("  euid/egid:     %d %d\n", os.Geteuid(), os.Getegid())
 		info += fmt.Sprintf("  cmd line:      %q\n", os.Args)
 		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprintf(w, info)
+		fmt.Fprint(w, info)
 	}
 	return StatusPage{Handler: handler}
 }

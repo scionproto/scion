@@ -77,9 +77,10 @@ func realMain() error {
 		dataAddress.Zone = controlAddress.Zone
 	}
 	httpPages := service.StatusPages{
-		"info":      service.NewInfoStatusPage(),
-		"config":    service.NewConfigStatusPage(globalCfg),
-		"log/level": service.NewLogLevelStatusPage(),
+		"info":           service.NewInfoStatusPage(),
+		"config":         service.NewConfigStatusPage(globalCfg),
+		"digests/config": service.NewConfigDigestStatusPage(&globalCfg),
+		"log/level":      service.NewLogLevelStatusPage(),
 	}
 	routingTable := &dataplane.AtomicRoutingTable{}
 	gw := &gateway.Gateway{

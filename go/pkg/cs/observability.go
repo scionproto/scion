@@ -26,6 +26,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/prom"
@@ -223,14 +224,15 @@ func NewMetrics() *Metrics {
 
 // StartHTTPEndpoints starts the HTTP endpoints that expose the metrics and
 // additional information.
-func StartHTTPEndpoints(elemId string, cfg interface{}, signer cstrust.RenewingSigner,
+func StartHTTPEndpoints(elemId string, cfg config.Config, signer cstrust.RenewingSigner,
 	ca renewal.ChainBuilder, metrics env.Metrics) error {
 	statusPages := service.StatusPages{
-		"info":      service.NewInfoStatusPage(),
-		"config":    service.NewConfigStatusPage(cfg),
-		"log/level": service.NewLogLevelStatusPage(),
-		"topology":  service.StatusPage{Handler: itopo.TopologyHandler},
-		"signer":    signerStatusPage(signer),
+		"info":           service.NewInfoStatusPage(),
+		"config":         service.NewConfigStatusPage(cfg),
+		"digests/config": service.NewConfigDigestStatusPage(cfg),
+		"log/level":      service.NewLogLevelStatusPage(),
+		"topology":       service.StatusPage{Handler: itopo.TopologyHandler},
+		"signer":         signerStatusPage(signer),
 	}
 	if ca != (renewal.ChainBuilder{}) {
 		statusPages["ca"] = caStatusPage(ca)

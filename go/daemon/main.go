@@ -201,10 +201,11 @@ func realMain() error {
 
 	// Start HTTP endpoints.
 	statusPages := service.StatusPages{
-		"info":      service.NewInfoStatusPage(),
-		"config":    service.NewConfigStatusPage(globalCfg),
-		"log/level": service.NewLogLevelStatusPage(),
-		"topology":  service.StatusPage{Handler: itopo.TopologyHandler},
+		"info":           service.NewInfoStatusPage(),
+		"config":         service.NewConfigStatusPage(globalCfg),
+		"log/level":      service.NewLogLevelStatusPage(),
+		"topology":       service.StatusPage{Handler: itopo.TopologyHandler},
+		"digests/config": service.NewConfigDigestStatusPage(&globalCfg),
 	}
 	if err := statusPages.Register(http.DefaultServeMux, globalCfg.General.ID); err != nil {
 		return serrors.WrapStr("registering status pages", err)
