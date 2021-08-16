@@ -15,6 +15,8 @@
 package topology
 
 import (
+	"crypto/sha256"
+	"encoding/json"
 	"math/rand"
 	"net"
 	"sort"
@@ -440,4 +442,13 @@ func (t *topologyS) SVCNames(svc addr.HostSVC) ServiceNames {
 
 func (t *topologyS) Writable() *RWTopology {
 	return t.Topology
+}
+
+func Digest(t interface{}) ([]byte, error) {
+	h := sha256.New()
+	enc := json.NewEncoder(h)
+	if err := enc.Encode(t); err != nil {
+		return nil, err
+	}
+	return h.Sum(nil), nil
 }

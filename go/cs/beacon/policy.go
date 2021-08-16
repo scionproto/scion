@@ -15,6 +15,7 @@
 package beacon
 
 import (
+	"crypto/sha256"
 	"io/ioutil"
 
 	yaml "gopkg.in/yaml.v2"
@@ -101,6 +102,16 @@ func (p *Policies) Filter(beacon Beacon) error {
 	return nil
 }
 
+// Digests returns all digests of all the policies.
+func (p *Policies) Digests() map[string][]byte {
+	digests := make(map[string][]byte)
+	digests[string(PropPolicy)] = p.Prop.Digest()
+	digests[string(UpRegPolicy)] = p.UpReg.Digest()
+	digests[string(DownRegPolicy)] = p.DownReg.Digest()
+
+	return digests
+}
+
 // Usage returns the allowed usage of the beacon based on all available
 // policies. For missing policies, the usage is not permitted.
 func (p *Policies) Usage(beacon Beacon) Usage {
@@ -142,6 +153,15 @@ func (p *CorePolicies) Validate() error {
 			"expected", CoreRegPolicy, "actual", p.CoreReg.Type)
 	}
 	return nil
+}
+
+// Digests returns all digests of all the core policies.
+func (p *CorePolicies) Digests() map[string][]byte {
+	digests := make(map[string][]byte)
+	digests[string(PropPolicy)] = p.Prop.Digest()
+	digests[string(CoreRegPolicy)] = p.CoreReg.Digest()
+
+	return digests
 }
 
 // Filter applies all filters and returns an error if all of them filter the
@@ -202,6 +222,15 @@ func (p *Policy) InitDefaults() {
 		p.MaxExpTime = &m
 	}
 	p.Filter.InitDefaults()
+}
+
+func (p *Policy) Digest() []byte {
+	h := sha256.New()
+	enc := yaml.NewEncoder(h)
+	if err := enc.Encode(p); err != nil {
+		panic(err)
+	}
+	return h.Sum(nil)
 }
 
 func (p *Policy) initDefaults(t PolicyType) error {

@@ -15,6 +15,8 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"sync"
@@ -22,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/app/launcher"
 	"github.com/scionproto/scion/go/pkg/router"
 	"github.com/scionproto/scion/go/pkg/router/config"
@@ -61,7 +64,7 @@ func realMain() error {
 	if err := iaCtx.Start(wg); err != nil {
 		return serrors.WrapStr("starting dataplane", err)
 	}
-	if err := setupHTTPHandlers(); err != nil {
+	if err := setupHTTPHandlers(iaCtx.Config.Topo); err != nil {
 		return serrors.WrapStr("starting HTTP endpoints", err)
 	}
 
@@ -99,17 +102,56 @@ func loadControlConfig() (*control.Config, error) {
 	return newConf, nil
 }
 
-func setupHTTPHandlers() error {
+func setupHTTPHandlers(topo topology.Topology) error {
 	statusPages := service.StatusPages{
-		"info":           service.NewInfoStatusPage(),
-		"config":         service.NewConfigStatusPage(globalCfg),
-		"log/level":      service.NewLogLevelStatusPage(),
-		"digests/config": service.NewConfigDigestStatusPage(&globalCfg),
-		// TODO: Add topology page
+		"info":             service.NewInfoStatusPage(),
+		"config":           service.NewConfigStatusPage(globalCfg),
+		"log/level":        service.NewLogLevelStatusPage(),
+		"topology":         topologyHandler(topo),
+		"digests/config":   service.NewConfigDigestStatusPage(&globalCfg),
+		"digests/topology": topologyDigestHandler(topo),
 	}
 	if err := statusPages.Register(http.DefaultServeMux, globalCfg.General.ID); err != nil {
 		return err
 	}
 	globalCfg.Metrics.StartPrometheus()
 	return nil
+}
+
+func topologyHandler(topo topology.Topology) service.StatusPage {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		bytes, err := json.MarshalIndent(topo, "", "    ")
+		if err != nil {
+			http.Error(w, "Unable to marshal topology", http.StatusInternalServerError)
+			return
+		}
+		fmt.Fprint(w, string(bytes)+"\n")
+	}
+	return service.StatusPage{Handler: handler}
+}
+
+func topologyDigestHandler(topo topology.Topology) service.StatusPage {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		digest, err := topology.Digest(topo)
+		if err != nil {
+			http.Error(w, "Unable to calculate digest", http.StatusInternalServerError)
+			return
+		}
+		res := struct {
+			Digest []byte `json:"digest"`
+		}{
+			Digest: digest,
+		}
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", "    ")
+		if err := enc.Encode(res); err != nil {
+			http.Error(w, "Unable to marshal response", http.StatusInternalServerError)
+			return
+		}
+	}
+	return service.StatusPage{Handler: handler}
 }

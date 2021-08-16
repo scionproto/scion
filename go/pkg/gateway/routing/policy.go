@@ -15,6 +15,7 @@
 package routing
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"net"
 
@@ -53,6 +54,17 @@ func (p Policy) Copy() *Policy {
 		panic(err)
 	}
 	return ret
+}
+
+// Digest resturns the sha256 digest of the policy.
+func (p Policy) Digest() []byte {
+	raw, err := p.MarshalText()
+	if err != nil {
+		panic(err)
+	}
+	h := sha256.New()
+	h.Write(raw)
+	return h.Sum(nil)
 }
 
 // Match iterates through the list of rules in order and returns the first rule

@@ -201,7 +201,7 @@ func realMain() error {
 		QueriesTotal: libmetrics.NewPromCounter(metrics.BeaconDBQueriesTotal),
 	})
 
-	beaconStore, isdLoopAllowed, err := createBeaconStore(
+	beaconStore, policies, isdLoopAllowed, err := createBeaconStore(
 		beaconDB,
 		topo.Core(),
 		globalCfg.BS.Policies,
@@ -530,7 +530,7 @@ func realMain() error {
 		}()
 	}
 	err = cs.StartHTTPEndpoints(globalCfg.General.ID, &globalCfg, signer, chainBuilder,
-		globalCfg.Metrics)
+		globalCfg.Metrics, policies.Digests())
 	if err != nil {
 		return serrors.WrapStr("registering status pages", err)
 	}
@@ -625,26 +625,30 @@ func setup(cfg *config.Config) (*ifstate.Interfaces, error) {
 	return intfs, nil
 }
 
+type beaconPolicies interface {
+	Digests() map[string][]byte
+}
+
 func createBeaconStore(
 	db storage.BeaconDB,
 	core bool,
 	policyConfig config.Policies,
-) (cs.Store, bool, error) {
+) (cs.Store, beaconPolicies, bool, error) {
 
 	if core {
 		policies, err := cs.LoadCorePolicies(policyConfig)
 		if err != nil {
-			return nil, false, err
+			return nil, nil, false, err
 		}
 		store, err := beacon.NewCoreBeaconStore(policies, db)
-		return store, *policies.Prop.Filter.AllowIsdLoop, err
+		return store, &policies, *policies.Prop.Filter.AllowIsdLoop, err
 	}
 	policies, err := cs.LoadNonCorePolicies(policyConfig)
 	if err != nil {
-		return nil, false, err
+		return nil, nil, false, err
 	}
 	store, err := beacon.NewBeaconStore(policies, db)
-	return store, *policies.Prop.Filter.AllowIsdLoop, err
+	return store, &policies, *policies.Prop.Filter.AllowIsdLoop, err
 }
 
 type topoInformation struct{}

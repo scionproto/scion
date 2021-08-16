@@ -222,17 +222,29 @@ func NewMetrics() *Metrics {
 
 }
 
+type PolicyDigests interface {
+	Digests() map[string][]byte
+}
+
 // StartHTTPEndpoints starts the HTTP endpoints that expose the metrics and
 // additional information.
-func StartHTTPEndpoints(elemId string, cfg config.Config, signer cstrust.RenewingSigner,
-	ca renewal.ChainBuilder, metrics env.Metrics) error {
+func StartHTTPEndpoints(
+	elemId string,
+	cfg config.Config,
+	signer cstrust.RenewingSigner,
+	ca renewal.ChainBuilder,
+	metrics env.Metrics,
+	policyDigests map[string][]byte,
+) error {
 	statusPages := service.StatusPages{
-		"info":           service.NewInfoStatusPage(),
-		"config":         service.NewConfigStatusPage(cfg),
-		"digests/config": service.NewConfigDigestStatusPage(cfg),
-		"log/level":      service.NewLogLevelStatusPage(),
-		"topology":       service.StatusPage{Handler: itopo.TopologyHandler},
-		"signer":         signerStatusPage(signer),
+		"info":             service.NewInfoStatusPage(),
+		"config":           service.NewConfigStatusPage(cfg),
+		"log/level":        service.NewLogLevelStatusPage(),
+		"topology":         service.StatusPage{Handler: itopo.TopologyHandler},
+		"signer":           signerStatusPage(signer),
+		"digests/config":   service.NewConfigDigestStatusPage(cfg),
+		"digests/topology": service.StatusPage{Handler: itopo.TopologyDigestHandler},
+		"digests/policies": policyDigestsStatusPage(policyDigests),
 	}
 	if ca != (renewal.ChainBuilder{}) {
 		statusPages["ca"] = caStatusPage(ca)
@@ -341,6 +353,28 @@ func caStatusPage(signer renewal.ChainBuilder) service.StatusPage {
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "    ")
 		if err := enc.Encode(rep); err != nil {
+			http.Error(w, "Unable to marshal response", http.StatusInternalServerError)
+			return
+		}
+	}
+	return service.StatusPage{Handler: handler}
+}
+
+func policyDigestsStatusPage(digests map[string][]byte) service.StatusPage {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		type digest struct {
+			Digest []byte `json:"digest"`
+		}
+		response := make(map[string]digest)
+		for k, v := range digests {
+			response[k] = digest{Digest: v}
+		}
+
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", "    ")
+		if err := enc.Encode(response); err != nil {
 			http.Error(w, "Unable to marshal response", http.StatusInternalServerError)
 			return
 		}
