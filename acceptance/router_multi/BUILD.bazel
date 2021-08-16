@@ -1,5 +1,6 @@
 load("@io_bazel_rules_docker//container:container.bzl", "container_image")
-load("//lint:py.bzl", "py_library", "py_test")
+load("//lint:py.bzl", "py_library")
+load("//acceptance/common:raw.bzl", "raw_test")
 
 exports_files([
     "conf",
@@ -7,38 +8,46 @@ exports_files([
     "pause.tar",
 ])
 
-py_test(
-    name = "test",
-    srcs = ["test.py"],
-    args = [
-        "--braccept_bin",
-        "$(location //go/integration/braccept)",
-        "--pause_tar",
-        "$(location //acceptance/router_multi:pause.tar)",
-        "--image_tar",
-        "$(location :router.tar)",
-        "--conf_dir",
-        "$(location :conf)",
+args = [
+    "--braccept_bin",
+    "$(location //go/integration/braccept)",
+    "--pause_tar",
+    "$(location //acceptance/router_multi:pause.tar)",
+    "--image_tar",
+    "$(location :router.tar)",
+    "--conf_dir",
+    "$(location :conf)",
+]
+
+data = [
+    "pause.tar",
+    ":conf",
+    ":router.tar",
+    "//go/integration/braccept",
+]
+
+raw_test(
+    name = "test_bfd",
+    src = "test.py",
+    args = args + [
+        "--bfd",
+        "True",
     ],
-    data = [
-        "pause.tar",
-        ":conf",
-        ":router.tar",
-        "//go/integration/braccept",
-    ],
-    # This test uses sudo and  accesses /var/run/netns.
-    # It can't run sandboxed.
+    data = data,
+    # This test uses sudo and accesses /var/run/netns.
     local = True,
-    tags = ["integration"],
+)
+
+raw_test(
+    name = "test_nobfd",
+    src = "test.py",
+    args = args,
+    data = data,
+    # This test uses sudo and accesses /var/run/netns.
+    local = True,
 )
 
 container_image(
     name = "router",
     base = "//docker:posix_router",
-)
-
-py_library(
-    name = "test_lib",
-    srcs = ["test.py"],
-    visibility = ["//visibility:public"],
 )
