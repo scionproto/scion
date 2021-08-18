@@ -16,7 +16,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -24,6 +26,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 
 	"github.com/scionproto/scion/go/integration"
@@ -41,9 +44,22 @@ import (
 )
 
 const (
-	ping = "ping:"
-	pong = "pong:"
+	ping = "ping"
+	pong = "pong"
 )
+
+type Ping struct {
+	Server  addr.IA `json:"server"`
+	Message string  `json:"message"`
+	Trace   []byte  `json:"trace"`
+}
+
+type Pong struct {
+	Client  addr.IA `json:"client"`
+	Server  addr.IA `json:"server"`
+	Message string  `json:"message"`
+	Trace   []byte  `json:"trace"`
+}
 
 var (
 	remote  snet.UDPAddr
@@ -61,7 +77,7 @@ func realMain() int {
 	integration.Setup()
 	validateFlags()
 
-	closeTracer, err := integration.InitTracer("end_2_end")
+	closeTracer, err := integration.InitTracer("end2end-" + integration.Mode)
 	if err != nil {
 		log.Error("Tracer initialization failed", "err", err)
 		return 1
@@ -94,8 +110,7 @@ func validateFlags() {
 	}
 }
 
-type server struct {
-}
+type server struct{}
 
 func (s server) run() {
 	log.Info("Starting server", "isd_as", integration.Local.IA)
@@ -121,52 +136,91 @@ func (s server) run() {
 
 	// Receive ping message
 	for {
-		var p snet.Packet
-		var ov net.UDPAddr
-		if err := readFrom(conn, &p, &ov); err != nil {
-			log.Error("Error reading packet", "err", err)
-			continue
+		if err := s.handlePing(conn); err != nil {
+			log.Error("Error handling ping", "err", err)
 		}
-		udp, ok := p.Payload.(snet.UDPPayload)
-		if !ok {
-			log.Error("Unexpected payload received",
-				"source", p.Source,
-				"destination", p.Destination,
-				"type", common.TypeOf(p.Payload))
-			continue
-		}
-		pld := string(udp.Payload)
-		if pld != ping+integration.Local.IA.String() {
-			log.Error("Unexpected data in payload",
-				"source", p.Source,
-				"destination", p.Destination,
-				"data", pld,
-			)
-			continue
-		}
-		log.Info(fmt.Sprintf("Ping received from %s, sending pong.", p.Source))
-
-		p.Destination, p.Source = p.Source, p.Destination
-		p.Payload = snet.UDPPayload{
-			DstPort: udp.SrcPort,
-			SrcPort: udp.DstPort,
-			Payload: pongMessage(integration.Local.IA, p.Destination.IA),
-		}
-		// reverse path
-		if err := p.Path.Reverse(); err != nil {
-			log.Info("Error reversing path",
-				"source", p.Destination,
-				"destination", p.Source,
-				"err", err)
-			continue
-		}
-		// Send pong
-		if err := conn.WriteTo(&p, &ov); err != nil {
-			log.Error("Unable to send reply", "err", err)
-			continue
-		}
-		log.Info("Sent pong to", "client", p.Destination)
 	}
+}
+
+func (s server) handlePing(conn snet.PacketConn) error {
+	var p snet.Packet
+	var ov net.UDPAddr
+	if err := readFrom(conn, &p, &ov); err != nil {
+		return serrors.WrapStr("reading packet", err)
+	}
+	udp, ok := p.Payload.(snet.UDPPayload)
+	if !ok {
+		return serrors.New("unexpected payload received",
+			"source", p.Source,
+			"destination", p.Destination,
+			"type", common.TypeOf(p.Payload),
+		)
+	}
+	var pld Ping
+	if err := json.Unmarshal(udp.Payload, &pld); err != nil {
+		return serrors.New("invalid payload contents",
+			"source", p.Source,
+			"destination", p.Destination,
+			"data", string(udp.Payload),
+		)
+	}
+
+	spanCtx, err := opentracing.GlobalTracer().Extract(
+		opentracing.Binary,
+		bytes.NewReader(pld.Trace),
+	)
+	if err != nil {
+		return serrors.WrapStr("extracting trace information", err)
+	}
+	span, _ := opentracing.StartSpanFromContext(
+		context.Background(),
+		"handle_ping",
+		ext.RPCServerOption(spanCtx),
+	)
+	defer span.Finish()
+	withTag := func(err error) error {
+		tracing.Error(span, err)
+		return err
+	}
+
+	if pld.Message != ping || !pld.Server.Equal(integration.Local.IA) {
+		return withTag(serrors.New("unexpected data in payload",
+			"source", p.Source,
+			"destination", p.Destination,
+			"data", pld,
+		))
+	}
+	log.Info(fmt.Sprintf("Ping received from %s, sending pong.", p.Source))
+	raw, err := json.Marshal(Pong{
+		Client:  p.Source.IA,
+		Server:  integration.Local.IA,
+		Message: pong,
+		Trace:   pld.Trace,
+	})
+	if err != nil {
+		return withTag(serrors.WrapStr("packing pong", err))
+	}
+
+	p.Destination, p.Source = p.Source, p.Destination
+	p.Payload = snet.UDPPayload{
+		DstPort: udp.SrcPort,
+		SrcPort: udp.DstPort,
+		Payload: raw,
+	}
+	// reverse path
+	if err := p.Path.Reverse(); err != nil {
+		return withTag(serrors.WrapStr("reversing path",
+			err,
+			"source", p.Destination,
+			"destination", p.Source,
+		))
+	}
+	// Send pong
+	if err := conn.WriteTo(&p, &ov); err != nil {
+		return withTag(serrors.WrapStr("sending reply", err))
+	}
+	log.Info("Sent pong to", "client", p.Destination)
+	return nil
 }
 
 type client struct {
@@ -205,24 +259,31 @@ func (c *client) run() int {
 func (c *client) attemptRequest(n int) bool {
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout.Duration)
 	defer cancel()
-	span, ctx := tracing.CtxWith(timeoutCtx, "run")
+	span, ctx := tracing.CtxWith(timeoutCtx, "attempt")
 	span.SetTag("attempt", n)
 	span.SetTag("src", integration.Local.IA)
 	span.SetTag("dst", remote.IA)
 	defer span.Finish()
 	logger := log.FromCtx(ctx)
 
-	// Send ping
-	path, err := c.ping(ctx, n)
+	path, err := c.getRemote(ctx, n)
 	if err != nil {
+		logger.Error("Could not get remote", "err", err)
+		return false
+	}
+	span, ctx = tracing.StartSpanFromCtx(ctx, "attempt.ping")
+	defer span.Finish()
+
+	// Send ping
+	if err := c.ping(ctx, n, path); err != nil {
+		tracing.Error(span, err)
 		logger.Error("Could not send packet", "err", err)
-		ext.Error.Set(span, true)
 		return false
 	}
 	// Receive pong
 	if err := c.pong(ctx); err != nil {
-		logger.Info("Error receiving pong", "err", err)
-		ext.Error.Set(span, true)
+		tracing.Error(span, err)
+		logger.Error("Error receiving pong", "err", err)
 		if path != nil {
 			c.errorPaths[snet.Fingerprint(path)] = struct{}{}
 		}
@@ -231,10 +292,14 @@ func (c *client) attemptRequest(n int) bool {
 	return true
 }
 
-func (c *client) ping(ctx context.Context, n int) (snet.Path, error) {
-	path, err := c.getRemote(ctx, n)
+func (c *client) ping(ctx context.Context, n int, path snet.Path) error {
+	rawPing, err := json.Marshal(Ping{
+		Server:  remote.IA,
+		Message: ping,
+		Trace:   tracing.IDFromCtx(ctx),
+	})
 	if err != nil {
-		return nil, err
+		return serrors.WrapStr("packing ping", err)
 	}
 	c.conn.SetWriteDeadline(getDeadline(ctx))
 	if remote.NextHop == nil {
@@ -257,22 +322,32 @@ func (c *client) ping(ctx context.Context, n int) (snet.Path, error) {
 			Payload: snet.UDPPayload{
 				SrcPort: c.port,
 				DstPort: uint16(remote.Host.Port),
-				Payload: pingMessage(remote.IA),
+				Payload: rawPing,
 			},
 		},
 	}
 	log.Info("sending ping", "attempt", n, "path", path)
-	return path, c.conn.WriteTo(pkt, remote.NextHop)
+	if err := c.conn.WriteTo(pkt, remote.NextHop); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 	if remote.IA.Equal(integration.Local.IA) {
 		return nil, nil
 	}
+	span, ctx := tracing.StartSpanFromCtx(ctx, "attempt.get_remote")
+	defer span.Finish()
+	withTag := func(err error) error {
+		tracing.Error(span, err)
+		return err
+	}
+
 	paths, err := c.sdConn.Paths(ctx, remote.IA, integration.Local.IA,
 		daemon.PathReqFlags{Refresh: n != 0})
 	if err != nil {
-		return nil, serrors.WrapStr("Error requesting paths", err)
+		return nil, withTag(serrors.WrapStr("requesting paths", err))
 	}
 	// if all paths had an error, let's try them again.
 	if len(paths) <= len(c.errorPaths) {
@@ -288,8 +363,10 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 		break
 	}
 	if path == nil {
-		return nil, serrors.New("no path found",
-			"candidates", len(paths), "errors", len(c.errorPaths))
+		return nil, withTag(serrors.New("no path found",
+			"candidates", len(paths),
+			"errors", len(c.errorPaths),
+		))
 	}
 	// Extract forwarding path from the SCION Daemon response
 	remote.Path = path.Path()
@@ -302,17 +379,26 @@ func (c *client) pong(ctx context.Context) error {
 	var p snet.Packet
 	var ov net.UDPAddr
 	if err := readFrom(c.conn, &p, &ov); err != nil {
-		return serrors.WrapStr("Error reading packet", err)
+		return serrors.WrapStr("reading packet", err)
 	}
-	expected := pong + remote.IA.String() + integration.Local.IA.String()
+
 	udp, ok := p.Payload.(snet.UDPPayload)
 	if !ok {
 		return serrors.New("unexpected payload received", "type", common.TypeOf(p.Payload))
 	}
-	pld := string(udp.Payload)
-	if pld != expected {
-		return serrors.New("unexpected data received",
-			"data", pld, "expected", expected)
+
+	var pld Pong
+	if err := json.Unmarshal(udp.Payload, &pld); err != nil {
+		return serrors.WrapStr("unpacking pong", err, "data", string(udp.Payload))
+	}
+
+	expected := Pong{
+		Client:  integration.Local.IA,
+		Server:  remote.IA,
+		Message: pong,
+	}
+	if pld.Client != expected.Client || pld.Server != expected.Server || pld.Message != pong {
+		return serrors.New("unexpected contents received", "data", pld, "expected", expected)
 	}
 	log.Info("Received pong", "server", p.Source)
 	return nil
@@ -337,12 +423,4 @@ func readFrom(conn snet.PacketConn, pkt *snet.Packet, ov *net.UDPAddr) error {
 		"isd_as", opErr.RevInfo().IA(),
 		"interface", opErr.RevInfo().IfID,
 	)
-}
-
-func pingMessage(server addr.IA) []byte {
-	return []byte(ping + server.String())
-}
-
-func pongMessage(server, client addr.IA) []byte {
-	return []byte(pong + server.String() + client.String())
 }
