@@ -225,6 +225,12 @@ function scion_proto.dissector(tvbuf, pktinfo, root)
             return
         end
     end
+    if scion.path_type == "EPIC" then
+        ok = epic_path_dissect(tvbuf(path_offset), pktinfo, tree)
+        if not ok then
+            return
+        end
+    end
     if scion.path_type == "OneHop" then
         scion_ohp_dissect(tvbuf(path_offset), pktinfo, tree)
     end
@@ -551,6 +557,67 @@ function scion_extn_tlv_option_dissect(tvbuf, pktinfo, root)
     end
 
     return len
+end
+
+
+-- EPIC Path
+epic_path = Proto("epic_path", "EPIC Path")
+
+local epath_ts = ProtoField.uint32("epic_path.ts", "EPIC timestamp", base.DEC)
+local epath_ts_rel = ProtoField.relative_time("epic_path.ts.rel",
+        "EPIC timestamp (Relative)", base.UTC)
+local epath_ts_abs = ProtoField.absolute_time("epic_path.ts.abs",
+        "EPIC timestamp (Absolute)", base.UTC)
+local epath_counter = ProtoField.uint32("epic_path.counter", "EPIC counter", base.DEC)
+local epath_phvf = ProtoField.bytes("epic_path.phvf", "PHVF")
+local epath_lhvf = ProtoField.bytes("epic_path.lhvf", "LHVF")
+
+epic_path.fields = {
+    epath_ts,
+    epath_ts_rel,
+    epath_ts_abs,
+    epath_counter,
+    epath_phvf,
+    epath_lhvf,
+}
+
+function epic_path_dissect(tvbuf, pktinfo, root)
+    local tree = root:add(epic_path, tvbuf()):set_text("EPIC")
+
+    -- The EPIC fields have a total size of 16 bytes
+    if tvbuf:len() < 16 then
+        tree:add_proto_expert_info(e_too_short)
+        return
+    end
+
+    -- Parse EPIC fields
+    local packetIdTree = tree:add(tvbuf, "Packet ID")
+    local packetTsTree = packetIdTree:add(tvbuf, "Timestamp")
+    local epicTs = tvbuf(0, 4):uint()
+    local epicTsRelNs = (epicTs+1) * 21 * 1000
+    local epicTsRelSec = epicTsRelNs/10^9
+    epicTsRelNs = epicTsRelNs % 10^9
+    packetTsTree:add(epath_ts, tvbuf(0, 4), epicTs)
+    packetTsTree:add(epath_ts_rel, tvbuf(0, 4), NSTime.new(epicTsRelSec, epicTsRelNs))
+    packetIdTree:add(epath_counter, tvbuf(4, 4))
+    tree:add(epath_phvf, tvbuf(8, 4))
+    tree:add(epath_lhvf, tvbuf(12, 4))
+
+    -- Parse the SCION path type fields
+    ok = scion_path_dissect(tvbuf(16), pktinfo, root)
+    if not ok then
+        return
+    end
+
+    -- Get the timestamp of the first InfoField
+    -- (No checks needed, as SCION path type parsing was successful)
+    local tsInfo = tvbuf(24, 4):uint()
+    
+    -- Calculate and add the EPIC timestamp (absolute)
+    -- (depends on the timestamp of the first InfoField)
+    packetTsTree:add(epath_ts_abs, tvbuf(0, 4), NSTime.new(tsInfo+epicTsRelSec, epicTsRelNs))
+
+    return true
 end
 
 
