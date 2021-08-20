@@ -10,8 +10,8 @@ cryptographic assurance of authenticity and data integrity and to provide
 protection against replays.
 
 The Authenticator option protects integrity of the :ref:`SCION Common Header <scion-common-header>`,
-the :ref:`SCION Address Header <scion-address-header>`, the SCION Path as well as
-the upper layer payload.
+the :ref:`SCION Address Header <scion-address-header>`, the SCION Path as well
+as the upper layer payload.
 :ref:`SCION Extension Headers <scion-extension-headers>` are **not** protected.
 
 In the current form, this option is primarily intended to be used in
@@ -46,12 +46,14 @@ Alignment requirement: 4n + 2::
 OptType
   8-bit value 2
 OptDataLen
-  Unsigned 8-bit integer denoting the length of the full option data (1 + length of Authenticator).
+  Unsigned 8-bit integer denoting the length in bytes of the full option data
+  (12 + length of Authenticator).
   The length depends on algorithm used.
 Timestamp:
   Unsigned 24-bit integer timestamp.
-  The timestamp expressed by the value of this field is relative to the earliest `Timestamp` of
-  the SCION Path :ref:`info fields<scion-path-info-field>`.
+  The timestamp expressed by the value of this field is relative to the
+  `Timestamp` of the first :ref:`Info Field<scion-path-info-field>` of the
+  SCION Path.
   The timestamp has a granularity of
 
   .. math::
@@ -64,30 +66,36 @@ Timestamp:
   and the absolute Unix time expressed by this Timestamp field is
 
   .. math::
-    min_{i \in \mathrm{info\ fields}}(i.\mathrm{Timestamp}) + \mathrm{Timestamp} \cdot q
+    \mathrm{info[0].Timestamp} + \mathrm{Timestamp} \cdot q
 
   The Timestamp field can be used for replay detection by the receiver.
-  The receiver MAY drop packets with timestamps outside of a locally chosen
-  range around the current time and it MAY drop packets with duplicate
-  timestamp and sequence number.
+  The receiver SHOULD drop packets with timestamps outside of a locally chosen
+  range around the current time. 
 
 Sequence Number:
   Unsigned 24-bit sequence number.
   This field can be used for replay detection by the receiver.
 
+  The tuple
+
+
   When used with an :ref:`SPI <spao-spi>` referring to an established
   security association, this is used as a wrapping counter and replay detection
   is based on sliding window of expected counter values.
-  This use case is not specified in detail here. Extending this specification in
-  the future will closely follow [`RFC 4302 <https://tools.ietf.org/html/rfc4302>`_].
+  This use case is not specified in detail here. Extending this specification
+  in the future will closely follow [`RFC 4302 <https://tools.ietf.org/html/rfc4302>`_].
 
   When used with :ref:`spao-spi-drkey`, this field is used together with the
   timestamp field to provide a unique identifier for a packet.
-  The receiver MAY drop packets with duplicate timestamp and sequence number.
   The sender can arbitrarily choose this value, but it SHOULD ensure
   the uniqueness of the combination of timestamp and sequence number.
   For example, the value can be chosen based on a counter, randomly or even as
   a constant, provided that the send rate is low enough.
+  The receiver SHOULD drop packets with duplicate 
+
+  .. math::
+    (\mathrm{Source\ Address, info[0].Timestamp, Timestamp, Sequence\ Number})
+
 
 Security Parameter Index (SPI)
   32-bit identifier for the key used for this authentication option.
@@ -96,7 +104,8 @@ Algorithm
   8-bit identifier of the cryptographic algorithm used. See :ref:`spao-algorithms`.
 Authenticator
   This variable-length field contains the Algorithm-specific message
-  authentication code (MAC).
+  authentication code (MAC), combination of hash and MAC, signature, or other
+  integrity check value.
 RSV
   These bits are reserved for future use and MUST be set to zero by the sender
   and SHOULD be ignored by the recipient.
@@ -112,7 +121,7 @@ authentication option.
 The SPI value of zero (0) is reserved for local, implementation-specific use
 and MUST NOT be sent on the wire.
 
-SPI values in the range :math:`1 \ldots 2^{19}-1` identify a DRKey.
+SPI values in the range :math:`1 \ldots 2^{21}-1` identify a DRKey.
 
 Otherwise, the SPI is an arbitrary value that is used by a receiver to identify
 the security association to which an incoming packet is bound.
@@ -131,8 +140,12 @@ DRKey
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |             0           |T D E|       Protocol Identifier     |
+    |             0       |R R T D E|       Protocol Identifier     |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+R
+  These bits are reserved for future use and MUST be set to zero by the sender
+  and SHOULD be ignored by the recipient.
 
 T
   Type. Specifies the type of the key in the DRKey key hierarchy.
@@ -145,8 +158,9 @@ D
     * ``0``: sender-side key derivation
     * ``1``: receiver-side key derivation
 E
-  Epoch. Specifies the key epoch. The time specified by the Timestamp field is used to look up the relevant candidate epochs.
-  At all times, at most two key epochs can be active; this field distinguishes between these two candidates.
+  Epoch. Specifies the key epoch. The time specified by the Timestamp field is
+  used to look up the relevant candidate epochs. At all times, at most two key
+  epochs can be active; this field distinguishes between these two candidates.
 
     * ``0``: the active epoch with later start time
     * ``1``: the active epoch with earlier start time
@@ -236,13 +250,18 @@ The input for the MAC is the concatenation of the following items:
   the source and destination ISD/AS, as well one or both of the host addresses
   are protected by the key derivation and are skipped in the input to the MAC.
 
-  If an end-to-end key is used (T=1), both source and destination host addresses are skipped.
+  If an end-to-end key is used (T=1), both source and destination host
+  addresses are skipped. 
   If an AS-to-host key is used (T=0), the host address for the deriving side is
-  not included in the key derivation and must be included in the MAC computation.
-  With sender-side key derivation (D=0), the source host address is included in the MAC input.
-  With receiver-side key derivation (D=1), the destination host address is included in the MAC input.
+  not included in the key derivation and must be included in the MAC
+  computation.
+  With sender-side key derivation (D=0), the source host address is included in
+  the MAC input.
+  With receiver-side key derivation (D=1), the destination host address is
+  included in the MAC input.
 
-4. The Path, with all mutable fields set to "zero". This is defined separately per Path Type:
+4. The Path, with all mutable fields set to "zero". This is defined separately
+   per Path Type:
 
   * :ref:`path-type-scion`: the following mutable fields are zeroed:
       - PathMeta Header: ``CurrINF``, ``CurrHF``
@@ -309,12 +328,32 @@ The SHA1 hash is computed over:
 The input to the MAC is:
 
 * the Authenticator Option Metadata (1., 12 bytes)
-* the Address Header (3., 0-48 bytes)
+* the Adress Type/Length fields (1 byte, padded to 4 bytes)
+  and the Address Header (3., 0-48 bytes).
+  
+  The Address Type/Length fields are extracted from the third row of
+  the Common Header, with the remaining fields zeroed out::
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |       0       |DT |DL |ST |SL |              0                |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+  As discussed above, the source and/or destination address may be skipped when
+  used with a :ref:`SPI referring to a DRKey <spoa-spi-drkey>`. If both
+  addresses are skipped, the row for the Address Type/Length fields byte is
+  also skipped.
 * the SHA1 hash (20 bytes)
 
 Observe that when used with suitable an :ref:`SPI referring to a DRKey
 <spoa-spi-drkey>`, the address header may be left empty, resulting in an ideal
 32-byte input size for the AES-CBC MAC.
+
+This scheme is safe from length extension attacks on the AES-CBC MAC; except
+for the addresses, all fields are of a fixed size. The length of the address
+fields is included in the first block of the AES-CBC MAC.
 
 
 Appendix: Design Rationale
@@ -322,30 +361,37 @@ Appendix: Design Rationale
 
 The following goals/constraints led to this design:
 
-- include a timestamp / counter to uniquely identify packets of the entire lifetime of a SCION path (24h).
+- include a timestamp / sequence number to uniquely identify packets of the
+  entire lifetime of a SCION path (24h).
 
-  - with high rates of packets (>1Gpps) we seem to need about 37 bit (~5bytes) for uniqueness
+  - with high rates of packets (>1Gpps) we seem to need about 37 bit (~5bytes)
+    for uniqueness
   - timestamp should be accurate enough to allow dropping obviously old packets
-  - counter should be long enough to allow sliding window replay suppression like in IPSec
+  - sequence number should be long enough to allow sliding window replay
+    suppression like in IPSec
 
-- SPI with around 32-bits like in IPSec -- exact range does not matter as it's locally chosen
+- SPI with around 32-bits like in IPSec -- exact range does not matter as it's
+  locally chosen
 
-- reasonable field alignment with little padding with 4n + 2 option alignment (to avoid padding before first option)
+- reasonable field alignment with little padding with 4n + 2 option alignment
+  (to avoid padding before first option)
 
 - 2 AES blocks or fewer for lightning filter usecase (SHA1-AES-CBC with DRKey)
 
-  - Require as little copying as possible to check MAC in this use case. Hash directly following the option.
+  - Require as little copying as possible to check MAC in this use case. Hash
+    directly following the option.
 
 - this does not appear to work with less than 3 rows. We use the available
-  room to make the timestamp and counter 3 bytes each and leave on reserved
-  byte for future extensions (e.g. flags or extended timestamp or counter).
+  room to make the timestamp and sequence number 3 bytes each and leave one
+  reserved byte for future extensions (e.g. flags or extended timestamp or
+  sequence number).
   The SPI comes first as we don't need to include it in the MAC computation and
   don't want it between the other fields and the SHA1 hash.
 
-  - Possible alternative: one way this could be made shorter to fit into 2 rows:
-    Shorten SPI to 24 bits, incorporate algorithm field as ~4 bits into SPI (only
-    needed with DRKey!) -- this leaves about half the range (:math:`2^{23}`
-    values) for identifying non-DRKey security associations like in IPSec. Is
-    this enough?
-    Then 3 byte SPI + 2 byte counter + 3 byte timestamp gives a horribly
-    misaligned mess but it would be only two rows.
+  - Possible alternative: one way this could be made shorter to fit into 2
+    rows: Shorten SPI to 24 bits, incorporate algorithm field as ~4 bits into
+    SPI (only needed with DRKey!) -- this leaves about half the range
+    (:math:`2^{23}` values) for identifying non-DRKey security associations
+    like in IPSec. Is this enough?
+    Then 3 byte SPI + 2 byte sequence number + 3 byte timestamp gives a
+    horribly misaligned mess but it would be only two rows.
