@@ -20,6 +20,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -121,6 +122,15 @@ func MustTempDir(dir, prefix string) (string, func()) {
 	if err != nil {
 		panic(err)
 	}
+	return name, func() {
+		os.RemoveAll(name)
+	}
+}
+
+func TempDir(t testing.TB) (string, func()) {
+	testName := strings.NewReplacer("/", "_", "\\", "_", ":", "_").Replace(t.Name())
+	name, err := ioutil.TempDir("", fmt.Sprintf("%s_*", testName))
+	require.NoError(t, err)
 	return name, func() {
 		os.RemoveAll(name)
 	}
