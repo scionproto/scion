@@ -161,16 +161,18 @@ func InitAll(defaulters ...Defaulter) {
 	}
 }
 
+// Decode decodes a raw config.
+func Decode(raw []byte, cfg interface{}) error {
+	return toml.NewDecoder(bytes.NewReader(raw)).Strict(true).Decode(cfg)
+}
+
 // LoadFile loads the config from file.
 func LoadFile(file string, cfg interface{}) error {
 	raw, err := ioutil.ReadFile(file)
 	if err != nil {
 		return err
 	}
-	if err := toml.NewDecoder(bytes.NewReader(raw)).Strict(true).Decode(cfg); err != nil {
-		return err
-	}
-	return nil
+	return Decode(raw, cfg)
 }
 
 type nameOverrideSampler struct {
