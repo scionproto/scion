@@ -41,7 +41,11 @@ func TestGatewayWatcherRun(t *testing.T) {
 	gateway1 := control.Gateway{Control: udp(t, "127.0.0.1:30256")}
 	gateway2 := control.Gateway{Control: udp(t, "127.0.0.2:30256")}
 	fetcher := mock_control.NewMockPrefixFetcher(ctrl)
+	fetcherFactory := mock_control.NewMockPrefixFetcherFactory(ctrl)
 	discoverer := mock_control.NewMockDiscoverer(ctrl)
+
+	fetcherFactory.EXPECT().NewPrefixFetcher(gomock.Any()).AnyTimes().Return(fetcher)
+	fetcher.EXPECT().Close().AnyTimes().Return(nil)
 
 	discoverer.EXPECT().Gateways(gomock.Any()).DoAndReturn(
 		func(interface{}) ([]control.Gateway, error) {
@@ -68,9 +72,9 @@ func TestGatewayWatcherRun(t *testing.T) {
 		Discoverer:       discoverer,
 		DiscoverInterval: 10 * time.Millisecond,
 		Template: control.PrefixWatcherConfig{
-			Consumer:     mock_control.NewMockPrefixConsumer(ctrl),
-			Fetcher:      fetcher,
-			PollInterval: 1 * time.Millisecond,
+			Consumer:       mock_control.NewMockPrefixConsumer(ctrl),
+			FetcherFactory: fetcherFactory,
+			PollInterval:   1 * time.Millisecond,
 		},
 	}
 
@@ -103,7 +107,11 @@ func TestPrefixWatcherRun(t *testing.T) {
 
 	gateway := control.Gateway{Control: udp(t, "127.0.0.1:30256")}
 	fetcher := mock_control.NewMockPrefixFetcher(ctrl)
+	fetcherFactory := mock_control.NewMockPrefixFetcherFactory(ctrl)
 	consumer := mock_control.NewMockPrefixConsumer(ctrl)
+
+	fetcherFactory.EXPECT().NewPrefixFetcher(gomock.Any()).AnyTimes().Return(fetcher)
+	fetcher.EXPECT().Close().AnyTimes().Return(nil)
 
 	// Initial error to check consumer is not called on error.
 	fetcher.EXPECT().Prefixes(gomock.Any(), gateway.Control).Return(nil, serrors.New("internal"))
@@ -135,9 +143,9 @@ func TestPrefixWatcherRun(t *testing.T) {
 	)
 
 	cfg := control.PrefixWatcherConfig{
-		Consumer:     consumer,
-		Fetcher:      fetcher,
-		PollInterval: 1 * time.Millisecond,
+		Consumer:       consumer,
+		FetcherFactory: fetcherFactory,
+		PollInterval:   1 * time.Millisecond,
 	}
 	w := control.NewPrefixWatcher(gateway, addr.IA{}, cfg)
 

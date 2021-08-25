@@ -61,37 +61,6 @@ const (
 	swapDelay = 2 * time.Second
 )
 
-type WatcherFactory struct {
-	Dialer      libgrpc.Dialer
-	PathMonitor control.PathMonitor
-	Aggregator  control.PrefixConsumer
-	Policies    *policies.Policies
-}
-
-func (wf *WatcherFactory) New(remote addr.IA,
-	metrics control.GatewayWatcherMetrics) control.Runner {
-
-	pather := wf.PathMonitor.Register(remote, wf.Policies, 0)
-
-	return &control.GatewayWatcher{
-		Remote: remote,
-		Discoverer: controlgrpc.Discoverer{
-			Remote: remote,
-			Dialer: wf.Dialer,
-			Paths:  pather,
-		},
-		Template: control.PrefixWatcherConfig{
-			Consumer: wf.Aggregator,
-			Fetcher: &controlgrpc.PrefixFetcher{
-				Remote: remote,
-				Dialer: wf.Dialer,
-				Pather: pather,
-			},
-		},
-		Metrics: metrics,
-	}
-}
-
 type DataplaneSessionFactory struct {
 	PacketConnFactory  PacketConnFactory
 	PathStatsPublisher dataplane.PathStatsPublisher

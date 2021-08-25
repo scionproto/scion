@@ -312,12 +312,11 @@ func buildSessionConfigs(sessionPolicies SessionPolicies,
 			continue
 		}
 		for _, entry := range gateways {
-			pathPol, err := createPathPolicy(sessionPolicy.IA,
+			pathPol := PathPolicyWithAllowedInterfaces(
 				sessionPolicy.PathPolicy,
-				entry.Gateway.Interfaces)
-			if err != nil {
-				return nil, err
-			}
+				sessionPolicy.IA,
+				entry.Gateway.Interfaces,
+			)
 			result = append(result, &SessionConfig{
 				ID:             sessID,
 				PolicyID:       sessionPolicy.ID,
@@ -335,20 +334,24 @@ func buildSessionConfigs(sessionPolicies SessionPolicies,
 	return result, nil
 }
 
-func createPathPolicy(ia addr.IA, staticPolicy policies.PathPolicy,
-	allowedInterfaces []uint64) (policies.PathPolicy, error) {
+// PathPolicyWithAllowedInterfaces constructs a path policy that only accepts
+// path that match the policy and that enter the remote AS on one of the
+// allowed interfaces. An empty list of allowed interfaces indicates that
+// all interfaces are permitted.
+func PathPolicyWithAllowedInterfaces(
+	policy policies.PathPolicy,
+	remote addr.IA,
+	allowedInterfaces []uint64,
+) policies.PathPolicy {
 
 	if len(allowedInterfaces) == 0 {
-		return staticPolicy, nil
+		return policy
 	}
-	dynPol, err := newPathPolForEnteringAS(ia, allowedInterfaces)
-	if err != nil {
-		return nil, err
+	dynPol := newPathPolForEnteringAS(remote, allowedInterfaces)
+	if policy == DefaultPathPolicy {
+		return dynPol
 	}
-	if staticPolicy == DefaultPathPolicy {
-		return dynPol, nil
-	}
-	return conjuctionPathPol{Pol1: staticPolicy, Pol2: dynPol}, nil
+	return conjuctionPathPol{Pol1: policy, Pol2: dynPol}
 }
 
 func mergePrefixes(static, dynamic []*net.IPNet) []*net.IPNet {
@@ -376,9 +379,9 @@ func (p conjuctionPathPol) Filter(s []snet.Path) []snet.Path {
 	return p.Pol2.Filter(p.Pol1.Filter(s))
 }
 
-func newPathPolForEnteringAS(ia addr.IA, allowedInterfaces []uint64) (policies.PathPolicy, error) {
+func newPathPolForEnteringAS(ia addr.IA, allowedInterfaces []uint64) policies.PathPolicy {
 	if len(allowedInterfaces) == 0 {
-		return DefaultPathPolicy, nil
+		return DefaultPathPolicy
 	}
 	lastHops := make([]string, 0, len(allowedInterfaces))
 	for _, intf := range allowedInterfaces {
@@ -387,9 +390,9 @@ func newPathPolForEnteringAS(ia addr.IA, allowedInterfaces []uint64) (policies.P
 	rawSeq := fmt.Sprintf("0* (%s)", strings.Join(lastHops, "|"))
 	seq, err := pathpol.NewSequence(rawSeq)
 	if err != nil {
-		return nil, serrors.WrapStr("parsing sequence", err, "sequence", rawSeq)
+		panic("invalid sequence: " + rawSeq)
 	}
-	return &pathpol.Policy{Sequence: seq}, nil
+	return &pathpol.Policy{Sequence: seq}
 }
 
 func prefixesKey(prefixes []*net.IPNet) string {

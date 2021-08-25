@@ -199,8 +199,7 @@ func TestSessionConfigurator(t *testing.T) {
 
 func TestBuildSessionConfigs(t *testing.T) {
 	gatewayPolicy := func(ia addr.IA, intfs []uint64) policies.PathPolicy {
-		pol, err := control.NewPathPolForEnteringAS(ia, intfs)
-		require.NoError(t, err)
+		pol := control.NewPathPolForEnteringAS(ia, intfs)
 		return pol
 	}
 	testCases := map[string]struct {
@@ -783,8 +782,7 @@ func TestNewPathPolForEnteringAS(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			pol, err := control.NewPathPolForEnteringAS(tc.IA, tc.Interfaces)
-			assert.NoError(t, err)
+			pol := control.NewPathPolForEnteringAS(tc.IA, tc.Interfaces)
 			assert.ElementsMatch(t, tc.AcceptedPaths, pol.Filter(tc.AcceptedPaths))
 			assert.Empty(t, pol.Filter(tc.RejectedPaths))
 		})

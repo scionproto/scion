@@ -283,14 +283,22 @@ func (e *Engine) initWorkers() error {
 	e.deviceHandles = make([]DeviceHandle, 0, numSessions)
 
 	for _, config := range e.SessionConfigs {
-		dataplaneSession := e.DataplaneSessionFactory.New(config.ID, config.PolicyID,
-			config.IA, config.Gateway.Data)
+		dataplaneSession := e.DataplaneSessionFactory.New(
+			config.ID,
+			config.PolicyID,
+			config.IA,
+			config.Gateway.Data,
+		)
 		remoteIA := config.IA
-		pathMonitorRegistration := e.PathMonitor.Register(remoteIA, &policies.Policies{
-			PathPolicy: config.PathPolicy,
-			PerfPolicy: config.PerfPolicy,
-			PathCount:  config.PathCount,
-		}, config.PolicyID)
+		pathMonitorRegistration := e.PathMonitor.Register(
+			remoteIA,
+			&policies.Policies{
+				PathPolicy: config.PathPolicy,
+				PerfPolicy: config.PerfPolicy,
+				PathCount:  config.PathCount,
+			},
+			strconv.Itoa(config.PolicyID),
+		)
 		probeConn, err := e.ProbeConnFactory.New()
 		if err != nil {
 			return err
@@ -451,5 +459,5 @@ type DataplaneSessionFactory interface {
 
 // PathMonitor is used to construct registrations for path discovery.
 type PathMonitor interface {
-	Register(ia addr.IA, policies *policies.Policies, policyID int) PathMonitorRegistration
+	Register(ia addr.IA, policies *policies.Policies, policyID string) PathMonitorRegistration
 }

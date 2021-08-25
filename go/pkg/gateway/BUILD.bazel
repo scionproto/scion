@@ -7,6 +7,7 @@ go_library(
         "gateway.go",
         "metrics.go",
         "pathmonitor.go",
+        "watcher.go",
     ],
     importpath = "github.com/scionproto/scion/go/pkg/gateway",
     visibility = ["//visibility:public"],
