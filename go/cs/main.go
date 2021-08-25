@@ -588,7 +588,7 @@ func realMain() error {
 		AllowIsdLoop:              isdLoopAllowed,
 	})
 	if err != nil {
-		serrors.WrapStr("starting periodic tasks", err)
+		return serrors.WrapStr("starting periodic tasks", err)
 	}
 	defer tasks.Kill()
 	log.Info("Started periodic tasks")
