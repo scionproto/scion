@@ -156,6 +156,16 @@ func FromJSONFile(path string) (Topology, error) {
 	}, nil
 }
 
+func FromJSONBytes(raw []byte) (Topology, error) {
+	t, err := RWTopologyFromJSONBytes(raw)
+	if err != nil {
+		return nil, err
+	}
+	return &topologyS{
+		Topology: t,
+	}, nil
+}
+
 type topologyS struct {
 	Topology *RWTopology
 }
