@@ -71,7 +71,7 @@ func main() {
 	application.Run()
 }
 
-func realMain() error {
+func realMain(ctx context.Context) error {
 	if err := setup(); err != nil {
 		return err
 	}

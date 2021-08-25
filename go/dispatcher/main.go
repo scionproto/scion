@@ -16,6 +16,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -45,7 +46,7 @@ func main() {
 	application.Run()
 }
 
-func realMain() error {
+func realMain(ctx context.Context) error {
 	if err := util.CreateParentDirs(globalCfg.Dispatcher.ApplicationSocket); err != nil {
 		return serrors.WrapStr("creating directory tree for socket", err)
 	}

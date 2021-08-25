@@ -17,6 +17,7 @@
 package launcher
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -80,7 +81,7 @@ type Application struct {
 	// Main is the custom logic of the application. If nil, no custom logic is executed
 	// (and only the setup/teardown harness runs). If Main returns an error, the
 	// Run method will return a non-zero exit code.
-	Main func() error
+	Main func(ctx context.Context) error
 
 	// ErrorWriter specifies where error output should be printed. If nil, os.Stderr is used.
 	ErrorWriter io.Writer
@@ -109,7 +110,7 @@ func (a *Application) run() error {
 
 	cmd := newCommandTemplate(executable, shortName, a.TOMLConfig, a.Samplers...)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		return a.executeCommand(shortName)
+		return a.executeCommand(cmd.Context(), shortName)
 	}
 	a.config = viper.New()
 	a.config.SetDefault(cfgLogConsoleLevel, log.DefaultConsoleLevel)
@@ -125,16 +126,18 @@ func (a *Application) run() error {
 	// is used behind the scenes by docker stop to cleanly shut down a container).
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGTERM)
+	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		defer log.HandlePanic()
 		<-sigterm
 		log.Info("Received SIGTERM signal, exiting...")
+		cancel()
 		// FIXME(scrye): Use context.Context and clean context propagation to
 		// server modules instead of a global cancelation signal.
 		fatal.Shutdown(env.ShutdownGraceInterval)
 	}()
 
-	return cmd.Execute()
+	return cmd.ExecuteContext(ctx)
 }
 
 func (a *Application) getShortName(executable string) string {
@@ -144,7 +147,7 @@ func (a *Application) getShortName(executable string) string {
 	return executable
 }
 
-func (a *Application) executeCommand(shortName string) error {
+func (a *Application) executeCommand(ctx context.Context, shortName string) error {
 	os.Setenv("TZ", "UTC")
 	fatal.Init()
 
@@ -185,7 +188,7 @@ func (a *Application) executeCommand(shortName string) error {
 		if err != nil {
 			return serrors.WrapStr("loading required IPs", err)
 		}
-		WaitForNetworkReady(ips)
+		WaitForNetworkReady(ctx, ips)
 	}
 	if err := env.LogAppStarted(shortName, a.config.GetString(cfgGeneralID)); err != nil {
 		return err
@@ -202,7 +205,7 @@ func (a *Application) executeCommand(shortName string) error {
 	if a.Main == nil {
 		return nil
 	}
-	return a.Main()
+	return a.Main(ctx)
 }
 
 func (a *Application) getLogging() log.Config {

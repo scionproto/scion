@@ -45,7 +45,7 @@ func main() {
 	application.Run()
 }
 
-func realMain() error {
+func realMain(ctx context.Context) error {
 	globalCfg.Metrics.StartPrometheus()
 
 	reloadConfigTrigger := make(chan struct{})
@@ -53,7 +53,7 @@ func realMain() error {
 	daemonService := &daemon.Service{
 		Address: globalCfg.Daemon.Address,
 	}
-	daemon, err := daemonService.Connect(context.TODO())
+	daemon, err := daemonService.Connect(ctx)
 	if err != nil {
 		return serrors.WrapStr("connecting to daemon", err)
 	}
@@ -63,7 +63,7 @@ func realMain() error {
 		return serrors.WrapStr("parsing control address", err)
 	}
 	if len(controlAddress.IP) == 0 {
-		controlAddress.IP, err = addrutil.DefaultLocalIP(context.Background(), daemon)
+		controlAddress.IP, err = addrutil.DefaultLocalIP(ctx, daemon)
 		if err != nil {
 			return serrors.WrapStr("determine default local IP", err)
 		}

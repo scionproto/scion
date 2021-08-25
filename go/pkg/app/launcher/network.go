@@ -15,6 +15,7 @@
 package launcher
 
 import (
+	"context"
 	"net"
 	"time"
 
@@ -30,7 +31,7 @@ const retryInterval = 500 * time.Millisecond
 // Note in general this function is called directly by the application launcher,
 // and therefore doesn't need to be used. It is public for applications that
 // have custom constraints when the call should happen.
-func WaitForNetworkReady(ips []net.IP) {
+func WaitForNetworkReady(ctx context.Context, ips []net.IP) {
 	for i, ip := range ips {
 		if ip == nil {
 			ips = append(ips[:i], ips[i+1:]...)
@@ -41,18 +42,24 @@ func WaitForNetworkReady(ips []net.IP) {
 	}
 	log.Info("Waiting for network to be ready", "ips", ips)
 	for _, ip := range ips {
-		waitForIPReady(ip)
+		waitForIPReady(ctx, ip)
 	}
 	log.Info("Network ready")
 }
 
-func waitForIPReady(ip net.IP) {
+func waitForIPReady(ctx context.Context, ip net.IP) {
 	for {
 		listener, err := net.ListenTCP("tcp", &net.TCPAddr{IP: ip})
 		if err == nil {
 			listener.Close()
 			return
 		}
-		time.Sleep(retryInterval)
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(retryInterval):
+		}
 	}
+
 }

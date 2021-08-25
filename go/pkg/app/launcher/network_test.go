@@ -15,6 +15,7 @@
 package launcher_test
 
 import (
+	"context"
 	"net"
 	"testing"
 
@@ -34,7 +35,7 @@ func TestWaitForNetworkReady(t *testing.T) {
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			launcher.WaitForNetworkReady(tc.IPs)
+			launcher.WaitForNetworkReady(context.Background(), tc.IPs)
 		})
 	}
 }
