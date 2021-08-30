@@ -75,24 +75,24 @@ The ``AS-AS`` key is derived locally in the AS :math:`A` certificate server (:ma
 with remote certificate servers. More specifically :math:`CS_A` shares :math:`K_{A,B}` with
 :math:`CS_B`.
 
-**AS-host (Level 2)**
+**host-AS (Level 2)**
 
-The ``AS-host`` key is derived in the certificate servers using the Level 1 symmetric key.
+The ``host-AS`` key is derived in the certificate servers using the Level 1 symmetric key.
 It is intended to be used as an intermediate derivation allowing the node holding this
 key to derive Level 3 keys locally.
 Therfore, the key :math:`K_{A:H_A,B}` is only available to :math:`A:H_A` and trusted
 infrastructure.
 
-**host-AS (Level 2)**
+**AS-host (Level 2)**
 
-The ``host-AS`` key is also derived in the certificate servers using the Level 1
+The ``AS-host`` key is also derived in the certificate servers using the Level 1
 symmetric key, however this key is intended to be used for communication.
 In this case, the key :math:`K_{A,B:H_B}` is shared between :math:`AS_A` trusted nodes
 and :math:`B:H_B`.
 
 **host-host (Level 3)**
 
-The ``host-host`` key is derived in :math:`H_A` and :math:`CS_B` using the ``AS-host`` key. This key
+The ``host-host`` key is derived in :math:`H_A` and :math:`CS_B` using the ``host-AS`` key. This key
 is available to both hosts :math:`H_A` and :math:`H_B`.
 
 .. _drkey-specific-derivation:
