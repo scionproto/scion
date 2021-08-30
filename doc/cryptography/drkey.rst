@@ -77,16 +77,16 @@ with remote certificate servers. More specifically :math:`CS_A` shares :math:`K_
 
 **host-AS (Level 2)**
 
-The ``host-AS`` key is derived in the certificate servers using the Level 1 symmetric key.
+The ``host-AS`` key is derived using the Level 1 symmetric key.
 It is intended to be used as an intermediate derivation allowing the node holding this
 key to derive Level 3 keys locally.
-Therfore, the key :math:`K_{A:H_A,B}` is only available to :math:`A:H_A` and trusted
+Therefore, the key :math:`K_{A:H_A,B}` is only available to :math:`A:H_A` and trusted
 infrastructure.
 
 **AS-host (Level 2)**
 
-The ``AS-host`` key is also derived in the certificate servers using the Level 1
-symmetric key, however this key is intended to be used for communication.
+The ``AS-host`` key is also derived using the Level 1 symmetric key,
+however this key is intended to be used for communication.
 In this case, the key :math:`K_{A,B:H_B}` is shared between :math:`AS_A` trusted nodes
 and :math:`B:H_B`.
 
