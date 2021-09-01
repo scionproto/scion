@@ -46,18 +46,7 @@ func (r *redirectSender) Send(bfd *layers.BFD) error {
 		return nil
 	}
 
-	// It's fine if we discard messages if the receiving session is slow
-	// to drain its channel. The only data point we need is that the
-	// sessions under test are up, and this should happen even though
-	// some messages may be lost.
-	//
-	// This can lead to flaky tests when the BFD Detection Multiplier
-	// is 1, as a single lost message will take the session down, but
-	// that configuration value is best avoided in practice.
-	select {
-	case r.Destination <- bfd:
-	default:
-	}
+	r.Destination <- bfd
 	return nil
 }
 
@@ -81,8 +70,8 @@ func TestSession(t *testing.T) {
 		"choose desired interval (bootstrapped)": {
 			sessionA: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  50 * time.Millisecond,
-				RequiredMinRxInterval: 25 * time.Millisecond,
+				DesiredMinTxInterval:  100 * time.Millisecond,
+				RequiredMinRxInterval: 50 * time.Millisecond,
 				Logger:                log.New(),
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
@@ -90,8 +79,8 @@ func TestSession(t *testing.T) {
 			},
 			sessionB: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  50 * time.Millisecond,
-				RequiredMinRxInterval: 25 * time.Millisecond,
+				DesiredMinTxInterval:  100 * time.Millisecond,
+				RequiredMinRxInterval: 50 * time.Millisecond,
 				Logger:                log.New(),
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
@@ -108,16 +97,16 @@ func TestSession(t *testing.T) {
 		"choose desired interval (not bootstrapped)": {
 			sessionA: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  50 * time.Millisecond,
-				RequiredMinRxInterval: 25 * time.Millisecond,
+				DesiredMinTxInterval:  100 * time.Millisecond,
+				RequiredMinRxInterval: 50 * time.Millisecond,
 				Logger:                log.New(),
 				LocalDiscriminator:    1,
 				ReceiveQueueSize:      10,
 			},
 			sessionB: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  50 * time.Millisecond,
-				RequiredMinRxInterval: 25 * time.Millisecond,
+				DesiredMinTxInterval:  100 * time.Millisecond,
+				RequiredMinRxInterval: 50 * time.Millisecond,
 				Logger:                log.New(),
 				LocalDiscriminator:    2,
 				ReceiveQueueSize:      10,
@@ -133,8 +122,8 @@ func TestSession(t *testing.T) {
 		"choose required interval (bootstrapped)": {
 			sessionA: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  25 * time.Millisecond,
-				RequiredMinRxInterval: 50 * time.Millisecond,
+				DesiredMinTxInterval:  50 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
 				Logger:                log.New(),
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
@@ -142,8 +131,8 @@ func TestSession(t *testing.T) {
 			},
 			sessionB: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  25 * time.Millisecond,
-				RequiredMinRxInterval: 50 * time.Millisecond,
+				DesiredMinTxInterval:  50 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
 				Logger:                log.New(),
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
@@ -160,8 +149,8 @@ func TestSession(t *testing.T) {
 		"large detect multiplier, aggressive timers (bootstrapped)": {
 			sessionA: &bfd.Session{
 				DetectMult:            5,
-				DesiredMinTxInterval:  4 * time.Millisecond,
-				RequiredMinRxInterval: 2 * time.Millisecond,
+				DesiredMinTxInterval:  50 * time.Millisecond,
+				RequiredMinRxInterval: 25 * time.Millisecond,
 				Logger:                log.New(),
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
@@ -169,8 +158,8 @@ func TestSession(t *testing.T) {
 			},
 			sessionB: &bfd.Session{
 				DetectMult:            5,
-				DesiredMinTxInterval:  4 * time.Millisecond,
-				RequiredMinRxInterval: 2 * time.Millisecond,
+				DesiredMinTxInterval:  50 * time.Millisecond,
+				RequiredMinRxInterval: 25 * time.Millisecond,
 				Logger:                log.New(),
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
@@ -187,8 +176,8 @@ func TestSession(t *testing.T) {
 		"link starts ok, goes down (bootstrapped)": {
 			sessionA: &bfd.Session{
 				DetectMult:            3,
-				DesiredMinTxInterval:  10 * time.Millisecond,
-				RequiredMinRxInterval: 5 * time.Millisecond,
+				DesiredMinTxInterval:  50 * time.Millisecond,
+				RequiredMinRxInterval: 25 * time.Millisecond,
 				Logger:                log.New(),
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
@@ -196,8 +185,8 @@ func TestSession(t *testing.T) {
 			},
 			sessionB: &bfd.Session{
 				DetectMult:            3,
-				DesiredMinTxInterval:  10 * time.Millisecond,
-				RequiredMinRxInterval: 5 * time.Millisecond,
+				DesiredMinTxInterval:  50 * time.Millisecond,
+				RequiredMinRxInterval: 25 * time.Millisecond,
 				Logger:                log.New(),
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
@@ -217,8 +206,8 @@ func TestSession(t *testing.T) {
 		"link starts ok, goes down in one direction (bootstrapped)": {
 			sessionA: &bfd.Session{
 				DetectMult:            3,
-				DesiredMinTxInterval:  10 * time.Millisecond,
-				RequiredMinRxInterval: 5 * time.Millisecond,
+				DesiredMinTxInterval:  50 * time.Millisecond,
+				RequiredMinRxInterval: 25 * time.Millisecond,
 				Logger:                log.New(),
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
@@ -226,8 +215,8 @@ func TestSession(t *testing.T) {
 			},
 			sessionB: &bfd.Session{
 				DetectMult:            3,
-				DesiredMinTxInterval:  10 * time.Millisecond,
-				RequiredMinRxInterval: 5 * time.Millisecond,
+				DesiredMinTxInterval:  50 * time.Millisecond,
+				RequiredMinRxInterval: 25 * time.Millisecond,
 				Logger:                log.New(),
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
@@ -246,8 +235,8 @@ func TestSession(t *testing.T) {
 		"link starts ok, goes down, goes up again (bootstrapped)": {
 			sessionA: &bfd.Session{
 				DetectMult:            3,
-				DesiredMinTxInterval:  10 * time.Millisecond,
-				RequiredMinRxInterval: 5 * time.Millisecond,
+				DesiredMinTxInterval:  50 * time.Millisecond,
+				RequiredMinRxInterval: 25 * time.Millisecond,
 				Logger:                log.New(),
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
@@ -255,8 +244,8 @@ func TestSession(t *testing.T) {
 			},
 			sessionB: &bfd.Session{
 				DetectMult:            3,
-				DesiredMinTxInterval:  10 * time.Millisecond,
-				RequiredMinRxInterval: 5 * time.Millisecond,
+				DesiredMinTxInterval:  50 * time.Millisecond,
+				RequiredMinRxInterval: 25 * time.Millisecond,
 				Logger:                log.New(),
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
@@ -279,16 +268,16 @@ func TestSession(t *testing.T) {
 		"run without logging (bootstrapped)": {
 			sessionA: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  50 * time.Millisecond,
-				RequiredMinRxInterval: 25 * time.Millisecond,
+				DesiredMinTxInterval:  100 * time.Millisecond,
+				RequiredMinRxInterval: 50 * time.Millisecond,
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
 				ReceiveQueueSize:      10,
 			},
 			sessionB: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  50 * time.Millisecond,
-				RequiredMinRxInterval: 25 * time.Millisecond,
+				DesiredMinTxInterval:  100 * time.Millisecond,
+				RequiredMinRxInterval: 50 * time.Millisecond,
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
 				ReceiveQueueSize:      10,
@@ -354,24 +343,24 @@ func TestSessionDebootstrap(t *testing.T) {
 	// on the remote session knowing the correct local discriminator.
 	sessionA1 := &bfd.Session{
 		DetectMult:            1,
-		DesiredMinTxInterval:  50 * time.Millisecond,
-		RequiredMinRxInterval: 25 * time.Millisecond,
+		DesiredMinTxInterval:  100 * time.Millisecond,
+		RequiredMinRxInterval: 50 * time.Millisecond,
 		Logger:                log.New(),
 		LocalDiscriminator:    1234,
 		ReceiveQueueSize:      10,
 	}
 	sessionA2 := &bfd.Session{
 		DetectMult:            1,
-		DesiredMinTxInterval:  50 * time.Millisecond,
-		RequiredMinRxInterval: 25 * time.Millisecond,
+		DesiredMinTxInterval:  100 * time.Millisecond,
+		RequiredMinRxInterval: 50 * time.Millisecond,
 		Logger:                log.New(),
 		LocalDiscriminator:    4321,
 		ReceiveQueueSize:      10,
 	}
 	sessionB := &bfd.Session{
 		DetectMult:            1,
-		DesiredMinTxInterval:  50 * time.Millisecond,
-		RequiredMinRxInterval: 25 * time.Millisecond,
+		DesiredMinTxInterval:  100 * time.Millisecond,
+		RequiredMinRxInterval: 50 * time.Millisecond,
 		Logger:                log.New(),
 		LocalDiscriminator:    2,
 		ReceiveQueueSize:      10,
