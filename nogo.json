@@ -11,6 +11,7 @@
       "/io_bazel_rules_docker/": "",
       "/com_github_bazelbuild_buildtools/": "",
       "/com_github_grpc_ecosystem_grpc_opentracing/go/otgrpc/": "",
+      "/com_github_vishvananda_netlink/": "",
       "/org_golang_x_tools/internal": ""
     }
   },
