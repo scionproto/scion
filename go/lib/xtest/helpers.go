@@ -127,9 +127,13 @@ func MustTempDir(dir, prefix string) (string, func()) {
 	}
 }
 
+// SanitizedName sanitizes the test name such that it can be used as a file name.
+func SanitizedName(t testing.TB) string {
+	return strings.NewReplacer(" ", "_", "/", "_", "\\", "_", ":", "_").Replace(t.Name())
+}
+
 func TempDir(t testing.TB) (string, func()) {
-	testName := strings.NewReplacer("/", "_", "\\", "_", ":", "_").Replace(t.Name())
-	name, err := ioutil.TempDir("", fmt.Sprintf("%s_*", testName))
+	name, err := ioutil.TempDir("", fmt.Sprintf("%s_*", SanitizedName(t)))
 	require.NoError(t, err)
 	return name, func() {
 		os.RemoveAll(name)
