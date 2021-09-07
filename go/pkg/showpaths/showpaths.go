@@ -107,7 +107,7 @@ func (r Result) Human(w io.Writer, showExtendedMetadata, colored bool) {
 				"LinkType", humanLinkType(meta),
 				"InternalHops", humanInternalHops(meta),
 				"Notes", humanNotes(meta),
-				"EPIC", strconv.FormatBool(supportsEpic),
+				"SupportsEPIC", strconv.FormatBool(supportsEpic),
 			)...)
 		}
 		if path.Status != "" {
@@ -351,7 +351,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 			LocalIP:    cfg.Local,
 			ID:         uint16(rand.Uint32()),
 			Dispatcher: cfg.Dispatcher,
-		}.GetStatuses(ctx, p, cfg.Epic)
+		}.GetStatuses(ctx, p, pathprobe.Options{EPIC: cfg.Epic})
 		if err != nil {
 			return nil, serrors.WrapStr("getting statuses", err)
 		}

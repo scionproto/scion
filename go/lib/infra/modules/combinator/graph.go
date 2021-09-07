@@ -392,16 +392,14 @@ func (solution *pathSolution) Path() Path {
 	asEntries := segments.ASEntries()
 	staticInfo := collectMetadata(interfaces, asEntries)
 
-	var epicAuths *snet.EpicAuths = nil
+	sPath := segments.SPath()
 	if authPHVF, authLHVF, ok := isEpicAvailable(epicPathAuths); ok {
-		epicAuths = &snet.EpicAuths{
-			AuthPHVF: authPHVF,
-			AuthLHVF: authLHVF,
-		}
+		sPath.EpicData.AuthPHVF = authPHVF
+		sPath.EpicData.AuthLHVF = authLHVF
 	}
 
 	return Path{
-		SPath: segments.SPath(),
+		SPath: sPath,
 		Metadata: snet.PathMetadata{
 			Interfaces:   interfaces,
 			MTU:          mtu,
@@ -412,7 +410,6 @@ func (solution *pathSolution) Path() Path {
 			LinkType:     staticInfo.LinkType,
 			InternalHops: staticInfo.InternalHops,
 			Notes:        staticInfo.Notes,
-			EpicAuths:    epicAuths,
 		},
 		Weight: solution.cost,
 	}

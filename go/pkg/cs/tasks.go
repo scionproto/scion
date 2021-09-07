@@ -71,6 +71,8 @@ type TasksConfig struct {
 	HiddenPathRegistrationCfg *HiddenPathRegistrationCfg
 
 	AllowIsdLoop bool
+
+	EPIC bool
 }
 
 // Originator starts a periodic beacon origination task. For non-core ASes, no
@@ -206,7 +208,7 @@ func (t *TasksConfig) extender(task string, ia addr.IA, mtu uint16,
 		MaxExpTime: func() uint8 { return maxExp() },
 		StaticInfo: t.StaticInfo,
 		Task:       task,
-		EPIC:       true,
+		EPIC:       t.EPIC,
 	}
 }
 

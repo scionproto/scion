@@ -179,7 +179,7 @@ func (p *Path) Reverse() error {
 	if p.Type == epic.PathType {
 		e, ok := po.(*epic.Path)
 		if !ok {
-			return serrors.New("Path type and path data do not match")
+			return serrors.New("path type and path data do not match")
 		}
 		po = e.ScionPath
 		p.EpicData.enabled = false

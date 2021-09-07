@@ -18,7 +18,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/integration"
@@ -56,7 +55,7 @@ func realMain() int {
 		"--timeout", "4s",
 		"--sciond", integration.Daemon,
 		"--log.level", "debug",
-		fmt.Sprintf("--epic=%s", strconv.FormatBool(epic)),
+		fmt.Sprintf("--epic=%t", epic),
 	}
 	if *integration.Docker {
 		cmnArgs = append(cmnArgs,

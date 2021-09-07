@@ -84,14 +84,14 @@ func Choose(
 	}
 	if o.epic {
 		// Only use paths that support EPIC and intra-AS (empty) paths.
-		epicPaths := []snet.Path{}
+		var epicPaths = make([]snet.Path, 0, len(paths))
 		for _, path := range paths {
 			if path.Path().SupportsEpic() || path.Path().IsEmpty() {
 				epicPaths = append(epicPaths, path)
 			}
 		}
 		if len(epicPaths) == 0 {
-			return nil, serrors.New("no EPIC paths available.")
+			return nil, serrors.New("no EPIC paths available")
 		}
 		paths = epicPaths
 	}
@@ -137,7 +137,7 @@ func filterUnhealthy(
 		ID:                     uint16(rand.Uint32()),
 		SCIONPacketConnMetrics: cfg.SCIONPacketConnMetrics,
 		Dispatcher:             cfg.Dispatcher,
-	}.GetStatuses(subCtx, nonEmptyPaths, epic)
+	}.GetStatuses(subCtx, nonEmptyPaths, pathprobe.Options{EPIC: epic})
 	if err != nil {
 		return nil, serrors.WrapStr("probing paths", err)
 	}

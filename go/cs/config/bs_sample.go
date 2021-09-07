@@ -23,6 +23,9 @@ propagation_interval = "5s"
 
 # The interval between registering beacons. (default 5s)
 registration_interval = "5s"
+
+# Add EPIC authenticators to the beacons. (default true)
+epic = true
 `
 
 const policiesSample = `

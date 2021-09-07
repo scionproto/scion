@@ -212,14 +212,8 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 		linkType[i] = linkTypeFromPB(v)
 	}
 
-	var epicAuths *snet.EpicAuths = nil
 	var epicData spath.EpicData
 	if p.EpicAuths != nil {
-		epicAuths = &snet.EpicAuths{
-			AuthPHVF: p.EpicAuths.AuthPhvf,
-			AuthLHVF: p.EpicAuths.AuthLhvf,
-		}
-
 		epicData = spath.EpicData{
 			AuthPHVF: p.EpicAuths.AuthPhvf,
 			AuthLHVF: p.EpicAuths.AuthLhvf,
@@ -245,7 +239,6 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 			LinkType:     linkType,
 			InternalHops: p.InternalHops,
 			Notes:        p.Notes,
-			EpicAuths:    epicAuths,
 		},
 	}, nil
 }
