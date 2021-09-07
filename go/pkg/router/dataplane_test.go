@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"net"
 	"sync"
-	"syscall"
 	"testing"
 	"time"
 

@@ -25,7 +25,6 @@ import (
 	"net"
 	"strconv"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/google/gopacket"
