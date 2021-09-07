@@ -75,7 +75,7 @@ func realMain() int {
 		"-sciond", integration.Daemon,
 		"-local", integration.SrcAddrPattern + ":0",
 		"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
-		fmt.Sprintf("-epic=%s", strconv.FormatBool(epic)),
+		fmt.Sprintf("-epic=%t", epic),
 	}
 	serverArgs := []string{
 		"-mode", "server",
@@ -278,7 +278,7 @@ func clientTemplate(progressSock string) integration.Cmd {
 			"-sciond", integration.Daemon,
 			"-local", integration.SrcAddrPattern + ":0",
 			"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
-			fmt.Sprintf("-epic=%s", strconv.FormatBool(epic)),
+			fmt.Sprintf("-epic=%t", epic),
 		},
 	}
 	if len(features) != 0 {

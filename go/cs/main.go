@@ -647,6 +647,7 @@ func realMain(ctx context.Context) error {
 		StaticInfo:      func() *beaconing.StaticInfoCfg { return staticInfo },
 
 		OriginationInterval:       globalCfg.BS.OriginationInterval.Duration,
+		EPIC:                      globalCfg.BS.EPIC,
 		PropagationInterval:       globalCfg.BS.PropagationInterval.Duration,
 		RegistrationInterval:      globalCfg.BS.RegistrationInterval.Duration,
 		HiddenPathRegistrationCfg: hpWriterCfg,

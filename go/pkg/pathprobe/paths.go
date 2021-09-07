@@ -110,11 +110,15 @@ type Prober struct {
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 }
 
+type Options struct {
+	EPIC bool
+}
+
 // GetStatuses probes the paths and returns the statuses of the paths. The
 // returned map is keyed with path.Path.FwdPath. The input should only be
 // non-empty paths.
 func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
-	epic bool) (map[string]Status, error) {
+	opts Options) (map[string]Status, error) {
 
 	deadline, ok := ctx.Deadline()
 	if !ok {
