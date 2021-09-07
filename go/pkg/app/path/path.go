@@ -97,7 +97,7 @@ func Choose(
 			}
 		}
 		if len(epicPaths) == 0 {
-			return nil, serrors.New("no EPIC paths available.")
+			return nil, serrors.New("no EPIC paths available")
 		}
 		paths = epicPaths
 	}
