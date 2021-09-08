@@ -677,7 +677,7 @@ func (g *Gateway) diagnosticsSGRP(
 	pub *control.ConfigPublisher,
 ) http.HandlerFunc {
 
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, _ *http.Request) {
 		var d struct {
 			Advertise struct {
 				Static []string `json:"static"`

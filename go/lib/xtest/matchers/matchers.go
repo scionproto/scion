@@ -122,3 +122,42 @@ func (m *QueryHPGroupIDs) Matches(x interface{}) bool {
 func (m *QueryHPGroupIDs) String() string {
 	return fmt.Sprintf("is []uint64 = %v", m.ids)
 }
+
+// PartialStruct can be used to match a struct partially. All specified fields
+// in the target struct will be matched. The field values which have a zero
+// value are ignored. Passing a target which is not a struct or a pointer to a
+// struct is invalid and will result in a matcher that matches nothing.
+type PartialStruct struct {
+	Target interface{}
+}
+
+func (m PartialStruct) Matches(x interface{}) bool {
+	expect := reflect.ValueOf(m.Target)
+	unpack := func(v reflect.Value) reflect.Value { return v }
+	if expect.Kind() == reflect.Ptr {
+		unpack = func(v reflect.Value) reflect.Value { return v.Elem() }
+		expect = expect.Elem()
+	}
+	if expect.Kind() != reflect.Struct {
+		return false
+	}
+	if reflect.TypeOf(m.Target) != reflect.TypeOf(x) {
+		return false
+	}
+	v := unpack(reflect.ValueOf(x))
+	for i := 0; i < expect.NumField(); i++ {
+		ev := expect.Field(i)
+		if ev.IsZero() {
+			continue
+		}
+		av := v.Field(i)
+		if !reflect.DeepEqual(ev.Interface(), av.Interface()) {
+			return false
+		}
+	}
+	return true
+}
+
+func (m PartialStruct) String() string {
+	return fmt.Sprintf("partial struct with non-zero fields: %s", m.Target)
+}
