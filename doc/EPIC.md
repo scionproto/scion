@@ -1,7 +1,7 @@
-# EPIC Design
+# EPIC-HP Design
 
-This file introduces EPIC and documents the design rationales and best
-practices for EPIC-HP.
+This file introduces EPIC-HP and documents its design rationales and best
+practices.
 
 ## Introduction
 

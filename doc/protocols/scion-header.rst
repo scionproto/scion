@@ -57,9 +57,8 @@ PayloadLen
 PathType
     The PathType specifies the SCION path type with up to 256 different types.
     The format of each path type is independent of each other. The initially
-    proposed SCION path types are Empty (0), SCION (1), OneHopPath (2), EPIC (3)
-    and COLIBRI (4). Here, we only specify the Empty, SCION and OneHopPath path
-    types.
+    proposed SCION path types are Empty (0), SCION (1), OneHopPath (2), EPIC-HP (3),
+    COLIBRI (4), and EPIC-SAPV (5).
 DT/DL/ST/SL
     DT/ST and DL/SL encode host-address type and host-address length,
     respectively, for destination/ source. The possible host address length
@@ -653,8 +652,8 @@ border router recomputes and validates the LHVF.
 The specification of how the MACs for the Hop Validation Fields are
 calculated can be found in the `EPIC Procedures`_ section.
 
-EPIC Header Length Calculation
-------------------------------
+EPIC-HP Header Length Calculation
+---------------------------------
 The length of the EPIC Path header is the same as the SCION Path
 header plus 8 bytes (Packet Identifier), and plus 8 bytes for the
 PHVF and LHVF.
@@ -732,3 +731,258 @@ packet is dropped.
 
 How to only allow EPIC-HP traffic on a hidden path (and not SCION
 path type packets) is described in the `EPIC design document`_.
+
+Path Type: EPIC-SAPV
+====================
+The Path Type EPIC-SAPV (Source Authentication and Path
+Validation) contains the following parts:
+
+   - An 8-byte Packet Identifier (same as for EPIC-HP).
+   - The 2-byte PayloadLen of the original packet (only needed for
+     EPIC-SAPV packets with a reversed path) and some flags.
+   - A SCION path type header with slightly modified hop fields.
+
+::
+
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                             PktID                             |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                     OrigPayloadLen + Flags                    |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                          PathMetaHdr                          |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                           InfoField                           |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                              ...                              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                           InfoField                           |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                           HopField                            |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                              ...                              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                           HopField                            |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+SCION Header Modifications
+--------------------------
+EPIC-SAPV contains the SCION path type header with the following
+adaptation:
+
+   - The size of the MAC (six bytes for the SCION path type) inside the
+     Hop Fields is reduced to two bytes, the four bytes of freed
+     space are used for the Hop Validation Field (HVF).
+
+OrigPayloadLen + Flags
+^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |R|V|        Reserved           |         OrigPayloadLen        |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+EPIC Path Reversal (R):
+  Indicates that the path was reversed. This information tells the
+  border routers on the return path that the HVF in the packet was
+  already updated and that the source and destination in the address
+  header were switched. This is necessary because the destination
+  address (instead of the source address) and the OrigPayloadLen
+  (instead of the PayloadLen) have to be used for the correct
+  verification of the HVF on the return path.
+
+Path Validation for the Source Host (V):
+  Specifies whether the source host wants to validate the path.
+  Setting this flag will cause the destination host to send back a
+  proof that the packet indeed traversed the path intended by the
+  source.
+
+OrigPayloadLen:
+  For a packet traversing the path in the backward direction (``R=1``),
+  the OrigPayloadLen field contains the payload length of the original
+  EPIC-SAPV packet. This information allows border routers to verify
+  the HVFs of EPIC-SAPV response packets. For packets with ``R=0``,
+  i.e., in the forward direction, this field is not used and SHOULD
+  be set to zero.
+
+Hop Field
+^^^^^^^^^
+::
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |r r r r r r I E|    ExpTime    |           ConsIngress         |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |        ConsEgress             |              MAC              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                              HVF                              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+We reduce the size of the MAC field to 2 bytes and assign a 4-byte
+Hop Validation Field (HVF) to the freed space. The total size of the
+Hop Field stays the same (12 bytes).
+The remaining 2 bytes of the MAC are necessary to be able to recompute
+the ``SegID`` when processing a Hop Field against the
+beacon-construction direction:
+:math:`\beta_{i+1} = \beta_i \oplus \sigma_i[:2]`
+(see `Hop Field MAC Computation`_ and `Path Calculation`_).
+
+Therefore, ASes in EPIC-SAPV can still verify path authorization the
+same way it is done for SCION path type packets, even though they
+only contain 2-byte MACs and not 6-byte MACs.
+
+The reason for this modification is to omit blowing up the header
+with additional fields. This is important here because
+one HVF is needed per AS, and hence the header size would increase
+linearly with the number of ASes on the path.
+
+Packet Validation at the Destination Host
+-----------------------------------------
+The destination host validates the authenticity of the packet's
+source and content, and verifies that the packet indeed followed the
+desired path (i.e., the HVFs have all been updated correctly on the
+way). For this, EPIC-SAPV packets MUST also include the SPAO
+option (`SPAO design document`_).
+
+.. _`SPAO design document`: ../protocols/authenticator-option.html
+
+EPIC-SAPV Header Length Calculation
+-----------------------------------
+The length of the EPIC-SAPV path type header is the same as the SCION
+path type header plus 12 bytes (8 bytes for the Packet ID and 4 bytes
+for the OrigPayloadLen and flags).
+
+Procedures
+----------
+
+**Control plane:**
+The beaconing process is the same as for SCION, but the ASes not
+only add the 6 bytes of the truncated MAC to the beacon, but further
+append the remaining 10 bytes (as in EPIC-HP).
+
+**Data plane:**
+The source host fetches the path, including all the 6-byte short hop
+authenticators and the remaining 10 bytes of the authenticators, from
+a (hidden) path server. We refer to the 16 bytes of the fully
+assembled authenticator of the i'th on-path AS as :math:`{ \sigma_i}`.
+Note that the penultimate and the last authenticator of the last
+segment are the same as :math:`{\sigma_{\text{PH}}}` and
+:math:`{\sigma_{\text{LH}}}` in EPIC-HP.
+
+In addition to the authenticators, the source also retrieves the
+2nd-level AS-host DRKeys :math:`K_i^S` between the source host S and
+the on-path ASes and the 3rd-level DRKey :math:`K_{SD}` between the
+source host and the destination host, from the certificate server
+(`DRKey design document`_). The source then calculates the HVFs
+(:math:`V_i` for the i'th on-path AS) and the expected HVFs at the
+destination (:math:`U_i` for the i'th on-path AS) as follows:
+
+.. math::
+    \begin{align}
+    W_i &= \text{MAC}_{(K_i^{\text{S}} \oplus \sigma_i)}
+        (\text{Timestamp}, \text{PktID}, \text{PayloadLen}) \\
+    V_i &= W_i ~\text{[0:4]} \\
+    U_i &= W_i ~\text{[4:8]}
+    \end{align}
+
+Here, "Timestamp" is the Timestamp from the first `Info Field`_.
+Note that the ``R`` and ``V`` flags are not included in the MAC
+computation. Also, we do not include the packet origin (source
+host/AS/ISD) because this is already included in the computation
+of :math:`K_i^{\text{S}}`.
+The rationale behind using :math:`(K_i^{\text{S}} \oplus \sigma_i)`
+as the key to the MAC is to save one block cipher operation.
+The intuition why this is still secure, is that XORing a random
+value with some other value again results in a random value.
+
+As in SCION, the source writes all the :math:`\sigma_i` to the
+MAC-subfield of the Hop Fields, but in this case truncates the MAC
+to 2 bytes instead of 6 bytes. The :math:`V_i` are subsequently
+stored in the HVF-subfield of the Hop Fields. The source host writes
+the necessary :math:`\beta` to the SegID of the Info Fields as for
+the SCION path type.
+
+.. Note::
+
+    If the source not only wants to enable source authentication but
+    also path validation, it stores the expected HVFs, i.e., the HVFs
+    after they have been updated by every on-path AS
+    (:math:`U_i`), under ``(Timestamp | PktID)`` as the lookup key.
+    To indicate its need for path validation, it also sets the
+    corresponding flag in the EPIC-SAPV header (``V=1``).
+
+In a last step, the source host adds the SPAO, where the SPAO
+authenticator is calculated using :math:`K_{SD}`.
+Note that in contrast to the computation of the HVFs, the ``R`` and
+the ``V`` flags are included in the calculation of the SPAO
+authenticator,  which ensures that on-path ASes cannot modify them.
+
+The border routers perform the same path authorization operations as
+in SCION (see `Path Calculation`_), but based on the shorter Hop
+Field MAC. This is possible because the Hop Fields still contain the
+two bytes of the MAC that are necessary for the chaining of the hops.
+In addition, the border routers derive the corresponding 2nd-level
+DRKey (:math:`K_i^S`), and recompute and validate the :math:`V_i`.
+The egress border router then updates the HVF from :math:`V_i` to
+:math:`U_i`.
+
+Upon receiving a packet, the destination host fetches :math:`K_{SD}`
+from its local certificate server (or derives it from its 2nd-level
+DRKey), and validates the SPAO.
+
+.. Note::
+
+    If the validation flag is set (``V = 1``), the destination host
+    sends back a response containing the Timestamp, PktID, and the
+    HVFs of the original packet as its payload, and again
+    authenticates it using the SPAO based on :math:`K_{SD}`.
+
+    The source host subsequently verifies the SPAO of the response,
+    and looks up the expected HVFs stored under
+    ``(Timestamp | PktID)``. If they match the HVFs in the response,
+    the source knows that its original packet indeed traversed the
+    intended path.
+
+.. _`DRKey design document`: ../cryptography/DRKeyInfra.html
+
+Replying to an EPIC-SAPV Packet
+-------------------------------
+
+When the destination host receives an EPIC-SAPV packet with the
+validation flag set ``V=1``, this means that the source host expects
+a response packet that allows it to also validate the packet's path.
+The destination host is free which path type to choose for the
+response packet:
+
+**SCION Path:**
+As four of six bytes of the SCION Hop Field MACs are overwritten by a
+HVF, it is not possible to invert the modified SCION path inside the
+EPIC-SAPV packet and directly return a standard SCION packet over the
+same path. Instead, a new path has to be retrieved for response packets.
+
+**New EPIC-SAPV Path:**
+To achieve the best security guarantees, the response should also use
+the EPIC-SAPV path type without the reverse-flag set (``R=0``). But
+also here, a new path has to be retrieved, and additionally the
+corresponding DRKeys need to be fetched. To prevent circular
+confirmations, the validation-flag MUST NOT be set (``V=0``) in the
+EPIC-SAPV response packet.
+
+**Reverse EPIC-SAPV Path (Default Option):**
+To avoid having to potentially fetch new paths or DRKeys, it is
+possible to return the EPIC-SAPV packet by inverting the EPIC-SAPV
+path type header and setting the reverse-flag (``R=1``). This also
+corresponds to how border routers can send back SCMP packets in
+EPIC-SAPV. Also here, the validation-flag MUST NOT be set (``V=0``).
+Every border router on the return path again validates the updated
+HVF (:math:`U_i`). Because the reverse-flag is set, it knows that it
+has to use the destination address in place of the source address in
+the input to the HVF calculation. The response packet will be
+forwarded by the border routers based on best-effort.
+
+If the validation-flag was not set, this means that the source host
+is not interested in validating the path, and therefore the
+destination host does not send back a reply packet.
