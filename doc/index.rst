@@ -30,6 +30,7 @@ is a good place to start.
    uri
    grpc
    EPIC
+   CASA
    ColibriService
    BeaconService
    PathService
