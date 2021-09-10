@@ -59,7 +59,7 @@ Timestamp:
   .. math::
       q := \left\lceil\left(
         \frac{24 \times 60 \times 60 \times 10^3}
-             {2^{32}}
+             {2^{24}}
       \right)\right\rceil ms
           = 6 ms.\\
 
@@ -70,14 +70,11 @@ Timestamp:
 
   The Timestamp field can be used for replay detection by the receiver.
   The receiver SHOULD drop packets with timestamps outside of a locally chosen
-  range around the current time. 
+  range around the current time.
 
 Sequence Number:
   Unsigned 24-bit sequence number.
   This field can be used for replay detection by the receiver.
-
-  The tuple
-
 
   When used with an :ref:`SPI <spao-spi>` referring to an established
   security association, this is used as a wrapping counter and replay detection
@@ -91,7 +88,7 @@ Sequence Number:
   the uniqueness of the combination of timestamp and sequence number.
   For example, the value can be chosen based on a counter, randomly or even as
   a constant, provided that the send rate is low enough.
-  The receiver SHOULD drop packets with duplicate 
+  The receiver SHOULD drop packets with duplicate
 
   .. math::
     (\mathrm{Source\ Address, info[0].Timestamp, Timestamp, Sequence\ Number})
@@ -176,6 +173,15 @@ The authenticator for a packet is computed over the immutable fields of
 the SCION packet's :ref:`Common Header <scion-common-header>`, :ref:`Address
 Header <scion-address-header>` and the path.
 
+.. note::
+   It would be possible to also include mutable but predictable fields in the
+   authenticator, like for example the ``CurrINF``, ``CurrHF`` and ``SegID``
+   fields of the SCION path (see 4. below).
+   As predicting these fields can incur additional overhead, they are not
+   included in the authenticator by default. This could however be added as an
+   optional feature in the future (e.g. controlled with a flag in the reserved
+   bits or by selecting it depending on the algorithm type).
+
 The extension headers are explicitly not protected and consequently, the
 ``NextHdr`` and ``PayloadLen`` fields of the common header are ignored.
 Instead, the upper-layer protocol identifier and the upper layer packet length
@@ -246,12 +252,12 @@ The input for the MAC is the concatenation of the following items:
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 
-  When used with an :ref:`SPI referring to a DRKey <spoa-spi-drkey>`,
+  When used with an :ref:`SPI referring to a DRKey <spao-spi-drkey>`,
   the source and destination ISD/AS, as well one or both of the host addresses
   are protected by the key derivation and are skipped in the input to the MAC.
 
   If an end-to-end key is used (T=1), both source and destination host
-  addresses are skipped. 
+  addresses are skipped.
   If an AS-to-host key is used (T=0), the host address for the deriving side is
   not included in the key derivation and must be included in the MAC
   computation.
@@ -330,7 +336,7 @@ The input to the MAC is:
 * the Authenticator Option Metadata (1., 12 bytes)
 * the Adress Type/Length fields (1 byte, padded to 4 bytes)
   and the Address Header (3., 0-48 bytes).
-  
+
   The Address Type/Length fields are extracted from the third row of
   the Common Header, with the remaining fields zeroed out::
 
@@ -342,18 +348,21 @@ The input to the MAC is:
 
 
   As discussed above, the source and/or destination address may be skipped when
-  used with a :ref:`SPI referring to a DRKey <spoa-spi-drkey>`. If both
+  used with a :ref:`SPI referring to a DRKey <spao-spi-drkey>`. If both
   addresses are skipped, the row for the Address Type/Length fields byte is
   also skipped.
 * the SHA1 hash (20 bytes)
 
 Observe that when used with suitable an :ref:`SPI referring to a DRKey
-<spoa-spi-drkey>`, the address header may be left empty, resulting in an ideal
+<spao-spi-drkey>`, the address header may be left empty, resulting in an ideal
 32-byte input size for the AES-CBC MAC.
 
 This scheme is safe from length extension attacks on the AES-CBC MAC; except
 for the addresses, all fields are of a fixed size. The length of the address
 fields is included in the first block of the AES-CBC MAC.
+It is visible from the metadata whether the addresses are to be skipped from
+the MAC input, as discussed above, so that also in this case no length
+extension attacks are possible.
 
 
 Appendix: Design Rationale
@@ -376,7 +385,7 @@ The following goals/constraints led to this design:
 - reasonable field alignment with little padding with 4n + 2 option alignment
   (to avoid padding before first option)
 
-- 2 AES blocks or fewer for lightning filter usecase (SHA1-AES-CBC with DRKey)
+- 2 AES blocks or fewer for lightning filter use case (SHA1-AES-CBC with DRKey)
 
   - Require as little copying as possible to check MAC in this use case. Hash
     directly following the option.
@@ -387,11 +396,3 @@ The following goals/constraints led to this design:
   sequence number).
   The SPI comes first as we don't need to include it in the MAC computation and
   don't want it between the other fields and the SHA1 hash.
-
-  - Possible alternative: one way this could be made shorter to fit into 2
-    rows: Shorten SPI to 24 bits, incorporate algorithm field as ~4 bits into
-    SPI (only needed with DRKey!) -- this leaves about half the range
-    (:math:`2^{23}` values) for identifying non-DRKey security associations
-    like in IPSec. Is this enough?
-    Then 3 byte SPI + 2 byte sequence number + 3 byte timestamp gives a
-    horribly misaligned mess but it would be only two rows.
