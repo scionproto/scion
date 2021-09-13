@@ -16,6 +16,21 @@ DRKey is used for the following systems:
 - COLIBRI
 - EPIC
 
+In the DRKey system, the key establishment is offloaded to the certificate service
+(CS).
+Certificates services exchange top-level keys that will be used afterwards
+to derive lower level keys locally.
+The DRKey system leverages efficient key derivation and pseudorandom functions
+to derive keys in the hierarchy from top to bottom.
+
+The first secret in the hierarchy (:math:`SV_A`) is derived from a long-term ``master_secret``,
+using a key derivation function.
+For the rest of the derivations, DRKey utilizes pseudorandom functions, which are more efficient.
+Informally, key derivation functions output a cryptographic key indistingushible from
+a random key if the secret is unknown for the attacker.
+In contrast, the security of pseudorandom functions relies on the input being a uniformly
+random secret.
+
 Notation
 ========
 
@@ -37,21 +52,6 @@ Notation
      - certificate server located in AS A
    * - :math:`SV_A`
      - AS A's local secret value
-
-
-Design
-======
-
-In the DRKey system, the key establishment is offloaded to the certificate service
-(CS). The certificate service leverages efficient key derivation and
-pseudorandom functions to derive keys in the hierarchy from top
-to bottom.
-
-The first secret in the hierarchy (:math:`SV_A`) is derived from a long-term ``master_secret``,
-using a key derivation function. For the rest of the derivations, DRKey utilizes pseudorandom
-functions, which are more efficient. Informally, key derivation functions output a cryptographic
-key indistingushible from a random key if the secret is unknown for the attacker. In contrast,
-the security of pseudorandom functions relies on the input being a uniformly random secret.
 
 
 Derivation scheme
@@ -114,18 +114,19 @@ Protocol-specific derivation
      - :math:`PRF_{SV_A^{protocol}}(type||B)`
      - AS-AS key (Level 1)
    * - :math:`K_{A,B:H_B}^{protocol}`
-     - :math:`PRF_{K_{A,B}^{protocol}}(type||H_B)`
+     - :math:`PRF_{K_{A,B}^{protocol}}(type||len/type(H_B)||H_B)`
      - AS-host key (Level 2)
    * - :math:`K_{A:H_A,B}^{protocol}`
-     - :math:`PRF_{K_{A,B}^{protocol}}(type||H_A)`
-     - host-AS (Level 2)
+     - :math:`PRF_{K_{A,B}^{protocol}}(type||len/type(H_A)||H_A)`
+     - host-AS key (Level 2)
    * - :math:`K_{A:H_A,B:H_B}^{protocol}`
-     - :math:`PRF_{K_{A:H_A,B}^{protocol}}(type||H_B)`
-     - host-host (Level 3)
+     - :math:`PRF_{K_{A:H_A,B}^{protocol}}(type||len/type(H_B)||H_B)`
+     - host-host key (Level 3)
 
-The ``input`` in :math:`KDF(input)` is defined as
+The SV computation is local, thus the AS is free to compute it as desired as long as
+it outputs a cryptographic key indistingushible from a random key for an attacker.
+We suggest to use the *PBKDF2* as KDF function and set ``input`` to:
 ``input = "len(master_secret) || master_secret || protocol || epoch_begin || epoch_end"``.
-`protocol` is defined as a 2-byte identifier.
 
 The key notation states for which entity the key derivation must be efficient.
 The term in the left identifies the key *issuer* (the fast side in the derivation),
@@ -133,11 +134,6 @@ whereas the right term identifies the key *subject* (the slow side in the deriva
 For example, :math:`K_{A,B:H_B}` can be used in both communication directions,
 but it is directly derivable by :math:`AS_A`, whereas the :math:`AS_B` requires to contact
 :math:`CS_A` to fetch the intermediate Level 1 key.
-
-The PRF derivation for every key includes the *type* (``AS-AS``, ``AS-host``,
-``host-AS`` and ``host-host``). This enables domain separation among computed
-keys. For instance, it outputs (with high probability)
-:math:`K_{A:H_A,B} ≠ K_{A,B:H_B}` when :math:`H_A==H_B`.
 
 .. _drkey-generic-derivation:
 
@@ -158,17 +154,54 @@ Generic-protocol derivation
      - :math:`PRF_{SV_A}(type||B)`
      - AS-AS key (Level 1)
    * - :math:`K_{A,B:H_B}^{protocol}`
-     - :math:`PRF_{K_{A,B}}(protocol||type||H_B)`
+     - :math:`PRF_{K_{A,B}}(type||protocol||len/type(H_B)||H_B)`
      - AS-host key (Level 2)
    * - :math:`K_{A:H_A,B}^{protocol}`
-     - :math:`PRF_{K_{A,B}}(protocol||type||H_A)`
-     - host-AS (Level 2)
+     - :math:`PRF_{K_{A,B}}(type||protocol||len/type(H_A)||H_A)`
+     - host-AS key (Level 2)
    * - :math:`K_{A:H_A,B:H_B}^{protocol}`
-     - :math:`PRF_{K_{A:H_A,B}^{protocol}}(type||H_B)`
-     - host-host (Level 3)
+     - :math:`PRF_{K_{A:H_A,B}^{protocol}}(type||len/type(H_B)||H_B)`
+     - host-host key (Level 3)
 
 This derivation scheme allows applications to define "niche" protocols. By including
 the protocol in the Level 2 derivation input.
+
+PRF derivation specification
+----------------------------
+
+type
+    1 byte field identifying the derivation type (``AS-AS``, ``AS-host``,
+    ``host-AS`` and ``host-host``). This enables domain separation among computed
+    keys. For instance, it outputs (with high probability)
+    :math:`K_{A:H_A,B} ≠ K_{A,B:H_B}` when :math:`H_A==H_B`.
+
+protocol
+    2 byte field used in the PRF derivation for Lvl2 generic-protocol derivations
+    to identify the concrete protocol.
+
+ISD-AS address
+    This field is present in Lvl1 derivations and follows the format in
+    :ref:`SCION Address Header <scion-address-header>`.
+
+host length/type
+    This field is present in Lvl2/3 derivations and follows the format for the DT/DL
+    field in :ref:`SCION Common Header <scion-common-header>`.
+
+host address
+    This field is present in Lvl2/3 derivations and follows the format in
+    :ref:`SCION Address Header <scion-address-header>`.
+
+
+DRKey uses AES-CBC MAC as PRF. The MAC is computed over the following fields:
+
+* **type** (1 byte)
+* **protocol** in Lvl2 generic-protocol derivations (2 bytes)
+* **ISD-AS address** in Lvl1 derivations (8 bytes)
+* **Host type/length** in Lvl2/3 derivations (4-bit, padded to 1 byte)
+* **Host address** in Lvl2/3 derivations (variable size).
+
+The derivation using CBC MAC is safe since all fields are of a fixed size,
+expect for the host address whose length is prepended.
 
 Key Validity time
 =================
@@ -179,8 +212,8 @@ An epoch is an interval between a starting and ending point in time. The epoch
 length can be chosen by a given AS and can change over time, however, epochs
 must not overlap. Thus, a secret value is associated with exactly one epoch.
 
-In the design, every AS can define different epoch lengths for each
-protocol-specific 0th level key.
+Every AS can define different epoch lengths for each protocol-specific
+0th level key.
 
 Defining a reasonable lower bound for the epoch length used in DRKey
 is necessary to avoid nonsensical scenarios. This value is
@@ -234,23 +267,25 @@ for which this key will be valid.
 The ``protocol_id`` is either set to ``GENERIC = 0`` to request Lvl1 keys that will be derived according to
 the `generic-protocol` hierarchy or to the protocol number for the `protocol-specific` derivation.
 
-Level 0/2/3 level key establishment
------------------------------------
+Level 0/2/3 key establishment
+-----------------------------
 
 Even though Level 0/2/3 key exchange happens within the same AS (i.e. intra-AS communication),
-the protocol should establish a secure channel. This would avoid that unintended hosts in the
-AS can eavesdrop on symmetric keys that are not intended to them.
+the protocol should establish a secure channel.
+This would avoid that hosts in the AS can eavesdrop on symmetric keys that are not
+intended for them.
 
 The certificate server will only respond to the specific request if the requesting host
-is authorized to receive the requested key. This is especially important in the Level 0 key
-case since only trustworthy nodes should be authorized to receive this key.
+is authorized to receive the requested key.
+This is especially important in the Level 0 key case since only trustworthy nodes should
+be authorized to receive this key.
 
-The Level 0 key request contains the `validTime` and the specific ``protocol_id``. The certificate
-server responds with the SV and the epoch for which this key will be valid.
+The Level 0 key request contains the ``validTime`` and the specific ``protocol_id``.
+The certificate server responds with the SV and the epoch for which this key will be valid.
 
-The Level 2/3 key request includes the `validTime` and the necessary host and AS
-information (depending on the key type). The server responds with the symmetric
-key and the epoch.
+The Level 2/3 key request includes the ``validTime`` and the necessary host and AS
+information (depending on the key type).
+The server responds with the symmetric key and the epoch.
 
 The ``protocol_id`` in Lvl2/3 requests is always set to the final protocol identifier.
 The key service will choose between the `protocol-specific` derivation, if it exists, or
@@ -281,9 +316,9 @@ Key exchange message format
     }
 
     message SVRequest{
-      // Point in time when the requested SV is valid.
+      // Point in time when the requested key is valid.
       Timestamp val_time = 1;
-      // Protocol-specific value.
+      // Protocol value.
       Protocol protocol_id = 2;
     }
 
@@ -292,14 +327,14 @@ Key exchange message format
       Timestamp epoch_begin = 1;
       // End of the SV validity period.
       Timestamp epoch_end = 2;
-      // SV Key.
+      // SV key.
       bytes key = 3;
     }
 
     message Lvl1Request{
-      // Point in time when the requested DRKey is valid.
+      // Point in time when the requested key is valid.
       Timestamp val_time = 1;
-      // Protocol-specific value.
+      // Protocol value.
       Protocol protocol_id = 2;
     }
 
@@ -308,16 +343,16 @@ Key exchange message format
       Timestamp epoch_begin = 1;
       // End of validity period.
       Timestamp epoch_end = 2;
-      // Lvl1 DRKey.
+      // Lvl1 key.
       bytes key = 3;
     }
 
     // DRKeyLvl2Request encompasses 2nd and 3rd level key requests
     message Lvl2Request{
+      // Point in time where requested key is valid.
+      Timestamp val_time = 1;
       // Protocol value.
-      Protocol protocol_id = 1;
-      // Point in time where requested DRKey is valid.
-      Timestamp val_time = 2;
+      Protocol protocol_id = 2;
       // Src ISD-AS of the requested DRKey.
       uint64 src_ia = 3;
       // Dst ISD-AS of the requested DRKey.
@@ -329,10 +364,10 @@ Key exchange message format
     }
 
     message Lvl2Response{
-      // Derived DRKey.
-      bytes key = 1;
       // Begin of validity period of DRKey.
-      Timestamp epoch_begin = 2;
+      Timestamp epoch_begin = 1;
       // End of validity period of DRKey.
-      Timestamp epoch_end = 3;
+      Timestamp epoch_end = 2;
+      // Lvl2 key.
+      bytes key = 3;
     }
