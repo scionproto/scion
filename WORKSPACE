@@ -1,4 +1,9 @@
-workspace(name = "com_github_scionproto_scion")
+workspace(
+    name = "com_github_scionproto_scion",
+    managed_directories = {
+        "@spec_npm": ["spec/tools/node_modules"],
+    },
+)
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
 
@@ -248,3 +253,11 @@ bbcp_repository()
 load("//lint/private/python:deps.bzl", "python_lint_deps")
 
 python_lint_deps()
+
+load("//spec:repositories.bzl", spec_repositories = "repositories")
+
+spec_repositories()
+
+load("//spec:install.bzl", spec_yarn_dependencies = "install_yarn_dependencies")
+
+spec_yarn_dependencies()
