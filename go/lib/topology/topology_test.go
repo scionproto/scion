@@ -38,7 +38,7 @@ func TestMeta(t *testing.T) {
 	assert.Empty(t, c.Attributes, "Field 'Attributes'")
 }
 
-func Test_Active(t *testing.T) {
+func TestActive(t *testing.T) {
 	t.Run("positive TTL", func(t *testing.T) {
 		c := MustLoadTopo(t, "testdata/basic.json")
 		assert.False(t, c.Active(c.Timestamp.Add(-time.Second)))
@@ -146,6 +146,10 @@ func TestServiceDetails(t *testing.T) {
 				IP:   net.IP{127, 0, 0, 82},
 				Port: 30101,
 			},
+			ProbeAddr: &net.UDPAddr{
+				IP:   net.IP{127, 0, 0, 82},
+				Port: 30856,
+			},
 			AllowInterfaces: []uint64{1, 3, 5},
 		},
 		"sig2-ff00:0:311-1": {
@@ -164,6 +168,11 @@ func TestServiceDetails(t *testing.T) {
 			DataAddr: &net.UDPAddr{
 				IP:   net.ParseIP("2001:db8:f00:b43::1"),
 				Port: 30101,
+				Zone: "some-zone",
+			},
+			ProbeAddr: &net.UDPAddr{
+				IP:   net.ParseIP("2001:db8:f00:b43::2"),
+				Port: 23455,
 				Zone: "some-zone",
 			},
 		},

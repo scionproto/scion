@@ -47,6 +47,7 @@ func TestGateways(t *testing.T) {
 								SCIONAddress: xtest.MustParseUDPAddr(t, "127.0.0.82:30100"),
 							},
 							DataAddr:        xtest.MustParseUDPAddr(t, "127.0.0.82:30101"),
+							ProbeAddr:       xtest.MustParseUDPAddr(t, "127.0.0.82:30102"),
 							AllowInterfaces: []uint64{1, 3, 5},
 						},
 						{
@@ -56,6 +57,8 @@ func TestGateways(t *testing.T) {
 							},
 							DataAddr: xtest.MustParseUDPAddr(t,
 								"[2001:db8:f00:b43::1%some-zone]:30101"),
+							ProbeAddr: xtest.MustParseUDPAddr(t,
+								"[2001:db8:f00:b43::1%some-zone]:30102"),
 						},
 					},
 					nil,
@@ -67,13 +70,13 @@ func TestGateways(t *testing.T) {
 					{
 						ControlAddress:  "127.0.0.82:30100",
 						DataAddress:     "127.0.0.82:30101",
-						ProbeAddress:    "127.0.0.82:30856",
+						ProbeAddress:    "127.0.0.82:30102",
 						AllowInterfaces: []uint64{1, 3, 5},
 					},
 					{
 						ControlAddress: "[2001:db8:f00:b43::1%some-zone]:23425",
 						DataAddress:    "[2001:db8:f00:b43::1%some-zone]:30101",
-						ProbeAddress:   "[2001:db8:f00:b43::1%some-zone]:30856",
+						ProbeAddress:   "[2001:db8:f00:b43::1%some-zone]:30102",
 					},
 				},
 			},

@@ -78,6 +78,7 @@ type (
 	GatewayInfo struct {
 		CtrlAddr        *TopoAddr
 		DataAddr        *net.UDPAddr
+		ProbeAddr       *net.UDPAddr
 		AllowInterfaces []uint64
 	}
 
@@ -410,8 +411,9 @@ func copySIGMap(m map[string]GatewayInfo) map[string]GatewayInfo {
 	ret := make(map[string]GatewayInfo)
 	for k, v := range m {
 		e := GatewayInfo{
-			CtrlAddr: v.CtrlAddr.copy(),
-			DataAddr: copyUDPAddr(v.DataAddr),
+			CtrlAddr:  v.CtrlAddr.copy(),
+			DataAddr:  copyUDPAddr(v.DataAddr),
+			ProbeAddr: copyUDPAddr(v.ProbeAddr),
 		}
 		ret[k] = e
 	}
@@ -503,10 +505,22 @@ func gatewayMapFromRaw(ras map[string]*jsontopo.GatewayInfo) (map[string]Gateway
 			return nil, serrors.WrapStr("could not parse data address", err,
 				"address", svc.DataAddr, "process_name", name)
 		}
+		// backward compatibility: if no probe address is specified just use the
+		// default (ctrl address & port 30856):
+		probeAddr := copyUDPAddr(c.SCIONAddress)
+		probeAddr.Port = 30856
+		if svc.ProbeAddr != "" {
+			probeAddr, err = rawAddrToUDPAddr(svc.ProbeAddr)
+			if err != nil {
+				return nil, serrors.WrapStr("could not parse probe address", err,
+					"address", svc.ProbeAddr, "process_name", name)
+			}
+		}
 
 		ret[name] = GatewayInfo{
 			CtrlAddr:        c,
 			DataAddr:        d,
+			ProbeAddr:       probeAddr,
 			AllowInterfaces: svc.Interfaces,
 		}
 	}

@@ -93,6 +93,7 @@ type BRInfo struct {
 type GatewayInfo struct {
 	CtrlAddr   string   `json:"ctrl_addr"`
 	DataAddr   string   `json:"data_addr"`
+	ProbeAddr  string   `json:"probe_addr,omitempty"`
 	Interfaces []uint64 `json:"allow_interfaces,omitempty"`
 }
 

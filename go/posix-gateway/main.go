@@ -76,6 +76,14 @@ func realMain(ctx context.Context) error {
 		dataAddress.IP = controlAddress.IP
 		dataAddress.Zone = controlAddress.Zone
 	}
+	probeAddress, err := net.ResolveUDPAddr("udp", globalCfg.Gateway.ProbeAddr)
+	if err != nil {
+		return serrors.WrapStr("parsing probe address", err)
+	}
+	if len(probeAddress.IP) == 0 {
+		probeAddress.IP = controlAddress.IP
+		probeAddress.Zone = controlAddress.Zone
+	}
 	httpPages := service.StatusPages{
 		"info":           service.NewInfoStatusPage(),
 		"config":         service.NewConfigStatusPage(globalCfg),
@@ -91,7 +99,7 @@ func realMain(ctx context.Context) error {
 		ControlClientIP:          controlAddress.IP,
 		ServiceDiscoveryClientIP: controlAddress.IP,
 		PathMonitorIP:            controlAddress.IP,
-		ProbeServerAddr:          &net.UDPAddr{IP: controlAddress.IP, Port: 30856},
+		ProbeServerAddr:          probeAddress,
 		ProbeClientIP:            controlAddress.IP,
 		DataServerAddr:           dataAddress,
 		DataClientIP:             dataAddress.IP,
