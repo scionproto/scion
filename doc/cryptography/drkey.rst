@@ -201,7 +201,7 @@ DRKey uses AES-CBC MAC as PRF. The MAC is computed over the following fields:
 * **Host address** in Lvl2/3 derivations (variable size).
 
 The derivation using CBC MAC is safe since all fields are of a fixed size,
-expect for the host address whose length is prepended.
+except for the host address whose length is prepended.
 
 Key Validity time
 =================
