@@ -89,31 +89,34 @@ func (wf *WatcherFactory) New(
 ) control.Runner {
 
 	pather := wf.PathMonitor.Register(remote, wf.Policies, "gateway-watcher")
-	watcher := &control.GatewayWatcher{
-		Remote: remote,
-		Discoverer: controlgrpc.Discoverer{
+	return &watcherWrapper{
+		GatewayWatcher: control.GatewayWatcher{
 			Remote: remote,
-			Dialer: wf.Dialer,
-			Paths:  pather,
-		},
-		Template: control.PrefixWatcherConfig{
-			Consumer: wf.Aggregator,
-			FetcherFactory: fetcherFactory{
-				remote: remote,
-				wf:     wf,
+			Discoverer: controlgrpc.Discoverer{
+				Remote: remote,
+				Dialer: wf.Dialer,
+				Paths:  pather,
 			},
+			Template: control.PrefixWatcherConfig{
+				Consumer: wf.Aggregator,
+				FetcherFactory: fetcherFactory{
+					remote: remote,
+					wf:     wf,
+				},
+			},
+			Metrics: metrics,
 		},
-		Metrics: metrics,
+		pather: pather,
 	}
-	return runnerFunc(func(ctx context.Context) error {
-		err := watcher.Run(ctx)
-		pather.Close()
-		return err
-	})
 }
 
-type runnerFunc func(ctx context.Context) error
+type watcherWrapper struct {
+	control.GatewayWatcher
+	pather control.PathMonitorRegistration
+}
 
-func (f runnerFunc) Run(ctx context.Context) error {
-	return f(ctx)
+func (w *watcherWrapper) Run(ctx context.Context) error {
+	err := w.GatewayWatcher.Run(ctx)
+	w.pather.Close()
+	return err
 }
