@@ -16,6 +16,8 @@ package cppki
 
 import (
 	"fmt"
+	"regexp"
+	"strconv"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -30,6 +32,8 @@ var (
 	// ErrSerialBeforeBase indicates that the serial number is smaller than the
 	// base number.
 	ErrSerialBeforeBase = serrors.New("serial before base")
+	// ErrInvalidTRCIDString indicates that provided string in not valid TRC ID formatted string.
+	ErrInvalidTRCIDString = serrors.New("string is not valid TRC ID")
 )
 
 // TRCID identifies a TRC.
@@ -37,6 +41,35 @@ type TRCID struct {
 	ISD    addr.ISD
 	Serial scrypto.Version
 	Base   scrypto.Version
+}
+
+// TRCIDFromString creates new TRCID from the provided string. TRCID string must be in format
+// `ISD%d-B%d-S%d`.
+func TRCIDFromString(idStr string) (TRCID, error) {
+	re := regexp.MustCompile(`^ISD(\d+)-B(\d+)-S(\d+)$`)
+	idParts := re.FindStringSubmatch(idStr)
+	if len(idParts) != 4 {
+		return TRCID{}, ErrInvalidTRCIDString
+	}
+
+	isd, err := strconv.ParseUint(idParts[1], 10, 64)
+	if err != nil {
+		return TRCID{}, err
+	}
+	base, err := strconv.ParseUint(idParts[2], 10, 64)
+	if err != nil {
+		return TRCID{}, err
+	}
+	serial, err := strconv.ParseUint(idParts[3], 10, 64)
+	if err != nil {
+		return TRCID{}, err
+	}
+
+	return TRCID{
+		ISD:    addr.ISD(isd),
+		Base:   scrypto.Version(base),
+		Serial: scrypto.Version(serial),
+	}, nil
 }
 
 // IsBase indicates if this is a base TRC.
