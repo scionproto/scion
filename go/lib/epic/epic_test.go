@@ -38,16 +38,12 @@ func TestPrepareMacInput(t *testing.T) {
 		Want        []byte
 	}{
 		"Correct input": {
-			ScionHeader: createScionCmnAddrHdr(0),
+			ScionHeader: createScionCmnAddrHdr(),
 			errorFunc:   assert.NoError,
 			Want: []byte(
 				"\x00\x4a\xf9\xf0\x70\x00\x00\x00\x01\x02\x00\x00\x03" +
 					"\x00\x02\xff\x00\x00\x00\x02\x22\x0a\x00\x00\x64\x00\x78" +
 					"\x00\x00\x00\x00\x00"),
-		},
-		"Invalid source address length": {
-			ScionHeader: createScionCmnAddrHdr(3),
-			errorFunc:   assert.Error,
 		},
 		"SCION header nil": {
 			ScionHeader: nil,
@@ -58,9 +54,15 @@ func TestPrepareMacInput(t *testing.T) {
 	for name, tc := range testCases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
-			got, err := libepic.PrepareMacInput(e.PktID, tc.ScionHeader, ts)
+			inputBuffer := make([]byte, libepic.MACBufferSize)
+			inputLength, err := libepic.PrepareMacInput(e.PktID, tc.ScionHeader, ts,
+				inputBuffer)
 			tc.errorFunc(t, err)
-			assert.Equal(t, tc.Want, got)
+
+			if err == nil {
+				got := inputBuffer[:inputLength]
+				assert.Equal(t, tc.Want, got)
+			}
 		})
 	}
 }
@@ -190,7 +192,7 @@ func TestVerifyTimestamp(t *testing.T) {
 
 func TestVerifyHVF(t *testing.T) {
 	// Create packet
-	s := createScionCmnAddrHdr(0)
+	s := createScionCmnAddrHdr()
 	now := time.Now().Truncate(time.Second)
 	timestamp := uint32(now.Add(-time.Minute).Unix())
 	epicTS, _ := libepic.CreateTimestamp(now.Add(-time.Minute), time.Now())
@@ -204,9 +206,9 @@ func TestVerifyHVF(t *testing.T) {
 	authLast := []byte("f5fcc4ce2250db36")
 
 	// Generate PHVF and LHVF
-	PHVF, err := libepic.CalcMac(authPenultimate, pktID, s, timestamp)
+	PHVF, err := libepic.CalcMac(authPenultimate, pktID, s, timestamp, nil)
 	assert.NoError(t, err)
-	LHVF, err := libepic.CalcMac(authLast, pktID, s, timestamp)
+	LHVF, err := libepic.CalcMac(authLast, pktID, s, timestamp, nil)
 	assert.NoError(t, err)
 
 	testCases := map[string]struct {
@@ -319,7 +321,8 @@ func TestVerifyHVF(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			err = libepic.VerifyHVF(tc.Authenticator, tc.PktID,
-				tc.ScionHeader, tc.Timestamp, tc.HVF)
+				tc.ScionHeader, tc.Timestamp, tc.HVF,
+				make([]byte, libepic.MACBufferSize))
 			tc.errorFunc(t, err)
 		})
 	}
@@ -375,14 +378,13 @@ func TestCoreFromPktCounter(t *testing.T) {
 	}
 }
 
-func createScionCmnAddrHdr(srcAddrLen slayers.AddrLen) *slayers.SCION {
+func createScionCmnAddrHdr() *slayers.SCION {
 	spkt := &slayers.SCION{
 		SrcIA:      xtest.MustParseIA("2-ff00:0:222"),
 		PayloadLen: 120,
 	}
 	ip4Addr := &net.IPAddr{IP: net.ParseIP("10.0.0.100")}
 	spkt.SetSrcAddr(ip4Addr)
-	spkt.SrcAddrLen = srcAddrLen
 	return spkt
 }
 

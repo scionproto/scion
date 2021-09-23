@@ -45,7 +45,7 @@ func main() {
 	application.Run()
 }
 
-func realMain() error {
+func realMain(ctx context.Context) error {
 	globalCfg.Metrics.StartPrometheus()
 
 	reloadConfigTrigger := make(chan struct{})
@@ -53,7 +53,7 @@ func realMain() error {
 	daemonService := &daemon.Service{
 		Address: globalCfg.Daemon.Address,
 	}
-	daemon, err := daemonService.Connect(context.TODO())
+	daemon, err := daemonService.Connect(ctx)
 	if err != nil {
 		return serrors.WrapStr("connecting to daemon", err)
 	}
@@ -63,7 +63,7 @@ func realMain() error {
 		return serrors.WrapStr("parsing control address", err)
 	}
 	if len(controlAddress.IP) == 0 {
-		controlAddress.IP, err = addrutil.DefaultLocalIP(context.Background(), daemon)
+		controlAddress.IP, err = addrutil.DefaultLocalIP(ctx, daemon)
 		if err != nil {
 			return serrors.WrapStr("determine default local IP", err)
 		}
@@ -76,10 +76,19 @@ func realMain() error {
 		dataAddress.IP = controlAddress.IP
 		dataAddress.Zone = controlAddress.Zone
 	}
+	probeAddress, err := net.ResolveUDPAddr("udp", globalCfg.Gateway.ProbeAddr)
+	if err != nil {
+		return serrors.WrapStr("parsing probe address", err)
+	}
+	if len(probeAddress.IP) == 0 {
+		probeAddress.IP = controlAddress.IP
+		probeAddress.Zone = controlAddress.Zone
+	}
 	httpPages := service.StatusPages{
-		"info":      service.NewInfoStatusPage(),
-		"config":    service.NewConfigStatusPage(globalCfg),
-		"log/level": service.NewLogLevelStatusPage(),
+		"info":           service.NewInfoStatusPage(),
+		"config":         service.NewConfigStatusPage(globalCfg),
+		"digests/config": service.NewConfigDigestStatusPage(&globalCfg),
+		"log/level":      service.NewLogLevelStatusPage(),
 	}
 	routingTable := &dataplane.AtomicRoutingTable{}
 	gw := &gateway.Gateway{
@@ -90,7 +99,7 @@ func realMain() error {
 		ControlClientIP:          controlAddress.IP,
 		ServiceDiscoveryClientIP: controlAddress.IP,
 		PathMonitorIP:            controlAddress.IP,
-		ProbeServerAddr:          &net.UDPAddr{IP: controlAddress.IP, Port: 30856},
+		ProbeServerAddr:          probeAddress,
 		ProbeClientIP:            controlAddress.IP,
 		DataServerAddr:           dataAddress,
 		DataClientIP:             dataAddress.IP,

@@ -107,7 +107,7 @@ scion_proto.fields = {
 }
 
 -- XXX(sgmonroy) are these expert worth it? AFAICS the parser would emit a Lua error,
--- plus its own expert in case of failing to parse, ie. throwing index out of bounds 
+-- plus its own expert in case of failing to parse, ie. throwing index out of bounds
 -- when the packet is too short/truncated.
 -- Maybe just do expert for some important errors worth of spotting quickly
 local e_nosup_ver = ProtoExpert.new("scion.nosup_ver.expert",
@@ -143,7 +143,7 @@ function scion_proto.dissector(tvbuf, pktinfo, root)
 
     local version = bit.rshift(tvbuf(0,1):uint(), 4)
     if version ~= 0 then
-        tree:add_tvb_proto_expert_info(e_nosup_ver, tvbuf(0,1))
+        tree:add_tvb_expert_info(e_nosup_ver, tvbuf(0,1))
         return
     end
 
@@ -209,10 +209,6 @@ function scion_proto.dissector(tvbuf, pktinfo, root)
     scion["src"] = scion_addr_str(scion.src_isd, scion.src_as, src_host_str)
     header_str:append_text(string.format(", Src: %s, Dst: %s", scion.src, scion.dst))
 
-    --pktinfo.cols.protocol:set("SCION")
-    pktinfo.cols.info:append(string.format(" SCION %s -> %s %s", scion.src, scion.dst,
-            hdrTypes[scion.next_hdr:uint()]))
-
     if tvbuf:len() ~= scion.len_bytes + scion.payload_len:uint() then
         tree:add_tvb_expert_info(e_bad_len, tvbuf(5, 3))
     end
@@ -229,23 +225,35 @@ function scion_proto.dissector(tvbuf, pktinfo, root)
             return
         end
     end
+    if scion.path_type == "EPIC" then
+        ok = epic_path_dissect(tvbuf(path_offset), pktinfo, tree)
+        if not ok then
+            return
+        end
+    end
     if scion.path_type == "OneHop" then
         scion_ohp_dissect(tvbuf(path_offset), pktinfo, tree)
     end
 
-    -- TODO Extensions
-
     local next_proto = hdrTypes[scion.next_hdr:uint()]
-    if next_proto == "UDP" then
-        scion_udp_proto_dissect(tvbuf(scion.len_bytes, 8), pktinfo, root)
+    local rest = tvbuf(scion.len_bytes)
+    if next_proto == "HOP_BY_HOP" then
+        next_proto, rest = scion_extn_dissect(rest, pktinfo, root, next_proto)
     end
-    if next_proto == "SCMP" then
-        scmp_proto_dissect(tvbuf(scion.len_bytes), pktinfo, root)
-    end
-    if next_proto == "BFD" then
-        Dissector.get("bfd"):call(tvbuf(scion.len_bytes):tvb(), pktinfo, root)
+    if next_proto == "END_TO_END" then
+        next_proto, rest = scion_extn_dissect(rest, pktinfo, root, next_proto)
     end
 
+    --pktinfo.cols.protocol:set("SCION")
+    pktinfo.cols.info:append(string.format(" SCION %s -> %s %s", scion.src, scion.dst, next_proto))
+
+    if next_proto == "UDP" then
+        scion_udp_proto_dissect(rest(0, 8), pktinfo, root)
+    elseif next_proto == "SCMP" then
+        scmp_proto_dissect(rest, pktinfo, root)
+    elseif next_proto == "BFD" then
+        Dissector.get("bfd"):call(rest:tvb(), pktinfo, root)
+    end
 end
 
 function as_str(as)
@@ -367,7 +375,7 @@ scion_path.fields = {
 
 function scion_path_dissect(tvbuf, pktinfo, root)
     --local tree = root:add(scion_path, tvbuf())
-    local tree = root:add(scion_path, tvbuf()):set_text("Path Meta")
+    local tree = root:add(scion_path, tvbuf(0, 4)):set_text("Path Meta")
 
     tree:add(spath_curr_info, tvbuf(0, 4))
     tree:add(spath_curr_hop, tvbuf(0, 4))
@@ -439,6 +447,177 @@ end
 
 function scion_path_seg_lens(tvbuf, index)
     return bit.band(bit.rshift(tvbuf:uint(), (12 - (6 * index))), 0x3f)
+end
+
+-- SCION Extension Headers
+scion_extn = Proto("scion_extn", "SCION Extension Header")
+
+local scion_extn_next_hdr = ProtoField.uint8("scion_e2e.next_hdr", "Next Header", base.DEC, hdrTypes)
+local scion_extn_hdr_len = ProtoField.uint8("scion_e2e.hdr_len", "Header Length", base.DEC)
+
+scion_extn.fields = {
+  scion_extn_next_hdr,
+  scion_extn_hdr_len,
+}
+
+local scion_extn_type_pretty = {
+  ["HOP_BY_HOP"] = "Hop-by-Hop",
+  ["END_TO_END"] = "End-to-End",
+}
+
+function scion_extn_dissect(tvbuf, pktinfo, root, extn_type)
+    local extn = {}
+
+    if tvbuf:len() < 2 then
+        tree:add_proto_expert_info(e_too_short)
+        return
+    end
+
+    local str = string.format("SCION %s Extension Header", scion_extn_type_pretty[extn_type])
+    extn["next_hdr"] = tvbuf(0, 1)
+    extn["hdr_len"] = tvbuf(1, 1)
+    local hdr_len = extn.hdr_len:uint()
+    extn["hdr_len_bytes"] = (hdr_len + 1) * LINE_LEN
+    local len_str = string.format("Header Length: %d bytes (%d)", extn.hdr_len_bytes, hdr_len)
+
+    local tree = root:add(scion_extn, tvbuf(0, extn.hdr_len_bytes)):set_text(str)
+    tree:add(scion_extn_next_hdr, extn.next_hdr)
+    tree:add(scion_extn_hdr_len, extn.hdr_len):set_text(len_str)
+
+    scion_extn_tlv_options_dissect(tvbuf(2, extn.hdr_len_bytes-2), pktinfo, tree)
+
+    local next_proto = hdrTypes[extn.next_hdr:uint()]
+    return next_proto, tvbuf(extn.hdr_len_bytes)
+end
+
+
+-- SCION Extension Header Options
+-- TODO: dissect individual options, use different type tables for HBH and E2E
+scion_extn_tlv_option = Proto("scion_extn_tlv_option", "TLV Option")
+
+local scion_extn_tlv_option_types = {
+  [0] = "Pad1",
+  [1] = "PadN",
+  [2] = "Authenticator",
+}
+
+local scion_extn_tlv_option_type = ProtoField.uint8("scion_extn_tlv_option.type", "Type", base.DEC, scion_extn_tlv_option_types)
+local scion_extn_tlv_option_len = ProtoField.uint8("scion_extn_tlv_option.len", "Length", base.DEC)
+local scion_extn_tlv_option_value = ProtoField.bytes("scion_extn_tlv_option.value", "Value")
+
+scion_extn_tlv_option.fields = {
+  scion_extn_tlv_option_type,
+  scion_extn_tlv_option_len,
+  scion_extn_tlv_option_value,
+}
+
+function scion_extn_tlv_options_dissect(tvbuf, pktinfo, root)
+    local offset = 0
+    while offset < tvbuf:len()
+    do
+      local len = scion_extn_tlv_option_dissect(tvbuf(offset, tvbuf:len()-offset), pktinfo, root)
+      if len <= 0 then -- shouldn't happen, just to ensure this won't loop forever
+        return
+      end
+      offset = offset + len
+    end
+end
+
+
+function scion_extn_tlv_option_dissect(tvbuf, pktinfo, root)
+    local tlv = {}
+
+    tlv["type"] = tvbuf(0, 1)
+    local len = 1
+    if tlv.type:uint() == 0 then
+      len = 1
+    else
+      tlv["data_len"] = tvbuf(1, 1)
+      data_len = tlv.data_len:uint()
+      if data_len > 0 then
+        tlv["data"] = tvbuf(2, data_len)
+      end
+      len = data_len + 2
+    end
+
+    local tree = root:add(scion_extn_tlv_option, tvbuf(0, len))
+    tree:add(scion_extn_tlv_option_type, tlv.type)
+    if tlv.data_len ~= nil then
+      tree:add(scion_extn_tlv_option_len, tlv.data_len)
+    end
+    if tlv.data then
+      tree:add(scion_extn_tlv_option_value, tlv.data)
+    end
+
+    local type_str = scion_extn_tlv_option_types[tlv.type:uint()]
+    if type_str ~= nil then
+        tree:set_text(type_str)
+    else
+        tree:append_text(", Unknown Type")
+    end
+
+    return len
+end
+
+
+-- EPIC Path
+epic_path = Proto("epic_path", "EPIC Path")
+
+local epath_ts = ProtoField.uint32("epic_path.ts", "EPIC timestamp", base.DEC)
+local epath_ts_rel = ProtoField.relative_time("epic_path.ts.rel",
+        "EPIC timestamp (Relative)", base.UTC)
+local epath_ts_abs = ProtoField.absolute_time("epic_path.ts.abs",
+        "EPIC timestamp (Absolute)", base.UTC)
+local epath_counter = ProtoField.uint32("epic_path.counter", "EPIC counter", base.DEC)
+local epath_phvf = ProtoField.bytes("epic_path.phvf", "PHVF")
+local epath_lhvf = ProtoField.bytes("epic_path.lhvf", "LHVF")
+
+epic_path.fields = {
+    epath_ts,
+    epath_ts_rel,
+    epath_ts_abs,
+    epath_counter,
+    epath_phvf,
+    epath_lhvf,
+}
+
+function epic_path_dissect(tvbuf, pktinfo, root)
+    local tree = root:add(epic_path, tvbuf()):set_text("EPIC")
+
+    -- The EPIC fields have a total size of 16 bytes
+    if tvbuf:len() < 16 then
+        tree:add_proto_expert_info(e_too_short)
+        return
+    end
+
+    -- Parse EPIC fields
+    local packetIdTree = tree:add(tvbuf, "Packet ID")
+    local packetTsTree = packetIdTree:add(tvbuf, "Timestamp")
+    local epicTs = tvbuf(0, 4):uint()
+    local epicTsRelNs = (epicTs+1) * 21 * 1000
+    local epicTsRelSec = epicTsRelNs/10^9
+    epicTsRelNs = epicTsRelNs % 10^9
+    packetTsTree:add(epath_ts, tvbuf(0, 4), epicTs)
+    packetTsTree:add(epath_ts_rel, tvbuf(0, 4), NSTime.new(epicTsRelSec, epicTsRelNs))
+    packetIdTree:add(epath_counter, tvbuf(4, 4))
+    tree:add(epath_phvf, tvbuf(8, 4))
+    tree:add(epath_lhvf, tvbuf(12, 4))
+
+    -- Parse the SCION path type fields
+    ok = scion_path_dissect(tvbuf(16), pktinfo, root)
+    if not ok then
+        return
+    end
+
+    -- Get the timestamp of the first InfoField
+    -- (No checks needed, as SCION path type parsing was successful)
+    local tsInfo = tvbuf(24, 4):uint()
+    
+    -- Calculate and add the EPIC timestamp (absolute)
+    -- (depends on the timestamp of the first InfoField)
+    packetTsTree:add(epath_ts_abs, tvbuf(0, 4), NSTime.new(tsInfo+epicTsRelSec, epicTsRelNs))
+
+    return true
 end
 
 

@@ -17,7 +17,6 @@ go_library(
     visibility = ["//visibility:private"],
     deps = [
         "//go/lib/env:go_default_library",
-        "//go/pkg/command:go_default_library",
         "//go/scion-pki/certs:go_default_library",
         "//go/scion-pki/key:go_default_library",
         "//go/scion-pki/testcrypto:go_default_library",

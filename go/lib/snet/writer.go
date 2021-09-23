@@ -41,7 +41,7 @@ func newScionConnWriter(base *scionConnBase, conn PacketConn) *scionConnWriter {
 	return &scionConnWriter{
 		base:   base,
 		conn:   conn,
-		buffer: make([]byte, common.MaxMTU),
+		buffer: make([]byte, common.SupportedMTU),
 	}
 }
 

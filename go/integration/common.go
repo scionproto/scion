@@ -100,7 +100,7 @@ func InitTracer(name string) (func(), error) {
 
 func validateFlags() {
 	flag.Parse()
-	logCfg := log.Config{Console: log.ConsoleConfig{Level: logConsole}}
+	logCfg := log.Config{Console: log.ConsoleConfig{Level: logConsole, StacktraceLevel: "none"}}
 	if err := log.Setup(logCfg); err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
 		flag.Usage()

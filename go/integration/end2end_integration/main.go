@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -171,7 +172,30 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		// the progress of the test.
 		var ctrMtx sync.Mutex
 		var ctr int
-		socket, clean, err := integration.ListenDone(func(src, dst addr.IA) {
+		doneDir, err := filepath.Abs(filepath.Join(integration.LogDir(), "socks"))
+		if err != nil {
+			return serrors.WrapStr("determining abs path", err)
+		}
+		if err := os.MkdirAll(doneDir, os.ModePerm); err != nil {
+			return serrors.WrapStr("creating socks directory", err)
+		}
+		// this is a bit of a hack, socket file names have a max length of 108
+		// and inside bazel tests we easily have longer paths, therefore we
+		// create a temporary symlink to the directory where we put the socket
+		// file.
+		tmpDir, err := ioutil.TempDir("", "e2e_integration")
+		if err != nil {
+			return serrors.WrapStr("creating temp dir", err)
+		}
+		if err := os.Remove(tmpDir); err != nil {
+			return serrors.WrapStr("deleting temp dir", err)
+		}
+		if err := os.Symlink(doneDir, tmpDir); err != nil {
+			return serrors.WrapStr("symlinking socks dir", err)
+		}
+		doneDir = tmpDir
+		defer os.Remove(doneDir)
+		socket, clean, err := integration.ListenDone(doneDir, func(src, dst addr.IA) {
 			ctrMtx.Lock()
 			defer ctrMtx.Unlock()
 			ctr++
@@ -179,9 +203,13 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 			log.Info(fmt.Sprintf("Test %v: %s", in.Name(), testInfo))
 		})
 		if err != nil {
-			return err
+			return serrors.WrapStr("creating done listener", err)
 		}
 		defer clean()
+
+		if *integration.Docker {
+			socket = strings.Replace(socket, doneDir, "/share/logs/socks", -1)
+		}
 
 		// CI collapses if parallelism is too high.
 		semaphore := make(chan struct{}, parallelism)
@@ -218,7 +246,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 					Tester:   tester,
 				})
 				if err != nil {
-					err = serrors.WithCtx(err, "file", logFile)
+					err = serrors.WithCtx(err, "file", relFile(logFile))
 				}
 				clientResults <- err
 			}(src, dsts)
@@ -310,4 +338,12 @@ func contains(ases *util.ASList, core bool, ia addr.IA) bool {
 
 func logDir() string {
 	return filepath.Join(integration.LogDir(), name)
+}
+
+func relFile(file string) string {
+	rel, err := filepath.Rel(filepath.Dir(integration.LogDir()), file)
+	if err != nil {
+		return file
+	}
+	return rel
 }

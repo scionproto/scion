@@ -16,6 +16,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -45,7 +46,7 @@ func main() {
 	application.Run()
 }
 
-func realMain() error {
+func realMain(ctx context.Context) error {
 	if err := util.CreateParentDirs(globalCfg.Dispatcher.ApplicationSocket); err != nil {
 		return serrors.WrapStr("creating directory tree for socket", err)
 	}
@@ -68,9 +69,10 @@ func realMain() error {
 
 	// Start HTTP endpoints.
 	statusPages := service.StatusPages{
-		"info":      service.NewInfoStatusPage(),
-		"config":    service.NewConfigStatusPage(globalCfg),
-		"log/level": service.NewLogLevelStatusPage(),
+		"info":           service.NewInfoStatusPage(),
+		"config":         service.NewConfigStatusPage(globalCfg),
+		"log/level":      service.NewLogLevelStatusPage(),
+		"digests/config": service.NewConfigDigestStatusPage(&globalCfg),
 	}
 	if err := statusPages.Register(http.DefaultServeMux, globalCfg.Dispatcher.ID); err != nil {
 		return serrors.WrapStr("registering status pages", err)

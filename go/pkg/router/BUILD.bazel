@@ -57,7 +57,6 @@ go_test(
         "//go/lib/slayers/path/scion:go_default_library",
         "//go/lib/topology:go_default_library",
         "//go/lib/underlay/conn:go_default_library",
-        "//go/lib/underlay/conn/mock_conn:go_default_library",
         "//go/lib/util:go_default_library",
         "//go/lib/xtest:go_default_library",
         "//go/pkg/router/control:go_default_library",

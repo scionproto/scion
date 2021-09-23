@@ -23,11 +23,6 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers"
 )
 
-const (
-	// BufSize is the receive and send buffer sizes
-	BufSize = 1<<16 - 1
-)
-
 type OpError struct {
 	typeCode slayers.SCMPTypeCode
 	revInfo  *path_mgmt.RevInfo

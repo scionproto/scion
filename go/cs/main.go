@@ -20,6 +20,7 @@ import (
 	"net"
 	"net/http"
 	_ "net/http/pprof"
+	"path/filepath"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -95,7 +96,7 @@ func main() {
 	application.Run()
 }
 
-func realMain() error {
+func realMain(ctx context.Context) error {
 	metrics := cs.NewMetrics()
 
 	intfs, err := setup(&globalCfg)
@@ -117,7 +118,8 @@ func realMain() error {
 		return serrors.WrapStr("initializing path storage", err)
 	}
 	pathDB = pathstoragemetrics.WrapDB(pathDB, pathstoragemetrics.Config{
-		Driver: string(storage.BackendSqlite),
+		Driver:       string(storage.BackendSqlite),
+		QueriesTotal: libmetrics.NewPromCounter(metrics.PathDBQueriesTotal),
 	})
 	defer pathDB.Close()
 
@@ -164,7 +166,7 @@ func realMain() error {
 	trustDB = truststoragefspersister.WrapDB(
 		trustDB,
 		truststoragefspersister.Config{
-			TRCDir: globalCfg.General.ConfigDir,
+			TRCDir: filepath.Join(globalCfg.General.ConfigDir, "certs"),
 			Metrics: truststoragefspersister.Metrics{
 				TRCFileWriteSuccesses: fileWrites.With(
 					prom.LabelResult,
@@ -199,7 +201,7 @@ func realMain() error {
 		QueriesTotal: libmetrics.NewPromCounter(metrics.BeaconDBQueriesTotal),
 	})
 
-	beaconStore, isdLoopAllowed, err := createBeaconStore(
+	beaconStore, policies, isdLoopAllowed, err := createBeaconStore(
 		beaconDB,
 		topo.Core(),
 		globalCfg.BS.Policies,
@@ -527,8 +529,8 @@ func realMain() error {
 			}
 		}()
 	}
-	err = cs.StartHTTPEndpoints(globalCfg.General.ID, globalCfg, signer, chainBuilder,
-		globalCfg.Metrics)
+	err = cs.StartHTTPEndpoints(globalCfg.General.ID, &globalCfg, signer, chainBuilder,
+		globalCfg.Metrics, policies.Digests())
 	if err != nil {
 		return serrors.WrapStr("registering status pages", err)
 	}
@@ -586,7 +588,7 @@ func realMain() error {
 		AllowIsdLoop:              isdLoopAllowed,
 	})
 	if err != nil {
-		serrors.WrapStr("starting periodic tasks", err)
+		return serrors.WrapStr("starting periodic tasks", err)
 	}
 	defer tasks.Kill()
 	log.Info("Started periodic tasks")
@@ -623,26 +625,30 @@ func setup(cfg *config.Config) (*ifstate.Interfaces, error) {
 	return intfs, nil
 }
 
+type beaconPolicies interface {
+	Digests() map[string][]byte
+}
+
 func createBeaconStore(
 	db storage.BeaconDB,
 	core bool,
 	policyConfig config.Policies,
-) (cs.Store, bool, error) {
+) (cs.Store, beaconPolicies, bool, error) {
 
 	if core {
 		policies, err := cs.LoadCorePolicies(policyConfig)
 		if err != nil {
-			return nil, false, err
+			return nil, nil, false, err
 		}
 		store, err := beacon.NewCoreBeaconStore(policies, db)
-		return store, *policies.Prop.Filter.AllowIsdLoop, err
+		return store, &policies, *policies.Prop.Filter.AllowIsdLoop, err
 	}
 	policies, err := cs.LoadNonCorePolicies(policyConfig)
 	if err != nil {
-		return nil, false, err
+		return nil, nil, false, err
 	}
 	store, err := beacon.NewBeaconStore(policies, db)
-	return store, *policies.Prop.Filter.AllowIsdLoop, err
+	return store, &policies, *policies.Prop.Filter.AllowIsdLoop, err
 }
 
 type topoInformation struct{}

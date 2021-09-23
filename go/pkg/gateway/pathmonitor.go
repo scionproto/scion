@@ -15,8 +15,6 @@
 package gateway
 
 import (
-	"strconv"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
@@ -31,8 +29,11 @@ type PathMonitor struct {
 	sessionPathsAvailable metrics.Gauge
 }
 
-func (pm *PathMonitor) Register(remote addr.IA, policies *policies.Policies,
-	policyID int) control.PathMonitorRegistration {
+func (pm *PathMonitor) Register(
+	remote addr.IA,
+	policies *policies.Policies,
+	policyID string,
+) control.PathMonitorRegistration {
 
 	reg := pm.Monitor.Register(remote, &pathhealth.FilteringPathSelector{
 		PathPolicy:      policies.PathPolicy,
@@ -44,7 +45,7 @@ func (pm *PathMonitor) Register(remote addr.IA, policies *policies.Policies,
 		sessionPathsAvailable: metrics.GaugeWith(
 			pm.sessionPathsAvailable,
 			"remote_isd_as", remote.String(),
-			"policy_id", strconv.Itoa(policyID),
+			"policy_id", policyID,
 		),
 	}
 }

@@ -16,4 +16,6 @@ generate_boilerplate(
 exports_files([
     "control.gen.yml",
     "ca.gen.yml",
+    "install.bzl",
+    "repositories.bzl",
 ])

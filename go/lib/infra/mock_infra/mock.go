@@ -6,39 +6,40 @@ package mock_infra
 
 import (
 	context "context"
+	net "net"
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
 	infra "github.com/scionproto/scion/go/lib/infra"
 	signed "github.com/scionproto/scion/go/lib/scrypto/signed"
 	crypto "github.com/scionproto/scion/go/pkg/proto/crypto"
-	net "net"
-	reflect "reflect"
 )
 
-// MockVerifier is a mock of Verifier interface
+// MockVerifier is a mock of Verifier interface.
 type MockVerifier struct {
 	ctrl     *gomock.Controller
 	recorder *MockVerifierMockRecorder
 }
 
-// MockVerifierMockRecorder is the mock recorder for MockVerifier
+// MockVerifierMockRecorder is the mock recorder for MockVerifier.
 type MockVerifierMockRecorder struct {
 	mock *MockVerifier
 }
 
-// NewMockVerifier creates a new mock instance
+// NewMockVerifier creates a new mock instance.
 func NewMockVerifier(ctrl *gomock.Controller) *MockVerifier {
 	mock := &MockVerifier{ctrl: ctrl}
 	mock.recorder = &MockVerifierMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockVerifier) EXPECT() *MockVerifierMockRecorder {
 	return m.recorder
 }
 
-// Verify mocks base method
+// Verify mocks base method.
 func (m *MockVerifier) Verify(arg0 context.Context, arg1 *crypto.SignedMessage, arg2 ...[]byte) (*signed.Message, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
@@ -51,14 +52,14 @@ func (m *MockVerifier) Verify(arg0 context.Context, arg1 *crypto.SignedMessage, 
 	return ret0, ret1
 }
 
-// Verify indicates an expected call of Verify
+// Verify indicates an expected call of Verify.
 func (mr *MockVerifierMockRecorder) Verify(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockVerifier)(nil).Verify), varargs...)
 }
 
-// WithIA mocks base method
+// WithIA mocks base method.
 func (m *MockVerifier) WithIA(arg0 addr.IA) infra.Verifier {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "WithIA", arg0)
@@ -66,13 +67,13 @@ func (m *MockVerifier) WithIA(arg0 addr.IA) infra.Verifier {
 	return ret0
 }
 
-// WithIA indicates an expected call of WithIA
+// WithIA indicates an expected call of WithIA.
 func (mr *MockVerifierMockRecorder) WithIA(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithIA", reflect.TypeOf((*MockVerifier)(nil).WithIA), arg0)
 }
 
-// WithServer mocks base method
+// WithServer mocks base method.
 func (m *MockVerifier) WithServer(arg0 net.Addr) infra.Verifier {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "WithServer", arg0)
@@ -80,7 +81,7 @@ func (m *MockVerifier) WithServer(arg0 net.Addr) infra.Verifier {
 	return ret0
 }
 
-// WithServer indicates an expected call of WithServer
+// WithServer indicates an expected call of WithServer.
 func (mr *MockVerifierMockRecorder) WithServer(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithServer", reflect.TypeOf((*MockVerifier)(nil).WithServer), arg0)

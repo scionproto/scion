@@ -21,6 +21,7 @@ import (
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/balancer/roundrobin"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/resolver"
 	"google.golang.org/grpc/resolver/manual"
@@ -47,6 +48,7 @@ func (SimpleDialer) Dial(ctx context.Context, address net.Addr) (*grpc.ClientCon
 		grpc.WithInsecure(),
 		grpc.WithBlock(),
 		UnaryClientInterceptor(),
+		StreamClientInterceptor(),
 	)
 }
 
@@ -104,15 +106,18 @@ func (t *TCPDialer) Dial(ctx context.Context, dst net.Addr) (*grpc.ClientConn, e
 		r := manual.NewBuilderWithScheme("svc")
 		r.InitialState(resolver.State{Addresses: targets})
 		return grpc.DialContext(ctx, r.Scheme()+":///"+v.BaseString(),
+			grpc.WithBalancerName(roundrobin.Name),
 			grpc.WithInsecure(),
 			grpc.WithResolvers(r),
 			UnaryClientInterceptor(),
+			StreamClientInterceptor(),
 		)
 	}
 
 	return grpc.DialContext(ctx, dst.String(),
 		grpc.WithInsecure(),
 		UnaryClientInterceptor(),
+		StreamClientInterceptor(),
 	)
 }
 
@@ -154,6 +159,7 @@ func (d *QUICDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn,
 		grpc.WithInsecure(),
 		grpc.WithContextDialer(dialer),
 		UnaryClientInterceptor(),
+		StreamClientInterceptor(),
 	)
 
 }
@@ -182,10 +188,13 @@ func (d *TLSQUICDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientCo
 		grpc.WithTransportCredentials(d.Credentials),
 		grpc.WithContextDialer(dialer),
 		UnaryClientInterceptor(),
+		StreamClientInterceptor(),
 	)
 }
 
+var RetryOption grpc.CallOption = grpc_retry.WithPerRetryTimeout(3 * time.Second)
+
 // RetryProfile is the common retry profile for RPCs.
 var RetryProfile = []grpc.CallOption{
-	grpc_retry.WithPerRetryTimeout(3 * time.Second),
+	RetryOption,
 }

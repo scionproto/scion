@@ -268,6 +268,28 @@ func TopologyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func TopologyDigestHandler(w http.ResponseWriter, r *http.Request) {
+	st.RLock()
+	defer st.RUnlock()
+	w.Header().Set("Content-Type", "application/json")
+	digest, err := topology.Digest(st.topo.Get())
+	if err != nil {
+		http.Error(w, "Unable to calculate digest", http.StatusInternalServerError)
+		return
+	}
+	response := struct {
+		Digest []byte `json:"digest"`
+	}{
+		Digest: digest,
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "    ")
+	if err := enc.Encode(response); err != nil {
+		http.Error(w, "Unable to marshal response", http.StatusInternalServerError)
+		return
+	}
+}
+
 func runFactory(topo *topology.RWTopology) topology.Topology {
 	if st.config.TopologyFactory != nil {
 		return st.config.TopologyFactory(topo)

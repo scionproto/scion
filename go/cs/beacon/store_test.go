@@ -125,10 +125,8 @@ func testStoreSelection(t *testing.T,
 
 			db.EXPECT().CandidateBeacons(
 				gomock.Any(), gomock.Any(), gomock.Any(), addr.IA{},
-			).DoAndReturn(
-				func(_ ...interface{}) ([]beacon.Beacon, error) {
-					return test.results, test.err
-				},
+			).Return(
+				test.results, test.err,
 			)
 			res, err := methodToTest(store)
 			require.Equal(t, test.err, err)
@@ -241,19 +239,17 @@ func testCoreStoreSelection(t *testing.T,
 			store, err := beacon.NewCoreBeaconStore(policies, db)
 			require.NoError(t, err)
 
-			// responder is a factory that generates a function returning the specified beacons.
-			responder := func(ia addr.IA) func(_ ...interface{}) ([]beacon.Beacon, error) {
-				return func(_ ...interface{}) ([]beacon.Beacon, error) {
-					return test.results[ia], nil
-				}
-			}
 			db.EXPECT().BeaconSources(gomock.Any()).Return([]addr.IA{ia120, ia130}, nil)
 			db.EXPECT().CandidateBeacons(
 				gomock.Any(), gomock.Any(), gomock.Any(), ia120,
-			).DoAndReturn(responder(ia120))
+			).Return(
+				test.results[ia120], nil,
+			)
 			db.EXPECT().CandidateBeacons(
 				gomock.Any(), gomock.Any(), gomock.Any(), ia130,
-			).DoAndReturn(responder(ia130))
+			).Return(
+				test.results[ia130], nil,
+			)
 
 			res, err := methodToTest(store)
 			// CoreStore.getBeacons does not return an error and only logs it.

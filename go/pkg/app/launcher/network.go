@@ -20,58 +20,46 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/serrors"
 )
 
+const retryInterval = 500 * time.Millisecond
+
 // WaitForNetworkReady checks that all IPs listed in the argument can be bound
-// to. This function blocks until either all IPs can be bound to or the context
-// expires. The error is nil if all IPs can be bound to. If the error is non nil
-// it will contain the IPs for which the binding failed.
+// to. This function blocks until all IPs can be bound. Nil IPs in the input
+// list are ignored.
 //
 // Note in general this function is called directly by the application launcher,
 // and therefore doesn't need to be used. It is public for applications that
 // have custom constraints when the call should happen.
-func WaitForNetworkReady(ctx context.Context, ips []net.IP) error {
-	previousMissingIPs := make([]string, 0, len(ips))
-	for _, ip := range ips {
-		previousMissingIPs = append(previousMissingIPs, ip.String())
-	}
-	for i := 0; len(previousMissingIPs) > 0; i++ {
-		if i > 2 {
-			log.Info("Waiting for network to be ready", "missing_ips", previousMissingIPs)
+func WaitForNetworkReady(ctx context.Context, ips []net.IP) {
+	for i, ip := range ips {
+		if ip == nil {
+			ips = append(ips[:i], ips[i+1:]...)
 		}
+	}
+	if len(ips) == 0 {
+		return
+	}
+	log.Info("Waiting for network to be ready", "ips", ips)
+	for _, ip := range ips {
+		waitForIPReady(ctx, ip)
+	}
+	log.Info("Network ready")
+}
+
+func waitForIPReady(ctx context.Context, ip net.IP) {
+	for {
+		listener, err := net.ListenTCP("tcp", &net.TCPAddr{IP: ip})
+		if err == nil {
+			listener.Close()
+			return
+		}
+
 		select {
 		case <-ctx.Done():
-			return serrors.WrapStr("waiting for network ready", ctx.Err(),
-				"missingIPs", previousMissingIPs)
-		case <-time.After(time.Duration(i*100) * time.Millisecond):
+			return
+		case <-time.After(retryInterval):
 		}
-		previousMissingIPs = checkNetwork(ctx, ips)
 	}
-	return nil
-}
 
-func checkNetwork(ctx context.Context, ips []net.IP) []string {
-	missingIPs := make(map[string]net.IP, len(ips))
-	for _, ip := range ips {
-		missingIPs[ip.String()] = ip
-	}
-	cfg := net.ListenConfig{}
-	for k := range missingIPs {
-		listener, err := cfg.Listen(ctx, "tcp", net.JoinHostPort(k, "0"))
-		if err != nil {
-			continue
-		}
-		listener.Close()
-		delete(missingIPs, k)
-	}
-	return keysToList(missingIPs)
-}
-
-func keysToList(m map[string]net.IP) []string {
-	keys := make([]string, 0, len(m))
-	for ip := range m {
-		keys = append(keys, ip)
-	}
-	return keys
 }

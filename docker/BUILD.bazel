@@ -83,7 +83,3 @@ filegroup(
     srcs = glob(["files/*"]),
     visibility = ["//visibility:public"],
 )
-
-exports_files([
-    "setcap.sh.tpl",
-])

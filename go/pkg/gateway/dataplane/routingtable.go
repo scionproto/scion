@@ -167,8 +167,4 @@ func (rt *RoutingTable) ClearSession(index int) error {
 	return nil
 }
 
-// Activate should be called to mark the routing table as active.
-func (rt *RoutingTable) Activate() {}
-
-// Deactivate should be called when the routing table is no longer needed.
-func (rt *RoutingTable) Deactivate() {}
+func (rt *RoutingTable) Close() error { return nil }

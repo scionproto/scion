@@ -10,7 +10,7 @@ services:
         "--profile_port=0",
       ]
     network_mode: host
-    image: buchgr/bazel-remote-cache:v2.0.1
+    image: buchgr/bazel-remote-cache:v2.1.1
     user: $USER_ID:$GROUP_ID
     volumes:
       - $HOME/.cache/bazel/remote:/data:rw

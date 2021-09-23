@@ -1,7 +1,10 @@
-workspace(name = "com_github_scionproto_scion")
+workspace(
+    name = "com_github_scionproto_scion",
+    managed_directories = {
+        "@spec_npm": ["spec/tools/node_modules"],
+    },
+)
 
-# Generic stuff for dealing with repositories.
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
 
 # linter rules
@@ -29,10 +32,10 @@ lint_setup({
 # Bazel rules for Golang
 http_archive(
     name = "io_bazel_rules_go",
-    sha256 = "69de5c704a05ff37862f7e0f5534d4f479418afc21806c887db544a316f3cb6b",
+    sha256 = "8e968b5fcea1d2d64071872b12737bbb5514524ee5f0a4f54f5920266c261acb",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.27.0/rules_go-v0.27.0.tar.gz",
-        "https://github.com/bazelbuild/rules_go/releases/download/v0.27.0/rules_go-v0.27.0.tar.gz",
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.28.0/rules_go-v0.28.0.zip",
+        "https://github.com/bazelbuild/rules_go/releases/download/v0.28.0/rules_go-v0.28.0.zip",
     ],
 )
 
@@ -40,7 +43,7 @@ load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_depe
 
 go_register_toolchains(
     nogo = "@//:nogo",
-    version = "1.15.11",
+    version = "1.16.8",
 )
 
 # Gazelle
@@ -55,15 +58,6 @@ http_archive(
 
 load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
 load("//:tool_deps.bzl", "tool_deps")
-
-# override dependency version set in go_rules_dependencies.
-# See https://github.com/bazelbuild/rules_go/blob/master/go/dependencies.rst#overriding-dependencies.
-go_repository(
-    name = "org_golang_x_sys",
-    importpath = "golang.org/x/sys",
-    sum = "h1:b3NXsE2LusjYGGjL5bxEVZZORm/YEFFrWFjR8eFrw/c=",
-    version = "v0.0.0-20210423082822-04245dca01da",
-)
 
 go_rules_dependencies()
 
@@ -80,14 +74,10 @@ gazelle_dependencies()
 # Python rules
 http_archive(
     name = "rules_python",
-    sha256 = "0d25ab1c7b18b3f48d1bff97bfa70c1625438b40c5f661946fb43eca4ba9d9dd",
-    strip_prefix = "rules_python-0.2.0",
-    url = "https://github.com/bazelbuild/rules_python/archive/0.2.0.tar.gz",
+    sha256 = "4feecd37ec6e9941a455a19e7392bed65003eab0aa6ea347ca431bce2640e530",
+    strip_prefix = "rules_python-0.3.0",
+    url = "https://github.com/bazelbuild/rules_python/archive/0.3.0.tar.gz",
 )
-
-load("@rules_python//python:repositories.bzl", "py_repositories")
-
-py_repositories()
 
 load("@rules_python//python:pip.bzl", "pip_install")
 
@@ -121,22 +111,11 @@ load("@rules_antlr//antlr:repositories.bzl", "rules_antlr_dependencies")
 
 rules_antlr_dependencies("4.7.2")
 
-# XXX(lukedirtwalker): Temporary workaround for rules_docker SHA issues.
-# Remove once https://github.com/bazelbuild/rules_docker/pull/1829 is merged.
-go_repository(
-    name = "com_github_google_go_containerregistry",
-    importpath = "github.com/google/go-containerregistry",
-    sha256 = "bc0136a33f9c1e4578a700f7afcdaa1241cfff997d6bba695c710d24c5ae26bd",
-    strip_prefix = "google-go-containerregistry-efb2d62",
-    type = "tar.gz",
-    urls = ["https://api.github.com/repos/google/go-containerregistry/tarball/efb2d62d93a7705315b841d0544cb5b13565ff2a"],  # v0.4.1
-)
-
 http_archive(
     name = "io_bazel_rules_docker",
-    sha256 = "95d39fd84ff4474babaf190450ee034d958202043e366b9fc38f438c9e6c3334",
-    strip_prefix = "rules_docker-0.16.0",
-    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.16.0/rules_docker-v0.16.0.tar.gz"],
+    sha256 = "1f4e59843b61981a96835dc4ac377ad4da9f8c334ebe5e0bb3f58f80c09735f4",
+    strip_prefix = "rules_docker-0.19.0",
+    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.19.0/rules_docker-v0.19.0.tar.gz"],
 )
 
 load("@io_bazel_rules_docker//repositories:repositories.bzl", container_repositories = "repositories")
@@ -151,72 +130,42 @@ load("@io_bazel_rules_docker//go:image.bzl", _go_image_repos = "repositories")
 
 _go_image_repos()
 
-# Distroless
-git_repository(
-    name = "distroless",
-    commit = "48dba0a4ace4fcb4fdd8d7e1f7dc1a9ed8b38f7c",
-    remote = "https://github.com/GoogleContainerTools/distroless.git",
-    shallow_since = "1582150737 -0500",
+http_archive(
+    name = "rules_deb_packages",
+    sha256 = "674ce7b66c345aaa9ab898608618a0a0db857cbed8e8d0794ca46e375fd5ff76",
+    urls = ["https://github.com/petermylemans/rules_deb_packages/releases/download/v0.4.0/rules_deb_packages.tar.gz"],
 )
 
-# Debian packages to install in containers
-load("@distroless//package_manager:package_manager.bzl", "package_manager_repositories")
-load("@distroless//package_manager:dpkg.bzl", "dpkg_list", "dpkg_src")
+load("@rules_deb_packages//:repositories.bzl", "deb_packages_dependencies")
 
-package_manager_repositories()
+deb_packages_dependencies()
 
-dpkg_src(
-    name = "debian10_snap",
+load("@rules_deb_packages//:deb_packages.bzl", "deb_packages")
+
+deb_packages(
+    name = "debian_buster_amd64",
     arch = "amd64",
-    distro = "buster",
-    sha256 = "b044c73a46671536011a26aedd8490dd31140538264ac12f26dc6dd0b4f0fcb8",
-    snapshot = "20210404T202957Z",
-    url = "https://snapshot.debian.org/archive",
-)
-
-dpkg_src(
-    name = "debian10_updates_snap",
-    arch = "amd64",
-    distro = "buster-updates",
-    sha256 = "0c3115aeed29d5a8626633de68f2e409b2d182d7351521c46999634f62606de5",
-    snapshot = "20210404T202957Z",
-    url = "https://snapshot.debian.org/archive",
-)
-
-dpkg_src(
-    name = "debian10_security_snap",
-    package_prefix = "https://snapshot.debian.org/archive/debian-security/20210404T121356Z/",
-    packages_gz_url = "https://snapshot.debian.org/archive/debian-security/20210404T121356Z/dists/buster/updates/main/binary-amd64/Packages.gz",
-    sha256 = "5a21ba772818036ba9df9a200544fd10cb4a4685d928d018f472ef19d0f0442c",
-)
-
-dpkg_list(
-    name = "packages_debian10",
-    packages = [
-        "libc6",
-        "libcap2",
-        "libcap2-bin",
-        "libgcc1",
-        "libstdc++6",
-        # These are needed by distroless.
-        "base-files",
-        "ca-certificates",
-        "libssl1.1",
-        "netbase",
-        "openssl",
-        "tzdata",
-        # Needed to add network capabilities to apps.
-        "libcap2",
-        "libcap2-bin",
-    ],
-    # From Distroless WORKSPACE:
-    # Takes the first package found: security updates should go first
-    # If there was a security fix to a package before the stable release, this will find
-    # the older security release. This happened for stretch libc6.
+    packages = {
+        "libc6": "pool/main/g/glibc/libc6_2.28-10_amd64.deb",
+        "libcap2": "pool/main/libc/libcap2/libcap2_2.25-2_amd64.deb",
+        "libcap2-bin": "pool/main/libc/libcap2/libcap2-bin_2.25-2_amd64.deb",
+    },
+    packages_sha256 = {
+        "libc6": "6f703e27185f594f8633159d00180ea1df12d84f152261b6e88af75667195a79",
+        "libcap2": "8f93459c99e9143dfb458353336c5171276860896fd3e10060a515cd3ea3987b",
+        "libcap2-bin": "3c8c5b1410447356125fd8f5af36d0c28853b97c072037af4a1250421008b781",
+    },
     sources = [
-        "@debian10_security_snap//file:Packages.json",
-        "@debian10_updates_snap//file:Packages.json",
-        "@debian10_snap//file:Packages.json",
+        "http://deb.debian.org/debian buster main",
+        "http://deb.debian.org/debian buster-updates main",
+        "http://deb.debian.org/debian-security buster/updates main",
+    ],
+    timestamp = "20210812T060609Z",
+    urls = [
+        "http://deb.debian.org/debian/$(package_path)",
+        "http://deb.debian.org/debian-security/$(package_path)",
+        "https://snapshot.debian.org/archive/debian/$(timestamp)/$(package_path)",  # Needed in case of supersed archive no more available on the mirrors
+        "https://snapshot.debian.org/archive/debian-security/$(timestamp)/$(package_path)",  # Needed in case of supersed archive no more available on the mirrors
     ],
 )
 
@@ -244,31 +193,12 @@ container_pull(
     tag = "10",
 )
 
-container_pull(
-    name = "node_slim",
-    digest = "sha256:1e33616579a5d5de9ec0a861798fb45602a1332be32a67a1cb227b667a5a4d63",
-    registry = "index.docker.io",
-    repository = "library/node",
-    tag = "10.16-slim",
-)
-
-# Busybox (used in debug docker images)
-http_file(
-    name = "busybox",
-    executable = True,
-    sha256 = "b51b9328eb4e60748912e1c1867954a5cf7e9d5294781cae59ce225ed110523c",
-    urls = [
-        "https://busybox.net/downloads/binaries/1.27.1-i686/busybox",
-        "https://drive.google.com/uc?id=1RqCvs8CJubqzHYwJO5MI9UqPixMModWX",
-    ],
-)
-
 # protobuf/gRPC
 http_archive(
     name = "rules_proto_grpc",
-    sha256 = "d771584bbff98698e7cb3cb31c132ee206a972569f4dc8b65acbdd934d156b33",
-    strip_prefix = "rules_proto_grpc-2.0.0",
-    urls = ["https://github.com/rules-proto-grpc/rules_proto_grpc/archive/2.0.0.tar.gz"],
+    sha256 = "7954abbb6898830cd10ac9714fbcacf092299fda00ed2baf781172f545120419",
+    strip_prefix = "rules_proto_grpc-3.1.1",
+    urls = ["https://github.com/rules-proto-grpc/rules_proto_grpc/archive/3.1.1.tar.gz"],
 )
 
 load("@rules_proto_grpc//:repositories.bzl", "rules_proto_grpc_repos", "rules_proto_grpc_toolchains")
@@ -323,3 +253,11 @@ bbcp_repository()
 load("//lint/private/python:deps.bzl", "python_lint_deps")
 
 python_lint_deps()
+
+load("//spec:repositories.bzl", spec_repositories = "repositories")
+
+spec_repositories()
+
+load("//spec:install.bzl", spec_yarn_dependencies = "install_yarn_dependencies")
+
+spec_yarn_dependencies()

@@ -93,6 +93,7 @@ type BRInfo struct {
 type GatewayInfo struct {
 	CtrlAddr   string   `json:"ctrl_addr"`
 	DataAddr   string   `json:"data_addr"`
+	ProbeAddr  string   `json:"probe_addr,omitempty"`
 	Interfaces []uint64 `json:"allow_interfaces,omitempty"`
 }
 
@@ -100,7 +101,7 @@ type GatewayInfo struct {
 // the neighboring AS).
 type BRInterface struct {
 	Underlay  Underlay `json:"underlay,omitempty"`
-	Bandwidth int      `json:"bandwidth"`
+	Bandwidth int      `json:"bandwidth,omitempty"`
 	IA        string   `json:"isd_as"`
 	LinkTo    string   `json:"link_to"`
 	MTU       int      `json:"mtu"`
@@ -109,8 +110,8 @@ type BRInterface struct {
 
 // Underlay is the underlay information for a BR interface.
 type Underlay struct {
-	Public string `json:"public"`
-	Remote string `json:"remote"`
+	Public string `json:"public,omitempty"`
+	Remote string `json:"remote,omitempty"`
 	Bind   string `json:"bind,omitempty"`
 }
 

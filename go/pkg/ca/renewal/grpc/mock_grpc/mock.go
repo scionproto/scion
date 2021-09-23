@@ -7,38 +7,39 @@ package mock_grpc
 import (
 	context "context"
 	x509 "crypto/x509"
+	http "net/http"
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	api "github.com/scionproto/scion/go/pkg/ca/api"
 	control_plane "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	crypto "github.com/scionproto/scion/go/pkg/proto/crypto"
-	http "net/http"
-	reflect "reflect"
 )
 
-// MockChainBuilder is a mock of ChainBuilder interface
+// MockChainBuilder is a mock of ChainBuilder interface.
 type MockChainBuilder struct {
 	ctrl     *gomock.Controller
 	recorder *MockChainBuilderMockRecorder
 }
 
-// MockChainBuilderMockRecorder is the mock recorder for MockChainBuilder
+// MockChainBuilderMockRecorder is the mock recorder for MockChainBuilder.
 type MockChainBuilderMockRecorder struct {
 	mock *MockChainBuilder
 }
 
-// NewMockChainBuilder creates a new mock instance
+// NewMockChainBuilder creates a new mock instance.
 func NewMockChainBuilder(ctrl *gomock.Controller) *MockChainBuilder {
 	mock := &MockChainBuilder{ctrl: ctrl}
 	mock.recorder = &MockChainBuilderMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockChainBuilder) EXPECT() *MockChainBuilderMockRecorder {
 	return m.recorder
 }
 
-// CreateChain mocks base method
+// CreateChain mocks base method.
 func (m *MockChainBuilder) CreateChain(arg0 context.Context, arg1 *x509.CertificateRequest) ([]*x509.Certificate, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateChain", arg0, arg1)
@@ -47,36 +48,36 @@ func (m *MockChainBuilder) CreateChain(arg0 context.Context, arg1 *x509.Certific
 	return ret0, ret1
 }
 
-// CreateChain indicates an expected call of CreateChain
+// CreateChain indicates an expected call of CreateChain.
 func (mr *MockChainBuilderMockRecorder) CreateChain(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateChain", reflect.TypeOf((*MockChainBuilder)(nil).CreateChain), arg0, arg1)
 }
 
-// MockRenewalRequestVerifier is a mock of RenewalRequestVerifier interface
+// MockRenewalRequestVerifier is a mock of RenewalRequestVerifier interface.
 type MockRenewalRequestVerifier struct {
 	ctrl     *gomock.Controller
 	recorder *MockRenewalRequestVerifierMockRecorder
 }
 
-// MockRenewalRequestVerifierMockRecorder is the mock recorder for MockRenewalRequestVerifier
+// MockRenewalRequestVerifierMockRecorder is the mock recorder for MockRenewalRequestVerifier.
 type MockRenewalRequestVerifierMockRecorder struct {
 	mock *MockRenewalRequestVerifier
 }
 
-// NewMockRenewalRequestVerifier creates a new mock instance
+// NewMockRenewalRequestVerifier creates a new mock instance.
 func NewMockRenewalRequestVerifier(ctrl *gomock.Controller) *MockRenewalRequestVerifier {
 	mock := &MockRenewalRequestVerifier{ctrl: ctrl}
 	mock.recorder = &MockRenewalRequestVerifierMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockRenewalRequestVerifier) EXPECT() *MockRenewalRequestVerifierMockRecorder {
 	return m.recorder
 }
 
-// VerifyCMSSignedRenewalRequest mocks base method
+// VerifyCMSSignedRenewalRequest mocks base method.
 func (m *MockRenewalRequestVerifier) VerifyCMSSignedRenewalRequest(arg0 context.Context, arg1 []byte) (*x509.CertificateRequest, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "VerifyCMSSignedRenewalRequest", arg0, arg1)
@@ -85,13 +86,13 @@ func (m *MockRenewalRequestVerifier) VerifyCMSSignedRenewalRequest(arg0 context.
 	return ret0, ret1
 }
 
-// VerifyCMSSignedRenewalRequest indicates an expected call of VerifyCMSSignedRenewalRequest
+// VerifyCMSSignedRenewalRequest indicates an expected call of VerifyCMSSignedRenewalRequest.
 func (mr *MockRenewalRequestVerifierMockRecorder) VerifyCMSSignedRenewalRequest(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyCMSSignedRenewalRequest", reflect.TypeOf((*MockRenewalRequestVerifier)(nil).VerifyCMSSignedRenewalRequest), arg0, arg1)
 }
 
-// VerifyPbSignedRenewalRequest mocks base method
+// VerifyPbSignedRenewalRequest mocks base method.
 func (m *MockRenewalRequestVerifier) VerifyPbSignedRenewalRequest(arg0 context.Context, arg1 *crypto.SignedMessage, arg2 [][]*x509.Certificate) (*x509.CertificateRequest, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "VerifyPbSignedRenewalRequest", arg0, arg1, arg2)
@@ -100,36 +101,36 @@ func (m *MockRenewalRequestVerifier) VerifyPbSignedRenewalRequest(arg0 context.C
 	return ret0, ret1
 }
 
-// VerifyPbSignedRenewalRequest indicates an expected call of VerifyPbSignedRenewalRequest
+// VerifyPbSignedRenewalRequest indicates an expected call of VerifyPbSignedRenewalRequest.
 func (mr *MockRenewalRequestVerifierMockRecorder) VerifyPbSignedRenewalRequest(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyPbSignedRenewalRequest", reflect.TypeOf((*MockRenewalRequestVerifier)(nil).VerifyPbSignedRenewalRequest), arg0, arg1, arg2)
 }
 
-// MockCMSSigner is a mock of CMSSigner interface
+// MockCMSSigner is a mock of CMSSigner interface.
 type MockCMSSigner struct {
 	ctrl     *gomock.Controller
 	recorder *MockCMSSignerMockRecorder
 }
 
-// MockCMSSignerMockRecorder is the mock recorder for MockCMSSigner
+// MockCMSSignerMockRecorder is the mock recorder for MockCMSSigner.
 type MockCMSSignerMockRecorder struct {
 	mock *MockCMSSigner
 }
 
-// NewMockCMSSigner creates a new mock instance
+// NewMockCMSSigner creates a new mock instance.
 func NewMockCMSSigner(ctrl *gomock.Controller) *MockCMSSigner {
 	mock := &MockCMSSigner{ctrl: ctrl}
 	mock.recorder = &MockCMSSignerMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockCMSSigner) EXPECT() *MockCMSSignerMockRecorder {
 	return m.recorder
 }
 
-// SignCMS mocks base method
+// SignCMS mocks base method.
 func (m *MockCMSSigner) SignCMS(arg0 context.Context, arg1 []byte) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SignCMS", arg0, arg1)
@@ -138,36 +139,36 @@ func (m *MockCMSSigner) SignCMS(arg0 context.Context, arg1 []byte) ([]byte, erro
 	return ret0, ret1
 }
 
-// SignCMS indicates an expected call of SignCMS
+// SignCMS indicates an expected call of SignCMS.
 func (mr *MockCMSSignerMockRecorder) SignCMS(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignCMS", reflect.TypeOf((*MockCMSSigner)(nil).SignCMS), arg0, arg1)
 }
 
-// MockCMSRequestHandler is a mock of CMSRequestHandler interface
+// MockCMSRequestHandler is a mock of CMSRequestHandler interface.
 type MockCMSRequestHandler struct {
 	ctrl     *gomock.Controller
 	recorder *MockCMSRequestHandlerMockRecorder
 }
 
-// MockCMSRequestHandlerMockRecorder is the mock recorder for MockCMSRequestHandler
+// MockCMSRequestHandlerMockRecorder is the mock recorder for MockCMSRequestHandler.
 type MockCMSRequestHandlerMockRecorder struct {
 	mock *MockCMSRequestHandler
 }
 
-// NewMockCMSRequestHandler creates a new mock instance
+// NewMockCMSRequestHandler creates a new mock instance.
 func NewMockCMSRequestHandler(ctrl *gomock.Controller) *MockCMSRequestHandler {
 	mock := &MockCMSRequestHandler{ctrl: ctrl}
 	mock.recorder = &MockCMSRequestHandlerMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockCMSRequestHandler) EXPECT() *MockCMSRequestHandlerMockRecorder {
 	return m.recorder
 }
 
-// HandleCMSRequest mocks base method
+// HandleCMSRequest mocks base method.
 func (m *MockCMSRequestHandler) HandleCMSRequest(arg0 context.Context, arg1 *control_plane.ChainRenewalRequest) ([]*x509.Certificate, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HandleCMSRequest", arg0, arg1)
@@ -176,36 +177,36 @@ func (m *MockCMSRequestHandler) HandleCMSRequest(arg0 context.Context, arg1 *con
 	return ret0, ret1
 }
 
-// HandleCMSRequest indicates an expected call of HandleCMSRequest
+// HandleCMSRequest indicates an expected call of HandleCMSRequest.
 func (mr *MockCMSRequestHandlerMockRecorder) HandleCMSRequest(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleCMSRequest", reflect.TypeOf((*MockCMSRequestHandler)(nil).HandleCMSRequest), arg0, arg1)
 }
 
-// MockLegacyRequestHandler is a mock of LegacyRequestHandler interface
+// MockLegacyRequestHandler is a mock of LegacyRequestHandler interface.
 type MockLegacyRequestHandler struct {
 	ctrl     *gomock.Controller
 	recorder *MockLegacyRequestHandlerMockRecorder
 }
 
-// MockLegacyRequestHandlerMockRecorder is the mock recorder for MockLegacyRequestHandler
+// MockLegacyRequestHandlerMockRecorder is the mock recorder for MockLegacyRequestHandler.
 type MockLegacyRequestHandlerMockRecorder struct {
 	mock *MockLegacyRequestHandler
 }
 
-// NewMockLegacyRequestHandler creates a new mock instance
+// NewMockLegacyRequestHandler creates a new mock instance.
 func NewMockLegacyRequestHandler(ctrl *gomock.Controller) *MockLegacyRequestHandler {
 	mock := &MockLegacyRequestHandler{ctrl: ctrl}
 	mock.recorder = &MockLegacyRequestHandlerMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockLegacyRequestHandler) EXPECT() *MockLegacyRequestHandlerMockRecorder {
 	return m.recorder
 }
 
-// HandleLegacyRequest mocks base method
+// HandleLegacyRequest mocks base method.
 func (m *MockLegacyRequestHandler) HandleLegacyRequest(arg0 context.Context, arg1 *control_plane.ChainRenewalRequest) (*control_plane.ChainRenewalResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HandleLegacyRequest", arg0, arg1)
@@ -214,36 +215,36 @@ func (m *MockLegacyRequestHandler) HandleLegacyRequest(arg0 context.Context, arg
 	return ret0, ret1
 }
 
-// HandleLegacyRequest indicates an expected call of HandleLegacyRequest
+// HandleLegacyRequest indicates an expected call of HandleLegacyRequest.
 func (mr *MockLegacyRequestHandlerMockRecorder) HandleLegacyRequest(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleLegacyRequest", reflect.TypeOf((*MockLegacyRequestHandler)(nil).HandleLegacyRequest), arg0, arg1)
 }
 
-// MockCAServiceClient is a mock of CAServiceClient interface
+// MockCAServiceClient is a mock of CAServiceClient interface.
 type MockCAServiceClient struct {
 	ctrl     *gomock.Controller
 	recorder *MockCAServiceClientMockRecorder
 }
 
-// MockCAServiceClientMockRecorder is the mock recorder for MockCAServiceClient
+// MockCAServiceClientMockRecorder is the mock recorder for MockCAServiceClient.
 type MockCAServiceClientMockRecorder struct {
 	mock *MockCAServiceClient
 }
 
-// NewMockCAServiceClient creates a new mock instance
+// NewMockCAServiceClient creates a new mock instance.
 func NewMockCAServiceClient(ctrl *gomock.Controller) *MockCAServiceClient {
 	mock := &MockCAServiceClient{ctrl: ctrl}
 	mock.recorder = &MockCAServiceClientMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockCAServiceClient) EXPECT() *MockCAServiceClientMockRecorder {
 	return m.recorder
 }
 
-// PostCertificateRenewal mocks base method
+// PostCertificateRenewal mocks base method.
 func (m *MockCAServiceClient) PostCertificateRenewal(arg0 context.Context, arg1 int, arg2 api.AS, arg3 api.PostCertificateRenewalJSONRequestBody, arg4 ...api.RequestEditorFn) (*http.Response, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1, arg2, arg3}
@@ -256,7 +257,7 @@ func (m *MockCAServiceClient) PostCertificateRenewal(arg0 context.Context, arg1 
 	return ret0, ret1
 }
 
-// PostCertificateRenewal indicates an expected call of PostCertificateRenewal
+// PostCertificateRenewal indicates an expected call of PostCertificateRenewal.
 func (mr *MockCAServiceClientMockRecorder) PostCertificateRenewal(arg0, arg1, arg2, arg3 interface{}, arg4 ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1, arg2, arg3}, arg4...)

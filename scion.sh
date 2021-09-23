@@ -246,6 +246,7 @@ cmd_lint() {
     protobuf_lint || ret=1
     md_lint || ret=1
     semgrep_lint || ret=1
+    openapi_lint || ret=1
     return $ret
 }
 
@@ -271,7 +272,7 @@ go_lint() {
     out=$($GOSDK/gofmt -d -s $LOCAL_DIRS ./acceptance);
     if [ -n "$out" ]; then echo "$out"; ret=1; fi
     lint_step "linelen (lll)"
-    out=$($TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:|`sql:"|gorm:"|`json:"|`yaml:' < $TMPDIR/gofiles.list)
+    out=$($TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:|`sql:"|gorm:"|`json:"|`yaml:|nolint:lll' < $TMPDIR/gofiles.list)
     if [ -n "$out" ]; then echo "$out"; ret=1; fi
     lint_step "misspell"
     xargs -a $TMPDIR/gofiles.list $TMPDIR/misspell -error || ret=1
@@ -314,6 +315,12 @@ semgrep_lint() {
     lint_step "custom rules"
     docker run --rm -v "${PWD}:/src" returntocorp/semgrep@sha256:8b0735959a6eb737aa945f4d591b6db23b75344135d74c3021b7d427bd317a66 \
         --config=/src/lint/semgrep
+}
+
+openapi_lint() {
+    lint_header "openapi"
+    lint_step "spectral"
+    make -C spec lint
 }
 
 lint_header() {

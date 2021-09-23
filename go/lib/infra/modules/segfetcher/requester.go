@@ -25,14 +25,22 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/tracing"
 )
 
 // ErrNotReachable indicates that the destination is not reachable from this process.
 var ErrNotReachable = serrors.New("remote not reachable")
 
+// SegmentsReply represents the segments received from an RPC. It also includes
+// meta data like the Peer address that is to be used for verification.
+type SegmentsReply struct {
+	Segments []*seg.Meta
+	Peer     net.Addr
+}
+
 // RPC is used to fetch segments from a remote.
 type RPC interface {
-	Segments(ctx context.Context, req Request, dst net.Addr) ([]*seg.Meta, error)
+	Segments(ctx context.Context, req Request, dst net.Addr) (SegmentsReply, error)
 }
 
 // DstProvider provides the destination for a segment lookup including the path.
@@ -99,6 +107,11 @@ func (r *DefaultRequester) requestWorker(ctx context.Context, reqs Requests, i i
 	logger := log.FromCtx(ctx).New("req_id", log.NewDebugID(), "request", req)
 	ctx = log.CtxWith(ctx, logger)
 
+	reply := func(reply ReplyOrErr) {
+		replies <- reply
+		tracing.Error(span, reply.Err)
+	}
+
 	// Keep retrying until the allocated time is up.
 	// In the case where this request is sent over SCION/QUIC, DstProvider will
 	// return random paths. These retries allow to route around broken paths.
@@ -107,34 +120,31 @@ func (r *DefaultRequester) requestWorker(ctx context.Context, reqs Requests, i i
 	// Note: this is a temporary solution. In the future, this should be handled
 	// by using longer lived grpc connections over different paths and thereby
 	// explicitly keeping track of the path health.
-	try := func(ctx context.Context) ([]*seg.Meta, net.Addr, error) {
+	try := func(ctx context.Context) (SegmentsReply, error) {
 		dst, err := r.DstProvider.Dst(ctx, req)
 		if err != nil {
-			return nil, nil, err
+			return SegmentsReply{Peer: dst}, err
 		}
-		segs, err := r.RPC.Segments(ctx, req, dst)
-		if err != nil {
-			return nil, dst, err
-		}
-		return segs, dst, nil
+		return r.RPC.Segments(ctx, req, dst)
 	}
 	for tryIndex := 0; ctx.Err() == nil && tryIndex < r.MaxRetries+1; tryIndex++ {
-		segs, peer, err := try(ctx)
+		r, err := try(ctx)
 		if errors.Is(err, ErrNotReachable) {
-			replies <- ReplyOrErr{Req: req, Err: err}
+			logger.Debug("Segment lookup failed", "try", tryIndex+1, "peer", r.Peer, "err", err)
+			reply(ReplyOrErr{Req: req, Err: err})
 			return
 		}
 		if err != nil {
-			logger.Debug("Segment lookup failed", "try", tryIndex+1, "peer", peer,
-				"err", err)
+			logger.Debug("Segment lookup failed", "try", tryIndex+1, "peer", r.Peer, "err", err)
 			continue
 		}
-		replies <- ReplyOrErr{Req: req, Segments: segs, Peer: peer}
+		reply(ReplyOrErr{Req: req, Segments: r.Segments, Peer: r.Peer})
 		return
 	}
 	err := ctx.Err()
 	if err == nil {
 		err = serrors.New("no attempts left")
 	}
-	replies <- ReplyOrErr{Req: req, Err: err}
+	logger.Debug("Unable to fetch paths in time", "err", err)
+	reply(ReplyOrErr{Req: req, Err: err})
 }

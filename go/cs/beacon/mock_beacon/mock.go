@@ -6,36 +6,37 @@ package mock_beacon
 
 import (
 	context "context"
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	beacon "github.com/scionproto/scion/go/cs/beacon"
 	addr "github.com/scionproto/scion/go/lib/addr"
-	reflect "reflect"
 )
 
-// MockDB is a mock of DB interface
+// MockDB is a mock of DB interface.
 type MockDB struct {
 	ctrl     *gomock.Controller
 	recorder *MockDBMockRecorder
 }
 
-// MockDBMockRecorder is the mock recorder for MockDB
+// MockDBMockRecorder is the mock recorder for MockDB.
 type MockDBMockRecorder struct {
 	mock *MockDB
 }
 
-// NewMockDB creates a new mock instance
+// NewMockDB creates a new mock instance.
 func NewMockDB(ctrl *gomock.Controller) *MockDB {
 	mock := &MockDB{ctrl: ctrl}
 	mock.recorder = &MockDBMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockDB) EXPECT() *MockDBMockRecorder {
 	return m.recorder
 }
 
-// BeaconSources mocks base method
+// BeaconSources mocks base method.
 func (m *MockDB) BeaconSources(arg0 context.Context) ([]addr.IA, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BeaconSources", arg0)
@@ -44,13 +45,13 @@ func (m *MockDB) BeaconSources(arg0 context.Context) ([]addr.IA, error) {
 	return ret0, ret1
 }
 
-// BeaconSources indicates an expected call of BeaconSources
+// BeaconSources indicates an expected call of BeaconSources.
 func (mr *MockDBMockRecorder) BeaconSources(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeaconSources", reflect.TypeOf((*MockDB)(nil).BeaconSources), arg0)
 }
 
-// CandidateBeacons mocks base method
+// CandidateBeacons mocks base method.
 func (m *MockDB) CandidateBeacons(arg0 context.Context, arg1 int, arg2 beacon.Usage, arg3 addr.IA) ([]beacon.Beacon, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CandidateBeacons", arg0, arg1, arg2, arg3)
@@ -59,13 +60,13 @@ func (m *MockDB) CandidateBeacons(arg0 context.Context, arg1 int, arg2 beacon.Us
 	return ret0, ret1
 }
 
-// CandidateBeacons indicates an expected call of CandidateBeacons
+// CandidateBeacons indicates an expected call of CandidateBeacons.
 func (mr *MockDBMockRecorder) CandidateBeacons(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CandidateBeacons", reflect.TypeOf((*MockDB)(nil).CandidateBeacons), arg0, arg1, arg2, arg3)
 }
 
-// InsertBeacon mocks base method
+// InsertBeacon mocks base method.
 func (m *MockDB) InsertBeacon(arg0 context.Context, arg1 beacon.Beacon, arg2 beacon.Usage) (beacon.InsertStats, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertBeacon", arg0, arg1, arg2)
@@ -74,7 +75,7 @@ func (m *MockDB) InsertBeacon(arg0 context.Context, arg1 beacon.Beacon, arg2 bea
 	return ret0, ret1
 }
 
-// InsertBeacon indicates an expected call of InsertBeacon
+// InsertBeacon indicates an expected call of InsertBeacon.
 func (mr *MockDBMockRecorder) InsertBeacon(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertBeacon", reflect.TypeOf((*MockDB)(nil).InsertBeacon), arg0, arg1, arg2)

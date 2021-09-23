@@ -33,13 +33,13 @@ import (
 const (
 	// CtxTimedOutError is a custom QUIC error code that is used when canceling
 	// writes due to context expiration.
-	CtxTimedOutError quic.ErrorCode = iota + 1
+	CtxTimedOutError quic.ApplicationErrorCode = iota + 1
 	// OpenStreamError is the error code when failing to opening a stream.
 	OpenStreamError
 	// AcceptStreamError is the error code when failing to accept a stream.
 	AcceptStreamError
 
-	errNoError quic.ErrorCode = 0x100
+	errNoError quic.ApplicationErrorCode = 0x100
 )
 
 // streamAcceptTimeout is the default timeout for accepting connections.

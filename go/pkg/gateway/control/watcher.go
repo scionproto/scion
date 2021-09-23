@@ -136,6 +136,11 @@ type watcherItem struct {
 	cancel func()
 }
 
+func (w *watcherItem) Close() error {
+	w.cancel()
+	return w.prefixWatcher.fetcher.Close()
+}
+
 // gatewayDiagnostics represents the gathered diagnostics from the prefixes.
 type gatewayDiagnostics struct {
 	DataAddr   string    `json:"data_address"`
@@ -191,7 +196,9 @@ func (w *GatewayWatcher) run(runCtx context.Context) {
 	for _, gateway := range diff.Remove {
 		key := fmt.Sprint(gateway)
 		if prefixWatcher, ok := w.currentWatchers[key]; ok {
-			prefixWatcher.cancel()
+			if err := prefixWatcher.Close(); err != nil {
+				logger.Info("Error stopping prefix discovery", "gateway", prefixWatcher.gateway)
+			}
 			delete(w.currentWatchers, key)
 		}
 	}
@@ -207,6 +214,7 @@ func (w *GatewayWatcher) run(runCtx context.Context) {
 
 func (w *GatewayWatcher) watchPrefixes(ctx context.Context, gateway Gateway) watcherItem {
 	ctx, cancel := context.WithCancel(ctx)
+
 	watcher := newPrefixWatcher(gateway, w.Remote, w.Template)
 	go func(ctx context.Context, watcher *prefixWatcher) {
 		defer log.HandlePanic()
@@ -288,6 +296,12 @@ type PrefixConsumer interface {
 // PrefixFetcher fetches the IP prefixes from a remote gateway.
 type PrefixFetcher interface {
 	Prefixes(ctx context.Context, gateway *net.UDPAddr) ([]*net.IPNet, error)
+	Close() error
+}
+
+// PrefixFetcherFactory constructs a PrefixFetcher for a given remote gateway.
+type PrefixFetcherFactory interface {
+	NewPrefixFetcher(gateway Gateway) PrefixFetcher
 }
 
 // PrefixWatcherConfig configures a prefix watcher that watches IP prefixes
@@ -298,8 +312,8 @@ type PrefixWatcherConfig struct {
 	// Consumer consume the fetched prefixes. Its methods are called
 	// synchroniously and should return swiftly.
 	Consumer PrefixConsumer
-	// PrefixFetcher is used to fetch IP prefixes from the remote gateway.
-	Fetcher PrefixFetcher
+	// PrefixFetcherFactory is used to create a IP prefix fetcher for the remote gateway.
+	FetcherFactory PrefixFetcherFactory
 	// PollInterval is the time between consecutive poll attempts. If zero, this
 	// defaults to 5 seconds.
 	PollInterval time.Duration
@@ -312,8 +326,8 @@ func (c *PrefixWatcherConfig) validateParameters() error {
 	if c.Consumer == nil {
 		return serrors.New("consumer must not be nil")
 	}
-	if c.Fetcher == nil {
-		return serrors.New("fetcher must not be nil")
+	if c.FetcherFactory == nil {
+		return serrors.New("fetcher factory must not be nil")
 	}
 	if c.PollInterval == 0 {
 		c.PollInterval = defaultGatewayPollInterval
@@ -332,6 +346,7 @@ type prefixWatcher struct {
 
 	gateway       Gateway
 	remote        addr.IA
+	fetcher       PrefixFetcher
 	runMarkerLock sync.Mutex
 	// runMarker is set to true the first time a Session runs. Subsequent calls use this value to
 	// return an error.
@@ -349,6 +364,7 @@ func newPrefixWatcher(gateway Gateway, remote addr.IA, cfg PrefixWatcherConfig) 
 		PrefixWatcherConfig: cfg,
 		gateway:             gateway,
 		remote:              remote,
+		fetcher:             cfg.FetcherFactory.NewPrefixFetcher(gateway),
 	}
 }
 
@@ -387,7 +403,7 @@ func (w *prefixWatcher) run(ctx context.Context) {
 
 	logger := log.FromCtx(ctx)
 	logger.Debug("Fetching IP prefixes from remote gateway")
-	prefixes, err := w.Fetcher.Prefixes(ctx, w.gateway.Control)
+	prefixes, err := w.fetcher.Prefixes(ctx, w.gateway.Control)
 	if err != nil {
 		logger.Debug("Failed to fetch IP prefixes from remote gateway", "err", err)
 		return

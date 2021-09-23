@@ -18,26 +18,19 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	dblib "github.com/scionproto/scion/go/lib/infra/modules/db"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/pkg/storage"
-)
-
-const (
-	promNamespace = "pathdb"
-
-	promDBName = "db"
 )
 
 type promOp string
@@ -56,63 +49,53 @@ const (
 	promOpRollbackTx promOp = "tx_rollback"
 )
 
-var (
-	queriesTotal *prometheus.CounterVec
-	resultsTotal *prometheus.CounterVec
-
-	initMetricsOnce sync.Once
-)
-
 type Config struct {
-	Driver string
-}
-
-func initMetrics() {
-	initMetricsOnce.Do(func() {
-		// Cardinality: X (dbName) * 13 (len(all ops))
-		queriesTotal = prom.NewCounterVec(promNamespace, "", "queries_total",
-			"Total queries to the database.", []string{promDBName, prom.LabelOperation})
-		// Cardinality: X (dbNmae) * 13 (len(all ops)) * Y (len(all results))
-		resultsTotal = prom.NewCounterVec(promNamespace, "", "results_total",
-			"The results of the pathdb ops.",
-			[]string{promDBName, prom.LabelResult, prom.LabelOperation})
-	})
+	Driver       string
+	QueriesTotal metrics.Counter
 }
 
 // WrapDB wraps the given PathDB into one that also exports metrics. dbName will
 // be added as a label to all metrics, so that multiple path DBs can be
 // differentiated.
 func WrapDB(pathDB storage.PathDB, cfg Config) storage.PathDB {
-	initMetrics()
-	labels := prometheus.Labels{promDBName: cfg.Driver}
 	return &metricsPathDB{
 		metricsExecutor: &metricsExecutor{
-			pathDB: pathDB,
-			metrics: &counters{
-				queriesTotal: queriesTotal.MustCurryWith(labels),
-				resultsTotal: resultsTotal.MustCurryWith(labels),
-			},
+			pathDB:  pathDB,
+			metrics: &Observer{Cfg: cfg},
 		},
 		db: pathDB,
 	}
 }
 
-type counters struct {
-	queriesTotal *prometheus.CounterVec
-	resultsTotal *prometheus.CounterVec
+type Observer struct {
+	Cfg Config
 }
 
-func (c *counters) Observe(ctx context.Context, op promOp, action func(ctx context.Context) error) {
+func (c *Observer) Observe(ctx context.Context, op promOp, action func(ctx context.Context) error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, fmt.Sprintf("pathdb.%s", string(op)))
 	defer span.Finish()
-	c.queriesTotal.WithLabelValues(string(op)).Inc()
 	err := action(ctx)
 
 	label := dblib.ErrToMetricLabel(err)
 	tracing.Error(span, err)
 	tracing.ResultLabel(span, label)
 
-	c.resultsTotal.WithLabelValues(label, string(op)).Inc()
+	labels := queryLabels{
+		Driver:    c.Cfg.Driver,
+		Operation: string(op),
+		Result:    label,
+	}
+	metrics.CounterInc(metrics.CounterWith(c.Cfg.QueriesTotal, labels.Expand()...))
+}
+
+type queryLabels struct {
+	Driver    string
+	Operation string
+	Result    string
+}
+
+func (l queryLabels) Expand() []string {
+	return []string{"driver", l.Driver, "operation", l.Operation, prom.LabelResult, l.Result}
 }
 
 var _ (storage.PathDB) = (*metricsPathDB)(nil)
@@ -183,7 +166,7 @@ var _ (pathdb.ReadWrite) = (*metricsExecutor)(nil)
 
 type metricsExecutor struct {
 	pathDB  pathdb.ReadWrite
-	metrics *counters
+	metrics *Observer
 }
 
 func (db *metricsExecutor) Insert(ctx context.Context, meta *seg.Meta) (pathdb.InsertStats, error) {
@@ -226,14 +209,18 @@ func (db *metricsExecutor) Get(ctx context.Context, params *query.Params) (query
 		span.SetTag("query.ends_at", params.EndsAt)
 	}
 
-	db.metrics.queriesTotal.WithLabelValues(string(promOpGet)).Inc()
 	res, err := db.pathDB.Get(ctx, params)
-
 	label := dblib.ErrToMetricLabel(err)
+	labels := queryLabels{
+		Driver:    db.metrics.Cfg.Driver,
+		Operation: string(promOpGet),
+		Result:    label,
+	}
+	metrics.CounterInc(metrics.CounterWith(db.metrics.Cfg.QueriesTotal, labels.Expand()...))
+
 	tracing.Error(span, err)
 	tracing.ResultLabel(span, label)
 	span.SetTag("result.size", len(res))
-	db.metrics.resultsTotal.WithLabelValues(label, string(promOpGet)).Inc()
 	return res, err
 }
 

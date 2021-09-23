@@ -25,7 +25,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -73,16 +72,16 @@ type Application struct {
 	ShortName string
 
 	// RequiredIPs should return the IPs that this application wants to listen
-	// on. The launcher will wait until those IPs can be listened on with a
-	// timeout of 10s. The function is called after the configuration has been
-	// initialized. If this function is not set the launcher will immediately
-	// start the application without waiting for any IPs.
+	// on. The launcher will wait until those IPs can be listened on. The
+	// function is called after the configuration has been  initialized. If this
+	// function is not set the launcher will immediately start the application
+	// without waiting for any IPs.
 	RequiredIPs func() ([]net.IP, error)
 
 	// Main is the custom logic of the application. If nil, no custom logic is executed
 	// (and only the setup/teardown harness runs). If Main returns an error, the
 	// Run method will return a non-zero exit code.
-	Main func() error
+	Main func(ctx context.Context) error
 
 	// ErrorWriter specifies where error output should be printed. If nil, os.Stderr is used.
 	ErrorWriter io.Writer
@@ -111,7 +110,7 @@ func (a *Application) run() error {
 
 	cmd := newCommandTemplate(executable, shortName, a.TOMLConfig, a.Samplers...)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		return a.executeCommand(shortName)
+		return a.executeCommand(cmd.Context(), shortName)
 	}
 	a.config = viper.New()
 	a.config.SetDefault(cfgLogConsoleLevel, log.DefaultConsoleLevel)
@@ -127,16 +126,18 @@ func (a *Application) run() error {
 	// is used behind the scenes by docker stop to cleanly shut down a container).
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGTERM)
+	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		defer log.HandlePanic()
 		<-sigterm
 		log.Info("Received SIGTERM signal, exiting...")
+		cancel()
 		// FIXME(scrye): Use context.Context and clean context propagation to
 		// server modules instead of a global cancelation signal.
 		fatal.Shutdown(env.ShutdownGraceInterval)
 	}()
 
-	return cmd.Execute()
+	return cmd.ExecuteContext(ctx)
 }
 
 func (a *Application) getShortName(executable string) string {
@@ -146,7 +147,7 @@ func (a *Application) getShortName(executable string) string {
 	return executable
 }
 
-func (a *Application) executeCommand(shortName string) error {
+func (a *Application) executeCommand(ctx context.Context, shortName string) error {
 	os.Setenv("TZ", "UTC")
 	fatal.Init()
 
@@ -187,12 +188,7 @@ func (a *Application) executeCommand(shortName string) error {
 		if err != nil {
 			return serrors.WrapStr("loading required IPs", err)
 		}
-		waitCtx, cancelF := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancelF()
-		if err := WaitForNetworkReady(waitCtx, ips); err != nil {
-			return serrors.WrapStr("waiting for network to be ready", err)
-		}
-		cancelF()
+		WaitForNetworkReady(ctx, ips)
 	}
 	if err := env.LogAppStarted(shortName, a.config.GetString(cfgGeneralID)); err != nil {
 		return err
@@ -209,7 +205,7 @@ func (a *Application) executeCommand(shortName string) error {
 	if a.Main == nil {
 		return nil
 	}
-	return a.Main()
+	return a.Main(ctx)
 }
 
 func (a *Application) getLogging() log.Config {
@@ -260,7 +256,6 @@ func newCommandTemplate(executable string, shortName string, config config.Sampl
 		Args:          cobra.NoArgs,
 	}
 	cmd.AddCommand(
-		command.NewCompletion(cmd),
 		command.NewSample(
 			cmd,
 			append(samplers, command.NewSampleConfig(config))...,

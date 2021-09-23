@@ -46,7 +46,6 @@ func main() {
 		SilenceErrors: true,
 	}
 	cmd.AddCommand(
-		command.NewCompletion(cmd),
 		command.NewVersion(cmd),
 		newPing(cmd),
 		newShowpaths(cmd),

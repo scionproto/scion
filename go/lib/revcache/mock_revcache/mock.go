@@ -6,36 +6,37 @@ package mock_revcache
 
 import (
 	context "context"
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	path_mgmt "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	revcache "github.com/scionproto/scion/go/lib/revcache"
-	reflect "reflect"
 )
 
-// MockRevCache is a mock of RevCache interface
+// MockRevCache is a mock of RevCache interface.
 type MockRevCache struct {
 	ctrl     *gomock.Controller
 	recorder *MockRevCacheMockRecorder
 }
 
-// MockRevCacheMockRecorder is the mock recorder for MockRevCache
+// MockRevCacheMockRecorder is the mock recorder for MockRevCache.
 type MockRevCacheMockRecorder struct {
 	mock *MockRevCache
 }
 
-// NewMockRevCache creates a new mock instance
+// NewMockRevCache creates a new mock instance.
 func NewMockRevCache(ctrl *gomock.Controller) *MockRevCache {
 	mock := &MockRevCache{ctrl: ctrl}
 	mock.recorder = &MockRevCacheMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockRevCache) EXPECT() *MockRevCacheMockRecorder {
 	return m.recorder
 }
 
-// Close mocks base method
+// Close mocks base method.
 func (m *MockRevCache) Close() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Close")
@@ -43,13 +44,13 @@ func (m *MockRevCache) Close() error {
 	return ret0
 }
 
-// Close indicates an expected call of Close
+// Close indicates an expected call of Close.
 func (mr *MockRevCacheMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockRevCache)(nil).Close))
 }
 
-// DeleteExpired mocks base method
+// DeleteExpired mocks base method.
 func (m *MockRevCache) DeleteExpired(arg0 context.Context) (int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteExpired", arg0)
@@ -58,13 +59,13 @@ func (m *MockRevCache) DeleteExpired(arg0 context.Context) (int64, error) {
 	return ret0, ret1
 }
 
-// DeleteExpired indicates an expected call of DeleteExpired
+// DeleteExpired indicates an expected call of DeleteExpired.
 func (mr *MockRevCacheMockRecorder) DeleteExpired(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteExpired", reflect.TypeOf((*MockRevCache)(nil).DeleteExpired), arg0)
 }
 
-// Get mocks base method
+// Get mocks base method.
 func (m *MockRevCache) Get(arg0 context.Context, arg1 revcache.KeySet) (revcache.Revocations, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", arg0, arg1)
@@ -73,13 +74,13 @@ func (m *MockRevCache) Get(arg0 context.Context, arg1 revcache.KeySet) (revcache
 	return ret0, ret1
 }
 
-// Get indicates an expected call of Get
+// Get indicates an expected call of Get.
 func (mr *MockRevCacheMockRecorder) Get(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockRevCache)(nil).Get), arg0, arg1)
 }
 
-// GetAll mocks base method
+// GetAll mocks base method.
 func (m *MockRevCache) GetAll(arg0 context.Context) (revcache.ResultChan, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAll", arg0)
@@ -88,13 +89,13 @@ func (m *MockRevCache) GetAll(arg0 context.Context) (revcache.ResultChan, error)
 	return ret0, ret1
 }
 
-// GetAll indicates an expected call of GetAll
+// GetAll indicates an expected call of GetAll.
 func (mr *MockRevCacheMockRecorder) GetAll(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockRevCache)(nil).GetAll), arg0)
 }
 
-// Insert mocks base method
+// Insert mocks base method.
 func (m *MockRevCache) Insert(arg0 context.Context, arg1 *path_mgmt.RevInfo) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Insert", arg0, arg1)
@@ -103,31 +104,31 @@ func (m *MockRevCache) Insert(arg0 context.Context, arg1 *path_mgmt.RevInfo) (bo
 	return ret0, ret1
 }
 
-// Insert indicates an expected call of Insert
+// Insert indicates an expected call of Insert.
 func (mr *MockRevCacheMockRecorder) Insert(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Insert", reflect.TypeOf((*MockRevCache)(nil).Insert), arg0, arg1)
 }
 
-// SetMaxIdleConns mocks base method
+// SetMaxIdleConns mocks base method.
 func (m *MockRevCache) SetMaxIdleConns(arg0 int) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetMaxIdleConns", arg0)
 }
 
-// SetMaxIdleConns indicates an expected call of SetMaxIdleConns
+// SetMaxIdleConns indicates an expected call of SetMaxIdleConns.
 func (mr *MockRevCacheMockRecorder) SetMaxIdleConns(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMaxIdleConns", reflect.TypeOf((*MockRevCache)(nil).SetMaxIdleConns), arg0)
 }
 
-// SetMaxOpenConns mocks base method
+// SetMaxOpenConns mocks base method.
 func (m *MockRevCache) SetMaxOpenConns(arg0 int) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetMaxOpenConns", arg0)
 }
 
-// SetMaxOpenConns indicates an expected call of SetMaxOpenConns
+// SetMaxOpenConns indicates an expected call of SetMaxOpenConns.
 func (mr *MockRevCacheMockRecorder) SetMaxOpenConns(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMaxOpenConns", reflect.TypeOf((*MockRevCache)(nil).SetMaxOpenConns), arg0)

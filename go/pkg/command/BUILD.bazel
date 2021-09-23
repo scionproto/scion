@@ -3,7 +3,6 @@ load("//lint:go.bzl", "go_library")
 go_library(
     name = "go_default_library",
     srcs = [
-        "completion.go",
         "pather.go",
         "sample.go",
         "version.go",

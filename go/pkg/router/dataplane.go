@@ -25,6 +25,7 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/google/gopacket"
@@ -77,6 +78,7 @@ type bfdSession interface {
 type BatchConn interface {
 	ReadBatch(underlayconn.Messages) (int, error)
 	WriteTo([]byte, *net.UDPAddr) (int, error)
+	WriteBatch(msgs underlayconn.Messages, flags int) (int, error)
 	Close() error
 }
 
@@ -445,6 +447,8 @@ func (d *DataPlane) Run() error {
 		for _, msg := range msgs {
 			msg.Buffers[0] = make([]byte, bufSize)
 		}
+		writeMsgs := make(underlayconn.Messages, 1)
+		writeMsgs[0].Buffers = make([][]byte, 1)
 
 		processor := newPacketProcessor(d, ingressID)
 		var scmpErr scmpError
@@ -484,10 +488,25 @@ func (d *DataPlane) Run() error {
 				if result.OutConn == nil { // e.g. BFD case no message is forwarded
 					continue
 				}
-				_, err = result.OutConn.WriteTo(result.OutPkt, result.OutAddr)
+
+				// Write to OutConn; drop the packet if this would block.
+				// Use WriteBatch because it's the only available function that
+				// supports MSG_DONTWAIT.
+				writeMsgs[0].Buffers[0] = result.OutPkt
+				writeMsgs[0].Addr = nil
+				if result.OutAddr != nil { // don't assign directly to net.Addr, typed nil!
+					writeMsgs[0].Addr = result.OutAddr
+				}
+
+				_, err = result.OutConn.WriteBatch(writeMsgs, syscall.MSG_DONTWAIT)
 				if err != nil {
-					log.Debug("Error writing packet", "err", err)
-					// error metric
+					var errno syscall.Errno
+					if !errors.As(err, &errno) ||
+						!(errno == syscall.EAGAIN || errno == syscall.EWOULDBLOCK) {
+						log.Debug("Error writing packet", "err", err)
+						// error metric
+					}
+					inputCounters.DroppedPacketsTotal.Inc()
 					continue
 				}
 				// ok metric
@@ -551,6 +570,10 @@ func newPacketProcessor(d *DataPlane, ingressID uint16) *scionPacketProcessor {
 		ingressID: ingressID,
 		buffer:    gopacket.NewSerializeBuffer(),
 		mac:       d.macFactory(),
+		macBuffers: macBuffers{
+			scionInput: make([]byte, path.MACBufferSize),
+			epicInput:  make([]byte, libepic.MACBufferSize),
+		},
 	}
 }
 
@@ -701,7 +724,8 @@ func (p *scionPacketProcessor) processEPIC() (processResult, error) {
 		if isLast {
 			HVF = epicPath.LHVF
 		}
-		err = libepic.VerifyHVF(p.cachedMac, epicPath.PktID, &p.scionLayer, info.Timestamp, HVF)
+		err = libepic.VerifyHVF(p.cachedMac, epicPath.PktID, &p.scionLayer, info.Timestamp, HVF,
+			p.macBuffers.epicInput)
 		if err != nil {
 			// TODO(mawyss): Send back SCMP packet
 			return processResult{}, err
@@ -746,6 +770,14 @@ type scionPacketProcessor struct {
 	// cachedMac contains the full 16 bytes of the MAC. Will be set during processing.
 	// For a hop performing an Xover, it is the MAC corresponding to the down segment.
 	cachedMac []byte
+	// macBuffers avoid allocating memory during processing.
+	macBuffers macBuffers
+}
+
+// macBuffers are preallocated buffers for the in- and outputs of MAC functions.
+type macBuffers struct {
+	scionInput []byte
+	epicInput  []byte
 }
 
 func (p *scionPacketProcessor) packSCMP(scmpH *slayers.SCMP, scmpP gopacket.SerializableLayer,
@@ -899,7 +931,7 @@ func (p *scionPacketProcessor) currentHopPointer() uint16 {
 }
 
 func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
-	fullMac := path.FullMAC(p.mac, p.infoField, p.hopField)
+	fullMac := path.FullMAC(p.mac, p.infoField, p.hopField, p.macBuffers.scionInput)
 	if subtle.ConstantTimeCompare(p.hopField.Mac[:path.MacLen], fullMac[:path.MacLen]) == 0 {
 		return p.packSCMP(
 			&slayers.SCMP{TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
@@ -1213,8 +1245,7 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 				"type", "ohp", "egress", ohp.FirstHop.ConsEgress,
 				"neighborIA", neighborIA, "dstIA", s.DstIA)
 		}
-
-		mac := path.MAC(p.mac, &ohp.Info, &ohp.FirstHop)
+		mac := path.MAC(p.mac, &ohp.Info, &ohp.FirstHop, p.macBuffers.scionInput)
 		if subtle.ConstantTimeCompare(ohp.FirstHop.Mac[:path.MacLen], mac) == 0 {
 			// TODO parameter problem -> invalid MAC
 			return processResult{}, serrors.New("MAC", "expected", fmt.Sprintf("%x", mac),
@@ -1253,7 +1284,10 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 		ConsIngress: p.ingressID,
 		ExpTime:     ohp.FirstHop.ExpTime,
 	}
-	ohp.SecondHop.Mac = path.MAC(p.mac, &ohp.Info, &ohp.SecondHop)
+	// XXX(roosd): Here we leak the buffer into the SCION packet header.
+	// This is okay because we do not operate on the buffer or the packet
+	// for the rest of processing.
+	ohp.SecondHop.Mac = path.MAC(p.mac, &ohp.Info, &ohp.SecondHop, p.macBuffers.scionInput)
 
 	if err := updateSCIONLayer(p.rawPkt, s, p.buffer); err != nil {
 		return processResult{}, err
@@ -1356,7 +1390,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 				ExpTime:    hopFieldDefaultExpTime,
 			},
 		}
-		ohp.FirstHop.Mac = path.MAC(b.mac, &ohp.Info, &ohp.FirstHop)
+		ohp.FirstHop.Mac = path.MAC(b.mac, &ohp.Info, &ohp.FirstHop, nil)
 		scn.PathType = onehop.PathType
 		scn.Path = ohp
 	}

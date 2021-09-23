@@ -42,3 +42,6 @@ echo "--- Starting bazel remote cache proxy"
 # Note that S3 keys are injected by buildkite, see
 # https://buildkite.com/docs/pipelines/secrets#storing-secrets-with-the-elastic-ci-stack-for-aws
 docker-compose -f .buildkite/hooks/bazel-remote.yml -p bazel_remote up -d
+
+echo "--- Starting go module proxy"
+docker-compose -f .buildkite/hooks/go-module-proxy.yml -p athens up -d

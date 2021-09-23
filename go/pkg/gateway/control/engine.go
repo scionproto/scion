@@ -101,11 +101,11 @@ type Engine struct {
 	workerBase worker.Base
 }
 
-// Run constructs the necessary channels, starts session goroutines and runs the router.
-// It returns when the context terminates.
+// Run sets up the gateway engine and starts all necessary goroutines.
+// It returns when the setup is done.
 func (e *Engine) Run() error {
 	log.SafeDebug(e.Logger, "Engine starting")
-	return e.workerBase.RunWrapper(e.setup, e.run)
+	return e.workerBase.RunWrapper(e.setup, nil)
 }
 
 // DiagnosticsWrite writes diagnostics to the writer.
@@ -253,14 +253,6 @@ func (e *Engine) setup() error {
 	return e.initWorkers()
 }
 
-func (e *Engine) run() error {
-	log.SafeDebug(e.Logger, "Engine worker setup finished")
-	// Wait for the channel to be closed before returning. This is to ensure that the worker
-	// doesn't return from Run until it has shut down.
-	<-e.workerBase.GetDoneChan()
-	return nil
-}
-
 func (e *Engine) validate() error {
 	if e.RoutingTable == nil {
 		return serrors.New("routing table must not be nil")
@@ -291,14 +283,22 @@ func (e *Engine) initWorkers() error {
 	e.deviceHandles = make([]DeviceHandle, 0, numSessions)
 
 	for _, config := range e.SessionConfigs {
-		dataplaneSession := e.DataplaneSessionFactory.New(config.ID, config.PolicyID,
-			config.IA, config.Gateway.Data)
+		dataplaneSession := e.DataplaneSessionFactory.New(
+			config.ID,
+			config.PolicyID,
+			config.IA,
+			config.Gateway.Data,
+		)
 		remoteIA := config.IA
-		pathMonitorRegistration := e.PathMonitor.Register(remoteIA, &policies.Policies{
-			PathPolicy: config.PathPolicy,
-			PerfPolicy: config.PerfPolicy,
-			PathCount:  config.PathCount,
-		}, config.PolicyID)
+		pathMonitorRegistration := e.PathMonitor.Register(
+			remoteIA,
+			&policies.Policies{
+				PathPolicy: config.PathPolicy,
+				PerfPolicy: config.PerfPolicy,
+				PathCount:  config.PathCount,
+			},
+			strconv.Itoa(config.PolicyID),
+		)
 		probeConn, err := e.ProbeConnFactory.New()
 		if err != nil {
 			return err
@@ -443,7 +443,7 @@ type PacketConnFactory interface {
 
 // RoutingTableSwapper is a concurrency-safe setter for a routing table's entire state.
 type RoutingTableSwapper interface {
-	SetRoutingTable(RoutingTable)
+	SetRoutingTable(RoutingTable) io.Closer
 }
 
 // PktWriter is the interface exposed by a data-plane session for forwarding packets.
@@ -459,5 +459,5 @@ type DataplaneSessionFactory interface {
 
 // PathMonitor is used to construct registrations for path discovery.
 type PathMonitor interface {
-	Register(ia addr.IA, policies *policies.Policies, policyID int) PathMonitorRegistration
+	Register(ia addr.IA, policies *policies.Policies, policyID string) PathMonitorRegistration
 }

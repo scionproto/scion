@@ -6,35 +6,36 @@ package mock_discovery
 
 import (
 	context "context"
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	discovery "github.com/scionproto/scion/go/pkg/proto/discovery"
-	reflect "reflect"
 )
 
-// MockDiscoveryServiceServer is a mock of DiscoveryServiceServer interface
+// MockDiscoveryServiceServer is a mock of DiscoveryServiceServer interface.
 type MockDiscoveryServiceServer struct {
 	ctrl     *gomock.Controller
 	recorder *MockDiscoveryServiceServerMockRecorder
 }
 
-// MockDiscoveryServiceServerMockRecorder is the mock recorder for MockDiscoveryServiceServer
+// MockDiscoveryServiceServerMockRecorder is the mock recorder for MockDiscoveryServiceServer.
 type MockDiscoveryServiceServerMockRecorder struct {
 	mock *MockDiscoveryServiceServer
 }
 
-// NewMockDiscoveryServiceServer creates a new mock instance
+// NewMockDiscoveryServiceServer creates a new mock instance.
 func NewMockDiscoveryServiceServer(ctrl *gomock.Controller) *MockDiscoveryServiceServer {
 	mock := &MockDiscoveryServiceServer{ctrl: ctrl}
 	mock.recorder = &MockDiscoveryServiceServerMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockDiscoveryServiceServer) EXPECT() *MockDiscoveryServiceServerMockRecorder {
 	return m.recorder
 }
 
-// Gateways mocks base method
+// Gateways mocks base method.
 func (m *MockDiscoveryServiceServer) Gateways(arg0 context.Context, arg1 *discovery.GatewaysRequest) (*discovery.GatewaysResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Gateways", arg0, arg1)
@@ -43,13 +44,13 @@ func (m *MockDiscoveryServiceServer) Gateways(arg0 context.Context, arg1 *discov
 	return ret0, ret1
 }
 
-// Gateways indicates an expected call of Gateways
+// Gateways indicates an expected call of Gateways.
 func (mr *MockDiscoveryServiceServerMockRecorder) Gateways(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Gateways", reflect.TypeOf((*MockDiscoveryServiceServer)(nil).Gateways), arg0, arg1)
 }
 
-// HiddenSegmentServices mocks base method
+// HiddenSegmentServices mocks base method.
 func (m *MockDiscoveryServiceServer) HiddenSegmentServices(arg0 context.Context, arg1 *discovery.HiddenSegmentServicesRequest) (*discovery.HiddenSegmentServicesResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HiddenSegmentServices", arg0, arg1)
@@ -58,7 +59,7 @@ func (m *MockDiscoveryServiceServer) HiddenSegmentServices(arg0 context.Context,
 	return ret0, ret1
 }
 
-// HiddenSegmentServices indicates an expected call of HiddenSegmentServices
+// HiddenSegmentServices indicates an expected call of HiddenSegmentServices.
 func (mr *MockDiscoveryServiceServerMockRecorder) HiddenSegmentServices(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HiddenSegmentServices", reflect.TypeOf((*MockDiscoveryServiceServer)(nil).HiddenSegmentServices), arg0, arg1)

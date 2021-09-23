@@ -38,12 +38,7 @@ type SessionEvent struct {
 
 // RoutingTable is the dataplane routing table as seen from the control plane.
 type RoutingTable interface {
-	// Activate will signal the routing table object that it is active.
-	Activate()
-	// Deactivate will signal the routing table object that is not active. This
-	// call will clean up resources that are not needed anymore, e.g. exported
-	// routes.
-	Deactivate()
+	io.Closer
 	RoutingTableReader
 	RoutingTableWriter
 }

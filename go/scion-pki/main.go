@@ -21,7 +21,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/scion-pki/certs"
 	"github.com/scionproto/scion/go/scion-pki/key"
 	"github.com/scionproto/scion/go/scion-pki/testcrypto"
@@ -45,7 +44,6 @@ func main() {
 	}
 
 	cmd.AddCommand(
-		command.NewCompletion(cmd),
 		newVersion(),
 		key.Cmd(cmd),
 		certs.Cmd(cmd),

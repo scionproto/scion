@@ -41,7 +41,7 @@ type Conn interface {
 	ReadBatch(Messages) (int, error)
 	Write([]byte) (int, error)
 	WriteTo([]byte, *net.UDPAddr) (int, error)
-	WriteBatch(Messages) (int, error)
+	WriteBatch(Messages, int) (int, error)
 	LocalAddr() *net.UDPAddr
 	RemoteAddr() *net.UDPAddr
 	SetReadDeadline(time.Time) error
@@ -95,8 +95,8 @@ func (c *connUDPIPv4) ReadBatch(msgs Messages) (int, error) {
 	return n, err
 }
 
-func (c *connUDPIPv4) WriteBatch(msgs Messages) (int, error) {
-	return c.pconn.WriteBatch(msgs, 0)
+func (c *connUDPIPv4) WriteBatch(msgs Messages, flags int) (int, error) {
+	return c.pconn.WriteBatch(msgs, flags)
 }
 
 // SetReadDeadline sets the read deadline associated with the endpoint.
@@ -133,8 +133,8 @@ func (c *connUDPIPv6) ReadBatch(msgs Messages) (int, error) {
 	return n, err
 }
 
-func (c *connUDPIPv6) WriteBatch(msgs Messages) (int, error) {
-	return c.pconn.WriteBatch(msgs, 0)
+func (c *connUDPIPv6) WriteBatch(msgs Messages, flags int) (int, error) {
+	return c.pconn.WriteBatch(msgs, flags)
 }
 
 // SetReadDeadline sets the read deadline associated with the endpoint.

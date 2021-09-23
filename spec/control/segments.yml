@@ -120,10 +120,8 @@ components:
         id:
           $ref: "#/components/schemas/SegmentID"
         start_isd_as:
-          description: Start ISD-AS of the segment.
           $ref:  "../common/process.yml#/components/schemas/IsdAs"
         end_isd_as:
-          description: End ISD-AS of the segment.
           $ref: "../common/process.yml#/components/schemas/IsdAs"
         length:
           description: "Length of the segment."

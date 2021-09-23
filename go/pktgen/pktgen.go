@@ -71,7 +71,6 @@ func main() {
 		},
 	}
 	cmd.AddCommand(
-		command.NewCompletion(cmd),
 		command.NewSample(cmd,
 			newSampleConfig,
 		),

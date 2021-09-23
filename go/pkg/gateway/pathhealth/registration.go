@@ -76,6 +76,10 @@ func (r *Registration) Get() Selection {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if r.remoteWatcher == nil {
+		return Selection{}
+	}
+
 	watchers := r.remoteWatcher.Watchers()
 	selectables := make([]Selectable, len(watchers))
 	for i := range watchers {
@@ -92,6 +96,9 @@ func (r *Registration) Get() Selection {
 
 // Close cancels the registration.
 func (r *Registration) Close() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	r.monitor.unregister(r.remoteWatcher)
 	// Remove the pointers so that the objects can be immediately GC'd.
 	r.monitor = nil

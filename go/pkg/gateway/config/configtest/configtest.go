@@ -30,6 +30,7 @@ func CheckGateway(t *testing.T, cfg *config.Gateway) {
 	assert.Empty(t, cfg.IPRoutingPolicy)
 	assert.Equal(t, config.DefaultCtrlAddr, cfg.CtrlAddr)
 	assert.Equal(t, config.DefaultDataAddr, cfg.DataAddr)
+	assert.Equal(t, config.DefaultProbeAddr, cfg.ProbeAddr)
 }
 
 func InitTunnel(cfg *config.Tunnel) {}

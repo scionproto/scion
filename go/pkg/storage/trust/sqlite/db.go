@@ -270,7 +270,8 @@ func (e *executor) SignedTRCs(ctx context.Context,
 	query truststorage.TRCsQuery) (cppki.SignedTRCs, error) {
 	e.RLock()
 	defer e.RUnlock()
-	sqlQuery := []string{"SELECT trc FROM trcs"}
+
+	var filter string
 	var args []interface{}
 	if len(query.ISD) > 0 {
 		subQ := make([]string, 0, len(query.ISD))
@@ -278,13 +279,29 @@ func (e *executor) SignedTRCs(ctx context.Context,
 			subQ = append(subQ, fmt.Sprintf("isd_id=$%d", len(args)+1))
 			args = append(args, uint16(ISD))
 		}
-		where := fmt.Sprintf("(%s)", strings.Join(subQ, " OR "))
-		sqlQuery = append(sqlQuery, fmt.Sprintf("WHERE %s", where))
+		filter = fmt.Sprintf("WHERE (%s)", strings.Join(subQ, " OR "))
 	}
-	if query.Latest {
-		sqlQuery = append(sqlQuery, "GROUP BY isd_id ORDER BY base DESC, serial DESC")
+
+	var sqlQuery string
+	if !query.Latest {
+		sqlQuery = fmt.Sprintf("SELECT trc FROM trcs %s", filter)
+	} else {
+		sqlQuery = fmt.Sprintf(`
+			SELECT trc
+			FROM (
+				SELECT
+					trc,
+					ROW_NUMBER() OVER(
+						PARTITION BY isd_id ORDER BY base DESC, serial DESC
+					) as row_number
+				FROM trcs
+				%s
+			) AS added_row_numbers
+			WHERE row_number = 1;
+
+		`, filter)
 	}
-	rows, err := e.db.QueryContext(ctx, strings.Join(sqlQuery, "\n"), args...)
+	rows, err := e.db.QueryContext(ctx, sqlQuery, args...)
 	if err != nil {
 		return nil, serrors.Wrap(db.ErrReadFailed, err)
 	}

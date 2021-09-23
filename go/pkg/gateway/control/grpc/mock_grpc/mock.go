@@ -5,36 +5,37 @@
 package mock_grpc
 
 import (
-	gomock "github.com/golang/mock/gomock"
-	addr "github.com/scionproto/scion/go/lib/addr"
 	net "net"
 	reflect "reflect"
+
+	gomock "github.com/golang/mock/gomock"
+	addr "github.com/scionproto/scion/go/lib/addr"
 )
 
-// MockAdvertiser is a mock of Advertiser interface
+// MockAdvertiser is a mock of Advertiser interface.
 type MockAdvertiser struct {
 	ctrl     *gomock.Controller
 	recorder *MockAdvertiserMockRecorder
 }
 
-// MockAdvertiserMockRecorder is the mock recorder for MockAdvertiser
+// MockAdvertiserMockRecorder is the mock recorder for MockAdvertiser.
 type MockAdvertiserMockRecorder struct {
 	mock *MockAdvertiser
 }
 
-// NewMockAdvertiser creates a new mock instance
+// NewMockAdvertiser creates a new mock instance.
 func NewMockAdvertiser(ctrl *gomock.Controller) *MockAdvertiser {
 	mock := &MockAdvertiser{ctrl: ctrl}
 	mock.recorder = &MockAdvertiserMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockAdvertiser) EXPECT() *MockAdvertiserMockRecorder {
 	return m.recorder
 }
 
-// AdvertiseList mocks base method
+// AdvertiseList mocks base method.
 func (m *MockAdvertiser) AdvertiseList(arg0, arg1 addr.IA) []*net.IPNet {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AdvertiseList", arg0, arg1)
@@ -42,7 +43,7 @@ func (m *MockAdvertiser) AdvertiseList(arg0, arg1 addr.IA) []*net.IPNet {
 	return ret0
 }
 
-// AdvertiseList indicates an expected call of AdvertiseList
+// AdvertiseList indicates an expected call of AdvertiseList.
 func (mr *MockAdvertiserMockRecorder) AdvertiseList(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AdvertiseList", reflect.TypeOf((*MockAdvertiser)(nil).AdvertiseList), arg0, arg1)

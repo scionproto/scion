@@ -7,7 +7,7 @@ paths:
         description: ISD number of the Autonomous System requesting the certificate chain renewal.
         schema:
           type: integer
-        example: '1'
+        example: 1
       - name: as-number
         in: path
         required: true

@@ -169,17 +169,19 @@ func (c *EngineController) run() error {
 		newEngine := c.EngineFactory.New(routingTable, update, rcMapping)
 
 		log.SafeDebug(c.Logger, "Starting new forwarding engine.")
-		go func() {
-			defer log.HandlePanic()
-			if err := newEngine.Run(); err != nil {
-				panic(err) // application can't recover from an error here
-			}
-		}()
+		if err := newEngine.Run(); err != nil {
+			return serrors.WrapStr("setting up the engine", err)
+		}
 
 		time.Sleep(c.SwapDelay)
 
 		log.SafeDebug(c.Logger, "Swapping data-plane routing to use new forwarding engine.")
-		c.RoutingTableSwapper.SetRoutingTable(routingTable)
+		old := c.RoutingTableSwapper.SetRoutingTable(routingTable)
+		if old != nil {
+			if err := old.Close(); err != nil {
+				return serrors.WrapStr("closing old routing table", err)
+			}
+		}
 
 		if c.engine != nil {
 			log.SafeDebug(c.Logger, "Shutting down old forwarding engine.")

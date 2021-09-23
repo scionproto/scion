@@ -65,7 +65,7 @@ func TestRequesterSegments(t *testing.T) {
 				regular: func(c *gomock.Controller) segfetcher.RPC {
 					ret := mock_segfetcher.NewMockRPC(c)
 					ret.EXPECT().Segments(gomock.Any(), gomock.Any(), gomock.Any()).
-						Return(nil, nil).Times(1)
+						Return(segfetcher.SegmentsReply{}, nil).Times(1)
 					return ret
 				},
 				input: segfetcher.Request{
@@ -79,7 +79,7 @@ func TestRequesterSegments(t *testing.T) {
 				regular: func(c *gomock.Controller) segfetcher.RPC {
 					ret := mock_segfetcher.NewMockRPC(c)
 					ret.EXPECT().Segments(gomock.Any(), gomock.Any(), gomock.Any()).
-						Return(nil, nil).Times(1)
+						Return(segfetcher.SegmentsReply{}, nil).Times(1)
 					return ret
 				},
 				input: segfetcher.Request{
@@ -93,7 +93,7 @@ func TestRequesterSegments(t *testing.T) {
 				regular: func(c *gomock.Controller) segfetcher.RPC {
 					ret := mock_segfetcher.NewMockRPC(c)
 					ret.EXPECT().Segments(gomock.Any(), gomock.Any(), gomock.Any()).
-						Return(nil, fmt.Errorf("dummy-error")).Times(1)
+						Return(segfetcher.SegmentsReply{}, fmt.Errorf("dummy-error")).Times(1)
 					return ret
 				},
 				input: segfetcher.Request{
@@ -131,7 +131,7 @@ func TestRequesterSegments(t *testing.T) {
 
 				got, err := requester.Segments(ctx, tc.input, &net.UDPAddr{})
 				tc.assertError(t, err)
-				assert.Equal(t, tc.want, len(got))
+				assert.Equal(t, tc.want, len(got.Segments))
 			})
 		}
 	})

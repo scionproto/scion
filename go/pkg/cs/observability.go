@@ -26,6 +26,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/prom"
@@ -61,6 +62,7 @@ type Metrics struct {
 	BeaconingRegisteredTotal               *prometheus.CounterVec
 	BeaconingRegistrarInternalErrorsTotal  *prometheus.CounterVec
 	DiscoveryRequestsTotal                 *prometheus.CounterVec
+	PathDBQueriesTotal                     *prometheus.CounterVec
 	RenewalServerRequestsTotal             *prometheus.CounterVec
 	RenewalHandledRequestsTotal            *prometheus.CounterVec
 	RenewalRegisteredHandlers              *prometheus.GaugeVec
@@ -132,12 +134,12 @@ func NewMetrics() *Metrics {
 			},
 			discovery.Topology{}.RequestsLabels(),
 		),
-		SegmentLookupRequestsTotal: promauto.NewCounterVec(
+		PathDBQueriesTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "control_segment_lookup_requests_total",
-				Help: "Total number of path segments requests received.",
+				Name: "pathdb_queries_total",
+				Help: "Total queries to the database",
 			},
-			[]string{"dst_isd", "seg_type", prom.LabelResult},
+			[]string{"driver", "operation", prom.LabelResult},
 		),
 		RenewalServerRequestsTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
@@ -160,6 +162,13 @@ func NewMetrics() *Metrics {
 				Help: "Exposes which handler type (legacy, in-process, delegating) is registered.",
 			},
 			[]string{"type"},
+		),
+		SegmentLookupRequestsTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "control_segment_lookup_requests_total",
+				Help: "Total number of path segments requests received.",
+			},
+			[]string{"dst_isd", "seg_type", prom.LabelResult},
 		),
 		SegmentLookupSegmentsSentTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
@@ -213,16 +222,29 @@ func NewMetrics() *Metrics {
 
 }
 
+type PolicyDigests interface {
+	Digests() map[string][]byte
+}
+
 // StartHTTPEndpoints starts the HTTP endpoints that expose the metrics and
 // additional information.
-func StartHTTPEndpoints(elemId string, cfg interface{}, signer cstrust.RenewingSigner,
-	ca renewal.ChainBuilder, metrics env.Metrics) error {
+func StartHTTPEndpoints(
+	elemId string,
+	cfg config.Config,
+	signer cstrust.RenewingSigner,
+	ca renewal.ChainBuilder,
+	metrics env.Metrics,
+	policyDigests map[string][]byte,
+) error {
 	statusPages := service.StatusPages{
-		"info":      service.NewInfoStatusPage(),
-		"config":    service.NewConfigStatusPage(cfg),
-		"log/level": service.NewLogLevelStatusPage(),
-		"topology":  service.StatusPage{Handler: itopo.TopologyHandler},
-		"signer":    signerStatusPage(signer),
+		"info":             service.NewInfoStatusPage(),
+		"config":           service.NewConfigStatusPage(cfg),
+		"log/level":        service.NewLogLevelStatusPage(),
+		"topology":         service.StatusPage{Handler: itopo.TopologyHandler},
+		"signer":           signerStatusPage(signer),
+		"digests/config":   service.NewConfigDigestStatusPage(cfg),
+		"digests/topology": service.StatusPage{Handler: itopo.TopologyDigestHandler},
+		"digests/policies": policyDigestsStatusPage(policyDigests),
 	}
 	if ca != (renewal.ChainBuilder{}) {
 		statusPages["ca"] = caStatusPage(ca)
@@ -331,6 +353,28 @@ func caStatusPage(signer renewal.ChainBuilder) service.StatusPage {
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "    ")
 		if err := enc.Encode(rep); err != nil {
+			http.Error(w, "Unable to marshal response", http.StatusInternalServerError)
+			return
+		}
+	}
+	return service.StatusPage{Handler: handler}
+}
+
+func policyDigestsStatusPage(digests map[string][]byte) service.StatusPage {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		type digest struct {
+			Digest []byte `json:"digest"`
+		}
+		response := make(map[string]digest)
+		for k, v := range digests {
+			response[k] = digest{Digest: v}
+		}
+
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", "    ")
+		if err := enc.Encode(response); err != nil {
 			http.Error(w, "Unable to marshal response", http.StatusInternalServerError)
 			return
 		}
