@@ -174,9 +174,8 @@ class TopoGenerator(object):
                            local_br, remote_br, addr_type):
         link_addr_type = addr_type_from_underlay(attrs.get('underlay', DEFAULT_UNDERLAY))
         self._reg_link_addrs(local_br, remote_br, l_ifid, r_ifid, link_addr_type)
-        self._reg_addr(local, local_br + "_ctrl", addr_type)
+        self._reg_addr(local, local_br + "_internal", addr_type)
         if not self.args.docker:
-            self.args.port_gen.register(local_br + "_ctrl")
             self.args.port_gen.register(local_br + "_internal")
 
     def _register_sig(self, topo_id, as_conf):
@@ -306,21 +305,14 @@ class TopoGenerator(object):
         public_addr, remote_addr = self._reg_link_addrs(local_br, remote_br, l_ifid,
                                                         r_ifid, link_addr_type)
 
-        ctrl_addr = int_addr = self._reg_addr(local, local_br + "_ctrl", addr_type)
-        # for docker we use the same internal and control address.
-        if self.args.docker:
-            int_addr = ctrl_addr
-
+        intl_addr = self._reg_addr(local, local_br + "_internal", addr_type)
         if self.topo_dicts[local]["border_routers"].get(local_br) is None:
-            ctrl_port = 30242
             intl_port = 30042
             if not self.args.docker:
-                ctrl_port = self.args.port_gen.register(local_br + "_ctrl")
                 intl_port = self.args.port_gen.register(local_br + "_internal")
 
             self.topo_dicts[local]["border_routers"][local_br] = {
-                'ctrl_addr': join_host_port(ctrl_addr.ip, ctrl_port),
-                'internal_addr': join_host_port(int_addr.ip, intl_port),
+                'internal_addr': join_host_port(intl_addr.ip, intl_port),
                 'interfaces': {
                     l_ifid: self._gen_br_intf(remote, public_addr, remote_addr, attrs, remote_type)
                 }

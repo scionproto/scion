@@ -201,13 +201,6 @@ func TestIFInfoMap(t *testing.T) {
 				IP:   net.ParseIP("10.1.0.1").To4(),
 				Port: 0,
 			},
-			CtrlAddrs: &TopoAddr{
-				SCIONAddress: &net.UDPAddr{
-					IP:   net.ParseIP("10.1.0.1").To4(),
-					Port: 30098,
-				},
-				UnderlayAddress: &net.UDPAddr{IP: net.ParseIP("10.1.0.1").To4(), Port: 30041},
-			},
 			Underlay: underlay.UDPIPv4,
 			Local: &net.UDPAddr{
 				IP:   net.IP{10, 0, 0, 1}.To4(),
@@ -234,13 +227,6 @@ func TestIFInfoMap(t *testing.T) {
 				IP:   net.ParseIP("10.1.0.1").To4(),
 				Port: 0,
 			},
-			CtrlAddrs: &TopoAddr{
-				SCIONAddress: &net.UDPAddr{
-					IP:   net.ParseIP("10.1.0.1").To4(),
-					Port: 30098,
-				},
-				UnderlayAddress: &net.UDPAddr{IP: net.ParseIP("10.1.0.1").To4(), Port: 30041},
-			},
 			Underlay: underlay.UDPIPv6,
 			Local: &net.UDPAddr{
 				IP:   net.ParseIP("2001:db8:a0b:12f0::8"),
@@ -261,13 +247,6 @@ func TestIFInfoMap(t *testing.T) {
 			InternalAddr: &net.UDPAddr{
 				IP:   net.ParseIP("10.1.0.1").To4(),
 				Port: 0,
-			},
-			CtrlAddrs: &TopoAddr{
-				SCIONAddress: &net.UDPAddr{
-					IP:   net.ParseIP("10.1.0.1").To4(),
-					Port: 30098,
-				},
-				UnderlayAddress: &net.UDPAddr{IP: net.ParseIP("10.1.0.1").To4(), Port: 30041},
 			},
 			Underlay: underlay.UDPIPv4,
 			Local: &net.UDPAddr{
@@ -290,18 +269,6 @@ func TestIFInfoMap(t *testing.T) {
 				IP:   net.ParseIP("2001:db8:a0b:12f0::1"),
 				Port: 0,
 				Zone: "some-internal-zone",
-			},
-			CtrlAddrs: &TopoAddr{
-				SCIONAddress: &net.UDPAddr{
-					IP:   net.ParseIP("2001:db8:a0b:12f0::1"),
-					Port: 30098,
-					Zone: "some-ctrl-zone",
-				},
-				UnderlayAddress: &net.UDPAddr{
-					IP:   net.ParseIP("2001:db8:a0b:12f0::1"),
-					Port: 30041,
-					Zone: "some-ctrl-zone",
-				},
 			},
 			Underlay: underlay.UDPIPv6,
 			Local: &net.UDPAddr{
@@ -333,13 +300,6 @@ func TestIFInfoMapCoreAS(t *testing.T) {
 				IP:   net.ParseIP("10.1.0.1").To4(),
 				Port: 0,
 			},
-			CtrlAddrs: &TopoAddr{
-				SCIONAddress: &net.UDPAddr{
-					IP:   net.ParseIP("10.1.0.1").To4(),
-					Port: 30098,
-				},
-				UnderlayAddress: &net.UDPAddr{IP: net.ParseIP("10.1.0.1").To4(), Port: 30041},
-			},
 			Underlay: underlay.UDPIPv4,
 			Local: &net.UDPAddr{
 				IP:   net.IP{10, 0, 0, 1}.To4(),
@@ -360,13 +320,6 @@ func TestIFInfoMapCoreAS(t *testing.T) {
 			InternalAddr: &net.UDPAddr{
 				IP:   net.ParseIP("2001:db8:a0b:12f0::2"),
 				Port: 0,
-			},
-			CtrlAddrs: &TopoAddr{
-				SCIONAddress: &net.UDPAddr{
-					IP:   net.ParseIP("2001:db8:a0b:12f0::2"),
-					Port: 30098,
-				},
-				UnderlayAddress: &net.UDPAddr{IP: net.ParseIP("2001:db8:a0b:12f0::2"), Port: 30041},
 			},
 			Underlay: underlay.UDPIPv6,
 			Local: &net.UDPAddr{

@@ -7,7 +7,6 @@
   "border_routers": {
     "br1-ff00:0:311-1": {
       "internal_addr": "10.1.0.1:0",
-      "ctrl_addr": "10.1.0.1:30098",
       "interfaces": {
         "1": {
           "underlay": {
@@ -51,7 +50,6 @@
     },
     "br1-ff00:0:311-2": {
       "internal_addr": "[2001:db8:a0b:12f0::1%some-internal-zone]:0",
-      "ctrl_addr": "[2001:db8:a0b:12f0::1%some-ctrl-zone]:30098",
       "interfaces": {
         "11": {
           "underlay": {

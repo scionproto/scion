@@ -202,7 +202,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 				RPC: tc.createRPC(t, ctrl),
 				Pather: addrutil.Pather{
 					UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
-						return topoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
+						return topoProvider.Get().UnderlayNextHop(common.IFIDType(ifID))
 					},
 				},
 				RegistrationPolicy: tc.policy,

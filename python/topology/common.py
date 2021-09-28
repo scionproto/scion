@@ -103,7 +103,8 @@ def split_host_port(addr: str) -> Tuple[str, int]:
     if parts.port is None:
         raise ValueError("missing port in addr: {}".format(addr))
     # first remove the port, and strip ipv6 brackets:
-    ip = parts.netloc.rsplit(sep=':{}'.format(parts.port), maxsplit=1)[0].strip('[]')
+    ip = parts.netloc.rsplit(sep=':{}'.format(parts.port),
+                             maxsplit=1)[0].strip('[]')
     return (ip, parts.port)
 
 
@@ -114,7 +115,8 @@ def join_host_port(host: str, port: int) -> str:
     return '[{}]:{}'.format(host, port)
 
 
-def sciond_ip(docker, topo_id, networks: Mapping[IPNetwork, NetworkDescription]):
+def sciond_ip(docker, topo_id, networks: Mapping[IPNetwork,
+                                                 NetworkDescription]):
     for net_desc in networks.values():
         for prog, ip_net in net_desc.ip_net.items():
             if prog == 'sd%s' % topo_id.file_fmt():
@@ -123,13 +125,13 @@ def sciond_ip(docker, topo_id, networks: Mapping[IPNetwork, NetworkDescription])
 
 
 def prom_addr_dispatcher(docker, topo_id,
-                         networks: Mapping[IPNetwork, NetworkDescription],
-                         port, name):
+                         networks: Mapping[IPNetwork,
+                                           NetworkDescription], port, name):
     if not docker:
         return "[127.0.0.1]:%s" % port
     target_name = ''
     if name.startswith('disp_br'):
-        target_name = 'br%s%s_ctrl' % (topo_id.file_fmt(), name[-2:])
+        target_name = 'br%s%s_internal' % (topo_id.file_fmt(), name[-2:])
     elif name.startswith('disp_sig'):
         target_name = 'sig%s' % topo_id.file_fmt()
     else:

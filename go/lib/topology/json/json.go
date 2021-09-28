@@ -85,7 +85,6 @@ type ServerInfo struct {
 // BRInfo contains Border Router specific information.
 type BRInfo struct {
 	InternalAddr string                           `json:"internal_addr"`
-	CtrlAddr     string                           `json:"ctrl_addr"`
 	Interfaces   map[common.IFIDType]*BRInterface `json:"interfaces"`
 }
 
@@ -129,8 +128,7 @@ func (i ServerInfo) String() string {
 
 func (i BRInfo) String() string {
 	var s []string
-	s = append(s, fmt.Sprintf("Loc addrs:\n  %s\nControl addr:\n  %s\nInterfaces:",
-		i.InternalAddr, i.CtrlAddr))
+	s = append(s, fmt.Sprintf("Loc addrs:\n  %s\nInterfaces:", i.InternalAddr))
 	for ifid, intf := range i.Interfaces {
 		s = append(s, fmt.Sprintf("%d: %+v", ifid, intf))
 	}
