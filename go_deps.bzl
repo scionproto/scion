@@ -341,8 +341,8 @@ def go_deps():
     go_repository(
         name = "com_github_deepmap_oapi_codegen",
         importpath = "github.com/deepmap/oapi-codegen",
-        sum = "h1:2BvsmRb6pogGNtr8Ann+esAbSKFXx2CZN18VpAMecnw=",
-        version = "v1.6.1",
+        sum = "h1:SegyeYGcdi0jLLrpbCMoJxnUUn8GBXHsvr4rbzjuhfU=",
+        version = "v1.8.2",
     )
     go_repository(
         name = "com_github_dgrijalva_jwt_go",
@@ -485,8 +485,8 @@ def go_deps():
     go_repository(
         name = "com_github_getkin_kin_openapi",
         importpath = "github.com/getkin/kin-openapi",
-        sum = "h1:7WzP+MZRRe7YQz2Kc74Ley3dukJmXDvifVbElGmQfoA=",
-        version = "v0.53.0",
+        sum = "h1:6awGqF5nG5zkVpMsAih1QH4VgzS8phTxECUWIFo7zko=",
+        version = "v0.61.0",
     )
     go_repository(
         name = "com_github_ghodss_yaml",

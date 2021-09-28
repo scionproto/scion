@@ -5,9 +5,9 @@ require (
 	github.com/bazelbuild/rules_go v0.27.0
 	github.com/buildkite/go-buildkite/v2 v2.8.1
 	github.com/dchest/cmac v0.0.0-20150527144652-62ff55a1048c
-	github.com/deepmap/oapi-codegen v1.6.1
+	github.com/deepmap/oapi-codegen v1.8.2
 	github.com/fatih/color v1.9.0
-	github.com/getkin/kin-openapi v0.53.0
+	github.com/getkin/kin-openapi v0.61.0
 	github.com/go-chi/chi/v5 v5.0.2
 	github.com/go-chi/cors v1.1.1
 	github.com/go-kit/kit v0.10.0
