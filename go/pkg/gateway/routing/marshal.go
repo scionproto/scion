@@ -111,9 +111,9 @@ func parseIAMatcher(b []byte) (IAMatcher, error) {
 		return nil, err
 	}
 	if !negative {
-		return singleIAMatcher{IA: ia}, nil
+		return SingleIAMatcher{IA: ia}, nil
 	}
-	return negatedIAMatcher{IAMatcher: singleIAMatcher{IA: ia}}, nil
+	return NegatedIAMatcher{IAMatcher: SingleIAMatcher{IA: ia}}, nil
 }
 
 func parseNetworkMatcher(b []byte) (NetworkMatcher, error) {
@@ -131,9 +131,9 @@ func parseNetworkMatcher(b []byte) (NetworkMatcher, error) {
 		networks = append(networks, n)
 	}
 	if !negative {
-		return allowedNetworkMatcher{Allowed: networks}, nil
+		return AllowedNetworkMatcher{Allowed: networks}, nil
 	}
-	return negatedNetworkMatcher{allowedNetworkMatcher{Allowed: networks}}, nil
+	return NegatedNetworkMatcher{AllowedNetworkMatcher{Allowed: networks}}, nil
 }
 
 func parseAction(b []byte) (Action, error) {
