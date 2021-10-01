@@ -270,9 +270,10 @@ func genCert(
 				},
 			},
 		},
-		Key:       priv,
+		PubKey:    priv.Public(),
 		NotBefore: notBefore,
 		NotAfter:  notAfter,
+		CAKey:     priv,
 	})
 	require.NoError(t, err)
 	encoded := pem.EncodeToMemory(&pem.Block{
