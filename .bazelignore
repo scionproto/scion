@@ -1,3 +1,4 @@
 bin
 docker/_build
 go/vendor
+spec/tools/node_modules
