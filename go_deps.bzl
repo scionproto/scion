@@ -3,6 +3,12 @@ load("@bazel_gazelle//:deps.bzl", "go_repository")
 
 def go_deps():
     go_repository(
+        name = "af_inet_netaddr",
+        importpath = "inet.af/netaddr",
+        sum = "h1:tvgqez5ZQoBBiBAGNU/fmJy247yB/7++kcLOEoMYup0=",
+        version = "v0.0.0-20210903134321-85fa6c94624e",
+    )
+    go_repository(
         name = "co_honnef_go_tools",
         importpath = "honnef.co/go/tools",
         sum = "h1:UoveltGrhghAA7ePc+e+QYDHXrBps2PqFZiHkGR/xK8=",
@@ -403,6 +409,12 @@ def go_deps():
         importpath = "github.com/dustin/go-humanize",
         sum = "h1:VSnTsYCnlFHaM2/igO1h6X3HA71jcobQuxemgkq4zYo=",
         version = "v1.0.0",
+    )
+    go_repository(
+        name = "com_github_dvyukov_go_fuzz",
+        importpath = "github.com/dvyukov/go-fuzz",
+        sum = "h1:q1oJaUPdmpDm/VyXosjgPgr6wS7c5iV2p0PwJD73bUI=",
+        version = "v0.0.0-20210103155950-6a8e9d1f2415",
     )
     go_repository(
         name = "com_github_eapache_go_resiliency",
@@ -2277,6 +2289,18 @@ def go_deps():
         importpath = "grpc.go4.org",
         sum = "h1:tmXTu+dfa+d9Evp8NpJdgOy6+rt8/x4yG7qPBrtNfLY=",
         version = "v0.0.0-20170609214715-11d0a25b4919",
+    )
+    go_repository(
+        name = "org_go4_intern",
+        importpath = "go4.org/intern",
+        sum = "h1:VFTf+jjIgsldaz/Mr00VaCSswHJrI2hIjQygE/W4IMg=",
+        version = "v0.0.0-20210108033219-3eb7198706b2",
+    )
+    go_repository(
+        name = "org_go4_unsafe_assume_no_moving_gc",
+        importpath = "go4.org/unsafe/assume-no-moving-gc",
+        sum = "h1:1tk03FUNpulq2cuWpXZWj649rwJpk0d20rxWiopKRmc=",
+        version = "v0.0.0-20201222180813-1025295fd063",
     )
     go_repository(
         name = "org_golang_google_api",
