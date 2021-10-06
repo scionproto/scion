@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto/cms/protocol"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
@@ -46,6 +47,7 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/pkg/app"
 	"github.com/scionproto/scion/go/pkg/app/feature"
+	"github.com/scionproto/scion/go/pkg/app/flag"
 	"github.com/scionproto/scion/go/pkg/ca/renewal"
 	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/grpc"
@@ -102,6 +104,7 @@ type Features struct {
 }
 
 func newRenewCmd(pather command.Pather) *cobra.Command {
+	var envFlags flag.SCIONEnvironment
 	var flags struct {
 		out        string
 		outKey     string
@@ -115,12 +118,9 @@ func newRenewCmd(pather command.Pather) *cobra.Command {
 		curve      string
 		expiresIn  string
 
-		dispatcherPath string
-		daemon         string
-		listen         net.IP
-		timeout        time.Duration
-		tracer         string
-		logLevel       string
+		timeout  time.Duration
+		tracer   string
+		logLevel string
 
 		force    bool
 		backup   bool
@@ -227,6 +227,18 @@ The template is expressed in JSON. A valid example:
 			}
 			defer closer()
 
+			if err := envFlags.LoadExternalVars(); err != nil {
+				return err
+			}
+			daemonAddr := envFlags.Daemon()
+			dispatcher := envFlags.Dispatcher()
+			localIP := envFlags.Local().IPAddr().IP
+			log.Debug("Resolved SCION environment flags",
+				"daemon", daemonAddr,
+				"dispatcher", dispatcher,
+				"local", localIP,
+			)
+
 			var features Features
 			if err := feature.Parse(flags.features, &features); err != nil {
 				return err
@@ -304,16 +316,16 @@ The template is expressed in JSON. A valid example:
 			// Create messenger.
 			ctx, cancel := context.WithTimeout(ctx, flags.timeout)
 			defer cancel()
-			sds := daemon.NewService(flags.daemon)
+			sds := daemon.NewService(daemonAddr)
 			local, err := findLocalAddr(ctx, sds)
 			if err != nil {
 				return err
 			}
-			if flags.listen != nil {
-				local.Host = &net.UDPAddr{IP: flags.listen}
+			if localIP != nil {
+				local.Host = &net.UDPAddr{IP: localIP}
 			}
 			remote := &snet.UDPAddr{IA: ca}
-			disp := reliable.NewDispatcher(flags.dispatcherPath)
+			disp := reliable.NewDispatcher(dispatcher)
 			dialer, err := buildDialer(ctx, disp, sds, local, remote)
 			if err != nil {
 				return err
@@ -420,6 +432,7 @@ The template is expressed in JSON. A valid example:
 		},
 	}
 
+	envFlags.Register(cmd.Flags())
 	cmd.Flags().StringVar(&flags.out, "out", "",
 		"The path to write the renewed certificate chain",
 	)
@@ -460,15 +473,6 @@ The template is expressed in JSON. A valid example:
 	)
 	cmd.Flags().BoolVar(&flags.backup, "backup", false,
 		"Back up existing files before overwriting",
-	)
-	cmd.Flags().StringVar(&flags.dispatcherPath, "dispatcher", reliable.DefaultDispPath,
-		"The path to the dispatcher socket",
-	)
-	cmd.Flags().StringVar(&flags.daemon, "sciond", daemon.DefaultAPIAddress,
-		"The SCION Daemon address",
-	)
-	cmd.Flags().IPVar(&flags.listen, "local", nil,
-		"The local IP address to use",
 	)
 	cmd.Flags().DurationVar(&flags.timeout, "timeout", 10*time.Second,
 		"The timeout for the renewal request",
