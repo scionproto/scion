@@ -63,10 +63,8 @@ func LoadTrustMaterial(configDir string, db trust.DB, logger log.Logger) error {
 	return nil
 }
 
-// NewSigner creates a renewing signer backed by a certificate chain..
+// NewSigner creates a renewing signer backed by a certificate chain.
 func NewSigner(ia addr.IA, db trust.DB, cfgDir string) (cstrust.RenewingSigner, error) {
-	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
-	defer cancelF()
 	gen := trust.SignerGen{
 		IA: ia,
 		DB: cstrust.CryptoLoader{
@@ -77,16 +75,20 @@ func NewSigner(ia addr.IA, db trust.DB, cfgDir string) (cstrust.RenewingSigner, 
 			Dir: filepath.Join(cfgDir, "crypto/as"),
 		},
 	}
-	cachingGen := &cstrust.CachingSignerGen{
-		SignerGen: gen,
-		Interval:  5 * time.Second,
+	signer := cstrust.RenewingSigner{
+		SignerGen: &cstrust.CachingSignerGen{
+			SignerGen: gen,
+			Interval:  5 * time.Second,
+		},
 	}
-	if _, err := cachingGen.Generate(ctx); err != nil {
-		return cstrust.RenewingSigner{}, err
+
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	defer cancelF()
+	if _, err := signer.SignerGen.Generate(ctx); err != nil {
+		log.Debug("Initial signer generation failed", "err", err)
+
 	}
-	return cstrust.RenewingSigner{
-		SignerGen: cachingGen,
-	}, nil
+	return signer, nil
 }
 
 type ChainBuilderConfig struct {
