@@ -1,4 +1,4 @@
-// Copyright 2020 Anapaya Systems
+// Copyright 2021 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,7 +46,6 @@ This functionality is intended to work similarly to 'ip addr' or 'ifconfig' and 
 				return serrors.WrapStr("connecting to SCION Daemon", err)
 			}
 
-			//info, err := app.QueryASInfo(traceCtx, sd)
 			info, err := app.QueryASInfo(ctx, sd)
 			if err != nil {
 				return err
