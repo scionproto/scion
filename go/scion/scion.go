@@ -50,6 +50,7 @@ func main() {
 		newPing(cmd),
 		newShowpaths(cmd),
 		newTraceroute(cmd),
+		newInfo(cmd),
 	)
 
 	if err := cmd.Execute(); err != nil {
