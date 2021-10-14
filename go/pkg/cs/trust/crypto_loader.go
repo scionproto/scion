@@ -18,15 +18,21 @@ import (
 	"context"
 	"crypto/x509"
 	"errors"
+	"fmt"
 
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
 // CryptoLoader loads chains from the given directory or the DB.
 type CryptoLoader struct {
-	Dir string
 	trust.DB
+	// Dir is the directory where the AS certificates and private keys are
+	// loaded from.
+	Dir string
+	// TRCDirs are optional directories from which TRCs are loaded.
+	TRCDirs []string
 }
 
 // Chains loads chains from disk, stores them to DB, and returns the result from
@@ -61,7 +67,21 @@ func (l CryptoLoader) Chains(ctx context.Context,
 }
 
 func (l CryptoLoader) loadTRCs(ctx context.Context) error {
-	r, err := trust.LoadTRCs(ctx, l.Dir, l.DB)
+	var errs serrors.List
+	if list := append([]string{l.Dir}, l.TRCDirs...); len(list) > 1 {
+		fmt.Print(list)
+	}
+
+	for _, dir := range append([]string{l.Dir}, l.TRCDirs...) {
+		if err := l.loadTRCsFromDir(ctx, dir); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errs.ToError()
+}
+
+func (l CryptoLoader) loadTRCsFromDir(ctx context.Context, dir string) error {
+	r, err := trust.LoadTRCs(ctx, dir, l.DB)
 	if err != nil {
 		return err
 	}

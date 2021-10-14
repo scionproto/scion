@@ -68,8 +68,9 @@ func NewSigner(ia addr.IA, db trust.DB, cfgDir string) (cstrust.RenewingSigner, 
 	gen := trust.SignerGen{
 		IA: ia,
 		DB: cstrust.CryptoLoader{
-			Dir: filepath.Join(cfgDir, "crypto/as"),
-			DB:  db,
+			Dir:     filepath.Join(cfgDir, "crypto/as"),
+			TRCDirs: []string{filepath.Join(cfgDir, "certs")},
+			DB:      db,
 		},
 		KeyRing: cstrust.LoadingRing{
 			Dir: filepath.Join(cfgDir, "crypto/as"),
