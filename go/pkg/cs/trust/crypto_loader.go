@@ -18,7 +18,6 @@ import (
 	"context"
 	"crypto/x509"
 	"errors"
-	"fmt"
 
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -68,10 +67,6 @@ func (l CryptoLoader) Chains(ctx context.Context,
 
 func (l CryptoLoader) loadTRCs(ctx context.Context) error {
 	var errs serrors.List
-	if list := append([]string{l.Dir}, l.TRCDirs...); len(list) > 1 {
-		fmt.Print(list)
-	}
-
 	for _, dir := range append([]string{l.Dir}, l.TRCDirs...) {
 		if err := l.loadTRCsFromDir(ctx, dir); err != nil {
 			errs = append(errs, err)
