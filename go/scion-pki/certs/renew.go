@@ -88,9 +88,9 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 )
 
 type SubjectVars struct {
+	IA                 addr.IA `json:"isd_as,omitempty"`
 	CommonName         string  `json:"common_name,omitempty"`
 	Country            string  `json:"country,omitempty"`
-	ISDAS              addr.IA `json:"isd_as,omitempty"`
 	Locality           string  `json:"locality,omitempty"`
 	Organization       string  `json:"organization,omitempty"`
 	OrganizationalUnit string  `json:"organizational_unit,omitempty"`
@@ -642,7 +642,7 @@ func extractChainLegacy(rep *cppb.ChainRenewalResponse) ([]*x509.Certificate, er
 }
 
 func subjectFromVars(vars SubjectVars) (pkix.Name, error) {
-	if vars.ISDAS.IsZero() {
+	if vars.IA.IsZero() {
 		return pkix.Name{}, serrors.New("isd_as required in template")
 	}
 	s := pkix.Name{
@@ -651,7 +651,7 @@ func subjectFromVars(vars SubjectVars) (pkix.Name, error) {
 		ExtraNames: []pkix.AttributeTypeAndValue{
 			{
 				Type:  cppki.OIDNameIA,
-				Value: vars.ISDAS.String(),
+				Value: vars.IA.String(),
 			},
 		},
 	}
