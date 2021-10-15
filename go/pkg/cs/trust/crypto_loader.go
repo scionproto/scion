@@ -20,6 +20,7 @@ import (
 	"errors"
 
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
@@ -34,14 +35,18 @@ type CryptoLoader struct {
 	TRCDirs []string
 }
 
+func (l CryptoLoader) SignedTRC(ctx context.Context, id cppki.TRCID) (cppki.SignedTRC, error) {
+	if err := l.loadTRCs(ctx); err != nil {
+		log.FromCtx(ctx).Info("Failed to load TRCs from disk, continuing", "err", err)
+	}
+	return l.DB.SignedTRC(ctx, id)
+}
+
 // Chains loads chains from disk, stores them to DB, and returns the result from
 // DB. The fallback mode is always the result of the DB.
 func (l CryptoLoader) Chains(ctx context.Context,
 	query trust.ChainQuery) ([][]*x509.Certificate, error) {
 
-	if err := l.loadTRCs(ctx); err != nil {
-		log.FromCtx(ctx).Info("Failed to load TRCs from disk, continuing", "err", err)
-	}
 	r, err := trust.LoadChains(ctx, l.Dir, l.DB)
 	if err != nil {
 		log.FromCtx(ctx).Error("Failed to load chains from disk, using DB chains instead",
