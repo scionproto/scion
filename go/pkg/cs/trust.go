@@ -87,7 +87,6 @@ func NewSigner(ia addr.IA, db trust.DB, cfgDir string) (cstrust.RenewingSigner, 
 	defer cancelF()
 	if _, err := signer.SignerGen.Generate(ctx); err != nil {
 		log.Debug("Initial signer generation failed", "err", err)
-
 	}
 	return signer, nil
 }
