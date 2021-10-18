@@ -597,6 +597,12 @@ def go_deps():
         version = "v1.8.0",
     )
     go_repository(
+        name = "com_github_go_task_slim_sprig",
+        importpath = "github.com/go-task/slim-sprig",
+        sum = "h1:p104kn46Q8WdvHunIJ9dAyjPVtrBPhSr3KT2yUst43I=",
+        version = "v0.0.0-20210107165309-348f09dbbbc0",
+    )
+    go_repository(
         name = "com_github_goccy_go_json",
         importpath = "github.com/goccy/go-json",
         sum = "h1:xGUjaNfhpqhKAV2LoyNXihFLZ8ABSST8B+W+duHqkPI=",
@@ -1133,8 +1139,8 @@ def go_deps():
     go_repository(
         name = "com_github_lucas_clemente_quic_go",
         importpath = "github.com/lucas-clemente/quic-go",
-        sum = "h1:uuhCcu885TE9u/piPYMChI/yqA1lXfaLUEx8uCMxf8w=",
-        version = "v0.21.1",
+        sum = "h1:5vFnKtZ6nHDFsc/F3uuiF4T3y/AXaQdxjUqiVw26GZE=",
+        version = "v0.23.0",
     )
     go_repository(
         name = "com_github_lunixbochs_vtclean",
@@ -1175,14 +1181,14 @@ def go_deps():
     go_repository(
         name = "com_github_marten_seemann_qtls_go1_16",
         importpath = "github.com/marten-seemann/qtls-go1-16",
-        sum = "h1:XEZ1xGorVy9u+lJq+WXNE+hiqRYLNvJGYmwfwKQN2gU=",
-        version = "v0.1.3",
+        sum = "h1:xbHbOGGhrenVtII6Co8akhLEdrawwB2iHl5yhJRpnco=",
+        version = "v0.1.4",
     )
     go_repository(
         name = "com_github_marten_seemann_qtls_go1_17",
         importpath = "github.com/marten-seemann/qtls-go1-17",
-        sum = "h1:SficYjyOthSrliKI+EaFuXS6HqSsX3dkY9AqxAAjBjw=",
-        version = "v0.1.0-beta.1.2",
+        sum = "h1:P9ggrs5xtwiqXv/FHNwntmuLMNq3KaSIG93AtAZ48xk=",
+        version = "v0.1.0",
     )
     go_repository(
         name = "com_github_matryer_moq",
@@ -1410,14 +1416,14 @@ def go_deps():
     go_repository(
         name = "com_github_onsi_ginkgo",
         importpath = "github.com/onsi/ginkgo",
-        sum = "h1:2mOpI4JVVPBN+WQRa0WKH2eXR+Ey+uK4n7Zj0aYpIQA=",
-        version = "v1.14.0",
+        sum = "h1:29JGrr5oVBm5ulCWet69zQkzWipVXIol6ygQUe/EzNc=",
+        version = "v1.16.4",
     )
     go_repository(
         name = "com_github_onsi_gomega",
         importpath = "github.com/onsi/gomega",
-        sum = "h1:o0+MgICZLuZ7xjH7Vx6zS/zcu93/BEp1VwkIW1mEXCE=",
-        version = "v1.10.1",
+        sum = "h1:7lLHu94wT9Ij0o6EWWclhu0aOh32VxhkwEJvzuWPeak=",
+        version = "v1.13.0",
     )
     go_repository(
         name = "com_github_op_go_logging",

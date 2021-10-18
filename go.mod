@@ -23,7 +23,7 @@ require (
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
 	github.com/iancoleman/strcase v0.0.0-20190422225806-e506e3ef7365
 	github.com/lestrrat-go/jwx v1.1.5
-	github.com/lucas-clemente/quic-go v0.21.1
+	github.com/lucas-clemente/quic-go v0.23.0
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-isatty v0.0.12
 	github.com/mattn/go-sqlite3 v1.14.4
