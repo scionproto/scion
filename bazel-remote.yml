@@ -1,4 +1,4 @@
-version: "2.4"
+version: "2"
 services:
   bazel-remote:
     container_name: bazel-remote-cache
