@@ -8,6 +8,7 @@ go_library(
         "match.go",
         "observability.go",
         "renew.go",
+        "sign.go",
         "verify.go",
     ],
     importpath = "github.com/scionproto/scion/go/scion-pki/certs",

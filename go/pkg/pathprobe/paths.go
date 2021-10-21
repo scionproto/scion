@@ -101,6 +101,9 @@ type Prober struct {
 	LocalIP net.IP
 	// ID is the SCMP traceroute ID used by the Prober.
 	ID uint16
+	// Dispatcher is the path to the dispatcher socket. Leaving this empty uses
+	// the default dispatcher socket value.
+	Dispatcher string
 }
 
 // GetStatuses probes the paths and returns the statuses of the paths. The
@@ -126,7 +129,7 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path) (map[string]
 
 	// Instantiate dispatcher service
 	disp := &snet.DefaultPacketDispatcherService{
-		Dispatcher:  reliable.NewDispatcher(""),
+		Dispatcher:  reliable.NewDispatcher(p.Dispatcher),
 		SCMPHandler: &scmpHandler{},
 	}
 

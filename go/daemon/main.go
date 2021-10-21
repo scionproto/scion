@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/http"
 	_ "net/http/pprof"
+	"path/filepath"
 	"time"
 
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -138,6 +139,20 @@ func realMain(ctx context.Context) error {
 		CacheHits:          metrics.NewPromCounter(trustmetrics.CacheHitsTotal),
 		MaxCacheExpiration: globalCfg.TrustEngine.Cache.Expiration,
 	}
+	trcLoader := periodic.Start(periodic.Func{
+		Task: func(ctx context.Context) {
+			trcDirs := filepath.Join(globalCfg.General.ConfigDir, "certs")
+			res, err := trust.LoadTRCs(ctx, trcDirs, trustDB)
+			if err != nil {
+				log.SafeInfo(log.FromCtx(ctx), "TRC loading failed", "err", err)
+			}
+			if len(res.Loaded) > 0 {
+				log.SafeInfo(log.FromCtx(ctx), "Loaded TRCs from disk", "trcs", res.Loaded)
+			}
+		},
+		TaskName: "daemon_trc_loader",
+	}, 10*time.Second, 10*time.Second)
+	defer trcLoader.Stop()
 
 	listen := daemon.APIAddress(globalCfg.SD.Address)
 	listener, err := net.Listen("tcp", listen)

@@ -72,8 +72,9 @@ func TestChainLoaderChains(t *testing.T) {
 
 			dir, db := tc.prepare(t, ctrl)
 			loader := cstrust.CryptoLoader{
-				Dir: dir,
-				DB:  db,
+				TRCDirs: []string{"./non-existing"},
+				Dir:     dir,
+				DB:      db,
 			}
 			chains, err := loader.Chains(context.Background(), trust.ChainQuery{})
 			tc.assertErr(t, err)

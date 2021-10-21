@@ -275,6 +275,15 @@ func MustParseCIDRs(t *testing.T, entries ...string) []*net.IPNet {
 	return result
 }
 
+// MustParseIP parses an IP address and returns the parsed net.IP object.
+func MustParseIP(t *testing.T, addr string) net.IP {
+	t.Helper()
+
+	ip := net.ParseIP(addr)
+	require.NotNil(t, ip)
+	return ip
+}
+
 // MustParseUDPAddr parses s and returns the corresponding net.UDPAddr object.
 // It fails the test if s is not a valid UDP address string.
 func MustParseUDPAddr(t *testing.T, s string) *net.UDPAddr {

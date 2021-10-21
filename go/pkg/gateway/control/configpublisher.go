@@ -32,6 +32,7 @@ type ConfigPublisher struct {
 	routingPolicy *routing.Policy
 
 	sessionPoliciesSubscribers []chan SessionPolicies
+	routingPoliciesSubscribers []chan *routing.Policy
 	remoteIAsSubscribers       []chan []addr.IA
 }
 
@@ -66,6 +67,15 @@ func (n *ConfigPublisher) Publish(sp SessionPolicies, rp *routing.Policy) {
 	}
 	if rp != nil {
 		n.routingPolicy = rp.Copy()
+		wg.Add(len(n.routingPoliciesSubscribers))
+		for _, c := range n.routingPoliciesSubscribers {
+			c := c
+			go func() {
+				defer log.HandlePanic()
+				defer wg.Done()
+				c <- rp.Copy()
+			}()
+		}
 	}
 	wg.Wait()
 }
@@ -83,6 +93,15 @@ func (n *ConfigPublisher) SubscribeSessionPolicies() <-chan SessionPolicies {
 
 	c := make(chan SessionPolicies)
 	n.sessionPoliciesSubscribers = append(n.sessionPoliciesSubscribers, c)
+	return c
+}
+
+func (n *ConfigPublisher) SubscribeRoutingPolicies() <-chan *routing.Policy {
+	n.mtx.Lock()
+	defer n.mtx.Unlock()
+
+	c := make(chan *routing.Policy)
+	n.routingPoliciesSubscribers = append(n.routingPoliciesSubscribers, c)
 	return c
 }
 

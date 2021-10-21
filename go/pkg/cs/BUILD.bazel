@@ -1,4 +1,4 @@
-load("//lint:go.bzl", "go_library")
+load("//lint:go.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
@@ -55,5 +55,19 @@ go_library(
         "@com_github_prometheus_client_golang//prometheus:go_default_library",
         "@com_github_prometheus_client_golang//prometheus/promauto:go_default_library",
         "@org_golang_google_grpc//:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["trust_test.go"],
+    data = glob(["testdata/**"]),
+    deps = [
+        ":go_default_library",
+        "//go/lib/xtest:go_default_library",
+        "//go/pkg/command:go_default_library",
+        "//go/pkg/storage/trust/sqlite:go_default_library",
+        "//go/scion-pki/testcrypto:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
     ],
 )

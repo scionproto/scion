@@ -57,6 +57,10 @@ func realMain(ctx context.Context) error {
 	if err != nil {
 		return serrors.WrapStr("connecting to daemon", err)
 	}
+	localIA, err := daemon.LocalIA(ctx)
+	if err != nil {
+		return serrors.WrapStr("retrieving local ISD-AS", err)
+	}
 
 	controlAddress, err := net.ResolveUDPAddr("udp", globalCfg.Gateway.CtrlAddr)
 	if err != nil {
@@ -114,7 +118,7 @@ func realMain(ctx context.Context) error {
 		HTTPEndpoints:            httpPages,
 		HTTPServeMux:             http.DefaultServeMux,
 		Logger:                   log.New(),
-		Metrics:                  gateway.NewMetrics(),
+		Metrics:                  gateway.NewMetrics(localIA),
 	}
 
 	errs := make(chan error, 1)

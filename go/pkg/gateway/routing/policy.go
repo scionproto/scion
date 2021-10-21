@@ -84,6 +84,7 @@ type Rule struct {
 	From    IAMatcher
 	To      IAMatcher
 	Network NetworkMatcher
+	NextHop net.IP
 	Comment string
 }
 

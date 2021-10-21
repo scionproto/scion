@@ -63,6 +63,7 @@ func Cmd(pather command.Pather) *cobra.Command {
 		newVerifyCmd(joined),
 		newRenewCmd(joined),
 		newMatchCmd(joined),
+		newSignCmd(joined),
 	)
 	return cmd
 }

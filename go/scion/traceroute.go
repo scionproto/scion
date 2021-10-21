@@ -26,6 +26,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/go/lib/daemon"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
@@ -33,20 +34,19 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/pkg/app"
+	"github.com/scionproto/scion/go/pkg/app/flag"
 	"github.com/scionproto/scion/go/pkg/app/path"
 	"github.com/scionproto/scion/go/pkg/traceroute"
 )
 
 func newTraceroute(pather CommandPather) *cobra.Command {
+	var envFlags flag.SCIONEnvironment
 	var flags struct {
-		dispatcher  string
 		features    []string
 		interactive bool
-		local       net.IP
 		logLevel    string
 		noColor     bool
 		refresh     bool
-		daemon      string
 		sequence    string
 		timeout     time.Duration
 		tracer      string
@@ -81,6 +81,18 @@ On other errors, traceroute will exit with code 2.
 
 			cmd.SilenceUsage = true
 
+			if err := envFlags.LoadExternalVars(); err != nil {
+				return err
+			}
+			daemonAddr := envFlags.Daemon()
+			dispatcher := envFlags.Dispatcher()
+			localIP := envFlags.Local().IPAddr().IP
+			log.Debug("Resolved SCION environment flags",
+				"daemon", daemonAddr,
+				"dispatcher", dispatcher,
+				"local", localIP,
+			)
+
 			span, traceCtx := tracing.CtxWith(context.Background(), "run")
 			span.SetTag("dst.isd_as", remote.IA)
 			span.SetTag("dst.host", remote.Host.IP)
@@ -88,7 +100,7 @@ On other errors, traceroute will exit with code 2.
 
 			ctx, cancelF := context.WithTimeout(traceCtx, time.Second)
 			defer cancelF()
-			sd, err := daemon.NewService(flags.daemon).Connect(ctx)
+			sd, err := daemon.NewService(daemonAddr).Connect(ctx)
 			if err != nil {
 				return serrors.WrapStr("connecting to SCION Daemon", err)
 			}
@@ -115,7 +127,6 @@ On other errors, traceroute will exit with code 2.
 				}
 			}
 
-			localIP := flags.local
 			if localIP == nil {
 				target := remote.Host.IP
 				if remote.NextHop != nil {
@@ -135,7 +146,7 @@ On other errors, traceroute will exit with code 2.
 			ctx = app.WithSignal(traceCtx, os.Interrupt, syscall.SIGTERM)
 			var stats traceroute.Stats
 			cfg := traceroute.Config{
-				Dispatcher:   reliable.NewDispatcher(flags.dispatcher),
+				Dispatcher:   reliable.NewDispatcher(dispatcher),
 				Remote:       remote,
 				MTU:          path.Metadata().MTU,
 				Local:        local,
@@ -159,14 +170,11 @@ On other errors, traceroute will exit with code 2.
 		},
 	}
 
+	envFlags.Register(cmd.Flags())
 	cmd.Flags().BoolVar(&flags.refresh, "refresh", false, "set refresh flag for path request")
 	cmd.Flags().BoolVarP(&flags.interactive, "interactive", "i", false, "interactive mode")
 	cmd.Flags().BoolVar(&flags.noColor, "no-color", false, "disable colored output")
 	cmd.Flags().DurationVar(&flags.timeout, "timeout", time.Second, "timeout per packet")
-	cmd.Flags().IPVar(&flags.local, "local", nil, "IP address to listen on")
-	cmd.Flags().StringVar(&flags.dispatcher, "dispatcher", reliable.DefaultDispPath,
-		"dispatcher socket")
-	cmd.Flags().StringVar(&flags.daemon, "sciond", daemon.DefaultAPIAddress, "SCION Daemon address")
 	cmd.Flags().StringVar(&flags.sequence, "sequence", "", app.SequenceUsage)
 	cmd.Flags().StringVar(&flags.logLevel, "log.level", "", app.LogLevelUsage)
 	cmd.Flags().StringVar(&flags.tracer, "tracing.agent", "", "Tracing agent address")

@@ -45,6 +45,19 @@ it is not a subset of the union of the prefix list. ::
   !10.0.1.0/24,10.0.2.0/24   Matches all IP prefixes that are not a subset of 10.0.1.0/24 and
                              not a subset of 10.0.2.0/24.
 
+Next-Hop Tracking
+-----------------
+
+This is an Anapaya only feature.
+
+The advertise action supports an additional, optional argument: ::
+
+  advertise <a> <b> <prefixes> [<next-hop>]
+
+If next-hop IP adrress is specified, the prefixes are advertised only if that address
+is responding to pings. This allows to retract a set of prefixes dynamically without
+having to resort to BGP.
+
 Default Routing Policy
 ----------------------
 

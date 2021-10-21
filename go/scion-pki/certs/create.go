@@ -149,7 +149,7 @@ func newCreateCmd(pather command.Pather) *cobra.Command {
 		),
 		Long: `'create' generates a certificate or a certificate signing request (CSR).
 
-Then command takes the following positional arguments:
+The command takes the following positional arguments:
 - <subject-template> is the template for the certificate subject distinguished name.
 - <crt-file> is the file path where the certificate or certificate requests is
   written to. The parent directory must exist and must be writable.
@@ -248,6 +248,9 @@ A valid example for a JSON formatted template:
 					return serrors.WrapStr("loading CA private key", err)
 				}
 			}
+			if isSelfSigned {
+				caKey = privKey
+			}
 
 			if flags.csr {
 				csr, err := CreateCSR(ct, subject, privKey)
@@ -271,7 +274,7 @@ A valid example for a JSON formatted template:
 				cert, err := CreateCertificate(CertParams{
 					Type:      ct,
 					Subject:   subject,
-					Key:       privKey,
+					PubKey:    privKey.Public(),
 					NotBefore: flags.notBefore.Time,
 					NotAfter:  notAfterFromFlags(ct, flags.notBefore, flags.notAfter),
 					CAKey:     caKey,
@@ -500,7 +503,7 @@ func CreateCSR(certType cppki.CertType, subject pkix.Name, priv key.PrivateKey) 
 type CertParams struct {
 	Type      cppki.CertType
 	Subject   pkix.Name
-	Key       key.PrivateKey
+	PubKey    crypto.PublicKey
 	NotBefore time.Time
 	NotAfter  time.Time
 
@@ -517,7 +520,7 @@ func CreateCertificate(params CertParams) ([]byte, error) {
 	if _, err := rand.Read(serial); err != nil {
 		return nil, serrors.WrapStr("creating random serial number", err)
 	}
-	skid, err := cppki.SubjectKeyID(params.Key.Public())
+	skid, err := cppki.SubjectKeyID(params.PubKey)
 	if err != nil {
 		return nil, serrors.WrapStr("computing subject key ID", err)
 	}
@@ -540,13 +543,12 @@ func CreateCertificate(params CertParams) ([]byte, error) {
 		tmpl.AuthorityKeyId = params.CACert.SubjectKeyId
 	} else {
 		params.CACert = &tmpl
-		params.CAKey = params.Key
 	}
 	cert, err := x509.CreateCertificate(
 		rand.Reader,
 		&tmpl,
 		params.CACert,
-		params.Key.Public(),
+		params.PubKey,
 		params.CAKey,
 	)
 	if err != nil {

@@ -26,30 +26,30 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/go/lib/daemon"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/pkg/app"
+	"github.com/scionproto/scion/go/pkg/app/flag"
 	"github.com/scionproto/scion/go/pkg/app/path"
 	"github.com/scionproto/scion/go/pkg/ping"
 )
 
 func newPing(pather CommandPather) *cobra.Command {
+	var envFlags flag.SCIONEnvironment
 	var flags struct {
 		count       uint16
-		dispatcher  string
 		features    []string
 		interactive bool
 		interval    time.Duration
-		local       net.IP
 		logLevel    string
 		maxMTU      bool
 		noColor     bool
 		refresh     bool
 		healthyOnly bool
-		daemon      string
 		sequence    string
 		size        uint
 		timeout     time.Duration
@@ -90,6 +90,18 @@ On other errors, ping will exit with code 2.
 
 			cmd.SilenceUsage = true
 
+			if err := envFlags.LoadExternalVars(); err != nil {
+				return err
+			}
+			daemonAddr := envFlags.Daemon()
+			dispatcher := envFlags.Dispatcher()
+			localIP := envFlags.Local().IPAddr().IP
+			log.Debug("Resolved SCION environment flags",
+				"daemon", daemonAddr,
+				"dispatcher", dispatcher,
+				"local", localIP,
+			)
+
 			span, traceCtx := tracing.CtxWith(context.Background(), "run")
 			span.SetTag("dst.isd_as", remote.IA)
 			span.SetTag("dst.host", remote.Host.IP)
@@ -97,7 +109,7 @@ On other errors, ping will exit with code 2.
 
 			ctx, cancelF := context.WithTimeout(traceCtx, time.Second)
 			defer cancelF()
-			sd, err := daemon.NewService(flags.daemon).Connect(ctx)
+			sd, err := daemon.NewService(daemonAddr).Connect(ctx)
 			if err != nil {
 				return serrors.WrapStr("connecting to SCION Daemon", err)
 			}
@@ -117,7 +129,7 @@ On other errors, ping will exit with code 2.
 			if flags.healthyOnly {
 				opts = append(opts, path.WithProbing(&path.ProbeConfig{
 					LocalIA: info.IA,
-					LocalIP: flags.local,
+					LocalIP: localIP,
 				}))
 			}
 			path, err := path.Choose(traceCtx, sd, remote.IA, opts...)
@@ -128,7 +140,6 @@ On other errors, ping will exit with code 2.
 			remote.NextHop = path.UnderlayNextHop()
 
 			// Resolve local IP based on underlay next hop
-			localIP := flags.local
 			if localIP == nil {
 				target := remote.Host.IP
 				if remote.NextHop != nil {
@@ -167,7 +178,7 @@ On other errors, ping will exit with code 2.
 				count = math.MaxUint16
 			}
 			stats, err := ping.Run(ctx, ping.Config{
-				Dispatcher:  reliable.NewDispatcher(flags.dispatcher),
+				Dispatcher:  reliable.NewDispatcher(dispatcher),
 				Attempts:    count,
 				Interval:    flags.interval,
 				Timeout:     flags.timeout,
@@ -203,15 +214,12 @@ On other errors, ping will exit with code 2.
 		},
 	}
 
+	envFlags.Register(cmd.Flags())
 	cmd.Flags().BoolVarP(&flags.interactive, "interactive", "i", false, "interactive mode")
 	cmd.Flags().BoolVar(&flags.noColor, "no-color", false, "disable colored output")
 	cmd.Flags().DurationVar(&flags.timeout, "timeout", time.Second, "timeout per packet")
-	cmd.Flags().IPVar(&flags.local, "local", nil, "IP address to listen on")
-	cmd.Flags().StringVar(&flags.daemon, "sciond", daemon.DefaultAPIAddress, "SCION Daemon address")
 	cmd.Flags().StringVar(&flags.sequence, "sequence", "", app.SequenceUsage)
 	cmd.Flags().BoolVar(&flags.healthyOnly, "healthy-only", false, "only use healthy paths")
-	cmd.Flags().StringVar(&flags.dispatcher, "dispatcher", reliable.DefaultDispPath,
-		"dispatcher socket")
 	cmd.Flags().BoolVar(&flags.refresh, "refresh", false, "set refresh flag for path request")
 	cmd.Flags().DurationVar(&flags.interval, "interval", time.Second, "time between packets")
 	cmd.Flags().Uint16VarP(&flags.count, "count", "c", 0, "total number of packets to send")
