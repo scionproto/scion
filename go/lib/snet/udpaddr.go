@@ -142,7 +142,7 @@ func parseAddr(s string) (string, string, error) {
 
 func ipOnly(s string) bool {
 	ipv4NoPort := strings.Contains(s, ".") && !strings.Contains(s, ":")
-	inBracketsWithNoPort := !strings.Contains(s, "]:")
+	inBracketsWithNoPort := strings.Contains(s, "[") && !strings.Contains(s, "]:")
 	return ipv4NoPort || inBracketsWithNoPort
 }
 
