@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
+	"inet.af/netaddr"
 )
 
 var addrRegexp = regexp.MustCompile(`^(?P<ia>\d+-[\d:A-Fa-f]+),(?P<host>.+)$`)
@@ -141,9 +142,9 @@ func parseAddr(s string) (string, string, error) {
 }
 
 func ipOnly(s string) bool {
-	bareIpNoPort := net.ParseIP(strings.Split(s, "%")[0]) != nil
-	inBracketsWithNoPort := strings.HasPrefix(s, "[") && !strings.Contains(s, "]:")
-	return bareIpNoPort || inBracketsWithNoPort
+	_, portErr := netaddr.ParseIPPort(s)
+	_, ipErr := netaddr.ParseIP(strings.Trim(s, "[]"))
+	return portErr != nil && ipErr == nil
 }
 
 // Copy creates a deep copy of the address.
