@@ -34,7 +34,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
 	github.com/sergi/go-diff v1.0.1-0.20180205163309-da645544ed44
-	github.com/smartystreets/goconvey v1.6.6
+	github.com/smartystreets/goconvey v1.6.7
 	github.com/songgao/water v0.0.0-20190725173103-fd331bda3f4b
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/pflag v1.0.5
