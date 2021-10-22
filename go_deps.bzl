@@ -1373,9 +1373,8 @@ def go_deps():
     go_repository(
         name = "com_github_nxadm_tail",
         importpath = "github.com/nxadm/tail",
-        replace = "github.com/lukedirtwalker/tail",
-        sum = "h1:hNhCwj5i+kmlvj/als0kzOuEFhIOGs3pnfxTm0/G8X8=",
-        version = "v1.3.1-0.20190919080739-7f7d37fab281",
+        sum = "h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=",
+        version = "v1.4.8",
     )
     go_repository(
         name = "com_github_nytimes_gziphandler",
@@ -1806,9 +1805,8 @@ def go_deps():
     go_repository(
         name = "com_github_smartystreets_goconvey",
         importpath = "github.com/smartystreets/goconvey",
-        replace = "github.com/kormat/goconvey",
-        sum = "h1:NMGRuyMGEPkT+2ll1+M00ubrzqHa4Kfboygqql2mcgA=",
-        version = "v0.0.0-20191113114839-63cc4eee0dbc",
+        sum = "h1:I6tZjLXD2Q1kjvNbIzB1wvQBsXmKXiVrhpRE8ZjP5jY=",
+        version = "v1.6.7",
     )
     go_repository(
         name = "com_github_soheilhy_cmux",
