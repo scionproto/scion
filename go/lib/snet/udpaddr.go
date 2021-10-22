@@ -20,10 +20,11 @@ import (
 	"regexp"
 	"strings"
 
+	"inet.af/netaddr"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
-	"inet.af/netaddr"
 )
 
 var addrRegexp = regexp.MustCompile(`^(?P<ia>\d+-[\d:A-Fa-f]+),(?P<host>.+)$`)
@@ -67,9 +68,10 @@ func ParseUDPAddr(s string) (*UDPAddr, error) {
 	}
 	if ipOnly(rawHost) {
 		addr, err := net.ResolveIPAddr("ip", strings.Trim(rawHost, "[]"))
-		if err == nil && addr.IP != nil {
-			return &UDPAddr{IA: ia, Host: &net.UDPAddr{IP: addr.IP, Port: 0, Zone: addr.Zone}}, nil
+		if err != nil {
+			return nil, serrors.WrapStr("invalid address: IP not resolvable", err)
 		}
+		return &UDPAddr{IA: ia, Host: &net.UDPAddr{IP: addr.IP, Port: 0, Zone: addr.Zone}}, nil
 	}
 	udp, err := net.ResolveUDPAddr("udp", rawHost)
 	if err != nil {
