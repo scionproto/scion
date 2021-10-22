@@ -15,7 +15,6 @@
 package key_test
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -53,14 +52,14 @@ func TestNewPrivateCmd(t *testing.T) {
 		},
 		"private key already exists": {
 			Prepare: func(t *testing.T) {
-				require.NoError(t, ioutil.WriteFile(dir+"/exists.key", []byte("exists"), 0666))
+				require.NoError(t, os.WriteFile(dir+"/exists.key", []byte("exists"), 0666))
 			},
 			Args:         []string{dir + "/exists.key"},
 			ErrAssertion: assert.Error,
 		},
 		"force write private key": {
 			Prepare: func(t *testing.T) {
-				require.NoError(t, ioutil.WriteFile(dir+"/force.key", []byte("exists"), 0666))
+				require.NoError(t, os.WriteFile(dir+"/force.key", []byte("exists"), 0666))
 			},
 			Args:         []string{"--force", dir + "/force.key"},
 			ErrAssertion: assert.NoError,

@@ -15,7 +15,7 @@
 package key_test
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -52,14 +52,14 @@ func TestNewPublicCmd(t *testing.T) {
 		},
 		"public key already exists": {
 			Prepare: func(t *testing.T) {
-				require.NoError(t, ioutil.WriteFile(dir+"/exists.key", []byte("exists"), 0666))
+				require.NoError(t, os.WriteFile(dir+"/exists.key", []byte("exists"), 0666))
 			},
 			Args:         []string{"--out", dir + "/exists.key", "testdata/private.key"},
 			ErrAssertion: assert.Error,
 		},
 		"force write public key": {
 			Prepare: func(t *testing.T) {
-				require.NoError(t, ioutil.WriteFile(dir+"/force.key", []byte("exists"), 0666))
+				require.NoError(t, os.WriteFile(dir+"/force.key", []byte("exists"), 0666))
 			},
 			Args:         []string{"--out", dir + "/force.key", "--force", "testdata/private.key"},
 			ErrAssertion: assert.NoError,
@@ -82,9 +82,9 @@ func TestNewPublicCmd(t *testing.T) {
 			if err != nil {
 				return
 			}
-			expected, err := ioutil.ReadFile("testdata/public.key")
+			expected, err := os.ReadFile("testdata/public.key")
 			require.NoError(t, err)
-			actual, err := ioutil.ReadFile(tc.Args[1])
+			actual, err := os.ReadFile(tc.Args[1])
 			require.NoError(t, err)
 			assert.Equal(t, string(expected), string(actual))
 		})
