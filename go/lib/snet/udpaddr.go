@@ -20,6 +20,8 @@ import (
 	"regexp"
 	"strings"
 
+	"inet.af/netaddr"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -66,9 +68,10 @@ func ParseUDPAddr(s string) (*UDPAddr, error) {
 	}
 	if ipOnly(rawHost) {
 		addr, err := net.ResolveIPAddr("ip", strings.Trim(rawHost, "[]"))
-		if err == nil && addr.IP != nil {
-			return &UDPAddr{IA: ia, Host: &net.UDPAddr{IP: addr.IP, Port: 0, Zone: addr.Zone}}, nil
+		if err != nil {
+			return nil, serrors.WrapStr("invalid address: IP not resolvable", err)
 		}
+		return &UDPAddr{IA: ia, Host: &net.UDPAddr{IP: addr.IP, Port: 0, Zone: addr.Zone}}, nil
 	}
 	udp, err := net.ResolveUDPAddr("udp", rawHost)
 	if err != nil {
@@ -141,9 +144,9 @@ func parseAddr(s string) (string, string, error) {
 }
 
 func ipOnly(s string) bool {
-	ipv4NoPort := strings.Contains(s, ".") && !strings.Contains(s, ":")
-	inBracketsWithNoPort := !strings.Contains(s, "]:")
-	return ipv4NoPort || inBracketsWithNoPort
+	_, portErr := netaddr.ParseIPPort(s)
+	_, ipErr := netaddr.ParseIP(strings.Trim(s, "[]"))
+	return portErr != nil && ipErr == nil
 }
 
 // Copy creates a deep copy of the address.
