@@ -39,7 +39,8 @@ func (s SegStats) Total() int {
 }
 
 // Log logs the statistics with the given logger.
-func (s *SegStats) Log(logger log.Logger) {
+func (s *SegStats) Log(ctx context.Context) {
+	logger := log.FromCtx(ctx)
 	if len(s.InsertedSegs) > 0 {
 		logger.Debug("Segments inserted in DB", "segments", s.InsertedSegs)
 	}
@@ -87,7 +88,7 @@ func (s *DefaultStorage) StoreSegs(ctx context.Context, segs []*seg.Meta) (SegSt
 	if err := tx.Commit(); err != nil {
 		return SegStats{}, err
 	}
-	segStats.Log(log.FromCtx(ctx))
+	segStats.Log(ctx)
 	return segStats, nil
 }
 

@@ -72,7 +72,7 @@ func (s *RegistrationServer) SegmentsRegistration(ctx context.Context,
 		return nil, err
 	}
 	labels.Source = peerToLabel(peer.IA, s.LocalIA)
-	labels.Type = classifySegs(logger, req.Segments)
+	labels.Type = classifySegs(ctx, req.Segments)
 
 	var segs []*seg.Meta
 	for segType, segments := range req.Segments {
@@ -159,9 +159,10 @@ func (l requestLabels) WithResult(result string) requestLabels {
 // be returned. However the type allows multiple segments to be registered, so
 // this function will concatenate the types if there are multiple segments of
 // different types.
-func classifySegs(logger log.Logger,
+func classifySegs(ctx context.Context,
 	segs map[int32]*cppb.SegmentsRegistrationRequest_Segments) string {
 
+	logger := log.FromCtx(ctx)
 	if len(segs) > 1 {
 		types := make([]seg.Type, 0, len(segs))
 		for t := range segs {
