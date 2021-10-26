@@ -124,7 +124,7 @@ func realMain(ctx context.Context) error {
 	errs := make(chan error, 1)
 	go func() {
 		defer log.HandlePanic()
-		if err := gw.Run(); err != nil {
+		if err := gw.Run(ctx); err != nil {
 			errs <- err
 		}
 	}()

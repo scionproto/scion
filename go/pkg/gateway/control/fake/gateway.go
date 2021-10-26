@@ -64,9 +64,6 @@ type Gateway struct {
 	// published.
 	ConfigurationUpdates <-chan *Config
 
-	// Logger is used to print information, if it is nil no information is
-	// printed.
-	Logger log.Logger
 	// Metrics are the metrics exported by the gateway.
 	Metrics *gateway.Metrics
 
@@ -83,17 +80,18 @@ type Gateway struct {
 
 // Run runs the fake gateway, it reads configurations from the configuration
 // channel.
-func (g *Gateway) Run() error {
-	routePublisherFactory := createRouteManager(g.DeviceManager, g.DummyRouting)
+func (g *Gateway) Run(ctx context.Context) error {
+	logger := log.FromCtx(ctx)
+	routePublisherFactory := createRouteManager(ctx, g.DeviceManager, g.DummyRouting)
 
-	localIA, err := g.Daemon.LocalIA(context.Background())
+	localIA, err := g.Daemon.LocalIA(ctx)
 	if err != nil {
 		return serrors.WrapStr("unable to learn local ISD-AS number", err)
 	}
 
 	scionNetwork := snet.NewNetwork(localIA, reliable.NewDispatcher(""), nil)
 
-	log.Info("Starting ingress", "local_isd_as", localIA)
+	logger.Info("Starting ingress", "local_isd_as", localIA)
 	if err := g.DataPlaneRunner.StartIngress(scionNetwork, g.DataServerAddr,
 		g.DeviceManager, nil); err != nil {
 
@@ -109,7 +107,7 @@ func (g *Gateway) Run() error {
 	routingTableFactory := g.DataPlaneRunner.NewRoutingTableFactory()
 
 	for c := range g.ConfigurationUpdates {
-		log.SafeDebug(g.Logger, "New forwarding engine configuration found", "c", c)
+		logger.Debug("New forwarding engine configuration found", "c", c)
 		routingTable, err := routingTableFactory.New(c.Chains)
 		if err != nil {
 			return serrors.WrapStr("creating routing table", err)
@@ -146,7 +144,7 @@ func (g *Gateway) Run() error {
 				// An error here might mean that the operator manually tampered with
 				// the device. Depending on the new state of the device, we might
 				// be able to continue running, so we don't return with an error.
-				log.SafeInfo(g.Logger, "Encountered error when closing device handle", err)
+				logger.Info("Encountered error when closing device handle", "err", err)
 			}
 		}
 		g.sessions = newSessions
@@ -155,7 +153,7 @@ func (g *Gateway) Run() error {
 	return nil
 }
 
-func createRouteManager(deviceManager control.DeviceManager,
+func createRouteManager(ctx context.Context, deviceManager control.DeviceManager,
 	dummyRouting bool) control.PublisherFactory {
 
 	if dummyRouting {
@@ -165,7 +163,7 @@ func createRouteManager(deviceManager control.DeviceManager,
 	linux := &routemgr.Linux{DeviceManager: deviceManager}
 	go func() {
 		defer log.HandlePanic()
-		linux.Run()
+		linux.Run(ctx)
 	}()
 
 	return linux

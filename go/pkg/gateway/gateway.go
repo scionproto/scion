@@ -211,7 +211,7 @@ type Gateway struct {
 	Metrics *Metrics
 }
 
-func (g *Gateway) Run() error {
+func (g *Gateway) Run(ctx context.Context) error {
 	log.SafeDebug(g.Logger, "Gateway starting up...")
 
 	// *************************************************************************
@@ -239,7 +239,7 @@ func (g *Gateway) Run() error {
 	tunnelReader := TunnelReader{
 		DeviceOpener: xnet.UseNameResolver(
 			routemgr.FixedTunnelName(tunnelName),
-			xnet.OpenerWithOptions(xnet.WithLogger(g.Logger)),
+			xnet.OpenerWithOptions(ctx),
 		),
 		Router:  g.RoutingTableReader,
 		Logger:  g.Logger,
@@ -251,7 +251,7 @@ func (g *Gateway) Run() error {
 
 	log.SafeDebug(g.Logger, "Egress started")
 
-	routePublisherFactory := createRouteManager(deviceManager)
+	routePublisherFactory := createRouteManager(ctx, deviceManager)
 
 	// *************************************************************************
 	// Initialize base SCION network information: IA + Dispatcher connectivity
@@ -789,11 +789,13 @@ func CreateEngineMetrics(m *Metrics) control.EngineMetrics {
 	}
 }
 
-func createRouteManager(deviceManager control.DeviceManager) control.PublisherFactory {
+func createRouteManager(ctx context.Context,
+	deviceManager control.DeviceManager) control.PublisherFactory {
+
 	linux := &routemgr.Linux{DeviceManager: deviceManager}
 	go func() {
 		defer log.HandlePanic()
-		linux.Run()
+		linux.Run(ctx)
 	}()
 	return linux
 }

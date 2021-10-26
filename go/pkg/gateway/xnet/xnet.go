@@ -18,6 +18,7 @@
 package xnet
 
 import (
+	"context"
 	"io"
 	"net"
 
@@ -74,14 +75,14 @@ Cleanup:
 
 // Open creates a new DeviceHandle backed by a Linux network interface of type tun.
 // The interface will have the specified name.
-func Open(name string) (control.DeviceHandle, error) {
-	return open(name)
+func Open(ctx context.Context, name string) (control.DeviceHandle, error) {
+	return open(ctx, name)
 }
 
 // OpenerWithOptions returns an Open implementation with the desired options attached.
-func OpenerWithOptions(options ...DeviceOption) DeviceOpener {
+func OpenerWithOptions(ctx context.Context, options ...DeviceOption) DeviceOpener {
 	f := func(name string) (control.Device, error) {
-		return open(name, options...)
+		return open(ctx, name, options...)
 	}
 	return DeviceOpenerFunc(f)
 }
@@ -107,76 +108,65 @@ func UseNameResolver(namer func(addr.IA) string, opener DeviceOpener) control.De
 	return control.DeviceOpenerFunc(f)
 }
 
-func open(name string, options ...DeviceOption) (control.Device, error) {
+func open(ctx context.Context, name string, options ...DeviceOption) (control.Device, error) {
+	logger := log.FromCtx(ctx)
 	o := applyDeviceOptions(options)
 
 	if o.routingOnlyNoCreate {
 		link, err := netlink.LinkByName(name)
 		if err != nil {
-			log.SafeDebug(o.logger, "Failed to open tun device", "name", name, "err", err)
+			logger.Debug("Failed to open tun device", "name", name, "err", err)
 			return nil, err
 		}
-		log.SafeDebug(o.logger, "Successfully opened tun device", "name", name)
+		logger.Debug("Successfully opened tun device", "name", name)
 		return &deviceHandle{
 			link:            link,
 			ReadWriteCloser: &errorReadWriteCloser{},
-			logger:          o.logger,
 		}, nil
 	}
 
 	link, rwc, err := connectTun(name)
 	if err != nil {
-		log.SafeDebug(o.logger, "Failed to open tun device", "name", name, "err", err)
+		logger.Debug("Failed to open tun device", "name", name, "err", err)
 		return nil, err
 	}
-	log.SafeDebug(o.logger, "Successfully opened tun device", "name", name)
+	logger.Debug("Successfully opened tun device", "name", name)
 
 	return &deviceHandle{
 		link:            link,
 		ReadWriteCloser: rwc,
-		logger:          o.logger,
 	}, nil
 }
 
 type deviceHandle struct {
-	link   netlink.Link
-	logger log.Logger
+	link netlink.Link
 	io.ReadWriteCloser
 }
 
-func (h deviceHandle) AddRoute(r *control.Route) error {
+func (h deviceHandle) AddRoute(ctx context.Context, r *control.Route) error {
+	logger := log.FromCtx(ctx)
 	err := addRoute(0, h.link, r.Prefix, r.Source)
 	if err != nil {
-		log.SafeDebug(h.logger, "Failed to add route",
-			"tun", h.link.Attrs().Name, "route", r, "err", err)
+		logger.Debug("Failed to add route", "tun", h.link.Attrs().Name, "route", r, "err", err)
 		return err
 	}
-	log.SafeDebug(h.logger,
-		"Successfully added route", "tun", h.link.Attrs().Name, "route", r)
+	logger.Debug("Successfully added route", "tun", h.link.Attrs().Name, "route", r)
 	return nil
 }
 
-func (h deviceHandle) DeleteRoute(r *control.Route) error {
+func (h deviceHandle) DeleteRoute(ctx context.Context, r *control.Route) error {
+	logger := log.FromCtx(ctx)
 	err := deleteRoute(0, h.link, r.Prefix, r.Source)
 	if err != nil {
-		log.SafeDebug(h.logger, "Failed to delete route",
-			"tun", h.link.Attrs().Name, "route", r, "err", err)
+		logger.Debug("Failed to delete route", "tun", h.link.Attrs().Name, "route", r, "err", err)
 		return err
 	}
-	log.SafeDebug(h.logger,
-		"Successfully deleted route", "tun", h.link.Attrs().Name, "route", r)
+	logger.Debug("Successfully deleted route", "tun", h.link.Attrs().Name, "route", r)
 	return nil
 }
 
 func (h deviceHandle) Close() error {
-	err := h.ReadWriteCloser.Close()
-	if err != nil {
-		log.SafeDebug(h.logger, "Failed to close tun device",
-			"tun", h.link.Attrs().Name, "err", err)
-		return err
-	}
-	log.SafeDebug(h.logger, "Successfully closed tun device", "tun", h.link.Attrs().Name)
-	return nil
+	return h.ReadWriteCloser.Close()
 }
 
 func addRoute(rTable int, link netlink.Link, dest *net.IPNet, src net.IP) error {
@@ -214,7 +204,6 @@ func deleteRoute(rTable int, link netlink.Link, dest *net.IPNet, src net.IP) err
 }
 
 type deviceOptions struct {
-	logger              log.Logger
 	routingOnlyNoCreate bool
 }
 
@@ -226,14 +215,6 @@ func applyDeviceOptions(fs []DeviceOption) deviceOptions {
 		f(&o)
 	}
 	return o
-}
-
-// WithLogger adds logging to device operations. If the logger is nil, no
-// logging is performed.
-func WithLogger(logger log.Logger) DeviceOption {
-	return func(o *deviceOptions) {
-		o.logger = logger
-	}
 }
 
 // WithRoutingOnlyNoCreate signals to create a device handle that supports

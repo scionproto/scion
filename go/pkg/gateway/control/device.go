@@ -15,6 +15,7 @@
 package control
 
 import (
+	"context"
 	"io"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -33,9 +34,9 @@ type DeviceOpener interface {
 type Device interface {
 	io.ReadWriteCloser
 	// AddRoute creates a route going through the device.
-	AddRoute(r *Route) error
+	AddRoute(ctx context.Context, r *Route) error
 	// DeleteRoute destroys a route going through the device.
-	DeleteRoute(r *Route) error
+	DeleteRoute(ctx context.Context, r *Route) error
 }
 
 // DeviceOpenerFunc is a function type that implements DeviceOpener.

@@ -15,6 +15,7 @@
 package routemgr
 
 import (
+	"context"
 	"encoding/base32"
 	"sync"
 
@@ -133,21 +134,23 @@ func (h *deviceHandle) ioWrapper(f func([]byte) (int, error), b []byte) (int, er
 	return n, err
 }
 
-func (h *deviceHandle) AddRoute(r *control.Route) error {
-	return h.routeWrapper(h.base.AddRoute, r)
+func (h *deviceHandle) AddRoute(ctx context.Context, r *control.Route) error {
+	return h.routeWrapper(ctx, h.base.AddRoute, r)
 }
 
-func (h *deviceHandle) DeleteRoute(r *control.Route) error {
-	return h.routeWrapper(h.base.DeleteRoute, r)
+func (h *deviceHandle) DeleteRoute(ctx context.Context, r *control.Route) error {
+	return h.routeWrapper(ctx, h.base.DeleteRoute, r)
 }
 
 // ioWrapper is a type-safe invoker of route creation/deletion ops. It calls f
 // on r and returns the result.
-func (h *deviceHandle) routeWrapper(f func(*control.Route) error, r *control.Route) error {
+func (h *deviceHandle) routeWrapper(ctx context.Context,
+	f func(context.Context, *control.Route) error, r *control.Route) error {
+
 	if h.destroyed() {
 		return control.ObjectDestroyedError
 	}
-	err := f(r)
+	err := f(ctx, r)
 	if err != nil && h.destroyed() {
 		return serrors.Wrap(control.ObjectDestroyedError, err)
 	}

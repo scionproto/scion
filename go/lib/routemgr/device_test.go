@@ -15,6 +15,7 @@
 package routemgr_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -207,17 +208,17 @@ func TestSingleDeviceManager(t *testing.T) {
 
 		t.Run("add route", func(t *testing.T) {
 			r := &control.Route{}
-			mockDeviceHandle.EXPECT().AddRoute(r).Return(nil)
+			mockDeviceHandle.EXPECT().AddRoute(gomock.Any(), r).Return(nil)
 
-			err := handle.AddRoute(r)
+			err := handle.AddRoute(context.Background(), r)
 			assert.Nil(t, err)
 		})
 
 		t.Run("delete route", func(t *testing.T) {
 			r := &control.Route{}
-			mockDeviceHandle.EXPECT().DeleteRoute(r).Return(nil)
+			mockDeviceHandle.EXPECT().DeleteRoute(gomock.Any(), r).Return(nil)
 
-			err := handle.DeleteRoute(r)
+			err := handle.DeleteRoute(context.Background(), r)
 			assert.Nil(t, err)
 		})
 	})
@@ -250,7 +251,7 @@ func TestSingleDeviceManager(t *testing.T) {
 		})
 
 		t.Run("add route", func(t *testing.T) {
-			err := handle.AddRoute(&control.Route{})
+			err := handle.AddRoute(context.Background(), &control.Route{})
 			assert.True(t, errors.Is(err, control.ObjectDestroyedError))
 		})
 	})
@@ -320,8 +321,8 @@ func TestSingleDeviceManager(t *testing.T) {
 		handleClosedBarrier := make(chan int)
 
 		r := &control.Route{}
-		mockDeviceHandle.EXPECT().AddRoute(r).DoAndReturn(
-			func(*control.Route) error {
+		mockDeviceHandle.EXPECT().AddRoute(gomock.Any(), r).DoAndReturn(
+			func(context.Context, *control.Route) error {
 				close(routeLaunchedBarrier)
 				<-handleClosedBarrier
 				return serrors.New("interrupted")
@@ -334,7 +335,7 @@ func TestSingleDeviceManager(t *testing.T) {
 			close(handleClosedBarrier)
 		}()
 
-		err = handle.AddRoute(r)
+		err = handle.AddRoute(context.Background(), r)
 		assert.True(t, errors.Is(err, control.ObjectDestroyedError))
 	})
 
@@ -622,17 +623,17 @@ func TestMultiDeviceManager(t *testing.T) {
 
 		t.Run("add route", func(t *testing.T) {
 			r := &control.Route{}
-			mockDeviceHandle.EXPECT().AddRoute(r).Return(nil)
+			mockDeviceHandle.EXPECT().AddRoute(context.Background(), r).Return(nil)
 
-			err := handle.AddRoute(r)
+			err := handle.AddRoute(context.Background(), r)
 			assert.Nil(t, err)
 		})
 
 		t.Run("delete route", func(t *testing.T) {
 			r := &control.Route{}
-			mockDeviceHandle.EXPECT().DeleteRoute(r).Return(nil)
+			mockDeviceHandle.EXPECT().DeleteRoute(gomock.Any(), r).Return(nil)
 
-			err := handle.DeleteRoute(r)
+			err := handle.DeleteRoute(context.Background(), r)
 			assert.Nil(t, err)
 		})
 	})

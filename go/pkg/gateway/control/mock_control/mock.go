@@ -1003,17 +1003,17 @@ func (m *MockDeviceHandle) EXPECT() *MockDeviceHandleMockRecorder {
 }
 
 // AddRoute mocks base method.
-func (m *MockDeviceHandle) AddRoute(arg0 *control.Route) error {
+func (m *MockDeviceHandle) AddRoute(arg0 context.Context, arg1 *control.Route) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddRoute", arg0)
+	ret := m.ctrl.Call(m, "AddRoute", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // AddRoute indicates an expected call of AddRoute.
-func (mr *MockDeviceHandleMockRecorder) AddRoute(arg0 interface{}) *gomock.Call {
+func (mr *MockDeviceHandleMockRecorder) AddRoute(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddRoute", reflect.TypeOf((*MockDeviceHandle)(nil).AddRoute), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddRoute", reflect.TypeOf((*MockDeviceHandle)(nil).AddRoute), arg0, arg1)
 }
 
 // Close mocks base method.
@@ -1031,17 +1031,17 @@ func (mr *MockDeviceHandleMockRecorder) Close() *gomock.Call {
 }
 
 // DeleteRoute mocks base method.
-func (m *MockDeviceHandle) DeleteRoute(arg0 *control.Route) error {
+func (m *MockDeviceHandle) DeleteRoute(arg0 context.Context, arg1 *control.Route) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteRoute", arg0)
+	ret := m.ctrl.Call(m, "DeleteRoute", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeleteRoute indicates an expected call of DeleteRoute.
-func (mr *MockDeviceHandleMockRecorder) DeleteRoute(arg0 interface{}) *gomock.Call {
+func (mr *MockDeviceHandleMockRecorder) DeleteRoute(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRoute", reflect.TypeOf((*MockDeviceHandle)(nil).DeleteRoute), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRoute", reflect.TypeOf((*MockDeviceHandle)(nil).DeleteRoute), arg0, arg1)
 }
 
 // Read mocks base method.
