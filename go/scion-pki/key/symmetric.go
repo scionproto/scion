@@ -17,13 +17,13 @@ package key
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/pem"
 	"fmt"
 	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/scion-pki/file"
@@ -96,14 +96,7 @@ func generatesymmetricKey(n int) (symmetricKey, error) {
 func encodesymmetricKey(key symmetricKey, format string) ([]byte, error) {
 	switch strings.ToLower(format) {
 	case "pem":
-		p := pem.EncodeToMemory(&pem.Block{
-			Type:  "SYMMETRIC KEY",
-			Bytes: key,
-		})
-		if p == nil {
-			return nil, serrors.New("PEM encoding failed")
-		}
-		return p, nil
+		return scrypto.EncodePEMSymmetricKey(key)
 	case "base64":
 		return []byte(base64.StdEncoding.EncodeToString(key)), nil
 	default:
