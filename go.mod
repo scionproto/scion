@@ -6,6 +6,7 @@ require (
 	github.com/buildkite/go-buildkite/v2 v2.8.1
 	github.com/dchest/cmac v0.0.0-20150527144652-62ff55a1048c
 	github.com/deepmap/oapi-codegen v1.8.2
+	github.com/emojisum/emojisum v0.0.0-20210601164913-cb9db27ebae2
 	github.com/fatih/color v1.9.0
 	github.com/getkin/kin-openapi v0.61.0
 	github.com/go-chi/chi/v5 v5.0.2

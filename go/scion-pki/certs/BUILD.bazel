@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "certs.go",
         "create.go",
+        "fingerprint.go",
         "match.go",
         "observability.go",
         "renew.go",
@@ -40,6 +41,7 @@ go_library(
         "//go/pkg/trust:go_default_library",
         "//go/scion-pki/file:go_default_library",
         "//go/scion-pki/key:go_default_library",
+        "@com_github_emojisum_emojisum//emoji:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
         "@org_golang_google_protobuf//proto:go_default_library",
@@ -50,6 +52,7 @@ go_test(
     name = "go_default_test",
     srcs = [
         "create_test.go",
+        "fingerprint_test.go",
         "renew_test.go",
     ],
     data = glob(["testdata/**"]),
