@@ -16,6 +16,7 @@ package control
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net"
 	"sort"
@@ -98,10 +99,6 @@ type EngineController struct {
 	// engine. If 0, the new engine is immediately swapped in.
 	SwapDelay time.Duration
 
-	// Logger is used by the controller to write messages about internal operation. If nil,
-	// no logging messages are printed.
-	Logger log.Logger
-
 	stateMtx sync.RWMutex
 	// engine holds a reference to the forwarding engine currently in use. If nil (such as at
 	// startup before the first configuration update arrives), it means no forwarding is currently
@@ -112,8 +109,8 @@ type EngineController struct {
 }
 
 // Run starts listening on the channel for updates, and processing existing updates.
-func (c *EngineController) Run() error {
-	return c.workerBase.RunWrapper(c.validate, c.run)
+func (c *EngineController) Run(ctx context.Context) error {
+	return c.workerBase.RunWrapper(ctx, c.validate, c.run)
 }
 
 // DiagnosticsWrite writes diagnostics to the writer.
@@ -135,7 +132,7 @@ func (c *EngineController) Status(w io.Writer) {
 	}
 }
 
-func (c *EngineController) validate() error {
+func (c *EngineController) validate(ctx context.Context) error {
 	if c.ConfigurationUpdates == nil {
 		return serrors.New("configuration update channel must not be nil")
 	}
@@ -151,9 +148,10 @@ func (c *EngineController) validate() error {
 	return nil
 }
 
-func (c *EngineController) run() error {
+func (c *EngineController) run(ctx context.Context) error {
+	logger := log.FromCtx(ctx)
 	for update := range c.ConfigurationUpdates {
-		log.SafeDebug(c.Logger, "New forwarding engine configuration found.", "update", update)
+		logger.Debug("New forwarding engine configuration found.", "update", update)
 
 		rcs, rcMapping := buildRoutingChains(update)
 		// The new forwarding engine uses a completely fresh routing table
@@ -168,14 +166,14 @@ func (c *EngineController) run() error {
 
 		newEngine := c.EngineFactory.New(routingTable, update, rcMapping)
 
-		log.SafeDebug(c.Logger, "Starting new forwarding engine.")
-		if err := newEngine.Run(); err != nil {
+		logger.Debug("Starting new forwarding engine.")
+		if err := newEngine.Run(ctx); err != nil {
 			return serrors.WrapStr("setting up the engine", err)
 		}
 
 		time.Sleep(c.SwapDelay)
 
-		log.SafeDebug(c.Logger, "Swapping data-plane routing to use new forwarding engine.")
+		logger.Debug("Swapping data-plane routing to use new forwarding engine.")
 		old := c.RoutingTableSwapper.SetRoutingTable(routingTable)
 		if old != nil {
 			if err := old.Close(); err != nil {
@@ -184,11 +182,11 @@ func (c *EngineController) run() error {
 		}
 
 		if c.engine != nil {
-			log.SafeDebug(c.Logger, "Shutting down old forwarding engine.")
-			if err := c.engine.Close(); err != nil {
+			logger.Debug("Shutting down old forwarding engine.")
+			if err := c.engine.Close(ctx); err != nil {
 				return serrors.WrapStr("shutting down engine", err)
 			}
-			log.SafeDebug(c.Logger, "Shut down old forwarding engine")
+			logger.Debug("Shut down old forwarding engine")
 		}
 
 		c.stateMtx.Lock()
@@ -219,10 +217,6 @@ type DefaultEngineFactory struct {
 	// DataplaneSessionFactory is used to construct dataplane sessions.
 	DataplaneSessionFactory DataplaneSessionFactory
 
-	// Logger is used by engines to write messages about internal operation. If nil,
-	// no logging messages are printed. Child engines will inherit this logger.
-	Logger log.Logger
-
 	// Metrics contains the metrics that will be modified during engine operation. If empty, no
 	// metrics are reported.
 	Metrics EngineMetrics
@@ -242,7 +236,6 @@ func (f *DefaultEngineFactory) New(table RoutingTable,
 		ProbeConnFactory:        f.ProbeConnFactory,
 		DeviceManager:           f.DeviceManager,
 		DataplaneSessionFactory: f.DataplaneSessionFactory,
-		Logger:                  f.Logger,
 		Metrics:                 f.Metrics,
 	}
 }
@@ -251,10 +244,10 @@ func (f *DefaultEngineFactory) New(table RoutingTable,
 type Worker interface {
 	// Run starts the worker's task and blocks until the worker has finished or it has been
 	// shut down via Close.
-	Run() error
+	Run(context.Context) error
 	// Close stops a running worker. If called before the worker has started, the worker
 	// will skip its task. In this case, both Run and Close will return nil.
-	Close() error
+	Close(context.Context) error
 }
 
 type gatewaySet map[string]struct{}

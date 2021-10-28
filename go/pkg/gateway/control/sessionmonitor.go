@@ -15,6 +15,7 @@
 package control
 
 import (
+	"context"
 	"net"
 	"sync"
 	"time"
@@ -95,8 +96,6 @@ type SessionMonitor struct {
 	// Metrics are the metrics which are modified during the operation of the
 	// monitor. If empty no metrics are reported.
 	Metrics SessionMonitorMetrics
-	// Logger is the logger to use. If nil no logs are written.
-	Logger log.Logger
 
 	// stateMtx protects the state from concurrent access.
 	stateMtx sync.RWMutex
@@ -123,26 +122,26 @@ func (m *SessionMonitor) initDefaults() {
 }
 
 // Run runs the session monitor. It blocks until Close is called..
-func (m *SessionMonitor) Run() error {
-	return m.workerBase.RunWrapper(m.setupInternalState, m.run)
+func (m *SessionMonitor) Run(ctx context.Context) error {
+	return m.workerBase.RunWrapper(ctx, m.setupInternalState, m.run)
 }
 
-func (m *SessionMonitor) run() error {
+func (m *SessionMonitor) run(ctx context.Context) error {
 	defer close(m.Events)
 	go func() {
 		defer log.HandlePanic()
-		m.drainConn()
+		m.drainConn(ctx)
 	}()
 	probeTicker := time.NewTicker(m.ProbeInterval)
-	m.sendProbe()
+	m.sendProbe(ctx)
 	for {
 		select {
 		case <-probeTicker.C:
-			m.sendProbe()
+			m.sendProbe(ctx)
 		case <-m.receivedProbe:
-			m.handleProbeReply()
+			m.handleProbeReply(ctx)
 		case <-m.expirationTimer.C:
-			m.handleExpiration()
+			m.handleExpiration(ctx)
 		case <-m.workerBase.GetDoneChan():
 			return nil
 		}
@@ -154,8 +153,8 @@ func (m *SessionMonitor) notification(e Event) SessionEvent {
 }
 
 // Close stops the session monitor.
-func (m *SessionMonitor) Close() error {
-	return m.workerBase.CloseWrapper(nil)
+func (m *SessionMonitor) Close(ctx context.Context) error {
+	return m.workerBase.CloseWrapper(ctx, nil)
 }
 
 // sessionState is for diagnostics and indicates the healthiness of a session.
@@ -176,7 +175,7 @@ func (m *SessionMonitor) sessionState() sessionState {
 	}
 }
 
-func (m *SessionMonitor) setupInternalState() error {
+func (m *SessionMonitor) setupInternalState(ctx context.Context) error {
 	m.initDefaults()
 	m.state = EventDown
 	probe := &gatewaypb.ControlRequest{
@@ -196,7 +195,8 @@ func (m *SessionMonitor) setupInternalState() error {
 	return nil
 }
 
-func (m *SessionMonitor) sendProbe() {
+func (m *SessionMonitor) sendProbe(ctx context.Context) {
+	logger := log.FromCtx(ctx)
 	paths := m.Paths.Get().Paths
 	if len(paths) == 0 {
 		// no path nothing we can do.
@@ -212,18 +212,17 @@ func (m *SessionMonitor) sendProbe() {
 	// Do so when creating the connection.
 	_, err := m.ProbeConn.WriteTo(m.rawProbe, remote)
 	if err != nil {
-		if m.Logger != nil {
-			m.Logger.Error("Error sending probe", "err", err)
-		}
+		logger.Error("Error sending probe", "err", err)
 		return
 	}
 	safeInc(m.Metrics.Probes)
 }
 
-func (m *SessionMonitor) handleProbeReply() {
+func (m *SessionMonitor) handleProbeReply(ctx context.Context) {
 	m.stateMtx.Lock()
 	defer m.stateMtx.Unlock()
 
+	logger := log.FromCtx(ctx)
 	if m.state != EventUp {
 		m.state = EventUp
 		metrics.GaugeSet(m.Metrics.IsHealthy, 1)
@@ -231,16 +230,17 @@ func (m *SessionMonitor) handleProbeReply() {
 		select {
 		case <-m.workerBase.GetDoneChan():
 		case m.Events <- m.notification(m.state):
-			log.SafeDebug(m.Logger, "Sent UP event", "session_id", m.ID)
+			logger.Debug("Sent UP event", "session_id", m.ID)
 		}
 	}
 	m.expirationTimer.Reset(m.HealthExpiration)
 }
 
-func (m *SessionMonitor) handleExpiration() {
+func (m *SessionMonitor) handleExpiration(ctx context.Context) {
 	m.stateMtx.Lock()
 	defer m.stateMtx.Unlock()
 
+	logger := log.FromCtx(ctx)
 	// ignore if the state is already down.
 	if m.state == EventDown {
 		return
@@ -252,11 +252,12 @@ func (m *SessionMonitor) handleExpiration() {
 	select {
 	case <-m.workerBase.GetDoneChan():
 	case m.Events <- m.notification(m.state):
-		log.SafeDebug(m.Logger, "Sent DOWN event", "session_id", m.ID)
+		logger.Debug("Sent DOWN event", "session_id", m.ID)
 	}
 }
 
-func (m *SessionMonitor) drainConn() {
+func (m *SessionMonitor) drainConn(ctx context.Context) {
+	logger := log.FromCtx(ctx)
 	buf := make([]byte, common.SupportedMTU)
 	for {
 		n, _, err := m.ProbeConn.ReadFrom(buf)
@@ -269,11 +270,11 @@ func (m *SessionMonitor) drainConn() {
 		default:
 		}
 		if err != nil {
-			log.SafeError(m.Logger, "Reading from probe conn", "err", err)
+			logger.Error("Reading from probe conn", "err", err)
 			continue
 		}
 		if err := m.handlePkt(buf[:n]); err != nil {
-			log.SafeError(m.Logger, "Handling probe reply", "err", err)
+			logger.Error("Handling probe reply", "err", err)
 		}
 	}
 }

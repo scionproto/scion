@@ -349,17 +349,17 @@ func (m *MockPathMonitor) EXPECT() *MockPathMonitorMockRecorder {
 }
 
 // Register mocks base method.
-func (m *MockPathMonitor) Register(arg0 addr.IA, arg1 *policies.Policies, arg2 string) control.PathMonitorRegistration {
+func (m *MockPathMonitor) Register(arg0 context.Context, arg1 addr.IA, arg2 *policies.Policies, arg3 string) control.PathMonitorRegistration {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Register", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "Register", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(control.PathMonitorRegistration)
 	return ret0
 }
 
 // Register indicates an expected call of Register.
-func (mr *MockPathMonitorMockRecorder) Register(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockPathMonitorMockRecorder) Register(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockPathMonitor)(nil).Register), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockPathMonitor)(nil).Register), arg0, arg1, arg2, arg3)
 }
 
 // MockPathMonitorRegistration is a mock of PathMonitorRegistration interface.
@@ -560,17 +560,17 @@ func (m *MockPrefixFetcherFactory) EXPECT() *MockPrefixFetcherFactoryMockRecorde
 }
 
 // NewPrefixFetcher mocks base method.
-func (m *MockPrefixFetcherFactory) NewPrefixFetcher(arg0 control.Gateway) control.PrefixFetcher {
+func (m *MockPrefixFetcherFactory) NewPrefixFetcher(arg0 context.Context, arg1 control.Gateway) control.PrefixFetcher {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewPrefixFetcher", arg0)
+	ret := m.ctrl.Call(m, "NewPrefixFetcher", arg0, arg1)
 	ret0, _ := ret[0].(control.PrefixFetcher)
 	return ret0
 }
 
 // NewPrefixFetcher indicates an expected call of NewPrefixFetcher.
-func (mr *MockPrefixFetcherFactoryMockRecorder) NewPrefixFetcher(arg0 interface{}) *gomock.Call {
+func (mr *MockPrefixFetcherFactoryMockRecorder) NewPrefixFetcher(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewPrefixFetcher", reflect.TypeOf((*MockPrefixFetcherFactory)(nil).NewPrefixFetcher), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewPrefixFetcher", reflect.TypeOf((*MockPrefixFetcherFactory)(nil).NewPrefixFetcher), arg0, arg1)
 }
 
 // MockDataplaneSessionFactory is a mock of DataplaneSessionFactory interface.
@@ -669,31 +669,31 @@ func (m *MockWorker) EXPECT() *MockWorkerMockRecorder {
 }
 
 // Close mocks base method.
-func (m *MockWorker) Close() error {
+func (m *MockWorker) Close(arg0 context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Close")
+	ret := m.ctrl.Call(m, "Close", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Close indicates an expected call of Close.
-func (mr *MockWorkerMockRecorder) Close() *gomock.Call {
+func (mr *MockWorkerMockRecorder) Close(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockWorker)(nil).Close))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockWorker)(nil).Close), arg0)
 }
 
 // Run mocks base method.
-func (m *MockWorker) Run() error {
+func (m *MockWorker) Run(arg0 context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Run")
+	ret := m.ctrl.Call(m, "Run", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Run indicates an expected call of Run.
-func (mr *MockWorkerMockRecorder) Run() *gomock.Call {
+func (mr *MockWorkerMockRecorder) Run(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockWorker)(nil).Run))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockWorker)(nil).Run), arg0)
 }
 
 // MockSessionPolicyParser is a mock of SessionPolicyParser interface.
@@ -720,18 +720,18 @@ func (m *MockSessionPolicyParser) EXPECT() *MockSessionPolicyParserMockRecorder 
 }
 
 // Parse mocks base method.
-func (m *MockSessionPolicyParser) Parse(arg0 []byte) (control.SessionPolicies, error) {
+func (m *MockSessionPolicyParser) Parse(arg0 context.Context, arg1 []byte) (control.SessionPolicies, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Parse", arg0)
+	ret := m.ctrl.Call(m, "Parse", arg0, arg1)
 	ret0, _ := ret[0].(control.SessionPolicies)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Parse indicates an expected call of Parse.
-func (mr *MockSessionPolicyParserMockRecorder) Parse(arg0 interface{}) *gomock.Call {
+func (mr *MockSessionPolicyParserMockRecorder) Parse(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Parse", reflect.TypeOf((*MockSessionPolicyParser)(nil).Parse), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Parse", reflect.TypeOf((*MockSessionPolicyParser)(nil).Parse), arg0, arg1)
 }
 
 // MockRoutingPolicyProvider is a mock of RoutingPolicyProvider interface.
@@ -832,17 +832,17 @@ func (m *MockGatewayWatcherFactory) EXPECT() *MockGatewayWatcherFactoryMockRecor
 }
 
 // New mocks base method.
-func (m *MockGatewayWatcherFactory) New(arg0 addr.IA, arg1 control.GatewayWatcherMetrics) control.Runner {
+func (m *MockGatewayWatcherFactory) New(arg0 context.Context, arg1 addr.IA, arg2 control.GatewayWatcherMetrics) control.Runner {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "New", arg0, arg1)
+	ret := m.ctrl.Call(m, "New", arg0, arg1, arg2)
 	ret0, _ := ret[0].(control.Runner)
 	return ret0
 }
 
 // New indicates an expected call of New.
-func (mr *MockGatewayWatcherFactoryMockRecorder) New(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockGatewayWatcherFactoryMockRecorder) New(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "New", reflect.TypeOf((*MockGatewayWatcherFactory)(nil).New), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "New", reflect.TypeOf((*MockGatewayWatcherFactory)(nil).New), arg0, arg1, arg2)
 }
 
 // MockPublisher is a mock of Publisher interface.
@@ -965,18 +965,18 @@ func (m *MockDeviceOpener) EXPECT() *MockDeviceOpenerMockRecorder {
 }
 
 // Open mocks base method.
-func (m *MockDeviceOpener) Open(arg0 addr.IA) (control.Device, error) {
+func (m *MockDeviceOpener) Open(arg0 context.Context, arg1 addr.IA) (control.Device, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Open", arg0)
+	ret := m.ctrl.Call(m, "Open", arg0, arg1)
 	ret0, _ := ret[0].(control.Device)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Open indicates an expected call of Open.
-func (mr *MockDeviceOpenerMockRecorder) Open(arg0 interface{}) *gomock.Call {
+func (mr *MockDeviceOpenerMockRecorder) Open(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Open", reflect.TypeOf((*MockDeviceOpener)(nil).Open), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Open", reflect.TypeOf((*MockDeviceOpener)(nil).Open), arg0, arg1)
 }
 
 // MockDeviceHandle is a mock of DeviceHandle interface.

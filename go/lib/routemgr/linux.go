@@ -78,7 +78,7 @@ Top:
 
 func (l *Linux) publishToLinux(ctx context.Context, update control.RouteUpdate) error {
 	logger := log.FromCtx(ctx)
-	handle, err := l.DeviceManager.Get(update.IA)
+	handle, err := l.DeviceManager.Get(ctx, update.IA)
 	if err != nil {
 		return serrors.WrapStr("retrieving device for ISD-AS", err, "isd_as", update.IA)
 	}

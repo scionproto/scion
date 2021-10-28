@@ -15,6 +15,7 @@
 package control
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -76,8 +77,6 @@ type Router struct {
 	// session IDs sent in this channel must be associated with a session in the
 	// session groups.
 	Events <-chan SessionEvent
-	// Logger is the logger to use. If nil no logs are written.
-	Logger log.Logger
 
 	// stateMtx protects mutable state.
 	stateMtx sync.RWMutex
@@ -91,32 +90,34 @@ type Router struct {
 
 // Run informs the router to start reading events from its event channel and
 // push updates to the data-plane router. It returns when the router terminates.
-func (r *Router) Run() error {
-	log.SafeDebug(r.Logger, "Router starting")
-	return r.workerBase.RunWrapper(r.initData, r.run)
+func (r *Router) Run(ctx context.Context) error {
+	logger := log.FromCtx(ctx)
+	logger.Debug("Router starting")
+	return r.workerBase.RunWrapper(ctx, r.initData, r.run)
 }
 
-func (r *Router) run() error {
+func (r *Router) run(ctx context.Context) error {
+	logger := log.FromCtx(ctx)
 	for {
 		select {
 		case <-r.workerBase.GetDoneChan():
 			return nil
 		case event := <-r.Events:
-			log.SafeDebug(r.Logger, "Control-plane router received event", "event", event)
+			logger.Debug("Control-plane router received event", "event", event)
 			err := r.handleEvent(event)
-			if err != nil && r.Logger != nil {
-				r.Logger.Error("Handling event", "err", err)
+			if err != nil {
+				logger.Error("Handling event", "err", err)
 			}
 		}
 	}
 }
 
 // Close stops all internal goroutines.
-func (r *Router) Close() error {
-	return r.workerBase.CloseWrapper(nil)
+func (r *Router) Close(ctx context.Context) error {
+	return r.workerBase.CloseWrapper(ctx, nil)
 }
 
-func (r *Router) initData() error {
+func (r *Router) initData(ctx context.Context) error {
 	r.currentSessions = make(map[int]uint8, len(r.RoutingTableIndices))
 	r.sessionStates = make(map[uint8]Event, len(r.DataplaneSessions))
 	return nil

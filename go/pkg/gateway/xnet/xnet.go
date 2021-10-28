@@ -100,8 +100,10 @@ func (f DeviceOpenerFunc) Open(name string) (control.Device, error) {
 
 // UseNameResolver constructs a control.DeviceOpener implementation that opens
 // Linux devices with names resolved using the selected naming function.
-func UseNameResolver(namer func(addr.IA) string, opener DeviceOpener) control.DeviceOpener {
-	f := func(ia addr.IA) (control.Device, error) {
+func UseNameResolver(namer func(addr.IA) string,
+	opener DeviceOpener) control.DeviceOpener {
+
+	f := func(ctx context.Context, ia addr.IA) (control.Device, error) {
 		n := namer(ia)
 		return opener.Open(n)
 	}

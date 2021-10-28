@@ -32,12 +32,15 @@ type fetcherFactory struct {
 	wf     *WatcherFactory
 }
 
-func (f fetcherFactory) NewPrefixFetcher(gateway control.Gateway) control.PrefixFetcher {
+func (f fetcherFactory) NewPrefixFetcher(ctx context.Context,
+	gateway control.Gateway) control.PrefixFetcher {
+
 	return &prefixFetcher{
 		PrefixFetcher: &controlgrpc.PrefixFetcher{
 			Remote: f.remote,
 			Dialer: f.wf.Dialer,
 			Pather: f.wf.PathMonitor.Register(
+				ctx,
 				f.remote,
 				&policies.Policies{
 					PathPolicy: control.PathPolicyWithAllowedInterfaces(
@@ -84,11 +87,12 @@ type WatcherFactory struct {
 }
 
 func (wf *WatcherFactory) New(
+	ctx context.Context,
 	remote addr.IA,
 	metrics control.GatewayWatcherMetrics,
 ) control.Runner {
 
-	pather := wf.PathMonitor.Register(remote, wf.Policies, "gateway-watcher")
+	pather := wf.PathMonitor.Register(ctx, remote, wf.Policies, "gateway-watcher")
 	return &watcherWrapper{
 		GatewayWatcher: control.GatewayWatcher{
 			Remote: remote,

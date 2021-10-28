@@ -16,6 +16,7 @@
 package dataplane
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"time"
@@ -71,12 +72,13 @@ type IngressServer struct {
 	workers map[string]*worker
 }
 
-func (d *IngressServer) Run() error {
+func (d *IngressServer) Run(ctx context.Context) error {
 	d.workers = make(map[string]*worker)
-	return d.read()
+	return d.read(ctx)
 }
 
-func (d *IngressServer) read() error {
+func (d *IngressServer) read(ctx context.Context) error {
+	logger := log.FromCtx(ctx)
 	frames := make(ringbuf.EntryList, 64)
 	lastCleanup := time.Now()
 	for {
@@ -85,7 +87,7 @@ func (d *IngressServer) read() error {
 			frame := frames[i].(*frameBuf)
 			read, src, err := d.Conn.ReadFrom(frame.raw)
 			if err != nil {
-				log.Error("IngressServer: Unable to read from external ingress", "err", err)
+				logger.Error("IngressServer: Unable to read from external ingress", "err", err)
 				if reliable.IsDispatcherError(err) {
 					return serrors.WrapStr("problems speaking to dispatcher", err)
 				}
@@ -112,7 +114,7 @@ func (d *IngressServer) read() error {
 						"remote_isd_as", v.IA.String()))
 					metrics.CounterAdd(metrics.CounterWith(d.Metrics.FrameBytesRecv,
 						"remote_isd_as", v.IA.String()), float64(read))
-					d.dispatch(frame, v)
+					d.dispatch(ctx, frame, v)
 				default:
 					return serrors.New("not a valid snet address", "address", src)
 				}
@@ -129,16 +131,17 @@ func (d *IngressServer) read() error {
 
 // dispatch dispatches a frame to the corresponding worker, spawning one if none
 // exist yet. Dispatching is done based on source ISD-AS -> source host Addr -> Sess Id.
-func (d *IngressServer) dispatch(frame *frameBuf, src *snet.UDPAddr) {
+func (d *IngressServer) dispatch(ctx context.Context, frame *frameBuf, src *snet.UDPAddr) {
+	logger := log.FromCtx(ctx)
 	dispatchStr := fmt.Sprintf("%s/%s/%d", src.IA, src.Host, frame.sessId)
 	// Check if we already have a worker running and start one if not.
 	worker, ok := d.workers[dispatchStr]
 	if !ok {
 		metrics := createWorkerMetrics(d.Metrics, src.IA.String())
 
-		handle, err := d.DeviceManager.Get(src.IA)
+		handle, err := d.DeviceManager.Get(ctx, src.IA)
 		if err != nil {
-			log.Info("Unable to get device handle for ingress dispatch, dropping packet",
+			logger.Info("Unable to get device handle for ingress dispatch, dropping packet",
 				"err", err, "isd_as", src.IA)
 			return
 		}
@@ -150,11 +153,11 @@ func (d *IngressServer) dispatch(frame *frameBuf, src *snet.UDPAddr) {
 			defer log.HandlePanic()
 			defer func() {
 				if err := handle.Close(); err != nil {
-					log.Info("Encountered error when closing device handle in ingress dispatch",
+					logger.Info("Encountered error when closing device handle in ingress dispatch",
 						"err", err)
 				}
 			}()
-			worker.Run()
+			worker.Run(ctx)
 		}()
 	}
 	worker.markedForCleanup = false

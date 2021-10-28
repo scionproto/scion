@@ -205,14 +205,13 @@ type Gateway struct {
 	// endpoints.
 	HTTPServeMux *http.ServeMux
 
-	// Logger is the base logger for all modules initialized by the gateway.
-	Logger log.Logger
 	// Metrics are the metrics exported by the gateway.
 	Metrics *Metrics
 }
 
 func (g *Gateway) Run(ctx context.Context) error {
-	log.SafeDebug(g.Logger, "Gateway starting up...")
+	logger := log.FromCtx(ctx)
+	logger.Debug("Gateway starting up...")
 
 	// *************************************************************************
 	// Set up support for Linux tunnel devices.
@@ -242,14 +241,13 @@ func (g *Gateway) Run(ctx context.Context) error {
 			xnet.OpenerWithOptions(ctx),
 		),
 		Router:  g.RoutingTableReader,
-		Logger:  g.Logger,
 		Metrics: fwMetrics,
 	}
 	deviceManager := &routemgr.SingleDeviceManager{
-		DeviceOpener: tunnelReader.GetDeviceOpenerWithAsyncReader(),
+		DeviceOpener: tunnelReader.GetDeviceOpenerWithAsyncReader(ctx),
 	}
 
-	log.SafeDebug(g.Logger, "Egress started")
+	logger.Debug("Egress started")
 
 	routePublisherFactory := createRouteManager(ctx, deviceManager)
 
@@ -260,7 +258,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	if err != nil {
 		return serrors.WrapStr("unable to learn local ISD-AS number", err)
 	}
-	log.SafeInfo(g.Logger, "Learned local IA from SCION Daemon", "ia", localIA)
+	logger.Info("Learned local IA from SCION Daemon", "ia", localIA)
 
 	reconnectingDispatcher := reconnect.NewDispatcherService(g.Dispatcher)
 
@@ -279,7 +277,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	if err != nil {
 		return serrors.WrapStr("unable to open control socket", err)
 	}
-	log.SafeDebug(g.Logger, "Path monitor connection opened on Raw UDP/SCION",
+	logger.Debug("Path monitor connection opened on Raw UDP/SCION",
 		"local_ip", g.PathMonitorIP, "local_port", pathMonitorPort)
 
 	pathRouter := &snet.BaseRouter{Querier: daemon.Querier{Connector: g.Daemon, IA: localIA}}
@@ -293,9 +291,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 		probesSent = metrics.NewPromCounter(g.Metrics.PathProbesSent)
 		probesReceived = metrics.NewPromCounter(g.Metrics.PathProbesReceived)
 	}
-	revStore := &pathhealth.MemoryRevocationStore{
-		Logger: g.Logger,
-	}
+	revStore := &pathhealth.MemoryRevocationStore{}
 	pathMonitor := &PathMonitor{
 		Monitor: &pathhealth.Monitor{
 			LocalIA:            localIA,
@@ -303,17 +299,13 @@ func (g *Gateway) Run(ctx context.Context) error {
 			Conn:               pathMonitorConnection,
 			RevocationHandler:  revocationHandler,
 			Router:             pathRouter,
-			PathUpdateInterval: PathUpdateInterval(),
+			PathUpdateInterval: PathUpdateInterval(ctx),
 			RemoteWatcherFactory: &pathhealth.DefaultRemoteWatcherFactory{
-				PathWatcherFactory: &pathhealth.DefaultPathWatcherFactory{
-					Logger: g.Logger,
-				},
-				Logger:         g.Logger,
-				PathsMonitored: pathsMonitored,
-				ProbesSent:     probesSent,
-				ProbesReceived: probesReceived,
+				PathWatcherFactory: &pathhealth.DefaultPathWatcherFactory{},
+				PathsMonitored:     pathsMonitored,
+				ProbesSent:         probesSent,
+				ProbesReceived:     probesReceived,
 			},
-			Logger:          g.Logger,
 			RevocationStore: revStore,
 		},
 		revStore:              revStore,
@@ -321,9 +313,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}
 	go func() {
 		defer log.HandlePanic()
-		pathMonitor.Run()
+		pathMonitor.Run(ctx)
 	}()
-	log.SafeInfo(g.Logger, "Path monitor started.")
+	logger.Info("Path monitor started.")
 
 	// *************************************************************************
 	// Set up the configuration pipelines for session construction.
@@ -353,12 +345,11 @@ func (g *Gateway) Run(ctx context.Context) error {
 		Publisher:           configPublisher,
 		Trigger:             g.ConfigReloadTrigger,
 		SessionPolicyParser: legacySessionPolicyAdapter,
-		Logger:              g.Logger,
 	}
 
 	go func() {
 		defer log.HandlePanic()
-		if err := configLoader.Run(); err != nil {
+		if err := configLoader.Run(ctx); err != nil {
 			panic(err)
 		}
 	}()
@@ -368,7 +359,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	go func() {
 		defer log.HandlePanic()
 		g.ConfigReloadTrigger <- struct{}{}
-		log.SafeDebug(g.Logger, "Initial traffic policy and routing policy files loaded.")
+		logger.Debug("Initial traffic policy and routing policy files loaded.")
 	}()
 
 	// Initialize the channel between the prefix aggregator and session constructor.
@@ -400,7 +391,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 	go func() {
 		defer log.HandlePanic()
-		if err := prefixAggregator.Run(); err != nil {
+		if err := prefixAggregator.Run(ctx); err != nil {
 			panic(err)
 		}
 	}()
@@ -445,7 +436,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	if err != nil {
 		return serrors.WrapStr("unable to initialize client QUIC connection", err)
 	}
-	log.SafeInfo(g.Logger, "QUIC client connection initialized",
+	logger.Info("QUIC client connection initialized",
 		"local_addr", clientConn.LocalAddr())
 
 	quicClientDialer := &squic.ConnDialer{
@@ -462,7 +453,6 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}
 	remoteMonitor := &control.RemoteMonitor{
 		IAs:              remoteIAsChannel,
-		Logger:           g.Logger,
 		RemotesMonitored: rmMetric,
 		GatewayWatcherFactory: &WatcherFactory{
 			Aggregator:  filteredPrefixAggregator,
@@ -491,11 +481,11 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 	go func() {
 		defer log.HandlePanic()
-		if err := remoteMonitor.Run(); err != nil {
+		if err := remoteMonitor.Run(ctx); err != nil {
 			panic(err)
 		}
 	}()
-	log.SafeDebug(g.Logger, "Remote monitor started.")
+	logger.Debug("Remote monitor started.")
 
 	// scionNetworkNoSCMP is the network for the QUIC server connection. Because SCMP errors
 	// will cause the server's accepts to fail, we ignore SCMP.
@@ -517,7 +507,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	if err != nil {
 		return serrors.WrapStr("unable to initialize server QUIC connection", err)
 	}
-	log.SafeInfo(g.Logger, "QUIC server connection initialized",
+	logger.Info("QUIC server connection initialized",
 		"local_addr", serverConn.LocalAddr())
 
 	internalQUICServerListener, err := quic.Listen(serverConn, ephemeralTLSConfig, nil)
@@ -550,7 +540,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 		}
 	}()
 
-	log.SafeDebug(g.Logger, "QUIC stack initialized.")
+	logger.Debug("QUIC stack initialized.")
 
 	// *********************************************************************************
 	// Enable probe handler on the probe port. The probe handler will listen for probes
@@ -572,10 +562,12 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}()
 
 	// Start dataplane ingress
-	if err := StartIngress(scionNetwork, g.DataServerAddr, deviceManager, g.Metrics); err != nil {
+	if err := StartIngress(ctx, scionNetwork, g.DataServerAddr, deviceManager,
+		g.Metrics); err != nil {
+
 		return err
 	}
-	log.SafeDebug(g.Logger, "Ingress started")
+	logger.Debug("Ingress started")
 
 	// *************************************************
 	// Connect Session Configurator to Engine Controller
@@ -587,15 +579,14 @@ func (g *Gateway) Run(ctx context.Context) error {
 		SessionPolicies:       sessionPoliciesChannel,
 		RoutingUpdates:        routingUpdatesChannel,
 		SessionConfigurations: sessionConfigurations,
-		Logger:                g.Logger,
 	}
 	go func() {
 		defer log.HandlePanic()
-		if err := sessionConfigurator.Run(); err != nil {
+		if err := sessionConfigurator.Run(ctx); err != nil {
 			panic(err)
 		}
 	}()
-	log.SafeDebug(g.Logger, "Session configurator started")
+	logger.Debug("Session configurator started")
 	g.HTTPEndpoints["sessionconfigurator"] = service.StatusPage{
 		Handler: func(w http.ResponseWriter, _ *http.Request) {
 			sessionConfigurator.DiagnosticsWrite(w)
@@ -623,22 +614,20 @@ func (g *Gateway) Run(ctx context.Context) error {
 				},
 				Metrics: CreateSessionMetrics(g.Metrics),
 			},
-			Logger:  g.Logger,
 			Metrics: CreateEngineMetrics(g.Metrics),
 		},
 		RoutePublisherFactory: routePublisherFactory,
 		RouteSourceIPv4:       g.RouteSourceIPv4,
 		RouteSourceIPv6:       g.RouteSourceIPv6,
 		SwapDelay:             swapDelay,
-		Logger:                g.Logger,
 	}
 	go func() {
 		defer log.HandlePanic()
-		if err := engineController.Run(); err != nil {
+		if err := engineController.Run(ctx); err != nil {
 			panic(err)
 		}
 	}()
-	log.SafeDebug(g.Logger, "Engine controller started")
+	logger.Debug("Engine controller started")
 
 	g.HTTPEndpoints["engine"] = service.StatusPage{
 		Handler: func(w http.ResponseWriter, _ *http.Request) {
@@ -704,14 +693,16 @@ func (g *Gateway) diagnosticsSGRP(
 	}
 }
 
-func PathUpdateInterval() time.Duration {
+func PathUpdateInterval(ctx context.Context) time.Duration {
+	logger := log.FromCtx(ctx)
 	s, ok := os.LookupEnv("SCION_EXPERIMENTAL_GATEWAY_PATH_UPDATE_INTERVAL")
 	if !ok {
 		return 0
 	}
 	dur, err := util.ParseDuration(s)
 	if err != nil {
-		log.Info("Failed to parse SCION_EXPERIMENTAL_GATEWAY_PATH_UPDATE_INTERVAL, using default",
+		logger.Info(
+			"Failed to parse SCION_EXPERIMENTAL_GATEWAY_PATH_UPDATE_INTERVAL, using default",
 			"err", err)
 		return 0
 	}
@@ -735,9 +726,10 @@ func CreateIngressMetrics(m *Metrics) dataplane.IngressMetrics {
 	}
 }
 
-func StartIngress(scionNetwork *snet.SCIONNetwork, dataAddr *net.UDPAddr,
+func StartIngress(ctx context.Context, scionNetwork *snet.SCIONNetwork, dataAddr *net.UDPAddr,
 	deviceManager control.DeviceManager, metrics *Metrics) error {
 
+	logger := log.FromCtx(ctx)
 	dataplaneServerConn, err := scionNetwork.Listen(
 		context.TODO(),
 		"udp",
@@ -755,8 +747,8 @@ func StartIngress(scionNetwork *snet.SCIONNetwork, dataAddr *net.UDPAddr,
 	}
 	go func() {
 		defer log.HandlePanic()
-		if err := ingressServer.Run(); err != nil {
-			log.Error("Ingress server error", "err", err)
+		if err := ingressServer.Run(ctx); err != nil {
+			logger.Error("Ingress server error", "err", err)
 			panic(err)
 		}
 	}()
@@ -803,13 +795,13 @@ func createRouteManager(ctx context.Context,
 type TunnelReader struct {
 	DeviceOpener control.DeviceOpener
 	Router       control.RoutingTableReader
-	Logger       log.Logger
 	Metrics      dataplane.IPForwarderMetrics
 }
 
-func (r *TunnelReader) GetDeviceOpenerWithAsyncReader() control.DeviceOpener {
-	f := func(ia addr.IA) (control.Device, error) {
-		handle, err := r.DeviceOpener.Open(ia)
+func (r *TunnelReader) GetDeviceOpenerWithAsyncReader(ctx context.Context) control.DeviceOpener {
+	f := func(ctx context.Context, ia addr.IA) (control.Device, error) {
+		logger := log.FromCtx(ctx)
+		handle, err := r.DeviceOpener.Open(ctx, ia)
 		if err != nil {
 			return nil, serrors.WrapStr("opening device", err)
 		}
@@ -817,14 +809,13 @@ func (r *TunnelReader) GetDeviceOpenerWithAsyncReader() control.DeviceOpener {
 		forwarder := &dataplane.IPForwarder{
 			Reader:       handle,
 			RoutingTable: r.Router,
-			Logger:       r.Logger,
 			Metrics:      r.Metrics,
 		}
 
 		go func() {
 			defer log.HandlePanic()
-			if err := forwarder.Run(); err != nil {
-				log.SafeDebug(r.Logger, "Encountered error when reading from tun", "err", err)
+			if err := forwarder.Run(ctx); err != nil {
+				logger.Debug("Encountered error when reading from tun", "err", err)
 				return
 			}
 		}()

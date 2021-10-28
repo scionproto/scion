@@ -117,7 +117,6 @@ func realMain(ctx context.Context) error {
 		ConfigReloadTrigger:      reloadConfigTrigger,
 		HTTPEndpoints:            httpPages,
 		HTTPServeMux:             http.DefaultServeMux,
-		Logger:                   log.New(),
 		Metrics:                  gateway.NewMetrics(localIA),
 	}
 

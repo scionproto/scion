@@ -16,6 +16,7 @@
 package dataplane
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -42,7 +43,6 @@ type ingressSender interface {
 
 // worker handles decapsulation of SIG frames.
 type worker struct {
-	log.Logger
 	Remote           *snet.UDPAddr
 	SessID           uint8
 	Ring             *ringbuf.Ring
@@ -56,7 +56,6 @@ func newWorker(remote *snet.UDPAddr, sessID uint8,
 	tunIO io.WriteCloser, metrics IngressMetrics) *worker {
 
 	worker := &worker{
-		Logger:  log.New("ingress", remote.String(), "sessId", sessID),
 		Remote:  remote,
 		SessID:  sessID,
 		Ring:    ringbuf.New(64, nil, fmt.Sprintf("ingress_%s_%d", remote.IA, sessID)),
@@ -72,8 +71,9 @@ func (w *worker) Stop() {
 	w.Ring.Close()
 }
 
-func (w *worker) Run() {
-	w.Info("IngressWorker starting", "remote", w.Remote.String(), "session_id", w.SessID)
+func (w *worker) Run(ctx context.Context) {
+	ctx, logger := w.adjustCtx(ctx)
+	logger.Info("IngressWorker starting")
 	frames := make(ringbuf.EntryList, 64)
 	lastCleanup := time.Now()
 	for {
@@ -86,7 +86,7 @@ func (w *worker) Run() {
 		}
 		for i := 0; i < n; i++ {
 			frame := frames[i].(*frameBuf)
-			w.processFrame(frame)
+			w.processFrame(ctx, frame)
 			frames[i] = nil
 		}
 		if time.Since(lastCleanup) >= rlistCleanUpInterval {
@@ -94,13 +94,13 @@ func (w *worker) Run() {
 			lastCleanup = time.Now()
 		}
 	}
-	w.Info("IngressWorker stopping")
+	logger.Info("IngressWorker stopping")
 }
 
 // processFrame processes a SIG frame by first writing all completely contained
 // packets to the wire and then adding the frame to the corresponding reassembly
 // list if needed.
-func (w *worker) processFrame(frame *frameBuf) {
+func (w *worker) processFrame(ctx context.Context, frame *frameBuf) {
 	index := int(binary.BigEndian.Uint16(frame.raw[2:4]))
 	epoch := int(binary.BigEndian.Uint32(frame.raw[4:8]) & 0xfffff)
 	seqNr := binary.BigEndian.Uint64(frame.raw[8:16])
@@ -115,7 +115,7 @@ func (w *worker) processFrame(frame *frameBuf) {
 	frame.completePktsProcessed = index == 0xffff
 	// Add to frame buf reassembly list.
 	rlist := w.getRlist(epoch)
-	rlist.Insert(frame)
+	rlist.Insert(ctx, frame)
 }
 
 func (w *worker) getRlist(epoch int) *reassemblyList {
@@ -163,4 +163,8 @@ func (w *worker) send(packet []byte) error {
 	increaseCounterMetric(w.Metrics.IPPktsLocalSent, 1)
 
 	return nil
+}
+
+func (w *worker) adjustCtx(ctx context.Context) (context.Context, log.Logger) {
+	return log.WithLabels(ctx, "ingress", w.Remote.String(), "sessId", w.SessID)
 }

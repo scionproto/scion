@@ -15,6 +15,7 @@
 package control
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -77,9 +78,6 @@ type Session struct {
 	// Run will return an error if DataplaneSession is nil.
 	DataplaneSession DataplaneSession
 
-	// Logger is the logger to use. If nil no logs are written.
-	Logger log.Logger
-
 	// pathResultMtx protects access to pathResult.
 	pathResultMtx sync.RWMutex
 	// pathResult is the last result from pathhealth monitoring.
@@ -92,7 +90,8 @@ type Session struct {
 
 // Run starts the health checking for the remote gateway. It returns when the
 // session terminates.
-func (s *Session) Run() error {
+func (s *Session) Run(ctx context.Context) error {
+	logger := log.FromCtx(ctx)
 	if err := s.runCalledCheck(); err != nil {
 		return err
 	}
@@ -115,10 +114,10 @@ func (s *Session) Run() error {
 			if !ok {
 				return nil
 			}
-			log.SafeDebug(s.Logger, "Received event from session monitor", "session_id", s.ID,
+			logger.Debug("Received event from session monitor", "session_id", s.ID,
 				"event", sessionMonitorEvent)
 			s.Events <- sessionMonitorEvent
-			log.SafeDebug(s.Logger, "Sent event to control-plane router", "session_id", s.ID,
+			logger.Debug("Sent event to control-plane router", "session_id", s.ID,
 				"event", sessionMonitorEvent)
 
 			if s.PathMonitorPollInterval == 0 && sessionMonitorEvent.Event == EventUp {

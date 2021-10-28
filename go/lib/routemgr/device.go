@@ -169,7 +169,7 @@ type SingleDeviceManager struct {
 // Get returns a handle to the device for the ISD-AS. If no device exists, one will be created.
 // If a device already exists, a handle to the existing device is returned. The caller must
 // Close the handle to guarantee that resources will be cleaned up.
-func (m *SingleDeviceManager) Get(ia addr.IA) (control.DeviceHandle, error) {
+func (m *SingleDeviceManager) Get(ctx context.Context, ia addr.IA) (control.DeviceHandle, error) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
@@ -182,7 +182,7 @@ func (m *SingleDeviceManager) Get(ia addr.IA) (control.DeviceHandle, error) {
 		return m.device, nil
 	}
 
-	device, err := m.DeviceOpener.Open(ia)
+	device, err := m.DeviceOpener.Open(ctx, ia)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +205,7 @@ type MultiDeviceManager struct {
 //
 // Devices are created with a name composed of the default tunnel device prefix and
 // an unpadded base32 representation of the ISD-AS.
-func (m *MultiDeviceManager) Get(ia addr.IA) (control.DeviceHandle, error) {
+func (m *MultiDeviceManager) Get(ctx context.Context, ia addr.IA) (control.DeviceHandle, error) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
@@ -218,7 +218,7 @@ func (m *MultiDeviceManager) Get(ia addr.IA) (control.DeviceHandle, error) {
 	}
 
 	if m.devices[ia] == nil || m.devices[ia].destroyed() {
-		device, err := m.DeviceOpener.Open(ia)
+		device, err := m.DeviceOpener.Open(ctx, ia)
 		if err != nil {
 			return nil, err
 		}

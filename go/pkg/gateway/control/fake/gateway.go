@@ -118,7 +118,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 		newSessions := make(map[int]control.DataplaneSession, len(c.Sessions))
 		newHandles := make([]control.DeviceHandle, 0)
 		for _, s := range c.Sessions {
-			handle, err := g.DeviceManager.Get(s.RemoteIA)
+			handle, err := g.DeviceManager.Get(context.Background(), s.RemoteIA)
 			if err != nil {
 				return serrors.WrapStr("getting handle", err)
 			}

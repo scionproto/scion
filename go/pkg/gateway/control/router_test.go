@@ -15,6 +15,7 @@
 package control_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -29,9 +30,9 @@ import (
 
 func TestRouterClose(t *testing.T) {
 	router := control.Router{}
-	assert.NoError(t, router.Close())
-	assert.NoError(t, router.Run())
-	assert.NoError(t, router.Close())
+	assert.NoError(t, router.Close(context.Background()))
+	assert.NoError(t, router.Run(context.Background()))
+	assert.NoError(t, router.Close(context.Background()))
 }
 
 func TestRouterRun(t *testing.T) {
@@ -58,14 +59,13 @@ func TestRouterRun(t *testing.T) {
 			103: testPktWriter{ID: 103},
 		},
 		Events: events,
-		Logger: logger,
 	}
 	errChan := make(chan error)
-	go func() { errChan <- router.Run() }()
+	go func() { errChan <- router.Run(context.Background()) }()
 
 	t.Run("Calling Run twice fails", func(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
-		assert.Error(t, router.Run())
+		assert.Error(t, router.Run(context.Background()))
 	})
 	t.Run("Updating table works as expected", func(t *testing.T) {
 		callChan := make(chan struct{})
@@ -105,16 +105,9 @@ func TestRouterRun(t *testing.T) {
 
 		events <- control.SessionEvent{SessionID: 103, Event: control.EventUp}
 		xtest.AssertReadReturnsBefore(t, callChan, time.Second)
-
-		// When receiving an event for a session ID that is not known and error
-		// should be logged.
-		logger.EXPECT().Error(gomock.Any(), gomock.Any()).
-			Do(func(_ string, _ ...interface{}) { callChan <- struct{}{} })
-		events <- control.SessionEvent{SessionID: 42, Event: control.EventUp}
-		xtest.AssertReadReturnsBefore(t, callChan, time.Second)
 	})
 
-	err := router.Close()
+	err := router.Close(context.Background())
 	assert.NoError(t, err)
 	select {
 	case err := <-errChan:
