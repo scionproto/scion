@@ -588,6 +588,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}()
 	logger.Debug("Session configurator started")
 	g.HTTPEndpoints["sessionconfigurator"] = service.StatusPage{
+		Info: "session configurator diagnostics",
 		Handler: func(w http.ResponseWriter, _ *http.Request) {
 			sessionConfigurator.DiagnosticsWrite(w)
 		},
@@ -630,27 +631,32 @@ func (g *Gateway) Run(ctx context.Context) error {
 	logger.Debug("Engine controller started")
 
 	g.HTTPEndpoints["engine"] = service.StatusPage{
+		Info: "gateway diagnostics",
 		Handler: func(w http.ResponseWriter, _ *http.Request) {
 			engineController.DiagnosticsWrite(w)
 		},
 	}
 	g.HTTPEndpoints["status"] = service.StatusPage{
+		Info: "gateway status (remote ASes, sessions, paths)",
 		Handler: func(w http.ResponseWriter, _ *http.Request) {
 			engineController.Status(w)
 		},
 	}
 	g.HTTPEndpoints["diagnostics/prefixwatcher"] = service.StatusPage{
+		Info: "IP prefixes incoming via SGRP",
 		Handler: func(w http.ResponseWriter, _ *http.Request) {
 			remoteMonitor.DiagnosticsWrite(w)
 		},
 	}
 	g.HTTPEndpoints["diagnostics/sgrp"] = service.StatusPage{
+		Info:    "SGRP diagnostics",
 		Handler: g.diagnosticsSGRP(routePublisherFactory, configPublisher),
 	}
 
 	// XXX(scrye): Use an empty file here because the server often doesn't have
 	// write access to its configuration folder.
 	g.HTTPEndpoints["ip-routing/policy"] = service.StatusPage{
+		Info: "IP routing policy (supports PUT)",
 		Handler: routing.NewPolicyHandler(
 			RoutingPolicyPublisherAdapter{ConfigPublisher: configPublisher}, ""),
 	}

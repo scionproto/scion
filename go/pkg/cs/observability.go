@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
@@ -240,10 +239,10 @@ func StartHTTPEndpoints(
 		"info":             service.NewInfoStatusPage(),
 		"config":           service.NewConfigStatusPage(cfg),
 		"log/level":        service.NewLogLevelStatusPage(),
-		"topology":         service.StatusPage{Handler: itopo.TopologyHandler},
+		"topology":         service.NewTopologyStatusPage(),
 		"signer":           signerStatusPage(signer),
 		"digests/config":   service.NewConfigDigestStatusPage(cfg),
-		"digests/topology": service.StatusPage{Handler: itopo.TopologyDigestHandler},
+		"digests/topology": service.NewTopologyDigestStatusPage(),
 		"digests/policies": policyDigestsStatusPage(policyDigests),
 	}
 	if ca != (renewal.ChainBuilder{}) {
@@ -306,7 +305,10 @@ func signerStatusPage(signer cstrust.RenewingSigner) service.StatusPage {
 			return
 		}
 	}
-	return service.StatusPage{Handler: handler}
+	return service.StatusPage{
+		Info:    "SCION signer info",
+		Handler: handler,
+	}
 }
 
 func caStatusPage(signer renewal.ChainBuilder) service.StatusPage {
@@ -357,7 +359,10 @@ func caStatusPage(signer renewal.ChainBuilder) service.StatusPage {
 			return
 		}
 	}
-	return service.StatusPage{Handler: handler}
+	return service.StatusPage{
+		Info:    "CA status",
+		Handler: handler,
+	}
 }
 
 func policyDigestsStatusPage(digests map[string][]byte) service.StatusPage {
@@ -379,5 +384,8 @@ func policyDigestsStatusPage(digests map[string][]byte) service.StatusPage {
 			return
 		}
 	}
-	return service.StatusPage{Handler: handler}
+	return service.StatusPage{
+		Info:    "sha256 policies digest",
+		Handler: handler,
+	}
 }

@@ -27,7 +27,6 @@ go_library(
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/env:go_default_library",
         "//go/lib/infra:go_default_library",
-        "//go/lib/infra/modules/itopo:go_default_library",
         "//go/lib/infra/modules/seghandler:go_default_library",
         "//go/lib/keyconf:go_default_library",
         "//go/lib/log:go_default_library",

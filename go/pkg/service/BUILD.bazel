@@ -8,6 +8,7 @@ go_library(
     deps = [
         "//go/lib/config:go_default_library",
         "//go/lib/env:go_default_library",
+        "//go/lib/infra/modules/itopo:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/util:go_default_library",
