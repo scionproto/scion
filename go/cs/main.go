@@ -181,6 +181,7 @@ func realMain(ctx context.Context) error {
 					truststoragefspersister.StatError,
 				),
 			},
+			Logger: log.Root(),
 		},
 	)
 	trustDB = truststoragemetrics.WrapDB(trustDB, truststoragemetrics.Config{
