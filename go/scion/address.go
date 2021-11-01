@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -24,25 +25,33 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/pkg/app"
+	"github.com/scionproto/scion/go/pkg/app/flag"
 )
 
-func newInfo(pather CommandPather) *cobra.Command {
+func newAddress(pather CommandPather) *cobra.Command {
+	var envFlags flag.SCIONEnvironment
 	var flags struct {
-		daemon string
+		json bool
 	}
 
 	var cmd = &cobra.Command{
-		Use:     "info [flags]",
+		Use:     "address [flags]",
 		Short:   "Show (one of) this host's SCION address(es)",
-		Example: fmt.Sprintf(`  %[1]s info`, pather.CommandPath()),
-		Long: `'info' show info about this SCION host
+		Example: fmt.Sprintf(`  %[1]s address`, pather.CommandPath()),
+		Long: `'address' show address information about this SCION host
 
 This functionality is intended to work similarly to 'ip addr' or 'ifconfig' and 
-return relevant, locally-known info about this host's relationship with SCION.`,
+return relevant, locally-known SCION address information for this host`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := envFlags.LoadExternalVars(); err != nil {
+				return err
+			}
+			daemonAddr := envFlags.Daemon()
+
 			cmd.SilenceUsage = true
-			ctx := context.Background()
-			sd, err := daemon.NewService(flags.daemon).Connect(ctx)
+			ctx, cancelF := context.WithTimeout(cmd.Context(), time.Second)
+			defer cancelF()
+			sd, err := daemon.NewService(daemonAddr).Connect(ctx)
 			if err != nil {
 				return serrors.WrapStr("connecting to SCION Daemon", err)
 			}
@@ -56,12 +65,25 @@ return relevant, locally-known info about this host's relationship with SCION.`,
 			if err != nil {
 				return err
 			}
+			if !flags.json {
+				fmt.Printf("%s,%s\n", info.IA, localIP)
+			} else {
+				fmt.Printf(`{
+  "addresses": [
+    {
+      "isd_as": "%s",
+      "ip": "%s",
+      "address": "%s,%s"
+    }
+  ]
+}`, info.IA, localIP, info.IA, localIP)
+			}
 
-			fmt.Printf("One of this host's SCION addresses is:\n\n    %s,%s\n\n", info.IA, localIP)
 			return nil
 		},
 	}
+	envFlags.Register(cmd.Flags())
+	cmd.Flags().BoolVar(&flags.json, "json", false, "output address info in machine-readable form")
 
-	cmd.Flags().StringVar(&flags.daemon, "sciond", daemon.DefaultAPIAddress, "SCION Daemon address")
 	return cmd
 }
