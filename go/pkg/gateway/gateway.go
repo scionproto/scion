@@ -306,7 +306,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 				ProbesSent:         probesSent,
 				ProbesReceived:     probesReceived,
 			},
-			RevocationStore: revStore,
+			RevocationStore:        revStore,
+			SCIONPacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
 		},
 		revStore:              revStore,
 		sessionPathsAvailable: sessionPathsAvailable,
@@ -421,8 +422,11 @@ func (g *Gateway) Run(ctx context.Context) error {
 			// Forward revocations to Daemon
 			SCMPHandler: snet.DefaultSCMPHandler{
 				RevocationHandler: revocationHandler,
+				SCMPErrors:        g.Metrics.SCMPErrors,
 			},
+			SCIONPacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
 		},
+		Metrics: g.Metrics.SCIONNetworkMetrics,
 	}
 
 	// Initialize the UDP/SCION QUIC conn for outgoing Gateway Discovery RPCs and outgoing Prefix
@@ -495,8 +499,10 @@ func (g *Gateway) Run(ctx context.Context) error {
 			// Enable transparent reconnections to the dispatcher
 			Dispatcher: reconnectingDispatcher,
 			// Discard all SCMP, to avoid accept errors on the QUIC server.
-			SCMPHandler: ignoreSCMP{},
+			SCMPHandler:            ignoreSCMP{},
+			SCIONPacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
 		},
+		Metrics: g.Metrics.SCIONNetworkMetrics,
 	}
 	serverConn, err := scionNetworkNoSCMP.Listen(
 		context.TODO(),

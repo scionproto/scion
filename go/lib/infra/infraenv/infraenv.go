@@ -73,6 +73,10 @@ type NetworkConfig struct {
 	// ignore SCMP messages. Otherwise, the server will shutdown when receiving
 	// an SCMP error message.
 	SCMPHandler snet.SCMPHandler
+	// Metrics injected into SCIONNetwork.
+	SCIONNetworkMetrics snet.SCIONNetworkMetrics
+	// Metrics injected into DefaultPacketDispatcherService.
+	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 }
 
 // QUICStack contains everything to run a QUIC based RPC stack.
@@ -216,8 +220,9 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 	}
 	packetDispatcher := svc.NewResolverPacketDispatcher(
 		&snet.DefaultPacketDispatcherService{
-			Dispatcher:  dispatcherService,
-			SCMPHandler: nc.SCMPHandler,
+			Dispatcher:             dispatcherService,
+			SCMPHandler:            nc.SCMPHandler,
+			SCIONPacketConnMetrics: nc.SCIONPacketConnMetrics,
 		},
 		&svc.BaseHandler{
 			Message: svcResolutionReply,
@@ -226,6 +231,7 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 	network := &snet.SCIONNetwork{
 		LocalIA:    nc.IA,
 		Dispatcher: packetDispatcher,
+		Metrics:    nc.SCIONNetworkMetrics,
 	}
 	conn, err := network.Listen(context.Background(), "udp", nc.Public, addr.SvcWildcard)
 	if err != nil {
@@ -262,8 +268,10 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 			// XXX(roosd): This is essential, the server must not read SCMP
 			// errors. Otherwise, the accept loop will always return that error
 			// on every subsequent call to accept.
-			SCMPHandler: ignoreSCMP{},
+			SCMPHandler:            ignoreSCMP{},
+			SCIONPacketConnMetrics: nc.SCIONPacketConnMetrics,
 		},
+		Metrics: nc.SCIONNetworkMetrics,
 	}
 	serverAddr, err := net.ResolveUDPAddr("udp", nc.QUIC.Address)
 	if err != nil {
@@ -277,9 +285,11 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 	clientNet := &snet.SCIONNetwork{
 		LocalIA: nc.IA,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
-			Dispatcher:  dispatcherService,
-			SCMPHandler: nc.SCMPHandler,
+			Dispatcher:             dispatcherService,
+			SCMPHandler:            nc.SCMPHandler,
+			SCIONPacketConnMetrics: nc.SCIONPacketConnMetrics,
 		},
+		Metrics: nc.SCIONNetworkMetrics,
 	}
 	// Let the dispatcher decide on the port for the client connection.
 	clientAddr := &net.UDPAddr{

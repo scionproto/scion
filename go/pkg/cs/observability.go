@@ -28,10 +28,13 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet"
+	snetmetrics "github.com/scionproto/scion/go/lib/snet/metrics"
 	"github.com/scionproto/scion/go/pkg/ca/renewal"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	"github.com/scionproto/scion/go/pkg/discovery"
@@ -73,9 +76,13 @@ type Metrics struct {
 	TrustLatestTRCNotAfter                 prometheus.Gauge
 	TrustLatestTRCSerial                   prometheus.Gauge
 	TrustTRCFileWritesTotal                *prometheus.CounterVec
+	SCIONNetworkMetrics                    snet.SCIONNetworkMetrics
+	SCIONPacketConnMetrics                 snet.SCIONPacketConnMetrics
+	SCMPErrors                             metrics.Counter
 }
 
 func NewMetrics() *Metrics {
+	scionPacketConnMetrics := snetmetrics.NewSCIONPacketConnMetrics()
 	return &Metrics{
 		BeaconDBQueriesTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
@@ -217,6 +224,9 @@ func NewMetrics() *Metrics {
 			},
 			[]string{prom.LabelResult},
 		),
+		SCIONNetworkMetrics:    snetmetrics.NewSCIONNetworkMetrics(),
+		SCIONPacketConnMetrics: scionPacketConnMetrics,
+		SCMPErrors:             scionPacketConnMetrics.SCMPErrors,
 	}
 
 }

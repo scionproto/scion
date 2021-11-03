@@ -37,6 +37,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/metrics"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/tracing"
@@ -62,8 +63,10 @@ type Pong struct {
 }
 
 var (
-	remote  snet.UDPAddr
-	timeout = &util.DurWrap{Duration: 10 * time.Second}
+	remote                 snet.UDPAddr
+	timeout                = &util.DurWrap{Duration: 10 * time.Second}
+	scionPacketConnMetrics = metrics.NewSCIONPacketConnMetrics()
+	scmpErrorsCounter      = scionPacketConnMetrics.SCMPErrors
 )
 
 func main() {
@@ -120,7 +123,9 @@ func (s server) run() {
 		Dispatcher: reliable.NewDispatcher(""),
 		SCMPHandler: snet.DefaultSCMPHandler{
 			RevocationHandler: daemon.RevHandler{Connector: integration.SDConn()},
+			SCMPErrors:        scmpErrorsCounter,
 		},
+		SCIONPacketConnMetrics: scionPacketConnMetrics,
 	}
 	conn, port, err := connFactory.Register(context.Background(), integration.Local.IA,
 		integration.Local.Host, addr.SvcNone)
@@ -240,7 +245,9 @@ func (c *client) run() int {
 		Dispatcher: reliable.NewDispatcher(""),
 		SCMPHandler: snet.DefaultSCMPHandler{
 			RevocationHandler: daemon.RevHandler{Connector: integration.SDConn()},
+			SCMPErrors:        scmpErrorsCounter,
 		},
+		SCIONPacketConnMetrics: scionPacketConnMetrics,
 	}
 
 	var err error

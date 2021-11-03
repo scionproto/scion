@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -102,6 +103,9 @@ type Monitor struct {
 	// remoteWatchers is a map of all monitored IAs.
 	remoteWatchers map[addr.IA]*remoteWatcherItem
 	pktChan        <-chan traceroutePkt
+
+	SCMPErrors             metrics.Counter
+	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 }
 
 func (m *Monitor) ensureInitialized() {
@@ -127,13 +131,17 @@ func (m *Monitor) ensureInitializedLocked() {
 
 	pktChan := make(chan traceroutePkt, 10)
 	m.pktChan = pktChan
-	m.conn = snet.NewSCIONPacketConn(m.Conn,
-		scmpHandler{
-			wrappedHandler: snet.DefaultSCMPHandler{RevocationHandler: m.RevocationHandler},
-			pkts:           pktChan,
+	m.conn = &snet.SCIONPacketConn{
+		Conn: m.Conn,
+		SCMPHandler: scmpHandler{
+			wrappedHandler: snet.DefaultSCMPHandler{
+				RevocationHandler: m.RevocationHandler,
+				SCMPErrors:        m.SCMPErrors,
+			},
+			pkts: pktChan,
 		},
-		true,
-	)
+		Metrics: m.SCIONPacketConnMetrics,
+	}
 }
 
 // Run starts the monitor and blocks until Close is called.

@@ -104,6 +104,8 @@ type Prober struct {
 	// Dispatcher is the path to the dispatcher socket. Leaving this empty uses
 	// the default dispatcher socket value.
 	Dispatcher string
+	// Metrics injected into snet.DefaultPacketDispatcherService.
+	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 }
 
 // GetStatuses probes the paths and returns the statuses of the paths. The
@@ -129,8 +131,9 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path) (map[string]
 
 	// Instantiate dispatcher service
 	disp := &snet.DefaultPacketDispatcherService{
-		Dispatcher:  reliable.NewDispatcher(p.Dispatcher),
-		SCMPHandler: &scmpHandler{},
+		Dispatcher:             reliable.NewDispatcher(p.Dispatcher),
+		SCMPHandler:            &scmpHandler{},
+		SCIONPacketConnMetrics: p.SCIONPacketConnMetrics,
 	}
 
 	// Resolve all the local IPs per path. We will open one connection

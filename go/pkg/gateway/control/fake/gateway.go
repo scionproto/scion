@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/routemgr"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -89,7 +90,27 @@ func (g *Gateway) Run(ctx context.Context) error {
 		return serrors.WrapStr("unable to learn local ISD-AS number", err)
 	}
 
-	scionNetwork := snet.NewNetwork(localIA, reliable.NewDispatcher(""), nil)
+	var (
+		scmpErrors             metrics.Counter
+		scionPacketConnMetrics snet.SCIONPacketConnMetrics
+		scionNetworkMetrics    snet.SCIONNetworkMetrics
+	)
+	if g.Metrics != nil {
+		scmpErrors = g.Metrics.SCMPErrors
+		scionPacketConnMetrics = g.Metrics.SCIONPacketConnMetrics
+		scionNetworkMetrics = g.Metrics.SCIONNetworkMetrics
+	}
+	scionNetwork := &snet.SCIONNetwork{
+		LocalIA: localIA,
+		Dispatcher: &snet.DefaultPacketDispatcherService{
+			Dispatcher: reliable.NewDispatcher(""),
+			SCMPHandler: &snet.DefaultSCMPHandler{
+				SCMPErrors: scmpErrors,
+			},
+			SCIONPacketConnMetrics: scionPacketConnMetrics,
+		},
+		Metrics: scionNetworkMetrics,
+	}
 
 	logger.Info("Starting ingress", "local_isd_as", localIA)
 	if err := g.DataPlaneRunner.StartIngress(scionNetwork, g.DataServerAddr,

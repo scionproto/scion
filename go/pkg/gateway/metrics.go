@@ -19,6 +19,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/metrics"
+	"github.com/scionproto/scion/go/lib/snet"
+	snetmetrics "github.com/scionproto/scion/go/lib/snet/metrics"
 )
 
 // These are the metrics that should be exposed by any gateway implementation.
@@ -236,6 +239,11 @@ type Metrics struct {
 	SessionProbes       *prometheus.CounterVec
 	SessionProbeReplies *prometheus.CounterVec
 	SessionIsHealthy    *prometheus.GaugeVec
+
+	// Scion Network Metrics
+	SCIONNetworkMetrics    snet.SCIONNetworkMetrics
+	SCMPErrors             metrics.Counter
+	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 }
 
 // NewMetrics initializes the metrics for the gateway and registers them with the default registry.
@@ -243,6 +251,7 @@ func NewMetrics(ia addr.IA) *Metrics {
 	labels := map[string]string{
 		"isd_as": ia.String(),
 	}
+	scionPacketConnMetrics := snetmetrics.NewSCIONPacketConnMetrics()
 	return &Metrics{
 		IPPktBytesSentTotal: IPPktBytesSentTotalMeta.
 			NewCounterVec().MustCurryWith(labels),
@@ -302,5 +311,8 @@ func NewMetrics(ia addr.IA) *Metrics {
 			NewGaugeVec().MustCurryWith(labels),
 		PrefixesRejected: PrefixesRejectedMeta.
 			NewGaugeVec().MustCurryWith(labels),
+		SCIONNetworkMetrics:    snetmetrics.NewSCIONNetworkMetrics(),
+		SCMPErrors:             scionPacketConnMetrics.SCMPErrors,
+		SCIONPacketConnMetrics: scionPacketConnMetrics,
 	}
 }
