@@ -1,7 +1,7 @@
 workspace(
     name = "com_github_scionproto_scion",
     managed_directories = {
-        "@spec_npm": ["spec/tools/node_modules"],
+        "@rules_openapi_npm": ["rules_openapi/tools/node_modules"],
     },
 )
 
@@ -254,10 +254,19 @@ load("//lint/private/python:deps.bzl", "python_lint_deps")
 
 python_lint_deps()
 
-load("//spec:repositories.bzl", spec_repositories = "repositories")
+load("//rules_openapi:dependencies.bzl", "rules_openapi_dependencies")
 
-spec_repositories()
+rules_openapi_dependencies()
 
-load("//spec:install.bzl", spec_yarn_dependencies = "install_yarn_dependencies")
+load("//rules_openapi:install.bzl", "rules_openapi_install_yarn_dependencies")
 
-spec_yarn_dependencies()
+rules_openapi_install_yarn_dependencies()
+
+# TODO(lukedirtwalker): can that be integrated in the rules_openapi_dependencies
+# call above somehow?
+load(
+    "@cgrindel_rules_updatesrc//updatesrc:deps.bzl",
+    "updatesrc_rules_dependencies",
+)
+
+updatesrc_rules_dependencies()

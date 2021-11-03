@@ -13,6 +13,10 @@ EXECROOT=$(bazel info execution_root 2>/dev/null)
 rm -rf $DSTDIR
 
 (cd $EXECROOT/external; find -L . -iregex '.*\(LICENSE\|COPYING\).*') | while IFS= read -r path ; do
+    # skip over node JS stuff, this is only used during build time.
+    if [[ "$path" =~ "node_modules" || "$path" =~ "nodejs" ]]; then
+        continue
+    fi
     dst=$DSTDIR/$(dirname $path)
     mkdir -p $dst
     cp $EXECROOT/external/$path $dst

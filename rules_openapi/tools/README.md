@@ -9,7 +9,7 @@ To update the YARN dependencies in this directory:
    - bazel run @nodejs//:yarn install ...
    - etc. see [yarn docs](https://classic.yarnpkg.com/en/docs/usage/) for more details.
 
-To list bazel targets from this specific yarn module: `bazel query @spec_npm//...`
+To list bazel targets from this specific yarn module: `bazel query @rules_openapi_npm//...`
 
 More information can be found in [rules_nodejs
 docs](https://docs.aspect.dev/bazelbuild/rules_nodejs/4.0.0/docs/).

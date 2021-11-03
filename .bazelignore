@@ -1,4 +1,4 @@
 bin
 docker/_build
 go/vendor
-spec/tools/node_modules
+rules_openapi/tools/node_modules
