@@ -1,0 +1,1 @@
+{"err":{"msg":"simple err","someCtx":"someValue"},"level":"info","msg":"Failed to do thing"}
