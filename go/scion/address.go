@@ -17,16 +17,26 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"time"
+
+	"encoding/json"
 
 	"github.com/spf13/cobra"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/pkg/app"
 	"github.com/scionproto/scion/go/pkg/app/flag"
 )
+
+type addrInfo struct {
+	IA      addr.IA `json:"isd_as"`
+	IP      net.IP  `json:"ip"`
+	Address string  `json:"address"`
+}
 
 func newAddress(pather CommandPather) *cobra.Command {
 	var envFlags flag.SCIONEnvironment
@@ -65,21 +75,21 @@ return relevant, locally-known SCION address information for this host`,
 			if err != nil {
 				return err
 			}
+			address := fmt.Sprintf("%s,%s", info.IA, localIP)
 			if !flags.json {
-				fmt.Printf("%s,%s\n", info.IA, localIP)
+				fmt.Fprintln(cmd.OutOrStdout(), address)
 			} else {
-				fmt.Printf(`{
-  "addresses": [
-    {
-      "isd_as": "%s",
-      "ip": "%s",
-      "address": "%s,%s"
-    }
-  ]
-}`, info.IA, localIP, info.IA, localIP)
+				enc := json.NewEncoder(cmd.OutOrStdout())
+				enc.SetIndent("", "  ")
+				err = enc.Encode(map[string][]addrInfo{
+					"addresses": {{
+						IA:      info.IA,
+						IP:      localIP,
+						Address: address,
+					}},
+				})
 			}
-
-			return nil
+			return err
 		},
 	}
 	envFlags.Register(cmd.Flags())
