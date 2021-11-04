@@ -89,8 +89,6 @@ After generating the certificate, check that the output is reasonable:
    :end-before: LITERALINCLUDE check_ca END
    :dedent: 4
 
-The signature algorithm must be ``ecdsa-with-SHA512``.
-
 The certificate can be validated with with the ``scion-pki`` binary:
 
 .. literalinclude:: crypto_lib.sh
@@ -207,8 +205,6 @@ After generating the certificate, check that the output is reasonable:
    :start-after: LITERALINCLUDE check_as START
    :end-before: LITERALINCLUDE check_as END
    :dedent: 4
-
-The signature algorithm must be ``ecdsa-with-SHA512``.
 
 The certificate can be validated with with the ``scion-pki`` binary:
 

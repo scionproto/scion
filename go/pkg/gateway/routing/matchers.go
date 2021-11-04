@@ -23,14 +23,14 @@ import (
 )
 
 // singleIAMatcher matches other ISD-AS numbers based on a single ISD-AS.
-type singleIAMatcher struct {
+type SingleIAMatcher struct {
 	IA addr.IA
 }
 
 // Match matches the input ISD-AS if both the ISD and the AS number are the same
 // as the one of the matcher. Zero values of ISD and AS in the matchers ISD-AS
 // are treated as wildcards and match everything.
-func (m singleIAMatcher) Match(ia addr.IA) bool {
+func (m SingleIAMatcher) Match(ia addr.IA) bool {
 	switch {
 	case m.IA.IsZero():
 		return true
@@ -43,33 +43,33 @@ func (m singleIAMatcher) Match(ia addr.IA) bool {
 	}
 }
 
-func (m singleIAMatcher) String() string {
+func (m SingleIAMatcher) String() string {
 	return m.IA.String()
 }
 
 // negatedIAMatcher negates the result of the enclosed matcher.
-type negatedIAMatcher struct {
+type NegatedIAMatcher struct {
 	IAMatcher
 }
 
 // Match negates the result of the enclosed matcher.
-func (m negatedIAMatcher) Match(ia addr.IA) bool {
+func (m NegatedIAMatcher) Match(ia addr.IA) bool {
 	return !m.IAMatcher.Match(ia)
 }
 
-func (m negatedIAMatcher) String() string {
+func (m NegatedIAMatcher) String() string {
 	return fmt.Sprintf("!%s", m.IAMatcher)
 }
 
 // allowedNetworkMatcher is a simple IP network matcher based on allowed IP
 // networks.
-type allowedNetworkMatcher struct {
+type AllowedNetworkMatcher struct {
 	Allowed []*net.IPNet
 }
 
 // Match matches the input network if it is a subset of at least one allowed
 // network.
-func (m allowedNetworkMatcher) Match(network *net.IPNet) bool {
+func (m AllowedNetworkMatcher) Match(network *net.IPNet) bool {
 	for _, n := range m.Allowed {
 		if isSubnet(network, n) {
 			return true
@@ -78,7 +78,7 @@ func (m allowedNetworkMatcher) Match(network *net.IPNet) bool {
 	return false
 }
 
-func (m allowedNetworkMatcher) String() string {
+func (m AllowedNetworkMatcher) String() string {
 	networks := make([]string, 0, len(m.Allowed))
 	for _, network := range m.Allowed {
 		networks = append(networks, network.String())
@@ -87,16 +87,16 @@ func (m allowedNetworkMatcher) String() string {
 }
 
 // negatedNetworkMatcher negates the result of the enclosed matcher.
-type negatedNetworkMatcher struct {
+type NegatedNetworkMatcher struct {
 	NetworkMatcher
 }
 
 // Match negates the result of the enclosed matcher.
-func (m negatedNetworkMatcher) Match(network *net.IPNet) bool {
+func (m NegatedNetworkMatcher) Match(network *net.IPNet) bool {
 	return !m.NetworkMatcher.Match(network)
 }
 
-func (m negatedNetworkMatcher) String() string {
+func (m NegatedNetworkMatcher) String() string {
 	return fmt.Sprintf("!%s", m.NetworkMatcher)
 }
 

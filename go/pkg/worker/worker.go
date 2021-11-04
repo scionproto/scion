@@ -17,6 +17,7 @@
 package worker
 
 import (
+	"context"
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -64,9 +65,11 @@ type Base struct {
 // The return value is the return value of runF (if it executes), or setupF (otherwise).
 //
 // If setupF or runF are nil, they will be skipped.
-func (wb *Base) RunWrapper(setupF func() error, runF func() error) error {
+func (wb *Base) RunWrapper(ctx context.Context, setupF func(context.Context) error,
+	runF func(context.Context) error) error {
+
 	wb.mu.Lock()
-	if err := wb.callSetupLocked(setupF); err != nil {
+	if err := wb.callSetupLocked(ctx, setupF); err != nil {
 		wb.mu.Unlock()
 		return err
 	}
@@ -77,10 +80,10 @@ func (wb *Base) RunWrapper(setupF func() error, runF func() error) error {
 	if runF == nil {
 		return nil
 	}
-	return runF()
+	return runF(ctx)
 }
 
-func (wb *Base) callSetupLocked(setupF func() error) error {
+func (wb *Base) callSetupLocked(ctx context.Context, setupF func(context.Context) error) error {
 	if wb.runCalled {
 		return serrors.New("function called more than once")
 	}
@@ -97,7 +100,7 @@ func (wb *Base) callSetupLocked(setupF func() error) error {
 	if setupF == nil {
 		return nil
 	}
-	return setupF()
+	return setupF(ctx)
 }
 
 func (wb *Base) closeDoneChanLocked() {
@@ -125,7 +128,7 @@ func (wb *Base) getDoneChanLocked() chan struct{} {
 // CloseWrapper is used to shut down the worker while waiting for its work to complete.
 //
 // if closeF is nil, it will be skipped.
-func (wb *Base) CloseWrapper(closeF func() error) error {
+func (wb *Base) CloseWrapper(ctx context.Context, closeF func(context.Context) error) error {
 	// The wait group is used by the close function to ensure that Run has completely released
 	// all resources before returning (graceful shutdown). This can take a long time, and
 	// the Run methods needs to have access to the done channel while we're waiting. This is
@@ -135,10 +138,10 @@ func (wb *Base) CloseWrapper(closeF func() error) error {
 	// area. It is their responsibility to ensure that they do not wait on Run while Run is waiting
 	// on them, thus causing a deadlock.
 	defer wb.WG.Wait()
-	return wb.close(closeF)
+	return wb.close(ctx, closeF)
 }
 
-func (wb *Base) close(closeF func() error) error {
+func (wb *Base) close(ctx context.Context, closeF func(context.Context) error) error {
 	wb.mu.Lock()
 	defer wb.mu.Unlock()
 	// Close the done channel while the lock is held. This ensures the channel is also safely
@@ -151,5 +154,5 @@ func (wb *Base) close(closeF func() error) error {
 	if closeF == nil {
 		return nil
 	}
-	return closeF()
+	return closeF(ctx)
 }

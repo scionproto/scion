@@ -1,5 +1,5 @@
 env:
-  GOPROXY: "http://localhost:3200|https://proxy.golang.org|https://goproxy.io|direct"
+  GOPROXY: "http://localhost:3200|https://proxy.golang.org|direct"
 steps:
   - label: "build scion code :bazel:"
     if: build.message !~ /\[doc\]/
@@ -9,7 +9,7 @@ steps:
     key: build
     retry:
       automatic:
-        - exit_status: -1  # Agent was lost
+        - exit_status: -1 # Agent was lost
         - exit_status: 255 # Forced agent shutdown
     timeout_in_minutes: 10
   - wait
@@ -24,7 +24,7 @@ steps:
       - "artifacts.out/**/*"
     retry:
       automatic:
-        - exit_status: -1  # Agent was lost
+        - exit_status: -1 # Agent was lost
         - exit_status: 255 # Forced agent shutdown
     timeout_in_minutes: 10
   - label: "check generated"
@@ -54,7 +54,7 @@ steps:
     key: check_generated
     retry:
       automatic:
-        - exit_status: -1  # Agent was lost
+        - exit_status: -1 # Agent was lost
         - exit_status: 255 # Forced agent shutdown
   - label: "Lint"
     if: build.message =~ /\[doc\]/
@@ -63,19 +63,19 @@ steps:
     timeout_in_minutes: 15
     retry:
       automatic:
-        - exit_status: -1  # Agent was lost
+        - exit_status: -1 # Agent was lost
         - exit_status: 255 # Forced agent shutdown
   - label: "IT: :bazel:"
     if: build.message !~ /\[doc\]/
     command:
-    - bazel test --config=integration_go
+      - bazel test --config=integration_go
     artifact_paths:
       - "artifacts.out/**/*"
     timeout_in_minutes: 10
     key: anapaya_integration_tests
     retry:
       automatic:
-        - exit_status: -1  # Agent was lost
+        - exit_status: -1 # Agent was lost
         - exit_status: 255 # Forced agent shutdown
   - label: "E2E: default :go: :man_in_business_suit_levitating: (scion, ping)"
     if: build.message !~ /\[doc\]/
@@ -99,7 +99,7 @@ steps:
     key: e2e_integration_tests_v2
     retry:
       automatic:
-        - exit_status: -1  # Agent was lost
+        - exit_status: -1 # Agent was lost
         - exit_status: 255 # Forced agent shutdown
   - label: "E2E: failing links :go: :man_in_business_suit_levitating:"
     if: build.message !~ /\[doc\]/
@@ -123,7 +123,7 @@ steps:
     key: e2e_revocation_test_v2
     retry:
       automatic:
-        - exit_status: -1  # Agent was lost
+        - exit_status: -1 # Agent was lost
         - exit_status: 255 # Forced agent shutdown
   - label: "E2E: default :go: :docker: (ping)"
     if: build.message !~ /\[doc\]/
@@ -148,7 +148,7 @@ steps:
     key: docker_integration_e2e_default
     retry:
       automatic:
-        - exit_status: -1  # Agent was lost
+        - exit_status: -1 # Agent was lost
         - exit_status: 255 # Forced agent shutdown
   - label: "TRC ceremony :bash:"
     if: build.message !~ /\[doc\]/
@@ -167,5 +167,5 @@ steps:
       - "artifacts.out/**/*"
     retry:
       automatic:
-        - exit_status: -1  # Agent was lost
+        - exit_status: -1 # Agent was lost
         - exit_status: 255 # Forced agent shutdown

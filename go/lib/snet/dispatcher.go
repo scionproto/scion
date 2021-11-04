@@ -23,9 +23,9 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
-	"github.com/scionproto/scion/go/lib/snet/internal/metrics"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -48,6 +48,8 @@ type DefaultPacketDispatcherService struct {
 	// handler is nil, errors are returned back to applications every time an
 	// SCMP message is received.
 	SCMPHandler SCMPHandler
+	// Metrics injected into SCIONPacketConn.
+	SCIONPacketConnMetrics SCIONPacketConnMetrics
 }
 
 func (s *DefaultPacketDispatcherService) Register(ctx context.Context, ia addr.IA,
@@ -58,8 +60,9 @@ func (s *DefaultPacketDispatcherService) Register(ctx context.Context, ia addr.I
 		return nil, 0, err
 	}
 	return &SCIONPacketConn{
-		conn:        rconn,
-		scmpHandler: s.SCMPHandler,
+		Conn:        rconn,
+		SCMPHandler: s.SCMPHandler,
+		Metrics:     s.SCIONPacketConnMetrics,
 	}, port, nil
 }
 
@@ -92,6 +95,8 @@ type DefaultSCMPHandler struct {
 	// RevocationHandler manages revocations received via SCMP. If nil, the
 	// handler is not called.
 	RevocationHandler RevocationHandler
+	// SCMPErrors reports the total number of SCMP Errors encountered.
+	SCMPErrors metrics.Counter
 }
 
 func (h DefaultSCMPHandler) Handle(pkt *Packet) error {
@@ -101,7 +106,7 @@ func (h DefaultSCMPHandler) Handle(pkt *Packet) error {
 	}
 	typeCode := slayers.CreateSCMPTypeCode(scmp.Type(), scmp.Code())
 	if !typeCode.InfoMsg() {
-		metrics.M.SCMPErrors().Inc()
+		metrics.CounterInc(h.SCMPErrors)
 	}
 	switch scmp.Type() {
 	case slayers.SCMPTypeExternalInterfaceDown:

@@ -16,6 +16,7 @@ package control_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net"
 	"reflect"
@@ -118,11 +119,11 @@ func TestSessionMonitorTestProbing(t *testing.T) {
 	conn.EXPECT().ReadFrom(gomock.Any()).AnyTimes()
 	errChan := make(chan error)
 	go func() {
-		errChan <- sessMon.Run()
+		errChan <- sessMon.Run(context.Background())
 	}()
 
 	time.Sleep(50 * time.Millisecond)
-	err := sessMon.Close()
+	err := sessMon.Close(context.Background())
 	assert.NoError(t, err)
 
 	select {
@@ -173,7 +174,7 @@ func TestSessionMonitorTestEvents(t *testing.T) {
 
 	errChan := make(chan error)
 	go func() {
-		errChan <- sessMon.Run()
+		errChan <- sessMon.Run(context.Background())
 	}()
 
 	readReturn <- struct{}{}
@@ -208,7 +209,7 @@ func TestSessionMonitorTestEvents(t *testing.T) {
 	}
 	assert.Empty(t, events)
 
-	err = sessMon.Close()
+	err = sessMon.Close(context.Background())
 	assert.NoError(t, err)
 
 	select {

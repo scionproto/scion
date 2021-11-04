@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/snet"
 	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
 )
 
@@ -56,12 +55,6 @@ type Topology interface {
 	// if no such server exists.
 	PublicAddress(svc addr.HostSVC, name string) *net.UDPAddr
 
-	// Exists returns true if the service and name are present in the topology file.
-	Exists(svc addr.HostSVC, name string) bool
-
-	// SBRAddress returns the internal public address of the BR with the specified name.
-	SBRAddress(name string) *snet.UDPAddr
-
 	// Anycast returns the address for an arbitrary server of the requested type.
 	Anycast(svc addr.HostSVC) (*net.UDPAddr, error)
 	// Multicast returns all addresses for the requested type.
@@ -71,21 +64,8 @@ type Topology interface {
 	UnderlayAnycast(svc addr.HostSVC) (*net.UDPAddr, error)
 	// UnderlayMulticast returns all underlay addresses for the requested type.
 	UnderlayMulticast(svc addr.HostSVC) ([]*net.UDPAddr, error)
-	// UnderlayByName returns the underlay address of the server name of the requested type.
-	//
-	// FIXME(scrye): This isn't really needed. We should also get rid of it.
-	UnderlayByName(svc addr.HostSVC, name string) (*net.UDPAddr, error)
-	// UnderlayNextHop2 returns the internal underlay address of the router containing the ID. The
-	// return value is encoded as an underlay address.
-	//
-	// FIXME(scrye): Remove either this or the other method. A single return type should be
-	// supported.
-	UnderlayNextHop2(ifID common.IFIDType) (*net.UDPAddr, bool)
-
 	// UnderlayNextHop returns the internal underlay address of the router
 	// containing the interface ID.
-	//
-	// XXX(scrye): Return value is a shallow copy.
 	UnderlayNextHop(ifID common.IFIDType) (*net.UDPAddr, bool)
 
 	// MakeHostInfos returns the underlay addresses of all services for the specified service type.
@@ -194,14 +174,6 @@ func (t *topologyS) UnderlayNextHop(ifid common.IFIDType) (*net.UDPAddr, bool) {
 	return copyUDPAddr(ifInfo.InternalAddr), true
 }
 
-func (t *topologyS) UnderlayNextHop2(ifid common.IFIDType) (*net.UDPAddr, bool) {
-	ifInfo, ok := t.Topology.IFInfoMap[ifid]
-	if !ok {
-		return nil, false
-	}
-	return copyUDPAddr(ifInfo.InternalAddr), true
-}
-
 func (t *topologyS) MakeHostInfos(st ServiceType) ([]*net.UDPAddr, error) {
 	var hostInfos []*net.UDPAddr
 	addresses, err := t.Topology.getAllTopoAddrs(st)
@@ -261,10 +233,6 @@ func (t *topologyS) PublicAddress(svc addr.HostSVC, name string) *net.UDPAddr {
 		return nil
 	}
 	return topoAddr.SCIONAddress
-}
-
-func (t *topologyS) Exists(svc addr.HostSVC, name string) bool {
-	return t.PublicAddress(svc, name) != nil
 }
 
 func (t *topologyS) topoAddress(svc addr.HostSVC, name string) *TopoAddr {
@@ -330,7 +298,7 @@ func (t *topologyS) UnderlayAnycast(svc addr.HostSVC) (*net.UDPAddr, error) {
 		}
 		return nil, serrors.WithCtx(addr.ErrUnsupportedSVCAddress, "svc", svc)
 	}
-	underlay, err := t.UnderlayByName(svc, name)
+	underlay, err := t.underlayByName(svc, name)
 	if err != nil {
 		return nil, serrors.WrapStr("BUG! Selected random service name, but service info not found",
 			err, "service_names", names, "selected_name", name)
@@ -376,7 +344,7 @@ func (t *topologyS) UnderlayMulticast(svc addr.HostSVC) ([]*net.UDPAddr, error) 
 	return underlayAddrs, nil
 }
 
-func (t *topologyS) UnderlayByName(svc addr.HostSVC, name string) (*net.UDPAddr, error) {
+func (t *topologyS) underlayByName(svc addr.HostSVC, name string) (*net.UDPAddr, error) {
 	st, err := toServiceType(svc)
 	if err != nil {
 		return nil, err
@@ -411,18 +379,6 @@ func (t *topologyS) IFInfoMap() IfInfoMap {
 
 func (t *topologyS) BRNames() []string {
 	return t.Topology.BRNames
-}
-
-func (t *topologyS) SBRAddress(name string) *snet.UDPAddr {
-	br, ok := t.Topology.BR[name]
-	if !ok {
-		return nil
-	}
-	return &snet.UDPAddr{
-		IA:      t.IA(),
-		NextHop: br.CtrlAddrs.UnderlayAddr(),
-		Host:    br.CtrlAddrs.SCIONAddress,
-	}
 }
 
 func (t *topologyS) SVCNames(svc addr.HostSVC) ServiceNames {

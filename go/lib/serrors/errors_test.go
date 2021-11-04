@@ -15,17 +15,24 @@
 package serrors_test
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
+	"io"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
+
+var update = xtest.UpdateGoldenFiles()
 
 type testErrType struct {
 	msg string
@@ -100,12 +107,6 @@ func TestWithCtx(t *testing.T) {
 		require.True(t, errors.As(errWithCtx, &errAs))
 		assert.Equal(t, err, errAs)
 	})
-	t.Run("Fmt", func(t *testing.T) {
-		err := serrors.New("simple err")
-		errWithCtx := serrors.WithCtx(err, "someCtx", "someValue")
-		expectedMsg := `simple err someCtx="someValue"`
-		assert.Equal(t, expectedMsg, errWithCtx.Error())
-	})
 }
 
 func TestWrap(t *testing.T) {
@@ -126,18 +127,6 @@ func TestWrap(t *testing.T) {
 		assert.Equal(t, err, errAs)
 
 	})
-	t.Run("Fmt", func(t *testing.T) {
-		err := serrors.New("level0\nlevel0.1")
-		cause := serrors.New("level1\nlevel1.1")
-		wrappedErr := serrors.Wrap(err, cause, "k0", "v0", "k1", 1)
-		expedtedMsg := strings.Join([]string{
-			"level0",
-			`    >   level0.1 k0="v0" k1="1"`,
-			"    level1",
-			"    >   level1.1",
-		}, "\n")
-		assert.Equal(t, expedtedMsg, wrappedErr.Error())
-	})
 }
 
 func TestWrapStr(t *testing.T) {
@@ -157,18 +146,6 @@ func TestWrapStr(t *testing.T) {
 		assert.Equal(t, err, errAs)
 
 	})
-	t.Run("Fmt", func(t *testing.T) {
-		msg := "level0\nlevel0.1"
-		cause := serrors.New("level1\nlevel1.1")
-		wrappedErr := serrors.WrapStr(msg, cause, "k0", "v0", "k1", 1)
-		expedtedMsg := strings.Join([]string{
-			"level0",
-			`    >   level0.1 k0="v0" k1="1"`,
-			"    level1",
-			"    >   level1.1",
-		}, "\n")
-		assert.Equal(t, expedtedMsg, wrappedErr.Error())
-	})
 }
 
 func TestNew(t *testing.T) {
@@ -186,14 +163,92 @@ func TestNew(t *testing.T) {
 		assert.False(t, errors.Is(err1, err2))
 		assert.False(t, errors.Is(err2, err1))
 	})
-	t.Run("Fmt", func(t *testing.T) {
-		err := serrors.New("err msg\n", "k0", "v0", "k1", 1)
-		expedtedMsg := strings.Join([]string{
-			"err msg",
-			`    >    k0="v0" k1="1"`,
-		}, "\n")
-		assert.Equal(t, expedtedMsg, err.Error())
-	})
+}
+
+func TestEncoding(t *testing.T) {
+	newLogger := func(b io.Writer) *zap.Logger {
+		encoderCfg := zapcore.EncoderConfig{
+			MessageKey:     "msg",
+			LevelKey:       "level",
+			NameKey:        "logger",
+			EncodeLevel:    zapcore.LowercaseLevelEncoder,
+			EncodeTime:     zapcore.ISO8601TimeEncoder,
+			EncodeDuration: zapcore.StringDurationEncoder,
+		}
+		return zap.New(
+			zapcore.NewCore(zapcore.NewJSONEncoder(encoderCfg),
+				zapcore.AddSync(b),
+				zapcore.DebugLevel),
+		)
+	}
+
+	testCases := map[string]struct {
+		err            error
+		goldenFileBase string
+	}{
+		"new with context": {
+			err:            serrors.New("err msg", "k0", "v0", "k1", 1),
+			goldenFileBase: "testdata/new-with-context",
+		},
+		"wrapped string": {
+			err: serrors.WrapStr(
+				"msg error",
+				serrors.New("msg cause"),
+				"k0", "v0",
+				"k1", 1,
+			),
+			goldenFileBase: "testdata/wrapped-string",
+		},
+		"wrapped error": {
+			err: serrors.Wrap(
+				serrors.New("msg error"),
+				serrors.New("msg cause"),
+				"k0", "v0",
+				"k1", 1,
+			),
+			goldenFileBase: "testdata/wrapped-error",
+		},
+		"error with context": {
+			err:            serrors.WithCtx(serrors.New("simple err"), "someCtx", "someValue"),
+			goldenFileBase: "testdata/error-with-context",
+		},
+		"error list": {
+			err: serrors.List{
+				serrors.New("test err", "ctx1", "val1"),
+				serrors.New("test err2"),
+			},
+			goldenFileBase: "testdata/error-list",
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			logFile := tc.goldenFileBase + ".log"
+			errFile := tc.goldenFileBase + ".err"
+
+			var b bytes.Buffer
+			logger := newLogger(&b)
+			logger.Sugar().Infow("Failed to do thing", "err", tc.err)
+
+			// Parse the log output and marshal it again to sort it.
+			// The zap encoder is not deterministic for nested maps.
+			var parsed map[string]interface{}
+			require.NoError(t, json.Unmarshal(b.Bytes(), &parsed))
+			sorted, err := json.Marshal(parsed)
+			require.NoError(t, err)
+
+			if *update {
+				require.NoError(t, os.WriteFile(logFile, sorted, 0666))
+				require.NoError(t, os.WriteFile(errFile, []byte(tc.err.Error()), 0666))
+			}
+			goldenLog, err := os.ReadFile(logFile)
+			require.NoError(t, err)
+			assert.Equal(t, string(goldenLog), string(sorted))
+
+			goldenErr, err := os.ReadFile(errFile)
+			require.NoError(t, err)
+			assert.Equal(t, string(goldenErr), tc.err.Error())
+		})
+	}
 }
 
 func TestList(t *testing.T) {
@@ -202,7 +257,6 @@ func TestList(t *testing.T) {
 	errors = serrors.List{serrors.New("err1"), serrors.New("err2")}
 	combinedErr := errors.ToError()
 	assert.NotNil(t, combinedErr)
-	assert.Equal(t, "err1\nerr2", combinedErr.Error())
 }
 
 func ExampleNew() {
@@ -229,7 +283,7 @@ func ExampleWithCtx() {
 
 	fmt.Println(addedCtx)
 	// Output:
-	// Unsupported L4 protocol type="SCTP"
+	// Unsupported L4 protocol{type=SCTP}
 }
 
 func ExampleWrapStr() {
@@ -242,8 +296,7 @@ func ExampleWrapStr() {
 	// Output:
 	// true
 	//
-	// wrap with more context ctx="1"
-	//     no space
+	// wrap with more context{ctx=1}: no space
 }
 
 func ExampleWrap() {
@@ -263,6 +316,5 @@ func ExampleWrap() {
 	// true
 	// true
 	//
-	// db ctx="1"
-	//     no space
+	// db{ctx=1}: no space
 }

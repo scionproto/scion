@@ -37,17 +37,6 @@ protobuf:
 	cp -r bazel-bin/go/pkg/proto/*/*/go_default_library_/github.com/scionproto/scion/go/pkg/proto/* go/pkg/proto
 	chmod 0644 go/pkg/proto/*/*.pb.go
 
-oai-boilerplate: clean
-	bazel build //spec/...
-
-	rm -f go/pkg/cs/api/*.gen.go
-	cp -r bazel-bin/spec/go/pkg/cs/api/*.gen.go go/pkg/cs/api
-	chmod 0644 go/pkg/cs/api/*.gen.go
-
-	rm -f go/pkg/ca/api/*.gen.go
-	cp -r bazel-bin/spec/go/pkg/ca/api/*.gen.go go/pkg/ca/api
-	chmod 0644 go/pkg/ca/api/*.gen.go
-
 mocks:
 	tools/gomocks
 

@@ -170,10 +170,6 @@ func (v *brValidator) Immutable(topo, oldTopo *topology.RWTopology) error {
 		return serrors.New("InternalAddrs is immutable", "expected",
 			oldTopo.BR[v.id].InternalAddr, "actual", topo.BR[v.id].InternalAddr)
 	}
-	if !reflect.DeepEqual(topo.BR[v.id].CtrlAddrs, oldTopo.BR[v.id].CtrlAddrs) {
-		return serrors.New("CtrlAddrs is immutable", "expected",
-			oldTopo.BR[v.id].CtrlAddrs, "actual", topo.BR[v.id].CtrlAddrs)
-	}
 	return nil
 }
 

@@ -15,6 +15,7 @@
 package dataplane
 
 import (
+	"context"
 	"io"
 
 	"github.com/google/gopacket"
@@ -65,12 +66,11 @@ type IPForwarder struct {
 	// Metrics is used by the forwarder to report information about internal operation.
 	// If a metric is not initialized, it is not reported.
 	Metrics IPForwarderMetrics
-	// Logger is used to display internal information. If nil, logging is disabled.
-	Logger log.Logger
 }
 
 // Run forwards packets from the reader based on the routing table.
-func (f *IPForwarder) Run() error {
+func (f *IPForwarder) Run(ctx context.Context) error {
+	logger := log.FromCtx(ctx)
 	if err := f.validate(); err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ func (f *IPForwarder) Run() error {
 		metrics.CounterAdd(f.Metrics.IPPktBytesLocalRecv, float64(length))
 		if length == 0 {
 			metrics.CounterInc(f.Metrics.IPPktsInvalid)
-			log.SafeDebug(f.Logger, "forwarder: read 0 length packet")
+			logger.Debug("forwarder: read 0 length packet")
 			continue
 		}
 
@@ -101,13 +101,13 @@ func (f *IPForwarder) Run() error {
 			packet = gopacket.NewPacket(buf[:length], layers.LayerTypeIPv6, decodeOptions)
 		default:
 			metrics.CounterInc(f.Metrics.IPPktsInvalid)
-			log.SafeDebug(f.Logger, "forwarder: unknown IP version", "version", version)
+			logger.Debug("forwarder: unknown IP version", "version", version)
 			continue
 		}
 
 		if packet.ErrorLayer() != nil {
 			metrics.CounterInc(f.Metrics.IPPktsInvalid)
-			log.SafeDebug(f.Logger, "forwarder: failed to parse packet",
+			logger.Debug("forwarder: failed to parse packet",
 				"err", packet.ErrorLayer().Error())
 			continue
 		}
@@ -117,7 +117,7 @@ func (f *IPForwarder) Run() error {
 		case *layers.IPv4:
 			if ip.Flags&layers.IPv4MoreFragments != 0 || ip.FragOffset != 0 {
 				metrics.CounterInc(f.Metrics.IPPktsFragmented)
-				log.SafeDebug(f.Logger, "forwarder: ignored fragmented packet")
+				logger.Debug("forwarder: ignored fragmented packet")
 				continue
 			}
 			session = f.RoutingTable.RouteIPv4(*ip)

@@ -50,6 +50,13 @@ ctrl_addr = ":30256"
 #
 # (default ":30056")
 data_addr = ":30056"
+
+# The bind address for path probes. If the IP is not specified, the IP
+# from the control address is used. If the port is empty, or zero, the default
+# port 30856 is used.
+#
+# (default ":30856")
+probe_addr = ":30856"
 `
 
 const tunnelSample = `

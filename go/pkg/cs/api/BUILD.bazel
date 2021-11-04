@@ -1,12 +1,19 @@
 load("//lint:go.bzl", "go_library", "go_test")
+load("@com_github_scionproto_scion//rules_openapi:defs.bzl", "openapi_generate_go")
 
+openapi_generate_go(
+    name = "api_generated",
+    src = "//spec:control",
+    client = False,
+)
+
+# exclude the *.gen.go filse in the workspace it's only for editor compatibility.
+# gazelle:exclude *.gen.go
 go_library(
     name = "go_default_library",
     srcs = [
         "api.go",
-        "server.gen.go",
-        "spec.gen.go",
-        "types.gen.go",
+        ":api_generated",  # keep
     ],
     importpath = "github.com/scionproto/scion/go/pkg/cs/api",
     visibility = ["//visibility:public"],
@@ -23,10 +30,10 @@ go_library(
         "//go/pkg/storage:go_default_library",
         "//go/pkg/storage/trust:go_default_library",
         "//go/pkg/trust:go_default_library",
-        "@com_github_deepmap_oapi_codegen//pkg/runtime:go_default_library",
-        "@com_github_getkin_kin_openapi//openapi3:go_default_library",
-        "@com_github_go_chi_chi_v5//:go_default_library",
-        "@com_github_pkg_errors//:go_default_library",
+        "@com_github_deepmap_oapi_codegen//pkg/runtime:go_default_library",  # keep
+        "@com_github_getkin_kin_openapi//openapi3:go_default_library",  # keep
+        "@com_github_go_chi_chi_v5//:go_default_library",  # keep
+        "@com_github_pkg_errors//:go_default_library",  # keep
         "@org_golang_google_protobuf//proto:go_default_library",
     ],
 )

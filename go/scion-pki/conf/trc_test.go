@@ -101,7 +101,7 @@ func TestTRCCertificates(t *testing.T) {
 		},
 		"file not found": {
 			prepareCfg: func(cfg *conf.TRC) { cfg.CertificateFiles = []string{"notfound"} },
-			errMsg:     "no such file or directory file",
+			errMsg:     "no such file or directory",
 		},
 	}
 	for name, tc := range testCases {

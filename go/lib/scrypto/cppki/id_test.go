@@ -17,6 +17,10 @@ package cppki_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -65,6 +69,45 @@ func TestTRCIDValidate(t *testing.T) {
 			err := tc.ID.Validate()
 			xtest.AssertErrorsIs(t, err, tc.Err)
 
+		})
+	}
+}
+
+func TestNewTRCID(t *testing.T) {
+	testCases := map[string]struct {
+		trcStr string
+		trcID  cppki.TRCID
+		err    error
+	}{
+		"valid TRC ID string": {
+			trcStr: "ISD1-B1-S1",
+			trcID: cppki.TRCID{
+				ISD:    addr.ISD(1),
+				Base:   scrypto.Version(1),
+				Serial: scrypto.Version(1),
+			},
+		},
+		"valid TRC ID string with bigger versions": {
+			trcStr: "ISD12-B21-S112",
+			trcID: cppki.TRCID{
+				ISD:    addr.ISD(12),
+				Base:   scrypto.Version(21),
+				Serial: scrypto.Version(112),
+			},
+		},
+		"invalid TRC ID string": {
+			trcStr: "ISD1-B1-S",
+			trcID:  cppki.TRCID{},
+			err:    cppki.ErrInvalidTRCIDString,
+		},
+	}
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			trcID, err := cppki.TRCIDFromString(tc.trcStr)
+			assert.Equal(t, trcID, tc.trcID)
+			assert.ErrorIs(t, err, tc.err)
 		})
 	}
 }

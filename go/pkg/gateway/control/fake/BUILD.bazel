@@ -39,6 +39,7 @@ go_library(
         "//go/lib/daemon:go_default_library",
         "//go/lib/daemon/fake:go_default_library",
         "//go/lib/log:go_default_library",
+        "//go/lib/metrics:go_default_library",
         "//go/lib/pktcls:go_default_library",
         "//go/lib/routemgr:go_default_library",
         "//go/lib/scrypto:go_default_library",

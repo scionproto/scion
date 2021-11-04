@@ -15,6 +15,7 @@
 package pathhealth
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -28,26 +29,20 @@ import (
 
 // DefaultPathWatcherFactory creates PathWatchers.
 type DefaultPathWatcherFactory struct {
-	// Logger is the parent logger. If nil, the PathWatcher is constructed
-	// without any logger.
-	Logger log.Logger
 }
 
 // New creates a PathWatcher that monitors a specific path.
-func (f *DefaultPathWatcherFactory) New(remote addr.IA, path snet.Path, id uint16) PathWatcher {
-	logger := log.SafeNewLogger(
-		f.Logger,
-		"remote_isd_as", remote.String(),
-		"path", fmt.Sprint(path),
-	)
-	log.SafeInfo(logger, "Path monitoring started")
+func (f *DefaultPathWatcherFactory) New(ctx context.Context, remote addr.IA, path snet.Path,
+	id uint16) PathWatcher {
 
-	return &DefaultPathWatcher{
+	pw := &DefaultPathWatcher{
 		remote: remote,
 		id:     id,
 		path:   path.Copy(),
-		logger: logger,
 	}
+	_, logger := pw.adjustCtx(ctx)
+	logger.Info("Path monitoring started")
+	return pw
 }
 
 // DefaultPathWatcher monitors a single SCION path.
@@ -65,9 +60,12 @@ type DefaultPathWatcher struct {
 	// nextSeq is the sequence number to use for the next probe.
 	// Assuming 2 probes a second, this will wrap over in ~9hrs.
 	nextSeq uint16
-	logger  log.Logger
 
 	pathState pathState
+}
+
+func (pw *DefaultPathWatcher) adjustCtx(ctx context.Context) (context.Context, log.Logger) {
+	return log.WithLabels(ctx, "remote_isd_as", pw.remote.String(), "path", fmt.Sprint(pw.path))
 }
 
 // UpdatePath changes a path to be monitored. While actual path, as in "sequence
@@ -82,10 +80,13 @@ func (pw *DefaultPathWatcher) UpdatePath(path snet.Path) {
 }
 
 // SendProbe sends a probe along the monitored path.
-func (pw *DefaultPathWatcher) SendProbe(conn snet.PacketConn, localAddr snet.SCIONAddress) {
+func (pw *DefaultPathWatcher) SendProbe(ctx context.Context, conn snet.PacketConn,
+	localAddr snet.SCIONAddress) {
+
+	_, logger := pw.adjustCtx(ctx)
 	pkt, err := pw.createProbepacket(localAddr)
 	if err != nil {
-		log.SafeError(pw.logger, "Failed to create path probe packet", "err", err)
+		logger.Error("Failed to create path probe packet", "err", err)
 		return
 	}
 	err = conn.WriteTo(
@@ -94,7 +95,7 @@ func (pw *DefaultPathWatcher) SendProbe(conn snet.PacketConn, localAddr snet.SCI
 	)
 	if err != nil {
 		// TODO(sustrik): Metric
-		log.SafeError(pw.logger, "Failed to send path probe", "err", err)
+		logger.Error("Failed to send path probe", "err", err)
 		return
 	}
 	pw.pathState.sendProbe(time.Now())
@@ -126,8 +127,9 @@ func (pw *DefaultPathWatcher) State() State {
 }
 
 // Close stops the PathWatcher.
-func (pw *DefaultPathWatcher) Close() {
-	log.SafeInfo(pw.logger, "Path monitoring stopped")
+func (pw *DefaultPathWatcher) Close(ctx context.Context) {
+	_, logger := pw.adjustCtx(ctx)
+	logger.Info("Path monitoring stopped")
 }
 
 func (pw *DefaultPathWatcher) createProbepacket(localAddr snet.SCIONAddress) (*snet.Packet, error) {

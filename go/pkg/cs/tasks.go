@@ -162,7 +162,7 @@ func (t *TasksConfig) segmentWriter(topo topology.Topology, segType seg.Type,
 			RPC: t.HiddenPathRegistrationCfg.RPC,
 			Pather: addrutil.Pather{
 				UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
-					return t.TopoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
+					return t.TopoProvider.Get().UnderlayNextHop(common.IFIDType(ifID))
 				},
 			},
 			RegistrationPolicy: t.HiddenPathRegistrationCfg.Policy,
@@ -183,7 +183,7 @@ func (t *TasksConfig) segmentWriter(topo topology.Topology, segType seg.Type,
 			RPC: t.SegmentRegister,
 			Pather: addrutil.Pather{
 				UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
-					return t.TopoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
+					return t.TopoProvider.Get().UnderlayNextHop(common.IFIDType(ifID))
 				},
 			},
 		}

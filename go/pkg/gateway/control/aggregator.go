@@ -15,6 +15,7 @@
 package control
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"sort"
@@ -71,11 +72,11 @@ type Aggregator struct {
 }
 
 // Run starts the aggregator. It must only be called once.
-func (a *Aggregator) Run() error {
-	return a.workerBase.RunWrapper(a.setup, a.run)
+func (a *Aggregator) Run(ctx context.Context) error {
+	return a.workerBase.RunWrapper(ctx, a.setup, a.run)
 }
 
-func (a *Aggregator) setup() error {
+func (a *Aggregator) setup(ctx context.Context) error {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 
@@ -92,7 +93,7 @@ func (a *Aggregator) setup() error {
 	return nil
 }
 
-func (a *Aggregator) run() error {
+func (a *Aggregator) run(ctx context.Context) error {
 	go func() {
 		defer log.HandlePanic()
 		ticker := time.NewTicker(a.ReportingInterval)
@@ -109,8 +110,8 @@ func (a *Aggregator) run() error {
 }
 
 // Close stops the internal goroutines.
-func (a *Aggregator) Close() {
-	a.workerBase.CloseWrapper(nil)
+func (a *Aggregator) Close(ctx context.Context) {
+	a.workerBase.CloseWrapper(ctx, nil)
 }
 
 // Prefixes pushes new set of prefixes for a specific gateway.

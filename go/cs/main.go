@@ -138,7 +138,10 @@ func realMain(ctx context.Context) error {
 		SVCRouter: messenger.NewSVCRouter(itopo.Provider()),
 		SCMPHandler: snet.DefaultSCMPHandler{
 			RevocationHandler: cs.RevocationHandler{RevCache: revCache},
+			SCMPErrors:        metrics.SCMPErrors,
 		},
+		SCIONNetworkMetrics:    metrics.SCIONNetworkMetrics,
+		SCIONPacketConnMetrics: metrics.SCIONPacketConnMetrics,
 	}
 	quicStack, err := nc.QUICStack()
 	if err != nil {
@@ -181,6 +184,7 @@ func realMain(ctx context.Context) error {
 					truststoragefspersister.StatError,
 				),
 			},
+			Logger: log.Root(),
 		},
 	)
 	trustDB = truststoragemetrics.WrapDB(trustDB, truststoragemetrics.Config{

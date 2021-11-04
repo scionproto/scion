@@ -15,7 +15,6 @@
 package metrics_test
 
 import (
-	"github.com/go-kit/kit/metrics/prometheus"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/metrics"
@@ -50,7 +49,7 @@ func ExampleCounter_implementation() {
 		MagicBeansEaten metrics.Counter
 	}
 
-	counter := prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+	counter := metrics.NewPromCounterFrom(stdprometheus.CounterOpts{
 		Name: "magic_beans_eaten_total",
 		Help: "Number of magic beans eaten.",
 	}, nil)

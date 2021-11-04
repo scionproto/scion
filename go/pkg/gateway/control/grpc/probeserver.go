@@ -30,13 +30,13 @@ import (
 // ProbeDispatcher handles incoming gateway protocol messages.
 // Currently, it only supports probe requests, and immediately replies to them.
 type ProbeDispatcher struct {
-	Logger log.Logger
 }
 
 // Listen handles the received control requests.
 func (d *ProbeDispatcher) Listen(ctx context.Context, conn net.PacketConn) error {
-	d.logInfo("ProbeDispatcher: starting")
-	defer d.logInfo("ProbeDispatcher: stopped")
+	logger := log.FromCtx(ctx)
+	logger.Info("ProbeDispatcher: starting")
+	defer logger.Info("ProbeDispatcher: stopped")
 
 	buf := make([]byte, common.SupportedMTU)
 	for {
@@ -49,14 +49,14 @@ func (d *ProbeDispatcher) Listen(ctx context.Context, conn net.PacketConn) error
 				if reliable.IsDispatcherError(err) {
 					return err
 				}
-				d.logInfo("ProbeDispatcher: Error reading from connection", "err", err)
+				logger.Info("ProbeDispatcher: Error reading from connection", "err", err)
 				// FIXME(shitz): Continuing here is only a temporary solution. Different
 				// errors need to be handled different, for some it should break and others
 				// are recoverable.
 				continue
 			}
 			if err = d.dispatch(conn, buf[:n], addr); err != nil {
-				d.logInfo("ProbeDispatcher: Error dispatching", "addr", addr, "err", err)
+				logger.Info("ProbeDispatcher: Error dispatching", "addr", addr, "err", err)
 			}
 		}
 	}
@@ -85,11 +85,5 @@ func (d *ProbeDispatcher) dispatch(conn net.PacketConn, raw []byte, addr net.Add
 		return err
 	default:
 		return serrors.New("unexpected control request", "type", common.TypeOf(ctrl.Request))
-	}
-}
-
-func (d *ProbeDispatcher) logInfo(msg string, ctx ...interface{}) {
-	if d.Logger != nil {
-		d.Logger.Info(msg, ctx...)
 	}
 }

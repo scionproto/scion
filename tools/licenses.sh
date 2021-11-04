@@ -13,6 +13,10 @@ EXECROOT=$(bazel info execution_root 2>/dev/null)
 rm -rf $DSTDIR
 
 (cd $EXECROOT/external; find -L . -iregex '.*\(LICENSE\|COPYING\).*') | while IFS= read -r path ; do
+    # skip over node JS stuff, this is only used during build time.
+    if [[ "$path" =~ "node_modules" || "$path" =~ "nodejs" ]]; then
+        continue
+    fi
     dst=$DSTDIR/$(dirname $path)
     mkdir -p $dst
     cp $EXECROOT/external/$path $dst
@@ -29,3 +33,4 @@ rm -rf $DSTDIR/com_github_uber_jaeger_lib/scripts
 rm -rf $DSTDIR/com_github_prometheus_procfs/scripts
 rm -rf $DSTDIR/org_uber_go_zap/checklicense.sh
 rm -rf $DSTDIR/org_golang_x_tools/gopls/
+rm -rf $DSTDIR/com_github_google_certificate_transparency_go/scripts

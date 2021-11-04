@@ -24,10 +24,12 @@ import (
 
 // Defaults.
 const (
-	DefaultCtrlAddr = ":30256"
-	DefaultDataAddr = ":30056"
-	defaultCtrlPort = 30256
-	defaultDataPort = 30056
+	DefaultCtrlAddr  = ":30256"
+	DefaultDataAddr  = ":30056"
+	DefaultProbeAddr = ":30856"
+	defaultCtrlPort  = 30256
+	defaultDataPort  = 30056
+	defaultProbePort = 30856
 
 	DefaultTunnelName           = "sig"
 	DefaultTunnelRoutingTableID = 11
@@ -47,6 +49,8 @@ type Gateway struct {
 	CtrlAddr string `toml:"ctrl_addr,omitempty"`
 	// Data plane address, for frames.
 	DataAddr string `toml:"data_addr,omitempty"`
+	// Probe address, for probing paths.
+	ProbeAddr string `toml:"probe_addr,omitempty"`
 }
 
 func (cfg *Gateway) Validate() error {
@@ -58,6 +62,7 @@ func (cfg *Gateway) Validate() error {
 	}
 	cfg.CtrlAddr = DefaultAddress(cfg.CtrlAddr, defaultCtrlPort)
 	cfg.DataAddr = DefaultAddress(cfg.DataAddr, defaultDataPort)
+	cfg.ProbeAddr = DefaultAddress(cfg.ProbeAddr, defaultProbePort)
 	return nil
 }
 

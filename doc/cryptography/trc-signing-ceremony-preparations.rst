@@ -164,8 +164,7 @@ After generating the certificate, check that the output is reasonable:
    :end-before: LITERALINCLUDE check_sensitive END
    :dedent: 4
 
-The validity time must cover the agreed upon TRC validity period. The
-signature algorithm must be ``ecdsa-with-SHA512``.
+The validity time must cover the agreed upon TRC validity period.
 
 The certificate can be validated with with the ``scion-pki`` binary:
 
@@ -228,8 +227,7 @@ After generating the certificate, check that the output is reasonable:
    :end-before: LITERALINCLUDE check_regular END
    :dedent: 4
 
-The validity time must cover the agreed upon TRC validity period. The
-signature algorithm must be ``ecdsa-with-SHA512``.
+The validity time must cover the agreed upon TRC validity period.
 
 The certificate can be validated with with the ``scion-pki`` binary:
 
@@ -290,8 +288,7 @@ After generating the certificate, check that the output is reasonable:
    :end-before: LITERALINCLUDE check_root END
    :dedent: 4
 
-The validity time must cover the agreed upon TRC validity period. The
-signature algorithm must be ``ecdsa-with-SHA512``.
+The validity time must cover the agreed upon TRC validity period.
 
 The certificate can be validated with with the ``scion-pki`` binary:
 

@@ -7,10 +7,12 @@ go_library(
         "match.go",
         "private.go",
         "public.go",
+        "symmetric.go",
     ],
     importpath = "github.com/scionproto/scion/go/scion-pki/key",
     visibility = ["//visibility:public"],
     deps = [
+        "//go/lib/scrypto:go_default_library",
         "//go/lib/scrypto/cppki:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/pkg/command:go_default_library",
@@ -24,6 +26,7 @@ go_test(
     srcs = [
         "private_test.go",
         "public_test.go",
+        "symmetric_test.go",
     ],
     data = glob(["testdata/**"]),
     deps = [

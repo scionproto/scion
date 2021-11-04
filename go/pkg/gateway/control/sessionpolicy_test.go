@@ -15,6 +15,7 @@
 package control_test
 
 import (
+	"context"
 	"io/ioutil"
 	"net"
 	"os"
@@ -112,7 +113,7 @@ func TestLegacySessionPolicyAdapterParse(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			parser := control.LegacySessionPolicyAdapter{}
-			p, err := parser.Parse(tc.Input)
+			p, err := parser.Parse(context.Background(), tc.Input)
 			assert.Equal(t, tc.Expected, p)
 			tc.AssertErr(t, err)
 		})
@@ -144,7 +145,8 @@ func TestLoadSessionPolicies(t *testing.T) {
 			File: filename,
 			Parser: func(ctrl *gomock.Controller) control.SessionPolicyParser {
 				p := mock_control.NewMockSessionPolicyParser(ctrl)
-				p.EXPECT().Parse([]byte{}).Return(nil, serrors.New("test error"))
+				p.EXPECT().Parse(context.Background(), []byte{}).
+					Return(nil, serrors.New("test error"))
 				return p
 			},
 			Expected:  nil,
@@ -154,7 +156,8 @@ func TestLoadSessionPolicies(t *testing.T) {
 			File: filename,
 			Parser: func(ctrl *gomock.Controller) control.SessionPolicyParser {
 				p := mock_control.NewMockSessionPolicyParser(ctrl)
-				p.EXPECT().Parse([]byte{}).Return(control.SessionPolicies{}, nil)
+				p.EXPECT().Parse(context.Background(), []byte{}).
+					Return(control.SessionPolicies{}, nil)
 				return p
 			},
 			Expected:  control.SessionPolicies{},
@@ -166,7 +169,7 @@ func TestLoadSessionPolicies(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			p, err := control.LoadSessionPolicies(tc.File, tc.Parser(ctrl))
+			p, err := control.LoadSessionPolicies(context.Background(), tc.File, tc.Parser(ctrl))
 			assert.Equal(t, tc.Expected, p)
 			tc.AssertErr(t, err)
 		})

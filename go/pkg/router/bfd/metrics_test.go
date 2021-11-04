@@ -36,8 +36,8 @@ func TestMetrics(t *testing.T) {
 
 	sessionA := &bfd.Session{
 		DetectMult:            1,
-		DesiredMinTxInterval:  50 * time.Millisecond,
-		RequiredMinRxInterval: 25 * time.Millisecond,
+		DesiredMinTxInterval:  100 * time.Millisecond,
+		RequiredMinRxInterval: 50 * time.Millisecond,
 		Logger:                log.New(),
 		LocalDiscriminator:    1,
 		ReceiveQueueSize:      10,
@@ -51,8 +51,8 @@ func TestMetrics(t *testing.T) {
 
 	sessionB := &bfd.Session{
 		DetectMult:            1,
-		DesiredMinTxInterval:  50 * time.Millisecond,
-		RequiredMinRxInterval: 25 * time.Millisecond,
+		DesiredMinTxInterval:  100 * time.Millisecond,
+		RequiredMinRxInterval: 50 * time.Millisecond,
 		Logger:                log.New(),
 		LocalDiscriminator:    2,
 		ReceiveQueueSize:      10,

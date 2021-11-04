@@ -15,6 +15,7 @@
 package control_test
 
 import (
+	"context"
 	"net"
 	"strconv"
 	"testing"
@@ -25,7 +26,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/log/mock_log"
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/pktcls"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -43,10 +43,10 @@ func TestSessionConfigurator(t *testing.T) {
 			SessionConfigurations: make(chan []*control.SessionConfig),
 		}
 		go func() {
-			assert.NoError(t, sc.Run())
+			assert.NoError(t, sc.Run(context.Background()))
 		}()
 		time.Sleep(50 * time.Millisecond)
-		assert.Error(t, sc.Run())
+		assert.Error(t, sc.Run(context.Background()))
 	})
 	t.Run("calling run after close", func(t *testing.T) {
 		sc := control.SessionConfigurator{
@@ -54,29 +54,29 @@ func TestSessionConfigurator(t *testing.T) {
 			RoutingUpdates:        make(chan control.RemoteGateways),
 			SessionConfigurations: make(chan []*control.SessionConfig),
 		}
-		assert.NoError(t, sc.Close())
-		assert.NoError(t, sc.Run())
+		assert.NoError(t, sc.Close(context.Background()))
+		assert.NoError(t, sc.Run(context.Background()))
 	})
 	t.Run("validation fails if no static updates channel", func(t *testing.T) {
 		sc := control.SessionConfigurator{
 			RoutingUpdates:        make(chan control.RemoteGateways),
 			SessionConfigurations: make(chan []*control.SessionConfig),
 		}
-		assert.Error(t, sc.Run())
+		assert.Error(t, sc.Run(context.Background()))
 	})
 	t.Run("validation fails if no routing updates channel", func(t *testing.T) {
 		sc := control.SessionConfigurator{
 			SessionPolicies:       make(chan control.SessionPolicies),
 			SessionConfigurations: make(chan []*control.SessionConfig),
 		}
-		assert.Error(t, sc.Run())
+		assert.Error(t, sc.Run(context.Background()))
 	})
 	t.Run("validation fails if no session config channel", func(t *testing.T) {
 		sc := control.SessionConfigurator{
 			SessionPolicies: make(chan control.SessionPolicies),
 			RoutingUpdates:  make(chan control.RemoteGateways),
 		}
-		assert.Error(t, sc.Run())
+		assert.Error(t, sc.Run(context.Background()))
 	})
 	t.Run("test Run", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -84,16 +84,13 @@ func TestSessionConfigurator(t *testing.T) {
 		tpChan := make(chan control.SessionPolicies)
 		ruChan := make(chan control.RemoteGateways)
 		cfgChan := make(chan []*control.SessionConfig)
-		logger := mock_log.NewMockLogger(ctrl)
-		logger.EXPECT().Debug(gomock.Any(), gomock.Any()).AnyTimes()
 		sc := control.SessionConfigurator{
 			SessionPolicies:       tpChan,
 			RoutingUpdates:        ruChan,
 			SessionConfigurations: cfgChan,
-			Logger:                logger,
 		}
 		go func() {
-			assert.NoError(t, sc.Run())
+			assert.NoError(t, sc.Run(context.Background()))
 		}()
 
 		routingUpdate := control.RemoteGateways{
@@ -193,7 +190,7 @@ func TestSessionConfigurator(t *testing.T) {
 		}
 		assert.Empty(t, cfgChan)
 
-		assert.NoError(t, sc.Close())
+		assert.NoError(t, sc.Close(context.Background()))
 	})
 }
 
