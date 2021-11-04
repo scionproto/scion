@@ -17,23 +17,22 @@ package main
 import (
 	"context"
 	"fmt"
-	"net"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/daemon"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/pkg/app"
+	"github.com/scionproto/scion/go/pkg/app/flag"
 	"github.com/scionproto/scion/go/pkg/showpaths"
 )
 
 func newShowpaths(pather CommandPather) *cobra.Command {
+	var envFlags flag.SCIONEnvironment
 	var flags struct {
 		timeout  time.Duration
 		cfg      showpaths.Config
@@ -42,11 +41,8 @@ func newShowpaths(pather CommandPather) *cobra.Command {
 		logLevel string
 		noColor  bool
 		tracer   string
+		localIA  string
 	}
-
-	v := viper.NewWithOptions(
-		viper.EnvKeyReplacer(strings.NewReplacer("SCIOND", "DAEMON", "LOCAL", "LOCAL_ADDR")),
-	)
 
 	var cmd = &cobra.Command{
 		Use:     "showpaths",
@@ -74,11 +70,6 @@ On other errors, showpaths will exit with code 2.
 
 %s`, app.SequenceHelp),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			v.SetEnvPrefix("scion")
-			if err := v.BindPFlags(cmd.Flags()); err != nil {
-				return serrors.WrapStr("binding flags", err)
-			}
-			v.AutomaticEnv()
 			dst, err := addr.IAFromString(args[0])
 			if err != nil {
 				return serrors.WrapStr("invalid destination ISD-AS", err)
@@ -92,10 +83,20 @@ On other errors, showpaths will exit with code 2.
 			}
 			defer closer()
 
-			flags.cfg.Daemon = v.GetString("sciond")
-			flags.cfg.Local = net.ParseIP(v.GetString("local"))
-
 			cmd.SilenceUsage = true
+
+			if err := envFlags.LoadExternalVars(); err != nil {
+				return err
+			}
+
+			flags.cfg.Daemon = envFlags.Daemon()
+			flags.cfg.Dispatcher = envFlags.Dispatcher()
+			flags.cfg.Local = envFlags.Local().IPAddr().IP
+			log.Debug("Resolved SCION environment flags",
+				"daemon", flags.cfg.Daemon,
+				"dispatcher", flags.cfg.Dispatcher,
+				"local", flags.cfg.Local,
+			)
 
 			span, traceCtx := tracing.CtxWith(context.Background(), "run")
 			span.SetTag("dst.isd_as", dst)
@@ -122,8 +123,7 @@ On other errors, showpaths will exit with code 2.
 		},
 	}
 
-	cmd.Flags().StringVar(&flags.cfg.Daemon, "sciond",
-		daemon.DefaultAPIAddress, "SCION Deamon address")
+	envFlags.Register(cmd.Flags())
 	cmd.Flags().DurationVar(&flags.timeout, "timeout", 5*time.Second, "Timeout")
 	cmd.Flags().StringVar(&flags.cfg.Sequence, "sequence", "", app.SequenceUsage)
 	cmd.Flags().IntVarP(&flags.cfg.MaxPaths, "maxpaths", "m", 10,
@@ -137,8 +137,6 @@ On other errors, showpaths will exit with code 2.
 	cmd.Flags().BoolVarP(&flags.json, "json", "j", false,
 		"Write the output as machine readable json")
 	cmd.Flags().BoolVar(&flags.noColor, "no-color", false, "disable colored output")
-	cmd.Flags().IPVarP(&flags.cfg.Local, "local", "l", nil,
-		"Optional local IP address to use for probing health checks")
 	cmd.Flags().StringVar(&flags.logLevel, "log.level", "", app.LogLevelUsage)
 	cmd.Flags().StringVar(&flags.tracer, "tracing.agent", "", "Tracing agent address")
 	return cmd

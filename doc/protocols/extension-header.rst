@@ -32,11 +32,11 @@ NextHdr
     the Hop-by-Hop Options header. Values of this field respect the
     :ref:`Assigned SCION Protocol Numbers <assigned-protocol-numbers>`.
 ExtLen
-    Unsigned 8-bit integer. Length of the extension header computed as :math:`4B
-    \cdot ExtLen`.
+    Unsigned 8-bit integer. The value of this field is computed as the length of
+    the complete Hop-by-Hop Options header in multiples of 4-bytes minus 1.
 Options
     Variable-length field, of length such that the complete Hop-by-Hop Options
-    header is an integer multiple of 4 bytes long.  Contains one or more
+    header is an integer multiple of 4 bytes long. Contains one or more
     TLV-encoded options, as described below.
 
 The Hop-by-Hop Options header is aligned to 4 bytes.
@@ -79,11 +79,11 @@ NextHdr
     the End-to-End Options header. Values of this field respect the
     :ref:`Assigned SCION Protocol Numbers <assigned-protocol-numbers>`.
 ExtLen
-    Unsigned 8-bit integer. Length of the extension header computed as :math:`4B
-    \cdot ExtLen`.
+    Unsigned 8-bit integer. The value of this field is computed as the length of
+    the complete End-to-End Options header in multiples of 4-bytes minus 1.
 Options
     Variable-length field, of length such that the complete End-to-End Options
-    header is an integer multiple of 4 bytes long.  Contains one or more
+    header is an integer multiple of 4 bytes long. Contains one or more
     TLV-encoded options, as described below.
 
 The End-to-End Options header is aligned to 4 bytes.
@@ -163,7 +163,7 @@ Alignment requirement: none::
 
 The Pad1 option is used to insert 1 byte of padding into the Options area of a
 header.  If more than one byte of padding is required, the PadN option,
-described next, should be used, rather han multiple Pad1 options.
+described next, should be used, rather than multiple Pad1 options.
 
 .. _pad-n-option:
 

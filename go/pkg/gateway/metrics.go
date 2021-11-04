@@ -17,6 +17,11 @@ package gateway
 import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/metrics"
+	"github.com/scionproto/scion/go/lib/snet"
+	snetmetrics "github.com/scionproto/scion/go/lib/snet/metrics"
 )
 
 // These are the metrics that should be exposed by any gateway implementation.
@@ -24,147 +29,147 @@ var (
 	IPPktBytesSentTotalMeta = MetricMeta{
 		Name:   "gateway_ippkt_bytes_sent_total",
 		Help:   "Total IP packet bytes sent to remote gateways.",
-		Labels: []string{"remote_isd_as", "policy_id"},
+		Labels: []string{"isd_as", "remote_isd_as", "policy_id"},
 	}
 	IPPktsSentTotalMeta = MetricMeta{
 		Name:   "gateway_ippkts_sent_total",
 		Help:   "Total number of IP packets sent to remote gateways.",
-		Labels: []string{"remote_isd_as", "policy_id"},
+		Labels: []string{"isd_as", "remote_isd_as", "policy_id"},
 	}
 	IPPktBytesReceivedTotalMeta = MetricMeta{
 		Name:   "gateway_ippkt_bytes_received_total",
 		Help:   "Total IP packet bytes received from remote gateways.",
-		Labels: []string{"remote_isd_as"},
+		Labels: []string{"isd_as", "remote_isd_as"},
 	}
 	IPPktsReceivedTotalMeta = MetricMeta{
 		Name:   "gateway_ippkts_received_total",
 		Help:   "Total number of IP packets received from remote gateways.",
-		Labels: []string{"remote_isd_as"},
+		Labels: []string{"isd_as", "remote_isd_as"},
 	}
 	IPPktBytesLocalSentTotalMeta = MetricMeta{
 		Name:   "gateway_ippkt_bytes_local_sent_total",
 		Help:   "Total IP packet bytes sent to the local network.",
-		Labels: []string{},
+		Labels: []string{"isd_as"},
 	}
 	IPPktsLocalSentTotalMeta = MetricMeta{
 		Name:   "gateway_ippkts_local_sent_total",
 		Help:   "Total number of IP packets sent to the local network.",
-		Labels: []string{},
+		Labels: []string{"isd_as"},
 	}
 	IPPktBytesLocalReceivedTotalMeta = MetricMeta{
 		Name:   "gateway_ippkt_bytes_local_received_total",
 		Help:   "Total IP packet bytes received from the local network.",
-		Labels: []string{},
+		Labels: []string{"isd_as"},
 	}
 	IPPktsLocalReceivedTotalMeta = MetricMeta{
 		Name:   "gateway_ippkts_local_received_total",
 		Help:   "Total number of IP packets received from the local network.",
-		Labels: []string{},
+		Labels: []string{"isd_as"},
 	}
 	FrameBytesSentTotalMeta = MetricMeta{
 		Name:   "gateway_frame_bytes_sent_total",
 		Help:   "Total frame bytes sent to remote gateways.",
-		Labels: []string{"remote_isd_as", "policy_id"},
+		Labels: []string{"isd_as", "remote_isd_as", "policy_id"},
 	}
 	FramesSentTotalMeta = MetricMeta{
 		Name:   "gateway_frames_sent_total",
 		Help:   "Total number of frames sent to remote gateways.",
-		Labels: []string{"remote_isd_as", "policy_id"},
+		Labels: []string{"isd_as", "remote_isd_as", "policy_id"},
 	}
 	FrameBytesReceivedTotalMeta = MetricMeta{
 		Name:   "gateway_frame_bytes_received_total",
 		Help:   "gateway_frame_bytes_received_total",
-		Labels: []string{"remote_isd_as"},
+		Labels: []string{"isd_as", "remote_isd_as"},
 	}
 	FramesReceivedTotalMeta = MetricMeta{
 		Name:   "gateway_frames_received_total",
 		Help:   "Total number of frames received from remote gateways.",
-		Labels: []string{"remote_isd_as"},
+		Labels: []string{"isd_as", "remote_isd_as"},
 	}
 	FramesDiscardedTotalMeta = MetricMeta{
 		Name:   "gateway_frames_discarded_total",
 		Help:   "Total number of discarded frames received from remote gateways.",
-		Labels: []string{"remote_isd_as", "reason"},
+		Labels: []string{"isd_as", "remote_isd_as", "reason"},
 	}
 	IPPktsDiscardedTotalMeta = MetricMeta{
 		Name:   "gateway_ippkts_discarded_total",
 		Help:   "Total number of discarded IP packets received from the local network.",
-		Labels: []string{"reason"},
+		Labels: []string{"isd_as", "reason"},
 	}
 	SendExternalErrorsTotalMeta = MetricMeta{
 		Name:   "gateway_send_external_errors_total",
 		Help:   "Total number of errors when sending frames to the network (WAN).",
-		Labels: []string{},
+		Labels: []string{"isd_as"},
 	}
 	SendLocalErrorsTotalMeta = MetricMeta{
 		Name:   "gateway_send_local_errors_total",
 		Help:   "Total number of errors when sending IP packets to the network (LAN).",
-		Labels: []string{},
+		Labels: []string{"isd_as"},
 	}
 	ReceiveExternalErrorsTotalMeta = MetricMeta{
 		Name:   "gateway_receive_external_errors_total",
 		Help:   "Total number of errors when receiving frames from the network (WAN).",
-		Labels: []string{},
+		Labels: []string{"isd_as"},
 	}
 	ReceiveLocalErrorsTotalMeta = MetricMeta{
 		Name:   "gateway_receive_local_errors_total",
 		Help:   "Total number of errors when receiving IP packets from the network (LAN).",
-		Labels: []string{},
+		Labels: []string{"isd_as"},
 	}
 	PathsMonitoredMeta = MetricMeta{
 		Name:   "gateway_paths_monitored",
 		Help:   "Total number of paths being monitored by the gateway.",
-		Labels: []string{"remote_isd_as"},
+		Labels: []string{"isd_as", "remote_isd_as"},
 	}
 	PathProbesSentMeta = MetricMeta{
 		Name:   "gateway_path_probes_sent",
 		Help:   "Number of path probes being sent.",
-		Labels: []string{"remote_isd_as"},
+		Labels: []string{"isd_as", "remote_isd_as"},
 	}
 	PathProbesReceivedMeta = MetricMeta{
 		Name:   "gateway_path_probes_received",
 		Help:   "Number of replies to the path probes being received.",
-		Labels: []string{"remote_isd_as"},
+		Labels: []string{"isd_as", "remote_isd_as"},
 	}
 	SessionProbesMeta = MetricMeta{
 		Name:   "gateway_session_probes",
 		Help:   "Number of probes sent per session.",
-		Labels: []string{"remote_isd_as", "session_id", "policy_id"},
+		Labels: []string{"isd_as", "remote_isd_as", "session_id", "policy_id"},
 	}
 	SessionProbeRepliesMeta = MetricMeta{
 		Name:   "gateway_session_probe_replies",
 		Help:   "Number of probes received per session.",
-		Labels: []string{"remote_isd_as", "session_id", "policy_id"},
+		Labels: []string{"isd_as", "remote_isd_as", "session_id", "policy_id"},
 	}
 	SessionIsHealthyMeta = MetricMeta{
 		Name:   "gateway_session_is_healthy",
 		Help:   "Flag reflecting session healthiness.",
-		Labels: []string{"remote_isd_as", "session_id", "policy_id"},
+		Labels: []string{"isd_as", "remote_isd_as", "session_id", "policy_id"},
 	}
 	SessionPathsAvailableMeta = MetricMeta{
 		Name:   "gateway_session_paths_available",
 		Help:   "Total number of paths available per session policy.",
-		Labels: []string{"remote_isd_as", "policy_id", "status"},
+		Labels: []string{"isd_as", "remote_isd_as", "policy_id", "status"},
 	}
 	RemotesMeta = MetricMeta{
 		Name:   "gateway_remotes",
 		Help:   "Total number of discovered remote gateways.",
-		Labels: []string{"remote_isd_as"},
+		Labels: []string{"isd_as", "remote_isd_as"},
 	}
 	PrefixesAdvertisedMeta = MetricMeta{
 		Name:   "gateway_prefixes_advertised",
 		Help:   "Total number of advertised IP prefixes (outgoing).",
-		Labels: []string{"remote_isd_as"},
+		Labels: []string{"isd_as", "remote_isd_as"},
 	}
 	PrefixesAcceptedMeta = MetricMeta{
 		Name:   "gateway_prefixes_accepted",
 		Help:   "Total number of accepted IP prefixes (incoming).",
-		Labels: []string{"remote_isd_as"},
+		Labels: []string{"isd_as", "remote_isd_as"},
 	}
 	PrefixesRejectedMeta = MetricMeta{
 		Name:   "gateway_prefixes_rejected",
 		Help:   "Total number of rejected IP prefixes (incoming).",
-		Labels: []string{"remote_isd_as"},
+		Labels: []string{"isd_as", "remote_isd_as"},
 	}
 )
 
@@ -234,39 +239,80 @@ type Metrics struct {
 	SessionProbes       *prometheus.CounterVec
 	SessionProbeReplies *prometheus.CounterVec
 	SessionIsHealthy    *prometheus.GaugeVec
+
+	// Scion Network Metrics
+	SCIONNetworkMetrics    snet.SCIONNetworkMetrics
+	SCMPErrors             metrics.Counter
+	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 }
 
 // NewMetrics initializes the metrics for the gateway and registers them with the default registry.
-func NewMetrics() *Metrics {
+func NewMetrics(ia addr.IA) *Metrics {
+	labels := map[string]string{
+		"isd_as": ia.String(),
+	}
+	scionPacketConnMetrics := snetmetrics.NewSCIONPacketConnMetrics()
 	return &Metrics{
-		IPPktBytesSentTotal:          IPPktBytesSentTotalMeta.NewCounterVec(),
-		IPPktsSentTotal:              IPPktsSentTotalMeta.NewCounterVec(),
-		IPPktBytesReceivedTotal:      IPPktBytesReceivedTotalMeta.NewCounterVec(),
-		IPPktsReceivedTotal:          IPPktsReceivedTotalMeta.NewCounterVec(),
-		IPPktBytesLocalSentTotal:     IPPktBytesLocalSentTotalMeta.NewCounterVec(),
-		IPPktsLocalSentTotal:         IPPktsLocalSentTotalMeta.NewCounterVec(),
-		IPPktBytesLocalReceivedTotal: IPPktBytesLocalReceivedTotalMeta.NewCounterVec(),
-		IPPktsLocalReceivedTotal:     IPPktsLocalReceivedTotalMeta.NewCounterVec(),
-		FrameBytesSentTotal:          FrameBytesSentTotalMeta.NewCounterVec(),
-		FramesSentTotal:              FramesSentTotalMeta.NewCounterVec(),
-		FrameBytesReceivedTotal:      FrameBytesReceivedTotalMeta.NewCounterVec(),
-		FramesReceivedTotal:          FramesReceivedTotalMeta.NewCounterVec(),
-		FramesDiscardedTotal:         FramesDiscardedTotalMeta.NewCounterVec(),
-		IPPktsDiscardedTotal:         IPPktsDiscardedTotalMeta.NewCounterVec(),
-		SendExternalErrorsTotal:      SendExternalErrorsTotalMeta.NewCounterVec(),
-		SendLocalErrorsTotal:         SendLocalErrorsTotalMeta.NewCounterVec(),
-		ReceiveExternalErrorsTotal:   ReceiveExternalErrorsTotalMeta.NewCounterVec(),
-		ReceiveLocalErrorsTotal:      ReceiveLocalErrorsTotalMeta.NewCounterVec(),
-		PathsMonitored:               PathsMonitoredMeta.NewGaugeVec(),
-		PathProbesSent:               PathProbesSentMeta.NewCounterVec(),
-		PathProbesReceived:           PathProbesReceivedMeta.NewCounterVec(),
-		SessionIsHealthy:             SessionIsHealthyMeta.NewGaugeVec(),
-		SessionProbes:                SessionProbesMeta.NewCounterVec(),
-		SessionProbeReplies:          SessionProbeRepliesMeta.NewCounterVec(),
-		SessionPathsAvailable:        SessionPathsAvailableMeta.NewGaugeVec(),
-		Remotes:                      RemotesMeta.NewGaugeVec(),
-		PrefixesAdvertised:           PrefixesAdvertisedMeta.NewGaugeVec(),
-		PrefixesAccepted:             PrefixesAcceptedMeta.NewGaugeVec(),
-		PrefixesRejected:             PrefixesRejectedMeta.NewGaugeVec(),
+		IPPktBytesSentTotal: IPPktBytesSentTotalMeta.
+			NewCounterVec().MustCurryWith(labels),
+		IPPktsSentTotal: IPPktsSentTotalMeta.
+			NewCounterVec().MustCurryWith(labels),
+		IPPktBytesReceivedTotal: IPPktBytesReceivedTotalMeta.
+			NewCounterVec().MustCurryWith(labels),
+		IPPktsReceivedTotal: IPPktsReceivedTotalMeta.
+			NewCounterVec().MustCurryWith(labels),
+		IPPktBytesLocalSentTotal: IPPktBytesLocalSentTotalMeta.
+			NewCounterVec().MustCurryWith(labels),
+		IPPktsLocalSentTotal: IPPktsLocalSentTotalMeta.
+			NewCounterVec().MustCurryWith(labels),
+		IPPktBytesLocalReceivedTotal: IPPktBytesLocalReceivedTotalMeta.
+			NewCounterVec().MustCurryWith(labels),
+		IPPktsLocalReceivedTotal: IPPktsLocalReceivedTotalMeta.
+			NewCounterVec().MustCurryWith(labels),
+		FrameBytesSentTotal: FrameBytesSentTotalMeta.
+			NewCounterVec().MustCurryWith(labels),
+		FramesSentTotal: FramesSentTotalMeta.
+			NewCounterVec().MustCurryWith(labels),
+		FrameBytesReceivedTotal: FrameBytesReceivedTotalMeta.
+			NewCounterVec().MustCurryWith(labels),
+		FramesReceivedTotal: FramesReceivedTotalMeta.
+			NewCounterVec().MustCurryWith(labels),
+		FramesDiscardedTotal: FramesDiscardedTotalMeta.
+			NewCounterVec().MustCurryWith(labels),
+		IPPktsDiscardedTotal: IPPktsDiscardedTotalMeta.
+			NewCounterVec().MustCurryWith(labels),
+		SendExternalErrorsTotal: SendExternalErrorsTotalMeta.
+			NewCounterVec().MustCurryWith(labels),
+		SendLocalErrorsTotal: SendLocalErrorsTotalMeta.
+			NewCounterVec().MustCurryWith(labels),
+		ReceiveExternalErrorsTotal: ReceiveExternalErrorsTotalMeta.
+			NewCounterVec().MustCurryWith(labels),
+		ReceiveLocalErrorsTotal: ReceiveLocalErrorsTotalMeta.
+			NewCounterVec().MustCurryWith(labels),
+		PathsMonitored: PathsMonitoredMeta.
+			NewGaugeVec().MustCurryWith(labels),
+		PathProbesSent: PathProbesSentMeta.
+			NewCounterVec().MustCurryWith(labels),
+		PathProbesReceived: PathProbesReceivedMeta.
+			NewCounterVec().MustCurryWith(labels),
+		SessionIsHealthy: SessionIsHealthyMeta.
+			NewGaugeVec().MustCurryWith(labels),
+		SessionProbes: SessionProbesMeta.
+			NewCounterVec().MustCurryWith(labels),
+		SessionProbeReplies: SessionProbeRepliesMeta.
+			NewCounterVec().MustCurryWith(labels),
+		SessionPathsAvailable: SessionPathsAvailableMeta.
+			NewGaugeVec().MustCurryWith(labels),
+		Remotes: RemotesMeta.
+			NewGaugeVec().MustCurryWith(labels),
+		PrefixesAdvertised: PrefixesAdvertisedMeta.
+			NewGaugeVec().MustCurryWith(labels),
+		PrefixesAccepted: PrefixesAcceptedMeta.
+			NewGaugeVec().MustCurryWith(labels),
+		PrefixesRejected: PrefixesRejectedMeta.
+			NewGaugeVec().MustCurryWith(labels),
+		SCIONNetworkMetrics:    snetmetrics.NewSCIONNetworkMetrics(),
+		SCMPErrors:             scionPacketConnMetrics.SCMPErrors,
+		SCIONPacketConnMetrics: scionPacketConnMetrics,
 	}
 }

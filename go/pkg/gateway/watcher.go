@@ -32,12 +32,15 @@ type fetcherFactory struct {
 	wf     *WatcherFactory
 }
 
-func (f fetcherFactory) NewPrefixFetcher(gateway control.Gateway) control.PrefixFetcher {
+func (f fetcherFactory) NewPrefixFetcher(ctx context.Context,
+	gateway control.Gateway) control.PrefixFetcher {
+
 	return &prefixFetcher{
 		PrefixFetcher: &controlgrpc.PrefixFetcher{
 			Remote: f.remote,
 			Dialer: f.wf.Dialer,
 			Pather: f.wf.PathMonitor.Register(
+				ctx,
 				f.remote,
 				&policies.Policies{
 					PathPolicy: control.PathPolicyWithAllowedInterfaces(
@@ -84,36 +87,40 @@ type WatcherFactory struct {
 }
 
 func (wf *WatcherFactory) New(
+	ctx context.Context,
 	remote addr.IA,
 	metrics control.GatewayWatcherMetrics,
 ) control.Runner {
 
-	pather := wf.PathMonitor.Register(remote, wf.Policies, "gateway-watcher")
-	watcher := &control.GatewayWatcher{
-		Remote: remote,
-		Discoverer: controlgrpc.Discoverer{
+	pather := wf.PathMonitor.Register(ctx, remote, wf.Policies, "gateway-watcher")
+	return &watcherWrapper{
+		GatewayWatcher: control.GatewayWatcher{
 			Remote: remote,
-			Dialer: wf.Dialer,
-			Paths:  pather,
-		},
-		Template: control.PrefixWatcherConfig{
-			Consumer: wf.Aggregator,
-			FetcherFactory: fetcherFactory{
-				remote: remote,
-				wf:     wf,
+			Discoverer: controlgrpc.Discoverer{
+				Remote: remote,
+				Dialer: wf.Dialer,
+				Paths:  pather,
 			},
+			Template: control.PrefixWatcherConfig{
+				Consumer: wf.Aggregator,
+				FetcherFactory: fetcherFactory{
+					remote: remote,
+					wf:     wf,
+				},
+			},
+			Metrics: metrics,
 		},
-		Metrics: metrics,
+		pather: pather,
 	}
-	return runnerFunc(func(ctx context.Context) error {
-		err := watcher.Run(ctx)
-		pather.Close()
-		return err
-	})
 }
 
-type runnerFunc func(ctx context.Context) error
+type watcherWrapper struct {
+	control.GatewayWatcher
+	pather control.PathMonitorRegistration
+}
 
-func (f runnerFunc) Run(ctx context.Context) error {
-	return f(ctx)
+func (w *watcherWrapper) Run(ctx context.Context) error {
+	err := w.GatewayWatcher.Run(ctx)
+	w.pather.Close()
+	return err
 }

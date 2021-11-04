@@ -15,6 +15,7 @@
 package control_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -47,10 +48,10 @@ func TestEngineControllerRun(t *testing.T) {
 		}
 
 		go func() {
-			engineController.Run()
+			engineController.Run(context.Background())
 		}()
 		time.Sleep(50 * time.Millisecond)
-		err := engineController.Run()
+		err := engineController.Run(context.Background())
 		assert.Error(t, err)
 	})
 
@@ -69,7 +70,7 @@ func TestEngineControllerRun(t *testing.T) {
 			EngineFactory:       engineFactory,
 		}
 
-		err := engineController.Run()
+		err := engineController.Run(context.Background())
 		assert.Error(t, err)
 	})
 
@@ -88,7 +89,7 @@ func TestEngineControllerRun(t *testing.T) {
 			EngineFactory:        engineFactory,
 		}
 
-		err := engineController.Run()
+		err := engineController.Run(context.Background())
 		assert.Error(t, err)
 	})
 
@@ -107,7 +108,7 @@ func TestEngineControllerRun(t *testing.T) {
 			EngineFactory:        engineFactory,
 		}
 
-		err := engineController.Run()
+		err := engineController.Run(context.Background())
 		assert.Error(t, err)
 	})
 
@@ -126,7 +127,7 @@ func TestEngineControllerRun(t *testing.T) {
 			RoutingTableFactory:  routingTableFactory,
 		}
 
-		err := engineController.Run()
+		err := engineController.Run(context.Background())
 		assert.Error(t, err)
 	})
 }

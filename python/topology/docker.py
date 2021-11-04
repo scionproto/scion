@@ -210,7 +210,7 @@ class DockerGenerator(object):
             entry = copy.deepcopy(base_entry)
             net_key = disp_id
             if disp_id.startswith('br'):
-                net_key = disp_id + '_ctrl'
+                net_key = disp_id + '_internal'
                 # add data networks:
                 for net in self.elem_networks[disp_id]:
                     ipv = 'ipv4'

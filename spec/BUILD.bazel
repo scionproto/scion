@@ -1,19 +1,25 @@
-load("@com_github_scionproto_scion//spec:spec.bzl", "generate_boilerplate")
+load("@com_github_scionproto_scion//rules_openapi:defs.bzl", "openapi_bundle")
 
-generate_boilerplate(
+openapi_bundle(
     name = "control",
-    out = "go/pkg/cs/api",
-    client = False,
+    srcs = [
+        "//spec/common:base.yml",
+        "//spec/common:process.yml",
+        "//spec/control:segments.yml",
+        "//spec/control:trust.yml",
+    ],
+    entrypoint = "//spec/control:spec.yml",
+    visibility = ["//visibility:public"],
 )
 
-generate_boilerplate(
+openapi_bundle(
     name = "ca",
-    out = "go/pkg/ca/api",
-    server = False,
-    spec = False,
+    srcs = [
+        "//spec/ca:auth.yml",
+        "//spec/ca:health.yml",
+        "//spec/ca:problem.yml",
+        "//spec/ca:ra.yml",
+    ],
+    entrypoint = "//spec/ca:spec.yml",
+    visibility = ["//visibility:public"],
 )
-
-exports_files([
-    "control.gen.yml",
-    "ca.gen.yml",
-])

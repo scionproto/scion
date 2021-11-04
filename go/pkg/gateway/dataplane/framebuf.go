@@ -16,6 +16,7 @@
 package dataplane
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 
@@ -107,7 +108,8 @@ func (fb *frameBuf) Release() {
 
 // ProcessCompletePkts write all complete packets in the frame to the wire and
 // sets the correct metadata in case there is a fragment at the end of the frame.
-func (fb *frameBuf) ProcessCompletePkts() {
+func (fb *frameBuf) ProcessCompletePkts(ctx context.Context) {
+	logger := log.FromCtx(ctx)
 	if fb.completePktsProcessed || fb.index == 0xffff {
 		fb.completePktsProcessed = true
 		return
@@ -146,7 +148,7 @@ func (fb *frameBuf) ProcessCompletePkts() {
 		}
 		// We got everything for the packet. Write it out to the wire.
 		if err := fb.snd.send(rawPkt[:pktLen]); err != nil {
-			log.Error("Unable to send packet", "err", err)
+			logger.Error("Unable to send packet", "err", err)
 		}
 		offset += pktLen
 	}

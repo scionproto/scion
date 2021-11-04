@@ -11,7 +11,6 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
 	common "github.com/scionproto/scion/go/lib/common"
-	snet "github.com/scionproto/scion/go/lib/snet"
 	topology "github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -108,20 +107,6 @@ func (m *MockTopology) Core() bool {
 func (mr *MockTopologyMockRecorder) Core() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Core", reflect.TypeOf((*MockTopology)(nil).Core))
-}
-
-// Exists mocks base method.
-func (m *MockTopology) Exists(arg0 addr.HostSVC, arg1 string) bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Exists", arg0, arg1)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// Exists indicates an expected call of Exists.
-func (mr *MockTopologyMockRecorder) Exists(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockTopology)(nil).Exists), arg0, arg1)
 }
 
 // Gateways mocks base method.
@@ -239,20 +224,6 @@ func (mr *MockTopologyMockRecorder) PublicAddress(arg0, arg1 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublicAddress", reflect.TypeOf((*MockTopology)(nil).PublicAddress), arg0, arg1)
 }
 
-// SBRAddress mocks base method.
-func (m *MockTopology) SBRAddress(arg0 string) *snet.UDPAddr {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SBRAddress", arg0)
-	ret0, _ := ret[0].(*snet.UDPAddr)
-	return ret0
-}
-
-// SBRAddress indicates an expected call of SBRAddress.
-func (mr *MockTopologyMockRecorder) SBRAddress(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SBRAddress", reflect.TypeOf((*MockTopology)(nil).SBRAddress), arg0)
-}
-
 // SVCNames mocks base method.
 func (m *MockTopology) SVCNames(arg0 addr.HostSVC) topology.ServiceNames {
 	m.ctrl.T.Helper()
@@ -280,21 +251,6 @@ func (m *MockTopology) UnderlayAnycast(arg0 addr.HostSVC) (*net.UDPAddr, error) 
 func (mr *MockTopologyMockRecorder) UnderlayAnycast(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnderlayAnycast", reflect.TypeOf((*MockTopology)(nil).UnderlayAnycast), arg0)
-}
-
-// UnderlayByName mocks base method.
-func (m *MockTopology) UnderlayByName(arg0 addr.HostSVC, arg1 string) (*net.UDPAddr, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UnderlayByName", arg0, arg1)
-	ret0, _ := ret[0].(*net.UDPAddr)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// UnderlayByName indicates an expected call of UnderlayByName.
-func (mr *MockTopologyMockRecorder) UnderlayByName(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnderlayByName", reflect.TypeOf((*MockTopology)(nil).UnderlayByName), arg0, arg1)
 }
 
 // UnderlayMulticast mocks base method.
@@ -325,21 +281,6 @@ func (m *MockTopology) UnderlayNextHop(arg0 common.IFIDType) (*net.UDPAddr, bool
 func (mr *MockTopologyMockRecorder) UnderlayNextHop(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnderlayNextHop", reflect.TypeOf((*MockTopology)(nil).UnderlayNextHop), arg0)
-}
-
-// UnderlayNextHop2 mocks base method.
-func (m *MockTopology) UnderlayNextHop2(arg0 common.IFIDType) (*net.UDPAddr, bool) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UnderlayNextHop2", arg0)
-	ret0, _ := ret[0].(*net.UDPAddr)
-	ret1, _ := ret[1].(bool)
-	return ret0, ret1
-}
-
-// UnderlayNextHop2 indicates an expected call of UnderlayNextHop2.
-func (mr *MockTopologyMockRecorder) UnderlayNextHop2(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnderlayNextHop2", reflect.TypeOf((*MockTopology)(nil).UnderlayNextHop2), arg0)
 }
 
 // Writable mocks base method.

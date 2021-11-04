@@ -15,6 +15,7 @@
 package worker_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -107,23 +108,23 @@ type testWorker struct {
 }
 
 func (w *testWorker) Run() error {
-	return w.wb.RunWrapper(w.setup, w.run)
+	return w.wb.RunWrapper(context.Background(), w.setup, w.run)
 }
 
-func (w *testWorker) setup() error {
+func (w *testWorker) setup(ctx context.Context) error {
 	return nil
 }
 
-func (w *testWorker) run() error {
+func (w *testWorker) run(ctx context.Context) error {
 	<-w.wb.GetDoneChan()
 	return nil
 }
 
 func (w *testWorker) Close() error {
-	return w.wb.CloseWrapper(w.close)
+	return w.wb.CloseWrapper(context.Background(), w.close)
 }
 
-func (w *testWorker) close() error {
+func (w *testWorker) close(ctx context.Context) error {
 	return nil
 }
 
@@ -132,9 +133,9 @@ type nilTestWorker struct {
 }
 
 func (w *nilTestWorker) Run() error {
-	return w.wb.RunWrapper(nil, nil)
+	return w.wb.RunWrapper(context.Background(), nil, nil)
 }
 
 func (w *nilTestWorker) Close() error {
-	return w.wb.CloseWrapper(nil)
+	return w.wb.CloseWrapper(context.Background(), nil)
 }

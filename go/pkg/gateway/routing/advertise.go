@@ -41,7 +41,7 @@ func extractList(pol *Policy, from, to addr.IA, action Action) []*net.IPNet {
 		if r.Action != action || !r.From.Match(from) || !r.To.Match(to) {
 			continue
 		}
-		m, ok := r.Network.(allowedNetworkMatcher)
+		m, ok := r.Network.(AllowedNetworkMatcher)
 		if !ok {
 			continue
 		}
@@ -60,7 +60,7 @@ func StaticAdvertised(pol *Policy) []*net.IPNet {
 		if r.Action != Advertise {
 			continue
 		}
-		m, ok := r.Network.(allowedNetworkMatcher)
+		m, ok := r.Network.(AllowedNetworkMatcher)
 		if !ok {
 			continue
 		}

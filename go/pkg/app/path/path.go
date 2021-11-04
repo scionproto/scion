@@ -117,10 +117,11 @@ func filterUnhealthy(
 	subCtx, cancelF := context.WithTimeout(ctx, 2*time.Second)
 	defer cancelF()
 	statuses, err := pathprobe.Prober{
-		DstIA:   remote,
-		LocalIA: cfg.LocalIA,
-		LocalIP: cfg.LocalIP,
-		ID:      uint16(rand.Uint32()),
+		DstIA:                  remote,
+		LocalIA:                cfg.LocalIA,
+		LocalIP:                cfg.LocalIP,
+		ID:                     uint16(rand.Uint32()),
+		SCIONPacketConnMetrics: cfg.SCIONPacketConnMetrics,
 	}.GetStatuses(subCtx, nonEmptyPaths)
 	if err != nil {
 		return nil, serrors.WrapStr("probing paths", err)
@@ -282,6 +283,8 @@ func (cs ColorScheme) Path(path snet.Path) string {
 type ProbeConfig struct {
 	LocalIA addr.IA
 	LocalIP net.IP
+	// Metrics injected into Prober.
+	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 }
 
 type options struct {
@@ -295,7 +298,7 @@ type options struct {
 type Option func(o *options)
 
 func applyOption(opts []Option) options {
-	o := options{}
+	var o options
 	for _, option := range opts {
 		option(&o)
 	}

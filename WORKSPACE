@@ -1,7 +1,10 @@
-workspace(name = "com_github_scionproto_scion")
+workspace(
+    name = "com_github_scionproto_scion",
+    managed_directories = {
+        "@rules_openapi_npm": ["rules_openapi/tools/node_modules"],
+    },
+)
 
-# Generic stuff for dealing with repositories.
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
 
 # linter rules
@@ -29,10 +32,10 @@ lint_setup({
 # Bazel rules for Golang
 http_archive(
     name = "io_bazel_rules_go",
-    sha256 = "69de5c704a05ff37862f7e0f5534d4f479418afc21806c887db544a316f3cb6b",
+    sha256 = "2b1641428dff9018f9e85c0384f03ec6c10660d935b750e3fa1492a281a53b0f",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.27.0/rules_go-v0.27.0.tar.gz",
-        "https://github.com/bazelbuild/rules_go/releases/download/v0.27.0/rules_go-v0.27.0.tar.gz",
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.29.0/rules_go-v0.29.0.zip",
+        "https://github.com/bazelbuild/rules_go/releases/download/v0.29.0/rules_go-v0.29.0.zip",
     ],
 )
 
@@ -40,30 +43,21 @@ load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_depe
 
 go_register_toolchains(
     nogo = "@//:nogo",
-    version = "1.16.6",
+    version = "1.16.8",
 )
 
 # Gazelle
 http_archive(
     name = "bazel_gazelle",
-    sha256 = "62ca106be173579c0a167deb23358fdfe71ffa1e4cfdddf5582af26520f1c66f",
+    sha256 = "de69a09dc70417580aabf20a28619bb3ef60d038470c7cf8442fafcf627c21cb",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.23.0/bazel-gazelle-v0.23.0.tar.gz",
-        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.23.0/bazel-gazelle-v0.23.0.tar.gz",
+        "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.24.0/bazel-gazelle-v0.24.0.tar.gz",
+        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.24.0/bazel-gazelle-v0.24.0.tar.gz",
     ],
 )
 
 load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
 load("//:tool_deps.bzl", "tool_deps")
-
-# override dependency version set in go_rules_dependencies.
-# See https://github.com/bazelbuild/rules_go/blob/master/go/dependencies.rst#overriding-dependencies.
-go_repository(
-    name = "org_golang_x_sys",
-    importpath = "golang.org/x/sys",
-    sum = "h1:gG67DSER+11cZvqIMb8S8bt0vZtiN6xWYARwirrOSfE=",
-    version = "v0.0.0-20210510120138-977fb7262007",
-)
 
 go_rules_dependencies()
 
@@ -119,9 +113,9 @@ rules_antlr_dependencies("4.7.2")
 
 http_archive(
     name = "io_bazel_rules_docker",
-    sha256 = "59d5b42ac315e7eadffa944e86e90c2990110a1c8075f1cd145f487e999d22b3",
-    strip_prefix = "rules_docker-0.17.0",
-    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.17.0/rules_docker-v0.17.0.tar.gz"],
+    sha256 = "1f4e59843b61981a96835dc4ac377ad4da9f8c334ebe5e0bb3f58f80c09735f4",
+    strip_prefix = "rules_docker-0.19.0",
+    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.19.0/rules_docker-v0.19.0.tar.gz"],
 )
 
 load("@io_bazel_rules_docker//repositories:repositories.bzl", container_repositories = "repositories")
@@ -259,3 +253,20 @@ bbcp_repository()
 load("//lint/private/python:deps.bzl", "python_lint_deps")
 
 python_lint_deps()
+
+load("//rules_openapi:dependencies.bzl", "rules_openapi_dependencies")
+
+rules_openapi_dependencies()
+
+load("//rules_openapi:install.bzl", "rules_openapi_install_yarn_dependencies")
+
+rules_openapi_install_yarn_dependencies()
+
+# TODO(lukedirtwalker): can that be integrated in the rules_openapi_dependencies
+# call above somehow?
+load(
+    "@cgrindel_rules_updatesrc//updatesrc:deps.bzl",
+    "updatesrc_rules_dependencies",
+)
+
+updatesrc_rules_dependencies()

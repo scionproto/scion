@@ -15,6 +15,7 @@
 package control
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net"
@@ -42,7 +43,7 @@ var (
 type LegacySessionPolicyAdapter struct{}
 
 // Parse parses the raw JSON into a SessionPolicies struct.
-func (LegacySessionPolicyAdapter) Parse(raw []byte) (SessionPolicies, error) {
+func (LegacySessionPolicyAdapter) Parse(ctx context.Context, raw []byte) (SessionPolicies, error) {
 	type JSONFormat struct {
 		ASes map[addr.IA]struct {
 			Nets      []string
@@ -94,7 +95,7 @@ func parsePrefixes(rawNets []string) ([]*net.IPNet, error) {
 
 // SessionPolicyParser parses a raw session policy.
 type SessionPolicyParser interface {
-	Parse([]byte) (SessionPolicies, error)
+	Parse(context.Context, []byte) (SessionPolicies, error)
 }
 
 // SessionPolicies is a list of session policies.
@@ -102,12 +103,14 @@ type SessionPolicies []SessionPolicy
 
 // LoadSessionPolicies loads the session policies from the given file, and
 // parses it with the given parser.
-func LoadSessionPolicies(file string, parser SessionPolicyParser) (SessionPolicies, error) {
+func LoadSessionPolicies(ctx context.Context, file string,
+	parser SessionPolicyParser) (SessionPolicies, error) {
+
 	raw, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil, serrors.WrapStr("reading file", err)
 	}
-	p, err := parser.Parse(raw)
+	p, err := parser.Parse(ctx, raw)
 	if err != nil {
 		return nil, serrors.WithCtx(err, "file", file)
 	}

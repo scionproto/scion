@@ -15,6 +15,7 @@
 package routemgr
 
 import (
+	"context"
 	"encoding/base32"
 	"sync"
 
@@ -133,21 +134,23 @@ func (h *deviceHandle) ioWrapper(f func([]byte) (int, error), b []byte) (int, er
 	return n, err
 }
 
-func (h *deviceHandle) AddRoute(r *control.Route) error {
-	return h.routeWrapper(h.base.AddRoute, r)
+func (h *deviceHandle) AddRoute(ctx context.Context, r *control.Route) error {
+	return h.routeWrapper(ctx, h.base.AddRoute, r)
 }
 
-func (h *deviceHandle) DeleteRoute(r *control.Route) error {
-	return h.routeWrapper(h.base.DeleteRoute, r)
+func (h *deviceHandle) DeleteRoute(ctx context.Context, r *control.Route) error {
+	return h.routeWrapper(ctx, h.base.DeleteRoute, r)
 }
 
 // ioWrapper is a type-safe invoker of route creation/deletion ops. It calls f
 // on r and returns the result.
-func (h *deviceHandle) routeWrapper(f func(*control.Route) error, r *control.Route) error {
+func (h *deviceHandle) routeWrapper(ctx context.Context,
+	f func(context.Context, *control.Route) error, r *control.Route) error {
+
 	if h.destroyed() {
 		return control.ObjectDestroyedError
 	}
-	err := f(r)
+	err := f(ctx, r)
 	if err != nil && h.destroyed() {
 		return serrors.Wrap(control.ObjectDestroyedError, err)
 	}
@@ -166,7 +169,7 @@ type SingleDeviceManager struct {
 // Get returns a handle to the device for the ISD-AS. If no device exists, one will be created.
 // If a device already exists, a handle to the existing device is returned. The caller must
 // Close the handle to guarantee that resources will be cleaned up.
-func (m *SingleDeviceManager) Get(ia addr.IA) (control.DeviceHandle, error) {
+func (m *SingleDeviceManager) Get(ctx context.Context, ia addr.IA) (control.DeviceHandle, error) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
@@ -179,7 +182,7 @@ func (m *SingleDeviceManager) Get(ia addr.IA) (control.DeviceHandle, error) {
 		return m.device, nil
 	}
 
-	device, err := m.DeviceOpener.Open(ia)
+	device, err := m.DeviceOpener.Open(ctx, ia)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +205,7 @@ type MultiDeviceManager struct {
 //
 // Devices are created with a name composed of the default tunnel device prefix and
 // an unpadded base32 representation of the ISD-AS.
-func (m *MultiDeviceManager) Get(ia addr.IA) (control.DeviceHandle, error) {
+func (m *MultiDeviceManager) Get(ctx context.Context, ia addr.IA) (control.DeviceHandle, error) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
@@ -215,7 +218,7 @@ func (m *MultiDeviceManager) Get(ia addr.IA) (control.DeviceHandle, error) {
 	}
 
 	if m.devices[ia] == nil || m.devices[ia].destroyed() {
-		device, err := m.DeviceOpener.Open(ia)
+		device, err := m.DeviceOpener.Open(ctx, ia)
 		if err != nil {
 			return nil, err
 		}

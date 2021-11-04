@@ -16,6 +16,7 @@ package dataplane_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -46,7 +47,7 @@ func TestIPForwarderRun(t *testing.T) {
 		ipForwarder := &dataplane.IPForwarder{
 			Reader: mock_io.NewMockReader(ctrl),
 		}
-		err := ipForwarder.Run()
+		err := ipForwarder.Run(context.Background())
 		assert.Error(t, err)
 	})
 
@@ -58,7 +59,7 @@ func TestIPForwarderRun(t *testing.T) {
 		ipForwarder := &dataplane.IPForwarder{
 			RoutingTable: mock_control.NewMockRoutingTable(ctrl),
 		}
-		err := ipForwarder.Run()
+		err := ipForwarder.Run(context.Background())
 		assert.Error(t, err)
 	})
 
@@ -132,7 +133,7 @@ func TestIPForwarderRun(t *testing.T) {
 
 				done := make(chan struct{})
 				go func() {
-					err := ipForwarder.Run()
+					err := ipForwarder.Run(context.Background())
 					require.True(t, errors.Is(err, errDone), err)
 					close(done)
 				}()
@@ -208,7 +209,7 @@ func TestIPForwarderRun(t *testing.T) {
 
 		done := make(chan struct{})
 		go func() {
-			err := ipForwarder.Run()
+			err := ipForwarder.Run(context.Background())
 			require.True(t, errors.Is(err, errDone), err)
 			close(done)
 		}()

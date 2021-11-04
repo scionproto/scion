@@ -17,6 +17,7 @@ package dataplane
 import (
 	"bytes"
 	"container/list"
+	"context"
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/log"
@@ -66,11 +67,12 @@ func newReassemblyList(epoch int, capacity int, s ingressSender,
 // After inserting the frame at the correct position, Insert tries to reassemble packets
 // that involve the newly added frame. Completely processed frames get removed from the
 // list and released to the pool of frame buffers.
-func (l *reassemblyList) Insert(frame *frameBuf) {
+func (l *reassemblyList) Insert(ctx context.Context, frame *frameBuf) {
+	logger := log.FromCtx(ctx)
 	// If this is the first frame, write all complete packets to the wire and
 	// add the frame to the reassembly list if it contains a fragment at the end.
 	if l.entries.Len() == 0 {
-		l.insertFirst(frame)
+		l.insertFirst(ctx, frame)
 		return
 	}
 	first := l.entries.Front()
@@ -85,7 +87,7 @@ func (l *reassemblyList) Insert(frame *frameBuf) {
 	lastFrame := last.Value.(*frameBuf)
 	// Check if the frame is a duplicate.
 	if frame.seqNr >= firstFrame.seqNr && frame.seqNr <= lastFrame.seqNr {
-		log.Debug("Received duplicate frame.", "epoch", l.epoch, "seqNr", frame.seqNr,
+		logger.Debug("Received duplicate frame.", "epoch", l.epoch, "seqNr", frame.seqNr,
 			"currentOldest", firstFrame.seqNr, "currentNewest", lastFrame.seqNr)
 		increaseCounterMetric(l.duplicate, 1)
 		frame.Release()
@@ -94,29 +96,30 @@ func (l *reassemblyList) Insert(frame *frameBuf) {
 	// If there is a gap between this frame and the last in the reassembly list,
 	// remove all packets from the reassembly list and only add this frame.
 	if frame.seqNr > lastFrame.seqNr+1 {
-		log.Debug(fmt.Sprintf("Detected dropped frame(s). Discarding %d frames.", l.entries.Len()),
-			"epoch", l.epoch, "segNr", frame.seqNr, "currentNewest", lastFrame.seqNr)
+		logger.Debug(fmt.Sprintf("Detected dropped frame(s). Discarding %d frames.",
+			l.entries.Len()), "epoch", l.epoch, "segNr", frame.seqNr,
+			"currentNewest", lastFrame.seqNr)
 		increaseCounterMetric(l.evicted, float64(l.entries.Len()))
 		l.removeAll()
-		l.insertFirst(frame)
+		l.insertFirst(ctx, frame)
 		return
 	}
 	// Check if we have capacity.
 	if l.entries.Len() == l.capacity {
-		log.Info("Reassembly list reached maximum capacity", "epoch", l.epoch, "cap", l.capacity)
+		logger.Info("Reassembly list reached maximum capacity", "epoch", l.epoch, "cap", l.capacity)
 		increaseCounterMetric(l.evicted, float64(l.entries.Len()))
 		l.removeAll()
-		l.insertFirst(frame)
+		l.insertFirst(ctx, frame)
 		return
 	}
 	l.entries.PushBack(frame)
-	l.tryReassemble()
+	l.tryReassemble(ctx)
 }
 
 // insertFirst handles the case when the reassembly list is empty and a frame needs
 // to be inserted.
-func (l *reassemblyList) insertFirst(frame *frameBuf) {
-	frame.ProcessCompletePkts()
+func (l *reassemblyList) insertFirst(ctx context.Context, frame *frameBuf) {
+	frame.ProcessCompletePkts(ctx)
 	if frame.frag0Start != 0 {
 		l.entries.PushBack(frame)
 	} else {
@@ -125,7 +128,8 @@ func (l *reassemblyList) insertFirst(frame *frameBuf) {
 }
 
 // tryReassemble checks if a packet can be reassembled from the reassembly list.
-func (l *reassemblyList) tryReassemble() {
+func (l *reassemblyList) tryReassemble(ctx context.Context) {
+	logger := log.FromCtx(ctx)
 	if l.entries.Len() < 2 {
 		return
 	}
@@ -133,7 +137,7 @@ func (l *reassemblyList) tryReassemble() {
 	startFrame := start.Value.(*frameBuf)
 	if startFrame.frag0Start == 0 {
 		// Should never happen.
-		log.Error("First frame in reassembly list does not contain a packet start.",
+		logger.Error("First frame in reassembly list does not contain a packet start.",
 			"frame", startFrame.String())
 		// Safest to remove all frames in the list.
 		increaseCounterMetric(l.evicted, float64(l.entries.Len()))
@@ -155,7 +159,7 @@ func (l *reassemblyList) tryReassemble() {
 			break
 		}
 		if currFrame.index != 0xffff {
-			log.Error("Framing error occurred. Not enough bytes to reassemble packet",
+			logger.Error("Framing error occurred. Not enough bytes to reassemble packet",
 				"startFrame", startFrame.String(), "currFrame", currFrame.String(),
 				"pktLen", startFrame.pktLen)
 			framingError = true
@@ -163,7 +167,7 @@ func (l *reassemblyList) tryReassemble() {
 		}
 	}
 	if canReassemble {
-		l.collectAndWrite()
+		l.collectAndWrite(ctx)
 	} else if framingError {
 		increaseCounterMetric(l.invalid, 1)
 		l.removeBefore(l.entries.Back())
@@ -172,7 +176,8 @@ func (l *reassemblyList) tryReassemble() {
 
 // collectAndWrite reassembles the packet in the reassembly list and writes it
 // out to the buffer. It will also write every complete packet in the last frame.
-func (l *reassemblyList) collectAndWrite() {
+func (l *reassemblyList) collectAndWrite(ctx context.Context) {
+	logger := log.FromCtx(ctx)
 	start := l.entries.Front()
 	startFrame := start.Value.(*frameBuf)
 	// Reset reassembly buffer.
@@ -194,16 +199,16 @@ func (l *reassemblyList) collectAndWrite() {
 	}
 	// Check length of the reassembled packet.
 	if l.buf.Len() != pktLen {
-		log.Error("Packet len for reassembled packet does not match header",
+		logger.Error("Packet len for reassembled packet does not match header",
 			"expected", pktLen, "have", l.buf.Len())
 	} else {
 		// Write the packet to the wire.
 		if err := l.snd.send(l.buf.Bytes()); err != nil {
-			log.Error("Unable to send reassembled packet", "err", err)
+			logger.Error("Unable to send reassembled packet", "err", err)
 		}
 	}
 	// Process the complete packets in the last frame
-	frame.ProcessCompletePkts()
+	frame.ProcessCompletePkts(ctx)
 	// Remove all processed frames from the list.
 	l.removeProcessed()
 }

@@ -90,7 +90,11 @@ func (db *db) InsertTRC(ctx context.Context, trc cppki.SignedTRC) (bool, error) 
 	file := filepath.Join(db.cfg.TRCDir, trcFileName(trc.TRC.ID))
 	if _, statErr := os.Stat(file); errors.Is(statErr, os.ErrNotExist) {
 		if writeErr := ioutil.WriteFile(file, encoded, 0644); writeErr != nil {
-			log.SafeInfo(db.cfg.Logger, "Failed to write TRC to disk", "err", writeErr)
+			log.SafeInfo(db.cfg.Logger, "Failed to write TRC to disk",
+				"err", writeErr,
+				"trc", trc.TRC.ID,
+				"filename", file,
+			)
 			metrics.CounterInc(db.cfg.Metrics.TRCFileWriteErrors)
 		} else {
 			metrics.CounterInc(db.cfg.Metrics.TRCFileWriteSuccesses)

@@ -15,6 +15,7 @@
 package pathhealth
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -26,24 +27,23 @@ import (
 // MemoryRevocationStore holds a list of current revocations. It can be used to
 // determine whether a path goes through interfaces which are revoked.
 type MemoryRevocationStore struct {
-	Logger log.Logger
-
 	mu   sync.RWMutex
 	revs map[snet.PathInterface]*path_mgmt.RevInfo
 }
 
 // AddRevocation adds the revocation to the list of currently active
 // revocations.
-func (s *MemoryRevocationStore) AddRevocation(rev *path_mgmt.RevInfo) {
+func (s *MemoryRevocationStore) AddRevocation(ctx context.Context, rev *path_mgmt.RevInfo) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	logger := log.FromCtx(ctx)
 	if rev == nil {
 		return
 	}
 	iface := snet.PathInterface{IA: rev.RawIsdas.IA(), ID: rev.IfID}
 	if _, ok := s.revs[iface]; !ok {
-		log.SafeDebug(s.Logger, "Revocation added", "isd_as", iface.IA, "intf", iface.ID)
+		logger.Debug("Revocation added", "isd_as", iface.IA, "intf", iface.ID)
 	}
 	if s.revs == nil {
 		s.revs = make(map[snet.PathInterface]*path_mgmt.RevInfo)
@@ -52,14 +52,15 @@ func (s *MemoryRevocationStore) AddRevocation(rev *path_mgmt.RevInfo) {
 }
 
 // Cleanup removes all expired revocations.
-func (s *MemoryRevocationStore) Cleanup() {
+func (s *MemoryRevocationStore) Cleanup(ctx context.Context) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	logger := log.FromCtx(ctx)
 	now := time.Now()
 	for k, rev := range s.revs {
 		if rev.Expiration().Before(now) {
-			log.SafeDebug(s.Logger, "Revocation expired", "isd_as", rev.RawIsdas, "intf", rev.IfID)
+			logger.Debug("Revocation expired", "isd_as", rev.RawIsdas, "intf", rev.IfID)
 			delete(s.revs, k)
 		}
 	}

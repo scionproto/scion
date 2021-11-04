@@ -15,6 +15,7 @@
 package dataplane
 
 import (
+	"context"
 	"net"
 	"testing"
 
@@ -61,7 +62,7 @@ func SendFrame(t *testing.T, w *worker, data []byte) {
 	f := frames[0].(*frameBuf)
 	copy(f.raw, data)
 	f.frameLen = len(data)
-	w.processFrame(f)
+	w.processFrame(context.Background(), f)
 }
 
 func TestParsing(t *testing.T) {

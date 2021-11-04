@@ -131,7 +131,7 @@ func (iac *IACtx) Start(wg *sync.WaitGroup) error {
 	if err := ConfigDataplane(iac.DP, cfg); err != nil {
 		brConfDump, errDump := dumpConfig(cfg)
 		if errDump != nil {
-			brConfDump = serrors.FmtError(errDump)
+			brConfDump = errDump.Error()
 		}
 		return serrors.WrapStr("config setup", err, "config", brConfDump)
 	}

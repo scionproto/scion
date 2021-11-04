@@ -15,6 +15,8 @@
 package config
 
 import (
+	"context"
+
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
@@ -47,24 +49,22 @@ type Loader struct {
 	Trigger <-chan struct{}
 	// SessionPolicyParser is used to parse session policies.
 	SessionPolicyParser control.SessionPolicyParser
-	// Logger is used to log errors, if nil nothing is logged.
-	Logger log.Logger
 
 	workerBase worker.Base
 }
 
 // Run waits on trigger signals, and publishes the newly loaded files on the
 // trigger. This blocks until the Loader is closed.
-func (l *Loader) Run() error {
-	return l.workerBase.RunWrapper(l.validate, l.run)
+func (l *Loader) Run(ctx context.Context) error {
+	return l.workerBase.RunWrapper(ctx, l.validate, l.run)
 }
 
 // Close shuts down this loader.
-func (l *Loader) Close() error {
-	return l.workerBase.CloseWrapper(nil)
+func (l *Loader) Close(ctx context.Context) error {
+	return l.workerBase.CloseWrapper(ctx, nil)
 }
 
-func (l *Loader) validate() error {
+func (l *Loader) validate(ctx context.Context) error {
 	if l.SessionPoliciesFile == "" {
 		return serrors.New("SessionPoliciesFile must be set")
 	}
@@ -80,19 +80,20 @@ func (l *Loader) validate() error {
 	return nil
 }
 
-func (l *Loader) run() error {
+func (l *Loader) run(ctx context.Context) error {
+	logger := log.FromCtx(ctx)
 	for {
 		select {
 		case <-l.Trigger:
-			sp, rp, err := l.loadFiles()
+			sp, rp, err := l.loadFiles(ctx)
 			if err != nil {
-				log.SafeError(l.Logger, "Failed to load files", "err", err)
+				logger.Error("Failed to load files", "err", err)
 			}
 			if sp == nil && rp == nil {
 				continue
 			}
 			l.Publisher.Publish(sp, rp)
-			log.SafeInfo(l.Logger, "Published new configurations",
+			logger.Info("Published new configurations",
 				"session_policies", sp != nil, "routing_policy", rp != nil)
 		case <-l.workerBase.GetDoneChan():
 			return nil
@@ -100,9 +101,9 @@ func (l *Loader) run() error {
 	}
 }
 
-func (l *Loader) loadFiles() (control.SessionPolicies, *routing.Policy, error) {
+func (l *Loader) loadFiles(ctx context.Context) (control.SessionPolicies, *routing.Policy, error) {
 	var errors serrors.List
-	sp, err := control.LoadSessionPolicies(l.SessionPoliciesFile, l.SessionPolicyParser)
+	sp, err := control.LoadSessionPolicies(ctx, l.SessionPoliciesFile, l.SessionPolicyParser)
 	if err != nil {
 		errors = append(errors, serrors.WrapStr("loading session policies", err))
 	}

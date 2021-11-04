@@ -48,32 +48,25 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/snet/internal/metrics"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
 var _ Network = (*SCIONNetwork)(nil)
+
+type SCIONNetworkMetrics struct {
+	// Dials records the total number of Dial calls received by the network.
+	Dials metrics.Counter
+	// Listens records the total number of Listen calls received by the network.
+	Listens metrics.Counter
+}
 
 // SCIONNetwork is the SCION networking context.
 type SCIONNetwork struct {
 	LocalIA    addr.IA
 	Dispatcher PacketDispatcherService
-}
-
-// NewNetwork creates a new networking context.
-func NewNetwork(ia addr.IA, dispatcher reliable.Dispatcher,
-	revHandler RevocationHandler) *SCIONNetwork {
-
-	return &SCIONNetwork{
-		LocalIA: ia,
-		Dispatcher: &DefaultPacketDispatcherService{
-			Dispatcher: dispatcher,
-			SCMPHandler: &DefaultSCMPHandler{
-				RevocationHandler: revHandler,
-			},
-		},
-	}
+	// Metrics holds the metrics emitted by the network.
+	Metrics SCIONNetworkMetrics
 }
 
 // Dial returns a SCION connection to remote. Nil values for listen are not
@@ -87,7 +80,7 @@ func NewNetwork(ia addr.IA, dispatcher reliable.Dispatcher,
 func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDPAddr,
 	remote *UDPAddr, svc addr.HostSVC) (*Conn, error) {
 
-	metrics.M.Dials().Inc()
+	metrics.CounterInc(n.Metrics.Dials)
 	if remote == nil {
 		return nil, serrors.New("Unable to dial to nil remote")
 	}
@@ -109,7 +102,7 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.UDPAddr,
 	svc addr.HostSVC) (*Conn, error) {
 
-	metrics.M.Listens().Inc()
+	metrics.CounterInc(n.Metrics.Listens)
 
 	if network != "udp" {
 		return nil, serrors.New("Unknown network", "network", network)

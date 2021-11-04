@@ -152,6 +152,9 @@ func (s *JWTTokenSource) Token() (*Token, error) {
 	if err := token.Set(jwt.ExpirationKey, issuedAt.Add(lifetime).Unix()); err != nil {
 		return nil, jwtSetError(jwt.ExpirationKey, err)
 	}
+	if err := token.Set(jwt.NotBeforeKey, issuedAt.Unix()); err != nil {
+		return nil, jwtSetError(jwt.NotBeforeKey, err)
+	}
 
 	b, err := jwt.Sign(token, jwa.HS256, key)
 	if err != nil {

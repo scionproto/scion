@@ -71,17 +71,10 @@ func (t Topology) Gateways(ctx context.Context,
 		Gateways: make([]*dpb.Gateway, 0, len(gateways)),
 	}
 	for _, info := range gateways {
-		// XXX(lukedirtwalker): for now we use a fixed probe port in the future
-		// we can just send a different one if we need to.
-		probeAddr := &net.UDPAddr{
-			IP:   info.CtrlAddr.SCIONAddress.IP,
-			Zone: info.CtrlAddr.SCIONAddress.Zone,
-			Port: 30856,
-		}
 		reply.Gateways = append(reply.Gateways, &dpb.Gateway{
 			ControlAddress:  info.CtrlAddr.SCIONAddress.String(),
 			DataAddress:     info.DataAddr.String(),
-			ProbeAddress:    probeAddr.String(),
+			ProbeAddress:    info.ProbeAddr.String(),
 			AllowInterfaces: info.AllowInterfaces,
 		})
 	}

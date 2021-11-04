@@ -15,6 +15,7 @@
 package routemgr
 
 import (
+	"context"
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/log"
@@ -55,14 +56,14 @@ func (l *Linux) Close() {
 	close(l.closeChan)
 }
 
-func (l *Linux) Run() {
+func (l *Linux) Run(ctx context.Context) {
 	l.init()
 	consumer := l.exportedRoutes.NewConsumer()
 Top:
 	for {
 		select {
 		case update := <-consumer.Updates():
-			err := l.publishToLinux(update)
+			err := l.publishToLinux(ctx, update)
 			if err != nil {
 				log.Error("Error when publishing to Linux", "err", err)
 			}
@@ -75,20 +76,21 @@ Top:
 	l.exportedRoutes.Close()
 }
 
-func (l *Linux) publishToLinux(update control.RouteUpdate) error {
-	handle, err := l.DeviceManager.Get(update.IA)
+func (l *Linux) publishToLinux(ctx context.Context, update control.RouteUpdate) error {
+	logger := log.FromCtx(ctx)
+	handle, err := l.DeviceManager.Get(ctx, update.IA)
 	if err != nil {
 		return serrors.WrapStr("retrieving device for ISD-AS", err, "isd_as", update.IA)
 	}
 	defer func() {
 		if err := handle.Close(); err != nil {
-			log.Info("unable to clean up device", "isd_as", update.IA, "err", err)
+			logger.Info("unable to clean up device", "isd_as", update.IA, "err", err)
 		}
 	}()
 	if update.IsAdd {
-		return handle.AddRoute(&update.Route)
+		return handle.AddRoute(ctx, &update.Route)
 	}
-	return handle.DeleteRoute(&update.Route)
+	return handle.DeleteRoute(ctx, &update.Route)
 }
 
 func (l *Linux) Diagnostics() control.Diagnostics {

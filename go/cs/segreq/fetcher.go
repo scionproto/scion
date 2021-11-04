@@ -67,7 +67,7 @@ func NewFetcher(cfg FetcherConfig) *segfetcher.Fetcher {
 			TopoProvider: cfg.TopoProvider,
 			Pather: addrutil.Pather{
 				UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
-					return cfg.TopoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
+					return cfg.TopoProvider.Get().UnderlayNextHop(common.IFIDType(ifID))
 				},
 			},
 		},

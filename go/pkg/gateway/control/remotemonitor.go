@@ -35,7 +35,7 @@ type Runner interface {
 }
 
 type GatewayWatcherFactory interface {
-	New(addr.IA, GatewayWatcherMetrics) Runner
+	New(context.Context, addr.IA, GatewayWatcherMetrics) Runner
 }
 
 // RemoteMonitor watches for currently monitored remote ASes and creates
@@ -47,8 +47,6 @@ type RemoteMonitor struct {
 	GatewayWatcherFactory GatewayWatcherFactory
 	// IAs is a channel that is notified with the full set of IAs to watch.
 	IAs <-chan []addr.IA
-	// Logger is the logger to use. If set to nil, no logging will be done.
-	Logger log.Logger
 	// RemotesMonitored is the number of remote gateways discovered. If nil, no metric is reported.
 	RemotesMonitored metrics.Gauge
 
@@ -74,15 +72,15 @@ type remoteDiagnostics struct {
 	Gateways map[string]gatewayDiagnostics `json:"gateways"`
 }
 
-func (rm *RemoteMonitor) Run() error {
-	return rm.workerBase.RunWrapper(rm.setup, rm.run)
+func (rm *RemoteMonitor) Run(ctx context.Context) error {
+	return rm.workerBase.RunWrapper(ctx, rm.setup, rm.run)
 }
 
-func (rm *RemoteMonitor) Close() error {
-	return rm.workerBase.CloseWrapper(nil)
+func (rm *RemoteMonitor) Close(ctx context.Context) error {
+	return rm.workerBase.CloseWrapper(ctx, nil)
 }
 
-func (rm *RemoteMonitor) setup() error {
+func (rm *RemoteMonitor) setup(ctx context.Context) error {
 	if rm.GatewayWatcherFactory == nil {
 		return serrors.New("whatcher factory not specified")
 	}
@@ -94,11 +92,11 @@ func (rm *RemoteMonitor) setup() error {
 	return nil
 }
 
-func (rm *RemoteMonitor) run() error {
+func (rm *RemoteMonitor) run(ctx context.Context) error {
 	for {
 		select {
 		case ias := <-rm.IAs:
-			rm.process(ias)
+			rm.process(ctx, ias)
 		case <-rm.workerBase.GetDoneChan():
 			rm.cancel()
 			return nil
@@ -106,9 +104,10 @@ func (rm *RemoteMonitor) run() error {
 	}
 }
 
-func (rm *RemoteMonitor) process(ias []addr.IA) {
+func (rm *RemoteMonitor) process(ctx context.Context, ias []addr.IA) {
 	rm.stateMtx.Lock()
 	defer rm.stateMtx.Unlock()
+	logger := log.FromCtx(ctx)
 	newWatchers := make(map[addr.IA]watcherEntry)
 	for _, ia := range ias {
 		we, ok := rm.currentWatchers[ia]
@@ -121,7 +120,7 @@ func (rm *RemoteMonitor) process(ias []addr.IA) {
 			// Watcher for the remote IA does not exist. Create it.
 			ctx, cancel := context.WithCancel(rm.context)
 			we = watcherEntry{
-				runner: rm.GatewayWatcherFactory.New(ia, GatewayWatcherMetrics{
+				runner: rm.GatewayWatcherFactory.New(ctx, ia, GatewayWatcherMetrics{
 					Remotes: metrics.GaugeWith(rm.RemotesMonitored, "remote_isd_as", ia.String()),
 				}),
 				cancel: cancel,
@@ -129,9 +128,7 @@ func (rm *RemoteMonitor) process(ias []addr.IA) {
 			go func() {
 				defer log.HandlePanic()
 				if err := we.runner.Run(ctx); err != nil {
-					if rm.Logger != nil {
-						rm.Logger.Error("Cannot start GatewayWatcher", "ia", ia, "err", err)
-					}
+					logger.Error("Cannot start GatewayWatcher", "ia", ia, "err", err)
 				}
 			}()
 			newWatchers[ia] = we

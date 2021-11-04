@@ -15,6 +15,7 @@
 package control
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -69,9 +70,6 @@ type Engine struct {
 	// DataplaneSessionFactory is used to construct dataplane sessions.
 	DataplaneSessionFactory DataplaneSessionFactory
 
-	// Logger to be passed down to worker goroutines. If nil, logging is disabled.
-	Logger log.Logger
-
 	// Metrics are the metrics which are modified during the operation of the engine.
 	// If empty, no metrics are reported.
 	Metrics EngineMetrics
@@ -103,9 +101,9 @@ type Engine struct {
 
 // Run sets up the gateway engine and starts all necessary goroutines.
 // It returns when the setup is done.
-func (e *Engine) Run() error {
-	log.SafeDebug(e.Logger, "Engine starting")
-	return e.workerBase.RunWrapper(e.setup, nil)
+func (e *Engine) Run(ctx context.Context) error {
+	log.FromCtx(ctx).Debug("Engine starting")
+	return e.workerBase.RunWrapper(ctx, e.setup, nil)
 }
 
 // DiagnosticsWrite writes diagnostics to the writer.
@@ -246,11 +244,11 @@ func (e *Engine) Status(w io.Writer) {
 	}
 }
 
-func (e *Engine) setup() error {
+func (e *Engine) setup(ctx context.Context) error {
 	if err := e.validate(); err != nil {
 		return err
 	}
-	return e.initWorkers()
+	return e.initWorkers(ctx)
 }
 
 func (e *Engine) validate() error {
@@ -269,7 +267,7 @@ func (e *Engine) validate() error {
 	return nil
 }
 
-func (e *Engine) initWorkers() error {
+func (e *Engine) initWorkers(ctx context.Context) error {
 	e.stateMtx.Lock()
 	defer e.stateMtx.Unlock()
 
@@ -291,6 +289,7 @@ func (e *Engine) initWorkers() error {
 		)
 		remoteIA := config.IA
 		pathMonitorRegistration := e.PathMonitor.Register(
+			ctx,
 			remoteIA,
 			&policies.Policies{
 				PathPolicy: config.PathPolicy,
@@ -304,7 +303,7 @@ func (e *Engine) initWorkers() error {
 			return err
 		}
 
-		deviceHandle, err := e.DeviceManager.Get(remoteIA)
+		deviceHandle, err := e.DeviceManager.Get(ctx, remoteIA)
 		if err != nil {
 			return serrors.WrapStr("getting tun device handle", err)
 		}
@@ -332,13 +331,12 @@ func (e *Engine) initWorkers() error {
 				IsHealthy: metrics.GaugeWith(
 					e.Metrics.SessionMonitorMetrics.IsHealthy, labels...),
 			},
-			Logger: e.Logger,
 		}
 		e.workerBase.WG.Add(1)
 		go func() {
 			defer log.HandlePanic()
 			defer e.workerBase.WG.Done()
-			if err := sessionMonitor.Run(); err != nil {
+			if err := sessionMonitor.Run(ctx); err != nil {
 				panic(err) // application can't recover from this
 			}
 		}()
@@ -351,13 +349,12 @@ func (e *Engine) initWorkers() error {
 			PathMonitorRegistration: pathMonitorRegistration,
 			PathMonitorPollInterval: 250 * time.Millisecond,
 			DataplaneSession:        dataplaneSession,
-			Logger:                  e.Logger,
 		}
 		e.workerBase.WG.Add(1)
 		go func() {
 			defer log.HandlePanic()
 			defer e.workerBase.WG.Done()
-			if err := session.Run(); err != nil {
+			if err := session.Run(ctx); err != nil {
 				panic(err) // application can't recover from an error here
 			}
 		}()
@@ -379,13 +376,12 @@ func (e *Engine) initWorkers() error {
 		RoutingTableIndices: e.RoutingTableIndices,
 		DataplaneSessions:   writers,
 		Events:              e.eventNotifications,
-		Logger:              e.Logger,
 	}
 	e.workerBase.WG.Add(1)
 	go func() {
 		defer log.HandlePanic()
 		defer e.workerBase.WG.Done()
-		if err := e.router.Run(); err != nil {
+		if err := e.router.Run(ctx); err != nil {
 			panic(err) // application can't recover from an error here
 		}
 	}()
@@ -394,13 +390,14 @@ func (e *Engine) initWorkers() error {
 }
 
 // Close stops all internal goroutines and waits for them to finish.
-func (e *Engine) Close() error {
-	return e.workerBase.CloseWrapper(e.close)
+func (e *Engine) Close(ctx context.Context) error {
+	return e.workerBase.CloseWrapper(ctx, e.close)
 }
 
-func (e *Engine) close() error {
+func (e *Engine) close(ctx context.Context) error {
+	logger := log.FromCtx(ctx)
 	for i, conf := range e.SessionConfigs {
-		if err := e.sessionMonitors[i].Close(); err != nil {
+		if err := e.sessionMonitors[i].Close(ctx); err != nil {
 			panic(err) // application can't recover from an error here
 		}
 		// control-plane sessions shut down automatically after session monitors close their
@@ -408,7 +405,7 @@ func (e *Engine) close() error {
 		e.dataplaneSessions[conf.ID].Close()
 	}
 	if e.router != nil {
-		if err := e.router.Close(); err != nil {
+		if err := e.router.Close(ctx); err != nil {
 			panic(err) // application can't recover from an error here
 		}
 	}
@@ -417,7 +414,7 @@ func (e *Engine) close() error {
 			// This can fail because an operator changed the device in some way. This means
 			// the failure of some cleanup steps in Close is expected, so we log that something
 			// unexpected happened but don't panic like in the other cases.
-			log.SafeInfo(e.Logger, "Encountered error when closing device", "err", err)
+			logger.Info("Encountered error when closing device", "err", err)
 		}
 	}
 	e.workerBase.WG.Wait()
@@ -459,5 +456,6 @@ type DataplaneSessionFactory interface {
 
 // PathMonitor is used to construct registrations for path discovery.
 type PathMonitor interface {
-	Register(ia addr.IA, policies *policies.Policies, policyID string) PathMonitorRegistration
+	Register(ctx context.Context, ia addr.IA, policies *policies.Policies,
+		policyID string) PathMonitorRegistration
 }

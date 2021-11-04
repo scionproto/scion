@@ -15,6 +15,7 @@
 package xtest
 
 import (
+	"crypto"
 	"crypto/x509"
 	"encoding/pem"
 	"io/ioutil"
@@ -32,6 +33,23 @@ func LoadChain(t *testing.T, file string) []*x509.Certificate {
 	chain, err := cppki.ReadPEMCerts(file)
 	require.NoError(t, err)
 	return chain
+}
+
+// LoadSigner loads a private key from a file. The file must be PEM encoded.
+func LoadSigner(t *testing.T, file string) crypto.Signer {
+	t.Helper()
+	raw, err := ioutil.ReadFile(file)
+	require.NoError(t, err)
+	if block, _ := pem.Decode(raw); block != nil {
+		raw = block.Bytes
+	}
+
+	key, err := x509.ParsePKCS8PrivateKey(raw)
+	require.NoError(t, err)
+
+	priv, ok := key.(crypto.Signer)
+	require.True(t, ok)
+	return priv
 }
 
 // LoadTRC loads a signed TRC from a file.

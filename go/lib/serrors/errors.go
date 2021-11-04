@@ -23,9 +23,14 @@
 package serrors
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
+	"sort"
 	"strings"
+
+	"go.uber.org/zap/zapcore"
 )
 
 // Wrapper allows recursing into nested errrors.
@@ -41,14 +46,64 @@ type errOrMsg struct {
 	err error
 }
 
+func (m errOrMsg) Error() string {
+	if m.err != nil {
+		return m.err.Error()
+	}
+	return m.str
+}
+
+func (m errOrMsg) addToEncoder(enc zapcore.ObjectEncoder) error {
+	if m.err != nil {
+		if marshaler, ok := m.err.(zapcore.ObjectMarshaler); ok {
+			return enc.AddObject("msg", marshaler)
+		}
+		enc.AddString("msg", m.err.Error())
+		return nil
+	}
+	enc.AddString("msg", m.str)
+	return nil
+}
+
 type basicError struct {
 	msg    errOrMsg
-	logCtx []interface{}
+	fields map[string]interface{}
 	cause  error
 }
 
 func (e basicError) Error() string {
-	return FmtError(e)
+	var buf bytes.Buffer
+	buf.WriteString(e.msg.Error())
+	if len(e.fields) != 0 {
+		encodeContext(&buf, e.ctxPairs())
+	}
+	if e.cause != nil {
+		fmt.Fprintf(&buf, ": %s", e.cause)
+	}
+	return buf.String()
+}
+
+// MarshalLogObject implements zapcore.ObjectMarshaler to have a nicer log
+// representation.
+func (e basicError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	if err := e.msg.addToEncoder(enc); err != nil {
+		return err
+	}
+	if e.cause != nil {
+		if m, ok := e.cause.(zapcore.ObjectMarshaler); ok {
+			if err := enc.AddObject("cause", m); err != nil {
+				return err
+			}
+		} else {
+			enc.AddString("cause", e.cause.Error())
+		}
+	}
+	for k, v := range e.fields {
+		if err := enc.AddReflected(k, v); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (e basicError) Is(err error) bool {
@@ -74,20 +129,15 @@ func (e basicError) Unwrap() error {
 	return e.cause
 }
 
-func (e basicError) TopError() string {
-	s := make([]string, 0, 1+(len(e.logCtx)/2))
-	s = append(s, e.msgString())
-	for i := 0; i < len(e.logCtx); i += 2 {
-		s = append(s, fmt.Sprintf("%s=\"%v\"", e.logCtx[i], e.logCtx[i+1]))
+func (e basicError) ctxPairs() []ctxPair {
+	fields := make([]ctxPair, 0, len(e.fields))
+	for k, v := range e.fields {
+		fields = append(fields, ctxPair{Key: k, Value: v})
 	}
-	return strings.Join(s, " ")
-}
-
-func (e basicError) msgString() string {
-	if e.msg.err != nil {
-		return e.msg.err.Error()
-	}
-	return e.msg.str
+	sort.Slice(fields, func(i, j int) bool {
+		return fields[i].Key < fields[j].Key
+	})
+	return fields
 }
 
 // IsTimeout returns whether err is or is caused by a timeout error.
@@ -105,107 +155,104 @@ func IsTemporary(err error) bool {
 // WithCtx returns an error that is the same as the given error but contains the
 // additional context. The additional context is printed in the Error method.
 // The returned error implements Is and Is(err) returns true.
-func WithCtx(err error, logCtx ...interface{}) error {
+func WithCtx(err error, errCtx ...interface{}) error {
 	return basicError{
 		msg:    errOrMsg{err: err},
-		logCtx: logCtx,
+		fields: errCtxToFields(errCtx),
 	}
 }
 
 // Wrap wraps the cause with the msg error and adds context to the resulting
 // error. The returned error implements Is and Is(msg) and Is(cause) returns
 // true.
-func Wrap(msg, cause error, logCtx ...interface{}) error {
+func Wrap(msg, cause error, errCtx ...interface{}) error {
 	return basicError{
 		msg:    errOrMsg{err: msg},
 		cause:  cause,
-		logCtx: logCtx,
+		fields: errCtxToFields(errCtx),
 	}
 }
 
 // WrapStr wraps the cause with an error that has msg in the error message and
 // adds the additional context. The returned error implements Is and Is(cause)
 // returns true.
-func WrapStr(msg string, cause error, logCtx ...interface{}) error {
+func WrapStr(msg string, cause error, errCtx ...interface{}) error {
 	return basicError{
 		msg:    errOrMsg{str: msg},
 		cause:  cause,
-		logCtx: logCtx,
+		fields: errCtxToFields(errCtx),
 	}
 }
 
 // New creates a new error with the given message and context.
-func New(msg string, logCtx ...interface{}) error {
-	if len(logCtx) == 0 {
+func New(msg string, errCtx ...interface{}) error {
+	if len(errCtx) == 0 {
 		return errors.New(msg)
 	}
 	return &basicError{
 		msg:    errOrMsg{str: msg},
-		logCtx: logCtx,
+		fields: errCtxToFields(errCtx),
 	}
 }
 
 // List is a slice of errors.
 type List []error
 
+// Error implements the error interface.
+func (e List) Error() string {
+	s := make([]string, 0, len(e))
+	for _, err := range e {
+		s = append(s, err.Error())
+	}
+	return fmt.Sprintf("[ %s ]", strings.Join(s, "; "))
+}
+
 // ToError returns the object as error interface implementation.
 func (e List) ToError() error {
 	if len(e) == 0 {
 		return nil
 	}
-	return errList(e)
+	return e
 }
 
-// errList is the internal error interface implementation of error List.
-type errList []error
-
-func (e errList) Error() string {
-	return fmtErrors(e)
-}
-
-// FmtError formats the error for logging. It walks through all wrapped errors,
-// putting each on a new line, and indenting multi-line errors.
-func FmtError(e error) string {
-	var s, ns []string
-	for {
-		ns, e = innerFmtError(e)
-		s = append(s, ns...)
-		if e == nil {
-			break
-		}
-	}
-	return strings.Join(s, "\n    ")
-}
-
-func innerFmtError(e error) ([]string, error) {
-	var s []string
-	var lines []string
-	switch e := e.(type) {
-	case Wrapper:
-		lines = strings.Split(e.TopError(), "\n")
-	default:
-		lines = strings.Split(e.Error(), "\n")
-	}
-	for i, line := range lines {
-		if i == len(lines)-1 && len(line) == 0 {
-			// Don't output an empty line if caused by a trailing newline in the
-			// input.
-			break
-		}
-		if i == 0 {
-			s = append(s, line)
+// MarshalLogArray implements zapcore.ArrayMarshaller for nicer logging format
+// of error lists.
+func (e List) MarshalLogArray(ae zapcore.ArrayEncoder) error {
+	for _, err := range e {
+		if m, ok := err.(zapcore.ObjectMarshaler); ok {
+			if err := ae.AppendObject(m); err != nil {
+				return err
+			}
 		} else {
-			s = append(s, ">   "+line)
+			ae.AppendString(err.Error())
 		}
 	}
-	return s, errors.Unwrap(e)
+	return nil
 }
 
-// fmtErrors formats a slice of errors for logging.
-func fmtErrors(errs []error) string {
-	s := make([]string, 0, len(errs))
-	for _, e := range errs {
-		s = append(s, e.Error())
+func errCtxToFields(errCtx []interface{}) map[string]interface{} {
+	if len(errCtx) == 0 {
+		return nil
 	}
-	return strings.Join(s, "\n")
+	fields := make(map[string]interface{}, len(errCtx)/2)
+	for i := 0; i < len(errCtx)-1; i += 2 {
+		fields[fmt.Sprint(errCtx[i])] = errCtx[i+1]
+	}
+	return fields
+}
+
+type ctxPair struct {
+	Key   string
+	Value interface{}
+}
+
+func encodeContext(buf io.Writer, pairs []ctxPair) {
+	fmt.Fprint(buf, "{")
+	for i, p := range pairs {
+		fmt.Fprintf(buf, "%s=%v", p.Key, p.Value)
+		if i != len(pairs)-1 {
+			fmt.Fprint(buf, "; ")
+		}
+	}
+	fmt.Fprintf(buf, "}")
 }
