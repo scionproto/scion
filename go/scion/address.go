@@ -16,11 +16,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"time"
-
-	"encoding/json"
 
 	"github.com/spf13/cobra"
 
