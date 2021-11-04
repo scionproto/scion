@@ -59,6 +59,10 @@ type CertificateChain struct {
 	CaCertificate []byte `json:"ca_certificate"`
 }
 
+// Certificate chain containing the the new AS certificate and the issuing
+// CA certificate encoded in a degenerate PKCS#7 data structure.
+type CertificateChainPKCS7 []byte
+
 // HealthCheckStatus defines model for HealthCheckStatus.
 type HealthCheckStatus struct {
 	Status HealthCheckStatusStatus `json:"status"`
@@ -117,7 +121,7 @@ type RenewalRequest struct {
 
 // RenewalResponse defines model for RenewalResponse.
 type RenewalResponse struct {
-	CertificateChain CertificateChain `json:"certificate_chain"`
+	CertificateChain interface{} `json:"certificate_chain"`
 }
 
 // PostAuthTokenJSONBody defines parameters for PostAuthToken.

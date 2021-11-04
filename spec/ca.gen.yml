@@ -178,11 +178,19 @@ components:
       required:
         - as_certificate
         - ca_certificate
+    CertificateChainPKCS7:
+      type: string
+      format: byte
+      description: |
+        Certificate chain containing the the new AS certificate and the issuing
+        CA certificate encoded in a degenerate PKCS#7 data structure.
     RenewalResponse:
       type: object
       properties:
         certificate_chain:
-          $ref: '#/components/schemas/CertificateChain'
+          oneOf:
+            - $ref: '#/components/schemas/CertificateChain'
+            - $ref: '#/components/schemas/CertificateChainPKCS7'
       required:
         - certificate_chain
     Problem:

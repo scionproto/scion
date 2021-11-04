@@ -13,7 +13,7 @@ paths:
         required: true
         description: AS Number of the Autonomous System requesting the certificate chain renewal.
         schema:
-          $ref: '#/components/schemas/AS'
+          $ref: "#/components/schemas/AS"
     post:
       summary: Renew an existing AS certificate
       description: Request the renewal of an existing AS certificate.
@@ -27,24 +27,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RenewalRequest'
+              $ref: "#/components/schemas/RenewalRequest"
       responses:
-        '200':
+        "200":
           description: Renewed certificate chain
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RenewalResponse'
-        '400':
-          $ref: './problem.yml#/components/responses/400-BadRequest'
-        '401':
-          $ref: './problem.yml#/components/responses/401-UnauthorizedError'
-        '404':
-          $ref: './problem.yml#/components/responses/404-NotFound'
-        '500':
-          $ref: './problem.yml#/components/responses/500-InternalServerError'
-        '503':
-          $ref: './problem.yml#/components/responses/503-ServiceUnavailable'
+                $ref: "#/components/schemas/RenewalResponse"
+        "400":
+          $ref: "./problem.yml#/components/responses/400-BadRequest"
+        "401":
+          $ref: "./problem.yml#/components/responses/401-UnauthorizedError"
+        "404":
+          $ref: "./problem.yml#/components/responses/404-NotFound"
+        "500":
+          $ref: "./problem.yml#/components/responses/500-InternalServerError"
+        "503":
+          $ref: "./problem.yml#/components/responses/503-ServiceUnavailable"
 components:
   schemas:
     RenewalRequest:
@@ -81,9 +81,17 @@ components:
       type: object
       properties:
         certificate_chain:
-          $ref: "#/components/schemas/CertificateChain"
+          oneOf:
+            - $ref: "#/components/schemas/CertificateChain"
+            - $ref: "#/components/schemas/CertificateChainPKCS7"
       required:
         - "certificate_chain"
+    CertificateChainPKCS7:
+      type: string
+      format: byte
+      description: |
+        Certificate chain containing the the new AS certificate and the issuing
+        CA certificate encoded in a degenerate PKCS#7 data structure.
     CertificateChain:
       type: object
       properties:
@@ -104,4 +112,4 @@ components:
       title: AS Identifier
       type: string
       pattern: '^([a-f0-9]{1,4}:){2}([a-f0-9]{1,4})|\d+$'
-      example: 'ff00:0:110'
+      example: "ff00:0:110"
