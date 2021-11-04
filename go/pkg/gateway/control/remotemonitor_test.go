@@ -44,8 +44,8 @@ func TestRemoteMonitor(t *testing.T) {
 
 	watcherChan := make(chan runningWatcher, 10)
 	watcherFactory := mock_control.NewMockGatewayWatcherFactory(ctrl)
-	watcherFactory.EXPECT().New(gomock.Any(), gomock.Any()).DoAndReturn(
-		func(ia addr.IA, _ control.GatewayWatcherMetrics) control.Runner {
+	watcherFactory.EXPECT().New(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		func(ctx context.Context, ia addr.IA, _ control.GatewayWatcherMetrics) control.Runner {
 			gw := mock_control.NewMockRunner(ctrl)
 			gw.EXPECT().Run(gomock.Any()).DoAndReturn(
 				func(ctx context.Context) error {
@@ -62,13 +62,13 @@ func TestRemoteMonitor(t *testing.T) {
 		IAs:                   iaChan,
 	}
 	go func() {
-		err := rm.Run()
+		err := rm.Run(context.Background())
 		require.NoError(t, err)
 	}()
 
 	// Add a new IA.
 	iaChan <- []addr.IA{ia1}
-	watcher1 := <-watcherChan
+	watcher1 := <-watcherChan // <--
 	require.Equal(t, ia1, watcher1.IA)
 	assert.Empty(t, watcherChan)
 
@@ -86,7 +86,7 @@ func TestRemoteMonitor(t *testing.T) {
 	require.NoError(t, watcher1.Ctx.Err())
 
 	// Remove remaining IAs.
-	rm.Close()
+	rm.Close(context.Background())
 	// ia1 watcher should be canceled.
 	xtest.AssertReadReturnsBefore(t, watcher1.Ctx.Done(), time.Second)
 }

@@ -15,6 +15,7 @@
 package control_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -41,10 +42,10 @@ func TestEngineRun(t *testing.T) {
 		}
 
 		go func() {
-			engine.Run()
+			engine.Run(context.Background())
 		}()
 		time.Sleep(50 * time.Millisecond)
-		err := engine.Run()
+		err := engine.Run(context.Background())
 		assert.Error(t, err)
 	})
 
@@ -58,7 +59,7 @@ func TestEngineRun(t *testing.T) {
 			ProbeConnFactory:        mock_control.NewMockPacketConnFactory(ctrl),
 			DataplaneSessionFactory: mock_control.NewMockDataplaneSessionFactory(ctrl),
 		}
-		err := engine.Run()
+		err := engine.Run(context.Background())
 		assert.Error(t, err)
 	})
 
@@ -73,7 +74,7 @@ func TestEngineRun(t *testing.T) {
 			ProbeConnFactory:        mock_control.NewMockPacketConnFactory(ctrl),
 			DataplaneSessionFactory: mock_control.NewMockDataplaneSessionFactory(ctrl),
 		}
-		err := engine.Run()
+		err := engine.Run(context.Background())
 		assert.Error(t, err)
 	})
 
@@ -88,7 +89,7 @@ func TestEngineRun(t *testing.T) {
 			PathMonitor:             mock_control.NewMockPathMonitor(ctrl),
 			DataplaneSessionFactory: mock_control.NewMockDataplaneSessionFactory(ctrl),
 		}
-		err := engine.Run()
+		err := engine.Run(context.Background())
 		assert.Error(t, err)
 	})
 
@@ -103,7 +104,7 @@ func TestEngineRun(t *testing.T) {
 			PathMonitor:      mock_control.NewMockPathMonitor(ctrl),
 			ProbeConnFactory: mock_control.NewMockPacketConnFactory(ctrl),
 		}
-		err := engine.Run()
+		err := engine.Run(context.Background())
 		assert.Error(t, err)
 	})
 
@@ -120,9 +121,9 @@ func TestEngineRun(t *testing.T) {
 			DataplaneSessionFactory: mock_control.NewMockDataplaneSessionFactory(ctrl),
 		}
 
-		err := engine.Close()
+		err := engine.Close(context.Background())
 		require.NoError(t, err)
-		err = engine.Run()
+		err = engine.Run(context.Background())
 		assert.NoError(t, err)
 	})
 }

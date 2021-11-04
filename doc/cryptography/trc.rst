@@ -636,33 +636,3 @@ See :ref:`certificate-signature` for information about supported algorithms.
 In this section we only list the TRC-specific aspects.
 
 The Signed-data of the signed TRC format follows [RFC8419]_, Section 3.1.
-
-For convenience, we list the implied rules here:
-
-- The ``SignedData`` ``digestAlgorithms`` field SHOULD include id-sha512, and
-  the algorithm parameters field MUST be absent.
-- The ``SignerInfo`` ``digestAlgorithm`` field MUST be id-sha512, and the
-  algorithm parameters field MUST be absent.
-- The ``SignerInfo`` ``signedAttributes`` MUST include the message-digest as
-  specified in [RFC5652]_, Section 11.2. The message-digest attribute MUST
-  contain the message digest computed over the ``eContent`` value using SHA-512.
-- The ``SignerInfo`` ``signatureAlgorithm`` field MUST contain
-  ``ecdsa-with-SHA512`` (see [RFC5758]_, Section 3.2), and the algorithm
-  parameters field MUST be absent.
-- The ``SignerInfo`` signature field contains the octet string resulting from
-  the private key signing operation.
-
-
-Further, the identifiers are repeated here:
-
-.. code-block:: text
-
-    sigAlg-ecdsa      ALGORITHM         ::= { OID ecdsa-with-SHA512 }
-    ecdsa-with-SHA512 OBJECT IDENTIFIER ::= { iso(1) member-body(2)
-        us(840) ansi-X9-62(10045) signatures(4) ecdsa-with-SHA2(3) 4 }
-    hashAlg-SHA-512   ALGORITHM         ::= { OID id-sha512 }
-    id-sha512         OBJECT IDENTIFIER ::= { 2 16 840 1 101 3 4 2 3 }
-
-Anapaya software always includes ``id-sha512`` in the ``SignedData``
-``digestAlgorithms`` field, as implementations MAY fail to validate signatures
-that use a digest algorithm that is not included in this set.

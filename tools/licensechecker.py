@@ -35,6 +35,8 @@ license_texts = {
 exceptions = [
     "go/lib/scrypto/cms",
     "go/lib/util/duration.go",
+    "go/scion-pki/certs/certinfo.go",
+    "go/scion-pki/certs/certformat.go",
 ]
 
 def is_ignored(f: str) -> bool:

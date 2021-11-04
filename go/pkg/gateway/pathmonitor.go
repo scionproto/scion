@@ -15,6 +15,8 @@
 package gateway
 
 import (
+	"context"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
@@ -30,12 +32,13 @@ type PathMonitor struct {
 }
 
 func (pm *PathMonitor) Register(
+	ctx context.Context,
 	remote addr.IA,
 	policies *policies.Policies,
 	policyID string,
 ) control.PathMonitorRegistration {
 
-	reg := pm.Monitor.Register(remote, &pathhealth.FilteringPathSelector{
+	reg := pm.Monitor.Register(ctx, remote, &pathhealth.FilteringPathSelector{
 		PathPolicy:      policies.PathPolicy,
 		PathCount:       policies.PathCount,
 		RevocationStore: pm.revStore,

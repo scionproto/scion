@@ -17,6 +17,7 @@ package grpc
 import (
 	"context"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -130,7 +131,7 @@ func (h *DelegatingHandler) HandleCMSRequest(
 			"reading server response failed",
 		)
 	}
-	renewed, err := h.parseChain(r.CertificateChain)
+	renewed, err := h.parseChain(r)
 	if err != nil {
 		logger.Info("Failed to extract renewal certificate chain", "err", err)
 		metrics.CounterInc(h.Metrics.InternalError)
@@ -143,7 +144,44 @@ func (h *DelegatingHandler) HandleCMSRequest(
 	return renewed, nil
 }
 
-func (h *DelegatingHandler) parseChain(rep api.CertificateChain) ([]*x509.Certificate, error) {
+func (h *DelegatingHandler) parseChain(rep api.RenewalResponse) ([]*x509.Certificate, error) {
+	switch content := rep.CertificateChain.(type) {
+	case string:
+		raw, err := base64.StdEncoding.DecodeString(content)
+		if err != nil {
+			return nil, serrors.WrapStr("malformed certificate_chain", err)
+		}
+		return extractChain(raw)
+	case map[string]interface{}:
+		decode := func(key string) ([]byte, error) {
+			b64, ok := content[key]
+			if !ok {
+				return nil, serrors.New("certificate missing")
+			}
+			s, ok := b64.(string)
+			if !ok {
+				return nil, serrors.New("wrong type", "type", fmt.Sprintf("%T", s))
+			}
+			return base64.StdEncoding.DecodeString(s)
+		}
+		as, err := decode("as_certificate")
+		if err != nil {
+			return nil, serrors.WrapStr("parsing AS certificate", err, "key", "as_certificate")
+		}
+		ca, err := decode("ca_certificate")
+		if err != nil {
+			return nil, serrors.WrapStr("parsing AS certificate", err, "key", "ca_certificate")
+		}
+		return h.parseChainJSON(api.CertificateChain{
+			AsCertificate: as,
+			CaCertificate: ca,
+		})
+	default:
+		return nil, serrors.New("certificate_chain unset", "type", fmt.Sprintf("%T", content))
+	}
+}
+
+func (h *DelegatingHandler) parseChainJSON(rep api.CertificateChain) ([]*x509.Certificate, error) {
 	as, err := x509.ParseCertificate(rep.AsCertificate)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing AS certificate", err)

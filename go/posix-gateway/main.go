@@ -57,6 +57,10 @@ func realMain(ctx context.Context) error {
 	if err != nil {
 		return serrors.WrapStr("connecting to daemon", err)
 	}
+	localIA, err := daemon.LocalIA(ctx)
+	if err != nil {
+		return serrors.WrapStr("retrieving local ISD-AS", err)
+	}
 
 	controlAddress, err := net.ResolveUDPAddr("udp", globalCfg.Gateway.CtrlAddr)
 	if err != nil {
@@ -76,6 +80,14 @@ func realMain(ctx context.Context) error {
 		dataAddress.IP = controlAddress.IP
 		dataAddress.Zone = controlAddress.Zone
 	}
+	probeAddress, err := net.ResolveUDPAddr("udp", globalCfg.Gateway.ProbeAddr)
+	if err != nil {
+		return serrors.WrapStr("parsing probe address", err)
+	}
+	if len(probeAddress.IP) == 0 {
+		probeAddress.IP = controlAddress.IP
+		probeAddress.Zone = controlAddress.Zone
+	}
 	httpPages := service.StatusPages{
 		"info":           service.NewInfoStatusPage(),
 		"config":         service.NewConfigStatusPage(globalCfg),
@@ -91,7 +103,7 @@ func realMain(ctx context.Context) error {
 		ControlClientIP:          controlAddress.IP,
 		ServiceDiscoveryClientIP: controlAddress.IP,
 		PathMonitorIP:            controlAddress.IP,
-		ProbeServerAddr:          &net.UDPAddr{IP: controlAddress.IP, Port: 30856},
+		ProbeServerAddr:          probeAddress,
 		ProbeClientIP:            controlAddress.IP,
 		DataServerAddr:           dataAddress,
 		DataClientIP:             dataAddress.IP,
@@ -105,14 +117,13 @@ func realMain(ctx context.Context) error {
 		ConfigReloadTrigger:      reloadConfigTrigger,
 		HTTPEndpoints:            httpPages,
 		HTTPServeMux:             http.DefaultServeMux,
-		Logger:                   log.New(),
-		Metrics:                  gateway.NewMetrics(),
+		Metrics:                  gateway.NewMetrics(localIA),
 	}
 
 	errs := make(chan error, 1)
 	go func() {
 		defer log.HandlePanic()
-		if err := gw.Run(); err != nil {
+		if err := gw.Run(ctx); err != nil {
 			errs <- err
 		}
 	}()

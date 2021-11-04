@@ -32,7 +32,12 @@ func (p Policy) MarshalText() ([]byte, error) {
 	writer := tabwriter.NewWriter(&buf, 0, 0, 4, ' ', 0)
 
 	for _, rule := range p.Rules {
-		fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t", rule.Action, rule.From, rule.To, rule.Network)
+		var nextHop string
+		if rule.NextHop != nil {
+			nextHop = rule.NextHop.String()
+		}
+		fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\t", rule.Action, rule.From, rule.To, rule.Network,
+			nextHop)
 		if len(rule.Comment) != 0 {
 			fmt.Fprintf(writer, "# %s", rule.Comment)
 		}
@@ -71,7 +76,7 @@ func parseRule(b []byte) (Rule, error) {
 		b = b[:commentIndex]
 	}
 	columns := bytes.Fields(b)
-	if len(columns) != 4 {
+	if len(columns) < 4 {
 		return Rule{}, serrors.New("invalid number of columns", "columns", len(columns))
 	}
 
@@ -91,11 +96,29 @@ func parseRule(b []byte) (Rule, error) {
 	if err != nil {
 		return Rule{}, serrors.WrapStr("parsing 'network'", err, "input", string(columns[3]))
 	}
+
+	maxColumns := 4
+	if action == Advertise {
+		maxColumns = 5
+	}
+	if len(columns) > maxColumns {
+		return Rule{}, serrors.New("invalid number of columns", "columns", len(columns))
+	}
+
+	var nextHop net.IP
+	if len(columns) >= 5 {
+		nextHop = net.ParseIP(string(columns[4]))
+		if nextHop == nil {
+			return Rule{}, serrors.New("invalid pingable address", "input", string(columns[4]))
+		}
+	}
+
 	return Rule{
 		Action:  action,
 		To:      toMatcher,
 		From:    fromMatcher,
 		Network: networkMatcher,
+		NextHop: nextHop,
 		Comment: comment,
 	}, nil
 }
@@ -111,9 +134,9 @@ func parseIAMatcher(b []byte) (IAMatcher, error) {
 		return nil, err
 	}
 	if !negative {
-		return singleIAMatcher{IA: ia}, nil
+		return SingleIAMatcher{IA: ia}, nil
 	}
-	return negatedIAMatcher{IAMatcher: singleIAMatcher{IA: ia}}, nil
+	return NegatedIAMatcher{IAMatcher: SingleIAMatcher{IA: ia}}, nil
 }
 
 func parseNetworkMatcher(b []byte) (NetworkMatcher, error) {
@@ -131,9 +154,9 @@ func parseNetworkMatcher(b []byte) (NetworkMatcher, error) {
 		networks = append(networks, n)
 	}
 	if !negative {
-		return allowedNetworkMatcher{Allowed: networks}, nil
+		return AllowedNetworkMatcher{Allowed: networks}, nil
 	}
-	return negatedNetworkMatcher{allowedNetworkMatcher{Allowed: networks}}, nil
+	return NegatedNetworkMatcher{AllowedNetworkMatcher{Allowed: networks}}, nil
 }
 
 func parseAction(b []byte) (Action, error) {

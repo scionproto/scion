@@ -218,7 +218,7 @@ default_ca = basic_ca
 
 [basic_ca]
 default_days   = \${ca_defaults::default_days}
-default_md     = sha512
+default_md     = sha256
 database       = database/index.txt
 new_certs_dir  = certificates
 unique_subject = no
@@ -588,13 +588,13 @@ check_as_type() {
 
 sign_payload() {
 # LITERALINCLUDE sign_payload START
-    openssl cms -sign -in $TRCID.pld.der -inform der -md sha512 \
+    openssl cms -sign -in $TRCID.pld.der -inform der \
         -signer $PUBDIR/regular-voting.crt \
         -inkey $KEYDIR/regular-voting.key \
         -nodetach -nocerts -nosmimecap -binary -outform der \
         > $TRCID.regular.trc
 
-    openssl cms -sign -in $TRCID.pld.der -inform der -md sha512 \
+    openssl cms -sign -in $TRCID.pld.der -inform der \
         -signer $PUBDIR/sensitive-voting.crt \
         -inkey $KEYDIR/sensitive-voting.key \
         -nodetach -nocerts -nosmimecap -binary -outform der \
@@ -608,8 +608,6 @@ sign_payload() {
     # -sign:       create a signature on the payload.
     # -in:         payload to be signed.
     # -inform:     the payload format. We have an ASN.1 DER encoded payload.
-    # -md:         the digest algorithm. We use SHA-512 in accordance with the
-    #              specification.
     # -signer:     signing certificate.
     # -inkey:      private key used to sign authenticated by the certificate in -signer.
     # -nodetach:   include the payload in the resulting signed CMS structure.
@@ -622,7 +620,7 @@ sign_payload() {
 
 sensitive_vote() {
 # LITERALINCLUDE sensitive_vote START
-    openssl cms -sign -in $TRCID.pld.der -inform der -md sha512 \
+    openssl cms -sign -in $TRCID.pld.der -inform der \
         -signer $PUBDIR/$PREDID/sensitive-voting.crt \
         -inkey $KEYDIR/$PREDID/sensitive-voting.key \
         -nodetach -nocerts -nosmimecap -binary -outform der \
@@ -632,7 +630,7 @@ sensitive_vote() {
 
 regular_vote() {
 # LITERALINCLUDE regular_vote START
-    openssl cms -sign -in $TRCID.pld.der -inform der -md sha512 \
+    openssl cms -sign -in $TRCID.pld.der -inform der \
         -signer $PUBDIR/$PREDID/regular-voting.crt \
         -inkey $KEYDIR/$PREDID/regular-voting.key \
         -nodetach -nocerts -nosmimecap -binary -outform der \

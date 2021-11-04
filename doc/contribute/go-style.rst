@@ -92,11 +92,6 @@ Logging
   ``newLogger = parentLogger.New("request", "Foo")`` and then use
   ``newLogger.Debug("x")``).
 - An empty ``log.New()`` has no impact and should be omitted.
-- When creating a complex type whose methods should have access to logging, add
-  a ``log.Logger`` field to the type. If the field is ``nil``, then logging should
-  be disabled; this means only callers interested in having the type log something
-  need to bother with passing in a logger.
-
 
 Here is an example of how logging could be added to a type:
 

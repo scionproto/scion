@@ -85,7 +85,6 @@ type ServerInfo struct {
 // BRInfo contains Border Router specific information.
 type BRInfo struct {
 	InternalAddr string                           `json:"internal_addr"`
-	CtrlAddr     string                           `json:"ctrl_addr"`
 	Interfaces   map[common.IFIDType]*BRInterface `json:"interfaces"`
 }
 
@@ -93,6 +92,7 @@ type BRInfo struct {
 type GatewayInfo struct {
 	CtrlAddr   string   `json:"ctrl_addr"`
 	DataAddr   string   `json:"data_addr"`
+	ProbeAddr  string   `json:"probe_addr,omitempty"`
 	Interfaces []uint64 `json:"allow_interfaces,omitempty"`
 }
 
@@ -100,7 +100,7 @@ type GatewayInfo struct {
 // the neighboring AS).
 type BRInterface struct {
 	Underlay  Underlay `json:"underlay,omitempty"`
-	Bandwidth int      `json:"bandwidth"`
+	Bandwidth int      `json:"bandwidth,omitempty"`
 	IA        string   `json:"isd_as"`
 	LinkTo    string   `json:"link_to"`
 	MTU       int      `json:"mtu"`
@@ -109,8 +109,8 @@ type BRInterface struct {
 
 // Underlay is the underlay information for a BR interface.
 type Underlay struct {
-	Public string `json:"public"`
-	Remote string `json:"remote"`
+	Public string `json:"public,omitempty"`
+	Remote string `json:"remote,omitempty"`
 	Bind   string `json:"bind,omitempty"`
 }
 
@@ -128,8 +128,7 @@ func (i ServerInfo) String() string {
 
 func (i BRInfo) String() string {
 	var s []string
-	s = append(s, fmt.Sprintf("Loc addrs:\n  %s\nControl addr:\n  %s\nInterfaces:",
-		i.InternalAddr, i.CtrlAddr))
+	s = append(s, fmt.Sprintf("Loc addrs:\n  %s\nInterfaces:", i.InternalAddr))
 	for ifid, intf := range i.Interfaces {
 		s = append(s, fmt.Sprintf("%d: %+v", ifid, intf))
 	}

@@ -15,6 +15,7 @@
 package control_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -57,7 +58,7 @@ func TestSessionRun(t *testing.T) {
 
 		done := make(chan struct{})
 		go func() {
-			err := session.Run()
+			err := session.Run(context.Background())
 			assert.NoError(t, err)
 			close(done)
 		}()
@@ -123,7 +124,7 @@ func TestSessionRun(t *testing.T) {
 
 		done := make(chan struct{})
 		go func() {
-			err := session.Run()
+			err := session.Run(context.Background())
 			assert.NoError(t, err)
 			close(done)
 		}()

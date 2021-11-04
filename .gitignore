@@ -89,3 +89,7 @@ _build
 # IntelliJ folder
 #########################
 .idea/
+
+# node modules
+##############
+node_modules

@@ -44,7 +44,7 @@ type PathWatcher interface {
 	// do change and should be updated accordingly.
 	UpdatePath(path snet.Path)
 	// SendProbe sends a probe along the monitored path.
-	SendProbe(conn snet.PacketConn, localAddr snet.SCIONAddress)
+	SendProbe(ctx context.Context, conn snet.PacketConn, localAddr snet.SCIONAddress)
 	// HandleProbeReply dispatches a single probe reply packet.
 	HandleProbeReply(seq uint16)
 	// Path returns a fresh copy of the monitored path.
@@ -52,21 +52,18 @@ type PathWatcher interface {
 	// State returns the state of the monitored path.
 	State() State
 	// Close stops the PathWatcher.
-	Close()
+	Close(ctx context.Context)
 }
 
 // PathWatcherFactory constructs a PathWatcher.
 type PathWatcherFactory interface {
-	New(remote addr.IA, path snet.Path, id uint16) PathWatcher
+	New(ctx context.Context, remote addr.IA, path snet.Path, id uint16) PathWatcher
 }
 
 // DefaultRemoteWatcherFactory is a default factory for creating RemoteWatchers.
 type DefaultRemoteWatcherFactory struct {
 	// PathWatcherFactory is used to construct PathWatchers.
 	PathWatcherFactory PathWatcherFactory
-	// Logger is the parent logger. If nil, the RemoteWatcher is constructed without
-	// any logger.
-	Logger log.Logger
 	// PathsMonitored is a gauge counting the number of paths currently
 	// monitored to a remote AS.
 	PathsMonitored metrics.Gauge
@@ -79,16 +76,11 @@ type DefaultRemoteWatcherFactory struct {
 // New creates an RemoteWatcher that keeps track of all the paths for a given
 // remote, and spawns/kills PathWatchers appropriately.
 func (f *DefaultRemoteWatcherFactory) New(remote addr.IA) RemoteWatcher {
-	var logger log.Logger
-	if f.Logger != nil {
-		logger = f.Logger.New("isd_as", remote)
-	}
 	return &DefaultRemoteWatcher{
 		remote:             remote,
 		pathWatcherFactory: f.PathWatcherFactory,
 		pathWatchers:       make(map[snet.PathFingerprint]*pathWatcherItem),
 		pathWatchersByID:   make(map[uint16]*pathWatcherItem),
-		logger:             logger,
 		pathsMonitored:     metrics.GaugeWith(f.PathsMonitored, "remote_isd_as", remote.String()),
 		probesSent:         metrics.CounterWith(f.ProbesSent, "remote_isd_as", remote.String()),
 		probesReceived:     metrics.CounterWith(f.ProbesReceived, "remote_isd_as", remote.String()),
@@ -113,23 +105,27 @@ type DefaultRemoteWatcher struct {
 	// hasPaths is true if, at the moment, there is at least one path known.
 	hasPaths bool
 
-	logger         log.Logger
 	pathsMonitored metrics.Gauge
 	probesSent     metrics.Counter
 	probesReceived metrics.Counter
 }
 
+func (w *DefaultRemoteWatcher) adjustCtx(ctx context.Context) (context.Context, log.Logger) {
+	return log.WithLabels(ctx, "remote_isd_as", w.remote.String())
+}
+
 // UpdatePaths gets new paths from the SCION daemon. This function may block for
 // up to routerTimeout.
-func (w *DefaultRemoteWatcher) UpdatePaths(router snet.Router) {
+func (w *DefaultRemoteWatcher) UpdatePaths(ctx context.Context, router snet.Router) {
+	ctx, logger := w.adjustCtx(ctx)
 	now := time.Now()
 	// Get the current set of paths from pathmgr.
-	ctx, cancel := context.WithTimeout(context.Background(), routerTimeout)
+	ctx, cancel := context.WithTimeout(ctx, routerTimeout)
 	defer cancel()
 	paths, err := router.AllRoutes(ctx, w.remote)
 	if err != nil {
 		if w.hasPaths {
-			log.SafeInfo(w.logger, "Failed to get paths. Keeping old paths",
+			logger.Info("Failed to get paths. Keeping old paths",
 				"path_count", len(paths), "err", err)
 			w.hasPaths = false
 		}
@@ -137,13 +133,13 @@ func (w *DefaultRemoteWatcher) UpdatePaths(router snet.Router) {
 	}
 	if len(paths) == 0 {
 		if w.hasPaths {
-			log.SafeDebug(w.logger, "No paths found")
+			logger.Debug("No paths found")
 			w.hasPaths = false
 		}
 		return
 	}
 	if !w.hasPaths {
-		log.SafeInfo(w.logger, "New paths discovered", "paths", len(paths))
+		logger.Info("New paths discovered", "paths", len(paths))
 		w.hasPaths = true
 	}
 	// Key the paths by their fingerprints.
@@ -167,13 +163,13 @@ func (w *DefaultRemoteWatcher) UpdatePaths(router snet.Router) {
 		if !ok {
 			id, found := w.selectID()
 			if !found {
-				log.SafeInfo(w.logger, "All traceroute IDs are occupied")
+				logger.Info("All traceroute IDs are occupied")
 				continue
 			}
 
 			// This is a new path, add an entry.
 			pw = &pathWatcherItem{
-				PathWatcher: w.pathWatcherFactory.New(w.remote, path, id),
+				PathWatcher: w.pathWatcherFactory.New(ctx, w.remote, path, id),
 			}
 			w.pathWatchers[fingerprint] = pw
 			w.pathWatchersByID[id] = pw
@@ -187,25 +183,28 @@ func (w *DefaultRemoteWatcher) UpdatePaths(router snet.Router) {
 }
 
 // SendProbes sends probes via all the available paths to the monitored IA.
-func (w *DefaultRemoteWatcher) SendProbes(conn snet.PacketConn, localAddr snet.SCIONAddress) {
+func (w *DefaultRemoteWatcher) SendProbes(ctx context.Context, conn snet.PacketConn,
+	localAddr snet.SCIONAddress) {
+
 	w.pathWatcherMtx.Lock()
 	defer w.pathWatcherMtx.Unlock()
 
 	metrics.CounterAdd(w.probesSent, float64(len(w.pathWatchers)))
 	for _, pm := range w.pathWatchers {
-		pm.SendProbe(conn, localAddr)
+		pm.SendProbe(ctx, conn, localAddr)
 	}
 }
 
 // HandleProbeReply dispatches a single probe reply packet.
-func (w *DefaultRemoteWatcher) HandleProbeReply(id, seq uint16) {
+func (w *DefaultRemoteWatcher) HandleProbeReply(ctx context.Context, id, seq uint16) {
 	w.pathWatcherMtx.Lock()
 	defer w.pathWatcherMtx.Unlock()
 
+	_, logger := w.adjustCtx(ctx)
 	metrics.CounterInc(w.probesReceived)
 	pm, ok := w.pathWatchersByID[id]
 	if !ok {
-		log.SafeDebug(w.logger, "unsolicited reply (path no longer monitored)", "id", id)
+		logger.Debug("unsolicited reply (path no longer monitored)", "id", id)
 		// Probe reply for a path that is no longer monitored.
 		return
 	}
@@ -213,7 +212,7 @@ func (w *DefaultRemoteWatcher) HandleProbeReply(id, seq uint16) {
 }
 
 // Cleanup stops monitoring paths that are not being used any more.
-func (w *DefaultRemoteWatcher) Cleanup() {
+func (w *DefaultRemoteWatcher) Cleanup(ctx context.Context) {
 	w.pathWatcherMtx.Lock()
 	defer w.pathWatcherMtx.Unlock()
 
@@ -221,7 +220,7 @@ func (w *DefaultRemoteWatcher) Cleanup() {
 		if !pm.State().IsExpired && pm.usedRecently() {
 			continue
 		}
-		pm.Close()
+		pm.Close(ctx)
 		delete(w.pathWatchers, fingerprint)
 		delete(w.pathWatchersByID, pm.id)
 	}

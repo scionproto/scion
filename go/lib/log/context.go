@@ -55,6 +55,14 @@ func FromCtx(ctx context.Context) Logger {
 	return attachSpan(ctx, Root())
 }
 
+// WithLabels returns context with additional labels added to the logger.
+// For convenience it also returns the logger itself.
+func WithLabels(ctx context.Context, labels ...interface{}) (context.Context, Logger) {
+	logger := FromCtx(ctx).New(labels...)
+	ctx = CtxWith(ctx, logger)
+	return ctx, logger
+}
+
 func attachSpan(ctx context.Context, l Logger) Logger {
 	if span := opentracing.SpanFromContext(ctx); span != nil {
 		return Span{

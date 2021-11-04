@@ -15,6 +15,7 @@
 package control_test
 
 import (
+	"context"
 	"net"
 	"testing"
 	"time"
@@ -54,7 +55,7 @@ func TestAggregator(t *testing.T) {
 	// Test adding prefixes before run is called.
 	a.Prefixes(ia1, gateway1, []*net.IPNet{prefix1, prefix2})
 
-	err := a.Run()
+	err := a.Run(context.Background())
 	require.NoError(t, err)
 
 	// Test adding some more prefixes.
@@ -121,5 +122,5 @@ func TestAggregator(t *testing.T) {
 	}
 	require.Equal(t, expected, ru)
 
-	a.Close()
+	a.Close(context.Background())
 }

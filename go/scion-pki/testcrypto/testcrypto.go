@@ -409,28 +409,28 @@ func setupTemplates(cfg config) error {
 	for ia, d := range cfg.topo.ASes {
 		files := map[string]certs.SubjectVars{
 			filepath.Join(cryptoASDir(ia, cfg.out), "cp-as.tmpl"): {
-				ISDAS:      ia,
+				IA:         ia,
 				CommonName: ia.String() + " AS Certificate",
 			},
 		}
 		if d.Issuing {
 			files[filepath.Join(cryptoCADir(ia, cfg.out), "cp-root.tmpl")] = certs.SubjectVars{
-				ISDAS:      ia,
+				IA:         ia,
 				CommonName: ia.String() + " Root Certificate - GEN I",
 			}
 			files[filepath.Join(cryptoCADir(ia, cfg.out), "cp-ca.tmpl")] = certs.SubjectVars{
-				ISDAS:      ia,
+				IA:         ia,
 				CommonName: fmt.Sprintf("%s CA Certificate - GEN I %d.1", ia, time.Now().Year()),
 			}
 		}
 		if d.Voting {
 			files[filepath.Join(cryptoVotingDir(ia, cfg.out), "regular.tmpl")] = certs.SubjectVars{
-				ISDAS:      ia,
+				IA:         ia,
 				CommonName: ia.String() + " Regular Voting Certificate",
 			}
 			files[filepath.Join(cryptoVotingDir(ia, cfg.out), "sensitive.tmpl")] =
 				certs.SubjectVars{
-					ISDAS:      ia,
+					IA:         ia,
 					CommonName: ia.String() + " Sensitive Voting Certificate",
 				}
 		}
@@ -462,7 +462,6 @@ func prepareDirectories(t topo, out outConfig) error {
 		}
 		if d.Issuing {
 			dirs = append(dirs, cryptoCADir(ia, out))
-			dirs = append(dirs, cryptoCAClientDir(ia, out))
 		}
 		if d.Voting {
 			dirs = append(dirs, cryptoVotingDir(ia, out))
@@ -594,10 +593,6 @@ func cryptoASDir(ia addr.IA, out outConfig) string {
 
 func cryptoCADir(ia addr.IA, out outConfig) string {
 	return filepath.Join(out.AS(ia), "crypto", "ca")
-}
-
-func cryptoCAClientDir(ia addr.IA, out outConfig) string {
-	return filepath.Join(cryptoCADir(ia, out), "clients")
 }
 
 func cryptoVotingDir(ia addr.IA, out outConfig) string {

@@ -15,6 +15,7 @@
 package config_test
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -24,7 +25,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/log/mock_log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/gateway/config"
@@ -67,7 +67,7 @@ func TestLoaderRun(t *testing.T) {
 			doneCh := make(chan struct{})
 			go func() {
 				defer close(doneCh)
-				err := loader.Run()
+				err := loader.Run(context.Background())
 				assert.Error(t, err)
 			}()
 			xtest.AssertReadReturnsBefore(t, doneCh, time.Second)
@@ -82,7 +82,7 @@ func TestLoaderRun(t *testing.T) {
 			doneCh := make(chan struct{})
 			go func() {
 				defer close(doneCh)
-				err := loader.Run()
+				err := loader.Run(context.Background())
 				assert.Error(t, err)
 			}()
 			xtest.AssertReadReturnsBefore(t, doneCh, time.Second)
@@ -97,7 +97,7 @@ func TestLoaderRun(t *testing.T) {
 			doneCh := make(chan struct{})
 			go func() {
 				defer close(doneCh)
-				err := loader.Run()
+				err := loader.Run(context.Background())
 				assert.Error(t, err)
 			}()
 			xtest.AssertReadReturnsBefore(t, doneCh, time.Second)
@@ -112,7 +112,7 @@ func TestLoaderRun(t *testing.T) {
 			doneCh := make(chan struct{})
 			go func() {
 				defer close(doneCh)
-				err := loader.Run()
+				err := loader.Run(context.Background())
 				assert.Error(t, err)
 			}()
 			xtest.AssertReadReturnsBefore(t, doneCh, time.Second)
@@ -126,10 +126,10 @@ func TestLoaderRun(t *testing.T) {
 				SessionPolicyParser: mock_control.NewMockSessionPolicyParser(ctrl),
 			}
 			doneCh := make(chan struct{})
-			assert.NoError(t, loader.Close())
+			assert.NoError(t, loader.Close(context.Background()))
 			go func() {
 				defer close(doneCh)
-				err := loader.Run()
+				err := loader.Run(context.Background())
 				assert.NoError(t, err)
 			}()
 			xtest.AssertReadReturnsBefore(t, doneCh, time.Second)
@@ -142,22 +142,19 @@ func TestLoaderRun(t *testing.T) {
 			publisher.EXPECT().Publish(sessPols, &defaultPol).Do(
 				func(control.SessionPolicies, *routing.Policy) { close(stopCh) })
 			parser := mock_control.NewMockSessionPolicyParser(ctrl)
-			parser.EXPECT().Parse(rawSP).Return(sessPols, nil)
+			parser.EXPECT().Parse(context.Background(), rawSP).Return(sessPols, nil)
 			trigger := make(chan struct{})
-			logger := mock_log.NewMockLogger(ctrl)
-			logger.EXPECT().Info(gomock.Any(), gomock.Any())
 			loader := &config.Loader{
 				SessionPoliciesFile: spFile,
 				RoutingPolicyFile:   rpFile,
 				Publisher:           publisher,
 				Trigger:             trigger,
 				SessionPolicyParser: parser,
-				Logger:              logger,
 			}
 			doneCh := make(chan struct{})
 			go func() {
 				defer close(doneCh)
-				err := loader.Run()
+				err := loader.Run(context.Background())
 				assert.NoError(t, err)
 			}()
 			select {
@@ -166,7 +163,7 @@ func TestLoaderRun(t *testing.T) {
 				t.Fatalf("Time out")
 			}
 			xtest.AssertReadReturnsBefore(t, stopCh, time.Second)
-			assert.NoError(t, loader.Close())
+			assert.NoError(t, loader.Close(context.Background()))
 			xtest.AssertReadReturnsBefore(t, doneCh, time.Second)
 		},
 		"session policy load error": func(t *testing.T, ctrl *gomock.Controller) {
@@ -175,10 +172,7 @@ func TestLoaderRun(t *testing.T) {
 			publisher.EXPECT().Publish(nil, &defaultPol).Do(
 				func(control.SessionPolicies, *routing.Policy) { close(stopCh) })
 			parser := mock_control.NewMockSessionPolicyParser(ctrl)
-			parser.EXPECT().Parse(rawSP).Return(nil, serrors.New("test err"))
-			logger := mock_log.NewMockLogger(ctrl)
-			logger.EXPECT().Error(gomock.Any(), gomock.Any())
-			logger.EXPECT().Info(gomock.Any(), gomock.Any())
+			parser.EXPECT().Parse(context.Background(), rawSP).Return(nil, serrors.New("test err"))
 			trigger := make(chan struct{})
 			loader := &config.Loader{
 				SessionPoliciesFile: spFile,
@@ -186,12 +180,11 @@ func TestLoaderRun(t *testing.T) {
 				Publisher:           publisher,
 				Trigger:             trigger,
 				SessionPolicyParser: parser,
-				Logger:              logger,
 			}
 			doneCh := make(chan struct{})
 			go func() {
 				defer close(doneCh)
-				err := loader.Run()
+				err := loader.Run(context.Background())
 				assert.NoError(t, err)
 			}()
 			select {
@@ -200,7 +193,7 @@ func TestLoaderRun(t *testing.T) {
 				t.Fatalf("Time out")
 			}
 			xtest.AssertReadReturnsBefore(t, stopCh, time.Second)
-			assert.NoError(t, loader.Close())
+			assert.NoError(t, loader.Close(context.Background()))
 			xtest.AssertReadReturnsBefore(t, doneCh, time.Second)
 		},
 		"load default routing policy": func(t *testing.T, ctrl *gomock.Controller) {
@@ -211,22 +204,19 @@ func TestLoaderRun(t *testing.T) {
 			publisher.EXPECT().Publish(sessPols, defaultRP).Do(
 				func(control.SessionPolicies, *routing.Policy) { close(stopCh) })
 			parser := mock_control.NewMockSessionPolicyParser(ctrl)
-			parser.EXPECT().Parse(rawSP).Return(sessPols, nil)
+			parser.EXPECT().Parse(context.Background(), rawSP).Return(sessPols, nil)
 			trigger := make(chan struct{})
-			logger := mock_log.NewMockLogger(ctrl)
-			logger.EXPECT().Info(gomock.Any(), gomock.Any())
 			loader := &config.Loader{
 				SessionPoliciesFile: spFile,
 				RoutingPolicyFile:   "",
 				Publisher:           publisher,
 				Trigger:             trigger,
 				SessionPolicyParser: parser,
-				Logger:              logger,
 			}
 			doneCh := make(chan struct{})
 			go func() {
 				defer close(doneCh)
-				err := loader.Run()
+				err := loader.Run(context.Background())
 				assert.NoError(t, err)
 			}()
 			select {
@@ -235,7 +225,7 @@ func TestLoaderRun(t *testing.T) {
 				t.Fatalf("Time out")
 			}
 			xtest.AssertReadReturnsBefore(t, stopCh, time.Second)
-			assert.NoError(t, loader.Close())
+			assert.NoError(t, loader.Close(context.Background()))
 			xtest.AssertReadReturnsBefore(t, doneCh, time.Second)
 		},
 	}

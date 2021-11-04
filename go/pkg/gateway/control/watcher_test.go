@@ -44,7 +44,7 @@ func TestGatewayWatcherRun(t *testing.T) {
 	fetcherFactory := mock_control.NewMockPrefixFetcherFactory(ctrl)
 	discoverer := mock_control.NewMockDiscoverer(ctrl)
 
-	fetcherFactory.EXPECT().NewPrefixFetcher(gomock.Any()).AnyTimes().Return(fetcher)
+	fetcherFactory.EXPECT().NewPrefixFetcher(gomock.Any(), gomock.Any()).AnyTimes().Return(fetcher)
 	fetcher.EXPECT().Close().AnyTimes().Return(nil)
 
 	discoverer.EXPECT().Gateways(gomock.Any()).DoAndReturn(
@@ -110,7 +110,7 @@ func TestPrefixWatcherRun(t *testing.T) {
 	fetcherFactory := mock_control.NewMockPrefixFetcherFactory(ctrl)
 	consumer := mock_control.NewMockPrefixConsumer(ctrl)
 
-	fetcherFactory.EXPECT().NewPrefixFetcher(gomock.Any()).AnyTimes().Return(fetcher)
+	fetcherFactory.EXPECT().NewPrefixFetcher(gomock.Any(), gomock.Any()).AnyTimes().Return(fetcher)
 	fetcher.EXPECT().Close().AnyTimes().Return(nil)
 
 	// Initial error to check consumer is not called on error.
@@ -147,7 +147,7 @@ func TestPrefixWatcherRun(t *testing.T) {
 		FetcherFactory: fetcherFactory,
 		PollInterval:   1 * time.Millisecond,
 	}
-	w := control.NewPrefixWatcher(gateway, addr.IA{}, cfg)
+	w := control.NewPrefixWatcher(context.Background(), gateway, addr.IA{}, cfg)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()

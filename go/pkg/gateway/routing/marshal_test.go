@@ -94,6 +94,7 @@ func testPolicies(t *testing.T) map[string]routing.Policy {
 					From:    routing.NewIAMatcher(t, "!1-ff00:0:111"),
 					To:      routing.NewIAMatcher(t, "2-ff00:0:220"),
 					Network: routing.NewNetworkMatcher(t, "127.0.1.0/24"),
+					NextHop: xtest.MustParseIP(t, "127.0.1.111"),
 					Comment: "Rule Five",
 				},
 				{

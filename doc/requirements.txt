@@ -1,0 +1,2 @@
+docutils<0.18
+sphinx-copybutton==0.4.0

@@ -15,6 +15,7 @@
 package control
 
 import (
+	"context"
 	"io"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -24,7 +25,7 @@ import (
 // DeviceOpener can be used to open readable/writeable objects that support
 // IPv4/IPv6 routing. Typically, this is a Linux network device.
 type DeviceOpener interface {
-	Open(ia addr.IA) (Device, error)
+	Open(ctx context.Context, ia addr.IA) (Device, error)
 }
 
 // Device models an object that implements the reading and writing of packets and supports
@@ -33,16 +34,16 @@ type DeviceOpener interface {
 type Device interface {
 	io.ReadWriteCloser
 	// AddRoute creates a route going through the device.
-	AddRoute(r *Route) error
+	AddRoute(ctx context.Context, r *Route) error
 	// DeleteRoute destroys a route going through the device.
-	DeleteRoute(r *Route) error
+	DeleteRoute(ctx context.Context, r *Route) error
 }
 
 // DeviceOpenerFunc is a function type that implements DeviceOpener.
-type DeviceOpenerFunc func(ia addr.IA) (Device, error)
+type DeviceOpenerFunc func(ctx context.Context, ia addr.IA) (Device, error)
 
-func (f DeviceOpenerFunc) Open(ia addr.IA) (Device, error) {
-	return f(ia)
+func (f DeviceOpenerFunc) Open(ctx context.Context, ia addr.IA) (Device, error) {
+	return f(ctx, ia)
 }
 
 var (
@@ -63,5 +64,5 @@ type DeviceManager interface {
 	// Get returns a DeviceHandle to a Device created by the DeviceManager. The reference
 	// count of the handle is increased the 1. To ensure resources are not leaked,
 	// each DeviceHandle should be closed after use.
-	Get(ia addr.IA) (DeviceHandle, error)
+	Get(ctx context.Context, ia addr.IA) (DeviceHandle, error)
 }

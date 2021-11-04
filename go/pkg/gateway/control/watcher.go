@@ -215,7 +215,7 @@ func (w *GatewayWatcher) run(runCtx context.Context) {
 func (w *GatewayWatcher) watchPrefixes(ctx context.Context, gateway Gateway) watcherItem {
 	ctx, cancel := context.WithCancel(ctx)
 
-	watcher := newPrefixWatcher(gateway, w.Remote, w.Template)
+	watcher := newPrefixWatcher(ctx, gateway, w.Remote, w.Template)
 	go func(ctx context.Context, watcher *prefixWatcher) {
 		defer log.HandlePanic()
 		if err := watcher.Run(ctx); err != nil {
@@ -301,7 +301,7 @@ type PrefixFetcher interface {
 
 // PrefixFetcherFactory constructs a PrefixFetcher for a given remote gateway.
 type PrefixFetcherFactory interface {
-	NewPrefixFetcher(gateway Gateway) PrefixFetcher
+	NewPrefixFetcher(ctx context.Context, gateway Gateway) PrefixFetcher
 }
 
 // PrefixWatcherConfig configures a prefix watcher that watches IP prefixes
@@ -359,12 +359,14 @@ type prefixWatcher struct {
 	timestamp time.Time
 }
 
-func newPrefixWatcher(gateway Gateway, remote addr.IA, cfg PrefixWatcherConfig) *prefixWatcher {
+func newPrefixWatcher(ctx context.Context, gateway Gateway, remote addr.IA,
+	cfg PrefixWatcherConfig) *prefixWatcher {
+
 	return &prefixWatcher{
 		PrefixWatcherConfig: cfg,
 		gateway:             gateway,
 		remote:              remote,
-		fetcher:             cfg.FetcherFactory.NewPrefixFetcher(gateway),
+		fetcher:             cfg.FetcherFactory.NewPrefixFetcher(ctx, gateway),
 	}
 }
 

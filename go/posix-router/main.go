@@ -130,7 +130,10 @@ func topologyHandler(topo topology.Topology) service.StatusPage {
 		}
 		fmt.Fprint(w, string(bytes)+"\n")
 	}
-	return service.StatusPage{Handler: handler}
+	return service.StatusPage{
+		Info:    "SCION topology",
+		Handler: handler,
+	}
 }
 
 func topologyDigestHandler(topo topology.Topology) service.StatusPage {
@@ -154,5 +157,8 @@ func topologyDigestHandler(topo topology.Topology) service.StatusPage {
 			return
 		}
 	}
-	return service.StatusPage{Handler: handler}
+	return service.StatusPage{
+		Info:    "sha256 of SCION topology",
+		Handler: handler,
+	}
 }

@@ -110,18 +110,8 @@ func TestBrValidatorImmutable(t *testing.T) {
 			topo.BR[other].InternalAddr.Port = 42
 			SoMsg("err", v.Immutable(topo, oldTopo), ShouldBeNil)
 		})
-		Convey("Modifying a different br's control address is allowed", func() {
-			topo.BR[other].CtrlAddrs.UnderlayAddress = &net.UDPAddr{Port: 42}
-			SoMsg("err", v.Immutable(topo, oldTopo), ShouldBeNil)
-		})
 		Convey("Modifying the own internal address is not allowed", func() {
 			topo.BR[v.id].InternalAddr.Port = 42
-			SoMsg("err", v.Immutable(topo, oldTopo), ShouldNotBeNil)
-		})
-		Convey("Modifying the own control address is not allowed", func() {
-			brInfo := topo.BR[v.id]
-			brInfo.CtrlAddrs.UnderlayAddress = &net.UDPAddr{Port: 42}
-			topo.BR[v.id] = brInfo
 			SoMsg("err", v.Immutable(topo, oldTopo), ShouldNotBeNil)
 		})
 	})

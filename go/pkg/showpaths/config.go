@@ -38,4 +38,7 @@ type Config struct {
 	// Sequence is a string of space separated Hop Predicates that is used for
 	// filtering.
 	Sequence string
+	// Dispatcher is the path to the dispatcher socket. Leaving this empty uses
+	// the default dispatcher socket value.
+	Dispatcher string
 }

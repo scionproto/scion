@@ -29,17 +29,15 @@ var (
 	ParseRule           = parseRule
 )
 
-type SingleIAMatcher = singleIAMatcher
-
 func NewIAMatcher(t *testing.T, ia string) IAMatcher {
 	if strings.HasPrefix(ia, "!") {
-		return negatedIAMatcher{
-			IAMatcher: singleIAMatcher{
+		return NegatedIAMatcher{
+			IAMatcher: SingleIAMatcher{
 				IA: xtest.MustParseIA(strings.TrimPrefix(ia, "!")),
 			},
 		}
 	}
-	return singleIAMatcher{
+	return SingleIAMatcher{
 		IA: xtest.MustParseIA(ia),
 	}
 }
@@ -49,12 +47,12 @@ func NewNetworkMatcher(t *testing.T, networks string) NetworkMatcher {
 	if negated {
 		networks = strings.TrimPrefix(networks, "!")
 	}
-	matcher := allowedNetworkMatcher{}
+	matcher := AllowedNetworkMatcher{}
 	for _, network := range strings.Split(networks, ",") {
 		matcher.Allowed = append(matcher.Allowed, xtest.MustParseCIDR(t, network))
 	}
 	if negated {
-		return negatedNetworkMatcher{NetworkMatcher: matcher}
+		return NegatedNetworkMatcher{NetworkMatcher: matcher}
 	}
 	return matcher
 }

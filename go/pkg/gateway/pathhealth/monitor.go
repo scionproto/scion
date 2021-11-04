@@ -18,6 +18,7 @@
 package pathhealth
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net"
@@ -27,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -40,13 +42,13 @@ const (
 // RemoteWatcher watches multiple paths to a given remote.
 type RemoteWatcher interface {
 	// UpdatePaths gets new paths from the SCION daemon. This method may block.
-	UpdatePaths(snet.Router)
+	UpdatePaths(context.Context, snet.Router)
 	// SendProbes sends probes on all the monitored paths.
-	SendProbes(conn snet.PacketConn, localAddr snet.SCIONAddress)
+	SendProbes(ctx context.Context, conn snet.PacketConn, localAddr snet.SCIONAddress)
 	// HandleProbeReply handles a single probe reply packet.
-	HandleProbeReply(id, seq uint16)
+	HandleProbeReply(ctx context.Context, id, seq uint16)
 	// Cleanup stops monitoring paths that are not being used anymore.
-	Cleanup()
+	Cleanup(ctx context.Context)
 	// Watchers returns a list of all active PathWatchers
 	Watchers() []PathWatcher
 }
@@ -59,11 +61,11 @@ type RemoteWatcherFactory interface {
 // RevocationStore keeps track of revocations.
 type RevocationStore interface {
 	// AddRevocation adds a revocation.
-	AddRevocation(rev *path_mgmt.RevInfo)
+	AddRevocation(ctx context.Context, rev *path_mgmt.RevInfo)
 	// IsRevoked returns true if there is at least one revoked interface on the path.
 	IsRevoked(path snet.Path) bool
 	// Cleanup removes all expired revocations.
-	Cleanup()
+	Cleanup(ctx context.Context)
 }
 
 // Monitor monitors paths to a set of remote ASes.
@@ -87,8 +89,6 @@ type Monitor struct {
 	RevocationStore RevocationStore
 	// RemoteWatcherFactory creates a RemoteWatcher for the specified remote.
 	RemoteWatcherFactory RemoteWatcherFactory
-	// Logger is the logger. If nil, nothing is logged.
-	Logger log.Logger
 
 	// conn is the snet connection used to exchange the probes.
 	conn snet.PacketConn
@@ -103,6 +103,9 @@ type Monitor struct {
 	// remoteWatchers is a map of all monitored IAs.
 	remoteWatchers map[addr.IA]*remoteWatcherItem
 	pktChan        <-chan traceroutePkt
+
+	SCMPErrors             metrics.Counter
+	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 }
 
 func (m *Monitor) ensureInitialized() {
@@ -128,31 +131,36 @@ func (m *Monitor) ensureInitializedLocked() {
 
 	pktChan := make(chan traceroutePkt, 10)
 	m.pktChan = pktChan
-	m.conn = snet.NewSCIONPacketConn(m.Conn,
-		scmpHandler{
-			wrappedHandler: snet.DefaultSCMPHandler{RevocationHandler: m.RevocationHandler},
-			pkts:           pktChan,
+	m.conn = &snet.SCIONPacketConn{
+		Conn: m.Conn,
+		SCMPHandler: scmpHandler{
+			wrappedHandler: snet.DefaultSCMPHandler{
+				RevocationHandler: m.RevocationHandler,
+				SCMPErrors:        m.SCMPErrors,
+			},
+			pkts: pktChan,
 		},
-		true,
-	)
+		Metrics: m.SCIONPacketConnMetrics,
+	}
 }
 
 // Run starts the monitor and blocks until Close is called.
-func (m *Monitor) Run() {
+func (m *Monitor) Run(ctx context.Context) {
 	m.ensureInitialized()
+	logger := log.FromCtx(ctx)
 	if m.runCalledF() {
 		panic("Run can only be called once")
 	}
-	log.SafeInfo(m.Logger, "Started PathMonitor")
+	logger.Info("Started PathMonitor")
 	go func() {
 		defer log.HandlePanic()
-		m.handleProbeReplies()
+		m.handleProbeReplies(ctx)
 	}()
 	go func() {
 		defer log.HandlePanic()
-		m.drainConn()
+		m.drainConn(ctx)
 	}()
-	m.run()
+	m.run(ctx)
 }
 
 func (m *Monitor) runCalledF() bool {
@@ -167,7 +175,9 @@ func (m *Monitor) runCalledF() bool {
 }
 
 // Register starts monitoring given AS under the specified selector.
-func (m *Monitor) Register(remote addr.IA, selector PathSelector) *Registration {
+func (m *Monitor) Register(ctx context.Context, remote addr.IA,
+	selector PathSelector) *Registration {
+
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
@@ -182,7 +192,7 @@ func (m *Monitor) Register(remote addr.IA, selector PathSelector) *Registration 
 			refCount:      1,
 		}
 		m.remoteWatchers[remote] = remoteWatcher
-		remoteWatcher.UpdatePaths(m.Router)
+		remoteWatcher.UpdatePaths(ctx, m.Router)
 	} else {
 		remoteWatcher.refCount++
 	}
@@ -212,21 +222,22 @@ func (m *Monitor) unregister(remoteWatcher *remoteWatcherItem) {
 }
 
 // run triggers periodical tasks on the pathmonitor.
-func (m *Monitor) run() {
+func (m *Monitor) run(ctx context.Context) {
+	logger := log.FromCtx(ctx)
 	pathUpdateTicker := time.NewTicker(m.PathUpdateInterval)
 	probeTicker := time.NewTicker(m.ProbeInterval)
 	defer probeTicker.Stop()
 	defer m.conn.Close() // This kills the handleProbeReply goroutine.
-	defer log.SafeInfo(m.Logger, "Terminated PathMonitor")
+	defer logger.Info("Terminated PathMonitor")
 
-	m.updatePaths()
+	m.updatePaths(ctx)
 	for {
 		select {
 		case <-pathUpdateTicker.C:
-			m.updatePaths()
+			m.updatePaths(ctx)
 		case <-probeTicker.C:
-			m.cleanup()
-			m.sendProbes()
+			m.cleanup(ctx)
+			m.sendProbes(ctx)
 		case <-m.stopChannel:
 			return
 		}
@@ -234,35 +245,36 @@ func (m *Monitor) run() {
 }
 
 // updatePaths gets new set of paths from SCION daemon.
-func (m *Monitor) updatePaths() {
+func (m *Monitor) updatePaths(ctx context.Context) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	for _, remoteWatcher := range m.remoteWatchers {
-		remoteWatcher.UpdatePaths(m.Router)
+		remoteWatcher.UpdatePaths(ctx, m.Router)
 	}
 }
 
 // sendProbes sends probes through all the monitored paths.
-func (m *Monitor) sendProbes() {
+func (m *Monitor) sendProbes(ctx context.Context) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	localAddr := snet.SCIONAddress{IA: m.LocalIA, Host: addr.HostFromIP(m.LocalIP)}
 	for _, remoteWatcher := range m.remoteWatchers {
-		remoteWatcher.SendProbes(m.conn, localAddr)
+		remoteWatcher.SendProbes(ctx, m.conn, localAddr)
 	}
 }
 
 // cleanup deletes all unused paths from monitoring as well as all expired revocations.
-func (m *Monitor) cleanup() {
+func (m *Monitor) cleanup(ctx context.Context) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	for _, remoteWatcher := range m.remoteWatchers {
-		remoteWatcher.Cleanup()
+		remoteWatcher.Cleanup(ctx)
 	}
-	m.RevocationStore.Cleanup()
+	m.RevocationStore.Cleanup(ctx)
 }
 
-func (m *Monitor) drainConn() {
+func (m *Monitor) drainConn(ctx context.Context) {
+	logger := log.FromCtx(ctx)
 	closing := func() bool {
 		select {
 		case <-m.stopChannel:
@@ -289,20 +301,20 @@ func (m *Monitor) drainConn() {
 		if err != nil {
 			opErr, ok := err.(*snet.OpError)
 			if ok {
-				m.handleRevocation(opErr.RevInfo())
+				m.handleRevocation(ctx, opErr.RevInfo())
 				continue
 			}
-			log.SafeInfo(m.Logger, "Unexpected error when reading probe replies", "err", err)
+			logger.Info("Unexpected error when reading probe replies", "err", err)
 		}
 	}
 }
 
 // handleProbeReplies reads incoming probe replies and dispatches them as needed.
-func (m *Monitor) handleProbeReplies() {
+func (m *Monitor) handleProbeReplies(ctx context.Context) {
 	for {
 		select {
 		case pkt := <-m.pktChan:
-			m.handleProbeReply(pkt)
+			m.handleProbeReply(ctx, pkt)
 		case <-m.stopChannel:
 			return
 		}
@@ -310,24 +322,26 @@ func (m *Monitor) handleProbeReplies() {
 }
 
 // handleRevocation deals with a received revocation
-func (m *Monitor) handleRevocation(rev *path_mgmt.RevInfo) {
+func (m *Monitor) handleRevocation(ctx context.Context, rev *path_mgmt.RevInfo) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	m.RevocationStore.AddRevocation(rev)
+	m.RevocationStore.AddRevocation(ctx, rev)
 }
 
 // handleProbeReply dispatches a single probe reply packet.
-func (m *Monitor) handleProbeReply(pkt traceroutePkt) {
+func (m *Monitor) handleProbeReply(ctx context.Context, pkt traceroutePkt) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
+
+	logger := log.FromCtx(ctx)
 	remoteWatcher := m.remoteWatchers[pkt.Remote]
 	if remoteWatcher == nil {
-		log.SafeDebug(m.Logger, "Unsolicited reply (ISD-AS no longer monitored)",
+		logger.Debug("Unsolicited reply (ISD-AS no longer monitored)",
 			"remote", pkt.Remote)
 		// Reply from an IA that is no longer monitored.
 		return
 	}
-	remoteWatcher.HandleProbeReply(pkt.Identifier, pkt.Sequence)
+	remoteWatcher.HandleProbeReply(ctx, pkt.Identifier, pkt.Sequence)
 }
 
 // remoteWatcherItem is a helper structure that augments RemoteWatcher with

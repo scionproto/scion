@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/integration/progress"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/pkg/app/feature"
@@ -114,8 +115,46 @@ func validateFlags() {
 	}
 }
 
-func InitNetwork() *snet.SCIONNetwork {
-	ds := reliable.NewDispatcher("")
+type options struct {
+	scionNetworkMetrics    snet.SCIONNetworkMetrics
+	scmpErrorsCounter      metrics.Counter
+	scionPacketConnMetrics snet.SCIONPacketConnMetrics
+}
+
+type Option func(o *options)
+
+func applyOption(opts []Option) options {
+	var o options
+	for _, option := range opts {
+		option(&o)
+	}
+	return o
+}
+
+// WithSCIONNetworkMetrics sets the metrics that are provided to the SCIONNetwork.
+func WithSCIONNetworkMetrics(m snet.SCIONNetworkMetrics) Option {
+	return func(o *options) {
+		o.scionNetworkMetrics = m
+	}
+}
+
+// WithSCIONNetworkMetrics sets the metrics that are provided to the SCIONPacketConn.
+func WithSCIONPacketConnMetrics(m snet.SCIONPacketConnMetrics) Option {
+	return func(o *options) {
+		o.scionPacketConnMetrics = m
+	}
+}
+
+// WithSCMPErrorCounter sets the counter that be provided to
+// the DefaultPacketDispatcherService of the SCIONNetwork.
+func WithSCMPErrorCounter(m metrics.Counter) Option {
+	return func(o *options) {
+		o.scmpErrorsCounter = m
+	}
+}
+
+func InitNetwork(opts ...Option) *snet.SCIONNetwork {
+	o := applyOption(opts)
 	daemonConn, err := daemon.NewService(daemonAddr).Connect(context.Background())
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
@@ -123,11 +162,14 @@ func InitNetwork() *snet.SCIONNetwork {
 	n := &snet.SCIONNetwork{
 		LocalIA: Local.IA,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
-			Dispatcher: ds,
-			SCMPHandler: snet.DefaultSCMPHandler{
+			Dispatcher: reliable.NewDispatcher(""),
+			SCMPHandler: &snet.DefaultSCMPHandler{
 				RevocationHandler: daemon.RevHandler{Connector: daemonConn},
+				SCMPErrors:        o.scmpErrorsCounter,
 			},
+			SCIONPacketConnMetrics: o.scionPacketConnMetrics,
 		},
+		Metrics: o.scionNetworkMetrics,
 	}
 	log.Debug("SCION network successfully initialized")
 	return n

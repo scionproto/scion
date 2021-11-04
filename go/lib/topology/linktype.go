@@ -17,6 +17,8 @@ package topology
 
 import (
 	"strings"
+
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // LinkType describes inter-AS links.
@@ -38,38 +40,54 @@ const (
 	Peer LinkType = 4
 )
 
-func (lt LinkType) String() string {
-	switch lt {
-	case Unset:
+func (l LinkType) String() string {
+	if l == Unset {
 		return "unset"
-	case Core:
-		return "core"
-	case Parent:
-		return "parent"
-	case Child:
-		return "child"
-	case Peer:
-		return "peer"
-	default:
-		return ""
 	}
+	s, err := l.MarshalText()
+	if err != nil {
+		return err.Error()
+	}
+	return string(s)
 }
 
 // LinkTypeFromString returns the numerical link type associated with a string description. If the
 // string is not recognized, an Unset link type is returned. The matching is case-insensitive.
 func LinkTypeFromString(s string) LinkType {
-	switch strings.ToLower(s) {
-	case "unset":
-		return Unset
-	case "core":
-		return Core
-	case "parent":
-		return Parent
-	case "child":
-		return Child
-	case "peer":
-		return Peer
-	default:
+	var l LinkType
+	if err := l.UnmarshalText([]byte(s)); err != nil {
 		return Unset
 	}
+	return l
+}
+
+func (l LinkType) MarshalText() ([]byte, error) {
+	switch l {
+	case Core:
+		return []byte("core"), nil
+	case Parent:
+		return []byte("parent"), nil
+	case Child:
+		return []byte("child"), nil
+	case Peer:
+		return []byte("peer"), nil
+	default:
+		return nil, serrors.New("invalid link type")
+	}
+}
+
+func (l *LinkType) UnmarshalText(data []byte) error {
+	switch strings.ToLower(string(data)) {
+	case "core":
+		*l = Core
+	case "parent":
+		*l = Parent
+	case "child":
+		*l = Child
+	case "peer":
+		*l = Peer
+	default:
+		return serrors.New("invalid link type", "linkType", string(data))
+	}
+	return nil
 }

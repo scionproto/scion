@@ -188,7 +188,7 @@ func TestRegistrarRun(t *testing.T) {
 					},
 					Pather: addrutil.Pather{
 						UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
-							return topoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
+							return topoProvider.Get().UnderlayNextHop(common.IFIDType(ifID))
 						},
 					},
 					RPC:   rpc,
@@ -286,7 +286,7 @@ func TestRegistrarRun(t *testing.T) {
 				},
 				Pather: addrutil.Pather{
 					UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
-						return topoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
+						return topoProvider.Get().UnderlayNextHop(common.IFIDType(ifID))
 					},
 				},
 				RPC:   rpc,

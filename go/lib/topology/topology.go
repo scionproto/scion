@@ -78,6 +78,7 @@ type (
 	GatewayInfo struct {
 		CtrlAddr        *TopoAddr
 		DataAddr        *net.UDPAddr
+		ProbeAddr       *net.UDPAddr
 		AllowInterfaces []uint64
 	}
 
@@ -87,8 +88,6 @@ type (
 	// struct.
 	BRInfo struct {
 		Name string
-		// CtrlAddrs are the local control-plane addresses.
-		CtrlAddrs *TopoAddr
 		// InternalAddr is the local data-plane address.
 		InternalAddr *net.UDPAddr
 		// IFIDs is a sorted list of the interface IDs.
@@ -107,7 +106,6 @@ type (
 		// ID is the interface ID. It is unique per AS.
 		ID           common.IFIDType
 		BRName       string
-		CtrlAddrs    *TopoAddr
 		Underlay     underlay.Type
 		InternalAddr *net.UDPAddr
 		Local        *net.UDPAddr
@@ -209,15 +207,8 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 
 func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 	for name, rawBr := range raw.BorderRouters {
-		if rawBr.CtrlAddr == "" {
-			return serrors.New("Missing Control Address", "br", name)
-		}
 		if rawBr.InternalAddr == "" {
 			return serrors.New("Missing Internal Address", "br", name)
-		}
-		ctrlAddr, err := rawAddrToTopoAddr(rawBr.CtrlAddr)
-		if err != nil {
-			return serrors.WrapStr("unable to extract SCION control-plane address", err)
 		}
 		intAddr, err := rawAddrToUDPAddr(rawBr.InternalAddr)
 		if err != nil {
@@ -225,7 +216,6 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 		}
 		brInfo := BRInfo{
 			Name:         name,
-			CtrlAddrs:    ctrlAddr,
 			InternalAddr: intAddr,
 			IFs:          make(map[common.IFIDType]*IFInfo),
 		}
@@ -240,7 +230,6 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 				ID:           ifid,
 				BRName:       name,
 				InternalAddr: intAddr,
-				CtrlAddrs:    ctrlAddr,
 				Bandwidth:    rawIntf.Bandwidth,
 				MTU:          rawIntf.MTU,
 			}
@@ -410,8 +399,9 @@ func copySIGMap(m map[string]GatewayInfo) map[string]GatewayInfo {
 	ret := make(map[string]GatewayInfo)
 	for k, v := range m {
 		e := GatewayInfo{
-			CtrlAddr: v.CtrlAddr.copy(),
-			DataAddr: copyUDPAddr(v.DataAddr),
+			CtrlAddr:  v.CtrlAddr.copy(),
+			DataAddr:  copyUDPAddr(v.DataAddr),
+			ProbeAddr: copyUDPAddr(v.ProbeAddr),
 		}
 		ret[k] = e
 	}
@@ -435,7 +425,6 @@ func (i *BRInfo) copy() *BRInfo {
 	}
 	return &BRInfo{
 		Name:         i.Name,
-		CtrlAddrs:    i.CtrlAddrs.copy(),
 		InternalAddr: copyUDPAddr(i.InternalAddr),
 		IFIDs:        append(i.IFIDs[:0:0], i.IFIDs...),
 		IFs:          copyIFsMap(i.IFs),
@@ -503,10 +492,22 @@ func gatewayMapFromRaw(ras map[string]*jsontopo.GatewayInfo) (map[string]Gateway
 			return nil, serrors.WrapStr("could not parse data address", err,
 				"address", svc.DataAddr, "process_name", name)
 		}
+		// backward compatibility: if no probe address is specified just use the
+		// default (ctrl address & port 30856):
+		probeAddr := copyUDPAddr(c.SCIONAddress)
+		probeAddr.Port = 30856
+		if svc.ProbeAddr != "" {
+			probeAddr, err = rawAddrToUDPAddr(svc.ProbeAddr)
+			if err != nil {
+				return nil, serrors.WrapStr("could not parse probe address", err,
+					"address", svc.ProbeAddr, "process_name", name)
+			}
+		}
 
 		ret[name] = GatewayInfo{
 			CtrlAddr:        c,
 			DataAddr:        d,
+			ProbeAddr:       probeAddr,
 			AllowInterfaces: svc.Interfaces,
 		}
 	}
@@ -556,8 +557,8 @@ func (i IFInfo) CheckLinks(isCore bool, brName string) error {
 }
 
 func (i IFInfo) String() string {
-	return fmt.Sprintf("IFinfo: Name[%s] IntAddr[%+v] CtrlAddr[%+v] Underlay:%s Local:%+v "+
-		"Remote:%+v Bw:%d IA:%s Type:%v MTU:%d", i.BRName, i.InternalAddr, i.CtrlAddrs, i.Underlay,
+	return fmt.Sprintf("IFinfo: Name[%s] IntAddr[%+v] Underlay:%s Local:%+v "+
+		"Remote:%+v Bw:%d IA:%s Type:%v MTU:%d", i.BRName, i.InternalAddr, i.Underlay,
 		i.Local, i.Remote, i.Bandwidth, i.IA, i.LinkType, i.MTU)
 }
 
@@ -568,7 +569,6 @@ func (i *IFInfo) copy() *IFInfo {
 	return &IFInfo{
 		ID:           i.ID,
 		BRName:       i.BRName,
-		CtrlAddrs:    i.CtrlAddrs.copy(),
 		Underlay:     i.Underlay,
 		InternalAddr: copyUDPAddr(i.InternalAddr),
 		Local:        copyUDPAddr(i.Local),

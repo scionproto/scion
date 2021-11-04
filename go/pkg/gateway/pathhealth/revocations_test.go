@@ -15,6 +15,7 @@
 package pathhealth_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -41,7 +42,7 @@ func TestEmptyStore(t *testing.T) {
 	s := pathhealth.MemoryRevocationStore{}
 	res := s.IsRevoked(createMockPath(ctrl, testIA, 1))
 	assert.False(t, res)
-	s.Cleanup()
+	s.Cleanup(context.Background())
 }
 
 func TestRevocation(t *testing.T) {
@@ -49,12 +50,12 @@ func TestRevocation(t *testing.T) {
 	defer ctrl.Finish()
 
 	s := pathhealth.MemoryRevocationStore{}
-	s.AddRevocation(createRevInfo(testIA, 1, false))
+	s.AddRevocation(context.Background(), createRevInfo(testIA, 1, false))
 	res := s.IsRevoked(createMockPath(ctrl, testIA, 2))
 	assert.False(t, res)
 	res = s.IsRevoked(createMockPath(ctrl, testIA, 1))
 	assert.True(t, res)
-	s.Cleanup()
+	s.Cleanup(context.Background())
 }
 
 func TestExpiredRevocation(t *testing.T) {
@@ -62,10 +63,10 @@ func TestExpiredRevocation(t *testing.T) {
 	defer ctrl.Finish()
 
 	s := pathhealth.MemoryRevocationStore{}
-	s.AddRevocation(createRevInfo(testIA, 1, true))
+	s.AddRevocation(context.Background(), createRevInfo(testIA, 1, true))
 	res := s.IsRevoked(createMockPath(ctrl, testIA, 1))
 	assert.False(t, res)
-	s.Cleanup()
+	s.Cleanup(context.Background())
 }
 
 func createMockPath(ctrl *gomock.Controller, ia addr.IA, ifid common.IFIDType) snet.Path {

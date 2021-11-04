@@ -1,11 +1,7 @@
-.PHONY: all bundle_spec_files
+.PHONY: lint
 
-all: bundle_spec_files
+all: lint
 
-bundle_spec_files:
-	docker build -t openapicli -f ./tools/openapicli_Dockerfile .
-	docker run -v "$$PWD":/spec --rm  openapicli openapi bundle --ext yml --output /spec/control.gen.yml /spec/control/spec.yml
-	sed -i '1s;^;# GENERATED FILE DO NOT EDIT\n;' control.gen.yml
-	docker run -v "$$PWD":/spec --rm  openapicli openapi bundle --ext yml --output /spec/ca.gen.yml /spec/ca/spec.yml
-	sed -i '1s;^;# GENERATED FILE DO NOT EDIT\n;' ca.gen.yml
-	docker image remove openapicli
+# TODO(lukedirtwalker): make this go away...
+lint:
+	bazel run @rules_openapi_npm//@stoplight/spectral-cli/bin:spectral -- lint --ruleset ${PWD}/spec/.spectral.yml ${PWD}/spec/*.gen.yml

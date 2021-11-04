@@ -21,9 +21,9 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
-	"github.com/scionproto/scion/go/lib/snet/internal/metrics"
 )
 
 // PacketConn gives applications easy access to writing and reading custom
@@ -91,35 +91,45 @@ func (a SCIONAddress) String() string {
 	return fmt.Sprintf("%v,%s", a.IA, a.Host.String())
 }
 
+type SCIONPacketConnMetrics struct {
+	// Closes records the total number of Close calls on the connection.
+	Closes metrics.Counter
+	// ReadBytes records the total number of bytes read on the connection.
+	ReadBytes metrics.Counter
+	// WriteBytes records the total number of bytes written on the connection.
+	WriteBytes metrics.Counter
+	// ReadPackets records the total number of packets read on the connection.
+	ReadPackets metrics.Counter
+	// WritePackets records the total number of packets written on the connection.
+	WritePackets metrics.Counter
+	// ParseErrors records the total number of parse errors encountered.
+	ParseErrors metrics.Counter
+	// SCMPErrors records the total number of SCMP Errors encountered.
+	SCMPErrors metrics.Counter
+	// DispatcherErrors records the number of dispatcher errors encountered.
+	DispatcherErrors metrics.Counter
+}
+
 // SCIONPacketConn gives applications full control over the content of valid SCION
 // packets.
 type SCIONPacketConn struct {
-	// conn is the connection to send/receive serialized packets on.
-	conn net.PacketConn
-	// scmpHandler is invoked for packets that contain an SCMP L4. If the
+	// Conn is the connection to send/receive serialized packets on.
+	Conn net.PacketConn
+	// SCMPHandler is invoked for packets that contain an SCMP L4. If the
 	// handler is nil, errors are returned back to applications every time an
 	// SCMP message is received.
-	scmpHandler SCMPHandler
-}
-
-// NewSCIONPacketConn creates a new conn with packet serialization/decoding
-// support that transfers data over conn.
-func NewSCIONPacketConn(conn net.PacketConn, scmpHandler SCMPHandler,
-	headerV2 bool) *SCIONPacketConn {
-
-	return &SCIONPacketConn{
-		conn:        conn,
-		scmpHandler: scmpHandler,
-	}
+	SCMPHandler SCMPHandler
+	// Metrics are the metrics exported by the conn.
+	Metrics SCIONPacketConnMetrics
 }
 
 func (c *SCIONPacketConn) SetDeadline(d time.Time) error {
-	return c.conn.SetDeadline(d)
+	return c.Conn.SetDeadline(d)
 }
 
 func (c *SCIONPacketConn) Close() error {
-	metrics.M.Closes().Inc()
-	return c.conn.Close()
+	metrics.CounterInc(c.Metrics.Closes)
+	return c.Conn.Close()
 }
 
 func (c *SCIONPacketConn) WriteTo(pkt *Packet, ov *net.UDPAddr) error {
@@ -128,17 +138,17 @@ func (c *SCIONPacketConn) WriteTo(pkt *Packet, ov *net.UDPAddr) error {
 	}
 
 	// Send message
-	n, err := c.conn.WriteTo(pkt.Bytes, ov)
+	n, err := c.Conn.WriteTo(pkt.Bytes, ov)
 	if err != nil {
 		return serrors.WrapStr("Reliable socket write error", err)
 	}
-	metrics.M.WriteBytes().Add(float64(n))
-	metrics.M.WritePackets().Inc()
+	metrics.CounterAdd(c.Metrics.WriteBytes, float64(n))
+	metrics.CounterInc(c.Metrics.WritePackets)
 	return nil
 }
 
 func (c *SCIONPacketConn) SetWriteDeadline(d time.Time) error {
-	return c.conn.SetWriteDeadline(d)
+	return c.Conn.SetWriteDeadline(d)
 }
 
 func (c *SCIONPacketConn) ReadFrom(pkt *Packet, ov *net.UDPAddr) error {
@@ -148,13 +158,13 @@ func (c *SCIONPacketConn) ReadFrom(pkt *Packet, ov *net.UDPAddr) error {
 			return err
 		}
 		if scmp, ok := pkt.Payload.(SCMPPayload); ok {
-			if c.scmpHandler == nil {
-				metrics.M.SCMPErrors().Inc()
+			if c.SCMPHandler == nil {
+				metrics.CounterInc(c.Metrics.SCMPErrors)
 				return serrors.New("scmp packet received, but no handler found",
 					"type_code", slayers.CreateSCMPTypeCode(scmp.Type(), scmp.Code()),
 					"src", pkt.Source)
 			}
-			if err := c.scmpHandler.Handle(pkt); err != nil {
+			if err := c.SCMPHandler.Handle(pkt); err != nil {
 				// Return error intact s.t. applications can handle custom
 				// error types returned by SCMP handlers.
 				return err
@@ -169,13 +179,13 @@ func (c *SCIONPacketConn) ReadFrom(pkt *Packet, ov *net.UDPAddr) error {
 
 func (c *SCIONPacketConn) readFrom(pkt *Packet, ov *net.UDPAddr) error {
 	pkt.Prepare()
-	n, lastHopNetAddr, err := c.conn.ReadFrom(pkt.Bytes)
+	n, lastHopNetAddr, err := c.Conn.ReadFrom(pkt.Bytes)
 	if err != nil {
-		metrics.M.DispatcherErrors().Inc()
+		metrics.CounterInc(c.Metrics.DispatcherErrors)
 		return serrors.WrapStr("Reliable socket read error", err)
 	}
-	metrics.M.ReadBytes().Add(float64(n))
-	metrics.M.ReadPackets().Inc()
+	metrics.CounterAdd(c.Metrics.ReadBytes, float64(n))
+	metrics.CounterInc(c.Metrics.ReadPackets)
 
 	pkt.Bytes = pkt.Bytes[:n]
 	var lastHop *net.UDPAddr
@@ -188,7 +198,7 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet, ov *net.UDPAddr) error {
 	}
 
 	if err := pkt.Decode(); err != nil {
-		metrics.M.ParseErrors().Inc()
+		metrics.CounterInc(c.Metrics.ParseErrors)
 		return serrors.WrapStr("decoding packet", err)
 	}
 
@@ -199,7 +209,7 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet, ov *net.UDPAddr) error {
 }
 
 func (c *SCIONPacketConn) SetReadDeadline(d time.Time) error {
-	return c.conn.SetReadDeadline(d)
+	return c.Conn.SetReadDeadline(d)
 }
 
 type SerializationOptions struct {

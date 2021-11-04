@@ -115,6 +115,11 @@ func ReadPEMCerts(file string) ([]*x509.Certificate, error) {
 	if len(raw) == 0 {
 		return nil, serrors.New("empty")
 	}
+	return ParsePEMCerts(raw)
+}
+
+// ParsePEMCerts parses the PEM encoded certificate blocks in raw.
+func ParsePEMCerts(raw []byte) ([]*x509.Certificate, error) {
 	var certs []*x509.Certificate
 	for len(raw) > 0 {
 		var block *pem.Block

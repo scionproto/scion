@@ -16,6 +16,7 @@ package control
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -73,9 +74,6 @@ type SessionConfigurator struct {
 	// SessionConfigurations is the channel where new configurations are
 	// published.
 	SessionConfigurations chan<- []*SessionConfig
-	// Logger is used to log informations during processing. If it is nil
-	// nothing is logged.
-	Logger log.Logger
 
 	stateMtx               sync.RWMutex
 	currentSessionPolicies SessionPolicies
@@ -88,13 +86,13 @@ type SessionConfigurator struct {
 // Run informs the session configurator to start reading from its input channels
 // and push updates on the configuration channel. It returns when the
 // configurator terminates.
-func (sc *SessionConfigurator) Run() error {
-	return sc.workerBase.RunWrapper(sc.validate, sc.run)
+func (sc *SessionConfigurator) Run(ctx context.Context) error {
+	return sc.workerBase.RunWrapper(ctx, sc.validate, sc.run)
 }
 
 // Close stops the session configurator.
-func (sc *SessionConfigurator) Close() error {
-	return sc.workerBase.CloseWrapper(nil)
+func (sc *SessionConfigurator) Close(ctx context.Context) error {
+	return sc.workerBase.CloseWrapper(ctx, nil)
 }
 
 // DiagnosticsWrite writes diagnostics to the writer.
@@ -120,7 +118,8 @@ func (sc *SessionConfigurator) DiagnosticsWrite(w io.Writer) {
 	w.Write([]byte("\n"))
 }
 
-func (sc *SessionConfigurator) run() error {
+func (sc *SessionConfigurator) run(ctx context.Context) error {
+	logger := log.FromCtx(ctx)
 	doLocked := func(l sync.Locker, f func()) {
 		l.Lock()
 		defer l.Unlock()
@@ -155,16 +154,16 @@ func (sc *SessionConfigurator) run() error {
 			}
 		})
 		if err != nil {
-			sc.logError("Failed to merge static and dynamic configs", "err", err)
+			logger.Error("Failed to merge static and dynamic configs", "err", err)
 			continue
 		}
-		log.SafeDebug(sc.Logger, "Sending configs through the channel", "configs", configs)
+		logger.Debug("Sending configs through the channel", "configs", configs)
 		sc.SessionConfigurations <- configs
-		log.SafeDebug(sc.Logger, "Configs sent")
+		logger.Debug("Configs sent")
 	}
 }
 
-func (sc *SessionConfigurator) validate() error {
+func (sc *SessionConfigurator) validate(ctx context.Context) error {
 	if sc.SessionPolicies == nil {
 		return serrors.New("static updates channel must not be nil")
 	}
@@ -175,13 +174,6 @@ func (sc *SessionConfigurator) validate() error {
 		return serrors.New("configurations channel must not be nil")
 	}
 	return nil
-}
-
-func (sc *SessionConfigurator) logError(msg string, ctx ...interface{}) {
-	if sc.Logger == nil {
-		return
-	}
-	sc.Logger.Error(msg, ctx...)
 }
 
 // diffSessionPolicies tries to determine whether the 2 session policies lists
