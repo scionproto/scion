@@ -466,13 +466,13 @@ func CreateCSR(certType cppki.CertType, subject pkix.Name, priv key.PrivateKey) 
 		}
 	case cppki.CA:
 		extensions = []pkix.Extension{
-			basicConstraints(0),
+			basicConstraintsExt(0),
 			keyUsageCertSign(),
 			skid,
 		}
 	case cppki.Root:
 		extensions = []pkix.Extension{
-			basicConstraints(1),
+			basicConstraintsExt(1),
 			keyUsageCertSign(),
 			extendedKeyUsagesByType[cppki.Root],
 			skid,
@@ -568,7 +568,7 @@ func CreateCertificate(params CertParams) ([]byte, error) {
 	return cert, nil
 }
 
-func basicConstraints(pathLen int) pkix.Extension {
+func basicConstraintsExt(pathLen int) pkix.Extension {
 	val, err := asn1.Marshal(struct {
 		IsCA       bool `asn1:"optional"`
 		MaxPathLen int  `asn1:"optional,default:-1"`

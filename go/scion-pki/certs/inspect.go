@@ -21,7 +21,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/smallstep/certinfo"
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
@@ -88,9 +87,9 @@ request (CSR) in human readable format.`,
 
 // prettyPrintCertChain prints a chain of certificates in human readable format.
 func prettyPrintCertificate(w io.Writer, certs []*x509.Certificate, short bool) error {
-	format := certinfo.CertificateText
+	format := certificateText
 	if short {
-		format = certinfo.CertificateShortText
+		format = certificateShortText
 	}
 	for i, cert := range certs {
 		info, err := format(cert)
@@ -106,9 +105,9 @@ func prettyPrintCertificate(w io.Writer, certs []*x509.Certificate, short bool) 
 
 // prettyPrintCSR prints a CSR in human readable format.
 func prettyPrintCSR(w io.Writer, csr *x509.CertificateRequest, short bool) error {
-	format := certinfo.CertificateRequestText
+	format := certificateRequestText
 	if short {
-		format = certinfo.CertificateRequestShortText
+		format = certificateRequestShortText
 	}
 	info, err := format(csr)
 	if err != nil {

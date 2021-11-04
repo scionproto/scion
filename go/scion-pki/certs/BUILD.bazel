@@ -3,6 +3,8 @@ load("//lint:go.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
+        "certformat.go",
+        "certinfo.go",
         "certs.go",
         "create.go",
         "fingerprint.go",
@@ -44,7 +46,7 @@ go_library(
         "//go/scion-pki/key:go_default_library",
         "@com_github_emojisum_emojisum//emoji:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
-        "@com_github_smallstep_certinfo//:go_default_library",
+        "@com_github_pkg_errors//:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
         "@org_golang_google_protobuf//proto:go_default_library",
     ],
