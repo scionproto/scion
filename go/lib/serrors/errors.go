@@ -33,14 +33,6 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// Wrapper allows recursing into nested errrors.
-type Wrapper interface {
-	error
-	Unwrap() error
-	// TopError should return the top level error without the wrapped ones.
-	TopError() string
-}
-
 type errOrMsg struct {
 	str string
 	err error
@@ -69,6 +61,7 @@ type basicError struct {
 	msg    errOrMsg
 	fields map[string]interface{}
 	cause  error
+	stack  *stack
 }
 
 func (e basicError) Error() string {
@@ -96,6 +89,11 @@ func (e basicError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 			}
 		} else {
 			enc.AddString("cause", e.cause.Error())
+		}
+	}
+	if e.stack != nil {
+		if err := enc.AddArray("stacktrace", e.stack); err != nil {
+			return err
 		}
 	}
 	for k, v := range e.fields {
@@ -129,6 +127,14 @@ func (e basicError) Unwrap() error {
 	return e.cause
 }
 
+// StackTrace returns the attached stack trace if there is any.
+func (e basicError) StackTrace() StackTrace {
+	if e.stack == nil {
+		return nil
+	}
+	return e.stack.StackTrace()
+}
+
 func (e basicError) ctxPairs() []ctxPair {
 	fields := make([]ctxPair, 0, len(e.fields))
 	for k, v := range e.fields {
@@ -155,6 +161,7 @@ func IsTemporary(err error) bool {
 // WithCtx returns an error that is the same as the given error but contains the
 // additional context. The additional context is printed in the Error method.
 // The returned error implements Is and Is(err) returns true.
+// Deprecated: use WrapStr or New instead.
 func WithCtx(err error, errCtx ...interface{}) error {
 	return basicError{
 		msg:    errOrMsg{err: err},
@@ -165,6 +172,7 @@ func WithCtx(err error, errCtx ...interface{}) error {
 // Wrap wraps the cause with the msg error and adds context to the resulting
 // error. The returned error implements Is and Is(msg) and Is(cause) returns
 // true.
+// Deprecated: use WrapStr instead.
 func Wrap(msg, cause error, errCtx ...interface{}) error {
 	return basicError{
 		msg:    errOrMsg{err: msg},
@@ -177,10 +185,18 @@ func Wrap(msg, cause error, errCtx ...interface{}) error {
 // adds the additional context. The returned error implements Is and Is(cause)
 // returns true.
 func WrapStr(msg string, cause error, errCtx ...interface{}) error {
+	var existing basicError
+	var st *stack
+	// if we already have a basicError with stack trace no need to attach it
+	// anymore.
+	if !errors.As(cause, &existing) {
+		st = callers()
+	}
 	return basicError{
 		msg:    errOrMsg{str: msg},
 		cause:  cause,
 		fields: errCtxToFields(errCtx),
+		stack:  st,
 	}
 }
 
@@ -192,6 +208,7 @@ func New(msg string, errCtx ...interface{}) error {
 	return &basicError{
 		msg:    errOrMsg{str: msg},
 		fields: errCtxToFields(errCtx),
+		stack:  callers(),
 	}
 }
 
@@ -255,4 +272,16 @@ func encodeContext(buf io.Writer, pairs []ctxPair) {
 		}
 	}
 	fmt.Fprintf(buf, "}")
+}
+
+func (s *stack) MarshalLogArray(enc zapcore.ArrayEncoder) error {
+	for i := 0; i < len(*s); i++ {
+		f := Frame((*s)[i])
+		t, err := f.MarshalText()
+		if err != nil {
+			return err
+		}
+		enc.AppendByteString(t)
+	}
+	return nil
 }

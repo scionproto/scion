@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -229,10 +230,11 @@ func TestEncoding(t *testing.T) {
 			logger := newLogger(&b)
 			logger.Sugar().Infow("Failed to do thing", "err", tc.err)
 
+			logOut := sanitizeLog(b.Bytes())
 			// Parse the log output and marshal it again to sort it.
 			// The zap encoder is not deterministic for nested maps.
 			var parsed map[string]interface{}
-			require.NoError(t, json.Unmarshal(b.Bytes(), &parsed))
+			require.NoError(t, json.Unmarshal(logOut, &parsed), string(logOut))
 			sorted, err := json.Marshal(parsed)
 			require.NoError(t, err)
 
@@ -317,4 +319,23 @@ func ExampleWrap() {
 	// true
 	//
 	// db{ctx=1}: no space
+}
+
+// sanitizeLog sanitizes the log output so that stack traces look the same on
+// all systems including bazel.
+func sanitizeLog(log []byte) []byte {
+	for _, replacer := range []struct{ pattern, replace string }{
+		// serrors Test file
+		{`[^\s"]*go/lib/serrors_test.Test`, "go/lib/serrors/go_default_test_test.Test"},
+		// serrors package
+		{`[^\s"]*/go/lib/serrors`, "go/lib/serrors"},
+		// go sdk
+		{`[^\s"]*/src/testing`, "GOROOT/src/testing"},
+		// go runtime
+		{`[^\s"]*/src/runtime`, "GOROOT/src/runtime"},
+	} {
+		re := regexp.MustCompile(replacer.pattern)
+		log = re.ReplaceAll(log, []byte(replacer.replace))
+	}
+	return log
 }
