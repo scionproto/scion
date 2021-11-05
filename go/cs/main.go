@@ -27,6 +27,7 @@ import (
 	"github.com/go-chi/cors"
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -41,7 +42,6 @@ import (
 	"github.com/scionproto/scion/go/cs/segreq"
 	segreqgrpc "github.com/scionproto/scion/go/cs/segreq/grpc"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
@@ -57,6 +57,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/api/jwtauth"
+	"github.com/scionproto/scion/go/pkg/app"
 	"github.com/scionproto/scion/go/pkg/app/launcher"
 	caapi "github.com/scionproto/scion/go/pkg/ca/api"
 	caconfig "github.com/scionproto/scion/go/pkg/ca/config"
@@ -497,18 +498,26 @@ func realMain(ctx context.Context) error {
 
 	promgrpc.Register(quicServer)
 	promgrpc.Register(tcpServer)
-	go func() {
+
+	var cleanup app.Cleanup
+	g, errCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
 		defer log.HandlePanic()
 		if err := quicServer.Serve(quicStack.Listener); err != nil {
-			fatal.Fatal(err)
+			return serrors.WrapStr("serving gRPC/QUIC API", err)
 		}
-	}()
-	go func() {
+		return nil
+	})
+	cleanup.Add(func() error { quicServer.GracefulStop(); return nil })
+	g.Go(func() error {
 		defer log.HandlePanic()
 		if err := tcpServer.Serve(tcpStack); err != nil {
-			fatal.Fatal(err)
+			return serrors.WrapStr("serving gRPC/TCP API", err)
 		}
-	}()
+		return nil
+	})
+	cleanup.Add(func() error { tcpServer.GracefulStop(); return nil })
+
 	if globalCfg.API.Addr != "" {
 		r := chi.NewRouter()
 		r.Use(cors.Handler(cors.Options{
@@ -525,19 +534,31 @@ func realMain(ctx context.Context) error {
 			TrustDB:  trustDB,
 		}
 		log.Info("Exposing API", "addr", globalCfg.API.Addr)
-		h := api.HandlerFromMux(&server, r)
-		go func() {
+		s := http.Server{
+			Addr:    globalCfg.API.Addr,
+			Handler: api.HandlerFromMux(&server, r),
+		}
+		g.Go(func() error {
 			defer log.HandlePanic()
-			if err := http.ListenAndServe(globalCfg.API.Addr, h); err != nil {
-				fatal.Fatal(serrors.WrapStr("serving HTTP API", err))
+			if err := s.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				return serrors.WrapStr("serving service management API", err)
 			}
-		}()
+			return nil
+		})
+		cleanup.Add(s.Close)
 	}
-	err = cs.StartHTTPEndpoints(globalCfg.General.ID, &globalCfg, signer, chainBuilder,
-		globalCfg.Metrics, policies.Digests())
+	err = cs.RegisterHTTPEndpoints(
+		globalCfg.General.ID,
+		&globalCfg,
+		signer,
+		chainBuilder,
+		globalCfg.Metrics,
+		policies.Digests(),
+	)
 	if err != nil {
-		return serrors.WrapStr("registering status pages", err)
+		return err
 	}
+
 	staticInfo, err := beaconing.ParseStaticInfoCfg(globalCfg.General.StaticInfoConfig())
 	if err != nil {
 		log.Info("No static info file found. Static info settings disabled.", "err", err)
@@ -597,14 +618,18 @@ func realMain(ctx context.Context) error {
 	defer tasks.Kill()
 	log.Info("Started periodic tasks")
 
-	select {
-	case <-fatal.ShutdownChan():
-		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
-		// Deferred shutdowns for all running servers run now.
-		return nil
-	case <-fatal.FatalChan():
-		return serrors.New("shutdown on error")
-	}
+	g.Go(func() error {
+		defer log.HandlePanic()
+		return globalCfg.Metrics.ServePrometheus(errCtx)
+	})
+
+	g.Go(func() error {
+		defer log.HandlePanic()
+		<-errCtx.Done()
+		return cleanup.Do()
+	})
+
+	return g.Wait()
 }
 
 func setup(cfg *config.Config) (*ifstate.Interfaces, error) {

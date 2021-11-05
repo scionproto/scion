@@ -16,6 +16,7 @@ package router_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net"
 	"sync"
@@ -538,8 +539,10 @@ func TestDataPlaneRun(t *testing.T) {
 			ch := make(chan struct{})
 			dp := tc.prepareDP(ctrl, ch)
 			errors := make(chan error)
+			ctx, cancelF := context.WithCancel(context.Background())
+			defer cancelF()
 			go func() {
-				errors <- dp.Run()
+				errors <- dp.Run(ctx)
 			}()
 
 			for done := false; !done; {

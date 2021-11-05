@@ -336,18 +336,9 @@ func NewRouter(localIA addr.IA, sd env.Daemon) (snet.Router, error) {
 }
 
 func InitInfraEnvironment(topologyPath string) {
-	InitInfraEnvironmentFunc(topologyPath, nil)
-}
-
-// InitInfraEnvironmentFunc sets up the environment by first calling
-// env.RealoadTopology and then the provided function.
-func InitInfraEnvironmentFunc(topologyPath string, f func()) {
 	env.SetupEnv(
 		func() {
 			env.ReloadTopology(topologyPath)
-			if f != nil {
-				f()
-			}
 		},
 	)
 }

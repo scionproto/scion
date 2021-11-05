@@ -670,7 +670,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 	if err := g.HTTPEndpoints.Register(g.HTTPServeMux, g.ID); err != nil {
 		return serrors.WrapStr("registering HTTP pages", err)
 	}
-	select {}
+	<-ctx.Done()
+	return nil
 }
 
 func (g *Gateway) diagnosticsSGRP(

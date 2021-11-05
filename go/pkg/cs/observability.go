@@ -235,9 +235,9 @@ type PolicyDigests interface {
 	Digests() map[string][]byte
 }
 
-// StartHTTPEndpoints starts the HTTP endpoints that expose the metrics and
+// RegisterHTTPEndpoints starts the HTTP endpoints that expose the metrics and
 // additional information.
-func StartHTTPEndpoints(
+func RegisterHTTPEndpoints(
 	elemId string,
 	cfg config.Config,
 	signer cstrust.RenewingSigner,
@@ -261,7 +261,6 @@ func StartHTTPEndpoints(
 	if err := statusPages.Register(http.DefaultServeMux, elemId); err != nil {
 		return serrors.WrapStr("registering status pages", err)
 	}
-	metrics.StartPrometheus()
 	return nil
 }
 

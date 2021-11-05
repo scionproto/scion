@@ -20,9 +20,10 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
@@ -46,7 +47,6 @@ func main() {
 }
 
 func realMain(ctx context.Context) error {
-	globalCfg.Metrics.StartPrometheus()
 
 	reloadConfigTrigger := make(chan struct{})
 
@@ -120,24 +120,19 @@ func realMain(ctx context.Context) error {
 		Metrics:                  gateway.NewMetrics(localIA),
 	}
 
-	errs := make(chan error, 1)
-	go func() {
+	g, errCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
 		defer log.HandlePanic()
-		if err := gw.Run(ctx); err != nil {
-			errs <- err
-		}
-	}()
+		return globalCfg.Metrics.ServePrometheus(errCtx)
+	})
+	g.Go(func() error {
+		defer log.HandlePanic()
+		return gw.Run(errCtx)
+	})
 
 	env.SetupEnv(func() {
 		reloadConfigTrigger <- struct{}{}
 	})
 
-	select {
-	case err := <-errs:
-		return err
-	case <-fatal.ShutdownChan():
-		return nil
-	case <-fatal.FatalChan():
-		return serrors.New("received fatal error")
-	}
+	return g.Wait()
 }

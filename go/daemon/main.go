@@ -24,11 +24,11 @@ import (
 
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/resolver"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
@@ -43,6 +43,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/pkg/app"
 	"github.com/scionproto/scion/go/pkg/app/launcher"
 	"github.com/scionproto/scion/go/pkg/daemon"
 	"github.com/scionproto/scion/go/pkg/daemon/config"
@@ -207,12 +208,17 @@ func realMain(ctx context.Context) error {
 	}))
 
 	promgrpc.Register(server)
-	go func() {
+
+	var cleanup app.Cleanup
+	g, errCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
 		defer log.HandlePanic()
 		if err := server.Serve(listener); err != nil {
-			fatal.Fatal(serrors.WrapStr("serving API", err, "addr", listen))
+			return serrors.WrapStr("serving gRPC API", err, "addr", listen)
 		}
-	}()
+		return nil
+	})
+	cleanup.Add(func() error { server.GracefulStop(); return nil })
 
 	// Start HTTP endpoints.
 	statusPages := service.StatusPages{
@@ -226,16 +232,19 @@ func realMain(ctx context.Context) error {
 	if err := statusPages.Register(http.DefaultServeMux, globalCfg.General.ID); err != nil {
 		return serrors.WrapStr("registering status pages", err)
 	}
-	globalCfg.Metrics.StartPrometheus()
 
-	select {
-	case <-fatal.ShutdownChan():
-		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
-		// Deferred shutdowns for all running servers run now.
-		return nil
-	case <-fatal.FatalChan():
-		return serrors.New("shutdown on error")
-	}
+	g.Go(func() error {
+		defer log.HandlePanic()
+		return globalCfg.Metrics.ServePrometheus(errCtx)
+	})
+
+	g.Go(func() error {
+		defer log.HandlePanic()
+		<-errCtx.Done()
+		return cleanup.Do()
+	})
+
+	return g.Wait()
 }
 
 func setup() error {

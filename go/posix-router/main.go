@@ -22,7 +22,8 @@ import (
 	_ "net/http/pprof"
 	"sync"
 
-	"github.com/scionproto/scion/go/lib/fatal"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -65,34 +66,34 @@ func realMain(ctx context.Context) error {
 	if err := iaCtx.Start(wg); err != nil {
 		return serrors.WrapStr("starting dataplane", err)
 	}
-	if err := setupHTTPHandlers(iaCtx.Config.Topo); err != nil {
-		return serrors.WrapStr("starting HTTP endpoints", err)
+	statusPages := service.StatusPages{
+		"info":             service.NewInfoStatusPage(),
+		"config":           service.NewConfigStatusPage(globalCfg),
+		"log/level":        service.NewLogLevelStatusPage(),
+		"topology":         topologyHandler(iaCtx.Config.Topo),
+		"digests/config":   service.NewConfigDigestStatusPage(&globalCfg),
+		"digests/topology": topologyDigestHandler(iaCtx.Config.Topo),
 	}
-
-	errs := make(chan error, 1)
-	go func() {
-		defer log.HandlePanic()
-		if err := dp.DataPlane.Run(); err != nil {
-			errs <- serrors.WrapStr("running dataplane", err)
-			return
-		}
-		errs <- serrors.New("dataplane stopped unexpectedly")
-	}()
-
-	select {
-	case err := <-errs:
-		close(stop)
-		wg.Wait()
+	if err := statusPages.Register(http.DefaultServeMux, globalCfg.General.ID); err != nil {
 		return err
-	case <-fatal.ShutdownChan():
-		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
-		// Deferred shutdowns for all running servers run now.
-		close(stop)
-		wg.Wait()
-		return nil
-	case <-fatal.FatalChan():
-		return serrors.New("shutdown on error")
 	}
+
+	g, errCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		defer log.HandlePanic()
+		return globalCfg.Metrics.ServePrometheus(errCtx)
+	})
+	g.Go(func() error {
+		defer log.HandlePanic()
+		if err := dp.DataPlane.Run(errCtx); err != nil {
+			return serrors.WrapStr("running dataplane", err)
+		}
+		return nil
+	})
+
+	// TODO(lukedirtwalker): use ctx for stop signaling in iaCtx.
+	defer close(stop)
+	return g.Wait()
 }
 
 func loadControlConfig() (*control.Config, error) {
@@ -101,22 +102,6 @@ func loadControlConfig() (*control.Config, error) {
 		return nil, serrors.WrapStr("loading topology", err)
 	}
 	return newConf, nil
-}
-
-func setupHTTPHandlers(topo topology.Topology) error {
-	statusPages := service.StatusPages{
-		"info":             service.NewInfoStatusPage(),
-		"config":           service.NewConfigStatusPage(globalCfg),
-		"log/level":        service.NewLogLevelStatusPage(),
-		"topology":         topologyHandler(topo),
-		"digests/config":   service.NewConfigDigestStatusPage(&globalCfg),
-		"digests/topology": topologyDigestHandler(topo),
-	}
-	if err := statusPages.Register(http.DefaultServeMux, globalCfg.General.ID); err != nil {
-		return err
-	}
-	globalCfg.Metrics.StartPrometheus()
-	return nil
 }
 
 func topologyHandler(topo topology.Topology) service.StatusPage {

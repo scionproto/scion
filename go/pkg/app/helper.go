@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // ASInfo holds information about the local AS.
@@ -60,4 +61,25 @@ func WithSignal(ctx context.Context, sig ...os.Signal) context.Context {
 		}
 	}()
 	return ctx
+}
+
+// Cleanup defines a list of cleanup hooks. This can be helpful when creating an
+// app and then adding multiple cleanup hooks and to make sure that the all
+// execute without error.
+type Cleanup []func() error
+
+// Add adds a cleanup hook that will be executed when Do is called.
+func (c *Cleanup) Add(f func() error) {
+	*c = append(*c, f)
+}
+
+// Do executes all the cleanup functions.
+func (c *Cleanup) Do() error {
+	var errs serrors.List
+	for _, f := range *c {
+		if err := f(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errs.ToError()
 }

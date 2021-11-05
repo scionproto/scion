@@ -23,9 +23,10 @@ import (
 	_ "net/http/pprof"
 	"os"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/scionproto/scion/go/dispatcher/config"
 	"github.com/scionproto/scion/go/dispatcher/network"
-	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
@@ -53,19 +54,16 @@ func realMain(ctx context.Context) error {
 
 	path.StrictDecoding(false)
 
-	go func() {
+	g, errCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
 		defer log.HandlePanic()
-		err := RunDispatcher(
+		return RunDispatcher(
 			globalCfg.Dispatcher.DeleteSocket,
 			globalCfg.Dispatcher.ApplicationSocket,
 			os.FileMode(globalCfg.Dispatcher.SocketFileMode),
 			globalCfg.Dispatcher.UnderlayPort,
 		)
-		if err != nil {
-			// FIXME(scrye): properly clean this up.
-			fatal.Fatal(err)
-		}
-	}()
+	})
 
 	// Start HTTP endpoints.
 	statusPages := service.StatusPages{
@@ -77,15 +75,22 @@ func realMain(ctx context.Context) error {
 	if err := statusPages.Register(http.DefaultServeMux, globalCfg.Dispatcher.ID); err != nil {
 		return serrors.WrapStr("registering status pages", err)
 	}
-	globalCfg.Metrics.StartPrometheus()
+
+	g.Go(func() error {
+		defer log.HandlePanic()
+		return globalCfg.Metrics.ServePrometheus(errCtx)
+	})
 
 	defer deleteSocket(globalCfg.Dispatcher.ApplicationSocket)
 
-	returnCode := waitForTeardown()
-	if returnCode != 0 {
-		return serrors.New("fatal teardown exited with non-zero code", "code", returnCode)
+	// XXX(lukedirtwalker): unfortunately the dispatcher can't be signalled to
+	// be stopped, so we just exit manually if the context is done.
+	select {
+	case <-ctx.Done():
+		return nil
+	case <-errCtx.Done():
+		return g.Wait()
 	}
-	return nil
 }
 
 func RunDispatcher(deleteSocketFlag bool, applicationSocket string, socketFileMode os.FileMode,
@@ -114,15 +119,6 @@ func deleteSocket(socket string) error {
 		return err
 	}
 	return nil
-}
-
-func waitForTeardown() int {
-	select {
-	case <-fatal.ShutdownChan():
-		return 0
-	case <-fatal.FatalChan():
-		return 1
-	}
 }
 
 func requiredIPs() ([]net.IP, error) {

@@ -20,6 +20,8 @@
 package env
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -38,7 +40,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/daemon"
-	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
@@ -167,26 +168,13 @@ func (cfg *Daemon) ConfigName() string {
 	return "sciond_connection"
 }
 
-// SetupEnv initializes a basic environment for applications. If reloadF is not
-// nil, the application will call reloadF whenever it receives a SIGHUP signal.
+// SetupEnv initializes a basic environment for applications. reloadF is called
+// whenever a SIGHUP signal is received.
 func SetupEnv(reloadF func()) {
 	setupSignals(reloadF)
 }
 
-// setupSignals sets up a goroutine that on received SIGTERM/SIGINT signals
-// informs the application that it should shut down. If reloadF is not nil,
-// setupSignals also calls reloadF on SIGHUP.
 func setupSignals(reloadF func()) {
-	fatal.Check()
-	sig := make(chan os.Signal, 2)
-	signal.Notify(sig, os.Interrupt)
-	signal.Notify(sig, syscall.SIGTERM)
-	go func() {
-		defer log.HandlePanic()
-		s := <-sig
-		log.Info("Received signal, exiting...", "signal", s)
-		fatal.Shutdown(ShutdownGraceInterval)
-	}()
 	if reloadF != nil {
 		go func() {
 			defer log.HandlePanic()
@@ -229,18 +217,24 @@ func (cfg *Metrics) ConfigName() string {
 	return "metrics"
 }
 
-func (cfg *Metrics) StartPrometheus() {
-	fatal.Check()
-	if cfg.Prometheus != "" {
-		http.Handle("/metrics", promhttp.Handler())
-		log.Info("Exporting prometheus metrics", "addr", cfg.Prometheus)
-		go func() {
-			defer log.HandlePanic()
-			if err := http.ListenAndServe(cfg.Prometheus, nil); err != nil {
-				fatal.Fatal(serrors.WrapStr("HTTP ListenAndServe error", err))
-			}
-		}()
+func (cfg *Metrics) ServePrometheus(ctx context.Context) error {
+	if cfg.Prometheus == "" {
+		return nil
 	}
+	http.Handle("/metrics", promhttp.Handler())
+	log.Info("Exporting prometheus metrics", "addr", cfg.Prometheus)
+
+	server := &http.Server{Addr: cfg.Prometheus}
+	go func() {
+		defer log.HandlePanic()
+		<-ctx.Done()
+		server.Close()
+	}()
+	err := server.ListenAndServe()
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return serrors.WrapStr("serving prometheus metrics", err)
+	}
+	return nil
 }
 
 // Tracing contains configuration for tracing.
