@@ -37,6 +37,7 @@ go_library(
         "//go/pkg/app:go_default_library",
         "//go/pkg/app/feature:go_default_library",
         "//go/pkg/app/flag:go_default_library",
+        "//go/pkg/app/path:go_default_library",
         "//go/pkg/ca/renewal:go_default_library",
         "//go/pkg/command:go_default_library",
         "//go/pkg/grpc:go_default_library",
