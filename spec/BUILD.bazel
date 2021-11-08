@@ -23,3 +23,13 @@ openapi_bundle(
     entrypoint = "//spec/ca:spec.yml",
     visibility = ["//visibility:public"],
 )
+
+openapi_bundle(
+    name = "dispatcher",
+    srcs = [
+        "//spec/common:base.yml",
+        "//spec/common:process.yml",
+    ],
+    entrypoint = "//spec/dispatcher:spec.yml",
+    visibility = ["//visibility:public"],
+)

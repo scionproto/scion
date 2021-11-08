@@ -272,6 +272,8 @@ class GoGenerator(object):
     def _build_disp_conf(self, name, topo_id=None):
         prometheus_addr = prom_addr_dispatcher(self.args.docker, topo_id,
                                                self.args.networks, DISP_PROM_PORT, name)
+        api_addr = prom_addr_dispatcher(self.args.docker, topo_id,
+                                        self.args.networks, DISP_PROM_PORT+700, name)
         return {
             'dispatcher': {
                 'id': name,
@@ -281,6 +283,9 @@ class GoGenerator(object):
                 'prometheus': prometheus_addr,
             },
             'features': translate_features(self.args.features),
+            'api': {
+                'addr': api_addr,
+            },
         }
 
     def _tracing_entry(self):

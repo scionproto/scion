@@ -17,12 +17,15 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/scionproto/scion/go/dispatcher/config"
@@ -31,7 +34,9 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/pkg/app"
 	"github.com/scionproto/scion/go/pkg/app/launcher"
+	"github.com/scionproto/scion/go/pkg/dispatcher/api"
 	"github.com/scionproto/scion/go/pkg/service"
 )
 
@@ -54,6 +59,7 @@ func realMain(ctx context.Context) error {
 
 	path.StrictDecoding(false)
 
+	var cleanup app.Cleanup
 	g, errCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		defer log.HandlePanic()
@@ -64,6 +70,34 @@ func realMain(ctx context.Context) error {
 			globalCfg.Dispatcher.UnderlayPort,
 		)
 	})
+
+	// Initialise and start service management API endpoints.
+	if globalCfg.API.Addr != "" {
+		r := chi.NewRouter()
+		r.Use(cors.Handler(cors.Options{
+			AllowedOrigins: []string{"*"},
+		}))
+		server := api.Server{
+			Config:   service.NewConfigStatusPage(globalCfg).Handler,
+			Info:     service.NewInfoStatusPage().Handler,
+			LogLevel: service.NewLogLevelStatusPage().Handler,
+		}
+		log.Info("Exposing API", "addr", globalCfg.API.Addr)
+		h := api.HandlerFromMuxWithBaseURL(&server, r, "/api/v1")
+		mgmtServer := &http.Server{
+			Addr:    globalCfg.API.Addr,
+			Handler: h,
+		}
+		cleanup.Add(mgmtServer.Close)
+		g.Go(func() error {
+			defer log.HandlePanic()
+			err := mgmtServer.ListenAndServe()
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				return serrors.WrapStr("serving service management API", err)
+			}
+			return nil
+		})
+	}
 
 	// Start HTTP endpoints.
 	statusPages := service.StatusPages{
@@ -82,6 +116,12 @@ func realMain(ctx context.Context) error {
 	})
 
 	defer deleteSocket(globalCfg.Dispatcher.ApplicationSocket)
+
+	g.Go(func() error {
+		defer log.HandlePanic()
+		<-errCtx.Done()
+		return cleanup.Do()
+	})
 
 	// XXX(lukedirtwalker): unfortunately the dispatcher can't be signalled to
 	// be stopped, so we just exit manually if the context is done.

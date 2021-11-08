@@ -16,6 +16,7 @@ go_library(
         "//go/lib/sock/reliable:go_default_library",
         "//go/lib/topology:go_default_library",
         "//go/lib/util:go_default_library",
+        "//go/pkg/api:go_default_library",
     ],
 )
 
@@ -28,6 +29,7 @@ go_test(
         "//go/lib/log/logtest:go_default_library",
         "//go/lib/sock/reliable:go_default_library",
         "//go/lib/topology:go_default_library",
+        "//go/pkg/api/apitest:go_default_library",
         "@com_github_pelletier_go_toml//:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
     ],
