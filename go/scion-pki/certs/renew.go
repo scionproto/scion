@@ -130,7 +130,7 @@ func newRenewCmd(pather command.Pather) *cobra.Command {
 		interactive bool
 		noColor     bool
 		refresh     bool
-		healthyOnly bool
+		noProbe     bool
 		sequence    string
 	}
 	cmd := &cobra.Command{
@@ -344,7 +344,7 @@ The template is expressed in JSON. A valid example:
 				path.WithSequence(flags.sequence),
 				path.WithColorScheme(path.DefaultColorScheme(flags.noColor)),
 			}
-			if flags.healthyOnly {
+			if !flags.noProbe {
 				pathOpts = append(pathOpts, path.WithProbing(&path.ProbeConfig{
 					LocalIA: info.IA,
 					LocalIP: localIP,
@@ -572,7 +572,7 @@ The template is expressed in JSON. A valid example:
 	cmd.Flags().BoolVarP(&flags.interactive, "interactive", "i", false, "interactive mode")
 	cmd.Flags().BoolVar(&flags.noColor, "no-color", false, "disable colored output")
 	cmd.Flags().StringVar(&flags.sequence, "sequence", "", app.SequenceUsage)
-	cmd.Flags().BoolVar(&flags.healthyOnly, "healthy-only", false, "only use healthy paths")
+	cmd.Flags().BoolVar(&flags.noProbe, "no-probe", false, "do not probe paths for health")
 	cmd.Flags().BoolVar(&flags.refresh, "refresh", false, "set refresh flag for path request")
 
 	cmd.MarkFlagRequired("trc")
