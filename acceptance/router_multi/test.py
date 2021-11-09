@@ -118,10 +118,9 @@ class RouterTest(base.TestBase):
 
         sudo("rm /var/run/netns/pause")
 
-        envs = ["-e SCION_EXPERIMENTAL_BFD_DISABLE=true",
-                "-e SCION_EXPERIMENTAL_DISABLE_SERVICE_HEALTH=\"\""]
+        envs = ["-e SCION_EXPERIMENTAL_BFD_DISABLE=true"]
         if self.bfd:
-            envs = ["-e SCION_EXPERIMENTAL_DISABLE_SERVICE_HEALTH=\"\""]
+            envs = []
 
         exec_docker("run -v %s/conf:/share/conf -d %s --network container:%s \
                     --name router %s" % (self.test_state.artifacts, " ".join(envs),

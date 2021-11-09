@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
-	"sync"
 
 	"golang.org/x/sync/errgroup"
 
@@ -50,9 +49,8 @@ func realMain(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	g, errCtx := errgroup.WithContext(ctx)
 	metrics := router.NewMetrics()
-	stop := make(chan struct{})
-	wg := new(sync.WaitGroup)
 	dp := &router.Connector{
 		DataPlane: router.DataPlane{
 			Metrics: metrics,
@@ -61,10 +59,9 @@ func realMain(ctx context.Context) error {
 	iaCtx := &control.IACtx{
 		Config: controlConfig,
 		DP:     dp,
-		Stop:   stop,
 	}
-	if err := iaCtx.Start(wg); err != nil {
-		return serrors.WrapStr("starting dataplane", err)
+	if err := iaCtx.Configure(); err != nil {
+		return serrors.WrapStr("configuring dataplane", err)
 	}
 	statusPages := service.StatusPages{
 		"info":             service.NewInfoStatusPage(),
@@ -78,7 +75,6 @@ func realMain(ctx context.Context) error {
 		return err
 	}
 
-	g, errCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		defer log.HandlePanic()
 		return globalCfg.Metrics.ServePrometheus(errCtx)
@@ -91,8 +87,6 @@ func realMain(ctx context.Context) error {
 		return nil
 	})
 
-	// TODO(lukedirtwalker): use ctx for stop signaling in iaCtx.
-	defer close(stop)
 	return g.Wait()
 }
 
