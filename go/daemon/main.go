@@ -22,6 +22,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/sync/errgroup"
@@ -46,6 +48,7 @@ import (
 	"github.com/scionproto/scion/go/pkg/app"
 	"github.com/scionproto/scion/go/pkg/app/launcher"
 	"github.com/scionproto/scion/go/pkg/daemon"
+	"github.com/scionproto/scion/go/pkg/daemon/api"
 	"github.com/scionproto/scion/go/pkg/daemon/config"
 	"github.com/scionproto/scion/go/pkg/daemon/fetcher"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
@@ -219,6 +222,32 @@ func realMain(ctx context.Context) error {
 		return nil
 	})
 	cleanup.Add(func() error { server.GracefulStop(); return nil })
+
+	if globalCfg.API.Addr != "" {
+		r := chi.NewRouter()
+		r.Use(cors.Handler(cors.Options{
+			AllowedOrigins: []string{"*"},
+		}))
+		server := api.Server{
+			Config:   service.NewConfigStatusPage(globalCfg).Handler,
+			Info:     service.NewInfoStatusPage().Handler,
+			LogLevel: service.NewLogLevelStatusPage().Handler,
+		}
+		log.Info("Exposing API", "addr", globalCfg.API.Addr)
+		h := api.HandlerFromMuxWithBaseURL(&server, r, "/api/v1")
+		mgmtServer := &http.Server{
+			Addr:    globalCfg.API.Addr,
+			Handler: h,
+		}
+		g.Go(func() error {
+			defer log.HandlePanic()
+			if err := mgmtServer.ListenAndServe(); err != nil {
+				return serrors.WrapStr("serving service management API", err)
+			}
+			return nil
+		})
+		cleanup.Add(mgmtServer.Close)
+	}
 
 	// Start HTTP endpoints.
 	statusPages := service.StatusPages{

@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/pkg/api"
 	"github.com/scionproto/scion/go/pkg/storage"
 	trustengine "github.com/scionproto/scion/go/pkg/trust/config"
 )
@@ -41,6 +42,7 @@ type Config struct {
 	Features    env.Features       `toml:"features,omitempty"`
 	Logging     log.Config         `toml:"log,omitempty"`
 	Metrics     env.Metrics        `toml:"metrics,omitempty"`
+	API         api.Config         `toml:"api,omitempty"`
 	Tracing     env.Tracing        `toml:"tracing,omitempty"`
 	TrustDB     storage.DBConfig   `toml:"trust_db,omitempty"`
 	PathDB      storage.DBConfig   `toml:"path_db,omitempty"`
@@ -54,6 +56,7 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
+		&cfg.API,
 		&cfg.Tracing,
 		cfg.TrustDB.WithDefault(fmt.Sprintf(storage.DefaultTrustDBPath, "sd")),
 		cfg.PathDB.WithDefault(fmt.Sprintf(storage.DefaultPathDBPath, "sd")),
@@ -68,6 +71,7 @@ func (cfg *Config) Validate() error {
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
+		&cfg.API,
 		&cfg.TrustDB,
 		&cfg.PathDB,
 		&cfg.SD,
@@ -81,6 +85,7 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
+		&cfg.API,
 		&cfg.Tracing,
 		config.OverrideName(
 			config.FormatData(
