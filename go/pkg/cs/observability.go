@@ -231,10 +231,6 @@ func NewMetrics() *Metrics {
 
 }
 
-type PolicyDigests interface {
-	Digests() map[string][]byte
-}
-
 // RegisterHTTPEndpoints starts the HTTP endpoints that expose the metrics and
 // additional information.
 func RegisterHTTPEndpoints(
@@ -242,18 +238,13 @@ func RegisterHTTPEndpoints(
 	cfg config.Config,
 	signer cstrust.RenewingSigner,
 	ca renewal.ChainBuilder,
-	metrics env.Metrics,
-	policyDigests map[string][]byte,
 ) error {
 	statusPages := service.StatusPages{
-		"info":             service.NewInfoStatusPage(),
-		"config":           service.NewConfigStatusPage(cfg),
-		"log/level":        service.NewLogLevelStatusPage(),
-		"topology":         service.NewTopologyStatusPage(),
-		"signer":           signerStatusPage(signer),
-		"digests/config":   service.NewConfigDigestStatusPage(cfg),
-		"digests/topology": service.NewTopologyDigestStatusPage(),
-		"digests/policies": policyDigestsStatusPage(policyDigests),
+		"info":      service.NewInfoStatusPage(),
+		"config":    service.NewConfigStatusPage(cfg),
+		"log/level": service.NewLogLevelStatusPage(),
+		"topology":  service.NewTopologyStatusPage(),
+		"signer":    signerStatusPage(signer),
 	}
 	if ca != (renewal.ChainBuilder{}) {
 		statusPages["ca"] = caStatusPage(ca)
@@ -370,31 +361,6 @@ func caStatusPage(signer renewal.ChainBuilder) service.StatusPage {
 	}
 	return service.StatusPage{
 		Info:    "CA status",
-		Handler: handler,
-	}
-}
-
-func policyDigestsStatusPage(digests map[string][]byte) service.StatusPage {
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-
-		type digest struct {
-			Digest []byte `json:"digest"`
-		}
-		response := make(map[string]digest)
-		for k, v := range digests {
-			response[k] = digest{Digest: v}
-		}
-
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "    ")
-		if err := enc.Encode(response); err != nil {
-			http.Error(w, "Unable to marshal response", http.StatusInternalServerError)
-			return
-		}
-	}
-	return service.StatusPage{
-		Info:    "sha256 policies digest",
 		Handler: handler,
 	}
 }

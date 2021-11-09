@@ -101,10 +101,9 @@ func realMain(ctx context.Context) error {
 
 	// Start HTTP endpoints.
 	statusPages := service.StatusPages{
-		"info":           service.NewInfoStatusPage(),
-		"config":         service.NewConfigStatusPage(globalCfg),
-		"log/level":      service.NewLogLevelStatusPage(),
-		"digests/config": service.NewConfigDigestStatusPage(&globalCfg),
+		"info":      service.NewInfoStatusPage(),
+		"config":    service.NewConfigStatusPage(globalCfg),
+		"log/level": service.NewLogLevelStatusPage(),
 	}
 	if err := statusPages.Register(http.DefaultServeMux, globalCfg.Dispatcher.ID); err != nil {
 		return serrors.WrapStr("registering status pages", err)

@@ -206,7 +206,7 @@ func realMain(ctx context.Context) error {
 		QueriesTotal: libmetrics.NewPromCounter(metrics.BeaconDBQueriesTotal),
 	})
 
-	beaconStore, policies, isdLoopAllowed, err := createBeaconStore(
+	beaconStore, isdLoopAllowed, err := createBeaconStore(
 		beaconDB,
 		topo.Core(),
 		globalCfg.BS.Policies,
@@ -552,8 +552,6 @@ func realMain(ctx context.Context) error {
 		&globalCfg,
 		signer,
 		chainBuilder,
-		globalCfg.Metrics,
-		policies.Digests(),
 	)
 	if err != nil {
 		return err
@@ -654,30 +652,26 @@ func setup(cfg *config.Config) (*ifstate.Interfaces, error) {
 	return intfs, nil
 }
 
-type beaconPolicies interface {
-	Digests() map[string][]byte
-}
-
 func createBeaconStore(
 	db storage.BeaconDB,
 	core bool,
 	policyConfig config.Policies,
-) (cs.Store, beaconPolicies, bool, error) {
+) (cs.Store, bool, error) {
 
 	if core {
 		policies, err := cs.LoadCorePolicies(policyConfig)
 		if err != nil {
-			return nil, nil, false, err
+			return nil, false, err
 		}
 		store, err := beacon.NewCoreBeaconStore(policies, db)
-		return store, &policies, *policies.Prop.Filter.AllowIsdLoop, err
+		return store, *policies.Prop.Filter.AllowIsdLoop, err
 	}
 	policies, err := cs.LoadNonCorePolicies(policyConfig)
 	if err != nil {
-		return nil, nil, false, err
+		return nil, false, err
 	}
 	store, err := beacon.NewBeaconStore(policies, db)
-	return store, &policies, *policies.Prop.Filter.AllowIsdLoop, err
+	return store, *policies.Prop.Filter.AllowIsdLoop, err
 }
 
 type topoInformation struct{}

@@ -251,12 +251,10 @@ func realMain(ctx context.Context) error {
 
 	// Start HTTP endpoints.
 	statusPages := service.StatusPages{
-		"info":             service.NewInfoStatusPage(),
-		"config":           service.NewConfigStatusPage(globalCfg),
-		"log/level":        service.NewLogLevelStatusPage(),
-		"topology":         service.NewTopologyStatusPage(),
-		"digests/config":   service.NewConfigDigestStatusPage(&globalCfg),
-		"digests/topology": service.NewTopologyDigestStatusPage(),
+		"info":      service.NewInfoStatusPage(),
+		"config":    service.NewConfigStatusPage(globalCfg),
+		"log/level": service.NewLogLevelStatusPage(),
+		"topology":  service.NewTopologyStatusPage(),
 	}
 	if err := statusPages.Register(http.DefaultServeMux, globalCfg.General.ID); err != nil {
 		return serrors.WrapStr("registering status pages", err)

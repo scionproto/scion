@@ -64,12 +64,10 @@ func realMain(ctx context.Context) error {
 		return serrors.WrapStr("configuring dataplane", err)
 	}
 	statusPages := service.StatusPages{
-		"info":             service.NewInfoStatusPage(),
-		"config":           service.NewConfigStatusPage(globalCfg),
-		"log/level":        service.NewLogLevelStatusPage(),
-		"topology":         topologyHandler(iaCtx.Config.Topo),
-		"digests/config":   service.NewConfigDigestStatusPage(&globalCfg),
-		"digests/topology": topologyDigestHandler(iaCtx.Config.Topo),
+		"info":      service.NewInfoStatusPage(),
+		"config":    service.NewConfigStatusPage(globalCfg),
+		"log/level": service.NewLogLevelStatusPage(),
+		"topology":  topologyHandler(iaCtx.Config.Topo),
 	}
 	if err := statusPages.Register(http.DefaultServeMux, globalCfg.General.ID); err != nil {
 		return err
@@ -111,33 +109,6 @@ func topologyHandler(topo topology.Topology) service.StatusPage {
 	}
 	return service.StatusPage{
 		Info:    "SCION topology",
-		Handler: handler,
-	}
-}
-
-func topologyDigestHandler(topo topology.Topology) service.StatusPage {
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-
-		digest, err := topology.Digest(topo)
-		if err != nil {
-			http.Error(w, "Unable to calculate digest", http.StatusInternalServerError)
-			return
-		}
-		res := struct {
-			Digest []byte `json:"digest"`
-		}{
-			Digest: digest,
-		}
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "    ")
-		if err := enc.Encode(res); err != nil {
-			http.Error(w, "Unable to marshal response", http.StatusInternalServerError)
-			return
-		}
-	}
-	return service.StatusPage{
-		Info:    "sha256 of SCION topology",
 		Handler: handler,
 	}
 }
