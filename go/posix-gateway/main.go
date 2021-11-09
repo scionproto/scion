@@ -16,10 +16,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/scionproto/scion/go/lib/daemon"
@@ -28,8 +31,10 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/pkg/app"
 	"github.com/scionproto/scion/go/pkg/app/launcher"
 	"github.com/scionproto/scion/go/pkg/gateway"
+	"github.com/scionproto/scion/go/pkg/gateway/api"
 	"github.com/scionproto/scion/go/pkg/gateway/dataplane"
 	"github.com/scionproto/scion/go/pkg/service"
 	"github.com/scionproto/scion/go/posix-gateway/config"
@@ -88,6 +93,36 @@ func realMain(ctx context.Context) error {
 		probeAddress.IP = controlAddress.IP
 		probeAddress.Zone = controlAddress.Zone
 	}
+	var cleanup app.Cleanup
+	g, errCtx := errgroup.WithContext(ctx)
+	if globalCfg.API.Addr != "" {
+		r := chi.NewRouter()
+		r.Use(cors.Handler(cors.Options{
+			AllowedOrigins: []string{"*"},
+		}))
+		server := api.Server{
+			Config:   service.NewConfigStatusPage(globalCfg).Handler,
+			Info:     service.NewInfoStatusPage().Handler,
+			LogLevel: service.NewLogLevelStatusPage().Handler,
+		}
+		log.Info("Exposing API", "addr", globalCfg.API.Addr)
+		h := api.HandlerFromMuxWithBaseURL(&server, r, "/api/v1")
+		mgmtServer := &http.Server{
+			Addr:    globalCfg.API.Addr,
+			Handler: h,
+		}
+		defer mgmtServer.Close()
+		g.Go(func() error {
+			defer log.HandlePanic()
+			err := mgmtServer.ListenAndServe()
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				return serrors.WrapStr("serving service management API", err)
+			}
+			return nil
+		})
+		cleanup.Add(mgmtServer.Close)
+	}
+
 	httpPages := service.StatusPages{
 		"info":           service.NewInfoStatusPage(),
 		"config":         service.NewConfigStatusPage(globalCfg),
@@ -120,7 +155,6 @@ func realMain(ctx context.Context) error {
 		Metrics:                  gateway.NewMetrics(localIA),
 	}
 
-	g, errCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		defer log.HandlePanic()
 		return globalCfg.Metrics.ServePrometheus(errCtx)
@@ -128,6 +162,11 @@ func realMain(ctx context.Context) error {
 	g.Go(func() error {
 		defer log.HandlePanic()
 		return gw.Run(errCtx)
+	})
+	g.Go(func() error {
+		defer log.HandlePanic()
+		<-errCtx.Done()
+		return cleanup.Do()
 	})
 
 	env.SetupEnv(func() {

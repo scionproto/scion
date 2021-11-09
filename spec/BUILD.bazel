@@ -43,3 +43,13 @@ openapi_bundle(
     entrypoint = "//spec/daemon:spec.yml",
     visibility = ["//visibility:public"],
 )
+
+openapi_bundle(
+    name = "gateway",
+    srcs = [
+        "//spec/common:base.yml",
+        "//spec/common:process.yml",
+    ],
+    entrypoint = "//spec/gateway:spec.yml",
+    visibility = ["//visibility:public"],
+)
