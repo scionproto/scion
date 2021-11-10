@@ -152,7 +152,7 @@ func TestDataPlaneAddSVC(t *testing.T) {
 	t.Run("normal set works", func(t *testing.T) {
 		d := &router.DataPlane{}
 		assert.NoError(t, d.AddSvc(addr.SvcCS, &net.UDPAddr{}))
-		assert.NoError(t, d.AddSvc(addr.SvcSIG, &net.UDPAddr{}))
+		assert.NoError(t, d.AddSvc(addr.SvcDS, &net.UDPAddr{}))
 	})
 	t.Run("set multiple times works", func(t *testing.T) {
 		d := &router.DataPlane{}
