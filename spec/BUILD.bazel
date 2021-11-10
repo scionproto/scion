@@ -53,3 +53,13 @@ openapi_bundle(
     entrypoint = "//spec/gateway:spec.yml",
     visibility = ["//visibility:public"],
 )
+
+openapi_bundle(
+    name = "router",
+    srcs = [
+        "//spec/common:base.yml",
+        "//spec/common:process.yml",
+    ],
+    entrypoint = "//spec/router:spec.yml",
+    visibility = ["//visibility:public"],
+)

@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/pkg/api"
 )
 
 const idSample = "router-1"
@@ -31,6 +32,7 @@ type Config struct {
 	Features env.Features `toml:"features,omitempty"`
 	Logging  log.Config   `toml:"log,omitempty"`
 	Metrics  env.Metrics  `toml:"metrics,omitempty"`
+	API      api.Config   `toml:"api,omitempty"`
 }
 
 func (cfg *Config) InitDefaults() {
@@ -39,6 +41,7 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
+		&cfg.API,
 	)
 }
 
@@ -48,6 +51,7 @@ func (cfg *Config) Validate() error {
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
+		&cfg.API,
 	)
 }
 
@@ -57,5 +61,6 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
+		&cfg.API,
 	)
 }
