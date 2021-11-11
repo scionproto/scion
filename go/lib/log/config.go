@@ -25,7 +25,7 @@ const (
 	// DefaultConsoleLevel is the default log level for the console.
 	DefaultConsoleLevel = "info"
 	// DefaultStacktraceLevel is the default log level for which stack traces are included.
-	DefaultStacktraceLevel = "error"
+	DefaultStacktraceLevel = "none"
 )
 
 // Config is the configuration for the logger.

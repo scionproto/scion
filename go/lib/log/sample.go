@@ -19,8 +19,8 @@ const loggingConsoleSample = `
 level = "info"
 
 # Log a stacktrace for all messages at or above the given level. If the value
-# is 'none', no stacktrace is included. (debug|info|error|none) (default error)
-stacktrace_level = "error"
+# is 'none', no stacktrace is included. (debug|info|error|none) (default none)
+stacktrace_level = "none"
 
 # Logging fromat (human|json) (default human)
 format = "human"
