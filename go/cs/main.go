@@ -17,7 +17,6 @@ package main
 import (
 	"context"
 	"errors"
-	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"path/filepath"
@@ -41,10 +40,7 @@ import (
 	segreggrpc "github.com/scionproto/scion/go/cs/segreg/grpc"
 	"github.com/scionproto/scion/go/cs/segreq"
 	segreqgrpc "github.com/scionproto/scion/go/cs/segreq/grpc"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	segfetchergrpc "github.com/scionproto/scion/go/lib/infra/modules/segfetcher/grpc"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
@@ -100,11 +96,34 @@ func main() {
 func realMain(ctx context.Context) error {
 	metrics := cs.NewMetrics()
 
-	intfs, err := setup(&globalCfg)
+	topo, err := topology.NewLoader(topology.LoaderCfg{
+		File:      globalCfg.General.Topology(),
+		Reload:    app.SIGHUPChannel(ctx),
+		Validator: &topology.ControlValidator{ID: globalCfg.General.ID},
+		Metrics:   metrics.TopoLoader,
+	})
 	if err != nil {
-		return err
+		return serrors.WrapStr("creating topology loader", err)
 	}
-	topo := itopo.Get()
+	g, errCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		defer log.HandlePanic()
+		return topo.Run(errCtx)
+	})
+	intfs := ifstate.NewInterfaces(topo.InterfaceInfoMap(), ifstate.Config{})
+	g.Go(func() error {
+		defer log.HandlePanic()
+		sub := topo.Subscribe()
+		defer sub.Close()
+		for {
+			select {
+			case <-sub.Updates:
+				intfs.Update(topo.InterfaceInfoMap())
+			case <-errCtx.Done():
+				return nil
+			}
+		}
+	})
 
 	closer, err := cs.InitTracer(globalCfg.Tracing, globalCfg.General.ID)
 	if err != nil {
@@ -131,12 +150,12 @@ func realMain(ctx context.Context) error {
 
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.IA(),
-		Public:                topo.PublicAddress(addr.SvcCS, globalCfg.General.ID),
+		Public:                topo.ControlServiceAddress(globalCfg.General.ID),
 		ReconnectToDispatcher: globalCfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{
 			Address: globalCfg.QUIC.Address,
 		},
-		SVCRouter: messenger.NewSVCRouter(itopo.Provider()),
+		SVCResolver: topo,
 		SCMPHandler: snet.DefaultSCMPHandler{
 			RevocationHandler: cs.RevocationHandler{RevCache: revCache},
 			SCMPErrors:        metrics.SCMPErrors,
@@ -245,15 +264,17 @@ func realMain(ctx context.Context) error {
 	}
 	fetcherCfg := segreq.FetcherConfig{
 		IA:            topo.IA(),
+		MTU:           topo.MTU(),
+		Core:          topo.Core(),
+		NextHopper:    topo,
 		PathDB:        pathDB,
 		RevCache:      revCache,
 		QueryInterval: globalCfg.PS.QueryInterval.Duration,
 		RPC: &segfetchergrpc.Requester{
 			Dialer: dialer,
 		},
-		Inspector:    inspector,
-		TopoProvider: itopo.Provider(),
-		Verifier:     verifier,
+		Inspector: inspector,
+		Verifier:  verifier,
 	}
 	provider.Router = trust.AuthRouter{
 		ISD:    topo.IA().I,
@@ -472,7 +493,7 @@ func realMain(ctx context.Context) error {
 	trcRunner.TriggerRun()
 
 	ds := discovery.Topology{
-		Information: topoInformation{},
+		Information: topo,
 		Requests:    libmetrics.NewPromCounter(metrics.DiscoveryRequestsTotal),
 	}
 	dpb.RegisterDiscoveryServiceServer(quicServer, ds)
@@ -500,7 +521,6 @@ func realMain(ctx context.Context) error {
 	promgrpc.Register(tcpServer)
 
 	var cleanup app.Cleanup
-	g, errCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		defer log.HandlePanic()
 		if err := quicServer.Serve(quicStack.Listener); err != nil {
@@ -530,7 +550,7 @@ func realMain(ctx context.Context) error {
 			Info:     service.NewInfoStatusPage().Handler,
 			LogLevel: service.NewLogLevelStatusPage().Handler,
 			Signer:   signer,
-			Topology: itopo.TopologyHandler,
+			Topology: topo.HandleHTTP,
 			TrustDB:  trustDB,
 		}
 		log.Info("Exposing API", "addr", globalCfg.API.Addr)
@@ -552,6 +572,7 @@ func realMain(ctx context.Context) error {
 		&globalCfg,
 		signer,
 		chainBuilder,
+		topo,
 	)
 	if err != nil {
 		return err
@@ -581,6 +602,9 @@ func realMain(ctx context.Context) error {
 	}
 
 	tasks, err := cs.StartTasks(cs.TasksConfig{
+		IA:            topo.IA(),
+		Core:          topo.Core(),
+		MTU:           topo.MTU(),
 		Public:        nc.Public,
 		AllInterfaces: intfs,
 		PropagationInterfaces: func() []*ifstate.Interface {
@@ -601,7 +625,7 @@ func realMain(ctx context.Context) error {
 		Inspector:       inspector,
 		Metrics:         metrics,
 		MACGen:          macGen,
-		TopoProvider:    itopo.Provider(),
+		NextHopper:      topo,
 		StaticInfo:      func() *beaconing.StaticInfoCfg { return staticInfo },
 
 		OriginationInterval:       globalCfg.BS.OriginationInterval.Duration,
@@ -630,28 +654,6 @@ func realMain(ctx context.Context) error {
 	return g.Wait()
 }
 
-func setup(cfg *config.Config) (*ifstate.Interfaces, error) {
-	topo, err := topology.FromJSONFile(cfg.General.Topology())
-	if err != nil {
-		return nil, serrors.WrapStr("loading topology", err)
-	}
-	intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
-	itopo.Init(&itopo.Config{
-		ID:  cfg.General.ID,
-		Svc: topology.Control,
-		Callbacks: itopo.Callbacks{
-			OnUpdate: func() {
-				intfs.Update(itopo.Get().IFInfoMap())
-			},
-		},
-	})
-	if err := itopo.Update(topo); err != nil {
-		return nil, serrors.WrapStr("setting initial static topology", err)
-	}
-	infraenv.InitInfraEnvironment(cfg.General.Topology())
-	return intfs, nil
-}
-
 func createBeaconStore(
 	db storage.BeaconDB,
 	core bool,
@@ -672,26 +674,4 @@ func createBeaconStore(
 	}
 	store, err := beacon.NewBeaconStore(policies, db)
 	return store, *policies.Prop.Filter.AllowIsdLoop, err
-}
-
-type topoInformation struct{}
-
-func (topoInformation) Gateways() ([]topology.GatewayInfo, error) {
-	return itopo.Get().Gateways()
-}
-
-func (topoInformation) HiddenSegmentLookupAddresses() ([]*net.UDPAddr, error) {
-	a, err := itopo.Get().MakeHostInfos(topology.HiddenSegmentLookup)
-	if errors.Is(err, topology.ErrAddressNotFound) {
-		return nil, nil
-	}
-	return a, err
-}
-
-func (topoInformation) HiddenSegmentRegistrationAddresses() ([]*net.UDPAddr, error) {
-	a, err := itopo.Get().MakeHostInfos(topology.HiddenSegmentRegistration)
-	if errors.Is(err, topology.ErrAddressNotFound) {
-		return nil, nil
-	}
-	return a, err
 }

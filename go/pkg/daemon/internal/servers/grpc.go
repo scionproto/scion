@@ -16,8 +16,8 @@ package servers
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"net"
 	"time"
 
 	durationpb "github.com/golang/protobuf/ptypes/duration"
@@ -41,12 +41,20 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
+type Topology interface {
+	InterfaceIDs() []uint16
+	UnderlayNextHop(uint16) *net.UDPAddr
+	ControlServiceAddresses() []*net.UDPAddr
+}
+
 // DaemonServer handles gRPC requests to the SCION daemon.
 type DaemonServer struct {
-	Fetcher      fetcher.Fetcher
-	TopoProvider topology.Provider
-	RevCache     revcache.RevCache
-	ASInspector  trust.Inspector
+	IA          addr.IA
+	MTU         uint16
+	Topology    Topology
+	Fetcher     fetcher.Fetcher
+	RevCache    revcache.RevCache
+	ASInspector trust.Inspector
 
 	Metrics Metrics
 
@@ -206,14 +214,13 @@ func (s *DaemonServer) AS(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASRes
 }
 
 func (s *DaemonServer) as(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASResponse, error) {
-	topo := s.TopoProvider.Get()
 	reqIA := addr.IAInt(req.IsdAs).IA()
 	if reqIA.IsZero() {
-		reqIA = topo.IA()
+		reqIA = s.IA
 	}
 	mtu := uint32(0)
-	if reqIA.Equal(topo.IA()) {
-		mtu = uint32(topo.MTU())
+	if reqIA.Equal(s.IA) {
+		mtu = uint32(s.MTU)
 	}
 	core, err := s.ASInspector.HasAttributes(ctx, reqIA, trust.Core)
 	if err != nil {
@@ -247,10 +254,10 @@ func (s *DaemonServer) interfaces(ctx context.Context,
 	reply := &sdpb.InterfacesResponse{
 		Interfaces: make(map[uint64]*sdpb.Interface),
 	}
-	topo := s.TopoProvider.Get()
+	topo := s.Topology
 	for _, ifID := range topo.InterfaceIDs() {
-		nextHop, ok := topo.UnderlayNextHop(ifID)
-		if !ok {
+		nextHop := topo.UnderlayNextHop(ifID)
+		if nextHop == nil {
 			continue
 		}
 		reply.Interfaces[uint64(ifID)] = &sdpb.Interface{
@@ -281,20 +288,12 @@ func (s *DaemonServer) services(ctx context.Context,
 	reply := &sdpb.ServicesResponse{
 		Services: make(map[string]*sdpb.ListService),
 	}
-	topo := s.TopoProvider.Get()
-	serviceTypes := []topology.ServiceType{topology.Control, topology.Gateway}
-	for _, t := range serviceTypes {
-		list := &sdpb.ListService{}
-		svcHosts, err := topo.MakeHostInfos(t)
-		if err != nil && !errors.Is(topology.ErrAddressNotFound, err) {
-			return nil, err
-		}
-		for _, h := range svcHosts {
-			// TODO(lukedirtwalker): build actual URI after it's defined (anapapaya/scion#3587)
-			list.Services = append(list.Services, &sdpb.Service{Uri: h.String()})
-		}
-		reply.Services[t.String()] = list
+	list := &sdpb.ListService{}
+	for _, h := range s.Topology.ControlServiceAddresses() {
+		// TODO(lukedirtwalker): build actual URI after it's defined (anapapaya/scion#3587)
+		list.Services = append(list.Services, &sdpb.Service{Uri: h.String()})
 	}
+	reply.Services[topology.Control.String()] = list
 	return reply, nil
 }
 

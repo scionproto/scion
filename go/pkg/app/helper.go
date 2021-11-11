@@ -18,6 +18,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/daemon"
@@ -61,6 +62,28 @@ func WithSignal(ctx context.Context, sig ...os.Signal) context.Context {
 		}
 	}()
 	return ctx
+}
+
+// SIGHUPChannel returns a channel that is triggered whenever a SIGHUP signal is
+// sent to the process. The context is used for clean up, it deregisters the
+// SIGHUP channel and terminates the backgroun go routine on cancellation.
+func SIGHUPChannel(ctx context.Context) chan struct{} {
+	sighupC := make(chan os.Signal, 1)
+	signal.Notify(sighupC, syscall.SIGHUP)
+	ch := make(chan struct{})
+	go func() {
+		defer log.HandlePanic()
+		defer signal.Stop(sighupC)
+		for {
+			select {
+			case <-sighupC:
+				ch <- struct{}{}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return ch
 }
 
 // Cleanup defines a list of cleanup hooks. This can be helpful when creating an

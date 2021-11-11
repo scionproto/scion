@@ -25,15 +25,14 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/daemon/fetcher"
 	"github.com/scionproto/scion/go/pkg/daemon/internal/servers"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
@@ -53,7 +52,12 @@ func InitTracer(tracing env.Tracing, id string) (io.Closer, error) {
 }
 
 // TrustEngine builds the trust engine backed by the trust database.
-func TrustEngine(cfgDir string, db trust.DB, dialer libgrpc.Dialer) (trust.Engine, error) {
+func TrustEngine(
+	cfgDir string,
+	ia addr.IA,
+	db trust.DB,
+	dialer libgrpc.Dialer,
+) (trust.Engine, error) {
 	certsDir := filepath.Join(cfgDir, "certs")
 	loaded, err := trust.LoadTRCs(context.Background(), certsDir, db)
 	if err != nil {
@@ -89,12 +93,12 @@ func TrustEngine(cfgDir string, db trust.DB, dialer libgrpc.Dialer) (trust.Engin
 		Provider: trust.FetchingProvider{
 			DB: db,
 			Fetcher: trustgrpc.Fetcher{
-				IA:       itopo.Get().IA(),
+				IA:       ia,
 				Dialer:   dialer,
 				Requests: metrics.NewPromCounter(trustmetrics.RPC.Fetches),
 			},
 			Recurser: trust.LocalOnlyRecurser{},
-			Router:   trust.LocalRouter{IA: itopo.Get().IA()},
+			Router:   trust.LocalRouter{IA: ia},
 		},
 		DB: db,
 	}, nil
@@ -102,19 +106,23 @@ func TrustEngine(cfgDir string, db trust.DB, dialer libgrpc.Dialer) (trust.Engin
 
 // ServerConfig is the configuration for the daemon API server.
 type ServerConfig struct {
-	Fetcher      fetcher.Fetcher
-	RevCache     revcache.RevCache
-	Engine       trust.Engine
-	TopoProvider topology.Provider
+	IA       addr.IA
+	MTU      uint16
+	Fetcher  fetcher.Fetcher
+	RevCache revcache.RevCache
+	Engine   trust.Engine
+	Topology servers.Topology
 }
 
 // NewServer constructs a daemon API server.
 func NewServer(cfg ServerConfig) *servers.DaemonServer {
 	return &servers.DaemonServer{
-		Fetcher:      cfg.Fetcher,
-		ASInspector:  cfg.Engine.Inspector,
-		RevCache:     cfg.RevCache,
-		TopoProvider: cfg.TopoProvider,
+		IA:          cfg.IA,
+		MTU:         cfg.MTU,
+		Topology:    cfg.Topology,
+		Fetcher:     cfg.Fetcher,
+		ASInspector: cfg.Engine.Inspector,
+		RevCache:    cfg.RevCache,
 		Metrics: servers.Metrics{
 			PathsRequests: servers.RequestMetrics{
 				Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{

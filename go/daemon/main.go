@@ -32,8 +32,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/infraenv"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	segfetchergrpc "github.com/scionproto/scion/go/lib/infra/modules/segfetcher/grpc"
 	"github.com/scionproto/scion/go/lib/log"
@@ -77,9 +75,20 @@ func main() {
 }
 
 func realMain(ctx context.Context) error {
-	if err := setup(); err != nil {
-		return err
+	topo, err := topology.NewLoader(topology.LoaderCfg{
+		File:      globalCfg.General.Topology(),
+		Reload:    app.SIGHUPChannel(ctx),
+		Validator: &topology.DefaultValidator{},
+		Metrics:   loaderMetrics(),
+	})
+	if err != nil {
+		return serrors.WrapStr("creating topology loader", err)
 	}
+	g, errCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		defer log.HandlePanic()
+		return topo.Run(errCtx)
+	})
 
 	closer, err := daemon.InitTracer(globalCfg.Tracing, globalCfg.General.ID)
 	if err != nil {
@@ -106,12 +115,11 @@ func realMain(ctx context.Context) error {
 
 	dialer := &libgrpc.TCPDialer{
 		SvcResolver: func(dst addr.HostSVC) []resolver.Address {
-			targets := []resolver.Address{}
-			addrs, err := itopo.Provider().Get().Multicast(dst)
-			if err != nil {
-				return targets
+			if base := dst.Base(); base != addr.SvcCS {
+				panic("Unsupported address type, implementation error?")
 			}
-			for _, entry := range addrs {
+			targets := []resolver.Address{}
+			for _, entry := range topo.ControlServiceAddresses() {
 				targets = append(targets, resolver.Address{Addr: entry.String()})
 			}
 			return targets
@@ -133,7 +141,7 @@ func realMain(ctx context.Context) error {
 			[]string{"driver", "operation", prom.LabelResult},
 		),
 	})
-	engine, err := daemon.TrustEngine(globalCfg.General.ConfigDir, trustDB, dialer)
+	engine, err := daemon.TrustEngine(globalCfg.General.ConfigDir, topo.IA(), trustDB, dialer)
 	if err != nil {
 		return serrors.WrapStr("creating trust engine", err)
 	}
@@ -168,13 +176,12 @@ func realMain(ctx context.Context) error {
 	if err != nil {
 		return serrors.WrapStr("loading hidden path groups", err)
 	}
-	var requester segfetcher.RPC
-	requester = &segfetchergrpc.Requester{
+	var requester segfetcher.RPC = &segfetchergrpc.Requester{
 		Dialer: dialer,
 	}
 	if len(hpGroups) > 0 {
 		requester = &hpgrpc.Requester{
-			RegularLookup: &segfetchergrpc.Requester{Dialer: dialer},
+			RegularLookup: requester,
 			HPGroups:      hpGroups,
 			Dialer:        dialer,
 		}
@@ -193,27 +200,33 @@ func realMain(ctx context.Context) error {
 	}
 
 	server := grpc.NewServer(libgrpc.UnaryServerInterceptor())
-	sdpb.RegisterDaemonServiceServer(server, daemon.NewServer(daemon.ServerConfig{
-		Fetcher: fetcher.NewFetcher(
-			fetcher.FetcherConfig{
-				RPC:          requester,
-				PathDB:       pathDB,
-				Inspector:    engine,
-				Verifier:     createVerifier(),
-				RevCache:     revCache,
-				Cfg:          globalCfg.SD,
-				TopoProvider: itopo.Provider(),
-			},
-		),
-		Engine:       engine,
-		RevCache:     revCache,
-		TopoProvider: itopo.Provider(),
-	}))
+	sdpb.RegisterDaemonServiceServer(server, daemon.NewServer(
+		daemon.ServerConfig{
+			IA:       topo.IA(),
+			MTU:      topo.MTU(),
+			Topology: topo,
+			Fetcher: fetcher.NewFetcher(
+				fetcher.FetcherConfig{
+					IA:         topo.IA(),
+					MTU:        topo.MTU(),
+					Core:       topo.Core(),
+					NextHopper: topo,
+					RPC:        requester,
+					PathDB:     pathDB,
+					Inspector:  engine,
+					Verifier:   createVerifier(),
+					RevCache:   revCache,
+					Cfg:        globalCfg.SD,
+				},
+			),
+			Engine:   engine,
+			RevCache: revCache,
+		},
+	))
 
 	promgrpc.Register(server)
 
 	var cleanup app.Cleanup
-	g, errCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		defer log.HandlePanic()
 		if err := server.Serve(listener); err != nil {
@@ -254,7 +267,7 @@ func realMain(ctx context.Context) error {
 		"info":      service.NewInfoStatusPage(),
 		"config":    service.NewConfigStatusPage(globalCfg),
 		"log/level": service.NewLogLevelStatusPage(),
-		"topology":  service.NewTopologyStatusPage(),
+		"topology":  service.NewTopologyStatusPage(topo),
 	}
 	if err := statusPages.Register(http.DefaultServeMux, globalCfg.General.ID); err != nil {
 		return serrors.WrapStr("registering status pages", err)
@@ -274,19 +287,6 @@ func realMain(ctx context.Context) error {
 	return g.Wait()
 }
 
-func setup() error {
-	topo, err := topology.FromJSONFile(globalCfg.General.Topology())
-	if err != nil {
-		return serrors.WrapStr("loading topology", err)
-	}
-	itopo.Init(&itopo.Config{})
-	if err := itopo.Update(topo); err != nil {
-		return serrors.WrapStr("unable to set initial static topology", err)
-	}
-	infraenv.InitInfraEnvironment(globalCfg.General.Topology())
-	return nil
-}
-
 type acceptAllVerifier struct{}
 
 func (acceptAllVerifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
@@ -301,4 +301,24 @@ func (v acceptAllVerifier) WithServer(net.Addr) infra.Verifier {
 
 func (v acceptAllVerifier) WithIA(addr.IA) infra.Verifier {
 	return v
+}
+
+func loaderMetrics() topology.LoaderMetrics {
+	updates := prom.NewCounterVec("", "",
+		"topology_updates_total",
+		"The total number of updates.",
+		[]string{prom.LabelResult},
+	)
+	return topology.LoaderMetrics{
+		ValidationErrors: metrics.NewPromCounter(updates).With(prom.LabelResult, "err_validate"),
+		ReadErrors:       metrics.NewPromCounter(updates).With(prom.LabelResult, "err_read"),
+		LastUpdate: metrics.NewPromGauge(
+			prom.NewGaugeVec("", "",
+				"topology_last_update_time",
+				"Timestamp of the last successful update.",
+				[]string{},
+			),
+		),
+		Updates: metrics.NewPromCounter(updates).With(prom.LabelResult, prom.Success),
+	}
 }

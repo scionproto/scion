@@ -15,8 +15,6 @@ go_library(
     deps = [
         "//go/lib/addr:go_default_library",
         "//go/lib/infra:go_default_library",
-        "//go/lib/infra/infraenv:go_default_library",
-        "//go/lib/infra/modules/itopo:go_default_library",
         "//go/lib/infra/modules/segfetcher:go_default_library",
         "//go/lib/infra/modules/segfetcher/grpc:go_default_library",
         "//go/lib/log:go_default_library",

@@ -35,7 +35,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
@@ -54,8 +53,9 @@ func TestPropagatorRunNonCore(t *testing.T) {
 
 	mctrl := gomock.NewController(t)
 	defer mctrl.Finish()
-	topoProvider := itopotest.TopoProviderFromFile(t, topoNonCore)
-	intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
+	topo, err := topology.FromJSONFile(topoNonCore)
+	require.NoError(t, err)
+	intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
 	provider := mock_beaconing.NewMockBeaconProvider(mctrl)
 	senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
 	filter := func(intf *ifstate.Interface) bool {
@@ -63,17 +63,17 @@ func TestPropagatorRunNonCore(t *testing.T) {
 	}
 	p := beaconing.Propagator{
 		Extender: &beaconing.DefaultExtender{
-			IA:         topoProvider.Get().IA(),
-			MTU:        topoProvider.Get().MTU(),
-			Signer:     testSigner(t, priv, topoProvider.Get().IA()),
+			IA:         topo.IA(),
+			MTU:        topo.MTU(),
+			Signer:     testSigner(t, priv, topo.IA()),
 			Intfs:      intfs,
 			MAC:        macFactory,
 			MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
 			StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 		},
 		SenderFactory: senderFactory,
-		IA:            topoProvider.Get().IA(),
-		Signer:        testSigner(t, priv, topoProvider.Get().IA()),
+		IA:            topo.IA(),
+		Signer:        testSigner(t, priv, topo.IA()),
 		AllInterfaces: intfs,
 		PropagationInterfaces: func() []*ifstate.Interface {
 			return intfs.Filtered(filter)
@@ -101,7 +101,7 @@ func TestPropagatorRunNonCore(t *testing.T) {
 			sender := mock_beaconing.NewMockSender(mctrl)
 			sender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(3).DoAndReturn(
 				func(_ context.Context, b *seg.PathSegment) error {
-					validateSend(t, b, egIfId, nextHop, pub, topoProvider)
+					validateSend(t, b, egIfId, nextHop, pub, topo)
 					return nil
 				},
 			)
@@ -127,8 +127,9 @@ func TestPropagatorRunCore(t *testing.T) {
 
 	mctrl := gomock.NewController(t)
 	defer mctrl.Finish()
-	topoProvider := itopotest.TopoProviderFromFile(t, topoCore)
-	intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
+	topo, err := topology.FromJSONFile(topoCore)
+	require.NoError(t, err)
+	intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
 	provider := mock_beaconing.NewMockBeaconProvider(mctrl)
 	senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
 	filter := func(intf *ifstate.Interface) bool {
@@ -136,17 +137,17 @@ func TestPropagatorRunCore(t *testing.T) {
 	}
 	p := beaconing.Propagator{
 		Extender: &beaconing.DefaultExtender{
-			IA:         topoProvider.Get().IA(),
-			MTU:        topoProvider.Get().MTU(),
-			Signer:     testSigner(t, priv, topoProvider.Get().IA()),
+			IA:         topo.IA(),
+			MTU:        topo.MTU(),
+			Signer:     testSigner(t, priv, topo.IA()),
 			Intfs:      intfs,
 			MAC:        macFactory,
 			MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
 			StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 		},
 		SenderFactory: senderFactory,
-		IA:            topoProvider.Get().IA(),
-		Signer:        testSigner(t, priv, topoProvider.Get().IA()),
+		IA:            topo.IA(),
+		Signer:        testSigner(t, priv, topo.IA()),
 		AllInterfaces: intfs,
 		PropagationInterfaces: func() []*ifstate.Interface {
 			return intfs.Filtered(filter)
@@ -173,7 +174,7 @@ func TestPropagatorRunCore(t *testing.T) {
 			sender := mock_beaconing.NewMockSender(mctrl)
 			sender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(2).DoAndReturn(
 				func(_ context.Context, b *seg.PathSegment) error {
-					validateSend(t, b, egIfId, nextHop, pub, topoProvider)
+					validateSend(t, b, egIfId, nextHop, pub, topo)
 					return nil
 				},
 			)
@@ -189,7 +190,7 @@ func TestPropagatorRunCore(t *testing.T) {
 			sender := mock_beaconing.NewMockSender(mctrl)
 			sender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
 				func(_ context.Context, b *seg.PathSegment) error {
-					validateSend(t, b, egIfId, nextHop, pub, topoProvider)
+					validateSend(t, b, egIfId, nextHop, pub, topo)
 					return nil
 				},
 			)
@@ -212,8 +213,9 @@ func TestPropagatorFastRecovery(t *testing.T) {
 	}
 	mctrl := gomock.NewController(t)
 	defer mctrl.Finish()
-	topoProvider := itopotest.TopoProviderFromFile(t, topoCore)
-	intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
+	topo, err := topology.FromJSONFile(topoCore)
+	require.NoError(t, err)
+	intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
 	provider := mock_beaconing.NewMockBeaconProvider(mctrl)
 	senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
 	sender := mock_beaconing.NewMockSender(mctrl)
@@ -223,17 +225,17 @@ func TestPropagatorFastRecovery(t *testing.T) {
 
 	p := beaconing.Propagator{
 		Extender: &beaconing.DefaultExtender{
-			IA:         topoProvider.Get().IA(),
-			MTU:        topoProvider.Get().MTU(),
-			Signer:     testSigner(t, priv, topoProvider.Get().IA()),
+			IA:         topo.IA(),
+			MTU:        topo.MTU(),
+			Signer:     testSigner(t, priv, topo.IA()),
 			Intfs:      intfs,
 			MAC:        macFactory,
 			MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
 			StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 		},
 		SenderFactory: senderFactory,
-		IA:            topoProvider.Get().IA(),
-		Signer:        testSigner(t, priv, topoProvider.Get().IA()),
+		IA:            topo.IA(),
+		Signer:        testSigner(t, priv, topo.IA()),
 		AllInterfaces: intfs,
 		PropagationInterfaces: func() []*ifstate.Interface {
 			return intfs.Filtered(filter)
@@ -281,7 +283,7 @@ func validateSend(
 	egIfId uint16,
 	nextHop *net.UDPAddr,
 	pub crypto.PublicKey,
-	topoProvider *itopotest.TestTopoProvider,
+	topo topology.Topology,
 ) {
 	// Check the beacon is valid and verifiable.
 	assert.NoError(t, b.Validate(seg.ValidateBeacon))
@@ -292,6 +294,6 @@ func validateSend(
 	// Check the interface matches.
 	assert.Equal(t, hopF.ConsEgress, egIfId)
 	// Check that the beacon is sent to the correct border router.
-	br := topoProvider.Get().IFInfoMap()[common.IFIDType(egIfId)].InternalAddr
+	br := topo.IFInfoMap()[common.IFIDType(egIfId)].InternalAddr
 	assert.Equal(t, br, nextHop)
 }

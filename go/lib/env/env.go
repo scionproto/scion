@@ -40,11 +40,9 @@ import (
 
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/daemon"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -166,37 +164,6 @@ func (cfg *Daemon) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 
 func (cfg *Daemon) ConfigName() string {
 	return "sciond_connection"
-}
-
-// SetupEnv initializes a basic environment for applications. reloadF is called
-// whenever a SIGHUP signal is received.
-func SetupEnv(reloadF func()) {
-	setupSignals(reloadF)
-}
-
-func setupSignals(reloadF func()) {
-	if reloadF != nil {
-		go func() {
-			defer log.HandlePanic()
-			for range sighupC {
-				log.Info("Received config reload signal")
-				reloadF()
-			}
-		}()
-	}
-}
-
-func ReloadTopology(topologyPath string) {
-	topo, err := topology.FromJSONFile(topologyPath)
-	if err != nil {
-		log.Error("Unable to reload topology", "err", err)
-		return
-	}
-	if err := itopo.Update(topo); err != nil {
-		log.Error("Unable to update topology", "err", err)
-		return
-	}
-	log.Info("Reloaded topology")
 }
 
 var _ config.Config = (*Metrics)(nil)

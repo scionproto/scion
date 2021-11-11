@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/svc"
-	"github.com/scionproto/scion/go/lib/topology"
 )
 
 // Resolver performs SVC resolution for a remote AS, thus converting an anycast
@@ -44,7 +43,7 @@ type AddressRewriter struct {
 	Router snet.Router
 	// SVCRouter builds underlay addresses for intra-AS SVC traffic, based on
 	// information found in the topology.
-	SVCRouter LocalSVCRouter
+	SVCRouter SVCResolver
 	// Resolver performs SVC resolution if enabled.
 	Resolver Resolver
 	// SVCResolutionFraction enables SVC resolution for traffic to SVC
@@ -230,26 +229,11 @@ func parseReply(reply *svc.Reply) (*net.UDPAddr, error) {
 	return net.ResolveUDPAddr("udp", addressStr)
 }
 
-// LocalSVCRouter is used to construct underlay information for SVC servers
+// SVCResolver is used to construct underlay information for SVC servers
 // running in the local AS.
-type LocalSVCRouter interface {
+type SVCResolver interface {
 	// GetUnderlay returns the underlay address of a SVC server of the specified
-	// type. When multiple servers are available, the choice is random.
+	// type. When multiple servers are available, the choice is random. If no
+	// servers are available an error should be returned.
 	GetUnderlay(svc addr.HostSVC) (*net.UDPAddr, error)
-}
-
-// NewSVCRouter build a SVC router backed by topology information from the
-// specified provider.
-func NewSVCRouter(tp topology.Provider) LocalSVCRouter {
-	return &baseSVCRouter{
-		topology: tp,
-	}
-}
-
-type baseSVCRouter struct {
-	topology topology.Provider
-}
-
-func (r *baseSVCRouter) GetUnderlay(svc addr.HostSVC) (*net.UDPAddr, error) {
-	return r.topology.Get().UnderlayAnycast(svc)
 }

@@ -20,6 +20,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beaconing"
@@ -29,7 +30,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -44,7 +44,8 @@ var (
 )
 
 func TestHandlerHandleBeacon(t *testing.T) {
-	topoProvider := itopotest.TopoProviderFromFile(t, "testdata/topology-core.json")
+	topo, err := topology.FromJSONFile("testdata/topology-core.json")
+	require.NoError(t, err)
 
 	validBeacon := func() beacon.Beacon {
 		mctrl := gomock.NewController(t)
@@ -262,7 +263,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			handler := beaconing.Handler{
 				LocalIA:    localIA,
 				Inserter:   tc.Inserter(mctrl),
-				Interfaces: testInterfaces(topoProvider.Get()),
+				Interfaces: testInterfaces(topo),
 				Verifier:   tc.Verifier(mctrl),
 			}
 			err := handler.HandleBeacon(context.Background(),

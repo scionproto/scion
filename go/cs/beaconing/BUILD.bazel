@@ -63,7 +63,6 @@ go_test(
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/ctrl/seg/extensions/staticinfo:go_default_library",
         "//go/lib/infra/mock_infra:go_default_library",
-        "//go/lib/infra/modules/itopo/itopotest:go_default_library",
         "//go/lib/infra/modules/seghandler:go_default_library",
         "//go/lib/scrypto:go_default_library",
         "//go/lib/scrypto/cppki:go_default_library",

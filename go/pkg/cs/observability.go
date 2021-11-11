@@ -35,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	snetmetrics "github.com/scionproto/scion/go/lib/snet/metrics"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/ca/renewal"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	"github.com/scionproto/scion/go/pkg/discovery"
@@ -79,6 +80,7 @@ type Metrics struct {
 	SCIONNetworkMetrics                    snet.SCIONNetworkMetrics
 	SCIONPacketConnMetrics                 snet.SCIONPacketConnMetrics
 	SCMPErrors                             metrics.Counter
+	TopoLoader                             topology.LoaderMetrics
 }
 
 func NewMetrics() *Metrics {
@@ -227,8 +229,8 @@ func NewMetrics() *Metrics {
 		SCIONNetworkMetrics:    snetmetrics.NewSCIONNetworkMetrics(),
 		SCIONPacketConnMetrics: scionPacketConnMetrics,
 		SCMPErrors:             scionPacketConnMetrics.SCMPErrors,
+		TopoLoader:             loaderMetrics(),
 	}
-
 }
 
 // RegisterHTTPEndpoints starts the HTTP endpoints that expose the metrics and
@@ -238,12 +240,13 @@ func RegisterHTTPEndpoints(
 	cfg config.Config,
 	signer cstrust.RenewingSigner,
 	ca renewal.ChainBuilder,
+	topo *topology.Loader,
 ) error {
 	statusPages := service.StatusPages{
 		"info":      service.NewInfoStatusPage(),
 		"config":    service.NewConfigStatusPage(cfg),
 		"log/level": service.NewLogLevelStatusPage(),
-		"topology":  service.NewTopologyStatusPage(),
+		"topology":  service.NewTopologyStatusPage(topo),
 		"signer":    signerStatusPage(signer),
 	}
 	if ca != (renewal.ChainBuilder{}) {
@@ -362,5 +365,25 @@ func caStatusPage(signer renewal.ChainBuilder) service.StatusPage {
 	return service.StatusPage{
 		Info:    "CA status",
 		Handler: handler,
+	}
+}
+
+func loaderMetrics() topology.LoaderMetrics {
+	updates := prom.NewCounterVec("", "",
+		"topology_updates_total",
+		"The total number of updates.",
+		[]string{prom.LabelResult},
+	)
+	return topology.LoaderMetrics{
+		ValidationErrors: metrics.NewPromCounter(updates).With(prom.LabelResult, "err_validate"),
+		ReadErrors:       metrics.NewPromCounter(updates).With(prom.LabelResult, "err_read"),
+		LastUpdate: metrics.NewPromGauge(
+			prom.NewGaugeVec("", "",
+				"topology_last_update_time",
+				"Timestamp of the last successful update.",
+				[]string{},
+			),
+		),
+		Updates: metrics.NewPromCounter(updates).With(prom.LabelResult, prom.Success),
 	}
 }

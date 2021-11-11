@@ -23,6 +23,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	"github.com/scionproto/scion/go/pkg/hiddenpath"
@@ -50,6 +51,7 @@ func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,
 
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
+		defer log.HandlePanic()
 		r, err := f.RegularLookup.Segments(ctx, req, server)
 		if err != nil {
 			return err
@@ -59,6 +61,7 @@ func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,
 	})
 
 	g.Go(func() error {
+		defer log.HandlePanic()
 		segs, err := f.hiddenSegments(ctx, req, server)
 		if err != nil {
 			return err

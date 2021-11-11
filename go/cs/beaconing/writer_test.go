@@ -38,7 +38,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
@@ -46,6 +45,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
@@ -86,17 +86,18 @@ func TestRegistrarRun(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
-			topoProvider := itopotest.TopoProviderFromFile(t, test.fn)
-			intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
+			topo, err := topology.FromJSONFile(test.fn)
+			require.NoError(t, err)
+			intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
 			segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 			segStore := mock_beaconing.NewMockSegmentStore(mctrl)
 
 			r := beaconing.WriteScheduler{
 				Writer: &beaconing.LocalWriter{
 					Extender: &beaconing.DefaultExtender{
-						IA:         topoProvider.Get().IA(),
-						MTU:        topoProvider.Get().MTU(),
-						Signer:     testSigner(t, priv, topoProvider.Get().IA()),
+						IA:         topo.IA(),
+						MTU:        topo.MTU(),
+						Signer:     testSigner(t, priv, topo.IA()),
 						Intfs:      intfs,
 						MAC:        macFactory,
 						MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
@@ -170,26 +171,26 @@ func TestRegistrarRun(t *testing.T) {
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
 
-			topoProvider := itopotest.TopoProviderFromFile(t, test.fn)
-			intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
+			topo, err := topology.FromJSONFile(test.fn)
+			require.NoError(t, err)
+
+			intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
 			segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 			rpc := mock_beaconing.NewMockRPC(mctrl)
 
 			r := beaconing.WriteScheduler{
 				Writer: &beaconing.RemoteWriter{
 					Extender: &beaconing.DefaultExtender{
-						IA:         topoProvider.Get().IA(),
-						MTU:        topoProvider.Get().MTU(),
-						Signer:     testSigner(t, priv, topoProvider.Get().IA()),
+						IA:         topo.IA(),
+						MTU:        topo.MTU(),
+						Signer:     testSigner(t, priv, topo.IA()),
 						Intfs:      intfs,
 						MAC:        macFactory,
 						MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
 						StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 					},
 					Pather: addrutil.Pather{
-						UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
-							return topoProvider.Get().UnderlayNextHop(common.IFIDType(ifID))
-						},
+						NextHopper: topoWrap{Topo: topo},
 					},
 					RPC:   rpc,
 					Type:  test.segType,
@@ -254,7 +255,7 @@ func TestRegistrarRun(t *testing.T) {
 						assert.Equal(t, pathHopField.ConsEgress, segHopField.ConsEgress)
 
 						nextHop := common.IFIDType(pathHopField.ConsIngress)
-						a := topoProvider.Get().IFInfoMap()[nextHop].InternalAddr
+						a := topo.IFInfoMap()[nextHop].InternalAddr
 						assert.Equal(t, a, s.Addr.NextHop)
 					}
 				})
@@ -268,26 +269,25 @@ func TestRegistrarRun(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 
-		topoProvider := itopotest.TopoProviderFromFile(t, topoNonCore)
-		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
+		topo, err := topology.FromJSONFile(topoNonCore)
+		require.NoError(t, err)
+		intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
 		segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 		rpc := mock_beaconing.NewMockRPC(mctrl)
 
 		r := beaconing.WriteScheduler{
 			Writer: &beaconing.RemoteWriter{
 				Extender: &beaconing.DefaultExtender{
-					IA:         topoProvider.Get().IA(),
-					MTU:        topoProvider.Get().MTU(),
-					Signer:     testSigner(t, priv, topoProvider.Get().IA()),
+					IA:         topo.IA(),
+					MTU:        topo.MTU(),
+					Signer:     testSigner(t, priv, topo.IA()),
 					Intfs:      intfs,
 					MAC:        macFactory,
 					MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
 					StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 				},
 				Pather: addrutil.Pather{
-					UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
-						return topoProvider.Get().UnderlayNextHop(common.IFIDType(ifID))
-					},
+					NextHopper: topoWrap{Topo: topo},
 				},
 				RPC:   rpc,
 				Intfs: intfs,
@@ -348,4 +348,13 @@ var macFactory = func() hash.Hash {
 		panic(err)
 	}
 	return mac
+}
+
+type topoWrap struct {
+	Topo topology.Topology
+}
+
+func (w topoWrap) UnderlayNextHop(id uint16) *net.UDPAddr {
+	a, _ := w.Topo.UnderlayNextHop(common.IFIDType(id))
+	return a
 }

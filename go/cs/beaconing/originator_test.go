@@ -35,7 +35,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -48,11 +47,13 @@ const (
 )
 
 func TestOriginatorRun(t *testing.T) {
-	topoProvider := itopotest.TopoProviderFromFile(t, topoCore)
+	topo, err := topology.FromJSONFile(topoCore)
+	require.NoError(t, err)
+
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	pub := priv.Public()
-	signer := testSigner(t, priv, topoProvider.Get().IA())
+	signer := testSigner(t, priv, topo.IA())
 	originationFilter := func(intf *ifstate.Interface) bool {
 		topoInfo := intf.TopoInfo()
 		if topoInfo.LinkType == topology.Core || topoInfo.LinkType == topology.Child {
@@ -63,12 +64,12 @@ func TestOriginatorRun(t *testing.T) {
 	t.Run("run originates ifid packets on all active interfaces", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
+		intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
 		senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
 		o := beaconing.Originator{
 			Extender: &beaconing.DefaultExtender{
-				IA:         topoProvider.Get().IA(),
-				MTU:        topoProvider.Get().MTU(),
+				IA:         topo.IA(),
+				MTU:        topo.MTU(),
 				Signer:     signer,
 				Intfs:      intfs,
 				MAC:        macFactory,
@@ -76,7 +77,7 @@ func TestOriginatorRun(t *testing.T) {
 				StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 			},
 			SenderFactory: senderFactory,
-			IA:            topoProvider.Get().IA(),
+			IA:            topo.IA(),
 			Signer:        signer,
 			AllInterfaces: intfs,
 			OriginationInterfaces: func() []*ifstate.Interface {
@@ -104,7 +105,7 @@ func TestOriginatorRun(t *testing.T) {
 						// Check the interface matches.
 						assert.Equal(t, hopF.ConsEgress, egIfId)
 						// Check that the beacon is sent to the correct border router.
-						br := topoProvider.Get().IFInfoMap()[common.IFIDType(egIfId)].InternalAddr
+						br := topo.IFInfoMap()[common.IFIDType(egIfId)].InternalAddr
 						assert.Equal(t, br, nextHop)
 						return nil
 					},
@@ -123,13 +124,13 @@ func TestOriginatorRun(t *testing.T) {
 	t.Run("Fast recovery", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
+		intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
 		senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
 		sender := mock_beaconing.NewMockSender(mctrl)
 		o := beaconing.Originator{
 			Extender: &beaconing.DefaultExtender{
-				IA:         topoProvider.Get().IA(),
-				MTU:        topoProvider.Get().MTU(),
+				IA:         topo.IA(),
+				MTU:        topo.MTU(),
 				Signer:     signer,
 				Intfs:      intfs,
 				MAC:        macFactory,
@@ -137,7 +138,7 @@ func TestOriginatorRun(t *testing.T) {
 				StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 			},
 			SenderFactory: senderFactory,
-			IA:            topoProvider.Get().IA(),
+			IA:            topo.IA(),
 			Signer:        signer,
 			AllInterfaces: intfs,
 			OriginationInterfaces: func() []*ifstate.Interface {

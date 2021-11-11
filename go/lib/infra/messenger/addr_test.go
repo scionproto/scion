@@ -167,7 +167,7 @@ func TestRedirectQUIC(t *testing.T) {
 		path.EXPECT().Path().Return(spath.Path{})
 		path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{IP: net.ParseIP("10.1.1.1")})
 		path.EXPECT().Metadata().Return(&snet.PathMetadata{})
-		svcRouter := mock_messenger.NewMockLocalSVCRouter(ctrl)
+		svcRouter := mock_messenger.NewMockSVCResolver(ctrl)
 		svcRouter.EXPECT().GetUnderlay(addr.SvcCS).Return(
 			&net.UDPAddr{IP: net.ParseIP("10.1.1.1")}, nil,
 		)
@@ -196,7 +196,7 @@ func TestBuildFullAddress(t *testing.T) {
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
 		remoteIA := xtest.MustParseIA("1-ff00:0:2")
-		svcRouter := mock_messenger.NewMockLocalSVCRouter(ctrl)
+		svcRouter := mock_messenger.NewMockSVCResolver(ctrl)
 		aw := messenger.AddressRewriter{
 			Router:    router,
 			SVCRouter: svcRouter,
@@ -212,7 +212,7 @@ func TestBuildFullAddress(t *testing.T) {
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
 		remoteIA := xtest.MustParseIA("1-ff00:0:2")
-		svcRouter := mock_messenger.NewMockLocalSVCRouter(ctrl)
+		svcRouter := mock_messenger.NewMockSVCResolver(ctrl)
 		aw := messenger.AddressRewriter{
 			Router:    router,
 			SVCRouter: svcRouter,
@@ -233,7 +233,7 @@ func TestBuildFullAddress(t *testing.T) {
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
 		remoteIA := xtest.MustParseIA("1-ff00:0:2")
-		svcRouter := mock_messenger.NewMockLocalSVCRouter(ctrl)
+		svcRouter := mock_messenger.NewMockSVCResolver(ctrl)
 		aw := messenger.AddressRewriter{
 			Router:    router,
 			SVCRouter: svcRouter,
@@ -263,7 +263,7 @@ func TestBuildFullAddress(t *testing.T) {
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
 		localIA := xtest.MustParseIA("1-ff00:0:1")
-		svcRouter := mock_messenger.NewMockLocalSVCRouter(ctrl)
+		svcRouter := mock_messenger.NewMockSVCResolver(ctrl)
 		aw := messenger.AddressRewriter{
 			Router:    router,
 			SVCRouter: svcRouter,
@@ -294,7 +294,7 @@ func TestBuildFullAddress(t *testing.T) {
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
 		localIA := xtest.MustParseIA("1-ff00:0:1")
-		svcRouter := mock_messenger.NewMockLocalSVCRouter(ctrl)
+		svcRouter := mock_messenger.NewMockSVCResolver(ctrl)
 		aw := messenger.AddressRewriter{
 			Router:    router,
 			SVCRouter: svcRouter,

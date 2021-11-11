@@ -34,14 +34,15 @@ import (
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 )
 
 func TestDefaultExtenderExtend(t *testing.T) {
-	topoProvider := itopotest.TopoProviderFromFile(t, topoNonCore)
+	topo, err := topology.FromJSONFile(topoNonCore)
+	require.NoError(t, err)
 
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
@@ -82,11 +83,11 @@ func TestDefaultExtenderExtend(t *testing.T) {
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
 			// Setup interfaces with active parent, child and one peer interface.
-			intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
+			intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
 			intfs.Get(peer).Activate(graph.If_121_X_111_C)
 			ext := &beaconing.DefaultExtender{
-				IA:     topoProvider.Get().IA(),
-				Signer: testSigner(t, priv, topoProvider.Get().IA()),
+				IA:     topo.IA(),
+				Signer: testSigner(t, priv, topo.IA()),
 				MAC: func() hash.Hash {
 					mac, err := scrypto.InitMac(make([]byte, 16))
 					require.NoError(t, err)
@@ -131,7 +132,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				ia := intf.TopoInfo().IA
 
 				assert.Equal(t, 1337, entry.MTU)
-				assert.Equal(t, topoProvider.Get().IA(), entry.Local)
+				assert.Equal(t, topo.IA(), entry.Local)
 				assert.Equal(t, ia, entry.Next)
 				// Checks that unset peers are ignored, even when provided.
 				assert.Len(t, entry.PeerEntries, 1)
@@ -154,11 +155,11 @@ func TestDefaultExtenderExtend(t *testing.T) {
 	t.Run("the maximum expiration time is respected", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
+		intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
 		require.NoError(t, err)
 		ext := &beaconing.DefaultExtender{
-			IA:     topoProvider.Get().IA(),
-			Signer: testSigner(t, priv, topoProvider.Get().IA()),
+			IA:     topo.IA(),
+			Signer: testSigner(t, priv, topo.IA()),
 			MAC: func() hash.Hash {
 				mac, err := scrypto.InitMac(make([]byte, 16))
 				require.NoError(t, err)
@@ -179,7 +180,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 	})
 	t.Run("segment is not extended on error", func(t *testing.T) {
 		defaultSigner := func(t *testing.T) seg.Signer {
-			return testSigner(t, priv, topoProvider.Get().IA())
+			return testSigner(t, priv, topo.IA())
 		}
 		testCases := map[string]struct {
 			Signer          func(t *testing.T) seg.Signer
@@ -222,10 +223,10 @@ func TestDefaultExtenderExtend(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				mctrl := gomock.NewController(t)
 				defer mctrl.Finish()
-				intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
+				intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
 				ext := &beaconing.DefaultExtender{
-					IA:     topoProvider.Get().IA(),
-					Signer: testSigner(t, priv, topoProvider.Get().IA()),
+					IA:     topo.IA(),
+					Signer: testSigner(t, priv, topo.IA()),
 					MAC: func() hash.Hash {
 						mac, err := scrypto.InitMac(make([]byte, 16))
 						require.NoError(t, err)

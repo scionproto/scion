@@ -27,13 +27,6 @@ import (
 	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
 )
 
-// Provider provides a topology snapshot. The snapshot is guaranteed to not change.
-type Provider interface {
-	// Get returns a topology. The returned topology is guaranteed to not be
-	// nil.
-	Get() Topology
-}
-
 // Topology is the topology type for applications and libraries that only need read access to AS
 // topology information. This is the case of most applications and libraries that use the topology
 // file to discover information about the local AS. Libraries that need to edit the topology (e.g.,

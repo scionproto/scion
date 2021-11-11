@@ -36,7 +36,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
@@ -60,7 +59,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 	pub := priv.Public()
 
 	validatePublicSeg := func(t *testing.T, pseg *seg.PathSegment,
-		a *snet.SVCAddr, topoProvider topology.Provider) {
+		a *snet.SVCAddr, topo topology.Topology) {
 
 		assert.NoError(t, pseg.Validate(seg.ValidateSegment))
 		assert.NoError(t, pseg.VerifyASEntry(context.Background(),
@@ -79,7 +78,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 			assert.Equal(t, pathHopField.ConsEgress, segHopField.ConsEgress)
 
 			nextHop := common.IFIDType(pathHopField.ConsIngress)
-			ta := topoProvider.Get().IFInfoMap()[nextHop].InternalAddr
+			ta := topo.IFInfoMap()[nextHop].InternalAddr
 			assert.Equal(t, ta, a.NextHop)
 		}
 	}
@@ -88,7 +87,8 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 		assert.NoError(t, pseg.VerifyASEntry(context.Background(),
 			segVerifier{pubKey: pub}, pseg.MaxIdx()))
 	}
-	topoProvider := itopotest.TopoProviderFromFile(t, topoNonCore)
+	topo, err := topology.FromJSONFile(topoNonCore)
+	require.NoError(t, err)
 
 	testCases := map[string]struct {
 		beacons   [][]common.IFIDType
@@ -109,7 +109,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 					matchSVCCS("1-ff00:0:120")).DoAndReturn(
 					func(_ context.Context, reg hiddenpath.SegmentRegistration,
 						remote net.Addr) error {
-						validatePublicSeg(t, reg.Seg.Segment, remote.(*snet.SVCAddr), topoProvider)
+						validatePublicSeg(t, reg.Seg.Segment, remote.(*snet.SVCAddr), topo)
 						return nil
 					},
 				)
@@ -117,7 +117,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 					matchSVCCS("1-ff00:0:130")).DoAndReturn(
 					func(_ context.Context, reg hiddenpath.SegmentRegistration,
 						remote net.Addr) error {
-						validatePublicSeg(t, reg.Seg.Segment, remote.(*snet.SVCAddr), topoProvider)
+						validatePublicSeg(t, reg.Seg.Segment, remote.(*snet.SVCAddr), topo)
 						return nil
 					},
 				)
@@ -146,8 +146,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 						IA:   xtest.MustParseIA("1-ff00:0:114"),
 						Host: xtest.MustParseUDPAddr(t, "10.1.0.1:404"),
 					}}).Times(2).DoAndReturn(
-					func(_ context.Context, reg hiddenpath.SegmentRegistration,
-						remote net.Addr) error {
+					func(_ context.Context, reg hiddenpath.SegmentRegistration, _ net.Addr) error {
 						validateHS(t, reg.Seg.Segment)
 						return nil
 					},
@@ -186,14 +185,14 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
+			intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
 
 			w := &hiddenpath.BeaconWriter{
 				Intfs: intfs,
 				Extender: &beaconing.DefaultExtender{
-					IA:         topoProvider.Get().IA(),
-					MTU:        topoProvider.Get().MTU(),
-					Signer:     testSigner(t, priv, topoProvider.Get().IA()),
+					IA:         topo.IA(),
+					MTU:        topo.MTU(),
+					Signer:     testSigner(t, priv, topo.IA()),
 					Intfs:      intfs,
 					MAC:        macFactory,
 					MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
@@ -201,9 +200,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 				},
 				RPC: tc.createRPC(t, ctrl),
 				Pather: addrutil.Pather{
-					UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
-						return topoProvider.Get().UnderlayNextHop(common.IFIDType(ifID))
-					},
+					NextHopper: topoWrap{Topo: topo},
 				},
 				RegistrationPolicy: tc.policy,
 				AddressResolver:    tc.resolver(ctrl),
@@ -339,4 +336,13 @@ func (m addrMatcher) String() string {
 
 func equalAddr(a, b *net.UDPAddr) bool {
 	return a.Port == b.Port && a.IP.Equal(b.IP) && a.Zone == b.Zone
+}
+
+type topoWrap struct {
+	Topo topology.Topology
+}
+
+func (w topoWrap) UnderlayNextHop(id uint16) *net.UDPAddr {
+	a, _ := w.Topo.UnderlayNextHop(common.IFIDType(id))
+	return a
 }

@@ -21,7 +21,7 @@ type ServiceType int
 
 // Service types
 const (
-	Unknown = iota
+	Unknown ServiceType = iota
 	Router
 	Control
 	Discovery

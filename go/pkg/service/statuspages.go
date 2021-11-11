@@ -27,9 +27,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -167,9 +167,9 @@ func NewLogLevelStatusPage() StatusPage {
 	}
 }
 
-func NewTopologyStatusPage() StatusPage {
+func NewTopologyStatusPage(l *topology.Loader) StatusPage {
 	return StatusPage{
 		Info:    "SCION topology",
-		Handler: itopo.TopologyHandler,
+		Handler: l.HandleHTTP,
 	}
 }

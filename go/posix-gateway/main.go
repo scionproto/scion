@@ -26,7 +26,6 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/scionproto/scion/go/lib/daemon"
-	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
@@ -52,8 +51,6 @@ func main() {
 }
 
 func realMain(ctx context.Context) error {
-	reloadConfigTrigger := make(chan struct{})
-
 	daemonService := &daemon.Service{
 		Address: globalCfg.Daemon.Address,
 	}
@@ -147,7 +144,7 @@ func realMain(ctx context.Context) error {
 		TunnelName:               globalCfg.Tunnel.Name,
 		RoutingTableReader:       routingTable,
 		RoutingTableSwapper:      routingTable,
-		ConfigReloadTrigger:      reloadConfigTrigger,
+		ConfigReloadTrigger:      app.SIGHUPChannel(ctx),
 		HTTPEndpoints:            httpPages,
 		HTTPServeMux:             http.DefaultServeMux,
 		Metrics:                  gateway.NewMetrics(localIA),
@@ -165,10 +162,6 @@ func realMain(ctx context.Context) error {
 		defer log.HandlePanic()
 		<-errCtx.Done()
 		return cleanup.Do()
-	})
-
-	env.SetupEnv(func() {
-		reloadConfigTrigger <- struct{}{}
 	})
 
 	return g.Wait()
