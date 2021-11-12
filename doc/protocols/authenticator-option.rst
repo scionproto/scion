@@ -76,7 +76,7 @@ Sequence Number:
   Unsigned 24-bit sequence number.
   This field can be used for replay detection by the receiver.
 
-  When used with an :ref:`SPI <spao-spi>` referring to an established
+  When used with a :ref:`SPI <spao-spi>` referring to an established
   security association, this is used as a wrapping counter and replay detection
   is based on sliding window of expected counter values.
   This use case is not specified in detail here. Extending this specification
@@ -252,7 +252,7 @@ The input for the MAC is the concatenation of the following items:
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 
-  When used with an :ref:`SPI referring to a DRKey <spao-spi-drkey>`,
+  When used with a :ref:`SPI referring to a DRKey <spao-spi-drkey>`,
   the source and destination ISD/AS, as well one or both of the host addresses
   are protected by the key derivation and are skipped in the input to the MAC.
 
@@ -334,7 +334,7 @@ The SHA1 hash is computed over:
 The input to the MAC is:
 
 * the Authenticator Option Metadata (1., 12 bytes)
-* the Adress Type/Length fields (1 byte, padded to 4 bytes)
+* the Address Type/Length fields (1 byte, padded to 4 bytes)
   and the Address Header (3., 0-48 bytes).
 
   The Address Type/Length fields are extracted from the third row of
@@ -353,7 +353,7 @@ The input to the MAC is:
   also skipped.
 * the SHA1 hash (20 bytes)
 
-Observe that when used with suitable an :ref:`SPI referring to a DRKey
+Observe that when used with suitable a :ref:`SPI referring to a DRKey
 <spao-spi-drkey>`, the address header may be left empty, resulting in an ideal
 32-byte input size for the AES-CBC MAC.
 
