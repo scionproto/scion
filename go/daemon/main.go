@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -254,7 +255,8 @@ func realMain(ctx context.Context) error {
 		}
 		g.Go(func() error {
 			defer log.HandlePanic()
-			if err := mgmtServer.ListenAndServe(); err != nil {
+			err := mgmtServer.ListenAndServe()
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
 				return serrors.WrapStr("serving service management API", err)
 			}
 			return nil
