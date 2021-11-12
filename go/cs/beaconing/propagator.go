@@ -81,16 +81,16 @@ func (p *Propagator) Name() string {
 // interfaces. In a non-core beacon server, child interfaces are the target
 // interfaces.
 func (p *Propagator) Run(ctx context.Context) {
-	p.Tick.SetNow(time.Now())
 	logger := log.FromCtx(ctx)
-	if err := p.run(ctx, logger); err != nil {
+	p.Tick.SetNow(time.Now())
+	if err := p.run(ctx); err != nil {
 		logger.Error("Unable to propagate beacons", "err", err)
 	}
 	p.Tick.UpdateLast()
 }
 
-func (p *Propagator) run(ctx context.Context, logger log.Logger) error {
-	intfs := p.needsBeacons(logger)
+func (p *Propagator) run(ctx context.Context) error {
+	intfs := p.needsBeacons()
 	if len(intfs) == 0 {
 		return nil
 	}
@@ -112,7 +112,6 @@ func (p *Propagator) run(ctx context.Context, logger log.Logger) error {
 		beacons:    toPropagate,
 		intfs:      intfs,
 		peers:      peers,
-		logger:     logger,
 	}
 	if err := b.propagate(ctx); err != nil {
 		return serrors.WrapStr("error propagating", err, "beacons", b.beacons)
@@ -123,7 +122,7 @@ func (p *Propagator) run(ctx context.Context, logger log.Logger) error {
 // needsBeacons returns a list of active interfaces that beacons should be
 // propagated on. In a core AS, these are all active core links. In a non-core
 // AS, these are all active child links.
-func (p *Propagator) needsBeacons(logger log.Logger) []*ifstate.Interface {
+func (p *Propagator) needsBeacons() []*ifstate.Interface {
 	intfs := p.PropagationInterfaces()
 	sort.Slice(intfs, func(i, j int) bool {
 		return intfs[i].TopoInfo().ID < intfs[j].TopoInfo().ID
@@ -156,11 +155,11 @@ type propagator struct {
 	intfs   []*ifstate.Interface
 	peers   []common.IFIDType
 	success ctr
-	logger  log.Logger
 }
 
 // propagate propagates beacons on all active interfaces.
 func (p *propagator) propagate(ctx context.Context) error {
+	logger := log.FromCtx(ctx)
 	var expected int
 	for _, intf := range p.intfs {
 		var toPropagate []beacon.Beacon
@@ -174,7 +173,7 @@ func (p *propagator) propagate(ctx context.Context) error {
 			ps, err := seg.BeaconFromPB(seg.PathSegmentToPB(b.Segment))
 			if err != nil {
 				p.Propagator.incrementInternalErrors()
-				p.logger.Debug("Unable to unpack beacon", "err", err)
+				logger.Debug("Unable to unpack beacon", "err", err)
 				continue
 			}
 			toPropagate = append(toPropagate, beacon.Beacon{Segment: ps, InIfId: b.InIfId})
@@ -188,7 +187,7 @@ func (p *propagator) propagate(ctx context.Context) error {
 	if p.success.c <= 0 {
 		return serrors.New("no beacon propagated", "expected", expected)
 	}
-	p.logger.Debug("Successfully propagated", "beacons", p.beacons, "interfaces", p.intfs,
+	logger.Debug("Successfully propagated", "beacons", p.beacons, "interfaces", p.intfs,
 		"expected", expected, "count", p.success.c)
 	return nil
 }
@@ -200,6 +199,7 @@ func (p *propagator) extendAndSend(
 	bsegs []beacon.Beacon,
 	intf *ifstate.Interface,
 ) {
+	logger := log.FromCtx(ctx)
 	if len(bsegs) == 0 {
 		return
 	}
@@ -213,7 +213,7 @@ func (p *propagator) extendAndSend(
 		for _, bseg := range bsegs {
 			err := p.Extender.Extend(ctx, bseg.Segment, bseg.InIfId, egIfid, p.peers)
 			if err != nil {
-				p.logger.Error("Unable to extend beacon", "beacon", bseg, "err", err)
+				logger.Error("Unable to extend beacon", "beacon", bseg, "err", err)
 				p.incMetric(bseg.Segment.FirstIA(), bseg.InIfId, egIfid, "err_create")
 				continue
 			}
@@ -232,7 +232,7 @@ func (p *propagator) extendAndSend(
 				err = serrors.WrapStr("timed out getting beacon sender", err,
 					"waited_for", time.Since(rpcStart))
 			}
-			p.logger.Info("Unable to propagate beacons", "egress_interface", egIfid, "err", err)
+			logger.Info("Unable to propagate beacons", "egress_interface", egIfid, "err", err)
 			for _, b := range toPropagate {
 				p.incMetric(b.Segment.FirstIA(), b.InIfId, egIfid, prom.ErrNetwork)
 			}
@@ -246,14 +246,14 @@ func (p *propagator) extendAndSend(
 				if rpcContext.Err() != nil {
 					err = serrors.WrapStr("timed out waiting for RPC to complete", err,
 						"waited_for", time.Since(rpcStart))
-					p.logger.Info("Unable to propagate beacons", "egress_interface", egIfid,
+					logger.Info("Unable to propagate beacons", "egress_interface", egIfid,
 						"err", err)
 					p.incMetric(b.Segment.FirstIA(), b.InIfId, egIfid, prom.ErrNetwork)
 					// Return here if the context is expired, since no RPC will complete at that
 					// point.
 					return
 				}
-				p.logger.Info("Unable to propagate beacons", "egress_interface", egIfid, "err", err)
+				logger.Info("Unable to propagate beacons", "egress_interface", egIfid, "err", err)
 				p.incMetric(b.Segment.FirstIA(), b.InIfId, egIfid, prom.ErrNetwork)
 				continue
 			}
@@ -261,7 +261,7 @@ func (p *propagator) extendAndSend(
 			p.incMetric(b.Segment.FirstIA(), b.InIfId, egIfid, prom.Success)
 			successes++
 		}
-		p.logger.Debug("Propagated beacons", "egress_interface", egIfid, "expected",
+		logger.Debug("Propagated beacons", "egress_interface", egIfid, "expected",
 			len(toPropagate), "successes", successes)
 	}()
 }

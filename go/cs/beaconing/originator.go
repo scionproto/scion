@@ -111,7 +111,7 @@ func (o *Originator) originateBeacons(ctx context.Context) {
 		}()
 	}
 	wg.Wait()
-	o.logSummary(logger, s)
+	o.logSummary(ctx, s)
 }
 
 // needBeacon returns a list of interfaces that need a beacon.
@@ -128,7 +128,8 @@ func (o *Originator) needBeacon(active []*ifstate.Interface) []*ifstate.Interfac
 	return stale
 }
 
-func (o *Originator) logSummary(logger log.Logger, s *summary) {
+func (o *Originator) logSummary(ctx context.Context, s *summary) {
+	logger := log.FromCtx(ctx)
 	if o.Tick.Passed() {
 		logger.Debug("Originated beacons", "egress_interfaces", s.IfIds())
 		return

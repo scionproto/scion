@@ -126,7 +126,7 @@ func (r *WriteScheduler) run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	r.logSummary(log.FromCtx(ctx), &summary{count: stats.Count, srcs: stats.StartIAs})
+	r.logSummary(ctx, &summary{count: stats.Count, srcs: stats.StartIAs})
 	if stats.Count > 0 {
 		r.lastWrite = r.Tick.Now()
 	}
@@ -243,7 +243,8 @@ func (r *LocalWriter) Write(ctx context.Context, segments []beacon.Beacon,
 	return WriteStats{Count: sum.count, StartIAs: sum.srcs}, nil
 }
 
-func (r *WriteScheduler) logSummary(logger log.Logger, s *summary) {
+func (r *WriteScheduler) logSummary(ctx context.Context, s *summary) {
+	logger := log.FromCtx(ctx)
 	if r.Tick.Passed() {
 		logger.Debug("Registered beacons", "seg_type", r.Type, "count", s.count,
 			"start_isd_ases", len(s.srcs))

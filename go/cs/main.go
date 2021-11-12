@@ -204,14 +204,13 @@ func realMain(ctx context.Context) error {
 					truststoragefspersister.StatError,
 				),
 			},
-			Logger: log.Root(),
 		},
 	)
 	trustDB = truststoragemetrics.WrapDB(trustDB, truststoragemetrics.Config{
 		Driver:       string(storage.BackendSqlite),
 		QueriesTotal: libmetrics.NewPromCounter(metrics.TrustDBQueriesTotal),
 	})
-	if err := cs.LoadTrustMaterial(globalCfg.General.ConfigDir, trustDB, log.Root()); err != nil {
+	if err := cs.LoadTrustMaterial(ctx, globalCfg.General.ConfigDir, trustDB); err != nil {
 		return err
 	}
 
