@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"sort"
 	"testing"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher/mock_segfetcher"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -109,7 +111,7 @@ func TestRequester(t *testing.T) {
 			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
 				// req1 expriences unspecific error, retries until maxTries
 				req1 := req_210_110
-				expectedErr1 := errors.New("no attempts left")
+				expectedErr1 := serrors.New("no attempts left")
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req1), gomock.Any()).
 					Times(maxRetries+1).Return(segfetcher.SegmentsReply{}, errors.New("some error"))
 				// req2 sees ErrNotReachable, aborts immediately after first try
@@ -205,7 +207,33 @@ func TestRequester(t *testing.T) {
 			for r := range requester.Request(ctx, test.Reqs) {
 				replies = append(replies, r)
 			}
-			assert.ElementsMatch(t, expectedReplies, replies)
+			assert.Equal(t, len(expectedReplies), len(replies))
+			reqLess := func(a, b segfetcher.Request) bool {
+				switch {
+				case a.Src.IAInt() < b.Src.IAInt():
+					return true
+				case a.Src.IAInt() == b.Src.IAInt():
+					return a.Dst.IAInt() < b.Dst.IAInt()
+				default:
+					return false
+				}
+			}
+			sort.Slice(expectedReplies, func(i, j int) bool {
+				return reqLess(expectedReplies[i].Req, expectedReplies[j].Req)
+			})
+			sort.Slice(replies, func(i, j int) bool {
+				return reqLess(replies[i].Req, replies[j].Req)
+			})
+			for i, er := range expectedReplies {
+				assert.Equal(t, er.Req, replies[i].Req, i)
+				if er.Err != nil {
+					if !errors.Is(replies[i].Err, er.Err) {
+						assert.Equal(t, er.Err.Error(), replies[i].Err.Error())
+					}
+				} else {
+					assert.Equal(t, er.Peer, replies[i].Peer, i)
+				}
+			}
 		})
 	}
 }

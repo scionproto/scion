@@ -200,6 +200,15 @@ func TestEncoding(t *testing.T) {
 			),
 			goldenFileBase: "testdata/wrapped-string",
 		},
+		"wrapped with context": {
+			err: serrors.WrapStr(
+				"msg error",
+				serrors.New("msg cause", "cause_ctx_key", "cause_ctx_val"),
+				"k0", "v0",
+				"k1", 1,
+			),
+			goldenFileBase: "testdata/wrapped-with-string",
+		},
 		"wrapped error": {
 			err: serrors.Wrap(
 				serrors.New("msg error"),
