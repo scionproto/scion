@@ -116,10 +116,12 @@ entire SCMP message, starting with the SCMP message type field, and prepended
 with a "pseudo-header" consisting of the SCION address header and the layer-4
 protocol type as defined in :ref:`pseudo-header-upper-layer-checksum`.
 
+.. _scmp-authentication:
+
 Authentication
 --------------
 SCMP messages can be authenticated with a MAC based on a symmetric key
-established with the `DRKey infrastructure<../cryptography/DRKeyInfra.html>`_.
+established with the :ref:`DRKey infrastructure <drkey>`.
 The MAC is transported in the :ref:`authenticator-option` End-to-End extension
 header.
 
@@ -130,24 +132,24 @@ SCMP informational messages CAN optionally be authenticated; a response message
 MUST be authenticated if and only if the corresponding request message was
 authenticated.
 
-All DRKey keys used here are derived with protocol identifier :code:`scmp`.
+All DRKey keys used here are derived with :ref:`protocol identifier <drkey-protocol-identifiers>` :code:`SCMP`, decimal :code:`1`.
 
-SCMP messages from (and to) routers are authenticated with AS-to-Host keys.
+SCMP messages from (and to) routers are authenticated with :ref:`AS-host keys <drkey-as-host>`.
 SCMP response messages from a router in AS :math:`D` to a node :math:`H_s` in
-AS :math:`S` are authenticated with the DRKey :math:`K_{D \rightarrow S:H_s}`.
+AS :math:`S` are authenticated with the DRKey :math:`K_{D,S:H_s}`.
 SCMP requests (specifically, :ref:`traceroute-request`) processed by a router
 are authenticated with the same key.
 
-SCMP messages between two end-hosts are authenticated with Host-to-Host keys.
+SCMP messages between two end-hosts are authenticated with :ref:`host-host keys <drkey-host-host>`.
 An SCMP response message from a node :math:`H_d` in AS :math:`D` to a node
 :math:`H_s` in AS :math:`S` is authenticated with the key
-:math:`K_{D:H_d \rightarrow S:H_s}`.
+:math:`K_{D:H_d,S:H_s}`.
 SCMP requests and data packets from :math:`H_s` to :math:`H_d` are
 authenticated with this same key.
 
 For packets addressed to a router directly (specifically for
 :ref:`echo-request` and :ref:`echo-reply`) it is treated like an end-host and
-the corresponding Host-to-Host keys are used.
+the corresponding host-host keys are used.
 
 .. note::
    Recall that :ref:`traceroute-request`\s are *not* addressed to the router.
@@ -207,10 +209,11 @@ Implementations MUST respect the following rules when processing SCMP messages:
         As SCMP authentication is a new addition, there will be a transition period
         during which receivers may accept SCMP error messages without authentication.
 
-   - The receiver derives or fetches the relevant key for validation, by
-     inspecting the SCMP message type and code and/or by comparing the source
-     address of the SCMP reply with the destination address of the packet
-     quoted in an SCMP error.
+   - The receiver checks that the :ref:`DRKey identified by the SPI <spao-spi-drkey>`
+     is appropriate for the SCMP message type and code, as described above in
+     the :ref:`section Authentication <scmp-authentication>`.
+
+   - The receiver derives or fetches the relevant key for validation of the MAC.
 
    - Before checking the authentication, and in particular before fetching a
      key, the receiver SHOULD check whether the quoted message was possibly
