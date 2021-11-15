@@ -16,9 +16,9 @@ DRKey is used for the following systems:
 - COLIBRI
 - EPIC
 
-In the DRKey system, the key establishment is offloaded to the certificate service
+In the DRKey system, the key establishment is offloaded to the Control Service
 (CS).
-Certificates services exchange top-level keys that will be used afterwards
+Control services exchange top-level keys that will be used afterwards
 to derive lower level keys locally.
 The DRKey system leverages efficient key derivation and pseudorandom functions
 to derive keys in the hierarchy from top to bottom.
@@ -49,7 +49,7 @@ Notation
    * - :math:`H_A`
      - end host (identified by its address)
    * - :math:`CS_A`
-     - certificate server located in AS A
+     - Control service located in AS A
    * - :math:`SV_A`
      - AS A's local secret value
 
@@ -71,8 +71,8 @@ to derive keys on the fly for the specified protocol.
 
 **AS-AS (Level 1)**
 
-The ``AS-AS`` key is derived locally in the AS :math:`A` certificate server (:math:`CS_A`) and exchanged
-with remote certificate servers. More specifically :math:`CS_A` shares :math:`K_{A,B}` with
+The ``AS-AS`` key is derived locally in the AS :math:`A` CS (:math:`CS_A`) and exchanged
+with remote CS. More specifically :math:`CS_A` shares :math:`K_{A,B}` with
 :math:`CS_B`.
 
 **host-AS (Level 2)**
@@ -255,7 +255,7 @@ Key establishment
 Level 1 key establishment
 -------------------------
 
-The Level 1 key establishment occurs between certificate servers located in different ASes.
+The Level 1 key establishment occurs between CSes located in different ASes.
 The subject-AS on the slow side (i.e. the AS requesting the key) will establish a TLS secure connection with
 the issuer-AS  on the fast side (i.e. the AS serving the key). Both parties identify each other by using
 the CP-PKI infrastructure.
@@ -275,13 +275,13 @@ the protocol should establish a secure channel.
 This would avoid that hosts in the AS can eavesdrop on symmetric keys that are not
 intended for them.
 
-The certificate server will only respond to the specific request if the requesting host
+The CS will only respond to the specific request if the requesting host
 is authorized to receive the requested key.
 This is especially important in the Level 0 key case since only trustworthy nodes should
 be authorized to receive this key.
 
 The Level 0 key request contains the ``validTime`` and the specific ``protocol_id``.
-The certificate server responds with the SV and the epoch for which this key will be valid.
+The CS responds with the SV and the epoch for which this key will be valid.
 
 The Level 2/3 key request includes the ``validTime`` and the necessary host and AS
 information (depending on the key type).
