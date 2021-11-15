@@ -346,8 +346,9 @@ The template is expressed in JSON. A valid example:
 			}
 			if !flags.noProbe {
 				pathOpts = append(pathOpts, path.WithProbing(&path.ProbeConfig{
-					LocalIA: info.IA,
-					LocalIP: localIP,
+					LocalIA:    info.IA,
+					LocalIP:    localIP,
+					Dispatcher: dispatcher,
 				}))
 			}
 			path, err := path.Choose(ctx, sd, ca, pathOpts...)
