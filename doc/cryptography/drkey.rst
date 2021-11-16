@@ -347,8 +347,7 @@ Key exchange message format
       bytes key = 3;
     }
 
-    // DRKeyLvl2Request encompasses 2nd and 3rd level key requests
-    message Lvl2Request{
+    message HostASRequest{
       // Point in time where requested key is valid.
       Timestamp val_time = 1;
       // Protocol value.
@@ -357,13 +356,57 @@ Key exchange message format
       uint64 src_ia = 3;
       // Dst ISD-AS of the requested DRKey.
       uint64 dst_ia = 4;
-      // Src Host of the request DRKey (optional).
+      // Src Host of the request DRKey.
       string src_host = 5;
-      // Dst Host of the request DRKey (optional).
+    }
+
+    message HostASResponse{
+      // Begin of validity period of DRKey.
+      Timestamp epoch_begin = 1;
+      // End of validity period of DRKey.
+      Timestamp epoch_end = 2;
+      // Lvl2 key.
+      bytes key = 3;
+    }
+
+    message ASHostRequest{
+      // Point in time where requested key is valid.
+      Timestamp val_time = 1;
+      // Protocol value.
+      Protocol protocol_id = 2;
+      // Src ISD-AS of the requested DRKey.
+      uint64 src_ia = 3;
+      // Dst ISD-AS of the requested DRKey.
+      uint64 dst_ia = 4;
+      // Dst Host of the request DRKey.
+      string dst_host = 5;
+    }
+
+    message ASHostResponse{
+      // Begin of validity period of DRKey.
+      Timestamp epoch_begin = 1;
+      // End of validity period of DRKey.
+      Timestamp epoch_end = 2;
+      // Lvl2 key.
+      bytes key = 3;
+    }
+
+    message HostHostRequest{
+      // Point in time where requested key is valid.
+      Timestamp val_time = 1;
+      // Protocol value.
+      Protocol protocol_id = 2;
+      // Src ISD-AS of the requested DRKey.
+      uint64 src_ia = 3;
+      // Dst ISD-AS of the requested DRKey.
+      uint64 dst_ia = 4;
+      // Src Host of the request DRKey.
+      string src_host = 5;
+      // Dst Host of the request DRKey.
       string dst_host = 6;
     }
 
-    message Lvl2Response{
+    message HostHostResponse{
       // Begin of validity period of DRKey.
       Timestamp epoch_begin = 1;
       // End of validity period of DRKey.
