@@ -542,6 +542,8 @@ func realMain(ctx context.Context) error {
 		r.Use(cors.Handler(cors.Options{
 			AllowedOrigins: []string{"*"},
 		}))
+		r.Get("/", api.ServeSpecInteractive)
+		r.Get("/openapi.json", api.ServeSpecJSON)
 		server := api.Server{
 			Segments: pathDB,
 			CA:       chainBuilder,
@@ -555,7 +557,7 @@ func realMain(ctx context.Context) error {
 		log.Info("Exposing API", "addr", globalCfg.API.Addr)
 		s := http.Server{
 			Addr:    globalCfg.API.Addr,
-			Handler: api.HandlerFromMux(&server, r),
+			Handler: api.HandlerFromMuxWithBaseURL(&server, r, "/api/v1"),
 		}
 		g.Go(func() error {
 			defer log.HandlePanic()

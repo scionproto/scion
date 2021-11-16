@@ -77,6 +77,8 @@ func realMain(ctx context.Context) error {
 		r.Use(cors.Handler(cors.Options{
 			AllowedOrigins: []string{"*"},
 		}))
+		r.Get("/", api.ServeSpecInteractive)
+		r.Get("/openapi.json", api.ServeSpecJSON)
 		server := api.Server{
 			Config:   service.NewConfigStatusPage(globalCfg).Handler,
 			Info:     service.NewInfoStatusPage().Handler,

@@ -124,6 +124,7 @@ class GoGenerator(object):
             },
             'tracing': self._tracing_entry(),
             'metrics': self._metrics_entry(infra_elem, CS_PROM_PORT),
+            'api': self._api_entry(infra_elem, CS_PROM_PORT+700),
             'features': translate_features(self.args.features),
         }
         return raw_entry
@@ -314,4 +315,10 @@ class GoGenerator(object):
         a = prom_addr(infra_elem['addr'], base_port)
         return {
             'prometheus': a,
+        }
+
+    def _api_entry(self, infra_elem, base_port):
+        a = prom_addr(infra_elem['addr'], base_port)
+        return {
+            'addr': a,
         }
