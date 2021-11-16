@@ -16,5 +16,5 @@ Open source cryptography documentation:
    ca-operations
    interactions
    standards
-   DRKeyInfra
+   drkey
    forwarding-key-rollover
