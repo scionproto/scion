@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/cs/beaconing/mock_beaconing"
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -52,7 +51,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 		defer mctrl.Finish()
 		g := graph.NewDefaultGraph(mctrl)
 		return beacon.Beacon{
-			Segment: testSegment(g, []common.IFIDType{graph.If_220_X_120_B, graph.If_120_A_110_X}),
+			Segment: testSegment(g, []uint16{graph.If_220_X_120_B, graph.If_120_A_110_X}),
 			InIfId:  localIF,
 		}
 	}()
@@ -102,7 +101,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
 				g := graph.NewDefaultGraph(mctrl)
 				return beacon.Beacon{
-					Segment: testSegment(g, []common.IFIDType{
+					Segment: testSegment(g, []uint16{
 						graph.If_220_X_120_B, graph.If_120_A_110_X,
 					}),
 					InIfId: 12,
@@ -128,7 +127,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
 				g := graph.NewDefaultGraph(mctrl)
 				return beacon.Beacon{
-					Segment: testSegment(g, []common.IFIDType{
+					Segment: testSegment(g, []uint16{
 						graph.If_220_X_120_B, graph.If_120_A_110_X,
 					}),
 					InIfId: 42,
@@ -154,7 +153,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
 				g := graph.NewDefaultGraph(mctrl)
 				b := beacon.Beacon{
-					Segment: testSegment(g, []common.IFIDType{
+					Segment: testSegment(g, []uint16{
 						graph.If_220_X_120_B, graph.If_120_A_110_X,
 					}),
 					InIfId: localIF,
@@ -183,7 +182,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
 				g := graph.NewDefaultGraph(mctrl)
 				b := beacon.Beacon{
-					Segment: testSegment(g, []common.IFIDType{
+					Segment: testSegment(g, []uint16{
 						graph.If_220_X_120_B, graph.If_120_A_110_X,
 					}),
 					InIfId: localIF,
@@ -275,13 +274,13 @@ func TestHandlerHandleBeacon(t *testing.T) {
 	}
 }
 
-func testSegment(g *graph.Graph, ifids []common.IFIDType) *seg.PathSegment {
+func testSegment(g *graph.Graph, ifids []uint16) *seg.PathSegment {
 	pseg := g.Beacon(ifids)
 	pseg.ASEntries = pseg.ASEntries[:len(pseg.ASEntries)-1]
 	return pseg
 }
 
 func testInterfaces(topo topology.Topology) *ifstate.Interfaces {
-	intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
+	intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 	return intfs
 }

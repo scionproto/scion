@@ -33,7 +33,6 @@ import (
 	"github.com/scionproto/scion/go/cs/beaconing/mock_beaconing"
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -64,7 +63,7 @@ func TestOriginatorRun(t *testing.T) {
 	t.Run("run originates ifid packets on all active interfaces", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
+		intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 		senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
 		o := beaconing.Originator{
 			Extender: &beaconing.DefaultExtender{
@@ -105,7 +104,7 @@ func TestOriginatorRun(t *testing.T) {
 						// Check the interface matches.
 						assert.Equal(t, hopF.ConsEgress, egIfId)
 						// Check that the beacon is sent to the correct border router.
-						br := topo.IFInfoMap()[common.IFIDType(egIfId)].InternalAddr
+						br := interfaceInfos(topo)[egIfId].InternalAddr.UDPAddr()
 						assert.Equal(t, br, nextHop)
 						return nil
 					},
@@ -124,7 +123,7 @@ func TestOriginatorRun(t *testing.T) {
 	t.Run("Fast recovery", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
+		intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 		senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
 		sender := mock_beaconing.NewMockSender(mctrl)
 		o := beaconing.Originator{

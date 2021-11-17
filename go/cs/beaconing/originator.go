@@ -164,8 +164,8 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 	sender, err := o.SenderFactory.NewSender(
 		rpcContext,
 		topoInfo.IA,
-		uint16(o.intf.TopoInfo().ID),
-		topoInfo.InternalAddr,
+		o.intf.TopoInfo().ID,
+		topoInfo.InternalAddr.UDPAddr(),
 	)
 	if err != nil {
 		if rpcContext.Err() != nil {

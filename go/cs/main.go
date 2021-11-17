@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"path/filepath"
@@ -30,6 +31,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beaconing"
@@ -40,6 +42,7 @@ import (
 	segreggrpc "github.com/scionproto/scion/go/cs/segreg/grpc"
 	"github.com/scionproto/scion/go/cs/segreq"
 	segreqgrpc "github.com/scionproto/scion/go/cs/segreq/grpc"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	segfetchergrpc "github.com/scionproto/scion/go/lib/infra/modules/segfetcher/grpc"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
@@ -110,7 +113,7 @@ func realMain(ctx context.Context) error {
 		defer log.HandlePanic()
 		return topo.Run(errCtx)
 	})
-	intfs := ifstate.NewInterfaces(topo.InterfaceInfoMap(), ifstate.Config{})
+	intfs := ifstate.NewInterfaces(adaptInterfaceMap(topo.InterfaceInfoMap()), ifstate.Config{})
 	g.Go(func() error {
 		defer log.HandlePanic()
 		sub := topo.Subscribe()
@@ -118,7 +121,7 @@ func realMain(ctx context.Context) error {
 		for {
 			select {
 			case <-sub.Updates:
-				intfs.Update(topo.InterfaceInfoMap())
+				intfs.Update(adaptInterfaceMap(topo.InterfaceInfoMap()))
 			case <-errCtx.Done():
 				return nil
 			}
@@ -675,4 +678,27 @@ func createBeaconStore(
 	}
 	store, err := beacon.NewBeaconStore(policies, db)
 	return store, *policies.Prop.Filter.AllowIsdLoop, err
+}
+
+func adaptInterfaceMap(in map[common.IFIDType]topology.IFInfo) map[uint16]ifstate.InterfaceInfo {
+	converted := make(map[uint16]ifstate.InterfaceInfo, len(in))
+	for id, info := range in {
+		addr, ok := netaddr.FromStdAddr(
+			info.InternalAddr.IP,
+			info.InternalAddr.Port,
+			info.InternalAddr.Zone,
+		)
+		if !ok {
+			panic(fmt.Sprintf("failed to adapt the topology format. Input %s", info.InternalAddr))
+		}
+		converted[uint16(id)] = ifstate.InterfaceInfo{
+			ID:           uint16(info.ID),
+			IA:           info.IA,
+			LinkType:     info.LinkType,
+			InternalAddr: addr,
+			RemoteID:     uint16(info.RemoteIFID),
+			MTU:          uint16(info.MTU),
+		}
+	}
+	return converted
 }

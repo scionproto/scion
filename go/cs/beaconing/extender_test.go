@@ -32,7 +32,6 @@ import (
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beaconing"
 	"github.com/scionproto/scion/go/cs/ifstate"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -50,9 +49,9 @@ func TestDefaultExtenderExtend(t *testing.T) {
 
 	peer := graph.If_111_C_121_X
 	testsCases := map[string]struct {
-		ingress      common.IFIDType
-		egress       common.IFIDType
-		unsetPeers   []common.IFIDType
+		ingress      uint16
+		egress       uint16
+		unsetPeers   []uint16
 		errAssertion assert.ErrorAssertionFunc
 	}{
 		"valid": {
@@ -61,7 +60,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 		},
 		"ignore unset peers": {
 			egress:       graph.If_111_A_112_X,
-			unsetPeers:   []common.IFIDType{graph.If_111_B_211_A},
+			unsetPeers:   []uint16{graph.If_111_B_211_A},
 			errAssertion: assert.NoError,
 		},
 		"egress 0": {
@@ -83,7 +82,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
 			// Setup interfaces with active parent, child and one peer interface.
-			intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
+			intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 			intfs.Get(peer).Activate(graph.If_121_X_111_C)
 			ext := &beaconing.DefaultExtender{
 				IA:     topo.IA(),
@@ -138,15 +137,14 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				assert.Len(t, entry.PeerEntries, 1)
 			})
 			t.Run("hop entry check", func(t *testing.T) {
-				assert.Equal(t, uint16(tc.ingress), entry.HopEntry.HopField.ConsIngress)
-				assert.Equal(t, uint16(tc.egress), entry.HopEntry.HopField.ConsEgress)
+				assert.Equal(t, tc.ingress, entry.HopEntry.HopField.ConsIngress)
+				assert.Equal(t, tc.egress, entry.HopEntry.HopField.ConsEgress)
 				assert.Equal(t, ext.MaxExpTime(), entry.HopEntry.HopField.ExpTime)
 				// FIXME(roosd): Check hop field can be authenticated.
 			})
 			t.Run("peer entry check", func(t *testing.T) {
-
-				assert.Equal(t, uint16(peer), entry.PeerEntries[0].HopField.ConsIngress)
-				assert.Equal(t, uint16(tc.egress), entry.PeerEntries[0].HopField.ConsEgress)
+				assert.Equal(t, peer, entry.PeerEntries[0].HopField.ConsIngress)
+				assert.Equal(t, tc.egress, entry.PeerEntries[0].HopField.ConsEgress)
 				assert.Equal(t, ext.MaxExpTime(), entry.PeerEntries[0].HopField.ExpTime)
 				// FIXME(roosd): Check hop field can be authenticated.
 			})
@@ -155,7 +153,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 	t.Run("the maximum expiration time is respected", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
+		intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 		require.NoError(t, err)
 		ext := &beaconing.DefaultExtender{
 			IA:     topo.IA(),
@@ -173,7 +171,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 		require.NoError(t, err)
 		pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()))
 		require.NoError(t, err)
-		err = ext.Extend(context.Background(), pseg, 0, graph.If_111_A_112_X, []common.IFIDType{})
+		err = ext.Extend(context.Background(), pseg, 0, graph.If_111_A_112_X, []uint16{})
 		require.NoError(t, err)
 		assert.Equal(t, uint8(1), pseg.ASEntries[0].HopEntry.HopField.ExpTime)
 
@@ -184,7 +182,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 		}
 		testCases := map[string]struct {
 			Signer          func(t *testing.T) seg.Signer
-			Ingress, Egress common.IFIDType
+			Ingress, Egress uint16
 		}{
 			"Unknown Ingress": {
 				Signer:  defaultSigner,
@@ -223,7 +221,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				mctrl := gomock.NewController(t)
 				defer mctrl.Finish()
-				intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
+				intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 				ext := &beaconing.DefaultExtender{
 					IA:     topo.IA(),
 					Signer: testSigner(t, priv, topo.IA()),
@@ -240,7 +238,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()))
 				require.NoError(t, err)
 				err = ext.Extend(context.Background(), pseg, tc.Ingress, tc.Egress,
-					[]common.IFIDType{})
+					[]uint16{})
 				assert.Error(t, err)
 			})
 		}

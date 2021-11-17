@@ -33,7 +33,6 @@ import (
 	"github.com/scionproto/scion/go/cs/beaconing/mock_beaconing"
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -45,7 +44,7 @@ func TestPropagatorRunNonCore(t *testing.T) {
 	require.NoError(t, err)
 	pub := priv.Public()
 
-	beacons := [][]common.IFIDType{
+	beacons := [][]uint16{
 		{graph.If_120_X_111_B},
 		{graph.If_130_B_120_A, graph.If_120_X_111_B},
 		{graph.If_130_B_120_A, graph.If_120_X_111_B},
@@ -55,7 +54,7 @@ func TestPropagatorRunNonCore(t *testing.T) {
 	defer mctrl.Finish()
 	topo, err := topology.FromJSONFile(topoNonCore)
 	require.NoError(t, err)
-	intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
+	intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 	provider := mock_beaconing.NewMockBeaconProvider(mctrl)
 	senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
 	filter := func(intf *ifstate.Interface) bool {
@@ -120,7 +119,7 @@ func TestPropagatorRunCore(t *testing.T) {
 	require.NoError(t, err)
 	pub := priv.Public()
 
-	beacons := [][]common.IFIDType{
+	beacons := [][]uint16{
 		{graph.If_120_A_110_X},
 		{graph.If_130_B_120_A, graph.If_120_A_110_X},
 	}
@@ -129,7 +128,7 @@ func TestPropagatorRunCore(t *testing.T) {
 	defer mctrl.Finish()
 	topo, err := topology.FromJSONFile(topoCore)
 	require.NoError(t, err)
-	intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
+	intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 	provider := mock_beaconing.NewMockBeaconProvider(mctrl)
 	senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
 	filter := func(intf *ifstate.Interface) bool {
@@ -207,7 +206,7 @@ func TestPropagatorFastRecovery(t *testing.T) {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
-	beacons := [][]common.IFIDType{
+	beacons := [][]uint16{
 		{graph.If_120_A_110_X},
 		{graph.If_130_B_120_A, graph.If_120_A_110_X},
 	}
@@ -215,7 +214,7 @@ func TestPropagatorFastRecovery(t *testing.T) {
 	defer mctrl.Finish()
 	topo, err := topology.FromJSONFile(topoCore)
 	require.NoError(t, err)
-	intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
+	intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 	provider := mock_beaconing.NewMockBeaconProvider(mctrl)
 	senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
 	sender := mock_beaconing.NewMockSender(mctrl)
@@ -294,6 +293,6 @@ func validateSend(
 	// Check the interface matches.
 	assert.Equal(t, hopF.ConsEgress, egIfId)
 	// Check that the beacon is sent to the correct border router.
-	br := topo.IFInfoMap()[common.IFIDType(egIfId)].InternalAddr
+	br := interfaceInfos(topo)[egIfId].InternalAddr.UDPAddr()
 	assert.Equal(t, br, nextHop)
 }

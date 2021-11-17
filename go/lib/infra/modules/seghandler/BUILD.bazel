@@ -30,7 +30,6 @@ go_test(
     ],
     deps = [
         ":go_default_library",
-        "//go/lib/common:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/infra/modules/seghandler/mock_seghandler:go_default_library",
         "//go/lib/infra/modules/segverifier:go_default_library",

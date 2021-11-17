@@ -138,7 +138,7 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beac
 		if err != nil {
 			return nil, db.NewDataError(beacon.ErrParse, err)
 		}
-		beacons = append(beacons, beacon.Beacon{Segment: s, InIfId: inIntfID})
+		beacons = append(beacons, beacon.Beacon{Segment: s, InIfId: uint16(inIntfID)})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -174,7 +174,7 @@ func (e *executor) InsertBeacon(ctx context.Context, b beacon.Beacon,
 	}
 	// Insert new beacon.
 	err = db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
-		return insertNewBeacon(ctx, tx, b, usage, e.ia, time.Now())
+		return insertNewBeacon(ctx, tx, b, usage, time.Now())
 	})
 	if err != nil {
 		return ret, err
@@ -229,7 +229,7 @@ func (e *executor) updateExistingBeacon(ctx context.Context, b beacon.Beacon,
 }
 
 func insertNewBeacon(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
-	usage beacon.Usage, localIA addr.IA, now time.Time) error {
+	usage beacon.Usage, now time.Time) error {
 
 	segID := b.Segment.ID()
 	fullID := b.Segment.FullID()

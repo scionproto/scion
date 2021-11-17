@@ -29,6 +29,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beaconing"
@@ -77,8 +78,8 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 			assert.Equal(t, pathHopField.ConsIngress, segHopField.ConsIngress)
 			assert.Equal(t, pathHopField.ConsEgress, segHopField.ConsEgress)
 
-			nextHop := common.IFIDType(pathHopField.ConsIngress)
-			ta := topo.IFInfoMap()[nextHop].InternalAddr
+			nextHop := pathHopField.ConsIngress
+			ta := interfaceInfos(topo)[nextHop].InternalAddr.UDPAddr()
 			assert.Equal(t, ta, a.NextHop)
 		}
 	}
@@ -91,13 +92,13 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 	require.NoError(t, err)
 
 	testCases := map[string]struct {
-		beacons   [][]common.IFIDType
+		beacons   [][]uint16
 		createRPC func(*testing.T, *gomock.Controller) hiddenpath.Register
 		policy    hiddenpath.RegistrationPolicy
 		resolver  func(*gomock.Controller) hiddenpath.AddressResolver
 	}{
 		"Only public registration": {
-			beacons: [][]common.IFIDType{
+			beacons: [][]uint16{
 				{graph.If_120_X_111_B},
 				{graph.If_130_B_120_A, graph.If_120_X_111_B},
 			},
@@ -134,7 +135,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 			},
 		},
 		"single interface hidden": {
-			beacons: [][]common.IFIDType{
+			beacons: [][]uint16{
 				{graph.If_120_X_111_B},
 				{graph.If_130_B_120_A, graph.If_120_X_111_B},
 			},
@@ -185,7 +186,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
+			intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 
 			w := &hiddenpath.BeaconWriter{
 				Intfs: intfs,
@@ -219,13 +220,13 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 	}
 }
 
-func testBeacon(g *graph.Graph, desc []common.IFIDType) beacon.Beacon {
+func testBeacon(g *graph.Graph, desc []uint16) beacon.Beacon {
 	bseg := g.Beacon(desc)
 	asEntry := bseg.ASEntries[bseg.MaxIdx()]
 	bseg.ASEntries = bseg.ASEntries[:len(bseg.ASEntries)-1]
 
 	return beacon.Beacon{
-		InIfId:  common.IFIDType(asEntry.HopEntry.HopField.ConsIngress),
+		InIfId:  asEntry.HopEntry.HopField.ConsIngress,
 		Segment: bseg,
 	}
 }
@@ -266,9 +267,8 @@ func (v segVerifier) Verify(_ context.Context, signedMsg *cryptopb.SignedMessage
 
 // sortedIntfs returns all interfaces of the given link type sorted by interface
 // ID.
-func sortedIntfs(intfs *ifstate.Interfaces, linkType topology.LinkType) []common.IFIDType {
-
-	var result []common.IFIDType
+func sortedIntfs(intfs *ifstate.Interfaces, linkType topology.LinkType) []uint16 {
+	var result []uint16
 	for ifid, intf := range intfs.All() {
 		topoInfo := intf.TopoInfo()
 		if topoInfo.LinkType != linkType {
@@ -345,4 +345,20 @@ type topoWrap struct {
 func (w topoWrap) UnderlayNextHop(id uint16) *net.UDPAddr {
 	a, _ := w.Topo.UnderlayNextHop(common.IFIDType(id))
 	return a
+}
+
+func interfaceInfos(topo topology.Topology) map[uint16]ifstate.InterfaceInfo {
+	in := topo.IFInfoMap()
+	result := make(map[uint16]ifstate.InterfaceInfo, len(in))
+	for id, info := range in {
+		result[uint16(id)] = ifstate.InterfaceInfo{
+			ID:           uint16(info.ID),
+			IA:           info.IA,
+			LinkType:     info.LinkType,
+			InternalAddr: netaddr.MustParseIPPort(info.InternalAddr.String()),
+			RemoteID:     uint16(info.RemoteIFID),
+			MTU:          uint16(info.MTU),
+		}
+	}
+	return result
 }

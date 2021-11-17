@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/cs/beaconing"
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
@@ -73,7 +72,7 @@ type BeaconWriter struct {
 // each remote, it sends the segment via the found path. Peers are the peer
 // interfaces in this AS.
 func (w *BeaconWriter) Write(ctx context.Context, segments []beacon.Beacon,
-	peers []common.IFIDType) (beaconing.WriteStats, error) {
+	peers []uint16) (beaconing.WriteStats, error) {
 
 	logger := log.FromCtx(ctx)
 	summary := newSummary()
@@ -200,14 +199,12 @@ func (w *remoteWriter) segTypeString() string {
 type summary struct {
 	mu    sync.Mutex
 	srcs  map[addr.IA]struct{}
-	ifIds map[common.IFIDType]struct{}
 	count int
 }
 
 func newSummary() *summary {
 	return &summary{
-		srcs:  make(map[addr.IA]struct{}),
-		ifIds: make(map[common.IFIDType]struct{}),
+		srcs: make(map[addr.IA]struct{}),
 	}
 }
 
@@ -225,7 +222,7 @@ func (s *summary) Inc() {
 
 type writerLabels struct {
 	StartIA addr.IA
-	Ingress common.IFIDType
+	Ingress uint16
 	SegType string
 	Result  string
 }

@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
@@ -73,7 +72,7 @@ type Writer interface {
 	// interface IDs of the local IA. The returned statistics should provide
 	// insights about how many segments have been successfully written. The
 	// method should return an error if the writing did fail.
-	Write(ctx context.Context, segs []beacon.Beacon, peers []common.IFIDType) (WriteStats, error)
+	Write(ctx context.Context, segs []beacon.Beacon, peers []uint16) (WriteStats, error)
 }
 
 var _ periodic.Task = (*WriteScheduler)(nil)
@@ -155,8 +154,11 @@ type RemoteWriter struct {
 }
 
 // Write writes the segment at the source AS of the segment.
-func (r *RemoteWriter) Write(ctx context.Context, segments []beacon.Beacon,
-	peers []common.IFIDType) (WriteStats, error) {
+func (r *RemoteWriter) Write(
+	ctx context.Context,
+	segments []beacon.Beacon,
+	peers []uint16,
+) (WriteStats, error) {
 
 	logger := log.FromCtx(ctx)
 	s := newSummary()
@@ -211,8 +213,11 @@ type LocalWriter struct {
 }
 
 // Write terminates the segments and registers them in the SegmentStore.
-func (r *LocalWriter) Write(ctx context.Context, segments []beacon.Beacon,
-	peers []common.IFIDType) (WriteStats, error) {
+func (r *LocalWriter) Write(
+	ctx context.Context,
+	segments []beacon.Beacon,
+	peers []uint16,
+) (WriteStats, error) {
 
 	logger := log.FromCtx(ctx)
 	beacons := make(map[string]beacon.Beacon)
@@ -343,7 +348,7 @@ func summarizeStats(s seghandler.SegStats, b map[string]beacon.Beacon) *summary 
 
 type writerLabels struct {
 	StartIA addr.IA
-	Ingress common.IFIDType
+	Ingress uint16
 	SegType string
 	Result  string
 }

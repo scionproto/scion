@@ -17,37 +17,35 @@ package ifstate_test
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/cs/ifstate"
-	"github.com/scionproto/scion/go/lib/topology"
 )
 
 func TestInterfacesUpdate(t *testing.T) {
 	t.Run("The update retains the state of the interface", func(t *testing.T) {
 		intfs := testInterfaces(t)
-		topoMap := topology.IfInfoMap{
-			1: {BRName: "BR-1-new"},
-			2: {BRName: "BR-2-new"},
+		topoMap := map[uint16]ifstate.InterfaceInfo{
+			1: {ID: 1, MTU: 1401},
+			2: {ID: 2, MTU: 1402},
 		}
 		intfs.Update(topoMap)
 		// The topo info should come from the updated map.
-		assert.Equal(t, "BR-1-new", intfs.Get(1).TopoInfo().BRName)
-		assert.Equal(t, "BR-2-new", intfs.Get(2).TopoInfo().BRName)
+		assert.Equal(t, uint16(1401), intfs.Get(1).TopoInfo().MTU)
+		assert.Equal(t, uint16(1402), intfs.Get(2).TopoInfo().MTU)
 		// The remote ifid should be kept
-		assert.EqualValues(t, 11, intfs.Get(1).TopoInfo().RemoteIFID)
-		assert.EqualValues(t, 22, intfs.Get(2).TopoInfo().RemoteIFID)
+		assert.EqualValues(t, 11, intfs.Get(1).TopoInfo().RemoteID)
+		assert.EqualValues(t, 22, intfs.Get(2).TopoInfo().RemoteID)
 	})
 	t.Run("The update adds new interfaces and removes missing", func(t *testing.T) {
 		intfs := testInterfaces(t)
-		topoMap := topology.IfInfoMap{
-			3: {BRName: "BR-3-new"},
+		topoMap := map[uint16]ifstate.InterfaceInfo{
+			3: {ID: 3, MTU: 1403},
 		}
 		intfs.Update(topoMap)
 		assert.Nil(t, intfs.Get(1))
 		assert.Nil(t, intfs.Get(2))
-		assert.Equal(t, "BR-3-new", intfs.Get(3).TopoInfo().BRName)
+		assert.Equal(t, uint16(1403), intfs.Get(3).TopoInfo().MTU)
 	})
 }
 
@@ -55,34 +53,28 @@ func TestInterfacesReset(t *testing.T) {
 	intfs := testInterfaces(t)
 	intfs.Reset()
 	// The topo info should remain.
-	assert.Equal(t, "BR-1", intfs.Get(1).TopoInfo().BRName)
-	assert.Equal(t, "BR-1", intfs.Get(1).TopoInfo().BRName)
-	assert.Equal(t, "BR-2", intfs.Get(2).TopoInfo().BRName)
-	assert.EqualValues(t, 11, intfs.Get(1).TopoInfo().RemoteIFID)
-	assert.EqualValues(t, 22, intfs.Get(2).TopoInfo().RemoteIFID)
+	assert.Equal(t, uint16(1301), intfs.Get(1).TopoInfo().MTU)
+	assert.Equal(t, uint16(1302), intfs.Get(2).TopoInfo().MTU)
+	assert.EqualValues(t, 11, intfs.Get(1).TopoInfo().RemoteID)
+	assert.EqualValues(t, 22, intfs.Get(2).TopoInfo().RemoteID)
 }
 
 func TestInterfacesAll(t *testing.T) {
-	Convey("Given an interface infos map with existing entries", t, func() {
-		intfs := testInterfaces(t)
-		Convey("All should return all infos", func() {
-			all := intfs.All()
-			// The topo info should remain.
-			SoMsg("Name 1", all[1].TopoInfo().BRName, ShouldEqual, "BR-1")
-			SoMsg("Name 2", all[2].TopoInfo().BRName, ShouldEqual, "BR-2")
-			SoMsg("Ifid 1", all[1].TopoInfo().RemoteIFID, ShouldEqual, 11)
-			SoMsg("Ifid 2", all[2].TopoInfo().RemoteIFID, ShouldEqual, 22)
-		})
-	})
+	intfs := testInterfaces(t)
+	all := intfs.All()
+	assert.Equal(t, uint16(1301), all[1].TopoInfo().MTU)
+	assert.Equal(t, uint16(1302), all[2].TopoInfo().MTU)
+	assert.EqualValues(t, 11, all[1].TopoInfo().RemoteID)
+	assert.EqualValues(t, 22, all[2].TopoInfo().RemoteID)
 }
 
 func testInterfaces(t *testing.T) *ifstate.Interfaces {
-	topoMap := topology.IfInfoMap{
-		1: {BRName: "BR-1"},
-		2: {BRName: "BR-2"},
+	topoMap := map[uint16]ifstate.InterfaceInfo{
+		1: {ID: 1, MTU: 1301},
+		2: {ID: 2, MTU: 1302},
 	}
 	intfs := ifstate.NewInterfaces(topoMap, ifstate.Config{})
-	intfs.Get(1).TopoInfoRef().RemoteIFID = 11
-	intfs.Get(2).TopoInfoRef().RemoteIFID = 22
+	intfs.Get(1).TopoInfoRef().RemoteID = 11
+	intfs.Get(2).TopoInfoRef().RemoteID = 22
 	return intfs
 }

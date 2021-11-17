@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beacon/mock_beacon"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
@@ -267,16 +266,16 @@ func testCoreStoreSelection(t *testing.T,
 	}
 }
 
-func testBeacon(g *graph.Graph, desc ...common.IFIDType) beacon.Beacon {
+func testBeacon(g *graph.Graph, desc ...uint16) beacon.Beacon {
 	pseg := testSegment(g, desc)
 	asEntry := pseg.ASEntries[pseg.MaxIdx()]
 	return beacon.Beacon{
-		InIfId:  common.IFIDType(asEntry.HopEntry.HopField.ConsIngress),
+		InIfId:  asEntry.HopEntry.HopField.ConsIngress,
 		Segment: pseg,
 	}
 }
 
-func testSegment(g *graph.Graph, ifids []common.IFIDType) *seg.PathSegment {
+func testSegment(g *graph.Graph, ifids []uint16) *seg.PathSegment {
 	pseg := g.Beacon(ifids)
 	pseg.ASEntries = pseg.ASEntries[:len(pseg.ASEntries)-1]
 	return pseg

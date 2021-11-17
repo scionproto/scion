@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
@@ -153,7 +152,7 @@ type propagator struct {
 	wg      sync.WaitGroup
 	beacons []beacon.Beacon
 	intfs   []*ifstate.Interface
-	peers   []common.IFIDType
+	peers   []uint16
 	success ctr
 }
 
@@ -225,8 +224,8 @@ func (p *propagator) extendAndSend(
 		defer cancelF()
 
 		rpcStart := time.Now()
-		sender, err := p.SenderFactory.NewSender(rpcContext, topoInfo.IA, uint16(egIfid),
-			topoInfo.InternalAddr)
+		sender, err := p.SenderFactory.NewSender(rpcContext, topoInfo.IA, egIfid,
+			topoInfo.InternalAddr.UDPAddr())
 		if err != nil {
 			if rpcContext.Err() != nil {
 				err = serrors.WrapStr("timed out getting beacon sender", err,
@@ -275,12 +274,12 @@ func (p *propagator) shouldIgnore(bseg beacon.Beacon, intf *ifstate.Interface) b
 	return false
 }
 
-func (p *propagator) onSuccess(intf *ifstate.Interface, egIfid common.IFIDType) {
+func (p *propagator) onSuccess(intf *ifstate.Interface, egIfid uint16) {
 	intf.Propagate(p.Tick.Now())
 	p.success.Inc()
 }
 
-func (p *propagator) incMetric(startIA addr.IA, ingress, egress common.IFIDType, result string) {
+func (p *propagator) incMetric(startIA addr.IA, ingress, egress uint16, result string) {
 	if p.Propagator.Propagated == nil {
 		return
 	}

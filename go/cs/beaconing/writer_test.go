@@ -30,6 +30,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beaconing"
@@ -59,14 +60,14 @@ func TestRegistrarRun(t *testing.T) {
 		name          string
 		segType       seg.Type
 		fn            string
-		beacons       [][]common.IFIDType
-		inactivePeers map[common.IFIDType]bool
+		beacons       [][]uint16
+		inactivePeers map[uint16]bool
 	}{
 		{
 			name:    "Core segment",
 			segType: seg.TypeCore,
 			fn:      topoCore,
-			beacons: [][]common.IFIDType{
+			beacons: [][]uint16{
 				{graph.If_120_A_110_X},
 				{graph.If_130_B_120_A, graph.If_120_A_110_X},
 			},
@@ -75,8 +76,8 @@ func TestRegistrarRun(t *testing.T) {
 			name:          "Up segment",
 			segType:       seg.TypeUp,
 			fn:            topoNonCore,
-			inactivePeers: map[common.IFIDType]bool{graph.If_111_C_121_X: true},
-			beacons: [][]common.IFIDType{
+			inactivePeers: map[uint16]bool{graph.If_111_C_121_X: true},
+			beacons: [][]uint16{
 				{graph.If_120_X_111_B},
 				{graph.If_130_B_120_A, graph.If_120_X_111_B},
 			},
@@ -88,7 +89,7 @@ func TestRegistrarRun(t *testing.T) {
 			defer mctrl.Finish()
 			topo, err := topology.FromJSONFile(test.fn)
 			require.NoError(t, err)
-			intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
+			intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 			segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 			segStore := mock_beaconing.NewMockSegmentStore(mctrl)
 
@@ -152,15 +153,15 @@ func TestRegistrarRun(t *testing.T) {
 		name          string
 		segType       seg.Type
 		fn            string
-		beacons       [][]common.IFIDType
-		inactivePeers map[common.IFIDType]bool
+		beacons       [][]uint16
+		inactivePeers map[uint16]bool
 	}{
 		{
 			name:          "Down segment",
 			segType:       seg.TypeDown,
 			fn:            topoNonCore,
-			inactivePeers: map[common.IFIDType]bool{graph.If_111_C_121_X: true},
-			beacons: [][]common.IFIDType{
+			inactivePeers: map[uint16]bool{graph.If_111_C_121_X: true},
+			beacons: [][]uint16{
 				{graph.If_120_X_111_B},
 				{graph.If_130_B_120_A, graph.If_120_X_111_B},
 			},
@@ -174,7 +175,7 @@ func TestRegistrarRun(t *testing.T) {
 			topo, err := topology.FromJSONFile(test.fn)
 			require.NoError(t, err)
 
-			intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
+			intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 			segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 			rpc := mock_beaconing.NewMockRPC(mctrl)
 
@@ -254,8 +255,8 @@ func TestRegistrarRun(t *testing.T) {
 						assert.Equal(t, pathHopField.ConsIngress, segHopField.ConsIngress)
 						assert.Equal(t, pathHopField.ConsEgress, segHopField.ConsEgress)
 
-						nextHop := common.IFIDType(pathHopField.ConsIngress)
-						a := topo.IFInfoMap()[nextHop].InternalAddr
+						nextHop := pathHopField.ConsIngress
+						a := interfaceInfos(topo)[nextHop].InternalAddr.UDPAddr()
 						assert.Equal(t, a, s.Addr.NextHop)
 					}
 				})
@@ -271,7 +272,7 @@ func TestRegistrarRun(t *testing.T) {
 
 		topo, err := topology.FromJSONFile(topoNonCore)
 		require.NoError(t, err)
-		intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
+		intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 		segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 		rpc := mock_beaconing.NewMockRPC(mctrl)
 
@@ -305,7 +306,7 @@ func TestRegistrarRun(t *testing.T) {
 			seg.TypeDown).DoAndReturn(
 			func(_, _ interface{}) (<-chan beacon.Beacon, error) {
 				res := make(chan beacon.Beacon, 1)
-				b := testBeacon(g, []common.IFIDType{graph.If_120_X_111_B})
+				b := testBeacon(g, []uint16{graph.If_120_X_111_B})
 				b.InIfId = 10
 				res <- b
 				close(res)
@@ -315,13 +316,13 @@ func TestRegistrarRun(t *testing.T) {
 	})
 }
 
-func testBeacon(g *graph.Graph, desc []common.IFIDType) beacon.Beacon {
+func testBeacon(g *graph.Graph, desc []uint16) beacon.Beacon {
 	bseg := g.Beacon(desc)
 	asEntry := bseg.ASEntries[bseg.MaxIdx()]
 	bseg.ASEntries = bseg.ASEntries[:len(bseg.ASEntries)-1]
 
 	return beacon.Beacon{
-		InIfId:  common.IFIDType(asEntry.HopEntry.HopField.ConsIngress),
+		InIfId:  asEntry.HopEntry.HopField.ConsIngress,
 		Segment: bseg,
 	}
 }
@@ -357,4 +358,20 @@ type topoWrap struct {
 func (w topoWrap) UnderlayNextHop(id uint16) *net.UDPAddr {
 	a, _ := w.Topo.UnderlayNextHop(common.IFIDType(id))
 	return a
+}
+
+func interfaceInfos(topo topology.Topology) map[uint16]ifstate.InterfaceInfo {
+	in := topo.IFInfoMap()
+	result := make(map[uint16]ifstate.InterfaceInfo, len(in))
+	for id, info := range in {
+		result[uint16(id)] = ifstate.InterfaceInfo{
+			ID:           uint16(info.ID),
+			IA:           info.IA,
+			LinkType:     info.LinkType,
+			InternalAddr: netaddr.MustParseIPPort(info.InternalAddr.String()),
+			RemoteID:     uint16(info.RemoteIFID),
+			MTU:          uint16(info.MTU),
+		}
+	}
+	return result
 }
