@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/deepmap/oapi-codegen/pkg/runtime"
 )
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
@@ -101,6 +103,9 @@ type ClientInterface interface {
 	SetLogLevelWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	SetLogLevel(ctx context.Context, body SetLogLevelJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSegments request
+	GetSegments(ctx context.Context, params *GetSegmentsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) GetConfig(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -153,6 +158,18 @@ func (c *Client) SetLogLevelWithBody(ctx context.Context, contentType string, bo
 
 func (c *Client) SetLogLevel(ctx context.Context, body SetLogLevelJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetLogLevelRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetSegments(ctx context.Context, params *GetSegmentsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSegmentsRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -284,6 +301,69 @@ func NewSetLogLevelRequestWithBody(server string, contentType string, body io.Re
 	return req, nil
 }
 
+// NewGetSegmentsRequest generates requests for GetSegments
+func NewGetSegmentsRequest(server string, params *GetSegmentsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/segments")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	queryValues := queryURL.Query()
+
+	if params.StartIsdAs != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "start_isd_as", runtime.ParamLocationQuery, *params.StartIsdAs); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	if params.EndIsdAs != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "end_isd_as", runtime.ParamLocationQuery, *params.EndIsdAs); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	queryURL.RawQuery = queryValues.Encode()
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -340,6 +420,9 @@ type ClientWithResponsesInterface interface {
 	SetLogLevelWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetLogLevelResponse, error)
 
 	SetLogLevelWithResponse(ctx context.Context, body SetLogLevelJSONRequestBody, reqEditors ...RequestEditorFn) (*SetLogLevelResponse, error)
+
+	// GetSegments request
+	GetSegmentsWithResponse(ctx context.Context, params *GetSegmentsParams, reqEditors ...RequestEditorFn) (*GetSegmentsResponse, error)
 }
 
 type GetConfigResponse struct {
@@ -432,6 +515,28 @@ func (r SetLogLevelResponse) StatusCode() int {
 	return 0
 }
 
+type GetSegmentsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]SegmentBrief
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSegmentsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSegmentsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 // GetConfigWithResponse request returning *GetConfigResponse
 func (c *ClientWithResponses) GetConfigWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetConfigResponse, error) {
 	rsp, err := c.GetConfig(ctx, reqEditors...)
@@ -474,6 +579,15 @@ func (c *ClientWithResponses) SetLogLevelWithResponse(ctx context.Context, body 
 		return nil, err
 	}
 	return ParseSetLogLevelResponse(rsp)
+}
+
+// GetSegmentsWithResponse request returning *GetSegmentsResponse
+func (c *ClientWithResponses) GetSegmentsWithResponse(ctx context.Context, params *GetSegmentsParams, reqEditors ...RequestEditorFn) (*GetSegmentsResponse, error) {
+	rsp, err := c.GetSegments(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSegmentsResponse(rsp)
 }
 
 // ParseGetConfigResponse parses an HTTP response from a GetConfigWithResponse call
@@ -588,6 +702,32 @@ func ParseSetLogLevelResponse(rsp *http.Response) (*SetLogLevelResponse, error) 
 			return nil, err
 		}
 		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetSegmentsResponse parses an HTTP response from a GetSegmentsWithResponse call
+func ParseGetSegmentsResponse(rsp *http.Response) (*GetSegmentsResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSegmentsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []SegmentBrief
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	}
 

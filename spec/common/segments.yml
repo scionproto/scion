@@ -4,7 +4,7 @@ paths:
       tags:
       - segment
       summary: List the SCION path segments
-      description: List the SCION path segments that are known to the control service.
+      description: List the SCION path segments that are known to the service.
         The results can be filtered by the start and end AS of the segment.
         Inspect the individual segments for a more detailed view.
       operationId: get-segments

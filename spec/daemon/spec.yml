@@ -13,6 +13,8 @@ servers:
 tags:
   - name: common
     description: Common API exposed by SCION services.
+  - name: segment
+    description: Everything related to SCION path segments.
 paths:
   /info:
     $ref: "../common/process.yml#/paths/~1info"
@@ -20,3 +22,5 @@ paths:
     $ref: "../common/process.yml#/paths/~1log~1level"
   /config:
     $ref: "../common/process.yml#/paths/~1config"
+  /segments:
+    $ref: "../common/segments.yml#/paths/~1segments"

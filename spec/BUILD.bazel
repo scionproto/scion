@@ -5,7 +5,7 @@ openapi_bundle(
     srcs = [
         "//spec/common:base.yml",
         "//spec/common:process.yml",
-        "//spec/control:segments.yml",
+        "//spec/common:segments.yml",
         "//spec/control:trust.yml",
     ],
     entrypoint = "//spec/control:spec.yml",
@@ -39,6 +39,7 @@ openapi_bundle(
     srcs = [
         "//spec/common:base.yml",
         "//spec/common:process.yml",
+        "//spec/common:segments.yml",
     ],
     entrypoint = "//spec/daemon:spec.yml",
     visibility = ["//visibility:public"],
