@@ -297,6 +297,18 @@ func MustParseUDPAddr(t *testing.T, s string) *net.UDPAddr {
 	return a
 }
 
+// MustParseUDPAddrs parses the UPD address entries and returns a list
+// containing the parsed net.UDPAddr objects.
+func MustParseUDPAddrs(t *testing.T, entries ...string) []*net.UDPAddr {
+	t.Helper()
+
+	result := make([]*net.UDPAddr, 0, len(entries))
+	for _, e := range entries {
+		result = append(result, MustParseUDPAddr(t, e))
+	}
+	return result
+}
+
 // AssertReadReturnsBetween will call t.Fatalf if the first read from the
 // channel doesn't happen between x and y.
 func AssertReadReturnsBetween(t testing.TB, ch <-chan struct{}, x, y time.Duration) {

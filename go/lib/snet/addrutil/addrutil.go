@@ -32,9 +32,11 @@ import (
 
 // Pather computes the remote address with a path based on the provided segment.
 type Pather struct {
-	// UnderlayNextHop determines the next hop underlay address for the
-	// specified interface id.
-	UnderlayNextHop func(ifID uint16) (*net.UDPAddr, bool)
+	NextHopper interface {
+		// UnderlayNextHop determines the next hop underlay address for the
+		// specified interface id.
+		UnderlayNextHop(uint16) *net.UDPAddr
+	}
 }
 
 // GetPath computes the remote address with a path based on the provided segment.
@@ -82,8 +84,8 @@ func (p Pather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, e
 		return nil, serrors.WrapStr("serializing path", err)
 	}
 	ifID := dec.HopFields[0].ConsIngress
-	nextHop, ok := p.UnderlayNextHop(ifID)
-	if !ok {
+	nextHop := p.NextHopper.UnderlayNextHop(ifID)
+	if nextHop == nil {
 		return nil, serrors.New("first-hop border router not found", "intf_id", ifID)
 	}
 	return &snet.SVCAddr{

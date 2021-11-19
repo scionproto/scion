@@ -43,41 +43,41 @@ func TestStaticinfo(t *testing.T) {
 		{
 			Name: "#0 simple up-core-down",
 			Path: []snet.PathInterface{
-				{IA: xtest.MustParseIA("1-ff00:0:131"), ID: graph.If_131_X_130_A},
-				{IA: xtest.MustParseIA("1-ff00:0:130"), ID: graph.If_130_A_131_X},
-				{IA: xtest.MustParseIA("1-ff00:0:130"), ID: graph.If_130_B_120_A},
-				{IA: xtest.MustParseIA("1-ff00:0:120"), ID: graph.If_120_A_130_B},
-				{IA: xtest.MustParseIA("1-ff00:0:120"), ID: graph.If_120_X_111_B},
-				{IA: xtest.MustParseIA("1-ff00:0:111"), ID: graph.If_111_B_120_X},
+				{IA: xtest.MustParseIA("1-ff00:0:131"), ID: common.IFIDType(graph.If_131_X_130_A)},
+				{IA: xtest.MustParseIA("1-ff00:0:130"), ID: common.IFIDType(graph.If_130_A_131_X)},
+				{IA: xtest.MustParseIA("1-ff00:0:130"), ID: common.IFIDType(graph.If_130_B_120_A)},
+				{IA: xtest.MustParseIA("1-ff00:0:120"), ID: common.IFIDType(graph.If_120_A_130_B)},
+				{IA: xtest.MustParseIA("1-ff00:0:120"), ID: common.IFIDType(graph.If_120_X_111_B)},
+				{IA: xtest.MustParseIA("1-ff00:0:111"), ID: common.IFIDType(graph.If_111_B_120_X)},
 			},
 			ASEntries: concatBeaconASEntries(g,
-				[]common.IFIDType{graph.If_130_A_131_X},
-				[]common.IFIDType{graph.If_120_A_130_B},
-				[]common.IFIDType{graph.If_120_X_111_B},
+				[]uint16{graph.If_130_A_131_X},
+				[]uint16{graph.If_120_A_130_B},
+				[]uint16{graph.If_120_X_111_B},
 			),
 		},
 		{
 			Name: "#1 simple up-core",
 			Path: []snet.PathInterface{
-				{IA: xtest.MustParseIA("1-ff00:0:131"), ID: graph.If_131_X_130_A},
-				{IA: xtest.MustParseIA("1-ff00:0:130"), ID: graph.If_130_A_131_X},
-				{IA: xtest.MustParseIA("1-ff00:0:130"), ID: graph.If_130_A_110_X},
-				{IA: xtest.MustParseIA("1-ff00:0:110"), ID: graph.If_110_X_130_A},
+				{IA: xtest.MustParseIA("1-ff00:0:131"), ID: common.IFIDType(graph.If_131_X_130_A)},
+				{IA: xtest.MustParseIA("1-ff00:0:130"), ID: common.IFIDType(graph.If_130_A_131_X)},
+				{IA: xtest.MustParseIA("1-ff00:0:130"), ID: common.IFIDType(graph.If_130_A_110_X)},
+				{IA: xtest.MustParseIA("1-ff00:0:110"), ID: common.IFIDType(graph.If_110_X_130_A)},
 			},
 			ASEntries: concatBeaconASEntries(g,
-				[]common.IFIDType{graph.If_130_A_131_X},
-				[]common.IFIDType{graph.If_110_X_130_A},
+				[]uint16{graph.If_130_A_131_X},
+				[]uint16{graph.If_110_X_130_A},
 				nil,
 			),
 		},
 		{
 			Name: "#2 simple up only",
 			Path: []snet.PathInterface{
-				{IA: xtest.MustParseIA("1-ff00:0:131"), ID: graph.If_131_X_130_A},
-				{IA: xtest.MustParseIA("1-ff00:0:130"), ID: graph.If_130_A_131_X},
+				{IA: xtest.MustParseIA("1-ff00:0:131"), ID: common.IFIDType(graph.If_131_X_130_A)},
+				{IA: xtest.MustParseIA("1-ff00:0:130"), ID: common.IFIDType(graph.If_130_A_131_X)},
 			},
 			ASEntries: concatBeaconASEntries(g,
-				[]common.IFIDType{graph.If_130_A_131_X},
+				[]uint16{graph.If_130_A_131_X},
 				nil,
 				nil,
 			),
@@ -85,31 +85,31 @@ func TestStaticinfo(t *testing.T) {
 		{
 			Name: "#14 shortcut, common upstream",
 			Path: []snet.PathInterface{
-				{IA: xtest.MustParseIA("2-ff00:0:212"), ID: graph.If_212_X_211_A1},
-				{IA: xtest.MustParseIA("2-ff00:0:211"), ID: graph.If_211_A1_212_X},
-				{IA: xtest.MustParseIA("2-ff00:0:211"), ID: graph.If_211_A_222_X},
-				{IA: xtest.MustParseIA("2-ff00:0:222"), ID: graph.If_222_X_211_A},
+				{IA: xtest.MustParseIA("2-ff00:0:212"), ID: common.IFIDType(graph.If_212_X_211_A1)},
+				{IA: xtest.MustParseIA("2-ff00:0:211"), ID: common.IFIDType(graph.If_211_A1_212_X)},
+				{IA: xtest.MustParseIA("2-ff00:0:211"), ID: common.IFIDType(graph.If_211_A_222_X)},
+				{IA: xtest.MustParseIA("2-ff00:0:222"), ID: common.IFIDType(graph.If_222_X_211_A)},
 			},
 			ASEntries: concatBeaconASEntries(g,
-				[]common.IFIDType{graph.If_210_X1_211_A, graph.If_211_A1_212_X},
+				[]uint16{graph.If_210_X1_211_A, graph.If_211_A1_212_X},
 				nil,
-				[]common.IFIDType{graph.If_210_X1_211_A, graph.If_211_A_222_X},
+				[]uint16{graph.If_210_X1_211_A, graph.If_211_A_222_X},
 			),
 		},
 		{
 			Name: "#15 go through peer",
 			Path: []snet.PathInterface{
-				{IA: xtest.MustParseIA("2-ff00:0:212"), ID: graph.If_212_X_211_A1},
-				{IA: xtest.MustParseIA("2-ff00:0:211"), ID: graph.If_211_A1_212_X},
-				{IA: xtest.MustParseIA("2-ff00:0:211"), ID: graph.If_211_A_221_X},
-				{IA: xtest.MustParseIA("2-ff00:0:221"), ID: graph.If_221_X_211_A},
-				{IA: xtest.MustParseIA("2-ff00:0:221"), ID: graph.If_221_X_222_X},
-				{IA: xtest.MustParseIA("2-ff00:0:222"), ID: graph.If_222_X_221_X},
+				{IA: xtest.MustParseIA("2-ff00:0:212"), ID: common.IFIDType(graph.If_212_X_211_A1)},
+				{IA: xtest.MustParseIA("2-ff00:0:211"), ID: common.IFIDType(graph.If_211_A1_212_X)},
+				{IA: xtest.MustParseIA("2-ff00:0:211"), ID: common.IFIDType(graph.If_211_A_221_X)},
+				{IA: xtest.MustParseIA("2-ff00:0:221"), ID: common.IFIDType(graph.If_221_X_211_A)},
+				{IA: xtest.MustParseIA("2-ff00:0:221"), ID: common.IFIDType(graph.If_221_X_222_X)},
+				{IA: xtest.MustParseIA("2-ff00:0:222"), ID: common.IFIDType(graph.If_222_X_221_X)},
 			},
 			ASEntries: concatBeaconASEntries(g,
-				[]common.IFIDType{graph.If_210_X1_211_A, graph.If_211_A1_212_X},
+				[]uint16{graph.If_210_X1_211_A, graph.If_211_A1_212_X},
 				nil,
-				[]common.IFIDType{graph.If_220_X_221_X, graph.If_221_X_222_X},
+				[]uint16{graph.If_220_X_221_X, graph.If_221_X_222_X},
 			),
 		},
 	}
@@ -137,7 +137,7 @@ func checkLatency(t *testing.T, g *graph.Graph,
 
 	expected := []time.Duration{}
 	for i := 0; i < len(path)-1; i++ {
-		expected = append(expected, g.Latency(path[i].ID, path[i+1].ID))
+		expected = append(expected, g.Latency(uint16(path[i].ID), uint16(path[i+1].ID)))
 	}
 	assert.Equal(t, expected, latency)
 }
@@ -152,7 +152,7 @@ func checkBandwidth(t *testing.T, g *graph.Graph,
 
 	expected := []uint64{}
 	for i := 0; i < len(path)-1; i++ {
-		expected = append(expected, g.Bandwidth(path[i].ID, path[i+1].ID))
+		expected = append(expected, g.Bandwidth(uint16(path[i].ID), uint16(path[i+1].ID)))
 	}
 	assert.Equal(t, expected, bandwidth)
 }
@@ -167,7 +167,7 @@ func checkInternalHops(t *testing.T, g *graph.Graph,
 
 	expected := []uint32{}
 	for i := 1; i < len(path)-1; i += 2 {
-		expected = append(expected, g.InternalHops(path[i].ID, path[i+1].ID))
+		expected = append(expected, g.InternalHops(uint16(path[i].ID), uint16(path[i+1].ID)))
 	}
 	assert.Equal(t, expected, internalHops)
 }
@@ -180,7 +180,7 @@ func checkGeo(t *testing.T, g *graph.Graph, path []snet.PathInterface, geos []sn
 
 	expected := []snet.GeoCoordinates{}
 	for _, iface := range path {
-		e := g.GeoCoordinates(iface.ID)
+		e := g.GeoCoordinates(uint16(iface.ID))
 		expected = append(expected, snet.GeoCoordinates{
 			Longitude: e.Longitude,
 			Latitude:  e.Latitude,
@@ -200,7 +200,9 @@ func checkLinkType(t *testing.T, g *graph.Graph,
 
 	expected := []snet.LinkType{}
 	for i := 0; i < len(path); i += 2 {
-		expected = append(expected, convertLinkType(g.LinkType(path[i].ID, path[i+1].ID)))
+		expected = append(expected,
+			convertLinkType(g.LinkType(uint16(path[i].ID), uint16(path[i+1].ID))),
+		)
 	}
 	assert.Equal(t, expected, linkTypes)
 
@@ -227,10 +229,10 @@ func checkNotes(t *testing.T, g *graph.Graph, path []snet.PathInterface, notes [
 }
 
 func concatBeaconASEntries(g *graph.Graph,
-	upIfIDs, coreIfIDs, downIfIDs []common.IFIDType) []seg.ASEntry {
+	upIfIDs, coreIfIDs, downIfIDs []uint16) []seg.ASEntry {
 
 	r := []seg.ASEntry{}
-	for _, ifids := range [][]common.IFIDType{upIfIDs, coreIfIDs, downIfIDs} {
+	for _, ifids := range [][]uint16{upIfIDs, coreIfIDs, downIfIDs} {
 		seg := g.BeaconWithStaticInfo(ifids)
 		if seg != nil {
 			r = append(r, seg.ASEntries...)

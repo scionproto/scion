@@ -23,6 +23,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/log/logtest"
+	"github.com/scionproto/scion/go/pkg/api/apitest"
 	"github.com/scionproto/scion/go/pkg/router/config"
 )
 
@@ -38,11 +39,13 @@ func TestConfigSample(t *testing.T) {
 }
 
 func InitTestConfig(cfg *config.Config) {
+	apitest.InitConfig(&cfg.API)
 	envtest.InitTest(&cfg.General, &cfg.Metrics, nil, nil)
 	logtest.InitTestLogging(&cfg.Logging)
 }
 
 func CheckTestConfig(t *testing.T, cfg *config.Config, id string) {
+	apitest.CheckConfig(t, &cfg.API)
 	envtest.CheckTest(t, &cfg.General, &cfg.Metrics, nil, nil, id)
 	logtest.CheckTestLogging(t, &cfg.Logging, id)
 }

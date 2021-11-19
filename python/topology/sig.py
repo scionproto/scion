@@ -184,6 +184,9 @@ class SIGGenerator(object):
             'metrics': {
                 'prometheus': '0.0.0.0:%s' % SIG_PROM_PORT
             },
+            'api': {
+                'addr': '0.0.0.0:%s' % (SIG_PROM_PORT+700)
+            },
             'features': translate_features(self.args.features),
         }
         path = os.path.join(topo_id.base_dir(self.args.output_dir),

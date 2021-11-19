@@ -58,17 +58,17 @@ type testGraph struct {
 func newTestGraph(ctrl *gomock.Controller) *testGraph {
 	g := graph.NewDefaultGraph(ctrl)
 
-	seg110_120 := g.Beacon([]common.IFIDType{graph.If_110_X_120_A})
-	seg110_130 := g.Beacon([]common.IFIDType{graph.If_110_X_130_A})
-	seg120_111 := g.Beacon([]common.IFIDType{graph.If_120_X_111_B})
-	seg130_111 := g.Beacon([]common.IFIDType{graph.If_130_B_111_A})
+	seg110_120 := g.Beacon([]uint16{graph.If_110_X_120_A})
+	seg110_130 := g.Beacon([]uint16{graph.If_110_X_130_A})
+	seg120_111 := g.Beacon([]uint16{graph.If_120_X_111_B})
+	seg130_111 := g.Beacon([]uint16{graph.If_130_B_111_A})
 
-	seg210_120 := g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_120_A})
-	seg210_130 := g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_130_A})
-	seg210_130_2 := g.Beacon([]common.IFIDType{graph.If_210_X_220_X,
+	seg210_120 := g.Beacon([]uint16{graph.If_210_X_110_X, graph.If_110_X_120_A})
+	seg210_130 := g.Beacon([]uint16{graph.If_210_X_110_X, graph.If_110_X_130_A})
+	seg210_130_2 := g.Beacon([]uint16{graph.If_210_X_220_X,
 		graph.If_220_X_120_B, graph.If_120_A_130_B})
-	seg210_211 := g.Beacon([]common.IFIDType{graph.If_210_X_211_A})
-	seg210_212 := g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_212_X})
+	seg210_211 := g.Beacon([]uint16{graph.If_210_X_211_A})
+	seg210_212 := g.Beacon([]uint16{graph.If_210_X_211_A, graph.If_211_A_212_X})
 
 	return &testGraph{
 		g:               g,
@@ -409,8 +409,14 @@ func TestResolverWithRevocations(t *testing.T) {
 				})).Return(resultsFromSegs(tg.seg120_111_up, tg.seg130_111_up), nil)
 			},
 			ExpectRevcache: func(t *testing.T, revCache *mock_revcache.MockRevCache) {
-				key111_120 := revcache.Key{IA: non_core_111, IfId: graph.If_111_B_120_X}
-				key111_130 := revcache.Key{IA: non_core_111, IfId: graph.If_111_A_130_B}
+				key111_120 := revcache.Key{
+					IA:   non_core_111,
+					IfId: common.IFIDType(graph.If_111_B_120_X),
+				}
+				key111_130 := revcache.Key{
+					IA:   non_core_111,
+					IfId: common.IFIDType(graph.If_111_A_130_B),
+				}
 				revoke(t, revCache, key111_120)
 				revoke(t, revCache, key111_130)
 				revCache.EXPECT().Get(gomock.Any(), gomock.Any()).AnyTimes()
@@ -440,7 +446,7 @@ func TestResolverWithRevocations(t *testing.T) {
 				db.EXPECT().Get(gomock.Any(), gomock.Any()).Times(2)
 			},
 			ExpectRevcache: func(t *testing.T, revCache *mock_revcache.MockRevCache) {
-				key110 := revcache.Key{IA: core_110, IfId: graph.If_110_X_130_A}
+				key110 := revcache.Key{IA: core_110, IfId: common.IFIDType(graph.If_110_X_130_A)}
 				ksMatcher := keySetContains{keys: []revcache.Key{key110}}
 				rev := &path_mgmt.RevInfo{}
 				revCache.EXPECT().Get(gomock.Any(), ksMatcher).Return(revcache.Revocations{

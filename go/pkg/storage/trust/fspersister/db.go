@@ -49,9 +49,6 @@ type Config struct {
 	TRCDir string
 	// Metrics holds the metrics for the wrapped db.
 	Metrics Metrics
-	// Logger is used to log information about failing TRC writes.
-	// It is safe to pass a nil pointer.
-	Logger log.Logger
 }
 
 type Metrics struct {
@@ -72,6 +69,7 @@ func WrapDB(trustDB storage.TrustDB, cfg Config) storage.TrustDB {
 }
 
 func (db *db) InsertTRC(ctx context.Context, trc cppki.SignedTRC) (bool, error) {
+	logger := log.FromCtx(ctx)
 	inserted, err := db.TrustDB.InsertTRC(ctx, trc)
 	if err != nil {
 		return inserted, err
@@ -90,7 +88,7 @@ func (db *db) InsertTRC(ctx context.Context, trc cppki.SignedTRC) (bool, error) 
 	file := filepath.Join(db.cfg.TRCDir, trcFileName(trc.TRC.ID))
 	if _, statErr := os.Stat(file); errors.Is(statErr, os.ErrNotExist) {
 		if writeErr := ioutil.WriteFile(file, encoded, 0644); writeErr != nil {
-			log.SafeInfo(db.cfg.Logger, "Failed to write TRC to disk",
+			log.SafeInfo(logger, "Failed to write TRC to disk",
 				"err", writeErr,
 				"trc", trc.TRC.ID,
 				"filename", file,
@@ -100,7 +98,7 @@ func (db *db) InsertTRC(ctx context.Context, trc cppki.SignedTRC) (bool, error) 
 			metrics.CounterInc(db.cfg.Metrics.TRCFileWriteSuccesses)
 		}
 	} else if statErr != nil {
-		log.SafeInfo(db.cfg.Logger, "Failed to stat TRC file on disk", "err", statErr)
+		log.SafeInfo(logger, "Failed to stat TRC file on disk", "err", statErr)
 		metrics.CounterInc(db.cfg.Metrics.TRCFileStatErrors)
 	}
 	return inserted, err

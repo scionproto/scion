@@ -29,7 +29,8 @@ import (
 )
 
 // LoadTrustMaterial loads the trust material from disk. The logger must not be nil.
-func LoadTrustMaterial(configDir string, db trust.DB, logger log.Logger) error {
+func LoadTrustMaterial(ctx context.Context, configDir string, db trust.DB) error {
+	logger := log.FromCtx(ctx)
 	certsDir := filepath.Join(configDir, "certs")
 	loaded, err := trust.LoadTRCs(context.Background(), certsDir, db)
 	if err != nil {

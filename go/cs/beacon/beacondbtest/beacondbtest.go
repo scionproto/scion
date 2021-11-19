@@ -314,7 +314,7 @@ func CheckResults(t *testing.T, results []beacon.Beacon, expectedBeacons []beaco
 }
 
 func InsertBeacon(t *testing.T, db beacon.DB, ases []IfInfo,
-	inIfId common.IFIDType, infoTS uint32, allowed beacon.Usage) beacon.Beacon {
+	inIfId uint16, infoTS uint32, allowed beacon.Usage) beacon.Beacon {
 	b, _ := AllocBeacon(t, ases, inIfId, infoTS)
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
@@ -339,7 +339,7 @@ type IfInfo struct {
 func AllocBeacon(
 	t *testing.T,
 	ases []IfInfo,
-	inIfId common.IFIDType,
+	inIfId uint16,
 	infoTS uint32,
 ) (beacon.Beacon, []byte) {
 

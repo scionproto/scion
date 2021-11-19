@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/pkg/api"
 )
 
 var _ config.Config = (*Config)(nil)
@@ -35,11 +36,13 @@ type Config struct {
 	Features   env.Features `toml:"features,omitempty"`
 	Logging    log.Config   `toml:"log,omitempty"`
 	Metrics    env.Metrics  `toml:"metrics,omitempty"`
+	API        api.Config   `toml:"api,omitempty"`
 	Dispatcher Dispatcher   `toml:"dispatcher,omitempty"`
 }
 
-// Dispatcher contains the dispatcher specific confing
+// Dispatcher contains the dispatcher specific config.
 type Dispatcher struct {
+	config.NoDefaulter
 	// ID of the Dispatcher (required)
 	ID string `toml:"id,omitempty"`
 	// ApplicationSocket is the local API socket (default /run/shm/dispatcher/default.sock)
@@ -53,35 +56,57 @@ type Dispatcher struct {
 	DeleteSocket bool `toml:"delete_socket,omitempty"`
 }
 
+func (cfg *Dispatcher) Validate() error {
+	if cfg.ApplicationSocket == "" {
+		cfg.ApplicationSocket = reliable.DefaultDispPath
+	}
+	if cfg.SocketFileMode == 0 {
+		cfg.SocketFileMode = reliable.DefaultDispSocketFileMode
+	}
+	if cfg.UnderlayPort == 0 {
+		cfg.UnderlayPort = topology.EndhostPort
+	}
+	if cfg.ID == "" {
+		return serrors.New("id must be set")
+	}
+	return nil
+}
+
+func (cfg *Dispatcher) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, fmt.Sprintf(dispSample, idSample))
+}
+
+func (cfg *Dispatcher) ConfigName() string {
+	return "dispatcher"
+}
+
 func (cfg *Config) InitDefaults() {
+	config.InitAll(
+		&cfg.Features,
+		&cfg.Logging,
+		&cfg.Metrics,
+		&cfg.API,
+		&cfg.Dispatcher,
+	)
 }
 
 func (cfg *Config) Validate() error {
-	if cfg.Dispatcher.ApplicationSocket == "" {
-		cfg.Dispatcher.ApplicationSocket = reliable.DefaultDispPath
-	}
-	if cfg.Dispatcher.SocketFileMode == 0 {
-		cfg.Dispatcher.SocketFileMode = reliable.DefaultDispSocketFileMode
-	}
-	if cfg.Dispatcher.UnderlayPort == 0 {
-		cfg.Dispatcher.UnderlayPort = topology.EndhostPort
-	}
-	if cfg.Dispatcher.ID == "" {
-		return serrors.New("id must be set")
-	}
-	return config.ValidateAll(&cfg.Logging, &cfg.Metrics)
+	return config.ValidateAll(
+		&cfg.Features,
+		&cfg.Logging,
+		&cfg.Metrics,
+		&cfg.API,
+		&cfg.Dispatcher,
+	)
 }
 
 func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
-	dispSampler := config.StringSampler{
-		Text: fmt.Sprintf(dispSample, idSample),
-		Name: "dispatcher",
-	}
 	config.WriteSample(dst, path, config.CtxMap{config.ID: idSample},
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
-		dispSampler,
+		&cfg.API,
+		&cfg.Dispatcher,
 	)
 }
 

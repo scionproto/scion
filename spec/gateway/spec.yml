@@ -1,0 +1,22 @@
+openapi: "3.0.2"
+info:
+  title: Posix Gateway API
+  description: Service API for the Posix Gateway
+  version: "0.0.1"
+servers:
+  - url: http://{host}:{port}/api/v1
+    variables:
+      host:
+        default: "localhost"
+      port:
+        default: "30456"
+tags:
+  - name: common
+    description: Common API exposed by SCION services.
+paths:
+  /info:
+    $ref: "../common/process.yml#/paths/~1info"
+  /log/level:
+    $ref: "../common/process.yml#/paths/~1log~1level"
+  /config:
+    $ref: "../common/process.yml#/paths/~1config"

@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/log/logtest"
+	"github.com/scionproto/scion/go/pkg/api/apitest"
 	storagetest "github.com/scionproto/scion/go/pkg/storage/test"
 )
 
@@ -41,6 +42,7 @@ func TestConfigSample(t *testing.T) {
 func InitTestConfig(cfg *Config) {
 	envtest.InitTest(&cfg.General, &cfg.Metrics, &cfg.Tracing, nil)
 	logtest.InitTestLogging(&cfg.Logging)
+	apitest.InitConfig(&cfg.API)
 	InitTestSDConfig(&cfg.SD)
 }
 
@@ -54,6 +56,7 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 	logtest.CheckTestLogging(t, &cfg.Logging, id)
 	storagetest.CheckTestTrustDBConfig(t, &cfg.TrustDB, id)
 	storagetest.CheckTestPathDBConfig(t, &cfg.PathDB, id)
+	apitest.CheckConfig(t, &cfg.API)
 	CheckTestSDConfig(t, &cfg.SD, id)
 }
 

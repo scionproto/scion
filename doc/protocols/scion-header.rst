@@ -12,6 +12,8 @@ Header Alignment
 ----------------
 The SCION Header is aligned to 4 bytes.
 
+.. _scion-common-header:
+
 Common Header
 -------------
 The Common Header has the following format::
@@ -69,6 +71,8 @@ DT/DL/ST/SL
 RSV
     These bits are currently reserved for future use.
 
+.. _scion-address-header:
+
 Address Header
 ==============
 The Address Header has the following format::
@@ -96,6 +100,8 @@ DstAS, SrcAS
 DstHostAddr, SrcHostAddr
     Variable length host address of the destination/source. The length and type
     is given by the DT/DL/ST/SL flags in the common header.
+
+.. _path-type-scion:
 
 Path Type: SCION
 ================
@@ -170,8 +176,11 @@ backwards-compatible upgrade). The advantage of this construction is that all
 the offsets can be calculated and validated purely from the path meta header,
 which greatly simplifies processing logic.
 
+.. _scion-path-info-field:
+
 Info Field
 ----------
+
 InfoField has the following format::
 
      0                   1                   2                   3
@@ -406,11 +415,15 @@ In construction direction (down):
    #. Check that the MAC in the hop field matches :math:`{\sigma^P_i}'`.
    #. Do not update `SegID` as it already contains :math:`\beta_{i+1}`.
 
+.. _path-type-empty:
+
 Path Type: EmptyPath
 ====================
 
 Empty path is used to send traffic within the AS. It has no additional fields,
 i.e., it consumes 0 bytes on the wire.
+
+.. _path-type-onehop:
 
 Path Type: OneHopPath
 =====================
