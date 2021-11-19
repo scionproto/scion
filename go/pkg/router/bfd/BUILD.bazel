@@ -3,7 +3,6 @@ load("//lint:go.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
-        "controller.go",
         "doc.go",
         "fsm.go",
         "jitter.go",
@@ -24,7 +23,6 @@ go_test(
     name = "go_default_test",
     srcs = [
         "common_test.go",
-        "controller_test.go",
         "export_test.go",
         "fsm_test.go",
         "jitter_test.go",

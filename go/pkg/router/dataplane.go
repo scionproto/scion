@@ -71,7 +71,7 @@ const (
 
 type bfdSession interface {
 	Run() error
-	Messages() chan<- *layers.BFD
+	ReceiveMessage(*layers.BFD)
 	IsUp() bool
 }
 
@@ -650,13 +650,13 @@ func (p *scionPacketProcessor) processInterBFD(oh *onehop.Path, data []byte) err
 		return noBFDSessionConfigured
 	}
 
-	bfd := &layers.BFD{}
+	bfd := &p.bfdLayer
 	if err := bfd.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
 		return err
 	}
 
 	if v, ok := p.d.bfdSessions[p.ingressID]; ok {
-		v.Messages() <- bfd
+		v.ReceiveMessage(bfd)
 		return nil
 	}
 
@@ -667,7 +667,8 @@ func (p *scionPacketProcessor) processIntraBFD(src *net.UDPAddr, data []byte) er
 	if len(p.d.bfdSessions) == 0 {
 		return noBFDSessionConfigured
 	}
-	bfd := &layers.BFD{}
+
+	bfd := &p.bfdLayer
 	if err := bfd.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
 		return err
 	}
@@ -681,7 +682,7 @@ func (p *scionPacketProcessor) processIntraBFD(src *net.UDPAddr, data []byte) er
 	}
 
 	if v, ok := p.d.bfdSessions[ifID]; ok {
-		v.Messages() <- bfd
+		v.ReceiveMessage(bfd)
 		return nil
 	}
 
@@ -785,6 +786,9 @@ type scionPacketProcessor struct {
 	cachedMac []byte
 	// macBuffers avoid allocating memory during processing.
 	macBuffers macBuffers
+
+	// bfdLayer is reusable buffer for parsing BFD messages
+	bfdLayer layers.BFD
 }
 
 // macBuffers are preallocated buffers for the in- and outputs of MAC functions.

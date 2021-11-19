@@ -31,7 +31,7 @@ import (
 
 // redirectSender sends a BFD message directly into a destination Session's receive queue.
 type redirectSender struct {
-	Destination chan<- *layers.BFD
+	Destination *bfd.Session
 
 	mtx        sync.Mutex
 	shouldSend bool
@@ -46,7 +46,7 @@ func (r *redirectSender) Send(bfd *layers.BFD) error {
 		return nil
 	}
 
-	r.Destination <- bfd
+	r.Destination.ReceiveMessage(bfd)
 	return nil
 }
 
@@ -56,13 +56,24 @@ func (r *redirectSender) Sending(shouldSend bool) {
 	r.shouldSend = shouldSend
 }
 
+func (r *redirectSender) SetDestination(dst *bfd.Session) {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
+	r.Destination = dst
+}
+
+// String, define to avoid infinite recursion with Session.String (in case of test errors)
+func (r *redirectSender) String() string {
+	return "redirectSender"
+}
+
 // Close closes the channel used by the sender.
 func (r *redirectSender) Close() {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 	// stop sending, to avoid writing any packets still sent by the session to a closed channel.
 	r.shouldSend = false
-	close(r.Destination)
+	r.Destination.Close()
 }
 
 func TestSession(t *testing.T) {
@@ -289,8 +300,8 @@ func sessionSubtest(name string, tc *sessionTestCase) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Parallel()
 
-		linkAToB := &redirectSender{Destination: tc.sessionB.Messages()}
-		linkBToA := &redirectSender{Destination: tc.sessionA.Messages()}
+		linkAToB := &redirectSender{Destination: tc.sessionB}
+		linkBToA := &redirectSender{Destination: tc.sessionA}
 
 		tc.sessionA.Sender = linkAToB
 		tc.sessionB.Sender = linkBToA
@@ -332,9 +343,7 @@ func TestSessionDebootstrap(t *testing.T) {
 	// allows the remote session to bootstrap against a new local discriminator.
 	//
 	// We check this by having a session A1 be up initially, crashing (simulated by blocking its
-	// forwarding), and coming up with a different local discriminator as session A2. We use a
-	// controller to demux between A1 and A2, because the controller's demuxing behavior relies
-	// on the remote session knowing the correct local discriminator.
+	// forwarding), and coming up with a different local discriminator as session A2.
 	sessionA1 := &bfd.Session{
 		DetectMult:            1,
 		DesiredMinTxInterval:  200 * time.Millisecond,
@@ -363,25 +372,20 @@ func TestSessionDebootstrap(t *testing.T) {
 	}
 	sessionB.TestingLogs(true)
 
-	controllerA := &bfd.Controller{
-		Sessions:         []*bfd.Session{sessionA1, sessionA2},
-		ReceiveQueueSize: 10,
-	}
-
-	linkA1ToB := &redirectSender{Destination: sessionB.Messages()}
-	linkA2ToB := &redirectSender{Destination: sessionB.Messages()}
-	linkBToA := &redirectSender{Destination: controllerA.Messages()}
+	linkA1ToB := &redirectSender{Destination: sessionB}
+	linkA2ToB := &redirectSender{Destination: sessionB}
+	linkBToA := &redirectSender{Destination: sessionA1}
 
 	sessionA1.Sender = linkA1ToB
 	sessionA2.Sender = linkA2ToB
 	sessionB.Sender = linkBToA
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3)
 
 	go func() {
 		defer wg.Done()
-		err := controllerA.Run()
+		err := sessionA1.Run()
 		require.NoError(t, err)
 	}()
 
@@ -391,10 +395,8 @@ func TestSessionDebootstrap(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	// A1 is the running session, B bootstraps against it. We simulate that A2 "does not exist" yet
-	// by not allowing it to forward.
+	// A1 is the running session, B bootstraps against it. A2 does not exist yet.
 	linkA1ToB.Sending(true)
-	linkA2ToB.Sending(false)
 	linkBToA.Sending(true)
 
 	time.Sleep(2 * time.Second)
@@ -405,6 +407,12 @@ func TestSessionDebootstrap(t *testing.T) {
 	time.Sleep(time.Second)
 
 	// Router A "restarts", this time A2 starts with a different local discriminator.
+	go func() {
+		defer wg.Done()
+		err := sessionA2.Run()
+		require.NoError(t, err)
+	}()
+	linkBToA.SetDestination(sessionA2)
 	linkA2ToB.Sending(true)
 
 	time.Sleep(2 * time.Second)
@@ -413,9 +421,9 @@ func TestSessionDebootstrap(t *testing.T) {
 	assert.Equal(t, true, sessionA2.IsUp())
 	assert.Equal(t, true, sessionB.IsUp())
 
-	linkA2ToB.Sending(false)
-	linkA1ToB.Close()
-	linkBToA.Close()
+	sessionA1.Close()
+	sessionA2.Close()
+	sessionB.Close()
 	wg.Wait()
 }
 
@@ -511,11 +519,12 @@ func TestSessionRunMultiple(t *testing.T) {
 		Sender:                &redirectSender{},
 	}
 
-	// we can close messages before the session has executed, and it will start and then
-	// immediately shut down cleanly.
-	close(session.Messages())
-
-	err := session.Run()
+	go func() {
+		err := session.Run()
+		require.NoError(t, err)
+	}()
+	time.Sleep(200 * time.Millisecond)
+	err := session.Close()
 	require.NoError(t, err)
 	err = session.Run()
 	assert.Error(t, err)
@@ -543,7 +552,7 @@ func TestSessionRunInit(t *testing.T) {
 	}()
 
 	time.Sleep(200 * time.Millisecond)
-	close(session.Messages())
+	session.Close()
 
 	select {
 	case <-barrier:
@@ -591,7 +600,7 @@ func TestShouldDiscard(t *testing.T) {
 	validPacketTemplate := layers.BFD{
 		Version:                   1,
 		Diagnostic:                0,
-		State:                     layers.BFDStateDown,
+		State:                     layers.BFDStateUp,
 		Poll:                      false,
 		Final:                     false,
 		ControlPlaneIndependent:   false,
@@ -606,13 +615,12 @@ func TestShouldDiscard(t *testing.T) {
 		RequiredMinEchoRxInterval: 0,
 		AuthHeader:                nil,
 	}
-	discard, reason := bfd.ShouldDiscard(bfd.StateUp, &validPacketTemplate)
+	discard, reason := bfd.ShouldDiscard(&validPacketTemplate)
 	require.False(t, discard)
 	require.Empty(t, reason)
 
 	testCases := map[string]*struct {
 		packetEdit    func(layers.BFD) layers.BFD
-		localState    bfd.State
 		shouldDiscard bool
 		hasReason     assert.ValueAssertionFunc
 	}{
@@ -621,7 +629,6 @@ func TestShouldDiscard(t *testing.T) {
 				pkt.Version = 3
 				return pkt
 			},
-			localState:    bfd.StateUp,
 			shouldDiscard: true,
 			hasReason:     assert.Empty,
 		},
@@ -630,7 +637,6 @@ func TestShouldDiscard(t *testing.T) {
 				pkt.DetectMultiplier = 0
 				return pkt
 			},
-			localState:    bfd.StateUp,
 			shouldDiscard: true,
 			hasReason:     assert.Empty,
 		},
@@ -639,7 +645,6 @@ func TestShouldDiscard(t *testing.T) {
 				pkt.Multipoint = true
 				return pkt
 			},
-			localState:    bfd.StateUp,
 			shouldDiscard: true,
 			hasReason:     assert.Empty,
 		},
@@ -648,7 +653,6 @@ func TestShouldDiscard(t *testing.T) {
 				pkt.MyDiscriminator = 0
 				return pkt
 			},
-			localState:    bfd.StateUp,
 			shouldDiscard: true,
 			hasReason:     assert.Empty,
 		},
@@ -657,25 +661,24 @@ func TestShouldDiscard(t *testing.T) {
 				pkt.YourDiscriminator = 0
 				return pkt
 			},
-			localState:    bfd.StateUp,
 			shouldDiscard: true,
 			hasReason:     assert.Empty,
 		},
 		"good your discriminator, down state": {
 			packetEdit: func(pkt layers.BFD) layers.BFD {
+				pkt.State = layers.BFDStateDown
 				pkt.YourDiscriminator = 0
 				return pkt
 			},
-			localState:    bfd.StateDown,
 			shouldDiscard: false,
 			hasReason:     assert.Empty,
 		},
 		"good your discriminator, admin down state": {
 			packetEdit: func(pkt layers.BFD) layers.BFD {
+				pkt.State = layers.BFDStateAdminDown
 				pkt.YourDiscriminator = 0
 				return pkt
 			},
-			localState:    bfd.StateDown,
 			shouldDiscard: false,
 			hasReason:     assert.Empty,
 		},
@@ -685,7 +688,6 @@ func TestShouldDiscard(t *testing.T) {
 				pkt.AuthHeader = nil
 				return pkt
 			},
-			localState:    bfd.StateUp,
 			shouldDiscard: true,
 			hasReason:     assert.Empty,
 		},
@@ -697,7 +699,6 @@ func TestShouldDiscard(t *testing.T) {
 				}
 				return pkt
 			},
-			localState:    bfd.StateUp,
 			shouldDiscard: true,
 			hasReason:     assert.Empty,
 		},
@@ -709,7 +710,6 @@ func TestShouldDiscard(t *testing.T) {
 				}
 				return pkt
 			},
-			localState:    bfd.StateUp,
 			shouldDiscard: true,
 			// This is a valid RFC 5880 combination, but we discard this because the
 			// implementation doesn't support it yet.
@@ -721,7 +721,6 @@ func TestShouldDiscard(t *testing.T) {
 				pkt.AuthHeader = nil
 				return pkt
 			},
-			localState:    bfd.StateUp,
 			shouldDiscard: false,
 			hasReason:     assert.Empty,
 		},
@@ -733,7 +732,6 @@ func TestShouldDiscard(t *testing.T) {
 				}
 				return pkt
 			},
-			localState:    bfd.StateUp,
 			shouldDiscard: false,
 			hasReason:     assert.Empty,
 		},
@@ -745,7 +743,6 @@ func TestShouldDiscard(t *testing.T) {
 				}
 				return pkt
 			},
-			localState:    bfd.StateUp,
 			shouldDiscard: true,
 			hasReason:     assert.Empty,
 		},
@@ -754,7 +751,6 @@ func TestShouldDiscard(t *testing.T) {
 				pkt.Poll = true
 				return pkt
 			},
-			localState:    bfd.StateUp,
 			shouldDiscard: true,
 			hasReason:     assert.NotEmpty,
 		},
@@ -763,7 +759,6 @@ func TestShouldDiscard(t *testing.T) {
 				pkt.Final = true
 				return pkt
 			},
-			localState:    bfd.StateUp,
 			shouldDiscard: true,
 			hasReason:     assert.NotEmpty,
 		},
@@ -772,7 +767,6 @@ func TestShouldDiscard(t *testing.T) {
 				pkt.RequiredMinEchoRxInterval = 1
 				return pkt
 			},
-			localState:    bfd.StateUp,
 			shouldDiscard: true,
 			hasReason:     assert.NotEmpty,
 		},
@@ -781,7 +775,6 @@ func TestShouldDiscard(t *testing.T) {
 				pkt.Demand = true
 				return pkt
 			},
-			localState:    bfd.StateUp,
 			shouldDiscard: true,
 			hasReason:     assert.NotEmpty,
 		},
@@ -790,7 +783,7 @@ func TestShouldDiscard(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			pkt := tc.packetEdit(validPacketTemplate)
-			shouldDiscard, reason := bfd.ShouldDiscard(tc.localState, &pkt)
+			shouldDiscard, reason := bfd.ShouldDiscard(&pkt)
 			assert.Equal(t, tc.shouldDiscard, shouldDiscard)
 			tc.hasReason(t, reason)
 		})
