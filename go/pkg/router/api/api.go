@@ -51,3 +51,8 @@ func (s *Server) GetLogLevel(w http.ResponseWriter, r *http.Request) {
 func (s *Server) SetLogLevel(w http.ResponseWriter, r *http.Request) {
 	s.LogLevel(w, r)
 }
+
+// GetInterfaces TODO:
+func (s *Server) GetInterfaces(w http.ResponseWriter, r *http.Request) {
+
+}

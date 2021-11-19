@@ -43,5 +43,6 @@ go_library(
         "@com_github_deepmap_oapi_codegen//pkg/runtime:go_default_library",  # keep
         "@com_github_getkin_kin_openapi//openapi3:go_default_library",  # keep
         "@com_github_go_chi_chi_v5//:go_default_library",  # keep
+        "@com_github_pkg_errors//:go_default_library",  # keep
     ],
 )

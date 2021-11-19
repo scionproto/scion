@@ -17,6 +17,9 @@ type ServerInterface interface {
 	// Basic information page about the control service process.
 	// (GET /info)
 	GetInfo(w http.ResponseWriter, r *http.Request)
+	// List the SCION interfaces
+	// (GET /interfaces)
+	GetInterfaces(w http.ResponseWriter, r *http.Request)
 	// Get logging level
 	// (GET /log/level)
 	GetLogLevel(w http.ResponseWriter, r *http.Request)
@@ -54,6 +57,21 @@ func (siw *ServerInterfaceWrapper) GetInfo(w http.ResponseWriter, r *http.Reques
 
 	var handler = func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetInfo(w, r)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
+// GetInterfaces operation middleware
+func (siw *ServerInterfaceWrapper) GetInterfaces(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetInterfaces(w, r)
 	}
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -135,6 +153,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/info", wrapper.GetInfo)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/interfaces", wrapper.GetInterfaces)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/log/level", wrapper.GetLogLevel)

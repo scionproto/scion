@@ -60,6 +60,8 @@ openapi_bundle(
     srcs = [
         "//spec/common:base.yml",
         "//spec/common:process.yml",
+        "//spec/common:scion.yml",
+        "//spec/router:interfaces.yml",
     ],
     entrypoint = "//spec/router:spec.yml",
     visibility = ["//visibility:public"],
