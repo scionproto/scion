@@ -16,13 +16,13 @@ package beaconing
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
@@ -147,14 +147,14 @@ func (h Handler) updateMetric(span opentracing.Span, l handlerLabels, err error)
 }
 
 type handlerLabels struct {
-	Ingress  common.IFIDType
+	Ingress  uint16
 	Neighbor addr.IA
 	Result   string
 }
 
 func (l handlerLabels) Expand() []string {
 	return []string{
-		"ingress_interface", l.Ingress.String(),
+		"ingress_interface", strconv.Itoa(int(l.Ingress)),
 		prom.LabelNeighIA, l.Neighbor.String(),
 		prom.LabelResult, l.Result,
 	}

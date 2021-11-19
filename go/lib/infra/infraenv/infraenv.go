@@ -65,9 +65,9 @@ type NetworkConfig struct {
 	// QUIC contains configuration details for QUIC servers. If the listening
 	// address is the empty string, then no QUIC socket is opened.
 	QUIC QUIC
-	// SVCRouter is used to discover the underlay addresses of intra-AS SVC
+	// SVCResolver is used to discover the underlay addresses of intra-AS SVC
 	// servers.
-	SVCRouter messenger.LocalSVCRouter
+	SVCResolver messenger.SVCResolver
 	// SCMPHandler is the SCMP handler to use. This handler is only applied to
 	// client connections. The connection the server listens on will always
 	// ignore SCMP messages. Otherwise, the server will shutdown when receiving
@@ -189,7 +189,7 @@ func (nc *NetworkConfig) AddressRewriter(
 	}
 	return &messenger.AddressRewriter{
 		Router:    &snet.BaseRouter{Querier: snet.IntraASPathQuerier{IA: nc.IA}},
-		SVCRouter: nc.SVCRouter,
+		SVCRouter: nc.SVCResolver,
 		Resolver: &svc.Resolver{
 			LocalIA:     nc.IA,
 			ConnFactory: connFactory,
@@ -333,23 +333,6 @@ func NewRouter(localIA addr.IA, sd env.Daemon) (snet.Router, error) {
 		}
 	}
 	return router, nil
-}
-
-func InitInfraEnvironment(topologyPath string) {
-	InitInfraEnvironmentFunc(topologyPath, nil)
-}
-
-// InitInfraEnvironmentFunc sets up the environment by first calling
-// env.RealoadTopology and then the provided function.
-func InitInfraEnvironmentFunc(topologyPath string, f func()) {
-	env.SetupEnv(
-		func() {
-			env.ReloadTopology(topologyPath)
-			if f != nil {
-				f()
-			}
-		},
-	)
 }
 
 // ignoreSCMP ignores all received SCMP packets.

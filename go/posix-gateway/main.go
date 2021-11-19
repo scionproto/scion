@@ -16,19 +16,24 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/scionproto/scion/go/lib/daemon"
-	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/pkg/app"
 	"github.com/scionproto/scion/go/pkg/app/launcher"
 	"github.com/scionproto/scion/go/pkg/gateway"
+	"github.com/scionproto/scion/go/pkg/gateway/api"
 	"github.com/scionproto/scion/go/pkg/gateway/dataplane"
 	"github.com/scionproto/scion/go/pkg/service"
 	"github.com/scionproto/scion/go/posix-gateway/config"
@@ -46,10 +51,6 @@ func main() {
 }
 
 func realMain(ctx context.Context) error {
-	globalCfg.Metrics.StartPrometheus()
-
-	reloadConfigTrigger := make(chan struct{})
-
 	daemonService := &daemon.Service{
 		Address: globalCfg.Daemon.Address,
 	}
@@ -88,11 +89,42 @@ func realMain(ctx context.Context) error {
 		probeAddress.IP = controlAddress.IP
 		probeAddress.Zone = controlAddress.Zone
 	}
+	var cleanup app.Cleanup
+	g, errCtx := errgroup.WithContext(ctx)
+	if globalCfg.API.Addr != "" {
+		r := chi.NewRouter()
+		r.Use(cors.Handler(cors.Options{
+			AllowedOrigins: []string{"*"},
+		}))
+		r.Get("/", api.ServeSpecInteractive)
+		r.Get("/openapi.json", api.ServeSpecJSON)
+		server := api.Server{
+			Config:   service.NewConfigStatusPage(globalCfg).Handler,
+			Info:     service.NewInfoStatusPage().Handler,
+			LogLevel: service.NewLogLevelStatusPage().Handler,
+		}
+		log.Info("Exposing API", "addr", globalCfg.API.Addr)
+		h := api.HandlerFromMuxWithBaseURL(&server, r, "/api/v1")
+		mgmtServer := &http.Server{
+			Addr:    globalCfg.API.Addr,
+			Handler: h,
+		}
+		defer mgmtServer.Close()
+		g.Go(func() error {
+			defer log.HandlePanic()
+			err := mgmtServer.ListenAndServe()
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				return serrors.WrapStr("serving service management API", err)
+			}
+			return nil
+		})
+		cleanup.Add(mgmtServer.Close)
+	}
+
 	httpPages := service.StatusPages{
-		"info":           service.NewInfoStatusPage(),
-		"config":         service.NewConfigStatusPage(globalCfg),
-		"digests/config": service.NewConfigDigestStatusPage(&globalCfg),
-		"log/level":      service.NewLogLevelStatusPage(),
+		"info":      service.NewInfoStatusPage(),
+		"config":    service.NewConfigStatusPage(globalCfg),
+		"log/level": service.NewLogLevelStatusPage(),
 	}
 	routingTable := &dataplane.AtomicRoutingTable{}
 	gw := &gateway.Gateway{
@@ -114,30 +146,25 @@ func realMain(ctx context.Context) error {
 		TunnelName:               globalCfg.Tunnel.Name,
 		RoutingTableReader:       routingTable,
 		RoutingTableSwapper:      routingTable,
-		ConfigReloadTrigger:      reloadConfigTrigger,
+		ConfigReloadTrigger:      app.SIGHUPChannel(ctx),
 		HTTPEndpoints:            httpPages,
 		HTTPServeMux:             http.DefaultServeMux,
 		Metrics:                  gateway.NewMetrics(localIA),
 	}
 
-	errs := make(chan error, 1)
-	go func() {
+	g.Go(func() error {
 		defer log.HandlePanic()
-		if err := gw.Run(ctx); err != nil {
-			errs <- err
-		}
-	}()
-
-	env.SetupEnv(func() {
-		reloadConfigTrigger <- struct{}{}
+		return globalCfg.Metrics.ServePrometheus(errCtx)
+	})
+	g.Go(func() error {
+		defer log.HandlePanic()
+		return gw.Run(errCtx)
+	})
+	g.Go(func() error {
+		defer log.HandlePanic()
+		<-errCtx.Done()
+		return cleanup.Do()
 	})
 
-	select {
-	case err := <-errs:
-		return err
-	case <-fatal.ShutdownChan():
-		return nil
-	case <-fatal.FatalChan():
-		return serrors.New("received fatal error")
-	}
+	return g.Wait()
 }

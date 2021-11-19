@@ -35,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	snetmetrics "github.com/scionproto/scion/go/lib/snet/metrics"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/ca/renewal"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	"github.com/scionproto/scion/go/pkg/discovery"
@@ -79,6 +80,7 @@ type Metrics struct {
 	SCIONNetworkMetrics                    snet.SCIONNetworkMetrics
 	SCIONPacketConnMetrics                 snet.SCIONPacketConnMetrics
 	SCMPErrors                             metrics.Counter
+	TopoLoader                             topology.LoaderMetrics
 }
 
 func NewMetrics() *Metrics {
@@ -227,33 +229,25 @@ func NewMetrics() *Metrics {
 		SCIONNetworkMetrics:    snetmetrics.NewSCIONNetworkMetrics(),
 		SCIONPacketConnMetrics: scionPacketConnMetrics,
 		SCMPErrors:             scionPacketConnMetrics.SCMPErrors,
+		TopoLoader:             loaderMetrics(),
 	}
-
 }
 
-type PolicyDigests interface {
-	Digests() map[string][]byte
-}
-
-// StartHTTPEndpoints starts the HTTP endpoints that expose the metrics and
+// RegisterHTTPEndpoints starts the HTTP endpoints that expose the metrics and
 // additional information.
-func StartHTTPEndpoints(
+func RegisterHTTPEndpoints(
 	elemId string,
 	cfg config.Config,
 	signer cstrust.RenewingSigner,
 	ca renewal.ChainBuilder,
-	metrics env.Metrics,
-	policyDigests map[string][]byte,
+	topo *topology.Loader,
 ) error {
 	statusPages := service.StatusPages{
-		"info":             service.NewInfoStatusPage(),
-		"config":           service.NewConfigStatusPage(cfg),
-		"log/level":        service.NewLogLevelStatusPage(),
-		"topology":         service.NewTopologyStatusPage(),
-		"signer":           signerStatusPage(signer),
-		"digests/config":   service.NewConfigDigestStatusPage(cfg),
-		"digests/topology": service.NewTopologyDigestStatusPage(),
-		"digests/policies": policyDigestsStatusPage(policyDigests),
+		"info":      service.NewInfoStatusPage(),
+		"config":    service.NewConfigStatusPage(cfg),
+		"log/level": service.NewLogLevelStatusPage(),
+		"topology":  service.NewTopologyStatusPage(topo),
+		"signer":    signerStatusPage(signer),
 	}
 	if ca != (renewal.ChainBuilder{}) {
 		statusPages["ca"] = caStatusPage(ca)
@@ -261,7 +255,6 @@ func StartHTTPEndpoints(
 	if err := statusPages.Register(http.DefaultServeMux, elemId); err != nil {
 		return serrors.WrapStr("registering status pages", err)
 	}
-	metrics.StartPrometheus()
 	return nil
 }
 
@@ -375,27 +368,22 @@ func caStatusPage(signer renewal.ChainBuilder) service.StatusPage {
 	}
 }
 
-func policyDigestsStatusPage(digests map[string][]byte) service.StatusPage {
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-
-		type digest struct {
-			Digest []byte `json:"digest"`
-		}
-		response := make(map[string]digest)
-		for k, v := range digests {
-			response[k] = digest{Digest: v}
-		}
-
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "    ")
-		if err := enc.Encode(response); err != nil {
-			http.Error(w, "Unable to marshal response", http.StatusInternalServerError)
-			return
-		}
-	}
-	return service.StatusPage{
-		Info:    "sha256 policies digest",
-		Handler: handler,
+func loaderMetrics() topology.LoaderMetrics {
+	updates := prom.NewCounterVec("", "",
+		"topology_updates_total",
+		"The total number of updates.",
+		[]string{prom.LabelResult},
+	)
+	return topology.LoaderMetrics{
+		ValidationErrors: metrics.NewPromCounter(updates).With(prom.LabelResult, "err_validate"),
+		ReadErrors:       metrics.NewPromCounter(updates).With(prom.LabelResult, "err_read"),
+		LastUpdate: metrics.NewPromGauge(
+			prom.NewGaugeVec("", "",
+				"topology_last_update_time",
+				"Timestamp of the last successful update.",
+				[]string{},
+			),
+		),
+		Updates: metrics.NewPromCounter(updates).With(prom.LabelResult, prom.Success),
 	}
 }

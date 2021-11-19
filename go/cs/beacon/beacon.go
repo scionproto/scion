@@ -18,7 +18,6 @@ import (
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 )
 
@@ -27,7 +26,7 @@ type Beacon struct {
 	// Segment is the path segment.
 	Segment *seg.PathSegment
 	// InIfId is the interface the beacon is received on.
-	InIfId common.IFIDType
+	InIfId uint16
 }
 
 // Diversity returns the link diversity between this and the other beacon. The
@@ -60,6 +59,6 @@ func (b Beacon) String() string {
 	return fmt.Sprintf("Ingress: %d Segment: [ %s ]", b.InIfId, b.Segment)
 }
 
-func link(entry seg.ASEntry) (addr.IA, common.IFIDType) {
-	return entry.Local, common.IFIDType(entry.HopEntry.HopField.ConsIngress)
+func link(entry seg.ASEntry) (addr.IA, uint16) {
+	return entry.Local, entry.HopEntry.HopField.ConsIngress
 }

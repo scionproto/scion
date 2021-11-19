@@ -20,15 +20,13 @@ import (
 
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
 // sortedIntfs returns all interfaces of the given link type sorted by interface
 // ID.
-func sortedIntfs(intfs *ifstate.Interfaces, linkType topology.LinkType) []common.IFIDType {
-
-	var result []common.IFIDType
+func sortedIntfs(intfs *ifstate.Interfaces, linkType topology.LinkType) []uint16 {
+	var result []uint16
 	for ifid, intf := range intfs.All() {
 		topoInfo := intf.TopoInfo()
 		if topoInfo.LinkType != linkType {
@@ -43,14 +41,14 @@ func sortedIntfs(intfs *ifstate.Interfaces, linkType topology.LinkType) []common
 type summary struct {
 	mu    sync.Mutex
 	srcs  map[addr.IA]struct{}
-	ifIds map[common.IFIDType]struct{}
+	ifIds map[uint16]struct{}
 	count int
 }
 
 func newSummary() *summary {
 	return &summary{
 		srcs:  make(map[addr.IA]struct{}),
-		ifIds: make(map[common.IFIDType]struct{}),
+		ifIds: make(map[uint16]struct{}),
 	}
 }
 
@@ -60,7 +58,7 @@ func (s *summary) AddSrc(ia addr.IA) {
 	s.srcs[ia] = struct{}{}
 }
 
-func (s *summary) AddIfid(ifid common.IFIDType) {
+func (s *summary) AddIfid(ifid uint16) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.ifIds[ifid] = struct{}{}
@@ -72,10 +70,10 @@ func (s *summary) Inc() {
 	s.count++
 }
 
-func (s *summary) IfIds() []common.IFIDType {
+func (s *summary) IfIds() []uint16 {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	list := make([]common.IFIDType, 0, len(s.ifIds))
+	list := make([]uint16, 0, len(s.ifIds))
 	for ifId := range s.ifIds {
 		list = append(list, ifId)
 	}

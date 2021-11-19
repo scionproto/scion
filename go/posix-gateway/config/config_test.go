@@ -23,6 +23,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/log/logtest"
+	"github.com/scionproto/scion/go/pkg/api/apitest"
 	"github.com/scionproto/scion/go/pkg/gateway/config/configtest"
 	"github.com/scionproto/scion/go/posix-gateway/config"
 )
@@ -41,6 +42,7 @@ func TestConfigSample(t *testing.T) {
 func InitConfig(cfg *config.Config) {
 	envtest.InitTest(nil, &cfg.Metrics, nil, &cfg.Daemon)
 	logtest.InitTestLogging(&cfg.Logging)
+	apitest.InitConfig(&cfg.API)
 	configtest.InitGateway(&cfg.Gateway)
 	configtest.InitTunnel(&cfg.Tunnel)
 }
@@ -49,5 +51,6 @@ func CheckConfig(t *testing.T, cfg *config.Config) {
 	envtest.CheckTest(t, nil, &cfg.Metrics, nil, &cfg.Daemon, "gateway")
 	logtest.CheckTestLogging(t, &cfg.Logging, "gateway")
 	configtest.CheckGateway(t, &cfg.Gateway)
+	apitest.CheckConfig(t, &cfg.API)
 	configtest.CheckTunnel(t, &cfg.Tunnel)
 }

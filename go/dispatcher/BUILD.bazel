@@ -9,13 +9,17 @@ go_library(
     deps = [
         "//go/dispatcher/config:go_default_library",
         "//go/dispatcher/network:go_default_library",
-        "//go/lib/fatal:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/slayers/path:go_default_library",
         "//go/lib/util:go_default_library",
+        "//go/pkg/app:go_default_library",
         "//go/pkg/app/launcher:go_default_library",
+        "//go/pkg/dispatcher/api:go_default_library",
         "//go/pkg/service:go_default_library",
+        "@com_github_go_chi_chi_v5//:go_default_library",
+        "@com_github_go_chi_cors//:go_default_library",
+        "@org_golang_x_sync//errgroup:go_default_library",
     ],
 )
 

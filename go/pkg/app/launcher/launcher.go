@@ -22,9 +22,9 @@ import (
 	"io"
 	"net"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -34,11 +34,11 @@ import (
 	"github.com/scionproto/scion/go/lib/config"
 	libconfig "github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/app"
 	"github.com/scionproto/scion/go/pkg/command"
 )
 
@@ -124,17 +124,23 @@ func (a *Application) run() error {
 
 	// All servers accept SIGTERM to perform clean shutdown (for example, this
 	// is used behind the scenes by docker stop to cleanly shut down a container).
-	sigterm := make(chan os.Signal, 1)
-	signal.Notify(sigterm, syscall.SIGTERM)
+	sigtermCtx := app.WithSignal(context.Background(), syscall.SIGTERM)
 	ctx, cancel := context.WithCancel(context.Background())
+
 	go func() {
 		defer log.HandlePanic()
-		<-sigterm
+		<-sigtermCtx.Done()
 		log.Info("Received SIGTERM signal, exiting...")
+
+		// If the main goroutine shuts down everything in time, this won't get
+		// a chance to run.
+		time.AfterFunc(5*time.Second, func() {
+			defer log.HandlePanic()
+			panic("Main goroutine did not shut down in time (waited 5s). " +
+				"It's probably stuck. Forcing shutdown.")
+		})
+
 		cancel()
-		// FIXME(scrye): Use context.Context and clean context propagation to
-		// server modules instead of a global cancelation signal.
-		fatal.Shutdown(env.ShutdownGraceInterval)
 	}()
 
 	return cmd.ExecuteContext(ctx)
@@ -149,7 +155,6 @@ func (a *Application) getShortName(executable string) string {
 
 func (a *Application) executeCommand(ctx context.Context, shortName string) error {
 	os.Setenv("TZ", "UTC")
-	fatal.Init()
 
 	// Load launcher configurations from the same config file as the custom
 	// application configuration.

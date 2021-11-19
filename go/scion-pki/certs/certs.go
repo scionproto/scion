@@ -27,6 +27,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/app"
 	"github.com/scionproto/scion/go/pkg/app/flag"
 	"github.com/scionproto/scion/go/pkg/command"
 )
@@ -114,10 +115,13 @@ period. This can be enabled by specifying the --check-time flag.
 					NotAfter:  certs[0].NotAfter,
 				}
 				if current := flags.currentTime.Time; !validity.Contains(current) {
-					return serrors.New("time not covered by certificate",
-						"current_time", current,
-						"validity.not_before", validity.NotBefore,
-						"validity.not_after", validity.NotAfter,
+					return app.WithExitCode(
+						serrors.New("time not covered by certificate",
+							"current_time", current,
+							"validity.not_before", validity.NotBefore,
+							"validity.not_after", validity.NotAfter,
+						),
+						99,
 					)
 				}
 			}

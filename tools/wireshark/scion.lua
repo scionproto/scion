@@ -498,7 +498,7 @@ scion_extn_tlv_option = Proto("scion_extn_tlv_option", "TLV Option")
 local scion_extn_tlv_option_types = {
   [0] = "Pad1",
   [1] = "PadN",
-  [2] = "Authenticator",
+  [2] = "Packet Authenticator Option",
 }
 
 local scion_extn_tlv_option_type = ProtoField.uint8("scion_extn_tlv_option.type", "Type", base.DEC, scion_extn_tlv_option_types)
@@ -526,6 +526,7 @@ end
 
 function scion_extn_tlv_option_dissect(tvbuf, pktinfo, root)
     local tlv = {}
+    local data_len = 0
 
     tlv["type"] = tvbuf(0, 1)
     local len = 1
@@ -545,8 +546,14 @@ function scion_extn_tlv_option_dissect(tvbuf, pktinfo, root)
     if tlv.data_len ~= nil then
       tree:add(scion_extn_tlv_option_len, tlv.data_len)
     end
-    if tlv.data then
-      tree:add(scion_extn_tlv_option_value, tlv.data)
+
+    local ret_len
+    if tlv["type"]:uint() == 2 then
+        ret_len = scion_packet_authenticator_option_dissect(tvbuf(2, data_len), pktinfo, tree)
+    else
+        -- no specific dissector
+        ret_len = data_len
+        tree:add(scion_extn_tlv_option_value, tlv.data)
     end
 
     local type_str = scion_extn_tlv_option_types[tlv.type:uint()]
@@ -559,6 +566,169 @@ function scion_extn_tlv_option_dissect(tvbuf, pktinfo, root)
     return len
 end
 
+-- SCION Packet Authenticator Option
+-- Extending scion_extn_tlv_option "protocol"
+local spao = {}
+
+-- Various value string tables for SPAO
+spao.algorithms = {
+    [0] = "AES-CMAC",
+    [1] = "SHA1-AES-CBC"
+}
+spao.drkey_types = {
+    [0] = "AS-to-host key",
+    [1] = "host-to-host key"
+}
+spao.drkey_directions = {
+    [0] = "sender-side key derivation",
+    [1] = "receiver-side key derivation"
+}
+spao.drkey_epochs = {
+    [0] = "the active epoch with later start time",
+    [1] = "the active epoch with earlier start time"
+}
+spao.drkey_protocols = {
+    [0] = "illegal protocol identifier"
+}
+
+-- SPAO fields
+local scion_packet_authenticator_option_spi =
+    ProtoField.uint32("scion_packet_authenticator_option.spi", "SPI", base.DEC)
+local scion_packet_authenticator_option_algorithm =
+    ProtoField.uint8("scion_packet_authenticator_option.algorithm", "Algorithm", base.DEC, spao.algorithms)
+local scion_packet_authenticator_option_timestamp =
+    ProtoField.uint32("scion_packet_authenticator_option.timestamp", "Timestamp", base.DEC)
+local scion_packet_authenticator_option_rsv =
+    ProtoField.uint8("scion_packet_authenticator_option.rsv", "Reserved", base.HEX)
+local scion_packet_authenticator_option_sequence_number =
+    ProtoField.uint32("scion_packet_authenticator_option.sequence_number", "Sequence Number", base.DEC)
+local scion_packet_authenticator_option_authenticator =
+    ProtoField.bytes("scion_packet_authenticator_option.authenticator", "Authenticator")
+local scion_packet_authenticator_option_drkey_zero =
+    ProtoField.uint16("scion_packet_authenticator_option.drkey_zero", "Zero", base.HEX, nil, 0xFFE0)
+local scion_packet_authenticator_option_drkey_rsv =
+    ProtoField.uint8("scion_packet_authenticator_option.drkey_rsv", "Reserved", base.HEX, nil, 0x18)
+local scion_packet_authenticator_option_drkey_type =
+    ProtoField.uint8("scion_packet_authenticator_option.drkey_type", "Type", base.DEC, spao.drkey_types, 0x4)
+local scion_packet_authenticator_option_drkey_direction =
+    ProtoField.uint8("scion_packet_authenticator_option.drkey_direction", "Direction", base.DEC, spao.drkey_directions, 0x2)
+local scion_packet_authenticator_option_drkey_epoch =
+    ProtoField.uint8("scion_packet_authenticator_option.drkey_epoch", "Epoch", base.DEC, spao.drkey_epochs, 0x1)
+local scion_packet_authenticator_option_drkey_protocol =
+    ProtoField.uint16("scion_packet_authenticator_option.drkey_protocol", "Protocol", base.DEC, spao.drkey_protocols)
+spao.fields = {
+    scion_packet_authenticator_option_spi,
+    scion_packet_authenticator_option_algorithm,
+    scion_packet_authenticator_option_timestamp,
+    scion_packet_authenticator_option_rsv,
+    scion_packet_authenticator_option_sequence_number,
+    scion_packet_authenticator_option_authenticator,
+    scion_packet_authenticator_option_drkey_zero,
+    scion_packet_authenticator_option_drkey_rsv,
+    scion_packet_authenticator_option_drkey_type,
+    scion_packet_authenticator_option_drkey_direction,
+    scion_packet_authenticator_option_drkey_epoch,
+    scion_packet_authenticator_option_drkey_protocol
+}
+scion_extn_tlv_option.fields = spao.fields -- This seems to extending the protocol's field table
+
+
+-- SPAO preferences
+spao.prefs = {}
+-- Dissecting SPI field
+spao.spi_types = {}
+spao.spi_types.enum = {
+    AUTO = 0,
+    SPI = 1,
+    DRKEY = 2
+}
+spao.spi_types.enum_desc = {
+    {1, "AUTO", spao.spi_types.enum.AUTO},
+    {2, "SPI", spao.spi_types.enum.SPI},
+    {3, "DRKEY", spao.spi_types.enum.DRKEY}
+}
+spao.prefs.spi_type = Pref.enum(
+    "SPI type",
+    spao.spi_types.enum.AUTO,
+    "Specific dissector for SPI field",
+    spao.spi_types.enum_desc,
+    true
+)
+scion_extn_tlv_option.prefs.spi_type = spao.prefs.spi_type
+
+-- SPAO dissector
+function scion_packet_authenticator_option_dissect(buffer, pktinfo, tree)
+    local length = buffer:len()
+    if length < 12 then
+        tree:add_proto_expert_info(e_too_short)
+        return -1
+    end
+
+    local spi_type = scion_extn_tlv_option.prefs.spi_type
+    if spi_type == spao.spi_types.enum.AUTO then
+        if buffer(0,4):uint() == 0 then
+        -- The SPI value of zero (0) is reserved for local, implementation-specific use
+        -- and MUST NOT be sent on the wire.
+            spi_type = -1
+        elseif (bit.bor(buffer(0,1):uint(), bit.band(buffer(1,1):uint(), 0xE0))) == 0 then
+        -- The SPI values in the ranve [1, 2^21 - 1] identify a DRKey.
+            spi_type = spao.spi_types.enum.DRKEY
+        else
+            spi_type = spao.spi_types.enum.SPI
+        end
+    end
+
+    if spi_type == spao.spi_types.enum.SPI then
+        tree:add(scion_packet_authenticator_option_spi, buffer(0,4))
+    elseif spi_type == spao.spi_types.enum.DRKEY then
+        tree:add(scion_packet_authenticator_option_drkey_zero, buffer(0,2)):set_text("0")
+        tree:add(scion_packet_authenticator_option_drkey_rsv, buffer(1,1))
+        tree:add(scion_packet_authenticator_option_drkey_type, buffer(1,1))
+        tree:add(scion_packet_authenticator_option_drkey_direction, buffer(1,1))
+        tree:add(scion_packet_authenticator_option_drkey_epoch, buffer(1,1))
+        tree:add(scion_packet_authenticator_option_drkey_protocol, buffer(2,2))
+    else
+        tree:add(scion_packet_authenticator_option_spi, buffer(0,4)):append_text(" Unknown SPI type ")
+    end
+
+    tree:add(scion_packet_authenticator_option_algorithm, buffer(4,1))
+
+    -- Timestamp is given in milliseconds
+    local timestamp = buffer(5,3):uint()
+    local timestamp_ms = tostring(timestamp % 1000)
+    local timestamp_s = math.floor(timestamp / 1000)
+    local timestamp_string = format_time(timestamp_s) .. ", " .. timestamp_ms .. " ms"
+    tree:add(scion_packet_authenticator_option_timestamp, buffer(5,3)):append_text(" (" .. timestamp_string .. ") ")
+
+    tree:add(scion_packet_authenticator_option_rsv, buffer(8,1))
+    tree:add(scion_packet_authenticator_option_sequence_number, buffer(9,3))
+
+    -- Length of authenticator field
+    local authenticator_length = length - 12
+    local authenticator_tree = tree:add(scion_extn_tlv_option, buffer(12,authenticator_length), "Authenticator")
+
+    local algorithm = buffer(4,1):uint(scion_packet_authenticator_option_authenticator, buffer(12,authenticator_length))
+    if algorithm == 0 then
+        -- AES-CMAC
+        if authenticator_length ~= 16 then
+            authenticator_tree:add_proto_expert_info(e_bad_len)
+            return -1
+        end
+        authenticator_tree:add(scion_packet_authenticator_option_authenticator, buffer(12,16)):append_text(" (AES-CMAC)")
+    elseif algorithm == 1 then
+        -- SHA1-AES-CBC
+        if authenticator_length ~= 20 + 16 then
+            authenticator_tree:add_proto_expert_info(e_bad_len)
+            return -1
+        end
+        authenticator_tree:add(scion_packet_authenticator_option_authenticator, buffer(12,20)):append_text(" (SHA1)")
+        authenticator_tree:add(scion_packet_authenticator_option_authenticator, buffer(31,16)):append_text(" (AES-CBC MAC)")
+    else
+        authenticator_tree:add(scion_packet_authenticator_option_authenticator, buffer(12,authenticator_length))
+    end
+
+    return length
+end
 
 -- EPIC Path
 epic_path = Proto("epic_path", "EPIC Path")

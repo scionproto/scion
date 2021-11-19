@@ -200,10 +200,10 @@ func symmetrizeHops(hops map[common.IFIDType]InterfaceHops) {
 // Generate creates a StaticInfoExtn struct and
 // populates it with data extracted from the configuration.
 func (cfg StaticInfoCfg) Generate(intfs *ifstate.Interfaces,
-	ingress, egress common.IFIDType) *staticinfo.Extension {
+	ingress, egress uint16) *staticinfo.Extension {
 
 	ifType := interfaceTypeTable(intfs)
-	return cfg.generate(ifType, ingress, egress)
+	return cfg.generate(ifType, common.IFIDType(ingress), common.IFIDType(egress))
 }
 
 func (cfg StaticInfoCfg) generate(ifType map[common.IFIDType]topology.LinkType,
@@ -349,7 +349,7 @@ func interfaceTypeTable(intfs *ifstate.Interfaces) map[common.IFIDType]topology.
 	ifMap := intfs.All()
 	ifTypes := make(map[common.IFIDType]topology.LinkType, len(ifMap))
 	for ifID, ifInfo := range ifMap {
-		ifTypes[ifID] = ifInfo.TopoInfo().LinkType
+		ifTypes[common.IFIDType(ifID)] = ifInfo.TopoInfo().LinkType
 	}
 	return ifTypes
 }

@@ -137,21 +137,3 @@ func (c *Connector) SetKey(ia addr.IA, index int, key []byte) error {
 	}
 	return c.DataPlane.SetKey(key)
 }
-
-// SetRevocation sets the revocation for the given ISD-AS and interface.
-func (c *Connector) SetRevocation(ia addr.IA, ifID common.IFIDType, rev []byte) error {
-	if !c.ia.Equal(ia) {
-		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
-	}
-	log.Info("SetRevocation is not supported")
-	return nil
-}
-
-// DelRevocation deletes the revocation for the given ISD-AS and interface.
-func (c *Connector) DelRevocation(ia addr.IA, ifid common.IFIDType) error {
-	if !c.ia.Equal(ia) {
-		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
-	}
-	log.Info("DelRevocation is not supported")
-	return nil
-}

@@ -5,7 +5,7 @@ gomock(
     name = "go_default_mock",
     out = "mock.go",
     interfaces = [
-        "LocalSVCRouter",
+        "SVCResolver",
         "Resolver",
     ],
     library = "//go/lib/infra/messenger:go_default_library",

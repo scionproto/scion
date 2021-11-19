@@ -21,6 +21,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/scionproto/scion/go/pkg/app"
 	"github.com/scionproto/scion/go/scion-pki/certs"
 	"github.com/scionproto/scion/go/scion-pki/key"
 	"github.com/scionproto/scion/go/scion-pki/testcrypto"
@@ -53,6 +54,9 @@ func main() {
 
 	if err := cmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+		if code := app.ExitCode(err); code != -1 {
+			os.Exit(code)
+		}
 		os.Exit(1)
 	}
 }

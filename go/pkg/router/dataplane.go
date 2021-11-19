@@ -16,6 +16,7 @@ package router
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"errors"
@@ -439,7 +440,7 @@ func (d *DataPlane) AddNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg contro
 
 // Run starts running the dataplane. Note that configuration is not possible
 // after calling this method.
-func (d *DataPlane) Run() error {
+func (d *DataPlane) Run(ctx context.Context) error {
 	d.mtx.Lock()
 	d.running = true
 
@@ -574,7 +575,8 @@ func (d *DataPlane) Run() error {
 
 	d.mtx.Unlock()
 
-	select {}
+	<-ctx.Done()
+	return nil
 }
 
 // initMetrics initializes the metrics related to packet forwarding. The

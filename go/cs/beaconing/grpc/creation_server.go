@@ -23,7 +23,6 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/scionproto/scion/go/cs/beacon"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -81,7 +80,7 @@ func (s SegmentCreationServer) Beacon(ctx context.Context,
 }
 
 // extractIngressIfID extracts the ingress interface ID from a path.
-func extractIngressIfID(path spath.Path) (common.IFIDType, error) {
+func extractIngressIfID(path spath.Path) (uint16, error) {
 	var sp scion.Raw
 	if err := sp.DecodeFromBytes(path.Raw); err != nil {
 		return 0, serrors.WrapStr("decoding path (v2)", err)
@@ -90,5 +89,5 @@ func extractIngressIfID(path spath.Path) (common.IFIDType, error) {
 	if err != nil {
 		return 0, serrors.WrapStr("getting current hop field", err)
 	}
-	return common.IFIDType(hf.ConsIngress), nil
+	return hf.ConsIngress, nil
 }

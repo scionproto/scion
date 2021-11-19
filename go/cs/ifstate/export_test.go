@@ -14,14 +14,10 @@
 
 package ifstate
 
-import (
-	"github.com/scionproto/scion/go/lib/topology"
-)
-
 func (intf *Interface) Cfg() *Config {
 	return &intf.cfg
 }
 
-func (intf *Interface) TopoInfoRef() *topology.IFInfo {
+func (intf *Interface) TopoInfoRef() *InterfaceInfo {
 	return &intf.topoInfo
 }
