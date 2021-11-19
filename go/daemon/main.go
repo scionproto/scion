@@ -16,22 +16,23 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"path/filepath"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/resolver"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/infraenv"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	segfetchergrpc "github.com/scionproto/scion/go/lib/infra/modules/segfetcher/grpc"
 	"github.com/scionproto/scion/go/lib/log"
@@ -43,8 +44,10 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/pkg/app"
 	"github.com/scionproto/scion/go/pkg/app/launcher"
 	"github.com/scionproto/scion/go/pkg/daemon"
+	"github.com/scionproto/scion/go/pkg/daemon/api"
 	"github.com/scionproto/scion/go/pkg/daemon/config"
 	"github.com/scionproto/scion/go/pkg/daemon/fetcher"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
@@ -73,9 +76,20 @@ func main() {
 }
 
 func realMain(ctx context.Context) error {
-	if err := setup(); err != nil {
-		return err
+	topo, err := topology.NewLoader(topology.LoaderCfg{
+		File:      globalCfg.General.Topology(),
+		Reload:    app.SIGHUPChannel(ctx),
+		Validator: &topology.DefaultValidator{},
+		Metrics:   loaderMetrics(),
+	})
+	if err != nil {
+		return serrors.WrapStr("creating topology loader", err)
 	}
+	g, errCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		defer log.HandlePanic()
+		return topo.Run(errCtx)
+	})
 
 	closer, err := daemon.InitTracer(globalCfg.Tracing, globalCfg.General.ID)
 	if err != nil {
@@ -102,12 +116,11 @@ func realMain(ctx context.Context) error {
 
 	dialer := &libgrpc.TCPDialer{
 		SvcResolver: func(dst addr.HostSVC) []resolver.Address {
-			targets := []resolver.Address{}
-			addrs, err := itopo.Provider().Get().Multicast(dst)
-			if err != nil {
-				return targets
+			if base := dst.Base(); base != addr.SvcCS {
+				panic("Unsupported address type, implementation error?")
 			}
-			for _, entry := range addrs {
+			targets := []resolver.Address{}
+			for _, entry := range topo.ControlServiceAddresses() {
 				targets = append(targets, resolver.Address{Addr: entry.String()})
 			}
 			return targets
@@ -129,7 +142,7 @@ func realMain(ctx context.Context) error {
 			[]string{"driver", "operation", prom.LabelResult},
 		),
 	})
-	engine, err := daemon.TrustEngine(globalCfg.General.ConfigDir, trustDB, dialer)
+	engine, err := daemon.TrustEngine(globalCfg.General.ConfigDir, topo.IA(), trustDB, dialer)
 	if err != nil {
 		return serrors.WrapStr("creating trust engine", err)
 	}
@@ -164,13 +177,12 @@ func realMain(ctx context.Context) error {
 	if err != nil {
 		return serrors.WrapStr("loading hidden path groups", err)
 	}
-	var requester segfetcher.RPC
-	requester = &segfetchergrpc.Requester{
+	var requester segfetcher.RPC = &segfetchergrpc.Requester{
 		Dialer: dialer,
 	}
 	if len(hpGroups) > 0 {
 		requester = &hpgrpc.Requester{
-			RegularLookup: &segfetchergrpc.Requester{Dialer: dialer},
+			RegularLookup: requester,
 			HPGroups:      hpGroups,
 			Dialer:        dialer,
 		}
@@ -189,66 +201,94 @@ func realMain(ctx context.Context) error {
 	}
 
 	server := grpc.NewServer(libgrpc.UnaryServerInterceptor())
-	sdpb.RegisterDaemonServiceServer(server, daemon.NewServer(daemon.ServerConfig{
-		Fetcher: fetcher.NewFetcher(
-			fetcher.FetcherConfig{
-				RPC:          requester,
-				PathDB:       pathDB,
-				Inspector:    engine,
-				Verifier:     createVerifier(),
-				RevCache:     revCache,
-				Cfg:          globalCfg.SD,
-				TopoProvider: itopo.Provider(),
-			},
-		),
-		Engine:       engine,
-		RevCache:     revCache,
-		TopoProvider: itopo.Provider(),
-	}))
+	sdpb.RegisterDaemonServiceServer(server, daemon.NewServer(
+		daemon.ServerConfig{
+			IA:       topo.IA(),
+			MTU:      topo.MTU(),
+			Topology: topo,
+			Fetcher: fetcher.NewFetcher(
+				fetcher.FetcherConfig{
+					IA:         topo.IA(),
+					MTU:        topo.MTU(),
+					Core:       topo.Core(),
+					NextHopper: topo,
+					RPC:        requester,
+					PathDB:     pathDB,
+					Inspector:  engine,
+					Verifier:   createVerifier(),
+					RevCache:   revCache,
+					Cfg:        globalCfg.SD,
+				},
+			),
+			Engine:   engine,
+			RevCache: revCache,
+		},
+	))
 
 	promgrpc.Register(server)
-	go func() {
+
+	var cleanup app.Cleanup
+	g.Go(func() error {
 		defer log.HandlePanic()
 		if err := server.Serve(listener); err != nil {
-			fatal.Fatal(serrors.WrapStr("serving API", err, "addr", listen))
+			return serrors.WrapStr("serving gRPC API", err, "addr", listen)
 		}
-	}()
+		return nil
+	})
+	cleanup.Add(func() error { server.GracefulStop(); return nil })
+
+	if globalCfg.API.Addr != "" {
+		r := chi.NewRouter()
+		r.Use(cors.Handler(cors.Options{
+			AllowedOrigins: []string{"*"},
+		}))
+		r.Get("/", api.ServeSpecInteractive)
+		r.Get("/openapi.json", api.ServeSpecJSON)
+		server := api.Server{
+			Config:   service.NewConfigStatusPage(globalCfg).Handler,
+			Info:     service.NewInfoStatusPage().Handler,
+			LogLevel: service.NewLogLevelStatusPage().Handler,
+		}
+		log.Info("Exposing API", "addr", globalCfg.API.Addr)
+		h := api.HandlerFromMuxWithBaseURL(&server, r, "/api/v1")
+		mgmtServer := &http.Server{
+			Addr:    globalCfg.API.Addr,
+			Handler: h,
+		}
+		g.Go(func() error {
+			defer log.HandlePanic()
+			err := mgmtServer.ListenAndServe()
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				return serrors.WrapStr("serving service management API", err)
+			}
+			return nil
+		})
+		cleanup.Add(mgmtServer.Close)
+	}
 
 	// Start HTTP endpoints.
 	statusPages := service.StatusPages{
-		"info":             service.NewInfoStatusPage(),
-		"config":           service.NewConfigStatusPage(globalCfg),
-		"log/level":        service.NewLogLevelStatusPage(),
-		"topology":         service.NewTopologyStatusPage(),
-		"digests/config":   service.NewConfigDigestStatusPage(&globalCfg),
-		"digests/topology": service.NewTopologyDigestStatusPage(),
+		"info":      service.NewInfoStatusPage(),
+		"config":    service.NewConfigStatusPage(globalCfg),
+		"log/level": service.NewLogLevelStatusPage(),
+		"topology":  service.NewTopologyStatusPage(topo),
 	}
 	if err := statusPages.Register(http.DefaultServeMux, globalCfg.General.ID); err != nil {
 		return serrors.WrapStr("registering status pages", err)
 	}
-	globalCfg.Metrics.StartPrometheus()
 
-	select {
-	case <-fatal.ShutdownChan():
-		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
-		// Deferred shutdowns for all running servers run now.
-		return nil
-	case <-fatal.FatalChan():
-		return serrors.New("shutdown on error")
-	}
-}
+	g.Go(func() error {
+		defer log.HandlePanic()
+		return globalCfg.Metrics.ServePrometheus(errCtx)
+	})
 
-func setup() error {
-	topo, err := topology.FromJSONFile(globalCfg.General.Topology())
-	if err != nil {
-		return serrors.WrapStr("loading topology", err)
-	}
-	itopo.Init(&itopo.Config{})
-	if err := itopo.Update(topo); err != nil {
-		return serrors.WrapStr("unable to set initial static topology", err)
-	}
-	infraenv.InitInfraEnvironment(globalCfg.General.Topology())
-	return nil
+	g.Go(func() error {
+		defer log.HandlePanic()
+		<-errCtx.Done()
+		return cleanup.Do()
+	})
+
+	return g.Wait()
 }
 
 type acceptAllVerifier struct{}
@@ -265,4 +305,24 @@ func (v acceptAllVerifier) WithServer(net.Addr) infra.Verifier {
 
 func (v acceptAllVerifier) WithIA(addr.IA) infra.Verifier {
 	return v
+}
+
+func loaderMetrics() topology.LoaderMetrics {
+	updates := prom.NewCounterVec("", "",
+		"topology_updates_total",
+		"The total number of updates.",
+		[]string{prom.LabelResult},
+	)
+	return topology.LoaderMetrics{
+		ValidationErrors: metrics.NewPromCounter(updates).With(prom.LabelResult, "err_validate"),
+		ReadErrors:       metrics.NewPromCounter(updates).With(prom.LabelResult, "err_read"),
+		LastUpdate: metrics.NewPromGauge(
+			prom.NewGaugeVec("", "",
+				"topology_last_update_time",
+				"Timestamp of the last successful update.",
+				[]string{},
+			),
+		),
+		Updates: metrics.NewPromCounter(updates).With(prom.LabelResult, prom.Success),
+	}
 }

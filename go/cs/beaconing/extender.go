@@ -22,7 +22,6 @@ import (
 
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/digest"
 	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/epic"
@@ -38,8 +37,7 @@ type Extender interface {
 	// that the created AS entry is the initial entry in a path. The zero value
 	// for egress indicates that the created AS entry is the last entry in the
 	// path, and the beacon is terminated.
-	Extend(ctx context.Context, seg *seg.PathSegment, ingress, egress common.IFIDType,
-		peers []common.IFIDType) error
+	Extend(ctx context.Context, seg *seg.PathSegment, ingress, egress uint16, peers []uint16) error
 }
 
 // DefaultExtender extends provided path segments with entries for the local AS.
@@ -65,8 +63,12 @@ type DefaultExtender struct {
 }
 
 // Extend extends the beacon with hop fields of the old format.
-func (s *DefaultExtender) Extend(ctx context.Context, pseg *seg.PathSegment,
-	ingress, egress common.IFIDType, peers []common.IFIDType) error {
+func (s *DefaultExtender) Extend(
+	ctx context.Context,
+	pseg *seg.PathSegment,
+	ingress, egress uint16,
+	peers []uint16,
+) error {
 
 	if s.MTU == 0 {
 		return serrors.New("MTU not set")
@@ -136,7 +138,7 @@ func (s *DefaultExtender) Extend(ctx context.Context, pseg *seg.PathSegment,
 	return pseg.Validate(seg.ValidateBeacon)
 }
 
-func (s *DefaultExtender) createPeerEntries(egress common.IFIDType, peers []common.IFIDType,
+func (s *DefaultExtender) createPeerEntries(egress uint16, peers []uint16,
 	ts time.Time, beta uint16) ([]seg.PeerEntry, [][]byte, error) {
 
 	peerEntries := make([]seg.PeerEntry, 0, len(peers))
@@ -154,7 +156,7 @@ func (s *DefaultExtender) createPeerEntries(egress common.IFIDType, peers []comm
 	return peerEntries, peerEpicMacs, nil
 }
 
-func (s *DefaultExtender) createHopEntry(ingress, egress common.IFIDType, ts time.Time,
+func (s *DefaultExtender) createHopEntry(ingress, egress uint16, ts time.Time,
 	beta uint16) (seg.HopEntry, []byte, error) {
 
 	remoteInMTU, err := s.remoteMTU(ingress)
@@ -162,7 +164,7 @@ func (s *DefaultExtender) createHopEntry(ingress, egress common.IFIDType, ts tim
 		return seg.HopEntry{}, nil, serrors.WrapStr("checking remote ingress interface (mtu)", err,
 			"interfaces", ingress)
 	}
-	hopF, epicMac := s.createHopF(uint16(ingress), uint16(egress), ts, beta)
+	hopF, epicMac := s.createHopF(ingress, egress, ts, beta)
 	return seg.HopEntry{
 		IngressMTU: int(remoteInMTU),
 		HopField: seg.HopField{
@@ -174,7 +176,7 @@ func (s *DefaultExtender) createHopEntry(ingress, egress common.IFIDType, ts tim
 	}, epicMac, nil
 }
 
-func (s *DefaultExtender) createPeerEntry(ingress, egress common.IFIDType, ts time.Time,
+func (s *DefaultExtender) createPeerEntry(ingress, egress uint16, ts time.Time,
 	beta uint16) (seg.PeerEntry, []byte, error) {
 
 	remoteInIA, remoteInIfID, remoteInMTU, err := s.remoteInfo(ingress)
@@ -182,11 +184,11 @@ func (s *DefaultExtender) createPeerEntry(ingress, egress common.IFIDType, ts ti
 		return seg.PeerEntry{}, nil, serrors.WrapStr("checking remote ingress interface", err,
 			"ingress_interface", ingress)
 	}
-	hopF, epicMac := s.createHopF(uint16(ingress), uint16(egress), ts, beta)
+	hopF, epicMac := s.createHopF(ingress, egress, ts, beta)
 	return seg.PeerEntry{
 		PeerMTU:       int(remoteInMTU),
 		Peer:          remoteInIA.IA(),
-		PeerInterface: uint16(remoteInIfID),
+		PeerInterface: remoteInIfID,
 		HopField: seg.HopField{
 			ConsIngress: hopF.ConsIngress,
 			ConsEgress:  hopF.ConsEgress,
@@ -196,7 +198,7 @@ func (s *DefaultExtender) createPeerEntry(ingress, egress common.IFIDType, ts ti
 	}, epicMac, nil
 }
 
-func (s *DefaultExtender) remoteIA(ifID common.IFIDType) (addr.IAInt, error) {
+func (s *DefaultExtender) remoteIA(ifID uint16) (addr.IAInt, error) {
 	if ifID == 0 {
 		return 0, nil
 	}
@@ -211,7 +213,7 @@ func (s *DefaultExtender) remoteIA(ifID common.IFIDType) (addr.IAInt, error) {
 	return topoInfo.IA.IAInt(), nil
 }
 
-func (s *DefaultExtender) remoteMTU(ifID common.IFIDType) (uint16, error) {
+func (s *DefaultExtender) remoteMTU(ifID uint16) (uint16, error) {
 	if ifID == 0 {
 		return 0, nil
 	}
@@ -220,11 +222,11 @@ func (s *DefaultExtender) remoteMTU(ifID common.IFIDType) (uint16, error) {
 		return 0, serrors.New("interface not found")
 	}
 	topoInfo := intf.TopoInfo()
-	return uint16(topoInfo.MTU), nil
+	return topoInfo.MTU, nil
 }
 
-func (s *DefaultExtender) remoteInfo(ifid common.IFIDType) (
-	addr.IAInt, common.IFIDType, uint16, error) {
+func (s *DefaultExtender) remoteInfo(ifid uint16) (
+	addr.IAInt, uint16, uint16, error) {
 
 	if ifid == 0 {
 		return 0, 0, 0, nil
@@ -234,13 +236,13 @@ func (s *DefaultExtender) remoteInfo(ifid common.IFIDType) (
 		return 0, 0, 0, serrors.New("interface not found")
 	}
 	topoInfo := intf.TopoInfo()
-	if topoInfo.RemoteIFID == 0 {
+	if topoInfo.RemoteID == 0 {
 		return 0, 0, 0, serrors.New("remote interface ID is not set")
 	}
 	if topoInfo.IA.IsWildcard() {
 		return 0, 0, 0, serrors.New("remote ISD-AS is wildcard", "isd_as", topoInfo.IA)
 	}
-	return topoInfo.IA.IAInt(), topoInfo.RemoteIFID, uint16(topoInfo.MTU), nil
+	return topoInfo.IA.IAInt(), topoInfo.RemoteID, topoInfo.MTU, nil
 }
 
 func (s *DefaultExtender) createHopF(ingress, egress uint16, ts time.Time,

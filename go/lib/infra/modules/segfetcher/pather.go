@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"sort"
 	"time"
 
@@ -30,7 +31,6 @@ import (
 	rawpath "github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/path"
-	"github.com/scionproto/scion/go/lib/topology"
 )
 
 // Pather errors.
@@ -41,10 +41,14 @@ var (
 // Pather is used to construct paths from the path database. If necessary, paths
 // are fetched over the network.
 type Pather struct {
-	TopoProvider topology.Provider
-	RevCache     revcache.RevCache
-	Fetcher      *Fetcher
-	Splitter     Splitter
+	IA         addr.IA
+	MTU        uint16
+	NextHopper interface {
+		UnderlayNextHop(uint16) *net.UDPAddr
+	}
+	RevCache revcache.RevCache
+	Fetcher  *Fetcher
+	Splitter Splitter
 }
 
 // GetPaths returns all non-revoked and non-expired paths to the destination.
@@ -58,13 +62,13 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 	if dst.I == 0 {
 		return nil, serrors.WithCtx(ErrBadDst, "dst", dst)
 	}
-	src := p.TopoProvider.Get().IA()
+	src := p.IA
 	if dst.Equal(src) {
 		// For AS local communication, an empty path is used.
 		return []snet.Path{path.Path{
 			Dst: dst,
 			Meta: snet.PathMetadata{
-				MTU:    p.TopoProvider.Get().MTU(),
+				MTU:    p.MTU,
 				Expiry: time.Now().Add(rawpath.MaxTTL * time.Second),
 			},
 		}}, nil
@@ -112,7 +116,7 @@ func (p *Pather) findDestinations(dst addr.IA, ups, cores seg.Segments) map[addr
 		return map[addr.IA]struct{}{dst: {}}
 	}
 	all := cores.FirstIAs()
-	if dst.I == p.TopoProvider.Get().IA().I {
+	if dst.I == p.IA.I {
 		// for isd local wildcard we want to reach cores, they are at the end of the up segs.
 		all = append(all, ups.FirstIAs()...)
 	}
@@ -188,8 +192,8 @@ func (p *Pather) translatePaths(cPaths []combinator.Path) ([]snet.Path, error) {
 // translate converts a combinator.Path to an snet.Path.
 // Effectively, this adds the NextHop information.
 func (p *Pather) translatePath(comb combinator.Path) (snet.Path, error) {
-	nextHop, ok := p.TopoProvider.Get().UnderlayNextHop(comb.Metadata.Interfaces[0].ID)
-	if !ok {
+	nextHop := p.NextHopper.UnderlayNextHop(uint16(comb.Metadata.Interfaces[0].ID))
+	if nextHop == nil {
 		return nil, serrors.New("Unable to find first-hop BR for path",
 			"ifid", comb.Metadata.Interfaces[0].ID)
 	}

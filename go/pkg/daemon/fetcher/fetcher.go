@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/daemon/config"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
@@ -52,6 +51,13 @@ type fetcher struct {
 }
 
 type FetcherConfig struct {
+	IA         addr.IA
+	MTU        uint16
+	Core       bool
+	NextHopper interface {
+		UnderlayNextHop(uint16) *net.UDPAddr
+	}
+
 	RPC       segfetcher.RPC
 	PathDB    pathdb.DB
 	Inspector trust.Inspector
@@ -59,15 +65,15 @@ type FetcherConfig struct {
 	Verifier infra.Verifier
 	RevCache revcache.RevCache
 	Cfg      config.SDConfig
-
-	TopoProvider topology.Provider
 }
 
 func NewFetcher(cfg FetcherConfig) Fetcher {
 	return &fetcher{
 		pather: segfetcher.Pather{
-			RevCache:     cfg.RevCache,
-			TopoProvider: cfg.TopoProvider,
+			IA:         cfg.IA,
+			MTU:        cfg.MTU,
+			NextHopper: cfg.NextHopper,
+			RevCache:   cfg.RevCache,
 			Fetcher: &segfetcher.Fetcher{
 				QueryInterval: cfg.Cfg.QueryInterval.Duration,
 				PathDB:        cfg.PathDB,
@@ -90,8 +96,8 @@ func NewFetcher(cfg FetcherConfig) Fetcher {
 				Metrics: segfetcher.NewFetcherMetrics("sd"),
 			},
 			Splitter: &segfetcher.MultiSegmentSplitter{
-				LocalIA:   cfg.TopoProvider.Get().IA(),
-				Core:      cfg.TopoProvider.Get().Core(),
+				LocalIA:   cfg.IA,
+				Core:      cfg.Core,
 				Inspector: cfg.Inspector,
 			},
 		},
@@ -108,7 +114,7 @@ func (f *fetcher) GetPaths(ctx context.Context, src, dst addr.IA,
 	if _, ok := ctx.Deadline(); !ok {
 		return nil, serrors.New("context must have deadline set")
 	}
-	local := f.pather.TopoProvider.Get().IA()
+	local := f.pather.IA
 	// Check source
 	if !src.IsZero() && !src.Equal(local) {
 		return nil, serrors.New("bad source AS", "src", src)

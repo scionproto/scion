@@ -20,6 +20,7 @@ import (
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/pkg/api"
 	gatewayconfig "github.com/scionproto/scion/go/pkg/gateway/config"
 )
 
@@ -27,6 +28,7 @@ type Config struct {
 	Features env.Features          `toml:"features,omitempty"`
 	Logging  log.Config            `toml:"log,omitempty"`
 	Metrics  env.Metrics           `toml:"metrics,omitempty"`
+	API      api.Config            `toml:"api,omitempty"`
 	Daemon   env.Daemon            `toml:"sciond_connection,omitempty"`
 	Gateway  gatewayconfig.Gateway `toml:"gateway,omitempty"`
 	Tunnel   gatewayconfig.Tunnel  `toml:"tunnel,omitempty"`
@@ -37,6 +39,7 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
+		&cfg.API,
 		&cfg.Daemon,
 		&cfg.Gateway,
 		&cfg.Tunnel,
@@ -48,6 +51,7 @@ func (cfg *Config) Validate() error {
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
+		&cfg.API,
 		&cfg.Daemon,
 		&cfg.Gateway,
 		&cfg.Tunnel,
@@ -59,6 +63,7 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
+		&cfg.API,
 		&cfg.Daemon,
 		&cfg.Gateway,
 		&cfg.Tunnel,

@@ -16,7 +16,6 @@ package service
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -27,11 +26,10 @@ import (
 	toml "github.com/pelletier/go-toml"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -141,38 +139,6 @@ func NewConfigStatusPage(config interface{}) StatusPage {
 	}
 }
 
-func NewConfigDigestStatusPage(cfg config.Config) StatusPage {
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		digest, err := config.Digest(cfg)
-		if err != nil {
-			http.Error(w, "Unable to calculate digest", http.StatusInternalServerError)
-			return
-		}
-		response := struct {
-			Digest []byte `json:"digest"`
-		}{
-			Digest: digest,
-		}
-		enc := json.NewEncoder(w)
-		if err := enc.Encode(response); err != nil {
-			http.Error(w, "Unable to marshal response", http.StatusInternalServerError)
-			return
-		}
-	}
-	return StatusPage{
-		Info:    "sha256 digest of the configuration",
-		Handler: handler,
-	}
-}
-
-func NewTopologyDigestStatusPage() StatusPage {
-	return StatusPage{
-		Info:    "sha256 digest of SCION topology",
-		Handler: itopo.TopologyDigestHandler,
-	}
-}
-
 // NewInfoStatusPage returns a page with basic info about the process.
 func NewInfoStatusPage() StatusPage {
 	handler := func(w http.ResponseWriter, r *http.Request) {
@@ -201,9 +167,9 @@ func NewLogLevelStatusPage() StatusPage {
 	}
 }
 
-func NewTopologyStatusPage() StatusPage {
+func NewTopologyStatusPage(l *topology.Loader) StatusPage {
 	return StatusPage{
 		Info:    "SCION topology",
-		Handler: itopo.TopologyHandler,
+		Handler: l.HandleHTTP,
 	}
 }

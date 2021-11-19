@@ -37,9 +37,6 @@ type Dataplane interface {
 	AddSvc(ia addr.IA, svc addr.HostSVC, ip net.IP) error
 	DelSvc(ia addr.IA, svc addr.HostSVC, ip net.IP) error
 	SetKey(ia addr.IA, index int, key []byte) error
-
-	SetRevocation(ia addr.IA, ifid common.IFIDType, rev []byte) error
-	DelRevocation(ia addr.IA, ifid common.IFIDType) error
 }
 
 // LinkInfo contains the information about a link between an internal and
@@ -163,9 +160,6 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 var svcTypes = []addr.HostSVC{
 	addr.SvcDS,
 	addr.SvcCS,
-	addr.SvcSB,
-	addr.SvcSIG,
-	addr.SvcHPS,
 }
 
 func confServices(dp Dataplane, cfg *Config) error {

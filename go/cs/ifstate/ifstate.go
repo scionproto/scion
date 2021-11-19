@@ -18,9 +18,26 @@ import (
 	"sync"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/common"
+	"inet.af/netaddr"
+
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/topology"
 )
+
+type InterfaceInfo struct {
+	// ID is the interface ID.
+	ID uint16
+	// IA is the remote ISD-AS.
+	IA       addr.IA
+	LinkType topology.LinkType
+	// InternalAddr is the AS-internal address of the router that owns this
+	// interface.
+	InternalAddr netaddr.IPPort
+	// RemoteID is the remote interface ID.
+	RemoteID uint16
+	// MTU is the SCION MTU supported on this interface.
+	MTU uint16
+}
 
 const (
 	// DefaultKeepaliveInterval is the default time between sending IFID
@@ -49,12 +66,12 @@ func (c *Config) InitDefaults() {
 // Interfaces keeps track of all interfaces of the AS.
 type Interfaces struct {
 	mu    sync.RWMutex
-	intfs map[common.IFIDType]*Interface
+	intfs map[uint16]*Interface
 	cfg   Config
 }
 
 // NewInterfaces initializes the the interfaces with the provided interface info map.
-func NewInterfaces(ifInfomap topology.IfInfoMap, cfg Config) *Interfaces {
+func NewInterfaces(ifInfomap map[uint16]InterfaceInfo, cfg Config) *Interfaces {
 	intfs := &Interfaces{
 		cfg: cfg,
 	}
@@ -66,10 +83,10 @@ func NewInterfaces(ifInfomap topology.IfInfoMap, cfg Config) *Interfaces {
 // Update updates the interface mapping. Interfaces no longer present in
 // the topology are removed. The state of existing interfaces is preserved.
 // New interfaces are added as inactive.
-func (intfs *Interfaces) Update(ifInfomap topology.IfInfoMap) {
+func (intfs *Interfaces) Update(ifInfomap map[uint16]InterfaceInfo) {
 	intfs.mu.Lock()
 	defer intfs.mu.Unlock()
-	m := make(map[common.IFIDType]*Interface, len(intfs.intfs))
+	m := make(map[uint16]*Interface, len(intfs.intfs))
 	for ifid, info := range ifInfomap {
 		if intf, ok := intfs.intfs[ifid]; ok {
 			intf.updateTopoInfo(info)
@@ -108,10 +125,10 @@ func (intfs *Interfaces) Reset() {
 }
 
 // All returns a copy of the map from interface id to interface.
-func (intfs *Interfaces) All() map[common.IFIDType]*Interface {
+func (intfs *Interfaces) All() map[uint16]*Interface {
 	intfs.mu.RLock()
 	defer intfs.mu.RUnlock()
-	res := make(map[common.IFIDType]*Interface, len(intfs.intfs))
+	res := make(map[uint16]*Interface, len(intfs.intfs))
 	for ifid, intf := range intfs.intfs {
 		res[ifid] = intf
 	}
@@ -119,7 +136,7 @@ func (intfs *Interfaces) All() map[common.IFIDType]*Interface {
 }
 
 // Get returns the interface for the specified id, or nil if not present.
-func (intfs *Interfaces) Get(ifid common.IFIDType) *Interface {
+func (intfs *Interfaces) Get(ifid uint16) *Interface {
 	intfs.mu.RLock()
 	defer intfs.mu.RUnlock()
 	return intfs.intfs[ifid]
@@ -128,7 +145,7 @@ func (intfs *Interfaces) Get(ifid common.IFIDType) *Interface {
 // Interface keeps track of the interface state.
 type Interface struct {
 	mu            sync.RWMutex
-	topoInfo      topology.IFInfo
+	topoInfo      InterfaceInfo
 	lastOriginate time.Time
 	lastPropagate time.Time
 	cfg           Config
@@ -138,14 +155,14 @@ type Interface struct {
 //
 // Deprecated: Please do not use this anymore. It's only kept for testing
 // purposes.
-func (intf *Interface) Activate(remote common.IFIDType) {
+func (intf *Interface) Activate(remote uint16) {
 	intf.mu.Lock()
 	defer intf.mu.Unlock()
-	intf.topoInfo.RemoteIFID = remote
+	intf.topoInfo.RemoteID = remote
 }
 
 // TopoInfo returns the topology information.
-func (intf *Interface) TopoInfo() topology.IFInfo {
+func (intf *Interface) TopoInfo() InterfaceInfo {
 	intf.mu.RLock()
 	defer intf.mu.RUnlock()
 	return intf.topoInfo
@@ -186,10 +203,10 @@ func (intf *Interface) reset() {
 	intf.lastPropagate = time.Time{}
 }
 
-func (intf *Interface) updateTopoInfo(topoInfo topology.IFInfo) {
+func (intf *Interface) updateTopoInfo(topoInfo InterfaceInfo) {
 	intf.mu.Lock()
 	defer intf.mu.Unlock()
 	// Keep remote topo info.
-	topoInfo.RemoteIFID = intf.topoInfo.RemoteIFID
+	topoInfo.RemoteID = intf.topoInfo.RemoteID
 	intf.topoInfo = topoInfo
 }

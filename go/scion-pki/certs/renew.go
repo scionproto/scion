@@ -48,6 +48,7 @@ import (
 	"github.com/scionproto/scion/go/pkg/app"
 	"github.com/scionproto/scion/go/pkg/app/feature"
 	"github.com/scionproto/scion/go/pkg/app/flag"
+	"github.com/scionproto/scion/go/pkg/app/path"
 	"github.com/scionproto/scion/go/pkg/ca/renewal"
 	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/grpc"
@@ -125,6 +126,12 @@ func newRenewCmd(pather command.Pather) *cobra.Command {
 		force    bool
 		backup   bool
 		features []string
+
+		interactive bool
+		noColor     bool
+		refresh     bool
+		noProbe     bool
+		sequence    string
 	}
 	cmd := &cobra.Command{
 		Use:   "renew [flags] <chain-file> <key-file>",
@@ -189,6 +196,16 @@ The template is expressed in JSON. A valid example:
 
 			cmd.SilenceUsage = true
 
+			span, ctx := tracing.CtxWith(cmd.Context(), "certs.renew")
+			defer span.Finish()
+			ctx, cancel := context.WithTimeout(ctx, flags.timeout)
+			defer cancel()
+
+			var features Features
+			if err := feature.Parse(flags.features, &features); err != nil {
+				return err
+			}
+
 			if !flags.backup && !flags.force {
 				certSet, keySet := flags.out != "", flags.outKey != ""
 				switch {
@@ -238,13 +255,6 @@ The template is expressed in JSON. A valid example:
 				"dispatcher", dispatcher,
 				"local", localIP,
 			)
-
-			var features Features
-			if err := feature.Parse(flags.features, &features); err != nil {
-				return err
-			}
-			span, ctx := tracing.CtxWith(context.Background(), "certs.renew")
-			defer span.Finish()
 
 			trcs, err := loadTRCs(flags.trcFiles)
 			if err != nil {
@@ -314,21 +324,96 @@ The template is expressed in JSON. A valid example:
 			}
 
 			// Create messenger.
-			ctx, cancel := context.WithTimeout(ctx, flags.timeout)
-			defer cancel()
-			sds := daemon.NewService(daemonAddr)
-			local, err := findLocalAddr(ctx, sds)
+
+			daemonCtx, deamonCancel := context.WithTimeout(ctx, time.Second)
+			defer deamonCancel()
+			sd, err := daemon.NewService(daemonAddr).Connect(daemonCtx)
+			if err != nil {
+				return serrors.WrapStr("connecting to SCION Daemon", err)
+			}
+
+			info, err := app.QueryASInfo(ctx, sd)
 			if err != nil {
 				return err
 			}
-			if localIP != nil {
-				local.Host = &net.UDPAddr{IP: localIP}
+			span.SetTag("src.isd_as", info.IA)
+
+			pathOpts := []path.Option{
+				path.WithInteractive(flags.interactive),
+				path.WithRefresh(flags.refresh),
+				path.WithSequence(flags.sequence),
+				path.WithColorScheme(path.DefaultColorScheme(flags.noColor)),
 			}
-			remote := &snet.UDPAddr{IA: ca}
-			disp := reliable.NewDispatcher(dispatcher)
-			dialer, err := buildDialer(ctx, disp, sds, local, remote)
+			if !flags.noProbe {
+				pathOpts = append(pathOpts, path.WithProbing(&path.ProbeConfig{
+					LocalIA:    info.IA,
+					LocalIP:    localIP,
+					Dispatcher: dispatcher,
+				}))
+			}
+			path, err := path.Choose(ctx, sd, ca, pathOpts...)
 			if err != nil {
 				return err
+			}
+			remote := &snet.SVCAddr{
+				IA:      ca,
+				Path:    path.Path(),
+				NextHop: path.UnderlayNextHop(),
+				SVC:     addr.SvcCS,
+			}
+
+			// Resolve local IP based on underlay next hop
+			if localIP == nil {
+				if remote.NextHop != nil {
+					if localIP, err = addrutil.ResolveLocal(remote.NextHop.IP); err != nil {
+						return serrors.WrapStr("resolving local address", err)
+					}
+				} else {
+					if localIP, err = addrutil.DefaultLocalIP(ctx, sd); err != nil {
+						return serrors.WrapStr("resolving default address", err)
+					}
+				}
+				fmt.Printf("Resolved local address:\n  %s\n", localIP)
+			}
+			local := &snet.UDPAddr{
+				IA:   info.IA,
+				Host: &net.UDPAddr{IP: localIP},
+			}
+
+			sn := &snet.SCIONNetwork{
+				LocalIA: local.IA,
+				Dispatcher: &snet.DefaultPacketDispatcherService{
+					Dispatcher: reliable.NewDispatcher(dispatcher),
+					SCMPHandler: snet.DefaultSCMPHandler{
+						RevocationHandler: daemon.RevHandler{Connector: sd},
+					},
+				},
+			}
+
+			conn, err := sn.Listen(ctx, "udp", local.Host, addr.SvcNone)
+			if err != nil {
+				return serrors.WrapStr("dialing", err)
+			}
+			dialer := &grpc.QUICDialer{
+				Rewriter: &messenger.AddressRewriter{
+					Router: &snet.BaseRouter{
+						Querier: daemon.Querier{Connector: sd, IA: local.IA},
+					},
+					SVCRouter: svcRouter{Connector: sd},
+					Resolver: &svc.Resolver{
+						LocalIA:     local.IA,
+						ConnFactory: sn.Dispatcher,
+						LocalIP:     local.Host.IP,
+					},
+					SVCResolutionFraction: 1,
+				},
+				Dialer: squic.ConnDialer{
+					Conn: conn,
+					TLSConfig: &tls.Config{
+						InsecureSkipVerify: true,
+						NextProtos:         []string{"SCION"},
+					},
+				},
 			}
 
 			// Sign the request.
@@ -484,6 +569,12 @@ The template is expressed in JSON. A valid example:
 		"The tracing agent address",
 	)
 	cmd.Flags().StringVar(&flags.logLevel, "log.level", "", app.LogLevelUsage)
+
+	cmd.Flags().BoolVarP(&flags.interactive, "interactive", "i", false, "interactive mode")
+	cmd.Flags().BoolVar(&flags.noColor, "no-color", false, "disable colored output")
+	cmd.Flags().StringVar(&flags.sequence, "sequence", "", app.SequenceUsage)
+	cmd.Flags().BoolVar(&flags.noProbe, "no-probe", false, "do not probe paths for health")
+	cmd.Flags().BoolVar(&flags.refresh, "refresh", false, "set refresh flag for path request")
 
 	cmd.MarkFlagRequired("trc")
 
@@ -669,71 +760,6 @@ func subjectFromVars(vars SubjectVars) (pkix.Name, error) {
 		}
 	}
 	return s, nil
-}
-
-func buildDialer(ctx context.Context, ds reliable.Dispatcher, sds daemon.Service,
-	local, remote *snet.UDPAddr) (grpc.Dialer, error) {
-
-	sdConn, err := sds.Connect(ctx)
-	if err != nil {
-		return nil, serrors.WrapStr("connecting to SCION Daemon", err)
-	}
-
-	sn := &snet.SCIONNetwork{
-		LocalIA: local.IA,
-		Dispatcher: &snet.DefaultPacketDispatcherService{
-			Dispatcher: ds,
-			SCMPHandler: snet.DefaultSCMPHandler{
-				RevocationHandler: daemon.RevHandler{Connector: sdConn},
-			},
-		},
-	}
-	conn, err := sn.Dial(ctx, "udp", local.Host, remote, addr.SvcNone)
-	if err != nil {
-		return nil, serrors.WrapStr("dialing", err)
-	}
-
-	dialer := &grpc.QUICDialer{
-		Rewriter: &messenger.AddressRewriter{
-			Router: &snet.BaseRouter{
-				Querier: daemon.Querier{Connector: sdConn, IA: local.IA},
-			},
-			SVCRouter: svcRouter{Connector: sdConn},
-			Resolver: &svc.Resolver{
-				LocalIA:     local.IA,
-				ConnFactory: sn.Dispatcher,
-				LocalIP:     local.Host.IP,
-			},
-			SVCResolutionFraction: 1,
-		},
-		Dialer: squic.ConnDialer{
-			Conn: conn,
-			TLSConfig: &tls.Config{
-				InsecureSkipVerify: true,
-				NextProtos:         []string{"SCION"},
-			},
-		},
-	}
-	return dialer, nil
-}
-
-func findLocalAddr(ctx context.Context, sds daemon.Service) (*snet.UDPAddr, error) {
-	sdConn, err := sds.Connect(ctx)
-	if err != nil {
-		return nil, err
-	}
-	localIA, err := sdConn.LocalIA(ctx)
-	if err != nil {
-		return nil, err
-	}
-	localIP, err := addrutil.DefaultLocalIP(ctx, sdConn)
-	if err != nil {
-		return nil, err
-	}
-	return &snet.UDPAddr{
-		IA:   localIA,
-		Host: &net.UDPAddr{IP: localIP},
-	}, nil
 }
 
 type svcRouter struct {

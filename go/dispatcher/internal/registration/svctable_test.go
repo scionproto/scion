@@ -412,10 +412,6 @@ func TestSVCTableWildcard(t *testing.T) {
 			Address:           addr.SvcDS.Multicast(),
 			LookupResultCount: 1,
 		},
-		"sig": {
-			Address:           addr.SvcSIG.Multicast(),
-			LookupResultCount: 0,
-		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {

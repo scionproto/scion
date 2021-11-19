@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log/logtest"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/pkg/api/apitest"
 )
 
 func TestConfigSample(t *testing.T) {
@@ -40,12 +41,14 @@ func TestConfigSample(t *testing.T) {
 }
 
 func InitTestConfig(cfg *Config) {
+	apitest.InitConfig(&cfg.API)
 	envtest.InitTest(nil, &cfg.Metrics, nil, nil)
 	logtest.InitTestLogging(&cfg.Logging)
 	cfg.Dispatcher.DeleteSocket = true
 }
 
 func CheckTestConfig(t *testing.T, cfg *Config, id string) {
+	apitest.CheckConfig(t, &cfg.API)
 	envtest.CheckTest(t, nil, &cfg.Metrics, nil, nil, id)
 	logtest.CheckTestLogging(t, &cfg.Logging, id)
 	assert.Equal(t, id, cfg.Dispatcher.ID)

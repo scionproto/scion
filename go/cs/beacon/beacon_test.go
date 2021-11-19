@@ -20,7 +20,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
@@ -28,25 +27,28 @@ import (
 func TestBeaconDiversity(t *testing.T) {
 	var tests = []struct {
 		name      string
-		beacon    []common.IFIDType
+		beacon    []uint16
 		diversity int
 	}{
 		{
-			name: "Same beacon",
-			beacon: []common.IFIDType{graph.If_130_A_110_X, graph.If_110_X_210_X,
-				graph.If_210_X_220_X},
+			name:      "Same beacon",
+			beacon:    []uint16{graph.If_130_A_110_X, graph.If_110_X_210_X, graph.If_210_X_220_X},
 			diversity: 0,
 		},
 		{
 			name: "Share one link",
-			beacon: []common.IFIDType{graph.If_130_B_120_A, graph.If_120_A_110_X,
-				graph.If_110_X_210_X, graph.If_210_X_220_X},
+			beacon: []uint16{
+				graph.If_130_B_120_A, graph.If_120_A_110_X,
+				graph.If_110_X_210_X, graph.If_210_X_220_X,
+			},
 			diversity: 1,
 		},
 		{
 			name: "Distinct",
-			beacon: []common.IFIDType{graph.If_130_B_120_A, graph.If_120_B_220_X,
-				graph.If_220_X_210_X, graph.If_210_X_220_X},
+			beacon: []uint16{
+				graph.If_130_B_120_A, graph.If_120_B_220_X,
+				graph.If_220_X_210_X, graph.If_210_X_220_X,
+			},
 			diversity: 2,
 		},
 	}

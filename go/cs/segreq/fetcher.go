@@ -23,7 +23,6 @@ import (
 
 	"github.com/scionproto/scion/go/cs/segutil"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
@@ -34,14 +33,17 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
 type FetcherConfig struct {
-	IA           addr.IA
-	TopoProvider topology.Provider
-	Inspector    trust.Inspector
+	IA         addr.IA
+	MTU        uint16
+	Core       bool
+	NextHopper interface {
+		UnderlayNextHop(uint16) *net.UDPAddr
+	}
+	Inspector trust.Inspector
 
 	// QueryInterval specifies after how much time segments should be
 	// refetched at the remote server.
@@ -62,13 +64,10 @@ func NewFetcher(cfg FetcherConfig) *segfetcher.Fetcher {
 	d := &dstProvider{
 		localIA: cfg.IA,
 		segSelector: &SegSelector{
-			PathDB:       cfg.PathDB,
-			RevCache:     cfg.RevCache,
-			TopoProvider: cfg.TopoProvider,
+			PathDB:   cfg.PathDB,
+			RevCache: cfg.RevCache,
 			Pather: addrutil.Pather{
-				UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
-					return cfg.TopoProvider.Get().UnderlayNextHop(common.IFIDType(ifID))
-				},
+				NextHopper: cfg.NextHopper,
 			},
 		},
 		// Recursive/cyclic structure: the dstProvider in the fetcher uses the
@@ -112,11 +111,13 @@ func NewRouter(cfg FetcherConfig) snet.Router {
 func newRouter(cfg FetcherConfig, fetcher *segfetcher.Fetcher) snet.Router {
 	return &segutil.Router{
 		Pather: segfetcher.Pather{
-			TopoProvider: cfg.TopoProvider,
-			RevCache:     cfg.RevCache,
+			IA:         cfg.IA,
+			MTU:        cfg.MTU,
+			NextHopper: cfg.NextHopper,
+			RevCache:   cfg.RevCache,
 			Splitter: NewSplitter(
 				cfg.IA,
-				cfg.TopoProvider.Get().Core(),
+				cfg.Core,
 				cfg.Inspector,
 				cfg.PathDB),
 			Fetcher: fetcher,

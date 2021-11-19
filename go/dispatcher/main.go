@@ -17,20 +17,26 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/scionproto/scion/go/dispatcher/config"
 	"github.com/scionproto/scion/go/dispatcher/network"
-	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/pkg/app"
 	"github.com/scionproto/scion/go/pkg/app/launcher"
+	"github.com/scionproto/scion/go/pkg/dispatcher/api"
 	"github.com/scionproto/scion/go/pkg/service"
 )
 
@@ -53,39 +59,79 @@ func realMain(ctx context.Context) error {
 
 	path.StrictDecoding(false)
 
-	go func() {
+	var cleanup app.Cleanup
+	g, errCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
 		defer log.HandlePanic()
-		err := RunDispatcher(
+		return RunDispatcher(
 			globalCfg.Dispatcher.DeleteSocket,
 			globalCfg.Dispatcher.ApplicationSocket,
 			os.FileMode(globalCfg.Dispatcher.SocketFileMode),
 			globalCfg.Dispatcher.UnderlayPort,
 		)
-		if err != nil {
-			// FIXME(scrye): properly clean this up.
-			fatal.Fatal(err)
+	})
+
+	// Initialise and start service management API endpoints.
+	if globalCfg.API.Addr != "" {
+		r := chi.NewRouter()
+		r.Use(cors.Handler(cors.Options{
+			AllowedOrigins: []string{"*"},
+		}))
+		r.Get("/", api.ServeSpecInteractive)
+		r.Get("/openapi.json", api.ServeSpecJSON)
+		server := api.Server{
+			Config:   service.NewConfigStatusPage(globalCfg).Handler,
+			Info:     service.NewInfoStatusPage().Handler,
+			LogLevel: service.NewLogLevelStatusPage().Handler,
 		}
-	}()
+		log.Info("Exposing API", "addr", globalCfg.API.Addr)
+		h := api.HandlerFromMuxWithBaseURL(&server, r, "/api/v1")
+		mgmtServer := &http.Server{
+			Addr:    globalCfg.API.Addr,
+			Handler: h,
+		}
+		cleanup.Add(mgmtServer.Close)
+		g.Go(func() error {
+			defer log.HandlePanic()
+			err := mgmtServer.ListenAndServe()
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				return serrors.WrapStr("serving service management API", err)
+			}
+			return nil
+		})
+	}
 
 	// Start HTTP endpoints.
 	statusPages := service.StatusPages{
-		"info":           service.NewInfoStatusPage(),
-		"config":         service.NewConfigStatusPage(globalCfg),
-		"log/level":      service.NewLogLevelStatusPage(),
-		"digests/config": service.NewConfigDigestStatusPage(&globalCfg),
+		"info":      service.NewInfoStatusPage(),
+		"config":    service.NewConfigStatusPage(globalCfg),
+		"log/level": service.NewLogLevelStatusPage(),
 	}
 	if err := statusPages.Register(http.DefaultServeMux, globalCfg.Dispatcher.ID); err != nil {
 		return serrors.WrapStr("registering status pages", err)
 	}
-	globalCfg.Metrics.StartPrometheus()
+
+	g.Go(func() error {
+		defer log.HandlePanic()
+		return globalCfg.Metrics.ServePrometheus(errCtx)
+	})
 
 	defer deleteSocket(globalCfg.Dispatcher.ApplicationSocket)
 
-	returnCode := waitForTeardown()
-	if returnCode != 0 {
-		return serrors.New("fatal teardown exited with non-zero code", "code", returnCode)
+	g.Go(func() error {
+		defer log.HandlePanic()
+		<-errCtx.Done()
+		return cleanup.Do()
+	})
+
+	// XXX(lukedirtwalker): unfortunately the dispatcher can't be signalled to
+	// be stopped, so we just exit manually if the context is done.
+	select {
+	case <-ctx.Done():
+		return nil
+	case <-errCtx.Done():
+		return g.Wait()
 	}
-	return nil
 }
 
 func RunDispatcher(deleteSocketFlag bool, applicationSocket string, socketFileMode os.FileMode,
@@ -114,15 +160,6 @@ func deleteSocket(socket string) error {
 		return err
 	}
 	return nil
-}
-
-func waitForTeardown() int {
-	select {
-	case <-fatal.ShutdownChan():
-		return 0
-	case <-fatal.FatalChan():
-		return 1
-	}
 }
 
 func requiredIPs() ([]net.IP, error) {

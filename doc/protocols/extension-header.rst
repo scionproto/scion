@@ -1,3 +1,5 @@
+.. _scion-extension-headers:
+
 ************************************
 SCION Extension Header Specification
 ************************************

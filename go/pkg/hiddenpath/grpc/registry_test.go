@@ -25,7 +25,6 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
@@ -112,7 +111,7 @@ func TestRegistrationServerHiddenSegmentRegistration(t *testing.T) {
 			},
 			verifier: func(ctrl *gomock.Controller) infra.Verifier {
 				g := graph.NewDefaultGraph(ctrl)
-				s := g.Beacon([]common.IFIDType{graph.If_110_X_120_A})
+				s := g.Beacon([]uint16{graph.If_110_X_120_A})
 
 				body := marshalBody(t, &hspb.HiddenSegmentRegistrationRequestBody{
 					Segments: map[int32]*hspb.Segments{
@@ -164,7 +163,7 @@ func TestRegistrationServerHiddenSegmentRegistration(t *testing.T) {
 			},
 			verifier: func(ctrl *gomock.Controller) infra.Verifier {
 				g := graph.NewDefaultGraph(ctrl)
-				s := g.Beacon([]common.IFIDType{graph.If_110_X_120_A})
+				s := g.Beacon([]uint16{graph.If_110_X_120_A})
 
 				body := marshalBody(t, &hspb.HiddenSegmentRegistrationRequestBody{
 					Segments: map[int32]*hspb.Segments{
@@ -195,7 +194,7 @@ func TestRegistrationServerHiddenSegmentRegistration(t *testing.T) {
 			},
 			verifier: func(ctrl *gomock.Controller) infra.Verifier {
 				g := graph.NewDefaultGraph(ctrl)
-				s := g.Beacon([]common.IFIDType{graph.If_110_X_120_A})
+				s := g.Beacon([]uint16{graph.If_110_X_120_A})
 
 				body := marshalBody(t, &hspb.HiddenSegmentRegistrationRequestBody{
 					Segments: map[int32]*hspb.Segments{

@@ -38,8 +38,8 @@ import (
 var (
 	ia110  = xtest.MustParseIA("1-ff00:0:110")
 	ia211  = xtest.MustParseIA("2-ff00:0:211")
-	ifid10 = common.IFIDType(10)
-	ifid11 = common.IFIDType(11)
+	ifid10 = uint16(10)
+	ifid11 = uint16(11)
 
 	timeout = time.Second
 )
@@ -64,7 +64,7 @@ func TestFilterNew(t *testing.T) {
 		})
 		Convey("Given a cache with an old revocation", func() {
 			revCache.EXPECT().Get(gomock.Any(), gomock.Any()).Return(revcache.Revocations{
-				revcache.Key{IA: ia110, IfId: ifid11}: sr11Old,
+				revcache.Key{IA: ia110, IfId: common.IFIDType(ifid11)}: sr11Old,
 			}, nil)
 			rMap, err := revcache.RevocationToMap([]*path_mgmt.RevInfo{sr10, sr11})
 			expectedMap := copy(rMap)
@@ -75,11 +75,11 @@ func TestFilterNew(t *testing.T) {
 		})
 		Convey("Given a cache with a newer revocation", func() {
 			revCache.EXPECT().Get(gomock.Any(), gomock.Any()).Return(revcache.Revocations{
-				revcache.Key{IA: ia110, IfId: ifid11}: sr11,
+				revcache.Key{IA: ia110, IfId: common.IFIDType(ifid11)}: sr11,
 			}, nil)
 			rMap, err := revcache.RevocationToMap([]*path_mgmt.RevInfo{sr10, sr11Old})
 			expectedMap := copy(rMap)
-			delete(expectedMap, revcache.Key{IA: ia110, IfId: ifid11})
+			delete(expectedMap, revcache.Key{IA: ia110, IfId: common.IFIDType(ifid11)})
 			SoMsg("No error expected", err, ShouldBeNil)
 			err = rMap.FilterNew(context.Background(), revCache)
 			SoMsg("No error expected", err, ShouldBeNil)
@@ -117,7 +117,7 @@ func TestNoRevokedHopIntf(t *testing.T) {
 			revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).Return(
 				revcache.Revocations{
 					revcache.Key{IA: xtest.MustParseIA("2-ff00:0:211"),
-						IfId: graph.If_210_X_211_A}: sRev,
+						IfId: common.IFIDType(graph.If_210_X_211_A)}: sRev,
 				}, nil,
 			)
 			noR, err := revcache.NoRevokedHopIntf(ctx, revCache, seg210_222_1)
@@ -167,9 +167,9 @@ func copy(revs revcache.Revocations) revcache.Revocations {
 	return res
 }
 
-func defaultRevInfo(ia addr.IA, ifId common.IFIDType, ts time.Time) *path_mgmt.RevInfo {
+func defaultRevInfo(ia addr.IA, ifId uint16, ts time.Time) *path_mgmt.RevInfo {
 	return &path_mgmt.RevInfo{
-		IfID:         ifId,
+		IfID:         common.IFIDType(ifId),
 		RawIsdas:     ia.IAInt(),
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(ts),
@@ -179,5 +179,5 @@ func defaultRevInfo(ia addr.IA, ifId common.IFIDType, ts time.Time) *path_mgmt.R
 
 func createSeg(ctrl *gomock.Controller) *seg.PathSegment {
 	g := graph.NewDefaultGraph(ctrl)
-	return g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_222_X})
+	return g.Beacon([]uint16{graph.If_210_X_211_A, graph.If_211_A_222_X})
 }

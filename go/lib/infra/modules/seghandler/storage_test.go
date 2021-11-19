@@ -22,7 +22,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/pathdb"
@@ -35,8 +34,8 @@ func TestDefaultStorageStoreSegs(t *testing.T) {
 	defer rootCtrl.Finish()
 
 	tg := graph.NewDefaultGraph(rootCtrl)
-	seg110To130 := tg.Beacon([]common.IFIDType{graph.If_110_X_120_A, graph.If_120_A_130_B})
-	seg110To130Short := tg.Beacon([]common.IFIDType{graph.If_110_X_130_A})
+	seg110To130 := tg.Beacon([]uint16{graph.If_110_X_120_A, graph.If_120_A_130_B})
+	seg110To130Short := tg.Beacon([]uint16{graph.If_110_X_130_A})
 
 	tests := map[string]struct {
 		Segs           []*seg.Meta

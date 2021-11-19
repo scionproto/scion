@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
@@ -49,10 +48,9 @@ func (c *CoreChecker) IsCore(ctx context.Context, ia addr.IA) (bool, error) {
 
 // SegSelector selects segments to use for a connection to a remote server.
 type SegSelector struct {
-	PathDB       pathdb.DB
-	RevCache     revcache.RevCache
-	TopoProvider topology.Provider
-	Pather       Pather
+	PathDB   pathdb.DB
+	RevCache revcache.RevCache
+	Pather   Pather
 }
 
 // SelectSeg selects a suitable segment for the given path db query.

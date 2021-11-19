@@ -15,26 +15,15 @@
 package control
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
-	"sync"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/pkg/router/svchealth"
-)
-
-const (
-	svcHealthDiscoveryInterval = time.Second
-	svcHealthDiscoveryTimeout  = 500 * time.Millisecond
 )
 
 // Config stores the runtime configuration state of an ISD-AS context.
@@ -109,18 +98,10 @@ type IACtx struct {
 	Config *Config
 	// DP is the underlying data plane.
 	DP Dataplane
-	// Discoverer is used to dynamically discover healthy service instances. If
-	// nil, service health watching is disabled.
-	Discoverer svchealth.Discoverer
-	// Stop channel, used for ISD-AS context cleanup
-	Stop chan struct{}
-
-	// svcHealthWatcher watches for service health changes.
-	svcHealthWatcher *periodic.Runner
 }
 
-// Start configures the dataplane for the given context.
-func (iac *IACtx) Start(wg *sync.WaitGroup) error {
+// Configure configures the dataplane for the given context.
+func (iac *IACtx) Configure() error {
 	cfg := iac.Config
 	if cfg == nil {
 		// Nothing to do
@@ -136,56 +117,6 @@ func (iac *IACtx) Start(wg *sync.WaitGroup) error {
 		return serrors.WrapStr("config setup", err, "config", brConfDump)
 	}
 	log.Debug("Dataplane configured successfully", "config", cfg)
-
-	_, disableSvcHealth := os.LookupEnv("SCION_EXPERIMENTAL_DISABLE_SERVICE_HEALTH")
-	if !disableSvcHealth && iac.Discoverer != nil {
-		if err := iac.watchSVCHealth(); err != nil {
-			return serrors.WrapStr("starting service health watcher", err)
-		}
-		wg.Add(1)
-		go func() {
-			defer log.HandlePanic()
-			defer wg.Done()
-			<-iac.Stop
-			iac.svcHealthWatcher.Kill()
-		}()
-	}
-	return nil
-}
-
-func (iac *IACtx) watchSVCHealth() error {
-	w := svchealth.Watcher{
-		Discoverer: iac.Discoverer,
-		Topology:   iac.Config.Topo,
-	}
-	iac.svcHealthWatcher = periodic.Start(
-		periodic.Func{
-			TaskName: "svchealth.Watcher",
-			Task: func(ctx context.Context) {
-				logger := log.FromCtx(ctx)
-
-				diff, err := w.Discover(ctx)
-				if err != nil {
-					logger.Info("Ignoring service health update", "err", err)
-					return
-				}
-				for _, svc := range []addr.HostSVC{addr.SvcDS, addr.SvcCS} {
-					add := diff.Add[svc]
-					for _, ip := range add {
-						if err := iac.DP.AddSvc(iac.Config.IA, svc, ip); err != nil {
-							logger.Info("Failed to set service", "svc", svc, "ip", ip, "err", err)
-						}
-					}
-					remove := diff.Remove[svc]
-					for _, ip := range remove {
-						if err := iac.DP.DelSvc(iac.Config.IA, svc, ip); err != nil {
-							logger.Info("Failed to delete service",
-								"svc", svc, "ip", ip, "err", err)
-						}
-					}
-				}
-			},
-		}, svcHealthDiscoveryInterval, svcHealthDiscoveryTimeout)
 	return nil
 }
 
