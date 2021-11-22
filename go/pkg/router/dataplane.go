@@ -1423,23 +1423,25 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 	// *copy* and reverse path -- the original path should not be modified as this writes directly
 	// back to rawPkt (quote).
 	var path *scion.Raw
-	badPathErr := serrors.WithCtx(cannotRoute, "details", "unsupported path type",
-		"path type", p.scionLayer.Path.Type())
-	switch p.scionLayer.Path.Type() {
+	pathType := p.scionLayer.Path.Type()
+	switch pathType {
 	case scion.PathType:
 		var ok bool
 		path, ok = p.scionLayer.Path.(*scion.Raw)
 		if !ok {
-			return nil, badPathErr
+			return nil, serrors.WithCtx(cannotRoute, "details", "unsupported path type",
+				"path type", pathType)
 		}
 	case epic.PathType:
 		epicPath, ok := p.scionLayer.Path.(*epic.Path)
 		if !ok {
-			return nil, badPathErr
+			return nil, serrors.WithCtx(cannotRoute, "details", "unsupported path type",
+				"path type", pathType)
 		}
 		path = epicPath.ScionPath
 	default:
-		return nil, badPathErr
+		return nil, serrors.WithCtx(cannotRoute, "details", "unsupported path type",
+			"path type", pathType)
 	}
 	decPath, err := path.ToDecoded()
 	if err != nil {

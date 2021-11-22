@@ -110,15 +110,31 @@ type Prober struct {
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 }
 
-type Options struct {
-	EPIC bool
+type options struct {
+	epic bool
+}
+
+type Option func(o *options)
+
+func applyOption(opts []Option) options {
+	var o options
+	for _, option := range opts {
+		option(&o)
+	}
+	return o
+}
+
+func WithEpic(epic bool) Option {
+	return func(o *options) {
+		o.epic = epic
+	}
 }
 
 // GetStatuses probes the paths and returns the statuses of the paths. The
 // returned map is keyed with path.Path.FwdPath. The input should only be
 // non-empty paths.
 func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
-	opts Options) (map[string]Status, error) {
+	opts ...Option) (map[string]Status, error) {
 
 	deadline, ok := ctx.Deadline()
 	if !ok {
@@ -195,6 +211,7 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 				if err != nil {
 					return serrors.WrapStr("setting alert flag", err)
 				}
+<<<<<<< HEAD
 				pkt := &snet.Packet{
 					PacketInfo: snet.PacketInfo{
 						Destination: snet.SCIONAddress{
@@ -214,6 +231,10 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 				}
 				if err := conn.WriteTo(pkt, path.UnderlayNextHop()); err != nil {
 					return err
+=======
+				if err := p.sendProbe(conn, localAddr, path, uint16(seqNr), opts...); err != nil {
+					return serrors.WrapStr("sending probe", err, "local", localIP)
+>>>>>>> Implement feedback.
 				}
 			}
 
