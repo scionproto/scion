@@ -154,7 +154,7 @@ type BSConfig struct {
 	// Policies contains the policy files.
 	Policies Policies `toml:"policies,omitempty"`
 	// EPIC specifies whether the EPIC authenticators should be added to the beacons.
-	EPIC bool `toml:"epic,omitempty" default:"true"`
+	EPIC bool `toml:"epic,omitempty" default:"false"`
 }
 
 // InitDefaults the default values for the durations that are equal to zero.
