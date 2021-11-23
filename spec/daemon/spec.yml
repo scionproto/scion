@@ -23,4 +23,4 @@ paths:
   /config:
     $ref: "../common/process.yml#/paths/~1config"
   /segments:
-    $ref: "../common/segments.yml#/paths/~1segments"
+    $ref: "../segments/spec.yml#/paths/~1segments"

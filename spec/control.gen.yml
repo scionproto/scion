@@ -14,8 +14,8 @@ servers:
 tags:
   - name: segment
     description: Everything related to SCION path segments.
-  - name: trust
-    description: Everything related to SCION trust material.
+  - name: cppki
+    description: Everything related to SCION CPPKI material.
   - name: common
     description: Common API exposed by SCION services.
 paths:
@@ -118,7 +118,7 @@ paths:
   /signer:
     get:
       tags:
-        - trust
+        - cppki
       summary: >-
         Prints information about the AS Certificate used to sign the
         control-plane message.
@@ -135,7 +135,7 @@ paths:
   /signer/blob:
     get:
       tags:
-        - trust
+        - cppki
       summary: Get the certificate chain blob
       description: |
         Get the certificate chain blob encoded as PEM.
@@ -157,7 +157,7 @@ paths:
   /ca:
     get:
       tags:
-        - trust
+        - cppki
       summary: Information about the CA.
       operationId: get-ca
       responses:
@@ -172,7 +172,7 @@ paths:
   /trcs:
     get:
       tags:
-        - trust
+        - cppki
       summary: List the TRCs
       description: >-
         List the latest SCION Trust Root Configurations for each ISD that are
@@ -206,7 +206,7 @@ paths:
   /trcs/isd{isd}-b{base}-s{serial}:
     get:
       tags:
-        - trust
+        - cppki
       summary: Get the TRC
       description: |
         Get the SCION Trust Root Configuration.
@@ -242,7 +242,7 @@ paths:
   /trcs/isd{isd}-b{base}-s{serial}/blob:
     get:
       tags:
-        - trust
+        - cppki
       summary: Get the TRC blob
       description: |
         Get the SCION Trust Root Configuration as PEM encoded byte blob.
@@ -280,7 +280,7 @@ paths:
   /certificates:
     get:
       tags:
-        - trust
+        - cppki
       summary: List the certificate chains
       description: |
         List the currently active certificate chains that are known to the
@@ -321,7 +321,7 @@ paths:
   /certificates/{chain-id}:
     get:
       tags:
-        - trust
+        - cppki
       summary: Get the certificate chain
       description: |
         Get the certificate chain for a given ChainID.
@@ -348,7 +348,7 @@ paths:
   /certificates/{chain-id}/blob:
     get:
       tags:
-        - trust
+        - cppki
       summary: Get the certificate chain blob
       description: |
         Get the certificate chain encoded as PEM bytes blob for a given ChainID.

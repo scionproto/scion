@@ -1,3 +1,8 @@
+openapi: "3.0.2"
+info:
+  description: SCION path segments API
+  title: API to retrieve SCION path segments.
+  version: "0.1.0"
 paths:
   /segments:
     get:

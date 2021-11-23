@@ -1,0 +1,226 @@
+# GENERATED FILE DO NOT EDIT
+openapi: 3.0.2
+info:
+  description: SCION path segments API
+  title: API to retrieve SCION path segments.
+  version: 0.1.0
+paths:
+  /segments:
+    get:
+      tags:
+        - segment
+      summary: List the SCION path segments
+      description: >-
+        List the SCION path segments that are known to the service. The results
+        can be filtered by the start and end AS of the segment. Inspect the
+        individual segments for a more detailed view.
+      operationId: get-segments
+      parameters:
+        - in: query
+          description: Start ISD-AS of segment.
+          name: start_isd_as
+          example: 1-ff00:0:110
+          schema:
+            $ref: '#/components/schemas/IsdAs'
+        - in: query
+          description: Terminal AS of segment.
+          name: end_isd_as
+          example: 2-ff00:0:210
+          schema:
+            $ref: '#/components/schemas/IsdAs'
+      responses:
+        '200':
+          description: List of matching SCION path segments.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SegmentBrief'
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /segments/{segment-id}:
+    get:
+      tags:
+        - segment
+      summary: Get the SCION path segment description
+      description: Get the description of a specific SCION path segment.
+      operationId: get-segment
+      parameters:
+        - in: path
+          name: segment-id
+          required: true
+          schema:
+            $ref: '#/components/schemas/SegmentIDs'
+          style: simple
+          explode: false
+      responses:
+        '200':
+          description: SCION path segment information.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Segment'
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /segments/{segment-id}/blob:
+    get:
+      tags:
+        - segment
+      summary: Get the SCION path segment blob
+      description: Get the SCION path segment encoded as PEM bytes blob.
+      operationId: get-segment-blob
+      parameters:
+        - in: path
+          name: segment-id
+          required: true
+          schema:
+            $ref: '#/components/schemas/SegmentIDs'
+          style: simple
+          explode: false
+      responses:
+        '200':
+          description: SCION path segment blob
+          content:
+            application/x-pem-file:
+              example: |
+                -----BEGIN PATH SEGMENT-----
+                SCIONPathSegment ...
+                -----END PATH SEGMENT-----
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+components:
+  schemas:
+    SegmentID:
+      title: Segment Identifier
+      type: string
+      example: fb45d44d
+      format: hex-string
+    SegmentIDs:
+      title: Segment Identifiers
+      type: array
+      items:
+        $ref: '#/components/schemas/SegmentID'
+      minItems: 1
+    SegmentBrief:
+      title: Brief SCION path segment description
+      type: object
+      required:
+        - id
+        - start_isd_as
+        - end_isd_as
+        - length
+      properties:
+        id:
+          $ref: '#/components/schemas/SegmentID'
+        start_isd_as:
+          $ref: '#/components/schemas/IsdAs'
+        end_isd_as:
+          $ref: '#/components/schemas/IsdAs'
+        length:
+          description: Length of the segment.
+          type: integer
+          example: 1
+    Segment:
+      title: SCION path segment description
+      type: object
+      required:
+        - id
+        - timestamp
+        - expiration
+        - last_updated
+        - hops
+      properties:
+        id:
+          $ref: '#/components/schemas/SegmentID'
+        timestamp:
+          type: string
+          format: date-time
+        expiration:
+          type: string
+          format: date-time
+        last_updated:
+          type: string
+          format: date-time
+        hops:
+          type: array
+          items:
+            $ref: '#/components/schemas/Hop'
+    Hop:
+      title: Path segment hop
+      type: object
+      required:
+        - isd_as
+        - interface
+      properties:
+        isd_as:
+          $ref: '#/components/schemas/IsdAs'
+        interface:
+          type: integer
+          example: 42
+    IsdAs:
+      title: ISD-AS Identifier
+      type: string
+      pattern: ^\d+-([a-f0-9]{1,4}:){2}([a-f0-9]{1,4})|\d+$
+      example: 1-ff00:0:110
+    Problem:
+      type: object
+      required:
+        - status
+        - title
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          description: >-
+            A URI reference that uniquely identifies the problem type only in
+            the context of the provided API. Opposed to the specification in
+            RFC-7807, it is neither recommended to be dereferencable and point
+            to a human-readable documentation nor globally unique for the
+            problem type.
+          default: about:blank
+          example: /problem/connection-error
+        title:
+          type: string
+          description: >-
+            A short summary of the problem type. Written in English and readable
+            for engineers, usually not suited for non technical stakeholders and
+            not localized.
+          example: Service Unavailable
+        status:
+          type: integer
+          description: >-
+            The HTTP status code generated by the origin server for this
+            occurrence of the problem.
+          minimum: 100
+          maximum: 599
+          example: 503
+        detail:
+          type: string
+          description: >-
+            A human readable explanation specific to this occurrence of the
+            problem that is helpful to locate the problem and give advice on how
+            to proceed. Written in English and readable for engineers, usually
+            not suited for non technical stakeholders and not localized.
+          example: Connection to database timed out
+        instance:
+          type: string
+          format: uri-reference
+          description: >-
+            A URI reference that identifies the specific occurrence of the
+            problem, e.g. by adding a fragment identifier or sub-path to the
+            problem type. May be used to locate the root of this problem in the
+            source code.
+          example: /problem/connection-error#token-info-read-timed-out
