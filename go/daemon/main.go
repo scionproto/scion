@@ -44,6 +44,8 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
+	cppkiapi "github.com/scionproto/scion/go/pkg/api/cppki/api"
+	segapi "github.com/scionproto/scion/go/pkg/api/segments/api"
 	"github.com/scionproto/scion/go/pkg/app"
 	"github.com/scionproto/scion/go/pkg/app/launcher"
 	"github.com/scionproto/scion/go/pkg/daemon"
@@ -245,6 +247,12 @@ func realMain(ctx context.Context) error {
 		r.Get("/", api.ServeSpecInteractive)
 		r.Get("/openapi.json", api.ServeSpecJSON)
 		server := api.Server{
+			SegmentsServer: segapi.Server{
+				Segments: pathDB,
+			},
+			CPPKIServer: cppkiapi.Server{
+				TrustDB: trustDB,
+			},
 			Config:   service.NewConfigStatusPage(globalCfg).Handler,
 			Info:     service.NewInfoStatusPage().Handler,
 			LogLevel: service.NewLogLevelStatusPage().Handler,

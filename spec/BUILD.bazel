@@ -40,6 +40,7 @@ openapi_bundle(
     srcs = [
         "//spec/common:base.yml",
         "//spec/common:process.yml",
+        "//spec/cppki:spec.yml",
         "//spec/segments:spec.yml",
     ],
     entrypoint = "//spec/daemon:spec.yml",

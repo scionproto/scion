@@ -16,13 +16,18 @@ package api
 
 import (
 	"net/http"
+
+	cppkiapi "github.com/scionproto/scion/go/pkg/api/cppki/api"
+	segapi "github.com/scionproto/scion/go/pkg/api/segments/api"
 )
 
 // Server implements the SCION Daemon Service API.
 type Server struct {
-	Config   http.HandlerFunc
-	Info     http.HandlerFunc
-	LogLevel http.HandlerFunc
+	SegmentsServer segapi.Server
+	CPPKIServer    cppkiapi.Server
+	Config         http.HandlerFunc
+	Info           http.HandlerFunc
+	LogLevel       http.HandlerFunc
 }
 
 // GetConfig is an indirection to the http handler.
@@ -46,6 +51,85 @@ func (s *Server) SetLogLevel(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetSegments reads the known segments from the pathdb and returns them encoded as json.
-func (s *Server) GetSegments(w http.ResponseWriter, r *http.Request, params GetSegmentsParams) {
-	// TODO: not yet implemented.
+func (s *Server) GetSegments(
+	w http.ResponseWriter,
+	r *http.Request,
+	params GetSegmentsParams,
+) {
+
+	p := segapi.GetSegmentsParams{
+		StartIsdAs: (*segapi.IsdAs)(params.StartIsdAs),
+		EndIsdAs:   (*segapi.IsdAs)(params.EndIsdAs),
+	}
+	s.SegmentsServer.GetSegments(w, r, p)
+}
+
+func (s *Server) GetSegment(
+	w http.ResponseWriter,
+	r *http.Request,
+	ids SegmentIDs,
+) {
+
+	segids := make([]segapi.SegmentID, len(ids))
+	for i := range ids {
+		segids[i] = segapi.SegmentID(ids[i])
+	}
+	s.SegmentsServer.GetSegment(w, r, segids)
+}
+
+func (s *Server) GetSegmentBlob(
+	w http.ResponseWriter,
+	r *http.Request,
+	ids SegmentIDs,
+) {
+
+	segids := make([]segapi.SegmentID, len(ids))
+	for i := range ids {
+		segids[i] = segapi.SegmentID(ids[i])
+	}
+	s.SegmentsServer.GetSegmentBlob(w, r, segids)
+}
+
+// GetCertificates lists the certificate chains
+func (s *Server) GetCertificates(
+	w http.ResponseWriter,
+	r *http.Request,
+	params GetCertificatesParams,
+) {
+
+	cppkiParams := cppkiapi.GetCertificatesParams{
+		IsdAs:   (*cppkiapi.IsdAs)(params.IsdAs),
+		ValidAt: params.ValidAt,
+		All:     params.All,
+	}
+	s.CPPKIServer.GetCertificates(w, r, cppkiParams)
+}
+
+// GetCertificate lists the certificate chain for a given ChainID
+func (s *Server) GetCertificate(w http.ResponseWriter, r *http.Request, chainID ChainID) {
+	s.CPPKIServer.GetCertificate(w, r, cppkiapi.ChainID(chainID))
+}
+
+// GetCertificateBlob gnerates a certificate chain blob response encoded as PEM for a given chainId.
+func (s *Server) GetCertificateBlob(w http.ResponseWriter, r *http.Request, chainID ChainID) {
+	s.CPPKIServer.GetCertificateBlob(w, r, cppkiapi.ChainID(chainID))
+}
+
+// GetTrcs gets the trcs specified by it's params.
+func (s *Server) GetTrcs(w http.ResponseWriter, r *http.Request, params GetTrcsParams) {
+	cppkiParams := cppkiapi.GetTrcsParams{
+		Isd: params.Isd,
+		All: params.All,
+	}
+	s.CPPKIServer.GetTrcs(w, r, cppkiParams)
+}
+
+// GetTrc gets the trc specified by it's isd base and serial.
+func (s *Server) GetTrc(w http.ResponseWriter, r *http.Request, isd int, base int, serial int) {
+	s.CPPKIServer.GetTrc(w, r, isd, base, serial)
+}
+
+// GetTrcBlob gets the trc encoded pem blob.
+func (s *Server) GetTrcBlob(w http.ResponseWriter, r *http.Request, isd int, base int, serial int) {
+	s.CPPKIServer.GetTrcBlob(w, r, isd, base, serial)
 }

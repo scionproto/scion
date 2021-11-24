@@ -16,6 +16,8 @@ tags:
     description: Common API exposed by SCION services.
   - name: segment
     description: Everything related to SCION path segments.
+  - name: cppki
+    description: Everything related to SCION CPPKI material.
 paths:
   /info:
     get:
@@ -115,6 +117,272 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/SegmentBrief'
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /segments/{segment-id}:
+    get:
+      tags:
+        - segment
+      summary: Get the SCION path segment description
+      description: Get the description of a specific SCION path segment.
+      operationId: get-segment
+      parameters:
+        - in: path
+          name: segment-id
+          required: true
+          schema:
+            $ref: '#/components/schemas/SegmentIDs'
+          style: simple
+          explode: false
+      responses:
+        '200':
+          description: SCION path segment information.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Segment'
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /segments/{segment-id}/blob:
+    get:
+      tags:
+        - segment
+      summary: Get the SCION path segment blob
+      description: Get the SCION path segment encoded as PEM bytes blob.
+      operationId: get-segment-blob
+      parameters:
+        - in: path
+          name: segment-id
+          required: true
+          schema:
+            $ref: '#/components/schemas/SegmentIDs'
+          style: simple
+          explode: false
+      responses:
+        '200':
+          description: SCION path segment blob
+          content:
+            application/x-pem-file:
+              example: |
+                -----BEGIN PATH SEGMENT-----
+                SCIONPathSegment ...
+                -----END PATH SEGMENT-----
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /trcs:
+    get:
+      tags:
+        - cppki
+      summary: List the TRCs
+      description: >-
+        List the latest SCION Trust Root Configurations for each ISD that are
+        known to the control service. The result can be filtered by ISD.
+        Optionally, all TRCs can be requested instead of only the latest ones.
+      operationId: get-trcs
+      parameters:
+        - in: query
+          name: isd
+          schema:
+            type: array
+            items:
+              type: integer
+          style: form
+          explode: false
+        - in: query
+          name: all
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of applicable TRCs.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TRCBrief'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /trcs/isd{isd}-b{base}-s{serial}:
+    get:
+      tags:
+        - cppki
+      summary: Get the TRC
+      description: |
+        Get the SCION Trust Root Configuration.
+      operationId: get-trc
+      parameters:
+        - in: path
+          name: isd
+          required: true
+          schema:
+            type: integer
+            example: 42
+        - in: path
+          name: base
+          required: true
+          schema:
+            type: integer
+            example: 1
+        - in: path
+          name: serial
+          required: true
+          schema:
+            type: integer
+            example: 3
+      responses:
+        '200':
+          description: TRC.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TRC'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /trcs/isd{isd}-b{base}-s{serial}/blob:
+    get:
+      tags:
+        - cppki
+      summary: Get the TRC blob
+      description: |
+        Get the SCION Trust Root Configuration as PEM encoded byte blob.
+      operationId: get-trc-blob
+      parameters:
+        - in: path
+          name: isd
+          required: true
+          schema:
+            type: integer
+            example: 42
+        - in: path
+          name: base
+          required: true
+          schema:
+            type: integer
+            example: 1
+        - in: path
+          name: serial
+          required: true
+          schema:
+            type: integer
+            example: 3
+      responses:
+        '200':
+          description: TRC blob
+          content:
+            application/x-pem-file:
+              example: |
+                -----BEGIN TRC-----
+                ZjAwOjA6MTEwI ...
+                -----END TRC-----
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /certificates:
+    get:
+      tags:
+        - cppki
+      summary: List the certificate chains
+      description: |
+        List the currently active certificate chains that are known to the
+        control service. The result can be filtered by ISD-AS. Furthermore,
+        one can pass a particular point in time at which the certificate
+        chains are valid as input. A boolean can be provided to return all
+        certificates, regardless of their period of vailidity.
+      operationId: get-certificates
+      parameters:
+        - in: query
+          name: isd_as
+          schema:
+            $ref: '#/components/schemas/IsdAs'
+        - in: query
+          name: valid_at
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: all
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of certificate chains
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChainBrief'
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /certificates/{chain-id}:
+    get:
+      tags:
+        - cppki
+      summary: Get the certificate chain
+      description: |
+        Get the certificate chain for a given ChainID.
+      operationId: get-certificate
+      parameters:
+        - in: path
+          name: chain-id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ChainID'
+      responses:
+        '200':
+          description: Certificate chain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chain'
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /certificates/{chain-id}/blob:
+    get:
+      tags:
+        - cppki
+      summary: Get the certificate chain blob
+      description: |
+        Get the certificate chain encoded as PEM bytes blob for a given ChainID.
+      operationId: get-certificate-blob
+      parameters:
+        - in: path
+          name: chain-id
+          required: true
+          schema:
+            $ref: '#/components/schemas/ChainID'
+      responses:
+        '200':
+          description: Certificate chain blob
+          content:
+            application/x-pem-file:
+              example: |
+                -----BEGIN CERTIFICATE-----
+                ASCertificate ...
+                -----END CERTIFICATE-----
+                -----BEGIN CERTIFICATE-----
+                CACertificate ...
+                -----END CERTIFICATE-----
         '400':
           description: Invalid request
           content:
@@ -222,6 +490,171 @@ components:
             problem type. May be used to locate the root of this problem in the
             source code.
           example: /problem/connection-error#token-info-read-timed-out
+    SegmentIDs:
+      title: Segment Identifiers
+      type: array
+      items:
+        $ref: '#/components/schemas/SegmentID'
+      minItems: 1
+    Hop:
+      title: Path segment hop
+      type: object
+      required:
+        - isd_as
+        - interface
+      properties:
+        isd_as:
+          $ref: '#/components/schemas/IsdAs'
+        interface:
+          type: integer
+          example: 42
+    Segment:
+      title: SCION path segment description
+      type: object
+      required:
+        - id
+        - timestamp
+        - expiration
+        - last_updated
+        - hops
+      properties:
+        id:
+          $ref: '#/components/schemas/SegmentID'
+        timestamp:
+          type: string
+          format: date-time
+        expiration:
+          type: string
+          format: date-time
+        last_updated:
+          type: string
+          format: date-time
+        hops:
+          type: array
+          items:
+            $ref: '#/components/schemas/Hop'
+    TRCID:
+      title: TRC Identifier
+      type: object
+      required:
+        - isd
+        - base_number
+        - serial_number
+      properties:
+        isd:
+          type: integer
+          example: 42
+        base_number:
+          type: integer
+          example: 1
+        serial_number:
+          type: integer
+          example: 3
+    TRCBrief:
+      title: Brief TRC description
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          $ref: '#/components/schemas/TRCID'
+    Validity:
+      title: Validity period
+      type: object
+      required:
+        - not_before
+        - not_after
+      properties:
+        not_before:
+          type: string
+          format: date-time
+          example: 2021-01-04T09:59:33Z
+        not_after:
+          type: string
+          format: date-time
+          example: 2022-01-04T09:59:33Z
+    TRC:
+      title: TRC description
+      type: object
+      required:
+        - id
+        - validity
+        - core_ases
+        - authoritative_ases
+        - description
+      properties:
+        id:
+          $ref: '#/components/schemas/TRCID'
+        validity:
+          $ref: '#/components/schemas/Validity'
+        core_ases:
+          type: array
+          items:
+            $ref: '#/components/schemas/IsdAs'
+        authoritative_ases:
+          type: array
+          items:
+            $ref: '#/components/schemas/IsdAs'
+        description:
+          type: string
+    ChainID:
+      title: Certificate chain Identifier
+      type: string
+      example: fa53a04a
+      format: hex-string
+    ChainBrief:
+      title: Brief certificate chain description
+      type: object
+      required:
+        - id
+        - subject
+        - issuer
+        - validity
+      properties:
+        id:
+          $ref: '#/components/schemas/ChainID'
+        subject:
+          $ref: '#/components/schemas/IsdAs'
+        issuer:
+          $ref: '#/components/schemas/IsdAs'
+        validity:
+          $ref: '#/components/schemas/Validity'
+    SubjectKeyID:
+      type: string
+      format: spaced-hex-string
+      example: 89 B9 49 C2 2F 2F 9C DD 0D 2A 57 A9 DE 8E 2F 95 F3 09 10 D1
+    Certificate:
+      title: Certificate description
+      type: object
+      required:
+        - distinguished_name
+        - isd_as
+        - validity
+        - subject_key_algo
+        - subject_key_id
+      properties:
+        distinguished_name:
+          type: string
+        isd_as:
+          $ref: '#/components/schemas/IsdAs'
+        validity:
+          $ref: '#/components/schemas/Validity'
+        subject_key_algo:
+          type: string
+          example: ECDSA
+        subject_key_id:
+          $ref: '#/components/schemas/SubjectKeyID'
+    Chain:
+      title: Certificate chain description
+      type: object
+      required:
+        - subject
+        - issuer
+      properties:
+        subject:
+          $ref: '#/components/schemas/Certificate'
+        issuer:
+          $ref: '#/components/schemas/Certificate'
   responses:
     BadRequest:
       description: Bad request
