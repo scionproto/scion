@@ -47,7 +47,8 @@ from python.topology.prometheus import (
     DISP_PROM_PORT,
     CO_PROM_PORT,
 )
-from python.topology.topo import DEFAULT_LINK_BW
+
+DEFAULT_COLIBRI_TOTAL_BW = 1000
 
 
 class GoGenArgs(ArgsTopoDicts):
@@ -171,7 +172,7 @@ class GoGenerator(object):
         topo = self.args.topo_dicts[ia]
         if_ids = {iface for br in topo['border_routers'].values() for iface in br['interfaces']}
         if_ids.add(0)
-        bw = int(DEFAULT_LINK_BW / (len(if_ids) - 1))
+        bw = int(DEFAULT_COLIBRI_TOTAL_BW / (len(if_ids) - 1))
         traffic_matrix = {}
         for inIfid in if_ids:
             traffic_matrix[inIfid] = {}
