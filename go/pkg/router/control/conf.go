@@ -131,7 +131,7 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 				Addr: snet.CopyUDPAddr(iface.Remote),
 			},
 			Instance: iface.BRName,
-			BFD:      withDefaults(BFD(iface.BFD)),
+			BFD:      WithDefaults(BFD(iface.BFD)),
 			LinkTo:   iface.LinkType,
 			MTU:      iface.MTU,
 		}

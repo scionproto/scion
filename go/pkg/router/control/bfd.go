@@ -35,7 +35,7 @@ type BFD topology.BFD
 
 // XXX(sgmonroy) note that env values only affect defaults, which in turn are only used
 // if there were no BFD related settings in the topology.
-func withDefaults(cfg BFD) BFD {
+func WithDefaults(cfg BFD) BFD {
 	// If default is disable, BFD is globally disabled.
 	if BFDDefaults.Disable {
 		cfg.Disable = true
