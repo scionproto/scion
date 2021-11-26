@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. .buildkite/hooks/pre-exit
+PRE_COMMAND_SETUP=true . .buildkite/hooks/pre-exit
 
 set -euo pipefail
 
