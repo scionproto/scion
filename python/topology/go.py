@@ -127,6 +127,8 @@ class GoGenerator(object):
             'api': self._api_entry(infra_elem, CS_PROM_PORT+700),
             'features': translate_features(self.args.features),
         }
+        if ca:
+            raw_entry['ca'] = {'mode': 'in-process'}
         return raw_entry
 
     def generate_co(self):

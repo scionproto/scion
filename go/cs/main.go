@@ -367,7 +367,7 @@ func realMain(ctx context.Context) error {
 	}
 
 	var chainBuilder renewal.ChainBuilder
-	if topo.CA() {
+	if globalCfg.CA.Mode != config.Disabled {
 		renewalGauges := libmetrics.NewPromGauge(metrics.RenewalRegisteredHandlers)
 		libmetrics.GaugeWith(renewalGauges, "type", "legacy").Set(0)
 		libmetrics.GaugeWith(renewalGauges, "type", "in-process").Set(0)
