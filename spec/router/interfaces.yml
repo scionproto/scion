@@ -58,6 +58,27 @@ components:
             is acceptable to the local system.
           type: string
           example: 200ms
+    InterfaceNeighbor:
+      title: Neighboring SCION interface endpoint of the link.
+      type: object
+      required:
+      - isd_as
+      - address
+      properties:
+        isd_as:
+          $ref:  "../common/process.yml#/components/schemas/IsdAs"
+        address:
+          description: UDP/IP underlay address of the SCION Interface.
+          type: string
+          example: 192.168.2.2:31000
+    SiblingNeighbor:
+      title: Neighboring SCION interface endpoint of the link.
+      type: object
+      required:
+      - isd_as
+      properties:
+        isd_as:
+          $ref:  "../common/process.yml#/components/schemas/IsdAs"
     Interface:
       title: SCION Interface on the router
       type: object
@@ -75,18 +96,7 @@ components:
           type: integer
           example: 3
         neighbor:
-          description: Neighboring SCION interface endpoint of the link.
-          type: object
-          required:
-          - isd_as
-          - address
-          properties:
-            isd_as:
-             $ref:  "../common/process.yml#/components/schemas/IsdAs"
-            address:
-              description: UDP/IP underlay address of the SCION Interface.
-              type: string
-              example: 192.168.2.2:31000
+         $ref: "#/components/schemas/InterfaceNeighbor"
         scion_mtu:
           $ref: "../common/scion.yml#/components/schemas/ScionMTU"
         bfd:
@@ -119,13 +129,7 @@ components:
           type: string
           example: 192.168.2.2:31000
         neighbor:
-          description: Neighboring SCION interface endpoint of the link.
-          type: object
-          required:
-          - isd_as
-          properties:
-            isd_as:
-             $ref:  "../common/process.yml#/components/schemas/IsdAs"
+          $ref: "#/components/schemas/SiblingNeighbor"
         scion_mtu:
           $ref: "../common/scion.yml#/components/schemas/ScionMTU"
         relationship:

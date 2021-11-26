@@ -56,6 +56,55 @@ type LinkEnd struct {
 	Addr *net.UDPAddr
 }
 
+type ObservableDataplane interface {
+	ListInternalInterfaces() ([]InternalInterface, error)
+	ListExternalInterfaces() ([]ExternalInterface, error)
+	ListSiblingInterfaces() ([]SiblingInterface, error)
+}
+
+// InternalInterface represents the internal interface of a router.
+type InternalInterface struct {
+	IA   addr.IA
+	Addr *net.UDPAddr
+}
+
+// ExternalInterface represents an external interface of a router.
+type ExternalInterface struct {
+	// InterfaceID is the identifier of the external interface.
+	InterfaceID uint16
+	// Link is the information associated with this link.
+	Link LinkInfo
+	// State indicates the interface state.
+	State InterfaceState
+}
+
+// SiblingInterface represents a sibling interface of a router.
+type SiblingInterface struct {
+	// InterfaceID is the identifier of the external interface.
+	InterfaceID uint16
+	// InternalInterfaces is the local address (internal interface)
+	// of the sibling router that owns this interface.
+	InternalInterface *net.UDPAddr
+	// Relationship describes the type of inter-AS links.
+	Relationship topology.LinkType
+	// MTU is the maximum Transmission Unit for SCION packets.
+	MTU int
+	// NeighborIA is the ISD-AS number of the neighbor AS this interface connects to.
+	NeighborIA addr.IA
+	// State indicates the interface state. This refers to the connectivity state
+	// of the internal network to reach this interface. It does not specify the
+	// state of the interface itself.
+	State InterfaceState
+}
+
+// InterfaceState indicates the state of the interface.
+type InterfaceState string
+
+const (
+	InterfaceUp   InterfaceState = "up"
+	InterfaceDown InterfaceState = "down"
+)
+
 // ConfigDataplane configures the data-plane with the new configuration.
 func ConfigDataplane(dp Dataplane, cfg *Config) error {
 	if cfg == nil {

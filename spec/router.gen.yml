@@ -131,6 +131,19 @@ components:
       type: string
       pattern: ^\d+-([a-f0-9]{1,4}:){2}([a-f0-9]{1,4})|\d+$
       example: 1-ff00:0:110
+    InterfaceNeighbor:
+      title: Neighboring SCION interface endpoint of the link.
+      type: object
+      required:
+        - isd_as
+        - address
+      properties:
+        isd_as:
+          $ref: '#/components/schemas/IsdAs'
+        address:
+          description: UDP/IP underlay address of the SCION Interface.
+          type: string
+          example: 192.168.2.2:31000
     ScionMTU:
       description: >-
         The maximum transmission unit in bytes for SCION packets. This
@@ -210,18 +223,7 @@ components:
           type: integer
           example: 3
         neighbor:
-          description: Neighboring SCION interface endpoint of the link.
-          type: object
-          required:
-            - isd_as
-            - address
-          properties:
-            isd_as:
-              $ref: '#/components/schemas/IsdAs'
-            address:
-              description: UDP/IP underlay address of the SCION Interface.
-              type: string
-              example: 192.168.2.2:31000
+          $ref: '#/components/schemas/InterfaceNeighbor'
         scion_mtu:
           $ref: '#/components/schemas/ScionMTU'
         bfd:
@@ -234,6 +236,14 @@ components:
           description: The address of internal SCION interface of the router.
           type: string
           example: 192.168.2.2:31000
+    SiblingNeighbor:
+      title: Neighboring SCION interface endpoint of the link.
+      type: object
+      required:
+        - isd_as
+      properties:
+        isd_as:
+          $ref: '#/components/schemas/IsdAs'
     SiblingInterface:
       title: Sibling Interfaces
       type: object
@@ -254,13 +264,7 @@ components:
           type: string
           example: 192.168.2.2:31000
         neighbor:
-          description: Neighboring SCION interface endpoint of the link.
-          type: object
-          required:
-            - isd_as
-          properties:
-            isd_as:
-              $ref: '#/components/schemas/IsdAs'
+          $ref: '#/components/schemas/SiblingNeighbor'
         scion_mtu:
           $ref: '#/components/schemas/ScionMTU'
         relationship:

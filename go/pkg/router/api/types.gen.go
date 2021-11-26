@@ -53,19 +53,20 @@ type Interface struct {
 	InterfaceId int `json:"interface_id"`
 
 	// The address of internal SCION interface of the router.
-	InternalInterface string `json:"internal_interface"`
-
-	// Neighboring SCION interface endpoint of the link.
-	Neighbor struct {
-		// UDP/IP underlay address of the SCION Interface.
-		Address string `json:"address"`
-		IsdAs   IsdAs  `json:"isd_as"`
-	} `json:"neighbor"`
-	Relationship LinkRelationship `json:"relationship"`
+	InternalInterface string            `json:"internal_interface"`
+	Neighbor          InterfaceNeighbor `json:"neighbor"`
+	Relationship      LinkRelationship  `json:"relationship"`
 
 	// The maximum transmission unit in bytes for SCION packets. This represents the protocol data unit (PDU) of the SCION layer and is usually calculated as maximum Ethernet payload - IP Header - UDP Header.
 	ScionMtu ScionMTU  `json:"scion_mtu"`
 	State    LinkState `json:"state"`
+}
+
+// InterfaceNeighbor defines model for InterfaceNeighbor.
+type InterfaceNeighbor struct {
+	// UDP/IP underlay address of the SCION Interface.
+	Address string `json:"address"`
+	IsdAs   IsdAs  `json:"isd_as"`
 }
 
 // InterfacesResponse defines model for InterfacesResponse.
@@ -119,17 +120,18 @@ type SiblingInterface struct {
 	InterfaceId int `json:"interface_id"`
 
 	// Internal address of the local router.
-	InternalInterface string `json:"internal_interface"`
-
-	// Neighboring SCION interface endpoint of the link.
-	Neighbor struct {
-		IsdAs IsdAs `json:"isd_as"`
-	} `json:"neighbor"`
-	Relationship LinkRelationship `json:"relationship"`
+	InternalInterface string           `json:"internal_interface"`
+	Neighbor          SiblingNeighbor  `json:"neighbor"`
+	Relationship      LinkRelationship `json:"relationship"`
 
 	// The maximum transmission unit in bytes for SCION packets. This represents the protocol data unit (PDU) of the SCION layer and is usually calculated as maximum Ethernet payload - IP Header - UDP Header.
 	ScionMtu ScionMTU  `json:"scion_mtu"`
 	State    LinkState `json:"state"`
+}
+
+// SiblingNeighbor defines model for SiblingNeighbor.
+type SiblingNeighbor struct {
+	IsdAs IsdAs `json:"isd_as"`
 }
 
 // StandardError defines model for StandardError.
