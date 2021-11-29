@@ -11,6 +11,17 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Defines values for BeaconUsage.
+const (
+	BeaconUsageCoreRegistration BeaconUsage = "core_registration"
+
+	BeaconUsageDownRegistration BeaconUsage = "down_registration"
+
+	BeaconUsagePropagation BeaconUsage = "propagation"
+
+	BeaconUsageUpRegistration BeaconUsage = "up_registration"
+)
+
 // Defines values for LogLevelLevel.
 const (
 	LogLevelLevelDebug LogLevelLevel = "debug"
@@ -28,6 +39,22 @@ const (
 
 	StatusPassing Status = "passing"
 )
+
+// Beacon defines model for Beacon.
+type Beacon struct {
+	// Embedded struct due to allOf(#/components/schemas/Segment)
+	Segment `yaml:",inline"`
+	// Embedded fields due to inline allOf schema
+	// Ingress interface of the beacon.
+	IngressInterface int          `json:"ingress_interface"`
+	Usages           BeaconUsages `json:"usages"`
+}
+
+// BeaconUsage defines model for BeaconUsage.
+type BeaconUsage string
+
+// BeaconUsages defines model for BeaconUsages.
+type BeaconUsages []BeaconUsage
 
 // CA defines model for CA.
 type CA struct {
@@ -225,6 +252,33 @@ type Validity struct {
 
 // BadRequest defines model for BadRequest.
 type BadRequest StandardError
+
+// GetBeaconsParams defines parameters for GetBeacons.
+type GetBeaconsParams struct {
+	// Start ISD-AS of beacons. The address can include wildcards (0) both for the ISD and AS identifier.
+	StartIsdAs *IsdAs `json:"start_isd_as,omitempty"`
+
+	// Minimum allowed usages of the returned beacons. Only beacons that are allowed in all the usages in the list will be returned.
+	Usages *BeaconUsages `json:"usages,omitempty"`
+
+	// Ingress interface id.
+	IngressInterface *int `json:"ingress_interface,omitempty"`
+
+	// Timestamp at which returned beacons are valid. If unset then the current datetime is used. This only has an effect if `all=false`.
+	ValidAt *time.Time `json:"valid_at,omitempty"`
+
+	// Include beacons regardless of expiration and creation time.
+	All *bool `json:"all,omitempty"`
+
+	// Whether to reverse the sort order (ascending by default).
+	Desc *bool `json:"desc,omitempty"`
+
+	// Attribute by which results are sorted. The value `start_isd_as` refers to the ISD-AS identifier of the first hop.
+	Sort *GetBeaconsParamsSort `json:"sort,omitempty"`
+}
+
+// GetBeaconsParamsSort defines parameters for GetBeacons.
+type GetBeaconsParamsSort string
 
 // GetCertificatesParams defines parameters for GetCertificates.
 type GetCertificatesParams struct {

@@ -556,6 +556,7 @@ func realMain(ctx context.Context) error {
 			CPPKIServer: cppkiapi.Server{
 				TrustDB: trustDB,
 			},
+			Beacons:  beaconDB,
 			CA:       chainBuilder,
 			Config:   service.NewConfigStatusPage(globalCfg).Handler,
 			Info:     service.NewInfoStatusPage().Handler,

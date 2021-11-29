@@ -83,7 +83,7 @@ func (s *Server) GetSegments(w http.ResponseWriter, r *http.Request, params GetS
 	rep := make([]*SegmentBrief, 0, len(res))
 	for _, segRes := range res {
 		rep = append(rep, &SegmentBrief{
-			Id:         SegmentID(segID(segRes.Seg)),
+			Id:         SegmentID(SegID(segRes.Seg)),
 			StartIsdAs: IsdAs(segRes.Seg.FirstIA().String()),
 			EndIsdAs:   IsdAs(segRes.Seg.LastIA().String()),
 			Length:     len(segRes.Seg.ASEntries),
@@ -140,7 +140,7 @@ func (s *Server) GetSegment(w http.ResponseWriter, r *http.Request, segmentId Se
 			}
 		}
 		rep = append(rep, &Segment{
-			Id:          SegmentID(segID(segRes.Seg)),
+			Id:          SegmentID(SegID(segRes.Seg)),
 			Timestamp:   segRes.Seg.Info.Timestamp.UTC(),
 			Expiration:  segRes.Seg.MinExpiry().UTC(),
 			LastUpdated: segRes.LastUpdate.UTC(),
@@ -218,7 +218,7 @@ func (s *Server) getSegmentsByID(ctx context.Context,
 	r, err := s.Segments.Get(ctx, &q)
 	for i, id := range ids {
 		for j := i; j < len(r); j++ {
-			if segID(r[j].Seg) == string(id) {
+			if SegID(r[j].Seg) == string(id) {
 				r.Swap(i, j)
 				break
 			}
@@ -227,8 +227,8 @@ func (s *Server) getSegmentsByID(ctx context.Context,
 	return r, err
 }
 
-// segID makes a hex encoded string of the segment id.
-func segID(s *seg.PathSegment) string { return fmt.Sprintf("%x", s.ID()) }
+// SegID makes a hex encoded string of the segment id.
+func SegID(s *seg.PathSegment) string { return fmt.Sprintf("%x", s.ID()) }
 
 // decodeSegmentIDs converts segment IDs to RawBytes.
 func decodeSegmentIDs(ids SegmentIDs) ([][]byte, error) {

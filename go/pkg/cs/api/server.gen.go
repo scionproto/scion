@@ -13,6 +13,9 @@ import (
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// List the SCION beacons
+	// (GET /beacons)
+	GetBeacons(w http.ResponseWriter, r *http.Request, params GetBeaconsParams)
 	// Information about the CA.
 	// (GET /ca)
 	GetCa(w http.ResponseWriter, r *http.Request)
@@ -76,6 +79,103 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.HandlerFunc) http.HandlerFunc
+
+// GetBeacons operation middleware
+func (siw *ServerInterfaceWrapper) GetBeacons(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetBeaconsParams
+
+	// ------------- Optional query parameter "start_isd_as" -------------
+	if paramValue := r.URL.Query().Get("start_isd_as"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "start_isd_as", r.URL.Query(), &params.StartIsdAs)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter start_isd_as: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "usages" -------------
+	if paramValue := r.URL.Query().Get("usages"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "usages", r.URL.Query(), &params.Usages)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter usages: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "ingress_interface" -------------
+	if paramValue := r.URL.Query().Get("ingress_interface"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "ingress_interface", r.URL.Query(), &params.IngressInterface)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter ingress_interface: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "valid_at" -------------
+	if paramValue := r.URL.Query().Get("valid_at"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "valid_at", r.URL.Query(), &params.ValidAt)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter valid_at: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "all" -------------
+	if paramValue := r.URL.Query().Get("all"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "all", r.URL.Query(), &params.All)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter all: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "desc" -------------
+	if paramValue := r.URL.Query().Get("desc"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "desc", r.URL.Query(), &params.Desc)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter desc: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "sort" -------------
+	if paramValue := r.URL.Query().Get("sort"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "sort", r.URL.Query(), &params.Sort)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter sort: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetBeacons(w, r, params)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
 
 // GetCa operation middleware
 func (siw *ServerInterfaceWrapper) GetCa(w http.ResponseWriter, r *http.Request) {
@@ -578,6 +678,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		HandlerMiddlewares: options.Middlewares,
 	}
 
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/beacons", wrapper.GetBeacons)
+	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/ca", wrapper.GetCa)
 	})

@@ -90,6 +90,9 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// GetBeacons request
+	GetBeacons(ctx context.Context, params *GetBeaconsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetCa request
 	GetCa(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -145,6 +148,18 @@ type ClientInterface interface {
 
 	// GetTrcBlob request
 	GetTrcBlob(ctx context.Context, isd int, base int, serial int, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) GetBeacons(ctx context.Context, params *GetBeaconsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetBeaconsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) GetCa(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -373,6 +388,149 @@ func (c *Client) GetTrcBlob(ctx context.Context, isd int, base int, serial int, 
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewGetBeaconsRequest generates requests for GetBeacons
+func NewGetBeaconsRequest(server string, params *GetBeaconsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/beacons")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	queryValues := queryURL.Query()
+
+	if params.StartIsdAs != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "start_isd_as", runtime.ParamLocationQuery, *params.StartIsdAs); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	if params.Usages != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "usages", runtime.ParamLocationQuery, *params.Usages); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	if params.IngressInterface != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "ingress_interface", runtime.ParamLocationQuery, *params.IngressInterface); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	if params.ValidAt != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "valid_at", runtime.ParamLocationQuery, *params.ValidAt); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	if params.All != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "all", runtime.ParamLocationQuery, *params.All); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	if params.Desc != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "desc", runtime.ParamLocationQuery, *params.Desc); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	if params.Sort != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "sort", runtime.ParamLocationQuery, *params.Sort); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	queryURL.RawQuery = queryValues.Encode()
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewGetCaRequest generates requests for GetCa
@@ -1111,6 +1269,9 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// GetBeacons request
+	GetBeaconsWithResponse(ctx context.Context, params *GetBeaconsParams, reqEditors ...RequestEditorFn) (*GetBeaconsResponse, error)
+
 	// GetCa request
 	GetCaWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetCaResponse, error)
 
@@ -1166,6 +1327,30 @@ type ClientWithResponsesInterface interface {
 
 	// GetTrcBlob request
 	GetTrcBlobWithResponse(ctx context.Context, isd int, base int, serial int, reqEditors ...RequestEditorFn) (*GetTrcBlobResponse, error)
+}
+
+type GetBeaconsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		Beacons *[]Beacon `json:"beacons,omitempty"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r GetBeaconsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetBeaconsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type GetCaResponse struct {
@@ -1570,6 +1755,15 @@ func (r GetTrcBlobResponse) StatusCode() int {
 	return 0
 }
 
+// GetBeaconsWithResponse request returning *GetBeaconsResponse
+func (c *ClientWithResponses) GetBeaconsWithResponse(ctx context.Context, params *GetBeaconsParams, reqEditors ...RequestEditorFn) (*GetBeaconsResponse, error) {
+	rsp, err := c.GetBeacons(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetBeaconsResponse(rsp)
+}
+
 // GetCaWithResponse request returning *GetCaResponse
 func (c *ClientWithResponses) GetCaWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetCaResponse, error) {
 	rsp, err := c.GetCa(ctx, reqEditors...)
@@ -1738,6 +1932,34 @@ func (c *ClientWithResponses) GetTrcBlobWithResponse(ctx context.Context, isd in
 		return nil, err
 	}
 	return ParseGetTrcBlobResponse(rsp)
+}
+
+// ParseGetBeaconsResponse parses an HTTP response from a GetBeaconsWithResponse call
+func ParseGetBeaconsResponse(rsp *http.Response) (*GetBeaconsResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetBeaconsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Beacons *[]Beacon `json:"beacons,omitempty"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseGetCaResponse parses an HTTP response from a GetCaWithResponse call

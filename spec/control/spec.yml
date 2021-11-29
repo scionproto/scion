@@ -52,5 +52,7 @@ paths:
     $ref: "../common/process.yml#/paths/~1config"
   /topology:
     $ref: "../common/process.yml#/paths/~1topology"
+  /beacons:
+    $ref: "./beacons.yml#/paths/~1beacons"
   /health:
     $ref: "../health/spec.yml#/paths/~1health"

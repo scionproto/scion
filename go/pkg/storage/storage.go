@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
+	beaconstorage "github.com/scionproto/scion/go/pkg/storage/beacon"
 	sqlitebeacondb "github.com/scionproto/scion/go/pkg/storage/beacon/sqlite"
 	sqlitepathdb "github.com/scionproto/scion/go/pkg/storage/path/sqlite"
 	truststorage "github.com/scionproto/scion/go/pkg/storage/trust"
@@ -80,6 +81,7 @@ type TrustDB interface {
 type BeaconDB interface {
 	io.Closer
 	beacon.DB
+	beaconstorage.BeaconAPI
 }
 
 type PathDB interface {
@@ -162,23 +164,21 @@ func NewBeaconStorage(c DBConfig, ia addr.IA) (BeaconDB, error) {
 		30*time.Second,
 	)
 	return beaconDBWithCleaner{
-		DB:       db,
+		BeaconDB: db,
 		cleaner:  cleaner,
-		dbCloser: db,
 	}, nil
 }
 
 // beaconDBWithCleaner implements the BeaconDB interface and stops both the
 // database and the cleanup task on Close.
 type beaconDBWithCleaner struct {
-	beacon.DB
-	cleaner  *periodic.Runner
-	dbCloser io.Closer
+	BeaconDB
+	cleaner *periodic.Runner
 }
 
 func (b beaconDBWithCleaner) Close() error {
 	b.cleaner.Kill()
-	return b.dbCloser.Close()
+	return b.BeaconDB.Close()
 }
 
 func NewPathStorage(c DBConfig) (PathDB, error) {

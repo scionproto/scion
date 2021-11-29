@@ -5,6 +5,7 @@ openapi_bundle(
     srcs = [
         "//spec/common:base.yml",
         "//spec/common:process.yml",
+        "//spec/control:beacons.yml",
         "//spec/control:cppki.yml",
         "//spec/cppki:spec.yml",
         "//spec/health:spec.yml",

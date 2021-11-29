@@ -28,21 +28,26 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	beaconlib "github.com/scionproto/scion/go/cs/beacon"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/ca/renewal"
 	"github.com/scionproto/scion/go/pkg/ca/renewal/mock_renewal"
+	"github.com/scionproto/scion/go/pkg/cs/api/mock_api"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	"github.com/scionproto/scion/go/pkg/cs/trust/mock_trust"
+	"github.com/scionproto/scion/go/pkg/storage/beacon"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
 var update = xtest.UpdateGoldenFiles()
 
 // TestAPI tests the API response generation of the endpoints implemented in the
-// api package
+// api package.
 func TestAPI(t *testing.T) {
 	testCases := map[string]struct {
 		Handler            func(t *testing.T, ctrl *gomock.Controller) http.Handler
@@ -51,6 +56,110 @@ func TestAPI(t *testing.T) {
 		Status             int
 		IgnoreResponseBody bool
 	}{
+		"beacons": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &Server{
+					Beacons: bs,
+				}
+				dbresult := createBeacons(t)
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{},
+				).AnyTimes().Return(dbresult, nil)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/beacons.json",
+			RequestURL:   "/beacons",
+			Status:       200,
+		},
+		"beacons non-existing sort": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &Server{
+					Beacons: bs,
+				}
+				dbresult := createBeacons(t)
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{},
+				).Times(0).Return(dbresult, nil)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/beacons-malformed-sort.json",
+			RequestURL:   "/beacons?sort=invalid",
+			Status:       400,
+		},
+		"beacons sort owner": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &Server{
+					Beacons: bs,
+				}
+				dbresult := createBeacons(t)
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{},
+				).Times(1).Return(dbresult, nil)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/beacons-sort-inifid.json",
+			RequestURL:   "/beacons?sort=ingress_interface_id",
+			Status:       200,
+		},
+		"beacons descending order": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &Server{
+					Beacons: bs,
+				}
+				dbresult := createBeacons(t)
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{},
+				).Times(1).Return(dbresult, nil)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/beacons-descending.json",
+			RequestURL:   "/beacons?desc=true",
+			Status:       200,
+		},
+		"beacons non-existing usages": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &Server{
+					Beacons: bs,
+				}
+				dbresult := createBeacons(t)
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{},
+				).Times(0).Return(dbresult, nil)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/beacons-malformed-usage.json",
+			RequestURL:   "/beacons?usages=up_registration&usages=Invalid",
+			Status:       400,
+		},
+		"beacons existing usages": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &Server{
+					Beacons: bs,
+				}
+				dbresult := createBeacons(t)
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{
+						Usages: []beaconlib.Usage{beaconlib.UsageCoreReg | beaconlib.UsageUpReg},
+					},
+				).Times(1).Return(dbresult, nil)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/beacons.json",
+			RequestURL:   "/beacons?usages=up_registration&usages=core_registration",
+			Status:       200,
+		},
 		"signer": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				g := mock_trust.NewMockSignerGen(ctrl)
@@ -231,5 +340,40 @@ func TestAPI(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, string(golden), rr.Body.String())
 		})
+	}
+}
+
+func createBeacons(t *testing.T) []beacon.Beacon {
+	return []beacon.Beacon{
+		{
+			Beacon: beaconlib.Beacon{
+				Segment: &seg.PathSegment{
+					Info: seg.Info{
+						Timestamp: time.Date(2021, 1, 1, 8, 0, 0, 0, time.UTC),
+					},
+					ASEntries: []seg.ASEntry{{
+						Local: addr.IA{I: 0, A: 0},
+						Next:  addr.IA{I: 1, A: 1},
+					}}},
+				InIfId: 2,
+			},
+			Usage:       beaconlib.UsageCoreReg | beaconlib.UsageDownReg,
+			LastUpdated: time.Date(2021, 1, 2, 8, 0, 0, 0, time.UTC),
+		},
+		{
+			Beacon: beaconlib.Beacon{
+				Segment: &seg.PathSegment{
+					Info: seg.Info{
+						Timestamp: time.Date(2021, 2, 1, 8, 0, 0, 0, time.UTC),
+					},
+					ASEntries: []seg.ASEntry{{
+						Local: addr.IA{I: 2, A: 2},
+						Next:  addr.IA{I: 3, A: 3},
+					}}},
+				InIfId: 1,
+			},
+			Usage:       beaconlib.UsageCoreReg | beaconlib.UsageDownReg,
+			LastUpdated: time.Date(2021, 2, 2, 8, 0, 0, 0, time.UTC),
+		},
 	}
 }
