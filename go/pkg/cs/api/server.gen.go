@@ -28,6 +28,9 @@ type ServerInterface interface {
 	// Prints the TOML configuration file.
 	// (GET /config)
 	GetConfig(w http.ResponseWriter, r *http.Request)
+	// Indicate the service health.
+	// (GET /health)
+	GetHealth(w http.ResponseWriter, r *http.Request)
 	// Basic information page about the control service process.
 	// (GET /info)
 	GetInfo(w http.ResponseWriter, r *http.Request)
@@ -200,6 +203,21 @@ func (siw *ServerInterfaceWrapper) GetConfig(w http.ResponseWriter, r *http.Requ
 
 	var handler = func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetConfig(w, r)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
+// GetHealth operation middleware
+func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetHealth(w, r)
 	}
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -574,6 +592,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/config", wrapper.GetConfig)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/health", wrapper.GetHealth)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/info", wrapper.GetInfo)

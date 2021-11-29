@@ -7,6 +7,7 @@ openapi_bundle(
         "//spec/common:process.yml",
         "//spec/control:cppki.yml",
         "//spec/cppki:spec.yml",
+        "//spec/health:spec.yml",
         "//spec/segments:spec.yml",
     ],
     entrypoint = "//spec/control:spec.yml",

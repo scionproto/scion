@@ -282,3 +282,7 @@ func Error(w http.ResponseWriter, p Problem) {
 	// no point in catching error here, there is nothing we can do about it anymore.
 	enc.Encode(p)
 }
+
+func (s *Server) GetHealth(w http.ResponseWriter, r *http.Request) {
+
+}

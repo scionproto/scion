@@ -105,6 +105,9 @@ type ClientInterface interface {
 	// GetConfig request
 	GetConfig(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetHealth request
+	GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetInfo request
 	GetInfo(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -194,6 +197,18 @@ func (c *Client) GetCertificateBlob(ctx context.Context, chainId ChainID, reqEdi
 
 func (c *Client) GetConfig(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetConfigRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetHealthRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -544,6 +559,33 @@ func NewGetConfigRequest(server string) (*http.Request, error) {
 	}
 
 	operationPath := fmt.Sprintf("/config")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetHealthRequest generates requests for GetHealth
+func NewGetHealthRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/health")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1084,6 +1126,9 @@ type ClientWithResponsesInterface interface {
 	// GetConfig request
 	GetConfigWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetConfigResponse, error)
 
+	// GetHealth request
+	GetHealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHealthResponse, error)
+
 	// GetInfo request
 	GetInfoWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetInfoResponse, error)
 
@@ -1227,6 +1272,29 @@ func (r GetConfigResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetConfigResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetHealthResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *HealthResponse
+	JSON400      *StandardError
+}
+
+// Status returns HTTPResponse.Status
+func (r GetHealthResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetHealthResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1547,6 +1615,15 @@ func (c *ClientWithResponses) GetConfigWithResponse(ctx context.Context, reqEdit
 	return ParseGetConfigResponse(rsp)
 }
 
+// GetHealthWithResponse request returning *GetHealthResponse
+func (c *ClientWithResponses) GetHealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHealthResponse, error) {
+	rsp, err := c.GetHealth(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetHealthResponse(rsp)
+}
+
 // GetInfoWithResponse request returning *GetInfoResponse
 func (c *ClientWithResponses) GetInfoWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetInfoResponse, error) {
 	rsp, err := c.GetInfo(ctx, reqEditors...)
@@ -1778,6 +1855,39 @@ func ParseGetConfigResponse(rsp *http.Response) (*GetConfigResponse, error) {
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest StandardError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetHealthResponse parses an HTTP response from a GetHealthWithResponse call
+func ParseGetHealthResponse(rsp *http.Response) (*GetHealthResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetHealthResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest HealthResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest StandardError
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {

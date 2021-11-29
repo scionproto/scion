@@ -17,6 +17,8 @@ tags:
     description: Everything related to SCION CPPKI material.
   - name: common
     description: Common API exposed by SCION services.
+  - name: health
+    description: Endpoints related to the health status of services.
 paths:
   /segments:
     $ref: "../segments/spec.yml#/paths/~1segments"
@@ -50,3 +52,5 @@ paths:
     $ref: "../common/process.yml#/paths/~1config"
   /topology:
     $ref: "../common/process.yml#/paths/~1topology"
+  /health:
+    $ref: "../health/spec.yml#/paths/~1health"

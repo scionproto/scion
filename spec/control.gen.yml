@@ -18,6 +18,8 @@ tags:
     description: Everything related to SCION CPPKI material.
   - name: common
     description: Common API exposed by SCION services.
+  - name: health
+    description: Endpoints related to the health status of services.
 paths:
   /segments:
     get:
@@ -458,6 +460,22 @@ paths:
                 $ref: '#/components/schemas/Topology'
         '400':
           $ref: '#/components/responses/BadRequest'
+  /health:
+    get:
+      tags:
+        - health
+      summary: Indicate the service health.
+      description: Present the health of the service along with the executed health checks.
+      operationId: get-health
+      responses:
+        '200':
+          description: Service health information.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 components:
   schemas:
     IsdAs:
@@ -781,6 +799,64 @@ components:
     Topology:
       type: object
       additionalProperties: true
+    Status:
+      title: Health status of the service.
+      type: string
+      example: passing
+      enum:
+        - passing
+        - degraded
+        - failing
+    CheckData:
+      title: Free form additional data for the health check.
+      type: object
+      additionalProperties: true
+    Check:
+      title: Health Check.
+      type: object
+      required:
+        - name
+        - status
+        - data
+      properties:
+        name:
+          description: Name of health check.
+          type: string
+          example: valid signer available
+        status:
+          $ref: '#/components/schemas/Status'
+        data:
+          $ref: '#/components/schemas/CheckData'
+        reason:
+          description: Reason for check failure.
+          type: string
+          example: ''
+        detail:
+          description: Additional information.
+          type: string
+          example: ''
+    Health:
+      title: Summary of health status and checks.
+      type: object
+      required:
+        - status
+        - checks
+      properties:
+        status:
+          $ref: '#/components/schemas/Status'
+        checks:
+          description: List of health checks.
+          type: array
+          items:
+            $ref: '#/components/schemas/Check'
+    HealthResponse:
+      title: Service health information.
+      type: object
+      required:
+        - health
+      properties:
+        health:
+          $ref: '#/components/schemas/Health'
   responses:
     BadRequest:
       description: Bad request
