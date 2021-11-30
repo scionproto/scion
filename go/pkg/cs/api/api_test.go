@@ -52,7 +52,6 @@ func TestAPI(t *testing.T) {
 	testCases := map[string]struct {
 		Handler            func(t *testing.T, ctrl *gomock.Controller) http.Handler
 		RequestURL         string
-		ResponseFile       string
 		Status             int
 		IgnoreResponseBody bool
 	}{
@@ -69,9 +68,8 @@ func TestAPI(t *testing.T) {
 				).AnyTimes().Return(dbresult, nil)
 				return Handler(s)
 			},
-			ResponseFile: "testdata/beacons.json",
-			RequestURL:   "/beacons",
-			Status:       200,
+			RequestURL: "/beacons",
+			Status:     200,
 		},
 		"beacons non-existing sort": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
@@ -86,9 +84,8 @@ func TestAPI(t *testing.T) {
 				).Times(0).Return(dbresult, nil)
 				return Handler(s)
 			},
-			ResponseFile: "testdata/beacons-malformed-sort.json",
-			RequestURL:   "/beacons?sort=invalid",
-			Status:       400,
+			RequestURL: "/beacons?sort=invalid",
+			Status:     400,
 		},
 		"beacons sort owner": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
@@ -103,9 +100,8 @@ func TestAPI(t *testing.T) {
 				).Times(1).Return(dbresult, nil)
 				return Handler(s)
 			},
-			ResponseFile: "testdata/beacons-sort-inifid.json",
-			RequestURL:   "/beacons?sort=ingress_interface_id",
-			Status:       200,
+			RequestURL: "/beacons?sort=ingress_interface_id",
+			Status:     200,
 		},
 		"beacons descending order": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
@@ -120,9 +116,8 @@ func TestAPI(t *testing.T) {
 				).Times(1).Return(dbresult, nil)
 				return Handler(s)
 			},
-			ResponseFile: "testdata/beacons-descending.json",
-			RequestURL:   "/beacons?desc=true",
-			Status:       200,
+			RequestURL: "/beacons?desc=true",
+			Status:     200,
 		},
 		"beacons non-existing usages": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
@@ -137,9 +132,8 @@ func TestAPI(t *testing.T) {
 				).Times(0).Return(dbresult, nil)
 				return Handler(s)
 			},
-			ResponseFile: "testdata/beacons-malformed-usage.json",
-			RequestURL:   "/beacons?usages=up_registration&usages=Invalid",
-			Status:       400,
+			RequestURL: "/beacons?usages=up_registration&usages=Invalid",
+			Status:     400,
 		},
 		"beacons existing usages": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
@@ -156,9 +150,8 @@ func TestAPI(t *testing.T) {
 				).Times(1).Return(dbresult, nil)
 				return Handler(s)
 			},
-			ResponseFile: "testdata/beacons.json",
-			RequestURL:   "/beacons?usages=up_registration&usages=core_registration",
-			Status:       200,
+			RequestURL: "/beacons?usages=up_registration&usages=core_registration",
+			Status:     200,
 		},
 		"signer": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
@@ -192,9 +185,8 @@ func TestAPI(t *testing.T) {
 				)
 				return Handler(s)
 			},
-			ResponseFile: "testdata/signer-response.json",
-			RequestURL:   "/signer",
-			Status:       200,
+			RequestURL: "/signer",
+			Status:     200,
 		},
 		"signer error": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
@@ -209,9 +201,8 @@ func TestAPI(t *testing.T) {
 				)
 				return Handler(s)
 			},
-			ResponseFile: "testdata/signer-response-error.json",
-			RequestURL:   "/signer",
-			Status:       500,
+			RequestURL: "/signer",
+			Status:     500,
 		},
 		"signer blob": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
@@ -229,9 +220,8 @@ func TestAPI(t *testing.T) {
 				)
 				return Handler(s)
 			},
-			ResponseFile: "testdata/signer-blob-response.txt",
-			RequestURL:   "/signer/blob",
-			Status:       200,
+			RequestURL: "/signer/blob",
+			Status:     200,
 		},
 		"signer blob error": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
@@ -246,9 +236,8 @@ func TestAPI(t *testing.T) {
 				)
 				return Handler(s)
 			},
-			ResponseFile: "testdata/signer-blob-response-error.txt",
-			RequestURL:   "/signer/blob",
-			Status:       500,
+			RequestURL: "/signer/blob",
+			Status:     500,
 		},
 		"ca": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
@@ -267,9 +256,8 @@ func TestAPI(t *testing.T) {
 				)
 				return Handler(s)
 			},
-			ResponseFile: "testdata/ca.json",
-			RequestURL:   "/ca",
-			Status:       200,
+			RequestURL: "/ca",
+			Status:     200,
 		},
 		"ca error (empty certificate)": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
@@ -288,9 +276,8 @@ func TestAPI(t *testing.T) {
 				)
 				return Handler(s)
 			},
-			ResponseFile: "testdata/ca-error-empty-certificate.json",
-			RequestURL:   "/ca",
-			Status:       500,
+			RequestURL: "/ca",
+			Status:     500,
 		},
 		"ca error (no signer)": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
@@ -309,9 +296,8 @@ func TestAPI(t *testing.T) {
 				)
 				return Handler(s)
 			},
-			ResponseFile: "testdata/ca-error-no-signer.json",
-			RequestURL:   "/ca",
-			Status:       500,
+			RequestURL: "/ca",
+			Status:     500,
 		},
 	}
 
@@ -333,10 +319,11 @@ func TestAPI(t *testing.T) {
 			if tc.IgnoreResponseBody {
 				return
 			}
+			goldenFile := "testdata/" + xtest.SanitizedName(t)
 			if *update {
-				require.NoError(t, ioutil.WriteFile(tc.ResponseFile, rr.Body.Bytes(), 0666))
+				require.NoError(t, ioutil.WriteFile(goldenFile, rr.Body.Bytes(), 0666))
 			}
-			golden, err := ioutil.ReadFile(tc.ResponseFile)
+			golden, err := ioutil.ReadFile(goldenFile)
 			require.NoError(t, err)
 			assert.Equal(t, string(golden), rr.Body.String())
 		})

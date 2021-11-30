@@ -1,0 +1,6 @@
+{
+    "detail": "internal",
+    "status": 500,
+    "title": "Unable to get signer",
+    "type": "/problems/internal-error"
+}
