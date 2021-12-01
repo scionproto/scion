@@ -120,7 +120,7 @@ func (d *db) GetBeacons(
 
 	var ret []storagebeacon.Beacon
 	var err error
-	d.metrics.Observe(ctx, "get_beacon", func(ctx context.Context) (string, error) {
+	d.metrics.Observe(ctx, "get_beacons", func(ctx context.Context) (string, error) {
 		ret, err = d.db.GetBeacons(ctx, q)
 		return dblib.ErrToMetricLabel(err), err
 	})
