@@ -66,6 +66,9 @@ func (r *redirectSender) Close() {
 }
 
 func TestSession(t *testing.T) {
+	// TODO(sustrik): This test is failing once in a while but the problem is almost impossible
+	// to reproduce. This way we'll at least have better understanding on what's going on.
+	log.Setup(log.Config{Console: log.ConsoleConfig{Level: "debug"}})
 	testCases := map[string]*sessionTestCase{
 		"choose desired interval (bootstrapped)": {
 			sessionA: &bfd.Session{
@@ -300,7 +303,6 @@ func TestSession(t *testing.T) {
 // sessionSubtest is used to capture the test case data and name for safe parallel execution.
 func sessionSubtest(name string, tc *sessionTestCase) func(t *testing.T) {
 	return func(t *testing.T) {
-		t.Parallel()
 		linkAToB := &redirectSender{Destination: tc.sessionB.Messages()}
 		linkBToA := &redirectSender{Destination: tc.sessionA.Messages()}
 
