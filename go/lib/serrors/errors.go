@@ -68,6 +68,7 @@ func (e basicError) Error() string {
 	var buf bytes.Buffer
 	buf.WriteString(e.msg.Error())
 	if len(e.fields) != 0 {
+		fmt.Fprint(&buf, " ")
 		encodeContext(&buf, e.ctxPairs())
 	}
 	if e.cause != nil {

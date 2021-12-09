@@ -1,5 +1,5 @@
 {
-    "detail": "[ unknown query parameter{sort=invalid} ]",
+    "detail": "[ unknown query parameter {sort=invalid} ]",
     "status": 400,
     "title": "malformed query parameters",
     "type": "/problems/bad-request"
