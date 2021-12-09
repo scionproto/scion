@@ -117,7 +117,7 @@ func setupConsole(cfg ConsoleConfig, opts options) error {
 		return serrors.WrapStr("creating logger", err)
 	}
 	zap.ReplaceGlobals(logger)
-	ConsoleLevel = Level{a: zCfg.Level}
+	ConsoleLevel = httpLevel{a: zCfg.Level}
 	return nil
 }
 
@@ -143,10 +143,10 @@ func Flush() {
 
 // ConsoleLevel allows interacting with the logging level at runtime.
 // It is initialized with after a successful call to Setup.
-var ConsoleLevel Level
+var ConsoleLevel httpLevel
 
-// Level allows to interact with the logging level at runtime.
-type Level struct {
+// httpLevel allows to interact with the logging level at runtime.
+type httpLevel struct {
 	a zap.AtomicLevel
 }
 
@@ -156,7 +156,7 @@ type Level struct {
 // GET requests return a JSON description of the current logging level.
 // PUT requests change the logging level and expect a payload like:
 //   {"level":"info"}
-func (l Level) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (l httpLevel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	type errorResponse struct {
 		Error string `json:"error"`
 	}

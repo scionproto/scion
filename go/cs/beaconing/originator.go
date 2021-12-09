@@ -82,7 +82,6 @@ func (o *Originator) Run(ctx context.Context) {
 
 // originateBeacons creates and sends a beacon for each active interface.
 func (o *Originator) originateBeacons(ctx context.Context) {
-	logger := log.FromCtx(ctx)
 	intfs := o.needBeacon(o.OriginationInterfaces())
 	sort.Slice(intfs, func(i, j int) bool {
 		return intfs[i].TopoInfo().ID < intfs[j].TopoInfo().ID
@@ -90,6 +89,12 @@ func (o *Originator) originateBeacons(ctx context.Context) {
 	if len(intfs) == 0 {
 		return
 	}
+
+	// Only log on info and error level every propagation period to reduce
+	// noise. The offending logs events are redirected to debug level.
+	silent := !o.Tick.Passed()
+	logger := withSilent(ctx, silent)
+
 	s := newSummary()
 	var wg sync.WaitGroup
 	wg.Add(len(intfs))
@@ -111,7 +116,7 @@ func (o *Originator) originateBeacons(ctx context.Context) {
 		}()
 	}
 	wg.Wait()
-	o.logSummary(ctx, s)
+	o.logSummary(logger, s)
 }
 
 // needBeacon returns a list of interfaces that need a beacon.
@@ -128,8 +133,7 @@ func (o *Originator) needBeacon(active []*ifstate.Interface) []*ifstate.Interfac
 	return stale
 }
 
-func (o *Originator) logSummary(ctx context.Context, s *summary) {
-	logger := log.FromCtx(ctx)
+func (o *Originator) logSummary(logger log.Logger, s *summary) {
 	if o.Tick.Passed() {
 		logger.Debug("Originated beacons", "egress_interfaces", s.IfIds())
 		return
@@ -151,38 +155,35 @@ type beaconOriginator struct {
 func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 	labels := originatorLabels{intf: o.intf}
 	topoInfo := o.intf.TopoInfo()
-	bseg, err := o.createBeacon(ctx)
+	beacon, err := o.createBeacon(ctx)
 	if err != nil {
 		o.incrementMetrics(labels.WithResult("err_create"))
 		return serrors.WrapStr("creating beacon", err, "egress_interface", o.intf.TopoInfo().ID)
 	}
 
-	rpcContext, cancelF := context.WithTimeout(ctx, DefaultRPCTimeout)
+	senderStart := time.Now()
+	senderCtx, cancelF := context.WithTimeout(ctx, defaultNewSenderTimeout)
 	defer cancelF()
-	rpcStart := time.Now()
 
 	sender, err := o.SenderFactory.NewSender(
-		rpcContext,
+		senderCtx,
 		topoInfo.IA,
 		o.intf.TopoInfo().ID,
 		topoInfo.InternalAddr.UDPAddr(),
 	)
 	if err != nil {
-		if rpcContext.Err() != nil {
-			err = serrors.WrapStr("timed out getting beacon sender", err,
-				"waited_for", time.Since(rpcStart))
-		}
 		o.incrementMetrics(labels.WithResult(prom.ErrNetwork))
-		return err
+		return serrors.WrapStr("getting beacon sender", err,
+			"waited_for", time.Since(senderStart).String())
 	}
 	defer sender.Close()
-	if err := sender.Send(rpcContext, bseg); err != nil {
-		if rpcContext.Err() != nil {
-			err = serrors.WrapStr("timed out waiting for RPC to complete", err,
-				"waited_for", time.Since(rpcStart))
-		}
+
+	sendStart := time.Now()
+	if err := sender.Send(ctx, beacon); err != nil {
 		o.incrementMetrics(labels.WithResult(prom.ErrNetwork))
-		return serrors.WrapStr("sending beacon", err)
+		return serrors.WrapStr("sending beacon", err,
+			"waited_for", time.Since(sendStart).String(),
+		)
 	}
 	o.onSuccess(o.intf)
 	o.incrementMetrics(labels.WithResult(prom.Success))
@@ -194,15 +195,15 @@ func (o *beaconOriginator) createBeacon(ctx context.Context) (*seg.PathSegment, 
 	if err != nil {
 		return nil, err
 	}
-	bseg, err := seg.CreateSegment(o.timestamp, uint16(segID.Uint64()))
+	beacon, err := seg.CreateSegment(o.timestamp, uint16(segID.Uint64()))
 	if err != nil {
 		return nil, serrors.WrapStr("creating segment", err)
 	}
 
-	if err := o.Extender.Extend(ctx, bseg, 0, o.intf.TopoInfo().ID, nil); err != nil {
+	if err := o.Extender.Extend(ctx, beacon, 0, o.intf.TopoInfo().ID, nil); err != nil {
 		return nil, serrors.WrapStr("extending segment", err)
 	}
-	return bseg, nil
+	return beacon, nil
 }
 
 func (o *beaconOriginator) onSuccess(intf *ifstate.Interface) {
