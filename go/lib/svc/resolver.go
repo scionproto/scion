@@ -40,7 +40,6 @@ const (
 	errWrite          common.ErrMsg = "unable to write"
 	errRead           common.ErrMsg = "unable to read"
 	errDecode         common.ErrMsg = "decode failed"
-	errBadPath        common.ErrMsg = "unable to parse return path"
 )
 
 // For now, the request payload does not need to be dynamic. We initialize it
