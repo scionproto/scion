@@ -13,10 +13,8 @@ go_test(
     deps = [
         ":go_default_library",
         "//go/lib/pktcls:go_default_library",
-        "//go/lib/slayers/path/scion:go_default_library",
         "//go/lib/snet:go_default_library",
         "//go/lib/snet/path:go_default_library",
-        "//go/lib/spath:go_default_library",
         "//go/lib/xtest:go_default_library",
         "//go/pkg/gateway/control:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
@@ -49,7 +47,6 @@ go_library(
         "//go/lib/snet:go_default_library",
         "//go/lib/snet/path:go_default_library",
         "//go/lib/sock/reliable:go_default_library",
-        "//go/lib/spath:go_default_library",
         "//go/pkg/gateway:go_default_library",
         "//go/pkg/gateway/control:go_default_library",
     ],

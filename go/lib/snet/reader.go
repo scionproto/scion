@@ -23,20 +23,21 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
+// ReplyPather creates reply paths based on the incoming RawPath.
+type ReplyPather interface {
+	// ReplyPath takes the RawPath of an incoming packet and creates a path
+	// that can be used in a reply.
+	ReplyPath(RawPath) (DataplanePath, error)
+}
+
 type scionConnReader struct {
+	replyPather ReplyPather
+
 	base *scionConnBase
 	conn PacketConn
 
 	mtx    sync.Mutex
 	buffer []byte
-}
-
-func newScionConnReader(base *scionConnBase, conn PacketConn) *scionConnReader {
-	return &scionConnReader{
-		base:   base,
-		conn:   conn,
-		buffer: make([]byte, common.SupportedMTU),
-	}
 }
 
 // ReadFrom reads data into b, returning the length of copied data and the
@@ -76,6 +77,15 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 		return 0, nil, err
 	}
 
+	rpath, ok := pkt.Path.(RawPath)
+	if !ok {
+		return 0, nil, serrors.New("unexpected path", "type", common.TypeOf(pkt.Path))
+	}
+	replyPath, err := c.replyPather.ReplyPath(rpath)
+	if err != nil {
+		return 0, nil, serrors.WrapStr("creating reply path", err)
+	}
+
 	udp, ok := pkt.Payload.(UDPPayload)
 	if !ok {
 		return 0, nil, serrors.New("unexpected payload", "type", common.TypeOf(pkt.Payload))
@@ -91,11 +101,8 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 			IP:   pkt.Source.Host.IP(),
 			Port: int(udp.SrcPort),
 		}),
-		Path:    pkt.Path.Copy(),
+		Path:    replyPath,
 		NextHop: CopyUDPAddr(&lastHop),
-	}
-	if err = remote.Path.Reverse(); err != nil {
-		return 0, nil, serrors.WrapStr("unable to reverse path on received packet", err)
 	}
 	return n, remote, nil
 }

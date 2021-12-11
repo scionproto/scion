@@ -21,10 +21,12 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/path"
 )
 
 // DefaultPathWatcherFactory creates PathWatchers.
@@ -38,7 +40,7 @@ func (f *DefaultPathWatcherFactory) New(ctx context.Context, remote addr.IA, pat
 	pw := &DefaultPathWatcher{
 		remote: remote,
 		id:     id,
-		path:   path.Copy(),
+		path:   path,
 	}
 	_, logger := pw.adjustCtx(ctx)
 	logger.Info("Path monitoring started")
@@ -76,7 +78,7 @@ func (pw *DefaultPathWatcher) UpdatePath(path snet.Path) {
 	if snet.Fingerprint(pw.path) != snet.Fingerprint(path) {
 		return
 	}
-	pw.path = path.Copy()
+	pw.path = path
 }
 
 // SendProbe sends a probe along the monitored path.
@@ -109,7 +111,7 @@ func (pw *DefaultPathWatcher) HandleProbeReply(seq uint16) {
 
 // Path returns a fresh copy of the monitored path.
 func (pw *DefaultPathWatcher) Path() snet.Path {
-	return pw.path.Copy()
+	return pw.path
 }
 
 // State returns the state of the monitored path.
@@ -134,14 +136,18 @@ func (pw *DefaultPathWatcher) Close(ctx context.Context) {
 
 func (pw *DefaultPathWatcher) createProbepacket(localAddr snet.SCIONAddress) (*snet.Packet, error) {
 	p := pw.Path()
-	if p == nil || p.Path().IsEmpty() {
-		return nil, serrors.New("empty path")
+	if p == nil {
+		return nil, serrors.New("path is nil")
+	}
+	scionPath, ok := p.Dataplane().(path.SCION)
+	if !ok {
+		return nil, serrors.New("not a scion path", "type", common.TypeOf(p.Dataplane()))
 	}
 	meta := p.Metadata()
 	if meta != nil && meta.Expiry.Before(time.Now()) {
 		return nil, serrors.New("expired path", "expiration", meta.Expiry)
 	}
-	sp := p.Path()
+	sp := scionPath
 	decodedPath := scion.Decoded{}
 	if err := decodedPath.DecodeFromBytes(sp.Raw); err != nil {
 		return nil, serrors.WrapStr("decoding path", err)

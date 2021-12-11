@@ -200,7 +200,7 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 	}
 	addr := &snet.SVCAddr{
 		IA:      path.Destination(),
-		Path:    path.Path(),
+		Path:    path.Dataplane(),
 		NextHop: path.UnderlayNextHop(),
 		SVC:     addr.SvcCS,
 	}

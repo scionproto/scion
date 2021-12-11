@@ -28,7 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/mocks/net/mock_net"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
-	"github.com/scionproto/scion/go/lib/spath"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -176,8 +176,7 @@ func createMockPath(ctrl *gomock.Controller, mtu uint16) snet.Path {
 	path := mock_snet.NewMockPath(ctrl)
 	path.EXPECT().Destination().Return(xtest.MustParseIA("1-ff00:0:300")).AnyTimes()
 	path.EXPECT().Metadata().Return(meta).AnyTimes()
-	path.EXPECT().Path().Return(spath.Path{Raw: []byte{}}).AnyTimes()
+	path.EXPECT().Dataplane().Return(snetpath.SCION{Raw: []byte{}}).AnyTimes()
 	path.EXPECT().UnderlayNextHop().Return(nil).AnyTimes()
-	path.EXPECT().Copy().Return(path).AnyTimes()
 	return path
 }

@@ -31,7 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
@@ -86,7 +86,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
 					IA:   addr.IA{},
-					Path: spath.Path{},
+					Path: path.SCION{},
 				}
 			},
 			Assertion: assert.NoError,
@@ -110,7 +110,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
 					IA:   addr.IA{},
-					Path: spath.Path{},
+					Path: path.SCION{},
 				}
 			},
 			Assertion: assert.Error,
@@ -136,7 +136,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
 					IA:   addr.IA{},
-					Path: spath.Path{},
+					Path: path.SCION{},
 				}
 			},
 			Assertion: assert.Error,
@@ -165,7 +165,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
 					IA:   addr.IA{},
-					Path: spath.Path{},
+					Path: path.SCION{},
 				}
 			},
 			Assertion: assert.Error,
@@ -193,7 +193,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
 					IA:   addr.IA{},
-					Path: spath.Path{},
+					Path: path.SCION{},
 				}
 			},
 			Assertion: assert.Error,
@@ -218,7 +218,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
 					IA:   addr.IA{},
-					Path: spath.Path{},
+					Path: path.SCION{},
 				}
 			},
 			Assertion: assert.Error,
@@ -246,7 +246,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
 					IA:   addr.IA{},
-					Path: spath.Path{},
+					Path: path.SCION{},
 				}
 			},
 			Assertion: assert.Error,

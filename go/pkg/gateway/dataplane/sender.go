@@ -18,10 +18,12 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/snet"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 )
 
 const (
@@ -49,7 +51,11 @@ func newSender(sessID uint8, conn net.PacketConn, path snet.Path,
 	// MTU must account for the size of the SCION header.
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	addrLen := addr.IABytes*2 + len(localAddr.IP) + len(gatewayAddr.IP)
-	pathLen := len(path.Path().Raw)
+	scionPath, ok := path.Dataplane().(snetpath.SCION)
+	if !ok {
+		return nil, serrors.New("not a scion path", "type", common.TypeOf(path.Dataplane()))
+	}
+	pathLen := len(scionPath.Raw)
 	mtu := int(path.Metadata().MTU) - slayers.CmnHdrLen - addrLen - pathLen - udpHdrLen
 	if mtu < minMTU {
 		return nil, serrors.New("insufficient MTU", "mtu", mtu, "minMTU", minMTU)
@@ -60,7 +66,7 @@ func newSender(sessID uint8, conn net.PacketConn, path snet.Path,
 		conn:    conn,
 		address: &snet.UDPAddr{
 			IA:      path.Destination(),
-			Path:    path.Path(),
+			Path:    path.Dataplane(),
 			NextHop: path.UnderlayNextHop(),
 			Host:    &gatewayAddr,
 		},

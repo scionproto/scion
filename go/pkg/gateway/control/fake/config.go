@@ -33,7 +33,6 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	snetpath "github.com/scionproto/scion/go/lib/snet/path"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
 )
 
@@ -283,9 +282,8 @@ func parsePath(rawPath rawPath, creationTime time.Time) (snet.Path, error) {
 
 	p := snetpath.Path{
 		Dst: ifaces[len(ifaces)-1].IA,
-		SPath: spath.Path{
-			Raw:  fwPath,
-			Type: scion.PathType,
+		DataplanePath: snetpath.SCION{
+			Raw: fwPath,
 		},
 		NextHop: (*net.UDPAddr)(rawPath.NextHop),
 		Meta: snet.PathMetadata{

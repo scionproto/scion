@@ -23,7 +23,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 const ErrHandler common.ErrMsg = "Unable to handle SVC request"
@@ -199,11 +198,14 @@ func (h *BaseHandler) Handle(request *Request) (Result, error) {
 	return Handled, nil
 }
 
-func (h *BaseHandler) reversePath(path spath.Path) (spath.Path, error) {
-	// Reverse copy to not modify input packet
-	path = path.Copy()
-	if err := path.Reverse(); err != nil {
-		return path, err
+func (h *BaseHandler) reversePath(path snet.DataplanePath) (snet.DataplanePath, error) {
+	rpath, ok := path.(snet.RawPath)
+	if !ok {
+		return nil, serrors.New("unexpected path", "type", common.TypeOf(path))
 	}
-	return path, nil
+	replyPath, err := snet.DefaultReplyPather{}.ReplyPath(rpath)
+	if err != nil {
+		return nil, serrors.WrapStr("creating reply path", err)
+	}
+	return replyPath, nil
 }
