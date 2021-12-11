@@ -40,7 +40,7 @@ func (d Discoverer) Gateways(ctx context.Context) ([]control.Gateway, error) {
 	}
 	ds := &snet.SVCAddr{
 		IA:      d.Remote,
-		Path:    paths[0].Path(),
+		Path:    paths[0].Dataplane(),
 		NextHop: paths[0].UnderlayNextHop(),
 		SVC:     addr.SvcDS,
 	}

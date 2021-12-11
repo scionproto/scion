@@ -26,7 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
-	"github.com/scionproto/scion/go/lib/spath"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/hiddenpath"
 	"github.com/scionproto/scion/go/pkg/hiddenpath/mock_hiddenpath"
@@ -69,7 +69,7 @@ func TestRegistrationResolverResolve(t *testing.T) {
 			router: func(ctrl *gomock.Controller) snet.Router {
 				router := mock_snet.NewMockRouter(ctrl)
 				path := mock_snet.NewMockPath(ctrl)
-				path.EXPECT().Path().Return(spath.Path{Raw: []byte("path")}).AnyTimes()
+				path.EXPECT().Dataplane().Return(snetpath.SCION{Raw: []byte("path")}).AnyTimes()
 				path.EXPECT().UnderlayNextHop().AnyTimes().Return(
 					xtest.MustParseUDPAddr(t, "10.1.0.1:404"))
 				router.EXPECT().Route(gomock.Any(), xtest.MustParseIA("1-ff00:0:110")).
@@ -81,7 +81,7 @@ func TestRegistrationResolverResolve(t *testing.T) {
 				d.EXPECT().Discover(gomock.Any(), addrMatcher{svc: &snet.SVCAddr{
 					IA:      xtest.MustParseIA("1-ff00:0:110"),
 					NextHop: xtest.MustParseUDPAddr(t, "10.1.0.1:404"),
-					Path:    spath.Path{Raw: []byte("path")},
+					Path:    snetpath.SCION{Raw: []byte("path")},
 					SVC:     addr.SvcDS,
 				}}).Return(hiddenpath.Servers{}, serrors.New("test"))
 				return d
@@ -93,7 +93,7 @@ func TestRegistrationResolverResolve(t *testing.T) {
 			router: func(ctrl *gomock.Controller) snet.Router {
 				router := mock_snet.NewMockRouter(ctrl)
 				path := mock_snet.NewMockPath(ctrl)
-				path.EXPECT().Path().Return(spath.Path{Raw: []byte("path")}).AnyTimes()
+				path.EXPECT().Dataplane().Return(snetpath.SCION{Raw: []byte("path")}).AnyTimes()
 				path.EXPECT().UnderlayNextHop().AnyTimes().Return(
 					xtest.MustParseUDPAddr(t, "10.1.0.1:404"))
 				router.EXPECT().Route(gomock.Any(), xtest.MustParseIA("1-ff00:0:110")).
@@ -105,7 +105,7 @@ func TestRegistrationResolverResolve(t *testing.T) {
 				d.EXPECT().Discover(gomock.Any(), addrMatcher{svc: &snet.SVCAddr{
 					IA:      xtest.MustParseIA("1-ff00:0:110"),
 					NextHop: xtest.MustParseUDPAddr(t, "10.1.0.1:404"),
-					Path:    spath.Path{Raw: []byte("path")},
+					Path:    snetpath.SCION{Raw: []byte("path")},
 					SVC:     addr.SvcDS,
 				}}).Return(hiddenpath.Servers{}, nil)
 				return d
@@ -117,7 +117,7 @@ func TestRegistrationResolverResolve(t *testing.T) {
 			router: func(ctrl *gomock.Controller) snet.Router {
 				router := mock_snet.NewMockRouter(ctrl)
 				path := mock_snet.NewMockPath(ctrl)
-				path.EXPECT().Path().Return(spath.Path{Raw: []byte("path")}).AnyTimes()
+				path.EXPECT().Dataplane().Return(snetpath.SCION{Raw: []byte("path")}).AnyTimes()
 				path.EXPECT().UnderlayNextHop().AnyTimes().Return(
 					xtest.MustParseUDPAddr(t, "10.1.0.1:404"))
 				router.EXPECT().Route(gomock.Any(), xtest.MustParseIA("1-ff00:0:110")).
@@ -129,7 +129,7 @@ func TestRegistrationResolverResolve(t *testing.T) {
 				d.EXPECT().Discover(gomock.Any(), addrMatcher{svc: &snet.SVCAddr{
 					IA:      xtest.MustParseIA("1-ff00:0:110"),
 					NextHop: xtest.MustParseUDPAddr(t, "10.1.0.1:404"),
-					Path:    spath.Path{Raw: []byte("path")},
+					Path:    snetpath.SCION{Raw: []byte("path")},
 					SVC:     addr.SvcDS,
 				}}).Return(hiddenpath.Servers{
 					Registration: []*net.UDPAddr{
@@ -143,7 +143,7 @@ func TestRegistrationResolverResolve(t *testing.T) {
 				IA:      xtest.MustParseIA("1-ff00:0:110"),
 				Host:    xtest.MustParseUDPAddr(t, "10.1.0.5:42"),
 				NextHop: xtest.MustParseUDPAddr(t, "10.1.0.1:404"),
-				Path:    spath.Path{Raw: []byte("path")},
+				Path:    snetpath.SCION{Raw: []byte("path")},
 			},
 		},
 	}

@@ -118,7 +118,7 @@ On other errors, traceroute will exit with code 2.
 			if err != nil {
 				return err
 			}
-			remote.Path = path.Path()
+			remote.Path = path.Dataplane()
 			remote.NextHop = path.UnderlayNextHop()
 			if remote.NextHop == nil {
 				remote.NextHop = &net.UDPAddr{

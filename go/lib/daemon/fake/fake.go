@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	snetpath "github.com/scionproto/scion/go/lib/snet/path"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // New creates a new fake SCION Daemon implementation using the data in the script.
@@ -91,9 +90,9 @@ func (p Path) Path(creationTime time.Time) snet.Path {
 	}
 	lifetime := time.Duration(p.JSONExpirationTimestamp) * time.Second
 	return snetpath.Path{
-		Dst:     ifaces[len(ifaces)-1].IA,
-		SPath:   spath.Path{},
-		NextHop: (*net.UDPAddr)(p.JSONNextHop),
+		Dst:           ifaces[len(ifaces)-1].IA,
+		DataplanePath: snetpath.SCION{},
+		NextHop:       (*net.UDPAddr)(p.JSONNextHop),
 		Meta: snet.PathMetadata{
 			Interfaces: ifaces,
 			MTU:        1472,

@@ -18,6 +18,7 @@ go_library(
         "//go/lib/slayers/path/scion:go_default_library",
         "//go/lib/snet:go_default_library",
         "//go/lib/snet/addrutil:go_default_library",
+        "//go/lib/snet/path:go_default_library",
         "//go/pkg/app:go_default_library",
         "//go/pkg/app/path:go_default_library",
         "//go/pkg/command:go_default_library",

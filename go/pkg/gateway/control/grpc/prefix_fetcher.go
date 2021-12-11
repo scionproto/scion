@@ -40,7 +40,7 @@ func (f PrefixFetcher) Prefixes(ctx context.Context, gateway *net.UDPAddr) ([]*n
 	}
 	conn, err := f.Dialer.Dial(ctx, &snet.UDPAddr{
 		IA:      f.Remote,
-		Path:    paths[0].Path(),
+		Path:    paths[0].Dataplane(),
 		NextHop: paths[0].UnderlayNextHop(),
 		Host:    gateway,
 	})

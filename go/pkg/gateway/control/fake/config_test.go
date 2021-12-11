@@ -23,10 +23,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/pktcls"
-	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	snetpath "github.com/scionproto/scion/go/lib/snet/path"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
 	"github.com/scionproto/scion/go/pkg/gateway/control/fake"
@@ -67,12 +65,11 @@ func TestParseConfig(t *testing.T) {
 						Paths: []snet.Path{
 							snetpath.Path{
 								Dst: xtest.MustParseIA("1-ff00:0:112"),
-								SPath: spath.Path{
+								DataplanePath: snetpath.SCION{
 									Raw: []byte{
 										0, 0, 32, 0, 1, 0, 10, 217, 96, 87, 95, 109,
 										0, 63, 0, 0, 0, 1, 54, 152, 193, 70, 99, 110,
 										0, 63, 0, 1, 0, 0, 203, 228, 96, 228, 101, 248},
-									Type: scion.PathType,
 								},
 								NextHop: xtest.MustParseUDPAddr(t, "242.254.100.3:5000"),
 								Meta: snet.PathMetadata{

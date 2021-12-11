@@ -25,7 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/snet/path"
 )
 
 // Addr represents a service address in a remote ISD-AS reachable via a SCION onehop path.
@@ -79,9 +79,9 @@ func (r *AddressRewriter) RedirectToQUIC(
 	return r.Rewriter.RedirectToQUIC(ctx, svc)
 }
 
-func (r *AddressRewriter) getPath(egress uint16) (spath.Path, error) {
+func (r *AddressRewriter) getPath(egress uint16) (path.OneHop, error) {
 	r.macMtx.Lock()
 	defer r.macMtx.Unlock()
 
-	return spath.NewOneHop(egress, time.Now(), 63, r.MAC)
+	return path.NewOneHop(egress, time.Now(), 63, r.MAC)
 }

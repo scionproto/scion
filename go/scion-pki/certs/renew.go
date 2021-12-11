@@ -357,7 +357,7 @@ The template is expressed in JSON. A valid example:
 			}
 			remote := &snet.SVCAddr{
 				IA:      ca,
-				Path:    path.Path(),
+				Path:    path.Dataplane(),
 				NextHop: path.UnderlayNextHop(),
 				SVC:     addr.SvcCS,
 			}

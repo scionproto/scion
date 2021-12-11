@@ -71,7 +71,7 @@ go_test(
         "//go/lib/slayers/path/scion:go_default_library",
         "//go/lib/snet:go_default_library",
         "//go/lib/snet/addrutil:go_default_library",
-        "//go/lib/spath:go_default_library",
+        "//go/lib/snet/path:go_default_library",
         "//go/lib/topology:go_default_library",
         "//go/lib/util:go_default_library",
         "//go/lib/xtest:go_default_library",

@@ -25,10 +25,10 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/slayers/path/scion"
+	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
-	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/svc"
 	"github.com/scionproto/scion/go/lib/svc/mock_svc"
 )
@@ -221,9 +221,8 @@ func TestDefaultHandler(t *testing.T) {
 		"path cannot be reversed": {
 			InputPacket: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
-					Path: spath.Path{
-						Raw:  []byte{0x00, 0x01, 0x02, 0x03},
-						Type: scion.PathType,
+					Path: path.SCION{
+						Raw: []byte{0x00, 0x01, 0x02, 0x03},
 					},
 					Payload: snet.UDPPayload{},
 				},
@@ -234,12 +233,16 @@ func TestDefaultHandler(t *testing.T) {
 			InputPacket: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Payload: snet.UDPPayload{},
+					Path:    snet.RawPath{},
 				},
 			},
 			ExpectedPacket: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Source:  snet.SCIONAddress{},
 					Payload: snet.UDPPayload{},
+					Path: snet.RawReplyPath{
+						Path: empty.Path{},
+					},
 				},
 			},
 		},
@@ -247,11 +250,15 @@ func TestDefaultHandler(t *testing.T) {
 			InputPacket: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Payload: snet.UDPPayload{SrcPort: 42, DstPort: 73},
+					Path:    snet.RawPath{},
 				},
 			},
 			ExpectedPacket: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Payload: snet.UDPPayload{SrcPort: 73, DstPort: 42},
+					Path: snet.RawReplyPath{
+						Path: empty.Path{},
+					},
 				},
 			},
 		},
@@ -260,11 +267,15 @@ func TestDefaultHandler(t *testing.T) {
 			InputPacket: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Payload: snet.UDPPayload{},
+					Path:    snet.RawPath{},
 				},
 			},
 			ExpectedPacket: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Payload: snet.UDPPayload{Payload: []byte{1, 2, 3, 4}},
+					Path: snet.RawReplyPath{
+						Path: empty.Path{},
+					},
 				},
 			},
 		},
@@ -273,12 +284,16 @@ func TestDefaultHandler(t *testing.T) {
 			InputPacket: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Payload: snet.UDPPayload{},
+					Path:    snet.RawPath{},
 				},
 			},
 			ExpectedPacket: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Source:  snet.SCIONAddress{Host: addr.HostIPv4(net.IP{192, 168, 0, 1})},
 					Payload: snet.UDPPayload{},
+					Path: snet.RawReplyPath{
+						Path: empty.Path{},
+					},
 				},
 			},
 		},
@@ -319,10 +334,19 @@ func TestDefaultHandler(t *testing.T) {
 		packet := &snet.Packet{
 			PacketInfo: snet.PacketInfo{
 				Payload: snet.UDPPayload{},
+				Path:    snet.RawPath{},
+			},
+		}
+		expectedPacket := &snet.Packet{
+			PacketInfo: snet.PacketInfo{
+				Payload: snet.UDPPayload{},
+				Path: snet.RawReplyPath{
+					Path: empty.Path{},
+				},
 			},
 		}
 		ov := &net.UDPAddr{IP: net.IP{192, 168, 0, 1}, Port: 0x29a}
-		conn.EXPECT().WriteTo(packet, ov).Times(1)
+		conn.EXPECT().WriteTo(expectedPacket, ov).Times(1)
 		sender := &svc.BaseHandler{}
 
 		request := &svc.Request{

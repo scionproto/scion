@@ -19,13 +19,12 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // SVCAddr is the address type for SVC destinations.
 type SVCAddr struct {
 	IA      addr.IA
-	Path    spath.Path
+	Path    DataplanePath
 	NextHop *net.UDPAddr
 	SVC     addr.HostSVC
 }
@@ -43,7 +42,7 @@ func (a *SVCAddr) String() string {
 // GetPath returns a path with attached metadata.
 func (a *SVCAddr) GetPath() (Path, error) {
 	return &partialPath{
-		spath:       a.Path.Copy(),
+		dataplane:   a.Path,
 		underlay:    a.NextHop,
 		destination: a.IA,
 	}, nil
@@ -56,7 +55,7 @@ func (a *SVCAddr) Copy() *SVCAddr {
 	}
 	return &SVCAddr{
 		IA:      a.IA,
-		Path:    a.Path.Copy(),
+		Path:    a.Path,
 		NextHop: CopyUDPAddr(a.NextHop),
 		SVC:     a.SVC,
 	}
