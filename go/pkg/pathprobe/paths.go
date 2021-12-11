@@ -70,7 +70,11 @@ func (s Status) String() string {
 // GetStatuses.
 func PathKey(path snet.Path) string {
 	dp := path.Dataplane()
-	return dp.PathKey()
+	scionPath, isScion := dp.(snetpath.SCION)
+	if !isScion {
+		return ""
+	}
+	return string(scionPath.Raw)
 }
 
 // FilterEmptyPaths removes all empty paths from paths and returns a copy.
@@ -301,7 +305,7 @@ func (h *scmpHandler) Handle(pkt *snet.Packet) error {
 	}
 	return reply{
 		Status:  status,
-		PathKey: scionReplyPath.PathKey(),
+		PathKey: PathKey(snetpath.Path{DataplanePath: scionReplyPath}),
 	}
 }
 

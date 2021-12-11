@@ -23,6 +23,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/scionproto/scion/go/cs/beacon"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -79,7 +80,7 @@ func (s SegmentCreationServer) Beacon(ctx context.Context,
 }
 
 // extractIngressIfID extracts the ingress interface ID from a path.
-func extractIngressIfID(path snet.DataplanePath) (common.IFIDType, error) {
+func extractIngressIfID(path snet.DataplanePath) (uint16, error) {
 	invertedPath, ok := path.(snet.RawReplyPath)
 	if !ok {
 		return 0, serrors.New("unexpected path", "type", common.TypeOf(path))

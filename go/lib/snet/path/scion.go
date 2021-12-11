@@ -17,7 +17,3 @@ func (p SCION) SetPath(s *slayers.SCION) error {
 	s.Path, s.PathType = &sp, sp.Type()
 	return nil
 }
-
-func (p SCION) PathKey() string {
-	return string(p.Raw)
-}
