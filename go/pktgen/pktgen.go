@@ -25,6 +25,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/spf13/cobra"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -32,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/pkg/app"
 	"github.com/scionproto/scion/go/pkg/app/path"
 	"github.com/scionproto/scion/go/pkg/command"
@@ -132,13 +134,17 @@ func run(cfg flags, dst *snet.UDPAddr) error {
 		return serrors.WrapStr("fetching paths", err)
 	}
 	dst.NextHop = path.UnderlayNextHop()
-	dst.Path = path.Path()
+	dst.Path = path.Dataplane()
 	localIP, err := resolveLocal(dst)
 	if err != nil {
 		return serrors.WrapStr("resolving local IP", err)
 	}
+	scionPath, ok := path.Dataplane().(snetpath.SCION)
+	if !ok {
+		return serrors.New("not a scion path", "type", common.TypeOf(path))
+	}
 	decPath := &scion.Decoded{}
-	if err := decPath.DecodeFromBytes(path.Path().Raw); err != nil {
+	if err := decPath.DecodeFromBytes(scionPath.Raw); err != nil {
 		return serrors.WrapStr("decoding path", err)
 	}
 

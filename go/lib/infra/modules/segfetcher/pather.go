@@ -198,10 +198,10 @@ func (p *Pather) translatePath(comb combinator.Path) (snet.Path, error) {
 			"ifid", comb.Metadata.Interfaces[0].ID)
 	}
 	return path.Path{
-		Dst:     comb.Metadata.Interfaces[len(comb.Metadata.Interfaces)-1].IA,
-		SPath:   comb.SPath,
-		NextHop: nextHop,
-		Meta:    comb.Metadata,
+		Dst:           comb.Metadata.Interfaces[len(comb.Metadata.Interfaces)-1].IA,
+		DataplanePath: comb.SCIONPath,
+		NextHop:       nextHop,
+		Meta:          comb.Metadata,
 	}, nil
 }
 

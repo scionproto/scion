@@ -33,7 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
@@ -571,7 +571,7 @@ func TestFilterDuplicates(t *testing.T) {
 		binary.LittleEndian.PutUint32(idBuf, id)
 		return combinator.Path{
 			// hide an id in the (otherwise unused) raw path
-			SPath: spath.Path{Raw: idBuf},
+			SCIONPath: snetpath.SCION{Raw: idBuf},
 			Metadata: snet.PathMetadata{
 				Interfaces: interfaces,
 				Expiry:     expiry,
@@ -671,7 +671,7 @@ func TestFilterDuplicates(t *testing.T) {
 			// extract IDs hidden in the raw paths:
 			filteredIds := make([]uint32, len(filtered))
 			for i, path := range filtered {
-				filteredIds[i] = binary.LittleEndian.Uint32(path.SPath.Raw)
+				filteredIds[i] = binary.LittleEndian.Uint32(path.SCIONPath.Raw)
 			}
 			assert.Equal(t, tc.Expected, filteredIds)
 		})
@@ -691,7 +691,7 @@ func writeTestString(p combinator.Path, w io.Writer) {
 	fmt.Fprintf(w, "  Weight: %d\n", p.Weight)
 
 	sp := scion.Decoded{}
-	if err := sp.DecodeFromBytes(p.SPath.Raw); err != nil {
+	if err := sp.DecodeFromBytes(p.SCIONPath.Raw); err != nil {
 		panic(err)
 	}
 

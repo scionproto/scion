@@ -65,6 +65,10 @@ type SCIONNetworkMetrics struct {
 type SCIONNetwork struct {
 	LocalIA    addr.IA
 	Dispatcher PacketDispatcherService
+	// ReplyPather is used to create reply paths when reading packets on Conn
+	// (that implements net.Conn). If unset, the default reply pather is used,
+	// which parses the incoming path as a path.Path and reverses it.
+	ReplyPather ReplyPather
 	// Metrics holds the metrics emitted by the network.
 	Metrics SCIONNetworkMetrics
 }
@@ -138,5 +142,12 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 		conn.listen.Port = int(port)
 	}
 	log.Debug("Registered with dispatcher", "addr", &UDPAddr{IA: n.LocalIA, Host: conn.listen})
-	return newConn(conn, packetConn), nil
+
+	replyPather := n.ReplyPather
+	if replyPather == nil {
+		replyPather = DefaultReplyPather{}
+		log.Debug("Injecting default ReplyPather")
+	}
+
+	return newConn(conn, packetConn, replyPather), nil
 }

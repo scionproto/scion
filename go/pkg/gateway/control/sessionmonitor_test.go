@@ -31,7 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/mocks/net/mock_net"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
-	"github.com/scionproto/scion/go/lib/spath"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
 	"github.com/scionproto/scion/go/pkg/gateway/control/mock_control"
@@ -98,7 +98,7 @@ func TestSessionMonitorTestProbing(t *testing.T) {
 		ProbeInterval:    5 * time.Microsecond,
 	}
 	path := mock_snet.NewMockPath(ctrl)
-	path.EXPECT().Path().Return(spath.Path{Raw: []byte("dummy")}).AnyTimes()
+	path.EXPECT().Dataplane().Return(snetpath.SCION{Raw: []byte("dummy")}).AnyTimes()
 	path.EXPECT().UnderlayNextHop().AnyTimes()
 	pathReg.EXPECT().Get().Return(pathhealth.Selection{Paths: []snet.Path{path}}).Times(3)
 	pathReg.EXPECT().Get().Return(pathhealth.Selection{}).AnyTimes()
@@ -113,7 +113,7 @@ func TestSessionMonitorTestProbing(t *testing.T) {
 			IA:      sessMon.RemoteIA,
 			Host:    sessMon.ProbeAddr,
 			NextHop: path.UnderlayNextHop(),
-			Path:    path.Path(),
+			Path:    path.Dataplane(),
 		},
 	}).Times(3)
 	conn.EXPECT().ReadFrom(gomock.Any()).AnyTimes()

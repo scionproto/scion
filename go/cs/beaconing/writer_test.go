@@ -46,6 +46,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 	"github.com/scionproto/scion/go/pkg/trust"
@@ -247,7 +248,9 @@ func TestRegistrarRun(t *testing.T) {
 					assert.Equal(t, addr.SvcCS, s.Addr.SVC)
 
 					var path scion.Decoded
-					if assert.NoError(t, path.DecodeFromBytes(s.Addr.Path.Raw)) {
+					scionPath, ok := s.Addr.Path.(snetpath.SCION)
+					require.True(t, ok)
+					if assert.NoError(t, path.DecodeFromBytes(scionPath.Raw)) {
 						pathHopField := path.HopFields[0]
 
 						segHopField := pseg.ASEntries[pseg.MaxIdx()].HopEntry.HopField

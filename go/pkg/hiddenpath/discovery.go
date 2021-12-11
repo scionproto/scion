@@ -90,7 +90,7 @@ func resolve(ctx context.Context, ia addr.IA, discoverer Discoverer, router snet
 	dsAddr := &snet.SVCAddr{
 		IA:      ia,
 		NextHop: path.UnderlayNextHop(),
-		Path:    path.Path(),
+		Path:    path.Dataplane(),
 		SVC:     addr.SvcDS,
 	}
 	hps, err := discoverer.Discover(ctx, dsAddr)
@@ -105,6 +105,6 @@ func resolve(ctx context.Context, ia addr.IA, discoverer Discoverer, router snet
 		IA:      ia,
 		Host:    a,
 		NextHop: path.UnderlayNextHop(),
-		Path:    path.Path(),
+		Path:    path.Dataplane(),
 	}, nil
 }

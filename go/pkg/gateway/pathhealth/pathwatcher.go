@@ -24,12 +24,13 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 )
 
 const (
@@ -202,14 +203,14 @@ func (w *pathWatcher) UpdatePath(path snet.Path) {
 		)
 		return
 	}
-	w.path = createPathWrap(path.Copy())
+	w.path = createPathWrap(path)
 }
 
 func (w *pathWatcher) Path() snet.Path {
 	w.pathMtx.RLock()
 	defer w.pathMtx.RUnlock()
 
-	return w.path.Copy()
+	return w.path
 }
 
 func (w *pathWatcher) State() State {
@@ -339,7 +340,7 @@ type pathWrap struct {
 	snet.Path
 	fingerprint snet.PathFingerprint
 	expiry      time.Time
-	dpPath      spath.Path
+	dpPath      snet.DataplanePath
 	err         error
 }
 
@@ -347,13 +348,15 @@ func createPathWrap(path snet.Path) pathWrap {
 	p := pathWrap{
 		Path: path,
 	}
-	if path == nil || path.Path().IsEmpty() {
-		p.err = serrors.New("empty path")
+
+	scionPath, ok := p.Dataplane().(snetpath.SCION)
+	if !ok {
+		p.err = serrors.New("not a scion path", "type", common.TypeOf(p.Dataplane()))
 		return p
 	}
 	p.fingerprint = snet.Fingerprint(path)
 	p.expiry = path.Metadata().Expiry
-	sp := path.Path()
+	sp := scionPath
 	decodedPath := scion.Decoded{}
 	if err := decodedPath.DecodeFromBytes(sp.Raw); err != nil {
 		p.err = serrors.WrapStr("decoding path", err)

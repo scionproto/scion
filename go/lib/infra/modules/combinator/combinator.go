@@ -28,7 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/snet/path"
 )
 
 // Combine constructs paths between src and dst using the supplied
@@ -72,10 +72,10 @@ func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment,
 }
 
 type Path struct {
-	Dst      addr.IA
-	SPath    spath.Path
-	Metadata snet.PathMetadata
-	Weight   int // XXX(matzf): unused, drop this?
+	Dst       addr.IA
+	SCIONPath path.SCION
+	Metadata  snet.PathMetadata
+	Weight    int // XXX(matzf): unused, drop this?
 }
 
 // filterLongPaths returns a new slice containing only those paths that do not

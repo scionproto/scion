@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/svc"
 )
 
@@ -116,7 +117,7 @@ func (r AddressRewriter) RedirectToQUIC(ctx context.Context,
 			return a, false, err
 		}
 
-		ret := &snet.UDPAddr{IA: fa.IA, Path: p.Path(), NextHop: fa.NextHop, Host: u}
+		ret := &snet.UDPAddr{IA: fa.IA, Path: p.Dataplane(), NextHop: fa.NextHop, Host: u}
 		return ret, quicRedirect, err
 	}
 
@@ -131,10 +132,10 @@ func (r AddressRewriter) RedirectToQUIC(ctx context.Context,
 func (r AddressRewriter) buildFullAddress(ctx context.Context,
 	s *snet.SVCAddr) (*snet.SVCAddr, error) {
 
-	if !s.Path.IsEmpty() {
+	if _, isEmpty := s.Path.(path.Empty); !isEmpty && s.Path != nil {
 		ret := &snet.SVCAddr{
 			IA:      s.IA,
-			Path:    s.Path.Copy(),
+			Path:    s.Path,
 			NextHop: snet.CopyUDPAddr(s.NextHop),
 			SVC:     s.SVC,
 		}
@@ -151,7 +152,7 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context,
 		return nil, serrors.New("no path found", "isd_as", s.IA)
 	}
 
-	ret.Path = p.Path()
+	ret.Path = p.Dataplane()
 	ret.NextHop = p.UnderlayNextHop()
 	defer func() {
 		log.Debug("[Acceptance]", "underlay", ret.NextHop)

@@ -23,7 +23,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/slayers"
 )
 
 const (
@@ -31,6 +31,13 @@ const (
 	// which no latency was announced.
 	LatencyUnset time.Duration = -1
 )
+
+// DataplanePath is an abstract representation of a SCION dataplane path.
+type DataplanePath interface {
+	// SetPath sets the path in the SCION header. It assumes that all the fields
+	// except the path and path type are set correctly.
+	SetPath(scion *slayers.SCION) error
+}
 
 // Path is an abstract representation of a path. Most applications do not need
 // access to the raw internals.
@@ -44,16 +51,14 @@ type Path interface {
 	// UnderlayNextHop returns the address:port pair of a local-AS underlay
 	// speaker. Usually, this is a border router that will forward the traffic.
 	UnderlayNextHop() *net.UDPAddr
-	// Path returns a raw (data-plane compatible) representation of the path.
-	Path() spath.Path
+	// Dataplane returns a path that should be used in the dataplane.
+	Dataplane() DataplanePath
 	// Destination is the AS the path points to. Empty paths return the local
 	// AS of the router that created them.
 	Destination() addr.IA
 	// Metadata returns supplementary information about this path.
 	// Returns nil if the metadata is not available.
 	Metadata() *PathMetadata
-	// Copy create a copy of the path.
-	Copy() Path
 }
 
 // PathInterface is an interface of the path.
@@ -198,7 +203,7 @@ func Fingerprint(path Path) PathFingerprint {
 // temporary solution where a full path cannot be reconstituted from other
 // objects, notably snet.UDPAddr and snet.SVCAddr.
 type partialPath struct {
-	spath       spath.Path
+	dataplane   DataplanePath
 	underlay    *net.UDPAddr
 	destination addr.IA
 }
@@ -207,8 +212,8 @@ func (p *partialPath) UnderlayNextHop() *net.UDPAddr {
 	return p.underlay
 }
 
-func (p *partialPath) Path() spath.Path {
-	return p.spath.Copy()
+func (p *partialPath) Dataplane() DataplanePath {
+	return p.dataplane
 }
 
 func (p *partialPath) Interfaces() []PathInterface {
@@ -221,19 +226,4 @@ func (p *partialPath) Destination() addr.IA {
 
 func (p *partialPath) Metadata() *PathMetadata {
 	return nil
-}
-
-func (p *partialPath) Copy() Path {
-	if p == nil {
-		return nil
-	}
-	return &partialPath{
-		spath:       p.Path(),
-		underlay:    CopyUDPAddr(p.underlay),
-		destination: p.destination,
-	}
-}
-
-func (p *partialPath) String() string {
-	return fmt.Sprintf("{spath: %s, underlay: %s, dest: %s}", p.spath, p.underlay, p.destination)
 }

@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
@@ -94,7 +95,7 @@ type tracerouter struct {
 
 // Run runs the traceroute.
 func Run(ctx context.Context, cfg Config) (Stats, error) {
-	if cfg.PathEntry.Path().IsEmpty() {
+	if _, isEmpty := cfg.PathEntry.Dataplane().(snetpath.Empty); isEmpty {
 		return Stats{}, serrors.New("empty path is not allowed for traceroute")
 	}
 	id := rand.Uint64()
@@ -125,12 +126,18 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 }
 
 func (t *tracerouter) Traceroute(ctx context.Context) (Stats, error) {
+	scionPath, ok := t.path.Dataplane().(snetpath.SCION)
+	if !ok {
+		return Stats{}, serrors.New("only SCION path allowed for traceroute",
+			"type", common.TypeOf(t.path.Dataplane()))
+	}
+
 	pktPath := scion.Decoded{}
-	if err := pktPath.DecodeFromBytes(t.path.Path().Raw); err != nil {
+	if err := pktPath.DecodeFromBytes(scionPath.Raw); err != nil {
 		return t.stats, serrors.WrapStr("decoding path", err)
 	}
 	idxPath := scion.Decoded{}
-	if err := idxPath.DecodeFromBytes(t.path.Path().Raw); err != nil {
+	if err := idxPath.DecodeFromBytes(scionPath.Raw); err != nil {
 		return t.stats, serrors.WrapStr("decoding path", err)
 	}
 	ctx, cancel := context.WithCancel(ctx)
@@ -192,7 +199,11 @@ func (t *tracerouter) probeHop(ctx context.Context, dp *scion.Decoded,
 		hf.IngressRouterAlert = true
 		defer func() { hf.IngressRouterAlert = false }()
 	}
-	p := t.path.Path()
+	p, ok := t.path.Dataplane().(snetpath.SCION)
+	if !ok {
+		return Update{}, serrors.New("only SCION path allowed for probeHop",
+			"type", common.TypeOf(t.path.Dataplane()))
+	}
 	if err := dp.SerializeTo(p.Raw); err != nil {
 		return Update{}, serrors.WrapStr("serializing path", err)
 	}
@@ -290,7 +301,7 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 		Remote: &snet.UDPAddr{
 			IA:   pkt.Source.IA,
 			Host: &net.UDPAddr{IP: pkt.Source.Host.IP()},
-			Path: pkt.Path.Copy(),
+			Path: pkt.Path,
 		},
 		Error: err,
 	}

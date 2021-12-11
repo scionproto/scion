@@ -592,7 +592,7 @@ func (r *renewer) Request(
 	}
 	remote := &snet.SVCAddr{
 		IA:      ca,
-		Path:    path.Path(),
+		Path:    path.Dataplane(),
 		NextHop: path.UnderlayNextHop(),
 		SVC:     addr.SvcCS,
 	}

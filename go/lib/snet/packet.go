@@ -24,14 +24,13 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
-	"github.com/scionproto/scion/go/lib/slayers/path/scion"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // Payload is the payload of the message, use the different payload type to
 // instantiate it.
 type Payload interface {
 	toLayers(scn *slayers.SCION) []gopacket.SerializableLayer
+	length() int
 }
 
 // UDPPayload is a simple UDP payload.
@@ -48,6 +47,10 @@ func (m UDPPayload) toLayers(scn *slayers.SCION) []gopacket.SerializableLayer {
 	}
 	udp.SetNetworkLayerForChecksum(scn)
 	return []gopacket.SerializableLayer{&udp, gopacket.Payload(m.Payload)}
+}
+
+func (m UDPPayload) length() int {
+	return 8 + len(m.Payload)
 }
 
 // SCMPPayload is the interface that all SCMP payloads must implement. It can be
@@ -79,6 +82,10 @@ func (SCMPDestinationUnreachable) Type() slayers.SCMPType {
 // Code returns the SCMP code.
 func (m SCMPDestinationUnreachable) Code() slayers.SCMPCode { return m.code }
 
+func (m SCMPDestinationUnreachable) length() int {
+	return 8 + len(m.Payload)
+}
+
 // SCMPPacketTooBig indicates that a packet was too big.
 type SCMPPacketTooBig struct {
 	MTU     uint16
@@ -96,6 +103,10 @@ func (SCMPPacketTooBig) Type() slayers.SCMPType {
 
 // Code returns the SCMP code.
 func (SCMPPacketTooBig) Code() slayers.SCMPCode { return 0 }
+
+func (m SCMPPacketTooBig) length() int {
+	return 8 + len(m.Payload)
+}
 
 // SCMPParameterProblem is the SCMP parameter problem message.
 type SCMPParameterProblem struct {
@@ -117,6 +128,10 @@ func (SCMPParameterProblem) Type() slayers.SCMPType {
 
 // Code returns the SCMP code.
 func (m SCMPParameterProblem) Code() slayers.SCMPCode { return m.code }
+
+func (m SCMPParameterProblem) length() int {
+	return 8 + len(m.Payload)
+}
 
 // SCMPExternalInterfaceDown is the message that indicates that an interface is
 // down.
@@ -143,6 +158,10 @@ func (SCMPExternalInterfaceDown) Type() slayers.SCMPType {
 
 // Code returns the SCMP code.
 func (SCMPExternalInterfaceDown) Code() slayers.SCMPCode { return 0 }
+
+func (m SCMPExternalInterfaceDown) length() int {
+	return 20 + len(m.Payload)
+}
 
 // SCMPInternalConnectivityDown is the message that an internal interface is
 // down.
@@ -171,6 +190,10 @@ func (SCMPInternalConnectivityDown) Type() slayers.SCMPType {
 // Code returns the SCMP code.
 func (SCMPInternalConnectivityDown) Code() slayers.SCMPCode { return 0 }
 
+func (m SCMPInternalConnectivityDown) length() int {
+	return 28 + len(m.Payload)
+}
+
 // SCMPEchoRequest is the SCMP echo request payload.
 type SCMPEchoRequest struct {
 	Identifier uint16
@@ -193,6 +216,10 @@ func (SCMPEchoRequest) Type() slayers.SCMPType { return slayers.SCMPTypeEchoRequ
 
 // Code returns the SCMP code.
 func (SCMPEchoRequest) Code() slayers.SCMPCode { return 0 }
+
+func (m SCMPEchoRequest) length() int {
+	return 8 + len(m.Payload)
+}
 
 // SCMPEchoReply is the SCMP echo reply payload.
 type SCMPEchoReply struct {
@@ -217,6 +244,10 @@ func (SCMPEchoReply) Type() slayers.SCMPType { return slayers.SCMPTypeEchoReply 
 // Code returns the SCMP code.
 func (SCMPEchoReply) Code() slayers.SCMPCode { return 0 }
 
+func (m SCMPEchoReply) length() int {
+	return 8 + len(m.Payload)
+}
+
 // SCMPTracerouteRequest is the SCMP traceroute request payload.
 type SCMPTracerouteRequest struct {
 	Identifier uint16
@@ -238,6 +269,10 @@ func (SCMPTracerouteRequest) Type() slayers.SCMPType { return slayers.SCMPTypeTr
 
 // Code returns the SCMP code.
 func (SCMPTracerouteRequest) Code() slayers.SCMPCode { return 0 }
+
+func (m SCMPTracerouteRequest) length() int {
+	return 24
+}
 
 // SCMPTracerouteReply is the SCMP traceroute reply payload.
 type SCMPTracerouteReply struct {
@@ -265,6 +300,10 @@ func (SCMPTracerouteReply) Type() slayers.SCMPType { return slayers.SCMPTypeTrac
 // Code returns the SCMP code.
 func (SCMPTracerouteReply) Code() slayers.SCMPCode { return 0 }
 
+func (m SCMPTracerouteReply) length() int {
+	return 24
+}
+
 func toLayers(scmpPld SCMPPayload,
 	scn *slayers.SCION, details gopacket.SerializableLayer,
 	payload []byte) []gopacket.SerializableLayer {
@@ -280,6 +319,21 @@ func toLayers(scmpPld SCMPPayload,
 		l = append(l, gopacket.Payload(payload))
 	}
 	return l
+}
+
+// RawPath is the unprocessed path that is read from a received SCION packet
+//
+// Packets that are received on the SCIONPacketConn contain a struct of this
+// type in the Path field.
+type RawPath struct {
+	PathType path.Type
+	Raw      []byte
+}
+
+// SetPath is a dummy method to implement the DataplanePath interface.
+// Consumers of SCIONPacketConn need to extract the path and handle it appropriately.
+func (r RawPath) SetPath(s *slayers.SCION) error {
+	return serrors.New("snet.RawPath does not support SetPath")
 }
 
 // Packet describes a SCION packet.
@@ -330,17 +384,18 @@ func (p *Packet) Decode() error {
 	}
 	p.Destination = SCIONAddress{IA: scionLayer.DstIA, Host: dstHost}
 	p.Source = SCIONAddress{IA: scionLayer.SrcIA, Host: srcHost}
-	// A path of length 4 is an empty path, because it only contains the mandatory
-	// minimal header.
-	if l := scionLayer.Path.Len(); l > 4 {
-		pathCopy := make([]byte, scionLayer.Path.Len())
-		if err := scionLayer.Path.SerializeTo(pathCopy); err != nil {
+
+	rpath := RawPath{
+		PathType: scionLayer.Path.Type(),
+	}
+	if l := scionLayer.Path.Len(); l != 0 {
+		rpath.Raw = make([]byte, l)
+		if err := scionLayer.Path.SerializeTo(rpath.Raw); err != nil {
 			return serrors.WrapStr("extracting path", err)
 		}
-		p.Path = spath.Path{Raw: pathCopy, Type: scionLayer.PathType}
-	} else {
-		p.Path = spath.Path{}
 	}
+	p.Path = rpath
+
 	switch l4 {
 	case slayers.LayerTypeSCIONUDP:
 		p.Payload = UDPPayload{
@@ -478,6 +533,9 @@ func (p *Packet) Serialize() error {
 	if p.Payload == nil {
 		return serrors.New("no payload set")
 	}
+	if p.Path == nil {
+		return serrors.New("no path set")
+	}
 	var packetLayers []gopacket.SerializableLayer
 
 	var scionLayer slayers.SCION
@@ -508,21 +566,14 @@ func (p *Packet) Serialize() error {
 		return serrors.WrapStr("settting source address", err)
 	}
 
-	scionLayer.PathType = p.Path.Type
-	scionLayer.Path, err = path.NewPath(p.Path.Type)
-	if err != nil {
-		return err
-	}
-	if err = scionLayer.Path.DecodeFromBytes(p.Path.Raw); err != nil {
-		return serrors.WrapStr("decoding path", err)
-	}
-	// XXX this is for convenience when debugging with delve
-	if p.Path.Type == scion.PathType {
-		sp := scionLayer.Path.(*scion.Raw)
-		scionLayer.Path, err = sp.ToDecoded()
-		if err != nil {
-			return err
-		}
+	// XXX(roosd): Currently, this does not take the extension headers
+	// into consideration.
+	scionLayer.PayloadLen = uint16(p.Payload.length())
+
+	// At this point all the fields in the SCION header apart from the path
+	// and path type must be set already.
+	if err := p.Path.SetPath(&scionLayer); err != nil {
+		return serrors.WrapStr("setting path", err)
 	}
 
 	packetLayers = append(packetLayers, &scionLayer)
@@ -552,12 +603,8 @@ type PacketInfo struct {
 	// Source contains the source address. If it is an SVC address, packet
 	// serialization will return an error.
 	Source SCIONAddress
-	// Path contains a SCION forwarding path. The field must be nil or an empty
-	// path if the source and destination are inside the same AS.
-	//
-	// If the source and destination are in different ASes but the path is
-	// nil or empty, an error is returned during serialization.
-	Path spath.Path
+	// Path contains a SCION forwarding path. This field must not be nil.
+	Path DataplanePath
 	// Payload is the Payload of the message.
 	Payload Payload
 }

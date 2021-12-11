@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/pkg/daemon/fetcher"
@@ -149,7 +150,11 @@ func pathToPB(path snet.Path) *sdpb.Path {
 		linkType[i] = linkTypeToPB(v)
 	}
 
-	raw := path.Path().Raw
+	var raw []byte
+	scionPath, ok := path.Dataplane().(snetpath.SCION)
+	if ok {
+		raw = scionPath.Raw
+	}
 	nextHopStr := ""
 	if nextHop := path.UnderlayNextHop(); nextHop != nil {
 		nextHopStr = nextHop.String()

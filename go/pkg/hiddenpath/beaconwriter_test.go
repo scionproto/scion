@@ -43,6 +43,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
@@ -70,7 +71,9 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 		assert.Equal(t, addr.SvcCS, a.SVC)
 
 		var path scion.Decoded
-		if assert.NoError(t, path.DecodeFromBytes(a.Path.Raw)) {
+		scionPath, ok := a.Path.(snetpath.SCION)
+		require.True(t, ok)
+		if assert.NoError(t, path.DecodeFromBytes(scionPath.Raw)) {
 			pathHopField := path.HopFields[0]
 
 			segHopField := pseg.ASEntries[pseg.MaxIdx()].HopEntry.HopField
