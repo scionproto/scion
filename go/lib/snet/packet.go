@@ -345,10 +345,6 @@ func (r RawPath) SetPath(s *slayers.SCION) error {
 	return nil
 }
 
-func (r RawPath) PathKey() string {
-	return string(r.Raw)
-}
-
 // Packet describes a SCION packet.
 type Packet struct {
 	Bytes

@@ -47,8 +47,3 @@ func (p RawReplyPath) SetPath(s *slayers.SCION) error {
 	s.Path, s.PathType = p.Path, p.Path.Type()
 	return nil
 }
-
-// TODO: how to implement this?
-func (p RawReplyPath) PathKey() string {
-	return ""
-}

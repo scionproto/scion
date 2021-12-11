@@ -28,20 +28,6 @@ func (p OneHop) SetPath(s *slayers.SCION) error {
 	return nil
 }
 
-func (p OneHop) PathKey() string {
-	ohp := &onehop.Path{
-		Info:      p.Info,
-		FirstHop:  p.FirstHop,
-		SecondHop: p.SecondHop,
-	}
-	l := ohp.Len()
-	raw := make([]byte, l)
-	if err := ohp.SerializeTo(raw); err != nil {
-		return ""
-	}
-	return string(raw)
-}
-
 // NewOneHop creates a onehop path that has the first hopfield initialized.
 func NewOneHop(egress uint16, timestamp time.Time, expiration uint8,
 	mac hash.Hash) (OneHop, error) {

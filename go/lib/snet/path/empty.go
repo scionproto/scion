@@ -11,7 +11,3 @@ func (e Empty) SetPath(s *slayers.SCION) error {
 	s.Path, s.PathType = empty.Path{}, empty.PathType
 	return nil
 }
-
-func (e Empty) PathKey() string {
-	return ""
-}
