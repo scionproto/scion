@@ -40,6 +40,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/snet/squic"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/svc"
@@ -662,8 +663,9 @@ func sendRequest(
 ) (*cppb.ChainRenewalResponse, error) {
 
 	dstSVC := &snet.SVCAddr{
-		IA:  dstIA,
-		SVC: addr.SvcCS,
+		IA:   dstIA,
+		SVC:  addr.SvcCS,
+		Path: snetpath.Empty{},
 	}
 	conn, err := dialer.Dial(ctx, dstSVC)
 	if err != nil {
