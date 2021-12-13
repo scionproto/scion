@@ -42,6 +42,7 @@ import (
 	segreggrpc "github.com/scionproto/scion/go/cs/segreg/grpc"
 	"github.com/scionproto/scion/go/cs/segreq"
 	segreqgrpc "github.com/scionproto/scion/go/cs/segreq/grpc"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	segfetchergrpc "github.com/scionproto/scion/go/lib/infra/modules/segfetcher/grpc"
@@ -67,6 +68,7 @@ import (
 	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/cs"
 	"github.com/scionproto/scion/go/pkg/cs/api"
+	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	cstrustgrpc "github.com/scionproto/scion/go/pkg/cs/trust/grpc"
 	cstrustmetrics "github.com/scionproto/scion/go/pkg/cs/trust/metrics"
 	"github.com/scionproto/scion/go/pkg/discovery"
@@ -563,6 +565,11 @@ func realMain(ctx context.Context) error {
 			LogLevel: service.NewLogLevelStatusPage().Handler,
 			Signer:   signer,
 			Topology: topo.HandleHTTP,
+			Healther: &healther{
+				Signer:  signer,
+				TrustDB: trustDB,
+				ISD:     topo.IA().I,
+			},
 		}
 		log.Info("Exposing API", "addr", globalCfg.API.Addr)
 		s := http.Server{
@@ -708,4 +715,42 @@ func adaptInterfaceMap(in map[common.IFIDType]topology.IFInfo) map[uint16]ifstat
 		}
 	}
 	return converted
+}
+
+type healther struct {
+	Signer  cstrust.RenewingSigner
+	TrustDB storage.TrustDB
+	ISD     addr.ISD
+}
+
+func (h *healther) GetSignerHealth(ctx context.Context) api.SignerHealthData {
+	signer, err := h.Signer.SignerGen.Generate(ctx)
+	if err != nil {
+		return api.SignerHealthData{
+			SignerMissing:       true,
+			SignerMissingDetail: err.Error(),
+		}
+	}
+	return api.SignerHealthData{
+		Expiration: signer.Expiration,
+		InGrace:    signer.InGrace,
+	}
+}
+
+func (h *healther) GetTRCHealth(ctx context.Context) api.TRCHealthData {
+	trc, err := h.TrustDB.SignedTRC(ctx, cppki.TRCID{ISD: h.ISD})
+	if err != nil {
+		return api.TRCHealthData{
+			TRCNotFound:       true,
+			TRCNotFoundDetail: err.Error(),
+		}
+	}
+	if trc.IsZero() {
+		return api.TRCHealthData{
+			TRCNotFound: true,
+		}
+	}
+	return api.TRCHealthData{
+		TRCID: trc.TRC.ID,
+	}
 }

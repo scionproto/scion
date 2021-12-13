@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package api_test
 
 import (
 	"crypto/x509"
@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -37,6 +38,7 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/ca/renewal"
 	"github.com/scionproto/scion/go/pkg/ca/renewal/mock_renewal"
+	"github.com/scionproto/scion/go/pkg/cs/api"
 	"github.com/scionproto/scion/go/pkg/cs/api/mock_api"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	"github.com/scionproto/scion/go/pkg/cs/trust/mock_trust"
@@ -49,16 +51,18 @@ var update = xtest.UpdateGoldenFiles()
 // TestAPI tests the API response generation of the endpoints implemented in the
 // api package.
 func TestAPI(t *testing.T) {
+	now := time.Now()
 	testCases := map[string]struct {
 		Handler            func(t *testing.T, ctrl *gomock.Controller) http.Handler
 		RequestURL         string
 		Status             int
 		IgnoreResponseBody bool
+		TimestampOffset    time.Duration
 	}{
 		"beacons": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				bs := mock_api.NewMockBeaconStore(ctrl)
-				s := &Server{
+				s := &api.Server{
 					Beacons: bs,
 				}
 				dbresult := createBeacons(t)
@@ -66,7 +70,7 @@ func TestAPI(t *testing.T) {
 					gomock.Any(),
 					&beacon.QueryParams{},
 				).AnyTimes().Return(dbresult, nil)
-				return Handler(s)
+				return api.Handler(s)
 			},
 			RequestURL: "/beacons",
 			Status:     200,
@@ -74,7 +78,7 @@ func TestAPI(t *testing.T) {
 		"beacons non-existing sort": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				bs := mock_api.NewMockBeaconStore(ctrl)
-				s := &Server{
+				s := &api.Server{
 					Beacons: bs,
 				}
 				dbresult := createBeacons(t)
@@ -82,7 +86,7 @@ func TestAPI(t *testing.T) {
 					gomock.Any(),
 					&beacon.QueryParams{},
 				).Times(0).Return(dbresult, nil)
-				return Handler(s)
+				return api.Handler(s)
 			},
 			RequestURL: "/beacons?sort=invalid",
 			Status:     400,
@@ -90,7 +94,7 @@ func TestAPI(t *testing.T) {
 		"beacons sort owner": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				bs := mock_api.NewMockBeaconStore(ctrl)
-				s := &Server{
+				s := &api.Server{
 					Beacons: bs,
 				}
 				dbresult := createBeacons(t)
@@ -98,7 +102,7 @@ func TestAPI(t *testing.T) {
 					gomock.Any(),
 					&beacon.QueryParams{},
 				).Times(1).Return(dbresult, nil)
-				return Handler(s)
+				return api.Handler(s)
 			},
 			RequestURL: "/beacons?sort=ingress_interface_id",
 			Status:     200,
@@ -106,7 +110,7 @@ func TestAPI(t *testing.T) {
 		"beacons descending order": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				bs := mock_api.NewMockBeaconStore(ctrl)
-				s := &Server{
+				s := &api.Server{
 					Beacons: bs,
 				}
 				dbresult := createBeacons(t)
@@ -114,7 +118,7 @@ func TestAPI(t *testing.T) {
 					gomock.Any(),
 					&beacon.QueryParams{},
 				).Times(1).Return(dbresult, nil)
-				return Handler(s)
+				return api.Handler(s)
 			},
 			RequestURL: "/beacons?desc=true",
 			Status:     200,
@@ -122,7 +126,7 @@ func TestAPI(t *testing.T) {
 		"beacons non-existing usages": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				bs := mock_api.NewMockBeaconStore(ctrl)
-				s := &Server{
+				s := &api.Server{
 					Beacons: bs,
 				}
 				dbresult := createBeacons(t)
@@ -130,7 +134,7 @@ func TestAPI(t *testing.T) {
 					gomock.Any(),
 					&beacon.QueryParams{},
 				).Times(0).Return(dbresult, nil)
-				return Handler(s)
+				return api.Handler(s)
 			},
 			RequestURL: "/beacons?usages=up_registration&usages=Invalid",
 			Status:     400,
@@ -138,7 +142,7 @@ func TestAPI(t *testing.T) {
 		"beacons existing usages": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				bs := mock_api.NewMockBeaconStore(ctrl)
-				s := &Server{
+				s := &api.Server{
 					Beacons: bs,
 				}
 				dbresult := createBeacons(t)
@@ -148,7 +152,7 @@ func TestAPI(t *testing.T) {
 						Usages: []beaconlib.Usage{beaconlib.UsageCoreReg | beaconlib.UsageUpReg},
 					},
 				).Times(1).Return(dbresult, nil)
-				return Handler(s)
+				return api.Handler(s)
 			},
 			RequestURL: "/beacons?usages=up_registration&usages=core_registration",
 			Status:     200,
@@ -156,7 +160,7 @@ func TestAPI(t *testing.T) {
 		"signer": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				g := mock_trust.NewMockSignerGen(ctrl)
-				s := &Server{
+				s := &api.Server{
 					Signer: cstrust.RenewingSigner{
 						SignerGen: g,
 					},
@@ -183,7 +187,7 @@ func TestAPI(t *testing.T) {
 						InGrace: true,
 					}, nil,
 				)
-				return Handler(s)
+				return api.Handler(s)
 			},
 			RequestURL: "/signer",
 			Status:     200,
@@ -191,7 +195,7 @@ func TestAPI(t *testing.T) {
 		"signer error": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				g := mock_trust.NewMockSignerGen(ctrl)
-				s := &Server{
+				s := &api.Server{
 					Signer: cstrust.RenewingSigner{
 						SignerGen: g,
 					},
@@ -199,7 +203,7 @@ func TestAPI(t *testing.T) {
 				g.EXPECT().Generate(gomock.Any()).AnyTimes().Return(
 					trust.Signer{}, serrors.New("internal"),
 				)
-				return Handler(s)
+				return api.Handler(s)
 			},
 			RequestURL: "/signer",
 			Status:     500,
@@ -207,7 +211,7 @@ func TestAPI(t *testing.T) {
 		"signer blob": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				g := mock_trust.NewMockSignerGen(ctrl)
-				s := &Server{
+				s := &api.Server{
 					Signer: cstrust.RenewingSigner{
 						SignerGen: g,
 					},
@@ -218,7 +222,7 @@ func TestAPI(t *testing.T) {
 						Chain: validCert,
 					}, nil,
 				)
-				return Handler(s)
+				return api.Handler(s)
 			},
 			RequestURL: "/signer/blob",
 			Status:     200,
@@ -226,7 +230,7 @@ func TestAPI(t *testing.T) {
 		"signer blob error": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				g := mock_trust.NewMockSignerGen(ctrl)
-				s := &Server{
+				s := &api.Server{
 					Signer: cstrust.RenewingSigner{
 						SignerGen: g,
 					},
@@ -234,7 +238,7 @@ func TestAPI(t *testing.T) {
 				g.EXPECT().Generate(gomock.Any()).AnyTimes().Return(
 					trust.Signer{}, nil,
 				)
-				return Handler(s)
+				return api.Handler(s)
 			},
 			RequestURL: "/signer/blob",
 			Status:     500,
@@ -242,7 +246,7 @@ func TestAPI(t *testing.T) {
 		"ca": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				g := mock_renewal.NewMockPolicyGen(ctrl)
-				s := &Server{
+				s := &api.Server{
 					CA: renewal.ChainBuilder{
 						PolicyGen: g,
 					},
@@ -254,7 +258,7 @@ func TestAPI(t *testing.T) {
 						Certificate: validCert[0],
 					}, nil,
 				)
-				return Handler(s)
+				return api.Handler(s)
 			},
 			RequestURL: "/ca",
 			Status:     200,
@@ -262,7 +266,7 @@ func TestAPI(t *testing.T) {
 		"ca error (empty certificate)": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				g := mock_renewal.NewMockPolicyGen(ctrl)
-				s := &Server{
+				s := &api.Server{
 					CA: renewal.ChainBuilder{
 						PolicyGen: g,
 					},
@@ -274,7 +278,7 @@ func TestAPI(t *testing.T) {
 						CurrentTime: time.Now(),
 					}, nil,
 				)
-				return Handler(s)
+				return api.Handler(s)
 			},
 			RequestURL: "/ca",
 			Status:     500,
@@ -282,7 +286,7 @@ func TestAPI(t *testing.T) {
 		"ca error (no signer)": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				g := mock_renewal.NewMockPolicyGen(ctrl)
-				s := &Server{
+				s := &api.Server{
 					CA: renewal.ChainBuilder{
 						PolicyGen: g,
 					},
@@ -294,10 +298,292 @@ func TestAPI(t *testing.T) {
 						CurrentTime: time.Now(),
 					}, serrors.New("internal"),
 				)
-				return Handler(s)
+				return api.Handler(s)
 			},
 			RequestURL: "/ca",
 			Status:     500,
+		},
+		"health": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				h := mock_api.NewMockHealther(ctrl)
+				s := &api.Server{
+					Healther: h,
+				}
+				h.EXPECT().GetSignerHealth(gomock.Any()).Return(
+					api.SignerHealthData{
+						SignerMissing: false,
+						Expiration:    now.Add(10 * time.Hour),
+						InGrace:       false,
+					},
+				)
+				h.EXPECT().GetTRCHealth(gomock.Any()).Return(
+					api.TRCHealthData{
+						TRCNotFound: false,
+						TRCID: cppki.TRCID{
+							Base:   2,
+							Serial: 1,
+							ISD:    12,
+						},
+					},
+				)
+				return api.Handler(s)
+			},
+			RequestURL:      "/health",
+			TimestampOffset: 10 * time.Hour,
+			Status:          200,
+		},
+		"health expired signer": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				h := mock_api.NewMockHealther(ctrl)
+				s := &api.Server{
+					Healther: h,
+				}
+				h.EXPECT().GetSignerHealth(gomock.Any()).Return(
+					api.SignerHealthData{
+						SignerMissing: false,
+						Expiration:    now.Add(-10 * time.Hour),
+						InGrace:       false,
+					},
+				)
+				h.EXPECT().GetTRCHealth(gomock.Any()).Return(
+					api.TRCHealthData{
+						TRCNotFound: false,
+						TRCID: cppki.TRCID{
+							Base:   2,
+							Serial: 1,
+							ISD:    12,
+						},
+					},
+				)
+				return api.Handler(s)
+			},
+			RequestURL:      "/health",
+			TimestampOffset: -10 * time.Hour,
+			Status:          200,
+		},
+		"health trc fails": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				h := mock_api.NewMockHealther(ctrl)
+				s := &api.Server{
+					Healther: h,
+				}
+				h.EXPECT().GetSignerHealth(gomock.Any()).Return(
+					api.SignerHealthData{
+						SignerMissing: false,
+						Expiration:    now.Add(10 * time.Hour),
+						InGrace:       false,
+					},
+				)
+				h.EXPECT().GetTRCHealth(gomock.Any()).Return(
+					api.TRCHealthData{
+						TRCNotFound: true,
+					},
+				)
+				return api.Handler(s)
+			},
+			RequestURL:      "/health",
+			TimestampOffset: 10 * time.Hour,
+			Status:          200,
+		},
+		"health trc error": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				h := mock_api.NewMockHealther(ctrl)
+				s := &api.Server{
+					Healther: h,
+				}
+				h.EXPECT().GetSignerHealth(gomock.Any()).Return(
+					api.SignerHealthData{
+						SignerMissing: false,
+						Expiration:    now.Add(10 * time.Hour),
+						InGrace:       false,
+					},
+				)
+				h.EXPECT().GetTRCHealth(gomock.Any()).Return(
+					api.TRCHealthData{
+						TRCNotFound:       true,
+						TRCNotFoundDetail: "internal",
+					},
+				)
+				return api.Handler(s)
+			},
+			RequestURL:      "/health",
+			TimestampOffset: 10 * time.Hour,
+			Status:          200,
+		},
+		"health signer error": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				h := mock_api.NewMockHealther(ctrl)
+				s := &api.Server{
+					Healther: h,
+				}
+				h.EXPECT().GetSignerHealth(gomock.Any()).Return(
+					api.SignerHealthData{
+						SignerMissing: true,
+					},
+				)
+				h.EXPECT().GetTRCHealth(gomock.Any()).Return(
+					api.TRCHealthData{
+						TRCNotFound: true,
+					},
+				)
+				return api.Handler(s)
+			},
+			RequestURL:      "/health",
+			TimestampOffset: 10 * time.Hour,
+			Status:          200,
+		},
+		"health signer fails": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				h := mock_api.NewMockHealther(ctrl)
+				s := &api.Server{
+					Healther: h,
+				}
+				h.EXPECT().GetSignerHealth(gomock.Any()).Return(
+					api.SignerHealthData{
+						SignerMissing: true,
+					},
+				)
+				h.EXPECT().GetTRCHealth(gomock.Any()).Return(
+					api.TRCHealthData{
+						TRCNotFound: false,
+						TRCID: cppki.TRCID{
+							Base:   2,
+							Serial: 1,
+							ISD:    12,
+						},
+					},
+				)
+				return api.Handler(s)
+			},
+			RequestURL:      "/health",
+			TimestampOffset: 2 * time.Hour,
+			Status:          200,
+		},
+		"health signer degraded": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				h := mock_api.NewMockHealther(ctrl)
+				s := &api.Server{
+					Healther: h,
+				}
+				h.EXPECT().GetSignerHealth(gomock.Any()).Return(
+					api.SignerHealthData{
+						SignerMissing: false,
+						Expiration:    now.Add(3 * time.Hour),
+						InGrace:       false,
+					},
+				)
+				h.EXPECT().GetTRCHealth(gomock.Any()).Return(
+					api.TRCHealthData{
+						TRCNotFound: false,
+						TRCID: cppki.TRCID{
+							Base:   2,
+							Serial: 1,
+							ISD:    12,
+						}},
+				)
+				return api.Handler(s)
+			},
+			RequestURL:      "/health",
+			TimestampOffset: 3 * time.Hour,
+			Status:          200,
+		},
+		"health signer grace period": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				h := mock_api.NewMockHealther(ctrl)
+				s := &api.Server{
+					Healther: h,
+				}
+				h.EXPECT().GetSignerHealth(gomock.Any()).Return(
+					api.SignerHealthData{
+						SignerMissing: false,
+						Expiration:    now.Add(2 * time.Hour),
+						InGrace:       true,
+					},
+				)
+				h.EXPECT().GetTRCHealth(gomock.Any()).Return(
+					api.TRCHealthData{
+						TRCNotFound: false,
+						TRCID: cppki.TRCID{
+							Base:   2,
+							Serial: 1,
+							ISD:    12,
+						},
+					},
+				)
+				return api.Handler(s)
+			},
+			RequestURL:      "/health",
+			TimestampOffset: 2 * time.Hour,
+			Status:          200,
+		},
+		"health signer degraded trc fails": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				h := mock_api.NewMockHealther(ctrl)
+				s := &api.Server{
+					Healther: h,
+				}
+				h.EXPECT().GetSignerHealth(gomock.Any()).Return(
+					api.SignerHealthData{
+						SignerMissing: false,
+						Expiration:    now.Add(2 * time.Hour),
+						InGrace:       false,
+					},
+				)
+				h.EXPECT().GetTRCHealth(gomock.Any()).Return(
+					api.TRCHealthData{
+						TRCNotFound: true,
+					},
+				)
+				return api.Handler(s)
+			},
+			RequestURL:      "/health",
+			TimestampOffset: 2 * time.Hour,
+			Status:          200,
+		},
+		"health signer grace period trc fails": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				h := mock_api.NewMockHealther(ctrl)
+				s := &api.Server{
+					Healther: h,
+				}
+				h.EXPECT().GetSignerHealth(gomock.Any()).Return(
+					api.SignerHealthData{
+						SignerMissing: false,
+						Expiration:    now.Add(2 * time.Hour),
+						InGrace:       true,
+					},
+				)
+				h.EXPECT().GetTRCHealth(gomock.Any()).Return(
+					api.TRCHealthData{
+						TRCNotFound: true,
+					},
+				)
+				return api.Handler(s)
+			},
+			RequestURL:      "/health",
+			TimestampOffset: 2 * time.Hour,
+			Status:          200,
+		},
+		"health signer fails trc fails": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				h := mock_api.NewMockHealther(ctrl)
+				s := &api.Server{
+					Healther: h,
+				}
+				h.EXPECT().GetSignerHealth(gomock.Any()).Return(
+					api.SignerHealthData{
+						SignerMissing: true,
+					},
+				)
+				h.EXPECT().GetTRCHealth(gomock.Any()).Return(
+					api.TRCHealthData{
+						TRCNotFound: true,
+					},
+				)
+				return api.Handler(s)
+			},
+			RequestURL: "/health",
+			Status:     200,
 		},
 	}
 
@@ -319,13 +605,16 @@ func TestAPI(t *testing.T) {
 			if tc.IgnoreResponseBody {
 				return
 			}
+			expiresAt := now.Add(tc.TimestampOffset).Format(time.RFC3339)
 			goldenFile := "testdata/" + xtest.SanitizedName(t)
 			if *update {
-				require.NoError(t, ioutil.WriteFile(goldenFile, rr.Body.Bytes(), 0666))
+				raw := strings.ReplaceAll(rr.Body.String(), expiresAt, "EXPIRES_AT")
+				require.NoError(t, ioutil.WriteFile(goldenFile, []byte(raw), 0666))
 			}
-			golden, err := ioutil.ReadFile(goldenFile)
+			goldenRaw, err := ioutil.ReadFile(goldenFile)
 			require.NoError(t, err)
-			assert.Equal(t, string(golden), rr.Body.String())
+			golden := strings.ReplaceAll(string(goldenRaw), "EXPIRES_AT", expiresAt)
+			assert.Equal(t, golden, rr.Body.String())
 		})
 	}
 }

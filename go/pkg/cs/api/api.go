@@ -29,8 +29,9 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/pkg/api"
+	api "github.com/scionproto/scion/go/pkg/api"
 	cppkiapi "github.com/scionproto/scion/go/pkg/api/cppki/api"
+	healthapi "github.com/scionproto/scion/go/pkg/api/health/api"
 	segapi "github.com/scionproto/scion/go/pkg/api/segments/api"
 	"github.com/scionproto/scion/go/pkg/ca/renewal"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
@@ -40,6 +41,26 @@ import (
 
 type BeaconStore interface {
 	GetBeacons(context.Context, *beaconstorage.QueryParams) ([]beaconstorage.Beacon, error)
+}
+
+type Healther interface {
+	GetSignerHealth(context.Context) SignerHealthData
+	GetTRCHealth(context.Context) TRCHealthData
+}
+
+// SignerHealthData is used to extract the relevant signer data for the signer health check.
+type SignerHealthData struct {
+	SignerMissing       bool
+	SignerMissingDetail string
+	Expiration          time.Time
+	InGrace             bool
+}
+
+// TRCHealthData is used to extract the relevant TRC data for the TRC health check.
+type TRCHealthData struct {
+	TRCNotFound       bool
+	TRCNotFoundDetail string
+	TRCID             cppki.TRCID
 }
 
 // Server implements the Control Service API.
@@ -54,6 +75,7 @@ type Server struct {
 	Signer         cstrust.RenewingSigner
 	Topology       http.HandlerFunc
 	TrustDB        storage.TrustDB
+	Healther       Healther
 }
 
 // UnpackBeaconUsages extracts the Usage's bits as snake case string constants for the API.
@@ -478,6 +500,95 @@ func (s *Server) GetTopology(w http.ResponseWriter, r *http.Request) {
 	s.Topology(w, r)
 }
 
+func (s *Server) GetHealth(w http.ResponseWriter, r *http.Request) {
+	signerHealth := s.Healther.GetSignerHealth(r.Context())
+	signerCheck := Check{
+		Status: StatusPassing,
+		Name:   "valid signer available",
+	}
+	switch {
+	case signerHealth.SignerMissing:
+		signerCheck.Status = StatusFailing
+		if signerHealth.SignerMissingDetail != "" {
+			signerCheck.Detail = api.StringRef(signerHealth.SignerMissingDetail)
+		}
+	case time.Until(signerHealth.Expiration) <= 0:
+		signerCheck.Status = StatusFailing
+		signerCheck.Detail = api.StringRef("signer certificate has expired")
+		signerCheck.Data = CheckData{
+			AdditionalProperties: map[string]interface{}{
+				"expires_at": signerHealth.Expiration.Format(time.RFC3339),
+			},
+		}
+	case signerHealth.InGrace:
+		signerCheck.Status = StatusDegraded
+		signerCheck.Data = CheckData{
+			AdditionalProperties: map[string]interface{}{
+				"expires_at": signerHealth.Expiration.Format(time.RFC3339),
+				"in_grace":   true,
+			},
+		}
+		signerCheck.Detail = api.StringRef(`signer certificate is authenticated
+		by TRC in grace period`)
+	case time.Until(signerHealth.Expiration) < 6*time.Hour:
+		signerCheck.Status = StatusDegraded
+		signerCheck.Data = CheckData{
+			AdditionalProperties: map[string]interface{}{
+				"expires_at": signerHealth.Expiration.Format(time.RFC3339),
+			},
+		}
+		signerCheck.Detail = api.StringRef("signer certificate is close to expiration")
+	default:
+		signerCheck.Data = CheckData{
+			AdditionalProperties: map[string]interface{}{
+				"expires_at": signerHealth.Expiration.Format(time.RFC3339),
+			},
+		}
+	}
+
+	trcCheck := Check{
+		Status: StatusFailing,
+		Name:   "TRC for local ISD available",
+	}
+	trcHealthData := s.Healther.GetTRCHealth(r.Context())
+	if trcHealthData.TRCNotFoundDetail != "" {
+		trcCheck.Detail = api.StringRef(trcHealthData.TRCNotFoundDetail)
+	}
+	if !trcHealthData.TRCNotFound {
+		trcCheck.Status = StatusPassing
+		trcCheck.Data = CheckData{
+			AdditionalProperties: map[string]interface{}{
+				"base_number":   trcHealthData.TRCID.Base,
+				"serial_number": trcHealthData.TRCID.Serial,
+				"isd":           trcHealthData.TRCID.ISD,
+			},
+		}
+	}
+
+	rep := HealthResponse{
+		Health: Health{
+			Status: Status(healthapi.AggregateHealthStatus(
+				[]healthapi.Status{healthapi.Status(signerCheck.Status),
+					healthapi.Status(trcCheck.Status)})),
+			Checks: []Check{
+				signerCheck,
+				trcCheck,
+			},
+		},
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "    ")
+	if err := enc.Encode(rep); err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to marshal response",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+}
+
 // Error creates an detailed error response.
 func Error(w http.ResponseWriter, p Problem) {
 	w.Header().Set("Content-Type", "application/problem+json")
@@ -486,8 +597,4 @@ func Error(w http.ResponseWriter, p Problem) {
 	enc.SetIndent("", "    ")
 	// no point in catching error here, there is nothing we can do about it anymore.
 	enc.Encode(p)
-}
-
-func (s *Server) GetHealth(w http.ResponseWriter, r *http.Request) {
-
 }

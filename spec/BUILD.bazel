@@ -90,3 +90,13 @@ openapi_bundle(
     entrypoint = "//spec/cppki:spec.yml",
     visibility = ["//visibility:public"],
 )
+
+openapi_bundle(
+    name = "health",
+    srcs = [
+        "//spec/common:base.yml",
+        "//spec/common:process.yml",
+    ],
+    entrypoint = "//spec/health:spec.yml",
+    visibility = ["//visibility:public"],
+)
