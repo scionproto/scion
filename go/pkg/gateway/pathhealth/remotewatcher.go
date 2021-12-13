@@ -16,6 +16,7 @@ package pathhealth
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"sync"
 	"time"
@@ -29,70 +30,77 @@ import (
 const (
 	// graceInterval specifies how long to keep unused paths around.
 	graceInterval = time.Minute
-	// routerTimeout is a timeout for querying the paths via snet.Router.
-	// TODO(sustrik): Given that path querying and path fetching is done in the same
-	// thread, let's set this to probeInterval - 100ms. Eventually, the two tasks
-	// should run in two separate goroutines.
-	routerTimeout = 400 * time.Millisecond
+
+	defaultPathFetchTimeout = 10 * time.Second
 )
 
 // PathWatcher monitors a specific path.
 type PathWatcher interface {
+	// Run runs the path watcher until the context is cancelled.
+	Run(context.Context)
 	// UpdatePath changes a path to be monitored. While actual path, as in
 	// "sequence of SCION interfaces", must never change for a single
 	// PathWatcher object, some elements of the path structure (e.g. expiration)
 	// do change and should be updated accordingly.
 	UpdatePath(path snet.Path)
-	// SendProbe sends a probe along the monitored path.
-	SendProbe(ctx context.Context, conn snet.PacketConn, localAddr snet.SCIONAddress)
-	// HandleProbeReply dispatches a single probe reply packet.
-	HandleProbeReply(seq uint16)
 	// Path returns a fresh copy of the monitored path.
 	Path() snet.Path
 	// State returns the state of the monitored path.
 	State() State
-	// Close stops the PathWatcher.
-	Close(ctx context.Context)
 }
 
 // PathWatcherFactory constructs a PathWatcher.
 type PathWatcherFactory interface {
-	New(ctx context.Context, remote addr.IA, path snet.Path, id uint16) PathWatcher
+	New(ctx context.Context, remote addr.IA, path snet.Path, id uint16) (PathWatcher, error)
 }
 
 // DefaultRemoteWatcherFactory is a default factory for creating RemoteWatchers.
 type DefaultRemoteWatcherFactory struct {
+	// Router is used to find paths to remote ASes.
+	Router interface {
+		AllRoutes(ctx context.Context, dst addr.IA) ([]snet.Path, error)
+	}
 	// PathWatcherFactory is used to construct PathWatchers.
 	PathWatcherFactory PathWatcherFactory
+	// PathUpdateInterval specified how often the paths are retrieved from the
+	// daemon. If not specified a default is used.
+	PathUpdateInterval time.Duration
+	// PathFetchTimeout is the timeout for the path fetch operation. If not set
+	// a default value is used.
+	PathFetchTimeout time.Duration
 	// PathsMonitored is a gauge counting the number of paths currently
 	// monitored to a remote AS.
-	PathsMonitored metrics.Gauge
-	// ProbesSent keeps track of how many path probes have been sent per remote AS.
-	ProbesSent metrics.Counter
-	// ProbesReceived keeps track of how many path probes have been received per remote AS.
-	ProbesReceived metrics.Counter
+	PathsMonitored func(remote addr.IA) metrics.Gauge
 }
 
 // New creates an RemoteWatcher that keeps track of all the paths for a given
 // remote, and spawns/kills PathWatchers appropriately.
 func (f *DefaultRemoteWatcherFactory) New(remote addr.IA) RemoteWatcher {
-	return &DefaultRemoteWatcher{
+	var pathsMonitored metrics.Gauge
+	if f.PathsMonitored != nil {
+		pathsMonitored = f.PathsMonitored(remote)
+	}
+	return &remoteWatcher{
 		remote:             remote,
+		router:             f.Router,
 		pathWatcherFactory: f.PathWatcherFactory,
 		pathWatchers:       make(map[snet.PathFingerprint]*pathWatcherItem),
 		pathWatchersByID:   make(map[uint16]*pathWatcherItem),
-		pathsMonitored:     metrics.GaugeWith(f.PathsMonitored, "remote_isd_as", remote.String()),
-		probesSent:         metrics.CounterWith(f.ProbesSent, "remote_isd_as", remote.String()),
-		probesReceived:     metrics.CounterWith(f.ProbesReceived, "remote_isd_as", remote.String()),
 		// Set this to true so that first failure to get paths is logged.
-		hasPaths: true,
+		hasPaths:           true,
+		pathUpdateInterval: f.PathUpdateInterval,
+		pathFetchTimeout:   f.PathFetchTimeout,
+		pathsMonitored:     pathsMonitored,
 	}
 }
 
-// DefaultRemoteWatcher monitors a remote IA.
-type DefaultRemoteWatcher struct {
+type remoteWatcher struct {
 	// remote is the ISD-AS of the monitored AS.
 	remote addr.IA
+	// router is used to find paths to remote ASes.
+	router interface {
+		AllRoutes(ctx context.Context, dst addr.IA) ([]snet.Path, error)
+	}
 	// pathWatcherFactory constructs a PathWatcher.
 	pathWatcherFactory PathWatcherFactory
 	// pathWatchersMtx protexts the pathWatcher maps
@@ -100,29 +108,82 @@ type DefaultRemoteWatcher struct {
 	// pathWatchers is a map of all the paths being currently monitored, indexed by path
 	// fingerprint.
 	pathWatchers map[snet.PathFingerprint]*pathWatcherItem
-	// pathWatchersByID contains the same paths as above, but indexed by SCMP Echo ID.
+	// pathWatchersByID contains the same paths as above, but indexed by SCMP Traceroute ID.
 	pathWatchersByID map[uint16]*pathWatcherItem
 	// hasPaths is true if, at the moment, there is at least one path known.
 	hasPaths bool
 
+	// pathUpdateInterval specifies how often the paths are retrieved from the
+	// daemon. If not set a default value is used.
+	pathUpdateInterval time.Duration
+	// pathFetchTimeout specifies the timeout for path lookup operations. If not
+	// set a default value is used.
+	pathFetchTimeout time.Duration
+
 	pathsMonitored metrics.Gauge
-	probesSent     metrics.Counter
-	probesReceived metrics.Counter
 }
 
-func (w *DefaultRemoteWatcher) adjustCtx(ctx context.Context) (context.Context, log.Logger) {
-	return log.WithLabels(ctx, "remote_isd_as", w.remote.String())
+func (w *remoteWatcher) Run(ctx context.Context) {
+	w.initDefaults()
+	ctx, _ = log.WithLabels(ctx, "remote_isd_as", w.remote.String())
+	w.updatePaths(ctx)
+
+	updateTicker := time.NewTicker(w.pathUpdateInterval)
+	defer updateTicker.Stop()
+	for {
+		select {
+		case <-updateTicker.C:
+			w.updatePaths(ctx)
+			w.cleanup(ctx)
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
-// UpdatePaths gets new paths from the SCION daemon. This function may block for
-// up to routerTimeout.
-func (w *DefaultRemoteWatcher) UpdatePaths(ctx context.Context, router snet.Router) {
-	ctx, logger := w.adjustCtx(ctx)
+func (w *remoteWatcher) PathWatchers() []PathWatcher {
+	w.pathWatcherMtx.Lock()
+	defer w.pathWatcherMtx.Unlock()
+
+	watchers := make([]PathWatcher, 0, len(w.pathWatchers))
+	for _, entry := range w.pathWatchers {
+		watchers = append(watchers, entry.pathWatcher)
+	}
+	return watchers
+}
+
+// cleanup stops monitoring paths that are not being used any more.
+func (w *remoteWatcher) cleanup(ctx context.Context) {
+	w.pathWatcherMtx.Lock()
+	defer w.pathWatcherMtx.Unlock()
+
+	for fingerprint, pm := range w.pathWatchers {
+		if !pm.pathWatcher.State().IsExpired && pm.usedRecently() {
+			continue
+		}
+		pm.cancel()
+		delete(w.pathWatchers, fingerprint)
+		delete(w.pathWatchersByID, pm.id)
+	}
+	metrics.GaugeSet(w.pathsMonitored, float64(len(w.pathWatchers)))
+}
+
+func (w *remoteWatcher) initDefaults() {
+	if w.pathUpdateInterval == 0 {
+		w.pathUpdateInterval = defaultPathUpdateInterval
+	}
+	if w.pathFetchTimeout == 0 {
+		w.pathFetchTimeout = defaultPathFetchTimeout
+	}
+}
+
+func (w *remoteWatcher) updatePaths(ctx context.Context) {
+	logger := log.FromCtx(ctx)
 	now := time.Now()
 	// Get the current set of paths from pathmgr.
-	ctx, cancel := context.WithTimeout(ctx, routerTimeout)
+	routerCtx, cancel := context.WithTimeout(ctx, w.pathFetchTimeout)
 	defer cancel()
-	paths, err := router.AllRoutes(ctx, w.remote)
+	paths, err := w.router.AllRoutes(routerCtx, w.remote)
 	if err != nil {
 		if w.hasPaths {
 			logger.Info("Failed to get paths. Keeping old paths",
@@ -166,80 +227,35 @@ func (w *DefaultRemoteWatcher) UpdatePaths(ctx context.Context, router snet.Rout
 				logger.Info("All traceroute IDs are occupied")
 				continue
 			}
+			pathW, err := w.pathWatcherFactory.New(ctx, w.remote, path, id)
+			if err != nil {
+				logger.Error("Failed to create path watcher", "path", fmt.Sprint(path))
+				continue
+			}
+			pathWCtx, cancel := context.WithCancel(ctx)
+			go func() {
+				defer log.HandlePanic()
 
+				pathW.Run(pathWCtx)
+			}()
 			// This is a new path, add an entry.
 			pw = &pathWatcherItem{
-				PathWatcher: w.pathWatcherFactory.New(ctx, w.remote, path, id),
+				pathWatcher: pathW,
+				id:          id,
+				cancel:      cancel,
 			}
 			w.pathWatchers[fingerprint] = pw
 			w.pathWatchersByID[id] = pw
 		} else {
 			// If the path already exists, update it. Needed to keep expirations fresh.
-			pw.UpdatePath(path)
+			pw.pathWatcher.UpdatePath(path)
 			pw.lastUsed = time.Time{}
 		}
 	}
 	metrics.GaugeSet(w.pathsMonitored, float64(len(w.pathWatchers)))
 }
 
-// SendProbes sends probes via all the available paths to the monitored IA.
-func (w *DefaultRemoteWatcher) SendProbes(ctx context.Context, conn snet.PacketConn,
-	localAddr snet.SCIONAddress) {
-
-	w.pathWatcherMtx.Lock()
-	defer w.pathWatcherMtx.Unlock()
-
-	metrics.CounterAdd(w.probesSent, float64(len(w.pathWatchers)))
-	for _, pm := range w.pathWatchers {
-		pm.SendProbe(ctx, conn, localAddr)
-	}
-}
-
-// HandleProbeReply dispatches a single probe reply packet.
-func (w *DefaultRemoteWatcher) HandleProbeReply(ctx context.Context, id, seq uint16) {
-	w.pathWatcherMtx.Lock()
-	defer w.pathWatcherMtx.Unlock()
-
-	_, logger := w.adjustCtx(ctx)
-	metrics.CounterInc(w.probesReceived)
-	pm, ok := w.pathWatchersByID[id]
-	if !ok {
-		logger.Debug("unsolicited reply (path no longer monitored)", "id", id)
-		// Probe reply for a path that is no longer monitored.
-		return
-	}
-	pm.HandleProbeReply(seq)
-}
-
-// Cleanup stops monitoring paths that are not being used any more.
-func (w *DefaultRemoteWatcher) Cleanup(ctx context.Context) {
-	w.pathWatcherMtx.Lock()
-	defer w.pathWatcherMtx.Unlock()
-
-	for fingerprint, pm := range w.pathWatchers {
-		if !pm.State().IsExpired && pm.usedRecently() {
-			continue
-		}
-		pm.Close(ctx)
-		delete(w.pathWatchers, fingerprint)
-		delete(w.pathWatchersByID, pm.id)
-	}
-	metrics.GaugeSet(w.pathsMonitored, float64(len(w.pathWatchers)))
-}
-
-// Watchers returns a list of all active PathWatchers.
-func (w *DefaultRemoteWatcher) Watchers() []PathWatcher {
-	w.pathWatcherMtx.Lock()
-	defer w.pathWatcherMtx.Unlock()
-
-	watchers := make([]PathWatcher, 0, len(w.pathWatchers))
-	for _, entry := range w.pathWatchers {
-		watchers = append(watchers, entry.PathWatcher)
-	}
-	return watchers
-}
-
-func (w *DefaultRemoteWatcher) selectID() (uint16, bool) {
+func (w *remoteWatcher) selectID() (uint16, bool) {
 	for i := 0; i < 100; i++ {
 		id := uint16(rand.Uint32())
 		if _, ok := w.pathWatchersByID[id]; !ok {
@@ -251,12 +267,15 @@ func (w *DefaultRemoteWatcher) selectID() (uint16, bool) {
 
 // pathWatcherItem is an wrapper type that adds RemoteWatcher-specific data to pathWatcher.
 type pathWatcherItem struct {
-	PathWatcher
+	pathWatcher PathWatcher
+	// id is the traceroute ID for this pathWatcher
 	id uint16
 	// lastUsed is the time when the path ceased to be used.
 	// If the path is used right now, set to time.Time{}.
 	// Paths that are not used will be removed after a certain period of time.
 	lastUsed time.Time
+	// cancel can be used to cancel the running path watcher.
+	cancel context.CancelFunc
 }
 
 // usedRecently returns true is the path is either being used or was used recently.

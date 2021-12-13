@@ -80,7 +80,7 @@ func (r *Registration) Get() Selection {
 		return Selection{}
 	}
 
-	watchers := r.remoteWatcher.Watchers()
+	watchers := r.remoteWatcher.PathWatchers()
 	selectables := make([]Selectable, len(watchers))
 	for i := range watchers {
 		selectables[i] = watchers[i]
