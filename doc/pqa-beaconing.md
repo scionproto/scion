@@ -1,8 +1,8 @@
-# Path Quality Aware Beaconing
+# Push-Based Path Quality Aware Beaconing
 
-This document ountlines the path quality aware beconing algorithm proposed by Ali and Adrian [1], and how it is implemented in the SCION codebase. 
+This document ountlines the push-based path quality aware beconing algorithm proposed by Seyedali Tabaeiaghdaei and Ahad N. Zehmakan [1], and how it is implemented in the SCION codebase. The pull-based algorithm will be documented later.
 
-* Author(s): Silas Gyger
+* Author(s): Silas Gyger, Seyedali Tabaeiaghdaei
 * Status: draft
 * Last edited: 2021-12-xx
 
@@ -11,41 +11,51 @@ During core beaconing, core ASs continuously have to decide which beacons to for
 
 Traditional algorithms have focussed on selecting paths with low hop count[2] or high diversity w.r.t. links travelled [3]. The goal of either is to provide each AS with a high quality set of paths to every other AS, such that their target application can (hopefully) select one that suits its needs.
 
-In certain situations, it's already known which path qualities end hosts will be looking for when they connect to a specific interface. For instance, a internet video call service provider will already know that all of its customers will be looking for low-latency connections to its video call endpoint. Offering a selection of paths with varying qualities in this case is an uncessary overhead. The following document outlines a mechanism wich allows core ASs to define qualities for beacons originating from defined applications for which the beaconing process should optimize for; the end result of the beaconing process should be that all parties will end up with paths that are optimal with respect to this quality to that target application, and have diversity at most in other qualities.
+Since service providers know which optimality criteria is required for each type of services (application) they provide, and they have customers all around world in all ISDs (and therefor core ASes), it is reaonable to let origin ASes to specify the optimality criteria of the path originating from them.
 
 ## Considerations
 
 The final algorithm is the result of a set of considerations of the problem at hand.
 
-### Path granularity
-
-Unlike in previous algorithms, AS-level granularity becomes insufficent to determine the quality of a path with respect to many metrics. For instance, a path optimized for latency will have different quality metric in this respect when forwarded to the same neighbouring AS in Munich as opposed to Sidney. However, both Sidney and Munich might benefit from receiving the beacons, as they might still contain the fastest route to either place. 
-
 ### Path metrics
 
-Path metrics are qualities that can be determined of any path between any two nodes, and we expect them to be represented by a unidimensiona number. I.e. a metric is a function `m` that takes any path `a ⇝ b` and outputs a float `m(a ⇝ b) : float`.
+Path metrics are qualities that can be determined of any path between any two nodes, and we expect them to be represented by a unidimensional number. I.e. a metric is a function `m` that takes any path `a ⇝ b` and outputs a float `m(a ⇝ b) : float`.
 
 Given the metric value for path `a ⇝ b` and `b ⇝ c`, we can always determine the metric value for path `a ⇝ b ⇝ c`. There are two ways this can be achieved:
-* A: `m(a ⇝ b ⇝ c ) = m(a ⇝ b) + m(b ⇝ c)`, example: latency, hop count
-* B: `m(a ⇝ b ⇝ c ) = min/max{m(a ⇝ b), m(b ⇝ c)}`, example: throughput, link trustworthyness
+* Additive: `m(a ⇝ b ⇝ c ) = m(a ⇝ b) + m(b ⇝ c)`, e.g, latency, hop count
+* Concave: `m(a ⇝ b ⇝ c ) = min/max{m(a ⇝ b), m(b ⇝ c)}`, e.g, throughput
+* Multiplicative: `m(a ⇝ b ⇝ c ) = m(a ⇝ b) * m(b ⇝ c)}`, e.g., loss rate
 
 This allows us to break down the problem of finding the best paths into smaller subproblems: For any intermidiary node `b`, _if_ the ideal path travels the node `b`, it can (without worsening the metric) have a subpath that is the ideal path that leads to `b`. Hence, for every node `b`, we only need to consider the (`N`) best path(s) to that node. This fact is exploited in the algorithm to decrease computational overhead.
 
-### Grouping Interfaces During Origination
+### Optimality criteria
 
-Ideally, we'd like to have ideal paths to every single target _service_ (like e.g. Skype) and consider in the optimization process the quality cost incurred even within the origin AS, between service end hosts and egress interface. However, creating a new optimization goal for every single application is obviously unfeasable. The algorithm simplifies this problem by allowing beacon originating ASs to _group interfaces_ together, but not include any intra-AS metric offsets. Instead of finding the ideal path (wrt. a certain quality) to each application, the ideal path to each defined group is found. Skype can optimize connection to these interfaces internally on its own; the cost incurred on the path from Skype's server these groups is not considered in the algorithm.
+The optimality criteria can be a single path metric (e.g, latency), or a small objctive function to combine different metrics such as latency and bandwidth.
 
-We call these groups of interface groups **optimization groups**, because at the end of the algorithm one (or `N`) optimal path is found per group. An optimization group **includes the identifier of the AS** as well as **the quality it optimizes for**. Every group optimizes for exactly one quality. 
+### Algorithm granularity
 
-### Grouping Interfaces During Propagation
+Unlike AS-path length which is linear at the AS-level, other optimality criteria may not be linear at the AS-level, but they are linear at the interface-level. Therefore, selecting the best PCBs to one origin AS and sending them to all egress interfaces may lead to sub-optimal paths and extra messageing overhead. Furthermore, finding the best path to an origin AS is not suffiecient, as different destinations are located in different locations (and my not be necessarily distributed like anycast).
 
-During propagation of paths to a neighbour AS, we'd like to send that AS the ideal path to each interface connecting us to that AS: internally, the path metrics might differ substancially between ingress-interfaces for specific end-hosts or egress interfaces leading to the next neighbouring ASs.
+However, optimizaing path per origin interface, and per ingress and egress interface of the propagator AS causes huge overhead. Hence, we propose interface grouping, which is not necessarily based on geographical proximity. Below, we explain more.
 
-It is however often the case that multiple interfaces are located in close proximity and are well connected, in that travelling from one interface to the other incurs litle cost in any metric. Finding an optimal path to one of these interfaces is equivalent to finding an optimal path to all of the interfaces. Thus, we'd like to let ASs define groupings of interfaces that can be considered as a unit during optimization, and communicate those to their neighbours. For instance, if AS "A" has a set of interfaces that are well enmeshed on it's side s.t. all metrics from any node incur basically the same cost to any of the interface, we'd like as "A" to be able to communicate that to the AS at the other end of the links; that other AS then only has to find `N` optimal paths to _any_ of those interfaces. 
+### Interface groups in origin ASes
 
-Communicating groups to neighbours is considered **out of scope** of this project. We do let ASs define interface groups that are well connected; however, we also let ASs define groups of interfaces that are well connected on the side of the neighbour, as though these groups were communicated by the neighbour. At a later stage, those second groups would be superfluous, as they're the first group communicated by the neighbour.
+For each optimality criteria, the origin AS groups its interfaces together in _origin_interface_group_ s. For different criteria, the grouping can be done in differnet manners. Grouping is not necessarily based on geographical proximity. 
 
-We call groups that are well connected to be **mesh groups** and groups that "simulate" the mesh groups of the neighbours **neighbour mesh groups**. They're expected to have littler overlap; the algorithm assumes that neighbour-mesh-groups are not well interconnected, and moving from one interface to another can incur significant cost. 
+When initiating beaconing process, each origin AS specifies the optimality criteria  and the _origin_interface_group_ of the egress interface in PCBs; one PCB per optimality criteria is sent out from each interface. 
+
+### Optimization groups
+
+We define the _optimization_group_ as the `<origin AS, origin interface group, optimality criteria>` tuple.
+
+### Interface groups in non-origin ASes
+
+In non-origin (propagator) ASes, _interface_groups_ for each optimality criteria can be defined as the group of interfaces from which the intra-AS that criteria has almost the same value to any destination inside that AS (including other interfaces). For example, for latency grouping can be done based on proximity, but for bandwidth all interfaces with the same bandwidth can grouped with each other. Therefore, finding an optimal path from/to an ingress/egress interface in a group (for each optimality criteria) gives almost the same quality when we find an optimal path from/to all of the interfaces in that group. For traffic engineering puposes, ASes can violate this definition, which we do not conside now.
+
+In some cases neighbor ASes can put the interfaces connected to the same link between them in different groups. In this case thay can communicate their interface groupings, which we do not consider in this project.
+
+### Interface subgroups
+Multiple interfaces in the same group can be connected to different ASes. A set of interfaces in the same interface group connected to the same neighboring AS is called an _interface_subgroup.
 
 ### Path Selection during Propagation
 
