@@ -64,39 +64,43 @@ For every origin optimization group `optim_group` for which we receive beacon, w
 ```python
 def run():
     # Retreive all optimization groups for which have beacons
+    # optim_groups = <origin AS, origin interface group, optimality criteria>
     optim_groups = db.get_optim_groups_from_received_beacons()
     # Run algorithm for each optimization group & neighbouring AS:
     for optim_group in optim_groups:
         for neigh in neighbouring_ASs:
-            run_algorithm(optim_group, neigh)
+            for intf_subgroup in local_interface_groups[optimality_criteria][neigh]:
+                propagate_optimized_paths(optim_group, intf_subgroup)
 
-def run_algorithm(optim_group, neigh):
+def propagate_optimized_paths(optim_group, intf_subgroup):
     # Find N best beacons for every interface group
-    for interface_group leading to neigh:
-        # First find set of candidates
-        intf_beacon_candidates = []
-        for interface egrees_intf in interface_group:
-            for interface group ingress_intfg leadining into this AS:
-                # Get the n best paths leading to the ingress interface
-                n_best = db.get_N_best( # of all beacons received
+    
+    # First find set of candidates
+    intf_beacon_candidates = []
+    for egrees_intf in intf_subgroup:
+        for ingress_intfg in local_interface_groups[optimality_criteria]:
+            # Get the n best paths leading to the ingress interface
+            
+            # We need to somehow remove loops when accessing the database. The database gives us loop-free paths. Is that possible?
+            n_best = db.get_N_best( # of all beacons received
                                     group = optim_group,
                                     ingress_intfg = ingress_intfg
                                     )
-                for path in n_best:
-                    # Extend path with hop ingress -> egress interface
-                    path_extended = path.extend(ingress_intf ⇝ egrees_intf)
-                    # Add metric of this hop to the path
-                    path_extended.add_metric(ingress_intf ⇝ egress_intf)
-                    # Add the metric of the inter-AS link at the egress interface
-                    path_extended.add_metric(egress_intf.link)
+            for path in n_best:
+                # Extend path with hop ingress -> egress interface
+                path_extended = path.extend(ingress_intf ⇝ egrees_intf)
+                # Add metric of this hop to the path
+                path_extended.extend_metric(ingress_intf ⇝ egress_intf)
+                # Add the metric of the inter-AS link at the egress interface
+                path_extended.extend_metric(egress_intf.link)
 
-                    intf_beacon_candidates.append(path_extended)
+                intf_beacon_candidates.append(path_extended)
 
-        # Remove becaons that would create a loop
-        no_loop = remove_looping(intf_beacon_candidates)
-        # Chose & propagate the n best ones of the remaining
-        n_best = get_N_best(no_loop)
-        propagate(n_best)
+    # Remove becaons that would create a loop
+    no_loop = remove_looping(intf_beacon_candidates)
+    # Chose & propagate the n best ones of the remaining
+    n_best = get_N_best(no_loop)
+    propagate(n_best)
 ```
 
 The following algorithm outlines the basic idea of how receveid paths originating at an interface group `o_intfg`, optimizing for a path quality metric `q` are selected s.t. we get the $N$ best paths for every interface group leading to a neighbour `n`. The algorithm is refined to increase performance below:
