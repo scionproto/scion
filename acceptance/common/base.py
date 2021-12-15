@@ -237,6 +237,14 @@ class TestBase(cli.Application):
         """
         print(self.test_state.dc("start", container))
 
+    def restart_container(self, container):
+        """Restarts the container with the specified name.
+
+        Args:
+            container: the name of the container.
+        """
+        print(self.test_state.dc("restart", container))
+
     def stop_container(self, container):
         """Stops the container with specified name.
 

@@ -1,0 +1,84 @@
+{
+    "interfaces": [
+        {
+            "bfd": {
+                "desired_minimum_tx_interval": "200ms",
+                "detection_multiplier": 3,
+                "enabled": true,
+                "required_minimum_receive": "300ms"
+            },
+            "interface_id": 1,
+            "internal_interface": "172.20.0.3:50000",
+            "neighbor": {
+                "address": "172.20.0.2:50000",
+                "isd_as": "1-ff00:0:111"
+            },
+            "relationship": "core",
+            "scion_mtu": 1472,
+            "state": "up"
+        },
+        {
+            "bfd": {
+                "desired_minimum_tx_interval": "200ms",
+                "detection_multiplier": 3,
+                "enabled": true,
+                "required_minimum_receive": "200ms"
+            },
+            "interface_id": 2,
+            "internal_interface": "172.20.0.3:50000",
+            "neighbor": {
+                "address": "172.20.0.2:50000",
+                "isd_as": "1-ff00:0:112"
+            },
+            "relationship": "child",
+            "scion_mtu": 1280,
+            "state": "up"
+        },
+        {
+            "bfd": {
+                "desired_minimum_tx_interval": "150ms",
+                "detection_multiplier": 3,
+                "enabled": true,
+                "required_minimum_receive": "150ms"
+            },
+            "interface_id": 5,
+            "internal_interface": "172.20.0.5:50000",
+            "neighbor": {
+                "address": "172.20.0.6:50000",
+                "isd_as": "1-ff00:0:113"
+            },
+            "relationship": "child",
+            "scion_mtu": 1280,
+            "state": "up"
+        },
+        {
+            "bfd": {
+                "desired_minimum_tx_interval": "150ms",
+                "detection_multiplier": 3,
+                "enabled": true,
+                "required_minimum_receive": "150ms"
+            },
+            "interface_id": 6,
+            "internal_interface": "undefined",
+            "neighbor": {
+                "address": "172.20.0.10:50000",
+                "isd_as": "1-ff00:0:113"
+            },
+            "relationship": "child",
+            "scion_mtu": 1280,
+            "state": "up"
+        }
+    ],
+    "sibling_interfaces": [
+        {
+            "interface_id": 5,
+            "internal_interface": "172.20.0.20:30042",
+            "neighbor": {
+                "isd_as": "1-ff00:0:112"
+            },
+            "relationship": "parent",
+            "scion_mtu": 1280,
+            "state": "up"
+        }
+    ]
+}

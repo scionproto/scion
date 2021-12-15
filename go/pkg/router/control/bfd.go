@@ -35,25 +35,25 @@ type BFD topology.BFD
 
 // XXX(sgmonroy) note that env values only affect defaults, which in turn are only used
 // if there were no BFD related settings in the topology.
-func withDefaults(cfg BFD) BFD {
+func WithDefaults(cfg BFD) BFD {
 	// If default is disable, BFD is globally disabled.
-	if bfdDefaults.Disable {
+	if BFDDefaults.Disable {
 		cfg.Disable = true
 	}
 	if cfg.DetectMult == 0 {
-		cfg.DetectMult = bfdDefaults.DetectMult
+		cfg.DetectMult = BFDDefaults.DetectMult
 	}
 	if cfg.DesiredMinTxInterval == 0 {
-		cfg.DesiredMinTxInterval = bfdDefaults.DesiredMinTxInterval
+		cfg.DesiredMinTxInterval = BFDDefaults.DesiredMinTxInterval
 	}
 	if cfg.RequiredMinRxInterval == 0 {
-		cfg.RequiredMinRxInterval = bfdDefaults.RequiredMinRxInterval
+		cfg.RequiredMinRxInterval = BFDDefaults.RequiredMinRxInterval
 	}
 	return cfg
 }
 
 var (
-	bfdDefaults = BFD{
+	BFDDefaults = BFD{
 		DetectMult:            3,
 		DesiredMinTxInterval:  200 * time.Millisecond,
 		RequiredMinRxInterval: 200 * time.Millisecond,
@@ -65,7 +65,7 @@ var (
 func init() {
 	if val := os.Getenv(envDisable); val != "" {
 		if disabled, err := strconv.ParseBool(val); err == nil {
-			bfdDefaults.Disable = disabled
+			BFDDefaults.Disable = disabled
 			fmt.Fprintf(os.Stderr, "%s=%v\n", envDisable, disabled)
 		} else {
 			fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", envDisable, err)
@@ -73,24 +73,24 @@ func init() {
 	}
 	if val := os.Getenv(envMult); val != "" {
 		if p, err := strconv.ParseUint(val, 10, 8); err == nil {
-			bfdDefaults.DetectMult = uint8(p)
-			fmt.Fprintf(os.Stderr, "%s=%v\n", envMult, bfdDefaults.DetectMult)
+			BFDDefaults.DetectMult = uint8(p)
+			fmt.Fprintf(os.Stderr, "%s=%v\n", envMult, BFDDefaults.DetectMult)
 		} else {
 			fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", envMult, err)
 		}
 	}
 	if val := os.Getenv(envMinTx); val != "" {
 		if d, err := time.ParseDuration(val); err == nil {
-			bfdDefaults.DesiredMinTxInterval = d
-			fmt.Fprintf(os.Stderr, "%s=%v\n", envMinTx, bfdDefaults.DesiredMinTxInterval)
+			BFDDefaults.DesiredMinTxInterval = d
+			fmt.Fprintf(os.Stderr, "%s=%v\n", envMinTx, BFDDefaults.DesiredMinTxInterval)
 		} else {
 			fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", envMinTx, err)
 		}
 	}
 	if val := os.Getenv(envMinRx); val != "" {
 		if d, err := time.ParseDuration(val); err == nil {
-			bfdDefaults.RequiredMinRxInterval = d
-			fmt.Fprintf(os.Stderr, "%s=%v\n", envMinRx, bfdDefaults.RequiredMinRxInterval)
+			BFDDefaults.RequiredMinRxInterval = d
+			fmt.Fprintf(os.Stderr, "%s=%v\n", envMinRx, BFDDefaults.RequiredMinRxInterval)
 		} else {
 			fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", envMinRx, err)
 		}

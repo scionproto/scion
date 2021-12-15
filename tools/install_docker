@@ -11,24 +11,6 @@ chksum() {
     echo "${1:?} ${2:?}" | sha256sum --status -c -
 }
 
-# Install docker-compose 1.28.2
-case "$(uname -m)" in
-    x86_64)
-        src=https://github.com/docker/compose/releases/download/1.28.2/docker-compose-Linux-x86_64
-        sum=e984402b96bb923319f8ac95c8d26944e12d15692ab0fea4fff63ddfd5fd8d64
-        file=/usr/local/bin/docker-compose
-        ;;
-    *)
-        echo "ERROR: unsupported architecture '$(uname -m)'"
-        exit 1
-esac
-# If the file doesn't exist, or the checksum fails, (re)download it.
-if  [ ! -e "$file" ] || ! chksum $sum $file; then
-    curl -sSL "$src" -o "$file"
-    chksum $sum $file || { echo "Error: $file doesn't match the expected checksum. ($sum)"; exit 1; }
-fi
-chmod +x "$file"
-
 if [ "$(lsb_release -is)" == "LinuxMint" ]; then
     release=$(grep UBUNTU_CODENAME /etc/os-release | cut -f2 -d=)
 fi
@@ -43,3 +25,24 @@ fi
 
 # Install docker-ce
 DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io
+
+# Install docker-compose 2.1.1
+case "$(uname -m)" in
+    x86_64)
+        src=https://github.com/docker/compose/releases/download/v2.1.1/docker-compose-linux-x86_64
+        sum=dad12a5cbc4dae3809138c070c06abe4a92ce3470679a0f67da920052b6e51c7
+        file=/usr/libexec/docker/cli-plugins/docker-compose
+        ;;
+    *)
+        echo "ERROR: unsupported architecture '$(uname -m)'"
+        exit 1
+esac
+# If the file doesn't exist, or the checksum fails, (re)download it.
+if  [ ! -e "$file" ] || ! chksum $sum $file; then
+    curl -sSL "$src" -o "$file"
+    chksum $sum $file || { echo "Error: $file doesn't match the expected checksum. ($sum)"; exit 1; }
+fi
+chmod +x "$file"
+
+# Install docker-compose switch.
+curl -fL https://raw.githubusercontent.com/docker/compose-switch/master/install_on_linux.sh | sh

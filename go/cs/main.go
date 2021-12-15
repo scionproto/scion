@@ -55,7 +55,9 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
+	cppkiapi "github.com/scionproto/scion/go/pkg/api/cppki/api"
 	"github.com/scionproto/scion/go/pkg/api/jwtauth"
+	segapi "github.com/scionproto/scion/go/pkg/api/segments/api"
 	"github.com/scionproto/scion/go/pkg/app"
 	"github.com/scionproto/scion/go/pkg/app/launcher"
 	caapi "github.com/scionproto/scion/go/pkg/ca/api"
@@ -365,7 +367,7 @@ func realMain(ctx context.Context) error {
 	}
 
 	var chainBuilder renewal.ChainBuilder
-	if topo.CA() {
+	if globalCfg.CA.Mode != config.Disabled {
 		renewalGauges := libmetrics.NewPromGauge(metrics.RenewalRegisteredHandlers)
 		libmetrics.GaugeWith(renewalGauges, "type", "legacy").Set(0)
 		libmetrics.GaugeWith(renewalGauges, "type", "in-process").Set(0)
@@ -548,14 +550,19 @@ func realMain(ctx context.Context) error {
 		r.Get("/", api.ServeSpecInteractive)
 		r.Get("/openapi.json", api.ServeSpecJSON)
 		server := api.Server{
-			Segments: pathDB,
+			SegmentsServer: segapi.Server{
+				Segments: pathDB,
+			},
+			CPPKIServer: cppkiapi.Server{
+				TrustDB: trustDB,
+			},
+			Beacons:  beaconDB,
 			CA:       chainBuilder,
 			Config:   service.NewConfigStatusPage(globalCfg).Handler,
 			Info:     service.NewInfoStatusPage().Handler,
 			LogLevel: service.NewLogLevelStatusPage().Handler,
 			Signer:   signer,
 			Topology: topo.HandleHTTP,
-			TrustDB:  trustDB,
 		}
 		log.Info("Exposing API", "addr", globalCfg.API.Addr)
 		s := http.Server{

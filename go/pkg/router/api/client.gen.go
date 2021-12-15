@@ -94,6 +94,9 @@ type ClientInterface interface {
 	// GetInfo request
 	GetInfo(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetInterfaces request
+	GetInterfaces(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetLogLevel request
 	GetLogLevel(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -117,6 +120,18 @@ func (c *Client) GetConfig(ctx context.Context, reqEditors ...RequestEditorFn) (
 
 func (c *Client) GetInfo(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetInfoRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetInterfaces(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetInterfacesRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -200,6 +215,33 @@ func NewGetInfoRequest(server string) (*http.Request, error) {
 	}
 
 	operationPath := fmt.Sprintf("/info")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetInterfacesRequest generates requests for GetInterfaces
+func NewGetInterfacesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/interfaces")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -333,6 +375,9 @@ type ClientWithResponsesInterface interface {
 	// GetInfo request
 	GetInfoWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetInfoResponse, error)
 
+	// GetInterfaces request
+	GetInterfacesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetInterfacesResponse, error)
+
 	// GetLogLevel request
 	GetLogLevelWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetLogLevelResponse, error)
 
@@ -380,6 +425,28 @@ func (r GetInfoResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetInfoResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetInterfacesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *InterfacesResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetInterfacesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetInterfacesResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -448,6 +515,15 @@ func (c *ClientWithResponses) GetInfoWithResponse(ctx context.Context, reqEditor
 		return nil, err
 	}
 	return ParseGetInfoResponse(rsp)
+}
+
+// GetInterfacesWithResponse request returning *GetInterfacesResponse
+func (c *ClientWithResponses) GetInterfacesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetInterfacesResponse, error) {
+	rsp, err := c.GetInterfaces(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetInterfacesResponse(rsp)
 }
 
 // GetLogLevelWithResponse request returning *GetLogLevelResponse
@@ -522,6 +598,32 @@ func ParseGetInfoResponse(rsp *http.Response) (*GetInfoResponse, error) {
 			return nil, err
 		}
 		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetInterfacesResponse parses an HTTP response from a GetInterfacesWithResponse call
+func ParseGetInterfacesResponse(rsp *http.Response) (*GetInterfacesResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetInterfacesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest InterfacesResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	}
 

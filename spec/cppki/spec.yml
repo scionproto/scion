@@ -1,8 +1,13 @@
+openapi: "3.0.2"
+info:
+  description: SCION CPPKI API
+  title: API to retrieve SCION control plane PKI (CPPKI) information.
+  version: "0.1.0"
 paths:
   /trcs:
    get:
       tags:
-      - trust
+      - cppki
       summary: List the TRCs
       description: List the latest SCION Trust Root Configurations for each ISD that are
         known to the control service. The result can be filtered by ISD.
@@ -35,7 +40,7 @@ paths:
   /trcs/isd{isd}-b{base}-s{serial}:
     get:
       tags:
-        - trust
+        - cppki
       summary: Get the TRC
       description: |
         Get the SCION Trust Root Configuration.
@@ -71,7 +76,7 @@ paths:
   /trcs/isd{isd}-b{base}-s{serial}/blob:
     get:
       tags:
-        - trust
+        - cppki
       summary: Get the TRC blob
       description: |
         Get the SCION Trust Root Configuration as PEM encoded byte blob.
@@ -109,7 +114,7 @@ paths:
   /certificates:
     get:
       tags:
-       - trust
+       - cppki
       summary: List the certificate chains
       description: |
         List the currently active certificate chains that are known to the
@@ -150,7 +155,7 @@ paths:
   /certificates/{chain-id}:
     get:
       tags:
-        - trust
+        - cppki
       summary: Get the certificate chain
       description: |
         Get the certificate chain for a given ChainID.
@@ -177,7 +182,7 @@ paths:
   /certificates/{chain-id}/blob:
     get:
       tags:
-        - trust
+        - cppki
       summary: Get the certificate chain blob
       description: |
         Get the certificate chain encoded as PEM bytes blob for a given ChainID.
@@ -206,58 +211,6 @@ paths:
             application/problem+json:
               schema:
                 $ref: "../common/base.yml#/components/schemas/Problem"
-  /ca:
-    get:
-      tags:
-        - trust
-      summary: Information about the CA.
-      operationId: get-ca
-      responses:
-        "200":
-          description: Successful Operation
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CA"
-        "400":
-          $ref: "../common/base.yml#/components/responses/BadRequest"
-  /signer:
-    get:
-      tags:
-        - trust
-      summary: Prints information about the AS Certificate used to sign the control-plane message.
-      operationId: get-signer
-      responses:
-        "200":
-          description: Successful Operation
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Signer"
-        "400":
-          $ref: "../common/base.yml#/components/responses/BadRequest"
-  /signer/blob:
-    get:
-      tags:
-        - trust
-      summary: Get the certificate chain blob
-      description: |
-        Get the certificate chain blob encoded as PEM.
-      operationId: get-signer-chain
-      responses:
-        "200":
-          description: Certificate chain blob
-          content:
-            application/x-pem-file:
-              example: |
-                -----BEGIN CERTIFICATE-----
-                ASCertificate ...
-                -----END CERTIFICATE-----
-                -----BEGIN CERTIFICATE-----
-                CACertificate ...
-                -----END CERTIFICATE-----
-        "400":
-          $ref: "../common/base.yml#/components/responses/BadRequest"
 components:
   schemas:
     TRCBrief:
@@ -331,45 +284,6 @@ components:
           $ref:  "../common/process.yml#/components/schemas/IsdAs"
         validity:
           $ref:  "#/components/schemas/Validity"
-    CA:
-      type: object
-      required:
-        - subject
-        - subject_key_id
-        - policy
-        - cert_validity
-      properties:
-        subject:
-          $ref: "#/components/schemas/Subject"
-        subject_key_id:
-          $ref: "#/components/schemas/SubjectKeyID"
-        policy:
-          $ref: "#/components/schemas/Policy"
-        cert_validity:
-          $ref: "#/components/schemas/Validity"
-    Signer:
-      title: Control plane signer information
-      type: object
-      required:
-        - expiration
-        - as_certificate
-        - trc_id
-        - trc_in_grace_period
-      properties:
-        expiration:
-          description: Signer expiration imposed by chain and TRC validity.
-          type: string
-          format: date-time
-          example: 2022-01-04T09:59:33Z
-        as_certificate:
-          $ref: "#/components/schemas/Certificate"
-        trc_id:
-          $ref: "#/components/schemas/TRCID"
-        trc_in_grace_period:
-          description: |
-            TRC used as trust root is in grace period, and the latest TRC cannot
-            be used as trust root.
-          type: boolean
     Certificate:
       title: Certificate description
       type: object
@@ -436,5 +350,4 @@ components:
         chain_lifetime:
           type: string
           example: 72h0m0s
-
 

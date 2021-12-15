@@ -296,6 +296,17 @@ func (d *DataPlane) AddExternalInterfaceBFD(ifID uint16, conn BatchConn,
 	return d.addBFDController(ifID, s, cfg, m)
 }
 
+// getInterfaceState checks if there is a bfd session for the input interfaceID and
+// returns InterfaceUp if the relevant bfdsession state is up, or if there is no BFD
+// session. Otherwise, it returns InterfaceDown.
+func (d *DataPlane) getInterfaceState(interfaceID uint16) control.InterfaceState {
+	bfdSessions := d.bfdSessions
+	if bfdSession, ok := bfdSessions[interfaceID]; ok && !bfdSession.IsUp() {
+		return control.InterfaceDown
+	}
+	return control.InterfaceUp
+}
+
 func (d *DataPlane) addBFDController(ifID uint16, s *bfdSend, cfg control.BFD,
 	metrics bfd.Metrics) error {
 

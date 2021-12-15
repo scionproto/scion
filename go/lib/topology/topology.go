@@ -111,7 +111,6 @@ type (
 		Local        *net.UDPAddr
 		Remote       *net.UDPAddr
 		RemoteIFID   common.IFIDType
-		Bandwidth    int
 		IA           addr.IA
 		LinkType     LinkType
 		MTU          int
@@ -230,7 +229,6 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 				ID:           ifid,
 				BRName:       name,
 				InternalAddr: intAddr,
-				Bandwidth:    rawIntf.Bandwidth,
 				MTU:          rawIntf.MTU,
 			}
 			if ifinfo.IA, err = addr.IAFromString(rawIntf.IA); err != nil {
@@ -558,8 +556,8 @@ func (i IFInfo) CheckLinks(isCore bool, brName string) error {
 
 func (i IFInfo) String() string {
 	return fmt.Sprintf("IFinfo: Name[%s] IntAddr[%+v] Underlay:%s Local:%+v "+
-		"Remote:%+v Bw:%d IA:%s Type:%v MTU:%d", i.BRName, i.InternalAddr, i.Underlay,
-		i.Local, i.Remote, i.Bandwidth, i.IA, i.LinkType, i.MTU)
+		"Remote:%+v IA:%s Type:%v MTU:%d", i.BRName, i.InternalAddr, i.Underlay,
+		i.Local, i.Remote, i.IA, i.LinkType, i.MTU)
 }
 
 func (i *IFInfo) copy() *IFInfo {
@@ -574,7 +572,6 @@ func (i *IFInfo) copy() *IFInfo {
 		Local:        copyUDPAddr(i.Local),
 		Remote:       copyUDPAddr(i.Remote),
 		RemoteIFID:   i.RemoteIFID,
-		Bandwidth:    i.Bandwidth,
 		IA:           i.IA,
 		LinkType:     i.LinkType,
 		MTU:          i.MTU,

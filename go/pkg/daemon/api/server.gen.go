@@ -4,13 +4,24 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
+	"github.com/deepmap/oapi-codegen/pkg/runtime"
 	"github.com/go-chi/chi/v5"
 )
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// List the certificate chains
+	// (GET /certificates)
+	GetCertificates(w http.ResponseWriter, r *http.Request, params GetCertificatesParams)
+	// Get the certificate chain
+	// (GET /certificates/{chain-id})
+	GetCertificate(w http.ResponseWriter, r *http.Request, chainId ChainID)
+	// Get the certificate chain blob
+	// (GET /certificates/{chain-id}/blob)
+	GetCertificateBlob(w http.ResponseWriter, r *http.Request, chainId ChainID)
 	// Prints the TOML configuration file.
 	// (GET /config)
 	GetConfig(w http.ResponseWriter, r *http.Request)
@@ -23,6 +34,24 @@ type ServerInterface interface {
 	// Set logging level
 	// (PUT /log/level)
 	SetLogLevel(w http.ResponseWriter, r *http.Request)
+	// List the SCION path segments
+	// (GET /segments)
+	GetSegments(w http.ResponseWriter, r *http.Request, params GetSegmentsParams)
+	// Get the SCION path segment description
+	// (GET /segments/{segment-id})
+	GetSegment(w http.ResponseWriter, r *http.Request, segmentId SegmentIDs)
+	// Get the SCION path segment blob
+	// (GET /segments/{segment-id}/blob)
+	GetSegmentBlob(w http.ResponseWriter, r *http.Request, segmentId SegmentIDs)
+	// List the TRCs
+	// (GET /trcs)
+	GetTrcs(w http.ResponseWriter, r *http.Request, params GetTrcsParams)
+	// Get the TRC
+	// (GET /trcs/isd{isd}-b{base}-s{serial})
+	GetTrc(w http.ResponseWriter, r *http.Request, isd int, base int, serial int)
+	// Get the TRC blob
+	// (GET /trcs/isd{isd}-b{base}-s{serial}/blob)
+	GetTrcBlob(w http.ResponseWriter, r *http.Request, isd int, base int, serial int)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -32,6 +61,111 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.HandlerFunc) http.HandlerFunc
+
+// GetCertificates operation middleware
+func (siw *ServerInterfaceWrapper) GetCertificates(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetCertificatesParams
+
+	// ------------- Optional query parameter "isd_as" -------------
+	if paramValue := r.URL.Query().Get("isd_as"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "isd_as", r.URL.Query(), &params.IsdAs)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter isd_as: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "valid_at" -------------
+	if paramValue := r.URL.Query().Get("valid_at"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "valid_at", r.URL.Query(), &params.ValidAt)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter valid_at: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "all" -------------
+	if paramValue := r.URL.Query().Get("all"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "all", r.URL.Query(), &params.All)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter all: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCertificates(w, r, params)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
+// GetCertificate operation middleware
+func (siw *ServerInterfaceWrapper) GetCertificate(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "chain-id" -------------
+	var chainId ChainID
+
+	err = runtime.BindStyledParameter("simple", false, "chain-id", chi.URLParam(r, "chain-id"), &chainId)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter chain-id: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCertificate(w, r, chainId)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
+// GetCertificateBlob operation middleware
+func (siw *ServerInterfaceWrapper) GetCertificateBlob(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "chain-id" -------------
+	var chainId ChainID
+
+	err = runtime.BindStyledParameter("simple", false, "chain-id", chi.URLParam(r, "chain-id"), &chainId)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter chain-id: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCertificateBlob(w, r, chainId)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
 
 // GetConfig operation middleware
 func (siw *ServerInterfaceWrapper) GetConfig(w http.ResponseWriter, r *http.Request) {
@@ -93,6 +227,230 @@ func (siw *ServerInterfaceWrapper) SetLogLevel(w http.ResponseWriter, r *http.Re
 	handler(w, r.WithContext(ctx))
 }
 
+// GetSegments operation middleware
+func (siw *ServerInterfaceWrapper) GetSegments(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetSegmentsParams
+
+	// ------------- Optional query parameter "start_isd_as" -------------
+	if paramValue := r.URL.Query().Get("start_isd_as"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "start_isd_as", r.URL.Query(), &params.StartIsdAs)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter start_isd_as: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "end_isd_as" -------------
+	if paramValue := r.URL.Query().Get("end_isd_as"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "end_isd_as", r.URL.Query(), &params.EndIsdAs)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter end_isd_as: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSegments(w, r, params)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
+// GetSegment operation middleware
+func (siw *ServerInterfaceWrapper) GetSegment(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "segment-id" -------------
+	var segmentId SegmentIDs
+
+	err = runtime.BindStyledParameter("simple", false, "segment-id", chi.URLParam(r, "segment-id"), &segmentId)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter segment-id: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSegment(w, r, segmentId)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
+// GetSegmentBlob operation middleware
+func (siw *ServerInterfaceWrapper) GetSegmentBlob(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "segment-id" -------------
+	var segmentId SegmentIDs
+
+	err = runtime.BindStyledParameter("simple", false, "segment-id", chi.URLParam(r, "segment-id"), &segmentId)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter segment-id: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSegmentBlob(w, r, segmentId)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
+// GetTrcs operation middleware
+func (siw *ServerInterfaceWrapper) GetTrcs(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetTrcsParams
+
+	// ------------- Optional query parameter "isd" -------------
+	if paramValue := r.URL.Query().Get("isd"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", false, false, "isd", r.URL.Query(), &params.Isd)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter isd: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "all" -------------
+	if paramValue := r.URL.Query().Get("all"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "all", r.URL.Query(), &params.All)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter all: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTrcs(w, r, params)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
+// GetTrc operation middleware
+func (siw *ServerInterfaceWrapper) GetTrc(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "isd" -------------
+	var isd int
+
+	err = runtime.BindStyledParameter("simple", false, "isd", chi.URLParam(r, "isd"), &isd)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter isd: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "base" -------------
+	var base int
+
+	err = runtime.BindStyledParameter("simple", false, "base", chi.URLParam(r, "base"), &base)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter base: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "serial" -------------
+	var serial int
+
+	err = runtime.BindStyledParameter("simple", false, "serial", chi.URLParam(r, "serial"), &serial)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter serial: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTrc(w, r, isd, base, serial)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
+// GetTrcBlob operation middleware
+func (siw *ServerInterfaceWrapper) GetTrcBlob(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "isd" -------------
+	var isd int
+
+	err = runtime.BindStyledParameter("simple", false, "isd", chi.URLParam(r, "isd"), &isd)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter isd: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "base" -------------
+	var base int
+
+	err = runtime.BindStyledParameter("simple", false, "base", chi.URLParam(r, "base"), &base)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter base: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "serial" -------------
+	var serial int
+
+	err = runtime.BindStyledParameter("simple", false, "serial", chi.URLParam(r, "serial"), &serial)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter serial: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTrcBlob(w, r, isd, base, serial)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
 // Handler creates http.Handler with routing matching OpenAPI spec.
 func Handler(si ServerInterface) http.Handler {
 	return HandlerWithOptions(si, ChiServerOptions{})
@@ -131,6 +489,15 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/certificates", wrapper.GetCertificates)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/certificates/{chain-id}", wrapper.GetCertificate)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/certificates/{chain-id}/blob", wrapper.GetCertificateBlob)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/config", wrapper.GetConfig)
 	})
 	r.Group(func(r chi.Router) {
@@ -141,6 +508,24 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Put(options.BaseURL+"/log/level", wrapper.SetLogLevel)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/segments", wrapper.GetSegments)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/segments/{segment-id}", wrapper.GetSegment)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/segments/{segment-id}/blob", wrapper.GetSegmentBlob)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/trcs", wrapper.GetTrcs)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/trcs/isd{isd}-b{base}-s{serial}", wrapper.GetTrc)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/trcs/isd{isd}-b{base}-s{serial}/blob", wrapper.GetTrcBlob)
 	})
 
 	return r

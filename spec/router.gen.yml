@@ -12,6 +12,8 @@ servers:
       port:
         default: '30442'
 tags:
+  - name: interface
+    description: Everything related to SCION interfaces.
   - name: common
     description: Common API exposed by SCION services.
 paths:
@@ -81,6 +83,26 @@ paths:
                 type: string
         '400':
           $ref: '#/components/responses/BadRequest'
+  /interfaces:
+    get:
+      tags:
+        - interface
+      summary: List the SCION interfaces
+      description: List the SCION interfaces that are configured on the router.
+      operationId: get-interfaces
+      responses:
+        '200':
+          description: List of SCION interfaces.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterfacesResponse'
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
 components:
   schemas:
     StandardError:
@@ -104,6 +126,212 @@ components:
             - error
       required:
         - level
+    IsdAs:
+      title: ISD-AS Identifier
+      type: string
+      pattern: ^\d+-([a-f0-9]{1,4}:){2}([a-f0-9]{1,4})|\d+$
+      example: 1-ff00:0:110
+    InterfaceNeighbor:
+      title: Neighboring SCION interface endpoint of the link.
+      type: object
+      required:
+        - isd_as
+        - address
+      properties:
+        isd_as:
+          $ref: '#/components/schemas/IsdAs'
+        address:
+          description: UDP/IP underlay address of the SCION Interface.
+          type: string
+          example: 192.168.2.2:31000
+    ScionMTU:
+      description: >-
+        The maximum transmission unit in bytes for SCION packets. This
+        represents the protocol data unit (PDU) of the SCION layer and is
+        usually calculated as maximum Ethernet payload - IP Header - UDP Header.
+      type: integer
+      example: 1472
+    BFD:
+      title: Bidirectional Forwarding Detection configuration of an interface.
+      type: object
+      required:
+        - desired_minimum_tx_interval
+        - detection_multiplier
+        - enabled
+        - required_minimum_receive
+      properties:
+        desired_minimum_tx_interval:
+          description: >-
+            The minimum interval between transmission of BFD control packets
+            that the operator desires. This value is advertised to the peer,
+            however the actual interval used is specified by taking the maximum
+            of desired-minimum-tx-interval and the value of the remote
+            required-minimum-receive interval value.
+          type: string
+          example: 200ms
+        detection_multiplier:
+          description: >-
+            The number of packets that must be missed to declare this session as
+            down. The detection interval for the BFD session is calculated by
+            multiplying the value of the negotiated transmission interval by
+            this value.
+          type: integer
+          example: 3
+        enabled:
+          description: >-
+            Indication of whether BFD is enabled and configured on this
+            interface.
+          type: boolean
+          example: true
+        required_minimum_receive:
+          description: >-
+            The minimum interval between received BFD control packets that this
+            system should support. This value is advertised to the remote peer
+            to indicate the maximum frequency (i.e., minimum inter-packet
+            interval) between BFD control packets that is acceptable to the
+            local system.
+          type: string
+          example: 200ms
+    LinkState:
+      type: string
+      example: UP
+      enum:
+        - UP
+        - DOWN
+    LinkRelationship:
+      type: string
+      example: CHILD
+      enum:
+        - CORE
+        - CHILD
+        - PARENT
+        - PEER
+    Interface:
+      title: SCION Interface on the router
+      type: object
+      required:
+        - interface_id
+        - neighbor
+        - scion_mtu
+        - bfd
+        - state
+        - relationship
+        - internal_interface
+      properties:
+        interface_id:
+          description: SCION interface identifier.
+          type: integer
+          example: 3
+        neighbor:
+          $ref: '#/components/schemas/InterfaceNeighbor'
+        scion_mtu:
+          $ref: '#/components/schemas/ScionMTU'
+        bfd:
+          $ref: '#/components/schemas/BFD'
+        state:
+          $ref: '#/components/schemas/LinkState'
+        relationship:
+          $ref: '#/components/schemas/LinkRelationship'
+        internal_interface:
+          description: The address of internal SCION interface of the router.
+          type: string
+          example: 192.168.2.2:31000
+    SiblingNeighbor:
+      title: Neighboring SCION interface endpoint of the link.
+      type: object
+      required:
+        - isd_as
+      properties:
+        isd_as:
+          $ref: '#/components/schemas/IsdAs'
+    SiblingInterface:
+      title: Sibling Interfaces
+      type: object
+      required:
+        - interface_id
+        - internal_interface
+        - neighbor
+        - scion_mtu
+        - relationship
+        - state
+      properties:
+        interface_id:
+          description: SCION interface identifier.
+          type: integer
+          example: 3
+        internal_interface:
+          description: Internal address of the local router.
+          type: string
+          example: 192.168.2.2:31000
+        neighbor:
+          $ref: '#/components/schemas/SiblingNeighbor'
+        scion_mtu:
+          $ref: '#/components/schemas/ScionMTU'
+        relationship:
+          $ref: '#/components/schemas/LinkRelationship'
+        state:
+          $ref: '#/components/schemas/LinkState'
+    InterfacesResponse:
+      title: Response listing local and sibling interfaces
+      type: object
+      properties:
+        interfaces:
+          type: array
+          items:
+            $ref: '#/components/schemas/Interface'
+        sibling_interfaces:
+          type: array
+          items:
+            $ref: '#/components/schemas/SiblingInterface'
+    Problem:
+      type: object
+      required:
+        - status
+        - title
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          description: >-
+            A URI reference that uniquely identifies the problem type only in
+            the context of the provided API. Opposed to the specification in
+            RFC-7807, it is neither recommended to be dereferencable and point
+            to a human-readable documentation nor globally unique for the
+            problem type.
+          default: about:blank
+          example: /problem/connection-error
+        title:
+          type: string
+          description: >-
+            A short summary of the problem type. Written in English and readable
+            for engineers, usually not suited for non technical stakeholders and
+            not localized.
+          example: Service Unavailable
+        status:
+          type: integer
+          description: >-
+            The HTTP status code generated by the origin server for this
+            occurrence of the problem.
+          minimum: 100
+          maximum: 599
+          example: 503
+        detail:
+          type: string
+          description: >-
+            A human readable explanation specific to this occurrence of the
+            problem that is helpful to locate the problem and give advice on how
+            to proceed. Written in English and readable for engineers, usually
+            not suited for non technical stakeholders and not localized.
+          example: Connection to database timed out
+        instance:
+          type: string
+          format: uri-reference
+          description: >-
+            A URI reference that identifies the specific occurrence of the
+            problem, e.g. by adding a fragment identifier or sub-path to the
+            problem type. May be used to locate the root of this problem in the
+            source code.
+          example: /problem/connection-error#token-info-read-timed-out
   responses:
     BadRequest:
       description: Bad request

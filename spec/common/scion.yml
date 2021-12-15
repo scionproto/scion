@@ -1,0 +1,21 @@
+components:
+  schemas:
+    LinkRelationship:
+      type: string
+      example: CHILD
+      enum:
+        - CORE
+        - CHILD
+        - PARENT
+        - PEER
+    LinkState:
+      type: string
+      example: UP
+      enum: [UP, DOWN]
+    ScionMTU:
+      description: >-
+        The maximum transmission unit in bytes for SCION packets. This represents
+        the protocol data unit (PDU) of the SCION layer and is usually calculated
+        as maximum Ethernet payload - IP Header - UDP Header.
+      type: integer
+      example: 1472

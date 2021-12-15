@@ -1,0 +1,94 @@
+paths:
+  /ca:
+    get:
+      tags:
+        - cppki
+      summary: Information about the CA.
+      operationId: get-ca
+      responses:
+        "200":
+          description: Successful Operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CA"
+        "400":
+          $ref: "../common/base.yml#/components/responses/BadRequest"
+  /signer:
+    get:
+      tags:
+        - cppki
+      summary: Prints information about the AS Certificate used to sign the control-plane message.
+      operationId: get-signer
+      responses:
+        "200":
+          description: Successful Operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Signer"
+        "400":
+          $ref: "../common/base.yml#/components/responses/BadRequest"
+  /signer/blob:
+    get:
+      tags:
+        - cppki
+      summary: Get the certificate chain blob
+      description: |
+        Get the certificate chain blob encoded as PEM.
+      operationId: get-signer-chain
+      responses:
+        "200":
+          description: Certificate chain blob
+          content:
+            application/x-pem-file:
+              example: |
+                -----BEGIN CERTIFICATE-----
+                ASCertificate ...
+                -----END CERTIFICATE-----
+                -----BEGIN CERTIFICATE-----
+                CACertificate ...
+                -----END CERTIFICATE-----
+        "400":
+          $ref: "../common/base.yml#/components/responses/BadRequest"
+components:
+  schemas:
+    CA:
+      type: object
+      required:
+        - subject
+        - subject_key_id
+        - policy
+        - cert_validity
+      properties:
+        subject:
+          $ref: "../cppki/spec.yml#/components/schemas/Subject"
+        subject_key_id:
+          $ref: "../cppki/spec.yml#/components/schemas/SubjectKeyID"
+        policy:
+          $ref: "../cppki/spec.yml#/components/schemas/Policy"
+        cert_validity:
+          $ref: "../cppki/spec.yml#/components/schemas/Validity"
+    Signer:
+      title: Control plane signer information
+      type: object
+      required:
+        - expiration
+        - as_certificate
+        - trc_id
+        - trc_in_grace_period
+      properties:
+        expiration:
+          description: Signer expiration imposed by chain and TRC validity.
+          type: string
+          format: date-time
+          example: 2022-01-04T09:59:33Z
+        as_certificate:
+          $ref: "../cppki/spec.yml#/components/schemas/Certificate"
+        trc_id:
+          $ref: "../cppki/spec.yml#/components/schemas/TRCID"
+        trc_in_grace_period:
+          description: |
+            TRC used as trust root is in grace period, and the latest TRC cannot
+            be used as trust root.
+          type: boolean
