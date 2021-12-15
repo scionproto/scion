@@ -86,6 +86,11 @@ performance and is more restricted in the support of algorithms
 where one side has to fetch the key (slow), and the other side can
 recompute the key on the fly (fast).
 
+The motivation for cryptographic agility does not only need to be
+performance-related, but can for example arise from AS-specific
+requirements for higher security standards or compliance with
+security policies.
+
 Beaconing Extensions
 --------------------
 CASA categories are carried in `signed beaconing extensions`_.
