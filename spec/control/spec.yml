@@ -13,35 +13,37 @@ servers:
 tags:
   - name: segment
     description: Everything related to SCION path segments.
-  - name: trust
-    description: Everything related to SCION trust material.
+  - name: cppki
+    description: Everything related to SCION CPPKI material.
   - name: common
     description: Common API exposed by SCION services.
+  - name: health
+    description: Endpoints related to the health status of services.
 paths:
   /segments:
-    $ref: "./segments.yml#/paths/~1segments"
+    $ref: "../segments/spec.yml#/paths/~1segments"
   /segments/{segment-id}:
-    $ref: "./segments.yml#/paths/~1segments~1{segment-id}"
+    $ref: "../segments/spec.yml#/paths/~1segments~1{segment-id}"
   /segments/{segment-id}/blob:
-    $ref: "./segments.yml#/paths/~1segments~1{segment-id}~1blob"
+    $ref: "../segments/spec.yml#/paths/~1segments~1{segment-id}~1blob"
   /signer:
-    $ref: "./trust.yml#/paths/~1signer"
+    $ref: "./cppki.yml#/paths/~1signer"
   /signer/blob:
-    $ref: "./trust.yml#/paths/~1signer~1blob"
+    $ref: "./cppki.yml#/paths/~1signer~1blob"
   /ca:
-    $ref: "./trust.yml#/paths/~1ca"
+    $ref: "./cppki.yml#/paths/~1ca"
   /trcs:
-    $ref: "./trust.yml#/paths/~1trcs"
+    $ref: "../cppki/spec.yml#/paths/~1trcs"
   /trcs/isd{isd}-b{base}-s{serial}:
-    $ref: "./trust.yml#/paths/~1trcs~1isd{isd}-b{base}-s{serial}"
+    $ref: "../cppki/spec.yml#/paths/~1trcs~1isd{isd}-b{base}-s{serial}"
   /trcs/isd{isd}-b{base}-s{serial}/blob:
-    $ref: "./trust.yml#/paths/~1trcs~1isd{isd}-b{base}-s{serial}~1blob"
+    $ref: "../cppki/spec.yml#/paths/~1trcs~1isd{isd}-b{base}-s{serial}~1blob"
   /certificates:
-    $ref: "./trust.yml#/paths/~1certificates"
+    $ref: "../cppki/spec.yml#/paths/~1certificates"
   /certificates/{chain-id}:
-    $ref: "./trust.yml#/paths/~1certificates~1{chain-id}"
+    $ref: "../cppki/spec.yml#/paths/~1certificates~1{chain-id}"
   /certificates/{chain-id}/blob:
-    $ref: "./trust.yml#/paths/~1certificates~1{chain-id}~1blob"
+    $ref: "../cppki/spec.yml#/paths/~1certificates~1{chain-id}~1blob"
   /info:
     $ref: "../common/process.yml#/paths/~1info"
   /log/level:
@@ -50,3 +52,7 @@ paths:
     $ref: "../common/process.yml#/paths/~1config"
   /topology:
     $ref: "../common/process.yml#/paths/~1topology"
+  /beacons:
+    $ref: "./beacons.yml#/paths/~1beacons"
+  /health:
+    $ref: "../health/spec.yml#/paths/~1health"

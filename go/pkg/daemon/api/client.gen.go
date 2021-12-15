@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/deepmap/oapi-codegen/pkg/runtime"
 )
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
@@ -88,6 +90,15 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// GetCertificates request
+	GetCertificates(ctx context.Context, params *GetCertificatesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetCertificate request
+	GetCertificate(ctx context.Context, chainId ChainID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetCertificateBlob request
+	GetCertificateBlob(ctx context.Context, chainId ChainID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetConfig request
 	GetConfig(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -101,6 +112,60 @@ type ClientInterface interface {
 	SetLogLevelWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	SetLogLevel(ctx context.Context, body SetLogLevelJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSegments request
+	GetSegments(ctx context.Context, params *GetSegmentsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSegment request
+	GetSegment(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSegmentBlob request
+	GetSegmentBlob(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetTrcs request
+	GetTrcs(ctx context.Context, params *GetTrcsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetTrc request
+	GetTrc(ctx context.Context, isd int, base int, serial int, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetTrcBlob request
+	GetTrcBlob(ctx context.Context, isd int, base int, serial int, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) GetCertificates(ctx context.Context, params *GetCertificatesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetCertificatesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetCertificate(ctx context.Context, chainId ChainID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetCertificateRequest(c.Server, chainId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetCertificateBlob(ctx context.Context, chainId ChainID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetCertificateBlobRequest(c.Server, chainId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) GetConfig(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -161,6 +226,225 @@ func (c *Client) SetLogLevel(ctx context.Context, body SetLogLevelJSONRequestBod
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+func (c *Client) GetSegments(ctx context.Context, params *GetSegmentsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSegmentsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetSegment(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSegmentRequest(c.Server, segmentId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetSegmentBlob(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSegmentBlobRequest(c.Server, segmentId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetTrcs(ctx context.Context, params *GetTrcsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetTrcsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetTrc(ctx context.Context, isd int, base int, serial int, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetTrcRequest(c.Server, isd, base, serial)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetTrcBlob(ctx context.Context, isd int, base int, serial int, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetTrcBlobRequest(c.Server, isd, base, serial)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NewGetCertificatesRequest generates requests for GetCertificates
+func NewGetCertificatesRequest(server string, params *GetCertificatesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/certificates")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	queryValues := queryURL.Query()
+
+	if params.IsdAs != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "isd_as", runtime.ParamLocationQuery, *params.IsdAs); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	if params.ValidAt != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "valid_at", runtime.ParamLocationQuery, *params.ValidAt); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	if params.All != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "all", runtime.ParamLocationQuery, *params.All); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	queryURL.RawQuery = queryValues.Encode()
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetCertificateRequest generates requests for GetCertificate
+func NewGetCertificateRequest(server string, chainId ChainID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "chain-id", runtime.ParamLocationPath, chainId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/certificates/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetCertificateBlobRequest generates requests for GetCertificateBlob
+func NewGetCertificateBlobRequest(server string, chainId ChainID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "chain-id", runtime.ParamLocationPath, chainId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/certificates/%s/blob", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewGetConfigRequest generates requests for GetConfig
@@ -284,6 +568,296 @@ func NewSetLogLevelRequestWithBody(server string, contentType string, body io.Re
 	return req, nil
 }
 
+// NewGetSegmentsRequest generates requests for GetSegments
+func NewGetSegmentsRequest(server string, params *GetSegmentsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/segments")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	queryValues := queryURL.Query()
+
+	if params.StartIsdAs != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "start_isd_as", runtime.ParamLocationQuery, *params.StartIsdAs); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	if params.EndIsdAs != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "end_isd_as", runtime.ParamLocationQuery, *params.EndIsdAs); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	queryURL.RawQuery = queryValues.Encode()
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetSegmentRequest generates requests for GetSegment
+func NewGetSegmentRequest(server string, segmentId SegmentIDs) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "segment-id", runtime.ParamLocationPath, segmentId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/segments/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetSegmentBlobRequest generates requests for GetSegmentBlob
+func NewGetSegmentBlobRequest(server string, segmentId SegmentIDs) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "segment-id", runtime.ParamLocationPath, segmentId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/segments/%s/blob", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetTrcsRequest generates requests for GetTrcs
+func NewGetTrcsRequest(server string, params *GetTrcsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/trcs")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	queryValues := queryURL.Query()
+
+	if params.Isd != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", false, "isd", runtime.ParamLocationQuery, *params.Isd); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	if params.All != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "all", runtime.ParamLocationQuery, *params.All); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	queryURL.RawQuery = queryValues.Encode()
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetTrcRequest generates requests for GetTrc
+func NewGetTrcRequest(server string, isd int, base int, serial int) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "isd", runtime.ParamLocationPath, isd)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "base", runtime.ParamLocationPath, base)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "serial", runtime.ParamLocationPath, serial)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/trcs/isd%s-b%s-s%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetTrcBlobRequest generates requests for GetTrcBlob
+func NewGetTrcBlobRequest(server string, isd int, base int, serial int) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "isd", runtime.ParamLocationPath, isd)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "base", runtime.ParamLocationPath, base)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "serial", runtime.ParamLocationPath, serial)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/trcs/isd%s-b%s-s%s/blob", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -327,6 +901,15 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// GetCertificates request
+	GetCertificatesWithResponse(ctx context.Context, params *GetCertificatesParams, reqEditors ...RequestEditorFn) (*GetCertificatesResponse, error)
+
+	// GetCertificate request
+	GetCertificateWithResponse(ctx context.Context, chainId ChainID, reqEditors ...RequestEditorFn) (*GetCertificateResponse, error)
+
+	// GetCertificateBlob request
+	GetCertificateBlobWithResponse(ctx context.Context, chainId ChainID, reqEditors ...RequestEditorFn) (*GetCertificateBlobResponse, error)
+
 	// GetConfig request
 	GetConfigWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetConfigResponse, error)
 
@@ -340,6 +923,89 @@ type ClientWithResponsesInterface interface {
 	SetLogLevelWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetLogLevelResponse, error)
 
 	SetLogLevelWithResponse(ctx context.Context, body SetLogLevelJSONRequestBody, reqEditors ...RequestEditorFn) (*SetLogLevelResponse, error)
+
+	// GetSegments request
+	GetSegmentsWithResponse(ctx context.Context, params *GetSegmentsParams, reqEditors ...RequestEditorFn) (*GetSegmentsResponse, error)
+
+	// GetSegment request
+	GetSegmentWithResponse(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*GetSegmentResponse, error)
+
+	// GetSegmentBlob request
+	GetSegmentBlobWithResponse(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*GetSegmentBlobResponse, error)
+
+	// GetTrcs request
+	GetTrcsWithResponse(ctx context.Context, params *GetTrcsParams, reqEditors ...RequestEditorFn) (*GetTrcsResponse, error)
+
+	// GetTrc request
+	GetTrcWithResponse(ctx context.Context, isd int, base int, serial int, reqEditors ...RequestEditorFn) (*GetTrcResponse, error)
+
+	// GetTrcBlob request
+	GetTrcBlobWithResponse(ctx context.Context, isd int, base int, serial int, reqEditors ...RequestEditorFn) (*GetTrcBlobResponse, error)
+}
+
+type GetCertificatesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]ChainBrief
+}
+
+// Status returns HTTPResponse.Status
+func (r GetCertificatesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetCertificatesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetCertificateResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Chain
+}
+
+// Status returns HTTPResponse.Status
+func (r GetCertificateResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetCertificateResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetCertificateBlobResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r GetCertificateBlobResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetCertificateBlobResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type GetConfigResponse struct {
@@ -432,6 +1098,166 @@ func (r SetLogLevelResponse) StatusCode() int {
 	return 0
 }
 
+type GetSegmentsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]SegmentBrief
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSegmentsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSegmentsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetSegmentResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Segment
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSegmentResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSegmentResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetSegmentBlobResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSegmentBlobResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSegmentBlobResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetTrcsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]TRCBrief
+	JSON400      *StandardError
+}
+
+// Status returns HTTPResponse.Status
+func (r GetTrcsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetTrcsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetTrcResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TRC
+	JSON400      *StandardError
+}
+
+// Status returns HTTPResponse.Status
+func (r GetTrcResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetTrcResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetTrcBlobResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *StandardError
+}
+
+// Status returns HTTPResponse.Status
+func (r GetTrcBlobResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetTrcBlobResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// GetCertificatesWithResponse request returning *GetCertificatesResponse
+func (c *ClientWithResponses) GetCertificatesWithResponse(ctx context.Context, params *GetCertificatesParams, reqEditors ...RequestEditorFn) (*GetCertificatesResponse, error) {
+	rsp, err := c.GetCertificates(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetCertificatesResponse(rsp)
+}
+
+// GetCertificateWithResponse request returning *GetCertificateResponse
+func (c *ClientWithResponses) GetCertificateWithResponse(ctx context.Context, chainId ChainID, reqEditors ...RequestEditorFn) (*GetCertificateResponse, error) {
+	rsp, err := c.GetCertificate(ctx, chainId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetCertificateResponse(rsp)
+}
+
+// GetCertificateBlobWithResponse request returning *GetCertificateBlobResponse
+func (c *ClientWithResponses) GetCertificateBlobWithResponse(ctx context.Context, chainId ChainID, reqEditors ...RequestEditorFn) (*GetCertificateBlobResponse, error) {
+	rsp, err := c.GetCertificateBlob(ctx, chainId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetCertificateBlobResponse(rsp)
+}
+
 // GetConfigWithResponse request returning *GetConfigResponse
 func (c *ClientWithResponses) GetConfigWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetConfigResponse, error) {
 	rsp, err := c.GetConfig(ctx, reqEditors...)
@@ -474,6 +1300,128 @@ func (c *ClientWithResponses) SetLogLevelWithResponse(ctx context.Context, body 
 		return nil, err
 	}
 	return ParseSetLogLevelResponse(rsp)
+}
+
+// GetSegmentsWithResponse request returning *GetSegmentsResponse
+func (c *ClientWithResponses) GetSegmentsWithResponse(ctx context.Context, params *GetSegmentsParams, reqEditors ...RequestEditorFn) (*GetSegmentsResponse, error) {
+	rsp, err := c.GetSegments(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSegmentsResponse(rsp)
+}
+
+// GetSegmentWithResponse request returning *GetSegmentResponse
+func (c *ClientWithResponses) GetSegmentWithResponse(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*GetSegmentResponse, error) {
+	rsp, err := c.GetSegment(ctx, segmentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSegmentResponse(rsp)
+}
+
+// GetSegmentBlobWithResponse request returning *GetSegmentBlobResponse
+func (c *ClientWithResponses) GetSegmentBlobWithResponse(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*GetSegmentBlobResponse, error) {
+	rsp, err := c.GetSegmentBlob(ctx, segmentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSegmentBlobResponse(rsp)
+}
+
+// GetTrcsWithResponse request returning *GetTrcsResponse
+func (c *ClientWithResponses) GetTrcsWithResponse(ctx context.Context, params *GetTrcsParams, reqEditors ...RequestEditorFn) (*GetTrcsResponse, error) {
+	rsp, err := c.GetTrcs(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetTrcsResponse(rsp)
+}
+
+// GetTrcWithResponse request returning *GetTrcResponse
+func (c *ClientWithResponses) GetTrcWithResponse(ctx context.Context, isd int, base int, serial int, reqEditors ...RequestEditorFn) (*GetTrcResponse, error) {
+	rsp, err := c.GetTrc(ctx, isd, base, serial, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetTrcResponse(rsp)
+}
+
+// GetTrcBlobWithResponse request returning *GetTrcBlobResponse
+func (c *ClientWithResponses) GetTrcBlobWithResponse(ctx context.Context, isd int, base int, serial int, reqEditors ...RequestEditorFn) (*GetTrcBlobResponse, error) {
+	rsp, err := c.GetTrcBlob(ctx, isd, base, serial, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetTrcBlobResponse(rsp)
+}
+
+// ParseGetCertificatesResponse parses an HTTP response from a GetCertificatesWithResponse call
+func ParseGetCertificatesResponse(rsp *http.Response) (*GetCertificatesResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetCertificatesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ChainBrief
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetCertificateResponse parses an HTTP response from a GetCertificateWithResponse call
+func ParseGetCertificateResponse(rsp *http.Response) (*GetCertificateResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetCertificateResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Chain
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetCertificateBlobResponse parses an HTTP response from a GetCertificateBlobWithResponse call
+func ParseGetCertificateBlobResponse(rsp *http.Response) (*GetCertificateBlobResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetCertificateBlobResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
 }
 
 // ParseGetConfigResponse parses an HTTP response from a GetConfigWithResponse call
@@ -582,6 +1530,166 @@ func ParseSetLogLevelResponse(rsp *http.Response) (*SetLogLevelResponse, error) 
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest StandardError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetSegmentsResponse parses an HTTP response from a GetSegmentsWithResponse call
+func ParseGetSegmentsResponse(rsp *http.Response) (*GetSegmentsResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSegmentsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []SegmentBrief
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetSegmentResponse parses an HTTP response from a GetSegmentWithResponse call
+func ParseGetSegmentResponse(rsp *http.Response) (*GetSegmentResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSegmentResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Segment
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetSegmentBlobResponse parses an HTTP response from a GetSegmentBlobWithResponse call
+func ParseGetSegmentBlobResponse(rsp *http.Response) (*GetSegmentBlobResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSegmentBlobResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseGetTrcsResponse parses an HTTP response from a GetTrcsWithResponse call
+func ParseGetTrcsResponse(rsp *http.Response) (*GetTrcsResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetTrcsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []TRCBrief
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest StandardError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetTrcResponse parses an HTTP response from a GetTrcWithResponse call
+func ParseGetTrcResponse(rsp *http.Response) (*GetTrcResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetTrcResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TRC
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest StandardError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetTrcBlobResponse parses an HTTP response from a GetTrcBlobWithResponse call
+func ParseGetTrcBlobResponse(rsp *http.Response) (*GetTrcBlobResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetTrcBlobResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest StandardError
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {

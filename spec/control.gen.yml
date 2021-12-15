@@ -14,10 +14,12 @@ servers:
 tags:
   - name: segment
     description: Everything related to SCION path segments.
-  - name: trust
-    description: Everything related to SCION trust material.
+  - name: cppki
+    description: Everything related to SCION CPPKI material.
   - name: common
     description: Common API exposed by SCION services.
+  - name: health
+    description: Endpoints related to the health status of services.
 paths:
   /segments:
     get:
@@ -25,9 +27,9 @@ paths:
         - segment
       summary: List the SCION path segments
       description: >-
-        List the SCION path segments that are known to the control service. The
-        results can be filtered by the start and end AS of the segment. Inspect
-        the individual segments for a more detailed view.
+        List the SCION path segments that are known to the service. The results
+        can be filtered by the start and end AS of the segment. Inspect the
+        individual segments for a more detailed view.
       operationId: get-segments
       parameters:
         - in: query
@@ -118,7 +120,7 @@ paths:
   /signer:
     get:
       tags:
-        - trust
+        - cppki
       summary: >-
         Prints information about the AS Certificate used to sign the
         control-plane message.
@@ -135,7 +137,7 @@ paths:
   /signer/blob:
     get:
       tags:
-        - trust
+        - cppki
       summary: Get the certificate chain blob
       description: |
         Get the certificate chain blob encoded as PEM.
@@ -157,7 +159,7 @@ paths:
   /ca:
     get:
       tags:
-        - trust
+        - cppki
       summary: Information about the CA.
       operationId: get-ca
       responses:
@@ -172,7 +174,7 @@ paths:
   /trcs:
     get:
       tags:
-        - trust
+        - cppki
       summary: List the TRCs
       description: >-
         List the latest SCION Trust Root Configurations for each ISD that are
@@ -206,7 +208,7 @@ paths:
   /trcs/isd{isd}-b{base}-s{serial}:
     get:
       tags:
-        - trust
+        - cppki
       summary: Get the TRC
       description: |
         Get the SCION Trust Root Configuration.
@@ -242,7 +244,7 @@ paths:
   /trcs/isd{isd}-b{base}-s{serial}/blob:
     get:
       tags:
-        - trust
+        - cppki
       summary: Get the TRC blob
       description: |
         Get the SCION Trust Root Configuration as PEM encoded byte blob.
@@ -280,7 +282,7 @@ paths:
   /certificates:
     get:
       tags:
-        - trust
+        - cppki
       summary: List the certificate chains
       description: |
         List the currently active certificate chains that are known to the
@@ -321,7 +323,7 @@ paths:
   /certificates/{chain-id}:
     get:
       tags:
-        - trust
+        - cppki
       summary: Get the certificate chain
       description: |
         Get the certificate chain for a given ChainID.
@@ -348,7 +350,7 @@ paths:
   /certificates/{chain-id}/blob:
     get:
       tags:
-        - trust
+        - cppki
       summary: Get the certificate chain blob
       description: |
         Get the certificate chain encoded as PEM bytes blob for a given ChainID.
@@ -456,6 +458,114 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Topology'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /beacons:
+    get:
+      tags:
+        - beacon
+      summary: List the SCION beacons
+      description: >-
+        List the SCION beacons that are known to the control service. The
+        results can be filtered by the start AS, ingress interface and usage of
+        the beacon. By default, all unexpired beacons are returned. This
+        behavior can be changed with the `all` and `valid_at` parameters.
+      operationId: get-beacons
+      parameters:
+        - in: query
+          description: >-
+            Start ISD-AS of beacons. The address can include wildcards (0) both
+            for the ISD and AS identifier.
+          name: start_isd_as
+          example: 1-ff00:0:110
+          schema:
+            $ref: '#/components/schemas/IsdAs'
+        - in: query
+          description: >-
+            Minimum allowed usages of the returned beacons. Only beacons that
+            are allowed in all the usages in the list will be returned.
+          name: usages
+          example:
+            - up_registration
+            - down_registration
+          schema:
+            $ref: '#/components/schemas/BeaconUsages'
+        - in: query
+          description: Ingress interface id.
+          name: ingress_interface
+          example: 2
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 65535
+        - in: query
+          description: >-
+            Timestamp at which returned beacons are valid. If unset then the
+            current datetime is used. This only has an effect if `all=false`.
+          name: valid_at
+          example: 2021-11-25T12:20:50.52Z
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          description: Include beacons regardless of expiration and creation time.
+          name: all
+          schema:
+            type: boolean
+            default: false
+        - in: query
+          description: Whether to reverse the sort order (ascending by default).
+          name: desc
+          schema:
+            default: false
+            type: boolean
+        - in: query
+          description: >-
+            Attribute by which results are sorted. The value `start_isd_as`
+            refers to the ISD-AS identifier of the first hop.
+          name: sort
+          example: expiration
+          schema:
+            type: string
+            default: last_updated
+            enum:
+              - expiration
+              - timestamp
+              - start_isd_as
+              - last_updated
+              - ingress_interface
+      responses:
+        '200':
+          description: List of matching SCION beacons.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  beacons:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Beacon'
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /health:
+    get:
+      tags:
+        - health
+      summary: Indicate the service health.
+      description: Present the health of the service along with the executed health checks.
+      operationId: get-health
+      responses:
+        '200':
+          description: Service health information.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
 components:
@@ -781,6 +891,92 @@ components:
     Topology:
       type: object
       additionalProperties: true
+    BeaconUsage:
+      title: Allowed Beacon usage.
+      type: string
+      enum:
+        - up_registration
+        - down_registration
+        - core_registration
+        - propagation
+    BeaconUsages:
+      title: List of allowed beacon usages.
+      type: array
+      items:
+        $ref: '#/components/schemas/BeaconUsage'
+      uniqueItems: true
+    Beacon:
+      title: SCION path-segment construction beacon
+      allOf:
+        - $ref: '#/components/schemas/Segment'
+        - type: object
+          required:
+            - usages
+            - ingress_interface
+          properties:
+            usages:
+              $ref: '#/components/schemas/BeaconUsages'
+            ingress_interface:
+              description: Ingress interface of the beacon.
+              type: integer
+    Status:
+      title: Health status of the service.
+      type: string
+      example: passing
+      enum:
+        - passing
+        - degraded
+        - failing
+    CheckData:
+      title: Free form additional data for the health check.
+      type: object
+      additionalProperties: true
+    Check:
+      title: Health Check.
+      type: object
+      required:
+        - name
+        - status
+        - data
+      properties:
+        name:
+          description: Name of health check.
+          type: string
+          example: valid signer available
+        status:
+          $ref: '#/components/schemas/Status'
+        data:
+          $ref: '#/components/schemas/CheckData'
+        reason:
+          description: Reason for check failure.
+          type: string
+          example: ''
+        detail:
+          description: Additional information.
+          type: string
+          example: ''
+    Health:
+      title: Summary of health status and checks.
+      type: object
+      required:
+        - status
+        - checks
+      properties:
+        status:
+          $ref: '#/components/schemas/Status'
+        checks:
+          description: List of health checks.
+          type: array
+          items:
+            $ref: '#/components/schemas/Check'
+    HealthResponse:
+      title: Service health information.
+      type: object
+      required:
+        - health
+      properties:
+        health:
+          $ref: '#/components/schemas/Health'
   responses:
     BadRequest:
       description: Bad request

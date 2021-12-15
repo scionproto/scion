@@ -94,9 +94,10 @@ func realMain(ctx context.Context) error {
 		r.Get("/", api.ServeSpecInteractive)
 		r.Get("/openapi.json", api.ServeSpecJSON)
 		server := api.Server{
-			Config:   service.NewConfigStatusPage(globalCfg).Handler,
-			Info:     service.NewInfoStatusPage().Handler,
-			LogLevel: service.NewLogLevelStatusPage().Handler,
+			Config:    service.NewConfigStatusPage(globalCfg).Handler,
+			Info:      service.NewInfoStatusPage().Handler,
+			LogLevel:  service.NewLogLevelStatusPage().Handler,
+			Dataplane: dp,
 		}
 		log.Info("Exposing API", "addr", globalCfg.API.Addr)
 		h := api.HandlerFromMuxWithBaseURL(&server, r, "/api/v1")

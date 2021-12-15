@@ -36,6 +36,7 @@ var (
 	IA331 = addr.IA{I: 1, A: 0xff0000000331}
 	IA332 = addr.IA{I: 1, A: 0xff0000000332}
 	IA333 = addr.IA{I: 1, A: 0xff0000000333}
+	IA334 = addr.IA{I: 2, A: 0xff0000000334}
 
 	Info1 = []IfInfo{
 		{
@@ -78,6 +79,14 @@ var (
 			Next:    IA333,
 			Ingress: 1,
 			Egress:  7,
+		},
+	}
+
+	Info4 = []IfInfo{
+		{
+			IA:     IA334,
+			Next:   IA330,
+			Egress: 10,
 		},
 	}
 

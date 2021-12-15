@@ -1,5 +1,14 @@
 #!/bin/bash
 
+
+if [ -f ".buildkite/hooks/bazel-remote.yml" -a -z "$PRE_COMMAND_SETUP" ]; then
+    echo "--- Uploading bazel-remote logs/metrics"
+    curl http://localhost:8080/metrics > bazel-remote-cache.metrics
+    docker stop bazel-remote-cache
+    docker logs bazel-remote-cache &> bazel-remote-cache.log
+    buildkite-agent artifact upload "bazel-remote-cache.*"
+fi
+
 echo "--- Cleaning up the topology"
 
 ./scion.sh topo_clean

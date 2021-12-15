@@ -19,7 +19,6 @@
             "remote": "192.0.2.2:4998",
             "bind": "10.0.0.1"
           },
-          "bandwidth": 100000,
           "isd_as": "6-ff00:0:363",
           "link_to": "CORE",
           "mtu": 1472
@@ -35,7 +34,6 @@
             "remote": "[2001:db8:a0b:12f0::2]:4998",
             "bind": "2001:db8:a0b:12f0::8"
           },
-          "bandwidth": 5000,
           "isd_as": "6-ff00:0:364",
           "link_to": "CHILD",
           "mtu": 4430

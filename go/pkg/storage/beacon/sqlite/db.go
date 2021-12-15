@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,7 +28,9 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
+	storagebeacon "github.com/scionproto/scion/go/pkg/storage/beacon"
 )
 
 var _ beacon.DB = (*Backend)(nil)
@@ -104,8 +107,12 @@ func (e *executor) BeaconSources(ctx context.Context) ([]addr.IA, error) {
 	return ias, nil
 }
 
-func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beacon.Usage,
-	src addr.IA) ([]beacon.Beacon, error) {
+func (e *executor) CandidateBeacons(
+	ctx context.Context,
+	setSize int,
+	usage beacon.Usage,
+	src addr.IA,
+) ([]beacon.Beacon, error) {
 
 	e.RLock()
 	defer e.RUnlock()
@@ -148,8 +155,11 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beac
 
 // InsertBeacon inserts the beacon if it is new or updates the changed
 // information.
-func (e *executor) InsertBeacon(ctx context.Context, b beacon.Beacon,
-	usage beacon.Usage) (beacon.InsertStats, error) {
+func (e *executor) InsertBeacon(
+	ctx context.Context,
+	b beacon.Beacon,
+	usage beacon.Usage,
+) (beacon.InsertStats, error) {
 
 	ret := beacon.InsertStats{}
 	// Compute ids outside of the lock.
@@ -185,6 +195,120 @@ func (e *executor) InsertBeacon(ctx context.Context, b beacon.Beacon,
 
 }
 
+func (e *executor) GetBeacons(
+	ctx context.Context,
+	params *storagebeacon.QueryParams,
+) ([]storagebeacon.Beacon, error) {
+
+	e.RLock()
+	defer e.RUnlock()
+	stmt, args := e.buildQuery(params)
+	rows, err := e.db.QueryContext(ctx, stmt, args...)
+	if err != nil {
+		return nil, serrors.WrapStr("looking up beacons", err, "query", stmt)
+	}
+	defer rows.Close()
+	var res []storagebeacon.Beacon
+	for rows.Next() {
+		var RowID int
+		var lastUpdated int64
+		var usage int
+		var rawBeacon sql.RawBytes
+		var InIntfID uint16
+		err = rows.Scan(&RowID, &lastUpdated, &usage, &rawBeacon, &InIntfID)
+		if err != nil {
+			return nil, serrors.WrapStr("reading row", err)
+		}
+		seg, err := beacon.UnpackBeacon(rawBeacon)
+		if err != nil {
+			return nil, serrors.WrapStr("parsing beacon", err)
+		}
+		res = append(res, storagebeacon.Beacon{
+			Beacon: beacon.Beacon{
+				Segment: seg,
+				InIfId:  InIntfID,
+			},
+			Usage:       beacon.Usage(usage),
+			LastUpdated: time.Unix(0, lastUpdated),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+func (e *executor) buildQuery(params *storagebeacon.QueryParams) (string, []interface{}) {
+	var args []interface{}
+	query := "SELECT DISTINCT RowID, LastUpdated, Usage, Beacon, InIntfID FROM Beacons"
+	if params == nil {
+		return query, args
+	}
+	where := []string{}
+	if len(params.SegIDs) > 0 {
+		subQ := make([]string, 0, len(params.SegIDs))
+		for _, segID := range params.SegIDs {
+			subQ = append(subQ, "hex(SegID) LIKE (hex(?) || '%')")
+			args = append(args, segID)
+		}
+		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
+	}
+	if len(params.StartsAt) > 0 {
+		subQ := []string{}
+		for _, as := range params.StartsAt {
+			switch {
+			case as.IsZero():
+				continue
+			case as.I == 0:
+				subQ = append(subQ, "StartAs=?")
+				args = append(args, as.A)
+			case as.A == 0:
+				subQ = append(subQ, "StartIsd=?")
+				args = append(args, as.I)
+			case as.I != 0 && as.A != 0:
+				subQ = append(subQ, "(StartIsd=? AND StartAs=?)")
+				args = append(args, as.I, as.A)
+			}
+		}
+		if len(subQ) > 0 {
+			where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
+		}
+	}
+	if len(params.IngressInterfaces) > 0 {
+		subQ := make([]string, 0, len(params.IngressInterfaces))
+		for _, intf := range params.IngressInterfaces {
+			subQ = append(subQ, "InIntfID=?")
+			args = append(args, intf)
+		}
+		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
+	}
+
+	if len(params.Usages) > 0 {
+		subQ := []string{}
+		for _, u := range params.Usages {
+			if u > 0 {
+				subQ = append(subQ, "(Usage & ? = ?)")
+				args = append(args, int64(u), int64(u))
+			}
+		}
+		if len(subQ) > 0 {
+			where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
+		}
+	}
+
+	if !params.ValidAt.IsZero() {
+		where = append(where, "(InfoTime <= ? AND ? <= ExpirationTime)")
+		args = append(args, params.ValidAt.Unix())
+		args = append(args, params.ValidAt.Unix())
+	}
+	// Assemble the query.
+	if len(where) > 0 {
+		query += "\n" + fmt.Sprintf("WHERE %s", strings.Join(where, " AND\n"))
+	}
+	query += "\n" + "ORDER BY LastUpdated DESC"
+	return query, args
+}
+
 // getBeaconMeta gets the metadata for existing beacons.
 func (e *executor) getBeaconMeta(ctx context.Context, segID []byte) (*beaconMeta, error) {
 	var rowID, infoTime, lastUpdated int64
@@ -205,9 +329,14 @@ func (e *executor) getBeaconMeta(ctx context.Context, segID []byte) (*beaconMeta
 	return meta, nil
 }
 
-// updateExistingBeacon updates the changeable data for an existing beacon
-func (e *executor) updateExistingBeacon(ctx context.Context, b beacon.Beacon,
-	usage beacon.Usage, rowID int64, now time.Time) error {
+// updateExistingBeacon updates the changeable data for an existing beacon.
+func (e *executor) updateExistingBeacon(
+	ctx context.Context,
+	b beacon.Beacon,
+	usage beacon.Usage,
+	rowID int64,
+	now time.Time,
+) error {
 
 	fullID := b.Segment.FullID()
 	packedSeg, err := beacon.PackBeacon(b.Segment)
@@ -228,8 +357,13 @@ func (e *executor) updateExistingBeacon(ctx context.Context, b beacon.Beacon,
 	return nil
 }
 
-func insertNewBeacon(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
-	usage beacon.Usage, now time.Time) error {
+func insertNewBeacon(
+	ctx context.Context,
+	tx *sql.Tx,
+	b beacon.Beacon,
+	usage beacon.Usage,
+	now time.Time,
+) error {
 
 	segID := b.Segment.ID()
 	fullID := b.Segment.FullID()
@@ -263,8 +397,10 @@ func (e *executor) DeleteExpiredBeacons(ctx context.Context, now time.Time) (int
 	})
 }
 
-func (e *executor) deleteInTx(ctx context.Context,
-	delFunc func(tx *sql.Tx) (sql.Result, error)) (int, error) {
+func (e *executor) deleteInTx(
+	ctx context.Context,
+	delFunc func(tx *sql.Tx) (sql.Result, error),
+) (int, error) {
 
 	e.Lock()
 	defer e.Unlock()

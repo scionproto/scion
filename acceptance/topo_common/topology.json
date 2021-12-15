@@ -17,7 +17,6 @@
             "public": "127.0.0.4:50000",
             "remote": "127.0.0.5:50000"
           },
-          "bandwidth": 1000,
           "isd_as": "1-ff00:0:111",
           "link_to": "CHILD",
           "mtu": 1280
@@ -33,7 +32,6 @@
             "public": "127.0.0.6:50000",
             "remote": "127.0.0.7:50000"
           },
-          "bandwidth": 500,
           "isd_as": "1-ff00:0:112",
           "link_to": "CHILD",
           "mtu": 1472

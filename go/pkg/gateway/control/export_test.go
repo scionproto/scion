@@ -14,6 +14,11 @@
 
 package control
 
+import (
+	"context"
+	"sync"
+)
+
 var (
 	BuildSessionConfigs     = buildSessionConfigs
 	ComputeDiff             = computeDiff
@@ -26,3 +31,27 @@ var (
 
 type ConjunctionPathPol = conjuctionPathPol
 type Diff = diff
+
+func (w *GatewayWatcher) RunOnce(ctx context.Context) {
+	w.run(ctx)
+}
+
+func (w *GatewayWatcher) RunAllPrefixWatchersOnceForTest(ctx context.Context) {
+	var wg sync.WaitGroup
+	for _, wi := range w.currentWatchers {
+		wi := wi
+		wi.prefixWatcher.resetRunMarker()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			wi.prefixWatcher.Run(ctx)
+		}()
+	}
+	wg.Wait()
+}
+
+func (w *prefixWatcher) resetRunMarker() {
+	w.runMarkerLock.Lock()
+	defer w.runMarkerLock.Unlock()
+	w.runMarker = false
+}

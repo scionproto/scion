@@ -99,12 +99,11 @@ type GatewayInfo struct {
 // BRInterface contains the information for an data-plane BR socket that is external (i.e., facing
 // the neighboring AS).
 type BRInterface struct {
-	Underlay  Underlay `json:"underlay,omitempty"`
-	Bandwidth int      `json:"bandwidth,omitempty"`
-	IA        string   `json:"isd_as"`
-	LinkTo    string   `json:"link_to"`
-	MTU       int      `json:"mtu"`
-	BFD       *BFD     `json:"bfd,omitempty"`
+	Underlay Underlay `json:"underlay,omitempty"`
+	IA       string   `json:"isd_as"`
+	LinkTo   string   `json:"link_to"`
+	MTU      int      `json:"mtu"`
+	BFD      *BFD     `json:"bfd,omitempty"`
 }
 
 // Underlay is the underlay information for a BR interface.

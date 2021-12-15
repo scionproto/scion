@@ -13,6 +13,7 @@ go_library(
         "//go/lib/prom:go_default_library",
         "//go/lib/tracing:go_default_library",
         "//go/pkg/storage:go_default_library",
+        "//go/pkg/storage/beacon:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
     ],
 )

@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package trust defines interfaces that extend the capabilities of a trust storage compared to
+// the trust.DB interface.
+// These additional capabilities are used outside of the trust package.
+// For example, they are used by the service
+// management API to get insights into the state of the trust storage.
 package trust
 
 import (
@@ -31,6 +36,7 @@ type TRCsQuery struct {
 	Latest bool
 }
 
+// TrustAPI defines methods used by the trust service management API.
 type TrustAPI interface {
 	// SignedTRCs returns the TRCs matching the TRCsQuery from the trust database.
 	SignedTRCs(context.Context, TRCsQuery) (cppki.SignedTRCs, error)
@@ -38,7 +44,7 @@ type TrustAPI interface {
 	Chain(context.Context, []byte) ([]*x509.Certificate, error)
 }
 
-// ChainID maps certificate chain to an ID
+// ChainID maps certificate chain to an ID.
 func ChainID(chain []*x509.Certificate) []byte {
 	h := sha256.New()
 	h.Write(chain[0].Raw)
