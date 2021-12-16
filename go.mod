@@ -7,10 +7,10 @@ require (
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/dchest/cmac v0.0.0-20150527144652-62ff55a1048c
-	github.com/deepmap/oapi-codegen v1.8.2
+	github.com/deepmap/oapi-codegen v1.9.0
 	github.com/emojisum/emojisum v0.0.0-20210601164913-cb9db27ebae2
 	github.com/fatih/color v1.9.0
-	github.com/getkin/kin-openapi v0.61.0
+	github.com/getkin/kin-openapi v0.80.0
 	github.com/go-chi/chi/v5 v5.0.2
 	github.com/go-chi/cors v1.1.1
 	github.com/go-openapi/swag v0.19.14 // indirect
@@ -24,10 +24,10 @@ require (
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
 	github.com/iancoleman/strcase v0.0.0-20190422225806-e506e3ef7365
-	github.com/lestrrat-go/jwx v1.1.5
+	github.com/lestrrat-go/jwx v1.2.7
 	github.com/lucas-clemente/quic-go v0.23.0
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/mattn/go-isatty v0.0.12
+	github.com/mattn/go-isatty v0.0.14
 	github.com/mattn/go-sqlite3 v1.14.4
 	github.com/mdlayher/raw v0.0.0-20191009151244-50f2db8cc065 // indirect
 	github.com/opentracing/opentracing-go v1.2.0
@@ -50,7 +50,7 @@ require (
 	github.com/xeipuuv/gojsonschema v1.2.0
 	go.uber.org/goleak v1.1.10
 	go.uber.org/zap v1.17.0
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 	golang.org/x/net v0.0.0-20210805182204-aaa1db679c0d
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/tools v0.1.5
