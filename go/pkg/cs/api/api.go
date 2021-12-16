@@ -268,6 +268,10 @@ func sortFactory(sortParam *GetBeaconsParamsSort) (func(b []*Beacon), error) {
 	}
 }
 
+func (s *Server) GetBeacon(w http.ResponseWriter, r *http.Request, segmentId SegmentID) {
+	panic("not implemented") // TODO: implement
+}
+
 // GetSegments gets the stored in the PathDB.
 func (s *Server) GetSegments(w http.ResponseWriter,
 	r *http.Request, params GetSegmentsParams) {

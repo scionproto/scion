@@ -16,6 +16,9 @@ type ServerInterface interface {
 	// List the SCION beacons
 	// (GET /beacons)
 	GetBeacons(w http.ResponseWriter, r *http.Request, params GetBeaconsParams)
+	// Get the SCION beacon description
+	// (GET /beacons/{segment-id})
+	GetBeacon(w http.ResponseWriter, r *http.Request, segmentId SegmentID)
 	// Information about the CA.
 	// (GET /ca)
 	GetCa(w http.ResponseWriter, r *http.Request)
@@ -168,6 +171,32 @@ func (siw *ServerInterfaceWrapper) GetBeacons(w http.ResponseWriter, r *http.Req
 
 	var handler = func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetBeacons(w, r, params)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
+// GetBeacon operation middleware
+func (siw *ServerInterfaceWrapper) GetBeacon(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "segment-id" -------------
+	var segmentId SegmentID
+
+	err = runtime.BindStyledParameter("simple", false, "segment-id", chi.URLParam(r, "segment-id"), &segmentId)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter segment-id: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetBeacon(w, r, segmentId)
 	}
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -680,6 +709,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/beacons", wrapper.GetBeacons)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/beacons/{segment-id}", wrapper.GetBeacon)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/ca", wrapper.GetCa)
