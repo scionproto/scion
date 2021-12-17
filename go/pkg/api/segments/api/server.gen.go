@@ -18,10 +18,10 @@ type ServerInterface interface {
 	GetSegments(w http.ResponseWriter, r *http.Request, params GetSegmentsParams)
 	// Get the SCION path segment description
 	// (GET /segments/{segment-id})
-	GetSegment(w http.ResponseWriter, r *http.Request, segmentId SegmentIDs)
+	GetSegment(w http.ResponseWriter, r *http.Request, segmentId SegmentID)
 	// Get the SCION path segment blob
 	// (GET /segments/{segment-id}/blob)
-	GetSegmentBlob(w http.ResponseWriter, r *http.Request, segmentId SegmentIDs)
+	GetSegmentBlob(w http.ResponseWriter, r *http.Request, segmentId SegmentID)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -81,7 +81,7 @@ func (siw *ServerInterfaceWrapper) GetSegment(w http.ResponseWriter, r *http.Req
 	var err error
 
 	// ------------- Path parameter "segment-id" -------------
-	var segmentId SegmentIDs
+	var segmentId SegmentID
 
 	err = runtime.BindStyledParameter("simple", false, "segment-id", chi.URLParam(r, "segment-id"), &segmentId)
 	if err != nil {
@@ -107,7 +107,7 @@ func (siw *ServerInterfaceWrapper) GetSegmentBlob(w http.ResponseWriter, r *http
 	var err error
 
 	// ------------- Path parameter "segment-id" -------------
-	var segmentId SegmentIDs
+	var segmentId SegmentID
 
 	err = runtime.BindStyledParameter("simple", false, "segment-id", chi.URLParam(r, "segment-id"), &segmentId)
 	if err != nil {

@@ -282,22 +282,12 @@ func (s *Server) GetSegments(w http.ResponseWriter,
 	s.SegmentsServer.GetSegments(w, r, p)
 }
 
-func (s *Server) GetSegment(w http.ResponseWriter,
-	r *http.Request, ids SegmentIDs) {
-	segids := make([]segapi.SegmentID, len(ids))
-	for i := range ids {
-		segids[i] = segapi.SegmentID(ids[i])
-	}
-	s.SegmentsServer.GetSegment(w, r, segids)
+func (s *Server) GetSegment(w http.ResponseWriter, r *http.Request, id SegmentID) {
+	s.SegmentsServer.GetSegment(w, r, segapi.SegmentID(id))
 }
 
-func (s *Server) GetSegmentBlob(w http.ResponseWriter,
-	r *http.Request, ids SegmentIDs) {
-	segids := make([]segapi.SegmentID, len(ids))
-	for i := range ids {
-		segids[i] = segapi.SegmentID(ids[i])
-	}
-	s.SegmentsServer.GetSegmentBlob(w, r, segids)
+func (s *Server) GetSegmentBlob(w http.ResponseWriter, r *http.Request, id SegmentID) {
+	s.SegmentsServer.GetSegmentBlob(w, r, segapi.SegmentID(id))
 }
 
 // GetCertificates lists the certificate chains.
@@ -311,7 +301,7 @@ func (s *Server) GetCertificates(w http.ResponseWriter,
 	s.CPPKIServer.GetCertificates(w, r, cppkiParams)
 }
 
-// GetCertificate lists the certificate chain for a given ChainID
+// GetCertificate lists the certificate chain for a given ChainID.
 func (s *Server) GetCertificate(w http.ResponseWriter, r *http.Request, chainID ChainID) {
 	s.CPPKIServer.GetCertificate(w, r, cppkiapi.ChainID(chainID))
 }
@@ -321,7 +311,7 @@ func (s *Server) GetCertificateBlob(w http.ResponseWriter, r *http.Request, chai
 	s.CPPKIServer.GetCertificateBlob(w, r, cppkiapi.ChainID(chainID))
 }
 
-// GetCa gets the CA info
+// GetCa gets the CA info.
 func (s *Server) GetCa(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if s.CA.PolicyGen == nil {

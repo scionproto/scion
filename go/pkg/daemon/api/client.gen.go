@@ -117,10 +117,10 @@ type ClientInterface interface {
 	GetSegments(ctx context.Context, params *GetSegmentsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetSegment request
-	GetSegment(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetSegment(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetSegmentBlob request
-	GetSegmentBlob(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetSegmentBlob(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetTrcs request
 	GetTrcs(ctx context.Context, params *GetTrcsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -240,7 +240,7 @@ func (c *Client) GetSegments(ctx context.Context, params *GetSegmentsParams, req
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetSegment(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) GetSegment(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetSegmentRequest(c.Server, segmentId)
 	if err != nil {
 		return nil, err
@@ -252,7 +252,7 @@ func (c *Client) GetSegment(ctx context.Context, segmentId SegmentIDs, reqEditor
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetSegmentBlob(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) GetSegmentBlob(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetSegmentBlobRequest(c.Server, segmentId)
 	if err != nil {
 		return nil, err
@@ -632,7 +632,7 @@ func NewGetSegmentsRequest(server string, params *GetSegmentsParams) (*http.Requ
 }
 
 // NewGetSegmentRequest generates requests for GetSegment
-func NewGetSegmentRequest(server string, segmentId SegmentIDs) (*http.Request, error) {
+func NewGetSegmentRequest(server string, segmentId SegmentID) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -666,7 +666,7 @@ func NewGetSegmentRequest(server string, segmentId SegmentIDs) (*http.Request, e
 }
 
 // NewGetSegmentBlobRequest generates requests for GetSegmentBlob
-func NewGetSegmentBlobRequest(server string, segmentId SegmentIDs) (*http.Request, error) {
+func NewGetSegmentBlobRequest(server string, segmentId SegmentID) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -928,10 +928,10 @@ type ClientWithResponsesInterface interface {
 	GetSegmentsWithResponse(ctx context.Context, params *GetSegmentsParams, reqEditors ...RequestEditorFn) (*GetSegmentsResponse, error)
 
 	// GetSegment request
-	GetSegmentWithResponse(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*GetSegmentResponse, error)
+	GetSegmentWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetSegmentResponse, error)
 
 	// GetSegmentBlob request
-	GetSegmentBlobWithResponse(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*GetSegmentBlobResponse, error)
+	GetSegmentBlobWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetSegmentBlobResponse, error)
 
 	// GetTrcs request
 	GetTrcsWithResponse(ctx context.Context, params *GetTrcsParams, reqEditors ...RequestEditorFn) (*GetTrcsResponse, error)
@@ -1312,7 +1312,7 @@ func (c *ClientWithResponses) GetSegmentsWithResponse(ctx context.Context, param
 }
 
 // GetSegmentWithResponse request returning *GetSegmentResponse
-func (c *ClientWithResponses) GetSegmentWithResponse(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*GetSegmentResponse, error) {
+func (c *ClientWithResponses) GetSegmentWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetSegmentResponse, error) {
 	rsp, err := c.GetSegment(ctx, segmentId, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -1321,7 +1321,7 @@ func (c *ClientWithResponses) GetSegmentWithResponse(ctx context.Context, segmen
 }
 
 // GetSegmentBlobWithResponse request returning *GetSegmentBlobResponse
-func (c *ClientWithResponses) GetSegmentBlobWithResponse(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*GetSegmentBlobResponse, error) {
+func (c *ClientWithResponses) GetSegmentBlobWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetSegmentBlobResponse, error) {
 	rsp, err := c.GetSegmentBlob(ctx, segmentId, reqEditors...)
 	if err != nil {
 		return nil, err

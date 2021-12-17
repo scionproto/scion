@@ -39,7 +39,7 @@ import (
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 )
 
-// segment id constants
+// segment id constants.
 const (
 	id1 = "50ddb5ffa058302aad1593fc82e3c75531d33b0406cf9ef8f175aa9b00a3959e"
 	id2 = "023dc0cff0be7a9e29fc1ce517dd96face947a7af78d399d210eab0a7cb779ef"
@@ -48,7 +48,7 @@ const (
 var update = xtest.UpdateGoldenFiles()
 
 // TestAPI tests the API response generation of the endpoints implemented in the
-// api package
+// api package.
 func TestAPI(t *testing.T) {
 	testCases := map[string]struct {
 		Handler            func(t *testing.T, ctrl *gomock.Controller) http.Handler
@@ -124,21 +124,19 @@ func TestAPI(t *testing.T) {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				seg := mock_api.NewMockSegmentStore(ctrl)
 				q := query.Params{
-					SegIDs: [][]byte{
-						xtest.MustParseHexString(id1),
-						xtest.MustParseHexString(id2)},
+					SegIDs: [][]byte{xtest.MustParseHexString(id1)},
 				}
 				s := &Server{
 					Segments: seg,
 				}
-				dbresult := createSegs(t, graph.NewSigner())
+				dbresult := createSegs(t, graph.NewSigner())[:1]
 				seg.EXPECT().Get(gomock.Any(), &q).AnyTimes().Return(
 					dbresult, nil,
 				)
 				return Handler(s)
 			},
 			ResponseFile: "testdata/segments-by-id.json",
-			RequestURL:   "/segments/" + id1 + "," + id2,
+			RequestURL:   "/segments/" + id1,
 			Status:       200,
 		},
 		"segment invalid id": {
@@ -153,7 +151,7 @@ func TestAPI(t *testing.T) {
 					Segments: seg,
 				}
 				dbresult := createSegs(t, graph.NewSigner())
-				seg.EXPECT().Get(gomock.Any(), &q).AnyTimes().Return(
+				seg.EXPECT().Get(gomock.Any(), &q).Times(0).Return(
 					dbresult, nil,
 				)
 				return Handler(s)
@@ -166,9 +164,7 @@ func TestAPI(t *testing.T) {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				seg := mock_api.NewMockSegmentStore(ctrl)
 				q := query.Params{
-					SegIDs: [][]byte{
-						xtest.MustParseHexString(id1),
-						xtest.MustParseHexString(id2)},
+					SegIDs: [][]byte{xtest.MustParseHexString(id1)},
 				}
 				s := &Server{
 					Segments: seg,
@@ -204,23 +200,21 @@ func TestAPI(t *testing.T) {
 					},
 				)
 
-				dbresult := createSegs(t, signer)
+				dbresult := createSegs(t, signer)[:1]
 				seg.EXPECT().Get(gomock.Any(), &q).AnyTimes().Return(
 					dbresult, nil,
 				)
 				return Handler(s)
 			},
 			ResponseFile: "testdata/segments-blob-by-id.txt",
-			RequestURL:   "/segments/" + id1 + "," + id2 + "/blob",
+			RequestURL:   "/segments/" + id1 + "/blob",
 			Status:       200,
 		},
 		"segment blob error": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				seg := mock_api.NewMockSegmentStore(ctrl)
 				q := query.Params{
-					SegIDs: [][]byte{
-						xtest.MustParseHexString(id1),
-						xtest.MustParseHexString(id2)},
+					SegIDs: [][]byte{xtest.MustParseHexString(id1)},
 				}
 				s := &Server{
 					Segments: seg,
@@ -231,7 +225,7 @@ func TestAPI(t *testing.T) {
 				return Handler(s)
 			},
 			ResponseFile: "testdata/segments-blob-by-id-error.json",
-			RequestURL:   "/segments/" + id1 + "," + id2 + "/blob",
+			RequestURL:   "/segments/" + id1 + "/blob",
 			Status:       500,
 		},
 	}

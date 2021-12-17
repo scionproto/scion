@@ -185,9 +185,6 @@ type SegmentBrief struct {
 // SegmentID defines model for SegmentID.
 type SegmentID string
 
-// SegmentIDs defines model for SegmentIDs.
-type SegmentIDs []SegmentID
-
 // Signer defines model for Signer.
 type Signer struct {
 	AsCertificate Certificate `json:"as_certificate"`

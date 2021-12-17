@@ -135,7 +135,7 @@ paths:
           name: segment-id
           required: true
           schema:
-            $ref: '#/components/schemas/SegmentIDs'
+            $ref: '#/components/schemas/SegmentID'
           style: simple
           explode: false
       responses:
@@ -163,7 +163,7 @@ paths:
           name: segment-id
           required: true
           schema:
-            $ref: '#/components/schemas/SegmentIDs'
+            $ref: '#/components/schemas/SegmentID'
           style: simple
           explode: false
       responses:
@@ -490,12 +490,6 @@ components:
             problem type. May be used to locate the root of this problem in the
             source code.
           example: /problem/connection-error#token-info-read-timed-out
-    SegmentIDs:
-      title: Segment Identifiers
-      type: array
-      items:
-        $ref: '#/components/schemas/SegmentID'
-      minItems: 1
     Hop:
       title: Path segment hop
       type: object
