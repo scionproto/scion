@@ -1,6 +1,6 @@
-# Push-Based Path Quality Aware Beaconing Implementation
+# Push-Based Path Quality Aware Beaconing
 
-This document ountlines the push-based path quality aware beconing algorithm proposed by Seyedali Tabaeiaghdaei, Ahad N. Zehmakan, and Adrian Perrig [1], and how it is implemented in the SCION codebase. The pull-based algorithm will be documented later.
+This document ountlines the push-based path quality aware beconing algorithm proposed by Seyedali Tabaeiaghdaei and Ahad N. Zehmakan [1], and how it is implemented in the SCION codebase. The pull-based algorithm will be documented later.
 
 * Author(s): Silas Gyger, Seyedali Tabaeiaghdaei
 * Status: draft
@@ -12,10 +12,6 @@ During core beaconing, core ASs continuously have to decide which beacons to for
 Traditional algorithms have focussed on selecting paths with low hop count[2] or high diversity w.r.t. links travelled [3]. The goal of either is to provide each AS with a high quality set of paths to every other AS, such that their target application can (hopefully) select one that suits its needs.
 
 Since service providers know which optimality criteria is required for each type of services (application) they provide, and they have customers all around world in all ISDs (and therefor core ASes), it is reaonable to let origin ASes to specify the optimality criteria of the path originating from them.
-
-## Considerations
-
-The final algorithm is the result of a set of considerations of the problem at hand.
 
 ### Path metrics
 
@@ -30,32 +26,47 @@ This allows us to break down the problem of finding the best paths into smaller 
 
 ### Optimality criteria
 
-The optimality criteria can be a single path metric (e.g, latency), or a small objctive function to combine different metrics such as latency and bandwidth.
+> TODO: Ok if I put this into bachelor thesis, but not into algorithm?
+
+The optimality criteria is a single path metric (e.g. latency).
 
 ### Algorithm granularity
 
 Unlike AS-path length which is linear at the AS-level, other optimality criteria may not be linear at the AS-level, but they are linear at the interface-level. Therefore, selecting the best PCBs to one origin AS and sending them to all egress interfaces may lead to sub-optimal paths and extra messageing overhead. Furthermore, finding the best path to an origin AS is not suffiecient, as different destinations are located in different locations (and my not be necessarily distributed like anycast).
 
-However, optimizaing path per origin interface, and per ingress and egress interface of the propagator AS causes huge overhead. Hence, we propose interface grouping, which is not necessarily based on geographical proximity. Below, we explain more.
+However, optimizaing path per origin interface, and per ingress and egress interface of the propagator AS causes huge overhead. Hence, we propose interface grouping.
 
-### Interface groups in origin ASes
+### Direction of optimization
 
-For each optimality criteria, the origin AS groups its interfaces together in _origin_interface_group_ s. For different criteria, the grouping can be done in differnet manners. Grouping is not necessarily based on geographical proximity. 
+The ideal path w.r.t. to a specific quality between two nodes is not necessairly the same in one direction as in the other. As part of the optimization target, we allow ASs to specify in which direction of package transmission the paths should be optmize for. Here, "origin AS" references the AS the beacon originates at, and the "target AS" the AS receiving the beacons. We call the direction of optimization
 
-When initiating beaconing process, each origin AS specifies the optimality criteria  and the _origin_interface_group_ of the egress interface in PCBs; one PCB per optimality criteria is sent out from each interface. 
+* **forward**: for packages travelling the _same direction as the beacon_, i.e. origin to target
+* **backward**: for packages travelling in the _opposite direction as the beacon_, i.e. target to origin
+* **forward and backward**: for packages travelling in _both directions on possibly disjunct paths_
+* **bidirectional**: for packages travelling _in both directions on the same path_
 
-### Optimization groups
 
-We define the _optimization_group_ as the `<origin AS, origin interface group, optimality criteria>` tuple.
+### Terms:
+* an **optimization interface group** is a set of interfaces `{intf_1, intf_2, ...}` in the origin AS for which an **optimization target** optimizes for (defined below)
+* a **direction** describes one of the directions defined above, i.e. `forward`, `backward`, `forward and backward`, or `bidirectional`
+* an **optimality criteria** references to one of `latency`, `throughput`, `reliability`.
+* an **optimization target** describes a tuple `<origin AS*, uniquifier*, optimality criteria*, direction*>`. The algorithm tries to find `N` ideal paths per optimization target.
+    * each **optimization target** maps to a set of interfaces constituting an **optimization interface group**. These interfaces will originate beacons for the given optimization target.
+    * the **origin AS** includes the ISD identifier 
+    * the **uniquifier** is used to distinguish different optimization targets with identical values but mapping to different optimization interface groups. Uniquifiers can be very short since they only need to distinguish ("uniquify") optimization targets that have otherwise identical fields.
+
+Each **optimization target** represents a "goal" for which `N` ideal paths can be found. An AS can have multiple optimization targets optimizing for the same criterion but associated to different opimization interface groups - the field `uniquifier` can be used to distinguish the two in this case.
+
+Each interface can be configured to originate beacons for none, one or multiple optimization targets. A set of interfaces originating the same optimization target implicitly constitutes an **optimization interface group**. 
 
 ### Interface groups in non-origin ASes
 
 In non-origin (propagator) ASes, _interface_groups_ for each optimality criteria can be defined as the group of interfaces from which the intra-AS that criteria has almost the same value to any destination inside that AS (including other interfaces). For example, for latency grouping can be done based on proximity, but for bandwidth all interfaces with the same bandwidth can grouped with each other. Therefore, finding an optimal path from/to an ingress/egress interface in a group (for each optimality criteria) gives almost the same quality when we find an optimal path from/to all of the interfaces in that group. For traffic engineering puposes, ASes can violate this definition, which we do not conside now.
 
-In some cases neighbor ASes can put the interfaces connected to the same link between them in different groups. In this case thay can communicate their interface groupings, which we do not consider in this project.
+> In some cases neighbor ASes can put the interfaces connected to the same link between them in different groups. In this case thay can communicate their interface groupings, which we do not consider in this project.
 
 ### Interface subgroups
-Multiple interfaces in the same group can be connected to different ASes. A set of interfaces in the same interface group connected to the same neighboring AS is called an _interface_subgroup.
+Multiple interfaces in the same group can be connected to different ASes. A set of interfaces in the same interface group connected to the same neighboring AS is called an _interface_subgroup_.
 
 ### Path Selection during Propagation
 
@@ -70,9 +81,9 @@ def run():
     for optim_group in optim_groups:
         for neigh in neighbouring_ASs:
             for intf_subgroup in local_interface_groups[optimality_criteria][neigh]:
-                propagate_optimized_paths(optim_group, intf_subgroup)
+                propagate_optimized_paths(optim_group, intf_subgroup, neigh)
 
-def propagate_optimized_paths(optim_group, intf_subgroup):
+def propagate_optimized_paths(optim_group, intf_subgroup, neigh):
     # Find N best beacons for every interface group
     
     # First find set of candidates
@@ -84,13 +95,16 @@ def propagate_optimized_paths(optim_group, intf_subgroup):
             # We need to somehow remove loops when accessing the database. The database gives us loop-free paths. Is that possible?
             n_best = db.get_N_best( # of all beacons received
                                     group = optim_group,
-                                    ingress_intfg = ingress_intfg
+                                    ingress_intfg = ingress_intfg,
+                                    filter_loops_with = neigh, # Filter loops
                                     )
             for path in n_best:
                 # Extend path with hop ingress -> egress interface
                 path_extended = path.extend(ingress_intf ⇝ egrees_intf)
                 # Add metric of this hop to the path
-                path_extended.extend_metric(ingress_intf ⇝ egress_intf)
+                if forward:
+                    path_extended.extend_metric(ingress_intf ⇝ egress_intf)
+                ...
                 # Add the metric of the inter-AS link at the egress interface
                 path_extended.extend_metric(egress_intf.link)
 
@@ -177,34 +191,63 @@ Interface configuration for this purpose is treated as an extension called "PQA 
         * Sample generate
     * The location of the json file is registered in [env.go](../go/lib/env/env.go) as a field `OptimizationGroupExtensionConf`
 
-    ### Config File specification:
-    Groups are created by extending the `groups` map. A group is identified by the key of the map; the value is the quality it optimizes.
-    ```json
-    "groups": {
-                "latency_#1": "latency",
-                "throughput_#3": "throughput",   // TODO: Use keys from static info extension
-            }
-    ```
-    Interfaces are configured to send beacons of different groups in different intervals. The field `bcn` contains the order of beacons. It's a list in which each element represents the configuration for a single interval. After all beacons we sent out for all intervals, we cycle back to the first element. 
+### Config File specification:
+There is one special origination target identifier called `NO_TARGET`, which represents a beacong propagated in the usual manner without PQA Beaconing.
+#### Option 1: Direction part of optimization target identifier
+```yaml
+optimization targets:
+    my_target_0:
+        uniquifier: 0
+        quality: latency
+        direction: forward
+    my_target_1:
+        # uniquifier optional, defautls to 0
+        quality: latency 
+        direction: backward
 
-    Each interval configuration is a list of optimization group identifiers. The identifier `NO_PQA` is special: It sends out a "normal" beacon without the PQA Extension. All others identify groups defined in the `"groups"` map above. Example:
+origination_configuration:
+    intf1:
+        - [my_target_0, NO_TARGET]
+        - [my_target_1]
+    intf2: # this is the deafault setting for interfaces not configured at all
+        - [NO_TARGET]
+```
+#### Option 2: Direction not part of optimization target
 
-    ```json
-        "interfaces": {
-            "22": {
-                "bcns": [
-                ["NO_PQA"],
-                ["NO_PQA", "latency_#1"], 
-                    ]
-                }
-            }
-        }
-    ```
+```yaml
+optimization targets:
+    my_target_0:
+        uniquifier: 0
+        quality: latency
+        intefaces: my_group_1
+    my_target_1:
+        # uniquifier optional, defautls to 0
+        quality: latency 
+        interfaces: # optional inline group definition
+            - intf1
+            - intf2
 
-    This configuration file contains three beaconing interval configuration for the interface "22":
-    * In the first beaconing interval, a single normal beacon is sent out.
-    * In the second interval, a normal beacon as well as a beacon for the optimization group `"latency_#1"` is sent out
-    * In the third interval, we start over and send again a single normal beacon, and o so on
+origination_configuration:
+    intf1:
+        - # Interval 0
+            -   # Beacon 0
+                target: my_target_0
+                direction: forward
+            -   # Beacon 1
+                target: NO_TARGET
+        - # Interval 1
+            -   # Beacon 0
+                target: my_target_1
+                direction: bidirectional
+    intf2: # this is the deafault setting for interfaces not configured here
+        - [NO_TARGET]
+```
+
+Note for algorothm:
+* If we want N ideal paths _per optimization target and direction_, it's better if we make direction part of optimization group. That's what "optimization target" conceptually should do: Define one goal to optimize for and find N ideal paths.
+
+> Assigning uniquifiers: Unique uniquifiers need to be assigned to two optimization targets exactly if they have otherwise identical fields.
+
 
 ### Propagator Interface Configuration
 ### Protobuf Segment Extension
