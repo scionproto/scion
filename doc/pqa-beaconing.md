@@ -219,13 +219,9 @@ optimization targets:
     my_target_0:
         uniquifier: 0
         quality: latency
-        intefaces: my_group_1
     my_target_1:
         # uniquifier optional, defautls to 0
         quality: latency 
-        interfaces: # optional inline group definition
-            - intf1
-            - intf2
 
 origination_configuration:
     intf1:
