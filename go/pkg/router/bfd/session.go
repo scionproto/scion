@@ -124,10 +124,6 @@ type Session struct {
 	// until the session is ready to read it.
 	ReceiveQueueSize int
 
-	// Testing means that more logs are generated, specifically, logs about periodic events
-	// that would in production environment clog the logs. Use this option only in tests.
-	Testing bool
-
 	// messagesLock protects the initialization of the messages channel.
 	messagesLock sync.Mutex
 	// messages is the channel on which the session receives BFD packets.
@@ -160,6 +156,11 @@ type Session struct {
 	//
 	// If a metric is not initialized, it is not reported.
 	Metrics Metrics
+
+	// testingLogs means that more logs are generated, specifically, logs about
+	// periodic events that would in production environment clog the logs. Use
+	// this option only in tests.
+	testingLogs bool
 }
 
 func (s *Session) String() string {
@@ -222,7 +223,7 @@ MainLoop:
 				bfdIntervalToDuration(msg.DesiredMinTxInterval))
 			detectionTimer.Reset(detectionTime)
 
-			if s.Testing {
+			if s.testingLogs {
 				s.debug("heartbeat received", "desired_min_tx_interval", msg.DesiredMinTxInterval,
 					"required_min_rx_interval", msg.RequiredMinRxInterval)
 			}
@@ -273,7 +274,7 @@ MainLoop:
 				s.debug("error sending message", "err", err)
 				continue
 			}
-			if s.Testing {
+			if s.testingLogs {
 				s.debug("heartbeat sent", "desired_min_tx_interval", pkt.DesiredMinTxInterval,
 					"required_min_rx_interval", pkt.RequiredMinRxInterval)
 			}
@@ -343,7 +344,7 @@ func (s *Session) computeNextSendInterval() time.Duration {
 // while Run is executed.
 func (s *Session) IsUp() bool {
 	up := s.getLocalState() == stateUp
-	if s.Testing {
+	if s.testingLogs {
 		s.debug("IsUp called", "up", up)
 	}
 	return up

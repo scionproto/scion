@@ -296,9 +296,9 @@ func sessionSubtest(name string, tc *sessionTestCase) func(t *testing.T) {
 		tc.sessionB.Sender = linkBToA
 		if !tc.disableLogging {
 			tc.sessionA.Logger = testlog.NewLogger(t).New("session", "a")
-			tc.sessionA.Testing = true
+			tc.sessionA.TestingLogs(true)
 			tc.sessionB.Logger = testlog.NewLogger(t).New("session", "b")
-			tc.sessionB.Testing = true
+			tc.sessionB.TestingLogs(true)
 		}
 
 		var wg sync.WaitGroup
@@ -340,28 +340,28 @@ func TestSessionDebootstrap(t *testing.T) {
 		DesiredMinTxInterval:  100 * time.Millisecond,
 		RequiredMinRxInterval: 50 * time.Millisecond,
 		Logger:                testlog.NewLogger(t).New("session", "a1"),
-		Testing:               true,
 		LocalDiscriminator:    1234,
 		ReceiveQueueSize:      10,
 	}
+	sessionA1.TestingLogs(true)
 	sessionA2 := &bfd.Session{
 		DetectMult:            1,
 		DesiredMinTxInterval:  100 * time.Millisecond,
 		RequiredMinRxInterval: 50 * time.Millisecond,
 		Logger:                testlog.NewLogger(t).New("session", "a2"),
-		Testing:               true,
 		LocalDiscriminator:    4321,
 		ReceiveQueueSize:      10,
 	}
+	sessionA2.TestingLogs(true)
 	sessionB := &bfd.Session{
 		DetectMult:            1,
 		DesiredMinTxInterval:  100 * time.Millisecond,
 		RequiredMinRxInterval: 50 * time.Millisecond,
 		Logger:                testlog.NewLogger(t).New("session", "b"),
-		Testing:               true,
 		LocalDiscriminator:    2,
 		ReceiveQueueSize:      10,
 	}
+	sessionB.TestingLogs(true)
 
 	controllerA := &bfd.Controller{
 		Sessions:         []*bfd.Session{sessionA1, sessionA2},
@@ -531,8 +531,8 @@ func TestSessionRunInit(t *testing.T) {
 		RemoteDiscriminator:   2,
 		Sender:                &redirectSender{},
 		Logger:                testlog.NewLogger(t),
-		Testing:               true,
 	}
+	session.TestingLogs(true)
 
 	barrier := make(chan struct{})
 
