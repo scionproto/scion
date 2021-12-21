@@ -296,7 +296,9 @@ func sessionSubtest(name string, tc *sessionTestCase) func(t *testing.T) {
 		tc.sessionB.Sender = linkBToA
 		if !tc.disableLogging {
 			tc.sessionA.Logger = testlog.NewLogger(t).New("session", "a")
+			tc.sessionA.Testing = true
 			tc.sessionB.Logger = testlog.NewLogger(t).New("session", "b")
+			tc.sessionB.Testing = true
 		}
 
 		var wg sync.WaitGroup
@@ -338,6 +340,7 @@ func TestSessionDebootstrap(t *testing.T) {
 		DesiredMinTxInterval:  100 * time.Millisecond,
 		RequiredMinRxInterval: 50 * time.Millisecond,
 		Logger:                testlog.NewLogger(t).New("session", "a1"),
+		Testing:               true,
 		LocalDiscriminator:    1234,
 		ReceiveQueueSize:      10,
 	}
@@ -346,6 +349,7 @@ func TestSessionDebootstrap(t *testing.T) {
 		DesiredMinTxInterval:  100 * time.Millisecond,
 		RequiredMinRxInterval: 50 * time.Millisecond,
 		Logger:                testlog.NewLogger(t).New("session", "a2"),
+		Testing:               true,
 		LocalDiscriminator:    4321,
 		ReceiveQueueSize:      10,
 	}
@@ -354,6 +358,7 @@ func TestSessionDebootstrap(t *testing.T) {
 		DesiredMinTxInterval:  100 * time.Millisecond,
 		RequiredMinRxInterval: 50 * time.Millisecond,
 		Logger:                testlog.NewLogger(t).New("session", "b"),
+		Testing:               true,
 		LocalDiscriminator:    2,
 		ReceiveQueueSize:      10,
 	}
@@ -526,6 +531,7 @@ func TestSessionRunInit(t *testing.T) {
 		RemoteDiscriminator:   2,
 		Sender:                &redirectSender{},
 		Logger:                testlog.NewLogger(t),
+		Testing:               true,
 	}
 
 	barrier := make(chan struct{})

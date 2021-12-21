@@ -124,6 +124,10 @@ type Session struct {
 	// until the session is ready to read it.
 	ReceiveQueueSize int
 
+	// Testing means that more logs are generated, specifically, logs about periodic events
+	// that would in production environment clog the logs. Use this option only in tests.
+	Testing bool
+
 	// messagesLock protects the initialization of the messages channel.
 	messagesLock sync.Mutex
 	// messages is the channel on which the session receives BFD packets.
@@ -218,6 +222,10 @@ MainLoop:
 				bfdIntervalToDuration(msg.DesiredMinTxInterval))
 			detectionTimer.Reset(detectionTime)
 
+			if s.Testing {
+				s.debug("heartbeat received", "desired_min_tx_interval", msg.DesiredMinTxInterval,
+					"required_min_rx_interval", msg.RequiredMinRxInterval)
+			}
 			if s.Metrics.PacketsReceived != nil {
 				s.Metrics.PacketsReceived.Add(1)
 			}
@@ -264,6 +272,10 @@ MainLoop:
 			if err := s.Sender.Send(&pkt); err != nil {
 				s.debug("error sending message", "err", err)
 				continue
+			}
+			if s.Testing {
+				s.debug("heartbeat sent", "desired_min_tx_interval", pkt.DesiredMinTxInterval,
+					"required_min_rx_interval", pkt.RequiredMinRxInterval)
 			}
 			if s.Metrics.PacketsSent != nil {
 				s.Metrics.PacketsSent.Add(1)
@@ -330,7 +342,11 @@ func (s *Session) computeNextSendInterval() time.Duration {
 // IsUp returns whether the session is up. It is safe (and almost always the case) to call IsUp
 // while Run is executed.
 func (s *Session) IsUp() bool {
-	return s.getLocalState() == stateUp
+	up := s.getLocalState() == stateUp
+	if s.Testing {
+		s.debug("IsUp called", "up", up)
+	}
+	return up
 }
 
 // getLocalState is a concurrency-safe getter for local state.
