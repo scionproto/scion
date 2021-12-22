@@ -6,7 +6,39 @@ This document ountlines the push-based path quality aware beconing algorithm pro
 * Status: draft
 * Last edited: 2021-12-xx
 
-## Outline
+## Table Of Contents
+- [Push-Based Path Quality Aware Beaconing](#push-based-path-quality-aware-beaconing)
+  - [Table Of Contents](#table-of-contents)
+  - [Algorithm](#algorithm)
+    - [Path metrics](#path-metrics)
+    - [Algorithm granularity](#algorithm-granularity)
+    - [Direction of optimization](#direction-of-optimization)
+    - [Optimization Target](#optimization-target)
+    - [Interface groups in origin ASes](#interface-groups-in-origin-ases)
+    - [Interface groups in non-origin ASes](#interface-groups-in-non-origin-ases)
+    - [Interface subgroups](#interface-subgroups)
+    - [Path Selection during Propagation](#path-selection-during-propagation)
+  - [Implementation](#implementation)
+    - [Overview](#overview)
+    - [Configuration of PQA algorithm global paramters](#configuration-of-pqa-algorithm-global-paramters)
+      - [Modification to codebase](#modification-to-codebase)
+      - [Config file specification (yaml):](#config-file-specification-yaml)
+    - [Configuration of ASs for PQA beacon origination](#configuration-of-ass-for-pqa-beacon-origination)
+      - [Modification to codebase](#modification-to-codebase-1)
+      - [Config file specification:](#config-file-specification)
+        - [Option 1: Direction part of optimization target identifier](#option-1-direction-part-of-optimization-target-identifier)
+        - [Option 2: Direction not part of optimization target](#option-2-direction-not-part-of-optimization-target)
+    - [Configuration of interface groups in non-orign ASs](#configuration-of-interface-groups-in-non-orign-ass)
+      - [Modification to codebase](#modification-to-codebase-2)
+      - [Config File Specification](#config-file-specification-1)
+    - [Beacon Messages Modification](#beacon-messages-modification)
+      - [New Protobuf Messages](#new-protobuf-messages)
+      - [Modifications to codebase](#modifications-to-codebase)
+    - [Extend Beacon DB for new queries](#extend-beacon-db-for-new-queries)
+    - [Originating new PQA Beacons](#originating-new-pqa-beacons)
+    - [Propagate new PQA Beacons](#propagate-new-pqa-beacons)
+
+## Algorithm
 During core beaconing, core ASs continuously have to decide which beacons to forward to which interfaces in order to keep the message complexity sufficiently low. 
 
 Traditional algorithms have focussed on selecting paths with low hop count[2] or high diversity w.r.t. links travelled [3]. The goal of either is to provide each AS with a high quality set of paths to every other AS, such that their target application can (hopefully) select one that suits its needs.
@@ -22,13 +54,15 @@ Given the metric value for path `a ⇝ b` and `b ⇝ c`, we can always determine
 * Concave: `m(a ⇝ b ⇝ c ) = min/max{m(a ⇝ b), m(b ⇝ c)}`, e.g, throughput
 * Multiplicative: `m(a ⇝ b ⇝ c ) = m(a ⇝ b) * m(b ⇝ c)}`, e.g., loss rate
 
-This allows us to break down the problem of finding the best paths into smaller subproblems: For any intermidiary node `b`, _if_ the ideal path travels the node `b`, it can (without worsening the metric) have a subpath that is the ideal path that leads to `b`. Hence, for every node `b`, we only need to consider the (`N`) best path(s) to that node. This fact is exploited in the algorithm to decrease computational overhead.
+Optimization is done w.r.t. to a single quality, i.e. it is maximized or minimized for a specific quality.
 
-### Optimality criteria
+The algorithm will allow optimization of the following metrics:
 
-> TODO: Ok if I put this into bachelor thesis, but not into algorithm?
-
-The optimality criteria is a single path metric (e.g. latency).
+Quality | Combination | Optimization
+--- | ---- |---
+latency | additive | min
+throughput | concave (min) | max
+loss rate | multiplicative | min
 
 ### Algorithm granularity
 
@@ -38,26 +72,40 @@ However, optimizaing path per origin interface, and per ingress and egress inter
 
 ### Direction of optimization
 
-The ideal path w.r.t. to a specific quality between two nodes is not necessairly the same in one direction as in the other. As part of the optimization target, we allow ASs to specify in which direction of package transmission the paths should be optmize for. Here, "origin AS" references the AS the beacon originates at, and the "target AS" the AS receiving the beacons. We call the direction of optimization
+We allows to be optimized for packets travelling in the same direction as the beacon ("**forward**"), in opposite direction ("**backwards**"), and in both directions on the same path ("**bidirectional**"). 
 
-* **forward**: for packages travelling the _same direction as the beacon_, i.e. origin to target
-* **backward**: for packages travelling in the _opposite direction as the beacon_, i.e. target to origin
-* **forward and backward**: for packages travelling in _both directions on possibly disjunct paths_
-* **bidirectional**: for packages travelling _in both directions on the same path_
+How optimal forward paths are communicated back to the originator is not part of this project.
 
+### Optimization Target
 
-### Terms:
-* an **optimization interface group** is a set of interfaces `{intf_1, intf_2, ...}` in the origin AS for which an **optimization target** optimizes for (defined below)
-* a **direction** describes one of the directions defined above, i.e. `forward`, `backward`, `forward and backward`, or `bidirectional`
-* an **optimality criteria** references to one of `latency`, `throughput`, `reliability`.
-* an **optimization target** describes a tuple `<origin AS*, uniquifier*, optimality criteria*, direction*>`. The algorithm tries to find `N` ideal paths per optimization target.
-    * each **optimization target** maps to a set of interfaces constituting an **optimization interface group**. These interfaces will originate beacons for the given optimization target.
-    * the **origin AS** includes the ISD identifier 
-    * the **uniquifier** is used to distinguish different optimization targets with identical values but mapping to different optimization interface groups. Uniquifiers can be very short since they only need to distinguish ("uniquify") optimization targets that have otherwise identical fields.
+An optimization target is the tuple `<origin AS*, uniquifier*, optimization quality*, optimization direction*>`. The algorithm attempts to find up to `N` ideal paths per optimization target. The fields are defined as follows:
 
-Each **optimization target** represents a "goal" for which `N` ideal paths can be found. An AS can have multiple optimization targets optimizing for the same criterion but associated to different opimization interface groups - the field `uniquifier` can be used to distinguish the two in this case.
+* `origin AS` gloablly identifies the AS
+* `uniquifier` is a small number used to distinguish different optimization targets with otherwise identical fields
+* `optimality criteria` is an identifier representign the path quality to optimize for, i.e. one of `throughput`, `latency` and `loss rate`
+* `optimization direction` is one of `forward`, `barckward` and `bidirectional`, as explained above
 
-Each interface can be configured to originate beacons for none, one or multiple optimization targets. A set of interfaces originating the same optimization target implicitly constitutes an **optimization interface group**. 
+### Interface groups in origin ASes
+
+Multiple interfaces can originate the same optimization target; a group of interfaces originating the same target consitutes an `optimization interface group`. The algorithm finds `N` ideal paths per `optimization target`, wich might contain paths originating in different interfaces in the corresponding `optimization interface group`.
+
+Interfaces can be configured to originate none, one or multiple optimization targets in a set of intervals. Functionally, the originate algorithm will look like this:
+```python
+def originate(intf):
+    intervalls = intervalls[intf]
+    cursor = 0
+    while True:
+        optimization_targets = intervals[cursor]
+        for optimization_target in optimization_targets:
+            if optimization_target == NO_TARGET:
+                originate_beacon(intf)
+            else:
+                originate_pqa_beacon(intf, optimization_target)
+        
+        wait(interval_period)
+        cursor = cursor + 1
+        cursor = cursor % len(intervalls)
+```
 
 ### Interface groups in non-origin ASes
 
@@ -70,130 +118,145 @@ Multiple interfaces in the same group can be connected to different ASes. A set 
 
 ### Path Selection during Propagation
 
-For every origin optimization group `optim_group` for which we receive beacon, we execute the beacon selection algorithm for every neighbour as `neigh`. 
+For every origin optimization target `optim_target` for which we receive beacons, we execute the beacon selection algorithm for every neighbour as `neigh`. 
 
 ```python
 def run():
-    # Retreive all optimization groups for which have beacons
-    # optim_groups = <origin AS, origin interface group, optimality criteria>
-    optim_groups = db.get_optim_groups_from_received_beacons()
-    # Run algorithm for each optimization group & neighbouring AS:
-    for optim_group in optim_groups:
-        for neigh in neighbouring_ASs:
-            for intf_subgroup in local_interface_groups[optimality_criteria][neigh]:
-                propagate_optimized_paths(optim_group, intf_subgroup, neigh)
+    # Retreive all optimization groups for which we have beacons
 
-def propagate_optimized_paths(optim_group, intf_subgroup, neigh):
+    # optim_target = <origin AS, uniquifier, optimality criteria, direction>
+    optim_targets = db.get_optim_targets_from_received_beacons()
+    # Run algorithm for each optimization group & neighbouring AS:
+    for optim_target in optim_targets:
+        for neigh in neighbouring_ASs:
+            for intf_group in local_interface_groups[optimality_criteria]:
+                intf_subgroup = intf_group.filter_leading_to(neigh)
+                propagate_optimized_paths(optim_target, intf_subgroup, neigh)
+
+def propagate_optimized_paths(optim_target, intf_subgroup, neigh):
     # Find N best beacons for every interface group
-    
+
     # First find set of candidates
     intf_beacon_candidates = []
     for egrees_intf in intf_subgroup:
         for ingress_intfg in local_interface_groups[optimality_criteria]:
             # Get the n best paths leading to the ingress interface
             
-            # We need to somehow remove loops when accessing the database. The database gives us loop-free paths. Is that possible?
-            n_best = db.get_N_best( # of all beacons received
-                                    group = optim_group,
-                                    ingress_intfg = ingress_intfg,
-                                    filter_loops_with = neigh, # Filter loops
+            # Return the N best paths for given criterion of all beacons received.
+            n_best = db.get_N_best(
+                                    target = optim_target, # optimization target
+                                    ingress_intfg = ingress_intfg, # leading through ingress interface groups
+                                    exclude_looping_with = neigh, # Filter out loops
                                     )
             for path in n_best:
                 # Extend path with hop ingress -> egress interface
                 path_extended = path.extend(ingress_intf ⇝ egrees_intf)
                 # Add metric of this hop to the path
-                if forward:
-                    path_extended.extend_metric(ingress_intf ⇝ egress_intf)
-                ...
+                if "forward" in optim_target.direction:
+                    path_extended.extend_metric(ingress_intf ⇝ egress_intf, optim_target.quality)
+                if "backward" in optim_target.direction:
+                    path_extended.extend_metric(egress_intf ⇝ ingress_intf), optim_target.quality)
+                if "bidirectional" in optim_target.direction:
+                    path_extended.extend_metric_bidirectional(egress_intf, ingress_intf, optim_target.quality)
                 # Add the metric of the inter-AS link at the egress interface
                 path_extended.extend_metric(egress_intf.link)
 
                 intf_beacon_candidates.append(path_extended)
 
-    # Remove becaons that would create a loop
-    no_loop = remove_looping(intf_beacon_candidates)
-    # Chose & propagate the n best ones of the remaining
-    n_best = get_N_best(no_loop)
+    # Chose & propagate the n best ones
+    n_best = get_N_best(intf_beacon_candidates)
     propagate(n_best)
 ```
 
-The following algorithm outlines the basic idea of how receveid paths originating at an interface group `o_intfg`, optimizing for a path quality metric `q` are selected s.t. we get the $N$ best paths for every interface group leading to a neighbour `n`. The algorithm is refined to increase performance below:
-
-```python
-def get_bcns_to_propagate(o_intfg, n, q):
-    """
-    o_intf: Origin interface group
-    n: neighbour AS
-    q: quality paths might optimize for
-    """
-    bcns_to_propagate = []
-    N = 3
-    for eg_intfg in "all interface groups leading to neighbour n":
-        # Find all path-interface combinations for that group
-        all_bcns = []
-        for eg_intf in "interface group eg_intfg":
-            for bcn in """beacons
-                        * originating at o_intfg
-                        * optimize for quality q""":
-                all_bcns.append(bcn.extend(eg_intf))
-
-        # Select the N best ones i.t.o. their quality q
-        all_bcns.sort_by(q)
-        bcns_to_propagate += all_bcns.first(N)
-    
-    return bcns_to_propagte
-```
-
 ## Implementation
+### Overview
 To implement the algorithm into the SCION codebase, the following tasks need to be executed:
 
+- [ ] Configuration of PQA algorithm global paramters, such as:
+    * Possible quality metrics, and their mode of combination
+    * `N`
+- [ ] Configuration of ASs for PQA beacon origination
+    * define optimization targets
+    * configure interfaces to originate beacons for optimization targets and/or normal beacons
+- [ ] Configuration of AS for PQA beacon propagation
+    * define interface groups
+- [ ] Add beacon segment messages extension for PQA beacons, must include:
+    * uniquifier
+    * optimization quality
+    * optimization direction
+- [ ] Allow queries of the form outlined in the pseudocode to the db, i.e. get arrived beacons for:
+    * a given **optimization target** in the beacon
+    * a given **ingress interface group** through which the beacon entered the AS
+    * a given **neighbouring AS** for which looping beacons should be ignored
+- [ ] Make the AS originate PQA beacons according to the configuration
+- [ ] Make the AS propagate PQA beacons according to the configuration
 
-- [ ] Interfaces of origin ASs must be configurable to send out new path-quality-aware becons, for configurable:
-    * quality to optimize for
-    * optimization group the interface is part of
+### Configuration of PQA algorithm global paramters
 
-    While still allowing for "normal" beacons to be sent out; how often which beacons are sent out must be part of the configuration.
-- [ ] Interfaces of propagator ASs must be configurable to be treated as a single group when propagating
-- [ ] The **beacon message format** must be adjusted s.t.  
-     * the optimization quality
-     * the optimization group
+#### Modification to codebase
+Definition, loading etc. is done analogously to `StaticConfig` extension, e.g.:
+* config defined and loaded in `../go/cs/beaconing/pqa_config.go`
+* config file path resgtered in `../go/lib/env.go` etc.
 
-    Can be written iside the first hop fiel (Q1).
-- [ ] The metrics along the path that every PCB already travelled must be summarized inside the PCB, so that another AS can evaluate how good this PCB is w.r.t the given metric. For this purpose, the [beacon metadata](https://github.com/Nearoo/scion/blob/master/doc/beacon-metadata.rst) extension is utilized
-- [ ] To extend beacons and evaluate different extension options according to the metric, it must be possible to **query the AS topology for the metric values for inter-AS links** as well as **intra-AS ingress-to-egress paths**; and to configure these metrics for the AS. We again use the [beacon metadata](https://github.com/Nearoo/scion/blob/master/doc/beacon-metadata.rst) extension for this purpose
-- [ ] The **originator** must be extended to originate these beacons according to the interface configurations
-- [ ] The **propagator** / **handler** must be extended to forward received beacons with this extension according to the algorithm outlined below
-- [ ] The **beacon store** must be changed to allow query of beacon messages as outlined in the algorithm below, in particular with sub-AS granularity
+#### Config file specification (yaml):
 
-### Origin Interface Configuration
-Design goals:
-* Each interface should be configurable to send out beacons for both path-quality-aware beaconing and default beaconing, or a combination of the two
-* Configuration should be backwards compatible in that current configuration results in purely default beaconing
+```yaml
+General:
+    No Beacons Per Quality: 5
 
-Design:
-Interface configuration for this purpose is treated as an extension called "PQA Origination"
+Qualities:
+    latency:
+        short: lt
+        combination: additive
+        optimality: min
+        symmetry_tolerance: 0.1
+        proto_pqa_id: LATENCY
+    throughpput:
+        sshort: tp
+        combination: concave-min
+        optimality: max
+        proto_id: THROUGHPUT
+    loss-rate:
+        short: lr
+        combination: multiplicative
+        optimality: min
+        proto_id: LOSSRATE
+    foo-bar:
+        short: fb
+        combination: concave-max
+        optimality: max
+```
 
-* The struct describing the interface configuration is located in a new directory in [lib/ctr/seg/extensions](../go/lib/ctrl/seg/extensions). The directory contains a file for the extension itself, and a file testing the extension. The extension itself contains:
-    * A struct moddeling the data of the extension
-    * the metho `FromPB` extracting the data from a protobuf representation (why? which protobuf?)
-    * the method `ToPB` putting the data into a protobuf representation (why? which protobuf?)
-* The extension is registered at [lib/ctrl/seg/extensions.go](../go/lib/ctrl/seg/extensions.go#L23)
-    * The extension is registered in the `Extensions` struct
-    * The from/toPB above are added to the `extensionsFrom/ToPB` methods
-* Configuration is part of a new file called `optimizationGroupConfig.json`. It's parsed in the file `optimization_group.go` located at [../go/cs/beaconing](../go/cs/beaconing).
-    * It contains:
-        * Methods to marshal & unmarshal config files
-        * Methods to validate config files
-        * Methods to generate new config files
-    * The struct implements the interfaces defined at [config.go](../go/lib/config/confi.go), implementing methods to:
-        * Initialize
-        * Validate
-        * Sample generate
-    * The location of the json file is registered in [env.go](../go/lib/env/env.go) as a field `OptimizationGroupExtensionConf`
+> Question: Good idea to add mapping to protobuf into config file?
+> Other things that need to be done are:
+> * mapping to StaticInfoExtension quality
+> Perhaps better to add this info 
 
-### Config File specification:
-There is one special origination target identifier called `NO_TARGET`, which represents a beacong propagated in the usual manner without PQA Beaconing.
-#### Option 1: Direction part of optimization target identifier
+Explaination:
+* `General`:
+  * `No Beacons Per Quality`: Parameter `N` in this document
+* `Qualities`:
+  * [`global quality identifier`]:
+    * `short`: ... what's put into the beacon?
+    * `combination`: one of `additive`, `multiplicative`, `concave-min`, `concave-max`.
+    * optimality: `min` or `max`
+    * `symmetry_tolerance`: tolerance to consider two metrics "the same" when optimizing for symmetric, as a fraction (`a == b <=> [a*(1-tol), a*(1+tol)] ∩ [b*(1-tol), b*(1+tol)] != ∅`)
+    * `proto_id`: The string representation of the field value of `OptimizationQuality` in the protobuf segment extension
+
+> TODO: Add connection to beacon metadata exteion
+> TODO: Make sure contained fields can be transferred into beacon
+> TODO: Make sure everything is there
+
+###  Configuration of ASs for PQA beacon origination
+
+#### Modification to codebase
+* Definition, loading etc. is is done analogously to `StaticConfig` extension, e.g.:
+  * The struct describing the interface configuration is located in a new directory in [lib/ctr/seg/extensions](../go/lib/ctrl/seg/extensions). The directory contains a file for the extension 
+  * The extension is registered at [lib/ctrl/seg/extensions.go](../go/lib/ctrl/seg/extensions.go#L23)itself, and a file testing the extension. 
+  * The configuration is read in a file calld `pqa_origination_config.go` located at [../go/cs/beaconing](../go/cs/beaconing).
+
+#### Config file specification:
+##### Option 1: Direction part of optimization target identifier
 ```yaml
 optimization targets:
     my_target_0:
@@ -201,7 +264,7 @@ optimization targets:
         quality: latency
         direction: forward
     my_target_1:
-        # uniquifier optional, defautls to 0
+        # uniquifier optional, found automatically if left out
         quality: latency 
         direction: backward
 
@@ -212,7 +275,20 @@ origination_configuration:
     intf2: # this is the deafault setting for interfaces not configured at all
         - [NO_TARGET]
 ```
-#### Option 2: Direction not part of optimization target
+
+Explaination:
+* `optimization_targets`:
+  * [optimization_target_identifier] only used internally
+    * `uniquifier`: Optional, assigned automatically. Can be defined to keep temporaly consistency across config rewrites
+    * `quality`: references a quality defined in the global config file
+    * `direction`: one of: `forward`, `backward`, `bidirectional`, or a combination of them separated by spaces (e.g. `forward backward`)
+* `origination_configuration`:
+  * [interface identifier]:
+    * List of origination intervalls:
+      * interval configuration. Each element is an `optimization_target_identifier` or `NO_TARGET`. All optimization targets (incl.. `NO_TARGET`) are sent out at once during this interval. `NO_TARGET` references beacons without the extenion.
+
+If an interface is not configured at all, it is assumed to only originate `NO_TARGET` beacons.
+##### Option 2: Direction not part of optimization target
 
 ```yaml
 optimization targets:
@@ -220,7 +296,7 @@ optimization targets:
         uniquifier: 0
         quality: latency
     my_target_1:
-        # uniquifier optional, defautls to 0
+        uniquifier: 1
         quality: latency 
 
 origination_configuration:
@@ -245,105 +321,103 @@ Note for algorothm:
 > Assigning uniquifiers: Unique uniquifiers need to be assigned to two optimization targets exactly if they have otherwise identical fields.
 
 
-### Propagator Interface Configuration
-### Protobuf Segment Extension
+### Configuration of interface groups in non-orign ASs
 
-We add the `PQABeaconingExtension` to segment info. The info contains:
-* The optimization group
-* the optimization goal
+#### Modification to codebase
+> TODO: Think this through
 
-The extension is inserted into `PathSegmentExtensions`at [seg_extensions.proto](../proto/control_plane/v1/seg_extensions.proto#L23).
+* Definition, loading etc. is is done analogously to `StaticConfig` extension, e.g.:
+  * The struct describing the interface configuration is located in a new directory in [lib/ctr/seg/extensions](../go/lib/ctrl/seg/extensions). The directory contains a file for the extension 
+  * The extension is registered at [lib/ctrl/seg/extensions.go](../go/lib/ctrl/seg/extensions.go#L23) itself, and a file testing the extension. 
+  * The configuration is read in a file calld `pqa_origination_config.go` located at [../go/cs/beaconing](../go/cs/beaconing).
 
-> This data should only be included once per beacon. How?
 
-A new message is created called `PQABeaconingExtension`:
+Each interface group has a set of interfaces plus a set of optimization target criterions associated with it. If an optimization target fits a criterion, it will be returned in the `local_interface_groups[optimality_criteria]` line in the pseudocode.
 
-```proto
-message PQABeaconingExtension {
-    string PQAOptimizationGroup = 1;
-    PQAOptimizationMetric metric = 2;
+For a given optimality criterion, if an interface is not part of any group, it is treated as though it had it's own group with a single member.
+
+An optimization target criterion is either both the path quality and optimization direction, or just the path quality.
+
+
+#### Config File Specification
+```yaml
+interface_group_foo:
+    interfaces:
+        - intf1
+        - intf2
+        - intf3
+    optimization targets:
+        -
+            quality: latency
+        -
+            quality: throughput
+            direction: forward
+```
+
+Explaination:
+* [`interface group identifier`]:
+  * `interfaces`:
+    * a list of interface identifiers that are part of this group
+  * `optimization targets`:
+    * a list of optimization targets criterions. Each element contains:
+      * `quality`: the optimization quality identifier from the global config file
+      * `direction` (optional): one or more directions for the optimization target
+
+### Beacon Messages Modification
+> Q: Each beacon needs info on optimization only _once_ - is "segment" right place to put it?
+
+#### New Protobuf Messages
+
+```protobuf
+message PQABExtension {
+    // Is contained in first segment, but not in others
+    optional OptimizationTarget target = 1;
 }
 
-enum PQAOptimizationMetric {
-    METRIC_LATENCY = 1;
-    METRIC_BANDWITH = 2;
+
+message OPtimizationTarget {
+    // Source AS is implicit through beacon origin
+    OptimizationQuality quality = 1;
+    OptimizationDirection direction = 2;
+    uint8 uniquifier = 3;
+}
+
+enum OptimizationQuality {
+    LATENCY = 1;
+    BANDWITH = 2;
+    LOSSRATE = 3;
+}
+
+enum OptimizationDirection {
+    FORWARD = 1;
+    BACKWARD = 2;
+    FORWARD_BACKWARD = 3;
+    SYMMETRIC = 4;
 }
 
 ```
+#### Modifications to codebase
+* register extension in struct in [extensions.go](../go/lib/ctrl/seg/extensions.go)
 
 
-### Integratiom of Beacon Metadata to query AS for path qualities
+### Extend Beacon DB for new queries
 
-New Function in `/go/cs/.../`
-```go
-func (AS* a) getMetricValueForIntraASPath(ingress_intf, egress_intf) quality float {};
-```
+* New Query Params need to be added to [`type QueryParams struct` in storage/beacon/beacon.go](../go/pkg/storage/beacon/beacon.go#36)
+* The schema needs to be extended with fields:
+  * optimization quality
+  * optimization direction
+  * optimization uniquifier
+* Extend [`storage/beacon/sqlite/db.go`](../go/pkg/storage/beacon/sqlite/db.go) with methods to query the db according to the pseudocode; modify `InsertBeacon()` for new schema
+* Add same interfaces to [`store.go](../go/cs/beacon/store.go), so that they can be used by propagator
 
-Calling:
-* `go/cs/...` for metric xyz
+### Originating new PQA Beacons
+> Q: Is this the right approach? 
 
-### Changes to originate new PQA Beacons
-> Q: How to only add info in the first hop?
+* Since new beacons call `Extender.Extend` on new beacon in [originator.go/createBeacon](../go/cs/beaconing/originator.go#L202), we add info of extension to (`DefaultExtender.Extend`)[../go/cs/beaconing/extender.go], again with a similar approach to the static info extension (good idea?) possibly with a new field `PQABeaconingExtension` or similar.
 
-* Changes to [extender.go](../go/cs/beaconing/extender.go):
-    * Add PQABeaconingInfo as a function to the `DefaultExtended` ([link]([extender.go](../go/cs/beaconing/extender.go#L44)))
-    * Fill `asEntry.Extensions.PQABeaconing` in `Extend` (Line 66)
-    * Parse `pqaConfig` in [main.go](../go/cs/main.go#L592) and pass to [`TaskConfig`](../go/cs/main.go#615)
-    * Pass this data from `TaskConfig`  to the `DefaultExtender` at [`tasks.go`](../go/pkg/cs/tasks.go#L200)
-    * **If next AS entry is first AS entry, add this info**
+### Propagate new PQA Beacons
 
-### Changes to Propagator to propagate PQA PCBs according to algorithm
+In [`propagator.go`](../go/cs/beaconing/propagator.go), the propagation algorithm is performed on the beacons according to the algorithm described, using the configuration described and querying the database as described, possibly refactoring existing code.
 
-To leverage linearity of path metrics as outlines in the introcution, we don't try combining _all_ paths with _all_ interfaces i a given group, but instead query for only the $N$ best paths for every ingress interface:
+**Note:** The algorithm is implemented s.t. the old algorithm still takes care of "normal" beacons. The existing code is refactored and changed s.t. at some point, an if-else switch propagates beacons by the old or by the new algorithm, depending on wether the beacon contains the extension.
 
-```python
-def get_bcns_to_propagate(o_intfg, n, q):
-    """
-    o_intf: Origin interface group
-    n: neighbour AS
-    q: quality paths might optimize for
-    """
-    bcns_to_propagate = []
-    N = 3
-    for eg_intfg in "all interface groups leading to neighbour n":
-        # Find all path-interface combinations for that group
-        all_bcns = []
-        for eg_intf in "interface group eg_intfg":
-            for ig_intf in "ingress interface":
-                # Query for best N with fiven ingress intf
-                for bcn in db.query_bcns( origin = o_intfg,
-                                        optimizing_for = q
-                                        entering_intf = ig_intf,
-                                        sort_by = q,
-                                        take = N):
-                    all_bcns.append(bcn.extend(eg_intf))
-
-        # Select the N best ones i.t.o. their quality q
-        all_bcns.sort_by(q)
-        bcns_to_propagate += all_bcns.first(N)
-    
-    return bcns_to_propagte
-```
-
-The runtime algorithm becomes with:
-* the number of ingress interfaces $i_{in}$
-* the maximum number of beacons per ingress interface $b_i$
-* the number of interface groups $g$ 
-* the number of egress interfaces per group $i_{out}^g$
-* the number of beacons we want to optimize for $N_b$
-
-The runtime overall becomes 
-### Changes to Beacon Store to allow for efficient beacon queries
-
-```go
-func (Store* store) query_bcns(origin,
-                                optimizing_for,
-                                entering_intf,
-                                sort_by_quality,
-                                take=N) bcn[] {}
-```
-
-
-### Questions:
-
-1: I need to extend the beacon info for the _entire beacon_, not for each hop. Do I put this simpliy into the first hop field?
