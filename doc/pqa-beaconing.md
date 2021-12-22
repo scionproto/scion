@@ -21,6 +21,7 @@ This document ountlines the push-based path quality aware beconing algorithm pro
   - [Implementation](#implementation)
     - [Overview](#overview)
     - [Configuration of PQA algorithm global paramters](#configuration-of-pqa-algorithm-global-paramters)
+      - [Summary](#summary)
       - [Modification to codebase](#modification-to-codebase)
       - [Config file specification (yaml):](#config-file-specification-yaml)
     - [Configuration of ASs for PQA beacon origination](#configuration-of-ass-for-pqa-beacon-origination)
@@ -72,9 +73,9 @@ However, optimizaing path per origin interface, and per ingress and egress inter
 
 ### Direction of optimization
 
-We allows to be optimized for packets travelling in the same direction as the beacon ("**forward**"), in opposite direction ("**backwards**"), and in both directions on the same path ("**bidirectional**"). 
+We allows to be optimized for packets travelling in the same direction as the beacon ("**forward**"), in opposite direction ("**backwards**"), and in both directions on the same path ("**symmetric**"). Symetric optimizes for the quality only over paths that have approximately the same metric in both directions. 
 
-How optimal forward paths are communicated back to the originator is not part of this project.
+How forward paths are communicated back to the originator is not part of this project. One way might be to allow end-host applications to transmit them using different protocols altogether.
 
 ### Optimization Target
 
@@ -83,13 +84,11 @@ An optimization target is the tuple `<origin AS*, uniquifier*, optimization qual
 * `origin AS` gloablly identifies the AS
 * `uniquifier` is a small number used to distinguish different optimization targets with otherwise identical fields
 * `optimality criteria` is an identifier representign the path quality to optimize for, i.e. one of `throughput`, `latency` and `loss rate`
-* `optimization direction` is one of `forward`, `barckward` and `bidirectional`, as explained above
+* `optimization direction` is one of `forward`, `barckward` and `symmetric`, as explained above
 
 ### Interface groups in origin ASes
 
-Multiple interfaces can originate the same optimization target; a group of interfaces originating the same target consitutes an `optimization interface group`. 
-
-Interfaces can be configured to originate none, one or multiple in one or multiple different origination intervals. Optimization interface groups are created implicitly by assigning interfaces to optimization targets. 
+Multiple interfaces can originate the same optimization target; a group of interfaces originating the same target consitutes an `optimization interface group` for that target. `optimization interface groups` are created implicitly by assigning multiple interfaces to the same `optimization target`. The term is nevertheless useful to decide which interfaces to assign to which optimization target. 
 
 ### Interface groups in non-origin ASes
 
@@ -135,17 +134,30 @@ def propagate_optimized_paths(optim_target, intf_subgroup, neigh):
             for path in n_best:
                 # Extend path with hop ingress -> egress interface
                 path_extended = path.extend(ingress_intf ⇝ egrees_intf)
-                # Add metric of this hop to the path
-                if "forward" in optim_target.direction:
-                    path_extended.extend_metric(ingress_intf ⇝ egress_intf, optim_target.quality)
-                if "backward" in optim_target.direction:
-                    path_extended.extend_metric(egress_intf ⇝ ingress_intf), optim_target.quality)
-                if "bidirectional" in optim_target.direction:
-                    path_extended.extend_metric_bidirectional(egress_intf, ingress_intf, optim_target.quality)
-                # Add the metric of the inter-AS link at the egress interface
+
+                # Add the metric of the inter-AS link at the egress interface (assumed always symmetric)
                 path_extended.extend_metric(egress_intf.link)
 
-                intf_beacon_candidates.append(path_extended)
+                if "forward" in optim_target.direction:
+                    # Add metric for forward direction & append to beacon candidates list
+                    path_extended.extend_metric(ingress_intf ⇝ egress_intf, optim_target.quality)
+                    intf_beacon_candidates.append(path_extended)
+
+                if "backward" in optim_target.direction:
+
+                    # Add metric for backwards direction & append to beacon candidates list
+                    path_extended.extend_metric(egress_intf ⇝ ingress_intf), optim_target.quality)
+                    intf_beacon_candidates.append(path_extended)
+
+                if "symmetric" in optim_target.direction:
+
+                    # Add metric for both forward and backward direction
+                    path_extended.extend_metric(egress_intf ⇝ ingress_intf), optim_target.quality)
+                    path_extended.extend_metric(ingress_intf ⇝ egress_intf, optim_target.quality)
+
+                    # Check if the metrics are about equal; if yes, append to beacon candidates list
+                    if path_extended.metrics.forward ~== (path_extended.metrics.backwards):
+                        intf_beacon_candidates.append(path_extended)
 
     # Chose & propagate the n best ones
     n_best = get_N_best(intf_beacon_candidates)
@@ -156,26 +168,23 @@ def propagate_optimized_paths(optim_target, intf_subgroup, neigh):
 ### Overview
 To implement the algorithm into the SCION codebase, the following tasks need to be executed:
 
-- [ ] Configuration of PQA algorithm global paramters, such as:
-    * Possible quality metrics, and their mode of combination
-    * `N`
+- [ ] Configuration of PQA algorithm global paramters
+
 - [ ] Configuration of ASs for PQA beacon origination
     * define optimization targets
     * configure interfaces to originate beacons for optimization targets and/or normal beacons
 - [ ] Configuration of AS for PQA beacon propagation
-    * define interface groups
-- [ ] Add beacon segment messages extension for PQA beacons, must include:
-    * uniquifier
-    * optimization quality
-    * optimization direction
-- [ ] Allow queries of the form outlined in the pseudocode to the db, i.e. get arrived beacons for:
-    * a given **optimization target** in the beacon
-    * a given **ingress interface group** through which the beacon entered the AS
-    * a given **neighbouring AS** for which looping beacons should be ignored
+- [ ] Beacon segment message extensions to include optimization targets
+- [ ] Allow queries of the form outlined in the pseudocode to the db
 - [ ] Make the AS originate PQA beacons according to the configuration
 - [ ] Make the AS propagate PQA beacons according to the configuration
 
 ### Configuration of PQA algorithm global paramters
+
+#### Summary
+We need to configure:
+* Possible quality metrics, their mode of combination, and connection to other parts of the codebase
+* `N`
 
 #### Modification to codebase
 Definition, loading etc. is done analogously to `StaticConfig` extension, e.g.:
@@ -211,11 +220,6 @@ Qualities:
         optimality: max
 ```
 
-> Question: Good idea to add mapping to protobuf into config file?
-> Other things that need to be done are:
-> * mapping to StaticInfoExtension quality
-> Perhaps better to add this info 
-
 Explaination:
 * `General`:
   * `No Beacons Per Quality`: Parameter `N` in this document
@@ -227,12 +231,13 @@ Explaination:
     * `symmetry_tolerance`: tolerance to consider two metrics "the same" when optimizing for symmetric, as a fraction (`a == b <=> [a*(1-tol), a*(1+tol)] ∩ [b*(1-tol), b*(1+tol)] != ∅`)
     * `proto_id`: The string representation of the field value of `OptimizationQuality` in the protobuf segment extension
 
-> TODO: Add connection to beacon metadata exteion
-> TODO: Make sure contained fields can be transferred into beacon
-> TODO: Make sure everything is there
+
+> Question: Good idea to add mapping to protobuf into config file?
+> Should this even be "configurable", or should the mapping be hard-coded? 
+> How about mapping to StaticInfoExtension field (in protobuf)?
 
 ###  Configuration of ASs for PQA beacon origination
-
+For the origin AS, we need to define optimization targets, and configure interfaces to originate them.
 #### Modification to codebase
 * Definition, loading etc. is is done analogously to `StaticConfig` extension, e.g.:
   * The struct describing the interface configuration is located in a new directory in [lib/ctr/seg/extensions](../go/lib/ctrl/seg/extensions). The directory contains a file for the extension 
@@ -265,7 +270,7 @@ Explaination:
   * [optimization_target_identifier] only used internally
     * `uniquifier`: Optional, assigned automatically. Can be defined to keep temporaly consistency across config rewrites
     * `quality`: references a quality defined in the global config file
-    * `direction`: one of: `forward`, `backward`, `bidirectional`, or a combination of them separated by spaces (e.g. `forward backward`)
+    * `direction`: one of: `forward`, `backward` and `symmetric`
 * `origination_configuration`:
   * [interface identifier]:
     * List of origination intervalls:
@@ -391,8 +396,14 @@ enum OptimizationDirection {
   * optimization quality
   * optimization direction
   * optimization uniquifier
-* Extend [`storage/beacon/sqlite/db.go`](../go/pkg/storage/beacon/sqlite/db.go) with methods to query the db according to the pseudocode; modify `InsertBeacon()` for new schema
+* Extend [`storage/beacon/sqlite/db.go`](../go/pkg/storage/beacon/sqlite/db.go) with methods to query the db according to the pseudocode; modify `InsertBeacon()` for new schema.
 * Add same interfaces to [`store.go](../go/cs/beacon/store.go), so that they can be used by propagator
+
+The query will need too return beacons for:
+* a given **origin AS**
+* a given **optimization target** in the beacon
+* a given **ingress interface group** through which the beacon entered the AS
+* a given **neighbouring AS** for which looping beacons should be ignored
 
 ### Originating new PQA Beacons
 > Q: Is this the right approach? 
