@@ -87,25 +87,9 @@ An optimization target is the tuple `<origin AS*, uniquifier*, optimization qual
 
 ### Interface groups in origin ASes
 
-Multiple interfaces can originate the same optimization target; a group of interfaces originating the same target consitutes an `optimization interface group`. The algorithm finds `N` ideal paths per `optimization target`, wich might contain paths originating in different interfaces in the corresponding `optimization interface group`.
+Multiple interfaces can originate the same optimization target; a group of interfaces originating the same target consitutes an `optimization interface group`. 
 
-Interfaces can be configured to originate none, one or multiple optimization targets in a set of intervals. Functionally, the originate algorithm will look like this:
-```python
-def originate(intf):
-    intervalls = intervalls[intf]
-    cursor = 0
-    while True:
-        optimization_targets = intervals[cursor]
-        for optimization_target in optimization_targets:
-            if optimization_target == NO_TARGET:
-                originate_beacon(intf)
-            else:
-                originate_pqa_beacon(intf, optimization_target)
-        
-        wait(interval_period)
-        cursor = cursor + 1
-        cursor = cursor % len(intervalls)
-```
+Interfaces can be configured to originate none, one or multiple in one or multiple different origination intervals. Optimization interface groups are created implicitly by assigning interfaces to optimization targets. 
 
 ### Interface groups in non-origin ASes
 
