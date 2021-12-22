@@ -71,7 +71,7 @@ paths:
           name: segment-id
           required: true
           schema:
-            $ref: '#/components/schemas/SegmentID'
+            $ref: '#/components/schemas/SegmentIDs'
           style: simple
           explode: false
       responses:
@@ -99,7 +99,7 @@ paths:
           name: segment-id
           required: true
           schema:
-            $ref: '#/components/schemas/SegmentID'
+            $ref: '#/components/schemas/SegmentIDs'
           style: simple
           explode: false
       responses:
@@ -547,38 +547,6 @@ paths:
                     items:
                       $ref: '#/components/schemas/Beacon'
         '400':
-          description: Invalid request.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-  /beacons/{segment-id}:
-    get:
-      tags:
-        - beacon
-      summary: Get the SCION beacon description
-      description: Get the description of a specific SCION beacon.
-      operationId: get-beacon
-      parameters:
-        - in: path
-          name: segment-id
-          description: >-
-            The segment ID of the beacon segment. If the input value is shorter
-            than a segment ID, but matches the prefix of the segment ID of
-            exactly one beacon, then this beacon is returned.
-          required: true
-          schema:
-            $ref: '#/components/schemas/SegmentID'
-          style: simple
-          explode: false
-      responses:
-        '200':
-          description: SCION path segment information.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Beacon'
-        '400':
           $ref: '#/components/responses/BadRequest'
   /health:
     get:
@@ -676,6 +644,12 @@ components:
             problem type. May be used to locate the root of this problem in the
             source code.
           example: /problem/connection-error#token-info-read-timed-out
+    SegmentIDs:
+      title: Segment Identifiers
+      type: array
+      items:
+        $ref: '#/components/schemas/SegmentID'
+      minItems: 1
     Hop:
       title: Path segment hop
       type: object

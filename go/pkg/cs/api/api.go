@@ -187,11 +187,9 @@ func (s *Server) GetBeacons(w http.ResponseWriter, r *http.Request, params GetBe
 					Interface: int(as.HopEntry.HopField.ConsIngress),
 					IsdAs:     IsdAs(as.Local.String())})
 			}
-			if i != len(s.ASEntries)-1 {
-				hops = append(hops, Hop{
-					Interface: int(as.HopEntry.HopField.ConsEgress),
-					IsdAs:     IsdAs(as.Local.String())})
-			}
+			hops = append(hops, Hop{
+				Interface: int(as.HopEntry.HopField.ConsEgress),
+				IsdAs:     IsdAs(as.Local.String())})
 		}
 		rep = append(rep, &Beacon{
 			Usages:           usage,
@@ -206,13 +204,11 @@ func (s *Server) GetBeacons(w http.ResponseWriter, r *http.Request, params GetBe
 		})
 	}
 	// Sort the results.
-	sortFn(rep)
+	sorter := sortFn(rep)
 	if params.Desc != nil && *params.Desc {
-		// reverse rep.
-		for i, j := 0, len(rep)-1; i < j; i, j = i+1, j-1 {
-			rep[i], rep[j] = rep[j], rep[i]
-		}
+		sorter = sort.Reverse(sorter)
 	}
+	sort.Sort(sorter)
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "    ")
 	if err := enc.Encode(map[string][]*Beacon{"beacons": rep}); err != nil {
@@ -226,46 +222,57 @@ func (s *Server) GetBeacons(w http.ResponseWriter, r *http.Request, params GetBe
 	}
 }
 
-func sortFactory(sortParam *GetBeaconsParamsSort) (func(b []*Beacon), error) {
+type sortWrapper struct {
+	beacons []*Beacon
+	less    func(a, b *Beacon) bool
+}
+
+func (w sortWrapper) Len() int           { return len(w.beacons) }
+func (w sortWrapper) Less(i, j int) bool { return w.less(w.beacons[i], w.beacons[j]) }
+func (w sortWrapper) Swap(i, j int)      { w.beacons[i], w.beacons[j] = w.beacons[j], w.beacons[i] }
+
+// sortFactory returns a function that wraps a list of beacons in a sortWrapper.
+// The returned sortWrapper implements the sort.Interface with a less function that depends on
+// the provided sortParam.
+func sortFactory(sortParam *GetBeaconsParamsSort) (func(b []*Beacon) sort.Interface, error) {
 	by := "last_updated"
 	if sortParam != nil {
 		by = string(*sortParam)
 	}
+	var less func(a, b *Beacon) bool
 	switch by {
 	case "expiration_time":
-		return func(b []*Beacon) {
-			sort.Slice(b, func(i, j int) bool {
-				return b[i].Segment.Expiration.Before(b[j].Segment.Expiration)
-			})
-		}, nil
+		less = func(a, b *Beacon) bool {
+			return a.Segment.Expiration.Before(b.Segment.Expiration)
+		}
 	case "info_time":
-		return func(b []*Beacon) {
-			sort.Slice(b, func(i, j int) bool {
-				return b[i].Segment.Timestamp.Before(b[j].Segment.Timestamp)
-			})
-		}, nil
+		less = func(a, b *Beacon) bool {
+			return a.Segment.Timestamp.Before(b.Segment.Timestamp)
+		}
 	case "start_isd_as":
-		return func(b []*Beacon) {
-			sort.Slice(b, func(i, j int) bool {
-				if len(b[i].Segment.Hops) == 0 || len(b[j].Segment.Hops) == 0 {
-					return len(b[i].Segment.Hops) < len(b[j].Segment.Hops)
-				}
-				return b[i].Segment.Hops[0].IsdAs < b[j].Segment.Hops[0].IsdAs
-			})
-		}, nil
+		less = func(a, b *Beacon) bool {
+			if len(a.Segment.Hops) == 0 || len(b.Segment.Hops) == 0 {
+				return len(a.Segment.Hops) < len(b.Segment.Hops)
+			}
+			return a.Segment.Hops[0].IsdAs < b.Segment.Hops[0].IsdAs
+		}
 	case "last_updated":
-		return func(b []*Beacon) {
-			sort.Slice(b, func(i, j int) bool { return b[i].LastUpdated.Before(b[j].LastUpdated) })
-		}, nil
-	case "ingress_interface_id":
-		return func(b []*Beacon) {
-			sort.Slice(b, func(i, j int) bool {
-				return b[i].IngressInterface < b[j].IngressInterface
-			})
-		}, nil
+		less = func(a, b *Beacon) bool {
+			return a.LastUpdated.Before(b.LastUpdated)
+		}
+	case "ingress_interface":
+		less = func(a, b *Beacon) bool {
+			return a.IngressInterface < b.IngressInterface
+		}
 	default:
 		return nil, serrors.New("unknown query parameter", "sort", by)
 	}
+	return func(b []*Beacon) sort.Interface {
+		return sortWrapper{
+			beacons: b,
+			less:    less,
+		}
+	}, nil
 }
 
 func (s *Server) GetBeacon(w http.ResponseWriter, r *http.Request, segmentId SegmentID) {

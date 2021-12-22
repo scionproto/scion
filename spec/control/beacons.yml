@@ -83,12 +83,7 @@ paths:
                     items:
                       $ref: "#/components/schemas/Beacon"
         "400":
-          description: Invalid request.
-          content:
-            application/problem+json:
-              schema:
-                $ref:  "../common/base.yml#/components/schemas/Problem"
-
+          $ref: "../common/base.yml#/components/responses/BadRequest"
   /beacons/{segment-id}:
     get:
       tags:

@@ -30,7 +30,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	beaconlib "github.com/scionproto/scion/go/cs/beacon"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
@@ -91,7 +90,7 @@ func TestAPI(t *testing.T) {
 			RequestURL: "/beacons?sort=invalid",
 			Status:     400,
 		},
-		"beacons sort owner": {
+		"beacons sort by ingress interface": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				bs := mock_api.NewMockBeaconStore(ctrl)
 				s := &api.Server{
@@ -104,7 +103,7 @@ func TestAPI(t *testing.T) {
 				).Times(1).Return(dbresult, nil)
 				return api.Handler(s)
 			},
-			RequestURL: "/beacons?sort=ingress_interface_id",
+			RequestURL: "/beacons?sort=ingress_interface",
 			Status:     200,
 		},
 		"beacons descending order": {
@@ -149,12 +148,12 @@ func TestAPI(t *testing.T) {
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
 					&beacon.QueryParams{
-						Usages: []beaconlib.Usage{beaconlib.UsageCoreReg | beaconlib.UsageUpReg},
+						Usages: []beaconlib.Usage{beaconlib.UsageDownReg | beaconlib.UsageUpReg},
 					},
-				).Times(1).Return(dbresult, nil)
+				).Times(1).Return(dbresult[:1], nil)
 				return api.Handler(s)
 			},
-			RequestURL: "/beacons?usages=up_registration&usages=core_registration",
+			RequestURL: "/beacons?usages=up_registration&usages=down_registration",
 			Status:     200,
 		},
 		"signer": {
@@ -627,13 +626,34 @@ func createBeacons(t *testing.T) []beacon.Beacon {
 					Info: seg.Info{
 						Timestamp: time.Date(2021, 1, 1, 8, 0, 0, 0, time.UTC),
 					},
-					ASEntries: []seg.ASEntry{{
-						Local: addr.IA{I: 0, A: 0},
-						Next:  addr.IA{I: 1, A: 1},
-					}}},
+					ASEntries: []seg.ASEntry{
+						{
+							Local: xtest.MustParseIA("1-ff00:0:110"),
+							Next:  xtest.MustParseIA("1-ff00:0:111"),
+							HopEntry: seg.HopEntry{
+								HopField: seg.HopField{
+									ConsIngress: 0,
+									ConsEgress:  1,
+								},
+								IngressMTU: 1200,
+							},
+						},
+						{
+							Local: xtest.MustParseIA("1-ff00:0:111"),
+							Next:  xtest.MustParseIA("1-ff00:0:112"),
+							HopEntry: seg.HopEntry{
+								HopField: seg.HopField{
+									ConsIngress: 2,
+									ConsEgress:  3,
+								},
+								IngressMTU: 1200,
+							},
+						},
+					},
+				},
 				InIfId: 2,
 			},
-			Usage:       beaconlib.UsageCoreReg | beaconlib.UsageDownReg,
+			Usage:       beaconlib.UsageUpReg | beaconlib.UsageDownReg,
 			LastUpdated: time.Date(2021, 1, 2, 8, 0, 0, 0, time.UTC),
 		},
 		{
@@ -642,13 +662,32 @@ func createBeacons(t *testing.T) []beacon.Beacon {
 					Info: seg.Info{
 						Timestamp: time.Date(2021, 2, 1, 8, 0, 0, 0, time.UTC),
 					},
-					ASEntries: []seg.ASEntry{{
-						Local: addr.IA{I: 2, A: 2},
-						Next:  addr.IA{I: 3, A: 3},
-					}}},
+					ASEntries: []seg.ASEntry{
+						{
+							Local: xtest.MustParseIA("2-ff00:0:220"),
+							Next:  xtest.MustParseIA("3-ff00:0:330"),
+							HopEntry: seg.HopEntry{
+								HopField: seg.HopField{
+									ConsIngress: 0,
+									ConsEgress:  5,
+								},
+							},
+						},
+						{
+							Local: xtest.MustParseIA("3-ff00:0:330"),
+							Next:  xtest.MustParseIA("4-ff00:0:440"),
+							HopEntry: seg.HopEntry{
+								HopField: seg.HopField{
+									ConsIngress: 6,
+									ConsEgress:  7,
+								},
+							},
+						},
+					},
+				},
 				InIfId: 1,
 			},
-			Usage:       beaconlib.UsageCoreReg | beaconlib.UsageDownReg,
+			Usage:       beaconlib.UsageCoreReg,
 			LastUpdated: time.Date(2021, 2, 2, 8, 0, 0, 0, time.UTC),
 		},
 	}
