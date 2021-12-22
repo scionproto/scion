@@ -73,7 +73,7 @@ However, optimizaing path per origin interface, and per ingress and egress inter
 
 ### Direction of optimization
 
-We allows to be optimized for packets travelling in the same direction as the beacon ("**forward**"), in opposite direction ("**backwards**"), and in both directions on the same path ("**symmetric**"). Symetric optimizes for the quality only over paths that have approximately the same metric in both directions. 
+We allows to be optimized for packets travelling in the same direction as the beacon ("**forward**"), in opposite direction ("**backwards**"), and in both directions on the same path if the metrics are approximately equal ("**symmetric**"). 
 
 How forward paths are communicated back to the originator is not part of this project. One way might be to allow end-host applications to transmit them using different protocols altogether.
 
