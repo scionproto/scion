@@ -4,7 +4,7 @@ This document ountlines the push-based path quality aware beconing algorithm pro
 
 * Author(s): Silas Gyger, Seyedali Tabaeiaghdaei
 * Status: draft
-* Last edited: 2021-12-xx
+* Last edited: 2021-12-23
 
 ## Table Of Contents
 - [Push-Based Path Quality Aware Beaconing](#push-based-path-quality-aware-beaconing)
