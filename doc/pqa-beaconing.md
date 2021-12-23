@@ -21,18 +21,16 @@ This document ountlines the push-based path quality aware beconing algorithm pro
   - [Implementation](#implementation)
     - [Overview](#overview)
     - [Configuration of PQA algorithm global paramters](#configuration-of-pqa-algorithm-global-paramters)
-      - [Summary](#summary)
       - [Modification to codebase](#modification-to-codebase)
       - [Config file specification (yaml):](#config-file-specification-yaml)
     - [Configuration of ASs for PQA beacon origination](#configuration-of-ass-for-pqa-beacon-origination)
       - [Modification to codebase](#modification-to-codebase-1)
       - [Config file specification:](#config-file-specification)
         - [Option 1: Direction part of optimization target identifier](#option-1-direction-part-of-optimization-target-identifier)
-        - [Option 2: Direction not part of optimization target](#option-2-direction-not-part-of-optimization-target)
     - [Configuration of interface groups in non-orign ASs](#configuration-of-interface-groups-in-non-orign-ass)
       - [Modification to codebase](#modification-to-codebase-2)
       - [Config File Specification](#config-file-specification-1)
-    - [Beacon Messages Modification](#beacon-messages-modification)
+    - [Beacon Message Extension](#beacon-message-extension)
       - [New Protobuf Messages](#new-protobuf-messages)
       - [Modifications to codebase](#modifications-to-codebase)
     - [Extend Beacon DB for new queries](#extend-beacon-db-for-new-queries)
@@ -57,13 +55,12 @@ Given the metric value for path `a ⇝ b` and `b ⇝ c`, we can always determine
 
 Optimization is done w.r.t. to a single quality, i.e. it is maximized or minimized for a specific quality.
 
-The algorithm will allow optimization of the following metrics:
+To get access to path metrics, the algorithm will leverage existing code written for the [StaticInfoExtension](./beacon-metadata.rst). From the qualities included there, we will implement:
 
 Quality | Combination | Optimization
 --- | ---- |---
 latency | additive | min
 throughput | concave (min) | max
-loss rate | multiplicative | min
 
 ### Algorithm granularity
 
@@ -174,17 +171,13 @@ To implement the algorithm into the SCION codebase, the following tasks need to 
     * define optimization targets
     * configure interfaces to originate beacons for optimization targets and/or normal beacons
 - [ ] Configuration of AS for PQA beacon propagation
-- [ ] Beacon segment message extensions to include optimization targets
+- [ ] Beacon Message Extension
 - [ ] Allow queries of the form outlined in the pseudocode to the db
 - [ ] Make the AS originate PQA beacons according to the configuration
 - [ ] Make the AS propagate PQA beacons according to the configuration
 
 ### Configuration of PQA algorithm global paramters
-
-#### Summary
-We need to configure:
-* Possible quality metrics, their mode of combination, and connection to other parts of the codebase
-* `N`
+We need to configure possible path quality metrics, their mode of combination and connection to other parts of the codebase. Further, the parameter `N`.
 
 #### Modification to codebase
 Definition, loading etc. is done analogously to `StaticConfig` extension, e.g.:
@@ -203,17 +196,12 @@ Qualities:
         combination: additive
         optimality: min
         symmetry_tolerance: 0.1
-        proto_pqa_id: LATENCY
+        proto_id: LATENCY
     throughpput:
         sshort: tp
         combination: concave-min
         optimality: max
         proto_id: THROUGHPUT
-    loss-rate:
-        short: lr
-        combination: multiplicative
-        optimality: min
-        proto_id: LOSSRATE
     foo-bar:
         short: fb
         combination: concave-max
@@ -233,8 +221,6 @@ Explaination:
 
 
 > Question: Good idea to add mapping to protobuf into config file?
-> Should this even be "configurable", or should the mapping be hard-coded? 
-> How about mapping to StaticInfoExtension field (in protobuf)?
 
 ###  Configuration of ASs for PQA beacon origination
 For the origin AS, we need to define optimization targets, and configure interfaces to originate them.
@@ -277,38 +263,6 @@ Explaination:
       * interval configuration. Each element is an `optimization_target_identifier` or `NO_TARGET`. All optimization targets (incl.. `NO_TARGET`) are sent out at once during this interval. `NO_TARGET` references beacons without the extenion.
 
 If an interface is not configured at all, it is assumed to only originate `NO_TARGET` beacons.
-##### Option 2: Direction not part of optimization target
-
-```yaml
-optimization targets:
-    my_target_0:
-        uniquifier: 0
-        quality: latency
-    my_target_1:
-        uniquifier: 1
-        quality: latency 
-
-origination_configuration:
-    intf1:
-        - # Interval 0
-            -   # Beacon 0
-                target: my_target_0
-                direction: forward
-            -   # Beacon 1
-                target: NO_TARGET
-        - # Interval 1
-            -   # Beacon 0
-                target: my_target_1
-                direction: bidirectional
-    intf2: # this is the deafault setting for interfaces not configured here
-        - [NO_TARGET]
-```
-
-Note for algorothm:
-* If we want N ideal paths _per optimization target and direction_, it's better if we make direction part of optimization group. That's what "optimization target" conceptually should do: Define one goal to optimize for and find N ideal paths.
-
-> Assigning uniquifiers: Unique uniquifiers need to be assigned to two optimization targets exactly if they have otherwise identical fields.
-
 
 ### Configuration of interface groups in non-orign ASs
 
@@ -352,7 +306,11 @@ Explaination:
       * `quality`: the optimization quality identifier from the global config file
       * `direction` (optional): one or more directions for the optimization target
 
-### Beacon Messages Modification
+### Beacon Message Extension
+For now, the [StaticInfoExtension](./beacon-metadata.rst) is used to transmit relevant metrics inside beacons. Extending the beacon segments to include the quality metric that is optimize for (instead of _all_ qualities in the StaticInfoExtension) is intended at a later stage; feasability within the scope of this project will be evaluated.
+
+The extension thus only include the optimization target. It is marked optional because it will only have a value in the first segment.
+
 > Q: Each beacon needs info on optimization only _once_ - is "segment" right place to put it?
 
 #### New Protobuf Messages
@@ -399,7 +357,7 @@ enum OptimizationDirection {
 * Extend [`storage/beacon/sqlite/db.go`](../go/pkg/storage/beacon/sqlite/db.go) with methods to query the db according to the pseudocode; modify `InsertBeacon()` for new schema.
 * Add same interfaces to [`store.go](../go/cs/beacon/store.go), so that they can be used by propagator
 
-The query will need too return beacons for:
+The query will need too return the best N beacons for:
 * a given **origin AS**
 * a given **optimization target** in the beacon
 * a given **ingress interface group** through which the beacon entered the AS
