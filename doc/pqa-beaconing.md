@@ -26,7 +26,6 @@ This document ountlines the push-based path quality aware beconing algorithm pro
     - [Configuration of ASs for PQA beacon origination](#configuration-of-ass-for-pqa-beacon-origination)
       - [Modification to codebase](#modification-to-codebase-1)
       - [Config file specification:](#config-file-specification)
-        - [Option 1: Direction part of optimization target identifier](#option-1-direction-part-of-optimization-target-identifier)
     - [Configuration of interface groups in non-orign ASs](#configuration-of-interface-groups-in-non-orign-ass)
       - [Modification to codebase](#modification-to-codebase-2)
       - [Config File Specification](#config-file-specification-1)
@@ -231,7 +230,7 @@ For the origin AS, we need to define optimization targets, and configure interfa
   * The configuration is read in a file calld `pqa_origination_config.go` located at [../go/cs/beaconing](../go/cs/beaconing).
 
 #### Config file specification:
-##### Option 1: Direction part of optimization target identifier
+
 ```yaml
 optimization targets:
     my_target_0:
