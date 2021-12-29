@@ -35,6 +35,12 @@ This document ountlines the push-based path quality aware beconing algorithm pro
     - [Extend Beacon DB for new queries](#extend-beacon-db-for-new-queries)
     - [Originating new PQA Beacons](#originating-new-pqa-beacons)
     - [Propagate new PQA Beacons](#propagate-new-pqa-beacons)
+  - [Deployment](#deployment)
+    - [Origination](#origination)
+    - [Propagation](#propagation)
+      - [Less than ideal paths](#less-than-ideal-paths)
+      - [Less than `N` paths](#less-than-n-paths)
+  - [Evaluationn](#evaluationn)
 
 ## Algorithm
 During core beaconing, core ASs continuously have to decide which beacons to forward to which interfaces in order to keep the message complexity sufficiently low. 
@@ -159,7 +165,6 @@ def propagate_optimized_paths(optim_target, intf_subgroup, neigh):
     n_best = get_N_best(intf_beacon_candidates)
     propagate(n_best)
 ```
-
 ## Implementation
 ### Overview
 To implement the algorithm into the SCION codebase, the following tasks need to be executed:
@@ -373,3 +378,33 @@ In [`propagator.go`](../go/cs/beaconing/propagator.go), the propagation algorith
 
 **Note:** The algorithm is implemented s.t. the old algorithm still takes care of "normal" beacons. The existing code is refactored and changed s.t. at some point, an if-else switch propagates beacons by the old or by the new algorithm, depending on wether the beacon contains the extension.
 
+
+## Deployment
+This novel beaconing algorithm is intended to run along side existing or future beaconing algorithms, and not to replace them.
+### Origination
+For beacon origination, upgrading ASs will not change any behaviour by default, as originating standard beacons is the default for all interfaces that have no explicit configuration (see [Config file specification](#config-file-specification)).
+### Propagation
+For beacon propagation, ASs will process incoming PQA beacons like normal beacons, and include the PQA extensions in hops not created by them (see [3]). They will not add path quality metrics to the current hop. After forwarding the beacon to an AS that supports the extension, however, the algorithm will continue.
+
+This will degrade the outcome in two ways:
+  1. The constructed PCBs will not be ideal w.r.t to the qualities they intend to optimize for
+  2. No PCBs might be forwarded at all for certain optimization targets
+
+   
+#### Less than ideal paths
+Incoming PQA beacons will be processed like normal beacons. In the current selection algorithm, the $k$ PCBs with the shortest AS-level hopcounts are forwarded, which might or might not correlate with the intended quality that the beacon aimed for. In the worst case, it might even correlate negatively. 
+
+After PQA beacons leave ASs that don't support the extension, they can be processed according to algorithm outlined here again, except for the fact that some hops will be missing path quality metrics. Due to linearity of metrics, the final paths will be ideal under the (incorrect) assumption that the hops that are missing any metrics incur no cost for the relevant metric.
+
+####  Less than `N` paths
+ASs that support the extension will naturally not try to forward `N` paths per optimization target. As a result, some optimization targetes might not be forwarded at all, or an AS might receive less than `N` total beacons per optimization target.
+
+To end hosts, the algorithm is completely transparent; they will notice the absence of optimized paths only through the lack of "great paths" for the quality they're looking for. 
+
+It has to be evaluated to what extent this algorithm brings an improvement in cases where the path to an AS contains ASs that don't support the extension, or only one AS-level path exists from host to origin AS.
+
+
+[3]: ASs will retain the unknown extensions in segments authorede by other ASs: Unknown extension headers in received PCBs will be [retained by protobuf](https://developers.google.com/protocol-buffers/docs/proto3#unknowns). PCB messages, are made up of path segments, which contain [ASEntries](../proto/control_plane/v1/seg.proto#L96), which in turn contain [a field for signed and unsigned entries](../proto/control_plane/v1/seg.proto#L108). The signed body includes the [path segment extensions](../proto/control_plane/v1/seg.proto#L138), which this extension aims to become. Now in order to not invalidate the signatures of previous AS Entries, the signed bodies [are retained](../go/lib/ctrl/seg/as.go#L99) when [reading in](../go/lib/ctrl/seg/seg.go#L118) the protobuf PCBs. Finally, the [signed bodies are put back in place](../go/lib/ctrl/seg/seg.go#L374) when [serializing the beacons](../go/cs/beaconing/grpc/beacon_sender.go#L70) again in preparation to sending them out to the next AS.
+
+
+## Evaluationn
