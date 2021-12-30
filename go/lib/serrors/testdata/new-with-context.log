@@ -1,1 +1,1 @@
-{"err":{"k0":"v0","k1":1,"msg":"err msg","stacktrace":["go/lib/serrors/go_default_test_test.TestEncoding go/lib/serrors/errors_test.go:191","testing.tRunner GOROOT/src/testing/testing.go:1193","runtime.goexit GOROOT/src/runtime/asm_amd64.s:1371"]},"level":"info","msg":"Failed to do thing"}
+{"err":{"k0":"v0","k1":1,"msg":"err msg","stacktrace":["go/lib/serrors/go_default_test_test.TestEncoding go/lib/serrors/errors_test.go:191","testing.tRunner GOROOT/src/testing/testing.go:1259","runtime.goexit GOROOT/src/runtime/asm_amd64.s:1581"]},"level":"info","msg":"Failed to do thing"}

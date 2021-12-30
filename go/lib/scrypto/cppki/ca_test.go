@@ -126,6 +126,7 @@ func TestCAPolicyCreateChain(t *testing.T) {
 				CurrentTime:          chain[0].NotBefore,
 				ForceECDSAWithSHA512: tc.ForceECDSAWithSHA512,
 			}
+			ca.Certificate.PublicKey = ca.Signer.Public()
 			gen, err := ca.CreateChain(tc.CSR(t))
 			tc.ErrAssertion(t, err)
 			if err != nil {

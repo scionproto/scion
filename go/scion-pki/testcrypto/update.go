@@ -459,6 +459,7 @@ func extendCert(now time.Time, cert *x509.Certificate,
 	tmpl.NotAfter = now.Add(730 * 24 * time.Hour)
 	tmpl.Subject = subject
 	tmpl.SerialNumber = new(big.Int).SetBytes(serial)
+	tmpl.PublicKey = key.Public()
 
 	raw, err := x509.CreateCertificate(rand.Reader, &tmpl, &tmpl, key.Public(), key)
 	if err != nil {
