@@ -46,7 +46,7 @@ func TestRequesterSegments(t *testing.T) {
 	defaultGroups := hiddenpath.Groups{
 		hpID: {
 			ID: hpID,
-			Writers: map[addr.IAInt]struct{}{
+			Writers: map[addr.IA]struct{}{
 				xtest.MustParseIA("1-ff00:0:3"): {},
 			},
 		},

@@ -63,7 +63,7 @@ type SCIONNetworkMetrics struct {
 
 // SCIONNetwork is the SCION networking context.
 type SCIONNetwork struct {
-	LocalIA    addr.IAInt
+	LocalIA    addr.IA
 	Dispatcher PacketDispatcherService
 	// Metrics holds the metrics emitted by the network.
 	Metrics SCIONNetworkMetrics

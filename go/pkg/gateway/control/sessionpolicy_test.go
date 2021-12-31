@@ -179,20 +179,20 @@ func TestLoadSessionPolicies(t *testing.T) {
 func TestSessionPoliciesRemoteIAs(t *testing.T) {
 	testCases := map[string]struct {
 		Policies control.SessionPolicies
-		Expected []addr.IAInt
+		Expected []addr.IA
 	}{
 		"nil": {
-			Expected: []addr.IAInt{},
+			Expected: []addr.IA{},
 		},
 		"empty": {
 			Policies: control.SessionPolicies{},
-			Expected: []addr.IAInt{},
+			Expected: []addr.IA{},
 		},
 		"single entry": {
 			Policies: control.SessionPolicies{
 				control.SessionPolicy{IA: xtest.MustParseIA("1-ff00:0:110")},
 			},
-			Expected: []addr.IAInt{xtest.MustParseIA("1-ff00:0:110")},
+			Expected: []addr.IA{xtest.MustParseIA("1-ff00:0:110")},
 		},
 		"multiple entries with duplicates": {
 			Policies: control.SessionPolicies{
@@ -200,7 +200,7 @@ func TestSessionPoliciesRemoteIAs(t *testing.T) {
 				control.SessionPolicy{IA: xtest.MustParseIA("1-ff00:0:110")},
 				control.SessionPolicy{IA: xtest.MustParseIA("1-ff00:0:111")},
 			},
-			Expected: []addr.IAInt{
+			Expected: []addr.IA{
 				xtest.MustParseIA("1-ff00:0:110"),
 				xtest.MustParseIA("1-ff00:0:111"),
 			},

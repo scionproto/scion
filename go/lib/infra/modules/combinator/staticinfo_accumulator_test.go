@@ -214,7 +214,7 @@ func checkNotes(t *testing.T, g *graph.Graph, path []snet.PathInterface, notes [
 	}
 
 	// (very) explicitly gather ASes from path interface list
-	ases := []addr.IAInt{}
+	ases := []addr.IA{}
 	ases = append(ases, path[0].IA)
 	for i := 1; i < len(path)-1; i += 2 {
 		ases = append(ases, path[i].IA)

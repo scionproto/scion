@@ -245,13 +245,13 @@ func (ps *PathSegment) expiry(initTTL time.Duration,
 
 // FirstIA returns the IA of the first ASEntry.
 // Note that if the path segment contains no ASEntries this method will panic.
-func (ps *PathSegment) FirstIA() addr.IAInt {
+func (ps *PathSegment) FirstIA() addr.IA {
 	return ps.ASEntries[0].Local
 }
 
 // LastIA returns the IA of the last ASEntry.
 // Note that if the path segment contains no ASEntries this method will panic.
-func (ps *PathSegment) LastIA() addr.IAInt {
+func (ps *PathSegment) LastIA() addr.IA {
 	return ps.ASEntries[len(ps.ASEntries)-1].Local
 }
 
@@ -402,7 +402,7 @@ func (ps *PathSegment) getHopsDescription() string {
 	return strings.Join(description, ">")
 }
 
-func getHopDescription(ia addr.IAInt, hop HopField) string {
+func getHopDescription(ia addr.IA, hop HopField) string {
 	desc := []string{}
 	if hop.ConsIngress > 0 {
 		desc = append(desc, fmt.Sprintf("%v ", hop.ConsIngress))

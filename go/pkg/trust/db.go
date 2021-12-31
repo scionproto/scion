@@ -29,7 +29,7 @@ import (
 type ChainQuery struct {
 	// IA is the ISD-AS identifier that must be part of the AS certificate's
 	// subject.
-	IA addr.IAInt
+	IA addr.IA
 	// SubjectKeyID identifies the subject key that the AS certificate must
 	// authenticate.
 	SubjectKeyID []byte
@@ -40,9 +40,9 @@ type ChainQuery struct {
 // MarshalJSON marshals the chain query for well formated log output.
 func (q ChainQuery) MarshalJSON() ([]byte, error) {
 	j := struct {
-		IA           addr.IAInt `json:"isd_as"`
-		SubjectKeyID string     `json:"subject_key_id"`
-		Date         time.Time  `json:"date"`
+		IA           addr.IA   `json:"isd_as"`
+		SubjectKeyID string    `json:"subject_key_id"`
+		Date         time.Time `json:"date"`
 	}{
 		IA:           q.IA,
 		SubjectKeyID: fmt.Sprintf("%x", q.SubjectKeyID),

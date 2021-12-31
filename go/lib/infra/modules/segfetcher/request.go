@@ -21,8 +21,8 @@ import (
 
 // Request represents a path or segment request.
 type Request struct {
-	Src     addr.IAInt
-	Dst     addr.IAInt
+	Src     addr.IA
+	Dst     addr.IA
 	SegType seg.Type
 }
 
@@ -41,13 +41,13 @@ func (r Request) Equal(other Request) bool {
 type Requests []Request
 
 // SrcIAs returns all unique sources in the request list.
-func (r Requests) SrcIAs() []addr.IAInt {
-	return r.extractIAs(func(req Request) addr.IAInt { return req.Src })
+func (r Requests) SrcIAs() []addr.IA {
+	return r.extractIAs(func(req Request) addr.IA { return req.Src })
 }
 
 // DstIAs returns all unique destinations in the request list.
-func (r Requests) DstIAs() []addr.IAInt {
-	return r.extractIAs(func(req Request) addr.IAInt { return req.Dst })
+func (r Requests) DstIAs() []addr.IA {
+	return r.extractIAs(func(req Request) addr.IA { return req.Dst })
 }
 
 // IsEmpty returns whether the list of requests is empty.
@@ -55,12 +55,12 @@ func (r Requests) IsEmpty() bool {
 	return len(r) == 0
 }
 
-func (r Requests) extractIAs(extract func(Request) addr.IAInt) []addr.IAInt {
-	set := make(map[addr.IAInt]struct{})
+func (r Requests) extractIAs(extract func(Request) addr.IA) []addr.IA {
+	set := make(map[addr.IA]struct{})
 	for _, req := range r {
 		set[extract(req)] = struct{}{}
 	}
-	ias := make([]addr.IAInt, 0, len(set))
+	ias := make([]addr.IA, 0, len(set))
 	for ia := range set {
 		ias = append(ias, ia)
 	}

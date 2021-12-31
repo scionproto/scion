@@ -286,7 +286,7 @@ func (f Filter) Apply(beacon Beacon) error {
 
 // FilterLoop returns an error if the beacon contains an AS or ISD loop. If ISD
 // loops are allowed, an error is returned only on AS loops.
-func FilterLoop(beacon Beacon, next addr.IAInt, allowIsdLoop bool) error {
+func FilterLoop(beacon Beacon, next addr.IA, allowIsdLoop bool) error {
 	hops := buildHops(beacon)
 	if !next.IsZero() {
 		hops = append(hops, next)
@@ -294,15 +294,15 @@ func FilterLoop(beacon Beacon, next addr.IAInt, allowIsdLoop bool) error {
 	return filterLoops(hops, allowIsdLoop)
 }
 
-func buildHops(beacon Beacon) []addr.IAInt {
-	hops := make([]addr.IAInt, 0, len(beacon.Segment.ASEntries)+1)
+func buildHops(beacon Beacon) []addr.IA {
+	hops := make([]addr.IA, 0, len(beacon.Segment.ASEntries)+1)
 	for _, asEntry := range beacon.Segment.ASEntries {
 		hops = append(hops, asEntry.Local)
 	}
 	return hops
 }
 
-func filterLoops(hops []addr.IAInt, allowIsdLoop bool) error {
+func filterLoops(hops []addr.IA, allowIsdLoop bool) error {
 	if ia := filterAsLoop(hops); !ia.IsZero() {
 		return serrors.New("AS loop", "ia", ia)
 	}
@@ -315,8 +315,8 @@ func filterLoops(hops []addr.IAInt, allowIsdLoop bool) error {
 	return nil
 }
 
-func filterAsLoop(hops []addr.IAInt) addr.IAInt {
-	seen := make(map[addr.IAInt]struct{})
+func filterAsLoop(hops []addr.IA) addr.IA {
+	seen := make(map[addr.IA]struct{})
 	for _, ia := range hops {
 		if _, ok := seen[ia]; ok {
 			return ia
@@ -326,7 +326,7 @@ func filterAsLoop(hops []addr.IAInt) addr.IAInt {
 	return 0
 }
 
-func filterIsdLoop(hops []addr.IAInt) addr.ISD {
+func filterIsdLoop(hops []addr.IA) addr.ISD {
 	seen := make(map[addr.ISD]struct{})
 	var last addr.ISD
 	for _, ia := range hops {

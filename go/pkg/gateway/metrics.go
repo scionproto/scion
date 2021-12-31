@@ -253,7 +253,7 @@ type Metrics struct {
 }
 
 // NewMetrics initializes the metrics for the gateway and registers them with the default registry.
-func NewMetrics(ia addr.IAInt) *Metrics {
+func NewMetrics(ia addr.IA) *Metrics {
 	labels := map[string]string{
 		"isd_as": ia.String(),
 	}

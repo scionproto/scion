@@ -28,7 +28,7 @@ import (
 )
 
 type fetcherFactory struct {
-	remote addr.IAInt
+	remote addr.IA
 	wf     *WatcherFactory
 }
 
@@ -88,7 +88,7 @@ type WatcherFactory struct {
 
 func (wf *WatcherFactory) New(
 	ctx context.Context,
-	remote addr.IAInt,
+	remote addr.IA,
 	metrics control.GatewayWatcherMetrics,
 ) control.Runner {
 

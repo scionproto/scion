@@ -43,7 +43,7 @@ func TestReqToChainQuery(t *testing.T) {
 
 	query, err := trustgrpc.RequestToChainQuery(req)
 	require.NoError(t, err)
-	assert.Equal(t, addr.IAInt(req.IsdAs), query.IA)
+	assert.Equal(t, addr.IA(req.IsdAs), query.IA)
 	assert.Equal(t, req.SubjectKeyId, query.SubjectKeyID)
 	assert.Equal(t, now, query.Date)
 }

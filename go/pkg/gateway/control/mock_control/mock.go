@@ -349,7 +349,7 @@ func (m *MockPathMonitor) EXPECT() *MockPathMonitorMockRecorder {
 }
 
 // Register mocks base method.
-func (m *MockPathMonitor) Register(arg0 context.Context, arg1 addr.IAInt, arg2 *policies.Policies, arg3 string) control.PathMonitorRegistration {
+func (m *MockPathMonitor) Register(arg0 context.Context, arg1 addr.IA, arg2 *policies.Policies, arg3 string) control.PathMonitorRegistration {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Register", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(control.PathMonitorRegistration)
@@ -473,7 +473,7 @@ func (m *MockPrefixConsumer) EXPECT() *MockPrefixConsumerMockRecorder {
 }
 
 // Prefixes mocks base method.
-func (m *MockPrefixConsumer) Prefixes(arg0 addr.IAInt, arg1 control.Gateway, arg2 []*net.IPNet) {
+func (m *MockPrefixConsumer) Prefixes(arg0 addr.IA, arg1 control.Gateway, arg2 []*net.IPNet) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Prefixes", arg0, arg1, arg2)
 }
@@ -597,7 +597,7 @@ func (m *MockDataplaneSessionFactory) EXPECT() *MockDataplaneSessionFactoryMockR
 }
 
 // New mocks base method.
-func (m *MockDataplaneSessionFactory) New(arg0 byte, arg1 int, arg2 addr.IAInt, arg3 net.Addr) control.DataplaneSession {
+func (m *MockDataplaneSessionFactory) New(arg0 byte, arg1 int, arg2 addr.IA, arg3 net.Addr) control.DataplaneSession {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "New", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(control.DataplaneSession)
@@ -832,7 +832,7 @@ func (m *MockGatewayWatcherFactory) EXPECT() *MockGatewayWatcherFactoryMockRecor
 }
 
 // New mocks base method.
-func (m *MockGatewayWatcherFactory) New(arg0 context.Context, arg1 addr.IAInt, arg2 control.GatewayWatcherMetrics) control.Runner {
+func (m *MockGatewayWatcherFactory) New(arg0 context.Context, arg1 addr.IA, arg2 control.GatewayWatcherMetrics) control.Runner {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "New", arg0, arg1, arg2)
 	ret0, _ := ret[0].(control.Runner)
@@ -965,7 +965,7 @@ func (m *MockDeviceOpener) EXPECT() *MockDeviceOpenerMockRecorder {
 }
 
 // Open mocks base method.
-func (m *MockDeviceOpener) Open(arg0 context.Context, arg1 addr.IAInt) (control.Device, error) {
+func (m *MockDeviceOpener) Open(arg0 context.Context, arg1 addr.IA) (control.Device, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Open", arg0, arg1)
 	ret0, _ := ret[0].(control.Device)

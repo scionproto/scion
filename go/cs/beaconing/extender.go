@@ -43,7 +43,7 @@ type Extender interface {
 // DefaultExtender extends provided path segments with entries for the local AS.
 type DefaultExtender struct {
 	// IA is the local IA
-	IA addr.IAInt
+	IA addr.IA
 	// Signer is used to sign path segments.
 	Signer seg.Signer
 	// MAC is used to calculate the hop field MAC.
@@ -198,7 +198,7 @@ func (s *DefaultExtender) createPeerEntry(ingress, egress uint16, ts time.Time,
 	}, epicMac, nil
 }
 
-func (s *DefaultExtender) remoteIA(ifID uint16) (addr.IAInt, error) {
+func (s *DefaultExtender) remoteIA(ifID uint16) (addr.IA, error) {
 	if ifID == 0 {
 		return 0, nil
 	}
@@ -226,7 +226,7 @@ func (s *DefaultExtender) remoteMTU(ifID uint16) (uint16, error) {
 }
 
 func (s *DefaultExtender) remoteInfo(ifid uint16) (
-	addr.IAInt, uint16, uint16, error) {
+	addr.IA, uint16, uint16, error) {
 
 	if ifid == 0 {
 		return 0, 0, 0, nil

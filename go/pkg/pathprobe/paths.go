@@ -92,9 +92,9 @@ func FilterEmptyPaths(paths []snet.Path) []snet.Path {
 // Prober can be used to get the status of a path.
 type Prober struct {
 	// DstIA is the destination ISD-AS.
-	DstIA addr.IAInt
+	DstIA addr.IA
 	// LocalIA is the source ISD-AS.
-	LocalIA addr.IAInt
+	LocalIA addr.IA
 	// LocalIP is the local IP endpoint to be used when probing. If not set, the proper will resolve
 	// an appropriate local IP endpoint depending on the path that should be probed. Note, LocalIP
 	// should not be set, unless you know what you are doing.

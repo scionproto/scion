@@ -171,7 +171,7 @@ type SingleDeviceManager struct {
 // Close the handle to guarantee that resources will be cleaned up.
 func (m *SingleDeviceManager) Get(
 	ctx context.Context,
-	ia addr.IAInt,
+	ia addr.IA,
 ) (control.DeviceHandle, error) {
 
 	m.mtx.Lock()
@@ -200,7 +200,7 @@ type MultiDeviceManager struct {
 	DeviceOpener control.DeviceOpener
 
 	mtx     sync.Mutex
-	devices map[addr.IAInt]*deviceHandle
+	devices map[addr.IA]*deviceHandle
 }
 
 // Get returns a handle to the device for the ISD-AS. If no device exists, one will be created.
@@ -209,7 +209,7 @@ type MultiDeviceManager struct {
 //
 // Devices are created with a name composed of the default tunnel device prefix and
 // an unpadded base32 representation of the ISD-AS.
-func (m *MultiDeviceManager) Get(ctx context.Context, ia addr.IAInt) (control.DeviceHandle, error) {
+func (m *MultiDeviceManager) Get(ctx context.Context, ia addr.IA) (control.DeviceHandle, error) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
@@ -218,7 +218,7 @@ func (m *MultiDeviceManager) Get(ctx context.Context, ia addr.IAInt) (control.De
 	}
 
 	if m.devices == nil {
-		m.devices = make(map[addr.IAInt]*deviceHandle)
+		m.devices = make(map[addr.IA]*deviceHandle)
 	}
 
 	if m.devices[ia] == nil || m.devices[ia].destroyed() {
@@ -242,7 +242,7 @@ func (m *MultiDeviceManager) Size() int {
 	return len(m.devices)
 }
 
-func (m *MultiDeviceManager) newDeletionCallback(ia addr.IAInt) destructionCallback {
+func (m *MultiDeviceManager) newDeletionCallback(ia addr.IA) destructionCallback {
 	return func() {
 		m.mtx.Lock()
 		defer m.mtx.Unlock()
@@ -253,15 +253,15 @@ func (m *MultiDeviceManager) newDeletionCallback(ia addr.IAInt) destructionCallb
 
 // Base32TunnelName is a device naming function that constructs Linux tun names using
 // the base32 encoding of an IA number.
-func Base32TunnelName(ia addr.IAInt) string {
+func Base32TunnelName(ia addr.IA) string {
 	b := make([]byte, 8)
 	ia.Write(b)
 	return IATunDevicePrefix + base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b)
 }
 
 // FixedTunnelName returns a device naming function that uses name for every IA.
-func FixedTunnelName(name string) func(addr.IAInt) string {
-	return func(addr.IAInt) string {
+func FixedTunnelName(name string) func(addr.IA) string {
+	return func(addr.IA) string {
 		return name
 	}
 }

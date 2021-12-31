@@ -48,7 +48,7 @@ type Path interface {
 	Path() spath.Path
 	// Destination is the AS the path points to. Empty paths return the local
 	// AS of the router that created them.
-	Destination() addr.IAInt
+	Destination() addr.IA
 	// Metadata returns supplementary information about this path.
 	// Returns nil if the metadata is not available.
 	Metadata() *PathMetadata
@@ -61,7 +61,7 @@ type PathInterface struct {
 	// ID is the ID of the interface.
 	ID common.IFIDType
 	// IA is the ISD AS identifier of the interface.
-	IA addr.IAInt
+	IA addr.IA
 }
 
 func (iface PathInterface) String() string {
@@ -200,7 +200,7 @@ func Fingerprint(path Path) PathFingerprint {
 type partialPath struct {
 	spath       spath.Path
 	underlay    *net.UDPAddr
-	destination addr.IAInt
+	destination addr.IA
 }
 
 func (p *partialPath) UnderlayNextHop() *net.UDPAddr {
@@ -215,7 +215,7 @@ func (p *partialPath) Interfaces() []PathInterface {
 	return nil
 }
 
-func (p *partialPath) Destination() addr.IAInt {
+func (p *partialPath) Destination() addr.IA {
 	return p.destination
 }
 

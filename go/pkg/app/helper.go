@@ -28,7 +28,7 @@ import (
 
 // ASInfo holds information about the local AS.
 type ASInfo struct {
-	IA  addr.IAInt
+	IA  addr.IA
 	MTU uint16
 }
 

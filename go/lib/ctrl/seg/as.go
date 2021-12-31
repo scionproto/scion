@@ -32,9 +32,9 @@ type ASEntry struct {
 	// Signed contains the signed ASentry. It is used for signature input.
 	Signed *cryptopb.SignedMessage
 	// Local is the ISD-AS of the AS correspoding to this entry.
-	Local addr.IAInt
+	Local addr.IA
 	// Next is the ISD-AS of the downstream AS.
-	Next addr.IAInt
+	Next addr.IA
 	// HopEntry is the entry to create regular data plane paths.
 	HopEntry HopEntry
 	// PeerEntries is a list of entries to create peering data plane paths.
@@ -60,7 +60,7 @@ func ASEntryFromPB(pb *cppb.ASEntry) (ASEntry, error) {
 	if err := proto.Unmarshal(unverifiedBody, &entry); err != nil {
 		return ASEntry{}, err
 	}
-	if ia := addr.IAInt(entry.IsdAs); ia.IsWildcard() {
+	if ia := addr.IA(entry.IsdAs); ia.IsWildcard() {
 		return ASEntry{}, serrors.New("wildcard local ISD-AS", "isd_as", ia)
 	}
 	if entry.Mtu > math.MaxInt32 {
@@ -92,8 +92,8 @@ func ASEntryFromPB(pb *cppb.ASEntry) (ASEntry, error) {
 	return ASEntry{
 		HopEntry:           hopEntry,
 		PeerEntries:        peerEntries,
-		Local:              addr.IAInt(entry.IsdAs),
-		Next:               addr.IAInt(entry.NextIsdAs), // Can contain wildcard.
+		Local:              addr.IA(entry.IsdAs),
+		Next:               addr.IA(entry.NextIsdAs), // Can contain wildcard.
 		MTU:                int(entry.Mtu),
 		Extensions:         extensions,
 		Signed:             pb.Signed,

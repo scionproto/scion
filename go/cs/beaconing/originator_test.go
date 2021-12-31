@@ -89,7 +89,7 @@ func TestOriginatorRun(t *testing.T) {
 
 		senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), gomock.Any(),
 			gomock.Any()).Times(4).DoAndReturn(
-			func(_ context.Context, dstIA addr.IAInt, egIfId uint16,
+			func(_ context.Context, dstIA addr.IA, egIfId uint16,
 				nextHop *net.UDPAddr) (beaconing.Sender, error) {
 
 				sender := mock_beaconing.NewMockSender(mctrl)

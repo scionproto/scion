@@ -30,8 +30,8 @@ type Inspector interface {
 	// ByAttributes returns a list of primary ASes in the specified ISD that
 	// hold all the requested attributes. If no attribute is specified, all
 	// primary ASes are returned.
-	ByAttributes(ctx context.Context, isd addr.ISD, attrs Attribute) ([]addr.IAInt, error)
+	ByAttributes(ctx context.Context, isd addr.ISD, attrs Attribute) ([]addr.IA, error)
 	// HasAttributes indicates whether an AS holds all the specified attributes.
 	// The first return value is always false for non-primary ASes.
-	HasAttributes(ctx context.Context, ia addr.IAInt, attrs Attribute) (bool, error)
+	HasAttributes(ctx context.Context, ia addr.IA, attrs Attribute) (bool, error)
 }

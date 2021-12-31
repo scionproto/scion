@@ -49,7 +49,7 @@ func TestUpdateExtend(t *testing.T) {
 	err = cmd.Execute()
 	require.NoError(t, err)
 
-	allASes := []addr.IAInt{
+	allASes := []addr.IA{
 		xtest.MustParseIA("1-ff00:0:110"),
 		xtest.MustParseIA("1-ff00:0:120"),
 		xtest.MustParseIA("1-ff00:0:130"),
@@ -121,7 +121,7 @@ func TestUpdateReSign(t *testing.T) {
 	err = cmd.Execute()
 	require.NoError(t, err)
 
-	allASes := []addr.IAInt{
+	allASes := []addr.IA{
 		xtest.MustParseIA("1-ff00:0:110"),
 		xtest.MustParseIA("1-ff00:0:120"),
 		xtest.MustParseIA("1-ff00:0:130"),
@@ -189,7 +189,7 @@ func TestUpdateReGen(t *testing.T) {
 	err = cmd.Execute()
 	require.NoError(t, err)
 
-	allASes := []addr.IAInt{
+	allASes := []addr.IA{
 		xtest.MustParseIA("1-ff00:0:110"),
 		xtest.MustParseIA("1-ff00:0:120"),
 		xtest.MustParseIA("1-ff00:0:130"),

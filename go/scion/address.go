@@ -32,9 +32,9 @@ import (
 )
 
 type addrInfo struct {
-	IA      addr.IAInt `json:"isd_as"`
-	IP      net.IP     `json:"ip"`
-	Address string     `json:"address"`
+	IA      addr.IA `json:"isd_as"`
+	IP      net.IP  `json:"ip"`
+	Address string  `json:"address"`
 }
 
 func newAddress(pather CommandPather) *cobra.Command {

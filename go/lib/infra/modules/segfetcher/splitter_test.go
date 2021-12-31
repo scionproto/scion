@@ -32,7 +32,7 @@ func TestRequestSplitter(t *testing.T) {
 	defer ctrl.Finish()
 
 	t.Run("multi-cores", func(t *testing.T) {
-		cores := map[addr.IAInt]struct{}{
+		cores := map[addr.IA]struct{}{
 			core_110: {},
 			core_120: {},
 			core_130: {},
@@ -40,14 +40,14 @@ func TestRequestSplitter(t *testing.T) {
 		}
 		inspector := mock_trust.NewMockInspector(ctrl)
 		inspector.EXPECT().HasAttributes(gomock.Any(), gomock.Any(), trust.Core).DoAndReturn(
-			func(_ context.Context, ia addr.IAInt, _ trust.Attribute) (bool, error) {
+			func(_ context.Context, ia addr.IA, _ trust.Attribute) (bool, error) {
 				_, ok := cores[ia]
 				return ok, nil
 			},
 		).AnyTimes()
 		inspector.EXPECT().ByAttributes(gomock.Any(), addr.ISD(1), trust.Core).DoAndReturn(
-			func(_ context.Context, isd addr.ISD, _ trust.Attribute) ([]addr.IAInt, error) {
-				var result []addr.IAInt
+			func(_ context.Context, isd addr.ISD, _ trust.Attribute) ([]addr.IA, error) {
+				var result []addr.IA
 				for ia := range cores {
 					if ia.I() == isd {
 						result = append(result, ia)
@@ -57,8 +57,8 @@ func TestRequestSplitter(t *testing.T) {
 			},
 		).AnyTimes()
 		tests := map[string]struct {
-			LocalIA        addr.IAInt
-			Dst            addr.IAInt
+			LocalIA        addr.IA
+			Dst            addr.IA
 			ExpectedSet    segfetcher.Requests
 			ExpectedErrMsg string
 		}{
@@ -172,20 +172,20 @@ func TestRequestSplitter(t *testing.T) {
 		}
 	})
 	t.Run("single core", func(t *testing.T) {
-		cores := map[addr.IAInt]struct{}{
+		cores := map[addr.IA]struct{}{
 			core_110: {},
 			core_210: {},
 		}
 		inspector := mock_trust.NewMockInspector(ctrl)
 		inspector.EXPECT().HasAttributes(gomock.Any(), gomock.Any(), trust.Core).DoAndReturn(
-			func(_ context.Context, ia addr.IAInt, _ trust.Attribute) (bool, error) {
+			func(_ context.Context, ia addr.IA, _ trust.Attribute) (bool, error) {
 				_, ok := cores[ia]
 				return ok, nil
 			},
 		).AnyTimes()
 		inspector.EXPECT().ByAttributes(gomock.Any(), addr.ISD(1), trust.Core).DoAndReturn(
-			func(_ context.Context, isd addr.ISD, _ trust.Attribute) ([]addr.IAInt, error) {
-				var result []addr.IAInt
+			func(_ context.Context, isd addr.ISD, _ trust.Attribute) ([]addr.IA, error) {
+				var result []addr.IA
 				for ia := range cores {
 					if ia.I() == isd {
 						result = append(result, ia)
@@ -195,8 +195,8 @@ func TestRequestSplitter(t *testing.T) {
 			},
 		).AnyTimes()
 		tests := map[string]struct {
-			LocalIA        addr.IAInt
-			Dst            addr.IAInt
+			LocalIA        addr.IA
+			Dst            addr.IA
 			ExpectedSet    segfetcher.Requests
 			ExpectedErrMsg string
 		}{

@@ -40,7 +40,7 @@ import (
 type Signer struct {
 	PrivateKey    crypto.Signer
 	Algorithm     signed.SignatureAlgorithm
-	IA            addr.IAInt
+	IA            addr.IA
 	Subject       pkix.Name
 	Chain         []*x509.Certificate
 	SubjectKeyID  []byte

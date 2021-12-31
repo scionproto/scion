@@ -86,7 +86,7 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 		Verifier     func(ctrl *gomock.Controller) renewalgrpc.RenewalRequestVerifier
 		ChainBuilder func(ctrl *gomock.Controller) renewalgrpc.ChainBuilder
 		CMSSigner    func(ctrl *gomock.Controller) renewalgrpc.CMSSigner
-		IA           addr.IAInt
+		IA           addr.IA
 		Metric       string
 		Assertion    assert.ErrorAssertionFunc
 		Code         codes.Code

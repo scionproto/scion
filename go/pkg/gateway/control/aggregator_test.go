@@ -63,7 +63,7 @@ func TestAggregator(t *testing.T) {
 	a.Prefixes(ia1, gateway3, []*net.IPNet{})
 	ru := <-updateChan
 	expected := control.RemoteGateways{
-		Gateways: map[addr.IAInt][]control.RemoteGateway{
+		Gateways: map[addr.IA][]control.RemoteGateway{
 			ia1: {
 				control.RemoteGateway{
 					Gateway:  gateway1,
@@ -88,7 +88,7 @@ func TestAggregator(t *testing.T) {
 	a.Prefixes(ia1, gateway1, []*net.IPNet{prefix1})
 	ru = <-updateChan
 	expected = control.RemoteGateways{
-		Gateways: map[addr.IAInt][]control.RemoteGateway{
+		Gateways: map[addr.IA][]control.RemoteGateway{
 			ia1: {
 				control.RemoteGateway{
 					Gateway:  gateway1,
@@ -114,7 +114,7 @@ func TestAggregator(t *testing.T) {
 	// was updated later than the other gateways).
 	time.Sleep(expiryInterval * 2)
 	expected = control.RemoteGateways{
-		Gateways: map[addr.IAInt][]control.RemoteGateway{},
+		Gateways: map[addr.IA][]control.RemoteGateway{},
 	}
 	ru = <-updateChan
 	if len(ru.Gateways) > 0 {

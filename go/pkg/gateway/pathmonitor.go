@@ -33,7 +33,7 @@ type PathMonitor struct {
 
 func (pm *PathMonitor) Register(
 	ctx context.Context,
-	remote addr.IAInt,
+	remote addr.IA,
 	policies *policies.Policies,
 	policyID string,
 ) control.PathMonitorRegistration {

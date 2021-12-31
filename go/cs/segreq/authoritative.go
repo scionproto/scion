@@ -29,13 +29,13 @@ import (
 // only returns down and core segments starting at this core AS. It should only
 // be used in a core AS.
 type AuthoritativeLookup struct {
-	LocalIA     addr.IAInt
+	LocalIA     addr.IA
 	CoreChecker CoreChecker
 	PathDB      pathdb.DB
 }
 
 func (a AuthoritativeLookup) LookupSegments(ctx context.Context, src,
-	dst addr.IAInt) (segfetcher.Segments, error) {
+	dst addr.IA) (segfetcher.Segments, error) {
 
 	segType, err := a.classify(ctx, src, dst)
 	if err != nil {
@@ -54,7 +54,7 @@ func (a AuthoritativeLookup) LookupSegments(ctx context.Context, src,
 
 // classify validates the request and determines the segment type for the request
 func (a AuthoritativeLookup) classify(ctx context.Context,
-	src, dst addr.IAInt) (seg.Type, error) {
+	src, dst addr.IA) (seg.Type, error) {
 
 	switch {
 	case src != a.LocalIA:
@@ -82,11 +82,11 @@ func (a AuthoritativeLookup) classify(ctx context.Context,
 // getCoreSegments loads core segments from localIA to dstIA from the path DB.
 // Wildcard dstIA is allowed.
 func getCoreSegments(ctx context.Context, pathDB pathdb.DB,
-	localIA, dstIA addr.IAInt) (segfetcher.Segments, error) {
+	localIA, dstIA addr.IA) (segfetcher.Segments, error) {
 
 	res, err := pathDB.Get(ctx, &query.Params{
-		StartsAt: []addr.IAInt{dstIA},
-		EndsAt:   []addr.IAInt{localIA},
+		StartsAt: []addr.IA{dstIA},
+		EndsAt:   []addr.IA{localIA},
 		SegTypes: []seg.Type{seg.TypeCore},
 	})
 	if err != nil {
@@ -98,11 +98,11 @@ func getCoreSegments(ctx context.Context, pathDB pathdb.DB,
 // getDownSegments loads down segments from localIA to dstIA from the path DB.
 // Wildcard dstIA is _not_ allowed.
 func getDownSegments(ctx context.Context, pathDB pathdb.DB,
-	localIA, dstIA addr.IAInt) (segfetcher.Segments, error) {
+	localIA, dstIA addr.IA) (segfetcher.Segments, error) {
 
 	res, err := pathDB.Get(ctx, &query.Params{
-		StartsAt: []addr.IAInt{localIA},
-		EndsAt:   []addr.IAInt{dstIA},
+		StartsAt: []addr.IA{localIA},
+		EndsAt:   []addr.IA{dstIA},
 		SegTypes: []seg.Type{seg.TypeDown},
 	})
 	if err != nil {

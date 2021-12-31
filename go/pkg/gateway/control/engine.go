@@ -165,7 +165,7 @@ func (e *Engine) Status(w io.Writer) {
 		Healthy   bool
 		PathInfo  string
 	}
-	sessions := make(map[addr.IAInt]map[uint8]*session)
+	sessions := make(map[addr.IA]map[uint8]*session)
 	for _, sm := range e.sessionMonitors {
 		iaSessions, ok := sessions[sm.RemoteIA]
 		if !ok {
@@ -208,7 +208,7 @@ func (e *Engine) Status(w io.Writer) {
 		}
 		entry.PolicyID = sc.PolicyID
 	}
-	sortedIAs := make([]addr.IAInt, 0, len(sessions))
+	sortedIAs := make([]addr.IA, 0, len(sessions))
 	for ia := range sessions {
 		sortedIAs = append(sortedIAs, ia)
 	}
@@ -451,11 +451,11 @@ type PktWriter interface {
 // DataplaneSessionFactory is used to construct a data-plane session with a specific ID towards a
 // remote.
 type DataplaneSessionFactory interface {
-	New(sessID uint8, policyID int, remoteIA addr.IAInt, remoteAddr net.Addr) DataplaneSession
+	New(sessID uint8, policyID int, remoteIA addr.IA, remoteAddr net.Addr) DataplaneSession
 }
 
 // PathMonitor is used to construct registrations for path discovery.
 type PathMonitor interface {
-	Register(ctx context.Context, ia addr.IAInt, policies *policies.Policies,
+	Register(ctx context.Context, ia addr.IA, policies *policies.Policies,
 		policyID string) PathMonitorRegistration
 }

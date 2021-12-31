@@ -28,7 +28,7 @@ import (
 type Store interface {
 	// Get gets the segments that end at the given IA and are in one of the given
 	// hidden path groups.
-	Get(context.Context, addr.IAInt, []GroupID) ([]*seg.Meta, error)
+	Get(context.Context, addr.IA, []GroupID) ([]*seg.Meta, error)
 	// Put puts the given segments in the database and associates them with the
 	// given hidden path group ID.
 	Put(context.Context, []*seg.Meta, GroupID) error
@@ -40,11 +40,11 @@ type Storer struct {
 }
 
 // Get returns segments from the store using a db provider.
-func (s *Storer) Get(ctx context.Context, ia addr.IAInt,
+func (s *Storer) Get(ctx context.Context, ia addr.IA,
 	groups []GroupID) ([]*seg.Meta, error) {
 
 	res, err := s.DB.Get(ctx, &query.Params{
-		EndsAt:     []addr.IAInt{ia},
+		EndsAt:     []addr.IA{ia},
 		HPGroupIDs: convert(groups),
 	})
 	if err != nil {

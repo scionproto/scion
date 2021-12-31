@@ -37,10 +37,10 @@ func (m *MockDB) EXPECT() *MockDBMockRecorder {
 }
 
 // BeaconSources mocks base method.
-func (m *MockDB) BeaconSources(arg0 context.Context) ([]addr.IAInt, error) {
+func (m *MockDB) BeaconSources(arg0 context.Context) ([]addr.IA, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BeaconSources", arg0)
-	ret0, _ := ret[0].([]addr.IAInt)
+	ret0, _ := ret[0].([]addr.IA)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -52,7 +52,7 @@ func (mr *MockDBMockRecorder) BeaconSources(arg0 interface{}) *gomock.Call {
 }
 
 // CandidateBeacons mocks base method.
-func (m *MockDB) CandidateBeacons(arg0 context.Context, arg1 int, arg2 beacon.Usage, arg3 addr.IAInt) ([]beacon.Beacon, error) {
+func (m *MockDB) CandidateBeacons(arg0 context.Context, arg1 int, arg2 beacon.Usage, arg3 addr.IA) ([]beacon.Beacon, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CandidateBeacons", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].([]beacon.Beacon)

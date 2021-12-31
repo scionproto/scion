@@ -69,7 +69,7 @@ func (p Policy) Digest() []byte {
 
 // Match iterates through the list of rules in order and returns the first rule
 // that matches. If no rule is matched, a rule with DefaultAction is returned.
-func (p Policy) Match(from, to addr.IAInt, network *net.IPNet) Rule {
+func (p Policy) Match(from, to addr.IA, network *net.IPNet) Rule {
 	for _, rule := range p.Rules {
 		if rule.Match(from, to, network) {
 			return rule
@@ -89,13 +89,13 @@ type Rule struct {
 }
 
 // Match indicates if this rule matches the input.
-func (r Rule) Match(from, to addr.IAInt, network *net.IPNet) bool {
+func (r Rule) Match(from, to addr.IA, network *net.IPNet) bool {
 	return r.From.Match(from) && r.To.Match(to) && r.Network.Match(network)
 }
 
 // IAMatcher matches ISD-AS.
 type IAMatcher interface {
-	Match(addr.IAInt) bool
+	Match(addr.IA) bool
 }
 
 // NetworkMatcher matches IP networks.

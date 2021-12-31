@@ -49,10 +49,10 @@ type DB interface {
 		ctx context.Context,
 		setSize int,
 		usage Usage,
-		src addr.IAInt,
+		src addr.IA,
 	) ([]Beacon, error)
 	// BeaconSources returns all source ISD-AS of the beacons in the database.
-	BeaconSources(ctx context.Context) ([]addr.IAInt, error)
+	BeaconSources(ctx context.Context) ([]addr.IA, error)
 	// Insert inserts a beacon with its allowed usage into the database.
 	InsertBeacon(ctx context.Context, beacon Beacon, usage Usage) (InsertStats, error)
 }

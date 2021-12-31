@@ -123,7 +123,7 @@ func testStoreSelection(t *testing.T,
 			require.NoError(t, err)
 
 			db.EXPECT().CandidateBeacons(
-				gomock.Any(), gomock.Any(), gomock.Any(), addr.IAInt(0),
+				gomock.Any(), gomock.Any(), gomock.Any(), addr.IA(0),
 			).Return(
 				test.results, test.err,
 			)
@@ -190,7 +190,7 @@ func testCoreStoreSelection(t *testing.T,
 	}
 	var tests = []struct {
 		name     string
-		results  map[addr.IAInt][]beacon.Beacon
+		results  map[addr.IA][]beacon.Beacon
 		bestSize int
 		expected map[beacon.Beacon]bool
 	}{
@@ -199,7 +199,7 @@ func testCoreStoreSelection(t *testing.T,
 		},
 		{
 			name: "Available beacons equal best set size",
-			results: map[addr.IAInt][]beacon.Beacon{
+			results: map[addr.IA][]beacon.Beacon{
 				ia120: beacons120,
 				ia130: beacons130,
 			},
@@ -213,7 +213,7 @@ func testCoreStoreSelection(t *testing.T,
 		},
 		{
 			name: "Select shortest most diverse",
-			results: map[addr.IAInt][]beacon.Beacon{
+			results: map[addr.IA][]beacon.Beacon{
 				ia120: diverse120,
 				ia130: diverse130,
 			},
@@ -238,7 +238,7 @@ func testCoreStoreSelection(t *testing.T,
 			store, err := beacon.NewCoreBeaconStore(policies, db)
 			require.NoError(t, err)
 
-			db.EXPECT().BeaconSources(gomock.Any()).Return([]addr.IAInt{ia120, ia130}, nil)
+			db.EXPECT().BeaconSources(gomock.Any()).Return([]addr.IA{ia120, ia130}, nil)
 			db.EXPECT().CandidateBeacons(
 				gomock.Any(), gomock.Any(), gomock.Any(), ia120,
 			).Return(

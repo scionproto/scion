@@ -31,7 +31,7 @@ var addrRegexp = regexp.MustCompile(`^(?P<ia>\d+-[\d:A-Fa-f]+),(?P<host>.+)$`)
 
 // UDPAddr to be used when UDP host.
 type UDPAddr struct {
-	IA      addr.IAInt
+	IA      addr.IA
 	Path    spath.Path
 	NextHop *net.UDPAddr
 	Host    *net.UDPAddr

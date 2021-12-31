@@ -44,7 +44,7 @@ func NewDispatcherService(dispatcher reliable.Dispatcher) *DispatcherService {
 	return &DispatcherService{dispatcher: dispatcher}
 }
 
-func (pn *DispatcherService) Register(ctx context.Context, ia addr.IAInt, public *net.UDPAddr,
+func (pn *DispatcherService) Register(ctx context.Context, ia addr.IA, public *net.UDPAddr,
 	svc addr.HostSVC) (net.PacketConn, uint16, error) {
 
 	// Perform initial connection to allocate port. We use a reconnecter here
@@ -70,7 +70,7 @@ func (pn *DispatcherService) Register(ctx context.Context, ia addr.IAInt, public
 	return NewPacketConn(conn, reconnecter), port, nil
 }
 
-func (pn *DispatcherService) newReconnecterFromListenArgs(ctx context.Context, ia addr.IAInt,
+func (pn *DispatcherService) newReconnecterFromListenArgs(ctx context.Context, ia addr.IA,
 	public *net.UDPAddr, svc addr.HostSVC) *TickingReconnecter {
 
 	// f represents individual connection attempts

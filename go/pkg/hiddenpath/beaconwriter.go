@@ -198,17 +198,17 @@ func (w *remoteWriter) segTypeString() string {
 
 type summary struct {
 	mu    sync.Mutex
-	srcs  map[addr.IAInt]struct{}
+	srcs  map[addr.IA]struct{}
 	count int
 }
 
 func newSummary() *summary {
 	return &summary{
-		srcs: make(map[addr.IAInt]struct{}),
+		srcs: make(map[addr.IA]struct{}),
 	}
 }
 
-func (s *summary) AddSrc(ia addr.IAInt) {
+func (s *summary) AddSrc(ia addr.IA) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.srcs[ia] = struct{}{}
@@ -221,7 +221,7 @@ func (s *summary) Inc() {
 }
 
 type writerLabels struct {
-	StartIA addr.IAInt
+	StartIA addr.IA
 	Ingress uint16
 	SegType string
 	Result  string
@@ -241,15 +241,15 @@ func (l writerLabels) WithResult(result string) writerLabels {
 	return l
 }
 
-func remoteRegistries(regPolicy InterfacePolicy) map[GroupID][]addr.IAInt {
-	remotes := make(map[GroupID][]addr.IAInt)
+func remoteRegistries(regPolicy InterfacePolicy) map[GroupID][]addr.IA {
+	remotes := make(map[GroupID][]addr.IA)
 	for id, group := range regPolicy.Groups {
 		for registry := range group.Registries {
 			remotes[id] = append(remotes[id], registry)
 		}
 	}
 	if regPolicy.Public {
-		remotes[GroupID{}] = []addr.IAInt{0}
+		remotes[GroupID{}] = []addr.IA{0}
 	}
 	return remotes
 }

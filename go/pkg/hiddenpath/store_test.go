@@ -39,7 +39,7 @@ func TestStorerGet(t *testing.T) {
 	groupID := hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:111"), Suffix: 42}
 	testCases := map[string]struct {
 		inputGroups []hiddenpath.GroupID
-		inputIA     addr.IAInt
+		inputIA     addr.IA
 		db          func(*gomock.Controller) pathdb.DB
 		want        []*seg.Meta
 		assertErr   assert.ErrorAssertionFunc
@@ -52,7 +52,7 @@ func TestStorerGet(t *testing.T) {
 			db: func(c *gomock.Controller) pathdb.DB {
 				ret := mock_pathdb.NewMockDB(c)
 				ret.EXPECT().Get(gomock.Any(), &query.Params{
-					EndsAt: []addr.IAInt{xtest.MustParseIA("1-ff00:0:110")},
+					EndsAt: []addr.IA{xtest.MustParseIA("1-ff00:0:110")},
 					HPGroupIDs: []uint64{
 						groupID.ToUint64(),
 					},
@@ -71,7 +71,7 @@ func TestStorerGet(t *testing.T) {
 			db: func(c *gomock.Controller) pathdb.DB {
 				ret := mock_pathdb.NewMockDB(c)
 				ret.EXPECT().Get(gomock.Any(), &query.Params{
-					EndsAt: []addr.IAInt{xtest.MustParseIA("1-ff00:0:110")},
+					EndsAt: []addr.IA{xtest.MustParseIA("1-ff00:0:110")},
 					HPGroupIDs: []uint64{
 						groupID.ToUint64(),
 					},

@@ -96,8 +96,8 @@ func TestAPI(t *testing.T) {
 				}
 				dbresult := createSegs(t, graph.NewSigner())
 				q := query.Params{
-					StartsAt: []addr.IAInt{xtest.MustParseIA("1-ff00:0:110")},
-					EndsAt:   []addr.IAInt{xtest.MustParseIA("1-ff00:0:112")},
+					StartsAt: []addr.IA{xtest.MustParseIA("1-ff00:0:110")},
+					EndsAt:   []addr.IA{xtest.MustParseIA("1-ff00:0:112")},
 				}
 				seg.EXPECT().Get(gomock.Any(), &q).AnyTimes().Return(
 					dbresult[:1], nil,

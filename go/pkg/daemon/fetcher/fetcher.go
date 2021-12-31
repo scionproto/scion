@@ -42,7 +42,7 @@ type TrustStore interface {
 }
 
 type Fetcher interface {
-	GetPaths(ctx context.Context, src, dst addr.IAInt, refresh bool) ([]snet.Path, error)
+	GetPaths(ctx context.Context, src, dst addr.IA, refresh bool) ([]snet.Path, error)
 }
 
 type fetcher struct {
@@ -51,7 +51,7 @@ type fetcher struct {
 }
 
 type FetcherConfig struct {
-	IA         addr.IAInt
+	IA         addr.IA
 	MTU        uint16
 	Core       bool
 	NextHopper interface {
@@ -107,7 +107,7 @@ func NewFetcher(cfg FetcherConfig) Fetcher {
 
 // GetPaths uses the pather to get paths from src to dst.
 // src may be either zero or the local IA (nothing else).
-func (f *fetcher) GetPaths(ctx context.Context, src, dst addr.IAInt,
+func (f *fetcher) GetPaths(ctx context.Context, src, dst addr.IA,
 	refresh bool) ([]snet.Path, error) {
 
 	// Check context

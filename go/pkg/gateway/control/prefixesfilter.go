@@ -37,7 +37,7 @@ type PrefixesFilterMetrics struct {
 type PrefixesFilter struct {
 	// LocalIA is that IA this filter is running in. It is used as from value in
 	// the routing policy check.
-	LocalIA addr.IAInt
+	LocalIA addr.IA
 	// Consumer is the component that consumes prefixes that are not filtered
 	// out.
 	Consumer PrefixConsumer
@@ -50,7 +50,7 @@ type PrefixesFilter struct {
 
 // Prefixes consumes the prefixes, if they are accepted by the policy they are
 // forwarded to the registered consumer.
-func (f PrefixesFilter) Prefixes(remote addr.IAInt, gateway Gateway, prefixes []*net.IPNet) {
+func (f PrefixesFilter) Prefixes(remote addr.IA, gateway Gateway, prefixes []*net.IPNet) {
 	rp := f.PolicyProvider.RoutingPolicy()
 	if rp == nil {
 		return

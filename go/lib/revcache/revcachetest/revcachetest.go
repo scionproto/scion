@@ -306,7 +306,7 @@ func testDeleteExpired(t *testing.T, revCache TestableRevCache) {
 	SoMsg("DeleteExpired should delete 0 if entry is not expired", del, ShouldEqual, 0)
 }
 
-func defaultRevInfo(ia addr.IAInt, ifId common.IFIDType) *path_mgmt.RevInfo {
+func defaultRevInfo(ia addr.IA, ifId common.IFIDType) *path_mgmt.RevInfo {
 	return &path_mgmt.RevInfo{
 		IfID:         ifId,
 		RawIsdas:     ia,

@@ -22,8 +22,8 @@ import (
 )
 
 var (
-	rawIAInt = []byte{0xF0, 0x11, 0xF2, 0x33, 0x44, 0x55, 0x66, 0x77}
-	ia       = NewIAInt(0xF011, 0xF23344556677)
+	rawIA = []byte{0xF0, 0x11, 0xF2, 0x33, 0x44, 0x55, 0x66, 0x77}
+	ia    = NewIA(0xF011, 0xF23344556677)
 )
 
 func TestISDFromString(t *testing.T) {
@@ -196,7 +196,7 @@ func TestASFileFmt(t *testing.T) {
 
 func TestIAFromRaw(t *testing.T) {
 	t.Log("IAFromRaw should parse bytes correctly")
-	nia := IAFromRaw(rawIAInt)
+	nia := IAFromRaw(rawIA)
 	assert.Equal(t, ia.I(), nia.I())
 	assert.Equal(t, ia.A(), nia.A())
 }
@@ -204,7 +204,7 @@ func TestIAFromRaw(t *testing.T) {
 func TestIAFromString(t *testing.T) {
 	var testCases = []struct {
 		src string
-		ia  *IAInt
+		ia  *IA
 	}{
 		{"", nil},
 		{"a", nil},
@@ -214,16 +214,16 @@ func TestIAFromString(t *testing.T) {
 		{"-1", nil},
 		{"-1-", nil},
 		{"1--1", nil},
-		{"0-0", newIAIntRef(0, 0)},
-		{"1-1", newIAIntRef(1, 1)},
-		{"65535-1", newIAIntRef(MaxISD, 1)},
+		{"0-0", newIARef(0, 0)},
+		{"1-1", newIARef(1, 1)},
+		{"65535-1", newIARef(MaxISD, 1)},
 		{"65536-1", nil},
-		{"1-4294967295", newIAIntRef(1, MaxBGPAS)},
+		{"1-4294967295", newIARef(1, MaxBGPAS)},
 		{"1-4294967296", nil},
-		{"1-1:0:0", newIAIntRef(1, 0x000100000000)},
-		{"1-1:fcd1:1", newIAIntRef(1, 0x0001fcd10001)},
+		{"1-1:0:0", newIARef(1, 0x000100000000)},
+		{"1-1:fcd1:1", newIARef(1, 0x0001fcd10001)},
 		{"1-ffff:ffff:10000", nil},
-		{"65535-ffff:ffff:ffff", newIAIntRef(MaxISD, MaxAS)},
+		{"65535-ffff:ffff:ffff", newIARef(MaxISD, MaxAS)},
 	}
 	t.Log("IAFromString should parse strings correctly")
 	for _, tc := range testCases {
@@ -243,7 +243,7 @@ func TestIAFromString(t *testing.T) {
 func TestIAFromFileFmt(t *testing.T) {
 	var testCases = []struct {
 		src string
-		ia  *IAInt
+		ia  *IA
 	}{
 		{"", nil},
 		{"a", nil},
@@ -253,16 +253,16 @@ func TestIAFromFileFmt(t *testing.T) {
 		{"-1", nil},
 		{"-1-", nil},
 		{"1--1", nil},
-		{"0-0", newIAIntRef(0, 0)},
-		{"1-1", newIAIntRef(1, 1)},
-		{"65535-1", newIAIntRef(MaxISD, 1)},
+		{"0-0", newIARef(0, 0)},
+		{"1-1", newIARef(1, 1)},
+		{"65535-1", newIARef(MaxISD, 1)},
 		{"65536-1", nil},
-		{"1-4294967295", newIAIntRef(1, MaxBGPAS)},
+		{"1-4294967295", newIARef(1, MaxBGPAS)},
 		{"1-4294967296", nil},
-		{"1-1:0:0", newIAIntRef(1, 0x000100000000)},
-		{"1-1:fcd1:1", newIAIntRef(1, 0x0001fcd10001)},
+		{"1-1:0:0", newIARef(1, 0x000100000000)},
+		{"1-1:fcd1:1", newIARef(1, 0x0001fcd10001)},
 		{"1-ffff:ffff:10000", nil},
-		{"65535-ffff:ffff:ffff", newIAIntRef(MaxISD, MaxAS)},
+		{"65535-ffff:ffff:ffff", newIARef(MaxISD, MaxAS)},
 	}
 	t.Log("IAFromFileFmt should parse strings correctly")
 	for _, tc := range testCases {
@@ -280,8 +280,8 @@ func TestIAFromFileFmt(t *testing.T) {
 
 }
 
-func newIAIntRef(isd ISD, as AS) *IAInt {
-	ia := NewIAInt(isd, as)
+func newIARef(isd ISD, as AS) *IA {
+	ia := NewIA(isd, as)
 	return &ia
 }
 
@@ -289,20 +289,20 @@ func TestIAWrite(t *testing.T) {
 	t.Log("IA.Write() should output bytes correctly")
 	output := make([]byte, IABytes)
 	ia.Write(output)
-	assert.Equal(t, rawIAInt, output)
+	assert.Equal(t, rawIA, output)
 }
 
 func TestIAString(t *testing.T) {
 	var testCases = []struct {
-		ia  IAInt
+		ia  IA
 		out string
 	}{
-		{NewIAInt(0, 0), "0-0"},
-		{NewIAInt(1, 1), "1-1"},
-		{NewIAInt(65535, 1), "65535-1"},
-		{NewIAInt(1, MaxBGPAS), "1-4294967295"},
-		{NewIAInt(1, MaxBGPAS+1), "1-1:0:0"},
-		{NewIAInt(65535, MaxAS), "65535-ffff:ffff:ffff"},
+		{NewIA(0, 0), "0-0"},
+		{NewIA(1, 1), "1-1"},
+		{NewIA(65535, 1), "65535-1"},
+		{NewIA(1, MaxBGPAS), "1-4294967295"},
+		{NewIA(1, MaxBGPAS+1), "1-1:0:0"},
+		{NewIA(65535, MaxAS), "65535-ffff:ffff:ffff"},
 	}
 	t.Log("IA.String() should format correctly")
 	for _, tc := range testCases {

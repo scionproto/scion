@@ -43,7 +43,7 @@ type Backend struct {
 // New returns a new SQLite backend opening a database at the given path. If
 // no database exists a new database is be created. If the schema version of the
 // stored database is different from the one in schema.go, an error is returned.
-func New(path string, ia addr.IAInt) (*Backend, error) {
+func New(path string, ia addr.IA) (*Backend, error) {
 	db, err := db.NewSqlite(path, Schema, SchemaVersion)
 	if err != nil {
 		return nil, err
@@ -75,7 +75,7 @@ func (b *Backend) Close() error {
 type executor struct {
 	sync.RWMutex
 	db db.Sqler
-	ia addr.IAInt
+	ia addr.IA
 }
 
 type beaconMeta struct {
@@ -84,7 +84,7 @@ type beaconMeta struct {
 	LastUpdated time.Time
 }
 
-func (e *executor) BeaconSources(ctx context.Context) ([]addr.IAInt, error) {
+func (e *executor) BeaconSources(ctx context.Context) ([]addr.IA, error) {
 	e.RLock()
 	defer e.RUnlock()
 	query := `SELECT DISTINCT StartIsd, StartAs FROM BEACONS`
@@ -93,14 +93,14 @@ func (e *executor) BeaconSources(ctx context.Context) ([]addr.IAInt, error) {
 		return nil, db.NewReadError("Error selecting source IAs", err)
 	}
 	defer rows.Close()
-	var ias []addr.IAInt
+	var ias []addr.IA
 	for rows.Next() {
 		var isd addr.ISD
 		var as addr.AS
 		if err := rows.Scan(&isd, &as); err != nil {
 			return nil, err
 		}
-		ias = append(ias, addr.NewIAInt(isd, as))
+		ias = append(ias, addr.NewIA(isd, as))
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -112,7 +112,7 @@ func (e *executor) CandidateBeacons(
 	ctx context.Context,
 	setSize int,
 	usage beacon.Usage,
-	src addr.IAInt,
+	src addr.IA,
 ) ([]beacon.Beacon, error) {
 
 	e.RLock()

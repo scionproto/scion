@@ -94,7 +94,7 @@ func TestPropagatorRunNonCore(t *testing.T) {
 	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), gomock.Any(),
 		gomock.Any()).Times(1).DoAndReturn(
 
-		func(_ context.Context, _ addr.IAInt, egIfId uint16,
+		func(_ context.Context, _ addr.IA, egIfId uint16,
 			nextHop *net.UDPAddr) (beaconing.Sender, error) {
 
 			sender := mock_beaconing.NewMockSender(mctrl)
@@ -167,7 +167,7 @@ func TestPropagatorRunCore(t *testing.T) {
 
 	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), uint16(1121),
 		gomock.Any()).DoAndReturn(
-		func(_ context.Context, _ addr.IAInt, egIfId uint16,
+		func(_ context.Context, _ addr.IA, egIfId uint16,
 			nextHop *net.UDPAddr) (beaconing.Sender, error) {
 
 			sender := mock_beaconing.NewMockSender(mctrl)
@@ -183,7 +183,7 @@ func TestPropagatorRunCore(t *testing.T) {
 	)
 	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), uint16(1113),
 		gomock.Any()).DoAndReturn(
-		func(_ context.Context, _ addr.IAInt, egIfId uint16,
+		func(_ context.Context, _ addr.IA, egIfId uint16,
 			nextHop *net.UDPAddr) (beaconing.Sender, error) {
 
 			sender := mock_beaconing.NewMockSender(mctrl)

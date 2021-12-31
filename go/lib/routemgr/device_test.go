@@ -377,7 +377,7 @@ func TestFixedTunnelName(t *testing.T) {
 
 func TestBase32TunnelName(t *testing.T) {
 	testCases := map[string]*struct {
-		IA   addr.IAInt
+		IA   addr.IA
 		Name string
 	}{
 		"1-ff00:0:1": {

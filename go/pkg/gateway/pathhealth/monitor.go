@@ -40,7 +40,7 @@ type RemoteWatcher interface {
 
 // RemoteWatcherFactory creates RemoteWatchers.
 type RemoteWatcherFactory interface {
-	New(remote addr.IAInt) RemoteWatcher
+	New(remote addr.IA) RemoteWatcher
 }
 
 // RevocationStore keeps track of revocations.
@@ -59,11 +59,11 @@ type Monitor struct {
 
 	mtx sync.Mutex
 	// remoteWatchers is a map of all monitored IAs.
-	remoteWatchers map[addr.IAInt]*remoteWatcherItem
+	remoteWatchers map[addr.IA]*remoteWatcherItem
 }
 
 // Register starts monitoring given AS under the specified selector.
-func (m *Monitor) Register(remote addr.IAInt, selector PathSelector) *Registration {
+func (m *Monitor) Register(remote addr.IA, selector PathSelector) *Registration {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
@@ -99,7 +99,7 @@ func (m *Monitor) ensureInitializedLocked() {
 	if m.remoteWatchers != nil {
 		return
 	}
-	m.remoteWatchers = make(map[addr.IAInt]*remoteWatcherItem)
+	m.remoteWatchers = make(map[addr.IA]*remoteWatcherItem)
 }
 
 func (m *Monitor) unregister(remoteWatcher *remoteWatcherItem) {
@@ -117,7 +117,7 @@ func (m *Monitor) unregister(remoteWatcher *remoteWatcherItem) {
 // Monitor specific metadata.
 type remoteWatcherItem struct {
 	RemoteWatcher
-	remote addr.IAInt
+	remote addr.IA
 	// refCount keeps track of how many references to this object there are.
 	refCount int
 	cancel   context.CancelFunc

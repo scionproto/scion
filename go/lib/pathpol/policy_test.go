@@ -35,8 +35,8 @@ func TestBasicPolicy(t *testing.T) {
 	tests := map[string]struct {
 		Name       string
 		Policy     *Policy
-		Src        addr.IAInt
-		Dst        addr.IAInt
+		Src        addr.IA
+		Dst        addr.IA
 		ExpPathNum int
 	}{
 		"Empty policy": {
@@ -61,8 +61,8 @@ func TestBasicPolicy(t *testing.T) {
 func TestOptionsEval(t *testing.T) {
 	tests := map[string]struct {
 		Policy     *Policy
-		Src        addr.IAInt
-		Dst        addr.IAInt
+		Src        addr.IA
+		Dst        addr.IA
 		ExpPathNum int
 	}{
 		"one option, allow everything": {
@@ -625,7 +625,7 @@ func NewPathProvider(ctrl *gomock.Controller) PathProvider {
 	}
 }
 
-func (p PathProvider) GetPaths(src, dst addr.IAInt) []snet.Path {
+func (p PathProvider) GetPaths(src, dst addr.IA) []snet.Path {
 	result := []snet.Path{}
 	paths := p.g.GetPaths(src.String(), dst.String())
 	for _, ifids := range paths {

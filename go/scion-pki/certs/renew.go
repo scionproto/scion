@@ -89,16 +89,16 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 )
 
 type SubjectVars struct {
-	IA                 addr.IAInt `json:"isd_as,omitempty"`
-	CommonName         string     `json:"common_name,omitempty"`
-	Country            string     `json:"country,omitempty"`
-	Locality           string     `json:"locality,omitempty"`
-	Organization       string     `json:"organization,omitempty"`
-	OrganizationalUnit string     `json:"organizational_unit,omitempty"`
-	PostalCode         string     `json:"postal_code,omitempty"`
-	Province           string     `json:"province,omitempty"`
-	SerialNumber       string     `json:"serial_number,omitempty"`
-	StreetAddress      string     `json:"street_address,omitempty"`
+	IA                 addr.IA `json:"isd_as,omitempty"`
+	CommonName         string  `json:"common_name,omitempty"`
+	Country            string  `json:"country,omitempty"`
+	Locality           string  `json:"locality,omitempty"`
+	Organization       string  `json:"organization,omitempty"`
+	OrganizationalUnit string  `json:"organizational_unit,omitempty"`
+	PostalCode         string  `json:"postal_code,omitempty"`
+	Province           string  `json:"province,omitempty"`
+	SerialNumber       string  `json:"serial_number,omitempty"`
+	StreetAddress      string  `json:"street_address,omitempty"`
 }
 
 type Features struct {
@@ -219,7 +219,7 @@ The template is expressed in JSON. A valid example:
 
 			}
 
-			var ca addr.IAInt
+			var ca addr.IA
 			if flags.ca != "" {
 				var err error
 				if ca, err = addr.IAFromString(flags.ca); err != nil {
@@ -633,7 +633,7 @@ func (c expiryChecker) ShouldRenew(notBefore, notAfter time.Time) bool {
 	return time.Until(notAfter) < leadTime
 }
 
-func loadChain(trcs []*cppki.TRC, file string) ([]*x509.Certificate, addr.IAInt, error) {
+func loadChain(trcs []*cppki.TRC, file string) ([]*x509.Certificate, addr.IA, error) {
 	chain, err := cppki.ReadPEMCerts(file)
 	if err != nil {
 		return nil, 0, err
@@ -656,7 +656,7 @@ func loadChain(trcs []*cppki.TRC, file string) ([]*x509.Certificate, addr.IAInt,
 
 func sendRequest(
 	ctx context.Context,
-	dstIA addr.IAInt,
+	dstIA addr.IA,
 	dialer grpc.Dialer,
 	req *cppb.ChainRenewalRequest,
 ) (*cppb.ChainRenewalResponse, error) {

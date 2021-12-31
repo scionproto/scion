@@ -39,7 +39,7 @@ type CoreChecker struct {
 }
 
 // IsCore checks whether ia is a wildcard or core
-func (c *CoreChecker) IsCore(ctx context.Context, ia addr.IAInt) (bool, error) {
+func (c *CoreChecker) IsCore(ctx context.Context, ia addr.IA) (bool, error) {
 	if ia.IsWildcard() {
 		return true, nil
 	}

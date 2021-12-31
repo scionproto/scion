@@ -58,8 +58,8 @@ func NewFromFile(file string) (daemon.Connector, error) {
 
 // Script describes the path entries a fake SCION Daemon should respond with.
 type Script struct {
-	IA      addr.IAInt `json:"ia"`
-	Entries []*Entry   `json:"entries"`
+	IA      addr.IA  `json:"ia"`
+	Entries []*Entry `json:"entries"`
 }
 
 // Entry describes a path reply.
@@ -103,7 +103,7 @@ func (p Path) Path(creationTime time.Time) snet.Path {
 }
 
 type PathInterface struct {
-	IA addr.IAInt      `json:"ia"`
+	IA addr.IA         `json:"ia"`
 	ID common.IFIDType `json:"id"`
 }
 
@@ -133,7 +133,7 @@ type connector struct {
 	script *Script
 }
 
-func (c connector) Paths(_ context.Context, _, _ addr.IAInt,
+func (c connector) Paths(_ context.Context, _, _ addr.IA,
 	flags daemon.PathReqFlags) ([]snet.Path, error) {
 
 	secondsElapsed := int(time.Since(c.creationTime).Seconds())
@@ -159,11 +159,11 @@ func (c connector) adapter(paths []*Path) []snet.Path {
 	return snetPaths
 }
 
-func (c connector) LocalIA(ctx context.Context) (addr.IAInt, error) {
+func (c connector) LocalIA(ctx context.Context) (addr.IA, error) {
 	return c.script.IA, nil
 }
 
-func (c connector) ASInfo(ctx context.Context, ia addr.IAInt) (daemon.ASInfo, error) {
+func (c connector) ASInfo(ctx context.Context, ia addr.IA) (daemon.ASInfo, error) {
 	panic("not implemented")
 }
 

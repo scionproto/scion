@@ -36,7 +36,7 @@ func (m *MockAdvertiser) EXPECT() *MockAdvertiserMockRecorder {
 }
 
 // AdvertiseList mocks base method.
-func (m *MockAdvertiser) AdvertiseList(arg0, arg1 addr.IAInt) []*net.IPNet {
+func (m *MockAdvertiser) AdvertiseList(arg0, arg1 addr.IA) []*net.IPNet {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AdvertiseList", arg0, arg1)
 	ret0, _ := ret[0].([]*net.IPNet)

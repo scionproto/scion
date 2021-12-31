@@ -28,7 +28,7 @@ type InterfaceInfo struct {
 	// ID is the interface ID.
 	ID uint16
 	// IA is the remote ISD-AS.
-	IA       addr.IAInt
+	IA       addr.IA
 	LinkType topology.LinkType
 	// InternalAddr is the AS-internal address of the router that owns this
 	// interface.

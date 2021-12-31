@@ -294,6 +294,6 @@ func (l *sequenceListener) ExitIFace(c *sequence.IFaceContext) {
 	l.push(re)
 }
 
-func hop(ia addr.IAInt, ingress, egress common.IFIDType) string {
+func hop(ia addr.IA, ingress, egress common.IFIDType) string {
 	return fmt.Sprintf("%s#%d,%d", ia, ingress, egress)
 }

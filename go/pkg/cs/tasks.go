@@ -40,7 +40,7 @@ import (
 // CS is expected to run.
 type TasksConfig struct {
 	Core       bool
-	IA         addr.IAInt
+	IA         addr.IA
 	MTU        uint16
 	NextHopper interface {
 		UnderlayNextHop(uint16) *net.UDPAddr
@@ -194,7 +194,7 @@ func (t *TasksConfig) segmentWriter(segType seg.Type,
 	return periodic.Start(r, 500*time.Millisecond, t.RegistrationInterval)
 }
 
-func (t *TasksConfig) extender(task string, ia addr.IAInt, mtu uint16,
+func (t *TasksConfig) extender(task string, ia addr.IA, mtu uint16,
 	maxExp func() uint8) beaconing.Extender {
 
 	return &beaconing.DefaultExtender{

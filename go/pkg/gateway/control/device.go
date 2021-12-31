@@ -25,7 +25,7 @@ import (
 // DeviceOpener can be used to open readable/writeable objects that support
 // IPv4/IPv6 routing. Typically, this is a Linux network device.
 type DeviceOpener interface {
-	Open(ctx context.Context, ia addr.IAInt) (Device, error)
+	Open(ctx context.Context, ia addr.IA) (Device, error)
 }
 
 // Device models an object that implements the reading and writing of packets and supports
@@ -40,9 +40,9 @@ type Device interface {
 }
 
 // DeviceOpenerFunc is a function type that implements DeviceOpener.
-type DeviceOpenerFunc func(ctx context.Context, ia addr.IAInt) (Device, error)
+type DeviceOpenerFunc func(ctx context.Context, ia addr.IA) (Device, error)
 
-func (f DeviceOpenerFunc) Open(ctx context.Context, ia addr.IAInt) (Device, error) {
+func (f DeviceOpenerFunc) Open(ctx context.Context, ia addr.IA) (Device, error) {
 	return f(ctx, ia)
 }
 
@@ -64,5 +64,5 @@ type DeviceManager interface {
 	// Get returns a DeviceHandle to a Device created by the DeviceManager. The reference
 	// count of the handle is increased the 1. To ensure resources are not leaked,
 	// each DeviceHandle should be closed after use.
-	Get(ctx context.Context, ia addr.IAInt) (DeviceHandle, error)
+	Get(ctx context.Context, ia addr.IA) (DeviceHandle, error)
 }

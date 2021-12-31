@@ -67,7 +67,7 @@ type publishingRoutingTable struct {
 type remoteSite struct {
 	prefixes       []*net.IPNet
 	trafficClasses map[int]PktWriter
-	ia             addr.IAInt
+	ia             addr.IA
 }
 
 func (r *remoteSite) healthy() bool {

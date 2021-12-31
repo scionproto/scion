@@ -30,5 +30,5 @@ type Verifier interface {
 	WithServer(server net.Addr) Verifier
 	// WithIA returns a verifier that only accepts signatures from the
 	// specified IA.
-	WithIA(ia addr.IAInt) Verifier
+	WithIA(ia addr.IA) Verifier
 }

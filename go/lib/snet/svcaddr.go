@@ -24,7 +24,7 @@ import (
 
 // SVCAddr is the address type for SVC destinations.
 type SVCAddr struct {
-	IA      addr.IAInt
+	IA      addr.IA
 	Path    spath.Path
 	NextHop *net.UDPAddr
 	SVC     addr.HostSVC

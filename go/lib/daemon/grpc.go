@@ -63,7 +63,7 @@ type grpcConn struct {
 	metrics Metrics
 }
 
-func (c grpcConn) LocalIA(ctx context.Context) (addr.IAInt, error) {
+func (c grpcConn) LocalIA(ctx context.Context) (addr.IA, error) {
 	asInfo, err := c.ASInfo(ctx, 0)
 	if err != nil {
 		return 0, err
@@ -72,7 +72,7 @@ func (c grpcConn) LocalIA(ctx context.Context) (addr.IAInt, error) {
 	return ia, nil
 }
 
-func (c grpcConn) Paths(ctx context.Context, dst, src addr.IAInt,
+func (c grpcConn) Paths(ctx context.Context, dst, src addr.IA,
 	f PathReqFlags) ([]snet.Path, error) {
 
 	client := sdpb.NewDaemonServiceClient(c.conn)
@@ -91,7 +91,7 @@ func (c grpcConn) Paths(ctx context.Context, dst, src addr.IAInt,
 	return paths, err
 }
 
-func (c grpcConn) ASInfo(ctx context.Context, ia addr.IAInt) (ASInfo, error) {
+func (c grpcConn) ASInfo(ctx context.Context, ia addr.IA) (ASInfo, error) {
 	client := sdpb.NewDaemonServiceClient(c.conn)
 	response, err := client.AS(ctx, &sdpb.ASRequest{IsdAs: uint64(ia)})
 	if err != nil {
@@ -100,7 +100,7 @@ func (c grpcConn) ASInfo(ctx context.Context, ia addr.IAInt) (ASInfo, error) {
 	}
 	c.metrics.incAS(nil)
 	return ASInfo{
-		IA:  addr.IAInt(response.IsdAs),
+		IA:  addr.IA(response.IsdAs),
 		MTU: uint16(response.Mtu),
 	}, nil
 }
@@ -161,7 +161,7 @@ func (c grpcConn) Close(_ context.Context) error {
 	return c.conn.Close()
 }
 
-func pathResponseToPaths(paths []*sdpb.Path, dst addr.IAInt) ([]snet.Path, error) {
+func pathResponseToPaths(paths []*sdpb.Path, dst addr.IA) ([]snet.Path, error) {
 	result := make([]snet.Path, 0, len(paths))
 	for _, p := range paths {
 		cp, err := convertPath(p, dst)
@@ -173,7 +173,7 @@ func pathResponseToPaths(paths []*sdpb.Path, dst addr.IAInt) ([]snet.Path, error
 	return result, nil
 }
 
-func convertPath(p *sdpb.Path, dst addr.IAInt) (path.Path, error) {
+func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 	expiry := time.Unix(p.Expiration.Seconds, int64(p.Expiration.Nanos))
 	if len(p.Interfaces) == 0 {
 		return path.Path{
@@ -192,7 +192,7 @@ func convertPath(p *sdpb.Path, dst addr.IAInt) (path.Path, error) {
 	for i, pi := range p.Interfaces {
 		interfaces[i] = snet.PathInterface{
 			ID: common.IFIDType(pi.Id),
-			IA: addr.IAInt(pi.IsdAs),
+			IA: addr.IA(pi.IsdAs),
 		}
 	}
 	latency := make([]time.Duration, len(p.Latency))

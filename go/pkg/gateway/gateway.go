@@ -70,7 +70,7 @@ type DataplaneSessionFactory struct {
 }
 
 func (dpf DataplaneSessionFactory) New(id uint8, policyID int,
-	remoteIA addr.IAInt, remoteAddr net.Addr) control.DataplaneSession {
+	remoteIA addr.IA, remoteAddr net.Addr) control.DataplaneSession {
 
 	conn, err := dpf.PacketConnFactory.New()
 	if err != nil {
@@ -111,7 +111,7 @@ func (pcf PacketConnFactory) New() (net.PacketConn, error) {
 
 type ProbeConnFactory struct {
 	Dispatcher *reconnect.DispatcherService
-	LocalIA    addr.IAInt
+	LocalIA    addr.IA
 	LocalIP    net.IP
 }
 
@@ -157,7 +157,7 @@ type SelectAdvertisedRoutes struct {
 	ConfigPublisher *control.ConfigPublisher
 }
 
-func (a *SelectAdvertisedRoutes) AdvertiseList(from, to addr.IAInt) []*net.IPNet {
+func (a *SelectAdvertisedRoutes) AdvertiseList(from, to addr.IA) []*net.IPNet {
 	return routing.AdvertiseList(a.ConfigPublisher.RoutingPolicy(), from, to)
 }
 
@@ -296,10 +296,10 @@ func (g *Gateway) Run(ctx context.Context) error {
 	revocationHandler := daemon.RevHandler{Connector: g.Daemon}
 
 	var pathsMonitored, sessionPathsAvailable metrics.Gauge
-	var probesSent, probesReceived, probesSendErrors func(addr.IAInt) metrics.Counter
+	var probesSent, probesReceived, probesSendErrors func(addr.IA) metrics.Counter
 	if g.Metrics != nil {
-		perRemoteCounter := func(c *prometheus.CounterVec) func(addr.IAInt) metrics.Counter {
-			return func(remote addr.IAInt) metrics.Counter {
+		perRemoteCounter := func(c *prometheus.CounterVec) func(addr.IA) metrics.Counter {
+			return func(remote addr.IA) metrics.Counter {
 				return metrics.CounterWith(
 					metrics.NewPromCounter(c),
 					"remote_isd_as", remote.String(),
@@ -346,7 +346,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 				},
 				PathUpdateInterval: PathUpdateInterval(ctx),
 				PathFetchTimeout:   0, // using default for now
-				PathsMonitored: func(remote addr.IAInt) metrics.Gauge {
+				PathsMonitored: func(remote addr.IA) metrics.Gauge {
 					return metrics.GaugeWith(pathsMonitored, "remote_isd_as", remote.String())
 				},
 			},
@@ -849,7 +849,7 @@ type TunnelReader struct {
 }
 
 func (r *TunnelReader) GetDeviceOpenerWithAsyncReader(ctx context.Context) control.DeviceOpener {
-	f := func(ctx context.Context, ia addr.IAInt) (control.Device, error) {
+	f := func(ctx context.Context, ia addr.IA) (control.Device, error) {
 		logger := log.FromCtx(ctx)
 		handle, err := r.DeviceOpener.Open(ctx, ia)
 		if err != nil {

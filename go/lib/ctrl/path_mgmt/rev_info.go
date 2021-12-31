@@ -48,7 +48,7 @@ func (ee RevTimeError) Error() string {
 
 type RevInfo struct {
 	IfID     common.IFIDType
-	RawIsdas addr.IAInt
+	RawIsdas addr.IA
 	// LinkType of revocation
 	LinkType proto.LinkType
 	// RawTimestamp the issuing timestamp in seconds.
@@ -57,7 +57,7 @@ type RevInfo struct {
 	RawTTL uint32
 }
 
-func (r *RevInfo) IA() addr.IAInt {
+func (r *RevInfo) IA() addr.IA {
 	return r.RawIsdas
 }
 

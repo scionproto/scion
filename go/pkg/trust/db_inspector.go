@@ -40,13 +40,13 @@ type DBInspector struct {
 // hold all the requested attributes. If no attribute is specified, all
 // primary ASes are returned.
 func (i DBInspector) ByAttributes(ctx context.Context, isd addr.ISD,
-	attrs Attribute) ([]addr.IAInt, error) {
+	attrs Attribute) ([]addr.IA, error) {
 
 	trcAttrs, err := i.trcAttrs(ctx, isd)
 	if err != nil {
 		return nil, err
 	}
-	var matches []addr.IAInt
+	var matches []addr.IA
 	for ia, trcAttributes := range trcAttrs {
 		if attrs == Any || attrs.IsSubset(trcAttributes) {
 			matches = append(matches, ia)
@@ -59,7 +59,7 @@ func (i DBInspector) ByAttributes(ctx context.Context, isd addr.ISD,
 // The first return value is always false for non-primary ASes.
 func (i DBInspector) HasAttributes(
 	ctx context.Context,
-	ia addr.IAInt,
+	ia addr.IA,
 	attrs Attribute,
 ) (bool, error) {
 
@@ -71,7 +71,7 @@ func (i DBInspector) HasAttributes(
 	return exists && attrs.IsSubset(trcAttribute), nil
 }
 
-func (i DBInspector) trcAttrs(ctx context.Context, isd addr.ISD) (map[addr.IAInt]Attribute, error) {
+func (i DBInspector) trcAttrs(ctx context.Context, isd addr.ISD) (map[addr.IA]Attribute, error) {
 	sTRC, err := i.DB.SignedTRC(ctx, cppki.TRCID{
 		ISD:    isd,
 		Base:   scrypto.LatestVer,
@@ -84,12 +84,12 @@ func (i DBInspector) trcAttrs(ctx context.Context, isd addr.ISD) (map[addr.IAInt
 		return nil, serrors.New("TRC not found")
 	}
 	trc := sTRC.TRC
-	attrs := map[addr.IAInt]Attribute{}
+	attrs := map[addr.IA]Attribute{}
 	for _, as := range trc.CoreASes {
-		attrs[addr.NewIAInt(trc.ID.ISD, as)] |= Core
+		attrs[addr.NewIA(trc.ID.ISD, as)] |= Core
 	}
 	for _, as := range trc.AuthoritativeASes {
-		attrs[addr.NewIAInt(trc.ID.ISD, as)] |= Authoritative
+		attrs[addr.NewIA(trc.ID.ISD, as)] |= Authoritative
 	}
 	roots, err := rootIAs(trc)
 	if err != nil {
@@ -101,12 +101,12 @@ func (i DBInspector) trcAttrs(ctx context.Context, isd addr.ISD) (map[addr.IAInt
 	return attrs, nil
 }
 
-func rootIAs(trc cppki.TRC) ([]addr.IAInt, error) {
+func rootIAs(trc cppki.TRC) ([]addr.IA, error) {
 	roots, err := trc.RootCerts()
 	if err != nil {
 		return nil, serrors.WrapStr("failed to extract root certs", err)
 	}
-	rootIAs := make([]addr.IAInt, 0, len(roots))
+	rootIAs := make([]addr.IA, 0, len(roots))
 	for _, c := range roots {
 		ia, err := cppki.ExtractIA(c.Subject)
 		if err != nil {
@@ -132,12 +132,12 @@ type CachingInspector struct {
 // hold all the requested attributes. If no attribute is specified, all
 // primary ASes are returned.
 func (i CachingInspector) ByAttributes(ctx context.Context, isd addr.ISD,
-	attrs Attribute) ([]addr.IAInt, error) {
+	attrs Attribute) ([]addr.IA, error) {
 
 	key := fmt.Sprintf("by-attrs-%d-%d", isd, attrs)
 	cachedAttrs, ok := i.cacheGet(key, "by_attributes")
 	if ok {
-		return cachedAttrs.([]addr.IAInt), nil
+		return cachedAttrs.([]addr.IA), nil
 	}
 
 	matches, err := i.Inspector.ByAttributes(ctx, isd, attrs)
@@ -150,7 +150,7 @@ func (i CachingInspector) ByAttributes(ctx context.Context, isd addr.ISD,
 
 // HasAttributes indicates whether an AS holds all the specified attributes.
 // The first return value is always false for non-primary ASes.
-func (i CachingInspector) HasAttributes(ctx context.Context, ia addr.IAInt,
+func (i CachingInspector) HasAttributes(ctx context.Context, ia addr.IA,
 	attrs Attribute) (bool, error) {
 
 	key := fmt.Sprintf("has-attrs-%s-%d", ia, attrs)

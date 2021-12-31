@@ -136,9 +136,9 @@ type SCION struct {
 	// Address header fields.
 
 	// DstIA is the destination ISD-AS.
-	DstIA addr.IAInt
+	DstIA addr.IA
 	// SrcIA is the source ISD-AS.
-	SrcIA addr.IAInt
+	SrcIA addr.IA
 	// RawDstAddr is the destination address.
 	RawDstAddr []byte
 	// RawSrcAddr is the source address.

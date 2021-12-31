@@ -24,7 +24,7 @@ import (
 )
 
 // NewSplitter creates a segfetcher.Splitter for a segfetcher.Pather used in the path service.
-func NewSplitter(ia addr.IAInt, core bool, inspector trust.Inspector,
+func NewSplitter(ia addr.IA, core bool, inspector trust.Inspector,
 	pathDB pathdb.DB) segfetcher.Splitter {
 
 	return &splitter{
@@ -56,7 +56,7 @@ type splitter struct {
 
 // Split splits a path request from the local AS to dst into a set of segment
 // requests.
-func (s *splitter) Split(ctx context.Context, dst addr.IAInt) (segfetcher.Requests, error) {
+func (s *splitter) Split(ctx context.Context, dst addr.IA) (segfetcher.Requests, error) {
 	wcReqs, err := s.Splitter.Split(ctx, dst)
 	if err != nil {
 		return nil, err

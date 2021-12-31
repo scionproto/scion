@@ -34,7 +34,7 @@ import (
 // disk) should instead use the writable topology type present in this package.
 type Topology interface {
 	// IA returns the local ISD-AS number.
-	IA() addr.IAInt
+	IA() addr.IA
 	// MTU returns the MTU of the local AS.
 	MTU() uint16
 	// Core returns whether the local AS is core.
@@ -143,7 +143,7 @@ type topologyS struct {
 	Topology *RWTopology
 }
 
-func (t *topologyS) IA() addr.IAInt {
+func (t *topologyS) IA() addr.IA {
 	return t.Topology.IA
 }
 

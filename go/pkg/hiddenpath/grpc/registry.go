@@ -88,7 +88,7 @@ func (s RegistrationServer) HiddenSegmentRegistration(ctx context.Context,
 	return &hspb.HiddenSegmentRegistrationResponse{}, nil
 }
 
-func getPeer(ctx context.Context) (*snet.SVCAddr, addr.IAInt, error) {
+func getPeer(ctx context.Context) (*snet.SVCAddr, addr.IA, error) {
 	p, ok := peer.FromContext(ctx)
 	if !ok {
 		return nil, 0, serrors.New("not present", "ctx", ctx)

@@ -48,7 +48,7 @@ type Verifier interface {
 type ForwardServer struct {
 	Groups    map[GroupID]*Group
 	LocalAuth Lookuper
-	LocalIA   addr.IAInt
+	LocalIA   addr.IA
 	RPC       RPC
 	Resolver  AddressResolver
 	Verifier  Verifier
@@ -63,7 +63,7 @@ func (s ForwardServer) Segments(ctx context.Context,
 	if len(req.GroupIDs) == 0 {
 		return nil, serrors.New("no group IDs provided")
 	}
-	requests := make(map[addr.IAInt][]GroupID)
+	requests := make(map[addr.IA][]GroupID)
 	for _, id := range req.GroupIDs {
 		group, ok := s.Groups[id]
 		if !ok {
@@ -91,7 +91,7 @@ func (s ForwardServer) Segments(ctx context.Context,
 
 	replies := make(chan segsOrErr, len(requests))
 	for registry, groups := range requests {
-		go func(r addr.IAInt, g []GroupID) {
+		go func(r addr.IA, g []GroupID) {
 			defer log.HandlePanic()
 
 			req := SegmentRequest{

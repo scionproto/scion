@@ -22,17 +22,17 @@ import (
 
 // AdvertiseList returns the list of prefixes to advertise for the given policy
 // and ISD-ASes.
-func AdvertiseList(pol *Policy, from, to addr.IAInt) []*net.IPNet {
+func AdvertiseList(pol *Policy, from, to addr.IA) []*net.IPNet {
 	return extractList(pol, from, to, Advertise)
 }
 
 // AllowedPrefixesBGP returns the list of prefixes that are allowed to be
 // redistributed from BGP.
-func AllowedPrefixesBGP(pol *Policy, from, to addr.IAInt) []*net.IPNet {
+func AllowedPrefixesBGP(pol *Policy, from, to addr.IA) []*net.IPNet {
 	return extractList(pol, from, to, RedistributeBGP)
 }
 
-func extractList(pol *Policy, from, to addr.IAInt, action Action) []*net.IPNet {
+func extractList(pol *Policy, from, to addr.IA, action Action) []*net.IPNet {
 	if pol == nil {
 		return []*net.IPNet{}
 	}

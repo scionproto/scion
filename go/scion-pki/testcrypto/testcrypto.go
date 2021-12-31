@@ -277,8 +277,8 @@ type voterInfo struct {
 func createTRCs(cfg config) error {
 	authoritatives := make(map[addr.ISD][]addr.AS)
 	cores := make(map[addr.ISD][]addr.AS)
-	issuers := make(map[addr.ISD][]addr.IAInt)
-	voters := make(map[addr.ISD][]addr.IAInt)
+	issuers := make(map[addr.ISD][]addr.IA)
+	voters := make(map[addr.ISD][]addr.IA)
 	certFiles := make(map[addr.ISD][]string)
 	isds := make(map[addr.ISD]struct{})
 	for ia, d := range cfg.topo.ASes {
@@ -362,7 +362,7 @@ func createTRCs(cfg config) error {
 	return nil
 }
 
-func loadVoterInfo(voter addr.IAInt, votingDir string) (*voterInfo, error) {
+func loadVoterInfo(voter addr.IA, votingDir string) (*voterInfo, error) {
 	sensitiveKey, err := key.LoadPrivateKey(
 		filepath.Join(votingDir, "sensitive-voting.key"))
 	if err != nil {
@@ -568,7 +568,7 @@ type outConfig struct {
 	isd  bool
 }
 
-func (cfg outConfig) AS(ia addr.IAInt) string {
+func (cfg outConfig) AS(ia addr.IA) string {
 	if cfg.isd {
 		return fmt.Sprintf("%s/ISD%d/AS%s", cfg.base, ia.I(), ia.A().FileFmt())
 	}
@@ -579,49 +579,49 @@ func trcDir(isd addr.ISD, out outConfig) string {
 	return fmt.Sprintf("%s/ISD%d/trcs", out.base, isd)
 }
 
-func keyDir(ia addr.IAInt, out outConfig) string {
+func keyDir(ia addr.IA, out outConfig) string {
 	return filepath.Join(out.AS(ia), "keys")
 }
 
-func certDir(ia addr.IAInt, out outConfig) string {
+func certDir(ia addr.IA, out outConfig) string {
 	return filepath.Join(out.AS(ia), "certs")
 }
 
-func cryptoASDir(ia addr.IAInt, out outConfig) string {
+func cryptoASDir(ia addr.IA, out outConfig) string {
 	return filepath.Join(out.AS(ia), "crypto", "as")
 }
 
-func cryptoCADir(ia addr.IAInt, out outConfig) string {
+func cryptoCADir(ia addr.IA, out outConfig) string {
 	return filepath.Join(out.AS(ia), "crypto", "ca")
 }
 
-func cryptoVotingDir(ia addr.IAInt, out outConfig) string {
+func cryptoVotingDir(ia addr.IA, out outConfig) string {
 	return filepath.Join(out.AS(ia), "crypto", "voting")
 }
 
-func chainName(ia addr.IAInt) string {
+func chainName(ia addr.IA) string {
 	return fmt.Sprintf("%s.pem", ia.FileFmt(true))
 }
 
-func caCertName(ia addr.IAInt) string {
+func caCertName(ia addr.IA) string {
 	return fmt.Sprintf("%s.ca.crt", ia.FileFmt(true))
 }
 
-func rootCertName(ia addr.IAInt, serial ...int) string {
+func rootCertName(ia addr.IA, serial ...int) string {
 	if len(serial) == 0 {
 		return fmt.Sprintf("%s.root.crt", ia.FileFmt(true))
 	}
 	return fmt.Sprintf("%s.root.s%d.crt", ia.FileFmt(true), serial[0])
 }
 
-func sensitiveCertName(ia addr.IAInt, serial ...int) string {
+func sensitiveCertName(ia addr.IA, serial ...int) string {
 	if len(serial) == 0 {
 		return fmt.Sprintf("%s.sensitive.crt", ia.FileFmt(true))
 	}
 	return fmt.Sprintf("%s.sensitive.s%d.crt", ia.FileFmt(true), serial[0])
 }
 
-func regularCertName(ia addr.IAInt, serial ...int) string {
+func regularCertName(ia addr.IA, serial ...int) string {
 	if len(serial) == 0 {
 		return fmt.Sprintf("%s.regular.crt", ia.FileFmt(true))
 	}

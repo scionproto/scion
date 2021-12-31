@@ -43,7 +43,7 @@ func TestSCIONEnvironment(t *testing.T) {
 				DispatcherSocket: "/test/dispatcher_file.socket",
 				DefaultIA:        xtest.MustParseIA("1-ff00:0:110"),
 			},
-			ASes: map[addr.IAInt]env.AS{
+			ASes: map[addr.IA]env.AS{
 				xtest.MustParseIA("1-ff00:0:110"): {
 					DaemonAddress: "scion_file:1234",
 				},

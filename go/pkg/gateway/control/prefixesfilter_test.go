@@ -30,7 +30,7 @@ import (
 
 func TestPrefixesFilterPrefixes(t *testing.T) {
 	type input struct {
-		IA       addr.IAInt
+		IA       addr.IA
 		Gateway  control.Gateway
 		Prefixes []*net.IPNet
 	}

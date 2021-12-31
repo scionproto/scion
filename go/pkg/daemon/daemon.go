@@ -54,7 +54,7 @@ func InitTracer(tracing env.Tracing, id string) (io.Closer, error) {
 // TrustEngine builds the trust engine backed by the trust database.
 func TrustEngine(
 	cfgDir string,
-	ia addr.IAInt,
+	ia addr.IA,
 	db trust.DB,
 	dialer libgrpc.Dialer,
 ) (trust.Engine, error) {
@@ -106,7 +106,7 @@ func TrustEngine(
 
 // ServerConfig is the configuration for the daemon API server.
 type ServerConfig struct {
-	IA       addr.IAInt
+	IA       addr.IA
 	MTU      uint16
 	Fetcher  fetcher.Fetcher
 	RevCache revcache.RevCache

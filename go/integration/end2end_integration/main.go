@@ -195,7 +195,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		}
 		doneDir = tmpDir
 		defer os.Remove(doneDir)
-		socket, clean, err := integration.ListenDone(doneDir, func(src, dst addr.IAInt) {
+		socket, clean, err := integration.ListenDone(doneDir, func(src, dst addr.IA) {
 			ctrMtx.Lock()
 			defer ctrMtx.Unlock()
 			ctr++
@@ -323,7 +323,7 @@ func filter(src, dst string, pairs []integration.IAPair, ases *util.ASList) []in
 	return res
 }
 
-func contains(ases *util.ASList, core bool, ia addr.IAInt) bool {
+func contains(ases *util.ASList, core bool, ia addr.IA) bool {
 	l := ases.Core
 	if !core {
 		l = ases.NonCore

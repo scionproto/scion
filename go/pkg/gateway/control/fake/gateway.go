@@ -197,9 +197,9 @@ type Daemon struct {
 	// on all API calls except overridden ones.
 	daemon.Connector
 
-	IA addr.IAInt
+	IA addr.IA
 }
 
-func (d *Daemon) LocalIA(_ context.Context) (addr.IAInt, error) {
+func (d *Daemon) LocalIA(_ context.Context) (addr.IA, error) {
 	return d.IA, nil
 }

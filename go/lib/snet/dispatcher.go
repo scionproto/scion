@@ -33,7 +33,7 @@ import (
 // PacketDispatcherService constructs SCION sockets where applications have
 // fine-grained control over header fields.
 type PacketDispatcherService interface {
-	Register(ctx context.Context, ia addr.IAInt, registration *net.UDPAddr,
+	Register(ctx context.Context, ia addr.IA, registration *net.UDPAddr,
 		svc addr.HostSVC) (PacketConn, uint16, error)
 }
 
@@ -52,7 +52,7 @@ type DefaultPacketDispatcherService struct {
 	SCIONPacketConnMetrics SCIONPacketConnMetrics
 }
 
-func (s *DefaultPacketDispatcherService) Register(ctx context.Context, ia addr.IAInt,
+func (s *DefaultPacketDispatcherService) Register(ctx context.Context, ia addr.IA,
 	registration *net.UDPAddr, svc addr.HostSVC) (PacketConn, uint16, error) {
 
 	rconn, port, err := s.Dispatcher.Register(ctx, ia, registration, svc)

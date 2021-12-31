@@ -179,27 +179,31 @@ func (as *AS) UnmarshalText(text []byte) error {
 	return nil
 }
 
-var _ fmt.Stringer = IAInt(0)
-var _ encoding.TextUnmarshaler = (*IAInt)(nil)
-var _ flag.Value = (*IAInt)(nil)
+var _ fmt.Stringer = IA(0)
+var _ encoding.TextUnmarshaler = (*IA)(nil)
+var _ flag.Value = (*IA)(nil)
 
-// IAInt represents the ISD (ISolation Domain) and AS (Autonomous System) Id of a given SCION AS.
+// IA represents the ISD (ISolation Domain) and AS (Autonomous System) Id of a given SCION AS.
 // The highest 16 bit form the ISD number and the lower 48 bits form the AS number.
-type IAInt uint64
+type IA uint64
 
-func (ia IAInt) I() ISD {
+func NewIA(isd ISD, as AS) IA {
+	return IA(isd)<<ASBits | IA(as&MaxAS)
+}
+
+func (ia IA) I() ISD {
 	return ISD(ia >> ASBits)
 }
 
-func (ia IAInt) A() AS {
+func (ia IA) A() AS {
 	return AS(ia) & MaxAS
 }
 
-func (ia IAInt) MarshalText() ([]byte, error) {
+func (ia IA) MarshalText() ([]byte, error) {
 	return []byte(ia.String()), nil
 }
 
-func (ia *IAInt) UnmarshalText(b []byte) error {
+func (ia *IA) UnmarshalText(b []byte) error {
 	parts := strings.Split(string(b), "-")
 	if len(parts) != 2 {
 		return serrors.New("Invalid ISD-AS", "raw", b)
@@ -212,16 +216,16 @@ func (ia *IAInt) UnmarshalText(b []byte) error {
 	if err != nil {
 		return err
 	}
-	*ia = NewIAInt(isd, as)
+	*ia = NewIA(isd, as)
 	return nil
 }
 
-func IAFromRaw(b []byte) IAInt {
-	return IAInt(binary.BigEndian.Uint64(b))
+func IAFromRaw(b []byte) IA {
+	return IA(binary.BigEndian.Uint64(b))
 }
 
 // IAFromString parses an IA from a string of the format 'ia-as'.
-func IAFromString(s string) (IAInt, error) {
+func IAFromString(s string) (IA, error) {
 	parts := strings.Split(s, "-")
 	if len(parts) != 2 {
 		return 0, serrors.New("Invalid ISD-AS", "raw", s)
@@ -234,11 +238,11 @@ func IAFromString(s string) (IAInt, error) {
 	if err != nil {
 		return 0, err
 	}
-	return IAInt(isd)<<ASBits | IAInt(as&MaxAS), nil
+	return NewIA(isd, as), nil
 }
 
-// IAFromFileFmt parses an IAInt from a file-format
-func IAFromFileFmt(s string, prefixes bool) (IAInt, error) {
+// IAFromFileFmt parses an IA from a file-format
+func IAFromFileFmt(s string, prefixes bool) (IA, error) {
 	parts := strings.Split(s, "-")
 	if len(parts) != 2 {
 		return 0, serrors.New("Invalid ISD-AS", "raw", s)
@@ -251,38 +255,38 @@ func IAFromFileFmt(s string, prefixes bool) (IAInt, error) {
 	if err != nil {
 		return 0, err
 	}
-	return IAInt(isd)<<ASBits | IAInt(as&MaxAS), nil
+	return NewIA(isd, as), nil
 }
 
-func (ia *IAInt) Parse(b []byte) {
-	*ia = IAInt(binary.BigEndian.Uint64(b))
+func (ia *IA) Parse(b []byte) {
+	*ia = IA(binary.BigEndian.Uint64(b))
 }
 
-func (ia IAInt) Write(b []byte) {
+func (ia IA) Write(b []byte) {
 	binary.BigEndian.PutUint64(b, uint64(ia))
 }
 
-func (ia IAInt) IsZero() bool {
+func (ia IA) IsZero() bool {
 	return ia == 0
 }
 
-func (ia IAInt) Equal(other IAInt) bool {
+func (ia IA) Equal(other IA) bool {
 	return ia == other
 }
 
 // IsWildcard returns whether the ia has a wildcard part (isd or as).
-func (ia IAInt) IsWildcard() bool {
+func (ia IA) IsWildcard() bool {
 	return ia.I() == 0 || ia.A() == 0
 }
 
-func (ia IAInt) String() string {
+func (ia IA) String() string {
 	return fmt.Sprintf("%d-%s", ia.I(), ia.A())
 }
 
 // FileFmt returns a file-system friendly representation of ia. If prefixes is
 // true, the format will be in the form of ISD%d-AS%d. If it is false, the
 // format is just %d-%d.
-func (ia IAInt) FileFmt(prefixes bool) string {
+func (ia IA) FileFmt(prefixes bool) string {
 	fmts := "%d-%s"
 	if prefixes {
 		fmts = "ISD%d-AS%s"
@@ -291,15 +295,11 @@ func (ia IAInt) FileFmt(prefixes bool) string {
 }
 
 // Set implements flag.Value interface
-func (ia *IAInt) Set(s string) error {
+func (ia *IA) Set(s string) error {
 	pIA, err := IAFromString(s)
 	if err != nil {
 		return err
 	}
 	*ia = pIA
 	return nil
-}
-
-func NewIAInt(isd ISD, as AS) IAInt {
-	return IAInt(isd)<<ASBits | IAInt(as&MaxAS)
 }

@@ -121,7 +121,7 @@ func (m SCMPParameterProblem) Code() slayers.SCMPCode { return m.code }
 // SCMPExternalInterfaceDown is the message that indicates that an interface is
 // down.
 type SCMPExternalInterfaceDown struct {
-	IA        addr.IAInt
+	IA        addr.IA
 	Interface uint64
 	Payload   []byte
 }
@@ -147,7 +147,7 @@ func (SCMPExternalInterfaceDown) Code() slayers.SCMPCode { return 0 }
 // SCMPInternalConnectivityDown is the message that an internal interface is
 // down.
 type SCMPInternalConnectivityDown struct {
-	IA              addr.IAInt
+	IA              addr.IA
 	Ingress, Egress uint64
 	Payload         []byte
 }
@@ -243,7 +243,7 @@ func (SCMPTracerouteRequest) Code() slayers.SCMPCode { return 0 }
 type SCMPTracerouteReply struct {
 	Identifier uint16
 	Sequence   uint16
-	IA         addr.IAInt
+	IA         addr.IA
 	Interface  uint64
 }
 

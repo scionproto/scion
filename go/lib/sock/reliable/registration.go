@@ -32,7 +32,7 @@ const (
 
 // Registration contains metadata for a SCION Dispatcher registration message.
 type Registration struct {
-	IA            addr.IAInt
+	IA            addr.IA
 	PublicAddress *net.UDPAddr
 	BindAddress   *net.UDPAddr
 	SVCAddress    addr.HostSVC
@@ -69,7 +69,7 @@ func (r *Registration) DecodeFromBytes(b []byte) error {
 		return err
 	}
 
-	r.IA = addr.IAInt(msg.IA)
+	r.IA = addr.IA(msg.IA)
 	r.PublicAddress = &net.UDPAddr{
 		IP:   net.IP(msg.PublicData.Address),
 		Port: int(msg.PublicData.Port),

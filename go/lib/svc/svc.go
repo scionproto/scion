@@ -72,7 +72,7 @@ type ResolverPacketDispatcher struct {
 	handler     RequestHandler
 }
 
-func (d *ResolverPacketDispatcher) Register(ctx context.Context, ia addr.IAInt,
+func (d *ResolverPacketDispatcher) Register(ctx context.Context, ia addr.IA,
 	registration *net.UDPAddr, svc addr.HostSVC) (snet.PacketConn, uint16, error) {
 
 	c, port, err := d.dispService.Register(ctx, ia, registration, svc)

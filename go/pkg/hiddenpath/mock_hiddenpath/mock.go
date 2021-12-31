@@ -39,7 +39,7 @@ func (m *MockStore) EXPECT() *MockStoreMockRecorder {
 }
 
 // Get mocks base method.
-func (m *MockStore) Get(arg0 context.Context, arg1 addr.IAInt, arg2 []hiddenpath.GroupID) ([]*seg.Meta, error) {
+func (m *MockStore) Get(arg0 context.Context, arg1 addr.IA, arg2 []hiddenpath.GroupID) ([]*seg.Meta, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]*seg.Meta)
@@ -204,7 +204,7 @@ func (m *MockAddressResolver) EXPECT() *MockAddressResolverMockRecorder {
 }
 
 // Resolve mocks base method.
-func (m *MockAddressResolver) Resolve(arg0 context.Context, arg1 addr.IAInt) (net.Addr, error) {
+func (m *MockAddressResolver) Resolve(arg0 context.Context, arg1 addr.IA) (net.Addr, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", arg0, arg1)
 	ret0, _ := ret[0].(net.Addr)

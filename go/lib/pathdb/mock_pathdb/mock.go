@@ -101,7 +101,7 @@ func (mr *MockDBMockRecorder) GetAll(arg0 interface{}) *gomock.Call {
 }
 
 // GetNextQuery mocks base method.
-func (m *MockDB) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IAInt) (time.Time, error) {
+func (m *MockDB) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IA) (time.Time, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNextQuery", arg0, arg1, arg2)
 	ret0, _ := ret[0].(time.Time)
@@ -131,7 +131,7 @@ func (mr *MockDBMockRecorder) Insert(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // InsertNextQuery mocks base method.
-func (m *MockDB) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.IAInt, arg3 time.Time) (bool, error) {
+func (m *MockDB) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 time.Time) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertNextQuery", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(bool)
@@ -243,7 +243,7 @@ func (mr *MockTransactionMockRecorder) GetAll(arg0 interface{}) *gomock.Call {
 }
 
 // GetNextQuery mocks base method.
-func (m *MockTransaction) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IAInt) (time.Time, error) {
+func (m *MockTransaction) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IA) (time.Time, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNextQuery", arg0, arg1, arg2)
 	ret0, _ := ret[0].(time.Time)
@@ -273,7 +273,7 @@ func (mr *MockTransactionMockRecorder) Insert(arg0, arg1 interface{}) *gomock.Ca
 }
 
 // InsertNextQuery mocks base method.
-func (m *MockTransaction) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.IAInt, arg3 time.Time) (bool, error) {
+func (m *MockTransaction) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 time.Time) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertNextQuery", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(bool)
@@ -385,7 +385,7 @@ func (mr *MockReadWriteMockRecorder) GetAll(arg0 interface{}) *gomock.Call {
 }
 
 // GetNextQuery mocks base method.
-func (m *MockReadWrite) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IAInt) (time.Time, error) {
+func (m *MockReadWrite) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IA) (time.Time, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNextQuery", arg0, arg1, arg2)
 	ret0, _ := ret[0].(time.Time)
@@ -415,7 +415,7 @@ func (mr *MockReadWriteMockRecorder) Insert(arg0, arg1 interface{}) *gomock.Call
 }
 
 // InsertNextQuery mocks base method.
-func (m *MockReadWrite) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.IAInt, arg3 time.Time) (bool, error) {
+func (m *MockReadWrite) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 time.Time) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertNextQuery", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(bool)

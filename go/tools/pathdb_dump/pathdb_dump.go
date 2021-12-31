@@ -84,7 +84,7 @@ func realMain() error {
 }
 
 type asIface struct {
-	IA    addr.IAInt
+	IA    addr.IA
 	ifNum uint16
 }
 

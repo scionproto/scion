@@ -57,8 +57,8 @@ func TestBadPeering(t *testing.T) {
 	testCases := []struct {
 		Name     string
 		FileName string
-		SrcIA    addr.IAInt
-		DstIA    addr.IAInt
+		SrcIA    addr.IA
+		DstIA    addr.IA
 		Ups      []*seg.PathSegment
 		Cores    []*seg.PathSegment
 		Downs    []*seg.PathSegment
@@ -103,8 +103,8 @@ func TestMultiPeering(t *testing.T) {
 	testCases := []struct {
 		Name     string
 		FileName string
-		SrcIA    addr.IAInt
-		DstIA    addr.IAInt
+		SrcIA    addr.IA
+		DstIA    addr.IA
 		Ups      []*seg.PathSegment
 		Cores    []*seg.PathSegment
 		Downs    []*seg.PathSegment
@@ -149,8 +149,8 @@ func TestSameCoreParent(t *testing.T) {
 	testCases := []struct {
 		Name     string
 		FileName string
-		SrcIA    addr.IAInt
-		DstIA    addr.IAInt
+		SrcIA    addr.IA
+		DstIA    addr.IA
 		Ups      []*seg.PathSegment
 		Cores    []*seg.PathSegment
 		Downs    []*seg.PathSegment
@@ -191,8 +191,8 @@ func TestLoops(t *testing.T) {
 	testCases := []struct {
 		Name     string
 		FileName string
-		SrcIA    addr.IAInt
-		DstIA    addr.IAInt
+		SrcIA    addr.IA
+		DstIA    addr.IA
 		Ups      []*seg.PathSegment
 		Cores    []*seg.PathSegment
 		Downs    []*seg.PathSegment
@@ -243,8 +243,8 @@ func TestComputePath(t *testing.T) {
 	testCases := []struct {
 		Name     string
 		FileName string
-		SrcIA    addr.IAInt
-		DstIA    addr.IAInt
+		SrcIA    addr.IA
+		DstIA    addr.IA
 		Ups      []*seg.PathSegment
 		Cores    []*seg.PathSegment
 		Downs    []*seg.PathSegment

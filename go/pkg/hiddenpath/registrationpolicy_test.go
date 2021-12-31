@@ -42,14 +42,14 @@ func TestRegistrationPolicyUnmarshalYAML(t *testing.T) {
 						mustParseGroupID(t, "ff00:0:110-69b5"): {
 							ID:    mustParseGroupID(t, "ff00:0:110-69b5"),
 							Owner: xtest.MustParseIA("1-ff00:0:110"),
-							Writers: map[addr.IAInt]struct{}{
+							Writers: map[addr.IA]struct{}{
 								xtest.MustParseIA("1-ff00:0:111"): {},
 								xtest.MustParseIA("1-ff00:0:112"): {},
 							},
-							Readers: map[addr.IAInt]struct{}{
+							Readers: map[addr.IA]struct{}{
 								xtest.MustParseIA("1-ff00:0:114"): {},
 							},
-							Registries: map[addr.IAInt]struct{}{
+							Registries: map[addr.IA]struct{}{
 								xtest.MustParseIA("1-ff00:0:111"): {},
 								xtest.MustParseIA("1-ff00:0:113"): {},
 							},
@@ -57,14 +57,14 @@ func TestRegistrationPolicyUnmarshalYAML(t *testing.T) {
 						mustParseGroupID(t, "ff00:0:222-abcd"): {
 							ID:    mustParseGroupID(t, "ff00:0:222-abcd"),
 							Owner: xtest.MustParseIA("1-ff00:0:222"),
-							Writers: map[addr.IAInt]struct{}{
+							Writers: map[addr.IA]struct{}{
 								xtest.MustParseIA("1-ff00:0:111"): {},
 								xtest.MustParseIA("1-ff00:0:112"): {},
 							},
-							Readers: map[addr.IAInt]struct{}{
+							Readers: map[addr.IA]struct{}{
 								xtest.MustParseIA("1-ff00:0:114"): {},
 							},
-							Registries: map[addr.IAInt]struct{}{
+							Registries: map[addr.IA]struct{}{
 								xtest.MustParseIA("1-ff00:0:115"): {},
 							},
 						},

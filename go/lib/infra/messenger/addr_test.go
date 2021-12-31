@@ -380,7 +380,7 @@ func TestResolve(t *testing.T) {
 			defer ctrl.Finish()
 			resolver := mock_messenger.NewMockResolver(ctrl)
 			path := mock_snet.NewMockPath(ctrl)
-			path.EXPECT().Destination().Return(addr.IAInt(0)).AnyTimes()
+			path.EXPECT().Destination().Return(addr.IA(0)).AnyTimes()
 			aw := messenger.AddressRewriter{
 				Resolver:              resolver,
 				SVCResolutionFraction: tc.SVCResolutionFraction,
@@ -468,7 +468,7 @@ func (t *testPath) Path() spath.Path {
 	return spath.Path{}
 }
 
-func (t *testPath) Destination() addr.IAInt {
+func (t *testPath) Destination() addr.IA {
 	panic("not implemented")
 }
 

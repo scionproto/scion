@@ -64,7 +64,7 @@ func getSocketName(dir string) (string, error) {
 }
 
 type ClientAddress struct {
-	IA              addr.IAInt
+	IA              addr.IA
 	PublicAddress   addr.HostAddr
 	PublicPort      uint16
 	ServiceAddress  addr.HostSVC

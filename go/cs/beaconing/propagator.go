@@ -54,7 +54,7 @@ type Propagator struct {
 	Extender              Extender
 	SenderFactory         SenderFactory
 	Provider              BeaconProvider
-	IA                    addr.IAInt
+	IA                    addr.IA
 	Signer                seg.Signer
 	AllInterfaces         *ifstate.Interfaces
 	PropagationInterfaces func() []*ifstate.Interface
@@ -341,7 +341,7 @@ func (p *propagator) Propagate(ctx context.Context) error {
 	return nil
 }
 
-func (p *propagator) incMetric(startIA addr.IAInt, ingress, egress uint16, result string) {
+func (p *propagator) incMetric(startIA addr.IA, ingress, egress uint16, result string) {
 	if p.propagated == nil {
 		return
 	}

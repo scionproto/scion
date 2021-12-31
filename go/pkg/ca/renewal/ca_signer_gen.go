@@ -200,7 +200,7 @@ func (g LoadingPolicyGen) Generate(ctx context.Context) (cppki.CAPolicy, error) 
 
 // CACertLoader loads CA certificates from disk.
 type CACertLoader struct {
-	IA  addr.IAInt
+	IA  addr.IA
 	Dir string
 	DB  trust.DB
 }

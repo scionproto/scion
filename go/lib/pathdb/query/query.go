@@ -25,7 +25,7 @@ import (
 )
 
 type IntfSpec struct {
-	IA   addr.IAInt
+	IA   addr.IA
 	IfID common.IFIDType
 }
 
@@ -34,8 +34,8 @@ type Params struct {
 	SegTypes   []seg.Type
 	HPGroupIDs []uint64
 	Intfs      []*IntfSpec
-	StartsAt   []addr.IAInt
-	EndsAt     []addr.IAInt
+	StartsAt   []addr.IA
+	EndsAt     []addr.IA
 }
 
 type Result struct {

@@ -35,8 +35,8 @@ func NewDP(
 	internal BatchConn,
 	internalNextHops map[uint16]*net.UDPAddr,
 	svc map[addr.HostSVC][]*net.UDPAddr,
-	local addr.IAInt,
-	neighbors map[uint16]addr.IAInt,
+	local addr.IA,
+	neighbors map[uint16]addr.IA,
 	key []byte) *DataPlane {
 
 	dp := &DataPlane{

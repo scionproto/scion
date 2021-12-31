@@ -35,7 +35,7 @@ type Runner interface {
 }
 
 type GatewayWatcherFactory interface {
-	New(context.Context, addr.IAInt, GatewayWatcherMetrics) Runner
+	New(context.Context, addr.IA, GatewayWatcherMetrics) Runner
 }
 
 // RemoteMonitor watches for currently monitored remote ASes and creates
@@ -46,7 +46,7 @@ type RemoteMonitor struct {
 	// GatewayWatcherFactory is used to create remote gateway watchers.
 	GatewayWatcherFactory GatewayWatcherFactory
 	// IAs is a channel that is notified with the full set of IAs to watch.
-	IAs <-chan []addr.IAInt
+	IAs <-chan []addr.IA
 	// RemotesMonitored is the number of remote gateways discovered. If nil, no metric is reported.
 	RemotesMonitored metrics.Gauge
 
@@ -57,7 +57,7 @@ type RemoteMonitor struct {
 	// cancel is a function that cancels context.
 	cancel context.CancelFunc
 	// currentWatchers is a map of all currently active watchers.
-	currentWatchers map[addr.IAInt]watcherEntry
+	currentWatchers map[addr.IA]watcherEntry
 
 	workerBase worker.Base
 }
@@ -88,7 +88,7 @@ func (rm *RemoteMonitor) setup(ctx context.Context) error {
 		return serrors.New("IAs channel not specified")
 	}
 	rm.context, rm.cancel = context.WithCancel(context.Background())
-	rm.currentWatchers = make(map[addr.IAInt]watcherEntry)
+	rm.currentWatchers = make(map[addr.IA]watcherEntry)
 	return nil
 }
 
@@ -104,11 +104,11 @@ func (rm *RemoteMonitor) run(ctx context.Context) error {
 	}
 }
 
-func (rm *RemoteMonitor) process(ctx context.Context, ias []addr.IAInt) {
+func (rm *RemoteMonitor) process(ctx context.Context, ias []addr.IA) {
 	rm.stateMtx.Lock()
 	defer rm.stateMtx.Unlock()
 	logger := log.FromCtx(ctx)
-	newWatchers := make(map[addr.IAInt]watcherEntry)
+	newWatchers := make(map[addr.IA]watcherEntry)
 	for _, ia := range ias {
 		we, ok := rm.currentWatchers[ia]
 		if ok {
@@ -149,9 +149,9 @@ func (rm *RemoteMonitor) DiagnosticsWrite(w io.Writer) {
 
 	// assemble the diagnostics json output
 	diagnostics := struct {
-		Remotes map[addr.IAInt]remoteDiagnostics `json:"remotes"`
+		Remotes map[addr.IA]remoteDiagnostics `json:"remotes"`
 	}{
-		Remotes: make(map[addr.IAInt]remoteDiagnostics),
+		Remotes: make(map[addr.IA]remoteDiagnostics),
 	}
 
 	for ia, watcher := range rm.currentWatchers {

@@ -45,7 +45,7 @@ func NewIATable(minPort, maxPort int) *IATable {
 	}
 }
 
-func (t *IATable) LookupPublic(ia addr.IAInt, public *net.UDPAddr) (*TableEntry, bool) {
+func (t *IATable) LookupPublic(ia addr.IA, public *net.UDPAddr) (*TableEntry, bool) {
 	e, ok := t.IATable.LookupPublic(ia, public)
 	if !ok {
 		return nil, false
@@ -53,7 +53,7 @@ func (t *IATable) LookupPublic(ia addr.IAInt, public *net.UDPAddr) (*TableEntry,
 	return e.(*TableEntry), true
 }
 
-func (t *IATable) LookupService(ia addr.IAInt, svc addr.HostSVC, bind net.IP) []*TableEntry {
+func (t *IATable) LookupService(ia addr.IA, svc addr.HostSVC, bind net.IP) []*TableEntry {
 	ifaces := t.IATable.LookupService(ia, svc, bind)
 	entries := make([]*TableEntry, len(ifaces))
 	for i := range ifaces {
@@ -62,7 +62,7 @@ func (t *IATable) LookupService(ia addr.IAInt, svc addr.HostSVC, bind net.IP) []
 	return entries
 }
 
-func (t *IATable) LookupID(ia addr.IAInt, id uint64) (*TableEntry, bool) {
+func (t *IATable) LookupID(ia addr.IA, id uint64) (*TableEntry, bool) {
 	e, ok := t.IATable.LookupID(ia, id)
 	if !ok {
 		return nil, false

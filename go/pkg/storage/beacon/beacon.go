@@ -42,7 +42,7 @@ type QueryParams struct {
 	// StartsAt defines the list of ISD-AS IDs that beacons need to match at least one of.
 	// Zero entries in any IA (ISD or AS or both) function as wildcards.
 	// Beacons are returned irrespective of their start AS if StartsAt is empty.
-	StartsAt []addr.IAInt
+	StartsAt []addr.IA
 	// IngressInterfaces defines the list of ingress interface ids
 	// that beacons need to batch at least one of.
 	// Beacons are returned irrespective of their ingress interface if IngressInterfaces is empty.

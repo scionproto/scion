@@ -41,7 +41,7 @@ var (
 // Pather is used to construct paths from the path database. If necessary, paths
 // are fetched over the network.
 type Pather struct {
-	IA         addr.IAInt
+	IA         addr.IA
 	MTU        uint16
 	NextHopper interface {
 		UnderlayNextHop(uint16) *net.UDPAddr
@@ -55,7 +55,7 @@ type Pather struct {
 // The paths are sorted from best to worst according to the weighting in path
 // combinator. In case the destination AS is the same as the local AS, a slice
 // containing an empty path is returned.
-func (p *Pather) GetPaths(ctx context.Context, dst addr.IAInt,
+func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 	refresh bool) ([]snet.Path, error) {
 
 	logger := log.FromCtx(ctx)
@@ -93,7 +93,7 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IAInt,
 	return p.translatePaths(paths)
 }
 
-func (p *Pather) buildAllPaths(src, dst addr.IAInt, segs Segments) []combinator.Path {
+func (p *Pather) buildAllPaths(src, dst addr.IA, segs Segments) []combinator.Path {
 	up, core, down := categorizeSegs(segs)
 	destinations := p.findDestinations(dst, up, core)
 	var paths []combinator.Path
@@ -111,16 +111,16 @@ func (p *Pather) buildAllPaths(src, dst addr.IAInt, segs Segments) []combinator.
 	return validPaths
 }
 
-func (p *Pather) findDestinations(dst addr.IAInt, ups, cores seg.Segments) map[addr.IAInt]struct{} {
+func (p *Pather) findDestinations(dst addr.IA, ups, cores seg.Segments) map[addr.IA]struct{} {
 	if !dst.IsWildcard() {
-		return map[addr.IAInt]struct{}{dst: {}}
+		return map[addr.IA]struct{}{dst: {}}
 	}
 	all := cores.FirstIAs()
 	if dst.I() == p.IA.I() {
 		// for isd local wildcard we want to reach cores, they are at the end of the up segs.
 		all = append(all, ups.FirstIAs()...)
 	}
-	destinations := make(map[addr.IAInt]struct{})
+	destinations := make(map[addr.IA]struct{})
 	for _, dst := range all {
 		destinations[dst] = struct{}{}
 	}

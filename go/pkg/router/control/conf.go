@@ -31,12 +31,12 @@ import (
 // Dataplane is the interface that a dataplane has to support to be controlled
 // by this controller.
 type Dataplane interface {
-	CreateIACtx(ia addr.IAInt) error
-	AddInternalInterface(ia addr.IAInt, local net.UDPAddr) error
+	CreateIACtx(ia addr.IA) error
+	AddInternalInterface(ia addr.IA, local net.UDPAddr) error
 	AddExternalInterface(localIfID common.IFIDType, info LinkInfo, owned bool) error
-	AddSvc(ia addr.IAInt, svc addr.HostSVC, ip net.IP) error
-	DelSvc(ia addr.IAInt, svc addr.HostSVC, ip net.IP) error
-	SetKey(ia addr.IAInt, index int, key []byte) error
+	AddSvc(ia addr.IA, svc addr.HostSVC, ip net.IP) error
+	DelSvc(ia addr.IA, svc addr.HostSVC, ip net.IP) error
+	SetKey(ia addr.IA, index int, key []byte) error
 }
 
 // LinkInfo contains the information about a link between an internal and
@@ -52,7 +52,7 @@ type LinkInfo struct {
 
 // LinkEnd represents on end of a link.
 type LinkEnd struct {
-	IA   addr.IAInt
+	IA   addr.IA
 	Addr *net.UDPAddr
 }
 
@@ -64,7 +64,7 @@ type ObservableDataplane interface {
 
 // InternalInterface represents the internal interface of a router.
 type InternalInterface struct {
-	IA   addr.IAInt
+	IA   addr.IA
 	Addr *net.UDPAddr
 }
 
@@ -90,7 +90,7 @@ type SiblingInterface struct {
 	// MTU is the maximum Transmission Unit for SCION packets.
 	MTU int
 	// NeighborIA is the ISD-AS number of the neighbor AS this interface connects to.
-	NeighborIA addr.IAInt
+	NeighborIA addr.IA
 	// State indicates the interface state. This refers to the connectivity state
 	// of the internal network to reach this interface. It does not specify the
 	// state of the interface itself.

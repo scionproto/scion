@@ -26,8 +26,8 @@ import (
 
 // ASList is a list of ISD-AS identifiers grouped by core and non-core.
 type ASList struct {
-	Core    []addr.IAInt `yaml:"Core"`
-	NonCore []addr.IAInt `yaml:"Non-core"`
+	Core    []addr.IA `yaml:"Core"`
+	NonCore []addr.IA `yaml:"Non-core"`
 }
 
 // LoadASList parses the yaml file fileName and returns a structure with
@@ -46,6 +46,6 @@ func LoadASList(fileName string) (*ASList, error) {
 }
 
 // AllASes returns all ASes in the ASList as a slice.
-func (al *ASList) AllASes() []addr.IAInt {
-	return append([]addr.IAInt(nil), append(al.Core, al.NonCore...)...)
+func (al *ASList) AllASes() []addr.IA {
+	return append([]addr.IA(nil), append(al.Core, al.NonCore...)...)
 }

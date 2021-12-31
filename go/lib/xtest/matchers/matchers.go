@@ -32,11 +32,11 @@ import (
 var _ gomock.Matcher = (*addrIAMatcher)(nil)
 
 type addrIAMatcher struct {
-	ia addr.IAInt
+	ia addr.IA
 }
 
 // IsSnetSVCAddrWithIA returns a matcher for a snet.SVCAddr with the given IA.
-func IsSnetSVCAddrWithIA(ia addr.IAInt) gomock.Matcher {
+func IsSnetSVCAddrWithIA(ia addr.IA) gomock.Matcher {
 	return &addrIAMatcher{ia: ia}
 }
 

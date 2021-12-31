@@ -158,7 +158,7 @@ func TestFilterLoop(t *testing.T) {
 	testCases := []struct {
 		Name         string
 		Beacon       beacon.Beacon
-		Next         addr.IAInt
+		Next         addr.IA
 		AllowIsdLoop bool
 		ErrAssertion assert.ErrorAssertionFunc
 	}{
@@ -198,7 +198,7 @@ func TestFilterLoop(t *testing.T) {
 	}
 }
 
-func newTestBeacon(hops ...addr.IAInt) beacon.Beacon {
+func newTestBeacon(hops ...addr.IA) beacon.Beacon {
 	var entries []seg.ASEntry
 	for _, hop := range hops {
 		entries = append(entries, seg.ASEntry{Local: hop})

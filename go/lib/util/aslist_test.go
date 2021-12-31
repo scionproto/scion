@@ -42,8 +42,8 @@ func TestLoadASList(t *testing.T) {
 			File:  "testdata/aslist_valid.yml",
 			Error: assert.NoError,
 			Expected: &util.ASList{
-				Core: []addr.IAInt{xtest.MustParseIA("1-ff00:0:110")},
-				NonCore: []addr.IAInt{
+				Core: []addr.IA{xtest.MustParseIA("1-ff00:0:110")},
+				NonCore: []addr.IA{
 					xtest.MustParseIA("1-ff00:0:111"),
 					xtest.MustParseIA("1-ff00:0:112"),
 				},

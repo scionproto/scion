@@ -25,10 +25,10 @@ import (
 )
 
 type networkAllocs struct {
-	Testers map[addr.IAInt]string `yaml:"testers"`
+	Testers map[addr.IA]string `yaml:"testers"`
 }
 
-func LoadNetworkAllocs() (map[addr.IAInt]*snet.UDPAddr, error) {
+func LoadNetworkAllocs() (map[addr.IA]*snet.UDPAddr, error) {
 	raw, err := ioutil.ReadFile(GenFile("network-allocations.yml"))
 	if err != nil {
 		return nil, nil
@@ -37,7 +37,7 @@ func LoadNetworkAllocs() (map[addr.IAInt]*snet.UDPAddr, error) {
 	if err := yaml.Unmarshal(raw, &allocs); err != nil {
 		return nil, err
 	}
-	addrs = make(map[addr.IAInt]*snet.UDPAddr, len(allocs.Testers))
+	addrs = make(map[addr.IA]*snet.UDPAddr, len(allocs.Testers))
 	for ia, tester := range allocs.Testers {
 		addrs[ia] = &snet.UDPAddr{IA: ia, Host: &net.UDPAddr{IP: net.ParseIP(tester)}}
 	}

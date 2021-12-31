@@ -100,8 +100,8 @@ func TestPolicyMatch(t *testing.T) {
 	}
 
 	testCases := map[string]struct {
-		From    addr.IAInt
-		To      addr.IAInt
+		From    addr.IA
+		To      addr.IA
 		Network string
 		Rule    routing.Rule
 	}{

@@ -59,6 +59,6 @@ func (b Beacon) String() string {
 	return fmt.Sprintf("Ingress: %d Segment: [ %s ]", b.InIfId, b.Segment)
 }
 
-func link(entry seg.ASEntry) (addr.IAInt, uint16) {
+func link(entry seg.ASEntry) (addr.IA, uint16) {
 	return entry.Local, entry.HopEntry.HopField.ConsIngress
 }

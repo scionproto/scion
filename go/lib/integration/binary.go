@@ -69,7 +69,7 @@ var (
 	// should take care of aggregating the data. I would prefer not to use a
 	// global here.
 	serverPortsMtx sync.Mutex
-	serverPorts    = make(map[addr.IAInt]string)
+	serverPorts    = make(map[addr.IA]string)
 )
 
 var _ Integration = (*binaryIntegration)(nil)

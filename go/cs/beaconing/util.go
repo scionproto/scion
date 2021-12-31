@@ -45,19 +45,19 @@ func sortedIntfs(intfs *ifstate.Interfaces, linkType topology.LinkType) []uint16
 
 type summary struct {
 	mu    sync.Mutex
-	srcs  map[addr.IAInt]struct{}
+	srcs  map[addr.IA]struct{}
 	ifIds map[uint16]struct{}
 	count int
 }
 
 func newSummary() *summary {
 	return &summary{
-		srcs:  make(map[addr.IAInt]struct{}),
+		srcs:  make(map[addr.IA]struct{}),
 		ifIds: make(map[uint16]struct{}),
 	}
 }
 
-func (s *summary) AddSrc(ia addr.IAInt) {
+func (s *summary) AddSrc(ia addr.IA) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.srcs[ia] = struct{}{}

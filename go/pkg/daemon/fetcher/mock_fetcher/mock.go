@@ -37,7 +37,7 @@ func (m *MockFetcher) EXPECT() *MockFetcherMockRecorder {
 }
 
 // GetPaths mocks base method.
-func (m *MockFetcher) GetPaths(arg0 context.Context, arg1, arg2 addr.IAInt, arg3 bool) ([]snet.Path, error) {
+func (m *MockFetcher) GetPaths(arg0 context.Context, arg1, arg2 addr.IA, arg3 bool) ([]snet.Path, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPaths", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].([]snet.Path)

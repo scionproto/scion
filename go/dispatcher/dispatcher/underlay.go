@@ -214,7 +214,7 @@ func getDstSCMPErr(pkt *respool.Packet) (Destination, error) {
 // UDPDestination delivers packets to the app that registered for the configured
 // public address.
 type UDPDestination struct {
-	IA     addr.IAInt
+	IA     addr.IA
 	Public *net.UDPAddr
 }
 
@@ -231,7 +231,7 @@ func (d UDPDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
 // SVCDestination delivers packets to apps that registered for the configured
 // service.
 type SVCDestination struct {
-	IA  addr.IAInt
+	IA  addr.IA
 	Svc addr.HostSVC
 }
 
@@ -255,7 +255,7 @@ func (d SVCDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
 }
 
 type SCMPDestination struct {
-	IA addr.IAInt
+	IA addr.IA
 	ID uint16
 }
 

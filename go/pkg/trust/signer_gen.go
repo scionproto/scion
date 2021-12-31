@@ -34,7 +34,7 @@ type KeyRing interface {
 
 // SignerGen generates signers from the keys available in key dir.
 type SignerGen struct {
-	IA      addr.IAInt
+	IA      addr.IA
 	KeyRing KeyRing
 	DB      DB // FIXME(roosd): Eventually this should use a crypto provider
 }

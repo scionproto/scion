@@ -94,7 +94,7 @@ func TestSessionConfigurator(t *testing.T) {
 		}()
 
 		routingUpdate := control.RemoteGateways{
-			Gateways: map[addr.IAInt][]control.RemoteGateway{
+			Gateways: map[addr.IA][]control.RemoteGateway{
 				xtest.MustParseIA("1-ff00:0:110"): {
 					{
 						Gateway: control.Gateway{
@@ -195,7 +195,7 @@ func TestSessionConfigurator(t *testing.T) {
 }
 
 func TestBuildSessionConfigs(t *testing.T) {
-	gatewayPolicy := func(ia addr.IAInt, intfs []uint64) policies.PathPolicy {
+	gatewayPolicy := func(ia addr.IA, intfs []uint64) policies.PathPolicy {
 		pol := control.NewPathPolForEnteringAS(ia, intfs)
 		return pol
 	}
@@ -207,7 +207,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 		"empty static": {
 			SessionPolicies: nil,
 			RoutingUpdate: control.RemoteGateways{
-				Gateways: map[addr.IAInt][]control.RemoteGateway{
+				Gateways: map[addr.IA][]control.RemoteGateway{
 					xtest.MustParseIA("1-ff00:0:110"): {
 						{
 							Gateway: control.Gateway{
@@ -253,7 +253,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 				},
 			},
 			RoutingUpdate: control.RemoteGateways{
-				Gateways: map[addr.IAInt][]control.RemoteGateway{
+				Gateways: map[addr.IA][]control.RemoteGateway{
 					xtest.MustParseIA("1-ff00:0:110"): {
 						{
 							Gateway: control.Gateway{
@@ -339,7 +339,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 				},
 			},
 			RoutingUpdate: control.RemoteGateways{
-				Gateways: map[addr.IAInt][]control.RemoteGateway{
+				Gateways: map[addr.IA][]control.RemoteGateway{
 
 					xtest.MustParseIA("1-ff00:0:110"): {
 						{
@@ -673,7 +673,7 @@ func TestConjuctionPolicy(t *testing.T) {
 func TestNewPathPolForEnteringAS(t *testing.T) {
 	testCases := map[string]struct {
 		Interfaces    []uint64
-		IA            addr.IAInt
+		IA            addr.IA
 		AcceptedPaths []snet.Path
 		RejectedPaths []snet.Path
 	}{

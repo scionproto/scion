@@ -144,7 +144,7 @@ func (cfg *DBConfig) ConfigName() string {
 	return "db"
 }
 
-func NewBeaconStorage(c DBConfig, ia addr.IAInt) (BeaconDB, error) {
+func NewBeaconStorage(c DBConfig, ia addr.IA) (BeaconDB, error) {
 	log.Info("Connecting BeaconDB", "backend", BackendSqlite, "connection", c.Connection)
 	db, err := sqlitebeacondb.New(c.Connection, ia)
 	if err != nil {

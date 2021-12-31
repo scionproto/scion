@@ -247,7 +247,7 @@ func topoWithModification(
 		return topo
 	}
 }
-func setIA(ia addr.IAInt) func(topo *topology.RWTopology) {
+func setIA(ia addr.IA) func(topo *topology.RWTopology) {
 	return func(topo *topology.RWTopology) {
 		topo.IA = ia
 	}

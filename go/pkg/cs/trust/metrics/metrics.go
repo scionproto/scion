@@ -60,8 +60,8 @@ var (
 )
 
 // PeerToLabel converts the peer address to a peer metric label.
-func PeerToLabel(peer net.Addr, local addr.IAInt) string {
-	var ia addr.IAInt
+func PeerToLabel(peer net.Addr, local addr.IA) string {
+	var ia addr.IA
 	switch v := peer.(type) {
 	case *snet.SVCAddr:
 		ia = v.IA

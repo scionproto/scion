@@ -33,7 +33,7 @@ type ConfigPublisher struct {
 
 	sessionPoliciesSubscribers []chan SessionPolicies
 	routingPoliciesSubscribers []chan *routing.Policy
-	remoteIAsSubscribers       []chan []addr.IAInt
+	remoteIAsSubscribers       []chan []addr.IA
 }
 
 // Publish notifies clients of the Publisher about new configurations. Nil
@@ -112,11 +112,11 @@ func (n *ConfigPublisher) SubscribeRoutingPolicies() <-chan *routing.Policy {
 //
 // Subscriptions happening prior to a Publish are guaranteed to return the new
 // state read by the NotPublishify.
-func (n *ConfigPublisher) SubscribeRemoteIAs() <-chan []addr.IAInt {
+func (n *ConfigPublisher) SubscribeRemoteIAs() <-chan []addr.IA {
 	n.mtx.Lock()
 	defer n.mtx.Unlock()
 
-	c := make(chan []addr.IAInt)
+	c := make(chan []addr.IA)
 	n.remoteIAsSubscribers = append(n.remoteIAsSubscribers, c)
 	return c
 }

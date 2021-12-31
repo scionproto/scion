@@ -212,10 +212,10 @@ func (h *humanTRC) setTRC(trc cppki.TRC) error {
 }
 
 type certDesc struct {
-	Type         string     `yaml:"type,omitempty" json:"type,omitempty"`
-	CommonName   string     `yaml:"common_name,omitempty" json:"common_name,omitempty"`
-	IA           addr.IAInt `yaml:"isd_as,omitempty" json:"isd_as,omitempty"`
-	SerialNumber string     `yaml:"serial_number,omitempty" json:"serial_number,omitempty"`
+	Type         string  `yaml:"type,omitempty" json:"type,omitempty"`
+	CommonName   string  `yaml:"common_name,omitempty" json:"common_name,omitempty"`
+	IA           addr.IA `yaml:"isd_as,omitempty" json:"isd_as,omitempty"`
+	SerialNumber string  `yaml:"serial_number,omitempty" json:"serial_number,omitempty"`
 	Validity     struct {
 		NotBefore time.Time `yaml:"not_before,omitempty" json:"not_before,omitempty"`
 		NotAfter  time.Time `yaml:"not_after,omitempty" json:"not_after,omitempty"`
@@ -225,12 +225,12 @@ type certDesc struct {
 }
 
 type signerInfo struct {
-	CommonName   string     `yaml:"common_name,omitempty" json:"common_name,omitempty"`
-	IA           addr.IAInt `yaml:"isd_as,omitempty" json:"isd_as,omitempty"`
-	SerialNumber string     `yaml:"serial_number,omitempty" json:"serial_number,omitempty"`
-	SigningTime  time.Time  `yaml:"signing_time,omitempty" json:"signing_time,omitempty"`
-	Purpose      string     `yaml:"purpose,omitempty" json:"purpose,omitempty"`
-	Error        string     `yaml:"error,omitempty" json:"error,omitempty"`
+	CommonName   string    `yaml:"common_name,omitempty" json:"common_name,omitempty"`
+	IA           addr.IA   `yaml:"isd_as,omitempty" json:"isd_as,omitempty"`
+	SerialNumber string    `yaml:"serial_number,omitempty" json:"serial_number,omitempty"`
+	SigningTime  time.Time `yaml:"signing_time,omitempty" json:"signing_time,omitempty"`
+	Purpose      string    `yaml:"purpose,omitempty" json:"purpose,omitempty"`
+	Error        string    `yaml:"error,omitempty" json:"error,omitempty"`
 }
 
 func newSignerInfo(info protocol.SignerInfo, certs []*x509.Certificate) (signerInfo, error) {
@@ -268,7 +268,7 @@ func newSignerInfo(info protocol.SignerInfo, certs []*x509.Certificate) (signerI
 	}, nil
 }
 
-func extractIA(name pkix.Name) addr.IAInt {
+func extractIA(name pkix.Name) addr.IA {
 	ia, err := cppki.ExtractIA(name)
 	if err != nil {
 		return 0

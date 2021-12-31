@@ -48,7 +48,7 @@ type RegistryServer struct {
 	// Verifier is used to verify the received segments.
 	Verifier Verifier
 	// LocalIA is the IA this handler is in.
-	LocalIA addr.IAInt
+	LocalIA addr.IA
 }
 
 // Register registers the given registration.

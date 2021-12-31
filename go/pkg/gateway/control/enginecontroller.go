@@ -41,7 +41,7 @@ type TrafficMatcher struct {
 type RoutingChain struct {
 	// RemoteIA is the remote ISD-AS to which this routing chain routes, it is
 	// set for informational purposes.
-	RemoteIA addr.IAInt
+	RemoteIA addr.IA
 	// The list of prefixes, the order is not relevant.
 	Prefixes []*net.IPNet
 	// TrafficMatchers defines the traffic matchers in this routing chain. The
@@ -261,8 +261,8 @@ func buildRoutingChains(sessionConfigs []*SessionConfig) ([]*RoutingChain, map[i
 	trafficMatcherID := 1
 
 	// first we group by IA:
-	iaConfigs := make(map[addr.IAInt][]*SessionConfig)
-	var sortedIAs []addr.IAInt
+	iaConfigs := make(map[addr.IA][]*SessionConfig)
+	var sortedIAs []addr.IA
 	for _, sc := range sessionConfigs {
 		if _, ok := iaConfigs[sc.IA]; !ok {
 			sortedIAs = append(sortedIAs, sc.IA)

@@ -21,7 +21,7 @@ import (
 )
 
 type PathQuerier interface {
-	Query(context.Context, addr.IAInt) ([]Path, error)
+	Query(context.Context, addr.IA) ([]Path, error)
 }
 
 // Router performs path resolution for SCION-speaking applications.
@@ -32,9 +32,9 @@ type PathQuerier interface {
 type Router interface {
 	// Route returns a path from the local AS to dst. If dst matches the local
 	// AS, an empty path is returned.
-	Route(ctx context.Context, dst addr.IAInt) (Path, error)
+	Route(ctx context.Context, dst addr.IA) (Path, error)
 	// AllRoutes is similar to Route except that it returns multiple paths.
-	AllRoutes(ctx context.Context, dst addr.IAInt) ([]Path, error)
+	AllRoutes(ctx context.Context, dst addr.IA) ([]Path, error)
 }
 
 type BaseRouter struct {
@@ -43,7 +43,7 @@ type BaseRouter struct {
 
 // Route uses the specified path resolver (if one exists) to obtain a path from
 // the local AS to dst.
-func (r *BaseRouter) Route(ctx context.Context, dst addr.IAInt) (Path, error) {
+func (r *BaseRouter) Route(ctx context.Context, dst addr.IA) (Path, error) {
 	paths, err := r.AllRoutes(ctx, dst)
 	if err != nil || len(paths) == 0 {
 		return nil, err
@@ -52,7 +52,7 @@ func (r *BaseRouter) Route(ctx context.Context, dst addr.IAInt) (Path, error) {
 }
 
 // AllRoutes is the same as Route except that it returns multiple paths.
-func (r *BaseRouter) AllRoutes(ctx context.Context, dst addr.IAInt) ([]Path, error) {
+func (r *BaseRouter) AllRoutes(ctx context.Context, dst addr.IA) ([]Path, error) {
 	return r.Querier.Query(ctx, dst)
 }
 
@@ -61,10 +61,10 @@ func (r *BaseRouter) AllRoutes(ctx context.Context, dst addr.IAInt) ([]Path, err
 // should only be used in places where you know that you only need to
 // communicate inside the AS.
 type IntraASPathQuerier struct {
-	IA addr.IAInt
+	IA addr.IA
 }
 
 // Query implements PathQuerier.
-func (q IntraASPathQuerier) Query(_ context.Context, _ addr.IAInt) ([]Path, error) {
+func (q IntraASPathQuerier) Query(_ context.Context, _ addr.IA) ([]Path, error) {
 	return []Path{&partialPath{destination: q.IA}}, nil
 }

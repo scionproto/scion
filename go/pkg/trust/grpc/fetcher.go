@@ -40,7 +40,7 @@ import (
 // Fetcher fetches trust material from a remote using gRPC.
 type Fetcher struct {
 	// IA is the local ISD-AS.
-	IA addr.IAInt
+	IA addr.IA
 	// Dialer dials a new gRPC connection.
 	Dialer grpc.Dialer
 

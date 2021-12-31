@@ -27,7 +27,7 @@ type Verifier struct {
 	trust.Verifier
 }
 
-func (v Verifier) WithIA(ia addr.IAInt) infra.Verifier {
+func (v Verifier) WithIA(ia addr.IA) infra.Verifier {
 	v.BoundIA = ia
 	return v
 }

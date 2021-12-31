@@ -39,7 +39,7 @@ type MaterialServer struct {
 	// Provider provides the trust material.
 	Provider trust.Provider
 	// IA is the local ISD-AS.
-	IA addr.IAInt
+	IA addr.IA
 
 	// Requests aggregates all the incoming requests received by the handler. If
 	// it is not initialized, nothing is reported.

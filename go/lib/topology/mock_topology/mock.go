@@ -125,10 +125,10 @@ func (mr *MockTopologyMockRecorder) Gateways() *gomock.Call {
 }
 
 // IA mocks base method.
-func (m *MockTopology) IA() addr.IAInt {
+func (m *MockTopology) IA() addr.IA {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IA")
-	ret0, _ := ret[0].(addr.IAInt)
+	ret0, _ := ret[0].(addr.IA)
 	return ret0
 }
 

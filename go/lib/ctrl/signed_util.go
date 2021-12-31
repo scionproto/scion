@@ -34,7 +34,7 @@ const (
 
 // X509SignSrc identifes what x509 certificate can be used to verify the signature.
 type X509SignSrc struct {
-	IA           addr.IAInt
+	IA           addr.IA
 	Base         scrypto.Version
 	Serial       scrypto.Version
 	SubjectKeyID []byte

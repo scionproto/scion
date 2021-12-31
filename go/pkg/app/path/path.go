@@ -73,7 +73,7 @@ func Filter(seq string, paths []snet.Path) ([]snet.Path, error) {
 func Choose(
 	ctx context.Context,
 	conn daemon.Connector,
-	remote addr.IAInt,
+	remote addr.IA,
 	opts ...Option,
 ) (snet.Path, error) {
 
@@ -98,7 +98,7 @@ func Choose(
 func filterUnhealthy(
 	ctx context.Context,
 	paths []snet.Path,
-	remote addr.IAInt,
+	remote addr.IA,
 	sd daemon.Connector,
 	cfg *ProbeConfig,
 ) ([]snet.Path, error) {
@@ -145,7 +145,7 @@ func filterUnhealthy(
 func fetchPaths(
 	ctx context.Context,
 	conn daemon.Connector,
-	remote addr.IAInt,
+	remote addr.IA,
 	refresh bool,
 	seq string,
 ) ([]snet.Path, error) {
@@ -165,7 +165,7 @@ func fetchPaths(
 	return paths, nil
 }
 
-func printAndChoose(paths []snet.Path, remote addr.IAInt, cs ColorScheme) (snet.Path, error) {
+func printAndChoose(paths []snet.Path, remote addr.IA, cs ColorScheme) (snet.Path, error) {
 	Sort(paths)
 
 	sectionHeader := func(intfs int) {
@@ -282,7 +282,7 @@ func (cs ColorScheme) Path(path snet.Path) string {
 }
 
 type ProbeConfig struct {
-	LocalIA    addr.IAInt
+	LocalIA    addr.IA
 	LocalIP    net.IP
 	Dispatcher string
 

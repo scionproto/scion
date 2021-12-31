@@ -167,7 +167,7 @@ func copy(revs revcache.Revocations) revcache.Revocations {
 	return res
 }
 
-func defaultRevInfo(ia addr.IAInt, ifId uint16, ts time.Time) *path_mgmt.RevInfo {
+func defaultRevInfo(ia addr.IA, ifId uint16, ts time.Time) *path_mgmt.RevInfo {
 	return &path_mgmt.RevInfo{
 		IfID:         common.IFIDType(ifId),
 		RawIsdas:     ia,

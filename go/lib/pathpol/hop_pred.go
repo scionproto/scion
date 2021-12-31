@@ -118,7 +118,7 @@ func (hp HopPredicate) String() string {
 	for _, ifid := range hp.IfIDs {
 		s = append(s, ifid.String())
 	}
-	return fmt.Sprintf("%s#%s", addr.NewIAInt(hp.ISD, hp.AS), strings.Join(s, ","))
+	return fmt.Sprintf("%s#%s", addr.NewIA(hp.ISD, hp.AS), strings.Join(s, ","))
 }
 
 func (hp *HopPredicate) MarshalJSON() ([]byte, error) {

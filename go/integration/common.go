@@ -209,7 +209,7 @@ func AttemptRepeatedly(name string, attempt AttemptFunc) int {
 }
 
 // Done informs the integration test that a test binary has finished.
-func Done(src, dst addr.IAInt) {
+func Done(src, dst addr.IA) {
 	if Progress == "" {
 		return
 	}

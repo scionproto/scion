@@ -235,7 +235,7 @@ func (db *metricsExecutor) GetAll(ctx context.Context) (query.Results, error) {
 }
 
 func (db *metricsExecutor) InsertNextQuery(ctx context.Context,
-	src, dst addr.IAInt, nextQuery time.Time) (bool, error) {
+	src, dst addr.IA, nextQuery time.Time) (bool, error) {
 
 	var ok bool
 	var err error
@@ -248,7 +248,7 @@ func (db *metricsExecutor) InsertNextQuery(ctx context.Context,
 
 func (db *metricsExecutor) GetNextQuery(
 	ctx context.Context,
-	src, dst addr.IAInt,
+	src, dst addr.IA,
 ) (time.Time, error) {
 
 	var t time.Time

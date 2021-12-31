@@ -86,7 +86,7 @@ func RelevantRevInfos(ctx context.Context, revCache RevCache,
 // addRevKeys adds all revocations keys for the given segments to the keys set.
 // If hopOnly is set, only the first hop entry is considered.
 func addRevKeys(segs []*seg.PathSegment, keys KeySet, hopOnly bool) {
-	addIntfs := func(ia addr.IAInt, ingress, egress uint16) {
+	addIntfs := func(ia addr.IA, ingress, egress uint16) {
 		if ingress != 0 {
 			keys[*NewKey(ia, common.IFIDType(ingress))] = struct{}{}
 		}

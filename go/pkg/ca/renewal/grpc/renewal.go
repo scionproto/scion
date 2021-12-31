@@ -56,7 +56,7 @@ type RenewalServerMetrics struct {
 
 // RenewalServer servers trust material for gRPC requests.
 type RenewalServer struct {
-	IA            addr.IAInt
+	IA            addr.IA
 	LegacyHandler LegacyRequestHandler
 	CMSHandler    CMSRequestHandler
 	CMSSigner     CMSSigner

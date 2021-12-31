@@ -37,7 +37,7 @@ import (
 )
 
 type FetcherConfig struct {
-	IA         addr.IAInt
+	IA         addr.IA
 	MTU        uint16
 	Core       bool
 	NextHopper interface {
@@ -126,7 +126,7 @@ func newRouter(cfg FetcherConfig, fetcher *segfetcher.Fetcher) snet.Router {
 }
 
 type localInfo struct {
-	localIA addr.IAInt
+	localIA addr.IA
 }
 
 // IsSegLocal returns true for segments requests that can be answered authoritatively:
@@ -156,7 +156,7 @@ func (l *localInfo) IsSegLocal(req segfetcher.Request) bool {
 // The recursion depth, at runtime, is limited to 2, as this will _only_ be
 // called to fetch core segments when requesting down segments.
 type dstProvider struct {
-	localIA     addr.IAInt
+	localIA     addr.IA
 	router      snet.Router
 	segSelector *SegSelector
 }
@@ -207,10 +207,10 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 	return addr, nil
 }
 
-func (p *dstProvider) upPath(ctx context.Context, dst addr.IAInt) (snet.Path, error) {
+func (p *dstProvider) upPath(ctx context.Context, dst addr.IA) (snet.Path, error) {
 	return p.segSelector.SelectSeg(ctx, &query.Params{
-		StartsAt: []addr.IAInt{dst},
-		EndsAt:   []addr.IAInt{p.localIA},
+		StartsAt: []addr.IA{dst},
+		EndsAt:   []addr.IA{p.localIA},
 		SegTypes: []seg.Type{seg.TypeUp},
 	})
 }

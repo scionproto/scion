@@ -128,8 +128,8 @@ var denyEntry = &ACLEntry{ACLAction(false), NewHopPredicate()}
 func TestACLEval(t *testing.T) {
 	tests := map[string]struct {
 		ACL        *ACL
-		Src        addr.IAInt
-		Dst        addr.IAInt
+		Src        addr.IA
+		Dst        addr.IA
 		ExpPathNum int
 	}{
 		"allow everything": {

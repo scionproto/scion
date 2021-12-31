@@ -39,7 +39,7 @@ type Recurser interface {
 
 // ASLocalRecurser allows AS local addresses to start recursive requests.
 type ASLocalRecurser struct {
-	IA addr.IAInt
+	IA addr.IA
 }
 
 // AllowRecursion returns an error if address is not part of the local AS (or if

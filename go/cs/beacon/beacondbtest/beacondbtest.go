@@ -31,12 +31,12 @@ import (
 )
 
 var (
-	IA311 = addr.NewIAInt(1, 0xff0000000311)
-	IA330 = addr.NewIAInt(1, 0xff0000000330)
-	IA331 = addr.NewIAInt(1, 0xff0000000331)
-	IA332 = addr.NewIAInt(1, 0xff0000000332)
-	IA333 = addr.NewIAInt(1, 0xff0000000333)
-	IA334 = addr.NewIAInt(2, 0xff0000000334)
+	IA311 = addr.NewIA(1, 0xff0000000311)
+	IA330 = addr.NewIA(1, 0xff0000000330)
+	IA331 = addr.NewIA(1, 0xff0000000331)
+	IA332 = addr.NewIA(1, 0xff0000000332)
+	IA333 = addr.NewIA(1, 0xff0000000333)
+	IA334 = addr.NewIA(2, 0xff0000000334)
 
 	Info1 = []IfInfo{
 		{
@@ -135,7 +135,7 @@ func testBeaconSources(t *testing.T, db beacon.DB) {
 	defer cancelF()
 	ias, err := db.BeaconSources(ctx)
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []addr.IAInt{IA311, IA330}, ias)
+	assert.ElementsMatch(t, []addr.IA{IA311, IA330}, ias)
 }
 
 func testInsertBeacon(t *testing.T, db beacon.DB) {
@@ -250,7 +250,7 @@ func testCandidateBeacons(t *testing.T, db Testable) {
 	insertBeacons(t, db)
 	tests := map[string]struct {
 		PrepareDB func(t *testing.T, ctx context.Context, db beacon.DB)
-		Src       addr.IAInt
+		Src       addr.IA
 		Expected  []beacon.Beacon
 	}{
 		"If no source ISD-AS is specified, all beacons are returned": {
@@ -333,13 +333,13 @@ func InsertBeacon(t *testing.T, db beacon.DB, ases []IfInfo,
 }
 
 type PeerEntry struct {
-	IA      addr.IAInt
+	IA      addr.IA
 	Ingress common.IFIDType
 }
 
 type IfInfo struct {
-	IA      addr.IAInt
-	Next    addr.IAInt
+	IA      addr.IA
+	Next    addr.IA
 	Ingress common.IFIDType
 	Egress  common.IFIDType
 	Peers   []PeerEntry

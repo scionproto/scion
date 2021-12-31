@@ -327,7 +327,7 @@ func testBeacon(g *graph.Graph, desc []uint16) beacon.Beacon {
 	}
 }
 
-func testSigner(t *testing.T, priv crypto.Signer, ia addr.IAInt) seg.Signer {
+func testSigner(t *testing.T, priv crypto.Signer, ia addr.IA) seg.Signer {
 	return trust.Signer{
 		PrivateKey: priv,
 		Algorithm:  signed.ECDSAWithSHA256,

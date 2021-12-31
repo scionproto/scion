@@ -108,7 +108,7 @@ func (l *Loader) Run(ctx context.Context) error {
 	}
 }
 
-func (l *Loader) IA() addr.IAInt {
+func (l *Loader) IA() addr.IA {
 	l.mtx.Lock()
 	defer l.mtx.Unlock()
 

@@ -523,7 +523,7 @@ func (e *executor) GetAll(ctx context.Context) (query.Results, error) {
 	return e.Get(ctx, nil)
 }
 
-func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IAInt,
+func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IA,
 	nextQuery time.Time) (bool, error) {
 
 	e.Lock()
@@ -562,7 +562,7 @@ func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IAInt,
 	return n > 0, err
 }
 
-func (e *executor) GetNextQuery(ctx context.Context, src, dst addr.IAInt) (time.Time, error) {
+func (e *executor) GetNextQuery(ctx context.Context, src, dst addr.IA) (time.Time, error) {
 	e.RLock()
 	defer e.RUnlock()
 	if e.db == nil {

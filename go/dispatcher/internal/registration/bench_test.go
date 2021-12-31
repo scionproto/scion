@@ -22,7 +22,7 @@ import (
 )
 
 type registerArgs struct {
-	ia     addr.IAInt
+	ia     addr.IA
 	public *net.UDPAddr
 	bind   net.IP
 	svc    addr.HostSVC
@@ -71,7 +71,7 @@ func BenchmarkLookupPublicIPv4(b *testing.B) {
 	lookupData := generateLookupPublicArgs(b.N)
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		table.LookupPublic(addr.NewIAInt(1, 1), lookupData[n])
+		table.LookupPublic(addr.NewIA(1, 1), lookupData[n])
 	}
 }
 
@@ -102,6 +102,6 @@ func BenchmarkLookupServiceIPv4(b *testing.B) {
 	lookupData := generateLookupServiceArgs(b.N)
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		table.LookupService(addr.NewIAInt(1, 1), lookupData[n].svc, lookupData[n].bind)
+		table.LookupService(addr.NewIA(1, 1), lookupData[n].svc, lookupData[n].bind)
 	}
 }

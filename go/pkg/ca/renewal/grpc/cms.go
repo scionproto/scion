@@ -56,7 +56,7 @@ type CMSHandlerMetrics struct {
 type CMS struct {
 	Verifier     RenewalRequestVerifier
 	ChainBuilder ChainBuilder
-	IA           addr.IAInt
+	IA           addr.IA
 
 	// Metrics contains the counters. It is safe to pass nil-counters.
 	Metrics CMSHandlerMetrics
@@ -99,7 +99,7 @@ func (s CMS) HandleCMSRequest(
 	return newClientChain, nil
 }
 
-func extractIssuerIA(raw []byte, logger log.Logger) (addr.IAInt, error) {
+func extractIssuerIA(raw []byte, logger log.Logger) (addr.IA, error) {
 	chain, err := extractChain(raw)
 	if err != nil {
 		logger.Debug("Failed to extract client certificate", "err", err)

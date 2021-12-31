@@ -887,7 +887,7 @@ func TestProcessPkt(t *testing.T) {
 						}},
 					},
 					xtest.MustParseIA("1-ff00:0:110"),
-					map[uint16]addr.IAInt{
+					map[uint16]addr.IA{
 						uint16(1): xtest.MustParseIA("1-ff00:0:111"),
 					}, key)
 			},
@@ -941,7 +941,7 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(
 					nil, nil, nil, nil, nil,
 					xtest.MustParseIA("1-ff00:0:110"),
-					map[uint16]addr.IAInt{
+					map[uint16]addr.IA{
 						uint16(1): xtest.MustParseIA("1-ff00:0:111"),
 					}, key)
 			},
@@ -1041,7 +1041,7 @@ func TestProcessPkt(t *testing.T) {
 					mock_router.NewMockBatchConn(ctrl), nil,
 					nil,
 					xtest.MustParseIA("1-ff00:0:110"),
-					map[uint16]addr.IAInt{
+					map[uint16]addr.IA{
 						uint16(2): xtest.MustParseIA("1-ff00:0:111"),
 					}, key)
 			},

@@ -27,7 +27,7 @@ import (
 // segments are missing, the request is forwarded to the respective core ASes.
 // It should only be used in a non-core AS.
 type ForwardingLookup struct {
-	LocalIA     addr.IAInt
+	LocalIA     addr.IA
 	CoreChecker CoreChecker
 	Fetcher     *segfetcher.Fetcher
 	Expander    WildcardExpander
@@ -39,7 +39,7 @@ type ForwardingLookup struct {
 //  - down and core segments are forwarded to the responsible core ASes,
 //    and results are cached
 func (f ForwardingLookup) LookupSegments(ctx context.Context, src,
-	dst addr.IAInt) (segfetcher.Segments, error) {
+	dst addr.IA) (segfetcher.Segments, error) {
 
 	segType, err := f.classify(ctx, src, dst)
 	if err != nil {
@@ -61,7 +61,7 @@ func (f ForwardingLookup) LookupSegments(ctx context.Context, src,
 
 // classify validates the request and determines the segment type for the request
 func (f ForwardingLookup) classify(ctx context.Context,
-	src, dst addr.IAInt) (seg.Type, error) {
+	src, dst addr.IA) (seg.Type, error) {
 
 	if src.I() == 0 || dst.I() == 0 {
 		return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,

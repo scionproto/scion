@@ -43,7 +43,7 @@ type SenderFactory interface {
 	// is required to close the sender once it's not used anymore.
 	NewSender(
 		ctx context.Context,
-		dst addr.IAInt,
+		dst addr.IA,
 		egress uint16,
 		nexthop *net.UDPAddr,
 	) (Sender, error)
@@ -62,7 +62,7 @@ type Sender interface {
 type Originator struct {
 	Extender              Extender
 	SenderFactory         SenderFactory
-	IA                    addr.IAInt
+	IA                    addr.IA
 	Signer                seg.Signer
 	AllInterfaces         *ifstate.Interfaces
 	OriginationInterfaces func() []*ifstate.Interface

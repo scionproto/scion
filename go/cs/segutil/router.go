@@ -30,7 +30,7 @@ type Router struct {
 
 // Route returns a path from the local AS to dst. If dst matches the local
 // AS, an empty path is returned.
-func (r *Router) Route(ctx context.Context, dst addr.IAInt) (snet.Path, error) {
+func (r *Router) Route(ctx context.Context, dst addr.IA) (snet.Path, error) {
 	paths, err := r.AllRoutes(ctx, dst)
 	if err != nil || len(paths) == 0 {
 		return nil, err
@@ -39,6 +39,6 @@ func (r *Router) Route(ctx context.Context, dst addr.IAInt) (snet.Path, error) {
 }
 
 // AllRoutes is similar to Route except that it returns multiple paths.
-func (r *Router) AllRoutes(ctx context.Context, dst addr.IAInt) ([]snet.Path, error) {
+func (r *Router) AllRoutes(ctx context.Context, dst addr.IA) ([]snet.Path, error) {
 	return r.Pather.GetPaths(ctx, dst, false)
 }

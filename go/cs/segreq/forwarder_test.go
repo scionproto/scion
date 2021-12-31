@@ -40,7 +40,7 @@ var (
 	nonCore211 = xtest.MustParseIA("2-ff00:0:211")
 	nonCore212 = xtest.MustParseIA("2-ff00:0:212")
 
-	cores = map[addr.IAInt]struct{}{
+	cores = map[addr.IA]struct{}{
 		core110: {},
 		core120: {},
 		core130: {},
@@ -54,7 +54,7 @@ func newMockCoreChecker(ctrl *gomock.Controller) CoreChecker {
 
 	inspector := mock_trust.NewMockInspector(ctrl)
 	inspector.EXPECT().HasAttributes(gomock.Any(), gomock.Any(), trust.Core).DoAndReturn(
-		func(_ context.Context, ia addr.IAInt, _ trust.Attribute) (bool, error) {
+		func(_ context.Context, ia addr.IA, _ trust.Attribute) (bool, error) {
 			_, ok := cores[ia]
 			return ok, nil
 		},
@@ -64,11 +64,11 @@ func newMockCoreChecker(ctrl *gomock.Controller) CoreChecker {
 
 func TestForwarderClassify(t *testing.T) {
 	type request struct {
-		Src addr.IAInt
-		Dst addr.IAInt
+		Src addr.IA
+		Dst addr.IA
 	}
 	tests := map[string]struct {
-		LocalIA         addr.IAInt
+		LocalIA         addr.IA
 		Request         request
 		ErrorAssertion  require.ErrorAssertionFunc
 		ExpectedSegType seg.Type
@@ -76,7 +76,7 @@ func TestForwarderClassify(t *testing.T) {
 		"Invalid Src": {
 			LocalIA: nonCore111,
 			Request: request{
-				Src: addr.NewIAInt(0, nonCore111.A()),
+				Src: addr.NewIA(0, nonCore111.A()),
 				Dst: core110,
 			},
 			ErrorAssertion: require.Error,
@@ -85,15 +85,15 @@ func TestForwarderClassify(t *testing.T) {
 			LocalIA: nonCore111,
 			Request: request{
 				Src: nonCore111,
-				Dst: addr.NewIAInt(0, 0),
+				Dst: addr.NewIA(0, 0),
 			},
 			ErrorAssertion: require.Error,
 		},
 		"Core Wildcards Src & Dst": {
 			LocalIA: nonCore111,
 			Request: request{
-				Src: addr.NewIAInt(1, 0),
-				Dst: addr.NewIAInt(2, 0),
+				Src: addr.NewIA(1, 0),
+				Dst: addr.NewIA(2, 0),
 			},
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: seg.TypeCore,
@@ -101,7 +101,7 @@ func TestForwarderClassify(t *testing.T) {
 		"Core Wildcard Src": {
 			LocalIA: nonCore111,
 			Request: request{
-				Src: addr.NewIAInt(1, 0),
+				Src: addr.NewIA(1, 0),
 				Dst: core210,
 			},
 			ErrorAssertion:  require.NoError,
@@ -111,7 +111,7 @@ func TestForwarderClassify(t *testing.T) {
 			LocalIA: nonCore111,
 			Request: request{
 				Src: core110,
-				Dst: addr.NewIAInt(2, 0),
+				Dst: addr.NewIA(2, 0),
 			},
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: seg.TypeCore,
@@ -136,7 +136,7 @@ func TestForwarderClassify(t *testing.T) {
 		"Down Wildcard": {
 			LocalIA: nonCore111,
 			Request: request{
-				Src: addr.NewIAInt(1, 0),
+				Src: addr.NewIA(1, 0),
 				Dst: nonCore112,
 			},
 			ErrorAssertion:  require.NoError,
@@ -154,7 +154,7 @@ func TestForwarderClassify(t *testing.T) {
 		"Down Remote ISD Wildcard": {
 			LocalIA: nonCore111,
 			Request: request{
-				Src: addr.NewIAInt(2, 0),
+				Src: addr.NewIA(2, 0),
 				Dst: nonCore212,
 			},
 			ErrorAssertion:  require.NoError,
@@ -189,7 +189,7 @@ func TestForwarderClassify(t *testing.T) {
 			LocalIA: nonCore111,
 			Request: request{
 				Src: nonCore111,
-				Dst: addr.NewIAInt(1, 0),
+				Dst: addr.NewIA(1, 0),
 			},
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: seg.TypeUp,
@@ -198,7 +198,7 @@ func TestForwarderClassify(t *testing.T) {
 			LocalIA: nonCore111,
 			Request: request{
 				Src: nonCore112,
-				Dst: addr.NewIAInt(1, 0),
+				Dst: addr.NewIA(1, 0),
 			},
 			ErrorAssertion: require.Error,
 		},

@@ -49,7 +49,7 @@ type Topology interface {
 
 // DaemonServer handles gRPC requests to the SCION daemon.
 type DaemonServer struct {
-	IA          addr.IAInt
+	IA          addr.IA
 	MTU         uint16
 	Topology    Topology
 	Fetcher     fetcher.Fetcher
@@ -67,7 +67,7 @@ func (s *DaemonServer) Paths(ctx context.Context,
 	req *sdpb.PathsRequest) (*sdpb.PathsResponse, error) {
 
 	start := time.Now()
-	dstI := addr.IAInt(req.DestinationIsdAs).I()
+	dstI := addr.IA(req.DestinationIsdAs).I()
 	response, err := s.paths(ctx, req)
 	s.Metrics.PathsRequests.inc(
 		pathReqLabels{Result: errToMetricResult(err), Dst: dstI},
@@ -84,7 +84,7 @@ func (s *DaemonServer) paths(ctx context.Context,
 		ctx, cancelF = context.WithTimeout(ctx, 10*time.Second)
 		defer cancelF()
 	}
-	srcIA, dstIA := addr.IAInt(req.SourceIsdAs), addr.IAInt(req.DestinationIsdAs)
+	srcIA, dstIA := addr.IA(req.SourceIsdAs), addr.IA(req.DestinationIsdAs)
 	go func() {
 		defer log.HandlePanic()
 		s.backgroundPaths(ctx, srcIA, dstIA, req.Refresh)
@@ -105,7 +105,7 @@ func (s *DaemonServer) paths(ctx context.Context,
 func (s *DaemonServer) fetchPaths(
 	ctx context.Context,
 	group *singleflight.Group,
-	src, dst addr.IAInt,
+	src, dst addr.IA,
 	refresh bool,
 ) ([]snet.Path, error) {
 
@@ -185,7 +185,7 @@ func linkTypeToPB(lt snet.LinkType) sdpb.LinkType {
 	}
 }
 
-func (s *DaemonServer) backgroundPaths(origCtx context.Context, src, dst addr.IAInt, refresh bool) {
+func (s *DaemonServer) backgroundPaths(origCtx context.Context, src, dst addr.IA, refresh bool) {
 	backgroundTimeout := 5 * time.Second
 	deadline, ok := origCtx.Deadline()
 	if !ok || time.Until(deadline) > backgroundTimeout {
@@ -218,7 +218,7 @@ func (s *DaemonServer) AS(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASRes
 }
 
 func (s *DaemonServer) as(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASResponse, error) {
-	reqIA := addr.IAInt(req.IsdAs)
+	reqIA := addr.IA(req.IsdAs)
 	if reqIA.IsZero() {
 		reqIA = s.IA
 	}
@@ -318,7 +318,7 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 	req *sdpb.NotifyInterfaceDownRequest) (*sdpb.NotifyInterfaceDownResponse, error) {
 
 	revInfo := &path_mgmt.RevInfo{
-		RawIsdas:     addr.IAInt(req.IsdAs),
+		RawIsdas:     addr.IA(req.IsdAs),
 		IfID:         common.IFIDType(req.Id),
 		LinkType:     proto.LinkType_core,
 		RawTTL:       10,
