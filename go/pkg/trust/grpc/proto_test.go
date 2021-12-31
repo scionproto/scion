@@ -37,7 +37,7 @@ func TestChainQueryToReq(t *testing.T) {
 		SubjectKeyID: []byte("frank"),
 	}
 	req := trustgrpc.ChainQueryToReq(query)
-	assert.Equal(t, uint64(query.IA.IAInt()), req.IsdAs)
+	assert.Equal(t, uint64(query.IA), req.IsdAs)
 	assert.Equal(t, query.SubjectKeyID, req.SubjectKeyId)
 	ts, err := ptypes.Timestamp(req.Date)
 	assert.NoError(t, err)

@@ -43,7 +43,7 @@ type Backend struct {
 // New returns a new SQLite backend opening a database at the given path. If
 // no database exists a new database is be created. If the schema version of the
 // stored database is different from the one in schema.go, an error is returned.
-func New(path string, ia addr.IA) (*Backend, error) {
+func New(path string, ia addr.IAInt) (*Backend, error) {
 	db, err := db.NewSqlite(path, Schema, SchemaVersion)
 	if err != nil {
 		return nil, err
@@ -75,7 +75,7 @@ func (b *Backend) Close() error {
 type executor struct {
 	sync.RWMutex
 	db db.Sqler
-	ia addr.IA
+	ia addr.IAInt
 }
 
 type beaconMeta struct {
@@ -84,7 +84,7 @@ type beaconMeta struct {
 	LastUpdated time.Time
 }
 
-func (e *executor) BeaconSources(ctx context.Context) ([]addr.IA, error) {
+func (e *executor) BeaconSources(ctx context.Context) ([]addr.IAInt, error) {
 	e.RLock()
 	defer e.RUnlock()
 	query := `SELECT DISTINCT StartIsd, StartAs FROM BEACONS`
@@ -93,13 +93,14 @@ func (e *executor) BeaconSources(ctx context.Context) ([]addr.IA, error) {
 		return nil, db.NewReadError("Error selecting source IAs", err)
 	}
 	defer rows.Close()
-	var ias []addr.IA
+	var ias []addr.IAInt
 	for rows.Next() {
-		var ia addr.IA
-		if err := rows.Scan(&ia.I, &ia.A); err != nil {
+		var isd addr.ISD
+		var as addr.AS
+		if err := rows.Scan(&isd, &as); err != nil {
 			return nil, err
 		}
-		ias = append(ias, ia)
+		ias = append(ias, addr.NewIAInt(isd, as))
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -111,7 +112,7 @@ func (e *executor) CandidateBeacons(
 	ctx context.Context,
 	setSize int,
 	usage beacon.Usage,
-	src addr.IA,
+	src addr.IAInt,
 ) ([]beacon.Beacon, error) {
 
 	e.RLock()
@@ -128,7 +129,7 @@ func (e *executor) CandidateBeacons(
 		LIMIT ?2
 	`, srcCond)
 	rows, err := e.db.QueryContext(ctx, query, usage, setSize, util.TimeToSecs(time.Now()),
-		src.I, src.A)
+		src.I(), src.A())
 	if err != nil {
 		return nil, db.NewReadError("Error selecting beacons", err)
 	}
@@ -259,15 +260,15 @@ func (e *executor) buildQuery(params *storagebeacon.QueryParams) (string, []inte
 			switch {
 			case as.IsZero():
 				continue
-			case as.I == 0:
+			case as.I() == 0:
 				subQ = append(subQ, "StartAs=?")
-				args = append(args, as.A)
-			case as.A == 0:
+				args = append(args, as.A())
+			case as.A() == 0:
 				subQ = append(subQ, "StartIsd=?")
-				args = append(args, as.I)
-			case as.I != 0 && as.A != 0:
+				args = append(args, as.I())
+			case as.I() != 0 && as.A() != 0:
 				subQ = append(subQ, "(StartIsd=? AND StartAs=?)")
-				args = append(args, as.I, as.A)
+				args = append(args, as.I(), as.A())
 			}
 		}
 		if len(subQ) > 0 {
@@ -382,7 +383,7 @@ func insertNewBeacon(
 		ExpirationTime, LastUpdated, Usage, Beacon)
 	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err = tx.ExecContext(ctx, inst, segID, fullID, start.I, start.A, b.InIfId,
+	_, err = tx.ExecContext(ctx, inst, segID, fullID, start.I(), start.A(), b.InIfId,
 		len(b.Segment.ASEntries), infoTime, expTime, lastUpdated, usage, packed)
 	if err != nil {
 		return db.NewWriteError("insert beacon", err)

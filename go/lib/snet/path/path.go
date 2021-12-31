@@ -32,7 +32,7 @@ import (
 
 // Path is an snet.Path with full metadata
 type Path struct {
-	Dst     addr.IA
+	Dst     addr.IAInt
 	SPath   spath.Path
 	NextHop *net.UDPAddr
 	Meta    snet.PathMetadata
@@ -53,7 +53,7 @@ func (p Path) Path() spath.Path {
 	return p.SPath.Copy()
 }
 
-func (p Path) Destination() addr.IA {
+func (p Path) Destination() addr.IAInt {
 	return p.Dst
 }
 

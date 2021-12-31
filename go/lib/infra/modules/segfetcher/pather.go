@@ -41,7 +41,7 @@ var (
 // Pather is used to construct paths from the path database. If necessary, paths
 // are fetched over the network.
 type Pather struct {
-	IA         addr.IA
+	IA         addr.IAInt
 	MTU        uint16
 	NextHopper interface {
 		UnderlayNextHop(uint16) *net.UDPAddr
@@ -55,11 +55,11 @@ type Pather struct {
 // The paths are sorted from best to worst according to the weighting in path
 // combinator. In case the destination AS is the same as the local AS, a slice
 // containing an empty path is returned.
-func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
+func (p *Pather) GetPaths(ctx context.Context, dst addr.IAInt,
 	refresh bool) ([]snet.Path, error) {
 
 	logger := log.FromCtx(ctx)
-	if dst.I == 0 {
+	if dst.I() == 0 {
 		return nil, serrors.WithCtx(ErrBadDst, "dst", dst)
 	}
 	src := p.IA
@@ -93,7 +93,7 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 	return p.translatePaths(paths)
 }
 
-func (p *Pather) buildAllPaths(src, dst addr.IA, segs Segments) []combinator.Path {
+func (p *Pather) buildAllPaths(src, dst addr.IAInt, segs Segments) []combinator.Path {
 	up, core, down := categorizeSegs(segs)
 	destinations := p.findDestinations(dst, up, core)
 	var paths []combinator.Path
@@ -111,16 +111,16 @@ func (p *Pather) buildAllPaths(src, dst addr.IA, segs Segments) []combinator.Pat
 	return validPaths
 }
 
-func (p *Pather) findDestinations(dst addr.IA, ups, cores seg.Segments) map[addr.IA]struct{} {
+func (p *Pather) findDestinations(dst addr.IAInt, ups, cores seg.Segments) map[addr.IAInt]struct{} {
 	if !dst.IsWildcard() {
-		return map[addr.IA]struct{}{dst: {}}
+		return map[addr.IAInt]struct{}{dst: {}}
 	}
 	all := cores.FirstIAs()
-	if dst.I == p.IA.I {
+	if dst.I() == p.IA.I() {
 		// for isd local wildcard we want to reach cores, they are at the end of the up segs.
 		all = append(all, ups.FirstIAs()...)
 	}
-	destinations := make(map[addr.IA]struct{})
+	destinations := make(map[addr.IAInt]struct{})
 	for _, dst := range all {
 		destinations[dst] = struct{}{}
 	}

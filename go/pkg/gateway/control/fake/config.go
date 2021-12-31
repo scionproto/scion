@@ -39,7 +39,7 @@ import (
 
 // Config is the fake gateway configuration.
 type Config struct {
-	LocalIA  addr.IA
+	LocalIA  addr.IAInt
 	Chains   []*control.RoutingChain
 	Sessions []*Session
 }
@@ -55,7 +55,7 @@ func ParseConfig(reader io.Reader, creationTime time.Time) (*Config, error) {
 		Chains:   make([]*control.RoutingChain, 0, len(rawCfg.RoutingChains)),
 		Sessions: make([]*Session, 0, len(rawCfg.Sessions)),
 	}
-	remotes := make(map[int]addr.IA)
+	remotes := make(map[int]addr.IAInt)
 	for _, rc := range rawCfg.RoutingChains {
 		prefixes, err := parsePrefixes(rc.Prefixes)
 		if err != nil {
@@ -115,7 +115,7 @@ func (h ConfigHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type LocalIAExtractor struct {
 	ConfigUpdatesRead <-chan *Config
 	ConfigUpdateWrite chan<- *Config
-	LocalIA           chan<- addr.IA
+	LocalIA           chan<- addr.IAInt
 
 	notified bool
 }
@@ -137,12 +137,12 @@ type Session struct {
 	PolicyID   int
 	IsUp       bool
 	RemoteAddr *net.UDPAddr
-	RemoteIA   addr.IA
+	RemoteIA   addr.IAInt
 	Paths      []snet.Path
 }
 
 type rawConfig struct {
-	LocalIsdAs    addr.IA           `json:"local_isd_as"`
+	LocalIsdAs    addr.IAInt        `json:"local_isd_as"`
 	RoutingChains []rawRoutingChain `json:"routing_chains"`
 	Sessions      []rawSession      `json:"sessions"`
 }
@@ -153,17 +153,17 @@ type rawTrafficMatcher struct {
 }
 
 type rawRoutingChain struct {
-	RemoteIsdAs     addr.IA             `json:"remote_isd_as"`
+	RemoteIsdAs     addr.IAInt          `json:"remote_isd_as"`
 	Prefixes        []string            `json:"prefixes"`
 	TrafficMatchers []rawTrafficMatcher `json:"traffic_matchers"`
 }
 
 type rawPathHopFields struct {
-	IsdAs   addr.IA `json:"isd_as"`
-	Ingress uint16  `json:"ingress"`
-	Egress  uint16  `json:"egress"`
-	ExpTime uint8   `json:"exp_time"`
-	Key     []byte  `json:"key"`
+	IsdAs   addr.IAInt `json:"isd_as"`
+	Ingress uint16     `json:"ingress"`
+	Egress  uint16     `json:"egress"`
+	ExpTime uint8      `json:"exp_time"`
+	Key     []byte     `json:"key"`
 }
 
 type rawPath struct {

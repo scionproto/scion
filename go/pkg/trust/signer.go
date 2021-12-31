@@ -40,7 +40,7 @@ import (
 type Signer struct {
 	PrivateKey    crypto.Signer
 	Algorithm     signed.SignatureAlgorithm
-	IA            addr.IA
+	IA            addr.IAInt
 	Subject       pkix.Name
 	Chain         []*x509.Certificate
 	SubjectKeyID  []byte
@@ -63,7 +63,7 @@ func (s Signer) Sign(ctx context.Context, msg []byte,
 	}
 
 	id := &cppb.VerificationKeyID{
-		IsdAs:        uint64(s.IA.IAInt()),
+		IsdAs:        uint64(s.IA),
 		TrcBase:      uint64(s.TRCID.Base),
 		TrcSerial:    uint64(s.TRCID.Serial),
 		SubjectKeyId: s.SubjectKeyID,

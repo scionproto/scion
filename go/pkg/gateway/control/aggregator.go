@@ -34,7 +34,7 @@ const (
 
 // RemoteGateways defines the current discovered routing state.
 type RemoteGateways struct {
-	Gateways map[addr.IA][]RemoteGateway
+	Gateways map[addr.IAInt][]RemoteGateway
 }
 
 // RemoteGateway is an entry for a single remote gateway.
@@ -46,7 +46,7 @@ type RemoteGateway struct {
 }
 
 type gatewayEntry struct {
-	IA          addr.IA
+	IA          addr.IAInt
 	Gateway     Gateway
 	Prefixes    []*net.IPNet
 	LastUpdated time.Time
@@ -115,7 +115,7 @@ func (a *Aggregator) Close(ctx context.Context) {
 }
 
 // Prefixes pushes new set of prefixes for a specific gateway.
-func (a *Aggregator) Prefixes(remote addr.IA, gateway Gateway, prefixes []*net.IPNet) {
+func (a *Aggregator) Prefixes(remote addr.IAInt, gateway Gateway, prefixes []*net.IPNet) {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 
@@ -149,7 +149,7 @@ func (a *Aggregator) report() {
 		return
 	}
 	// Push the prefixes to the consumer.
-	ru := RemoteGateways{Gateways: make(map[addr.IA][]RemoteGateway)}
+	ru := RemoteGateways{Gateways: make(map[addr.IAInt][]RemoteGateway)}
 	keys := make([]string, 0)
 	for key := range a.gateways {
 		keys = append(keys, key)

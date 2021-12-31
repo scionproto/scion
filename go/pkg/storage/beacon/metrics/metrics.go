@@ -76,7 +76,7 @@ func (d *db) CandidateBeacons(
 	ctx context.Context,
 	setSize int,
 	usage beacon.Usage,
-	src addr.IA,
+	src addr.IAInt,
 ) ([]beacon.Beacon, error) {
 
 	var ret []beacon.Beacon
@@ -88,8 +88,8 @@ func (d *db) CandidateBeacons(
 	return ret, err
 }
 
-func (d *db) BeaconSources(ctx context.Context) ([]addr.IA, error) {
-	var ret []addr.IA
+func (d *db) BeaconSources(ctx context.Context) ([]addr.IAInt, error) {
+	var ret []addr.IAInt
 	var err error
 	d.metrics.Observe(ctx, "beacon_srcs", func(ctx context.Context) (string, error) {
 		ret, err = d.db.BeaconSources(ctx)

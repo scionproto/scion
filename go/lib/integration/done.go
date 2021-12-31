@@ -26,7 +26,7 @@ import (
 )
 
 // ListenDone opens a RPC server to listen for done signals.
-func ListenDone(dir string, onDone func(src, dst addr.IA)) (string, func(), error) {
+func ListenDone(dir string, onDone func(src, dst addr.IAInt)) (string, func(), error) {
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return "", nil, serrors.WrapStr("creating socket directory", err)
 	}

@@ -49,7 +49,7 @@ func TestUpdateExtend(t *testing.T) {
 	err = cmd.Execute()
 	require.NoError(t, err)
 
-	allASes := []addr.IA{
+	allASes := []addr.IAInt{
 		xtest.MustParseIA("1-ff00:0:110"),
 		xtest.MustParseIA("1-ff00:0:120"),
 		xtest.MustParseIA("1-ff00:0:130"),
@@ -75,7 +75,7 @@ func TestUpdateExtend(t *testing.T) {
 				ia.FileFmt(true)+".pem")
 			chain, err := cppki.ReadPEMCerts(file)
 			require.NoError(t, err)
-			trc := trcs[ia.I].TRC
+			trc := trcs[ia.I()].TRC
 			err = cppki.VerifyChain(chain, cppki.VerifyOptions{TRC: []*cppki.TRC{&trc}})
 			require.NoError(t, err)
 		})
@@ -121,7 +121,7 @@ func TestUpdateReSign(t *testing.T) {
 	err = cmd.Execute()
 	require.NoError(t, err)
 
-	allASes := []addr.IA{
+	allASes := []addr.IAInt{
 		xtest.MustParseIA("1-ff00:0:110"),
 		xtest.MustParseIA("1-ff00:0:120"),
 		xtest.MustParseIA("1-ff00:0:130"),
@@ -147,7 +147,7 @@ func TestUpdateReSign(t *testing.T) {
 				ia.FileFmt(true)+".pem")
 			chain, err := cppki.ReadPEMCerts(file)
 			require.NoError(t, err)
-			trc := trcs[ia.I].TRC
+			trc := trcs[ia.I()].TRC
 			err = cppki.VerifyChain(chain, cppki.VerifyOptions{TRC: []*cppki.TRC{&trc}})
 			require.NoError(t, err)
 		})
@@ -189,7 +189,7 @@ func TestUpdateReGen(t *testing.T) {
 	err = cmd.Execute()
 	require.NoError(t, err)
 
-	allASes := []addr.IA{
+	allASes := []addr.IAInt{
 		xtest.MustParseIA("1-ff00:0:110"),
 		xtest.MustParseIA("1-ff00:0:120"),
 		xtest.MustParseIA("1-ff00:0:130"),
@@ -216,7 +216,7 @@ func TestUpdateReGen(t *testing.T) {
 				ia.FileFmt(true)+".pem")
 			chain, err := cppki.ReadPEMCerts(file)
 			require.NoError(t, err)
-			trc := trcs[ia.I].TRC
+			trc := trcs[ia.I()].TRC
 			err = cppki.VerifyChain(chain, cppki.VerifyOptions{TRC: []*cppki.TRC{&trc}})
 			require.Error(t, err)
 		})

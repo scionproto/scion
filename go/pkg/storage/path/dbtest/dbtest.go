@@ -37,10 +37,10 @@ import (
 )
 
 var (
-	ia330 = addr.IA{I: 1, A: 0xff0000000330}
-	ia311 = addr.IA{I: 1, A: 0xff0000000311}
-	ia331 = addr.IA{I: 1, A: 0xff0000000331}
-	ia332 = addr.IA{I: 1, A: 0xff0000000332}
+	ia330 = addr.NewIAInt(1, 0xff0000000330)
+	ia311 = addr.NewIAInt(1, 0xff0000000311)
+	ia331 = addr.NewIAInt(1, 0xff0000000331)
+	ia332 = addr.NewIAInt(1, 0xff0000000332)
 
 	ifs1 = []uint64{0, 5, 2, 3, 6, 3, 1, 0}
 	ifs2 = []uint64{0, 4, 2, 3, 1, 3, 2, 0}
@@ -364,10 +364,10 @@ func testGetStartsAtEndsAt(t *testing.T, pathDB pathdb.ReadWrite) {
 	stat = InsertSeg(t, ctx, pathDB, pseg2, hpGroupIDs[:1])
 	require.Equal(t, stat, pathdb.InsertStats{Inserted: 1})
 	// Call
-	res, err := pathDB.Get(ctx, &query.Params{StartsAt: []addr.IA{ia330, ia332}})
+	res, err := pathDB.Get(ctx, &query.Params{StartsAt: []addr.IAInt{ia330, ia332}})
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(res), "Result count")
-	res, err = pathDB.Get(ctx, &query.Params{EndsAt: []addr.IA{ia330, ia332}})
+	res, err = pathDB.Get(ctx, &query.Params{EndsAt: []addr.IAInt{ia330, ia332}})
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(res), "Result count")
 }
@@ -597,7 +597,7 @@ func checkInterfacesPresent(t *testing.T, ctx context.Context,
 	}
 }
 
-func checkInterface(t *testing.T, ctx context.Context, ia addr.IA, ifId uint16,
+func checkInterface(t *testing.T, ctx context.Context, ia addr.IAInt, ifId uint16,
 	pathDB pathdb.ReadWrite, present bool) {
 
 	r, err := pathDB.Get(ctx, &query.Params{

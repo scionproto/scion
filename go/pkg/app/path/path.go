@@ -45,7 +45,7 @@ func Sort(paths []snet.Path) {
 			return len(intfA) < len(intfB)
 		}
 		for i := range intfA {
-			if iaA, iaB := intfA[i].IA.IAInt(), intfA[i].IA.IAInt(); iaA != iaB {
+			if iaA, iaB := intfA[i].IA, intfA[i].IA; iaA != iaB {
 				return iaA < iaB
 			}
 			if idA, idB := intfA[i].ID, intfB[i].ID; idA != idB {
@@ -73,7 +73,7 @@ func Filter(seq string, paths []snet.Path) ([]snet.Path, error) {
 func Choose(
 	ctx context.Context,
 	conn daemon.Connector,
-	remote addr.IA,
+	remote addr.IAInt,
 	opts ...Option,
 ) (snet.Path, error) {
 
@@ -98,7 +98,7 @@ func Choose(
 func filterUnhealthy(
 	ctx context.Context,
 	paths []snet.Path,
-	remote addr.IA,
+	remote addr.IAInt,
 	sd daemon.Connector,
 	cfg *ProbeConfig,
 ) ([]snet.Path, error) {
@@ -145,12 +145,12 @@ func filterUnhealthy(
 func fetchPaths(
 	ctx context.Context,
 	conn daemon.Connector,
-	remote addr.IA,
+	remote addr.IAInt,
 	refresh bool,
 	seq string,
 ) ([]snet.Path, error) {
 
-	allPaths, err := conn.Paths(ctx, remote, addr.IA{}, daemon.PathReqFlags{Refresh: refresh})
+	allPaths, err := conn.Paths(ctx, remote, 0, daemon.PathReqFlags{Refresh: refresh})
 	if err != nil {
 		return nil, serrors.WrapStr("retrieving paths", err)
 	}
@@ -165,7 +165,7 @@ func fetchPaths(
 	return paths, nil
 }
 
-func printAndChoose(paths []snet.Path, remote addr.IA, cs ColorScheme) (snet.Path, error) {
+func printAndChoose(paths []snet.Path, remote addr.IAInt, cs ColorScheme) (snet.Path, error) {
 	Sort(paths)
 
 	sectionHeader := func(intfs int) {
@@ -282,7 +282,7 @@ func (cs ColorScheme) Path(path snet.Path) string {
 }
 
 type ProbeConfig struct {
-	LocalIA    addr.IA
+	LocalIA    addr.IAInt
 	LocalIP    net.IP
 	Dispatcher string
 

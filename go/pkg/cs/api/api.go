@@ -102,7 +102,7 @@ func (s *Server) GetBeacons(w http.ResponseWriter, r *http.Request, params GetBe
 	var errs serrors.List
 	if params.StartIsdAs != nil {
 		if ia, err := addr.IAFromString(string(*params.StartIsdAs)); err == nil {
-			q.StartsAt = []addr.IA{ia}
+			q.StartsAt = []addr.IAInt{ia}
 		} else {
 			errs = append(errs, serrors.WrapStr("parsing start_isd_as", err))
 		}

@@ -35,7 +35,7 @@ type Route struct {
 	Source net.IP
 	// IA is the ISD-AS which contains the route prefix. For route prefixes not advertised
 	// over SCION this is the Zero AS.
-	IA addr.IA
+	IA addr.IAInt
 }
 
 func (r *Route) String() string {

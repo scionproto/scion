@@ -35,7 +35,7 @@ type Router interface {
 
 // LocalRouter routes requests to the local CS.
 type LocalRouter struct {
-	IA addr.IA
+	IA addr.IAInt
 }
 
 // ChooseServer always routes to the local CS.
@@ -68,7 +68,7 @@ func (r AuthRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.
 	}
 	logger := log.FromCtx(ctx)
 	logger.Debug("Getting paths to any authoritative server", "isd", dstISD)
-	path, err := r.Router.Route(ctx, addr.IA{I: dstISD})
+	path, err := r.Router.Route(ctx, addr.NewIAInt(dstISD, 0))
 	if err != nil || path == nil {
 		return nil, serrors.WrapStr("unable to find path to any core AS", err, "isd", dstISD)
 	}

@@ -54,7 +54,7 @@ func TestVerify(t *testing.T) {
 	testCases := map[string]struct {
 		provider    func(mctrl *gomock.Controller) trust.Provider
 		sign        *cryptopb.SignedMessage
-		boundIA     addr.IA
+		boundIA     addr.IAInt
 		boundServer net.Addr
 		assertFunc  assert.ErrorAssertionFunc
 	}{

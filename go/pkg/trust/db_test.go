@@ -82,7 +82,7 @@ func TestUpdateCerts(t *testing.T) {
 }
 
 type chainQueryMatcher struct {
-	ia   addr.IA
+	ia   addr.IAInt
 	skid []byte
 }
 

@@ -29,7 +29,7 @@ type SCION struct {
 	// General contains general, AS-independent host-wide SCION settings.
 	General General `json:"general,omitempty"`
 	// ASes contains AS-specific host-wide SCION settings.
-	ASes map[addr.IA]AS `json:"ases,omitempty"`
+	ASes map[addr.IAInt]AS `json:"ases,omitempty"`
 }
 
 func (s *SCION) Validate() error {
@@ -48,7 +48,7 @@ func (s *SCION) Validate() error {
 type General struct {
 	// DefaultIA is the ISD-AS that will be used by default as a source AS in case multiple SCION
 	// ASes are available on the host.
-	DefaultIA addr.IA `json:"default_isd_as,omitempty"`
+	DefaultIA addr.IAInt `json:"default_isd_as,omitempty"`
 	// DispatcherSocket is the path to the dispatcher socket.
 	DispatcherSocket string `json:"dispatcher_socket,omitempty"`
 }

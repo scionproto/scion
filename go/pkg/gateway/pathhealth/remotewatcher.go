@@ -51,14 +51,14 @@ type PathWatcher interface {
 
 // PathWatcherFactory constructs a PathWatcher.
 type PathWatcherFactory interface {
-	New(ctx context.Context, remote addr.IA, path snet.Path, id uint16) (PathWatcher, error)
+	New(ctx context.Context, remote addr.IAInt, path snet.Path, id uint16) (PathWatcher, error)
 }
 
 // DefaultRemoteWatcherFactory is a default factory for creating RemoteWatchers.
 type DefaultRemoteWatcherFactory struct {
 	// Router is used to find paths to remote ASes.
 	Router interface {
-		AllRoutes(ctx context.Context, dst addr.IA) ([]snet.Path, error)
+		AllRoutes(ctx context.Context, dst addr.IAInt) ([]snet.Path, error)
 	}
 	// PathWatcherFactory is used to construct PathWatchers.
 	PathWatcherFactory PathWatcherFactory
@@ -70,12 +70,12 @@ type DefaultRemoteWatcherFactory struct {
 	PathFetchTimeout time.Duration
 	// PathsMonitored is a gauge counting the number of paths currently
 	// monitored to a remote AS.
-	PathsMonitored func(remote addr.IA) metrics.Gauge
+	PathsMonitored func(remote addr.IAInt) metrics.Gauge
 }
 
 // New creates an RemoteWatcher that keeps track of all the paths for a given
 // remote, and spawns/kills PathWatchers appropriately.
-func (f *DefaultRemoteWatcherFactory) New(remote addr.IA) RemoteWatcher {
+func (f *DefaultRemoteWatcherFactory) New(remote addr.IAInt) RemoteWatcher {
 	var pathsMonitored metrics.Gauge
 	if f.PathsMonitored != nil {
 		pathsMonitored = f.PathsMonitored(remote)
@@ -96,10 +96,10 @@ func (f *DefaultRemoteWatcherFactory) New(remote addr.IA) RemoteWatcher {
 
 type remoteWatcher struct {
 	// remote is the ISD-AS of the monitored AS.
-	remote addr.IA
+	remote addr.IAInt
 	// router is used to find paths to remote ASes.
 	router interface {
-		AllRoutes(ctx context.Context, dst addr.IA) ([]snet.Path, error)
+		AllRoutes(ctx context.Context, dst addr.IAInt) ([]snet.Path, error)
 	}
 	// pathWatcherFactory constructs a PathWatcher.
 	pathWatcherFactory PathWatcherFactory

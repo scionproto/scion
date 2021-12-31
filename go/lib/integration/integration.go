@@ -60,7 +60,7 @@ var (
 	ASList *util.ASList
 )
 
-type iaArgs []addr.IA
+type iaArgs []addr.IAInt
 
 func (a iaArgs) String() string {
 	rawIAs := make([]string, len(a))
@@ -218,14 +218,14 @@ func generateAllSrcDst(hostAddr HostAddr, unique bool) []IAPair {
 	return pairs
 }
 
-type HostAddr func(ia addr.IA) *snet.UDPAddr
+type HostAddr func(ia addr.IAInt) *snet.UDPAddr
 
 // DispAddr reads the CS host Addr from the topology for the specified IA. In general this
 // could be the IP of any service (PS/BS/CS) in that IA because they share the same dispatcher in
 // the dockerized topology.
 // The host IP is used as client or server address in the tests because the testing container is
 // connecting to the dispatcher of the services.
-var DispAddr HostAddr = func(ia addr.IA) *snet.UDPAddr {
+var DispAddr HostAddr = func(ia addr.IAInt) *snet.UDPAddr {
 	if a := loadAddr(ia); a != nil {
 		return a
 	}
@@ -236,7 +236,7 @@ var DispAddr HostAddr = func(ia addr.IA) *snet.UDPAddr {
 			return &snet.UDPAddr{IA: ia, Host: &net.UDPAddr{IP: net.ParseIP(string(matches[1]))}}
 		}
 	}
-	path := GenFile(fmt.Sprintf("AS%s/topology.json", ia.A.FileFmt()))
+	path := GenFile(fmt.Sprintf("AS%s/topology.json", ia.A().FileFmt()))
 	topo, err := topology.RWTopologyFromJSONFile(path)
 	if err != nil {
 		log.Error("Error loading topology", "err", err)
@@ -246,7 +246,7 @@ var DispAddr HostAddr = func(ia addr.IA) *snet.UDPAddr {
 	return &snet.UDPAddr{IA: ia, Host: cs.SCIONAddress}
 }
 
-var addrs map[addr.IA]*snet.UDPAddr
+var addrs map[addr.IAInt]*snet.UDPAddr
 
 func initAddrs() {
 	var err error
@@ -257,7 +257,7 @@ func initAddrs() {
 	}
 }
 
-func loadAddr(ia addr.IA) *snet.UDPAddr {
+func loadAddr(ia addr.IAInt) *snet.UDPAddr {
 	if addrs == nil {
 		return nil
 	}
@@ -447,7 +447,7 @@ func GetSCIONDAddresses(networksFile string) (map[string]string, error) {
 	return networks, nil
 }
 
-func GetSCIONDAddress(networksFile string, ia addr.IA) (string, error) {
+func GetSCIONDAddress(networksFile string, ia addr.IAInt) (string, error) {
 	addresses, err := GetSCIONDAddresses(networksFile)
 	if err != nil {
 		return "", err

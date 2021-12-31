@@ -33,7 +33,7 @@ import (
 // PacketDispatcherService constructs SCION sockets where applications have
 // fine-grained control over header fields.
 type PacketDispatcherService interface {
-	Register(ctx context.Context, ia addr.IA, registration *net.UDPAddr,
+	Register(ctx context.Context, ia addr.IAInt, registration *net.UDPAddr,
 		svc addr.HostSVC) (PacketConn, uint16, error)
 }
 
@@ -52,7 +52,7 @@ type DefaultPacketDispatcherService struct {
 	SCIONPacketConnMetrics SCIONPacketConnMetrics
 }
 
-func (s *DefaultPacketDispatcherService) Register(ctx context.Context, ia addr.IA,
+func (s *DefaultPacketDispatcherService) Register(ctx context.Context, ia addr.IAInt,
 	registration *net.UDPAddr, svc addr.HostSVC) (PacketConn, uint16, error) {
 
 	rconn, port, err := s.Dispatcher.Register(ctx, ia, registration, svc)
@@ -113,7 +113,7 @@ func (h DefaultSCMPHandler) Handle(pkt *Packet) error {
 		msg := pkt.Payload.(SCMPExternalInterfaceDown)
 		return h.handleSCMPRev(typeCode, &path_mgmt.RevInfo{
 			IfID:         common.IFIDType(msg.Interface),
-			RawIsdas:     msg.IA.IAInt(),
+			RawIsdas:     msg.IA,
 			RawTimestamp: util.TimeToSecs(time.Now()),
 			RawTTL:       10,
 		})
@@ -121,7 +121,7 @@ func (h DefaultSCMPHandler) Handle(pkt *Packet) error {
 		msg := pkt.Payload.(SCMPInternalConnectivityDown)
 		return h.handleSCMPRev(typeCode, &path_mgmt.RevInfo{
 			IfID:         common.IFIDType(msg.Egress),
-			RawIsdas:     msg.IA.IAInt(),
+			RawIsdas:     msg.IA,
 			RawTimestamp: util.TimeToSecs(time.Now()),
 			RawTTL:       10,
 		})

@@ -311,7 +311,7 @@ func (v acceptAllVerifier) WithServer(net.Addr) infra.Verifier {
 	return v
 }
 
-func (v acceptAllVerifier) WithIA(addr.IA) infra.Verifier {
+func (v acceptAllVerifier) WithIA(addr.IAInt) infra.Verifier {
 	return v
 }
 

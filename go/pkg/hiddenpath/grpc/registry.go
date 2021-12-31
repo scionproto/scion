@@ -88,14 +88,14 @@ func (s RegistrationServer) HiddenSegmentRegistration(ctx context.Context,
 	return &hspb.HiddenSegmentRegistrationResponse{}, nil
 }
 
-func getPeer(ctx context.Context) (*snet.SVCAddr, addr.IA, error) {
+func getPeer(ctx context.Context) (*snet.SVCAddr, addr.IAInt, error) {
 	p, ok := peer.FromContext(ctx)
 	if !ok {
-		return nil, addr.IA{}, serrors.New("not present", "ctx", ctx)
+		return nil, 0, serrors.New("not present", "ctx", ctx)
 	}
 	a, ok := p.Addr.(*snet.UDPAddr)
 	if !ok {
-		return nil, addr.IA{}, serrors.New("invalid type, expected snet.UDPAddr",
+		return nil, 0, serrors.New("invalid type, expected snet.UDPAddr",
 			"type", fmt.Sprintf("%T", p.Addr))
 	}
 	// XXX(lukedirtwalker): because the remote might send from the client QUIC

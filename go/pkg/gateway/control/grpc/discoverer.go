@@ -28,7 +28,7 @@ import (
 
 // Discoverer discovers the gateways for a specific remote AS.
 type Discoverer struct {
-	Remote addr.IA
+	Remote addr.IAInt
 	Dialer grpc.Dialer
 	Paths  control.PathMonitorRegistration
 }

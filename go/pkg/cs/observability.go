@@ -270,7 +270,7 @@ func signerStatusPage(signer cstrust.RenewingSigner) service.StatusPage {
 		}
 
 		type Subject struct {
-			IA addr.IA `json:"isd_as"`
+			IA addr.IAInt `json:"isd_as"`
 		}
 		type TRCID struct {
 			ISD    addr.ISD        `json:"isd"`
@@ -332,7 +332,7 @@ func caStatusPage(signer renewal.ChainBuilder) service.StatusPage {
 		}
 
 		type Subject struct {
-			IA addr.IA `json:"isd_as"`
+			IA addr.IAInt `json:"isd_as"`
 		}
 		type Validity struct {
 			NotBefore time.Time `json:"not_before"`

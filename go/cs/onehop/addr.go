@@ -31,7 +31,7 @@ import (
 // Addr represents a service address in a remote ISD-AS reachable via a SCION onehop path.
 type Addr struct {
 	// IA is the ISD-AS identifier of the remote AS.
-	IA addr.IA
+	IA addr.IAInt
 	// Egress is the interface over which the remote AS should be reached.
 	Egress uint16
 	// SVC is the service anycast address of the designated service in the remote AS.

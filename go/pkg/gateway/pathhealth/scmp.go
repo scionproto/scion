@@ -21,7 +21,7 @@ import (
 )
 
 type traceroutePkt struct {
-	Remote     addr.IA
+	Remote     addr.IAInt
 	Identifier uint16
 	Sequence   uint16
 }

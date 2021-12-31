@@ -95,8 +95,8 @@ func (h *DelegatingHandler) HandleCMSRequest(
 
 	rep, err := h.Client.PostCertificateRenewal(
 		ctx,
-		int(subject.I),
-		api.AS(subject.A.String()),
+		int(subject.I()),
+		api.AS(subject.A().String()),
 		api.PostCertificateRenewalJSONRequestBody{
 			Csr: req.CmsSignedRequest,
 		},

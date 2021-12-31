@@ -30,10 +30,10 @@ var (
 	core1_120 = xtest.MustParseIA("1-ff00:0:120")
 )
 
-func allocPathSegment(ias []addr.IA) *PathSegment {
+func allocPathSegment(ias []addr.IAInt) *PathSegment {
 	ases := make([]ASEntry, len(ias))
 	for i := range ias {
-		var next addr.IA
+		var next addr.IAInt
 		if i < len(ias)-1 {
 			next = ias[i+1]
 		}
@@ -61,8 +61,8 @@ func allocPathSegment(ias []addr.IA) *PathSegment {
 }
 
 func TestFilterSegments(t *testing.T) {
-	seg110_120 := allocPathSegment([]addr.IA{core1_110, core1_120})
-	seg120_110 := allocPathSegment([]addr.IA{core1_120, core1_110})
+	seg110_120 := allocPathSegment([]addr.IAInt{core1_110, core1_120})
+	seg120_110 := allocPathSegment([]addr.IAInt{core1_120, core1_110})
 
 	tests := map[string]struct {
 		Segs     []*PathSegment

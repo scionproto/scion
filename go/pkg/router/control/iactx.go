@@ -32,7 +32,7 @@ type Config struct {
 	// of interface IDs to routers, and the actual topology.
 	Topo topology.Topology
 	// IA is the current ISD-AS.
-	IA addr.IA
+	IA addr.IAInt
 	// BR is the topology information of this router.
 	BR *topology.BRInfo
 	// MasterKeys holds the local AS master keys.

@@ -35,7 +35,7 @@ const receiveBufferSize = 1 << 20
 type Connector struct {
 	DataPlane DataPlane
 
-	ia                 addr.IA
+	ia                 addr.IAInt
 	mtx                sync.Mutex
 	internalInterfaces []control.InternalInterface
 	externalInterfaces map[uint16]control.ExternalInterface
@@ -45,7 +45,7 @@ type Connector struct {
 var errMultiIA = serrors.New("different IA not allowed")
 
 // CreateIACtx creates the context for ISD-AS.
-func (c *Connector) CreateIACtx(ia addr.IA) error {
+func (c *Connector) CreateIACtx(ia addr.IAInt) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	log.Debug("CreateIACtx", "isd_as", ia)
@@ -57,7 +57,7 @@ func (c *Connector) CreateIACtx(ia addr.IA) error {
 }
 
 // AddInternalInterface adds the internal interface.
-func (c *Connector) AddInternalInterface(ia addr.IA, local net.UDPAddr) error {
+func (c *Connector) AddInternalInterface(ia addr.IAInt, local net.UDPAddr) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	log.Debug("Adding internal interface", "isd_as", ia, "local", local)
@@ -145,7 +145,7 @@ func (c *Connector) AddExternalInterface(localIfID common.IFIDType, link control
 }
 
 // AddSvc adds the service address for the given ISD-AS.
-func (c *Connector) AddSvc(ia addr.IA, svc addr.HostSVC, ip net.IP) error {
+func (c *Connector) AddSvc(ia addr.IAInt, svc addr.HostSVC, ip net.IP) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	log.Debug("Adding service", "isd_as", ia, "svc", svc, "ip", ip)
@@ -156,7 +156,7 @@ func (c *Connector) AddSvc(ia addr.IA, svc addr.HostSVC, ip net.IP) error {
 }
 
 // DelSvc deletes the service entry for the given ISD-AS and IP pair.
-func (c *Connector) DelSvc(ia addr.IA, svc addr.HostSVC, ip net.IP) error {
+func (c *Connector) DelSvc(ia addr.IAInt, svc addr.HostSVC, ip net.IP) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	log.Debug("Deleting service", "isd_as", ia, "svc", svc, "ip", ip)
@@ -167,7 +167,7 @@ func (c *Connector) DelSvc(ia addr.IA, svc addr.HostSVC, ip net.IP) error {
 }
 
 // SetKey sets the key for the given ISD-AS at the given index.
-func (c *Connector) SetKey(ia addr.IA, index int, key []byte) error {
+func (c *Connector) SetKey(ia addr.IAInt, index int, key []byte) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	log.Debug("Setting key", "isd_as", ia, "index", index)

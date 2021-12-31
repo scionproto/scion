@@ -89,7 +89,7 @@ func (as *Server) Serve() error {
 }
 
 // Register creates a new connection.
-func (as *Server) Register(ctx context.Context, ia addr.IA, address *net.UDPAddr,
+func (as *Server) Register(ctx context.Context, ia addr.IAInt, address *net.UDPAddr,
 	svc addr.HostSVC) (net.PacketConn, uint16, error) {
 
 	tableEntry := newTableEntry()

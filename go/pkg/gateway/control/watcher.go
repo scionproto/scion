@@ -103,7 +103,7 @@ type GatewayWatcherMetrics struct {
 // stopped as well.
 type GatewayWatcher struct {
 	// Remote is the remote AS to watch.
-	Remote addr.IA
+	Remote addr.IAInt
 	// Discoverer is used for remote gateway discovery. It must not be nil.
 	Discoverer Discoverer
 	// DiscoverInterval is the time between consecutive gateway discovery
@@ -290,7 +290,7 @@ func (w *GatewayWatcher) validateParameters() error {
 
 // PrefixConsumer consumes the prefixes fetched by the PrefixWatcher.
 type PrefixConsumer interface {
-	Prefixes(remote addr.IA, gateway Gateway, prefixes []*net.IPNet)
+	Prefixes(remote addr.IAInt, gateway Gateway, prefixes []*net.IPNet)
 }
 
 // PrefixFetcher fetches the IP prefixes from a remote gateway.
@@ -345,7 +345,7 @@ type prefixWatcher struct {
 	PrefixWatcherConfig
 
 	gateway       Gateway
-	remote        addr.IA
+	remote        addr.IAInt
 	fetcher       PrefixFetcher
 	runMarkerLock sync.Mutex
 	// runMarker is set to true the first time a Session runs. Subsequent calls use this value to
@@ -359,7 +359,7 @@ type prefixWatcher struct {
 	timestamp time.Time
 }
 
-func newPrefixWatcher(ctx context.Context, gateway Gateway, remote addr.IA,
+func newPrefixWatcher(ctx context.Context, gateway Gateway, remote addr.IAInt,
 	cfg PrefixWatcherConfig) *prefixWatcher {
 
 	return &prefixWatcher{

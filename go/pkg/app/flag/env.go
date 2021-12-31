@@ -48,7 +48,7 @@ func (v *stringVal) Set(val string) error {
 func (v *stringVal) Type() string   { return "string" }
 func (v *stringVal) String() string { return string(*v) }
 
-type iaVal addr.IA
+type iaVal addr.IAInt
 
 func (v *iaVal) Set(val string) error {
 	ia, err := addr.IAFromString(val)
@@ -60,7 +60,7 @@ func (v *iaVal) Set(val string) error {
 }
 
 func (v *iaVal) Type() string   { return "isd-as" }
-func (v *iaVal) String() string { return addr.IA(*v).String() }
+func (v *iaVal) String() string { return addr.IAInt(*v).String() }
 
 type ipVal netaddr.IP
 
@@ -82,7 +82,7 @@ func (v *ipVal) String() string { return netaddr.IP(*v).String() }
 type SCIONEnvironment struct {
 	sciondFlag *pflag.Flag
 	sciondEnv  *string
-	ia         addr.IA
+	ia         addr.IAInt
 	iaFlag     *pflag.Flag
 	dispFlag   *pflag.Flag
 	dispEnv    *string

@@ -210,10 +210,10 @@ func TestRequester(t *testing.T) {
 			assert.Equal(t, len(expectedReplies), len(replies))
 			reqLess := func(a, b segfetcher.Request) bool {
 				switch {
-				case a.Src.IAInt() < b.Src.IAInt():
+				case a.Src < b.Src:
 					return true
-				case a.Src.IAInt() == b.Src.IAInt():
-					return a.Dst.IAInt() < b.Dst.IAInt()
+				case a.Src == b.Src:
+					return a.Dst < b.Dst
 				default:
 					return false
 				}

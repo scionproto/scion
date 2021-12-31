@@ -56,7 +56,7 @@ type CMSHandlerMetrics struct {
 type CMS struct {
 	Verifier     RenewalRequestVerifier
 	ChainBuilder ChainBuilder
-	IA           addr.IA
+	IA           addr.IAInt
 
 	// Metrics contains the counters. It is safe to pass nil-counters.
 	Metrics CMSHandlerMetrics
@@ -75,7 +75,7 @@ func (s CMS) HandleCMSRequest(
 		metrics.CounterInc(s.Metrics.ParseError)
 		return nil, err
 	}
-	if issuerIA.I != s.IA.I {
+	if issuerIA.I() != s.IA.I() {
 		logger.Debug("Renewal requester is not part of the ISD", "issuer_isd_as", issuerIA)
 		metrics.CounterInc(s.Metrics.NotFoundError)
 		return nil, status.Error(codes.PermissionDenied, "not a client")
@@ -99,17 +99,17 @@ func (s CMS) HandleCMSRequest(
 	return newClientChain, nil
 }
 
-func extractIssuerIA(raw []byte, logger log.Logger) (addr.IA, error) {
+func extractIssuerIA(raw []byte, logger log.Logger) (addr.IAInt, error) {
 	chain, err := extractChain(raw)
 	if err != nil {
 		logger.Debug("Failed to extract client certificate", "err", err)
-		return addr.IA{}, status.Error(codes.InvalidArgument,
+		return 0, status.Error(codes.InvalidArgument,
 			"request malformed: cannot extract client chain")
 	}
 	issuerIA, err := cppki.ExtractIA(chain[1].Subject)
 	if err != nil {
 		logger.Debug("Failed to extract IA from issuer certificate", "err", err)
-		return addr.IA{}, status.Error(codes.InvalidArgument,
+		return 0, status.Error(codes.InvalidArgument,
 			"request malformed: cannot extract issuer subject")
 	}
 	return issuerIA, nil

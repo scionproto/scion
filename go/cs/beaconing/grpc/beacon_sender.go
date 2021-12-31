@@ -38,7 +38,7 @@ type BeaconSenderFactory struct {
 // NewSender returns a beacon sender that can be used to send beacons to a remote CS.
 func (f *BeaconSenderFactory) NewSender(
 	ctx context.Context,
-	dstIA addr.IA,
+	dstIA addr.IAInt,
 	egIfId uint16,
 	nextHop *net.UDPAddr,
 ) (beaconing.Sender, error) {

@@ -25,12 +25,12 @@ import (
 
 // topo contains the relevant part of the topo file for the testcrypto command.
 type topo struct {
-	ASes map[addr.IA]struct {
-		CA            addr.IA `yaml:"cert_issuer"`
-		Authoritative bool    `yaml:"authoritative"`
-		Core          bool    `yaml:"core"`
-		Issuing       bool    `yaml:"issuing"`
-		Voting        bool    `yaml:"voting"`
+	ASes map[addr.IAInt]struct {
+		CA            addr.IAInt `yaml:"cert_issuer"`
+		Authoritative bool       `yaml:"authoritative"`
+		Core          bool       `yaml:"core"`
+		Issuing       bool       `yaml:"issuing"`
+		Voting        bool       `yaml:"voting"`
 	} `yaml:"ASes"`
 }
 

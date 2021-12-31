@@ -62,12 +62,12 @@ func NewService(name string) Service {
 // either an error occurs, or the method successfully returns.
 type Connector interface {
 	// LocalIA requests from the daemon the local ISD-AS number.
-	LocalIA(ctx context.Context) (addr.IA, error)
+	LocalIA(ctx context.Context) (addr.IAInt, error)
 	// Paths requests from the daemon a set of end to end paths between the source and destination.
-	Paths(ctx context.Context, dst, src addr.IA, f PathReqFlags) ([]snet.Path, error)
+	Paths(ctx context.Context, dst, src addr.IAInt, f PathReqFlags) ([]snet.Path, error)
 	// ASInfo requests from the daemon information about AS ia, the zero IA can be
 	// use to detect the local IA.
-	ASInfo(ctx context.Context, ia addr.IA) (ASInfo, error)
+	ASInfo(ctx context.Context, ia addr.IAInt) (ASInfo, error)
 	// IFInfo requests from SCION Daemon addresses and ports of interfaces. Slice
 	// ifs contains interface IDs of BRs. If empty, a fresh (i.e., uncached)
 	// answer containing all interfaces is returned.

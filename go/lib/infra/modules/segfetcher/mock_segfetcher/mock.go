@@ -228,7 +228,7 @@ func (m *MockSplitter) EXPECT() *MockSplitterMockRecorder {
 }
 
 // Split mocks base method.
-func (m *MockSplitter) Split(arg0 context.Context, arg1 addr.IA) (segfetcher.Requests, error) {
+func (m *MockSplitter) Split(arg0 context.Context, arg1 addr.IAInt) (segfetcher.Requests, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Split", arg0, arg1)
 	ret0, _ := ret[0].(segfetcher.Requests)

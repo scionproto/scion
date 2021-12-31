@@ -27,7 +27,7 @@ import (
 // segments are missing, the request is forwarded to the respective core ASes.
 // It should only be used in a non-core AS.
 type ForwardingLookup struct {
-	LocalIA     addr.IA
+	LocalIA     addr.IAInt
 	CoreChecker CoreChecker
 	Fetcher     *segfetcher.Fetcher
 	Expander    WildcardExpander
@@ -39,7 +39,7 @@ type ForwardingLookup struct {
 //  - down and core segments are forwarded to the responsible core ASes,
 //    and results are cached
 func (f ForwardingLookup) LookupSegments(ctx context.Context, src,
-	dst addr.IA) (segfetcher.Segments, error) {
+	dst addr.IAInt) (segfetcher.Segments, error) {
 
 	segType, err := f.classify(ctx, src, dst)
 	if err != nil {
@@ -61,9 +61,9 @@ func (f ForwardingLookup) LookupSegments(ctx context.Context, src,
 
 // classify validates the request and determines the segment type for the request
 func (f ForwardingLookup) classify(ctx context.Context,
-	src, dst addr.IA) (seg.Type, error) {
+	src, dst addr.IAInt) (seg.Type, error) {
 
-	if src.I == 0 || dst.I == 0 {
+	if src.I() == 0 || dst.I() == 0 {
 		return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 			"src", src, "dst", dst, "reason", "zero ISD src or dst")
 	}
@@ -83,14 +83,14 @@ func (f ForwardingLookup) classify(ctx context.Context,
 	switch {
 	case srcCore && dstCore:
 		// core
-		if src.I != f.LocalIA.I {
+		if src.I() != f.LocalIA.I() {
 			return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 				"src", src, "dst", dst, "reason", "core segment request src ISD not local ISD")
 		}
 		return seg.TypeCore, nil
 	case srcCore:
 		// down
-		if src.I != dst.I {
+		if src.I() != dst.I() {
 			return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 				"src", src, "dst", dst, "reason", "down segment request src/dst in different ISD")
 		}
@@ -101,7 +101,7 @@ func (f ForwardingLookup) classify(ctx context.Context,
 			return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 				"src", src, "dst", dst, "reason", "up segment request src not local AS")
 		}
-		if dst.I != f.LocalIA.I {
+		if dst.I() != f.LocalIA.I() {
 			return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 				"src", src, "dst", dst, "reason", "up segment request dst in different ISD")
 		}

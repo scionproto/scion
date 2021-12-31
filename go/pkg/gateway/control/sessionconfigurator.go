@@ -43,7 +43,7 @@ type SessionConfig struct {
 	// PolicyID is the ID of the SessionPolicy that lead to the creation of the SessionConfig.
 	PolicyID int
 	// IA is the ISD-AS number of the remote AS.
-	IA addr.IA
+	IA addr.IAInt
 	// TrafficMatcher contains the conditions the IP traffic must satisfy to use
 	// this session.
 	TrafficMatcher pktcls.Cond
@@ -332,7 +332,7 @@ func buildSessionConfigs(sessionPolicies SessionPolicies,
 // all interfaces are permitted.
 func PathPolicyWithAllowedInterfaces(
 	policy policies.PathPolicy,
-	remote addr.IA,
+	remote addr.IAInt,
 	allowedInterfaces []uint64,
 ) policies.PathPolicy {
 
@@ -371,7 +371,7 @@ func (p conjuctionPathPol) Filter(s []snet.Path) []snet.Path {
 	return p.Pol2.Filter(p.Pol1.Filter(s))
 }
 
-func newPathPolForEnteringAS(ia addr.IA, allowedInterfaces []uint64) policies.PathPolicy {
+func newPathPolForEnteringAS(ia addr.IAInt, allowedInterfaces []uint64) policies.PathPolicy {
 	if len(allowedInterfaces) == 0 {
 		return DefaultPathPolicy
 	}

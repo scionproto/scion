@@ -29,7 +29,6 @@ import (
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beacon/beacondbtest"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/storage/beacon/dbtest"
 	"github.com/scionproto/scion/go/pkg/storage/beacon/sqlite"
@@ -64,7 +63,7 @@ func TestOpenExisting(t *testing.T) {
 	require.NoError(t, err)
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
-	res, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
+	res, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, 0)
 	require.NoError(t, err)
 
 	beacondbtest.CheckResult(t, res, b)

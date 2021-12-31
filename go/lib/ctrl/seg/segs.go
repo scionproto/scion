@@ -40,18 +40,18 @@ func (segs *Segments) FilterSegs(keep func(*PathSegment) (bool, error)) (int, er
 }
 
 // FirstIAs returns the slice of FirstIAs in the given segments. Each FirstIA appears just once.
-func (segs Segments) FirstIAs() []addr.IA {
+func (segs Segments) FirstIAs() []addr.IAInt {
 	return extractIAs(segs, (*PathSegment).FirstIA)
 }
 
 // LastIAs returns the slice of LastIAs in the given segments. Each LastIA appears just once.
-func (segs Segments) LastIAs() []addr.IA {
+func (segs Segments) LastIAs() []addr.IAInt {
 	return extractIAs(segs, (*PathSegment).LastIA)
 }
 
-func extractIAs(segs []*PathSegment, extract func(*PathSegment) addr.IA) []addr.IA {
-	var ias []addr.IA
-	addrs := make(map[addr.IA]struct{})
+func extractIAs(segs []*PathSegment, extract func(*PathSegment) addr.IAInt) []addr.IAInt {
+	var ias []addr.IAInt
+	addrs := make(map[addr.IAInt]struct{})
 	for _, s := range segs {
 		ia := extract(s)
 		if _, ok := addrs[ia]; !ok {

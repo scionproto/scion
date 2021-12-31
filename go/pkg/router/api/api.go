@@ -86,7 +86,7 @@ func (s *Server) GetInterfaces(w http.ResponseWriter, r *http.Request) {
 	intfs := make([]Interface, 0, len(externalInterfaces))
 	siblings := make([]SiblingInterface, 0, len(externalInterfaces))
 
-	findInternalInterface := func(ia addr.IA) string {
+	findInternalInterface := func(ia addr.IAInt) string {
 		for _, intf := range internalInterfaces {
 			if intf.IA.Equal(ia) {
 				return intf.Addr.String()

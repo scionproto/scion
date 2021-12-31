@@ -43,7 +43,7 @@ type BeaconInserter interface {
 
 // Handler handles beacons.
 type Handler struct {
-	LocalIA    addr.IA
+	LocalIA    addr.IAInt
 	Inserter   BeaconInserter
 	Verifier   infra.Verifier
 	Interfaces *ifstate.Interfaces
@@ -148,7 +148,7 @@ func (h Handler) updateMetric(span opentracing.Span, l handlerLabels, err error)
 
 type handlerLabels struct {
 	Ingress  uint16
-	Neighbor addr.IA
+	Neighbor addr.IAInt
 	Result   string
 }
 

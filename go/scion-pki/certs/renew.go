@@ -89,16 +89,16 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 )
 
 type SubjectVars struct {
-	IA                 addr.IA `json:"isd_as,omitempty"`
-	CommonName         string  `json:"common_name,omitempty"`
-	Country            string  `json:"country,omitempty"`
-	Locality           string  `json:"locality,omitempty"`
-	Organization       string  `json:"organization,omitempty"`
-	OrganizationalUnit string  `json:"organizational_unit,omitempty"`
-	PostalCode         string  `json:"postal_code,omitempty"`
-	Province           string  `json:"province,omitempty"`
-	SerialNumber       string  `json:"serial_number,omitempty"`
-	StreetAddress      string  `json:"street_address,omitempty"`
+	IA                 addr.IAInt `json:"isd_as,omitempty"`
+	CommonName         string     `json:"common_name,omitempty"`
+	Country            string     `json:"country,omitempty"`
+	Locality           string     `json:"locality,omitempty"`
+	Organization       string     `json:"organization,omitempty"`
+	OrganizationalUnit string     `json:"organizational_unit,omitempty"`
+	PostalCode         string     `json:"postal_code,omitempty"`
+	Province           string     `json:"province,omitempty"`
+	SerialNumber       string     `json:"serial_number,omitempty"`
+	StreetAddress      string     `json:"street_address,omitempty"`
 }
 
 type Features struct {
@@ -219,7 +219,7 @@ The template is expressed in JSON. A valid example:
 
 			}
 
-			var ca addr.IA
+			var ca addr.IAInt
 			if flags.ca != "" {
 				var err error
 				if ca, err = addr.IAFromString(flags.ca); err != nil {
@@ -633,10 +633,10 @@ func (c expiryChecker) ShouldRenew(notBefore, notAfter time.Time) bool {
 	return time.Until(notAfter) < leadTime
 }
 
-func loadChain(trcs []*cppki.TRC, file string) ([]*x509.Certificate, addr.IA, error) {
+func loadChain(trcs []*cppki.TRC, file string) ([]*x509.Certificate, addr.IAInt, error) {
 	chain, err := cppki.ReadPEMCerts(file)
 	if err != nil {
-		return nil, addr.IA{}, err
+		return nil, 0, err
 	}
 	if err := cppki.VerifyChain(chain, cppki.VerifyOptions{TRC: trcs}); err != nil {
 		if maybeMissingTRCInGrace(trcs) {
@@ -644,7 +644,7 @@ func loadChain(trcs []*cppki.TRC, file string) ([]*x509.Certificate, addr.IA, er
 			fmt.Printf("Try to verify with the predecessor TRC: (Base = %d, Serial = %d)\n",
 				trcs[0].ID.Base, trcs[0].ID.Serial-1)
 		}
-		return nil, addr.IA{}, serrors.WrapStr(
+		return nil, 0, serrors.WrapStr(
 			"verification of transport cert failed with provided TRC", err)
 	}
 	ia, err := cppki.ExtractIA(chain[0].Issuer)
@@ -656,7 +656,7 @@ func loadChain(trcs []*cppki.TRC, file string) ([]*x509.Certificate, addr.IA, er
 
 func sendRequest(
 	ctx context.Context,
-	dstIA addr.IA,
+	dstIA addr.IAInt,
 	dialer grpc.Dialer,
 	req *cppb.ChainRenewalRequest,
 ) (*cppb.ChainRenewalResponse, error) {

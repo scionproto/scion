@@ -65,7 +65,7 @@ func LoadTrustMaterial(ctx context.Context, configDir string, db trust.DB) error
 }
 
 // NewSigner creates a renewing signer backed by a certificate chain.
-func NewSigner(ia addr.IA, db trust.DB, cfgDir string) (cstrust.RenewingSigner, error) {
+func NewSigner(ia addr.IAInt, db trust.DB, cfgDir string) (cstrust.RenewingSigner, error) {
 	gen := trust.SignerGen{
 		IA: ia,
 		DB: cstrust.CryptoLoader{
@@ -93,7 +93,7 @@ func NewSigner(ia addr.IA, db trust.DB, cfgDir string) (cstrust.RenewingSigner, 
 }
 
 type ChainBuilderConfig struct {
-	IA          addr.IA
+	IA          addr.IAInt
 	DB          trust.DB
 	MaxValidity time.Duration
 	ConfigDir   string

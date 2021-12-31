@@ -30,7 +30,7 @@ import (
 // ReserverOnly has the methods available to the AS that starts the reservation.
 type ReserverOnly interface {
 	// GetSegmentRsvsFromSrcDstIA returns all reservations that start at src AS and end in dst AS.
-	GetSegmentRsvsFromSrcDstIA(ctx context.Context, srcIA, dstIA addr.IA) (
+	GetSegmentRsvsFromSrcDstIA(ctx context.Context, srcIA, dstIA addr.IAInt) (
 		[]*segment.Reservation, error)
 	// GetSegmentRsvFromPath searches for a segment reservation with the specified path.
 	GetSegmentRsvFromPath(ctx context.Context, path segment.ReservationTransparentPath) (

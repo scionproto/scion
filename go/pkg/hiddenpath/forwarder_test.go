@@ -34,7 +34,7 @@ func TestForwardServerSegments(t *testing.T) {
 	testCases := map[string]struct {
 		request   hiddenpath.SegmentRequest
 		groups    func() map[hiddenpath.GroupID]*hiddenpath.Group
-		local     addr.IA
+		local     addr.IAInt
 		rpc       func(*gomock.Controller) hiddenpath.RPC
 		verifier  func(*gomock.Controller) hiddenpath.Verifier
 		lookuper  func(*gomock.Controller) hiddenpath.Lookuper
@@ -86,15 +86,15 @@ func TestForwardServerSegments(t *testing.T) {
 				return map[hiddenpath.GroupID]*hiddenpath.Group{
 					{OwnerAS: xtest.MustParseAS("ff00:0:110")}: {
 						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-						Registries: map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:110"): {}},
+						Registries: map[addr.IAInt]struct{}{xtest.MustParseIA("1-ff00:0:110"): {}},
 					},
 					{OwnerAS: xtest.MustParseAS("ff00:0:111")}: {
 						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:111")},
-						Registries: map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:111"): {}},
+						Registries: map[addr.IAInt]struct{}{xtest.MustParseIA("1-ff00:0:111"): {}},
 					},
 					{OwnerAS: xtest.MustParseAS("ff00:0:112")}: {
 						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:112")},
-						Registries: map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:111"): {}},
+						Registries: map[addr.IAInt]struct{}{xtest.MustParseIA("1-ff00:0:111"): {}},
 					},
 				}
 			},

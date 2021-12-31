@@ -25,7 +25,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/daemon/fake"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -170,7 +169,7 @@ func TestPaths(t *testing.T) {
 
 func TestASInfo(t *testing.T) {
 	c := fake.New(&fake.Script{})
-	assert.PanicsWithValue(t, "not implemented", func() { c.ASInfo(nil, addr.IA{}) })
+	assert.PanicsWithValue(t, "not implemented", func() { c.ASInfo(nil, 0) })
 }
 
 func TestIFInfo(t *testing.T) {

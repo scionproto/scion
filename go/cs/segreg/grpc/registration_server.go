@@ -40,7 +40,7 @@ var _ cppb.SegmentRegistrationServiceServer
 
 // RegistrationServer handles segment registration requests.
 type RegistrationServer struct {
-	LocalIA    addr.IA
+	LocalIA    addr.IAInt
 	SegHandler seghandler.Handler
 
 	// Requests aggregates all the incoming registration requests. If it is not
@@ -177,11 +177,11 @@ func classifySegs(ctx context.Context,
 	return "unset"
 }
 
-func peerToLabel(peer, local addr.IA) string {
+func peerToLabel(peer, local addr.IAInt) string {
 	switch {
 	case peer.Equal(local):
 		return infra.PromSrcASLocal
-	case peer.I == local.I:
+	case peer.I() == local.I():
 		return infra.PromSrcISDLocal
 	default:
 		return infra.PromSrcISDRemote

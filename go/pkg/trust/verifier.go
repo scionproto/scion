@@ -45,7 +45,7 @@ const defaultCacheExpiration = time.Minute
 type Verifier struct {
 	// BoundIA when non-zero makes sure that only a signature originated from that IA
 	// can be valid.
-	BoundIA addr.IA
+	BoundIA addr.IAInt
 	// BoundServer binds a remote server to ask for missing crypto material.
 	BoundServer net.Addr
 	// Engine provides verified certificate chains.
@@ -78,7 +78,7 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
 		return nil, serrors.WrapStr("subject key ID must be set", err)
 	}
-	ia := addr.IAInt(keyID.IsdAs).IA()
+	ia := addr.IAInt(keyID.IsdAs)
 	if !v.BoundIA.IsZero() && !v.BoundIA.Equal(ia) {
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
 		return nil, serrors.New("does not match bound ISD-AS", "expected", v.BoundIA, "actual", ia)
@@ -91,7 +91,7 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrInternal)).Inc()
 		return nil, serrors.New("nil engine that provides cert chains")
 	}
-	id := cppki.TRCID{ISD: ia.I,
+	id := cppki.TRCID{ISD: ia.I(),
 		Base:   scrypto.Version(keyID.TrcBase),
 		Serial: scrypto.Version(keyID.TrcSerial),
 	}

@@ -28,11 +28,11 @@ import (
 
 func TestAuthoritativeClassify(t *testing.T) {
 	type request struct {
-		Src addr.IA
-		Dst addr.IA
+		Src addr.IAInt
+		Dst addr.IAInt
 	}
 	tests := map[string]struct {
-		LocalIA         addr.IA
+		LocalIA         addr.IAInt
 		Request         request
 		ErrorAssertion  require.ErrorAssertionFunc
 		ExpectedSegType seg.Type
@@ -48,7 +48,7 @@ func TestAuthoritativeClassify(t *testing.T) {
 		"Invalid Src Wildcard": {
 			LocalIA: core110,
 			Request: request{
-				Src: addr.IA{I: 1, A: 0},
+				Src: addr.NewIAInt(1, 0),
 				Dst: core210,
 			},
 			ErrorAssertion: require.Error,
@@ -57,7 +57,7 @@ func TestAuthoritativeClassify(t *testing.T) {
 			LocalIA: core110,
 			Request: request{
 				Src: core110,
-				Dst: addr.IA{I: 0, A: 0},
+				Dst: addr.NewIAInt(0, 0),
 			},
 			ErrorAssertion: require.Error,
 		},
@@ -83,7 +83,7 @@ func TestAuthoritativeClassify(t *testing.T) {
 			LocalIA: core110,
 			Request: request{
 				Src: core110,
-				Dst: addr.IA{I: 1, A: 0},
+				Dst: addr.NewIAInt(1, 0),
 			},
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: seg.TypeCore,
@@ -92,7 +92,7 @@ func TestAuthoritativeClassify(t *testing.T) {
 			LocalIA: core110,
 			Request: request{
 				Src: core110,
-				Dst: addr.IA{I: 2, A: 0},
+				Dst: addr.NewIAInt(2, 0),
 			},
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: seg.TypeCore,

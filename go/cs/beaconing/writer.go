@@ -63,7 +63,7 @@ type WriteStats struct {
 	// Count is the number of successfully written segments.
 	Count int
 	// StartIAs lists the AS.
-	StartIAs map[addr.IA]struct{}
+	StartIAs map[addr.IAInt]struct{}
 }
 
 // Writer writes segments.
@@ -347,7 +347,7 @@ func summarizeStats(s seghandler.SegStats, b map[string]beacon.Beacon) *summary 
 }
 
 type writerLabels struct {
-	StartIA addr.IA
+	StartIA addr.IAInt
 	Ingress uint16
 	SegType string
 	Result  string

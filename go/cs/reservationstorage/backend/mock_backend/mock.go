@@ -190,7 +190,7 @@ func (mr *MockDBMockRecorder) GetSegmentRsvsFromIFPair(arg0, arg1, arg2 interfac
 }
 
 // GetSegmentRsvsFromSrcDstIA mocks base method.
-func (m *MockDB) GetSegmentRsvsFromSrcDstIA(arg0 context.Context, arg1, arg2 addr.IA) ([]*segment.Reservation, error) {
+func (m *MockDB) GetSegmentRsvsFromSrcDstIA(arg0 context.Context, arg1, arg2 addr.IAInt) ([]*segment.Reservation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSegmentRsvsFromSrcDstIA", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]*segment.Reservation)
@@ -427,7 +427,7 @@ func (mr *MockTransactionMockRecorder) GetSegmentRsvsFromIFPair(arg0, arg1, arg2
 }
 
 // GetSegmentRsvsFromSrcDstIA mocks base method.
-func (m *MockTransaction) GetSegmentRsvsFromSrcDstIA(arg0 context.Context, arg1, arg2 addr.IA) ([]*segment.Reservation, error) {
+func (m *MockTransaction) GetSegmentRsvsFromSrcDstIA(arg0 context.Context, arg1, arg2 addr.IAInt) ([]*segment.Reservation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSegmentRsvsFromSrcDstIA", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]*segment.Reservation)

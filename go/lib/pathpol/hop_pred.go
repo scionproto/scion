@@ -86,10 +86,10 @@ func HopPredicateFromString(str string) (*HopPredicate, error) {
 // pathIFMatch takes a PathInterface and a bool indicating if the ingress
 // interface needs to be matching. It returns true if the HopPredicate matches the PathInterface
 func (hp *HopPredicate) pathIFMatch(pi snet.PathInterface, in bool) bool {
-	if hp.ISD != 0 && pi.IA.I != hp.ISD {
+	if hp.ISD != 0 && pi.IA.I() != hp.ISD {
 		return false
 	}
-	if hp.AS != 0 && pi.IA.A != hp.AS {
+	if hp.AS != 0 && pi.IA.A() != hp.AS {
 		return false
 	}
 	ifInd := 0
@@ -118,7 +118,7 @@ func (hp HopPredicate) String() string {
 	for _, ifid := range hp.IfIDs {
 		s = append(s, ifid.String())
 	}
-	return fmt.Sprintf("%s#%s", addr.IA{I: hp.ISD, A: hp.AS}, strings.Join(s, ","))
+	return fmt.Sprintf("%s#%s", addr.NewIAInt(hp.ISD, hp.AS), strings.Join(s, ","))
 }
 
 func (hp *HopPredicate) MarshalJSON() ([]byte, error) {

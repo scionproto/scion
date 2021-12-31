@@ -200,7 +200,7 @@ func (g LoadingPolicyGen) Generate(ctx context.Context) (cppki.CAPolicy, error) 
 
 // CACertLoader loads CA certificates from disk.
 type CACertLoader struct {
-	IA  addr.IA
+	IA  addr.IAInt
 	Dir string
 	DB  trust.DB
 }
@@ -216,9 +216,9 @@ func (l CACertLoader) CACerts(ctx context.Context) ([]*x509.Certificate, error) 
 		return nil, serrors.WithCtx(err, "dir", l.Dir)
 	}
 
-	trcs, err := activeTRCs(ctx, l.DB, l.IA.I)
+	trcs, err := activeTRCs(ctx, l.DB, l.IA.I())
 	if err != nil {
-		return nil, serrors.WrapStr("looking for active TRCs", err, "isd", l.IA.I)
+		return nil, serrors.WrapStr("looking for active TRCs", err, "isd", l.IA.I())
 	}
 	rootPool := x509.NewCertPool()
 	for _, trc := range trcs {

@@ -59,11 +59,11 @@ type Graph struct {
 	// specifies whether an IFID is on a peering link
 	isPeer map[uint16]bool
 	// maps IFIDs to the AS they belong to
-	parents map[uint16]addr.IA
+	parents map[uint16]addr.IAInt
 	// maps ASes to a structure containing a slice of their IFIDs
-	ases map[addr.IA]*AS
+	ases map[addr.IAInt]*AS
 
-	signers map[addr.IA]*Signer
+	signers map[addr.IAInt]*Signer
 
 	ctrl *gomock.Controller
 	lock sync.Mutex
@@ -75,9 +75,9 @@ func New(ctrl *gomock.Controller) *Graph {
 		ctrl:    ctrl,
 		links:   make(map[uint16]uint16),
 		isPeer:  make(map[uint16]bool),
-		parents: make(map[uint16]addr.IA),
-		ases:    make(map[addr.IA]*AS),
-		signers: make(map[addr.IA]*Signer),
+		parents: make(map[uint16]addr.IAInt),
+		ases:    make(map[addr.IAInt]*AS),
+		signers: make(map[addr.IAInt]*Signer),
 	}
 }
 
@@ -105,7 +105,7 @@ func (g *Graph) Add(ia string) {
 	g.signers[isdas] = NewSigner(
 		WithIA(isdas),
 		WithTRCID(cppki.TRCID{
-			ISD:    isdas.I,
+			ISD:    isdas.I(),
 			Serial: 1,
 			Base:   1,
 		}),
@@ -170,7 +170,7 @@ func (g *Graph) RemoveLink(ifid uint16) {
 }
 
 // GetParent returns the parent AS of ifid.
-func (g *Graph) GetParent(ifid uint16) addr.IA {
+func (g *Graph) GetParent(ifid uint16) addr.IAInt {
 	g.lock.Lock()
 	defer g.lock.Unlock()
 	return g.parents[ifid]
@@ -250,7 +250,7 @@ func (g *Graph) BeaconWithStaticInfo(ifids []uint16) *seg.PathSegment {
 // segment do not contain valid MACs.
 func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
 	var inIF, outIF, remoteOutIF uint16
-	var currIA, outIA addr.IA
+	var currIA, outIA addr.IAInt
 
 	var segment *seg.PathSegment
 	if len(ifids) == 0 {
@@ -279,7 +279,7 @@ func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
 		case i == len(ifids):
 			outIF = 0
 			remoteOutIF = 0
-			outIA = addr.IA{}
+			outIA = 0
 		}
 
 		asEntry := seg.ASEntry{
@@ -411,7 +411,7 @@ func WithPrivateKey(key crypto.Signer) SignerOption {
 }
 
 // WithIA customizes the ISD-AS for the Signer.
-func WithIA(ia addr.IA) SignerOption {
+func WithIA(ia addr.IAInt) SignerOption {
 	return func(o *Signer) {
 		o.IA = ia
 	}
@@ -437,7 +437,7 @@ type Signer struct {
 	// all signatures are created with this timestamp. If it is not set, the
 	// current time is used for the signature timestamp.
 	Timestamp time.Time
-	IA        addr.IA
+	IA        addr.IAInt
 	TRCID     cppki.TRCID
 }
 
@@ -473,7 +473,7 @@ func (s Signer) Sign(ctx context.Context, msg []byte,
 	}
 
 	id := &cppb.VerificationKeyID{
-		IsdAs:        uint64(s.IA.IAInt()),
+		IsdAs:        uint64(s.IA),
 		TrcBase:      uint64(s.TRCID.Base),
 		TrcSerial:    uint64(s.TRCID.Serial),
 		SubjectKeyId: skid,
@@ -510,16 +510,16 @@ func (as *AS) Delete(ifid uint16) {
 // exploration in graph.GetPaths.
 type solution struct {
 	// current AS in the exploration
-	CurrentIA addr.IA
+	CurrentIA addr.IAInt
 	// whether the AS has already been visited by this path, to avoid loops
-	visited map[addr.IA]struct{}
+	visited map[addr.IAInt]struct{}
 	// the trail of IFIDs
 	trail []uint16
 }
 
-func newSolution(start addr.IA) *solution {
+func newSolution(start addr.IAInt) *solution {
 	return &solution{
-		visited:   map[addr.IA]struct{}{start: {}},
+		visited:   map[addr.IAInt]struct{}{start: {}},
 		CurrentIA: start,
 	}
 }
@@ -530,7 +530,7 @@ func (s *solution) Copy() *solution {
 	}
 	newS := &solution{}
 	newS.CurrentIA = s.CurrentIA
-	newS.visited = make(map[addr.IA]struct{})
+	newS.visited = make(map[addr.IAInt]struct{})
 	for ia := range s.visited {
 		newS.visited[ia] = struct{}{}
 	}
@@ -538,13 +538,13 @@ func (s *solution) Copy() *solution {
 	return newS
 }
 
-func (s *solution) Visited(ia addr.IA) bool {
+func (s *solution) Visited(ia addr.IAInt) bool {
 	_, ok := s.visited[ia]
 	return ok
 }
 
 // Add appends localIFID and nextIFID to the trail, and advances to nextIA.
-func (s *solution) Add(localIFID, nextIFID uint16, nextIA addr.IA) {
+func (s *solution) Add(localIFID, nextIFID uint16, nextIA addr.IAInt) {
 	s.visited[nextIA] = struct{}{}
 	s.trail = append(s.trail, localIFID, nextIFID)
 }
@@ -553,7 +553,7 @@ func (s *solution) Len() int {
 	return len(s.trail) / 2
 }
 
-func MustParseIA(ia string) addr.IA {
+func MustParseIA(ia string) addr.IAInt {
 	isdas, err := addr.IAFromString(ia)
 	if err != nil {
 		panic(err)
@@ -594,7 +594,7 @@ func NewDefaultGraph(ctrl *gomock.Controller) *Graph {
 // to egress metrics. Therefore for ASes that are neither the first nor the last on a
 // path segment, looking only at the egress interface on which the beacon left the AS
 // is sufficient when writing tests.
-func generateStaticInfo(g *Graph, ia addr.IA, inIF, outIF uint16) *staticinfo.Extension {
+func generateStaticInfo(g *Graph, ia addr.IAInt, inIF, outIF uint16) *staticinfo.Extension {
 	as := g.ases[ia]
 
 	latency := staticinfo.LatencyInfo{}

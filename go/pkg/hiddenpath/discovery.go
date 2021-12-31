@@ -40,7 +40,7 @@ type Discoverer interface {
 type AddressResolver interface {
 	// Resolve creates an address with a path to the remote ISD-AS that is
 	// specified.
-	Resolve(context.Context, addr.IA) (net.Addr, error)
+	Resolve(context.Context, addr.IAInt) (net.Addr, error)
 }
 
 // RegistrationResolver resolves the address of a hidden segment registration
@@ -51,7 +51,7 @@ type RegistrationResolver struct {
 }
 
 // Resolve resolves a hidden segment registration server in the remote IA.
-func (r RegistrationResolver) Resolve(ctx context.Context, ia addr.IA) (net.Addr, error) {
+func (r RegistrationResolver) Resolve(ctx context.Context, ia addr.IAInt) (net.Addr, error) {
 	return resolve(ctx, ia, r.Discoverer, r.Router, func(s Servers) (*net.UDPAddr, error) {
 		if len(s.Registration) == 0 {
 			return nil, serrors.New("no registration server found")
@@ -68,7 +68,7 @@ type LookupResolver struct {
 }
 
 // Resolve resolves a hidden segment lookup server in the remote IA.
-func (r LookupResolver) Resolve(ctx context.Context, ia addr.IA) (net.Addr, error) {
+func (r LookupResolver) Resolve(ctx context.Context, ia addr.IAInt) (net.Addr, error) {
 	return resolve(ctx, ia, r.Discoverer, r.Router, func(s Servers) (*net.UDPAddr, error) {
 		if len(s.Lookup) == 0 {
 			return nil, serrors.New("no lookup server found")
@@ -77,7 +77,7 @@ func (r LookupResolver) Resolve(ctx context.Context, ia addr.IA) (net.Addr, erro
 	})
 }
 
-func resolve(ctx context.Context, ia addr.IA, discoverer Discoverer, router snet.Router,
+func resolve(ctx context.Context, ia addr.IAInt, discoverer Discoverer, router snet.Router,
 	extractAddr func(Servers) (*net.UDPAddr, error)) (net.Addr, error) {
 
 	path, err := router.Route(ctx, ia)

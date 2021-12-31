@@ -178,10 +178,10 @@ func (m *MockInspector) EXPECT() *MockInspectorMockRecorder {
 }
 
 // ByAttributes mocks base method.
-func (m *MockInspector) ByAttributes(arg0 context.Context, arg1 addr.ISD, arg2 trust.Attribute) ([]addr.IA, error) {
+func (m *MockInspector) ByAttributes(arg0 context.Context, arg1 addr.ISD, arg2 trust.Attribute) ([]addr.IAInt, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ByAttributes", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]addr.IA)
+	ret0, _ := ret[0].([]addr.IAInt)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -193,7 +193,7 @@ func (mr *MockInspectorMockRecorder) ByAttributes(arg0, arg1, arg2 interface{}) 
 }
 
 // HasAttributes mocks base method.
-func (m *MockInspector) HasAttributes(arg0 context.Context, arg1 addr.IA, arg2 trust.Attribute) (bool, error) {
+func (m *MockInspector) HasAttributes(arg0 context.Context, arg1 addr.IAInt, arg2 trust.Attribute) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HasAttributes", arg0, arg1, arg2)
 	ret0, _ := ret[0].(bool)

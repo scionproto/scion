@@ -33,7 +33,7 @@ func TestAuthoritativeServerSegments(t *testing.T) {
 	local := xtest.MustParseIA("1-ff00:0:14")
 	testCases := map[string]struct {
 		request   hiddenpath.SegmentRequest
-		local     addr.IA
+		local     addr.IAInt
 		db        func(ctrl *gomock.Controller) hiddenpath.Store
 		groups    func() map[hiddenpath.GroupID]*hiddenpath.Group
 		want      []*seg.Meta
@@ -52,8 +52,8 @@ func TestAuthoritativeServerSegments(t *testing.T) {
 				return map[hiddenpath.GroupID]*hiddenpath.Group{
 					{OwnerAS: xtest.MustParseAS("ff00:0:110")}: {
 						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-						Readers:    map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
-						Registries: map[addr.IA]struct{}{local: {}},
+						Readers:    map[addr.IAInt]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
+						Registries: map[addr.IAInt]struct{}{local: {}},
 					},
 				}
 			},
@@ -76,8 +76,8 @@ func TestAuthoritativeServerSegments(t *testing.T) {
 				return map[hiddenpath.GroupID]*hiddenpath.Group{
 					{OwnerAS: xtest.MustParseAS("ff00:0:110")}: {
 						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-						Readers:    map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
-						Registries: map[addr.IA]struct{}{local: {}},
+						Readers:    map[addr.IAInt]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
+						Registries: map[addr.IAInt]struct{}{local: {}},
 					},
 				}
 			},
@@ -100,13 +100,13 @@ func TestAuthoritativeServerSegments(t *testing.T) {
 				return map[hiddenpath.GroupID]*hiddenpath.Group{
 					{OwnerAS: xtest.MustParseAS("ff00:0:110")}: {
 						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-						Readers:    map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
-						Registries: map[addr.IA]struct{}{local: {}},
+						Readers:    map[addr.IAInt]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
+						Registries: map[addr.IAInt]struct{}{local: {}},
 					},
 					{OwnerAS: xtest.MustParseAS("ff00:0:111")}: {
 						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:111")},
-						Readers:    map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:25"): {}},
-						Registries: map[addr.IA]struct{}{local: {}},
+						Readers:    map[addr.IAInt]struct{}{xtest.MustParseIA("1-ff00:0:25"): {}},
+						Registries: map[addr.IAInt]struct{}{local: {}},
 					},
 				}
 			},
@@ -129,13 +129,13 @@ func TestAuthoritativeServerSegments(t *testing.T) {
 				return map[hiddenpath.GroupID]*hiddenpath.Group{
 					{OwnerAS: xtest.MustParseAS("ff00:0:110")}: {
 						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-						Readers:    map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
-						Registries: map[addr.IA]struct{}{local: {}},
+						Readers:    map[addr.IAInt]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
+						Registries: map[addr.IAInt]struct{}{local: {}},
 					},
 					{OwnerAS: xtest.MustParseAS("ff00:0:111")}: {
 						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:111")},
-						Readers:    map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
-						Registries: map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:404"): {}},
+						Readers:    map[addr.IAInt]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
+						Registries: map[addr.IAInt]struct{}{xtest.MustParseIA("1-ff00:0:404"): {}},
 					},
 				}
 			},
@@ -164,13 +164,13 @@ func TestAuthoritativeServerSegments(t *testing.T) {
 				return map[hiddenpath.GroupID]*hiddenpath.Group{
 					{OwnerAS: xtest.MustParseAS("ff00:0:110")}: {
 						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-						Readers:    map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
-						Registries: map[addr.IA]struct{}{local: {}},
+						Readers:    map[addr.IAInt]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
+						Registries: map[addr.IAInt]struct{}{local: {}},
 					},
 					{OwnerAS: xtest.MustParseAS("ff00:0:111")}: {
 						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:111")},
-						Readers:    map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
-						Registries: map[addr.IA]struct{}{local: {}},
+						Readers:    map[addr.IAInt]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
+						Registries: map[addr.IAInt]struct{}{local: {}},
 					},
 				}
 			},
@@ -199,13 +199,13 @@ func TestAuthoritativeServerSegments(t *testing.T) {
 				return map[hiddenpath.GroupID]*hiddenpath.Group{
 					{OwnerAS: xtest.MustParseAS("ff00:0:110")}: {
 						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-						Readers:    map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
-						Registries: map[addr.IA]struct{}{local: {}},
+						Readers:    map[addr.IAInt]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
+						Registries: map[addr.IAInt]struct{}{local: {}},
 					},
 					{OwnerAS: xtest.MustParseAS("ff00:0:111")}: {
 						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:111")},
-						Readers:    map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
-						Registries: map[addr.IA]struct{}{local: {}},
+						Readers:    map[addr.IAInt]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
+						Registries: map[addr.IAInt]struct{}{local: {}},
 					},
 				}
 			},

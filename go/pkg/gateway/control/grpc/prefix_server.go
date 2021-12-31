@@ -30,13 +30,13 @@ import (
 
 // Advertiser returns a list of IP prefixes to advertise.
 type Advertiser interface {
-	AdvertiseList(from, to addr.IA) []*net.IPNet
+	AdvertiseList(from, to addr.IAInt) []*net.IPNet
 }
 
 // IPPrefixServer serves IP prefix requests.
 type IPPrefixServer struct {
 	// LocalIA is the IA of the local AS.
-	LocalIA addr.IA
+	LocalIA addr.IAInt
 	// Advertiser is the advertiser used to get the list of prefixes to advertise.
 	Advertiser Advertiser
 	// PrefixesAdvertised reports the number of IP prefixes advertised. If nil, no  metrics are

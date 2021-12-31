@@ -28,7 +28,7 @@ import (
 
 // PrefixFetcher fetches prefixes from a gateway in a specific remote.
 type PrefixFetcher struct {
-	Remote addr.IA
+	Remote addr.IAInt
 	Pather control.PathMonitorRegistration
 	Dialer grpc.Dialer
 }

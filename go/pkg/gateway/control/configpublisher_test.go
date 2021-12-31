@@ -95,9 +95,9 @@ func TestConfigPublisherPublish(t *testing.T) {
 			go func() {
 				// wait on ias2 first to check for HOL blocking.
 				actual := <-ias2
-				assert.Equal(t, []addr.IA{xtest.MustParseIA("1-ff00:0:110")}, actual)
+				assert.Equal(t, []addr.IAInt{xtest.MustParseIA("1-ff00:0:110")}, actual)
 				actual = <-ias1
-				assert.Equal(t, []addr.IA{xtest.MustParseIA("1-ff00:0:110")}, actual)
+				assert.Equal(t, []addr.IAInt{xtest.MustParseIA("1-ff00:0:110")}, actual)
 			}()
 			go func() {
 				n.Publish(expectedSP, nil)

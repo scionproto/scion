@@ -25,19 +25,19 @@ import (
 // Splitter splits a path request into set of segment requests.
 type Splitter interface {
 	// Split splits a path request from the local AS to dst into a set of segment requests.
-	Split(ctx context.Context, dst addr.IA) (Requests, error)
+	Split(ctx context.Context, dst addr.IAInt) (Requests, error)
 }
 
 // MultiSegmentSplitter splits requests consisting of one or multiple segments.
 // The AS inspector is used to check whether an IA is core or not.
 type MultiSegmentSplitter struct {
-	LocalIA   addr.IA
+	LocalIA   addr.IAInt
 	Core      bool
 	Inspector trust.Inspector
 }
 
 // Split splits a path request from the local AS to dst into a set of segment requests.
-func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests, error) {
+func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IAInt) (Requests, error) {
 
 	const Up = seg.TypeUp
 	const Down = seg.TypeDown
@@ -64,7 +64,7 @@ func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests
 			{Src: toWildCard(dst), Dst: dst, SegType: Down},
 		}, nil
 	case !srcCore && dstCore:
-		if (src.I == dst.I && dst.IsWildcard()) || singleCore.Equal(dst) {
+		if (src.I() == dst.I() && dst.IsWildcard()) || singleCore.Equal(dst) {
 			return Requests{{Src: src, Dst: dst, SegType: Up}}, nil
 		}
 		return Requests{
@@ -85,17 +85,17 @@ func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests
 }
 
 func (s *MultiSegmentSplitter) inspect(ctx context.Context,
-	src, dst addr.IA) (addr.IA, bool, error) {
+	src, dst addr.IAInt) (addr.IAInt, bool, error) {
 
-	if src.I != dst.I {
+	if src.I() != dst.I() {
 		isCore, err := s.isCore(ctx, dst)
-		return addr.IA{}, isCore, err
+		return 0, isCore, err
 	}
-	cores, err := s.Inspector.ByAttributes(ctx, src.I, trust.Core)
+	cores, err := s.Inspector.ByAttributes(ctx, src.I(), trust.Core)
 	if err != nil {
-		return addr.IA{}, false, err
+		return 0, false, err
 	}
-	var single addr.IA
+	var single addr.IAInt
 	if len(cores) == 1 {
 		single = cores[0]
 	}
@@ -107,7 +107,7 @@ func (s *MultiSegmentSplitter) inspect(ctx context.Context,
 	return single, dst.IsWildcard(), nil
 }
 
-func (s *MultiSegmentSplitter) isCore(ctx context.Context, dst addr.IA) (bool, error) {
+func (s *MultiSegmentSplitter) isCore(ctx context.Context, dst addr.IAInt) (bool, error) {
 	if dst.IsWildcard() {
 		return true, nil
 	}
@@ -118,6 +118,6 @@ func (s *MultiSegmentSplitter) isCore(ctx context.Context, dst addr.IA) (bool, e
 	return isCore, nil
 }
 
-func toWildCard(ia addr.IA) addr.IA {
-	return addr.IA{I: ia.I}
+func toWildCard(ia addr.IAInt) addr.IAInt {
+	return addr.NewIAInt(ia.I(), 0)
 }

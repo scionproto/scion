@@ -45,7 +45,7 @@ func TestDefaultValidatorValidate(t *testing.T) {
 		},
 		"ia immutable": {
 			loadOld:   defaultTopo,
-			loadNew:   topoWithModification(t, setIA(addr.IA{})),
+			loadNew:   topoWithModification(t, setIA(0)),
 			assertErr: assert.Error,
 		},
 		"mtu immutable": {
@@ -105,7 +105,7 @@ func TestControlValidatorValidate(t *testing.T) {
 		},
 		"ia immutable": {
 			loadOld:   defaultTopo,
-			loadNew:   topoWithModification(t, setIA(addr.IA{})),
+			loadNew:   topoWithModification(t, setIA(0)),
 			assertErr: assert.Error,
 		},
 		"mtu immutable": {
@@ -183,7 +183,7 @@ func TestRouterValidatorValidate(t *testing.T) {
 		},
 		"ia immutable": {
 			loadOld:   defaultTopo,
-			loadNew:   topoWithModification(t, setIA(addr.IA{})),
+			loadNew:   topoWithModification(t, setIA(0)),
 			assertErr: assert.Error,
 		},
 		"mtu immutable": {
@@ -247,7 +247,7 @@ func topoWithModification(
 		return topo
 	}
 }
-func setIA(ia addr.IA) func(topo *topology.RWTopology) {
+func setIA(ia addr.IAInt) func(topo *topology.RWTopology) {
 	return func(topo *topology.RWTopology) {
 		topo.IA = ia
 	}

@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
@@ -164,7 +163,7 @@ func TestPrefixWatcherRun(t *testing.T) {
 		FetcherFactory: fetcherFactory,
 		PollInterval:   1 * time.Millisecond,
 	}
-	w := control.NewPrefixWatcher(context.Background(), gateway, addr.IA{}, cfg)
+	w := control.NewPrefixWatcher(context.Background(), gateway, 0, cfg)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()

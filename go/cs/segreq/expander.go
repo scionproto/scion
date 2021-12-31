@@ -27,7 +27,7 @@ import (
 )
 
 type WildcardExpander struct {
-	LocalIA   addr.IA
+	LocalIA   addr.IAInt
 	Core      bool
 	Inspector trust.Inspector
 	PathDB    pathdb.DB
@@ -36,7 +36,7 @@ type WildcardExpander struct {
 func (e *WildcardExpander) ExpandSrcWildcard(ctx context.Context,
 	req segfetcher.Request) (segfetcher.Requests, error) {
 
-	if req.Src.A != 0 {
+	if req.Src.A() != 0 {
 		return segfetcher.Requests{req}, nil
 	}
 
@@ -48,7 +48,7 @@ func (e *WildcardExpander) ExpandSrcWildcard(ctx context.Context,
 		}
 		return requestsSrcsToDst(cores, req.Dst, req.SegType), nil
 	case seg.TypeDown:
-		cores, err := e.coreASes(ctx, req.Src.I)
+		cores, err := e.coreASes(ctx, req.Src.I())
 		if err != nil {
 			return nil, err
 		}
@@ -60,7 +60,7 @@ func (e *WildcardExpander) ExpandSrcWildcard(ctx context.Context,
 }
 
 // coreASes queries the core ASes in isd.
-func (e *WildcardExpander) coreASes(ctx context.Context, isd addr.ISD) ([]addr.IA, error) {
+func (e *WildcardExpander) coreASes(ctx context.Context, isd addr.ISD) ([]addr.IAInt, error) {
 	coreASes, err := e.Inspector.ByAttributes(ctx, isd, trust.Core)
 	if err != nil {
 		return nil, serrors.WrapStr("failed to get local core ASes", err)
@@ -70,10 +70,10 @@ func (e *WildcardExpander) coreASes(ctx context.Context, isd addr.ISD) ([]addr.I
 
 // providerCoreASes returns the core ASes that are providers of this AS, i.e.
 // those core ASes that are directly reachable with an up segment
-func (e *WildcardExpander) providerCoreASes(ctx context.Context) ([]addr.IA, error) {
+func (e *WildcardExpander) providerCoreASes(ctx context.Context) ([]addr.IAInt, error) {
 
 	if e.Core {
-		return []addr.IA{e.LocalIA}, nil
+		return []addr.IAInt{e.LocalIA}, nil
 	}
 
 	params := &query.Params{
@@ -88,7 +88,7 @@ func (e *WildcardExpander) providerCoreASes(ctx context.Context) ([]addr.IA, err
 }
 
 // requestsSrcsToDst creates a slice containing a request for each src in srcs to dst
-func requestsSrcsToDst(srcs []addr.IA, dst addr.IA, segType seg.Type) segfetcher.Requests {
+func requestsSrcsToDst(srcs []addr.IAInt, dst addr.IAInt, segType seg.Type) segfetcher.Requests {
 	requests := make(segfetcher.Requests, 0, len(srcs))
 	for _, src := range srcs {
 		if src != dst {

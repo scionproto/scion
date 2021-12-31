@@ -300,7 +300,7 @@ func addHopInternalHops(m map[hopKey]uint32, a, b snet.PathInterface, v uint32) 
 func collectNotes(p pathInfo) []string {
 	// can have multiple AS entries for the same AS (at segment cross over, or loop paths).
 	// collect all notes first
-	allNotes := make(map[addr.IA][]string)
+	allNotes := make(map[addr.IAInt][]string)
 	for _, asEntry := range p.ASEntries {
 		ia := asEntry.Local
 		staticInfo := asEntry.Extensions.StaticInfo
@@ -310,7 +310,7 @@ func collectNotes(p pathInfo) []string {
 	}
 
 	// (very) explicitly gather traversed ASes from path interface list
-	ases := []addr.IA{}
+	ases := []addr.IAInt{}
 	ases = append(ases, p.Interfaces[0].IA)
 	for i := 1; i < len(p.Interfaces); i += 2 {
 		ases = append(ases, p.Interfaces[i].IA)
@@ -352,7 +352,7 @@ type hopKey struct {
 
 // makeHopKey makes a key for an unordered interface pair lookup.
 func makeHopKey(a, b snet.PathInterface) hopKey {
-	if a.IA.IAInt() > b.IA.IAInt() || a.IA == b.IA && a.ID > b.ID {
+	if a.IA > b.IA || a.IA == b.IA && a.ID > b.ID {
 		return hopKey{b, a}
 	}
 	return hopKey{a, b}

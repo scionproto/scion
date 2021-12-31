@@ -515,13 +515,13 @@ func subjectAndIssuerIASet(c *x509.Certificate) error {
 
 // ExtractIA extracts the ISD-AS from the distinguished name. If the ISD-AS
 // number is not present in the distinguished name, an error is returned.
-func ExtractIA(dn pkix.Name) (addr.IA, error) {
+func ExtractIA(dn pkix.Name) (addr.IAInt, error) {
 	ia, err := findIA(dn)
 	if err != nil {
-		return addr.IA{}, err
+		return 0, err
 	}
 	if ia == nil {
-		return addr.IA{}, errIANotFound
+		return 0, errIANotFound
 	}
 	return *ia, nil
 }
@@ -529,7 +529,7 @@ func ExtractIA(dn pkix.Name) (addr.IA, error) {
 // findIA extracts the ISD-AS from the distinguished name if it exists. If the
 // ISD-AS number is not present in the distinguished name, it returns nil. If
 // the ISD-AS number is not parsable, an error is returned.
-func findIA(dn pkix.Name) (*addr.IA, error) {
+func findIA(dn pkix.Name) (*addr.IAInt, error) {
 	for _, name := range dn.Names {
 		if !name.Type.Equal(OIDNameIA) {
 			continue

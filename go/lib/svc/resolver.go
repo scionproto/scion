@@ -58,7 +58,7 @@ func init() {
 // Resolver performs SVC address resolution.
 type Resolver struct {
 	// LocalIA is the local AS.
-	LocalIA addr.IA
+	LocalIA addr.IAInt
 	// ConnFactory is used to open ports for SVC resolution messages.
 	ConnFactory snet.PacketDispatcherService
 	// LocalIP is the default L3 address for connections originating from this process.
@@ -192,7 +192,7 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 type path struct {
 	spath       spath.Path
 	underlay    *net.UDPAddr
-	destination addr.IA
+	destination addr.IAInt
 }
 
 func (p *path) UnderlayNextHop() *net.UDPAddr {
@@ -207,7 +207,7 @@ func (p *path) Interfaces() []snet.PathInterface {
 	return nil
 }
 
-func (p *path) Destination() addr.IA {
+func (p *path) Destination() addr.IAInt {
 	return p.destination
 }
 

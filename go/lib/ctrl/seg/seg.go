@@ -140,14 +140,14 @@ func (ps *PathSegment) FullID() []byte {
 func (ps *PathSegment) calculateHash(hopOnly bool) []byte {
 	h := sha256.New()
 	for _, ase := range ps.ASEntries {
-		binary.Write(h, binary.BigEndian, ase.Local.IAInt())
+		binary.Write(h, binary.BigEndian, ase.Local)
 		binary.Write(h, binary.BigEndian, ase.HopEntry.HopField.ConsIngress)
 		binary.Write(h, binary.BigEndian, ase.HopEntry.HopField.ConsEgress)
 		if hopOnly {
 			continue
 		}
 		for _, peer := range ase.PeerEntries {
-			binary.Write(h, binary.BigEndian, peer.Peer.IAInt())
+			binary.Write(h, binary.BigEndian, peer.Peer)
 			binary.Write(h, binary.BigEndian, peer.HopField.ConsIngress)
 			binary.Write(h, binary.BigEndian, peer.HopField.ConsEgress)
 		}
@@ -245,13 +245,13 @@ func (ps *PathSegment) expiry(initTTL time.Duration,
 
 // FirstIA returns the IA of the first ASEntry.
 // Note that if the path segment contains no ASEntries this method will panic.
-func (ps *PathSegment) FirstIA() addr.IA {
+func (ps *PathSegment) FirstIA() addr.IAInt {
 	return ps.ASEntries[0].Local
 }
 
 // LastIA returns the IA of the last ASEntry.
 // Note that if the path segment contains no ASEntries this method will panic.
-func (ps *PathSegment) LastIA() addr.IA {
+func (ps *PathSegment) LastIA() addr.IAInt {
 	return ps.ASEntries[len(ps.ASEntries)-1].Local
 }
 
@@ -259,9 +259,9 @@ func (ps *PathSegment) LastIA() addr.IA {
 // signature is created and does not need to be attached to the input AS entry.
 func (ps *PathSegment) AddASEntry(ctx context.Context, asEntry ASEntry, signer Signer) error {
 	asEntryPB := &cppb.ASEntrySignedBody{
-		IsdAs:     uint64(asEntry.Local.IAInt()),
+		IsdAs:     uint64(asEntry.Local),
 		Mtu:       uint32(asEntry.MTU),
-		NextIsdAs: uint64(asEntry.Next.IAInt()),
+		NextIsdAs: uint64(asEntry.Next),
 		HopEntry: &cppb.HopEntry{
 			IngressMtu: uint32(asEntry.HopEntry.IngressMTU),
 			HopField: &cppb.HopField{
@@ -277,7 +277,7 @@ func (ps *PathSegment) AddASEntry(ctx context.Context, asEntry ASEntry, signer S
 	for _, peer := range asEntry.PeerEntries {
 		asEntryPB.PeerEntries = append(asEntryPB.PeerEntries,
 			&cppb.PeerEntry{
-				PeerIsdAs:     uint64(peer.Peer.IAInt()),
+				PeerIsdAs:     uint64(peer.Peer),
 				PeerInterface: uint64(peer.PeerInterface),
 				PeerMtu:       uint32(peer.PeerMTU),
 				HopField: &cppb.HopField{
@@ -402,7 +402,7 @@ func (ps *PathSegment) getHopsDescription() string {
 	return strings.Join(description, ">")
 }
 
-func getHopDescription(ia addr.IA, hop HopField) string {
+func getHopDescription(ia addr.IAInt, hop HopField) string {
 	desc := []string{}
 	if hop.ConsIngress > 0 {
 		desc = append(desc, fmt.Sprintf("%v ", hop.ConsIngress))

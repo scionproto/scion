@@ -25,8 +25,8 @@ import (
 )
 
 func TestAdvertiseList(t *testing.T) {
-	from := addr.IA{I: 1}
-	to := addr.IA{I: 2}
+	from := addr.NewIAInt(1, 0)
+	to := addr.NewIAInt(2, 0)
 
 	policy := routing.Policy{DefaultAction: routing.Reject}
 
@@ -53,8 +53,8 @@ func TestAdvertiseList(t *testing.T) {
 }
 
 func TestRedistributeBGPList(t *testing.T) {
-	from := addr.IA{I: 1}
-	to := addr.IA{I: 2}
+	from := addr.NewIAInt(1, 0)
+	to := addr.NewIAInt(2, 0)
 
 	policy := routing.Policy{DefaultAction: routing.Reject}
 

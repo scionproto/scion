@@ -32,7 +32,7 @@ import (
 
 // Lookuper looks up path segments.
 type Lookuper interface {
-	LookupSegments(ctx context.Context, src, dst addr.IA) (segfetcher.Segments, error)
+	LookupSegments(ctx context.Context, src, dst addr.IAInt) (segfetcher.Segments, error)
 }
 
 // LookupServer handles path segment lookups.
@@ -51,10 +51,10 @@ type LookupServer struct {
 func (s LookupServer) Segments(ctx context.Context,
 	req *cppb.SegmentsRequest) (*cppb.SegmentsResponse, error) {
 
-	src, dst := addr.IAInt(req.SrcIsdAs).IA(), addr.IAInt(req.DstIsdAs).IA()
+	src, dst := addr.IAInt(req.SrcIsdAs), addr.IAInt(req.DstIsdAs)
 	labels := requestLabels{
 		Desc: descLabels{
-			DstISD: dst.I,
+			DstISD: dst.I(),
 		},
 	}
 	logger := log.FromCtx(ctx)
@@ -113,7 +113,7 @@ func (s LookupServer) incSent(c metrics.Counter, labels descLabels, inc int) {
 	}
 }
 
-func setQueryTags(span opentracing.Span, src, dst addr.IA) {
+func setQueryTags(span opentracing.Span, src, dst addr.IAInt) {
 	if span != nil {
 		span.SetTag("query.src", src)
 		span.SetTag("query.dst", dst)

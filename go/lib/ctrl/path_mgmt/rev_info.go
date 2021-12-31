@@ -57,8 +57,8 @@ type RevInfo struct {
 	RawTTL uint32
 }
 
-func (r *RevInfo) IA() addr.IA {
-	return r.RawIsdas.IA()
+func (r *RevInfo) IA() addr.IAInt {
+	return r.RawIsdas
 }
 
 // Timestamp returns the issuing time stamp of the revocation.

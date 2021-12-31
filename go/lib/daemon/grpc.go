@@ -63,22 +63,22 @@ type grpcConn struct {
 	metrics Metrics
 }
 
-func (c grpcConn) LocalIA(ctx context.Context) (addr.IA, error) {
-	asInfo, err := c.ASInfo(ctx, addr.IA{})
+func (c grpcConn) LocalIA(ctx context.Context) (addr.IAInt, error) {
+	asInfo, err := c.ASInfo(ctx, 0)
 	if err != nil {
-		return addr.IA{}, err
+		return 0, err
 	}
 	ia := asInfo.IA
 	return ia, nil
 }
 
-func (c grpcConn) Paths(ctx context.Context, dst, src addr.IA,
+func (c grpcConn) Paths(ctx context.Context, dst, src addr.IAInt,
 	f PathReqFlags) ([]snet.Path, error) {
 
 	client := sdpb.NewDaemonServiceClient(c.conn)
 	response, err := client.Paths(ctx, &sdpb.PathsRequest{
-		SourceIsdAs:      uint64(src.IAInt()),
-		DestinationIsdAs: uint64(dst.IAInt()),
+		SourceIsdAs:      uint64(src),
+		DestinationIsdAs: uint64(dst),
 		Hidden:           f.Hidden,
 		Refresh:          f.Refresh,
 	})
@@ -91,16 +91,16 @@ func (c grpcConn) Paths(ctx context.Context, dst, src addr.IA,
 	return paths, err
 }
 
-func (c grpcConn) ASInfo(ctx context.Context, ia addr.IA) (ASInfo, error) {
+func (c grpcConn) ASInfo(ctx context.Context, ia addr.IAInt) (ASInfo, error) {
 	client := sdpb.NewDaemonServiceClient(c.conn)
-	response, err := client.AS(ctx, &sdpb.ASRequest{IsdAs: uint64(ia.IAInt())})
+	response, err := client.AS(ctx, &sdpb.ASRequest{IsdAs: uint64(ia)})
 	if err != nil {
 		c.metrics.incAS(err)
 		return ASInfo{}, err
 	}
 	c.metrics.incAS(nil)
 	return ASInfo{
-		IA:  addr.IAInt(response.IsdAs).IA(),
+		IA:  addr.IAInt(response.IsdAs),
 		MTU: uint16(response.Mtu),
 	}, nil
 }
@@ -161,7 +161,7 @@ func (c grpcConn) Close(_ context.Context) error {
 	return c.conn.Close()
 }
 
-func pathResponseToPaths(paths []*sdpb.Path, dst addr.IA) ([]snet.Path, error) {
+func pathResponseToPaths(paths []*sdpb.Path, dst addr.IAInt) ([]snet.Path, error) {
 	result := make([]snet.Path, 0, len(paths))
 	for _, p := range paths {
 		cp, err := convertPath(p, dst)
@@ -173,7 +173,7 @@ func pathResponseToPaths(paths []*sdpb.Path, dst addr.IA) ([]snet.Path, error) {
 	return result, nil
 }
 
-func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
+func convertPath(p *sdpb.Path, dst addr.IAInt) (path.Path, error) {
 	expiry := time.Unix(p.Expiration.Seconds, int64(p.Expiration.Nanos))
 	if len(p.Interfaces) == 0 {
 		return path.Path{
@@ -192,7 +192,7 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 	for i, pi := range p.Interfaces {
 		interfaces[i] = snet.PathInterface{
 			ID: common.IFIDType(pi.Id),
-			IA: addr.IAInt(pi.IsdAs).IA(),
+			IA: addr.IAInt(pi.IsdAs),
 		}
 	}
 	latency := make([]time.Duration, len(p.Latency))

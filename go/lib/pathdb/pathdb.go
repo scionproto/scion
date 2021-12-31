@@ -47,7 +47,7 @@ type ReadWrite interface {
 	GetAll(context.Context) (query.Results, error)
 	// GetNextQuery returns the nextQuery timestamp for the given src-dst pair
 	// and policy , or a zero time if it hasn't been queried.
-	GetNextQuery(ctx context.Context, src, dst addr.IA) (time.Time, error)
+	GetNextQuery(ctx context.Context, src, dst addr.IAInt) (time.Time, error)
 	// Insert inserts or updates a path segment. It returns the number of path segments
 	// that have been inserted/updated.
 	Insert(context.Context, *seg.Meta) (InsertStats, error)
@@ -60,7 +60,7 @@ type ReadWrite interface {
 	// InsertNextQuery inserts or updates the timestamp nextQuery for the given
 	// src-dst pair and policy. Returns true if an insert/update happened or
 	// false if the stored timestamp is already newer.
-	InsertNextQuery(ctx context.Context, src, dst addr.IA, nextQuery time.Time) (bool, error)
+	InsertNextQuery(ctx context.Context, src, dst addr.IAInt, nextQuery time.Time) (bool, error)
 }
 
 type Transaction interface {

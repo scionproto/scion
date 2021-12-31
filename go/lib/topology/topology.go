@@ -59,7 +59,7 @@ type (
 	// Additionally, there is a map from those names to TopoAddr structs.
 	RWTopology struct {
 		Timestamp  time.Time
-		IA         addr.IA
+		IA         addr.IAInt
 		Attributes []jsontopo.Attribute
 		MTU        int
 
@@ -111,7 +111,7 @@ type (
 		Local        *net.UDPAddr
 		Remote       *net.UDPAddr
 		RemoteIFID   common.IFIDType
-		IA           addr.IA
+		IA           addr.IAInt
 		LinkType     LinkType
 		MTU          int
 		BFD          BFD

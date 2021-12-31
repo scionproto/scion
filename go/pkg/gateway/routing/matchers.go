@@ -24,20 +24,20 @@ import (
 
 // singleIAMatcher matches other ISD-AS numbers based on a single ISD-AS.
 type SingleIAMatcher struct {
-	IA addr.IA
+	IA addr.IAInt
 }
 
 // Match matches the input ISD-AS if both the ISD and the AS number are the same
 // as the one of the matcher. Zero values of ISD and AS in the matchers ISD-AS
 // are treated as wildcards and match everything.
-func (m SingleIAMatcher) Match(ia addr.IA) bool {
+func (m SingleIAMatcher) Match(ia addr.IAInt) bool {
 	switch {
 	case m.IA.IsZero():
 		return true
-	case m.IA.I == 0:
-		return m.IA.A == ia.A
-	case m.IA.A == 0:
-		return m.IA.I == ia.I
+	case m.IA.I() == 0:
+		return m.IA.A() == ia.A()
+	case m.IA.A() == 0:
+		return m.IA.I() == ia.I()
 	default:
 		return m.IA.Equal(ia)
 	}
@@ -53,7 +53,7 @@ type NegatedIAMatcher struct {
 }
 
 // Match negates the result of the enclosed matcher.
-func (m NegatedIAMatcher) Match(ia addr.IA) bool {
+func (m NegatedIAMatcher) Match(ia addr.IAInt) bool {
 	return !m.IAMatcher.Match(ia)
 }
 

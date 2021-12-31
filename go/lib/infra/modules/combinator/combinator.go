@@ -56,7 +56,7 @@ import (
 //
 // If Combine cannot extract a hop field or info field from the segments, it
 // panics.
-func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment,
+func Combine(src, dst addr.IAInt, ups, cores, downs []*seg.PathSegment,
 	findAllIdentical bool) []Path {
 
 	solutions := newDMG(ups, cores, downs).GetPaths(vertexFromIA(src), vertexFromIA(dst))
@@ -72,7 +72,7 @@ func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment,
 }
 
 type Path struct {
-	Dst      addr.IA
+	Dst      addr.IAInt
 	SPath    spath.Path
 	Metadata snet.PathMetadata
 	Weight   int // XXX(matzf): unused, drop this?
@@ -85,7 +85,7 @@ func filterLongPaths(paths []Path) []Path {
 	var newPaths []Path
 	for _, path := range paths {
 		long := false
-		iaCounts := make(map[addr.IA]int)
+		iaCounts := make(map[addr.IAInt]int)
 		for _, iface := range path.Metadata.Interfaces {
 			iaCounts[iface.IA]++
 			if iaCounts[iface.IA] > 2 {
@@ -138,7 +138,7 @@ func filterDuplicates(paths []Path) []Path {
 func fingerprint(interfaces []snet.PathInterface) snet.PathFingerprint {
 	h := sha256.New()
 	for _, intf := range interfaces {
-		binary.Write(h, binary.BigEndian, intf.IA.IAInt())
+		binary.Write(h, binary.BigEndian, intf.IA)
 		binary.Write(h, binary.BigEndian, intf.ID)
 	}
 	return snet.PathFingerprint(h.Sum(nil))

@@ -28,9 +28,9 @@ type SegmentRequest struct {
 	// requested.
 	GroupIDs []GroupID
 	// DstIA is the destination ISD-AS of the segments that are requested.
-	DstIA addr.IA
+	DstIA addr.IAInt
 	// Peer is ISD-AS of the requesting peer.
-	Peer addr.IA
+	Peer addr.IAInt
 }
 
 // AuthoritativeServer serves segments from the database.
@@ -40,7 +40,7 @@ type AuthoritativeServer struct {
 	// DB is used to read hidden segments.
 	DB Store
 	// LocalIA is the ISD-AS this server is run in.
-	LocalIA addr.IA
+	LocalIA addr.IAInt
 }
 
 // Segments returns the segments for the request or errors out if there was an
@@ -70,7 +70,7 @@ func (s AuthoritativeServer) Segments(ctx context.Context,
 	return segs, nil
 }
 
-func canRead(peer addr.IA, group *Group) bool {
+func canRead(peer addr.IAInt, group *Group) bool {
 	owner := group.Owner.Equal(peer)
 	_, registry := group.Registries[peer]
 	_, writer := group.Writers[peer]
@@ -78,7 +78,7 @@ func canRead(peer addr.IA, group *Group) bool {
 	return owner || registry || writer || reader
 }
 
-func isAuthoritative(localIA addr.IA, group *Group) bool {
+func isAuthoritative(localIA addr.IAInt, group *Group) bool {
 	_, auth := group.Registries[localIA]
 	return auth
 }

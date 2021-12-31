@@ -82,16 +82,16 @@ type Group struct {
 	// Owner is the AS ID of the owner of the hidden path group. The Owner AS is
 	// responsible for maintaining the hidden path group configuration and
 	// distributing it to all entities that require it.
-	Owner addr.IA
+	Owner addr.IAInt
 	// Writers contains all ASes in the group that are allowed to register hidden
 	// paths.
-	Writers map[addr.IA]struct{}
+	Writers map[addr.IAInt]struct{}
 	// Readers contains all ASes in the group which are allowed to read hidden
 	// path information.
-	Readers map[addr.IA]struct{}
+	Readers map[addr.IAInt]struct{}
 	// Registries contains all ASes in the group at which Writers register hidden
 	// paths.
-	Registries map[addr.IA]struct{}
+	Registries map[addr.IAInt]struct{}
 }
 
 // Validate validates the group.
@@ -102,9 +102,9 @@ func (g *Group) Validate() error {
 	if g.Owner.IsZero() {
 		return serrors.New("missing owner")
 	}
-	if g.Owner.A != g.ID.OwnerAS {
+	if g.Owner.A() != g.ID.OwnerAS {
 		return serrors.New("owner mismatch",
-			"owner_as", g.Owner.A, "group_id", g.ID.OwnerAS)
+			"owner_as", g.Owner.A(), "group_id", g.ID.OwnerAS)
 	}
 	if len(g.Writers) == 0 {
 		return serrors.New("writers section cannot be empty")
@@ -116,8 +116,8 @@ func (g *Group) Validate() error {
 	return nil
 }
 
-func (g *Group) GetRegistries() []addr.IA {
-	var ret []addr.IA
+func (g *Group) GetRegistries() []addr.IAInt {
+	var ret []addr.IAInt
 	for k := range g.Registries {
 		ret = append(ret, k)
 	}
@@ -197,9 +197,9 @@ func LoadHiddenPathGroups(location string) (Groups, error) {
 }
 
 // Roles returns the roles the given ISD-AS has in this set of groups.
-func (g Groups) Roles(ia addr.IA) Roles {
+func (g Groups) Roles(ia addr.IAInt) Roles {
 	r := Roles{}
-	inSet := func(ia addr.IA, set map[addr.IA]struct{}) bool {
+	inSet := func(ia addr.IAInt, set map[addr.IAInt]struct{}) bool {
 		_, ok := set[ia]
 		return ok
 	}
@@ -266,7 +266,7 @@ func marshalGroups(groups Groups) map[string]*groupInfo {
 	return result
 }
 
-func iaSetToStrings(ias map[addr.IA]struct{}) []string {
+func iaSetToStrings(ias map[addr.IAInt]struct{}) []string {
 	result := make([]string, 0, len(ias))
 	for ia := range ias {
 		result = append(result, ia.String())
@@ -276,8 +276,8 @@ func iaSetToStrings(ias map[addr.IA]struct{}) []string {
 	return result
 }
 
-func stringsToIASet(rawIAs []string) (map[addr.IA]struct{}, error) {
-	result := make(map[addr.IA]struct{})
+func stringsToIASet(rawIAs []string) (map[addr.IAInt]struct{}, error) {
+	result := make(map[addr.IAInt]struct{})
 	for _, rawIA := range rawIAs {
 		ia, err := addr.IAFromString(rawIA)
 		if err != nil {

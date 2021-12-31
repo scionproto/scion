@@ -61,14 +61,14 @@ func TestNewGroup(t *testing.T) {
 						Suffix:  0x69b5,
 					},
 					Owner: xtest.MustParseIA("1-ff00:0:110"),
-					Writers: map[addr.IA]struct{}{
+					Writers: map[addr.IAInt]struct{}{
 						xtest.MustParseIA("1-ff00:0:111"): {},
 						xtest.MustParseIA("1-ff00:0:112"): {},
 					},
-					Readers: map[addr.IA]struct{}{
+					Readers: map[addr.IAInt]struct{}{
 						xtest.MustParseIA("1-ff00:0:114"): {},
 					},
-					Registries: map[addr.IA]struct{}{
+					Registries: map[addr.IAInt]struct{}{
 						xtest.MustParseIA("1-ff00:0:111"): {},
 						xtest.MustParseIA("1-ff00:0:113"): {},
 					},
@@ -82,14 +82,14 @@ func TestNewGroup(t *testing.T) {
 						Suffix:  0xabcd,
 					},
 					Owner: xtest.MustParseIA("1-ff00:0:222"),
-					Writers: map[addr.IA]struct{}{
+					Writers: map[addr.IAInt]struct{}{
 						xtest.MustParseIA("1-ff00:0:111"): {},
 						xtest.MustParseIA("1-ff00:0:112"): {},
 					},
-					Readers: map[addr.IA]struct{}{
+					Readers: map[addr.IAInt]struct{}{
 						xtest.MustParseIA("1-ff00:0:114"): {},
 					},
-					Registries: map[addr.IA]struct{}{
+					Registries: map[addr.IAInt]struct{}{
 						xtest.MustParseIA("1-ff00:0:115"): {},
 					},
 				},
@@ -129,15 +129,15 @@ func TestGroupValidate(t *testing.T) {
 					Suffix:  0x69b5,
 				},
 				Owner: xtest.MustParseIA("1-ff00:0:110"),
-				Writers: map[addr.IA]struct{}{
+				Writers: map[addr.IAInt]struct{}{
 					xtest.MustParseIA("1-ff00:0:111"): {},
 					xtest.MustParseIA("1-ff00:0:112"): {},
 				},
-				Readers: map[addr.IA]struct{}{
+				Readers: map[addr.IAInt]struct{}{
 					xtest.MustParseIA("1-ff00:0:113"): {},
 					xtest.MustParseIA("1-ff00:0:114"): {},
 				},
-				Registries: map[addr.IA]struct{}{
+				Registries: map[addr.IAInt]struct{}{
 					xtest.MustParseIA("1-ff00:0:110"): {},
 					xtest.MustParseIA("1-ff00:0:111"): {},
 					xtest.MustParseIA("1-ff00:0:115"): {},
@@ -157,7 +157,7 @@ func TestGroupValidate(t *testing.T) {
 					OwnerAS: xtest.MustParseAS("ff00:0:110"),
 					Suffix:  0x69b5,
 				},
-				Owner: addr.IA{},
+				Owner: 0,
 			},
 			assertError: assert.Error,
 		},
@@ -178,9 +178,9 @@ func TestGroupValidate(t *testing.T) {
 					Suffix:  0x69b5,
 				},
 				Owner:      xtest.MustParseIA("1-ff00:0:110"),
-				Writers:    map[addr.IA]struct{}{},
-				Readers:    map[addr.IA]struct{}{},
-				Registries: map[addr.IA]struct{}{},
+				Writers:    map[addr.IAInt]struct{}{},
+				Readers:    map[addr.IAInt]struct{}{},
+				Registries: map[addr.IAInt]struct{}{},
 			},
 			assertError: assert.Error,
 		},

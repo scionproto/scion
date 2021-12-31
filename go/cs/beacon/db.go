@@ -45,9 +45,14 @@ type DB interface {
 	// CandidateBeacons returns up to `setSize` beacons that are allowed for the
 	// given usage. The beacons in the slice are ordered by segment length from
 	// shortest to longest.
-	CandidateBeacons(ctx context.Context, setSize int, usage Usage, src addr.IA) ([]Beacon, error)
+	CandidateBeacons(
+		ctx context.Context,
+		setSize int,
+		usage Usage,
+		src addr.IAInt,
+	) ([]Beacon, error)
 	// BeaconSources returns all source ISD-AS of the beacons in the database.
-	BeaconSources(ctx context.Context) ([]addr.IA, error)
+	BeaconSources(ctx context.Context) ([]addr.IAInt, error)
 	// Insert inserts a beacon with its allowed usage into the database.
 	InsertBeacon(ctx context.Context, beacon Beacon, usage Usage) (InsertStats, error)
 }

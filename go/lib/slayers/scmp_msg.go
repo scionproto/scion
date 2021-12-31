@@ -41,7 +41,7 @@ const scmpRawInterfaceLen = 8
 //
 type SCMPExternalInterfaceDown struct {
 	BaseLayer
-	IA   addr.IA
+	IA   addr.IAInt
 	IfID uint64
 }
 
@@ -123,7 +123,7 @@ func decodeSCMPExternalInterfaceDown(data []byte, pb gopacket.PacketBuilder) err
 //
 type SCMPInternalConnectivityDown struct {
 	BaseLayer
-	IA      addr.IA
+	IA      addr.IAInt
 	Ingress uint64
 	Egress  uint64
 }
@@ -333,7 +333,7 @@ type SCMPTraceroute struct {
 	BaseLayer
 	Identifier uint16
 	Sequence   uint16
-	IA         addr.IA
+	IA         addr.IAInt
 	Interface  uint64
 }
 

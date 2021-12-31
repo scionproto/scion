@@ -271,12 +271,12 @@ func (f Filter) Apply(beacon Beacon) error {
 	}
 	for _, ia := range hops {
 		for _, as := range f.AsBlackList {
-			if ia.A == as {
+			if ia.A() == as {
 				return serrors.New("contains blocked AS", "isd_as", ia)
 			}
 		}
 		for _, isd := range f.IsdBlackList {
-			if ia.I == isd {
+			if ia.I() == isd {
 				return serrors.New("contains blocked ISD", "isd_as", ia)
 			}
 		}
@@ -286,7 +286,7 @@ func (f Filter) Apply(beacon Beacon) error {
 
 // FilterLoop returns an error if the beacon contains an AS or ISD loop. If ISD
 // loops are allowed, an error is returned only on AS loops.
-func FilterLoop(beacon Beacon, next addr.IA, allowIsdLoop bool) error {
+func FilterLoop(beacon Beacon, next addr.IAInt, allowIsdLoop bool) error {
 	hops := buildHops(beacon)
 	if !next.IsZero() {
 		hops = append(hops, next)
@@ -294,15 +294,15 @@ func FilterLoop(beacon Beacon, next addr.IA, allowIsdLoop bool) error {
 	return filterLoops(hops, allowIsdLoop)
 }
 
-func buildHops(beacon Beacon) []addr.IA {
-	hops := make([]addr.IA, 0, len(beacon.Segment.ASEntries)+1)
+func buildHops(beacon Beacon) []addr.IAInt {
+	hops := make([]addr.IAInt, 0, len(beacon.Segment.ASEntries)+1)
 	for _, asEntry := range beacon.Segment.ASEntries {
 		hops = append(hops, asEntry.Local)
 	}
 	return hops
 }
 
-func filterLoops(hops []addr.IA, allowIsdLoop bool) error {
+func filterLoops(hops []addr.IAInt, allowIsdLoop bool) error {
 	if ia := filterAsLoop(hops); !ia.IsZero() {
 		return serrors.New("AS loop", "ia", ia)
 	}
@@ -315,29 +315,29 @@ func filterLoops(hops []addr.IA, allowIsdLoop bool) error {
 	return nil
 }
 
-func filterAsLoop(hops []addr.IA) addr.IA {
-	seen := make(map[addr.IA]struct{})
+func filterAsLoop(hops []addr.IAInt) addr.IAInt {
+	seen := make(map[addr.IAInt]struct{})
 	for _, ia := range hops {
 		if _, ok := seen[ia]; ok {
 			return ia
 		}
 		seen[ia] = struct{}{}
 	}
-	return addr.IA{}
+	return 0
 }
 
-func filterIsdLoop(hops []addr.IA) addr.ISD {
+func filterIsdLoop(hops []addr.IAInt) addr.ISD {
 	seen := make(map[addr.ISD]struct{})
 	var last addr.ISD
 	for _, ia := range hops {
-		if last == ia.I {
+		if last == ia.I() {
 			continue
 		}
-		if _, ok := seen[ia.I]; ok {
-			return ia.I
+		if _, ok := seen[ia.I()]; ok {
+			return ia.I()
 		}
-		last = ia.I
-		seen[ia.I] = struct{}{}
+		last = ia.I()
+		seen[ia.I()] = struct{}{}
 	}
 	return 0
 }

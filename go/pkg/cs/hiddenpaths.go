@@ -31,7 +31,7 @@ import (
 
 // HiddenPathConfigurator can be used to configure the hidden path servers.
 type HiddenPathConfigurator struct {
-	LocalIA           addr.IA
+	LocalIA           addr.IAInt
 	Verifier          infra.Verifier
 	Signer            hpgrpc.Signer
 	PathDB            pathdb.DB

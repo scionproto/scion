@@ -54,7 +54,7 @@ type QUIC struct {
 // control-plane RPC endpoint.
 type NetworkConfig struct {
 	// IA is the local AS number.
-	IA addr.IA
+	IA addr.IAInt
 	// Public is the Internet-reachable address in the case where the service
 	// is behind NAT.
 	Public *net.UDPAddr
@@ -304,7 +304,7 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 }
 
 // NewRouter constructs a path router for paths starting from localIA.
-func NewRouter(localIA addr.IA, sd env.Daemon) (snet.Router, error) {
+func NewRouter(localIA addr.IAInt, sd env.Daemon) (snet.Router, error) {
 	ticker := time.NewTicker(time.Second)
 	timer := time.NewTimer(sd.InitialConnectPeriod.Duration)
 	ctx, cancelF := context.WithTimeout(context.Background(), sd.InitialConnectPeriod.Duration)

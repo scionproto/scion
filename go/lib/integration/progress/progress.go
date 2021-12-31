@@ -24,7 +24,7 @@ import (
 
 // RPC defines the progress RPC API.
 type RPC struct {
-	onDone func(src, dst addr.IA)
+	onDone func(src, dst addr.IAInt)
 }
 
 // Done exposes the RPC.
@@ -36,7 +36,7 @@ func (r *RPC) Done(done *Done, rep *bool) error {
 
 // Done is the RPC call to indicate a test is done.
 type Done struct {
-	Src, Dst addr.IA
+	Src, Dst addr.IAInt
 }
 
 // Client is the client side of the RPCs between the testing binary and the
@@ -46,7 +46,7 @@ type Client struct {
 }
 
 // Done tells the integration test, that the testing binary is done.
-func (c Client) Done(src, dst addr.IA) error {
+func (c Client) Done(src, dst addr.IAInt) error {
 	client, err := rpc.DialHTTP("unix", c.Socket)
 	if err != nil {
 		return err
@@ -59,7 +59,7 @@ func (c Client) Done(src, dst addr.IA) error {
 // Server is the server side of the RPCs between the testing binary and the
 // integration test.
 type Server struct {
-	OnDone func(src, dst addr.IA)
+	OnDone func(src, dst addr.IAInt)
 }
 
 // Serve starts serving the RPCs.

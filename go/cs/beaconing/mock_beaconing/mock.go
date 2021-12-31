@@ -295,7 +295,7 @@ func (m *MockSenderFactory) EXPECT() *MockSenderFactoryMockRecorder {
 }
 
 // NewSender mocks base method.
-func (m *MockSenderFactory) NewSender(arg0 context.Context, arg1 addr.IA, arg2 uint16, arg3 *net.UDPAddr) (beaconing.Sender, error) {
+func (m *MockSenderFactory) NewSender(arg0 context.Context, arg1 addr.IAInt, arg2 uint16, arg3 *net.UDPAddr) (beaconing.Sender, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewSender", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(beaconing.Sender)

@@ -31,27 +31,27 @@ import (
 )
 
 type isdInfo struct {
-	authoritatives []addr.IA
-	cores          []addr.IA
-	rootCAs        []addr.IA
+	authoritatives []addr.IAInt
+	cores          []addr.IAInt
+	rootCAs        []addr.IAInt
 }
 
-func (i isdInfo) any() []addr.IA {
+func (i isdInfo) any() []addr.IAInt {
 	return joinUnique(i.authoritatives, i.cores, i.rootCAs)
 }
 
 var attributes = isdInfo{
-	authoritatives: []addr.IA{
+	authoritatives: []addr.IAInt{
 		xtest.MustParseIA("1-ff00:0:110"),
 		xtest.MustParseIA("1-ff00:0:130"),
 		xtest.MustParseIA("1-ff00:0:111"),
 	},
-	cores: []addr.IA{
+	cores: []addr.IAInt{
 		xtest.MustParseIA("1-ff00:0:110"),
 		xtest.MustParseIA("1-ff00:0:120"),
 		xtest.MustParseIA("1-ff00:0:130"),
 	},
-	rootCAs: []addr.IA{
+	rootCAs: []addr.IAInt{
 		xtest.MustParseIA("1-ff00:0:110"),
 		xtest.MustParseIA("1-ff00:0:111"),
 	},
@@ -67,7 +67,7 @@ func TestDBInspectorByAttributes(t *testing.T) {
 	testCases := map[string]struct {
 		db        func(ctrl *gomock.Controller) trust.DB
 		query     byAttrQuery
-		expected  []addr.IA
+		expected  []addr.IAInt
 		assertErr assert.ErrorAssertionFunc
 	}{
 		"valid any": {
@@ -125,7 +125,7 @@ func TestDBInspectorByAttributes(t *testing.T) {
 }
 
 type hasAttrQuery struct {
-	IA    addr.IA
+	IA    addr.IAInt
 	Attrs trust.Attribute
 }
 
@@ -215,17 +215,17 @@ func trcDB(trc cppki.SignedTRC) func(*gomock.Controller) trust.DB {
 	}
 }
 
-func toMap(ias []addr.IA) map[addr.IA]struct{} {
-	result := map[addr.IA]struct{}{}
+func toMap(ias []addr.IAInt) map[addr.IAInt]struct{} {
+	result := map[addr.IAInt]struct{}{}
 	for _, ia := range ias {
 		result[ia] = struct{}{}
 	}
 	return result
 }
 
-func intersection(base map[addr.IA]struct{}, others ...map[addr.IA]struct{}) []addr.IA {
-	var result []addr.IA
-	inOthers := func(ia addr.IA) bool {
+func intersection(base map[addr.IAInt]struct{}, others ...map[addr.IAInt]struct{}) []addr.IAInt {
+	var result []addr.IAInt
+	inOthers := func(ia addr.IAInt) bool {
 		for _, other := range others {
 			if _, ok := other[ia]; !ok {
 				return false
@@ -241,14 +241,14 @@ func intersection(base map[addr.IA]struct{}, others ...map[addr.IA]struct{}) []a
 	return result
 }
 
-func joinUnique(iaLists ...[]addr.IA) []addr.IA {
-	uniques := map[addr.IA]struct{}{}
+func joinUnique(iaLists ...[]addr.IAInt) []addr.IAInt {
+	uniques := map[addr.IAInt]struct{}{}
 	for _, ias := range iaLists {
 		for _, ia := range ias {
 			uniques[ia] = struct{}{}
 		}
 	}
-	result := make([]addr.IA, 0, len(uniques))
+	result := make([]addr.IAInt, 0, len(uniques))
 	for ia := range uniques {
 		result = append(result, ia)
 	}

@@ -44,8 +44,8 @@ func TestNewSequence(t *testing.T) {
 func TestSequenceEval(t *testing.T) {
 	tests := map[string]struct {
 		Seq        *Sequence
-		Src        addr.IA
-		Dst        addr.IA
+		Src        addr.IAInt
+		Dst        addr.IAInt
 		ExpPathNum int
 	}{
 		"Empty path": {

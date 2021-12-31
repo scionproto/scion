@@ -195,7 +195,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		}
 		doneDir = tmpDir
 		defer os.Remove(doneDir)
-		socket, clean, err := integration.ListenDone(doneDir, func(src, dst addr.IA) {
+		socket, clean, err := integration.ListenDone(doneDir, func(src, dst addr.IAInt) {
 			ctrMtx.Lock()
 			defer ctrMtx.Unlock()
 			ctr++
@@ -314,7 +314,7 @@ func filter(src, dst string, pairs []integration.IAPair, ases *util.ASList) []in
 		filter := !contains(ases, src != "noncore", pair.Src.IA)
 		filter = filter || !contains(ases, dst != "noncore", pair.Dst.IA)
 		if dst == "localcore" {
-			filter = filter || pair.Src.IA.I != pair.Dst.IA.I
+			filter = filter || pair.Src.IA.I() != pair.Dst.IA.I()
 		}
 		if !filter {
 			res = append(res, pair)
@@ -323,7 +323,7 @@ func filter(src, dst string, pairs []integration.IAPair, ases *util.ASList) []in
 	return res
 }
 
-func contains(ases *util.ASList, core bool, ia addr.IA) bool {
+func contains(ases *util.ASList, core bool, ia addr.IAInt) bool {
 	l := ases.Core
 	if !core {
 		l = ases.NonCore

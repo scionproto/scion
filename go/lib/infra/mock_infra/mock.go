@@ -60,7 +60,7 @@ func (mr *MockVerifierMockRecorder) Verify(arg0, arg1 interface{}, arg2 ...inter
 }
 
 // WithIA mocks base method.
-func (m *MockVerifier) WithIA(arg0 addr.IA) infra.Verifier {
+func (m *MockVerifier) WithIA(arg0 addr.IAInt) infra.Verifier {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "WithIA", arg0)
 	ret0, _ := ret[0].(infra.Verifier)

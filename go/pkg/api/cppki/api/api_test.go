@@ -164,13 +164,13 @@ func TestAPI(t *testing.T) {
 					cppki.SignedTRC{
 						TRC: cppki.TRC{
 							CoreASes: []addr.AS{
-								xtest.MustParseIA("1-ff00:0:130").A,
-								xtest.MustParseIA("1-ff00:0:131").A,
-								xtest.MustParseIA("1-ff00:0:132").A,
+								xtest.MustParseIA("1-ff00:0:130").A(),
+								xtest.MustParseIA("1-ff00:0:131").A(),
+								xtest.MustParseIA("1-ff00:0:132").A(),
 							},
 							AuthoritativeASes: []addr.AS{
-								xtest.MustParseIA("1-ff00:0:131").A,
-								xtest.MustParseIA("1-ff00:0:132").A,
+								xtest.MustParseIA("1-ff00:0:131").A(),
+								xtest.MustParseIA("1-ff00:0:132").A(),
 							},
 							Description: "trc description",
 							ID: cppki.TRCID{

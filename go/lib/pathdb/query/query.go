@@ -25,7 +25,7 @@ import (
 )
 
 type IntfSpec struct {
-	IA   addr.IA
+	IA   addr.IAInt
 	IfID common.IFIDType
 }
 
@@ -34,8 +34,8 @@ type Params struct {
 	SegTypes   []seg.Type
 	HPGroupIDs []uint64
 	Intfs      []*IntfSpec
-	StartsAt   []addr.IA
-	EndsAt     []addr.IA
+	StartsAt   []addr.IAInt
+	EndsAt     []addr.IAInt
 }
 
 type Result struct {
@@ -77,8 +77,8 @@ func (r Results) Len() int {
 
 // Less returns if seg[i] is less than seg[j] based on start_isd_as > end_isd_as > length > id
 func (r Results) Less(i, j int) bool {
-	firstA, lastA := r[i].Seg.FirstIA().IAInt(), r[i].Seg.LastIA().IAInt()
-	firstB, lastB := r[j].Seg.FirstIA().IAInt(), r[j].Seg.LastIA().IAInt()
+	firstA, lastA := r[i].Seg.FirstIA(), r[i].Seg.LastIA()
+	firstB, lastB := r[j].Seg.FirstIA(), r[j].Seg.LastIA()
 	lenA, lenB := len(r[i].Seg.ASEntries), len(r[j].Seg.ASEntries)
 	switch {
 	case firstA != firstB:

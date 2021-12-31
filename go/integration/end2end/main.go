@@ -50,16 +50,16 @@ const (
 )
 
 type Ping struct {
-	Server  addr.IA `json:"server"`
-	Message string  `json:"message"`
-	Trace   []byte  `json:"trace"`
+	Server  addr.IAInt `json:"server"`
+	Message string     `json:"message"`
+	Trace   []byte     `json:"trace"`
 }
 
 type Pong struct {
-	Client  addr.IA `json:"client"`
-	Server  addr.IA `json:"server"`
-	Message string  `json:"message"`
-	Trace   []byte  `json:"trace"`
+	Client  addr.IAInt `json:"client"`
+	Server  addr.IAInt `json:"server"`
+	Message string     `json:"message"`
+	Trace   []byte     `json:"trace"`
 }
 
 var (

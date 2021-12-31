@@ -93,14 +93,14 @@ type BatchConn interface {
 type DataPlane struct {
 	external          map[uint16]BatchConn
 	linkTypes         map[uint16]topology.LinkType
-	neighborIAs       map[uint16]addr.IA
+	neighborIAs       map[uint16]addr.IAInt
 	internal          BatchConn
 	internalIP        net.IP
 	internalNextHops  map[uint16]*net.UDPAddr
 	svc               *services
 	macFactory        func() hash.Hash
 	bfdSessions       map[uint16]bfdSession
-	localIA           addr.IA
+	localIA           addr.IAInt
 	mtx               sync.Mutex
 	running           bool
 	Metrics           *Metrics
@@ -131,7 +131,7 @@ func (e scmpError) Error() string {
 }
 
 // SetIA sets the local IA for the dataplane.
-func (d *DataPlane) SetIA(ia addr.IA) error {
+func (d *DataPlane) SetIA(ia addr.IAInt) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.running {
@@ -218,7 +218,7 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn) error {
 // AddNeighborIA adds the neighboring IA for a given interface ID. If an IA for
 // the given ID is already set, this method will return an error. This can only
 // be called on a yet running dataplane.
-func (d *DataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
+func (d *DataPlane) AddNeighborIA(ifID uint16, remote addr.IAInt) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.running {
@@ -231,7 +231,7 @@ func (d *DataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
 		return serrors.WithCtx(alreadySet, "ifID", ifID)
 	}
 	if d.neighborIAs == nil {
-		d.neighborIAs = make(map[uint16]addr.IA)
+		d.neighborIAs = make(map[uint16]addr.IAInt)
 	}
 	d.neighborIAs[ifID] = remote
 	return nil
@@ -1359,7 +1359,7 @@ func updateSCIONLayer(rawPkt []byte, s slayers.SCION, buffer gopacket.SerializeB
 type bfdSend struct {
 	conn             BatchConn
 	srcAddr, dstAddr *net.UDPAddr
-	srcIA, dstIA     addr.IA
+	srcIA, dstIA     addr.IAInt
 	mac              hash.Hash
 	ifID             uint16
 }
@@ -1577,8 +1577,8 @@ func initForwardingMetrics(metrics *Metrics, labels prometheus.Labels) forwardin
 	return c
 }
 
-func interfaceToMetricLabels(id uint16, localIA addr.IA,
-	neighbors map[uint16]addr.IA) prometheus.Labels {
+func interfaceToMetricLabels(id uint16, localIA addr.IAInt,
+	neighbors map[uint16]addr.IAInt) prometheus.Labels {
 
 	if id == 0 {
 		return prometheus.Labels{
@@ -1594,7 +1594,7 @@ func interfaceToMetricLabels(id uint16, localIA addr.IA,
 	}
 }
 
-func serviceMetricLabels(localIA addr.IA, svc addr.HostSVC) prometheus.Labels {
+func serviceMetricLabels(localIA addr.IAInt, svc addr.HostSVC) prometheus.Labels {
 	return prometheus.Labels{
 		"isd_as":  localIA.String(),
 		"service": svc.BaseString(),

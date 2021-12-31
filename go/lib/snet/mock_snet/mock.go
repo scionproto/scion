@@ -41,7 +41,7 @@ func (m *MockPacketDispatcherService) EXPECT() *MockPacketDispatcherServiceMockR
 }
 
 // Register mocks base method.
-func (m *MockPacketDispatcherService) Register(arg0 context.Context, arg1 addr.IA, arg2 *net.UDPAddr, arg3 addr.HostSVC) (snet.PacketConn, uint16, error) {
+func (m *MockPacketDispatcherService) Register(arg0 context.Context, arg1 addr.IAInt, arg2 *net.UDPAddr, arg3 addr.HostSVC) (snet.PacketConn, uint16, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Register", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(snet.PacketConn)
@@ -254,10 +254,10 @@ func (mr *MockPathMockRecorder) Copy() *gomock.Call {
 }
 
 // Destination mocks base method.
-func (m *MockPath) Destination() addr.IA {
+func (m *MockPath) Destination() addr.IAInt {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Destination")
-	ret0, _ := ret[0].(addr.IA)
+	ret0, _ := ret[0].(addr.IAInt)
 	return ret0
 }
 
@@ -333,7 +333,7 @@ func (m *MockPathQuerier) EXPECT() *MockPathQuerierMockRecorder {
 }
 
 // Query mocks base method.
-func (m *MockPathQuerier) Query(arg0 context.Context, arg1 addr.IA) ([]snet.Path, error) {
+func (m *MockPathQuerier) Query(arg0 context.Context, arg1 addr.IAInt) ([]snet.Path, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Query", arg0, arg1)
 	ret0, _ := ret[0].([]snet.Path)
@@ -371,7 +371,7 @@ func (m *MockRouter) EXPECT() *MockRouterMockRecorder {
 }
 
 // AllRoutes mocks base method.
-func (m *MockRouter) AllRoutes(arg0 context.Context, arg1 addr.IA) ([]snet.Path, error) {
+func (m *MockRouter) AllRoutes(arg0 context.Context, arg1 addr.IAInt) ([]snet.Path, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AllRoutes", arg0, arg1)
 	ret0, _ := ret[0].([]snet.Path)
@@ -386,7 +386,7 @@ func (mr *MockRouterMockRecorder) AllRoutes(arg0, arg1 interface{}) *gomock.Call
 }
 
 // Route mocks base method.
-func (m *MockRouter) Route(arg0 context.Context, arg1 addr.IA) (snet.Path, error) {
+func (m *MockRouter) Route(arg0 context.Context, arg1 addr.IAInt) (snet.Path, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Route", arg0, arg1)
 	ret0, _ := ret[0].(snet.Path)

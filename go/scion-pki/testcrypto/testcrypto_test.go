@@ -40,7 +40,7 @@ func TestCmd(t *testing.T) {
 	err := testcrypto.Testcrypto(topo, outDir, false, false, asValidity)
 	require.NoError(t, err)
 
-	allASes := []addr.IA{
+	allASes := []addr.IAInt{
 		xtest.MustParseIA("1-ff00:0:110"),
 		xtest.MustParseIA("1-ff00:0:120"),
 		xtest.MustParseIA("1-ff00:0:130"),
@@ -52,7 +52,7 @@ func TestCmd(t *testing.T) {
 	for _, as := range allASes {
 		checkAS(t, outDir, as)
 	}
-	issuers := []addr.IA{
+	issuers := []addr.IAInt{
 		xtest.MustParseIA("1-ff00:0:110"),
 		xtest.MustParseIA("1-ff00:0:111"),
 		xtest.MustParseIA("2-ff00:0:210"),
@@ -60,7 +60,7 @@ func TestCmd(t *testing.T) {
 	for _, issuer := range issuers {
 		checkIssuer(t, outDir, issuer)
 	}
-	voters := []addr.IA{
+	voters := []addr.IAInt{
 		xtest.MustParseIA("1-ff00:0:120"),
 		xtest.MustParseIA("1-ff00:0:111"),
 		xtest.MustParseIA("1-ff00:0:131"),
@@ -80,13 +80,13 @@ func checkISD(t *testing.T, outDir string, isd addr.ISD) {
 	assert.NoError(t, trcs.RunVerify([]string{trcFile}, trcFile))
 }
 
-func checkAS(t *testing.T, outDir string, ia addr.IA) {
+func checkAS(t *testing.T, outDir string, ia addr.IAInt) {
 	d := testcrypto.CryptoASDir(ia, testcrypto.NewOut(outDir))
 	checkFileExists(t, filepath.Join(d, "cp-as.key"))
 	validateChain(t, filepath.Join(d, fmt.Sprintf("%s.pem", ia.FileFmt(true))))
 }
 
-func checkIssuer(t *testing.T, outDir string, ia addr.IA) {
+func checkIssuer(t *testing.T, outDir string, ia addr.IAInt) {
 	d := testcrypto.CryptoCADir(ia, testcrypto.NewOut(outDir))
 	checkFileExists(t, filepath.Join(d, "cp-ca.key"))
 	checkFileExists(t, filepath.Join(d, "cp-root.key"))
@@ -96,7 +96,7 @@ func checkIssuer(t *testing.T, outDir string, ia addr.IA) {
 	validateCert(t, filepath.Join(d, certName), cppki.CA)
 }
 
-func checkVoter(t *testing.T, outDir string, ia addr.IA) {
+func checkVoter(t *testing.T, outDir string, ia addr.IAInt) {
 	d := testcrypto.CryptoVotingDir(ia, testcrypto.NewOut(outDir))
 	checkFileExists(t, filepath.Join(d, "sensitive-voting.key"))
 	checkFileExists(t, filepath.Join(d, "regular-voting.key"))

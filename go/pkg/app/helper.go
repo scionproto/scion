@@ -28,13 +28,13 @@ import (
 
 // ASInfo holds information about the local AS.
 type ASInfo struct {
-	IA  addr.IA
+	IA  addr.IAInt
 	MTU uint16
 }
 
 // QueryASInfo queries information about the local AS from the SCION Daemon.
 func QueryASInfo(ctx context.Context, conn daemon.Connector) (ASInfo, error) {
-	asInfo, err := conn.ASInfo(ctx, addr.IA{})
+	asInfo, err := conn.ASInfo(ctx, 0)
 	if err != nil {
 		return ASInfo{}, err
 	}

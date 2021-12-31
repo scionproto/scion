@@ -299,11 +299,11 @@ func (s *Server) GetTrc(w http.ResponseWriter, r *http.Request, isd int, base in
 	}
 	authASes := make([]IsdAs, 0, len(trc.TRC.AuthoritativeASes))
 	for _, as := range trc.TRC.AuthoritativeASes {
-		authASes = append(authASes, IsdAs(addr.IA{I: trc.TRC.ID.ISD, A: as}.String()))
+		authASes = append(authASes, IsdAs(addr.NewIAInt(trc.TRC.ID.ISD, as).String()))
 	}
 	coreAses := make([]IsdAs, 0, len(trc.TRC.CoreASes))
 	for _, as := range trc.TRC.CoreASes {
-		coreAses = append(coreAses, IsdAs(addr.IA{I: trc.TRC.ID.ISD, A: as}.String()))
+		coreAses = append(coreAses, IsdAs(addr.NewIAInt(trc.TRC.ID.ISD, as).String()))
 	}
 	rep := TRC{
 		AuthoritativeAses: authASes,

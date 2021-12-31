@@ -31,7 +31,7 @@ import (
 
 func TestCoreChecker(t *testing.T) {
 	tests := map[string]struct {
-		IA               addr.IA
+		IA               addr.IAInt
 		PrepareInspector func(i *mock_trust.MockInspector)
 		ErrorAssertion   require.ErrorAssertionFunc
 		ExpectedCore     bool

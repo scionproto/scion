@@ -242,19 +242,19 @@ func (s *inputSegment) IsDownSeg() bool {
 // Vertex is a union-like type for the AS vertices and Peering link vertices in
 // a DMG that can be used as key in maps.
 type vertex struct {
-	IA       addr.IA
-	UpIA     addr.IA
+	IA       addr.IAInt
+	UpIA     addr.IAInt
 	UpIFID   common.IFIDType
-	DownIA   addr.IA
+	DownIA   addr.IAInt
 	DownIFID common.IFIDType
 }
 
-func vertexFromIA(ia addr.IA) vertex {
+func vertexFromIA(ia addr.IAInt) vertex {
 	return vertex{IA: ia}
 }
 
-func vertexFromPeering(upIA addr.IA, upIFID common.IFIDType,
-	downIA addr.IA, downIFID common.IFIDType) vertex {
+func vertexFromPeering(upIA addr.IAInt, upIFID common.IFIDType,
+	downIA addr.IAInt, downIFID common.IFIDType) vertex {
 
 	return vertex{UpIA: upIA, UpIFID: upIFID, DownIA: downIA, DownIFID: downIFID}
 }

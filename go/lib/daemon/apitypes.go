@@ -33,16 +33,16 @@ type PathReqFlags struct {
 
 // ASInfo provides information about the local AS.
 type ASInfo struct {
-	IA  addr.IA
+	IA  addr.IAInt
 	MTU uint16
 }
 
 type Querier struct {
 	Connector Connector
-	IA        addr.IA
+	IA        addr.IAInt
 }
 
-func (q Querier) Query(ctx context.Context, dst addr.IA) ([]snet.Path, error) {
+func (q Querier) Query(ctx context.Context, dst addr.IAInt) ([]snet.Path, error) {
 	return q.Connector.Paths(ctx, dst, q.IA, PathReqFlags{})
 }
 

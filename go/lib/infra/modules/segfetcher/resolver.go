@@ -122,8 +122,8 @@ func (r *DefaultResolver) loadSegment(ctx context.Context, req Request) (query.R
 		start, end = end, start
 	}
 	return r.DB.Get(ctx, &query.Params{
-		StartsAt: []addr.IA{start},
-		EndsAt:   []addr.IA{end},
+		StartsAt: []addr.IAInt{start},
+		EndsAt:   []addr.IAInt{end},
 		SegTypes: []seg.Type{req.SegType},
 	})
 }

@@ -27,12 +27,12 @@ import (
 
 // Key denotes the key for the revocation cache.
 type Key struct {
-	IA   addr.IA
+	IA   addr.IAInt
 	IfId common.IFIDType
 }
 
 // NewKey creates a new key for the revocation cache.
-func NewKey(ia addr.IA, ifId common.IFIDType) *Key {
+func NewKey(ia addr.IAInt, ifId common.IFIDType) *Key {
 	return &Key{
 		IA:   ia,
 		IfId: ifId,
@@ -47,7 +47,7 @@ func (k Key) String() string {
 type KeySet map[Key]struct{}
 
 // SingleKey is a convenience function to return a KeySet with a single key.
-func SingleKey(ia addr.IA, ifId common.IFIDType) KeySet {
+func SingleKey(ia addr.IAInt, ifId common.IFIDType) KeySet {
 	return KeySet{*NewKey(ia, ifId): {}}
 }
 

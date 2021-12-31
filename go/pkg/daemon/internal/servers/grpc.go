@@ -49,7 +49,7 @@ type Topology interface {
 
 // DaemonServer handles gRPC requests to the SCION daemon.
 type DaemonServer struct {
-	IA          addr.IA
+	IA          addr.IAInt
 	MTU         uint16
 	Topology    Topology
 	Fetcher     fetcher.Fetcher
@@ -67,7 +67,7 @@ func (s *DaemonServer) Paths(ctx context.Context,
 	req *sdpb.PathsRequest) (*sdpb.PathsResponse, error) {
 
 	start := time.Now()
-	dstI := addr.IAInt(req.DestinationIsdAs).IA().I
+	dstI := addr.IAInt(req.DestinationIsdAs).I()
 	response, err := s.paths(ctx, req)
 	s.Metrics.PathsRequests.inc(
 		pathReqLabels{Result: errToMetricResult(err), Dst: dstI},
@@ -84,7 +84,7 @@ func (s *DaemonServer) paths(ctx context.Context,
 		ctx, cancelF = context.WithTimeout(ctx, 10*time.Second)
 		defer cancelF()
 	}
-	srcIA, dstIA := addr.IAInt(req.SourceIsdAs).IA(), addr.IAInt(req.DestinationIsdAs).IA()
+	srcIA, dstIA := addr.IAInt(req.SourceIsdAs), addr.IAInt(req.DestinationIsdAs)
 	go func() {
 		defer log.HandlePanic()
 		s.backgroundPaths(ctx, srcIA, dstIA, req.Refresh)
@@ -102,8 +102,12 @@ func (s *DaemonServer) paths(ctx context.Context,
 	return reply, nil
 }
 
-func (s *DaemonServer) fetchPaths(ctx context.Context, group *singleflight.Group, src, dst addr.IA,
-	refresh bool) ([]snet.Path, error) {
+func (s *DaemonServer) fetchPaths(
+	ctx context.Context,
+	group *singleflight.Group,
+	src, dst addr.IAInt,
+	refresh bool,
+) ([]snet.Path, error) {
 
 	r, err, _ := group.Do(fmt.Sprintf("%s%s%t", src, dst, refresh),
 		func() (interface{}, error) {
@@ -122,7 +126,7 @@ func pathToPB(path snet.Path) *sdpb.Path {
 	for i, intf := range meta.Interfaces {
 		interfaces[i] = &sdpb.PathInterface{
 			Id:    uint64(intf.ID),
-			IsdAs: uint64(intf.IA.IAInt()),
+			IsdAs: uint64(intf.IA),
 		}
 	}
 
@@ -181,7 +185,7 @@ func linkTypeToPB(lt snet.LinkType) sdpb.LinkType {
 	}
 }
 
-func (s *DaemonServer) backgroundPaths(origCtx context.Context, src, dst addr.IA, refresh bool) {
+func (s *DaemonServer) backgroundPaths(origCtx context.Context, src, dst addr.IAInt, refresh bool) {
 	backgroundTimeout := 5 * time.Second
 	deadline, ok := origCtx.Deadline()
 	if !ok || time.Until(deadline) > backgroundTimeout {
@@ -214,7 +218,7 @@ func (s *DaemonServer) AS(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASRes
 }
 
 func (s *DaemonServer) as(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASResponse, error) {
-	reqIA := addr.IAInt(req.IsdAs).IA()
+	reqIA := addr.IAInt(req.IsdAs)
 	if reqIA.IsZero() {
 		reqIA = s.IA
 	}
@@ -228,7 +232,7 @@ func (s *DaemonServer) as(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASRes
 		return nil, serrors.WrapStr("inspecting ISD-AS", err, "isd_as", reqIA)
 	}
 	reply := &sdpb.ASResponse{
-		IsdAs: uint64(reqIA.IAInt()),
+		IsdAs: uint64(reqIA),
 		Core:  core,
 		Mtu:   mtu,
 	}

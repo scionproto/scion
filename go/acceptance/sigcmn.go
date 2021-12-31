@@ -28,10 +28,10 @@ import (
 )
 
 var (
-	iaIPMap = make(map[addr.IA]net.IP)
+	iaIPMap = make(map[addr.IAInt]net.IP)
 )
 
-var SigAddr integration.HostAddr = func(ia addr.IA) *snet.UDPAddr {
+var SigAddr integration.HostAddr = func(ia addr.IAInt) *snet.UDPAddr {
 	return &snet.UDPAddr{IA: ia, Host: &net.UDPAddr{IP: iaIPMap[ia]}}
 }
 

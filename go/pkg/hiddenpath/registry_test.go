@@ -35,16 +35,16 @@ func TestRegistryRegister(t *testing.T) {
 	writer := xtest.MustParseIA("2-ff00:0:221")
 	groups := map[hiddenpath.GroupID]*hiddenpath.Group{
 		mustParseGroupID(t, "ff00:0:4-5"): {
-			Writers:    map[addr.IA]struct{}{writer: {}},
-			Registries: map[addr.IA]struct{}{localIA: {}},
+			Writers:    map[addr.IAInt]struct{}{writer: {}},
+			Registries: map[addr.IAInt]struct{}{localIA: {}},
 		},
 		mustParseGroupID(t, "ff00:0:4-404"): {
-			Writers:    map[addr.IA]struct{}{writer: {}},
-			Registries: map[addr.IA]struct{}{writer: {}},
+			Writers:    map[addr.IAInt]struct{}{writer: {}},
+			Registries: map[addr.IAInt]struct{}{writer: {}},
 		},
 		mustParseGroupID(t, "ff00:0:4-405"): {
-			Writers:    map[addr.IA]struct{}{localIA: {}},
-			Registries: map[addr.IA]struct{}{localIA: {}},
+			Writers:    map[addr.IAInt]struct{}{localIA: {}},
+			Registries: map[addr.IAInt]struct{}{localIA: {}},
 		},
 	}
 	testCases := map[string]struct {

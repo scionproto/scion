@@ -46,7 +46,7 @@ type ProbeConnFactory interface {
 // DefaultPathWatcherFactory creates PathWatchers.
 type DefaultPathWatcherFactory struct {
 	// LocalIA is the ID of the local AS.
-	LocalIA addr.IA
+	LocalIA addr.IAInt
 	// LocalIP is the IP address of the local host.
 	LocalIP net.IP
 	// RevocationHandler is the revocation handler.
@@ -58,13 +58,13 @@ type DefaultPathWatcherFactory struct {
 	ProbeInterval time.Duration
 	// ProbesSent keeps track of how many path probes have been sent per remote
 	// AS.
-	ProbesSent func(remote addr.IA) metrics.Counter
+	ProbesSent func(remote addr.IAInt) metrics.Counter
 	// ProbesReceived keeps track of how many path probes have been received per
 	// remote AS.
-	ProbesReceived func(remote addr.IA) metrics.Counter
+	ProbesReceived func(remote addr.IAInt) metrics.Counter
 	// ProbesSendErrors keeps track of how many time sending probes failed per
 	// remote.
-	ProbesSendErrors func(remote addr.IA) metrics.Counter
+	ProbesSendErrors func(remote addr.IAInt) metrics.Counter
 
 	SCMPErrors             metrics.Counter
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
@@ -73,7 +73,7 @@ type DefaultPathWatcherFactory struct {
 // New creates a PathWatcher that monitors a specific path.
 func (f *DefaultPathWatcherFactory) New(
 	ctx context.Context,
-	remote addr.IA,
+	remote addr.IAInt,
 	path snet.Path,
 	id uint16,
 ) (PathWatcher, error) {
@@ -83,7 +83,9 @@ func (f *DefaultPathWatcherFactory) New(
 		return nil, serrors.WrapStr("creating connection for probing", err)
 	}
 	pktChan := make(chan traceroutePkt, 10)
-	createCounter := func(create func(addr.IA) metrics.Counter, remote addr.IA) metrics.Counter {
+	createCounter := func(
+		create func(addr.IAInt) metrics.Counter, remote addr.IAInt,
+	) metrics.Counter {
 		if create == nil {
 			return nil
 		}
@@ -118,7 +120,7 @@ func (f *DefaultPathWatcherFactory) New(
 
 type pathWatcher struct {
 	// remote is the ID of the AS being monitored.
-	remote addr.IA
+	remote addr.IAInt
 	// probeInterval defines the interval at which probes are sent. If it is not
 	// set a default is used.
 	probeInterval time.Duration

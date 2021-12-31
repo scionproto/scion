@@ -36,8 +36,8 @@ import (
 
 // Result contains all the discovered paths.
 type Result struct {
-	Destination addr.IA `json:"destination"`
-	Paths       []Path  `json:"paths"`
+	Destination addr.IAInt `json:"destination"`
+	Paths       []Path     `json:"paths"`
 }
 
 // Path holds information about the discovered path.
@@ -57,7 +57,7 @@ type Path struct {
 // Hop represents an hop on the path.
 type Hop struct {
 	IfID common.IFIDType `json:"ifid"`
-	IA   addr.IA         `json:"isd_as"`
+	IA   addr.IAInt      `json:"isd_as"`
 }
 
 // Human writes human readable output to the writer.
@@ -303,7 +303,7 @@ func (r Result) Alive() int {
 }
 
 // Run lists the paths to the specified ISD-AS to stdout.
-func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
+func Run(ctx context.Context, dst addr.IAInt, cfg Config) (*Result, error) {
 	sdConn, err := daemon.NewService(cfg.Daemon).Connect(ctx)
 	if err != nil {
 		return nil, serrors.WrapStr("connecting to the SCION Daemon", err, "addr", cfg.Daemon)
@@ -316,7 +316,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	// TODO(lukedirtwalker): Replace this with snet.Router once we have the
 	// possibility to have the same functionality, i.e. refresh, fetch all paths.
 	// https://github.com/scionproto/scion/issues/3348
-	allPaths, err := sdConn.Paths(ctx, dst, addr.IA{},
+	allPaths, err := sdConn.Paths(ctx, dst, 0,
 		daemon.PathReqFlags{Refresh: cfg.Refresh})
 	if err != nil {
 		return nil, serrors.WrapStr("retrieving paths from the SCION Daemon", err)

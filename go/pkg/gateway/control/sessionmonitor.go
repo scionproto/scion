@@ -75,7 +75,7 @@ type SessionMonitor struct {
 	// diagnostics.
 	ID uint8
 	// RemoteIA is the remote RemoteIA the gateway to monitor is in.
-	RemoteIA addr.IA
+	RemoteIA addr.IAInt
 	// ProbeAddr is the probe address of the remote gateway instance.
 	ProbeAddr *net.UDPAddr
 	// Events is the channel where the monitor events are published to. Note

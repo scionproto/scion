@@ -68,7 +68,7 @@ func LoadTRC(t *testing.T, file string) cppki.SignedTRC {
 // MustExtractIA extracts the IA from the cert's subject and verifies it is
 // non-nil. It is the callers responsibility to make sure that this is a cert
 // that always contains an IA.
-func MustExtractIA(t *testing.T, cert *x509.Certificate) addr.IA {
+func MustExtractIA(t *testing.T, cert *x509.Certificate) addr.IAInt {
 	ia, err := cppki.ExtractIA(cert.Subject)
 	require.NoError(t, err)
 	require.NotNil(t, ia)

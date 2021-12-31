@@ -39,13 +39,13 @@ func TestRemoteMonitor(t *testing.T) {
 	// runningWatcher represents a watcher that is running.
 	type runningWatcher struct {
 		Ctx context.Context
-		IA  addr.IA
+		IA  addr.IAInt
 	}
 
 	watcherChan := make(chan runningWatcher, 10)
 	watcherFactory := mock_control.NewMockGatewayWatcherFactory(ctrl)
 	watcherFactory.EXPECT().New(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-		func(ctx context.Context, ia addr.IA, _ control.GatewayWatcherMetrics) control.Runner {
+		func(ctx context.Context, ia addr.IAInt, _ control.GatewayWatcherMetrics) control.Runner {
 			gw := mock_control.NewMockRunner(ctrl)
 			gw.EXPECT().Run(gomock.Any()).DoAndReturn(
 				func(ctx context.Context) error {
@@ -56,7 +56,7 @@ func TestRemoteMonitor(t *testing.T) {
 			return gw
 		}).AnyTimes()
 
-	iaChan := make(chan []addr.IA)
+	iaChan := make(chan []addr.IAInt)
 	rm := control.RemoteMonitor{
 		GatewayWatcherFactory: watcherFactory,
 		IAs:                   iaChan,
@@ -67,19 +67,19 @@ func TestRemoteMonitor(t *testing.T) {
 	}()
 
 	// Add a new IA.
-	iaChan <- []addr.IA{ia1}
+	iaChan <- []addr.IAInt{ia1}
 	watcher1 := <-watcherChan // <--
 	require.Equal(t, ia1, watcher1.IA)
 	assert.Empty(t, watcherChan)
 
 	// Keep an old IA while adding a new one.
-	iaChan <- []addr.IA{ia1, ia2}
+	iaChan <- []addr.IAInt{ia1, ia2}
 	watcher2 := <-watcherChan
 	require.Equal(t, ia2, watcher2.IA)
 	assert.Empty(t, watcherChan)
 
 	// Remove an IA.
-	iaChan <- []addr.IA{ia1}
+	iaChan <- []addr.IAInt{ia1}
 	// ia2 watcher should be canceled.
 	xtest.AssertReadReturnsBefore(t, watcher2.Ctx.Done(), time.Second)
 	// ia1 watcher should not.

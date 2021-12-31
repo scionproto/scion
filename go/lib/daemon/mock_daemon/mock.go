@@ -41,7 +41,7 @@ func (m *MockConnector) EXPECT() *MockConnectorMockRecorder {
 }
 
 // ASInfo mocks base method.
-func (m *MockConnector) ASInfo(arg0 context.Context, arg1 addr.IA) (daemon.ASInfo, error) {
+func (m *MockConnector) ASInfo(arg0 context.Context, arg1 addr.IAInt) (daemon.ASInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ASInfo", arg0, arg1)
 	ret0, _ := ret[0].(daemon.ASInfo)
@@ -85,10 +85,10 @@ func (mr *MockConnectorMockRecorder) IFInfo(arg0, arg1 interface{}) *gomock.Call
 }
 
 // LocalIA mocks base method.
-func (m *MockConnector) LocalIA(arg0 context.Context) (addr.IA, error) {
+func (m *MockConnector) LocalIA(arg0 context.Context) (addr.IAInt, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LocalIA", arg0)
-	ret0, _ := ret[0].(addr.IA)
+	ret0, _ := ret[0].(addr.IAInt)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -100,7 +100,7 @@ func (mr *MockConnectorMockRecorder) LocalIA(arg0 interface{}) *gomock.Call {
 }
 
 // Paths mocks base method.
-func (m *MockConnector) Paths(arg0 context.Context, arg1, arg2 addr.IA, arg3 daemon.PathReqFlags) ([]snet.Path, error) {
+func (m *MockConnector) Paths(arg0 context.Context, arg1, arg2 addr.IAInt, arg3 daemon.PathReqFlags) ([]snet.Path, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Paths", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].([]snet.Path)

@@ -48,7 +48,7 @@ type Session struct {
 	// ID is the ID of the session. It's used for debugging and the status page.
 	ID uint8
 	// RemoteIA is the remote RemoteIA.
-	RemoteIA addr.IA
+	RemoteIA addr.IAInt
 
 	// Events is used by the Session to announce changes in health (i.e., remote gateway unreachable
 	// or reachable). A Session starts in a Down state (for which no event is sent), and should

@@ -79,9 +79,9 @@ func (p ReservationTransparentPath) Equal(o ReservationTransparentPath) bool {
 // GetSrcIA returns the source IA in the path or a zero IA if the path is nil (it's not the
 // source AS of the reservation and has no access to the path of the reservation).
 // If the Path is not nil, it assumes is valid, i.e. it has at least length 2.
-func (p ReservationTransparentPath) GetSrcIA() addr.IA {
+func (p ReservationTransparentPath) GetSrcIA() addr.IAInt {
 	if len(p) == 0 {
-		return addr.IA{}
+		return 0
 	}
 	return p[0].IA
 }
@@ -89,9 +89,9 @@ func (p ReservationTransparentPath) GetSrcIA() addr.IA {
 // GetDstIA returns the source IA in the path or a zero IA if the path is nil (it's not the
 // source AS of the reservation and has no access to the path of the reservation).
 // If the path is not nil, it assumes is valid, i.e. it has at least length 2.
-func (p ReservationTransparentPath) GetDstIA() addr.IA {
+func (p ReservationTransparentPath) GetDstIA() addr.IAInt {
 	if len(p) == 0 {
-		return addr.IA{}
+		return 0
 	}
 	return p[len(p)-1].IA
 }
@@ -115,7 +115,7 @@ func (p ReservationTransparentPath) Read(buff []byte) (int, error) {
 		offset := i * PathStepWithIALen
 		binary.BigEndian.PutUint16(buff[offset:], s.Ingress)
 		binary.BigEndian.PutUint16(buff[offset+2:], s.Egress)
-		binary.BigEndian.PutUint64(buff[offset+4:], uint64(s.IA.IAInt()))
+		binary.BigEndian.PutUint64(buff[offset+4:], uint64(s.IA))
 	}
 	return p.Len(), nil
 }
@@ -148,7 +148,7 @@ type PathStep struct {
 // PathStepWithIA is a step in a reservation path as seen from the source AS.
 type PathStepWithIA struct {
 	PathStep
-	IA addr.IA
+	IA addr.IAInt
 }
 
 // PathStepWithIALen amounts for Ingress+Egress+IA.
