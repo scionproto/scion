@@ -1,0 +1,12 @@
+interface_group_foo:
+    interfaces:
+        - intf1
+        - intf2
+        - intf3
+    optimization target filters:
+        -
+            quality: latency
+            #direction: defaults to both forward & backwards
+        -
+            quality: throughput
+            direction: forward

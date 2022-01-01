@@ -1,0 +1,6 @@
+beacons per qualty: 10 # "i" missing in quality
+path qualities:
+    latency:
+        combination: additive
+        optimality: min 
+        symmetry tolerance: 0.2
