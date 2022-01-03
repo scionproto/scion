@@ -111,6 +111,32 @@ paths:
                 $ref: "#/components/schemas/Beacon"
         "400":
           $ref: "../common/base.yml#/components/responses/BadRequest"
+  /beacons/{segment-id}/blob:
+    get:
+      tags:
+        - beacon
+      summary: Get the SCION beacon blob
+      description: Get the SCION beacon blob in PEM encoding.
+      operationId: get-beacon-blob
+      parameters:
+        - in: path
+          name: segment-id
+          required: true
+          schema:
+            $ref: "../segments/spec.yml#/components/schemas/SegmentID"
+          style: simple
+          explode: false
+      responses:
+        "200":
+          description: SCION beacon blob
+          content:
+            application/x-pem-file:
+              example: |
+                -----BEGIN PATH SEGMENT-----
+                SCIONBeacon...
+                -----END PATH SEGMENT-----
+        "400":
+          $ref: "../common/base.yml#/components/responses/BadRequest"
 components:
   schemas:
     BeaconUsage:

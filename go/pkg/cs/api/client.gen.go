@@ -96,6 +96,9 @@ type ClientInterface interface {
 	// GetBeacon request
 	GetBeacon(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetBeaconBlob request
+	GetBeaconBlob(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetCa request
 	GetCa(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -167,6 +170,18 @@ func (c *Client) GetBeacons(ctx context.Context, params *GetBeaconsParams, reqEd
 
 func (c *Client) GetBeacon(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetBeaconRequest(c.Server, segmentId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetBeaconBlob(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetBeaconBlobRequest(c.Server, segmentId)
 	if err != nil {
 		return nil, err
 	}
@@ -565,6 +580,40 @@ func NewGetBeaconRequest(server string, segmentId SegmentID) (*http.Request, err
 	}
 
 	operationPath := fmt.Sprintf("/beacons/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetBeaconBlobRequest generates requests for GetBeaconBlob
+func NewGetBeaconBlobRequest(server string, segmentId SegmentID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "segment-id", runtime.ParamLocationPath, segmentId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/beacons/%s/blob", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1324,6 +1373,9 @@ type ClientWithResponsesInterface interface {
 	// GetBeacon request
 	GetBeaconWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetBeaconResponse, error)
 
+	// GetBeaconBlob request
+	GetBeaconBlobWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetBeaconBlobResponse, error)
+
 	// GetCa request
 	GetCaWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetCaResponse, error)
 
@@ -1423,6 +1475,28 @@ func (r GetBeaconResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetBeaconResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetBeaconBlobResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *StandardError
+}
+
+// Status returns HTTPResponse.Status
+func (r GetBeaconBlobResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetBeaconBlobResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1849,6 +1923,15 @@ func (c *ClientWithResponses) GetBeaconWithResponse(ctx context.Context, segment
 	return ParseGetBeaconResponse(rsp)
 }
 
+// GetBeaconBlobWithResponse request returning *GetBeaconBlobResponse
+func (c *ClientWithResponses) GetBeaconBlobWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetBeaconBlobResponse, error) {
+	rsp, err := c.GetBeaconBlob(ctx, segmentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetBeaconBlobResponse(rsp)
+}
+
 // GetCaWithResponse request returning *GetCaResponse
 func (c *ClientWithResponses) GetCaWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetCaResponse, error) {
 	rsp, err := c.GetCa(ctx, reqEditors...)
@@ -2075,6 +2158,32 @@ func ParseGetBeaconResponse(rsp *http.Response) (*GetBeaconResponse, error) {
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest StandardError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetBeaconBlobResponse parses an HTTP response from a GetBeaconBlobWithResponse call
+func ParseGetBeaconBlobResponse(rsp *http.Response) (*GetBeaconBlobResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetBeaconBlobResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest StandardError
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
