@@ -16,7 +16,7 @@
 package util
 
 import (
-	"io/ioutil"
+	"os"
 
 	yaml "gopkg.in/yaml.v2"
 
@@ -33,7 +33,7 @@ type ASList struct {
 // LoadASList parses the yaml file fileName and returns a structure with
 // non-core and core ASes.
 func LoadASList(fileName string) (*ASList, error) {
-	buffer, err := ioutil.ReadFile(fileName)
+	buffer, err := os.ReadFile(fileName)
 	if err != nil {
 		return nil, serrors.WrapStr("Unable to read from file", err, "name", fileName)
 	}

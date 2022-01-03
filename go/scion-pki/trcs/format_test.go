@@ -15,7 +15,7 @@
 package trcs
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -57,7 +57,7 @@ func TestNewFormatCmd(t *testing.T) {
 		},
 		"file exists": {
 			Prepare: func(t *testing.T) {
-				require.NoError(t, ioutil.WriteFile(dir+"/exists.pem", []byte("exists"), 0666))
+				require.NoError(t, os.WriteFile(dir+"/exists.pem", []byte("exists"), 0666))
 			},
 			Args: []string{"testdata/admin/ISD1-B1-S1.pem.trc",
 				"--out", dir + "/exists.pem",
@@ -66,7 +66,7 @@ func TestNewFormatCmd(t *testing.T) {
 		},
 		"force": {
 			Prepare: func(t *testing.T) {
-				require.NoError(t, ioutil.WriteFile(dir+"/exists.pem", []byte("exists"), 0666))
+				require.NoError(t, os.WriteFile(dir+"/exists.pem", []byte("exists"), 0666))
 			},
 			Args: []string{"testdata/admin/ISD1-B1-S1.pem.trc",
 				"--force",
@@ -150,9 +150,9 @@ func TestNewFormatCmd(t *testing.T) {
 				return
 			}
 			filename := tc.Args[len(tc.Args)-1]
-			expected, err := ioutil.ReadFile(tc.Expected)
+			expected, err := os.ReadFile(tc.Expected)
 			require.NoError(t, err)
-			actual, err := ioutil.ReadFile(filename)
+			actual, err := os.ReadFile(filename)
 			require.NoError(t, err)
 			assert.Equal(t, string(expected), string(actual))
 		})

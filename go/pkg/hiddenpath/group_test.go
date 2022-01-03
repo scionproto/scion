@@ -15,7 +15,7 @@
 package hiddenpath_test
 
 import (
-	"io/ioutil"
+	"os"
 	"strconv"
 	"testing"
 
@@ -105,7 +105,7 @@ func TestNewGroup(t *testing.T) {
 			if *update {
 				raw, err := yaml.Marshal(tc.want)
 				require.NoError(t, err)
-				err = ioutil.WriteFile(tc.input, raw, 0666)
+				err = os.WriteFile(tc.input, raw, 0666)
 				require.NoError(t, err)
 				return
 			}

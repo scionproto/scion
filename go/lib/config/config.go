@@ -50,7 +50,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -168,7 +167,7 @@ func Decode(raw []byte, cfg interface{}) error {
 
 // LoadFile loads the config from file.
 func LoadFile(file string, cfg interface{}) error {
-	raw, err := ioutil.ReadFile(file)
+	raw, err := os.ReadFile(file)
 	if err != nil {
 		return err
 	}

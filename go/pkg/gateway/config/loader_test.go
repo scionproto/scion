@@ -16,7 +16,6 @@ package config_test
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -35,12 +34,12 @@ import (
 )
 
 func TestLoaderRun(t *testing.T) {
-	dir, err := ioutil.TempDir("", "gateway-config")
+	dir, err := os.MkdirTemp("", "gateway-config")
 	require.NoError(t, err)
 	defer os.RemoveAll(dir)
 
 	writeTempFile := func(t *testing.T, raw []byte) string {
-		f, err := ioutil.TempFile(dir, "gateway-config")
+		f, err := os.CreateTemp(dir, "gateway-config")
 		require.NoError(t, err)
 		_, err = f.Write(raw)
 		require.NoError(t, err)

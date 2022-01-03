@@ -15,7 +15,7 @@
 package beacon
 
 import (
-	"io/ioutil"
+	"os"
 
 	yaml "gopkg.in/yaml.v2"
 
@@ -229,7 +229,7 @@ func ParsePolicyYaml(b []byte, t PolicyType) (*Policy, error) {
 // LoadPolicyFromYaml loads the policy from a yaml file and initializes the
 // default values.
 func LoadPolicyFromYaml(path string, t PolicyType) (*Policy, error) {
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, serrors.WrapStr("Unable to read policy file", err, "path", path)
 	}

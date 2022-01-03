@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"sync"
 )
 
@@ -48,7 +48,7 @@ func (t *readTask) Name() string {
 }
 
 func (t *readTask) read() {
-	b, err := ioutil.ReadFile(t.Path)
+	b, err := os.ReadFile(t.Path)
 
 	t.mu.Lock()
 	defer t.mu.Unlock()

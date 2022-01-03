@@ -19,7 +19,7 @@
 package bfd_test
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -51,7 +51,7 @@ func TestBFDLayerTypeDefinition(t *testing.T) {
 // packet while NOT linking against gopacket/layers.
 func TestParseBFD(t *testing.T) {
 	rawFile := filepath.Join(testdataDir, "scion-bfd.bin")
-	raw, err := ioutil.ReadFile(rawFile)
+	raw, err := os.ReadFile(rawFile)
 	if err != nil {
 		t.Fatal(err)
 	}

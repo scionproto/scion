@@ -18,9 +18,9 @@ package topology
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"net"
+	"os"
 	"sort"
 	"time"
 
@@ -181,7 +181,7 @@ func RWTopologyFromJSONBytes(b []byte) (*RWTopology, error) {
 // RWTopologyFromJSONFile extracts the topology from a file containing the JSON representation
 // of the topology.
 func RWTopologyFromJSONFile(path string) (*RWTopology, error) {
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

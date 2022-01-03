@@ -19,7 +19,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -87,7 +86,7 @@ func (db *db) InsertTRC(ctx context.Context, trc cppki.SignedTRC) (bool, error) 
 	// file existence are necessary
 	file := filepath.Join(db.cfg.TRCDir, trcFileName(trc.TRC.ID))
 	if _, statErr := os.Stat(file); errors.Is(statErr, os.ErrNotExist) {
-		if writeErr := ioutil.WriteFile(file, encoded, 0644); writeErr != nil {
+		if writeErr := os.WriteFile(file, encoded, 0644); writeErr != nil {
 			log.SafeInfo(logger, "Failed to write TRC to disk",
 				"err", writeErr,
 				"trc", trc.TRC.ID,

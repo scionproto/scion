@@ -15,7 +15,6 @@
 package util
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 )
@@ -24,7 +23,7 @@ import (
 // in the same directory and the renames that file to filename.
 func WriteFile(filename string, data []byte, perm os.FileMode) error {
 	dir, file := path.Split(filename)
-	tmp, err := ioutil.TempFile(dir, file)
+	tmp, err := os.CreateTemp(dir, file)
 	if err != nil {
 		return err
 	}

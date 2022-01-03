@@ -22,7 +22,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"time"
 
@@ -71,13 +70,13 @@ return an error if parts of a TRC fail to decode, enable the strict mode.
 			}
 			cmd.SilenceUsage = true
 
-			raw, err := ioutil.ReadFile(args[0])
+			raw, err := os.ReadFile(args[0])
 			if err != nil {
 				return err
 			}
 			var predTRC *cppki.TRC
 			if flags.predecessor != "" {
-				predRaw, err := ioutil.ReadFile(flags.predecessor)
+				predRaw, err := os.ReadFile(flags.predecessor)
 				if err != nil {
 					return err
 				}

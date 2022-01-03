@@ -17,8 +17,8 @@ package fake_test
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"net"
+	"os"
 	"testing"
 	"time"
 
@@ -61,11 +61,11 @@ func TestJSONConversion(t *testing.T) {
 	require.NoError(t, err)
 	bytes = append(bytes, '\n')
 	if *update {
-		err = ioutil.WriteFile("testdata/sd.json", bytes, 0644)
+		err = os.WriteFile("testdata/sd.json", bytes, 0644)
 		require.NoError(t, err)
 	}
 
-	loadedBytes, err := ioutil.ReadFile("testdata/sd.json")
+	loadedBytes, err := os.ReadFile("testdata/sd.json")
 	require.NoError(t, err)
 	assert.Equal(t, bytes, loadedBytes)
 

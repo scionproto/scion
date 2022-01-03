@@ -19,7 +19,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -127,7 +126,7 @@ func LoadTRCs(ctx context.Context, dir string, db DB) (LoadResult, error) {
 	res := LoadResult{Ignored: map[string]error{}}
 	// TODO(roosd): should probably be a transaction.
 	for _, f := range files {
-		raw, err := ioutil.ReadFile(f)
+		raw, err := os.ReadFile(f)
 		if err != nil {
 			return res, serrors.WithCtx(err, "file", f)
 		}

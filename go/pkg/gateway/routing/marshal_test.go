@@ -16,7 +16,7 @@ package routing_test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -34,11 +34,11 @@ func TestPolicyMarshalText(t *testing.T) {
 		raw, err := policy.MarshalText()
 		require.NoError(t, err)
 		if *update {
-			err := ioutil.WriteFile(filepath.Join("./testdata", name), raw, 0666)
+			err := os.WriteFile(filepath.Join("./testdata", name), raw, 0666)
 			require.NoError(t, err)
 		}
 
-		expected, err := ioutil.ReadFile(filepath.Join("./testdata", name))
+		expected, err := os.ReadFile(filepath.Join("./testdata", name))
 		require.NoError(t, err)
 		assert.Equal(t, string(expected), string(raw))
 	}
@@ -49,7 +49,7 @@ func TestPolicyUnmarshalText(t *testing.T) {
 		t.Skip("policies are being updated")
 	}
 	for name, expected := range testPolicies(t) {
-		raw, err := ioutil.ReadFile(filepath.Join("./testdata", name))
+		raw, err := os.ReadFile(filepath.Join("./testdata", name))
 		require.NoError(t, err)
 
 		var policy routing.Policy

@@ -21,7 +21,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -354,7 +353,7 @@ func createTRCs(cfg config) error {
 			Type:  "TRC",
 			Bytes: combined,
 		})
-		if err := ioutil.WriteFile(filepath.Join(trcDir(isd, cfg.out),
+		if err := os.WriteFile(filepath.Join(trcDir(isd, cfg.out),
 			fmt.Sprintf("ISD%d-B1-S1.trc", isd)), combined, 0644); err != nil {
 			return serrors.WrapStr("writing TRC", err)
 		}

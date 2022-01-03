@@ -17,7 +17,6 @@ package trcs
 import (
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,7 +64,7 @@ redirected to a file because the raw characters might mess up the terminal.
 			cmd.SilenceUsage = true
 
 			filename := args[0]
-			raw, err := ioutil.ReadFile(filename)
+			raw, err := os.ReadFile(filename)
 			if err != nil {
 				return serrors.WrapStr("reading file", err)
 			}

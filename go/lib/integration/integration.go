@@ -21,7 +21,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net"
 	"os"
@@ -229,7 +228,7 @@ var DispAddr HostAddr = func(ia addr.IA) *snet.UDPAddr {
 	if a := loadAddr(ia); a != nil {
 		return a
 	}
-	if raw, err := ioutil.ReadFile(GenFile("networks.conf")); err == nil {
+	if raw, err := os.ReadFile(GenFile("networks.conf")); err == nil {
 		pattern := fmt.Sprintf("tester_%s = (.*)", ia.FileFmt(false))
 		matches := regexp.MustCompile(pattern).FindSubmatch(raw)
 		if len(matches) == 2 {
@@ -434,7 +433,7 @@ func errFromChan(errors chan error) error {
 }
 
 func GetSCIONDAddresses(networksFile string) (map[string]string, error) {
-	b, err := ioutil.ReadFile(networksFile)
+	b, err := os.ReadFile(networksFile)
 	if err != nil {
 		return nil, err
 	}

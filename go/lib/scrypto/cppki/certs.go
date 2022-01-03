@@ -20,7 +20,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
-	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -108,7 +108,7 @@ func (ct CertType) String() string {
 // ReadPEMCerts reads the PEM file and parses the certificate blocks in it. Only
 // PEM files with only CERTIFICATE blocks are allowed.
 func ReadPEMCerts(file string) ([]*x509.Certificate, error) {
-	raw, err := ioutil.ReadFile(file)
+	raw, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}

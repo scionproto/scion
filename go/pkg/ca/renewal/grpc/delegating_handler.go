@@ -20,7 +20,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"google.golang.org/grpc/codes"
@@ -110,7 +110,7 @@ func (h *DelegatingHandler) HandleCMSRequest(
 		)
 	}
 	defer rep.Body.Close()
-	body, err := ioutil.ReadAll(rep.Body)
+	body, err := io.ReadAll(rep.Body)
 	if err != nil {
 		logger.Info("Error reading CA service response", "err", err)
 		metrics.CounterInc(h.Metrics.InternalError)

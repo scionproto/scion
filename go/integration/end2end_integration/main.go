@@ -18,7 +18,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -183,7 +182,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		// and inside bazel tests we easily have longer paths, therefore we
 		// create a temporary symlink to the directory where we put the socket
 		// file.
-		tmpDir, err := ioutil.TempDir("", "e2e_integration")
+		tmpDir, err := os.MkdirTemp("", "e2e_integration")
 		if err != nil {
 			return serrors.WrapStr("creating temp dir", err)
 		}

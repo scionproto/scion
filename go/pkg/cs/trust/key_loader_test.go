@@ -19,7 +19,7 @@ import (
 	"crypto"
 	"crypto/x509"
 	"encoding/pem"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,7 +35,7 @@ func TestLoadingRing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, privKeys, 1)
 
-	raw, err := ioutil.ReadFile("testdata/common/ISD1/ASff00_0_111/crypto/as/cp-as.key")
+	raw, err := os.ReadFile("testdata/common/ISD1/ASff00_0_111/crypto/as/cp-as.key")
 	require.NoError(t, err)
 	block, _ := pem.Decode(raw)
 	expexted, err := x509.ParsePKCS8PrivateKey(block.Bytes)

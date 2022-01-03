@@ -21,7 +21,7 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -77,7 +77,7 @@ An alternative name can be specified with the --out flag.
 
 func RunSign(pld, certfile, keyfile, out, outDir string) error {
 	// Read TRC payload
-	rawPld, err := ioutil.ReadFile(pld)
+	rawPld, err := os.ReadFile(pld)
 	if err != nil {
 		return serrors.WrapStr("error loading payload", err)
 	}
@@ -91,7 +91,7 @@ func RunSign(pld, certfile, keyfile, out, outDir string) error {
 		return err
 	}
 	// Load signing cert
-	rawCert, err := ioutil.ReadFile(certfile)
+	rawCert, err := os.ReadFile(certfile)
 	if err != nil {
 		return serrors.WrapStr("error loading signer", err)
 	}
@@ -129,7 +129,7 @@ func RunSign(pld, certfile, keyfile, out, outDir string) error {
 	if err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(fname, signed, 0644); err != nil {
+	if err := os.WriteFile(fname, signed, 0644); err != nil {
 		return serrors.WrapStr("error writing signed TRC paylod", err)
 	}
 	fmt.Printf("Successfully signed TRC payload at %s\n", out)

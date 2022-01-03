@@ -19,7 +19,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -172,7 +172,7 @@ func (l httpLevel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		lvl, err := func() (*zapcore.Level, error) {
 			switch r.Header.Get("Content-Type") {
 			case "application/x-www-form-urlencoded":
-				body, err := ioutil.ReadAll(r.Body)
+				body, err := io.ReadAll(r.Body)
 				if err != nil {
 					return nil, err
 				}

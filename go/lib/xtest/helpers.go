@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -86,7 +85,7 @@ func UpdateNonDeterminsticGoldenFiles() *bool {
 // testing packages that care about a unique path without being able to
 // overwrite it (e.g., UNIX domain socket addresses or databases).
 func TempFileName(dir, prefix string) (string, error) {
-	file, err := ioutil.TempFile(dir, prefix)
+	file, err := os.CreateTemp(dir, prefix)
 	if err != nil {
 		return "", err
 	}
@@ -118,7 +117,7 @@ func MustTempFileName(dir, prefix string) string {
 // value is a clean-up function that can be called to recursively delete the
 // entire directory.
 func MustTempDir(dir, prefix string) (string, func()) {
-	name, err := ioutil.TempDir(dir, prefix)
+	name, err := os.MkdirTemp(dir, prefix)
 	if err != nil {
 		panic(err)
 	}
@@ -133,7 +132,7 @@ func SanitizedName(t testing.TB) string {
 }
 
 func TempDir(t testing.TB) (string, func()) {
-	name, err := ioutil.TempDir("", fmt.Sprintf("%s_*", SanitizedName(t)))
+	name, err := os.MkdirTemp("", fmt.Sprintf("%s_*", SanitizedName(t)))
 	require.NoError(t, err)
 	return name, func() {
 		os.RemoveAll(name)
@@ -182,7 +181,7 @@ func MustMarshalJSONToFile(t testing.TB, v interface{}, baseName string) {
 func MustWriteToFile(t testing.TB, b []byte, baseName string) {
 	t.Helper()
 
-	if err := ioutil.WriteFile(ExpandPath(baseName), b, 0644); err != nil {
+	if err := os.WriteFile(ExpandPath(baseName), b, 0644); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -193,7 +192,7 @@ func MustReadFromFile(t testing.TB, baseName string) []byte {
 	t.Helper()
 
 	name := filepath.Join("testdata", baseName)
-	b, err := ioutil.ReadFile(name)
+	b, err := os.ReadFile(name)
 	if err != nil {
 		t.Fatal(err)
 	}

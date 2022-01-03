@@ -17,9 +17,9 @@ package api_test
 import (
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -608,9 +608,9 @@ func TestAPI(t *testing.T) {
 			goldenFile := "testdata/" + xtest.SanitizedName(t)
 			if *update {
 				raw := strings.ReplaceAll(rr.Body.String(), expiresAt, "EXPIRES_AT")
-				require.NoError(t, ioutil.WriteFile(goldenFile, []byte(raw), 0666))
+				require.NoError(t, os.WriteFile(goldenFile, []byte(raw), 0666))
 			}
-			goldenRaw, err := ioutil.ReadFile(goldenFile)
+			goldenRaw, err := os.ReadFile(goldenFile)
 			require.NoError(t, err)
 			golden := strings.ReplaceAll(string(goldenRaw), "EXPIRES_AT", expiresAt)
 			assert.Equal(t, golden, rr.Body.String())
