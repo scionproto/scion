@@ -104,11 +104,11 @@ paths:
         explode: false
       responses:
         "200":
-          description: SCION path segment information.
+          description: SCION beacon information.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Beacon"
+                $ref: "#/components/schemas/BeaconGetResponseJson"
         "400":
           $ref: "../common/base.yml#/components/responses/BadRequest"
   /beacons/{segment-id}/blob:
@@ -164,3 +164,10 @@ components:
             ingress_interface:
               description: Ingress interface of the beacon.
               type: integer
+    BeaconGetResponseJson:
+      type: object
+      required:
+        - beacon
+      properties:
+        beacon:
+          $ref: "#/components/schemas/Beacon"

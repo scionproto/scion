@@ -413,7 +413,7 @@ func (c *ClientWithResponses) GetSegmentBlobWithResponse(ctx context.Context, se
 // ParseGetSegmentsResponse parses an HTTP response from a GetSegmentsWithResponse call
 func ParseGetSegmentsResponse(rsp *http.Response) (*GetSegmentsResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -439,7 +439,7 @@ func ParseGetSegmentsResponse(rsp *http.Response) (*GetSegmentsResponse, error) 
 // ParseGetSegmentResponse parses an HTTP response from a GetSegmentWithResponse call
 func ParseGetSegmentResponse(rsp *http.Response) (*GetSegmentResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -465,7 +465,7 @@ func ParseGetSegmentResponse(rsp *http.Response) (*GetSegmentResponse, error) {
 // ParseGetSegmentBlobResponse parses an HTTP response from a GetSegmentBlobWithResponse call
 func ParseGetSegmentBlobResponse(rsp *http.Response) (*GetSegmentBlobResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}

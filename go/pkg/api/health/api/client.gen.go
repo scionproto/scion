@@ -211,7 +211,7 @@ func (c *ClientWithResponses) GetHealthWithResponse(ctx context.Context, reqEdit
 // ParseGetHealthResponse parses an HTTP response from a GetHealthWithResponse call
 func ParseGetHealthResponse(rsp *http.Response) (*GetHealthResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}

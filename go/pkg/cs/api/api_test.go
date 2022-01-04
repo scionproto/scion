@@ -17,6 +17,7 @@ package api_test
 import (
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -51,6 +52,7 @@ var update = xtest.UpdateGoldenFiles()
 // api package.
 func TestAPI(t *testing.T) {
 	now := time.Now()
+	beacons := createBeacons(t)
 	testCases := map[string]struct {
 		Handler            func(t *testing.T, ctrl *gomock.Controller) http.Handler
 		RequestURL         string
@@ -64,11 +66,10 @@ func TestAPI(t *testing.T) {
 				s := &api.Server{
 					Beacons: bs,
 				}
-				dbresult := createBeacons(t)
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
 					&beacon.QueryParams{},
-				).AnyTimes().Return(dbresult, nil)
+				).AnyTimes().Return(beacons, nil)
 				return api.Handler(s)
 			},
 			RequestURL: "/beacons",
@@ -80,11 +81,10 @@ func TestAPI(t *testing.T) {
 				s := &api.Server{
 					Beacons: bs,
 				}
-				dbresult := createBeacons(t)
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
 					&beacon.QueryParams{},
-				).Times(0).Return(dbresult, nil)
+				).Times(0).Return(beacons, nil)
 				return api.Handler(s)
 			},
 			RequestURL: "/beacons?sort=invalid",
@@ -96,11 +96,10 @@ func TestAPI(t *testing.T) {
 				s := &api.Server{
 					Beacons: bs,
 				}
-				dbresult := createBeacons(t)
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
 					&beacon.QueryParams{},
-				).Times(1).Return(dbresult, nil)
+				).Times(1).Return(beacons, nil)
 				return api.Handler(s)
 			},
 			RequestURL: "/beacons?sort=ingress_interface",
@@ -112,11 +111,10 @@ func TestAPI(t *testing.T) {
 				s := &api.Server{
 					Beacons: bs,
 				}
-				dbresult := createBeacons(t)
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
 					&beacon.QueryParams{},
-				).Times(1).Return(dbresult, nil)
+				).Times(1).Return(beacons, nil)
 				return api.Handler(s)
 			},
 			RequestURL: "/beacons?desc=true",
@@ -128,11 +126,10 @@ func TestAPI(t *testing.T) {
 				s := &api.Server{
 					Beacons: bs,
 				}
-				dbresult := createBeacons(t)
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
 					&beacon.QueryParams{},
-				).Times(0).Return(dbresult, nil)
+				).Times(0).Return(beacons, nil)
 				return api.Handler(s)
 			},
 			RequestURL: "/beacons?usages=up_registration&usages=Invalid",
@@ -144,17 +141,76 @@ func TestAPI(t *testing.T) {
 				s := &api.Server{
 					Beacons: bs,
 				}
-				dbresult := createBeacons(t)
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
 					&beacon.QueryParams{
 						Usages: []beaconlib.Usage{beaconlib.UsageDownReg | beaconlib.UsageUpReg},
 					},
-				).Times(1).Return(dbresult[:1], nil)
+				).Times(1).Return(beacons[:1], nil)
 				return api.Handler(s)
 			},
 			RequestURL: "/beacons?usages=up_registration&usages=down_registration",
 			Status:     200,
+		},
+		"beacon": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &api.Server{
+					Beacons: bs,
+				}
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{SegIDs: [][]byte{beacons[0].Beacon.Segment.ID()}},
+				).AnyTimes().Return(beacons[:1], nil)
+				return api.Handler(s)
+			},
+			RequestURL: "/beacons/" + hex.EncodeToString(beacons[0].Beacon.Segment.ID()),
+			Status:     200,
+		},
+		"beacon id prefix": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &api.Server{
+					Beacons: bs,
+				}
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{SegIDs: [][]byte{beacons[0].Beacon.Segment.ID()[:10]}},
+				).AnyTimes().Return(beacons[:1], nil)
+				return api.Handler(s)
+			},
+			RequestURL: "/beacons/" + hex.EncodeToString(beacons[0].Beacon.Segment.ID()[:10]),
+			Status:     200,
+		},
+		"beacon no matches": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &api.Server{
+					Beacons: bs,
+				}
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{SegIDs: [][]byte{[]byte("1234")}},
+				).AnyTimes().Return([]beacon.Beacon{}, nil)
+				return api.Handler(s)
+			},
+			RequestURL: "/beacons/" + hex.EncodeToString([]byte("1234")),
+			Status:     400,
+		},
+		"beacon no unique match": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &api.Server{
+					Beacons: bs,
+				}
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{SegIDs: [][]byte{[]byte("1234")}},
+				).AnyTimes().Return(beacons, nil)
+				return api.Handler(s)
+			},
+			RequestURL: "/beacons/" + hex.EncodeToString([]byte("1234")),
+			Status:     400,
 		},
 		"signer": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {

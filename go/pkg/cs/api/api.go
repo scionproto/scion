@@ -17,6 +17,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
@@ -276,7 +277,94 @@ func sortFactory(sortParam *GetBeaconsParamsSort) (func(b []*Beacon) sort.Interf
 }
 
 func (s *Server) GetBeacon(w http.ResponseWriter, r *http.Request, segmentId SegmentID) {
-	panic("not implemented") // TODO: implement
+	id, err := hex.DecodeString(string(segmentId))
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusBadRequest,
+			Title:  "error decoding segment id",
+			Type:   api.StringRef(api.BadRequest),
+		})
+		return
+	}
+	q := beaconstorage.QueryParams{
+		SegIDs: [][]byte{id},
+	}
+	results, err := s.Beacons.GetBeacons(r.Context(), &q)
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "error getting beacons",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	if len(results) == 0 {
+		Error(w, Problem{
+			Detail: api.StringRef(fmt.Sprintf(
+				"no beacon matched provided segment ID: %s",
+				segmentId,
+			)),
+			Status: http.StatusBadRequest,
+			Title:  "malformed query parameter",
+			Type:   api.StringRef(api.BadRequest),
+		})
+		return
+	}
+	if len(results) > 1 {
+		Error(w, Problem{
+			Detail: api.StringRef(fmt.Sprintf(
+				"%d beacons matched provided segment ID: %s",
+				len(results),
+				segmentId,
+			)),
+			Status: http.StatusBadRequest,
+			Title:  "malformed query parameter",
+			Type:   api.StringRef(api.BadRequest),
+		})
+		return
+	}
+	seg := results[0].Beacon.Segment
+	var usage BeaconUsages
+	for _, name := range UnpackBeaconUsages(results[0].Usage) {
+		usage = append(usage, BeaconUsage(name))
+	}
+	var hops []Hop
+	for i, as := range seg.ASEntries {
+		if i != 0 {
+			hops = append(hops, Hop{
+				Interface: int(as.HopEntry.HopField.ConsIngress),
+				IsdAs:     IsdAs(as.Local.String())})
+		}
+		hops = append(hops, Hop{
+			Interface: int(as.HopEntry.HopField.ConsEgress),
+			IsdAs:     IsdAs(as.Local.String())})
+	}
+	res := map[string]Beacon{
+		"beacon": {
+			Usages:           usage,
+			IngressInterface: int(results[0].Beacon.InIfId),
+			Segment: Segment{
+				Id:          SegmentID(segapi.SegID(seg)),
+				LastUpdated: results[0].LastUpdated,
+				Timestamp:   seg.Info.Timestamp.UTC(),
+				Expiration:  seg.MinExpiry().UTC(),
+				Hops:        hops,
+			},
+		},
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "    ")
+	if err := enc.Encode(res); err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to marshal response",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
 }
 
 func (s *Server) GetBeaconBlob(w http.ResponseWriter, r *http.Request, segmentId SegmentID) {

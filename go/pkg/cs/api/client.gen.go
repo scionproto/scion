@@ -1461,7 +1461,7 @@ func (r GetBeaconsResponse) StatusCode() int {
 type GetBeaconResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *Beacon
+	JSON200      *BeaconGetResponseJson
 	JSON400      *StandardError
 }
 
@@ -2152,7 +2152,7 @@ func ParseGetBeaconResponse(rsp *http.Response) (*GetBeaconResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest Beacon
+		var dest BeaconGetResponseJson
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

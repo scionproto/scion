@@ -1359,7 +1359,7 @@ func (c *ClientWithResponses) GetTrcBlobWithResponse(ctx context.Context, isd in
 // ParseGetCertificatesResponse parses an HTTP response from a GetCertificatesWithResponse call
 func ParseGetCertificatesResponse(rsp *http.Response) (*GetCertificatesResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -1385,7 +1385,7 @@ func ParseGetCertificatesResponse(rsp *http.Response) (*GetCertificatesResponse,
 // ParseGetCertificateResponse parses an HTTP response from a GetCertificateWithResponse call
 func ParseGetCertificateResponse(rsp *http.Response) (*GetCertificateResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -1411,7 +1411,7 @@ func ParseGetCertificateResponse(rsp *http.Response) (*GetCertificateResponse, e
 // ParseGetCertificateBlobResponse parses an HTTP response from a GetCertificateBlobWithResponse call
 func ParseGetCertificateBlobResponse(rsp *http.Response) (*GetCertificateBlobResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -1427,7 +1427,7 @@ func ParseGetCertificateBlobResponse(rsp *http.Response) (*GetCertificateBlobRes
 // ParseGetConfigResponse parses an HTTP response from a GetConfigWithResponse call
 func ParseGetConfigResponse(rsp *http.Response) (*GetConfigResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -1453,7 +1453,7 @@ func ParseGetConfigResponse(rsp *http.Response) (*GetConfigResponse, error) {
 // ParseGetInfoResponse parses an HTTP response from a GetInfoWithResponse call
 func ParseGetInfoResponse(rsp *http.Response) (*GetInfoResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -1479,7 +1479,7 @@ func ParseGetInfoResponse(rsp *http.Response) (*GetInfoResponse, error) {
 // ParseGetLogLevelResponse parses an HTTP response from a GetLogLevelWithResponse call
 func ParseGetLogLevelResponse(rsp *http.Response) (*GetLogLevelResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -1512,7 +1512,7 @@ func ParseGetLogLevelResponse(rsp *http.Response) (*GetLogLevelResponse, error) 
 // ParseSetLogLevelResponse parses an HTTP response from a SetLogLevelWithResponse call
 func ParseSetLogLevelResponse(rsp *http.Response) (*SetLogLevelResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -1545,7 +1545,7 @@ func ParseSetLogLevelResponse(rsp *http.Response) (*SetLogLevelResponse, error) 
 // ParseGetSegmentsResponse parses an HTTP response from a GetSegmentsWithResponse call
 func ParseGetSegmentsResponse(rsp *http.Response) (*GetSegmentsResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -1571,7 +1571,7 @@ func ParseGetSegmentsResponse(rsp *http.Response) (*GetSegmentsResponse, error) 
 // ParseGetSegmentResponse parses an HTTP response from a GetSegmentWithResponse call
 func ParseGetSegmentResponse(rsp *http.Response) (*GetSegmentResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -1597,7 +1597,7 @@ func ParseGetSegmentResponse(rsp *http.Response) (*GetSegmentResponse, error) {
 // ParseGetSegmentBlobResponse parses an HTTP response from a GetSegmentBlobWithResponse call
 func ParseGetSegmentBlobResponse(rsp *http.Response) (*GetSegmentBlobResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -1613,7 +1613,7 @@ func ParseGetSegmentBlobResponse(rsp *http.Response) (*GetSegmentBlobResponse, e
 // ParseGetTrcsResponse parses an HTTP response from a GetTrcsWithResponse call
 func ParseGetTrcsResponse(rsp *http.Response) (*GetTrcsResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -1646,7 +1646,7 @@ func ParseGetTrcsResponse(rsp *http.Response) (*GetTrcsResponse, error) {
 // ParseGetTrcResponse parses an HTTP response from a GetTrcWithResponse call
 func ParseGetTrcResponse(rsp *http.Response) (*GetTrcResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -1679,7 +1679,7 @@ func ParseGetTrcResponse(rsp *http.Response) (*GetTrcResponse, error) {
 // ParseGetTrcBlobResponse parses an HTTP response from a GetTrcBlobWithResponse call
 func ParseGetTrcBlobResponse(rsp *http.Response) (*GetTrcBlobResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
