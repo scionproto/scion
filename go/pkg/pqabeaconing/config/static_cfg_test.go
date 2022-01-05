@@ -38,7 +38,7 @@ func TestLoadingStaticCfgWellformed(t *testing.T) {
 
 func TestGeneratingStatic(t *testing.T) {
 	tests := map[string]pqa.StaticSettings{
-		"test/static/config.yml": {
+		"testcfgs/static/config.yml": {
 			PathQualities: map[pqa.PathQualityIdentifier]pqa.PathQuality{
 				"latency": {
 					CombinationType:   pqa.CombinationTypeAdditive,

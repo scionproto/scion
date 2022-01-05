@@ -43,7 +43,7 @@ func TestLoadingOriginatorCfgWellformed(t *testing.T) {
 }
 
 func TestGeneratingOriginator(t *testing.T) {
-	cfg := LoadOriginatorCfgYAML("test/originator/config.yml")
+	cfg := LoadOriginatorCfgYAML("testcfgs/originator/config.yml")
 	actual, err := cfg.Generate()
 
 	if err != nil {
