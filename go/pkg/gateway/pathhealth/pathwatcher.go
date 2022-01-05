@@ -30,7 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/path"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 )
 
 const (
@@ -347,25 +347,14 @@ func createPathWrap(path snet.Path) pathWrap {
 		Path: path,
 	}
 
-	//p := pw.Path()
-	//if p == nil {
-	//	return nil, serrors.New("path is nil")
-	//}
-	scionPath, ok := p.Dataplane().(path.SCION)
+	scionPath, ok := p.Dataplane().(snetpath.SCION)
 	if !ok {
-		return nil, serrors.New("not a scion path", "type", common.TypeOf(p.Dataplane()))
+		p.err = serrors.New("not a scion path", "type", common.TypeOf(p.Dataplane()))
+		return p
 	}
-
-
-
-
-	//if path == nil || path.Path().IsEmpty() {
-	//	p.err = serrors.New("empty path")
-	//	return p
-	//}
 	p.fingerprint = snet.Fingerprint(path)
 	p.expiry = path.Metadata().Expiry
-	sp := path.Path()
+	sp := scionPath
 	decodedPath := scion.Decoded{}
 	if err := decodedPath.DecodeFromBytes(sp.Raw); err != nil {
 		p.err = serrors.WrapStr("decoding path", err)
