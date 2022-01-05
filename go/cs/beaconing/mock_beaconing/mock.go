@@ -92,19 +92,19 @@ func (m *MockBeaconProvider) EXPECT() *MockBeaconProviderMockRecorder {
 	return m.recorder
 }
 
-// BeaconsToPropagate mocks base method.
-func (m *MockBeaconProvider) BeaconsToPropagate(arg0 context.Context) ([]beacon.Beacon, error) {
+// ProvideBeacons mocks base method.
+func (m *MockBeaconProvider) ProvideBeacons(arg0 context.Context) ([]beacon.Beacon, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BeaconsToPropagate", arg0)
+	ret := m.ctrl.Call(m, "ProvideBeacons", arg0)
 	ret0, _ := ret[0].([]beacon.Beacon)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// BeaconsToPropagate indicates an expected call of BeaconsToPropagate.
-func (mr *MockBeaconProviderMockRecorder) BeaconsToPropagate(arg0 interface{}) *gomock.Call {
+// ProvideBeacons indicates an expected call of ProvideBeacons.
+func (mr *MockBeaconProviderMockRecorder) ProvideBeacons(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeaconsToPropagate", reflect.TypeOf((*MockBeaconProvider)(nil).BeaconsToPropagate), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProvideBeacons", reflect.TypeOf((*MockBeaconProvider)(nil).ProvideBeacons), arg0)
 }
 
 // MockSender is a mock of Sender interface.

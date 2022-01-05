@@ -54,9 +54,9 @@ func NewBeaconStore(policies Policies, db DB) (*Store, error) {
 	return s, nil
 }
 
-// BeaconsToPropagate returns a slice  all beacons to propagate at the time of the call.
+// ProvideBeacons returns a slice  all beacons to propagate at the time of the call.
 // The selection is based on the configured propagation policy.
-func (s *Store) BeaconsToPropagate(ctx context.Context) ([]Beacon, error) {
+func (s *Store) ProvideBeacons(ctx context.Context) ([]Beacon, error) {
 	return s.getBeacons(ctx, &s.policies.Prop)
 }
 
@@ -124,9 +124,9 @@ func NewCoreBeaconStore(policies CorePolicies, db DB) (*CoreStore, error) {
 	return s, nil
 }
 
-// BeaconsToPropagate returns a slice of all beacons to propagate at the time of the call.
+// ProvideBeacons returns a slice of all beacons to propagate at the time of the call.
 // The selection is based on the configured propagation policy.
-func (s *CoreStore) BeaconsToPropagate(ctx context.Context) ([]Beacon, error) {
+func (s *CoreStore) ProvideBeacons(ctx context.Context) ([]Beacon, error) {
 	return s.getBeacons(ctx, &s.policies.Prop)
 }
 

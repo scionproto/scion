@@ -81,7 +81,7 @@ func TestPropagatorRunNonCore(t *testing.T) {
 		Provider: provider,
 	}
 	g := graph.NewDefaultGraph(mctrl)
-	provider.EXPECT().BeaconsToPropagate(gomock.Any()).Times(1).DoAndReturn(
+	provider.EXPECT().ProvideBeacons(gomock.Any()).Times(1).DoAndReturn(
 		func(_ interface{}) ([]beacon.Beacon, error) {
 			res := make([]beacon.Beacon, 0, len(beacons))
 			for _, desc := range beacons {
@@ -155,7 +155,7 @@ func TestPropagatorRunCore(t *testing.T) {
 		Provider: provider,
 	}
 	g := graph.NewDefaultGraph(mctrl)
-	provider.EXPECT().BeaconsToPropagate(gomock.Any()).Times(2).DoAndReturn(
+	provider.EXPECT().ProvideBeacons(gomock.Any()).Times(2).DoAndReturn(
 		func(_ interface{}) ([]beacon.Beacon, error) {
 			res := make([]beacon.Beacon, 0, len(beacons))
 			for _, desc := range beacons {
@@ -246,7 +246,7 @@ func TestPropagatorFastRecovery(t *testing.T) {
 	g := graph.NewDefaultGraph(mctrl)
 	// We call run 4 times in this test, since the interface to 1-ff00:0:120
 	// will never be beaconed on, because the beacons are filtered for loops.
-	provider.EXPECT().BeaconsToPropagate(gomock.Any()).Times(4).DoAndReturn(
+	provider.EXPECT().ProvideBeacons(gomock.Any()).Times(4).DoAndReturn(
 		func(_ interface{}) ([]beacon.Beacon, error) {
 			return []beacon.Beacon{testBeacon(g, beacons[0])}, nil
 		},

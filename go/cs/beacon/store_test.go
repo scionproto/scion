@@ -41,7 +41,7 @@ func TestStoreSegmentsToRegister(t *testing.T) {
 
 func TestStoreBeaconsToPropagate(t *testing.T) {
 	testStoreSelection(t, func(store *beacon.Store) ([]beacon.Beacon, error) {
-		return store.BeaconsToPropagate(context.Background())
+		return store.ProvideBeacons(context.Background())
 	})
 }
 
@@ -151,7 +151,7 @@ func TestCoreStoreSegmentsToRegister(t *testing.T) {
 
 func TestCoreStoreBeaconsToPropagate(t *testing.T) {
 	testCoreStoreSelection(t, func(store *beacon.CoreStore) ([]beacon.Beacon, error) {
-		return store.BeaconsToPropagate(context.Background())
+		return store.ProvideBeacons(context.Background())
 	})
 }
 

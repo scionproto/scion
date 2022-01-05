@@ -284,7 +284,7 @@ type Store interface {
 	// parsing error) occurs; otherwise, it returns a slice containing the beacons (which
 	// potentially could be empty when no beacon is found) and no error.
 	// The selection is based on the configured propagation policy.
-	BeaconsToPropagate(ctx context.Context) ([]beacon.Beacon, error)
+	ProvideBeacons(ctx context.Context) ([]beacon.Beacon, error)
 	// SegmentsToRegister returns an error and an empty slice if an error (e.g., connection or
 	// parsing error) occurs; otherwise, it returns a slice containing the beacons (which
 	// potentially could be empty when no beacon is found) and no error.

@@ -44,12 +44,12 @@ const (
 
 // BeaconProvider provides beacons to send to neighboring ASes.
 type BeaconProvider interface {
-	BeaconsToPropagate(ctx context.Context) ([]beacon.Beacon, error)
+	ProvideBeacons(ctx context.Context) ([]beacon.Beacon, error)
 }
 
 var _ periodic.Task = (*Propagator)(nil)
 
-// Propagator forwards beacons to neighboring ASes. In a core AS, the beacons
+// Propagator is the task that forwards beacons to neighboring ASes. In a core AS, the beacons
 // are propagated to neighbors on core links. In a non-core AS, the beacons are
 // forwarded on child links. Selection of the beacons is handled by the beacon
 // provider, the propagator only filters AS loops.
@@ -70,15 +70,17 @@ type Propagator struct {
 	Tick Tick
 }
 
-// Name returns the tasks name.
-func (p *Propagator) Name() string {
-	return "control_beaconing_propagator"
+// Represents a batch of beacons to propagate, stored in intf2bcns, where egress interfaces map to beacons
+type PropagationBatch struct {
+	*Propagator
+	wg        sync.WaitGroup
+	intf2bcns BeaconsToPropagate
+	peers     []uint16
+	success   ctr
 }
 
-// Run propagates beacons provided by the beacon provider on all active target
-// interfaces. In a core beacon server, core interfaces are the target
-// interfaces. In a non-core beacon server, child interfaces are the target
-// interfaces.
+type BeaconsToPropagate map[*ifstate.Interface][]beacon.Beacon
+
 func (p *Propagator) Run(ctx context.Context) {
 	logger := log.FromCtx(ctx)
 	p.Tick.SetNow(time.Now())
@@ -88,13 +90,18 @@ func (p *Propagator) Run(ctx context.Context) {
 	p.Tick.UpdateLast()
 }
 
+// Name returns the tasks name.
+func (p *Propagator) Name() string {
+	return "control_beaconing_propagator"
+}
+
 func (p *Propagator) run(ctx context.Context) error {
 	intfs := p.needsBeacons()
 	if len(intfs) == 0 {
 		return nil
 	}
 	peers := sortedIntfs(p.AllInterfaces, topology.Peer)
-	beacons, err := p.Provider.BeaconsToPropagate(ctx)
+	beacons, err := p.Provider.ProvideBeacons(ctx)
 	if err != nil {
 		p.incrementInternalErrors()
 		return err
@@ -106,16 +113,31 @@ func (p *Propagator) run(ctx context.Context) error {
 		}
 		toPropagate = append(toPropagate, b)
 	}
-	b := propagator{
+	intf2bcns := p.createBeaconsToPropagate(intfs, toPropagate)
+
+	b := PropagationBatch{
 		Propagator: p,
-		beacons:    toPropagate,
-		intfs:      intfs,
+		intf2bcns:  intf2bcns,
 		peers:      peers,
 	}
-	if err := b.propagate(ctx); err != nil {
-		return serrors.WrapStr("error propagating", err, "beacons", b.beacons)
+	bcnErr := b.extendBeacons(ctx)
+	if bcnErr != nil {
+		return serrors.WrapStr("error extending", bcnErr, "intf -> bcns:", b.intf2bcns)
+	}
+
+	if sendErr := b.sendBeacons(ctx); sendErr != nil {
+		return serrors.WrapStr("error propagating", sendErr, "intf -> bcns:", b.intf2bcns)
 	}
 	return nil
+}
+
+// Creates a BeaconsToPropagate map, mapping all interfaces to all beacons
+func (p *Propagator) createBeaconsToPropagate(intfs []*ifstate.Interface, bcns []beacon.Beacon) BeaconsToPropagate {
+	res := make(BeaconsToPropagate)
+	for _, intf := range intfs {
+		res[intf] = append(res[intf], bcns...)
+	}
+	return res
 }
 
 // needsBeacons returns a list of active interfaces that beacons should be
@@ -146,38 +168,43 @@ func (p *Propagator) incrementInternalErrors() {
 	p.InternalErrors.Add(1)
 }
 
-// propagator propagates a set of beacons on all active interfaces.
-type propagator struct {
-	*Propagator
-	wg      sync.WaitGroup
-	beacons []beacon.Beacon
-	intfs   []*ifstate.Interface
-	peers   []uint16
-	success ctr
-}
-
-// propagate propagates beacons on all active interfaces.
-func (p *propagator) propagate(ctx context.Context) error {
+// Clones, then extends bcns with their interfaces in intf2bcns
+func (p *PropagationBatch) extendBeacons(ctx context.Context) error {
 	logger := log.FromCtx(ctx)
-	var expected int
-	for _, intf := range p.intfs {
-		var toPropagate []beacon.Beacon
-		for _, b := range p.beacons {
-			if p.shouldIgnore(b, intf) {
+	intf2bcns_extended := make(BeaconsToPropagate)
+	for egIntf, bcns := range p.intf2bcns {
+		egIntfId := egIntf.TopoInfo().ID
+
+		var extended_bcns []beacon.Beacon
+		for _, bcn := range bcns {
+			if p.shouldIgnore(bcn, egIntf) {
 				continue
 			}
-			expected++
-			// Create a "copy" from the original beacon to avoid races on the
-			// ASEntry slice.
-			ps, err := seg.BeaconFromPB(seg.PathSegmentToPB(b.Segment))
+			new_bcn, err := bcn.Clone()
 			if err != nil {
-				p.Propagator.incrementInternalErrors()
 				logger.Debug("Unable to unpack beacon", "err", err)
 				continue
 			}
-			toPropagate = append(toPropagate, beacon.Beacon{Segment: ps, InIfId: b.InIfId})
+
+			err2 := p.Extender.Extend(ctx, new_bcn.Segment, new_bcn.InIfId, egIntfId, p.peers)
+			if err2 != nil {
+				return err2
+			}
+			extended_bcns = append(extended_bcns, new_bcn)
 		}
-		p.extendAndSend(ctx, toPropagate, intf)
+		intf2bcns_extended[egIntf] = extended_bcns
+	}
+	p.intf2bcns = intf2bcns_extended
+	return nil
+}
+
+// Sends beacons to their interfaces in intf2bcns map
+func (p *PropagationBatch) sendBeacons(ctx context.Context) error {
+	logger := log.FromCtx(ctx)
+	var expected int
+	for egIntf, bcns := range p.intf2bcns {
+		p.send(ctx, bcns, egIntf)
+		expected++
 	}
 	p.wg.Wait()
 	if expected == 0 {
@@ -186,38 +213,23 @@ func (p *propagator) propagate(ctx context.Context) error {
 	if p.success.c <= 0 {
 		return serrors.New("no beacon propagated", "expected", expected)
 	}
-	logger.Debug("Successfully propagated", "beacons", p.beacons, "interfaces", p.intfs,
+	logger.Debug("Successfully propagated", "beacons on interfaces", p.intf2bcns,
 		"expected", expected, "count", p.success.c)
 	return nil
 }
 
-// extendAndSend extends the path segment with the AS entry and sends it on the
-// egress interface, all done in a goroutine to avoid head-of-line blocking.
-func (p *propagator) extendAndSend(
-	ctx context.Context,
-	bsegs []beacon.Beacon,
-	intf *ifstate.Interface,
-) {
+// Sends a set of beacons to a given interface
+func (p *PropagationBatch) send(ctx context.Context, bcns []beacon.Beacon, intf *ifstate.Interface) {
 	logger := log.FromCtx(ctx)
-	if len(bsegs) == 0 {
+	if len(bcns) == 0 {
 		return
 	}
 	egIfid := intf.TopoInfo().ID
 	p.wg.Add(1)
+
 	go func() {
 		defer log.HandlePanic()
 		defer p.wg.Done()
-
-		var toPropagate []beacon.Beacon
-		for _, bseg := range bsegs {
-			err := p.Extender.Extend(ctx, bseg.Segment, bseg.InIfId, egIfid, p.peers)
-			if err != nil {
-				logger.Error("Unable to extend beacon", "beacon", bseg, "err", err)
-				p.incMetric(bseg.Segment.FirstIA(), bseg.InIfId, egIfid, "err_create")
-				continue
-			}
-			toPropagate = append(toPropagate, bseg)
-		}
 		topoInfo := intf.TopoInfo()
 
 		rpcContext, cancelF := context.WithTimeout(ctx, DefaultRPCTimeout)
@@ -232,7 +244,7 @@ func (p *propagator) extendAndSend(
 					"waited_for", time.Since(rpcStart))
 			}
 			logger.Info("Unable to propagate beacons", "egress_interface", egIfid, "err", err)
-			for _, b := range toPropagate {
+			for _, b := range bcns {
 				p.incMetric(b.Segment.FirstIA(), b.InIfId, egIfid, prom.ErrNetwork)
 			}
 			return
@@ -240,7 +252,7 @@ func (p *propagator) extendAndSend(
 		defer sender.Close()
 
 		successes := 0
-		for _, b := range toPropagate {
+		for _, b := range bcns {
 			if err := sender.Send(rpcContext, b.Segment); err != nil {
 				if rpcContext.Err() != nil {
 					err = serrors.WrapStr("timed out waiting for RPC to complete", err,
@@ -261,25 +273,24 @@ func (p *propagator) extendAndSend(
 			successes++
 		}
 		logger.Debug("Propagated beacons", "egress_interface", egIfid, "expected",
-			len(toPropagate), "successes", successes)
+			len(bcns), "successes", successes)
 	}()
 }
 
-// shouldIgnore indicates whether a beacon should not be sent on the egress
-// interface because it creates a loop.
-func (p *propagator) shouldIgnore(bseg beacon.Beacon, intf *ifstate.Interface) bool {
+// Returns true if extending a beacon with an interface would cause a loop
+func (p *PropagationBatch) shouldIgnore(bseg beacon.Beacon, intf *ifstate.Interface) bool {
 	if err := beacon.FilterLoop(bseg, intf.TopoInfo().IA, p.AllowIsdLoop); err != nil {
 		return true
 	}
 	return false
 }
 
-func (p *propagator) onSuccess(intf *ifstate.Interface, egIfid uint16) {
+func (p *PropagationBatch) onSuccess(intf *ifstate.Interface, egIfid uint16) {
 	intf.Propagate(p.Tick.Now())
 	p.success.Inc()
 }
 
-func (p *propagator) incMetric(startIA addr.IA, ingress, egress uint16, result string) {
+func (p *PropagationBatch) incMetric(startIA addr.IA, ingress, egress uint16, result string) {
 	if p.Propagator.Propagated == nil {
 		return
 	}
