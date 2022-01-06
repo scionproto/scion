@@ -63,7 +63,7 @@ func link(entry seg.ASEntry) (addr.IA, uint16) {
 	return entry.Local, entry.HopEntry.HopField.ConsIngress
 }
 
-func (b Beacon) Clone() (Beacon, error) {
+func (b Beacon) DeepCopy() (Beacon, error) {
 	seg, err := seg.BeaconFromPB(seg.PathSegmentToPB(b.Segment))
 	return Beacon{Segment: seg, InIfId: b.InIfId}, err
 }

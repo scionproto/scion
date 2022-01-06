@@ -113,31 +113,33 @@ func (p *Propagator) run(ctx context.Context) error {
 		}
 		toPropagate = append(toPropagate, b)
 	}
-	intf2bcns := p.createBeaconsToPropagate(intfs, toPropagate)
 
-	b := PropagationBatch{
-		Propagator: p,
-		intf2bcns:  intf2bcns,
-		peers:      peers,
-	}
-	bcnErr := b.extendBeacons(ctx)
-	if bcnErr != nil {
-		return serrors.WrapStr("error extending", bcnErr, "intf -> bcns:", b.intf2bcns)
+	batch := p.createPropagationBatch(peers, intfs, toPropagate)
+
+	batch.filterLoopingBeacons(ctx)
+	batch.deepCopyBeacons(ctx)
+
+	if bcnErr := batch.extendBeacons(ctx); bcnErr != nil {
+		return serrors.WrapStr("error extending", bcnErr, "intf -> bcns:", batch.intf2bcns)
 	}
 
-	if sendErr := b.sendBeacons(ctx); sendErr != nil {
-		return serrors.WrapStr("error propagating", sendErr, "intf -> bcns:", b.intf2bcns)
+	if sendErr := batch.sendBeacons(ctx); sendErr != nil {
+		return serrors.WrapStr("error propagating", sendErr, "intf -> bcns:", batch.intf2bcns)
 	}
 	return nil
 }
 
-// Creates a BeaconsToPropagate map, mapping all interfaces to all beacons
-func (p *Propagator) createBeaconsToPropagate(intfs []*ifstate.Interface, bcns []beacon.Beacon) BeaconsToPropagate {
-	res := make(BeaconsToPropagate)
+// creates a new PropagationBatch with intf2bcns = a map of all interfaces mapping to all beacons
+func (p *Propagator) createPropagationBatch(peers []uint16, intfs []*ifstate.Interface, bcns []beacon.Beacon) PropagationBatch {
+	intf2bcns := make(BeaconsToPropagate)
 	for _, intf := range intfs {
-		res[intf] = append(res[intf], bcns...)
+		intf2bcns[intf] = append(intf2bcns[intf], bcns...)
 	}
-	return res
+	return PropagationBatch{
+		Propagator: p,
+		intf2bcns:  intf2bcns,
+		peers:      peers,
+	}
 }
 
 // needsBeacons returns a list of active interfaces that beacons should be
@@ -168,33 +170,56 @@ func (p *Propagator) incrementInternalErrors() {
 	p.InternalErrors.Add(1)
 }
 
-// Clones, then extends bcns with their interfaces in intf2bcns
-func (p *PropagationBatch) extendBeacons(ctx context.Context) error {
-	logger := log.FromCtx(ctx)
-	intf2bcns_extended := make(BeaconsToPropagate)
-	for egIntf, bcns := range p.intf2bcns {
-		egIntfId := egIntf.TopoInfo().ID
-
-		var extended_bcns []beacon.Beacon
-		for _, bcn := range bcns {
-			if p.shouldIgnore(bcn, egIntf) {
-				continue
+// Removes beacons from intf2bcns that are looping back to the same AS.
+func (p *PropagationBatch) filterLoopingBeacons(ctx context.Context) {
+	for intf := range p.intf2bcns {
+		filtered := p.intf2bcns[intf][:0] // Use slice aliased to original list to avoid copying
+		for _, bcn := range p.intf2bcns[intf] {
+			if err := beacon.FilterLoop(bcn, intf.TopoInfo().IA, p.AllowIsdLoop); err == nil {
+				filtered = append(filtered, bcn)
 			}
-			new_bcn, err := bcn.Clone()
-			if err != nil {
+		}
+		p.intf2bcns[intf] = filtered
+	}
+}
+
+// Deepcopies all beacons to avoid race conditions; skips beacons where deepcopy fails
+func (p *PropagationBatch) deepCopyBeacons(ctx context.Context) {
+	logger := log.FromCtx(ctx)
+	res := make(BeaconsToPropagate)
+	for intf, bcns := range p.intf2bcns {
+		bcns_copied := bcns[:0]
+		for _, bcn := range bcns {
+			if copy, err := bcn.DeepCopy(); err != nil {
 				logger.Debug("Unable to unpack beacon", "err", err)
 				continue
+			} else {
+				bcns_copied = append(bcns_copied, copy)
 			}
+		}
+		res[intf] = bcns_copied
+	}
+	p.intf2bcns = res
+}
 
-			err2 := p.Extender.Extend(ctx, new_bcn.Segment, new_bcn.InIfId, egIntfId, p.peers)
-			if err2 != nil {
+// Returns true if extending a beacon with an interface would cause a loop
+func (p *PropagationBatch) shouldIgnore(bseg beacon.Beacon, intf *ifstate.Interface) bool {
+	if err := beacon.FilterLoop(bseg, intf.TopoInfo().IA, p.AllowIsdLoop); err != nil {
+		return true
+	}
+	return false
+}
+
+// Clones, then extends bcns with their interfaces in intf2bcns
+func (p *PropagationBatch) extendBeacons(ctx context.Context) error {
+	for egIntf, bcns := range p.intf2bcns {
+		egIntfId := egIntf.TopoInfo().ID
+		for _, bcn := range bcns {
+			if err2 := p.Extender.Extend(ctx, bcn.Segment, bcn.InIfId, egIntfId, p.peers); err2 != nil {
 				return err2
 			}
-			extended_bcns = append(extended_bcns, new_bcn)
 		}
-		intf2bcns_extended[egIntf] = extended_bcns
 	}
-	p.intf2bcns = intf2bcns_extended
 	return nil
 }
 
@@ -275,14 +300,6 @@ func (p *PropagationBatch) send(ctx context.Context, bcns []beacon.Beacon, intf 
 		logger.Debug("Propagated beacons", "egress_interface", egIfid, "expected",
 			len(bcns), "successes", successes)
 	}()
-}
-
-// Returns true if extending a beacon with an interface would cause a loop
-func (p *PropagationBatch) shouldIgnore(bseg beacon.Beacon, intf *ifstate.Interface) bool {
-	if err := beacon.FilterLoop(bseg, intf.TopoInfo().IA, p.AllowIsdLoop); err != nil {
-		return true
-	}
-	return false
 }
 
 func (p *PropagationBatch) onSuccess(intf *ifstate.Interface, egIfid uint16) {
