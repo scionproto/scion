@@ -26,8 +26,11 @@ import (
 	"sort"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
 	api "github.com/scionproto/scion/go/pkg/api"
@@ -275,7 +278,6 @@ func sortFactory(sortParam *GetBeaconsParamsSort) (func(b []*Beacon) sort.Interf
 		}
 	}, nil
 }
-
 func (s *Server) GetBeacon(w http.ResponseWriter, r *http.Request, segmentId SegmentID) {
 	id, err := hex.DecodeString(string(segmentId))
 	if err != nil {
@@ -368,7 +370,82 @@ func (s *Server) GetBeacon(w http.ResponseWriter, r *http.Request, segmentId Seg
 }
 
 func (s *Server) GetBeaconBlob(w http.ResponseWriter, r *http.Request, segmentId SegmentID) {
-	panic("not implemented") //TODO: implement
+	w.Header().Set("Content-Type", "application/x-pem-file")
+
+	id, err := hex.DecodeString(string(segmentId))
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusBadRequest,
+			Title:  "error decoding segment id",
+			Type:   api.StringRef(api.BadRequest),
+		})
+		return
+	}
+	q := beaconstorage.QueryParams{
+		SegIDs: [][]byte{id},
+	}
+	results, err := s.Beacons.GetBeacons(r.Context(), &q)
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "error getting beacons",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	if len(results) == 0 {
+		Error(w, Problem{
+			Detail: api.StringRef(fmt.Sprintf(
+				"no beacon matched provided segment ID: %s",
+				segmentId,
+			)),
+			Status: http.StatusBadRequest,
+			Title:  "malformed query parameter",
+			Type:   api.StringRef(api.BadRequest),
+		})
+		return
+	}
+	if len(results) > 1 {
+		Error(w, Problem{
+			Detail: api.StringRef(fmt.Sprintf(
+				"%d beacons matched provided segment ID: %s",
+				len(results),
+				segmentId,
+			)),
+			Status: http.StatusBadRequest,
+			Title:  "malformed query parameter",
+			Type:   api.StringRef(api.BadRequest),
+		})
+		return
+	}
+	var buf bytes.Buffer
+	segment := results[0].Beacon.Segment
+	bytes, err := proto.Marshal(seg.PathSegmentToPB(segment))
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to marshal beacon",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	b := &pem.Block{
+		Type:  "PATH SEGMENT",
+		Bytes: bytes,
+	}
+	if err := pem.Encode(&buf, b); err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to marshal response",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	io.Copy(w, &buf)
 }
 
 // GetSegments gets the stored in the PathDB.

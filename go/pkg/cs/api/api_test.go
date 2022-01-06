@@ -18,6 +18,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/hex"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -210,6 +211,72 @@ func TestAPI(t *testing.T) {
 				return api.Handler(s)
 			},
 			RequestURL: "/beacons/" + hex.EncodeToString([]byte("1234")),
+			Status:     400,
+		},
+		"beacon blob": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &api.Server{
+					Beacons: bs,
+				}
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{SegIDs: [][]byte{beacons[0].Beacon.Segment.ID()}},
+				).AnyTimes().Return(beacons[:1], nil)
+				return api.Handler(s)
+			},
+			RequestURL: fmt.Sprintf(
+				"/beacons/%s/blob",
+				hex.EncodeToString(beacons[0].Beacon.Segment.ID()),
+			),
+			Status: 200,
+		},
+		"beacon id prefix blob": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &api.Server{
+					Beacons: bs,
+				}
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{SegIDs: [][]byte{beacons[0].Beacon.Segment.ID()[:10]}},
+				).AnyTimes().Return(beacons[:1], nil)
+				return api.Handler(s)
+			},
+			RequestURL: fmt.Sprintf(
+				"/beacons/%s/blob",
+				hex.EncodeToString(beacons[0].Beacon.Segment.ID()[:10]),
+			),
+			Status: 200,
+		},
+		"beacon no matches blob": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &api.Server{
+					Beacons: bs,
+				}
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{SegIDs: [][]byte{[]byte("1234")}},
+				).AnyTimes().Return([]beacon.Beacon{}, nil)
+				return api.Handler(s)
+			},
+			RequestURL: fmt.Sprintf("/beacons/%s/blob", hex.EncodeToString([]byte("1234"))),
+			Status:     400,
+		},
+		"beacon no unique match blob": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &api.Server{
+					Beacons: bs,
+				}
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{SegIDs: [][]byte{[]byte("1234")}},
+				).AnyTimes().Return(beacons, nil)
+				return api.Handler(s)
+			},
+			RequestURL: fmt.Sprintf("/beacons/%s/blob", hex.EncodeToString([]byte("1234"))),
 			Status:     400,
 		},
 		"signer": {
