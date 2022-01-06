@@ -334,6 +334,8 @@ func (s *Server) GetTrc(w http.ResponseWriter, r *http.Request, isd int, base in
 
 // GetTrcBlob gets the trc encoded pem blob.
 func (s *Server) GetTrcBlob(w http.ResponseWriter, r *http.Request, isd int, base int, serial int) {
+	w.Header().Set("Content-Type", "application/x-pem-file")
+
 	db := s.TrustDB
 	trc, err := db.SignedTRC(r.Context(), cppki.TRCID{
 		ISD:    addr.ISD(isd),

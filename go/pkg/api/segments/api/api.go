@@ -174,6 +174,8 @@ func (s *Server) GetSegment(w http.ResponseWriter, r *http.Request, segmentID Se
 
 // GetSegmentBlob gets a segment (specified by its ID) as a pem encoded blob.
 func (s *Server) GetSegmentBlob(w http.ResponseWriter, r *http.Request, segmentID SegmentID) {
+	w.Header().Set("Content-Type", "application/x-pem-file")
+
 	id, err := hex.DecodeString(string(segmentID))
 	if err != nil {
 		Error(w, Problem{
