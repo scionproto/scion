@@ -43,8 +43,12 @@ func (p OneHop) SetPath(s *slayers.SCION) error {
 }
 
 // NewOneHop creates a onehop path that has the first hopfield initialized.
-func NewOneHop(egress uint16, timestamp time.Time, expiration uint8,
-	mac hash.Hash) (OneHop, error) {
+func NewOneHop(
+	egress uint16,
+	timestamp time.Time,
+	expiration uint8,
+	mac hash.Hash,
+) (OneHop, error) {
 
 	segID, err := rand.Int(rand.Reader, big.NewInt(1<<16))
 	if err != nil {

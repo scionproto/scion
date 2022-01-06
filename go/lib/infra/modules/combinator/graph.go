@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"sort"
 	"time"
 
@@ -30,6 +31,16 @@ import (
 	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
+)
+
+const (
+	maxTimestamp = math.MaxUint32
+)
+
+var (
+	// MaxExpirationTime is the maximum absolute expiration time of SCION hop
+	// fields.
+	maxExpirationTime = time.Unix(maxTimestamp, 0).Add(path.ExpTimeToDuration(math.MaxUint8))
 )
 
 // vertexInfo maps destination vertices to the list of edges that point towards
@@ -385,7 +396,7 @@ func (solution *pathSolution) Path() Path {
 	staticInfo := collectMetadata(interfaces, asEntries)
 
 	return Path{
-		ScionPath: segments.ScionPath(),
+		SCIONPath: segments.ScionPath(),
 		Metadata: snet.PathMetadata{
 			Interfaces:   interfaces,
 			MTU:          mtu,
@@ -569,7 +580,7 @@ func (s segmentList) ASEntries() []seg.ASEntry {
 }
 
 func (s segmentList) ComputeExpTime() time.Time {
-	minTimestamp := snetpath.MaxExpirationTime
+	minTimestamp := maxExpirationTime
 	for _, segment := range s {
 		expTime := segment.ComputeExpTime()
 		if minTimestamp.After(expTime) {

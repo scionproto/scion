@@ -72,7 +72,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 
 		var path scion.Decoded
 		scionPath, ok := a.Path.(snetpath.SCION)
-		assert.Equal(t, true, ok)
+		require.True(t, ok)
 		if assert.NoError(t, path.DecodeFromBytes(scionPath.Raw)) {
 			pathHopField := path.HopFields[0]
 

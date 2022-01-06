@@ -84,12 +84,8 @@ func FilterEmptyPaths(paths []snet.Path) []snet.Path {
 	}
 	filtered := make([]snet.Path, 0, len(paths))
 	for _, path := range paths {
-		_, isEmpty := path.Dataplane().(snetpath.Empty)
-		if !isEmpty {
-			scionPath, isScion := path.Dataplane().(snetpath.SCION)
-			if isScion && len(scionPath.Raw) > 0 {
-				filtered = append(filtered, path)
-			}
+		if _, isEmpty := path.Dataplane().(snetpath.Empty); !isEmpty {
+			filtered = append(filtered, path)
 		}
 	}
 	return filtered

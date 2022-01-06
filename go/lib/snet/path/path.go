@@ -22,24 +22,11 @@ package path
 
 import (
 	"fmt"
-	"math"
 	"net"
 	"strings"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/snet"
-)
-
-const (
-	maxTimestamp = math.MaxUint32
-)
-
-var (
-	// MaxExpirationTime is the maximum absolute expiration time of SCION hop
-	// fields.
-	MaxExpirationTime = time.Unix(maxTimestamp, 0).Add(path.ExpTimeToDuration(math.MaxUint8))
 )
 
 // Path is an snet.Path with full metadata

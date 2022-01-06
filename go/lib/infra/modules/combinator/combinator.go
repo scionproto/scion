@@ -73,7 +73,7 @@ func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment,
 
 type Path struct {
 	Dst       addr.IA
-	ScionPath path.SCION
+	SCIONPath path.SCION
 	Metadata  snet.PathMetadata
 	Weight    int // XXX(matzf): unused, drop this?
 }

@@ -249,7 +249,7 @@ func TestRegistrarRun(t *testing.T) {
 
 					var path scion.Decoded
 					scionPath, ok := s.Addr.Path.(snetpath.SCION)
-					assert.Equal(t, true, ok)
+					require.True(t, ok)
 					if assert.NoError(t, path.DecodeFromBytes(scionPath.Raw)) {
 						pathHopField := path.HopFields[0]
 
