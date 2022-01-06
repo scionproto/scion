@@ -17,4 +17,6 @@ def rules_openapi_dependencies():
         urls = [
             "http://github.com/cgrindel/bazel-starlib/archive/v0.2.1.tar.gz",
         ],
+        patches = ["@com_github_scionproto_scion//rules_openapi:rules_starlib.patch"],
+        patch_args = ["-p1"],
     )
