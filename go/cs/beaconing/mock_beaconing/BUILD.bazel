@@ -12,6 +12,7 @@ gomock(
         "SegmentProvider",
         "SegmentStore",
         "SenderFactory",
+        "BeaconingMechanism",
     ],
     library = "//go/cs/beaconing:go_default_library",
     package = "mock_beaconing",

@@ -21,6 +21,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"net"
+	"sort"
 	"testing"
 	"time"
 
@@ -34,7 +35,6 @@ import (
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
@@ -60,32 +60,72 @@ func TestPropagatorRunNonCore(t *testing.T) {
 	filter := func(intf *ifstate.Interface) bool {
 		return intf.TopoInfo().LinkType == topology.Child
 	}
+	mechanism := mock_beaconing.NewMockBeaconingMechanism(mctrl)
+	extender := &beaconing.DefaultExtender{
+		IA:         topo.IA(),
+		MTU:        topo.MTU(),
+		Signer:     testSigner(t, priv, topo.IA()),
+		Intfs:      intfs,
+		MAC:        macFactory,
+		MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
+		StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+	}
+
+	propaIntfs := func() []*ifstate.Interface {
+		return intfs.Filtered(filter)
+	}
 	p := beaconing.Propagator{
-		Extender: &beaconing.DefaultExtender{
-			IA:         topo.IA(),
-			MTU:        topo.MTU(),
-			Signer:     testSigner(t, priv, topo.IA()),
-			Intfs:      intfs,
-			MAC:        macFactory,
-			MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-			StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
-		},
-		SenderFactory: senderFactory,
-		IA:            topo.IA(),
-		Signer:        testSigner(t, priv, topo.IA()),
-		AllInterfaces: intfs,
-		PropagationInterfaces: func() []*ifstate.Interface {
-			return intfs.Filtered(filter)
-		},
-		Tick:     beaconing.NewTick(time.Hour),
-		Provider: provider,
+
+		SenderFactory:         senderFactory,
+		IA:                    topo.IA(),
+		Signer:                testSigner(t, priv, topo.IA()),
+		AllInterfaces:         intfs,
+		PropagationInterfaces: propaIntfs,
+		Mechanism:             mechanism,
+		Tick:                  beaconing.NewTick(time.Hour),
+		Provider_:             provider,
 	}
 	g := graph.NewDefaultGraph(mctrl)
-	provider.EXPECT().ProvideBeacons(gomock.Any()).Times(1).DoAndReturn(
+	provider.EXPECT().ProvideBeacons(gomock.Any()).Times(0).DoAndReturn(
 		func(_ interface{}) ([]beacon.Beacon, error) {
 			res := make([]beacon.Beacon, 0, len(beacons))
 			for _, desc := range beacons {
 				res = append(res, testBeacon(g, desc))
+			}
+			return res, nil
+		},
+	)
+
+	mechanism.EXPECT().ProvidePropagationBatch(gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
+		func(_ interface{}, _ interface{}) (beaconing.SendableBeaconsBatch, error) {
+			bcns := make([]beacon.Beacon, 0, len(beacons))
+			for _, desc := range beacons {
+				bcns = append(bcns, testBeacon(g, desc))
+			}
+			res := make(beaconing.SendableBeaconsBatch, 0)
+			for _, intf := range propaIntfs() {
+				res[intf] = make([]beacon.Beacon, 0, len(bcns))
+				res[intf] = append(res[intf], bcns...)
+			}
+
+			res.DeepCopyBeacons(context.Background())
+			peers := make([]uint16, 0)
+			for ifid, intf := range intfs.All() {
+				if intf.TopoInfo().LinkType == topology.Peer {
+					peers = append(peers, ifid)
+				}
+			}
+
+			sort.Slice(peers, func(i, j int) bool { return peers[i] < peers[j] })
+			res.FilterLooping(true)
+			err := res.ExtendBeacons(context.Background(), extender, peers)
+			assert.NoError(t, err)
+			ctr := 0
+			for _, bcns := range res {
+				for _, bcn := range bcns {
+					assert.NoError(t, bcn.Segment.Validate(seg.ValidateBeacon), "validation failed at index %d", ctr)
+					ctr += 1
+				}
 			}
 			return res, nil
 		},
@@ -110,8 +150,6 @@ func TestPropagatorRunNonCore(t *testing.T) {
 		},
 	)
 	p.Run(context.Background())
-	// Check that no beacons are sent, since the period has not passed yet.
-	p.Run(context.Background())
 }
 
 func TestPropagatorRunCore(t *testing.T) {
@@ -129,44 +167,74 @@ func TestPropagatorRunCore(t *testing.T) {
 	topo, err := topology.FromJSONFile(topoCore)
 	require.NoError(t, err)
 	intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
+	mechanism := mock_beaconing.NewMockBeaconingMechanism(mctrl)
 	provider := mock_beaconing.NewMockBeaconProvider(mctrl)
 	senderFactory := mock_beaconing.NewMockSenderFactory(mctrl)
 	filter := func(intf *ifstate.Interface) bool {
 		return intf.TopoInfo().LinkType == topology.Core
 	}
+	extender := &beaconing.DefaultExtender{
+		IA:         topo.IA(),
+		MTU:        topo.MTU(),
+		Signer:     testSigner(t, priv, topo.IA()),
+		Intfs:      intfs,
+		MAC:        macFactory,
+		MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
+		StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
+	}
+
+	propaIntfs := func() []*ifstate.Interface {
+		return intfs.Filtered(filter)
+	}
 	p := beaconing.Propagator{
-		Extender: &beaconing.DefaultExtender{
-			IA:         topo.IA(),
-			MTU:        topo.MTU(),
-			Signer:     testSigner(t, priv, topo.IA()),
-			Intfs:      intfs,
-			MAC:        macFactory,
-			MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
-			StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
-		},
-		SenderFactory: senderFactory,
-		IA:            topo.IA(),
-		Signer:        testSigner(t, priv, topo.IA()),
-		AllInterfaces: intfs,
-		PropagationInterfaces: func() []*ifstate.Interface {
-			return intfs.Filtered(filter)
-		},
-		Tick:     beaconing.NewTick(time.Hour),
-		Provider: provider,
+		SenderFactory:         senderFactory,
+		Mechanism:             mechanism,
+		IA:                    topo.IA(),
+		Signer:                testSigner(t, priv, topo.IA()),
+		AllInterfaces:         intfs,
+		PropagationInterfaces: propaIntfs,
+		Tick:                  beaconing.NewTick(time.Hour),
+		Provider_:             provider,
 	}
 	g := graph.NewDefaultGraph(mctrl)
-	provider.EXPECT().ProvideBeacons(gomock.Any()).Times(2).DoAndReturn(
-		func(_ interface{}) ([]beacon.Beacon, error) {
-			res := make([]beacon.Beacon, 0, len(beacons))
+
+	mechanism.EXPECT().ProvidePropagationBatch(gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
+		func(_ interface{}, _ interface{}) (beaconing.SendableBeaconsBatch, error) {
+			bcns := make([]beacon.Beacon, 0, len(beacons))
 			for _, desc := range beacons {
-				res = append(res, testBeacon(g, desc))
+				bcns = append(bcns, testBeacon(g, desc))
+			}
+			res := make(beaconing.SendableBeaconsBatch, 0)
+			for _, intf := range propaIntfs() {
+				res[intf] = make([]beacon.Beacon, 0, len(bcns))
+				res[intf] = append(res[intf], bcns...)
+			}
+
+			res.DeepCopyBeacons(context.Background())
+			peers := make([]uint16, 0)
+			for ifid, intf := range intfs.All() {
+				if intf.TopoInfo().LinkType == topology.Peer {
+					peers = append(peers, ifid)
+				}
+			}
+
+			sort.Slice(peers, func(i, j int) bool { return peers[i] < peers[j] })
+			res.FilterLooping(true)
+			err := res.ExtendBeacons(context.Background(), extender, peers)
+			assert.NoError(t, err)
+			ctr := 0
+			for _, bcns := range res {
+				for _, bcn := range bcns {
+					assert.NoError(t, bcn.Segment.Validate(seg.ValidateBeacon), "validation failed at index %d", ctr)
+					ctr += 1
+				}
 			}
 			return res, nil
 		},
 	)
 
 	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), uint16(1121),
-		gomock.Any()).DoAndReturn(
+		gomock.Any()).Times(1).DoAndReturn(
 		func(_ context.Context, _ addr.IA, egIfId uint16,
 			nextHop *net.UDPAddr) (beaconing.Sender, error) {
 
@@ -198,10 +266,11 @@ func TestPropagatorRunCore(t *testing.T) {
 		},
 	)
 	p.Run(context.Background())
-	// Check that no beacons are sent, since the period has not passed yet.
-	p.Run(context.Background())
 }
 
+// TODO: Test for timeout
+
+/* Commented out since it tests for propagator recovery / timeout, which is not performed by propagator anymore
 func TestPropagatorFastRecovery(t *testing.T) {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
@@ -239,8 +308,8 @@ func TestPropagatorFastRecovery(t *testing.T) {
 		PropagationInterfaces: func() []*ifstate.Interface {
 			return intfs.Filtered(filter)
 		},
-		Tick:     beaconing.NewTick(2 * time.Second),
-		Provider: provider,
+		Tick:      beaconing.NewTick(2 * time.Second),
+		Provider_: provider,
 	}
 
 	g := graph.NewDefaultGraph(mctrl)
@@ -275,6 +344,7 @@ func TestPropagatorFastRecovery(t *testing.T) {
 	// Fourth run. Since period has passed, two writes are expected.
 	p.Run(context.Background())
 }
+*/
 
 func validateSend(
 	t *testing.T,

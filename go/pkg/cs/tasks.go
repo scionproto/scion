@@ -55,6 +55,7 @@ type TasksConfig struct {
 	BeaconSenderFactory   beaconing.SenderFactory
 	SegmentRegister       beaconing.RPC
 	BeaconStore           Store
+	Mechanism             beaconing.BeaconingMechanism
 	Signer                seg.Signer
 	Inspector             trust.Inspector
 	Metrics               *Metrics
@@ -103,7 +104,8 @@ func (t *TasksConfig) Propagator() *periodic.Runner {
 			return t.BeaconStore.MaxExpTime(beacon.PropPolicy)
 		}),
 		SenderFactory:         t.BeaconSenderFactory,
-		Provider:              t.BeaconStore,
+		Provider_:             t.BeaconStore,
+		Mechanism:             t.Mechanism,
 		IA:                    t.IA,
 		Signer:                t.Signer,
 		AllInterfaces:         t.AllInterfaces,

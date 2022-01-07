@@ -23,7 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
-type usager interface {
+type Usager interface {
 	Filter(beacon Beacon) error
 	Usage(beacon Beacon) Usage
 }
@@ -176,7 +176,7 @@ func (s *CoreStore) MaxExpTime(policyType PolicyType) uint8 {
 // baseStore is the basis for the beacon store.
 type baseStore struct {
 	db     DB
-	usager usager
+	usager Usager
 	algo   selectionAlgorithm
 }
 

@@ -16,7 +16,6 @@ package beaconing
 
 import (
 	"context"
-	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -30,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/topology"
 )
 
 const (
@@ -56,7 +54,8 @@ var _ periodic.Task = (*Propagator)(nil)
 type Propagator struct {
 	Extender              Extender
 	SenderFactory         SenderFactory
-	Provider              BeaconProvider
+	Provider_             BeaconProvider
+	Mechanism             BeaconingMechanism
 	IA                    addr.IA
 	Signer                seg.Signer
 	AllInterfaces         *ifstate.Interfaces
@@ -73,10 +72,9 @@ type Propagator struct {
 // Represents a batch of beacons to propagate, stored in intf2bcns, where egress interfaces map to beacons
 type PropagationBatch struct {
 	*Propagator
-	wg        sync.WaitGroup
-	intf2bcns BeaconsToPropagate
-	peers     []uint16
-	success   ctr
+	wg      sync.WaitGroup
+	batch   SendableBeaconsBatch
+	success ctr
 }
 
 type BeaconsToPropagate map[*ifstate.Interface][]beacon.Beacon
@@ -96,129 +94,17 @@ func (p *Propagator) Name() string {
 }
 
 func (p *Propagator) run(ctx context.Context) error {
-	intfs := p.needsBeacons()
-	if len(intfs) == 0 {
-		return nil
-	}
-	peers := sortedIntfs(p.AllInterfaces, topology.Peer)
-	beacons, err := p.Provider.ProvideBeacons(ctx)
+	batch_, err := p.Mechanism.ProvidePropagationBatch(ctx, p.Tick)
 	if err != nil {
-		p.incrementInternalErrors()
-		return err
+		return serrors.WrapStr("error creating propagation batch", err)
 	}
-	var toPropagate []beacon.Beacon
-	for _, b := range beacons {
-		if p.AllInterfaces.Get(b.InIfId) == nil {
-			continue
-		}
-		toPropagate = append(toPropagate, b)
-	}
-
-	batch := p.createPropagationBatch(peers, intfs, toPropagate)
-
-	batch.filterLoopingBeacons(ctx)
-	batch.deepCopyBeacons(ctx)
-
-	if bcnErr := batch.extendBeacons(ctx); bcnErr != nil {
-		return serrors.WrapStr("error extending", bcnErr, "intf -> bcns:", batch.intf2bcns)
+	batch := PropagationBatch{
+		Propagator: p,
+		batch:      batch_,
 	}
 
 	if sendErr := batch.sendBeacons(ctx); sendErr != nil {
-		return serrors.WrapStr("error propagating", sendErr, "intf -> bcns:", batch.intf2bcns)
-	}
-	return nil
-}
-
-// creates a new PropagationBatch with intf2bcns = a map of all interfaces mapping to all beacons
-func (p *Propagator) createPropagationBatch(peers []uint16, intfs []*ifstate.Interface, bcns []beacon.Beacon) PropagationBatch {
-	intf2bcns := make(BeaconsToPropagate)
-	for _, intf := range intfs {
-		intf2bcns[intf] = append(intf2bcns[intf], bcns...)
-	}
-	return PropagationBatch{
-		Propagator: p,
-		intf2bcns:  intf2bcns,
-		peers:      peers,
-	}
-}
-
-// needsBeacons returns a list of active interfaces that beacons should be
-// propagated on. In a core AS, these are all active core links. In a non-core
-// AS, these are all active child links.
-func (p *Propagator) needsBeacons() []*ifstate.Interface {
-	intfs := p.PropagationInterfaces()
-	sort.Slice(intfs, func(i, j int) bool {
-		return intfs[i].TopoInfo().ID < intfs[j].TopoInfo().ID
-	})
-
-	if p.Tick.Passed() {
-		return intfs
-	}
-	stale := make([]*ifstate.Interface, 0, len(intfs))
-	for _, intf := range intfs {
-		if p.Tick.Overdue(intf.LastPropagate()) {
-			stale = append(stale, intf)
-		}
-	}
-	return stale
-}
-
-func (p *Propagator) incrementInternalErrors() {
-	if p.InternalErrors == nil {
-		return
-	}
-	p.InternalErrors.Add(1)
-}
-
-// Removes beacons from intf2bcns that are looping back to the same AS.
-func (p *PropagationBatch) filterLoopingBeacons(ctx context.Context) {
-	for intf := range p.intf2bcns {
-		filtered := p.intf2bcns[intf][:0] // Use slice aliased to original list to avoid copying
-		for _, bcn := range p.intf2bcns[intf] {
-			if err := beacon.FilterLoop(bcn, intf.TopoInfo().IA, p.AllowIsdLoop); err == nil {
-				filtered = append(filtered, bcn)
-			}
-		}
-		p.intf2bcns[intf] = filtered
-	}
-}
-
-// Deepcopies all beacons to avoid race conditions; skips beacons where deepcopy fails
-func (p *PropagationBatch) deepCopyBeacons(ctx context.Context) {
-	logger := log.FromCtx(ctx)
-	res := make(BeaconsToPropagate)
-	for intf, bcns := range p.intf2bcns {
-		bcns_copied := bcns[:0]
-		for _, bcn := range bcns {
-			if copy, err := bcn.DeepCopy(); err != nil {
-				logger.Debug("Unable to unpack beacon", "err", err)
-				continue
-			} else {
-				bcns_copied = append(bcns_copied, copy)
-			}
-		}
-		res[intf] = bcns_copied
-	}
-	p.intf2bcns = res
-}
-
-// Returns true if extending a beacon with an interface would cause a loop
-func (p *PropagationBatch) shouldIgnore(bseg beacon.Beacon, intf *ifstate.Interface) bool {
-	if err := beacon.FilterLoop(bseg, intf.TopoInfo().IA, p.AllowIsdLoop); err != nil {
-		return true
-	}
-	return false
-}
-
-// Clones, then extends bcns with their interfaces in intf2bcns
-func (p *PropagationBatch) extendBeacons(ctx context.Context) error {
-	for egIntf, bcns := range p.intf2bcns {
-		egIntfId := egIntf.TopoInfo().ID
-		for _, bcn := range bcns {
-			if err2 := p.Extender.Extend(ctx, bcn.Segment, bcn.InIfId, egIntfId, p.peers); err2 != nil {
-				return err2
-			}
-		}
+		return serrors.WrapStr("error propagating", sendErr, "intf -> bcns:", batch.batch)
 	}
 	return nil
 }
@@ -227,8 +113,9 @@ func (p *PropagationBatch) extendBeacons(ctx context.Context) error {
 func (p *PropagationBatch) sendBeacons(ctx context.Context) error {
 	logger := log.FromCtx(ctx)
 	var expected int
-	for egIntf, bcns := range p.intf2bcns {
+	for egIntf, bcns := range p.batch {
 		p.send(ctx, bcns, egIntf)
+		p.wg.Add(1)
 		expected++
 	}
 	p.wg.Wait()
@@ -238,7 +125,7 @@ func (p *PropagationBatch) sendBeacons(ctx context.Context) error {
 	if p.success.c <= 0 {
 		return serrors.New("no beacon propagated", "expected", expected)
 	}
-	logger.Debug("Successfully propagated", "beacons on interfaces", p.intf2bcns,
+	logger.Debug("Successfully propagated", "beacons on interfaces", p.batch,
 		"expected", expected, "count", p.success.c)
 	return nil
 }
@@ -250,7 +137,6 @@ func (p *PropagationBatch) send(ctx context.Context, bcns []beacon.Beacon, intf 
 		return
 	}
 	egIfid := intf.TopoInfo().ID
-	p.wg.Add(1)
 
 	go func() {
 		defer log.HandlePanic()
@@ -293,6 +179,7 @@ func (p *PropagationBatch) send(ctx context.Context, bcns []beacon.Beacon, intf 
 				p.incMetric(b.Segment.FirstIA(), b.InIfId, egIfid, prom.ErrNetwork)
 				continue
 			}
+			logger.Debug("Propagated one beacon")
 			p.onSuccess(intf, egIfid)
 			p.incMetric(b.Segment.FirstIA(), b.InIfId, egIfid, prom.Success)
 			successes++

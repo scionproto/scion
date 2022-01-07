@@ -229,7 +229,7 @@ func realMain(ctx context.Context) error {
 		QueriesTotal: libmetrics.NewPromCounter(metrics.BeaconDBQueriesTotal),
 	})
 
-	beaconStore, isdLoopAllowed, err := createBeaconStore(
+	beaconStore, _, err := createBeaconStore(
 		beaconDB,
 		topo.Core(),
 		globalCfg.BS.Policies,
@@ -612,26 +612,94 @@ func realMain(ctx context.Context) error {
 		return topoInfo.LinkType == topology.Core || topoInfo.LinkType == topology.Child
 	}
 
+	getStaticInfo := func() *beaconing.StaticInfoCfg { return staticInfo }
+	maxExpTime := func() uint8 {
+		return beaconStore.MaxExpTime(beacon.PropPolicy)
+	}
+
+	extender := &beaconing.DefaultExtender{
+		IA:         topo.IA(),
+		Signer:     signer,
+		MAC:        macGen,
+		Intfs:      intfs,
+		MTU:        topo.MTU(),
+		MaxExpTime: maxExpTime,
+		StaticInfo: getStaticInfo,
+		Task:       "propagator",
+		EPIC:       false,
+	}
+
+	// Needs refcatoring
+	var isdLoopAllowed bool
+	// Either corePolicies or noncorePolicies is not nil, depending on topo.Core()
+	var corePolicies beacon.CorePolicies
+	var noncorePolicies beacon.Policies
+	if topo.Core() {
+		corePolicies, err = cs.LoadCorePolicies(globalCfg.BS.Policies)
+		if err != nil {
+			return serrors.WrapStr("initializing beacon store", err)
+		}
+		isdLoopAllowed = *corePolicies.Prop.Filter.AllowIsdLoop
+	} else {
+		noncorePolicies, err = cs.LoadNonCorePolicies(globalCfg.BS.Policies)
+		if err != nil {
+			return serrors.WrapStr("initializing beacon store", err)
+		}
+		isdLoopAllowed = *noncorePolicies.Prop.Filter.AllowIsdLoop
+	}
+
+	log.Info("Policies", "core", corePolicies, "Noncore:", noncorePolicies)
+
+	propagationInterfaces := func() []*ifstate.Interface {
+		return intfs.Filtered(propagationFilter)
+	}
+	originationInterfaces := func() []*ifstate.Interface {
+		return intfs.Filtered(originationFilter)
+	}
+	baseMechanismDefault := beaconing.DefaultMechanismBase{
+		MechanismBase: beaconing.MechanismBase{
+			IA:                    topo.IA(),
+			AllInterfaces:         intfs,
+			PropagationInterfaces: propagationInterfaces,
+			AllowIsdLoop:          isdLoopAllowed,
+			Tick:                  beaconing.Tick{},
+		},
+		DB:       beaconDB,
+		Extender: extender,
+	}
+
+	var beaconingMechanism beaconing.BeaconingMechanism
+	if topo.Core() {
+		corePolicies.InitDefaults()
+		beaconingMechanism = &beaconing.DefaultMechanismCore{
+			DefaultMechanismBase: baseMechanismDefault,
+			Policies:             corePolicies,
+		}
+	} else {
+		noncorePolicies.InitDefaults()
+		beaconingMechanism = &beaconing.DefaultMechanismNonCore{
+			DefaultMechanismBase: baseMechanismDefault,
+			Policies:             noncorePolicies,
+		}
+	}
+
 	tasks, err := cs.StartTasks(cs.TasksConfig{
-		IA:            topo.IA(),
-		Core:          topo.Core(),
-		MTU:           topo.MTU(),
-		Public:        nc.Public,
-		AllInterfaces: intfs,
-		PropagationInterfaces: func() []*ifstate.Interface {
-			return intfs.Filtered(propagationFilter)
-		},
-		OriginationInterfaces: func() []*ifstate.Interface {
-			return intfs.Filtered(originationFilter)
-		},
-		TrustDB:  trustDB,
-		PathDB:   pathDB,
-		RevCache: revCache,
+		IA:                    topo.IA(),
+		Core:                  topo.Core(),
+		MTU:                   topo.MTU(),
+		Public:                nc.Public,
+		AllInterfaces:         intfs,
+		PropagationInterfaces: propagationInterfaces,
+		OriginationInterfaces: originationInterfaces,
+		TrustDB:               trustDB,
+		PathDB:                pathDB,
+		RevCache:              revCache,
 		BeaconSenderFactory: &beaconinggrpc.BeaconSenderFactory{
 			Dialer: dialer,
 		},
 		SegmentRegister: beaconinggrpc.Registrar{Dialer: dialer},
 		BeaconStore:     beaconStore,
+		Mechanism:       beaconingMechanism,
 		Signer:          signer,
 		Inspector:       inspector,
 		Metrics:         metrics,
@@ -645,6 +713,7 @@ func realMain(ctx context.Context) error {
 		HiddenPathRegistrationCfg: hpWriterCfg,
 		AllowIsdLoop:              isdLoopAllowed,
 	})
+
 	if err != nil {
 		return serrors.WrapStr("starting periodic tasks", err)
 	}

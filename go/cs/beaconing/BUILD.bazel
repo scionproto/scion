@@ -3,9 +3,12 @@ load("//lint:go.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
+        "batch.go",
+        "default_mechanism.go",
         "doc.go",
         "extender.go",
         "handler.go",
+        "mechanism.go",
         "originator.go",
         "propagator.go",
         "staticinfo_config.go",
@@ -47,6 +50,7 @@ go_test(
         "export_test.go",
         "extender_test.go",
         "handler_test.go",
+        "mechanism_test.go",
         "originator_test.go",
         "propagator_test.go",
         "staticinfo_config_test.go",
