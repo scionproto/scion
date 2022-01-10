@@ -90,7 +90,7 @@ func (w *BeaconWriter) Write(ctx context.Context, segments []beacon.Beacon,
 			logger.Info("no HP nor public registration policy for beacon", "interface", b.InIfId)
 			continue
 		}
-		err := w.Extender.Extend(ctx, b.Segment, b.InIfId, 0, peers)
+		err := w.Extender.Extend(ctx, b.Segment, b.InIfId, 0, peers, nil)
 		if err != nil {
 			logger.Error("Unable to terminate beacon", "beacon", b, "err", err)
 			metrics.CounterInc(w.InternalErrors)

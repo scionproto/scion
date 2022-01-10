@@ -1,0 +1,9 @@
+load("//lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["pqa_extension.go"],
+    importpath = "github.com/scionproto/scion/go/lib/ctrl/seg/extensions/pqabeaconing",
+    visibility = ["//visibility:public"],
+    deps = ["//go/pkg/proto/control_plane:go_default_library"],
+)

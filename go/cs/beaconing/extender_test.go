@@ -102,7 +102,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 
 			// Extend the segment.
 			err = ext.Extend(context.Background(), pseg, tc.ingress, tc.egress,
-				append(tc.unsetPeers, peer))
+				append(tc.unsetPeers, peer), nil)
 			tc.errAssertion(t, err)
 			if err != nil {
 				return
@@ -171,7 +171,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 		require.NoError(t, err)
 		pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()))
 		require.NoError(t, err)
-		err = ext.Extend(context.Background(), pseg, 0, graph.If_111_A_112_X, []uint16{})
+		err = ext.Extend(context.Background(), pseg, 0, graph.If_111_A_112_X, []uint16{}, nil)
 		require.NoError(t, err)
 		assert.Equal(t, uint8(1), pseg.ASEntries[0].HopEntry.HopField.ExpTime)
 
@@ -238,7 +238,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()))
 				require.NoError(t, err)
 				err = ext.Extend(context.Background(), pseg, tc.Ingress, tc.Egress,
-					[]uint16{})
+					[]uint16{}, nil)
 				assert.Error(t, err)
 			})
 		}

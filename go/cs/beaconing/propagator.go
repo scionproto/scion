@@ -55,7 +55,7 @@ type Propagator struct {
 	Extender              Extender
 	SenderFactory         SenderFactory
 	Provider_             BeaconProvider
-	Mechanism             BeaconingMechanism
+	Mechanism             PropagationBeaconProvider
 	IA                    addr.IA
 	Signer                seg.Signer
 	AllInterfaces         *ifstate.Interfaces

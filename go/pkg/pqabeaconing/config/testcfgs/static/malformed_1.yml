@@ -1,6 +1,0 @@
-beacons per quality: 10
-path qualities:
-    latency:
-        combination: additive
-        optimality: min 
-        # Mising tolerance`

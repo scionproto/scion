@@ -168,7 +168,7 @@ func (r *RemoteWriter) Write(
 		if r.Intfs.Get(b.InIfId) == nil {
 			continue
 		}
-		err := r.Extender.Extend(ctx, b.Segment, b.InIfId, 0, peers)
+		err := r.Extender.Extend(ctx, b.Segment, b.InIfId, 0, peers, nil)
 		if err != nil {
 			logger.Error("Unable to terminate beacon", "beacon", b, "err", err)
 			metrics.CounterInc(r.InternalErrors)
@@ -226,7 +226,7 @@ func (r *LocalWriter) Write(
 		if r.Intfs.Get(b.InIfId) == nil {
 			continue
 		}
-		err := r.Extender.Extend(ctx, b.Segment, b.InIfId, 0, peers)
+		err := r.Extender.Extend(ctx, b.Segment, b.InIfId, 0, peers, nil)
 		if err != nil {
 			logger.Error("Unable to terminate beacon", "beacon", b, "err", err)
 			metrics.CounterInc(r.InternalErrors)

@@ -1,0 +1,31 @@
+{
+  "isd_as": "1-ff00:0:111",
+  "mtu": 1472,
+  "attributes": [],
+  "border_routers": {
+    "br1-ff00_0_111-1": {
+      "internal_addr": "127.0.0.81:31047",
+      "ctrl_addr": "127.0.0.81:31046",
+      "interfaces": {
+        "1417": {
+          "underlay": {
+            "public": "127.0.0.22:50000",
+            "remote": "127.0.0.23:50000"
+          },
+          "isd_as": "1-ff00:0:112",
+          "link_to": "CHILD",
+          "mtu": 1472
+        },
+        "2712": {
+          "underlay": {
+            "public": "127.0.0.10:50000",
+            "remote": "127.0.0.11:50000"
+          },
+          "isd_as": "1-ff00:0:120",
+          "link_to": "PARENT",
+          "mtu": 1472
+        }
+      }
+    }
+  }
+}

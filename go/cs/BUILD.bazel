@@ -13,6 +13,7 @@ go_library(
         "//go/cs/beacon:go_default_library",
         "//go/cs/beaconing:go_default_library",
         "//go/cs/beaconing/grpc:go_default_library",
+        "//go/cs/beaconing/mechanisms/pqa:go_default_library",
         "//go/cs/config:go_default_library",
         "//go/cs/ifstate:go_default_library",
         "//go/cs/onehop:go_default_library",

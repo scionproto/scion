@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -53,31 +52,11 @@ type Sender interface {
 	Close() error
 }
 
-// Originator originates beacons. It should only be used by core ASes.
-type Originator struct {
-	Extender              Extender
-	SenderFactory         SenderFactory
-	IA                    addr.IA
-	Signer                seg.Signer
-	AllInterfaces         *ifstate.Interfaces
-	OriginationInterfaces func() []*ifstate.Interface
-
-	Originated metrics.Counter
-
-	// Tick is mutable.
-	Tick Tick
-}
-
-// Name returns the tasks name.
-func (o *Originator) Name() string {
-	return "control_beaconing_originator"
-}
-
-// Run originates core and downstream beacons.
-func (o *Originator) Run(ctx context.Context) {
-	o.Tick.SetNow(time.Now())
-	o.originateBeacons(ctx)
-	o.Tick.UpdateLast()
+func (o *Originator) incrementMetrics(labels originatorLabels) {
+	if o.Originated == nil {
+		return
+	}
+	o.Originated.With(labels.Expand()...).Add(1)
 }
 
 // originateBeacons creates and sends a beacon for each active interface.
@@ -184,6 +163,8 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 		o.incrementMetrics(labels.WithResult(prom.ErrNetwork))
 		return serrors.WrapStr("sending beacon", err)
 	}
+	logger := log.FromCtx(ctx)
+	logger.Debug("Sent Segments", "seg", bseg)
 	o.onSuccess(o.intf)
 	o.incrementMetrics(labels.WithResult(prom.Success))
 	return nil
@@ -199,7 +180,7 @@ func (o *beaconOriginator) createBeacon(ctx context.Context) (*seg.PathSegment, 
 		return nil, serrors.WrapStr("creating segment", err)
 	}
 
-	if err := o.Extender.Extend(ctx, bseg, 0, o.intf.TopoInfo().ID, nil); err != nil {
+	if err := o.Extender.Extend(ctx, bseg, 0, o.intf.TopoInfo().ID, nil, nil); err != nil {
 		return nil, serrors.WrapStr("extending segment", err)
 	}
 	return bseg, nil

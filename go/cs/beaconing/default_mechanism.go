@@ -19,7 +19,7 @@ import (
 type DefaultMechanismBase struct {
 	MechanismBase
 	DB       beacon.DB
-	usager   beacon.Usager // TODO
+	usager   beacon.Usager
 	Extender Extender
 }
 

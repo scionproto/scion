@@ -16,14 +16,16 @@ package seg
 
 import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/digest"
+	pqa_extension "github.com/scionproto/scion/go/lib/ctrl/seg/extensions/pqabeaconing"
 	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/staticinfo"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
 type Extensions struct {
-	HiddenPath HiddenPathExtension
-	StaticInfo *staticinfo.Extension
-	Digests    *digest.Extension
+	HiddenPath   HiddenPathExtension
+	StaticInfo   *staticinfo.Extension
+	Digests      *digest.Extension
+	PqaExtension *pqa_extension.Extension
 }
 
 func extensionsFromPB(pb *cppb.PathSegmentExtensions) Extensions {
@@ -50,12 +52,14 @@ func extensionsToPB(ext Extensions) *cppb.PathSegmentExtensions {
 	}
 	staticInfo := staticinfo.ToPB(ext.StaticInfo)
 	digest := digest.ExtensionToPB(ext.Digests)
+	pqa := ext.PqaExtension.ToPB()
 
 	if hiddenPath != nil || staticInfo != nil || digest != nil {
 		return &cppb.PathSegmentExtensions{
-			HiddenPath: hiddenPath,
-			StaticInfo: staticInfo,
-			Digests:    digest,
+			HiddenPath:       hiddenPath,
+			StaticInfo:       staticInfo,
+			Digests:          digest,
+			PathQualityAware: pqa,
 		}
 	}
 	return nil

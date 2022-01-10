@@ -17,6 +17,7 @@ package grpc
 import (
 	"context"
 	"net"
+	"time"
 
 	"google.golang.org/grpc"
 
@@ -76,5 +77,72 @@ func (s BeaconSender) Send(ctx context.Context, b *seg.PathSegment) error {
 
 // Close closes the BeaconSender and releases all underlying resources.
 func (s BeaconSender) Close() error {
+	return s.Conn.Close()
+}
+
+type BeaconSenderFactoryNew struct {
+	Dialer libgrpc.Dialer
+}
+
+func (f *BeaconSenderFactoryNew) NewSender(
+	parentCtx context.Context,
+	contextTimeout time.Duration,
+	dstIA addr.IA,
+	egIfId uint16,
+	nextHop *net.UDPAddr,
+) (beaconing.SenderNew, error) {
+	addr := &onehop.Addr{
+		IA:      dstIA,
+		Egress:  egIfId,
+		SVC:     addr.SvcCS,
+		NextHop: nextHop,
+	}
+	grpcContext, cancelF := context.WithTimeout(parentCtx, contextTimeout)
+	rpcStart := time.Now()
+
+	conn, err := f.Dialer.Dial(grpcContext, addr)
+	if err != nil {
+		err = serrors.WrapStr("dialing gRPC conn", err)
+		if grpcContext.Err() != nil {
+			err = serrors.WrapStr("timed out getting beacon sender", err,
+				"waited_for", time.Since(rpcStart))
+		}
+		cancelF()
+		return nil, err
+	}
+	return &BeaconSenderNew{
+		Conn:          conn,
+		rpcCtx:        grpcContext,
+		rpcCtxCancelF: cancelF,
+		rpcStart:      rpcStart,
+	}, nil
+}
+
+// Same as BeaocnSender, but carries the rpcContext
+type BeaconSenderNew struct {
+	Conn          *grpc.ClientConn
+	rpcCtx        context.Context
+	rpcCtxCancelF context.CancelFunc
+	rpcStart      time.Time
+}
+
+func (s BeaconSenderNew) Send(b *seg.PathSegment) error {
+	client := cppb.NewSegmentCreationServiceClient(s.Conn)
+	_, err := client.Beacon(s.rpcCtx,
+		&cppb.BeaconRequest{
+			Segment: seg.PathSegmentToPB(b),
+		},
+		libgrpc.RetryProfile...,
+	)
+
+	if err != nil && s.rpcCtx.Err() != nil {
+		err = serrors.WrapStr("timed out waiting for RPC to complete", err,
+			"waited_for", time.Since(s.rpcStart))
+	}
+	return err
+}
+
+func (s BeaconSenderNew) Close() error {
+	s.rpcCtxCancelF()
 	return s.Conn.Close()
 }

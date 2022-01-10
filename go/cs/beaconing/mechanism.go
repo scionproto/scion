@@ -4,8 +4,10 @@ import (
 	"context"
 	"sort"
 
+	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -15,19 +17,31 @@ RegisterBeacons
 
 */
 
-type BeaconingMechanism interface {
+type PropagationBeaconProvider interface {
 	// Provides a set of beacons to be propagated
 	ProvidePropagationBatch(ctx context.Context, tick Tick) (SendableBeaconsBatch, error)
-	// Provides a set of beacons to be originated
-	//ProvideOriginationBatch(ctx context.Context) (SendableBeaconsBatch, error)
+}
 
-	// TODO: Implement remaining interfaces
-	// Register a new incoming beacon for the mechanism
-	//RegisterBeacon(ctx context.Context, beacon beacon.Beacon) error
-	// Process a policy update
-	//UpdatePolicy(ctx context.Context, policy beacon.Policy) error
+type OriginationBeaconProvider interface {
+	// Provides a set of beacons to be originated
+	ProvideOriginationBatch(ctx context.Context, tick Tick) (SendableBeaconsBatch, error)
+}
+
+type BeaconRegisterer interface {
+	//Register a new incoming beacon for the mechanism
+	RegisterBeacon(ctx context.Context, beacon beacon.Beacon) error
+}
+
+type SegmentProvider_ interface {
 	// Return all segments gathered by this mechanism to register at path server
-	//SegmentsToRegister(ctx context.Context, segType seg.Type) ([]beacon.Beacon, error)
+	SegmentsToRegister(ctx context.Context, segType seg.Type) ([]beacon.Beacon, error)
+}
+
+type BeaconingMechanism interface {
+	PropagationBeaconProvider
+	OriginationBeaconProvider
+	//BeaconRegisterer
+	//SegmentProvider_
 }
 
 type MechanismBase struct {

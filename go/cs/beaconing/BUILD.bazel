@@ -10,6 +10,7 @@ go_library(
         "handler.go",
         "mechanism.go",
         "originator.go",
+        "originator_new.go",
         "propagator.go",
         "staticinfo_config.go",
         "tick.go",

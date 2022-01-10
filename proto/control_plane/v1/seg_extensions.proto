@@ -25,9 +25,12 @@ message PathSegmentExtensions {
     StaticInfoExtension static_info = 1;
     // Optional hidden path extension.
     HiddenPathExtension hidden_path = 2;
+    // Optional Path Quality Aware Beaconing Extension
+    PathQualityAwareExtension path_quality_aware = 3;
 
     // Optional digests of detached extensions.
     DigestExtension digests = 1000;
+
 }
 
 message HiddenPathExtension {
@@ -150,4 +153,23 @@ message DigestExtension {
 message PathSegmentUnsignedExtensions {
     // Optional EPIC extension.
     proto.control_plane.experimental.v1.EPICDetachedExtension epic = 1000;
+}
+
+
+message PathQualityAwareExtension {
+    // Is contained in first segment, but not in others
+    OptimizationQuality quality = 1;
+    OptimizationDirection direction = 2;
+    uint32 uniquifier = 3;
+}
+
+enum OptimizationQuality {
+    LATENCY = 0;
+    BANDWITH = 1;
+}
+
+enum OptimizationDirection {
+    FORWARD = 0;
+    BACKWARD = 1;
+    SYMMETRIC = 2;
 }

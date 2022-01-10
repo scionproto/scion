@@ -2,6 +2,8 @@ package beaconing
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/ifstate"
@@ -10,6 +12,19 @@ import (
 
 // A batch of beacons ready to be sent, intf -> bcn means bcn should be sent on intf
 type SendableBeaconsBatch map[*ifstate.Interface][]beacon.Beacon
+
+// Turns the map into a map[uint16][]
+func (b SendableBeaconsBatch) String() string {
+	newMap := make(map[uint16][]beacon.Beacon)
+	for intf, bcns := range b {
+		newMap[intf.TopoInfo().ID] = bcns
+	}
+	if res, err := json.Marshal(newMap); err == nil {
+		return string(res[:])
+	} else {
+		return fmt.Sprintf("error serializing to json: %v", err)
+	}
+}
 
 // Removes beacons from intf2bcns that are looping back to the same AS.
 func (batch SendableBeaconsBatch) FilterLooping(allowIsdLoop bool) {
@@ -29,7 +44,7 @@ func (batch SendableBeaconsBatch) ExtendBeacons(ctx context.Context, extender Ex
 	for egIntf, bcns := range batch {
 		egIntfId := egIntf.TopoInfo().ID
 		for _, bcn := range bcns {
-			if err2 := extender.Extend(ctx, bcn.Segment, bcn.InIfId, egIntfId, peers); err2 != nil {
+			if err2 := extender.Extend(ctx, bcn.Segment, bcn.InIfId, egIntfId, peers, nil); err2 != nil {
 				return err2
 			}
 		}

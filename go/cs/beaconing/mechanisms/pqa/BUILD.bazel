@@ -1,0 +1,47 @@
+load("//lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "doc.go",
+        "mechanism.go",
+        "settings.go",
+        "testing.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/cs/beaconing/mechanisms/pqa",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/cs/beacon:go_default_library",
+        "//go/cs/beaconing:go_default_library",
+        "//go/cs/beaconing/mechanisms/pqa/config:go_default_library",
+        "//go/cs/ifstate:go_default_library",
+        "//go/lib/addr:go_default_library",
+        "//go/lib/ctrl/seg:go_default_library",
+        "//go/lib/ctrl/seg/extensions/pqabeaconing:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/scrypto:go_default_library",
+        "//go/lib/scrypto/cppki:go_default_library",
+        "//go/lib/scrypto/signed:go_default_library",
+        "//go/lib/serrors:go_default_library",
+        "//go/lib/topology:go_default_library",
+        "//go/pkg/trust:go_default_library",
+        "@af_inet_netaddr//:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "mechanism_test.go",
+        "settings_test.go",
+    ],
+    data = glob(["testdata/**"]),
+    embed = [":go_default_library"],
+    deps = [
+        "//go/cs/beaconing:go_default_library",
+        "//go/cs/beaconing/mechanisms/pqa/config:go_default_library",
+        "//go/lib/ctrl/seg:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+    ],
+)

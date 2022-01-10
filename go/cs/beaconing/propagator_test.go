@@ -81,7 +81,6 @@ func TestPropagatorRunNonCore(t *testing.T) {
 		Signer:                testSigner(t, priv, topo.IA()),
 		AllInterfaces:         intfs,
 		PropagationInterfaces: propaIntfs,
-		Mechanism:             mechanism,
 		Tick:                  beaconing.NewTick(time.Hour),
 		Provider_:             provider,
 	}
@@ -188,7 +187,6 @@ func TestPropagatorRunCore(t *testing.T) {
 	}
 	p := beaconing.Propagator{
 		SenderFactory:         senderFactory,
-		Mechanism:             mechanism,
 		IA:                    topo.IA(),
 		Signer:                testSigner(t, priv, topo.IA()),
 		AllInterfaces:         intfs,

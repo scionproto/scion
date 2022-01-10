@@ -45,20 +45,21 @@ type TasksConfig struct {
 	NextHopper interface {
 		UnderlayNextHop(uint16) *net.UDPAddr
 	}
-	Public                *net.UDPAddr
-	AllInterfaces         *ifstate.Interfaces
-	PropagationInterfaces func() []*ifstate.Interface
-	OriginationInterfaces func() []*ifstate.Interface
-	TrustDB               trust.DB
-	PathDB                pathdb.DB
-	RevCache              revcache.RevCache
-	BeaconSenderFactory   beaconing.SenderFactory
-	SegmentRegister       beaconing.RPC
-	BeaconStore           Store
-	Mechanism             beaconing.BeaconingMechanism
-	Signer                seg.Signer
-	Inspector             trust.Inspector
-	Metrics               *Metrics
+	Public                 *net.UDPAddr
+	AllInterfaces          *ifstate.Interfaces
+	PropagationInterfaces  func() []*ifstate.Interface
+	OriginationInterfaces  func() []*ifstate.Interface
+	TrustDB                trust.DB
+	PathDB                 pathdb.DB
+	RevCache               revcache.RevCache
+	BeaconSenderFactory    beaconing.SenderFactory
+	BeaconSenderFactoryNew beaconing.SenderFactoryNew
+	SegmentRegister        beaconing.RPC
+	BeaconStore            Store
+	Mechanism              beaconing.BeaconingMechanism
+	Signer                 seg.Signer
+	Inspector              trust.Inspector
+	Metrics                *Metrics
 
 	MACGen     func() hash.Hash
 	StaticInfo func() *beaconing.StaticInfoCfg
@@ -85,7 +86,9 @@ func (t *TasksConfig) Originator() *periodic.Runner {
 			return t.BeaconStore.MaxExpTime(beacon.PropPolicy)
 		}),
 		SenderFactory:         t.BeaconSenderFactory,
+		SenderFactoryNew:      t.BeaconSenderFactoryNew,
 		IA:                    t.IA,
+		Provider:              t.Mechanism,
 		AllInterfaces:         t.AllInterfaces,
 		OriginationInterfaces: t.OriginationInterfaces,
 		Signer:                t.Signer,

@@ -1,0 +1,16 @@
+originator:
+  # Targets will be added to all core ASs
+  optimization targets:
+      my_target_0:
+          quality: latency
+          direction: forward
+      my_target_1:
+          quality: latency 
+          direction: backward
+
+  # Origination orders will be evenly distributed among all interfaces
+  origination order:
+      23:
+          - [my_target_0]
+  
+propagator:

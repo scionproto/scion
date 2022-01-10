@@ -4,15 +4,13 @@ go_library(
     name = "go_default_library",
     srcs = [
         "config.go",
-        "doc.go",
         "originator_cfg.go",
         "propagator_cfg.go",
-        "static_cfg.go",
     ],
-    importpath = "github.com/scionproto/scion/go/pkg/pqabeaconing/config",
+    importpath = "github.com/scionproto/scion/go/cs/beaconing/mechanisms/pqa/config",
     visibility = ["//visibility:public"],
     deps = [
-        "//go/pkg/pqabeaconing:go_default_library",
+        "//go/lib/serrors:go_default_library",
         "@in_gopkg_yaml_v2//:go_default_library",
     ],
 )
@@ -22,11 +20,6 @@ go_test(
     srcs = [
         "originator_cfg_test.go",
         "propagator_cfg_test.go",
-        "static_cfg_test.go",
     ],
     embed = [":go_default_library"],
-    deps = [
-        "//go/pkg/pqabeaconing:go_default_library",
-        "@com_github_stretchr_testify//assert:go_default_library",
-    ],
 )

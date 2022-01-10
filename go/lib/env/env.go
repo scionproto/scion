@@ -54,6 +54,9 @@ const (
 	// used for the StaticInfo beacon extension.
 	StaticInfoConfigFile = "staticInfoConfig.json"
 
+	// Used to configure the pqa beaconing mechanism
+	PqaConfigFile = "pqa.yml"
+
 	// SciondInitConnectPeriod is the default total amount of time spent
 	// attempting to connect to the daemon on start.
 	SciondInitConnectPeriod = 20 * time.Second
@@ -125,6 +128,11 @@ func (cfg *General) Topology() string {
 // StaticInfoConfig return the path to the configuration file for the StaticInfo beacon extension.
 func (cfg *General) StaticInfoConfig() string {
 	return filepath.Join(cfg.ConfigDir, StaticInfoConfigFile)
+}
+
+// Returns the path of the Pqa-config file
+func (cfg *General) PqaConfig() string {
+	return filepath.Join(cfg.ConfigDir, PqaConfigFile)
 }
 
 var _ config.Config = (*Daemon)(nil)

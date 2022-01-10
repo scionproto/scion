@@ -37,7 +37,13 @@ type Extender interface {
 	// that the created AS entry is the initial entry in a path. The zero value
 	// for egress indicates that the created AS entry is the last entry in the
 	// path, and the beacon is terminated.
-	Extend(ctx context.Context, seg *seg.PathSegment, ingress, egress uint16, peers []uint16) error
+	Extend(ctx context.Context, seg *seg.PathSegment, ingress, egress uint16, peers []uint16, extensions []Extension) error
+}
+
+// Extension is something that can modify ("extend") seg.Extensions
+type Extension interface {
+	// Modifies its Extension field
+	Extend(ctx context.Context, ext *seg.Extensions, ingress, egress uint16, peers []uint16) error
 }
 
 // DefaultExtender extends provided path segments with entries for the local AS.
@@ -68,6 +74,7 @@ func (s *DefaultExtender) Extend(
 	pseg *seg.PathSegment,
 	ingress, egress uint16,
 	peers []uint16,
+	extensions []Extension,
 ) error {
 
 	if s.MTU == 0 {
@@ -126,6 +133,13 @@ func (s *DefaultExtender) Extend(
 
 		asEntry.Extensions.Digests = &digest.Extension{
 			Epic: d,
+		}
+	}
+
+	// Process extensions passed as parameters
+	for _, ext := range extensions {
+		if err := ext.Extend(ctx, &asEntry.Extensions, ingress, egress, peers); err != nil {
+			return err
 		}
 	}
 

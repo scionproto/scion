@@ -36,6 +36,7 @@ import (
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beaconing"
 	beaconinggrpc "github.com/scionproto/scion/go/cs/beaconing/grpc"
+	"github.com/scionproto/scion/go/cs/beaconing/mechanisms/pqa"
 	"github.com/scionproto/scion/go/cs/config"
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/cs/onehop"
@@ -656,31 +657,58 @@ func realMain(ctx context.Context) error {
 	originationInterfaces := func() []*ifstate.Interface {
 		return intfs.Filtered(originationFilter)
 	}
-	baseMechanismDefault := beaconing.DefaultMechanismBase{
-		MechanismBase: beaconing.MechanismBase{
-			IA:                    topo.IA(),
-			AllInterfaces:         intfs,
-			PropagationInterfaces: propagationInterfaces,
-			AllowIsdLoop:          isdLoopAllowed,
-			Tick:                  beaconing.Tick{},
-		},
-		DB:       beaconDB,
-		Extender: extender,
-	}
 
-	var beaconingMechanism beaconing.BeaconingMechanism
-	if topo.Core() {
-		corePolicies.InitDefaults()
-		beaconingMechanism = &beaconing.DefaultMechanismCore{
-			DefaultMechanismBase: baseMechanismDefault,
-			Policies:             corePolicies,
+	/*
+		baseMechanismDefault := beaconing.DefaultMechanismBase{
+			MechanismBase: beaconing.MechanismBase{
+				IA:                    topo.IA(),
+				AllInterfaces:         intfs,
+				PropagationInterfaces: propagationInterfaces,
+				AllowIsdLoop:          isdLoopAllowed,
+				Tick:                  beaconing.Tick{},
+			},
+			DB:       beaconDB,
+			Extender: extender,
 		}
-	} else {
-		noncorePolicies.InitDefaults()
-		beaconingMechanism = &beaconing.DefaultMechanismNonCore{
-			DefaultMechanismBase: baseMechanismDefault,
-			Policies:             noncorePolicies,
+
+
+		var beaconingMechanism beaconing.PropagationBeaconProvider
+		if topo.Core() {
+			corePolicies.InitDefaults()
+			beaconingMechanism = &beaconing.DefaultMechanismCore{
+				DefaultMechanismBase: baseMechanismDefault,
+				Policies:             corePolicies,
+			}
+		} else {
+			noncorePolicies.InitDefaults()
+			beaconingMechanism = &beaconing.DefaultMechanismNonCore{
+				DefaultMechanismBase: baseMechanismDefault,
+				Policies:             noncorePolicies,
+			}
 		}
+	*/
+
+	/*
+		//pqaPath := globalCfg.General.PqaConfig()
+		pqaPath := "topology/del.yml"
+		pqaSettings, err := pqa.NewSettings(pqaPath)
+		if err != nil {
+			return serrors.WrapStr("reading pqa settings", err, "path", pqaPath)
+		} else {
+			log.Debug("loaded pqa settings file", "path", pqaPath)
+		}
+	*/
+	// TODO: Way of specifying pqa settings per AS
+	pqaSettings := pqa.GenerateSettingsForInterfaces(intfs)
+	log.Debug("read settings", "orders", pqaSettings.Origination.Orders, "intfs", intfs.All())
+	pqaMechanism := pqa.Mechanism{
+		AllInterfaces:         intfs,
+		PropagationInterfaces: propagationInterfaces,
+		OriginationInterfaces: originationInterfaces,
+		Settings:              pqaSettings,
+
+		Extender: extender,
+		Tick:     beaconing.NewTick(globalCfg.BS.OriginationInterval.Duration),
 	}
 
 	tasks, err := cs.StartTasks(cs.TasksConfig{
@@ -697,9 +725,12 @@ func realMain(ctx context.Context) error {
 		BeaconSenderFactory: &beaconinggrpc.BeaconSenderFactory{
 			Dialer: dialer,
 		},
+		BeaconSenderFactoryNew: &beaconinggrpc.BeaconSenderFactoryNew{
+			Dialer: dialer,
+		},
 		SegmentRegister: beaconinggrpc.Registrar{Dialer: dialer},
 		BeaconStore:     beaconStore,
-		Mechanism:       beaconingMechanism,
+		Mechanism:       pqaMechanism,
 		Signer:          signer,
 		Inspector:       inspector,
 		Metrics:         metrics,
