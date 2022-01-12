@@ -14,8 +14,8 @@ type PqaMemoryBackend struct {
 	Targets *TargetBackend
 }
 
-func NewMemoryBackend(path string, ia addr.IA) (*PqaMemoryBackend, error) {
-	beaconDB, err := New(path, ia)
+func New(path string, ia addr.IA) (*PqaMemoryBackend, error) {
+	beaconDB, err := NewBeaconBackend(path, ia)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func (b *PqaMemoryBackend) InsertBeacon(
 	}
 	logger.Debug("Got beacon with extension")
 
-	target := Target{
+	target := pqa.Target{
 		Quality:    pqaExtension0.Quality,
 		Direction:  pqaExtension0.Direction,
 		Uniquifier: uint32(pqaExtension0.Uniquifier),
