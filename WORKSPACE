@@ -74,9 +74,9 @@ gazelle_dependencies()
 # Python rules
 http_archive(
     name = "rules_python",
-    sha256 = "4feecd37ec6e9941a455a19e7392bed65003eab0aa6ea347ca431bce2640e530",
-    strip_prefix = "rules_python-0.3.0",
-    url = "https://github.com/bazelbuild/rules_python/archive/0.3.0.tar.gz",
+    sha256 = "a30abdfc7126d497a7698c29c46ea9901c6392d6ed315171a6df5ce433aa4502",
+    strip_prefix = "rules_python-0.6.0",
+    url = "https://github.com/bazelbuild/rules_python/archive/0.6.0.tar.gz",
 )
 
 load("@rules_python//python:pip.bzl", "pip_install")
@@ -113,9 +113,9 @@ rules_antlr_dependencies("4.7.2")
 
 http_archive(
     name = "io_bazel_rules_docker",
-    sha256 = "1f4e59843b61981a96835dc4ac377ad4da9f8c334ebe5e0bb3f58f80c09735f4",
-    strip_prefix = "rules_docker-0.19.0",
-    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.19.0/rules_docker-v0.19.0.tar.gz"],
+    sha256 = "59536e6ae64359b716ba9c46c39183403b01eabfbd57578e84398b4829ca499a",
+    strip_prefix = "rules_docker-0.22.0",
+    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.22.0/rules_docker-v0.22.0.tar.gz"],
 )
 
 load("@io_bazel_rules_docker//repositories:repositories.bzl", container_repositories = "repositories")
