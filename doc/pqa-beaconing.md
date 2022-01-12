@@ -40,7 +40,7 @@ This document ountlines the push-based path quality aware beconing algorithm pro
     - [Propagation](#propagation)
       - [Less than ideal paths](#less-than-ideal-paths)
       - [Less than `N` paths](#less-than-n-paths)
-  - [Evaluationn](#evaluationn)
+  - [Go Types](#go-types)
 
 ## Algorithm
 During core beaconing, core ASs continuously have to decide which beacons to forward to which interfaces in order to keep the message complexity sufficiently low. 
@@ -411,4 +411,10 @@ To end hosts, wether the algorithm works or not is completely transparent. They 
 [3]: ASs will retain the unknown extensions in segments authorede by other ASs: Unknown extension headers in received PCBs will be [retained by protobuf](https://developers.google.com/protocol-buffers/docs/proto3#unknowns). PCB messages are made up of path segments, which contain [ASEntries](../proto/control_plane/v1/seg.proto#L96), which in turn contain [a field for signed and unsigned entries](../proto/control_plane/v1/seg.proto#L108). The signed body includes the [path segment extensions](../proto/control_plane/v1/seg.proto#L138), which this extension aims to become. Now in order to not invalidate the signatures of previous AS Entries, the signed bodies [are retained](../go/lib/ctrl/seg/as.go#L99) when [reading in](../go/lib/ctrl/seg/seg.go#L118) the protobuf PCBs. Finally, the [signed bodies are put back in place](../go/lib/ctrl/seg/seg.go#L374) when [serializing the beacons](../go/cs/beaconing/grpc/beacon_sender.go#L70) again in preparation to sending them out to the next AS.
 
 
-## Evaluationn
+## Go Types
+
+All "static" settings - settings which should be identical from AS to AS - have been put into `lib/ctrl/seg/extensions/pqabeaconing`. This module is a "leaf" module, in that it imports no other modules apart from protobuf modules and third party modules. It also defines the type `Extension` which is put into `ASEntry`.
+
+Combination, comparison, symmetry tolerance, and the extension itsel have all been put there.
+
+The type corresponding to an "optimization target" is placed in `go/cs/beaconing/mechanisms/pqa` because it utilizes types from other packages to define ISD and AS identifiers - identifiers not required in the extension itself, since they're implicit through the beacon they're contained in.

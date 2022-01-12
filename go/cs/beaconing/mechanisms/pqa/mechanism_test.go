@@ -7,6 +7,7 @@ import (
 
 	"github.com/scionproto/scion/go/cs/beaconing"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	pqa_extension "github.com/scionproto/scion/go/lib/ctrl/seg/extensions/pqabeaconing"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -54,11 +55,9 @@ func TestUpdateOriginationIntervals(t *testing.T) {
 func TestCreateOriginBeaconForTarget(t *testing.T) {
 	scen := NewScenario(t, topo)
 
-	gset := GlobalParams
-
-	target := OptimizationTarget{
-		Quality:   gset.PathQualities[QualityLatency],
-		Direction: Forward,
+	target := Target{
+		Quality:   pqa_extension.Latency,
+		Direction: pqa_extension.Forward,
 	}
 
 	mech := Mechanism{

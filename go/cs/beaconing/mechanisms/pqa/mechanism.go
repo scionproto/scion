@@ -12,6 +12,7 @@ import (
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	pqa_extension "github.com/scionproto/scion/go/lib/ctrl/seg/extensions/pqabeaconing"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
@@ -63,7 +64,7 @@ func filterOverdue(ctx context.Context, tick beaconing.Tick, intfs []*ifstate.In
 	return stale
 }
 
-func (m *Mechanism) createOriginBeaconForTarget(ctx context.Context, intfId uint16, target OptimizationTarget) (beacon.Beacon, error) {
+func (m *Mechanism) createOriginBeaconForTarget(ctx context.Context, intfId uint16, target Target) (beacon.Beacon, error) {
 	seg, err := m.createSegment(ctx, m.Tick.Now(), intfId)
 	if err != nil {
 		return beacon.Beacon{}, serrors.WrapStr("creating segment", err, "egress_interface", intfId, "target", target)
@@ -89,7 +90,7 @@ func (m *Mechanism) updateOriginationIntervals(ctx context.Context) {
 	}
 }
 
-func (m *Mechanism) getOptimizationTargetsForInterface(ctx context.Context, ifid uint16, interval uint) []OptimizationTarget {
+func (m *Mechanism) getOptimizationTargetsForInterface(ctx context.Context, ifid uint16, interval uint) []Target {
 	logger := log.FromCtx(ctx)
 	origSettings := m.Settings.Origination
 	if order, ok := origSettings.Orders[ifid]; ok {
@@ -97,7 +98,7 @@ func (m *Mechanism) getOptimizationTargetsForInterface(ctx context.Context, ifid
 		return origSettings.Orders[ifid][interval]
 	} else {
 		logger.Info("no target defined for interface", "ifid", ifid, "orders", origSettings.Orders)
-		return []OptimizationTarget{{}}
+		return []Target{{}}
 	}
 
 }
@@ -137,7 +138,7 @@ func (m Mechanism) ProvidePropagationBatch(ctx context.Context, tick beaconing.T
 	return res, nil
 }
 
-func (m Mechanism) getTargetsFromReceivesBeacons(ctx context.Context) []OptimizationTarget {
+func (m Mechanism) getTargetsFromReceivesBeacons(ctx context.Context) []Target {
 	return nil
 }
 
@@ -145,7 +146,7 @@ func (m Mechanism) getNeighbouringASs(ctx context.Context) []addr.IA {
 	return nil
 }
 
-func (m Mechanism) getIntfSubgroups(ctx context.Context, target OptimizationTarget, to addr.IA) [][]*ifstate.Interface {
+func (m Mechanism) getIntfSubgroups(ctx context.Context, target Target, to addr.IA) [][]*ifstate.Interface {
 	res := make([][]*ifstate.Interface, 0)
 	for _, intfG := range m.getIntfGroups(ctx, target) {
 		intfSubg := make([]*ifstate.Interface, 0)
@@ -158,11 +159,11 @@ func (m Mechanism) getIntfSubgroups(ctx context.Context, target OptimizationTarg
 	return res
 }
 
-func (m Mechanism) getIntfGroups(ctx context.Context, target OptimizationTarget) [][]*ifstate.Interface {
+func (m Mechanism) getIntfGroups(ctx context.Context, target Target) [][]*ifstate.Interface {
 	return nil
 }
 
-func (m Mechanism) getBatch(ctx context.Context, target OptimizationTarget, egIntfG []*ifstate.Interface, neigh addr.IA) ([]beacon.Beacon, error) {
+func (m Mechanism) getBatch(ctx context.Context, target Target, egIntfG []*ifstate.Interface, neigh addr.IA) ([]beacon.Beacon, error) {
 	batch := make([]beacon.Beacon, 0)
 	// Adds a beacon to the final batch
 	add := func(bcn beacon.Beacon) {
@@ -188,10 +189,10 @@ func (m Mechanism) getBatch(ctx context.Context, target OptimizationTarget, egIn
 				}
 
 				// If direction is symmetric, append only if metric values are within symmetry tolerance
-				if target.Direction == Symmetric {
-					fwd := m.extractMetric(ctx, bcn, Forward)
-					bwd := m.extractMetric(ctx, bcn, Backward)
-					if target.Quality.IsWithinSymmetryTolerance(fwd, bwd) {
+				if target.Direction == pqa_extension.Symmetric {
+					fwd := m.extractMetric(ctx, bcn, pqa_extension.Forward)
+					bwd := m.extractMetric(ctx, bcn, pqa_extension.Backward)
+					if target.Quality.AreSymmetric(fwd, bwd) {
 						add(bcn)
 					}
 				} else {
@@ -203,20 +204,20 @@ func (m Mechanism) getBatch(ctx context.Context, target OptimizationTarget, egIn
 	return m.getNBest(ctx, target, batch), nil
 }
 
-func (m Mechanism) getNBestFor(ctx context.Context, target OptimizationTarget, egIntfG []*ifstate.Interface, neigh addr.IA) []beacon.Beacon {
+func (m Mechanism) getNBestFor(ctx context.Context, target Target, egIntfG []*ifstate.Interface, neigh addr.IA) []beacon.Beacon {
 	return nil
 }
 
-func (m Mechanism) extractMetric(ctx context.Context, bcn beacon.Beacon, dir OptimizationDirection) float64 {
+func (m Mechanism) extractMetric(ctx context.Context, bcn beacon.Beacon, dir pqa_extension.Direction) float64 {
 	return 0
 }
 
-func (m Mechanism) getNBest(ctx context.Context, target OptimizationTarget, bcn []beacon.Beacon) []beacon.Beacon {
+func (m Mechanism) getNBest(ctx context.Context, target Target, bcn []beacon.Beacon) []beacon.Beacon {
 	less := func(l, r int) bool {
 		lBcn, rBcn := bcn[l], bcn[r]
 		lMet, rMet := m.extractMetric(ctx, lBcn, target.Direction), m.extractMetric(ctx, rBcn, target.Direction)
 		return target.Quality.Less(lMet, rMet)
 	}
 	sort.Slice(bcn, less)
-	return bcn[:m.Settings.Global.NoPathsPerOptimizationTarget]
+	return bcn[:N]
 }

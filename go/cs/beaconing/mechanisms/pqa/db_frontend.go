@@ -13,8 +13,8 @@ type DB interface {
 	beacon.DB
 
 	// Return all optimization targets for which the db has beacons for a given IA source
-	GetActiveTargets(ctx context.Context, src addr.IA) ([]OptimizationTarget, error)
+	GetActiveTargets(ctx context.Context, src addr.IA) ([]Target, error)
 	// Returns the n best beacons for a given optimization tartget, leading through some given intfs,
 	// and ignoring beacons that would loop if send to a given IA
-	GetBestsForGroup(ctx context.Context, n int, target OptimizationTarget, ingresIntfs []*ifstate.Interface, excludeLooping addr.IA) ([]beacon.Beacon, error)
+	GetBestsForGroup(ctx context.Context, n int, target Target, ingresIntfs []*ifstate.Interface, excludeLooping addr.IA) ([]beacon.Beacon, error)
 }

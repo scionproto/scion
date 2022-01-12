@@ -3,14 +3,46 @@ package pqacfg
 import (
 	"io/ioutil"
 
+	pqa_extension "github.com/scionproto/scion/go/lib/ctrl/seg/extensions/pqabeaconing"
 	yaml "gopkg.in/yaml.v2"
 )
-
-type IntfId string
 
 type PqaCfg struct {
 	Origination OriginatorCfg `yaml:"originator"`
 	Propagation PropagatorCfg `yaml:"propagator"`
+}
+
+type TargetIdentifier string
+
+type QualityIdentifier string
+
+var qIdentToQuality = map[QualityIdentifier]pqa_extension.Quality{
+	"latency":    pqa_extension.Latency,
+	"throughput": pqa_extension.Throughput,
+}
+
+func (q QualityIdentifier) Quality() pqa_extension.Quality {
+	return qIdentToQuality[q]
+}
+
+func StringToQuality(s string) pqa_extension.Quality {
+	return QualityIdentifier(s).Quality()
+}
+
+func StringToDirection(s string) pqa_extension.Direction {
+	return DirectionIdentifier(s).Direction()
+}
+
+type DirectionIdentifier string
+
+var dirIdentToDirection = map[DirectionIdentifier]pqa_extension.Direction{
+	"forward":   pqa_extension.Forward,
+	"backward":  pqa_extension.Backward,
+	"symmetric": pqa_extension.Symmetric,
+}
+
+func (d DirectionIdentifier) Direction() pqa_extension.Direction {
+	return dirIdentToDirection[d]
 }
 
 func LoadPqaCfgFromYAML(file string) (*PqaCfg, error) {

@@ -43,6 +43,7 @@ go_test(
         "//go/cs/beaconing:go_default_library",
         "//go/cs/beaconing/mechanisms/pqa/config:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
+        "//go/lib/ctrl/seg/extensions/pqabeaconing:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
     ],
 )

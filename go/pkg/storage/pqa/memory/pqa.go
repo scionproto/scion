@@ -76,11 +76,11 @@ func (b *PqaMemoryBackend) InsertBeacon(
 }
 
 // Returns target originating from a given IA
-func (b *PqaMemoryBackend) GetActiveTargets(ctx context.Context, src addr.IA) ([]pqa.OptimizationTarget, error) {
+func (b *PqaMemoryBackend) GetActiveTargets(ctx context.Context, src addr.IA) ([]pqa.Target, error) {
 	b.Targets.mu.Lock()
 	defer b.Targets.mu.Unlock()
 
-	var targets []pqa.OptimizationTarget
+	var targets []pqa.Target
 	for target := range b.Targets.set {
 		if target.ISD == src.I && target.AS == src.A {
 			//targets = append(targets, pqa.TargetFromExtension(target))

@@ -1,0 +1,41 @@
+originator:
+  optimization targets:
+      my_target_0:
+          uniquifier: 1
+          quality: latency
+          direction: forward
+      my_target_1:
+          # uniquifier optional, found automatically if left out
+          quality: latency 
+          direction: backward
+
+  origination order:
+      22:
+          - [my_target_0, NO_TARGET]
+          - [my_target_1]
+      23: # this is the deafault setting for interfaces not configured at all
+          - [NO_TARGET]
+
+propagator:
+  interface_group_foo:
+      interfaces:
+          - 11
+          - 22
+          - 13
+      optimization target filters:
+          -
+              quality: latency
+              #direction: defaults to both forward & backwards
+          -
+              quality: throughput
+              direction: forward
+
+
+  interface_group_bar:
+    interfaces:
+        - 3
+        - 4
+    optimization target filters:
+        -
+            quality: throughput
+            direction: forward
