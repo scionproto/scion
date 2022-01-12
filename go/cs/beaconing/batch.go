@@ -68,3 +68,25 @@ func (batch SendableBeaconsBatch) DeepCopyBeacons(ctx context.Context) {
 		batch[intf] = bcns_copied
 	}
 }
+
+func (batch SendableBeaconsBatch) MergeWith(other SendableBeaconsBatch) {
+	for intf, bcns := range other {
+		batch.AppendBeacons(intf, bcns)
+	}
+}
+
+func (batch SendableBeaconsBatch) AppendBeacons(intf *ifstate.Interface, bcns []beacon.Beacon) {
+	if _, ok := batch[intf]; !ok {
+		batch[intf] = bcns[:]
+	} else {
+		batch[intf] = append(batch[intf], bcns...)
+	}
+}
+
+func (batch SendableBeaconsBatch) AppendBeacon(intf *ifstate.Interface, bcn beacon.Beacon) {
+	if _, ok := batch[intf]; !ok {
+		batch[intf] = []beacon.Beacon{bcn}
+	} else {
+		batch[intf] = append(batch[intf], bcn)
+	}
+}

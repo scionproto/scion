@@ -17,15 +17,15 @@ func TestPathQualityComparison(t *testing.T) {
 	}
 
 	tests := []PathQualityComparisonTest{
-		{PathQuality{optimalityType: Max}, 1.0, 2.0, false},
-		{PathQuality{optimalityType: Max}, 2.0, 1.0, true},
-		{PathQuality{optimalityType: Min}, 1.0, 2.0, true},
-		{PathQuality{optimalityType: Min}, 2.0, 1.0, false},
+		{PathQuality{optimalityType: Max}, 1.0, 2.0, true},
+		{PathQuality{optimalityType: Max}, 2.0, 1.0, false},
+		{PathQuality{optimalityType: Min}, 1.0, 2.0, false},
+		{PathQuality{optimalityType: Min}, 2.0, 1.0, true},
 	}
 
 	for i, test := range tests {
 		t.Run(fmt.Sprintf("test-%d", i), func(t *testing.T) {
-			actual := test.PathQuality.Compare(test.Left, test.Right)
+			actual := test.PathQuality.Less(test.Left, test.Right)
 			assert.Equal(t, test.Expected, actual)
 		})
 	}
@@ -37,7 +37,7 @@ func TestParseOriginatorConfig(t *testing.T) {
 
 	assert.NotZero(t, conf.Origination)
 
-	set, err := NewOriginationSettings(conf.Origination, *NewGlobalParams())
+	set, err := NewOriginationSettings(conf.Origination, GlobalParams)
 	assert.NoError(t, err)
 
 	assert.NotNil(t, set.Orders)

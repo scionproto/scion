@@ -54,10 +54,10 @@ func TestUpdateOriginationIntervals(t *testing.T) {
 func TestCreateOriginBeaconForTarget(t *testing.T) {
 	scen := NewScenario(t, topo)
 
-	sett := NewGlobalParams()
+	gset := GlobalParams
 
 	target := OptimizationTarget{
-		Quality:   sett.PathQualities[QualityLatency],
+		Quality:   gset.PathQualities[QualityLatency],
 		Direction: Forward,
 	}
 

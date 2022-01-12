@@ -38,10 +38,12 @@ func extensionsFromPB(pb *cppb.PathSegmentExtensions) Extensions {
 	}
 	staticInfo := staticinfo.FromPB(pb.StaticInfo)
 	digest := digest.ExtensionFromPB(pb.Digests)
+	pqa := pqa_extension.FromPB(pb.PathQualityAware)
 	return Extensions{
-		HiddenPath: hiddenPath,
-		StaticInfo: staticInfo,
-		Digests:    digest,
+		HiddenPath:   hiddenPath,
+		StaticInfo:   staticInfo,
+		Digests:      digest,
+		PqaExtension: pqa,
 	}
 }
 
@@ -54,7 +56,10 @@ func extensionsToPB(ext Extensions) *cppb.PathSegmentExtensions {
 	digest := digest.ExtensionToPB(ext.Digests)
 	pqa := ext.PqaExtension.ToPB()
 
-	if hiddenPath != nil || staticInfo != nil || digest != nil {
+	if hiddenPath != nil ||
+		staticInfo != nil ||
+		digest != nil ||
+		pqa != nil {
 		return &cppb.PathSegmentExtensions{
 			HiddenPath:       hiddenPath,
 			StaticInfo:       staticInfo,

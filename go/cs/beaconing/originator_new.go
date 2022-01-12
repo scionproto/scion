@@ -111,6 +111,8 @@ func (o *Originator) originateBeaconsNew(ctx context.Context) {
 			if err := o.sendBeaconsNew(ctx, intf, bcns, s); err != nil {
 				logger.Info("Unable to originate on interface",
 					"egress_interface", intf.TopoInfo().ID, "err", err, "bcns", bcns)
+			} else {
+				logger.Info("Originated beacons", "bcns", bcns, "intf", intf)
 			}
 		}()
 	}
@@ -125,6 +127,8 @@ func (o *Originator) sendBeaconsNew(
 	sum *summary) error {
 	// Create labels for reporting
 	labels := originatorLabels{intf: intf}
+
+	logger := log.FromCtx(ctx)
 
 	// Prepare sender parameters
 	timeout := DefaultRPCTimeout
@@ -142,6 +146,7 @@ func (o *Originator) sendBeaconsNew(
 
 	// Send each beacon using created sender
 	for _, bcn := range bcns {
+		logger.Debug("Sending beacon ", "bcn", bcn.Segment.ASEntries[0].Extensions)
 		if err := sender.Send(bcn.Segment); err != nil {
 			o.incrementMetrics(labels.WithResult(prom.ErrNetwork))
 			return serrors.WrapStr("sending beacon", err)

@@ -1,0 +1,22 @@
+--- # Tiny Topology, 3 cores, two of the same AS, connected triangularly
+ASes:
+  "1-ff00:0:110":
+    core: true
+    voting: true
+    authoritative: true
+    issuing: true
+    mtu: 1400
+  "2-ff00:0:111":
+    core: true
+    voting: true
+    authoritative: true
+    issuing: true
+  "1-ff00:0:112":
+    core: true
+    voting: true
+    authoritative: true
+    issuing: true
+links:
+  - {a: "1-ff00:0:110-1", b: "2-ff00:0:111#41", linkAtoB: CORE}
+  - {a: "1-ff00:0:112#1", b: "2-ff00:0:111#2", linkAtoB: CORE}
+  - {a: "1-ff00:0:112#2", b: "1-ff00:0:110#2", linkAtoB: CORE}

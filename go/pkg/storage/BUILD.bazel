@@ -10,6 +10,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//go/cs/beacon:go_default_library",
+        "//go/cs/beaconing/mechanisms/pqa:go_default_library",
         "//go/lib/addr:go_default_library",
         "//go/lib/config:go_default_library",
         "//go/lib/infra/modules/cleaner:go_default_library",
@@ -22,6 +23,7 @@ go_library(
         "//go/pkg/storage/beacon:go_default_library",
         "//go/pkg/storage/beacon/sqlite:go_default_library",
         "//go/pkg/storage/path/sqlite:go_default_library",
+        "//go/pkg/storage/pqa/sqlite:go_default_library",
         "//go/pkg/storage/trust:go_default_library",
         "//go/pkg/storage/trust/sqlite:go_default_library",
         "//go/pkg/trust:go_default_library",

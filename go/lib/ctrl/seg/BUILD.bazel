@@ -45,6 +45,7 @@ go_test(
         "//go/lib/addr:go_default_library",
         "//go/lib/ctrl/seg/extensions/digest:go_default_library",
         "//go/lib/ctrl/seg/extensions/epic:go_default_library",
+        "//go/lib/ctrl/seg/extensions/pqabeaconing:go_default_library",
         "//go/lib/scrypto/signed:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/xtest:go_default_library",

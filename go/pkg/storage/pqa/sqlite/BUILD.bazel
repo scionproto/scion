@@ -1,0 +1,20 @@
+load("//lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "pqa.go",
+        "target.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/pkg/storage/pqa/sqlite",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/cs/beacon:go_default_library",
+        "//go/lib/addr:go_default_library",
+        "//go/lib/ctrl/seg/extensions/pqabeaconing:go_default_library",
+        "//go/lib/infra/modules/db:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/serrors:go_default_library",
+        "//go/pkg/storage/beacon/sqlite:go_default_library",
+    ],
+)

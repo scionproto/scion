@@ -11,9 +11,11 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
+// TODO: Take types from extension, don't redefine them here
+
 type Ifid string
 
-type GlobalParams struct {
+type GlobalParamsSingleton struct {
 	NoPathsPerOptimizationTarget uint16
 	PathQualities                map[PathQualityIdentifier]PathQuality
 }
@@ -30,13 +32,13 @@ type PropagationSettings struct {
 }
 
 type Settings struct {
-	Static      GlobalParams
+	Global      GlobalParamsSingleton
 	Origination OriginationSettings
 	Propagation PropagationSettings
 }
 
 func NewSettings(cfgYamlPath string) (Settings, error) {
-	gset := NewGlobalParams()
+	gset := GlobalParams
 
 	// Load config file
 	pqaCfg, err := pqacfg.LoadPqaCfgFromYAML(cfgYamlPath)
@@ -45,7 +47,7 @@ func NewSettings(cfgYamlPath string) (Settings, error) {
 	}
 
 	// Parse originator config struct
-	orig, err := NewOriginationSettings(pqaCfg.Origination, *gset)
+	orig, err := NewOriginationSettings(pqaCfg.Origination, gset)
 	if err != nil {
 		return Settings{}, err
 	}
@@ -59,7 +61,7 @@ func NewSettings(cfgYamlPath string) (Settings, error) {
 	return Settings{
 		Origination: *orig,
 		Propagation: *prop,
-		Static:      *gset,
+		Global:      gset,
 	}, nil
 }
 
@@ -155,27 +157,29 @@ func (q PathQuality) IsNil() bool {
 	return q.identifier == ""
 }
 
-// Returns a new set of global parameters, which never change
-func NewGlobalParams() *GlobalParams {
-	return &GlobalParams{
-		NoPathsPerOptimizationTarget: 5,
-		PathQualities: map[PathQualityIdentifier]PathQuality{
-			QualityThroughput: {
-				combinationType:   CMin,
-				optimalityType:    Max,
-				symmetryTolerance: 0.1,
-				identifier:        QualityThroughput,
-			},
-			QualityLatency: {
-				combinationType:   Additive,
-				optimalityType:    Min,
-				symmetryTolerance: 0.1,
-				identifier:        QualityLatency,
-			},
+var GlobalParams = GlobalParamsSingleton{
+	NoPathsPerOptimizationTarget: 5,
+	PathQualities: map[PathQualityIdentifier]PathQuality{
+		QualityThroughput: {
+			combinationType:   CMin,
+			optimalityType:    Max,
+			symmetryTolerance: 0.1,
+			identifier:        QualityThroughput,
 		},
-	}
+		QualityLatency: {
+			combinationType:   Additive,
+			optimalityType:    Min,
+			symmetryTolerance: 0.1,
+			identifier:        QualityLatency,
+		},
+	},
 }
-func (s *GlobalParams) PathQuality(ident PathQualityIdentifier) (*PathQuality, error) {
+
+func GetPathQuality(ident PathQualityIdentifier) (*PathQuality, error) {
+	return GlobalParams.PathQuality(ident)
+}
+
+func (s *GlobalParamsSingleton) PathQuality(ident PathQualityIdentifier) (*PathQuality, error) {
 	if q, ok := s.PathQualities[ident]; ok {
 		return &q, nil
 	} else {
@@ -208,13 +212,13 @@ func (quality PathQuality) IsWithinSymmetryTolerance(q1 float64, q2 float64) boo
 	return minV <= q1AbsV && q1AbsV <= maxV
 }
 
-// Returns true iff q1 is better than q2
-func (quality PathQuality) Compare(q1 float64, q2 float64) bool {
+// True iff q1 is worse than q2 i.t.o. quality
+func (quality PathQuality) Less(q1 float64, q2 float64) bool {
 	switch quality.optimalityType {
 	case Max:
-		return q1 > q2
-	case Min:
 		return q1 < q2
+	case Min:
+		return q1 > q2
 	default:
 		return false
 	}
@@ -233,8 +237,51 @@ func (propSettings *PropagationSettings) GetInterfaceGroupsForDirectionAndQualit
 
 type OptimizationTarget struct {
 	Quality    PathQuality
-	Uniquifier uint8
+	Uniquifier uint32
 	Direction  OptimizationDirection
+}
+
+func qualityFromExtension(ext pqa_extension.Quality) (PathQualityIdentifier, error) {
+	switch ext {
+	case pqa_extension.Latency:
+		return QualityLatency, nil
+	case pqa_extension.Throughput:
+		return QualityThroughput, nil
+	default:
+		return "", serrors.New("Unknown quality identifier", "identifier", ext)
+	}
+}
+
+func directionFromExtension(ext pqa_extension.Direction) (OptimizationDirection, error) {
+	switch ext {
+	case pqa_extension.Forward:
+		return Forward, nil
+	case pqa_extension.Backward:
+		return Backward, nil
+	case pqa_extension.Symmetric:
+		return Symmetric, nil
+	default:
+		return "", serrors.New("Unknown direction identifier", "identifier", ext)
+	}
+}
+
+func TargetFromExtension(ext pqa_extension.Extension) OptimizationTarget {
+	qIdent, err := qualityFromExtension(ext.Quality)
+	q, err := GlobalParams.PathQuality(qIdent)
+	if err != nil {
+		panic(err)
+	}
+
+	direction, err := directionFromExtension(ext.Direction)
+	if err != nil {
+		panic(err)
+	}
+
+	return OptimizationTarget{
+		Quality:    *q,
+		Uniquifier: ext.Uniquifier,
+		Direction:  direction,
+	}
 }
 
 // Make optimization target an Extension
@@ -257,14 +304,14 @@ func (t OptimizationTarget) Extend(ctx context.Context, ext *seg.Extensions, ing
 
 	// Attach extension to ext field
 	ext.PqaExtension = &pqa_extension.Extension{
-		Uniquifier: uint16(t.Uniquifier),
+		Uniquifier: t.Uniquifier,
 		Direction:  dir,
 		Quality:    qua,
 	}
 	return nil
 }
 
-func NewOriginationSettings(cfg pqacfg.OriginatorCfg, gset GlobalParams) (*OriginationSettings, error) {
+func NewOriginationSettings(cfg pqacfg.OriginatorCfg, gset GlobalParamsSingleton) (*OriginationSettings, error) {
 	oset := OriginationSettings{}
 
 	oset.OptimizationTargets = make(map[OptimizationTargetIdentifier]OptimizationTarget)
@@ -352,7 +399,7 @@ func GenerateSettingsForInterfaces(intfs *ifstate.Interfaces) Settings {
 		panic(err)
 	}
 	set := Settings{
-		Static: genSet.Static,
+		Global: genSet.Global,
 		Origination: OriginationSettings{
 			OptimizationTargets: genSet.Origination.OptimizationTargets,
 			Orders:              make(map[uint16][][]OptimizationTarget, 0),

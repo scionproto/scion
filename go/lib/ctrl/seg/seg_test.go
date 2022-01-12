@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	pqa_extension "github.com/scionproto/scion/go/lib/ctrl/seg/extensions/pqabeaconing"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -170,4 +171,54 @@ func (p keyPair) Verify(_ context.Context, signedMsg *cryptopb.SignedMessage,
 	}
 	return signed.Verify(signedMsg, p.pubKey, associatedData...)
 
+}
+
+func TestAsExtension(t *testing.T) {
+	asEntries := []ASEntry{
+		{
+			Local: as110,
+			Next:  as111,
+			MTU:   1500,
+			HopEntry: HopEntry{
+				HopField: HopField{
+					ConsIngress: 0,
+					ConsEgress:  1,
+					ExpTime:     63,
+					MAC:         bytes.Repeat([]byte{0x11}, 6),
+				},
+				IngressMTU: 0,
+			},
+			Extensions: Extensions{
+				PqaExtension: &pqa_extension.Extension{
+					Uniquifier: 0,
+					Quality:    pqa_extension.Latency,
+					Direction:  pqa_extension.Backward,
+				},
+			},
+		},
+	}
+
+	var keyPairs []keyPair
+	for range asEntries {
+		keyPairs = append(keyPairs, newKeyPair(t))
+	}
+
+	ps, err := CreateSegment(time.Now(), 1337)
+	require.NoError(t, err)
+
+	for i, entry := range asEntries {
+		id, fullID := ps.ID(), ps.FullID()
+		err := ps.AddASEntry(context.Background(), entry, keyPairs[i])
+		require.NoErrorf(t, err, "index: %d", i)
+
+		// Check that adding an AS entry modifies the segment id.
+		newID, newFullID := ps.ID(), ps.FullID()
+		assert.NotEqual(t, id, newID)
+		assert.NotEqual(t, fullID, newFullID)
+	}
+	assert.Equal(t, ps.ASEntries[0].Extensions, asEntries[0].Extensions)
+
+	c, err := BeaconFromPB(PathSegmentToPB(ps))
+	require.NoError(t, err)
+	assert.Equal(t, asEntries, c.ASEntries)
 }

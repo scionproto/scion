@@ -220,7 +220,7 @@ func realMain(ctx context.Context) error {
 		return err
 	}
 
-	beaconDB, err := storage.NewBeaconStorage(globalCfg.BeaconDB, topo.IA())
+	beaconDB, err := storage.NewBeaconStorageNew(globalCfg.BeaconDB, topo.IA())
 	if err != nil {
 		return serrors.WrapStr("initializing beacon storage", err)
 	}

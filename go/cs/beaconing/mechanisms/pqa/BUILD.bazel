@@ -3,6 +3,7 @@ load("//lint:go.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
+        "db_frontend.go",
         "doc.go",
         "mechanism.go",
         "settings.go",

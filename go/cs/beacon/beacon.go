@@ -27,6 +27,8 @@ type Beacon struct {
 	Segment *seg.PathSegment
 	// InIfId is the interface the beacon is received on.
 	InIfId uint16
+	// EgIfId is the interface the beacon should be sent on // TODO: Good idea?
+	EgIfId uint16
 }
 
 // Diversity returns the link diversity between this and the other beacon. The

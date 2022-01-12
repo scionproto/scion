@@ -17,7 +17,7 @@ type OriginatorCfg struct {
 type OptimizationTargetCfg struct {
 	Quality    PathQualityIdentifierCfg `yaml:"quality"`
 	Direction  OptimizationDirectionCfg `yaml:"direction"`
-	Uniquifier uint8                    `yaml:"uniquifier"`
+	Uniquifier uint32                   `yaml:"uniquifier"`
 }
 
 type OriginationCfg [][]OptimizationTargetIdentifierCfg

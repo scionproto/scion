@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/cs/beacon"
+	"github.com/scionproto/scion/go/cs/beaconing/mechanisms/pqa"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
@@ -34,6 +35,7 @@ import (
 	beaconstorage "github.com/scionproto/scion/go/pkg/storage/beacon"
 	sqlitebeacondb "github.com/scionproto/scion/go/pkg/storage/beacon/sqlite"
 	sqlitepathdb "github.com/scionproto/scion/go/pkg/storage/path/sqlite"
+	sqlitepqadb "github.com/scionproto/scion/go/pkg/storage/pqa/sqlite"
 	truststorage "github.com/scionproto/scion/go/pkg/storage/trust"
 	sqlitetrustdb "github.com/scionproto/scion/go/pkg/storage/trust/sqlite"
 	"github.com/scionproto/scion/go/pkg/trust"
@@ -82,6 +84,11 @@ type BeaconDB interface {
 	io.Closer
 	beacon.DB
 	beaconstorage.BeaconAPI
+}
+
+type BeaconDBNew interface {
+	BeaconDB
+	pqa.DB
 }
 
 type PathDB interface {
@@ -147,6 +154,31 @@ func (cfg *DBConfig) ConfigName() string {
 func NewBeaconStorage(c DBConfig, ia addr.IA) (BeaconDB, error) {
 	log.Info("Connecting BeaconDB", "backend", BackendSqlite, "connection", c.Connection)
 	db, err := sqlitebeacondb.New(c.Connection, ia)
+	if err != nil {
+		return nil, err
+	}
+	SetConnLimits(db, c)
+
+	// Start a periodic task that cleans up the expired beacons.
+	cleaner := periodic.Start(
+		cleaner.New(
+			func(ctx context.Context) (int, error) {
+				return db.DeleteExpiredBeacons(ctx, time.Now())
+			},
+			"control_beaconstorage_cleaner",
+		),
+		30*time.Second,
+		30*time.Second,
+	)
+	return beaconDBWithCleaner{
+		BeaconDB: db,
+		cleaner:  cleaner,
+	}, nil
+}
+
+func NewBeaconStorageNew(c DBConfig, ia addr.IA) (BeaconDB, error) {
+	log.Info("Connecting new BeaconDB", "backend", BackendSqlite, "connection", c.Connection)
+	db, err := sqlitepqadb.New(c.Connection, ia)
 	if err != nil {
 		return nil, err
 	}
