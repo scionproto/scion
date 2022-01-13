@@ -6,41 +6,33 @@ import (
 
 	pqacfg "github.com/scionproto/scion/go/cs/beaconing/mechanisms/pqa/config"
 	"github.com/scionproto/scion/go/cs/ifstate"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	extension "github.com/scionproto/scion/go/lib/ctrl/seg/extensions/pqabeaconing"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
-type Target struct {
-	Quality    extension.Quality
-	Direction  extension.Direction
-	Uniquifier uint32
-	ISD        addr.ISD
-	AS         addr.AS
+const N = 5
+
+type Settings struct {
+	Origination
+	Propagation
 }
 
-type OriginationSettings struct {
+type Origination struct {
+	// Stores the order of origination for each interface
 	Orders map[uint16][][]Target
 
 	// Stores which interface has originated which interval last
 	Intervals map[uint16]uint
 }
 
-type PropagationSettings struct {
+type Propagation struct {
 	// Maps quality -> direction -> interface group
-	q2d2group map[extension.Quality]map[extension.Direction][]*ifstate.Interface
+	q2d2group map[extension.Quality]map[extension.Direction][][]*ifstate.Interface
 }
 
-func (p *PropagationSettings) GetInterfaceGroups(q extension.Quality, d extension.Direction) []*ifstate.Interface {
+func (p *Propagation) GetInterfaceGroups(q extension.Quality, d extension.Direction) [][]*ifstate.Interface {
 	return p.q2d2group[q][d]
-}
-
-const N = 5
-
-type Settings struct {
-	Origination OriginationSettings
-	Propagation PropagationSettings
 }
 
 func LoadSettings(cfgYamlPath string, ifaces *ifstate.Interfaces) (Settings, error) {
@@ -71,12 +63,6 @@ func LoadSettings(cfgYamlPath string, ifaces *ifstate.Interfaces) (Settings, err
 type InterfaceGroupIdentifier string
 type InterfaceGroup []*ifstate.Interface
 
-type OptimizationTargetIdentifier string
-
-const (
-	OptimizationTargetNO_TARGET OptimizationTargetIdentifier = "NO_TARGET"
-)
-
 func (t Target) Extend(ctx context.Context, ext *seg.Extensions, ingress, egress uint16, peers []uint16) error {
 
 	ext.PqaExtension = &extension.Extension{
@@ -87,8 +73,8 @@ func (t Target) Extend(ctx context.Context, ext *seg.Extensions, ingress, egress
 	return nil
 }
 
-func NewOriginationSettings(cfg pqacfg.OriginatorCfg) (*OriginationSettings, error) {
-	oset := OriginationSettings{}
+func NewOriginationSettings(cfg pqacfg.OriginatorCfg) (*Origination, error) {
+	oset := Origination{}
 
 	// Process targets
 	targets := make(map[pqacfg.TargetIdentifier]Target)
@@ -119,13 +105,17 @@ func NewOriginationSettings(cfg pqacfg.OriginatorCfg) (*OriginationSettings, err
 	return &oset, nil
 }
 
-func NewPropagationSettings(cfg *pqacfg.PropagatorCfg, ifaces *ifstate.Interfaces) (*PropagationSettings, error) {
+func NewPropagationSettings(cfg *pqacfg.PropagatorCfg, ifaces *ifstate.Interfaces) (*Propagation, error) {
 	// Create map quality -> direction -> list interface groups
-	q2d2group := make(map[extension.Quality]map[extension.Direction][]*ifstate.Interface)
+	q2d2group := make(map[extension.Quality]map[extension.Direction][][]*ifstate.Interface)
 	for _, ifaceGroupCfg := range *cfg {
 		ifGroup := make(InterfaceGroup, 0)
 		for _, ifaceIdentifier := range ifaceGroupCfg.Interfaces {
-			ifGroup = append(ifGroup, ifaces.Get(ifaceIdentifier))
+			if intf := ifaces.Get(ifaceIdentifier); intf != nil {
+				ifGroup = append(ifGroup, intf)
+			} else {
+				return nil, serrors.New("interface not found", "iface", ifaceIdentifier, "have", ifaces.All())
+			}
 		}
 		for i, filter := range ifaceGroupCfg.OptimizationTargetFilters {
 			if filter.Quality == "" {
@@ -135,64 +125,119 @@ func NewPropagationSettings(cfg *pqacfg.PropagatorCfg, ifaces *ifstate.Interface
 
 			// Create new direction -> iface group map if it doesn't exist
 			if _, ok := q2d2group[q]; !ok {
-				q2d2group[q] = make(map[extension.Direction][]*ifstate.Interface)
+				q2d2group[q] = make(map[extension.Direction][][]*ifstate.Interface)
 			}
 			// Grab it
 			d2group := q2d2group[q]
 
 			if filter.Direction == "" {
 				// Append ifstate group to both directions if no direction is specified
-				d2group[extension.Forward] = append(d2group[extension.Forward], ifGroup...)
-				d2group[extension.Backward] = append(d2group[extension.Backward], ifGroup...)
+				d2group[extension.Forward] = append(d2group[extension.Forward], ifGroup)
+				d2group[extension.Backward] = append(d2group[extension.Backward], ifGroup)
 			} else {
 				// Else append to specified direction
 				d := filter.Direction.Direction()
-				d2group[d] = append(d2group[d], ifGroup...)
+				d2group[d] = append(d2group[d], ifGroup)
 			}
 		}
 	}
-
-	return &PropagationSettings{
+	return &Propagation{
 		q2d2group: q2d2group,
 	}, nil
 }
 
-// Generates "sample" settings based on a file (see comments in file) for test infrastructure
-func GenerateSettingsForInterfaces(intfs *ifstate.Interfaces) Settings {
-	genSet, err := LoadSettings("pqa-configs/genConfig.yml", intfs)
-	if err != nil {
-		panic(err)
-	}
-	set := Settings{
-		Origination: OriginationSettings{
-			Orders:    make(map[uint16][][]Target, 0),
-			Intervals: make(map[uint16]uint),
+var targets = map[pqacfg.TargetIdentifier]pqacfg.TargetCfg{
+	"latency_1": {
+		Quality:    "latency",
+		Direction:  "forward",
+		Uniquifier: 1,
+	},
+	"throughput_1": {
+		Quality:    "throughput",
+		Direction:  "forward",
+		Uniquifier: 1,
+	},
+}
+var originationOrders = [][][]pqacfg.TargetIdentifier{
+	{
+		{
+			"latency_1",
+			"NO_TARGET",
 		},
+		{
+			"throughput_1",
+		},
+	},
+	{
+		{
+			"NO_TARGET",
+		},
+	},
+}
+
+var targetFilters = []pqacfg.OptimizationTargetFilter{
+	{
+		Quality: "latency",
+	}, {
+		Quality: "throughput",
+	},
+}
+
+// Generate sample settings
+func GenerateSettingsForInterfaces(intfs *ifstate.Interfaces) (*Settings, error) {
+
+	// Assign origination orders to interfacews - cycle through orders defined in originationOrders
+	origOrders := make(map[uint16][][]pqacfg.TargetIdentifier)
+	c := 0
+	for intfId := range intfs.All() {
+		origOrders[intfId] = originationOrders[c%len(originationOrders)]
+		c++
 	}
 
-	// Extract list of all orders in genConfig
-	orders := make([][][]Target, 0)
-	for _, order := range genSet.Origination.Orders {
-		orders = append(orders, order)
+	// Create originator config
+	origCfg := pqacfg.OriginatorCfg{
+		Targets:         targets,
+		OriginationCfgs: origOrders,
 	}
 
-	intf_c := 0
-	// Apply orders from the gen set
-	if len(genSet.Origination.Orders) > 0 {
-		for ifid := range intfs.All() {
-			// Get next order
-			order := orders[uint16(intf_c%len(orders))]
-			intf_c++
-			// Set that order for current interface
-			set.Origination.Orders[ifid] = order
-			set.Origination.Intervals[ifid] = uint(0)
+	// Extract interfaces to list
+	intfList := make([]uint16, 0)
+	for ifid := range intfs.All() {
+		intfList = append(intfList, ifid)
+	}
+
+	// Create propagation config
+	propaCfg := make(pqacfg.PropagatorCfg)
+
+	// Assign interfaces into groups of k...
+	const k = 2
+	maxIntefaceIdx := len(intfList) - (len(intfList) % k) // ...ignoring intfs that can't be put into groups of k
+	f := 0
+	for i := 0; i < maxIntefaceIdx; i += k {
+		ifaceGroup := pqacfg.InterfaceGroupCfg{
+			Interfaces:                intfList[i : i+k],
+			OptimizationTargetFilters: targetFilters,
 		}
-	} else {
-		panic("no orders")
+		// generate identifier
+		ifacegroupIdentifier := pqacfg.InterfaceGroupIdentifier(fmt.Sprintf("group_%d", f))
+		// create grouphope
+		propaCfg[ifacegroupIdentifier] = ifaceGroup
+		f++
 	}
 
-	// TODO: Remove
-	set.Origination.Orders[20] = nil
-	set.Origination.Orders[21] = make([][]Target, 0)
-	return set
+	orig, err := NewOriginationSettings(origCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	prop, err := NewPropagationSettings(&propaCfg, intfs)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Settings{
+		Origination: *orig,
+		Propagation: *prop,
+	}, nil
+
 }

@@ -332,6 +332,21 @@ func (m *MockBeaconingMechanism) EXPECT() *MockBeaconingMechanismMockRecorder {
 	return m.recorder
 }
 
+// ProvideOriginationBatch mocks base method.
+func (m *MockBeaconingMechanism) ProvideOriginationBatch(arg0 context.Context, arg1 beaconing.Tick) (beaconing.SendableBeaconsBatch, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ProvideOriginationBatch", arg0, arg1)
+	ret0, _ := ret[0].(beaconing.SendableBeaconsBatch)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ProvideOriginationBatch indicates an expected call of ProvideOriginationBatch.
+func (mr *MockBeaconingMechanismMockRecorder) ProvideOriginationBatch(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProvideOriginationBatch", reflect.TypeOf((*MockBeaconingMechanism)(nil).ProvideOriginationBatch), arg0, arg1)
+}
+
 // ProvidePropagationBatch mocks base method.
 func (m *MockBeaconingMechanism) ProvidePropagationBatch(arg0 context.Context, arg1 beaconing.Tick) (beaconing.SendableBeaconsBatch, error) {
 	m.ctrl.T.Helper()

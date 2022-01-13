@@ -28,6 +28,7 @@ type Scenario struct {
 	PrivKey *ecdsa.PrivateKey
 	*ifstate.Interfaces
 	beaconing.Tick
+	Settings Settings
 }
 
 func NewScenario(t *testing.T, topoFile string) Scenario {
@@ -40,11 +41,15 @@ func NewScenario(t *testing.T, topoFile string) Scenario {
 	intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 
 	tick := beaconing.NewTick(time.Hour)
+
+	set, err := GenerateSettingsForInterfaces(intfs)
+	require.NoError(t, err)
 	return Scenario{
 		Topology:   topo,
 		PrivKey:    priv,
 		Interfaces: intfs,
 		Tick:       tick,
+		Settings:   *set,
 	}
 }
 

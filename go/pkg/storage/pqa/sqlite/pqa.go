@@ -1,3 +1,5 @@
+// Note: Package is discontinued in favor of ../memory, in the interest of time
+
 package sqlite
 
 import (

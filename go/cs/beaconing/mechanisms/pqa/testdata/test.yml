@@ -6,7 +6,7 @@ originator:
           direction: forward
       my_target_1:
           # uniquifier optional, found automatically if left out
-          quality: latency 
+          quality: latency
           direction: backward
 
   origination order:

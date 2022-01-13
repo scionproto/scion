@@ -35,7 +35,7 @@ import (
 	beaconstorage "github.com/scionproto/scion/go/pkg/storage/beacon"
 	sqlitebeacondb "github.com/scionproto/scion/go/pkg/storage/beacon/sqlite"
 	sqlitepathdb "github.com/scionproto/scion/go/pkg/storage/path/sqlite"
-	sqlitepqadb "github.com/scionproto/scion/go/pkg/storage/pqa/sqlite"
+	pqamemory "github.com/scionproto/scion/go/pkg/storage/pqa/memory"
 	truststorage "github.com/scionproto/scion/go/pkg/storage/trust"
 	sqlitetrustdb "github.com/scionproto/scion/go/pkg/storage/trust/sqlite"
 	"github.com/scionproto/scion/go/pkg/trust"
@@ -176,9 +176,9 @@ func NewBeaconStorage(c DBConfig, ia addr.IA) (BeaconDB, error) {
 	}, nil
 }
 
-func NewBeaconStorageNew(c DBConfig, ia addr.IA) (BeaconDB, error) {
+func NewBeaconStorageNew(c DBConfig, ia addr.IA) (BeaconDBNew, error) {
 	log.Info("Connecting new BeaconDB", "backend", BackendSqlite, "connection", c.Connection)
-	db, err := sqlitepqadb.New(c.Connection, ia)
+	db, err := pqamemory.New(c.Connection, ia)
 	if err != nil {
 		return nil, err
 	}
@@ -195,9 +195,9 @@ func NewBeaconStorageNew(c DBConfig, ia addr.IA) (BeaconDB, error) {
 		30*time.Second,
 		30*time.Second,
 	)
-	return beaconDBWithCleaner{
-		BeaconDB: db,
-		cleaner:  cleaner,
+	return beaconDBWithCleanerNew{
+		BeaconDBNew: db,
+		cleaner:     cleaner,
 	}, nil
 }
 
@@ -205,6 +205,11 @@ func NewBeaconStorageNew(c DBConfig, ia addr.IA) (BeaconDB, error) {
 // database and the cleanup task on Close.
 type beaconDBWithCleaner struct {
 	BeaconDB
+	cleaner *periodic.Runner
+}
+
+type beaconDBWithCleanerNew struct {
+	BeaconDBNew
 	cleaner *periodic.Runner
 }
 

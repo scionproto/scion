@@ -220,12 +220,12 @@ func realMain(ctx context.Context) error {
 		return err
 	}
 
-	beaconDB, err := storage.NewBeaconStorageNew(globalCfg.BeaconDB, topo.IA())
+	beaconStorage, err := storage.NewBeaconStorageNew(globalCfg.BeaconDB, topo.IA())
 	if err != nil {
 		return serrors.WrapStr("initializing beacon storage", err)
 	}
-	defer beaconDB.Close()
-	beaconDB = beaconstoragemetrics.WrapDB(beaconDB, beaconstoragemetrics.Config{
+	defer beaconStorage.Close()
+	beaconDB := beaconstoragemetrics.WrapDB(beaconStorage, beaconstoragemetrics.Config{
 		Driver:       string(storage.BackendSqlite),
 		QueriesTotal: libmetrics.NewPromCounter(metrics.BeaconDBQueriesTotal),
 	})
@@ -699,13 +699,17 @@ func realMain(ctx context.Context) error {
 		}
 	*/
 	// TODO: Way of specifying pqa settings per AS
-	pqaSettings := pqa.GenerateSettingsForInterfaces(intfs)
+	pqaSettings, err := pqa.GenerateSettingsForInterfaces(intfs)
+	if err != nil {
+		return serrors.WrapStr("generating pqa settings", err)
+	}
 	log.Debug("read settings", "orders", pqaSettings.Origination.Orders, "intfs", intfs.All())
 	pqaMechanism := pqa.Mechanism{
 		AllInterfaces:         intfs,
 		PropagationInterfaces: propagationInterfaces,
 		OriginationInterfaces: originationInterfaces,
-		Settings:              pqaSettings,
+		Settings:              *pqaSettings,
+		DB:                    beaconStorage,
 
 		Extender: extender,
 		Tick:     beaconing.NewTick(globalCfg.BS.OriginationInterval.Duration),

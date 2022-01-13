@@ -73,7 +73,7 @@ func (h Handler) HandleBeacon(ctx context.Context, b beacon.Beacon, peer *snet.U
 	logger := log.FromCtx(ctx).New("beacon", b, "upstream", upstream)
 	ctx = log.CtxWith(ctx, logger)
 
-	logger.Debug("Received beacon")
+	logger.Debug("Received beacon", "extensions", b.Segment.ASEntries[0].Extensions)
 	if err := h.Inserter.PreFilter(b); err != nil {
 		logger.Debug("Beacon pre-filtered", "err", err)
 		h.updateMetric(span, labels.WithResult("err_prefilter"), err)

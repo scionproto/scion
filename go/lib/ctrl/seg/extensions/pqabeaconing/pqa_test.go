@@ -17,7 +17,7 @@ func TestToFromPb(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			after := FromPB(test.ToPB())
+			after := ExtensionFromPB(test.ToPB())
 			assert.Equal(t, test, *after)
 		})
 	}

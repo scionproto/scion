@@ -1,0 +1,22 @@
+--- # Tiny Topology
+ASes:
+  "1-ff00:0:110":
+    core: true
+    voting: true
+    authoritative: true
+    issuing: true
+  "2-ff00:0:220":
+    core: true
+    voting: true
+    authoritative: true
+    issuing: true
+  "3-ff00:0:330":
+    core: true
+    voting: true
+    authoritative: true
+    issuing: true
+
+links:
+  - {a: "1-ff00:0:110#1", b: "2-ff00:0:220#1", linkAtoB: CORE, mtu: 1280}
+  - {a: "3-ff00:0:330#2", b: "2-ff00:0:220#2", linkAtoB: CORE, mtu: 1280}
+  - {a: "1-ff00:0:110#3", b: "3-ff00:0:330#3", linkAtoB: CORE, mtu: 1280}

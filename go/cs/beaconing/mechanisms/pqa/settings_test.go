@@ -40,3 +40,13 @@ func TestParsePropagatorConfig(t *testing.T) {
 	assert.Len(t, set.GetInterfaceGroups(pqacfg.StringToQuality("throughput"), pqacfg.StringToDirection("forward")), 5)
 	assert.Len(t, set.GetInterfaceGroups(pqacfg.StringToQuality("latency"), pqacfg.StringToDirection("forward")), 3)
 }
+
+func TestGenerateSettings(t *testing.T) {
+	scen := NewScenario(t, "testdata/topo.json")
+
+	set, err := GenerateSettingsForInterfaces(scen.Interfaces)
+	assert.NoError(t, err)
+
+	assert.NotNil(t, set)
+
+}

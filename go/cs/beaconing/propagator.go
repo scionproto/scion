@@ -111,12 +111,11 @@ func (p *Propagator) run(ctx context.Context) error {
 
 // Sends beacons to their interfaces in intf2bcns map
 func (p *PropagationBatch) sendBeacons(ctx context.Context) error {
-	logger := log.FromCtx(ctx)
 	var expected int
 	for egIntf, bcns := range p.batch {
 		p.send(ctx, bcns, egIntf)
 		p.wg.Add(1)
-		expected++
+		expected += len(bcns)
 	}
 	p.wg.Wait()
 	if expected == 0 {
@@ -125,8 +124,6 @@ func (p *PropagationBatch) sendBeacons(ctx context.Context) error {
 	if p.success.c <= 0 {
 		return serrors.New("no beacon propagated", "expected", expected)
 	}
-	logger.Debug("Successfully propagated", "beacons on interfaces", p.batch,
-		"expected", expected, "count", p.success.c)
 	return nil
 }
 
@@ -134,6 +131,7 @@ func (p *PropagationBatch) sendBeacons(ctx context.Context) error {
 func (p *PropagationBatch) send(ctx context.Context, bcns []beacon.Beacon, intf *ifstate.Interface) {
 	logger := log.FromCtx(ctx)
 	if len(bcns) == 0 {
+		// TODO: Increase success
 		return
 	}
 	egIfid := intf.TopoInfo().ID

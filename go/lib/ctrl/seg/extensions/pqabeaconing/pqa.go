@@ -75,6 +75,16 @@ func (q Quality) Less(l float64, r float64) bool {
 	return optimFuncs[q](l, r) != l
 }
 
+var infValues = map[Quality]float64{
+	Latency:    math.Inf(1),
+	Throughput: math.Inf(-1),
+}
+
+// Returns the infimum value of a quality metric
+func (q Quality) Infimum() float64 {
+	return infValues[q]
+}
+
 // Tolerance for metrics of a path to be considered "symmetric"
 // A path with forward metric fwd and backward metric bwd is considered
 // symmetric if abs(fwd - bwd) <= symTol * max(abs(fwd), abs(bwd))
@@ -138,7 +148,7 @@ func (e *Extension) ToPB() *cppb.PathQualityAwareExtension {
 
 func ExtensionFromPB(e *cppb.PathQualityAwareExtension) *Extension {
 	if e == nil {
-		panic("Missing extension.")
+		return nil
 	}
 
 	return &Extension{

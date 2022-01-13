@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // Copied from storage/beacon/sqlite/db.go
+// This is a temporary solution
 
 package memory
 
@@ -45,7 +46,7 @@ type Beacons struct {
 // New returns a new SQLite backend opening a database at the given path. If
 // no database exists a new database is be created. If the schema version of the
 // stored database is different from the one in schema.go, an error is returned.
-func New(path string, ia addr.IA) (*Beacons, error) {
+func NewBeaconBackend(path string, ia addr.IA) (*Beacons, error) {
 	db, err := db.NewSqlite(path, Schema, SchemaVersion)
 	if err != nil {
 		return nil, err
@@ -252,6 +253,36 @@ func (e *executor) getBeaconID(ctx context.Context, beacon beacon.Beacon) (int64
 		return -1, serrors.New("beacon not found", "segID", segID)
 	}
 	return meta.RowID, nil
+}
+
+func (e *executor) GetBeaconById(ctx context.Context, id int64) (*beacon.Beacon, error) {
+	e.RLock()
+	defer e.RUnlock()
+	rows, err := e.db.QueryContext(ctx, `
+		SELECT b.Beacon, b.InIntfID
+		FROM Beacons b
+		WHERE b.RowID = ?1
+	`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return nil, serrors.New("no beacon found with id", "id", id)
+	}
+	var rawBeacon sql.RawBytes
+	var inIntfID common.IFIDType
+	if err := rows.Scan(&rawBeacon, &inIntfID); err != nil {
+		return nil, err
+	}
+	s, err := beacon.UnpackBeacon(rawBeacon)
+	if err != nil {
+		return nil, db.NewDataError(beacon.ErrParse, err)
+	}
+	return &beacon.Beacon{
+		Segment: s,
+		InIfId:  uint16(inIntfID),
+	}, nil
 }
 
 func (e *executor) buildQuery(params *storagebeacon.QueryParams) (string, []interface{}) {
