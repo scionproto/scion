@@ -36,6 +36,8 @@ from python.lib.util import (
     load_yaml_file,
     write_file,
 )
+
+from python.topology.static_info import StaticInfoGenerator
 from python.topology.cert import CertGenArgs, CertGenerator
 from python.topology.common import ArgsBase
 from python.topology.docker import DockerGenArgs, DockerGenerator
@@ -117,6 +119,11 @@ class ConfigGenerator(object):
         self._generate_jaeger(topo_dicts)
         self._generate_prom_conf(topo_dicts)
         self._generate_certs_trcs(topo_dicts)
+        self._generate_static_info(topo_dicts)
+
+    def _generate_static_info(self, topo_dicts):
+        sig = StaticInfoGenerator(self.args)
+        sig.generate(topo_dicts)
 
     def _generate_certs_trcs(self, topo_dicts):
         certgen = CertGenerator(self._cert_args())
