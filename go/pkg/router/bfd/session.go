@@ -196,6 +196,8 @@ func (s *Session) Run() error {
 
 	s.desiredMinTXInterval = defaultTransmissionInterval
 	sendTimer := time.NewTimer(s.desiredMinTXInterval)
+
+	pkt := &layers.BFD{}
 MainLoop:
 	for {
 		select {
@@ -260,7 +262,7 @@ MainLoop:
 			desiredMinTxInterval, _ := durationToBFDInterval(s.desiredMinTXInterval)
 			requiredMinRxInterval, _ := durationToBFDInterval(s.RequiredMinRxInterval)
 
-			pkt := layers.BFD{
+			*pkt = layers.BFD{
 				Version:               1,
 				State:                 layers.BFDState(s.getLocalState()),
 				DetectMultiplier:      s.DetectMult,
@@ -270,7 +272,7 @@ MainLoop:
 				RequiredMinRxInterval: requiredMinRxInterval,
 			}
 
-			if err := s.Sender.Send(&pkt); err != nil {
+			if err := s.Sender.Send(pkt); err != nil {
 				s.debug("error sending message", "err", err)
 				continue
 			}

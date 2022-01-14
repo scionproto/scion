@@ -53,15 +53,17 @@ func computeInterval(transmitInterval time.Duration, detectMult uint,
 	if detectMult == 0 {
 		panic("detection multiplier must be > 0")
 	}
-	if gen == nil {
-		gen = defaultIntervalGenerator{}
-	}
 	jitter := minJitter
 	if detectMult == 1 {
 		jitter = minJitterDetectMult1
 	}
-	jitterPercent := time.Duration(gen.Generate(jitter, maxJitter))
-	return (transmitInterval * (100 - jitterPercent)) / 100
+	var jitterPercent int
+	if gen != nil {
+		jitterPercent = gen.Generate(jitter, maxJitter)
+	} else {
+		jitterPercent = defaultIntervalGenerator{}.Generate(jitter, maxJitter)
+	}
+	return (transmitInterval * time.Duration(100-jitterPercent)) / 100
 }
 
 // IntervalGenerator generates integers in [x, y). It panics if x < 0 or if y <= x.
