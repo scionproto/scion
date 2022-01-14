@@ -119,6 +119,13 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path) (map[string]
 		return nil, serrors.New("deadline required on ctx")
 	}
 
+	for _, path := range paths {
+		_, isScion := path.Dataplane().(snetpath.SCION)
+		if !isScion {
+			return nil, serrors.New("paths must be of type SCION")
+		}
+	}
+
 	// Check whether paths are alive. This is done by sending a traceroute
 	// request for the last interface of the path.
 	// Receiving the traceroute response means that the path is alive.
@@ -175,21 +182,34 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path) (map[string]
 
 			// Send probe for each path.
 			for _, path := range paths {
-				seqNr := atomic.AddInt32(&seq, 1)
-				localAddr := snet.SCIONAddress{
-					IA:   p.LocalIA,
-					Host: addr.HostFromIP(localIP),
+				originalPath, ok := path.Dataplane().(snetpath.SCION)
+				if !ok {
+					return serrors.New("not a scion path")
 				}
-				if err := p.sendProbe(conn, localAddr, path, uint16(seqNr)); err != nil {
-					return serrors.WrapStr("sending probe", err, "local", localIP)
+
+				// Copy path to avoid editing the underlying path.
+				alertPath := snetpath.SCION{Raw: append([]byte(nil), originalPath.Raw...)}
+				if err := setAlertFlag(&alertPath, true); err != nil {
+					return err
 				}
-				// Remove the alert flag that was set when sending the probe packet
-				scionPath, isScion := path.Dataplane().(snetpath.SCION)
-				if !isScion {
-					return serrors.New("unexpected path type",
-						"type", common.TypeOf(path.Dataplane()))
+				pkt := &snet.Packet{
+					PacketInfo: snet.PacketInfo{
+						Destination: snet.SCIONAddress{
+							IA:   p.DstIA,
+							Host: addr.SvcNone,
+						},
+						Source: snet.SCIONAddress{
+							IA:   p.LocalIA,
+							Host: addr.HostFromIP(localIP),
+						},
+						Path: alertPath,
+						Payload: snet.SCMPTracerouteRequest{
+							Identifier: p.ID,
+							Sequence:   uint16(atomic.AddInt32(&seq, 1)),
+						},
+					},
 				}
-				if err := setAlertFlag(&scionPath, false); err != nil {
+				if err := conn.WriteTo(pkt, path.UnderlayNextHop()); err != nil {
 					return err
 				}
 			}
@@ -233,36 +253,6 @@ func (p Prober) resolveLocalIP(target *net.UDPAddr) (net.IP, error) {
 		return nil, serrors.WrapStr("resolving local IP", err)
 	}
 	return localIP, nil
-}
-
-func (p Prober) sendProbe(
-	scionConn snet.PacketConn,
-	localAddr snet.SCIONAddress,
-	path snet.Path,
-	nextSeq uint16,
-) error {
-	alertingPath, ok := path.Dataplane().(snetpath.SCION)
-	if !ok {
-		return serrors.New("not a scion path")
-	}
-	if err := setAlertFlag(&alertingPath, true); err != nil {
-		return err
-	}
-	pkt := &snet.Packet{
-		PacketInfo: snet.PacketInfo{
-			Destination: snet.SCIONAddress{
-				IA:   p.DstIA,
-				Host: addr.SvcNone,
-			},
-			Source: localAddr,
-			Path:   alertingPath,
-			Payload: snet.SCMPTracerouteRequest{
-				Identifier: p.ID,
-				Sequence:   nextSeq,
-			},
-		},
-	}
-	return scionConn.WriteTo(pkt, path.UnderlayNextHop())
 }
 
 type reply struct {

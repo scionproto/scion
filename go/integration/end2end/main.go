@@ -337,6 +337,7 @@ func (c *client) ping(ctx context.Context, n int, path snet.Path) error {
 			},
 		},
 	}
+	log.Info("sending ping", "attempt", n, "path", path)
 	if err := c.conn.WriteTo(pkt, remote.NextHop); err != nil {
 		return err
 	}

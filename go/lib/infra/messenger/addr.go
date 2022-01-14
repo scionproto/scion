@@ -132,11 +132,7 @@ func (r AddressRewriter) RedirectToQUIC(ctx context.Context,
 func (r AddressRewriter) buildFullAddress(ctx context.Context,
 	s *snet.SVCAddr) (*snet.SVCAddr, error) {
 
-	if s.Path == nil {
-		s.Path = path.Empty{}
-	}
-
-	if _, isEmpty := s.Path.(path.Empty); !isEmpty {
+	if _, isEmpty := s.Path.(path.Empty); !isEmpty && s.Path != nil {
 		ret := &snet.SVCAddr{
 			IA:      s.IA,
 			Path:    s.Path,
