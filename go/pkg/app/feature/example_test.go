@@ -38,5 +38,5 @@ func Example_notSupported() {
 	}
 	err := feature.Parse([]string{"one"}, &featureSet)
 	fmt.Println(err.Error())
-	// Output: feature not supported{feature=one}
+	// Output: feature not supported {feature=one}
 }

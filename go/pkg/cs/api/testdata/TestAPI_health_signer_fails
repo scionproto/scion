@@ -1,0 +1,21 @@
+{
+    "health": {
+        "checks": [
+            {
+                "data": {},
+                "name": "valid signer available",
+                "status": "failing"
+            },
+            {
+                "data": {
+                    "base_number": 2,
+                    "isd": 12,
+                    "serial_number": 1
+                },
+                "name": "TRC for local ISD available",
+                "status": "passing"
+            }
+        ],
+        "status": "failing"
+    }
+}

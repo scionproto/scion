@@ -1,0 +1,20 @@
+{
+    "health": {
+        "checks": [
+            {
+                "data": {
+                    "expires_at": "EXPIRES_AT"
+                },
+                "detail": "signer certificate is close to expiration",
+                "name": "valid signer available",
+                "status": "degraded"
+            },
+            {
+                "data": {},
+                "name": "TRC for local ISD available",
+                "status": "failing"
+            }
+        ],
+        "status": "failing"
+    }
+}

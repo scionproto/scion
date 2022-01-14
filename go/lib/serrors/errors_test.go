@@ -294,7 +294,7 @@ func ExampleWithCtx() {
 
 	fmt.Println(addedCtx)
 	// Output:
-	// Unsupported L4 protocol{type=SCTP}
+	// Unsupported L4 protocol {type=SCTP}
 }
 
 func ExampleWrapStr() {
@@ -307,7 +307,7 @@ func ExampleWrapStr() {
 	// Output:
 	// true
 	//
-	// wrap with more context{ctx=1}: no space
+	// wrap with more context {ctx=1}: no space
 }
 
 func ExampleWrap() {
@@ -327,7 +327,7 @@ func ExampleWrap() {
 	// true
 	// true
 	//
-	// db{ctx=1}: no space
+	// db {ctx=1}: no space
 }
 
 // sanitizeLog sanitizes the log output so that stack traces look the same on

@@ -25,7 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log/testlog"
 	"github.com/scionproto/scion/go/pkg/router/bfd"
 )
 
@@ -72,7 +72,6 @@ func TestSession(t *testing.T) {
 				DetectMult:            1,
 				DesiredMinTxInterval:  100 * time.Millisecond,
 				RequiredMinRxInterval: 50 * time.Millisecond,
-				Logger:                log.New(),
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
 				ReceiveQueueSize:      10,
@@ -81,7 +80,6 @@ func TestSession(t *testing.T) {
 				DetectMult:            1,
 				DesiredMinTxInterval:  100 * time.Millisecond,
 				RequiredMinRxInterval: 50 * time.Millisecond,
-				Logger:                log.New(),
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
 				ReceiveQueueSize:      10,
@@ -99,7 +97,6 @@ func TestSession(t *testing.T) {
 				DetectMult:            1,
 				DesiredMinTxInterval:  100 * time.Millisecond,
 				RequiredMinRxInterval: 50 * time.Millisecond,
-				Logger:                log.New(),
 				LocalDiscriminator:    1,
 				ReceiveQueueSize:      10,
 			},
@@ -107,7 +104,6 @@ func TestSession(t *testing.T) {
 				DetectMult:            1,
 				DesiredMinTxInterval:  100 * time.Millisecond,
 				RequiredMinRxInterval: 50 * time.Millisecond,
-				Logger:                log.New(),
 				LocalDiscriminator:    2,
 				ReceiveQueueSize:      10,
 			},
@@ -124,7 +120,6 @@ func TestSession(t *testing.T) {
 				DetectMult:            1,
 				DesiredMinTxInterval:  50 * time.Millisecond,
 				RequiredMinRxInterval: 100 * time.Millisecond,
-				Logger:                log.New(),
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
 				ReceiveQueueSize:      10,
@@ -133,7 +128,6 @@ func TestSession(t *testing.T) {
 				DetectMult:            1,
 				DesiredMinTxInterval:  50 * time.Millisecond,
 				RequiredMinRxInterval: 100 * time.Millisecond,
-				Logger:                log.New(),
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
 				ReceiveQueueSize:      10,
@@ -151,7 +145,6 @@ func TestSession(t *testing.T) {
 				DetectMult:            5,
 				DesiredMinTxInterval:  50 * time.Millisecond,
 				RequiredMinRxInterval: 25 * time.Millisecond,
-				Logger:                log.New(),
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
 				ReceiveQueueSize:      10,
@@ -160,7 +153,6 @@ func TestSession(t *testing.T) {
 				DetectMult:            5,
 				DesiredMinTxInterval:  50 * time.Millisecond,
 				RequiredMinRxInterval: 25 * time.Millisecond,
-				Logger:                log.New(),
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
 				ReceiveQueueSize:      10,
@@ -178,7 +170,6 @@ func TestSession(t *testing.T) {
 				DetectMult:            3,
 				DesiredMinTxInterval:  50 * time.Millisecond,
 				RequiredMinRxInterval: 25 * time.Millisecond,
-				Logger:                log.New(),
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
 				ReceiveQueueSize:      10,
@@ -187,7 +178,6 @@ func TestSession(t *testing.T) {
 				DetectMult:            3,
 				DesiredMinTxInterval:  50 * time.Millisecond,
 				RequiredMinRxInterval: 25 * time.Millisecond,
-				Logger:                log.New(),
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
 				ReceiveQueueSize:      10,
@@ -208,7 +198,6 @@ func TestSession(t *testing.T) {
 				DetectMult:            3,
 				DesiredMinTxInterval:  50 * time.Millisecond,
 				RequiredMinRxInterval: 25 * time.Millisecond,
-				Logger:                log.New(),
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
 				ReceiveQueueSize:      10,
@@ -217,7 +206,6 @@ func TestSession(t *testing.T) {
 				DetectMult:            3,
 				DesiredMinTxInterval:  50 * time.Millisecond,
 				RequiredMinRxInterval: 25 * time.Millisecond,
-				Logger:                log.New(),
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
 				ReceiveQueueSize:      10,
@@ -237,7 +225,6 @@ func TestSession(t *testing.T) {
 				DetectMult:            3,
 				DesiredMinTxInterval:  50 * time.Millisecond,
 				RequiredMinRxInterval: 25 * time.Millisecond,
-				Logger:                log.New(),
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
 				ReceiveQueueSize:      10,
@@ -246,7 +233,6 @@ func TestSession(t *testing.T) {
 				DetectMult:            3,
 				DesiredMinTxInterval:  50 * time.Millisecond,
 				RequiredMinRxInterval: 25 * time.Millisecond,
-				Logger:                log.New(),
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
 				ReceiveQueueSize:      10,
@@ -289,6 +275,7 @@ func TestSession(t *testing.T) {
 				linkBToA.Sending(true)
 				time.Sleep(2 * time.Second)
 			},
+			disableLogging: true,
 		},
 	}
 
@@ -301,11 +288,16 @@ func TestSession(t *testing.T) {
 func sessionSubtest(name string, tc *sessionTestCase) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Parallel()
+
 		linkAToB := &redirectSender{Destination: tc.sessionB.Messages()}
 		linkBToA := &redirectSender{Destination: tc.sessionA.Messages()}
 
 		tc.sessionA.Sender = linkAToB
 		tc.sessionB.Sender = linkBToA
+		if !tc.disableLogging {
+			tc.sessionA.Logger = testlog.NewLogger(t).New("session", "a")
+			tc.sessionB.Logger = testlog.NewLogger(t).New("session", "b")
+		}
 
 		var wg sync.WaitGroup
 		wg.Add(2)
@@ -345,7 +337,7 @@ func TestSessionDebootstrap(t *testing.T) {
 		DetectMult:            1,
 		DesiredMinTxInterval:  100 * time.Millisecond,
 		RequiredMinRxInterval: 50 * time.Millisecond,
-		Logger:                log.New(),
+		Logger:                testlog.NewLogger(t).New("session", "a1"),
 		LocalDiscriminator:    1234,
 		ReceiveQueueSize:      10,
 	}
@@ -353,7 +345,7 @@ func TestSessionDebootstrap(t *testing.T) {
 		DetectMult:            1,
 		DesiredMinTxInterval:  100 * time.Millisecond,
 		RequiredMinRxInterval: 50 * time.Millisecond,
-		Logger:                log.New(),
+		Logger:                testlog.NewLogger(t).New("session", "a2"),
 		LocalDiscriminator:    4321,
 		ReceiveQueueSize:      10,
 	}
@@ -361,7 +353,7 @@ func TestSessionDebootstrap(t *testing.T) {
 		DetectMult:            1,
 		DesiredMinTxInterval:  100 * time.Millisecond,
 		RequiredMinRxInterval: 50 * time.Millisecond,
-		Logger:                log.New(),
+		Logger:                testlog.NewLogger(t).New("session", "b"),
 		LocalDiscriminator:    2,
 		ReceiveQueueSize:      10,
 	}
@@ -533,7 +525,7 @@ func TestSessionRunInit(t *testing.T) {
 		LocalDiscriminator:    1,
 		RemoteDiscriminator:   2,
 		Sender:                &redirectSender{},
-		Logger:                log.New(),
+		Logger:                testlog.NewLogger(t),
 	}
 
 	barrier := make(chan struct{})

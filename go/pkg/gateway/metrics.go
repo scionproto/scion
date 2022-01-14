@@ -131,6 +131,11 @@ var (
 		Help:   "Number of replies to the path probes being received.",
 		Labels: []string{"isd_as", "remote_isd_as"},
 	}
+	PathProbesSendErrorsMeta = MetricMeta{
+		Name:   "gateway_path_probes_send_errors",
+		Help:   "Number of send error for path probes.",
+		Labels: []string{"isd_as", "remote_isd_as"},
+	}
 	SessionProbesMeta = MetricMeta{
 		Name:   "gateway_session_probes",
 		Help:   "Number of probes sent per session.",
@@ -228,6 +233,7 @@ type Metrics struct {
 	SessionPathsAvailable *prometheus.GaugeVec
 	PathProbesSent        *prometheus.CounterVec
 	PathProbesReceived    *prometheus.CounterVec
+	PathProbesSendErrors  *prometheus.CounterVec
 
 	// Discovery Metrics
 	Remotes            *prometheus.GaugeVec
@@ -294,6 +300,8 @@ func NewMetrics(ia addr.IA) *Metrics {
 		PathProbesSent: PathProbesSentMeta.
 			NewCounterVec().MustCurryWith(labels),
 		PathProbesReceived: PathProbesReceivedMeta.
+			NewCounterVec().MustCurryWith(labels),
+		PathProbesSendErrors: PathProbesSendErrorsMeta.
 			NewCounterVec().MustCurryWith(labels),
 		SessionIsHealthy: SessionIsHealthyMeta.
 			NewGaugeVec().MustCurryWith(labels),

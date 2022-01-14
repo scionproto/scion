@@ -1,0 +1,20 @@
+{
+    "health": {
+        "checks": [
+            {
+                "data": {
+                    "expires_at": "EXPIRES_AT"
+                },
+                "name": "valid signer available",
+                "status": "passing"
+            },
+            {
+                "data": {},
+                "detail": "internal",
+                "name": "TRC for local ISD available",
+                "status": "failing"
+            }
+        ],
+        "status": "failing"
+    }
+}

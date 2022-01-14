@@ -15,11 +15,16 @@
 package beaconing
 
 import (
+	"context"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -81,13 +86,45 @@ func (s *summary) IfIds() []uint16 {
 	return list
 }
 
-type ctr struct {
-	sync.Mutex
-	c int
+// hopDescription creates a human readable description of a AS entry list by
+// describing the hops only.
+func hopsDescription(entries []seg.ASEntry) string {
+	var desc strings.Builder
+
+	for _, entry := range entries {
+		hop := entry.HopEntry.HopField
+		if hop.ConsIngress != 0 {
+			desc.WriteString(strconv.Itoa(int(hop.ConsIngress)))
+			desc.WriteString(" ")
+		}
+		desc.WriteString(entry.Local.String())
+		if hop.ConsEgress != 0 {
+			desc.WriteString(" ")
+			desc.WriteString(strconv.Itoa(int(hop.ConsIngress)))
+			desc.WriteString(">")
+		}
+
+	}
+	return desc.String()
 }
 
-func (c *ctr) Inc() {
-	c.Lock()
-	defer c.Unlock()
-	c.c++
+// withSilent creates a logger based on the logger in the context that only logs
+// at debug level if silent is set. Otherwise, the logger in the context is
+// returned.
+func withSilent(ctx context.Context, silent bool) log.Logger {
+	if silent {
+		return silentLogger{Logger: log.FromCtx(ctx)}
+	}
+	return log.FromCtx(ctx)
+}
+
+type silentLogger struct {
+	log.Logger
+}
+
+func (s silentLogger) Info(msg string, ctx ...interface{}) {
+	s.Logger.Debug(msg, ctx...)
+}
+func (s silentLogger) Error(msg string, ctx ...interface{}) {
+	s.Logger.Debug(msg, ctx...)
 }

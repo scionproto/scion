@@ -42,6 +42,10 @@ func (s Span) Error(msg string, ctx ...interface{}) {
 	s.spanLog("error", msg, ctx...)
 }
 
+func (s Span) Enabled(lvl Level) bool {
+	return s.Logger.Enabled(lvl)
+}
+
 // New creates a new logger with the context attached.
 func (s Span) New(ctx ...interface{}) Logger {
 	return Span{

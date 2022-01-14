@@ -1,0 +1,24 @@
+{
+    "health": {
+        "checks": [
+            {
+                "data": {
+                    "expires_at": "EXPIRES_AT"
+                },
+                "detail": "signer certificate has expired",
+                "name": "valid signer available",
+                "status": "failing"
+            },
+            {
+                "data": {
+                    "base_number": 2,
+                    "isd": 12,
+                    "serial_number": 1
+                },
+                "name": "TRC for local ISD available",
+                "status": "passing"
+            }
+        ],
+        "status": "failing"
+    }
+}

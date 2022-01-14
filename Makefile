@@ -54,6 +54,3 @@ lint:
 
 golangci-lint:
 	docker run --rm -v "${PWD}:/src" -w /src golangci/golangci-lint:v1.41.1 golangci-lint run --config=/src/.golangcilint.yml --timeout=3m go/...
-
-golden:
-	./tools/update_testdata.sh

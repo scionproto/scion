@@ -1,0 +1,21 @@
+{
+    "health": {
+        "checks": [
+            {
+                "data": {
+                    "expires_at": "EXPIRES_AT",
+                    "in_grace": true
+                },
+                "detail": "signer certificate is authenticated\n\t\tby TRC in grace period",
+                "name": "valid signer available",
+                "status": "degraded"
+            },
+            {
+                "data": {},
+                "name": "TRC for local ISD available",
+                "status": "failing"
+            }
+        ],
+        "status": "failing"
+    }
+}

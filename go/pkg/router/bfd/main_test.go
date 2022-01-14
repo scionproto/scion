@@ -18,10 +18,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log/testlog"
 )
 
 func TestMain(m *testing.M) {
-	log.Discard()
+	// TODO(sustrik): This test is failing once in a while but the problem is almost impossible
+	// to reproduce. This way we'll at least have better understanding on what's going on.
+	testlog.SetupGlobal()
+
 	os.Exit(m.Run())
 }

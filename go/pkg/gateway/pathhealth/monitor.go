@@ -19,38 +19,23 @@ package pathhealth
 
 import (
 	"context"
-	"errors"
-	"io"
-	"net"
 	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const (
 	// defaultPathUpdateInterval specifies how often the paths are retrieved from the daemon.
 	defaultPathUpdateInterval = 10 * time.Second
-	// defaultProbeInterval specifies how often should path probes be sent.
-	defaultProbeInterval = 500 * time.Millisecond
 )
 
-// RemoteWatcher watches multiple paths to a given remote.
 type RemoteWatcher interface {
-	// UpdatePaths gets new paths from the SCION daemon. This method may block.
-	UpdatePaths(context.Context, snet.Router)
-	// SendProbes sends probes on all the monitored paths.
-	SendProbes(ctx context.Context, conn snet.PacketConn, localAddr snet.SCIONAddress)
-	// HandleProbeReply handles a single probe reply packet.
-	HandleProbeReply(ctx context.Context, id, seq uint16)
-	// Cleanup stops monitoring paths that are not being used anymore.
-	Cleanup(ctx context.Context)
-	// Watchers returns a list of all active PathWatchers
-	Watchers() []PathWatcher
+	Run(context.Context)
+	PathWatchers() []PathWatcher
 }
 
 // RemoteWatcherFactory creates RemoteWatchers.
@@ -68,280 +53,64 @@ type RevocationStore interface {
 	Cleanup(ctx context.Context)
 }
 
-// Monitor monitors paths to a set of remote ASes.
 type Monitor struct {
-	// LocalIA is the ID of the local AS.
-	LocalIA addr.IA
-	// LocalIP is the IP address of the local host.
-	LocalIP net.IP
-	// Conn is the underlying conn for sending probes
-	Conn net.PacketConn
-	// RevocationHandler is the revocation handler.
-	RevocationHandler snet.RevocationHandler
-	// Router is the path manager connected to the SCION daemon.
-	Router snet.Router
-	// PathUpdateInterval specified how often the paths are retrieved from the daemon.
-	PathUpdateInterval time.Duration
-	// Probeinterval defines the interval at which probes are sent. If it is not
-	// set a default is used.
-	ProbeInterval time.Duration
-	// RevocationStore keeps track of the revocations.
-	RevocationStore RevocationStore
 	// RemoteWatcherFactory creates a RemoteWatcher for the specified remote.
 	RemoteWatcherFactory RemoteWatcherFactory
 
-	// conn is the snet connection used to exchange the probes.
-	conn snet.PacketConn
-	// stopChannel transports stop signal to the worker goroutine.
-	stopChannel chan struct{}
-
-	mutex sync.Mutex
-	// initialized is set to true once the internals of the object have been initialized.
-	initialized bool
-	// runCalled is set to true once Run has been called at least once.
-	runCalled bool
+	mtx sync.Mutex
 	// remoteWatchers is a map of all monitored IAs.
 	remoteWatchers map[addr.IA]*remoteWatcherItem
-	pktChan        <-chan traceroutePkt
-
-	SCMPErrors             metrics.Counter
-	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
-}
-
-func (m *Monitor) ensureInitialized() {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	m.ensureInitializedLocked()
-}
-
-func (m *Monitor) ensureInitializedLocked() {
-	if m.initialized {
-		return
-	}
-	m.initialized = true
-
-	if m.PathUpdateInterval == 0 {
-		m.PathUpdateInterval = defaultPathUpdateInterval
-	}
-	if m.ProbeInterval == 0 {
-		m.ProbeInterval = defaultProbeInterval
-	}
-	m.stopChannel = make(chan struct{})
-	m.remoteWatchers = make(map[addr.IA]*remoteWatcherItem)
-
-	pktChan := make(chan traceroutePkt, 10)
-	m.pktChan = pktChan
-	m.conn = &snet.SCIONPacketConn{
-		Conn: m.Conn,
-		SCMPHandler: scmpHandler{
-			wrappedHandler: snet.DefaultSCMPHandler{
-				RevocationHandler: m.RevocationHandler,
-				SCMPErrors:        m.SCMPErrors,
-			},
-			pkts: pktChan,
-		},
-		Metrics: m.SCIONPacketConnMetrics,
-	}
-}
-
-// Run starts the monitor and blocks until Close is called.
-func (m *Monitor) Run(ctx context.Context) {
-	m.ensureInitialized()
-	logger := log.FromCtx(ctx)
-	if m.runCalledF() {
-		panic("Run can only be called once")
-	}
-	logger.Info("Started PathMonitor")
-	go func() {
-		defer log.HandlePanic()
-		m.handleProbeReplies(ctx)
-	}()
-	go func() {
-		defer log.HandlePanic()
-		m.drainConn(ctx)
-	}()
-	m.run(ctx)
-}
-
-func (m *Monitor) runCalledF() bool {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-
-	if m.runCalled {
-		return true
-	}
-	m.runCalled = true
-	return false
 }
 
 // Register starts monitoring given AS under the specified selector.
-func (m *Monitor) Register(ctx context.Context, remote addr.IA,
-	selector PathSelector) *Registration {
-
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+func (m *Monitor) Register(remote addr.IA, selector PathSelector) *Registration {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
 
 	m.ensureInitializedLocked()
 
 	// If a monitor for the given AS does not exist, create it.
 	// Otherwise, increase its reference count.
-	remoteWatcher := m.remoteWatchers[remote]
-	if remoteWatcher == nil {
-		remoteWatcher = &remoteWatcherItem{
+	item := m.remoteWatchers[remote]
+	if item == nil {
+		ctx, cancel := context.WithCancel(context.Background())
+		item = &remoteWatcherItem{
 			RemoteWatcher: m.RemoteWatcherFactory.New(remote),
 			refCount:      1,
+			remote:        remote,
+			cancel:        cancel,
 		}
-		m.remoteWatchers[remote] = remoteWatcher
-		remoteWatcher.UpdatePaths(ctx, m.Router)
+		m.remoteWatchers[remote] = item
+		go func() {
+			defer log.HandlePanic()
+			item.Run(ctx)
+		}()
 	} else {
-		remoteWatcher.refCount++
+		item.refCount++
 	}
 	return &Registration{
 		monitor:       m,
-		remoteWatcher: remoteWatcher,
+		remoteWatcher: item,
 		pathSelector:  selector,
 	}
 }
 
-// Close stops the path monitor.
-func (m *Monitor) Close() {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	m.ensureInitializedLocked()
-	close(m.stopChannel)
+func (m *Monitor) ensureInitializedLocked() {
+	if m.remoteWatchers != nil {
+		return
+	}
+	m.remoteWatchers = make(map[addr.IA]*remoteWatcherItem)
 }
 
 func (m *Monitor) unregister(remoteWatcher *remoteWatcherItem) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
 	// If the monitor for the IA is not needed any more, remove it.
 	remoteWatcher.refCount--
 	if remoteWatcher.refCount == 0 {
+		remoteWatcher.cancel()
 		delete(m.remoteWatchers, remoteWatcher.remote)
 	}
-}
-
-// run triggers periodical tasks on the pathmonitor.
-func (m *Monitor) run(ctx context.Context) {
-	logger := log.FromCtx(ctx)
-	pathUpdateTicker := time.NewTicker(m.PathUpdateInterval)
-	probeTicker := time.NewTicker(m.ProbeInterval)
-	defer probeTicker.Stop()
-	defer m.conn.Close() // This kills the handleProbeReply goroutine.
-	defer logger.Info("Terminated PathMonitor")
-
-	m.updatePaths(ctx)
-	for {
-		select {
-		case <-pathUpdateTicker.C:
-			m.updatePaths(ctx)
-		case <-probeTicker.C:
-			m.cleanup(ctx)
-			m.sendProbes(ctx)
-		case <-m.stopChannel:
-			return
-		}
-	}
-}
-
-// updatePaths gets new set of paths from SCION daemon.
-func (m *Monitor) updatePaths(ctx context.Context) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	for _, remoteWatcher := range m.remoteWatchers {
-		remoteWatcher.UpdatePaths(ctx, m.Router)
-	}
-}
-
-// sendProbes sends probes through all the monitored paths.
-func (m *Monitor) sendProbes(ctx context.Context) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	localAddr := snet.SCIONAddress{IA: m.LocalIA, Host: addr.HostFromIP(m.LocalIP)}
-	for _, remoteWatcher := range m.remoteWatchers {
-		remoteWatcher.SendProbes(ctx, m.conn, localAddr)
-	}
-}
-
-// cleanup deletes all unused paths from monitoring as well as all expired revocations.
-func (m *Monitor) cleanup(ctx context.Context) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	for _, remoteWatcher := range m.remoteWatchers {
-		remoteWatcher.Cleanup(ctx)
-	}
-	m.RevocationStore.Cleanup(ctx)
-}
-
-func (m *Monitor) drainConn(ctx context.Context) {
-	logger := log.FromCtx(ctx)
-	closing := func() bool {
-		select {
-		case <-m.stopChannel:
-			return true
-		default:
-			return false
-		}
-	}
-
-	for {
-		var pkt snet.Packet
-		var ov net.UDPAddr
-
-		err := m.conn.ReadFrom(&pkt, &ov)
-		// This avoids logging errors for closing connections.
-		if closing() {
-			return
-		}
-		if errors.Is(err, io.EOF) {
-			// dispatcher is currently down so back off.
-			time.Sleep(500 * time.Millisecond)
-			continue
-		}
-		if err != nil {
-			opErr, ok := err.(*snet.OpError)
-			if ok {
-				m.handleRevocation(ctx, opErr.RevInfo())
-				continue
-			}
-			logger.Info("Unexpected error when reading probe replies", "err", err)
-		}
-	}
-}
-
-// handleProbeReplies reads incoming probe replies and dispatches them as needed.
-func (m *Monitor) handleProbeReplies(ctx context.Context) {
-	for {
-		select {
-		case pkt := <-m.pktChan:
-			m.handleProbeReply(ctx, pkt)
-		case <-m.stopChannel:
-			return
-		}
-	}
-}
-
-// handleRevocation deals with a received revocation
-func (m *Monitor) handleRevocation(ctx context.Context, rev *path_mgmt.RevInfo) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	m.RevocationStore.AddRevocation(ctx, rev)
-}
-
-// handleProbeReply dispatches a single probe reply packet.
-func (m *Monitor) handleProbeReply(ctx context.Context, pkt traceroutePkt) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-
-	logger := log.FromCtx(ctx)
-	remoteWatcher := m.remoteWatchers[pkt.Remote]
-	if remoteWatcher == nil {
-		logger.Debug("Unsolicited reply (ISD-AS no longer monitored)",
-			"remote", pkt.Remote)
-		// Reply from an IA that is no longer monitored.
-		return
-	}
-	remoteWatcher.HandleProbeReply(ctx, pkt.Identifier, pkt.Sequence)
 }
 
 // remoteWatcherItem is a helper structure that augments RemoteWatcher with
@@ -351,4 +120,5 @@ type remoteWatcherItem struct {
 	remote addr.IA
 	// refCount keeps track of how many references to this object there are.
 	refCount int
+	cancel   context.CancelFunc
 }
