@@ -37,6 +37,7 @@ func TestGatewayWatcherRun(t *testing.T) {
 
 	fetcherCounts := metrics.NewTestCounter()
 	discoveryCounts := metrics.NewTestCounter()
+	remotes := metrics.NewTestGauge()
 
 	gateway1 := control.Gateway{Control: udp(t, "127.0.0.1:30256")}
 	gateway2 := control.Gateway{Control: udp(t, "127.0.0.2:30256")}
@@ -61,41 +62,57 @@ func TestGatewayWatcherRun(t *testing.T) {
 		},
 	)
 
-	discoverer.EXPECT().Gateways(gomock.Any()).AnyTimes().DoAndReturn(
+	// we use super high values for the interval so that we can be certain that
+	// periodicity never kicks in and only we are controlling when things run.
+	w := control.GatewayWatcher{
+		Discoverer:       discoverer,
+		DiscoverInterval: 10 * time.Hour,
+		Template: control.PrefixWatcherConfig{
+			Consumer:       mock_control.NewMockPrefixConsumer(ctrl),
+			FetcherFactory: fetcherFactory,
+			PollInterval:   10 * time.Hour,
+		},
+		Metrics: control.GatewayWatcherMetrics{
+			Remotes: remotes,
+		},
+	}
+
+	// run initially
+	remotes.Set(0)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	go w.Run(ctx)
+	for {
+		if metrics.GaugeValue(remotes) > 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	cancel()
+	g1 := fetcherCounts.With("gateway", gateway1.Control.String())
+	g2 := fetcherCounts.With("gateway", gateway2.Control.String())
+
+	// fetching should have happened exactly once.
+	assert.Equal(t, 1, int(metrics.CounterValue(g1)))
+	assert.Equal(t, 1, int(metrics.CounterValue(g2)))
+	assert.Equal(t, 1, int(metrics.CounterValue(discoveryCounts)))
+
+	// now let's reset and remove one gateway, this time we only return gateway1
+	discoverer.EXPECT().Gateways(gomock.Any()).DoAndReturn(
 		func(interface{}) ([]control.Gateway, error) {
 			discoveryCounts.Add(1)
 			return []control.Gateway{gateway1}, nil
 		},
 	)
+	w.RunOnce(context.Background())
+	ctx, cancel = context.WithCancel(context.Background())
+	// nothing really checks the context except the run loop, so we can
+	// immediately cancel and then it will run only once.
+	cancel()
+	w.RunAllPrefixWatchersOnceForTest(ctx)
 
-	w := control.GatewayWatcher{
-		Discoverer:       discoverer,
-		DiscoverInterval: 10 * time.Millisecond,
-		Template: control.PrefixWatcherConfig{
-			Consumer:       mock_control.NewMockPrefixConsumer(ctrl),
-			FetcherFactory: fetcherFactory,
-			PollInterval:   1 * time.Millisecond,
-		},
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-	defer cancel()
-
-	go w.Run(ctx)
-	<-ctx.Done()
-	time.Sleep(10 * time.Millisecond)
-
-	g1 := fetcherCounts.With("gateway", gateway1.Control.String())
-	g2 := fetcherCounts.With("gateway", gateway2.Control.String())
-
-	// Use loose lower and upper bounds to avoid flakiness. The exact values is
-	// not important. Important is, that gateway 1 still fetches prefixes after
-	// the discoverer has dropped gateway 2. On the other hand, gateway 2 must
-	// not fetch prefixes after the second discovery.
-	assert.Greater(t, metrics.CounterValue(g1), 25.)
-	assert.Less(t, metrics.CounterValue(g2), 15.)
-	assert.GreaterOrEqual(t, metrics.CounterValue(g2), 5.)
-	assert.Greater(t, metrics.CounterValue(discoveryCounts), 2.)
+	assert.Equal(t, 2, int(metrics.CounterValue(g1)))
+	assert.Equal(t, 1, int(metrics.CounterValue(g2)))
+	assert.Equal(t, 2, int(metrics.CounterValue(discoveryCounts)))
 }
 
 func TestPrefixWatcherRun(t *testing.T) {

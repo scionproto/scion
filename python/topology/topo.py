@@ -49,10 +49,7 @@ from python.topology.net import (
     SubnetGenerator
 )
 
-DEFAULT_LINK_BW = 1000
-
 DEFAULT_BEACON_SERVERS = 1
-DEFAULT_GRACE_PERIOD = 18000
 DEFAULT_CONTROL_SERVERS = 1
 DEFAULT_COLIBRI_SERVERS = 1
 
@@ -328,7 +325,6 @@ class TopoGenerator(object):
                 'public': join_host_port(public_addr.ip, SCION_ROUTER_PORT),
                 'remote': join_host_port(remote_addr.ip, SCION_ROUTER_PORT),
             },
-            'bandwidth': attrs.get('bw', DEFAULT_LINK_BW),
             'isd_as': str(remote),
             'link_to': LinkType.to_str(remote_type.lower()),
             'mtu': attrs.get('mtu', self.args.default_mtu)

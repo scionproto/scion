@@ -246,8 +246,10 @@ func RegisterHTTPEndpoints(
 		"info":      service.NewInfoStatusPage(),
 		"config":    service.NewConfigStatusPage(cfg),
 		"log/level": service.NewLogLevelStatusPage(),
-		"topology":  service.NewTopologyStatusPage(topo),
 		"signer":    signerStatusPage(signer),
+	}
+	if topo != nil {
+		statusPages["topology"] = service.NewTopologyStatusPage(topo)
 	}
 	if ca != (renewal.ChainBuilder{}) {
 		statusPages["ca"] = caStatusPage(ca)

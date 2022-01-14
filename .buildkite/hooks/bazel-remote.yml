@@ -3,9 +3,15 @@ services:
   bazel-remote:
     container_name: bazel-remote-cache
     command:
-      ["--max_size=10", "--experimental_remote_asset_api", "--profile_port=0"]
+      [
+        "--max_size=10",
+        "--experimental_remote_asset_api",
+        "--profile_port=0",
+        "--s3.auth_method=access_key",
+        "--enable_endpoint_metrics",
+      ]
     network_mode: host
-    image: $REGISTRY/buchgr/bazel-remote-cache:v2.1.1
+    image: $REGISTRY/buchgr/bazel-remote-cache:v2.3.0
     environment:
       BAZEL_REMOTE_S3_BUCKET: $BAZEL_REMOTE_S3_BUCKET
       BAZEL_REMOTE_S3_ENDPOINT: s3.eu-central-1.amazonaws.com

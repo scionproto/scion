@@ -15,21 +15,20 @@
 package api
 
 import (
-	"context"
+	"encoding/json"
 	"net/http"
 
-	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/pkg/api"
+	"github.com/scionproto/scion/go/pkg/router/control"
 )
-
-type SegmentsStore interface {
-	Get(context.Context, *query.Params) (query.Results, error)
-}
 
 // Server implements the Control Service API.
 type Server struct {
-	Config   http.HandlerFunc
-	Info     http.HandlerFunc
-	LogLevel http.HandlerFunc
+	Config    http.HandlerFunc
+	Info      http.HandlerFunc
+	LogLevel  http.HandlerFunc
+	Dataplane control.ObservableDataplane
 }
 
 // GetConfig is an indirection to the http handler.
@@ -50,4 +49,111 @@ func (s *Server) GetLogLevel(w http.ResponseWriter, r *http.Request) {
 // SetLogLevel is an indirection to the http handler.
 func (s *Server) SetLogLevel(w http.ResponseWriter, r *http.Request) {
 	s.LogLevel(w, r)
+}
+
+// GetInterfaces gets the interfaces and sibling interfaces of the router.
+func (s *Server) GetInterfaces(w http.ResponseWriter, r *http.Request) {
+	internalInterfaces, err := s.Dataplane.ListInternalInterfaces()
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "error getting internal interface",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	externalInterfaces, err := s.Dataplane.ListExternalInterfaces()
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "error getting external interfaces",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	siblingInterfaces, err := s.Dataplane.ListSiblingInterfaces()
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "error getting sibling interfaces",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	intfs := make([]Interface, 0, len(externalInterfaces))
+	siblings := make([]SiblingInterface, 0, len(externalInterfaces))
+
+	findInternalInterface := func(ia addr.IA) string {
+		for _, intf := range internalInterfaces {
+			if intf.IA.Equal(ia) {
+				return intf.Addr.String()
+			}
+		}
+		return "undefined"
+	}
+	for _, intf := range externalInterfaces {
+		newInterface := Interface{
+			Bfd: BFD{
+				DesiredMinimumTxInterval: intf.Link.BFD.DesiredMinTxInterval.String(),
+				DetectionMultiplier:      int(intf.Link.BFD.DetectMult),
+				Enabled:                  !intf.Link.BFD.Disable,
+				RequiredMinimumReceive:   intf.Link.BFD.RequiredMinRxInterval.String(),
+			},
+			InterfaceId:       int(intf.InterfaceID),
+			InternalInterface: findInternalInterface(intf.Link.Local.IA),
+			Neighbor: InterfaceNeighbor{
+				Address: intf.Link.Remote.Addr.String(),
+				IsdAs:   IsdAs(intf.Link.Remote.IA.String()),
+			},
+			Relationship: LinkRelationship(intf.Link.LinkTo.String()),
+			ScionMtu:     ScionMTU(intf.Link.MTU),
+			State:        LinkState(intf.State),
+		}
+
+		intfs = append(intfs, newInterface)
+	}
+
+	for _, intf := range siblingInterfaces {
+		siblingInterface := SiblingInterface{
+			InterfaceId:       int(intf.InterfaceID),
+			InternalInterface: intf.InternalInterface.String(),
+			Neighbor: SiblingNeighbor{
+				IsdAs: IsdAs(intf.NeighborIA.String()),
+			},
+			Relationship: LinkRelationship(intf.Relationship.String()),
+			ScionMtu:     ScionMTU(intf.MTU),
+			State:        LinkState(intf.State),
+		}
+
+		siblings = append(siblings, siblingInterface)
+	}
+
+	rep := InterfacesResponse{
+		Interfaces:        &intfs,
+		SiblingInterfaces: &siblings,
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "    ")
+	if err := enc.Encode(rep); err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to marshal response",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+}
+
+// Error creates an detailed error response.
+func Error(w http.ResponseWriter, p Problem) {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(p.Status)
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "    ")
+	// no point in catching error here, there is nothing we can do about it anymore.
+	enc.Encode(p)
 }

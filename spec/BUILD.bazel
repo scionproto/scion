@@ -5,8 +5,11 @@ openapi_bundle(
     srcs = [
         "//spec/common:base.yml",
         "//spec/common:process.yml",
-        "//spec/control:segments.yml",
-        "//spec/control:trust.yml",
+        "//spec/control:beacons.yml",
+        "//spec/control:cppki.yml",
+        "//spec/cppki:spec.yml",
+        "//spec/health:spec.yml",
+        "//spec/segments:spec.yml",
     ],
     entrypoint = "//spec/control:spec.yml",
     visibility = ["//visibility:public"],
@@ -39,6 +42,8 @@ openapi_bundle(
     srcs = [
         "//spec/common:base.yml",
         "//spec/common:process.yml",
+        "//spec/cppki:spec.yml",
+        "//spec/segments:spec.yml",
     ],
     entrypoint = "//spec/daemon:spec.yml",
     visibility = ["//visibility:public"],
@@ -59,7 +64,39 @@ openapi_bundle(
     srcs = [
         "//spec/common:base.yml",
         "//spec/common:process.yml",
+        "//spec/common:scion.yml",
+        "//spec/router:interfaces.yml",
     ],
     entrypoint = "//spec/router:spec.yml",
+    visibility = ["//visibility:public"],
+)
+
+openapi_bundle(
+    name = "segments",
+    srcs = [
+        "//spec/common:base.yml",
+        "//spec/common:process.yml",
+    ],
+    entrypoint = "//spec/segments:spec.yml",
+    visibility = ["//visibility:public"],
+)
+
+openapi_bundle(
+    name = "cppki",
+    srcs = [
+        "//spec/common:base.yml",
+        "//spec/common:process.yml",
+    ],
+    entrypoint = "//spec/cppki:spec.yml",
+    visibility = ["//visibility:public"],
+)
+
+openapi_bundle(
+    name = "health",
+    srcs = [
+        "//spec/common:base.yml",
+        "//spec/common:process.yml",
+    ],
+    entrypoint = "//spec/health:spec.yml",
     visibility = ["//visibility:public"],
 )

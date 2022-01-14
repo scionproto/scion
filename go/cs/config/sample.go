@@ -36,6 +36,7 @@ max_as_validity = "3d"
 
 # The mode the CA handler of this control service operates in.
 #
+# - disabled:   In this mode, control AS is not a CA.
 # - in-process: In this mode, the certificates are renewed in the control
 #               service process. This means it needs access to the CA private
 #               key and a currently active CA certificate.
@@ -46,7 +47,7 @@ max_as_validity = "3d"
 #               authenticate itself. Note that legacy requests will always
 #               be handled in-process, even if delegating mode is selected.
 #
-# (default in-process)
+# (default disabled)
 mode = "in-process"
 `
 

@@ -49,7 +49,7 @@ steps:
       - cp -R antlr/ /tmp/test-artifacts/antlr
       - make antlr
       - diff -ur /tmp/test-artifacts/antlr/ antlr/
-      - make golden
+      - ./tools/update_testdata.sh
     timeout_in_minutes: 15
     key: check_generated
     retry:

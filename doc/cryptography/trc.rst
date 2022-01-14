@@ -190,7 +190,7 @@ TRC decides on the value. This field is optional and defaults to FALSE.
 
 On trust resets, this value MAY be changed. Notice, however, that this implies
 that once the trust resets are disallowed, there is **no way** of re-enabling
-them. ISDs SHOULD always set this value to TRUE, unless they have a very
+them. ISDs SHOULD always set this value to **FALSE**, unless they have a very
 specific use case and have assessed the risks and implications sufficiently.
 
 .. _trc-votes-field:

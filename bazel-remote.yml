@@ -1,0 +1,17 @@
+version: "2.4"
+services:
+  bazel-remote:
+    container_name: bazel-remote-cache
+    command:
+      [
+        "--max_size=50",
+        "--experimental_remote_asset_api",
+        "--host=127.0.0.1",
+        "--profile_port=0",
+        "--enable_endpoint_metrics",
+      ]
+    network_mode: host
+    image: buchgr/bazel-remote-cache:v2.3.0
+    user: $USER_ID:$GROUP_ID
+    volumes:
+      - $HOME/.cache/bazel/remote:/data:rw

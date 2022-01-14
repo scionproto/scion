@@ -26,23 +26,23 @@ func TestErrFmt(t *testing.T) {
 	}{
 		{
 			Err:      NewTxError("test", nil),
-			Expected: fmt.Sprintf("%s{detailMsg=test}", ErrTx),
+			Expected: fmt.Sprintf("%s {detailMsg=test}", ErrTx),
 		},
 		{
 			Err:      NewInputDataError("test", nil),
-			Expected: fmt.Sprintf("%s{detailMsg=test}", ErrInvalidInputData),
+			Expected: fmt.Sprintf("%s {detailMsg=test}", ErrInvalidInputData),
 		},
 		{
 			Err:      NewDataError("test", nil),
-			Expected: fmt.Sprintf("%s{detailMsg=test}", ErrDataInvalid),
+			Expected: fmt.Sprintf("%s {detailMsg=test}", ErrDataInvalid),
 		},
 		{
 			Err:      NewReadError("test", nil),
-			Expected: fmt.Sprintf("%s{detailMsg=test}", ErrReadFailed),
+			Expected: fmt.Sprintf("%s {detailMsg=test}", ErrReadFailed),
 		},
 		{
 			Err:      NewWriteError("test", nil),
-			Expected: fmt.Sprintf("%s{detailMsg=test}", ErrWriteFailed),
+			Expected: fmt.Sprintf("%s {detailMsg=test}", ErrWriteFailed),
 		},
 	}
 	for _, test := range tests {

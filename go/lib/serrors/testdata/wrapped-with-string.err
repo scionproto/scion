@@ -1,1 +1,1 @@
-msg error{k0=v0; k1=1}: msg cause{cause_ctx_key=cause_ctx_val}
+msg error {k0=v0; k1=1}: msg cause {cause_ctx_key=cause_ctx_val}

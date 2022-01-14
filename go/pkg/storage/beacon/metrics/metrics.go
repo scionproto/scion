@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/pkg/storage"
+	storagebeacon "github.com/scionproto/scion/go/pkg/storage/beacon"
 )
 
 type Config struct {
@@ -107,6 +108,20 @@ func (d *db) InsertBeacon(
 	var err error
 	d.metrics.Observe(ctx, "insert_beacon", func(ctx context.Context) (string, error) {
 		ret, err = d.db.InsertBeacon(ctx, b, usage)
+		return dblib.ErrToMetricLabel(err), err
+	})
+	return ret, err
+}
+
+func (d *db) GetBeacons(
+	ctx context.Context,
+	q *storagebeacon.QueryParams,
+) ([]storagebeacon.Beacon, error) {
+
+	var ret []storagebeacon.Beacon
+	var err error
+	d.metrics.Observe(ctx, "get_beacons", func(ctx context.Context) (string, error) {
+		ret, err = d.db.GetBeacons(ctx, q)
 		return dblib.ErrToMetricLabel(err), err
 	})
 	return ret, err

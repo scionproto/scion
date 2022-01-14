@@ -11,6 +11,8 @@ servers:
       port:
         default: "30442"
 tags:
+  - name: interface
+    description: Everything related to SCION interfaces.
   - name: common
     description: Common API exposed by SCION services.
 paths:
@@ -20,3 +22,5 @@ paths:
     $ref: "../common/process.yml#/paths/~1log~1level"
   /config:
     $ref: "../common/process.yml#/paths/~1config"
+  /interfaces:
+    $ref: "./interfaces.yml#/paths/~1interfaces"
