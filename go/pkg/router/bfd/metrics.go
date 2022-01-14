@@ -15,20 +15,20 @@
 package bfd
 
 import (
-	"github.com/scionproto/scion/go/lib/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // Metrics is used by sessions to report information about internal operation.
 type Metrics struct {
 	// PacketsSent reports the total number of BFD packets sent out by the session.
-	PacketsSent metrics.Counter
+	PacketsSent prometheus.Counter
 	// PacketsReceived reports the total number of BFD packets received by the session.
-	PacketsReceived metrics.Counter
+	PacketsReceived prometheus.Counter
 	// Up reports 1 if the local session is in state Up, and 0 otherwise. Note that due to the
 	// bidirectional detection nature of BFD (the local session will transition to a non-Up state if
 	// it detects the remote is not Up), barring some network delays, if the local session is Up the
 	// remote session is also Up.
-	Up metrics.Gauge
+	Up prometheus.Gauge
 	// StateChanges reports the total number of state changes of the session.
-	StateChanges metrics.Counter
+	StateChanges prometheus.Counter
 }
