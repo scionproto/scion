@@ -79,11 +79,11 @@ func (o *Originator) Name() string {
 // Run originates core and downstream beacons.
 func (o *Originator) Run(ctx context.Context) {
 	o.Tick.SetNow(time.Now())
-	o.originateBeaconsNew(ctx)
+	o.originateBeacons(ctx)
 	o.Tick.UpdateLast()
 }
 
-func (o *Originator) originateBeaconsNew(ctx context.Context) {
+func (o *Originator) originateBeacons(ctx context.Context) {
 	logger := log.FromCtx(ctx)
 
 	batch, err := o.Provider.ProvideOriginationBatch(ctx, o.Tick)
@@ -107,7 +107,7 @@ func (o *Originator) originateBeaconsNew(ctx context.Context) {
 			defer log.HandlePanic()
 			defer wg.Done()
 
-			if err := o.sendBeaconsNew(ctx, intf, bcns, s); err != nil {
+			if err := o.sendBeacons(ctx, intf, bcns, s); err != nil {
 				logger.Info("Unable to originate on interface",
 					"egress_interface", intf.TopoInfo().ID, "err", err, "bcns", bcns)
 			} else {
@@ -119,7 +119,7 @@ func (o *Originator) originateBeaconsNew(ctx context.Context) {
 	o.logSummary(ctx, s)
 }
 
-func (o *Originator) sendBeaconsNew(
+func (o *Originator) sendBeacons(
 	ctx context.Context,
 	intf *ifstate.Interface,
 	bcns []beacon.Beacon,

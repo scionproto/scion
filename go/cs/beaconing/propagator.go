@@ -66,7 +66,7 @@ type Propagator struct {
 func (p *Propagator) Run(ctx context.Context) {
 	logger := log.FromCtx(ctx)
 	p.Tick.SetNow(time.Now())
-	if err := p.runNew(ctx); err != nil {
+	if err := p.run(ctx); err != nil {
 		logger.Error("Unable to propagate beacons", "err", err)
 	}
 
@@ -78,7 +78,7 @@ func (p *Propagator) Name() string {
 	return "control_beaconing_propagator"
 }
 
-func (p *Propagator) runNew(ctx context.Context) error {
+func (p *Propagator) run(ctx context.Context) error {
 	batch, err := p.Mechanism.ProvidePropagationBatch(ctx, p.Tick)
 	if err != nil {
 		return serrors.WrapStr("error creating propagation batch", err)
@@ -102,7 +102,7 @@ func (p *Propagator) sendBatch(ctx context.Context, batch SendableBeaconsBatch) 
 		go func(egIntf *ifstate.Interface, bcns []beacon.Beacon) {
 			defer log.HandlePanic()
 			defer wg.Done()
-			p.sendNew(ctx, bcns, egIntf, success)
+			p.send(ctx, bcns, egIntf, success)
 		}(egIntf, bcns)
 	}
 	wg.Wait()
@@ -114,7 +114,7 @@ func (p *Propagator) sendBatch(ctx context.Context, batch SendableBeaconsBatch) 
 }
 
 // Sends a set of beacons to a given interface
-func (p *Propagator) sendNew(ctx context.Context, bcns []beacon.Beacon, intf *ifstate.Interface, success *ctr) {
+func (p *Propagator) send(ctx context.Context, bcns []beacon.Beacon, intf *ifstate.Interface, success *ctr) {
 	if len(bcns) == 0 {
 		return
 	}
