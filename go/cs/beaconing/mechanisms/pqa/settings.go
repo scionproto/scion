@@ -26,13 +26,18 @@ type Origination struct {
 	Intervals map[uint16]uint
 }
 
+// Keys into the map storing interface groups given quality & direction
+type targetKey struct {
+	quality   extension.Quality
+	direction extension.Direction
+}
 type Propagation struct {
 	// Maps quality -> direction -> interface group
-	q2d2group map[extension.Quality]map[extension.Direction][][]*ifstate.Interface
+	q2d2group map[targetKey][][]*ifstate.Interface
 }
 
 func (p *Propagation) GetInterfaceGroups(q extension.Quality, d extension.Direction) [][]*ifstate.Interface {
-	return p.q2d2group[q][d]
+	return p.q2d2group[targetKey{q, d}]
 }
 
 func LoadSettings(cfgYamlPath string, ifaces *ifstate.Interfaces) (Settings, error) {
@@ -106,8 +111,7 @@ func NewOriginationSettings(cfg pqacfg.OriginatorCfg) (*Origination, error) {
 }
 
 func NewPropagationSettings(cfg *pqacfg.PropagatorCfg, ifaces *ifstate.Interfaces) (*Propagation, error) {
-	// Create map quality -> direction -> list interface groups
-	q2d2group := make(map[extension.Quality]map[extension.Direction][][]*ifstate.Interface)
+	q2d2group := make(map[targetKey][][]*ifstate.Interface)
 	for _, ifaceGroupCfg := range *cfg {
 		ifGroup := make(InterfaceGroup, 0)
 		for _, ifaceIdentifier := range ifaceGroupCfg.Interfaces {
@@ -121,23 +125,17 @@ func NewPropagationSettings(cfg *pqacfg.PropagatorCfg, ifaces *ifstate.Interface
 			if filter.Quality == "" {
 				return nil, serrors.New(fmt.Sprintf("optimization target filter %d: Must specify quality", i))
 			}
+
 			q := filter.Quality.Quality()
-
-			// Create new direction -> iface group map if it doesn't exist
-			if _, ok := q2d2group[q]; !ok {
-				q2d2group[q] = make(map[extension.Direction][][]*ifstate.Interface)
-			}
-			// Grab it
-			d2group := q2d2group[q]
-
 			if filter.Direction == "" {
-				// Append ifstate group to both directions if no direction is specified
-				d2group[extension.Forward] = append(d2group[extension.Forward], ifGroup)
-				d2group[extension.Backward] = append(d2group[extension.Backward], ifGroup)
+				// if direction is unspecified, add filters in both directions
+				k1, k2 := targetKey{q, extension.Forward}, targetKey{q, extension.Backward}
+				q2d2group[k1] = append(q2d2group[k1], ifGroup)
+				q2d2group[k2] = append(q2d2group[k2], ifGroup)
 			} else {
-				// Else append to specified direction
-				d := filter.Direction.Direction()
-				d2group[d] = append(d2group[d], ifGroup)
+				// else add in the direction specified
+				k := targetKey{q, filter.Direction.Direction()}
+				q2d2group[k] = append(q2d2group[k], ifGroup)
 			}
 		}
 	}
@@ -158,19 +156,30 @@ var targets = map[pqacfg.TargetIdentifier]pqacfg.TargetCfg{
 		Uniquifier: 1,
 	},
 }
+
+// var originationOrders = [][][]pqacfg.TargetIdentifier{
+// 	{
+// 		{
+// 			"latency_1",
+// 			"NO_TARGET",
+// 		},
+// 		{
+// 			"throughput_1",
+// 		},
+// 	},
+// 	{
+// 		{
+// 			"NO_TARGET",
+// 		},
+// 	},
+//}
+
+// for now, originate beacons for all targets on all interfaces
 var originationOrders = [][][]pqacfg.TargetIdentifier{
 	{
 		{
 			"latency_1",
-			"NO_TARGET",
-		},
-		{
 			"throughput_1",
-		},
-	},
-	{
-		{
-			"NO_TARGET",
 		},
 	},
 }
@@ -210,19 +219,25 @@ func GenerateSettingsForInterfaces(intfs *ifstate.Interfaces) (*Settings, error)
 	propaCfg := make(pqacfg.PropagatorCfg)
 
 	// Assign interfaces into groups of k...
-	const k = 2
-	maxIntefaceIdx := len(intfList) - (len(intfList) % k) // ...ignoring intfs that can't be put into groups of k
-	f := 0
-	for i := 0; i < maxIntefaceIdx; i += k {
-		ifaceGroup := pqacfg.InterfaceGroupCfg{
-			Interfaces:                intfList[i : i+k],
-			OptimizationTargetFilters: targetFilters,
-		}
-		// generate identifier
-		ifacegroupIdentifier := pqacfg.InterfaceGroupIdentifier(fmt.Sprintf("group_%d", f))
-		// create grouphope
-		propaCfg[ifacegroupIdentifier] = ifaceGroup
-		f++
+	// const k = 2
+	// maxIntefaceIdx := len(intfList) - (len(intfList) % k) // ...ignoring intfs that can't be put into groups of k
+	// f := 0
+	// for i := 0; i < maxIntefaceIdx; i += k {
+	// 	ifaceGroup := pqacfg.InterfaceGroupCfg{
+	// 		Interfaces:                intfList[i : i+k],
+	// 		OptimizationTargetFilters: targetFilters,
+	// 	}
+	// 	// generate identifier
+	// 	ifacegroupIdentifier := pqacfg.InterfaceGroupIdentifier(fmt.Sprintf("group_%d", f))
+	// 	// create grouphope
+	// 	propaCfg[ifacegroupIdentifier] = ifaceGroup
+	// 	f++
+	// }
+
+	// create a single interface gorup targeting all targets and interfaces
+	propaCfg["papa_group"] = pqacfg.InterfaceGroupCfg{
+		Interfaces:                intfList,
+		OptimizationTargetFilters: targetFilters,
 	}
 
 	orig, err := NewOriginationSettings(origCfg)

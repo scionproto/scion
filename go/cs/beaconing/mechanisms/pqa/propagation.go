@@ -13,6 +13,7 @@ import (
 )
 
 func (m Mechanism) ProvidePropagationBatch(ctx context.Context, tick beaconing.Tick) (beaconing.SendableBeaconsBatch, error) {
+	logger := log.FromCtx(ctx)
 	if !tick.Passed() {
 		return beaconing.SendableBeaconsBatch{}, nil
 	}
@@ -21,7 +22,9 @@ func (m Mechanism) ProvidePropagationBatch(ctx context.Context, tick beaconing.T
 		for _, target := range m.getTargetsFromReceivesBeacons(ctx, srcIA) {
 			for _, neigh := range m.getNeighbouringASs(ctx) {
 				for _, intfSubgroup := range m.getIntfSubgroups(ctx, target, neigh) {
+					logger.Debug("finding batch for", "src ia", srcIA, "target", target, "neigh", neigh, "intf subgroup", intfSubgroup)
 					bcns, err := m.getPropagationBatch(ctx, target, intfSubgroup, neigh, srcIA)
+					logger.Debug("found batch:", "bcns", len(bcns))
 					if err != nil {
 						return nil, serrors.WrapStr("getting beacon batch", err)
 					}
@@ -33,6 +36,7 @@ func (m Mechanism) ProvidePropagationBatch(ctx context.Context, tick beaconing.T
 			}
 		}
 	}
+	logger.Debug("returning batch of size", "size", len(res))
 	return res, nil
 }
 
@@ -53,7 +57,7 @@ func (m Mechanism) getPropagationBatch(ctx context.Context, target Target, egInt
 					return nil, serrors.WrapStr("extending beacons", err, "ingress", ingress, "egress", egress, "seg", bcn.Segment)
 				}
 
-				if target.shouldConsider(ctx, bcn) {
+				if target.ShouldConsider(ctx, bcn) {
 					batch = append(batch, bcn)
 				}
 			}
@@ -75,9 +79,9 @@ func logBcnMetrics(ctx context.Context, target Target, bcns []beacon.Beacon) {
 	logger := log.FromCtx(ctx)
 	metrics := make([]float64, len(bcns))
 	for i, bcn := range bcns {
-		metrics[i] = target.getMetric(ctx, bcn)
+		metrics[i] = target.GetMetric(ctx, bcn)
 	}
-	logger.Info("got beacons", "metrics", metrics)
+	logger.Info("got beacons for target", "metrics", metrics, "target", target)
 }
 
 func (m Mechanism) getNBest(ctx context.Context, target Target, bcn []beacon.Beacon) []beacon.Beacon {
@@ -88,7 +92,7 @@ func (m Mechanism) getNBest(ctx context.Context, target Target, bcn []beacon.Bea
 	// Compares beacons i.t.o. their metric value for target
 	less := func(l, r int) bool {
 		lBcn, rBcn := bcn[l], bcn[r]
-		lMet, rMet := target.getMetric(ctx, lBcn), target.getMetric(ctx, rBcn)
+		lMet, rMet := target.GetMetric(ctx, lBcn), target.GetMetric(ctx, rBcn)
 		return target.Quality.Less(lMet, rMet)
 	}
 	sort.Slice(bcn, less)
@@ -119,12 +123,12 @@ func (m Mechanism) getTargetsFromReceivesBeacons(ctx context.Context, srcIA addr
 
 func (m Mechanism) getNeighbouringASs(ctx context.Context) []addr.IA {
 	// Find set of all IAs contained in AllInterfaces
-	set := make(map[addr.IA]struct{})
+	set := make(map[addr.IA]bool)
 	for _, neigh := range m.AllInterfaces.All() {
-		set[neigh.TopoInfo().IA] = struct{}{}
+		set[neigh.TopoInfo().IA] = true
 	}
 	// Turn to list
-	res := make([]addr.IA, 0)
+	res := make([]addr.IA, len(set))
 	for neigh := range set {
 		res = append(res, neigh)
 	}

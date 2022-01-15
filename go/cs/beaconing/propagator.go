@@ -40,11 +40,6 @@ const (
 	DefaultRPCTimeout time.Duration = 10 * time.Second
 )
 
-// BeaconProvider provides beacons to send to neighboring ASes.
-type BeaconProvider interface {
-	ProvideBeacons(ctx context.Context) ([]beacon.Beacon, error)
-}
-
 var _ periodic.Task = (*Propagator)(nil)
 
 // Propagator is the task that forwards beacons to neighboring ASes. In a core AS, the beacons
@@ -54,7 +49,6 @@ var _ periodic.Task = (*Propagator)(nil)
 type Propagator struct {
 	Extender              Extender
 	SenderFactory         SenderFactory
-	Provider_             BeaconProvider
 	Mechanism             PropagationBeaconProvider
 	IA                    addr.IA
 	Signer                seg.Signer
@@ -69,22 +63,13 @@ type Propagator struct {
 	Tick Tick
 }
 
-// Represents a batch of beacons to propagate, stored in intf2bcns, where egress interfaces map to beacons
-type PropagationBatch struct {
-	*Propagator
-	wg      sync.WaitGroup
-	batch   SendableBeaconsBatch
-	success ctr
-}
-
-type BeaconsToPropagate map[*ifstate.Interface][]beacon.Beacon
-
 func (p *Propagator) Run(ctx context.Context) {
 	logger := log.FromCtx(ctx)
 	p.Tick.SetNow(time.Now())
-	if err := p.run(ctx); err != nil {
+	if err := p.runNew(ctx); err != nil {
 		logger.Error("Unable to propagate beacons", "err", err)
 	}
+
 	p.Tick.UpdateLast()
 }
 
@@ -93,113 +78,92 @@ func (p *Propagator) Name() string {
 	return "control_beaconing_propagator"
 }
 
-func (p *Propagator) run(ctx context.Context) error {
-	batch_, err := p.Mechanism.ProvidePropagationBatch(ctx, p.Tick)
+func (p *Propagator) runNew(ctx context.Context) error {
+	batch, err := p.Mechanism.ProvidePropagationBatch(ctx, p.Tick)
 	if err != nil {
 		return serrors.WrapStr("error creating propagation batch", err)
 	}
-	batch := PropagationBatch{
-		Propagator: p,
-		batch:      batch_,
-	}
 
-	if sendErr := batch.sendBeacons(ctx); sendErr != nil {
-		return serrors.WrapStr("error propagating", sendErr, "intf -> bcns:", batch.batch)
+	if sendErr := p.sendBatch(ctx, batch); sendErr != nil {
+		return serrors.WrapStr("error propagating", sendErr, "intf -> bcns:", batch)
 	}
 	return nil
 }
 
 // Sends beacons to their interfaces in intf2bcns map
-func (p *PropagationBatch) sendBeacons(ctx context.Context) error {
+func (p *Propagator) sendBatch(ctx context.Context, batch SendableBeaconsBatch) error {
 	var expected int
-	for egIntf, bcns := range p.batch {
-		p.send(ctx, bcns, egIntf)
-		p.wg.Add(1)
+	var wg sync.WaitGroup
+	success := new(ctr)
+	for egIntf, bcns := range batch {
+		wg.Add(1)
 		expected += len(bcns)
+
+		go func(egIntf *ifstate.Interface, bcns []beacon.Beacon) {
+			defer log.HandlePanic()
+			defer wg.Done()
+			p.sendNew(ctx, bcns, egIntf, success)
+		}(egIntf, bcns)
 	}
-	p.wg.Wait()
-	if expected == 0 {
-		return nil
-	}
-	if p.success.c <= 0 {
+	wg.Wait()
+
+	if success.c <= 0 && expected > 0 {
 		return serrors.New("no beacon propagated", "expected", expected)
 	}
 	return nil
 }
 
 // Sends a set of beacons to a given interface
-func (p *PropagationBatch) send(ctx context.Context, bcns []beacon.Beacon, intf *ifstate.Interface) {
-	logger := log.FromCtx(ctx)
+func (p *Propagator) sendNew(ctx context.Context, bcns []beacon.Beacon, intf *ifstate.Interface, success *ctr) {
 	if len(bcns) == 0 {
-		// TODO: Increase success
 		return
 	}
-	egIfid := intf.TopoInfo().ID
 
-	go func() {
-		defer log.HandlePanic()
-		defer p.wg.Done()
-		topoInfo := intf.TopoInfo()
+	logger := log.FromCtx(ctx)
 
-		rpcContext, cancelF := context.WithTimeout(ctx, DefaultRPCTimeout)
-		defer cancelF()
+	// Prepare sender parameters
+	timeout := DefaultRPCTimeout
+	ia := intf.TopoInfo().IA
+	egress := intf.TopoInfo().ID
+	nexthop := intf.TopoInfo().InternalAddr.UDPAddr()
 
-		rpcStart := time.Now()
-		sender, err := p.SenderFactory.NewSender(rpcContext, topoInfo.IA, egIfid,
-			topoInfo.InternalAddr.UDPAddr())
-		if err != nil {
-			if rpcContext.Err() != nil {
-				err = serrors.WrapStr("timed out getting beacon sender", err,
-					"waited_for", time.Since(rpcStart))
-			}
-			logger.Info("Unable to propagate beacons", "egress_interface", egIfid, "err", err)
-			for _, b := range bcns {
-				p.incMetric(b.Segment.FirstIA(), b.InIfId, egIfid, prom.ErrNetwork)
-			}
-			return
-		}
-		defer sender.Close()
-
-		successes := 0
+	// Create sender
+	sender, err := p.SenderFactory.NewSender(ctx, timeout, ia, egress, nexthop)
+	if err != nil {
 		for _, b := range bcns {
-			if err := sender.Send(rpcContext, b.Segment); err != nil {
-				if rpcContext.Err() != nil {
-					err = serrors.WrapStr("timed out waiting for RPC to complete", err,
-						"waited_for", time.Since(rpcStart))
-					logger.Info("Unable to propagate beacons", "egress_interface", egIfid,
-						"err", err)
-					p.incMetric(b.Segment.FirstIA(), b.InIfId, egIfid, prom.ErrNetwork)
-					// Return here if the context is expired, since no RPC will complete at that
-					// point.
-					return
-				}
-				logger.Info("Unable to propagate beacons", "egress_interface", egIfid, "err", err)
-				p.incMetric(b.Segment.FirstIA(), b.InIfId, egIfid, prom.ErrNetwork)
-				continue
-			}
-			logger.Debug("Propagated one beacon")
-			p.onSuccess(intf, egIfid)
-			p.incMetric(b.Segment.FirstIA(), b.InIfId, egIfid, prom.Success)
-			successes++
+			ingress := b.InIfId
+			p.incMetric(b.Segment.FirstIA(), ingress, egress, prom.ErrNetwork)
 		}
-		logger.Debug("Propagated beacons", "egress_interface", egIfid, "expected",
-			len(bcns), "successes", successes)
-	}()
-}
+		return // serrors.WrapStr("error creating sender", err)
+	}
+	defer sender.Close()
 
-func (p *PropagationBatch) onSuccess(intf *ifstate.Interface, egIfid uint16) {
-	intf.Propagate(p.Tick.Now())
-	p.success.Inc()
-}
+	successes := 0
+	// Send beacons using the created sender
+	for _, bcn := range bcns {
+		logger.Debug("Sending beacon ", "bcn", bcn.Segment.ASEntries[0].Extensions)
+		if err := sender.Send(bcn.Segment); err != nil {
+			p.incMetric(bcn.Segment.FirstIA(), bcn.InIfId, egress, prom.ErrNetwork)
+			return // serrors.WrapStr("sending beacon", err)
+		} else {
+			logger.Debug("Propagated one beacon")
+			p.incMetric(bcn.Segment.FirstIA(), bcn.InIfId, egress, prom.Success)
+			intf.Propagate(p.Tick.Now())
+			success.Inc()
+			successes++
 
-func (p *PropagationBatch) incMetric(startIA addr.IA, ingress, egress uint16, result string) {
-	if p.Propagator.Propagated == nil {
+		}
+	}
+}
+func (p *Propagator) incMetric(startIA addr.IA, ingress, egress uint16, result string) {
+	if p.Propagated == nil {
 		return
 	}
-	p.Propagator.Propagated.With(
+	p.Propagated.With(
 		"start_isd_as", startIA.String(),
 		"ingress_interface", strconv.Itoa(int(ingress)),
 		"egress_interface", strconv.Itoa(int(egress)),
+		"propagator_IA", p.IA.String(),
 		prom.LabelResult, result,
 	).Add(1)
 }

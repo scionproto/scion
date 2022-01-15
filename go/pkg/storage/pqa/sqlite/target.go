@@ -29,7 +29,7 @@ const (
 	CREATE TABLE BeaconToTarget(
 		BeaconRowID INTEGER NOT NULL,
 		TargetRowId INTEGER NOT NULL,
-      
+
       PRIMARY KEY (BeaconRowID)
 	);
 	`
@@ -70,17 +70,6 @@ func (qp *Target) NamedArgs() []interface{} {
 		sql.Named("oa", qp.AS),
 	}
 }
-
-/*
-	WHERE NOT EXISTS (
-		SELECT 1 FROM %s WHERE
-				Quality == @q
-			AND Direction == @d
-			AND Uniquifier == @u
-			AND OriginISD == @u
-			AND OriginAS == @oi
-	)
-*/
 
 // Executes a query with target names replaced with their respective values
 func (tb *TargetBackend) ExecTarget(ctx context.Context, t Target, query string) (sql.Result, error) {

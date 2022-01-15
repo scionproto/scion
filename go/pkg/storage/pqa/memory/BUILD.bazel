@@ -6,7 +6,6 @@ go_library(
         "db.go",
         "pqa.go",
         "schema.go",
-        "target.go",
     ],
     importpath = "github.com/scionproto/scion/go/pkg/storage/pqa/memory",
     visibility = ["//visibility:public"],
@@ -21,6 +20,7 @@ go_library(
         "//go/lib/serrors:go_default_library",
         "//go/lib/util:go_default_library",
         "//go/pkg/storage/beacon:go_default_library",
+        "//go/pkg/storage/pqa/memory/target:go_default_library",
         "@com_github_mattn_go_sqlite3//:go_default_library",
     ],
 )

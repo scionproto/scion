@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 	storagebeacon "github.com/scionproto/scion/go/pkg/storage/beacon"
@@ -163,6 +164,7 @@ func (e *executor) InsertBeacon(
 	b beacon.Beacon,
 	usage beacon.Usage,
 ) (beacon.InsertStats, error) {
+	logger := log.FromCtx(ctx)
 
 	ret := beacon.InsertStats{}
 	// Compute ids outside of the lock.
@@ -175,6 +177,7 @@ func (e *executor) InsertBeacon(
 		return ret, err
 	}
 	if meta != nil {
+		logger.Debug("Beacon already exists, updating")
 		// Update the beacon data if it is newer.
 		if b.Segment.Info.Timestamp.After(meta.InfoTime) {
 			if err := e.updateExistingBeacon(ctx, b, usage, meta.RowID, time.Now()); err != nil {
@@ -185,6 +188,7 @@ func (e *executor) InsertBeacon(
 		}
 		return ret, nil
 	}
+	logger.Debug("Inserting new beacon")
 	// Insert new beacon.
 	err = db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
 		return insertNewBeacon(ctx, tx, b, usage, time.Now())

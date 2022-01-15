@@ -69,17 +69,6 @@ func (s Scenario) Signer(t *testing.T) seg.Signer {
 	return testSigner(t, s.PrivKey, s.IA())
 }
 
-func (s Scenario) IntfsOfType(ts []topology.LinkType) []*ifstate.Interface {
-	return s.Filtered(func(intf *ifstate.Interface) bool {
-		for _, t := range ts {
-			if intf.TopoInfo().LinkType == t {
-				return true
-			}
-		}
-		return false
-	})
-}
-
 func testSigner(t *testing.T, priv crypto.Signer, ia addr.IA) seg.Signer {
 	return trust.Signer{
 		PrivateKey: priv,

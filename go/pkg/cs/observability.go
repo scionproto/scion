@@ -98,14 +98,14 @@ func NewMetrics() *Metrics {
 				Name: "control_beaconing_originated_beacons_total",
 				Help: "Total number of beacons originated.",
 			},
-			[]string{"egress_interface", prom.LabelResult},
+			[]string{"egress_interface", "source_IA", prom.LabelResult},
 		),
 		BeaconingPropagatedTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "control_beaconing_propagated_beacons_total",
 				Help: "Total number of beacons propagated.",
 			},
-			[]string{"start_isd_as", "ingress_interface", "egress_interface", prom.LabelResult},
+			[]string{"start_isd_as", "ingress_interface", "egress_interface", "propagator_IA", prom.LabelResult},
 		),
 		BeaconingPropagatorInternalErrorsTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{

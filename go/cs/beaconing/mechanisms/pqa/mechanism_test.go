@@ -79,6 +79,10 @@ func TestCreatePropagationBatch(t *testing.T) {
 	scen := pqa.NewScenario(t, topo)
 	mctrl := gomock.NewController(t)
 
+	// Create a tick that's overdue
+	scen.Tick = beaconing.NewTick(time.Second)
+	scen.Tick.SetNow(time.Now().Add(-2 * time.Second))
+
 	db := mock_pqa.NewMockDB(mctrl)
 	mech := pqa.Mechanism{
 		AllInterfaces: scen.Interfaces,
@@ -91,14 +95,24 @@ func TestCreatePropagationBatch(t *testing.T) {
 	ia1 := scen.Interfaces.Get(ifid1).TopoInfo().IA
 	ia2 := scen.Interfaces.Get(ifid2).TopoInfo().IA
 
-	db.EXPECT().BeaconSources(gomock.Any()).Return([]addr.IA{ia1, ia2}, nil)
-	db.EXPECT().GetActiveTargets(gomock.Any(), gomock.Any()).Return([]pqa.Target{{
-		Quality:    pqa_extension.Latency,
-		Direction:  pqa_extension.Forward,
-		Uniquifier: 0,
-		ISD:        ia1.I,
-		AS:         ia1.A,
-	}}, nil)
+	db.EXPECT().
+		BeaconSources(gomock.Any()).
+		Return([]addr.IA{ia1, ia2}, nil)
+
+	db.EXPECT().
+		GetActiveTargets(gomock.Any(), gomock.Any()).
+		Times(2).
+		Return([]pqa.Target{{
+			Quality:    pqa_extension.Latency,
+			Direction:  pqa_extension.Forward,
+			Uniquifier: 0,
+			IA:         ia1,
+		}}, nil)
+
+	// 2 beacon source * 2 neighbours = 4 total calls
+	db.EXPECT().
+		GetNBestsForGroup(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Times(4)
 
 	res, err := mech.ProvidePropagationBatch(context.Background(), mech.Tick)
 	assert.NoError(t, err)

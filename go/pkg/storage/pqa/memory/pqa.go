@@ -8,11 +8,12 @@ import (
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
+	targetstore "github.com/scionproto/scion/go/pkg/storage/pqa/memory/target"
 )
 
 type PqaMemoryBackend struct {
 	*Beacons
-	*Targets
+	*targetstore.Targets
 }
 
 func New(path string, ia addr.IA) (*PqaMemoryBackend, error) {
@@ -20,7 +21,7 @@ func New(path string, ia addr.IA) (*PqaMemoryBackend, error) {
 	if err != nil {
 		return nil, err
 	}
-	targetDB, err := NewTargetBackend()
+	targetDB, err := targetstore.NewTargetBackend()
 	if err != nil {
 		return nil, err
 	}
@@ -56,15 +57,7 @@ func (b *PqaMemoryBackend) InsertBeacon(
 		Quality:    pqaExtension0.Quality,
 		Direction:  pqaExtension0.Direction,
 		Uniquifier: uint32(pqaExtension0.Uniquifier),
-		ISD:        bcn.Segment.FirstIA().I,
-		AS:         bcn.Segment.FirstIA().A,
-	}
-
-	if b.Targets.Contains(target) {
-		logger.Debug("Target already in set")
-	} else {
-		logger.Debug("Adding target to set")
-		b.Targets.Add(target)
+		IA:         bcn.Segment.FirstIA(),
 	}
 
 	beaconID, err := b.Beacons.getBeaconID(ctx, bcn)
@@ -73,7 +66,7 @@ func (b *PqaMemoryBackend) InsertBeacon(
 	}
 
 	b.Targets.AssociateBeacon(beaconID, target)
-	return beacon.InsertStats{}, nil
+	return stats, nil
 }
 
 func (b *PqaMemoryBackend) GetNBestsForGroup(
@@ -83,8 +76,6 @@ func (b *PqaMemoryBackend) GetNBestsForGroup(
 	ingresIntfs []*ifstate.Interface,
 	excludeLooping addr.IA,
 ) ([]beacon.Beacon, error) {
-	b.Targets.mu.Lock()
-	defer b.Targets.mu.Unlock()
 
 	// Get beaconIds that are associated with the target
 	bcnIds := b.Targets.GetBeaconIdsForTarget(ctx, target)

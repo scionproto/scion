@@ -21,6 +21,7 @@ var qIdentToQuality = map[QualityIdentifier]pqa_extension.Quality{
 	"throughput": pqa_extension.Throughput,
 }
 
+// Turns a QualityIdentifier (cfg) into a Quality (extension)
 func (q QualityIdentifier) Quality() pqa_extension.Quality {
 	return qIdentToQuality[q]
 }
@@ -41,6 +42,7 @@ var dirIdentToDirection = map[DirectionIdentifier]pqa_extension.Direction{
 	"symmetric": pqa_extension.Symmetric,
 }
 
+// Turns a DirectionIdentifier (cfg) into a Direction (extension)
 func (d DirectionIdentifier) Direction() pqa_extension.Direction {
 	return dirIdentToDirection[d]
 }

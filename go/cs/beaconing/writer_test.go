@@ -48,8 +48,24 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
+
+const (
+	topoCore    = "testdata/topology-core.json"
+	topoNonCore = "testdata/topology.json"
+)
+
+type segVerifier struct {
+	pubKey crypto.PublicKey
+}
+
+func (v segVerifier) Verify(_ context.Context, signedMsg *cryptopb.SignedMessage,
+	associatedData ...[]byte) (*signed.Message, error) {
+
+	return signed.Verify(signedMsg, v.pubKey, associatedData...)
+}
 
 func TestRegistrarRun(t *testing.T) {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

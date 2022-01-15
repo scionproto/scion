@@ -16,18 +16,17 @@ package beaconing
 
 import (
 	"context"
-	"crypto/rand"
-	"math/big"
 	"net"
-	"sort"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -35,57 +34,84 @@ import (
 
 var _ periodic.Task = (*Originator)(nil)
 
-// SenderFactory can be used to create a new beacon sender.
 type SenderFactory interface {
-	// NewSender creates a new beacon sender to the specified ISD-AS over the given egress
-	// interface. Nexthop is the internal router endpoint that owns the egress interface. The caller
-	// is required to close the sender once it's not used anymore.
-	NewSender(ctx context.Context, dst addr.IA, egress uint16, nexthop *net.UDPAddr) (Sender, error)
+	NewSender(
+		parentCtx context.Context,
+		contextTimeout time.Duration,
+		dst addr.IA,
+		egress uint16,
+		nexthop *net.UDPAddr,
+	) (Sender, error)
 }
 
-// Sender sends beacons on an established connection.
 type Sender interface {
-	// Send sends the beacon on an established connection
-	Send(ctx context.Context, b *seg.PathSegment) error
-	// Close closes the resources associated with the sender. It must be invoked to avoid leaking
-	// connections.
+	Send(s *seg.PathSegment) error
 	Close() error
 }
 
-func (o *Originator) incrementMetrics(labels originatorLabels) {
-	if o.Originated == nil {
-		return
-	}
-	o.Originated.With(labels.Expand()...).Add(1)
+// DEBUG
+
+const (
+	NEW_MECHANISM = true
+)
+
+// Originator originates beacons. It should only be used by core ASes.
+type Originator struct {
+	Extender              Extender
+	SenderFactory         SenderFactory
+	Provider              OriginationBeaconProvider
+	IA                    addr.IA
+	Signer                seg.Signer
+	AllInterfaces         *ifstate.Interfaces
+	OriginationInterfaces func() []*ifstate.Interface
+
+	Originated metrics.Counter
+
+	// Tick is mutable.
+	Tick Tick
 }
 
-// originateBeacons creates and sends a beacon for each active interface.
-func (o *Originator) originateBeacons(ctx context.Context) {
+// Name returns the tasks name.
+func (o *Originator) Name() string {
+	return "control_beaconing_originator"
+}
+
+// Run originates core and downstream beacons.
+func (o *Originator) Run(ctx context.Context) {
+	o.Tick.SetNow(time.Now())
+	o.originateBeaconsNew(ctx)
+	o.Tick.UpdateLast()
+}
+
+func (o *Originator) originateBeaconsNew(ctx context.Context) {
 	logger := log.FromCtx(ctx)
-	intfs := o.needBeacon(o.OriginationInterfaces())
-	sort.Slice(intfs, func(i, j int) bool {
-		return intfs[i].TopoInfo().ID < intfs[j].TopoInfo().ID
-	})
-	if len(intfs) == 0 {
-		return
+
+	batch, err := o.Provider.ProvideOriginationBatch(ctx, o.Tick)
+	if err != nil {
+		logger.Error("getting origination batch", "error", err)
 	}
-	s := newSummary()
+	// Used to wait for sending goroutings
 	var wg sync.WaitGroup
-	wg.Add(len(intfs))
-	for _, intf := range intfs {
-		b := beaconOriginator{
-			Originator: o,
-			intf:       intf,
-			timestamp:  o.Tick.Now(),
-			summary:    s,
-		}
+	// Collects succesful interfaces & no. beacons sent
+	s := newSummary()
+
+	for intf, bcns := range batch {
+
+		// Copy vars for closure, golang quirk
+		intf := intf
+		bcns := bcns
+
+		// Start sending goroutine
+		wg.Add(1)
 		go func() {
 			defer log.HandlePanic()
 			defer wg.Done()
 
-			if err := b.originateBeacon(ctx); err != nil {
+			if err := o.sendBeaconsNew(ctx, intf, bcns, s); err != nil {
 				logger.Info("Unable to originate on interface",
-					"egress_interface", b.intf.TopoInfo().ID, "err", err)
+					"egress_interface", intf.TopoInfo().ID, "err", err, "bcns", bcns)
+			} else {
+				logger.Info("Originated beacons", "bcns", bcns, "intf", intf)
 			}
 		}()
 	}
@@ -93,18 +119,62 @@ func (o *Originator) originateBeacons(ctx context.Context) {
 	o.logSummary(ctx, s)
 }
 
-// needBeacon returns a list of interfaces that need a beacon.
-func (o *Originator) needBeacon(active []*ifstate.Interface) []*ifstate.Interface {
-	if o.Tick.Passed() {
-		return active
+func (o *Originator) sendBeaconsNew(
+	ctx context.Context,
+	intf *ifstate.Interface,
+	bcns []beacon.Beacon,
+	sum *summary) error {
+	// Create labels for reporting
+	labels := originatorLabels{intf: intf}
+
+	logger := log.FromCtx(ctx)
+
+	// Prepare sender parameters
+	timeout := DefaultRPCTimeout
+	ia := intf.TopoInfo().IA
+	egress := intf.TopoInfo().ID
+	nexthop := intf.TopoInfo().InternalAddr.UDPAddr()
+
+	// Create sender
+	sender, err := o.SenderFactory.NewSender(ctx, timeout, ia, egress, nexthop)
+	if err != nil {
+		o.incrementMetrics(labels.WithResult(prom.ErrNetwork))
+		return serrors.WrapStr("error creating sender", err)
 	}
-	var stale []*ifstate.Interface
-	for _, intf := range active {
-		if o.Tick.Overdue(intf.LastOriginate()) {
-			stale = append(stale, intf)
+	defer sender.Close()
+
+	// Send each beacon using created sender
+	for _, bcn := range bcns {
+		logger.Debug("Sending beacon ", "bcn", bcn.Segment.ASEntries[0].Extensions)
+		if err := sender.Send(bcn.Segment); err != nil {
+			o.incrementMetrics(labels.WithResult(prom.ErrNetwork))
+			return serrors.WrapStr("sending beacon", err)
+		} else {
+			intf.Originate(o.Tick.Now())
+			sum.AddIfid(intf.TopoInfo().ID)
+			sum.Inc()
+			o.incrementMetrics(labels.WithResult(prom.Success))
 		}
 	}
-	return stale
+
+	return nil
+}
+
+type originatorLabels struct {
+	intf   *ifstate.Interface
+	Result string
+}
+
+func (l originatorLabels) Expand() []string {
+	return []string{
+		"egress_interface", strconv.Itoa(int(l.intf.TopoInfo().ID)),
+		"source_IA", l.intf.TopoInfo().IA.String(),
+		prom.LabelResult, l.Result}
+}
+
+func (l originatorLabels) WithResult(result string) originatorLabels {
+	l.Result = result
+	return l
 }
 
 func (o *Originator) logSummary(ctx context.Context, s *summary) {
@@ -118,98 +188,9 @@ func (o *Originator) logSummary(ctx context.Context, s *summary) {
 	}
 }
 
-// beaconOriginator originates one beacon on the given interface.
-type beaconOriginator struct {
-	*Originator
-	intf      *ifstate.Interface
-	timestamp time.Time
-	summary   *summary
-}
-
-// originateBeacon originates a beacon on the given ifid.
-func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
-	labels := originatorLabels{intf: o.intf}
-	topoInfo := o.intf.TopoInfo()
-	bseg, err := o.createBeacon(ctx)
-	if err != nil {
-		o.incrementMetrics(labels.WithResult("err_create"))
-		return serrors.WrapStr("creating beacon", err, "egress_interface", o.intf.TopoInfo().ID)
-	}
-
-	rpcContext, cancelF := context.WithTimeout(ctx, DefaultRPCTimeout)
-	defer cancelF()
-	rpcStart := time.Now()
-
-	sender, err := o.SenderFactory.NewSender(
-		rpcContext,
-		topoInfo.IA,
-		o.intf.TopoInfo().ID,
-		topoInfo.InternalAddr.UDPAddr(),
-	)
-	if err != nil {
-		if rpcContext.Err() != nil {
-			err = serrors.WrapStr("timed out getting beacon sender", err,
-				"waited_for", time.Since(rpcStart))
-		}
-		o.incrementMetrics(labels.WithResult(prom.ErrNetwork))
-		return err
-	}
-	defer sender.Close()
-	if err := sender.Send(rpcContext, bseg); err != nil {
-		if rpcContext.Err() != nil {
-			err = serrors.WrapStr("timed out waiting for RPC to complete", err,
-				"waited_for", time.Since(rpcStart))
-		}
-		o.incrementMetrics(labels.WithResult(prom.ErrNetwork))
-		return serrors.WrapStr("sending beacon", err)
-	}
-	logger := log.FromCtx(ctx)
-	logger.Debug("Sent Segments", "seg", bseg)
-	o.onSuccess(o.intf)
-	o.incrementMetrics(labels.WithResult(prom.Success))
-	return nil
-}
-
-func (o *beaconOriginator) createBeacon(ctx context.Context) (*seg.PathSegment, error) {
-	segID, err := rand.Int(rand.Reader, big.NewInt(1<<16))
-	if err != nil {
-		return nil, err
-	}
-	bseg, err := seg.CreateSegment(o.timestamp, uint16(segID.Uint64()))
-	if err != nil {
-		return nil, serrors.WrapStr("creating segment", err)
-	}
-
-	if err := o.Extender.Extend(ctx, bseg, 0, o.intf.TopoInfo().ID, nil, nil); err != nil {
-		return nil, serrors.WrapStr("extending segment", err)
-	}
-	return bseg, nil
-}
-
-func (o *beaconOriginator) onSuccess(intf *ifstate.Interface) {
-	intf.Originate(o.Tick.Now())
-	o.summary.AddIfid(o.intf.TopoInfo().ID)
-	o.summary.Inc()
-}
-
-func (o *beaconOriginator) incrementMetrics(labels originatorLabels) {
-	if o.Originator.Originated == nil {
+func (o *Originator) incrementMetrics(labels originatorLabels) {
+	if o.Originated == nil {
 		return
 	}
-	o.Originator.Originated.With(labels.Expand()...).Add(1)
-}
-
-type originatorLabels struct {
-	intf   *ifstate.Interface
-	Result string
-}
-
-func (l originatorLabels) Expand() []string {
-	return []string{"egress_interface", strconv.Itoa(int(l.intf.TopoInfo().ID)),
-		prom.LabelResult, l.Result}
-}
-
-func (l originatorLabels) WithResult(result string) originatorLabels {
-	l.Result = result
-	return l
+	o.Originated.With(labels.Expand()...).Add(1)
 }

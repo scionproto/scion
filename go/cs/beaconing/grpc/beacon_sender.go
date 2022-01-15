@@ -30,67 +30,18 @@ import (
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
-// BeaconSenderFactory can be used to create beacon senders.
 type BeaconSenderFactory struct {
-	// Dialer is used to dial the gRPC connection to the remote.
 	Dialer libgrpc.Dialer
 }
 
-// NewSender returns a beacon sender that can be used to send beacons to a remote CS.
+// creates a new sender
 func (f *BeaconSenderFactory) NewSender(
-	ctx context.Context,
-	dstIA addr.IA,
-	egIfId uint16,
-	nextHop *net.UDPAddr,
-) (beaconing.Sender, error) {
-	addr := &onehop.Addr{
-		IA:      dstIA,
-		Egress:  egIfId,
-		SVC:     addr.SvcCS,
-		NextHop: nextHop,
-	}
-	conn, err := f.Dialer.Dial(ctx, addr)
-	if err != nil {
-		return nil, serrors.WrapStr("dialing gRPC conn", err)
-	}
-	return &BeaconSender{
-		Conn: conn,
-	}, nil
-}
-
-// BeaconSender propagates beacons.
-type BeaconSender struct {
-	Conn *grpc.ClientConn
-}
-
-// Send sends a beacon to the remote.
-func (s BeaconSender) Send(ctx context.Context, b *seg.PathSegment) error {
-	client := cppb.NewSegmentCreationServiceClient(s.Conn)
-	_, err := client.Beacon(ctx,
-		&cppb.BeaconRequest{
-			Segment: seg.PathSegmentToPB(b),
-		},
-		libgrpc.RetryProfile...,
-	)
-	return err
-}
-
-// Close closes the BeaconSender and releases all underlying resources.
-func (s BeaconSender) Close() error {
-	return s.Conn.Close()
-}
-
-type BeaconSenderFactoryNew struct {
-	Dialer libgrpc.Dialer
-}
-
-func (f *BeaconSenderFactoryNew) NewSender(
 	parentCtx context.Context,
 	contextTimeout time.Duration,
 	dstIA addr.IA,
 	egIfId uint16,
 	nextHop *net.UDPAddr,
-) (beaconing.SenderNew, error) {
+) (beaconing.Sender, error) {
 	addr := &onehop.Addr{
 		IA:      dstIA,
 		Egress:  egIfId,
@@ -110,7 +61,7 @@ func (f *BeaconSenderFactoryNew) NewSender(
 		cancelF()
 		return nil, err
 	}
-	return &BeaconSenderNew{
+	return &beaconSender{
 		Conn:          conn,
 		rpcCtx:        grpcContext,
 		rpcCtxCancelF: cancelF,
@@ -118,15 +69,16 @@ func (f *BeaconSenderFactoryNew) NewSender(
 	}, nil
 }
 
-// Same as BeaocnSender, but carries the rpcContext
-type BeaconSenderNew struct {
+// Sender that can be used to send beacon segments
+// Should be closed after use
+type beaconSender struct {
 	Conn          *grpc.ClientConn
 	rpcCtx        context.Context
 	rpcCtxCancelF context.CancelFunc
 	rpcStart      time.Time
 }
 
-func (s BeaconSenderNew) Send(b *seg.PathSegment) error {
+func (s beaconSender) Send(b *seg.PathSegment) error {
 	client := cppb.NewSegmentCreationServiceClient(s.Conn)
 	_, err := client.Beacon(s.rpcCtx,
 		&cppb.BeaconRequest{
@@ -142,7 +94,8 @@ func (s BeaconSenderNew) Send(b *seg.PathSegment) error {
 	return err
 }
 
-func (s BeaconSenderNew) Close() error {
+// Cancels the rpcContext & closes the connection
+func (s beaconSender) Close() error {
 	s.rpcCtxCancelF()
 	return s.Conn.Close()
 }

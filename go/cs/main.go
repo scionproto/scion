@@ -658,47 +658,6 @@ func realMain(ctx context.Context) error {
 		return intfs.Filtered(originationFilter)
 	}
 
-	/*
-		baseMechanismDefault := beaconing.DefaultMechanismBase{
-			MechanismBase: beaconing.MechanismBase{
-				IA:                    topo.IA(),
-				AllInterfaces:         intfs,
-				PropagationInterfaces: propagationInterfaces,
-				AllowIsdLoop:          isdLoopAllowed,
-				Tick:                  beaconing.Tick{},
-			},
-			DB:       beaconDB,
-			Extender: extender,
-		}
-
-
-		var beaconingMechanism beaconing.PropagationBeaconProvider
-		if topo.Core() {
-			corePolicies.InitDefaults()
-			beaconingMechanism = &beaconing.DefaultMechanismCore{
-				DefaultMechanismBase: baseMechanismDefault,
-				Policies:             corePolicies,
-			}
-		} else {
-			noncorePolicies.InitDefaults()
-			beaconingMechanism = &beaconing.DefaultMechanismNonCore{
-				DefaultMechanismBase: baseMechanismDefault,
-				Policies:             noncorePolicies,
-			}
-		}
-	*/
-
-	/*
-		//pqaPath := globalCfg.General.PqaConfig()
-		pqaPath := "topology/del.yml"
-		pqaSettings, err := pqa.NewSettings(pqaPath)
-		if err != nil {
-			return serrors.WrapStr("reading pqa settings", err, "path", pqaPath)
-		} else {
-			log.Debug("loaded pqa settings file", "path", pqaPath)
-		}
-	*/
-	// TODO: Way of specifying pqa settings per AS
 	pqaSettings, err := pqa.GenerateSettingsForInterfaces(intfs)
 	if err != nil {
 		return serrors.WrapStr("generating pqa settings", err)
@@ -727,9 +686,6 @@ func realMain(ctx context.Context) error {
 		PathDB:                pathDB,
 		RevCache:              revCache,
 		BeaconSenderFactory: &beaconinggrpc.BeaconSenderFactory{
-			Dialer: dialer,
-		},
-		BeaconSenderFactoryNew: &beaconinggrpc.BeaconSenderFactoryNew{
 			Dialer: dialer,
 		},
 		SegmentRegister: beaconinggrpc.Registrar{Dialer: dialer},
