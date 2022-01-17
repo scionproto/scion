@@ -1,0 +1,11 @@
+@@
+var ia expression
+@@
+-ia.I()
++ia.ISD()
+
+@@
+var ia expression
+@@
+-ia.A()
++ia.AS()

@@ -197,8 +197,8 @@ func TestASFileFmt(t *testing.T) {
 func TestIAFromRaw(t *testing.T) {
 	t.Log("IAFromRaw should parse bytes correctly")
 	nia := IAFromRaw(rawIA)
-	assert.Equal(t, ia.I(), nia.I())
-	assert.Equal(t, ia.A(), nia.A())
+	assert.Equal(t, ia.ISD(), nia.ISD())
+	assert.Equal(t, ia.AS(), nia.AS())
 }
 
 func TestIAFromString(t *testing.T) {

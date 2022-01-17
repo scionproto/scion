@@ -75,7 +75,7 @@ func TestUpdateExtend(t *testing.T) {
 				ia.FileFmt(true)+".pem")
 			chain, err := cppki.ReadPEMCerts(file)
 			require.NoError(t, err)
-			trc := trcs[ia.I()].TRC
+			trc := trcs[ia.ISD()].TRC
 			err = cppki.VerifyChain(chain, cppki.VerifyOptions{TRC: []*cppki.TRC{&trc}})
 			require.NoError(t, err)
 		})
@@ -147,7 +147,7 @@ func TestUpdateReSign(t *testing.T) {
 				ia.FileFmt(true)+".pem")
 			chain, err := cppki.ReadPEMCerts(file)
 			require.NoError(t, err)
-			trc := trcs[ia.I()].TRC
+			trc := trcs[ia.ISD()].TRC
 			err = cppki.VerifyChain(chain, cppki.VerifyOptions{TRC: []*cppki.TRC{&trc}})
 			require.NoError(t, err)
 		})
@@ -216,7 +216,7 @@ func TestUpdateReGen(t *testing.T) {
 				ia.FileFmt(true)+".pem")
 			chain, err := cppki.ReadPEMCerts(file)
 			require.NoError(t, err)
-			trc := trcs[ia.I()].TRC
+			trc := trcs[ia.ISD()].TRC
 			err = cppki.VerifyChain(chain, cppki.VerifyOptions{TRC: []*cppki.TRC{&trc}})
 			require.Error(t, err)
 		})

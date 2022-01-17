@@ -271,12 +271,12 @@ func (f Filter) Apply(beacon Beacon) error {
 	}
 	for _, ia := range hops {
 		for _, as := range f.AsBlackList {
-			if ia.A() == as {
+			if ia.AS() == as {
 				return serrors.New("contains blocked AS", "isd_as", ia)
 			}
 		}
 		for _, isd := range f.IsdBlackList {
-			if ia.I() == isd {
+			if ia.ISD() == isd {
 				return serrors.New("contains blocked ISD", "isd_as", ia)
 			}
 		}
@@ -330,14 +330,14 @@ func filterIsdLoop(hops []addr.IA) addr.ISD {
 	seen := make(map[addr.ISD]struct{})
 	var last addr.ISD
 	for _, ia := range hops {
-		if last == ia.I() {
+		if last == ia.ISD() {
 			continue
 		}
-		if _, ok := seen[ia.I()]; ok {
-			return ia.I()
+		if _, ok := seen[ia.ISD()]; ok {
+			return ia.ISD()
 		}
-		last = ia.I()
-		seen[ia.I()] = struct{}{}
+		last = ia.ISD()
+		seen[ia.ISD()] = struct{}{}
 	}
 	return 0
 }

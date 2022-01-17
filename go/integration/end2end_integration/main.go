@@ -313,7 +313,7 @@ func filter(src, dst string, pairs []integration.IAPair, ases *util.ASList) []in
 		filter := !contains(ases, src != "noncore", pair.Src.IA)
 		filter = filter || !contains(ases, dst != "noncore", pair.Dst.IA)
 		if dst == "localcore" {
-			filter = filter || pair.Src.IA.I() != pair.Dst.IA.I()
+			filter = filter || pair.Src.IA.ISD() != pair.Dst.IA.ISD()
 		}
 		if !filter {
 			res = append(res, pair)

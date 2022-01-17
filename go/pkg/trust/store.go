@@ -77,9 +77,9 @@ func LoadChains(ctx context.Context, dir string, db DB) (LoadResult, error) {
 			res.Ignored[f] = err
 			continue
 		}
-		trcs, _, err := activeTRCs(ctx, db, ia.I())
+		trcs, _, err := activeTRCs(ctx, db, ia.ISD())
 		if errors.Is(err, errNotFound) {
-			res.Ignored[f] = serrors.New("TRC not found", "isd", ia.I())
+			res.Ignored[f] = serrors.New("TRC not found", "isd", ia.ISD())
 			continue
 		}
 		if err != nil {

@@ -34,10 +34,10 @@ func (m SingleIAMatcher) Match(ia addr.IA) bool {
 	switch {
 	case m.IA.IsZero():
 		return true
-	case m.IA.I() == 0:
-		return m.IA.A() == ia.A()
-	case m.IA.A() == 0:
-		return m.IA.I() == ia.I()
+	case m.IA.ISD() == 0:
+		return m.IA.AS() == ia.AS()
+	case m.IA.AS() == 0:
+		return m.IA.ISD() == ia.ISD()
 	default:
 		return m.IA.Equal(ia)
 	}

@@ -63,7 +63,7 @@ func (i DBInspector) HasAttributes(
 	attrs Attribute,
 ) (bool, error) {
 
-	trcAttrs, err := i.trcAttrs(ctx, ia.I())
+	trcAttrs, err := i.trcAttrs(ctx, ia.ISD())
 	if err != nil {
 		return false, err
 	}

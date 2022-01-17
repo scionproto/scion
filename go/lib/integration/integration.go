@@ -235,7 +235,7 @@ var DispAddr HostAddr = func(ia addr.IA) *snet.UDPAddr {
 			return &snet.UDPAddr{IA: ia, Host: &net.UDPAddr{IP: net.ParseIP(string(matches[1]))}}
 		}
 	}
-	path := GenFile(fmt.Sprintf("AS%s/topology.json", ia.A().FileFmt()))
+	path := GenFile(fmt.Sprintf("AS%s/topology.json", ia.AS().FileFmt()))
 	topo, err := topology.RWTopologyFromJSONFile(path)
 	if err != nil {
 		log.Error("Error loading topology", "err", err)

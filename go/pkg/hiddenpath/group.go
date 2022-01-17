@@ -102,9 +102,9 @@ func (g *Group) Validate() error {
 	if g.Owner.IsZero() {
 		return serrors.New("missing owner")
 	}
-	if g.Owner.A() != g.ID.OwnerAS {
+	if g.Owner.AS() != g.ID.OwnerAS {
 		return serrors.New("owner mismatch",
-			"owner_as", g.Owner.A(), "group_id", g.ID.OwnerAS)
+			"owner_as", g.Owner.AS(), "group_id", g.ID.OwnerAS)
 	}
 	if len(g.Writers) == 0 {
 		return serrors.New("writers section cannot be empty")

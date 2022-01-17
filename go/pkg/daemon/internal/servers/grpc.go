@@ -67,7 +67,7 @@ func (s *DaemonServer) Paths(ctx context.Context,
 	req *sdpb.PathsRequest) (*sdpb.PathsResponse, error) {
 
 	start := time.Now()
-	dstI := addr.IA(req.DestinationIsdAs).I()
+	dstI := addr.IA(req.DestinationIsdAs).ISD()
 	response, err := s.paths(ctx, req)
 	s.Metrics.PathsRequests.inc(
 		pathReqLabels{Result: errToMetricResult(err), Dst: dstI},

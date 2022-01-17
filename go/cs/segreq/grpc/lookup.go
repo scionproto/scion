@@ -54,7 +54,7 @@ func (s LookupServer) Segments(ctx context.Context,
 	src, dst := addr.IA(req.SrcIsdAs), addr.IA(req.DstIsdAs)
 	labels := requestLabels{
 		Desc: descLabels{
-			DstISD: dst.I(),
+			DstISD: dst.ISD(),
 		},
 	}
 	logger := log.FromCtx(ctx)

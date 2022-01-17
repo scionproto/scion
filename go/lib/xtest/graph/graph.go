@@ -105,7 +105,7 @@ func (g *Graph) Add(ia string) {
 	g.signers[isdas] = NewSigner(
 		WithIA(isdas),
 		WithTRCID(cppki.TRCID{
-			ISD:    isdas.I(),
+			ISD:    isdas.ISD(),
 			Serial: 1,
 			Base:   1,
 		}),

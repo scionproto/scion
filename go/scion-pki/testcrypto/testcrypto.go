@@ -281,21 +281,21 @@ func createTRCs(cfg config) error {
 	certFiles := make(map[addr.ISD][]string)
 	isds := make(map[addr.ISD]struct{})
 	for ia, d := range cfg.topo.ASes {
-		isds[ia.I()] = struct{}{}
+		isds[ia.ISD()] = struct{}{}
 		if d.Authoritative {
-			authoritatives[ia.I()] = append(authoritatives[ia.I()], ia.A())
+			authoritatives[ia.ISD()] = append(authoritatives[ia.ISD()], ia.AS())
 		}
 		if d.Core {
-			cores[ia.I()] = append(cores[ia.I()], ia.A())
+			cores[ia.ISD()] = append(cores[ia.ISD()], ia.AS())
 		}
 		if d.Issuing {
-			issuers[ia.I()] = append(issuers[ia.I()], ia)
-			certFiles[ia.I()] = append(certFiles[ia.I()],
+			issuers[ia.ISD()] = append(issuers[ia.ISD()], ia)
+			certFiles[ia.ISD()] = append(certFiles[ia.ISD()],
 				filepath.Join(cryptoCADir(ia, cfg.out), rootCertName(ia)))
 		}
 		if d.Voting {
-			voters[ia.I()] = append(voters[ia.I()], ia)
-			certFiles[ia.I()] = append(certFiles[ia.I()],
+			voters[ia.ISD()] = append(voters[ia.ISD()], ia)
+			certFiles[ia.ISD()] = append(certFiles[ia.ISD()],
 				filepath.Join(cryptoVotingDir(ia, cfg.out), regularCertName(ia)),
 				filepath.Join(cryptoVotingDir(ia, cfg.out), sensitiveCertName(ia)),
 			)
@@ -452,7 +452,7 @@ func setupTemplates(cfg config) error {
 func prepareDirectories(t topo, out outConfig) error {
 	for ia, d := range t.ASes {
 		dirs := []string{
-			trcDir(ia.I(), out),
+			trcDir(ia.ISD(), out),
 			keyDir(ia, out),
 			certDir(ia, out),
 			cryptoASDir(ia, out),
@@ -569,9 +569,9 @@ type outConfig struct {
 
 func (cfg outConfig) AS(ia addr.IA) string {
 	if cfg.isd {
-		return fmt.Sprintf("%s/ISD%d/AS%s", cfg.base, ia.I(), ia.A().FileFmt())
+		return fmt.Sprintf("%s/ISD%d/AS%s", cfg.base, ia.ISD(), ia.AS().FileFmt())
 	}
-	return fmt.Sprintf("%s/AS%s", cfg.base, ia.A().FileFmt())
+	return fmt.Sprintf("%s/AS%s", cfg.base, ia.AS().FileFmt())
 }
 
 func trcDir(isd addr.ISD, out outConfig) string {

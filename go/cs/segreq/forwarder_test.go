@@ -76,7 +76,7 @@ func TestForwarderClassify(t *testing.T) {
 		"Invalid Src": {
 			LocalIA: nonCore111,
 			Request: request{
-				Src: addr.NewIA(0, nonCore111.A()),
+				Src: addr.NewIA(0, nonCore111.AS()),
 				Dst: core110,
 			},
 			ErrorAssertion: require.Error,

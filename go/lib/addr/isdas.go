@@ -191,11 +191,11 @@ func NewIA(isd ISD, as AS) IA {
 	return IA(isd)<<ASBits | IA(as&MaxAS)
 }
 
-func (ia IA) I() ISD {
+func (ia IA) ISD() ISD {
 	return ISD(ia >> ASBits)
 }
 
-func (ia IA) A() AS {
+func (ia IA) AS() AS {
 	return AS(ia) & MaxAS
 }
 
@@ -276,11 +276,11 @@ func (ia IA) Equal(other IA) bool {
 
 // IsWildcard returns whether the ia has a wildcard part (isd or as).
 func (ia IA) IsWildcard() bool {
-	return ia.I() == 0 || ia.A() == 0
+	return ia.ISD() == 0 || ia.AS() == 0
 }
 
 func (ia IA) String() string {
-	return fmt.Sprintf("%d-%s", ia.I(), ia.A())
+	return fmt.Sprintf("%d-%s", ia.ISD(), ia.AS())
 }
 
 // FileFmt returns a file-system friendly representation of ia. If prefixes is
@@ -291,7 +291,7 @@ func (ia IA) FileFmt(prefixes bool) string {
 	if prefixes {
 		fmts = "ISD%d-AS%s"
 	}
-	return fmt.Sprintf(fmts, ia.I(), ia.A().FileFmt())
+	return fmt.Sprintf(fmts, ia.ISD(), ia.AS().FileFmt())
 }
 
 // Set implements flag.Value interface
