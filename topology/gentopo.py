@@ -54,4 +54,4 @@ def create_fully_connected_core(n):
 
 
 if __name__ == "__main__":
-    create_fully_connected_core(5)
+    create_fully_connected_core(3)

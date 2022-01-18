@@ -57,3 +57,11 @@ golangci-lint:
 
 golden:
 	./tools/update_testdata.sh
+
+
+restart:
+	./scion.sh stop
+	rm -rf logs/*
+	./prom.sh wipe
+	./scion.sh start
+	./prom.sh reload

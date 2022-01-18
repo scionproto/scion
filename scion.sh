@@ -45,7 +45,6 @@ cmd_topo_clean() {
 cmd_topology() {
     set -e
     cmd_topo_clean
-
     # Build the necessary binaries.
     bazel build //:scion-topo
     tar --overwrite -xf bazel-bin/scion-topo.tar -C bin
@@ -378,7 +377,7 @@ cmd_traces() {
         -p "$port":16686 \
         jaegertracing/all-in-one:1.22.0
     sleep 3
-    x-www-browser "http://localhost:$port"
+    # x-www-browser "http://localhost:$port"
 }
 
 cmd_stop_traces() {
