@@ -1,0 +1,41 @@
+ASes:
+  1-ff00:0:100:
+    authoritative: true
+    core: true
+    issuing: true
+    voting: true
+  2-ff00:0:101:
+    authoritative: true
+    core: true
+    issuing: true
+    voting: true
+  3-ff00:0:102:
+    authoritative: true
+    core: true
+    issuing: true
+    voting: true
+links:
+- a: 1-ff00:0:100
+  b: 2-ff00:0:101
+  linkAtoB: CORE
+  mtu: 1280
+- a: 1-ff00:0:100
+  b: 3-ff00:0:102
+  linkAtoB: CORE
+  mtu: 1280
+- a: 2-ff00:0:101
+  b: 1-ff00:0:100
+  linkAtoB: CORE
+  mtu: 1280
+- a: 2-ff00:0:101
+  b: 3-ff00:0:102
+  linkAtoB: CORE
+  mtu: 1280
+- a: 3-ff00:0:102
+  b: 1-ff00:0:100
+  linkAtoB: CORE
+  mtu: 1280
+- a: 3-ff00:0:102
+  b: 2-ff00:0:101
+  linkAtoB: CORE
+  mtu: 1280
