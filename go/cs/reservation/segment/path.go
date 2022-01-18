@@ -43,7 +43,7 @@ func NewPathFromRaw(buff []byte) (ReservationTransparentPath, error) {
 		offset := i * PathStepWithIALen
 		p[i].Ingress = binary.BigEndian.Uint16(buff[offset:])
 		p[i].Egress = binary.BigEndian.Uint16(buff[offset+2:])
-		p[i].IA = addr.IAFromRaw(buff[offset+4:])
+		p[i].IA = addr.IA(binary.BigEndian.Uint64(buff[offset+4:]))
 	}
 	return p, nil
 }

@@ -295,7 +295,7 @@ The template is expressed in JSON. A valid example:
 			var cas []addr.IA
 			if len(flags.ca) != 0 {
 				for _, raw := range flags.ca {
-					ca, err := addr.IAFromString(raw)
+					ca, err := addr.ParseIA(raw)
 					if err != nil {
 						return serrors.WrapStr("parsing CA", err)
 					}
@@ -444,7 +444,7 @@ The template is expressed in JSON. A valid example:
 				// Verify certificate chain
 				verifyOptions := cppki.VerifyOptions{TRC: trcs}
 				if verifyError := cppki.VerifyChain(chain, verifyOptions); verifyError != nil {
-					suffix := "." + ca.FileFmt(false) + ".unverified"
+					suffix := "." + addr.FormatIA(ca, addr.WithFileSeparator()) + ".unverified"
 
 					printErr("Verification failed: %s\n", err)
 

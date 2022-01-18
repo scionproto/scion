@@ -119,5 +119,5 @@ func (s *MultiSegmentSplitter) isCore(ctx context.Context, dst addr.IA) (bool, e
 }
 
 func toWildCard(ia addr.IA) addr.IA {
-	return addr.NewIA(ia.ISD(), 0)
+	return addr.MustIAFrom(ia.ISD(), 0)
 }

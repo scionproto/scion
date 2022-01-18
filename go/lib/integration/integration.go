@@ -73,7 +73,7 @@ func (a iaArgs) String() string {
 func (a *iaArgs) Set(value string) error {
 	rawIAs := strings.Split(value, ",")
 	for _, rawIA := range rawIAs {
-		ia, err := addr.IAFromString(rawIA)
+		ia, err := addr.ParseIA(rawIA)
 		if err != nil {
 			return err
 		}
@@ -229,19 +229,24 @@ var DispAddr HostAddr = func(ia addr.IA) *snet.UDPAddr {
 		return a
 	}
 	if raw, err := os.ReadFile(GenFile("networks.conf")); err == nil {
-		pattern := fmt.Sprintf("tester_%s = (.*)", ia.FileFmt(false))
+		pattern := fmt.Sprintf("tester_%s = (.*)", addr.FormatIA(ia, addr.WithFileSeparator()))
 		matches := regexp.MustCompile(pattern).FindSubmatch(raw)
 		if len(matches) == 2 {
 			return &snet.UDPAddr{IA: ia, Host: &net.UDPAddr{IP: net.ParseIP(string(matches[1]))}}
 		}
 	}
-	path := GenFile(fmt.Sprintf("AS%s/topology.json", ia.AS().FileFmt()))
+	path := GenFile(
+		filepath.Join(
+			addr.FormatAS(ia.AS(), addr.WithDefaultPrefix(), addr.WithFileSeparator()),
+			"topology.json",
+		),
+	)
 	topo, err := topology.RWTopologyFromJSONFile(path)
 	if err != nil {
 		log.Error("Error loading topology", "err", err)
 		os.Exit(1)
 	}
-	cs := topo.CS["cs"+ia.FileFmt(false)+"-1"]
+	cs := topo.CS["cs"+addr.FormatIA(ia, addr.WithFileSeparator())+"-1"]
 	return &snet.UDPAddr{IA: ia, Host: cs.SCIONAddress}
 }
 

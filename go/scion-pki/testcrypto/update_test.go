@@ -72,7 +72,7 @@ func TestUpdateExtend(t *testing.T) {
 	for _, ia := range allASes {
 		t.Run(ia.String(), func(t *testing.T) {
 			file := filepath.Join(testcrypto.CryptoASDir(ia, testcrypto.NewOut(outDir)),
-				ia.FileFmt(true)+".pem")
+				addr.FormatIA(ia, addr.WithFileSeparator(), addr.WithDefaultPrefix())+".pem")
 			chain, err := cppki.ReadPEMCerts(file)
 			require.NoError(t, err)
 			trc := trcs[ia.ISD()].TRC
@@ -144,7 +144,7 @@ func TestUpdateReSign(t *testing.T) {
 	for _, ia := range allASes {
 		t.Run(ia.String(), func(t *testing.T) {
 			file := filepath.Join(testcrypto.CryptoASDir(ia, testcrypto.NewOut(outDir)),
-				ia.FileFmt(true)+".pem")
+				addr.FormatIA(ia, addr.WithFileSeparator(), addr.WithDefaultPrefix())+".pem")
 			chain, err := cppki.ReadPEMCerts(file)
 			require.NoError(t, err)
 			trc := trcs[ia.ISD()].TRC
@@ -213,7 +213,7 @@ func TestUpdateReGen(t *testing.T) {
 	for _, ia := range allASes {
 		t.Run(ia.String(), func(t *testing.T) {
 			file := filepath.Join(testcrypto.CryptoASDir(ia, testcrypto.NewOut(outDir)),
-				ia.FileFmt(true)+".pem")
+				addr.FormatIA(ia, addr.WithFileSeparator(), addr.WithDefaultPrefix())+".pem")
 			chain, err := cppki.ReadPEMCerts(file)
 			require.NoError(t, err)
 			trc := trcs[ia.ISD()].TRC

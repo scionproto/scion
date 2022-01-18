@@ -37,10 +37,10 @@ import (
 )
 
 var (
-	ia330 = addr.NewIA(1, 0xff0000000330)
-	ia311 = addr.NewIA(1, 0xff0000000311)
-	ia331 = addr.NewIA(1, 0xff0000000331)
-	ia332 = addr.NewIA(1, 0xff0000000332)
+	ia330 = addr.MustIAFrom(1, 0xff0000000330)
+	ia311 = addr.MustIAFrom(1, 0xff0000000311)
+	ia331 = addr.MustIAFrom(1, 0xff0000000331)
+	ia332 = addr.MustIAFrom(1, 0xff0000000332)
 
 	ifs1 = []uint64{0, 5, 2, 3, 6, 3, 1, 0}
 	ifs2 = []uint64{0, 4, 2, 3, 1, 3, 2, 0}

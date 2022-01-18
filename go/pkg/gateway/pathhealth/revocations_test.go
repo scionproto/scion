@@ -32,7 +32,7 @@ import (
 )
 
 var (
-	testIA addr.IA = addr.NewIA(3, 4)
+	testIA addr.IA = addr.MustIAFrom(3, 4)
 )
 
 func TestEmptyStore(t *testing.T) {

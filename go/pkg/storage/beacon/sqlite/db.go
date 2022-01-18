@@ -100,7 +100,11 @@ func (e *executor) BeaconSources(ctx context.Context) ([]addr.IA, error) {
 		if err := rows.Scan(&isd, &as); err != nil {
 			return nil, err
 		}
-		ias = append(ias, addr.NewIA(isd, as))
+		ia, err := addr.IAFrom(isd, as)
+		if err != nil {
+			return nil, err
+		}
+		ias = append(ias, ia)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

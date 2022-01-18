@@ -569,13 +569,20 @@ type outConfig struct {
 
 func (cfg outConfig) AS(ia addr.IA) string {
 	if cfg.isd {
-		return fmt.Sprintf("%s/ISD%d/AS%s", cfg.base, ia.ISD(), ia.AS().FileFmt())
+		return filepath.Join(
+			cfg.base,
+			addr.FormatISD(ia.ISD(), addr.WithDefaultPrefix()),
+			addr.FormatAS(ia.AS(), addr.WithDefaultPrefix(), addr.WithFileSeparator()),
+		)
 	}
-	return fmt.Sprintf("%s/AS%s", cfg.base, ia.AS().FileFmt())
+	return filepath.Join(
+		cfg.base,
+		addr.FormatAS(ia.AS(), addr.WithDefaultPrefix(), addr.WithFileSeparator()),
+	)
 }
 
 func trcDir(isd addr.ISD, out outConfig) string {
-	return fmt.Sprintf("%s/ISD%d/trcs", out.base, isd)
+	return filepath.Join(out.base, addr.FormatISD(isd, addr.WithDefaultPrefix()), "trcs")
 }
 
 func keyDir(ia addr.IA, out outConfig) string {
@@ -599,30 +606,34 @@ func cryptoVotingDir(ia addr.IA, out outConfig) string {
 }
 
 func chainName(ia addr.IA) string {
-	return fmt.Sprintf("%s.pem", ia.FileFmt(true))
+	return fmt.Sprintf("%s.pem", fmtIA(ia))
 }
 
 func caCertName(ia addr.IA) string {
-	return fmt.Sprintf("%s.ca.crt", ia.FileFmt(true))
+	return fmt.Sprintf("%s.ca.crt", fmtIA(ia))
 }
 
 func rootCertName(ia addr.IA, serial ...int) string {
 	if len(serial) == 0 {
-		return fmt.Sprintf("%s.root.crt", ia.FileFmt(true))
+		return fmt.Sprintf("%s.root.crt", fmtIA(ia))
 	}
-	return fmt.Sprintf("%s.root.s%d.crt", ia.FileFmt(true), serial[0])
+	return fmt.Sprintf("%s.root.s%d.crt", fmtIA(ia), serial[0])
 }
 
 func sensitiveCertName(ia addr.IA, serial ...int) string {
 	if len(serial) == 0 {
-		return fmt.Sprintf("%s.sensitive.crt", ia.FileFmt(true))
+		return fmt.Sprintf("%s.sensitive.crt", fmtIA(ia))
 	}
-	return fmt.Sprintf("%s.sensitive.s%d.crt", ia.FileFmt(true), serial[0])
+	return fmt.Sprintf("%s.sensitive.s%d.crt", fmtIA(ia), serial[0])
 }
 
 func regularCertName(ia addr.IA, serial ...int) string {
 	if len(serial) == 0 {
-		return fmt.Sprintf("%s.regular.crt", ia.FileFmt(true))
+		return fmt.Sprintf("%s.regular.crt", fmtIA(ia))
 	}
-	return fmt.Sprintf("%s.regular.s%d.crt", ia.FileFmt(true), serial[0])
+	return fmt.Sprintf("%s.regular.s%d.crt", fmtIA(ia), serial[0])
+}
+
+func fmtIA(ia addr.IA) string {
+	return addr.FormatIA(ia, addr.WithFileSeparator(), addr.WithDefaultPrefix())
 }

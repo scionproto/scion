@@ -31,12 +31,12 @@ import (
 )
 
 var (
-	IA311 = addr.NewIA(1, 0xff0000000311)
-	IA330 = addr.NewIA(1, 0xff0000000330)
-	IA331 = addr.NewIA(1, 0xff0000000331)
-	IA332 = addr.NewIA(1, 0xff0000000332)
-	IA333 = addr.NewIA(1, 0xff0000000333)
-	IA334 = addr.NewIA(2, 0xff0000000334)
+	IA311 = addr.MustIAFrom(1, 0xff0000000311)
+	IA330 = addr.MustIAFrom(1, 0xff0000000330)
+	IA331 = addr.MustIAFrom(1, 0xff0000000331)
+	IA332 = addr.MustIAFrom(1, 0xff0000000332)
+	IA333 = addr.MustIAFrom(1, 0xff0000000333)
+	IA334 = addr.MustIAFrom(2, 0xff0000000334)
 
 	Info1 = []IfInfo{
 		{

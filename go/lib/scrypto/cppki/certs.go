@@ -538,7 +538,7 @@ func findIA(dn pkix.Name) (*addr.IA, error) {
 		if !ok {
 			return nil, serrors.New("invalid ISD-AS value (not string)")
 		}
-		ia, err := addr.IAFromString(rawIA)
+		ia, err := addr.ParseIA(rawIA)
 		if err != nil {
 			return nil, serrors.WrapStr("invalid ISD-AS value", err)
 		}

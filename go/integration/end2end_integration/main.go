@@ -238,7 +238,10 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 				if *integration.Docker {
 					tester = integration.TesterID(src)
 				}
-				logFile := fmt.Sprintf("%s/client_%s.log", logDir(), src.IA.FileFmt(false))
+				logFile := fmt.Sprintf("%s/client_%s.log",
+					logDir(),
+					addr.FormatIA(src.IA, addr.WithFileSeparator()),
+				)
 				err := integration.Run(ctx, integration.RunConfig{
 					Commands: cmds,
 					LogFile:  logFile,
@@ -299,8 +302,8 @@ func getPairs() ([]integration.IAPair, error) {
 // filter returns the list of ASes that are part of the desired subset.
 func filter(src, dst string, pairs []integration.IAPair, ases *util.ASList) []integration.IAPair {
 	var res []integration.IAPair
-	s, err1 := addr.IAFromString(src)
-	d, err2 := addr.IAFromString(dst)
+	s, err1 := addr.ParseIA(src)
+	d, err2 := addr.ParseIA(dst)
 	if err1 == nil && err2 == nil {
 		for _, pair := range pairs {
 			if pair.Src.IA.Equal(s) && pair.Dst.IA.Equal(d) {

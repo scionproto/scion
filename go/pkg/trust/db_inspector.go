@@ -86,10 +86,10 @@ func (i DBInspector) trcAttrs(ctx context.Context, isd addr.ISD) (map[addr.IA]At
 	trc := sTRC.TRC
 	attrs := map[addr.IA]Attribute{}
 	for _, as := range trc.CoreASes {
-		attrs[addr.NewIA(trc.ID.ISD, as)] |= Core
+		attrs[addr.MustIAFrom(trc.ID.ISD, as)] |= Core
 	}
 	for _, as := range trc.AuthoritativeASes {
-		attrs[addr.NewIA(trc.ID.ISD, as)] |= Authoritative
+		attrs[addr.MustIAFrom(trc.ID.ISD, as)] |= Authoritative
 	}
 	roots, err := rootIAs(trc)
 	if err != nil {

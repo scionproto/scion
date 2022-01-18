@@ -207,7 +207,7 @@ func ExpandPath(file string) string {
 // MustParseIA parses s and returns the corresponding addr.IA object. It
 // panics if s is not a valid ISD-AS representation.
 func MustParseIA(s string) addr.IA {
-	ia, err := addr.IAFromString(s)
+	ia, err := addr.ParseIA(s)
 	if err != nil {
 		panic(err)
 	}
@@ -217,7 +217,7 @@ func MustParseIA(s string) addr.IA {
 // MustParseAS parses s and returns the corresponding addr.AS object. It panics
 // if s is not valid AS representation.
 func MustParseAS(s string) addr.AS {
-	ia, err := addr.ASFromString(s)
+	ia, err := addr.ParseAS(s)
 	if err != nil {
 		panic(err)
 	}

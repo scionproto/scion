@@ -47,7 +47,7 @@ func HopPredicateFromString(str string) (*HopPredicate, error) {
 	var ifIDs = make([]common.IFIDType, 1)
 	// Parse ISD
 	dashParts := strings.Split(str, "-")
-	isd, err := addr.ISDFromString(dashParts[0])
+	isd, err := addr.ParseISD(dashParts[0])
 	if err != nil {
 		return &HopPredicate{}, serrors.WrapStr("Failed to parse ISD", err, "value", str)
 	}
@@ -56,7 +56,7 @@ func HopPredicateFromString(str string) (*HopPredicate, error) {
 	}
 	// Parse AS if present
 	hashParts := strings.Split(dashParts[1], "#")
-	as, err := addr.ASFromString(hashParts[0])
+	as, err := addr.ParseAS(hashParts[0])
 	if err != nil {
 		return &HopPredicate{}, serrors.WrapStr("Failed to parse AS", err, "value", str)
 	}
@@ -118,7 +118,7 @@ func (hp HopPredicate) String() string {
 	for _, ifid := range hp.IfIDs {
 		s = append(s, ifid.String())
 	}
-	return fmt.Sprintf("%s#%s", addr.NewIA(hp.ISD, hp.AS), strings.Join(s, ","))
+	return fmt.Sprintf("%d-%s#%s", hp.ISD, hp.AS, strings.Join(s, ","))
 }
 
 func (hp *HopPredicate) MarshalJSON() ([]byte, error) {

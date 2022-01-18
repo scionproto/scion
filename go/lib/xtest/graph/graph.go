@@ -554,7 +554,7 @@ func (s *solution) Len() int {
 }
 
 func MustParseIA(ia string) addr.IA {
-	isdas, err := addr.IAFromString(ia)
+	isdas, err := addr.ParseIA(ia)
 	if err != nil {
 		panic(err)
 	}

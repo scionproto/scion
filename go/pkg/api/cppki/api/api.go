@@ -50,7 +50,7 @@ func (s *Server) GetCertificates(
 	q := trust.ChainQuery{Date: time.Now()}
 	var errs serrors.List
 	if params.IsdAs != nil {
-		if ia, err := addr.IAFromString(string(*params.IsdAs)); err == nil {
+		if ia, err := addr.ParseIA(string(*params.IsdAs)); err == nil {
 			q.IA = ia
 		} else {
 			errs = append(errs, serrors.WithCtx(err, "parameter", "isd_as"))
@@ -299,11 +299,11 @@ func (s *Server) GetTrc(w http.ResponseWriter, r *http.Request, isd int, base in
 	}
 	authASes := make([]IsdAs, 0, len(trc.TRC.AuthoritativeASes))
 	for _, as := range trc.TRC.AuthoritativeASes {
-		authASes = append(authASes, IsdAs(addr.NewIA(trc.TRC.ID.ISD, as).String()))
+		authASes = append(authASes, IsdAs(addr.MustIAFrom(trc.TRC.ID.ISD, as).String()))
 	}
 	coreAses := make([]IsdAs, 0, len(trc.TRC.CoreASes))
 	for _, as := range trc.TRC.CoreASes {
-		coreAses = append(coreAses, IsdAs(addr.NewIA(trc.TRC.ID.ISD, as).String()))
+		coreAses = append(coreAses, IsdAs(addr.MustIAFrom(trc.TRC.ID.ISD, as).String()))
 	}
 	rep := TRC{
 		AuthoritativeAses: authASes,

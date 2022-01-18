@@ -43,7 +43,7 @@ func getRandomValue() string {
 }
 
 func getRandomIA() addr.IA {
-	return addr.NewIA(
+	return addr.MustIAFrom(
 		addr.ISD(rand.Intn(3)+1),
 		addr.AS(rand.Intn(3)+1),
 	)

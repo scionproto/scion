@@ -26,6 +26,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto/cms/protocol"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -168,7 +169,7 @@ func outPath(out, outDir string, trc *cppki.TRC, cert *x509.Certificate) (string
 		return "", serrors.WrapStr("determining cert type", err)
 	}
 	fname := fmt.Sprintf("ISD%d-B%d-S%d.%s-%s.trc", trc.ID.ISD, trc.ID.Base, trc.ID.Serial,
-		ia.FileFmt(false), signType)
+		addr.FormatIA(ia, addr.WithFileSeparator()), signType)
 	return filepath.Join(outDir, fname), nil
 }
 

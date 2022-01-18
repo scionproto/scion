@@ -193,7 +193,7 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 	var err error
 	t.Timestamp = time.Unix(raw.Timestamp, 0)
 
-	if t.IA, err = addr.IAFromString(raw.IA); err != nil {
+	if t.IA, err = addr.ParseIA(raw.IA); err != nil {
 		return err
 	}
 	if t.IA.IsWildcard() {
@@ -231,7 +231,7 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 				InternalAddr: intAddr,
 				MTU:          rawIntf.MTU,
 			}
-			if ifinfo.IA, err = addr.IAFromString(rawIntf.IA); err != nil {
+			if ifinfo.IA, err = addr.ParseIA(rawIntf.IA); err != nil {
 				return err
 			}
 			ifinfo.LinkType = LinkTypeFromString(rawIntf.LinkTo)

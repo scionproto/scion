@@ -129,7 +129,7 @@ func parseIAMatcher(b []byte) (IAMatcher, error) {
 		negative = true
 		b = b[1:]
 	}
-	ia, err := addr.IAFromString(string(b))
+	ia, err := addr.ParseIA(string(b))
 	if err != nil {
 		return nil, err
 	}
