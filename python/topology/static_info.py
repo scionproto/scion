@@ -18,8 +18,8 @@ class StaticInfoGenerator:
     def __init__(self, args):
         self.args = args
 
-        # self.gen_latency = lambda r: f"{int(r.lognormvariate(1, 0.8)*60)}ms"
-        self.gen_latency = lambda r: f"{10}ms"
+        self.gen_latency = lambda r: f"{int(r.lognormvariate(1, 0.8)*60)}ms"
+        #self.gen_latency = lambda r: f"{10}ms"
         self.gen_bandwith = lambda r: int(r.lognormvariate(1, 0.8)*2000000000)
         self.gen_long = lambda r: 0
         self.gen_lat = lambda r: 0

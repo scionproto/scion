@@ -33,7 +33,6 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
 	beaconstorage "github.com/scionproto/scion/go/pkg/storage/beacon"
-	sqlitebeacondb "github.com/scionproto/scion/go/pkg/storage/beacon/sqlite"
 	sqlitepathdb "github.com/scionproto/scion/go/pkg/storage/path/sqlite"
 	pqamemory "github.com/scionproto/scion/go/pkg/storage/pqa/memory"
 	truststorage "github.com/scionproto/scion/go/pkg/storage/trust"
@@ -151,31 +150,6 @@ func (cfg *DBConfig) ConfigName() string {
 	return "db"
 }
 
-func NewBeaconStorage(c DBConfig, ia addr.IA) (BeaconDB, error) {
-	log.Info("Connecting BeaconDB", "backend", BackendSqlite, "connection", c.Connection)
-	db, err := sqlitebeacondb.New(c.Connection, ia)
-	if err != nil {
-		return nil, err
-	}
-	SetConnLimits(db, c)
-
-	// Start a periodic task that cleans up the expired beacons.
-	cleaner := periodic.Start(
-		cleaner.New(
-			func(ctx context.Context) (int, error) {
-				return db.DeleteExpiredBeacons(ctx, time.Now())
-			},
-			"control_beaconstorage_cleaner",
-		),
-		30*time.Second,
-		30*time.Second,
-	)
-	return beaconDBWithCleaner{
-		BeaconDB: db,
-		cleaner:  cleaner,
-	}, nil
-}
-
 func NewBeaconStorageNew(c DBConfig, ia addr.IA) (BeaconDBNew, error) {
 	log.Info("Connecting new BeaconDB", "backend", BackendSqlite, "connection", c.Connection)
 	db, err := pqamemory.New(c.Connection, ia)
@@ -201,21 +175,9 @@ func NewBeaconStorageNew(c DBConfig, ia addr.IA) (BeaconDBNew, error) {
 	}, nil
 }
 
-// beaconDBWithCleaner implements the BeaconDB interface and stops both the
-// database and the cleanup task on Close.
-type beaconDBWithCleaner struct {
-	BeaconDB
-	cleaner *periodic.Runner
-}
-
 type beaconDBWithCleanerNew struct {
 	BeaconDBNew
 	cleaner *periodic.Runner
-}
-
-func (b beaconDBWithCleaner) Close() error {
-	b.cleaner.Kill()
-	return b.BeaconDB.Close()
 }
 
 func NewPathStorage(c DBConfig) (PathDB, error) {

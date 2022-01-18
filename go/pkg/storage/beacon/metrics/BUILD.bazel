@@ -21,14 +21,4 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = ["metrics_test.go"],
-    deps = [
-        ":go_default_library",
-        "//go/lib/metrics:go_default_library",
-        "//go/lib/xtest:go_default_library",
-        "//go/pkg/storage:go_default_library",
-        "//go/pkg/storage/beacon:go_default_library",
-        "//go/pkg/storage/beacon/dbtest:go_default_library",
-        "//go/pkg/storage/beacon/sqlite:go_default_library",
-        "@com_github_stretchr_testify//require:go_default_library",
-    ],
 )

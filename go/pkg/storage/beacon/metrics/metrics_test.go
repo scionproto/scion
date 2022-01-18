@@ -14,21 +14,7 @@
 
 package metrics_test
 
-import (
-	"context"
-	"testing"
-
-	"github.com/stretchr/testify/require"
-
-	libmetrics "github.com/scionproto/scion/go/lib/metrics"
-	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/pkg/storage"
-	"github.com/scionproto/scion/go/pkg/storage/beacon"
-	"github.com/scionproto/scion/go/pkg/storage/beacon/dbtest"
-	"github.com/scionproto/scion/go/pkg/storage/beacon/metrics"
-	"github.com/scionproto/scion/go/pkg/storage/beacon/sqlite"
-)
-
+/*
 var testIA = xtest.MustParseIA("1-ff00:0:333")
 
 type TestBackend struct {
@@ -52,3 +38,4 @@ func TestBeaconDBSuite(t *testing.T) {
 	tdb := &TestBackend{}
 	dbtest.Run(t, tdb)
 }
+*/
