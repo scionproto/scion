@@ -43,8 +43,8 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 			NumINF:  1,
 			NumHops: 2,
 		},
-		InfoFields: []*path.InfoField{{ConsDir: true}},
-		HopFields:  []*path.HopField{{ConsEgress: 4}, {ConsIngress: 1}},
+		InfoFields: []path.InfoField{{ConsDir: true}},
+		HopFields:  []path.HopField{{ConsEgress: 4}, {ConsIngress: 1}},
 	}
 	rawSP := make([]byte, scionP.Len())
 	require.NoError(t, scionP.SerializeTo(rawSP))

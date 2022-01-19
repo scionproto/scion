@@ -80,7 +80,7 @@ func SCMPExpiredHop(artifactsDir string, mac hash.Hash) runner.Case {
 			NumINF:  1,
 			NumHops: 3,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			{
 				SegID:   0x111,
 				ConsDir: true,
@@ -88,7 +88,7 @@ func SCMPExpiredHop(artifactsDir string, mac hash.Hash) runner.Case {
 				Timestamp: util.TimeToSecs(time.Now().AddDate(0, 0, -5)),
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 0, ConsEgress: 311},
 			{ConsIngress: 131, ConsEgress: 141},
 			{ConsIngress: 411, ConsEgress: 0},
@@ -229,7 +229,7 @@ func SCMPExpiredHopAfterXover(artifactsDir string, mac hash.Hash) runner.Case {
 			NumINF:  2,
 			NumHops: 4,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			// up seg
 			{
 				SegID:     0x111,
@@ -246,7 +246,7 @@ func SCMPExpiredHopAfterXover(artifactsDir string, mac hash.Hash) runner.Case {
 				Timestamp: util.TimeToSecs(time.Now().AddDate(0, 0, -5)),
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 511, ConsEgress: 0},
 			{ConsIngress: 0, ConsEgress: 151},
 			{ConsIngress: 0, ConsEgress: 141},
@@ -404,7 +404,7 @@ func SCMPExpiredHopAfterXoverConsDir(artifactsDir string, mac hash.Hash) runner.
 			NumINF:  2,
 			NumHops: 4,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			// up seg
 			{
 				SegID:     0x111,
@@ -418,7 +418,7 @@ func SCMPExpiredHopAfterXoverConsDir(artifactsDir string, mac hash.Hash) runner.
 				Timestamp: util.TimeToSecs(time.Now().AddDate(0, 0, -5)),
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 511, ConsEgress: 0},
 			{ConsIngress: 0, ConsEgress: 151},
 			{ConsIngress: 0, ConsEgress: 141},
@@ -577,7 +577,7 @@ func SCMPExpiredHopAfterXoverInternal(artifactsDir string, mac hash.Hash) runner
 			NumINF:  2,
 			NumHops: 4,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			// up seg
 			{
 				SegID:     0x111,
@@ -594,7 +594,7 @@ func SCMPExpiredHopAfterXoverInternal(artifactsDir string, mac hash.Hash) runner
 				Timestamp: util.TimeToSecs(time.Now().AddDate(0, 0, -5)),
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 811, ConsEgress: 0},
 			{ConsIngress: 191, ConsEgress: 181},
 			{ConsIngress: 121, ConsEgress: 141},
@@ -743,7 +743,7 @@ func SCMPExpiredHopAfterXoverInternalConsDir(artifactsDir string, mac hash.Hash)
 			NumINF:  2,
 			NumHops: 4,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			// up seg
 			{
 				SegID:     0x111,
@@ -757,7 +757,7 @@ func SCMPExpiredHopAfterXoverInternalConsDir(artifactsDir string, mac hash.Hash)
 				Timestamp: util.TimeToSecs(time.Now().AddDate(0, 0, -5)),
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 811, ConsEgress: 0},
 			{ConsIngress: 191, ConsEgress: 181},
 			{ConsIngress: 121, ConsEgress: 141},

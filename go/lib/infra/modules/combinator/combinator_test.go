@@ -711,13 +711,13 @@ func writeTestString(p combinator.Path, w io.Writer) {
 	}
 }
 
-func fmtIF(field *path.InfoField) string {
+func fmtIF(field path.InfoField) string {
 	return fmt.Sprintf("IF %s%s",
 		flagPrint("C", field.ConsDir),
 		flagPrint("P", field.Peer))
 }
 
-func fmtHF(field *path.HopField) string {
+func fmtHF(field path.HopField) string {
 	return fmt.Sprintf("HF InIF=%d OutIF=%d",
 		field.ConsIngress,
 		field.ConsEgress)

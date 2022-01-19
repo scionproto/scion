@@ -72,7 +72,7 @@ func ChildToChildXover(artifactsDir string, mac hash.Hash) runner.Case {
 			NumINF:  2,
 			NumHops: 4,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			// up seg
 			{
 				SegID:     0x111,
@@ -86,7 +86,7 @@ func ChildToChildXover(artifactsDir string, mac hash.Hash) runner.Case {
 				Timestamp: util.TimeToSecs(time.Now()),
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 511, ConsEgress: 0},
 			{ConsIngress: 0, ConsEgress: 151},
 			{ConsIngress: 0, ConsEgress: 141},

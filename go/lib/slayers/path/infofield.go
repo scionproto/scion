@@ -94,7 +94,7 @@ func (inf *InfoField) UpdateSegID(hfMac [6]byte) {
 	inf.SegID = inf.SegID ^ binary.BigEndian.Uint16(hfMac[:2])
 }
 
-func (inf *InfoField) String() string {
+func (inf InfoField) String() string {
 	return fmt.Sprintf("{Peer: %t, ConsDir: %t, SegID: %d, Timestamp: %s}",
 		inf.Peer, inf.ConsDir, inf.SegID, util.SecsToCompact(inf.Timestamp))
 }

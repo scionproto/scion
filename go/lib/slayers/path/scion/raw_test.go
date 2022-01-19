@@ -84,7 +84,7 @@ func TestRawToDecoded(t *testing.T) {
 func TestGetInfoField(t *testing.T) {
 	testCases := map[string]struct {
 		idx       int
-		want      *path.InfoField
+		want      path.InfoField
 		errorFunc assert.ErrorAssertionFunc
 	}{
 		"first info": {
@@ -99,7 +99,7 @@ func TestGetInfoField(t *testing.T) {
 		},
 		"out of bounds": {
 			idx:       2,
-			want:      nil,
+			want:      path.InfoField{},
 			errorFunc: assert.Error,
 		},
 	}
@@ -123,12 +123,12 @@ func TestGetHopField(t *testing.T) {
 	}{
 		"first hop": {
 			idx:       0,
-			want:      *testHopFields[0],
+			want:      testHopFields[0],
 			errorFunc: assert.NoError,
 		},
 		"third hop": {
 			idx:       2,
-			want:      *testHopFields[2],
+			want:      testHopFields[2],
 			errorFunc: assert.NoError,
 		},
 		"out of bounds": {
@@ -151,7 +151,7 @@ func TestGetHopField(t *testing.T) {
 func TestSetInfoField(t *testing.T) {
 	testCases := map[string]struct {
 		idx       int
-		want      *path.InfoField
+		want      path.InfoField
 		errorFunc assert.ErrorAssertionFunc
 	}{
 		"first info": {
@@ -166,12 +166,7 @@ func TestSetInfoField(t *testing.T) {
 		},
 		"out of bounds": {
 			idx:       2,
-			want:      nil,
-			errorFunc: assert.Error,
-		},
-		"nil info": {
-			idx:       0,
-			want:      nil,
+			want:      path.InfoField{},
 			errorFunc: assert.Error,
 		},
 	}
@@ -203,12 +198,12 @@ func TestSetHopField(t *testing.T) {
 	}{
 		"first hop": {
 			idx:       0,
-			want:      *testHopFields[3],
+			want:      testHopFields[3],
 			errorFunc: assert.NoError,
 		},
 		"third hop": {
 			idx:       2,
-			want:      *testHopFields[0],
+			want:      testHopFields[0],
 			errorFunc: assert.NoError,
 		},
 		"out of bounds": {

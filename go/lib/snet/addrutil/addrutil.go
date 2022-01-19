@@ -47,9 +47,9 @@ func (p Pather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, e
 
 	beta := ps.Info.SegmentID
 	// The hop fields need to be in reversed order.
-	hopFields := make([]*path.HopField, len(ps.ASEntries))
+	hopFields := make([]path.HopField, len(ps.ASEntries))
 	for i, entry := range ps.ASEntries {
-		hopFields[len(hopFields)-1-i] = &path.HopField{
+		hopFields[len(hopFields)-1-i] = path.HopField{
 			ConsIngress: entry.HopEntry.HopField.ConsIngress,
 			ConsEgress:  entry.HopEntry.HopField.ConsEgress,
 			ExpTime:     entry.HopEntry.HopField.ExpTime,
@@ -72,7 +72,7 @@ func (p Pather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, e
 			NumHops: hops,
 			NumINF:  1,
 		},
-		InfoFields: []*path.InfoField{{
+		InfoFields: []path.InfoField{{
 			Timestamp: util.TimeToSecs(ps.Info.Timestamp),
 			ConsDir:   false,
 			SegID:     beta,

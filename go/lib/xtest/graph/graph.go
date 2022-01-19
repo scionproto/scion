@@ -289,8 +289,8 @@ func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
 			HopEntry: seg.HopEntry{
 				HopField: seg.HopField{
 					ExpTime:     63,
-					ConsIngress: uint16(inIF),
-					ConsEgress:  uint16(outIF),
+					ConsIngress: inIF,
+					ConsEgress:  outIF,
 					MAC:         mac,
 				},
 				IngressMTU: 1280,
@@ -316,8 +316,8 @@ func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
 					PeerMTU:       1280,
 					HopField: seg.HopField{
 						ExpTime:     63,
-						ConsIngress: uint16(peeringLocalIF),
-						ConsEgress:  uint16(outIF),
+						ConsIngress: peeringLocalIF,
+						ConsEgress:  outIF,
 						MAC:         mac,
 					},
 				})

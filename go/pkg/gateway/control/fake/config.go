@@ -229,7 +229,7 @@ func parsePath(rawPath rawPath, creationTime time.Time) (snet.Path, error) {
 			NumINF:  1,
 			NumHops: numHops,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			{
 				SegID:     initialSegID,
 				ConsDir:   true,
@@ -251,7 +251,7 @@ func parsePath(rawPath rawPath, creationTime time.Time) (snet.Path, error) {
 				IA: rawHF.IsdAs,
 			})
 		}
-		hf := &path.HopField{
+		hf := path.HopField{
 			ConsIngress: rawHF.Ingress,
 			ConsEgress:  rawHF.Egress,
 			ExpTime:     rawHF.ExpTime,

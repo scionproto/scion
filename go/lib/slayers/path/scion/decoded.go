@@ -32,9 +32,9 @@ const (
 type Decoded struct {
 	Base
 	// InfoFields contains all the InfoFields of the path.
-	InfoFields []*path.InfoField
+	InfoFields []path.InfoField
 	// HopFields contains all the HopFields of the path.
-	HopFields []*path.HopField
+	HopFields []path.HopField
 }
 
 // DecodeFromBytes fully decodes the SCION path into the corresponding fields.
@@ -47,22 +47,18 @@ func (s *Decoded) DecodeFromBytes(data []byte) error {
 	}
 
 	offset := MetaLen
-	s.InfoFields = make([]*path.InfoField, s.NumINF)
+	s.InfoFields = make([]path.InfoField, s.NumINF)
 	for i := 0; i < s.NumINF; i++ {
-		info := &path.InfoField{}
-		if err := info.DecodeFromBytes(data[offset : offset+path.InfoLen]); err != nil {
+		if err := s.InfoFields[i].DecodeFromBytes(data[offset : offset+path.InfoLen]); err != nil {
 			return err
 		}
-		s.InfoFields[i] = info
 		offset += path.InfoLen
 	}
-	s.HopFields = make([]*path.HopField, s.NumHops)
+	s.HopFields = make([]path.HopField, s.NumHops)
 	for i := 0; i < s.NumHops; i++ {
-		hop := &path.HopField{}
-		if err := hop.DecodeFromBytes(data[offset : offset+path.HopLen]); err != nil {
+		if err := s.HopFields[i].DecodeFromBytes(data[offset : offset+path.HopLen]); err != nil {
 			return err
 		}
-		s.HopFields[i] = hop
 		offset += path.HopLen
 	}
 	return nil
@@ -107,7 +103,7 @@ func (s *Decoded) Reverse() (path.Path, error) {
 	}
 	// Reverse cons dir flags
 	for i := 0; i < s.NumINF; i++ {
-		info := s.InfoFields[i]
+		info := &s.InfoFields[i]
 		info.ConsDir = !info.ConsDir
 	}
 	// Reverse order of hop fields

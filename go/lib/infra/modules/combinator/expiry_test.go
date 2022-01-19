@@ -79,12 +79,12 @@ func TestComputeSegmentExpTime(t *testing.T) {
 
 func buildTestSegment(timestamp uint32, ttls ...uint8) *segment {
 	segment := &segment{}
-	segment.InfoField = &path.InfoField{
+	segment.InfoField = path.InfoField{
 		Timestamp: timestamp,
 	}
 	for _, ttl := range ttls {
 		segment.HopFields = append(segment.HopFields,
-			&path.HopField{
+			path.HopField{
 				ExpTime: ttl,
 			},
 		)

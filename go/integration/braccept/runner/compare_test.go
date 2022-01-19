@@ -69,13 +69,13 @@ func prepareSCION(t *testing.T, diff string) gopacket.Packet {
 			NumINF:  1,
 			NumHops: 3,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			{
 				SegID:     0x111,
 				Timestamp: util.TimeToSecs(time.Now()),
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 411, ConsEgress: 0},
 			{ConsIngress: 131, ConsEgress: 141},
 			{ConsIngress: 0, ConsEgress: 311},

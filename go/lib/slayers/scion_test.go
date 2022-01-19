@@ -106,13 +106,13 @@ func TestSCIONLayerString(t *testing.T) {
 					NumINF:  10,
 					NumHops: 11,
 				},
-				InfoFields: []*path.InfoField{
+				InfoFields: []path.InfoField{
 					{
 						Peer:  true,
 						SegID: 222,
 					},
 				},
-				HopFields: []*path.HopField{
+				HopFields: []path.HopField{
 					{
 						IngressRouterAlert: true,
 						EgressRouterAlert:  false,
@@ -168,11 +168,11 @@ func TestSCIONLayerString(t *testing.T) {
 			},
 			expect: expectBegin + `PathType=OneHop (2) ` + expectMiddle +
 				`Path={ ` +
-				`Info={ ` +
-				`Peer=false ` +
-				`ConsDir=true ` +
-				`SegID=34 ` +
-				`Timestamp=1000` +
+				`Info={` +
+				`Peer: false, ` +
+				`ConsDir: true, ` +
+				`SegID: 34, ` +
+				`Timestamp: 1970-01-01 00:16:40+0000` +
 				`} FirstHop={ ` +
 				`IngressRouterAlert=false ` +
 				`EgressRouterAlert=false ` +
