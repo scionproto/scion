@@ -312,6 +312,9 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	if err != nil {
 		return nil, serrors.WrapStr("determining local ISD-AS", err)
 	}
+	if dst == localIA {
+		return nil, serrors.New("destination is the local AS", "dst", dst)
+	}
 
 	// TODO(lukedirtwalker): Replace this with snet.Router once we have the
 	// possibility to have the same functionality, i.e. refresh, fetch all paths.

@@ -41,7 +41,6 @@ func newShowpaths(pather CommandPather) *cobra.Command {
 		logLevel string
 		noColor  bool
 		tracer   string
-		localIA  string
 	}
 
 	var cmd = &cobra.Command{
