@@ -4,22 +4,6 @@ export PYTHONPATH=.
 
 # BEGIN subcommand functions
 
-in_red() {
-    tput setaf 1
-    echo "$1"
-    tput sgr0
-}
-
-run_silently() {
-    tmpfile=$(mktemp /tmp/scion-silent.XXXXXX)
-    $@ >>$tmpfile 2>&1
-    if [ $? -ne 0 ]; then
-        cat $tmpfile
-        return 1
-    fi
-    return 0
-}
-
 cmd_bazel_remote() {
     mkdir -p "$HOME/.cache/bazel/remote"
     uid=$(id -u)
@@ -51,6 +35,10 @@ cmd_topology() {
     if is_docker_be; then
         ./tools/quiet ./tools/dc run utils_chowner
     fi
+}
+
+cmd_topodot() {
+		./tools/topodot.py "$@"
 }
 
 cmd_run() {
@@ -206,123 +194,6 @@ is_supervisor() {
    [ -f gen/dispatcher/supervisord.conf ]
 }
 
-cmd_coverage(){
-    set -e
-    case "$1" in
-        go) shift; go_cover "$@";;
-        *) go_cover;;
-    esac
-}
-
-go_cover() {
-    ( cd go && make -s coverage )
-}
-
-cmd_lint() {
-    set -o pipefail
-    local ret=0
-    go_lint || ret=1
-    bazel_lint || ret=1
-    protobuf_lint || ret=1
-    md_lint || ret=1
-    semgrep_lint || ret=1
-    openapi_lint || ret=1
-    return $ret
-}
-
-go_lint() {
-    lint_header "go"
-    local TMPDIR=$(mktemp -d /tmp/scion-lint.XXXXXXX)
-    local LOCAL_DIRS="$(find go/* -maxdepth 0 -type d | grep -v vendor)"
-    # Find go files to lint, excluding generated code. For linelen and misspell.
-    find go acceptance -type f -iname '*.go' \
-      -a '!' -ipath '*.pb.go' \
-      -a '!' -ipath '*.gen.go' \
-      -a '!' -ipath 'go/scion-pki/certs/certinfo.go' \
-      -a '!' -ipath 'go/scion-pki/certs/certformat.go' \
-      -a '!' -ipath '*mock_*' > $TMPDIR/gofiles.list
-    lint_step "Building lint tools"
-
-    run_silently bazel build //:lint || return 1
-    tar -xf bazel-bin/lint.tar -C $TMPDIR || return 1
-    local ret=0
-    lint_step "gofmt"
-    # TODO(sustrik): At the moment there are no bazel rules for gofmt.
-    # See: https://github.com/bazelbuild/rules_go/issues/511
-    # Instead we'll just run the commands from Go SDK directly.
-    GOSDK=$(bazel info output_base 2>/dev/null)/external/go_sdk/bin
-    out=$($GOSDK/gofmt -d -s $LOCAL_DIRS ./acceptance);
-    if [ -n "$out" ]; then in_red "$out"; ret=1; fi
-    lint_step "linelen (lll)"
-    out=$($TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:|`sql:"|gorm:"|`json:"|`yaml:|nolint:lll' < $TMPDIR/gofiles.list)
-    if [ -n "$out" ]; then in_red "$out"; ret=1; fi
-    lint_step "misspell"
-    out=$(xargs -a $TMPDIR/gofiles.list $TMPDIR/misspell -error)
-    if [ -n "$out" ]; then in_red "$out"; ret=1; fi
-    lint_step "bazel"
-    run_silently make gazelle GAZELLE_MODE=diff || ret=1
-    bazel test --config lint || ret=1
-    # Clean up the binaries
-    rm -rf $TMPDIR
-    return $ret
-}
-
-protobuf_lint() {
-    lint_header "protobuf"
-    local TMPDIR=$(mktemp -d /tmp/scion-lint.XXXXXXX)
-    run_silently bazel build //:lint || return 1
-    tar -xf bazel-bin/lint.tar -C $TMPDIR || return 1
-    local ret=0
-    lint_step "check files"
-    $TMPDIR/buf check lint || return 1
-}
-
-bazel_lint() {
-    lint_header "bazel"
-    local ret=0
-    run_silently bazel run //:buildifier_check || ret=1
-    if [ $ret -ne 0 ]; then
-        printf "\nto fix run:\nbazel run //:buildifier\n"
-    fi
-    return $ret
-}
-
-md_lint() {
-    lint_header "markdown"
-    lint_step "mdlint"
-    ./tools/mdlint
-}
-
-semgrep_lint() {
-    lint_header "semgrep"
-    lint_step "custom rules"
-    docker run --rm -v "${PWD}:/src" returntocorp/semgrep@sha256:8b0735959a6eb737aa945f4d591b6db23b75344135d74c3021b7d427bd317a66 \
-        --config=/src/lint/semgrep
-}
-
-openapi_lint() {
-    lint_header "openapi"
-    lint_step "spectral"
-    make -C spec lint
-}
-
-lint_header() {
-    printf "\nlint $1\n==============\n"
-}
-
-lint_step() {
-    echo "======> $1"
-}
-
-cmd_version() {
-	cat <<-_EOF
-	============================================
-	=                  SCION                   =
-	=   https://github.com/scionproto/scion    =
-	============================================
-	_EOF
-}
-
 traces_name() {
     local name=jaeger_read_badger_traces
     echo "$name"
@@ -354,11 +225,19 @@ cmd_stop_traces() {
 }
 
 cmd_help() {
-	cmd_version
-	echo
 	cat <<-_EOF
+	SCION
+
+	$PROGRAM runs a SCION network locally for development and testing purposes.
+	Two options for process control systems are supported to run the SCION
+	services.
+	  - supervisord (default)
+	  - docker-compose
+	This can be selected when initially creating the configuration with the
+	topology subcommand.
+
 	Usage:
-	    $PROGRAM topology
+	    $PROGRAM topology [-d] [-c TOPOFILE]
 	        Create topology, configuration, and execution files.
 	        All arguments or options are passed to topology/generator.py
 	    $PROGRAM run
@@ -378,12 +257,10 @@ cmd_help() {
 	        consulting gen/sciond_addresses.json.
 	        The ISD-AS parameter can be a substring of the full ISD-AS (e.g. last
 	        three digits), as long as there is a unique match.
-	    $PROGRAM coverage
-	        Create a html report with unit test code coverage.
+	    $PROGRAM topodot [-s|--show] TOPOFILE
+	        Draw a graphviz graph of a *.topo topology configuration file.
 	    $PROGRAM help
 	        Show this text.
-	    $PROGRAM version
-	        Show version information.
 	    $PROGRAM traces [folder]
 	        Serve jaeger traces from the specified folder (default: traces/)
 	    $PROGRAM stop_traces
@@ -399,7 +276,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|lint|run|mstart|mstatus|mstop|stop|status|topology|sciond-addr|version|traces|stop_traces|topo_clean|bazel_remote)
+    help|run|mstart|mstatus|mstop|stop|status|topology|sciond-addr|traces|stop_traces|topo_clean|topodot|bazel_remote)
         "cmd_$COMMAND" "$@" ;;
     start) cmd_run "$@" ;;
     *)  cmd_help; exit 1 ;;
