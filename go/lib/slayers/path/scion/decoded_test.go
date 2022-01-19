@@ -24,7 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 )
 
-var testInfoFields = []*path.InfoField{
+var testInfoFields = []path.InfoField{
 	{
 		Peer:      false,
 		ConsDir:   false,
@@ -39,7 +39,7 @@ var testInfoFields = []*path.InfoField{
 	},
 }
 
-var testHopFields = []*path.HopField{
+var testHopFields = []path.HopField{
 	{
 		ExpTime:     63,
 		ConsIngress: 1,
@@ -194,13 +194,13 @@ func mkDecodedPath(t *testing.T, pcase pathCase, infIdx, hopIdx uint8) *scion.De
 		CurrHF:  hopIdx,
 	}
 	for i, dir := range pcase.infos {
-		s.InfoFields = append(s.InfoFields, &path.InfoField{ConsDir: dir})
+		s.InfoFields = append(s.InfoFields, path.InfoField{ConsDir: dir})
 		meta.SegLen[i] = uint8(len(pcase.hops[i]))
 	}
 	i := 0
 	for _, hops := range pcase.hops {
 		for _, hop := range hops {
-			s.HopFields = append(s.HopFields, &path.HopField{ConsIngress: hop, ConsEgress: hop})
+			s.HopFields = append(s.HopFields, path.HopField{ConsIngress: hop, ConsEgress: hop})
 			i++
 		}
 	}

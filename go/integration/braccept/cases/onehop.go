@@ -67,7 +67,7 @@ func IncomingOneHop(artifactsDir string, mac hash.Hash) runner.Case {
 		FirstHop:  path.HopField{ConsIngress: 0, ConsEgress: 311},
 		SecondHop: path.HopField{ConsIngress: 0, ConsEgress: 0},
 	}
-	ohp.FirstHop.Mac = path.MAC(mac, &ohp.Info, &ohp.FirstHop, nil)
+	ohp.FirstHop.Mac = path.MAC(mac, ohp.Info, ohp.FirstHop, nil)
 
 	scionL := &slayers.SCION{
 		Version:      0,
@@ -110,7 +110,7 @@ func IncomingOneHop(artifactsDir string, mac hash.Hash) runner.Case {
 	udp.SrcPort, udp.DstPort = 30001, 30041
 	// Second hop in OHP should have been set by BR.
 	ohp.SecondHop.ConsIngress = 131
-	ohp.SecondHop.Mac = path.MAC(mac, &ohp.Info, &ohp.SecondHop, nil)
+	ohp.SecondHop.Mac = path.MAC(mac, ohp.Info, ohp.SecondHop, nil)
 
 	if err := gopacket.SerializeLayers(want, options,
 		ethernet, ip, udp, scionL, scionudp, gopacket.Payload(payload),
@@ -162,7 +162,7 @@ func OutgoingOneHop(artifactsDir string, mac hash.Hash) runner.Case {
 		FirstHop: path.HopField{ConsIngress: 0, ConsEgress: 141},
 		// Don't set the second hop. It is supposed to be set by the remote BR.
 	}
-	ohp.FirstHop.Mac = path.MAC(mac, &ohp.Info, &ohp.FirstHop, nil)
+	ohp.FirstHop.Mac = path.MAC(mac, ohp.Info, ohp.FirstHop, nil)
 
 	scionL := &slayers.SCION{
 		Version:      0,

@@ -595,7 +595,7 @@ func (p *scionPacketProcessor) reset() error {
 	//p.scionLayer // cannot easily be reset
 	p.path = nil
 	p.hopField = path.HopField{}
-	p.infoField = nil
+	p.infoField = path.InfoField{}
 	p.segmentChange = false
 	if err := p.buffer.Clear(); err != nil {
 		return serrors.WrapStr("Failed to clear buffer", err)
@@ -776,7 +776,7 @@ type scionPacketProcessor struct {
 	// hopField is the current hopField field, is updated during processing.
 	hopField path.HopField
 	// infoField is the current infoField field, is updated during processing.
-	infoField *path.InfoField
+	infoField path.InfoField
 	// segmentChange indicates if the path segment was changed during processing.
 	segmentChange bool
 
@@ -944,7 +944,7 @@ func (p *scionPacketProcessor) currentHopPointer() uint16 {
 }
 
 func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
-	fullMac := path.FullMAC(p.mac, p.infoField, &p.hopField, p.macBuffers.scionInput)
+	fullMac := path.FullMAC(p.mac, p.infoField, p.hopField, p.macBuffers.scionInput)
 	if subtle.ConstantTimeCompare(p.hopField.Mac[:path.MacLen], fullMac[:path.MacLen]) == 0 {
 		return p.packSCMP(
 			&slayers.SCMP{TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
@@ -1258,7 +1258,7 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 				"type", "ohp", "egress", ohp.FirstHop.ConsEgress,
 				"neighborIA", neighborIA, "dstIA", s.DstIA)
 		}
-		mac := path.MAC(p.mac, &ohp.Info, &ohp.FirstHop, p.macBuffers.scionInput)
+		mac := path.MAC(p.mac, ohp.Info, ohp.FirstHop, p.macBuffers.scionInput)
 		if subtle.ConstantTimeCompare(ohp.FirstHop.Mac[:], mac[:]) == 0 {
 			// TODO parameter problem -> invalid MAC
 			return processResult{}, serrors.New("MAC", "expected", fmt.Sprintf("%x", mac),
@@ -1300,7 +1300,7 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 	// XXX(roosd): Here we leak the buffer into the SCION packet header.
 	// This is okay because we do not operate on the buffer or the packet
 	// for the rest of processing.
-	ohp.SecondHop.Mac = path.MAC(p.mac, &ohp.Info, &ohp.SecondHop, p.macBuffers.scionInput)
+	ohp.SecondHop.Mac = path.MAC(p.mac, ohp.Info, ohp.SecondHop, p.macBuffers.scionInput)
 
 	if err := updateSCIONLayer(p.rawPkt, s, p.buffer); err != nil {
 		return processResult{}, err
@@ -1403,7 +1403,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 				ExpTime:    hopFieldDefaultExpTime,
 			},
 		}
-		ohp.FirstHop.Mac = path.MAC(b.mac, &ohp.Info, &ohp.FirstHop, nil)
+		ohp.FirstHop.Mac = path.MAC(b.mac, ohp.Info, ohp.FirstHop, nil)
 		scn.PathType = onehop.PathType
 		scn.Path = ohp
 	}
@@ -1448,7 +1448,7 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 	// path to prepare it for the next hop.
 	_, external := p.d.external[p.ingressID]
 	if external {
-		infoField := revPath.InfoFields[revPath.PathMeta.CurrINF]
+		infoField := &revPath.InfoFields[revPath.PathMeta.CurrINF]
 		if infoField.ConsDir {
 			hopField := revPath.HopFields[revPath.PathMeta.CurrHF]
 			infoField.UpdateSegID(hopField.Mac)

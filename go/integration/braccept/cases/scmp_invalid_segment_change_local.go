@@ -73,7 +73,7 @@ func SCMPParentToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Cas
 			NumINF:  2,
 			NumHops: 4,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			// down seg
 			{
 				SegID:     0x111,
@@ -87,7 +87,7 @@ func SCMPParentToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Cas
 				Timestamp: util.TimeToSecs(time.Now()),
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 0, ConsEgress: 311},
 			{ConsIngress: 121, ConsEgress: 0},
 			{ConsIngress: 121, ConsEgress: 0},
@@ -245,7 +245,7 @@ func SCMPParentToChildLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 			NumINF:  2,
 			NumHops: 4,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			// down seg
 			{
 				SegID:     0x111,
@@ -259,7 +259,7 @@ func SCMPParentToChildLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 				Timestamp: util.TimeToSecs(time.Now()),
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 0, ConsEgress: 311},
 			{ConsIngress: 121, ConsEgress: 0},
 			{ConsIngress: 121, ConsEgress: 141},
@@ -418,7 +418,7 @@ func SCMPChildToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 			NumINF:  2,
 			NumHops: 4,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			// up seg
 			{
 				SegID:     0x111,
@@ -432,7 +432,7 @@ func SCMPChildToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 				Timestamp: util.TimeToSecs(time.Now()),
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 411, ConsEgress: 0},
 			{ConsIngress: 121, ConsEgress: 141},
 			{ConsIngress: 121, ConsEgress: 0},
