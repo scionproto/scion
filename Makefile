@@ -60,7 +60,7 @@ antlr:
 	antlr/generate.sh $(GAZELLE_MODE)
 
 lint:
-	./scion.sh lint
+	tools/lint
 
 golangci-lint:
 	docker run --rm -v "${PWD}:/src" -w /src golangci/golangci-lint:v1.43.0 golangci-lint run --config=/src/.golangcilint.yml --timeout=3m go/...
