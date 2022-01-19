@@ -19,8 +19,9 @@
 import base64
 import collections
 import os
+import sys
 
-from plumbum import local
+from plumbum import local, CommandNotFound
 
 from python.topology import common
 from python.lib.util import write_file
@@ -39,7 +40,10 @@ class CertGenerator(object):
         self.args = args
         self.pki = local['./bin/scion-pki']
         if not local.path('./bin/scion-pki').exists():
-            self.pki = local[local.which('scion-pki')]
+            try:
+                self.pki = local[local.which('scion-pki')]
+            except CommandNotFound:
+                sys.exit("ERROR: scion-pki executable not found. Run `make` first.")
         self.core_count = collections.defaultdict(int)
 
     def generate(self, topo_dicts):

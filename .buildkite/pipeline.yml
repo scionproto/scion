@@ -81,7 +81,9 @@ steps:
     if: build.message !~ /\[doc\]/
     parallelism: "${SCION_TESTING_FLAKE_PARALLELISM-1}"
     command:
-      - echo "--- start topology (including build)"
+      - echo "--- build"
+      - make
+      - echo "--- start topology"
       - ./scion.sh topology -c topology/default.topo
       - ./scion.sh run && sleep 10
       - echo "--- run tests"
@@ -105,7 +107,9 @@ steps:
     if: build.message !~ /\[doc\]/
     parallelism: "${SCION_TESTING_FLAKE_PARALLELISM-1}"
     command:
-      - echo "--- start topology (including build)"
+      - echo "--- build"
+      - make
+      - echo "--- start topology"
       - ./scion.sh topology -c topology/default-no-peers.topo
       - ./scion.sh run && sleep 10
       - echo "--- run tests"
@@ -129,7 +133,9 @@ steps:
     if: build.message !~ /\[doc\]/
     parallelism: "${SCION_TESTING_FLAKE_PARALLELISM-1}"
     command:
-      - echo "--- start topology (including build)"
+      - echo "--- build"
+      - make build docker-images
+      - echo "--- start topology"
       - ./scion.sh topology -d
       - ./scion.sh run
       - docker-compose -f gen/scion-dc.yml -p scion up -d $(docker-compose -f gen/scion-dc.yml config --services | grep tester)
@@ -154,8 +160,7 @@ steps:
     if: build.message !~ /\[doc\]/
     command:
       - echo "--- build"
-      - bazel build //:scion-topo >/dev/null 2>&1
-      - tar -xf bazel-bin/scion-topo.tar -C bin --overwrite
+      - make scion-topo
       - echo "--- run test"
       - mkdir -p /tmp/test-artifacts/trc-ceremony
       - export SAFEDIR="/tmp/test-artifacts/trc-ceremony"
