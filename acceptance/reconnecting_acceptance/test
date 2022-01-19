@@ -11,8 +11,9 @@ TEST_TOPOLOGY="topology/tiny.topo"
 
 test_setup() {
     set -e
+    make scion-topo docker-images
     ./scion.sh topology -c $TEST_TOPOLOGY -d
-    ./scion.sh run nobuild
+    ./scion.sh run
     ./tools/dc start tester_1-ff00_0_112 tester_1-ff00_0_110
     docker_status
     sleep 10

@@ -46,7 +46,7 @@ class SCION(ABC):
     @LogExec(logger, 'running topology')
     def run(self):
         """ Run the scion infrastructure. """
-        self.scion_sh('run', 'nobuild')
+        self.scion_sh('run')
 
     @abstractmethod
     def execute(self, isd_as: ISD_AS, cmd: str, *args: str) -> str:

@@ -1,5 +1,5 @@
+.PHONY: all antlr bazel build clean docker-images gazelle golangci-lint licenses lint mocks protobuf scion-topo test
 
-.PHONY: all bazel clean gazelle licenses mocks protobuf antlr lint
 .NOTPARALLEL:
 
 GAZELLE_MODE?=fix
@@ -28,6 +28,16 @@ test:
 
 go_deps.bzl: go.mod
 	@tools/godeps.sh
+
+docker-images:
+	@echo "Build perapp images"
+	bazel run -c opt //docker:prod
+	@echo "Build scion tester"
+	bazel run //docker:test
+
+scion-topo:
+	bazel build //:scion-topo
+	tar --overwrite -xf bazel-bin/scion-topo.tar -C bin
 
 protobuf:
 	rm -rf bazel-bin/go/pkg/proto/*/go_default_library_/github.com/scionproto/scion/go/pkg/proto/*
