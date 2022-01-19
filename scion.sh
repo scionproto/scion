@@ -46,10 +46,6 @@ cmd_topology() {
     set -e
     cmd_topo_clean
 
-    # Build the necessary binaries.
-    bazel build //:scion-topo
-    tar --overwrite -xf bazel-bin/scion-topo.tar -C bin
-
     echo "Create topology, configuration, and execution files."
     python/topology/generator.py "$@"
     if is_docker_be; then
@@ -58,35 +54,20 @@ cmd_topology() {
 }
 
 cmd_run() {
-    if [ "$1" != "nobuild" ]; then
-        echo "Compiling..."
-        make -s build || exit 1
-        if is_docker_be; then
-            echo "Build perapp images"
-            bazel run -c opt //docker:prod
-            echo "Build scion tester"
-            bazel run //docker:test
-        fi
-    fi
     run_setup
     echo "Running the network..."
     if is_docker_be; then
-        docker-compose -f gen/scion-dc.yml -p scion build
-        docker-compose -f gen/scion-dc.yml -p scion up -d
+        docker-compose -f gen/scion-dc.yml -p scion up --build -d
         return 0
     fi
-    # Start dispatcher first, as it is requrired by the border routers.
-    ./tools/quiet ./scion.sh mstart '*dispatcher*' # for supervisor
-    # Start border routers before all other services to provide connectivity.
-    ./tools/quiet ./scion.sh mstart '*br*'
     ./tools/quiet ./supervisor/supervisor.sh start all
 }
 
-load_cust_keys() {
-    if [ -f 'gen/load_custs.sh' ]; then
-        echo "Loading customer keys..."
-        ./tools/quiet ./gen/load_custs.sh
-    fi
+cmd_sciond-addr() {
+    jq -r 'to_entries |
+           map(select(.key | match("'"$1"'";"i"))) |
+           if length != 1 then error("No unique match for '"$1"'") else .[0] end |
+           "\(.value):30255"' gen/sciond_addresses.json
 }
 
 run_jaeger() {
@@ -225,13 +206,6 @@ is_supervisor() {
    [ -f gen/dispatcher/supervisord.conf ]
 }
 
-cmd_test(){
-    echo "deprecated, use"
-    echo "make test"
-    echo "instead"
-    exit 1
-}
-
 cmd_coverage(){
     set -e
     case "$1" in
@@ -344,17 +318,9 @@ cmd_version() {
 	cat <<-_EOF
 	============================================
 	=                  SCION                   =
-	=   https://github.com/scionproto/scion   =
+	=   https://github.com/scionproto/scion    =
 	============================================
 	_EOF
-}
-
-cmd_build() {
-    make -s
-}
-
-cmd_clean() {
-    make -s clean
 }
 
 traces_name() {
@@ -395,7 +361,7 @@ cmd_help() {
 	    $PROGRAM topology
 	        Create topology, configuration, and execution files.
 	        All arguments or options are passed to topology/generator.py
-	    $PROGRAM run [nobuild]
+	    $PROGRAM run
 	        Run network.
 	    $PROGRAM mstart PROCESS
 	        Start multiple processes
@@ -407,8 +373,11 @@ cmd_help() {
 	        Show all non-running tasks.
 	    $PROGRAM mstatus PROCESS
 	        Show status of provided processes
-	    $PROGRAM test
-	        Run all unit tests.
+	    $PROGRAM sciond-addr ISD-AS
+	        Return the address for the scion daemon for the matching ISD-AS by
+	        consulting gen/sciond_addresses.json.
+	        The ISD-AS parameter can be a substring of the full ISD-AS (e.g. last
+	        three digits), as long as there is a unique match.
 	    $PROGRAM coverage
 	        Create a html report with unit test code coverage.
 	    $PROGRAM help
@@ -430,7 +399,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|lint|run|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|traces|stop_traces|topo_clean|bazel_remote)
+    coverage|help|lint|run|mstart|mstatus|mstop|stop|status|topology|sciond-addr|version|traces|stop_traces|topo_clean|bazel_remote)
         "cmd_$COMMAND" "$@" ;;
     start) cmd_run "$@" ;;
     *)  cmd_help; exit 1 ;;

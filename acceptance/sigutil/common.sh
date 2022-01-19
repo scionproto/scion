@@ -8,8 +8,9 @@ DST_IA=${DST_IA:-1-ff00:0:112}
 
 test_setup() {
     set -e
+    make scion-topo docker-images
     ./scion.sh topology -c $TEST_TOPOLOGY -d --sig -n 242.254.0.0/16
-    ./scion.sh run nobuild
+    ./scion.sh run
     ./tools/dc start 'tester*'
     sleep 20
     docker_status
