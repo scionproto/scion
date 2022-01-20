@@ -146,6 +146,9 @@ type SCION struct {
 
 	// Path is the path contained in the SCION header. It depends on the PathType field.
 	Path path.Path
+
+	// pathPool is a recycling bin for paths created in DecodeFromBytes
+	pathPool map[path.Type]path.Path
 }
 
 func (s *SCION) LayerType() gopacket.LayerType {
@@ -246,11 +249,10 @@ func (s *SCION) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	}
 
 	if s.Path == nil || s.Path.Type() != s.PathType {
-		path, err := path.NewPath(s.PathType)
+		s.Path, err = s.getPath(s.PathType)
 		if err != nil {
 			return err
 		}
-		s.Path = path
 	}
 
 	err = s.Path.DecodeFromBytes(data[offset : offset+pathLen])
@@ -261,6 +263,32 @@ func (s *SCION) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	s.Payload = data[hdrBytes:]
 
 	return nil
+}
+
+// RecyclePaths enables recycling of paths used for DecodeFromBytes. This is
+// only useful if the layer itself is reused.
+// When this is enabled, the Path instance may be overwritten in
+// DecodeFromBytes. No references to Path should be kept in use between
+// invocations of DecodeFromBytes.
+func (s *SCION) RecyclePaths() {
+	if s.pathPool == nil {
+		s.pathPool = make(map[path.Type]path.Path)
+	}
+}
+
+// getPath returns a new or recycled path for pathType
+func (s *SCION) getPath(pathType path.Type) (path.Path, error) {
+	if s.pathPool == nil {
+		return path.NewPath(pathType)
+	}
+	if p, ok := s.pathPool[pathType]; ok {
+		return p, nil
+	}
+	p, err := path.NewPath(pathType)
+	if err == nil {
+		s.pathPool[pathType] = p
+	}
+	return p, err
 }
 
 func decodeSCION(data []byte, pb gopacket.PacketBuilder) error {
