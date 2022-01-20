@@ -153,7 +153,7 @@ func (s *SCION) LayerType() gopacket.LayerType {
 }
 
 func (s *SCION) CanDecode() gopacket.LayerClass {
-	return LayerTypeSCION
+	return LayerClassSCION
 }
 
 func (s *SCION) NextLayerType() gopacket.LayerType {
