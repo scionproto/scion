@@ -245,9 +245,12 @@ func (s *SCION) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 		return serrors.New("provided buffer is too small", "expected", minLen, "actual", len(data))
 	}
 
-	s.Path, err = path.NewPath(s.PathType)
-	if err != nil {
-		return err
+	if s.Path == nil || s.Path.Type() != s.PathType {
+		path, err := path.NewPath(s.PathType)
+		if err != nil {
+			return err
+		}
+		s.Path = path
 	}
 
 	err = s.Path.DecodeFromBytes(data[offset : offset+pathLen])
