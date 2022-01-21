@@ -400,6 +400,7 @@ The template is expressed in JSON. A valid example:
 				LocalIP:   localIP,
 				Daemon:    sd,
 				Disatcher: dispatcher,
+				Timeout:   flags.timeout,
 				PathOptions: func() []path.Option {
 					pathOpts := []path.Option{
 						path.WithInteractive(flags.interactive),
@@ -428,9 +429,6 @@ The template is expressed in JSON. A valid example:
 
 			request := func(ca addr.IA) ([]*x509.Certificate, error) {
 				printf("Attempt certificate renewal with %s\n", ca)
-
-				ctx, cancel := context.WithTimeout(ctx, flags.timeout)
-				defer cancel()
 
 				span, ctx := tracing.CtxWith(ctx, "request")
 				span.SetTag("dst.isd_as", ca)
@@ -578,6 +576,7 @@ type renewer struct {
 	PathOptions func() []path.Option
 	Daemon      daemon.Connector
 	Disatcher   string
+	Timeout     time.Duration
 }
 
 func (r *renewer) Request(
@@ -596,6 +595,9 @@ func (r *renewer) Request(
 		NextHop: path.UnderlayNextHop(),
 		SVC:     addr.SvcCS,
 	}
+
+	ctx, cancel := context.WithTimeout(ctx, r.Timeout)
+	defer cancel()
 
 	localIP := r.LocalIP
 	if localIP == nil {
