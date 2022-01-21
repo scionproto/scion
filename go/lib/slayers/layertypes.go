@@ -29,6 +29,8 @@ var (
 			Decoder: gopacket.DecodeFunc(decodeSCION),
 		},
 	)
+	LayerClassSCION gopacket.LayerClass = LayerTypeSCION
+
 	LayerTypeSCIONUDP = gopacket.RegisterLayerType(
 		1001,
 		gopacket.LayerTypeMetadata{
@@ -36,6 +38,8 @@ var (
 			Decoder: gopacket.DecodeFunc(decodeSCIONUDP),
 		},
 	)
+	LayerClassSCIONUDP gopacket.LayerClass = LayerTypeSCIONUDP
+
 	LayerTypeSCMP = gopacket.RegisterLayerType(
 		1002,
 		gopacket.LayerTypeMetadata{
@@ -43,13 +47,7 @@ var (
 			Decoder: gopacket.DecodeFunc(decodeSCMP),
 		},
 	)
-	LayerTypeSCMPDummy = gopacket.RegisterLayerType(
-		2002,
-		gopacket.LayerTypeMetadata{
-			Name:    "SCMPDummy",
-			Decoder: gopacket.DecodeFunc(decodeSCMP),
-		},
-	)
+	LayerClassSCMP gopacket.LayerClass = LayerTypeSCMP
 
 	LayerTypeHopByHopExtn = gopacket.RegisterLayerType(
 		1003,
@@ -58,6 +56,8 @@ var (
 			Decoder: gopacket.DecodeFunc(decodeHopByHopExtn),
 		},
 	)
+	LayerClassHopByHopExtn gopacket.LayerClass = LayerTypeHopByHopExtn
+
 	LayerTypeEndToEndExtn = gopacket.RegisterLayerType(
 		1004,
 		gopacket.LayerTypeMetadata{
@@ -65,6 +65,8 @@ var (
 			Decoder: gopacket.DecodeFunc(decodeEndToEndExtn),
 		},
 	)
+	LayerClassEndToEndExtn gopacket.LayerClass = LayerTypeEndToEndExtn
+
 	LayerTypeSCMPExternalInterfaceDown = gopacket.RegisterLayerType(
 		1005,
 		gopacket.LayerTypeMetadata{

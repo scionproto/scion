@@ -42,7 +42,7 @@ func (u *UDP) LayerType() gopacket.LayerType {
 }
 
 func (u *UDP) CanDecode() gopacket.LayerClass {
-	return LayerTypeSCIONUDP
+	return LayerClassSCIONUDP
 }
 
 func (u *UDP) NextLayerType() gopacket.LayerType {
