@@ -31,7 +31,7 @@ go_deps.bzl: go.mod
 
 docker-images:
 	@echo "Build perapp images"
-	bazel run -c opt //docker:prod
+	bazel run //docker:prod
 	@echo "Build scion tester"
 	bazel run //docker:test
 
