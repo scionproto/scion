@@ -38,14 +38,14 @@ cmd_topology() {
 }
 
 cmd_topodot() {
-		./tools/topodot.py "$@"
+    ./tools/topodot.py "$@"
 }
 
 cmd_run() {
     run_setup
     echo "Running the network..."
     if is_docker_be; then
-        docker-compose -f gen/scion-dc.yml -p scion up --build -d
+        docker-compose -f gen/scion-dc.yml -p scion up -d
         return 0
     fi
     ./tools/quiet ./supervisor/supervisor.sh start all
