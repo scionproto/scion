@@ -2,10 +2,12 @@ package pqa_extension
 
 import (
 	"math"
-
-	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
+// Global N paramter, determining no. of beacons seeked per target
+const N = 1
+
+// Represents an optimization direction, such as forward or backward
 type Direction int
 
 const (
@@ -27,25 +29,7 @@ func (d Direction) String() string {
 	}
 }
 
-var dir2pb = map[Direction]cppb.OptimizationDirection{
-	Forward:   cppb.OptimizationDirection_FORWARD,
-	Backward:  cppb.OptimizationDirection_BACKWARD,
-	Symmetric: cppb.OptimizationDirection_SYMMETRIC,
-}
-
-func (d Direction) ToPB() cppb.OptimizationDirection {
-	return dir2pb[d]
-}
-
-func DirectionFromPB(pbDirection cppb.OptimizationDirection) Direction {
-	for q, pbqc := range dir2pb {
-		if pbqc == pbDirection {
-			return q
-		}
-	}
-	panic("unknown path quality")
-}
-
+// Represents a path quality to optimize for, such as latency
 type Quality int
 
 const (
@@ -75,6 +59,7 @@ func (q Quality) Less(l float64, r float64) bool {
 	return optimFuncs[q](l, r) != l
 }
 
+// Map qualities to thei infimum values, i.e. values worse or equal than all possible values
 var infValues = map[Quality]float64{
 	Latency:    math.Inf(1),
 	Throughput: math.Inf(-1),
@@ -93,67 +78,28 @@ var symTols = map[Quality]float64{
 	Throughput: 0.1,
 }
 
-// Commutative. Returns true if a path with forward metric a
-// and backward metric b should be considered symmetric in that metric.
+// Returns true if a path with forward metric a  and backward metric b should
+// be considered symmetric in that metric. Commutative.
 func (q Quality) AreSymmetric(a float64, b float64) bool {
 	return math.Abs(a-b) <= symTols[q]*math.Max(math.Abs(a), math.Abs(b))
 }
 
+// Map qualities to functions combining metrics of two path segments to the metric
+// of the combined path segment
 var combinators = map[Quality]func(float64, float64) float64{
 	Latency: func(a, b float64) float64 {
 		return a + b
 	},
-	Throughput: math.Max,
+	Throughput: math.Min,
 }
 
+// Combines metrics of two path segment to the metric of the segments combined
 func (q Quality) Combine(l, r float64) float64 {
 	return combinators[q](l, r)
-}
-
-// Maps quality type here to quality type in protobuf
-var quality2pb = map[Quality]cppb.OptimizationQuality{
-	Latency:    cppb.OptimizationQuality_LATENCY,
-	Throughput: cppb.OptimizationQuality_BANDWITH,
-}
-
-func (q Quality) ToPB() cppb.OptimizationQuality {
-	return quality2pb[q]
-}
-
-func QualityFromPB(pbQuality cppb.OptimizationQuality) Quality {
-	for q, pbqc := range quality2pb {
-		if pbqc == pbQuality {
-			return q
-		}
-	}
-	panic("unknown path quality")
 }
 
 type Extension struct {
 	Uniquifier uint32
 	Direction  Direction
 	Quality    Quality
-}
-
-func (e *Extension) ToPB() *cppb.PathQualityAwareExtension {
-	if e == nil {
-		return nil
-	}
-	return &cppb.PathQualityAwareExtension{
-		Quality:    e.Quality.ToPB(),
-		Uniquifier: uint32(e.Uniquifier),
-		Direction:  e.Direction.ToPB(),
-	}
-}
-
-func ExtensionFromPB(e *cppb.PathQualityAwareExtension) *Extension {
-	if e == nil {
-		return nil
-	}
-
-	return &Extension{
-		Quality:    QualityFromPB(e.Quality),
-		Direction:  DirectionFromPB(e.Direction),
-		Uniquifier: e.Uniquifier,
-	}
 }

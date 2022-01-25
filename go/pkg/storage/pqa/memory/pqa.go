@@ -7,6 +7,7 @@ import (
 	"github.com/scionproto/scion/go/cs/beaconing/mechanisms/pqa"
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
+	pqa_extension "github.com/scionproto/scion/go/lib/ctrl/seg/extensions/pqabeaconing"
 	"github.com/scionproto/scion/go/lib/log"
 	targetstore "github.com/scionproto/scion/go/pkg/storage/pqa/memory/target"
 )
@@ -124,8 +125,8 @@ func (b *PqaMemoryBackend) GetNBestsForGroup(
 		return true
 	})
 
-	if len(bcnCandidates) > pqa.N {
-		bcnCandidates = bcnCandidates[:pqa.N]
+	if len(bcnCandidates) > pqa_extension.N {
+		bcnCandidates = bcnCandidates[:pqa_extension.N]
 	}
 	return bcnCandidates, nil
 }

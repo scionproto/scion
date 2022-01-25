@@ -8,6 +8,7 @@ import (
 	"github.com/scionproto/scion/go/cs/beaconing"
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
+	pqa_extension "github.com/scionproto/scion/go/lib/ctrl/seg/extensions/pqabeaconing"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
@@ -97,8 +98,8 @@ func (m Mechanism) getNBest(ctx context.Context, target Target, bcn []beacon.Bea
 	}
 	sort.Slice(bcn, less)
 
-	if len(bcn) > N {
-		return bcn[:N]
+	if len(bcn) > pqa_extension.N {
+		return bcn[:pqa_extension.N]
 	}
 
 	return bcn[:]

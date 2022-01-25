@@ -11,8 +11,6 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
-const N = 5
-
 type Settings struct {
 	Origination
 	Propagation
