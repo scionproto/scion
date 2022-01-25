@@ -1,98 +1,66 @@
+import itertools
 import os, yaml, networkx as nx, matplotlib.pyplot as plt
-import random
+import random, mpu
 
+import caida_gen as caida
 
-class Topo:
-    def __init__(self) -> None:
-        self.AS = set()
-        self.links = {}
-
-    def add_core(self, isd):
-        IA = f"{isd}-ff00:0:{100 + len(self.AS)}"
-        self.AS.add(IA)
-        self.links[IA] = set()
-        return IA
-
-    def add_link(self, f, t):
-        if f < t:
-            f, t + t, f
-
-        self.links[f] = self.links.get(f, set()) | {t}
-
-    def save(self, fname):
-        res = {
-            "ASes": {
-                AS: {
-                    "core": True,
-                    "voting": True,
-                    "authoritative": True,
-                    "issuing": True
-            } for AS in self.AS
-            },
-            "links": [
-                {
-                    "a": f,
-                    "b": t,
-                    "linkAtoB": "CORE",
-                    "mtu": 1280,
-                } for f, ts in self.links.items() for t in ts
-            ]
-        }
-
-        with open(os.path.join("topology", fname), "w") as f:
-            yaml.dump(res, f)
-
-def complete_topo(n):
-    return nx_to_topo(nx.complete_graph(n))
-
-def random_topo(n):
-    r = random.Random(0)
-    c = 0
-    t = Topo()
-    ases = []
-    for _ in range(n):
-        if r.random() < 0.2:
-            c += 1
-        ases.append(t.add_core(c))
-    for as1 in ases:
-        for as2 in ases:
-            if as1 != as2 and r.random() < 0.3:
-                t.add_link(as1, as2)
-
-    return t
-
-def nx_to_topo(G):
-    top = Topo()
-    ass = [(top.add_core(i), i) for i in range(len(G))]
-    for as1, i1 in ass:
-        for as2, i2 in ass:
-            if as1 != as2 and G.has_edge(i1, i2):
-                top.add_link(as1, as2)
-    return top
-
-
-def as_topo(n):
-    G = nx.random_internet_as_graph(n, 0)
-    return nx_to_topo(G)
-
-
-
-def topo_to_nxgraph(t):
-    G = nx.Graph()
-    for AS in t.AS:
-        G.add_node(AS)
-    for f, ts in t.links.items():
-        for t in ts:
-            G.add_edge(f, t)
+def add_ia_labels(G):
+    for i, node in enumerate(G.nodes):
+        i += 1
+        G.nodes[node]["ia"] = f"{i}-ff00:0:{i}"
     return G
 
+def gen_topo(as_ia_mapping):
+    G = full_graph(3)
+    G = add_ia_labels(G)
+    return nx_to_topo(G)
+
+def nx_to_topo(G):
+    if not "ia" in G.nodes[0]:
+        raise Exception
+    return {
+        "ASes": {
+            d['ia']: {
+                "core": True,
+                "voting": True,
+                "authoritative": True,
+                "issuing": True
+            } for n, d in G.nodes(data=True)
+        },
+        "links": [
+            {
+                "a": G.nodes[f]['ia'],
+                "b": G.nodes[t]['ia'],
+                "linkAtoB": "CORE",
+                "mtu": 1280,
+            } for f, t in G.edges
+        ]
+    }
+
+def dump_nx_graph_topo(G, filename):
+    res = gen_topo(G)
+    path = os.path.join("topology", filename + ".topo")
+    with open(path,  "w") as f:
+        yaml.dump(res, f)
+
+    print("Saved topology to", path)
+
+
+def full_graph(n):
+    G = nx.Graph()
+    G.add_nodes_from(range(n))
+    G.add_edges_from(itertools.combinations(range(n), 2))
+    return G
 
 def show_nxgraph(G):
     nx.draw(G, pos=nx.circular_layout(G), node_color='r', edge_color='b', with_labels=True)
     plt.show()
 
 
+
 if __name__ == "__main__":
     #show_nxgraph(topo_to_nxgraph(complete_topo(6)))
-    show_nxgraph(topo_to_nxgraph(complete_topo(5)))
+    #show_nxgraph(topo_to_nxgraph(nx_as_topo_cores(5)))
+    g = caida.nx_from_caida_tier1("topology/cycle-aslinks.l7.t1.c008040.20200101.txt")
+    dump_nx_graph_topo(g, "caida_tier_1s")
 

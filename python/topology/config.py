@@ -37,7 +37,7 @@ from python.lib.util import (
     write_file,
 )
 
-from python.topology.static_info import StaticInfoGenerator
+from python.topology.static_info import StaticInfoGenerator, StaticInfoFromCaida
 from python.topology.cert import CertGenArgs, CertGenerator
 from python.topology.common import ArgsBase
 from python.topology.docker import DockerGenArgs, DockerGenerator
@@ -52,6 +52,7 @@ from python.topology.net import (
 from python.topology.prometheus import PrometheusGenArgs, PrometheusGenerator
 from python.topology.supervisor import SupervisorGenArgs, SupervisorGenerator
 from python.topology.topo import TopoGenArgs, TopoGenerator
+from python.topology.topo_gen import gen_topo
 
 DEFAULT_TOPOLOGY_FILE = "topology/default.topo"
 
@@ -74,7 +75,11 @@ class ConfigGenerator(object):
         :param ConfigGenArgs args: Contains the passed command line arguments.
         """
         self.args = args
-        self.topo_config = load_yaml_file(self.args.topo_config)
+        if getattr(self.args, 'generate_caida_topo', False):
+            as_ia_mapping = {}
+            self.topo_config = gen_topo(as_ia_mapping)
+        else:
+            self.topo_config = load_yaml_file(self.args.topo_config)
         if self.args.sig and not self.args.docker:
             logging.critical("Cannot use sig without docker!")
             sys.exit(1)
@@ -123,6 +128,7 @@ class ConfigGenerator(object):
 
     def _generate_static_info(self, topo_dicts):
         sig = StaticInfoGenerator(self.args)
+        #sig = StaticInfoFromCaida(self.args)
         sig.generate(topo_dicts)
 
     def _generate_certs_trcs(self, topo_dicts):
