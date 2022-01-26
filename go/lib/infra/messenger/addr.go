@@ -138,7 +138,6 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context,
 			NextHop: snet.CopyUDPAddr(s.NextHop),
 			SVC:     s.SVC,
 		}
-		log.Debug("[Acceptance]", "underlay", ret.NextHop)
 		return ret, nil
 	}
 
@@ -153,9 +152,6 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context,
 
 	ret.Path = p.Path()
 	ret.NextHop = p.UnderlayNextHop()
-	defer func() {
-		log.Debug("[Acceptance]", "underlay", ret.NextHop)
-	}()
 
 	// SVC addresses in the local AS get resolved via topology lookup
 	if len(p.Metadata().Interfaces) == 0 { //when local AS
