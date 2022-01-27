@@ -141,9 +141,11 @@ func TestPrefixWatcherRun(t *testing.T) {
 			return first, nil
 		},
 	)
-	consumer.EXPECT().Prefixes(gomock.Any(), gateway, first).Do(func(_, _, _ interface{}) {
-		consumerCounts.Add(1)
-	})
+	consumer.EXPECT().Prefixes(gomock.Any(), gateway, first).Do(
+		func(_, _, _ interface{}) {
+			consumerCounts.Add(1)
+		},
+	)
 
 	afterwards := []*net.IPNet{cidr(t, "127.0.0.0/24"), cidr(t, "::/64")}
 	fetcher.EXPECT().Prefixes(gomock.Any(), gateway.Control).AnyTimes().DoAndReturn(

@@ -22,6 +22,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"inet.af/netaddr"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
@@ -145,18 +147,18 @@ func parseNetworkMatcher(b []byte) (NetworkMatcher, error) {
 		negative = true
 		b = b[1:]
 	}
-	var networks []*net.IPNet
+	var networks []netaddr.IPPrefix
 	for _, network := range bytes.Split(b, []byte(",")) {
-		_, n, err := net.ParseCIDR(string(network))
+		n, err := netaddr.ParseIPPrefix(string(network))
 		if err != nil {
-			return nil, serrors.WrapStr("parsing network", err)
+			return NetworkMatcher{}, serrors.WrapStr("parsing network", err)
 		}
 		networks = append(networks, n)
 	}
-	if !negative {
-		return AllowedNetworkMatcher{Allowed: networks}, nil
-	}
-	return NegatedNetworkMatcher{AllowedNetworkMatcher{Allowed: networks}}, nil
+	return NetworkMatcher{
+		Allowed: networks,
+		Negated: negative,
+	}, nil
 }
 
 func parseAction(b []byte) (Action, error) {

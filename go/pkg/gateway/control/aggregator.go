@@ -115,7 +115,11 @@ func (a *Aggregator) Close(ctx context.Context) {
 }
 
 // Prefixes pushes new set of prefixes for a specific gateway.
-func (a *Aggregator) Prefixes(remote addr.IA, gateway Gateway, prefixes []*net.IPNet) {
+func (a *Aggregator) Prefixes(
+	remote addr.IA,
+	gateway Gateway,
+	prefixes []*net.IPNet,
+) error {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 
@@ -130,6 +134,7 @@ func (a *Aggregator) Prefixes(remote addr.IA, gateway Gateway, prefixes []*net.I
 		LastUpdated: time.Now(),
 	}
 	a.changed = true
+	return nil
 }
 
 func (a *Aggregator) report() {

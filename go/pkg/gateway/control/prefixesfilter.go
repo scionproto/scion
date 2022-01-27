@@ -17,8 +17,11 @@ package control
 import (
 	"net"
 
+	"inet.af/netaddr"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/metrics"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/gateway/routing"
 )
 
@@ -50,24 +53,46 @@ type PrefixesFilter struct {
 
 // Prefixes consumes the prefixes, if they are accepted by the policy they are
 // forwarded to the registered consumer.
-func (f PrefixesFilter) Prefixes(remote addr.IA, gateway Gateway, prefixes []*net.IPNet) {
+func (f PrefixesFilter) Prefixes(
+	remote addr.IA,
+	gateway Gateway,
+	prefixes []*net.IPNet,
+) error {
 	rp := f.PolicyProvider.RoutingPolicy()
 	if rp == nil {
-		return
+		return nil
 	}
-	var allowedPrefixes []*net.IPNet
+	var sb netaddr.IPSetBuilder
+	allowedCount := 0
 	rejectedCount := 0
 	for _, prefix := range prefixes {
-		rule := rp.Match(remote, f.LocalIA, prefix)
-		if rule.Action == routing.Accept {
-			allowedPrefixes = append(allowedPrefixes, prefix)
+		p, ok := netaddr.FromStdIPNet(prefix)
+		if !ok {
+			return serrors.New("can not convert prefix", "prefix", prefix)
+		}
+		set, err := rp.Match(remote, f.LocalIA, p)
+		if err != nil {
+			return serrors.New("error while filtering prefix", "prefix", prefix, "err", err)
+		}
+		sb.AddSet(&set.IPSet)
+		if len(set.Prefixes()) > 0 {
+			allowedCount++
 		} else {
 			rejectedCount++
 		}
 	}
 	metrics.GaugeSet(metrics.GaugeWith(f.Metrics.PrefixesAccepted,
-		"remote_isd_as", remote.String()), float64(len(allowedPrefixes)))
+		"remote_isd_as", remote.String()), float64(allowedCount))
 	metrics.GaugeSet(metrics.GaugeWith(f.Metrics.PrefixesRejected,
 		"remote_isd_as", remote.String()), float64(rejectedCount))
-	f.Consumer.Prefixes(remote, gateway, allowedPrefixes)
+
+	set, err := sb.IPSet()
+	if err != nil {
+		return serrors.New("error while filtering prefixes", "prefixes", prefixes, "err", err)
+	}
+	var allowedPrefixes []*net.IPNet
+	for _, prefix := range set.Prefixes() {
+		allowedPrefixes = append(allowedPrefixes, prefix.IPNet())
+	}
+	return f.Consumer.Prefixes(remote, gateway, allowedPrefixes)
 }

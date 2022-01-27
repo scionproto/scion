@@ -53,14 +53,17 @@ func TestAggregator(t *testing.T) {
 	}
 
 	// Test adding prefixes before run is called.
-	a.Prefixes(ia1, gateway1, []*net.IPNet{prefix1, prefix2})
+	err := a.Prefixes(ia1, gateway1, []*net.IPNet{prefix1, prefix2})
+	require.NoError(t, err)
 
-	err := a.Run(context.Background())
+	err = a.Run(context.Background())
 	require.NoError(t, err)
 
 	// Test adding some more prefixes.
-	a.Prefixes(ia2, gateway2, []*net.IPNet{prefix3})
-	a.Prefixes(ia1, gateway3, []*net.IPNet{})
+	err = a.Prefixes(ia2, gateway2, []*net.IPNet{prefix3})
+	require.NoError(t, err)
+	err = a.Prefixes(ia1, gateway3, []*net.IPNet{})
+	require.NoError(t, err)
 	ru := <-updateChan
 	expected := control.RemoteGateways{
 		Gateways: map[addr.IA][]control.RemoteGateway{
@@ -85,7 +88,8 @@ func TestAggregator(t *testing.T) {
 	require.Equal(t, expected, ru)
 
 	// Test updating prefixes for one Gateway.
-	a.Prefixes(ia1, gateway1, []*net.IPNet{prefix1})
+	err = a.Prefixes(ia1, gateway1, []*net.IPNet{prefix1})
+	require.NoError(t, err)
 	ru = <-updateChan
 	expected = control.RemoteGateways{
 		Gateways: map[addr.IA][]control.RemoteGateway{

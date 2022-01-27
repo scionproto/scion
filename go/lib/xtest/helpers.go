@@ -32,6 +32,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/go/lib/addr"
 )
@@ -270,6 +271,19 @@ func MustParseCIDRs(t *testing.T, entries ...string) []*net.IPNet {
 	result := make([]*net.IPNet, 0, len(entries))
 	for _, e := range entries {
 		result = append(result, MustParseCIDR(t, e))
+	}
+	return result
+}
+
+// MustParseIPPrefixes parses the CIDR entries and returns a list containing the
+// parsed netaddr.IPPrefix objects.
+func MustParseIPPrefixes(t *testing.T, prefixes ...string) []netaddr.IPPrefix {
+	t.Helper()
+	var result []netaddr.IPPrefix
+	for _, prefix := range prefixes {
+		p, err := netaddr.ParseIPPrefix(prefix)
+		require.NoError(t, err)
+		result = append(result, p)
 	}
 	return result
 }
