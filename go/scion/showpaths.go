@@ -41,7 +41,6 @@ func newShowpaths(pather CommandPather) *cobra.Command {
 		logLevel string
 		noColor  bool
 		tracer   string
-		localIA  string
 	}
 
 	var cmd = &cobra.Command{
@@ -110,6 +109,10 @@ On other errors, showpaths will exit with code 2.
 			}
 			if flags.json {
 				return res.JSON(os.Stdout)
+			}
+			if res.IsLocal() {
+				fmt.Fprintf(os.Stdout, "Empty path, destination is local AS %s\n", res.Destination)
+				return nil
 			}
 			fmt.Fprintln(os.Stdout, "Available paths to", res.Destination)
 			if len(res.Paths) == 0 {
