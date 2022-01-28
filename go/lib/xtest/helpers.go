@@ -215,6 +215,17 @@ func MustParseIA(s string) addr.IA {
 	return ia
 }
 
+// MustParseIAs parses a list of comma separated ISD-AS strings. It panics in case
+// parsing fails.
+func MustParseIAs(list string) []addr.IA {
+	l := strings.Split(list, ",")
+	var ias []addr.IA
+	for _, raw := range l {
+		ias = append(ias, MustParseIA(raw))
+	}
+	return ias
+}
+
 // MustParseAS parses s and returns the corresponding addr.AS object. It panics
 // if s is not valid AS representation.
 func MustParseAS(s string) addr.AS {

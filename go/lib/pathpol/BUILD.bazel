@@ -5,7 +5,9 @@ go_library(
     srcs = [
         "acl.go",
         "hop_pred.go",
+        "local_isdas.go",
         "policy.go",
+        "remote_isdas.go",
         "sequence.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/pathpol",
@@ -26,7 +28,9 @@ go_test(
     srcs = [
         "acl_test.go",
         "hop_pred_test.go",
+        "local_isdas_test.go",
         "policy_test.go",
+        "remote_isdas_test.go",
         "sequence_test.go",
     ],
     embed = [":go_default_library"],
