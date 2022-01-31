@@ -65,7 +65,7 @@ type HopField struct {
 	// ConsEgress is the egress interface ID in construction direction.
 	ConsEgress uint16
 	// Mac is the 6-byte Message Authentication Code to authenticate the HopField.
-	Mac [6]byte
+	Mac [MacLen]byte
 }
 
 // DecodeFromBytes populates the fields from a raw buffer. The buffer must be of length >=
@@ -99,7 +99,7 @@ func (h *HopField) SerializeTo(b []byte) error {
 	b[1] = h.ExpTime
 	binary.BigEndian.PutUint16(b[2:4], h.ConsIngress)
 	binary.BigEndian.PutUint16(b[4:6], h.ConsEgress)
-	copy(b[6:12], h.Mac[:])
+	copy(b[6:6+MacLen], h.Mac[:])
 
 	return nil
 }

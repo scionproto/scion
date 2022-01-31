@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers/path"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
@@ -96,7 +97,7 @@ type HopField struct {
 	ExpTime     uint8
 	ConsIngress uint16
 	ConsEgress  uint16
-	MAC         [6]byte
+	MAC         [path.MacLen]byte
 }
 
 func hopFieldFromPB(pb *cppb.HopField) (HopField, error) {
@@ -112,7 +113,7 @@ func hopFieldFromPB(pb *cppb.HopField) (HopField, error) {
 	if len(pb.Mac) != 6 {
 		return HopField{}, serrors.New("MAC must be 6 bytes", "len", len(pb.Mac))
 	}
-	m := [6]byte{}
+	m := [path.MacLen]byte{}
 	copy(m[:], pb.Mac)
 	return HopField{
 		ExpTime:     uint8(pb.ExpTime),
