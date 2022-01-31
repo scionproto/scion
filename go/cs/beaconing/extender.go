@@ -258,7 +258,7 @@ func (s *DefaultExtender) createHopF(ingress, egress uint16, ts time.Time,
 		panic(err)
 	}
 	fullMAC := mac.Sum(nil)
-	m := [6]byte{}
+	m := [path.MacLen]byte{}
 	copy(m[:], fullMAC[:6])
 	return path.HopField{
 		ConsIngress: ingress,

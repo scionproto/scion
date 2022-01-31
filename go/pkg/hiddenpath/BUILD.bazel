@@ -62,6 +62,7 @@ go_test(
         "//go/lib/scrypto/cppki:go_default_library",
         "//go/lib/scrypto/signed:go_default_library",
         "//go/lib/serrors:go_default_library",
+        "//go/lib/slayers/path:go_default_library",
         "//go/lib/slayers/path/scion:go_default_library",
         "//go/lib/snet:go_default_library",
         "//go/lib/snet/addrutil:go_default_library",

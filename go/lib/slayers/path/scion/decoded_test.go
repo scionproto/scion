@@ -44,25 +44,25 @@ var testHopFields = []path.HopField{
 		ExpTime:     63,
 		ConsIngress: 1,
 		ConsEgress:  0,
-		Mac:         [6]byte{1, 2, 3, 4, 5, 6},
+		Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
 	},
 	{
 		ExpTime:     63,
 		ConsIngress: 3,
 		ConsEgress:  2,
-		Mac:         [6]byte{1, 2, 3, 4, 5, 6},
+		Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
 	},
 	{
 		ExpTime:     63,
 		ConsIngress: 0,
 		ConsEgress:  2,
-		Mac:         [6]byte{1, 2, 3, 4, 5, 6},
+		Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
 	},
 	{
 		ExpTime:     63,
 		ConsIngress: 1,
 		ConsEgress:  0,
-		Mac:         [6]byte{1, 2, 3, 4, 5, 6},
+		Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
 	},
 }
 

@@ -42,6 +42,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/staticinfo"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
+	"github.com/scionproto/scion/go/lib/slayers/path"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 )
@@ -281,7 +282,7 @@ func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
 			outIA = 0
 		}
 
-		mac := [6]byte{byte(i)}
+		mac := [path.MacLen]byte{byte(i)}
 		asEntry := seg.ASEntry{
 			Local: currIA,
 			Next:  outIA,

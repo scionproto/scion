@@ -41,6 +41,7 @@ go_test(
         "//go/lib/ctrl/seg/mock_seg:go_default_library",
         "//go/lib/pathdb/query:go_default_library",
         "//go/lib/serrors:go_default_library",
+        "//go/lib/slayers/path:go_default_library",
         "//go/lib/xtest:go_default_library",
         "//go/lib/xtest/graph:go_default_library",
         "//go/pkg/api/segments/api/mock_api:go_default_library",
