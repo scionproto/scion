@@ -68,14 +68,14 @@ func SCMPTracerouteIngress(artifactsDir string, mac hash.Hash) runner.Case {
 			NumINF:  1,
 			NumHops: 3,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			{
 				SegID:     0x111,
 				ConsDir:   false,
 				Timestamp: util.TimeToSecs(time.Now()),
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 411, ConsEgress: 0},
 			{ConsIngress: 121, ConsEgress: 141, EgressRouterAlert: true},
 			{ConsIngress: 0, ConsEgress: 211},
@@ -209,14 +209,14 @@ func SCMPTracerouteIngressConsDir(artifactsDir string, mac hash.Hash) runner.Cas
 			NumINF:  1,
 			NumHops: 3,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			{
 				SegID:     0x111,
 				ConsDir:   true,
 				Timestamp: util.TimeToSecs(time.Now()),
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 0, ConsEgress: 311},
 			{ConsIngress: 131, ConsEgress: 141, IngressRouterAlert: true},
 			{ConsIngress: 411, ConsEgress: 0},
@@ -354,14 +354,14 @@ func SCMPTracerouteEgress(artifactsDir string, mac hash.Hash) runner.Case {
 			NumINF:  1,
 			NumHops: 3,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			{
 				SegID:     0x111,
 				ConsDir:   false,
 				Timestamp: util.TimeToSecs(time.Now()),
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 411, ConsEgress: 0},
 			{ConsIngress: 121, ConsEgress: 141, IngressRouterAlert: true},
 			{ConsIngress: 0, ConsEgress: 211},
@@ -495,14 +495,14 @@ func SCMPTracerouteEgressConsDir(artifactsDir string, mac hash.Hash) runner.Case
 			NumINF:  1,
 			NumHops: 3,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			{
 				SegID:     0x111,
 				ConsDir:   true,
 				Timestamp: util.TimeToSecs(time.Now()),
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 0, ConsEgress: 311},
 			{ConsIngress: 131, ConsEgress: 141, EgressRouterAlert: true},
 			{ConsIngress: 411, ConsEgress: 0},
@@ -645,7 +645,7 @@ func SCMPTracerouteEgressAfterXover(artifactsDir string, mac hash.Hash) runner.C
 			NumINF:  2,
 			NumHops: 4,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			// up seg
 			{
 				SegID:     0x111,
@@ -659,7 +659,7 @@ func SCMPTracerouteEgressAfterXover(artifactsDir string, mac hash.Hash) runner.C
 				Timestamp: util.TimeToSecs(time.Now()),
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 811, ConsEgress: 0},
 			{ConsIngress: 0, ConsEgress: 181},
 			{ConsIngress: 0, ConsEgress: 141, EgressRouterAlert: true},
@@ -798,14 +798,14 @@ func SCMPTracerouteInternal(artifactsDir string, mac hash.Hash) runner.Case {
 			NumINF:  1,
 			NumHops: 2,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			{
 				SegID:     0x111,
 				ConsDir:   true,
 				Timestamp: util.TimeToSecs(time.Now()),
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 0, ConsEgress: 141, EgressRouterAlert: true},
 			{ConsIngress: 411, ConsEgress: 0},
 		},

@@ -228,7 +228,7 @@ func testUpdateIntfToSeg(t *testing.T, pathDB pathdb.ReadWrite) {
 		HopField: seg.HopField{
 			ConsIngress: 23,
 			ConsEgress:  newPS.ASEntries[1].HopEntry.HopField.ConsEgress,
-			MAC:         make([]byte, 6),
+			MAC:         [path.MacLen]byte{},
 		},
 	})
 
@@ -476,7 +476,7 @@ func AllocPathSegment(t *testing.T, ifs []uint64, infoTS uint32) (*seg.PathSegme
 			ConsIngress: uint16(ifs[2*i]),
 			ConsEgress:  uint16(ifs[2*i+1]),
 			ExpTime:     63,
-			MAC:         []byte{1, 2, 3, 4, 5, 6},
+			MAC:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
 		})
 	}
 

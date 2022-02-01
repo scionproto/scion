@@ -22,7 +22,6 @@
 package graph
 
 import (
-	"bytes"
 	"context"
 	"crypto"
 	"crypto/ecdsa"
@@ -43,6 +42,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/staticinfo"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
+	"github.com/scionproto/scion/go/lib/slayers/path"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 )
@@ -282,6 +282,7 @@ func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
 			outIA = 0
 		}
 
+		mac := [path.MacLen]byte{byte(i)}
 		asEntry := seg.ASEntry{
 			Local: currIA,
 			Next:  outIA,
@@ -291,7 +292,7 @@ func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
 					ExpTime:     63,
 					ConsIngress: inIF,
 					ConsEgress:  outIF,
-					MAC:         bytes.Repeat([]byte{uint8(i)}, 6),
+					MAC:         mac,
 				},
 				IngressMTU: 1280,
 			},
@@ -318,7 +319,7 @@ func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
 						ExpTime:     63,
 						ConsIngress: peeringLocalIF,
 						ConsEgress:  outIF,
-						MAC:         bytes.Repeat([]byte{uint8(i)}, 6),
+						MAC:         mac,
 					},
 				})
 			}

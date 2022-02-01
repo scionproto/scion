@@ -37,7 +37,7 @@ func TestSerializeDecode(t *testing.T) {
 			ExpTime:            63,
 			ConsIngress:        0,
 			ConsEgress:         1,
-			Mac:                []byte{1, 2, 3, 4, 5, 6},
+			Mac:                [path.MacLen]byte{1, 2, 3, 4, 5, 6},
 		},
 		SecondHop: path.HopField{
 			IngressRouterAlert: true,
@@ -45,7 +45,7 @@ func TestSerializeDecode(t *testing.T) {
 			ExpTime:            63,
 			ConsIngress:        2,
 			ConsEgress:         0,
-			Mac:                []byte{1, 2, 3, 4, 5, 6},
+			Mac:                [path.MacLen]byte{1, 2, 3, 4, 5, 6},
 		},
 	}
 	b := make([]byte, onehop.PathLen)
@@ -71,7 +71,7 @@ func TestPathToSCIONDecoded(t *testing.T) {
 				ExpTime:            63,
 				ConsIngress:        0,
 				ConsEgress:         1,
-				Mac:                []byte{1, 2, 3, 4, 5, 6},
+				Mac:                [path.MacLen]byte{1, 2, 3, 4, 5, 6},
 			},
 			SecondHop: path.HopField{
 				IngressRouterAlert: true,
@@ -79,7 +79,7 @@ func TestPathToSCIONDecoded(t *testing.T) {
 				ExpTime:            63,
 				ConsIngress:        2,
 				ConsEgress:         0,
-				Mac:                []byte{1, 2, 3, 4, 5, 6},
+				Mac:                [path.MacLen]byte{1, 2, 3, 4, 5, 6},
 			},
 		}
 		want := &scion.Decoded{
@@ -92,8 +92,8 @@ func TestPathToSCIONDecoded(t *testing.T) {
 				NumHops: 2,
 				NumINF:  1,
 			},
-			HopFields:  []*path.HopField{&input.FirstHop, &input.SecondHop},
-			InfoFields: []*path.InfoField{&input.Info},
+			HopFields:  []path.HopField{input.FirstHop, input.SecondHop},
+			InfoFields: []path.InfoField{input.Info},
 		}
 		sp, err := input.ToSCIONDecoded()
 		assert.NoError(t, err)
@@ -113,7 +113,7 @@ func TestPathToSCIONDecoded(t *testing.T) {
 				ExpTime:            63,
 				ConsIngress:        0,
 				ConsEgress:         1,
-				Mac:                []byte{1, 2, 3, 4, 5, 6},
+				Mac:                [path.MacLen]byte{1, 2, 3, 4, 5, 6},
 			},
 		}
 		sp, err := input.ToSCIONDecoded()

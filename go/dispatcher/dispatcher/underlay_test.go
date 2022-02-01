@@ -844,13 +844,16 @@ func TestSCMPHandlerReverse(t *testing.T) {
 							NumINF:  1,
 							NumHops: 3,
 						},
-						InfoFields: []*path.InfoField{
+						InfoFields: []path.InfoField{
 							{SegID: 0x111, ConsDir: true, Timestamp: 0x100},
 						},
-						HopFields: []*path.HopField{
-							{ConsIngress: 0, ConsEgress: 311, Mac: bytes.Repeat([]byte{0x00}, 6)},
-							{ConsIngress: 131, ConsEgress: 141, Mac: bytes.Repeat([]byte{0x01}, 6)},
-							{ConsIngress: 411, ConsEgress: 0, Mac: bytes.Repeat([]byte{0x02}, 6)},
+						HopFields: []path.HopField{
+							{ConsIngress: 0, ConsEgress: 311,
+								Mac: [path.MacLen]byte{0, 0, 0, 0, 0, 0}},
+							{ConsIngress: 131, ConsEgress: 141,
+								Mac: [path.MacLen]byte{1, 1, 1, 1, 1, 1}},
+							{ConsIngress: 411, ConsEgress: 0,
+								Mac: [path.MacLen]byte{2, 2, 2, 2, 2, 2}},
 						},
 					},
 				},
@@ -887,13 +890,16 @@ func TestSCMPHandlerReverse(t *testing.T) {
 							NumINF:  1,
 							NumHops: 3,
 						},
-						InfoFields: []*path.InfoField{
+						InfoFields: []path.InfoField{
 							{SegID: 0x111, ConsDir: false, Timestamp: 0x100},
 						},
-						HopFields: []*path.HopField{
-							{ConsIngress: 411, ConsEgress: 0, Mac: bytes.Repeat([]byte{0x02}, 6)},
-							{ConsIngress: 131, ConsEgress: 141, Mac: bytes.Repeat([]byte{0x01}, 6)},
-							{ConsIngress: 0, ConsEgress: 311, Mac: bytes.Repeat([]byte{0x00}, 6)},
+						HopFields: []path.HopField{
+							{ConsIngress: 411, ConsEgress: 0,
+								Mac: [path.MacLen]byte{2, 2, 2, 2, 2, 2}},
+							{ConsIngress: 131, ConsEgress: 141,
+								Mac: [path.MacLen]byte{1, 1, 1, 1, 1, 1}},
+							{ConsIngress: 0, ConsEgress: 311,
+								Mac: [path.MacLen]byte{0, 0, 0, 0, 0, 0}},
 						},
 					},
 				}
@@ -936,10 +942,10 @@ func newSCIONHdr(t *testing.T, l4 common.L4ProtocolType) *slayers.SCION {
 				NumINF:  1,
 				NumHops: 3,
 			},
-			InfoFields: []*path.InfoField{
+			InfoFields: []path.InfoField{
 				{SegID: 0x111, ConsDir: true, Timestamp: 0x100},
 			},
-			HopFields: []*path.HopField{
+			HopFields: []path.HopField{
 				{ConsIngress: 0, ConsEgress: 311},
 				{ConsIngress: 131, ConsEgress: 141},
 				{ConsIngress: 411, ConsEgress: 0},

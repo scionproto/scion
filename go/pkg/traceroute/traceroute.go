@@ -142,7 +142,7 @@ func (t *tracerouter) Traceroute(ctx context.Context) (Stats, error) {
 	}()
 	prevXover := false
 	for i := 0; i < len(idxPath.HopFields); i++ {
-		hf := pktPath.HopFields[idxPath.PathMeta.CurrHF]
+		hf := &pktPath.HopFields[idxPath.PathMeta.CurrHF]
 		info := pktPath.InfoFields[idxPath.PathMeta.CurrINF]
 		// First hop of the path isn't probed, since only the egress hop is
 		// relevant.

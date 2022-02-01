@@ -15,7 +15,6 @@
 package beacondbtest
 
 import (
-	"bytes"
 	"context"
 	"testing"
 	"time"
@@ -27,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
@@ -369,7 +369,7 @@ func AllocBeacon(
 					ExpTime:     63,
 					ConsIngress: uint16(peer.Ingress),
 					ConsEgress:  uint16(as.Egress),
-					MAC:         bytes.Repeat([]byte{0xff}, 6),
+					MAC:         [path.MacLen]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 				},
 			})
 		}
@@ -383,7 +383,7 @@ func AllocBeacon(
 					ExpTime:     63,
 					ConsIngress: uint16(as.Ingress),
 					ConsEgress:  uint16(as.Egress),
-					MAC:         bytes.Repeat([]byte{0xff}, 6),
+					MAC:         [path.MacLen]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 				},
 			},
 			PeerEntries: peers,

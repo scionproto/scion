@@ -106,20 +106,20 @@ func TestSCIONLayerString(t *testing.T) {
 					NumINF:  10,
 					NumHops: 11,
 				},
-				InfoFields: []*path.InfoField{
+				InfoFields: []path.InfoField{
 					{
 						Peer:  true,
 						SegID: 222,
 					},
 				},
-				HopFields: []*path.HopField{
+				HopFields: []path.HopField{
 					{
 						IngressRouterAlert: true,
 						EgressRouterAlert:  false,
 						ExpTime:            63,
 						ConsIngress:        4,
 						ConsEgress:         5,
-						Mac:                []byte{6, 7, 8},
+						Mac:                [path.MacLen]byte{6, 7, 8, 9, 10, 11},
 					},
 				},
 			},
@@ -142,7 +142,7 @@ func TestSCIONLayerString(t *testing.T) {
 				`ExpTime=63 ` +
 				`ConsIngress=4 ` +
 				`ConsEgress=5 ` +
-				`Mac=[6, 7, 8]` +
+				`Mac=[6 7 8 9 10 11]` +
 				`}]}` + expectEnd,
 		},
 		"onehop": {
@@ -157,36 +157,36 @@ func TestSCIONLayerString(t *testing.T) {
 					ConsIngress: 5,
 					ConsEgress:  6,
 					ExpTime:     63,
-					Mac:         []byte{1, 2, 3},
+					Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
 				},
 				SecondHop: path.HopField{
 					ConsIngress: 2,
 					ConsEgress:  3,
 					ExpTime:     63,
-					Mac:         []byte{7, 8, 9},
+					Mac:         [path.MacLen]byte{7, 8, 9, 10, 11, 12},
 				},
 			},
 			expect: expectBegin + `PathType=OneHop (2) ` + expectMiddle +
 				`Path={ ` +
-				`Info={ ` +
-				`Peer=false ` +
-				`ConsDir=true ` +
-				`SegID=34 ` +
-				`Timestamp=1000` +
+				`Info={` +
+				`Peer: false, ` +
+				`ConsDir: true, ` +
+				`SegID: 34, ` +
+				`Timestamp: 1970-01-01 00:16:40+0000` +
 				`} FirstHop={ ` +
 				`IngressRouterAlert=false ` +
 				`EgressRouterAlert=false ` +
 				`ExpTime=63 ` +
 				`ConsIngress=5 ` +
 				`ConsEgress=6 ` +
-				`Mac=[1, 2, 3]` +
+				`Mac=[1 2 3 4 5 6]` +
 				`} SecondHop={ ` +
 				`IngressRouterAlert=false ` +
 				`EgressRouterAlert=false ` +
 				`ExpTime=63 ` +
 				`ConsIngress=2 ` +
 				`ConsEgress=3 ` +
-				`Mac=[7, 8, 9]` +
+				`Mac=[7 8 9 10 11 12]` +
 				`}}` + expectEnd,
 		},
 	}

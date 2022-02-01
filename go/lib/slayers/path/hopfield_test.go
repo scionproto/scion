@@ -29,7 +29,7 @@ func TestHopSerializeDecode(t *testing.T) {
 		ExpTime:            63,
 		ConsIngress:        1,
 		ConsEgress:         0,
-		Mac:                []byte{1, 2, 3, 4, 5, 6},
+		Mac:                [path.MacLen]byte{1, 2, 3, 4, 5, 6},
 	}
 	b := make([]byte, path.HopLen)
 	assert.NoError(t, want.SerializeTo(b))

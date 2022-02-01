@@ -258,12 +258,14 @@ func (s *DefaultExtender) createHopF(ingress, egress uint16, ts time.Time,
 		panic(err)
 	}
 	fullMAC := mac.Sum(nil)
+	m := [path.MacLen]byte{}
+	copy(m[:], fullMAC[:path.MacLen])
 	return path.HopField{
 		ConsIngress: ingress,
 		ConsEgress:  egress,
 		ExpTime:     expTime,
-		Mac:         fullMAC[:6],
-	}, fullMAC[6:16]
+		Mac:         m,
+	}, fullMAC[path.MacLen:]
 }
 
 func extractBeta(pseg *seg.PathSegment) uint16 {

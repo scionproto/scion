@@ -122,10 +122,10 @@ func scionLayer(t *testing.T, l4 common.L4ProtocolType) *slayers.SCION {
 				NumINF:  1,
 				NumHops: 3,
 			},
-			InfoFields: []*path.InfoField{
+			InfoFields: []path.InfoField{
 				{SegID: 0x111, ConsDir: true, Timestamp: 0x100},
 			},
-			HopFields: []*path.HopField{
+			HopFields: []path.HopField{
 				{ConsIngress: 0, ConsEgress: 311},
 				{ConsIngress: 131, ConsEgress: 141},
 				{ConsIngress: 411, ConsEgress: 0},

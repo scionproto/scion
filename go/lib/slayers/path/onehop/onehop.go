@@ -92,21 +92,21 @@ func (o *Path) ToSCIONDecoded() (*scion.Decoded, error) {
 			NumHops: 2,
 			NumINF:  1,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			{
 				ConsDir:   true,
 				SegID:     o.Info.SegID,
 				Timestamp: o.Info.Timestamp,
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{
 				IngressRouterAlert: o.FirstHop.IngressRouterAlert,
 				EgressRouterAlert:  o.FirstHop.EgressRouterAlert,
 				ConsIngress:        o.FirstHop.ConsIngress,
 				ConsEgress:         o.FirstHop.ConsEgress,
 				ExpTime:            o.FirstHop.ExpTime,
-				Mac:                append([]byte(nil), o.FirstHop.Mac...),
+				Mac:                o.FirstHop.Mac,
 			},
 			{
 				IngressRouterAlert: o.SecondHop.IngressRouterAlert,
@@ -114,7 +114,7 @@ func (o *Path) ToSCIONDecoded() (*scion.Decoded, error) {
 				ConsIngress:        o.SecondHop.ConsIngress,
 				ConsEgress:         o.SecondHop.ConsEgress,
 				ExpTime:            o.SecondHop.ExpTime,
-				Mac:                append([]byte(nil), o.SecondHop.Mac...),
+				Mac:                o.SecondHop.Mac,
 			},
 		},
 	}

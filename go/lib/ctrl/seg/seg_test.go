@@ -29,6 +29,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/xtest"
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 )
@@ -51,7 +52,7 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 					ConsIngress: 0,
 					ConsEgress:  1,
 					ExpTime:     63,
-					MAC:         bytes.Repeat([]byte{0x11}, 6),
+					MAC:         [path.MacLen]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11},
 				},
 				IngressMTU: 0,
 			},
@@ -65,7 +66,7 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 					ConsIngress: 10,
 					ConsEgress:  11,
 					ExpTime:     63,
-					MAC:         bytes.Repeat([]byte{0x22}, 6),
+					MAC:         [path.MacLen]byte{0x22, 0x22, 0x22, 0x22, 0x22, 0x22},
 				},
 				IngressMTU: 1337,
 			},
@@ -79,7 +80,7 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 					ConsIngress: 20,
 					ConsEgress:  21,
 					ExpTime:     63,
-					MAC:         bytes.Repeat([]byte{0x33}, 6),
+					MAC:         [path.MacLen]byte{0x33, 0x33, 0x33, 0x33, 0x33, 0x33},
 				},
 				IngressMTU: 1442,
 			},

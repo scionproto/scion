@@ -15,7 +15,6 @@
 package hiddenpath_test
 
 import (
-	"bytes"
 	"context"
 	"testing"
 	"time"
@@ -29,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb/mock_pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 	"github.com/scionproto/scion/go/pkg/hiddenpath"
@@ -156,7 +156,7 @@ func createSegs() ([]*seg.Meta, query.Results) {
 	asEntry := seg.ASEntry{
 		Local: xtest.MustParseIA("1-ff00:0:110"),
 		HopEntry: seg.HopEntry{
-			HopField: seg.HopField{MAC: bytes.Repeat([]byte{0x11}, 6)},
+			HopField: seg.HopField{MAC: [path.MacLen]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11}},
 		},
 	}
 	ps, _ := seg.CreateSegment(time.Now(), 1337)

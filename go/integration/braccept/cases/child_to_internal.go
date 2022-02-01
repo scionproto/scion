@@ -76,10 +76,10 @@ func ChildToInternalHost(artifactsDir string, mac hash.Hash) runner.Case {
 			NumINF:  1,
 			NumHops: 2,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			{SegID: 0x111, Timestamp: util.TimeToSecs(time.Now())},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 411, ConsEgress: 0},
 			{ConsIngress: 0, ConsEgress: 141},
 		},
@@ -183,10 +183,10 @@ func ChildToInternalHostShortcut(artifactsDir string, mac hash.Hash) runner.Case
 			NumINF:  1,
 			NumHops: 2,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			{SegID: 0x111, Timestamp: util.TimeToSecs(time.Now())},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 411, ConsEgress: 0},
 			{ConsIngress: 191, ConsEgress: 141},
 		},
@@ -300,10 +300,10 @@ func ChildToInternalParent(artifactsDir string, mac hash.Hash) runner.Case {
 			NumINF:  1,
 			NumHops: 3,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			{SegID: 0x111, Timestamp: util.TimeToSecs(time.Now())},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 411, ConsEgress: 0},
 			{ConsIngress: 191, ConsEgress: 141},
 			{ConsIngress: 0, ConsEgress: 911},

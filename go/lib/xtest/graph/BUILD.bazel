@@ -15,6 +15,7 @@ go_library(
         "//go/lib/ctrl/seg/extensions/staticinfo:go_default_library",
         "//go/lib/scrypto/cppki:go_default_library",
         "//go/lib/scrypto/signed:go_default_library",
+        "//go/lib/slayers/path:go_default_library",
         "//go/pkg/proto/control_plane:go_default_library",
         "//go/pkg/proto/crypto:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",

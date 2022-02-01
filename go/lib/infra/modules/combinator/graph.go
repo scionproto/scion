@@ -299,7 +299,7 @@ func (solution *pathSolution) Path() Path {
 	mtu := ^uint16(0)
 	var segments segmentList
 	for _, solEdge := range solution.edges {
-		var hops []*path.HopField
+		var hops []path.HopField
 		var intfs []snet.PathInterface
 		var pathASEntries []seg.ASEntry // ASEntries that on the path, eventually in path order.
 
@@ -311,27 +311,27 @@ func (solution *pathSolution) Path() Path {
 			isPeer := asEntryIdx == solEdge.edge.Shortcut && solEdge.edge.Peer != 0
 			asEntry := asEntries[asEntryIdx]
 
-			var hopField *path.HopField
+			var hopField path.HopField
 			var forwardingLinkMtu int
 			if !isPeer {
 				// Regular hop field.
 				entry := asEntry.HopEntry
-				hopField = &path.HopField{
+				hopField = path.HopField{
 					ExpTime:     entry.HopField.ExpTime,
 					ConsIngress: entry.HopField.ConsIngress,
 					ConsEgress:  entry.HopField.ConsEgress,
-					Mac:         append([]byte(nil), entry.HopField.MAC...),
+					Mac:         entry.HopField.MAC,
 				}
 				forwardingLinkMtu = entry.IngressMTU
 			} else {
 				// We've reached the ASEntry where we want to switch
 				// segments on a peering link.
 				peer := asEntry.PeerEntries[solEdge.edge.Peer-1]
-				hopField = &path.HopField{
+				hopField = path.HopField{
 					ExpTime:     peer.HopField.ExpTime,
 					ConsIngress: peer.HopField.ConsIngress,
 					ConsEgress:  peer.HopField.ConsEgress,
-					Mac:         append([]byte(nil), peer.HopField.MAC...),
+					Mac:         peer.HopField.MAC,
 				}
 				forwardingLinkMtu = peer.PeerMTU
 			}
@@ -368,7 +368,7 @@ func (solution *pathSolution) Path() Path {
 		}
 
 		segments = append(segments, segment{
-			InfoField: &path.InfoField{
+			InfoField: path.InfoField{
 				Timestamp: util.TimeToSecs(solEdge.segment.Info.Timestamp),
 				SegID:     calculateBeta(solEdge),
 				ConsDir:   solEdge.segment.IsDownSeg(),
@@ -401,7 +401,7 @@ func (solution *pathSolution) Path() Path {
 	}
 }
 
-func reverseHops(s []*path.HopField) {
+func reverseHops(s []path.HopField) {
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
 	}
@@ -433,7 +433,7 @@ func calculateBeta(se *solutionEdge) uint16 {
 	beta := se.segment.Info.SegmentID
 	for i := 0; i < index; i++ {
 		hop := se.segment.ASEntries[i].HopEntry
-		beta = beta ^ binary.BigEndian.Uint16(hop.HopField.MAC)
+		beta = beta ^ binary.BigEndian.Uint16(hop.HopField.MAC[:])
 	}
 	return beta
 }
@@ -521,8 +521,8 @@ func validNextSeg(currSeg, nextSeg *inputSegment) bool {
 // segment is a helper that represents a path segment during the conversion
 // from the graph solution to the raw forwarding information.
 type segment struct {
-	InfoField  *path.InfoField
-	HopFields  []*path.HopField
+	InfoField  path.InfoField
+	HopFields  []path.HopField
 	Interfaces []snet.PathInterface
 	ASEntries  []seg.ASEntry
 }
@@ -581,8 +581,8 @@ func (s segmentList) ComputeExpTime() time.Time {
 
 func (s segmentList) SPath() spath.Path {
 	var meta scion.MetaHdr
-	var infos []*path.InfoField
-	var hops []*path.HopField
+	var infos []path.InfoField
+	var hops []path.HopField
 
 	for i, segment := range s {
 		meta.SegLen[i] = uint8(len(segment.HopFields))

@@ -101,62 +101,58 @@ func (s *Raw) IncPath() error {
 }
 
 // GetInfoField returns the InfoField at a given index.
-func (s *Raw) GetInfoField(idx int) (*path.InfoField, error) {
+func (s *Raw) GetInfoField(idx int) (path.InfoField, error) {
 	if idx >= s.NumINF {
-		return nil, serrors.New("InfoField index out of bounds", "max", s.NumINF-1, "actual", idx)
+		return path.InfoField{},
+			serrors.New("InfoField index out of bounds", "max", s.NumINF-1, "actual", idx)
 	}
 	infOffset := MetaLen + idx*path.InfoLen
-	info := &path.InfoField{}
+	info := path.InfoField{}
 	if err := info.DecodeFromBytes(s.Raw[infOffset : infOffset+path.InfoLen]); err != nil {
-		return nil, err
+		return path.InfoField{}, err
 	}
 	return info, nil
 }
 
 // GetCurrentInfoField is a convenience method that returns the current hop field pointed to by the
 // CurrINF index in the path meta header.
-func (s *Raw) GetCurrentInfoField() (*path.InfoField, error) {
+func (s *Raw) GetCurrentInfoField() (path.InfoField, error) {
 	return s.GetInfoField(int(s.PathMeta.CurrINF))
 }
 
 // SetInfoField updates the InfoField at a given index.
-func (s *Raw) SetInfoField(info *path.InfoField, idx int) error {
+func (s *Raw) SetInfoField(info path.InfoField, idx int) error {
 	if idx >= s.NumINF {
 		return serrors.New("InfoField index out of bounds", "max", s.NumINF-1, "actual", idx)
-	}
-	if info == nil {
-		return serrors.New("Infofield cannot be nil")
 	}
 	infOffset := MetaLen + idx*path.InfoLen
 	return info.SerializeTo(s.Raw[infOffset : infOffset+path.InfoLen])
 }
 
 // GetHopField returns the HopField at a given index.
-func (s *Raw) GetHopField(idx int) (*path.HopField, error) {
+func (s *Raw) GetHopField(idx int) (path.HopField, error) {
 	if idx >= s.NumHops {
-		return nil, serrors.New("HopField index out of bounds", "max", s.NumHops-1, "actual", idx)
+		return path.HopField{},
+			serrors.New("HopField index out of bounds", "max", s.NumHops-1, "actual", idx)
 	}
 	hopOffset := MetaLen + s.NumINF*path.InfoLen + idx*path.HopLen
-	hop := &path.HopField{}
+	hop := path.HopField{}
 	if err := hop.DecodeFromBytes(s.Raw[hopOffset : hopOffset+path.HopLen]); err != nil {
-		return nil, err
+		return path.HopField{}, err
 	}
 	return hop, nil
 }
 
 // GetCurrentHopField is a convenience method that returns the current hop field pointed to by the
 // CurrHF index in the path meta header.
-func (s *Raw) GetCurrentHopField() (*path.HopField, error) {
+func (s *Raw) GetCurrentHopField() (path.HopField, error) {
 	return s.GetHopField(int(s.PathMeta.CurrHF))
 }
 
 // SetHopField updates the HopField at a given index.
-func (s *Raw) SetHopField(hop *path.HopField, idx int) error {
+func (s *Raw) SetHopField(hop path.HopField, idx int) error {
 	if idx >= s.NumHops {
 		return serrors.New("HopField index out of bounds", "max", s.NumHops-1, "actual", idx)
-	}
-	if hop == nil {
-		return serrors.New("Hopfield cannot be nil")
 	}
 	hopOffset := MetaLen + s.NumINF*path.InfoLen + idx*path.HopLen
 	return hop.SerializeTo(s.Raw[hopOffset : hopOffset+path.HopLen])

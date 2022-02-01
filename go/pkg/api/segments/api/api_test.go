@@ -15,7 +15,6 @@
 package api
 
 import (
-	"bytes"
 	"context"
 	"net/http"
 	"net/http/httptest"
@@ -33,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg/mock_seg"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 	"github.com/scionproto/scion/go/pkg/api/segments/api/mock_api"
@@ -262,7 +262,7 @@ func createSegs(t *testing.T, signer seg.Signer) query.Results {
 	asEntry1 := seg.ASEntry{
 		Local: xtest.MustParseIA("1-ff00:0:110"),
 		HopEntry: seg.HopEntry{
-			HopField: seg.HopField{MAC: bytes.Repeat([]byte{0x11}, 6),
+			HopField: seg.HopField{MAC: [path.MacLen]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11},
 				ConsEgress: 1,
 			},
 		},
@@ -270,7 +270,7 @@ func createSegs(t *testing.T, signer seg.Signer) query.Results {
 	asEntry2 := seg.ASEntry{
 		Local: xtest.MustParseIA("1-ff00:0:111"),
 		HopEntry: seg.HopEntry{
-			HopField: seg.HopField{MAC: bytes.Repeat([]byte{0x12}, 5),
+			HopField: seg.HopField{MAC: [path.MacLen]byte{0x12, 0x12, 0x12, 0x12, 0x12, 0x12},
 				ConsIngress: 1,
 				ConsEgress:  2},
 		},
@@ -278,7 +278,7 @@ func createSegs(t *testing.T, signer seg.Signer) query.Results {
 	asEntry3 := seg.ASEntry{
 		Local: xtest.MustParseIA("1-ff00:0:113"),
 		HopEntry: seg.HopEntry{
-			HopField: seg.HopField{MAC: bytes.Repeat([]byte{0x12}, 5),
+			HopField: seg.HopField{MAC: [path.MacLen]byte{0x13, 0x13, 0x13, 0x13, 0x13, 0x13},
 				ConsIngress: 2},
 		},
 	}

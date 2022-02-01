@@ -73,7 +73,7 @@ func SCMPParentToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 			NumINF:  2,
 			NumHops: 4,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			// down seg
 			{
 				SegID:     0x111,
@@ -87,7 +87,7 @@ func SCMPParentToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 				Timestamp: util.TimeToSecs(time.Now()),
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 0, ConsEgress: 211},
 			{ConsIngress: 121, ConsEgress: 0},
 			{ConsIngress: 191, ConsEgress: 0},
@@ -245,7 +245,7 @@ func SCMPParentToChildXover(artifactsDir string, mac hash.Hash) runner.Case {
 			NumINF:  2,
 			NumHops: 4,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			// down seg
 			{
 				SegID:     0x111,
@@ -259,7 +259,7 @@ func SCMPParentToChildXover(artifactsDir string, mac hash.Hash) runner.Case {
 				Timestamp: util.TimeToSecs(time.Now()),
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 0, ConsEgress: 211},
 			{ConsIngress: 121, ConsEgress: 0},
 			{ConsIngress: 121, ConsEgress: 181},
@@ -418,7 +418,7 @@ func SCMPChildToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 			NumINF:  2,
 			NumHops: 4,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			// up seg
 			{
 				SegID:     0x111,
@@ -432,7 +432,7 @@ func SCMPChildToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 				Timestamp: util.TimeToSecs(time.Now()),
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 411, ConsEgress: 0},
 			{ConsIngress: 121, ConsEgress: 141},
 			{ConsIngress: 191, ConsEgress: 0},
@@ -592,7 +592,7 @@ func SCMPInternalXover(artifactsDir string, mac hash.Hash) runner.Case {
 			NumINF:  2,
 			NumHops: 4,
 		},
-		InfoFields: []*path.InfoField{
+		InfoFields: []path.InfoField{
 			// down seg (reversed)
 			{
 				SegID:     0x222,
@@ -606,7 +606,7 @@ func SCMPInternalXover(artifactsDir string, mac hash.Hash) runner.Case {
 				Timestamp: util.TimeToSecs(time.Now()),
 			},
 		},
-		HopFields: []*path.HopField{
+		HopFields: []path.HopField{
 			{ConsIngress: 811, ConsEgress: 0},
 			{ConsIngress: 0, ConsEgress: 181},
 			{ConsIngress: 0, ConsEgress: 141},

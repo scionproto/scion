@@ -15,13 +15,13 @@
 package seg
 
 import (
-	"bytes"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -46,7 +46,7 @@ func allocPathSegment(ias []addr.IA) *PathSegment {
 					ConsIngress: 1,
 					ConsEgress:  2,
 					ExpTime:     63,
-					MAC:         bytes.Repeat([]byte{0xab}, 6),
+					MAC:         [path.MacLen]byte{0xab, 0xab, 0xab, 0xab, 0xab, 0xab},
 				},
 				IngressMTU: 1337,
 			},
