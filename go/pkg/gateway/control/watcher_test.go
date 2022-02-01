@@ -165,7 +165,7 @@ func TestPrefixWatcherRun(t *testing.T) {
 		FetcherFactory: fetcherFactory,
 		PollInterval:   1 * time.Millisecond,
 	}
-	w := control.NewPrefixWatcher(context.Background(), gateway, 0, cfg)
+	w := control.NewPrefixWatcher(context.Background(), gateway, 0, cfg, nil)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()

@@ -47,8 +47,15 @@ type RemoteMonitor struct {
 	GatewayWatcherFactory GatewayWatcherFactory
 	// IAs is a channel that is notified with the full set of IAs to watch.
 	IAs <-chan []addr.IA
-	// RemotesMonitored is the number of remote gateways discovered. If nil, no metric is reported.
-	RemotesMonitored metrics.Gauge
+	// RemotesMonitored is the number of remote gateways discovered, per ISD-AS.
+	// If nil, no metric is reported.
+	RemotesMonitored func(addr.IA) metrics.Gauge
+	// RemoteDiscoveryErrors is the number of remote gateway discovery errors,
+	// per remote ISD-AS. If nil, no metric is reported.
+	RemoteDiscoveryErrors func(addr.IA) metrics.Counter
+	// PrefixFetchErrors is the number of prefix fetch errors, per remote
+	// ISD-AS. If nil, no metric is reported.
+	PrefixFetchErrors func(addr.IA) metrics.Counter
 
 	// stateMtx protects the state below from concurrent access.
 	stateMtx sync.RWMutex
@@ -119,9 +126,23 @@ func (rm *RemoteMonitor) process(ctx context.Context, ias []addr.IA) {
 		} else {
 			// Watcher for the remote IA does not exist. Create it.
 			ctx, cancel := context.WithCancel(rm.context)
+			var remotesMonitored metrics.Gauge
+			var discoveryErrors metrics.Counter
+			var prefixFetchErrors metrics.Counter
+			if rm.RemotesMonitored != nil {
+				remotesMonitored = rm.RemotesMonitored(ia)
+			}
+			if rm.RemoteDiscoveryErrors != nil {
+				discoveryErrors = rm.RemoteDiscoveryErrors(ia)
+			}
+			if rm.PrefixFetchErrors != nil {
+				prefixFetchErrors = rm.PrefixFetchErrors(ia)
+			}
 			we = watcherEntry{
 				runner: rm.GatewayWatcherFactory.New(ctx, ia, GatewayWatcherMetrics{
-					Remotes: metrics.GaugeWith(rm.RemotesMonitored, "remote_isd_as", ia.String()),
+					Remotes:           remotesMonitored,
+					DiscoveryErrors:   discoveryErrors,
+					PrefixFetchErrors: prefixFetchErrors,
 				}),
 				cancel: cancel,
 			}

@@ -161,6 +161,16 @@ var (
 		Help:   "Total number of discovered remote gateways.",
 		Labels: []string{"isd_as", "remote_isd_as"},
 	}
+	RemoteDiscoveryErrorsMeta = MetricMeta{
+		Name:   "gateway_remote_discovery_errors_total",
+		Help:   "Total number of errors discovering remote gateways.",
+		Labels: []string{"isd_as", "remote_isd_as"},
+	}
+	PrefixFetchErrorsMeta = MetricMeta{
+		Name:   "gateway_prefix_fetch_errors_total",
+		Help:   "Total number of errors fetching prefixes.",
+		Labels: []string{"isd_as", "remote_isd_as"},
+	}
 	PrefixesAdvertisedMeta = MetricMeta{
 		Name:   "gateway_prefixes_advertised",
 		Help:   "Total number of advertised IP prefixes (outgoing).",
@@ -236,10 +246,12 @@ type Metrics struct {
 	PathProbesSendErrors  *prometheus.CounterVec
 
 	// Discovery Metrics
-	Remotes            *prometheus.GaugeVec
-	PrefixesAdvertised *prometheus.GaugeVec
-	PrefixesAccepted   *prometheus.GaugeVec
-	PrefixesRejected   *prometheus.GaugeVec
+	Remotes               *prometheus.GaugeVec
+	RemoteDiscoveryErrors *prometheus.CounterVec
+	PrefixFetchErrors     *prometheus.CounterVec
+	PrefixesAdvertised    *prometheus.GaugeVec
+	PrefixesAccepted      *prometheus.GaugeVec
+	PrefixesRejected      *prometheus.GaugeVec
 
 	// SessionMonitor Metrics
 	SessionProbes       *prometheus.CounterVec
@@ -313,6 +325,10 @@ func NewMetrics(ia addr.IA) *Metrics {
 			NewGaugeVec().MustCurryWith(labels),
 		Remotes: RemotesMeta.
 			NewGaugeVec().MustCurryWith(labels),
+		RemoteDiscoveryErrors: RemoteDiscoveryErrorsMeta.
+			NewCounterVec().MustCurryWith(labels),
+		PrefixFetchErrors: PrefixFetchErrorsMeta.
+			NewCounterVec().MustCurryWith(labels),
 		PrefixesAdvertised: PrefixesAdvertisedMeta.
 			NewGaugeVec().MustCurryWith(labels),
 		PrefixesAccepted: PrefixesAcceptedMeta.

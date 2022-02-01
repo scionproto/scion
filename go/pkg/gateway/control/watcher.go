@@ -89,6 +89,11 @@ type Discoverer interface {
 type GatewayWatcherMetrics struct {
 	// Remotes is the number of remote gateways discovered in the remote AS.
 	Remotes metrics.Gauge
+	// DiscoveryErrors counts the errors when discovering gateway in a remote AS.
+	DiscoveryErrors metrics.Counter
+	// PrefixFetchErrors counts the error when fetching prefixes from gateways
+	// in the remote AS.
+	PrefixFetchErrors metrics.Counter
 }
 
 // GatewayWatcher watches gateways in a specific remote AS.
@@ -184,6 +189,8 @@ func (w *GatewayWatcher) run(runCtx context.Context) {
 	logger.Debug("Discovering remote gateways")
 	discovered, err := w.Discoverer.Gateways(ctx)
 	if err != nil {
+		metrics.GaugeSet(w.Metrics.Remotes, 0)
+		metrics.CounterInc(w.Metrics.DiscoveryErrors)
 		logger.Info("Failed to discover remote gateways", "err", err)
 		return
 	}
@@ -215,7 +222,7 @@ func (w *GatewayWatcher) run(runCtx context.Context) {
 func (w *GatewayWatcher) watchPrefixes(ctx context.Context, gateway Gateway) watcherItem {
 	ctx, cancel := context.WithCancel(ctx)
 
-	watcher := newPrefixWatcher(ctx, gateway, w.Remote, w.Template)
+	watcher := newPrefixWatcher(ctx, gateway, w.Remote, w.Template, w.Metrics.PrefixFetchErrors)
 	go func(ctx context.Context, watcher *prefixWatcher) {
 		defer log.HandlePanic()
 		if err := watcher.Run(ctx); err != nil {
@@ -357,16 +364,24 @@ type prefixWatcher struct {
 	prefixes []string
 	// timestamp of last fetched prefixes
 	timestamp time.Time
+	// fetchErrors counts the amount of errors while fetching prefixes.
+	fetchErrors metrics.Counter
 }
 
-func newPrefixWatcher(ctx context.Context, gateway Gateway, remote addr.IA,
-	cfg PrefixWatcherConfig) *prefixWatcher {
+func newPrefixWatcher(
+	ctx context.Context,
+	gateway Gateway,
+	remote addr.IA,
+	cfg PrefixWatcherConfig,
+	fetchErrors metrics.Counter,
+) *prefixWatcher {
 
 	return &prefixWatcher{
 		PrefixWatcherConfig: cfg,
 		gateway:             gateway,
 		remote:              remote,
 		fetcher:             cfg.FetcherFactory.NewPrefixFetcher(ctx, gateway),
+		fetchErrors:         fetchErrors,
 	}
 }
 
@@ -407,6 +422,7 @@ func (w *prefixWatcher) run(ctx context.Context) {
 	logger.Debug("Fetching IP prefixes from remote gateway")
 	prefixes, err := w.fetcher.Prefixes(ctx, w.gateway.Control)
 	if err != nil {
+		metrics.CounterInc(w.fetchErrors)
 		logger.Debug("Failed to fetch IP prefixes from remote gateway", "err", err)
 		return
 	}

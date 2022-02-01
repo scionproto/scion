@@ -489,13 +489,28 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// remoteMonitor subscribes to the list of known remote ASes, and launches workers that
 	// monitor which gateways exist in each AS, and what prefixes each gateway advertises.
 	// Prefixes learned by the remote monitor are pushed to prefix aggregation.
-	var rmMetric metrics.Gauge
+	var rmMetric func(addr.IA) metrics.Gauge
+	var rmErrorsMetric func(addr.IA) metrics.Counter
+	var rmPrefixErrorsMetric func(addr.IA) metrics.Counter
 	if g.Metrics != nil {
-		rmMetric = metrics.NewPromGauge(g.Metrics.Remotes)
+		rmMetric = func(ia addr.IA) metrics.Gauge {
+			return metrics.GaugeWith(metrics.NewPromGauge(g.Metrics.Remotes),
+				"remote_isd_as", ia.String())
+		}
+		rmErrorsMetric = func(ia addr.IA) metrics.Counter {
+			return metrics.CounterWith(metrics.NewPromCounter(g.Metrics.RemoteDiscoveryErrors),
+				"remote_isd_as", ia.String())
+		}
+		rmPrefixErrorsMetric = func(ia addr.IA) metrics.Counter {
+			return metrics.CounterWith(metrics.NewPromCounter(g.Metrics.PrefixFetchErrors),
+				"remote_isd_as", ia.String())
+		}
 	}
 	remoteMonitor := &control.RemoteMonitor{
-		IAs:              remoteIAsChannel,
-		RemotesMonitored: rmMetric,
+		IAs:                   remoteIAsChannel,
+		RemotesMonitored:      rmMetric,
+		RemoteDiscoveryErrors: rmErrorsMetric,
+		PrefixFetchErrors:     rmPrefixErrorsMetric,
 		GatewayWatcherFactory: &WatcherFactory{
 			Aggregator:  filteredPrefixAggregator,
 			PathMonitor: pathMonitor,
