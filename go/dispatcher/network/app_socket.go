@@ -101,18 +101,18 @@ func (h *AppConnHandler) doRegExchange(appServer *dispatcher.Server) (net.Packet
 
 	regInfo, err := h.recvRegistration(b)
 	if err != nil {
-		return nil, serrors.New("registration message error", "err", err)
+		return nil, serrors.WrapStr("receiving registration message", err)
 	}
 	appConn, _, err := appServer.Register(nil,
 		regInfo.IA, regInfo.PublicAddress, regInfo.SVCAddress)
 	if err != nil {
-		return nil, serrors.New("registration table error", "err", err)
+		return nil, serrors.WrapStr("add registration", err, "registration", regInfo)
 	}
 	udpAddr := appConn.(*dispatcher.Conn).LocalAddr().(*net.UDPAddr)
 	port := uint16(udpAddr.Port)
 	if err := h.sendConfirmation(b, &reliable.Confirmation{Port: port}); err != nil {
 		appConn.Close()
-		return nil, serrors.New("confirmation message error", "err", err)
+		return nil, serrors.WrapStr("sending registration confirmation message", err)
 	}
 	h.logRegistration(regInfo.IA, udpAddr, getBindIP(regInfo.BindAddress),
 		regInfo.SVCAddress)
