@@ -22,7 +22,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -321,7 +321,7 @@ func TestCACertLoaderCACerts(t *testing.T) {
 			prepare: func(_ *testing.T, ctrl *gomock.Controller) (string, func(), trust.DB) {
 				dir, cleanF := defaultGen(t)
 				trc := xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S1.trc"))
-				err := ioutil.WriteFile(filepath.Join(dir, "dummy.crt"), []byte{}, 0666)
+				err := os.WriteFile(filepath.Join(dir, "dummy.crt"), []byte{}, 0666)
 				require.NoError(t, err)
 				db := mock_trust.NewMockDB(ctrl)
 				db.EXPECT().SignedTRC(gomock.Any(), cppki.TRCID{ISD: 1}).Return(trc, nil)

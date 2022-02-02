@@ -19,7 +19,7 @@ import (
 	"crypto/elliptic"
 	"crypto/x509"
 	"encoding/pem"
-	"io/ioutil"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -674,7 +674,7 @@ func TestNewCreateCmdCSR(t *testing.T) {
 			tc.ErrAssertion(t, err)
 			if tc.Validate != nil {
 				var csr *x509.CertificateRequest
-				if raw, err := ioutil.ReadFile(tc.Args[1]); err == nil {
+				if raw, err := os.ReadFile(tc.Args[1]); err == nil {
 					block, rest := pem.Decode(raw)
 					require.NotNil(t, block)
 					require.Empty(t, rest)

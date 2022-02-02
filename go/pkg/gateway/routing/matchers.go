@@ -16,8 +16,6 @@ package routing
 
 import (
 	"fmt"
-	"net"
-	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
 )
@@ -34,10 +32,10 @@ func (m SingleIAMatcher) Match(ia addr.IA) bool {
 	switch {
 	case m.IA.IsZero():
 		return true
-	case m.IA.I == 0:
-		return m.IA.A == ia.A
-	case m.IA.A == 0:
-		return m.IA.I == ia.I
+	case m.IA.ISD() == 0:
+		return m.IA.AS() == ia.AS()
+	case m.IA.AS() == 0:
+		return m.IA.ISD() == ia.ISD()
 	default:
 		return m.IA.Equal(ia)
 	}
@@ -59,49 +57,4 @@ func (m NegatedIAMatcher) Match(ia addr.IA) bool {
 
 func (m NegatedIAMatcher) String() string {
 	return fmt.Sprintf("!%s", m.IAMatcher)
-}
-
-// allowedNetworkMatcher is a simple IP network matcher based on allowed IP
-// networks.
-type AllowedNetworkMatcher struct {
-	Allowed []*net.IPNet
-}
-
-// Match matches the input network if it is a subset of at least one allowed
-// network.
-func (m AllowedNetworkMatcher) Match(network *net.IPNet) bool {
-	for _, n := range m.Allowed {
-		if isSubnet(network, n) {
-			return true
-		}
-	}
-	return false
-}
-
-func (m AllowedNetworkMatcher) String() string {
-	networks := make([]string, 0, len(m.Allowed))
-	for _, network := range m.Allowed {
-		networks = append(networks, network.String())
-	}
-	return strings.Join(networks, ",")
-}
-
-// negatedNetworkMatcher negates the result of the enclosed matcher.
-type NegatedNetworkMatcher struct {
-	NetworkMatcher
-}
-
-// Match negates the result of the enclosed matcher.
-func (m NegatedNetworkMatcher) Match(network *net.IPNet) bool {
-	return !m.NetworkMatcher.Match(network)
-}
-
-func (m NegatedNetworkMatcher) String() string {
-	return fmt.Sprintf("!%s", m.NetworkMatcher)
-}
-
-func isSubnet(sub, network *net.IPNet) bool {
-	nLen, _ := network.Mask.Size()
-	sLen, _ := sub.Mask.Size()
-	return network.Contains(sub.IP) && nLen <= sLen
 }

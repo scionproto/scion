@@ -59,7 +59,7 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 	refresh bool) ([]snet.Path, error) {
 
 	logger := log.FromCtx(ctx)
-	if dst.I == 0 {
+	if dst.ISD() == 0 {
 		return nil, serrors.WithCtx(ErrBadDst, "dst", dst)
 	}
 	src := p.IA
@@ -116,7 +116,7 @@ func (p *Pather) findDestinations(dst addr.IA, ups, cores seg.Segments) map[addr
 		return map[addr.IA]struct{}{dst: {}}
 	}
 	all := cores.FirstIAs()
-	if dst.I == p.IA.I {
+	if dst.ISD() == p.IA.ISD() {
 		// for isd local wildcard we want to reach cores, they are at the end of the up segs.
 		all = append(all, ups.FirstIAs()...)
 	}

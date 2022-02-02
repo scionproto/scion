@@ -70,16 +70,16 @@ func TestSession(t *testing.T) {
 		"choose desired interval (bootstrapped)": {
 			sessionA: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  100 * time.Millisecond,
-				RequiredMinRxInterval: 50 * time.Millisecond,
+				DesiredMinTxInterval:  200 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
 				ReceiveQueueSize:      10,
 			},
 			sessionB: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  100 * time.Millisecond,
-				RequiredMinRxInterval: 50 * time.Millisecond,
+				DesiredMinTxInterval:  200 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
 				ReceiveQueueSize:      10,
@@ -95,15 +95,15 @@ func TestSession(t *testing.T) {
 		"choose desired interval (not bootstrapped)": {
 			sessionA: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  100 * time.Millisecond,
-				RequiredMinRxInterval: 50 * time.Millisecond,
+				DesiredMinTxInterval:  200 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
 				LocalDiscriminator:    1,
 				ReceiveQueueSize:      10,
 			},
 			sessionB: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  100 * time.Millisecond,
-				RequiredMinRxInterval: 50 * time.Millisecond,
+				DesiredMinTxInterval:  200 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
 				LocalDiscriminator:    2,
 				ReceiveQueueSize:      10,
 			},
@@ -118,16 +118,16 @@ func TestSession(t *testing.T) {
 		"choose required interval (bootstrapped)": {
 			sessionA: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  50 * time.Millisecond,
-				RequiredMinRxInterval: 100 * time.Millisecond,
+				DesiredMinTxInterval:  100 * time.Millisecond,
+				RequiredMinRxInterval: 200 * time.Millisecond,
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
 				ReceiveQueueSize:      10,
 			},
 			sessionB: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  50 * time.Millisecond,
-				RequiredMinRxInterval: 100 * time.Millisecond,
+				DesiredMinTxInterval:  100 * time.Millisecond,
+				RequiredMinRxInterval: 200 * time.Millisecond,
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
 				ReceiveQueueSize:      10,
@@ -143,16 +143,16 @@ func TestSession(t *testing.T) {
 		"large detect multiplier, aggressive timers (bootstrapped)": {
 			sessionA: &bfd.Session{
 				DetectMult:            5,
-				DesiredMinTxInterval:  50 * time.Millisecond,
-				RequiredMinRxInterval: 25 * time.Millisecond,
+				DesiredMinTxInterval:  100 * time.Millisecond,
+				RequiredMinRxInterval: 50 * time.Millisecond,
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
 				ReceiveQueueSize:      10,
 			},
 			sessionB: &bfd.Session{
 				DetectMult:            5,
-				DesiredMinTxInterval:  50 * time.Millisecond,
-				RequiredMinRxInterval: 25 * time.Millisecond,
+				DesiredMinTxInterval:  100 * time.Millisecond,
+				RequiredMinRxInterval: 50 * time.Millisecond,
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
 				ReceiveQueueSize:      10,
@@ -168,16 +168,16 @@ func TestSession(t *testing.T) {
 		"link starts ok, goes down (bootstrapped)": {
 			sessionA: &bfd.Session{
 				DetectMult:            3,
-				DesiredMinTxInterval:  50 * time.Millisecond,
-				RequiredMinRxInterval: 25 * time.Millisecond,
+				DesiredMinTxInterval:  100 * time.Millisecond,
+				RequiredMinRxInterval: 50 * time.Millisecond,
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
 				ReceiveQueueSize:      10,
 			},
 			sessionB: &bfd.Session{
 				DetectMult:            3,
-				DesiredMinTxInterval:  50 * time.Millisecond,
-				RequiredMinRxInterval: 25 * time.Millisecond,
+				DesiredMinTxInterval:  100 * time.Millisecond,
+				RequiredMinRxInterval: 50 * time.Millisecond,
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
 				ReceiveQueueSize:      10,
@@ -196,16 +196,16 @@ func TestSession(t *testing.T) {
 		"link starts ok, goes down in one direction (bootstrapped)": {
 			sessionA: &bfd.Session{
 				DetectMult:            3,
-				DesiredMinTxInterval:  50 * time.Millisecond,
-				RequiredMinRxInterval: 25 * time.Millisecond,
+				DesiredMinTxInterval:  100 * time.Millisecond,
+				RequiredMinRxInterval: 50 * time.Millisecond,
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
 				ReceiveQueueSize:      10,
 			},
 			sessionB: &bfd.Session{
 				DetectMult:            3,
-				DesiredMinTxInterval:  50 * time.Millisecond,
-				RequiredMinRxInterval: 25 * time.Millisecond,
+				DesiredMinTxInterval:  100 * time.Millisecond,
+				RequiredMinRxInterval: 50 * time.Millisecond,
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
 				ReceiveQueueSize:      10,
@@ -223,16 +223,16 @@ func TestSession(t *testing.T) {
 		"link starts ok, goes down, goes up again (bootstrapped)": {
 			sessionA: &bfd.Session{
 				DetectMult:            3,
-				DesiredMinTxInterval:  50 * time.Millisecond,
-				RequiredMinRxInterval: 25 * time.Millisecond,
+				DesiredMinTxInterval:  100 * time.Millisecond,
+				RequiredMinRxInterval: 50 * time.Millisecond,
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
 				ReceiveQueueSize:      10,
 			},
 			sessionB: &bfd.Session{
 				DetectMult:            3,
-				DesiredMinTxInterval:  50 * time.Millisecond,
-				RequiredMinRxInterval: 25 * time.Millisecond,
+				DesiredMinTxInterval:  100 * time.Millisecond,
+				RequiredMinRxInterval: 50 * time.Millisecond,
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
 				ReceiveQueueSize:      10,
@@ -254,16 +254,16 @@ func TestSession(t *testing.T) {
 		"run without logging (bootstrapped)": {
 			sessionA: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  100 * time.Millisecond,
-				RequiredMinRxInterval: 50 * time.Millisecond,
+				DesiredMinTxInterval:  200 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
 				ReceiveQueueSize:      10,
 			},
 			sessionB: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  100 * time.Millisecond,
-				RequiredMinRxInterval: 50 * time.Millisecond,
+				DesiredMinTxInterval:  200 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
 				ReceiveQueueSize:      10,
@@ -296,7 +296,9 @@ func sessionSubtest(name string, tc *sessionTestCase) func(t *testing.T) {
 		tc.sessionB.Sender = linkBToA
 		if !tc.disableLogging {
 			tc.sessionA.Logger = testlog.NewLogger(t).New("session", "a")
+			tc.sessionA.TestingLogs(true)
 			tc.sessionB.Logger = testlog.NewLogger(t).New("session", "b")
+			tc.sessionB.TestingLogs(true)
 		}
 
 		var wg sync.WaitGroup
@@ -335,28 +337,31 @@ func TestSessionDebootstrap(t *testing.T) {
 	// on the remote session knowing the correct local discriminator.
 	sessionA1 := &bfd.Session{
 		DetectMult:            1,
-		DesiredMinTxInterval:  100 * time.Millisecond,
-		RequiredMinRxInterval: 50 * time.Millisecond,
+		DesiredMinTxInterval:  200 * time.Millisecond,
+		RequiredMinRxInterval: 100 * time.Millisecond,
 		Logger:                testlog.NewLogger(t).New("session", "a1"),
 		LocalDiscriminator:    1234,
 		ReceiveQueueSize:      10,
 	}
+	sessionA1.TestingLogs(true)
 	sessionA2 := &bfd.Session{
 		DetectMult:            1,
-		DesiredMinTxInterval:  100 * time.Millisecond,
-		RequiredMinRxInterval: 50 * time.Millisecond,
+		DesiredMinTxInterval:  200 * time.Millisecond,
+		RequiredMinRxInterval: 100 * time.Millisecond,
 		Logger:                testlog.NewLogger(t).New("session", "a2"),
 		LocalDiscriminator:    4321,
 		ReceiveQueueSize:      10,
 	}
+	sessionA2.TestingLogs(true)
 	sessionB := &bfd.Session{
 		DetectMult:            1,
-		DesiredMinTxInterval:  100 * time.Millisecond,
-		RequiredMinRxInterval: 50 * time.Millisecond,
+		DesiredMinTxInterval:  200 * time.Millisecond,
+		RequiredMinRxInterval: 100 * time.Millisecond,
 		Logger:                testlog.NewLogger(t).New("session", "b"),
 		LocalDiscriminator:    2,
 		ReceiveQueueSize:      10,
 	}
+	sessionB.TestingLogs(true)
 
 	controllerA := &bfd.Controller{
 		Sessions:         []*bfd.Session{sessionA1, sessionA2},
@@ -527,6 +532,7 @@ func TestSessionRunInit(t *testing.T) {
 		Sender:                &redirectSender{},
 		Logger:                testlog.NewLogger(t),
 	}
+	session.TestingLogs(true)
 
 	barrier := make(chan struct{})
 

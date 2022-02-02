@@ -159,7 +159,8 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr)
 	}()
 	go func() {
 		defer log.HandlePanic()
-		bi.writeLog("server", dst.IA.FileFmt(false), dst.IA.FileFmt(false), ep)
+		ia := addr.FormatIA(dst.IA, addr.WithFileSeparator())
+		bi.writeLog("server", ia, ia, ep)
 	}()
 
 	if err = r.Start(); err != nil {
@@ -262,7 +263,10 @@ func needSCIOND(args []string) bool {
 }
 
 func clientID(src, dst *snet.UDPAddr) string {
-	return fmt.Sprintf("%s_%s", src.IA.FileFmt(false), dst.IA.FileFmt(false))
+	return fmt.Sprintf("%s_%s",
+		addr.FormatIA(src.IA, addr.WithFileSeparator()),
+		addr.FormatIA(dst.IA, addr.WithFileSeparator()),
+	)
 }
 
 // BinaryWaiter can be used to wait on completion of the process.

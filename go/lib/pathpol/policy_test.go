@@ -596,6 +596,20 @@ func TestPolicyJsonConversion(t *testing.T) {
 							denyEntry,
 						},
 					},
+					LocalISDAS: &LocalISDAS{
+						AllowedIAs: []addr.IA{
+							xtest.MustParseIA("64-123"),
+							xtest.MustParseIA("70-ff00:0102:0304"),
+						},
+					},
+					RemoteISDAS: &RemoteISDAS{
+						Rules: []ISDASRule{
+							{
+								IA:     xtest.MustParseIA("64-123"),
+								Reject: true,
+							},
+						},
+					},
 				},
 			},
 			Weight: 0,
@@ -637,7 +651,12 @@ func (p PathProvider) GetPaths(src, dst addr.IA) []snet.Path {
 				ID: common.IFIDType(ifid),
 			})
 		}
+		var dstIA addr.IA
+		if len(pathIntfs) > 0 {
+			dstIA = pathIntfs[len(pathIntfs)-1].IA
+		}
 		result = append(result, snetpath.Path{
+			Dst: dstIA,
 			Meta: snet.PathMetadata{
 				Interfaces: pathIntfs,
 			},

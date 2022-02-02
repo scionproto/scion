@@ -36,14 +36,14 @@ func TestReqToChainQuery(t *testing.T) {
 	require.NoError(t, err)
 
 	req := &cppb.ChainsRequest{
-		IsdAs:        uint64(xtest.MustParseIA("1-ff00:0:110").IAInt()),
+		IsdAs:        uint64(xtest.MustParseIA("1-ff00:0:110")),
 		SubjectKeyId: []byte("tank"),
 		Date:         date,
 	}
 
 	query, err := trustgrpc.RequestToChainQuery(req)
 	require.NoError(t, err)
-	assert.Equal(t, addr.IAInt(req.IsdAs).IA(), query.IA)
+	assert.Equal(t, addr.IA(req.IsdAs), query.IA)
 	assert.Equal(t, req.SubjectKeyId, query.SubjectKeyID)
 	assert.Equal(t, now, query.Date)
 }

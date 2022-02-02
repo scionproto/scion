@@ -79,15 +79,15 @@ func (m *QueryParams) Matches(x interface{}) bool {
 		return (query.HPGroupIDs[i] < query.HPGroupIDs[j])
 	})
 	sort.Slice(query.Intfs, func(i, j int) bool {
-		return (query.Intfs[i].IA.IAInt() < query.Intfs[j].IA.IAInt()) ||
-			(query.Intfs[i].IA.IAInt() == query.Intfs[j].IA.IAInt() &&
+		return (query.Intfs[i].IA < query.Intfs[j].IA) ||
+			(query.Intfs[i].IA == query.Intfs[j].IA &&
 				query.Intfs[i].IfID < query.Intfs[j].IfID)
 	})
 	sort.Slice(query.StartsAt, func(i, j int) bool {
-		return query.StartsAt[i].IAInt() < query.StartsAt[j].IAInt()
+		return query.StartsAt[i] < query.StartsAt[j]
 	})
 	sort.Slice(query.EndsAt, func(i, j int) bool {
-		return query.EndsAt[i].IAInt() < query.EndsAt[j].IAInt()
+		return query.EndsAt[i] < query.EndsAt[j]
 	})
 	return reflect.DeepEqual(m.query, query)
 }

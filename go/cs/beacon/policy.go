@@ -15,7 +15,7 @@
 package beacon
 
 import (
-	"io/ioutil"
+	"os"
 
 	yaml "gopkg.in/yaml.v2"
 
@@ -229,7 +229,7 @@ func ParsePolicyYaml(b []byte, t PolicyType) (*Policy, error) {
 // LoadPolicyFromYaml loads the policy from a yaml file and initializes the
 // default values.
 func LoadPolicyFromYaml(path string, t PolicyType) (*Policy, error) {
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, serrors.WrapStr("Unable to read policy file", err, "path", path)
 	}
@@ -271,12 +271,12 @@ func (f Filter) Apply(beacon Beacon) error {
 	}
 	for _, ia := range hops {
 		for _, as := range f.AsBlackList {
-			if ia.A == as {
+			if ia.AS() == as {
 				return serrors.New("contains blocked AS", "isd_as", ia)
 			}
 		}
 		for _, isd := range f.IsdBlackList {
-			if ia.I == isd {
+			if ia.ISD() == isd {
 				return serrors.New("contains blocked ISD", "isd_as", ia)
 			}
 		}
@@ -323,21 +323,21 @@ func filterAsLoop(hops []addr.IA) addr.IA {
 		}
 		seen[ia] = struct{}{}
 	}
-	return addr.IA{}
+	return 0
 }
 
 func filterIsdLoop(hops []addr.IA) addr.ISD {
 	seen := make(map[addr.ISD]struct{})
 	var last addr.ISD
 	for _, ia := range hops {
-		if last == ia.I {
+		if last == ia.ISD() {
 			continue
 		}
-		if _, ok := seen[ia.I]; ok {
-			return ia.I
+		if _, ok := seen[ia.ISD()]; ok {
+			return ia.ISD()
 		}
-		last = ia.I
-		seen[ia.I] = struct{}{}
+		last = ia.ISD()
+		seen[ia.ISD()] = struct{}{}
 	}
 	return 0
 }

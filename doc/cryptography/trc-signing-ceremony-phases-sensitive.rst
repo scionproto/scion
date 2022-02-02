@@ -532,6 +532,17 @@ not part of the predecessor TRC. If a signature is missing, then **Phase 3** and
 
 Inform the *ceremony administrator* of the outcome of the verification.
 
+.. tip::
+
+   To make the TRC file more ergonomic to work with, you can change it to PEM
+   format instead of the raw ASN.1 DER encoding. You can do so by running the
+   following command:
+
+   .. literalinclude:: trc_ceremony.sh
+      :start-after: LITERALINCLUDE format_trc START
+      :end-before: LITERALINCLUDE format_trc END
+      :dedent: 4
+
 .. _witness-role-sensitive-update:
 
 Witness role

@@ -20,7 +20,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"google.golang.org/grpc/codes"
@@ -95,8 +95,8 @@ func (h *DelegatingHandler) HandleCMSRequest(
 
 	rep, err := h.Client.PostCertificateRenewal(
 		ctx,
-		int(subject.I),
-		api.AS(subject.A.String()),
+		int(subject.ISD()),
+		api.AS(subject.AS().String()),
 		api.PostCertificateRenewalJSONRequestBody{
 			Csr: req.CmsSignedRequest,
 		},
@@ -110,7 +110,7 @@ func (h *DelegatingHandler) HandleCMSRequest(
 		)
 	}
 	defer rep.Body.Close()
-	body, err := ioutil.ReadAll(rep.Body)
+	body, err := io.ReadAll(rep.Body)
 	if err != nil {
 		logger.Info("Error reading CA service response", "err", err)
 		metrics.CounterInc(h.Metrics.InternalError)

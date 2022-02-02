@@ -31,12 +31,12 @@ import (
 )
 
 var (
-	IA311 = addr.IA{I: 1, A: 0xff0000000311}
-	IA330 = addr.IA{I: 1, A: 0xff0000000330}
-	IA331 = addr.IA{I: 1, A: 0xff0000000331}
-	IA332 = addr.IA{I: 1, A: 0xff0000000332}
-	IA333 = addr.IA{I: 1, A: 0xff0000000333}
-	IA334 = addr.IA{I: 2, A: 0xff0000000334}
+	IA311 = addr.MustIAFrom(1, 0xff0000000311)
+	IA330 = addr.MustIAFrom(1, 0xff0000000330)
+	IA331 = addr.MustIAFrom(1, 0xff0000000331)
+	IA332 = addr.MustIAFrom(1, 0xff0000000332)
+	IA333 = addr.MustIAFrom(1, 0xff0000000333)
+	IA334 = addr.MustIAFrom(2, 0xff0000000334)
 
 	Info1 = []IfInfo{
 		{
@@ -151,14 +151,14 @@ func testInsertBeacon(t *testing.T, db beacon.DB) {
 	assert.Equal(t, exp, inserted)
 
 	// Fetch the candidate beacons
-	results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
+	results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, 0)
 	require.NoError(t, err)
 
 	// There should only be one candidate beacon, and it should match the inserted.
 	CheckResult(t, results, b)
 	for _, usage := range []beacon.Usage{beacon.UsageUpReg, beacon.UsageDownReg,
 		beacon.UsageCoreReg} {
-		results, err = db.CandidateBeacons(ctx, 10, usage, addr.IA{})
+		results, err = db.CandidateBeacons(ctx, 10, usage, 0)
 		assert.NoError(t, err)
 		assert.Empty(t, results)
 	}
@@ -188,14 +188,14 @@ func testUpdateExisting(t *testing.T, db beacon.DB) {
 	assert.Equal(t, exp, inserted)
 
 	// Fetch the candidate beacons
-	results, err := db.CandidateBeacons(ctx, 10, beacon.UsageDownReg, addr.IA{})
+	results, err := db.CandidateBeacons(ctx, 10, beacon.UsageDownReg, 0)
 	require.NoError(t, err, "CandidateBeacons err")
 
 	// There should only be one candidate beacon, and it should match the inserted.
 	CheckResult(t, results, newB)
 	for _, usage := range []beacon.Usage{beacon.UsageUpReg, beacon.UsageProp,
 		beacon.UsageCoreReg} {
-		results, err = db.CandidateBeacons(ctx, 10, usage, addr.IA{})
+		results, err = db.CandidateBeacons(ctx, 10, usage, 0)
 		assert.NoError(t, err)
 		assert.Empty(t, results)
 	}
@@ -224,13 +224,13 @@ func testUpdateOlderIgnored(t *testing.T, db beacon.DB) {
 	exp = beacon.InsertStats{Inserted: 0, Updated: 0}
 	assert.Equal(t, exp, inserted, "Inserted old")
 	// Fetch the candidate beacons
-	results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
+	results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, 0)
 	require.NoError(t, err)
 	// There should only be one candidate beacon, and it should match the inserted.
 	CheckResult(t, results, newB)
 	for _, usage := range []beacon.Usage{beacon.UsageUpReg, beacon.UsageDownReg,
 		beacon.UsageCoreReg} {
-		results, err = db.CandidateBeacons(ctx, 10, usage, addr.IA{})
+		results, err = db.CandidateBeacons(ctx, 10, usage, 0)
 		assert.NoError(t, err)
 		assert.Empty(t, results)
 	}

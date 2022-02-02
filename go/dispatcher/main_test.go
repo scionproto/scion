@@ -18,7 +18,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -56,7 +55,7 @@ func InitTestSettings(t *testing.T, dispatcherTestPort int) *TestSettings {
 }
 
 func getSocketName(dir string) (string, error) {
-	dir, err := ioutil.TempDir(dir, "dispatcher")
+	dir, err := os.MkdirTemp(dir, "dispatcher")
 	if err != nil {
 		return "", err
 	}

@@ -380,7 +380,7 @@ func TestResolve(t *testing.T) {
 			defer ctrl.Finish()
 			resolver := mock_messenger.NewMockResolver(ctrl)
 			path := mock_snet.NewMockPath(ctrl)
-			path.EXPECT().Destination().Return(addr.IA{}).AnyTimes()
+			path.EXPECT().Destination().Return(addr.IA(0)).AnyTimes()
 			aw := messenger.AddressRewriter{
 				Resolver:              resolver,
 				SVCResolutionFraction: tc.SVCResolutionFraction,

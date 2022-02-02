@@ -19,7 +19,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
@@ -73,7 +73,7 @@ func TestCombine(t *testing.T) {
 		})
 		raw, err := signed.Encode()
 		require.NoError(t, err)
-		ioutil.WriteFile("./testdata/admin/ISD1-B1-S1.trc", raw, 0644)
+		os.WriteFile("./testdata/admin/ISD1-B1-S1.trc", raw, 0644)
 	}
 
 	dir, clean := xtest.MustTempDir("", "scion-pki-trcs-combine")

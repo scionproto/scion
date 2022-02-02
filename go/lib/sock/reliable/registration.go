@@ -46,7 +46,7 @@ func (r *Registration) SerializeTo(b []byte) (int, error) {
 	var msg registrationMessage
 	msg.Command = CmdAlwaysOn | CmdEnableSCMP
 	msg.L4Proto = 17
-	msg.IA = uint64(r.IA.IAInt())
+	msg.IA = uint64(r.IA)
 	msg.PublicData.SetFromUDPAddr(r.PublicAddress)
 	if r.BindAddress != nil {
 		msg.Command |= CmdBindAddress
@@ -69,7 +69,7 @@ func (r *Registration) DecodeFromBytes(b []byte) error {
 		return err
 	}
 
-	r.IA = addr.IAInt(msg.IA).IA()
+	r.IA = addr.IA(msg.IA)
 	r.PublicAddress = &net.UDPAddr{
 		IP:   net.IP(msg.PublicData.Address),
 		Port: int(msg.PublicData.Port),

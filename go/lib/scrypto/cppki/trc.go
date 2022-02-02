@@ -146,7 +146,7 @@ func (trc *TRC) Validate() error {
 		if err != nil {
 			return err
 		}
-		if ia != nil && ia.I != trc.ID.ISD {
+		if ia != nil && ia.ISD() != trc.ID.ISD {
 			return serrors.WithCtx(ErrCertForOtherISD, "subject", cert.Subject, "index", i)
 		}
 		if !(Validity{NotBefore: cert.NotBefore, NotAfter: cert.NotAfter}).Covers(trc.Validity) {

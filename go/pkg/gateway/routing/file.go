@@ -20,8 +20,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"os"
 
 	"github.com/scionproto/scion/go/lib/serrors"
 )
@@ -29,7 +29,7 @@ import (
 // LoadPolicy loads the policy file from the path.
 func LoadPolicy(path string) (Policy, error) {
 	p := Policy{}
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		return Policy{}, serrors.WrapStr("reading file", err)
 	}
@@ -67,7 +67,7 @@ func NewPolicyHandler(policyPublisher PolicyPublisher,
 			}
 			io.Copy(w, bytes.NewReader(raw))
 		case http.MethodPut:
-			rawPolicy, err := ioutil.ReadAll(r.Body)
+			rawPolicy, err := io.ReadAll(r.Body)
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
@@ -78,7 +78,7 @@ func NewPolicyHandler(policyPublisher PolicyPublisher,
 				return
 			}
 			if path != "" {
-				if err := ioutil.WriteFile(path, rawPolicy, 0666); err != nil {
+				if err := os.WriteFile(path, rawPolicy, 0666); err != nil {
 					http.Error(w, fmt.Sprintf("Error writing file: %v", err),
 						http.StatusInternalServerError)
 					return

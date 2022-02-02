@@ -17,40 +17,32 @@ package routing
 import (
 	"net"
 
+	"inet.af/netaddr"
+
 	"github.com/scionproto/scion/go/lib/addr"
 )
 
 // AdvertiseList returns the list of prefixes to advertise for the given policy
 // and ISD-ASes.
-func AdvertiseList(pol *Policy, from, to addr.IA) []*net.IPNet {
-	return extractList(pol, from, to, Advertise)
-}
-
-// AllowedPrefixesBGP returns the list of prefixes that are allowed to be
-// redistributed from BGP.
-func AllowedPrefixesBGP(pol *Policy, from, to addr.IA) []*net.IPNet {
-	return extractList(pol, from, to, RedistributeBGP)
-}
-
-func extractList(pol *Policy, from, to addr.IA, action Action) []*net.IPNet {
+func AdvertiseList(pol *Policy, from, to addr.IA) ([]netaddr.IPPrefix, error) {
 	if pol == nil {
-		return []*net.IPNet{}
+		return []netaddr.IPPrefix{}, nil
 	}
-	var nets []*net.IPNet
+	var nets []netaddr.IPPrefix
 	for _, r := range pol.Rules {
-		if r.Action != action || !r.From.Match(from) || !r.To.Match(to) {
+		if r.Action != Advertise || !r.From.Match(from) || !r.To.Match(to) {
 			continue
 		}
-		m, ok := r.Network.(AllowedNetworkMatcher)
-		if !ok {
+		if r.Network.Negated {
 			continue
 		}
-		nets = append(nets, m.Allowed...)
+		nets = append(nets, r.Network.Allowed...)
 	}
-	return nets
+	return nets, nil
 }
 
-// StaticAdvertised returns the list of all prefixes that are advertised.
+// StaticAdvertised returns the list of all prefixes that can be advertised.
+// Used for reporting purposes.
 func StaticAdvertised(pol *Policy) []*net.IPNet {
 	if pol == nil {
 		return []*net.IPNet{}
@@ -60,11 +52,12 @@ func StaticAdvertised(pol *Policy) []*net.IPNet {
 		if r.Action != Advertise {
 			continue
 		}
-		m, ok := r.Network.(AllowedNetworkMatcher)
-		if !ok {
+		if r.Network.Negated {
 			continue
 		}
-		nets = append(nets, m.Allowed...)
+		for _, prefix := range r.Network.Allowed {
+			nets = append(nets, prefix.IPNet())
+		}
 	}
 	return nets
 }

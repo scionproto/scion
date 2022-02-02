@@ -36,8 +36,9 @@ import (
 
 // Result contains all the discovered paths.
 type Result struct {
+	LocalIA     addr.IA `json:"local_isd_as"`
 	Destination addr.IA `json:"destination"`
-	Paths       []Path  `json:"paths"`
+	Paths       []Path  `json:"paths,omitempty"`
 }
 
 // Path holds information about the discovered path.
@@ -291,6 +292,11 @@ func (r Result) JSON(w io.Writer) error {
 	return enc.Encode(r)
 }
 
+// IsLocal returns true iff Source and Destination AS are identical
+func (r Result) IsLocal() bool {
+	return r.LocalIA == r.Destination
+}
+
 // Alive returns the number of alive paths.
 func (r Result) Alive() int {
 	var c int
@@ -312,11 +318,17 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	if err != nil {
 		return nil, serrors.WrapStr("determining local ISD-AS", err)
 	}
+	if dst == localIA {
+		return &Result{
+			LocalIA:     localIA,
+			Destination: dst,
+		}, nil
+	}
 
 	// TODO(lukedirtwalker): Replace this with snet.Router once we have the
 	// possibility to have the same functionality, i.e. refresh, fetch all paths.
 	// https://github.com/scionproto/scion/issues/3348
-	allPaths, err := sdConn.Paths(ctx, dst, addr.IA{},
+	allPaths, err := sdConn.Paths(ctx, dst, 0,
 		daemon.PathReqFlags{Refresh: cfg.Refresh})
 	if err != nil {
 		return nil, serrors.WrapStr("retrieving paths from the SCION Daemon", err)
@@ -345,6 +357,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	}
 	path.Sort(paths)
 	res := &Result{
+		LocalIA:     localIA,
 		Destination: dst,
 		Paths:       []Path{},
 	}

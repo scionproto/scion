@@ -15,7 +15,7 @@
 package main_test
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,7 +25,7 @@ import (
 )
 
 func TestSampleMatches(t *testing.T) {
-	raw, err := ioutil.ReadFile("testdata/sample.json")
+	raw, err := os.ReadFile("testdata/sample.json")
 	require.NoError(t, err)
 	assert.Equal(t, string(raw), main.Sample)
 }

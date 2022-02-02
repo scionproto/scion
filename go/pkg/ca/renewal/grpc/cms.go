@@ -75,7 +75,7 @@ func (s CMS) HandleCMSRequest(
 		metrics.CounterInc(s.Metrics.ParseError)
 		return nil, err
 	}
-	if issuerIA.I != s.IA.I {
+	if issuerIA.ISD() != s.IA.ISD() {
 		logger.Debug("Renewal requester is not part of the ISD", "issuer_isd_as", issuerIA)
 		metrics.CounterInc(s.Metrics.NotFoundError)
 		return nil, status.Error(codes.PermissionDenied, "not a client")
@@ -103,13 +103,13 @@ func extractIssuerIA(raw []byte, logger log.Logger) (addr.IA, error) {
 	chain, err := extractChain(raw)
 	if err != nil {
 		logger.Debug("Failed to extract client certificate", "err", err)
-		return addr.IA{}, status.Error(codes.InvalidArgument,
+		return 0, status.Error(codes.InvalidArgument,
 			"request malformed: cannot extract client chain")
 	}
 	issuerIA, err := cppki.ExtractIA(chain[1].Subject)
 	if err != nil {
 		logger.Debug("Failed to extract IA from issuer certificate", "err", err)
-		return addr.IA{}, status.Error(codes.InvalidArgument,
+		return 0, status.Error(codes.InvalidArgument,
 			"request malformed: cannot extract issuer subject")
 	}
 	return issuerIA, nil

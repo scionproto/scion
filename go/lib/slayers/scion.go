@@ -153,7 +153,7 @@ func (s *SCION) LayerType() gopacket.LayerType {
 }
 
 func (s *SCION) CanDecode() gopacket.LayerClass {
-	return LayerTypeSCION
+	return LayerClassSCION
 }
 
 func (s *SCION) NextLayerType() gopacket.LayerType {
@@ -410,9 +410,9 @@ func (s *SCION) SerializeAddrHdr(buf []byte) error {
 	dstAddrBytes := addrBytes(s.DstAddrLen)
 	srcAddrBytes := addrBytes(s.SrcAddrLen)
 	offset := 0
-	s.DstIA.Write(buf[offset:])
+	binary.BigEndian.PutUint64(buf[offset:], uint64(s.DstIA))
 	offset += addr.IABytes
-	s.SrcIA.Write(buf[offset:])
+	binary.BigEndian.PutUint64(buf[offset:], uint64(s.SrcIA))
 	offset += addr.IABytes
 	copy(buf[offset:offset+dstAddrBytes], s.RawDstAddr)
 	offset += dstAddrBytes
@@ -430,9 +430,9 @@ func (s *SCION) DecodeAddrHdr(data []byte) error {
 			"actual", len(data))
 	}
 	offset := 0
-	s.DstIA = addr.IAFromRaw(data[offset:])
+	s.DstIA = addr.IA(binary.BigEndian.Uint64(data[offset:]))
 	offset += addr.IABytes
-	s.SrcIA = addr.IAFromRaw(data[offset:])
+	s.SrcIA = addr.IA(binary.BigEndian.Uint64(data[offset:]))
 	offset += addr.IABytes
 	dstAddrBytes := addrBytes(s.DstAddrLen)
 	srcAddrBytes := addrBytes(s.SrcAddrLen)
@@ -470,8 +470,8 @@ func (s *SCION) pseudoHeaderChecksum(length int, protocol uint8) (uint32, error)
 	}
 	var csum uint32
 	var srcIA, dstIA [8]byte
-	s.SrcIA.Write(srcIA[:])
-	s.DstIA.Write(dstIA[:])
+	binary.BigEndian.PutUint64(srcIA[:], uint64(s.SrcIA))
+	binary.BigEndian.PutUint64(dstIA[:], uint64(s.DstIA))
 	for i := 0; i < 8; i += 2 {
 		csum += uint32(srcIA[i]) << 8
 		csum += uint32(srcIA[i+1])

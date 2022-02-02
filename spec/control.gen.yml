@@ -71,7 +71,7 @@ paths:
           name: segment-id
           required: true
           schema:
-            $ref: '#/components/schemas/SegmentIDs'
+            $ref: '#/components/schemas/SegmentID'
           style: simple
           explode: false
       responses:
@@ -99,7 +99,7 @@ paths:
           name: segment-id
           required: true
           schema:
-            $ref: '#/components/schemas/SegmentIDs'
+            $ref: '#/components/schemas/SegmentID'
           style: simple
           explode: false
       responses:
@@ -547,11 +547,61 @@ paths:
                     items:
                       $ref: '#/components/schemas/Beacon'
         '400':
-          description: Invalid request.
+          $ref: '#/components/responses/BadRequest'
+  /beacons/{segment-id}:
+    get:
+      tags:
+        - beacon
+      summary: Get the SCION beacon description
+      description: Get the description of a specific SCION beacon.
+      operationId: get-beacon
+      parameters:
+        - in: path
+          name: segment-id
+          description: >-
+            The segment ID of the beacon segment. If the input value is shorter
+            than a segment ID, but matches the prefix of the segment ID of
+            exactly one beacon, then this beacon is returned.
+          required: true
+          schema:
+            $ref: '#/components/schemas/SegmentID'
+          style: simple
+          explode: false
+      responses:
+        '200':
+          description: SCION beacon information.
           content:
-            application/problem+json:
+            application/json:
               schema:
-                $ref: '#/components/schemas/Problem'
+                $ref: '#/components/schemas/BeaconGetResponseJson'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /beacons/{segment-id}/blob:
+    get:
+      tags:
+        - beacon
+      summary: Get the SCION beacon blob
+      description: Get the SCION beacon blob in PEM encoding.
+      operationId: get-beacon-blob
+      parameters:
+        - in: path
+          name: segment-id
+          required: true
+          schema:
+            $ref: '#/components/schemas/SegmentID'
+          style: simple
+          explode: false
+      responses:
+        '200':
+          description: SCION beacon blob
+          content:
+            application/x-pem-file:
+              example: |
+                -----BEGIN PATH SEGMENT-----
+                SCIONBeacon...
+                -----END PATH SEGMENT-----
+        '400':
+          $ref: '#/components/responses/BadRequest'
   /health:
     get:
       tags:
@@ -648,12 +698,6 @@ components:
             problem type. May be used to locate the root of this problem in the
             source code.
           example: /problem/connection-error#token-info-read-timed-out
-    SegmentIDs:
-      title: Segment Identifiers
-      type: array
-      items:
-        $ref: '#/components/schemas/SegmentID'
-      minItems: 1
     Hop:
       title: Path segment hop
       type: object
@@ -919,6 +963,13 @@ components:
             ingress_interface:
               description: Ingress interface of the beacon.
               type: integer
+    BeaconGetResponseJson:
+      type: object
+      required:
+        - beacon
+      properties:
+        beacon:
+          $ref: '#/components/schemas/Beacon'
     Status:
       title: Health status of the service.
       type: string

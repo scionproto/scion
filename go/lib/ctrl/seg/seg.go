@@ -140,14 +140,14 @@ func (ps *PathSegment) FullID() []byte {
 func (ps *PathSegment) calculateHash(hopOnly bool) []byte {
 	h := sha256.New()
 	for _, ase := range ps.ASEntries {
-		binary.Write(h, binary.BigEndian, ase.Local.IAInt())
+		binary.Write(h, binary.BigEndian, ase.Local)
 		binary.Write(h, binary.BigEndian, ase.HopEntry.HopField.ConsIngress)
 		binary.Write(h, binary.BigEndian, ase.HopEntry.HopField.ConsEgress)
 		if hopOnly {
 			continue
 		}
 		for _, peer := range ase.PeerEntries {
-			binary.Write(h, binary.BigEndian, peer.Peer.IAInt())
+			binary.Write(h, binary.BigEndian, peer.Peer)
 			binary.Write(h, binary.BigEndian, peer.HopField.ConsIngress)
 			binary.Write(h, binary.BigEndian, peer.HopField.ConsEgress)
 		}
@@ -259,9 +259,9 @@ func (ps *PathSegment) LastIA() addr.IA {
 // signature is created and does not need to be attached to the input AS entry.
 func (ps *PathSegment) AddASEntry(ctx context.Context, asEntry ASEntry, signer Signer) error {
 	asEntryPB := &cppb.ASEntrySignedBody{
-		IsdAs:     uint64(asEntry.Local.IAInt()),
+		IsdAs:     uint64(asEntry.Local),
 		Mtu:       uint32(asEntry.MTU),
-		NextIsdAs: uint64(asEntry.Next.IAInt()),
+		NextIsdAs: uint64(asEntry.Next),
 		HopEntry: &cppb.HopEntry{
 			IngressMtu: uint32(asEntry.HopEntry.IngressMTU),
 			HopField: &cppb.HopField{
@@ -277,7 +277,7 @@ func (ps *PathSegment) AddASEntry(ctx context.Context, asEntry ASEntry, signer S
 	for _, peer := range asEntry.PeerEntries {
 		asEntryPB.PeerEntries = append(asEntryPB.PeerEntries,
 			&cppb.PeerEntry{
-				PeerIsdAs:     uint64(peer.Peer.IAInt()),
+				PeerIsdAs:     uint64(peer.Peer),
 				PeerInterface: uint64(peer.PeerInterface),
 				PeerMtu:       uint32(peer.PeerMTU),
 				HopField: &cppb.HopField{

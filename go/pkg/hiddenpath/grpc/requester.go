@@ -108,7 +108,7 @@ func (f *Requester) hiddenSegments(ctx context.Context, req segfetcher.Request,
 	rep, err := client.HiddenSegments(ctx,
 		&hspb.HiddenSegmentsRequest{
 			GroupIds: groups,
-			DstIsdAs: uint64(req.Dst.IAInt()),
+			DstIsdAs: uint64(req.Dst),
 		},
 		libgrpc.RetryProfile...,
 	)
@@ -143,7 +143,7 @@ func (r AuthoritativeRequester) HiddenSegments(ctx context.Context,
 
 	pbReq := &hspb.HiddenSegmentsRequest{
 		GroupIds: groups,
-		DstIsdAs: uint64(req.DstIA.IAInt()),
+		DstIsdAs: uint64(req.DstIA),
 	}
 	rawReq, err := proto.Marshal(pbReq)
 	if err != nil {

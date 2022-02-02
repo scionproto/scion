@@ -100,9 +100,6 @@ type SegmentBrief struct {
 // SegmentID defines model for SegmentID.
 type SegmentID string
 
-// SegmentIDs defines model for SegmentIDs.
-type SegmentIDs []SegmentID
-
 // StandardError defines model for StandardError.
 type StandardError struct {
 	// Error message

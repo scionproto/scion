@@ -16,7 +16,7 @@ package file_test
 
 import (
 	"encoding/pem"
-	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
@@ -48,7 +48,7 @@ func TestPeriodicViewWithParser(t *testing.T) {
 	if *update {
 		b, err := scrypto.EncodePEMSymmetricKey(key)
 		require.NoError(t, err)
-		err = ioutil.WriteFile(fileName, b, 0644)
+		err = os.WriteFile(fileName, b, 0644)
 		require.NoError(t, err)
 	}
 
@@ -68,7 +68,7 @@ func TestPeriodicViewWithoutParser(t *testing.T) {
 	f := "testdata/data.raw"
 	b := []byte{1, 2, 3, 4}
 	if *update {
-		err := ioutil.WriteFile(f, b, 0644)
+		err := os.WriteFile(f, b, 0644)
 		require.NoError(t, err)
 	}
 	view := &file.PeriodicView{
@@ -86,7 +86,7 @@ func TestPeriodicViewTwoReaders(t *testing.T) {
 	f := "testdata/two.raw"
 	b := []byte{1, 2, 3, 4}
 	if *update {
-		err := ioutil.WriteFile(f, b, 0644)
+		err := os.WriteFile(f, b, 0644)
 		require.NoError(t, err)
 	}
 	viewOne := &file.PeriodicView{
@@ -125,7 +125,7 @@ func TestPeriodicViewMultipleReads(t *testing.T) {
 	f := "testdata/multiple.raw"
 	b := []byte{1, 2, 3, 4}
 	if *update {
-		err := ioutil.WriteFile(f, b, 0644)
+		err := os.WriteFile(f, b, 0644)
 		require.NoError(t, err)
 	}
 	view := &file.PeriodicView{
@@ -165,7 +165,7 @@ type syncFileView struct {
 }
 
 func (v *syncFileView) Get() (interface{}, error) {
-	b, err := ioutil.ReadFile(v.Path)
+	b, err := os.ReadFile(v.Path)
 	if err != nil {
 		return nil, err
 	}

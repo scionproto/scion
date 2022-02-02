@@ -16,7 +16,7 @@ package trcs_test
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -89,12 +89,12 @@ func TestGetHumanEncoding(t *testing.T) {
 			require.NoError(t, err)
 
 			if *updateNonDeterministic {
-				err := ioutil.WriteFile(tc.Golden, buf.Bytes(), 0644)
+				err := os.WriteFile(tc.Golden, buf.Bytes(), 0644)
 				require.NoError(t, err)
 				return
 			}
 
-			raw, err := ioutil.ReadFile(tc.Golden)
+			raw, err := os.ReadFile(tc.Golden)
 			require.NoError(t, err)
 			assert.Equal(t, string(raw), buf.String())
 		})

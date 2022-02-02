@@ -127,10 +127,10 @@ func (t *iaTable) Register(ia addr.IA, public *net.UDPAddr, bind net.IP, svc add
 
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
-	if ia.I == 0 {
+	if ia.ISD() == 0 {
 		return nil, ErrBadISD
 	}
-	if ia.A == 0 {
+	if ia.AS() == 0 {
 		return nil, ErrBadAS
 	}
 	table, ok := t.ia[ia]

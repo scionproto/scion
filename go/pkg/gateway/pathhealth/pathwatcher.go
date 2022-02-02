@@ -83,7 +83,9 @@ func (f *DefaultPathWatcherFactory) New(
 		return nil, serrors.WrapStr("creating connection for probing", err)
 	}
 	pktChan := make(chan traceroutePkt, 10)
-	createCounter := func(create func(addr.IA) metrics.Counter, remote addr.IA) metrics.Counter {
+	createCounter := func(
+		create func(addr.IA) metrics.Counter, remote addr.IA,
+	) metrics.Counter {
 		if create == nil {
 			return nil
 		}

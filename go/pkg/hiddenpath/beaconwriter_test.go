@@ -237,7 +237,7 @@ func testSigner(t *testing.T, priv crypto.Signer, ia addr.IA) seg.Signer {
 		Algorithm:  signed.ECDSAWithSHA256,
 		IA:         ia,
 		TRCID: cppki.TRCID{
-			ISD:    ia.I,
+			ISD:    ia.ISD(),
 			Base:   1,
 			Serial: 21,
 		},

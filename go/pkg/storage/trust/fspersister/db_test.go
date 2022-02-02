@@ -16,7 +16,6 @@ package fspersister_test
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -83,7 +82,7 @@ func TestInsertTRCWithFSPersistenceBadCfg(t *testing.T) {
 			require.True(t, in)
 
 			filePathAfterInsert := filepath.Join(testDB.Dir, "ISD1-B1-S2.trc")
-			_, readErr := ioutil.ReadFile(filePathAfterInsert)
+			_, readErr := os.ReadFile(filePathAfterInsert)
 			require.Error(t, readErr)
 		})
 
@@ -126,7 +125,7 @@ func TestInsertTRCWithFSPersistence(t *testing.T) {
 
 	t.Run("insert TRC not present in DB but present on FS", func(t *testing.T) {
 		SignedTRC, persistedTrcPath := getTRC(t, "ISD2-B1-S1.trc", testDB.Dir)
-		ioutil.WriteFile(persistedTrcPath, SignedTRC.Raw, 0644)
+		os.WriteFile(persistedTrcPath, SignedTRC.Raw, 0644)
 		mtimeBeforeInsert := getModTime(t, persistedTrcPath)
 
 		in, err := testDB.InsertTRC(ctx, SignedTRC)

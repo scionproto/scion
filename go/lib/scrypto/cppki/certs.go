@@ -20,7 +20,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
-	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -108,7 +108,7 @@ func (ct CertType) String() string {
 // ReadPEMCerts reads the PEM file and parses the certificate blocks in it. Only
 // PEM files with only CERTIFICATE blocks are allowed.
 func ReadPEMCerts(file string) ([]*x509.Certificate, error) {
-	raw, err := ioutil.ReadFile(file)
+	raw, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}
@@ -518,10 +518,10 @@ func subjectAndIssuerIASet(c *x509.Certificate) error {
 func ExtractIA(dn pkix.Name) (addr.IA, error) {
 	ia, err := findIA(dn)
 	if err != nil {
-		return addr.IA{}, err
+		return 0, err
 	}
 	if ia == nil {
-		return addr.IA{}, errIANotFound
+		return 0, errIANotFound
 	}
 	return *ia, nil
 }
@@ -538,7 +538,7 @@ func findIA(dn pkix.Name) (*addr.IA, error) {
 		if !ok {
 			return nil, serrors.New("invalid ISD-AS value (not string)")
 		}
-		ia, err := addr.IAFromString(rawIA)
+		ia, err := addr.ParseIA(rawIA)
 		if err != nil {
 			return nil, serrors.WrapStr("invalid ISD-AS value", err)
 		}

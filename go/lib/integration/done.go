@@ -15,7 +15,6 @@
 package integration
 
 import (
-	"io/ioutil"
 	"net"
 	"os"
 
@@ -30,7 +29,7 @@ func ListenDone(dir string, onDone func(src, dst addr.IA)) (string, func(), erro
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return "", nil, serrors.WrapStr("creating socket directory", err)
 	}
-	file, err := ioutil.TempFile(dir, "integration-*.sock")
+	file, err := os.CreateTemp(dir, "integration-*.sock")
 	if err != nil {
 		return "", nil, err
 	}

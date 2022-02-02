@@ -15,7 +15,7 @@
 package scrypto_test
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -66,11 +66,11 @@ func TestPEMSymmetricKey(t *testing.T) {
 				b, err := scrypto.EncodePEMSymmetricKey(tc.Key)
 				require.NoError(t, err)
 
-				err = ioutil.WriteFile(fileName, b, 0644)
+				err = os.WriteFile(fileName, b, 0644)
 				require.NoError(t, err)
 			}
 
-			b, err := ioutil.ReadFile(fileName)
+			b, err := os.ReadFile(fileName)
 			require.NoError(t, err)
 
 			key, err := scrypto.ParsePEMSymmetricKey(b)

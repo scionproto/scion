@@ -45,9 +45,9 @@ var (
 )
 
 func TestSCIONLayerString(t *testing.T) {
-	ia1, err := addr.IAFromString("1-ff00:0:1")
+	ia1, err := addr.ParseIA("1-ff00:0:1")
 	assert.NoError(t, err)
-	ia2, err := addr.IAFromString("1-ff00:0:2")
+	ia2, err := addr.ParseIA("1-ff00:0:2")
 	assert.NoError(t, err)
 	sc := &slayers.SCION{
 		TrafficClass: 226,

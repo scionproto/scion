@@ -16,7 +16,6 @@ package control_test
 
 import (
 	"context"
-	"io/ioutil"
 	"net"
 	"os"
 	"testing"
@@ -121,7 +120,7 @@ func TestLegacySessionPolicyAdapterParse(t *testing.T) {
 }
 
 func TestLoadSessionPolicies(t *testing.T) {
-	file, err := ioutil.TempFile("", "control_sess_pol_load")
+	file, err := os.CreateTemp("", "control_sess_pol_load")
 	require.NoError(t, err)
 	filename := file.Name()
 	file.Close()

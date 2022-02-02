@@ -33,7 +33,7 @@ func requestToChainQuery(req *cppb.ChainsRequest) (trust.ChainQuery, error) {
 		return trust.ChainQuery{}, err
 	}
 	return trust.ChainQuery{
-		IA:           addr.IAInt(req.IsdAs).IA(),
+		IA:           addr.IA(req.IsdAs),
 		SubjectKeyID: req.SubjectKeyId,
 		Date:         date,
 	}, nil

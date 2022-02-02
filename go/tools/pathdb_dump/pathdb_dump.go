@@ -153,7 +153,7 @@ func (s *segment) lessThan(o *segment) bool {
 	segsLessThan := func(lhs, rhs *segment) bool {
 		for i := 0; i < len(lhs.interfaces); i++ {
 			if lhs.interfaces[i].IA != rhs.interfaces[i].IA {
-				return lhs.interfaces[i].IA.IAInt() < rhs.interfaces[i].IA.IAInt()
+				return lhs.interfaces[i].IA < rhs.interfaces[i].IA
 			} else if lhs.interfaces[i].ifNum != rhs.interfaces[i].ifNum {
 				return lhs.interfaces[i].ifNum < rhs.interfaces[i].ifNum
 			}
@@ -166,12 +166,12 @@ func (s *segment) lessThan(o *segment) bool {
 		return s.SegType > o.SegType
 	case len(s.interfaces) == 0 || len(o.interfaces) == 0:
 		return len(s.interfaces) < len(o.interfaces)
-	case s.interfaces[0].IA.IAInt() != o.interfaces[0].IA.IAInt():
-		return s.interfaces[0].IA.IAInt() < o.interfaces[0].IA.IAInt()
-	case s.interfaces[len(s.interfaces)-1].IA.IAInt() !=
-		o.interfaces[len(o.interfaces)-1].IA.IAInt():
-		return s.interfaces[len(s.interfaces)-1].IA.IAInt() <
-			o.interfaces[len(o.interfaces)-1].IA.IAInt()
+	case s.interfaces[0].IA != o.interfaces[0].IA:
+		return s.interfaces[0].IA < o.interfaces[0].IA
+	case s.interfaces[len(s.interfaces)-1].IA !=
+		o.interfaces[len(o.interfaces)-1].IA:
+		return s.interfaces[len(s.interfaces)-1].IA <
+			o.interfaces[len(o.interfaces)-1].IA
 	case len(s.interfaces) != len(o.interfaces):
 		return len(s.interfaces) < len(o.interfaces)
 	default:

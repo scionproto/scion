@@ -60,7 +60,7 @@ type Bytes []byte
 // If the layer is already allocated, its length is reset to its capacity.
 func (b *Bytes) Prepare() {
 	if *b == nil {
-		*b = make(Bytes, common.MaxMTU)
+		*b = make(Bytes, common.SupportedMTU)
 	}
 	*b = (*b)[:cap(*b)]
 }

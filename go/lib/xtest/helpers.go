@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -33,6 +32,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/go/lib/addr"
 )
@@ -86,7 +86,7 @@ func UpdateNonDeterminsticGoldenFiles() *bool {
 // testing packages that care about a unique path without being able to
 // overwrite it (e.g., UNIX domain socket addresses or databases).
 func TempFileName(dir, prefix string) (string, error) {
-	file, err := ioutil.TempFile(dir, prefix)
+	file, err := os.CreateTemp(dir, prefix)
 	if err != nil {
 		return "", err
 	}
@@ -118,7 +118,7 @@ func MustTempFileName(dir, prefix string) string {
 // value is a clean-up function that can be called to recursively delete the
 // entire directory.
 func MustTempDir(dir, prefix string) (string, func()) {
-	name, err := ioutil.TempDir(dir, prefix)
+	name, err := os.MkdirTemp(dir, prefix)
 	if err != nil {
 		panic(err)
 	}
@@ -133,7 +133,7 @@ func SanitizedName(t testing.TB) string {
 }
 
 func TempDir(t testing.TB) (string, func()) {
-	name, err := ioutil.TempDir("", fmt.Sprintf("%s_*", SanitizedName(t)))
+	name, err := os.MkdirTemp("", fmt.Sprintf("%s_*", SanitizedName(t)))
 	require.NoError(t, err)
 	return name, func() {
 		os.RemoveAll(name)
@@ -182,7 +182,7 @@ func MustMarshalJSONToFile(t testing.TB, v interface{}, baseName string) {
 func MustWriteToFile(t testing.TB, b []byte, baseName string) {
 	t.Helper()
 
-	if err := ioutil.WriteFile(ExpandPath(baseName), b, 0644); err != nil {
+	if err := os.WriteFile(ExpandPath(baseName), b, 0644); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -193,7 +193,7 @@ func MustReadFromFile(t testing.TB, baseName string) []byte {
 	t.Helper()
 
 	name := filepath.Join("testdata", baseName)
-	b, err := ioutil.ReadFile(name)
+	b, err := os.ReadFile(name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,17 +208,28 @@ func ExpandPath(file string) string {
 // MustParseIA parses s and returns the corresponding addr.IA object. It
 // panics if s is not a valid ISD-AS representation.
 func MustParseIA(s string) addr.IA {
-	ia, err := addr.IAFromString(s)
+	ia, err := addr.ParseIA(s)
 	if err != nil {
 		panic(err)
 	}
 	return ia
 }
 
+// MustParseIAs parses a list of comma separated ISD-AS strings. It panics in case
+// parsing fails.
+func MustParseIAs(list string) []addr.IA {
+	l := strings.Split(list, ",")
+	var ias []addr.IA
+	for _, raw := range l {
+		ias = append(ias, MustParseIA(raw))
+	}
+	return ias
+}
+
 // MustParseAS parses s and returns the corresponding addr.AS object. It panics
 // if s is not valid AS representation.
 func MustParseAS(s string) addr.AS {
-	ia, err := addr.ASFromString(s)
+	ia, err := addr.ParseAS(s)
 	if err != nil {
 		panic(err)
 	}
@@ -271,6 +282,19 @@ func MustParseCIDRs(t *testing.T, entries ...string) []*net.IPNet {
 	result := make([]*net.IPNet, 0, len(entries))
 	for _, e := range entries {
 		result = append(result, MustParseCIDR(t, e))
+	}
+	return result
+}
+
+// MustParseIPPrefixes parses the CIDR entries and returns a list containing the
+// parsed netaddr.IPPrefix objects.
+func MustParseIPPrefixes(t *testing.T, prefixes ...string) []netaddr.IPPrefix {
+	t.Helper()
+	var result []netaddr.IPPrefix
+	for _, prefix := range prefixes {
+		p, err := netaddr.ParseIPPrefix(prefix)
+		require.NoError(t, err)
+		result = append(result, p)
 	}
 	return result
 }

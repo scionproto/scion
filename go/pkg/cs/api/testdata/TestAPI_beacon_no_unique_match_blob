@@ -1,0 +1,6 @@
+{
+    "detail": "2 beacons matched provided segment ID: 31323334",
+    "status": 400,
+    "title": "malformed query parameter",
+    "type": "/problems/bad-request"
+}

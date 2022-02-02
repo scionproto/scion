@@ -1,4 +1,4 @@
-load("@io_bazel_rules_docker//container:container.bzl", "container_bundle", "container_import")
+load("@io_bazel_rules_docker//container:container.bzl", "container_bundle")
 load(":scion_app.bzl", "scion_app_base", "scion_app_images")
 load(":tester.bzl", "build_tester_image")
 

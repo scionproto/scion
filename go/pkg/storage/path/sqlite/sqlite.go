@@ -302,7 +302,7 @@ func insertFull(ctx context.Context, tx *sql.Tx, pseg *seg.PathSegment, types []
 			StartIsdID, StartAsID, EndIsdID, EndAsID)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	res, err := tx.ExecContext(ctx, inst, segID, fullID, time.Now().UnixNano(),
-		pseg.Info.Timestamp.UnixNano(), packedSeg, exp, st.I, st.A, end.I, end.A)
+		pseg.Info.Timestamp.UnixNano(), packedSeg, exp, st.ISD(), st.AS(), end.ISD(), end.AS())
 	if err != nil {
 		return serrors.WrapStr("Failed to insert path segment", err)
 	}
@@ -346,13 +346,13 @@ func insertInterfaces(ctx context.Context, tx *sql.Tx, ases []seg.ASEntry, segRo
 
 		hof := as.HopEntry.HopField
 		if hof.ConsIngress != 0 {
-			_, err = stmt.ExecContext(ctx, ia.I, ia.A, hof.ConsIngress, segRowID)
+			_, err = stmt.ExecContext(ctx, ia.ISD(), ia.AS(), hof.ConsIngress, segRowID)
 			if err != nil {
 				return serrors.WrapStr("inserting Ingress into IntfToSeg", err)
 			}
 		}
 		if hof.ConsEgress != 0 {
-			_, err := stmt.ExecContext(ctx, ia.I, ia.A, hof.ConsEgress, segRowID)
+			_, err := stmt.ExecContext(ctx, ia.ISD(), ia.AS(), hof.ConsEgress, segRowID)
 			if err != nil {
 				return serrors.WrapStr("inserting Egress into IntfToSeg", err)
 			}
@@ -362,7 +362,7 @@ func insertInterfaces(ctx context.Context, tx *sql.Tx, ases []seg.ASEntry, segRo
 		for i, peer := range as.PeerEntries {
 			hof := peer.HopField
 			if hof.ConsIngress != 0 {
-				_, err = stmt.ExecContext(ctx, ia.I, ia.A, hof.ConsIngress, segRowID)
+				_, err = stmt.ExecContext(ctx, ia.ISD(), ia.AS(), hof.ConsIngress, segRowID)
 				if err != nil {
 					return serrors.WrapStr("insert peering Ingress into IntfToSeg", err, "index", i)
 				}
@@ -477,19 +477,19 @@ func (e *executor) buildQuery(params *query.Params) (string, []interface{}) {
 		subQ := []string{}
 		for _, spec := range params.Intfs {
 			subQ = append(subQ, "(i.IsdID=? AND i.AsID=? AND i.IntfID=?)")
-			args = append(args, spec.IA.I, spec.IA.A, spec.IfID)
+			args = append(args, spec.IA.ISD(), spec.IA.AS(), spec.IfID)
 		}
 		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
 	}
 	if len(params.StartsAt) > 0 {
 		subQ := []string{}
 		for _, as := range params.StartsAt {
-			if as.A == 0 {
+			if as.AS() == 0 {
 				subQ = append(subQ, "(s.StartIsdID=?)")
-				args = append(args, as.I)
+				args = append(args, as.ISD())
 			} else {
 				subQ = append(subQ, "(s.StartIsdID=? AND s.StartAsID=?)")
-				args = append(args, as.I, as.A)
+				args = append(args, as.ISD(), as.AS())
 			}
 		}
 		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
@@ -497,12 +497,12 @@ func (e *executor) buildQuery(params *query.Params) (string, []interface{}) {
 	if len(params.EndsAt) > 0 {
 		subQ := []string{}
 		for _, as := range params.EndsAt {
-			if as.A == 0 {
+			if as.AS() == 0 {
 				subQ = append(subQ, "(s.EndIsdID=?)")
-				args = append(args, as.I)
+				args = append(args, as.ISD())
 			} else {
 				subQ = append(subQ, "(s.EndIsdID=? AND s.EndAsID=?)")
-				args = append(args, as.I, as.A)
+				args = append(args, as.ISD(), as.AS())
 			}
 		}
 		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
@@ -544,7 +544,15 @@ func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IA,
 	var r sql.Result
 	err := db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
 		var err error
-		r, err = tx.ExecContext(ctx, query, src.I, src.A, dst.I, dst.A, nextQuery.UnixNano())
+		r, err = tx.ExecContext(
+			ctx,
+			query,
+			src.ISD(),
+			src.AS(),
+			dst.ISD(),
+			dst.AS(),
+			nextQuery.UnixNano(),
+		)
 		return err
 	})
 	if err != nil {
@@ -565,7 +573,7 @@ func (e *executor) GetNextQuery(ctx context.Context, src, dst addr.IA) (time.Tim
 		WHERE SrcIsdID = ? AND SrcAsID = ? AND DstIsdID = ? AND DstAsID = ?
 	`
 	var nanos int64
-	err := e.db.QueryRowContext(ctx, query, src.I, src.A, dst.I, dst.A).Scan(&nanos)
+	err := e.db.QueryRowContext(ctx, query, src.ISD(), src.AS(), dst.ISD(), dst.AS()).Scan(&nanos)
 	if err == sql.ErrNoRows {
 		return time.Time{}, nil
 	}

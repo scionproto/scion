@@ -19,7 +19,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
@@ -85,10 +85,10 @@ func TestBadPeering(t *testing.T) {
 			result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
 			txtResult := writePaths(result)
 			if *update {
-				err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
+				err := os.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
 				xtest.FailOnErr(t, err)
 			}
-			expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+			expected, err := os.ReadFile(xtest.ExpandPath(tc.FileName))
 			assert.NoError(t, err)
 			assert.Equal(t, string(expected), txtResult.String())
 		})
@@ -131,10 +131,10 @@ func TestMultiPeering(t *testing.T) {
 			result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
 			txtResult := writePaths(result)
 			if *update {
-				err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
+				err := os.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
 				xtest.FailOnErr(t, err)
 			}
-			expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+			expected, err := os.ReadFile(xtest.ExpandPath(tc.FileName))
 			assert.NoError(t, err)
 			assert.Equal(t, string(expected), txtResult.String())
 		})
@@ -174,10 +174,10 @@ func TestSameCoreParent(t *testing.T) {
 			result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
 			txtResult := writePaths(result)
 			if *update {
-				err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
+				err := os.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
 				xtest.FailOnErr(t, err)
 			}
-			expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+			expected, err := os.ReadFile(xtest.ExpandPath(tc.FileName))
 			assert.NoError(t, err)
 			assert.Equal(t, string(expected), txtResult.String())
 		})
@@ -225,10 +225,10 @@ func TestLoops(t *testing.T) {
 			result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
 			txtResult := writePaths(result)
 			if *update {
-				err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
+				err := os.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
 				xtest.FailOnErr(t, err)
 			}
-			expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+			expected, err := os.ReadFile(xtest.ExpandPath(tc.FileName))
 			assert.NoError(t, err)
 			assert.Equal(t, string(expected), txtResult.String())
 		})
@@ -532,10 +532,10 @@ func TestComputePath(t *testing.T) {
 			result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
 			txtResult := writePaths(result)
 			if *update {
-				err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
+				err := os.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
 				xtest.FailOnErr(t, err)
 			}
-			expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+			expected, err := os.ReadFile(xtest.ExpandPath(tc.FileName))
 			assert.NoError(t, err)
 			assert.Equal(t, string(expected), txtResult.String())
 		})

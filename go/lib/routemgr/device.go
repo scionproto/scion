@@ -17,6 +17,7 @@ package routemgr
 import (
 	"context"
 	"encoding/base32"
+	"encoding/binary"
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -169,7 +170,11 @@ type SingleDeviceManager struct {
 // Get returns a handle to the device for the ISD-AS. If no device exists, one will be created.
 // If a device already exists, a handle to the existing device is returned. The caller must
 // Close the handle to guarantee that resources will be cleaned up.
-func (m *SingleDeviceManager) Get(ctx context.Context, ia addr.IA) (control.DeviceHandle, error) {
+func (m *SingleDeviceManager) Get(
+	ctx context.Context,
+	ia addr.IA,
+) (control.DeviceHandle, error) {
+
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
@@ -251,7 +256,7 @@ func (m *MultiDeviceManager) newDeletionCallback(ia addr.IA) destructionCallback
 // the base32 encoding of an IA number.
 func Base32TunnelName(ia addr.IA) string {
 	b := make([]byte, 8)
-	ia.Write(b)
+	binary.BigEndian.PutUint64(b, uint64(ia))
 	return IATunDevicePrefix + base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b)
 }
 

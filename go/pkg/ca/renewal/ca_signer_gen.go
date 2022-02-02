@@ -216,9 +216,9 @@ func (l CACertLoader) CACerts(ctx context.Context) ([]*x509.Certificate, error) 
 		return nil, serrors.WithCtx(err, "dir", l.Dir)
 	}
 
-	trcs, err := activeTRCs(ctx, l.DB, l.IA.I)
+	trcs, err := activeTRCs(ctx, l.DB, l.IA.ISD())
 	if err != nil {
-		return nil, serrors.WrapStr("looking for active TRCs", err, "isd", l.IA.I)
+		return nil, serrors.WrapStr("looking for active TRCs", err, "isd", l.IA.ISD())
 	}
 	rootPool := x509.NewCertPool()
 	for _, trc := range trcs {

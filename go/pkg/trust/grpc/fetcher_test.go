@@ -17,8 +17,8 @@ package grpc_test
 import (
 	"context"
 	"crypto/x509"
-	"io/ioutil"
 	"net"
+	"os"
 	"testing"
 	"time"
 
@@ -200,7 +200,7 @@ func TestFetcherTRC(t *testing.T) {
 		},
 		"mismatching ID": {
 			Server: func(mctrl *gomock.Controller) *mock_cp.MockTrustMaterialServiceServer {
-				rawBase, err := ioutil.ReadFile("../testdata/common/trcs/ISD1-B1-S1.trc")
+				rawBase, err := os.ReadFile("../testdata/common/trcs/ISD1-B1-S1.trc")
 				require.NoError(t, err)
 
 				srv := mock_cp.NewMockTrustMaterialServiceServer(mctrl)

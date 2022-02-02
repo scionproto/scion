@@ -19,7 +19,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -951,7 +951,7 @@ func TestVerifyChain(t *testing.T) {
 
 func loadTRC(t *testing.T, file string) cppki.SignedTRC {
 	t.Helper()
-	rawTRC, err := ioutil.ReadFile(file)
+	rawTRC, err := os.ReadFile(file)
 	require.NoError(t, err)
 	trc, err := cppki.DecodeSignedTRC(rawTRC)
 	require.NoError(t, err)

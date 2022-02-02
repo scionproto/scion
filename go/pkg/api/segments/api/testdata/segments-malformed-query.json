@@ -1,5 +1,5 @@
 {
-    "detail": "[ Unable to parse AS part {raw=ff001:0:110}: strconv.ParseUint: parsing \"ff001\": value out of range {parameter=start_isd_as}; Unable to parse AS part {raw=ff000:0:112}: strconv.ParseUint: parsing \"ff000\": value out of range {parameter=end_isd_as} ]",
+    "detail": "[ parsing AS part {index=0; value=ff001:0:110}: strconv.ParseUint: parsing \"ff001\": value out of range {parameter=start_isd_as}; parsing AS part {index=0; value=ff000:0:112}: strconv.ParseUint: parsing \"ff000\": value out of range {parameter=end_isd_as} ]",
     "status": 400,
     "title": "malformed query parameters",
     "type": "/problems/bad-request"

@@ -51,10 +51,10 @@ type LookupServer struct {
 func (s LookupServer) Segments(ctx context.Context,
 	req *cppb.SegmentsRequest) (*cppb.SegmentsResponse, error) {
 
-	src, dst := addr.IAInt(req.SrcIsdAs).IA(), addr.IAInt(req.DstIsdAs).IA()
+	src, dst := addr.IA(req.SrcIsdAs), addr.IA(req.DstIsdAs)
 	labels := requestLabels{
 		Desc: descLabels{
-			DstISD: dst.I,
+			DstISD: dst.ISD(),
 		},
 	}
 	logger := log.FromCtx(ctx)

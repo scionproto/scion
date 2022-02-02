@@ -17,7 +17,6 @@ package addr
 
 import (
 	"encoding"
-	"encoding/binary"
 	"flag"
 	"fmt"
 	"strconv"
@@ -39,35 +38,20 @@ const (
 	asPartBase = 16
 	asPartMask = (1 << asPartBits) - 1
 	asParts    = ASBits / asPartBits
-
-	ISDFmtPrefix = "ISD"
-	ASFmtPrefix  = "AS"
 )
 
 // ISD is the ISolation Domain identifier. See formatting and allocations here:
 // https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering#isd-numbers
 type ISD uint16
 
-// ISDFromString parses an ISD from a decimal string.
-func ISDFromString(s string) (ISD, error) {
+// ParseISD parses an ISD from a decimal string. Note that ISD 0 is parsed
+// without any errors.
+func ParseISD(s string) (ISD, error) {
 	isd, err := strconv.ParseUint(s, 10, ISDBits)
 	if err != nil {
-		// err.Error() will contain the original value
-		return 0, serrors.WrapStr("Unable to parse ISD", err)
+		return 0, serrors.WrapStr("parsing ISD", err)
 	}
 	return ISD(isd), nil
-}
-
-// ISDFromFileFmt parses an ISD from a file-format string. If prefix is true,
-// an 'ISD' prefix is expected and stripped before parsing.
-func ISDFromFileFmt(s string, prefix bool) (ISD, error) {
-	if prefix {
-		if !strings.HasPrefix(s, ISDFmtPrefix) {
-			return 0, serrors.New("prefix missing", "prefix", ISDFmtPrefix, "raw", s)
-		}
-		s = s[len(ISDFmtPrefix):]
-	}
-	return ISDFromString(s)
 }
 
 func (isd ISD) String() string {
@@ -76,87 +60,53 @@ func (isd ISD) String() string {
 
 var _ encoding.TextUnmarshaler = (*AS)(nil)
 
-// AS is the Autonomous System idenifier. See formatting and allocations here:
+// AS is the Autonomous System identifier. See formatting and allocations here:
 // https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering#as-numbers
 type AS uint64
 
-// ASFromString parses an AS from a decimal (in the case of the 32bit BGP AS
-// number space) or ipv6-style hex (in the case of SCION-only AS numbers)
-// string.
-func ASFromString(s string) (AS, error) {
-	return asParse(s, ":")
+// ParseAS parses an AS from a decimal (in the case of the 32bit BGP AS number
+// space) or ipv6-style hex (in the case of SCION-only AS numbers) string.
+func ParseAS(as string) (AS, error) {
+	return parseAS(as, ":")
 }
 
-// ASFromFileFmt parses an AS from a file-format string. This is the same
-// format as ASFromString expects, with ':' replaced by '_'. If prefix is true,
-// an 'AS' prefix is expected and stripped before parsing.
-func ASFromFileFmt(s string, prefix bool) (AS, error) {
-	if prefix {
-		if !strings.HasPrefix(s, ASFmtPrefix) {
-			return 0, serrors.New("prefix missing", "prefix", ASFmtPrefix, "raw", s)
-		}
-		s = s[len(ASFmtPrefix):]
-	}
-	return asParse(s, "_")
-}
-
-func asParse(s string, sep string) (AS, error) {
-	if !strings.Contains(s, sep) {
+func parseAS(as string, sep string) (AS, error) {
+	parts := strings.Split(as, sep)
+	if len(parts) == 1 {
 		// Must be a BGP AS, parse as 32-bit decimal number
-		as, err := strconv.ParseUint(s, 10, BGPASBits)
-		if err != nil {
-			// err.Error() will contain the original value
-			return 0, serrors.WrapStr("Unable to parse AS", err)
-		}
-		return AS(as), nil
+		return asParseBGP(as)
 	}
-	parts := strings.Split(s, sep)
+
 	if len(parts) != asParts {
-		return 0, serrors.New("unable to parse AS: wrong number of separators",
-			"expected", asParts, "actual", len(parts), "sep", sep, "raw", s)
+		return 0, serrors.New("wrong number of separators", "sep", sep, "value", as)
 	}
-	var as AS
+	var parsed AS
 	for i := 0; i < asParts; i++ {
-		as <<= asPartBits
+		parsed <<= asPartBits
 		v, err := strconv.ParseUint(parts[i], asPartBase, asPartBits)
 		if err != nil {
-			return 0, serrors.WrapStr("Unable to parse AS part", err, "raw", s)
+			return 0, serrors.WrapStr("parsing AS part", err, "index", i, "value", as)
 		}
-		as |= AS(v)
+		parsed |= AS(v)
 	}
-	return as, nil
+	// This should not be reachable. However, we leave it here to protect
+	// against future refactor mistakes.
+	if !parsed.inRange() {
+		return 0, serrors.New("AS out of range", "max", MaxAS, "value", as)
+	}
+	return parsed, nil
+}
+
+func asParseBGP(s string) (AS, error) {
+	as, err := strconv.ParseUint(s, 10, BGPASBits)
+	if err != nil {
+		return 0, serrors.WrapStr("parsing BGP AS", err)
+	}
+	return AS(as), nil
 }
 
 func (as AS) String() string {
-	return as.fmt(':')
-}
-
-// FileFmt formats an AS for use in a file name, using '_' instead of ':' as
-// the separator for SCION-only AS numbers.
-func (as AS) FileFmt() string {
-	return as.fmt('_')
-}
-
-func (as AS) fmt(sep byte) string {
-	if !as.inRange() {
-		return fmt.Sprintf("%d [Illegal AS: larger than %d]", as, MaxAS)
-	}
-	// Format BGP ASes as decimal
-	if as <= MaxBGPAS {
-		return strconv.FormatUint(uint64(as), 10)
-	}
-	// Format all other ASes as 'sep'-separated hex.
-	const maxLen = len("ffff:ffff:ffff")
-	b := make([]byte, 0, maxLen)
-	for i := 0; i < asParts; i++ {
-		if i > 0 {
-			b = append(b, sep)
-		}
-		shift := uint(asPartBits * (asParts - i - 1))
-		s := strconv.FormatUint(uint64(as>>shift)&asPartMask, asPartBase)
-		b = append(b, s...)
-	}
-	return string(b)
+	return fmtAS(as, ":")
 }
 
 func (as AS) inRange() bool {
@@ -165,158 +115,108 @@ func (as AS) inRange() bool {
 
 func (as AS) MarshalText() ([]byte, error) {
 	if !as.inRange() {
-		return nil, serrors.New("invalid AS", "max", MaxAS, "actual", as)
+		return nil, serrors.New("AS out of range", "max", MaxAS, "value", as)
 	}
 	return []byte(as.String()), nil
 }
 
 func (as *AS) UnmarshalText(text []byte) error {
-	newAS, err := ASFromString(string(text))
+	parsed, err := ParseAS(string(text))
 	if err != nil {
 		return err
 	}
-	*as = newAS
+	*as = parsed
 	return nil
 }
 
-var _ fmt.Stringer = IA{}
+var _ fmt.Stringer = IA(0)
 var _ encoding.TextUnmarshaler = (*IA)(nil)
 var _ flag.Value = (*IA)(nil)
 
 // IA represents the ISD (ISolation Domain) and AS (Autonomous System) Id of a given SCION AS.
-type IA struct {
-	I ISD
-	A AS
+// The highest 16 bit form the ISD number and the lower 48 bits form the AS number.
+type IA uint64
+
+// MustIAFrom creates an IA from the ISD and AS number. It panics if any error
+// is encountered. Callers must ensure that the values passed to this function
+// are valid.
+func MustIAFrom(isd ISD, as AS) IA {
+	ia, err := IAFrom(isd, as)
+	if err != nil {
+		panic(fmt.Sprintf("parsing ISD-AS: %s", err))
+	}
+	return ia
 }
 
-func IAFromRaw(b []byte) IA {
-	ia := &IA{}
-	ia.Parse(b)
-	return *ia
+// IAFrom creates an IA from the ISD and AS number.
+func IAFrom(isd ISD, as AS) (IA, error) {
+	if !as.inRange() {
+		return 0, serrors.New("AS out of range", "max", MaxAS, "value", as)
+	}
+	return IA(isd)<<ASBits | IA(as&MaxAS), nil
 }
 
-// IAFromString parses an IA from a string of the format 'ia-as'.
-func IAFromString(s string) (IA, error) {
-	parts := strings.Split(s, "-")
+// ParseIA parses an IA from a string of the format 'isd-as'.
+func ParseIA(ia string) (IA, error) {
+	parts := strings.Split(ia, "-")
 	if len(parts) != 2 {
-		return IA{}, serrors.New("Invalid ISD-AS", "raw", s)
+		return 0, serrors.New("invalid ISD-AS", "value", ia)
 	}
-	isd, err := ISDFromString(parts[0])
+	isd, err := ParseISD(parts[0])
 	if err != nil {
-		return IA{}, err
+		return 0, err
 	}
-	as, err := ASFromString(parts[1])
+	as, err := ParseAS(parts[1])
 	if err != nil {
-		return IA{}, err
+		return 0, err
 	}
-	return IA{I: isd, A: as}, nil
+	return MustIAFrom(isd, as), nil
 }
 
-// IAFromFileFmt parses an IA from a file-format
-func IAFromFileFmt(s string, prefixes bool) (IA, error) {
-	parts := strings.Split(s, "-")
-	if len(parts) != 2 {
-		return IA{}, serrors.New("Invalid ISD-AS", "raw", s)
-	}
-	isd, err := ISDFromFileFmt(parts[0], prefixes)
-	if err != nil {
-		return IA{}, err
-	}
-	as, err := ASFromFileFmt(parts[1], prefixes)
-	if err != nil {
-		return IA{}, err
-	}
-	return IA{I: isd, A: as}, nil
+func (ia IA) ISD() ISD {
+	return ISD(ia >> ASBits)
+}
+
+func (ia IA) AS() AS {
+	return AS(ia) & MaxAS
 }
 
 func (ia IA) MarshalText() ([]byte, error) {
 	return []byte(ia.String()), nil
 }
 
-// UnmarshalText allows IA to be used as a map key in JSON.
-func (ia *IA) UnmarshalText(text []byte) error {
-	if len(text) == 0 {
-		*ia = IA{}
-		return nil
-	}
-	newIA, err := IAFromString(string(text))
+func (ia *IA) UnmarshalText(b []byte) error {
+	parsed, err := ParseIA(string(b))
 	if err != nil {
 		return err
 	}
-	*ia = newIA
+	*ia = parsed
 	return nil
 }
 
-func (ia *IA) Parse(b []byte) {
-	*ia = IAInt(binary.BigEndian.Uint64(b)).IA()
-}
-
-func (ia IA) Write(b []byte) {
-	binary.BigEndian.PutUint64(b, uint64(ia.IAInt()))
-}
-
-func (ia IA) IAInt() IAInt {
-	return IAInt(ia.I)<<ASBits | IAInt(ia.A&MaxAS)
-}
-
 func (ia IA) IsZero() bool {
-	return ia.I == 0 && ia.A == 0
+	return ia == 0
 }
 
 func (ia IA) Equal(other IA) bool {
-	return ia.I == other.I && ia.A == other.A
+	return ia == other
 }
 
 // IsWildcard returns whether the ia has a wildcard part (isd or as).
 func (ia IA) IsWildcard() bool {
-	return ia.I == 0 || ia.A == 0
+	return ia.ISD() == 0 || ia.AS() == 0
 }
 
 func (ia IA) String() string {
-	return fmt.Sprintf("%d-%s", ia.I, ia.A)
-}
-
-// FileFmt returns a file-system friendly representation of ia. If prefixes is
-// true, the format will be in the form of ISD%d-AS%d. If it is false, the
-// format is just %d-%d.
-func (ia IA) FileFmt(prefixes bool) string {
-	fmts := "%d-%s"
-	if prefixes {
-		fmts = "ISD%d-AS%s"
-	}
-	return fmt.Sprintf(fmts, ia.I, ia.A.FileFmt())
+	return fmt.Sprintf("%d-%s", ia.ISD(), ia.AS())
 }
 
 // Set implements flag.Value interface
 func (ia *IA) Set(s string) error {
-	pIA, err := IAFromString(s)
+	pIA, err := ParseIA(s)
 	if err != nil {
 		return err
 	}
 	*ia = pIA
-	return nil
-}
-
-// IAInt is an integer representation of an ISD-AS.
-type IAInt uint64
-
-func (iaI IAInt) IA() IA {
-	return IA{I: ISD(iaI >> ASBits), A: AS(iaI) & MaxAS}
-}
-
-func (iaI IAInt) String() string {
-	return iaI.IA().String()
-}
-
-func (ia IAInt) MarshalText() ([]byte, error) {
-	return []byte(ia.String()), nil
-}
-
-func (ia *IAInt) UnmarshalText(b []byte) error {
-	tIA, err := IAFromString(string(b))
-	if err != nil {
-		return nil
-	}
-	*ia = tIA.IAInt()
 	return nil
 }

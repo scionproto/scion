@@ -190,7 +190,7 @@ func TestSVCResolutionServer(t *testing.T) {
 			defer ctrl.Finish()
 
 			disp := svc.NewResolverPacketDispatcher(tc.DispService(ctrl), tc.ReqHandler(ctrl))
-			conn, port, err := disp.Register(context.Background(), addr.IA{}, &net.UDPAddr{},
+			conn, port, err := disp.Register(context.Background(), 0, &net.UDPAddr{},
 				addr.SvcCS)
 
 			tc.ErrRegister(t, err)

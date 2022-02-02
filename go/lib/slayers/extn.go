@@ -222,7 +222,7 @@ func (h *HopByHopExtn) LayerType() gopacket.LayerType {
 }
 
 func (h *HopByHopExtn) CanDecode() gopacket.LayerClass {
-	return LayerTypeHopByHopExtn
+	return LayerClassHopByHopExtn
 }
 
 func (h *HopByHopExtn) NextLayerType() gopacket.LayerType {
@@ -302,7 +302,7 @@ func (e *EndToEndExtn) LayerType() gopacket.LayerType {
 }
 
 func (e *EndToEndExtn) CanDecode() gopacket.LayerClass {
-	return LayerTypeEndToEndExtn
+	return LayerClassEndToEndExtn
 }
 
 func (e *EndToEndExtn) NextLayerType() gopacket.LayerType {
@@ -407,7 +407,7 @@ func (e *HopByHopExtnSkipper) LayerType() gopacket.LayerType {
 }
 
 func (s *HopByHopExtnSkipper) CanDecode() gopacket.LayerClass {
-	return LayerTypeHopByHopExtn
+	return LayerClassHopByHopExtn
 }
 
 func (h *HopByHopExtnSkipper) NextLayerType() gopacket.LayerType {
@@ -440,7 +440,7 @@ func (e *EndToEndExtnSkipper) LayerType() gopacket.LayerType {
 }
 
 func (s *EndToEndExtnSkipper) CanDecode() gopacket.LayerClass {
-	return LayerTypeEndToEndExtn
+	return LayerClassEndToEndExtn
 }
 
 func (e *EndToEndExtnSkipper) NextLayerType() gopacket.LayerType {

@@ -158,7 +158,7 @@ func testGetBeacons(t *testing.T, db TestableDB) {
 				insertBeacons(t, db)
 			},
 			Params: beacon.QueryParams{
-				StartsAt: []addr.IA{{I: addr.MaxISD}},
+				StartsAt: []addr.IA{addr.MustIAFrom(addr.MaxISD, 0)},
 			},
 			Expected: []beacon.Beacon{},
 		},
@@ -176,7 +176,7 @@ func testGetBeacons(t *testing.T, db TestableDB) {
 				insertBeacons(t, db)
 			},
 			Params: beacon.QueryParams{
-				StartsAt: []addr.IA{{I: results[0].Beacon.Segment.FirstIA().I, A: 0}},
+				StartsAt: []addr.IA{addr.MustIAFrom(results[0].Beacon.Segment.FirstIA().ISD(), 0)},
 			},
 			Expected: results[:1],
 		},
@@ -185,7 +185,7 @@ func testGetBeacons(t *testing.T, db TestableDB) {
 				insertBeacons(t, db)
 			},
 			Params: beacon.QueryParams{
-				StartsAt: []addr.IA{{I: 0, A: results[0].Beacon.Segment.FirstIA().A}},
+				StartsAt: []addr.IA{addr.MustIAFrom(0, results[0].Beacon.Segment.FirstIA().AS())},
 			},
 			Expected: results[:1],
 		},
@@ -194,7 +194,7 @@ func testGetBeacons(t *testing.T, db TestableDB) {
 				insertBeacons(t, db)
 			},
 			Params: beacon.QueryParams{
-				StartsAt: []addr.IA{{I: 0, A: 0}},
+				StartsAt: []addr.IA{addr.MustIAFrom(0, 0)},
 			},
 			Expected: results,
 		},

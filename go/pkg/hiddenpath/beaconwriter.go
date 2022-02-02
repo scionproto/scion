@@ -249,7 +249,7 @@ func remoteRegistries(regPolicy InterfacePolicy) map[GroupID][]addr.IA {
 		}
 	}
 	if regPolicy.Public {
-		remotes[GroupID{}] = []addr.IA{{}}
+		remotes[GroupID{}] = []addr.IA{0}
 	}
 	return remotes
 }
