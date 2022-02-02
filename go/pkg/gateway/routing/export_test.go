@@ -18,11 +18,12 @@ import (
 	"strings"
 	"testing"
 
+	"inet.af/netaddr"
+
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 var (
-	IsSubnet            = isSubnet
 	ParseAction         = parseAction
 	ParseNetworkMatcher = parseNetworkMatcher
 	ParseIAMatcher      = parseIAMatcher
@@ -47,12 +48,9 @@ func NewNetworkMatcher(t *testing.T, networks string) NetworkMatcher {
 	if negated {
 		networks = strings.TrimPrefix(networks, "!")
 	}
-	matcher := AllowedNetworkMatcher{}
+	matcher := NetworkMatcher{Negated: negated}
 	for _, network := range strings.Split(networks, ",") {
-		matcher.Allowed = append(matcher.Allowed, xtest.MustParseCIDR(t, network))
-	}
-	if negated {
-		return NegatedNetworkMatcher{NetworkMatcher: matcher}
+		matcher.Allowed = append(matcher.Allowed, netaddr.MustParseIPPrefix(network))
 	}
 	return matcher
 }

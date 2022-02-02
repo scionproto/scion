@@ -36,7 +36,7 @@ type WildcardExpander struct {
 func (e *WildcardExpander) ExpandSrcWildcard(ctx context.Context,
 	req segfetcher.Request) (segfetcher.Requests, error) {
 
-	if req.Src.A != 0 {
+	if req.Src.AS() != 0 {
 		return segfetcher.Requests{req}, nil
 	}
 
@@ -48,7 +48,7 @@ func (e *WildcardExpander) ExpandSrcWildcard(ctx context.Context,
 		}
 		return requestsSrcsToDst(cores, req.Dst, req.SegType), nil
 	case seg.TypeDown:
-		cores, err := e.coreASes(ctx, req.Src.I)
+		cores, err := e.coreASes(ctx, req.Src.ISD())
 		if err != nil {
 			return nil, err
 		}

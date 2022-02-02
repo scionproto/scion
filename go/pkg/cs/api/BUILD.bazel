@@ -41,6 +41,7 @@ go_library(
     deps = [
         "//go/cs/beacon:go_default_library",
         "//go/lib/addr:go_default_library",
+        "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/scrypto/cppki:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/pkg/api:go_default_library",
@@ -55,6 +56,7 @@ go_library(
         "@com_github_getkin_kin_openapi//openapi3:go_default_library",  # keep
         "@com_github_go_chi_chi_v5//:go_default_library",  # keep
         "@com_github_pkg_errors//:go_default_library",  # keep
+        "@org_golang_google_protobuf//proto:go_default_library",
     ],
 )
 
@@ -65,7 +67,6 @@ go_test(
     deps = [
         ":go_default_library",
         "//go/cs/beacon:go_default_library",
-        "//go/lib/addr:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/scrypto/cppki:go_default_library",
         "//go/lib/scrypto/signed:go_default_library",

@@ -15,7 +15,7 @@
 package testcrypto
 
 import (
-	"io/ioutil"
+	"os"
 
 	"gopkg.in/yaml.v2"
 
@@ -36,7 +36,7 @@ type topo struct {
 
 // loadTopo loads the topo from file.
 func loadTopo(file string) (topo, error) {
-	raw, err := ioutil.ReadFile(file)
+	raw, err := os.ReadFile(file)
 	if err != nil {
 		return topo{}, serrors.WrapStr("failed to load topofile", err, "file", file)
 	}

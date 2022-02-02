@@ -55,7 +55,7 @@ func (s SignerGen) Generate(ctx context.Context) (Signer, error) {
 		return Signer{}, serrors.New("no private key found")
 	}
 
-	trcs, res, err := activeTRCs(ctx, s.DB, s.IA.I)
+	trcs, res, err := activeTRCs(ctx, s.DB, s.IA.ISD())
 	if err != nil {
 		metrics.Signer.Generate(l.WithResult(res)).Inc()
 		return Signer{}, serrors.WrapStr("loading TRC", err)

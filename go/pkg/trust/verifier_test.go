@@ -205,7 +205,7 @@ func TestVerify(t *testing.T) {
 func validSignS(t *testing.T, msg []byte, rawIA string,
 	key *ecdsa.PrivateKey) *cryptopb.SignedMessage {
 
-	ia, _ := addr.IAFromString(rawIA)
+	ia, _ := addr.ParseIA(rawIA)
 	signer := trust.Signer{
 		PrivateKey: key,
 		Algorithm:  signed.ECDSAWithSHA512,

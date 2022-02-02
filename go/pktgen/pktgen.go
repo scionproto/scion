@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -97,7 +96,7 @@ func run(cfg flags, dst *snet.UDPAddr) error {
 	defer log.Flush()
 	log.Setup(log.Config{Console: log.ConsoleConfig{Level: cfg.logLevel}})
 
-	raw, err := ioutil.ReadFile(cfg.config)
+	raw, err := os.ReadFile(cfg.config)
 	if err != nil {
 		return serrors.WrapStr("reading config file", err)
 	}

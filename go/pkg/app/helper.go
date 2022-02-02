@@ -34,7 +34,7 @@ type ASInfo struct {
 
 // QueryASInfo queries information about the local AS from the SCION Daemon.
 func QueryASInfo(ctx context.Context, conn daemon.Connector) (ASInfo, error) {
-	asInfo, err := conn.ASInfo(ctx, addr.IA{})
+	asInfo, err := conn.ASInfo(ctx, 0)
 	if err != nil {
 		return ASInfo{}, err
 	}

@@ -15,8 +15,8 @@
 package integration
 
 import (
-	"io/ioutil"
 	"net"
+	"os"
 
 	"gopkg.in/yaml.v2"
 
@@ -29,7 +29,7 @@ type networkAllocs struct {
 }
 
 func LoadNetworkAllocs() (map[addr.IA]*snet.UDPAddr, error) {
-	raw, err := ioutil.ReadFile(GenFile("network-allocations.yml"))
+	raw, err := os.ReadFile(GenFile("network-allocations.yml"))
 	if err != nil {
 		return nil, nil
 	}

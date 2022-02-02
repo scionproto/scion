@@ -21,7 +21,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -71,7 +71,7 @@ func TestUpdateCerts(t *testing.T) {
 	err = cmd.Execute()
 	require.NoError(t, err)
 
-	err = ioutil.WriteFile(filepath.Join(dir, "certs", "dummy.pem"), []byte{}, 0666)
+	err = os.WriteFile(filepath.Join(dir, "certs", "dummy.pem"), []byte{}, 0666)
 	require.NoError(t, err)
 
 	out, err := exec.Command("rm", "-rf", goldenDir).CombinedOutput()
@@ -111,7 +111,7 @@ func (m ctxMatcher) String() string {
 
 func loadKey(t *testing.T, file string) *ecdsa.PrivateKey {
 	t.Helper()
-	raw, err := ioutil.ReadFile(file)
+	raw, err := os.ReadFile(file)
 	require.NoError(t, err)
 	block, _ := pem.Decode(raw)
 	if block == nil || block.Type != "PRIVATE KEY" {

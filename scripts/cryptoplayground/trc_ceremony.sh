@@ -218,6 +218,11 @@ do
     cp $SAFEDIR/admin/$TRCID.trc .
     set_dirs
     in_docker "cd /workdir && verify_trc && display_signatures"
+
+    # LITERALINCLUDE format_trc START
+    scion-pki trc format --format pem $TRCID.trc
+    # LITERALINCLUDE format_trc END
+
 done
 
 echo "Phase 5: sanity check - generate CA and AS Certificates"

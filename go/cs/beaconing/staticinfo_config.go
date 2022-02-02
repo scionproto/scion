@@ -16,7 +16,7 @@ package beaconing
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"strings"
 	"time"
 
@@ -89,7 +89,7 @@ type StaticInfoCfg struct {
 
 // ParseStaticInfoCfg parses data from a config file into a StaticInfoCfg struct.
 func ParseStaticInfoCfg(file string) (*StaticInfoCfg, error) {
-	raw, err := ioutil.ReadFile(file)
+	raw, err := os.ReadFile(file)
 	if err != nil {
 		return nil, serrors.WrapStr("failed to read static info config: ",
 			err, "file", file)

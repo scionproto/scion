@@ -17,7 +17,6 @@ package main
 import (
 	"bytes"
 	"go/format"
-	"io/ioutil"
 	"os"
 
 	yaml "gopkg.in/yaml.v2"
@@ -37,7 +36,7 @@ type topo struct {
 }
 
 func loadTopo(topoFile string) (*topo, error) {
-	buffer, err := ioutil.ReadFile(topoFile)
+	buffer, err := os.ReadFile(topoFile)
 	if err != nil {
 		return nil, serrors.WrapStr("Unable to read from file", err, "name", topoFile)
 	}
@@ -72,5 +71,5 @@ func WriteGraphToFile(topoFile, destFile string) error {
 	if err != nil {
 		return serrors.WrapStr("Failed to fmt code", err)
 	}
-	return ioutil.WriteFile(destFile, fmtCode, os.ModePerm)
+	return os.WriteFile(destFile, fmtCode, os.ModePerm)
 }

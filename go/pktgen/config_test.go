@@ -16,7 +16,7 @@ package main_test
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,7 +26,7 @@ import (
 )
 
 func TestParseSample(t *testing.T) {
-	raw, err := ioutil.ReadFile("testdata/sample.json")
+	raw, err := os.ReadFile("testdata/sample.json")
 	require.NoError(t, err)
 	var cfg main.JSONConfig
 	err = json.Unmarshal(raw, &cfg)

@@ -1,0 +1,80 @@
+@@
+var isd expression
+@@
+
+-addr.ISDFromFileFmt(isd, true)
++addr.ParseFormattedISD(isd, addr.WithFileSeparator(), addr.WithDefaultPrefix())
+
+@@
+var isd expression
+@@
+
+-addr.ISDFromFileFmt(isd, false)
++addr.ParseFormattedISD(isd, addr.WithFileSeparator())
+
+@@
+var as expression
+@@
+
+-addr.ASFromFileFmt(as, true)
++addr.ParseFormattedAS(as, addr.WithFileSeparator(), addr.WithDefaultPrefix())
+
+@@
+var as expression
+@@
+
+-addr.ASFromFileFmt(as, false)
++addr.ParseFormattedAS(as, addr.WithFileSeparator())
+
+@@
+var ia expression
+@@
+
+-addr.IAFromFileFmt(ia, true)
++addr.ParseFormattedIA(ia, addr.WithFileSeparator(), addr.WithDefaultPrefix())
+
+@@
+var ia expression
+@@
+
+-addr.IAFromFileFmt(ia, false)
++addr.ParseFormattedIA(ia, addr.WithFileSeparator())
+
+@@
+@@
+
+-ISDFromString
++ParseISD
+
+@@
+@@
+
+-ASFromString
++ParseAS
+
+@@
+@@
+
+-IAFromString
++ParseIA
+
+@@
+var b expression
+@@
+
+-addr.IAFromRaw(b)
++addr.IA(binary.BigEndian.Uint64(b))
+
+@@
+var ia expression
+@@
+
+-ia.FileFmt(false)
++addr.FormatIA(ia, addr.WithFileSeparator())
+
+@@
+var ia expression
+@@
+
+-ia.FileFmt(true)
++addr.FormatIA(ia, addr.WithFileSeparator(), addr.WithDefaultPrefix())

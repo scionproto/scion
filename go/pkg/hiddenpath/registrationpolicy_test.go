@@ -15,7 +15,7 @@
 package hiddenpath_test
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -86,11 +86,11 @@ func TestRegistrationPolicyUnmarshalYAML(t *testing.T) {
 			if *update {
 				raw, err := yaml.Marshal(tc.want)
 				require.NoError(t, err)
-				err = ioutil.WriteFile(tc.input, raw, 0666)
+				err = os.WriteFile(tc.input, raw, 0666)
 				require.NoError(t, err)
 				return
 			}
-			raw, err := ioutil.ReadFile(tc.input)
+			raw, err := os.ReadFile(tc.input)
 			require.NoError(t, err)
 			got := make(hiddenpath.RegistrationPolicy)
 			err = yaml.Unmarshal(raw, &got)

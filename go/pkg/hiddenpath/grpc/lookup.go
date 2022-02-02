@@ -108,7 +108,7 @@ func fromHSPB(pbReq *hspb.HiddenSegmentsRequest) hiddenpath.SegmentRequest {
 	}
 	return hiddenpath.SegmentRequest{
 		GroupIDs: groups,
-		DstIA:    addr.IAInt(pbReq.DstIsdAs).IA(),
+		DstIA:    addr.IA(pbReq.DstIsdAs),
 	}
 }
 

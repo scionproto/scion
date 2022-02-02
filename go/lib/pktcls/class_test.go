@@ -17,8 +17,8 @@ package pktcls_test
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"net"
+	"os"
 	"strings"
 	"testing"
 
@@ -88,7 +88,7 @@ func TestClassMapMarshalUnMarshal(t *testing.T) {
 				xtest.MustMarshalJSONToFile(t, tc.Classes, tc.FileName+".json")
 			}
 
-			expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName + ".json"))
+			expected, err := os.ReadFile(xtest.ExpandPath(tc.FileName + ".json"))
 			require.NoError(t, err)
 
 			// Check that marshaling matches reference files

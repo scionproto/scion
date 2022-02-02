@@ -290,7 +290,7 @@ func (w *GatewayWatcher) validateParameters() error {
 
 // PrefixConsumer consumes the prefixes fetched by the PrefixWatcher.
 type PrefixConsumer interface {
-	Prefixes(remote addr.IA, gateway Gateway, prefixes []*net.IPNet)
+	Prefixes(remote addr.IA, gateway Gateway, prefixes []*net.IPNet) error
 }
 
 // PrefixFetcher fetches the IP prefixes from a remote gateway.
@@ -413,7 +413,9 @@ func (w *prefixWatcher) run(ctx context.Context) {
 	logger.Debug("Fetched prefixes successfully", "prefixes", fmtPrefixes(prefixes))
 
 	snapshot := fmtPrefixes(prefixes)
-	w.Consumer.Prefixes(w.remote, w.gateway, prefixes)
+	if err := w.Consumer.Prefixes(w.remote, w.gateway, prefixes); err != nil {
+		logger.Error("Failed to process prefixes", "prefixes", fmtPrefixes(prefixes), "err", err)
+	}
 
 	w.stateMtx.Lock()
 	defer w.stateMtx.Unlock()

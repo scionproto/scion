@@ -15,7 +15,7 @@
 package trcs
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -73,7 +73,7 @@ func TestVerify(t *testing.T) {
 				sig[len(sig)-1] ^= 0xFF
 				raw, err := signed.Encode()
 				require.NoError(t, err)
-				require.NoError(t, ioutil.WriteFile(out, raw, 0666))
+				require.NoError(t, os.WriteFile(out, raw, 0666))
 			},
 			ErrAssertion: require.Error,
 		},

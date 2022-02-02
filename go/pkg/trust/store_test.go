@@ -17,7 +17,7 @@ package trust_test
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"sort"
 	"testing"
@@ -54,7 +54,7 @@ func TestLoadChains(t *testing.T) {
 		})
 		err := cmd.Execute()
 		require.NoError(t, err)
-		err = ioutil.WriteFile(filepath.Join(dir, "certs", "dummy.pem"), []byte{}, 0666)
+		err = os.WriteFile(filepath.Join(dir, "certs", "dummy.pem"), []byte{}, 0666)
 		require.NoError(t, err)
 		return dir, cleanF
 	}

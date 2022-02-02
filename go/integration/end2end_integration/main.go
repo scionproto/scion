@@ -18,7 +18,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -183,7 +182,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		// and inside bazel tests we easily have longer paths, therefore we
 		// create a temporary symlink to the directory where we put the socket
 		// file.
-		tmpDir, err := ioutil.TempDir("", "e2e_integration")
+		tmpDir, err := os.MkdirTemp("", "e2e_integration")
 		if err != nil {
 			return serrors.WrapStr("creating temp dir", err)
 		}
@@ -239,7 +238,10 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 				if *integration.Docker {
 					tester = integration.TesterID(src)
 				}
-				logFile := fmt.Sprintf("%s/client_%s.log", logDir(), src.IA.FileFmt(false))
+				logFile := fmt.Sprintf("%s/client_%s.log",
+					logDir(),
+					addr.FormatIA(src.IA, addr.WithFileSeparator()),
+				)
 				err := integration.Run(ctx, integration.RunConfig{
 					Commands: cmds,
 					LogFile:  logFile,
@@ -300,8 +302,8 @@ func getPairs() ([]integration.IAPair, error) {
 // filter returns the list of ASes that are part of the desired subset.
 func filter(src, dst string, pairs []integration.IAPair, ases *util.ASList) []integration.IAPair {
 	var res []integration.IAPair
-	s, err1 := addr.IAFromString(src)
-	d, err2 := addr.IAFromString(dst)
+	s, err1 := addr.ParseIA(src)
+	d, err2 := addr.ParseIA(dst)
 	if err1 == nil && err2 == nil {
 		for _, pair := range pairs {
 			if pair.Src.IA.Equal(s) && pair.Dst.IA.Equal(d) {
@@ -314,7 +316,7 @@ func filter(src, dst string, pairs []integration.IAPair, ases *util.ASList) []in
 		filter := !contains(ases, src != "noncore", pair.Src.IA)
 		filter = filter || !contains(ases, dst != "noncore", pair.Dst.IA)
 		if dst == "localcore" {
-			filter = filter || pair.Src.IA.I != pair.Dst.IA.I
+			filter = filter || pair.Src.IA.ISD() != pair.Dst.IA.ISD()
 		}
 		if !filter {
 			res = append(res, pair)

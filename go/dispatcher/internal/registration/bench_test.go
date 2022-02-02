@@ -71,7 +71,7 @@ func BenchmarkLookupPublicIPv4(b *testing.B) {
 	lookupData := generateLookupPublicArgs(b.N)
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		table.LookupPublic(addr.IA{I: 1, A: 1}, lookupData[n])
+		table.LookupPublic(addr.MustIAFrom(1, 1), lookupData[n])
 	}
 }
 
@@ -102,6 +102,6 @@ func BenchmarkLookupServiceIPv4(b *testing.B) {
 	lookupData := generateLookupServiceArgs(b.N)
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		table.LookupService(addr.IA{I: 1, A: 1}, lookupData[n].svc, lookupData[n].bind)
+		table.LookupService(addr.MustIAFrom(1, 1), lookupData[n].svc, lookupData[n].bind)
 	}
 }

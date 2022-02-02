@@ -19,7 +19,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -94,7 +94,7 @@ By default, the public key is written to standard out.
 
 // LoadPrivate key loads a private key from file.
 func LoadPrivateKey(filename string) (crypto.Signer, error) {
-	raw, err := ioutil.ReadFile(filename)
+	raw, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, serrors.WrapStr("reading private key", err)
 	}

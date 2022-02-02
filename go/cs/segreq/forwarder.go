@@ -63,7 +63,7 @@ func (f ForwardingLookup) LookupSegments(ctx context.Context, src,
 func (f ForwardingLookup) classify(ctx context.Context,
 	src, dst addr.IA) (seg.Type, error) {
 
-	if src.I == 0 || dst.I == 0 {
+	if src.ISD() == 0 || dst.ISD() == 0 {
 		return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 			"src", src, "dst", dst, "reason", "zero ISD src or dst")
 	}
@@ -83,14 +83,14 @@ func (f ForwardingLookup) classify(ctx context.Context,
 	switch {
 	case srcCore && dstCore:
 		// core
-		if src.I != f.LocalIA.I {
+		if src.ISD() != f.LocalIA.ISD() {
 			return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 				"src", src, "dst", dst, "reason", "core segment request src ISD not local ISD")
 		}
 		return seg.TypeCore, nil
 	case srcCore:
 		// down
-		if src.I != dst.I {
+		if src.ISD() != dst.ISD() {
 			return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 				"src", src, "dst", dst, "reason", "down segment request src/dst in different ISD")
 		}
@@ -101,7 +101,7 @@ func (f ForwardingLookup) classify(ctx context.Context,
 			return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 				"src", src, "dst", dst, "reason", "up segment request src not local AS")
 		}
-		if dst.I != f.LocalIA.I {
+		if dst.ISD() != f.LocalIA.ISD() {
 			return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 				"src", src, "dst", dst, "reason", "up segment request dst in different ISD")
 		}

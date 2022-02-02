@@ -16,11 +16,11 @@ package grpc
 
 import (
 	"context"
-	"net"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
+	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/metrics"
@@ -30,7 +30,7 @@ import (
 
 // Advertiser returns a list of IP prefixes to advertise.
 type Advertiser interface {
-	AdvertiseList(from, to addr.IA) []*net.IPNet
+	AdvertiseList(from, to addr.IA) ([]netaddr.IPPrefix, error)
 }
 
 // IPPrefixServer serves IP prefix requests.
@@ -55,19 +55,21 @@ func (s IPPrefixServer) Prefixes(ctx context.Context,
 	if !ok {
 		return nil, status.Error(codes.InvalidArgument, "SCION peer required")
 	}
-	prefixes := s.Advertiser.AdvertiseList(s.LocalIA, udp.IA)
+	prefixes, err := s.Advertiser.AdvertiseList(s.LocalIA, udp.IA)
+	if err != nil {
+		return nil, err
+	}
 	metrics.GaugeSet(metrics.GaugeWith(s.PrefixesAdvertised,
 		"remote_isd_as", udp.IA.String()), float64(len(prefixes)))
 
 	pb := make([]*gpb.Prefix, 0, len(prefixes))
 	for _, prefix := range prefixes {
-		ones, bits := prefix.Mask.Size()
-		if bits == 0 {
+		if !prefix.IsValid() {
 			continue
 		}
 		pb = append(pb, &gpb.Prefix{
-			Prefix: canonicalIP(prefix.IP),
-			Mask:   uint32(ones),
+			Prefix: canonicalIP(prefix.IP()),
+			Mask:   uint32(prefix.Bits()),
 		})
 	}
 	return &gpb.PrefixesResponse{
@@ -75,9 +77,11 @@ func (s IPPrefixServer) Prefixes(ctx context.Context,
 	}, nil
 }
 
-func canonicalIP(ip net.IP) net.IP {
-	if v4 := ip.To4(); v4 != nil {
-		return v4
+func canonicalIP(ip netaddr.IP) []byte {
+	if ip.Is4() {
+		a4 := ip.As4()
+		return append([]byte(nil), a4[:]...)
 	}
-	return ip
+	a16 := ip.As16()
+	return append([]byte(nil), a16[:]...)
 }

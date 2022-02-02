@@ -62,7 +62,7 @@ func ParseUDPAddr(s string) (*UDPAddr, error) {
 	if err != nil {
 		return nil, err
 	}
-	ia, err := addr.IAFromString(rawIA)
+	ia, err := addr.ParseIA(rawIA)
 	if err != nil {
 		return nil, serrors.WrapStr("invalid address: IA not parsable", err, "ia", ia)
 	}

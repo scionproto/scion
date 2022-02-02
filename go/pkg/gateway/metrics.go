@@ -78,7 +78,7 @@ var (
 	}
 	FrameBytesReceivedTotalMeta = MetricMeta{
 		Name:   "gateway_frame_bytes_received_total",
-		Help:   "gateway_frame_bytes_received_total",
+		Help:   "Total frame bytes received from remote gateways.",
 		Labels: []string{"isd_as", "remote_isd_as"},
 	}
 	FramesReceivedTotalMeta = MetricMeta{

@@ -473,9 +473,11 @@ func (m *MockPrefixConsumer) EXPECT() *MockPrefixConsumerMockRecorder {
 }
 
 // Prefixes mocks base method.
-func (m *MockPrefixConsumer) Prefixes(arg0 addr.IA, arg1 control.Gateway, arg2 []*net.IPNet) {
+func (m *MockPrefixConsumer) Prefixes(arg0 addr.IA, arg1 control.Gateway, arg2 []*net.IPNet) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Prefixes", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "Prefixes", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Prefixes indicates an expected call of Prefixes.

@@ -23,8 +23,8 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"math/big"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -238,7 +238,7 @@ A valid example for a JSON formatted template:
 			var caCert *x509.Certificate
 			var caKey key.PrivateKey
 			if loadCA {
-				if caCertRaw, err = ioutil.ReadFile(flags.ca); err != nil {
+				if caCertRaw, err = os.ReadFile(flags.ca); err != nil {
 					return serrors.WrapStr("read CA certificate", err)
 				}
 				if caCert, err = parseCertificate(caCertRaw); err != nil {
@@ -407,7 +407,7 @@ func createSubject(tmpl, commonName string) (pkix.Name, error) {
 }
 
 func loadSubject(tmpl string) (pkix.Name, error) {
-	raw, err := ioutil.ReadFile(tmpl)
+	raw, err := os.ReadFile(tmpl)
 	if err != nil {
 		return pkix.Name{}, err
 	}

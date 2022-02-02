@@ -17,7 +17,7 @@ package json_test
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -86,7 +86,7 @@ func TestLoadRawFromFile(t *testing.T) {
 		b, err := json.MarshalIndent(referenceTopology, "", "  ")
 		require.NoError(t, err)
 		b = append(b, []byte("\n")...)
-		err = ioutil.WriteFile("testdata/topology.json", b, 0644)
+		err = os.WriteFile("testdata/topology.json", b, 0644)
 		require.NoError(t, err)
 	}
 
@@ -96,7 +96,7 @@ func TestLoadRawFromFile(t *testing.T) {
 		assert.Equal(t, referenceTopology, loadedTopology)
 	})
 	t.Run("marshaled bytes match", func(t *testing.T) {
-		referenceTopologyBytes, err := ioutil.ReadFile("testdata/topology.json")
+		referenceTopologyBytes, err := os.ReadFile("testdata/topology.json")
 		require.NoError(t, err)
 		topologyBytes, err := json.MarshalIndent(referenceTopology, "", "  ")
 		require.NoError(t, err)

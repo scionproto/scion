@@ -1,0 +1,27 @@
+{
+    "beacon": {
+        "expiration": "2021-01-01T08:05:37Z",
+        "hops": [
+            {
+                "interface": 1,
+                "isd_as": "1-ff00:0:110"
+            },
+            {
+                "interface": 2,
+                "isd_as": "1-ff00:0:111"
+            },
+            {
+                "interface": 3,
+                "isd_as": "1-ff00:0:111"
+            }
+        ],
+        "id": "6e1f2ac35d1382a6064600007f9f270f6506c0b3453ee50423b5f1a73de53345",
+        "last_updated": "2021-01-02T08:00:00Z",
+        "timestamp": "2021-01-01T08:00:00Z",
+        "ingress_interface": 2,
+        "usages": [
+            "up_registration",
+            "down_registration"
+        ]
+    }
+}

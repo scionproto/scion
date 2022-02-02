@@ -83,16 +83,16 @@ func checkISD(t *testing.T, outDir string, isd addr.ISD) {
 func checkAS(t *testing.T, outDir string, ia addr.IA) {
 	d := testcrypto.CryptoASDir(ia, testcrypto.NewOut(outDir))
 	checkFileExists(t, filepath.Join(d, "cp-as.key"))
-	validateChain(t, filepath.Join(d, fmt.Sprintf("%s.pem", ia.FileFmt(true))))
+	validateChain(t, filepath.Join(d, fmt.Sprintf("%s.pem", fmtIA(ia))))
 }
 
 func checkIssuer(t *testing.T, outDir string, ia addr.IA) {
 	d := testcrypto.CryptoCADir(ia, testcrypto.NewOut(outDir))
 	checkFileExists(t, filepath.Join(d, "cp-ca.key"))
 	checkFileExists(t, filepath.Join(d, "cp-root.key"))
-	certName := fmt.Sprintf("%s.root.crt", ia.FileFmt(true))
+	certName := fmt.Sprintf("%s.root.crt", fmtIA(ia))
 	validateCert(t, filepath.Join(d, certName), cppki.Root)
-	certName = fmt.Sprintf("%s.ca.crt", ia.FileFmt(true))
+	certName = fmt.Sprintf("%s.ca.crt", fmtIA(ia))
 	validateCert(t, filepath.Join(d, certName), cppki.CA)
 }
 
@@ -100,10 +100,14 @@ func checkVoter(t *testing.T, outDir string, ia addr.IA) {
 	d := testcrypto.CryptoVotingDir(ia, testcrypto.NewOut(outDir))
 	checkFileExists(t, filepath.Join(d, "sensitive-voting.key"))
 	checkFileExists(t, filepath.Join(d, "regular-voting.key"))
-	sensitiveName := fmt.Sprintf("%s.sensitive.crt", ia.FileFmt(true))
+	sensitiveName := fmt.Sprintf("%s.sensitive.crt", fmtIA(ia))
 	validateCert(t, filepath.Join(d, sensitiveName), cppki.Sensitive)
-	regularName := fmt.Sprintf("%s.regular.crt", ia.FileFmt(true))
+	regularName := fmt.Sprintf("%s.regular.crt", fmtIA(ia))
 	validateCert(t, filepath.Join(d, regularName), cppki.Regular)
+}
+
+func fmtIA(ia addr.IA) string {
+	return addr.FormatIA(ia, addr.WithFileSeparator(), addr.WithDefaultPrefix())
 }
 
 func checkFileExists(t *testing.T, file string) {

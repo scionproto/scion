@@ -31,16 +31,16 @@ func TestControllerRun(t *testing.T) {
 		"state is up": {
 			sessionA: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  100 * time.Millisecond,
-				RequiredMinRxInterval: 50 * time.Millisecond,
+				DesiredMinTxInterval:  200 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
 				ReceiveQueueSize:      10,
 			},
 			sessionB: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  100 * time.Millisecond,
-				RequiredMinRxInterval: 50 * time.Millisecond,
+				DesiredMinTxInterval:  200 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
 				ReceiveQueueSize:      10,
@@ -55,16 +55,16 @@ func TestControllerRun(t *testing.T) {
 		"state is down": {
 			sessionA: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  100 * time.Millisecond,
-				RequiredMinRxInterval: 50 * time.Millisecond,
+				DesiredMinTxInterval:  200 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
 				ReceiveQueueSize:      10,
 			},
 			sessionB: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  100 * time.Millisecond,
-				RequiredMinRxInterval: 50 * time.Millisecond,
+				DesiredMinTxInterval:  200 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
 				LocalDiscriminator:    2,
 				RemoteDiscriminator:   1,
 				ReceiveQueueSize:      10,
@@ -78,16 +78,16 @@ func TestControllerRun(t *testing.T) {
 		"state is down (session not found)": {
 			sessionA: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  100 * time.Millisecond,
-				RequiredMinRxInterval: 50 * time.Millisecond,
+				DesiredMinTxInterval:  200 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
 				LocalDiscriminator:    1,
 				RemoteDiscriminator:   2,
 				ReceiveQueueSize:      10,
 			},
 			sessionB: &bfd.Session{
 				DetectMult:            1,
-				DesiredMinTxInterval:  100 * time.Millisecond,
-				RequiredMinRxInterval: 50 * time.Millisecond,
+				DesiredMinTxInterval:  200 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
 				// mismatch in discriminators will cause controller to drop BFD messages
 				LocalDiscriminator:  3,
 				RemoteDiscriminator: 1,
@@ -165,8 +165,8 @@ func TestControllerBadSession(t *testing.T) {
 		Sessions: []*bfd.Session{
 			{
 				DetectMult:            0, // causes session to error out
-				DesiredMinTxInterval:  100 * time.Millisecond,
-				RequiredMinRxInterval: 50 * time.Millisecond,
+				DesiredMinTxInterval:  200 * time.Millisecond,
+				RequiredMinRxInterval: 100 * time.Millisecond,
 				Logger:                testlog.NewLogger(t),
 				LocalDiscriminator:    1,
 				ReceiveQueueSize:      10,

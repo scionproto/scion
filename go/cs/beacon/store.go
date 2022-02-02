@@ -17,7 +17,6 @@ package beacon
 import (
 	"context"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -78,7 +77,7 @@ func (s *Store) SegmentsToRegister(ctx context.Context, segType seg.Type) ([]Bea
 // best beacons according to the policy.
 func (s *Store) getBeacons(ctx context.Context, policy *Policy) ([]Beacon, error) {
 	beacons, err := s.db.CandidateBeacons(ctx, policy.CandidateSetSize,
-		UsageFromPolicyType(policy.Type), addr.IA{})
+		UsageFromPolicyType(policy.Type), 0)
 	if err != nil {
 		return nil, err
 	}

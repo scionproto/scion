@@ -170,7 +170,7 @@ func copy(revs revcache.Revocations) revcache.Revocations {
 func defaultRevInfo(ia addr.IA, ifId uint16, ts time.Time) *path_mgmt.RevInfo {
 	return &path_mgmt.RevInfo{
 		IfID:         common.IFIDType(ifId),
-		RawIsdas:     ia.IAInt(),
+		RawIsdas:     ia,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(ts),
 		RawTTL:       uint32((time.Duration(10) * time.Second).Seconds()),

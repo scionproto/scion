@@ -200,7 +200,7 @@ func encodeCertificates(certs []*x509.Certificate) ([]asn1.RawValue, error) {
 func decodeASes(rawASes []string) ([]addr.AS, error) {
 	ases := make([]addr.AS, 0, len(rawASes))
 	for _, rawAs := range rawASes {
-		as, err := addr.ASFromString(rawAs)
+		as, err := addr.ParseAS(rawAs)
 		if err != nil {
 			return nil, serrors.WrapStr("error parsing AS", err, "input", rawAs)
 		}

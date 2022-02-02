@@ -71,13 +71,13 @@ func TestCSRouterChooseServer(t *testing.T) {
 				p.EXPECT().Path().AnyTimes().Return(spath.Path{Raw: []byte("isd local path")})
 				p.EXPECT().Destination().AnyTimes().Return(ia110)
 				p.EXPECT().UnderlayNextHop().AnyTimes().Return(nil)
-				r.EXPECT().Route(gomock.Any(), addr.IA{I: 1}).Return(p, nil)
+				r.EXPECT().Route(gomock.Any(), addr.MustIAFrom(1, 0)).Return(p, nil)
 			},
 		},
 		"ISD local, Route error": {
 			ISD: 1,
 			Expect: func(_ *mock_trust.MockDB, r *mock_snet.MockRouter, p *mock_snet.MockPath) {
-				r.EXPECT().Route(gomock.Any(), addr.IA{I: 1}).Return(
+				r.EXPECT().Route(gomock.Any(), addr.MustIAFrom(1, 0)).Return(
 					nil, routeErr,
 				)
 			},
@@ -95,7 +95,7 @@ func TestCSRouterChooseServer(t *testing.T) {
 				p.EXPECT().Path().AnyTimes().Return(spath.Path{Raw: []byte("remote ISD path")})
 				p.EXPECT().Destination().AnyTimes().Return(ia210)
 				p.EXPECT().UnderlayNextHop().AnyTimes().Return(nil)
-				r.EXPECT().Route(gomock.Any(), addr.IA{I: 2}).Return(p, nil)
+				r.EXPECT().Route(gomock.Any(), addr.MustIAFrom(2, 0)).Return(p, nil)
 			},
 		},
 		"Remote ISD, TRC not found": {
@@ -108,7 +108,7 @@ func TestCSRouterChooseServer(t *testing.T) {
 				p.EXPECT().Path().AnyTimes().Return(spath.Path{Raw: []byte("isd local path")})
 				p.EXPECT().Destination().AnyTimes().Return(ia110)
 				p.EXPECT().UnderlayNextHop().AnyTimes().Return(nil)
-				r.EXPECT().Route(gomock.Any(), addr.IA{I: 1}).Return(p, nil)
+				r.EXPECT().Route(gomock.Any(), addr.MustIAFrom(1, 0)).Return(p, nil)
 			},
 		},
 		"Remote ISD, Expired TRC": {
@@ -123,7 +123,7 @@ func TestCSRouterChooseServer(t *testing.T) {
 				p.EXPECT().Path().AnyTimes().Return(spath.Path{Raw: []byte("isd local path")})
 				p.EXPECT().Destination().AnyTimes().Return(ia110)
 				p.EXPECT().UnderlayNextHop().AnyTimes().Return(nil)
-				r.EXPECT().Route(gomock.Any(), addr.IA{I: 1}).Return(p, nil)
+				r.EXPECT().Route(gomock.Any(), addr.MustIAFrom(1, 0)).Return(p, nil)
 			},
 		},
 		"Remote ISD, DB error": {

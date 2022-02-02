@@ -41,7 +41,7 @@ func (s *MemoryRevocationStore) AddRevocation(ctx context.Context, rev *path_mgm
 	if rev == nil {
 		return
 	}
-	iface := snet.PathInterface{IA: rev.RawIsdas.IA(), ID: rev.IfID}
+	iface := snet.PathInterface{IA: rev.RawIsdas, ID: rev.IfID}
 	if _, ok := s.revs[iface]; !ok {
 		logger.Debug("Revocation added", "isd_as", iface.IA, "intf", iface.ID)
 	}

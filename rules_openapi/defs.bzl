@@ -1,7 +1,7 @@
 load("//rules_openapi/internal:generate.bzl", _openapi_generate_go = "openapi_generate_go")
 load("//rules_openapi/internal:bundle.bzl", _openapi_bundle = "openapi_bundle")
 load("//rules_openapi/internal:header.bzl", _header = "header")
-load("@cgrindel_rules_updatesrc//updatesrc:updatesrc.bzl", "updatesrc_update")
+load("@cgrindel_bazel_starlib//updatesrc:defs.bzl", "updatesrc_update")
 
 def openapi_bundle(
         name,

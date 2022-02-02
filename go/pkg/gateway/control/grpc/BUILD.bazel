@@ -22,6 +22,7 @@ go_library(
         "//go/pkg/grpc:go_default_library",
         "//go/pkg/proto/discovery:go_default_library",
         "//go/pkg/proto/gateway:go_default_library",
+        "@af_inet_netaddr//:go_default_library",
         "@org_golang_google_grpc//codes:go_default_library",
         "@org_golang_google_grpc//peer:go_default_library",
         "@org_golang_google_grpc//status:go_default_library",

@@ -5,7 +5,7 @@ load("//lint:go_config.bzl", "go_lint_config")
 load("//lint/private/python:flake8_config.bzl", "flake8_lint_config")
 load("//:nogo.bzl", "nogo_deps")
 load("@com_github_bazelbuild_buildtools//buildifier:def.bzl", "buildifier")
-load("@cgrindel_rules_updatesrc//updatesrc:updatesrc.bzl", "updatesrc_update_all")
+load("@cgrindel_bazel_starlib//updatesrc:defs.bzl", "updatesrc_update_all")
 
 # gazelle:prefix github.com/scionproto/scion
 # gazelle:map_kind go_library go_library //lint:go.bzl

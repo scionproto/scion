@@ -15,7 +15,7 @@
 package trust_test
 
 import (
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -47,10 +47,10 @@ func TestUpdate(t *testing.T) {
 	err := cmd.Execute()
 	require.NoError(t, err)
 
-	err = ioutil.WriteFile(filepath.Join(dir, "dummy.pem"), []byte{}, 0666)
+	err = os.WriteFile(filepath.Join(dir, "dummy.pem"), []byte{}, 0666)
 	require.NoError(t, err)
 
-	err = ioutil.WriteFile(filepath.Join(dir, "dummy.crt"), []byte{}, 0666)
+	err = os.WriteFile(filepath.Join(dir, "dummy.crt"), []byte{}, 0666)
 	require.NoError(t, err)
 
 	out, err := exec.Command("rm", "-rf", "testdata/common").CombinedOutput()

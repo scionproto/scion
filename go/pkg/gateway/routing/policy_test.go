@@ -19,8 +19,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"inet.af/netaddr"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/gateway/routing"
 )
@@ -65,83 +65,135 @@ func TestPolicyCopy(t *testing.T) {
 			require.NotEqual(t, tc.policy, got)
 		})
 	}
-
 }
 
-func TestPolicyMatch(t *testing.T) {
-	policy := routing.Policy{
+func TestNetworkMatch(t *testing.T) {
+
+	acceptAll := &routing.Policy{
+		DefaultAction: routing.Accept,
+	}
+	rejectAll := &routing.Policy{
+		DefaultAction: routing.Reject,
+	}
+	acceptSome := &routing.Policy{
 		Rules: []routing.Rule{
 			{
 				Action:  routing.Accept,
-				From:    routing.NewIAMatcher(t, "1-ff00:0:110"),
-				To:      routing.NewIAMatcher(t, "1-ff00:0:112"),
-				Network: routing.NewNetworkMatcher(t, "127.0.0.0/24"),
-			},
-			{
-				Action:  routing.Reject,
-				From:    routing.NewIAMatcher(t, "1-ff00:0:110"),
-				To:      routing.NewIAMatcher(t, "1-ff00:0:112"),
-				Network: routing.NewNetworkMatcher(t, "!127.0.0.0/24"),
-			},
-			{
-				Action:  routing.Reject,
-				From:    routing.NewIAMatcher(t, "1-0"),
-				To:      routing.NewIAMatcher(t, "1-ff00:0:112"),
-				Network: routing.NewNetworkMatcher(t, "127.0.0.0/24"),
+				Network: routing.NewNetworkMatcher(t, "10.0.0.0/8"),
 			},
 			{
 				Action:  routing.Accept,
-				From:    routing.NewIAMatcher(t, "1-ff00:0:111"),
-				To:      routing.NewIAMatcher(t, "0-0"),
-				Network: routing.NewNetworkMatcher(t, "127.0.1.0/24"),
+				Network: routing.NewNetworkMatcher(t, "abcd::/16"),
+			},
+		},
+		DefaultAction: routing.Reject,
+	}
+	splitRange := &routing.Policy{
+		Rules: []routing.Rule{
+			{
+				Action:  routing.Accept,
+				Network: routing.NewNetworkMatcher(t, "!10.0.1.0/24"),
+			},
+		},
+		DefaultAction: routing.Reject,
+	}
+	adjacentRanges := &routing.Policy{
+		Rules: []routing.Rule{
+			{
+				Action:  routing.Accept,
+				Network: routing.NewNetworkMatcher(t, "10.0.0.0/24"),
+			},
+			{
+				Action:  routing.Accept,
+				Network: routing.NewNetworkMatcher(t, "10.0.1.0/24"),
 			},
 		},
 		DefaultAction: routing.Reject,
 	}
 
 	testCases := map[string]struct {
-		From    addr.IA
-		To      addr.IA
-		Network string
-		Rule    routing.Rule
+		policy *routing.Policy
+		in     string
+		out    string
 	}{
-		"first rule": {
-			From:    xtest.MustParseIA("1-ff00:0:110"),
-			To:      xtest.MustParseIA("1-ff00:0:112"),
-			Network: "127.0.0.0/25",
-			Rule:    policy.Rules[0],
+		"accept all ipv4 full": {
+			policy: acceptAll,
+			in:     "0.0.0.0/0",
+			out:    "0.0.0.0/0",
 		},
-		"second rule": {
-			From:    xtest.MustParseIA("1-ff00:0:110"),
-			To:      xtest.MustParseIA("1-ff00:0:112"),
-			Network: "127.0.1.0/25",
-			Rule:    policy.Rules[1],
+		"accept all ipv6 full": {
+			policy: acceptAll,
+			in:     "::/0",
+			out:    "::/0",
 		},
-		"third rule": {
-			From:    xtest.MustParseIA("1-ff00:0:111"),
-			To:      xtest.MustParseIA("1-ff00:0:112"),
-			Network: "127.0.0.0/25",
-			Rule:    policy.Rules[2],
+		"accept all ipv4 partial": {
+			policy: acceptAll,
+			in:     "10.0.0.0/8",
+			out:    "10.0.0.0/8",
 		},
-		"forth rule": {
-			From:    xtest.MustParseIA("1-ff00:0:111"),
-			To:      xtest.MustParseIA("1-ff00:0:112"),
-			Network: "127.0.1.0/25",
-			Rule:    policy.Rules[3],
+		"accept all ipv6 partial": {
+			policy: acceptAll,
+			in:     "abcd::/16",
+			out:    "abcd::/16",
 		},
-		"no match": {
-			From:    xtest.MustParseIA("1-ff00:0:111"),
-			To:      xtest.MustParseIA("1-ff00:0:112"),
-			Network: "127.0.1.0/16",
-			Rule:    routing.Rule{Action: routing.Reject},
+		"reject all ipv4": {
+			policy: rejectAll,
+			in:     "10.0.0.0/8",
+			out:    "",
+		},
+		"reject all ipv6": {
+			policy: rejectAll,
+			in:     "abcd::/16",
+			out:    "",
+		},
+		"accept subset ipv4": {
+			policy: acceptSome,
+			in:     "10.0.0.0/16",
+			out:    "10.0.0.0/16",
+		},
+		"accept subset ipv6": {
+			policy: acceptSome,
+			in:     "abcd:abcd::/32",
+			out:    "abcd:abcd::/32",
+		},
+		"accept superset ipv4": {
+			policy: acceptSome,
+			in:     "0.0.0.0/0",
+			out:    "10.0.0.0/8",
+		},
+		"accept superset ipv6": {
+			policy: acceptSome,
+			in:     "::/0",
+			out:    "abcd::/16",
+		},
+		"split range": {
+			policy: splitRange,
+			in:     "10.0.0.0/22",
+			out:    "10.0.0.0/24,10.0.2.0/23",
+		},
+		"adjacent range": {
+			policy: adjacentRanges,
+			in:     "10.0.0.0/23",
+			out:    "10.0.0.0/23",
 		},
 	}
 	for name, tc := range testCases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			rule := policy.Match(tc.From, tc.To, cidr(t, tc.Network))
-			assert.Equal(t, tc.Rule, rule)
+			ia := xtest.MustParseIA("1-ff00:0:110")
+			iaMatcher := routing.NewIAMatcher(t, "1-ff00:0:110")
+			for i, r := range tc.policy.Rules {
+				tc.policy.Rules[i] = routing.Rule{
+					Action:  r.Action,
+					Network: r.Network,
+					From:    iaMatcher,
+					To:      iaMatcher,
+				}
+			}
+			out, err := tc.policy.Match(ia, ia, netaddr.MustParseIPPrefix(tc.in))
+			assert.NoError(t, err)
+			assert.Equal(t, tc.out, out.String())
 		})
 	}
 }

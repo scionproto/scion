@@ -18,7 +18,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"sort"
 
 	"github.com/spf13/cobra"
@@ -87,7 +87,7 @@ openssl asn1parse -inform DER -i -in payload.der
 					Bytes: raw,
 				})
 			}
-			err = ioutil.WriteFile(flags.out, raw, 0644)
+			err = os.WriteFile(flags.out, raw, 0644)
 			if err != nil {
 				return serrors.WrapStr("failed to write file", err, "file", flags.out)
 			}

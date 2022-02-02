@@ -93,6 +93,12 @@ type ClientInterface interface {
 	// GetBeacons request
 	GetBeacons(ctx context.Context, params *GetBeaconsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetBeacon request
+	GetBeacon(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetBeaconBlob request
+	GetBeaconBlob(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetCa request
 	GetCa(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -126,10 +132,10 @@ type ClientInterface interface {
 	GetSegments(ctx context.Context, params *GetSegmentsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetSegment request
-	GetSegment(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetSegment(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetSegmentBlob request
-	GetSegmentBlob(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetSegmentBlob(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetSigner request
 	GetSigner(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -152,6 +158,30 @@ type ClientInterface interface {
 
 func (c *Client) GetBeacons(ctx context.Context, params *GetBeaconsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetBeaconsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetBeacon(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetBeaconRequest(c.Server, segmentId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetBeaconBlob(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetBeaconBlobRequest(c.Server, segmentId)
 	if err != nil {
 		return nil, err
 	}
@@ -294,7 +324,7 @@ func (c *Client) GetSegments(ctx context.Context, params *GetSegmentsParams, req
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetSegment(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) GetSegment(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetSegmentRequest(c.Server, segmentId)
 	if err != nil {
 		return nil, err
@@ -306,7 +336,7 @@ func (c *Client) GetSegment(ctx context.Context, segmentId SegmentIDs, reqEditor
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetSegmentBlob(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) GetSegmentBlob(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetSegmentBlobRequest(c.Server, segmentId)
 	if err != nil {
 		return nil, err
@@ -524,6 +554,74 @@ func NewGetBeaconsRequest(server string, params *GetBeaconsParams) (*http.Reques
 	}
 
 	queryURL.RawQuery = queryValues.Encode()
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetBeaconRequest generates requests for GetBeacon
+func NewGetBeaconRequest(server string, segmentId SegmentID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "segment-id", runtime.ParamLocationPath, segmentId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/beacons/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetBeaconBlobRequest generates requests for GetBeaconBlob
+func NewGetBeaconBlobRequest(server string, segmentId SegmentID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "segment-id", runtime.ParamLocationPath, segmentId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/beacons/%s/blob", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
@@ -919,7 +1017,7 @@ func NewGetSegmentsRequest(server string, params *GetSegmentsParams) (*http.Requ
 }
 
 // NewGetSegmentRequest generates requests for GetSegment
-func NewGetSegmentRequest(server string, segmentId SegmentIDs) (*http.Request, error) {
+func NewGetSegmentRequest(server string, segmentId SegmentID) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -953,7 +1051,7 @@ func NewGetSegmentRequest(server string, segmentId SegmentIDs) (*http.Request, e
 }
 
 // NewGetSegmentBlobRequest generates requests for GetSegmentBlob
-func NewGetSegmentBlobRequest(server string, segmentId SegmentIDs) (*http.Request, error) {
+func NewGetSegmentBlobRequest(server string, segmentId SegmentID) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -1272,6 +1370,12 @@ type ClientWithResponsesInterface interface {
 	// GetBeacons request
 	GetBeaconsWithResponse(ctx context.Context, params *GetBeaconsParams, reqEditors ...RequestEditorFn) (*GetBeaconsResponse, error)
 
+	// GetBeacon request
+	GetBeaconWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetBeaconResponse, error)
+
+	// GetBeaconBlob request
+	GetBeaconBlobWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetBeaconBlobResponse, error)
+
 	// GetCa request
 	GetCaWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetCaResponse, error)
 
@@ -1305,10 +1409,10 @@ type ClientWithResponsesInterface interface {
 	GetSegmentsWithResponse(ctx context.Context, params *GetSegmentsParams, reqEditors ...RequestEditorFn) (*GetSegmentsResponse, error)
 
 	// GetSegment request
-	GetSegmentWithResponse(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*GetSegmentResponse, error)
+	GetSegmentWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetSegmentResponse, error)
 
 	// GetSegmentBlob request
-	GetSegmentBlobWithResponse(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*GetSegmentBlobResponse, error)
+	GetSegmentBlobWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetSegmentBlobResponse, error)
 
 	// GetSigner request
 	GetSignerWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetSignerResponse, error)
@@ -1335,6 +1439,7 @@ type GetBeaconsResponse struct {
 	JSON200      *struct {
 		Beacons *[]Beacon `json:"beacons,omitempty"`
 	}
+	JSON400 *StandardError
 }
 
 // Status returns HTTPResponse.Status
@@ -1347,6 +1452,51 @@ func (r GetBeaconsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetBeaconsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetBeaconResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BeaconGetResponseJson
+	JSON400      *StandardError
+}
+
+// Status returns HTTPResponse.Status
+func (r GetBeaconResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetBeaconResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetBeaconBlobResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *StandardError
+}
+
+// Status returns HTTPResponse.Status
+func (r GetBeaconBlobResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetBeaconBlobResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1764,6 +1914,24 @@ func (c *ClientWithResponses) GetBeaconsWithResponse(ctx context.Context, params
 	return ParseGetBeaconsResponse(rsp)
 }
 
+// GetBeaconWithResponse request returning *GetBeaconResponse
+func (c *ClientWithResponses) GetBeaconWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetBeaconResponse, error) {
+	rsp, err := c.GetBeacon(ctx, segmentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetBeaconResponse(rsp)
+}
+
+// GetBeaconBlobWithResponse request returning *GetBeaconBlobResponse
+func (c *ClientWithResponses) GetBeaconBlobWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetBeaconBlobResponse, error) {
+	rsp, err := c.GetBeaconBlob(ctx, segmentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetBeaconBlobResponse(rsp)
+}
+
 // GetCaWithResponse request returning *GetCaResponse
 func (c *ClientWithResponses) GetCaWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetCaResponse, error) {
 	rsp, err := c.GetCa(ctx, reqEditors...)
@@ -1863,7 +2031,7 @@ func (c *ClientWithResponses) GetSegmentsWithResponse(ctx context.Context, param
 }
 
 // GetSegmentWithResponse request returning *GetSegmentResponse
-func (c *ClientWithResponses) GetSegmentWithResponse(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*GetSegmentResponse, error) {
+func (c *ClientWithResponses) GetSegmentWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetSegmentResponse, error) {
 	rsp, err := c.GetSegment(ctx, segmentId, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -1872,7 +2040,7 @@ func (c *ClientWithResponses) GetSegmentWithResponse(ctx context.Context, segmen
 }
 
 // GetSegmentBlobWithResponse request returning *GetSegmentBlobResponse
-func (c *ClientWithResponses) GetSegmentBlobWithResponse(ctx context.Context, segmentId SegmentIDs, reqEditors ...RequestEditorFn) (*GetSegmentBlobResponse, error) {
+func (c *ClientWithResponses) GetSegmentBlobWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetSegmentBlobResponse, error) {
 	rsp, err := c.GetSegmentBlob(ctx, segmentId, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -1937,7 +2105,7 @@ func (c *ClientWithResponses) GetTrcBlobWithResponse(ctx context.Context, isd in
 // ParseGetBeaconsResponse parses an HTTP response from a GetBeaconsWithResponse call
 func ParseGetBeaconsResponse(rsp *http.Response) (*GetBeaconsResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -1957,6 +2125,72 @@ func ParseGetBeaconsResponse(rsp *http.Response) (*GetBeaconsResponse, error) {
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest StandardError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetBeaconResponse parses an HTTP response from a GetBeaconWithResponse call
+func ParseGetBeaconResponse(rsp *http.Response) (*GetBeaconResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetBeaconResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BeaconGetResponseJson
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest StandardError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetBeaconBlobResponse parses an HTTP response from a GetBeaconBlobWithResponse call
+func ParseGetBeaconBlobResponse(rsp *http.Response) (*GetBeaconBlobResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetBeaconBlobResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest StandardError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
 	}
 
 	return response, nil
@@ -1965,7 +2199,7 @@ func ParseGetBeaconsResponse(rsp *http.Response) (*GetBeaconsResponse, error) {
 // ParseGetCaResponse parses an HTTP response from a GetCaWithResponse call
 func ParseGetCaResponse(rsp *http.Response) (*GetCaResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -1998,7 +2232,7 @@ func ParseGetCaResponse(rsp *http.Response) (*GetCaResponse, error) {
 // ParseGetCertificatesResponse parses an HTTP response from a GetCertificatesWithResponse call
 func ParseGetCertificatesResponse(rsp *http.Response) (*GetCertificatesResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -2024,7 +2258,7 @@ func ParseGetCertificatesResponse(rsp *http.Response) (*GetCertificatesResponse,
 // ParseGetCertificateResponse parses an HTTP response from a GetCertificateWithResponse call
 func ParseGetCertificateResponse(rsp *http.Response) (*GetCertificateResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -2050,7 +2284,7 @@ func ParseGetCertificateResponse(rsp *http.Response) (*GetCertificateResponse, e
 // ParseGetCertificateBlobResponse parses an HTTP response from a GetCertificateBlobWithResponse call
 func ParseGetCertificateBlobResponse(rsp *http.Response) (*GetCertificateBlobResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -2066,7 +2300,7 @@ func ParseGetCertificateBlobResponse(rsp *http.Response) (*GetCertificateBlobRes
 // ParseGetConfigResponse parses an HTTP response from a GetConfigWithResponse call
 func ParseGetConfigResponse(rsp *http.Response) (*GetConfigResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -2092,7 +2326,7 @@ func ParseGetConfigResponse(rsp *http.Response) (*GetConfigResponse, error) {
 // ParseGetHealthResponse parses an HTTP response from a GetHealthWithResponse call
 func ParseGetHealthResponse(rsp *http.Response) (*GetHealthResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -2125,7 +2359,7 @@ func ParseGetHealthResponse(rsp *http.Response) (*GetHealthResponse, error) {
 // ParseGetInfoResponse parses an HTTP response from a GetInfoWithResponse call
 func ParseGetInfoResponse(rsp *http.Response) (*GetInfoResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -2151,7 +2385,7 @@ func ParseGetInfoResponse(rsp *http.Response) (*GetInfoResponse, error) {
 // ParseGetLogLevelResponse parses an HTTP response from a GetLogLevelWithResponse call
 func ParseGetLogLevelResponse(rsp *http.Response) (*GetLogLevelResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -2184,7 +2418,7 @@ func ParseGetLogLevelResponse(rsp *http.Response) (*GetLogLevelResponse, error) 
 // ParseSetLogLevelResponse parses an HTTP response from a SetLogLevelWithResponse call
 func ParseSetLogLevelResponse(rsp *http.Response) (*SetLogLevelResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -2217,7 +2451,7 @@ func ParseSetLogLevelResponse(rsp *http.Response) (*SetLogLevelResponse, error) 
 // ParseGetSegmentsResponse parses an HTTP response from a GetSegmentsWithResponse call
 func ParseGetSegmentsResponse(rsp *http.Response) (*GetSegmentsResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -2243,7 +2477,7 @@ func ParseGetSegmentsResponse(rsp *http.Response) (*GetSegmentsResponse, error) 
 // ParseGetSegmentResponse parses an HTTP response from a GetSegmentWithResponse call
 func ParseGetSegmentResponse(rsp *http.Response) (*GetSegmentResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -2269,7 +2503,7 @@ func ParseGetSegmentResponse(rsp *http.Response) (*GetSegmentResponse, error) {
 // ParseGetSegmentBlobResponse parses an HTTP response from a GetSegmentBlobWithResponse call
 func ParseGetSegmentBlobResponse(rsp *http.Response) (*GetSegmentBlobResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -2285,7 +2519,7 @@ func ParseGetSegmentBlobResponse(rsp *http.Response) (*GetSegmentBlobResponse, e
 // ParseGetSignerResponse parses an HTTP response from a GetSignerWithResponse call
 func ParseGetSignerResponse(rsp *http.Response) (*GetSignerResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -2318,7 +2552,7 @@ func ParseGetSignerResponse(rsp *http.Response) (*GetSignerResponse, error) {
 // ParseGetSignerChainResponse parses an HTTP response from a GetSignerChainWithResponse call
 func ParseGetSignerChainResponse(rsp *http.Response) (*GetSignerChainResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -2344,7 +2578,7 @@ func ParseGetSignerChainResponse(rsp *http.Response) (*GetSignerChainResponse, e
 // ParseGetTopologyResponse parses an HTTP response from a GetTopologyWithResponse call
 func ParseGetTopologyResponse(rsp *http.Response) (*GetTopologyResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -2377,7 +2611,7 @@ func ParseGetTopologyResponse(rsp *http.Response) (*GetTopologyResponse, error) 
 // ParseGetTrcsResponse parses an HTTP response from a GetTrcsWithResponse call
 func ParseGetTrcsResponse(rsp *http.Response) (*GetTrcsResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -2410,7 +2644,7 @@ func ParseGetTrcsResponse(rsp *http.Response) (*GetTrcsResponse, error) {
 // ParseGetTrcResponse parses an HTTP response from a GetTrcWithResponse call
 func ParseGetTrcResponse(rsp *http.Response) (*GetTrcResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -2443,7 +2677,7 @@ func ParseGetTrcResponse(rsp *http.Response) (*GetTrcResponse, error) {
 // ParseGetTrcBlobResponse parses an HTTP response from a GetTrcBlobWithResponse call
 func ParseGetTrcBlobResponse(rsp *http.Response) (*GetTrcBlobResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}

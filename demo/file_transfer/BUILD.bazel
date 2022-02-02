@@ -1,5 +1,3 @@
-load("@io_bazel_rules_docker//container:container.bzl", "container_image")
-load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("//acceptance/common:topogen.bzl", "topogen_test")
 
 topogen_test(

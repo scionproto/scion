@@ -39,6 +39,7 @@ go_library(
         "//go/pkg/grpc:go_default_library",
         "//go/pkg/proto/gateway:go_default_library",
         "//go/pkg/service:go_default_library",
+        "@af_inet_netaddr//:go_default_library",
         "@com_github_lucas_clemente_quic_go//:go_default_library",
         "@com_github_prometheus_client_golang//prometheus:go_default_library",
         "@com_github_prometheus_client_golang//prometheus/promauto:go_default_library",

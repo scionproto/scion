@@ -16,14 +16,14 @@ package trcs
 
 import (
 	"encoding/pem"
-	"io/ioutil"
+	"os"
 
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 )
 
 // DecodeFromFile decodes a signed TRC from the provided file.
 func DecodeFromFile(name string) (cppki.SignedTRC, error) {
-	raw, err := ioutil.ReadFile(name)
+	raw, err := os.ReadFile(name)
 	if err != nil {
 		return cppki.SignedTRC{}, err
 	}

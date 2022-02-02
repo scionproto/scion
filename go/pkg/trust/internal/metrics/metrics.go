@@ -95,7 +95,7 @@ func PeerToLabel(peer net.Addr, local addr.IA) string {
 	switch {
 	case ia.Equal(local):
 		return infra.PromSrcASLocal
-	case ia.I == local.I:
+	case ia.ISD() == local.ISD():
 		return infra.PromSrcISDLocal
 	default:
 		return infra.PromSrcISDRemote

@@ -188,7 +188,7 @@ func Fingerprint(path Path) PathFingerprint {
 	}
 	h := sha256.New()
 	for _, intf := range meta.Interfaces {
-		binary.Write(h, binary.BigEndian, intf.IA.IAInt())
+		binary.Write(h, binary.BigEndian, intf.IA)
 		binary.Write(h, binary.BigEndian, intf.ID)
 	}
 	return PathFingerprint(h.Sum(nil))

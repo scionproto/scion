@@ -17,9 +17,11 @@ package api_test
 import (
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"io/ioutil"
+	"encoding/hex"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -30,7 +32,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	beaconlib "github.com/scionproto/scion/go/cs/beacon"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
@@ -52,6 +53,7 @@ var update = xtest.UpdateGoldenFiles()
 // api package.
 func TestAPI(t *testing.T) {
 	now := time.Now()
+	beacons := createBeacons(t)
 	testCases := map[string]struct {
 		Handler            func(t *testing.T, ctrl *gomock.Controller) http.Handler
 		RequestURL         string
@@ -65,11 +67,10 @@ func TestAPI(t *testing.T) {
 				s := &api.Server{
 					Beacons: bs,
 				}
-				dbresult := createBeacons(t)
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
 					&beacon.QueryParams{},
-				).AnyTimes().Return(dbresult, nil)
+				).AnyTimes().Return(beacons, nil)
 				return api.Handler(s)
 			},
 			RequestURL: "/beacons",
@@ -81,30 +82,28 @@ func TestAPI(t *testing.T) {
 				s := &api.Server{
 					Beacons: bs,
 				}
-				dbresult := createBeacons(t)
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
 					&beacon.QueryParams{},
-				).Times(0).Return(dbresult, nil)
+				).Times(0).Return(beacons, nil)
 				return api.Handler(s)
 			},
 			RequestURL: "/beacons?sort=invalid",
 			Status:     400,
 		},
-		"beacons sort owner": {
+		"beacons sort by ingress interface": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				bs := mock_api.NewMockBeaconStore(ctrl)
 				s := &api.Server{
 					Beacons: bs,
 				}
-				dbresult := createBeacons(t)
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
 					&beacon.QueryParams{},
-				).Times(1).Return(dbresult, nil)
+				).Times(1).Return(beacons, nil)
 				return api.Handler(s)
 			},
-			RequestURL: "/beacons?sort=ingress_interface_id",
+			RequestURL: "/beacons?sort=ingress_interface",
 			Status:     200,
 		},
 		"beacons descending order": {
@@ -113,11 +112,10 @@ func TestAPI(t *testing.T) {
 				s := &api.Server{
 					Beacons: bs,
 				}
-				dbresult := createBeacons(t)
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
 					&beacon.QueryParams{},
-				).Times(1).Return(dbresult, nil)
+				).Times(1).Return(beacons, nil)
 				return api.Handler(s)
 			},
 			RequestURL: "/beacons?desc=true",
@@ -129,11 +127,10 @@ func TestAPI(t *testing.T) {
 				s := &api.Server{
 					Beacons: bs,
 				}
-				dbresult := createBeacons(t)
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
 					&beacon.QueryParams{},
-				).Times(0).Return(dbresult, nil)
+				).Times(0).Return(beacons, nil)
 				return api.Handler(s)
 			},
 			RequestURL: "/beacons?usages=up_registration&usages=Invalid",
@@ -145,17 +142,142 @@ func TestAPI(t *testing.T) {
 				s := &api.Server{
 					Beacons: bs,
 				}
-				dbresult := createBeacons(t)
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
 					&beacon.QueryParams{
-						Usages: []beaconlib.Usage{beaconlib.UsageCoreReg | beaconlib.UsageUpReg},
+						Usages: []beaconlib.Usage{beaconlib.UsageDownReg | beaconlib.UsageUpReg},
 					},
-				).Times(1).Return(dbresult, nil)
+				).Times(1).Return(beacons[:1], nil)
 				return api.Handler(s)
 			},
-			RequestURL: "/beacons?usages=up_registration&usages=core_registration",
+			RequestURL: "/beacons?usages=up_registration&usages=down_registration",
 			Status:     200,
+		},
+		"beacon": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &api.Server{
+					Beacons: bs,
+				}
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{SegIDs: [][]byte{beacons[0].Beacon.Segment.ID()}},
+				).AnyTimes().Return(beacons[:1], nil)
+				return api.Handler(s)
+			},
+			RequestURL: "/beacons/" + hex.EncodeToString(beacons[0].Beacon.Segment.ID()),
+			Status:     200,
+		},
+		"beacon id prefix": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &api.Server{
+					Beacons: bs,
+				}
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{SegIDs: [][]byte{beacons[0].Beacon.Segment.ID()[:10]}},
+				).AnyTimes().Return(beacons[:1], nil)
+				return api.Handler(s)
+			},
+			RequestURL: "/beacons/" + hex.EncodeToString(beacons[0].Beacon.Segment.ID()[:10]),
+			Status:     200,
+		},
+		"beacon no matches": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &api.Server{
+					Beacons: bs,
+				}
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{SegIDs: [][]byte{[]byte("1234")}},
+				).AnyTimes().Return([]beacon.Beacon{}, nil)
+				return api.Handler(s)
+			},
+			RequestURL: "/beacons/" + hex.EncodeToString([]byte("1234")),
+			Status:     400,
+		},
+		"beacon no unique match": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &api.Server{
+					Beacons: bs,
+				}
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{SegIDs: [][]byte{[]byte("1234")}},
+				).AnyTimes().Return(beacons, nil)
+				return api.Handler(s)
+			},
+			RequestURL: "/beacons/" + hex.EncodeToString([]byte("1234")),
+			Status:     400,
+		},
+		"beacon blob": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &api.Server{
+					Beacons: bs,
+				}
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{SegIDs: [][]byte{beacons[0].Beacon.Segment.ID()}},
+				).AnyTimes().Return(beacons[:1], nil)
+				return api.Handler(s)
+			},
+			RequestURL: fmt.Sprintf(
+				"/beacons/%s/blob",
+				hex.EncodeToString(beacons[0].Beacon.Segment.ID()),
+			),
+			Status: 200,
+		},
+		"beacon id prefix blob": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &api.Server{
+					Beacons: bs,
+				}
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{SegIDs: [][]byte{beacons[0].Beacon.Segment.ID()[:10]}},
+				).AnyTimes().Return(beacons[:1], nil)
+				return api.Handler(s)
+			},
+			RequestURL: fmt.Sprintf(
+				"/beacons/%s/blob",
+				hex.EncodeToString(beacons[0].Beacon.Segment.ID()[:10]),
+			),
+			Status: 200,
+		},
+		"beacon no matches blob": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &api.Server{
+					Beacons: bs,
+				}
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{SegIDs: [][]byte{[]byte("1234")}},
+				).AnyTimes().Return([]beacon.Beacon{}, nil)
+				return api.Handler(s)
+			},
+			RequestURL: fmt.Sprintf("/beacons/%s/blob", hex.EncodeToString([]byte("1234"))),
+			Status:     400,
+		},
+		"beacon no unique match blob": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				bs := mock_api.NewMockBeaconStore(ctrl)
+				s := &api.Server{
+					Beacons: bs,
+				}
+				bs.EXPECT().GetBeacons(
+					gomock.Any(),
+					&beacon.QueryParams{SegIDs: [][]byte{[]byte("1234")}},
+				).AnyTimes().Return(beacons, nil)
+				return api.Handler(s)
+			},
+			RequestURL: fmt.Sprintf("/beacons/%s/blob", hex.EncodeToString([]byte("1234"))),
+			Status:     400,
 		},
 		"signer": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
@@ -609,9 +731,9 @@ func TestAPI(t *testing.T) {
 			goldenFile := "testdata/" + xtest.SanitizedName(t)
 			if *update {
 				raw := strings.ReplaceAll(rr.Body.String(), expiresAt, "EXPIRES_AT")
-				require.NoError(t, ioutil.WriteFile(goldenFile, []byte(raw), 0666))
+				require.NoError(t, os.WriteFile(goldenFile, []byte(raw), 0666))
 			}
-			goldenRaw, err := ioutil.ReadFile(goldenFile)
+			goldenRaw, err := os.ReadFile(goldenFile)
 			require.NoError(t, err)
 			golden := strings.ReplaceAll(string(goldenRaw), "EXPIRES_AT", expiresAt)
 			assert.Equal(t, golden, rr.Body.String())
@@ -627,13 +749,34 @@ func createBeacons(t *testing.T) []beacon.Beacon {
 					Info: seg.Info{
 						Timestamp: time.Date(2021, 1, 1, 8, 0, 0, 0, time.UTC),
 					},
-					ASEntries: []seg.ASEntry{{
-						Local: addr.IA{I: 0, A: 0},
-						Next:  addr.IA{I: 1, A: 1},
-					}}},
+					ASEntries: []seg.ASEntry{
+						{
+							Local: xtest.MustParseIA("1-ff00:0:110"),
+							Next:  xtest.MustParseIA("1-ff00:0:111"),
+							HopEntry: seg.HopEntry{
+								HopField: seg.HopField{
+									ConsIngress: 0,
+									ConsEgress:  1,
+								},
+								IngressMTU: 1200,
+							},
+						},
+						{
+							Local: xtest.MustParseIA("1-ff00:0:111"),
+							Next:  xtest.MustParseIA("1-ff00:0:112"),
+							HopEntry: seg.HopEntry{
+								HopField: seg.HopField{
+									ConsIngress: 2,
+									ConsEgress:  3,
+								},
+								IngressMTU: 1200,
+							},
+						},
+					},
+				},
 				InIfId: 2,
 			},
-			Usage:       beaconlib.UsageCoreReg | beaconlib.UsageDownReg,
+			Usage:       beaconlib.UsageUpReg | beaconlib.UsageDownReg,
 			LastUpdated: time.Date(2021, 1, 2, 8, 0, 0, 0, time.UTC),
 		},
 		{
@@ -642,13 +785,32 @@ func createBeacons(t *testing.T) []beacon.Beacon {
 					Info: seg.Info{
 						Timestamp: time.Date(2021, 2, 1, 8, 0, 0, 0, time.UTC),
 					},
-					ASEntries: []seg.ASEntry{{
-						Local: addr.IA{I: 2, A: 2},
-						Next:  addr.IA{I: 3, A: 3},
-					}}},
+					ASEntries: []seg.ASEntry{
+						{
+							Local: xtest.MustParseIA("2-ff00:0:220"),
+							Next:  xtest.MustParseIA("3-ff00:0:330"),
+							HopEntry: seg.HopEntry{
+								HopField: seg.HopField{
+									ConsIngress: 0,
+									ConsEgress:  5,
+								},
+							},
+						},
+						{
+							Local: xtest.MustParseIA("3-ff00:0:330"),
+							Next:  xtest.MustParseIA("4-ff00:0:440"),
+							HopEntry: seg.HopEntry{
+								HopField: seg.HopField{
+									ConsIngress: 6,
+									ConsEgress:  7,
+								},
+							},
+						},
+					},
+				},
 				InIfId: 1,
 			},
-			Usage:       beaconlib.UsageCoreReg | beaconlib.UsageDownReg,
+			Usage:       beaconlib.UsageCoreReg,
 			LastUpdated: time.Date(2021, 2, 2, 8, 0, 0, 0, time.UTC),
 		},
 	}

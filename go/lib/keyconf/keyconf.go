@@ -17,7 +17,7 @@ package keyconf
 import (
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -41,7 +41,7 @@ const (
 
 // loadKey decodes a base64 encoded key stored in file and returns the raw bytes.
 func loadKey(file string, algo string) ([]byte, error) {
-	b, err := ioutil.ReadFile(file)
+	b, err := os.ReadFile(file)
 	if err != nil {
 		return nil, serrors.Wrap(ErrOpen, err)
 	}

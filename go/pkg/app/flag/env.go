@@ -51,7 +51,7 @@ func (v *stringVal) String() string { return string(*v) }
 type iaVal addr.IA
 
 func (v *iaVal) Set(val string) error {
-	ia, err := addr.IAFromString(val)
+	ia, err := addr.ParseIA(val)
 	if err != nil {
 		return err
 	}

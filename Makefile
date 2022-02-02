@@ -24,7 +24,7 @@ bazel:
 	tar -kxf bazel-bin/scion-ci.tar -C bin
 
 test:
-	bazel test --config=unit --test_output=errors
+	bazel test --config=unit_all --test_output=errors
 
 go_deps.bzl: go.mod
 	@tools/godeps.sh
@@ -53,4 +53,4 @@ lint:
 	./scion.sh lint
 
 golangci-lint:
-	docker run --rm -v "${PWD}:/src" -w /src golangci/golangci-lint:v1.41.1 golangci-lint run --config=/src/.golangcilint.yml --timeout=3m go/...
+	docker run --rm -v "${PWD}:/src" -w /src golangci/golangci-lint:v1.43.0 golangci-lint run --config=/src/.golangcilint.yml --timeout=3m go/...

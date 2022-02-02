@@ -16,7 +16,7 @@ steps:
   - label: "UT: unit tests & lint :bazel::bash:"
     if: build.message !~ /\[doc\]/
     command:
-      - bazel test --config=unit --cache_test_results=${BAZEL_CACHE_TEST_RESULTS:-auto}
+      - bazel test --config=unit_all --cache_test_results=${BAZEL_CACHE_TEST_RESULTS:-auto}
       - make lint
       - make golangci-lint
     key: unit_tests

@@ -65,7 +65,7 @@ func (i *SCMPExternalInterfaceDown) DecodeFromBytes(data []byte,
 		return serrors.New("buffer too short", "mininum_legth", minLength, "actual", size)
 	}
 	offset := 0
-	i.IA = addr.IAFromRaw(data[offset:])
+	i.IA = addr.IA(binary.BigEndian.Uint64(data[offset:]))
 	offset += addr.IABytes
 	i.IfID = binary.BigEndian.Uint64(data[offset : offset+scmpRawInterfaceLen])
 	offset += scmpRawInterfaceLen
@@ -86,7 +86,7 @@ func (i *SCMPExternalInterfaceDown) SerializeTo(b gopacket.SerializeBuffer,
 		return err
 	}
 	offset := 0
-	i.IA.Write(buf[offset:])
+	binary.BigEndian.PutUint64(buf[offset:], uint64(i.IA))
 	offset += addr.IABytes
 	binary.BigEndian.PutUint64(buf[offset:offset+scmpRawInterfaceLen], i.IfID)
 	return nil
@@ -148,7 +148,7 @@ func (i *SCMPInternalConnectivityDown) DecodeFromBytes(data []byte,
 		return serrors.New("buffer too short", "mininum_legth", minLength, "actual", size)
 	}
 	offset := 0
-	i.IA = addr.IAFromRaw(data[offset:])
+	i.IA = addr.IA(binary.BigEndian.Uint64(data[offset:]))
 	offset += addr.IABytes
 	i.Ingress = binary.BigEndian.Uint64(data[offset : offset+scmpRawInterfaceLen])
 	offset += scmpRawInterfaceLen
@@ -171,7 +171,7 @@ func (i *SCMPInternalConnectivityDown) SerializeTo(b gopacket.SerializeBuffer,
 		return err
 	}
 	offset := 0
-	i.IA.Write(buf[offset:])
+	binary.BigEndian.PutUint64(buf[offset:], uint64(i.IA))
 	offset += addr.IABytes
 	binary.BigEndian.PutUint64(buf[offset:offset+scmpRawInterfaceLen], i.Ingress)
 	offset += scmpRawInterfaceLen
@@ -359,7 +359,7 @@ func (i *SCMPTraceroute) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback
 	offset += 2
 	i.Sequence = binary.BigEndian.Uint16(data[offset : offset+2])
 	offset += 2
-	i.IA = addr.IAFromRaw(data[offset : offset+addr.IABytes])
+	i.IA = addr.IA(binary.BigEndian.Uint64(data[offset : offset+addr.IABytes]))
 	offset += addr.IABytes
 	i.Interface = binary.BigEndian.Uint64(data[offset : offset+scmpRawInterfaceLen])
 	offset += scmpRawInterfaceLen
@@ -384,7 +384,7 @@ func (i *SCMPTraceroute) SerializeTo(b gopacket.SerializeBuffer,
 	offset += 2
 	binary.BigEndian.PutUint16(buf[offset:offset+2], i.Sequence)
 	offset += 2
-	i.IA.Write(buf[offset : offset+addr.IABytes])
+	binary.BigEndian.PutUint64(buf[offset:offset+addr.IABytes], uint64(i.IA))
 	offset += addr.IABytes
 	binary.BigEndian.PutUint64(buf[offset:offset+scmpRawInterfaceLen], i.Interface)
 	return nil

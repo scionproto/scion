@@ -213,7 +213,7 @@ func (e *Engine) Status(w io.Writer) {
 		sortedIAs = append(sortedIAs, ia)
 	}
 	sort.Slice(sortedIAs, func(i, j int) bool {
-		return sortedIAs[i].IAInt() < sortedIAs[j].IAInt()
+		return sortedIAs[i] < sortedIAs[j]
 	})
 	printSessions := func(m map[uint8]*session) {
 		iaSessions := make([]*session, 0, len(m))

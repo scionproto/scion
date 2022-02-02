@@ -148,11 +148,11 @@ func (x *executor) GetSegmentRsvsFromSrcDstIA(ctx context.Context, srcIA, dstIA 
 	params := make([]interface{}, 0, 2)
 	if !srcIA.IsZero() {
 		conditions = append(conditions, "src_ia = ?")
-		params = append(params, srcIA.IAInt())
+		params = append(params, srcIA)
 	}
 	if !dstIA.IsZero() {
 		conditions = append(conditions, "dst_ia = ?")
-		params = append(params, dstIA.IAInt())
+		params = append(params, dstIA)
 	}
 	if len(conditions) == 0 {
 		return nil, serrors.New("no src or dst ia provided")
@@ -370,7 +370,7 @@ func insertNewSegReservation(ctx context.Context, x *sql.Tx, rsv *segment.Reserv
 		VALUES (?, ?,?,?,?,?,?,?,?,?)`
 	res, err := x.ExecContext(ctx, query, rsv.ID.ASID, suffix,
 		rsv.Ingress, rsv.Egress, rsv.Path.ToRaw(), rsv.PathEndProps, rsv.TrafficSplit,
-		rsv.Path.GetSrcIA().IAInt(), rsv.Path.GetDstIA().IAInt(), activeIndex)
+		rsv.Path.GetSrcIA(), rsv.Path.GetDstIA(), activeIndex)
 	if err != nil {
 		return err
 	}

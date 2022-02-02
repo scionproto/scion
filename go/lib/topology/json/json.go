@@ -20,7 +20,7 @@ package json
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -145,7 +145,7 @@ func Load(b []byte) (*Topology, error) {
 
 // LoadFromFile parses a topology from a file.
 func LoadFromFile(path string) (*Topology, error) {
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, serrors.WrapStr("unable to open topology", err, "path", path)
 	}

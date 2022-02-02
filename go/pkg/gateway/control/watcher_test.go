@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
@@ -142,9 +141,11 @@ func TestPrefixWatcherRun(t *testing.T) {
 			return first, nil
 		},
 	)
-	consumer.EXPECT().Prefixes(gomock.Any(), gateway, first).Do(func(_, _, _ interface{}) {
-		consumerCounts.Add(1)
-	})
+	consumer.EXPECT().Prefixes(gomock.Any(), gateway, first).Do(
+		func(_, _, _ interface{}) {
+			consumerCounts.Add(1)
+		},
+	)
 
 	afterwards := []*net.IPNet{cidr(t, "127.0.0.0/24"), cidr(t, "::/64")}
 	fetcher.EXPECT().Prefixes(gomock.Any(), gateway.Control).AnyTimes().DoAndReturn(
@@ -164,7 +165,7 @@ func TestPrefixWatcherRun(t *testing.T) {
 		FetcherFactory: fetcherFactory,
 		PollInterval:   1 * time.Millisecond,
 	}
-	w := control.NewPrefixWatcher(context.Background(), gateway, addr.IA{}, cfg)
+	w := control.NewPrefixWatcher(context.Background(), gateway, 0, cfg)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()

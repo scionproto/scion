@@ -16,8 +16,8 @@ package dataplane_test
 
 import (
 	"bytes"
-	"io/ioutil"
 	"net"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -70,12 +70,12 @@ func TestDiagnosticWriter(t *testing.T) {
 			var buf bytes.Buffer
 			tc.prepareDW(t).DiagnosticsWrite(&buf)
 			if *update {
-				err := ioutil.WriteFile(tc.wantFile, buf.Bytes(), 0644)
+				err := os.WriteFile(tc.wantFile, buf.Bytes(), 0644)
 				require.NoError(t, err)
 				return
 			}
 
-			want, err := ioutil.ReadFile(tc.wantFile)
+			want, err := os.ReadFile(tc.wantFile)
 			require.NoError(t, err)
 			assert.Equal(t, string(want), buf.String())
 		})

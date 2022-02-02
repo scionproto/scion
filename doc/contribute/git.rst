@@ -99,7 +99,7 @@ Run the tests using:
 
 .. code-block:: bash
 
-   bazel test --config=unit
+   bazel test --config=unit_all
 
 The above runs only the unit tests. As soon as you open your PR, some additional tests
 will run automatically.

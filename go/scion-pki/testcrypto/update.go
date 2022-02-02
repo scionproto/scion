@@ -23,7 +23,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -395,7 +394,7 @@ func findkey(dir string, cert *x509.Certificate) (crypto.Signer, error) {
 		return nil, err
 	}
 	for _, file := range files {
-		raw, err := ioutil.ReadFile(file)
+		raw, err := os.ReadFile(file)
 		if err != nil {
 			continue
 		}
@@ -435,7 +434,7 @@ func createKey(file string) (crypto.Signer, error) {
 	if raw == nil {
 		return nil, serrors.New("failed to pack private key")
 	}
-	if err := ioutil.WriteFile(file, raw, 0644); err != nil {
+	if err := os.WriteFile(file, raw, 0644); err != nil {
 		return nil, serrors.WrapStr("writing private key", err)
 	}
 	return key, nil
@@ -459,6 +458,7 @@ func extendCert(now time.Time, cert *x509.Certificate,
 	tmpl.NotAfter = now.Add(730 * 24 * time.Hour)
 	tmpl.Subject = subject
 	tmpl.SerialNumber = new(big.Int).SetBytes(serial)
+	tmpl.PublicKey = key.Public()
 
 	raw, err := x509.CreateCertificate(rand.Reader, &tmpl, &tmpl, key.Public(), key)
 	if err != nil {
@@ -485,5 +485,5 @@ func writeTRC(out outConfig, trc cppki.SignedTRC) error {
 	}
 	file := filepath.Join(out.base, "trcs",
 		fmt.Sprintf("ISD%d-B%d-S%d.trc", trc.TRC.ID.ISD, trc.TRC.ID.Base, trc.TRC.ID.Serial))
-	return ioutil.WriteFile(file, raw, 0644)
+	return os.WriteFile(file, raw, 0644)
 }

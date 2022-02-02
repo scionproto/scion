@@ -117,8 +117,9 @@ func TestCAPolicyCreateChain(t *testing.T) {
 
 	for name, tc := range testCases {
 		name, tc := name, tc
+		// This test must not be run in parallel because we modify the CA
+		// certificate struct.
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 			ca := cppki.CAPolicy{
 				Validity:             tc.Validity,
 				Certificate:          chain[1],
@@ -126,6 +127,7 @@ func TestCAPolicyCreateChain(t *testing.T) {
 				CurrentTime:          chain[0].NotBefore,
 				ForceECDSAWithSHA512: tc.ForceECDSAWithSHA512,
 			}
+			ca.Certificate.PublicKey = ca.Signer.Public()
 			gen, err := ca.CreateChain(tc.CSR(t))
 			tc.ErrAssertion(t, err)
 			if err != nil {

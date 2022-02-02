@@ -16,7 +16,6 @@ package routing_test
 
 import (
 	"bytes"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -31,12 +30,12 @@ import (
 )
 
 func TestLoadPolicy(t *testing.T) {
-	dir, err := ioutil.TempDir("", "gateway-routing")
+	dir, err := os.MkdirTemp("", "gateway-routing")
 	require.NoError(t, err)
 	defer os.RemoveAll(dir)
 
 	writeTempFile := func(t *testing.T, raw []byte) string {
-		f, err := ioutil.TempFile(dir, "gateway-routing")
+		f, err := os.CreateTemp(dir, "gateway-routing")
 		require.NoError(t, err)
 		_, err = f.Write(raw)
 		require.NoError(t, err)
@@ -97,12 +96,12 @@ func TestLoadPolicy(t *testing.T) {
 }
 
 func TestNewPolicyHandler(t *testing.T) {
-	dir, err := ioutil.TempDir("", "gateway-routing")
+	dir, err := os.MkdirTemp("", "gateway-routing")
 	require.NoError(t, err)
 	defer os.RemoveAll(dir)
 
 	writeTempFile := func(t *testing.T, raw []byte) string {
-		f, err := ioutil.TempFile(dir, "gateway-routing")
+		f, err := os.CreateTemp(dir, "gateway-routing")
 		require.NoError(t, err)
 		_, err = f.Write(raw)
 		require.NoError(t, err)
@@ -240,7 +239,7 @@ func TestNewPolicyHandler(t *testing.T) {
 				assert.Equal(t, ht.ExpectedBody, w.Body.Bytes())
 			}
 			if ht.ExpectedFile != "" {
-				fileContent, err := ioutil.ReadFile(ht.ExpectedFile)
+				fileContent, err := os.ReadFile(ht.ExpectedFile)
 				require.NoError(t, err)
 				assert.Equal(t, ht.ExpectedFileContent, fileContent, "file content")
 			}

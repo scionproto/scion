@@ -164,12 +164,12 @@ func (e *executor) Chains(ctx context.Context,
 		filters = append(filters, fmt.Sprintf("not_before<=$%d AND not_after>=$%d",
 			len(args), len(args)))
 	}
-	if query.IA.I != 0 {
-		args = append(args, query.IA.I)
+	if query.IA.ISD() != 0 {
+		args = append(args, query.IA.ISD())
 		filters = append(filters, fmt.Sprintf("isd_id=$%d", len(args)))
 	}
-	if query.IA.A != 0 {
-		args = append(args, query.IA.A)
+	if query.IA.AS() != 0 {
+		args = append(args, query.IA.AS())
 		filters = append(filters, fmt.Sprintf("as_id=$%d", len(args)))
 	}
 	if len(filters) != 0 {
@@ -246,7 +246,7 @@ func (e *executor) InsertChain(ctx context.Context, chain []*x509.Certificate) (
 			  ON CONFLICT DO NOTHING`
 	var inserted bool
 	err = db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
-		r, err := tx.ExecContext(ctx, query, ia.I, ia.A, chain[0].SubjectKeyId,
+		r, err := tx.ExecContext(ctx, query, ia.ISD(), ia.AS(), chain[0].SubjectKeyId,
 			chain[0].NotBefore.UTC(), chain[0].NotAfter.UTC(),
 			truststorage.ChainID(chain), chain[0].Raw, chain[1].Raw)
 		if err != nil {

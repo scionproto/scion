@@ -21,11 +21,12 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto/cms/protocol"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -77,7 +78,7 @@ An alternative name can be specified with the --out flag.
 
 func RunSign(pld, certfile, keyfile, out, outDir string) error {
 	// Read TRC payload
-	rawPld, err := ioutil.ReadFile(pld)
+	rawPld, err := os.ReadFile(pld)
 	if err != nil {
 		return serrors.WrapStr("error loading payload", err)
 	}
@@ -91,7 +92,7 @@ func RunSign(pld, certfile, keyfile, out, outDir string) error {
 		return err
 	}
 	// Load signing cert
-	rawCert, err := ioutil.ReadFile(certfile)
+	rawCert, err := os.ReadFile(certfile)
 	if err != nil {
 		return serrors.WrapStr("error loading signer", err)
 	}
@@ -129,7 +130,7 @@ func RunSign(pld, certfile, keyfile, out, outDir string) error {
 	if err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(fname, signed, 0644); err != nil {
+	if err := os.WriteFile(fname, signed, 0644); err != nil {
 		return serrors.WrapStr("error writing signed TRC paylod", err)
 	}
 	fmt.Printf("Successfully signed TRC payload at %s\n", out)
@@ -168,7 +169,7 @@ func outPath(out, outDir string, trc *cppki.TRC, cert *x509.Certificate) (string
 		return "", serrors.WrapStr("determining cert type", err)
 	}
 	fname := fmt.Sprintf("ISD%d-B%d-S%d.%s-%s.trc", trc.ID.ISD, trc.ID.Base, trc.ID.Serial,
-		ia.FileFmt(false), signType)
+		addr.FormatIA(ia, addr.WithFileSeparator()), signType)
 	return filepath.Join(outDir, fname), nil
 }
 

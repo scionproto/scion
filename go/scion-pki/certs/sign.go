@@ -18,7 +18,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"time"
 
@@ -107,7 +106,7 @@ and not to --not-before.
 				return serrors.WrapStr("parsing CSR", err)
 			}
 
-			caCertRaw, err := ioutil.ReadFile(flags.ca)
+			caCertRaw, err := os.ReadFile(flags.ca)
 			if err != nil {
 				return serrors.WrapStr("read CA certificate", err)
 			}

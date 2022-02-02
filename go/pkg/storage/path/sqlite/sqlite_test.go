@@ -18,7 +18,6 @@ package sqlite
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -104,7 +103,7 @@ func setupDB(t *testing.T) (*Backend, string) {
 }
 
 func tempFilename(t *testing.T) string {
-	dir, err := ioutil.TempDir("", "pathdb-sqlite")
+	dir, err := os.MkdirTemp("", "pathdb-sqlite")
 	require.NoError(t, err)
 	return path.Join(dir, t.Name())
 }

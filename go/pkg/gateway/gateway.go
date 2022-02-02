@@ -26,6 +26,7 @@ import (
 	quic "github.com/lucas-clemente/quic-go"
 	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
+	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/daemon"
@@ -157,7 +158,7 @@ type SelectAdvertisedRoutes struct {
 	ConfigPublisher *control.ConfigPublisher
 }
 
-func (a *SelectAdvertisedRoutes) AdvertiseList(from, to addr.IA) []*net.IPNet {
+func (a *SelectAdvertisedRoutes) AdvertiseList(from, to addr.IA) ([]netaddr.IPPrefix, error) {
 	return routing.AdvertiseList(a.ConfigPublisher.RoutingPolicy(), from, to)
 }
 

@@ -41,7 +41,12 @@ type SenderFactory interface {
 	// NewSender creates a new beacon sender to the specified ISD-AS over the given egress
 	// interface. Nexthop is the internal router endpoint that owns the egress interface. The caller
 	// is required to close the sender once it's not used anymore.
-	NewSender(ctx context.Context, dst addr.IA, egress uint16, nexthop *net.UDPAddr) (Sender, error)
+	NewSender(
+		ctx context.Context,
+		dst addr.IA,
+		egress uint16,
+		nexthop *net.UDPAddr,
+	) (Sender, error)
 }
 
 // Sender sends beacons on an established connection.

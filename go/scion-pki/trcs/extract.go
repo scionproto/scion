@@ -18,7 +18,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -71,7 +70,7 @@ To inspect the created asn.1 file you can use the openssl tool:
 					Bytes: raw,
 				})
 			}
-			if err := ioutil.WriteFile(flags.out, raw, 0644); err != nil {
+			if err := os.WriteFile(flags.out, raw, 0644); err != nil {
 				return serrors.WrapStr("failed to write extracted payload", err)
 			}
 			fmt.Printf("Successfully extracted payload at %s\n", flags.out)
