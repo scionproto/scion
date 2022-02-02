@@ -28,7 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/daemon/fake"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -135,7 +135,7 @@ func TestPaths(t *testing.T) {
 	assert.NotEqual(t, "", string(snet.Fingerprint(paths[0])))
 	assert.Equal(t, entry0PathInterfaces, paths[0].Metadata().Interfaces)
 	assert.Equal(t, &net.UDPAddr{IP: net.IP{10, 0, 0, 1}, Port: 80}, paths[0].UnderlayNextHop())
-	assert.Equal(t, spath.Path{}, paths[0].Path())
+	assert.Equal(t, path.SCION{}, paths[0].Dataplane())
 	assert.Equal(t, paths[0].Destination(), paths[0].Metadata().Interfaces[1].IA)
 	assert.Equal(t, xtest.MustParseIA("1-ff00:0:1"), paths[0].Destination())
 	assert.Equal(t, uint16(1472), paths[0].Metadata().MTU)
@@ -157,7 +157,7 @@ func TestPaths(t *testing.T) {
 	assert.NotEqual(t, "", string(snet.Fingerprint(paths[0])))
 	assert.Equal(t, entry1PathInterfaces, paths[0].Metadata().Interfaces)
 	assert.Equal(t, &net.UDPAddr{IP: net.IP{10, 0, 0, 2}, Port: 80}, paths[0].UnderlayNextHop())
-	assert.Equal(t, spath.Path{}, paths[0].Path())
+	assert.Equal(t, path.SCION{}, paths[0].Dataplane())
 	assert.Equal(t, 2, len(paths[0].Metadata().Interfaces))
 	assert.Equal(t, paths[0].Destination(), paths[0].Metadata().Interfaces[1].IA)
 	assert.Equal(t, xtest.MustParseIA("2-ff00:0:2"), paths[0].Destination())

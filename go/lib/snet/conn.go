@@ -19,6 +19,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/slayers"
 )
@@ -46,13 +47,22 @@ type Conn struct {
 	scionConnReader
 }
 
-func newConn(base *scionConnBase, conn PacketConn) *Conn {
+func newConn(base scionConnBase, conn PacketConn, replyPather ReplyPather) *Conn {
 	c := &Conn{
 		conn:          conn,
-		scionConnBase: *base,
+		scionConnBase: base,
 	}
-	c.scionConnWriter = *newScionConnWriter(&c.scionConnBase, conn)
-	c.scionConnReader = *newScionConnReader(&c.scionConnBase, conn)
+	c.scionConnWriter = scionConnWriter{
+		base:   &c.scionConnBase,
+		conn:   conn,
+		buffer: make([]byte, common.SupportedMTU),
+	}
+	c.scionConnReader = scionConnReader{
+		base:        &c.scionConnBase,
+		conn:        conn,
+		buffer:      make([]byte, common.SupportedMTU),
+		replyPather: replyPather,
+	}
 	return c
 }
 

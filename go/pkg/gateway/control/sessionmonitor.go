@@ -213,7 +213,7 @@ func (m *SessionMonitor) sendProbe(ctx context.Context) {
 		IA:      m.RemoteIA,
 		Host:    m.ProbeAddr,
 		NextHop: paths[0].UnderlayNextHop(),
-		Path:    paths[0].Path(),
+		Path:    paths[0].Dataplane(),
 	}
 	// TODO(sustrik): This should not block. Use SetWriteDeadline.
 	// Do so when creating the connection.

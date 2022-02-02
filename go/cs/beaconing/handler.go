@@ -129,7 +129,7 @@ func (h Handler) verifySegment(ctx context.Context, segment *seg.PathSegment,
 	}
 	svcToQuery := &snet.SVCAddr{
 		IA:      peer.IA,
-		Path:    peerPath.Path(),
+		Path:    peerPath.Dataplane(),
 		NextHop: peerPath.UnderlayNextHop(),
 		SVC:     addr.SvcCS,
 	}

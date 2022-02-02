@@ -28,13 +28,14 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // StatusName defines the different states a path can be in.
@@ -68,11 +69,12 @@ func (s Status) String() string {
 // PathKey is the mapping of a path reply entry to a key that is returned in
 // GetStatuses.
 func PathKey(path snet.Path) string {
-	spath := path.Path()
-	if spath.IsEmpty() {
+	dp := path.Dataplane()
+	scionPath, ok := dp.(snetpath.SCION)
+	if !ok {
 		return ""
 	}
-	return string(spath.Raw)
+	return string(scionPath.Raw)
 }
 
 // FilterEmptyPaths removes all empty paths from paths and returns a copy.
@@ -82,7 +84,7 @@ func FilterEmptyPaths(paths []snet.Path) []snet.Path {
 	}
 	filtered := make([]snet.Path, 0, len(paths))
 	for _, path := range paths {
-		if !path.Path().IsEmpty() && len(path.Path().Raw) > 0 {
+		if _, isEmpty := path.Dataplane().(snetpath.Empty); !isEmpty {
 			filtered = append(filtered, path)
 		}
 	}
@@ -115,6 +117,12 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path) (map[string]
 	deadline, ok := ctx.Deadline()
 	if !ok {
 		return nil, serrors.New("deadline required on ctx")
+	}
+
+	for _, path := range paths {
+		if _, ok := path.Dataplane().(snetpath.SCION); !ok {
+			return nil, serrors.New("paths must be of type SCION")
+		}
 	}
 
 	// Check whether paths are alive. This is done by sending a traceroute
@@ -173,13 +181,33 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path) (map[string]
 
 			// Send probe for each path.
 			for _, path := range paths {
-				seqNr := atomic.AddInt32(&seq, 1)
-				localAddr := snet.SCIONAddress{
-					IA:   p.LocalIA,
-					Host: addr.HostFromIP(localIP),
+				originalPath, ok := path.Dataplane().(snetpath.SCION)
+				if !ok {
+					return serrors.New("not a scion path")
 				}
-				if err := p.sendProbe(conn, localAddr, path, uint16(seqNr)); err != nil {
-					return serrors.WrapStr("sending probe", err, "local", localIP)
+				alertPath, err := setAlertFlag(originalPath)
+				if err != nil {
+					return serrors.WrapStr("setting alert flag", err)
+				}
+				pkt := &snet.Packet{
+					PacketInfo: snet.PacketInfo{
+						Destination: snet.SCIONAddress{
+							IA:   p.DstIA,
+							Host: addr.SvcNone,
+						},
+						Source: snet.SCIONAddress{
+							IA:   p.LocalIA,
+							Host: addr.HostFromIP(localIP),
+						},
+						Path: alertPath,
+						Payload: snet.SCMPTracerouteRequest{
+							Identifier: p.ID,
+							Sequence:   uint16(atomic.AddInt32(&seq, 1)),
+						},
+					},
+				}
+				if err := conn.WriteTo(pkt, path.UnderlayNextHop()); err != nil {
+					return err
 				}
 			}
 
@@ -224,33 +252,6 @@ func (p Prober) resolveLocalIP(target *net.UDPAddr) (net.IP, error) {
 	return localIP, nil
 }
 
-func (p Prober) sendProbe(
-	scionConn snet.PacketConn,
-	localAddr snet.SCIONAddress,
-	path snet.Path,
-	nextSeq uint16,
-) error {
-	alertingPath := path.Path()
-	if err := setAlertFlag(&alertingPath, true); err != nil {
-		return err
-	}
-	pkt := &snet.Packet{
-		PacketInfo: snet.PacketInfo{
-			Destination: snet.SCIONAddress{
-				IA:   p.DstIA,
-				Host: addr.SvcNone,
-			},
-			Source: localAddr,
-			Path:   alertingPath,
-			Payload: snet.SCMPTracerouteRequest{
-				Identifier: p.ID,
-				Sequence:   nextSeq,
-			},
-		},
-	}
-	return scionConn.WriteTo(pkt, path.UnderlayNextHop())
-}
-
 type reply struct {
 	Status  Status
 	PathKey string
@@ -263,12 +264,23 @@ func (r reply) Error() string {
 type scmpHandler struct{}
 
 func (h *scmpHandler) Handle(pkt *snet.Packet) error {
-	// XXX(hendrikzuellig): This modifies the packet's path.
-	// We do not care because the packet is discarded anyway.
-	reversePath := pkt.Path
-	reversePath.Reverse()
-	if err := setAlertFlag(&reversePath, false); err != nil {
-		return err
+	path, ok := pkt.Path.(snet.RawPath)
+	if !ok {
+		return serrors.New("not an snet.RawPath")
+	}
+	replyPath, err := snet.DefaultReplyPather{}.ReplyPath(path)
+	if err != nil {
+		return serrors.WrapStr("creating reply path", err)
+	}
+	rawReplyPath, ok := replyPath.(snet.RawReplyPath)
+	if !ok {
+		return serrors.New("not an snet.RawReplyPath", "type", common.TypeOf(replyPath))
+	}
+	scionReplyPath := snetpath.SCION{
+		Raw: make([]byte, rawReplyPath.Path.Len()),
+	}
+	if err := rawReplyPath.Path.SerializeTo(scionReplyPath.Raw); err != nil {
+		return serrors.WrapStr("serialization failed", err)
 	}
 	status, err := h.toStatus(pkt)
 	if err != nil {
@@ -276,7 +288,7 @@ func (h *scmpHandler) Handle(pkt *snet.Packet) error {
 	}
 	return reply{
 		Status:  status,
-		PathKey: string(reversePath.Raw),
+		PathKey: PathKey(snetpath.Path{DataplanePath: scionReplyPath}),
 	}
 }
 
@@ -311,21 +323,18 @@ func (h *scmpHandler) toStatus(pkt *snet.Packet) (Status, error) {
 	}
 }
 
-func setAlertFlag(path *spath.Path, flag bool) error {
-	decodedPath := scion.Decoded{}
-	if err := decodedPath.DecodeFromBytes((*path).Raw); err != nil {
-		return serrors.WrapStr("decoding path", err)
+func setAlertFlag(original snetpath.SCION) (snetpath.SCION, error) {
+	var decoded scion.Decoded
+	if err := decoded.DecodeFromBytes(original.Raw); err != nil {
+		return snetpath.SCION{}, serrors.WrapStr("decoding path", err)
 	}
-	if len(decodedPath.InfoFields) > 0 {
-		infoF := decodedPath.InfoFields[len(decodedPath.InfoFields)-1]
-		if infoF.ConsDir {
-			decodedPath.HopFields[len(decodedPath.HopFields)-1].IngressRouterAlert = flag
+	if len(decoded.InfoFields) > 0 {
+		info := decoded.InfoFields[len(decoded.InfoFields)-1]
+		if info.ConsDir {
+			decoded.HopFields[len(decoded.HopFields)-1].IngressRouterAlert = true
 		} else {
-			decodedPath.HopFields[len(decodedPath.HopFields)-1].EgressRouterAlert = flag
+			decoded.HopFields[len(decoded.HopFields)-1].EgressRouterAlert = true
 		}
 	}
-	if err := decodedPath.SerializeTo((*path).Raw); err != nil {
-		return serrors.WrapStr("serializing path", err)
-	}
-	return nil
+	return snetpath.NewSCIONFromDecoded(decoded)
 }

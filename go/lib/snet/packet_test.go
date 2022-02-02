@@ -22,19 +22,17 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestPacketSerializeDecodeLoop(t *testing.T) {
-	decodedOHP := onehop.Path{}
-	rawOHP := make([]byte, decodedOHP.Len())
-	require.NoError(t, decodedOHP.SerializeTo(rawOHP))
 	scionP := scion.Decoded{
 		Base: scion.Base{
 			PathMeta: scion.MetaHdr{
@@ -60,10 +58,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					IA:   xtest.MustParseIA("1-ff00:0:112"),
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
-				Path: spath.Path{
-					Raw:  rawOHP,
-					Type: onehop.PathType,
-				},
+				Path: snetpath.OneHop{},
 				Payload: snet.UDPPayload{
 					SrcPort: 25,
 					DstPort: 1925,
@@ -81,9 +76,8 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					IA:   xtest.MustParseIA("1-ff00:0:112"),
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
-				Path: spath.Path{
-					Raw:  rawSP,
-					Type: scion.PathType,
+				Path: snetpath.SCION{
+					Raw: rawSP,
 				},
 				Payload: snet.UDPPayload{
 					SrcPort: 25,
@@ -102,9 +96,8 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					IA:   xtest.MustParseIA("1-ff00:0:112"),
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
-				Path: spath.Path{
-					Raw:  rawSP,
-					Type: scion.PathType,
+				Path: snetpath.SCION{
+					Raw: rawSP,
 				},
 				Payload: snet.SCMPEchoRequest{
 					Identifier: 4,
@@ -123,9 +116,8 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					IA:   xtest.MustParseIA("1-ff00:0:112"),
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
-				Path: spath.Path{
-					Raw:  rawSP,
-					Type: scion.PathType,
+				Path: snetpath.SCION{
+					Raw: rawSP,
 				},
 				Payload: snet.SCMPEchoReply{
 					Identifier: 5,
@@ -144,9 +136,8 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					IA:   xtest.MustParseIA("1-ff00:0:112"),
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
-				Path: spath.Path{
-					Raw:  rawSP,
-					Type: scion.PathType,
+				Path: snetpath.SCION{
+					Raw: rawSP,
 				},
 				Payload: snet.SCMPExternalInterfaceDown{
 					IA:        xtest.MustParseIA("1-ff00:0:111"),
@@ -165,9 +156,8 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					IA:   xtest.MustParseIA("1-ff00:0:112"),
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
-				Path: spath.Path{
-					Raw:  rawSP,
-					Type: scion.PathType,
+				Path: snetpath.SCION{
+					Raw: rawSP,
 				},
 				Payload: snet.SCMPInternalConnectivityDown{
 					IA:      xtest.MustParseIA("1-ff00:0:111"),
@@ -187,9 +177,8 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					IA:   xtest.MustParseIA("1-ff00:0:112"),
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
-				Path: spath.Path{
-					Raw:  rawSP,
-					Type: scion.PathType,
+				Path: snetpath.SCION{
+					Raw: rawSP,
 				},
 				Payload: snet.SCMPParameterProblemWithCode(
 					snet.SCMPParameterProblem{
@@ -210,9 +199,8 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					IA:   xtest.MustParseIA("1-ff00:0:112"),
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
-				Path: spath.Path{
-					Raw:  rawSP,
-					Type: scion.PathType,
+				Path: snetpath.SCION{
+					Raw: rawSP,
 				},
 				Payload: snet.SCMPPacketTooBig{
 					MTU:     1503,
@@ -228,12 +216,38 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 			assert.NoError(t, tc.Serialize())
 			actual := snet.Packet{Bytes: tc.Bytes}
 			assert.NoError(t, actual.Decode())
+
+			r, ok := actual.Path.(snet.RawPath)
+			require.True(t, ok)
+			rp, err := convertRawPath(r)
+			require.NoError(t, err)
+			actual.Path = rp
+
 			assert.Equal(t, tc.PacketInfo, actual.PacketInfo)
 			assert.Equal(t, tc.PacketInfo.Payload, actual.PacketInfo.Payload)
 			actual.Bytes = nil
 			assert.NoError(t, actual.Serialize())
 			assert.Equal(t, tc.Bytes, actual.Bytes)
 		})
+	}
+}
+
+func convertRawPath(r snet.RawPath) (snet.DataplanePath, error) {
+	switch r.PathType {
+	case scion.PathType:
+		return snetpath.SCION{Raw: r.Raw}, nil
+	case onehop.PathType:
+		p := onehop.Path{}
+		if err := p.DecodeFromBytes(r.Raw); err != nil {
+			return nil, serrors.WrapStr("decoding ohp", err)
+		}
+		return snetpath.OneHop{
+			Info:      p.Info,
+			FirstHop:  p.FirstHop,
+			SecondHop: p.SecondHop,
+		}, nil
+	default:
+		return nil, serrors.New("unexpected path type", "type", r.PathType)
 	}
 }
 
@@ -257,10 +271,7 @@ func TestPacketSerialize(t *testing.T) {
 						IA:   xtest.MustParseIA("1-ff00:0:112"),
 						Host: addr.HostIPv4(net.ParseIP("127.0.0.1")),
 					},
-					Path: spath.Path{
-						Raw:  rawOHP,
-						Type: onehop.PathType,
-					},
+					Path: snetpath.OneHop{},
 					Payload: snet.UDPPayload{
 						SrcPort: 25,
 						DstPort: 1925,
@@ -270,7 +281,7 @@ func TestPacketSerialize(t *testing.T) {
 			},
 			assertErr: assert.NoError,
 		},
-		"valid missing path": {
+		"valid empty path": {
 			input: snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Destination: snet.SCIONAddress{
@@ -286,6 +297,7 @@ func TestPacketSerialize(t *testing.T) {
 						DstPort: 1925,
 						Payload: []byte("hello packet"),
 					},
+					Path: snetpath.Empty{},
 				},
 			},
 			assertErr: assert.NoError,
@@ -304,10 +316,7 @@ func TestPacketSerialize(t *testing.T) {
 						IA:   xtest.MustParseIA("1-ff00:0:112"),
 						Host: addr.HostIPv4(net.ParseIP("127.0.0.1")),
 					},
-					Path: spath.Path{
-						Raw:  rawOHP,
-						Type: onehop.PathType,
-					},
+					Path: snetpath.OneHop{},
 				},
 			},
 			assertErr: assert.Error,

@@ -74,7 +74,7 @@ func (r AuthRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.
 	}
 	ret := &snet.SVCAddr{
 		IA:      path.Destination(),
-		Path:    path.Path(),
+		Path:    path.Dataplane(),
 		NextHop: path.UnderlayNextHop(),
 		SVC:     addr.SvcCS,
 	}

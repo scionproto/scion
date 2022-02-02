@@ -14,7 +14,6 @@ import (
 	addr "github.com/scionproto/scion/go/lib/addr"
 	path_mgmt "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	snet "github.com/scionproto/scion/go/lib/snet"
-	spath "github.com/scionproto/scion/go/lib/spath"
 )
 
 // MockPacketDispatcherService is a mock of PacketDispatcherService interface.
@@ -239,18 +238,18 @@ func (m *MockPath) EXPECT() *MockPathMockRecorder {
 	return m.recorder
 }
 
-// Copy mocks base method.
-func (m *MockPath) Copy() snet.Path {
+// Dataplane mocks base method.
+func (m *MockPath) Dataplane() snet.DataplanePath {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Copy")
-	ret0, _ := ret[0].(snet.Path)
+	ret := m.ctrl.Call(m, "Dataplane")
+	ret0, _ := ret[0].(snet.DataplanePath)
 	return ret0
 }
 
-// Copy indicates an expected call of Copy.
-func (mr *MockPathMockRecorder) Copy() *gomock.Call {
+// Dataplane indicates an expected call of Dataplane.
+func (mr *MockPathMockRecorder) Dataplane() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Copy", reflect.TypeOf((*MockPath)(nil).Copy))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Dataplane", reflect.TypeOf((*MockPath)(nil).Dataplane))
 }
 
 // Destination mocks base method.
@@ -279,20 +278,6 @@ func (m *MockPath) Metadata() *snet.PathMetadata {
 func (mr *MockPathMockRecorder) Metadata() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Metadata", reflect.TypeOf((*MockPath)(nil).Metadata))
-}
-
-// Path mocks base method.
-func (m *MockPath) Path() spath.Path {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Path")
-	ret0, _ := ret[0].(spath.Path)
-	return ret0
-}
-
-// Path indicates an expected call of Path.
-func (mr *MockPathMockRecorder) Path() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Path", reflect.TypeOf((*MockPath)(nil).Path))
 }
 
 // UnderlayNextHop mocks base method.

@@ -27,15 +27,14 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // Path is an snet.Path with full metadata
 type Path struct {
-	Dst     addr.IA
-	SPath   spath.Path
-	NextHop *net.UDPAddr
-	Meta    snet.PathMetadata
+	Dst           addr.IA
+	DataplanePath snet.DataplanePath
+	NextHop       *net.UDPAddr
+	Meta          snet.PathMetadata
 }
 
 func (p Path) UnderlayNextHop() *net.UDPAddr {
@@ -49,8 +48,8 @@ func (p Path) UnderlayNextHop() *net.UDPAddr {
 	}
 }
 
-func (p Path) Path() spath.Path {
-	return p.SPath.Copy()
+func (p Path) Dataplane() snet.DataplanePath {
+	return p.DataplanePath
 }
 
 func (p Path) Destination() addr.IA {
@@ -59,15 +58,6 @@ func (p Path) Destination() addr.IA {
 
 func (p Path) Metadata() *snet.PathMetadata {
 	return p.Meta.Copy()
-}
-
-func (p Path) Copy() snet.Path {
-	return Path{
-		Dst:     p.Dst,
-		SPath:   p.Path(),            // creates copy
-		NextHop: p.UnderlayNextHop(), // creates copy
-		Meta:    *p.Metadata(),       // creates copy
-	}
 }
 
 func (p Path) String() string {

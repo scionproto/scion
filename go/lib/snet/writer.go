@@ -22,9 +22,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology/underlay"
 )
 
@@ -36,21 +34,12 @@ type scionConnWriter struct {
 	buffer []byte
 }
 
-func newScionConnWriter(base *scionConnBase, conn PacketConn) *scionConnWriter {
-
-	return &scionConnWriter{
-		base:   base,
-		conn:   conn,
-		buffer: make([]byte, common.SupportedMTU),
-	}
-}
-
 // WriteTo sends b to raddr.
 func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	var (
 		dst     SCIONAddress
 		port    int
-		path    spath.Path
+		path    DataplanePath
 		nextHop *net.UDPAddr
 	)
 
@@ -58,8 +47,8 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	case nil:
 		return 0, serrors.New("Missing remote address")
 	case *UDPAddr:
-		dst, port, path = SCIONAddress{IA: a.IA, Host: addr.HostFromIP(a.Host.IP)},
-			a.Host.Port, a.Path
+		dst = SCIONAddress{IA: a.IA, Host: addr.HostFromIP(a.Host.IP)}
+		port, path = a.Host.Port, a.Path
 		nextHop = a.NextHop
 		if nextHop == nil && c.base.scionNet.LocalIA.Equal(a.IA) {
 			nextHop = &net.UDPAddr{

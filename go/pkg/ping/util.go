@@ -18,6 +18,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/path"
 )
 
 // Size computes the full SCION packet size for an address pair with a given
@@ -34,7 +35,8 @@ func Size(local, remote *snet.UDPAddr, pldSize int) (int, error) {
 }
 
 func pack(local, remote *snet.UDPAddr, req snet.SCMPEchoRequest) (*snet.Packet, error) {
-	if remote.Path.IsEmpty() && !local.IA.Equal(remote.IA) {
+	_, isEmpty := remote.Path.(path.Empty)
+	if isEmpty && !local.IA.Equal(remote.IA) {
 		return nil, serrors.New("no path for remote ISD-AS", "local", local.IA, "remote", remote.IA)
 	}
 	pkt := &snet.Packet{

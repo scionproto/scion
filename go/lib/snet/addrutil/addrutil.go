@@ -26,7 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -79,8 +79,8 @@ func (p Pather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, e
 		}},
 		HopFields: hopFields,
 	}
-	raw := make([]byte, dec.Len())
-	if err := dec.SerializeTo(raw); err != nil {
+	path, err := snetpath.NewSCIONFromDecoded(dec)
+	if err != nil {
 		return nil, serrors.WrapStr("serializing path", err)
 	}
 	ifID := dec.HopFields[0].ConsIngress
@@ -90,7 +90,7 @@ func (p Pather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, e
 	}
 	return &snet.SVCAddr{
 		IA:      ps.FirstIA(),
-		Path:    spath.Path{Raw: raw, Type: scion.PathType},
+		Path:    path,
 		NextHop: nextHop,
 		SVC:     svc,
 	}, nil

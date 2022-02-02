@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/svc/internal/ctxconn"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
@@ -41,7 +40,6 @@ const (
 	errWrite          common.ErrMsg = "unable to write"
 	errRead           common.ErrMsg = "unable to read"
 	errDecode         common.ErrMsg = "decode failed"
-	errBadPath        common.ErrMsg = "unable to parse return path"
 )
 
 // For now, the request payload does not need to be dynamic. We initialize it
@@ -96,7 +94,7 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 				IA:   p.Destination(),
 				Host: svc,
 			},
-			Path: p.Path(),
+			Path: p.Dataplane(),
 			Payload: snet.UDPPayload{
 				SrcPort: port,
 				Payload: requestPayload,
@@ -178,11 +176,16 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 		return nil, serrors.Wrap(errDecode, err)
 	}
 
-	if err := replyPacket.Path.Reverse(); err != nil {
-		return nil, serrors.Wrap(errBadPath, err)
+	rpath, ok := replyPacket.Path.(snet.RawPath)
+	if !ok {
+		return nil, serrors.New("unexpected path", "type", common.TypeOf(replyPacket.Path))
+	}
+	replyPath, err := snet.DefaultReplyPather{}.ReplyPath(rpath)
+	if err != nil {
+		return nil, serrors.WrapStr("creating reply path", err)
 	}
 	reply.ReturnPath = &path{
-		spath:       replyPacket.Path,
+		dataplane:   replyPath,
 		underlay:    &replyOv,
 		destination: replyPacket.Source.IA,
 	}
@@ -190,7 +193,7 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 }
 
 type path struct {
-	spath       spath.Path
+	dataplane   snet.DataplanePath
 	underlay    *net.UDPAddr
 	destination addr.IA
 }
@@ -199,8 +202,8 @@ func (p *path) UnderlayNextHop() *net.UDPAddr {
 	return p.underlay
 }
 
-func (p *path) Path() spath.Path {
-	return p.spath
+func (p *path) Dataplane() snet.DataplanePath {
+	return p.dataplane
 }
 
 func (p *path) Interfaces() []snet.PathInterface {
@@ -220,7 +223,7 @@ func (p *path) Copy() snet.Path {
 		return nil
 	}
 	return &path{
-		spath:       p.spath.Copy(),
+		dataplane:   p.dataplane,
 		underlay:    snet.CopyUDPAddr(p.underlay),
 		destination: p.destination,
 	}

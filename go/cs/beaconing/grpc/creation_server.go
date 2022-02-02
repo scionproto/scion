@@ -23,12 +23,12 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/scionproto/scion/go/cs/beacon"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
@@ -80,12 +80,16 @@ func (s SegmentCreationServer) Beacon(ctx context.Context,
 }
 
 // extractIngressIfID extracts the ingress interface ID from a path.
-func extractIngressIfID(path spath.Path) (uint16, error) {
-	var sp scion.Raw
-	if err := sp.DecodeFromBytes(path.Raw); err != nil {
-		return 0, serrors.WrapStr("decoding path (v2)", err)
+func extractIngressIfID(path snet.DataplanePath) (uint16, error) {
+	invertedPath, ok := path.(snet.RawReplyPath)
+	if !ok {
+		return 0, serrors.New("unexpected path", "type", common.TypeOf(path))
 	}
-	hf, err := sp.GetCurrentHopField()
+	rawScionPath, ok := invertedPath.Path.(*scion.Raw)
+	if !ok {
+		return 0, serrors.New("unexpected path", "type", common.TypeOf(path))
+	}
+	hf, err := rawScionPath.GetCurrentHopField()
 	if err != nil {
 		return 0, serrors.WrapStr("getting current hop field", err)
 	}

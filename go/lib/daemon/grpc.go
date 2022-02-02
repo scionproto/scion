@@ -25,10 +25,8 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/path"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	sdpb "github.com/scionproto/scion/go/pkg/proto/daemon"
@@ -182,6 +180,7 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 				MTU:    uint16(p.Mtu),
 				Expiry: expiry,
 			},
+			DataplanePath: path.Empty{},
 		}, nil
 	}
 	underlayA, err := net.ResolveUDPAddr("udp", p.Interface.Address.Address)
@@ -213,8 +212,10 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 	}
 
 	return path.Path{
-		Dst:     dst,
-		SPath:   spath.Path{Raw: p.Raw, Type: scion.PathType},
+		Dst: dst,
+		DataplanePath: path.SCION{
+			Raw: p.Raw,
+		},
 		NextHop: underlayA,
 		Meta: snet.PathMetadata{
 			Interfaces:   interfaces,

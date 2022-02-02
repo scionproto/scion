@@ -25,9 +25,9 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
@@ -94,7 +94,7 @@ type tracerouter struct {
 
 // Run runs the traceroute.
 func Run(ctx context.Context, cfg Config) (Stats, error) {
-	if cfg.PathEntry.Path().IsEmpty() {
+	if _, isEmpty := cfg.PathEntry.Dataplane().(snetpath.Empty); isEmpty {
 		return Stats{}, serrors.New("empty path is not allowed for traceroute")
 	}
 	id := rand.Uint64()
@@ -125,12 +125,14 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 }
 
 func (t *tracerouter) Traceroute(ctx context.Context) (Stats, error) {
-	pktPath := scion.Decoded{}
-	if err := pktPath.DecodeFromBytes(t.path.Path().Raw); err != nil {
-		return t.stats, serrors.WrapStr("decoding path", err)
+	scionPath, ok := t.path.Dataplane().(snetpath.SCION)
+	if !ok {
+		return Stats{}, serrors.New("only SCION path allowed for traceroute",
+			"type", common.TypeOf(t.path.Dataplane()))
 	}
-	idxPath := scion.Decoded{}
-	if err := idxPath.DecodeFromBytes(t.path.Path().Raw); err != nil {
+
+	var idxPath scion.Decoded
+	if err := idxPath.DecodeFromBytes(scionPath.Raw); err != nil {
 		return t.stats, serrors.WrapStr("decoding path", err)
 	}
 	ctx, cancel := context.WithCancel(ctx)
@@ -142,14 +144,14 @@ func (t *tracerouter) Traceroute(ctx context.Context) (Stats, error) {
 	}()
 	prevXover := false
 	for i := 0; i < len(idxPath.HopFields); i++ {
-		hf := &pktPath.HopFields[idxPath.PathMeta.CurrHF]
-		info := pktPath.InfoFields[idxPath.PathMeta.CurrINF]
+		hf := idxPath.PathMeta.CurrHF
+		info := idxPath.InfoFields[idxPath.PathMeta.CurrINF]
 		// First hop of the path isn't probed, since only the egress hop is
 		// relevant.
 		// After a crossover (segment change) only the egress interface is
 		// relevant, since the ingress interface is in previous hop.
 		if i != 0 && !prevXover {
-			u, err := t.probeHop(ctx, &pktPath, hf, !info.ConsDir)
+			u, err := t.probeHop(ctx, hf, !info.ConsDir)
 			if err != nil {
 				return t.stats, serrors.WrapStr("probing hop", err, "hop_index", i)
 			}
@@ -163,7 +165,7 @@ func (t *tracerouter) Traceroute(ctx context.Context) (Stats, error) {
 		// At a crossover (segment change) only the ingress interface is
 		// relevant, since the egress interface is in the next hop.
 		if i < len(idxPath.HopFields)-1 && !xover {
-			u, err := t.probeHop(ctx, &pktPath, hf, info.ConsDir)
+			u, err := t.probeHop(ctx, hf, info.ConsDir)
 			if err != nil {
 				return t.stats, serrors.WrapStr("probing hop", err, "hop_index", i)
 			}
@@ -181,21 +183,24 @@ func (t *tracerouter) Traceroute(ctx context.Context) (Stats, error) {
 	return t.stats, nil
 }
 
-func (t *tracerouter) probeHop(ctx context.Context, dp *scion.Decoded,
-	hf *path.HopField, egress bool) (Update, error) {
+func (t *tracerouter) probeHop(ctx context.Context, hfIdx uint8, egress bool) (Update, error) {
+	var decoded scion.Decoded
+	if err := decoded.DecodeFromBytes(t.path.Dataplane().(snetpath.SCION).Raw); err != nil {
+		return Update{}, serrors.WrapStr("decoding path", err)
+	}
 
-	// set alert flag and reset once we are done.
+	hf := decoded.HopFields[hfIdx]
 	if egress {
 		hf.EgressRouterAlert = true
-		defer func() { hf.EgressRouterAlert = false }()
 	} else {
 		hf.IngressRouterAlert = true
-		defer func() { hf.IngressRouterAlert = false }()
 	}
-	p := t.path.Path()
-	if err := dp.SerializeTo(p.Raw); err != nil {
-		return Update{}, serrors.WrapStr("serializing path", err)
+
+	alert, err := snetpath.NewSCIONFromDecoded(decoded)
+	if err != nil {
+		return Update{}, serrors.WrapStr("setting alert flag", err)
 	}
+
 	u := Update{
 		Index: t.index,
 		RTTs:  make([]time.Duration, 0, t.probesPerHop),
@@ -211,7 +216,7 @@ func (t *tracerouter) probeHop(ctx context.Context, dp *scion.Decoded,
 				IA:   t.local.IA,
 				Host: addr.HostFromIP(t.local.Host.IP),
 			},
-			Path:    p,
+			Path:    alert,
 			Payload: snet.SCMPTracerouteRequest{Identifier: t.id},
 		},
 	}
@@ -290,7 +295,7 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 		Remote: &snet.UDPAddr{
 			IA:   pkt.Source.IA,
 			Host: &net.UDPAddr{IP: pkt.Source.Host.IP()},
-			Path: pkt.Path.Copy(),
+			Path: pkt.Path,
 		},
 		Error: err,
 	}

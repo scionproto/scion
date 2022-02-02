@@ -38,6 +38,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/metrics"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/tracing"
@@ -213,13 +214,16 @@ func (s server) handlePing(conn snet.PacketConn) error {
 		Payload: raw,
 	}
 	// reverse path
-	if err := p.Path.Reverse(); err != nil {
-		return withTag(serrors.WrapStr("reversing path",
-			err,
-			"source", p.Destination,
-			"destination", p.Source,
-		))
+	rpath, ok := p.Path.(snet.RawPath)
+	if !ok {
+		return serrors.New("unecpected path", "type", common.TypeOf(p.Path))
 	}
+	replypather := snet.DefaultReplyPather{}
+	replyPath, err := replypather.ReplyPath(rpath)
+	if err != nil {
+		return serrors.WrapStr("creating reply path", err)
+	}
+	p.Path = replyPath
 	// Send pong
 	if err := conn.WriteTo(&p, &ov); err != nil {
 		return withTag(serrors.WrapStr("sending reply", err))
@@ -342,6 +346,7 @@ func (c *client) ping(ctx context.Context, n int, path snet.Path) error {
 
 func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 	if remote.IA.Equal(integration.Local.IA) {
+		remote.Path = snetpath.Empty{}
 		return nil, nil
 	}
 	span, ctx := tracing.StartSpanFromCtx(ctx, "attempt.get_remote")
@@ -376,7 +381,7 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 		))
 	}
 	// Extract forwarding path from the SCION Daemon response
-	remote.Path = path.Path()
+	remote.Path = path.Dataplane()
 	remote.NextHop = path.UnderlayNextHop()
 	return path, nil
 }

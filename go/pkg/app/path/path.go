@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/pkg/pathprobe"
 )
 
@@ -108,7 +109,7 @@ func filterUnhealthy(
 	var nonEmptyPaths []snet.Path
 	var emptyPaths []snet.Path
 	for _, path := range paths {
-		if path.Path().IsEmpty() {
+		if _, isEmpty := path.Dataplane().(snetpath.Empty); isEmpty {
 			emptyPaths = append(emptyPaths, path)
 			continue
 		}
