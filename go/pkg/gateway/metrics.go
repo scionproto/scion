@@ -59,12 +59,12 @@ var (
 	IPPktBytesLocalReceivedTotalMeta = MetricMeta{
 		Name:   "gateway_ippkt_bytes_local_received_total",
 		Help:   "Total IP packet bytes received from the local network.",
-		Labels: []string{"isd_as"},
+		Labels: []string{},
 	}
 	IPPktsLocalReceivedTotalMeta = MetricMeta{
 		Name:   "gateway_ippkts_local_received_total",
 		Help:   "Total number of IP packets received from the local network.",
-		Labels: []string{"isd_as"},
+		Labels: []string{},
 	}
 	FrameBytesSentTotalMeta = MetricMeta{
 		Name:   "gateway_frame_bytes_sent_total",
@@ -94,7 +94,7 @@ var (
 	IPPktsDiscardedTotalMeta = MetricMeta{
 		Name:   "gateway_ippkts_discarded_total",
 		Help:   "Total number of discarded IP packets received from the local network.",
-		Labels: []string{"isd_as", "reason"},
+		Labels: []string{"reason"},
 	}
 	SendExternalErrorsTotalMeta = MetricMeta{
 		Name:   "gateway_send_external_errors_total",
@@ -284,9 +284,9 @@ func NewMetrics(ia addr.IA) *Metrics {
 		IPPktsLocalSentTotal: IPPktsLocalSentTotalMeta.
 			NewCounterVec().MustCurryWith(labels),
 		IPPktBytesLocalReceivedTotal: IPPktBytesLocalReceivedTotalMeta.
-			NewCounterVec().MustCurryWith(labels),
+			NewCounterVec(),
 		IPPktsLocalReceivedTotal: IPPktsLocalReceivedTotalMeta.
-			NewCounterVec().MustCurryWith(labels),
+			NewCounterVec(),
 		FrameBytesSentTotal: FrameBytesSentTotalMeta.
 			NewCounterVec().MustCurryWith(labels),
 		FramesSentTotal: FramesSentTotalMeta.
@@ -298,7 +298,7 @@ func NewMetrics(ia addr.IA) *Metrics {
 		FramesDiscardedTotal: FramesDiscardedTotalMeta.
 			NewCounterVec().MustCurryWith(labels),
 		IPPktsDiscardedTotal: IPPktsDiscardedTotalMeta.
-			NewCounterVec().MustCurryWith(labels),
+			NewCounterVec(),
 		SendExternalErrorsTotal: SendExternalErrorsTotalMeta.
 			NewCounterVec().MustCurryWith(labels),
 		SendLocalErrorsTotal: SendLocalErrorsTotalMeta.
