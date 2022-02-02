@@ -128,11 +128,13 @@ func (m *SessionMonitor) Run(ctx context.Context) error {
 
 func (m *SessionMonitor) run(ctx context.Context) error {
 	defer close(m.Events)
+	defer m.expirationTimer.Stop()
 	go func() {
 		defer log.HandlePanic()
 		m.drainConn(ctx)
 	}()
 	probeTicker := time.NewTicker(m.ProbeInterval)
+	defer probeTicker.Stop()
 	m.sendProbe(ctx)
 	for {
 		select {
@@ -141,7 +143,12 @@ func (m *SessionMonitor) run(ctx context.Context) error {
 		case <-m.receivedProbe:
 			m.handleProbeReply(ctx)
 		case <-m.expirationTimer.C:
-			m.handleExpiration(ctx)
+			select {
+			case <-m.receivedProbe:
+				m.handleProbeReply(ctx)
+			default:
+				m.handleExpiration(ctx)
+			}
 		case <-m.workerBase.GetDoneChan():
 			return nil
 		}
@@ -232,6 +239,17 @@ func (m *SessionMonitor) handleProbeReply(ctx context.Context) {
 		case m.Events <- m.notification(m.state):
 			logger.Debug("Sent UP event", "session_id", m.ID)
 		}
+	}
+	// proper reset sequence (https://pkg.go.dev/time#Timer.Reset)
+	if !m.expirationTimer.Stop() {
+		// The channel could be empty if we were previously in the down state
+		// and now received a new reply. The important bit is that the channel
+		// is drained.
+		select {
+		case <-m.expirationTimer.C:
+		default:
+		}
+
 	}
 	m.expirationTimer.Reset(m.HealthExpiration)
 }
