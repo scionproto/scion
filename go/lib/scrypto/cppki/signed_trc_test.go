@@ -17,7 +17,7 @@ package cppki_test
 import (
 	"crypto/x509"
 	"encoding/asn1"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -322,14 +322,14 @@ func TestTRCVerifyBase(t *testing.T) {
 // produces an ordered set.
 // (https://github.com/golang/go/commit/f0cea848679b8f8cdc5f76e1b1e36ebb924a68f8)
 func TestTRCVerifyCompatibility(t *testing.T) {
-	raw, err := ioutil.ReadFile("./testdata/compatibility/ISD1-B1-S1-pre1.15.trc")
+	raw, err := os.ReadFile("./testdata/compatibility/ISD1-B1-S1-pre1.15.trc")
 	require.NoError(t, err)
 	signed, err := cppki.DecodeSignedTRC(raw)
 	require.NoError(t, err)
 	err = signed.Verify(nil)
 	assert.NoError(t, err)
 
-	raw, err = ioutil.ReadFile("./testdata/compatibility/ISD1-B1-S2-pre1.15.trc")
+	raw, err = os.ReadFile("./testdata/compatibility/ISD1-B1-S2-pre1.15.trc")
 	require.NoError(t, err)
 	signed2, err := cppki.DecodeSignedTRC(raw)
 	require.NoError(t, err)
@@ -339,7 +339,7 @@ func TestTRCVerifyCompatibility(t *testing.T) {
 
 func loadSignedTRC(t *testing.T) cppki.SignedTRC {
 	t.Helper()
-	raw, err := ioutil.ReadFile("./testdata/ISD1-B1-S1.trc")
+	raw, err := os.ReadFile("./testdata/ISD1-B1-S1.trc")
 	require.NoError(t, err)
 	signed, err := cppki.DecodeSignedTRC(raw)
 	require.NoError(t, err)

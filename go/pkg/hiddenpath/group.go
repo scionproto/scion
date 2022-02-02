@@ -58,7 +58,7 @@ func ParseGroupID(s string) (GroupID, error) {
 		return GroupID{}, serrors.New("invalid group id format", "group_id", s)
 	}
 
-	ownerAS, err := addr.ASFromString(parts[0])
+	ownerAS, err := addr.ParseAS(parts[0])
 	if err != nil {
 		return GroupID{}, err
 	}
@@ -102,9 +102,9 @@ func (g *Group) Validate() error {
 	if g.Owner.IsZero() {
 		return serrors.New("missing owner")
 	}
-	if g.Owner.A != g.ID.OwnerAS {
+	if g.Owner.AS() != g.ID.OwnerAS {
 		return serrors.New("owner mismatch",
-			"owner_as", g.Owner.A, "group_id", g.ID.OwnerAS)
+			"owner_as", g.Owner.AS(), "group_id", g.ID.OwnerAS)
 	}
 	if len(g.Writers) == 0 {
 		return serrors.New("writers section cannot be empty")
@@ -226,7 +226,7 @@ func parseGroups(groups map[string]*groupInfo) (Groups, error) {
 		if err != nil {
 			return nil, serrors.WrapStr("parsing group ID", err)
 		}
-		owner, err := addr.IAFromString(rawGroup.Owner)
+		owner, err := addr.ParseIA(rawGroup.Owner)
 		if err != nil {
 			return nil, serrors.WrapStr("parsing owner", err, "group_id", id)
 		}
@@ -279,7 +279,7 @@ func iaSetToStrings(ias map[addr.IA]struct{}) []string {
 func stringsToIASet(rawIAs []string) (map[addr.IA]struct{}, error) {
 	result := make(map[addr.IA]struct{})
 	for _, rawIA := range rawIAs {
-		ia, err := addr.IAFromString(rawIA)
+		ia, err := addr.ParseIA(rawIA)
 		if err != nil {
 			return nil, err
 		}

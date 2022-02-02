@@ -57,7 +57,7 @@ func loadSigTestingConfig() error {
 		line := scanner.Text()
 		parts := strings.Split(line, " ")
 		if len(parts) == 2 {
-			ia, err := addr.IAFromString(parts[0])
+			ia, err := addr.ParseIA(parts[0])
 			if err != nil {
 				return err
 			}

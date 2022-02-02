@@ -43,7 +43,7 @@ func NewPathFromRaw(buff []byte) (ReservationTransparentPath, error) {
 		offset := i * PathStepWithIALen
 		p[i].Ingress = binary.BigEndian.Uint16(buff[offset:])
 		p[i].Egress = binary.BigEndian.Uint16(buff[offset+2:])
-		p[i].IA = addr.IAFromRaw(buff[offset+4:])
+		p[i].IA = addr.IA(binary.BigEndian.Uint64(buff[offset+4:]))
 	}
 	return p, nil
 }
@@ -81,7 +81,7 @@ func (p ReservationTransparentPath) Equal(o ReservationTransparentPath) bool {
 // If the Path is not nil, it assumes is valid, i.e. it has at least length 2.
 func (p ReservationTransparentPath) GetSrcIA() addr.IA {
 	if len(p) == 0 {
-		return addr.IA{}
+		return 0
 	}
 	return p[0].IA
 }
@@ -91,7 +91,7 @@ func (p ReservationTransparentPath) GetSrcIA() addr.IA {
 // If the path is not nil, it assumes is valid, i.e. it has at least length 2.
 func (p ReservationTransparentPath) GetDstIA() addr.IA {
 	if len(p) == 0 {
-		return addr.IA{}
+		return 0
 	}
 	return p[len(p)-1].IA
 }
@@ -115,7 +115,7 @@ func (p ReservationTransparentPath) Read(buff []byte) (int, error) {
 		offset := i * PathStepWithIALen
 		binary.BigEndian.PutUint16(buff[offset:], s.Ingress)
 		binary.BigEndian.PutUint16(buff[offset+2:], s.Egress)
-		binary.BigEndian.PutUint64(buff[offset+4:], uint64(s.IA.IAInt()))
+		binary.BigEndian.PutUint64(buff[offset+4:], uint64(s.IA))
 	}
 	return p.Len(), nil
 }

@@ -1,5 +1,5 @@
 load("@io_bazel_rules_go//go:def.bzl", _go_embed_data = "go_embed_data")
-load("@cgrindel_rules_updatesrc//updatesrc:updatesrc.bzl", "updatesrc_update")
+load("@cgrindel_bazel_starlib//updatesrc:defs.bzl", "updatesrc_update")
 load(":go_fmt.bzl", _go_fmt = "go_fmt")
 
 def go_embed_data(

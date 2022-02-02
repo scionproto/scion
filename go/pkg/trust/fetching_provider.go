@@ -109,10 +109,10 @@ func (p FetchingProvider) GetChains(ctx context.Context, query ChainQuery,
 		return chains, nil
 	}
 
-	trcs, result, err := activeTRCs(ctx, p.DB, query.IA.I)
+	trcs, result, err := activeTRCs(ctx, p.DB, query.IA.ISD())
 	if err != nil {
 		logger.Info("Failed to get TRC for chain verification",
-			"isd", query.IA.I, "err", err)
+			"isd", query.IA.ISD(), "err", err)
 		setProviderMetric(span, l.WithResult(result), err)
 		return nil, serrors.WrapStr("fetching active TRCs from database", err)
 	}
@@ -130,7 +130,7 @@ func (p FetchingProvider) GetChains(ctx context.Context, query ChainQuery,
 		return nil, serrors.WrapStr("recursion not allowed", err)
 	}
 	if o.server == nil {
-		if o.server, err = p.Router.ChooseServer(ctx, query.IA.I); err != nil {
+		if o.server, err = p.Router.ChooseServer(ctx, query.IA.ISD()); err != nil {
 			setProviderMetric(span, l.WithResult(metrics.ErrInternal), err)
 			return nil, serrors.WrapStr("choosing server", err)
 		}

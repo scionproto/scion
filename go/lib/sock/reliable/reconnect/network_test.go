@@ -73,14 +73,14 @@ func TestNetworkFatalError(t *testing.T) {
 			mockNetwork.EXPECT().
 				Register(Any(), Any(), Any(), Any()).
 				Return(nil, uint16(0), err)
-			_, _, err := network.Register(context.Background(), addr.IA{}, nil, addr.SvcNone)
+			_, _, err := network.Register(context.Background(), 0, nil, addr.SvcNone)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 		Convey("The network returns non-dispatcher listen errors from the mock", func() {
 			mockNetwork.EXPECT().
 				Register(Any(), Any(), Any(), Any()).
 				Return(nil, uint16(0), err)
-			_, _, err := network.Register(context.Background(), addr.IA{}, nil, addr.SvcNone)
+			_, _, err := network.Register(context.Background(), 0, nil, addr.SvcNone)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 	})
@@ -104,7 +104,7 @@ func TestNetworkDispatcherDeadError(t *testing.T) {
 					Register(Any(), Any(), Any(), Any()).
 					Return(mockConn, uint16(0), nil),
 			)
-			_, _, err := network.Register(context.Background(), addr.IA{}, nil, addr.SvcNone)
+			_, _, err := network.Register(context.Background(), 0, nil, addr.SvcNone)
 			SoMsg("err", err, ShouldBeNil)
 		})
 		Convey("Dial only retries for limited time if timeout set", func() {
@@ -114,7 +114,7 @@ func TestNetworkDispatcherDeadError(t *testing.T) {
 					Return(nil, uint16(0), dispatcherError).
 					MinTimes(2).MaxTimes(5),
 			)
-			_, _, err := network.Register(ctxMultiplier(4), addr.IA{}, nil, addr.SvcNone)
+			_, _, err := network.Register(ctxMultiplier(4), 0, nil, addr.SvcNone)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 		Convey("Listen tries to reconnect if no timeout set", func() {
@@ -128,7 +128,7 @@ func TestNetworkDispatcherDeadError(t *testing.T) {
 					Register(Any(), Any(), Any(), Any()).
 					Return(mockConn, uint16(0), nil),
 			)
-			_, _, err := network.Register(context.Background(), addr.IA{}, nil, addr.SvcNone)
+			_, _, err := network.Register(context.Background(), 0, nil, addr.SvcNone)
 			SoMsg("err", err, ShouldBeNil)
 		})
 		Convey("Listen only retries for limited time if timeout set", func() {
@@ -138,7 +138,7 @@ func TestNetworkDispatcherDeadError(t *testing.T) {
 					Return(nil, uint16(0), dispatcherError).
 					MinTimes(3).MaxTimes(5),
 			)
-			_, _, err := network.Register(ctxMultiplier(4), addr.IA{}, nil, addr.SvcNone)
+			_, _, err := network.Register(ctxMultiplier(4), 0, nil, addr.SvcNone)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 	})

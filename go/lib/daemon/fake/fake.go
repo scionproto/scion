@@ -17,8 +17,8 @@ package fake
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"net"
+	"os"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -45,7 +45,7 @@ func New(script *Script) daemon.Connector {
 // NewFromFile creates a new fake SCION Daemon implementation using the JSON
 // representation in the file.
 func NewFromFile(file string) (daemon.Connector, error) {
-	b, err := ioutil.ReadFile(file)
+	b, err := os.ReadFile(file)
 	if err != nil {
 		return nil, serrors.WrapStr("unable to read script from file", err)
 	}

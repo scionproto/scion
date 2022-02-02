@@ -67,7 +67,7 @@ func (s *DaemonServer) Paths(ctx context.Context,
 	req *sdpb.PathsRequest) (*sdpb.PathsResponse, error) {
 
 	start := time.Now()
-	dstI := addr.IAInt(req.DestinationIsdAs).IA().I
+	dstI := addr.IA(req.DestinationIsdAs).ISD()
 	response, err := s.paths(ctx, req)
 	s.Metrics.PathsRequests.inc(
 		pathReqLabels{Result: errToMetricResult(err), Dst: dstI},
@@ -84,7 +84,7 @@ func (s *DaemonServer) paths(ctx context.Context,
 		ctx, cancelF = context.WithTimeout(ctx, 10*time.Second)
 		defer cancelF()
 	}
-	srcIA, dstIA := addr.IAInt(req.SourceIsdAs).IA(), addr.IAInt(req.DestinationIsdAs).IA()
+	srcIA, dstIA := addr.IA(req.SourceIsdAs), addr.IA(req.DestinationIsdAs)
 	go func() {
 		defer log.HandlePanic()
 		s.backgroundPaths(ctx, srcIA, dstIA, req.Refresh)
@@ -102,8 +102,12 @@ func (s *DaemonServer) paths(ctx context.Context,
 	return reply, nil
 }
 
-func (s *DaemonServer) fetchPaths(ctx context.Context, group *singleflight.Group, src, dst addr.IA,
-	refresh bool) ([]snet.Path, error) {
+func (s *DaemonServer) fetchPaths(
+	ctx context.Context,
+	group *singleflight.Group,
+	src, dst addr.IA,
+	refresh bool,
+) ([]snet.Path, error) {
 
 	r, err, _ := group.Do(fmt.Sprintf("%s%s%t", src, dst, refresh),
 		func() (interface{}, error) {
@@ -122,7 +126,7 @@ func pathToPB(path snet.Path) *sdpb.Path {
 	for i, intf := range meta.Interfaces {
 		interfaces[i] = &sdpb.PathInterface{
 			Id:    uint64(intf.ID),
-			IsdAs: uint64(intf.IA.IAInt()),
+			IsdAs: uint64(intf.IA),
 		}
 	}
 
@@ -214,7 +218,7 @@ func (s *DaemonServer) AS(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASRes
 }
 
 func (s *DaemonServer) as(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASResponse, error) {
-	reqIA := addr.IAInt(req.IsdAs).IA()
+	reqIA := addr.IA(req.IsdAs)
 	if reqIA.IsZero() {
 		reqIA = s.IA
 	}
@@ -228,7 +232,7 @@ func (s *DaemonServer) as(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASRes
 		return nil, serrors.WrapStr("inspecting ISD-AS", err, "isd_as", reqIA)
 	}
 	reply := &sdpb.ASResponse{
-		IsdAs: uint64(reqIA.IAInt()),
+		IsdAs: uint64(reqIA),
 		Core:  core,
 		Mtu:   mtu,
 	}
@@ -314,7 +318,7 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 	req *sdpb.NotifyInterfaceDownRequest) (*sdpb.NotifyInterfaceDownResponse, error) {
 
 	revInfo := &path_mgmt.RevInfo{
-		RawIsdas:     addr.IAInt(req.IsdAs),
+		RawIsdas:     addr.IA(req.IsdAs),
 		IfID:         common.IFIDType(req.Id),
 		LinkType:     proto.LinkType_core,
 		RawTTL:       10,

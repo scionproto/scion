@@ -192,7 +192,7 @@ func prepareMacInput(pktID epic.PktID, s *slayers.SCION, timestamp uint32,
 	offset += 4
 	pktID.SerializeTo(inputBuffer[offset:])
 	offset += epic.PktIDLen
-	s.SrcIA.Write(inputBuffer[offset:])
+	binary.BigEndian.PutUint64(inputBuffer[offset:], uint64(s.SrcIA))
 	offset += addr.IABytes
 	copy(inputBuffer[offset:], srcAddr)
 	offset += l

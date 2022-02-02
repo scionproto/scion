@@ -16,160 +16,289 @@ package pathhealth
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
+	"net"
 	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/spath"
 )
+
+const (
+	// defaultProbeInterval specifies how often should path probes be sent.
+	defaultProbeInterval = 500 * time.Millisecond
+)
+
+// ProbeConnFactory is used to construct net.PacketConn objects for sending and
+// receiving probes.
+type ProbeConnFactory interface {
+	New(context.Context) (net.PacketConn, error)
+}
 
 // DefaultPathWatcherFactory creates PathWatchers.
 type DefaultPathWatcherFactory struct {
+	// LocalIA is the ID of the local AS.
+	LocalIA addr.IA
+	// LocalIP is the IP address of the local host.
+	LocalIP net.IP
+	// RevocationHandler is the revocation handler.
+	RevocationHandler snet.RevocationHandler
+	// ConnFactory is used to create probe connections.
+	ConnFactory ProbeConnFactory
+	// Probeinterval defines the interval at which probes are sent. If it is not
+	// set a default is used.
+	ProbeInterval time.Duration
+	// ProbesSent keeps track of how many path probes have been sent per remote
+	// AS.
+	ProbesSent func(remote addr.IA) metrics.Counter
+	// ProbesReceived keeps track of how many path probes have been received per
+	// remote AS.
+	ProbesReceived func(remote addr.IA) metrics.Counter
+	// ProbesSendErrors keeps track of how many time sending probes failed per
+	// remote.
+	ProbesSendErrors func(remote addr.IA) metrics.Counter
+
+	SCMPErrors             metrics.Counter
+	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 }
 
 // New creates a PathWatcher that monitors a specific path.
-func (f *DefaultPathWatcherFactory) New(ctx context.Context, remote addr.IA, path snet.Path,
-	id uint16) PathWatcher {
+func (f *DefaultPathWatcherFactory) New(
+	ctx context.Context,
+	remote addr.IA,
+	path snet.Path,
+	id uint16,
+) (PathWatcher, error) {
 
-	pw := &DefaultPathWatcher{
-		remote: remote,
-		id:     id,
-		path:   path.Copy(),
+	nc, err := f.ConnFactory.New(ctx)
+	if err != nil {
+		return nil, serrors.WrapStr("creating connection for probing", err)
 	}
-	_, logger := pw.adjustCtx(ctx)
-	logger.Info("Path monitoring started")
-	return pw
+	pktChan := make(chan traceroutePkt, 10)
+	createCounter := func(
+		create func(addr.IA) metrics.Counter, remote addr.IA,
+	) metrics.Counter {
+		if create == nil {
+			return nil
+		}
+		return create(remote)
+	}
+	return &pathWatcher{
+		remote:        remote,
+		probeInterval: f.ProbeInterval,
+		conn: &snet.SCIONPacketConn{
+			Conn: nc,
+			SCMPHandler: scmpHandler{
+				wrappedHandler: snet.DefaultSCMPHandler{
+					RevocationHandler: f.RevocationHandler,
+					SCMPErrors:        f.SCMPErrors,
+				},
+				pkts: pktChan,
+			},
+			Metrics: f.SCIONPacketConnMetrics,
+		},
+		id: id,
+		localAddr: snet.SCIONAddress{
+			IA:   f.LocalIA,
+			Host: addr.HostFromIP(f.LocalIP),
+		},
+		pktChan:          pktChan,
+		probesSent:       createCounter(f.ProbesSent, remote),
+		probesReceived:   createCounter(f.ProbesReceived, remote),
+		probesSendErrors: createCounter(f.ProbesSendErrors, remote),
+		path:             createPathWrap(path),
+	}, nil
 }
 
-// DefaultPathWatcher monitors a single SCION path.
-type DefaultPathWatcher struct {
+type pathWatcher struct {
 	// remote is the ID of the AS being monitored.
 	remote addr.IA
-	// path is the monitored path.
-	path snet.Path
-	// id is the SCMP traceroute ID used by the dispatcher to route the SCMP
-	// traceroute replies back to this instance of gateway. We want a different
-	// ID for each PathWatcher instance, so that it can be used to distinguish
-	// replies for different PathWatchers, even two consecutive PathWatchers
-	// monitoring the same path.
+	// probeInterval defines the interval at which probes are sent. If it is not
+	// set a default is used.
+	probeInterval time.Duration
+	// conn is the packet conn used to send probes on. The pathwatcher takes
+	// ownership and will close it on termination.
+	conn snet.PacketConn
+	// id is used as SCMP traceroute ID. Since each pathwatcher should have it's
+	// own high port this value can be random.
 	id uint16
+	// localAddr is the local address used in the probe packet.
+	localAddr snet.SCIONAddress
+	// pktChan is the channel which provides the incoming packets on the
+	// connection.
+	pktChan <-chan traceroutePkt
+
+	probesSent       metrics.Counter
+	probesReceived   metrics.Counter
+	probesSendErrors metrics.Counter
+
 	// nextSeq is the sequence number to use for the next probe.
 	// Assuming 2 probes a second, this will wrap over in ~9hrs.
-	nextSeq uint16
-
+	nextSeq   uint16
 	pathState pathState
+	pathMtx   sync.RWMutex
+	path      pathWrap
+	// packet is the snet packet used to send probes. It is re-used so that we
+	// don't allocate a fresh one (and a buffer internally) for every send.
+	packet *snet.Packet
 }
 
-func (pw *DefaultPathWatcher) adjustCtx(ctx context.Context) (context.Context, log.Logger) {
-	return log.WithLabels(ctx, "remote_isd_as", pw.remote.String(), "path", fmt.Sprint(pw.path))
-}
-
-// UpdatePath changes a path to be monitored. While actual path, as in "sequence
-// of SCION interfaces", must never change for a single PathWatcher object,
-// some elements of the path structure (e.g. expiration) do change and should be
-// updated accordingly.
-func (pw *DefaultPathWatcher) UpdatePath(path snet.Path) {
-	if snet.Fingerprint(pw.path) != snet.Fingerprint(path) {
-		return
-	}
-	pw.path = path.Copy()
-}
-
-// SendProbe sends a probe along the monitored path.
-func (pw *DefaultPathWatcher) SendProbe(ctx context.Context, conn snet.PacketConn,
-	localAddr snet.SCIONAddress) {
-
-	_, logger := pw.adjustCtx(ctx)
-	pkt, err := pw.createProbepacket(localAddr)
-	if err != nil {
-		logger.Error("Failed to create path probe packet", "err", err)
-		return
-	}
-	err = conn.WriteTo(
-		pkt,
-		pw.path.UnderlayNextHop(),
+func (w *pathWatcher) Run(ctx context.Context) {
+	w.initDefaults()
+	ctx, logger := log.WithLabels(
+		ctx,
+		"debug_id", log.NewDebugID().String(),
+		"id", w.id,
 	)
-	if err != nil {
-		// TODO(sustrik): Metric
-		logger.Error("Failed to send path probe", "err", err)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer log.HandlePanic()
+		defer wg.Done()
+
+		w.drainConn(ctx)
+	}()
+
+	logger.Info("Starting path watcher", "path", fmt.Sprint(w.path.Path))
+	defer logger.Info("Stopped path watcher")
+
+	probeTicker := time.NewTicker(w.probeInterval)
+	defer probeTicker.Stop()
+	for {
+		select {
+		case <-w.pktChan:
+			metrics.CounterInc(w.probesReceived)
+			w.pathState.receiveProbe(time.Now())
+		case <-probeTicker.C:
+			w.sendProbe(ctx)
+		case <-ctx.Done():
+			// signal termination to connection drainer and then wait for it to
+			// finish
+			w.conn.Close()
+			wg.Wait()
+			return
+		}
+	}
+}
+
+func (w *pathWatcher) UpdatePath(path snet.Path) {
+	w.pathMtx.Lock()
+	defer w.pathMtx.Unlock()
+
+	if w.path.fingerprint != snet.Fingerprint(path) {
+		log.Error("UpdatePath with new fingerprint is invalid (BUG)",
+			"current_path", fmt.Sprint(w.path.Path),
+			"current_fingerprint", w.path.fingerprint,
+			"new_path", fmt.Sprint(path),
+			"new_fingerprint", snet.Fingerprint(path),
+		)
 		return
 	}
-	pw.pathState.sendProbe(time.Now())
-	pw.nextSeq++
+	w.path = createPathWrap(path.Copy())
 }
 
-// HandleProbeReply dispatches a single probe reply packet.
-func (pw *DefaultPathWatcher) HandleProbeReply(seq uint16) {
-	pw.pathState.receiveProbe(time.Now())
+func (w *pathWatcher) Path() snet.Path {
+	w.pathMtx.RLock()
+	defer w.pathMtx.RUnlock()
+
+	return w.path.Copy()
 }
 
-// Path returns a fresh copy of the monitored path.
-func (pw *DefaultPathWatcher) Path() snet.Path {
-	return pw.path.Copy()
-}
+func (w *pathWatcher) State() State {
+	w.pathMtx.RLock()
+	defer w.pathMtx.RUnlock()
 
-// State returns the state of the monitored path.
-func (pw *DefaultPathWatcher) State() State {
 	now := time.Now()
-	meta := pw.path.Metadata()
-	if meta != nil && meta.Expiry.Before(now) {
+	expiry := w.path.expiry
+	if w.path.err == nil && expiry.Before(now) {
 		return State{
 			IsExpired: true,
 		}
 	}
 	return State{
-		IsAlive: pw.pathState.active(),
+		IsAlive: w.pathState.active(),
 	}
 }
 
-// Close stops the PathWatcher.
-func (pw *DefaultPathWatcher) Close(ctx context.Context) {
-	_, logger := pw.adjustCtx(ctx)
-	logger.Info("Path monitoring stopped")
+func (w *pathWatcher) initDefaults() {
+	w.probeInterval = defaultProbeInterval
+	w.packet = &snet.Packet{}
 }
 
-func (pw *DefaultPathWatcher) createProbepacket(localAddr snet.SCIONAddress) (*snet.Packet, error) {
-	p := pw.Path()
-	if p == nil || p.Path().IsEmpty() {
-		return nil, serrors.New("empty path")
-	}
-	meta := p.Metadata()
-	if meta != nil && meta.Expiry.Before(time.Now()) {
-		return nil, serrors.New("expired path", "expiration", meta.Expiry)
-	}
-	sp := p.Path()
-	decodedPath := scion.Decoded{}
-	if err := decodedPath.DecodeFromBytes(sp.Raw); err != nil {
-		return nil, serrors.WrapStr("decoding path", err)
-	}
-	if len(decodedPath.InfoFields) > 0 {
-		infoF := decodedPath.InfoFields[len(decodedPath.InfoFields)-1]
-		if infoF.ConsDir {
-			decodedPath.HopFields[len(decodedPath.HopFields)-1].IngressRouterAlert = true
-		} else {
-			decodedPath.HopFields[len(decodedPath.HopFields)-1].EgressRouterAlert = true
+func (w *pathWatcher) drainConn(ctx context.Context) {
+	logger := log.FromCtx(ctx)
+	var pkt snet.Packet
+	var ov net.UDPAddr
+	for {
+		err := w.conn.ReadFrom(&pkt, &ov)
+		// This avoids logging errors for closing connections.
+		if ctx.Err() != nil {
+			return
+		}
+		if errors.Is(err, io.EOF) {
+			// dispatcher is currently down so back off.
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+		if err != nil {
+			if _, ok := err.(*snet.OpError); ok {
+				// ignore SCMP errors they are already dealt with in the SCMP
+				// handler.
+				continue
+			}
+			logger.Info("Unexpected error when reading probe reply", "err", err)
 		}
 	}
-	decodedPath.SerializeTo(sp.Raw)
-	return &snet.Packet{
-		PacketInfo: snet.PacketInfo{
-			Destination: snet.SCIONAddress{
-				IA: pw.remote,
-				// The host doesn't really matter because it's terminated at the router.
-				Host: addr.SvcNone,
-			},
-			Source: localAddr,
-			Path:   sp,
-			Payload: snet.SCMPTracerouteRequest{
-				Identifier: pw.id,
-				Sequence:   pw.nextSeq,
-			},
+}
+
+func (w *pathWatcher) sendProbe(ctx context.Context) {
+	w.pathMtx.RLock()
+	defer w.pathMtx.RUnlock()
+
+	w.pathState.sendProbe(time.Now())
+	w.nextSeq++
+	metrics.CounterInc(w.probesSent)
+	logger := log.FromCtx(ctx)
+	if err := w.prepareProbePacket(); err != nil {
+		metrics.CounterInc(w.probesSendErrors)
+		logger.Info("Failed to create path probe packet", "err", err)
+		return
+	}
+	if err := w.conn.WriteTo(w.packet, w.path.UnderlayNextHop()); err != nil {
+		metrics.CounterInc(w.probesSendErrors)
+		logger.Error("Failed to send path probe", "err", err)
+	}
+}
+
+func (w *pathWatcher) prepareProbePacket() error {
+	if err := w.path.err; err != nil {
+		return err
+	}
+	if w.path.expiry.Before(time.Now()) {
+		return serrors.New("expired path", "expiration", w.path.expiry)
+	}
+	w.packet.PacketInfo = snet.PacketInfo{
+		Destination: snet.SCIONAddress{
+			IA: w.remote,
+			// The host doesn't really matter because it's terminated at the router.
+			Host: addr.SvcNone,
 		},
-	}, nil
+		Source: w.localAddr,
+		Path:   w.path.dpPath,
+		Payload: snet.SCMPTracerouteRequest{
+			Identifier: w.id,
+			Sequence:   w.nextSeq,
+		},
+	}
+	return nil
 }
 
 type pathState struct {
@@ -201,4 +330,46 @@ func (s *pathState) active() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.consecutiveProbes == 3
+}
+
+// pathWrap is the monitored pathWrap it already contains a few precalculated values to
+// prevent too much repeated work.
+type pathWrap struct {
+	// path is the monitored path.
+	snet.Path
+	fingerprint snet.PathFingerprint
+	expiry      time.Time
+	dpPath      spath.Path
+	err         error
+}
+
+func createPathWrap(path snet.Path) pathWrap {
+	p := pathWrap{
+		Path: path,
+	}
+	if path == nil || path.Path().IsEmpty() {
+		p.err = serrors.New("empty path")
+		return p
+	}
+	p.fingerprint = snet.Fingerprint(path)
+	p.expiry = path.Metadata().Expiry
+	sp := path.Path()
+	decodedPath := scion.Decoded{}
+	if err := decodedPath.DecodeFromBytes(sp.Raw); err != nil {
+		p.err = serrors.WrapStr("decoding path", err)
+		return p
+	}
+	if len(decodedPath.InfoFields) > 0 {
+		infoF := decodedPath.InfoFields[len(decodedPath.InfoFields)-1]
+		if infoF.ConsDir {
+			decodedPath.HopFields[len(decodedPath.HopFields)-1].IngressRouterAlert = true
+		} else {
+			decodedPath.HopFields[len(decodedPath.HopFields)-1].EgressRouterAlert = true
+		}
+	}
+	if err := decodedPath.SerializeTo(sp.Raw); err != nil {
+		p.err = serrors.WrapStr("serializing path", err)
+	}
+	p.dpPath = sp
+	return p
 }

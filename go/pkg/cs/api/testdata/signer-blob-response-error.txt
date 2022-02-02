@@ -1,5 +1,0 @@
-{
-    "status": 500,
-    "title": "no certificates available",
-    "type": "/problems/internal-error"
-}

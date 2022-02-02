@@ -17,10 +17,11 @@ package bfd_test
 import "github.com/scionproto/scion/go/pkg/router/bfd"
 
 type sessionTestCase struct {
-	sessionA    *bfd.Session
-	sessionB    *bfd.Session
-	expectedUpA bool
-	expectedUpB bool
+	sessionA       *bfd.Session
+	sessionB       *bfd.Session
+	expectedUpA    bool
+	expectedUpB    bool
+	disableLogging bool
 
 	// testBehavior runs after sessions are set up, and chooses whether to take links down or
 	// wait.

@@ -19,7 +19,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -235,9 +234,9 @@ func gen(t *testing.T, outDir string) {
 		Type:  "TRC PAYLOAD",
 		Bytes: rawTRC,
 	})
-	require.NoError(t, ioutil.WriteFile(filepath.Join(outDir, "ISD1-B1-S2.pld.der"),
+	require.NoError(t, os.WriteFile(filepath.Join(outDir, "ISD1-B1-S2.pld.der"),
 		rawTRC, 0644))
-	require.NoError(t, ioutil.WriteFile(filepath.Join(outDir, "ISD1-B1-S2.pld.pem"),
+	require.NoError(t, os.WriteFile(filepath.Join(outDir, "ISD1-B1-S2.pld.pem"),
 		encodedTRC, 0644))
 }
 
@@ -247,7 +246,7 @@ func genKey(t *testing.T, out string) key.PrivateKey {
 	encoded, err := key.EncodePEMPrivateKey(gen)
 	require.NoError(t, err)
 
-	require.NoError(t, ioutil.WriteFile(out, encoded, 0644))
+	require.NoError(t, os.WriteFile(out, encoded, 0644))
 
 	return gen
 }
@@ -284,8 +283,8 @@ func genCert(
 	cert, err := x509.ParseCertificate(certRaw)
 	require.NoError(t, err)
 
-	require.NoError(t, ioutil.WriteFile(out+".der", encoded, 0644))
-	require.NoError(t, ioutil.WriteFile(out+".pem", encoded, 0644))
+	require.NoError(t, os.WriteFile(out+".der", encoded, 0644))
+	require.NoError(t, os.WriteFile(out+".pem", encoded, 0644))
 
 	return cert
 }

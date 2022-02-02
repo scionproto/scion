@@ -123,7 +123,7 @@ func testStoreSelection(t *testing.T,
 			require.NoError(t, err)
 
 			db.EXPECT().CandidateBeacons(
-				gomock.Any(), gomock.Any(), gomock.Any(), addr.IA{},
+				gomock.Any(), gomock.Any(), gomock.Any(), addr.IA(0),
 			).Return(
 				test.results, test.err,
 			)

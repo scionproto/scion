@@ -95,8 +95,13 @@ func (e *executor) BeaconSources(ctx context.Context) ([]addr.IA, error) {
 	defer rows.Close()
 	var ias []addr.IA
 	for rows.Next() {
-		var ia addr.IA
-		if err := rows.Scan(&ia.I, &ia.A); err != nil {
+		var isd addr.ISD
+		var as addr.AS
+		if err := rows.Scan(&isd, &as); err != nil {
+			return nil, err
+		}
+		ia, err := addr.IAFrom(isd, as)
+		if err != nil {
 			return nil, err
 		}
 		ias = append(ias, ia)
@@ -128,7 +133,7 @@ func (e *executor) CandidateBeacons(
 		LIMIT ?2
 	`, srcCond)
 	rows, err := e.db.QueryContext(ctx, query, usage, setSize, util.TimeToSecs(time.Now()),
-		src.I, src.A)
+		src.ISD(), src.AS())
 	if err != nil {
 		return nil, db.NewReadError("Error selecting beacons", err)
 	}
@@ -259,15 +264,15 @@ func (e *executor) buildQuery(params *storagebeacon.QueryParams) (string, []inte
 			switch {
 			case as.IsZero():
 				continue
-			case as.I == 0:
+			case as.ISD() == 0:
 				subQ = append(subQ, "StartAs=?")
-				args = append(args, as.A)
-			case as.A == 0:
+				args = append(args, as.AS())
+			case as.AS() == 0:
 				subQ = append(subQ, "StartIsd=?")
-				args = append(args, as.I)
-			case as.I != 0 && as.A != 0:
+				args = append(args, as.ISD())
+			case as.ISD() != 0 && as.AS() != 0:
 				subQ = append(subQ, "(StartIsd=? AND StartAs=?)")
-				args = append(args, as.I, as.A)
+				args = append(args, as.ISD(), as.AS())
 			}
 		}
 		if len(subQ) > 0 {
@@ -382,7 +387,7 @@ func insertNewBeacon(
 		ExpirationTime, LastUpdated, Usage, Beacon)
 	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err = tx.ExecContext(ctx, inst, segID, fullID, start.I, start.A, b.InIfId,
+	_, err = tx.ExecContext(ctx, inst, segID, fullID, start.ISD(), start.AS(), b.InIfId,
 		len(b.Segment.ASEntries), infoTime, expTime, lastUpdated, usage, packed)
 	if err != nil {
 		return db.NewWriteError("insert beacon", err)

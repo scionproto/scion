@@ -19,7 +19,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -78,9 +77,9 @@ func LoadChains(ctx context.Context, dir string, db DB) (LoadResult, error) {
 			res.Ignored[f] = err
 			continue
 		}
-		trcs, _, err := activeTRCs(ctx, db, ia.I)
+		trcs, _, err := activeTRCs(ctx, db, ia.ISD())
 		if errors.Is(err, errNotFound) {
-			res.Ignored[f] = serrors.New("TRC not found", "isd", ia.I)
+			res.Ignored[f] = serrors.New("TRC not found", "isd", ia.ISD())
 			continue
 		}
 		if err != nil {
@@ -127,7 +126,7 @@ func LoadTRCs(ctx context.Context, dir string, db DB) (LoadResult, error) {
 	res := LoadResult{Ignored: map[string]error{}}
 	// TODO(roosd): should probably be a transaction.
 	for _, f := range files {
-		raw, err := ioutil.ReadFile(f)
+		raw, err := os.ReadFile(f)
 		if err != nil {
 			return res, serrors.WithCtx(err, "file", f)
 		}

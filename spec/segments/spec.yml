@@ -53,7 +53,7 @@ paths:
         name: segment-id
         required: true
         schema:
-          $ref: "#/components/schemas/SegmentIDs"
+          $ref: "#/components/schemas/SegmentID"
         style: simple
         explode: false
       responses:
@@ -81,7 +81,7 @@ paths:
         name: segment-id
         required: true
         schema:
-          $ref: "#/components/schemas/SegmentIDs"
+          $ref: "#/components/schemas/SegmentID"
         style: simple
         explode: false
       responses:
@@ -107,12 +107,6 @@ components:
       type: string
       example: fb45d44d
       format: hex-string
-    SegmentIDs:
-      title: Segment Identifiers
-      type: array
-      items:
-        $ref: "#/components/schemas/SegmentID"
-      minItems: 1
     SegmentBrief:
       title: Brief SCION path segment description
       type: object

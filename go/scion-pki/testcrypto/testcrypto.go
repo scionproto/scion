@@ -21,7 +21,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -282,21 +281,21 @@ func createTRCs(cfg config) error {
 	certFiles := make(map[addr.ISD][]string)
 	isds := make(map[addr.ISD]struct{})
 	for ia, d := range cfg.topo.ASes {
-		isds[ia.I] = struct{}{}
+		isds[ia.ISD()] = struct{}{}
 		if d.Authoritative {
-			authoritatives[ia.I] = append(authoritatives[ia.I], ia.A)
+			authoritatives[ia.ISD()] = append(authoritatives[ia.ISD()], ia.AS())
 		}
 		if d.Core {
-			cores[ia.I] = append(cores[ia.I], ia.A)
+			cores[ia.ISD()] = append(cores[ia.ISD()], ia.AS())
 		}
 		if d.Issuing {
-			issuers[ia.I] = append(issuers[ia.I], ia)
-			certFiles[ia.I] = append(certFiles[ia.I],
+			issuers[ia.ISD()] = append(issuers[ia.ISD()], ia)
+			certFiles[ia.ISD()] = append(certFiles[ia.ISD()],
 				filepath.Join(cryptoCADir(ia, cfg.out), rootCertName(ia)))
 		}
 		if d.Voting {
-			voters[ia.I] = append(voters[ia.I], ia)
-			certFiles[ia.I] = append(certFiles[ia.I],
+			voters[ia.ISD()] = append(voters[ia.ISD()], ia)
+			certFiles[ia.ISD()] = append(certFiles[ia.ISD()],
 				filepath.Join(cryptoVotingDir(ia, cfg.out), regularCertName(ia)),
 				filepath.Join(cryptoVotingDir(ia, cfg.out), sensitiveCertName(ia)),
 			)
@@ -354,7 +353,7 @@ func createTRCs(cfg config) error {
 			Type:  "TRC",
 			Bytes: combined,
 		})
-		if err := ioutil.WriteFile(filepath.Join(trcDir(isd, cfg.out),
+		if err := os.WriteFile(filepath.Join(trcDir(isd, cfg.out),
 			fmt.Sprintf("ISD%d-B1-S1.trc", isd)), combined, 0644); err != nil {
 			return serrors.WrapStr("writing TRC", err)
 		}
@@ -453,7 +452,7 @@ func setupTemplates(cfg config) error {
 func prepareDirectories(t topo, out outConfig) error {
 	for ia, d := range t.ASes {
 		dirs := []string{
-			trcDir(ia.I, out),
+			trcDir(ia.ISD(), out),
 			keyDir(ia, out),
 			certDir(ia, out),
 			cryptoASDir(ia, out),
@@ -570,13 +569,20 @@ type outConfig struct {
 
 func (cfg outConfig) AS(ia addr.IA) string {
 	if cfg.isd {
-		return fmt.Sprintf("%s/ISD%d/AS%s", cfg.base, ia.I, ia.A.FileFmt())
+		return filepath.Join(
+			cfg.base,
+			addr.FormatISD(ia.ISD(), addr.WithDefaultPrefix()),
+			addr.FormatAS(ia.AS(), addr.WithDefaultPrefix(), addr.WithFileSeparator()),
+		)
 	}
-	return fmt.Sprintf("%s/AS%s", cfg.base, ia.A.FileFmt())
+	return filepath.Join(
+		cfg.base,
+		addr.FormatAS(ia.AS(), addr.WithDefaultPrefix(), addr.WithFileSeparator()),
+	)
 }
 
 func trcDir(isd addr.ISD, out outConfig) string {
-	return fmt.Sprintf("%s/ISD%d/trcs", out.base, isd)
+	return filepath.Join(out.base, addr.FormatISD(isd, addr.WithDefaultPrefix()), "trcs")
 }
 
 func keyDir(ia addr.IA, out outConfig) string {
@@ -600,30 +606,34 @@ func cryptoVotingDir(ia addr.IA, out outConfig) string {
 }
 
 func chainName(ia addr.IA) string {
-	return fmt.Sprintf("%s.pem", ia.FileFmt(true))
+	return fmt.Sprintf("%s.pem", fmtIA(ia))
 }
 
 func caCertName(ia addr.IA) string {
-	return fmt.Sprintf("%s.ca.crt", ia.FileFmt(true))
+	return fmt.Sprintf("%s.ca.crt", fmtIA(ia))
 }
 
 func rootCertName(ia addr.IA, serial ...int) string {
 	if len(serial) == 0 {
-		return fmt.Sprintf("%s.root.crt", ia.FileFmt(true))
+		return fmt.Sprintf("%s.root.crt", fmtIA(ia))
 	}
-	return fmt.Sprintf("%s.root.s%d.crt", ia.FileFmt(true), serial[0])
+	return fmt.Sprintf("%s.root.s%d.crt", fmtIA(ia), serial[0])
 }
 
 func sensitiveCertName(ia addr.IA, serial ...int) string {
 	if len(serial) == 0 {
-		return fmt.Sprintf("%s.sensitive.crt", ia.FileFmt(true))
+		return fmt.Sprintf("%s.sensitive.crt", fmtIA(ia))
 	}
-	return fmt.Sprintf("%s.sensitive.s%d.crt", ia.FileFmt(true), serial[0])
+	return fmt.Sprintf("%s.sensitive.s%d.crt", fmtIA(ia), serial[0])
 }
 
 func regularCertName(ia addr.IA, serial ...int) string {
 	if len(serial) == 0 {
-		return fmt.Sprintf("%s.regular.crt", ia.FileFmt(true))
+		return fmt.Sprintf("%s.regular.crt", fmtIA(ia))
 	}
-	return fmt.Sprintf("%s.regular.s%d.crt", ia.FileFmt(true), serial[0])
+	return fmt.Sprintf("%s.regular.s%d.crt", fmtIA(ia), serial[0])
+}
+
+func fmtIA(ia addr.IA) string {
+	return addr.FormatIA(ia, addr.WithFileSeparator(), addr.WithDefaultPrefix())
 }

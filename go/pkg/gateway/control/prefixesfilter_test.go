@@ -66,8 +66,10 @@ func TestPrefixesFilterPrefixes(t *testing.T) {
 		"deny all filters all": {
 			CreateFilter: func(_ *testing.T, ctrl *gomock.Controller) control.PrefixesFilter {
 				consumer := mock_control.NewMockPrefixConsumer(ctrl)
-				consumer.EXPECT().Prefixes(xtest.MustParseIA("1-ff00:0:111"), gomock.Any(), nil)
-				consumer.EXPECT().Prefixes(xtest.MustParseIA("1-ff00:0:112"), gomock.Any(), nil)
+				consumer.EXPECT().Prefixes(xtest.MustParseIA("1-ff00:0:111"),
+					gomock.Any(), nil).Return(nil)
+				consumer.EXPECT().Prefixes(xtest.MustParseIA("1-ff00:0:112"),
+					gomock.Any(), nil).Return(nil)
 				provider := mock_control.NewMockRoutingPolicyProvider(ctrl)
 				provider.EXPECT().RoutingPolicy().
 					Return(&routing.Policy{DefaultAction: routing.Reject}).Times(2)
@@ -94,10 +96,10 @@ func TestPrefixesFilterPrefixes(t *testing.T) {
 		"allow all filters none": {
 			CreateFilter: func(_ *testing.T, ctrl *gomock.Controller) control.PrefixesFilter {
 				consumer := mock_control.NewMockPrefixConsumer(ctrl)
-				consumer.EXPECT().Prefixes(xtest.MustParseIA("1-ff00:0:111"), gomock.Any(),
-					xtest.MustParseCIDRs(t, "10.1.0.0/25"))
-				consumer.EXPECT().Prefixes(xtest.MustParseIA("1-ff00:0:112"), gomock.Any(),
-					xtest.MustParseCIDRs(t, "10.4.0.0/25"))
+				consumer.EXPECT().Prefixes(xtest.MustParseIA("1-ff00:0:111"),
+					gomock.Any(), xtest.MustParseCIDRs(t, "10.1.0.0/25")).Return(nil)
+				consumer.EXPECT().Prefixes(xtest.MustParseIA("1-ff00:0:112"),
+					gomock.Any(), xtest.MustParseCIDRs(t, "10.4.0.0/25")).Return(nil)
 				provider := mock_control.NewMockRoutingPolicyProvider(ctrl)
 				provider.EXPECT().RoutingPolicy().
 					Return(&routing.Policy{DefaultAction: routing.Accept}).Times(2)
@@ -124,11 +126,12 @@ func TestPrefixesFilterPrefixes(t *testing.T) {
 		"routing policy filters correctly": {
 			CreateFilter: func(t *testing.T, ctrl *gomock.Controller) control.PrefixesFilter {
 				consumer := mock_control.NewMockPrefixConsumer(ctrl)
-				consumer.EXPECT().Prefixes(xtest.MustParseIA("1-ff00:0:111"), gomock.Any(),
-					xtest.MustParseCIDRs(t, "10.1.0.0/25"))
-				consumer.EXPECT().Prefixes(xtest.MustParseIA("1-ff00:0:112"), gomock.Any(),
-					xtest.MustParseCIDRs(t, "10.4.0.0/25"))
-				consumer.EXPECT().Prefixes(xtest.MustParseIA("1-ff00:0:113"), gomock.Any(), nil)
+				consumer.EXPECT().Prefixes(xtest.MustParseIA("1-ff00:0:111"),
+					gomock.Any(), xtest.MustParseCIDRs(t, "10.1.0.0/25")).Return(nil)
+				consumer.EXPECT().Prefixes(xtest.MustParseIA("1-ff00:0:112"),
+					gomock.Any(), xtest.MustParseCIDRs(t, "10.4.0.0/25")).Return(nil)
+				consumer.EXPECT().Prefixes(xtest.MustParseIA("1-ff00:0:113"),
+					gomock.Any(), nil).Return(nil)
 				pol := &routing.Policy{DefaultAction: routing.Reject}
 				err := pol.UnmarshalText(
 					[]byte(`accept    1-ff00:0:111    1-ff00:0:110    10.1.0.0/25
@@ -173,7 +176,8 @@ accept    1-ff00:0:113    1-ff00:0:110    10.3.0.0/25`))
 
 			f := tc.CreateFilter(t, ctrl)
 			for _, input := range tc.Inputs {
-				f.Prefixes(input.IA, input.Gateway, input.Prefixes)
+				err := f.Prefixes(input.IA, input.Gateway, input.Prefixes)
+				require.NoError(t, err)
 			}
 		})
 	}

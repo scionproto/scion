@@ -15,7 +15,7 @@
 package slayers_test
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -31,7 +31,7 @@ import (
 // packet while linking against gopacket/layers.
 func TestParseBFD(t *testing.T) {
 	rawFile := filepath.Join(goldenDir, "scion-bfd.bin")
-	raw, err := ioutil.ReadFile(rawFile)
+	raw, err := os.ReadFile(rawFile)
 	if err != nil {
 		t.Fatal(err)
 	}

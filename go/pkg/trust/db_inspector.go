@@ -57,8 +57,13 @@ func (i DBInspector) ByAttributes(ctx context.Context, isd addr.ISD,
 
 // HasAttributes indicates whether an AS holds all the specified attributes.
 // The first return value is always false for non-primary ASes.
-func (i DBInspector) HasAttributes(ctx context.Context, ia addr.IA, attrs Attribute) (bool, error) {
-	trcAttrs, err := i.trcAttrs(ctx, ia.I)
+func (i DBInspector) HasAttributes(
+	ctx context.Context,
+	ia addr.IA,
+	attrs Attribute,
+) (bool, error) {
+
+	trcAttrs, err := i.trcAttrs(ctx, ia.ISD())
 	if err != nil {
 		return false, err
 	}
@@ -81,10 +86,10 @@ func (i DBInspector) trcAttrs(ctx context.Context, isd addr.ISD) (map[addr.IA]At
 	trc := sTRC.TRC
 	attrs := map[addr.IA]Attribute{}
 	for _, as := range trc.CoreASes {
-		attrs[addr.IA{I: trc.ID.ISD, A: as}] |= Core
+		attrs[addr.MustIAFrom(trc.ID.ISD, as)] |= Core
 	}
 	for _, as := range trc.AuthoritativeASes {
-		attrs[addr.IA{I: trc.ID.ISD, A: as}] |= Authoritative
+		attrs[addr.MustIAFrom(trc.ID.ISD, as)] |= Authoritative
 	}
 	roots, err := rootIAs(trc)
 	if err != nil {

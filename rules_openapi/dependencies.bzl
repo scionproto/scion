@@ -11,10 +11,12 @@ def rules_openapi_dependencies():
 
     maybe(
         http_archive,
-        name = "cgrindel_rules_updatesrc",
-        sha256 = "18eb6620ac4684c2bc722b8fe447dfaba76f73d73e2dfcaf837f542379ed9bc3",
-        strip_prefix = "rules_updatesrc-0.1.0",
-        urls = ["https://github.com/cgrindel/rules_updatesrc/archive/v0.1.0.tar.gz"],
-        patches = ["@com_github_scionproto_scion//rules_openapi:rules_updatesrc.patch"],
+        name = "cgrindel_bazel_starlib",
+        sha256 = "163a45d949fdb96b328bb44fe56976c610c6728c77118c6cd999f26cedca97eb",
+        strip_prefix = "bazel-starlib-0.2.1",
+        urls = [
+            "http://github.com/cgrindel/bazel-starlib/archive/v0.2.1.tar.gz",
+        ],
+        patches = ["@com_github_scionproto_scion//rules_openapi:rules_starlib.patch"],
         patch_args = ["-p1"],
     )

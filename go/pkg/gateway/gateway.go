@@ -24,7 +24,9 @@ import (
 	"time"
 
 	quic "github.com/lucas-clemente/quic-go"
+	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
+	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/daemon"
@@ -32,6 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
+	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/routemgr"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -107,6 +110,27 @@ func (pcf PacketConnFactory) New() (net.PacketConn, error) {
 	return conn, nil
 }
 
+type ProbeConnFactory struct {
+	Dispatcher *reconnect.DispatcherService
+	LocalIA    addr.IA
+	LocalIP    net.IP
+}
+
+func (f ProbeConnFactory) New(ctx context.Context) (net.PacketConn, error) {
+	pathMonitorConnection, pathMonitorPort, err := f.Dispatcher.Register(
+		context.Background(),
+		f.LocalIA,
+		&net.UDPAddr{IP: f.LocalIP},
+		addr.SvcNone,
+	)
+	if err != nil {
+		return nil, serrors.WrapStr("unable to open control socket", err)
+	}
+	log.FromCtx(ctx).Debug("Path monitor connection opened on Raw UDP/SCION",
+		"local_ip", f.LocalIP, "local_port", pathMonitorPort)
+	return pathMonitorConnection, nil
+}
+
 type RoutingTableFactory struct {
 	RoutePublisherFactory control.PublisherFactory
 }
@@ -134,7 +158,7 @@ type SelectAdvertisedRoutes struct {
 	ConfigPublisher *control.ConfigPublisher
 }
 
-func (a *SelectAdvertisedRoutes) AdvertiseList(from, to addr.IA) []*net.IPNet {
+func (a *SelectAdvertisedRoutes) AdvertiseList(from, to addr.IA) ([]netaddr.IPPrefix, error) {
 	return routing.AdvertiseList(a.ConfigPublisher.RoutingPolicy(), from, to)
 }
 
@@ -268,55 +292,69 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// are healthy. Paths are fetched from a Daemon. Data-plane revocations are
 	// forwarded to the Daemon to improve path construction.
 	// *************************************************************************
-	pathMonitorConnection, pathMonitorPort, err := reconnectingDispatcher.Register(
-		context.Background(),
-		localIA,
-		&net.UDPAddr{IP: g.PathMonitorIP},
-		addr.SvcNone,
-	)
-	if err != nil {
-		return serrors.WrapStr("unable to open control socket", err)
-	}
-	logger.Debug("Path monitor connection opened on Raw UDP/SCION",
-		"local_ip", g.PathMonitorIP, "local_port", pathMonitorPort)
 
 	pathRouter := &snet.BaseRouter{Querier: daemon.Querier{Connector: g.Daemon, IA: localIA}}
 	revocationHandler := daemon.RevHandler{Connector: g.Daemon}
 
 	var pathsMonitored, sessionPathsAvailable metrics.Gauge
-	var probesSent, probesReceived metrics.Counter
+	var probesSent, probesReceived, probesSendErrors func(addr.IA) metrics.Counter
 	if g.Metrics != nil {
+		perRemoteCounter := func(c *prometheus.CounterVec) func(addr.IA) metrics.Counter {
+			return func(remote addr.IA) metrics.Counter {
+				return metrics.CounterWith(
+					metrics.NewPromCounter(c),
+					"remote_isd_as", remote.String(),
+				)
+			}
+		}
 		pathsMonitored = metrics.NewPromGauge(g.Metrics.PathsMonitored)
 		sessionPathsAvailable = metrics.NewPromGauge(g.Metrics.SessionPathsAvailable)
-		probesSent = metrics.NewPromCounter(g.Metrics.PathProbesSent)
-		probesReceived = metrics.NewPromCounter(g.Metrics.PathProbesReceived)
+
+		probesSent = perRemoteCounter(g.Metrics.PathProbesSent)
+		probesReceived = perRemoteCounter(g.Metrics.PathProbesReceived)
+		probesSendErrors = perRemoteCounter(g.Metrics.PathProbesSendErrors)
 	}
 	revStore := &pathhealth.MemoryRevocationStore{}
+
+	// periodicly clean up the revocation store.
+	revCleaner := periodic.Start(periodic.Func{
+		Task: func(ctx context.Context) {
+			revStore.Cleanup(ctx)
+		},
+		TaskName: "revocation_store_cleaner",
+	}, 30*time.Second, 30*time.Second)
+	defer revCleaner.Stop()
+
 	pathMonitor := &PathMonitor{
 		Monitor: &pathhealth.Monitor{
-			LocalIA:            localIA,
-			LocalIP:            g.PathMonitorIP,
-			Conn:               pathMonitorConnection,
-			RevocationHandler:  revocationHandler,
-			Router:             pathRouter,
-			PathUpdateInterval: PathUpdateInterval(ctx),
 			RemoteWatcherFactory: &pathhealth.DefaultRemoteWatcherFactory{
-				PathWatcherFactory: &pathhealth.DefaultPathWatcherFactory{},
-				PathsMonitored:     pathsMonitored,
-				ProbesSent:         probesSent,
-				ProbesReceived:     probesReceived,
+				Router: pathRouter,
+				PathWatcherFactory: &pathhealth.DefaultPathWatcherFactory{
+					LocalIA:           localIA,
+					LocalIP:           g.PathMonitorIP,
+					RevocationHandler: revocationHandler,
+					ConnFactory: ProbeConnFactory{
+						Dispatcher: reconnectingDispatcher,
+						LocalIA:    localIA,
+						LocalIP:    g.PathMonitorIP,
+					},
+					ProbeInterval:          0, // using default for now
+					ProbesSent:             probesSent,
+					ProbesReceived:         probesReceived,
+					ProbesSendErrors:       probesSendErrors,
+					SCMPErrors:             g.Metrics.SCMPErrors,
+					SCIONPacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
+				},
+				PathUpdateInterval: PathUpdateInterval(ctx),
+				PathFetchTimeout:   0, // using default for now
+				PathsMonitored: func(remote addr.IA) metrics.Gauge {
+					return metrics.GaugeWith(pathsMonitored, "remote_isd_as", remote.String())
+				},
 			},
-			RevocationStore:        revStore,
-			SCIONPacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
 		},
 		revStore:              revStore,
 		sessionPathsAvailable: sessionPathsAvailable,
 	}
-	go func() {
-		defer log.HandlePanic()
-		pathMonitor.Run(ctx)
-	}()
-	logger.Info("Path monitor started.")
 
 	// *************************************************************************
 	// Set up the configuration pipelines for session construction.

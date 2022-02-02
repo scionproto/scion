@@ -18,6 +18,9 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"net"
+	"strings"
+
+	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/go/lib/addr"
 )
@@ -67,15 +70,43 @@ func (p Policy) Digest() []byte {
 	return h.Sum(nil)
 }
 
-// Match iterates through the list of rules in order and returns the first rule
-// that matches. If no rule is matched, a rule with DefaultAction is returned.
-func (p Policy) Match(from, to addr.IA, network *net.IPNet) Rule {
-	for _, rule := range p.Rules {
-		if rule.Match(from, to, network) {
-			return rule
+// Match matches an IP range to the policy and returns the subranges that satisfy it.
+func (p Policy) Match(from, to addr.IA, ipPrefix netaddr.IPPrefix) (IPSet, error) {
+	// Compile the rules into a set of allowed addresses.
+	var sb netaddr.IPSetBuilder
+	if p.DefaultAction == Accept {
+		sb.AddPrefix(netaddr.MustParseIPPrefix("0.0.0.0/0"))
+		sb.AddPrefix(netaddr.MustParseIPPrefix("::/0"))
+	}
+	for i := len(p.Rules) - 1; i >= 0; i-- {
+		rule := p.Rules[i]
+		if !rule.From.Match(from) || !rule.To.Match(to) {
+			continue
+		}
+		set, err := rule.Network.IPSet()
+		if err != nil {
+			return IPSet{}, err
+		}
+		switch rule.Action {
+		case Accept:
+			sb.AddSet(set)
+		case Reject:
+			sb.RemoveSet(set)
 		}
 	}
-	return Rule{Action: p.DefaultAction}
+	// Intersect the supplied IP range with the allowed range to get the result.
+	var nb netaddr.IPSetBuilder
+	nb.AddPrefix(ipPrefix)
+	ns, err := nb.IPSet()
+	if err != nil {
+		return IPSet{}, err
+	}
+	sb.Intersect(ns)
+	set, err := sb.IPSet()
+	if err != nil {
+		return IPSet{}, err
+	}
+	return IPSet{IPSet: *set}, nil
 }
 
 // Rule represents a routing policy rule.
@@ -88,19 +119,43 @@ type Rule struct {
 	Comment string
 }
 
-// Match indicates if this rule matches the input.
-func (r Rule) Match(from, to addr.IA, network *net.IPNet) bool {
-	return r.From.Match(from) && r.To.Match(to) && r.Network.Match(network)
-}
-
 // IAMatcher matches ISD-AS.
 type IAMatcher interface {
 	Match(addr.IA) bool
 }
 
 // NetworkMatcher matches IP networks.
-type NetworkMatcher interface {
-	Match(*net.IPNet) bool
+type NetworkMatcher struct {
+	Allowed []netaddr.IPPrefix
+	Negated bool
+}
+
+// IPSet returns a set containing all IPs allowed by the matcher.
+func (m NetworkMatcher) IPSet() (*netaddr.IPSet, error) {
+	var sb netaddr.IPSetBuilder
+	for _, prefix := range m.Allowed {
+		sb.AddPrefix(prefix)
+	}
+	if m.Negated {
+		sb.Complement()
+	}
+	set, err := sb.IPSet()
+	if err != nil {
+		return nil, err
+	}
+	return set, nil
+}
+
+func (m NetworkMatcher) String() string {
+	var negated string
+	if m.Negated {
+		negated = "!"
+	}
+	networks := make([]string, 0, len(m.Allowed))
+	for _, network := range m.Allowed {
+		networks = append(networks, network.String())
+	}
+	return negated + strings.Join(networks, ",")
 }
 
 // Action represents the rule decision.

@@ -246,7 +246,10 @@ func (db *metricsExecutor) InsertNextQuery(ctx context.Context,
 	return ok, err
 }
 
-func (db *metricsExecutor) GetNextQuery(ctx context.Context, src, dst addr.IA) (time.Time, error) {
+func (db *metricsExecutor) GetNextQuery(
+	ctx context.Context,
+	src, dst addr.IA,
+) (time.Time, error) {
 
 	var t time.Time
 	var err error

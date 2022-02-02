@@ -46,8 +46,7 @@ func TestIPPrefixServerPrefixes(t *testing.T) {
 			Advertiser: func(t *testing.T, ctrl *gomock.Controller) grpc.Advertiser {
 				a := mock_grpc.NewMockAdvertiser(ctrl)
 				a.EXPECT().AdvertiseList(local, remote).Return(
-					networksList(t, "127.0.0.0/24,127.0.1.0/24,::/64"),
-				)
+					xtest.MustParseIPPrefixes(t, "127.0.0.0/24", "127.0.1.0/24", "::/64"), nil)
 				return a
 			},
 			Request: func() (context.Context, *gpb.PrefixesRequest) {
@@ -62,23 +61,7 @@ func TestIPPrefixServerPrefixes(t *testing.T) {
 		"unknown": {
 			Advertiser: func(t *testing.T, ctrl *gomock.Controller) grpc.Advertiser {
 				a := mock_grpc.NewMockAdvertiser(ctrl)
-				a.EXPECT().AdvertiseList(local, remote).Return(nil)
-				return a
-			},
-			Request: func() (context.Context, *gpb.PrefixesRequest) {
-				ctx := peer.NewContext(context.Background(),
-					&peer.Peer{Addr: &snet.UDPAddr{IA: remote}},
-				)
-				return ctx, &gpb.PrefixesRequest{}
-			},
-			ErrAssertion: assert.NoError,
-		},
-		"invalid prefix": {
-			Advertiser: func(t *testing.T, ctrl *gomock.Controller) grpc.Advertiser {
-				a := mock_grpc.NewMockAdvertiser(ctrl)
-				a.EXPECT().AdvertiseList(local, remote).Return(
-					[]*net.IPNet{{IP: net.ParseIP("127.0.0.0")}},
-				)
+				a.EXPECT().AdvertiseList(local, remote).Return(nil, nil)
 				return a
 			},
 			Request: func() (context.Context, *gpb.PrefixesRequest) {

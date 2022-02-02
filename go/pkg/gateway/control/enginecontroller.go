@@ -270,7 +270,7 @@ func buildRoutingChains(sessionConfigs []*SessionConfig) ([]*RoutingChain, map[i
 		iaConfigs[sc.IA] = append(iaConfigs[sc.IA], sc)
 	}
 	sort.Slice(sortedIAs, func(i, j int) bool {
-		return sortedIAs[i].IAInt() < sortedIAs[j].IAInt()
+		return sortedIAs[i] < sortedIAs[j]
 	})
 	// For each prefix, compute the set of gateways that serves it. For each
 	// distinct gateway set we need a routing chain.

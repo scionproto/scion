@@ -18,7 +18,6 @@ import (
 	"flag"
 	"fmt"
 	"hash"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -52,7 +51,7 @@ func realMain() int {
 	}
 	defer log.HandlePanic()
 
-	artifactsDir, err := ioutil.TempDir("", "braccept_")
+	artifactsDir, err := os.MkdirTemp("", "braccept_")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		return 1

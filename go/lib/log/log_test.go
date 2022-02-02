@@ -16,7 +16,6 @@
 package log_test
 
 import (
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -81,7 +80,7 @@ func TestLog(t *testing.T) {
 		Console: log.ConsoleConfig{Format: "human", Level: "debug"},
 	}
 	// redirect stderr to file.
-	file, err := ioutil.TempFile("", "logtest")
+	file, err := os.CreateTemp("", "logtest")
 	require.NoError(t, err)
 	fName := file.Name()
 	defer os.Remove(fName)
@@ -96,13 +95,13 @@ func TestLog(t *testing.T) {
 	// restore stderr
 	os.Stderr = origStderr
 	require.NoError(t, file.Close())
-	data, err := ioutil.ReadFile(fName)
+	data, err := os.ReadFile(fName)
 	require.NoError(t, err)
 	lines := strings.Split(string(data), "\n")
 	require.Len(t, lines, 3)
-	assert.Equal(t, `INFO	            log/log_test.go:92	msg1	{"key1": "val1"}`,
+	assert.Equal(t, `INFO	            log/log_test.go:91	msg1	{"key1": "val1"}`,
 		lines[0][len(common.TimeFmt)+1:])
 	assert.Equal(t,
-		`DEBUG	            log/log_test.go:94	msg2	{"key2": "val2", "key3": "val3"}`,
+		`DEBUG	            log/log_test.go:93	msg2	{"key2": "val2", "key3": "val3"}`,
 		lines[1][len(common.TimeFmt)+1:])
 }

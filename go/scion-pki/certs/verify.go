@@ -18,7 +18,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -164,7 +164,7 @@ The CA certificate must be a PEM encoded.
 }
 
 func loadTRC(trcFile string) (cppki.SignedTRC, error) {
-	raw, err := ioutil.ReadFile(trcFile)
+	raw, err := os.ReadFile(trcFile)
 	block, _ := pem.Decode(raw)
 	if block != nil && block.Type == "TRC" {
 		raw = block.Bytes

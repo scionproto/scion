@@ -46,3 +46,7 @@ type (
 	State                    = state
 	Event                    = event
 )
+
+func (s *Session) TestingLogs(enable bool) {
+	s.testingLogs = enable
+}

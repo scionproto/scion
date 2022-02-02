@@ -46,10 +46,12 @@ type FilterOptions struct {
 
 // Policy is a compiled path policy object, all extended policies have been merged.
 type Policy struct {
-	Name     string    `json:"-"`
-	ACL      *ACL      `json:"acl,omitempty"`
-	Sequence *Sequence `json:"sequence,omitempty"`
-	Options  []Option  `json:"options,omitempty"`
+	Name        string       `json:"-"`
+	ACL         *ACL         `json:"acl,omitempty"`
+	Sequence    *Sequence    `json:"sequence,omitempty"`
+	LocalISDAS  *LocalISDAS  `json:"local_isd_ases,omitempty"`
+	RemoteISDAS *RemoteISDAS `json:"remote_isd_ases,omitempty"`
+	Options     []Option     `json:"options,omitempty"`
 }
 
 // NewPolicy creates a Policy and sorts its Options
@@ -73,15 +75,21 @@ func (p *Policy) FilterOpt(paths []snet.Path, opts FilterOptions) []snet.Path {
 	if p == nil {
 		return paths
 	}
-	result := p.ACL.Eval(paths)
+	if p.LocalISDAS != nil {
+		paths = p.LocalISDAS.Eval(paths)
+	}
+	if p.RemoteISDAS != nil {
+		paths = p.RemoteISDAS.Eval(paths)
+	}
+	paths = p.ACL.Eval(paths)
 	if p.Sequence != nil && !opts.IgnoreSequence {
-		result = p.Sequence.Eval(result)
+		paths = p.Sequence.Eval(paths)
 	}
 	// Filter on sub policies
 	if len(p.Options) > 0 {
-		result = p.evalOptions(result, opts)
+		paths = p.evalOptions(paths, opts)
 	}
-	return result
+	return paths
 }
 
 // PolicyFromExtPolicy creates a Policy from an extending Policy and the extended policies
@@ -128,6 +136,14 @@ func (p *Policy) applyExtended(extends []string, exPolicies []*ExtPolicy) error 
 		// Replace Sequence
 		if p.Sequence == nil {
 			p.Sequence = policy.Sequence
+		}
+		// Replace local ISDAS filter.
+		if p.LocalISDAS == nil {
+			p.LocalISDAS = policy.LocalISDAS
+		}
+		// Replace remote ISDAS filter.
+		if p.RemoteISDAS == nil {
+			p.RemoteISDAS = policy.RemoteISDAS
 		}
 	}
 	return nil

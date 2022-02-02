@@ -84,7 +84,7 @@ func (m *TLSCryptoManager) VerifyPeerCertificate(rawCerts [][]byte,
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), m.Timeout)
 	defer cancel()
-	trcs, _, err := activeTRCs(ctx, m.DB, ia.I)
+	trcs, _, err := activeTRCs(ctx, m.DB, ia.ISD())
 	if err != nil {
 		return serrors.WrapStr("loading TRCs", err)
 	}

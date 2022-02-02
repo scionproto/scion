@@ -49,7 +49,7 @@ func TestRequestSplitter(t *testing.T) {
 			func(_ context.Context, isd addr.ISD, _ trust.Attribute) ([]addr.IA, error) {
 				var result []addr.IA
 				for ia := range cores {
-					if ia.I == isd {
+					if ia.ISD() == isd {
 						result = append(result, ia)
 					}
 				}
@@ -187,7 +187,7 @@ func TestRequestSplitter(t *testing.T) {
 			func(_ context.Context, isd addr.ISD, _ trust.Attribute) ([]addr.IA, error) {
 				var result []addr.IA
 				for ia := range cores {
-					if ia.I == isd {
+					if ia.ISD() == isd {
 						result = append(result, ia)
 					}
 				}

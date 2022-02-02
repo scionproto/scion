@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log/testlog"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/pkg/router/bfd"
 )
@@ -36,9 +36,9 @@ func TestMetrics(t *testing.T) {
 
 	sessionA := &bfd.Session{
 		DetectMult:            1,
-		DesiredMinTxInterval:  100 * time.Millisecond,
-		RequiredMinRxInterval: 50 * time.Millisecond,
-		Logger:                log.New(),
+		DesiredMinTxInterval:  200 * time.Millisecond,
+		RequiredMinRxInterval: 100 * time.Millisecond,
+		Logger:                testlog.NewLogger(t).New("session", "a"),
 		LocalDiscriminator:    1,
 		ReceiveQueueSize:      10,
 		Metrics: bfd.Metrics{
@@ -51,9 +51,9 @@ func TestMetrics(t *testing.T) {
 
 	sessionB := &bfd.Session{
 		DetectMult:            1,
-		DesiredMinTxInterval:  100 * time.Millisecond,
-		RequiredMinRxInterval: 50 * time.Millisecond,
-		Logger:                log.New(),
+		DesiredMinTxInterval:  200 * time.Millisecond,
+		RequiredMinRxInterval: 100 * time.Millisecond,
+		Logger:                testlog.NewLogger(t).New("session", "b"),
 		LocalDiscriminator:    2,
 		ReceiveQueueSize:      10,
 	}

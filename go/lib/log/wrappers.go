@@ -17,6 +17,7 @@ package log
 
 import (
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 // Debug logs at debug level.
@@ -40,12 +41,21 @@ func WithOptions(opts ...Option) Logger {
 	return &logger{logger: zap.L().WithOptions(co.zapOptions()...)}
 }
 
+type Level zapcore.Level
+
+const (
+	DebugLevel Level = Level(zapcore.DebugLevel)
+	InfoLevel  Level = Level(zapcore.InfoLevel)
+	ErrorLevel Level = Level(zapcore.ErrorLevel)
+)
+
 // Logger describes the logger interface.
 type Logger interface {
 	New(ctx ...interface{}) Logger
 	Debug(msg string, ctx ...interface{})
 	Info(msg string, ctx ...interface{})
 	Error(msg string, ctx ...interface{})
+	Enabled(lvl Level) bool
 }
 
 type logger struct {
@@ -73,6 +83,10 @@ func (l *logger) Error(msg string, ctx ...interface{}) {
 	l.logger.Error(msg, convertCtx(ctx)...)
 }
 
+func (l *logger) Enabled(lvl Level) bool {
+	return l.logger.Core().Enabled(zapcore.Level(lvl))
+}
+
 // Root returns the root logger. It's a logger without any context.
 func Root() Logger {
 	return &logger{logger: zap.L()}
@@ -95,6 +109,7 @@ func (d DiscardLogger) New(ctx ...interface{}) Logger      { return d }
 func (DiscardLogger) Debug(msg string, ctx ...interface{}) {}
 func (DiscardLogger) Info(msg string, ctx ...interface{})  {}
 func (DiscardLogger) Error(msg string, ctx ...interface{}) {}
+func (DiscardLogger) Enabled(lvl Level) bool               { return false }
 
 func convertCtx(ctx []interface{}) []zap.Field {
 	fields := make([]zap.Field, 0, len(ctx)/2)

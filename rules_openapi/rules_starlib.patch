@@ -1,7 +1,7 @@
-diff --git a/updatesrc/internal/updatesrc_update.bzl b/updatesrc/internal/updatesrc_update.bzl
+diff --git a/updatesrc/private/updatesrc_update.bzl b/updatesrc/private/updatesrc_update.bzl
 index c0cbfc1..a8d24ca 100644
---- a/updatesrc/internal/updatesrc_update.bzl
-+++ b/updatesrc/internal/updatesrc_update.bzl
+--- a/updatesrc/private/updatesrc_update.bzl
++++ b/updatesrc/private/updatesrc_update.bzl
 @@ -49,7 +49,7 @@ if [[ ! -z "${BUILD_WORKSPACE_DIRECTORY}" ]]; then
    cd "${BUILD_WORKSPACE_DIRECTORY}"
  fi

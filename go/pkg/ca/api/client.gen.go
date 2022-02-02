@@ -454,7 +454,7 @@ func (c *ClientWithResponses) PostCertificateRenewalWithResponse(ctx context.Con
 // ParsePostAuthTokenResponse parses an HTTP response from a PostAuthTokenWithResponse call
 func ParsePostAuthTokenResponse(rsp *http.Response) (*PostAuthTokenResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -480,7 +480,7 @@ func ParsePostAuthTokenResponse(rsp *http.Response) (*PostAuthTokenResponse, err
 // ParseGetHealthcheckResponse parses an HTTP response from a GetHealthcheckWithResponse call
 func ParseGetHealthcheckResponse(rsp *http.Response) (*GetHealthcheckResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
@@ -506,7 +506,7 @@ func ParseGetHealthcheckResponse(rsp *http.Response) (*GetHealthcheckResponse, e
 // ParsePostCertificateRenewalResponse parses an HTTP response from a PostCertificateRenewalWithResponse call
 func ParsePostCertificateRenewalResponse(rsp *http.Response) (*PostCertificateRenewalResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}

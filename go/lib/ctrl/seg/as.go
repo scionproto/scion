@@ -60,7 +60,7 @@ func ASEntryFromPB(pb *cppb.ASEntry) (ASEntry, error) {
 	if err := proto.Unmarshal(unverifiedBody, &entry); err != nil {
 		return ASEntry{}, err
 	}
-	if ia := addr.IAInt(entry.IsdAs).IA(); ia.IsWildcard() {
+	if ia := addr.IA(entry.IsdAs); ia.IsWildcard() {
 		return ASEntry{}, serrors.New("wildcard local ISD-AS", "isd_as", ia)
 	}
 	if entry.Mtu > math.MaxInt32 {
@@ -92,8 +92,8 @@ func ASEntryFromPB(pb *cppb.ASEntry) (ASEntry, error) {
 	return ASEntry{
 		HopEntry:           hopEntry,
 		PeerEntries:        peerEntries,
-		Local:              addr.IAInt(entry.IsdAs).IA(),
-		Next:               addr.IAInt(entry.NextIsdAs).IA(), // Can contain wildcard.
+		Local:              addr.IA(entry.IsdAs),
+		Next:               addr.IA(entry.NextIsdAs), // Can contain wildcard.
 		MTU:                int(entry.Mtu),
 		Extensions:         extensions,
 		Signed:             pb.Signed,

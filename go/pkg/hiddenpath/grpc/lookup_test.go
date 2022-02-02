@@ -256,7 +256,7 @@ func TestAuthoritativeSegmentServerAuthoritativeHiddenSegments(t *testing.T) {
 }
 
 func mustIA(s string) uint64 {
-	return uint64(xtest.MustParseIA(s).IAInt())
+	return uint64(xtest.MustParseIA(s))
 }
 
 func mustParseGroupIDs(t *testing.T, ids ...string) []hiddenpath.GroupID {

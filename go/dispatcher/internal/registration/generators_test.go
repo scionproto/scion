@@ -43,10 +43,10 @@ func getRandomValue() string {
 }
 
 func getRandomIA() addr.IA {
-	return addr.IA{
-		I: addr.ISD(rand.Intn(3) + 1),
-		A: addr.AS(rand.Intn(3) + 1),
-	}
+	return addr.MustIAFrom(
+		addr.ISD(rand.Intn(3)+1),
+		addr.AS(rand.Intn(3)+1),
+	)
 }
 
 func getRandomSVC() addr.HostSVC {

@@ -19,7 +19,7 @@ import (
 	"crypto"
 	"crypto/x509"
 	"encoding/pem"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/scionproto/scion/go/lib/log"
@@ -41,7 +41,7 @@ func (r LoadingRing) PrivateKeys(ctx context.Context) ([]crypto.Signer, error) {
 
 	var signers []crypto.Signer
 	for _, file := range files {
-		raw, err := ioutil.ReadFile(file)
+		raw, err := os.ReadFile(file)
 		if err != nil {
 			log.FromCtx(ctx).Info("Error reading key file", "file", file, "err", err)
 			continue

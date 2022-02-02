@@ -23,7 +23,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net"
-	"os"
 	"strconv"
 	"time"
 
@@ -115,7 +114,7 @@ func newRenewCmd(pather command.Pather) *cobra.Command {
 		commonName string
 		trcFiles   []string
 		reuseKey   bool
-		ca         string
+		ca         []string
 		curve      string
 		expiresIn  string
 
@@ -141,6 +140,7 @@ func newRenewCmd(pather command.Pather) *cobra.Command {
   %[1]s renew --trc ISD1-B1-S1.trc --reuse-key --out cp-as.new.pem cp-as.pem cp-as.key
   %[1]s renew --trc ISD1-B1-S1.trc --backup --expires-in 56h cp-as.pem cp-as.key
   %[1]s renew --trc ISD1-B1-S1.trc --backup --expires-in 0.75 cp-as.pem cp-as.key
+  %[1]s renew --trc ISD1-B1-S1.trc --backup --ca 1-ff00:0:110,1-ff00:0:120 cp-as.pem cp-as.key
 `, pather.CommandPath()),
 		Long: `'renew' requests a renewed AS certificate from a remote CA control service.
 
@@ -150,10 +150,18 @@ valid and verifiable by the CA in order for the request to be served.
 The renewed certificate chain is requested with a fresh private key, unless the
 --reuse-key flag is set.
 
+By default, the target CA for the request is extracted from the certificate
+chain that is renewed. To select a different CA, you can specify the --ca flag
+with one or multiple target CAs. If multiple CAs are specified, they are tried
+in the order that they are declared until the first successful certificate
+chain renewal. If none of the declared CAs issued a verifiable certificate chain,
+the command returns a non-zero exit code.
+
 The TRCs are used to validate and verify the renewed certificate chain. If the
 chain is not verifiable with any of the active TRCs, the certificate chain and,
 if applicable, the fresh private key are written to the provided file paths with
-the '.unverified' suffix.
+the '<CA>.unverified' suffix, where CA is the ISD-AS number of the CA AS that
+issued the unverifiable certificate chain.
 
 The resulting certificate chain is written to the file system, either to
 <chain-file> or to --out, if specified.
@@ -188,6 +196,12 @@ The template is expressed in JSON. A valid example:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			certFile := args[0]
 			keyFile := args[1]
+			printErr := func(f string, ctx ...interface{}) {
+				fmt.Fprintf(cmd.ErrOrStderr(), f, ctx...)
+			}
+			printf := func(f string, ctx ...interface{}) {
+				fmt.Fprintf(cmd.OutOrStdout(), f, ctx...)
+			}
 
 			expiryChecker, err := parseExpiresIn(flags.expiresIn)
 			if err != nil {
@@ -195,11 +209,6 @@ The template is expressed in JSON. A valid example:
 			}
 
 			cmd.SilenceUsage = true
-
-			span, ctx := tracing.CtxWith(cmd.Context(), "certs.renew")
-			defer span.Finish()
-			ctx, cancel := context.WithTimeout(ctx, flags.timeout)
-			defer cancel()
 
 			var features Features
 			if err := feature.Parse(flags.features, &features); err != nil {
@@ -219,14 +228,6 @@ The template is expressed in JSON. A valid example:
 
 			}
 
-			var ca addr.IA
-			if flags.ca != "" {
-				var err error
-				if ca, err = addr.IAFromString(flags.ca); err != nil {
-					return serrors.WrapStr("parsing CA", err)
-				}
-			}
-
 			opts := []file.Option{file.WithForce(flags.force)}
 			if flags.backup {
 				opts = append(opts,
@@ -244,6 +245,9 @@ The template is expressed in JSON. A valid example:
 			}
 			defer closer()
 
+			span, ctx := tracing.CtxWith(cmd.Context(), "certificate.renew")
+			defer span.Finish()
+
 			if err := envFlags.LoadExternalVars(); err != nil {
 				return err
 			}
@@ -256,28 +260,56 @@ The template is expressed in JSON. A valid example:
 				"local", localIP,
 			)
 
+			// Setup basic state.
+			daemonCtx, daemonCancel := context.WithTimeout(ctx, time.Second)
+			defer daemonCancel()
+			sd, err := daemon.NewService(daemonAddr).Connect(daemonCtx)
+			if err != nil {
+				return serrors.WrapStr("connecting to SCION Daemon", err)
+			}
+
+			info, err := app.QueryASInfo(daemonCtx, sd)
+			if err != nil {
+				return err
+			}
+			span.SetTag("src.isd_as", info.IA)
+
+			// Load cryptographic material
 			trcs, err := loadTRCs(flags.trcFiles)
 			if err != nil {
 				return err
 			}
-			chain, issuer, err := loadChain(trcs, certFile)
+			chain, err := loadChain(trcs, certFile)
 			if err != nil {
 				return err
 			}
 
 			if nb, na := chain[0].NotBefore, chain[0].NotAfter; !expiryChecker.ShouldRenew(nb, na) {
-				fmt.Println("Skipping renewal, --expires-in threshold is not reached.")
-				fmt.Println("AS certificate validity:")
-				fmt.Println("    NotBefore: ", nb)
-				fmt.Println("    NotAfter:  ", na)
+				printf("Skipping renewal, --expires-in threshold is not reached.\n")
+				printf("AS certificate validity:\n")
+				printf("    NotBefore: %s\n", nb)
+				printf("    NotAfter:  %s\n", na)
 				return nil
 			}
 
-			if ca.IsZero() {
-				fmt.Println("Extracted issuer from certificate chain: ", issuer)
-				ca = issuer
+			var cas []addr.IA
+			if len(flags.ca) != 0 {
+				for _, raw := range flags.ca {
+					ca, err := addr.ParseIA(raw)
+					if err != nil {
+						return serrors.WrapStr("parsing CA", err)
+					}
+					cas = append(cas, ca)
+				}
+			} else {
+				ia, err := cppki.ExtractIA(chain[0].Issuer)
+				if err != nil {
+					panic(fmt.Sprintf("extracting ISD-AS from verified chain: %s", err))
+				}
+				printf("Extracted issuer from certificate chain: %s\n", ia)
+				cas = []addr.IA{ia}
 			}
-			span.SetTag("dst.isd_as", ca)
+			span.SetTag("ca-options", cas)
 
 			// Load private key.
 			privPrev, err := key.LoadPrivateKey(keyFile)
@@ -319,101 +351,8 @@ The template is expressed in JSON. A valid example:
 				err = file.WriteFile(flags.outCSR, pemCSR, 0666, opts...)
 				if err != nil {
 					// The CSR is not important, carry on with execution.
-					fmt.Fprintln(os.Stderr, "Failed to write CSR:", err.Error())
+					printErr("Failed to write CSR: %s\n", err.Error())
 				}
-			}
-
-			// Create messenger.
-
-			daemonCtx, deamonCancel := context.WithTimeout(ctx, time.Second)
-			defer deamonCancel()
-			sd, err := daemon.NewService(daemonAddr).Connect(daemonCtx)
-			if err != nil {
-				return serrors.WrapStr("connecting to SCION Daemon", err)
-			}
-
-			info, err := app.QueryASInfo(ctx, sd)
-			if err != nil {
-				return err
-			}
-			span.SetTag("src.isd_as", info.IA)
-
-			pathOpts := []path.Option{
-				path.WithInteractive(flags.interactive),
-				path.WithRefresh(flags.refresh),
-				path.WithSequence(flags.sequence),
-				path.WithColorScheme(path.DefaultColorScheme(flags.noColor)),
-			}
-			if !flags.noProbe {
-				pathOpts = append(pathOpts, path.WithProbing(&path.ProbeConfig{
-					LocalIA:    info.IA,
-					LocalIP:    localIP,
-					Dispatcher: dispatcher,
-				}))
-			}
-			path, err := path.Choose(ctx, sd, ca, pathOpts...)
-			if err != nil {
-				return err
-			}
-			remote := &snet.SVCAddr{
-				IA:      ca,
-				Path:    path.Path(),
-				NextHop: path.UnderlayNextHop(),
-				SVC:     addr.SvcCS,
-			}
-
-			// Resolve local IP based on underlay next hop
-			if localIP == nil {
-				if remote.NextHop != nil {
-					if localIP, err = addrutil.ResolveLocal(remote.NextHop.IP); err != nil {
-						return serrors.WrapStr("resolving local address", err)
-					}
-				} else {
-					if localIP, err = addrutil.DefaultLocalIP(ctx, sd); err != nil {
-						return serrors.WrapStr("resolving default address", err)
-					}
-				}
-				fmt.Printf("Resolved local address:\n  %s\n", localIP)
-			}
-			local := &snet.UDPAddr{
-				IA:   info.IA,
-				Host: &net.UDPAddr{IP: localIP},
-			}
-
-			sn := &snet.SCIONNetwork{
-				LocalIA: local.IA,
-				Dispatcher: &snet.DefaultPacketDispatcherService{
-					Dispatcher: reliable.NewDispatcher(dispatcher),
-					SCMPHandler: snet.DefaultSCMPHandler{
-						RevocationHandler: daemon.RevHandler{Connector: sd},
-					},
-				},
-			}
-
-			conn, err := sn.Listen(ctx, "udp", local.Host, addr.SvcNone)
-			if err != nil {
-				return serrors.WrapStr("dialing", err)
-			}
-			dialer := &grpc.QUICDialer{
-				Rewriter: &messenger.AddressRewriter{
-					Router: &snet.BaseRouter{
-						Querier: daemon.Querier{Connector: sd, IA: local.IA},
-					},
-					SVCRouter: svcRouter{Connector: sd},
-					Resolver: &svc.Resolver{
-						LocalIA:     local.IA,
-						ConnFactory: sn.Dispatcher,
-						LocalIP:     local.Host.IP,
-					},
-					SVCResolutionFraction: 1,
-				},
-				Dialer: squic.ConnDialer{
-					Conn: conn,
-					TLSConfig: &tls.Config{
-						InsecureSkipVerify: true,
-						NextProtos:         []string{"SCION"},
-					},
-				},
 			}
 
 			// Sign the request.
@@ -424,7 +363,7 @@ The template is expressed in JSON. A valid example:
 			signer := trust.Signer{
 				PrivateKey:   privPrev,
 				Algorithm:    algo,
-				IA:           local.IA,
+				IA:           info.IA,
 				TRCID:        trcs[0].ID,
 				SubjectKeyID: chain[0].SubjectKeyId,
 				Expiration:   time.Now().Add(2 * time.Hour),
@@ -452,22 +391,32 @@ The template is expressed in JSON. A valid example:
 				err = file.WriteFile(flags.outCMS, pemReq, 0666, opts...)
 				if err != nil {
 					// The CMS request is not important, carry on with execution.
-					fmt.Fprintln(os.Stderr, "Failed to write CMS request:", err.Error())
+					printErr("Failed to write CMS request: %s\n", err.Error())
 				}
 			}
 
-			// Send the request via SCION and extract the chain.
-			rep, err := sendRequest(ctx, remote.IA, dialer, &req)
-			if err != nil {
-				return err
-			}
-			renewed, err := extractChain(rep)
-			if err != nil {
-				return serrors.WrapStr("extracting certificate chain from response", err)
-			}
-			pemRenewed, err := encodeChain(renewed)
-			if err != nil {
-				return err
+			r := renewer{
+				LocalIA:   info.IA,
+				LocalIP:   localIP,
+				Daemon:    sd,
+				Disatcher: dispatcher,
+				Timeout:   flags.timeout,
+				PathOptions: func() []path.Option {
+					pathOpts := []path.Option{
+						path.WithInteractive(flags.interactive),
+						path.WithRefresh(flags.refresh),
+						path.WithSequence(flags.sequence),
+						path.WithColorScheme(path.DefaultColorScheme(flags.noColor)),
+					}
+					if !flags.noProbe {
+						pathOpts = append(pathOpts, path.WithProbing(&path.ProbeConfig{
+							LocalIA:    info.IA,
+							LocalIP:    localIP,
+							Dispatcher: dispatcher,
+						}))
+					}
+					return pathOpts
+				},
 			}
 
 			outCertFile, outKeyFile := certFile, keyFile
@@ -478,41 +427,80 @@ The template is expressed in JSON. A valid example:
 				outKeyFile = flags.outKey
 			}
 
-			// Verify certificate chain
-			verifyOptions := cppki.VerifyOptions{TRC: trcs}
-			if verifyError := cppki.VerifyChain(renewed, verifyOptions); verifyError != nil {
-				outCertFile += ".unverified"
-				fmt.Printf("Writing unverified chain: %q\n", outCertFile)
-				if err := file.WriteFile(outCertFile, pemRenewed, 0644, opts...); err != nil {
-					fmt.Println("Failed to write unverified chain: ", err)
+			request := func(ca addr.IA) ([]*x509.Certificate, error) {
+				printf("Attempt certificate renewal with %s\n", ca)
+
+				span, ctx := tracing.CtxWith(ctx, "request")
+				span.SetTag("dst.isd_as", ca)
+
+				chain, err := r.Request(ctx, &req, ca)
+				if err != nil {
+					printErr("Sending request failed: %s\n", err)
+					return nil, err
 				}
-				if pemPrivNext != nil {
-					outKeyFile += ".unverified"
-					fmt.Printf("Writing private key for unverified chain: %q\n", outKeyFile)
-					if err := file.WriteFile(outKeyFile, pemPrivNext, 0600, opts...); err != nil {
-						fmt.Println("Failed to write private key for unverified chain: ", err)
+
+				// Verify certificate chain
+				verifyOptions := cppki.VerifyOptions{TRC: trcs}
+				if verifyError := cppki.VerifyChain(chain, verifyOptions); verifyError != nil {
+					suffix := "." + addr.FormatIA(ca, addr.WithFileSeparator()) + ".unverified"
+
+					printErr("Verification failed: %s\n", err)
+
+					// Write chain.
+					certFile := outCertFile + suffix
+					printErr("Writing unverified chain: %q\n", certFile)
+					pem := encodeChain(chain)
+					if err := file.WriteFile(certFile, pem, 0644, opts...); err != nil {
+						fmt.Println("Failed to write unverified chain: ", err)
 					}
+
+					// Write private key
+					if pemPrivNext != nil {
+						keyFile := outKeyFile + suffix
+						printErr("Writing private key for unverified chain: %q\n", keyFile)
+						if err := file.WriteFile(keyFile, pemPrivNext, 0600, opts...); err != nil {
+							fmt.Println("Failed to write private key for unverified chain: ", err)
+						}
+					}
+
+					// Output helpful info in case the TRC is in grace period.
+					if maybeMissingTRCInGrace(trcs) {
+						printErr(
+							"Current time is still in Grace Period of latest TRC.\n"+
+								"Try to verify with the predecessor TRC: "+
+								"(Base = %d, Serial = %d)\n",
+							trcs[0].ID.Base, trcs[0].ID.Serial-1,
+						)
+					}
+					return nil, serrors.WrapStr("verification failed", verifyError)
 				}
-				if maybeMissingTRCInGrace(trcs) {
-					fmt.Println("Verification failed, but current time still in Grace Period " +
-						"of latest TRC")
-					fmt.Printf("Try to verify with the predecessor TRC: (Base = %d, Serial = %d)\n",
-						trcs[0].ID.Base, trcs[0].ID.Serial-1)
-				}
-				return serrors.WrapStr("verification failed", verifyError)
+				return chain, nil
 			}
+
+			var renewed []*x509.Certificate
+			for _, ca := range cas {
+				chain, err := request(ca)
+				if err != nil {
+					continue
+				}
+				renewed = chain
+				break
+			}
+			if renewed == nil {
+				return serrors.New("failed to request certificate chain")
+			}
+			pemRenewed := encodeChain(renewed)
 
 			if pemPrivNext != nil {
 				if err := file.WriteFile(outKeyFile, pemPrivNext, 0600, opts...); err != nil {
 					return serrors.WrapStr("writing fresh private key", err)
 				}
-				fmt.Printf("Private key successfully written to %q\n", outKeyFile)
+				printf("Private key successfully written to %q\n", outKeyFile)
 			}
-
 			if err := file.WriteFile(outCertFile, pemRenewed, 0644, opts...); err != nil {
 				return serrors.WrapStr("writing renewed certificate chain", err)
 			}
-			fmt.Printf("Certificate chain successfully written to %q\n", outCertFile)
+			printf("Certificate chain successfully written to %q\n", outCertFile)
 			return nil
 		},
 	}
@@ -544,8 +532,9 @@ The template is expressed in JSON. A valid example:
 	cmd.Flags().BoolVar(&flags.reuseKey, "reuse-key", false,
 		"Reuse the provided private key instead of creating a fresh private key",
 	)
-	cmd.Flags().StringVar(&flags.ca, "ca", "",
-		"The ISD-AS of the CA to request the renewed certificate chain",
+	cmd.Flags().StringSliceVar(&flags.ca, "ca", nil,
+		"Comma-separated list of ISD-AS identifiers of target CAs.\n"+
+			"The CAs are tried in order until success or all of them failed.",
 	)
 	cmd.Flags().StringVar(&flags.curve, "curve", "P-256",
 		"The elliptic curve to use (P-256|P-384|P-521)",
@@ -560,7 +549,7 @@ The template is expressed in JSON. A valid example:
 		"Back up existing files before overwriting",
 	)
 	cmd.Flags().DurationVar(&flags.timeout, "timeout", 10*time.Second,
-		"The timeout for the renewal request",
+		"The timeout for the renewal request per CA",
 	)
 	cmd.Flags().StringSliceVar(&flags.features, "features", nil,
 		fmt.Sprintf("enable development features (%v)", feature.String(&Features{}, "|")),
@@ -581,14 +570,115 @@ The template is expressed in JSON. A valid example:
 	return cmd
 }
 
-func encodeChain(chain []*x509.Certificate) ([]byte, error) {
+type renewer struct {
+	LocalIA     addr.IA
+	LocalIP     net.IP
+	PathOptions func() []path.Option
+	Daemon      daemon.Connector
+	Disatcher   string
+	Timeout     time.Duration
+}
+
+func (r *renewer) Request(
+	ctx context.Context,
+	req *cppb.ChainRenewalRequest,
+	ca addr.IA,
+) ([]*x509.Certificate, error) {
+
+	path, err := path.Choose(ctx, r.Daemon, ca, r.PathOptions()...)
+	if err != nil {
+		return nil, err
+	}
+	remote := &snet.SVCAddr{
+		IA:      ca,
+		Path:    path.Path(),
+		NextHop: path.UnderlayNextHop(),
+		SVC:     addr.SvcCS,
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, r.Timeout)
+	defer cancel()
+
+	localIP := r.LocalIP
+	if localIP == nil {
+		// Resolve local IP based on underlay next hop
+		if remote.NextHop != nil {
+			if localIP, err = addrutil.ResolveLocal(remote.NextHop.IP); err != nil {
+				return nil, serrors.WrapStr("resolving local address", err)
+			}
+		} else {
+			if localIP, err = addrutil.DefaultLocalIP(ctx, r.Daemon); err != nil {
+				return nil, serrors.WrapStr("resolving default address", err)
+			}
+		}
+		fmt.Printf("Resolved local address:\n  %s\n", localIP)
+	}
+	local := &snet.UDPAddr{
+		IA:   r.LocalIA,
+		Host: &net.UDPAddr{IP: localIP},
+	}
+
+	sn := &snet.SCIONNetwork{
+		LocalIA: local.IA,
+		Dispatcher: &snet.DefaultPacketDispatcherService{
+			Dispatcher: reliable.NewDispatcher(r.Disatcher),
+			SCMPHandler: snet.DefaultSCMPHandler{
+				RevocationHandler: daemon.RevHandler{Connector: r.Daemon},
+			},
+		},
+	}
+
+	conn, err := sn.Listen(ctx, "udp", local.Host, addr.SvcNone)
+	if err != nil {
+		return nil, serrors.WrapStr("dialing", err)
+	}
+	dialer := &grpc.QUICDialer{
+		Rewriter: &messenger.AddressRewriter{
+			Router: &snet.BaseRouter{
+				Querier: daemon.Querier{Connector: r.Daemon, IA: local.IA},
+			},
+			SVCRouter: svcRouter{Connector: r.Daemon},
+			Resolver: &svc.Resolver{
+				LocalIA:     local.IA,
+				ConnFactory: sn.Dispatcher,
+				LocalIP:     local.Host.IP,
+			},
+			SVCResolutionFraction: 1,
+		},
+		Dialer: squic.ConnDialer{
+			Conn: conn,
+			TLSConfig: &tls.Config{
+				InsecureSkipVerify: true,
+				NextProtos:         []string{"SCION"},
+			},
+		},
+	}
+
+	c, err := dialer.Dial(ctx, remote)
+	if err != nil {
+		return nil, serrors.WrapStr("dialing gRPC connection", err, "remote", remote)
+	}
+	defer c.Close()
+	client := cppb.NewChainRenewalServiceClient(c)
+	reply, err := client.ChainRenewal(ctx, req, grpc.RetryProfile...)
+	if err != nil {
+		return nil, serrors.WrapStr("requesting certificate chain", err, "remote", c.Target())
+	}
+	renewed, err := extractChain(reply)
+	if err != nil {
+		return nil, serrors.WrapStr("extracting certificate chain from response", err)
+	}
+	return renewed, nil
+}
+
+func encodeChain(chain []*x509.Certificate) []byte {
 	var buffer bytes.Buffer
 	for _, c := range chain {
 		if err := pem.Encode(&buffer, &pem.Block{Type: "CERTIFICATE", Bytes: c.Raw}); err != nil {
-			return nil, err
+			panic(err.Error())
 		}
 	}
-	return buffer.Bytes(), nil
+	return buffer.Bytes()
 }
 
 type expiryChecker struct {
@@ -633,10 +723,10 @@ func (c expiryChecker) ShouldRenew(notBefore, notAfter time.Time) bool {
 	return time.Until(notAfter) < leadTime
 }
 
-func loadChain(trcs []*cppki.TRC, file string) ([]*x509.Certificate, addr.IA, error) {
+func loadChain(trcs []*cppki.TRC, file string) ([]*x509.Certificate, error) {
 	chain, err := cppki.ReadPEMCerts(file)
 	if err != nil {
-		return nil, addr.IA{}, err
+		return nil, err
 	}
 	if err := cppki.VerifyChain(chain, cppki.VerifyOptions{TRC: trcs}); err != nil {
 		if maybeMissingTRCInGrace(trcs) {
@@ -644,40 +734,10 @@ func loadChain(trcs []*cppki.TRC, file string) ([]*x509.Certificate, addr.IA, er
 			fmt.Printf("Try to verify with the predecessor TRC: (Base = %d, Serial = %d)\n",
 				trcs[0].ID.Base, trcs[0].ID.Serial-1)
 		}
-		return nil, addr.IA{}, serrors.WrapStr(
+		return nil, serrors.WrapStr(
 			"verification of transport cert failed with provided TRC", err)
 	}
-	ia, err := cppki.ExtractIA(chain[0].Issuer)
-	if err != nil {
-		panic("chain is already validated")
-	}
-	return chain, ia, nil
-}
-
-func sendRequest(
-	ctx context.Context,
-	dstIA addr.IA,
-	dialer grpc.Dialer,
-	req *cppb.ChainRenewalRequest,
-) (*cppb.ChainRenewalResponse, error) {
-
-	dstSVC := &snet.SVCAddr{
-		IA:  dstIA,
-		SVC: addr.SvcCS,
-	}
-	conn, err := dialer.Dial(ctx, dstSVC)
-	if err != nil {
-		return nil, serrors.WrapStr("dialing gRPC connection", err, "remote", dstSVC)
-	}
-	defer conn.Close()
-	client := cppb.NewChainRenewalServiceClient(conn)
-	reply, err := client.ChainRenewal(ctx, req, grpc.RetryProfile...)
-	if err != nil {
-		return nil, serrors.WrapStr("requesting certificate chain", err,
-			"remote", conn.Target(),
-		)
-	}
-	return reply, nil
+	return chain, nil
 }
 
 func extractChain(rep *cppb.ChainRenewalResponse) ([]*x509.Certificate, error) {

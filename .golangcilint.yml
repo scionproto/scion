@@ -11,9 +11,18 @@ linters:
     - unused
     - varcheck
     # Extended linters.
+    - depguard
     - exportloopref
     - rowserrcheck
     - sqlclosecheck
     - unconvert
-
-linter-settings:
+linters-settings:
+  depguard:
+    list-type: blacklist
+    include-go-root: true
+    packages:
+      "io/ioutil"
+    packages-with-error-message:
+      # specify an error message to output when a blacklisted package is used
+      "io/ioutil": >
+        "The use of 'io/ioutil' is deprecated. Check https://pkg.go.dev/io/ioutil for alternatives"

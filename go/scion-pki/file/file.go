@@ -17,7 +17,6 @@ package file
 
 import (
 	"errors"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -90,7 +89,7 @@ func WriteFile(filename string, data []byte, perm os.FileMode, opts ...Option) e
 
 	info, err := os.Stat(filename)
 	if errors.Is(err, os.ErrNotExist) {
-		return ioutil.WriteFile(filename, data, perm)
+		return os.WriteFile(filename, data, perm)
 	}
 	if err != nil {
 		return serrors.WrapStr("reading stat information", err)
@@ -114,5 +113,5 @@ func WriteFile(filename string, data []byte, perm os.FileMode, opts ...Option) e
 		return os.ErrExist
 	}
 
-	return ioutil.WriteFile(filename, data, perm)
+	return os.WriteFile(filename, data, perm)
 }

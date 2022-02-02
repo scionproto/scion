@@ -15,7 +15,6 @@
 package file_test
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -46,13 +45,13 @@ func TestWriteFile(t *testing.T) {
 		"file exist": {
 			Filename: dir + "/existing",
 			Prepare: func(t *testing.T) {
-				err := ioutil.WriteFile(dir+"/existing", []byte("data"), 0666)
+				err := os.WriteFile(dir+"/existing", []byte("data"), 0666)
 				require.NoError(t, err)
 			},
 			Perm:         0666,
 			ErrAssertion: assert.Error,
 			Validate: func(t *testing.T, expected []byte) {
-				raw, err := ioutil.ReadFile(dir + "/existing")
+				raw, err := os.ReadFile(dir + "/existing")
 				require.NoError(t, err)
 				require.Equal(t, []byte("data"), raw)
 			},
@@ -69,14 +68,14 @@ func TestWriteFile(t *testing.T) {
 		"file exist force": {
 			Filename: dir + "/existing-force",
 			Prepare: func(t *testing.T) {
-				err := ioutil.WriteFile(dir+"/existing-force", []byte("data"), 0666)
+				err := os.WriteFile(dir+"/existing-force", []byte("data"), 0666)
 				require.NoError(t, err)
 			},
 			Perm:         0600,
 			ErrAssertion: assert.NoError,
 			Opts:         []file.Option{file.WithForce(true)},
 			Validate: func(t *testing.T, expected []byte) {
-				raw, err := ioutil.ReadFile(dir + "/existing-force")
+				raw, err := os.ReadFile(dir + "/existing-force")
 				require.NoError(t, err)
 				require.Equal(t, expected, raw)
 
@@ -88,14 +87,14 @@ func TestWriteFile(t *testing.T) {
 		"file exist backup": {
 			Filename: dir + "/existing-backup",
 			Prepare: func(t *testing.T) {
-				err := ioutil.WriteFile(dir+"/existing-backup", []byte("data"), 0666)
+				err := os.WriteFile(dir+"/existing-backup", []byte("data"), 0666)
 				require.NoError(t, err)
 			},
 			Perm:         0600,
 			ErrAssertion: assert.NoError,
 			Opts:         []file.Option{file.WithBackup("backup")},
 			Validate: func(t *testing.T, expected []byte) {
-				raw, err := ioutil.ReadFile(dir + "/existing-backup")
+				raw, err := os.ReadFile(dir + "/existing-backup")
 				require.NoError(t, err)
 				require.Equal(t, expected, raw)
 
@@ -103,7 +102,7 @@ func TestWriteFile(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, os.FileMode(0600), info.Mode())
 
-				original, err := ioutil.ReadFile(dir + "/existing-backup.backup")
+				original, err := os.ReadFile(dir + "/existing-backup.backup")
 				require.NoError(t, err)
 				require.Equal(t, []byte("data"), original)
 
@@ -112,14 +111,14 @@ func TestWriteFile(t *testing.T) {
 		"file exist backup extension": {
 			Filename: dir + "/existing-backup.ext",
 			Prepare: func(t *testing.T) {
-				err := ioutil.WriteFile(dir+"/existing-backup.ext", []byte("data"), 0666)
+				err := os.WriteFile(dir+"/existing-backup.ext", []byte("data"), 0666)
 				require.NoError(t, err)
 			},
 			Perm:         0600,
 			ErrAssertion: assert.NoError,
 			Opts:         []file.Option{file.WithBackup("backup")},
 			Validate: func(t *testing.T, expected []byte) {
-				raw, err := ioutil.ReadFile(dir + "/existing-backup.ext")
+				raw, err := os.ReadFile(dir + "/existing-backup.ext")
 				require.NoError(t, err)
 				require.Equal(t, expected, raw)
 
@@ -127,7 +126,7 @@ func TestWriteFile(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, os.FileMode(0600), info.Mode())
 
-				original, err := ioutil.ReadFile(dir + "/existing-backup.backup.ext")
+				original, err := os.ReadFile(dir + "/existing-backup.backup.ext")
 				require.NoError(t, err)
 				require.Equal(t, []byte("data"), original)
 			},
@@ -135,14 +134,14 @@ func TestWriteFile(t *testing.T) {
 		"file exist force and backup": {
 			Filename: dir + "/force-backup.ext",
 			Prepare: func(t *testing.T) {
-				err := ioutil.WriteFile(dir+"/force-backup.ext", []byte("data"), 0666)
+				err := os.WriteFile(dir+"/force-backup.ext", []byte("data"), 0666)
 				require.NoError(t, err)
 			},
 			Perm:         0600,
 			ErrAssertion: assert.NoError,
 			Opts:         []file.Option{file.WithForce(true), file.WithBackup("backup")},
 			Validate: func(t *testing.T, expected []byte) {
-				raw, err := ioutil.ReadFile(dir + "/force-backup.ext")
+				raw, err := os.ReadFile(dir + "/force-backup.ext")
 				require.NoError(t, err)
 				require.Equal(t, expected, raw)
 
@@ -150,7 +149,7 @@ func TestWriteFile(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, os.FileMode(0600), info.Mode())
 
-				original, err := ioutil.ReadFile(dir + "/force-backup.backup.ext")
+				original, err := os.ReadFile(dir + "/force-backup.backup.ext")
 				require.NoError(t, err)
 				require.Equal(t, []byte("data"), original)
 			},

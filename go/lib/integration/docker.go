@@ -21,6 +21,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -61,7 +62,9 @@ func (di *dockerIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr)
 	bi := *di.binaryIntegration
 	bi.serverArgs = append(dockerArgs, append([]string{TesterID(dst), bi.cmd}, bi.serverArgs...)...)
 	bi.cmd = dockerCmd
-	log.Debug(fmt.Sprintf("Starting server for %s in a docker container", dst.IA.FileFmt(false)))
+	log.Debug(fmt.Sprintf("Starting server for %s in a docker container",
+		addr.FormatIA(dst.IA, addr.WithFileSeparator())),
+	)
 	return bi.StartServer(ctx, dst)
 }
 
@@ -70,13 +73,15 @@ func (di *dockerIntegration) StartClient(ctx context.Context,
 	bi := *di.binaryIntegration
 	bi.clientArgs = append(dockerArgs, append([]string{TesterID(src), bi.cmd}, bi.clientArgs...)...)
 	bi.cmd = dockerCmd
-	log.Debug(fmt.Sprintf("Starting client for %s in a docker container", src.IA.FileFmt(false)))
+	log.Debug(fmt.Sprintf("Starting client for %s in a docker container",
+		addr.FormatIA(src.IA, addr.WithFileSeparator())),
+	)
 	return bi.StartClient(ctx, src, dst)
 }
 
 // TesterID returns the ID of the tester container.
 func TesterID(a *snet.UDPAddr) string {
-	ia := a.IA.FileFmt(false)
+	ia := addr.FormatIA(a.IA, addr.WithFileSeparator())
 	envID, ok := os.LookupEnv(fmt.Sprintf("tester_%s", strings.Replace(ia, "-", "_", -1)))
 	if !ok {
 		return fmt.Sprintf("tester_%s", ia)

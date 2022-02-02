@@ -15,9 +15,9 @@
 package api
 
 import (
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -139,9 +139,9 @@ func TestAPI(t *testing.T) {
 				return
 			}
 			if *update {
-				require.NoError(t, ioutil.WriteFile(tc.ResponseFile, rr.Body.Bytes(), 0666))
+				require.NoError(t, os.WriteFile(tc.ResponseFile, rr.Body.Bytes(), 0666))
 			}
-			golden, err := ioutil.ReadFile(tc.ResponseFile)
+			golden, err := os.ReadFile(tc.ResponseFile)
 			require.NoError(t, err)
 			assert.Equal(t, string(golden), rr.Body.String())
 		})

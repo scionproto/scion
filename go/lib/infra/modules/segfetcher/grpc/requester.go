@@ -62,8 +62,8 @@ func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,
 	client := cppb.NewSegmentLookupServiceClient(conn)
 	rep, err := client.Segments(ctx,
 		&cppb.SegmentsRequest{
-			SrcIsdAs: uint64(req.Src.IAInt()),
-			DstIsdAs: uint64(req.Dst.IAInt()),
+			SrcIsdAs: uint64(req.Src),
+			DstIsdAs: uint64(req.Dst),
 		},
 		libgrpc.RetryOption,
 		grpc.Peer(&segPeer),

@@ -87,7 +87,7 @@ func TestSignerSign(t *testing.T) {
 				var keyID cppb.VerificationKeyID
 				require.NoError(t, proto.Unmarshal(hdr.VerificationKeyID, &keyID))
 
-				assert.Equal(t, xtest.MustParseIA("1-ff00:0:110"), addr.IAInt(keyID.IsdAs).IA())
+				assert.Equal(t, xtest.MustParseIA("1-ff00:0:110"), addr.IA(keyID.IsdAs))
 				assert.Equal(t, []byte{0, 1, 2, 3, 4, 5, 6, 7}, keyID.SubjectKeyId)
 
 				_, err = signed.Verify(signedMsg, signer.PrivateKey.Public())

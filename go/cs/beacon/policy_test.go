@@ -72,7 +72,7 @@ func TestLoadPolicyFromYaml(t *testing.T) {
 			assert.Equal(t, test.Type, p.Type)
 			assert.Equal(t, uint8(42), *p.MaxExpTime)
 			assert.Equal(t, 8, p.Filter.MaxHopsLength)
-			assert.Equal(t, []addr.AS{ia110.A, ia111.A}, p.Filter.AsBlackList)
+			assert.Equal(t, []addr.AS{ia110.AS(), ia111.AS()}, p.Filter.AsBlackList)
 			assert.Equal(t, []addr.ISD{1, 2, 3}, p.Filter.IsdBlackList)
 			assert.True(t, *p.Filter.AllowIsdLoop)
 		})
@@ -82,7 +82,7 @@ func TestLoadPolicyFromYaml(t *testing.T) {
 func TestFilterApply(t *testing.T) {
 	defaultFilter := &beacon.Filter{
 		MaxHopsLength: 2,
-		AsBlackList:   []addr.AS{ia112.A},
+		AsBlackList:   []addr.AS{ia112.AS()},
 		IsdBlackList:  []addr.ISD{2},
 		AllowIsdLoop:  &false_val,
 	}

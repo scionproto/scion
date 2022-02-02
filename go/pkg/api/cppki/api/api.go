@@ -50,7 +50,7 @@ func (s *Server) GetCertificates(
 	q := trust.ChainQuery{Date: time.Now()}
 	var errs serrors.List
 	if params.IsdAs != nil {
-		if ia, err := addr.IAFromString(string(*params.IsdAs)); err == nil {
+		if ia, err := addr.ParseIA(string(*params.IsdAs)); err == nil {
 			q.IA = ia
 		} else {
 			errs = append(errs, serrors.WithCtx(err, "parameter", "isd_as"))
@@ -299,11 +299,11 @@ func (s *Server) GetTrc(w http.ResponseWriter, r *http.Request, isd int, base in
 	}
 	authASes := make([]IsdAs, 0, len(trc.TRC.AuthoritativeASes))
 	for _, as := range trc.TRC.AuthoritativeASes {
-		authASes = append(authASes, IsdAs(addr.IA{I: trc.TRC.ID.ISD, A: as}.String()))
+		authASes = append(authASes, IsdAs(addr.MustIAFrom(trc.TRC.ID.ISD, as).String()))
 	}
 	coreAses := make([]IsdAs, 0, len(trc.TRC.CoreASes))
 	for _, as := range trc.TRC.CoreASes {
-		coreAses = append(coreAses, IsdAs(addr.IA{I: trc.TRC.ID.ISD, A: as}.String()))
+		coreAses = append(coreAses, IsdAs(addr.MustIAFrom(trc.TRC.ID.ISD, as).String()))
 	}
 	rep := TRC{
 		AuthoritativeAses: authASes,
@@ -334,6 +334,8 @@ func (s *Server) GetTrc(w http.ResponseWriter, r *http.Request, isd int, base in
 
 // GetTrcBlob gets the trc encoded pem blob.
 func (s *Server) GetTrcBlob(w http.ResponseWriter, r *http.Request, isd int, base int, serial int) {
+	w.Header().Set("Content-Type", "application/x-pem-file")
+
 	db := s.TrustDB
 	trc, err := db.SignedTRC(r.Context(), cppki.TRCID{
 		ISD:    addr.ISD(isd),

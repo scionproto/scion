@@ -54,5 +54,9 @@ paths:
     $ref: "../common/process.yml#/paths/~1topology"
   /beacons:
     $ref: "./beacons.yml#/paths/~1beacons"
+  /beacons/{segment-id}:
+    $ref: "./beacons.yml#/paths/~1beacons~1{segment-id}"
+  /beacons/{segment-id}/blob:
+    $ref: "./beacons.yml#/paths/~1beacons~1{segment-id}~1blob"
   /health:
     $ref: "../health/spec.yml#/paths/~1health"

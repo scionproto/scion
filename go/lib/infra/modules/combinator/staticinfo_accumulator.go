@@ -352,7 +352,7 @@ type hopKey struct {
 
 // makeHopKey makes a key for an unordered interface pair lookup.
 func makeHopKey(a, b snet.PathInterface) hopKey {
-	if a.IA.IAInt() > b.IA.IAInt() || a.IA == b.IA && a.ID > b.ID {
+	if a.IA > b.IA || a.IA == b.IA && a.ID > b.ID {
 		return hopKey{b, a}
 	}
 	return hopKey{a, b}

@@ -24,7 +24,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -949,7 +949,7 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 
 func loadKey(t *testing.T, file string) crypto.Signer {
 	t.Helper()
-	raw, err := ioutil.ReadFile(file)
+	raw, err := os.ReadFile(file)
 	require.NoError(t, err)
 	block, _ := pem.Decode(raw)
 	require.Equal(t, "PRIVATE KEY", block.Type, "Wrong block type %s", block.Type)
@@ -968,12 +968,12 @@ func writeKey(t *testing.T, file string, key interface{}) {
 			Bytes: raw,
 		},
 	)
-	require.NoError(t, ioutil.WriteFile(file, keyPEM, 0644))
+	require.NoError(t, os.WriteFile(file, keyPEM, 0644))
 }
 
 func loadCSR(t *testing.T, file string) *x509.CertificateRequest {
 	t.Helper()
-	raw, err := ioutil.ReadFile(file)
+	raw, err := os.ReadFile(file)
 	require.NoError(t, err)
 	var block *pem.Block
 	block, _ = pem.Decode(raw)
@@ -992,7 +992,7 @@ func writeCSR(t *testing.T, file string, csr []byte) {
 			Bytes: csr,
 		},
 	)
-	require.NoError(t, ioutil.WriteFile(file, csrPEM, 0644))
+	require.NoError(t, os.WriteFile(file, csrPEM, 0644))
 }
 
 func loadChainFiles(t *testing.T, org string, asVersion int) []*x509.Certificate {

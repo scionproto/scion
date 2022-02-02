@@ -17,7 +17,7 @@ package cppki_test
 import (
 	"crypto/x509"
 	"encoding/pem"
-	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
@@ -66,7 +66,7 @@ func TestDecodeEncodedTRC(t *testing.T) {
 
 func loadCert(t *testing.T, name string) *x509.Certificate {
 	t.Helper()
-	raw, err := ioutil.ReadFile(name)
+	raw, err := os.ReadFile(name)
 	require.NoError(t, err)
 	block, _ := pem.Decode(raw)
 	require.NotNil(t, block)

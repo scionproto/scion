@@ -105,7 +105,7 @@ func (g *Graph) Add(ia string) {
 	g.signers[isdas] = NewSigner(
 		WithIA(isdas),
 		WithTRCID(cppki.TRCID{
-			ISD:    isdas.I,
+			ISD:    isdas.ISD(),
 			Serial: 1,
 			Base:   1,
 		}),
@@ -279,7 +279,7 @@ func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
 		case i == len(ifids):
 			outIF = 0
 			remoteOutIF = 0
-			outIA = addr.IA{}
+			outIA = 0
 		}
 
 		asEntry := seg.ASEntry{
@@ -473,7 +473,7 @@ func (s Signer) Sign(ctx context.Context, msg []byte,
 	}
 
 	id := &cppb.VerificationKeyID{
-		IsdAs:        uint64(s.IA.IAInt()),
+		IsdAs:        uint64(s.IA),
 		TrcBase:      uint64(s.TRCID.Base),
 		TrcSerial:    uint64(s.TRCID.Serial),
 		SubjectKeyId: skid,
@@ -554,7 +554,7 @@ func (s *solution) Len() int {
 }
 
 func MustParseIA(ia string) addr.IA {
-	isdas, err := addr.IAFromString(ia)
+	isdas, err := addr.ParseIA(ia)
 	if err != nil {
 		panic(err)
 	}

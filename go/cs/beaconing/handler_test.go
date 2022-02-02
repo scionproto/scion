@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/cs/beaconing"
 	"github.com/scionproto/scion/go/cs/beaconing/mock_beaconing"
 	"github.com/scionproto/scion/go/cs/ifstate"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -85,7 +84,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			},
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
-					IA:   addr.IA{},
+					IA:   0,
 					Path: spath.Path{},
 				}
 			},
@@ -109,7 +108,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			},
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
-					IA:   addr.IA{},
+					IA:   0,
 					Path: spath.Path{},
 				}
 			},
@@ -135,7 +134,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			},
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
-					IA:   addr.IA{},
+					IA:   0,
 					Path: spath.Path{},
 				}
 			},
@@ -164,7 +163,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			},
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
-					IA:   addr.IA{},
+					IA:   0,
 					Path: spath.Path{},
 				}
 			},
@@ -192,7 +191,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			},
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
-					IA:   addr.IA{},
+					IA:   0,
 					Path: spath.Path{},
 				}
 			},
@@ -217,7 +216,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			},
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
-					IA:   addr.IA{},
+					IA:   0,
 					Path: spath.Path{},
 				}
 			},
@@ -245,7 +244,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			},
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
-					IA:   addr.IA{},
+					IA:   0,
 					Path: spath.Path{},
 				}
 			},

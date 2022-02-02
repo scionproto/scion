@@ -56,9 +56,6 @@ type SegmentBrief struct {
 // SegmentID defines model for SegmentID.
 type SegmentID string
 
-// SegmentIDs defines model for SegmentIDs.
-type SegmentIDs []SegmentID
-
 // GetSegmentsParams defines parameters for GetSegments.
 type GetSegmentsParams struct {
 	// Start ISD-AS of segment.

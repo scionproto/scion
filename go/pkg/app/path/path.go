@@ -45,7 +45,7 @@ func Sort(paths []snet.Path) {
 			return len(intfA) < len(intfB)
 		}
 		for i := range intfA {
-			if iaA, iaB := intfA[i].IA.IAInt(), intfA[i].IA.IAInt(); iaA != iaB {
+			if iaA, iaB := intfA[i].IA, intfA[i].IA; iaA != iaB {
 				return iaA < iaB
 			}
 			if idA, idB := intfA[i].ID, intfB[i].ID; idA != idB {
@@ -150,7 +150,7 @@ func fetchPaths(
 	seq string,
 ) ([]snet.Path, error) {
 
-	allPaths, err := conn.Paths(ctx, remote, addr.IA{}, daemon.PathReqFlags{Refresh: refresh})
+	allPaths, err := conn.Paths(ctx, remote, 0, daemon.PathReqFlags{Refresh: refresh})
 	if err != nil {
 		return nil, serrors.WrapStr("retrieving paths", err)
 	}

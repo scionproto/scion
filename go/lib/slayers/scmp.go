@@ -70,7 +70,7 @@ func (s *SCMP) LayerType() gopacket.LayerType {
 
 // CanDecode returns the set of layer types that this DecodingLayer can decode.
 func (s *SCMP) CanDecode() gopacket.LayerClass {
-	return LayerTypeSCMP
+	return LayerClassSCMP
 }
 
 // NextLayerType use the typecode to select the right next decoder.

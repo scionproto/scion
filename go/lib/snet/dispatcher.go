@@ -113,7 +113,7 @@ func (h DefaultSCMPHandler) Handle(pkt *Packet) error {
 		msg := pkt.Payload.(SCMPExternalInterfaceDown)
 		return h.handleSCMPRev(typeCode, &path_mgmt.RevInfo{
 			IfID:         common.IFIDType(msg.Interface),
-			RawIsdas:     msg.IA.IAInt(),
+			RawIsdas:     msg.IA,
 			RawTimestamp: util.TimeToSecs(time.Now()),
 			RawTTL:       10,
 		})
@@ -121,7 +121,7 @@ func (h DefaultSCMPHandler) Handle(pkt *Packet) error {
 		msg := pkt.Payload.(SCMPInternalConnectivityDown)
 		return h.handleSCMPRev(typeCode, &path_mgmt.RevInfo{
 			IfID:         common.IFIDType(msg.Egress),
-			RawIsdas:     msg.IA.IAInt(),
+			RawIsdas:     msg.IA,
 			RawTimestamp: util.TimeToSecs(time.Now()),
 			RawTTL:       10,
 		})

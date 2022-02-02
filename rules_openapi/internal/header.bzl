@@ -1,6 +1,6 @@
 # This file was copied from https://github.com/cgrindel/rules_updatesrc/tree/main/examples/simple/header
 load(
-    "@cgrindel_rules_updatesrc//updatesrc:updatesrc.bzl",
+    "@cgrindel_bazel_starlib//updatesrc:defs.bzl",
     "UpdateSrcsInfo",
     "update_srcs",
 )

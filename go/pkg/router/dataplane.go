@@ -744,7 +744,7 @@ func (p *scionPacketProcessor) processIntraBFD(src *net.UDPAddr, data []byte) er
 	for k, v := range p.d.internalNextHops {
 		if bytes.Equal(v.IP, src.IP) && v.Port == src.Port {
 			ifID = k
-			continue
+			break
 		}
 	}
 

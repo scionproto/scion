@@ -1,0 +1,25 @@
+load("//lint:go.bzl", "go_library")
+load("@com_github_scionproto_scion//rules_openapi:defs.bzl", "openapi_generate_go")
+
+openapi_generate_go(
+    name = "api_generated",
+    src = "//spec:health",
+    server = True,
+    spec = False,
+)
+
+# exclude the *.gen.go files in the workspace it's only for editor compatibility.
+# gazelle:exclude *.gen.go
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "helpers.go",
+        ":api_generated",  # keep
+    ],
+    importpath = "github.com/scionproto/scion/go/pkg/api/health/api",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_go_chi_chi_v5//:go_default_library",  # keep
+        "@com_github_pkg_errors//:go_default_library",  # keep
+    ],
+)

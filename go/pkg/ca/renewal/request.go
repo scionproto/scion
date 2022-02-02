@@ -195,7 +195,7 @@ func (r RequestVerifier) verifyClientChain(ctx context.Context, chain []*x509.Ce
 		return err
 	}
 	tid := cppki.TRCID{
-		ISD:    ia.I,
+		ISD:    ia.ISD(),
 		Serial: scrypto.LatestVer,
 		Base:   scrypto.LatestVer,
 	}
@@ -204,7 +204,7 @@ func (r RequestVerifier) verifyClientChain(ctx context.Context, chain []*x509.Ce
 		return serrors.WrapStr("loading TRC to verify client chain", err)
 	}
 	if trc.IsZero() {
-		return serrors.New("TRC not found", "isd", ia.I)
+		return serrors.New("TRC not found", "isd", ia.ISD())
 	}
 	now := time.Now()
 	if val := trc.TRC.Validity; !val.Contains(now) {

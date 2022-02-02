@@ -7,8 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 // Defines values for BeaconUsage.
@@ -48,6 +46,11 @@ type Beacon struct {
 	// Ingress interface of the beacon.
 	IngressInterface int          `json:"ingress_interface"`
 	Usages           BeaconUsages `json:"usages"`
+}
+
+// BeaconGetResponseJson defines model for BeaconGetResponseJson.
+type BeaconGetResponseJson struct {
+	Beacon Beacon `json:"beacon"`
 }
 
 // BeaconUsage defines model for BeaconUsage.
@@ -184,9 +187,6 @@ type SegmentBrief struct {
 
 // SegmentID defines model for SegmentID.
 type SegmentID string
-
-// SegmentIDs defines model for SegmentIDs.
-type SegmentIDs []SegmentID
 
 // Signer defines model for Signer.
 type Signer struct {
@@ -339,7 +339,7 @@ func (a *CheckData) UnmarshalJSON(b []byte) error {
 			var fieldVal interface{}
 			err := json.Unmarshal(fieldBuf, &fieldVal)
 			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("error unmarshaling field %s", fieldName))
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
 			}
 			a.AdditionalProperties[fieldName] = fieldVal
 		}
@@ -355,7 +355,7 @@ func (a CheckData) MarshalJSON() ([]byte, error) {
 	for fieldName, field := range a.AdditionalProperties {
 		object[fieldName], err = json.Marshal(field)
 		if err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("error marshaling '%s'", fieldName))
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
 		}
 	}
 	return json.Marshal(object)
@@ -392,7 +392,7 @@ func (a *Topology) UnmarshalJSON(b []byte) error {
 			var fieldVal interface{}
 			err := json.Unmarshal(fieldBuf, &fieldVal)
 			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("error unmarshaling field %s", fieldName))
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
 			}
 			a.AdditionalProperties[fieldName] = fieldVal
 		}
@@ -408,7 +408,7 @@ func (a Topology) MarshalJSON() ([]byte, error) {
 	for fieldName, field := range a.AdditionalProperties {
 		object[fieldName], err = json.Marshal(field)
 		if err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("error marshaling '%s'", fieldName))
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
 		}
 	}
 	return json.Marshal(object)

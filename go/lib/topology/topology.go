@@ -18,9 +18,9 @@ package topology
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"net"
+	"os"
 	"sort"
 	"time"
 
@@ -181,7 +181,7 @@ func RWTopologyFromJSONBytes(b []byte) (*RWTopology, error) {
 // RWTopologyFromJSONFile extracts the topology from a file containing the JSON representation
 // of the topology.
 func RWTopologyFromJSONFile(path string) (*RWTopology, error) {
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +193,7 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 	var err error
 	t.Timestamp = time.Unix(raw.Timestamp, 0)
 
-	if t.IA, err = addr.IAFromString(raw.IA); err != nil {
+	if t.IA, err = addr.ParseIA(raw.IA); err != nil {
 		return err
 	}
 	if t.IA.IsWildcard() {
@@ -231,7 +231,7 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 				InternalAddr: intAddr,
 				MTU:          rawIntf.MTU,
 			}
-			if ifinfo.IA, err = addr.IAFromString(rawIntf.IA); err != nil {
+			if ifinfo.IA, err = addr.ParseIA(rawIntf.IA); err != nil {
 				return err
 			}
 			ifinfo.LinkType = LinkTypeFromString(rawIntf.LinkTo)

@@ -17,8 +17,8 @@ package control
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"net"
+	"os"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/pathpol"
@@ -106,7 +106,7 @@ type SessionPolicies []SessionPolicy
 func LoadSessionPolicies(ctx context.Context, file string,
 	parser SessionPolicyParser) (SessionPolicies, error) {
 
-	raw, err := ioutil.ReadFile(file)
+	raw, err := os.ReadFile(file)
 	if err != nil {
 		return nil, serrors.WrapStr("reading file", err)
 	}
@@ -179,7 +179,7 @@ type SessionPolicy struct {
 func (sp SessionPolicy) Copy() SessionPolicy {
 	return SessionPolicy{
 		ID:             sp.ID,
-		IA:             sp.IA.IAInt().IA(),
+		IA:             sp.IA,
 		TrafficMatcher: copyTrafficMatcher(sp.TrafficMatcher),
 		// TODO(lukedirtwalker): find a way to properly copy perf policies.
 		PerfPolicy: sp.PerfPolicy,

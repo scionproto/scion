@@ -70,7 +70,7 @@ func peerEntryFromPB(pb *cppb.PeerEntry) (PeerEntry, error) {
 	if pb.HopField == nil {
 		return PeerEntry{}, serrors.New("hop field is nil")
 	}
-	if ia := addr.IAInt(pb.PeerIsdAs).IA(); ia.IsWildcard() {
+	if ia := addr.IA(pb.PeerIsdAs); ia.IsWildcard() {
 		return PeerEntry{}, serrors.New("wildcard peer", "peer_isd_as", ia)
 	}
 	if pb.PeerInterface > math.MaxUint16 {
@@ -86,7 +86,7 @@ func peerEntryFromPB(pb *cppb.PeerEntry) (PeerEntry, error) {
 	}
 	return PeerEntry{
 		HopField:      hop,
-		Peer:          addr.IAInt(pb.PeerIsdAs).IA(),
+		Peer:          addr.IA(pb.PeerIsdAs),
 		PeerInterface: uint16(pb.PeerInterface),
 		PeerMTU:       int(pb.PeerMtu),
 	}, nil

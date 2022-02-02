@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/cs/reservation/segmenttest"
 	"github.com/scionproto/scion/go/cs/reservationstorage/backend"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -218,7 +217,7 @@ func testGetSegmentRsvsFromSrcDstIA(ctx context.Context, t *testing.T, db backen
 	require.NoError(t, err)
 	require.Len(t, rsvs, 2)
 	require.ElementsMatch(t, rsvs, []*segment.Reservation{r, r2})
-	rsvs, err = db.GetSegmentRsvsFromSrcDstIA(ctx, r.Path.GetSrcIA(), addr.IA{})
+	rsvs, err = db.GetSegmentRsvsFromSrcDstIA(ctx, r.Path.GetSrcIA(), 0)
 	require.NoError(t, err)
 	require.Len(t, rsvs, 3)
 	require.ElementsMatch(t, rsvs, []*segment.Reservation{r, r2, r3})
@@ -231,15 +230,15 @@ func testGetSegmentRsvsFromSrcDstIA(ctx context.Context, t *testing.T, db backen
 	require.NoError(t, err)
 	require.Len(t, rsvs, 2)
 	require.ElementsMatch(t, rsvs, []*segment.Reservation{r, r2})
-	rsvs, err = db.GetSegmentRsvsFromSrcDstIA(ctx, r.Path.GetSrcIA(), addr.IA{})
+	rsvs, err = db.GetSegmentRsvsFromSrcDstIA(ctx, r.Path.GetSrcIA(), 0)
 	require.NoError(t, err)
 	require.Len(t, rsvs, 3)
 	require.ElementsMatch(t, rsvs, []*segment.Reservation{r, r2, r3})
-	rsvs, err = db.GetSegmentRsvsFromSrcDstIA(ctx, addr.IA{}, r.Path.GetDstIA())
+	rsvs, err = db.GetSegmentRsvsFromSrcDstIA(ctx, 0, r.Path.GetDstIA())
 	require.NoError(t, err)
 	require.Len(t, rsvs, 2)
 	require.ElementsMatch(t, rsvs, []*segment.Reservation{r, r2})
-	rsvs, err = db.GetSegmentRsvsFromSrcDstIA(ctx, addr.IA{}, r3.Path.GetDstIA())
+	rsvs, err = db.GetSegmentRsvsFromSrcDstIA(ctx, 0, r3.Path.GetDstIA())
 	require.NoError(t, err)
 	require.Len(t, rsvs, 2)
 	require.ElementsMatch(t, rsvs, []*segment.Reservation{r3, r4})

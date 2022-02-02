@@ -22,7 +22,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"time"
 
@@ -71,13 +70,13 @@ return an error if parts of a TRC fail to decode, enable the strict mode.
 			}
 			cmd.SilenceUsage = true
 
-			raw, err := ioutil.ReadFile(args[0])
+			raw, err := os.ReadFile(args[0])
 			if err != nil {
 				return err
 			}
 			var predTRC *cppki.TRC
 			if flags.predecessor != "" {
-				predRaw, err := ioutil.ReadFile(flags.predecessor)
+				predRaw, err := os.ReadFile(flags.predecessor)
 				if err != nil {
 					return err
 				}
@@ -271,7 +270,7 @@ func newSignerInfo(info protocol.SignerInfo, certs []*x509.Certificate) (signerI
 func extractIA(name pkix.Name) addr.IA {
 	ia, err := cppki.ExtractIA(name)
 	if err != nil {
-		return addr.IA{}
+		return 0
 	}
 	return ia
 }

@@ -81,14 +81,14 @@ func TestIATableRegister(t *testing.T) {
 
 	t.Run("ISD zero is error", func(t *testing.T) {
 		table := NewIATable(minPort, maxPort)
-		ref, err := table.Register(addr.IA{I: 0, A: 1}, public, nil, addr.SvcNone, value)
+		ref, err := table.Register(addr.MustIAFrom(0, 1), public, nil, addr.SvcNone, value)
 		assert.EqualError(t, err, ErrBadISD.Error())
 		assert.Nil(t, ref)
 	})
 
 	t.Run("AS zero is error", func(t *testing.T) {
 		table := NewIATable(minPort, maxPort)
-		ref, err := table.Register(addr.IA{I: 1, A: 0}, public, nil, addr.SvcNone, value)
+		ref, err := table.Register(addr.MustIAFrom(1, 0), public, nil, addr.SvcNone, value)
 		assert.EqualError(t, err, ErrBadAS.Error())
 		assert.Nil(t, ref)
 	})

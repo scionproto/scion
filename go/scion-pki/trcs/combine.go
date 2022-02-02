@@ -19,7 +19,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"sort"
 
 	"github.com/google/go-cmp/cmp"
@@ -89,7 +89,7 @@ func RunCombine(files []string, pld, out string, format string) error {
 			Bytes: packed,
 		})
 	}
-	if err := ioutil.WriteFile(out, packed, 0644); err != nil {
+	if err := os.WriteFile(out, packed, 0644); err != nil {
 		return serrors.WrapStr("error writing combined TRC", err)
 	}
 	fmt.Printf("Successfully combined TRC at %s\n", out)
@@ -198,7 +198,7 @@ func verifyPayload(pld string, trcs map[string]cppki.SignedTRC) error {
 	var rawPld []byte
 	if pld != "" {
 		var err error
-		rawPld, err = ioutil.ReadFile(pld)
+		rawPld, err = os.ReadFile(pld)
 		if err != nil {
 			return serrors.WrapStr("error loading payload", err)
 		}

@@ -15,7 +15,7 @@
 package trcs
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,7 +31,7 @@ func TestMarshalPayload(t *testing.T) {
 	require.NoError(t, err)
 	raw, err := trc.Encode()
 	require.NoError(t, err)
-	expected, err := ioutil.ReadFile("testdata/admin/ISD1-B1-S1.pld.der")
+	expected, err := os.ReadFile("testdata/admin/ISD1-B1-S1.pld.der")
 	assert.Equal(t, expected, raw)
 	require.NoError(t, err)
 }

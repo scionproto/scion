@@ -19,7 +19,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/pem"
-	"io/ioutil"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -116,7 +116,7 @@ func BenchmarkConcurrentCache10(b *testing.B) {
 }
 
 func loadTrustSigner(b *testing.B, db trust.DB) trust.Signer {
-	raw, err := ioutil.ReadFile("testdata/common/ISD1/ASff00_0_110/crypto/as/cp-as.key")
+	raw, err := os.ReadFile("testdata/common/ISD1/ASff00_0_110/crypto/as/cp-as.key")
 	require.NoError(b, err)
 	block, _ := pem.Decode(raw)
 	if block == nil || block.Type != "PRIVATE KEY" {

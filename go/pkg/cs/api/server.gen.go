@@ -16,6 +16,12 @@ type ServerInterface interface {
 	// List the SCION beacons
 	// (GET /beacons)
 	GetBeacons(w http.ResponseWriter, r *http.Request, params GetBeaconsParams)
+	// Get the SCION beacon description
+	// (GET /beacons/{segment-id})
+	GetBeacon(w http.ResponseWriter, r *http.Request, segmentId SegmentID)
+	// Get the SCION beacon blob
+	// (GET /beacons/{segment-id}/blob)
+	GetBeaconBlob(w http.ResponseWriter, r *http.Request, segmentId SegmentID)
 	// Information about the CA.
 	// (GET /ca)
 	GetCa(w http.ResponseWriter, r *http.Request)
@@ -48,10 +54,10 @@ type ServerInterface interface {
 	GetSegments(w http.ResponseWriter, r *http.Request, params GetSegmentsParams)
 	// Get the SCION path segment description
 	// (GET /segments/{segment-id})
-	GetSegment(w http.ResponseWriter, r *http.Request, segmentId SegmentIDs)
+	GetSegment(w http.ResponseWriter, r *http.Request, segmentId SegmentID)
 	// Get the SCION path segment blob
 	// (GET /segments/{segment-id}/blob)
-	GetSegmentBlob(w http.ResponseWriter, r *http.Request, segmentId SegmentIDs)
+	GetSegmentBlob(w http.ResponseWriter, r *http.Request, segmentId SegmentID)
 	// Prints information about the AS Certificate used to sign the control-plane message.
 	// (GET /signer)
 	GetSigner(w http.ResponseWriter, r *http.Request)
@@ -76,6 +82,7 @@ type ServerInterface interface {
 type ServerInterfaceWrapper struct {
 	Handler            ServerInterface
 	HandlerMiddlewares []MiddlewareFunc
+	ErrorHandlerFunc   func(w http.ResponseWriter, r *http.Request, err error)
 }
 
 type MiddlewareFunc func(http.HandlerFunc) http.HandlerFunc
@@ -96,7 +103,7 @@ func (siw *ServerInterfaceWrapper) GetBeacons(w http.ResponseWriter, r *http.Req
 
 	err = runtime.BindQueryParameter("form", true, false, "start_isd_as", r.URL.Query(), &params.StartIsdAs)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter start_isd_as: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "start_isd_as", Err: err})
 		return
 	}
 
@@ -107,7 +114,7 @@ func (siw *ServerInterfaceWrapper) GetBeacons(w http.ResponseWriter, r *http.Req
 
 	err = runtime.BindQueryParameter("form", true, false, "usages", r.URL.Query(), &params.Usages)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter usages: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "usages", Err: err})
 		return
 	}
 
@@ -118,7 +125,7 @@ func (siw *ServerInterfaceWrapper) GetBeacons(w http.ResponseWriter, r *http.Req
 
 	err = runtime.BindQueryParameter("form", true, false, "ingress_interface", r.URL.Query(), &params.IngressInterface)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter ingress_interface: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ingress_interface", Err: err})
 		return
 	}
 
@@ -129,7 +136,7 @@ func (siw *ServerInterfaceWrapper) GetBeacons(w http.ResponseWriter, r *http.Req
 
 	err = runtime.BindQueryParameter("form", true, false, "valid_at", r.URL.Query(), &params.ValidAt)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter valid_at: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "valid_at", Err: err})
 		return
 	}
 
@@ -140,7 +147,7 @@ func (siw *ServerInterfaceWrapper) GetBeacons(w http.ResponseWriter, r *http.Req
 
 	err = runtime.BindQueryParameter("form", true, false, "all", r.URL.Query(), &params.All)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter all: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "all", Err: err})
 		return
 	}
 
@@ -151,7 +158,7 @@ func (siw *ServerInterfaceWrapper) GetBeacons(w http.ResponseWriter, r *http.Req
 
 	err = runtime.BindQueryParameter("form", true, false, "desc", r.URL.Query(), &params.Desc)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter desc: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "desc", Err: err})
 		return
 	}
 
@@ -162,12 +169,64 @@ func (siw *ServerInterfaceWrapper) GetBeacons(w http.ResponseWriter, r *http.Req
 
 	err = runtime.BindQueryParameter("form", true, false, "sort", r.URL.Query(), &params.Sort)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter sort: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sort", Err: err})
 		return
 	}
 
 	var handler = func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetBeacons(w, r, params)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
+// GetBeacon operation middleware
+func (siw *ServerInterfaceWrapper) GetBeacon(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "segment-id" -------------
+	var segmentId SegmentID
+
+	err = runtime.BindStyledParameter("simple", false, "segment-id", chi.URLParam(r, "segment-id"), &segmentId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "segment-id", Err: err})
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetBeacon(w, r, segmentId)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
+// GetBeaconBlob operation middleware
+func (siw *ServerInterfaceWrapper) GetBeaconBlob(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "segment-id" -------------
+	var segmentId SegmentID
+
+	err = runtime.BindStyledParameter("simple", false, "segment-id", chi.URLParam(r, "segment-id"), &segmentId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "segment-id", Err: err})
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetBeaconBlob(w, r, segmentId)
 	}
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -208,7 +267,7 @@ func (siw *ServerInterfaceWrapper) GetCertificates(w http.ResponseWriter, r *htt
 
 	err = runtime.BindQueryParameter("form", true, false, "isd_as", r.URL.Query(), &params.IsdAs)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter isd_as: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "isd_as", Err: err})
 		return
 	}
 
@@ -219,7 +278,7 @@ func (siw *ServerInterfaceWrapper) GetCertificates(w http.ResponseWriter, r *htt
 
 	err = runtime.BindQueryParameter("form", true, false, "valid_at", r.URL.Query(), &params.ValidAt)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter valid_at: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "valid_at", Err: err})
 		return
 	}
 
@@ -230,7 +289,7 @@ func (siw *ServerInterfaceWrapper) GetCertificates(w http.ResponseWriter, r *htt
 
 	err = runtime.BindQueryParameter("form", true, false, "all", r.URL.Query(), &params.All)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter all: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "all", Err: err})
 		return
 	}
 
@@ -256,7 +315,7 @@ func (siw *ServerInterfaceWrapper) GetCertificate(w http.ResponseWriter, r *http
 
 	err = runtime.BindStyledParameter("simple", false, "chain-id", chi.URLParam(r, "chain-id"), &chainId)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter chain-id: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "chain-id", Err: err})
 		return
 	}
 
@@ -282,7 +341,7 @@ func (siw *ServerInterfaceWrapper) GetCertificateBlob(w http.ResponseWriter, r *
 
 	err = runtime.BindStyledParameter("simple", false, "chain-id", chi.URLParam(r, "chain-id"), &chainId)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter chain-id: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "chain-id", Err: err})
 		return
 	}
 
@@ -388,7 +447,7 @@ func (siw *ServerInterfaceWrapper) GetSegments(w http.ResponseWriter, r *http.Re
 
 	err = runtime.BindQueryParameter("form", true, false, "start_isd_as", r.URL.Query(), &params.StartIsdAs)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter start_isd_as: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "start_isd_as", Err: err})
 		return
 	}
 
@@ -399,7 +458,7 @@ func (siw *ServerInterfaceWrapper) GetSegments(w http.ResponseWriter, r *http.Re
 
 	err = runtime.BindQueryParameter("form", true, false, "end_isd_as", r.URL.Query(), &params.EndIsdAs)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter end_isd_as: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "end_isd_as", Err: err})
 		return
 	}
 
@@ -421,11 +480,11 @@ func (siw *ServerInterfaceWrapper) GetSegment(w http.ResponseWriter, r *http.Req
 	var err error
 
 	// ------------- Path parameter "segment-id" -------------
-	var segmentId SegmentIDs
+	var segmentId SegmentID
 
 	err = runtime.BindStyledParameter("simple", false, "segment-id", chi.URLParam(r, "segment-id"), &segmentId)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter segment-id: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "segment-id", Err: err})
 		return
 	}
 
@@ -447,11 +506,11 @@ func (siw *ServerInterfaceWrapper) GetSegmentBlob(w http.ResponseWriter, r *http
 	var err error
 
 	// ------------- Path parameter "segment-id" -------------
-	var segmentId SegmentIDs
+	var segmentId SegmentID
 
 	err = runtime.BindStyledParameter("simple", false, "segment-id", chi.URLParam(r, "segment-id"), &segmentId)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter segment-id: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "segment-id", Err: err})
 		return
 	}
 
@@ -527,7 +586,7 @@ func (siw *ServerInterfaceWrapper) GetTrcs(w http.ResponseWriter, r *http.Reques
 
 	err = runtime.BindQueryParameter("form", false, false, "isd", r.URL.Query(), &params.Isd)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter isd: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "isd", Err: err})
 		return
 	}
 
@@ -538,7 +597,7 @@ func (siw *ServerInterfaceWrapper) GetTrcs(w http.ResponseWriter, r *http.Reques
 
 	err = runtime.BindQueryParameter("form", true, false, "all", r.URL.Query(), &params.All)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter all: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "all", Err: err})
 		return
 	}
 
@@ -564,7 +623,7 @@ func (siw *ServerInterfaceWrapper) GetTrc(w http.ResponseWriter, r *http.Request
 
 	err = runtime.BindStyledParameter("simple", false, "isd", chi.URLParam(r, "isd"), &isd)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter isd: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "isd", Err: err})
 		return
 	}
 
@@ -573,7 +632,7 @@ func (siw *ServerInterfaceWrapper) GetTrc(w http.ResponseWriter, r *http.Request
 
 	err = runtime.BindStyledParameter("simple", false, "base", chi.URLParam(r, "base"), &base)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter base: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "base", Err: err})
 		return
 	}
 
@@ -582,7 +641,7 @@ func (siw *ServerInterfaceWrapper) GetTrc(w http.ResponseWriter, r *http.Request
 
 	err = runtime.BindStyledParameter("simple", false, "serial", chi.URLParam(r, "serial"), &serial)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter serial: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "serial", Err: err})
 		return
 	}
 
@@ -608,7 +667,7 @@ func (siw *ServerInterfaceWrapper) GetTrcBlob(w http.ResponseWriter, r *http.Req
 
 	err = runtime.BindStyledParameter("simple", false, "isd", chi.URLParam(r, "isd"), &isd)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter isd: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "isd", Err: err})
 		return
 	}
 
@@ -617,7 +676,7 @@ func (siw *ServerInterfaceWrapper) GetTrcBlob(w http.ResponseWriter, r *http.Req
 
 	err = runtime.BindStyledParameter("simple", false, "base", chi.URLParam(r, "base"), &base)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter base: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "base", Err: err})
 		return
 	}
 
@@ -626,7 +685,7 @@ func (siw *ServerInterfaceWrapper) GetTrcBlob(w http.ResponseWriter, r *http.Req
 
 	err = runtime.BindStyledParameter("simple", false, "serial", chi.URLParam(r, "serial"), &serial)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid format for parameter serial: %s", err), http.StatusBadRequest)
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "serial", Err: err})
 		return
 	}
 
@@ -641,15 +700,85 @@ func (siw *ServerInterfaceWrapper) GetTrcBlob(w http.ResponseWriter, r *http.Req
 	handler(w, r.WithContext(ctx))
 }
 
+type UnescapedCookieParamError struct {
+	ParamName string
+	Err       error
+}
+
+func (e *UnescapedCookieParamError) Error() string {
+	return fmt.Sprintf("error unescaping cookie parameter '%s'", e.ParamName)
+}
+
+func (e *UnescapedCookieParamError) Unwrap() error {
+	return e.Err
+}
+
+type UnmarshalingParamError struct {
+	ParamName string
+	Err       error
+}
+
+func (e *UnmarshalingParamError) Error() string {
+	return fmt.Sprintf("Error unmarshaling parameter %s as JSON: %s", e.ParamName, e.Err.Error())
+}
+
+func (e *UnmarshalingParamError) Unwrap() error {
+	return e.Err
+}
+
+type RequiredParamError struct {
+	ParamName string
+}
+
+func (e *RequiredParamError) Error() string {
+	return fmt.Sprintf("Query argument %s is required, but not found", e.ParamName)
+}
+
+type RequiredHeaderError struct {
+	ParamName string
+	Err       error
+}
+
+func (e *RequiredHeaderError) Error() string {
+	return fmt.Sprintf("Header parameter %s is required, but not found", e.ParamName)
+}
+
+func (e *RequiredHeaderError) Unwrap() error {
+	return e.Err
+}
+
+type InvalidParamFormatError struct {
+	ParamName string
+	Err       error
+}
+
+func (e *InvalidParamFormatError) Error() string {
+	return fmt.Sprintf("Invalid format for parameter %s: %s", e.ParamName, e.Err.Error())
+}
+
+func (e *InvalidParamFormatError) Unwrap() error {
+	return e.Err
+}
+
+type TooManyValuesForParamError struct {
+	ParamName string
+	Count     int
+}
+
+func (e *TooManyValuesForParamError) Error() string {
+	return fmt.Sprintf("Expected one value for %s, got %d", e.ParamName, e.Count)
+}
+
 // Handler creates http.Handler with routing matching OpenAPI spec.
 func Handler(si ServerInterface) http.Handler {
 	return HandlerWithOptions(si, ChiServerOptions{})
 }
 
 type ChiServerOptions struct {
-	BaseURL     string
-	BaseRouter  chi.Router
-	Middlewares []MiddlewareFunc
+	BaseURL          string
+	BaseRouter       chi.Router
+	Middlewares      []MiddlewareFunc
+	ErrorHandlerFunc func(w http.ResponseWriter, r *http.Request, err error)
 }
 
 // HandlerFromMux creates http.Handler with routing matching OpenAPI spec based on the provided mux.
@@ -673,13 +802,25 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	if r == nil {
 		r = chi.NewRouter()
 	}
+	if options.ErrorHandlerFunc == nil {
+		options.ErrorHandlerFunc = func(w http.ResponseWriter, r *http.Request, err error) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
+	}
 	wrapper := ServerInterfaceWrapper{
 		Handler:            si,
 		HandlerMiddlewares: options.Middlewares,
+		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/beacons", wrapper.GetBeacons)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/beacons/{segment-id}", wrapper.GetBeacon)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/beacons/{segment-id}/blob", wrapper.GetBeaconBlob)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/ca", wrapper.GetCa)
