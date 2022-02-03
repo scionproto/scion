@@ -255,12 +255,12 @@ func parsePath(rawPath rawPath, creationTime time.Time) (snet.Path, error) {
 			ConsEgress:  rawHF.Egress,
 			ExpTime:     rawHF.ExpTime,
 		}
-		sp.HopFields = append(sp.HopFields, hf)
 		macGen, err := scrypto.HFMacFactory(rawHF.Key)
 		if err != nil {
 			return nil, err
 		}
 		hf.Mac = path.MAC(macGen(), sp.InfoFields[0], hf, nil)
+		sp.HopFields = append(sp.HopFields, hf)
 		sp.InfoFields[0].UpdateSegID(hf.Mac)
 	}
 	sp.InfoFields[0].SegID = initialSegID
