@@ -15,9 +15,16 @@ an optional ID in the BR name of a link entry.
 Without an ID, a new BR with a single interface is created.
 When an ID is specified, the interface is added to the BR with such ID.
 
-NOTE that the IDs in the .topo files do not correspond to the element ID of the
-BRs in the final generated topology. The order of the links is what determines
-the element ID.
+Link ids can also optionally be specified by adding a number after "#". Overall, the syntax is as follows:
+
+<ISD-ID>-ff00:0:<AS-ID>[-<BR-ID>][#<IF-ID>]
+
+Example: `1-ff00:0:120-5#2` is:
+* of ISD 1
+* AS 120
+* brige 5
+* interface id 2
+
 
 Consider the following example:
 

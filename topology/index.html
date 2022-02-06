@@ -1,0 +1,131 @@
+<html>
+
+<!--
+
+This file provides a preview of topologies as graphs in a visual manner using vis.js.
+To start, launch a python http server in this directory using `python3 -m http.server`, and open the file in the browser.
+
+To view a file, extend the url with an argument "topo", along with a path to the toplogy, relative to this file.
+So e.g. to view the topoloty  "test.topo", open the browser with the url "http://localhost:8000/?topo=test.topo".
+
+Hover on edges & nodes to see their properties.
+
+-->
+
+
+<head>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"
+        integrity="sha512-CSBhVREyzHAjAFfBlIBakjoRUKp5h7VSweP0InR/pAJyptH7peuhCsqAI/snV+TwZmXZqoUklpXp6R6wMnYf5Q=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <style type="text/css">
+        #mynetwork {
+            border: 1px solid lightgray;
+        }
+
+        .vis-network {
+            width: 100% !important;
+            border: 1px solid lightgray;
+            float: left;
+        }
+
+        .vis-configuration-wrapper {
+            width: 30% !important;
+            float: right;
+            overflow: scroll;
+            max-height: 98vh;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="mynetwork"></div>
+
+    <script type="text/javascript">
+        function getTopoPath() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const topo = urlParams.get('topo');
+            return topo
+        }
+
+        function linkNameToIa(linkName) {
+            linkName = linkName.split('#')[0];
+            linkName = linkName.split('-').slice(0, 2).join('-')
+            return linkName
+        }
+
+        function buildGraph(topo) {
+            const yaml = window.jsyaml;
+
+            function showJsonObj(obj) {
+                const el = document.createElement("pre")
+                el.innerText = yaml.dump(obj)
+                return el
+            }
+
+            var nodes = Object.entries(topo.ASes).map(function (entry) {
+                const name = entry[0];
+                const props = entry[1];
+                return {
+                    id: name,
+                    label: name,
+                    color: props.core ? '#ffc66b' : '#6ba4ff',
+                    group: props.core ? 'core' : 'non-core',
+                    title: showJsonObj(props)
+
+                }
+            });
+
+            var edges = topo.links.map(function (link) {
+                return {
+                    from: linkNameToIa(link.a),
+                    to: linkNameToIa(link.b),
+                    label: link.linkAtoB,
+                    title: showJsonObj(link),
+                    arrows: link.linkAtoB === "CHILD" ? "from" : "",
+                    dashes: link.linkAtoB === "PEER"
+                }
+            });
+
+            // create a network
+            var container = document.getElementById('mynetwork');
+
+
+            // provide the data in the vis format
+            var data = {
+                nodes: new vis.DataSet(nodes),
+                edges: new vis.DataSet(edges)
+            };
+            var options = {
+                layout: {
+                    hierarchical: false,
+                },
+                physics: {
+                    barnesHut: {
+                        gravitationalConstant: -20000,
+                        springConstant: 0.001,
+                    }
+                },
+                interaction: {
+                    navigationButtons: true,
+                    hover: true,
+
+                },
+                // configure: true,
+                nodes: {
+                    shape: 'circle'
+                }
+            };
+
+            // initialize your network!
+            var network = new vis.Network(container, data, options);
+        }
+
+        fetch(getTopoPath())
+            .then(r => r.blob())
+            .then(b => b.text())
+            .then(t => buildGraph(window.jsyaml.load(t)))
+    </script>
+</body>
+
+</html>
