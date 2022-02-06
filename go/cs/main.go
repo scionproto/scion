@@ -658,7 +658,7 @@ func realMain(ctx context.Context) error {
 		return intfs.Filtered(originationFilter)
 	}
 
-	pqaSettings, err := pqa.GenerateSettingsForInterfaces(intfs)
+	pqaSettings, err := pqa.LoadSettings(globalCfg.General.PqaConfig(), intfs)
 	if err != nil {
 		return serrors.WrapStr("generating pqa settings", err)
 	}
@@ -667,7 +667,7 @@ func realMain(ctx context.Context) error {
 		AllInterfaces:         intfs,
 		PropagationInterfaces: propagationInterfaces,
 		OriginationInterfaces: originationInterfaces,
-		Settings:              *pqaSettings,
+		Settings:              pqaSettings,
 		DB:                    beaconStorage,
 
 		Extender: extender,
