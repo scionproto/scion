@@ -1,6 +1,10 @@
-import os, random, json, pprint, yaml
+import json
+import os
+import random
 
 import caida_gen as caida
+import yaml
+
 
 def to_pos_int(x):
     return max(0, int(x))
@@ -105,26 +109,17 @@ class StaticInfoFromCaida:
     from the other side.
     """
     fname = "staticInfoConfig.json"
+    caida = caida.CaidaGraph()
 
     def __init__(self, args):
         self.args = args
-        print("PATH:", args.topo_config)
 
-        with open("topology/ia_as_map.yml") as f:
-            self.ia_as_map = yaml.load(f)
+    def gen_random_latency(self, r):
+        return "0ms"
 
-    def gen_latency(self, r, from_ia=None, center_ia=None, to_ia=None):
-        if from_ia is None:
-            return f"{int(r.lognormvariate(1, 0.8)*2)}ms"
-        as1, centeras, as2 = self.ia_as_map[from_ia], self.ia_as_map[center_ia], self.ia_as_map[to_ia]
-        dist = caida.distance_between(as1, centeras, as2)
-        dist_m = dist*1000
-        c_ms = 300_000_000
-        time_s = dist_m/c_ms
-        if time_s or True:
-            return f"{max(0, r.gauss(time_s*1000, 5))}ms"
-        else:
-            return f"{int(r.lognormvariate(1, 0.8)*20)}ms"
+    def gen_latency(self, r, from_pos, to_pos):
+        latency = self.caida.geo_data.get_latency_between_coords(from_pos, to_pos) + 1
+        return round(r.gauss(latency, latency/10), 3)
 
     def gen_bandwith(self, r):
         return int(r.lognormvariate(1, 0.8)*2000000000)
@@ -145,35 +140,37 @@ class StaticInfoFromCaida:
         return random.choice(["direct", "multihop", "opennet"])
 
     def generate(self, topo_dicts):
-        self.caida = caida.LinkLocations()
-
         for topoInfo, topo in topo_dicts.items():
-            center_ia = topo['isd_as']
-            intfs = [(intf, v["isd_as"]) for router in topo["border_routers"].values()
-                     for intf, v in router["interfaces"].items()]
+            # Flatten all interfaces into single dictionary
+            intfs = {}
+            for router in topo["border_routers"].values():
+                intfs.update(router["interfaces"])
+
             r = random.Random(str(topoInfo))  # ISD-AS is seed
+
             settings = {
-                "Latency": {intf[0]: {
-                    "Inter": self.gen_latency(r),
+                "Latency": {intf: {
+                    "Inter": self.gen_random_latency(r),
                     "Intra": {
-                        intf2[0]: self.gen_latency(r, intf[1], center_ia, intf2[1]) for intf2 in intfs if intf2 != intf
+                        intf2: f"{self.gen_latency(r, attrs['data'].get('geo', (0, 0)), attrs2['data'].get('geo', (0, 0)))}ms"
+                            for intf2, attrs2 in intfs.items() if intf != intf2
                     }
-                } for intf in intfs},
-                "Bandwidth": {intf[0]: {
+                } for intf, attrs in intfs.items()},
+                "Bandwidth": {intf: {
                     "Inter": self.gen_bandwith(r),
                     "Intra": {
-                        intf2[0]: self.gen_bandwith(r) for intf2 in intfs if intf2 != intf
+                        intf2: self.gen_bandwith(r) for intf2 in intfs if intf2 != intf
                     }
                 } for intf in intfs},
-                "Linktype": {intf[0]: self.gen_linktype(r) for intf in intfs},
-                "Geo": {intf[0]: {
-                    "Latitutde": self.gen_lat(r),
-                    "Longitude": self.gen_long(r),
-                    "Address": self.gen_addr(r),
-                } for intf in intfs},
-                "Hops": {intf[0]: {
+                "Linktype": {intf: self.gen_linktype(r) for intf in intfs},
+                "Geo": {intf: {
+                    "Latitutde": attrs["data"].get("geo", [0, 0])[0],
+                    "Longitude": attrs["data"].get("geo", [0, 0])[1],
+                    "Address": attrs["data"].get("location", "unknown"),
+                } for intf, attrs in intfs.items()},
+                "Hops": {intf: {
                     "Intra": {
-                        intf2[0]: self.gen_hops(r) for intf2 in intfs if intf2 != intf
+                        intf2: self.gen_hops(r) for intf2 in intfs if intf2 != intf
                     }
                 } for intf in intfs},
                 "Note": "Generated"

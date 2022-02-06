@@ -1,0 +1,1275 @@
+# format: lid|continent|country|region|city|lat|lon|pop
+# file: geodata/iso2code_continent2code.txt
+# file: geodata/iso2code_iso3code.txt
+# file: geodata-vng/locations.txt
+# file: geodata/itdk-locations.txt
+# file: geodata/itdk-links.txt
+# file: geodata/edge.txt
+# file: geodata-vng/aslink_geo_communities_20160620.txt
+# file: geodata-vng/he_lg_aslinks_geo_20160620.txt
+# file: geodata-vng/aslink_geo_mlp_20160601.txt
+Aabenraa-83-DK|EU|DK|83|Aabenraa|55.0324|9.4417|0
+Aalsmeer-07-NL|EU|NL|07|Aalsmeer|52.25917|4.75972|0
+Abakan-KK-RU|EU|RU|KK|Abakan|53.7175|91.494|0
+Aberdeen-ABE-UK||UK|ABE|Aberdeen|57.1482|-2.09665|0
+Abu Dhabi-AZ-AE|AS|AE|AZ|Abu Dhabi|24.4767|54.3709|0
+Abuja-FC-NG|AF|NG|FC|Abuja|9.06667|7.48333|0
+Accra-01-GH|AF|GH|01|Accra|5.55602|-0.1969|0
+Accra-AA-GH|AF|GH|AA|Accra|5.559|-0.2007|0
+Adelaide-05-AU|OC|AU|05|Adelaide|-34.92866|138.59863|0
+Agung-KS-ID|AS|ID|KS|Agung|-2.03333|115.483|0
+Ahmedabad-GJ-IN|AS|IN|GJ|Ahmedabad|23.0326|72.5981|0
+Ajman-AJ-AE|AS|AE|AJ|Ajman|25.4128|55.4348|0
+Akatlar Mah_-34-TR|EU|TR|34|Akatlar Mah.|40.989|28.8671|0
+Akron-OH-US|NA|US|OH|Akron|41.08144|-81.51901|0
+Alameda-CA-US|NA|US|CA|Alameda|37.76521|-122.24164|0
+Albany-GA-US|NA|US|GA|Albany|31.5809|-84.2217|0
+Alchevsk-09-UA|EU|UA|09|Alchevsk|48.4758|38.7876|0
+Alexandria-06-EG|AF|EG|06|Alexandria|31.21564|29.95527|0
+Alexandria-MN-US|NA|US|MN|Alexandria|45.8928|-95.366|0
+Alexandria-VA-US|NA|US|VA|Alexandria|38.80484|-77.04692|0
+Almaty-ALM-KZ|AS|KZ|ALM|Almaty|43.25|76.95|0
+Almere Stad-16-NL|EU|NL|16|Almere Stad|52.37025|5.21413|0
+Almere-FL-NL|EU|NL|FL|Almere|52.4169|5.21971|0
+Alpena-MI-US|NA|US|MI|Alpena|45.06168|-83.43275|0
+Altamonte Springs-FL-US|NA|US|FL|Altamonte Springs|28.66111|-81.36562|0
+Ames-IA-US|NA|US|IA|Ames|42.03471|-93.61994|0
+Amherst-MA-US|NA|US|MA|Amherst|42.4052|-72.5284|0
+Amman-AM-JO|AS|JO|AM|Amman|31.95|35.933|0
+Amstelveen-NH-NL|EU|NL|NH|Amstelveen|52.3213|4.86357|0
+Amsterdam-NH-NL|EU|NL|NH|Amsterdam|52.3667|4.89178|0
+Amstetten-3-AT|EU|AT|3|Amstetten|48.1233|14.8715|0
+Anaheim-CA-US|NA|US|CA|Anaheim|33.83529|-117.9145|0
+Anderson-SC-US|NA|US|SC|Anderson|34.4782|-82.6817|0
+Andover-MA-US|NA|US|MA|Andover|42.6488|-71.162|0
+Angola-IN-US|NA|US|IN|Angola|41.63477|-84.99941|0
+Ankara-06-TR|EU|TR|06|Ankara|39.929|32.8537|0
+Ann Arbor-MI-US|NA|US|MI|Ann Arbor|42.27756|-83.74088|0
+Annapolis-MD-US|NA|US|MD|Annapolis|38.97845|-76.49218|0
+Antioch-CA-US|NA|US|CA|Antioch|38.00492|-121.80579|0
+Antwerp-VAN-BE|EU|BE|VAN|Antwerp|51.2188|4.39355|0
+Antwerpen-VLG-BE|EU|BE|VLG|Antwerpen|51.21989|4.40346|0
+Aracaju-SE-BR|SA|BR|SE|Aracaju|-10.9258|-37.0594|0
+Araguaina-TO-BR|SA|BR|TO|Araguaina|-7.18688|-48.2075|0
+Arkhangel_Sk-06-RU|EU|RU|06|Arkhangel'Sk|64.5401|40.5433|0
+Arlington Heights-IL-US|NA|US|IL|Arlington Heights|42.08836|-87.98063|0
+Arlington-TX-US|NA|US|TX|Arlington|32.73569|-97.10807|0
+Arlington-VA-US|NA|US|VA|Arlington|38.8873|-77.0988|0
+Arnhem-GE-NL|EU|NL|GE|Arnhem|51.9876|5.9288|0
+Aroneanu-IS-RO|EU|RO|IS|Aroneanu|47.2015|27.608|0
+As Sulaymaniyah-SU-IQ|AS|IQ|SU|As Sulaymaniyah|35.56|45.451|0
+Ashburn-VA-US|NA|US|VA|Ashburn|39.04372|-77.48749|0
+Askim-O-SE|EU|SE|O|Askim|57.63|11.93|0
+Assen-DR-NL|EU|NL|DR|Assen|52.9969|6.57014|0
+Astana-AKM-KZ|AS|KZ|AKM|Astana|51.167|71.5|0
+Astrakhan-AST-RU|EU|RU|AST|Astrakhan|46.2833|48.0063|0
+Asuncion-ASU-PY|SA|PY|ASU|Asuncion|-25.3005|-57.6362|0
+Athens-A1-GR|EU|GR|A1|Athens|37.9843|23.7265|0
+Athens-ESYE31-GR|EU|GR|ESYE31|Athens|37.97945|23.71622|0
+Atlanta-GA-US|NA|US|GA|Atlanta|33.749|-84.38798|0
+Auburn Hills-MI-US|NA|US|MI|Auburn Hills|42.68753|-83.2341|0
+Auburn-AL-US|NA|US|AL|Auburn|32.5994|-85.4734|0
+Auckland-AUK-NZ|OC|NZ|AUK|Auckland|-36.8549|174.783|0
+Aurora-IL-US|NA|US|IL|Aurora|41.7558|-88.2416|0
+Austin-TX-US|NA|US|TX|Austin|30.26715|-97.74306|0
+Avare-SP-BR|SA|BR|SP|Avare|-23.1131|-48.9177|0
+Avaz-10-IR|AS|IR|10|Avaz|31.3169|48.684|0
+Bacau-BC-RO|EU|RO|BC|Bacau|46.5673|26.9173|0
+Bacolod-NEC-PH|AS|PH|NEC|Bacolod|10.6782|122.953|0
+Baden-AG-CH|EU|CH|AG|Baden|47.47333|8.30592|0
+Bahrain International Airport-15-BH|AS|BH|15|Bahrain International Airport|26.27|50.63|0
+Bakersfield-CA-US|NA|US|CA|Bakersfield|35.37329|-119.01871|0
+Bakhchysarai-43-UA|EU|UA|43|Bakhchysarai|44.75|33.85|0
+Baku-BA-AZ|AS|AZ|BA|Baku|40.367|49.883|0
+Balcatta-WA-AU|OC|AU|WA|Balcatta|-31.8617|115.815|0
+Ballerup-84-DK|EU|DK|84|Ballerup|55.7334|12.3562|0
+Balneario Camboriu-SC-BR|SA|BR|SC|Balneario Camboriu|-26.9827|-48.6332|0
+Baltimore-MD-US|NA|US|MD|Baltimore|39.29038|-76.61219|0
+Bandar Seri Begawan-02-BN|AS|BN|02|Bandar Seri Begawan|4.94029|114.94806|0
+Bandar Seri Begawan-BM-BN|AS|BN|BM|Bandar Seri Begawan|4.883|114.933|0
+Bangalore-KA-IN|AS|IN|KA|Bangalore|12.9706|77.6002|0
+Bangkok-10-TH|AS|TH|10|Bangkok|13.7493|100.497|0
+Bangkok-40-TH|AS|TH|40|Bangkok|13.75398|100.50144|0
+Barnaul-ALT-RU|EU|RU|ALT|Barnaul|53.3563|83.7617|0
+Barra Mansa-RJ-BR|SA|BR|RJ|Barra Mansa|-22.5471|-44.1702|0
+Barre-VT-US|NA|US|VT|Barre|44.19701|-72.50205|0
+Barro Alto-GO-BR|SA|BR|GO|Barro Alto|-14.9696|-48.9191|0
+Basel-BS-CH|EU|CH|BS|Basel|47.55839|7.57327|0
+Bastad-M-SE|EU|SE|M|Bastad|56.4314|12.8451|0
+Baton Rouge-LA-US|NA|US|LA|Baton Rouge|30.45075|-91.15455|0
+Battaramulla-01-LK|AS|LK|01|Battaramulla|6.9|79.9167|0
+Battle Creek-MI-US|NA|US|MI|Battle Creek|42.3173|-85.17816|0
+Batumi-AJ-GE|AS|GE|AJ|Batumi|41.642|41.637|0
+Bauru-SP-BR|SA|BR|SP|Bauru|-22.2775|-49.0681|0
+Bayamon-NO REGION-PR|NA|PR|NO REGION|Bayamon|18.1803|-66.1163|0
+Beaumont-TX-US|NA|US|TX|Beaumont|30.08605|-94.10185|0
+Beaverton-OR-US|NA|US|OR|Beaverton|45.48706|-122.80371|0
+Bedburg-NW-DE|EU|DE|NW|Bedburg|51.006|6.55081|0
+Bedford-OH-US|NA|US|OH|Bedford|41.3867|-81.5271|0
+Beijing-11-CN|AS|CN|11|Beijing|40.0007|116.329|0
+Beirut-BA-LB|AS|LB|BA|Beirut|33.8861|35.4999|0
+Belem-PA-BR|SA|BR|PA|Belem|-1.4526|-48.4978|0
+Belfast-BFS-UK||UK|BFS|Belfast|54.6027|-5.92254|0
+Belgorod-BEL-RU|EU|RU|BEL|Belgorod|50.6433|36.59|0
+Belgrade-00-RS|EU|RS|00|Belgrade|44.833|20.5|0
+Belgrade-SE-RS|EU|RS|SE|Belgrade|44.80401|20.46513|0
+Bellevue-WA-US|NA|US|WA|Bellevue|47.61038|-122.20068|0
+Bellingham-WA-US|NA|US|WA|Bellingham|48.75955|-122.48822|0
+Belo Horizonte-MG-BR|SA|BR|MG|Belo Horizonte|-19.8682|-43.9189|0
+Bend-OR-US|NA|US|OR|Bend|44.05817|-121.31531|0
+Bendery-BD-MD|EU|MD|BD|Bendery|46.8296|27.4859|0
+Bendungan Hilir-JK-ID|AS|ID|JK|Bendungan Hilir|-6.2046|106.805|0
+Bennington-VT-US|NA|US|VT|Bennington|42.87813|-73.19677|0
+Bensheim-HE-DE|EU|DE|HE|Bensheim|49.6983|8.56654|0
+Bercenay-En-Othe-A4-FR|EU|FR|A4|Bercenay-En-Othe|48.20881|3.89305|0
+Berehove-21-UA|EU|UA|21|Berehove|48.1972|22.6371|0
+Bergen-12-NO|EU|NO|12|Bergen|60.39|5.32609|0
+Berkeley-CA-US|NA|US|CA|Berkeley|37.87159|-122.27275|0
+Berlin-16-DE|EU|DE|16|Berlin|52.52437|13.41053|0
+Berlin-BE-DE|EU|DE|BE|Berlin|52.5303|13.3333|0
+Berlin-NH-US|NA|US|NH|Berlin|44.46867|-71.18508|0
+Bern-BE-CH|EU|CH|BE|Bern|46.94809|7.44744|0
+Bertem-VBR-BE|EU|BE|VBR|Bertem|50.8627|4.62923|0
+Berwyn-PA-US|NA|US|PA|Berwyn|40.0344|-75.4642|0
+Besancon-I-FR|EU|FR|I|Besancon|47.2412|6.02557|0
+Bethesda-MD-US|NA|US|MD|Bethesda|38.98067|-77.10026|0
+Bethlehem-PA-US|NA|US|PA|Bethlehem|40.62593|-75.37046|0
+Bettembourg-03-LU|EU|LU|03|Bettembourg|49.51861|6.10278|0
+Beverly-MA-US|NA|US|MA|Beverly|42.55843|-70.88005|0
+Bhalgran Surdari-PB-PK|AS|PK|PB|Bhalgran Surdari|31.891|72.467|0
+Biala Podlaska-LU-PL|EU|PL|LU|Biala Podlaska|52.0322|23.1173|0
+Bielefeld-NW-DE|EU|DE|NW|Bielefeld|52.0109|8.54088|0
+Bierun-SL-PL|EU|PL|SL|Bierun|50.0845|19.1186|0
+Bila Tserkva-13-UA|EU|UA|13|Bila Tserkva|49.80939|30.11209|0
+Billericay-ESS-UK||UK|ESS|Billericay|51.6362|0.433328|0
+Billings-MT-US|NA|US|MT|Billings|45.78329|-108.50069|0
+Binh Thanh-29-VN|AS|VN|29|Binh Thanh|15.3773|108.752|0
+Birmingham-BIR-UK||UK|BIR|Birmingham|52.4816|-1.93337|0
+Birr-AG-CH|EU|CH|AG|Birr|47.43587|8.20801|0
+Bishnya-TA-RU|EU|RU|TA|Bishnya|55.9833|48.9667|0
+Blagoveshchensk-AMU-RU|EU|RU|AMU|Blagoveshchensk|50.2749|127.534|0
+Bloomingdale-IL-US|NA|US|IL|Bloomingdale|41.9509|-88.0808|0
+Bloomington-IL-US|NA|US|IL|Bloomington|40.6061|-88.9825|0
+Bloomington-MN-US|NA|US|MN|Bloomington|44.8408|-93.29828|0
+Blue Bell-PA-US|NA|US|PA|Blue Bell|40.15233|-75.26629|0
+Boca Raton-FL-US|NA|US|FL|Boca Raton|26.35869|-80.0831|0
+Bodmin-CON-UK||UK|CON|Bodmin|50.4688|-4.72286|0
+Bogota-DC-CO|SA|CO|DC|Bogota|4.66911|-74.0502|0
+Boguchwala-PK-PL|EU|PL|PK|Boguchwala|49.9807|21.9392|0
+Bolingbrook-IL-US|NA|US|IL|Bolingbrook|41.69864|-88.0684|0
+Bologna-BO-IT|EU|IT|BO|Bologna|44.5252|11.3294|0
+Boly-BA-HU|EU|HU|BA|Boly|45.9673|18.5183|0
+Bom Jardim-RJ-BR|SA|BR|RJ|Bom Jardim|-22.1515|-42.4187|0
+Bordeaux-97-FR|EU|FR|97|Bordeaux|44.84044|-0.5805|0
+Boston-MA-US|NA|US|MA|Boston|42.35843|-71.05977|0
+Botany-NSW-AU|OC|AU|NSW|Botany|-33.9448|151.197|0
+Boulder-CO-US|NA|US|CO|Boulder|40.01499|-105.27055|0
+Boulogne-Billancourt-J-FR|EU|FR|J|Boulogne-Billancourt|48.8338|2.24344|0
+Bournemouth-BMH-UK||UK|BMH|Bournemouth|50.722|-1.79128|0
+Bracknell-BRC-UK||UK|BRC|Bracknell|51.4255|-0.730639|0
+Bradford-PA-US|NA|US|PA|Bradford|41.9559|-78.64392|0
+Brasilia-DF-BR|SA|BR|DF|Brasilia|-15.7934|-47.8823|0
+Bratislava-BL-SK|EU|SK|BL|Bratislava|48.1492|17.1071|0
+Bremen-03-DE|EU|DE|03|Bremen|53.07516|8.80777|0
+Bremen-HB-DE|EU|DE|HB|Bremen|53.0758|8.80717|0
+Bremerton-WA-US|NA|US|WA|Bremerton|47.56732|-122.63264|0
+Brest-BR-BY|EU|BY|BR|Brest|52.0959|23.7028|0
+Bretigny-Sur-Orge-J-FR|EU|FR|J|Bretigny-Sur-Orge|48.6096|2.30727|0
+Brighton-BNH-UK||UK|BNH|Brighton|50.8315|-0.138725|0
+Brisbane-04-AU|OC|AU|04|Brisbane|-27.46794|153.02809|0
+Brisbane-QLD-AU|OC|AU|QLD|Brisbane|-27.4676|153.028|0
+Brockton-MA-US|NA|US|MA|Brockton|42.08343|-71.01838|0
+Bronx-NY-US|NA|US|NY|Bronx|40.868|-73.8964|0
+Brooklyn-NY-US|NA|US|NY|Brooklyn|40.6501|-73.94958|0
+Broomfield-CO-US|NA|US|CO|Broomfield|39.92054|-105.08665|0
+Broussard-LA-US|NA|US|LA|Broussard|30.14715|-91.96123|0
+Brovary-32-UA|EU|UA|32|Brovary|50.5101|30.7914|0
+Bruchsal-BW-DE|EU|DE|BW|Bruchsal|49.1033|8.52815|0
+Brussels-BRU-BE|EU|BE|BRU|Brussels|50.85045|4.34878|0
+Bryansk-BRY-RU|EU|RU|BRY|Bryansk|53.2875|34.3806|0
+Bryn Mawr-PA-US|NA|US|PA|Bryn Mawr|40.30396|-80.08672|0
+Bucharest-10-RO|EU|RO|10|Bucharest|44.43225|26.10626|0
+Bucharest-B-RO|EU|RO|B|Bucharest|44.4599|26.1333|0
+Buckingham-BKM-UK||UK|BKM|Buckingham|51.9979|-0.985896|0
+Budapest-05-HU|EU|HU|05|Budapest|47.49801|19.03991|0
+Budapest-BU-HU|EU|HU|BU|Budapest|47.5008|19.0328|0
+Buenos Aires-07-AR|SA|AR|07|Buenos Aires|-34.61315|-58.37723|0
+Buenos Aires-C-AR|SA|AR|C|Buenos Aires|-34.6118|-58.4173|0
+Bull Creek-WA-AU|OC|AU|WA|Bull Creek|-32.0649|115.859|0
+Burlington-NJ-US|NA|US|NJ|Burlington|40.0703|-74.8415|0
+Burlington-ON-CA|NA|CA|ON|Burlington|43.351|-79.7833|0
+Burlington-VT-US|NA|US|VT|Burlington|44.4872|-73.2278|0
+Burnaby-BC-CA|NA|CA|BC|Burnaby|49.2298|-122.997|0
+Bussum-NH-NL|EU|NL|NH|Bussum|52.2804|5.16388|0
+Butler-PA-US|NA|US|PA|Butler|40.86118|-79.89533|0
+Buynaksk-DA-RU|EU|RU|DA|Buynaksk|42.8206|47.1179|0
+Bysk-ALT-RU|EU|RU|ALT|Bysk|52.5413|85.217|0
+Cagayan De Oro-MSR-PH|AS|PH|MSR|Cagayan De Oro|8.48333|124.65|0
+Cairo-11-EG|AF|EG|11|Cairo|30.06263|31.24967|0
+Calgary-01-CA|NA|CA|01|Calgary|51.05011|-114.08529|0
+Calgary-AB-CA|NA|CA|AB|Calgary|50.9316|-114.096|0
+Camas-WA-US|NA|US|WA|Camas|45.58706|-122.39954|0
+Cambridge-MA-US|NA|US|MA|Cambridge|42.3751|-71.10561|0
+Camden-CMD-UK||UK|CMD|Camden|51.5367|-0.139441|0
+Cameron-LA-US|NA|US|LA|Cameron|29.8264|-93.3976|0
+Camp Hill-PA-US|NA|US|PA|Camp Hill|40.23981|-76.91997|0
+Canaa Dos Carajas-PA-BR|SA|BR|PA|Canaa Dos Carajas|-6.52|-49.85|0
+Cape Town-WC-ZA|AF|ZA|WC|Cape Town|-33.9289|18.4172|0
+Caracas-A-VE|SA|VE|A|Caracas|10.5|-66.9167|0
+Carlinville-IL-US|NA|US|IL|Carlinville|39.27977|-89.88177|0
+Carlisle-PA-US|NA|US|PA|Carlisle|40.20148|-77.18887|0
+Carlsbad-CA-US|NA|US|CA|Carlsbad|33.15809|-117.35059|0
+Carol Stream-IL-US|NA|US|IL|Carol Stream|41.91253|-88.13479|0
+Carrollton-GA-US|NA|US|GA|Carrollton|33.5899|-85.1208|0
+Catania-15-IT|EU|IT|15|Catania|37.49223|15.07041|0
+Catania-CT-IT|EU|IT|CT|Catania|37.43|15.0595|0
+Cebu City-07-PH|AS|PH|07|Cebu City|10.31672|123.89071|0
+Cedar Falls-IA-US|NA|US|IA|Cedar Falls|42.52776|-92.44547|0
+Celje-11-SI|EU|SI|11|Celje|46.23092|15.26044|0
+Centerville-UT-US|NA|US|UT|Centerville|40.9249|-111.877|0
+Cerritos-CA-US|NA|US|CA|Cerritos|33.85835|-118.06479|0
+Cesario Lange-SP-BR|SA|BR|SP|Cesario Lange|-23.22|-47.95|0
+Chalfont-PA-US|NA|US|PA|Chalfont|40.28844|-75.20906|0
+Champaign-IL-US|NA|US|IL|Champaign|40.11642|-88.24338|0
+Changi-04-SG|AS|SG|04|Changi|1.34012669563293|103.996002197265|0
+Chantilly-VA-US|NA|US|VA|Chantilly|38.89428|-77.4311|0
+Chapel Hill-NC-US|NA|US|NC|Chapel Hill|35.9132|-79.05584|0
+Charlotte-NC-US|NA|US|NC|Charlotte|35.22709|-80.84313|0
+Charlottesville-VA-US|NA|US|VA|Charlottesville|38.02931|-78.47668|0
+Charlottetown-PE-CA|NA|CA|PE|Charlottetown|46.242|-63.1481|0
+Chatswood-NSW-AU|OC|AU|NSW|Chatswood|-33.7956|151.185|0
+Chatsworth-CA-US|NA|US|CA|Chatsworth|34.25723|-118.6012|0
+Chattanooga-TN-US|NA|US|TN|Chattanooga|35.04563|-85.30968|0
+Cheboksary-CU-RU|EU|RU|CU|Cheboksary|56.1375|47.244|0
+Chek Lap Kok Airport-NEW TERRITORIES-HK|AS|HK|NEW TERRITORIES|Chek Lap Kok Airport|22.316058|113.936503|0
+Chek Lap Kok--HK|AS|HK||Chek Lap Kok|22.3288002014|114.194000244|0
+Chelmsford-MA-US|NA|US|MA|Chelmsford|42.59981|-71.36728|0
+Chelsea-MA-US|NA|US|MA|Chelsea|42.39176|-71.03283|0
+Chelyabinsk-13-RU|EU|RU|13|Chelyabinsk|55.15402|61.42915|0
+Chelyabinsk-CHE-RU|EU|RU|CHE|Chelyabinsk|55.1599|61.4026|0
+Chennai-25-IN|AS|IN|25|Chennai|13.08784|80.27847|0
+Chennai-TN-IN|AS|IN|TN|Chennai|13.0976|80.2945|0
+Chernihiv-02-UA|EU|UA|02|Chernihiv|51.50551|31.28487|0
+Chernihiv-74-UA|EU|UA|74|Chernihiv|51.4938|31.2934|0
+Chernivtsi _Chernovtsy_-77-UA|EU|UA|77|Chernivtsi (Chernovtsy)|48.3|25.93|0
+Chernivtsi-77-UA|EU|UA|77|Chernivtsi|49.2086|30.1639|0
+Cherry Hill-NJ-US|NA|US|NJ|Cherry Hill|39.93484|-75.03073|0
+Cheyenne-WY-US|NA|US|WY|Cheyenne|41.13998|-104.82025|0
+Chiasso-TI-CH|EU|CH|TI|Chiasso|45.83203|9.03119|0
+Chicago-IL-US|NA|US|IL|Chicago|41.85003|-87.65005|0
+Chilworth-ENG-UK||UK|ENG|Chilworth|51.21635|-0.53129|0
+Chisinau-CU-MD|EU|MD|CU|Chisinau|47.0056|28.8575|0
+Chita-ZAB-RU|EU|RU|ZAB|Chita|52.0455|113.493|0
+Chrzanow-MA-PL|EU|PL|MA|Chrzanow|50.1474|19.4065|0
+Chugiak-AK-US|NA|US|AK|Chugiak|61.404|-149.46|0
+Cimpina-PH-RO|EU|RO|PH|Cimpina|45.1334|25.6833|0
+Cincinnati-OH-US|NA|US|OH|Cincinnati|39.162|-84.45689|0
+Clarksburg-MD-US|NA|US|MD|Clarksburg|39.2558|-77.2799|0
+Clarkston-MI-US|NA|US|MI|Clarkston|42.7671|-83.4|0
+Clayton-VIC-AU|OC|AU|VIC|Clayton|-37.9255|145.12|0
+Clearwater-FL-US|NA|US|FL|Clearwater|27.96585|-82.8001|0
+Cleveland-OH-US|NA|US|OH|Cleveland|41.4995|-81.69541|0
+Coamo-NO REGION-PR|NA|PR|NO REGION|Coamo|18.0821|-66.36|0
+Cobourg-ON-CA|NA|CA|ON|Cobourg|43.9645|-78.1712|0
+Cocoa-FL-US|NA|US|FL|Cocoa|28.38612|-80.742|0
+Collingwood-VIC-AU|OC|AU|VIC|Collingwood|-37.8035|144.984|0
+Colorado Springs-CO-US|NA|US|CO|Colorado Springs|38.83388|-104.82136|0
+Columbus-OH-US|NA|US|OH|Columbus|39.96118|-82.99879|0
+Concord-MA-US|NA|US|MA|Concord|42.4564|-71.371|0
+Conroe-TX-US|NA|US|TX|Conroe|30.31188|-95.45605|0
+Constanta-CT-RO|EU|RO|CT|Constanta|44.2442|28.3093|0
+Cookeville-TN-US|NA|US|TN|Cookeville|36.16284|-85.50164|0
+Copenhagen-17-DK|EU|DK|17|Copenhagen|55.67594|12.56553|0
+Copenhagen-84-DK|EU|DK|84|Copenhagen|55.6763|12.5693|0
+Coppell-TX-US|NA|US|TX|Coppell|32.95457|-97.01501|0
+Coraopolis-PA-US|NA|US|PA|Coraopolis|40.5184|-80.16672|0
+Core-WV-US|NA|US|WV|Core|39.7058|-79.9935|0
+Corpus Christi-TX-US|NA|US|TX|Corpus Christi|27.80058|-97.39638|0
+Cozad-NE-US|NA|US|NE|Cozad|40.85973|-99.98734|0
+Craig-MO-US|NA|US|MO|Craig|40.1568|-95.3584|0
+Cranberry Township-PA-US|NA|US|PA|Cranberry Township|40.68496|-80.10714|0
+Crossville-TN-US|NA|US|TN|Crossville|35.94896|-85.0269|0
+Croydon-CRY-UK||UK|CRY|Croydon|51.38|-0.1|0
+Curitiba-PR-BR|SA|BR|PR|Curitiba|-25.5251|-49.2315|0
+Curtea De Arges-AG-RO|EU|RO|AG|Curtea De Arges|45.1392|24.6792|0
+Czestochowa-SL-PL|EU|PL|SL|Czestochowa|50.8075|19.1196|0
+D_Sseldorf-NW-DE|EU|DE|NW|D??Sseldorf|51.2895011901855|6.76677989959717|0
+Dabrowa Gornicza-SL-PL|EU|PL|SL|Dabrowa Gornicza|50.3458|19.248|0
+Daejeon-30-KR|AS|KR|30|Daejeon|36.3261|127.43|0
+Dallas-TX-US|NA|US|TX|Dallas|32.78306|-96.80667|0
+Dar Es Salaam-02-TZ|AF|TZ|02|Dar Es Salaam|-6.8196|39.2801|0
+Dar Es Salaam-23-TZ|AF|TZ|23|Dar Es Salaam|-6.82349|39.26951|0
+Darien-CT-US|NA|US|CT|Darien|41.0799|-73.4807|0
+Darien-IL-US|NA|US|IL|Darien|41.75198|-87.97395|0
+De Lier-ZH-NL|EU|NL|ZH|De Lier|51.9744|4.24486|0
+Dearborn-MI-US|NA|US|MI|Dearborn|42.32226|-83.17631|0
+Delft-ZH-NL|EU|NL|ZH|Delft|51.9976|4.38448|0
+Delhi-DL-IN|AS|IN|DL|Delhi|28.6537|77.2348|0
+Denver-CO-US|NA|US|CO|Denver|39.73915|-104.9847|0
+Derhachi-63-UA|EU|UA|63|Derhachi|50.0221|36.2596|0
+Des Plaines-IL-US|NA|US|IL|Des Plaines|42.03336|-87.8834|0
+Detroit-MI-US|NA|US|MI|Detroit|42.33143|-83.04575|0
+Devonport-TAS-AU|OC|AU|TAS|Devonport|-41.1755|146.351|0
+Dhaka-C-BD|AS|BD|C|Dhaka|23.7098|90.4071|0
+Dietzenbach-HE-DE|EU|DE|HE|Dietzenbach|49.9959|8.77204|0
+Dixon-IL-US|NA|US|IL|Dixon|41.8388|-89.4926|0
+Djibouti-07-DJ|AF|DJ|07|Djibouti|11.58901|43.14503|0
+Dmitrov-MOS-RU|EU|RU|MOS|Dmitrov|56.3373|37.5098|0
+Dnipropetrovsk-04-UA|EU|UA|04|Dnipropetrovsk|48.45|34.98333|0
+Dnipropetrovsk-12-UA|EU|UA|12|Dnipropetrovsk|48.4681|35.0411|0
+Dodoma-03-TZ|AF|TZ|03|Dodoma|-6.17221|35.73947|0
+Doha-01-QA|AS|QA|01|Doha|25.27932|51.52245|0
+Doha-DA-QA|AS|QA|DA|Doha|25.2946|51.5075|0
+Dois Irmaos-RS-BR|SA|BR|RS|Dois Irmaos|-29.5836|-51.0898|0
+Domodedovo-MOS-RU|EU|RU|MOS|Domodedovo|55.4396|37.7734|0
+Doncaster-VIC-AU|OC|AU|VIC|Doncaster|-37.7857|145.125|0
+Donetsk-05-UA|EU|UA|05|Donetsk|48.023|37.80224|0
+Donetsk-14-UA|EU|UA|14|Donetsk|47.9872|37.7622|0
+Dongguan-30-CN|AS|CN|30|Dongguan|23.04889|113.74472|0
+Dorval-10-CA|NA|CA|10|Dorval|45.4473|-73.75335|0
+Downers Grove-IL-US|NA|US|IL|Downers Grove|41.80892|-88.01117|0
+Downingtown-PA-US|NA|US|PA|Downingtown|40.0065|-75.70327|0
+Drezna-MOS-RU|EU|RU|MOS|Drezna|55.7372|38.846|0
+Driebergen-Rijsenburg-UT-NL|EU|NL|UT|Driebergen-Rijsenburg|52.0607|5.30146|0
+Dubai-03-AE|AS|AE|03|Dubai|25.0657|55.17128|0
+Dubai-DU-AE|AS|AE|DU|Dubai|25.2713|55.329|0
+Dublin-D-IE|EU|IE|D|Dublin|53.3443|-6.2615|0
+Dublin-L-IE|EU|IE|L|Dublin|53.33306|-6.24889|0
+Dublin-OH-US|NA|US|OH|Dublin|40.1278|-83.0963|0
+Durham-NC-US|NA|US|NC|Durham|35.99403|-78.89862|0
+Dushanbe-KR-TJ|AS|TJ|KR|Dushanbe|38.633|68.85|0
+Dusseldorf-NW-DE|EU|DE|NW|Dusseldorf|51.3067|6.785|0
+Dzerzhinsky-MOS-RU|EU|RU|MOS|Dzerzhinsky|55.626|37.8492|0
+Dzietrzkowice-LD-PL|EU|PL|LD|Dzietrzkowice|51.1568|18.3261|0
+East Alton-IL-US|NA|US|IL|East Alton|38.88033|-90.11122|0
+East Brunswick-NJ-US|NA|US|NJ|East Brunswick|40.42788|-74.41598|0
+East Elmhurst-NY-US|NA|US|NY|East Elmhurst|40.77|-73.87|0
+East Lansing-MI-US|NA|US|MI|East Lansing|42.73698|-84.48387|0
+East Lyme-CT-US|NA|US|CT|East Lyme|41.33|-72.2|0
+East Windsor-CT-US|NA|US|CT|East Windsor|41.92|-72.55|0
+Eatontown-NJ-US|NA|US|NJ|Eatontown|40.29622|-74.05097|0
+Eau Claire-WI-US|NA|US|WI|Eau Claire|44.81135|-91.49849|0
+Ebensee-4-AT|EU|AT|4|Ebensee|47.8127|13.7739|0
+Ebersberg-BY-DE|EU|DE|BY|Ebersberg|48.0707|11.9947|0
+Ede-GE-NL|EU|NL|GE|Ede|52.0264|5.62431|0
+Eden Prairie-MN-US|NA|US|MN|Eden Prairie|44.85469|-93.47079|0
+Edison-NJ-US|NA|US|NJ|Edison|40.51872|-74.4121|0
+Edmonton-01-CA|NA|CA|01|Edmonton|53.55014|-113.46871|0
+Eindhoven-NB-NL|EU|NL|NB|Eindhoven|51.442|5.48134|0
+Ekaterinburg-SVE-RU|EU|RU|SVE|Ekaterinburg|56.8428|60.5894|0
+El Paso-TX-US|NA|US|TX|El Paso|31.75872|-106.48693|0
+El Prat De Llobregat-56-ES|EU|ES|56|El Prat De Llobregat|41.32784|2.09472|0
+El Segundo-CA-US|NA|US|CA|El Segundo|33.91918|-118.41647|0
+Elblag-WN-PL|EU|PL|WN|Elblag|54.1586|19.4059|0
+Elmhurst-NY-US|NA|US|NY|Elmhurst|40.7389|-73.8792|0
+Elmont-NY-US|NA|US|NY|Elmont|40.70094|-73.71291|0
+Elmwood Park-NJ-US|NA|US|NJ|Elmwood Park|40.9059|-74.1214|0
+Emeryville-CA-US|NA|US|CA|Emeryville|37.83132|-122.28525|0
+Enerhodar-23-UA|EU|UA|23|Enerhodar|47.4884|34.6557|0
+Englewood-CO-US|NA|US|CO|Englewood|39.64777|-104.98776|0
+Englewood-NJ-US|NA|US|NJ|Englewood|40.8942|-73.9778|0
+Enkoping-C-SE|EU|SE|C|Enkoping|59.6387|17.0795|0
+Enschede-OV-NL|EU|NL|OV|Enschede|52.2185|6.89307|0
+Ephrata-WA-US|NA|US|WA|Ephrata|47.3173|-119.548|0
+Erding-BY-DE|EU|DE|BY|Erding|48.3419|11.9233|0
+Esfahan-04-IR|AS|IR|04|Esfahan|32.6517|51.6793|0
+Eskilstuna-D-SE|EU|SE|D|Eskilstuna|59.3522|16.7106|0
+Espoo-18-FI|EU|FI|18|Espoo|60.3372|24.6382|0
+Etobicoke-ON-CA|NA|CA|ON|Etobicoke|43.6527|-79.5524|0
+Evansville-IN-US|NA|US|IN|Evansville|37.97476|-87.55585|0
+Evere-BRU-BE|EU|BE|BRU|Evere|50.8712|4.40018|0
+Fairfax-VA-US|NA|US|VA|Fairfax|38.84622|-77.30637|0
+Fairfield-CT-US|NA|US|CT|Fairfield|41.169|-73.2651|0
+Far Rockaway-NY-US|NA|US|NY|Far Rockaway|40.5898|-73.8136|0
+Farmington-MI-US|NA|US|MI|Farmington|42.4589|-83.3468|0
+Farmington-NM-US|NA|US|NM|Farmington|36.72806|-108.21869|0
+Flemington-NJ-US|NA|US|NJ|Flemington|40.51233|-74.85933|0
+Flensburg-SH-DE|EU|DE|SH|Flensburg|54.7857|9.42407|0
+Flint-MI-US|NA|US|MI|Flint|43.01253|-83.68746|0
+Floresti-CJ-RO|EU|RO|CJ|Floresti|46.7475|23.4908|0
+Fort Worth-TX-US|NA|US|TX|Fort Worth|32.72541|-97.32085|0
+Fortaleza-06-BR|SA|BR|06|Fortaleza|-3.71722|-38.54306|0
+Fountain Valley-CA-US|NA|US|CA|Fountain Valley|33.70918|-117.95367|0
+Fowlerville-MI-US|NA|US|MI|Fowlerville|42.66059|-84.07301|0
+Frankfurt Am Main-05-DE|EU|DE|05|Frankfurt Am Main|50.11552|8.68417|0
+Frankfurt Am Main-HE-DE|EU|DE|HE|Frankfurt Am Main|50.1152|8.66227|0
+Franklin-TN-US|NA|US|TN|Franklin|35.92506|-86.86889|0
+Frederick-MD-US|NA|US|MD|Frederick|39.41427|-77.41054|0
+Fredrikstad-01-NO|EU|NO|01|Fredrikstad|59.2276|10.9325|0
+Freetown-W-SL|AF|SL|W|Freetown|8.4842|-13.2336|0
+Fremont-CA-US|NA|US|CA|Fremont|37.54827|-121.98857|0
+Fresno-CA-US|NA|US|CA|Fresno|36.74773|-119.77237|0
+Ft Lauderdale-FL-US|NA|US|FL|Ft Lauderdale|26.2058|-80.2663|0
+Ft Myers-FL-US|NA|US|FL|Ft Myers|26.5613|-81.9052|0
+Ft Smith-AR-US|NA|US|AR|Ft Smith|35.3842|-94.3762|0
+Ft Wayne-IN-US|NA|US|IN|Ft Wayne|41.0266|-85.1896|0
+Fuhlsb_Ttel-HH-DE|EU|DE|HH|Fuhlsb??Ttel|53.6304016113281|9.98822975158691|0
+Funkstown-MD-US|NA|US|MD|Funkstown|39.60899|-77.70444|0
+Fuzhou-35-CN|AS|CN|35|Fuzhou|26.0786|119.298|0
+Gabrovo-07-BG|EU|BG|07|Gabrovo|42.8742|25.3189|0
+Galveston-TX-US|NA|US|TX|Galveston|29.30135|-94.7977|0
+Gdansk-PM-PL|EU|PL|PM|Gdansk|54.3201|18.5865|0
+Gdynia-PM-PL|EU|PL|PM|Gdynia|54.5315|18.5375|0
+Geneve-GE-CH|EU|CH|GE|Geneve|46.20222|6.14569|0
+Georgetown-ON-CA|NA|CA|ON|Georgetown|43.6492|-79.9117|0
+Gibraltar-NO REGION-GI|EU|GI|NO REGION|Gibraltar|36.1454|-5.3533|0
+Glasgow-GLG-UK||UK|GLG|Glasgow|55.8582|-4.24189|0
+Glattbrugg-ZH-CH|EU|CH|ZH|Glattbrugg|47.4313|8.56272|0
+Gleisdorf-6-AT|EU|AT|6|Gleisdorf|47.1048|15.7113|0
+Glen Rock-PA-US|NA|US|PA|Glen Rock|39.7984|-76.7221|0
+Glendale Heights-IL-US|NA|US|IL|Glendale Heights|41.91031|-88.07174|0
+Gliwice-SL-PL|EU|PL|SL|Gliwice|50.2795|18.6993|0
+Glubczyce-OP-PL|EU|PL|OP|Glubczyce|50.2001|17.8293|0
+Golbasi-06-TR|EU|TR|06|Golbasi|39.7946|32.805|0
+Gorbunki-LEN-RU|EU|RU|LEN|Gorbunki|59.8096|29.9755|0
+Gosport-HAM-UK||UK|HAM|Gosport|50.8255|-1.16302|0
+Gostynin-MZ-PL|EU|PL|MZ|Gostynin|52.4287|19.4631|0
+Goteborg-O-SE|EU|SE|O|Goteborg|57.7063|11.9616|0
+Grand Rapids-MI-US|NA|US|MI|Grand Rapids|42.96336|-85.66809|0
+Grand Rapids-MN-US|NA|US|MN|Grand Rapids|47.2338|-93.5221|0
+Grantham-NH-US|NA|US|NH|Grantham|43.48952|-72.13759|0
+Grayslake-IL-US|NA|US|IL|Grayslake|42.34447|-88.04175|0
+Graz-6-AT|EU|AT|6|Graz|47.0679|15.4417|0
+Great River-NY-US|NA|US|NY|Great River|40.72121|-73.15761|0
+Greensboro-NC-US|NA|US|NC|Greensboro|36.07264|-79.79198|0
+Greenville-PA-US|NA|US|PA|Greenville|41.4049|-80.3696|0
+Greenwich-CT-US|NA|US|CT|Greenwich|41.02649|-73.62846|0
+Grinnell-IA-US|NA|US|IA|Grinnell|41.74305|-92.72241|0
+Groningen-04-NL|EU|NL|04|Groningen|53.21917|6.56667|0
+Groningen-GR-NL|EU|NL|GR|Groningen|53.2137|6.56148|0
+Grove City-OH-US|NA|US|OH|Grove City|39.88145|-83.09296|0
+Guadalajara-GU-ES|EU|ES|GU|Guadalajara|40.6333|-3.16667|0
+Guarulhos-SP-BR|SA|BR|SP|Guarulhos|-23.435|-46.5143|0
+Guatemala City-GU-GT|NA|GT|GU|Guatemala City|14.6211|-90.5269|0
+Guaynabo-NO REGION-PR|NA|PR|NO REGION|Guaynabo|18.3866|-66.1135|0
+Gubkin-BEL-RU|EU|RU|BEL|Gubkin|51.2721|37.5756|0
+Guelph-ON-CA|NA|CA|ON|Guelph|43.5425|-80.2676|0
+Guildford-SRY-UK||UK|SRY|Guildford|51.2472|-0.585211|0
+Gurgaon-HR-IN|AS|IN|HR|Gurgaon|28.4564|77.0032|0
+Haarlem-07-NL|EU|NL|07|Haarlem|52.38084|4.63683|0
+Haarlem-NH-NL|EU|NL|NH|Haarlem|52.3803|4.64335|0
+Hagerstown-MD-US|NA|US|MD|Hagerstown|39.64176|-77.71999|0
+Hailey-ID-US|NA|US|ID|Hailey|43.51963|-114.31532|0
+Halifax-07-CA|NA|CA|07|Halifax|44.64533|-63.57239|0
+Halifax-NS-CA|NA|CA|NS|Halifax|44.6517|-63.5796|0
+Hamburg-HH-DE|EU|DE|HH|Hamburg|53.5497|9.94535|0
+Hamilton-NO REGION-BM|NA|BM|NO REGION|Hamilton|32.3|-64.8|0
+Hamilton-ON-CA|NA|CA|ON|Hamilton|43.2457|-79.8363|0
+Hamilton-WKO-NZ|OC|NZ|WKO|Hamilton|-37.7883|175.284|0
+Hamlet-NC-US|NA|US|NC|Hamlet|34.88488|-79.69422|0
+Hangzhou-33-CN|AS|CN|33|Hangzhou|31.2382|121.469|0
+Hannover-06-DE|EU|DE|06|Hannover|52.37052|9.73322|0
+Hanoi-HN-VN|AS|VN|HN|Hanoi|21.017|105.867|0
+Hanover-PA-US|NA|US|PA|Hanover|39.7966|-77.0014|0
+Harleysville-PA-US|NA|US|PA|Harleysville|40.27955|-75.38712|0
+Harrison-AR-US|NA|US|AR|Harrison|36.227|-93.1151|0
+Harrisonburg-VA-US|NA|US|VA|Harrisonburg|38.44957|-78.86892|0
+Havana-03-CU|NA|CU|03|Havana|23.117|-82.35|0
+Heerhugowaard-NH-NL|EU|NL|NH|Heerhugowaard|52.6742|4.84467|0
+Helena-MT-US|NA|US|MT|Helena|46.59271|-112.03611|0
+Helsinki-01-FI|EU|FI|01|Helsinki|60.16952|24.93545|0
+Henderson-NV-US|NA|US|NV|Henderson|36.0397|-114.98194|0
+Herndon-VA-US|NA|US|VA|Herndon|38.96955|-77.3861|0
+Hickory-NC-US|NA|US|NC|Hickory|35.73319|-81.3412|0
+Higganum-CT-US|NA|US|CT|Higganum|41.49704|-72.55703|0
+Highland Park-IL-US|NA|US|IL|Highland Park|42.18169|-87.80034|0
+Hilversum-NH-NL|EU|NL|NH|Hilversum|52.2309|5.17669|0
+Hoboken-NJ-US|NA|US|NJ|Hoboken|40.74399|-74.03236|0
+Hogansville-GA-US|NA|US|GA|Hogansville|33.17318|-84.91494|0
+Hollywood-FL-US|NA|US|FL|Hollywood|26.0168|-80.1511|0
+Hong Kong-NO REGION-HK|AS|HK|NO REGION|Hong Kong|22.2759|114.167|0
+Honolulu-HI-US|NA|US|HI|Honolulu|21.30694|-157.85833|0
+Hoofddorp-07-NL|EU|NL|07|Hoofddorp|52.3025|4.68889|0
+Hoofddorp-NH-NL|EU|NL|NH|Hoofddorp|52.3132|4.69384|0
+Houston-TX-US|NA|US|TX|Houston|29.76328|-95.36327|0
+Houten-UT-NL|EU|NL|UT|Houten|52.026|5.16531|0
+Huntsville-AL-US|NA|US|AL|Huntsville|34.73037|-86.5861|0
+Hurth-NW-DE|EU|DE|NW|Hurth|50.8687|6.86477|0
+Hyde Park-MA-US|NA|US|MA|Hyde Park|42.2528|-71.1291|0
+Hyde Park-NY-US|NA|US|NY|Hyde Park|41.7827|-73.8913|0
+Hyderabad-TG-IN|AS|IN|TG|Hyderabad|17.3897|78.478|0
+Idaho Falls-ID-US|NA|US|ID|Idaho Falls|43.46658|-112.03414|0
+Ikeja-LA-NG|AF|NG|LA|Ikeja|6.617|3.417|0
+Ilker-06-TR|EU|TR|06|Ilker|39.8604|32.839|0
+Ilmenau-TH-DE|EU|DE|TH|Ilmenau|50.6979|10.8931|0
+Independencia-NLE-MX|NA|MX|NLE|Independencia|26.4763|-100.367|0
+Indianapolis-IN-US|NA|US|IN|Indianapolis|39.76838|-86.15804|0
+Innsbruck-7-AT|EU|AT|7|Innsbruck|47.2627|11.3947|0
+Inverness-HLD-UK||UK|HLD|Inverness|57.4735|-4.2334|0
+Irshava-21-UA|EU|UA|21|Irshava|48.3101|23.0424|0
+Irvine-CA-US|NA|US|CA|Irvine|33.66946|-117.82311|0
+Islington-ISL-UK||UK|ISL|Islington|51.5251|-0.111183|0
+Istanbul-34-TR|EU|TR|34|Istanbul|41.01384|28.94966|0
+Ivano-Frankivs_K-06-UA|EU|UA|06|Ivano-Frankivs'K|48.9215|24.70972|0
+Ivano-Frankivsk-26-UA|EU|UA|26|Ivano-Frankivsk|48.8842010498047|24.6861000061035|0
+Izmir-35-TR|EU|TR|35|Izmir|38.41273|27.13838|0
+Izola-40-SI|EU|SI|40|Izola|45.53694|13.66194|0
+Jackson-MS-US|NA|US|MS|Jackson|32.29876|-90.18481|0
+Jacksonville-FL-US|NA|US|FL|Jacksonville|30.33218|-81.65565|0
+Jakarta-04-ID|AS|ID|04|Jakarta|-6.21462|106.84513|0
+Jakarta-JK-ID|AS|ID|JK|Jakarta|-6.133|106.75|0
+Jaworzno-SL-PL|EU|PL|SL|Jaworzno|50.2061|19.3361|0
+Jedrzejow-SK-PL|EU|PL|SK|Jedrzejow|50.6394|20.3046|0
+Jelenia Gora-DS-PL|EU|PL|DS|Jelenia Gora|50.9112|15.7572|0
+Jersey City-NJ-US|NA|US|NJ|Jersey City|40.72816|-74.07764|0
+Jettingen-BY-DE|EU|DE|BY|Jettingen|48.38|10.42|0
+Johannesburg-06-ZA|AF|ZA|06|Johannesburg|-26.20227|28.04363|0
+Johannesburg-GP-ZA|AF|ZA|GP|Johannesburg|-26.205|28.0497|0
+Jonesboro-GA-US|NA|US|GA|Jonesboro|33.5118|-84.3168|0
+Jyvaskyla-08-FI|EU|FI|08|Jyvaskyla|62.2404|25.7426|0
+Kabul-KAB-AF|AS|AF|KAB|Kabul|34.5169|69.147|0
+Kailua-HI-US|NA|US|HI|Kailua|21.40241|-157.74054|0
+Kakhovka-65-UA|EU|UA|65|Kakhovka|46.7536|33.3438|0
+Kaliningrad-23-RU|EU|RU|23|Kaliningrad|54.70649|20.51095|0
+Kaliningrad-KGD-RU|EU|RU|KGD|Kaliningrad|54.7116|20.51|0
+Kalispell-MT-US|NA|US|MT|Kalispell|48.19579|-114.31291|0
+Kalisz-WP-PL|EU|PL|WP|Kalisz|51.7578|18.0833|0
+Kallithea-A1-GR|EU|GR|A1|Kallithea|37.9573|23.7018|0
+Kalush-26-UA|EU|UA|26|Kalush|49.0505|24.3741|0
+Kampala-C-UG|AF|UG|C|Kampala|0.31628|32.58219|0
+Kansas City-MO-US|NA|US|MO|Kansas City|39.09973|-94.57857|0
+Karlsruhe-01-DE|EU|DE|01|Karlsruhe|49.00937|8.40444|0
+Karlsruhe-BW-DE|EU|DE|BW|Karlsruhe|49.0155|8.44076|0
+Kathmandu-BA-NP|AS|NP|BA|Kathmandu|27.7167|85.3167|0
+Katowice-SL-PL|EU|PL|SL|Katowice|50.2592|19.0339|0
+Kazan-TA-RU|EU|RU|TA|Kazan|55.7965|49.1082|0
+Kelowna-BC-CA|NA|CA|BC|Kelowna|49.8939|-119.392|0
+Kemerovo-29-RU|EU|RU|29|Kemerovo|55.33333|86.08333|0
+Kemerovo-KEM-RU|EU|RU|KEM|Kemerovo|55.3712|86.0524|0
+Kenilworth-NJ-US|NA|US|NJ|Kenilworth|40.67649|-74.2907|0
+Kennewick-WA-US|NA|US|WA|Kennewick|46.21125|-119.13723|0
+Kerch-43-UA|EU|UA|43|Kerch|45.3539|36.4747|0
+Kermanshah-17-IR|AS|IR|17|Kermanshah|34.3081|47.0578|0
+Khanty-Mansysk-KHM-RU|EU|RU|KHM|Khanty-Mansysk|58.1087|69.1559|0
+Kharkiv-07-UA|EU|UA|07|Kharkiv|49.98081|36.25272|0
+Kharkiv-63-UA|EU|UA|63|Kharkiv|49.9966|36.2573|0
+Khasavyurt-DA-RU|EU|RU|DA|Khasavyurt|43.2468|46.5894|0
+Kherson-08-UA|EU|UA|08|Kherson|46.65581|32.6178|0
+Khmelnytskyy-68-UA|EU|UA|68|Khmelnytskyy|49.4181|26.9992|0
+Khodoriv-46-UA|EU|UA|46|Khodoriv|49.4044|24.3122|0
+Khrabrovo-KGD-RU|EU|RU|KGD|Khrabrovo|54.8972|20.5733|0
+Khust-21-UA|EU|UA|21|Khust|48.1814|23.2978|0
+Kiel-10-DE|EU|DE|10|Kiel|54.32133|10.13489|0
+Kielce-SK-PL|EU|PL|SK|Kielce|50.8542|20.6156|0
+Kiev-12-UA|EU|UA|12|Kiev|50.45466|30.5238|0
+Kiev-30-UA|EU|UA|30|Kiev|50.4409|30.5272|0
+King Of Prussia-PA-US|NA|US|PA|King Of Prussia|40.08927|-75.39602|0
+Kings Mountain-NC-US|NA|US|NC|Kings Mountain|35.24513|-81.34119|0
+Kinshasa-KN-CD|AF|CD|KN|Kinshasa|-4.3081|15.3175|0
+Kirkland-WA-US|NA|US|WA|Kirkland|47.68149|-122.20874|0
+Kirovohrad-35-UA|EU|UA|35|Kirovohrad|48.518|32.2338|0
+Kista-AB-SE|EU|SE|AB|Kista|59.4025|17.9443|0
+Kitchener-ON-CA|NA|CA|ON|Kitchener|43.4134|-80.496|0
+Kjeller-02-NO|EU|NO|02|Kjeller|59.9753|11.0414|0
+Kladno-ST-CZ|EU|CZ|ST|Kladno|50.1453|14.0944|0
+Knoxville-TN-US|NA|US|TN|Knoxville|35.96064|-83.92074|0
+Kolomna-MOS-RU|EU|RU|MOS|Kolomna|55.0986|38.7814|0
+Koper-50-SI|EU|SI|50|Koper|45.54694|13.72944|0
+Kosice-KI-SK|EU|SK|KI|Kosice|48.7087|21.1819|0
+Krakow-MA-PL|EU|PL|MA|Krakow|50.0636|19.945|0
+Krasnodar-KDA-RU|EU|RU|KDA|Krasnodar|45.0421|38.9806|0
+Krasnoperekopsk-43-UA|EU|UA|43|Krasnoperekopsk|45.9522|33.7951|0
+Krasnoyarsk-KYA-RU|EU|RU|KYA|Krasnoyarsk|56.0013|92.8856|0
+Kremsmunster-4-AT|EU|AT|4|Kremsmunster|48.0544|14.1262|0
+Kristinehamn-S-SE|EU|SE|S|Kristinehamn|59.3129|14.1069|0
+Krosno-PK-PL|EU|PL|PK|Krosno|49.6938|21.7652|0
+Kryvyi Rih-04-UA|EU|UA|04|Kryvyi Rih|47.90966|33.38044|0
+Kuala Lumpur-14-MY|AS|MY|14|Kuala Lumpur|3.1412|101.68653|0
+Kumertau-BA-RU|EU|RU|BA|Kumertau|52.7693|55.7935|0
+Kuningan Timur-JK-ID|AS|ID|JK|Kuningan Timur|-6.23|106.83|0
+Kurgan-KGN-RU|EU|RU|KGN|Kurgan|55.475|65.4167|0
+Kursk-KRS-RU|EU|RU|KRS|Kursk|51.7517|36.2967|0
+Kutno-LD-PL|EU|PL|LD|Kutno|52.2318|19.357|0
+Kuwait-KU-KW|AS|KW|KU|Kuwait|29.3306|47.9761|0
+Kwun Tong-NO REGION-HK|AS|HK|NO REGION|Kwun Tong|22.3109|114.223|0
+La Habra-CA-US|NA|US|CA|La Habra|33.93196|-117.94617|0
+La Nacion-B-AR|SA|AR|B|La Nacion|-34.6798|-58.6793|0
+Labege-N-FR|EU|FR|N|Labege|43.5289|1.52968|0
+Labiszyn-KP-PL|EU|PL|KP|Labiszyn|52.9529|17.9206|0
+Lafayette-LA-US|NA|US|LA|Lafayette|30.22409|-92.01984|0
+Lagos-LA-NG|AF|NG|LA|Lagos|6.44116|3.41798|0
+Lake Charles-LA-US|NA|US|LA|Lake Charles|30.21309|-93.2044|0
+Lake Forest-IL-US|NA|US|IL|Lake Forest|42.234|-87.8639|0
+Lake Mary-FL-US|NA|US|FL|Lake Mary|28.75888|-81.31784|0
+Lakemba-NSW-AU|OC|AU|NSW|Lakemba|-33.9205|151.076|0
+Lakewood-CA-US|NA|US|CA|Lakewood|33.8489|-118.147|0
+Lancaster-VA-US|NA|US|VA|Lancaster|37.7635|-76.4983|0
+Lansing-MI-US|NA|US|MI|Lansing|42.73253|-84.55553|0
+Lar-14-IR|AS|IR|14|Lar|27.6746997833|54.3833007812|0
+Laren-NH-NL|EU|NL|NH|Laren|52.2725|5.22501|0
+Las Vegas-NV-US|NA|US|NV|Las Vegas|36.17497|-115.13722|0
+Lausanne-VD-CH|EU|CH|VD|Lausanne|46.516|6.63282|0
+Laval-QC-CA|NA|CA|QC|Laval|45.6664|-73.5866|0
+Laval-R-FR|EU|FR|R|Laval|48.0704|-0.773564|0
+Le Chesnay-J-FR|EU|FR|J|Le Chesnay|48.8188|2.1311|0
+League City-TX-US|NA|US|TX|League City|29.50745|-95.09493|0
+Leawood-KS-US|NA|US|KS|Leawood|38.96667|-94.6169|0
+Leichhardt-NSW-AU|OC|AU|NSW|Leichhardt|-33.8838|151.157|0
+Leoben-6-AT|EU|AT|6|Leoben|47.3814|15.0944|0
+Lethbridge-AB-CA|NA|CA|AB|Lethbridge|49.6836|-112.834|0
+Lewiston-ME-US|NA|US|ME|Lewiston|44.10035|-70.21478|0
+Lewisville-TX-US|NA|US|TX|Lewisville|33.04623|-96.99417|0
+Lexington-KY-US|NA|US|KY|Lexington|37.98869|-84.47772|0
+Lexington-MA-US|NA|US|MA|Lexington|42.4484|-71.2338|0
+Lidzbark Warminski-WN-PL|EU|PL|WN|Lidzbark Warminski|54.126|20.5806|0
+Lima-LMA-PE|SA|PE|LMA|Lima|-12.04318|-77.02824|0
+Limanowa-MA-PL|EU|PL|MA|Limanowa|49.7062|20.4217|0
+Limassol-02-CY|AS|CY|02|Limassol|34.6838|33.0293|0
+Limeira-SP-BR|SA|BR|SP|Limeira|-22.5632|-47.4032|0
+Limonest-V-FR|EU|FR|V|Limonest|45.8356|4.77146|0
+Lincoln-NE-US|NA|US|NE|Lincoln|40.8|-96.66696|0
+Lindon-UT-US|NA|US|UT|Lindon|40.3445|-111.73|0
+Linz-04-AT|EU|AT|04|Linz|48.30639|14.28611|0
+Linz-4-AT|EU|AT|4|Linz|48.3061|14.2863|0
+Lisbon-11-PT|EU|PT|11|Lisbon|38.7322|-9.15283|0
+Lisbon-14-PT|EU|PT|14|Lisbon|38.71667|-9.13333|0
+Livingston-LA-US|NA|US|LA|Livingston|30.4461|-90.7588|0
+Livonia-MI-US|NA|US|MI|Livonia|42.36837|-83.35271|0
+Ljubljana-61-SI|EU|SI|61|Ljubljana|46.05108|14.50513|0
+Lodz-LD-PL|EU|PL|LD|Lodz|51.7601|19.4774|0
+Logan-UT-US|NA|US|UT|Logan|41.73549|-111.83439|0
+Lomza-PD-PL|EU|PL|PD|Lomza|53.1681|22.0931|0
+London-ENG-UK||UK|ENG|London|51.51066|-0.10879|0
+London-LND-UK||UK|LND|London|51.5148|-0.083594|0
+London-ON-CA|NA|CA|ON|London|42.9923|-81.2531|0
+Longmont-CO-US|NA|US|CO|Longmont|40.16721|-105.10193|0
+Los Altos-CA-US|NA|US|CA|Los Altos|37.38522|-122.11413|0
+Los Angeles-CA-US|NA|US|CA|Los Angeles|34.05223|-118.24368|0
+Louisiana-MO-US|NA|US|MO|Louisiana|39.44894|-91.05153|0
+Louisville-CO-US|NA|US|CO|Louisville|39.9664|-105.154|0
+Loveland-CO-US|NA|US|CO|Loveland|40.39776|-105.07498|0
+Lovestad-M-SE|EU|SE|M|Lovestad|55.6538|13.8908|0
+Luanda-LUA-AO|AF|AO|LUA|Luanda|-8.8128|13.235|0
+Lubbock-TX-US|NA|US|TX|Lubbock|33.57786|-101.85517|0
+Lublin-LU-PL|EU|PL|LU|Lublin|51.2368|22.62|0
+Ludwigshafen-RP-DE|EU|DE|RP|Ludwigshafen|49.4613|8.42657|0
+Lufkin-TX-US|NA|US|TX|Lufkin|31.33824|-94.7291|0
+Luhansk-09-UA|EU|UA|09|Luhansk|48.5824|39.3283|0
+Lund-M-SE|EU|SE|M|Lund|55.7589|13.2793|0
+Luxembourg-Findel-L-LU|EU|LU|L|Luxembourg-Findel|49.6265983581543|6.21152019500732|0
+Luxembourg-L-LU|EU|LU|L|Luxembourg|49.6334|6.16924|0
+Lviv-15-UA|EU|UA|15|Lviv|49.83826|24.02324|0
+Lviv-46-UA|EU|UA|46|Lviv|49.8382|24.0234|0
+Lyon-B9-FR|EU|FR|B9|Lyon|45.74846|4.84671|0
+Lyon-V-FR|EU|FR|V|Lyon|45.7699|4.80372|0
+Lysychansk-09-UA|EU|UA|09|Lysychansk|48.9193|38.4271|0
+Macomb-MI-US|NA|US|MI|Macomb|42.6513|-82.9258|0
+Madison Heights-MI-US|NA|US|MI|Madison Heights|42.48587|-83.1052|0
+Madison-WI-US|NA|US|WI|Madison|43.07305|-89.40123|0
+Madrid-29-ES|EU|ES|29|Madrid|40.4165|-3.70256|0
+Madrid-M-ES|EU|ES|M|Madrid|40.4167|-3.70358|0
+Magadan-MAG-RU|EU|RU|MAG|Magadan|59.9111|150.721|0
+Mahabad-02-IR|AS|IR|02|Mahabad|36.7646|45.7244|0
+Mainburg-BY-DE|EU|DE|BY|Mainburg|48.6577|11.8469|0
+Makiivka-14-UA|EU|UA|14|Makiivka|49.2509|34.2389|0
+Makkasan-10-TH|AS|TH|10|Makkasan|13.7531|100.548|0
+Malino-MOS-RU|EU|RU|MOS|Malino|55.1133|38.182|0
+Malmo-M-SE|EU|SE|M|Malmo|55.5802|13.1951|0
+Malvern-VIC-AU|OC|AU|VIC|Malvern|-36.41|141.815|0
+Managua-MN-NI|NA|NI|MN|Managua|12.1364|-86.2514|0
+Manama-13-BH|AS|BH|13|Manama|26.2156|50.5838|0
+Manassas-VA-US|NA|US|VA|Manassas|38.75095|-77.47527|0
+Manaus-AM-BR|SA|BR|AM|Manaus|-3.10794|-60.0472|0
+Manchester-ENG-UK||UK|ENG|Manchester|53.48095|-2.23743|0
+Manchester-MA-US|NA|US|MA|Manchester|42.5805|-70.7671|0
+Manila-MAN-PH|AS|PH|MAN|Manila|14.5913|121.004|0
+Mannheim-BW-DE|EU|DE|BW|Mannheim|49.4969|8.44667|0
+Manville-NJ-US|NA|US|NJ|Manville|40.54094|-74.58766|0
+Maputo-MPM-MZ|AF|MZ|MPM|Maputo|-25.967|32.583|0
+Marblehead-MA-US|NA|US|MA|Marblehead|42.5001|-70.85783|0
+Maribor-70-SI|EU|SI|70|Maribor|46.5574|15.646|0
+Marina Del Rey-CA-US|NA|US|CA|Marina Del Rey|33.98029|-118.45174|0
+Maringa-PR-BR|SA|BR|PR|Maringa|-23.4126|-51.9384|0
+Marion-IA-US|NA|US|IA|Marion|42.0434|-91.5931|0
+Mariupol-05-UA|EU|UA|05|Mariupol|47.09514|37.54131|0
+Marlton-NJ-US|NA|US|NJ|Marlton|39.89122|-74.92183|0
+Marseille-B8-FR|EU|FR|B8|Marseille|43.29695|5.38107|0
+Mascot-02-AU|OC|AU|02|Mascot|-33.92598|151.19347|0
+Mascot-NSW-AU|OC|AU|NSW|Mascot|-33.9335|151.185|0
+Maseru-A-LS|AF|LS|A|Maseru|-29.317|27.483|0
+Masis-AR-AM|AS|AM|AR|Masis|40.0139|44.4858|0
+Maslak-34-TR|EU|TR|34|Maslak|41.1274|29.0123|0
+Maumee-OH-US|NA|US|OH|Maumee|41.56283|-83.65382|0
+Maxeville-M-FR|EU|FR|M|Maxeville|48.7129|6.16327|0
+Maywood-IL-US|NA|US|IL|Maywood|41.8721|-87.8473|0
+Mcallen-TX-US|NA|US|TX|Mcallen|26.20341|-98.23001|0
+Mechanicsville-VA-US|NA|US|VA|Mechanicsville|37.60876|-77.37331|0
+Medford-OR-US|NA|US|OR|Medford|42.32652|-122.87559|0
+Media-PA-US|NA|US|PA|Media|39.91678|-75.38769|0
+Meerkerk-ZH-NL|EU|NL|ZH|Meerkerk|51.9191|4.99438|0
+Melbourne-07-AU|OC|AU|07|Melbourne|-37.814|144.96332|0
+Melbourne-FL-US|NA|US|FL|Melbourne|28.08363|-80.60811|0
+Melbourne-VIC-AU|OC|AU|VIC|Melbourne|-37.8143|144.963|0
+Melitopol-23-UA|EU|UA|23|Melitopol|48.6519|32.9907|0
+Memphis-TN-US|NA|US|TN|Memphis|35.14953|-90.04898|0
+Merdivenkoy Mah_-34-TR|EU|TR|34|Merdivenkoy Mah.|40.9872|29.0667|0
+Merefa-63-UA|EU|UA|63|Merefa|49.8095|36.0555|0
+Merrill-WI-US|NA|US|WI|Merrill|45.18052|-89.68346|0
+Merritt-BC-CA|NA|CA|BC|Merritt|50.1128|-120.79|0
+Mersin-33-TR|EU|TR|33|Mersin|36.8099|34.6353|0
+Mesto Touskov-PL-CZ|EU|CZ|PL|Mesto Touskov|49.7768|13.2497|0
+Metz-M-FR|EU|FR|M|Metz|49.1161|6.1727|0
+Meyzieu-V-FR|EU|FR|V|Meyzieu|45.7667|5.00365|0
+Miami-FL-US|NA|US|FL|Miami|25.77427|-80.19366|0
+Middle Haddam-CT-US|NA|US|CT|Middle Haddam|41.5535|-72.5533|0
+Middlebury-VT-US|NA|US|VT|Middlebury|44.0123|-73.1632|0
+Middlesbrough-MDB-UK||UK|MDB|Middlesbrough|54.5759|-1.24494|0
+Middletown-NJ-US|NA|US|NJ|Middletown|40.3951|-74.1093|0
+Midland-TX-US|NA|US|TX|Midland|31.99735|-102.07791|0
+Midway-UT-US|NA|US|UT|Midway|40.5219|-111.468|0
+Miechow-MA-PL|EU|PL|MA|Miechow|50.3566|20.0277|0
+Miedzyrzec Podlaski-LU-PL|EU|PL|LU|Miedzyrzec Podlaski|51.9806|22.7848|0
+Milan-MI-IT|EU|IT|MI|Milan|45.4727|9.18716|0
+Milano-09-IT|EU|IT|09|Milano|45.46427|9.18951|0
+Millbrook-AL-US|NA|US|AL|Millbrook|32.47986|-86.36192|0
+Milpitas-CA-US|NA|US|CA|Milpitas|37.42827|-121.90662|0
+Milwaukee-WI-US|NA|US|WI|Milwaukee|43.0389|-87.90647|0
+Minneapolis-MN-US|NA|US|MN|Minneapolis|44.97997|-93.26384|0
+Minsk-HM-BY|EU|BY|HM|Minsk|53.9|27.5667|0
+Mission-KS-US|NA|US|KS|Mission|39.0229|-94.6688|0
+Mississauga-08-CA|NA|CA|08|Mississauga|43.5789|-79.6583|0
+Missoula-MT-US|NA|US|MT|Missoula|46.87215|-113.994|0
+Modena-MO-IT|EU|IT|MO|Modena|44.6206|10.9271|0
+Modesto-CA-US|NA|US|CA|Modesto|37.6391|-120.99688|0
+Monaca-PA-US|NA|US|PA|Monaca|40.68729|-80.27145|0
+Monchegorsk-MUR-RU|EU|RU|MUR|Monchegorsk|67.9867|33.0183|0
+Montes Claros-MG-BR|SA|BR|MG|Montes Claros|-16.7459|-43.8584|0
+Montevideo-MO-UY|SA|UY|MO|Montevideo|-34.8653|-56.1819|0
+Montgomery-AL-US|NA|US|AL|Montgomery|32.36681|-86.29997|0
+Montpellier-K-FR|EU|FR|K|Montpellier|43.6035|3.89005|0
+Montreal-QC-CA|NA|CA|QC|Montreal|45.499|-73.6585|0
+Montreux-VD-CH|EU|CH|VD|Montreux|46.43301|6.91143|0
+Moore-QLD-AU|OC|AU|QLD|Moore|-26.8937|152.289|0
+Mooskirchen-6-AT|EU|AT|6|Mooskirchen|46.9858|15.2806|0
+Morehead-KY-US|NA|US|KY|Morehead|37.27115|-87.17638|0
+Morristown-NJ-US|NA|US|NJ|Morristown|40.7937|-74.4913|0
+Morrow-GA-US|NA|US|GA|Morrow|33.58317|-84.33937|0
+Moscow-48-RU|EU|RU|48|Moscow|55.75222|37.61556|0
+Moscow-MOW-RU|EU|RU|MOW|Moscow|55.7616|37.6411|0
+Mosrentgen-MOS-RU|EU|RU|MOS|Mosrentgen|55.6142|37.471|0
+Mount Laurel-NJ-US|NA|US|NJ|Mount Laurel|39.934|-74.891|0
+Mount Vernon-IL-US|NA|US|IL|Mount Vernon|38.3176|-88.9093|0
+Mountain View-CA-US|NA|US|CA|Mountain View|37.38605|-122.08385|0
+Mozhaisk-MOS-RU|EU|RU|MOS|Mozhaisk|55.4935|36.0333|0
+Msida-34-MT|EU|MT|34|Msida|35.8978|14.4894|0
+Mullingar-WH-IE|EU|IE|WH|Mullingar|53.5247|-7.3378|0
+Mumbai-16-IN|AS|IN|16|Mumbai|19.07283|72.88261|0
+Mumbai-MH-IN|AS|IN|MH|Mumbai|18.9421|72.8354|0
+Munich-02-DE|EU|DE|02|Munich|48.13743|11.57549|0
+Munich-BY-DE|EU|DE|BY|Munich|48.1373|11.5755|0
+Murmansk-49-RU|EU|RU|49|Murmansk|68.97917|33.09251|0
+Murray-KY-US|NA|US|KY|Murray|36.6183|-88.2511|0
+Muscat-06-OM|AS|OM|06|Muscat|23.61387|58.5922|0
+Mykolayiv-16-UA|EU|UA|16|Mykolayiv|46.96591|31.9974|0
+Mykolayiv-48-UA|EU|UA|48|Mykolayiv|46.9602|32.0166|0
+Myslakowice-DS-PL|EU|PL|DS|Myslakowice|50.8366|15.7871|0
+Nadym-YAN-RU|EU|RU|YAN|Nadym|56.6374|66.6636|0
+Nairobi-110-KE|AF|KE|110|Nairobi|-1.2853|36.8154|0
+Nanterre-A8-FR|EU|FR|A8|Nanterre|48.89198|2.20675|0
+Nanterre-J-FR|EU|FR|J|Nanterre|48.89|2.19702|0
+Napa-CA-US|NA|US|CA|Napa|38.29714|-122.28553|0
+Naperville-IL-US|NA|US|IL|Naperville|41.78586|-88.14729|0
+Nashville-TN-US|NA|US|TN|Nashville|36.16589|-86.78444|0
+Nassau-NP-BS|NA|BS|NP|Nassau|25.0692|-77.3355|0
+Nauheim-HE-DE|EU|DE|HE|Nauheim|49.93|8.43|0
+Needham Heights-MA-US|NA|US|MA|Needham Heights|42.28|-71.23|0
+Negaunee-MI-US|NA|US|MI|Negaunee|46.4991|-87.6118|0
+New Delhi-DL-IN|AS|IN|DL|New Delhi|28.6182|77.2233|0
+New Glasgow-07-CA|NA|CA|07|New Glasgow|45.58344|-62.64863|0
+New Minas-NS-CA|NA|CA|NS|New Minas|45.07|-64.45|0
+New York City-NY-US|NA|US|NY|New York City|40.71427|-74.00597|0
+New York-NY-US|NA|US|NY|New York|40.7112|-74.0129|0
+Newark-DE-US|NA|US|DE|Newark|39.6046|-75.7463|0
+Newark-NJ-US|NA|US|NJ|Newark|40.73566|-74.17237|0
+Newark-NTT-UK||UK|NTT|Newark|53.0774|-0.80959|0
+Newington-VA-US|NA|US|VA|Newington|38.739|-77.1803|0
+Newport Beach-CA-US|NA|US|CA|Newport Beach|33.61891|-117.92895|0
+Newton-GA-US|NA|US|GA|Newton|31.3217|-84.4587|0
+Nice-U-FR|EU|FR|U|Nice|43.7034|7.2662|0
+Nicosia-01-CY|AS|CY|01|Nicosia|35.167|33.367|0
+Nikolskoe-KAM-RU|EU|RU|KAM|Nikolskoe|55.2021|166.014|0
+Niksic-12-ME|EU|ME|12|Niksic|42.7731|18.94446|0
+Nilopolis-RJ-BR|SA|BR|RJ|Nilopolis|-22.8108|-43.4193|0
+Nizhnevartovsk-KHM-RU|EU|RU|KHM|Nizhnevartovsk|58.1087|69.1559|0
+Nizhniy Novgorod-51-RU|EU|RU|51|Nizhniy Novgorod|56.32867|44.00205|0
+Nizhny Novgorod-NIZ-RU|EU|RU|NIZ|Nizhny Novgorod|56.3299|44.0092|0
+Nizhny Tagil-SVE-RU|EU|RU|SVE|Nizhny Tagil|57.9426|59.9563|0
+Noida-UP-IN|AS|IN|UP|Noida|28.5821|77.3267|0
+Nollamara-WA-AU|OC|AU|WA|Nollamara|-31.8819|115.841|0
+Nonthaburi-12-TH|AS|TH|12|Nonthaburi|13.8|100.183|0
+Norilsk-KYA-RU|EU|RU|KYA|Norilsk|69.3535|88.2027|0
+Norman-OK-US|NA|US|OK|Norman|35.22257|-97.43948|0
+North Bay-ON-CA|NA|CA|ON|North Bay|46.3377|-79.3717|0
+North Kingstown-RI-US|NA|US|RI|North Kingstown|41.5501|-71.46617|0
+North Ryde-NSW-AU|OC|AU|NSW|North Ryde|-33.7968|151.124|0
+North Salt Lake-UT-US|NA|US|UT|North Salt Lake|40.84856|-111.90688|0
+Northborough-MA-US|NA|US|MA|Northborough|42.31954|-71.64118|0
+Northbrook-IL-US|NA|US|IL|Northbrook|42.12753|-87.82895|0
+Norwich-NFK-UK||UK|NFK|Norwich|52.6285|1.26992|0
+Norwich-NY-US|NA|US|NY|Norwich|42.5308|-75.5249|0
+Nottingham-NGM-UK||UK|NGM|Nottingham|52.9652|-1.20692|0
+Novara-NO-IT|EU|IT|NO|Novara|45.4451|8.61867|0
+Novo Horizonte-SP-BR|SA|BR|SP|Novo Horizonte|-21.4675|-49.2235|0
+Novo Mesto-85-SI|EU|SI|85|Novo Mesto|45.8042|15.1697|0
+Novocherkassk-ROS-RU|EU|RU|ROS|Novocherkassk|47.422|40.092|0
+Novosibirsk-53-RU|EU|RU|53|Novosibirsk|55.0415|82.9346|0
+Novosibirsk-NVS-RU|EU|RU|NVS|Novosibirsk|55.0392|82.9278|0
+Nuernberg-02-DE|EU|DE|02|Nuernberg|49.45421|11.07752|0
+Nuremberg-BY-DE|EU|DE|BY|Nuremberg|49.4539|11.0773|0
+Nyack-NY-US|NA|US|NY|Nyack|41.09065|-73.91791|0
+Oak Lawn-IL-US|NA|US|IL|Oak Lawn|41.71087|-87.75811|0
+Oakland-CA-US|NA|US|CA|Oakland|37.80437|-122.2708|0
+Obukhov-32-UA|EU|UA|32|Obukhov|50.1081|30.6296|0
+Occhiobello-RO-IT|EU|IT|RO|Occhiobello|44.9217|11.5813|0
+Oceanside-CA-US|NA|US|CA|Oceanside|33.19587|-117.37948|0
+Odesa-51-UA|EU|UA|51|Odesa|46.4613|30.7116|0
+Odessa-17-UA|EU|UA|17|Odessa|46.47747|30.73262|0
+Odessa-51-UA|EU|UA|51|Odessa|46.4791|30.7272|0
+Odintsovo-MOS-RU|EU|RU|MOS|Odintsovo|55.6712|37.2805|0
+Okayama-33-JP|AS|JP|33|Okayama|34.6487|133.923|0
+Okemos-MI-US|NA|US|MI|Okemos|42.72226|-84.42747|0
+Oklahoma City-OK-US|NA|US|OK|Oklahoma City|35.46756|-97.51643|0
+Olean-NY-US|NA|US|NY|Olean|42.07756|-78.42974|0
+Olten-SO-CH|EU|CH|SO|Olten|47.34999|7.90329|0
+Olympia-WA-US|NA|US|WA|Olympia|47.03787|-122.9007|0
+Omaha-NE-US|NA|US|NE|Omaha|41.25861|-95.93779|0
+Omsk-OMS-RU|EU|RU|OMS|Omsk|54.9709|73.3938|0
+Opelika-AL-US|NA|US|AL|Opelika|32.64541|-85.37828|0
+Opole-OP-PL|EU|PL|OP|Opole|50.6522|17.9339|0
+Orange-TX-US|NA|US|TX|Orange|30.0819|-93.7581|0
+Orel-ORL-RU|EU|RU|ORL|Orel|52.9794|36.1125|0
+Orenburg-ORE-RU|EU|RU|ORE|Orenburg|51.7682|55.1037|0
+Orlando-FL-US|NA|US|FL|Orlando|28.53834|-81.37924|0
+Osaka-32-JP|AS|JP|32|Osaka|34.69374|135.50218|0
+Osborne Park-WA-AU|OC|AU|WA|Osborne Park|-31.8989|115.811|0
+Oslo-03-NO|EU|NO|03|Oslo|59.9266|10.7337|0
+Ostrzeszow-WP-PL|EU|PL|WP|Ostrzeszow|51.4259|17.9316|0
+Ottawa-ON-CA|NA|CA|ON|Ottawa|45.4455|-75.6894|0
+Oude Meer-NH-NL|EU|NL|NH|Oude Meer|52.28|4.77|0
+Oulu-14-FI|EU|FI|14|Oulu|65.0126|25.4714|0
+Ouro Preto-MG-BR|SA|BR|MG|Ouro Preto|-20.3852|-43.5036|0
+Owosso-MI-US|NA|US|MI|Owosso|42.9978|-84.17664|0
+Oxford-GA-US|NA|US|GA|Oxford|33.6775|-83.8721|0
+Padova-PD-IT|EU|IT|PD|Padova|45.3985|11.8791|0
+Paducah-KY-US|NA|US|KY|Paducah|37.08339|-88.60005|0
+Pagosa Springs-CO-US|NA|US|CO|Pagosa Springs|37.26945|-107.00976|0
+Paiania-A1-GR|EU|GR|A1|Paiania|37.95|23.85|0
+Palermo-15-IT|EU|IT|15|Palermo|38.13205|13.33561|0
+Palmdale-CA-US|NA|US|CA|Palmdale|34.57943|-118.11646|0
+Palmeira-PR-BR|SA|BR|PR|Palmeira|-25.427|-49.9988|0
+Palo Alto-CA-US|NA|US|CA|Palo Alto|37.44188|-122.14302|0
+Panama City-08-PA|NA|PA|08|Panama City|8.9544|-79.539|0
+Panama-08-PA|NA|PA|08|Panama|8.9936|-79.51973|0
+Parcel Return Service-DC-US|NA|US|DC|Parcel Return Service|38.8991|-77.029|0
+Paris-A8-FR|EU|FR|A8|Paris|48.85341|2.3488|0
+Paris-J-FR|EU|FR|J|Paris|48.86|2.34111|0
+Parobe-RS-BR|SA|BR|RS|Parobe|-29.6243|-50.8312|0
+Parramatta-NSW-AU|OC|AU|NSW|Parramatta|-33.817|151.003|0
+Parsippany-NJ-US|NA|US|NJ|Parsippany|40.85788|-74.42599|0
+Passau-BY-DE|EU|DE|BY|Passau|48.5665|13.3627|0
+Pau-B-FR|EU|FR|B|Pau|43.2975|-0.374362|0
+Peabody-MA-US|NA|US|MA|Peabody|42.52787|-70.92866|0
+Pennsauken-NJ-US|NA|US|NJ|Pennsauken|39.95622|-75.05795|0
+Pensacola-FL-US|NA|US|FL|Pensacola|30.42131|-87.21691|0
+Peoria-IL-US|NA|US|IL|Peoria|40.7|-89.6833|0
+Pernik-14-BG|EU|BG|14|Pernik|42.6102|23.0321|0
+Perth-WA-AU|OC|AU|WA|Perth|-31.9554|115.859|0
+Petaling Jaya-10-MY|AS|MY|10|Petaling Jaya|3.0833|101.65|0
+Petrich-01-BG|EU|BG|01|Petrich|41.3947|23.0293|0
+Petrozavodsk-28-RU|EU|RU|28|Petrozavodsk|61.78491|34.34691|0
+Pforzheim-BW-DE|EU|DE|BW|Pforzheim|48.8838|8.73416|0
+Philadelphia-PA-US|NA|US|PA|Philadelphia|39.95233|-75.16379|0
+Phoenix-AZ-US|NA|US|AZ|Phoenix|33.44838|-112.07404|0
+Piacenza-PC-IT|EU|IT|PC|Piacenza|45.0504|9.76737|0
+Pinsk-BR-BY|EU|BY|BR|Pinsk|52.1206|26.0988|0
+Piscataway-NJ-US|NA|US|NJ|Piscataway|40.49927|-74.39904|0
+Pisek-JC-CZ|EU|CZ|JC|Pisek|49.3075|14.1481|0
+Pittsburgh-PA-US|NA|US|PA|Pittsburgh|40.44062|-79.99589|0
+Plainsboro-NJ-US|NA|US|NJ|Plainsboro|40.3355|-74.5778|0
+Plano-TX-US|NA|US|TX|Plano|33.01984|-96.69889|0
+Playa Vista-CA-US|NA|US|CA|Playa Vista|33.97|-118.42|0
+Plaza-MA-PL|EU|PL|MA|Plaza|50.0991|19.4646|0
+Pleasant Grove-UT-US|NA|US|UT|Pleasant Grove|40.36412|-111.73854|0
+Pleasanton-CA-US|NA|US|CA|Pleasanton|37.66243|-121.87468|0
+Plovdiv-16-BG|EU|BG|16|Plovdiv|42.1438|24.7496|0
+Plzen-PL-CZ|EU|CZ|PL|Plzen|49.7475|13.3738|0
+Podgorica-16-ME|EU|ME|16|Podgorica|42.44111|19.26361|0
+Podolsk-MOS-RU|EU|RU|MOS|Podolsk|55.4322|37.5656|0
+Poltava-53-UA|EU|UA|53|Poltava|49.588|34.5503|0
+Pompano Beach-FL-US|NA|US|FL|Pompano Beach|26.23786|-80.12477|0
+Port Louis-PU-MU|AF|MU|PU|Port Louis|-20.1659|57.4968|0
+Port Vila-SEE-VU|OC|VU|SEE|Port Vila|-17.741|168.321|0
+Port Washington-NY-US|NA|US|NY|Port Washington|40.82566|-73.69819|0
+Portland-OR-US|NA|US|OR|Portland|45.52345|-122.67621|0
+Porto Alegre-RS-BR|SA|BR|RS|Porto Alegre|-30.0327|-51.1454|0
+Porto Salvo-11-PT|EU|PT|11|Porto Salvo|38.7187|-9.30582|0
+Porto Velho-RO-BR|SA|BR|RO|Porto Velho|-8.76183|-63.902|0
+Portoroz-90-SI|EU|SI|90|Portoroz|45.4725|13.6156|0
+Poughkeepsie-NY-US|NA|US|NY|Poughkeepsie|41.70037|-73.92097|0
+Poznan-WP-PL|EU|PL|WP|Poznan|52.4107|16.8785|0
+Prague-52-CZ|EU|CZ|52|Prague|50.08804|14.42076|0
+Prague-PR-CZ|EU|CZ|PR|Prague|50.0672|14.4644|0
+Prairie Du Sac-WI-US|NA|US|WI|Prairie Du Sac|43.28693|-89.72401|0
+Prattville-AL-US|NA|US|AL|Prattville|32.46402|-86.4597|0
+Princeton-NJ-US|NA|US|NJ|Princeton|40.3675|-74.6695|0
+Prineville-OR-US|NA|US|OR|Prineville|44.29985|-120.83447|0
+Provo-UT-US|NA|US|UT|Provo|40.23384|-111.65853|0
+Pskov-PSK-RU|EU|RU|PSK|Pskov|57.8488|28.3964|0
+Pszczyna-SL-PL|EU|PL|SL|Pszczyna|49.9778|18.9425|0
+Pullman-WA-US|NA|US|WA|Pullman|46.73127|-117.17962|0
+Puteaux-J-FR|EU|FR|J|Puteaux|48.8833|2.23762|0
+Pyrmont-NSW-AU|OC|AU|NSW|Pyrmont|-33.87|151.18|0
+Qazvin-28-IR|AS|IR|28|Qazvin|36.267|50.0037|0
+Quebec-10-CA|NA|CA|10|Quebec|46.81228|-71.21454|0
+Quebec-QC-CA|NA|CA|QC|Quebec|46.8132|-71.226|0
+Quezon City-MAN-PH|AS|PH|MAN|Quezon City|14.65|121.033|0
+Quezon City-NCR-PH|AS|PH|NCR|Quezon City|14.6488|121.0509|0
+Quito-P-EC|SA|EC|P|Quito|-0.229498|-78.5243|0
+Radom-MZ-PL|EU|PL|MZ|Radom|51.4204|21.1029|0
+Raleigh-NC-US|NA|US|NC|Raleigh|35.7721|-78.63861|0
+Rangoon-06-MM|AS|MM|06|Rangoon|16.783|96.167|0
+Rapid City-SD-US|NA|US|SD|Rapid City|44.08054|-103.23101|0
+Rastsvet-KK-RU|EU|RU|KK|Rastsvet|53.7894|91.3381|0
+Reading-PA-US|NA|US|PA|Reading|40.33565|-75.92687|0
+Reading-RDG-UK||UK|RDG|Reading|51.4584|-1.00024|0
+Redmond-WA-US|NA|US|WA|Redmond|47.67399|-122.12151|0
+Redwood City-CA-US|NA|US|CA|Redwood City|37.48522|-122.23635|0
+Regina-SK-CA|NA|CA|SK|Regina|50.4548|-104.595|0
+Reisterstown-MD-US|NA|US|MD|Reisterstown|39.46976|-76.8319|0
+Reno-NV-US|NA|US|NV|Reno|39.52963|-119.8138|0
+Reston-VA-US|NA|US|VA|Reston|38.96872|-77.3411|0
+Reykjavik-00-IS|EU|IS|00|Reykjavik|64.1422|-21.9432|0
+Richmond Upon Thames-RIC-UK||UK|RIC|Richmond Upon Thames|51.43|-0.3|0
+Richmond-VA-US|NA|US|VA|Richmond|37.55376|-77.46026|0
+Richmond-VIC-AU|OC|AU|VIC|Richmond|-37.8186|144.999|0
+Ridderkerk-ZH-NL|EU|NL|ZH|Ridderkerk|51.876|4.62004|0
+Rifton-NY-US|NA|US|NY|Rifton|41.83759|-74.03736|0
+Riga-25-LV|EU|LV|25|Riga|56.946|24.10589|0
+Riga-RIX-LV|EU|LV|RIX|Riga|56.9313|24.065|0
+Rio De Janeiro-21-BR|SA|BR|21|Rio De Janeiro|-22.90278|-43.2075|0
+Rio De Janeiro-RJ-BR|SA|BR|RJ|Rio De Janeiro|-22.9071|-43.1859|0
+Ris-Orangis-J-FR|EU|FR|J|Ris-Orangis|48.6537|2.41489|0
+Riverton-UT-US|NA|US|UT|Riverton|40.52189|-111.9391|0
+Riyadh-01-SA|AS|SA|01|Riyadh|24.65|46.767|0
+Riyadh-10-SA|AS|SA|10|Riyadh|24.68773|46.72185|0
+Roachdale-IN-US|NA|US|IN|Roachdale|39.84893|-86.80223|0
+Road Town-NO REGION-VG|NA|VG|NO REGION|Road Town|18.467|-64.65|0
+Roanoke-VA-US|NA|US|VA|Roanoke|37.27097|-79.94143|0
+Rochester Hills-MI-US|NA|US|MI|Rochester Hills|42.65837|-83.14993|0
+Rock Springs-WY-US|NA|US|WY|Rock Springs|41.58746|-109.2029|0
+Rockford-IL-US|NA|US|IL|Rockford|42.27113|-89.094|0
+Rockland-ME-US|NA|US|ME|Rockland|44.1093|-69.1133|0
+Rockville-MD-US|NA|US|MD|Rockville|39.084|-77.15276|0
+Rolla-MO-US|NA|US|MO|Rolla|37.95143|-91.77127|0
+Rome-07-IT|EU|IT|07|Rome|41.89193|12.51133|0
+Rosedale-MD-US|NA|US|MD|Rosedale|39.32011|-76.51552|0
+Rostov-Na-Donu-ROS-RU|EU|RU|ROS|Rostov-Na-Donu|47.2583|39.8183|0
+Roswell-GA-US|NA|US|GA|Roswell|34.02316|-84.36159|0
+Rotterdam-11-NL|EU|NL|11|Rotterdam|51.9225|4.47917|0
+Rotterdam-ZH-NL|EU|NL|ZH|Rotterdam|51.9204|4.48068|0
+Round Rock-TX-US|NA|US|TX|Round Rock|30.50826|-97.6789|0
+Rubizhne-09-UA|EU|UA|09|Rubizhne|49.0167|38.3667|0
+Rumilly-V-FR|EU|FR|V|Rumilly|45.8673|5.94208|0
+Runcorn-ENG-UK||UK|ENG|Runcorn|53.34174|-2.73124|0
+Ryazan-RYA-RU|EU|RU|RYA|Ryazan|54.6247|39.7386|0
+Rzeszow-PK-PL|EU|PL|PK|Rzeszow|50.0423|22.007|0
+Sacramento-CA-US|NA|US|CA|Sacramento|38.58157|-121.4944|0
+Saint Petersburg-66-RU|EU|RU|66|Saint Petersburg|59.93863|30.31413|0
+Saky-43-UA|EU|UA|43|Saky|45.1287|33.6043|0
+Salem-OR-US|NA|US|OR|Salem|44.9429|-123.0351|0
+Salisbury-MD-US|NA|US|MD|Salisbury|38.3557|-75.5377|0
+Salt Lake City-UT-US|NA|US|UT|Salt Lake City|40.76078|-111.89105|0
+Salvador-BA-BR|SA|BR|BA|Salvador|-12.9608|-38.5073|0
+Samara-SAM-RU|EU|RU|SAM|Samara|53.1803|50.2007|0
+San Antonio-TX-US|NA|US|TX|San Antonio|29.42412|-98.49363|0
+San Bruno-CA-US|NA|US|CA|San Bruno|37.63049|-122.41108|0
+San Diego-CA-US|NA|US|CA|San Diego|32.71533|-117.15726|0
+San Francisco-CA-US|NA|US|CA|San Francisco|37.77493|-122.41942|0
+San Jose-CA-US|NA|US|CA|San Jose|37.33939|-121.89496|0
+San Jose-SJ-CR|NA|CR|SJ|San Jose|9.9249|-84.0781|0
+San Juan-127-PR|NA|PR|127|San Juan|18.46633|-66.10572|0
+San Juan-NO REGION-PR|NA|PR|NO REGION|San Juan|18.3852|-66.0631|0
+San Lorenzo-CA-US|NA|US|CA|San Lorenzo|37.68104|-122.12441|0
+San Mateo-CA-US|NA|US|CA|San Mateo|37.56299|-122.32553|0
+San Pedro-CA-US|NA|US|CA|San Pedro|33.73585|-118.29229|0
+San Salvador-SS-SV|NA|SV|SS|San Salvador|13.6816|-89.2125|0
+Sanayi-46-TR|EU|TR|46|Sanayi|37.5637|36.9594|0
+Sanford-FL-US|NA|US|FL|Sanford|28.80055|-81.27312|0
+Sangam-Dong-11-KR|AS|KR|11|Sangam-Dong|37.5682|126.884|0
+Sankt Gallen-SG-CH|EU|CH|SG|Sankt Gallen|47.42391|9.37477|0
+Sanok-PK-PL|EU|PL|PK|Sanok|49.5588|22.2052|0
+Santa Clara-CA-US|NA|US|CA|Santa Clara|37.35411|-121.95524|0
+Santa Rosa-CA-US|NA|US|CA|Santa Rosa|38.44047|-122.71443|0
+Santa Ynez-CA-US|NA|US|CA|Santa Ynez|34.61443|-120.07987|0
+Santiago-12-CL|SA|CL|12|Santiago|-33.45694|-70.64827|0
+Santiago-RM-CL|SA|CL|RM|Santiago|-33.4254|-70.5665|0
+Santo Domingo-01-DO|NA|DO|01|Santo Domingo|18.5|-69.95|0
+Sao Francisco-MG-BR|SA|BR|MG|Sao Francisco|-15.9489|-44.8644|0
+Sao Jose Do Rio Preto-SP-BR|SA|BR|SP|Sao Jose Do Rio Preto|-20.8078|-49.381|0
+Sao Paulo-27-BR|SA|BR|27|Sao Paulo|-23.5475|-46.63611|0
+Sao Paulo-SP-BR|SA|BR|SP|Sao Paulo|-23.5603|-46.6343|0
+Saransk-MO-RU|EU|RU|MO|Saransk|54.1814|45.1757|0
+Saratov-SAR-RU|EU|RU|SAR|Saratov|51.5431|45.9987|0
+Saskatoon-11-CA|NA|CA|11|Saskatoon|52.11679|-106.63452|0
+Saugerties-NY-US|NA|US|NY|Saugerties|42.07759|-73.95291|0
+Saugus-MA-US|NA|US|MA|Saugus|42.46482|-71.01005|0
+Scarsdale-NY-US|NA|US|NY|Scarsdale|41.0051|-73.78458|0
+Schriek-VAN-BE|EU|BE|VAN|Schriek|51.03|4.68|0
+Scotch Plains-NJ-US|NA|US|NJ|Scotch Plains|40.65538|-74.38987|0
+Scottsdale-AZ-US|NA|US|AZ|Scottsdale|33.50921|-111.89903|0
+Seattle-WA-US|NA|US|WA|Seattle|47.60621|-122.33207|0
+Secaucus-NJ-US|NA|US|NJ|Secaucus|40.78955|-74.05653|0
+Semey-VOS-KZ|AS|KZ|VOS|Semey|50.433|80.267|0
+Senec-BL-SK|EU|SK|BL|Senec|48.223|17.4032|0
+Seoul-11-KR|AS|KR|11|Seoul|37.566|126.9784|0
+Sepolno Krajenskie-KP-PL|EU|PL|KP|Sepolno Krajenskie|53.4547|17.5348|0
+Serpukhov-MOS-RU|EU|RU|MOS|Serpukhov|54.9344|37.4515|0
+Sevastopol-40-UA|EU|UA|40|Sevastopol|44.6648|33.6529|0
+Severn-MD-US|NA|US|MD|Severn|39.13705|-76.6983|0
+Seward-NE-US|NA|US|NE|Seward|40.90695|-97.09892|0
+Shanghai-23-CN|AS|CN|23|Shanghai|31.22222|121.45806|0
+Shibuya-13-JP|AS|JP|13|Shibuya|35.6594|139.708|0
+Shiraz-14-IR|AS|IR|14|Shiraz|29.6014|52.5316|0
+Shirdi-MH-IN|AS|IN|MH|Shirdi|19.7825|74.5298|0
+Shlisselburg-LEN-RU|EU|RU|LEN|Shlisselburg|59.9296|31.0326|0
+Shreveport-LA-US|NA|US|LA|Shreveport|32.52515|-93.75018|0
+Sibiu-SB-RO|EU|RO|SB|Sibiu|45.7909|24.1506|0
+Silver Spring-MD-US|NA|US|MD|Silver Spring|38.99067|-77.02609|0
+Simferopol-43-UA|EU|UA|43|Simferopol|45.1442|34.2368|0
+Singapore-01-SG|AS|SG|01|Singapore|1.283|103.85|0
+Skadovsk-65-UA|EU|UA|65|Skadovsk|46.1167|32.9167|0
+Skawina-MA-PL|EU|PL|MA|Skawina|49.9751|19.8264|0
+Skokie-IL-US|NA|US|IL|Skokie|42.03336|-87.73339|0
+Skopje-70-MK|EU|MK|70|Skopje|42|21.467|0
+Sljeme-21-HR|EU|HR|21|Sljeme|45.8988|15.954|0
+Slobozia-IL-RO|EU|RO|IL|Slobozia|44.5672|27.3509|0
+Slough-ENG-UK||UK|ENG|Slough|51.50949|-0.59541|0
+Slupsk-PM-PL|EU|PL|PM|Slupsk|54.4649|17.0281|0
+Sobral-CE-BR|SA|BR|CE|Sobral|-3.67805|-40.3375|0
+Sochi-KDA-RU|EU|RU|KDA|Sochi|43.6495|39.7513|0
+Soderhamn-X-SE|EU|SE|X|Soderhamn|61.2611|17.0995|0
+Sofia-22-BG|EU|BG|22|Sofia|42.6976|23.3223|0
+Sofia-42-BG|EU|BG|42|Sofia|42.69751|23.32415|0
+Solkan-84-SI|EU|SI|84|Solkan|45.97139|13.64944|0
+Sollentuna-AB-SE|EU|SE|AB|Sollentuna|59.4459|17.9241|0
+Somerville-NJ-US|NA|US|NJ|Somerville|40.5437|-74.66|0
+Sommacampagna-VR-IT|EU|IT|VR|Sommacampagna|45.4075|10.841|0
+South Bend-IN-US|NA|US|IN|South Bend|41.68338|-86.25001|0
+South Brisbane-QLD-AU|OC|AU|QLD|South Brisbane|-27.4745|153.017|0
+South Burlington-VT-US|NA|US|VT|South Burlington|44.46699|-73.17096|0
+South Hill-VA-US|NA|US|VA|South Hill|36.7275|-78.1347|0
+South River-NJ-US|NA|US|NJ|South River|40.44649|-74.38598|0
+Spokane-WA-US|NA|US|WA|Spokane|47.65966|-117.42908|0
+Spring-TX-US|NA|US|TX|Spring|30.07994|-95.41716|0
+Springfield-IL-US|NA|US|IL|Springfield|39.83|-89.6531|0
+Springfield-MA-US|NA|US|MA|Springfield|42.1281|-72.5715|0
+Springfield-VA-US|NA|US|VA|Springfield|38.8011|-77.2075|0
+Sprockhovel-NW-DE|EU|DE|NW|Sprockhovel|51.371|7.25154|0
+Srem-WP-PL|EU|PL|WP|Srem|52.085|17.0162|0
+St Augustine-FL-US|NA|US|FL|St Augustine|29.8852|-81.314|0
+St Catharines-ON-CA|NA|CA|ON|St Catharines|43.1941|-79.2525|0
+St Charles-IL-US|NA|US|IL|St Charles|41.922|-88.3042|0
+St Charles-MO-US|NA|US|MO|St Charles|38.8474|-90.477|0
+St Cloud-MN-US|NA|US|MN|St Cloud|45.5311|-94.2092|0
+St George-UT-US|NA|US|UT|St George|37.0847|-113.586|0
+St Joseph-MI-US|NA|US|MI|St Joseph|42.0681|-86.4755|0
+St Joseph-MO-US|NA|US|MO|St Joseph|39.7489|-94.8084|0
+St Louis-MO-US|NA|US|MO|St Louis|38.6167|-90.4461|0
+St Paul-MN-US|NA|US|MN|St Paul|44.8482|-93.1456|0
+St Petersburg-FL-US|NA|US|FL|St Petersburg|27.8783|-82.6492|0
+St Petersburg-SPE-RU|EU|RU|SPE|St Petersburg|59.939|30.3158|0
+St_ Anna Am Aigen-6-AT|EU|AT|6|St. Anna Am Aigen|46.819|15.9751|0
+St_ John_S-05-CA|NA|CA|05|St. John'S|47.56494|-52.70931|0
+St_ Louis-MO-US|NA|US|MO|St. Louis|38.62727|-90.19789|0
+Stamford-CT-US|NA|US|CT|Stamford|41.05343|-73.53873|0
+Staraya Russa-NGR-RU|EU|RU|NGR|Staraya Russa|57.9996|31.3361|0
+Staten Island-NY-US|NA|US|NY|Staten Island|40.56233|-74.13986|0
+Stephenville-05-CA|NA|CA|05|Stephenville|48.55001|-58.5818|0
+Sterling-VA-US|NA|US|VA|Sterling|39.00622|-77.4286|0
+Stockholm-26-SE|EU|SE|26|Stockholm|59.33258|18.0649|0
+Stockholm-AB-SE|EU|SE|AB|Stockholm|59.3328|18.0645|0
+Stockton-CA-US|NA|US|CA|Stockton|37.9577|-121.29078|0
+Stonehouse-GLS-UK||UK|GLS|Stonehouse|51.7466|-2.30249|0
+Strasbourg-A-FR|EU|FR|A|Strasbourg|48.5829|7.74375|0
+Strasswalchen-5-AT|EU|AT|5|Strasswalchen|47.9802|13.2549|0
+Stuttgart-01-DE|EU|DE|01|Stuttgart|48.78232|9.17702|0
+Sudbury-ON-CA|NA|CA|ON|Sudbury|46.5213|-80.947|0
+Sumy-59-UA|EU|UA|59|Sumy|50.9106|34.7992|0
+Sun Prairie-WI-US|NA|US|WI|Sun Prairie|43.1836|-89.21373|0
+Sundbyberg-AB-SE|EU|SE|AB|Sundbyberg|59.367|17.967|0
+Sundsvall-Y-SE|EU|SE|Y|Sundsvall|62.3891|17.3037|0
+Sunnyvale-CA-US|NA|US|CA|Sunnyvale|37.36883|-122.03635|0
+Suquamish-WA-US|NA|US|WA|Suquamish|47.73121|-122.55236|0
+Suresnes-J-FR|EU|FR|J|Suresnes|48.8701|2.2221|0
+Surry Hills-NSW-AU|OC|AU|NSW|Surry Hills|-33.88|151.22|0
+Suva-01-FJ|OC|FJ|01|Suva|-18.14161|178.44149|0
+Swedesboro-NJ-US|NA|US|NJ|Swedesboro|39.74761|-75.31047|0
+Sydney-NSW-AU|OC|AU|NSW|Sydney|-33.8671|151.207|0
+Szczecin-ZP-PL|EU|PL|ZP|Szczecin|53.4274|14.562|0
+Tacoma-WA-US|NA|US|WA|Tacoma|47.25288|-122.44429|0
+Taipei-03-TW|AS|TW|03|Taipei|25.04776|121.53185|0
+Talking Rock-GA-US|NA|US|GA|Talking Rock|34.50926|-84.50493|0
+Tallinn-01-EE|EU|EE|01|Tallinn|59.43696|24.75353|0
+Tallinn-37-EE|EU|EE|37|Tallinn|59.4336|24.7545|0
+Tampa-FL-US|NA|US|FL|Tampa|27.94752|-82.45843|0
+Tanjungkarang-Telukbetung-LA-ID|AS|ID|LA|Tanjungkarang-Telukbetung|-5.4408|105.271|0
+Taplow-BKM-UK||UK|BKM|Taplow|51.5256|-0.700974|0
+Targoviste-DB-RO|EU|RO|DB|Targoviste|44.9124|25.4622|0
+Tashkent-TK-UZ|AS|UZ|TK|Tashkent|41.2667|69.2167|0
+Taylor-MI-US|NA|US|MI|Taylor|42.24087|-83.26965|0
+Tbilisi-TB-GE|AS|GE|TB|Tbilisi|41.7215|44.7828|0
+Tehran-07-IR|AS|IR|07|Tehran|35.6896|51.414|0
+Tel Aviv-TA-IL|AS|IL|TA|Tel Aviv|32.0592|34.7631|0
+Tempe-AZ-US|NA|US|AZ|Tempe|33.41477|-111.90931|0
+Temple City-CA-US|NA|US|CA|Temple City|34.10723|-118.05785|0
+Teresina-PI-BR|SA|BR|PI|Teresina|-5.05974|-42.6664|0
+Ternopil-61-UA|EU|UA|61|Ternopil|49.5607|25.6113|0
+Ternopil_-22-UA|EU|UA|22|Ternopil'|49.55589|25.60556|0
+Thanh Pho Ho Chi Minh-SG-VN|AS|VN|SG|Thanh Pho Ho Chi Minh|10.75|106.667|0
+The Hague-ZH-NL|EU|NL|ZH|The Hague|52.0721|4.39956|0
+Thessaloniki-54-GR|EU|GR|54|Thessaloniki|40.6396|22.937|0
+Thibodaux-LA-US|NA|US|LA|Thibodaux|29.79576|-90.82287|0
+Thornton-CO-US|NA|US|CO|Thornton|39.86804|-104.97192|0
+Tirana-11-AL|EU|AL|11|Tirana|41.3311|19.8318|0
+Tirgu Mures-MS-RO|EU|RO|MS|Tirgu Mures|46.5478|24.5566|0
+Tokyo-13-JP|AS|JP|13|Tokyo|35.6838|139.754|0
+Tokyo-40-JP|AS|JP|40|Tokyo|35.6895|139.69171|0
+Tolyatti-SAM-RU|EU|RU|SAM|Tolyatti|53.5652|49.3082|0
+Tomsk-TOM-RU|EU|RU|TOM|Tomsk|56.6167|84.8333|0
+Toowoomba-QLD-AU|OC|AU|QLD|Toowoomba|-27.5613|151.956|0
+Torino-TO-IT|EU|IT|TO|Torino|45.0643|7.68795|0
+Toronto-ON-CA|NA|CA|ON|Toronto|43.6796|-79.4343|0
+Torquay-TOB-UK||UK|TOB|Torquay|50.467|-3.53666|0
+Torshavn-NO REGION-FO|EU|FO|NO REGION|Torshavn|62.0207|-6.7701|0
+Touchet-WA-US|NA|US|WA|Touchet|46.03986|-118.67221|0
+Toulouse-B3-FR|EU|FR|B3|Toulouse|43.60426|1.44367|0
+Towson-MD-US|NA|US|MD|Towson|39.4015|-76.60191|0
+Tracy-CA-US|NA|US|CA|Tracy|37.73987|-121.42618|0
+Trenton-NJ-US|NA|US|NJ|Trenton|40.21705|-74.74294|0
+Trexlertown-PA-US|NA|US|PA|Trexlertown|40.54815|-75.60574|0
+Trondheim-16-NO|EU|NO|16|Trondheim|63.43049|10.39506|0
+Troy-MI-US|NA|US|MI|Troy|42.60559|-83.14993|0
+Troy-NY-US|NA|US|NY|Troy|42.744|-73.6051|0
+Tseung Kwan O--HK|AS|HK||Tseung Kwan O|22.33|114.25|0
+Tuckerton-NJ-US|NA|US|NJ|Tuckerton|39.60317|-74.34015|0
+Tucson-AZ-US|NA|US|AZ|Tucson|32.22174|-110.92648|0
+Tulsa-OK-US|NA|US|OK|Tulsa|36.15398|-95.99277|0
+Turin-12-IT|EU|IT|12|Turin|45.07049|7.68682|0
+Turku-02-FI|EU|FI|02|Turku|60.45148|22.26869|0
+Tustin-CA-US|NA|US|CA|Tustin|33.74585|-117.82617|0
+Tvaaker-N-SE|EU|SE|N|Tvaaker|57.0423|12.3983|0
+Tver-TVE-RU|EU|RU|TVE|Tver|56.836|35.8915|0
+Tyringe-M-SE|EU|SE|M|Tyringe|56.1592|13.6003|0
+Ufa-BA-RU|EU|RU|BA|Ufa|54.7298|56.0555|0
+Ulaanbaatar-01-MN|AS|MN|01|Ulaanbaatar|47.908|106.883|0
+Ullensaker-02-NO|EU|NO|02|Ullensaker|60.1939010620117|11.1003999710083|0
+Ulyanovsk-ULY-RU|EU|RU|ULY|Ulyanovsk|54.2965|48.3688|0
+University Park-IL-US|NA|US|IL|University Park|41.4663|-87.6988|0
+Urbana-IL-US|NA|US|IL|Urbana|40.11059|-88.20727|0
+Uster-ZH-CH|EU|CH|ZH|Uster|47.34713|8.72091|0
+Utrecht-UT-NL|EU|NL|UT|Utrecht|52.0926|5.11585|0
+Vaduz-11-LI|EU|LI|11|Vaduz|47.14151|9.52154|0
+Valencia-60-ES|EU|ES|60|Valencia|39.46975|-0.37739|0
+Valletta-60-MT|EU|MT|60|Valletta|35.89972|14.51472|0
+Vancouver-02-CA|NA|CA|02|Vancouver|49.24966|-123.11934|0
+Vancouver-BC-CA|NA|CA|BC|Vancouver|49.2804|-123.115|0
+Vancouver-WA-US|NA|US|WA|Vancouver|45.63873|-122.66149|0
+Varginha-MG-BR|SA|BR|MG|Varginha|-21.5636|-45.4394|0
+Varna-03-BG|EU|BG|03|Varna|43.2166|27.9118|0
+Vassouras-RJ-BR|SA|BR|RJ|Vassouras|-22.404|-43.6634|0
+Velenje-133-SI|EU|SI|133|Velenje|46.3587|15.108|0
+Vicksburg-MS-US|NA|US|MS|Vicksburg|32.35265|-90.87788|0
+Vienna-09-AT|EU|AT|09|Vienna|48.20849|16.37208|0
+Vienna-9-AT|EU|AT|9|Vienna|48.2092|16.3728|0
+Villa Park-IL-US|NA|US|IL|Villa Park|41.88975|-87.98895|0
+Villanova-PA-US|NA|US|PA|Villanova|40.03|-75.33|0
+Villeurbanne-V-FR|EU|FR|V|Villeurbanne|45.7647|4.88038|0
+Vilnius-65-LT|EU|LT|65|Vilnius|54.68916|25.2798|0
+Vilnius-VL-LT|EU|LT|VL|Vilnius|54.6896|25.2979|0
+Vinnytsia-05-UA|EU|UA|05|Vinnytsia|49.2398986816406|28.6140003204346|0
+Vinnytsya-05-UA|EU|UA|05|Vinnytsya|49.2346|28.5002|0
+Virginia Beach-VA-US|NA|US|VA|Virginia Beach|36.85293|-75.97799|0
+Virum-84-DK|EU|DK|84|Virum|55.7913|12.4703|0
+Visaginas-UT-LT|EU|LT|UT|Visaginas|55.5973|26.4313|0
+Volgograd-VGG-RU|EU|RU|VGG|Volgograd|48.7181|44.5046|0
+Vologda-VLG-RU|EU|RU|VLG|Vologda|59.2383|39.9068|0
+Voronezh-VOR-RU|EU|RU|VOR|Voronezh|51.5493|39.1418|0
+Voskresensk-MOS-RU|EU|RU|MOS|Voskresensk|55.3123|38.7029|0
+Wakefield-MA-US|NA|US|MA|Wakefield|42.50648|-71.07283|0
+Walnut Creek-CA-US|NA|US|CA|Walnut Creek|37.90631|-122.06496|0
+Walsall-WLL-UK||UK|WLL|Walsall|52.5861|-1.98142|0
+Waltham-MA-US|NA|US|MA|Waltham|42.37649|-71.23561|0
+Warren-MI-US|NA|US|MI|Warren|42.47754|-83.0277|0
+Warren-OH-US|NA|US|OH|Warren|41.2781|-80.8173|0
+Warrenville-IL-US|NA|US|IL|Warrenville|41.81781|-88.1734|0
+Warrington-WRT-UK||UK|WRT|Warrington|53.3958|-2.56811|0
+Warsaw-78-PL|EU|PL|78|Warsaw|52.22977|21.01178|0
+Warsaw-MZ-PL|EU|PL|MZ|Warsaw|52.2151|21.1505|0
+Washington D_C_-DC-US|NA|US|DC|Washington, D.C.|38.89511|-77.03637|0
+Washington-DC-US|NA|US|DC|Washington|38.9498|-77.0156|0
+Washington-IL-US|NA|US|IL|Washington|40.6949|-89.4794|0
+Washington-PA-US|NA|US|PA|Washington|40.1753|-80.2515|0
+Watertown-MA-US|NA|US|MA|Watertown|42.37093|-71.18283|0
+Waterville-ME-US|NA|US|ME|Waterville|44.55201|-69.63171|0
+Waukesha-WI-US|NA|US|WI|Waukesha|43.01168|-88.23148|0
+Waycross-GA-US|NA|US|GA|Waycross|31.21368|-82.3557|0
+Wellington-WGN-NZ|OC|NZ|WGN|Wellington|-41.2865|174.776|0
+Wenatchee-WA-US|NA|US|WA|Wenatchee|47.42346|-120.31035|0
+West Chicago-IL-US|NA|US|IL|West Chicago|41.88475|-88.20396|0
+West Jordan-UT-US|NA|US|UT|West Jordan|40.60967|-111.9391|0
+West Palm Beach-FL-US|NA|US|FL|West Palm Beach|26.71534|-80.05337|0
+West Roxbury-MA-US|NA|US|MA|West Roxbury|42.2752|-71.1473|0
+West Springfield-MA-US|NA|US|MA|West Springfield|42.10704|-72.62037|0
+Westbury-NY-US|NA|US|NY|Westbury|40.75566|-73.58763|0
+Westerville-OH-US|NA|US|OH|Westerville|40.12617|-82.92907|0
+Wheeling-WV-US|NA|US|WV|Wheeling|40.0694|-80.6878|0
+White Hall-MD-US|NA|US|MD|White Hall|39.6514|-76.5715|0
+White Plains-NY-US|NA|US|NY|White Plains|41.03399|-73.76291|0
+Whitmore Lake-MI-US|NA|US|MI|Whitmore Lake|42.4397|-83.7453|0
+Wichita-KS-US|NA|US|KS|Wichita|37.69224|-97.33754|0
+Wielun-LD-PL|EU|PL|LD|Wielun|51.2205|18.5701|0
+Wilkes Barre-PA-US|NA|US|PA|Wilkes Barre|41.207|-75.9238|0
+Willowbrook-IL-US|NA|US|IL|Willowbrook|41.8418|-87.951|0
+Wilmington-DE-US|NA|US|DE|Wilmington|39.7718|-75.4965|0
+Windsor-VT-US|NA|US|VT|Windsor|43.475|-72.4274|0
+Winnetka-CA-US|NA|US|CA|Winnetka|34.208|-118.576|0
+Winnipeg-03-CA|NA|CA|03|Winnipeg|49.8844|-97.14704|0
+Winnipeg-MB-CA|NA|CA|MB|Winnipeg|49.8495|-97.1285|0
+Winooski-VT-US|NA|US|VT|Winooski|44.49144|-73.18568|0
+Winter Park-FL-US|NA|US|FL|Winter Park|28.6|-81.33924|0
+Winterthur-ZH-CH|EU|CH|ZH|Winterthur|47.50564|8.72413|0
+Wolverhampton-WLV-UK||UK|WLV|Wolverhampton|52.5882|-2.12605|0
+Woodridge-IL-US|NA|US|IL|Woodridge|41.74697|-88.05034|0
+Wroclaw-DS-PL|EU|PL|DS|Wroclaw|51.1082|17.0283|0
+Wurzburg-BY-DE|EU|DE|BY|Wurzburg|49.7924|9.93297|0
+Xaltianguis-GRO-MX|NA|MX|GRO|Xaltianguis|17.1596|-99.6158|0
+Yalta-43-UA|EU|UA|43|Yalta|44.4952|34.1663|0
+Yaren-14-NR|OC|NR|14|Yaren|-0.55085|166.9252|0
+Yarmouth-07-CA|NA|CA|07|Yarmouth|43.83345|-66.11557|0
+Yaroslavl-YAR-RU|EU|RU|YAR|Yaroslavl|57.6256|39.8333|0
+Yeongeon-Dong-11-KR|AS|KR|11|Yeongeon-Dong|37.5786|126.998|0
+Yerevan-ER-AM|AS|AM|ER|Yerevan|40.1811|44.5136|0
+Yildiz-34-TR|EU|TR|34|Yildiz|41.0486|29.0164|0
+Yogyakarta-YO-ID|AS|ID|YO|Yogyakarta|-7.8|110.4|0
+Yopal-CAS-CO|SA|CO|CAS|Yopal|5.33281|-72.3954|0
+York-NE-US|NA|US|NE|York|40.8718|-97.5879|0
+York-SC-US|NA|US|SC|York|35.0046|-81.2093|0
+York-YOR-UK||UK|YOR|York|53.9385|-1.12467|0
+Yuzhnouralsk-CHE-RU|EU|RU|CHE|Yuzhnouralsk|54.4449|61.2442|0
+Yverdon-Les-Bains-VD-CH|EU|CH|VD|Yverdon-Les-Bains|46.77852|6.64115|0
+Z_Rich-ZH-CH|EU|CH|ZH|Z??Rich|47.4646987915039|8.54916954040527|0
+Zabrze-SL-PL|EU|PL|SL|Zabrze|50.3034|18.7713|0
+Zagreb-21-HR|EU|HR|21|Zagreb|45.81444|15.97798|0
+Zambrow-PD-PL|EU|PL|PD|Zambrow|52.9855|22.2412|0
+Zaozerny-KYA-RU|EU|RU|KYA|Zaozerny|55.9701|94.7063|0
+Zaporizhzhya-23-UA|EU|UA|23|Zaporizhzhya|47.8524|35.1714|0
+Zaporizhzhya-26-UA|EU|UA|26|Zaporizhzhya|47.82289|35.19031|0
+Zaventem-VBR-BE|EU|BE|VBR|Zaventem|50.8877|4.47013|0
+Zduny-WP-PL|EU|PL|WP|Zduny|51.6463|17.3779|0
+Zielona Gora-LB-PL|EU|PL|LB|Zielona Gora|51.8609|15.4677|0
+Zlatoust-CHE-RU|EU|RU|CHE|Zlatoust|55.1861|59.6461|0
+Zoetermeer-ZH-NL|EU|NL|ZH|Zoetermeer|52.0385|4.50397|0
+Zug-ZG-CH|EU|CH|ZG|Zug|47.17242|8.51745|0
+Zurich-ZH-CH|EU|CH|ZH|Zurich|47.36667|8.55|0
+_-_-BR|SA|BR|?|?|-14.2522|-50.5865|0
+_-_-UK||UK|?|?|55.3592|-3.2111|0

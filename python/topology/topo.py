@@ -243,6 +243,7 @@ class TopoGenerator(object):
             'attributes': attributes,
             'isd_as': str(topo_id),
             'mtu': mtu,
+            'pqa': as_conf.get('pqa', {})
         }
         for i in SCION_SERVICE_NAMES:
             self.topo_dicts[topo_id][i] = {}
@@ -327,7 +328,8 @@ class TopoGenerator(object):
             },
             'isd_as': str(remote),
             'link_to': LinkType.to_str(remote_type.lower()),
-            'mtu': attrs.get('mtu', self.args.default_mtu)
+            'mtu': attrs.get('mtu', self.args.default_mtu),
+            'data': attrs.get('data', {}),
         }
 
     def _gen_sig_entries(self, topo_id, as_conf):
