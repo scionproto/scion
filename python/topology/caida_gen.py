@@ -6,7 +6,7 @@ import networkx as nx
 from bidict import bidict
 from thefuzz import process
 
-from . import topo_gen as topo
+from python.topology import topo_gen as topo
 
 caida_path = os.path.join("python", "topology", "caida")
 

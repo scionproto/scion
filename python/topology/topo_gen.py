@@ -17,6 +17,7 @@ def gen_better_topo(
     k=3, # Connectivity of ISDs
     sprinkle=True,
     only_originate_at=None,
+    multi_link_ixs=True,
 ):
     """
     Generates a topology as follows:
@@ -46,24 +47,26 @@ def gen_better_topo(
 
     # Generate graph by harary algo
     g = nx.hkn_harary_graph(k, n)
-    g = nx.relabel_nodes(g, {i: caida.gen_ia(i+1) for i in range(len(g.nodes()))})
+    g = nx.MultiGraph(g)
 
     if sprinkle:
         # Add a couple of random edges to spice things up
-        for _ in range(n*3):
+        for _ in range(len(g.edges())):
             f = c(list(g.nodes()))
             t = c(list(g.nodes()))
             if f != t:
                 g.add_edge(f, t)
+
+    g = nx.relabel_nodes(g, {i: caida.gen_ia(i+1) for i in list(g.nodes())})
 
     # Add random locations to each link
     geo = caida.GeoData()
     locs = list(geo.get_all_locations())
     random.shuffle(locs)
 
-    for i, (edge, loc) in enumerate(zip(g.edges(data=True), locs)):
-        f, t, d = edge
-        g.add_edge(f, t, location=loc, geo=geo.get_coord_of_loc(loc), id=i+1, **d)
+    for i, (edge, loc) in enumerate(zip(list(g.edges(data=True, keys=True)), locs)):
+        f, t, k, d = edge
+        g.add_edge(f, t, key=k, location=loc, geo=geo.get_coord_of_loc(loc), id=i+1, **d)
 
     def create_group(members, quality):
         return {
@@ -72,15 +75,15 @@ def gen_better_topo(
         }
 
     # Each edge now represents one IX - now add multiple links per IX
-    g = nx.MultiGraph(g)
-    for f, t, d in list(g.edges(data=True)):
-        for i in range(links_per_ix()-1):
-            # Duplicate data, assign new id, add new edge
-            new_d = copy.deepcopy(dict(d))
-            id_ = len(g.edges())+1
-            new_d["id"] = id_
-            g.add_edge(f, t, **new_d)
-            # Add edge to latency group
+    if multi_link_ixs:
+        for f, t, d in list(g.edges(data=True)):
+            for i in range(links_per_ix()-1):
+                # Duplicate data, assign new id, add new edge
+                new_d = copy.deepcopy(dict(d))
+                id_ = len(g.edges())+1
+                new_d["id"] = id_
+                g.add_edge(f, t, **new_d)
+                # Add edge to latency group
 
     # Now for each IX, create an interface group
     for f in list(g.nodes()):
@@ -95,7 +98,7 @@ def gen_better_topo(
         for loc in locations:
 
             latency_members = [d["id"] for _, _, d in g.edges(f, data=True) if d["location"] == loc]
-            if len(latency_members) > 1:
+            if len(latency_members) >= 1:
                 group_id = f"group_{len(groups)}"
                 groups[group_id] = create_group(latency_members, "latency")
                 throughput_members.append(r.choice(latency_members))
@@ -105,7 +108,7 @@ def gen_better_topo(
                 targets[group_id] = {"quality": "latency", "direction": "forward"}
 
 
-        if len(throughput_members) > 1:
+        if len(throughput_members) >= 1:
             groups[f"group_{len(groups)}"] = create_group(throughput_members, "throughput")
 
         originate = only_originate_at is None or f in only_originate_at or f == only_originate_at or f.split("-")[0] == only_originate_at

@@ -115,11 +115,11 @@ class StaticInfoFromCaida:
         self.args = args
 
     def gen_random_latency(self, r):
-        return "0ms"
+        return "1ms"
 
     def gen_latency(self, r, from_pos, to_pos):
         latency = self.caida.geo_data.get_latency_between_coords(from_pos, to_pos) + 1
-        return round(r.gauss(latency, latency/10), 3)
+        return int(round(r.gauss(latency, latency/10), 3))
 
     def gen_bandwith(self, r):
         return int(r.lognormvariate(1, 0.8)*2000000000)
