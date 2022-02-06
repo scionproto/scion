@@ -55,7 +55,7 @@ func (m *Mechanism) getOptimizationTargetsForInterface(ctx context.Context, ifid
 		return origSettings.Orders[ifid][interval]
 	} else {
 		logger.Info("no target defined for interface", "ifid", ifid, "orders", origSettings.Orders)
-		return []Target{{}}
+		return []Target{}
 	}
 
 }

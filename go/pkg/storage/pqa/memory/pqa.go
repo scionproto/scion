@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"sort"
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beaconing/mechanisms/pqa"
@@ -117,14 +118,25 @@ func (b *PqaMemoryBackend) GetNBestsForGroup(
 		return false
 	})
 
-	// Filter beacons that would create a loop
+	// Filter beacons that would create a loop and should not be considered by quality metric
 	bcnCandidates = applyFilter(bcnCandidates, func(bcn beacon.Beacon) bool {
 		if err := beacon.FilterLoop(bcn, excludeLooping, false); err != nil {
 			return false
 		}
-		return true
+
+		return target.ShouldConsider(ctx, bcn)
 	})
 
+	// Compares beacons i.t.o. their metric value for target
+	less := func(l, r int) bool {
+		lBcn, rBcn := bcnCandidates[l], bcnCandidates[r]
+		lMet, rMet := target.GetMetric(ctx, lBcn), target.GetMetric(ctx, rBcn)
+		return target.Quality.Less(lMet, rMet)
+	}
+	// Sort beacons by quality metric
+	sort.Slice(bcnCandidates, less)
+
+	// Return the first n beacons
 	if len(bcnCandidates) > pqa_extension.N {
 		bcnCandidates = bcnCandidates[:pqa_extension.N]
 	}
