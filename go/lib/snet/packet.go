@@ -588,6 +588,10 @@ func (p *Packet) Serialize() error {
 		return err
 	}
 	copy(p.Bytes, buffer.Bytes())
+	if len(buffer.Bytes()) > cap(p.Bytes) {
+		return serrors.New("packet size is bigger than max possible value ")
+	}
+
 	p.Bytes = p.Bytes[:len(buffer.Bytes())]
 	return nil
 }
