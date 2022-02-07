@@ -43,7 +43,11 @@ type Querier struct {
 }
 
 func (q Querier) Query(ctx context.Context, dst addr.IA) ([]snet.Path, error) {
-	return q.Connector.Paths(ctx, dst, q.IA, PathReqFlags{})
+	paths, err := q.Connector.Paths(ctx, dst, q.IA, PathReqFlags{})
+	if err != nil {
+		return paths, serrors.WrapStr("querying paths", err, "local_isd_as", q.IA)
+	}
+	return paths, nil
 }
 
 // RevHandler is an adapter for SCION Daemon connector to implement snet.RevocationHandler.
