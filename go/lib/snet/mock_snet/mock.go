@@ -409,9 +409,11 @@ func (m *MockRevocationHandler) EXPECT() *MockRevocationHandlerMockRecorder {
 }
 
 // Revoke mocks base method.
-func (m *MockRevocationHandler) Revoke(arg0 context.Context, arg1 *path_mgmt.RevInfo) {
+func (m *MockRevocationHandler) Revoke(arg0 context.Context, arg1 *path_mgmt.RevInfo) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Revoke", arg0, arg1)
+	ret := m.ctrl.Call(m, "Revoke", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Revoke indicates an expected call of Revoke.

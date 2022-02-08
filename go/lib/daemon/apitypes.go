@@ -20,7 +20,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -55,11 +54,8 @@ type RevHandler struct {
 	Connector Connector
 }
 
-func (h RevHandler) Revoke(ctx context.Context, revInfo *path_mgmt.RevInfo) {
-	err := h.Connector.RevNotification(ctx, revInfo)
-	if err != nil {
-		log.FromCtx(ctx).Error("Revocation notification to the SCION Daemon failed", "err", err)
-	}
+func (h RevHandler) Revoke(ctx context.Context, revInfo *path_mgmt.RevInfo) error {
+	return h.Connector.RevNotification(ctx, revInfo)
 }
 
 // TopoQuerier can be used to get topology information from the SCION Daemon.

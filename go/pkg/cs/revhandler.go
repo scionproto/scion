@@ -18,8 +18,8 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/revcache"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // RevocationHandler handles raw revocations from the snet stack and inserts
@@ -28,10 +28,7 @@ type RevocationHandler struct {
 	RevCache revcache.RevCache
 }
 
-func (h RevocationHandler) Revoke(ctx context.Context, revInfo *path_mgmt.RevInfo) {
-	logger := log.FromCtx(ctx)
+func (h RevocationHandler) Revoke(ctx context.Context, revInfo *path_mgmt.RevInfo) error {
 	_, err := h.RevCache.Insert(ctx, revInfo)
-	if err != nil {
-		logger.Debug("Failed to insert revocation from snet", "err", err)
-	}
+	return serrors.WrapStr("insering revocation from snet", err, "rev_info", revInfo)
 }
