@@ -38,7 +38,7 @@ from python.lib.util import (
 )
 from python.topology.pqa import PqaGenerator
 
-from python.topology.static_info import StaticInfoGenerator, StaticInfoFromCaida
+from python.topology.static_info import StaticInfoFromTopoFile
 from python.topology.cert import CertGenArgs, CertGenerator
 from python.topology.common import ArgsBase
 from python.topology.docker import DockerGenArgs, DockerGenerator
@@ -128,7 +128,7 @@ class ConfigGenerator(object):
 
     def _generate_static_info(self, topo_dicts):
         # sig = StaticInfoGenerator(self.args)
-        sig = StaticInfoFromCaida(self.args)
+        sig = StaticInfoFromTopoFile(self.args)
         sig.generate(topo_dicts)
 
     def _generate_certs_trcs(self, topo_dicts):
