@@ -21,10 +21,16 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/pkg/gateway/pathhealth"
 )
+
+type SessionMetrics struct {
+	// PathChanges counts the number of times the path changed for this session.
+	PathChanges metrics.Counter
+}
 
 // DataplaneSession represents a packet framer sending packets along a specific path.
 type DataplaneSession interface {
@@ -68,15 +74,16 @@ type Session struct {
 	// Run will return an error if Paths is nil.
 	PathMonitorRegistration PathMonitorRegistration
 
-	// PathMonitorPollInterval sets how often the path should be read from the path monitor.
-	// If 0, the path monitor is only queried when the session monitor reports a state
-	// change to up.
+	// PathMonitorPollInterval sets how often the path should be read from the
+	// path monitor. Must be set.
 	PathMonitorPollInterval time.Duration
 
 	// DataplaneSession points to the data-plane session managed by this control-plane session.
 	//
 	// Run will return an error if DataplaneSession is nil.
 	DataplaneSession DataplaneSession
+
+	Metrics SessionMetrics
 
 	// pathResultMtx protects access to pathResult.
 	pathResultMtx sync.RWMutex
@@ -100,13 +107,8 @@ func (s *Session) Run(ctx context.Context) error {
 		return err
 	}
 
-	// pathChan stays nil and never drains if no poll interval is set
-	var pathChan <-chan time.Time
-	if s.PathMonitorPollInterval != 0 {
-		ticker := time.NewTicker(s.PathMonitorPollInterval)
-		defer ticker.Stop()
-		pathChan = ticker.C
-	}
+	pathPoll := time.NewTicker(s.PathMonitorPollInterval)
+	defer pathPoll.Stop()
 
 	for {
 		select {
@@ -120,15 +122,17 @@ func (s *Session) Run(ctx context.Context) error {
 			logger.Debug("Sent event to control-plane router", "session_id", s.ID,
 				"event", sessionMonitorEvent)
 
-			if s.PathMonitorPollInterval == 0 && sessionMonitorEvent.Event == EventUp {
-				s.pathResultMtx.Lock()
-				s.pathResult = s.PathMonitorRegistration.Get()
-				s.DataplaneSession.SetPaths(s.pathResult.Paths)
-				s.pathResultMtx.Unlock()
-			}
-		case <-pathChan:
+		case <-pathPoll.C:
 			s.pathResultMtx.Lock()
-			s.pathResult = s.PathMonitorRegistration.Get()
+			newPathResult := s.PathMonitorRegistration.Get()
+			diff := pathSelectionDiff{old: s.pathResult, new: newPathResult}
+			if s.Metrics.PathChanges != nil && diff.hasDiff() {
+				metrics.CounterInc(s.Metrics.PathChanges)
+			}
+			if logger.Enabled(log.DebugLevel) && diff.hasDiff() {
+				diff.log(logger)
+			}
+			s.pathResult = newPathResult
 			s.DataplaneSession.SetPaths(s.pathResult.Paths)
 			s.pathResultMtx.Unlock()
 		}
@@ -159,6 +163,9 @@ func (s *Session) validate() error {
 	if s.DataplaneSession == nil {
 		return serrors.New("dataplane session must not be nil")
 	}
+	if s.PathMonitorPollInterval == 0 {
+		return serrors.New("path monitor interval must be set")
+	}
 	return nil
 }
 
@@ -181,4 +188,35 @@ func (s *Session) sessionPaths() sessionPaths {
 		Info:  s.pathResult.Info,
 		Paths: s.pathResult.Paths,
 	}
+}
+
+type pathSelectionDiff struct {
+	old pathhealth.Selection
+	new pathhealth.Selection
+}
+
+func (d pathSelectionDiff) hasDiff() bool {
+	if d.old.Info == d.new.Info {
+		return false
+	}
+	if len(d.old.Paths) != len(d.new.Paths) {
+		return true
+	}
+	for i, np := range d.new.Paths {
+		op := d.old.Paths[i]
+		if snet.Fingerprint(np).String() != snet.Fingerprint(op).String() {
+			return true
+		}
+	}
+	return false
+}
+
+func (d pathSelectionDiff) log(logger log.Logger) {
+	if len(d.old.Paths) != len(d.new.Paths) {
+		logger.Debug("Changing dataplane path",
+			"reason", "different amount", "new_paths", d.new.Paths)
+		return
+	}
+	logger.Debug("Changing dataplane path",
+		"reason", "different fingerprints", "new_paths", d.new.Paths)
 }

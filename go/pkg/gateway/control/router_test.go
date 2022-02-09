@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/log/mock_log"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
 	"github.com/scionproto/scion/go/pkg/gateway/control/mock_control"
@@ -59,6 +60,12 @@ func TestRouterRun(t *testing.T) {
 			103: testPktWriter{ID: 103},
 		},
 		Events: events,
+		Metrics: control.RouterMetrics{
+			RoutingChainHealthy: func(routingChain int) metrics.Gauge { return nil },
+			SessionsAlive:       func(routingChain int) metrics.Gauge { return nil },
+			SessionChanges:      func(routingChain int) metrics.Counter { return nil },
+			StateChanges:        func(routingChain int) metrics.Counter { return nil },
+		},
 	}
 	errChan := make(chan error)
 	go func() { errChan <- router.Run(context.Background()) }()

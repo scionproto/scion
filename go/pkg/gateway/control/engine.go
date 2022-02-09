@@ -330,6 +330,8 @@ func (e *Engine) initWorkers(ctx context.Context) error {
 					e.Metrics.SessionMonitorMetrics.ProbeReplies, labels...),
 				IsHealthy: metrics.GaugeWith(
 					e.Metrics.SessionMonitorMetrics.IsHealthy, labels...),
+				StateChanges: metrics.CounterWith(
+					e.Metrics.SessionMonitorMetrics.StateChanges, labels...),
 			},
 		}
 		e.workerBase.WG.Add(1)
@@ -349,6 +351,9 @@ func (e *Engine) initWorkers(ctx context.Context) error {
 			PathMonitorRegistration: pathMonitorRegistration,
 			PathMonitorPollInterval: 250 * time.Millisecond,
 			DataplaneSession:        dataplaneSession,
+			Metrics: SessionMetrics{
+				metrics.CounterWith(e.Metrics.SessionMetrics.PathChanges, labels...),
+			},
 		}
 		e.workerBase.WG.Add(1)
 		go func() {
@@ -376,6 +381,7 @@ func (e *Engine) initWorkers(ctx context.Context) error {
 		RoutingTableIndices: e.RoutingTableIndices,
 		DataplaneSessions:   writers,
 		Events:              e.eventNotifications,
+		Metrics:             e.Metrics.RouterMetrics,
 	}
 	e.workerBase.WG.Add(1)
 	go func() {
@@ -430,7 +436,9 @@ func (e *Engine) close(ctx context.Context) error {
 
 // EngineMetrics aggregates the metrics used by various control-plane engine components.
 type EngineMetrics struct {
+	SessionMetrics        SessionMetrics
 	SessionMonitorMetrics SessionMonitorMetrics
+	RouterMetrics         RouterMetrics
 }
 
 // PacketConnFactory is used to construct net.PacketConn objects for control-plane communication.

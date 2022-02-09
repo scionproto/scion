@@ -24,6 +24,7 @@ import (
 	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/worker"
 )
@@ -35,6 +36,18 @@ type SessionEvent struct {
 	SessionID uint8
 	// Event signals whether the Session went up or down.
 	Event Event
+}
+
+// RouterMetrics are the metrics for the gateway router.
+type RouterMetrics struct {
+	// RoutingChainHealthy indicates whether the routing chain is healthy.
+	RoutingChainHealthy func(routingChain int) metrics.Gauge
+	// SessionsAlive indicates the alive sessions per routing chain.
+	SessionsAlive func(routingChain int) metrics.Gauge
+	// SessionChanges counts the number of session changes per routing chain.
+	SessionChanges func(routingChain int) metrics.Counter
+	// StateChanges counts the number of state changes per routing chain.
+	StateChanges func(routingChain int) metrics.Counter
 }
 
 // RoutingTable is the dataplane routing table as seen from the control plane.
@@ -77,6 +90,8 @@ type Router struct {
 	// session IDs sent in this channel must be associated with a session in the
 	// session groups.
 	Events <-chan SessionEvent
+	// Metrics are the metrics of the router.
+	Metrics RouterMetrics
 
 	// stateMtx protects mutable state.
 	stateMtx sync.RWMutex
@@ -104,7 +119,7 @@ func (r *Router) run(ctx context.Context) error {
 			return nil
 		case event := <-r.Events:
 			logger.Debug("Control-plane router received event", "event", event)
-			err := r.handleEvent(event)
+			err := r.handleEvent(ctx, event)
 			if err != nil {
 				logger.Error("Handling event", "err", err)
 			}
@@ -123,9 +138,11 @@ func (r *Router) initData(ctx context.Context) error {
 	return nil
 }
 
-func (r *Router) handleEvent(event SessionEvent) error {
+func (r *Router) handleEvent(ctx context.Context, event SessionEvent) error {
 	r.stateMtx.Lock()
 	defer r.stateMtx.Unlock()
+
+	logger := log.FromCtx(ctx)
 	// sanity check that the session exists. If it doesn't all other map lookups
 	// would fail.
 	_, ok := r.DataplaneSessions[event.SessionID]
@@ -134,6 +151,9 @@ func (r *Router) handleEvent(event SessionEvent) error {
 	}
 	var errors serrors.List
 	r.sessionStates[event.SessionID] = event.Event
+	for rtID := range r.RoutingTableIndices {
+		metrics.GaugeSet(r.Metrics.SessionsAlive(rtID), float64(r.aliveSessions(rtID)))
+	}
 	switch event.Event {
 	case EventUp:
 		getIdx := func(ids []uint8, search uint8) int {
@@ -153,6 +173,10 @@ func (r *Router) handleEvent(event SessionEvent) error {
 			// check if there is already a session for this index.
 			currentID, ok := r.currentSessions[rtID]
 			if !ok {
+				logger.Debug("Setting session",
+					"routing_chain", rtID, "session_id", event.SessionID)
+				metrics.CounterInc(r.Metrics.StateChanges(rtID))
+				metrics.GaugeSet(r.Metrics.RoutingChainHealthy(rtID), 1)
 				err := r.RoutingTable.SetSession(rtID, r.DataplaneSessions[event.SessionID])
 				if err != nil {
 					// if the routing table doesn't know the index it means
@@ -169,6 +193,8 @@ func (r *Router) handleEvent(event SessionEvent) error {
 			if currentID == bestID {
 				continue
 			}
+			logger.Debug("Switching session", "routing_chain", rtID, "new_session_id", bestID)
+			metrics.CounterInc(r.Metrics.SessionChanges(rtID))
 			err := r.RoutingTable.SetSession(rtID, r.DataplaneSessions[bestID])
 			if err != nil {
 				// if the routing table doesn't know the index it means
@@ -186,6 +212,9 @@ func (r *Router) handleEvent(event SessionEvent) error {
 			// it's the current session find a new one.
 			newID, idx := r.findSession(rtID)
 			if idx == -1 {
+				logger.Debug("No alive session found", "routing_chain", rtID)
+				metrics.CounterInc(r.Metrics.StateChanges(rtID))
+				metrics.GaugeSet(r.Metrics.RoutingChainHealthy(rtID), 0)
 				if err := r.RoutingTable.ClearSession(rtID); err != nil {
 					// if the routing table doesn't know the index it means
 					// something was wrongly programmed.
@@ -193,6 +222,8 @@ func (r *Router) handleEvent(event SessionEvent) error {
 				}
 				delete(r.currentSessions, rtID)
 			} else {
+				logger.Debug("Switching session", "routing_chain", rtID, "new_session_id", newID)
+				metrics.CounterInc(r.Metrics.SessionChanges(rtID))
 				if err := r.RoutingTable.SetSession(rtID, r.DataplaneSessions[newID]); err != nil {
 					// if the routing table doesn't know the index it means
 					// something was wrongly programmed.
@@ -216,6 +247,16 @@ func (r *Router) findSession(rtID int) (uint8, int) {
 		}
 	}
 	return 0, -1
+}
+
+func (r *Router) aliveSessions(rtID int) int {
+	alive := 0
+	for _, sessID := range r.RoutingTableIndices[rtID] {
+		if r.sessionStates[sessID] == EventUp {
+			alive++
+		}
+	}
+	return alive
 }
 
 // DiagnosticsWrite writes diagnostics for the router to the writer.

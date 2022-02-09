@@ -119,9 +119,6 @@ func LoadSessionPolicies(ctx context.Context, file string,
 
 // RemoteIAs returns all IAs that are in the session policies.
 func (p SessionPolicies) RemoteIAs() []addr.IA {
-	// if p == nil {
-	// 	return nil
-	// }
 	uniqueIAs := make(map[addr.IA]struct{}, len(p))
 	for _, s := range p {
 		uniqueIAs[s.IA] = struct{}{}
