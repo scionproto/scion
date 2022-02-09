@@ -50,6 +50,9 @@ type RemoteMonitor struct {
 	// RemotesMonitored is the number of remote gateways discovered, per ISD-AS.
 	// If nil, no metric is reported.
 	RemotesMonitored func(addr.IA) metrics.Gauge
+	// RemotesChanges is the changes to the number of remote gateways
+	// discovered, per ISD-AS. If nil, no metric is reported.
+	RemotesChanges func(addr.IA) metrics.Counter
 	// RemoteDiscoveryErrors is the number of remote gateway discovery errors,
 	// per remote ISD-AS. If nil, no metric is reported.
 	RemoteDiscoveryErrors func(addr.IA) metrics.Counter
@@ -127,10 +130,14 @@ func (rm *RemoteMonitor) process(ctx context.Context, ias []addr.IA) {
 			// Watcher for the remote IA does not exist. Create it.
 			ctx, cancel := context.WithCancel(rm.context)
 			var remotesMonitored metrics.Gauge
+			var remotesChanges metrics.Counter
 			var discoveryErrors metrics.Counter
 			var prefixFetchErrors metrics.Counter
 			if rm.RemotesMonitored != nil {
 				remotesMonitored = rm.RemotesMonitored(ia)
+			}
+			if rm.RemotesChanges != nil {
+				remotesChanges = rm.RemotesChanges(ia)
 			}
 			if rm.RemoteDiscoveryErrors != nil {
 				discoveryErrors = rm.RemoteDiscoveryErrors(ia)
@@ -141,6 +148,7 @@ func (rm *RemoteMonitor) process(ctx context.Context, ias []addr.IA) {
 			we = watcherEntry{
 				runner: rm.GatewayWatcherFactory.New(ctx, ia, GatewayWatcherMetrics{
 					Remotes:           remotesMonitored,
+					RemotesChanges:    remotesChanges,
 					DiscoveryErrors:   discoveryErrors,
 					PrefixFetchErrors: prefixFetchErrors,
 				}),

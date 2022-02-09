@@ -490,11 +490,16 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// monitor which gateways exist in each AS, and what prefixes each gateway advertises.
 	// Prefixes learned by the remote monitor are pushed to prefix aggregation.
 	var rmMetric func(addr.IA) metrics.Gauge
+	var rmChangesMetric func(addr.IA) metrics.Counter
 	var rmErrorsMetric func(addr.IA) metrics.Counter
 	var rmPrefixErrorsMetric func(addr.IA) metrics.Counter
 	if g.Metrics != nil {
 		rmMetric = func(ia addr.IA) metrics.Gauge {
 			return metrics.GaugeWith(metrics.NewPromGauge(g.Metrics.Remotes),
+				"remote_isd_as", ia.String())
+		}
+		rmChangesMetric = func(ia addr.IA) metrics.Counter {
+			return metrics.CounterWith(metrics.NewPromCounter(g.Metrics.RemotesChanges),
 				"remote_isd_as", ia.String())
 		}
 		rmErrorsMetric = func(ia addr.IA) metrics.Counter {
@@ -509,6 +514,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	remoteMonitor := &control.RemoteMonitor{
 		IAs:                   remoteIAsChannel,
 		RemotesMonitored:      rmMetric,
+		RemotesChanges:        rmChangesMetric,
 		RemoteDiscoveryErrors: rmErrorsMetric,
 		PrefixFetchErrors:     rmPrefixErrorsMetric,
 		GatewayWatcherFactory: &WatcherFactory{
@@ -836,13 +842,49 @@ func CreateSessionMetrics(m *Metrics) dataplane.SessionMetrics {
 
 func CreateEngineMetrics(m *Metrics) control.EngineMetrics {
 	if m == nil {
-		return control.EngineMetrics{}
+		return control.EngineMetrics{
+			RouterMetrics: createRouterMetrics(m),
+		}
 	}
 	return control.EngineMetrics{
+		SessionMetrics: control.SessionMetrics{
+			PathChanges: metrics.NewPromCounter(m.SessionPathChanges),
+		},
 		SessionMonitorMetrics: control.SessionMonitorMetrics{
 			Probes:       metrics.NewPromCounter(m.SessionProbes),
 			ProbeReplies: metrics.NewPromCounter(m.SessionProbeReplies),
 			IsHealthy:    metrics.NewPromGauge(m.SessionIsHealthy),
+			StateChanges: metrics.NewPromCounter(m.SessionStateChanges),
+		},
+		RouterMetrics: createRouterMetrics(m),
+	}
+}
+
+func createRouterMetrics(m *Metrics) control.RouterMetrics {
+	if m == nil {
+		return control.RouterMetrics{
+			RoutingChainHealthy: func(routingChain int) metrics.Gauge { return nil },
+			SessionsAlive:       func(routingChain int) metrics.Gauge { return nil },
+			SessionChanges:      func(routingChain int) metrics.Counter { return nil },
+			StateChanges:        func(routingChain int) metrics.Counter { return nil },
+		}
+	}
+	return control.RouterMetrics{
+		RoutingChainHealthy: func(routingChain int) metrics.Gauge {
+			return metrics.NewPromGauge(m.RoutingChainHealthy).
+				With("routing_chain_id", strconv.Itoa(routingChain))
+		},
+		SessionsAlive: func(routingChain int) metrics.Gauge {
+			return metrics.NewPromGauge(m.RoutingChainAliveSessions).
+				With("routing_chain_id", strconv.Itoa(routingChain))
+		},
+		SessionChanges: func(routingChain int) metrics.Counter {
+			return metrics.NewPromCounter(m.RoutingChainSessionChanges).
+				With("routing_chain_id", strconv.Itoa(routingChain))
+		},
+		StateChanges: func(routingChain int) metrics.Counter {
+			return metrics.NewPromCounter(m.RoutingChainStateChanges).
+				With("routing_chain_id", strconv.Itoa(routingChain))
 		},
 	}
 }

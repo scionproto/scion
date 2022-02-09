@@ -61,12 +61,8 @@ type SessionMonitorMetrics struct {
 	ProbeReplies metrics.Counter
 	// IsHealthy is a binary gauge showing a sessions healthiness.
 	IsHealthy metrics.Gauge
-}
-
-func safeInc(counter metrics.Counter) {
-	if counter != nil {
-		counter.Add(1)
-	}
+	// StateChanges counts the number of state changes for this session.
+	StateChanges metrics.Counter
 }
 
 // SessionMonitor monitors a session with a remote gateway instance.
@@ -207,6 +203,7 @@ func (m *SessionMonitor) sendProbe(ctx context.Context) {
 	paths := m.Paths.Get().Paths
 	if len(paths) == 0 {
 		// no path nothing we can do.
+		logger.Debug("No path for session monitoring", "session_id", m.ID)
 		return
 	}
 	remote := &snet.UDPAddr{
@@ -222,7 +219,7 @@ func (m *SessionMonitor) sendProbe(ctx context.Context) {
 		logger.Error("Error sending probe", "err", err)
 		return
 	}
-	safeInc(m.Metrics.Probes)
+	metrics.CounterInc(m.Metrics.Probes)
 }
 
 func (m *SessionMonitor) handleProbeReply(ctx context.Context) {
@@ -232,11 +229,12 @@ func (m *SessionMonitor) handleProbeReply(ctx context.Context) {
 	logger := log.FromCtx(ctx)
 	if m.state != EventUp {
 		m.state = EventUp
-		metrics.GaugeSet(m.Metrics.IsHealthy, 1)
 
 		select {
 		case <-m.workerBase.GetDoneChan():
 		case m.Events <- m.notification(m.state):
+			metrics.GaugeSet(m.Metrics.IsHealthy, 1)
+			metrics.CounterInc(m.Metrics.StateChanges)
 			logger.Debug("Sent UP event", "session_id", m.ID)
 		}
 	}
@@ -263,13 +261,13 @@ func (m *SessionMonitor) handleExpiration(ctx context.Context) {
 	if m.state == EventDown {
 		return
 	}
-
 	m.state = EventDown
-	metrics.GaugeSet(m.Metrics.IsHealthy, 0)
 
 	select {
 	case <-m.workerBase.GetDoneChan():
 	case m.Events <- m.notification(m.state):
+		metrics.GaugeSet(m.Metrics.IsHealthy, 0)
+		metrics.CounterInc(m.Metrics.StateChanges)
 		logger.Debug("Sent DOWN event", "session_id", m.ID)
 	}
 }
@@ -310,7 +308,7 @@ func (m *SessionMonitor) handlePkt(raw []byte) error {
 		return serrors.New("unexpected session ID in response",
 			"response_id", probe.Probe.SessionId, "expected_id", m.ID)
 	}
-	safeInc(m.Metrics.ProbeReplies)
+	metrics.CounterInc(m.Metrics.ProbeReplies)
 	m.receivedProbe <- struct{}{}
 	return nil
 }

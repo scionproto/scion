@@ -151,20 +151,55 @@ var (
 		Help:   "Flag reflecting session healthiness.",
 		Labels: []string{"isd_as", "remote_isd_as", "session_id", "policy_id"},
 	}
+	SessionStateChangesMeta = MetricMeta{
+		Name:   "gateway_session_state_changes",
+		Help:   "The number of state changes per session.",
+		Labels: []string{"isd_as", "remote_isd_as", "session_id", "policy_id"},
+	}
 	SessionPathsAvailableMeta = MetricMeta{
 		Name:   "gateway_session_paths_available",
 		Help:   "Total number of paths available per session policy.",
 		Labels: []string{"isd_as", "remote_isd_as", "policy_id", "status"},
+	}
+	SessionPathChangesMeta = MetricMeta{
+		Name:   "gateway_path_changes",
+		Help:   "Total number of path changes per session policy.",
+		Labels: []string{"isd_as", "remote_isd_as", "session_id", "policy_id"},
 	}
 	RemotesMeta = MetricMeta{
 		Name:   "gateway_remotes",
 		Help:   "Total number of discovered remote gateways.",
 		Labels: []string{"isd_as", "remote_isd_as"},
 	}
+	RemoteChangesMeta = MetricMeta{
+		Name:   "gateway_remotes_changes",
+		Help:   "The number of times the remotes number changed.",
+		Labels: []string{"isd_as", "remote_isd_as"},
+	}
 	RemoteDiscoveryErrorsMeta = MetricMeta{
 		Name:   "gateway_remote_discovery_errors_total",
 		Help:   "Total number of errors discovering remote gateways.",
 		Labels: []string{"isd_as", "remote_isd_as"},
+	}
+	RoutingChainHealthyMeta = MetricMeta{
+		Name:   "gateway_routing_chain_healthiness",
+		Help:   "Flag reflecting routing chain healthiness.",
+		Labels: []string{"isd_as", "routing_chain_id"},
+	}
+	RoutingChainAliveSessionsMeta = MetricMeta{
+		Name:   "gateway_routing_chain_alive_sessions",
+		Help:   "The number of alive sessions associated to the routing chain.",
+		Labels: []string{"isd_as", "routing_chain_id"},
+	}
+	RoutingChainSessionChangesMeta = MetricMeta{
+		Name:   "gateway_routing_chain_session_changes",
+		Help:   "The number of session changes in the routing chain.",
+		Labels: []string{"isd_as", "routing_chain_id"},
+	}
+	RoutingChainStateChangesMeta = MetricMeta{
+		Name:   "gateway_routing_chain_state_changes",
+		Help:   "The number of state changes in the routing chain.",
+		Labels: []string{"isd_as", "routing_chain_id"},
 	}
 	PrefixFetchErrorsMeta = MetricMeta{
 		Name:   "gateway_prefix_fetch_errors_total",
@@ -247,6 +282,7 @@ type Metrics struct {
 
 	// Discovery Metrics
 	Remotes               *prometheus.GaugeVec
+	RemotesChanges        *prometheus.CounterVec
 	RemoteDiscoveryErrors *prometheus.CounterVec
 	PrefixFetchErrors     *prometheus.CounterVec
 	PrefixesAdvertised    *prometheus.GaugeVec
@@ -257,6 +293,14 @@ type Metrics struct {
 	SessionProbes       *prometheus.CounterVec
 	SessionProbeReplies *prometheus.CounterVec
 	SessionIsHealthy    *prometheus.GaugeVec
+	SessionStateChanges *prometheus.CounterVec
+	SessionPathChanges  *prometheus.CounterVec
+
+	// Routing Metrics
+	RoutingChainHealthy        *prometheus.GaugeVec
+	RoutingChainAliveSessions  *prometheus.GaugeVec
+	RoutingChainSessionChanges *prometheus.CounterVec
+	RoutingChainStateChanges   *prometheus.CounterVec
 
 	// Scion Network Metrics
 	SCIONNetworkMetrics    snet.SCIONNetworkMetrics
@@ -317,14 +361,28 @@ func NewMetrics(ia addr.IA) *Metrics {
 			NewCounterVec().MustCurryWith(labels),
 		SessionIsHealthy: SessionIsHealthyMeta.
 			NewGaugeVec().MustCurryWith(labels),
+		SessionStateChanges: SessionStateChangesMeta.
+			NewCounterVec().MustCurryWith(labels),
 		SessionProbes: SessionProbesMeta.
 			NewCounterVec().MustCurryWith(labels),
 		SessionProbeReplies: SessionProbeRepliesMeta.
 			NewCounterVec().MustCurryWith(labels),
 		SessionPathsAvailable: SessionPathsAvailableMeta.
 			NewGaugeVec().MustCurryWith(labels),
+		SessionPathChanges: SessionPathChangesMeta.
+			NewCounterVec().MustCurryWith(labels),
+		RoutingChainHealthy: RoutingChainHealthyMeta.
+			NewGaugeVec().MustCurryWith(labels),
+		RoutingChainAliveSessions: RoutingChainAliveSessionsMeta.
+			NewGaugeVec().MustCurryWith(labels),
+		RoutingChainSessionChanges: RoutingChainSessionChangesMeta.
+			NewCounterVec().MustCurryWith(labels),
+		RoutingChainStateChanges: RoutingChainStateChangesMeta.
+			NewCounterVec().MustCurryWith(labels),
 		Remotes: RemotesMeta.
 			NewGaugeVec().MustCurryWith(labels),
+		RemotesChanges: RemoteChangesMeta.
+			NewCounterVec().MustCurryWith(labels),
 		RemoteDiscoveryErrors: RemoteDiscoveryErrorsMeta.
 			NewCounterVec().MustCurryWith(labels),
 		PrefixFetchErrors: PrefixFetchErrorsMeta.

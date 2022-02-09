@@ -17,9 +17,11 @@ package control
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -166,7 +168,8 @@ func (c *EngineController) run(ctx context.Context) error {
 
 		newEngine := c.EngineFactory.New(routingTable, update, rcMapping)
 
-		logger.Debug("Starting new forwarding engine.")
+		logger.Info("Starting new forwarding engine.",
+			"routing_chain_mapping", routingChainMappingForLog(rcMapping))
 		if err := newEngine.Run(ctx); err != nil {
 			return serrors.WrapStr("setting up the engine", err)
 		}
@@ -405,4 +408,23 @@ func equalSet(a, b map[string]struct{}) bool {
 		}
 	}
 	return true
+}
+
+func routingChainMappingForLog(m map[int][]uint8) map[int]uint8Slice {
+	c := make(map[int]uint8Slice, len(m))
+	for k, v := range m {
+		c[k] = v
+	}
+	return c
+}
+
+// uint8Slice prints as numbers not as base64 encoded in the log.
+type uint8Slice []uint8
+
+func (s uint8Slice) MarshalJSON() ([]byte, error) {
+	if s == nil {
+		return nil, nil
+	}
+	// trick from here https://stackoverflow.com/a/14178407
+	return []byte(strings.Join(strings.Fields(fmt.Sprintf("%d", s)), ",")), nil
 }

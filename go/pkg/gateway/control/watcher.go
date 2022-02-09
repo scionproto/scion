@@ -89,6 +89,8 @@ type Discoverer interface {
 type GatewayWatcherMetrics struct {
 	// Remotes is the number of remote gateways discovered in the remote AS.
 	Remotes metrics.Gauge
+	// RemotesChanges is the number of times the number of remotes changed.
+	RemotesChanges metrics.Counter
 	// DiscoveryErrors counts the errors when discovering gateway in a remote AS.
 	DiscoveryErrors metrics.Counter
 	// PrefixFetchErrors counts the error when fetching prefixes from gateways
@@ -217,6 +219,9 @@ func (w *GatewayWatcher) run(runCtx context.Context) {
 	}
 	w.gateways = discovered
 	metrics.GaugeSet(w.Metrics.Remotes, float64(len(discovered)))
+	if len(diff.Add) > 0 || len(diff.Remove) > 0 {
+		metrics.CounterInc(w.Metrics.RemotesChanges)
+	}
 }
 
 func (w *GatewayWatcher) watchPrefixes(ctx context.Context, gateway Gateway) watcherItem {

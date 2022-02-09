@@ -45,25 +45,38 @@ func (pm *PathMonitor) Register(
 	})
 	return &registration{
 		Registration: reg,
-		sessionPathsAvailable: metrics.GaugeWith(
+		alivePaths: metrics.GaugeWith(
 			pm.sessionPathsAvailable,
 			"remote_isd_as", remote.String(),
 			"policy_id", policyID,
+			"status", "alive",
+		),
+		timedoutPaths: metrics.GaugeWith(
+			pm.sessionPathsAvailable,
+			"remote_isd_as", remote.String(),
+			"policy_id", policyID,
+			"status", "timeout",
+		),
+		rejectedPaths: metrics.GaugeWith(
+			pm.sessionPathsAvailable,
+			"remote_isd_as", remote.String(),
+			"policy_id", policyID,
+			"status", "rejected",
 		),
 	}
 }
 
 type registration struct {
 	*pathhealth.Registration
-	sessionPathsAvailable metrics.Gauge
+	alivePaths    metrics.Gauge
+	timedoutPaths metrics.Gauge
+	rejectedPaths metrics.Gauge
 }
 
 func (r *registration) Get() pathhealth.Selection {
 	selection := r.Registration.Get()
-	if r.sessionPathsAvailable != nil {
-		r.sessionPathsAvailable.With("status", "alive").Set(float64(selection.PathsAlive))
-		r.sessionPathsAvailable.With("status", "timeout").Set(float64(selection.PathsDead))
-		r.sessionPathsAvailable.With("status", "rejected").Set(float64(selection.PathsRejected))
-	}
+	metrics.GaugeSet(r.alivePaths, float64(selection.PathsAlive))
+	metrics.GaugeSet(r.timedoutPaths, float64(selection.PathsDead))
+	metrics.GaugeSet(r.rejectedPaths, float64(selection.PathsRejected))
 	return selection
 }
