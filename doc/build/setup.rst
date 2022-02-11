@@ -3,6 +3,10 @@
 Setting up the development environment
 ======================================
 
+
+Bazel & Co.
+-----------
+
 #. Make sure that you are using a clean and recently updated **Ubuntu 18.04**.
    This environment assumes you're running as a non-root user with ``sudo`` access.
 #. We use `Bazel <https://bazel.build>`__ for both building and testing. To be
@@ -47,8 +51,61 @@ Setting up the development environment
    We use `bazel-remote <https://github.com/buchgr/bazel-remote>`_ to cache
    build artifacts from bazel. Bazel-remote can manage the disk space and does
    not infinitely grow like the Bazel built-in disk-cache. To start bazel-remote run::
-   
+
       ./scion.sh bazel_remote
+
+#. Build SCION services and tools.
+
+   .. code-block:: bash
+
+      make
+
+#. Finally, check that unit tests run correctly:
+
+   .. code-block:: bash
+
+      make test
+
+#. (Optional) If you already have some code you wish to contribute upstream, you can also run the
+   linters locally with:
+
+   .. code-block:: bash
+
+      make lint
+
+
+Alternative: go build
+---------------------
+
+Alternatively to building with bazel, the SCION services and tools can be built
+with ``go build``.
+Please be aware that **this is not the recommended setup for development**.
+Not all checks and linters can be run in this setup. Without running all checks
+locally, it is likely that there will be frustrating cycles with the CI system
+rejecting your changes.
+
+#. Determine the go version used in the bazel setup; the ``WORKSPACE`` file
+   specifies this version in the ``go_register_toolchains`` clause.
+
+   .. literalinclude:: ../../WORKSPACE
+      :start-at: go_register_toolchains(
+      :end-at: )
+      :emphasize-lines: 3
+
+   Building with newer go versions *usually* works.
+
+#. Install go. Either follow `the official instructions <https://go.dev/doc/install>`_
+   or check the `Ubuntu specific installation options on the golang wiki <https://github.com/golang/go/wiki/Ubuntu>`_.
+
+#. Build SCION services and tools.
+
+   .. code-block:: bash
+
+      go build -o bin ./go/...
+
+
+Running SCION locally
+---------------------
 
 #. SCION networks are composed of many different applications. To simplify testing, we provide a
    tool that generates test topologies. To generate the files required by the default topology (see
@@ -60,6 +117,10 @@ Setting up the development environment
 
    The above command creates the ``gen`` directory, which contains configuration files and cryptographic
    material for multiple SCION ASes and ISDs.
+
+   .. Attention:: The certificates created by this command expire after 3 days if the
+      infrastructure is not running for automatic renewal.
+
 #. To start the infrastructure we just generated, run:
 
    .. code-block:: bash
@@ -72,24 +133,26 @@ Setting up the development environment
 
       ./bin/end2end_integration
 
+#. This local infrastructure runs multiple SCION daemons, one in each AS.
+   We need to specify which instance is used when running end-host applications
+   that rely on the SCION daemon, e.g. to query paths.
+
+   The ``scion.sh topology`` script writes a file ``gen/sciond_address.json``,
+   mapping AS numbers to SCION daemon instance addresses. Either consult this
+   file manually, or use the ``scion.sh sciond-addr`` command:
+
+   .. code-block:: bash
+
+      # show paths from 1-ff00:0:112 to 1-ff00:0:110
+      ./bin/scion showpaths --sciond $(./scion.sh sciond-addr 112) 1-ff00:0:110
+
+
 #. To stop the infrastructure, run:
 
    .. code-block:: bash
 
       ./scion.sh stop
 
-#. Finally, check that unit tests run correctly:
-
-   .. code-block:: bash
-
-      ./scion.sh test
-
-#. (Optional) If you already have some code you wish to contribute upstream, you can also run the
-   linters locally with:
-
-   .. code-block:: bash
-
-      ./scion.sh lint
 
 Wireshark
 ---------
@@ -118,7 +181,7 @@ example::
 
 
 Work remotely with Wireshark
-----------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Sometimes it can be handy to use the remote feature of wireshark to tap into an
 interface on a different machine.
 
