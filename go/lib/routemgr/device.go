@@ -16,8 +16,6 @@ package routemgr
 
 import (
 	"context"
-	"encoding/base32"
-	"encoding/binary"
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -250,14 +248,6 @@ func (m *MultiDeviceManager) newDeletionCallback(ia addr.IA) destructionCallback
 
 		delete(m.devices, ia)
 	}
-}
-
-// Base32TunnelName is a device naming function that constructs Linux tun names using
-// the base32 encoding of an IA number.
-func Base32TunnelName(ia addr.IA) string {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, uint64(ia))
-	return IATunDevicePrefix + base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b)
 }
 
 // FixedTunnelName returns a device naming function that uses name for every IA.
