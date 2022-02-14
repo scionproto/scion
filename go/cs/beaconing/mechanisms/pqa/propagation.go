@@ -23,9 +23,9 @@ func (m Mechanism) ProvidePropagationBatch(ctx context.Context, tick beaconing.T
 		for _, target := range m.getTargetsFromReceivesBeacons(ctx, srcIA) {
 			for _, neigh := range m.getNeighbouringASs(ctx) {
 				for _, intfSubgroup := range m.getIntfSubgroups(ctx, target, neigh) {
-					logger.Debug("finding batch for", "src ia", srcIA, "target", target, "neigh", neigh, "intf subgroup", intfSubgroup)
+					// logger.Debug("finding batch for", "src ia", srcIA, "target", target, "neigh", neigh, "intf subgroup", intfSubgroup)
 					bcns, err := m.getPropagationBatch(ctx, target, intfSubgroup, neigh, srcIA)
-					logger.Debug("found batch:", "bcns", len(bcns))
+					// logger.Debug("found batch:", "bcns", len(bcns))
 					if err != nil {
 						return nil, serrors.WrapStr("getting beacon batch", err)
 					}
@@ -77,12 +77,12 @@ func (m Mechanism) getNBestFor(ctx context.Context, src addr.IA, target Target, 
 }
 
 func logBcnMetrics(ctx context.Context, target Target, bcns []beacon.Beacon) {
-	logger := log.FromCtx(ctx)
+	// logger := log.FromCtx(ctx)
 	metrics := make([]float64, len(bcns))
 	for i, bcn := range bcns {
 		metrics[i] = target.GetMetric(ctx, bcn)
 	}
-	logger.Info("got beacons for target", "metrics", metrics, "target", target)
+	// logger.Info("got beacons for target", "metrics", metrics, "target", target)
 }
 
 func (m Mechanism) getNBest(ctx context.Context, target Target, bcn []beacon.Beacon) []beacon.Beacon {
