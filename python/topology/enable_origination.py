@@ -1,5 +1,5 @@
 import pathlib
-class PqaGenerator:
+class OriginationEnabler:
     fname = "pqa.yml"
 
     def __init__(self, args):

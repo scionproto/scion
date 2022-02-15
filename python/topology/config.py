@@ -36,6 +36,7 @@ from python.lib.util import (
     load_yaml_file,
     write_file,
 )
+from python.topology.enable_origination import OriginationEnabler
 from python.topology.pqa import PqaGenerator
 
 from python.topology.static_info import StaticInfoFromTopoFile
@@ -122,6 +123,10 @@ class ConfigGenerator(object):
         self._generate_certs_trcs(topo_dicts)
         self._generate_static_info(topo_dicts)
         self._generate_pqa(topo_dicts)
+        self._generate_originators(topo_dicts)
+
+    def _generate_originators(self, topo_dicts):
+        OriginationEnabler(self.args).generate(topo_dicts)
 
     def _generate_pqa(self, topo_dicts):
         PqaGenerator(self.args).generate(topo_dicts)
