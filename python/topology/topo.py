@@ -245,6 +245,7 @@ class TopoGenerator(object):
             'mtu': mtu,
             'pqa': as_conf.get('pqa', {}),
             'static info': as_conf.get('static info', {}),
+            'originate': as_conf.get('originate', False),
         }
         for i in SCION_SERVICE_NAMES:
             self.topo_dicts[topo_id][i] = {}
