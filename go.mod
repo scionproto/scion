@@ -38,7 +38,6 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/uber/jaeger-client-go v2.29.1+incompatible
 	github.com/vishvananda/netlink v1.1.1-0.20201029203352-d40f9887b852
-	github.com/xeipuuv/gojsonschema v1.2.0
 	go.uber.org/goleak v1.1.10
 	go.uber.org/zap v1.17.0
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
@@ -98,8 +97,6 @@ require (
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/uber/jaeger-lib v2.0.0+incompatible // indirect
 	github.com/vishvananda/netns v0.0.0-20200728191858-db3c7e526aae // indirect
-	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
-	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go4.org/intern v0.0.0-20210108033219-3eb7198706b2 // indirect
