@@ -125,7 +125,7 @@ func (o *Originator) sendBeacons(
 	bcns []beacon.Beacon,
 	sum *summary) error {
 	// Create labels for reporting
-	labels := originatorLabels{intf: intf}
+	labels := originatorLabels{intf: intf, IA: o.IA}
 
 	logger := log.FromCtx(ctx)
 
@@ -162,13 +162,14 @@ func (o *Originator) sendBeacons(
 
 type originatorLabels struct {
 	intf   *ifstate.Interface
+	IA     addr.IA
 	Result string
 }
 
 func (l originatorLabels) Expand() []string {
 	return []string{
 		"egress_interface", strconv.Itoa(int(l.intf.TopoInfo().ID)),
-		"source_IA", l.intf.TopoInfo().IA.String(),
+		"start_isd_as", l.IA.String(),
 		prom.LabelResult, l.Result}
 }
 

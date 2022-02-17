@@ -163,7 +163,7 @@ func (p *Propagator) incMetric(startIA addr.IA, ingress, egress uint16, result s
 		"start_isd_as", startIA.String(),
 		"ingress_interface", strconv.Itoa(int(ingress)),
 		"egress_interface", strconv.Itoa(int(egress)),
-		"propagator_IA", p.IA.String(),
+		"propagator_isd_as", p.IA.String(),
 		prom.LabelResult, result,
 	).Add(1)
 }
