@@ -98,7 +98,6 @@ func (r Result) Human(w io.Writer, showExtendedMetadata, colored bool) {
 			entries = append(entries, cs.KeyValue(
 				"Expires", fmt.Sprintf("%s (%s)", path.Expiry, ttl),
 			))
-			supportsEpic := path.FullPath.Path().SupportsEpic()
 			// Add entries for information from beacon extension, only if a non-empty
 			// value can be shown.
 			entries = append(entries, filteredKeyValues(cs,
@@ -108,7 +107,7 @@ func (r Result) Human(w io.Writer, showExtendedMetadata, colored bool) {
 				"LinkType", humanLinkType(meta),
 				"InternalHops", humanInternalHops(meta),
 				"Notes", humanNotes(meta),
-				"SupportsEPIC", strconv.FormatBool(supportsEpic),
+				"SupportsEPIC", strconv.FormatBool(meta.EpicAuths.SupportsEpic()),
 			)...)
 		}
 		if path.Status != "" {
@@ -344,11 +343,13 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 		paths = paths[:cfg.MaxPaths]
 	}
 
+	// If the epic flag is set, filter all paths that do not have
+	// the necessary epic authenticators.
 	if cfg.Epic {
 		epicPaths := []snet.Path{}
-		for _, path := range paths {
-			if path.Path().SupportsEpic() {
-				epicPaths = append(epicPaths, path)
+		for _, p := range paths {
+			if p.Metadata().EpicAuths.SupportsEpic() {
+				epicPaths = append(epicPaths, p)
 			}
 		}
 		paths = epicPaths

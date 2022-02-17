@@ -120,7 +120,6 @@ On other errors, traceroute will exit with code 2.
 			if err != nil {
 				return err
 			}
-			remote.Path = path.Dataplane()
 			remote.NextHop = path.UnderlayNextHop()
 			if remote.NextHop == nil {
 				remote.NextHop = &net.UDPAddr{
@@ -160,6 +159,7 @@ On other errors, traceroute will exit with code 2.
 					fmt.Printf("%d %s %s\n", u.Index, fmtRemote(u.Remote, u.Interface),
 						fmtRTTs(u.RTTs, flags.timeout))
 				},
+				EPIC: flags.epic,
 			}
 			stats, err = traceroute.Run(ctx, cfg)
 			if err != nil {

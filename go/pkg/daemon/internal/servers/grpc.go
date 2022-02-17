@@ -160,10 +160,9 @@ func pathToPB(path snet.Path) *sdpb.Path {
 		nextHopStr = nextHop.String()
 	}
 
-	sPath := path.Path()
 	epicAuths := &sdpb.EpicAuths{
-		AuthPhvf: sPath.EpicData.AuthPHVF,
-		AuthLhvf: sPath.EpicData.AuthLHVF,
+		AuthPhvf: append([]byte(nil), meta.EpicAuths.AuthPHVF...),
+		AuthLhvf: append([]byte(nil), meta.EpicAuths.AuthLHVF...),
 	}
 
 	return &sdpb.Path{
