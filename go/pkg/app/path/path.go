@@ -87,12 +87,12 @@ func Choose(
 		// Only use paths that support EPIC and intra-AS (empty) paths.
 		epicPaths := []snet.Path{}
 		for _, p := range paths {
-			if epic, isEpic := p.Dataplane().(*path.EPIC); isEpic {
-				epic.EnableEpic(true)
+			if p.Metadata().EpicAuths.SupportsEpic() {
 				epicPaths = append(epicPaths, p)
 			}
+
 			// Also include empty paths for AS internal communication.
-			if _, isEmpty := p.Dataplane().(path.Empty); isEmpty {
+			if _, isEmpty := p.Dataplane().(snetpath.Empty); isEmpty {
 				epicPaths = append(epicPaths, p)
 			}
 		}

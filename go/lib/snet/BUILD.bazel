@@ -29,6 +29,7 @@ go_library(
         "//go/lib/serrors:go_default_library",
         "//go/lib/slayers:go_default_library",
         "//go/lib/slayers/path:go_default_library",
+        "//go/lib/slayers/path/epic:go_default_library",
         "//go/lib/sock/reliable:go_default_library",
         "//go/lib/topology/underlay:go_default_library",
         "//go/lib/util:go_default_library",

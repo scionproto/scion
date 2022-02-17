@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "empty.go",
+        "epic.go",
         "onehop.go",
         "path.go",
         "scion.go",

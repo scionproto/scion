@@ -363,11 +363,11 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 	if err != nil {
 		return nil, withTag(serrors.WrapStr("requesting paths", err))
 	}
-	// if all paths had an error, let's try them again.
+	// If all paths had an error, let's try them again.
 	if len(paths) <= len(c.errorPaths) {
 		c.errorPaths = make(map[snet.PathFingerprint]struct{})
 	}
-	// select first path that didn't error before.
+	// Select first path that didn't error before.
 	var path snet.Path
 	for _, p := range paths {
 		if _, ok := c.errorPaths[snet.Fingerprint(p)]; ok {
@@ -382,15 +382,20 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 			"errors", len(c.errorPaths),
 		))
 	}
-	// Extract forwarding path from the SCION Daemon response
-	remote.Path = path.Dataplane()
-	// If the epic flag is set, try to use the EPIC path type header
+	// Extract forwarding path from the SCION Daemon response.
+	// If the epic flag is set, try to use the EPIC path type header.
 	if epic {
-		enabler, ok := remote.Path.(interface{ EnableEpic(bool) })
+		scionPath, ok := path.Dataplane().(snetpath.SCION)
 		if !ok {
-			return nil, serrors.New("non-epic path selected")
+			return nil, serrors.New("provided path must be of type scion")
 		}
-		enabler.EnableEpic(true)
+		epicPath, err := scionPath.NewEPICDataplanePath(path.Metadata().EpicAuths)
+		if err != nil {
+			return nil, err
+		}
+		remote.Path = epicPath
+	} else {
+		remote.Path = path.Dataplane()
 	}
 	remote.NextHop = path.UnderlayNextHop()
 	return path, nil

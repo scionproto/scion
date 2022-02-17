@@ -18,6 +18,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/path/epic"
 )
 
 // DefaultReplyPather constructs dataplane reply paths.
@@ -32,6 +33,12 @@ func (DefaultReplyPather) ReplyPath(rpath RawPath) (DataplanePath, error) {
 	if err := p.DecodeFromBytes(rpath.Raw); err != nil {
 		return nil, serrors.WrapStr("decoding path", err)
 	}
+
+	// By default, reversing an EPIC path means getting a reversed SCION path.
+	if epicPath, ok := p.(*epic.Path); ok {
+		p = epicPath.ScionPath
+	}
+
 	reversed, err := p.Reverse()
 	if err != nil {
 		return nil, serrors.WrapStr("reversing path", err)

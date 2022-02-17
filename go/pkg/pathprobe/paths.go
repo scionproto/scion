@@ -70,11 +70,13 @@ func (s Status) String() string {
 // GetStatuses.
 func PathKey(path snet.Path) string {
 	dp := path.Dataplane()
-	scionPath, ok := dp.(snetpath.SCION)
-	if !ok {
-		return ""
+	switch p := dp.(type) {
+	case snetpath.SCION:
+		return string(p.Raw)
+	case *snetpath.EPIC:
+		return string(p.SCION)
 	}
-	return string(scionPath.Raw)
+	return ""
 }
 
 // FilterEmptyPaths removes all empty paths from paths and returns a copy.
@@ -136,6 +138,7 @@ func WithEpic(epic bool) Option {
 func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 	opts ...Option) (map[string]Status, error) {
 
+	o := applyOption(opts)
 	deadline, ok := ctx.Deadline()
 	if !ok {
 		return nil, serrors.New("deadline required on ctx")
@@ -143,7 +146,8 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 
 	for _, path := range paths {
 		if _, ok := path.Dataplane().(snetpath.SCION); !ok {
-			return nil, serrors.New("paths must be of type SCION")
+			return nil, serrors.New("paths must be of type SCION",
+				"path", common.TypeOf(path.Dataplane()))
 		}
 	}
 
@@ -207,11 +211,23 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 				if !ok {
 					return serrors.New("not a scion path")
 				}
-				alertPath, err := setAlertFlag(originalPath)
+
+				scionAlertPath, err := setAlertFlag(originalPath)
 				if err != nil {
 					return serrors.WrapStr("setting alert flag", err)
 				}
-<<<<<<< HEAD
+				var alertPath snet.DataplanePath
+				if o.epic {
+					epicAlertPath, err := scionAlertPath.NewEPICDataplanePath(
+						path.Metadata().EpicAuths)
+					if err != nil {
+						return err
+					}
+					alertPath = epicAlertPath
+				} else {
+					alertPath = scionAlertPath
+				}
+
 				pkt := &snet.Packet{
 					PacketInfo: snet.PacketInfo{
 						Destination: snet.SCIONAddress{
@@ -231,10 +247,6 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 				}
 				if err := conn.WriteTo(pkt, path.UnderlayNextHop()); err != nil {
 					return err
-=======
-				if err := p.sendProbe(conn, localAddr, path, uint16(seqNr), opts...); err != nil {
-					return serrors.WrapStr("sending probe", err, "local", localIP)
->>>>>>> Implement feedback.
 				}
 			}
 

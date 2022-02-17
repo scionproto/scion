@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/pkg/app"
@@ -139,7 +140,24 @@ On other errors, ping will exit with code 2.
 			if err != nil {
 				return err
 			}
-			remote.Path = path.Dataplane()
+
+			// If the EPIC flag is set, use the EPIC-HP path type
+			if flags.epic {
+				switch s := path.Dataplane().(type) {
+				case snetpath.SCION:
+					epicPath, err := s.NewEPICDataplanePath(path.Metadata().EpicAuths)
+					if err != nil {
+						return err
+					}
+					remote.Path = epicPath
+				case snetpath.Empty:
+					remote.Path = s
+				default:
+					return serrors.New("unsupported path type")
+				}
+			} else {
+				remote.Path = path.Dataplane()
+			}
 			remote.NextHop = path.UnderlayNextHop()
 
 			// Resolve local IP based on underlay next hop

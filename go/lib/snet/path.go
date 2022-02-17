@@ -79,6 +79,18 @@ func (iface PathInterface) String() string {
 	return fmt.Sprintf("%s#%d", iface.IA, iface.ID)
 }
 
+// EpicAuths is a container for the EPIC hop authenticators.
+type EpicAuths struct {
+	// AuthPHVF is the authenticator for the penultimate hop.
+	AuthPHVF []byte
+	// AuthLHVF is the authenticator for the last hop
+	AuthLHVF []byte
+}
+
+func (ea *EpicAuths) SupportsEpic() bool {
+	return (len(ea.AuthPHVF) == 16 && len(ea.AuthLHVF) == 16)
+}
+
 // PathMetadata contains supplementary information about a path.
 //
 // The information about MTU, Latency, Bandwidth etc. are based solely on data
@@ -125,6 +137,9 @@ type PathMetadata struct {
 	// Notes contains the notes added by ASes on the path, in the order of occurrence.
 	// Entry i is the note of AS i on the path.
 	Notes []string
+
+	// EpicAuths contains the EPIC authenticators.
+	EpicAuths EpicAuths
 }
 
 func (pm *PathMetadata) Copy() *PathMetadata {
@@ -142,6 +157,10 @@ func (pm *PathMetadata) Copy() *PathMetadata {
 		LinkType:     append(pm.LinkType[:0:0], pm.LinkType...),
 		InternalHops: append(pm.InternalHops[:0:0], pm.InternalHops...),
 		Notes:        append(pm.Notes[:0:0], pm.Notes...),
+		EpicAuths: EpicAuths{
+			AuthPHVF: append([]byte(nil), pm.EpicAuths.AuthPHVF...),
+			AuthLHVF: append([]byte(nil), pm.EpicAuths.AuthLHVF...),
+		},
 	}
 }
 
@@ -238,9 +257,4 @@ func (p *partialPath) Destination() addr.IA {
 
 func (p *partialPath) Metadata() *PathMetadata {
 	return nil
-}
-
-func (p *partialPath) String() string {
-	return fmt.Sprintf("{spath: %s, underlay: %s, dest: %s}",
-		&p.spath, p.underlay, p.destination)
 }

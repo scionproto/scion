@@ -403,13 +403,7 @@ func (solution *pathSolution) Path() Path {
 	asEntries := segments.ASEntries()
 	staticInfo := collectMetadata(interfaces, asEntries)
 
-	sPath := segments.SPath()
-	if authPHVF, authLHVF, ok := isEpicAvailable(epicPathAuths); ok {
-		sPath.EpicData.AuthPHVF = authPHVF
-		sPath.EpicData.AuthLHVF = authLHVF
-	}
-
-	return Path{
+	path := Path{
 		SCIONPath: segments.ScionPath(),
 		Metadata: snet.PathMetadata{
 			Interfaces:   interfaces,
@@ -424,6 +418,15 @@ func (solution *pathSolution) Path() Path {
 		},
 		Weight: solution.cost,
 	}
+
+	if authPHVF, authLHVF, ok := isEpicAvailable(epicPathAuths); ok {
+		path.Metadata.EpicAuths = snet.EpicAuths{
+			AuthPHVF: authPHVF,
+			AuthLHVF: authLHVF,
+		}
+	}
+
+	return path
 }
 
 func getAuth(a *seg.ASEntry) []byte {
@@ -432,7 +435,7 @@ func getAuth(a *seg.ASEntry) []byte {
 	}
 
 	auth := make([]byte, 16)
-	copy(auth[0:6], a.HopEntry.HopField.MAC)
+	copy(auth[0:6], a.HopEntry.HopField.MAC[:])
 	copy(auth[6:16], a.UnsignedExtensions.EpicDetached.AuthHopEntry)
 	return auth
 }
@@ -443,7 +446,7 @@ func getAuthPeer(a *seg.ASEntry, i int) []byte {
 	}
 
 	auth := make([]byte, 16)
-	copy(auth[0:6], a.HopEntry.HopField.MAC)
+	copy(auth[0:6], a.HopEntry.HopField.MAC[:])
 	copy(auth[6:16], a.UnsignedExtensions.EpicDetached.AuthPeerEntries[i])
 	return auth
 }

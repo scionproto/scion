@@ -346,7 +346,7 @@ func (h SCMPHandler) reverseSCION(pkt *respool.Packet) error {
 		return serrors.WrapStr("setting destination address", err)
 	}
 	if pkt.SCION.PathType == epic.PathType {
-		// Received packet with EPIC path type, now extract the SCION path
+		// Received packet with EPIC path type, hence extract the SCION path
 		epicPath, ok := pkt.SCION.Path.(*epic.Path)
 		if !ok {
 			return serrors.New("path type and path data do not match")

@@ -235,11 +235,9 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 	if p.EpicAuths == nil {
 		return res, nil
 	}
-
-	res.DataplanePath = &path.EPIC{
-		AuthPHVF: p.EpicAuths.AuthPhvf,
-		AuthLHVF: p.EpicAuths.AuthLhvf,
-		SCION:    p.Raw,
+	res.Meta.EpicAuths = snet.EpicAuths{
+		AuthPHVF: append([]byte(nil), p.EpicAuths.AuthPhvf...),
+		AuthLHVF: append([]byte(nil), p.EpicAuths.AuthLhvf...),
 	}
 	return res, nil
 }

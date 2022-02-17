@@ -30,15 +30,7 @@ type EPIC struct {
 	SCION    []byte
 
 	mu      sync.Mutex
-	enabled bool
-	Counter uint32
-}
-
-func (e *EPIC) EnableEpic(enabled bool) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	e.enabled = enabled
+	counter uint32
 }
 
 func (e *EPIC) SetPath(s *slayers.SCION) error {
@@ -52,11 +44,6 @@ func (e *EPIC) SetPath(s *slayers.SCION) error {
 		return err
 	}
 
-	if !e.enabled {
-		s.Path, s.PathType = &sp, sp.Type()
-		return nil
-	}
-
 	info, err := sp.GetInfoField(0)
 	if err != nil {
 		return err
@@ -68,10 +55,10 @@ func (e *EPIC) SetPath(s *slayers.SCION) error {
 	if err != nil {
 		return err
 	}
-	e.Counter += 1
+	e.counter += 1
 	pktID := epic.PktID{
 		Timestamp: timestamp,
-		Counter:   e.Counter,
+		Counter:   e.counter,
 	}
 
 	// Calculate HVFs.
