@@ -11,7 +11,8 @@ services:
         "--enable_endpoint_metrics",
       ]
     network_mode: host
-    image: $REGISTRY/buchgr/bazel-remote-cache:v2.3.0
+    restart: always
+    image: $REGISTRY/buchgr/bazel-remote-cache:v2.3.3
     environment:
       BAZEL_REMOTE_S3_BUCKET: $BAZEL_REMOTE_S3_BUCKET
       BAZEL_REMOTE_S3_ENDPOINT: s3.eu-central-1.amazonaws.com
