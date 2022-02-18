@@ -1,4 +1,4 @@
-// Copyright 2020 Anapaya Systems
+// Copyright 2022 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,70 +31,63 @@ import (
 	"github.com/scionproto/scion/tools/braccept/runner"
 )
 
-// SCMPParentToParentXover tests a packet that attempts a segment switch from a
-// down segment to a up segment. The egress interface is on a different router
-// than the ingress interface.
-func SCMPParentToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
+func SCMPInvalidSrcIAInternalHostToChild(artifactsDir string, mac hash.Hash) runner.Case {
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
 	}
 
+	// Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=f0:0d:ca:fe:00:01 EthernetType=IPv4
 	ethernet := &layers.Ethernet{
 		SrcMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef},
-		DstMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x12},
+		DstMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x1},
 		EthernetType: layers.EthernetTypeIPv4,
 	}
-
+	// 	IP4: Src=192.168.0.51 Dst=192.168.0.11 NextHdr=UDP Flags=DF
 	ip := &layers.IPv4{
 		Version:  4,
 		IHL:      5,
 		TTL:      64,
-		SrcIP:    net.IP{192, 168, 12, 3},
-		DstIP:    net.IP{192, 168, 12, 2},
+		SrcIP:    net.IP{192, 168, 0, 51},
+		DstIP:    net.IP{192, 168, 0, 11},
 		Protocol: layers.IPProtocolUDP,
 		Flags:    layers.IPv4DontFragment,
 	}
-
+	// UDP: Src=30041 Dst=30001
 	udp := &layers.UDP{
-		SrcPort: layers.UDPPort(40000),
-		DstPort: layers.UDPPort(50000),
+		SrcPort: layers.UDPPort(30041),
+		DstPort: layers.UDPPort(30001),
 	}
 	udp.SetNetworkLayerForChecksum(ip)
 
+	// 	SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=5 SrcType=IPv4 DstType=IPv4
+	// 		ADDR: SrcIA=1-ff00:0:2 Src=192.168.0.51 DstIA=1-ff00:0:4 Dst=172.16.4.1
+	// 		IF_1: ISD=1 Hops=2 Flags=ConsDir
+	// 			HF_1: ConsIngress=0   ConsEgress=141
+	// 			HF_2: ConsIngress=411 ConsEgress=0
+	// 	UDP_1: Src=40111 Dst=40222
 	sp := &scion.Decoded{
 		Base: scion.Base{
 			PathMeta: scion.MetaHdr{
-				CurrHF:  1,
-				CurrINF: 0,
-				SegLen:  [3]uint8{2, 2, 0},
+				CurrHF: 0,
+				SegLen: [3]uint8{2, 0, 0},
 			},
-			NumINF:  2,
-			NumHops: 4,
+			NumINF:  1,
+			NumHops: 2,
 		},
 		InfoFields: []path.InfoField{
-			// down seg
 			{
 				SegID:     0x111,
 				ConsDir:   true,
 				Timestamp: util.TimeToSecs(time.Now()),
 			},
-			// up seg
-			{
-				SegID:     0x222,
-				ConsDir:   false,
-				Timestamp: util.TimeToSecs(time.Now()),
-			},
 		},
 		HopFields: []path.HopField{
-			{ConsIngress: 0, ConsEgress: 211},
-			{ConsIngress: 121, ConsEgress: 0},
-			{ConsIngress: 191, ConsEgress: 0},
-			{ConsIngress: 0, ConsEgress: 911},
+			{ConsIngress: 0, ConsEgress: 141},
+			{ConsIngress: 411, ConsEgress: 0},
 		},
 	}
-	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
-	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
+	sp.HopFields[0].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[0], nil)
 
 	scionL := &slayers.SCION{
 		Version:      0,
@@ -102,11 +95,11 @@ func SCMPParentToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 		FlowID:       0xdead,
 		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:2"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:9"),
+		SrcIA:        xtest.MustParseIA("1-ff00:0:2"), // != local IA, invalid Src IA
+		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
 		Path:         sp,
 	}
-	srcA := &net.IPAddr{IP: net.ParseIP("172.16.5.1")}
+	srcA := &net.IPAddr{IP: net.ParseIP("192.168.0.51")}
 	if err := scionL.SetSrcAddr(srcA); err != nil {
 		panic(err)
 	}
@@ -129,28 +122,16 @@ func SCMPParentToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 		panic(err)
 	}
 
-	// Prepare quoted packet that is part of the SCMP error message.
-	if err := sp.IncPath(); err != nil {
-		panic(err)
-	}
-
-	quoted := gopacket.NewSerializeBuffer()
-	if err := gopacket.SerializeLayers(quoted, options,
-		scionL, scionudp, gopacket.Payload(payload),
-	); err != nil {
-		panic(err)
-	}
-	quote := quoted.Bytes()
-
 	// Prepare want packet
 	want := gopacket.NewSerializeBuffer()
-	ethernet.SrcMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x12}
-	ethernet.DstMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef}
-	ip.SrcIP = net.IP{192, 168, 12, 2}
-	ip.DstIP = net.IP{192, 168, 12, 3}
+	// Ethernet: SrcMAC=f0:0d:ca:fe:00:01 DstMAC=f0:0d:ca:fe:be:ef
+	ethernet.SrcMAC, ethernet.DstMAC = ethernet.DstMAC, ethernet.SrcMAC
+	// 	IP4: Src=192.168.0.11 Src=192.168.0.51
+	ip.SrcIP, ip.DstIP = ip.DstIP, ip.SrcIP
+	// 	UDP: Src=30001 Dst=30041
 	udp.SrcPort, udp.DstPort = udp.DstPort, udp.SrcPort
 
-	scionL.DstIA = scionL.SrcIA
+	scionL.DstIA = scionL.SrcIA // This is bogus, correct is local IA.
 	scionL.SrcIA = xtest.MustParseIA("1-ff00:0:1")
 	if err := scionL.SetDstAddr(srcA); err != nil {
 		panic(err)
@@ -160,33 +141,23 @@ func SCMPParentToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 		panic(err)
 	}
 
-	p, err := sp.Reverse()
+	_, err := sp.Reverse()
 	if err != nil {
 		panic(err)
 	}
-	sp = p.(*scion.Decoded)
-	if err := sp.IncPath(); err != nil {
-		panic(err)
-	}
-	if err := sp.IncPath(); err != nil {
-		panic(err)
-	}
-
 	scionL.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
-		TypeCode: slayers.CreateSCMPTypeCode(
-			slayers.SCMPTypeParameterProblem,
-			slayers.SCMPCodeInvalidSegmentChange,
-		),
+		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
+			slayers.SCMPCodeInvalidSourceAddress),
 	}
 	scmpH.SetNetworkLayerForChecksum(scionL)
-
-	// The pointer should point to the info field of the segment that is switched to.
-	pointer := slayers.CmnHdrLen + scionL.AddrHdrLen() + scion.MetaLen + path.InfoLen
 	scmpP := &slayers.SCMPParameterProblem{
-		Pointer: uint16(pointer),
+		Pointer: uint16(slayers.CmnHdrLen + 8),
 	}
 
+	// Skip Ethernet + IPv4 + UDP
+	quoteStart := 14 + 20 + 8
+	quote := input.Bytes()[quoteStart:]
 	if err := gopacket.SerializeLayers(want, options,
 		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
 	); err != nil {
@@ -194,79 +165,72 @@ func SCMPParentToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	return runner.Case{
-		Name:     "SCMPParentToParentXover",
-		WriteTo:  "veth_121_host",
-		ReadFrom: "veth_121_host",
+		Name:     "SCMPInvalidSrcIAInternalHostToChild",
+		WriteTo:  "veth_int_host",
+		ReadFrom: "veth_int_host",
 		Input:    input.Bytes(),
 		Want:     want.Bytes(),
-		StoreDir: filepath.Join(artifactsDir, "SCMPParentToParentXover"),
+		StoreDir: filepath.Join(artifactsDir, "SCMPInvalidSrcIAInternalHostToChild"),
 	}
 }
 
-// SCMPParentToChildXover tests a packet that attempts a segment switch from a
-// down segment to another down segment. The egress interface is on a different
-// router than the ingress interface.
-func SCMPParentToChildXover(artifactsDir string, mac hash.Hash) runner.Case {
+func SCMPInvalidDstIAInternalHostToChild(artifactsDir string, mac hash.Hash) runner.Case {
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
 	}
 
+	// Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=f0:0d:ca:fe:00:01 EthernetType=IPv4
 	ethernet := &layers.Ethernet{
 		SrcMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef},
-		DstMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x12},
+		DstMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x1},
 		EthernetType: layers.EthernetTypeIPv4,
 	}
-
+	// 	IP4: Src=192.168.0.51 Dst=192.168.0.11 NextHdr=UDP Flags=DF
 	ip := &layers.IPv4{
 		Version:  4,
 		IHL:      5,
 		TTL:      64,
-		SrcIP:    net.IP{192, 168, 12, 3},
-		DstIP:    net.IP{192, 168, 12, 2},
+		SrcIP:    net.IP{192, 168, 0, 51},
+		DstIP:    net.IP{192, 168, 0, 11},
 		Protocol: layers.IPProtocolUDP,
 		Flags:    layers.IPv4DontFragment,
 	}
-
+	// UDP: Src=30041 Dst=30001
 	udp := &layers.UDP{
-		SrcPort: layers.UDPPort(40000),
-		DstPort: layers.UDPPort(50000),
+		SrcPort: layers.UDPPort(30041),
+		DstPort: layers.UDPPort(30001),
 	}
 	udp.SetNetworkLayerForChecksum(ip)
 
+	// 	SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=5 SrcType=IPv4 DstType=IPv4
+	// 		ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.51 DstIA=1-ff00:0:4 Dst=172.16.4.1
+	// 		IF_1: ISD=1 Hops=2 Flags=ConsDir
+	// 			HF_1: ConsIngress=0   ConsEgress=141
+	// 			HF_2: ConsIngress=411 ConsEgress=0
+	// 	UDP_1: Src=40111 Dst=40222
 	sp := &scion.Decoded{
 		Base: scion.Base{
 			PathMeta: scion.MetaHdr{
-				CurrHF:  1,
-				CurrINF: 0,
-				SegLen:  [3]uint8{2, 2, 0},
+				CurrHF: 0,
+				SegLen: [3]uint8{2, 0, 0},
 			},
-			NumINF:  2,
-			NumHops: 4,
+			NumINF:  1,
+			NumHops: 2,
 		},
 		InfoFields: []path.InfoField{
-			// down seg
 			{
 				SegID:     0x111,
 				ConsDir:   true,
 				Timestamp: util.TimeToSecs(time.Now()),
 			},
-			// even more down seg
-			{
-				SegID:     0x222,
-				ConsDir:   true,
-				Timestamp: util.TimeToSecs(time.Now()),
-			},
 		},
 		HopFields: []path.HopField{
-			{ConsIngress: 0, ConsEgress: 211},
-			{ConsIngress: 121, ConsEgress: 0},
-			{ConsIngress: 121, ConsEgress: 181},
-			{ConsIngress: 811, ConsEgress: 0},
+			{ConsIngress: 0, ConsEgress: 141},
+			{ConsIngress: 411, ConsEgress: 0},
 		},
 	}
-	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
-	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
+	sp.HopFields[0].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[0], nil)
 
 	scionL := &slayers.SCION{
 		Version:      0,
@@ -274,11 +238,11 @@ func SCMPParentToChildXover(artifactsDir string, mac hash.Hash) runner.Case {
 		FlowID:       0xdead,
 		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:2"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:8"),
+		SrcIA:        xtest.MustParseIA("1-ff00:0:1"),
+		DstIA:        xtest.MustParseIA("1-ff00:0:1"), // == local IA, invalid Dst IA
 		Path:         sp,
 	}
-	srcA := &net.IPAddr{IP: net.ParseIP("172.16.5.1")}
+	srcA := &net.IPAddr{IP: net.ParseIP("192.168.0.51")}
 	if err := scionL.SetSrcAddr(srcA); err != nil {
 		panic(err)
 	}
@@ -301,25 +265,13 @@ func SCMPParentToChildXover(artifactsDir string, mac hash.Hash) runner.Case {
 		panic(err)
 	}
 
-	// Prepare quoted packet that is part of the SCMP error message.
-	if err := sp.IncPath(); err != nil {
-		panic(err)
-	}
-
-	quoted := gopacket.NewSerializeBuffer()
-	if err := gopacket.SerializeLayers(quoted, options,
-		scionL, scionudp, gopacket.Payload(payload),
-	); err != nil {
-		panic(err)
-	}
-	quote := quoted.Bytes()
-
 	// Prepare want packet
 	want := gopacket.NewSerializeBuffer()
-	ethernet.SrcMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x12}
-	ethernet.DstMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef}
-	ip.SrcIP = net.IP{192, 168, 12, 2}
-	ip.DstIP = net.IP{192, 168, 12, 3}
+	// Ethernet: SrcMAC=f0:0d:ca:fe:00:01 DstMAC=f0:0d:ca:fe:be:ef
+	ethernet.SrcMAC, ethernet.DstMAC = ethernet.DstMAC, ethernet.SrcMAC
+	// 	IP4: Src=192.168.0.11 Src=192.168.0.51
+	ip.SrcIP, ip.DstIP = ip.DstIP, ip.SrcIP
+	// 	UDP: Src=30001 Dst=30041
 	udp.SrcPort, udp.DstPort = udp.DstPort, udp.SrcPort
 
 	scionL.DstIA = scionL.SrcIA
@@ -332,34 +284,23 @@ func SCMPParentToChildXover(artifactsDir string, mac hash.Hash) runner.Case {
 		panic(err)
 	}
 
-	p, err := sp.Reverse()
+	_, err := sp.Reverse()
 	if err != nil {
 		panic(err)
 	}
-	sp = p.(*scion.Decoded)
-	if err := sp.IncPath(); err != nil {
-		panic(err)
-	}
-	if err := sp.IncPath(); err != nil {
-		panic(err)
-	}
-
 	scionL.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
-		TypeCode: slayers.CreateSCMPTypeCode(
-			slayers.SCMPTypeParameterProblem,
-			slayers.SCMPCodeInvalidSegmentChange,
-		),
+		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
+			slayers.SCMPCodeInvalidDestinationAddress),
 	}
 	scmpH.SetNetworkLayerForChecksum(scionL)
-
-	// The pointer should point to the info field of the segment that is
-	// switched to.
-	pointer := slayers.CmnHdrLen + scionL.AddrHdrLen() + scion.MetaLen + path.InfoLen
 	scmpP := &slayers.SCMPParameterProblem{
-		Pointer: uint16(pointer),
+		Pointer: uint16(slayers.CmnHdrLen + 0),
 	}
 
+	// Skip Ethernet + IPv4 + UDP
+	quoteStart := 14 + 20 + 8
+	quote := input.Bytes()[quoteStart:]
 	if err := gopacket.SerializeLayers(want, options,
 		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
 	); err != nil {
@@ -367,30 +308,28 @@ func SCMPParentToChildXover(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	return runner.Case{
-		Name:     "SCMPParentToChildXover",
-		WriteTo:  "veth_121_host",
-		ReadFrom: "veth_121_host",
+		Name:     "SCMPInvalidDstIAInternalHostToChild",
+		WriteTo:  "veth_int_host",
+		ReadFrom: "veth_int_host",
 		Input:    input.Bytes(),
 		Want:     want.Bytes(),
-		StoreDir: filepath.Join(artifactsDir, "SCMPParentToChildXover"),
+		StoreDir: filepath.Join(artifactsDir, "SCMPInvalidDstIAInternalHostToChild"),
 	}
 }
 
-// SCMPChildToParentXover tests a packet that attempts a segment switch from an
-// up segment to another up segment. The egress interface is on a different
-// router than the ingress interface.
-func SCMPChildToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
+func SCMPInvalidSrcIAChildToParent(artifactsDir string, mac hash.Hash) runner.Case {
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
 	}
 
+	// Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=f0:0d:ca:fe:00:14 EthernetType=IPv4
 	ethernet := &layers.Ethernet{
 		SrcMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef},
 		DstMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x14},
 		EthernetType: layers.EthernetTypeIPv4,
 	}
-
+	// IP4: Src=192.168.14.3 Dst=192.168.14.2 NextHdr=UDP Flags=DF
 	ip := &layers.IPv4{
 		Version:  4,
 		IHL:      5,
@@ -400,47 +339,45 @@ func SCMPChildToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 		Protocol: layers.IPProtocolUDP,
 		Flags:    layers.IPv4DontFragment,
 	}
-
+	// 	UDP: Src=40000 Dst=50000
 	udp := &layers.UDP{
 		SrcPort: layers.UDPPort(40000),
 		DstPort: layers.UDPPort(50000),
 	}
 	udp.SetNetworkLayerForChecksum(ip)
 
+	// pkt0.ParsePacket(`
+	// 	SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
+	// 		ADDR: SrcIA=1-ff00:0:4 Src=174.16.4.1 DstIA=1-ff00:0:3 Dst=172.16.3.1
+	// 		IF_1: ISD=1 Hops=3 Flags=ConsDir
+	// 			HF_1: ConsIngress=0 ConsEgress=311
+	// 			HF_2: ConsIngress=131 ConsEgress=141
+	// 	   	HF_3: ConsIngress=411 ConsEgress=0
+	// 	UDP_1: Src=40111 Dst=40222
+	// `)
 	sp := &scion.Decoded{
 		Base: scion.Base{
 			PathMeta: scion.MetaHdr{
-				CurrHF:  1,
-				CurrINF: 0,
-				SegLen:  [3]uint8{2, 2, 0},
+				CurrHF: 1,
+				SegLen: [3]uint8{3, 0, 0},
 			},
-			NumINF:  2,
-			NumHops: 4,
+			NumINF:  1,
+			NumHops: 3,
 		},
 		InfoFields: []path.InfoField{
-			// up seg
 			{
 				SegID:     0x111,
-				ConsDir:   false,
-				Timestamp: util.TimeToSecs(time.Now()),
-			},
-			// even more up seg
-			{
-				SegID:     0x222,
-				ConsDir:   false,
 				Timestamp: util.TimeToSecs(time.Now()),
 			},
 		},
 		HopFields: []path.HopField{
 			{ConsIngress: 411, ConsEgress: 0},
-			{ConsIngress: 121, ConsEgress: 141},
-			{ConsIngress: 191, ConsEgress: 0},
-			{ConsIngress: 0, ConsEgress: 911},
+			{ConsIngress: 131, ConsEgress: 141},
+			{ConsIngress: 0, ConsEgress: 311},
 		},
 	}
 	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
-	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
 
 	scionL := &slayers.SCION{
 		Version:      0,
@@ -448,15 +385,15 @@ func SCMPChildToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 		FlowID:       0xdead,
 		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:9"),
+		SrcIA:        xtest.MustParseIA("1-ff00:0:1"), // == local IA, invalid Src IA
+		DstIA:        xtest.MustParseIA("1-ff00:0:3"),
 		Path:         sp,
 	}
-	srcA := &net.IPAddr{IP: net.ParseIP("172.16.5.1")}
+	srcA := &net.IPAddr{IP: net.ParseIP("172.16.4.1")}
 	if err := scionL.SetSrcAddr(srcA); err != nil {
 		panic(err)
 	}
-	if err := scionL.SetDstAddr(&net.IPAddr{IP: net.ParseIP("174.16.4.1")}); err != nil {
+	if err := scionL.SetDstAddr(&net.IPAddr{IP: net.ParseIP("174.16.3.1")}); err != nil {
 		panic(err)
 	}
 
@@ -475,29 +412,16 @@ func SCMPChildToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 		panic(err)
 	}
 
-	// Prepare quoted packet that is part of the SCMP error message.
-	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
-	if err := sp.IncPath(); err != nil {
-		panic(err)
-	}
-
-	quoted := gopacket.NewSerializeBuffer()
-	if err := gopacket.SerializeLayers(quoted, options,
-		scionL, scionudp, gopacket.Payload(payload),
-	); err != nil {
-		panic(err)
-	}
-	quote := quoted.Bytes()
-
 	// Prepare want packet
 	want := gopacket.NewSerializeBuffer()
-	ethernet.SrcMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x14}
-	ethernet.DstMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef}
-	ip.SrcIP = net.IP{192, 168, 14, 2}
-	ip.DstIP = net.IP{192, 168, 14, 3}
+	// Ethernet: SrcMAC=f0:0d:ca:fe:00:14 DstMAC=f0:0d:ca:fe:be:ef
+	ethernet.SrcMAC, ethernet.DstMAC = ethernet.DstMAC, ethernet.SrcMAC
+	// 	IP4: Src=192.168.14.2 Dst=192.168.14.3
+	ip.SrcIP, ip.DstIP = ip.DstIP, ip.SrcIP
+	// 	UDP: Src=50000 Dst=40000
 	udp.SrcPort, udp.DstPort = udp.DstPort, udp.SrcPort
 
-	scionL.DstIA = scionL.SrcIA
+	scionL.DstIA = scionL.SrcIA // This is bogus, but we don't know the correct IA.
 	scionL.SrcIA = xtest.MustParseIA("1-ff00:0:1")
 	if err := scionL.SetDstAddr(srcA); err != nil {
 		panic(err)
@@ -516,25 +440,20 @@ func SCMPChildToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 	if err := sp.IncPath(); err != nil {
 		panic(err)
 	}
-	if err := sp.IncPath(); err != nil {
-		panic(err)
-	}
 
 	scionL.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
-		TypeCode: slayers.CreateSCMPTypeCode(
-			slayers.SCMPTypeParameterProblem,
-			slayers.SCMPCodeInvalidSegmentChange,
-		),
+		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
+			slayers.SCMPCodeInvalidSourceAddress),
 	}
 	scmpH.SetNetworkLayerForChecksum(scionL)
-
-	// The pointer should point to the info field of the segment that is switched to.
-	pointer := slayers.CmnHdrLen + scionL.AddrHdrLen() + scion.MetaLen + path.InfoLen
 	scmpP := &slayers.SCMPParameterProblem{
-		Pointer: uint16(pointer),
+		Pointer: uint16(slayers.CmnHdrLen + 8),
 	}
 
+	// Skip Ethernet + IPv4 + UDP
+	quoteStart := 14 + 20 + 8
+	quote := input.Bytes()[quoteStart:]
 	if err := gopacket.SerializeLayers(want, options,
 		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
 	); err != nil {
@@ -542,135 +461,117 @@ func SCMPChildToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	return runner.Case{
-		Name:     "SCMPChildToParentXover",
+		Name:     "SCMPInvalidSrcIAChildToParent",
 		WriteTo:  "veth_141_host",
 		ReadFrom: "veth_141_host",
 		Input:    input.Bytes(),
 		Want:     want.Bytes(),
-		StoreDir: filepath.Join(artifactsDir, "SCMPChildToParentXover"),
+		StoreDir: filepath.Join(artifactsDir, "SCMPInvalidSrcIAChildToParent"),
 	}
 }
 
-// SCMPInternalXover tests a packet that attempts a segment switch but was
-// received on the internal interface. That is never allowed.
-func SCMPInternalXover(artifactsDir string, mac hash.Hash) runner.Case {
+func SCMPInvalidDstIAChildToParent(artifactsDir string, mac hash.Hash) runner.Case {
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
 	}
 
+	// Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=f0:0d:ca:fe:00:14 EthernetType=IPv4
 	ethernet := &layers.Ethernet{
 		SrcMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef},
-		DstMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x1},
+		DstMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x14},
 		EthernetType: layers.EthernetTypeIPv4,
 	}
-
+	// IP4: Src=192.168.14.3 Dst=192.168.14.2 NextHdr=UDP Flags=DF
 	ip := &layers.IPv4{
 		Version:  4,
 		IHL:      5,
 		TTL:      64,
-		SrcIP:    net.IP{192, 168, 0, 13},
-		DstIP:    net.IP{192, 168, 0, 11},
+		SrcIP:    net.IP{192, 168, 14, 3},
+		DstIP:    net.IP{192, 168, 14, 2},
 		Protocol: layers.IPProtocolUDP,
 		Flags:    layers.IPv4DontFragment,
 	}
-
+	// 	UDP: Src=40000 Dst=50000
 	udp := &layers.UDP{
-		SrcPort: layers.UDPPort(30003),
-		DstPort: layers.UDPPort(30001),
+		SrcPort: layers.UDPPort(40000),
+		DstPort: layers.UDPPort(50000),
 	}
 	udp.SetNetworkLayerForChecksum(ip)
 
+	// pkt0.ParsePacket(`
+	// 	SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
+	// 		ADDR: SrcIA=1-ff00:0:4 Src=174.16.4.1 DstIA=1-ff00:0:3 Dst=172.16.3.1
+	// 		IF_1: ISD=1 Hops=3 Flags=ConsDir
+	// 			HF_1: ConsIngress=0 ConsEgress=311
+	// 			HF_2: ConsIngress=131 ConsEgress=141
+	// 	   	HF_3: ConsIngress=411 ConsEgress=0
+	// 	UDP_1: Src=40111 Dst=40222
+	// `)
 	sp := &scion.Decoded{
 		Base: scion.Base{
 			PathMeta: scion.MetaHdr{
-				CurrHF:  1,
-				CurrINF: 0,
-				SegLen:  [3]uint8{2, 2, 0},
+				CurrHF: 1,
+				SegLen: [3]uint8{3, 0, 0},
 			},
-			NumINF:  2,
-			NumHops: 4,
+			NumINF:  1,
+			NumHops: 3,
 		},
 		InfoFields: []path.InfoField{
-			// down seg (reversed)
-			{
-				SegID:     0x222,
-				ConsDir:   false,
-				Timestamp: util.TimeToSecs(time.Now()),
-			},
-			// up seg (reversed)
 			{
 				SegID:     0x111,
-				ConsDir:   true,
 				Timestamp: util.TimeToSecs(time.Now()),
 			},
 		},
 		HopFields: []path.HopField{
-			{ConsIngress: 811, ConsEgress: 0},
-			{ConsIngress: 0, ConsEgress: 181},
-			{ConsIngress: 0, ConsEgress: 141},
 			{ConsIngress: 411, ConsEgress: 0},
+			{ConsIngress: 131, ConsEgress: 141},
+			{ConsIngress: 0, ConsEgress: 311},
 		},
 	}
 	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
-	// sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
-	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
+	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 
 	scionL := &slayers.SCION{
 		Version:      0,
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
-		NextHdr:      slayers.L4SCMP,
+		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:8"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
+		SrcIA:        xtest.MustParseIA("1-ff00:0:9"),
+		DstIA:        xtest.MustParseIA("1-ff00:0:1"), // == local IA, invalid Dst IA
 		Path:         sp,
 	}
-
-	srcA := &net.IPAddr{IP: net.ParseIP("172.168.0.14").To4()}
+	srcA := &net.IPAddr{IP: net.ParseIP("172.16.4.1")}
 	if err := scionL.SetSrcAddr(srcA); err != nil {
 		panic(err)
 	}
-	dstA := &net.IPAddr{IP: net.ParseIP("172.16.4.1").To4()}
-	if err := scionL.SetDstAddr(dstA); err != nil {
+	if err := scionL.SetDstAddr(&net.IPAddr{IP: net.ParseIP("174.16.3.1")}); err != nil {
 		panic(err)
 	}
 
-	scmpH := &slayers.SCMP{
-		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteReply, 0),
-	}
-	scmpH.SetNetworkLayerForChecksum(scionL)
-	scmpP := &slayers.SCMPTraceroute{
-		Identifier: 558,
-		Sequence:   130,
-	}
+	scionudp := &slayers.UDP{}
+	scionudp.SrcPort = 40111
+	scionudp.DstPort = 40222
+	scionudp.SetNetworkLayerForChecksum(scionL)
+
+	payload := []byte("actualpayloadbytes")
 
 	// Prepare input packet
 	input := gopacket.NewSerializeBuffer()
 	if err := gopacket.SerializeLayers(input, options,
-		ethernet, ip, udp, scionL, scmpH, scmpP,
+		ethernet, ip, udp, scionL, scionudp, gopacket.Payload(payload),
 	); err != nil {
 		panic(err)
 	}
-
-	// Prepare quoted packet that is part of the SCMP error message.
-	if err := sp.IncPath(); err != nil {
-		panic(err)
-	}
-
-	quoted := gopacket.NewSerializeBuffer()
-	if err := gopacket.SerializeLayers(quoted, options,
-		scionL, scmpH, scmpP,
-	); err != nil {
-		panic(err)
-	}
-	quote := quoted.Bytes()
 
 	// Prepare want packet
 	want := gopacket.NewSerializeBuffer()
-	ethernet.SrcMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x1}
-	ethernet.DstMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef}
+	// Ethernet: SrcMAC=f0:0d:ca:fe:00:14 DstMAC=f0:0d:ca:fe:be:ef
+	ethernet.SrcMAC, ethernet.DstMAC = ethernet.DstMAC, ethernet.SrcMAC
+	// 	IP4: Src=192.168.14.2 Dst=192.168.14.3
 	ip.SrcIP, ip.DstIP = ip.DstIP, ip.SrcIP
+	// 	UDP: Src=50000 Dst=40000
 	udp.SrcPort, udp.DstPort = udp.DstPort, udp.SrcPort
 
 	scionL.DstIA = scionL.SrcIA
@@ -683,6 +584,7 @@ func SCMPInternalXover(artifactsDir string, mac hash.Hash) runner.Case {
 		panic(err)
 	}
 
+	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 	p, err := sp.Reverse()
 	if err != nil {
 		panic(err)
@@ -693,32 +595,30 @@ func SCMPInternalXover(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	scionL.NextHdr = slayers.L4SCMP
-	scmpH = &slayers.SCMP{
-		TypeCode: slayers.CreateSCMPTypeCode(
-			slayers.SCMPTypeParameterProblem,
-			slayers.SCMPCodeInvalidSegmentChange,
-		),
+	scmpH := &slayers.SCMP{
+		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
+			slayers.SCMPCodeInvalidDestinationAddress),
 	}
 	scmpH.SetNetworkLayerForChecksum(scionL)
-
-	// The pointer should point to the info field of the segment that is switched to.
-	pointer := slayers.CmnHdrLen + scionL.AddrHdrLen() + scion.MetaLen + path.InfoLen
-	scmpReplyP := &slayers.SCMPParameterProblem{
-		Pointer: uint16(pointer),
+	scmpP := &slayers.SCMPParameterProblem{
+		Pointer: uint16(slayers.CmnHdrLen + 0),
 	}
 
+	// Skip Ethernet + IPv4 + UDP
+	quoteStart := 14 + 20 + 8
+	quote := input.Bytes()[quoteStart:]
 	if err := gopacket.SerializeLayers(want, options,
-		ethernet, ip, udp, scionL, scmpH, scmpReplyP, gopacket.Payload(quote),
+		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
 	); err != nil {
 		panic(err)
 	}
 
 	return runner.Case{
-		Name:     "SCMPInternalXover",
-		WriteTo:  "veth_int_host",
-		ReadFrom: "veth_int_host",
+		Name:     "SCMPInvalidDstIAChildToParent",
+		WriteTo:  "veth_141_host",
+		ReadFrom: "veth_141_host",
 		Input:    input.Bytes(),
 		Want:     want.Bytes(),
-		StoreDir: filepath.Join(artifactsDir, "SCMPInternalXover"),
+		StoreDir: filepath.Join(artifactsDir, "SCMPInvalidDstIAChildToParent"),
 	}
 }
