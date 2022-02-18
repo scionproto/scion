@@ -216,15 +216,13 @@ func SCMPBadMACInternal(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 	udp.SetNetworkLayerForChecksum(ip)
 
-	// pkt0.ParsePacket(`
-	//	SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
-	//		ADDR: SrcIA=1-ff00:0:3 Src=174.16.3.1 DstIA=1-ff00:0:4 Dst=174.16.4.1
-	//		IF_1: ISD=1 Hops=3 Flags=ConsDir
-	//			HF_1: ConsIngress=0 ConsEgress=311
-	//			HF_2: ConsIngress=131 ConsEgress=141
-	//			HF_3: ConsIngress=411 ConsEgress=0
-	//	UDP_1: Src=40111 Dst=40222
-	// `)
+	// 	SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
+	// 		ADDR: SrcIA=1-ff00:0:9 Src=174.16.3.1 DstIA=1-ff00:0:4 Dst=174.16.4.1
+	// 		IF_1: ISD=1 Hops=3 Flags=ConsDir
+	// 			HF_1: ConsIngress=0   ConsEgress=911
+	//			HF_2: ConsIngress=191 ConsEgress=141
+	// 			HF_3: ConsIngress=411 ConsEgress=0
+	// 	UDP_1: Src=40111 Dst=40222
 	sp := &scion.Decoded{
 		Base: scion.Base{
 			PathMeta: scion.MetaHdr{
@@ -242,8 +240,8 @@ func SCMPBadMACInternal(artifactsDir string, mac hash.Hash) runner.Case {
 			},
 		},
 		HopFields: []path.HopField{
-			{ConsIngress: 0, ConsEgress: 311},
-			{ConsIngress: 131, ConsEgress: 141},
+			{ConsIngress: 0, ConsEgress: 911},
+			{ConsIngress: 191, ConsEgress: 141},
 			{ConsIngress: 411, ConsEgress: 0},
 		},
 	}
@@ -254,7 +252,7 @@ func SCMPBadMACInternal(artifactsDir string, mac hash.Hash) runner.Case {
 		FlowID:       0xdead,
 		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
+		SrcIA:        xtest.MustParseIA("1-ff00:0:9"),
 		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
 		Path:         sp,
 	}
