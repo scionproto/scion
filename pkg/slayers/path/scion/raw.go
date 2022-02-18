@@ -158,16 +158,17 @@ func (s *Raw) SetHopField(hop path.HopField, idx int) error {
 	return hop.SerializeTo(s.Raw[hopOffset : hopOffset+path.HopLen])
 }
 
+// IsFirstHop returns whether the current hop is the first hop on the path.
+func (s *Raw) IsFirstHop() bool {
+	return s.PathMeta.CurrHF == 0
+}
+
 // IsPenultimateHop returns whether the current hop is the penultimate hop on the path.
 func (s *Raw) IsPenultimateHop() bool {
-	numberHops := s.NumHops
-	currentHop := int(s.PathMeta.CurrHF)
-	return currentHop == numberHops-2
+	return int(s.PathMeta.CurrHF) == (s.NumHops - 2)
 }
 
 // IsLastHop returns whether the current hop is the last hop on the path.
 func (s *Raw) IsLastHop() bool {
-	numberHops := s.NumHops
-	currentHop := int(s.PathMeta.CurrHF)
-	return currentHop == numberHops-1
+	return int(s.PathMeta.CurrHF) == (s.NumHops - 1)
 }
