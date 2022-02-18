@@ -86,21 +86,25 @@ func (s *Base) IncPath() error {
 
 // IsXover returns whether we are at a crossover point.
 func (s *Base) IsXover() bool {
-	return s.PathMeta.CurrINF != s.infIndexForHF(s.PathMeta.CurrHF+1)
+	return s.PathMeta.CurrHF+1 < uint8(s.NumHops) &&
+		s.PathMeta.CurrINF != s.infIndexForHF(s.PathMeta.CurrHF+1)
+}
+
+// IsFirstHopAfterXover returns whether this is the first hop field after a crossover point.
+func (s *Base) IsFirstHopAfterXover() bool {
+	return s.PathMeta.CurrINF > 0 && s.PathMeta.CurrHF > 0 &&
+		s.PathMeta.CurrINF-1 == s.infIndexForHF(s.PathMeta.CurrHF-1)
 }
 
 func (s *Base) infIndexForHF(hf uint8) uint8 {
-	left := uint8(0)
-	for i := 0; i < s.NumINF; i++ {
-		if hf >= left {
-			if hf < left+s.PathMeta.SegLen[i] {
-				return uint8(i)
-			}
-		}
-		left += s.PathMeta.SegLen[i]
+	switch {
+	case hf < s.PathMeta.SegLen[0]:
+		return 0
+	case hf < s.PathMeta.SegLen[0]+s.PathMeta.SegLen[1]:
+		return 1
+	default:
+		return 2
 	}
-	// at the end we just return the last index.
-	return uint8(s.NumINF - 1)
 }
 
 // Len returns the length of the path in bytes.
