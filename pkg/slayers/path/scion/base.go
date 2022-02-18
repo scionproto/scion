@@ -89,17 +89,22 @@ func (s *Base) IsXover() bool {
 	return s.PathMeta.CurrINF != s.infIndexForHF(s.PathMeta.CurrHF+1)
 }
 
+// IsFirstHopAfterXover returns whether this is the first hop field after a crossover point.
+func (s *Base) IsFirstHopAfterXover() bool {
+	return s.PathMeta.CurrINF > 0 && s.PathMeta.CurrHF > 0 &&
+		s.PathMeta.CurrINF-1 == s.infIndexForHF(s.PathMeta.CurrHF-1)
+}
+
 func (s *Base) infIndexForHF(hf uint8) uint8 {
-	left := uint8(0)
-	for i := 0; i < s.NumINF; i++ {
-		if hf >= left {
-			if hf < left+s.PathMeta.SegLen[i] {
-				return uint8(i)
-			}
+	if s.NumINF >= 2 {
+		if hf < s.PathMeta.SegLen[0] {
+			return 0
 		}
-		left += s.PathMeta.SegLen[i]
+		if hf < s.PathMeta.SegLen[0]+s.PathMeta.SegLen[1] {
+			return 1
+		}
 	}
-	// at the end we just return the last index.
+	// at the end we just return the last index, without checking the range
 	return uint8(s.NumINF - 1)
 }
 
