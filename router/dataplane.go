@@ -107,6 +107,9 @@ type DataPlane struct {
 
 var (
 	alreadySet                    = serrors.New("already set")
+	invalidSrcIA                  = serrors.New("invalid source ISD-AS")
+	invalidDstIA                  = serrors.New("invalid destination ISD-AS")
+	invalidSrcAddrForTransit      = serrors.New("invalid source address for transit pkt")
 	cannotRoute                   = serrors.New("cannot route, dropping pkt")
 	emptyValue                    = serrors.New("empty value")
 	malformedPath                 = serrors.New("malformed path content")
@@ -586,6 +589,7 @@ func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 
 	p.reset()
 	p.rawPkt = rawPkt
+	p.srcAddr = srcAddr
 
 	// parse SCION header and skip extensions;
 	var err error
@@ -599,7 +603,7 @@ func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 	switch pathType {
 	case empty.PathType:
 		if p.lastLayer.NextLayerType() == layers.LayerTypeBFD {
-			return processResult{}, p.processIntraBFD(srcAddr, pld)
+			return processResult{}, p.processIntraBFD(pld)
 		}
 		return processResult{}, serrors.WithCtx(unsupportedPathTypeNextHeader,
 			"type", pathType, "header", nextHdr(p.lastLayer))
@@ -639,7 +643,7 @@ func (p *scionPacketProcessor) processInterBFD(oh *onehop.Path, data []byte) err
 	return noBFDSessionFound
 }
 
-func (p *scionPacketProcessor) processIntraBFD(src *net.UDPAddr, data []byte) error {
+func (p *scionPacketProcessor) processIntraBFD(data []byte) error {
 	if len(p.d.bfdSessions) == 0 {
 		return noBFDSessionConfigured
 	}
@@ -651,7 +655,7 @@ func (p *scionPacketProcessor) processIntraBFD(src *net.UDPAddr, data []byte) er
 
 	ifID := uint16(0)
 	for k, v := range p.d.internalNextHops {
-		if bytes.Equal(v.IP, src.IP) && v.Port == src.Port {
+		if bytes.Equal(v.IP, p.srcAddr.IP) && v.Port == p.srcAddr.Port {
 			ifID = k
 			break
 		}
@@ -735,6 +739,8 @@ type scionPacketProcessor struct {
 	// rawPkt is the raw packet, it is updated during processing to contain the
 	// message to send out.
 	rawPkt []byte
+	// srcAddr is the source address of the packet
+	srcAddr *net.UDPAddr
 	// buffer is the buffer that can be used to serialize gopacket layers.
 	buffer gopacket.SerializeBuffer
 	// mac is the hasher for the MAC computation.
@@ -807,12 +813,6 @@ func (p *scionPacketProcessor) parsePath() (processResult, error) {
 		// TODO(lukedirtwalker) parameter problem invalid path?
 		return processResult{}, err
 	}
-	if r, err := p.validateHopExpiry(); err != nil {
-		return r, err
-	}
-	if r, err := p.validateIngressID(); err != nil {
-		return r, err
-	}
 	return processResult{}, nil
 }
 
@@ -849,6 +849,73 @@ func (p *scionPacketProcessor) validateIngressID() (processResult, error) {
 			serrors.New("ingress interface invalid",
 				"pkt_ingress", pktIngressID, "router_ingress", p.ingressID),
 		)
+	}
+	return processResult{}, nil
+}
+
+func (p *scionPacketProcessor) validateSrcDstIA() (processResult, error) {
+	srcIsLocal := (p.scionLayer.SrcIA == p.d.localIA)
+	dstIsLocal := (p.scionLayer.DstIA == p.d.localIA)
+	if p.ingressID == 0 {
+		// Outbound
+		// Only check SrcIA if first hop, for transit this already checked by ingress router.
+		// Note: SCMP error messages triggered by the sibling router may use paths that
+		// don't start with the first hop.
+		if p.path.IsFirstHop() && !srcIsLocal {
+			return p.invalidSrcIA()
+		}
+		if dstIsLocal {
+			return p.invalidDstIA()
+		}
+	} else {
+		// Inbound
+		if srcIsLocal {
+			return p.invalidSrcIA()
+		}
+		if p.path.IsLastHop() != dstIsLocal {
+			return p.invalidDstIA()
+		}
+	}
+	return processResult{}, nil
+}
+
+// invalidSrcIA is a helper to return an SCMP error for an invalid SrcIA.
+func (p *scionPacketProcessor) invalidSrcIA() (processResult, error) {
+	return p.packSCMP(
+		&slayers.SCMP{
+			TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
+				slayers.SCMPCodeInvalidSourceAddress),
+		},
+		&slayers.SCMPParameterProblem{Pointer: uint16(slayers.CmnHdrLen + addr.IABytes)},
+		invalidSrcIA,
+	)
+}
+
+// invalidDstIA is a helper to return an SCMP error for an invalid DstIA.
+func (p *scionPacketProcessor) invalidDstIA() (processResult, error) {
+	return p.packSCMP(
+		&slayers.SCMP{
+			TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
+				slayers.SCMPCodeInvalidDestinationAddress),
+		},
+		&slayers.SCMPParameterProblem{Pointer: uint16(slayers.CmnHdrLen)},
+		invalidDstIA,
+	)
+}
+
+// validateTransitUnderlaySrc checks that the source address of transit packets
+// matches the expected sibling router.
+// Provided that underlying network infrastructure prevents address spoofing,
+// this check prevents malicious end hosts in the local AS from bypassing the
+// SrcIA checks by disguising packets as transit traffic.
+func (p *scionPacketProcessor) validateTransitUnderlaySrc() (processResult, error) {
+	if p.ingressID == 0 && !p.path.IsFirstHop() {
+		pktIngressID := p.ingressInterface()
+		expectedSrc, ok := p.d.internalNextHops[pktIngressID]
+		if !ok || !expectedSrc.IP.Equal(p.srcAddr.IP) {
+			// Drop
+			return processResult{}, invalidSrcAddrForTransit
+		}
 	}
 	return processResult{}, nil
 }
@@ -993,14 +1060,27 @@ func (p *scionPacketProcessor) doXover() (processResult, error) {
 		// TODO parameter problem invalid path
 		return processResult{}, err
 	}
-	if r, err := p.validateHopExpiry(); err != nil {
-		return r, err
-	}
-	// verify the new block
-	if r, err := p.verifyCurrentMAC(); err != nil {
-		return r, serrors.WithCtx(err, "info", "after xover")
-	}
 	return processResult{}, nil
+}
+
+func (p *scionPacketProcessor) ingressInterface() uint16 {
+	info := p.infoField
+	hop := p.hopField
+	if p.path.IsFirstHopAfterXover() {
+		var err error
+		info, err = p.path.GetInfoField(int(p.path.PathMeta.CurrINF) - 1)
+		if err != nil { // cannot be out of range
+			panic(err)
+		}
+		hop, err = p.path.GetHopField(int(p.path.PathMeta.CurrHF) - 1)
+		if err != nil { // cannot be out of range
+			panic(err)
+		}
+	}
+	if info.ConsDir {
+		return hop.ConsIngress
+	}
+	return hop.ConsEgress
 }
 
 func (p *scionPacketProcessor) egressInterface() uint16 {
@@ -1136,7 +1216,19 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	if r, err := p.parsePath(); err != nil {
 		return r, err
 	}
+	if r, err := p.validateHopExpiry(); err != nil {
+		return r, err
+	}
+	if r, err := p.validateIngressID(); err != nil {
+		return r, err
+	}
 	if r, err := p.validatePktLen(); err != nil {
+		return r, err
+	}
+	if r, err := p.validateTransitUnderlaySrc(); err != nil {
+		return r, err
+	}
+	if r, err := p.validateSrcDstIA(); err != nil {
 		return r, err
 	}
 	if err := p.updateNonConsDirIngressSegID(); err != nil {
@@ -1150,7 +1242,7 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	}
 
 	// Inbound: pkts destined to the local IA.
-	if p.scionLayer.DstIA.Equal(p.d.localIA) && int(p.path.PathMeta.CurrHF)+1 == p.path.NumHops {
+	if p.scionLayer.DstIA == p.d.localIA {
 		a, r, err := p.resolveInbound()
 		if err != nil {
 			return r, err
@@ -1164,6 +1256,13 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	if p.path.IsXover() {
 		if r, err := p.doXover(); err != nil {
 			return r, err
+		}
+		if r, err := p.validateHopExpiry(); err != nil {
+			return r, serrors.WithCtx(err, "info", "after xover")
+		}
+		// verify the new block
+		if r, err := p.verifyCurrentMAC(); err != nil {
+			return r, serrors.WithCtx(err, "info", "after xover")
 		}
 	}
 	if r, err := p.validateEgressID(); err != nil {
