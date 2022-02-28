@@ -114,6 +114,7 @@ func (s *DefaultExtender) Extend(
 	}
 	if static := s.StaticInfo(); static != nil {
 		asEntry.Extensions.StaticInfo = static.Generate(s.Intfs, ingress, egress)
+		log.FromCtx(ctx).Info("Static info", "latency", asEntry.Extensions.StaticInfo.Latency, "ingress", ingress, "egress", egress)
 	}
 
 	// Add the detachable Epic extension
