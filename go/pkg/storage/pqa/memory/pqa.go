@@ -75,7 +75,7 @@ func (b *PqaMemoryBackend) GetNBestsForGroup(
 	ctx context.Context,
 	src addr.IA,
 	target pqa.Target,
-	ingresIntfs []*ifstate.Interface,
+	ingressIntfs []*ifstate.Interface,
 	excludeLooping addr.IA,
 ) ([]beacon.Beacon, error) {
 
@@ -95,8 +95,9 @@ func (b *PqaMemoryBackend) GetNBestsForGroup(
 		bcnCandidates = append(bcnCandidates, *bcn)
 	}
 
-	// Filter is a predicate on beacons
+	// BeaconFilter is a predicate function beacons, keep iff true
 	type BeaconFilter func(beacon.Beacon) bool
+	// applyFilter filters beacons based on a BeaconFilter function
 	applyFilter := func(bcns []beacon.Beacon, filter BeaconFilter) []beacon.Beacon {
 		var filtered []beacon.Beacon
 		for _, bcn := range bcns {
@@ -107,9 +108,9 @@ func (b *PqaMemoryBackend) GetNBestsForGroup(
 		return filtered
 	}
 
-	// Filter out beacons that are not in the ingress interface set
+	// Only keep beacons that entered AS through an interface in ingressIntfs
 	bcnCandidates = applyFilter(bcnCandidates, func(bcn beacon.Beacon) bool {
-		for _, ingressIntf := range ingresIntfs {
+		for _, ingressIntf := range ingressIntfs {
 			ingressIfid := ingressIntf.TopoInfo().ID
 			if ingressIfid == bcn.InIfId {
 				return true
@@ -118,12 +119,16 @@ func (b *PqaMemoryBackend) GetNBestsForGroup(
 		return false
 	})
 
-	// Filter beacons that would create a loop and should not be considered by quality metric
+	// Only keep beacons that would not loop if sent to excludeLooping
 	bcnCandidates = applyFilter(bcnCandidates, func(bcn beacon.Beacon) bool {
-		if err := beacon.FilterLoop(bcn, excludeLooping, false); err != nil {
+		if err := beacon.FilterLoop(bcn, excludeLooping, true); err != nil {
 			return false
 		}
+		return true
+	})
 
+	// Only keep beacons that return true by ShouldConsider predicate of target
+	bcnCandidates = applyFilter(bcnCandidates, func(bcn beacon.Beacon) bool {
 		return target.ShouldConsider(ctx, bcn)
 	})
 
@@ -136,7 +141,14 @@ func (b *PqaMemoryBackend) GetNBestsForGroup(
 	// Sort beacons by quality metric
 	sort.Slice(bcnCandidates, less)
 
-	// Return the first n beacons
+	// Debug: Show beacon metrics
+	logger := log.FromCtx(ctx)
+	logger.Debug("Beacon metrics:")
+	for i, bcn := range bcnCandidates {
+		logger.Debug("Metric", "beacon index", i, "metric", target.GetMetric(ctx, bcn), "quality", target.Quality)
+	}
+
+	// Return up to the first n beacons
 	if len(bcnCandidates) > pqa_extension.N {
 		bcnCandidates = bcnCandidates[:pqa_extension.N]
 	}

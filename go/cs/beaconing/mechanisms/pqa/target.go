@@ -9,6 +9,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	pqa_extension "github.com/scionproto/scion/go/lib/ctrl/seg/extensions/pqabeaconing"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 type Target struct {
@@ -38,6 +39,11 @@ func (t Target) GetMetric(ctx context.Context, bcn beacon.Beacon) float64 {
 			res = t.Quality.Combine(res, new_val)
 		}
 	}
+
+	// Debug
+	if res == t.Quality.Infimum() {
+	}
+	log.FromCtx(ctx).Info("No AS entries found for target", "target", t)
 
 	//	logger.Debug("Final metric", "metric", res)
 	return res
@@ -104,6 +110,7 @@ func (t Target) ShouldConsider(ctx context.Context, bcn beacon.Beacon) bool {
 	if t.Direction != pqa_extension.Symmetric {
 		return true
 	} else {
+		log.FromCtx(ctx).Error("Target not supposed to be symmetric.")
 		t.Direction = pqa_extension.Forward
 		fwd := t.GetMetric(ctx, bcn)
 
