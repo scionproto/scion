@@ -23,6 +23,9 @@ func (m Mechanism) getPropagationBatch(ctx context.Context, target Target, egInt
 					egress  = egIntf.TopoInfo().ID
 				)
 				bcn.EgIfId = egress
+				if egress == 0 {
+					log.FromCtx(ctx).Error("egress interface ID is 0", "ingress", "egress", egress)
+				}
 				err := m.Extender.Extend(ctx, bcn.Segment, ingress, egress, nil, nil)
 
 				if err != nil {
