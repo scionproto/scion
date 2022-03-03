@@ -49,6 +49,7 @@ type Path struct {
 	Expiry      time.Time       `json:"expiry"`
 	MTU         uint16          `json:"mtu"`
 	Latency     []time.Duration `json:"latency"`
+	Bandwidth   []uint64        `json:"bandwidth"`
 	Status      string          `json:"status,omitempty"`
 	StatusInfo  string          `json:"status_info,omitempty"`
 	Local       net.IP          `json:"local_ip,omitempty"`
@@ -366,6 +367,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 			Expiry:      pathMeta.Expiry,
 			MTU:         pathMeta.MTU,
 			Latency:     pathMeta.Latency,
+			Bandwidth:   pathMeta.Bandwidth,
 			Hops:        []Hop{},
 		}
 		for _, hop := range path.Metadata().Interfaces {
