@@ -186,7 +186,7 @@ func prepareMacInput(pktID epic.PktID, s *slayers.SCION, timestamp uint32,
 
 	// Fill input
 	offset := 0
-	inputBuffer[0] = uint8(s.SrcAddrLen)
+	inputBuffer[0] = uint8(s.SrcAddrType & 0x3) // extract length bits
 	offset += 1
 	binary.BigEndian.PutUint32(inputBuffer[offset:], timestamp)
 	offset += 4
