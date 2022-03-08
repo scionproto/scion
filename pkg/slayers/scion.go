@@ -48,32 +48,23 @@ func init() {
 	epic.RegisterPath()
 }
 
-// AddrLen indicates the length of a host address in the SCION header. The four possible lengths are
-// 4, 8, 12, or 16 bytes.
-type AddrLen uint8
+// AddrTypeLen indicates the type and length of a host address in the SCION header.
+// Both Type and Length fields are two bits wide.
+// The four possible lengths are 4B (0), 8B (1), 12B (2), or 16B (3) bytes.
+// There are four possible types per address length.
+type AddrTypeLen uint8
 
-// AddrLen constants
+// AddrTypeLen constants
 const (
-	AddrLen4 AddrLen = iota
-	AddrLen8
-	AddrLen12
-	AddrLen16
+	T4Ip  AddrTypeLen = 0b0000 // T=0, L=0
+	T4Svc             = 0b0100 // T=1, L=0
+	T16Ip             = 0b0011 // T=0, L=3
 )
 
-// AddrType indicates the type of a host address of a given length in the SCION header. There are
-// four possible types per address length.
-type AddrType uint8
-
-// AddrType constants
-const (
-	T4Ip AddrType = iota
-	T4Svc
-)
-
-// AddrLen16 types
-const (
-	T16Ip AddrType = iota
-)
+// Length returns the length of this AddrTypeLen value.
+func (tl AddrTypeLen) Length() int {
+	return LineLen * (1 + (int(tl) & 0x3))
+}
 
 // BaseLayer is a convenience struct which implements the LayerData and
 // LayerPayload functions of the Layer interface.
@@ -123,16 +114,10 @@ type SCION struct {
 	PayloadLen uint16
 	// PathType specifies the type of path in this SCION header.
 	PathType path.Type
-	// DstAddrType (2 bit) is the type of the destination address.
-	DstAddrType AddrType
-	// DstAddrLen (2 bit) is the length of the destination address. Supported address length are 4B
-	// (0), 8B (1), 12B (2), and 16B (3).
-	DstAddrLen AddrLen
-	// SrcAddrType (2 bit) is the type of the source address.
-	SrcAddrType AddrType
-	// SrcAddrLen (2 bit) is the length of the source address. Supported address length are 4B (0),
-	// 8B (1), 12B (2), and 16B (3).
-	SrcAddrLen AddrLen
+	// DstAddrType (4 bit) is the type/length of the destination address.
+	DstAddrType AddrTypeLen
+	// SrcAddrType (4 bit) is the type/length of the source address.
+	SrcAddrType AddrTypeLen
 
 	// Address header fields.
 
@@ -198,8 +183,7 @@ func (s *SCION) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeO
 	buf[5] = s.HdrLen
 	binary.BigEndian.PutUint16(buf[6:8], s.PayloadLen)
 	buf[8] = uint8(s.PathType)
-	buf[9] = uint8(s.DstAddrType&0x3)<<6 | uint8(s.DstAddrLen&0x3)<<4 |
-		uint8(s.SrcAddrType&0x3)<<2 | uint8(s.SrcAddrLen&0x3)
+	buf[9] = uint8(s.DstAddrType&0x7)<<4 | uint8(s.SrcAddrType&0x7)
 	binary.BigEndian.PutUint16(buf[10:12], 0)
 
 	// Serialize address header.
@@ -231,10 +215,8 @@ func (s *SCION) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	s.HdrLen = data[5]
 	s.PayloadLen = binary.BigEndian.Uint16(data[6:8])
 	s.PathType = path.Type(data[8])
-	s.DstAddrType = AddrType(data[9] >> 6)
-	s.DstAddrLen = AddrLen(data[9] >> 4 & 0x3)
-	s.SrcAddrType = AddrType(data[9] >> 2 & 0x3)
-	s.SrcAddrLen = AddrLen(data[9] & 0x3)
+	s.DstAddrType = AddrTypeLen(data[9] >> 4 & 0x7)
+	s.SrcAddrType = AddrTypeLen(data[9] & 0x7)
 
 	// Decode address header.
 	if err := s.DecodeAddrHdr(data[CmnHdrLen:]); err != nil {
@@ -372,7 +354,7 @@ func scionNextLayerTypeL4(t L4ProtocolType) gopacket.LayerType {
 // information and thus should be treated read-only. Instead, SetDstAddr should be used to update
 // the destination address.
 func (s *SCION) DstAddr() (net.Addr, error) {
-	return parseAddr(s.DstAddrType, s.DstAddrLen, s.RawDstAddr)
+	return parseAddr(s.DstAddrType, s.RawDstAddr)
 }
 
 // SrcAddr parses the source address into a net.Addr. The returned net.Addr references data from the
@@ -380,63 +362,57 @@ func (s *SCION) DstAddr() (net.Addr, error) {
 // and thus should be treated read-only. Instead, SetDstAddr should be used to update the source
 // address.
 func (s *SCION) SrcAddr() (net.Addr, error) {
-	return parseAddr(s.SrcAddrType, s.SrcAddrLen, s.RawSrcAddr)
+	return parseAddr(s.SrcAddrType, s.RawSrcAddr)
 }
 
-// SetDstAddr sets the destination address and updates the DstAddrLen/Type fields accordingly.
+// SetDstAddr sets the destination address and updates the DstAddrType field accordingly.
 // SetDstAddr takes ownership of dst and callers should not write to it after calling SetDstAddr.
 // Changes to dst might leave the layer in an inconsistent state.
 func (s *SCION) SetDstAddr(dst net.Addr) error {
 	var err error
-	s.DstAddrLen, s.DstAddrType, s.RawDstAddr, err = packAddr(dst)
+	s.DstAddrType, s.RawDstAddr, err = packAddr(dst)
 	return err
 }
 
-// SetSrcAddr sets the source address and updates the DstAddrLen/Type fields accordingly.
+// SetSrcAddr sets the source address and updates the DstAddrType field accordingly.
 // SetSrcAddr takes ownership of src and callers should not write to it after calling SetSrcAddr.
 // Changes to src might leave the layer in an inconsistent state.
 func (s *SCION) SetSrcAddr(src net.Addr) error {
 	var err error
-	s.SrcAddrLen, s.SrcAddrType, s.RawSrcAddr, err = packAddr(src)
+	s.SrcAddrType, s.RawSrcAddr, err = packAddr(src)
 	return err
 }
 
-func parseAddr(addrType AddrType, addrLen AddrLen, raw []byte) (net.Addr, error) {
-	switch addrLen {
-	case AddrLen4:
-		switch addrType {
-		case T4Ip:
-			return &net.IPAddr{IP: net.IP(raw)}, nil
-		case T4Svc:
-			return addr.HostSVC(binary.BigEndian.Uint16(raw[:addr.HostLenSVC])), nil
-		}
-	case AddrLen16:
-		switch addrType {
-		case T16Ip:
-			return &net.IPAddr{IP: net.IP(raw)}, nil
-		}
+func parseAddr(addrType AddrTypeLen, raw []byte) (net.Addr, error) {
+	switch addrType {
+	case T4Ip:
+		return &net.IPAddr{IP: net.IP(raw)}, nil
+	case T4Svc:
+		return addr.HostSVC(binary.BigEndian.Uint16(raw[:addr.HostLenSVC])), nil
+	case T16Ip:
+		return &net.IPAddr{IP: net.IP(raw)}, nil
 	}
 	return nil, serrors.New("unsupported address type/length combination",
-		"type", addrType, "len", addrLen)
+		"type", addrType, "len", addrType.Length())
 }
 
-func packAddr(hostAddr net.Addr) (AddrLen, AddrType, []byte, error) {
+func packAddr(hostAddr net.Addr) (AddrTypeLen, []byte, error) {
 	switch a := hostAddr.(type) {
 	case *net.IPAddr:
 		if ip := a.IP.To4(); ip != nil {
-			return AddrLen4, T4Ip, ip, nil
+			return T4Ip, ip, nil
 		}
-		return AddrLen16, T16Ip, a.IP, nil
+		return T16Ip, a.IP, nil
 	case addr.HostSVC:
-		return AddrLen4, T4Svc, a.PackWithPad(2), nil
+		return T4Svc, a.PackWithPad(2), nil
 	}
-	return 0, 0, nil, serrors.New("unsupported address", "addr", hostAddr)
+	return 0, nil, serrors.New("unsupported address", "addr", hostAddr)
 }
 
 // AddrHdrLen returns the length of the address header (destination and source ISD-AS-Host triples)
 // in bytes.
 func (s *SCION) AddrHdrLen() int {
-	return 2*addr.IABytes + addrBytes(s.DstAddrLen) + addrBytes(s.SrcAddrLen)
+	return 2*addr.IABytes + s.DstAddrType.Length() + s.SrcAddrType.Length()
 }
 
 // SerializeAddrHdr serializes destination and source ISD-AS-Host address triples into the provided
@@ -447,8 +423,8 @@ func (s *SCION) SerializeAddrHdr(buf []byte) error {
 		return serrors.New("provided buffer is too small", "expected", s.AddrHdrLen(),
 			"actual", len(buf))
 	}
-	dstAddrBytes := addrBytes(s.DstAddrLen)
-	srcAddrBytes := addrBytes(s.SrcAddrLen)
+	dstAddrBytes := s.DstAddrType.Length()
+	srcAddrBytes := s.SrcAddrType.Length()
 	offset := 0
 	binary.BigEndian.PutUint64(buf[offset:], uint64(s.DstIA))
 	offset += addr.IABytes
@@ -474,17 +450,13 @@ func (s *SCION) DecodeAddrHdr(data []byte) error {
 	offset += addr.IABytes
 	s.SrcIA = addr.IA(binary.BigEndian.Uint64(data[offset:]))
 	offset += addr.IABytes
-	dstAddrBytes := addrBytes(s.DstAddrLen)
-	srcAddrBytes := addrBytes(s.SrcAddrLen)
+	dstAddrBytes := s.DstAddrType.Length()
+	srcAddrBytes := s.SrcAddrType.Length()
 	s.RawDstAddr = data[offset : offset+dstAddrBytes]
 	offset += dstAddrBytes
 	s.RawSrcAddr = data[offset : offset+srcAddrBytes]
 
 	return nil
-}
-
-func addrBytes(addrLen AddrLen) int {
-	return (int(addrLen) + 1) * LineLen
 }
 
 // computeChecksum computes the checksum with the SCION pseudo header.
