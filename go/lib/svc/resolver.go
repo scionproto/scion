@@ -187,6 +187,7 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 	reply.ReturnPath = &path{
 		dataplane:   replyPath,
 		underlay:    &replyOv,
+		source:      replyPacket.Destination.IA,
 		destination: replyPacket.Source.IA,
 	}
 	return &reply, nil
@@ -196,6 +197,7 @@ type path struct {
 	dataplane   snet.DataplanePath
 	underlay    *net.UDPAddr
 	destination addr.IA
+	source      addr.IA
 }
 
 func (p *path) UnderlayNextHop() *net.UDPAddr {
@@ -208,6 +210,10 @@ func (p *path) Dataplane() snet.DataplanePath {
 
 func (p *path) Interfaces() []snet.PathInterface {
 	return nil
+}
+
+func (p *path) Source() addr.IA {
+	return p.source
 }
 
 func (p *path) Destination() addr.IA {
@@ -225,6 +231,7 @@ func (p *path) Copy() snet.Path {
 	return &path{
 		dataplane:   p.dataplane,
 		underlay:    snet.CopyUDPAddr(p.underlay),
+		source:      p.source,
 		destination: p.destination,
 	}
 }

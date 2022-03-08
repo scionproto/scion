@@ -90,6 +90,7 @@ func (p Path) Path(creationTime time.Time) snet.Path {
 	}
 	lifetime := time.Duration(p.JSONExpirationTimestamp) * time.Second
 	return snetpath.Path{
+		Src:           ifaces[0].IA,
 		Dst:           ifaces[len(ifaces)-1].IA,
 		DataplanePath: snetpath.SCION{},
 		NextHop:       (*net.UDPAddr)(p.JSONNextHop),

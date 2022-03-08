@@ -175,6 +175,7 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 	expiry := time.Unix(p.Expiration.Seconds, int64(p.Expiration.Nanos))
 	if len(p.Interfaces) == 0 {
 		return path.Path{
+			Src: dst,
 			Dst: dst,
 			Meta: snet.PathMetadata{
 				MTU:    uint16(p.Mtu),
@@ -212,6 +213,7 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 	}
 
 	return path.Path{
+		Src: interfaces[0].IA,
 		Dst: dst,
 		DataplanePath: path.SCION{
 			Raw: p.Raw,

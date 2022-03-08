@@ -469,6 +469,10 @@ func (t *testPath) Dataplane() snet.DataplanePath {
 	return snetpath.SCION{}
 }
 
+func (t *testPath) Source() addr.IA {
+	panic("not implemented")
+}
+
 func (t *testPath) Destination() addr.IA {
 	panic("not implemented")
 }

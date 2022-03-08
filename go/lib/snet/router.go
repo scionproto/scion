@@ -66,5 +66,5 @@ type IntraASPathQuerier struct {
 
 // Query implements PathQuerier.
 func (q IntraASPathQuerier) Query(_ context.Context, _ addr.IA) ([]Path, error) {
-	return []Path{&partialPath{destination: q.IA}}, nil
+	return []Path{&partialPath{source: q.IA, destination: q.IA}}, nil
 }
