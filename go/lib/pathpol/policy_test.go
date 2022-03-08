@@ -651,11 +651,13 @@ func (p PathProvider) GetPaths(src, dst addr.IA) []snet.Path {
 				ID: common.IFIDType(ifid),
 			})
 		}
-		var dstIA addr.IA
+		var srcIA, dstIA addr.IA
 		if len(pathIntfs) > 0 {
+			srcIA = pathIntfs[0].IA
 			dstIA = pathIntfs[len(pathIntfs)-1].IA
 		}
 		result = append(result, snetpath.Path{
+			Src: srcIA,
 			Dst: dstIA,
 			Meta: snet.PathMetadata{
 				Interfaces: pathIntfs,

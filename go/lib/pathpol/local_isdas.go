@@ -30,12 +30,11 @@ type LocalISDAS struct {
 func (li *LocalISDAS) Eval(paths []snet.Path) []snet.Path {
 	var result []snet.Path
 	for _, path := range paths {
-		if len(path.Metadata().Interfaces) == 0 {
+		if path.Source() == path.Destination() {
 			continue
 		}
-		ia := path.Metadata().Interfaces[0].IA
 		for _, allowedIA := range li.AllowedIAs {
-			if ia == allowedIA {
+			if path.Source() == allowedIA {
 				result = append(result, path)
 				break
 			}

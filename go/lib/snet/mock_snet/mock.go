@@ -280,6 +280,20 @@ func (mr *MockPathMockRecorder) Metadata() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Metadata", reflect.TypeOf((*MockPath)(nil).Metadata))
 }
 
+// Source mocks base method.
+func (m *MockPath) Source() addr.IA {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Source")
+	ret0, _ := ret[0].(addr.IA)
+	return ret0
+}
+
+// Source indicates an expected call of Source.
+func (mr *MockPathMockRecorder) Source() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Source", reflect.TypeOf((*MockPath)(nil).Source))
+}
+
 // UnderlayNextHop mocks base method.
 func (m *MockPath) UnderlayNextHop() *net.UDPAddr {
 	m.ctrl.T.Helper()

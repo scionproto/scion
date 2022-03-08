@@ -66,6 +66,7 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 	if dst.Equal(src) {
 		// For AS local communication, an empty path is used.
 		return []snet.Path{path.Path{
+			Src: src,
 			Dst: dst,
 			Meta: snet.PathMetadata{
 				MTU:    p.MTU,
@@ -198,6 +199,7 @@ func (p *Pather) translatePath(comb combinator.Path) (snet.Path, error) {
 			"ifid", comb.Metadata.Interfaces[0].ID)
 	}
 	return path.Path{
+		Src:           comb.Metadata.Interfaces[0].IA,
 		Dst:           comb.Metadata.Interfaces[len(comb.Metadata.Interfaces)-1].IA,
 		DataplanePath: comb.SCIONPath,
 		NextHop:       nextHop,

@@ -31,6 +31,7 @@ import (
 
 // Path is an snet.Path with full metadata
 type Path struct {
+	Src           addr.IA
 	Dst           addr.IA
 	DataplanePath snet.DataplanePath
 	NextHop       *net.UDPAddr
@@ -50,6 +51,10 @@ func (p Path) UnderlayNextHop() *net.UDPAddr {
 
 func (p Path) Dataplane() snet.DataplanePath {
 	return p.DataplanePath
+}
+
+func (p Path) Source() addr.IA {
+	return p.Src
 }
 
 func (p Path) Destination() addr.IA {

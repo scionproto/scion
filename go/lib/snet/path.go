@@ -56,6 +56,9 @@ type Path interface {
 	// If you modify the raw data, you must ensure that there are no data races
 	// or data corruption on your own.
 	Dataplane() DataplanePath
+	// Source is the AS the path starts from. Empty paths return the local
+	// AS of the router that created them.
+	Source() addr.IA
 	// Destination is the AS the path points to. Empty paths return the local
 	// AS of the router that created them.
 	Destination() addr.IA
@@ -208,6 +211,7 @@ func Fingerprint(path Path) PathFingerprint {
 type partialPath struct {
 	dataplane   DataplanePath
 	underlay    *net.UDPAddr
+	source      addr.IA
 	destination addr.IA
 }
 
@@ -221,6 +225,10 @@ func (p *partialPath) Dataplane() DataplanePath {
 
 func (p *partialPath) Interfaces() []PathInterface {
 	return nil
+}
+
+func (p *partialPath) Source() addr.IA {
+	return p.source
 }
 
 func (p *partialPath) Destination() addr.IA {
