@@ -48,6 +48,10 @@ cmd_run() {
         docker-compose -f gen/scion-dc.yml -p scion up -d
         return 0
     fi
+    # Start dispatcher first, as it is requrired by the border routers.
+    ./tools/quiet supervisor/supervisor.sh mstart '*dispatcher*' # for supervisor
+    # Start border routers before all other services to provide connectivity.
+    ./tools/quiet supervisor/supervisor.sh mstart '*br*'
     ./tools/quiet ./supervisor/supervisor.sh start all
 }
 
