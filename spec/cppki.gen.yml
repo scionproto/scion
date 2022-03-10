@@ -317,11 +317,11 @@ components:
         not_before:
           type: string
           format: date-time
-          example: 2021-01-04T09:59:33Z
+          example: '2021-01-04T09:59:33Z'
         not_after:
           type: string
           format: date-time
-          example: 2022-01-04T09:59:33Z
+          example: '2022-01-04T09:59:33Z'
     Chain:
       title: Certificate chain description
       type: object

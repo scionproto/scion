@@ -16,9 +16,13 @@ package api
 
 import (
 	"bytes"
+	_ "embed"
 	"net/http"
 	"time"
 )
+
+//go:embed index.html
+var index []byte
 
 var (
 	modtime = time.Now()
@@ -34,7 +38,7 @@ var (
 
 // ServeSpecInteractive serves the interactive redocly OpenAPI3 spec.
 func ServeSpecInteractive(w http.ResponseWriter, r *http.Request) {
-	http.ServeContent(w, r, "index.html", modtime, bytes.NewReader(files["index.html"]))
+	http.ServeContent(w, r, "index.html", modtime, bytes.NewReader(index))
 }
 
 // ServeSpecJSON serves the json encoded OpenAPI3 spec.

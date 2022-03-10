@@ -1,4 +1,4 @@
-load("//lint:go.bzl", "go_embed_data", "go_library")
+load("//lint:go.bzl", "go_library")
 load("//rules_openapi:defs.bzl", "openapi_generate_go")
 
 genrule(
@@ -14,13 +14,6 @@ genrule(
     visibility = ["//visibility:public"],
 )
 
-go_embed_data(
-    name = "go_default_embed_data",
-    srcs = [":bundle"],
-    flatten = True,
-    var = "files",
-)
-
 openapi_generate_go(
     name = "api_generated",
     src = "//spec:dispatcher",
@@ -34,8 +27,8 @@ go_library(
         "api.go",
         "spec.go",
         ":api_generated",  # keep
-        ":go_default_embed_data",  # keep
     ],
+    embedsrcs = [":bundle"],  # keep
     importpath = "github.com/scionproto/scion/go/pkg/dispatcher/api",
     visibility = ["//visibility:public"],
     deps = [
