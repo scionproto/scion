@@ -503,7 +503,7 @@ paths:
             Timestamp at which returned beacons are valid. If unset then the
             current datetime is used. This only has an effect if `all=false`.
           name: valid_at
-          example: 2021-11-25T12:20:50.52Z
+          example: '2021-11-25T12:20:50.52Z'
           schema:
             type: string
             format: date-time
@@ -745,11 +745,11 @@ components:
         not_before:
           type: string
           format: date-time
-          example: 2021-01-04T09:59:33Z
+          example: '2021-01-04T09:59:33Z'
         not_after:
           type: string
           format: date-time
-          example: 2022-01-04T09:59:33Z
+          example: '2022-01-04T09:59:33Z'
     SubjectKeyID:
       type: string
       format: spaced-hex-string
@@ -805,7 +805,7 @@ components:
           description: Signer expiration imposed by chain and TRC validity.
           type: string
           format: date-time
-          example: 2022-01-04T09:59:33Z
+          example: '2022-01-04T09:59:33Z'
         as_certificate:
           $ref: '#/components/schemas/Certificate'
         trc_id:
