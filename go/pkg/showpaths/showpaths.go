@@ -364,7 +364,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 			LocalIP:    cfg.Local,
 			ID:         uint16(rand.Uint32()),
 			Dispatcher: cfg.Dispatcher,
-		}.GetStatuses(ctx, p, pathprobe.WithEpic(cfg.Epic))
+		}.GetStatuses(ctx, p, pathprobe.WithEPIC(cfg.Epic))
 		if err != nil {
 			return nil, serrors.WrapStr("getting statuses", err)
 		}

@@ -143,7 +143,7 @@ func filterUnhealthy(
 		ID:                     uint16(rand.Uint32()),
 		SCIONPacketConnMetrics: cfg.SCIONPacketConnMetrics,
 		Dispatcher:             cfg.Dispatcher,
-	}.GetStatuses(subCtx, nonEmptyPaths, pathprobe.WithEpic(epic))
+	}.GetStatuses(subCtx, nonEmptyPaths, pathprobe.WithEPIC(epic))
 	if err != nil {
 		return nil, serrors.WrapStr("probing paths", err)
 	}

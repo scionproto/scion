@@ -126,7 +126,7 @@ func applyOption(opts []Option) options {
 	return o
 }
 
-func WithEpic(epic bool) Option {
+func WithEPIC(epic bool) Option {
 	return func(o *options) {
 		o.epic = epic
 	}
