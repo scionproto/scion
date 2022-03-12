@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/pkg/app"
@@ -54,6 +55,7 @@ func newPing(pather CommandPather) *cobra.Command {
 		size        uint
 		timeout     time.Duration
 		tracer      string
+		epic        bool
 	}
 
 	var cmd = &cobra.Command{
@@ -125,6 +127,7 @@ On other errors, ping will exit with code 2.
 				path.WithRefresh(flags.refresh),
 				path.WithSequence(flags.sequence),
 				path.WithColorScheme(path.DefaultColorScheme(flags.noColor)),
+				path.WithEPIC(flags.epic),
 			}
 			if flags.healthyOnly {
 				opts = append(opts, path.WithProbing(&path.ProbeConfig{
@@ -137,7 +140,24 @@ On other errors, ping will exit with code 2.
 			if err != nil {
 				return err
 			}
-			remote.Path = path.Dataplane()
+
+			// If the EPIC flag is set, use the EPIC-HP path type
+			if flags.epic {
+				switch s := path.Dataplane().(type) {
+				case snetpath.SCION:
+					epicPath, err := snetpath.NewEPICDataplanePath(s, path.Metadata().EpicAuths)
+					if err != nil {
+						return err
+					}
+					remote.Path = epicPath
+				case snetpath.Empty:
+					remote.Path = s
+				default:
+					return serrors.New("unsupported path type")
+				}
+			} else {
+				remote.Path = path.Dataplane()
+			}
 			remote.NextHop = path.UnderlayNextHop()
 
 			// Resolve local IP based on underlay next hop
@@ -235,6 +255,7 @@ SCMP echo header and payload are equal to the MTU of the path. This flag overrid
 'payload_size' flag.`)
 	cmd.Flags().StringVar(&flags.logLevel, "log.level", "", app.LogLevelUsage)
 	cmd.Flags().StringVar(&flags.tracer, "tracing.agent", "", "Tracing agent address")
+	cmd.Flags().BoolVar(&flags.epic, "epic", false, "Enable EPIC for path probing.")
 	return cmd
 }
 

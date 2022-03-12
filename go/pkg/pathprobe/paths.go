@@ -70,11 +70,13 @@ func (s Status) String() string {
 // GetStatuses.
 func PathKey(path snet.Path) string {
 	dp := path.Dataplane()
-	scionPath, ok := dp.(snetpath.SCION)
-	if !ok {
-		return ""
+	switch p := dp.(type) {
+	case snetpath.SCION:
+		return string(p.Raw)
+	case *snetpath.EPIC:
+		return string(p.SCION)
 	}
-	return string(scionPath.Raw)
+	return ""
 }
 
 // FilterEmptyPaths removes all empty paths from paths and returns a copy.
@@ -110,10 +112,33 @@ type Prober struct {
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 }
 
+type options struct {
+	epic bool
+}
+
+type Option func(o *options)
+
+func applyOption(opts []Option) options {
+	var o options
+	for _, option := range opts {
+		option(&o)
+	}
+	return o
+}
+
+func WithEPIC(epic bool) Option {
+	return func(o *options) {
+		o.epic = epic
+	}
+}
+
 // GetStatuses probes the paths and returns the statuses of the paths. The
 // returned map is keyed with path.Path.FwdPath. The input should only be
 // non-empty paths.
-func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path) (map[string]Status, error) {
+func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
+	opts ...Option) (map[string]Status, error) {
+
+	o := applyOption(opts)
 	deadline, ok := ctx.Deadline()
 	if !ok {
 		return nil, serrors.New("deadline required on ctx")
@@ -121,7 +146,8 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path) (map[string]
 
 	for _, path := range paths {
 		if _, ok := path.Dataplane().(snetpath.SCION); !ok {
-			return nil, serrors.New("paths must be of type SCION")
+			return nil, serrors.New("paths must be of type SCION",
+				"path", common.TypeOf(path.Dataplane()))
 		}
 	}
 
@@ -185,10 +211,25 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path) (map[string]
 				if !ok {
 					return serrors.New("not a scion path")
 				}
-				alertPath, err := setAlertFlag(originalPath)
+
+				scionAlertPath, err := setAlertFlag(originalPath)
 				if err != nil {
 					return serrors.WrapStr("setting alert flag", err)
 				}
+				var alertPath snet.DataplanePath
+				if o.epic {
+					epicAlertPath, err := snetpath.NewEPICDataplanePath(
+						scionAlertPath,
+						path.Metadata().EpicAuths,
+					)
+					if err != nil {
+						return err
+					}
+					alertPath = epicAlertPath
+				} else {
+					alertPath = scionAlertPath
+				}
+
 				pkt := &snet.Packet{
 					PacketInfo: snet.PacketInfo{
 						Destination: snet.SCIONAddress{

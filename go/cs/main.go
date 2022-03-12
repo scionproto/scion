@@ -651,6 +651,7 @@ func realMain(ctx context.Context) error {
 		RegistrationInterval:      globalCfg.BS.RegistrationInterval.Duration,
 		HiddenPathRegistrationCfg: hpWriterCfg,
 		AllowIsdLoop:              isdLoopAllowed,
+		EPIC:                      globalCfg.BS.EPIC,
 	})
 	if err != nil {
 		return serrors.WrapStr("starting periodic tasks", err)

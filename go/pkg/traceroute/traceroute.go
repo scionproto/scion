@@ -63,6 +63,7 @@ type Config struct {
 	PayloadSize uint
 	Remote      *snet.UDPAddr
 	Timeout     time.Duration
+	EPIC        bool
 
 	// ProbesPerHop indicates how many probes should be done per hop.
 	ProbesPerHop int
@@ -86,6 +87,7 @@ type tracerouter struct {
 	replies <-chan reply
 
 	path  snet.Path
+	epic  bool
 	id    uint16
 	index int
 
@@ -120,6 +122,7 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		updateHandler: cfg.UpdateHandler,
 		id:            uint16(id),
 		path:          cfg.PathEntry,
+		epic:          cfg.EPIC,
 	}
 	return t.Traceroute(ctx)
 }
@@ -196,9 +199,23 @@ func (t *tracerouter) probeHop(ctx context.Context, hfIdx uint8, egress bool) (U
 		hf.IngressRouterAlert = true
 	}
 
-	alert, err := snetpath.NewSCIONFromDecoded(decoded)
+	scionAlertPath, err := snetpath.NewSCIONFromDecoded(decoded)
 	if err != nil {
 		return Update{}, serrors.WrapStr("setting alert flag", err)
+	}
+
+	var alertPath snet.DataplanePath
+	if t.epic {
+		epicAlertPath, err := snetpath.NewEPICDataplanePath(
+			scionAlertPath,
+			t.path.Metadata().EpicAuths,
+		)
+		if err != nil {
+			return Update{}, err
+		}
+		alertPath = epicAlertPath
+	} else {
+		alertPath = scionAlertPath
 	}
 
 	u := Update{
@@ -216,7 +233,7 @@ func (t *tracerouter) probeHop(ctx context.Context, hfIdx uint8, egress bool) (U
 				IA:   t.local.IA,
 				Host: addr.HostFromIP(t.local.Host.IP),
 			},
-			Path:    alert,
+			Path:    alertPath,
 			Payload: snet.SCMPTracerouteRequest{Identifier: t.id},
 		},
 	}

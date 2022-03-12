@@ -22,6 +22,7 @@ import (
 	"math"
 	"math/rand"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -106,6 +107,7 @@ func (r Result) Human(w io.Writer, showExtendedMetadata, colored bool) {
 				"LinkType", humanLinkType(meta),
 				"InternalHops", humanInternalHops(meta),
 				"Notes", humanNotes(meta),
+				"SupportsEPIC", strconv.FormatBool(meta.EpicAuths.SupportsEpic()),
 			)...)
 		}
 		if path.Status != "" {
@@ -341,6 +343,18 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 		paths = paths[:cfg.MaxPaths]
 	}
 
+	// If the epic flag is set, filter all paths that do not have
+	// the necessary epic authenticators.
+	if cfg.Epic {
+		epicPaths := []snet.Path{}
+		for _, p := range paths {
+			if p.Metadata().EpicAuths.SupportsEpic() {
+				epicPaths = append(epicPaths, p)
+			}
+		}
+		paths = epicPaths
+	}
+
 	var statuses map[string]pathprobe.Status
 	if !cfg.NoProbe {
 		p := pathprobe.FilterEmptyPaths(paths)
@@ -350,7 +364,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 			LocalIP:    cfg.Local,
 			ID:         uint16(rand.Uint32()),
 			Dispatcher: cfg.Dispatcher,
-		}.GetStatuses(ctx, p)
+		}.GetStatuses(ctx, p, pathprobe.WithEPIC(cfg.Epic))
 		if err != nil {
 			return nil, serrors.WrapStr("getting statuses", err)
 		}

@@ -68,6 +68,7 @@ var (
 	timeout                = &util.DurWrap{Duration: 10 * time.Second}
 	scionPacketConnMetrics = metrics.NewSCIONPacketConnMetrics()
 	scmpErrorsCounter      = scionPacketConnMetrics.SCMPErrors
+	epic                   bool
 )
 
 func main() {
@@ -98,6 +99,7 @@ func realMain() int {
 func addFlags() {
 	flag.Var(&remote, "remote", "(Mandatory for clients) address to connect to")
 	flag.Var(timeout, "timeout", "The timeout for each attempt")
+	flag.BoolVar(&epic, "epic", false, "Enable EPIC.")
 }
 
 func validateFlags() {
@@ -361,11 +363,11 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 	if err != nil {
 		return nil, withTag(serrors.WrapStr("requesting paths", err))
 	}
-	// if all paths had an error, let's try them again.
+	// If all paths had an error, let's try them again.
 	if len(paths) <= len(c.errorPaths) {
 		c.errorPaths = make(map[snet.PathFingerprint]struct{})
 	}
-	// select first path that didn't error before.
+	// Select first path that didn't error before.
 	var path snet.Path
 	for _, p := range paths {
 		if _, ok := c.errorPaths[snet.Fingerprint(p)]; ok {
@@ -380,8 +382,21 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 			"errors", len(c.errorPaths),
 		))
 	}
-	// Extract forwarding path from the SCION Daemon response
-	remote.Path = path.Dataplane()
+	// Extract forwarding path from the SCION Daemon response.
+	// If the epic flag is set, try to use the EPIC path type header.
+	if epic {
+		scionPath, ok := path.Dataplane().(snetpath.SCION)
+		if !ok {
+			return nil, serrors.New("provided path must be of type scion")
+		}
+		epicPath, err := snetpath.NewEPICDataplanePath(scionPath, path.Metadata().EpicAuths)
+		if err != nil {
+			return nil, err
+		}
+		remote.Path = epicPath
+	} else {
+		remote.Path = path.Dataplane()
+	}
 	remote.NextHop = path.UnderlayNextHop()
 	return path, nil
 }

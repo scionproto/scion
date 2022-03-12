@@ -29,6 +29,7 @@ import (
 var (
 	features string
 	test     string
+	epic     bool
 )
 
 func main() {
@@ -54,6 +55,7 @@ func realMain() int {
 		"--timeout", "4s",
 		"--sciond", integration.Daemon,
 		"--log.level", "debug",
+		fmt.Sprintf("--epic=%t", epic),
 	}
 	if *integration.Docker {
 		cmnArgs = append(cmnArgs,
@@ -123,5 +125,5 @@ func addFlags() {
 		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
 	flag.StringVar(&test, "test", "",
 		"Test to run. If empty, all tests are run.")
-
+	flag.BoolVar(&epic, "epic", false, "Enable EPIC.")
 }

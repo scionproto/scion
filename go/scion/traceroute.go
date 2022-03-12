@@ -50,6 +50,7 @@ func newTraceroute(pather CommandPather) *cobra.Command {
 		sequence    string
 		timeout     time.Duration
 		tracer      string
+		epic        bool
 	}
 
 	var cmd = &cobra.Command{
@@ -114,11 +115,11 @@ On other errors, traceroute will exit with code 2.
 				path.WithRefresh(flags.refresh),
 				path.WithSequence(flags.sequence),
 				path.WithColorScheme(path.DefaultColorScheme(flags.noColor)),
+				path.WithEPIC(flags.epic),
 			)
 			if err != nil {
 				return err
 			}
-			remote.Path = path.Dataplane()
 			remote.NextHop = path.UnderlayNextHop()
 			if remote.NextHop == nil {
 				remote.NextHop = &net.UDPAddr{
@@ -158,6 +159,7 @@ On other errors, traceroute will exit with code 2.
 					fmt.Printf("%d %s %s\n", u.Index, fmtRemote(u.Remote, u.Interface),
 						fmtRTTs(u.RTTs, flags.timeout))
 				},
+				EPIC: flags.epic,
 			}
 			stats, err = traceroute.Run(ctx, cfg)
 			if err != nil {
@@ -178,6 +180,7 @@ On other errors, traceroute will exit with code 2.
 	cmd.Flags().StringVar(&flags.sequence, "sequence", "", app.SequenceUsage)
 	cmd.Flags().StringVar(&flags.logLevel, "log.level", "", app.LogLevelUsage)
 	cmd.Flags().StringVar(&flags.tracer, "tracing.agent", "", "Tracing agent address")
+	cmd.Flags().BoolVar(&flags.epic, "epic", false, "Enable EPIC.")
 	return cmd
 }
 

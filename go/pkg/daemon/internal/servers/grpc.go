@@ -159,6 +159,12 @@ func pathToPB(path snet.Path) *sdpb.Path {
 	if nextHop := path.UnderlayNextHop(); nextHop != nil {
 		nextHopStr = nextHop.String()
 	}
+
+	epicAuths := &sdpb.EpicAuths{
+		AuthPhvf: append([]byte(nil), meta.EpicAuths.AuthPHVF...),
+		AuthLhvf: append([]byte(nil), meta.EpicAuths.AuthLHVF...),
+	}
+
 	return &sdpb.Path{
 		Raw: raw,
 		Interface: &sdpb.Interface{
@@ -173,6 +179,7 @@ func pathToPB(path snet.Path) *sdpb.Path {
 		LinkType:     linkType,
 		InternalHops: meta.InternalHops,
 		Notes:        meta.Notes,
+		EpicAuths:    epicAuths,
 	}
 
 }

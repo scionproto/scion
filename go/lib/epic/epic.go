@@ -132,7 +132,7 @@ func VerifyHVF(auth []byte, pktID epic.PktID, s *slayers.SCION,
 
 	if subtle.ConstantTimeCompare(hvf, mac) == 0 {
 		return serrors.New("epic hop validation field verification failed",
-			"hvf in packet", hvf, "calculated mac", mac)
+			"hvf in packet", hvf, "calculated mac", mac, "auth", auth)
 	}
 	return nil
 }

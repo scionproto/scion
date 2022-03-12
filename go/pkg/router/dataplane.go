@@ -689,22 +689,21 @@ func (p *scionPacketProcessor) processEPIC() (processResult, error) {
 		return processResult{}, malformedPath
 	}
 
-	info, err := p.path.GetCurrentInfoField()
-	if err != nil {
-		return processResult{}, err
-	}
-
-	result, err := p.process()
-	if err != nil {
-		// TODO(mawyss): Send back SCMP packet
-		return processResult{}, err
-	}
-
 	isPenultimate := p.path.IsPenultimateHop()
 	isLast := p.path.IsLastHop()
 
+	result, err := p.process()
+	if err != nil {
+		return result, err
+	}
+
 	if isPenultimate || isLast {
-		timestamp := time.Unix(int64(info.Timestamp), 0)
+		firstInfo, err := p.path.GetInfoField(0)
+		if err != nil {
+			return processResult{}, err
+		}
+
+		timestamp := time.Unix(int64(firstInfo.Timestamp), 0)
 		err = libepic.VerifyTimestamp(timestamp, epicPath.PktID.Timestamp, time.Now())
 		if err != nil {
 			// TODO(mawyss): Send back SCMP packet
@@ -715,8 +714,8 @@ func (p *scionPacketProcessor) processEPIC() (processResult, error) {
 		if isLast {
 			HVF = epicPath.LHVF
 		}
-		err = libepic.VerifyHVF(p.cachedMac, epicPath.PktID, &p.scionLayer, info.Timestamp, HVF,
-			p.macBuffers.epicInput)
+		err = libepic.VerifyHVF(p.cachedMac, epicPath.PktID,
+			&p.scionLayer, firstInfo.Timestamp, HVF, p.macBuffers.epicInput)
 		if err != nil {
 			// TODO(mawyss): Send back SCMP packet
 			return processResult{}, err
@@ -1427,10 +1426,26 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 
 	// *copy* and reverse path -- the original path should not be modified as this writes directly
 	// back to rawPkt (quote).
-	path, ok := p.scionLayer.Path.(*scion.Raw)
-	if !ok {
+	var path *scion.Raw
+	pathType := p.scionLayer.Path.Type()
+	switch pathType {
+	case scion.PathType:
+		var ok bool
+		path, ok = p.scionLayer.Path.(*scion.Raw)
+		if !ok {
+			return nil, serrors.WithCtx(cannotRoute, "details", "unsupported path type",
+				"path type", pathType)
+		}
+	case epic.PathType:
+		epicPath, ok := p.scionLayer.Path.(*epic.Path)
+		if !ok {
+			return nil, serrors.WithCtx(cannotRoute, "details", "unsupported path type",
+				"path type", pathType)
+		}
+		path = epicPath.ScionPath
+	default:
 		return nil, serrors.WithCtx(cannotRoute, "details", "unsupported path type",
-			"path type", p.scionLayer.Path.Type())
+			"path type", pathType)
 	}
 	decPath, err := path.ToDecoded()
 	if err != nil {

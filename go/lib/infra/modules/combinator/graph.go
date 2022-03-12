@@ -309,10 +309,12 @@ type pathSolution struct {
 func (solution *pathSolution) Path() Path {
 	mtu := ^uint16(0)
 	var segments segmentList
+	var epicPathAuths [][]byte
 	for _, solEdge := range solution.edges {
 		var hops []path.HopField
 		var intfs []snet.PathInterface
 		var pathASEntries []seg.ASEntry // ASEntries that on the path, eventually in path order.
+		var epicSegAuths [][]byte
 
 		// Go through each ASEntry, starting from the last one, until we
 		// find a shortcut (which can be 0, meaning the end of the segment).
@@ -324,6 +326,7 @@ func (solution *pathSolution) Path() Path {
 
 			var hopField path.HopField
 			var forwardingLinkMtu int
+			var epicAuth []byte
 			if !isPeer {
 				// Regular hop field.
 				entry := asEntry.HopEntry
@@ -334,6 +337,7 @@ func (solution *pathSolution) Path() Path {
 					Mac:         entry.HopField.MAC,
 				}
 				forwardingLinkMtu = entry.IngressMTU
+				epicAuth = getAuth(&asEntry)
 			} else {
 				// We've reached the ASEntry where we want to switch
 				// segments on a peering link.
@@ -345,6 +349,7 @@ func (solution *pathSolution) Path() Path {
 					Mac:         peer.HopField.MAC,
 				}
 				forwardingLinkMtu = peer.PeerMTU
+				epicAuth = getAuthPeer(&asEntry, solEdge.edge.Peer-1)
 			}
 
 			// Segment is traversed in reverse construction direction.
@@ -364,6 +369,7 @@ func (solution *pathSolution) Path() Path {
 			}
 			hops = append(hops, hopField)
 			pathASEntries = append(pathASEntries, asEntry)
+			epicSegAuths = append(epicSegAuths, epicAuth)
 
 			mtu = minUint16(mtu, uint16(asEntry.MTU))
 			if forwardingLinkMtu != 0 {
@@ -376,6 +382,7 @@ func (solution *pathSolution) Path() Path {
 			reverseHops(hops)
 			reverseIntfs(intfs)
 			reverseASEntries(pathASEntries)
+			reverseEpicAuths(epicSegAuths)
 		}
 
 		segments = append(segments, segment{
@@ -389,13 +396,14 @@ func (solution *pathSolution) Path() Path {
 			Interfaces: intfs,
 			ASEntries:  pathASEntries,
 		})
+		epicPathAuths = append(epicPathAuths, epicSegAuths...)
 	}
 
 	interfaces := segments.Interfaces()
 	asEntries := segments.ASEntries()
 	staticInfo := collectMetadata(interfaces, asEntries)
 
-	return Path{
+	path := Path{
 		SCIONPath: segments.ScionPath(),
 		Metadata: snet.PathMetadata{
 			Interfaces:   interfaces,
@@ -410,6 +418,48 @@ func (solution *pathSolution) Path() Path {
 		},
 		Weight: solution.cost,
 	}
+
+	if authPHVF, authLHVF, ok := isEpicAvailable(epicPathAuths); ok {
+		path.Metadata.EpicAuths = snet.EpicAuths{
+			AuthPHVF: authPHVF,
+			AuthLHVF: authLHVF,
+		}
+	}
+
+	return path
+}
+
+func getAuth(a *seg.ASEntry) []byte {
+	if a.UnsignedExtensions.EpicDetached == nil {
+		return nil
+	}
+
+	auth := make([]byte, 16)
+	copy(auth[0:6], a.HopEntry.HopField.MAC[:])
+	copy(auth[6:16], a.UnsignedExtensions.EpicDetached.AuthHopEntry)
+	return auth
+}
+
+func getAuthPeer(a *seg.ASEntry, i int) []byte {
+	if a.UnsignedExtensions.EpicDetached == nil {
+		return nil
+	}
+
+	auth := make([]byte, 16)
+	copy(auth[0:6], a.HopEntry.HopField.MAC[:])
+	copy(auth[6:16], a.UnsignedExtensions.EpicDetached.AuthPeerEntries[i])
+	return auth
+}
+
+func isEpicAvailable(epicPathAuths [][]byte) ([]byte, []byte, bool) {
+	l := len(epicPathAuths)
+	if l < 2 {
+		return nil, nil, false
+	}
+	if epicPathAuths[l-1] == nil || epicPathAuths[l-2] == nil {
+		return nil, nil, false
+	}
+	return epicPathAuths[l-2], epicPathAuths[l-1], true
 }
 
 func reverseHops(s []path.HopField) {
@@ -425,6 +475,12 @@ func reverseIntfs(s []snet.PathInterface) {
 }
 
 func reverseASEntries(s []seg.ASEntry) {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+}
+
+func reverseEpicAuths(s [][]byte) {
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
 	}

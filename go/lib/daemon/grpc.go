@@ -212,7 +212,7 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 		linkType[i] = linkTypeFromPB(v)
 	}
 
-	return path.Path{
+	res := path.Path{
 		Src: interfaces[0].IA,
 		Dst: dst,
 		DataplanePath: path.SCION{
@@ -230,7 +230,16 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 			InternalHops: p.InternalHops,
 			Notes:        p.Notes,
 		},
-	}, nil
+	}
+
+	if p.EpicAuths == nil {
+		return res, nil
+	}
+	res.Meta.EpicAuths = snet.EpicAuths{
+		AuthPHVF: append([]byte(nil), p.EpicAuths.AuthPhvf...),
+		AuthLHVF: append([]byte(nil), p.EpicAuths.AuthLhvf...),
+	}
+	return res, nil
 }
 
 func linkTypeFromPB(lt sdpb.LinkType) snet.LinkType {
