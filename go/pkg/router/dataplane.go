@@ -36,7 +36,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	libepic "github.com/scionproto/scion/go/lib/epic"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
@@ -264,31 +263,19 @@ func (d *DataPlane) AddExternalInterfaceBFD(ifID uint16, conn BatchConn,
 	}
 	var m bfd.Metrics
 	if d.Metrics != nil {
-		labels := []string{
-			"interface", fmt.Sprint(ifID),
-			"isd_as", d.localIA.String(),
-			"neighbor_isd_as", dst.IA.String(),
+		labels := prometheus.Labels{
+			"interface":       fmt.Sprint(ifID),
+			"isd_as":          d.localIA.String(),
+			"neighbor_isd_as": dst.IA.String(),
 		}
 		m = bfd.Metrics{
-			Up: metrics.NewPromGauge(d.Metrics.InterfaceUp).
-				With(labels...),
-			StateChanges: metrics.NewPromCounter(d.Metrics.BFDInterfaceStateChanges).
-				With(labels...),
-			PacketsSent: metrics.NewPromCounter(d.Metrics.BFDPacketsSent).
-				With(labels...),
-			PacketsReceived: metrics.NewPromCounter(d.Metrics.BFDPacketsReceived).
-				With(labels...),
+			Up:              d.Metrics.InterfaceUp.With(labels),
+			StateChanges:    d.Metrics.BFDInterfaceStateChanges.With(labels),
+			PacketsSent:     d.Metrics.BFDPacketsSent.With(labels),
+			PacketsReceived: d.Metrics.BFDPacketsReceived.With(labels),
 		}
 	}
-	s := &bfdSend{
-		conn:    conn,
-		srcAddr: src.Addr,
-		dstAddr: dst.Addr,
-		srcIA:   src.IA,
-		dstIA:   dst.IA,
-		ifID:    ifID,
-		mac:     d.macFactory(),
-	}
+	s := newBFDSend(conn, src.IA, dst.IA, src.Addr, dst.Addr, ifID, d.macFactory())
 	return d.addBFDController(ifID, s, cfg, m)
 }
 
@@ -420,27 +407,16 @@ func (d *DataPlane) AddNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg contro
 	}
 	var m bfd.Metrics
 	if d.Metrics != nil {
-		labels := []string{"isd_as", d.localIA.String(), "sibling", sibling}
+		labels := prometheus.Labels{"isd_as": d.localIA.String(), "sibling": sibling}
 		m = bfd.Metrics{
-			Up: metrics.NewPromGauge(d.Metrics.SiblingReachable).
-				With(labels...),
-			StateChanges: metrics.NewPromCounter(d.Metrics.SiblingBFDStateChanges).
-				With(labels...),
-			PacketsSent: metrics.NewPromCounter(d.Metrics.SiblingBFDPacketsSent).
-				With(labels...),
-			PacketsReceived: metrics.NewPromCounter(d.Metrics.SiblingBFDPacketsReceived).
-				With(labels...),
+			Up:              d.Metrics.SiblingReachable.With(labels),
+			StateChanges:    d.Metrics.SiblingBFDStateChanges.With(labels),
+			PacketsSent:     d.Metrics.SiblingBFDPacketsSent.With(labels),
+			PacketsReceived: d.Metrics.SiblingBFDPacketsReceived.With(labels),
 		}
 	}
-	s := &bfdSend{
-		conn:    d.internal,
-		srcAddr: src,
-		dstAddr: dst,
-		srcIA:   d.localIA,
-		dstIA:   d.localIA,
-		ifID:    0,
-		mac:     d.macFactory(),
-	}
+
+	s := newBFDSend(d.internal, d.localIA, d.localIA, src, dst, 0, d.macFactory())
 	return d.addBFDController(ifID, s, cfg, m)
 }
 
@@ -1358,9 +1334,62 @@ func updateSCIONLayer(rawPkt []byte, s slayers.SCION, buffer gopacket.SerializeB
 type bfdSend struct {
 	conn             BatchConn
 	srcAddr, dstAddr *net.UDPAddr
-	srcIA, dstIA     addr.IA
+	scn              *slayers.SCION
+	ohp              *onehop.Path
 	mac              hash.Hash
-	ifID             uint16
+	macBuffer        []byte
+	buffer           gopacket.SerializeBuffer
+}
+
+// newBFDSend creates and initializes a BFD Sender
+func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr *net.UDPAddr,
+	ifID uint16, mac hash.Hash) *bfdSend {
+
+	scn := &slayers.SCION{
+		Version:      0,
+		TrafficClass: 0xb8,
+		FlowID:       0xdead,
+		NextHdr:      slayers.L4BFD,
+		SrcIA:        srcIA,
+		DstIA:        dstIA,
+	}
+
+	if err := scn.SetSrcAddr(&net.IPAddr{IP: srcAddr.IP}); err != nil {
+		panic(err) // Must work unless IPAddr is not supported
+	}
+	if err := scn.SetDstAddr(&net.IPAddr{IP: dstAddr.IP}); err != nil {
+		panic(err) // Must work unless IPAddr is not supported
+	}
+
+	var ohp *onehop.Path
+	if ifID == 0 {
+		scn.PathType = empty.PathType
+		scn.Path = &empty.Path{}
+	} else {
+		ohp = &onehop.Path{
+			Info: path.InfoField{
+				ConsDir: true,
+				// Timestamp set in Send
+			},
+			FirstHop: path.HopField{
+				ConsEgress: ifID,
+				ExpTime:    hopFieldDefaultExpTime,
+			},
+		}
+		scn.PathType = onehop.PathType
+		scn.Path = ohp
+	}
+
+	return &bfdSend{
+		conn:      conn,
+		srcAddr:   srcAddr,
+		dstAddr:   dstAddr,
+		scn:       scn,
+		ohp:       ohp,
+		mac:       mac,
+		macBuffer: make([]byte, path.MACBufferSize),
+		buffer:    gopacket.NewSerializeBuffer(),
+	}
 }
 
 func (b *bfdSend) String() string {
@@ -1371,49 +1400,19 @@ func (b *bfdSend) String() string {
 // Due to the internal state of the MAC computation, this is not goroutine
 // safe.
 func (b *bfdSend) Send(bfd *layers.BFD) error {
-	scn := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      slayers.L4BFD,
-		SrcIA:        b.srcIA,
-		DstIA:        b.dstIA,
+	if b.ohp != nil {
+		// Subtract 10 seconds to deal with possible clock drift.
+		ohp := b.ohp
+		ohp.Info.Timestamp = uint32(time.Now().Unix() - 10)
+		ohp.FirstHop.Mac = path.MAC(b.mac, ohp.Info, ohp.FirstHop, b.macBuffer)
 	}
 
-	if err := scn.SetSrcAddr(&net.IPAddr{IP: b.srcAddr.IP}); err != nil {
-		return err
-	}
-	if err := scn.SetDstAddr(&net.IPAddr{IP: b.dstAddr.IP}); err != nil {
-		return err
-	}
-
-	if b.ifID == 0 {
-		scn.PathType = empty.PathType
-		scn.Path = &empty.Path{}
-	} else {
-		ohp := &onehop.Path{
-			Info: path.InfoField{
-				ConsDir: true,
-				// Subtract 10 seconds to deal with possible clock drift.
-				Timestamp: uint32(time.Now().Unix() - 10),
-			},
-			FirstHop: path.HopField{
-				ConsEgress: b.ifID,
-				ExpTime:    hopFieldDefaultExpTime,
-			},
-		}
-		ohp.FirstHop.Mac = path.MAC(b.mac, ohp.Info, ohp.FirstHop, nil)
-		scn.PathType = onehop.PathType
-		scn.Path = ohp
-	}
-
-	buffer := gopacket.NewSerializeBuffer()
-	err := gopacket.SerializeLayers(buffer, gopacket.SerializeOptions{FixLengths: true},
-		scn, bfd)
+	err := gopacket.SerializeLayers(b.buffer, gopacket.SerializeOptions{FixLengths: true},
+		b.scn, bfd)
 	if err != nil {
 		return err
 	}
-	_, err = b.conn.WriteTo(buffer.Bytes(), b.dstAddr)
+	_, err = b.conn.WriteTo(b.buffer.Bytes(), b.dstAddr)
 	return err
 }
 
