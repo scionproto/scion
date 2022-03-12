@@ -206,7 +206,8 @@ func (t *tracerouter) probeHop(ctx context.Context, hfIdx uint8, egress bool) (U
 
 	var alertPath snet.DataplanePath
 	if t.epic {
-		epicAlertPath, err := scionAlertPath.NewEPICDataplanePath(t.path.Metadata().EpicAuths)
+		epicAlertPath, err := snetpath.NewEPICDataplanePath(
+			scionAlertPath, t.path.Metadata().EpicAuths)
 		if err != nil {
 			return Update{}, err
 		}

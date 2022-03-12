@@ -115,7 +115,7 @@ On other errors, traceroute will exit with code 2.
 				path.WithRefresh(flags.refresh),
 				path.WithSequence(flags.sequence),
 				path.WithColorScheme(path.DefaultColorScheme(flags.noColor)),
-				path.WithEpic(flags.epic),
+				path.WithEPIC(flags.epic),
 			)
 			if err != nil {
 				return err

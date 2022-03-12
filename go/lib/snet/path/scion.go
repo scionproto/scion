@@ -18,7 +18,6 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
-	"github.com/scionproto/scion/go/lib/snet"
 )
 
 type SCION struct {
@@ -43,16 +42,4 @@ func (p SCION) SetPath(s *slayers.SCION) error {
 	}
 	s.Path, s.PathType = &sp, sp.Type()
 	return nil
-}
-
-func (p SCION) NewEPICDataplanePath(auths snet.EpicAuths) (*EPIC, error) {
-	if !auths.SupportsEpic() {
-		return &EPIC{}, serrors.New("EPIC not supported")
-	}
-	epicPath := &EPIC{
-		AuthPHVF: append([]byte(nil), auths.AuthPHVF...),
-		AuthLHVF: append([]byte(nil), auths.AuthLHVF...),
-		SCION:    append([]byte(nil), p.Raw...),
-	}
-	return epicPath, nil
 }

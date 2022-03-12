@@ -19,9 +19,11 @@ import (
 	"time"
 
 	libepic "github.com/scionproto/scion/go/lib/epic"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path/epic"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 type EPIC struct {
@@ -79,4 +81,16 @@ func (e *EPIC) SetPath(s *slayers.SCION) error {
 	}
 	s.Path, s.PathType = ep, ep.Type()
 	return nil
+}
+
+func NewEPICDataplanePath(p SCION, auths snet.EpicAuths) (*EPIC, error) {
+	if !auths.SupportsEpic() {
+		return &EPIC{}, serrors.New("EPIC not supported")
+	}
+	epicPath := &EPIC{
+		AuthPHVF: append([]byte(nil), auths.AuthPHVF...),
+		AuthLHVF: append([]byte(nil), auths.AuthLHVF...),
+		SCION:    append([]byte(nil), p.Raw...),
+	}
+	return epicPath, nil
 }

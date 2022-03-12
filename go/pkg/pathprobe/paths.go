@@ -218,8 +218,8 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 				}
 				var alertPath snet.DataplanePath
 				if o.epic {
-					epicAlertPath, err := scionAlertPath.NewEPICDataplanePath(
-						path.Metadata().EpicAuths)
+					epicAlertPath, err := snetpath.NewEPICDataplanePath(
+						scionAlertPath, path.Metadata().EpicAuths)
 					if err != nil {
 						return err
 					}

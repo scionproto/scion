@@ -389,7 +389,7 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 		if !ok {
 			return nil, serrors.New("provided path must be of type scion")
 		}
-		epicPath, err := scionPath.NewEPICDataplanePath(path.Metadata().EpicAuths)
+		epicPath, err := snetpath.NewEPICDataplanePath(scionPath, path.Metadata().EpicAuths)
 		if err != nil {
 			return nil, err
 		}

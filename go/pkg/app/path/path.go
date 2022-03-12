@@ -359,7 +359,7 @@ func WithProbing(cfg *ProbeConfig) Option {
 	}
 }
 
-func WithEpic(epic bool) Option {
+func WithEPIC(epic bool) Option {
 	return func(o *options) {
 		o.epic = epic
 	}
