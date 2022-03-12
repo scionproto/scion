@@ -553,7 +553,7 @@ type processResult struct {
 }
 
 func newPacketProcessor(d *DataPlane, ingressID uint16) *scionPacketProcessor {
-	return &scionPacketProcessor{
+	p := &scionPacketProcessor{
 		d:         d,
 		ingressID: ingressID,
 		buffer:    gopacket.NewSerializeBuffer(),
@@ -563,6 +563,8 @@ func newPacketProcessor(d *DataPlane, ingressID uint16) *scionPacketProcessor {
 			epicInput:  make([]byte, libepic.MACBufferSize),
 		},
 	}
+	p.scionLayer.RecyclePaths()
+	return p
 }
 
 func (p *scionPacketProcessor) reset() error {

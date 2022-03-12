@@ -104,6 +104,11 @@ func NewPath(pathType Type) (Path, error) {
 	return pm.New(), nil
 }
 
+// NewRawPath returns a new raw path that can hold any path type.
+func NewRawPath() Path {
+	return &rawPath{}
+}
+
 type rawPath struct {
 	raw      []byte
 	pathType Type
