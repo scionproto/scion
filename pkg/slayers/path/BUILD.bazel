@@ -1,0 +1,29 @@
+load("//lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "hopfield.go",
+        "infofield.go",
+        "mac.go",
+        "path.go",
+    ],
+    importpath = "github.com/scionproto/scion/pkg/slayers/path",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/private/util:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "hopfield_test.go",
+        "infofield_test.go",
+    ],
+    deps = [
+        ":go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+    ],
+)

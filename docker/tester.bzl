@@ -32,9 +32,9 @@ def build_tester_image():
     pkg_tar(
         name = "bin",
         srcs = [
-            "//go/integration/end2end:end2end",
-            "//go/scion",
-            "//go/scion-pki:scion-pki",
+            "//tools/end2end:end2end",
+            "//scion/cmd/scion",
+            "//scion-pki/cmd/scion-pki:scion-pki",
         ],
         package_dir = "bin",
     )

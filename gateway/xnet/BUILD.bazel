@@ -1,0 +1,16 @@
+load("//lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["xnet.go"],
+    importpath = "github.com/scionproto/scion/gateway/xnet",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gateway/control:go_default_library",
+        "//pkg/addr:go_default_library",
+        "//pkg/log:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "@com_github_songgao_water//:go_default_library",
+        "@com_github_vishvananda_netlink//:go_default_library",
+    ],
+)

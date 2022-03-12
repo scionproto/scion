@@ -18,7 +18,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -29,8 +29,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/private/topology"
 )
 
 var (
@@ -179,7 +179,7 @@ func fetchTopologyFromEndpoint(t *testing.T, url string) *topology.RWTopology {
 	resp, err := http.Get(url)
 	require.NoError(t, err)
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	var topo *topology.RWTopology
 	require.NoError(t, json.Unmarshal(body, &topo))

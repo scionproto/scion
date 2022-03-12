@@ -38,9 +38,9 @@ steps:
       - diff -u /tmp/test-artifacts/go.mod go.mod
       - diff -u /tmp/test-artifacts/go.sum go.sum
       - diff -u /tmp/test-artifacts/go_deps.bzl go_deps.bzl
-      - cp -R go/pkg/proto/ /tmp/test-artifacts
+      - cp -R pkg/proto/ /tmp/test-artifacts
       - make protobuf
-      - diff -ur /tmp/test-artifacts/proto/ go/pkg/proto/
+      - diff -ur /tmp/test-artifacts/proto/ pkg/proto/
       - mkdir -p /tmp/test-artifacts/licenses
       - ./tools/licenses.sh /tmp/test-artifacts/licenses
       - diff -rNu3 /tmp/test-artifacts/licenses ./licenses/data

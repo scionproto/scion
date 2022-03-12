@@ -1,0 +1,12 @@
+load("//lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["empty.go"],
+    importpath = "github.com/scionproto/scion/pkg/slayers/path/empty",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/slayers/path:go_default_library",
+    ],
+)

@@ -1,0 +1,14 @@
+load("//lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["segverifier.go"],
+    importpath = "github.com/scionproto/scion/private/segment/segverifier",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/log:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/segment:go_default_library",
+        "//private/segment/verifier:go_default_library",
+    ],
+)

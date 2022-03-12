@@ -1,0 +1,19 @@
+load("//lint:go.bzl", "go_library")
+load("@io_bazel_rules_docker//go:image.bzl", "go_image")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["udpproxy.go"],
+    importpath = "github.com/scionproto/scion/tools/udpproxy",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//pkg/log:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+    ],
+)
+
+go_image(
+    name = "udpproxy",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

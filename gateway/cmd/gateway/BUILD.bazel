@@ -1,0 +1,32 @@
+load("//lint:go.bzl", "go_library")
+load("//:scion.bzl", "scion_go_binary")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "github.com/scionproto/scion/gateway/cmd/gateway",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//gateway:go_default_library",
+        "//gateway/config:go_default_library",
+        "//gateway/dataplane:go_default_library",
+        "//gateway/mgmtapi:go_default_library",
+        "//pkg/daemon:go_default_library",
+        "//pkg/log:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/snet/addrutil:go_default_library",
+        "//pkg/sock/reliable:go_default_library",
+        "//private/app:go_default_library",
+        "//private/app/launcher:go_default_library",
+        "//private/service:go_default_library",
+        "@com_github_go_chi_chi_v5//:go_default_library",
+        "@com_github_go_chi_cors//:go_default_library",
+        "@org_golang_x_sync//errgroup:go_default_library",
+    ],
+)
+
+scion_go_binary(
+    name = "gateway",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

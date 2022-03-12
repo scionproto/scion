@@ -1,0 +1,27 @@
+load("//lint:go.bzl", "go_library")
+load("//:scion.bzl", "scion_go_binary")
+
+scion_go_binary(
+    name = "scion-pki",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "main.go",
+        "version.go",
+    ],
+    importpath = "github.com/scionproto/scion/scion-pki/cmd/scion-pki",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//private/app:go_default_library",
+        "//private/env:go_default_library",
+        "//scion-pki/certs:go_default_library",
+        "//scion-pki/key:go_default_library",
+        "//scion-pki/testcrypto:go_default_library",
+        "//scion-pki/trcs:go_default_library",
+        "@com_github_spf13_cobra//:go_default_library",
+    ],
+)

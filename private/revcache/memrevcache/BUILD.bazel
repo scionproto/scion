@@ -1,0 +1,25 @@
+load("//lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["memrevcache.go"],
+    importpath = "github.com/scionproto/scion/private/revcache/memrevcache",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/private/ctrl/path_mgmt:go_default_library",
+        "//private/revcache:go_default_library",
+        "@com_github_patrickmn_go_cache//:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["memrevcache_test.go"],
+    embed = [":go_default_library"],
+    deps = [
+        "//pkg/private/ctrl/path_mgmt:go_default_library",
+        "//private/revcache:go_default_library",
+        "//private/revcache/revcachetest:go_default_library",
+        "@com_github_smartystreets_goconvey//convey:go_default_library",
+    ],
+)

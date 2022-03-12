@@ -1,0 +1,38 @@
+load("//lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "db.go",
+        "schema.go",
+    ],
+    importpath = "github.com/scionproto/scion/private/storage/beacon/sqlite",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//control/beacon:go_default_library",
+        "//pkg/addr:go_default_library",
+        "//pkg/private/common:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/private/util:go_default_library",
+        "//private/storage/beacon:go_default_library",
+        "//private/storage/db:go_default_library",
+        "@com_github_mattn_go_sqlite3//:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "db_test.go",
+        "export_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "//control/beacon:go_default_library",
+        "//control/beacon/beacondbtest:go_default_library",
+        "//pkg/private/xtest:go_default_library",
+        "//private/storage/beacon/dbtest:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)

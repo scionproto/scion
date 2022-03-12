@@ -101,7 +101,7 @@ rejecting your changes.
 
    .. code-block:: bash
 
-      go build -o bin ./go/...
+      go build -o bin ./<service>/cmd/<service>...
 
 
 Running SCION locally

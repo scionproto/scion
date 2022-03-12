@@ -40,12 +40,12 @@ scion-topo:
 	tar --overwrite -xf bazel-bin/scion-topo.tar -C bin
 
 protobuf:
-	rm -rf bazel-bin/go/pkg/proto/*/go_default_library_/github.com/scionproto/scion/go/pkg/proto/*
-	bazel build --output_groups=go_generated_srcs //go/pkg/proto/...
-	rm -f go/pkg/proto/*/*.pb.go
-	cp -r bazel-bin/go/pkg/proto/*/go_default_library_/github.com/scionproto/scion/go/pkg/proto/* go/pkg/proto
-	cp -r bazel-bin/go/pkg/proto/*/*/go_default_library_/github.com/scionproto/scion/go/pkg/proto/* go/pkg/proto
-	chmod 0644 go/pkg/proto/*/*.pb.go
+	rm -rf bazel-bin/pkg/proto/*/go_default_library_/github.com/scionproto/scion/pkg/proto/*
+	bazel build --output_groups=go_generated_srcs //pkg/proto/...
+	rm -f pkg/proto/*/*.pb.go
+	cp -r bazel-bin/pkg/proto/*/go_default_library_/github.com/scionproto/scion/pkg/proto/* pkg/proto
+	cp -r bazel-bin/pkg/proto/*/*/go_default_library_/github.com/scionproto/scion/pkg/proto/* pkg/proto
+	chmod 0644 pkg/proto/*/*.pb.go
 
 mocks:
 	tools/gomocks
@@ -63,4 +63,4 @@ lint:
 	tools/lint.sh
 
 golangci-lint:
-	docker run --rm -v "${PWD}:/src" -w /src golangci/golangci-lint:v1.43.0 golangci-lint run --config=/src/.golangcilint.yml --timeout=3m go/...
+	docker run --rm -v "${PWD}:/src" -w /src golangci/golangci-lint:v1.43.0 golangci-lint run --config=/src/.golangcilint.yml --timeout=3m --skip-dirs doc ./...

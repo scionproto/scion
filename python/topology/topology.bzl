@@ -42,7 +42,7 @@ def topology(
         params += " --no_bfd"
 
     cmd = ("$(location //python/topology:topogentar) " +
-           "--scion_pki $(location //go/scion-pki) " +
+           "--scion_pki $(location //scion-pki/cmd/scion-pki) " +
            "--topogen_bin $(location //python/topology:topogen) " +
            "--topo $(location " + src + ") --out $@ --params '" + params + "'")
     native.genrule(
@@ -55,16 +55,16 @@ def topology(
         tools = [
             "//python/topology:topogentar",
             "//python/topology:topogen",
-            "//go/scion-pki",
+            "//scion-pki/cmd/scion-pki",
             "//tools:docker_ip",
         ],
     )
 
     bundles = []
     if tag == "debug":
-        bundles += ["//docker:debug.tar"]
+        bundles.append("//docker:debug.tar")
     else:
-        bundles += ["//docker:prod.tar"]
+        bundles.append("//docker:prod.tar")
     args = ["$(location :" + name + ")"]
     for bundle in bundles:
-        args += ["$(location " + bundle + ")"]
+        args.append("$(location " + bundle + ")")

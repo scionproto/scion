@@ -24,7 +24,7 @@ interfaces. This would look like the following::
             "Foo",
             "Bar",
         ],
-        library = "//go/lib/foo:go_default_library",
+        library = "//pkg/foo:go_default_library",
         package = "mock_foo",
     )
 

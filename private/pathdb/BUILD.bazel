@@ -1,0 +1,19 @@
+load("//lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "helpers.go",
+        "pathdb.go",
+    ],
+    importpath = "github.com/scionproto/scion/private/pathdb",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/addr:go_default_library",
+        "//pkg/proto/control_plane:go_default_library",
+        "//pkg/segment:go_default_library",
+        "//private/pathdb/query:go_default_library",
+        "//private/storage/cleaner:go_default_library",
+        "@org_golang_google_protobuf//proto:go_default_library",
+    ],
+)

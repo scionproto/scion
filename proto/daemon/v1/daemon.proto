@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-option go_package = "github.com/scionproto/scion/go/pkg/proto/daemon";
+option go_package = "github.com/scionproto/scion/pkg/proto/daemon";
 
 package proto.daemon.v1;
 

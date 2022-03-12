@@ -1,0 +1,17 @@
+load("//lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["statuspages.go"],
+    importpath = "github.com/scionproto/scion/private/service",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/log:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/private/util:go_default_library",
+        "//private/env:go_default_library",
+        "//private/topology:go_default_library",
+        "@com_github_pelletier_go_toml//:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus/promhttp:go_default_library",
+    ],
+)

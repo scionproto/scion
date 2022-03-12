@@ -1,0 +1,25 @@
+load("//lint:go.bzl", "go_library")
+load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+
+gomock(
+    name = "go_default_mock",
+    out = "mock.go",
+    interfaces = [
+        "AuthoritativeHiddenSegmentLookupServiceServer",
+        "HiddenSegmentRegistrationServiceServer",
+        "HiddenSegmentLookupServiceServer",
+    ],
+    library = "//pkg/proto/hidden_segment:go_default_library",
+    package = "mock_hidden_segment",
+)
+
+go_library(
+    name = "go_default_library",
+    srcs = ["mock.go"],
+    importpath = "github.com/scionproto/scion/pkg/proto/hidden_segment/mock_hidden_segment",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/proto/hidden_segment:go_default_library",
+        "@com_github_golang_mock//gomock:go_default_library",
+    ],
+)

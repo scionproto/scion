@@ -1,0 +1,23 @@
+load("//lint:go.bzl", "go_library")
+load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+
+gomock(
+    name = "go_default_mock",
+    out = "mock.go",
+    interfaces = ["TrustDB"],
+    library = "//private/storage:go_default_library",
+    package = "mock_storage",
+)
+
+go_library(
+    name = "go_default_library",
+    srcs = ["mock.go"],
+    importpath = "github.com/scionproto/scion/private/storage/mock_storage",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/scrypto/cppki:go_default_library",
+        "//private/storage/trust:go_default_library",
+        "//private/trust:go_default_library",
+        "@com_github_golang_mock//gomock:go_default_library",
+    ],
+)
