@@ -59,8 +59,8 @@ func TestMetrics(t *testing.T) {
 		ReceiveQueueSize:      10,
 	}
 
-	linkAToB := &redirectSender{Destination: sessionB.Messages()}
-	linkBToA := &redirectSender{Destination: sessionA.Messages()}
+	linkAToB := &redirectSender{Destination: sessionB}
+	linkBToA := &redirectSender{Destination: sessionA}
 	sessionA.Sender = linkAToB
 	sessionB.Sender = linkBToA
 

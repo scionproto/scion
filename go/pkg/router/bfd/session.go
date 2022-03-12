@@ -124,10 +124,8 @@ type Session struct {
 	// until the session is ready to read it.
 	ReceiveQueueSize int
 
-	// messagesLock protects the initialization of the messages channel.
-	messagesLock sync.Mutex
 	// messages is the channel on which the session receives BFD packets.
-	messages chan *layers.BFD
+	messages chan bfdMessage
 
 	// localStateLock protects access to the local state.
 	localStateLock sync.RWMutex
@@ -182,7 +180,7 @@ func (s *Session) Run() error {
 	if s.RemoteDiscriminator != 0 {
 		s.remoteDiscriminator = s.RemoteDiscriminator
 	}
-	s.initMessages()
+	s.messages = make(chan bfdMessage, s.ReceiveQueueSize)
 	s.initMetrics()
 
 	// detectionTimer tracks the period of time without receiving BFD packets after which the
@@ -204,14 +202,6 @@ MainLoop:
 		case msg, ok := <-s.messages:
 			if !ok {
 				break MainLoop
-			}
-
-			discard, discardReason := shouldDiscard(s.localState, msg)
-			if discard {
-				if discardReason != "" {
-					s.debug(discardReason)
-				}
-				continue
 			}
 
 			// BFD packet is accepted. This means the detection timer can be reset.
@@ -300,6 +290,11 @@ MainLoop:
 	return nil
 }
 
+func (s *Session) Close() error {
+	close(s.messages)
+	return nil
+}
+
 func (s *Session) runOnceCheck() error {
 	s.runMarkerLock.Lock()
 	defer s.runMarkerLock.Unlock()
@@ -366,24 +361,35 @@ func (s *Session) setLocalState(st state) {
 	s.localState = st
 }
 
-// Messages returns a channel on which callers should write BFD packets received
-// from the network. The Run method continuously processes packets received on
-// this channel.
+// ReceiveMessage validates a message and enques it for processing.
+// Callers pass the message received from the network.
+// The actual processing of the messages is asynchronous; the relevant message
+// content is passed over a channel and the Run method continuously processes
+// packets received on this channel. The caller can safely reuse packet buffer
+// and the layers.BFD object.
 //
-// Close the channel returned by Messages to shut down the Session. Like closing
-// any other channel, the channel can only be closed once.
-func (s *Session) Messages() chan<- *layers.BFD {
-	s.initMessages()
-	return s.messages
-}
-
-// initMessages creates and sets the message receive queue if it is not
-// already created.
-func (s *Session) initMessages() {
-	s.messagesLock.Lock()
-	defer s.messagesLock.Unlock()
+// The session must be running when calling this function, i.e. Run must have
+// been called.
+func (s *Session) ReceiveMessage(msg *layers.BFD) {
 	if s.messages == nil {
-		s.messages = make(chan *layers.BFD, s.ReceiveQueueSize)
+		panic("Session must be running, Run must be called before ReceiveMessage")
+	}
+
+	discard, discardReason := shouldDiscard(msg)
+	if discard {
+		if discardReason != "" && s.Logger != nil {
+			s.Logger.Debug(discardReason) // no session identifier to avoid data race
+		}
+		return
+	}
+
+	s.messages <- bfdMessage{
+		State:                 msg.State,
+		DetectMultiplier:      msg.DetectMultiplier,
+		MyDiscriminator:       msg.MyDiscriminator,
+		YourDiscriminator:     msg.YourDiscriminator,
+		DesiredMinTxInterval:  msg.DesiredMinTxInterval,
+		RequiredMinRxInterval: msg.RequiredMinRxInterval,
 	}
 }
 
@@ -467,7 +473,7 @@ func max(x, y time.Duration) time.Duration {
 //
 // For packets that are acceptable and are fully supported, the return values are false and the
 // empty string.
-func shouldDiscard(localState state, pkt *layers.BFD) (bool, string) {
+func shouldDiscard(pkt *layers.BFD) (bool, string) {
 	if pkt.Version != 1 {
 		return true, ""
 	}
@@ -489,7 +495,7 @@ func shouldDiscard(localState state, pkt *layers.BFD) (bool, string) {
 		return true, ""
 	}
 	if pkt.YourDiscriminator == 0 {
-		if !((localState == stateAdminDown) || (localState == stateDown)) {
+		if !((pkt.State == layers.BFDStateAdminDown) || (pkt.State == layers.BFDStateDown)) {
 			return true, ""
 		}
 	}
@@ -546,4 +552,15 @@ func durationToBFDInterval(d time.Duration) (layers.BFDTimeInterval, error) {
 
 func bfdIntervalToDuration(x layers.BFDTimeInterval) time.Duration {
 	return time.Duration(x) * time.Microsecond
+}
+
+// bfdMessage contains the relevant values to (asynchronously) process a BFD message
+// received from the network. This is a subset of the fields of layers.BFD.
+type bfdMessage struct {
+	State                 layers.BFDState
+	DetectMultiplier      layers.BFDDetectMultiplier
+	MyDiscriminator       layers.BFDDiscriminator
+	YourDiscriminator     layers.BFDDiscriminator
+	DesiredMinTxInterval  layers.BFDTimeInterval
+	RequiredMinRxInterval layers.BFDTimeInterval
 }
