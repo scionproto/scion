@@ -31,7 +31,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/daemon"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto/cms/protocol"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
@@ -633,7 +633,7 @@ func (r *renewer) Request(
 		return nil, serrors.WrapStr("dialing", err)
 	}
 	dialer := &grpc.QUICDialer{
-		Rewriter: &messenger.AddressRewriter{
+		Rewriter: &infraenv.AddressRewriter{
 			Router: &snet.BaseRouter{
 				Querier: daemon.Querier{Connector: r.Daemon, IA: local.IA},
 			},

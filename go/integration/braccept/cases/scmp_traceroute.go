@@ -24,7 +24,6 @@ import (
 	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/go/integration/braccept/runner"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
@@ -88,7 +87,7 @@ func SCMPTracerouteIngress(artifactsDir string, mac hash.Hash) runner.Case {
 		Version:      0,
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
-		NextHdr:      common.L4SCMP,
+		NextHdr:      slayers.L4SCMP,
 		PathType:     scion.PathType,
 		SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
 		DstIA:        xtest.MustParseIA("1-ff00:0:2"),
@@ -144,7 +143,7 @@ func SCMPTracerouteIngress(artifactsDir string, mac hash.Hash) runner.Case {
 	if err := sp.IncPath(); err != nil {
 		panic(err)
 	}
-	scionL.NextHdr = common.L4SCMP
+	scionL.NextHdr = slayers.L4SCMP
 	scmpH = &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteReply, 0),
 	}
@@ -228,7 +227,7 @@ func SCMPTracerouteIngressConsDir(artifactsDir string, mac hash.Hash) runner.Cas
 		Version:      0,
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
-		NextHdr:      common.L4SCMP,
+		NextHdr:      slayers.L4SCMP,
 		PathType:     scion.PathType,
 		SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
 		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
@@ -289,7 +288,7 @@ func SCMPTracerouteIngressConsDir(artifactsDir string, mac hash.Hash) runner.Cas
 	if err := sp.IncPath(); err != nil {
 		panic(err)
 	}
-	scionL.NextHdr = common.L4SCMP
+	scionL.NextHdr = slayers.L4SCMP
 	scmpH = &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteReply, 0),
 	}
@@ -374,7 +373,7 @@ func SCMPTracerouteEgress(artifactsDir string, mac hash.Hash) runner.Case {
 		Version:      0,
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
-		NextHdr:      common.L4SCMP,
+		NextHdr:      slayers.L4SCMP,
 		PathType:     scion.PathType,
 		SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
 		DstIA:        xtest.MustParseIA("1-ff00:0:2"),
@@ -430,7 +429,7 @@ func SCMPTracerouteEgress(artifactsDir string, mac hash.Hash) runner.Case {
 	if err := sp.IncPath(); err != nil {
 		panic(err)
 	}
-	scionL.NextHdr = common.L4SCMP
+	scionL.NextHdr = slayers.L4SCMP
 	scmpH = &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteReply, 0),
 	}
@@ -514,7 +513,7 @@ func SCMPTracerouteEgressConsDir(artifactsDir string, mac hash.Hash) runner.Case
 		Version:      0,
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
-		NextHdr:      common.L4SCMP,
+		NextHdr:      slayers.L4SCMP,
 		PathType:     scion.PathType,
 		SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
 		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
@@ -575,7 +574,7 @@ func SCMPTracerouteEgressConsDir(artifactsDir string, mac hash.Hash) runner.Case
 	if err := sp.IncPath(); err != nil {
 		panic(err)
 	}
-	scionL.NextHdr = common.L4SCMP
+	scionL.NextHdr = slayers.L4SCMP
 	scmpH = &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteReply, 0),
 	}
@@ -674,7 +673,7 @@ func SCMPTracerouteEgressAfterXover(artifactsDir string, mac hash.Hash) runner.C
 		Version:      0,
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
-		NextHdr:      common.L4SCMP,
+		NextHdr:      slayers.L4SCMP,
 		PathType:     scion.PathType,
 		SrcIA:        xtest.MustParseIA("1-ff00:0:8"),
 		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
@@ -734,7 +733,7 @@ func SCMPTracerouteEgressAfterXover(artifactsDir string, mac hash.Hash) runner.C
 		panic(err)
 	}
 
-	scionL.NextHdr = common.L4SCMP
+	scionL.NextHdr = slayers.L4SCMP
 	scmpH = &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteReply, 0),
 	}
@@ -816,7 +815,7 @@ func SCMPTracerouteInternal(artifactsDir string, mac hash.Hash) runner.Case {
 		Version:      0,
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
-		NextHdr:      common.L4SCMP,
+		NextHdr:      slayers.L4SCMP,
 		PathType:     scion.PathType,
 		SrcIA:        xtest.MustParseIA("1-ff00:0:1"),
 		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
@@ -870,7 +869,7 @@ func SCMPTracerouteInternal(artifactsDir string, mac hash.Hash) runner.Case {
 		panic(err)
 	}
 	sp = p.(*scion.Decoded)
-	scionL.NextHdr = common.L4SCMP
+	scionL.NextHdr = slayers.L4SCMP
 	scmpH = &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteReply, 0),
 	}

@@ -18,7 +18,6 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -68,17 +67,17 @@ func PeerToLabel(peer net.Addr, local addr.IA) string {
 	case *snet.UDPAddr:
 		ia = v.IA
 	case *net.TCPAddr:
-		return infra.PromSrcASLocal
+		return "as_local"
 	default:
-		return infra.PromSrcUnknown
+		return "unknown"
 	}
 
 	switch {
 	case ia.Equal(local):
-		return infra.PromSrcASLocal
+		return "as_local"
 	case ia.ISD() == local.ISD():
-		return infra.PromSrcISDLocal
+		return "isd_local"
 	default:
-		return infra.PromSrcISDRemote
+		return "isd_remote"
 	}
 }

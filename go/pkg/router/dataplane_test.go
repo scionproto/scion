@@ -32,7 +32,6 @@ import (
 	"golang.org/x/net/ipv4"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	libepic "github.com/scionproto/scion/go/lib/epic"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/slayers"
@@ -268,7 +267,7 @@ func TestDataPlaneRun(t *testing.T) {
 
 				postInternalBFD := func(id layers.BFDDiscriminator, src *net.UDPAddr) []byte {
 					scn := &slayers.SCION{
-						NextHdr:  common.L4BFD,
+						NextHdr:  slayers.L4BFD,
 						PathType: empty.PathType,
 						Path:     &empty.Path{},
 					}
@@ -456,7 +455,7 @@ func TestDataPlaneRun(t *testing.T) {
 
 				postExternalBFD := func(id layers.BFDDiscriminator, fromIfID uint16) []byte {
 					scn := &slayers.SCION{
-						NextHdr:  common.L4BFD,
+						NextHdr:  slayers.L4BFD,
 						PathType: onehop.PathType,
 						Path: &onehop.Path{
 							FirstHop: path.HopField{ConsEgress: fromIfID},
@@ -1219,7 +1218,7 @@ func prepBaseMsg(now time.Time) (*slayers.SCION, *scion.Decoded) {
 		Version:      0,
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
-		NextHdr:      common.L4UDP,
+		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
 		DstIA:        xtest.MustParseIA("4-ff00:0:411"),
 		SrcIA:        xtest.MustParseIA("2-ff00:0:222"),

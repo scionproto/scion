@@ -19,7 +19,6 @@ import (
 
 	"github.com/google/gopacket"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -156,7 +155,7 @@ func serializeTLVOptions(buf []byte, options []*tlvOption, fixLengths bool) int 
 
 type extnBase struct {
 	BaseLayer
-	NextHdr common.L4ProtocolType
+	NextHdr L4ProtocolType
 	// ExtLen is the length of the extension header in multiple of 4-bytes NOT including the
 	// first 4 bytes.
 	ExtLen    uint8
@@ -196,7 +195,7 @@ func decodeExtnBase(data []byte, df gopacket.DecodeFeedback) (extnBase, error) {
 		return e, serrors.New(fmt.Sprintf("invalid extension header. Length %d less than 2",
 			len(data)))
 	}
-	e.NextHdr = common.L4ProtocolType(data[0])
+	e.NextHdr = L4ProtocolType(data[0])
 	e.ExtLen = data[1]
 	e.ActualLen = (int(e.ExtLen) + 1) * LineLen
 	if len(data) < e.ActualLen {
@@ -281,8 +280,8 @@ func decodeHopByHopExtn(data []byte, p gopacket.PacketBuilder) error {
 	return p.NextDecoder(scionNextLayerTypeAfterHBH(h.NextHdr))
 }
 
-func checkHopByHopExtnNextHdr(t common.L4ProtocolType) error {
-	if t == common.HopByHopClass {
+func checkHopByHopExtnNextHdr(t L4ProtocolType) error {
+	if t == HopByHopClass {
 		return serrors.New("hbh extension must not be repeated")
 	}
 	return nil
@@ -345,10 +344,10 @@ func decodeEndToEndExtn(data []byte, p gopacket.PacketBuilder) error {
 	return p.NextDecoder(scionNextLayerTypeAfterE2E(e.NextHdr))
 }
 
-func checkEndToEndExtnNextHdr(t common.L4ProtocolType) error {
-	if t == common.HopByHopClass {
+func checkEndToEndExtnNextHdr(t L4ProtocolType) error {
+	if t == HopByHopClass {
 		return serrors.New("e2e extension must not come before the HBH extension")
-	} else if t == common.End2EndClass {
+	} else if t == End2EndClass {
 		return serrors.New("e2e extension must not be repeated")
 	}
 	return nil

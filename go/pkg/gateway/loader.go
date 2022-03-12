@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
+package gateway
 
 import (
 	"context"
@@ -22,13 +22,6 @@ import (
 	"github.com/scionproto/scion/go/pkg/gateway/control"
 	"github.com/scionproto/scion/go/pkg/gateway/routing"
 	"github.com/scionproto/scion/go/pkg/worker"
-)
-
-// Default file paths
-const (
-	// FIXME(lukedirtwalker): cleanup traffic policy and use "session.policy"
-	// instead.
-	DefaultSessionPoliciesFile = "/share/conf/traffic.policy"
 )
 
 // Publisher publishes new configurations.

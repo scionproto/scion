@@ -24,8 +24,8 @@ import (
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/log/logtest"
 	"github.com/scionproto/scion/go/pkg/api/apitest"
-	"github.com/scionproto/scion/go/pkg/gateway/config/configtest"
 	"github.com/scionproto/scion/go/posix-gateway/config"
+	"github.com/scionproto/scion/go/posix-gateway/config/configtest"
 )
 
 func TestConfigSample(t *testing.T) {

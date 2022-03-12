@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
@@ -49,7 +48,7 @@ func TestSCIONSCMP(t *testing.T) {
 		"destination unreachable": {
 			rawFile: filepath.Join(goldenDir, "scion-scmp-dest-unreachable.bin"),
 			decodedLayers: []gopacket.SerializableLayer{
-				prepPacket(t, common.L4SCMP),
+				prepPacket(t, slayers.L4SCMP),
 				&slayers.SCMP{
 					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeDestinationUnreachable,
 						slayers.SCMPCodeRejectRouteToDest),
@@ -63,7 +62,7 @@ func TestSCIONSCMP(t *testing.T) {
 		"internal connectivity down": {
 			rawFile: filepath.Join(goldenDir, "scion-scmp-int-conn-down.bin"),
 			decodedLayers: []gopacket.SerializableLayer{
-				prepPacket(t, common.L4SCMP),
+				prepPacket(t, slayers.L4SCMP),
 				&slayers.SCMP{
 					TypeCode: slayers.CreateSCMPTypeCode(6, 0),
 				},
@@ -78,7 +77,7 @@ func TestSCIONSCMP(t *testing.T) {
 		"external interface down": {
 			rawFile: filepath.Join(goldenDir, "scion-scmp-ext-int-down.bin"),
 			decodedLayers: []gopacket.SerializableLayer{
-				prepPacket(t, common.L4SCMP),
+				prepPacket(t, slayers.L4SCMP),
 				&slayers.SCMP{
 					TypeCode: slayers.CreateSCMPTypeCode(5, 0),
 				},
@@ -193,7 +192,7 @@ func TestPaths(t *testing.T) {
 					FlowID:       0xdead,
 					HdrLen:       12,
 					PayloadLen:   1032,
-					NextHdr:      common.L4UDP,
+					NextHdr:      slayers.L4UDP,
 					PathType:     empty.PathType,
 					DstAddrType:  slayers.T16Ip,
 					DstAddrLen:   slayers.AddrLen16,
@@ -224,7 +223,7 @@ func TestPaths(t *testing.T) {
 					FlowID:       0xdead,
 					HdrLen:       29,
 					PayloadLen:   1032,
-					NextHdr:      common.L4UDP,
+					NextHdr:      slayers.L4UDP,
 					PathType:     scion.PathType,
 					DstAddrType:  slayers.T16Ip,
 					DstAddrLen:   slayers.AddrLen16,
@@ -321,7 +320,7 @@ func TestDecodeSCIONUDP(t *testing.T) {
 	assert.Equal(t, scion.PathType, s.PathType)
 	assert.Equal(t, uint8(29), s.HdrLen, "HdrLen")
 	assert.Equal(t, uint16(1032), s.PayloadLen, "PayloadLen")
-	assert.Equal(t, common.L4UDP, s.NextHdr, "CmnHdr.NextHdr")
+	assert.Equal(t, slayers.L4UDP, s.NextHdr, "CmnHdr.NextHdr")
 
 	// Check SCION/UDP Header
 	udpL := packet.Layer(slayers.LayerTypeSCIONUDP)
@@ -341,20 +340,20 @@ func TestDecodeSCIONUDP(t *testing.T) {
 }
 
 func TestSerializeSCIONUPDExtn(t *testing.T) {
-	s := prepPacket(t, common.L4UDP)
-	s.NextHdr = common.HopByHopClass
+	s := prepPacket(t, slayers.L4UDP)
+	s.NextHdr = slayers.HopByHopClass
 	u := &slayers.UDP{}
 	u.SrcPort = 1280
 	u.DstPort = 80
 	require.NoError(t, u.SetNetworkLayerForChecksum(s))
 	hbh := &slayers.HopByHopExtn{}
-	hbh.NextHdr = common.End2EndClass
+	hbh.NextHdr = slayers.End2EndClass
 	hbh.Options = []*slayers.HopByHopOption{
 		(*slayers.HopByHopOption)(&optX),
 		(*slayers.HopByHopOption)(&optY),
 	}
 	e2e := &slayers.EndToEndExtn{}
-	e2e.NextHdr = common.L4UDP
+	e2e.NextHdr = slayers.L4UDP
 	e2e.Options = []*slayers.EndToEndOption{
 		(*slayers.EndToEndOption)(&optY),
 		(*slayers.EndToEndOption)(&optX),
@@ -393,13 +392,13 @@ func TestDecodeSCIONUDPExtn(t *testing.T) {
 	// Check SCION Header
 	assert.Equal(t, uint8(29), s.HdrLen, "HdrLen")
 	assert.Equal(t, uint16(1092), s.PayloadLen, "PayloadLen")
-	assert.Equal(t, common.HopByHopClass, s.NextHdr, "scion.NextHdr")
+	assert.Equal(t, slayers.HopByHopClass, s.NextHdr, "scion.NextHdr")
 
 	// Check H2H Extn
 	hbhL := packet.Layer(slayers.LayerTypeHopByHopExtn)
 	require.NotNil(t, hbhL, "HBH layer should exist")
 	hbh := hbhL.(*slayers.HopByHopExtn) // Guaranteed to work
-	assert.Equal(t, common.End2EndClass, hbh.NextHdr, "NextHeader")
+	assert.Equal(t, slayers.End2EndClass, hbh.NextHdr, "NextHeader")
 	assert.Equal(t, uint8(6), hbh.ExtLen, "HBH ExtLen")
 	assert.Equal(t, 3, len(hbh.Options), "len(hbh.Options)")
 	assert.Equal(t, 28, hbh.ActualLen, "ActualLength")
@@ -408,7 +407,7 @@ func TestDecodeSCIONUDPExtn(t *testing.T) {
 	e2eL := packet.Layer(slayers.LayerTypeEndToEndExtn)
 	require.NotNil(t, hbhL, "E2E layer should exist")
 	e2e := e2eL.(*slayers.EndToEndExtn) // Guaranteed to work
-	assert.Equal(t, common.L4UDP, e2e.NextHdr, "NextHeader")
+	assert.Equal(t, slayers.L4UDP, e2e.NextHdr, "NextHeader")
 	assert.Equal(t, uint8(7), e2e.ExtLen, "E2E ExtLen")
 	assert.Equal(t, 4, len(e2e.Options), "len(hbh.Options)")
 	assert.Equal(t, 32, e2e.ActualLen, "ActualLength")

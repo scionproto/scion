@@ -21,7 +21,6 @@ import (
 	"github.com/google/gopacket"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
@@ -112,7 +111,7 @@ type SCION struct {
 	// NextHdr  encodes the type of the first header after the SCION header. This can be either a
 	// SCION extension or a layer-4 protocol such as TCP or UDP. Values of this field respect and
 	// extend IANA’s assigned internet protocol numbers.
-	NextHdr common.L4ProtocolType
+	NextHdr L4ProtocolType
 	// HdrLen is the length of the SCION header in multiples of 4 bytes. The SCION header length is
 	// computed as HdrLen * 4 bytes. The 8 bits of the HdrLen field limit the SCION header to a
 	// maximum of 1024 bytes.
@@ -215,7 +214,7 @@ func (s *SCION) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	s.Version = uint8(firstLine >> 28)
 	s.TrafficClass = uint8((firstLine >> 20) & 0xFF)
 	s.FlowID = firstLine & 0xFFFFF
-	s.NextHdr = common.L4ProtocolType(data[4])
+	s.NextHdr = L4ProtocolType(data[4])
 	s.HdrLen = data[5]
 	s.PayloadLen = binary.BigEndian.Uint16(data[6:8])
 	s.PathType = path.Type(data[8])
@@ -273,11 +272,11 @@ func decodeSCION(data []byte, pb gopacket.PacketBuilder) error {
 
 // scionNextLayerType returns the layer type for the given protocol identifier
 // in a SCION base header.
-func scionNextLayerType(t common.L4ProtocolType) gopacket.LayerType {
+func scionNextLayerType(t L4ProtocolType) gopacket.LayerType {
 	switch t {
-	case common.HopByHopClass:
+	case HopByHopClass:
 		return LayerTypeHopByHopExtn
-	case common.End2EndClass:
+	case End2EndClass:
 		return LayerTypeEndToEndExtn
 	default:
 		return scionNextLayerTypeL4(t)
@@ -287,11 +286,11 @@ func scionNextLayerType(t common.L4ProtocolType) gopacket.LayerType {
 // scionNextLayerTypeAfterHBH returns the layer type for the given protocol
 // identifier in a SCION hop-by-hop extension, excluding (repeated) hop-by-hop
 // extensions.
-func scionNextLayerTypeAfterHBH(t common.L4ProtocolType) gopacket.LayerType {
+func scionNextLayerTypeAfterHBH(t L4ProtocolType) gopacket.LayerType {
 	switch t {
-	case common.HopByHopClass:
+	case HopByHopClass:
 		return gopacket.LayerTypeDecodeFailure
-	case common.End2EndClass:
+	case End2EndClass:
 		return LayerTypeEndToEndExtn
 	default:
 		return scionNextLayerTypeL4(t)
@@ -301,11 +300,11 @@ func scionNextLayerTypeAfterHBH(t common.L4ProtocolType) gopacket.LayerType {
 // scionNextLayerTypeAfterE2E returns the layer type for the given protocol
 // identifier, in a SCION end-to-end extension, excluding (repeated or
 // misordered) hop-by-hop extensions or (repeated) end-to-end extensions.
-func scionNextLayerTypeAfterE2E(t common.L4ProtocolType) gopacket.LayerType {
+func scionNextLayerTypeAfterE2E(t L4ProtocolType) gopacket.LayerType {
 	switch t {
-	case common.HopByHopClass:
+	case HopByHopClass:
 		return gopacket.LayerTypeDecodeFailure
-	case common.End2EndClass:
+	case End2EndClass:
 		return gopacket.LayerTypeDecodeFailure
 	default:
 		return scionNextLayerTypeL4(t)
@@ -314,13 +313,13 @@ func scionNextLayerTypeAfterE2E(t common.L4ProtocolType) gopacket.LayerType {
 
 // scionNextLayerTypeL4 returns the layer type for the given layer-4 protocol identifier.
 // Does not handle extension header classes.
-func scionNextLayerTypeL4(t common.L4ProtocolType) gopacket.LayerType {
+func scionNextLayerTypeL4(t L4ProtocolType) gopacket.LayerType {
 	switch t {
-	case common.L4UDP:
+	case L4UDP:
 		return LayerTypeSCIONUDP
-	case common.L4SCMP:
+	case L4SCMP:
 		return LayerTypeSCMP
-	case common.L4BFD:
+	case L4BFD:
 		return layerTypeBFD
 	default:
 		return gopacket.LayerTypePayload

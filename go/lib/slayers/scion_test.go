@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
@@ -52,7 +51,7 @@ func TestSCIONLayerString(t *testing.T) {
 	sc := &slayers.SCION{
 		TrafficClass: 226,
 		FlowID:       12345,
-		NextHdr:      common.L4UDP,
+		NextHdr:      slayers.L4UDP,
 		DstIA:        ia1,
 		SrcIA:        ia2,
 	}
@@ -203,7 +202,7 @@ func TestSCIONLayerString(t *testing.T) {
 }
 
 func TestSCIONSerializeDecode(t *testing.T) {
-	want := prepPacket(t, common.L4UDP)
+	want := prepPacket(t, slayers.L4UDP)
 	buffer := gopacket.NewSerializeBuffer()
 	require.NoError(t, want.SerializeTo(buffer, gopacket.SerializeOptions{FixLengths: true}))
 
@@ -389,7 +388,7 @@ func BenchmarkDecodePreallocFull(b *testing.B) {
 }
 
 func BenchmarkSerializeReuseBuffer(b *testing.B) {
-	s := prepPacket(b, common.L4UDP)
+	s := prepPacket(b, slayers.L4UDP)
 	buffer := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{FixLengths: true}
 	for i := 0; i < b.N; i++ {
@@ -399,7 +398,7 @@ func BenchmarkSerializeReuseBuffer(b *testing.B) {
 }
 
 func BenchmarkSerializeNoReuseBuffer(b *testing.B) {
-	s := prepPacket(b, common.L4UDP)
+	s := prepPacket(b, slayers.L4UDP)
 	opts := gopacket.SerializeOptions{FixLengths: true}
 	for i := 0; i < b.N; i++ {
 		buffer := gopacket.NewSerializeBuffer()
@@ -407,7 +406,7 @@ func BenchmarkSerializeNoReuseBuffer(b *testing.B) {
 	}
 }
 
-func prepPacket(t testing.TB, c common.L4ProtocolType) *slayers.SCION {
+func prepPacket(t testing.TB, c slayers.L4ProtocolType) *slayers.SCION {
 	t.Helper()
 	spkt := &slayers.SCION{
 		Version:      0,
@@ -431,7 +430,7 @@ func prepPacket(t testing.TB, c common.L4ProtocolType) *slayers.SCION {
 
 func prepRawPacket(t testing.TB) []byte {
 	t.Helper()
-	spkt := prepPacket(t, common.L4UDP)
+	spkt := prepPacket(t, slayers.L4UDP)
 	buffer := gopacket.NewSerializeBuffer()
 	spkt.SerializeTo(buffer, gopacket.SerializeOptions{FixLengths: true})
 	return buffer.Bytes()

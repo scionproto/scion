@@ -28,7 +28,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/slayers"
 )
 
@@ -42,7 +41,7 @@ func TestBFDLayerTypeDefinition(t *testing.T) {
 	// logic or the constant used to define the slayers.layerTypeBFD does not
 	// match gopacket/layers.LayerTypeBFD.
 	scn := &slayers.SCION{}
-	scn.NextHdr = common.L4BFD
+	scn.NextHdr = slayers.L4BFD
 	assert.Equal(t, scn.NextLayerType(), layers.LayerTypeBFD)
 }
 

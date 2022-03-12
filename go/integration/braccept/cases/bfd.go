@@ -24,7 +24,6 @@ import (
 
 	"github.com/scionproto/scion/go/integration/braccept/runner"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
@@ -97,7 +96,7 @@ func ExternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 		Version:      0,
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
-		NextHdr:      common.L4BFD,
+		NextHdr:      slayers.L4BFD,
 		PathType:     onehop.PathType,
 		Path:         ohp,
 		DstIA:        localIA,
@@ -193,7 +192,7 @@ func InternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 		Version:      0,
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
-		NextHdr:      common.L4BFD,
+		NextHdr:      slayers.L4BFD,
 		PathType:     empty.PathType,
 		Path:         &empty.Path{},
 		SrcIA:        localIA,

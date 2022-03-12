@@ -10,6 +10,10 @@ load("@cgrindel_bazel_starlib//updatesrc:defs.bzl", "updatesrc_update_all")
 # gazelle:prefix github.com/scionproto/scion
 # gazelle:map_kind go_library go_library //lint:go.bzl
 # gazelle:map_kind go_test go_test //lint:go.bzl
+# gazelle:exclude docker/_build/**
+# gazelle:exclude proto/**
+# gazelle:exclude doc/**
+# gazelle:exclude rules_openapi/tools/node_modules/**
 gazelle(name = "gazelle")
 
 go_lint_config(

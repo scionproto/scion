@@ -22,7 +22,6 @@ import (
 	"google.golang.org/grpc/peer"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/prom"
@@ -51,7 +50,7 @@ func (s MaterialServer) Chains(ctx context.Context,
 
 	labels := requestLabels{
 		ReqType: trustmetrics.ChainReq,
-		Client:  infra.PromSrcUnknown,
+		Client:  "unknown",
 	}
 	peer, ok := peer.FromContext(ctx)
 	if ok {
@@ -83,7 +82,7 @@ func (s MaterialServer) Chains(ctx context.Context,
 func (s MaterialServer) TRC(ctx context.Context, req *cppb.TRCRequest) (*cppb.TRCResponse, error) {
 	labels := requestLabels{
 		ReqType: trustmetrics.TRCReq,
-		Client:  infra.PromSrcUnknown,
+		Client:  "unknown",
 	}
 	peer, ok := peer.FromContext(ctx)
 	if ok {

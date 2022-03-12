@@ -3,7 +3,7 @@
 .NOTPARALLEL:
 
 GAZELLE_MODE?=fix
-GAZELLE_DIRS=./go ./acceptance
+GAZELLE_DIRS=.
 
 build: bazel
 
@@ -51,7 +51,7 @@ mocks:
 	tools/gomocks
 
 gazelle:
-	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -go_naming_convention go_default_library -exclude docker/_build $(GAZELLE_DIRS)
+	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -go_naming_convention go_default_library $(GAZELLE_DIRS)
 
 licenses:
 	tools/licenses.sh
@@ -60,7 +60,7 @@ antlr:
 	antlr/generate.sh $(GAZELLE_MODE)
 
 lint:
-	tools/lint
+	tools/lint.sh
 
 golangci-lint:
 	docker run --rm -v "${PWD}:/src" -w /src golangci/golangci-lint:v1.43.0 golangci-lint run --config=/src/.golangcilint.yml --timeout=3m go/...

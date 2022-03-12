@@ -5,14 +5,14 @@ gomock(
     name = "go_default_mock",
     out = "mock.go",
     interfaces = ["Publisher"],
-    library = "//go/pkg/gateway/config:go_default_library",
-    package = "mock_config",
+    library = "//go/pkg/gateway:go_default_library",
+    package = "mock_gateway",
 )
 
 go_library(
     name = "go_default_library",
     srcs = ["mock.go"],
-    importpath = "github.com/scionproto/scion/go/pkg/gateway/config/mock_config",
+    importpath = "github.com/scionproto/scion/go/pkg/gateway/mock_gateway",
     visibility = ["//visibility:public"],
     deps = [
         "//go/pkg/gateway/control:go_default_library",

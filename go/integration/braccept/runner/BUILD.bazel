@@ -27,7 +27,6 @@ go_test(
     srcs = ["compare_test.go"],
     embed = [":go_default_library"],
     deps = [
-        "//go/lib/common:go_default_library",
         "//go/lib/scrypto:go_default_library",
         "//go/lib/slayers:go_default_library",
         "//go/lib/slayers/path:go_default_library",

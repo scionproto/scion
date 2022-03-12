@@ -22,7 +22,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
@@ -37,7 +36,7 @@ func TestDecodeBuffer(t *testing.T) {
 	}{
 		"UDP": {
 			Layers: func(t *testing.T) []gopacket.SerializableLayer {
-				scion := scionLayer(t, common.L4UDP)
+				scion := scionLayer(t, slayers.L4UDP)
 				udp := &slayers.UDP{
 					SrcPort: 1337,
 					DstPort: 42,
@@ -55,7 +54,7 @@ func TestDecodeBuffer(t *testing.T) {
 		},
 		"SCMP": {
 			Layers: func(t *testing.T) []gopacket.SerializableLayer {
-				scion := scionLayer(t, common.L4SCMP)
+				scion := scionLayer(t, slayers.L4SCMP)
 				scmp := &slayers.SCMP{
 					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeExternalInterfaceDown, 0),
 				}
@@ -76,7 +75,7 @@ func TestDecodeBuffer(t *testing.T) {
 		},
 		"TCP": {
 			Layers: func(t *testing.T) []gopacket.SerializableLayer {
-				scion := scionLayer(t, common.L4TCP)
+				scion := scionLayer(t, slayers.L4TCP)
 				pld := gopacket.Payload("offending packet")
 				return []gopacket.SerializableLayer{scion, pld}
 			},
@@ -104,7 +103,7 @@ func TestDecodeBuffer(t *testing.T) {
 	}
 }
 
-func scionLayer(t *testing.T, l4 common.L4ProtocolType) *slayers.SCION {
+func scionLayer(t *testing.T, l4 slayers.L4ProtocolType) *slayers.SCION {
 	scion := &slayers.SCION{
 		Version:      0,
 		TrafficClass: 0xb8,

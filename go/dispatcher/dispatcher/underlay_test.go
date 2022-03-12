@@ -27,7 +27,6 @@ import (
 
 	"github.com/scionproto/scion/go/dispatcher/internal/respool"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
@@ -210,7 +209,7 @@ func TestGetDst(t *testing.T) {
 		"SCMP/SCION Error with offending UDP/SCION is delivered by IP": {
 			Pkt: func(t *testing.T) *respool.Packet {
 				// Construct offending packet.
-				scion := newSCIONHdr(t, common.L4UDP)
+				scion := newSCIONHdr(t, slayers.L4UDP)
 				udp := &slayers.UDP{
 					SrcPort: 1337,
 					DstPort: 42,
@@ -265,7 +264,7 @@ func TestGetDst(t *testing.T) {
 		"SCMP/SCION Error with offending SCMP/SCION EchoRequest is delivered by ID": {
 			Pkt: func(t *testing.T) *respool.Packet {
 				// Construct offending packet.
-				scion := newSCIONHdr(t, common.L4SCMP)
+				scion := newSCIONHdr(t, slayers.L4SCMP)
 				scmp := &slayers.SCMP{
 					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoRequest, 0),
 				}
@@ -321,7 +320,7 @@ func TestGetDst(t *testing.T) {
 		"SCMP/SCION Error with offending SCMP/SCION TracerouteRequest is delivered by ID": {
 			Pkt: func(t *testing.T) *respool.Packet {
 				// Construct offending packet.
-				scion := newSCIONHdr(t, common.L4SCMP)
+				scion := newSCIONHdr(t, slayers.L4SCMP)
 				scmp := &slayers.SCMP{
 					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteRequest, 0),
 				}
@@ -377,7 +376,7 @@ func TestGetDst(t *testing.T) {
 		"SCMP/SCION Error with truncated UDP/SCION payload is delivered by IP": {
 			Pkt: func(t *testing.T) *respool.Packet {
 				// Construct offending packet.
-				scion := newSCIONHdr(t, common.L4UDP)
+				scion := newSCIONHdr(t, slayers.L4UDP)
 				udp := &slayers.UDP{
 					SrcPort: 1337,
 					DstPort: 42,
@@ -432,7 +431,7 @@ func TestGetDst(t *testing.T) {
 		"SCMP/SCION Error with offending truncated EchoRequest is delivered by ID": {
 			Pkt: func(t *testing.T) *respool.Packet {
 				// Construct offending packet.
-				scion := newSCIONHdr(t, common.L4SCMP)
+				scion := newSCIONHdr(t, slayers.L4SCMP)
 				scmp := &slayers.SCMP{
 					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoRequest, 0),
 				}
@@ -489,7 +488,7 @@ func TestGetDst(t *testing.T) {
 		"SCMP/SCION Error with offending truncated TracerouteRequest is delivered by ID": {
 			Pkt: func(t *testing.T) *respool.Packet {
 				// Construct offending packet.
-				scion := newSCIONHdr(t, common.L4SCMP)
+				scion := newSCIONHdr(t, slayers.L4SCMP)
 				scmp := &slayers.SCMP{
 					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteRequest, 0),
 				}
@@ -546,7 +545,7 @@ func TestGetDst(t *testing.T) {
 		"SCMP/SCION Error with partial UDP/SCION header is dropped": {
 			Pkt: func(t *testing.T) *respool.Packet {
 				// Construct offending packet.
-				scion := newSCIONHdr(t, common.L4UDP)
+				scion := newSCIONHdr(t, slayers.L4UDP)
 				udp := &slayers.UDP{
 					SrcPort: 1337,
 					DstPort: 42,
@@ -597,7 +596,7 @@ func TestGetDst(t *testing.T) {
 		"SCMP/SCION Error with partial EchoRequest is dropped": {
 			Pkt: func(t *testing.T) *respool.Packet {
 				// Construct offending packet.
-				scion := newSCIONHdr(t, common.L4SCMP)
+				scion := newSCIONHdr(t, slayers.L4SCMP)
 				scmp := &slayers.SCMP{
 					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoRequest, 0),
 				}
@@ -831,7 +830,7 @@ func TestSCMPHandlerReverse(t *testing.T) {
 					Version:      0,
 					TrafficClass: 0xb8,
 					FlowID:       0xdead,
-					NextHdr:      common.L4SCMP,
+					NextHdr:      slayers.L4SCMP,
 					PathType:     scion.PathType,
 					SrcIA:        xtest.MustParseIA("1-ff00:0:110"),
 					DstIA:        xtest.MustParseIA("1-ff00:0:112"),
@@ -876,7 +875,7 @@ func TestSCMPHandlerReverse(t *testing.T) {
 					TrafficClass: 0xb8,
 					FlowID:       0xdead,
 					HdrLen:       21,
-					NextHdr:      common.L4SCMP,
+					NextHdr:      slayers.L4SCMP,
 					PayloadLen:   uint16(4 + len(pkt.SCMP.Payload)),
 					PathType:     scion.PathType,
 					SrcIA:        xtest.MustParseIA("1-ff00:0:112"),
@@ -927,7 +926,7 @@ func TestSCMPHandlerReverse(t *testing.T) {
 	}
 }
 
-func newSCIONHdr(t *testing.T, l4 common.L4ProtocolType) *slayers.SCION {
+func newSCIONHdr(t *testing.T, l4 slayers.L4ProtocolType) *slayers.SCION {
 	scion := &slayers.SCION{
 		NextHdr:  l4,
 		PathType: scion.PathType,

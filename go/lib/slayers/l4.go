@@ -1,4 +1,4 @@
-// Copyright 2016 ETH Zurich
+// Copyright 2022 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package common
+package slayers
 
 import (
 	"fmt"
@@ -30,10 +30,6 @@ const (
 	HopByHopClass L4ProtocolType = 200
 	End2EndClass  L4ProtocolType = 201
 )
-
-var L4Protocols = map[L4ProtocolType]bool{
-	L4SCMP: true, L4TCP: true, L4UDP: true,
-}
 
 func (p L4ProtocolType) String() string {
 	switch p {

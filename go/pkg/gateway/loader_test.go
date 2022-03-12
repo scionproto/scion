@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config_test
+package gateway_test
 
 import (
 	"context"
@@ -26,10 +26,10 @@ import (
 
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/pkg/gateway/config"
-	"github.com/scionproto/scion/go/pkg/gateway/config/mock_config"
+	"github.com/scionproto/scion/go/pkg/gateway"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
 	"github.com/scionproto/scion/go/pkg/gateway/control/mock_control"
+	"github.com/scionproto/scion/go/pkg/gateway/mock_gateway"
 	"github.com/scionproto/scion/go/pkg/gateway/routing"
 )
 
@@ -57,7 +57,7 @@ func TestLoaderRun(t *testing.T) {
 
 	testCases := map[string]func(t *testing.T, ctrl *gomock.Controller){
 		"missing publisher fails": func(t *testing.T, ctrl *gomock.Controller) {
-			loader := &config.Loader{
+			loader := &gateway.Loader{
 				SessionPoliciesFile: "session.policy",
 				RoutingPolicyFile:   "routing.policy",
 				Trigger:             make(chan struct{}),
@@ -72,10 +72,10 @@ func TestLoaderRun(t *testing.T) {
 			xtest.AssertReadReturnsBefore(t, doneCh, time.Second)
 		},
 		"missing trigger fails": func(t *testing.T, ctrl *gomock.Controller) {
-			loader := &config.Loader{
+			loader := &gateway.Loader{
 				SessionPoliciesFile: "session.policy",
 				RoutingPolicyFile:   "routing.policy",
-				Publisher:           mock_config.NewMockPublisher(ctrl),
+				Publisher:           mock_gateway.NewMockPublisher(ctrl),
 				SessionPolicyParser: mock_control.NewMockSessionPolicyParser(ctrl),
 			}
 			doneCh := make(chan struct{})
@@ -87,10 +87,10 @@ func TestLoaderRun(t *testing.T) {
 			xtest.AssertReadReturnsBefore(t, doneCh, time.Second)
 		},
 		"missing session policy parser fails": func(t *testing.T, ctrl *gomock.Controller) {
-			loader := &config.Loader{
+			loader := &gateway.Loader{
 				SessionPoliciesFile: "session.policy",
 				RoutingPolicyFile:   "routing.policy",
-				Publisher:           mock_config.NewMockPublisher(ctrl),
+				Publisher:           mock_gateway.NewMockPublisher(ctrl),
 				Trigger:             make(chan struct{}),
 			}
 			doneCh := make(chan struct{})
@@ -102,9 +102,9 @@ func TestLoaderRun(t *testing.T) {
 			xtest.AssertReadReturnsBefore(t, doneCh, time.Second)
 		},
 		"missing session policy file fails": func(t *testing.T, ctrl *gomock.Controller) {
-			loader := &config.Loader{
+			loader := &gateway.Loader{
 				RoutingPolicyFile:   "routing.policy",
-				Publisher:           mock_config.NewMockPublisher(ctrl),
+				Publisher:           mock_gateway.NewMockPublisher(ctrl),
 				Trigger:             make(chan struct{}),
 				SessionPolicyParser: mock_control.NewMockSessionPolicyParser(ctrl),
 			}
@@ -117,10 +117,10 @@ func TestLoaderRun(t *testing.T) {
 			xtest.AssertReadReturnsBefore(t, doneCh, time.Second)
 		},
 		"close before run immediately returns": func(t *testing.T, ctrl *gomock.Controller) {
-			loader := &config.Loader{
+			loader := &gateway.Loader{
 				SessionPoliciesFile: "session.policy",
 				RoutingPolicyFile:   "routing.policy",
-				Publisher:           mock_config.NewMockPublisher(ctrl),
+				Publisher:           mock_gateway.NewMockPublisher(ctrl),
 				Trigger:             make(chan struct{}),
 				SessionPolicyParser: mock_control.NewMockSessionPolicyParser(ctrl),
 			}
@@ -136,14 +136,14 @@ func TestLoaderRun(t *testing.T) {
 		"load existing files": func(t *testing.T, ctrl *gomock.Controller) {
 			stopCh := make(chan struct{})
 
-			publisher := mock_config.NewMockPublisher(ctrl)
+			publisher := mock_gateway.NewMockPublisher(ctrl)
 			sessPols := control.SessionPolicies{{IA: xtest.MustParseIA("1-ff00:0:110")}}
 			publisher.EXPECT().Publish(sessPols, &defaultPol).Do(
 				func(control.SessionPolicies, *routing.Policy) { close(stopCh) })
 			parser := mock_control.NewMockSessionPolicyParser(ctrl)
 			parser.EXPECT().Parse(context.Background(), rawSP).Return(sessPols, nil)
 			trigger := make(chan struct{})
-			loader := &config.Loader{
+			loader := &gateway.Loader{
 				SessionPoliciesFile: spFile,
 				RoutingPolicyFile:   rpFile,
 				Publisher:           publisher,
@@ -167,13 +167,13 @@ func TestLoaderRun(t *testing.T) {
 		},
 		"session policy load error": func(t *testing.T, ctrl *gomock.Controller) {
 			stopCh := make(chan struct{})
-			publisher := mock_config.NewMockPublisher(ctrl)
+			publisher := mock_gateway.NewMockPublisher(ctrl)
 			publisher.EXPECT().Publish(nil, &defaultPol).Do(
 				func(control.SessionPolicies, *routing.Policy) { close(stopCh) })
 			parser := mock_control.NewMockSessionPolicyParser(ctrl)
 			parser.EXPECT().Parse(context.Background(), rawSP).Return(nil, serrors.New("test err"))
 			trigger := make(chan struct{})
-			loader := &config.Loader{
+			loader := &gateway.Loader{
 				SessionPoliciesFile: spFile,
 				RoutingPolicyFile:   rpFile,
 				Publisher:           publisher,
@@ -197,7 +197,7 @@ func TestLoaderRun(t *testing.T) {
 		},
 		"load default routing policy": func(t *testing.T, ctrl *gomock.Controller) {
 			stopCh := make(chan struct{})
-			publisher := mock_config.NewMockPublisher(ctrl)
+			publisher := mock_gateway.NewMockPublisher(ctrl)
 			sessPols := control.SessionPolicies{{IA: xtest.MustParseIA("1-ff00:0:110")}}
 			defaultRP := &routing.Policy{DefaultAction: routing.Reject}
 			publisher.EXPECT().Publish(sessPols, defaultRP).Do(
@@ -205,7 +205,7 @@ func TestLoaderRun(t *testing.T) {
 			parser := mock_control.NewMockSessionPolicyParser(ctrl)
 			parser.EXPECT().Parse(context.Background(), rawSP).Return(sessPols, nil)
 			trigger := make(chan struct{})
-			loader := &config.Loader{
+			loader := &gateway.Loader{
 				SessionPoliciesFile: spFile,
 				RoutingPolicyFile:   "",
 				Publisher:           publisher,

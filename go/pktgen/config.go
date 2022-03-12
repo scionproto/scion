@@ -19,7 +19,6 @@ import (
 
 	"github.com/google/gopacket/layers"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
 )
@@ -90,6 +89,6 @@ func parseSCION(cfg *jsonConfig) *slayers.SCION {
 		Version:      0,
 		TrafficClass: cfg.SCION.TrafficClass,
 		FlowID:       cfg.SCION.FlowID,
-		NextHdr:      common.L4UDP,
+		NextHdr:      slayers.L4UDP,
 	}
 }

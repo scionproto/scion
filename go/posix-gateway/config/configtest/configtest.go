@@ -19,7 +19,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/pkg/gateway/config"
+	"github.com/scionproto/scion/go/posix-gateway/config"
 )
 
 func InitGateway(cfg *config.Gateway) {}

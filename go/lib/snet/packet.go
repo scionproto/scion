@@ -40,7 +40,7 @@ type UDPPayload struct {
 }
 
 func (m UDPPayload) toLayers(scn *slayers.SCION) []gopacket.SerializableLayer {
-	scn.NextHdr = common.L4UDP
+	scn.NextHdr = slayers.L4UDP
 	udp := slayers.UDP{
 		SrcPort: m.SrcPort,
 		DstPort: m.DstPort,
@@ -308,7 +308,7 @@ func toLayers(scmpPld SCMPPayload,
 	scn *slayers.SCION, details gopacket.SerializableLayer,
 	payload []byte) []gopacket.SerializableLayer {
 
-	scn.NextHdr = common.L4SCMP
+	scn.NextHdr = slayers.L4SCMP
 	scmp := &slayers.SCMP{TypeCode: slayers.CreateSCMPTypeCode(scmpPld.Type(), scmpPld.Code())}
 	scmp.SetNetworkLayerForChecksum(scn)
 	l := []gopacket.SerializableLayer{

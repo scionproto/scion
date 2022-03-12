@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package messenger_test
+package infraenv_test
 
 import (
 	"context"
@@ -25,8 +25,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/messenger/mock_messenger"
+	"github.com/scionproto/scion/go/lib/infra/infraenv"
+	"github.com/scionproto/scion/go/lib/infra/infraenv/mock_infraenv"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	snetpath "github.com/scionproto/scion/go/lib/snet/path"
@@ -69,10 +69,10 @@ func TestRedirectQUIC(t *testing.T) {
 			defer ctrl.Finish()
 			router := mock_snet.NewMockRouter(ctrl)
 			router.EXPECT().Route(gomock.Any(), gomock.Any()).Times(0)
-			resolver := mock_messenger.NewMockResolver(ctrl)
+			resolver := mock_infraenv.NewMockResolver(ctrl)
 			resolver.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
-			aw := messenger.AddressRewriter{
+			aw := infraenv.AddressRewriter{
 				Resolver:              resolver,
 				Router:                router,
 				SVCResolutionFraction: tc.SVCResolutionFraction,
@@ -90,7 +90,7 @@ func TestRedirectQUIC(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
-		resolver := mock_messenger.NewMockResolver(ctrl)
+		resolver := mock_infraenv.NewMockResolver(ctrl)
 		resolver.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
 			Return(nil, fmt.Errorf("lookups errors"))
 		path := mock_snet.NewMockPath(ctrl)
@@ -101,7 +101,7 @@ func TestRedirectQUIC(t *testing.T) {
 			Interfaces: make([]snet.PathInterface, 1), // just non-empty
 		})
 
-		aw := messenger.AddressRewriter{
+		aw := infraenv.AddressRewriter{
 			Router:                router,
 			Resolver:              resolver,
 			SVCResolutionFraction: 0.5,
@@ -124,7 +124,7 @@ func TestRedirectQUIC(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
-		resolver := mock_messenger.NewMockResolver(ctrl)
+		resolver := mock_infraenv.NewMockResolver(ctrl)
 		resolver.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
 			Return(&svc.Reply{
 				Transports: map[svc.Transport]string{svc.QUIC: "192.168.1.1:8000"},
@@ -138,7 +138,7 @@ func TestRedirectQUIC(t *testing.T) {
 			Interfaces: make([]snet.PathInterface, 1), // just non-empty
 		})
 
-		aw := messenger.AddressRewriter{
+		aw := infraenv.AddressRewriter{
 			Router:                router,
 			Resolver:              resolver,
 			SVCResolutionFraction: 1,
@@ -167,12 +167,12 @@ func TestRedirectQUIC(t *testing.T) {
 		path.EXPECT().Dataplane().Return(snetpath.SCION{})
 		path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{IP: net.ParseIP("10.1.1.1")})
 		path.EXPECT().Metadata().Return(&snet.PathMetadata{})
-		svcRouter := mock_messenger.NewMockSVCResolver(ctrl)
+		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
 		svcRouter.EXPECT().GetUnderlay(addr.SvcCS).Return(
 			&net.UDPAddr{IP: net.ParseIP("10.1.1.1")}, nil,
 		)
 
-		aw := messenger.AddressRewriter{
+		aw := infraenv.AddressRewriter{
 			Router:                router,
 			SVCRouter:             svcRouter,
 			SVCResolutionFraction: 0.0,
@@ -197,8 +197,8 @@ func TestBuildFullAddress(t *testing.T) {
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
 		remoteIA := xtest.MustParseIA("1-ff00:0:2")
-		svcRouter := mock_messenger.NewMockSVCResolver(ctrl)
-		aw := messenger.AddressRewriter{
+		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
+		aw := infraenv.AddressRewriter{
 			Router:    router,
 			SVCRouter: svcRouter,
 		}
@@ -213,8 +213,8 @@ func TestBuildFullAddress(t *testing.T) {
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
 		remoteIA := xtest.MustParseIA("1-ff00:0:2")
-		svcRouter := mock_messenger.NewMockSVCResolver(ctrl)
-		aw := messenger.AddressRewriter{
+		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
+		aw := infraenv.AddressRewriter{
 			Router:    router,
 			SVCRouter: svcRouter,
 		}
@@ -234,8 +234,8 @@ func TestBuildFullAddress(t *testing.T) {
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
 		remoteIA := xtest.MustParseIA("1-ff00:0:2")
-		svcRouter := mock_messenger.NewMockSVCResolver(ctrl)
-		aw := messenger.AddressRewriter{
+		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
+		aw := infraenv.AddressRewriter{
 			Router:    router,
 			SVCRouter: svcRouter,
 		}
@@ -264,8 +264,8 @@ func TestBuildFullAddress(t *testing.T) {
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
 		localIA := xtest.MustParseIA("1-ff00:0:1")
-		svcRouter := mock_messenger.NewMockSVCResolver(ctrl)
-		aw := messenger.AddressRewriter{
+		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
+		aw := infraenv.AddressRewriter{
 			Router:    router,
 			SVCRouter: svcRouter,
 		}
@@ -295,8 +295,8 @@ func TestBuildFullAddress(t *testing.T) {
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
 		localIA := xtest.MustParseIA("1-ff00:0:1")
-		svcRouter := mock_messenger.NewMockSVCResolver(ctrl)
-		aw := messenger.AddressRewriter{
+		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
+		aw := infraenv.AddressRewriter{
 			Router:    router,
 			SVCRouter: svcRouter,
 		}
@@ -319,7 +319,7 @@ func TestBuildFullAddress(t *testing.T) {
 func TestResolve(t *testing.T) {
 	testCases := map[string]struct {
 		input                 addr.HostSVC
-		ResolverSetup         func(*mock_messenger.MockResolver)
+		ResolverSetup         func(*mock_infraenv.MockResolver)
 		SVCResolutionFraction float64
 		wantPath              snet.Path
 		want                  *net.UDPAddr
@@ -328,7 +328,7 @@ func TestResolve(t *testing.T) {
 	}{
 		"svc address, lookup fails": {
 			input: addr.SvcCS,
-			ResolverSetup: func(r *mock_messenger.MockResolver) {
+			ResolverSetup: func(r *mock_infraenv.MockResolver) {
 				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(nil, fmt.Errorf("err"))
 			},
@@ -337,7 +337,7 @@ func TestResolve(t *testing.T) {
 		},
 		"svc address, lookup succeeds": {
 			input: addr.SvcCS,
-			ResolverSetup: func(r *mock_messenger.MockResolver) {
+			ResolverSetup: func(r *mock_infraenv.MockResolver) {
 				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(
 						&svc.Reply{
@@ -357,7 +357,7 @@ func TestResolve(t *testing.T) {
 		},
 		"svc address, half time allowed for resolution, lookup succeeds": {
 			input: addr.SvcCS,
-			ResolverSetup: func(r *mock_messenger.MockResolver) {
+			ResolverSetup: func(r *mock_infraenv.MockResolver) {
 				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(
 						&svc.Reply{
@@ -379,10 +379,10 @@ func TestResolve(t *testing.T) {
 		t.Run(tn, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			resolver := mock_messenger.NewMockResolver(ctrl)
+			resolver := mock_infraenv.NewMockResolver(ctrl)
 			path := mock_snet.NewMockPath(ctrl)
 			path.EXPECT().Destination().Return(addr.IA(0)).AnyTimes()
-			aw := messenger.AddressRewriter{
+			aw := infraenv.AddressRewriter{
 				Resolver:              resolver,
 				SVCResolutionFraction: tc.SVCResolutionFraction,
 			}
@@ -443,7 +443,7 @@ func TestParseReply(t *testing.T) {
 
 	for tn, tc := range testCases {
 		t.Run(tn, func(t *testing.T) {
-			a, err := messenger.ParseReply(tc.mockReply)
+			a, err := infraenv.ParseReply(tc.mockReply)
 			tc.assertErr(t, err)
 			if err != nil {
 				return
@@ -453,7 +453,7 @@ func TestParseReply(t *testing.T) {
 	}
 }
 
-func initResolver(resolver *mock_messenger.MockResolver, f func(*mock_messenger.MockResolver)) {
+func initResolver(resolver *mock_infraenv.MockResolver, f func(*mock_infraenv.MockResolver)) {
 	if f != nil {
 		f(resolver)
 	}

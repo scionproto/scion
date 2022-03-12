@@ -25,7 +25,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
@@ -180,10 +179,10 @@ func classifySegs(ctx context.Context,
 func peerToLabel(peer, local addr.IA) string {
 	switch {
 	case peer.Equal(local):
-		return infra.PromSrcASLocal
+		return "as_local"
 	case peer.ISD() == local.ISD():
-		return infra.PromSrcISDLocal
+		return "isd_local"
 	default:
-		return infra.PromSrcISDRemote
+		return "isd_remote"
 	}
 }

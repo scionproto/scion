@@ -24,7 +24,6 @@ import (
 	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/go/integration/braccept/runner"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
@@ -99,7 +98,7 @@ func ParentToChild(artifactsDir string, mac hash.Hash) runner.Case {
 		Version:      0,
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
-		NextHdr:      common.L4UDP,
+		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
 		SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
 		DstIA:        xtest.MustParseIA("1-ff00:0:4"),

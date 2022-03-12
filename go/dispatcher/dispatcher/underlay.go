@@ -306,7 +306,7 @@ func (h SCMPHandler) reverse(pkt *respool.Packet) ([]byte, error) {
 	}
 	// XXX(roosd): This does not take HBH and E2E extensions into consideration.
 	// See: https://github.com/scionproto/scion/issues/4128
-	pkt.SCION.NextHdr = common.L4SCMP
+	pkt.SCION.NextHdr = slayers.L4SCMP
 	// FIXME(roosd): Consider moving this to a resource pool.
 	buf := gopacket.NewSerializeBuffer()
 	if err := pkt.SCMP.SetNetworkLayerForChecksum(&pkt.SCION); err != nil {

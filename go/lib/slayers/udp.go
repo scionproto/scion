@@ -20,7 +20,6 @@ import (
 
 	"github.com/google/gopacket"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -101,7 +100,7 @@ func (u *UDP) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOpt
 		// zero out checksum bytes
 		bytes[6] = 0
 		bytes[7] = 0
-		u.Checksum, err = u.scn.computeChecksum(b.Bytes(), uint8(common.L4UDP))
+		u.Checksum, err = u.scn.computeChecksum(b.Bytes(), uint8(L4UDP))
 		if err != nil {
 			return err
 		}

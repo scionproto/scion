@@ -34,7 +34,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	libepic "github.com/scionproto/scion/go/lib/epic"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
@@ -1376,7 +1375,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 		Version:      0,
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
-		NextHdr:      common.L4BFD,
+		NextHdr:      slayers.L4BFD,
 		SrcIA:        b.srcIA,
 		DstIA:        b.dstIA,
 	}
@@ -1476,7 +1475,7 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 	if err := scionL.SetSrcAddr(&net.IPAddr{IP: p.d.internalIP}); err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "setting src addr")
 	}
-	scionL.NextHdr = common.L4SCMP
+	scionL.NextHdr = slayers.L4SCMP
 
 	scmpH.SetNetworkLayerForChecksum(&scionL)
 
@@ -1538,7 +1537,7 @@ func decodeLayers(data []byte, base gopacket.DecodingLayer,
 	return last, nil
 }
 
-func nextHdr(layer gopacket.DecodingLayer) common.L4ProtocolType {
+func nextHdr(layer gopacket.DecodingLayer) slayers.L4ProtocolType {
 	switch v := layer.(type) {
 	case *slayers.SCION:
 		return v.NextHdr
@@ -1547,7 +1546,7 @@ func nextHdr(layer gopacket.DecodingLayer) common.L4ProtocolType {
 	case *slayers.HopByHopExtn:
 		return v.NextHdr
 	default:
-		return common.L4None
+		return slayers.L4None
 	}
 }
 

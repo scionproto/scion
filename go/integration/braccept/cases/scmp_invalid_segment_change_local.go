@@ -24,7 +24,6 @@ import (
 	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/go/integration/braccept/runner"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
@@ -101,7 +100,7 @@ func SCMPParentToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Cas
 		Version:      0,
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
-		NextHdr:      common.L4UDP,
+		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
 		SrcIA:        xtest.MustParseIA("1-ff00:0:2"),
 		DstIA:        xtest.MustParseIA("1-ff00:0:2"),
@@ -173,7 +172,7 @@ func SCMPParentToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Cas
 		panic(err)
 	}
 
-	scionL.NextHdr = common.L4SCMP
+	scionL.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(
 			slayers.SCMPTypeParameterProblem,
@@ -273,7 +272,7 @@ func SCMPParentToChildLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 		Version:      0,
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
-		NextHdr:      common.L4UDP,
+		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
 		SrcIA:        xtest.MustParseIA("1-ff00:0:2"),
 		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
@@ -345,7 +344,7 @@ func SCMPParentToChildLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 		panic(err)
 	}
 
-	scionL.NextHdr = common.L4SCMP
+	scionL.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(
 			slayers.SCMPTypeParameterProblem,
@@ -447,7 +446,7 @@ func SCMPChildToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 		Version:      0,
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
-		NextHdr:      common.L4UDP,
+		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
 		SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
 		DstIA:        xtest.MustParseIA("1-ff00:0:3"),
@@ -521,7 +520,7 @@ func SCMPChildToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 		panic(err)
 	}
 
-	scionL.NextHdr = common.L4SCMP
+	scionL.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(
 			slayers.SCMPTypeParameterProblem,

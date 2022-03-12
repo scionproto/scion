@@ -34,7 +34,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -67,7 +66,7 @@ type NetworkConfig struct {
 	QUIC QUIC
 	// SVCResolver is used to discover the underlay addresses of intra-AS SVC
 	// servers.
-	SVCResolver messenger.SVCResolver
+	SVCResolver SVCResolver
 	// SCMPHandler is the SCMP handler to use. This handler is only applied to
 	// client connections. The connection the server listens on will always
 	// ignore SCMP messages. Otherwise, the server will shutdown when receiving
@@ -179,7 +178,7 @@ func GenerateTLSConfig() (*tls.Config, error) {
 // The connection factory is used to open sockets for SVC resolution requests.
 // If the connection factory is nil, the default connection factory is used.
 func (nc *NetworkConfig) AddressRewriter(
-	connFactory snet.PacketDispatcherService) *messenger.AddressRewriter {
+	connFactory snet.PacketDispatcherService) *AddressRewriter {
 
 	if connFactory == nil {
 		connFactory = &snet.DefaultPacketDispatcherService{
@@ -187,7 +186,7 @@ func (nc *NetworkConfig) AddressRewriter(
 			SCMPHandler: nc.SCMPHandler,
 		}
 	}
-	return &messenger.AddressRewriter{
+	return &AddressRewriter{
 		Router:    &snet.BaseRouter{Querier: snet.IntraASPathQuerier{IA: nc.IA}},
 		SVCRouter: nc.SVCResolver,
 		Resolver: &svc.Resolver{

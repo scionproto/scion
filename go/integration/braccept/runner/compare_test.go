@@ -22,7 +22,6 @@ import (
 	"github.com/google/gopacket"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
@@ -88,7 +87,7 @@ func prepareSCION(t *testing.T, diff string) gopacket.Packet {
 		Version:      0,
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
-		NextHdr:      common.L4UDP,
+		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
 		SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
 		DstIA:        xtest.MustParseIA("1-ff00:0:3"),

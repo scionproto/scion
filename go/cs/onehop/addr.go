@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/path"
 )
@@ -51,7 +51,7 @@ func (a Addr) String() string {
 // AddressRewriter is used to perform SVC resolution over a onehop path.
 type AddressRewriter struct {
 	// Rewriter is used to perform the SVC resolution.
-	Rewriter *messenger.AddressRewriter
+	Rewriter *infraenv.AddressRewriter
 	// MAC is the mac to issue hop fields.
 	MAC hash.Hash
 	// macMtx protects the MAC.

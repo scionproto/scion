@@ -22,7 +22,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/slayers"
 )
 
@@ -182,7 +181,7 @@ func TestSerializeTLVOptionsWithFinalPadding(t *testing.T) {
 
 func TestHopByHopExtnSerialize(t *testing.T) {
 	hbh := slayers.HopByHopExtn{}
-	hbh.NextHdr = common.L4UDP
+	hbh.NextHdr = slayers.L4UDP
 	hbh.Options = []*slayers.HopByHopOption{
 		(*slayers.HopByHopOption)(&optX),
 		(*slayers.HopByHopOption)(&optY),
@@ -198,7 +197,7 @@ func TestHopByHopExtnDecode(t *testing.T) {
 	raw := append([]byte{0x11, 0x06}, rawTLVOptionsXY...)
 	hbh := slayers.HopByHopExtn{}
 	assert.NoError(t, hbh.DecodeFromBytes(raw, gopacket.NilDecodeFeedback), "DecodeFromBytes")
-	assert.Equal(t, common.L4UDP, hbh.NextHdr, "NextHeader")
+	assert.Equal(t, slayers.L4UDP, hbh.NextHdr, "NextHeader")
 	assert.Equal(t, uint8(6), hbh.ExtLen, "ExtLen")
 	assert.Equal(t, 3, len(hbh.Options), "len(hbh.Options)")
 	assert.Equal(t, 28, hbh.ActualLen, "ActualLength")
@@ -224,7 +223,7 @@ func TestHopByHopExtnDecode(t *testing.T) {
 
 func TestHopByHopExtnSerializeDecode(t *testing.T) {
 	hbh := slayers.HopByHopExtn{}
-	hbh.NextHdr = common.L4UDP
+	hbh.NextHdr = slayers.L4UDP
 	hbh.Options = []*slayers.HopByHopOption{
 		(*slayers.HopByHopOption)(&optX),
 		(*slayers.HopByHopOption)(&optY),
@@ -248,7 +247,7 @@ func TestHopByHopExtnSerializeDecode(t *testing.T) {
 
 func TestEndToEndExtnSerialize(t *testing.T) {
 	e2e := slayers.EndToEndExtn{}
-	e2e.NextHdr = common.L4UDP
+	e2e.NextHdr = slayers.L4UDP
 	e2e.Options = []*slayers.EndToEndOption{
 		(*slayers.EndToEndOption)(&optY),
 		(*slayers.EndToEndOption)(&optX),
@@ -264,7 +263,7 @@ func TestEndToEndExtnDecode(t *testing.T) {
 	raw := append([]byte{0x11, 0x07}, rawTLVOptionsYX...)
 	e2e := slayers.EndToEndExtn{}
 	assert.NoError(t, e2e.DecodeFromBytes(raw, gopacket.NilDecodeFeedback), "DecodeFromBytes")
-	assert.Equal(t, common.L4UDP, e2e.NextHdr, "NextHeader")
+	assert.Equal(t, slayers.L4UDP, e2e.NextHdr, "NextHeader")
 	assert.Equal(t, uint8(7), e2e.ExtLen, "ExtLen")
 	assert.Equal(t, 4, len(e2e.Options), "len(e2e.Options)")
 	assert.Equal(t, 32, e2e.ActualLen, "ActualLength")
@@ -301,7 +300,7 @@ func TestEndToEndExtnDecode(t *testing.T) {
 
 func TestEndToEndExtnSerializeDecode(t *testing.T) {
 	e2e := slayers.EndToEndExtn{}
-	e2e.NextHdr = common.L4UDP
+	e2e.NextHdr = slayers.L4UDP
 	e2e.Options = []*slayers.EndToEndOption{
 		(*slayers.EndToEndOption)(&optY),
 		(*slayers.EndToEndOption)(&optX),
@@ -325,49 +324,49 @@ func TestEndToEndExtnSerializeDecode(t *testing.T) {
 
 func TestExtnOrderDecode(t *testing.T) {
 	const (
-		e2e = common.End2EndClass // shorthand
-		hbh = common.HopByHopClass
+		e2e = slayers.End2EndClass // shorthand
+		hbh = slayers.HopByHopClass
 	)
 	cases := []struct {
 		name  string
-		extns []common.L4ProtocolType
+		extns []slayers.L4ProtocolType
 		err   bool
 	}{
 		{
 			name:  "e2e",
-			extns: []common.L4ProtocolType{e2e},
+			extns: []slayers.L4ProtocolType{e2e},
 		},
 		{
 			name:  "hbh",
-			extns: []common.L4ProtocolType{hbh},
+			extns: []slayers.L4ProtocolType{hbh},
 		},
 		{
 			name:  "hbh e2e",
-			extns: []common.L4ProtocolType{hbh, e2e},
+			extns: []slayers.L4ProtocolType{hbh, e2e},
 		},
 		{
 			name:  "e2e e2e",
-			extns: []common.L4ProtocolType{e2e, e2e},
+			extns: []slayers.L4ProtocolType{e2e, e2e},
 			err:   true, // illegal repetition
 		},
 		{
 			name:  "hbh hbh",
-			extns: []common.L4ProtocolType{hbh, hbh},
+			extns: []slayers.L4ProtocolType{hbh, hbh},
 			err:   true, // illegal repetition
 		},
 		{
 			name:  "e2e hbh",
-			extns: []common.L4ProtocolType{e2e, hbh},
+			extns: []slayers.L4ProtocolType{e2e, hbh},
 			err:   true, // invalid order
 		},
 		{
 			name:  "hbh e2e e2e",
-			extns: []common.L4ProtocolType{hbh, e2e, e2e},
+			extns: []slayers.L4ProtocolType{hbh, e2e, e2e},
 			err:   true, // illegal repetition
 		},
 		{
 			name:  "hbh e2e hbh",
-			extns: []common.L4ProtocolType{hbh, e2e, hbh},
+			extns: []slayers.L4ProtocolType{hbh, e2e, hbh},
 			err:   true, // illegal repetition, invalid order
 		},
 	}
@@ -440,12 +439,12 @@ func TestExtnSkipDecode(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			extns := []common.L4ProtocolType{}
+			extns := []slayers.L4ProtocolType{}
 			if c.hbh {
-				extns = append(extns, common.HopByHopClass)
+				extns = append(extns, slayers.HopByHopClass)
 			}
 			if c.e2e {
-				extns = append(extns, common.End2EndClass)
+				extns = append(extns, slayers.End2EndClass)
 			}
 			raw := prepRawPacketWithExtn(t, extns...)
 			var (
@@ -488,21 +487,21 @@ func TestExtnSkipDecode(t *testing.T) {
 // prepPacketWithExtn creates a (potentially invalid) list of SCION packet layers
 // with extension layers in the given order.
 func prepPacketWithExtn(t *testing.T,
-	extns ...common.L4ProtocolType) []gopacket.SerializableLayer {
+	extns ...slayers.L4ProtocolType) []gopacket.SerializableLayer {
 
 	scn := prepPacket(t, extns[0])
 	layers := []gopacket.SerializableLayer{scn}
 	for i, e := range extns {
-		next := common.L4UDP
+		next := slayers.L4UDP
 		if i+1 < len(extns) {
 			next = extns[i+1]
 		}
 		switch e {
-		case common.End2EndClass:
+		case slayers.End2EndClass:
 			extn := &slayers.EndToEndExtn{}
 			extn.NextHdr = next
 			layers = append(layers, extn)
-		case common.HopByHopClass:
+		case slayers.HopByHopClass:
 			extn := &slayers.HopByHopExtn{}
 			extn.NextHdr = next
 			layers = append(layers, extn)
@@ -513,10 +512,10 @@ func prepPacketWithExtn(t *testing.T,
 
 // prepRawPacketWithExtn creates a (potentially invalid) raw SCION packet with
 // extensions in the given order.
-func prepRawPacketWithExtn(t *testing.T, extns ...common.L4ProtocolType) []byte {
+func prepRawPacketWithExtn(t *testing.T, extns ...slayers.L4ProtocolType) []byte {
 	t.Helper()
 
-	first := common.L4UDP
+	first := slayers.L4UDP
 	if len(extns) > 0 {
 		first = extns[0]
 	}
@@ -530,7 +529,7 @@ func prepRawPacketWithExtn(t *testing.T, extns ...common.L4ProtocolType) []byte 
 	for i := range extns {
 		b, err := buf.AppendBytes(2 + len(rawTLVOptionsXY))
 		require.NoError(t, err)
-		next := common.L4UDP
+		next := slayers.L4UDP
 		if i+1 < len(extns) {
 			next = extns[i+1]
 		}
@@ -570,7 +569,7 @@ func TestOptAuthenticatorSerialize(t *testing.T) {
 	optAuth := slayers.NewPacketAuthenticatorOption(slayers.PacketAuthCMAC, optAuthMAC)
 
 	e2e := slayers.EndToEndExtn{}
-	e2e.NextHdr = common.L4UDP
+	e2e.NextHdr = slayers.L4UDP
 	e2e.Options = []*slayers.EndToEndOption{optAuth.EndToEndOption}
 
 	b := gopacket.NewSerializeBuffer()
@@ -587,7 +586,7 @@ func TestOptAuthenticatorDeserialize(t *testing.T) {
 	assert.Error(t, err)
 
 	assert.NoError(t, e2e.DecodeFromBytes(rawE2EOptAuth, gopacket.NilDecodeFeedback))
-	assert.Equal(t, common.L4UDP, e2e.NextHdr, "NextHeader")
+	assert.Equal(t, slayers.L4UDP, e2e.NextHdr, "NextHeader")
 	optAuth, err := e2e.FindOption(slayers.OptTypeAuthenticator)
 	require.NoError(t, err, "FindOption")
 	auth, err := slayers.ParsePacketAuthenticatorOption(optAuth)
@@ -602,7 +601,7 @@ func TestOptAuthenticatorDeserializeCorrupt(t *testing.T) {
 		OptData: []byte{},
 	}
 	e2e := slayers.EndToEndExtn{}
-	e2e.NextHdr = common.L4UDP
+	e2e.NextHdr = slayers.L4UDP
 	e2e.Options = []*slayers.EndToEndOption{&optAuthCorrupt}
 
 	b := gopacket.NewSerializeBuffer()

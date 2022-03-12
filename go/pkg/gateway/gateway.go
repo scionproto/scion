@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/periodic"
@@ -43,7 +42,6 @@ import (
 	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
 	"github.com/scionproto/scion/go/lib/svc"
 	"github.com/scionproto/scion/go/lib/util"
-	"github.com/scionproto/scion/go/pkg/gateway/config"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
 	controlgrpc "github.com/scionproto/scion/go/pkg/gateway/control/grpc"
 	"github.com/scionproto/scion/go/pkg/gateway/dataplane"
@@ -378,7 +376,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	remoteIAsChannel := configPublisher.SubscribeRemoteIAs()
 	sessionPoliciesChannel := configPublisher.SubscribeSessionPolicies()
 
-	configLoader := config.Loader{
+	configLoader := Loader{
 		SessionPoliciesFile: g.TrafficPolicyFile,
 		RoutingPolicyFile:   g.RoutingPolicyFile,
 		Publisher:           configPublisher,
@@ -525,7 +523,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 			},
 			Dialer: &libgrpc.QUICDialer{
 				Dialer: quicClientDialer,
-				Rewriter: &messenger.AddressRewriter{
+				Rewriter: &infraenv.AddressRewriter{
 					// Use the local Daemon to construct paths to the target AS.
 					Router: pathRouter,
 					// We never resolve addresses in the local AS, so pass a nil here.
