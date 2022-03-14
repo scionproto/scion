@@ -69,46 +69,56 @@ func TestPolicyCopy(t *testing.T) {
 
 func TestNetworkMatch(t *testing.T) {
 
-	acceptAll := &routing.Policy{
-		DefaultAction: routing.Accept,
+	acceptAll := func() *routing.Policy {
+		return &routing.Policy{
+			DefaultAction: routing.Accept,
+		}
 	}
-	rejectAll := &routing.Policy{
-		DefaultAction: routing.Reject,
+	rejectAll := func() *routing.Policy {
+		return &routing.Policy{
+			DefaultAction: routing.Reject,
+		}
 	}
-	acceptSome := &routing.Policy{
-		Rules: []routing.Rule{
-			{
-				Action:  routing.Accept,
-				Network: routing.NewNetworkMatcher(t, "10.0.0.0/8"),
+	acceptSome := func() *routing.Policy {
+		return &routing.Policy{
+			Rules: []routing.Rule{
+				{
+					Action:  routing.Accept,
+					Network: routing.NewNetworkMatcher(t, "10.0.0.0/8"),
+				},
+				{
+					Action:  routing.Accept,
+					Network: routing.NewNetworkMatcher(t, "abcd::/16"),
+				},
 			},
-			{
-				Action:  routing.Accept,
-				Network: routing.NewNetworkMatcher(t, "abcd::/16"),
-			},
-		},
-		DefaultAction: routing.Reject,
+			DefaultAction: routing.Reject,
+		}
 	}
-	splitRange := &routing.Policy{
-		Rules: []routing.Rule{
-			{
-				Action:  routing.Accept,
-				Network: routing.NewNetworkMatcher(t, "!10.0.1.0/24"),
+	splitRange := func() *routing.Policy {
+		return &routing.Policy{
+			Rules: []routing.Rule{
+				{
+					Action:  routing.Accept,
+					Network: routing.NewNetworkMatcher(t, "!10.0.1.0/24"),
+				},
 			},
-		},
-		DefaultAction: routing.Reject,
+			DefaultAction: routing.Reject,
+		}
 	}
-	adjacentRanges := &routing.Policy{
-		Rules: []routing.Rule{
-			{
-				Action:  routing.Accept,
-				Network: routing.NewNetworkMatcher(t, "10.0.0.0/24"),
+	adjacentRanges := func() *routing.Policy {
+		return &routing.Policy{
+			Rules: []routing.Rule{
+				{
+					Action:  routing.Accept,
+					Network: routing.NewNetworkMatcher(t, "10.0.0.0/24"),
+				},
+				{
+					Action:  routing.Accept,
+					Network: routing.NewNetworkMatcher(t, "10.0.1.0/24"),
+				},
 			},
-			{
-				Action:  routing.Accept,
-				Network: routing.NewNetworkMatcher(t, "10.0.1.0/24"),
-			},
-		},
-		DefaultAction: routing.Reject,
+			DefaultAction: routing.Reject,
+		}
 	}
 
 	testCases := map[string]struct {
@@ -117,62 +127,62 @@ func TestNetworkMatch(t *testing.T) {
 		out    string
 	}{
 		"accept all ipv4 full": {
-			policy: acceptAll,
+			policy: acceptAll(),
 			in:     "0.0.0.0/0",
 			out:    "0.0.0.0/0",
 		},
 		"accept all ipv6 full": {
-			policy: acceptAll,
+			policy: acceptAll(),
 			in:     "::/0",
 			out:    "::/0",
 		},
 		"accept all ipv4 partial": {
-			policy: acceptAll,
+			policy: acceptAll(),
 			in:     "10.0.0.0/8",
 			out:    "10.0.0.0/8",
 		},
 		"accept all ipv6 partial": {
-			policy: acceptAll,
+			policy: acceptAll(),
 			in:     "abcd::/16",
 			out:    "abcd::/16",
 		},
 		"reject all ipv4": {
-			policy: rejectAll,
+			policy: rejectAll(),
 			in:     "10.0.0.0/8",
 			out:    "",
 		},
 		"reject all ipv6": {
-			policy: rejectAll,
+			policy: rejectAll(),
 			in:     "abcd::/16",
 			out:    "",
 		},
 		"accept subset ipv4": {
-			policy: acceptSome,
+			policy: acceptSome(),
 			in:     "10.0.0.0/16",
 			out:    "10.0.0.0/16",
 		},
 		"accept subset ipv6": {
-			policy: acceptSome,
+			policy: acceptSome(),
 			in:     "abcd:abcd::/32",
 			out:    "abcd:abcd::/32",
 		},
 		"accept superset ipv4": {
-			policy: acceptSome,
+			policy: acceptSome(),
 			in:     "0.0.0.0/0",
 			out:    "10.0.0.0/8",
 		},
 		"accept superset ipv6": {
-			policy: acceptSome,
+			policy: acceptSome(),
 			in:     "::/0",
 			out:    "abcd::/16",
 		},
 		"split range": {
-			policy: splitRange,
+			policy: splitRange(),
 			in:     "10.0.0.0/22",
 			out:    "10.0.0.0/24,10.0.2.0/23",
 		},
 		"adjacent range": {
-			policy: adjacentRanges,
+			policy: adjacentRanges(),
 			in:     "10.0.0.0/23",
 			out:    "10.0.0.0/23",
 		},

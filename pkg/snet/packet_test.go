@@ -44,8 +44,11 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 		InfoFields: []path.InfoField{{ConsDir: true}},
 		HopFields:  []path.HopField{{ConsEgress: 4}, {ConsIngress: 1}},
 	}
-	rawSP := make([]byte, scionP.Len())
-	require.NoError(t, scionP.SerializeTo(rawSP))
+	rawSP := func() []byte {
+		raw := make([]byte, scionP.Len())
+		require.NoError(t, scionP.SerializeTo(raw))
+		return raw
+	}
 
 	testCases := map[string]snet.Packet{
 		"UDP OHP packet": {
@@ -77,7 +80,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
 				Path: snetpath.SCION{
-					Raw: rawSP,
+					Raw: rawSP(),
 				},
 				Payload: snet.UDPPayload{
 					SrcPort: 25,
@@ -97,7 +100,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
 				Path: snetpath.SCION{
-					Raw: rawSP,
+					Raw: rawSP(),
 				},
 				Payload: snet.SCMPEchoRequest{
 					Identifier: 4,
@@ -117,7 +120,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
 				Path: snetpath.SCION{
-					Raw: rawSP,
+					Raw: rawSP(),
 				},
 				Payload: snet.SCMPEchoReply{
 					Identifier: 5,
@@ -137,7 +140,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
 				Path: snetpath.SCION{
-					Raw: rawSP,
+					Raw: rawSP(),
 				},
 				Payload: snet.SCMPExternalInterfaceDown{
 					IA:        xtest.MustParseIA("1-ff00:0:111"),
@@ -157,7 +160,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
 				Path: snetpath.SCION{
-					Raw: rawSP,
+					Raw: rawSP(),
 				},
 				Payload: snet.SCMPInternalConnectivityDown{
 					IA:      xtest.MustParseIA("1-ff00:0:111"),
@@ -178,7 +181,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
 				Path: snetpath.SCION{
-					Raw: rawSP,
+					Raw: rawSP(),
 				},
 				Payload: snet.SCMPParameterProblemWithCode(
 					snet.SCMPParameterProblem{
@@ -200,7 +203,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
 				Path: snetpath.SCION{
-					Raw: rawSP,
+					Raw: rawSP(),
 				},
 				Payload: snet.SCMPPacketTooBig{
 					MTU:     1503,

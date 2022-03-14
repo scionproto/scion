@@ -62,11 +62,6 @@ func (r *redirectSender) SetDestination(dst *bfd.Session) {
 	r.Destination = dst
 }
 
-// String, define to avoid infinite recursion with Session.String (in case of test errors)
-func (r *redirectSender) String() string {
-	return "redirectSender"
-}
-
 // Close closes the channel used by the sender.
 func (r *redirectSender) Close() {
 	r.mtx.Lock()
@@ -74,6 +69,12 @@ func (r *redirectSender) Close() {
 	// stop sending, to avoid writing any packets still sent by the session to a closed channel.
 	r.shouldSend = false
 	r.Destination.Close()
+}
+
+func (r *redirectSender) String() string {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
+	return fmt.Sprintf("Sender: active=%t", r.shouldSend)
 }
 
 func TestSession(t *testing.T) {

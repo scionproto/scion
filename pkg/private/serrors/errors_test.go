@@ -339,9 +339,9 @@ func sanitizeLog(log []byte) []byte {
 		// serrors package
 		{`[^\s"]*/pkg/private/serrors`, "pkg/private/serrors"},
 		// go sdk
-		{`[^\s"]*/src/testing`, "GOROOT/src/testing"},
+		{`[^\s"]*/src/testing`, "src/testing"},
 		// go runtime
-		{`[^\s"]*/src/runtime`, "GOROOT/src/runtime"},
+		{`[^\s"]*/src/runtime`, "src/runtime"},
 	} {
 		re := regexp.MustCompile(replacer.pattern)
 		log = re.ReplaceAll(log, []byte(replacer.replace))

@@ -152,8 +152,8 @@ func (conn *PacketConn) asyncReconnectWrapper() {
 		close(conn.fatalError)
 		return
 	}
-	newConn.SetReadDeadline(conn.readDeadline)
-	newConn.SetWriteDeadline(conn.writeDeadline)
+	newConn.SetReadDeadline(conn.getReadDeadline())
+	newConn.SetWriteDeadline(conn.getWriteDeadline())
 	conn.setConn(newConn)
 	conn.dispatcherState.SetUp()
 }

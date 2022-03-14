@@ -76,6 +76,7 @@ type Session struct {
 	// bootstrapping.
 	RemoteDiscriminator layers.BFDDiscriminator
 
+	remoteDiscriminatorMtx sync.Mutex
 	// remoteDiscriminator is the discriminator of the remote Session, as set
 	// by the creator of the session or learned via bootstrapping. It is a
 	// separate field from the exported remote discriminator to keep that
@@ -164,7 +165,7 @@ type Session struct {
 
 func (s *Session) String() string {
 	return fmt.Sprintf("local_disc %v, remote_disc %v, sender %v",
-		s.LocalDiscriminator, s.remoteDiscriminator, s.Sender)
+		s.LocalDiscriminator, s.getRemoteDiscriminator(), s.Sender)
 }
 
 // Run initializes the Session's timers and state machine, and starts sending out BFD control
@@ -179,7 +180,7 @@ func (s *Session) Run() error {
 		return err
 	}
 	if s.RemoteDiscriminator != 0 {
-		s.remoteDiscriminator = s.RemoteDiscriminator
+		s.setRemoteDiscriminator(s.RemoteDiscriminator)
 	}
 	s.initMessages()
 	s.initMetrics()
@@ -226,8 +227,8 @@ MainLoop:
 
 			s.remoteState = state(msg.State)
 			s.remoteMinRxInterval = bfdIntervalToDuration(msg.RequiredMinRxInterval)
-			if s.remoteDiscriminator == 0 {
-				s.remoteDiscriminator = msg.MyDiscriminator
+			if s.getRemoteDiscriminator() == 0 {
+				s.setRemoteDiscriminator(msg.MyDiscriminator)
 				s.debug("Bootstrapped")
 			}
 
@@ -280,7 +281,7 @@ MainLoop:
 			detectionTimer.Reset(defaultDetectionTimeout)
 
 			s.transition(eventTimer)
-			s.remoteDiscriminator = 0
+			s.setRemoteDiscriminator(0)
 			if s.getLocalState() == stateDown {
 				// Change the desired interval back to the default transmission interval, to
 				// avoid flooding the network while the session is down.
@@ -361,6 +362,18 @@ func (s *Session) setLocalState(st state) {
 	s.localStateLock.Lock()
 	defer s.localStateLock.Unlock()
 	s.localState = st
+}
+
+func (s *Session) getRemoteDiscriminator() layers.BFDDiscriminator {
+	s.remoteDiscriminatorMtx.Lock()
+	defer s.remoteDiscriminatorMtx.Unlock()
+	return s.remoteDiscriminator
+}
+
+func (s *Session) setRemoteDiscriminator(d layers.BFDDiscriminator) {
+	s.remoteDiscriminatorMtx.Lock()
+	defer s.remoteDiscriminatorMtx.Unlock()
+	s.remoteDiscriminator = d
 }
 
 // ReceiveMessage validates a message and enques it for processing.

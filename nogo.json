@@ -36,7 +36,6 @@
   },
   "printf": {
     "exclude_files": {
-      "/com_github_antlr_antlr4/runtime/Go/antlr/": "",
       "/com_github_cloudflare_sidh/": ""
     }
   },
@@ -45,7 +44,6 @@
       "/com_github_sergi_go_diff": "",
       "/com_github_uber_jaeger_client_go": "",
       "/com_github_google_gopacket": "",
-      "/com_github_antlr_antlr4": "",
       "/net_starlark_go": "",
       "/com_github_smartystreets_assertions/internal/go-diff/diffmatchpatch/patch.go": ""
     }
@@ -53,7 +51,7 @@
   "unreachable": {
     "exclude_files": {
       "gazelle/pathtools/path.go": "",
-      "/com_github_antlr_antlr4/runtime/Go/antlr/": "",
+      "/com_github_antlr_antlr4_runtime_go_antlr/": "",
       "/com_github_uber_jaeger_client_go": "",
       "/com_github_marten_seemann_qtls/": "",
       "/org_golang_google_protobuf/": "",

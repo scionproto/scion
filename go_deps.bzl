@@ -39,10 +39,10 @@ def go_deps():
         version = "v1.0.0",
     )
     go_repository(
-        name = "com_github_antlr_antlr4",
-        importpath = "github.com/antlr/antlr4",
-        sum = "h1:yxMh4HIdsSh2EqxUESWvzszYMNzOugRyYCeohfwNULM=",
-        version = "v0.0.0-20181218183524-be58ebffde8e",
+        name = "com_github_antlr_antlr4_runtime_go_antlr",
+        importpath = "github.com/antlr/antlr4/runtime/Go/antlr",
+        sum = "h1:zvkJv+9Pxm1nnEMcKnShREt4qtduHKz4iw4AB4ul0Ao=",
+        version = "v0.0.0-20220209173558-ad29539cd2e9",
     )
     go_repository(
         name = "com_github_armon_circbuf",

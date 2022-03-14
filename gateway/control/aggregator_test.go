@@ -17,6 +17,7 @@ package control_test
 import (
 	"context"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -58,6 +59,7 @@ func TestAggregator(t *testing.T) {
 
 	err = a.Run(context.Background())
 	require.NoError(t, err)
+	defer a.Close(context.Background())
 
 	// Test adding some more prefixes.
 	err = a.Prefixes(ia2, gateway2, []*net.IPNet{prefix3})
@@ -114,17 +116,32 @@ func TestAggregator(t *testing.T) {
 	require.Equal(t, expected, ru)
 
 	// Test that entries are removed after the expiry interval.
-	// Note that this may happen in two steps depending on the timing (gateway1
-	// was updated later than the other gateways).
-	time.Sleep(expiryInterval * 2)
-	expected = control.RemoteGateways{
-		Gateways: map[addr.IA][]control.RemoteGateway{},
-	}
-	ru = <-updateChan
-	if len(ru.Gateways) > 0 {
-		ru = <-updateChan
-	}
-	require.Equal(t, expected, ru)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	a.Close(context.Background())
+	// Start a go routine that periodically checks the updates.
+	// If it is empty we exit and set the gotExpected counter to 1.
+	var gotExpected int32
+	go func() {
+		for {
+			select {
+			case ru := <-updateChan:
+				if len(ru.Gateways) == 0 {
+					atomic.StoreInt32(&gotExpected, 1)
+					return
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	// Wait for gotExpected to become one. Give some leeway for slow
+	// environments, e.g., CI.
+	require.Eventually(
+		t,
+		func() bool { return atomic.LoadInt32(&gotExpected) != 0 },
+		10*expiryInterval,
+		reportingInterval,
+	)
 }
