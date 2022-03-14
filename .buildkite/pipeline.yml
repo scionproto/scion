@@ -1,85 +1,9 @@
 env:
   GOPROXY: "http://localhost:3200|https://proxy.golang.org|direct"
 steps:
-  - label: "build scion code :bazel:"
-    if: build.message !~ /\[doc\]/
-    command:
-      - bazel build --verbose_failures --announce_rc //:all
-      - bazel run --verbose_failures //docker:prod //docker:test
-    key: build
-    retry:
-      automatic:
-        - exit_status: -1 # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
-    timeout_in_minutes: 10
-  - wait
-  - label: "UT: unit tests & lint :bazel::bash:"
-    if: build.message !~ /\[doc\]/
-    command:
-      - bazel test --config=unit_all --cache_test_results=${BAZEL_CACHE_TEST_RESULTS:-auto}
-      - make lint
-      - make golangci-lint
-    key: unit_tests
-    artifact_paths:
-      - "artifacts.out/**/*"
-    retry:
-      automatic:
-        - exit_status: -1 # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
-    timeout_in_minutes: 10
-  - label: "check generated"
-    if: build.message !~ /\[doc\]/
-    command:
-      - ./tools/licensechecker.py $(find go acceptance -type f -iname '*.go')
-      - mkdir -p /tmp/test-artifacts
-      - cp go.mod go.sum go_deps.bzl /tmp/test-artifacts/
-      - make go_deps.bzl -B
-      - $(bazel info output_base 2>/dev/null)/external/go_sdk/bin/go mod tidy
-      - diff -u /tmp/test-artifacts/go.mod go.mod
-      - diff -u /tmp/test-artifacts/go.sum go.sum
-      - diff -u /tmp/test-artifacts/go_deps.bzl go_deps.bzl
-      - cp -R pkg/proto/ /tmp/test-artifacts
-      - make protobuf
-      - diff -ur /tmp/test-artifacts/proto/ pkg/proto/
-      - mkdir -p /tmp/test-artifacts/licenses
-      - ./tools/licenses.sh /tmp/test-artifacts/licenses
-      - diff -rNu3 /tmp/test-artifacts/licenses ./licenses/data
-      - ./tools/gomocks diff
-      - rm -rf /tmp/test-artifacts/antlr
-      - cp -R antlr/ /tmp/test-artifacts/antlr
-      - make antlr
-      - diff -ur /tmp/test-artifacts/antlr/ antlr/
-      - ./tools/update_testdata.sh
-    timeout_in_minutes: 15
-    key: check_generated
-    retry:
-      automatic:
-        - exit_status: -1 # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
-  - label: "Lint"
-    if: build.message =~ /\[doc\]/
-    command: make lint
-    key: lint
-    timeout_in_minutes: 15
-    retry:
-      automatic:
-        - exit_status: -1 # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
-  - label: "IT: :bazel:"
-    if: build.message !~ /\[doc\]/
-    command:
-      - bazel test --config=integration_go
-    artifact_paths:
-      - "artifacts.out/**/*"
-    timeout_in_minutes: 10
-    key: anapaya_integration_tests
-    retry:
-      automatic:
-        - exit_status: -1 # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
   - label: "E2E: default :go: :man_in_business_suit_levitating: (scion, ping)"
     if: build.message !~ /\[doc\]/
-    parallelism: "${SCION_TESTING_FLAKE_PARALLELISM-1}"
+    parallelism: 20
     command:
       - echo "--- build"
       - make
@@ -105,7 +29,7 @@ steps:
         - exit_status: 255 # Forced agent shutdown
   - label: "E2E: failing links :go: :man_in_business_suit_levitating:"
     if: build.message !~ /\[doc\]/
-    parallelism: "${SCION_TESTING_FLAKE_PARALLELISM-1}"
+    parallelism: 20
     command:
       - echo "--- build"
       - make
@@ -125,51 +49,6 @@ steps:
       - "artifacts.out/**/*"
     timeout_in_minutes: 15
     key: e2e_revocation_test_v2
-    retry:
-      automatic:
-        - exit_status: -1 # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
-  - label: "E2E: default :go: :docker: (ping)"
-    if: build.message !~ /\[doc\]/
-    parallelism: "${SCION_TESTING_FLAKE_PARALLELISM-1}"
-    command:
-      - echo "--- build"
-      - make build docker-images
-      - echo "--- start topology"
-      - ./scion.sh topology -d
-      - ./scion.sh run
-      - docker-compose -f gen/scion-dc.yml -p scion up -d $(docker-compose -f gen/scion-dc.yml config --services | grep tester)
-      - sleep 10
-      - echo "--- run tests"
-      - ./bin/end2end_integration -d || ( echo "^^^ +++" && false )
-    plugins:
-      - scionproto/metahook#v0.3.0:
-          post-command: |
-            echo "--- Shutting down SCION topology"
-            ./scion.sh stop
-            echo "SCION topology successfully shut down"
-    artifact_paths:
-      - "artifacts.out/**/*"
-    timeout_in_minutes: 15
-    key: docker_integration_e2e_default
-    retry:
-      automatic:
-        - exit_status: -1 # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
-  - label: "TRC ceremony :bash:"
-    if: build.message !~ /\[doc\]/
-    command:
-      - echo "--- build"
-      - make scion-topo
-      - echo "--- run test"
-      - mkdir -p /tmp/test-artifacts/trc-ceremony
-      - export SAFEDIR="/tmp/test-artifacts/trc-ceremony"
-      - ./scripts/cryptoplayground/trc_ceremony.sh
-      - ./scripts/cryptoplayground/trc_ceremony_sensitive.sh
-    timeout_in_minutes: 15
-    key: trc_ceremony_test
-    artifact_paths:
-      - "artifacts.out/**/*"
     retry:
       automatic:
         - exit_status: -1 # Agent was lost
