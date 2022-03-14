@@ -5,9 +5,9 @@ go_library(
     name = "go_default_library",
     srcs = [
         "address.go",
+        "main.go",
         "observability.go",
         "ping.go",
-        "scion.go",
         "showpaths.go",
         "traceroute.go",
     ],

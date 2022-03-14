@@ -99,5 +99,11 @@
     "exclude_files": {
       "com_github_grpc_ecosystem_go_grpc_middleware/retry": ""
     }
+  },
+  "maincheck": {
+    "exclude_files": {
+        "/com_github_deepmap_oapi_codegen/": "",
+        "/com_github_golang_mock/mockgen": ""
+    }
   }
 }

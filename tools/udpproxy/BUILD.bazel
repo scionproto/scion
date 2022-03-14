@@ -3,7 +3,7 @@ load("@io_bazel_rules_docker//go:image.bzl", "go_image")
 
 go_library(
     name = "go_default_library",
-    srcs = ["udpproxy.go"],
+    srcs = ["main.go"],
     importpath = "github.com/scionproto/scion/tools/udpproxy",
     visibility = ["//visibility:private"],
     deps = [

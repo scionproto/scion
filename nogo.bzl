@@ -1,5 +1,6 @@
 nogo_deps = [
-    "@com_github_scionproto_scion//tools/lint/log:log",
+    "@com_github_scionproto_scion//tools/lint/log:go_default_library",
+    "@com_github_scionproto_scion//tools/lint/maincheck:go_default_library",
     "@com_github_oncilla_gochecks//logcheck:go_default_library",
     "@com_github_oncilla_gochecks//serrorscheck:go_default_library",
     "@org_golang_x_tools//go/analysis/passes/asmdecl:go_default_library",

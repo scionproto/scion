@@ -5,7 +5,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "config.go",
-        "pktgen.go",
+        "main.go",
     ],
     importpath = "github.com/scionproto/scion/tools/pktgen/cmd/pktgen",
     visibility = ["//visibility:private"],
@@ -40,7 +40,7 @@ go_test(
     srcs = [
         "config_test.go",
         "export_test.go",
-        "pktgen_test.go",
+        "main_test.go",
     ],
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
