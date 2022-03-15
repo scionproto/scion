@@ -250,7 +250,7 @@ load("//:bbcp.bzl", "bbcp_repository")
 
 bbcp_repository()
 
-load("//lint/private/python:deps.bzl", "python_lint_deps")
+load("//tools/lint/python:deps.bzl", "python_lint_deps")
 
 python_lint_deps()
 

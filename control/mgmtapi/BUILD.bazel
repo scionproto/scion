@@ -1,4 +1,4 @@
-load("//lint:go.bzl", "go_library", "go_test")
+load("//tools/lint:go.bzl", "go_library", "go_test")
 load("@com_github_scionproto_scion//rules_openapi:defs.bzl", "openapi_generate_go")
 
 genrule(
