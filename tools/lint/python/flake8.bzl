@@ -44,7 +44,7 @@ flake8_test = rule(
         ),
         "_flake8_cli": attr.label(
             cfg = "host",
-            default = "//lint/private/python:flake8",
+            default = "//tools/lint/python:flake8",
             providers = [
                 DefaultInfo,
             ],

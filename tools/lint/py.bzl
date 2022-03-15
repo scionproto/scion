@@ -5,7 +5,7 @@ load(
     _py_library = "py_library",
     _py_test = "py_test",
 )
-load("//lint/private/python:flake8.bzl", "flake8_test")
+load("//tools/lint/python:flake8.bzl", "flake8_test")
 
 def _add_py_lint_tests(name, **kwargs):
     tags = kwargs.get("tags", [])
