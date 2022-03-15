@@ -163,8 +163,8 @@ steps:
       - echo "--- run test"
       - mkdir -p /tmp/test-artifacts/trc-ceremony
       - export SAFEDIR="/tmp/test-artifacts/trc-ceremony"
-      - ./scripts/cryptoplayground/trc_ceremony.sh
-      - ./scripts/cryptoplayground/trc_ceremony_sensitive.sh
+      - ./tools/cryptoplayground/trc_ceremony.sh
+      - ./tools/cryptoplayground/trc_ceremony_sensitive.sh
     timeout_in_minutes: 15
     key: trc_ceremony_test
     artifact_paths:
