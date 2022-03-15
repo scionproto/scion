@@ -79,9 +79,6 @@ straight-forward:
 #. Merge the upstream changes into your main branch: ``git merge --ff-only upstream/master``
 #. Push the changes to your github fork: ``git push``
 
-A simple script to automate this can be found in the repo under
-``/scripts/mastersync.sh``.
-
 .. _contribute-submit-pull-request:
 
 Submitting a pull request
