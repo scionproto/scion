@@ -34,7 +34,7 @@ Bazel & Co.
 
    .. code-block:: bash
 
-      ./env/deps
+      ./tools/install_deps
 
 #. Install ``docker``.
    Please follow the instructions for `docker-ce <https://docs.docker.com/install/linux/docker-ce/ubuntu/>`_.
