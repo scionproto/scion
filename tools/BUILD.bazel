@@ -1,4 +1,4 @@
-load("//lint:go.bzl", "go_library")
+load("//tools/lint:go.bzl", "go_library")
 
 sh_binary(
     name = "docker_ip",

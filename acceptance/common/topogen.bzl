@@ -1,4 +1,4 @@
-load("//lint:py.bzl", "py_binary", "py_library", "py_test")
+load("//tools/lint:py.bzl", "py_binary", "py_library", "py_test")
 load("@pip3_deps//:requirements.bzl", "requirement")
 
 def topogen_test(

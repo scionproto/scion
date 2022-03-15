@@ -1,4 +1,4 @@
-load("//lint:go.bzl", "go_test")
+load("//tools/lint:go.bzl", "go_test")
 load("@io_bazel_rules_docker//container:container.bzl", "container_image")
 
 go_test(
