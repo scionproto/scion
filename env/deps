@@ -1,9 +1,0 @@
-#!/bin/bash
-
-set -e
-
-BASE=$(dirname "$0")
-. $BASE/common.sh
-
-"$BASE/debian/deps"
-"$BASE/pip3/deps"
