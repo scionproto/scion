@@ -19,7 +19,7 @@ cmd_topo_clean() {
     else
         echo "Shutting down: $(./scion.sh stop)"
     fi
-    supervisor/supervisor.sh shutdown
+    tools/supervisor.sh shutdown
     stop_jaeger
     rm -rf traces/*
     mkdir -p logs traces gen gen-cache gen-certs
@@ -49,10 +49,10 @@ cmd_run() {
         return 0
     fi
     # Start dispatcher first, as it is requrired by the border routers.
-    ./tools/quiet supervisor/supervisor.sh mstart '*dispatcher*' # for supervisor
+    ./tools/quiet tools/supervisor.sh mstart '*dispatcher*' # for supervisor
     # Start border routers before all other services to provide connectivity.
-    ./tools/quiet supervisor/supervisor.sh mstart '*br*'
-    ./tools/quiet ./supervisor/supervisor.sh start all
+    ./tools/quiet tools/supervisor.sh mstart '*br*'
+    ./tools/quiet tools/supervisor.sh start all
 }
 
 cmd_sciond-addr() {
@@ -86,7 +86,7 @@ cmd_mstart() {
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
         ./tools/dc scion up -d $services
     else
-        supervisor/supervisor.sh mstart "$@"
+        tools/supervisor.sh mstart "$@"
     fi
 }
 
@@ -105,7 +105,7 @@ cmd_stop() {
     if is_docker_be; then
         ./tools/quiet ./tools/dc stop 'scion*'
     else
-        ./tools/quiet ./supervisor/supervisor.sh stop all
+        ./tools/quiet ./tools/supervisor.sh stop all
     fi
     stop_jaeger
     if [ "$1" = "clean" ]; then
@@ -123,7 +123,7 @@ cmd_mstop() {
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
         ./tools/dc scion stop $services
     else
-        supervisor/supervisor.sh mstop "$@"
+        tools/supervisor.sh mstop "$@"
     fi
 }
 
@@ -144,9 +144,9 @@ cmd_mstatus() {
         if [ $# -ne 0 ]; then
             services="$(glob_supervisor "$@")"
             [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
-            supervisor/supervisor.sh status "$services" | grep -v RUNNING
+            tools/supervisor.sh status "$services" | grep -v RUNNING
         else
-            supervisor/supervisor.sh status | grep -v RUNNING
+            tools/supervisor.sh status | grep -v RUNNING
         fi
         [ $? -eq 1 ]
     fi
@@ -157,7 +157,7 @@ cmd_mstatus() {
 glob_supervisor() {
     [ $# -ge 1 ] || set -- '*'
     matches=
-    for proc in $(supervisor/supervisor.sh status | awk '{ print $1 }'); do
+    for proc in $(tools/supervisor.sh status | awk '{ print $1 }'); do
         for spec in "$@"; do
             if glob_match $proc "$spec"; then
                 matches="$matches $proc"
