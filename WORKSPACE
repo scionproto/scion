@@ -83,7 +83,7 @@ load("@rules_python//python:pip.bzl", "pip_install")
 
 pip_install(
     name = "pip3_deps",
-    requirements = "//env/pip3:requirements.txt",
+    requirements = "//tools/env/pip3:requirements.txt",
 )
 
 http_archive(

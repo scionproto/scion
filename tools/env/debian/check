@@ -7,4 +7,4 @@ BASE=$(dirname "$0")
 
 # Use a fixed sort order.
 export LC_ALL=C
-comm -13 --check-order <(dpkg -l | awk '/^ii/ {print $2}' | cut -f1 -d: | sort -u) env/debian/pkgs.txt
+comm -13 --check-order <(dpkg -l | awk '/^ii/ {print $2}' | cut -f1 -d: | sort -u) $BASE/pkgs.txt
