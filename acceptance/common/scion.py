@@ -24,8 +24,7 @@ from plumbum.cmd import docker
 from plumbum.path.local import LocalPath
 
 from acceptance.common.log import LogExec
-from python.lib import scion_addr
-from python.lib.scion_addr import ISD_AS
+from tools.topology.scion_addr import ISD_AS
 
 logger = logging.getLogger(__name__)
 
@@ -173,20 +172,20 @@ class ASList(object):
     ASList is a list of AS separated by core and non-core ASes. It can be loaded
     from the as_list.yml file created by the topology generator.
     """
-    def __init__(self, cores: List[scion_addr.ISD_AS], non_cores: List[scion_addr.ISD_AS]):
+    def __init__(self, cores: List[ISD_AS], non_cores: List[ISD_AS]):
         self.cores = cores
         self.non_cores = non_cores
 
     @property
-    def all(self) -> List[scion_addr.ISD_AS]:
+    def all(self) -> List[ISD_AS]:
         return self.cores + self.non_cores
 
     @staticmethod
     def load(file: str = "gen/as_list.yml") -> "ASList":
         with open(file, "r") as content:
             data = yaml.load(content, yaml.Loader)
-        cores = [scion_addr.ISD_AS(raw) for raw in data["Core"]]
-        non_cores = [scion_addr.ISD_AS(raw) for raw in data["Non-core"]]
+        cores = [ISD_AS(raw) for raw in data["Core"]]
+        non_cores = [ISD_AS(raw) for raw in data["Non-core"]]
         return ASList(cores, non_cores)
 
 

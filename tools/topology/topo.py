@@ -28,23 +28,24 @@ from collections import defaultdict
 import yaml
 
 # SCION
-from python.lib.defines import (
+from topology.defines import (
     AS_LIST_FILE,
     IFIDS_FILE,
     SCION_MIN_MTU,
     SCION_ROUTER_PORT,
     TOPO_FILE,
 )
-from python.lib.types import LinkType
-from python.lib.util import write_file
-from python.topology.common import (
+
+from topology.util import write_file
+from topology.common import (
     ArgsBase,
     join_host_port,
     json_default,
     SCION_SERVICE_NAMES,
-    TopoID
+    LinkType,
+    TopoID,
 )
-from python.topology.net import (
+from topology.net import (
     PortGenerator,
     SubnetGenerator
 )
@@ -217,8 +218,9 @@ class TopoGenerator(object):
         for attrs in self.args.topo_config_dict["links"]:
             a = LinkEP(attrs.pop("a"))
             b = LinkEP(attrs.pop("b"))
-            linkto = linkto_a = linkto_b = attrs.pop("linkAtoB")
-            if linkto.lower() == LinkType.CHILD:
+            linkto = LinkType[attrs.pop("linkAtoB").upper()]
+            linkto_a = linkto_b = linkto
+            if linkto == LinkType.CHILD:
                 linkto_a = LinkType.PARENT
                 linkto_b = LinkType.CHILD
             a_br, a_ifid = self._br_name(a, assigned_br_id, br_ids, if_ids)
@@ -326,7 +328,7 @@ class TopoGenerator(object):
                 'remote': join_host_port(remote_addr.ip, SCION_ROUTER_PORT),
             },
             'isd_as': str(remote),
-            'link_to': LinkType.to_str(remote_type.lower()),
+            'link_to': remote_type.name.lower(),
             'mtu': attrs.get('mtu', self.args.default_mtu)
         }
 

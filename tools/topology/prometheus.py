@@ -25,15 +25,15 @@ from typing import Mapping
 import yaml
 
 # SCION
-from python.lib.defines import DOCKER_COMPOSE_CONFIG_VERSION, PROM_FILE
-from python.lib.util import write_file
-from python.topology.common import (
+from topology.defines import DOCKER_COMPOSE_CONFIG_VERSION, PROM_FILE
+from topology.util import write_file
+from topology.common import (
     ArgsTopoDicts,
     prom_addr,
     prom_addr_dispatcher,
     sciond_ip,
 )
-from python.topology.net import (
+from topology.net import (
     NetworkDescription,
     IPNetwork,
 )

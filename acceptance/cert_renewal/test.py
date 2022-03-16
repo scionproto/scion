@@ -28,7 +28,7 @@ from plumbum import cli
 from acceptance.common import base
 from acceptance.common import docker
 from acceptance.common import scion
-from python.lib import scion_addr
+from tools.topology.scion_addr import ISD_AS
 import toml
 
 logger = logging.getLogger(__name__)
@@ -117,7 +117,7 @@ class Test(base.TestBase):
 
     def _renewal_request(
         self,
-        isd_as: scion_addr.ISD_AS,
+        isd_as: ISD_AS,
         mode: str = "--force",
     ):
         as_dir = self._to_as_dir(isd_as)
@@ -182,7 +182,7 @@ class Test(base.TestBase):
                                 resp.reason)
                     continue
 
-                isd_as = scion_addr.ISD_AS(cs_config.stem[2:-2])
+                isd_as = ISD_AS(cs_config.stem[2:-2])
                 as_dir = self._to_as_dir(isd_as)
                 chain_name = "ISD%s-AS%s.pem" % (isd_as.isd_str(),
                                                  isd_as.as_file_fmt())
@@ -223,7 +223,7 @@ class Test(base.TestBase):
     def _rel(self, path: pathlib.Path):
         return path.relative_to(pathlib.Path(self.test_state.artifacts))
 
-    def _to_as_dir(self, isd_as: scion_addr.ISD_AS) -> pathlib.Path:
+    def _to_as_dir(self, isd_as: ISD_AS) -> pathlib.Path:
         return pathlib.Path("%s/gen/AS%s" %
                             (self.test_state.artifacts, isd_as.as_file_fmt()))
 
@@ -232,7 +232,7 @@ class Test(base.TestBase):
             pathlib.Path("%s/gen" %
                          self.test_state.artifacts).glob("AS*/cs*.toml"))
 
-    def _local_flags(self, isd_as: scion_addr.ISD_AS) -> List[str]:
+    def _local_flags(self, isd_as: ISD_AS) -> List[str]:
         return [
             "--local",
             self.execute("tester_%s" % isd_as.file_fmt(), "sh", "-c",
