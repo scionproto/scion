@@ -114,7 +114,7 @@ steps:
       - ./scion.sh run
       - tools/await-connectivity
       - ./bin/end2end_integration || ( echo "^^^ +++" && false )
-      - ./integration/revocation_test.sh
+      - ./tools/integration/revocation_test.sh
     plugins:
       - scionproto/metahook#v0.3.0:
           post-command: |

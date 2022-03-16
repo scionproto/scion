@@ -15,30 +15,26 @@
 
 set -f
 
-. integration/common.sh
-
-# Get BRS
-opts "$@"
-shift $((OPTIND-1))
+REV_BRS="*br1-ff00_0_110-3 *br2-ff00_0_222-2 *br1-ff00_0_111-2 *br1-ff00_0_111-3 *br1-ff00_0_131-2 "\
+"*br2-ff00_0_220-2 *br2-ff00_0_210-4 *br2-ff00_0_212-1"
 
 for br in $REV_BRS; do
     if ! ./scion.sh mstatus "$br"; then
-        log "${br} does not exist. Skipping revocation test."
-        exit 0
+        echo "${br} does not exist. Abort."
+        exit 1
     fi
 done
 
 # Bring down routers.
-SLEEP=4
-log "Revocation test"
-log "Stopping routers and waiting for ${SLEEP}s."
+echo "Revocation test"
+echo "Stopping routers and waiting for ${SLEEP}s."
 ./scion.sh mstop $REV_BRS
 if [ $? -ne 0 ]; then
-    log "Failed stopping routers."
+    echo "Failed stopping routers."
     exit 1
 fi
-sleep ${SLEEP}s
+sleep 4
 # Do another round of e2e test with retries
-log "Testing connectivity between all the hosts (with retries)."
-run Revocation bin/end2end_integration -log.console info -attempts 15 -subset 1-ff00:0:131#2-ff00:0:222 $DOCKER_ARGS
+echo "Testing connectivity between all the hosts (with retries)."
+bin/end2end_integration -log.console info -attempts 15 -subset 1-ff00:0:131#2-ff00:0:222 $DOCKER_ARGS
 exit $?
