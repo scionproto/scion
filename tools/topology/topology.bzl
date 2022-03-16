@@ -41,9 +41,9 @@ def topology(
     if no_bfd:
         params += " --no_bfd"
 
-    cmd = ("$(location //python/topology:topogentar) " +
+    cmd = ("$(location //tools:topogentar) " +
            "--scion_pki $(location //scion-pki/cmd/scion-pki) " +
-           "--topogen_bin $(location //python/topology:topogen) " +
+           "--topogen_bin $(location //tools:topogen) " +
            "--topo $(location " + src + ") --out $@ --params '" + params + "'")
     native.genrule(
         name = name,
@@ -53,8 +53,8 @@ def topology(
         outs = [out],
         cmd = cmd,
         tools = [
-            "//python/topology:topogentar",
-            "//python/topology:topogen",
+            "//tools:topogentar",
+            "//tools:topogen",
             "//scion-pki/cmd/scion-pki",
             "//tools:docker_ip",
         ],

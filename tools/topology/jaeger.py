@@ -15,8 +15,8 @@
 import os
 import yaml
 
-from python.lib.util import write_file
-from python.topology.common import (
+from topology.util import write_file
+from topology.common import (
     ArgsTopoDicts,
 )
 

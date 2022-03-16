@@ -23,8 +23,8 @@ import sys
 
 from plumbum import local, CommandNotFound
 
-from python.topology import common
-from python.lib.util import write_file
+from topology import common
+from topology.util import write_file
 
 
 class CertGenArgs(common.ArgsTopoConfig):

@@ -1,7 +1,5 @@
 #!/bin/bash
 
-export PYTHONPATH=.
-
 # BEGIN subcommand functions
 
 cmd_bazel_remote() {
@@ -31,7 +29,7 @@ cmd_topology() {
     cmd_topo_clean
 
     echo "Create topology, configuration, and execution files."
-    python/topology/generator.py "$@"
+    tools/topogen.py "$@"
     if is_docker_be; then
         ./tools/quiet ./tools/dc run utils_chowner
     fi
@@ -89,7 +87,7 @@ cmd_mstart() {
 }
 
 run_setup() {
-    python/integration/set_ipv6_addr.py -a
+    tools/set_ipv6_addr.py -a
      # Create dispatcher dir or change owner
     local disp_dir="/run/shm/dispatcher"
     [ -d "$disp_dir" ] || mkdir "$disp_dir"
@@ -97,7 +95,7 @@ run_setup() {
 }
 
 run_teardown() {
-    python/integration/set_ipv6_addr.py -d
+    tools/set_ipv6_addr.py -d
     local disp_dir="/run/shm/dispatcher"
     if [ -e "$disp_dir" ]; then
       find "$disp_dir" -xdev -mindepth 1 -print0 | xargs -r0 rm -v
@@ -237,7 +235,7 @@ cmd_help() {
 	Usage:
 	    $PROGRAM topology [-d] [-c TOPOFILE]
 	        Create topology, configuration, and execution files.
-	        All arguments or options are passed to topology/generator.py
+	        All arguments or options are passed to tools/topogen.py
 	    $PROGRAM run
 	        Run network.
 	    $PROGRAM mstart PROCESS

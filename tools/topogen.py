@@ -14,17 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`generator` --- SCION topology generator
+:mod:`topogen` --- SCION topology generator
 =============================================
 """
 # Stdlib
 import argparse
 
 # SCION
-from python.lib.defines import (
+from topology.defines import (
     GEN_PATH,
 )
-from python.topology.config import (
+from topology.config import (
     ConfigGenerator,
     ConfigGenArgs,
     DEFAULT_TOPOLOGY_FILE,

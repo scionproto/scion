@@ -15,9 +15,9 @@
 
 # Stdlib
 import os
+import pathlib
 # SCION
-from python.lib.util import write_file
-from python.topology.common import (
+from topology.common import (
     ArgsBase,
     docker_image,
     remote_nets,
@@ -115,5 +115,4 @@ class DockerUtilsGenerator(object):
                 ipv = 'ipv6'
             ip = net[ipv]
             text += str(topo_id) + ' ' + str(ip) + '\n'
-            conf_path = os.path.join(self.args.output_dir, 'sig-testing.conf')
-            write_file(conf_path, text)
+            pathlib.Path(self.args.output_dir, 'sig-testing.conf').write_text(text)

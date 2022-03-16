@@ -47,13 +47,13 @@ def topogen_test(
 
     common_args = [
         "--executables=scion-pki:$(location //scion-pki/cmd/scion-pki)",
-        "--executables=topogen:$(location //python/topology:topogen)",
+        "--executables=topogen:$(location //tools:topogen)",
         "--topo=$(location %s)" % topo,
         "--setup-params='%s'" % setup_params,
     ]
     common_data = [
         "//scion-pki/cmd/scion-pki",
-        "//python/topology:topogen",
+        "//tools:topogen",
         "//tools:docker_ip",
         topo,
     ]

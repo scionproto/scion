@@ -37,7 +37,7 @@ from typing import Mapping, Union
 import yaml
 
 # SCION
-from python.lib.defines import DEFAULT6_NETWORK_ADDR
+from topology.defines import DEFAULT6_NETWORK_ADDR
 
 DEFAULT_NETWORK = "127.0.0.0/8"
 DEFAULT_PRIV_NETWORK = "192.168.0.0/16"

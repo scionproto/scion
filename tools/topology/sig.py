@@ -19,8 +19,8 @@ import os
 # External packages
 import toml
 # SCION
-from python.lib.util import write_file
-from python.topology.common import (
+from topology.util import write_file
+from topology.common import (
     ArgsBase,
     json_default,
     sciond_svc_name,
@@ -28,8 +28,8 @@ from python.topology.common import (
     SIG_CONFIG_NAME,
     translate_features,
 )
-from python.topology.net import socket_address_str
-from python.topology.prometheus import SIG_PROM_PORT
+from topology.net import socket_address_str
+from topology.prometheus import SIG_PROM_PORT
 
 
 class SIGGenArgs(ArgsBase):

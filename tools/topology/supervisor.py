@@ -23,8 +23,8 @@ import shlex
 from io import StringIO
 
 # SCION
-from python.lib.util import write_file
-from python.topology.common import (
+from topology.util import write_file
+from topology.common import (
     ArgsTopoDicts,
     DISP_CONFIG_NAME,
     SD_CONFIG_NAME,

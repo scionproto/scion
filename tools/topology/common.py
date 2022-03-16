@@ -13,15 +13,16 @@
 # limitations under the License.
 
 # Stdlib
+from enum import Enum
 from ipaddress import ip_address
+from typing import Mapping, Tuple
+from urllib.parse import urlsplit
 import os
 import subprocess
-from urllib.parse import urlsplit
-from typing import Mapping, Tuple
 
 # SCION
-from python.lib.scion_addr import ISD_AS
-from python.topology.net import AddressProxy, NetworkDescription, IPNetwork
+from topology.scion_addr import ISD_AS
+from topology.net import AddressProxy, NetworkDescription, IPNetwork
 
 COMMON_DIR = 'endhost'
 
@@ -68,6 +69,9 @@ class ArgsTopoDicts(ArgsBase):
         """
         super().__init__(args)
         self.topo_dicts = topo_dicts
+
+
+LinkType = Enum('LinkType', ['CHILD', 'PARENT', 'PEER', 'CORE'])
 
 
 class TopoID(ISD_AS):
