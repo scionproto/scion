@@ -35,7 +35,7 @@ import (
 )
 
 // CAServiceClient is the minimal interface that is needed from
-// go/pkg/ca/api:ClientWithResponsesInterface.
+// private/ca/api:ClientWithResponsesInterface.
 type CAServiceClient interface {
 	PostCertificateRenewal(
 		ctx context.Context,

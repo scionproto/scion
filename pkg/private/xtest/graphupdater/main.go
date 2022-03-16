@@ -22,7 +22,7 @@ import (
 
 const (
 	DefaultTopoFile = "topology/default.topo"
-	DefaultGenFile  = "go/lib/xtest/graph/default_gen.go"
+	DefaultGenFile  = "pkg/private/xtest/graph/default_gen.go"
 )
 
 var (

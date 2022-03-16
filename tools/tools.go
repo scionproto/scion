@@ -17,7 +17,7 @@
 package enum
 
 import (
-	// rules_docker uses this project as a dependency. We import it explicitely
+	// rules_docker uses this project as a dependency. We import it explicitly
 	// to overwrite it and force the use of goproxy.
 	// See: https://github.com/bazelbuild/rules_docker/blob/master/repositories/go_repositories.bzl
 	_ "github.com/google/go-containerregistry/cmd/registry"

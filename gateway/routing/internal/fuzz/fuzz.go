@@ -18,7 +18,7 @@ import (
 	"github.com/scionproto/scion/gateway/routing"
 )
 
-// For additional help, see: go/lib/slayers/internal/fuzz/README.md
+// For additional help, see: pkg/slayers/internal/fuzz/README.md
 
 // Fuzz policy parsing.
 func Fuzz(data []byte) int {

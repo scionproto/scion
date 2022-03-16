@@ -787,14 +787,14 @@ func TestVerifyChain(t *testing.T) {
 	// testadata files generated with scion-pki:
 	/*
 		scion-pki testcrypto -t topology/default.topo -o gen
-		cp gen/ISD1/ISD1-B1-S1.trc go/lib/scrypto/cppki/testdata/verifychain
-		cp gen/ISD2/ISD2-B1-S1.trc go/lib/scrypto/cppki/testdata/verifychain
+		cp gen/ISD1/ISD1-B1-S1.trc pkg/scrypto/cppki/testdata/verifychain
+		cp gen/ISD2/ISD2-B1-S1.trc pkg/scrypto/cppki/testdata/verifychain
 		cp gen/ISD1/ASff00_0_111/certs/ISD1-ASff00_0_111.pem \
-			go/lib/scrypto/cppki/testdata/verifychain
+			pkg/scrypto/cppki/testdata/verifychain
 		cp gen/ISD1/ASff00_0_110/certs/ISD1-ASff00_0_110.pem \
-			go/lib/scrypto/cppki/testdata/verifychain
+			pkg/scrypto/cppki/testdata/verifychain
 		cp gen/ISD2/ASff00_0_210/certs/ISD2-ASff00_0_210.pem \
-			go/lib/scrypto/cppki/testdata/verifychain
+			pkg/scrypto/cppki/testdata/verifychain
 	*/
 
 	trc := loadTRC(t, "testdata/verifychain/ISD1-B1-S1.trc")

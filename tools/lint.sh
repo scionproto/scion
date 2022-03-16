@@ -21,13 +21,15 @@ run_silently() {
 go_lint() {
     lint_header "go"
     local TMPDIR=$(mktemp -d /tmp/scion-lint.XXXXXXX)
-    local LOCAL_DIRS="$(find go/* -maxdepth 0 -type d | grep -v vendor)"
+    local LOCAL_DIRS="$(find ./* -maxdepth 0 -type d )"
     # Find go files to lint, excluding generated code. For linelen and misspell.
-    find go acceptance -type f -iname '*.go' \
+    find $LOCAL_DIRS -type f -iname '*.go' \
       -a '!' -ipath '*.pb.go' \
       -a '!' -ipath '*.gen.go' \
-      -a '!' -ipath 'go/scion-pki/certs/certinfo.go' \
-      -a '!' -ipath 'go/scion-pki/certs/certformat.go' \
+      -a '!' -ipath './antlr/*' \
+      -a '!' -ipath '*/node_modules/*' \
+      -a '!' -ipath './scion-pki/certs/certinfo.go' \
+      -a '!' -ipath './scion-pki/certs/certformat.go' \
       -a '!' -ipath '*mock_*' > $TMPDIR/gofiles.list
     lint_step "Building lint tools"
 
@@ -39,7 +41,7 @@ go_lint() {
     # See: https://github.com/bazelbuild/rules_go/issues/511
     # Instead we'll just run the commands from Go SDK directly.
     GOSDK=$(bazel info output_base 2>/dev/null)/external/go_sdk/bin
-    out=$($GOSDK/gofmt -d -s $LOCAL_DIRS ./acceptance);
+    out=$($GOSDK/gofmt -d -s $( cat $TMPDIR/gofiles.list) );
     if [ -n "$out" ]; then in_red "$out"; ret=1; fi
     lint_step "linelen (lll)"
     out=$($TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:|`sql:"|gorm:"|`json:"|`yaml:|nolint:lll' < $TMPDIR/gofiles.list)

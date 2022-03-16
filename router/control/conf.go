@@ -148,7 +148,7 @@ func DeriveHFMacKey(k []byte) []byte {
 	if len(k) == 0 {
 		panic("empty key")
 	}
-	// XXX Generate keys - MUST be kept in sync with go/lib/scrypto/mac.go
+	// XXX Generate keys - MUST be kept in sync with pkg/scrypto/mac.go
 	hfMacSalt := []byte("Derive OF Key")
 	// This uses 16B keys with 1000 hash iterations, which is the same as the
 	// defaults used by pycrypto.
