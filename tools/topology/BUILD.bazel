@@ -1,0 +1,8 @@
+load("//tools/lint:py.bzl", "py_binary", "py_library")
+
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "py_default_library",
+    srcs = glob(["**/*.py"]),
+)

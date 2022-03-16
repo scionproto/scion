@@ -1,4 +1,4 @@
-load("//python/topology:topology.bzl", "topology")
+load("//tools/topology:topology.bzl", "topology")
 # gazelle:ignore
 
 filegroup(

@@ -19,17 +19,17 @@ from typing import Mapping
 # External packages
 import yaml
 # SCION
-from python.lib.defines import DOCKER_COMPOSE_CONFIG_VERSION
-from python.lib.util import write_file
-from python.topology.common import (
+from topology.defines import DOCKER_COMPOSE_CONFIG_VERSION
+from topology.util import write_file
+from topology.common import (
     ArgsTopoDicts,
     docker_host,
     docker_image,
     sciond_svc_name,
 )
-from python.topology.docker_utils import DockerUtilsGenArgs, DockerUtilsGenerator
-from python.topology.net import NetworkDescription, IPNetwork
-from python.topology.sig import SIGGenArgs, SIGGenerator
+from topology.docker_utils import DockerUtilsGenArgs, DockerUtilsGenerator
+from topology.net import NetworkDescription, IPNetwork
+from topology.sig import SIGGenArgs, SIGGenerator
 
 DOCKER_CONF = 'scion-dc.yml'
 

@@ -23,8 +23,8 @@ import yaml
 from typing import Mapping
 
 # SCION
-from python.lib.util import write_file
-from python.topology.common import (
+from topology.util import write_file
+from topology.common import (
     ArgsTopoDicts,
     DISP_CONFIG_NAME,
     docker_host,
@@ -38,9 +38,9 @@ from python.topology.common import (
     CO_CONFIG_NAME,
 )
 
-from python.topology.net import socket_address_str, NetworkDescription, IPNetwork
+from topology.net import socket_address_str, NetworkDescription, IPNetwork
 
-from python.topology.prometheus import (
+from topology.prometheus import (
     CS_PROM_PORT,
     DEFAULT_BR_PROM_PORT,
     SCIOND_PROM_PORT,
