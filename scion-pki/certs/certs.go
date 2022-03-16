@@ -75,6 +75,7 @@ func newValidateCmd(pather command.Pather) *cobra.Command {
 	now := time.Now()
 	var flags struct {
 		certType    string
+		subject     string
 		checkTime   bool
 		currentTime flag.Time
 	}
@@ -93,6 +94,9 @@ the output.
 
 By default, the command does not check that the certificate is in its validity
 period. This can be enabled by specifying the \--check-time flag.
+
+If a single certificate is validated, the subject identified by the certificate can be validated by
+specifying the --subject flag and the expected subject identifier (distinguished name IA).
 `,
 		Example: fmt.Sprintf(`  %[1]s validate --type cp-root /tmp/certs/cp-root.crt
   %[1]s validate --type any /tmp/certs/cp-root.crt`, pather.CommandPath()),
@@ -126,6 +130,11 @@ period. This can be enabled by specifying the \--check-time flag.
 				}
 			}
 			if flags.certType == "chain" || len(certs) != 1 && flags.certType == "any" {
+				if flags.subject != "" {
+					return serrors.New(
+						fmt.Sprintf("invalid subject flag for certificate type %s", flags.certType),
+						"subject", flags.subject)
+				}
 				if err := validateChain(certs); err != nil {
 					return err
 				}
@@ -136,6 +145,11 @@ period. This can be enabled by specifying the \--check-time flag.
 				if err != nil {
 					return err
 				}
+				if flags.subject != "" {
+					if err := validateSubject(certs, flags.subject); err != nil {
+						return err
+					}
+				}
 				fmt.Printf("Valid %s certificate: %q\n", ct, filename)
 			}
 			return nil
@@ -144,6 +158,9 @@ period. This can be enabled by specifying the \--check-time flag.
 
 	cmd.Flags().StringVar(&flags.certType, "type", "",
 		fmt.Sprintf("type of cert (%s) (required)", strings.Join(getTypes(), "|")),
+	)
+	cmd.Flags().StringVar(&flags.subject, "subject", "",
+		fmt.Sprintf("subject of the certificate"),
 	)
 	cmd.Flags().BoolVar(&flags.checkTime, "check-time", false,
 		"Check that the certificate covers the current time.",
@@ -194,6 +211,26 @@ func validateCert(
 		checkAlgorithm(cert)
 	}
 	return ct, nil
+}
+
+func validateSubject(certs []*x509.Certificate, subjectIdentifier string) error {
+	if len(certs) > 1 {
+		return serrors.New("too many certificates, can only validate single certificate subject")
+	}
+	// Check certificate Distinguished Name
+	certSubjectASID := ""
+	for _, dn := range certs[0].Subject.Names {
+		if dn.Type.Equal(cppki.OIDNameIA) {
+			certSubjectASID = dn.Value.(string)
+			break
+		}
+	}
+	if certSubjectASID != subjectIdentifier {
+		return serrors.New("wrong distinguished name in certificate subject",
+			"expected", subjectIdentifier,
+			"actual", certSubjectASID)
+	}
+	return nil
 }
 
 func checkAlgorithm(cert *x509.Certificate) {
