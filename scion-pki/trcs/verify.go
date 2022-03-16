@@ -35,6 +35,7 @@ import (
 func newVerify(pather command.Pather) *cobra.Command {
 	var flags struct {
 		anchor string
+		isdID  uint16
 	}
 
 	cmd := &cobra.Command{
@@ -52,17 +53,18 @@ non-base TRC must have a TRC as anchor.
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
-			return RunVerify(args, flags.anchor)
+			return RunVerify(args, flags.anchor, flags.isdID)
 		},
 	}
 
 	cmd.Flags().StringVarP(&flags.anchor, "anchor", "a", "", "trust anchor (required)")
+	cmd.Flags().Uint16VarP(&flags.isdID, "isd", "i", 0, "ISD identifier")
 	cmd.MarkFlagRequired("anchor")
 	return cmd
 }
 
 // RunVerify runs verification of the TRC files from the given anchor.
-func RunVerify(files []string, anchor string) error {
+func RunVerify(files []string, anchor string, isdID uint16) error {
 	var trcs []cppki.SignedTRC
 	for _, name := range files {
 		dec, err := DecodeFromFile(name)
@@ -70,6 +72,14 @@ func RunVerify(files []string, anchor string) error {
 			return serrors.WrapStr("error decoding TRC", err, "file", name)
 		}
 		trcs = append(trcs, dec)
+	}
+	if len(trcs) < 1 {
+		return serrors.New("TRC verify requires at least one TRC to verify")
+	}
+	if isdID != 0 {
+		if err := verifyTRCid(trcs[len(trcs)-1], isdID); err != nil {
+			return err
+		}
 	}
 	isd, base := trcs[0].TRC.ID.ISD, trcs[0].TRC.ID.Base
 	for _, dec := range trcs {
@@ -122,6 +132,16 @@ func verifyInitial(trc cppki.SignedTRC, anchor string) error {
 	}
 	if err := verifyBundle(trc, certs); err != nil {
 		return serrors.WrapStr("checking verifiable with bundled certificates", err)
+	}
+	return nil
+}
+
+func verifyTRCid(trc cppki.SignedTRC, isdID uint16) error {
+	includedTRCid := trc.TRC.ID.ISD
+	if includedTRCid != addr.ISD(isdID) {
+		return serrors.New("TRC identify does not match provided ISD ID",
+			"expected", isdID,
+			"actual", includedTRCid)
 	}
 	return nil
 }
