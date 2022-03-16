@@ -44,7 +44,7 @@ def build_tester_image():
         srcs = [
             "//tools/integration:bin_wrapper.sh",
         ],
-        package_dir = "integration",
+        package_dir = "tools/integration",
     )
 
     pkg_tar(
