@@ -4,7 +4,7 @@
 # Do not remove or modify them!
 
 export SCION_ROOT=${SCION_ROOT:-$(pwd)}
-export PLAYGROUND=${PLAYGROUND:-$SCION_ROOT/scripts/cryptoplayground}
+export PLAYGROUND=${PLAYGROUND:-$SCION_ROOT/tools/cryptoplayground}
 export SAFEDIR=${SAFEDIR:-$(mktemp -d)}
 export PATH="$PATH:$SCION_ROOT/bin"
 
