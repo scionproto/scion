@@ -34,12 +34,3 @@ py_binary(
         requirement("pyyaml"),
     ],
 )
-
-py_binary(
-    name = "topogentar",
-    srcs = ["topogentar.py"],
-    visibility = ["//visibility:public"],
-    deps = [
-        requirement("plumbum"),
-    ],
-)
