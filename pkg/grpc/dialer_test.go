@@ -18,6 +18,7 @@ import (
 	"context"
 	"log"
 	"net"
+	"os"
 	"testing"
 	"time"
 
@@ -115,7 +116,11 @@ func TestTCPDial(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 
-				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				timeout := time.Second
+				if _, ok := os.LookupEnv("CI"); ok {
+					timeout = 10 * time.Second
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), timeout)
 				defer cancel()
 
 				dialer := libgrpc.TCPDialer{
@@ -137,7 +142,6 @@ func TestTCPDial(t *testing.T) {
 			})
 		}
 	})
-
 }
 
 // server is used to implement helloworld.GreeterServer.
