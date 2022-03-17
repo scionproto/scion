@@ -85,8 +85,8 @@ steps:
       - make
       - echo "--- start topology"
       - ./scion.sh topology -c topology/default.topo
-      - ./scion.sh run && sleep 10
-      - echo "--- run tests"
+      - ./scion.sh run
+      - tools/await-connectivity
       - ./bin/scion_integration || ( echo "^^^ +++" && false )
       - ./bin/end2end_integration || ( echo "^^^ +++" && false )
     plugins:
@@ -111,8 +111,8 @@ steps:
       - make
       - echo "--- start topology"
       - ./scion.sh topology -c topology/default-no-peers.topo
-      - ./scion.sh run && sleep 10
-      - echo "--- run tests"
+      - ./scion.sh run
+      - tools/await-connectivity
       - ./bin/end2end_integration || ( echo "^^^ +++" && false )
       - ./integration/revocation_test.sh
     plugins:
@@ -138,8 +138,7 @@ steps:
       - echo "--- start topology"
       - ./scion.sh topology -d
       - ./scion.sh run
-      - docker-compose -f gen/scion-dc.yml -p scion up -d $(docker-compose -f gen/scion-dc.yml config --services | grep tester)
-      - sleep 10
+      - tools/await-connectivity
       - echo "--- run tests"
       - ./bin/end2end_integration -d || ( echo "^^^ +++" && false )
     plugins:

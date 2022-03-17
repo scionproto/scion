@@ -17,9 +17,9 @@ cmd_topo_clean() {
         echo "Shutting down dockerized topology..."
         ./tools/quiet ./tools/dc down || true
     else
-        echo "Shutting down: $(./scion.sh stop)"
+        ./tools/quiet supervisor/supervisor.sh shutdown
+        run_teardown
     fi
-    supervisor/supervisor.sh shutdown
     stop_jaeger
     rm -rf traces/*
     mkdir -p logs traces gen gen-cache gen-certs
@@ -42,17 +42,15 @@ cmd_topodot() {
 }
 
 cmd_run() {
-    run_setup
+    run_jaeger
     echo "Running the network..."
     if is_docker_be; then
         docker-compose -f gen/scion-dc.yml -p scion up -d
         return 0
+    else
+        run_setup
+        ./tools/quiet ./supervisor/supervisor.sh start all
     fi
-    # Start dispatcher first, as it is requrired by the border routers.
-    ./tools/quiet supervisor/supervisor.sh mstart '*dispatcher*' # for supervisor
-    # Start border routers before all other services to provide connectivity.
-    ./tools/quiet supervisor/supervisor.sh mstart '*br*'
-    ./tools/quiet ./supervisor/supervisor.sh start all
 }
 
 cmd_sciond-addr() {
@@ -79,13 +77,13 @@ stop_jaeger() {
 }
 
 cmd_mstart() {
-    run_setup
     # Run with docker-compose or supervisor
     if is_docker_be; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
         ./tools/dc scion up -d $services
     else
+        run_setup
         supervisor/supervisor.sh mstart "$@"
     fi
 }
@@ -96,8 +94,14 @@ run_setup() {
     local disp_dir="/run/shm/dispatcher"
     [ -d "$disp_dir" ] || mkdir "$disp_dir"
     [ $(stat -c "%U" "$disp_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $disp_dir - [sudo] password for %p: " chown $LOGNAME: "$disp_dir"; }
+}
 
-    run_jaeger
+run_teardown() {
+    python/integration/set_ipv6_addr.py -d
+    local disp_dir="/run/shm/dispatcher"
+    if [ -e "$disp_dir" ]; then
+      find "$disp_dir" -xdev -mindepth 1 -print0 | xargs -r0 rm -v
+    fi
 }
 
 cmd_stop() {
@@ -106,15 +110,9 @@ cmd_stop() {
         ./tools/quiet ./tools/dc stop 'scion*'
     else
         ./tools/quiet ./supervisor/supervisor.sh stop all
+        run_teardown
     fi
     stop_jaeger
-    if [ "$1" = "clean" ]; then
-        python/integration/set_ipv6_addr.py -d
-    fi
-    local disp_dir="/run/shm/dispatcher"
-    if [ -e "$disp_dir" ]; then
-      find "$disp_dir" -xdev -mindepth 1 -print0 | xargs -r0 rm -v
-    fi
 }
 
 cmd_mstop() {
@@ -192,10 +190,6 @@ glob_match() {
 
 is_docker_be() {
     [ -f gen/scion-dc.yml ]
-}
-
-is_supervisor() {
-   [ -f gen/dispatcher/supervisord.conf ]
 }
 
 traces_name() {

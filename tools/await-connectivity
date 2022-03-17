@@ -1,0 +1,102 @@
+#!/bin/bash
+
+# This script waits for the beaconing process in a local topology (running
+# either with supervisor or docker-compose) to establish full connectivity.
+# Uses the control service's segments/ API to determine whether segments have
+# been registered.
+#
+# Returns success when full connectivity is established
+# or an error at timeout (default 20s).
+#
+# Remains quiet for a configurable time (default 10s). After that,
+# it reports the missing segments at 1s interval.
+# 
+# Usage: await-connectivity -q QUIET -t TIMEOUT
+
+set -euo pipefail
+
+QUIET=10
+TIMEOUT=20
+parse_opts() {
+  while getopts "q:t:" opt; do
+    case "$opt" in
+      q)
+        QUIET="$OPTARG"
+        ;;
+      t)
+        TIMEOUT="$OPTARG"
+        ;;
+    esac
+  done
+}
+
+# For a given ISD-AS, determine the gen/ directory
+as_dir() {
+  local isd_as=$1
+  local as=${isd_as#*-}
+  local as_file=${as//:/_}
+  echo "gen/AS$as_file"
+}
+
+# For a given ISD-AS, determine API address (extracted from the cs*.toml file)
+cs_api_addr() {
+  local isd_as=$1
+  grep -F "[api]" -A1 "$(as_dir "$isd_as")"/cs*.toml | sed -n 's/^\s*addr\s*=\s*"\([^"]*\)".*/\1/p'
+}
+
+# For a given ISD-AS, determine the CS segments-API URL
+cs_api_url_segments() {
+  local isd_as=$1
+  echo "$(cs_api_addr "$isd_as")/api/v1/segments"
+}
+
+# Check for connectivity between the given ASes, given as separate lists of
+# core and non-core ISD-ASes.
+check_connectivity() {
+  local cores="$1"
+  local noncores="$2"
+  local ret=0
+
+  # core ASes: wait for at least one (core-)segment to every other core-AS
+  for as in $cores; do
+    missing=$(comm -23 \
+      <(printf "%s\n" $cores | grep -v $as | sort) \
+      <(curl -sfS $(cs_api_url_segments "$as") | jq '.[].start_isd_as' -r | sort -u)
+    )
+    if [ -n "$missing" ]; then
+      echo "$as: waiting for" $missing
+      ret=1
+    fi
+  done
+
+  # non-core ASes: wait for at least one (up-)segment
+  for as in $noncores; do
+    curl -sfS $(cs_api_url_segments "$as") | jq -e 'length > 0' > /dev/null || { 
+      echo "$as waiting for up segment"
+      ret=1
+    }
+  done
+  return $ret
+}
+
+main() {
+  parse_opts "$@"
+
+  # poor bash-man's yaml parser
+  local cores=$(sed -n '1,/Non-core/{s/^- //p}' gen/as_list.yml)
+  local noncores=$(sed -n '/Non-core/,${s/^- //p}' gen/as_list.yml)
+
+  for i in $(seq 1 "$QUIET"); do
+    check_connectivity "$cores" "$noncores" > /dev/null && exit 0
+    sleep 1
+  done
+  for i in $(seq "$QUIET" $((TIMEOUT-1))); do
+    echo "Check after ${i}s"
+    check_connectivity "$cores" "$noncores" && exit 0
+    sleep 1
+  done
+  echo "Check after ${TIMEOUT}s"
+  check_connectivity "$cores" "$noncores" || { echo "Timeout, giving up"; exit 1; }
+}
+
+main "$@"
