@@ -192,7 +192,7 @@ func (t *tracerouter) probeHop(ctx context.Context, hfIdx uint8, egress bool) (U
 		return Update{}, serrors.WrapStr("decoding path", err)
 	}
 
-	hf := decoded.HopFields[hfIdx]
+	hf := &decoded.HopFields[hfIdx]
 	if egress {
 		hf.EgressRouterAlert = true
 	} else {

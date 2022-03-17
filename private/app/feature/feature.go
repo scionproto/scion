@@ -32,7 +32,7 @@ import (
 // struct are discovered as feature flags. Non-boolean fields are ignored.
 func Parse(input []string, featureSet interface{}) error {
 	val := reflect.ValueOf(featureSet)
-	if val == (reflect.Value{}) || (val.Kind() == reflect.Ptr && val.IsZero()) {
+	if !val.IsValid() || val.IsZero() {
 		return serrors.New("feature set must not be nil")
 	} else if val.Kind() != reflect.Ptr {
 		return serrors.New("feature set must be pointer")
@@ -77,7 +77,7 @@ func String(featureSet interface{}, sep string) string {
 func featureMap(featureSet interface{}) map[string]int {
 	m := map[string]int{}
 	val := reflect.ValueOf(featureSet)
-	if val == (reflect.Value{}) {
+	if !val.IsValid() {
 		return nil
 	}
 	fields := val.Type()
