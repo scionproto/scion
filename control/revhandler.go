@@ -29,6 +29,12 @@ type RevocationHandler struct {
 }
 
 func (h RevocationHandler) Revoke(ctx context.Context, revInfo *path_mgmt.RevInfo) error {
-	_, err := h.RevCache.Insert(ctx, revInfo)
-	return serrors.WrapStr("insering revocation from snet", err, "rev_info", revInfo)
+	if _, err := h.RevCache.Insert(ctx, revInfo); err != nil {
+		return serrors.WrapStr("inserting revocation", err,
+			"isd_as", revInfo.IA(),
+			"interface_id", revInfo.IfID,
+			"expiration", revInfo.Expiration(),
+		)
+	}
+	return nil
 }
