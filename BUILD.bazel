@@ -10,6 +10,10 @@ load("@cgrindel_bazel_starlib//updatesrc:defs.bzl", "updatesrc_update_all")
 # gazelle:prefix github.com/scionproto/scion
 # gazelle:map_kind go_library go_library //lint:go.bzl
 # gazelle:map_kind go_test go_test //lint:go.bzl
+# gazelle:exclude docker/_build/**
+# gazelle:exclude proto/**
+# gazelle:exclude doc/**
+# gazelle:exclude rules_openapi/tools/node_modules/**
 gazelle(name = "gazelle")
 
 go_lint_config(
@@ -37,14 +41,14 @@ flake8_lint_config(
 pkg_tar(
     name = "scion",
     srcs = [
-        "//go/cs",
-        "//go/daemon",
-        "//go/dispatcher",
-        "//go/posix-gateway",
-        "//go/posix-router",
-        "//go/scion",
-        "//go/scion-pki",
-        "//go/tools/pathdb_dump",
+        "//control/cmd/control",
+        "//daemon/cmd/daemon",
+        "//dispatcher/cmd/dispatcher",
+        "//gateway/cmd/gateway",
+        "//router/cmd/router",
+        "//scion-pki/cmd/scion-pki",
+        "//scion/cmd/scion",
+        "//tools/pathdb_dump",
     ],
     mode = "0755",
     package_dir = "",
@@ -55,15 +59,15 @@ pkg_tar(
 pkg_tar(
     name = "scion-ci",
     srcs = [
-        "//go/acceptance/sig_ping_acceptance",
-        "//go/integration/braccept",
-        "//go/integration/end2end",
-        "//go/integration/end2end_integration",
-        "//go/integration/scion_integration",
-        "//go/lib/xtest/graphupdater",
-        "//go/pktgen",
-        "//go/tools/buildkite_artifacts",
-        "//go/tools/udpproxy",
+        "//acceptance/cmd/sig_ping_acceptance",
+        "//pkg/private/xtest/graphupdater",
+        "//tools/braccept",
+        "//tools/buildkite/cmd/buildkite_artifacts",
+        "//tools/end2end",
+        "//tools/end2end_integration",
+        "//tools/pktgen/cmd/pktgen",
+        "//tools/scion_integration",
+        "//tools/udpproxy",
     ],
     mode = "0755",
     package_dir = "",
@@ -73,7 +77,7 @@ pkg_tar(
 pkg_tar(
     name = "scion-topo",
     srcs = [
-        "//go/scion-pki",
+        "//scion-pki/cmd/scion-pki",
     ],
     mode = "0755",
     package_dir = "",

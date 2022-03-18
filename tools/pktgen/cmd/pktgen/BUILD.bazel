@@ -1,0 +1,51 @@
+load("//lint:go.bzl", "go_library", "go_test")
+load("//:scion.bzl", "scion_go_binary")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "config.go",
+        "main.go",
+    ],
+    importpath = "github.com/scionproto/scion/tools/pktgen/cmd/pktgen",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//pkg/daemon:go_default_library",
+        "//pkg/log:go_default_library",
+        "//pkg/private/common:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/slayers:go_default_library",
+        "//pkg/slayers/path/scion:go_default_library",
+        "//pkg/snet:go_default_library",
+        "//pkg/snet/addrutil:go_default_library",
+        "//pkg/snet/path:go_default_library",
+        "//private/app:go_default_library",
+        "//private/app/command:go_default_library",
+        "//private/app/path:go_default_library",
+        "//tools/pktgen:go_default_library",
+        "@com_github_google_gopacket//:go_default_library",
+        "@com_github_google_gopacket//layers:go_default_library",
+        "@com_github_spf13_cobra//:go_default_library",
+    ],
+)
+
+scion_go_binary(
+    name = "pktgen",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "config_test.go",
+        "export_test.go",
+        "main_test.go",
+    ],
+    data = glob(["testdata/**"]),
+    embed = [":go_default_library"],
+    deps = [
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)

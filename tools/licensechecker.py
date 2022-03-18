@@ -4,7 +4,8 @@ import sys
 import subprocess
 
 license_texts = {
-    "#":"""
+    "#":
+    """
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,7 +18,8 @@ license_texts = {
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """,
-    "//": """
+    "//":
+    """
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -33,12 +35,13 @@ license_texts = {
 }
 
 exceptions = [
-    "go/lib/scrypto/cms",
-    "go/lib/serrors/stack.go",
-    "go/lib/util/duration.go",
-    "go/scion-pki/certs/certinfo.go",
-    "go/scion-pki/certs/certformat.go",
+    "pkg/scrypto/cms",
+    "pkg/private/serrors/stack.go",
+    "pkg/private/util/duration.go",
+    "scion-pki/certs/certinfo.go",
+    "scion-pki/certs/certformat.go",
 ]
+
 
 def is_ignored(f: str) -> bool:
     for e in exceptions:
@@ -46,12 +49,15 @@ def is_ignored(f: str) -> bool:
             return True
     return False
 
+
 def main():
     not_ok = {}
     for f in sys.argv[1:]:
         if is_ignored(f):
             continue
-        header = subprocess.check_output("head -15 %s" % f, stderr=subprocess.STDOUT, shell=True)
+        header = subprocess.check_output("head -15 %s" % f,
+                                         stderr=subprocess.STDOUT,
+                                         shell=True)
         lines = header.splitlines()
         if len(lines) < 1:
             not_ok[f] = "empty file"
@@ -64,7 +70,8 @@ def main():
         if not first_line.startswith(comment_marker):
             comment_marker = "#"
             if not first_line.startswith(comment_marker):
-                not_ok[f] = "no comment / unknown comment marker: %s" % first_line
+                not_ok[
+                    f] = "no comment / unknown comment marker: %s" % first_line
                 continue
         if license_texts[comment_marker] not in header.decode("utf-8"):
             not_ok[f] = "missing licence"

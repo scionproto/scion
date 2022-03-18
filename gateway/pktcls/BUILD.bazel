@@ -1,0 +1,44 @@
+load("//lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "class.go",
+        "cond.go",
+        "doc.go",
+        "error_listener.go",
+        "json.go",
+        "parse.go",
+        "pred_ipv4.go",
+        "pred_port.go",
+    ],
+    importpath = "github.com/scionproto/scion/gateway/pktcls",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//antlr/traffic_class:go_default_library",
+        "//pkg/log:go_default_library",
+        "//pkg/private/common:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "@com_github_antlr_antlr4_runtime_go_antlr//:go_default_library",
+        "@com_github_google_gopacket//:go_default_library",
+        "@com_github_google_gopacket//layers:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "class_test.go",
+        "cond_test.go",
+        "parse_test.go",
+    ],
+    data = glob(["testdata/**"]),
+    deps = [
+        ":go_default_library",
+        "//pkg/private/xtest:go_default_library",
+        "@com_github_google_gopacket//:go_default_library",
+        "@com_github_google_gopacket//layers:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)

@@ -1,0 +1,25 @@
+load("//lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "ctrl.go",
+        "metrics.go",
+    ],
+    importpath = "github.com/scionproto/scion/router/control/internal/metrics",
+    visibility = ["//router/control:__subpackages__"],
+    deps = [
+        "//pkg/private/common:go_default_library",
+        "//pkg/private/prom:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["metrics_test.go"],
+    deps = [
+        ":go_default_library",
+        "//pkg/private/prom/promtest:go_default_library",
+    ],
+)

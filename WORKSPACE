@@ -102,14 +102,14 @@ rules_pkg_dependencies()
 # Antlr rules
 http_archive(
     name = "rules_antlr",
-    sha256 = "26e6a83c665cf6c1093b628b3a749071322f0f70305d12ede30909695ed85591",
-    strip_prefix = "rules_antlr-0.5.0",
-    urls = ["https://github.com/marcohu/rules_antlr/archive/0.5.0.tar.gz"],
+    sha256 = "234c401cfabab78f2d7f5589239d98f16f04338768a72888f660831964948ab1",
+    strip_prefix = "rules_antlr-0.6.0",
+    urls = ["https://github.com/artisoft-io/rules_antlr/archive/0.6.0.tar.gz"],
 )
 
 load("@rules_antlr//antlr:repositories.bzl", "rules_antlr_dependencies")
 
-rules_antlr_dependencies("4.7.2")
+rules_antlr_dependencies("4.9.3")
 
 http_archive(
     name = "io_bazel_rules_docker",

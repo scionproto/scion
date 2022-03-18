@@ -6,7 +6,7 @@ go_test(
     srcs = ["reload_test.go"],
     args = [
         "-scion_pki",
-        "$(location //go/scion-pki:scion-pki)",
+        "$(location //scion-pki/cmd/scion-pki:scion-pki)",
         "-topo",
         "$(location testdata/test.topo)",
     ],
@@ -21,12 +21,12 @@ go_test(
         ":testdata/test.topo",
         "//acceptance/topo_common:invalid_reloads",
         "//acceptance/topo_common:topology",
-        "//go/scion-pki",
+        "//scion-pki/cmd/scion-pki",
     ],
     tags = ["integration"],
     deps = [
-        "//go/lib/topology:go_default_library",
-        "//go/lib/xtest:go_default_library",
+        "//pkg/private/xtest:go_default_library",
+        "//private/topology:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
         "@io_bazel_rules_go//go/tools/bazel:go_default_library",
@@ -51,7 +51,7 @@ container_image(
         "--config",
         "/cs.toml",
     ],
-    entrypoint = ["/app/cs"],
+    entrypoint = ["/app/control"],
     files = [
         "testdata/cs.toml",
         "testdata/tls.key",

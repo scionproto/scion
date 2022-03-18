@@ -37,7 +37,7 @@ All unit tests can be executed with the following command:
 
 .. code-block:: bash
 
-   bazel test //go/pkg/hiddenpath/...
+   bazel test //pkg/experimental/hiddenpath/...
 
 Hidden path server unit tests
 -----------------------------

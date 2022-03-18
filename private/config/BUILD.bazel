@@ -1,0 +1,15 @@
+load("//lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "config.go",
+        "sample.go",
+    ],
+    importpath = "github.com/scionproto/scion/private/config",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/private/serrors:go_default_library",
+        "@com_github_pelletier_go_toml//:go_default_library",
+    ],
+)

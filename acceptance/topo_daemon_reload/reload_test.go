@@ -17,7 +17,7 @@ package reload_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/private/topology"
 )
 
 func TestSDTopoReload(t *testing.T) {
@@ -135,7 +135,7 @@ func fetchTopologyFromEndpoint(t *testing.T, url string) *topology.RWTopology {
 	resp, err := http.Get(url)
 	require.NoError(t, err)
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	var topo *topology.RWTopology
 	require.NoError(t, json.Unmarshal(body, &topo))

@@ -1,5 +1,4 @@
 load("@io_bazel_rules_docker//container:container.bzl", "container_image")
-load("//lint:py.bzl", "py_library")
 load("//acceptance/common:raw.bzl", "raw_test")
 
 exports_files([
@@ -10,7 +9,7 @@ exports_files([
 
 args = [
     "--braccept_bin",
-    "$(location //go/integration/braccept)",
+    "$(location //tools/braccept)",
     "--pause_tar",
     "$(location //acceptance/router_multi:pause.tar)",
     "--image_tar",
@@ -23,7 +22,7 @@ data = [
     "pause.tar",
     ":conf",
     ":router.tar",
-    "//go/integration/braccept",
+    "//tools/braccept",
 ]
 
 raw_test(
