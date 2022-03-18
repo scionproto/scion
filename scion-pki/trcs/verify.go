@@ -49,6 +49,8 @@ The anchor can either be a collection of trusted certificates bundled in a PEM
 file, or a trusted TRC. TRC update chains that start with a base TRC can be
 verified with either type of anchor. TRC update chains that start with a
 non-base TRC must have a TRC as anchor.
+With the optional flag --isd, the ID of the ISD for which the TRC claims to be
+the root of trust can be matched against an expected value.
 `,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -139,7 +141,7 @@ func verifyInitial(trc cppki.SignedTRC, anchor string) error {
 func verifyTRCid(trc cppki.SignedTRC, isdID uint16) error {
 	includedTRCid := trc.TRC.ID.ISD
 	if includedTRCid != addr.ISD(isdID) {
-		return serrors.New("TRC identify does not match provided ISD ID",
+		return serrors.New("TRC identifiers does not match provided ISD ID",
 			"expected", isdID,
 			"actual", includedTRCid)
 	}
