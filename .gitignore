@@ -24,10 +24,6 @@ Thumbs.db
 __pycache__
 *.pyc
 
-# Vendor linkfarm #
-#########################
-/go/vendor/*/
-
 # vim files #
 #########################
 .*.sw?
@@ -57,7 +53,6 @@ compile_commands.json
 ##########################
 /.coverage
 /python/htmlcov/
-/go/gocover.html
 
 # C library binaries
 ##########################

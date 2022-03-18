@@ -1,1 +1,0 @@
-load("//lint:go.bzl", "go_library", "go_test")

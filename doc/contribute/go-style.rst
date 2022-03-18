@@ -95,7 +95,7 @@ Logging
 
 Here is an example of how logging could be added to a type:
 
-.. literalinclude:: wrappers_test.go
+.. literalinclude:: wrappers_test
    :language: Go
    :dedent: 1
    :start-after: LITERALINCLUDE ExampleDiscardLogger START
@@ -115,7 +115,7 @@ To write code that both includes metrics, and is testable, we use the
 
 A simple example with labels (note that ``Foo``'s metrics can be unit tested by mocking the counter):
 
-.. literalinclude:: metrics_test.go
+.. literalinclude:: metrics_test
    :language: Go
    :dedent: 1
    :start-after: LITERALINCLUDE ExampleCounter_Interface START
@@ -125,7 +125,7 @@ Calling code can later create ``Giant`` objects with Prometheus metric reporting
 by plugging a prometheus counter as the ``Counter``. The Prometheus objects can be
 obtained from the metrics packages in the following way:
 
-.. literalinclude:: metrics_test.go
+.. literalinclude:: metrics_test
    :language: Go
    :dedent: 1
    :start-after: LITERALINCLUDE ExampleCounter_Implementation START

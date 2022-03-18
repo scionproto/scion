@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-option go_package = "github.com/scionproto/scion/go/pkg/proto/control_plane/experimental";
+option go_package = "github.com/scionproto/scion/pkg/proto/control_plane/experimental";
 
 package proto.control_plane.experimental.v1;
 

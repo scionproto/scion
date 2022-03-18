@@ -1,0 +1,38 @@
+load("//lint:go.bzl", "go_library", "go_test")
+
+filegroup(
+    name = "testdata",
+    srcs = glob(["testdata/**"]),
+    visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "trc.go",
+        "validity.go",
+    ],
+    importpath = "github.com/scionproto/scion/scion-pki/conf",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/addr:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/private/util:go_default_library",
+        "//pkg/scrypto:go_default_library",
+        "//pkg/scrypto/cppki:go_default_library",
+        "//private/config:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["trc_test.go"],
+    data = glob(["testdata/**"]),
+    deps = [
+        ":go_default_library",
+        "//pkg/private/xtest:go_default_library",
+        "//pkg/scrypto/cppki:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)

@@ -1,0 +1,9 @@
+load("//lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["fuzz.go"],
+    importpath = "github.com/scionproto/scion/gateway/routing/internal/fuzz",
+    visibility = ["//gateway/routing:__subpackages__"],
+    deps = ["//gateway/routing:go_default_library"],
+)

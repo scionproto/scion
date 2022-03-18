@@ -1,0 +1,20 @@
+load("//lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["lookup.go"],
+    importpath = "github.com/scionproto/scion/control/segreq/grpc",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/addr:go_default_library",
+        "//pkg/log:go_default_library",
+        "//pkg/metrics:go_default_library",
+        "//pkg/private/prom:go_default_library",
+        "//pkg/proto/control_plane:go_default_library",
+        "//pkg/segment:go_default_library",
+        "//private/revcache:go_default_library",
+        "//private/segment/segfetcher:go_default_library",
+        "//private/tracing:go_default_library",
+        "@com_github_opentracing_opentracing_go//:go_default_library",
+    ],
+)

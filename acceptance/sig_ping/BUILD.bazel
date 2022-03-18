@@ -5,10 +5,10 @@ topogen_test(
     src = "test.py",
     args = [
         "--gateway_acceptance",
-        "$(location //go/acceptance/sig_ping_acceptance)",
+        "$(location //acceptance/cmd/sig_ping_acceptance)",
     ],
     data = [
-        "//go/acceptance/sig_ping_acceptance",
+        "//acceptance/cmd/sig_ping_acceptance",
     ],
     gateway = True,
     topo = "//topology:tiny4.topo",

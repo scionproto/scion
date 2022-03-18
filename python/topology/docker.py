@@ -142,19 +142,14 @@ class DockerGenerator(object):
 
     def _br_conf(self, topo_id, topo, base):
         for k, _ in topo.get("border_routers", {}).items():
-            disp_id = k
             image = docker_image(self.args, 'posix-router')
             entry = {
                 'image': image,
                 'container_name': self.prefix + k,
-                'depends_on': [
-                    'scion_disp_%s' % disp_id,
-                ],
-                'network_mode': 'service:scion_disp_%s' % disp_id,
+                'networks': {},
                 'user': self.user,
                 'volumes':
-                [self._disp_vol(disp_id),
-                 '%s:/share/conf:ro' % base],
+                ['%s:/share/conf:ro' % base],
                 'environment': {
                     'SCION_EXPERIMENTAL_BFD_DETECT_MULT':
                     '${SCION_EXPERIMENTAL_BFD_DETECT_MULT}',
@@ -165,6 +160,16 @@ class DockerGenerator(object):
                 },
                 'command': ['--config', '/share/conf/%s.toml' % k]
             }
+            # add data networks:
+            net_keys = [k, k + '_internal']
+            for net_key in net_keys:
+                for net in self.elem_networks[net_key]:
+                    ipv = 'ipv4'
+                    if ipv not in net:
+                        ipv = 'ipv6'
+                    entry['networks'][self.bridges[net['net']]] = {
+                        '%s_address' % ipv: str(net[ipv])
+                    }
             self.dc_conf['services']['scion_%s' % k] = entry
 
     def _control_service_conf(self, topo_id, topo, base):
@@ -203,22 +208,11 @@ class DockerGenerator(object):
                 },
             },
         }
-        keys = (list(topo.get("border_routers", {})) +
-                list(topo.get("control_service", {})) +
+        keys = (list(topo.get("control_service", {})) +
                 ["tester_%s" % topo_id.file_fmt()])
         for disp_id in keys:
             entry = copy.deepcopy(base_entry)
             net_key = disp_id
-            if disp_id.startswith('br'):
-                net_key = disp_id + '_internal'
-                # add data networks:
-                for net in self.elem_networks[disp_id]:
-                    ipv = 'ipv4'
-                    if ipv not in net:
-                        ipv = 'ipv6'
-                    entry['networks'][self.bridges[net['net']]] = {
-                        '%s_address' % ipv: str(net[ipv])
-                    }
             net = self.elem_networks[net_key][0]
             ipv = 'ipv4'
             if ipv not in net:

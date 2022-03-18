@@ -1,0 +1,26 @@
+load("//lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["config.go"],
+    importpath = "github.com/scionproto/scion/private/env/envtest",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/daemon:go_default_library",
+        "//private/env:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_uber_jaeger_client_go//:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["config_test.go"],
+    embed = [":go_default_library"],
+    deps = [
+        "//private/config:go_default_library",
+        "//private/env:go_default_library",
+        "@com_github_pelletier_go_toml//:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+    ],
+)

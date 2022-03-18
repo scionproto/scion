@@ -1,0 +1,9 @@
+load("//lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["maincheck.go"],
+    importpath = "github.com/scionproto/scion/tools/lint/maincheck",
+    visibility = ["//visibility:public"],
+    deps = ["@org_golang_x_tools//go/analysis:go_default_library"],
+)

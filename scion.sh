@@ -4,22 +4,6 @@ export PYTHONPATH=.
 
 # BEGIN subcommand functions
 
-in_red() {
-    tput setaf 1
-    echo "$1"
-    tput sgr0
-}
-
-run_silently() {
-    tmpfile=$(mktemp /tmp/scion-silent.XXXXXX)
-    $@ >>$tmpfile 2>&1
-    if [ $? -ne 0 ]; then
-        cat $tmpfile
-        return 1
-    fi
-    return 0
-}
-
 cmd_bazel_remote() {
     mkdir -p "$HOME/.cache/bazel/remote"
     uid=$(id -u)
@@ -33,9 +17,9 @@ cmd_topo_clean() {
         echo "Shutting down dockerized topology..."
         ./tools/quiet ./tools/dc down || true
     else
-        echo "Shutting down: $(./scion.sh stop)"
+        ./tools/quiet supervisor/supervisor.sh shutdown
+        run_teardown
     fi
-    supervisor/supervisor.sh shutdown
     stop_jaeger
     rm -rf traces/*
     mkdir -p logs traces gen gen-cache gen-certs
@@ -46,10 +30,6 @@ cmd_topology() {
     set -e
     cmd_topo_clean
 
-    # Build the necessary binaries.
-    bazel build //:scion-topo
-    tar --overwrite -xf bazel-bin/scion-topo.tar -C bin
-
     echo "Create topology, configuration, and execution files."
     python/topology/generator.py "$@"
     if is_docker_be; then
@@ -57,36 +37,27 @@ cmd_topology() {
     fi
 }
 
-cmd_run() {
-    if [ "$1" != "nobuild" ]; then
-        echo "Compiling..."
-        make -s build || exit 1
-        if is_docker_be; then
-            echo "Build perapp images"
-            bazel run -c opt //docker:prod
-            echo "Build scion tester"
-            bazel run //docker:test
-        fi
-    fi
-    run_setup
-    echo "Running the network..."
-    if is_docker_be; then
-        docker-compose -f gen/scion-dc.yml -p scion build
-        docker-compose -f gen/scion-dc.yml -p scion up -d
-        return 0
-    fi
-    # Start dispatcher first, as it is requrired by the border routers.
-    ./tools/quiet ./scion.sh mstart '*dispatcher*' # for supervisor
-    # Start border routers before all other services to provide connectivity.
-    ./tools/quiet ./scion.sh mstart '*br*'
-    ./tools/quiet ./supervisor/supervisor.sh start all
+cmd_topodot() {
+    ./tools/topodot.py "$@"
 }
 
-load_cust_keys() {
-    if [ -f 'gen/load_custs.sh' ]; then
-        echo "Loading customer keys..."
-        ./tools/quiet ./gen/load_custs.sh
+cmd_run() {
+    run_jaeger
+    echo "Running the network..."
+    if is_docker_be; then
+        docker-compose -f gen/scion-dc.yml -p scion up -d
+        return 0
+    else
+        run_setup
+        ./tools/quiet ./supervisor/supervisor.sh start all
     fi
+}
+
+cmd_sciond-addr() {
+    jq -r 'to_entries |
+           map(select(.key | match("'"$1"'";"i"))) |
+           if length != 1 then error("No unique match for '"$1"'") else .[0] end |
+           "\(.value):30255"' gen/sciond_addresses.json
 }
 
 run_jaeger() {
@@ -106,13 +77,13 @@ stop_jaeger() {
 }
 
 cmd_mstart() {
-    run_setup
     # Run with docker-compose or supervisor
     if is_docker_be; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
         ./tools/dc scion up -d $services
     else
+        run_setup
         supervisor/supervisor.sh mstart "$@"
     fi
 }
@@ -123,8 +94,14 @@ run_setup() {
     local disp_dir="/run/shm/dispatcher"
     [ -d "$disp_dir" ] || mkdir "$disp_dir"
     [ $(stat -c "%U" "$disp_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $disp_dir - [sudo] password for %p: " chown $LOGNAME: "$disp_dir"; }
+}
 
-    run_jaeger
+run_teardown() {
+    python/integration/set_ipv6_addr.py -d
+    local disp_dir="/run/shm/dispatcher"
+    if [ -e "$disp_dir" ]; then
+      find "$disp_dir" -xdev -mindepth 1 -print0 | xargs -r0 rm -v
+    fi
 }
 
 cmd_stop() {
@@ -133,15 +110,9 @@ cmd_stop() {
         ./tools/quiet ./tools/dc stop 'scion*'
     else
         ./tools/quiet ./supervisor/supervisor.sh stop all
+        run_teardown
     fi
     stop_jaeger
-    if [ "$1" = "clean" ]; then
-        python/integration/set_ipv6_addr.py -d
-    fi
-    local disp_dir="/run/shm/dispatcher"
-    if [ -e "$disp_dir" ]; then
-      find "$disp_dir" -xdev -mindepth 1 -print0 | xargs -r0 rm -v
-    fi
 }
 
 cmd_mstop() {
@@ -221,142 +192,6 @@ is_docker_be() {
     [ -f gen/scion-dc.yml ]
 }
 
-is_supervisor() {
-   [ -f gen/dispatcher/supervisord.conf ]
-}
-
-cmd_test(){
-    echo "deprecated, use"
-    echo "make test"
-    echo "instead"
-    exit 1
-}
-
-cmd_coverage(){
-    set -e
-    case "$1" in
-        go) shift; go_cover "$@";;
-        *) go_cover;;
-    esac
-}
-
-go_cover() {
-    ( cd go && make -s coverage )
-}
-
-cmd_lint() {
-    set -o pipefail
-    local ret=0
-    go_lint || ret=1
-    bazel_lint || ret=1
-    protobuf_lint || ret=1
-    md_lint || ret=1
-    semgrep_lint || ret=1
-    openapi_lint || ret=1
-    return $ret
-}
-
-go_lint() {
-    lint_header "go"
-    local TMPDIR=$(mktemp -d /tmp/scion-lint.XXXXXXX)
-    local LOCAL_DIRS="$(find go/* -maxdepth 0 -type d | grep -v vendor)"
-    # Find go files to lint, excluding generated code. For linelen and misspell.
-    find go acceptance -type f -iname '*.go' \
-      -a '!' -ipath '*.pb.go' \
-      -a '!' -ipath '*.gen.go' \
-      -a '!' -ipath 'go/scion-pki/certs/certinfo.go' \
-      -a '!' -ipath 'go/scion-pki/certs/certformat.go' \
-      -a '!' -ipath '*mock_*' > $TMPDIR/gofiles.list
-    lint_step "Building lint tools"
-
-    run_silently bazel build //:lint || return 1
-    tar -xf bazel-bin/lint.tar -C $TMPDIR || return 1
-    local ret=0
-    lint_step "gofmt"
-    # TODO(sustrik): At the moment there are no bazel rules for gofmt.
-    # See: https://github.com/bazelbuild/rules_go/issues/511
-    # Instead we'll just run the commands from Go SDK directly.
-    GOSDK=$(bazel info output_base 2>/dev/null)/external/go_sdk/bin
-    out=$($GOSDK/gofmt -d -s $LOCAL_DIRS ./acceptance);
-    if [ -n "$out" ]; then in_red "$out"; ret=1; fi
-    lint_step "linelen (lll)"
-    out=$($TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:|`sql:"|gorm:"|`json:"|`yaml:|nolint:lll' < $TMPDIR/gofiles.list)
-    if [ -n "$out" ]; then in_red "$out"; ret=1; fi
-    lint_step "misspell"
-    out=$(xargs -a $TMPDIR/gofiles.list $TMPDIR/misspell -error)
-    if [ -n "$out" ]; then in_red "$out"; ret=1; fi
-    lint_step "bazel"
-    run_silently make gazelle GAZELLE_MODE=diff || ret=1
-    bazel test --config lint || ret=1
-    # Clean up the binaries
-    rm -rf $TMPDIR
-    return $ret
-}
-
-protobuf_lint() {
-    lint_header "protobuf"
-    local TMPDIR=$(mktemp -d /tmp/scion-lint.XXXXXXX)
-    run_silently bazel build //:lint || return 1
-    tar -xf bazel-bin/lint.tar -C $TMPDIR || return 1
-    local ret=0
-    lint_step "check files"
-    $TMPDIR/buf check lint || return 1
-}
-
-bazel_lint() {
-    lint_header "bazel"
-    local ret=0
-    run_silently bazel run //:buildifier_check || ret=1
-    if [ $ret -ne 0 ]; then
-        printf "\nto fix run:\nbazel run //:buildifier\n"
-    fi
-    return $ret
-}
-
-md_lint() {
-    lint_header "markdown"
-    lint_step "mdlint"
-    ./tools/mdlint
-}
-
-semgrep_lint() {
-    lint_header "semgrep"
-    lint_step "custom rules"
-    docker run --rm -v "${PWD}:/src" returntocorp/semgrep@sha256:8b0735959a6eb737aa945f4d591b6db23b75344135d74c3021b7d427bd317a66 \
-        --config=/src/lint/semgrep
-}
-
-openapi_lint() {
-    lint_header "openapi"
-    lint_step "spectral"
-    make -C spec lint
-}
-
-lint_header() {
-    printf "\nlint $1\n==============\n"
-}
-
-lint_step() {
-    echo "======> $1"
-}
-
-cmd_version() {
-	cat <<-_EOF
-	============================================
-	=                  SCION                   =
-	=   https://github.com/scionproto/scion   =
-	============================================
-	_EOF
-}
-
-cmd_build() {
-    make -s
-}
-
-cmd_clean() {
-    make -s clean
-}
-
 traces_name() {
     local name=jaeger_read_badger_traces
     echo "$name"
@@ -388,14 +223,22 @@ cmd_stop_traces() {
 }
 
 cmd_help() {
-	cmd_version
-	echo
 	cat <<-_EOF
+	SCION
+
+	$PROGRAM runs a SCION network locally for development and testing purposes.
+	Two options for process control systems are supported to run the SCION
+	services.
+	  - supervisord (default)
+	  - docker-compose
+	This can be selected when initially creating the configuration with the
+	topology subcommand.
+
 	Usage:
-	    $PROGRAM topology
+	    $PROGRAM topology [-d] [-c TOPOFILE]
 	        Create topology, configuration, and execution files.
 	        All arguments or options are passed to topology/generator.py
-	    $PROGRAM run [nobuild]
+	    $PROGRAM run
 	        Run network.
 	    $PROGRAM mstart PROCESS
 	        Start multiple processes
@@ -407,14 +250,15 @@ cmd_help() {
 	        Show all non-running tasks.
 	    $PROGRAM mstatus PROCESS
 	        Show status of provided processes
-	    $PROGRAM test
-	        Run all unit tests.
-	    $PROGRAM coverage
-	        Create a html report with unit test code coverage.
+	    $PROGRAM sciond-addr ISD-AS
+	        Return the address for the scion daemon for the matching ISD-AS by
+	        consulting gen/sciond_addresses.json.
+	        The ISD-AS parameter can be a substring of the full ISD-AS (e.g. last
+	        three digits), as long as there is a unique match.
+	    $PROGRAM topodot [-s|--show] TOPOFILE
+	        Draw a graphviz graph of a *.topo topology configuration file.
 	    $PROGRAM help
 	        Show this text.
-	    $PROGRAM version
-	        Show version information.
 	    $PROGRAM traces [folder]
 	        Serve jaeger traces from the specified folder (default: traces/)
 	    $PROGRAM stop_traces
@@ -430,7 +274,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|lint|run|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|traces|stop_traces|topo_clean|bazel_remote)
+    help|run|mstart|mstatus|mstop|stop|status|topology|sciond-addr|traces|stop_traces|topo_clean|topodot|bazel_remote)
         "cmd_$COMMAND" "$@" ;;
     start) cmd_run "$@" ;;
     *)  cmd_help; exit 1 ;;

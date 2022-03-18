@@ -18,7 +18,7 @@ py_binary(
     name = "topogen",
     srcs = ["generator.py"],
     data = [
-        "//go/scion-pki",
+        "//scion-pki/cmd/scion-pki",
         "//tools:docker_ip",
     ],
     main = "generator.py",

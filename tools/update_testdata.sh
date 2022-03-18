@@ -9,10 +9,6 @@ folders=$(grep \
             --include=\*_test.go \
             --exclude-dir=bazel-\* \
             "xtest.UpdateGoldenFiles()" . | xargs dirname  | sort  | uniq )
-for f in $folders; do
-  pushd  $f >/dev/null
-  echo "$f"
-  go test . -update
-  go test . -count=1
-  popd  >/dev/null
-done
+
+echo $folders -update | xargs go test
+echo $folders -count=1 | xargs go test

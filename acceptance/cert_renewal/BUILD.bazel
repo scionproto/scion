@@ -5,8 +5,8 @@ topogen_test(
     src = "test.py",
     args = [
         "--end2end_integration",
-        "$(location //go/integration/end2end_integration)",
+        "$(location //tools/end2end_integration)",
     ],
-    data = ["//go/integration/end2end_integration"],
+    data = ["//tools/end2end_integration"],
     topo = "//topology:tiny4.topo",
 )

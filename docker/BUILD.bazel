@@ -28,27 +28,27 @@ build_tester_image()
 
 scion_app_images(
     name = "posix_router",
-    src = "//go/posix-router",
+    src = "//router/cmd/router",
     cmd = [
         "--config",
         "/share/conf/br.toml",
     ],
-    entrypoint = ["/app/posix-router"],
+    entrypoint = ["/app/router"],
 )
 
 scion_app_images(
     name = "control",
-    src = "//go/cs",
+    src = "//control/cmd/control",
     cmd = [
         "--config",
         "/share/conf/cs.toml",
     ],
-    entrypoint = ["/app/cs"],
+    entrypoint = ["/app/control"],
 )
 
 scion_app_images(
     name = "dispatcher",
-    src = "//go/dispatcher",
+    src = "//dispatcher/cmd/dispatcher",
     cmd = [
         "--config",
         "/share/conf/disp.toml",
@@ -58,7 +58,7 @@ scion_app_images(
 
 scion_app_images(
     name = "daemon",
-    src = "//go/daemon",
+    src = "//daemon/cmd/daemon",
     cmd = [
         "--config",
         "/share/conf/sd.toml",
@@ -68,14 +68,14 @@ scion_app_images(
 
 scion_app_images(
     name = "posix_gateway",
-    src = "//go/posix-gateway",
+    src = "//gateway/cmd/gateway",
     caps = "cap_net_admin+ei",
-    caps_binary = "/app/posix-gateway",
+    caps_binary = "/app/gateway",
     cmd = [
         "--config",
         "/share/conf/sig.toml",
     ],
-    entrypoint = ["/app/posix-gateway"],
+    entrypoint = ["/app/gateway"],
 )
 
 filegroup(

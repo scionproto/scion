@@ -1,0 +1,12 @@
+load("//lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "sockctrl.go",
+        "sockopt.go",
+    ],
+    importpath = "github.com/scionproto/scion/private/underlay/sockctrl",
+    visibility = ["//visibility:public"],
+    deps = ["//pkg/private/serrors:go_default_library"],
+)

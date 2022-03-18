@@ -11,7 +11,8 @@ services:
         "--enable_endpoint_metrics",
       ]
     network_mode: host
-    image: buchgr/bazel-remote-cache:v2.3.0
+    restart: always
+    image: buchgr/bazel-remote-cache:v2.3.3
     user: $USER_ID:$GROUP_ID
     volumes:
       - $HOME/.cache/bazel/remote:/data:rw

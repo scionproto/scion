@@ -1,105 +1,208 @@
 {
-  "assign": {
-    "exclude_files": {
-      "gazelle/walk/walk.go": "",
-      "com_github_deepmap_oapi_codegen/pkg/codegen/": ""
-    }
-  },
-  "composites": {
-    "exclude_files": {
-      "gazelle/language/go/resolve.go": "",
-      "/io_bazel_rules_docker/": "",
-      "/com_github_bazelbuild_buildtools/": "",
-      "/com_github_grpc_ecosystem_grpc_opentracing/go/otgrpc/": "",
-      "/com_github_vishvananda_netlink/": "",
-      "/org_golang_x_tools/internal": "",
-      "/org_golang_google_protobuf": ""
-    }
-  },
-  "copylocks": {
-    "exclude_files": {
-      "/org_golang_google_protobuf/internal/impl/": ""
-    }
-  },
-  "nilness": {
-    "only_files": {
-      "/go/": "https://github.com/bazelbuild/rules_go/issues/2172"
+    "assign": {
+        "exclude_files": {
+            "gazelle/walk/walk.go": "",
+            "com_github_deepmap_oapi_codegen/pkg/codegen/": ""
+        }
     },
-    "exclude_files": {
-      "gazelle/cmd/gazelle/diff.go": "",
-      "/in_gopkg_yaml_v2/decode.go": "https://github.com/go-yaml/yaml/pull/492",
-      "/com_github_mattn_go_sqlite3": "",
-      "/com_github_lucas_clemente_quic_go": "",
-      "/com_github_cloudflare_sidh": "",
-      "/com_github_vishvananda_netlink": ""
-    }
-  },
-  "printf": {
-    "exclude_files": {
-      "/com_github_antlr_antlr4/runtime/Go/antlr/": "",
-      "/com_github_cloudflare_sidh/": ""
-    }
-  },
-  "stringintconv": {
-    "exclude_files": {
-      "/com_github_sergi_go_diff": "",
-      "/com_github_uber_jaeger_client_go": "",
-      "/com_github_google_gopacket": "",
-      "/com_github_antlr_antlr4": "",
-      "/net_starlark_go": "",
-      "/com_github_smartystreets_assertions/internal/go-diff/diffmatchpatch/patch.go": ""
-    }
-  },
-  "unreachable": {
-    "exclude_files": {
-      "gazelle/pathtools/path.go": "",
-      "/com_github_antlr_antlr4/runtime/Go/antlr/": "",
-      "/com_github_uber_jaeger_client_go": "",
-      "/com_github_marten_seemann_qtls/": "",
-      "/org_golang_google_protobuf/": "",
-      "/com_github_magiconair_properties": "",
-      "/com_github_ghodss_yaml/": "",
-      "/com_github_lestrrat_go_iter/mapiter/": "",
-      "/com_github_lestrrat_go_iter/arrayiter/": ""
-    }
-  },
-  "unsafeptr": {
-    "only_files": {
-      "/go/": "https://github.com/bazelbuild/rules_go/issues/2172"
+    "composites": {
+        "exclude_files": {
+            "gazelle/language/go/resolve.go": "",
+            "/io_bazel_rules_docker/": "",
+            "/com_github_bazelbuild_buildtools/": "",
+            "/com_github_grpc_ecosystem_grpc_opentracing/go/otgrpc/": "",
+            "/com_github_vishvananda_netlink/": "",
+            "/org_golang_x_tools/internal": "",
+            "/org_golang_google_protobuf": ""
+        }
     },
-    "exclude_files": {
-      "/com_github_mattn_go_sqlite3/": "",
-      "/com_github_google_gopacket/afpacket/": ""
-    }
-  },
-  "shift": {
-    "exclude_files": {
-      "/com_github_marten_seemann_qtls/": ""
-    }
-  },
-  "stdmethods": {
-    "exclude_files": {
-      "/com_github_uber_jaeger_client_go": ""
-    }
-  },
-  "structtag": {
-    "exclude_files": {
-      "com_github_buildkite_go_buildkite": ""
-    }
-  },
-  "gocall": {
-    "only_files": {
-      "/go/": "https://github.com/bazelbuild/rules_go/issues/2172"
+    "copylocks": {
+        "exclude_files": {
+            "/org_golang_google_protobuf/internal/impl/": ""
+        }
     },
+    "nilness": {
+        "only_files": {
+            "/acceptance/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/antlr/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/control/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/daemon/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/demo/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/dispatcher/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/gateway/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/pkg/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/private/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/router/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/rules_openapi/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/scion/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/scion-pki/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/tools/": "https://github.com/bazelbuild/rules_go/issues/2172"
+        },
+        "exclude_files": {
+            "gazelle/cmd/gazelle/diff.go": "",
+            "/in_gopkg_yaml_v2/decode.go": "https://github.com/go-yaml/yaml/pull/492",
+            "/com_github_mattn_go_sqlite3": "",
+            "/com_github_lucas_clemente_quic_go": "",
+            "/com_github_cloudflare_sidh": "",
+            "/com_github_vishvananda_netlink": ""
+        }
+    },
+    "printf": {
+        "exclude_files": {
+            "/com_github_cloudflare_sidh/": ""
+        }
+    },
+    "stringintconv": {
+        "exclude_files": {
+            "/com_github_sergi_go_diff": "",
+            "/com_github_uber_jaeger_client_go": "",
+            "/com_github_google_gopacket": "",
+            "/net_starlark_go": "",
+            "/com_github_smartystreets_assertions/internal/go-diff/diffmatchpatch/patch.go": ""
+        }
+    },
+    "unreachable": {
+        "exclude_files": {
+            "gazelle/pathtools/path.go": "",
+            "/com_github_antlr_antlr4_runtime_go_antlr/": "",
+            "/com_github_uber_jaeger_client_go": "",
+            "/com_github_marten_seemann_qtls/": "",
+            "/org_golang_google_protobuf/": "",
+            "/com_github_magiconair_properties": "",
+            "/com_github_ghodss_yaml/": "",
+            "/com_github_lestrrat_go_iter/mapiter/": "",
+            "/com_github_lestrrat_go_iter/arrayiter/": ""
+        }
+    },
+    "unsafeptr": {
+        "only_files": {
+            "/acceptance/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/antlr/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/control/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/daemon/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/demo/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/dispatcher/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/gateway/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/pkg/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/private/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/router/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/rules_openapi/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/scion/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/scion-pki/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/tools/": "https://github.com/bazelbuild/rules_go/issues/2172"
+        },
+        "exclude_files": {
+            "/com_github_mattn_go_sqlite3/": "",
+            "/com_github_google_gopacket/afpacket/": ""
+        }
+    },
+    "shift": {
+        "exclude_files": {
+            "/com_github_marten_seemann_qtls/": ""
+        }
+    },
+    "stdmethods": {
+        "exclude_files": {
+            "/com_github_uber_jaeger_client_go": ""
+        }
+    },
+    "structtag": {
+        "exclude_files": {
+            "com_github_buildkite_go_buildkite": ""
+        }
+    },
+    "gocall": {
+        "only_files": {
+            "/acceptance/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/antlr/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/control/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/daemon/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/demo/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/dispatcher/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/gateway/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/pkg/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/private/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/router/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/rules_openapi/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/scion/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/scion-pki/": "https://github.com/bazelbuild/rules_go/issues/2172",
+            "/tools/": "https://github.com/bazelbuild/rules_go/issues/2172"
+        },
+        "exclude_files": {
+            "(vendor|external)/*": "Only applies to internal files",
+            "xtest/*": "",
+            "_test.go": "Doesn't apply for test files"
+        }
+    },
+    "lostcancel": {
+        "exclude_files": {
+            "com_github_grpc_ecosystem_go_grpc_middleware/retry": ""
+        }
+    },
+    "maincheck": {
+        "exclude_files": {
+            "/com_github_deepmap_oapi_codegen/": "",
+            "/com_github_golang_mock/mockgen": ""
+        }
+    },
+  "reflectvaluecompare": {
     "exclude_files": {
-      "(vendor|external)/*": "Only applies to internal files",
-      "xtest/*": "",
-      "_test.go": "Doesn't apply for test files"
+      "in_gopkg_yaml_v2": "",
+      "com_github_smartystreets_assertions": ""
     }
   },
-  "lostcancel": {
+  "shadow": {
     "exclude_files": {
-      "com_github_grpc_ecosystem_go_grpc_middleware/retry": ""
+      "org_golang_x_text": "",
+      "org_golang_x_net": "",
+      "org_golang_x_sys/unix": "",
+      "org_golang_x_crypto/": "",
+      "org_golang_x_tools": "",
+      "org_golang_google_protobuf": "",
+      "org_golang_google_grpc": "",
+      "in_gopkg_yaml_v2/": "",
+      "in_gopkg_yaml_v3": "",
+      "in_gopkg_ini_v1": "",
+      "com_github_google_go_cmp/cmp": "",
+      "com_github_google_gopacket": "",
+      "com_github_golang_protobuf": "",
+      "com_github_matttproud_golang_protobuf_extensions": "",
+      "com_github_getkin_kin_openapi": "",
+      "com_github_buildkite_go_buildkite_v2/buildkite": "",
+      "com_github_deepmap_oapi_codegen/pkg/runtime": "",
+      "com_github_uber_jaeger_client_go/thrift": "",
+      "com_github_hashicorp_hcl": "",
+      "com_github_stretchr_testify/assert": "",
+      "com_github_spf13_afero": "",
+      "com_github_marten_seemann_qtls_go1_16": "",
+      "com_github_marten_seemann_qtls_go1_17": "",
+      "com_github_lucas_clemente_quic_go": "",
+      "com_github_lestrrat_go_jwx": "",
+      "com_github_pelletier_go_toml": "",
+      "com_github_mdlayher_raw": "",
+      "com_github_vishvananda_netlink": "",
+      "com_github_prometheus_common/internal": "",
+      "com_github_prometheus_procfs": "",
+      "com_github_prometheus_client_golang": "",
+      "com_github_uber_jaeger_client_go": "",
+      "com_github_spf13_viper": "",
+      "com_github_labstack_echo_v4": "",
+      "com_github_deepmap_oapi_codegen": "",
+
+      "pkg/private/serrors/errors.go": "err shadowed",
+      "pkg/slayers/path/scion/raw.go": "err shadowed",
+      "pkg/scrypto/cppki/trc.go": "err shadowed",
+      "private/mgmtapi/jwtauth/jwt.go": "err shadowed",
+      "dispatcher/underlay.go": "err shadowed"
+    }
+  },
+  "unusedwrite": {
+    "exclude_files": {
+      "org_golang_x_mod": "",
+      "org_golang_x_crypto/ed25519/internal/edwards25519": "",
+      "com_github_vishvananda_netlink/nl": "",
+      "com_github_deepmap_oapi_codegen/pkg/codegen": "",
+      "control/colibri/reservation/e2e/request_test.go": ""
     }
   }
 }

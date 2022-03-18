@@ -1,0 +1,47 @@
+load("//lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "config.go",
+        "context.go",
+        "debugid.go",
+        "log.go",
+        "options.go",
+        "sample.go",
+        "span.go",
+        "wrappers.go",
+    ],
+    importpath = "github.com/scionproto/scion/pkg/log",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/metrics:go_default_library",
+        "//pkg/private/common:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "//private/config:go_default_library",
+        "@com_github_opentracing_opentracing_go//:go_default_library",
+        "@org_uber_go_zap//:go_default_library",
+        "@org_uber_go_zap//zapcore:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "config_test.go",
+        "context_test.go",
+        "export_test.go",
+        "log_test.go",
+        "wrappers_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "//pkg/log/logtest:go_default_library",
+        "//pkg/private/common:go_default_library",
+        "//private/config:go_default_library",
+        "@com_github_pelletier_go_toml//:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+        "@org_uber_go_zap//zapcore:go_default_library",
+    ],
+)
