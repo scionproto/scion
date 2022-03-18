@@ -21,9 +21,8 @@ run_silently() {
 go_lint() {
     lint_header "go"
     local TMPDIR=$(mktemp -d /tmp/scion-lint.XXXXXXX)
-    local LOCAL_DIRS="$(find ./* -maxdepth 0 -type d )"
     # Find go files to lint, excluding generated code. For linelen and misspell.
-    find $LOCAL_DIRS -type f -iname '*.go' \
+    find -type f -iname '*.go' \
       -a '!' -ipath '*.pb.go' \
       -a '!' -ipath '*.gen.go' \
       -a '!' -ipath './antlr/*' \
@@ -42,13 +41,16 @@ go_lint() {
     # See: https://github.com/bazelbuild/rules_go/issues/511
     # Instead we'll just run the commands from Go SDK directly.
     GOSDK=$(bazel info output_base 2>/dev/null)/external/go_sdk/bin
-    out=$($GOSDK/gofmt -d -s $( cat $TMPDIR/gofiles.list) );
+    out=$(xargs -a $TMPDIR/gofiles.list $GOSDK/gofmt -d -s);
     if [ -n "$out" ]; then in_red "$out"; ret=1; fi
     lint_step "linelen (lll)"
     out=$($TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:|`sql:"|gorm:"|`json:"|`yaml:|nolint:lll' < $TMPDIR/gofiles.list)
     if [ -n "$out" ]; then in_red "$out"; ret=1; fi
     lint_step "misspell"
     out=$(xargs -a $TMPDIR/gofiles.list $TMPDIR/misspell -error)
+    if [ -n "$out" ]; then in_red "$out"; ret=1; fi
+    lint_step "licensechecker"
+    out=$(xargs -a $TMPDIR/gofiles.list tools/licensechecker.py)
     if [ -n "$out" ]; then in_red "$out"; ret=1; fi
     lint_step "bazel"
     run_silently make gazelle GAZELLE_MODE=diff || ret=1
