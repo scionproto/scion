@@ -42,8 +42,8 @@ func (t Target) GetMetric(ctx context.Context, bcn beacon.Beacon) float64 {
 
 	// Debug
 	if res == t.Quality.Infimum() {
+		log.FromCtx(ctx).Info("No AS entries found for target", "target", t)
 	}
-	log.FromCtx(ctx).Info("No AS entries found for target", "target", t)
 
 	//	logger.Debug("Final metric", "metric", res)
 	return res
