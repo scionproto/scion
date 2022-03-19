@@ -18,8 +18,9 @@ import (
 	"go/ast"
 	"go/token"
 
-	"github.com/scionproto/scion/tools/lint"
 	"golang.org/x/tools/go/analysis"
+
+	"github.com/scionproto/scion/tools/lint"
 )
 
 // Analyzer checks all calls on the log package.

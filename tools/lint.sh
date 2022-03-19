@@ -30,6 +30,7 @@ go_lint() {
       -a '!' -ipath '*/node_modules/*' \
       -a '!' -ipath './scion-pki/certs/certinfo.go' \
       -a '!' -ipath './scion-pki/certs/certformat.go' \
+      -a '!' -ipath './tools/lint/*/testdata/src/*' \
       -a '!' -ipath '*mock_*' > $TMPDIR/gofiles.list
     lint_step "Building lint tools"
 
