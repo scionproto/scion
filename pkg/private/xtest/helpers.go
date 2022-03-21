@@ -148,6 +148,15 @@ func CopyDir(t testing.TB, from, to string) {
 	require.NoError(t, err, string(out))
 }
 
+// CopyFile copies the file.
+func CopyFile(t testing.TB, src, dst string) {
+	t.Helper()
+
+	raw, err := os.ReadFile(src)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(dst, raw, 0666))
+}
+
 // FailOnErr causes t to exit with a fatal error if err is non-nil.
 func FailOnErr(t testing.TB, err error, desc ...string) {
 	t.Helper()
