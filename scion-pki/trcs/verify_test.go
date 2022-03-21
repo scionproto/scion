@@ -22,6 +22,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/xtest"
 )
 
@@ -33,21 +34,21 @@ func TestVerify(t *testing.T) {
 	testCases := map[string]struct {
 		Files        []string
 		Anchor       string
-		ISDid        uint16
+		ISD          addr.ISD
 		Prepare      func(t *testing.T)
 		ErrAssertion require.ErrorAssertionFunc
 	}{
 		"base-trc-anchor": {
 			Files:        []string{"./testdata/admin/ISD1-B1-S1.trc"},
 			Anchor:       "./testdata/admin/ISD1-B1-S1.trc",
-			ISDid:        0,
+			ISD:          0,
 			Prepare:      func(*testing.T) {},
 			ErrAssertion: require.NoError,
 		},
 		"base-bundle-anchor": {
 			Files:  []string{"./testdata/admin/ISD1-B1-S1.trc"},
 			Anchor: filepath.Join(dir, "base.pem"),
-			ISDid:  0,
+			ISD:    0,
 			Prepare: func(*testing.T) {
 				out := filepath.Join(dir, "base.pem")
 				require.NoError(t, runExtractCertificates("./testdata/admin/ISD1-B1-S1.trc", out))
@@ -57,7 +58,7 @@ func TestVerify(t *testing.T) {
 		"base-bundle-missing": {
 			Files:  []string{"./testdata/admin/ISD1-B1-S1.trc"},
 			Anchor: filepath.Join(dir, "base-missing.pem"),
-			ISDid:  0,
+			ISD:    0,
 			Prepare: func(*testing.T) {
 				signed, err := DecodeFromFile("./testdata/admin/ISD1-B1-S1.trc")
 				require.NoError(t, err)
@@ -69,7 +70,7 @@ func TestVerify(t *testing.T) {
 		"base-invalid-signature": {
 			Files:  []string{filepath.Join(dir, "base-invalid-signature.der")},
 			Anchor: "./testdata/admin/ISD1-B1-S1.trc",
-			ISDid:  0,
+			ISD:    0,
 			Prepare: func(*testing.T) {
 				signed, err := DecodeFromFile("./testdata/admin/ISD1-B1-S1.trc")
 				require.NoError(t, err)
@@ -83,17 +84,17 @@ func TestVerify(t *testing.T) {
 			},
 			ErrAssertion: require.Error,
 		},
-		"base-ISDid-check": {
+		"base-ISD-check": {
 			Files:        []string{"./testdata/admin/ISD1-B1-S1.trc"},
 			Anchor:       "./testdata/admin/ISD1-B1-S1.trc",
-			ISDid:        1,
+			ISD:          1,
 			Prepare:      func(*testing.T) {},
 			ErrAssertion: require.NoError,
 		},
-		"base-verify-ISDid": {
+		"base-verify-ISD": {
 			Files:  []string{"./testdata/admin/non-descript.trc"},
 			Anchor: "./testdata/admin/non-descript.trc",
-			ISDid:  1,
+			ISD:    1,
 			Prepare: func(*testing.T) {
 				src, err := os.Open("./testdata/admin/ISD1-B1-S1.trc")
 				defer src.Close()
@@ -108,10 +109,10 @@ func TestVerify(t *testing.T) {
 			},
 			ErrAssertion: require.NoError,
 		},
-		"base-ISDid-mismatch": {
+		"base-ISD-mismatch": {
 			Files:        []string{"./testdata/admin/ISD1-B1-S1.trc"},
 			Anchor:       "./testdata/admin/ISD1-B1-S1.trc",
-			ISDid:        10,
+			ISD:          10,
 			Prepare:      func(*testing.T) {},
 			ErrAssertion: require.Error,
 		},
@@ -119,7 +120,7 @@ func TestVerify(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			tc.Prepare(t)
-			err := RunVerify(tc.Files, tc.Anchor, tc.ISDid)
+			err := RunVerify(tc.Files, tc.Anchor, tc.ISD)
 			tc.ErrAssertion(t, err)
 		})
 	}

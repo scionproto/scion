@@ -35,7 +35,7 @@ import (
 func newVerify(pather command.Pather) *cobra.Command {
 	var flags struct {
 		anchor string
-		isdID  uint16
+		isd    uint16
 	}
 
 	cmd := &cobra.Command{
@@ -55,18 +55,18 @@ the root of trust can be matched against an expected value.
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
-			return RunVerify(args, flags.anchor, flags.isdID)
+			return RunVerify(args, flags.anchor, addr.ISD(flags.isd))
 		},
 	}
 
 	cmd.Flags().StringVarP(&flags.anchor, "anchor", "a", "", "trust anchor (required)")
-	cmd.Flags().Uint16VarP(&flags.isdID, "isd", "i", 0, "ISD identifier")
+	cmd.Flags().Uint16Var(&flags.isd, "isd", 0, "ISD identifier")
 	cmd.MarkFlagRequired("anchor")
 	return cmd
 }
 
 // RunVerify runs verification of the TRC files from the given anchor.
-func RunVerify(files []string, anchor string, isdID uint16) error {
+func RunVerify(files []string, anchor string, isd addr.ISD) error {
 	var trcs []cppki.SignedTRC
 	for _, name := range files {
 		dec, err := DecodeFromFile(name)
@@ -75,27 +75,27 @@ func RunVerify(files []string, anchor string, isdID uint16) error {
 		}
 		trcs = append(trcs, dec)
 	}
-	if len(trcs) < 1 {
+	if len(trcs) == 0 {
 		return serrors.New("TRC verify requires at least one TRC to verify")
 	}
-	if isdID != 0 {
-		if err := verifyTRCid(trcs[len(trcs)-1], isdID); err != nil {
-			return err
-		}
-	}
-	isd, base := trcs[0].TRC.ID.ISD, trcs[0].TRC.ID.Base
+	someISD, someBase := trcs[0].TRC.ID.ISD, trcs[0].TRC.ID.Base
 	for _, dec := range trcs {
-		if isd != dec.TRC.ID.ISD {
-			return serrors.New("multiple ISDs", "isds", []addr.ISD{isd, dec.TRC.ID.ISD})
+		if someISD != dec.TRC.ID.ISD {
+			return serrors.New("multiple ISDs", "isds", []addr.ISD{someISD, dec.TRC.ID.ISD})
 		}
-		if base != dec.TRC.ID.Base {
-			return serrors.New("multiple base versions", "bases", []scrypto.Version{
-				base, dec.TRC.ID.Base})
+		if someBase != dec.TRC.ID.Base {
+			return serrors.New("multiple someBase versions", "bases", []scrypto.Version{
+				someBase, dec.TRC.ID.Base})
 		}
 	}
 	sort.Slice(trcs, func(i, j int) bool {
 		return trcs[i].TRC.ID.Serial < trcs[j].TRC.ID.Serial
 	})
+	if anchorISD := trcs[0].TRC.ID.ISD; isd != 0 && anchorISD != isd {
+		return serrors.New("TRC anchor ISD does not match the requested ISD ID",
+			"expected", isd,
+			"actual", anchorISD)
+	}
 	serials := []scrypto.Version{trcs[0].TRC.ID.Serial}
 	for i := 1; i < len(trcs); i++ {
 		serials = append(serials, trcs[i].TRC.ID.Serial)
@@ -134,16 +134,6 @@ func verifyInitial(trc cppki.SignedTRC, anchor string) error {
 	}
 	if err := verifyBundle(trc, certs); err != nil {
 		return serrors.WrapStr("checking verifiable with bundled certificates", err)
-	}
-	return nil
-}
-
-func verifyTRCid(trc cppki.SignedTRC, isdID uint16) error {
-	includedTRCid := trc.TRC.ID.ISD
-	if includedTRCid != addr.ISD(isdID) {
-		return serrors.New("TRC identifiers does not match provided ISD ID",
-			"expected", isdID,
-			"actual", includedTRCid)
 	}
 	return nil
 }
