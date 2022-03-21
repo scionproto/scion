@@ -84,7 +84,7 @@ func RunVerify(files []string, anchor string, isd addr.ISD) error {
 			return serrors.New("multiple ISDs", "isds", []addr.ISD{someISD, dec.TRC.ID.ISD})
 		}
 		if someBase != dec.TRC.ID.Base {
-			return serrors.New("multiple someBase versions", "bases", []scrypto.Version{
+			return serrors.New("multiple base versions", "bases", []scrypto.Version{
 				someBase, dec.TRC.ID.Base})
 		}
 	}
