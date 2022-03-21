@@ -116,8 +116,8 @@ suppression system is deployed at each AS [[2]](#2).
 
 ### Traffic Prioritization
 
-To profit from the higher security offered by EPIC-SAPV, it must be
-prioritized at the routers over SCION and EPIC-HP traffic; still COLIBRI
+To profit from the higher security offered by EPIC-SAPV, this type of traffic must be
+prioritized at the routers over SCION and EPIC-HP traffic; still, COLIBRI
 packets have a higher priority and some amount of bandwidth must be
 reserved for best-effort traffic to support communication without established
 DRKeys.
@@ -125,7 +125,7 @@ Note that the algorithm calculating the COLIBRI reservation sizes
 ensures in the control plane that reservation traffic will never
 consume all available bandwidth, while probabilistic monitoring
 enforces those decisions in the data plane. Therefore, EPIC-SAPV
-communication will not starve because of reservation traffic.
+communication will not starve due to reservation traffic.
 
 ## References
 
