@@ -21,10 +21,10 @@ import (
 	"github.com/pelletier/go-toml"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/lib/env/envtest"
-	"github.com/scionproto/scion/go/lib/log/logtest"
-	"github.com/scionproto/scion/go/pkg/api/apitest"
-	"github.com/scionproto/scion/go/pkg/router/config"
+	"github.com/scionproto/scion/pkg/log/logtest"
+	"github.com/scionproto/scion/private/env/envtest"
+	apitest "github.com/scionproto/scion/private/mgmtapi/mgmtapitest"
+	"github.com/scionproto/scion/router/config"
 )
 
 func TestConfigSample(t *testing.T) {

@@ -17,8 +17,8 @@
 package metrics
 
 import (
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/prom"
+	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/scionproto/scion/pkg/private/prom"
 )
 
 const Namespace = "br"

@@ -1,5 +1,6 @@
 nogo_deps = [
-    "@com_github_scionproto_scion//go/lint:log",
+    "@com_github_scionproto_scion//tools/lint/log:go_default_library",
+    "@com_github_scionproto_scion//tools/lint/maincheck:go_default_library",
     "@com_github_oncilla_gochecks//logcheck:go_default_library",
     "@com_github_oncilla_gochecks//serrorscheck:go_default_library",
     "@org_golang_x_tools//go/analysis/passes/asmdecl:go_default_library",
@@ -16,6 +17,7 @@ nogo_deps = [
     "@org_golang_x_tools//go/analysis/passes/errorsas:go_default_library",
     # We have uncountable violations of fieldalignment.
     # "@org_golang_x_tools//go/analysis/passes/fieldalignment:go_default_library",
+    "@org_golang_x_tools//go/analysis/passes/framepointer:go_default_library",
     "@org_golang_x_tools//go/analysis/passes/httpresponse:go_default_library",
     "@org_golang_x_tools//go/analysis/passes/ifaceassert:go_default_library",
     "@org_golang_x_tools//go/analysis/passes/loopclosure:go_default_library",
@@ -23,14 +25,23 @@ nogo_deps = [
     "@org_golang_x_tools//go/analysis/passes/nilfunc:go_default_library",
     "@org_golang_x_tools//go/analysis/passes/nilness:go_default_library",
     "@org_golang_x_tools//go/analysis/passes/printf:go_default_library",
+    "@org_golang_x_tools//go/analysis/passes/reflectvaluecompare:go_default_library",
+    # We and our dependencies have uncountable violations and almost exclusively
+    # on shadowed "err" variables which we don't want to change.
+    # "@org_golang_x_tools//go/analysis/passes/shadow:go_default_library",
     "@org_golang_x_tools//go/analysis/passes/shift:go_default_library",
+    "@org_golang_x_tools//go/analysis/passes/sigchanyzer:go_default_library",
     "@org_golang_x_tools//go/analysis/passes/sortslice:go_default_library",
     "@org_golang_x_tools//go/analysis/passes/stdmethods:go_default_library",
     "@org_golang_x_tools//go/analysis/passes/stringintconv:go_default_library",
     "@org_golang_x_tools//go/analysis/passes/structtag:go_default_library",
+    "@org_golang_x_tools//go/analysis/passes/testinggoroutine:go_default_library",
     "@org_golang_x_tools//go/analysis/passes/tests:go_default_library",
     "@org_golang_x_tools//go/analysis/passes/unmarshal:go_default_library",
     "@org_golang_x_tools//go/analysis/passes/unreachable:go_default_library",
     "@org_golang_x_tools//go/analysis/passes/unsafeptr:go_default_library",
     "@org_golang_x_tools//go/analysis/passes/unusedresult:go_default_library",
+    "@org_golang_x_tools//go/analysis/passes/unusedwrite:go_default_library",
+    # Bazel claims this package doesn't exist
+    # "@org_golang_x_tools//go/analysis/passes/usesgenerics:go_default_library",
 ]

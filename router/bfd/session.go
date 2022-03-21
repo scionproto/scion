@@ -22,8 +22,8 @@ import (
 
 	"github.com/google/gopacket/layers"
 
-	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
 const (
@@ -76,6 +76,7 @@ type Session struct {
 	// bootstrapping.
 	RemoteDiscriminator layers.BFDDiscriminator
 
+	remoteDiscriminatorMtx sync.Mutex
 	// remoteDiscriminator is the discriminator of the remote Session, as set
 	// by the creator of the session or learned via bootstrapping. It is a
 	// separate field from the exported remote discriminator to keep that
@@ -124,10 +125,9 @@ type Session struct {
 	// until the session is ready to read it.
 	ReceiveQueueSize int
 
-	// messagesLock protects the initialization of the messages channel.
-	messagesLock sync.Mutex
+	messagesOnce sync.Once
 	// messages is the channel on which the session receives BFD packets.
-	messages chan *layers.BFD
+	messages chan bfdMessage
 
 	// localStateLock protects access to the local state.
 	localStateLock sync.RWMutex
@@ -165,7 +165,7 @@ type Session struct {
 
 func (s *Session) String() string {
 	return fmt.Sprintf("local_disc %v, remote_disc %v, sender %v",
-		s.LocalDiscriminator, s.remoteDiscriminator, s.Sender)
+		s.LocalDiscriminator, s.getRemoteDiscriminator(), s.Sender)
 }
 
 // Run initializes the Session's timers and state machine, and starts sending out BFD control
@@ -180,7 +180,7 @@ func (s *Session) Run() error {
 		return err
 	}
 	if s.RemoteDiscriminator != 0 {
-		s.remoteDiscriminator = s.RemoteDiscriminator
+		s.setRemoteDiscriminator(s.RemoteDiscriminator)
 	}
 	s.initMessages()
 	s.initMetrics()
@@ -196,20 +196,14 @@ func (s *Session) Run() error {
 
 	s.desiredMinTXInterval = defaultTransmissionInterval
 	sendTimer := time.NewTimer(s.desiredMinTXInterval)
+
+	pkt := &layers.BFD{}
 MainLoop:
 	for {
 		select {
 		case msg, ok := <-s.messages:
 			if !ok {
 				break MainLoop
-			}
-
-			discard, discardReason := shouldDiscard(s.localState, msg)
-			if discard {
-				if discardReason != "" {
-					s.debug(discardReason)
-				}
-				continue
 			}
 
 			// BFD packet is accepted. This means the detection timer can be reset.
@@ -233,8 +227,8 @@ MainLoop:
 
 			s.remoteState = state(msg.State)
 			s.remoteMinRxInterval = bfdIntervalToDuration(msg.RequiredMinRxInterval)
-			if s.remoteDiscriminator == 0 {
-				s.remoteDiscriminator = msg.MyDiscriminator
+			if s.getRemoteDiscriminator() == 0 {
+				s.setRemoteDiscriminator(msg.MyDiscriminator)
 				s.debug("Bootstrapped")
 			}
 
@@ -260,7 +254,7 @@ MainLoop:
 			desiredMinTxInterval, _ := durationToBFDInterval(s.desiredMinTXInterval)
 			requiredMinRxInterval, _ := durationToBFDInterval(s.RequiredMinRxInterval)
 
-			pkt := layers.BFD{
+			*pkt = layers.BFD{
 				Version:               1,
 				State:                 layers.BFDState(s.getLocalState()),
 				DetectMultiplier:      s.DetectMult,
@@ -270,7 +264,7 @@ MainLoop:
 				RequiredMinRxInterval: requiredMinRxInterval,
 			}
 
-			if err := s.Sender.Send(&pkt); err != nil {
+			if err := s.Sender.Send(pkt); err != nil {
 				s.debug("error sending message", "err", err)
 				continue
 			}
@@ -287,7 +281,7 @@ MainLoop:
 			detectionTimer.Reset(defaultDetectionTimeout)
 
 			s.transition(eventTimer)
-			s.remoteDiscriminator = 0
+			s.setRemoteDiscriminator(0)
 			if s.getLocalState() == stateDown {
 				// Change the desired interval back to the default transmission interval, to
 				// avoid flooding the network while the session is down.
@@ -295,6 +289,12 @@ MainLoop:
 			}
 		}
 	}
+	return nil
+}
+
+func (s *Session) Close() error {
+	s.initMessages()
+	close(s.messages)
 	return nil
 }
 
@@ -364,24 +364,45 @@ func (s *Session) setLocalState(st state) {
 	s.localState = st
 }
 
-// Messages returns a channel on which callers should write BFD packets received
-// from the network. The Run method continuously processes packets received on
-// this channel.
-//
-// Close the channel returned by Messages to shut down the Session. Like closing
-// any other channel, the channel can only be closed once.
-func (s *Session) Messages() chan<- *layers.BFD {
-	s.initMessages()
-	return s.messages
+func (s *Session) getRemoteDiscriminator() layers.BFDDiscriminator {
+	s.remoteDiscriminatorMtx.Lock()
+	defer s.remoteDiscriminatorMtx.Unlock()
+	return s.remoteDiscriminator
 }
 
-// initMessages creates and sets the message receive queue if it is not
-// already created.
-func (s *Session) initMessages() {
-	s.messagesLock.Lock()
-	defer s.messagesLock.Unlock()
-	if s.messages == nil {
-		s.messages = make(chan *layers.BFD, s.ReceiveQueueSize)
+func (s *Session) setRemoteDiscriminator(d layers.BFDDiscriminator) {
+	s.remoteDiscriminatorMtx.Lock()
+	defer s.remoteDiscriminatorMtx.Unlock()
+	s.remoteDiscriminator = d
+}
+
+// ReceiveMessage validates a message and enques it for processing.
+// Callers pass the message received from the network.
+// The actual processing of the messages is asynchronous; the relevant message
+// content is passed over a channel and the Run method continuously processes
+// packets received on this channel. The caller can safely reuse packet buffer
+// and the layers.BFD object.
+//
+// The session must be running when calling this function, i.e. Run must have
+// been called.
+func (s *Session) ReceiveMessage(msg *layers.BFD) {
+	s.initMessages()
+
+	discard, discardReason := shouldDiscard(msg)
+	if discard {
+		if discardReason != "" && s.Logger != nil {
+			s.Logger.Debug(discardReason) // no session identifier to avoid data race
+		}
+		return
+	}
+
+	s.messages <- bfdMessage{
+		State:                 msg.State,
+		DetectMultiplier:      msg.DetectMultiplier,
+		MyDiscriminator:       msg.MyDiscriminator,
+		YourDiscriminator:     msg.YourDiscriminator,
+		DesiredMinTxInterval:  msg.DesiredMinTxInterval,
+		RequiredMinRxInterval: msg.RequiredMinRxInterval,
 	}
 }
 
@@ -399,6 +420,12 @@ func (s *Session) initMetrics() {
 	if s.Metrics.StateChanges != nil {
 		s.Metrics.StateChanges.Add(0)
 	}
+}
+
+func (s *Session) initMessages() {
+	s.messagesOnce.Do(func() {
+		s.messages = make(chan bfdMessage, s.ReceiveQueueSize)
+	})
 }
 
 // debug logs a debug message if a logger is configured.
@@ -465,7 +492,7 @@ func max(x, y time.Duration) time.Duration {
 //
 // For packets that are acceptable and are fully supported, the return values are false and the
 // empty string.
-func shouldDiscard(localState state, pkt *layers.BFD) (bool, string) {
+func shouldDiscard(pkt *layers.BFD) (bool, string) {
 	if pkt.Version != 1 {
 		return true, ""
 	}
@@ -487,7 +514,7 @@ func shouldDiscard(localState state, pkt *layers.BFD) (bool, string) {
 		return true, ""
 	}
 	if pkt.YourDiscriminator == 0 {
-		if !((localState == stateAdminDown) || (localState == stateDown)) {
+		if !((pkt.State == layers.BFDStateAdminDown) || (pkt.State == layers.BFDStateDown)) {
 			return true, ""
 		}
 	}
@@ -544,4 +571,15 @@ func durationToBFDInterval(d time.Duration) (layers.BFDTimeInterval, error) {
 
 func bfdIntervalToDuration(x layers.BFDTimeInterval) time.Duration {
 	return time.Duration(x) * time.Microsecond
+}
+
+// bfdMessage contains the relevant values to (asynchronously) process a BFD message
+// received from the network. This is a subset of the fields of layers.BFD.
+type bfdMessage struct {
+	State                 layers.BFDState
+	DetectMultiplier      layers.BFDDetectMultiplier
+	MyDiscriminator       layers.BFDDiscriminator
+	YourDiscriminator     layers.BFDDiscriminator
+	DesiredMinTxInterval  layers.BFDTimeInterval
+	RequiredMinRxInterval layers.BFDTimeInterval
 }

@@ -32,26 +32,24 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	libepic "github.com/scionproto/scion/go/lib/epic"
-	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/metrics"
-	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/slayers"
-	"github.com/scionproto/scion/go/lib/slayers/path"
-	"github.com/scionproto/scion/go/lib/slayers/path/empty"
-	"github.com/scionproto/scion/go/lib/slayers/path/epic"
-	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
-	"github.com/scionproto/scion/go/lib/slayers/path/scion"
-	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/lib/underlay/conn"
-	underlayconn "github.com/scionproto/scion/go/lib/underlay/conn"
-	"github.com/scionproto/scion/go/lib/util"
-	"github.com/scionproto/scion/go/pkg/router/bfd"
-	"github.com/scionproto/scion/go/pkg/router/control"
-	"github.com/scionproto/scion/go/pkg/router/tc"
+	"github.com/scionproto/scion/pkg/addr"
+	libepic "github.com/scionproto/scion/pkg/experimental/epic"
+	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/private/util"
+	"github.com/scionproto/scion/pkg/scrypto"
+	"github.com/scionproto/scion/pkg/slayers"
+	"github.com/scionproto/scion/pkg/slayers/path"
+	"github.com/scionproto/scion/pkg/slayers/path/empty"
+	"github.com/scionproto/scion/pkg/slayers/path/epic"
+	"github.com/scionproto/scion/pkg/slayers/path/onehop"
+	"github.com/scionproto/scion/pkg/slayers/path/scion"
+	"github.com/scionproto/scion/private/topology"
+	"github.com/scionproto/scion/private/underlay/conn"
+	underlayconn "github.com/scionproto/scion/private/underlay/conn"
+	"github.com/scionproto/scion/router/bfd"
+	"github.com/scionproto/scion/router/control"
+	"github.com/scionproto/scion/router/tc"
 )
 
 const (
@@ -71,7 +69,7 @@ const (
 
 type bfdSession interface {
 	Run() error
-	Messages() chan<- *layers.BFD
+	ReceiveMessage(*layers.BFD)
 	IsUp() bool
 }
 
@@ -267,32 +265,19 @@ func (d *DataPlane) AddExternalInterfaceBFD(ifID uint16, conn BatchConn,
 	}
 	var m bfd.Metrics
 	if d.Metrics != nil {
-		labels := []string{
-			"interface", fmt.Sprint(ifID),
-			"isd_as", d.localIA.String(),
-			"neighbor_isd_as", dst.IA.String(),
+		labels := prometheus.Labels{
+			"interface":       fmt.Sprint(ifID),
+			"isd_as":          d.localIA.String(),
+			"neighbor_isd_as": dst.IA.String(),
 		}
 		m = bfd.Metrics{
-			Up: metrics.NewPromGauge(d.Metrics.InterfaceUp).
-				With(labels...),
-			StateChanges: metrics.NewPromCounter(d.Metrics.BFDInterfaceStateChanges).
-				With(labels...),
-			PacketsSent: metrics.NewPromCounter(d.Metrics.BFDPacketsSent).
-				With(labels...),
-			PacketsReceived: metrics.NewPromCounter(d.Metrics.BFDPacketsReceived).
-				With(labels...),
+			Up:              d.Metrics.InterfaceUp.With(labels),
+			StateChanges:    d.Metrics.BFDInterfaceStateChanges.With(labels),
+			PacketsSent:     d.Metrics.BFDPacketsSent.With(labels),
+			PacketsReceived: d.Metrics.BFDPacketsReceived.With(labels),
 		}
 	}
-	s := &bfdSend{
-		conn:    conn,
-		srcAddr: src.Addr,
-		dstAddr: dst.Addr,
-		srcIA:   src.IA,
-		dstIA:   dst.IA,
-		ifID:    ifID,
-		mac:     d.macFactory(),
-		d:       d,
-	}
+	s := newBFDSend(conn, src.IA, dst.IA, src.Addr, dst.Addr, ifID, d.macFactory())
 	return d.addBFDController(ifID, s, cfg, m)
 }
 
@@ -424,28 +409,16 @@ func (d *DataPlane) AddNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg contro
 	}
 	var m bfd.Metrics
 	if d.Metrics != nil {
-		labels := []string{"isd_as", d.localIA.String(), "sibling", sibling}
+		labels := prometheus.Labels{"isd_as": d.localIA.String(), "sibling": sibling}
 		m = bfd.Metrics{
-			Up: metrics.NewPromGauge(d.Metrics.SiblingReachable).
-				With(labels...),
-			StateChanges: metrics.NewPromCounter(d.Metrics.SiblingBFDStateChanges).
-				With(labels...),
-			PacketsSent: metrics.NewPromCounter(d.Metrics.SiblingBFDPacketsSent).
-				With(labels...),
-			PacketsReceived: metrics.NewPromCounter(d.Metrics.SiblingBFDPacketsReceived).
-				With(labels...),
+			Up:              d.Metrics.SiblingReachable.With(labels),
+			StateChanges:    d.Metrics.SiblingBFDStateChanges.With(labels),
+			PacketsSent:     d.Metrics.SiblingBFDPacketsSent.With(labels),
+			PacketsReceived: d.Metrics.SiblingBFDPacketsReceived.With(labels),
 		}
 	}
-	s := &bfdSend{
-		conn:    d.internal,
-		srcAddr: src,
-		dstAddr: dst,
-		srcIA:   d.localIA,
-		dstIA:   d.localIA,
-		ifID:    0,
-		mac:     d.macFactory(),
-		d:       d,
-	}
+
+	s := newBFDSend(d.internal, d.localIA, d.localIA, src, dst, 0, d.macFactory())
 	return d.addBFDController(ifID, s, cfg, m)
 }
 
@@ -646,7 +619,7 @@ type processResult struct {
 }
 
 func newPacketProcessor(d *DataPlane, ingressID uint16) *scionPacketProcessor {
-	return &scionPacketProcessor{
+	p := &scionPacketProcessor{
 		d:         d,
 		ingressID: ingressID,
 		buffer:    gopacket.NewSerializeBuffer(),
@@ -656,14 +629,16 @@ func newPacketProcessor(d *DataPlane, ingressID uint16) *scionPacketProcessor {
 			epicInput:  make([]byte, libepic.MACBufferSize),
 		},
 	}
+	p.scionLayer.RecyclePaths()
+	return p
 }
 
 func (p *scionPacketProcessor) reset() error {
 	p.rawPkt = nil
 	//p.scionLayer // cannot easily be reset
 	p.path = nil
-	p.hopField = nil
-	p.infoField = nil
+	p.hopField = path.HopField{}
+	p.infoField = path.InfoField{}
 	p.segmentChange = false
 	if err := p.buffer.Clear(); err != nil {
 		return serrors.WrapStr("Failed to clear buffer", err)
@@ -718,13 +693,13 @@ func (p *scionPacketProcessor) processInterBFD(oh *onehop.Path, data []byte) err
 		return noBFDSessionConfigured
 	}
 
-	bfd := &layers.BFD{}
+	bfd := &p.bfdLayer
 	if err := bfd.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
 		return err
 	}
 
 	if v, ok := p.d.bfdSessions[p.ingressID]; ok {
-		v.Messages() <- bfd
+		v.ReceiveMessage(bfd)
 		return nil
 	}
 
@@ -735,7 +710,8 @@ func (p *scionPacketProcessor) processIntraBFD(src *net.UDPAddr, data []byte) er
 	if len(p.d.bfdSessions) == 0 {
 		return noBFDSessionConfigured
 	}
-	bfd := &layers.BFD{}
+
+	bfd := &p.bfdLayer
 	if err := bfd.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
 		return err
 	}
@@ -749,7 +725,7 @@ func (p *scionPacketProcessor) processIntraBFD(src *net.UDPAddr, data []byte) er
 	}
 
 	if v, ok := p.d.bfdSessions[ifID]; ok {
-		v.Messages() <- bfd
+		v.ReceiveMessage(bfd)
 		return nil
 	}
 
@@ -779,22 +755,21 @@ func (p *scionPacketProcessor) processEPIC() (processResult, error) {
 		return processResult{}, malformedPath
 	}
 
-	info, err := p.path.GetCurrentInfoField()
-	if err != nil {
-		return processResult{}, err
-	}
-
-	result, err := p.process()
-	if err != nil {
-		// TODO(mawyss): Send back SCMP packet
-		return processResult{}, err
-	}
-
 	isPenultimate := p.path.IsPenultimateHop()
 	isLast := p.path.IsLastHop()
 
+	result, err := p.process()
+	if err != nil {
+		return result, err
+	}
+
 	if isPenultimate || isLast {
-		timestamp := time.Unix(int64(info.Timestamp), 0)
+		firstInfo, err := p.path.GetInfoField(0)
+		if err != nil {
+			return processResult{}, err
+		}
+
+		timestamp := time.Unix(int64(firstInfo.Timestamp), 0)
 		err = libepic.VerifyTimestamp(timestamp, epicPath.PktID.Timestamp, time.Now())
 		if err != nil {
 			// TODO(mawyss): Send back SCMP packet
@@ -805,8 +780,8 @@ func (p *scionPacketProcessor) processEPIC() (processResult, error) {
 		if isLast {
 			HVF = epicPath.LHVF
 		}
-		err = libepic.VerifyHVF(p.cachedMac, epicPath.PktID, &p.scionLayer, info.Timestamp, HVF,
-			p.macBuffers.epicInput)
+		err = libepic.VerifyHVF(p.cachedMac, epicPath.PktID,
+			&p.scionLayer, firstInfo.Timestamp, HVF, p.macBuffers.epicInput)
 		if err != nil {
 			// TODO(mawyss): Send back SCMP packet
 			return processResult{}, err
@@ -848,9 +823,9 @@ type scionPacketProcessor struct {
 	// path is the raw SCION path. Will be set during processing.
 	path *scion.Raw
 	// hopField is the current hopField field, is updated during processing.
-	hopField *path.HopField
+	hopField path.HopField
 	// infoField is the current infoField field, is updated during processing.
-	infoField *path.InfoField
+	infoField path.InfoField
 	// segmentChange indicates if the path segment was changed during processing.
 	segmentChange bool
 
@@ -859,6 +834,9 @@ type scionPacketProcessor struct {
 	cachedMac []byte
 	// macBuffers avoid allocating memory during processing.
 	macBuffers macBuffers
+
+	// bfdLayer is reusable buffer for parsing BFD messages
+	bfdLayer layers.BFD
 }
 
 // macBuffers are preallocated buffers for the in- and outputs of MAC functions.
@@ -1332,11 +1310,11 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 				"type", "ohp", "egress", ohp.FirstHop.ConsEgress,
 				"neighborIA", neighborIA, "dstIA", s.DstIA)
 		}
-		mac := path.MAC(p.mac, &ohp.Info, &ohp.FirstHop, p.macBuffers.scionInput)
-		if subtle.ConstantTimeCompare(ohp.FirstHop.Mac[:path.MacLen], mac) == 0 {
+		mac := path.MAC(p.mac, ohp.Info, ohp.FirstHop, p.macBuffers.scionInput)
+		if subtle.ConstantTimeCompare(ohp.FirstHop.Mac[:], mac[:]) == 0 {
 			// TODO parameter problem -> invalid MAC
 			return processResult{}, serrors.New("MAC", "expected", fmt.Sprintf("%x", mac),
-				"actual", fmt.Sprintf("%x", ohp.FirstHop.Mac[:path.MacLen]), "type", "ohp")
+				"actual", fmt.Sprintf("%x", ohp.FirstHop.Mac), "type", "ohp")
 		}
 		ohp.Info.UpdateSegID(ohp.FirstHop.Mac)
 
@@ -1374,7 +1352,7 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 	// XXX(roosd): Here we leak the buffer into the SCION packet header.
 	// This is okay because we do not operate on the buffer or the packet
 	// for the rest of processing.
-	ohp.SecondHop.Mac = path.MAC(p.mac, &ohp.Info, &ohp.SecondHop, p.macBuffers.scionInput)
+	ohp.SecondHop.Mac = path.MAC(p.mac, ohp.Info, ohp.SecondHop, p.macBuffers.scionInput)
 
 	if err := updateSCIONLayer(p.rawPkt, s, p.buffer); err != nil {
 		return processResult{}, err
@@ -1433,10 +1411,62 @@ func updateSCIONLayer(rawPkt []byte, s slayers.SCION, buffer gopacket.SerializeB
 type bfdSend struct {
 	conn             BatchConn
 	srcAddr, dstAddr *net.UDPAddr
-	srcIA, dstIA     addr.IA
+	scn              *slayers.SCION
+	ohp              *onehop.Path
 	mac              hash.Hash
-	ifID             uint16
-	d                *DataPlane
+	macBuffer        []byte
+	buffer           gopacket.SerializeBuffer
+}
+
+// newBFDSend creates and initializes a BFD Sender
+func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr *net.UDPAddr,
+	ifID uint16, mac hash.Hash) *bfdSend {
+
+	scn := &slayers.SCION{
+		Version:      0,
+		TrafficClass: 0xb8,
+		FlowID:       0xdead,
+		NextHdr:      slayers.L4BFD,
+		SrcIA:        srcIA,
+		DstIA:        dstIA,
+	}
+
+	if err := scn.SetSrcAddr(&net.IPAddr{IP: srcAddr.IP}); err != nil {
+		panic(err) // Must work unless IPAddr is not supported
+	}
+	if err := scn.SetDstAddr(&net.IPAddr{IP: dstAddr.IP}); err != nil {
+		panic(err) // Must work unless IPAddr is not supported
+	}
+
+	var ohp *onehop.Path
+	if ifID == 0 {
+		scn.PathType = empty.PathType
+		scn.Path = &empty.Path{}
+	} else {
+		ohp = &onehop.Path{
+			Info: path.InfoField{
+				ConsDir: true,
+				// Timestamp set in Send
+			},
+			FirstHop: path.HopField{
+				ConsEgress: ifID,
+				ExpTime:    hopFieldDefaultExpTime,
+			},
+		}
+		scn.PathType = onehop.PathType
+		scn.Path = ohp
+	}
+
+	return &bfdSend{
+		conn:      conn,
+		srcAddr:   srcAddr,
+		dstAddr:   dstAddr,
+		scn:       scn,
+		ohp:       ohp,
+		mac:       mac,
+		macBuffer: make([]byte, path.MACBufferSize),
+		buffer:    gopacket.NewSerializeBuffer(),
+	}
 }
 
 func (b *bfdSend) String() string {
@@ -1447,50 +1477,19 @@ func (b *bfdSend) String() string {
 // Due to the internal state of the MAC computation, this is not goroutine
 // safe.
 func (b *bfdSend) Send(bfd *layers.BFD) error {
-	scn := &slayers.SCION{
-		Version:      0,
-		TrafficClass: 0xb8,
-		FlowID:       0xdead,
-		NextHdr:      common.L4BFD,
-		SrcIA:        b.srcIA,
-		DstIA:        b.dstIA,
+	if b.ohp != nil {
+		// Subtract 10 seconds to deal with possible clock drift.
+		ohp := b.ohp
+		ohp.Info.Timestamp = uint32(time.Now().Unix() - 10)
+		ohp.FirstHop.Mac = path.MAC(b.mac, ohp.Info, ohp.FirstHop, b.macBuffer)
 	}
 
-	if err := scn.SetSrcAddr(&net.IPAddr{IP: b.srcAddr.IP}); err != nil {
-		return err
-	}
-	if err := scn.SetDstAddr(&net.IPAddr{IP: b.dstAddr.IP}); err != nil {
-		return err
-	}
-
-	if b.ifID == 0 {
-		scn.PathType = empty.PathType
-		scn.Path = &empty.Path{}
-	} else {
-		ohp := &onehop.Path{
-			Info: path.InfoField{
-				ConsDir: true,
-				// Subtract 10 seconds to deal with possible clock drift.
-				Timestamp: uint32(time.Now().Unix() - 10),
-			},
-			FirstHop: path.HopField{
-				ConsEgress: b.ifID,
-				ExpTime:    hopFieldDefaultExpTime,
-			},
-		}
-		ohp.FirstHop.Mac = path.MAC(b.mac, &ohp.Info, &ohp.FirstHop, nil)
-		scn.PathType = onehop.PathType
-		scn.Path = ohp
-	}
-
-	buffer := gopacket.NewSerializeBuffer()
-	err := gopacket.SerializeLayers(buffer, gopacket.SerializeOptions{FixLengths: true},
-		scn, bfd)
+	err := gopacket.SerializeLayers(b.buffer, gopacket.SerializeOptions{FixLengths: true},
+		b.scn, bfd)
 	if err != nil {
 		return err
 	}
-
-	_, err = b.conn.WriteTo(buffer.Bytes(), b.dstAddr)
+	_, err = b.conn.WriteTo(b.buffer.Bytes(), b.dstAddr)
 	return err
 }
 
@@ -1499,10 +1498,26 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 
 	// *copy* and reverse path -- the original path should not be modified as this writes directly
 	// back to rawPkt (quote).
-	path, ok := p.scionLayer.Path.(*scion.Raw)
-	if !ok {
+	var path *scion.Raw
+	pathType := p.scionLayer.Path.Type()
+	switch pathType {
+	case scion.PathType:
+		var ok bool
+		path, ok = p.scionLayer.Path.(*scion.Raw)
+		if !ok {
+			return nil, serrors.WithCtx(cannotRoute, "details", "unsupported path type",
+				"path type", pathType)
+		}
+	case epic.PathType:
+		epicPath, ok := p.scionLayer.Path.(*epic.Path)
+		if !ok {
+			return nil, serrors.WithCtx(cannotRoute, "details", "unsupported path type",
+				"path type", pathType)
+		}
+		path = epicPath.ScionPath
+	default:
 		return nil, serrors.WithCtx(cannotRoute, "details", "unsupported path type",
-			"path type", p.scionLayer.Path.Type())
+			"path type", pathType)
 	}
 	decPath, err := path.ToDecoded()
 	if err != nil {
@@ -1524,7 +1539,7 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 	// path to prepare it for the next hop.
 	_, external := p.d.external[p.ingressID]
 	if external {
-		infoField := revPath.InfoFields[revPath.PathMeta.CurrINF]
+		infoField := &revPath.InfoFields[revPath.PathMeta.CurrINF]
 		if infoField.ConsDir {
 			hopField := revPath.HopFields[revPath.PathMeta.CurrHF]
 			infoField.UpdateSegID(hopField.Mac)
@@ -1552,7 +1567,7 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 	if err := scionL.SetSrcAddr(&net.IPAddr{IP: p.d.internalIP}); err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "setting src addr")
 	}
-	scionL.NextHdr = common.L4SCMP
+	scionL.NextHdr = slayers.L4SCMP
 
 	scmpH.SetNetworkLayerForChecksum(&scionL)
 
@@ -1614,7 +1629,7 @@ func decodeLayers(data []byte, base gopacket.DecodingLayer,
 	return last, nil
 }
 
-func nextHdr(layer gopacket.DecodingLayer) common.L4ProtocolType {
+func nextHdr(layer gopacket.DecodingLayer) slayers.L4ProtocolType {
 	switch v := layer.(type) {
 	case *slayers.SCION:
 		return v.NextHdr
@@ -1623,7 +1638,7 @@ func nextHdr(layer gopacket.DecodingLayer) common.L4ProtocolType {
 	case *slayers.HopByHopExtn:
 		return v.NextHdr
 	default:
-		return common.L4None
+		return slayers.L4None
 	}
 }
 

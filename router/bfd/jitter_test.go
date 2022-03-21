@@ -22,8 +22,8 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/pkg/router/bfd"
-	"github.com/scionproto/scion/go/pkg/router/bfd/mock_bfd"
+	"github.com/scionproto/scion/router/bfd"
+	"github.com/scionproto/scion/router/bfd/mock_bfd"
 )
 
 func TestComputeInterval(t *testing.T) {

@@ -20,8 +20,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/pkg/router"
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/router"
 )
 
 func TestServicesAddSvc(t *testing.T) {

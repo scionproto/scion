@@ -19,7 +19,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/pkg/addr"
 )
 
 type services struct {

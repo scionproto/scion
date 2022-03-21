@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-option go_package = "github.com/scionproto/scion/go/pkg/proto/hidden_segment";
+option go_package = "github.com/scionproto/scion/pkg/proto/hidden_segment";
 
 package proto.hidden_segment.v1;
 

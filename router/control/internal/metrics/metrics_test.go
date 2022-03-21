@@ -17,8 +17,8 @@ package metrics_test
 import (
 	"testing"
 
-	"github.com/scionproto/scion/go/lib/prom/promtest"
-	"github.com/scionproto/scion/go/pkg/router/control/internal/metrics"
+	"github.com/scionproto/scion/pkg/private/prom/promtest"
+	"github.com/scionproto/scion/router/control/internal/metrics"
 )
 
 func TestRegistrationsLabels(t *testing.T) {

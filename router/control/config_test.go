@@ -20,8 +20,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/pkg/router/control"
+	"github.com/scionproto/scion/private/topology"
+	"github.com/scionproto/scion/router/control"
 )
 
 func TestLoad(t *testing.T) {

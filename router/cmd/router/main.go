@@ -26,16 +26,16 @@ import (
 	"github.com/go-chi/cors"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/pkg/app"
-	"github.com/scionproto/scion/go/pkg/app/launcher"
-	"github.com/scionproto/scion/go/pkg/router"
-	"github.com/scionproto/scion/go/pkg/router/api"
-	"github.com/scionproto/scion/go/pkg/router/config"
-	"github.com/scionproto/scion/go/pkg/router/control"
-	"github.com/scionproto/scion/go/pkg/service"
+	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/private/app"
+	"github.com/scionproto/scion/private/app/launcher"
+	"github.com/scionproto/scion/private/service"
+	"github.com/scionproto/scion/private/topology"
+	"github.com/scionproto/scion/router"
+	"github.com/scionproto/scion/router/config"
+	"github.com/scionproto/scion/router/control"
+	api "github.com/scionproto/scion/router/mgmtapi"
 )
 
 var globalCfg config.Config

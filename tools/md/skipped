@@ -1,5 +1,2 @@
 ^\./docker/_build/
-^\./go/vendor/
-^\./anapaya/prodspec/schema.md
 ^\./licenses/data
-^\./anapaya/licenses/data

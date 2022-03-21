@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package mgmtapi
 
 import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/pkg/api"
-	"github.com/scionproto/scion/go/pkg/router/control"
+	"github.com/scionproto/scion/pkg/addr"
+	api "github.com/scionproto/scion/private/mgmtapi"
+	"github.com/scionproto/scion/router/control"
 )
 
 // Server implements the Control Service API.

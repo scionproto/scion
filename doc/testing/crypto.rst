@@ -21,10 +21,10 @@ All-in-one
 
 To run all tests, execute the commands listed below::
 
-    go test ./go/lib/scrypto/cppki/...
-    go test ./go/pkg/trust/...
-    go test ./go/pkg/cs/trust/...
-    go test ./go/scion-pki/...
+    go test ./pkg/scrypto/cppki/...
+    go test ./private/trust/...
+    go test ./control/trust/...
+    go test ./scion-pki/...
 
     ./scion.sh topology && ./scion.sh run && sleep 10
     ./bin/end2end_integration
@@ -41,34 +41,34 @@ The unit test suite ensures that basic functionality works as intended.
 1. Control Service
 ------------------
 
-The control service has a trust-related module at ``go/pkg/cs/trust``. The
+The control service has a trust-related module at ``control/trust``. The
 module is responsible for creating signers and signatures, drive the trust
 engine, and handle certificate renewal requests.
 
 To run the test suite, execute::
 
-    go test -v ./go/pkg/cs/trust/...
+    go test -v ./control/trust/...
 
 2. Trust Engine
 ---------------
 
-The trust engine located at ``go/pkg/trust`` stores and fetches trust material
+The trust engine located at ``pkg/trust`` stores and fetches trust material
 such as certificate chains and TRCs, and provides them during signature
 verification.
 
 To run the test suite, execute::
 
-    go test -v ./go/pkg/trust/...
+    go test -v ./pkg/trust/...
 
 3. CP-PKI library
 -----------------
 
-The library ``go/lib/scrypto/cppki`` is home to the trust material definitions
+The library ``pkg/scrypto/cppki`` is home to the trust material definitions
 for the SCION control plane certificates and the TRC.
 
 To run the test suite, execute::
 
-    go test -v ./go/lib/scrypto/cppki/...
+    go test -v ./pkg/scrypto/cppki/...
 
 4. scion-pki
 ------------
@@ -79,7 +79,7 @@ a human readable form.
 
 To run the test suite, execute::
 
-    go test -v ./go/scion-pki/...
+    go test -v ./scion-pki/...
 
 Acceptance Tests
 ================

@@ -46,9 +46,6 @@ var parserATN = []uint16{
 	68, 71, 7, 4, 2, 2, 69, 71, 7, 5, 2, 2, 70, 68, 3, 2, 2, 2, 70, 69, 3,
 	2, 2, 2, 71, 13, 3, 2, 2, 2, 9, 23, 36, 38, 57, 61, 66, 70,
 }
-var deserializer = antlr.NewATNDeserializer(nil)
-var deserializedATN = deserializer.DeserializeFromUInt16(parserATN)
-
 var literalNames = []string{
 	"", "", "'0'", "", "", "", "", "'#'", "','", "'?'", "'+'", "'*'", "'|'",
 	"'('", "')'",
@@ -61,21 +58,25 @@ var symbolicNames = []string{
 var ruleNames = []string{
 	"start", "sequence", "onehop", "isd", "as", "iface",
 }
-var decisionToDFA = make([]*antlr.DFA, len(deserializedATN.DecisionToState))
-
-func init() {
-	for index, ds := range deserializedATN.DecisionToState {
-		decisionToDFA[index] = antlr.NewDFA(ds, index)
-	}
-}
 
 type SequenceParser struct {
 	*antlr.BaseParser
 }
 
+// NewSequenceParser produces a new parser instance for the optional input antlr.TokenStream.
+//
+// The *SequenceParser instance produced may be reused by calling the SetInputStream method.
+// The initial parser configuration is expensive to construct, and the object is not thread-safe;
+// however, if used within a Golang sync.Pool, the construction cost amortizes well and the
+// objects can be used in a thread-safe manner.
 func NewSequenceParser(input antlr.TokenStream) *SequenceParser {
 	this := new(SequenceParser)
-
+	deserializer := antlr.NewATNDeserializer(nil)
+	deserializedATN := deserializer.DeserializeFromUInt16(parserATN)
+	decisionToDFA := make([]*antlr.DFA, len(deserializedATN.DecisionToState))
+	for index, ds := range deserializedATN.DecisionToState {
+		decisionToDFA[index] = antlr.NewDFA(ds, index)
+	}
 	this.BaseParser = antlr.NewBaseParser(input)
 
 	this.Interpreter = antlr.NewParserATNSimulator(this, deserializedATN, decisionToDFA, antlr.NewPredictionContextCache())
@@ -189,6 +190,9 @@ func (s *StartContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *SequenceParser) Start() (localctx IStartContext) {
+	this := p
+	_ = this
+
 	localctx = NewStartContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 0, SequenceParserRULE_start)
 
@@ -606,6 +610,9 @@ func (p *SequenceParser) Sequence() (localctx ISequenceContext) {
 }
 
 func (p *SequenceParser) sequence(_p int) (localctx ISequenceContext) {
+	this := p
+	_ = this
+
 	var _parentctx antlr.ParserRuleContext = p.GetParserRuleContext()
 	_parentState := p.GetState()
 	localctx = NewSequenceContext(p, p.GetParserRuleContext(), _parentState)
@@ -1047,6 +1054,9 @@ func (s *ISDASIFHopContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *SequenceParser) Onehop() (localctx IOnehopContext) {
+	this := p
+	_ = this
+
 	localctx = NewOnehopContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 4, SequenceParserRULE_onehop)
 
@@ -1261,6 +1271,9 @@ func (s *ISDContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *SequenceParser) Isd() (localctx IIsdContext) {
+	this := p
+	_ = this
+
 	localctx = NewIsdContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 6, SequenceParserRULE_isd)
 
@@ -1460,6 +1473,9 @@ func (s *WildcardASContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *SequenceParser) As() (localctx IAsContext) {
+	this := p
+	_ = this
+
 	localctx = NewAsContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 8, SequenceParserRULE_as)
 
@@ -1633,6 +1649,9 @@ func (s *WildcardIFaceContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *SequenceParser) Iface() (localctx IIfaceContext) {
+	this := p
+	_ = this
+
 	localctx = NewIfaceContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 10, SequenceParserRULE_iface)
 
@@ -1694,6 +1713,9 @@ func (p *SequenceParser) Sempred(localctx antlr.RuleContext, ruleIndex, predInde
 }
 
 func (p *SequenceParser) Sequence_Sempred(localctx antlr.RuleContext, predIndex int) bool {
+	this := p
+	_ = this
+
 	switch predIndex {
 	case 0:
 		return p.Precpred(p.GetParserRuleContext(), 4)

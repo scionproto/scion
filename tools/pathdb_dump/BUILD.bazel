@@ -1,0 +1,22 @@
+load("//lint:go.bzl", "go_library")
+load("//:scion.bzl", "scion_go_binary")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "github.com/scionproto/scion/tools/pathdb_dump",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//pkg/addr:go_default_library",
+        "//pkg/segment:go_default_library",
+        "//private/env:go_default_library",
+        "//private/pathdb/query:go_default_library",
+        "//private/storage/path/sqlite:go_default_library",
+    ],
+)
+
+scion_go_binary(
+    name = "pathdb_dump",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

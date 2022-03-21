@@ -17,7 +17,7 @@ package metrics
 import (
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/scionproto/scion/go/lib/prom"
+	"github.com/scionproto/scion/pkg/private/prom"
 )
 
 // Control type values

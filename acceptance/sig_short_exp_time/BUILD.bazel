@@ -16,7 +16,7 @@ sh_test(
 
 container_image(
     name = "udpproxy",
-    base = "//go/tools/udpproxy",
+    base = "//tools/udpproxy",
 )
 
 container_image(
@@ -48,7 +48,7 @@ container_image(
         "--config",
         "/sig.toml",
     ],
-    entrypoint = ["/app/posix-gateway"],
+    entrypoint = ["/app/gateway"],
     files = [
         "testdata/1-ff00_0_110/sig/cfg.json",
         "testdata/1-ff00_0_110/sig/fake_sciond.json",
@@ -63,7 +63,7 @@ container_image(
         "--config",
         "/sig.toml",
     ],
-    entrypoint = ["/app/posix-gateway"],
+    entrypoint = ["/app/gateway"],
     files = [
         "testdata/1-ff00_0_111/sig/cfg.json",
         "testdata/1-ff00_0_111/sig/fake_sciond.json",

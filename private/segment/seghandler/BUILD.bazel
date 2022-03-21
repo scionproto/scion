@@ -1,0 +1,44 @@
+load("//lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "result.go",
+        "seghandler.go",
+        "storage.go",
+        "verifier.go",
+    ],
+    importpath = "github.com/scionproto/scion/private/segment/seghandler",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/log:go_default_library",
+        "//pkg/private/ctrl/path_mgmt:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/segment:go_default_library",
+        "//private/pathdb:go_default_library",
+        "//private/revcache:go_default_library",
+        "//private/segment/segverifier:go_default_library",
+        "//private/segment/verifier:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "seghandler_test.go",
+        "storage_test.go",
+    ],
+    deps = [
+        ":go_default_library",
+        "//pkg/private/mocks/net/mock_net:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/private/xtest/graph:go_default_library",
+        "//pkg/segment:go_default_library",
+        "//private/pathdb:go_default_library",
+        "//private/pathdb/mock_pathdb:go_default_library",
+        "//private/segment/seghandler/mock_seghandler:go_default_library",
+        "//private/segment/segverifier:go_default_library",
+        "@com_github_golang_mock//gomock:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+    ],
+)

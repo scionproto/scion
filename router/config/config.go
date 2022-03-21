@@ -19,10 +19,10 @@ package config
 import (
 	"io"
 
-	"github.com/scionproto/scion/go/lib/config"
-	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/pkg/api"
+	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/private/config"
+	"github.com/scionproto/scion/private/env"
+	api "github.com/scionproto/scion/private/mgmtapi"
 )
 
 const idSample = "router-1"

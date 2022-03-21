@@ -21,8 +21,8 @@ import (
 
 	"golang.org/x/net/ipv4"
 
-	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/underlay/conn"
+	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/private/underlay/conn"
 )
 
 type TrafficClass int

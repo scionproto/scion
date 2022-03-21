@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/private/topology"
 )
 
 const (

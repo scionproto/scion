@@ -72,9 +72,6 @@ var parserATN = []uint16{
 	135, 35, 3, 2, 2, 2, 136, 137, 5, 34, 18, 2, 137, 138, 7, 2, 2, 3, 138,
 	37, 3, 2, 2, 2, 7, 88, 100, 119, 125, 134,
 }
-var deserializer = antlr.NewATNDeserializer(nil)
-var deserializedATN = deserializer.DeserializeFromUInt16(parserATN)
-
 var literalNames = []string{
 	"", "'='", "'=0x'", "'-'", "'cls='", "'('", "','", "')'", "'true'", "'false'",
 }
@@ -89,21 +86,25 @@ var ruleNames = []string{
 	"matchSrcPortRange", "matchDstPort", "matchDstPortRange", "condCls", "condAny",
 	"condAll", "condNot", "condBool", "condIPv4", "condPort", "cond", "trafficClass",
 }
-var decisionToDFA = make([]*antlr.DFA, len(deserializedATN.DecisionToState))
-
-func init() {
-	for index, ds := range deserializedATN.DecisionToState {
-		decisionToDFA[index] = antlr.NewDFA(ds, index)
-	}
-}
 
 type TrafficClassParser struct {
 	*antlr.BaseParser
 }
 
+// NewTrafficClassParser produces a new parser instance for the optional input antlr.TokenStream.
+//
+// The *TrafficClassParser instance produced may be reused by calling the SetInputStream method.
+// The initial parser configuration is expensive to construct, and the object is not thread-safe;
+// however, if used within a Golang sync.Pool, the construction cost amortizes well and the
+// objects can be used in a thread-safe manner.
 func NewTrafficClassParser(input antlr.TokenStream) *TrafficClassParser {
 	this := new(TrafficClassParser)
-
+	deserializer := antlr.NewATNDeserializer(nil)
+	deserializedATN := deserializer.DeserializeFromUInt16(parserATN)
+	decisionToDFA := make([]*antlr.DFA, len(deserializedATN.DecisionToState))
+	for index, ds := range deserializedATN.DecisionToState {
+		decisionToDFA[index] = antlr.NewDFA(ds, index)
+	}
 	this.BaseParser = antlr.NewBaseParser(input)
 
 	this.Interpreter = antlr.NewParserATNSimulator(this, deserializedATN, decisionToDFA, antlr.NewPredictionContextCache())
@@ -234,6 +235,9 @@ func (s *MatchSrcContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) MatchSrc() (localctx IMatchSrcContext) {
+	this := p
+	_ = this
+
 	localctx = NewMatchSrcContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 0, TrafficClassParserRULE_matchSrc)
 
@@ -337,6 +341,9 @@ func (s *MatchDstContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) MatchDst() (localctx IMatchDstContext) {
+	this := p
+	_ = this
+
 	localctx = NewMatchDstContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 2, TrafficClassParserRULE_matchDst)
 
@@ -444,6 +451,9 @@ func (s *MatchDSCPContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) MatchDSCP() (localctx IMatchDSCPContext) {
+	this := p
+	_ = this
+
 	localctx = NewMatchDSCPContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 4, TrafficClassParserRULE_matchDSCP)
 	var _la int
@@ -559,6 +569,9 @@ func (s *MatchTOSContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) MatchTOS() (localctx IMatchTOSContext) {
+	this := p
+	_ = this
+
 	localctx = NewMatchTOSContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 6, TrafficClassParserRULE_matchTOS)
 	var _la int
@@ -670,6 +683,9 @@ func (s *MatchProtocolContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) MatchProtocol() (localctx IMatchProtocolContext) {
+	this := p
+	_ = this
+
 	localctx = NewMatchProtocolContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 8, TrafficClassParserRULE_matchProtocol)
 
@@ -773,6 +789,9 @@ func (s *MatchSrcPortContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) MatchSrcPort() (localctx IMatchSrcPortContext) {
+	this := p
+	_ = this
+
 	localctx = NewMatchSrcPortContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 10, TrafficClassParserRULE_matchSrcPort)
 
@@ -880,6 +899,9 @@ func (s *MatchSrcPortRangeContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) MatchSrcPortRange() (localctx IMatchSrcPortRangeContext) {
+	this := p
+	_ = this
+
 	localctx = NewMatchSrcPortRangeContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 12, TrafficClassParserRULE_matchSrcPortRange)
 
@@ -991,6 +1013,9 @@ func (s *MatchDstPortContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) MatchDstPort() (localctx IMatchDstPortContext) {
+	this := p
+	_ = this
+
 	localctx = NewMatchDstPortContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 14, TrafficClassParserRULE_matchDstPort)
 
@@ -1098,6 +1123,9 @@ func (s *MatchDstPortRangeContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) MatchDstPortRange() (localctx IMatchDstPortRangeContext) {
+	this := p
+	_ = this
+
 	localctx = NewMatchDstPortRangeContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 16, TrafficClassParserRULE_matchDstPortRange)
 
@@ -1205,6 +1233,9 @@ func (s *CondClsContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) CondCls() (localctx ICondClsContext) {
+	this := p
+	_ = this
+
 	localctx = NewCondClsContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 18, TrafficClassParserRULE_condCls)
 
@@ -1323,6 +1354,9 @@ func (s *CondAnyContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) CondAny() (localctx ICondAnyContext) {
+	this := p
+	_ = this
+
 	localctx = NewCondAnyContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 20, TrafficClassParserRULE_condAny)
 	var _la int
@@ -1468,6 +1502,9 @@ func (s *CondAllContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) CondAll() (localctx ICondAllContext) {
+	this := p
+	_ = this
+
 	localctx = NewCondAllContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 22, TrafficClassParserRULE_condAll)
 	var _la int
@@ -1600,6 +1637,9 @@ func (s *CondNotContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) CondNot() (localctx ICondNotContext) {
+	this := p
+	_ = this
+
 	localctx = NewCondNotContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 24, TrafficClassParserRULE_condNot)
 
@@ -1703,6 +1743,9 @@ func (s *CondBoolContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) CondBool() (localctx ICondBoolContext) {
+	this := p
+	_ = this
+
 	localctx = NewCondBoolContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 26, TrafficClassParserRULE_condBool)
 	var _la int
@@ -1856,6 +1899,9 @@ func (s *CondIPv4Context) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) CondIPv4() (localctx ICondIPv4Context) {
+	this := p
+	_ = this
+
 	localctx = NewCondIPv4Context(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 28, TrafficClassParserRULE_condIPv4)
 
@@ -2020,6 +2066,9 @@ func (s *CondPortContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) CondPort() (localctx ICondPortContext) {
+	this := p
+	_ = this
+
 	localctx = NewCondPortContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 30, TrafficClassParserRULE_condPort)
 
@@ -2204,6 +2253,9 @@ func (s *CondContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) Cond() (localctx ICondContext) {
+	this := p
+	_ = this
+
 	localctx = NewCondContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 32, TrafficClassParserRULE_cond)
 
@@ -2356,6 +2408,9 @@ func (s *TrafficClassContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) TrafficClass() (localctx ITrafficClassContext) {
+	this := p
+	_ = this
+
 	localctx = NewTrafficClassContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 34, TrafficClassParserRULE_trafficClass)
 

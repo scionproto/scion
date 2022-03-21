@@ -18,7 +18,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/scionproto/scion/go/lib/log/testlog"
+	"github.com/scionproto/scion/pkg/log/testlog"
 )
 
 func TestMain(m *testing.M) {

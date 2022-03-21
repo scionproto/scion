@@ -20,7 +20,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/pkg/router/bfd"
+	"github.com/scionproto/scion/router/bfd"
 )
 
 func TestTransition(t *testing.T) {

@@ -6,11 +6,11 @@ go_library(
         "ctrl.go",
         "metrics.go",
     ],
-    importpath = "github.com/scionproto/scion/go/pkg/router/control/internal/metrics",
-    visibility = ["//go/pkg/router/control:__subpackages__"],
+    importpath = "github.com/scionproto/scion/router/control/internal/metrics",
+    visibility = ["//router/control:__subpackages__"],
     deps = [
-        "//go/lib/common:go_default_library",
-        "//go/lib/prom:go_default_library",
+        "//pkg/private/common:go_default_library",
+        "//pkg/private/prom:go_default_library",
         "@com_github_prometheus_client_golang//prometheus:go_default_library",
     ],
 )
@@ -20,6 +20,6 @@ go_test(
     srcs = ["metrics_test.go"],
     deps = [
         ":go_default_library",
-        "//go/lib/prom/promtest:go_default_library",
+        "//pkg/private/prom/promtest:go_default_library",
     ],
 )

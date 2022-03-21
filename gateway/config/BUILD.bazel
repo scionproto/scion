@@ -1,0 +1,31 @@
+load("//lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "config.go",
+        "sample.go",
+    ],
+    importpath = "github.com/scionproto/scion/gateway/config",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/log:go_default_library",
+        "//private/config:go_default_library",
+        "//private/env:go_default_library",
+        "//private/mgmtapi:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["config_test.go"],
+    deps = [
+        ":go_default_library",
+        "//gateway/config/configtest:go_default_library",
+        "//pkg/log/logtest:go_default_library",
+        "//private/env/envtest:go_default_library",
+        "//private/mgmtapi/mgmtapitest:go_default_library",
+        "@com_github_pelletier_go_toml//:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+    ],
+)

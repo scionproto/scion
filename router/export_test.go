@@ -19,8 +19,8 @@ import (
 
 	"golang.org/x/net/ipv4"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/private/topology"
 )
 
 var NewServices = newServices

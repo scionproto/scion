@@ -1,0 +1,34 @@
+load("//lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["metrics.go"],
+    importpath = "github.com/scionproto/scion/private/storage/beacon/metrics",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//control/beacon:go_default_library",
+        "//pkg/addr:go_default_library",
+        "//pkg/metrics:go_default_library",
+        "//pkg/private/prom:go_default_library",
+        "//private/storage:go_default_library",
+        "//private/storage/beacon:go_default_library",
+        "//private/storage/db:go_default_library",
+        "//private/tracing:go_default_library",
+        "@com_github_opentracing_opentracing_go//:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["metrics_test.go"],
+    deps = [
+        ":go_default_library",
+        "//pkg/metrics:go_default_library",
+        "//pkg/private/xtest:go_default_library",
+        "//private/storage:go_default_library",
+        "//private/storage/beacon:go_default_library",
+        "//private/storage/beacon/dbtest:go_default_library",
+        "//private/storage/beacon/sqlite:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)

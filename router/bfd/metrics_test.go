@@ -19,20 +19,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	promtest "github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/log/testlog"
-	"github.com/scionproto/scion/go/lib/metrics"
-	"github.com/scionproto/scion/go/pkg/router/bfd"
+	"github.com/scionproto/scion/pkg/log/testlog"
+	"github.com/scionproto/scion/router/bfd"
 )
 
 func TestMetrics(t *testing.T) {
 	// We only instrument session A
-	packetsSent := metrics.NewTestCounter()
-	packetsReceived := metrics.NewTestCounter()
-	up := metrics.NewTestGauge()
-	stateChanges := metrics.NewTestCounter()
+	packetsSent := prometheus.NewCounter(prometheus.CounterOpts{Name: "packets_sent"})
+	packetsReceived := prometheus.NewCounter(prometheus.CounterOpts{Name: "packets_received"})
+	up := prometheus.NewGauge(prometheus.GaugeOpts{Name: "up"})
+	stateChanges := prometheus.NewCounter(prometheus.CounterOpts{Name: "state_changes"})
 
 	sessionA := &bfd.Session{
 		DetectMult:            1,
@@ -58,8 +59,8 @@ func TestMetrics(t *testing.T) {
 		ReceiveQueueSize:      10,
 	}
 
-	linkAToB := &redirectSender{Destination: sessionB.Messages()}
-	linkBToA := &redirectSender{Destination: sessionA.Messages()}
+	linkAToB := &redirectSender{Destination: sessionB}
+	linkBToA := &redirectSender{Destination: sessionA}
 	sessionA.Sender = linkAToB
 	sessionB.Sender = linkBToA
 
@@ -88,18 +89,18 @@ func TestMetrics(t *testing.T) {
 	// Negotiation of send interval should yield 50 millis, with jitter adjusment that can be as
 	// fast as 37.5 millis, so that gives an upper bound of approximately 27 packets and lower bound
 	// of 10. For flakyness, we expect between 5 and 27.
-	betweenOrEqual(t, 5.0, 27.0, metrics.CounterValue(packetsSent))
-	betweenOrEqual(t, 5.0, 27.0, metrics.CounterValue(packetsReceived))
-	assert.Equal(t, 1.0, metrics.GaugeValue(up))
-	assert.Greater(t, metrics.CounterValue(stateChanges), 0.0)
+	betweenOrEqual(t, 5.0, 27.0, promtest.ToFloat64(packetsSent))
+	betweenOrEqual(t, 5.0, 27.0, promtest.ToFloat64(packetsReceived))
+	assert.Equal(t, 1.0, promtest.ToFloat64(up))
+	assert.Greater(t, promtest.ToFloat64(stateChanges), 0.0)
 
-	changes := metrics.CounterValue(stateChanges)
+	changes := promtest.ToFloat64(stateChanges)
 	linkAToB.Sending(false)
 	linkBToA.Sending(false)
 	time.Sleep(2 * time.Second)
 
-	assert.Equal(t, 0.0, metrics.GaugeValue(up))
-	assert.Greater(t, metrics.CounterValue(stateChanges), changes)
+	assert.Equal(t, 0.0, promtest.ToFloat64(up))
+	assert.Greater(t, promtest.ToFloat64(stateChanges), changes)
 
 	linkAToB.Close()
 	linkBToA.Close()

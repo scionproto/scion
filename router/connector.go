@@ -18,13 +18,13 @@ import (
 	"net"
 	"sync"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/lib/underlay/conn"
-	"github.com/scionproto/scion/go/pkg/router/control"
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/private/topology"
+	"github.com/scionproto/scion/private/underlay/conn"
+	"github.com/scionproto/scion/router/control"
 )
 
 // receiveBufferSize is the size of receive buffers used by the router.

@@ -14,7 +14,7 @@
 
 package bfd_test
 
-import "github.com/scionproto/scion/go/pkg/router/bfd"
+import "github.com/scionproto/scion/router/bfd"
 
 type sessionTestCase struct {
 	sessionA       *bfd.Session
