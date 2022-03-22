@@ -11,7 +11,7 @@ jobs:
       - name: Checkout the scion repository
         uses: actions/checkout@v2
 
-      - name: Verify all Gobra files
+      - name: Verify specified files
         uses: viperproject/gobra-action@main
         with:
           globalTimeout: 2h
