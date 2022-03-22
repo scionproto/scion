@@ -1,0 +1,18 @@
+name: Verify the specified codebase
+
+on:
+  # push: # run this workflow on every push
+  pull_request: # run this workflow on every pull_request
+
+jobs:
+  setup-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the scion repository
+        uses: actions/checkout@v2
+
+      - name: Verify all Gobra files
+        uses: viperproject/gobra-action@main
+        with:
+          globalTimeout: 2h
+          packageTimeout: 1h
