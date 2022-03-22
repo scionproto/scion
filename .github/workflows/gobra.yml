@@ -16,3 +16,5 @@ jobs:
         with:
           globalTimeout: 2h
           packageTimeout: 1h
+          packages:
+            - path
