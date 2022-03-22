@@ -1,7 +1,7 @@
 name: Verify the specified codebase
 
 on:
-  # push: # run this workflow on every push
+  push: # run this workflow on every push
   pull_request: # run this workflow on every pull_request
 
 jobs:
