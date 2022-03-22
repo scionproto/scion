@@ -120,7 +120,7 @@ specifying the --subject flag and the expected subject identifier (distinguished
 		fmt.Sprintf("type of cert (%s) (required)", strings.Join(getTypes(), "|")),
 	)
 	cmd.Flags().StringVar(&flags.subject, "subject", "",
-		fmt.Sprintf("subject of the certificate"),
+		"subject of the certificate",
 	)
 	cmd.Flags().BoolVar(&flags.checkTime, "check-time", false,
 		"Check that the certificate covers the current time.",
