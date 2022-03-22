@@ -110,10 +110,13 @@ func TestVerify(t *testing.T) {
 			ErrAssertion: require.NoError,
 		},
 		"base-ISD-mismatch": {
-			Files:        []string{"./testdata/admin/ISD1-B1-S1.trc"},
-			Anchor:       "./testdata/admin/ISD1-B1-S1.trc",
+			Files:        []string{filepath.Join(dir, "non-descript-linked.trc")},
+			Anchor:       filepath.Join(dir, "non-descript-linked.trc"),
 			ISD:          10,
-			Prepare:      func(*testing.T) {},
+			Prepare:      func(*testing.T) {
+				err := os.Symlink("./testdata/admin/ISD1-B1-S1.trc", filepath.Join(dir, "non-descript-linked.trc"))
+				require.NoError(t, err)
+			},
 			ErrAssertion: require.Error,
 		},
 	}
