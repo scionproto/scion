@@ -173,7 +173,7 @@ func validateCert(
 	return ct, nil
 }
 
-func validateSubject(certs []*x509.Certificate, subjectIdentifier string) error {
+func validateSubject(certs []*x509.Certificate, expectedSubject string) error {
 	if len(certs) != 1 {
 		return serrors.New("can only validate the subject of exactly one certificate")
 	}
@@ -185,9 +185,9 @@ func validateSubject(certs []*x509.Certificate, subjectIdentifier string) error 
 			break
 		}
 	}
-	if certSubjectASID != subjectIdentifier {
+	if certSubjectASID != expectedSubject {
 		return serrors.New("wrong distinguished name in certificate subject",
-			"expected", subjectIdentifier,
+			"expected", expectedSubject,
 			"actual", certSubjectASID)
 	}
 	return nil
