@@ -63,7 +63,7 @@ func TestValidate(t *testing.T) {
 			Validation: func(*testing.T) {
 				certs, err := cppki.ReadPEMCerts("./testdata/inspect/sample_certificate.pem")
 				require.NoError(t, err)
-				err = validateSubject([]*x509.Certificate{certs[0]}, "1-ff00:0:110")
+				err = validateSubject(certs[0], "1-ff00:0:110")
 				require.NoError(t, err)
 			},
 		},
@@ -71,7 +71,7 @@ func TestValidate(t *testing.T) {
 			Validation: func(*testing.T) {
 				certs, err := cppki.ReadPEMCerts("./testdata/inspect/sample_certificate.pem")
 				require.NoError(t, err)
-				err = validateSubject([]*x509.Certificate{certs[0]}, "0-0")
+				err = validateSubject(certs[0], "0-0")
 				require.Error(t, err)
 			},
 		},

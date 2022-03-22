@@ -55,8 +55,9 @@ the output.
 By default, the command does not check that the certificate is in its validity
 period. This can be enabled by specifying the --check-time flag.
 
-If a single certificate is validated, the subject identified by the certificate can be validated by
-specifying the --subject flag and the expected subject identifier (distinguished name IA).
+The subject identified by the certificate (or in the case of a certificate chain,
+the leaf certificate) can be validated by specifying the --subject flag and
+the expected subject identifier (distinguished name IA).
 `,
 		Example: fmt.Sprintf(`  %[1]s validate --type cp-root /tmp/certs/cp-root.crt
   %[1]s validate --type any /tmp/certs/cp-root.crt`, pather.CommandPath()),
@@ -90,11 +91,6 @@ specifying the --subject flag and the expected subject identifier (distinguished
 				}
 			}
 			if flags.certType == "chain" || len(certs) != 1 && flags.certType == "any" {
-				if flags.subject != "" {
-					return serrors.New(
-						fmt.Sprintf("invalid subject flag for certificate type %s", flags.certType),
-						"subject", flags.subject)
-				}
 				if err := validateChain(certs); err != nil {
 					return err
 				}
@@ -105,12 +101,12 @@ specifying the --subject flag and the expected subject identifier (distinguished
 				if err != nil {
 					return err
 				}
-				if flags.subject != "" {
-					if err := validateSubject(certs, flags.subject); err != nil {
-						return err
-					}
-				}
 				fmt.Printf("Valid %s certificate: %q\n", ct, filename)
+			}
+			if flags.subject != "" {
+				if err := validateSubject(certs[len(certs)-1], flags.subject); err != nil {
+					return err
+				}
 			}
 			return nil
 		},
@@ -173,13 +169,10 @@ func validateCert(
 	return ct, nil
 }
 
-func validateSubject(certs []*x509.Certificate, expectedSubject string) error {
-	if len(certs) != 1 {
-		return serrors.New("can only validate the subject of exactly one certificate")
-	}
+func validateSubject(cert *x509.Certificate, expectedSubject string) error {
 	// Check certificate Distinguished Name
 	certSubjectASID := ""
-	for _, dn := range certs[0].Subject.Names {
+	for _, dn := range cert.Subject.Names {
 		if dn.Type.Equal(cppki.OIDNameIA) {
 			certSubjectASID = dn.Value.(string)
 			break
