@@ -1,5 +1,5 @@
 load("@pip3_deps//:requirements.bzl", "requirement")
-load("//lint:py.bzl", "py_library", "py_test")
+load("//tools/lint:py.bzl", "py_library", "py_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -39,7 +39,7 @@ py_library(
         requirement("plumbum"),
         requirement("toml"),
         "log",
-        "//python/lib:scion_addr",
+        "//tools/topology:py_default_library",
     ],
 )
 

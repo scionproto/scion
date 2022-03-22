@@ -23,8 +23,7 @@ from collections import defaultdict
 from plumbum import cli, local
 from typing import Dict, List, NamedTuple
 
-from python.lib.types import LinkType
-from python.topology.topo import LinkEP, TopoID
+from topology.topo import LinkEP, LinkType, TopoID
 
 graph_fmt = """digraph topo {{
 \tnode [margin=0.2]
@@ -78,7 +77,7 @@ class TopoDot(cli.Application):
 class Link(NamedTuple):
     a: LinkEP
     b: LinkEP
-    type: str
+    type: LinkType
 
 
 def topodot(topofile) -> str:
@@ -135,7 +134,8 @@ def topo_links(topo_config) -> List[Link]:
     return [
         Link(a=LinkEP(link['a']),
              b=LinkEP(link['b']),
-             type=link['linkAtoB'].lower()) for link in topo_config['links']
+             type=LinkType[link['linkAtoB'].upper()])
+        for link in topo_config['links']
     ]
 
 

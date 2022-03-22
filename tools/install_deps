@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -e
+
+BASE=$(dirname "$0")
+
+"$BASE/env/debian/deps"
+"$BASE/env/pip3/deps"
