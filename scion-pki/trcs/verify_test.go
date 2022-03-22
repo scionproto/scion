@@ -92,14 +92,14 @@ func TestVerify(t *testing.T) {
 			ErrAssertion: require.NoError,
 		},
 		"base-verify-ISD": {
-			Files:  []string{"./testdata/admin/non-descript.trc"},
-			Anchor: "./testdata/admin/non-descript.trc",
+			Files:  []string{"./testdata/admin/ISD1-B1-S1.trc"},
+			Anchor: filepath.Join(dir, "non-descript.trc"),
 			ISD:    1,
 			Prepare: func(*testing.T) {
 				src, err := os.Open("./testdata/admin/ISD1-B1-S1.trc")
 				defer src.Close()
 				require.NoError(t, err)
-				dst, err := os.Create("./testdata/admin/non-descript.trc")
+				dst, err := os.Create(filepath.Join(dir, "non-descript.trc"))
 				defer dst.Close()
 				require.NoError(t, err)
 				_, err = io.Copy(dst, src)
