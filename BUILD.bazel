@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@bazel_gazelle//:def.bzl", "gazelle")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@io_bazel_rules_go//go:def.bzl", "nogo")
@@ -34,6 +35,19 @@ flake8_lint_config(
     visibility = [
         "//visibility:public",
     ],
+)
+
+# Add a build flag to enable bundling the management API documentation with the
+# binaries. This can be enabled by passing --//:mgmtapi_bundle_doc=true when
+# invoking bazel
+bool_flag(
+    name = "mgmtapi_bundle_doc",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "mgmtapi_bundle_doc_build",
+    flag_values = {":mgmtapi_bundle_doc": "true"},
 )
 
 # This is the SCION distributable package. It contains all (binary) services,
