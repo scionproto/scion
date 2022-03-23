@@ -92,30 +92,23 @@ func TestVerify(t *testing.T) {
 			ErrAssertion: require.NoError,
 		},
 		"base-verify-ISD": {
-			Files:  []string{"./testdata/admin/ISD1-B1-S1.trc"},
+			Files:  []string{filepath.Join(dir, "non-descript.trc")},
 			Anchor: filepath.Join(dir, "non-descript.trc"),
 			ISD:    1,
 			Prepare: func(*testing.T) {
-				src, err := os.Open("./testdata/admin/ISD1-B1-S1.trc")
-				defer src.Close()
-				require.NoError(t, err)
-				dst, err := os.Create(filepath.Join(dir, "non-descript.trc"))
-				defer dst.Close()
-				require.NoError(t, err)
-				_, err = io.Copy(dst, src)
-				require.NoError(t, err)
-				err = dst.Sync()
+				err := copyFile(filepath.Join(dir, "non-descript.trc"),
+					"./testdata/admin/ISD1-B1-S1.trc")
 				require.NoError(t, err)
 			},
 			ErrAssertion: require.NoError,
 		},
 		"base-ISD-mismatch": {
-			Files:  []string{filepath.Join(dir, "non-descript-linked.trc")},
+			Files:  []string{filepath.Join(dir, "non-descript-2dashes.trc")},
 			Anchor: filepath.Join(dir, "non-descript-linked.trc"),
 			ISD:    10,
 			Prepare: func(*testing.T) {
-				err := os.Symlink("./testdata/admin/ISD1-B1-S1.trc",
-					filepath.Join(dir, "non-descript-linked.trc"))
+				err := copyFile(filepath.Join(dir, "non-descript-2dashes.trc"),
+					"./testdata/admin/ISD1-B1-S1.trc")
 				require.NoError(t, err)
 			},
 			ErrAssertion: require.Error,
@@ -128,4 +121,23 @@ func TestVerify(t *testing.T) {
 			tc.ErrAssertion(t, err)
 		})
 	}
+}
+
+func copyFile(dst, src string) error {
+	sFile, err := os.Open(src)
+	defer sFile.Close()
+	if err != nil {
+		return err
+	}
+	dFile, err := os.Create(dst)
+	defer dFile.Close()
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(dFile, sFile)
+	if err != nil {
+		return err
+	}
+	err = dFile.Sync()
+	return err
 }
