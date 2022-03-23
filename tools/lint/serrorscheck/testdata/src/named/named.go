@@ -31,9 +31,9 @@ func fakeImportIgnored() {
 	serrors.Wrap(errWrap, errBase, "key")
 }
 
-func valid() {
-	errors.New("some error", "key", value, "key", value)
-	errors.WithCtx(errBase, "key", value, "key", value)
-	errors.Wrap(errWrap, errBase, "key", value, "key", value)
-	errors.WrapStr("wrap", errBase, "key", value, "key", value)
+func invalid() {
+	errors.New("some error", "key")        // want `context should be even: len=1 ctx=\["key"\]`
+	errors.WithCtx(errBase, "key")         // want `context should be even: len=1 ctx=\["key"\]`
+	errors.Wrap(errWrap, errBase, "key")   // want `context should be even: len=1 ctx=\["key"\]`
+	errors.WrapStr("wrap", errBase, "key") // want `context should be even: len=1 ctx=\["key"\]`
 }

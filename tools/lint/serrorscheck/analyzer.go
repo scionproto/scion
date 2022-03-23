@@ -15,13 +15,17 @@
 package serrorscheck
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 
 	"github.com/scionproto/scion/tools/lint"
 )
+
+var importPath = "github.com/scionproto/scion/pkg/private/serrors"
 
 // Analyzer checks all calls on the serrors package.
 var Analyzer = &analysis.Analyzer{
@@ -33,7 +37,7 @@ var Analyzer = &analysis.Analyzer{
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	for _, file := range pass.Files {
-		tgtPkg, ok := lint.FindPackageNames(file)["github.com/scionproto/scion/pkg/private/serrors"]
+		_, ok := lint.FindPackageNames(file)[importPath]
 		if !ok {
 			continue
 		}
@@ -47,10 +51,13 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			if !ok {
 				return true
 			}
-			pkg, ok := se.X.(*ast.Ident)
-			if !ok || pkg.Name != tgtPkg {
+
+			pkgIdent, _ := se.X.(*ast.Ident)
+			pkgName, ok := pass.TypesInfo.Uses[pkgIdent].(*types.PkgName)
+			if !ok || pkgName.Imported().Path() != importPath {
 				return true
 			}
+
 			var varargs []ast.Expr
 			switch se.Sel.Name {
 			case "New":
@@ -100,8 +107,34 @@ func run(pass *analysis.Pass) (interface{}, error) {
 					lint.Render(pass.Fset, ce),
 				)
 			}
+			seen := map[string]bool{}
+			for i := 0; i < len(varargs); i += 2 {
+				lit := varargs[i]
+				k := litKey(lit)
+				if !seen[k] {
+					seen[k] = true
+					continue
+				}
+				pass.Reportf(
+					lit.Pos(),
+					"duplicate key in context: name=%q expr=%q",
+					lint.Render(pass.Fset, lit),
+					lint.Render(pass.Fset, ce),
+				)
+			}
 			return true
 		})
 	}
 	return nil, nil
+}
+
+func litKey(lit ast.Expr) string {
+	switch v := lit.(type) {
+	case *ast.BasicLit:
+		return v.Value
+	case *ast.Ident:
+		return v.Name
+	default:
+		return fmt.Sprint(lit)
+	}
 }

@@ -15,13 +15,17 @@
 package logctxcheck
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 
 	"github.com/scionproto/scion/tools/lint"
 )
+
+var importPath = "github.com/scionproto/scion/pkg/log"
 
 // Analyzer checks all calls on the log package.
 var Analyzer = &analysis.Analyzer{
@@ -33,8 +37,7 @@ var Analyzer = &analysis.Analyzer{
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	for _, file := range pass.Files {
-		tgtPkg, ok := lint.FindPackageNames(file)["github.com/scionproto/scion/pkg/log"]
-		if !ok {
+		if _, ok := lint.FindPackageNames(file)[importPath]; !ok {
 			continue
 		}
 
@@ -47,16 +50,19 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			if !ok {
 				return true
 			}
-			if !isTarget(se, tgtPkg) {
+
+			if !isTarget(pass, se) {
 				return true
 			}
 			var varargs []ast.Expr
 			switch se.Sel.Name {
-			case "Debug", "Info", "Warn", "Error", "Crit":
+			case "Debug", "Info", "Error":
 				if len(ce.Args) < 2 {
 					return true
 				}
 				varargs = ce.Args[1:]
+			case "New":
+				varargs = ce.Args
 			}
 			// We cannot check if varargs with ellipsis.
 			if ce.Ellipsis != token.NoPos {
@@ -84,57 +90,46 @@ func run(pass *analysis.Pass) (interface{}, error) {
 					lint.Render(pass.Fset, ce),
 				)
 			}
+			seen := map[string]bool{}
+			for i := 0; i < len(varargs); i += 2 {
+				lit := varargs[i]
+				k := litKey(lit)
+				if !seen[k] {
+					seen[k] = true
+					continue
+				}
+				pass.Reportf(
+					lit.Pos(),
+					"duplicate key in context: name=%q expr=%q",
+					lint.Render(pass.Fset, lit),
+					lint.Render(pass.Fset, ce),
+				)
+			}
 			return true
 		})
 	}
 	return nil, nil
 }
 
-func isTarget(se *ast.SelectorExpr, tgtPkg string) bool {
-	switch x := se.X.(type) {
-	case *ast.Ident:
-		if x.Name == tgtPkg && x.Obj == nil {
-			return true
-		}
-		if x.Obj == nil {
-			return false
-		}
-		decl, ok := x.Obj.Decl.(*ast.AssignStmt)
-		if !ok {
-			return false
-		}
-		for _, data := range decl.Rhs {
-			if loggerConstructor(data, tgtPkg) {
-				return true
-			}
-		}
-		return false
-	case *ast.CallExpr:
-		return loggerConstructor(x, tgtPkg)
-	default:
-		return false
-	}
-}
-
-func loggerConstructor(exp ast.Expr, tgtPkg string) bool {
-	ce, ok := exp.(*ast.CallExpr)
-	if !ok {
-		return false
-	}
-	se, ok := ce.Fun.(*ast.SelectorExpr)
-	if !ok {
-		return false
-	}
-	id, ok := se.X.(*ast.Ident)
-	if !ok {
-		return false
-	}
-	if id.Name != tgtPkg {
-		return false
-	}
-	switch se.Sel.Name {
-	case "FromCtx", "New", "Root":
+func isTarget(pass *analysis.Pass, se *ast.SelectorExpr) bool {
+	pkgIdent, _ := se.X.(*ast.Ident)
+	pkgName, ok := pass.TypesInfo.Uses[pkgIdent].(*types.PkgName)
+	if ok && pkgName.Imported().Path() == importPath {
 		return true
 	}
+	if typ := pass.TypesInfo.TypeOf(se.X); typ != nil {
+		return typ.String() == importPath+".Logger"
+	}
 	return false
+}
+
+func litKey(lit ast.Expr) string {
+	switch v := lit.(type) {
+	case *ast.BasicLit:
+		return v.Value
+	case *ast.Ident:
+		return v.Name
+	default:
+		return fmt.Sprint(lit)
+	}
 }

@@ -26,7 +26,7 @@ func fakeImportIgnored() {
 	log.Error("messsage", nil)
 }
 
-func valid() {
+func invalid() {
 	slog.Debug("message", "key")  // want `context should be even: len=1 ctx=\["key"\]`
 	slog.Info("message", "key")   // want `context should be even: len=1 ctx=\["key"\]`
 	slog.Error("messsage", "key") // want `context should be even: len=1 ctx=\["key"\]`

@@ -37,10 +37,10 @@ func validParity() {
 	serrors.Wrap(errWrap, errBase, "key", value)
 	serrors.WrapStr("wrap", errBase, "key", value)
 
-	serrors.New("some error", "key", value, "key", value)
-	serrors.WithCtx(errBase, "key", value, "key", value)
-	serrors.Wrap(errWrap, errBase, "key", value, "key", value)
-	serrors.WrapStr("wrap", errBase, "key", value, "key", value)
+	serrors.New("some error", "key", value, "key1", value)
+	serrors.WithCtx(errBase, "key", value, "key1", value)
+	serrors.Wrap(errWrap, errBase, "key", value, "key1", value)
+	serrors.WrapStr("wrap", errBase, "key", value, "key1", value)
 }
 
 func validTypes() {
@@ -55,10 +55,10 @@ func invalidParity() {
 	serrors.Wrap(errWrap, errBase, "key")   // want `context should be even: len=1 ctx=\["key"\]`
 	serrors.WrapStr("wrap", errBase, "key") // want `context should be even: len=1 ctx=\["key"\]`
 
-	serrors.New("some error", "key", value, "key")        // want `context should be even: len=3 ctx=\["key",value,"key"\]`
-	serrors.WithCtx(errBase, "key", value, "key")         // want `context should be even: len=3 ctx=\["key",value,"key"\]`
-	serrors.Wrap(errWrap, errBase, "key", value, "key")   // want `context should be even: len=3 ctx=\["key",value,"key"\]`
-	serrors.WrapStr("wrap", errBase, "key", value, "key") // want `context should be even: len=3 ctx=\["key",value,"key"\]`
+	serrors.New("some error", "key", value, "key1")        // want `context should be even: len=3 ctx=\["key",value,"key1"\]`
+	serrors.WithCtx(errBase, "key", value, "key1")         // want `context should be even: len=3 ctx=\["key",value,"key1"\]`
+	serrors.Wrap(errWrap, errBase, "key", value, "key1")   // want `context should be even: len=3 ctx=\["key",value,"key1"\]`
+	serrors.WrapStr("wrap", errBase, "key", value, "key1") // want `context should be even: len=3 ctx=\["key",value,"key1"\]`
 }
 
 func invalidType() {
@@ -70,6 +70,13 @@ func invalidType() {
 
 func noCtx() {
 	serrors.WithCtx(errBase) // want `context is missing:`
+}
+
+func duplicateKey() {
+	serrors.New("some error", "key", value, "key", value)        // want `duplicate key in context:`
+	serrors.WithCtx(errBase, "key", value, "key", value)         // want `duplicate key in context:`
+	serrors.Wrap(errWrap, errBase, "key", value, "key", value)   // want `duplicate key in context:`
+	serrors.WrapStr("wrap", errBase, "key", value, "key", value) // want `duplicate key in context:`
 }
 
 type key string
