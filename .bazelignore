@@ -1,3 +1,4 @@
 bin
 docker/_build
 rules_openapi/tools/node_modules
+tools/lint/logctxcheck/testdata/src
