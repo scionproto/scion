@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2022 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,6 +27,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/app/command"
@@ -33,8 +35,9 @@ import (
 
 func newVerifyCmd(pather command.Pather) *cobra.Command {
 	var flags struct {
-		trcFiles []string
-		unixTime int64
+		trcFiles  []string
+		unixTime  int64
+		subjectIA string
 	}
 
 	cmd := &cobra.Command{
@@ -44,6 +47,11 @@ func newVerifyCmd(pather command.Pather) *cobra.Command {
 
 The chain must be a PEM bundle with the AS certificate first, and the CA
 certificate second.
+
+The ISD-AS property of the subject identified by the certificate
+(or in the case of a certificate chain, the leaf certificate)
+can be validated by specifying the --subjectIA flag and
+the expected ISD-AS value.
 `,
 		Example: fmt.Sprintf(
 			`  %[1]s verify --trc ISD1-B1-S1.trc,ISD1-B1-S2.trc ISD1-ASff00_0_110.pem
@@ -54,7 +62,7 @@ certificate second.
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 			chain, err := cppki.ReadPEMCerts(args[0])
-			if err != nil {
+			if err != nil || len(chain) == 0 {
 				return serrors.WrapStr("reading chain", err, "file", args[0])
 			}
 			trcs, err := loadTRCs(flags.trcFiles)
@@ -71,6 +79,20 @@ certificate second.
 				opts.CurrentTime = time.Unix(flags.unixTime, 0)
 			}
 
+			if flags.subjectIA != "" {
+				expectedSubjectIA, err := addr.ParseIA(flags.subjectIA)
+				if err != nil {
+					return serrors.New("invalid ISD-AS provided for the ISD-AS property check",
+						"err", err)
+				}
+				certSubjectASID, err := cppki.ExtractIA(chain[0].Subject)
+				if certSubjectASID != expectedSubjectIA {
+					return serrors.New("ISD-AS property not matching the subject "+
+						"in the leaf certificate",
+						"expected", expectedSubjectIA,
+						"actual", certSubjectASID)
+				}
+			}
 			if err := cppki.VerifyChain(chain, opts); err != nil {
 				return serrors.WrapStr("verification failed", err)
 			}
@@ -87,6 +109,9 @@ certificate second.
 	)
 	cmd.Flags().Int64Var(&flags.unixTime, "currenttime", 0,
 		"Optional unix timestamp that sets the current time",
+	)
+	cmd.Flags().StringVar(&flags.subjectIA, "subjectIA", "",
+		"ISD-AS property of the subject of the certificate",
 	)
 	cmd.MarkFlagRequired("trc")
 
