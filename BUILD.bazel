@@ -15,6 +15,7 @@ load("@cgrindel_bazel_starlib//updatesrc:defs.bzl", "updatesrc_update_all")
 # gazelle:exclude proto/**
 # gazelle:exclude doc/**
 # gazelle:exclude rules_openapi/tools/node_modules/**
+# gazelle:exclude tools/lint/**/testdata/src/**
 gazelle(name = "gazelle")
 
 go_lint_config(
