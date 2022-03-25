@@ -60,15 +60,16 @@ func newSignCmd(pather command.Pather) *cobra.Command {
 		Long: `'sign' creates a certificate based on a certificate signing request (CSR).
 
 The command takes the following positional arguments:
+
 - <csr-file> is the file path where the PEM-encoded certificate signing request is located.
 
 By default, the command creates a SCION control-plane PKI AS certificate. Another
-certificate type can be selected by providing the --profile flag. If a certificate
-chain is desired, specify the --bundle flag.
+certificate type can be selected by providing the \--profile flag. If a certificate
+chain is desired, specify the \--bundle flag.
 
-The --ca and --ca-key flags are required.
+The \--ca and \--ca-key flags are required.
 
-The --not-before and --not-after flags can either be a timestamp or a relative
+The \--not-before and \--not-after flags can either be a timestamp or a relative
 time offset from the current time.
 
 A timestamp can be provided in two different formats: unix timestamp and
@@ -78,8 +79,8 @@ seconds after the 12th hour of June 26th, 2021 in UTC.
 The relative time offset can be formated as a time duration string with the
 following units: y, w, d, h, m, s. Negative offsets are also allowed. For
 example, -1h indicates the time of tool invocation minus one hour. Note that
---not-after is relative to the current time if a relative time offset is used,
-and not to --not-before.
+\--not-after is relative to the current time if a relative time offset is used,
+and not to \--not-before.
 `,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

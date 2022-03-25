@@ -130,4 +130,8 @@ buildifier(
 # Runs all update_src targets in this Workspace.
 updatesrc_update_all(
     name = "update_all",
+    targets_to_run = [
+        "//doc/command:copy_scion",
+        "//doc/command:copy_scion-pki",
+    ],
 )

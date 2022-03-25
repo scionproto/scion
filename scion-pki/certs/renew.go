@@ -66,7 +66,7 @@ const (
   }
 
 All configurable fields with their type are defined by the following JSON
-schema. For more information on JSON schemas, see https://json-schema.org/.
+schema::
 
   {
     "type": "object",
@@ -84,6 +84,8 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
     },
     "required": ["isd_as"]
   }
+
+For more information on JSON schemas, see https://json-schema.org/.
 `
 )
 
@@ -148,10 +150,10 @@ The provided <chain-file> and <key-file> are used to sign the CSR. They must be
 valid and verifiable by the CA in order for the request to be served.
 
 The renewed certificate chain is requested with a fresh private key, unless the
---reuse-key flag is set.
+\--reuse-key flag is set.
 
 By default, the target CA for the request is extracted from the certificate
-chain that is renewed. To select a different CA, you can specify the --ca flag
+chain that is renewed. To select a different CA, you can specify the \--ca flag
 with one or multiple target CAs. If multiple CAs are specified, they are tried
 in the order that they are declared until the first successful certificate
 chain renewal. If none of the declared CAs issued a verifiable certificate chain,
@@ -164,18 +166,18 @@ the '<CA>.unverified' suffix, where CA is the ISD-AS number of the CA AS that
 issued the unverifiable certificate chain.
 
 The resulting certificate chain is written to the file system, either to
-<chain-file> or to --out, if specified.
+<chain-file> or to \--out, if specified.
 
 The fresh private key is is written to the file stystem, either to <key-file>
-or to --out-key, if specified.
+or to \--out-key, if specified.
 
 Files are not allowed to be overwritten, by default. Either you have to specify
-the --out and --out-key flags explicitly, or specify the --force or --backup
-flags. In case the --backup flag is set, every file that would be overwritten is
+the \--out and \--out-key flags explicitly, or specify the \--force or \--backup
+flags. In case the \--backup flag is set, every file that would be overwritten is
 renamed to contain a local execution time timestamp before the file extension.
 E.g., <filename-base>.<YYYY-MM-DD-HH-MM-SS>.<filename-ext>.
 
-This command supports the --expires-in flag in order for it to be run in a
+This command supports the \--expires-in flag in order for it to be run in a
 periodic task runner (e.g., cronjob). The flag indicates the acceptable remaining
 time before certificate expiration. If the remaining time is larger or equal to
 the specified value, the command immediately exits with code zero. If the
@@ -190,7 +192,7 @@ has three quarters of its validity period until it expires.
 Unless a subject template is specified, the subject of the existing certificate
 chain is used as the subject for the renewal request.
 
-The template is expressed in JSON. A valid example:
+The template is expressed in JSON. A valid example::
 ` + subjectHelp,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {

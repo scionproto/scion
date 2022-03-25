@@ -46,7 +46,7 @@ func newFormatCmd(pather command.Pather) *cobra.Command {
 The PEM type for a TRC is 'TRC', and for a TRC payload it is 'TRC PAYLOAD'.
 
 By default, the output is PEM encoded. DER format can be requested by providing
-'der' in the --format flag. When selecting DER output, ensure stdout is
+'der' in the \--format flag. When selecting DER output, ensure stdout is
 redirected to a file because the raw characters might mess up the terminal.
 `,
 		Args: cobra.ExactArgs(1),
