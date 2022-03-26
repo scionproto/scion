@@ -12,7 +12,7 @@ go_library(
     srcs = ["tools.go"],
     importpath = "github.com/scionproto/scion/tools",
     visibility = ["//visibility:public"],
-    deps = ["@com_github_google_go_containerregistry//cmd/registry:go_default_library"],
+    deps = ["@com_github_google_go_containerregistry//cmd/registry:registry_lib"],
 )
 
 py_binary(
