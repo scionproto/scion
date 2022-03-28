@@ -35,7 +35,6 @@ func newValidateCmd(pather command.Pather) *cobra.Command {
 	now := time.Now()
 	var flags struct {
 		certType    string
-		subject     string
 		checkTime   bool
 		currentTime flag.Time
 	}
@@ -54,10 +53,6 @@ the output.
 
 By default, the command does not check that the certificate is in its validity
 period. This can be enabled by specifying the --check-time flag.
-
-The subject identified by the certificate (or in the case of a certificate chain,
-the leaf certificate) can be validated by specifying the --subject flag and
-the expected subject identifier (distinguished name IA).
 `,
 		Example: fmt.Sprintf(`  %[1]s validate --type cp-root /tmp/certs/cp-root.crt
   %[1]s validate --type any /tmp/certs/cp-root.crt`, pather.CommandPath()),
@@ -103,20 +98,12 @@ the expected subject identifier (distinguished name IA).
 				}
 				fmt.Printf("Valid %s certificate: %q\n", ct, filename)
 			}
-			if flags.subject != "" {
-				if err := validateSubject(certs[len(certs)-1], flags.subject); err != nil {
-					return err
-				}
-			}
 			return nil
 		},
 	}
 
 	cmd.Flags().StringVar(&flags.certType, "type", "",
 		fmt.Sprintf("type of cert (%s) (required)", strings.Join(getTypes(), "|")),
-	)
-	cmd.Flags().StringVar(&flags.subject, "subject", "",
-		"subject of the certificate",
 	)
 	cmd.Flags().BoolVar(&flags.checkTime, "check-time", false,
 		"Check that the certificate covers the current time.",
@@ -167,23 +154,6 @@ func validateCert(
 		checkAlgorithm(cert)
 	}
 	return ct, nil
-}
-
-func validateSubject(cert *x509.Certificate, expectedSubject string) error {
-	// Check certificate Distinguished Name
-	certSubjectASID := ""
-	for _, dn := range cert.Subject.Names {
-		if dn.Type.Equal(cppki.OIDNameIA) {
-			certSubjectASID = dn.Value.(string)
-			break
-		}
-	}
-	if certSubjectASID != expectedSubject {
-		return serrors.New("wrong distinguished name in certificate subject",
-			"expected", expectedSubject,
-			"actual", certSubjectASID)
-	}
-	return nil
 }
 
 func checkAlgorithm(cert *x509.Certificate) {
