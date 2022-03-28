@@ -58,4 +58,8 @@ def raw_test(
         data = data,
         tags = tags + ["integration", "exclusive"],
         local = local,
+        env = {
+            # Ensure output appears immediately (in particular with --test_output=streamed)
+            "PYTHONUNBUFFERED": "1",
+        },
     )
