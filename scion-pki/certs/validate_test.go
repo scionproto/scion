@@ -59,22 +59,6 @@ func TestValidate(t *testing.T) {
 				require.Error(t, err)
 			},
 		},
-		"matching subject": {
-			Validation: func(*testing.T) {
-				certs, err := cppki.ReadPEMCerts("./testdata/inspect/sample_certificate.pem")
-				require.NoError(t, err)
-				err = validateSubject(certs[0], "1-ff00:0:110")
-				require.NoError(t, err)
-			},
-		},
-		"mismatching subject": {
-			Validation: func(*testing.T) {
-				certs, err := cppki.ReadPEMCerts("./testdata/inspect/sample_certificate.pem")
-				require.NoError(t, err)
-				err = validateSubject(certs[0], "0-0")
-				require.Error(t, err)
-			},
-		},
 	}
 	t.Parallel()
 	for name, tc := range testCases {
