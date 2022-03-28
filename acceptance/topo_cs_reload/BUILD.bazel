@@ -23,7 +23,10 @@ go_test(
         "//acceptance/topo_common:topology",
         "//scion-pki/cmd/scion-pki",
     ],
-    tags = ["integration"],
+    tags = [
+        "exclusive",
+        "integration",
+    ],
     deps = [
         "//pkg/private/xtest:go_default_library",
         "//private/topology:go_default_library",
