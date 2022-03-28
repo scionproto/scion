@@ -47,7 +47,7 @@ gen_acceptance() {
 # args:
 #   -1: the bazel directory in which the tests are.
 gen_bazel_test_steps() {
-    targets="$(bazel query "attr(tags, integration, tests(${1}/...)) except attr(tags, lint, tests(${1}/...))" 2>/dev/null)"
+    targets="$(bazel query "attr(tags, integration, tests(${1}/...)) except attr(tags, \"lint|manual\", tests(${1}/...))" 2>/dev/null)"
     for test in $targets; do
         name=${test#"$1/"}
         skip=false
