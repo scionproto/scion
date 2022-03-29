@@ -42,6 +42,7 @@ var (
 )
 
 func TestPSTopoReload(t *testing.T) {
+	// BUG(matzf): teardown is not called when setup fails. Rewrite with T.Cleanup and T.Tempdir
 	s := setupTest(t)
 	defer s.teardownTest(t)
 
