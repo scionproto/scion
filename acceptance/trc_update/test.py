@@ -25,9 +25,9 @@ from typing import List
 from plumbum import local
 from plumbum.path.local import LocalPath
 
-from acceptance.common.base import CmdBase, TestBase, TestState, set_name
+from acceptance.common import base
+from acceptance.common.base import TestBase, TestState, set_name
 from acceptance.common.docker import Compose
-from acceptance.common.log import LogExec, init_log
 from acceptance.common.scion import SCIONDocker
 
 
@@ -51,31 +51,27 @@ class Test(TestBase):
       6. Restart control servers and check connectivity again.
     """
 
-
-@Test.subcommand('setup')
-class TestSetup(CmdBase):
-    @LogExec(logger, 'setup')
     def main(self):
-        # XXX(roosd): In IPv6, the http endpoints are not accessible.
-        self.scion.topology('topology/tiny4.topo')
-        self.scion.run()
-        if not self.no_docker:
-            self.tools_dc('start', 'tester*')
-            self.docker_status()
+        if not self.nested_command:
+            try:
+                self.setup()
+                # Give some time for the topology to start.
+                time.sleep(10)
+                self._run()
+            finally:
+                self.teardown()
 
-
-@Test.subcommand('run')
-class TestRun(CmdBase):
-    @LogExec(logger, 'run')
-    def main(self):
-        cs_configs = local.path('gen') // 'AS*/cs*.toml'
+    def _run(self):
+        artifacts = self.test_state.artifacts
+        cs_configs = artifacts // 'gen/AS*/cs*.toml'
 
         logger.info('==> Generate TRC update')
-        local['./bin/scion-pki']('testcrypto', 'update', '-o', 'gen')
+        scion_pki = local[self.test_state.executable("scion-pki")]
+        scion_pki('testcrypto', 'update', '-o', artifacts / 'gen')
 
         target = 'gen/ASff00_0_110/crypto/as'
         logger.info('==> Copy to %s' % target)
-        local['cp']('gen/trcs/ISD1-B1-S2.trc', target)
+        local['cp'](artifacts / 'gen/trcs/ISD1-B1-S2.trc', artifacts / target)
 
         logger.info('==> Wait for authoritative core to pick up the TRC update')
         time.sleep(10)
@@ -84,20 +80,26 @@ class TestRun(CmdBase):
         self._check_update_received(cs_configs)
 
         logger.info("==> Check connectivity")
-        self.scion.run_end2end()
+        end2end = local[self.test_state.executable("end2end_integration")]
+        end2end("-d", "-outDir", artifacts)
 
         logger.info('==> Shutting down control servers and purging caches')
+        cs_services = self.list_containers(".*_cs.*")
+        for cs in cs_services:
+            self.stop_container(cs)
+
         for cs_config in cs_configs:
-            files = local.path('gen-cache') // ('%s*' % cs_config.stem)
+            files = artifacts // ('gen-cache/%s*' % cs_config.stem)
             for db_file in files:
                 db_file.delete()
             logger.info('Deleted files: %s' % [file.name for file in files])
 
-        self.scion.run()
+        for cs in cs_services:
+            self.start_container(cs)
         time.sleep(5)
 
         logger.info('==> Check connectivity')
-        self.scion.run_end2end()
+        end2end("-d", "-outDir", artifacts)
 
     def _check_update_received(self, cs_configs: List[LocalPath]):
         not_ready = []
@@ -117,7 +119,7 @@ class TestRun(CmdBase):
                 pld = json.loads(resp.read().decode('utf-8'))
                 if pld['trc_id']['serial_number'] != 2:
                     continue
-                logger.info('Control server received TRC update: %s' % rel(cs_config))
+                logger.info('Control server received TRC update: %s' % self._rel(cs_config))
                 not_ready.remove(cs_config)
             if not not_ready:
                 break
@@ -132,12 +134,11 @@ class TestRun(CmdBase):
             cfg = toml.load(f)
             return cfg['metrics']['prometheus']
 
-
-def rel(path: LocalPath):
-    return path.relative_to(local.path('.'))
+    def _rel(self, path):
+        return path.relative_to(self.test_state.artifacts)
 
 
 if __name__ == '__main__':
-    init_log()
+    base.register_commands(Test)
     Test.test_state = TestState(SCIONDocker(), Compose())
     Test.run()
