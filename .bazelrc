@@ -1,7 +1,10 @@
-### common options for all subcommands (query, build, ...)
+### common options for all subcommands (help, query, build, ...)
 common --show_timestamps
 # connect to buchgr/bazel-remote cache
-common --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092
+# These flags can unfortunately not be specified for `common`, as they are not accepted by all subcommands (help, version, dump)
+build --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092
+query --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092
+fetch --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092
 
 ### options for build, test, run, clean, etc.
 # expose git version (etc) to bazel
