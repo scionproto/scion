@@ -1,4 +1,4 @@
-load("//lint:go.bzl", "go_library", "go_test")
+load("//tools/lint:go.bzl", "go_library", "go_test")
 
 filegroup(
     name = "testdata",

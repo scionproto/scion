@@ -1,4 +1,4 @@
-load("//lint:py.bzl", "py_binary", "py_library", "py_test")
+load("//tools/lint:py.bzl", "py_binary", "py_library", "py_test")
 load("@pip3_deps//:requirements.bzl", "requirement")
 
 def topogen_test(
@@ -47,13 +47,13 @@ def topogen_test(
 
     common_args = [
         "--executables=scion-pki:$(location //scion-pki/cmd/scion-pki)",
-        "--executables=topogen:$(location //python/topology:topogen)",
+        "--executables=topogen:$(location //tools:topogen)",
         "--topo=$(location %s)" % topo,
         "--setup-params='%s'" % setup_params,
     ]
     common_data = [
         "//scion-pki/cmd/scion-pki",
-        "//python/topology:topogen",
+        "//tools:topogen",
         "//tools:docker_ip",
         topo,
     ]

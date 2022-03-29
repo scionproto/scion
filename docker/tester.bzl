@@ -1,5 +1,5 @@
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
-load("@io_bazel_rules_docker//container:container.bzl", "container_bundle", "container_image")
+load("@io_bazel_rules_docker//container:container.bzl", "container_image")
 load("@io_bazel_rules_docker//docker/package_managers:download_pkgs.bzl", "download_pkgs")
 load("@io_bazel_rules_docker//docker/package_managers:install_pkgs.bzl", "install_pkgs")
 
@@ -42,9 +42,9 @@ def build_tester_image():
     pkg_tar(
         name = "integration",
         srcs = [
-            "//integration:bin_wrapper.sh",
+            "//tools/integration:bin_wrapper.sh",
         ],
-        package_dir = "integration",
+        package_dir = "tools/integration",
     )
 
     pkg_tar(

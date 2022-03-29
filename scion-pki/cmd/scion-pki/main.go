@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -27,6 +28,11 @@ import (
 	"github.com/scionproto/scion/scion-pki/testcrypto"
 	"github.com/scionproto/scion/scion-pki/trcs"
 )
+
+// CommandPather returns the path to a command.
+type CommandPather interface {
+	CommandPath() string
+}
 
 func main() {
 	executable := filepath.Base(os.Args[0])
@@ -50,7 +56,20 @@ func main() {
 		certs.Cmd(cmd),
 		trcs.Cmd(cmd),
 		testcrypto.Cmd(cmd),
+		newGendocs(cmd),
 	)
+	// This Templatefunc allows use some escape characters for the rst
+	// documentation conversion without compromising the readability of the help
+	// text in the CLI.
+	cobra.AddTemplateFunc("removeEscape", func(s string) string {
+		s = strings.ReplaceAll(s, "::", ":")
+		s = strings.ReplaceAll(s, "\\-", "-")
+		return s
+	})
+
+	cmd.SetHelpTemplate(`{{with (or .Long .Short)}}{{. | trimTrailingWhitespaces | removeEscape}}
+
+{{end}}{{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`)
 
 	if err := cmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err)

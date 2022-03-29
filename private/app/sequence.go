@@ -27,23 +27,29 @@ and both IF elements independently.
 
 HopPredicate Examples:
 
-  Match any:                               0
-  Match ISD 1:                             1
-  Match AS 1-ff00:0:133:                   1-ff00:0:133
-  Match IF 2 of AS 1-ff00:0:133:           1-ff00:0:133#2
-  Match inbound IF 2 of AS 1-ff00:0:133:   1-ff00:0:133#2,0
-  Match outbound IF 2 of AS 1-ff00:0:133:  1-ff00:0:133#0,2
+======================================== ==================
+ Match any:                               0
+ Match ISD 1:                             1
+ Match AS 1-ff00:0:133:                   1-ff00:0:133
+ Match IF 2 of AS 1-ff00:0:133:           1-ff00:0:133#2
+ Match inbound IF 2 of AS 1-ff00:0:133:   1-ff00:0:133#2,0
+ Match outbound IF 2 of AS 1-ff00:0:133:  1-ff00:0:133#0,2
+======================================== ==================
 
 Sequence Examples:
 
-  sequence: "1-ff00:0:133#0 1-ff00:0:120#2,1 0 0 1-ff00:0:110#0"
+========== ====================================================
+ sequence: "1-ff00:0:133#0 1-ff00:0:120#2,1 0 0 1-ff00:0:110#0"
+========== ====================================================
 
 The above example specifies a path from any interface in AS 1-ff00:0:133 to
 two subsequent interfaces in AS 1-ff00:0:120 (entering on interface 2 and
 exiting on interface 1), then there are two wildcards that each match any AS.
 The path must end with any interface in AS 1-ff00:0:110.
 
-  sequence: "1-ff00:0:133#1 1+ 2-ff00:0:1? 2-ff00:0:233#1"
+========== ====================================================
+ sequence: "1-ff00:0:133#1 1+ 2-ff00:0:1? 2-ff00:0:233#1"
+========== ====================================================
 
 The above example includes operators and specifies a path from interface
 1-ff00:0:133#1 through multiple ASes in ISD 1, that may (but does not need to)
@@ -51,10 +57,11 @@ traverse AS 2-ff00:0:1 and then reaches its destination on 2-ff00:0:233#1.
 
 Available operators:
 
-  ? (the preceding HopPredicate may appear at most once)
-  + (the preceding ISD-level HopPredicate must appear at least once)
-  * (the preceding ISD-level HopPredicate may appear zero or more times)
-  | (logical OR)
-
+====== ====================================================================
+  ?     (the preceding HopPredicate may appear at most once)
+  \+    (the preceding ISD-level HopPredicate must appear at least once)
+  \*    (the preceding ISD-level HopPredicate may appear zero or more times)
+  \|    (logical OR)
+====== ====================================================================
 `
 )

@@ -83,7 +83,7 @@ load("@rules_python//python:pip.bzl", "pip_install")
 
 pip_install(
     name = "pip3_deps",
-    requirements = "//env/pip3:requirements.txt",
+    requirements = "//tools/env/pip3:requirements.txt",
 )
 
 http_archive(
@@ -250,7 +250,7 @@ load("//:bbcp.bzl", "bbcp_repository")
 
 bbcp_repository()
 
-load("//lint/private/python:deps.bzl", "python_lint_deps")
+load("//tools/lint/python:deps.bzl", "python_lint_deps")
 
 python_lint_deps()
 

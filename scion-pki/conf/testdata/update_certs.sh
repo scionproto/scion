@@ -2,7 +2,7 @@
 
 set -ueo pipefail
 
-PLAYGROUND=$(pwd)/../../../scripts/cryptoplayground
+PLAYGROUND=$(pwd)/../../../tools/cryptoplayground
 PUBDIR="$SAFEDIR"
 KEYDIR="$SAFEDIR"
 
