@@ -31,8 +31,8 @@ import (
 )
 
 func TestSDTopoReload(t *testing.T) {
-	setupTest(t)
 	defer teardownTest(t)
+	setupTest(t)
 
 	// first load the topo files to memory for comparison.
 	origTopo, err := topology.RWTopologyFromJSONFile("../topo_common/topology.json")
