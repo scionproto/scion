@@ -216,7 +216,10 @@ class TestBase(cli.Application):
         """Starts the docker containers in the topology.
         """
         print(self.test_state.dc("up", "-d"))
-        print(self.test_state.dc("ps"))
+        ps = self.test_state.dc("ps")
+        print(ps)
+        if re.search(r"Exit\s+[1-9]\d*", ps):
+            raise Exception("Failed services.\n" + ps)
 
     def teardown(self):
         out_dir = self.test_state.artifacts / "logs"
