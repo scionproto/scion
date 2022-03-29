@@ -1,0 +1,11 @@
+load("//acceptance/common:topogen.bzl", "topogen_test")
+
+topogen_test(
+    name = "test",
+    src = "test.py",
+    args = [
+        "--executables=end2end_integration:$(location //tools/end2end_integration)",
+    ],
+    data = ["//tools/end2end_integration"],
+    topo = "//topology:tiny4.topo",
+)
