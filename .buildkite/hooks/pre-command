@@ -12,10 +12,6 @@ sudo sysctl -w net.core.rmem_max=1048576
 
 echo "--- Setting up bazel environment"
 
-# ACCEPTANCE_ARTIFACTS is used for acceptance tests built with the "old"
-# acceptance framework
-export ACCEPTANCE_ARTIFACTS=/tmp/test-artifacts
-
 if [ -z ${BAZEL_REMOTE_S3_ACCESS_KEY_ID+x} ]; then
     echo "S3 env not set, not starting bazel remote proxy"
     exit 0
