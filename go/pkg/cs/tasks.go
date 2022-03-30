@@ -95,7 +95,7 @@ func (t *TasksConfig) Originator() *periodic.Runner {
 	if t.Metrics != nil {
 		s.Originated = metrics.NewPromCounter(t.Metrics.BeaconingOriginatedTotal)
 	}
-	return periodic.Start(s, 500*time.Millisecond, t.OriginationInterval)
+	return periodic.Start(s, 2000*time.Millisecond, t.OriginationInterval)
 }
 
 // Propagator starts a periodic beacon propagation task.
@@ -117,7 +117,8 @@ func (t *TasksConfig) Propagator() *periodic.Runner {
 		p.Propagated = metrics.NewPromCounter(t.Metrics.BeaconingPropagatedTotal)
 		p.InternalErrors = metrics.NewPromCounter(t.Metrics.BeaconingPropagatorInternalErrorsTotal)
 	}
-	return periodic.Start(p, 500*time.Millisecond, t.PropagationInterval)
+	return periodic.Start(p, 2000*time.Millisecond, t.PropagationInterval)
+	// return periodic.Start(p, 500*time.Millisecond, t.PropagationInterval)
 }
 
 // SegmentWriters starts periodic segment registration tasks.
