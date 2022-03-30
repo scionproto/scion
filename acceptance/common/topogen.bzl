@@ -41,16 +41,16 @@ def topogen_test(
         visibility = ["//visibility:public"],
     )
 
-    setup_params = " "
-    if gateway:
-        setup_params += " --sig"
 
     common_args = [
         "--executables=scion-pki:$(location //scion-pki/cmd/scion-pki)",
         "--executables=topogen:$(location //tools:topogen)",
         "--topo=$(location %s)" % topo,
-        "--setup-params='%s'" % setup_params,
+
     ]
+    if gateway:
+        common_args += ["--setup-params='--sig'"]
+
     common_data = [
         "//scion-pki/cmd/scion-pki",
         "//tools:topogen",

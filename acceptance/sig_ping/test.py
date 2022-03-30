@@ -15,41 +15,23 @@
 # limitations under the License.
 
 import time
-
-import plumbum
-
 from acceptance.common import base
-from acceptance.common import docker
-from acceptance.common import scion
 
 
-class Test(base.TestBase):
+class Test(base.TestTopogen):
     """
     Tests that IP pinging between Gateways works.
     """
-    gateway_acceptance = plumbum.cli.SwitchAttr("gateway_acceptance", str,
-                                                default="./bin/sig_ping_acceptance",
-                                                help="The gateway ping acceptance binary" +
-                                                " (default: ./bin/sig_ping_acceptance)")
-
-    def main(self):
-        if not self.nested_command:
-            try:
-                self.setup()
-                time.sleep(20)
-                self._run()
-            finally:
-                self.teardown()
 
     def _run(self):
-        ping_test = plumbum.local[self.gateway_acceptance]
+        time.sleep(20)
+
+        ping_test = self.get_executable("sig_ping_acceptance")
 
         print("Running ping test")
-        print(ping_test("-d", "-outDir", self.test_state.artifacts))
+        ping_test["-d", "-outDir", self.artifacts].run_fg()
         print("Ping done")
 
 
 if __name__ == "__main__":
-    base.register_commands(Test)
-    Test.test_state = base.TestState(scion.SCIONDocker(), docker.Compose())
-    Test.run()
+    base.main(Test)

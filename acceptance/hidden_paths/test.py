@@ -9,11 +9,10 @@ import threading
 from plumbum import cmd
 
 from acceptance.common import base
-from acceptance.common import docker
 from acceptance.common import scion
 
 
-class Test(base.TestBase):
+class Test(base.TestTopogen):
     """
     Constructs a simple Hidden Paths topology with one core, four leaf ASes and
     two hidden path groups.
@@ -46,15 +45,6 @@ class Test(base.TestBase):
       Expect no connectivity:
         AS3 <-> AS4 (Group ff00:0:2-3 to group ff00:0:2-4)
     """
-
-    def main(self):
-        if not self.nested_command:
-            try:
-                self.setup()
-                time.sleep(20)
-                self._run()
-            finally:
-                self.teardown()
 
     def setup(self):
         self.setup_prepare()
@@ -95,18 +85,18 @@ class Test(base.TestBase):
             hp_config_url = "http://%s:%d/acceptance/hidden_paths/testdata/%s" % (
                 server_ips[as_number], http_server_port, hp_configs[as_number])
 
-            daemon_path = self.test_state.artifacts / "gen" / ("ASff00_0_%s" % as_number) \
+            daemon_path = self.artifacts / "gen" / ("ASff00_0_%s" % as_number) \
                 / "sd.toml"
             scion.update_toml({"sd.hidden_path_groups": hp_config_url}, [daemon_path])
 
             control_id = "cs1-ff00_0_%s-1" % as_number
-            control_path = self.test_state.artifacts / "gen" / ("ASff00_0_%s" % as_number) \
+            control_path = self.artifacts / "gen" / ("ASff00_0_%s" % as_number) \
                 / ("%s.toml" % control_id)
             scion.update_toml({"path.hidden_paths_cfg": hp_config_url}, [control_path])
 
             # For simplicity, expose the services in all hidden paths ASes,
             # even though some don't need the registration service.
-            as_dir_path = self.test_state.artifacts / "gen" / ("ASff00_0_%s" % as_number)
+            as_dir_path = self.artifacts / "gen" / ("ASff00_0_%s" % as_number)
 
             topology_update = {
                 "hidden_segment_lookup_service.%s.addr" % control_id:
@@ -171,6 +161,4 @@ def configuration_server(server):
 
 
 if __name__ == "__main__":
-    base.register_commands(Test)
-    Test.test_state = base.TestState(scion.SCIONDocker(), docker.Compose())
-    Test.run()
+    base.main(Test)
