@@ -90,7 +90,9 @@ func (b *PqaMemoryBackend) GetNBestsForGroup(
 	for _, bcnId := range bcnIds {
 		bcn, err := b.Beacons.GetBeaconById(ctx, bcnId)
 		if err != nil {
-			return nil, err
+			log.FromCtx(ctx).Error("No beacon found for beacon id", "id", bcnId, "error", err)
+			continue
+			// return nil, err
 		}
 		bcnCandidates = append(bcnCandidates, *bcn)
 	}
@@ -142,11 +144,11 @@ func (b *PqaMemoryBackend) GetNBestsForGroup(
 	sort.Slice(bcnCandidates, less)
 
 	// Debug: Show beacon metrics
-	logger := log.FromCtx(ctx)
-	logger.Debug("Beacon metrics:")
-	for i, bcn := range bcnCandidates {
-		logger.Debug("Metric", "beacon index", i, "metric", target.GetMetric(ctx, bcn), "quality", target.Quality)
-	}
+	// logger := log.FromCtx(ctx)
+	// logger.Debug("Beacon metrics:")
+	// for i, bcn := range bcnCandidates {
+	// 	logger.Debug("Metric", "beacon index", i, "metric", target.GetMetric(ctx, bcn), "quality", target.Quality)
+	// }
 
 	// Return up to the first n beacons
 	if len(bcnCandidates) > pqa_extension.N {
