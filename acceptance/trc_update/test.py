@@ -26,16 +26,11 @@ from plumbum import local
 from plumbum.path.local import LocalPath
 
 from acceptance.common import base
-from acceptance.common.base import TestBase, TestState, set_name
-from acceptance.common.docker import Compose
-from acceptance.common.scion import SCIONDocker
 
-
-set_name(__file__)
 logger = logging.getLogger(__name__)
 
 
-class Test(TestBase):
+class Test(base.TestTopogen):
     """
     Test that in a topology with multiple ASes, every AS notices TRC updates
     through the beaconing process. The test verifies that each AS receives
@@ -51,23 +46,16 @@ class Test(TestBase):
       6. Restart control servers and check connectivity again.
     """
 
-    def main(self):
-        if not self.nested_command:
-            try:
-                self.setup()
-                # Give some time for the topology to start.
-                time.sleep(10)
-                self._run()
-            finally:
-                self.teardown()
-
     def _run(self):
-        artifacts = self.test_state.artifacts
+        # Give some time for the topology to start.
+        time.sleep(10)
+
+        artifacts = self.artifacts
         cs_configs = artifacts // 'gen/AS*/cs*.toml'
 
         logger.info('==> Generate TRC update')
-        scion_pki = local[self.test_state.executable("scion-pki")]
-        scion_pki('testcrypto', 'update', '-o', artifacts / 'gen')
+        scion_pki = self.get_executable("scion-pki")
+        scion_pki['testcrypto', 'update', '-o', artifacts / 'gen'].run_fg()
 
         target = 'gen/ASff00_0_110/crypto/as'
         logger.info('==> Copy to %s' % target)
@@ -80,8 +68,8 @@ class Test(TestBase):
         self._check_update_received(cs_configs)
 
         logger.info("==> Check connectivity")
-        end2end = local[self.test_state.executable("end2end_integration")]
-        end2end("-d", "-outDir", artifacts)
+        end2end = self.get_executable("end2end_integration")
+        end2end["-d", "-outDir", artifacts].run_fg()
 
         logger.info('==> Shutting down control servers and purging caches')
         cs_services = self.list_containers(".*_cs.*")
@@ -135,10 +123,8 @@ class Test(TestBase):
             return cfg['metrics']['prometheus']
 
     def _rel(self, path):
-        return path.relative_to(self.test_state.artifacts)
+        return path.relative_to(self.artifacts)
 
 
 if __name__ == '__main__':
-    base.register_commands(Test)
-    Test.test_state = TestState(SCIONDocker(), Compose())
-    Test.run()
+    base.main(Test)

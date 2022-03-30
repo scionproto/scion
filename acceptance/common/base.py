@@ -14,231 +14,171 @@
 
 import logging
 import os
-import subprocess
 import re
-import webbrowser
+import traceback
 from typing import List
-from typing import Type
 
 from plumbum import cli
 from plumbum import local
 from plumbum import cmd
-from plumbum import path
+from plumbum import LocalPath
 
 from acceptance.common.docker import Compose
-from acceptance.common.log import LogExec
 from acceptance.common import log
-from acceptance.common.scion import SCION
 
-NAME = "NOT_SET"  # must be set by users of the Base class.
-DIR = "NOT_SET"
 logger = logging.getLogger(__name__)
 
 
-def set_name(file: str):
-    global NAME
-    global DIR
-    DIR = local.path(file).dirname.name
-    NAME = DIR[:-len("_acceptance")]
+@cli.Predicate
+def NameExecutable(arg):
+    parts = arg.split(":")
+    if len(parts) != 2:
+        raise ValueError(arg)
+    name, path = parts
+    executable = local[cli.ExistingFile(path)]
+    return (name, executable)
 
 
-class TestState:
-    """
-    TestState is used to share state between the command
-    and the sub-command.
-    """
-
-    artifacts = None
-
-    def __init__(self, scion: SCION, dc: Compose):
-        """
-        Create new environment state for an execution of the acceptance
-        testing framework. Plumbum subcommands can access this state
-        via the parent to retrieve information about the test environment.
-        """
-
-        self.scion = scion
-        self.dc = dc
-        self.setup_params = []
-        self.executables = []
-        self.topo = ""
-        self.containers_tars = []
-        self.container_loaders = []
-        if "TEST_UNDECLARED_OUTPUTS_DIR" in os.environ:
-            self.artifacts = local.path(
-                os.environ["TEST_UNDECLARED_OUTPUTS_DIR"])
-        else:
-            self.artifacts = local.path("/tmp/artifacts-scion")
-        self.dc.compose_file = self.artifacts / "gen/scion-dc.yml"
-        self.no_docker = False
-        self.tools_dc = local["./tools/dc"]
-
-    def executable(self, name: str) -> str:
-        """Resolve the executable by name.
-
-        If the executable is not in the executables mapping, the return value
-        is './bin/<name>'
-        """
-        for pair in self.executables:
-            executable_name, path = pair.split(":")
-            if executable_name == name:
-                return os.path.abspath(path)
-        return "./bin/" + name
+@cli.Predicate
+def ContainerLoader(arg):
+    parts = arg.split("#")
+    if len(parts) != 2:
+        raise ValueError(arg)
+    tag, path = parts
+    return (tag, cli.ExistingFile(path))
 
 
-class TestBase(cli.Application):
-    """
-    TestBase is used to implement the test entry point. Tests should
-    sub-class it and only define the doc string.
-    """
-    test_state = None  # type: TestState
+class TestBase:
+    # XXX(matzf) should be executable?
+    @cli.switch("executables", NameExecutable, list=True, help="Paths for executables, format name:path")
+    def _set_executables(self, executables):
+        self.executables = {name: executable for (name, executable) in executables}
 
-    @cli.switch("setup-params", str, help="Additional setup parameters")
-    def set_params(self, params: str):
-        self.test_state.setup_params = params.split()
+    container_loaders = cli.SwitchAttr("container_loader", ContainerLoader, list=True,
+                                       help="Container loader, format tag#path")
+    setup_params = cli.SwitchAttr("setup-params", str, list=True,
+                                  help="Additional setup parameters")
 
-    @cli.switch("executables", str, list=True)
-    def executables(self, executables):
-        self.test_state.executables = executables
-
-    @cli.switch("topo", str)
-    def topo(self, topo):
-        self.test_state.topo = topo
-
-    @cli.switch("artifacts",
-                str,
-                envname="ACCEPTANCE_ARTIFACTS",
-                help="Artifacts directory (for legacy tests)")
-    def artifacts_dir(self, a_dir: str):
-        self.test_state.artifacts = local.path("%s/%s/" % (a_dir, NAME))
-
-    @cli.switch("artifacts_dir",
-                str,
-                help="Artifacts directory (for bazel tests)")
-    def artifacts_dir_new(self, a_dir: str):
-        self.test_state.artifacts = local.path(a_dir)
-        self.test_state.dc.compose_file = self.test_state.artifacts / "gen/scion-dc.yml"
-
-    @cli.switch(
-        "containers_tar",
-        str,
-        list=True,
-        help="The tarball with containers, can be repeated",
-    )
-    def containers_tar(self, tars: List):
-        self.test_state.containers_tars = tars
-
-    @cli.switch(
-        "container_loader",
-        str,
-        list=True,
-        help="The container loader, format tag#path",
-    )
-    def container_loader(self, loaders: List[str]):
-        self.test_state.container_loaders = loaders
-
-    @cli.switch("bazel_rule",
-                str,
-                help="The bazel rule that triggered the test")
-    def test_type(self, rule: str):
-        self.test_state.bazel_rule = rule
+    artifacts = cli.SwitchAttr("artifacts-dir",
+                               LocalPath,
+                               envname="TEST_UNDECLARED_OUTPUTS_DIR",
+                               default=LocalPath("/tmp/artifacts-scion"),
+                               help="Directory for test artifacts. " +
+                                    "Environment variable TEST_UNDECLARED_OUTPUTS_DIR")
 
     def setup(self):
         self.setup_prepare()
         self.setup_start()
 
+    def _run(self):
+        pass
+
+    def teardown(self):
+        pass
+
     def setup_prepare(self):
         """Unpacks loads local docker images and generates the topology.
         """
-        # Delete old artifacts, if any.
-        cmd.rm("-rf", self.test_state.artifacts)
-        cmd.mkdir(self.test_state.artifacts)
-        print("artifacts dir: %s" % self.test_state.artifacts)
-        for tar in self.test_state.containers_tars:
-            print(cmd.docker("image", "load", "-i", tar))
-        for loader in self.test_state.container_loaders:
-            parts = loader.split("#")
-            if len(parts) != 2:
-                logger.error("Invalid container loader argument: %s, ignored" % loader)
-                continue
-            tag, script = parts[0], parts[1]
-            o = subprocess.check_output(
-                [script]
-            ).decode("utf-8")
-            idx = o.index("as ")
-            if idx < 0:
-                logger.error("extracting tag from loader script %s" % loader)
-                continue
-            bazel_tag = o[idx+len("as "):].strip()
-            logger.info("docker tag %s %s" % (bazel_tag, tag))
-            subprocess.run(["docker", "tag", bazel_tag, tag], check=True)
+        self._setup_artifacts()
+        self._setup_container_loaders()
         # Define where coredumps will be stored.
         print(
             cmd.docker("run", "--rm", "--privileged", "alpine", "sysctl", "-w",
                        "kernel.core_pattern=/share/coredump"))
+
+    def setup_start(self):
+        pass
+
+    def _setup_artifacts(self):
+        # Delete old artifacts, if any.
+        cmd.rm("-rf", self.artifacts)
+        cmd.mkdir(self.artifacts)
+        print("artifacts dir: %s" % self.artifacts)
+
+    def _setup_container_loaders(self):
+        for tag, script in self.container_loaders:
+            o = local[script]()
+            idx = o.index("as ")
+            if idx < 0:
+                logger.error("extracting tag from loader script %s" % tag)
+                continue
+            bazel_tag = o[idx+len("as "):].strip()
+            logger.info("docker tag %s %s" % (bazel_tag, tag))
+            cmd.docker("tag", bazel_tag, tag)
+
+    def get_executable(self, name: str):
+        """Resolve the executable by name.
+
+        If the executable is not in the executables mapping, the return value
+        is './bin/<name>'
+        """
+        return self.executables.get(name, None) or local["./bin/" + name]
+
+
+class TestTopogen(TestBase):
+    topo = cli.SwitchAttr("topo", cli.ExistingFile, help="Config file for topogen, .topo")
+
+    def setup_prepare(self):
+        self.dc = None
+        super().setup_prepare()
         self._setup_generate()
 
     def _setup_generate(self):
         """Generate the topology"""
         def copy_file(src, dst):
-            subprocess.run(["mkdir", "-p", os.path.dirname(dst)], check=True)
-            subprocess.run(["cp", "-L", src, dst], check=True)
+            cmd.mkdir("-p", os.path.dirname(dst))
+            cmd.cp("-L", src, dst)
 
         copy_file(
-            self.test_state.topo,
-            self.test_state.artifacts + "/topology.json",
+            self.topo,
+            self.artifacts / "topology.json",
         )
         copy_file(
             "tools/docker-ip",
-            self.test_state.artifacts + "/tools/docker-ip",
+            self.artifacts / "tools/docker-ip",
         )
 
-        env = os.environ.copy()
-        spki_path = os.path.dirname(self.test_state.executable("scion-pki"))
-        env["PATH"] = spki_path + ":" + env["PATH"]
-        subprocess.run(
-            [
-                self.test_state.executable("topogen"),
-                "-o=" + self.test_state.artifacts + "/gen",
+        spki_path = os.path.dirname(self.get_executable("scion-pki").executable)
+        path = spki_path + ":" + os.environ["PATH"]
+        with local.cwd(self.artifacts):
+            self.get_executable("topogen").with_env(PATH=path)(
+                "-o=" + self.artifacts + "/gen",
                 "-c=topology.json",
                 "-d",
-                *self.test_state.setup_params,
-            ],
-            check=True,
-            env=env,
-            cwd=self.test_state.artifacts,
-        )
+                *self.setup_params,
+            )
         for support_dir in ["logs", "gen-cache", "gen-data", "traces"]:
-            os.makedirs(self.test_state.artifacts + "/" + support_dir,
+            os.makedirs(self.artifacts / support_dir,
                         exist_ok=True)
 
     def setup_start(self):
         """Starts the docker containers in the topology.
         """
-        print(self.test_state.dc("up", "-d"))
-        ps = self.test_state.dc("ps")
+        self.dc = Compose(compose_file=self.artifacts / "gen/scion-dc.yml")
+        print(self.dc("up", "-d"))
+        ps = self.dc("ps")
         print(ps)
         if re.search(r"Exit\s+[1-9]\d*", ps):
             raise Exception("Failed services.\n" + ps)
 
     def teardown(self):
-        out_dir = self.test_state.artifacts / "logs"
-        self.test_state.dc.collect_logs(out_dir=out_dir)
-        ps = self.test_state.dc("ps")
-        print(self.test_state.dc("down", "-v"))
+        if not self.dc:
+            return
+        out_dir = self.artifacts / "logs"
+        self.dc.collect_logs(out_dir=out_dir)
+        ps = self.dc("ps")
+        print(self.dc("down", "-v"))
         if re.search(r"Exit\s+[1-9]\d*", ps):
             raise Exception("Failed services.\n" + ps)
 
-    def browse(self):
-        webbrowser.open(self.test_state.artifacts / "gen/browse/index.html")
-
+    # XXX(matzf) move all these to Compose
     def start_container(self, container):
         """Starts the container with the specified name.
 
         Args:
             container: the name of the container.
         """
-        print(self.test_state.dc("start", container))
+        print(self.dc("start", container))
 
     def restart_container(self, container):
         """Restarts the container with the specified name.
@@ -246,7 +186,7 @@ class TestBase(cli.Application):
         Args:
             container: the name of the container.
         """
-        print(self.test_state.dc("restart", container))
+        print(self.dc("restart", container))
 
     def stop_container(self, container):
         """Stops the container with specified name.
@@ -254,7 +194,7 @@ class TestBase(cli.Application):
         Args:
             container: the name of the container.
         """
-        print(self.test_state.dc("stop", container))
+        print(self.dc("stop", container))
 
     def list_containers(self, container_pattern: str) -> List[str]:
         """Lists all containers that match the given pattern.
@@ -267,7 +207,7 @@ class TestBase(cli.Application):
             A list of strings with the container names that match the
             container_pattern regex.
         """
-        containers = self.test_state.dc("config", "--services")
+        containers = self.dc("config", "--services")
         matching_containers = []
         for container in containers.splitlines():
             if re.match(container_pattern, container):
@@ -281,7 +221,7 @@ class TestBase(cli.Application):
             container: the name of the container.
             signal: the signal to send
         """
-        print(self.test_state.dc("kill", "-s", signal, container))
+        print(self.dc("kill", "-s", signal, container))
 
     def execute(self, container, *args, **kwargs):
         """Executes an arbitrary command in the specified container.
@@ -295,8 +235,8 @@ class TestBase(cli.Application):
             The output of the command.
         """
         user = kwargs.get("user", "{}:{}".format(os.getuid(), os.getgid()))
-        return self.test_state.dc("exec", "-T", "--user", user, container,
-                                  "timeout", "1m", *args)
+        return self.dc("exec", "-T", "--user", user, container,
+                       "timeout", "1m", *args)
 
     def execute_as_user(self, container, user, *args, **kwargs):
         """Executes an arbitrary command in the specified container.
@@ -310,102 +250,51 @@ class TestBase(cli.Application):
         Returns:
             The output of the command.
         """
-        return self.test_state.dc("exec", "-T", "--user", user, container,
-                                  "timeout", "1m", *args)
+        return self.dc("exec", "-T", "--user", user, container,
+                       "timeout", "1m", *args)
 
 
-class CmdBase(cli.Application):
-    """ CmdBase is used to implement the test sub-commands. """
-    tools_dc = local["./tools/dc"]
-
-    def cmd_dc(self, *args):
-        for line in self.dc(*args).splitlines():
-            print(line)
-
-    def cmd_setup(self):
-        cmd.mkdir("-p", self.artifacts)
-
-    def cmd_teardown(self):
-        if not self.no_docker:
-            self.dc.collect_logs(self.artifacts / "logs" / "docker")
-            self.tools_dc("down")
-        self.scion.stop()
-
-    def _collect_logs(self, name: str):
-        if path.local.LocalPath("gen/%s-dc.yml" % name).exists():
-            self.tools_dc("collect_logs", name,
-                          self.artifacts / "logs" / "docker")
-
-    def _teardown(self, name: str):
-        if path.local.LocalPath("gen/%s-dc.yml" % name).exists():
-            self.tools_dc(name, "down")
-
-    @staticmethod
-    def test_dir(prefix: str = "",
-                 directory: str = "acceptance") -> path.local.LocalPath:
-        return local.path(prefix, directory) / DIR
-
-    @staticmethod
-    def docker_status():
-        logger.info("Docker containers")
-        print(cmd.docker("ps", "-a", "-s"))
-
-    @property
-    def dc(self):
-        return self.parent.test_state.dc
-
-    @property
-    def artifacts(self):
-        return self.parent.test_state.artifacts
-
-    @property
-    def scion(self):
-        return self.parent.test_state.scion
-
-    @property
-    def no_docker(self):
-        return self.parent.test_state.no_docker
-
-
-@TestBase.subcommand("name")
-class TestName(CmdBase):
-    def main(self):
-        print(NAME)
-
-
-@TestBase.subcommand("teardown")
-class TestTeardown(CmdBase):
-    """
-    Teardown topology by stopping all running services..
-    In a dockerized topology, the logs are collected.
-    """
-    @LogExec(logger, "teardown")
-    def main(self):
-        self.cmd_teardown()
-
-
-def register_commands(c: Type[TestBase]):
-    """
-    Registers the default subcommands to the test class c.
-    """
-    class TestSetup(c):
-        def main(self):
-            self.setup()
-
-    class TestRun(c):
-        def main(self):
-            self._run()
-
-    class TestTeardown(c):
-        def main(self):
-            self.teardown()
-
-    class TestBrowse(c):
-        def main(self):
-            self.browse()
-
+def main(test_class):
     log.init_log()
-    c.subcommand("setup", TestSetup)
-    c.subcommand("run", TestRun)
-    c.subcommand("teardown", TestTeardown)
-    c.subcommand("browse", TestBrowse)
+
+    class _TestMain(test_class, cli.Application):
+        def main(self):
+            if self.nested_command:
+                return
+            try:
+                self.setup()
+                self._run()
+            except Exception:
+                traceback.print_exc()
+                return 1
+            finally:
+                self.teardown()
+
+    class _TestSetup(test_class, cli.Application):
+        def main(self):
+            try:
+                self.setup()
+            except Exception:
+                traceback.print_exc()
+                return 1
+
+    class _TestRun(test_class, cli.Application):
+        def main(self):
+            try:
+                self._run()
+            except Exception:
+                traceback.print_exc()
+                return 1
+
+    class _TestTeardown(test_class, cli.Application):
+        def main(self):
+            try:
+                self.teardown()
+            except Exception:
+                traceback.print_exc()
+                return 1
+
+    _TestMain.subcommand("setup", _TestSetup)
+    _TestMain.subcommand("run", _TestRun)
+    _TestMain.subcommand("teardown", _TestTeardown)
+    _TestMain.run()

@@ -12,11 +12,6 @@ with only a doc string. This doc comment used in the output when running the
 command with `--help` flag. Furthermore, a test should have one class per
 sub-command that sub-classes `common.CmdBase` (see below).
 
-`TestBase` registers two flags that also can be set using environment variables:
-
-- `--artifacts/ACCEPTANCE_ARTIFACTS` defines the directory for artifacts
-  (required)
-
 The sub-commands should sub-class `common.CmdBase`. `CmdBase` has defined some
 common properties and methods that are useful for test writing and interacting
 with the infrastructure, such as:
