@@ -77,7 +77,7 @@ func (b *PqaMemoryBackend) GetNBestsForGroup(
 	target pqa.Target,
 	ingressIntfs []*ifstate.Interface,
 	excludeLooping addr.IA,
-) ([]beacon.Beacon, error) {
+) ([]*beacon.Beacon, error) {
 
 	// Get beaconIds that are associated with the target
 	bcnIds := b.Targets.GetBeaconIdsForTarget(ctx, target)
@@ -86,22 +86,17 @@ func (b *PqaMemoryBackend) GetNBestsForGroup(
 	}
 
 	// Get beacons from beacon ids
-	bcnCandidates := make([]beacon.Beacon, 0, len(bcnIds))
-	for _, bcnId := range bcnIds {
-		bcn, err := b.Beacons.GetBeaconById(ctx, bcnId)
-		if err != nil {
-			log.FromCtx(ctx).Error("No beacon found for beacon id", "id", bcnId, "error", err)
-			continue
-			// return nil, err
-		}
-		bcnCandidates = append(bcnCandidates, *bcn)
+	bcnCandidates, err := b.Beacons.GetBeaconsById(ctx, bcnIds)
+	if err != nil {
+		log.FromCtx(ctx).Error("Fetching beacons", "error", err)
+		// return nil, err
 	}
 
 	// BeaconFilter is a predicate function beacons, keep iff true
-	type BeaconFilter func(beacon.Beacon) bool
+	type BeaconFilter func(*beacon.Beacon) bool
 	// applyFilter filters beacons based on a BeaconFilter function
-	applyFilter := func(bcns []beacon.Beacon, filter BeaconFilter) []beacon.Beacon {
-		var filtered []beacon.Beacon
+	applyFilter := func(bcns []*beacon.Beacon, filter BeaconFilter) []*beacon.Beacon {
+		var filtered []*beacon.Beacon
 		for _, bcn := range bcns {
 			if filter(bcn) {
 				filtered = append(filtered, bcn)
@@ -111,7 +106,7 @@ func (b *PqaMemoryBackend) GetNBestsForGroup(
 	}
 
 	// Only keep beacons that entered AS through an interface in ingressIntfs
-	bcnCandidates = applyFilter(bcnCandidates, func(bcn beacon.Beacon) bool {
+	bcnCandidates = applyFilter(bcnCandidates, func(bcn *beacon.Beacon) bool {
 		for _, ingressIntf := range ingressIntfs {
 			ingressIfid := ingressIntf.TopoInfo().ID
 			if ingressIfid == bcn.InIfId {
@@ -122,22 +117,22 @@ func (b *PqaMemoryBackend) GetNBestsForGroup(
 	})
 
 	// Only keep beacons that would not loop if sent to excludeLooping
-	bcnCandidates = applyFilter(bcnCandidates, func(bcn beacon.Beacon) bool {
-		if err := beacon.FilterLoop(bcn, excludeLooping, true); err != nil {
+	bcnCandidates = applyFilter(bcnCandidates, func(bcn *beacon.Beacon) bool {
+		if err := beacon.FilterLoop(*bcn, excludeLooping, true); err != nil {
 			return false
 		}
 		return true
 	})
 
 	// Only keep beacons that return true by ShouldConsider predicate of target
-	bcnCandidates = applyFilter(bcnCandidates, func(bcn beacon.Beacon) bool {
-		return target.ShouldConsider(ctx, bcn)
+	bcnCandidates = applyFilter(bcnCandidates, func(bcn *beacon.Beacon) bool {
+		return target.ShouldConsider(ctx, *bcn)
 	})
 
 	// Compares beacons i.t.o. their metric value for target
 	less := func(l, r int) bool {
 		lBcn, rBcn := bcnCandidates[l], bcnCandidates[r]
-		lMet, rMet := target.GetMetric(ctx, lBcn), target.GetMetric(ctx, rBcn)
+		lMet, rMet := target.GetMetric(ctx, *lBcn), target.GetMetric(ctx, *rBcn)
 		return target.Quality.Less(lMet, rMet)
 	}
 	// Sort beacons by quality metric

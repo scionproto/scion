@@ -32,8 +32,8 @@ func (m Mechanism) getPropagationBatch(ctx context.Context, target Target, egInt
 					return nil, serrors.WrapStr("extending beacons", err, "ingress", ingress, "egress", egress, "seg", bcn.Segment)
 				}
 
-				if target.ShouldConsider(ctx, bcn) {
-					batch = append(batch, bcn)
+				if target.ShouldConsider(ctx, *bcn) {
+					batch = append(batch, *bcn)
 				}
 			}
 		}
@@ -41,7 +41,7 @@ func (m Mechanism) getPropagationBatch(ctx context.Context, target Target, egInt
 	return m.getNBest(ctx, target, batch), nil
 }
 
-func (m Mechanism) getNBestFor(ctx context.Context, src addr.IA, target Target, egIntfG []*ifstate.Interface, neigh addr.IA) []beacon.Beacon {
+func (m Mechanism) getNBestFor(ctx context.Context, src addr.IA, target Target, egIntfG []*ifstate.Interface, neigh addr.IA) []*beacon.Beacon {
 	bcns, err := m.GetNBestsForGroup(ctx, src, target, egIntfG, neigh)
 	if err != nil {
 		log.FromCtx(ctx).Error("getting n-best beacons", "err", err)

@@ -16,5 +16,5 @@ type DB interface {
 	GetActiveTargets(ctx context.Context, src addr.IA) ([]Target, error)
 	// Returns the N best (N global constant in pqa.go) beacons for a given optimization tartget,
 	// leading through some given intfs, and ignoring beacons that would loop if send to a given IA
-	GetNBestsForGroup(ctx context.Context, src addr.IA, target Target, ingresIntfs []*ifstate.Interface, excludeLooping addr.IA) ([]beacon.Beacon, error)
+	GetNBestsForGroup(ctx context.Context, src addr.IA, target Target, ingresIntfs []*ifstate.Interface, excludeLooping addr.IA) ([]*beacon.Beacon, error)
 }

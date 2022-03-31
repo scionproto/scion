@@ -259,34 +259,69 @@ func (e *executor) getBeaconID(ctx context.Context, beacon beacon.Beacon) (int64
 	return meta.RowID, nil
 }
 
-func (e *executor) GetBeaconById(ctx context.Context, id int64) (*beacon.Beacon, error) {
+func (e *executor) GetBeaconsById(ctx context.Context, ids []int64) ([]*beacon.Beacon, error) {
+	// Readlock db
 	e.RLock()
 	defer e.RUnlock()
-	rows, err := e.db.QueryContext(ctx, `
+
+	// Return if ids is empty
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	// Prepare query string with variable argumnts
+	querystr := `
 		SELECT b.Beacon, b.InIntfID
 		FROM Beacons b
-		WHERE b.RowID = ?1
-	`, id)
+		WHERE b.RowID IN (?` + strings.Repeat(",?", len(ids)-1) + `)`
+
+	// Create arguments slice of type []interface{}
+	args := make([]interface{}, len(ids))
+
+	// Convert ids to interface{}, append to args
+	for i := range ids {
+		args = append(args, ids[i])
+	}
+
+	// Execute query
+	rows, err := e.db.QueryContext(ctx, querystr, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	if !rows.Next() {
-		return nil, serrors.New("no beacon found with id", "id", id)
+
+	// Read beacons of each row, append to `beacons` result
+	beacons := make([]*beacon.Beacon, len(ids))
+	for rows.Next() {
+
+		var rawBeacon sql.RawBytes
+		var inIntfID common.IFIDType
+		if err := rows.Scan(&rawBeacon, &inIntfID); err != nil {
+			return nil, err
+		}
+		s, err := beacon.UnpackBeacon(rawBeacon)
+		if err != nil {
+			return nil, db.NewDataError(beacon.ErrParse, err)
+		}
+		newBeacon := &beacon.Beacon{
+			Segment: s,
+			InIfId:  uint16(inIntfID),
+		}
+
+		beacons = append(beacons, newBeacon)
 	}
-	var rawBeacon sql.RawBytes
-	var inIntfID common.IFIDType
-	if err := rows.Scan(&rawBeacon, &inIntfID); err != nil {
+	return beacons, nil
+}
+
+func (e *executor) GetBeaconById(ctx context.Context, id int64) (*beacon.Beacon, error) {
+	beacons, err := e.GetBeaconsById(ctx, []int64{id})
+	if err != nil {
 		return nil, err
 	}
-	s, err := beacon.UnpackBeacon(rawBeacon)
-	if err != nil {
-		return nil, db.NewDataError(beacon.ErrParse, err)
+	if len(beacons) == 0 {
+		return nil, nil
 	}
-	return &beacon.Beacon{
-		Segment: s,
-		InIfId:  uint16(inIntfID),
-	}, nil
+	return beacons[0], nil
 }
 
 func (e *executor) buildQuery(params *storagebeacon.QueryParams) (string, []interface{}) {
