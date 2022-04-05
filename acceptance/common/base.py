@@ -48,16 +48,27 @@ def ContainerLoader(arg):
 
 
 class TestBase:
-    # XXX(matzf) should be executable?
-    @cli.switch("executables", NameExecutable, list=True,
+    """
+    Base class for tests. Tests are executed as:
+        - setup, consisting of the sub steps
+            - setup_prepare
+            - setup_start
+        - _run
+        - teardown
+
+    A test can override any of these methods.
+    The `_run` method must be defined by each test.
+
+    Tests should write all their artifacts to the directory `self.artifacts`, which is created
+    during setup.
+    """
+    @cli.switch("executable", NameExecutable, list=True,
                 help="Paths for executables, format name:path")
     def _set_executables(self, executables):
         self.executables = {name: executable for (name, executable) in executables}
 
-    container_loaders = cli.SwitchAttr("container_loader", ContainerLoader, list=True,
+    container_loaders = cli.SwitchAttr("container-loader", ContainerLoader, list=True,
                                        help="Container loader, format tag#path")
-    setup_params = cli.SwitchAttr("setup-params", str, list=True,
-                                  help="Additional setup parameters")
 
     artifacts = cli.SwitchAttr("artifacts-dir",
                                LocalPath,
@@ -118,6 +129,8 @@ class TestBase:
 
 class TestTopogen(TestBase):
     topo = cli.SwitchAttr("topo", cli.ExistingFile, help="Config file for topogen, .topo")
+    setup_params = cli.SwitchAttr("setup-params", str, list=True,
+                                  help="Additional parameters for topogen")
 
     def setup_prepare(self):
         self.dc = None
@@ -185,6 +198,8 @@ def main(test_class):
     log.init_log()
 
     class _TestMain(test_class, cli.Application):
+        __doc__ = test_class.__doc__
+
         def main(self):
             if self.nested_command:
                 return

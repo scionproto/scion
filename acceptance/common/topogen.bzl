@@ -43,8 +43,8 @@ def topogen_test(
 
 
     common_args = [
-        "--executables=scion-pki:$(location //scion-pki/cmd/scion-pki)",
-        "--executables=topogen:$(location //tools:topogen)",
+        "--executable=scion-pki:$(location //scion-pki/cmd/scion-pki)",
+        "--executable=topogen:$(location //tools:topogen)",
         "--topo=$(location %s)" % topo,
 
     ]
@@ -61,7 +61,7 @@ def topogen_test(
     for tag in loaders:
         loader = loaders[tag]
         common_data = common_data + ["%s" % loader]
-        common_args = common_args + ["--container_loader=%s#$(location %s)" % (tag, loader)]
+        common_args = common_args + ["--container-loader=%s#$(location %s)" % (tag, loader)]
 
     py_binary(
         name = "%s_setup" % name,

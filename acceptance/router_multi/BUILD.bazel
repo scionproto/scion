@@ -8,9 +8,9 @@ exports_files([
 ])
 
 args = [
-    "--executables",
+    "--executable",
     "braccept:$(location //tools/braccept)",
-    "--container_loader",
+    "--container-loader",
     "posix-router:latest#$(location //acceptance/router_multi:router)",
     "--pause_tar",
     "$(location //acceptance/router_multi:pause.tar)",
