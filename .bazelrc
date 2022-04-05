@@ -1,6 +1,8 @@
 build --workspace_status_command=./tools/bazel-build-env --show_timestamps --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092  --incompatible_default_to_explicit_init_py
 test --incompatible_default_to_explicit_init_py
-build --javabase=@remotejdk11_linux//:jdk --host_javabase=@remotejdk11_linux//:jdk --java_runtime_version=remotejdk_11
+
+# java version for java_binary and java_test rules (used by antlr)
+build --java_runtime_version=remotejdk_11
 
 test:race --@io_bazel_rules_go//go/config:race
 test:unit --test_tag_filters=unit --build_tests_only --print_relative_test_log_paths
