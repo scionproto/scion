@@ -71,10 +71,10 @@ class Test(base.TestTopogen):
         end2end.run_fg()
 
         logger.info("==> Shutting down control servers and purging caches")
-        for container in self.list_containers("scion_sd.*"):
+        for container in self.dc.list_containers("scion_sd.*"):
             self.dc("rm", container)
-        for container in self.list_containers("scion_cs.*"):
-            self.stop_container(container)
+        for container in self.dc.list_containers("scion_cs.*"):
+            self.dc.stop_container(container)
         for cs_config in cs_configs:
             files = list((pathlib.Path(self.artifacts) /
                           "gen-cache").glob("%s*" % cs_config.stem))
@@ -119,22 +119,22 @@ class Test(base.TestTopogen):
             "--trc",
             docker_dir / "certs/ISD1-B1-S1.trc",
             "--sciond",
-            self.execute("tester_%s" % isd_as.file_fmt(), "sh", "-c",
-                         "echo $SCION_DAEMON").strip(),
+            self.execute_tester(isd_as, "sh", "-c",
+                                "echo $SCION_DAEMON").strip(),
             *self._local_flags(isd_as),
         ]
 
         logger.info("Requesting certificate chain renewal: %s" %
                     chain.relative_to(docker_dir))
         logger.info(
-            self.execute("tester_%s" % isd_as.file_fmt(), "./bin/scion-pki",
-                         "certificate", "renew", *args))
+            self.execute_tester(isd_as, "./bin/scion-pki",
+                                "certificate", "renew", *args))
 
         logger.info("Verify renewed certificate chain")
-        verify_out = self.execute("tester_%s" % isd_as.file_fmt(),
-                                  "./bin/scion-pki", "certificate", "verify",
-                                  chain, "--trc",
-                                  "/share/gen/trcs/ISD1-B1-S1.trc")
+        verify_out = self.execute_tester(isd_as,
+                                         "./bin/scion-pki", "certificate", "verify",
+                                         chain, "--trc",
+                                         "/share/gen/trcs/ISD1-B1-S1.trc")
         logger.info(str(verify_out).rstrip("\n"))
 
         renewed_chain = read_file(chain_name)
@@ -214,8 +214,8 @@ class Test(base.TestTopogen):
     def _local_flags(self, isd_as: ISD_AS) -> List[str]:
         return [
             "--local",
-            self.execute("tester_%s" % isd_as.file_fmt(), "sh", "-c",
-                         "echo $SCION_LOCAL_ADDR").strip(),
+            self.execute_tester(isd_as, "sh", "-c",
+                                "echo $SCION_LOCAL_ADDR").strip(),
         ]
 
 

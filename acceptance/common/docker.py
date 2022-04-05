@@ -27,6 +27,7 @@ the assertion's writer if a writer is specified.
 
 import json
 import os
+import re
 import subprocess
 import sys
 from typing import List, NamedTuple
@@ -38,12 +39,6 @@ from plumbum import cmd
 SCION_DC_FILE = "gen/scion-dc.yml"
 DC_PROJECT = "scion"
 SCION_TESTING_DOCKER_ASSERTIONS_OFF = 'SCION_TESTING_DOCKER_ASSERTIONS_OFF'
-
-
-def container_ip(container_name: str) -> str:
-    """Returns the ip of the given container"""
-    return cmd.docker("inspect", "-f", "{{range .NetworkSettings.Networks}}"
-                      "{{.IPAddress}}{{end}}", container_name).rstrip()
 
 
 class Compose(object):
@@ -84,6 +79,87 @@ class Compose(object):
             except Exception:
                 # If there are no tshark captures, do nothing.
                 pass
+
+    def start_container(self, container):
+        """Starts the container with the specified name.
+
+        Args:
+            container: the name of the container.
+        """
+        print(self("start", container))
+
+    def restart_container(self, container):
+        """Restarts the container with the specified name.
+
+        Args:
+            container: the name of the container.
+        """
+        print(self("restart", container))
+
+    def stop_container(self, container):
+        """Stops the container with specified name.
+
+        Args:
+            container: the name of the container.
+        """
+        print(self("stop", container))
+
+    def list_containers(self, container_pattern: str) -> List[str]:
+        """Lists all containers that match the given pattern.
+
+        Args:
+            container_pattern: A regex string to match the container. The regex
+              format is standard Python regex format.
+
+        Returns:
+            A list of strings with the container names that match the
+            container_pattern regex.
+        """
+        containers = self("config", "--services")
+        matching_containers = []
+        for container in containers.splitlines():
+            if re.match(container_pattern, container):
+                matching_containers.append(container)
+        return matching_containers
+
+    def send_signal(self, container, signal):
+        """Sends signal to the container with the specified name.
+
+        Args:
+            container: the name of the container.
+            signal: the signal to send
+        """
+        print(self("kill", "-s", signal, container))
+
+    def execute(self, container, *args, **kwargs):
+        """Executes an arbitrary command in the specified container.
+
+        There's one minute timeout on the command so that tests don't get stuck.
+
+        Args:
+            container: the name of the container to execute the command in.
+
+        Returns:
+            The output of the command.
+        """
+        user = kwargs.get("user", "{}:{}".format(os.getuid(), os.getgid()))
+        return self("exec", "-T", "--user", user, container,
+                    "timeout", "1m", *args)
+
+    def execute_as_user(self, container, user, *args, **kwargs):
+        """Executes an arbitrary command in the specified container.
+
+        There's one minute timeout on the command so that tests don't get stuck.
+
+        Args:
+            container: the name of the container to execute the command in.
+            user: the user to use to execute the command
+
+        Returns:
+            The output of the command.
+        """
+        return self("exec", "-T", "--user", user, container,
+                    "timeout", "1m", *args)
 
 
 class _Network(NamedTuple):

@@ -18,7 +18,6 @@ from typing import Any, Dict, List, MutableMapping
 
 import toml
 import yaml
-from plumbum.cmd import docker
 from plumbum.path.local import LocalPath
 
 from tools.topology.scion_addr import ISD_AS
@@ -70,22 +69,7 @@ def update_json(change_dict: Dict[str, Any], files: LocalPath):
             json.dump(t, f, indent=2)
 
 
-class SCIONDocker:
-    """
-    SCIONDocker is used for interacting with the dockerized
-    scion infrastructure.
-    """
-
-    def execute(self, isd_as: ISD_AS, cmd: str, *args: str) -> str:
-        expanded = []
-        for arg in args:
-            if str(arg).startswith('gen/'):
-                arg = '/share/' + arg
-            expanded.append(arg)
-        return docker('exec', 'tester_%s' % isd_as.file_fmt(), cmd, *expanded)
-
-
-class ASList(object):
+class ASList:
     """
     ASList is a list of AS separated by core and non-core ASes. It can be loaded
     from the as_list.yml file created by the topology generator.
