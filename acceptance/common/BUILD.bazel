@@ -23,11 +23,6 @@ py_library(
 )
 
 py_library(
-    name = "go",
-    srcs = ["go.py"],
-)
-
-py_library(
     name = "log",
     srcs = ["log.py"],
 )
