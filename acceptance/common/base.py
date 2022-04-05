@@ -16,6 +16,7 @@ import logging
 import os
 import re
 import traceback
+from abc import abstractmethod, ABC
 
 from plumbum import cli
 from plumbum import local
@@ -47,7 +48,7 @@ def ContainerLoader(arg):
     return (tag, cli.ExistingFile(path))
 
 
-class TestBase:
+class TestBase(ABC):
     """
     Base class for tests. Tests are executed as:
         - setup, consisting of the sub steps
@@ -62,6 +63,7 @@ class TestBase:
     Tests should write all their artifacts to the directory `self.artifacts`, which is created
     during setup.
     """
+
     @cli.switch("executable", NameExecutable, list=True,
                 help="Paths for executables, format name:path")
     def _set_executables(self, executables):
@@ -81,7 +83,11 @@ class TestBase:
         self.setup_prepare()
         self.setup_start()
 
+    @abstractmethod
     def _run(self):
+        """Run the actual test. Must be implemented by concrete test.
+        Note: underscored name because this clashes with plumbum.cli.Application
+        """
         pass
 
     def teardown(self):
