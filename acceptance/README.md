@@ -1,11 +1,12 @@
 # Acceptance testing framework
 
-This directory contains a set of integration tests. 
+This directory contains a set of integration tests.
 Each test is defined as a bazel test target, with tags `integration` and `exclusive`.
 
 ## Basic Commands
 
 To run all acceptance tests, execute one of the following (equivalent) commands
+
 ```bash
 make test-acceptance                # or,
 bazel test --config=acceptance_all  # or,
@@ -13,6 +14,7 @@ bazel test --config=integration //acceptance/... //demo/...
 ```
 
 Run a subset of the tests by specifying a different list of targets:
+
 ```bash
 bazel test --config=integration //acceptance/cert_renewal:all //acceptance/trc_update/...
 ```
@@ -37,3 +39,6 @@ bazel run //<test-package>:<target>_run
 # Shutdown and cleanup
 bazel run //<test-package>:<target>_teardown
 ```
+
+See [common/README](common/README.md) for more information about the internal
+structure of these tests.
