@@ -37,3 +37,6 @@ bazel run //<test-package>:<target>_run
 # Shutdown and cleanup
 bazel run //<test-package>:<target>_teardown
 ```
+
+See [common/README](common/README.md) for more information about the internal
+structure of these tests.
