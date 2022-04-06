@@ -16,15 +16,18 @@ base class.
 Each test is an individual executable that is executed (either directly or via
 bazel) with commandline parameters to run the test. Tests in this framework consist
 of three phases:
+
 - `setup`
 - `run`
 - `teardown`
+
 When no subcommand is specified, the entire sequence is executed.
 Using the subcommands for the individual phases, the test setup can easily be
 reproduced for interactive exploration.
 
 Tests scripts can offer commandline parameters. The base classes define the
 following switches:
+
 - `--artifacts-dir <path>`; directory for test artifacts, defaults to
   environment variable `TEST_UNDECLARED_OUTPUTS_DIR`
 - `--executable <name>:<path>`; specifies path for an executable used in the test.
@@ -34,7 +37,6 @@ following switches:
   This can be used to run containers that are built by bazel.
 - `--topo <path>`; path to the .topo file for topogen tests
 - `--setup-params <args>`; additional parameters for topogen.
-
 
 Each test directory contains a `BUILD.bazel` file with the rules to execute the
 acceptance test script(s) in this directory.
@@ -51,6 +53,7 @@ implements the actual test. Additionally, the methods `setup`, `setup_prepare`,
 cleanup.
 
 Tests can use:
+
 - `self.artifacts`: the specified directory for test outputs, created during setup.
 - `self.get_executable(<name>)`: returns an executable specified using the `--executable` switch.
 - `self.dc`: a wrapper for `docker-compose`, instantiated during `TestTopogen.setup`.
