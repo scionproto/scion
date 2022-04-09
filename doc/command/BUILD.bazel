@@ -1,5 +1,10 @@
 load(":defs.bzl", "recursive_copy_output")
 
+exports_files(
+    ["defs.bzl"],
+    ["//visibility:public"],
+)
+
 recursive_copy_output(
     name = "copy_scion",
     file_transformation = "head -n -1 $FILE > temp.rst ; mv temp.rst $FILE",
