@@ -1,4 +1,4 @@
-load("//lint:go.bzl", "go_library", "go_test")
+load("//tools/lint:go.bzl", "go_library", "go_test")
 load("@com_github_scionproto_scion//rules_openapi:defs.bzl", "openapi_generate_go")
 
 genrule(
@@ -29,7 +29,10 @@ go_library(
         "spec.go",
         ":api_generated",  # keep
     ],
-    embedsrcs = [":bundle"],  # keep
+    embedsrcs = select({
+        "//:mgmtapi_bundle_doc_build": [":bundle"],
+        "//conditions:default": [":dummy.html"],
+    }),  # keep
     importpath = "github.com/scionproto/scion/router/mgmtapi",
     visibility = ["//visibility:public"],
     deps = [

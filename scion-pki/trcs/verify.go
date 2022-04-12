@@ -35,6 +35,7 @@ import (
 func newVerify(pather command.Pather) *cobra.Command {
 	var flags struct {
 		anchor string
+		isd    uint16
 	}
 
 	cmd := &cobra.Command{
@@ -48,21 +49,24 @@ The anchor can either be a collection of trusted certificates bundled in a PEM
 file, or a trusted TRC. TRC update chains that start with a base TRC can be
 verified with either type of anchor. TRC update chains that start with a
 non-base TRC must have a TRC as anchor.
+With the optional flag --isd, the ID of the ISD for which the TRC claims to be
+the root of trust can be matched against an expected value.
 `,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
-			return RunVerify(args, flags.anchor)
+			return RunVerify(args, flags.anchor, addr.ISD(flags.isd))
 		},
 	}
 
 	cmd.Flags().StringVarP(&flags.anchor, "anchor", "a", "", "trust anchor (required)")
+	cmd.Flags().Uint16Var(&flags.isd, "isd", 0, "ISD identifier")
 	cmd.MarkFlagRequired("anchor")
 	return cmd
 }
 
 // RunVerify runs verification of the TRC files from the given anchor.
-func RunVerify(files []string, anchor string) error {
+func RunVerify(files []string, anchor string, isd addr.ISD) error {
 	var trcs []cppki.SignedTRC
 	for _, name := range files {
 		dec, err := DecodeFromFile(name)
@@ -71,19 +75,27 @@ func RunVerify(files []string, anchor string) error {
 		}
 		trcs = append(trcs, dec)
 	}
-	isd, base := trcs[0].TRC.ID.ISD, trcs[0].TRC.ID.Base
+	if len(trcs) == 0 {
+		return serrors.New("TRC verify requires at least one TRC to verify")
+	}
+	someISD, someBase := trcs[0].TRC.ID.ISD, trcs[0].TRC.ID.Base
 	for _, dec := range trcs {
-		if isd != dec.TRC.ID.ISD {
-			return serrors.New("multiple ISDs", "isds", []addr.ISD{isd, dec.TRC.ID.ISD})
+		if someISD != dec.TRC.ID.ISD {
+			return serrors.New("multiple ISDs", "isds", []addr.ISD{someISD, dec.TRC.ID.ISD})
 		}
-		if base != dec.TRC.ID.Base {
+		if someBase != dec.TRC.ID.Base {
 			return serrors.New("multiple base versions", "bases", []scrypto.Version{
-				base, dec.TRC.ID.Base})
+				someBase, dec.TRC.ID.Base})
 		}
 	}
 	sort.Slice(trcs, func(i, j int) bool {
 		return trcs[i].TRC.ID.Serial < trcs[j].TRC.ID.Serial
 	})
+	if anchorISD := trcs[0].TRC.ID.ISD; isd != 0 && anchorISD != isd {
+		return serrors.New("TRC anchor ISD does not match the requested ISD ID",
+			"expected", isd,
+			"actual", anchorISD)
+	}
 	serials := []scrypto.Version{trcs[0].TRC.ID.Serial}
 	for i := 1; i < len(trcs); i++ {
 		serials = append(serials, trcs[i].TRC.ID.Serial)

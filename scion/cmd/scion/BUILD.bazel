@@ -1,10 +1,11 @@
-load("//lint:go.bzl", "go_library")
+load("//tools/lint:go.bzl", "go_library")
 load("//:scion.bzl", "scion_go_binary")
 
 go_library(
     name = "go_default_library",
     srcs = [
         "address.go",
+        "gendocs.go",
         "main.go",
         "observability.go",
         "ping.go",
@@ -34,11 +35,20 @@ go_library(
         "//scion/traceroute:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
+        "@com_github_spf13_cobra//doc:go_default_library",
     ],
 )
 
 scion_go_binary(
     name = "scion",
     embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)
+
+genrule(
+    name = "gendocs",
+    outs = ["docs"],
+    cmd = "$(location :scion) gendocs $@",
+    tools = [":scion"],
     visibility = ["//visibility:public"],
 )

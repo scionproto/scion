@@ -1,4 +1,3 @@
-load("//python/topology:topology.bzl", "topology")
 # gazelle:ignore
 
 filegroup(
@@ -13,9 +12,4 @@ exports_files(
         "tiny4.topo",
         "wide.topo",
     ],
-)
-
-topology(
-    name = "tiny_gen",
-    src = "tiny.topo",
 )

@@ -77,7 +77,7 @@ func TestCmd(t *testing.T) {
 func checkISD(t *testing.T, outDir string, isd addr.ISD) {
 	isdDir := filepath.Join(outDir, fmt.Sprintf("ISD%d", isd))
 	trcFile := filepath.Join(isdDir, "trcs", fmt.Sprintf("ISD%d-B1-S1.trc", isd))
-	assert.NoError(t, trcs.RunVerify([]string{trcFile}, trcFile))
+	assert.NoError(t, trcs.RunVerify([]string{trcFile}, trcFile, 0))
 }
 
 func checkAS(t *testing.T, outDir string, ia addr.IA) {

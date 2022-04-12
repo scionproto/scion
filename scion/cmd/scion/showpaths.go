@@ -61,7 +61,7 @@ By default, the paths are probed. Paths served from the SCION Deamon's might not
 forward traffic successfully (e.g. if a network link went down, or there is a black
 hole on the path). To disable path probing, set the appropriate flag.
 
-'showpaths' can be instructed to output the paths as json using the the --json flag.
+'showpaths' can be instructed to output the paths as json using the the \--json flag.
 
 If no alive path is discovered, json output is not enabled, and probing is not
 disabled, showpaths will exit with the code 1.
