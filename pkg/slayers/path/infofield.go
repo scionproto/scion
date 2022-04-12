@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// TODO: annotate
+// +gobra
+
 package path
 
 import (
@@ -55,23 +58,34 @@ type InfoField struct {
 
 // DecodeFromBytes populates the fields from a raw buffer. The buffer must be of length >=
 // path.InfoLen.
-func (inf *InfoField) DecodeFromBytes(raw []byte) error {
+//@ requires acc(inf) && acc(raw, 1/2)
+//@ ensures  acc(inf) && acc(raw, 1/2) // TODO: add predicate
+//@ ensures  (len(raw) >= InfoLen) == (err == nil)
+func (inf *InfoField) DecodeFromBytes(raw []byte) (err error) {
 	if len(raw) < InfoLen {
 		return serrors.New("InfoField raw too short", "expected", InfoLen, "actual", len(raw))
+		//@ assume false
 	}
 	inf.ConsDir = raw[0]&0x1 == 0x1
 	inf.Peer = raw[0]&0x2 == 0x2
+	//@ assert &raw[2:4][0] == &raw[2] && &raw[2:4][1] == &raw[3]
 	inf.SegID = binary.BigEndian.Uint16(raw[2:4])
+	//@ assert &raw[4:8][0] == &raw[4] && &raw[4:8][1] == &raw[5]
+	//@ assert &raw[4:8][2] == &raw[6] && &raw[4:8][3] == &raw[7]
 	inf.Timestamp = binary.BigEndian.Uint32(raw[4:8])
 	return nil
 }
 
 // SerializeTo writes the fields into the provided buffer. The buffer must be of length >=
 // path.InfoLen.
-func (inf *InfoField) SerializeTo(b []byte) error {
+//@ preserves acc(inf, 1/2) // TODO: put in pred, use preserves
+//@ preserves acc(b)
+//@ ensures  (len(b) >= InfoLen) == (err == nil)
+func (inf *InfoField) SerializeTo(b []byte) (err error) {
 	if len(b) < InfoLen {
 		return serrors.New("buffer for InfoField too short", "expected", InfoLen,
 			"actual", len(b))
+		//@ assume false
 	}
 	b[0] = 0
 	if inf.ConsDir {
@@ -81,7 +95,10 @@ func (inf *InfoField) SerializeTo(b []byte) error {
 		b[0] |= 0x2
 	}
 	b[1] = 0 // reserved
+	//@ assert &b[2:4][0] == &b[2] && &b[2:4][1] == &b[3]
 	binary.BigEndian.PutUint16(b[2:4], inf.SegID)
+	//@ assert &b[4:8][0] == &b[4] && &b[4:8][1] == &b[5]
+	//@ assert &b[4:8][2] == &b[6] && &b[4:8][3] == &b[7]
 	binary.BigEndian.PutUint32(b[4:8], inf.Timestamp)
 
 	return nil
@@ -90,10 +107,12 @@ func (inf *InfoField) SerializeTo(b []byte) error {
 // UpdateSegID updates the SegID field by XORing the SegID field with the 2
 // first bytes of the MAC. It is the beta calculation according to
 // https://scion.docs.anapaya.net/en/latest/protocols/scion-header.html#hop-field-mac-computation
+//@ trusted // TODO: remove
 func (inf *InfoField) UpdateSegID(hfMac [MacLen]byte) {
-	inf.SegID = inf.SegID ^ binary.BigEndian.Uint16(hfMac[:2])
+	inf.SegID = inf.SegID ^ binary.BigEndian.Uint16(hfMac[0:2])
 }
 
+//@ trusted
 func (inf InfoField) String() string {
 	return fmt.Sprintf("{Peer: %t, ConsDir: %t, SegID: %d, Timestamp: %s}",
 		inf.Peer, inf.ConsDir, inf.SegID, util.SecsToCompact(inf.Timestamp))
