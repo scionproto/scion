@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO: annotate
 // +gobra
 
 package path
@@ -58,13 +57,11 @@ type InfoField struct {
 
 // DecodeFromBytes populates the fields from a raw buffer. The buffer must be of length >=
 // path.InfoLen.
-//@ requires acc(inf) && acc(raw, 1/2)
-//@ ensures  acc(inf) && acc(raw, 1/2) // TODO: add predicate
-//@ ensures  (len(raw) >= InfoLen) == (err == nil)
+//@ preserves acc(inf) && acc(raw, 1/2)
+//@ ensures   (len(raw) >= InfoLen) == (err == nil)
 func (inf *InfoField) DecodeFromBytes(raw []byte) (err error) {
 	if len(raw) < InfoLen {
 		return serrors.New("InfoField raw too short", "expected", InfoLen, "actual", len(raw))
-		//@ assume false
 	}
 	inf.ConsDir = raw[0]&0x1 == 0x1
 	inf.Peer = raw[0]&0x2 == 0x2
@@ -78,14 +75,13 @@ func (inf *InfoField) DecodeFromBytes(raw []byte) (err error) {
 
 // SerializeTo writes the fields into the provided buffer. The buffer must be of length >=
 // path.InfoLen.
-//@ preserves acc(inf, 1/2) // TODO: put in pred, use preserves
+//@ preserves acc(inf, 1/2)
 //@ preserves acc(b)
 //@ ensures  (len(b) >= InfoLen) == (err == nil)
 func (inf *InfoField) SerializeTo(b []byte) (err error) {
 	if len(b) < InfoLen {
 		return serrors.New("buffer for InfoField too short", "expected", InfoLen,
 			"actual", len(b))
-		//@ assume false
 	}
 	b[0] = 0
 	if inf.ConsDir {
@@ -107,7 +103,7 @@ func (inf *InfoField) SerializeTo(b []byte) (err error) {
 // UpdateSegID updates the SegID field by XORing the SegID field with the 2
 // first bytes of the MAC. It is the beta calculation according to
 // https://scion.docs.anapaya.net/en/latest/protocols/scion-header.html#hop-field-mac-computation
-//@ trusted // TODO: remove
+//@ trusted
 func (inf *InfoField) UpdateSegID(hfMac [MacLen]byte) {
 	inf.SegID = inf.SegID ^ binary.BigEndian.Uint16(hfMac[0:2])
 }

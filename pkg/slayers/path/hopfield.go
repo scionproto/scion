@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // +gobra
+
 package path
 
 import (
@@ -71,12 +72,11 @@ type HopField struct {
 
 // DecodeFromBytes populates the fields from a raw buffer. The buffer must be of length >=
 // path.HopLen.
-//@ preserves acc(h) && acc(raw, 1/2) // change to pred
+//@ preserves acc(h) && acc(raw, 1/2)
 //@ ensures   (len(raw) >= HopLen) == (err == nil)
 func (h *HopField) DecodeFromBytes(raw []byte) (err error) {
 	if len(raw) < HopLen {
 		return serrors.New("HopField raw too short", "expected", HopLen, "actual", len(raw))
-		//@ assume false
 	}
 	h.EgressRouterAlert = raw[0]&0x1 == 0x1
 	h.IngressRouterAlert = raw[0]&0x2 == 0x2
@@ -85,21 +85,21 @@ func (h *HopField) DecodeFromBytes(raw []byte) (err error) {
 	h.ConsIngress = binary.BigEndian.Uint16(raw[2:4])
 	//@ assert &raw[4:6][0] == &raw[4] && &raw[4:6][1] == &raw[5]
 	h.ConsEgress = binary.BigEndian.Uint16(raw[4:6])
-	//@ assert forall i int :: { &h.Mac[:][i] }{ &h.Mac[i] } 0 <= i && i < len(h.Mac) ==> &h.Mac[i] == &h.Mac[:][i]
+	//@ assert forall i int :: { &h.Mac[:][i] }{ &h.Mac[i] } 0 <= i && i < len(h.Mac[:]) ==> &h.Mac[i] == &h.Mac[:][i]
 	//@ assert forall i int :: { &raw[6:6+MacLen][i] } 0 <= i && i < len(raw[6:6+MacLen]) ==> &raw[6:6+MacLen][i] == &raw[i+6]
+	//@ assert forall i int :: { h.Mac[:][i] } 0 <= i && i < len(h.Mac[:]) ==> acc(&h.Mac[:][i])
+	//@ assert forall i int :: { raw[6:6+MacLen][i] } 0 <= i && i < len(raw[6:6+MacLen]) ==> acc(&raw[6:6+MacLen][i], 1/2)
 	copy(h.Mac[:], raw[6:6+MacLen] /*@, perm(1/4)@*/)
 	return nil
 }
 
 // SerializeTo writes the fields into the provided buffer. The buffer must be of length >=
 // path.HopLen.
-//@ trusted // TODO: remove
 //@ preserves acc(h, 1/2) && acc(b)
 //@ ensures   (len(b) >= HopLen) == (err == nil)
 func (h *HopField) SerializeTo(b []byte) (err error) {
 	if len(b) < HopLen {
-		//return serrors.New("buffer for HopField too short", "expected", MacLen, "actual", len(b))
-		//@ assume false
+		return serrors.New("buffer for HopField too short", "expected", MacLen, "actual", len(b))
 	}
 	b[0] = 0
 	if h.EgressRouterAlert {

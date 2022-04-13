@@ -2,19 +2,26 @@ name: Verify the specified codebase
 
 on:
   push: # run this workflow on every push
-  # pull_request: # run this workflow on every pull_request
+  pull_request: # run this workflow on every pull_request
 
 jobs:
   setup-and-test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout the scion repository
+      - name: Checkout the SCION repository
         uses: actions/checkout@v2
-
-      - name: Verify specified files
+      - name: Verify the specified files
         uses: viperproject/gobra-action@main
         with:
-          globalTimeout: 2h
-          packageTimeout: 1h
-          packages:
-            - "path"
+          # Prefix used to resolve SCION packages
+          module: 'github.com/scionproto/scion/'
+          # Right now, we only consider the "path" package defined
+          # in the following path. In the future, the idea is to drop
+          # these options in the configuration and to let Gobra verify
+          # only the annotated files.
+          srcDirectory: 'pkg/slayers/path'
+          packages: 'path'
+          # Gobra only verifies files annotated with the header "// +gobra"
+          headerOnly: '1'
+          globalTimeout: 30m
+          packageTimeout: 15m

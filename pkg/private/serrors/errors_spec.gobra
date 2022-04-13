@@ -12,9 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file provides a specification to the function 'New'.
+// The specification cannot currently be added to the file 'errors.go'
+// where the original definition of 'New' is because that file tries to
+// import a third-party package for which we do not yet provide
+// specification ("go.uber.org/zap/zapcore").
+
 // +gobra
 
-// TODO: describe, explain it is a hack
 package serrors
 
 ensures err != nil
