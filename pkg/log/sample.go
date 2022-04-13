@@ -22,7 +22,7 @@ level = "info"
 # is 'none', no stacktrace is included. (debug|info|error|none) (default none)
 stacktrace_level = "none"
 
-# Logging fromat (human|json) (default human)
+# Logging format (human|json) (default human)
 format = "human"
 
 # Disable annotating logs with the calling function's file name and line number.
