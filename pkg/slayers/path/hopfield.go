@@ -113,8 +113,10 @@ func (h *HopField) SerializeTo(b []byte) (err error) {
 	binary.BigEndian.PutUint16(b[2:4], h.ConsIngress)
 	//@ assert &b[4:6][0] == &b[4] && &b[4:6][1] == &b[5]
 	binary.BigEndian.PutUint16(b[4:6], h.ConsEgress)
-	//@ assert forall i int :: { &h.Mac[:][i] } 0 <= i && i < len(h.Mac) ==> &h.Mac[i] == &h.Mac[:][i]
+	//@ assert forall i int :: { &h.Mac[:][i] }{ &h.Mac[i] } 0 <= i && i < len(h.Mac[:]) ==> &h.Mac[i] == &h.Mac[:][i]
 	//@ assert forall i int :: { &b[6:6+MacLen][i] } 0 <= i && i < len(b[6:6+MacLen]) ==> &b[6:6+MacLen][i] == &b[i+6]
+	//@ assert forall i int :: { h.Mac[:][i] } 0 <= i && i < len(h.Mac[:]) ==> acc(&h.Mac[:][i], 1/2)
+	//@ assert forall i int :: { b[6:6+MacLen][i] } 0 <= i && i < len(b[6:6+MacLen]) ==> acc(&b[6:6+MacLen][i])
 	copy(b[6:6+MacLen], h.Mac[:] /*@, perm(1/4) @*/)
 
 	return nil

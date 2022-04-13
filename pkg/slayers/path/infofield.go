@@ -104,6 +104,7 @@ func (inf *InfoField) SerializeTo(b []byte) (err error) {
 // first bytes of the MAC. It is the beta calculation according to
 // https://scion.docs.anapaya.net/en/latest/protocols/scion-header.html#hop-field-mac-computation
 //@ trusted
+//@ preserves acc(inf)
 func (inf *InfoField) UpdateSegID(hfMac [MacLen]byte) {
 	inf.SegID = inf.SegID ^ binary.BigEndian.Uint16(hfMac[:2])
 }
