@@ -25,6 +25,7 @@ jobs:
           headerOnly: '1'
           globalTimeout: 30m
           packageTimeout: 15m
+          viperBackend: VSWITHSILICON
           caching: '1'
       - name: Upload the cached results
         uses: actions/upload-artifact@v2
