@@ -23,4 +23,5 @@
 package serrors
 
 ensures err != nil
+decreases
 func New(msg string, errCtx ...interface{}) (err error)

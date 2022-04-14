@@ -59,6 +59,7 @@ type InfoField struct {
 // path.InfoLen.
 //@ preserves acc(inf) && acc(raw, 1/2)
 //@ ensures   (len(raw) >= InfoLen) == (err == nil)
+//@ decreases
 func (inf *InfoField) DecodeFromBytes(raw []byte) (err error) {
 	if len(raw) < InfoLen {
 		return serrors.New("InfoField raw too short", "expected", InfoLen, "actual", len(raw))
@@ -78,6 +79,7 @@ func (inf *InfoField) DecodeFromBytes(raw []byte) (err error) {
 //@ preserves acc(inf, 1/2)
 //@ preserves acc(b)
 //@ ensures  (len(b) >= InfoLen) == (err == nil)
+//@ decreases
 func (inf *InfoField) SerializeTo(b []byte) (err error) {
 	if len(b) < InfoLen {
 		return serrors.New("buffer for InfoField too short", "expected", InfoLen,
@@ -105,11 +107,13 @@ func (inf *InfoField) SerializeTo(b []byte) (err error) {
 // https://scion.docs.anapaya.net/en/latest/protocols/scion-header.html#hop-field-mac-computation
 //@ trusted
 //@ preserves acc(inf)
+//@ decreases
 func (inf *InfoField) UpdateSegID(hfMac [MacLen]byte) {
 	inf.SegID = inf.SegID ^ binary.BigEndian.Uint16(hfMac[:2])
 }
 
 //@ trusted
+//@ decreases
 func (inf InfoField) String() string {
 	return fmt.Sprintf("{Peer: %t, ConsDir: %t, SegID: %d, Timestamp: %s}",
 		inf.Peer, inf.ConsDir, inf.SegID, util.SecsToCompact(inf.Timestamp))

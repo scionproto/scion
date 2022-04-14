@@ -74,6 +74,7 @@ type HopField struct {
 // path.HopLen.
 //@ preserves acc(h) && acc(raw, 1/2)
 //@ ensures   (len(raw) >= HopLen) == (err == nil)
+//@ decreases
 func (h *HopField) DecodeFromBytes(raw []byte) (err error) {
 	if len(raw) < HopLen {
 		return serrors.New("HopField raw too short", "expected", HopLen, "actual", len(raw))
@@ -97,6 +98,7 @@ func (h *HopField) DecodeFromBytes(raw []byte) (err error) {
 // path.HopLen.
 //@ preserves acc(h, 1/2) && acc(b)
 //@ ensures   (len(b) >= HopLen) == (err == nil)
+//@ decreases
 func (h *HopField) SerializeTo(b []byte) (err error) {
 	if len(b) < HopLen {
 		return serrors.New("buffer for HopField too short", "expected", MacLen, "actual", len(b))
@@ -125,6 +127,7 @@ func (h *HopField) SerializeTo(b []byte) (err error) {
 // ExpTimeToDuration calculates the relative expiration time in seconds.
 // Note that for a 0 value ExpTime, the minimal duration is expTimeUnit.
 //@ pure
+//@ decreases
 func ExpTimeToDuration(expTime uint8) time.Duration {
 	return (time.Duration(expTime) + 1) * time.Duration(expTimeUnit) * time.Second
 }
