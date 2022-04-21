@@ -50,7 +50,7 @@ certificate second.
 
 The ISD-AS property of the subject identified by the certificate
 (or in the case of a certificate chain, the leaf certificate)
-can be validated by specifying the --subjectIA flag and
+can be validated by specifying the --subject-isd-as flag and
 the expected ISD-AS value.
 `,
 		Example: fmt.Sprintf(
@@ -86,6 +86,10 @@ the expected ISD-AS value.
 						"err", err)
 				}
 				certSubjectASID, err := cppki.ExtractIA(chain[0].Subject)
+				if err != nil {
+					return serrors.New("failed to extract IA from leaf certificate",
+						"err", err)
+				}
 				if certSubjectASID != expectedSubjectIA {
 					return serrors.New("ISD-AS property not matching the subject "+
 						"in the leaf certificate",
@@ -110,7 +114,7 @@ the expected ISD-AS value.
 	cmd.Flags().Int64Var(&flags.unixTime, "currenttime", 0,
 		"Optional unix timestamp that sets the current time",
 	)
-	cmd.Flags().StringVar(&flags.subjectIA, "subjectIA", "",
+	cmd.Flags().StringVar(&flags.subjectIA, "subject-isd-as", "",
 		"ISD-AS property of the subject of the certificate",
 	)
 	cmd.MarkFlagRequired("trc")
