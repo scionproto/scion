@@ -53,7 +53,6 @@ func realMain() int {
 
 	cmnArgs := []string{
 		"--timeout", "4s",
-		"--sciond", integration.Daemon,
 		"--log.level", "debug",
 		fmt.Sprintf("--epic=%t", epic),
 	}
@@ -65,6 +64,7 @@ func realMain() int {
 	} else {
 		cmnArgs = append(cmnArgs,
 			"--tracing.agent", "localhost:6831",
+			"--sciond", integration.Daemon,
 		)
 	}
 

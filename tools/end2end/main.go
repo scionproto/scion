@@ -79,7 +79,11 @@ func realMain() int {
 	defer log.HandlePanic()
 	defer log.Flush()
 	addFlags()
-	integration.Setup()
+	err := integration.Setup()
+	if err != nil {
+		log.Error("Parsing common flags failed", "err", err)
+		return 1
+	}
 	validateFlags()
 
 	closeTracer, err := integration.InitTracer("end2end-" + integration.Mode)

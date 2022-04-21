@@ -30,9 +30,11 @@ import (
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/private/app/feature"
+	scionflag "github.com/scionproto/scion/private/app/flag"
 	"github.com/scionproto/scion/private/env"
 	"github.com/scionproto/scion/tools/integration"
 	"github.com/scionproto/scion/tools/integration/progress"
@@ -45,6 +47,7 @@ const (
 )
 
 var (
+	envFlags   scionflag.SCIONEnvironment
 	Local      snet.UDPAddr
 	Mode       string
 	Progress   string
@@ -54,20 +57,29 @@ var (
 	features   string
 )
 
-func Setup() {
-	addFlags()
+func Setup() error {
+	err := addFlags()
+	if err != nil {
+		return serrors.WrapStr("adding flags", err)
+	}
 	validateFlags()
+	return nil
 }
 
-func addFlags() {
+func addFlags() error {
+	err := envFlags.LoadExternalVars()
+	if err != nil {
+		return serrors.WrapStr("reading scion environment", err)
+	}
 	flag.Var(&Local, "local", "(Mandatory) address to listen on")
 	flag.StringVar(&Mode, "mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
 	flag.StringVar(&Progress, "progress", "", "Socket to write progress to")
-	flag.StringVar(&daemonAddr, "sciond", daemon.DefaultAPIAddress, "SCION Daemon address")
+	flag.StringVar(&daemonAddr, "sciond", envFlags.Daemon(), "SCION Daemon address")
 	flag.IntVar(&Attempts, "attempts", 1, "Number of attempts before giving up")
 	flag.StringVar(&logConsole, "log.console", "info", "Console logging level: debug|info|error")
 	flag.StringVar(&features, "features", "",
 		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
+	return nil
 }
 
 // InitTracer initializes the global tracer and returns a closer function.
