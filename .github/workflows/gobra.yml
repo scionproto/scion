@@ -27,11 +27,13 @@ jobs:
           packageTimeout: 15m
           viperBackend: VSWITHSILICON
           caching: '1'
-      - name: Upload the cached verification results
-        uses: actions/upload-artifact@v2
+      - name: Cache the verification results
+        uses: actions/cache@v3
+        env:
+          cache-name: gobra-cache
         with:
-          name: Verification cache
-          path: ${{ runner.workspace }}/.gobra/cache.json
+          path: ${{ runner.workspace }}/.gobra/cache.json 
+          key: ${{ env.cache-name }}
       - name: Upload the verification report
         uses: actions/upload-artifact@v2
         with:
