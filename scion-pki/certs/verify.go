@@ -1,5 +1,5 @@
 // Copyright 2020 Anapaya Systems
-// Copyright 2022 ETH Zurich
+// Copyright 2022 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@ certificate second.
 
 The ISD-AS property of the subject identified by the certificate
 (or in the case of a certificate chain, the leaf certificate)
-can be validated by specifying the --subject-isd-as flag and
+can be validated by specifying the \--subject-isd-as flag and
 the expected ISD-AS value.
 `,
 		Example: fmt.Sprintf(
@@ -62,8 +62,11 @@ the expected ISD-AS value.
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 			chain, err := cppki.ReadPEMCerts(args[0])
-			if err != nil || len(chain) == 0 {
+			if err != nil {
 				return serrors.WrapStr("reading chain", err, "file", args[0])
+			}
+			if len(chain) == 0 {
+				return serrors.New("file does not contain any certificate")
 			}
 			trcs, err := loadTRCs(flags.trcFiles)
 			if err != nil {
@@ -80,21 +83,21 @@ the expected ISD-AS value.
 			}
 
 			if flags.subjectIA != "" {
-				expectedSubjectIA, err := addr.ParseIA(flags.subjectIA)
+				expected, err := addr.ParseIA(flags.subjectIA)
 				if err != nil {
 					return serrors.New("invalid ISD-AS provided for the ISD-AS property check",
 						"err", err)
 				}
-				certSubjectASID, err := cppki.ExtractIA(chain[0].Subject)
+				actual, err := cppki.ExtractIA(chain[0].Subject)
 				if err != nil {
 					return serrors.New("failed to extract IA from leaf certificate",
 						"err", err)
 				}
-				if certSubjectASID != expectedSubjectIA {
+				if actual != expected {
 					return serrors.New("ISD-AS property not matching the subject "+
 						"in the leaf certificate",
-						"expected", expectedSubjectIA,
-						"actual", certSubjectASID)
+						"expected", expected,
+						"actual", actual)
 				}
 			}
 			if err := cppki.VerifyChain(chain, opts); err != nil {
