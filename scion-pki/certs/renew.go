@@ -269,6 +269,7 @@ The template is expressed in JSON. A valid example::
 			if err != nil {
 				return serrors.WrapStr("connecting to SCION Daemon", err)
 			}
+			defer sd.Close()
 
 			info, err := app.QueryASInfo(daemonCtx, sd)
 			if err != nil {

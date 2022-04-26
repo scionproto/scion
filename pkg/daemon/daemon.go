@@ -81,5 +81,5 @@ type Connector interface {
 	// RevNotification sends a RevocationInfo message to the daemon.
 	RevNotification(ctx context.Context, revInfo *path_mgmt.RevInfo) error
 	// Close shuts down the connection to the daemon.
-	Close(ctx context.Context) error
+	Close() error
 }

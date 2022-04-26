@@ -56,17 +56,17 @@ func (mr *MockConnectorMockRecorder) ASInfo(arg0, arg1 interface{}) *gomock.Call
 }
 
 // Close mocks base method.
-func (m *MockConnector) Close(arg0 context.Context) error {
+func (m *MockConnector) Close() error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Close", arg0)
+	ret := m.ctrl.Call(m, "Close")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Close indicates an expected call of Close.
-func (mr *MockConnectorMockRecorder) Close(arg0 interface{}) *gomock.Call {
+func (mr *MockConnectorMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockConnector)(nil).Close), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockConnector)(nil).Close))
 }
 
 // IFInfo mocks base method.

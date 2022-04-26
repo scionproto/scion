@@ -155,7 +155,7 @@ func (c grpcConn) RevNotification(ctx context.Context, revInfo *path_mgmt.RevInf
 
 }
 
-func (c grpcConn) Close(_ context.Context) error {
+func (c grpcConn) Close() error {
 	return c.conn.Close()
 }
 
