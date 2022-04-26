@@ -86,14 +86,11 @@ func (h *HopField) DecodeFromBytes(raw []byte) (err error) {
 	h.ConsIngress = binary.BigEndian.Uint16(raw[2:4])
 	//@ assert &raw[4:6][0] == &raw[4] && &raw[4:6][1] == &raw[5]
 	h.ConsEgress = binary.BigEndian.Uint16(raw[4:6])
-	//@ assert forall i int :: { &h.Mac[:][i] }{ &h.Mac[i] } 0 <= i && i < len(h.Mac[:]) ==>
+	//@ assert forall i int :: { &h.Mac[:][i] } 0 <= i && i < len(h.Mac[:]) ==>
 	//@     &h.Mac[i] == &h.Mac[:][i]
-	//@ assert forall i int :: { &raw[6:6+MacLen][i] } 0 <= i && i < len(raw[6:6+MacLen]) ==>
+	//@ assert forall i int :: 0 <= i && i < len(raw[6:6+MacLen]) ==>
 	//@     &raw[6:6+MacLen][i] == &raw[i+6]
-	//@ assert forall i int :: { h.Mac[:][i] } 0 <= i && i < len(h.Mac[:]) ==> acc(&h.Mac[:][i])
-	//@ assert forall i int :: { raw[6:6+MacLen][i] } 0 <= i && i < len(raw[6:6+MacLen]) ==>
-	//@     acc(&raw[6:6+MacLen][i], 1/2)
-	copy(h.Mac[:], raw[6:6+MacLen] /*@, perm(1/4)@*/)
+	copy(h.Mac[:], raw[6:6+MacLen] /*@, perm(1/2)@*/)
 	return nil
 }
 
@@ -118,15 +115,11 @@ func (h *HopField) SerializeTo(b []byte) (err error) {
 	binary.BigEndian.PutUint16(b[2:4], h.ConsIngress)
 	//@ assert &b[4:6][0] == &b[4] && &b[4:6][1] == &b[5]
 	binary.BigEndian.PutUint16(b[4:6], h.ConsEgress)
-	//@ assert forall i int :: { &h.Mac[:][i] }{ &h.Mac[i] } 0 <= i && i < len(h.Mac[:]) ==>
+	//@ assert forall i int :: { &h.Mac[:][i] } 0 <= i && i < len(h.Mac) ==>
 	//@     &h.Mac[i] == &h.Mac[:][i]
-	//@ assert forall i int :: { &b[6:6+MacLen][i] } 0 <= i && i < len(b[6:6+MacLen]) ==>
+	//@ assert forall i int :: 0 <= i && i < MacLen ==>
 	//@     &b[6:6+MacLen][i] == &b[i+6]
-	//@ assert forall i int :: { h.Mac[:][i] } 0 <= i && i < len(h.Mac[:]) ==>
-	//@     acc(&h.Mac[:][i], 1/2)
-	//@ assert forall i int :: { b[6:6+MacLen][i] } 0 <= i && i < len(b[6:6+MacLen]) ==>
-	//@     acc(&b[6:6+MacLen][i])
-	copy(b[6:6+MacLen], h.Mac[:] /*@, perm(1/4) @*/)
+	copy(b[6:6+MacLen], h.Mac[:] /*@, perm(1/2) @*/)
 
 	return nil
 }

@@ -10,7 +10,7 @@ jobs:
     steps:
       - name: Checkout the SCION repository
         uses: actions/checkout@v2
-      - name: Cache the verification results
+      - name: Set-up caching for the verification results
         uses: actions/cache@v3
         env:
           cache-name: gobra-cache
