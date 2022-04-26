@@ -162,7 +162,7 @@ var (
 		Labels: []string{"isd_as", "remote_isd_as", "policy_id", "status"},
 	}
 	SessionPathChangesMeta = MetricMeta{
-		Name:   "gateway_path_changes",
+		Name:   "gateway_session_path_changes",
 		Help:   "Total number of path changes per session policy.",
 		Labels: []string{"isd_as", "remote_isd_as", "session_id", "policy_id"},
 	}
