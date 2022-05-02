@@ -129,10 +129,10 @@ func (mr *MockConnectorMockRecorder) RevNotification(arg0, arg1 interface{}) *go
 }
 
 // SVCInfo mocks base method.
-func (m *MockConnector) SVCInfo(arg0 context.Context, arg1 []addr.HostSVC) (map[addr.HostSVC]string, error) {
+func (m *MockConnector) SVCInfo(arg0 context.Context, arg1 []addr.HostSVC) (map[addr.HostSVC][]string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SVCInfo", arg0, arg1)
-	ret0, _ := ret[0].(map[addr.HostSVC]string)
+	ret0, _ := ret[0].(map[addr.HostSVC][]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
