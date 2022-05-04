@@ -295,6 +295,21 @@ class TestBase(cli.Application):
         return self.test_state.dc("exec", "-T", "--user", user, container,
                                   "timeout", "1m", *args)
 
+    def execute_as_user(self, container, user, *args, **kwargs):
+        """Executes an arbitrary command in the specified container.
+
+        There's one minute timeout on the command so that tests don't get stuck.
+
+        Args:
+            container: the name of the container to execute the command in.
+            user: the user to use to execute the command
+
+        Returns:
+            The output of the command.
+        """
+        return self.test_state.dc("exec", "-T", "--user", user, container,
+                                  "timeout", "1m", *args)
+
 
 class CmdBase(cli.Application):
     """ CmdBase is used to implement the test sub-commands. """

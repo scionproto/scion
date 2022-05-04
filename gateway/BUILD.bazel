@@ -1,9 +1,8 @@
-load("//lint:go.bzl", "go_library", "go_test")
+load("//tools/lint:go.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
     srcs = [
-        "dataplane.go",
         "gateway.go",
         "loader.go",
         "metrics.go",

@@ -97,7 +97,7 @@ func TestUpdateCryptoLegacy(t *testing.T) {
 	require.NoError(t, err)
 	root, err := filepath.Abs("../../../../")
 	require.NoError(t, err)
-	playground, err := filepath.Abs(filepath.Join(root, "scripts", "cryptoplayground"))
+	playground, err := filepath.Abs(filepath.Join(root, "tools", "cryptoplayground"))
 	require.NoError(t, err)
 	cmd := exec.Command("sh", "-c", filepath.Join("testdata", "update_certs.sh"))
 	cmd.Env = []string{

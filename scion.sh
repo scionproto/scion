@@ -1,7 +1,5 @@
 #!/bin/bash
 
-export PYTHONPATH=.
-
 # BEGIN subcommand functions
 
 cmd_bazel_remote() {
@@ -17,7 +15,7 @@ cmd_topo_clean() {
         echo "Shutting down dockerized topology..."
         ./tools/quiet ./tools/dc down || true
     else
-        ./tools/quiet supervisor/supervisor.sh shutdown
+        ./tools/quiet tools/supervisor.sh shutdown
         run_teardown
     fi
     stop_jaeger
@@ -31,7 +29,7 @@ cmd_topology() {
     cmd_topo_clean
 
     echo "Create topology, configuration, and execution files."
-    python/topology/generator.py "$@"
+    tools/topogen.py "$@"
     if is_docker_be; then
         ./tools/quiet ./tools/dc run utils_chowner
     fi
@@ -49,7 +47,7 @@ cmd_run() {
         return 0
     else
         run_setup
-        ./tools/quiet ./supervisor/supervisor.sh start all
+        ./tools/quiet tools/supervisor.sh start all
     fi
 }
 
@@ -84,12 +82,12 @@ cmd_mstart() {
         ./tools/dc scion up -d $services
     else
         run_setup
-        supervisor/supervisor.sh mstart "$@"
+        tools/supervisor.sh mstart "$@"
     fi
 }
 
 run_setup() {
-    python/integration/set_ipv6_addr.py -a
+    tools/set_ipv6_addr.py -a
      # Create dispatcher dir or change owner
     local disp_dir="/run/shm/dispatcher"
     [ -d "$disp_dir" ] || mkdir "$disp_dir"
@@ -97,7 +95,7 @@ run_setup() {
 }
 
 run_teardown() {
-    python/integration/set_ipv6_addr.py -d
+    tools/set_ipv6_addr.py -d
     local disp_dir="/run/shm/dispatcher"
     if [ -e "$disp_dir" ]; then
       find "$disp_dir" -xdev -mindepth 1 -print0 | xargs -r0 rm -v
@@ -109,7 +107,7 @@ cmd_stop() {
     if is_docker_be; then
         ./tools/quiet ./tools/dc stop 'scion*'
     else
-        ./tools/quiet ./supervisor/supervisor.sh stop all
+        ./tools/quiet tools/supervisor.sh stop all
         run_teardown
     fi
     stop_jaeger
@@ -121,7 +119,7 @@ cmd_mstop() {
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
         ./tools/dc scion stop $services
     else
-        supervisor/supervisor.sh mstop "$@"
+        tools/supervisor.sh mstop "$@"
     fi
 }
 
@@ -142,9 +140,9 @@ cmd_mstatus() {
         if [ $# -ne 0 ]; then
             services="$(glob_supervisor "$@")"
             [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
-            supervisor/supervisor.sh status "$services" | grep -v RUNNING
+            tools/supervisor.sh status "$services" | grep -v RUNNING
         else
-            supervisor/supervisor.sh status | grep -v RUNNING
+            tools/supervisor.sh status | grep -v RUNNING
         fi
         [ $? -eq 1 ]
     fi
@@ -155,7 +153,7 @@ cmd_mstatus() {
 glob_supervisor() {
     [ $# -ge 1 ] || set -- '*'
     matches=
-    for proc in $(supervisor/supervisor.sh status | awk '{ print $1 }'); do
+    for proc in $(tools/supervisor.sh status | awk '{ print $1 }'); do
         for spec in "$@"; do
             if glob_match $proc "$spec"; then
                 matches="$matches $proc"
@@ -237,7 +235,7 @@ cmd_help() {
 	Usage:
 	    $PROGRAM topology [-d] [-c TOPOFILE]
 	        Create topology, configuration, and execution files.
-	        All arguments or options are passed to topology/generator.py
+	        All arguments or options are passed to tools/topogen.py
 	    $PROGRAM run
 	        Run network.
 	    $PROGRAM mstart PROCESS
