@@ -50,10 +50,12 @@ func newPayload(pather command.Pather) *cobra.Command {
 
 To update an existing TRC the predecessor TRC needs to be specified.
 
-To inspect the created asn.1 file you can use the openssl tool:
-openssl asn1parse -inform DER -i -in payload.der
+To inspect the created asn.1 file you can use the openssl tool::
+
+ openssl asn1parse -inform DER -i -in payload.der
+
 (for more information see 'man asn1parse')
-	`,
+`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 			cfg, err := conf.LoadTRC(flags.tmpl)

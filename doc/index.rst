@@ -47,6 +47,12 @@ is a good place to start.
    manuals/control
    manuals/gateway
 
+.. toctree::
+   :maxdepth: 2
+   :caption: CLI tools:
+
+   command/scion/scion
+   command/scion-pki/scion-pki
 
 Indices and tables
 ==================

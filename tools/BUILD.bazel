@@ -1,4 +1,5 @@
-load("//lint:go.bzl", "go_library")
+load("@pip3_deps//:requirements.bzl", "requirement")
+load("//tools/lint:go.bzl", "go_library")
 
 sh_binary(
     name = "docker_ip",
@@ -12,4 +13,24 @@ go_library(
     importpath = "github.com/scionproto/scion/tools",
     visibility = ["//visibility:public"],
     deps = ["@com_github_google_go_containerregistry//cmd/registry:go_default_library"],
+)
+
+py_binary(
+    name = "topogen",
+    srcs = ["topogen.py"],
+    data = [
+        "//scion-pki/cmd/scion-pki",
+        "//tools:docker_ip",
+    ],
+    main = "topogen.py",
+    python_version = "PY3",
+    srcs_version = "PY3",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//tools/topology:py_default_library",
+        "@bazel_tools//tools/python/runfiles",
+        requirement("toml"),
+        requirement("plumbum"),
+        requirement("pyyaml"),
+    ],
 )

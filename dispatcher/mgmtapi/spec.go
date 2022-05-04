@@ -16,15 +16,19 @@ package mgmtapi
 
 import (
 	"bytes"
-	_ "embed"
+	"embed"
 	"net/http"
 	"time"
+
+	"github.com/scionproto/scion/private/mgmtapi"
 )
 
-//go:embed index.html
-var index []byte
+//go:embed *.html
+var f embed.FS
 
 var (
+	index = mgmtapi.ResolveIndex(f)
+
 	modtime = time.Now()
 
 	spec = func() []byte {

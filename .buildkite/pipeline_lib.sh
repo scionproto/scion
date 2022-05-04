@@ -31,7 +31,7 @@ gen_acceptance() {
         echo "      - ${accept_dir}/ctl grun $name"
         echo "    key: ${name}_acceptance"
         echo "    env:"
-        echo "      PYTHONPATH: \"python/:.\""
+        echo "      PYTHONPATH: \".\""
         echo "      ACCEPTANCE_DIR: \"$accept_dir\""
         echo "    artifact_paths:"
         echo "      - \"artifacts.out/**/*\""

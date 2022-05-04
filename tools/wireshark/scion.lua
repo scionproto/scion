@@ -248,7 +248,12 @@ function scion_proto.dissector(tvbuf, pktinfo, root)
     pktinfo.cols.info:append(string.format(" SCION %s -> %s %s", scion.src, scion.dst, next_proto))
 
     if next_proto == "UDP" then
-        scion_udp_proto_dissect(rest(0, 8), pktinfo, root)
+        scion_udp_dst_port = scion_udp_proto_dissect(rest(0, 8), pktinfo, root)
+        -- change the port number if running with non-standard gateway data port
+        if scion_udp_dst_port == 30056 or scion_udp_dst_port == 40200 then
+            scion_gateway_frame_dissect(rest(8), pktinfo, root)
+            tree:append_text(" SIG frame")
+        end
     elseif next_proto == "SCMP" then
         scmp_proto_dissect(rest, pktinfo, root)
     elseif next_proto == "BFD" then
@@ -828,6 +833,105 @@ function scion_udp_proto_dissect(tvbuf, pktinfo, root)
     tree:add(udp_length, udp.length)
     -- TODO SCION/UDP checksum validation
     tree:add(udp_cksum, udp.cksum):append_text(" [unverified]")
+
+    return udp.dst_port:uint()
+end
+
+scion_gateway_frame_proto = Proto("scion_gateway_frame", "SCION/IP gateway frame")
+
+local frame_version = ProtoField.uint8("scion_gateway_frame.version", "Version", base.DEC)
+local frame_session = ProtoField.uint8("scion_gateway_frame.session", "Session", base.DEC)
+local frame_index = ProtoField.uint16("scion_gateway_frame.index", "Index", base.DEC)
+local frame_stream = ProtoField.uint32("scion_gateway_frame.stream", "Stream", base.DEC)
+local frame_sequence = ProtoField.uint64("scion_gateway_frame.sequence", "Sequence", base.DEC)
+
+scion_gateway_frame_proto.fields = {
+    frame_version,
+    frame_session,
+    frame_index,
+    frame_stream,
+    frame_sequence,
+}
+
+scion_gateway_encpkt_proto = Proto("scion_gateway_encpkt", "encapsulated IP packet")
+
+local encpkt_trailing = ProtoField.string("scion_gateway_encpkt.trailing", "Trailing")
+local encpkt_ip_version = ProtoField.uint8("scion_gateway_encpkt.ip_version", "IP version", base.DEC)
+local encpkt_length = ProtoField.uint16("scion_gateway_encpkt.length", "Length", base.DEC)
+
+scion_gateway_encpkt_proto.fields = {
+    encpkt_trailing,
+    encpkt_ip_version,
+    encpkt_length,
+}
+
+function scion_gateway_frame_dissect(tvbuf, pktinfo, root)
+
+    pktinfo.cols.info:append(" gateway-frame")
+
+    local tree = root:add(scion_gateway_frame_proto, tvbuf(0, 16))
+
+    local frame = {}
+    frame["version"] = tvbuf(0, 1)
+    frame["session"] = tvbuf(1, 1)
+    frame["index"] = tvbuf(2, 2)
+    frame["stream"] = tvbuf(4, 4)
+    frame["sequence"] = tvbuf(8, 8)
+    index = frame.index:uint()
+
+    tree:add(frame_version, frame.version)
+    tree:add(frame_session, frame.session)
+    if index == 0xffff then
+        tree:add(frame_index, frame.index):append_text(" (no IP packet begins in the frame)")
+    else
+        tree:add(frame_index, frame.index)
+    end
+    tree:add(frame_stream, frame.stream)
+    tree:add(frame_sequence, frame.sequence)
+
+    tvbuf = tvbuf(16)
+    local ord = 1
+    if index ~= 0 then
+        local length
+        if index == 0xffff then
+            length = tvbuf:len()
+        else
+            length = index
+        end
+        local encpkt = tree:add(scion_gateway_encpkt_proto, tvbuf(0, bytes), "IP packet", ord)
+        encpkt:add(encpkt_trailing, "yes")
+        encpkt:add(encpkt_length, length)
+        ord = ord + 1
+        if tvbuf:len() == length then
+            return
+        end
+        tvbuf = tvbuf(length)
+    end
+    while true do
+        local encpkt = {}
+        encpkt["ip_version"] = tvbuf(0, 1)
+        local ip_version = bit.rshift(encpkt.ip_version:uint(), 4)
+        if ip_version == 4 then
+            encpkt["length"] = tvbuf(2, 2)
+        elseif ip_version == 6 then
+            encpkt["length"] = tvbuf(4, 2)
+        else
+            error("invalid IP version")
+        end
+        local length = encpkt.length:uint()
+        if length > tvbuf:len() then
+            length = tvbuf:len()
+        end
+
+        local enctree = tree:add(scion_gateway_encpkt_proto, tvbuf(0, length), "IP packet", ord)
+        enctree:add(encpkt_ip_version, encpkt.ip_version, ip_version)
+        enctree:add(encpkt_length, encpkt.length)
+        ord = ord + 1
+        if tvbuf:len() == length then
+            return
+        end
+        tvbuf = tvbuf(length)
+    end
 end
 
 

@@ -138,7 +138,7 @@ func (h *DefaultSCMPHandler) handleSCMPRev(typeCode slayers.SCMPTypeCode,
 	if h.RevocationHandler != nil {
 		err := h.RevocationHandler.Revoke(context.TODO(), revInfo)
 		if err != nil {
-			log.Error("Notifying revocation handler failed", "err", err)
+			log.Info("Notifying revocation handler failed", "err", err)
 		}
 	}
 	return &OpError{typeCode: typeCode, revInfo: revInfo}
