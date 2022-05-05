@@ -15,6 +15,7 @@
 package slayers_test
 
 import (
+	"encoding/binary"
 	"fmt"
 	"testing"
 
@@ -542,31 +543,42 @@ func prepRawPacketWithExtn(t *testing.T, extns ...slayers.L4ProtocolType) []byte
 	return buf.Bytes()
 }
 
+var spi = binary.LittleEndian.Uint32([]byte{1, 0, 0, 0})
+var algo = slayers.PacketAuthSHA1_AES_CBC
+var ts = binary.LittleEndian.Uint32([]byte{1, 2, 3, 0})
+var sn = binary.LittleEndian.Uint32([]byte{4, 5, 6, 0})
 var optAuthMAC = []byte("16byte_mac_foooo")
 
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |Next Header=UDP| Hdr Ext Len=5 | PadN Option=1 |Opt Data Len=1 |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |       0       | Auth Option=2 |Opt Data Len=17| Algo = CMAC   |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |                                                               |
-//   +                                                               +
-//   |                                                               |
-//   +                        16-octet MAC data                      +
-//   |                                                               |
-//   +                                                               +
-//   |                                                               |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |   NextHdr=UDP |     ExtLen    |  OptType=2    |  OptDataLen   |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                   Security Parameter Index                    |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |    Algorithm  |                    Timestamp                  |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |      RSV      |                  Sequence Number              |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                                                               |
+// +                                                               +
+// |                                                               |
+// +                        16-octet MAC data                      +
+// |                                                               |
+// +                                                               +
+// |                                                               |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
 var rawE2EOptAuth = append(
 	[]byte{
-		0x11, 0x05, 0x01, 0x01,
-		0x0, 0x2, 0x11, 0x0,
+		0x11, 0x7, 0x2, 0x1c,
+		0x0, 0x0, 0x0, 0x1,
+		0x1, 0x3, 0x2, 0x1,
+		0x0, 0x6, 0x5, 0x4,
 	},
 	optAuthMAC...,
 )
 
 func TestOptAuthenticatorSerialize(t *testing.T) {
-	optAuth := slayers.NewPacketAuthenticatorOption(slayers.PacketAuthCMAC, optAuthMAC)
+	optAuth := slayers.NewPacketAuthenticatorOption(spi, algo, ts, sn, optAuthMAC)
 
 	e2e := slayers.EndToEndExtn{}
 	e2e.NextHdr = slayers.L4UDP
@@ -591,7 +603,10 @@ func TestOptAuthenticatorDeserialize(t *testing.T) {
 	require.NoError(t, err, "FindOption")
 	auth, err := slayers.ParsePacketAuthenticatorOption(optAuth)
 	require.NoError(t, err, "ParsePacketAuthenticatorOption")
-	assert.Equal(t, slayers.PacketAuthCMAC, auth.Algorithm(), "Algorithm Type")
+	assert.Equal(t, spi, auth.SPI(), "SPI")
+	assert.Equal(t, algo, auth.Algorithm(), "Algorithm Type")
+	assert.Equal(t, ts, auth.Timestamp(), "Timestamp")
+	assert.Equal(t, sn, auth.SequenceNumber(), "Sequence Number")
 	assert.Equal(t, optAuthMAC, auth.Authenticator(), "Authenticator data (MAC)")
 }
 
