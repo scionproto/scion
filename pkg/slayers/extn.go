@@ -15,6 +15,7 @@
 package slayers
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	"github.com/google/gopacket"
@@ -451,7 +452,8 @@ func (e *EndToEndExtnSkipper) NextLayerType() gopacket.LayerType {
 type PacketAuthAlg uint8
 
 const (
-	PacketAuthCMAC PacketAuthAlg = 0
+	PacketAuthCMAC PacketAuthAlg = iota
+	PacketAuthSHA1_AES_CBC
 )
 
 // PacketAuthenticatorOption wraps an EndToEndOption of OptTypeAuthenticator.
@@ -462,16 +464,17 @@ type PacketAuthenticatorOption struct {
 }
 
 // NewPacketAuthenticatorOption creates a new EndToEndOption of
-// OptTypeAuthenticator, initialized with the given algorithm type and
-// authenticator data.
-func NewPacketAuthenticatorOption(alg PacketAuthAlg, data []byte) PacketAuthenticatorOption {
+// OptTypeAuthenticator, initialized with the given SPAO data.
+func NewPacketAuthenticatorOption(spi uint32, alg PacketAuthAlg, ts uint32,
+	sn uint32, auth []byte) PacketAuthenticatorOption {
 	o := PacketAuthenticatorOption{EndToEndOption: new(EndToEndOption)}
-	o.Reset(alg, data)
+	o.Reset(spi, alg, ts, sn, auth)
 	return o
 }
 
 // ParsePacketAuthenticatorOption parses o as a packet authenticator option.
-// Performs minimal checks to ensure that Algorithm and Authenticator are set.
+// Performs minimal checks to ensure that SPI, Algorithm, timestamp, RSV, and
+// sequence number are set.
 // Checking the size and content of the Authenticator data must be done by the
 // caller.
 func ParsePacketAuthenticatorOption(o *EndToEndOption) (PacketAuthenticatorOption, error) {
@@ -479,42 +482,71 @@ func ParsePacketAuthenticatorOption(o *EndToEndOption) (PacketAuthenticatorOptio
 		return PacketAuthenticatorOption{},
 			serrors.New("wrong option type", "expected", OptTypeAuthenticator, "actual", o.OptType)
 	}
-	if len(o.OptData) < 2 {
+	if len(o.OptData) < 12 {
 		return PacketAuthenticatorOption{},
-			serrors.New("buffer too short", "expected", 2, "actual", len(o.OptData))
+			serrors.New("buffer too short", "expected", 12, "actual", len(o.OptData))
 	}
 	return PacketAuthenticatorOption{o}, nil
 }
 
-// Reset reinitializes the underlying EndToEndOption with the given algorithm
-// type and authenticator data.
+// Reset reinitializes the underlying EndToEndOption with the SPAO data.
 // Reuses the OptData buffer if it is of sufficient capacity.
-func (o PacketAuthenticatorOption) Reset(alg PacketAuthAlg, data []byte) {
+func (o PacketAuthenticatorOption) Reset(spi uint32, alg PacketAuthAlg,
+	ts uint32, sn uint32, auth []byte) {
 	o.OptType = OptTypeAuthenticator
 
-	n := 1 + len(data)
+	n := 12 + len(auth) // 4 + 1 + 3 + 1 + 3 + len(data)
 	if n <= cap(o.OptData) {
 		o.OptData = o.OptData[:n]
 	} else {
 		o.OptData = make([]byte, n)
 	}
-	o.OptData[0] = byte(alg)
-	copy(o.OptData[1:], data)
+	binary.BigEndian.PutUint32(o.OptData[:4], spi)
+	o.OptData[4] = byte(alg)
+	o.OptData[5] = byte(ts >> 16)
+	o.OptData[6] = byte(ts >> 8)
+	o.OptData[7] = byte(ts)
+	o.OptData[8] = byte(0)
+	o.OptData[9] = byte(sn >> 16)
+	o.OptData[10] = byte(sn >> 8)
+	o.OptData[11] = byte(sn)
+	copy(o.OptData[12:], auth)
 
-	o.OptAlign = [2]uint8{4, 1}
+	o.OptAlign = [2]uint8{4, 2}
 	// reset unused/implicit fields
 	o.OptDataLen = 0
 	o.ActualLength = 0
 }
 
-// Algorithm returns the algorithm type stored in the data buffer.
-func (o PacketAuthenticatorOption) Algorithm() PacketAuthAlg {
-	return PacketAuthAlg(o.OptData[0])
+// SPI returns a slice of the underlying SPI buffer.
+// Changes to this slice will be reflected on the wire when
+// the extension is serialized.
+func (o PacketAuthenticatorOption) SPI() uint32 {
+	return binary.BigEndian.Uint32(o.OptData[:4])
 }
 
-// Algorithm returns the authenticator data part of the data buffer.
-// Returns a slice of the underlying OptData buffer. Changes to this slice will
-// be reflected on the wire when the extension is serialized.
+// Algorithm returns the algorithm type stored in the data buffer.
+func (o PacketAuthenticatorOption) Algorithm() PacketAuthAlg {
+	return PacketAuthAlg(o.OptData[4])
+}
+
+// Timestamp returns a slice of the underlying timestamp buffer.
+// Changes to this slice will be reflected on the wire when
+// the extension is serialized.
+func (o PacketAuthenticatorOption) Timestamp() uint32 {
+	return uint32(o.OptData[5])<<16 + uint32(o.OptData[6])<<8 + uint32(o.OptData[7])
+}
+
+// SequenceNumber returns a slice of the underlying sequence number buffer.
+// Changes to this slice will be reflected on the wire when
+// the extension is serialized.
+func (o PacketAuthenticatorOption) SequenceNumber() uint32 {
+	return uint32(o.OptData[9])<<16 + uint32(o.OptData[10])<<8 + uint32(o.OptData[11])
+}
+
+// Authenticator returns slice of the underlying auth buffer.
+// Changes to this slice will be reflected on the wire when
+// the extension is serialized.
 func (o PacketAuthenticatorOption) Authenticator() []byte {
-	return o.OptData[1:]
+	return o.OptData[12:]
 }
