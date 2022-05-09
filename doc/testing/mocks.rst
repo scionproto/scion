@@ -13,7 +13,7 @@ Adding mocked interface
 Assume that you want to mock an interface ``Foo`` and ``Bar`` that are defined in the
 directory ``go/lib/foo``. First, you need to create the subdirectory
 ``go/lib/foo/mock_foo``. Inside this subdirectory, we add the build bazel file
-``BUILD.bazl``. We need to add a ``gomock`` target in this BUILD.bazel file for our
+``BUILD.bazel``. We need to add a ``gomock`` target in this ``BUILD.bazel`` file for our
 interfaces. This would look like the following::
 
     load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
