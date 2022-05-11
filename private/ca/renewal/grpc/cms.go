@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
-	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 )
 
@@ -36,8 +35,6 @@ type ChainBuilder interface {
 
 // RenewalRequestVerifier verifies the incoming chain renewal request.
 type RenewalRequestVerifier interface {
-	VerifyPbSignedRenewalRequest(context.Context, *cryptopb.SignedMessage,
-		[][]*x509.Certificate) (*x509.CertificateRequest, error)
 	VerifyCMSSignedRenewalRequest(context.Context, []byte) (*x509.CertificateRequest, error)
 }
 

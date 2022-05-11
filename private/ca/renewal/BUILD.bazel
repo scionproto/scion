@@ -13,14 +13,11 @@ go_library(
         "//pkg/log:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/proto/control_plane:go_default_library",
-        "//pkg/proto/crypto:go_default_library",
         "//pkg/scrypto:go_default_library",
         "//pkg/scrypto/cms/protocol:go_default_library",
         "//pkg/scrypto/cppki:go_default_library",
-        "//pkg/scrypto/signed:go_default_library",
         "//private/ca/renewal/metrics:go_default_library",
         "//private/trust:go_default_library",
-        "@org_golang_google_protobuf//proto:go_default_library",
     ],
 )
 
@@ -36,7 +33,6 @@ go_test(
         "//pkg/private/serrors:go_default_library",
         "//pkg/private/xtest:go_default_library",
         "//pkg/proto/control_plane:go_default_library",
-        "//pkg/proto/crypto:go_default_library",
         "//pkg/scrypto/cms/protocol:go_default_library",
         "//pkg/scrypto/cppki:go_default_library",
         "//pkg/scrypto/signed:go_default_library",
@@ -48,6 +44,5 @@ go_test(
         "@com_github_golang_mock//gomock:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
-        "@org_golang_google_protobuf//proto:go_default_library",
     ],
 )

@@ -36,7 +36,6 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	"github.com/scionproto/scion/private/ca/renewal"
 	"github.com/scionproto/scion/private/ca/renewal/grpc"
-	renewalgrpc "github.com/scionproto/scion/private/ca/renewal/grpc"
 	"github.com/scionproto/scion/private/ca/renewal/grpc/mock_grpc"
 	"github.com/scionproto/scion/private/trust"
 )
@@ -83,9 +82,9 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 
 	tests := map[string]struct {
 		Request      func(t *testing.T) *cppb.ChainRenewalRequest
-		Verifier     func(ctrl *gomock.Controller) renewalgrpc.RenewalRequestVerifier
-		ChainBuilder func(ctrl *gomock.Controller) renewalgrpc.ChainBuilder
-		CMSSigner    func(ctrl *gomock.Controller) renewalgrpc.CMSSigner
+		Verifier     func(ctrl *gomock.Controller) grpc.RenewalRequestVerifier
+		ChainBuilder func(ctrl *gomock.Controller) grpc.ChainBuilder
+		CMSSigner    func(ctrl *gomock.Controller) grpc.CMSSigner
 		IA           addr.IA
 		Metric       string
 		Assertion    assert.ErrorAssertionFunc
@@ -97,13 +96,13 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 					CmsSignedRequest: []byte("dummy request"),
 				}
 			},
-			Verifier: func(ctrl *gomock.Controller) renewalgrpc.RenewalRequestVerifier {
+			Verifier: func(ctrl *gomock.Controller) grpc.RenewalRequestVerifier {
 				return mock_grpc.NewMockRenewalRequestVerifier(ctrl)
 			},
-			ChainBuilder: func(ctrl *gomock.Controller) renewalgrpc.ChainBuilder {
+			ChainBuilder: func(ctrl *gomock.Controller) grpc.ChainBuilder {
 				return mock_grpc.NewMockChainBuilder(ctrl)
 			},
-			CMSSigner: func(ctrl *gomock.Controller) renewalgrpc.CMSSigner {
+			CMSSigner: func(ctrl *gomock.Controller) grpc.CMSSigner {
 				return mock_grpc.NewMockCMSSigner(ctrl)
 			},
 			IA:        xtest.MustParseIA("1-ff00:0:110"),
@@ -115,13 +114,13 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 			Request: func(t *testing.T) *cppb.ChainRenewalRequest {
 				return signedReq
 			},
-			Verifier: func(ctrl *gomock.Controller) renewalgrpc.RenewalRequestVerifier {
+			Verifier: func(ctrl *gomock.Controller) grpc.RenewalRequestVerifier {
 				return mock_grpc.NewMockRenewalRequestVerifier(ctrl)
 			},
-			ChainBuilder: func(ctrl *gomock.Controller) renewalgrpc.ChainBuilder {
+			ChainBuilder: func(ctrl *gomock.Controller) grpc.ChainBuilder {
 				return mock_grpc.NewMockChainBuilder(ctrl)
 			},
-			CMSSigner: func(ctrl *gomock.Controller) renewalgrpc.CMSSigner {
+			CMSSigner: func(ctrl *gomock.Controller) grpc.CMSSigner {
 				return mock_grpc.NewMockCMSSigner(ctrl)
 			},
 			IA:        xtest.MustParseIA("2-ff00:0:112"),
@@ -133,7 +132,7 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 			Request: func(t *testing.T) *cppb.ChainRenewalRequest {
 				return signedReq
 			},
-			Verifier: func(ctrl *gomock.Controller) renewalgrpc.RenewalRequestVerifier {
+			Verifier: func(ctrl *gomock.Controller) grpc.RenewalRequestVerifier {
 				v := mock_grpc.NewMockRenewalRequestVerifier(ctrl)
 				v.EXPECT().VerifyCMSSignedRenewalRequest(
 					context.Background(),
@@ -141,10 +140,10 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 				).Return(nil, mockErr)
 				return v
 			},
-			ChainBuilder: func(ctrl *gomock.Controller) renewalgrpc.ChainBuilder {
+			ChainBuilder: func(ctrl *gomock.Controller) grpc.ChainBuilder {
 				return mock_grpc.NewMockChainBuilder(ctrl)
 			},
-			CMSSigner: func(ctrl *gomock.Controller) renewalgrpc.CMSSigner {
+			CMSSigner: func(ctrl *gomock.Controller) grpc.CMSSigner {
 				return mock_grpc.NewMockCMSSigner(ctrl)
 			},
 			IA:        xtest.MustParseIA("1-ff00:0:110"),
@@ -156,7 +155,7 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 			Request: func(t *testing.T) *cppb.ChainRenewalRequest {
 				return signedReq
 			},
-			Verifier: func(ctrl *gomock.Controller) renewalgrpc.RenewalRequestVerifier {
+			Verifier: func(ctrl *gomock.Controller) grpc.RenewalRequestVerifier {
 				v := mock_grpc.NewMockRenewalRequestVerifier(ctrl)
 				v.EXPECT().VerifyCMSSignedRenewalRequest(
 					context.Background(),
@@ -164,12 +163,12 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 				).Return(mockCSR, nil)
 				return v
 			},
-			ChainBuilder: func(ctrl *gomock.Controller) renewalgrpc.ChainBuilder {
+			ChainBuilder: func(ctrl *gomock.Controller) grpc.ChainBuilder {
 				cb := mock_grpc.NewMockChainBuilder(ctrl)
 				cb.EXPECT().CreateChain(gomock.Any(), gomock.Any()).Return(nil, mockErr)
 				return cb
 			},
-			CMSSigner: func(ctrl *gomock.Controller) renewalgrpc.CMSSigner {
+			CMSSigner: func(ctrl *gomock.Controller) grpc.CMSSigner {
 				return mock_grpc.NewMockCMSSigner(ctrl)
 			},
 			IA:        xtest.MustParseIA("1-ff00:0:110"),
@@ -181,18 +180,18 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 			Request: func(t *testing.T) *cppb.ChainRenewalRequest {
 				return signedReq
 			},
-			Verifier: func(ctrl *gomock.Controller) renewalgrpc.RenewalRequestVerifier {
+			Verifier: func(ctrl *gomock.Controller) grpc.RenewalRequestVerifier {
 				v := mock_grpc.NewMockRenewalRequestVerifier(ctrl)
 				v.EXPECT().VerifyCMSSignedRenewalRequest(context.Background(),
 					signedReq.CmsSignedRequest).Return(mockCSR, nil)
 				return v
 			},
-			ChainBuilder: func(ctrl *gomock.Controller) renewalgrpc.ChainBuilder {
+			ChainBuilder: func(ctrl *gomock.Controller) grpc.ChainBuilder {
 				cb := mock_grpc.NewMockChainBuilder(ctrl)
 				cb.EXPECT().CreateChain(gomock.Any(), gomock.Any()).Return(mockIssuedChain, nil)
 				return cb
 			},
-			CMSSigner: func(ctrl *gomock.Controller) renewalgrpc.CMSSigner {
+			CMSSigner: func(ctrl *gomock.Controller) grpc.CMSSigner {
 				signer := mock_grpc.NewMockCMSSigner(ctrl)
 				signer.EXPECT().SignCMS(gomock.Any(), gomock.Any())
 				return signer
@@ -210,7 +209,7 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			ctr := metrics.NewTestCounter()
-			s := &renewalgrpc.CMS{
+			s := &grpc.CMS{
 				Verifier:     tc.Verifier(ctrl),
 				ChainBuilder: tc.ChainBuilder(ctrl),
 				IA:           tc.IA,
