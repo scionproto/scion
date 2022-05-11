@@ -26,6 +26,7 @@ import (
 	"go.uber.org/goleak"
 
 	"github.com/scionproto/scion/pkg/private/mocks/net/mock_net"
+	"github.com/scionproto/scion/pkg/snet"
 )
 
 func expectFrames(conn *mock_net.MockPacketConn) *gomock.Call {
@@ -102,7 +103,9 @@ func TestSender(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			conn := mock_net.NewMockPacketConn(ctrl)
-			conn.EXPECT().LocalAddr().Return(&net.UDPAddr{IP: net.IP{192, 168, 1, 1}}).AnyTimes()
+			conn.EXPECT().LocalAddr().Return(
+				&snet.UDPAddr{Host: &net.UDPAddr{IP: net.IP{192, 168, 1, 1}}},
+			).AnyTimes()
 			addr := net.UDPAddr{
 				IP:   net.IP{192, 168, 1, 2},
 				Port: 30041,

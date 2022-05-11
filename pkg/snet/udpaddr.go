@@ -84,7 +84,7 @@ func ParseUDPAddr(s string) (*UDPAddr, error) {
 
 // Network implements net.Addr interface.
 func (a *UDPAddr) Network() string {
-	return "scion"
+	return "udp/scion"
 }
 
 // String implements net.Addr interface.
