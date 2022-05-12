@@ -538,10 +538,10 @@ type PacketAuthenticatorOption struct {
 // NewPacketAuthenticatorOption creates a new EndToEndOption of
 // OptTypeAuthenticator, initialized with the given SPAO data.
 func NewPacketAuthenticatorOption(spi PacketAuthSPI, alg PacketAuthAlg, ts uint32,
-	sn uint32, auth []byte) (PacketAuthenticatorOption, error) {
+	sn uint32, auth []byte) PacketAuthenticatorOption {
 	o := PacketAuthenticatorOption{EndToEndOption: new(EndToEndOption)}
-	err := o.Reset(spi, alg, ts, sn, auth)
-	return o, err
+	o.Reset(spi, alg, ts, sn, auth)
+	return o
 }
 
 // ParsePacketAuthenticatorOption parses o as a packet authenticator option.
@@ -564,13 +564,13 @@ func ParsePacketAuthenticatorOption(o *EndToEndOption) (PacketAuthenticatorOptio
 // Reset reinitializes the underlying EndToEndOption with the SPAO data.
 // Reuses the OptData buffer if it is of sufficient capacity.
 func (o PacketAuthenticatorOption) Reset(spi PacketAuthSPI, alg PacketAuthAlg,
-	ts uint32, sn uint32, auth []byte) error {
+	ts uint32, sn uint32, auth []byte) {
 
-	if ts > (1 << 24) {
-		return serrors.New("Timestamp value should be smaller than 2^24", "ts", ts)
+	if ts >= (1 << 24) {
+		panic("Timestamp value should be smaller than 2^24")
 	}
-	if sn > (1 << 24) {
-		return serrors.New("Sequence number should be smaller than 2^24", "sn", sn)
+	if sn >= (1 << 24) {
+		panic("Sequence number should be smaller than 2^24")
 	}
 
 	o.OptType = OptTypeAuthenticator
@@ -596,8 +596,6 @@ func (o PacketAuthenticatorOption) Reset(spi PacketAuthSPI, alg PacketAuthAlg,
 	// reset unused/implicit fields
 	o.OptDataLen = 0
 	o.ActualLength = 0
-
-	return nil
 }
 
 // SPI returns returns the value set in the homonym field in the extension.

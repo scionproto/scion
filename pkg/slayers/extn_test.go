@@ -585,44 +585,48 @@ func TestOptAuthenticatorSerialize(t *testing.T) {
 		ts      uint32
 		sn      uint32
 		optAuth []byte
-		err     assert.ErrorAssertionFunc
+		panics  bool
 	}{
 		{
 			name:    "correct",
 			spi:     slayers.PacketAuthSPI(spi),
-			algo:    slayers.PacketAuthAlg(algo),
+			algo:    algo,
 			ts:      ts,
 			sn:      sn,
 			optAuth: optAuthMAC,
-			err:     assert.NoError,
+			panics:  false,
 		},
 		{
 			name:    "bad_ts",
 			spi:     slayers.PacketAuthSPI(spi),
-			algo:    slayers.PacketAuthAlg(algo),
-			ts:      binary.LittleEndian.Uint32([]byte{1, 2, 3, 1}),
+			algo:    algo,
+			ts:      binary.LittleEndian.Uint32([]byte{0, 0, 0, 1}),
 			sn:      sn,
 			optAuth: optAuthMAC,
-			err:     assert.Error,
+			panics:  true,
 		},
 		{
 			name:    "bad_sn",
 			spi:     slayers.PacketAuthSPI(spi),
-			algo:    slayers.PacketAuthAlg(algo),
+			algo:    algo,
 			ts:      ts,
-			sn:      binary.LittleEndian.Uint32([]byte{4, 5, 6, 1}),
+			sn:      binary.LittleEndian.Uint32([]byte{0, 0, 0, 1}),
 			optAuth: optAuthMAC,
-			err:     assert.Error,
+			panics:  true,
 		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			spao, err := slayers.NewPacketAuthenticatorOption(c.spi, c.algo, c.ts, c.sn, c.optAuth)
-			c.err(t, err, "NewPacketAuthenticatorOption")
-
-			if err != nil {
+			if c.panics {
+				assert.Panics(t, func() {
+					slayers.NewPacketAuthenticatorOption(c.spi, c.algo, c.ts, c.sn, c.optAuth)
+				},
+					"The code did not panic",
+				)
 				return
 			}
+
+			spao := slayers.NewPacketAuthenticatorOption(c.spi, c.algo, c.ts, c.sn, c.optAuth)
 
 			e2e := slayers.EndToEndExtn{}
 			e2e.NextHdr = slayers.L4UDP
