@@ -5,9 +5,8 @@
                 "data": {
                     "expires_at": "EXPIRES_AT"
                 },
-                "detail": "signer certificate is close to expiration",
                 "name": "valid signer available",
-                "status": "degraded"
+                "status": "passing"
             },
             {
                 "data": {
@@ -17,15 +16,8 @@
                 },
                 "name": "TRC for local ISD available",
                 "status": "passing"
-            },
-            {
-                "data": {
-                    "status": "available"
-                },
-                "name": "CPPKI CA Connection",
-                "status": "passing"
             }
         ],
-        "status": "degraded"
+        "status": "passing"
     }
 }

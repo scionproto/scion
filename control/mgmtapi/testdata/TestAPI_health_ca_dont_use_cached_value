@@ -5,9 +5,8 @@
                 "data": {
                     "expires_at": "EXPIRES_AT"
                 },
-                "detail": "signer certificate is close to expiration",
                 "name": "valid signer available",
-                "status": "degraded"
+                "status": "passing"
             },
             {
                 "data": {
@@ -20,12 +19,12 @@
             },
             {
                 "data": {
-                    "status": "available"
+                    "status": "unavailable"
                 },
                 "name": "CPPKI CA Connection",
-                "status": "passing"
+                "status": "failing"
             }
         ],
-        "status": "degraded"
+        "status": "failing"
     }
 }
