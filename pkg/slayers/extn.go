@@ -447,6 +447,78 @@ func (e *EndToEndExtnSkipper) NextLayerType() gopacket.LayerType {
 	return scionNextLayerTypeAfterE2E(e.NextHdr)
 }
 
+// PacketAuthSPI is the identifier for the key used for the
+// packet authentication option. It ranges [1, 2^21-1]
+type PacketAuthSPI uint32
+
+type DRKeyType uint8
+
+const (
+	ASHost DRKeyType = iota
+	HostHost
+)
+
+type DRKeyDirection uint8
+
+const (
+	SenderSide DRKeyDirection = iota
+	ReceiverSide
+)
+
+type DRKeyEpochType uint8
+
+const (
+	Later DRKeyEpochType = iota
+	Earlier
+)
+
+func (p PacketAuthSPI) Type() DRKeyType {
+	if p^(1<<13) == 0 {
+		return ASHost
+	}
+	return HostHost
+}
+
+func (p PacketAuthSPI) Direction() DRKeyDirection {
+	if p^(1<<14) == 0 {
+		return SenderSide
+	}
+	return ReceiverSide
+}
+
+func (p PacketAuthSPI) Epoch() DRKeyEpochType {
+	if p^(1<<14) == 0 {
+		return Later
+	}
+	return Earlier
+}
+
+func (p PacketAuthSPI) DRKeyProto() uint16 {
+	return uint16(p >> 16)
+}
+
+func MakePacketAuthSPIDrkey(proto uint16, drkeyType DRKeyType,
+	dir DRKeyDirection, epoch DRKeyEpochType) (PacketAuthSPI, error) {
+	if proto < 1 {
+		return 0, serrors.New("Invalid proto identifier value")
+	}
+	if drkeyType > 1 {
+		return 0, serrors.New("Invalid DRKeyType value")
+	}
+	if dir > 1 {
+		return 0, serrors.New("Invalid DRKeyDirection value")
+	}
+	if epoch > 1 {
+		return 0, serrors.New("Invalid DRKeyEpochType value")
+	}
+	spi := uint32((drkeyType & 0x1)) << 13
+	spi |= uint32((dir & 0x1)) << 14
+	spi |= uint32((epoch & 0x1)) << 15
+	spi |= uint32(proto) << 16
+
+	return PacketAuthSPI(spi), nil
+}
+
 // PacketAuthAlg is the enumerator for authenticator algorithm types in the
 // packet authenticator option.
 type PacketAuthAlg uint8
@@ -465,15 +537,15 @@ type PacketAuthenticatorOption struct {
 
 // NewPacketAuthenticatorOption creates a new EndToEndOption of
 // OptTypeAuthenticator, initialized with the given SPAO data.
-func NewPacketAuthenticatorOption(spi uint32, alg PacketAuthAlg, ts uint32,
-	sn uint32, auth []byte) PacketAuthenticatorOption {
+func NewPacketAuthenticatorOption(spi PacketAuthSPI, alg PacketAuthAlg, ts uint32,
+	sn uint32, auth []byte) (PacketAuthenticatorOption, error) {
 	o := PacketAuthenticatorOption{EndToEndOption: new(EndToEndOption)}
-	o.Reset(spi, alg, ts, sn, auth)
-	return o
+	err := o.Reset(spi, alg, ts, sn, auth)
+	return o, err
 }
 
 // ParsePacketAuthenticatorOption parses o as a packet authenticator option.
-// Performs minimal checks to ensure that SPI, Algorithm, timestamp, RSV, and
+// Performs minimal checks to ensure that SPI, algorithm, timestamp, RSV, and
 // sequence number are set.
 // Checking the size and content of the Authenticator data must be done by the
 // caller.
@@ -491,8 +563,16 @@ func ParsePacketAuthenticatorOption(o *EndToEndOption) (PacketAuthenticatorOptio
 
 // Reset reinitializes the underlying EndToEndOption with the SPAO data.
 // Reuses the OptData buffer if it is of sufficient capacity.
-func (o PacketAuthenticatorOption) Reset(spi uint32, alg PacketAuthAlg,
-	ts uint32, sn uint32, auth []byte) {
+func (o PacketAuthenticatorOption) Reset(spi PacketAuthSPI, alg PacketAuthAlg,
+	ts uint32, sn uint32, auth []byte) error {
+
+	if ts > (1 << 24) {
+		return serrors.New("Timestamp value should be smaller than 2^24", "ts", ts)
+	}
+	if sn > (1 << 24) {
+		return serrors.New("Sequence number should be smaller than 2^24", "sn", sn)
+	}
+
 	o.OptType = OptTypeAuthenticator
 
 	n := 12 + len(auth) // 4 + 1 + 3 + 1 + 3 + len(data)
@@ -501,7 +581,7 @@ func (o PacketAuthenticatorOption) Reset(spi uint32, alg PacketAuthAlg,
 	} else {
 		o.OptData = make([]byte, n)
 	}
-	binary.BigEndian.PutUint32(o.OptData[:4], spi)
+	binary.BigEndian.PutUint32(o.OptData[:4], uint32(spi))
 	o.OptData[4] = byte(alg)
 	o.OptData[5] = byte(ts >> 16)
 	o.OptData[6] = byte(ts >> 8)
@@ -516,11 +596,11 @@ func (o PacketAuthenticatorOption) Reset(spi uint32, alg PacketAuthAlg,
 	// reset unused/implicit fields
 	o.OptDataLen = 0
 	o.ActualLength = 0
+
+	return nil
 }
 
-// SPI returns a slice of the underlying SPI buffer.
-// Changes to this slice will be reflected on the wire when
-// the extension is serialized.
+// SPI returns returns the value set in the homonym field in the extension.
 func (o PacketAuthenticatorOption) SPI() uint32 {
 	return binary.BigEndian.Uint32(o.OptData[:4])
 }
@@ -530,16 +610,12 @@ func (o PacketAuthenticatorOption) Algorithm() PacketAuthAlg {
 	return PacketAuthAlg(o.OptData[4])
 }
 
-// Timestamp returns a slice of the underlying timestamp buffer.
-// Changes to this slice will be reflected on the wire when
-// the extension is serialized.
+// Timestamp returns the value set in the homonym field in the extension.
 func (o PacketAuthenticatorOption) Timestamp() uint32 {
 	return uint32(o.OptData[5])<<16 + uint32(o.OptData[6])<<8 + uint32(o.OptData[7])
 }
 
-// SequenceNumber returns a slice of the underlying sequence number buffer.
-// Changes to this slice will be reflected on the wire when
-// the extension is serialized.
+// SequenceNumber returns the value set in the homonym field in the extension.
 func (o PacketAuthenticatorOption) SequenceNumber() uint32 {
 	return uint32(o.OptData[9])<<16 + uint32(o.OptData[10])<<8 + uint32(o.OptData[11])
 }
