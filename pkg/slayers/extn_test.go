@@ -578,17 +578,63 @@ var rawE2EOptAuth = append(
 )
 
 func TestOptAuthenticatorSerialize(t *testing.T) {
-	optAuth := slayers.NewPacketAuthenticatorOption(spi, algo, ts, sn, optAuthMAC)
+	cases := []struct {
+		name    string
+		spi     slayers.PacketAuthSPI
+		algo    slayers.PacketAuthAlg
+		ts      uint32
+		sn      uint32
+		optAuth []byte
+		err     assert.ErrorAssertionFunc
+	}{
+		{
+			name:    "correct",
+			spi:     slayers.PacketAuthSPI(spi),
+			algo:    slayers.PacketAuthAlg(algo),
+			ts:      ts,
+			sn:      sn,
+			optAuth: optAuthMAC,
+			err:     assert.NoError,
+		},
+		{
+			name:    "bad_ts",
+			spi:     slayers.PacketAuthSPI(spi),
+			algo:    slayers.PacketAuthAlg(algo),
+			ts:      binary.LittleEndian.Uint32([]byte{1, 2, 3, 1}),
+			sn:      sn,
+			optAuth: optAuthMAC,
+			err:     assert.Error,
+		},
+		{
+			name:    "bad_sn",
+			spi:     slayers.PacketAuthSPI(spi),
+			algo:    slayers.PacketAuthAlg(algo),
+			ts:      ts,
+			sn:      binary.LittleEndian.Uint32([]byte{4, 5, 6, 1}),
+			optAuth: optAuthMAC,
+			err:     assert.Error,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			spao, err := slayers.NewPacketAuthenticatorOption(c.spi, c.algo, c.ts, c.sn, c.optAuth)
+			c.err(t, err, "NewPacketAuthenticatorOption")
 
-	e2e := slayers.EndToEndExtn{}
-	e2e.NextHdr = slayers.L4UDP
-	e2e.Options = []*slayers.EndToEndOption{optAuth.EndToEndOption}
+			if err != nil {
+				return
+			}
 
-	b := gopacket.NewSerializeBuffer()
-	opts := gopacket.SerializeOptions{FixLengths: true}
-	assert.NoError(t, e2e.SerializeTo(b, opts), "SerializeTo")
+			e2e := slayers.EndToEndExtn{}
+			e2e.NextHdr = slayers.L4UDP
+			e2e.Options = []*slayers.EndToEndOption{spao.EndToEndOption}
 
-	assert.Equal(t, rawE2EOptAuth, b.Bytes(), "Raw Buffer")
+			b := gopacket.NewSerializeBuffer()
+			opts := gopacket.SerializeOptions{FixLengths: true}
+			assert.NoError(t, e2e.SerializeTo(b, opts), "SerializeTo")
+
+			assert.Equal(t, rawE2EOptAuth, b.Bytes(), "Raw Buffer")
+		})
+	}
 }
 
 func TestOptAuthenticatorDeserialize(t *testing.T) {
@@ -608,6 +654,12 @@ func TestOptAuthenticatorDeserialize(t *testing.T) {
 	assert.Equal(t, ts, auth.Timestamp(), "Timestamp")
 	assert.Equal(t, sn, auth.SequenceNumber(), "Sequence Number")
 	assert.Equal(t, optAuthMAC, auth.Authenticator(), "Authenticator data (MAC)")
+}
+
+func TestMakePacketAuthSPIDrkey(t *testing.T) {
+	spi, err := slayers.MakePacketAuthSPIDrkey(1, slayers.ASHost, slayers.SenderSide, slayers.Later)
+	require.NoError(t, err)
+	assert.EqualValues(t, binary.LittleEndian.Uint32([]byte{0, 0, 1, 0}), spi)
 }
 
 func TestOptAuthenticatorDeserializeCorrupt(t *testing.T) {
