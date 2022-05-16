@@ -16,15 +16,11 @@ package renewal_test
 
 import (
 	"context"
-	"crypto"
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -38,96 +34,17 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/cms/protocol"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
-	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/private/ca/renewal"
 	"github.com/scionproto/scion/private/trust"
-	"github.com/scionproto/scion/scion-pki/testcrypto"
 )
 
-var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
-
-var goldenDir = "./testdata/cms"
-
-var csrTmplBern = x509.CertificateRequest{
-	Subject: pkix.Name{
-		CommonName:         "1-ff00:0:110 AS Certificate",
-		Country:            []string{"CH"},
-		Province:           []string{"Bern"},
-		Locality:           []string{"Bern"},
-		Organization:       []string{"1-ff00:0:110"},
-		OrganizationalUnit: []string{"1-ff00:0:110 InfoSec Squad"},
-		ExtraNames: []pkix.AttributeTypeAndValue{
-			{
-				Type:  cppki.OIDNameIA,
-				Value: "1-ff00:0:110",
-			},
-		},
-	},
-}
-
-var csrTmplGeneva = x509.CertificateRequest{
-	Subject: pkix.Name{
-		CommonName:         "1-ff00:0:111 AS Certificate",
-		Country:            []string{"CH"},
-		Province:           []string{"Geneva"},
-		Locality:           []string{"Geneva"},
-		Organization:       []string{"1-ff00:0:111"},
-		OrganizationalUnit: []string{"1-ff00:0:111 InfoSec Squad"},
-		ExtraNames: []pkix.AttributeTypeAndValue{
-			{
-				Type:  cppki.OIDNameIA,
-				Value: "1-ff00:0:111",
-			},
-		},
-	},
-}
-
-func TestUpdateCrypto(t *testing.T) {
-	if !(*updateNonDeterministic) {
-		t.Skip("Only runs if -update is specified")
-	}
-
-	dir, cleanF := xtest.MustTempDir("", "tmp")
-	defer cleanF()
-
-	cmd := testcrypto.Cmd(command.StringPather(""))
-	cmd.SetArgs([]string{
-		"-t", "testdata/golden.topo",
-		"-o", dir,
-	})
-	err := cmd.Execute()
-	require.NoError(t, err)
-
-	// Create keys and CSRs
-	// AS110
-	asDir := filepath.Join(dir, "ASff00_0_110")
-	privKeyBern, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err, "generating private key AS110")
-	writeKey(t, filepath.Join(asDir, "crypto/as", "cp-as1.key"), privKeyBern)
-
-	csrBern, err := x509.CreateCertificateRequest(rand.Reader, &csrTmplBern, privKeyBern)
-	require.NoError(t, err, "generating CSR AS110")
-	writeCSR(t, filepath.Join(asDir, "crypto/as", "cp-as1.csr"), csrBern)
-	// AS111
-	asDir = filepath.Join(dir, "ASff00_0_111")
-	privKeyGeneva, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err, "generating private key AS111")
-	writeKey(t, filepath.Join(asDir, "crypto/as", "cp-as1.key"), privKeyGeneva)
-
-	csrGeneva, err := x509.CreateCertificateRequest(rand.Reader, &csrTmplGeneva, privKeyGeneva)
-	require.NoError(t, err, "generating CSR AS111")
-	writeCSR(t, filepath.Join(asDir, "crypto/as", "cp-as1.csr"), csrGeneva)
-
-	out, err := exec.Command("rm", "-rf", goldenDir).CombinedOutput()
-	require.NoError(t, err, string(out))
-
-	out, err = exec.Command("mv", dir, goldenDir).CombinedOutput()
-	require.NoError(t, err, string(out))
-}
-
 func TestNewChainRenewalRequest(t *testing.T) {
-	chain := xtest.LoadChain(t, "./testdata/cms/certs/ISD1-ASff00_0_110.pem")
-	csr := loadCSR(t, "./testdata/cms/ASff00_0_110/crypto/as/cp-as1.csr")
+	dir := genCrypto(t)
+
+	var (
+		chain = xtest.LoadChain(t, filepath.Join(dir, "certs/ISD1-ASff00_0_110.pem"))
+		csr   = loadCSR(t, filepath.Join(dir, "ASff00_0_110/crypto/as/cp-as1.csr"))
+	)
 
 	testCases := map[string]struct {
 		csr        []byte
@@ -139,7 +56,7 @@ func TestNewChainRenewalRequest(t *testing.T) {
 		"valid": {
 			csr: csr.Raw,
 			signer: trust.Signer{
-				PrivateKey: loadKey(t, "./testdata/cms/ASff00_0_110/crypto/as/cp-as.key"),
+				PrivateKey: loadKey(t, filepath.Join(dir, "/ASff00_0_110/crypto/as/cp-as.key")),
 				Algorithm:  signed.ECDSAWithSHA256,
 				IA:         xtest.MustExtractIA(t, chain[0]),
 				TRCID: cppki.TRCID{
@@ -153,7 +70,9 @@ func TestNewChainRenewalRequest(t *testing.T) {
 			},
 			verifier: renewal.RequestVerifier{
 				TRCFetcher: mockTRCFetcher{
-					TRCs: []cppki.SignedTRC{xtest.LoadTRC(t, "./testdata/cms/trcs/ISD1-B1-S1.trc")},
+					TRCs: []cppki.SignedTRC{
+						xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S1.trc")),
+					},
 				},
 			},
 			assertFunc: assert.NoError,
@@ -182,29 +101,25 @@ func TestNewChainRenewalRequest(t *testing.T) {
 			assert.Equal(t, tc.csr, csr.Raw)
 
 			// Check request is verifiable.
-			csr, err = tc.verifier.VerifyCMSSignedRenewalRequest(context.Background(),
-				got.CmsSignedRequest)
+			_, err = tc.verifier.VerifyCMSSignedRenewalRequest(
+				context.Background(),
+				got.CmsSignedRequest,
+			)
 			assert.NoError(t, err)
 		})
 	}
 }
 
 func TestVerifyChainRenewalRequest(t *testing.T) {
-	bernChain := xtest.LoadChain(t, "./testdata/cms/certs/ISD1-ASff00_0_110.pem")
-	genevaChain := xtest.LoadChain(t, "./testdata/cms/certs/ISD1-ASff00_0_111.pem")
-	csr := loadCSR(t, "./testdata/cms/ASff00_0_110/crypto/as/cp-as1.csr")
-	baseTRC := xtest.LoadTRC(t, "./testdata/cms/trcs/ISD1-B1-S1.trc")
-	nextTRC := cppki.SignedTRC{
-		TRC:         baseTRC.TRC,
-		SignerInfos: baseTRC.SignerInfos,
-	}
-	nextTRC.TRC.ID.Serial = 2
-	nextTRC.TRC.Validity = cppki.Validity{
-		NotBefore: time.Now(),
-		NotAfter:  time.Now().Add(2 * time.Hour),
-	}
-	nextTRC.TRC.GracePeriod = time.Hour
-	nextTRC.TRC.Certificates = nil
+	dir := genCrypto(t)
+
+	var (
+		bernChain   = xtest.LoadChain(t, filepath.Join(dir, "certs/ISD1-ASff00_0_110.pem"))
+		genevaChain = xtest.LoadChain(t, filepath.Join(dir, "certs/ISD1-ASff00_0_111.pem"))
+		csr         = loadCSR(t, filepath.Join(dir, "ASff00_0_110/crypto/as/cp-as1.csr"))
+		baseTRC     = xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S1.trc"))
+		nextTRC     = xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S2.trc"))
+	)
 
 	testCases := map[string]struct {
 		buildRequest func(t *testing.T) *cppb.ChainRenewalRequest
@@ -219,15 +134,17 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 							CommonName: "1-ff00:0:111 AS Certificate",
 						},
 					},
-					loadKey(t, "./testdata/cms/ASff00_0_110/crypto/as/cp-as1.key"))
+					loadKey(t, filepath.Join(dir, "ASff00_0_110/crypto/as/cp-as1.key")))
 				require.NoError(t, err)
 				_, err = x509.ParseCertificateRequest(rawCSR)
 				require.NoError(t, err)
 
 				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), rawCSR,
 					trust.Signer{
-						PrivateKey: loadKey(t, "./testdata/cms/ASff00_0_110/crypto/as/cp-as.key"),
-						Algorithm:  signed.ECDSAWithSHA256,
+						PrivateKey: loadKey(
+							t, filepath.Join(dir, "ASff00_0_110/crypto/as/cp-as.key"),
+						),
+						Algorithm: signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bernChain[0]),
 						TRCID: cppki.TRCID{
@@ -262,15 +179,17 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 							},
 						},
 					},
-					loadKey(t, "./testdata/cms/ASff00_0_110/crypto/as/cp-as1.key"))
+					loadKey(t, filepath.Join(dir, "ASff00_0_110/crypto/as/cp-as1.key")))
 				require.NoError(t, err)
 				_, err = x509.ParseCertificateRequest(rawCSR)
 				require.NoError(t, err)
 
 				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), rawCSR,
 					trust.Signer{
-						PrivateKey: loadKey(t, "./testdata/cms/ASff00_0_110/crypto/as/cp-as.key"),
-						Algorithm:  signed.ECDSAWithSHA256,
+						PrivateKey: loadKey(
+							t, filepath.Join(dir, "ASff00_0_110/crypto/as/cp-as.key"),
+						),
+						Algorithm: signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bernChain[0]),
 						TRCID: cppki.TRCID{
@@ -300,8 +219,10 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 
 				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), invalid,
 					trust.Signer{
-						PrivateKey: loadKey(t, "./testdata/cms/ASff00_0_110/crypto/as/cp-as.key"),
-						Algorithm:  signed.ECDSAWithSHA256,
+						PrivateKey: loadKey(
+							t, filepath.Join(dir, "ASff00_0_110/crypto/as/cp-as.key"),
+						),
+						Algorithm: signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bernChain[0]),
 						TRCID: cppki.TRCID{
@@ -327,8 +248,10 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 				signedReq, err := renewal.NewChainRenewalRequest(context.Background(),
 					[]byte("wrong content"),
 					trust.Signer{
-						PrivateKey: loadKey(t, "./testdata/cms/ASff00_0_110/crypto/as/cp-as.key"),
-						Algorithm:  signed.ECDSAWithSHA256,
+						PrivateKey: loadKey(
+							t, filepath.Join(dir, "ASff00_0_110/crypto/as/cp-as.key"),
+						),
+						Algorithm: signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bernChain[0]),
 						TRCID: cppki.TRCID{
@@ -353,8 +276,10 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 			buildRequest: func(t *testing.T) *cppb.ChainRenewalRequest {
 				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), csr.Raw,
 					trust.Signer{
-						PrivateKey: loadKey(t, "./testdata/cms/ASff00_0_111/crypto/as/cp-as.key"),
-						Algorithm:  signed.ECDSAWithSHA256,
+						PrivateKey: loadKey(
+							t, filepath.Join(dir, "ASff00_0_111/crypto/as/cp-as.key"),
+						),
+						Algorithm: signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bernChain[0]),
 						TRCID: cppki.TRCID{
@@ -379,8 +304,10 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 			buildRequest: func(t *testing.T) *cppb.ChainRenewalRequest {
 				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), csr.Raw,
 					trust.Signer{
-						PrivateKey: loadKey(t, "./testdata/cms/ASff00_0_110/crypto/as/cp-as.key"),
-						Algorithm:  signed.ECDSAWithSHA256,
+						PrivateKey: loadKey(
+							t, filepath.Join(dir, "ASff00_0_110/crypto/as/cp-as.key"),
+						),
+						Algorithm: signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bernChain[0]),
 						TRCID: cppki.TRCID{
@@ -405,8 +332,10 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 			buildRequest: func(t *testing.T) *cppb.ChainRenewalRequest {
 				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), csr.Raw,
 					trust.Signer{
-						PrivateKey: loadKey(t, "./testdata/cms/ASff00_0_110/crypto/as/cp-as.key"),
-						Algorithm:  signed.ECDSAWithSHA256,
+						PrivateKey: loadKey(
+							t, filepath.Join(dir, "ASff00_0_110/crypto/as/cp-as.key"),
+						),
+						Algorithm: signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bernChain[0]),
 						TRCID: cppki.TRCID{
@@ -431,8 +360,10 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 			buildRequest: func(t *testing.T) *cppb.ChainRenewalRequest {
 				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), csr.Raw,
 					trust.Signer{
-						PrivateKey: loadKey(t, "./testdata/cms/ASff00_0_110/crypto/as/cp-as.key"),
-						Algorithm:  signed.ECDSAWithSHA256,
+						PrivateKey: loadKey(
+							t, filepath.Join(dir, "ASff00_0_110/crypto/as/cp-as.key"),
+						),
+						Algorithm: signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bernChain[0]),
 						TRCID: cppki.TRCID{
@@ -470,30 +401,6 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 	}
 }
 
-func loadKey(t *testing.T, file string) crypto.Signer {
-	t.Helper()
-	raw, err := os.ReadFile(file)
-	require.NoError(t, err)
-	block, _ := pem.Decode(raw)
-	require.Equal(t, "PRIVATE KEY", block.Type, "Wrong block type %s", block.Type)
-	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
-	require.NoError(t, err)
-	return key.(crypto.Signer)
-}
-
-func writeKey(t *testing.T, file string, key interface{}) {
-	t.Helper()
-	raw, err := x509.MarshalPKCS8PrivateKey(key)
-	require.NoError(t, err)
-	keyPEM := pem.EncodeToMemory(
-		&pem.Block{
-			Type:  "PRIVATE KEY",
-			Bytes: raw,
-		},
-	)
-	require.NoError(t, os.WriteFile(file, keyPEM, 0644))
-}
-
 func loadCSR(t *testing.T, file string) *x509.CertificateRequest {
 	t.Helper()
 	raw, err := os.ReadFile(file)
@@ -505,17 +412,6 @@ func loadCSR(t *testing.T, file string) *x509.CertificateRequest {
 	csr, err := x509.ParseCertificateRequest(block.Bytes)
 	require.NoError(t, err)
 	return csr
-}
-
-func writeCSR(t *testing.T, file string, csr []byte) {
-	t.Helper()
-	csrPEM := pem.EncodeToMemory(
-		&pem.Block{
-			Type:  "CERTIFICATE REQUEST",
-			Bytes: csr,
-		},
-	)
-	require.NoError(t, os.WriteFile(file, csrPEM, 0644))
 }
 
 type mockTRCFetcher struct {

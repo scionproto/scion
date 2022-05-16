@@ -70,6 +70,7 @@ This command should only be used in testing.
 				flags.noCleanup,
 				flags.isdDir,
 				asValidity,
+				cmd.OutOrStdout(),
 			)
 		},
 	}
@@ -90,6 +91,7 @@ type config struct {
 	out        outConfig
 	now        time.Time
 	asValidity time.Duration
+	writer     io.Writer
 }
 
 func testcrypto(
@@ -98,6 +100,7 @@ func testcrypto(
 	noCleanup bool,
 	isdDir bool,
 	asValidity time.Duration,
+	writer io.Writer,
 ) error {
 
 	t, err := loadTopo(topo)
@@ -117,6 +120,7 @@ func testcrypto(
 		out:        out,
 		now:        time.Now().Add(-time.Minute),
 		asValidity: asValidity,
+		writer:     writer,
 	}
 
 	if err := setupTemplates(cfg); err != nil {
@@ -150,7 +154,7 @@ func createVoters(cfg config) error {
 		if !d.Voting {
 			continue
 		}
-		fmt.Printf("Generate sensitive and regular voting certificate for %s\n", ia)
+		fmt.Fprintf(cfg.writer, "Generate sensitive and regular voting certificate for %s\n", ia)
 		votingDir := cryptoVotingDir(ia, cfg.out)
 
 		cmd := certs.Cmd(command.StringPather("certificate"))
@@ -203,7 +207,7 @@ func createCAs(cfg config) error {
 		if !d.Issuing {
 			continue
 		}
-		fmt.Printf("Generate CP Root and CP CA certificate for %s\n", ia)
+		fmt.Fprintf(cfg.writer, "Generate CP Root and CP CA certificate for %s\n", ia)
 		caDir := cryptoCADir(ia, cfg.out)
 
 		cmd := certs.Cmd(command.StringPather("certificate"))
@@ -242,7 +246,7 @@ func createCAs(cfg config) error {
 func createASes(cfg config) error {
 	for ia, d := range cfg.topo.ASes {
 		ca := d.CA
-		fmt.Printf("Generate CP AS certificate for %s issued by %s\n", ia, ca)
+		fmt.Fprintf(cfg.writer, "Generate CP AS certificate for %s issued by %s\n", ia, ca)
 		caDir := cryptoCADir(ca, cfg.out)
 		asDir := cryptoASDir(ia, cfg.out)
 

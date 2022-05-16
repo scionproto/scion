@@ -16,6 +16,7 @@ package grpc_test
 
 import (
 	"crypto/x509"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -57,8 +58,10 @@ func TestIDToReq(t *testing.T) {
 }
 
 func TestRepToChains(t *testing.T) {
-	chain110 := xtest.LoadChain(t, "../testdata/common/certs/ISD1-ASff00_0_110.pem")
-	chain112 := xtest.LoadChain(t, "../testdata/common/certs/ISD1-ASff00_0_112.pem")
+	dir := genCrypto(t)
+
+	chain110 := xtest.LoadChain(t, filepath.Join(dir, "/certs/ISD1-ASff00_0_110.pem"))
+	chain112 := xtest.LoadChain(t, filepath.Join(dir, "/certs/ISD1-ASff00_0_112.pem"))
 
 	testCases := map[string]struct {
 		Input          func() []*cppb.Chain

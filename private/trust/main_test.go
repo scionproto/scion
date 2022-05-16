@@ -1,4 +1,4 @@
-// Copyright 2020 Anapaya Systems
+// Copyright 2022 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,32 +22,22 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/private/trust"
 	"github.com/scionproto/scion/scion-pki/testcrypto"
 	"github.com/scionproto/scion/scion-pki/trcs"
 )
 
-var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
+func genCrypto(t testing.TB) string {
+	dir := t.TempDir()
 
-var goldenDir = "./testdata/common"
-
-func TestUpdateCerts(t *testing.T) {
-	if !(*updateNonDeterministic) {
-		t.Skip("Specify -update-non-deterministic to update certs")
-		return
-	}
-	dir, cleanF := xtest.MustTempDir("", "tmp")
-	defer cleanF()
-
+	var buf bytes.Buffer
 	cmd := testcrypto.Cmd(command.StringPather(""))
 	cmd.SetArgs([]string{
 		"-t", "testdata/golden.topo",
@@ -55,30 +45,29 @@ func TestUpdateCerts(t *testing.T) {
 		"--isd-dir",
 		"--as-validity", "1y",
 	})
+	cmd.SetOutput(&buf)
 	err := cmd.Execute()
-	require.NoError(t, err)
+	require.NoError(t, err, buf.String())
 
+	buf.Reset()
 	cmd.SetArgs([]string{"update", "-o", dir})
 	err = cmd.Execute()
-	require.NoError(t, err)
+	require.NoError(t, err, buf.String())
 
+	buf.Reset()
 	cmd = trcs.Cmd(command.StringPather(""))
 	cmd.SetArgs([]string{
 		"format",
 		"--out=" + filepath.Join(dir, "ISD1/trcs/ISD1-B1-S1.pem.trc"),
 		filepath.Join(dir, "ISD1/trcs/ISD1-B1-S1.trc"),
 	})
+	cmd.SetOutput(&buf)
 	err = cmd.Execute()
-	require.NoError(t, err)
+	require.NoError(t, err, buf.String())
 
 	err = os.WriteFile(filepath.Join(dir, "certs", "dummy.pem"), []byte{}, 0666)
 	require.NoError(t, err)
-
-	out, err := exec.Command("rm", "-rf", goldenDir).CombinedOutput()
-	require.NoError(t, err, string(out))
-
-	out, err = exec.Command("mv", dir, goldenDir).CombinedOutput()
-	require.NoError(t, err, string(out))
+	return dir
 }
 
 type chainQueryMatcher struct {

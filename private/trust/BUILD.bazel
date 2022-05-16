@@ -49,8 +49,8 @@ go_test(
     srcs = [
         "attributes_test.go",
         "db_inspector_test.go",
-        "db_test.go",
         "fetching_provider_test.go",
+        "main_test.go",
         "options_test.go",
         "recurser_test.go",
         "router_test.go",
