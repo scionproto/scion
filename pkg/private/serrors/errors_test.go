@@ -270,6 +270,31 @@ func TestList(t *testing.T) {
 	assert.NotNil(t, combinedErr)
 }
 
+func TestAtMostOneStacktrace(t *testing.T) {
+	err := errors.New("core")
+	for i := range [20]int{} {
+		err = serrors.WrapStr("wrap", err, "level", i)
+	}
+
+	var b bytes.Buffer
+	logger := zap.New(
+		zapcore.NewCore(
+			zapcore.NewJSONEncoder(zapcore.EncoderConfig{
+				MessageKey:     "msg",
+				LevelKey:       "level",
+				NameKey:        "logger",
+				EncodeLevel:    zapcore.LowercaseLevelEncoder,
+				EncodeTime:     zapcore.ISO8601TimeEncoder,
+				EncodeDuration: zapcore.StringDurationEncoder,
+			}),
+			zapcore.AddSync(&b),
+			zapcore.DebugLevel),
+	)
+	logger.Sugar().Infow("Failed to do thing", "err", err)
+
+	require.Equal(t, 1, bytes.Count(b.Bytes(), []byte("stacktrace")))
+}
+
 func ExampleNew() {
 	err1 := serrors.New("errtxt")
 	err2 := serrors.New("errtxt")

@@ -186,11 +186,14 @@ func Wrap(msg, cause error, errCtx ...interface{}) error {
 // adds the additional context. The returned error implements Is and Is(cause)
 // returns true.
 func WrapStr(msg string, cause error, errCtx ...interface{}) error {
-	var existing *basicError
-	var st *stack
-	// if we already have a basicError with stack trace no need to attach it
-	// anymore.
-	if !errors.As(cause, &existing) || existing.StackTrace() == nil {
+	var (
+		existingVal basicError
+		existingPtr *basicError
+		st          *stack
+	)
+
+	// We attach a stacktrace if there is no basic error already.
+	if !errors.As(cause, &existingVal) && !errors.As(cause, &existingPtr) {
 		st = callers()
 	}
 	return basicError{
