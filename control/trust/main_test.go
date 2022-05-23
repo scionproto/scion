@@ -15,28 +15,21 @@
 package trust_test
 
 import (
+	"bytes"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/scion-pki/testcrypto"
 )
 
-var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
+func genCrypto(t *testing.T) string {
+	dir := t.TempDir()
 
-func TestUpdate(t *testing.T) {
-	if !(*updateNonDeterministic) {
-		t.Skip("Specify -update-non-deterministic to update certs")
-		return
-	}
-	dir, cleanF := xtest.MustTempDir("", "tmp")
-	defer cleanF()
-
+	var buf bytes.Buffer
 	cmd := testcrypto.Cmd(command.StringPather(""))
 	cmd.SetArgs([]string{
 		"-t", "testdata/golden.topo",
@@ -44,8 +37,9 @@ func TestUpdate(t *testing.T) {
 		"--isd-dir",
 		"--as-validity", "1y",
 	})
+	cmd.SetOutput(&buf)
 	err := cmd.Execute()
-	require.NoError(t, err)
+	require.NoError(t, err, buf.String())
 
 	err = os.WriteFile(filepath.Join(dir, "dummy.pem"), []byte{}, 0666)
 	require.NoError(t, err)
@@ -53,9 +47,5 @@ func TestUpdate(t *testing.T) {
 	err = os.WriteFile(filepath.Join(dir, "dummy.crt"), []byte{}, 0666)
 	require.NoError(t, err)
 
-	out, err := exec.Command("rm", "-rf", "testdata/common").CombinedOutput()
-	require.NoError(t, err, string(out))
-
-	out, err = exec.Command("mv", dir, "testdata/common").CombinedOutput()
-	require.NoError(t, err, string(out))
+	return dir
 }
