@@ -48,7 +48,7 @@ protobuf:
 	chmod 0644 pkg/proto/*/*.pb.go
 
 mocks:
-	tools/gomocks
+	tools/gomocks.py
 
 gazelle:
 	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -go_naming_convention go_default_library $(GAZELLE_DIRS)
