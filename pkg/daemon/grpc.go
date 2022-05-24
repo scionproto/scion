@@ -125,20 +125,28 @@ func (c grpcConn) IFInfo(ctx context.Context,
 	return result, nil
 }
 
-func (c grpcConn) SVCInfo(ctx context.Context, _ []addr.HostSVC) (map[addr.HostSVC]string, error) {
+func (c grpcConn) SVCInfo(
+	ctx context.Context,
+	_ []addr.HostSVC,
+) (map[addr.HostSVC][]string, error) {
+
 	client := sdpb.NewDaemonServiceClient(c.conn)
 	response, err := client.Services(ctx, &sdpb.ServicesRequest{})
 	if err != nil {
 		c.metrics.incServcies(err)
 		return nil, err
 	}
-	result := make(map[addr.HostSVC]string)
+	result := make(map[addr.HostSVC][]string)
 	for st, si := range response.Services {
 		svc := topoServiceTypeToSVCAddr(topology.ServiceTypeFromString(st))
 		if svc == addr.SvcNone || len(si.Services) == 0 {
 			continue
 		}
-		result[svc] = si.Services[0].Uri
+		var uris []string
+		for _, s := range si.GetServices() {
+			uris = append(uris, s.GetUri())
+		}
+		result[svc] = uris
 	}
 	c.metrics.incServcies(nil)
 	return result, nil
@@ -155,7 +163,7 @@ func (c grpcConn) RevNotification(ctx context.Context, revInfo *path_mgmt.RevInf
 
 }
 
-func (c grpcConn) Close(_ context.Context) error {
+func (c grpcConn) Close() error {
 	return c.conn.Close()
 }
 

@@ -20,6 +20,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,13 +30,15 @@ import (
 )
 
 func TestLoadingRing(t *testing.T) {
-	ring := trust.LoadingRing{Dir: "testdata/common/ISD1/ASff00_0_111/crypto/as/"}
+	dir := genCrypto(t)
+
+	ring := trust.LoadingRing{Dir: filepath.Join(dir, "ISD1/ASff00_0_111/crypto/as/")}
 
 	privKeys, err := ring.PrivateKeys(context.Background())
 	require.NoError(t, err)
 	assert.Len(t, privKeys, 1)
 
-	raw, err := os.ReadFile("testdata/common/ISD1/ASff00_0_111/crypto/as/cp-as.key")
+	raw, err := os.ReadFile(filepath.Join(dir, "ISD1/ASff00_0_111/crypto/as/cp-as.key"))
 	require.NoError(t, err)
 	block, _ := pem.Decode(raw)
 	expexted, err := x509.ParsePKCS8PrivateKey(block.Bytes)

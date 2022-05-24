@@ -96,7 +96,10 @@ class DockerUtilsGenerator(object):
         disp_net = self.args.networks[name][0]
         entry['environment']['SCION_LOCAL_ADDR'] = str(disp_net[ipv])
         sciond_net = self.args.networks['sd%s' % topo_id.file_fmt()][0]
-        entry['environment']['SCION_DAEMON'] = '%s:30255' % sciond_net[ipv]
+        if ipv == 'ipv4':
+            entry['environment']['SCION_DAEMON'] = '%s:30255' % sciond_net[ipv]
+        else:
+            entry['environment']['SCION_DAEMON'] = '[%s]:30255' % sciond_net[ipv]
         if self.args.sig:
             # If the tester container needs to communicate to the SIG, it needs the SIG_IP and
             # REMOTE_NETS which are the remote subnets that need to be routed through the SIG.

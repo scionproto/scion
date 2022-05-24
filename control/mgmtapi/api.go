@@ -50,6 +50,7 @@ type BeaconStore interface {
 type Healther interface {
 	GetSignerHealth(context.Context) SignerHealthData
 	GetTRCHealth(context.Context) TRCHealthData
+	GetCAHealth(context.Context) (CAHealthStatus, bool)
 }
 
 // SignerHealthData is used to extract the relevant signer data for the signer health check.
@@ -66,6 +67,15 @@ type TRCHealthData struct {
 	TRCNotFoundDetail string
 	TRCID             cppki.TRCID
 }
+
+type CAHealthStatus string
+
+const (
+	Available   CAHealthStatus = "available"
+	Starting    CAHealthStatus = "starting"
+	Stopping    CAHealthStatus = "stopping"
+	Unavailable CAHealthStatus = "unavailable"
+)
 
 // Server implements the Control Service API.
 type Server struct {
@@ -671,6 +681,9 @@ func (s *Server) GetTopology(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) GetHealth(w http.ResponseWriter, r *http.Request) {
+
+	var checks []Check
+
 	signerHealth := s.Healther.GetSignerHealth(r.Context())
 	signerCheck := Check{
 		Status: StatusPassing,
@@ -715,6 +728,7 @@ func (s *Server) GetHealth(w http.ResponseWriter, r *http.Request) {
 			},
 		}
 	}
+	checks = append(checks, signerCheck)
 
 	trcCheck := Check{
 		Status: StatusFailing,
@@ -734,16 +748,35 @@ func (s *Server) GetHealth(w http.ResponseWriter, r *http.Request) {
 			},
 		}
 	}
+	checks = append(checks, trcCheck)
 
+	if status, ok := s.Healther.GetCAHealth(r.Context()); ok {
+		caCheck := Check{
+			Status: StatusDegraded,
+			Name:   "CPPKI CA Connection",
+		}
+		if status == Available {
+			caCheck.Status = StatusPassing
+		}
+		caCheck.Data = CheckData{
+			AdditionalProperties: map[string]interface{}{
+				"status": status,
+			},
+		}
+		checks = append(checks, caCheck)
+	}
 	rep := HealthResponse{
 		Health: Health{
 			Status: Status(healthapi.AggregateHealthStatus(
-				[]healthapi.Status{healthapi.Status(signerCheck.Status),
-					healthapi.Status(trcCheck.Status)})),
-			Checks: []Check{
-				signerCheck,
-				trcCheck,
-			},
+				func() []healthapi.Status {
+					statuses := make([]healthapi.Status, 0, len(checks))
+					for _, c := range checks {
+						statuses = append(statuses, healthapi.Status(c.Status))
+					}
+					return statuses
+				}()),
+			),
+			Checks: checks,
 		},
 	}
 	enc := json.NewEncoder(w)

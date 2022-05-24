@@ -316,6 +316,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	if err != nil {
 		return nil, serrors.WrapStr("connecting to the SCION Daemon", err, "addr", cfg.Daemon)
 	}
+	defer sdConn.Close()
 	localIA, err := sdConn.LocalIA(ctx)
 	if err != nil {
 		return nil, serrors.WrapStr("determining local ISD-AS", err)

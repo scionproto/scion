@@ -17,6 +17,7 @@ package trust_test
 import (
 	"context"
 	"crypto/x509"
+	"path/filepath"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -29,7 +30,9 @@ import (
 )
 
 func TestChainLoaderChains(t *testing.T) {
-	trc := xtest.LoadTRC(t, "testdata/common/trcs/ISD1-B1-S1.trc")
+	dir := genCrypto(t)
+
+	trc := xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S1.trc"))
 	testCases := map[string]struct {
 		prepare   func(t *testing.T, ctrl *gomock.Controller) (string, trust.DB)
 		expected  [][]*x509.Certificate
@@ -47,18 +50,23 @@ func TestChainLoaderChains(t *testing.T) {
 			prepare: func(t *testing.T, ctrl *gomock.Controller) (string, trust.DB) {
 				db := mock_trust.NewMockDB(ctrl)
 				db.EXPECT().Chains(gomock.Any(), gomock.Any())
-				return "testdata/common", db
+				return dir, db
 			},
 			assertErr: assert.NoError,
 		},
 		"valid single chain": {
 			prepare: func(t *testing.T, ctrl *gomock.Controller) (string, trust.DB) {
 				db := mock_trust.NewMockDB(ctrl)
-				db.EXPECT().InsertChain(gomock.Any(), xtest.LoadChain(t,
-					"testdata/common/ISD1/ASff00_0_111/crypto/as/ISD1-ASff00_0_111.pem"))
+				db.EXPECT().InsertChain(
+					gomock.Any(),
+					xtest.LoadChain(
+						t,
+						filepath.Join(dir, "ISD1/ASff00_0_111/crypto/as/ISD1-ASff00_0_111.pem"),
+					),
+				)
 				db.EXPECT().Chains(gomock.Any(), gomock.Any())
 				db.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).Return(trc, nil)
-				return "testdata/common/ISD1/ASff00_0_111/crypto/as", db
+				return filepath.Join(dir, "ISD1/ASff00_0_111/crypto/as"), db
 			},
 			assertErr: assert.NoError,
 		},

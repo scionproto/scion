@@ -22,13 +22,15 @@ linters-settings:
   depguard:
     list-type: blacklist
     include-go-root: true
-    packages:
-      "io/ioutil"
+    packages: "io/ioutil"
     packages-with-error-message:
       # specify an error message to output when a blacklisted package is used
       "io/ioutil": >
         "The use of 'io/ioutil' is deprecated. Check
         https://pkg.go.dev/io/ioutil for alternatives"
+  errcheck:
+    exclude-functions:
+      - (*github.com/spf13/cobra.Command).MarkFlagRequired
 
 # The following is a list of exceptions exclusively to the errcheck check.
 issues:
@@ -297,12 +299,6 @@ issues:
     - path: dispatcher/cmd/dispatcher/main.go
       linters:
         - errcheck
-    - path: scion-pki/trcs/payload.go
-      linters:
-        - errcheck
-    - path: scion-pki/trcs/trcs.go
-      linters:
-        - errcheck
     - path: tools/pktgen/cmd/pktgen/main.go
       linters:
         - errcheck
@@ -330,15 +326,6 @@ issues:
     - path: gateway/control/sessionconfigurator.go
       linters:
         - errcheck
-    - path: scion-pki/trcs/verify.go
-      linters:
-        - errcheck
-    - path: scion-pki/certs/certs.go
-      linters:
-        - errcheck
-    - path: scion-pki/certs/renew.go
-      linters:
-        - errcheck
     - path: private/trust/verifier_bench_test.go
       linters:
         - errcheck
@@ -363,15 +350,6 @@ issues:
     - path: gateway/dataplane/routingtable.go
       linters:
         - errcheck
-    - path: scion-pki/certs/sign.go
-      linters:
-        - errcheck
-    - path: scion-pki/certs/verify.go
-      linters:
-        - errcheck
     - path: pkg/experimental/hiddenpath/beaconwriter_test.go
-      linters:
-        - errcheck
-    - path: scion-pki/testcrypto/testcrypto.go
       linters:
         - errcheck

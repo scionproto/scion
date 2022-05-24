@@ -19,6 +19,7 @@ import (
 	"crypto/x509"
 	"net"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -36,8 +37,9 @@ import (
 )
 
 func TestFetcherChains(t *testing.T) {
-	chain110 := xtest.LoadChain(t, "../testdata/common/certs/ISD1-ASff00_0_110.pem")
-	chain112 := xtest.LoadChain(t, "../testdata/common/certs/ISD1-ASff00_0_112.pem")
+	dir := genCrypto(t)
+	chain110 := xtest.LoadChain(t, filepath.Join(dir, "/certs/ISD1-ASff00_0_110.pem"))
+	chain112 := xtest.LoadChain(t, filepath.Join(dir, "/certs/ISD1-ASff00_0_112.pem"))
 	ia110 := xtest.MustParseIA("1-ff00:0:110")
 	queryDate := chain110[0].NotBefore.Add(time.Hour)
 	internal := serrors.New("internal")
@@ -168,7 +170,8 @@ func TestFetcherChains(t *testing.T) {
 }
 
 func TestFetcherTRC(t *testing.T) {
-	updated := xtest.LoadTRC(t, "../testdata/common/trcs/ISD1-B1-S2.trc")
+	dir := genCrypto(t)
+	updated := xtest.LoadTRC(t, filepath.Join(dir, "/trcs/ISD1-B1-S2.trc"))
 
 	testCases := map[string]struct {
 		Server    func(*gomock.Controller) *mock_cp.MockTrustMaterialServiceServer
@@ -200,7 +203,7 @@ func TestFetcherTRC(t *testing.T) {
 		},
 		"mismatching ID": {
 			Server: func(mctrl *gomock.Controller) *mock_cp.MockTrustMaterialServiceServer {
-				rawBase, err := os.ReadFile("../testdata/common/trcs/ISD1-B1-S1.trc")
+				rawBase, err := os.ReadFile(filepath.Join(dir, "/trcs/ISD1-B1-S1.trc"))
 				require.NoError(t, err)
 
 				srv := mock_cp.NewMockTrustMaterialServiceServer(mctrl)

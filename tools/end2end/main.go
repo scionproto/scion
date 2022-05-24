@@ -79,7 +79,11 @@ func realMain() int {
 	defer log.HandlePanic()
 	defer log.Flush()
 	addFlags()
-	integration.Setup()
+	err := integration.Setup()
+	if err != nil {
+		log.Error("Parsing common flags failed", "err", err)
+		return 1
+	}
 	validateFlags()
 
 	closeTracer, err := integration.InitTracer("end2end-" + integration.Mode)
@@ -122,10 +126,12 @@ func (s server) run() {
 	log.Info("Starting server", "isd_as", integration.Local.IA)
 	defer log.Info("Finished server", "isd_as", integration.Local.IA)
 
+	sdConn := integration.SDConn()
+	defer sdConn.Close()
 	connFactory := &snet.DefaultPacketDispatcherService{
 		Dispatcher: reliable.NewDispatcher(""),
 		SCMPHandler: snet.DefaultSCMPHandler{
-			RevocationHandler: daemon.RevHandler{Connector: integration.SDConn()},
+			RevocationHandler: daemon.RevHandler{Connector: sdConn},
 			SCMPErrors:        scmpErrorsCounter,
 		},
 		SCIONPacketConnMetrics: scionPacketConnMetrics,
@@ -135,6 +141,7 @@ func (s server) run() {
 	if err != nil {
 		integration.LogFatal("Error listening", "err", err)
 	}
+	defer conn.Close()
 	if len(os.Getenv(libint.GoIntegrationEnv)) > 0 {
 		// Needed for integration test ready signal.
 		fmt.Printf("Port=%d\n", port)
@@ -265,6 +272,7 @@ func (c *client) run() int {
 	log.Info("Send on", "local",
 		fmt.Sprintf("%v,[%v]:%d", integration.Local.IA, integration.Local.Host.IP, c.port))
 	c.sdConn = integration.SDConn()
+	defer c.sdConn.Close()
 	c.errorPaths = make(map[snet.PathFingerprint]struct{})
 	return integration.AttemptRepeatedly("End2End", c.attemptRequest)
 }

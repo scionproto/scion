@@ -13,6 +13,7 @@ go_library(
         "observability.go",
         "renew.go",
         "sign.go",
+        "validate.go",
         "verify.go",
     ],
     importpath = "github.com/scionproto/scion/scion-pki/certs",
@@ -49,6 +50,7 @@ go_library(
         "@com_github_opentracing_opentracing_go//:go_default_library",
         "@com_github_pkg_errors//:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
+        "@org_golang_google_grpc//resolver:go_default_library",
         "@org_golang_google_protobuf//proto:go_default_library",
     ],
 )
@@ -60,6 +62,7 @@ go_test(
         "fingerprint_test.go",
         "inspect_test.go",
         "renew_test.go",
+        "validate_test.go",
     ],
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],

@@ -13,6 +13,13 @@
                 "data": {},
                 "name": "TRC for local ISD available",
                 "status": "failing"
+            },
+            {
+                "data": {
+                    "status": "available"
+                },
+                "name": "CPPKI CA Connection",
+                "status": "passing"
             }
         ],
         "status": "failing"

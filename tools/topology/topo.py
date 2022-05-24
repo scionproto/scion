@@ -333,7 +333,7 @@ class TopoGenerator(object):
         }
 
     def _gen_sig_entries(self, topo_id, as_conf):
-        addr_type = addr_type_from_underlay(DEFAULT_UNDERLAY)
+        addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
         elem_id = "sig" + topo_id.file_fmt()
         reg_id = "sig" + topo_id.file_fmt()
         port = 30256

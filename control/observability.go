@@ -64,6 +64,7 @@ type Metrics struct {
 	BeaconingReceivedTotal                 *prometheus.CounterVec
 	BeaconingRegisteredTotal               *prometheus.CounterVec
 	BeaconingRegistrarInternalErrorsTotal  *prometheus.CounterVec
+	CAHealth                               *prometheus.GaugeVec
 	DiscoveryRequestsTotal                 *prometheus.CounterVec
 	PathDBQueriesTotal                     *prometheus.CounterVec
 	RenewalServerRequestsTotal             *prometheus.CounterVec
@@ -134,6 +135,15 @@ func NewMetrics() *Metrics {
 				Help: "Total number of internal errors in the beacon registrar.",
 			},
 			[]string{"seg_type"},
+		),
+		CAHealth: promauto.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "renewal_ca_health_status",
+				Help: "Exposes the status of the CA (available, unavailable, starting, stopping)," +
+					" if the host acts as CA and is delegating certificate renewal " +
+					"to the CA service.",
+			},
+			[]string{"status"},
 		),
 		DiscoveryRequestsTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
