@@ -131,17 +131,19 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 	conn := scionConnBase{
 		scionNet: n,
 		svc:      svc,
-		listen:   CopyUDPAddr(listen),
+		listen: &UDPAddr{
+			IA:   n.LocalIA,
+			Host: CopyUDPAddr(listen),
+		},
 	}
-	packetConn, port, err := conn.scionNet.Dispatcher.Register(ctx, n.LocalIA, listen, svc)
+	packetConn, port, err := n.Dispatcher.Register(ctx, n.LocalIA, listen, svc)
 	if err != nil {
 		return nil, err
 	}
-	if port != uint16(conn.listen.Port) {
-		// Update port
-		conn.listen.Port = int(port)
+	if port != uint16(listen.Port) {
+		conn.listen.Host.Port = int(port)
 	}
-	log.Debug("Registered with dispatcher", "addr", &UDPAddr{IA: n.LocalIA, Host: conn.listen})
+	log.Debug("Registered with dispatcher", "addr", conn.listen)
 
 	replyPather := n.ReplyPather
 	if replyPather == nil {

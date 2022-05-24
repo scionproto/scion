@@ -67,6 +67,7 @@ case, the host could have multiple SCION addresses.
 			if err != nil {
 				return serrors.WrapStr("connecting to SCION Daemon", err)
 			}
+			defer sd.Close()
 
 			info, err := app.QueryASInfo(ctx, sd)
 			if err != nil {

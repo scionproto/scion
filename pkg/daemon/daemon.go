@@ -75,11 +75,11 @@ type Connector interface {
 	// SVCInfo requests from the daemon information about addresses and ports of
 	// infrastructure services.  Slice svcTypes contains a list of desired
 	// service types. If unset, a fresh (i.e., uncached) answer containing all
-	// service types is returned. The reply is a map from service type to URI of
-	// the service.
-	SVCInfo(ctx context.Context, svcTypes []addr.HostSVC) (map[addr.HostSVC]string, error)
+	// service types is returned. The reply is a map from service type to a list
+	// of URIs of the service in the local AS.
+	SVCInfo(ctx context.Context, svcTypes []addr.HostSVC) (map[addr.HostSVC][]string, error)
 	// RevNotification sends a RevocationInfo message to the daemon.
 	RevNotification(ctx context.Context, revInfo *path_mgmt.RevInfo) error
 	// Close shuts down the connection to the daemon.
-	Close(ctx context.Context) error
+	Close() error
 }

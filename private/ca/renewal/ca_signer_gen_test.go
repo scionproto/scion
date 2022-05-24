@@ -43,8 +43,10 @@ import (
 )
 
 func TestChachingPolicyGenGenerate(t *testing.T) {
+	dir := genCrypto(t)
+
 	otherValidity := time.Hour
-	ca := xtest.LoadChain(t, "testdata/common/ISD1/ASff00_0_110/crypto/ca/ISD1-ASff00_0_110.ca.crt")
+	ca := xtest.LoadChain(t, filepath.Join(dir, "certs/ISD1-ASff00_0_110.ca.crt"))
 	cert := ca[0]
 
 	testCases := map[string]struct {
@@ -153,6 +155,7 @@ func TestChachingPolicyGenGenerate(t *testing.T) {
 }
 
 func TestLoadingPolicyGenGenerate(t *testing.T) {
+
 	ca := xtest.LoadChain(t, "testdata/common/ISD1/ASff00_0_110/crypto/ca/ISD1-ASff00_0_110.ca.crt")
 	key := loadKey(t, "testdata/common/ISD1/ASff00_0_110/crypto/ca/cp-ca.key")
 

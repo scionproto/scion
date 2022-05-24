@@ -38,15 +38,13 @@ import (
 )
 
 func TestVerify(t *testing.T) {
-	if *updateNonDeterministic {
-		t.Skip("test crypto is being updated")
-	}
+	dir := genCrypto(t)
 
 	msg := []byte("random")
-	chains := [][]*x509.Certificate{xtest.LoadChain(t,
-		filepath.Join(goldenDir, "ISD1/ASff00_0_110/crypto/as/ISD1-ASff00_0_110.pem"))}
-	key := loadKey(t, filepath.Join(goldenDir,
-		"ISD1/ASff00_0_110/crypto/as/cp-as.key"))
+	chains := [][]*x509.Certificate{
+		xtest.LoadChain(t, filepath.Join(dir, "certs/ISD1-ASff00_0_110.pem")),
+	}
+	key := loadKey(t, filepath.Join(dir, "ISD1/ASff00_0_110/crypto/as/cp-as.key"))
 	sign := validSignS(t, msg, "1-ff00:0:110", key)
 	forgedSign := validSignS(t, msg, "1-ff00:0:110", key)
 	forgedSign.Signature[30] ^= 0xFF

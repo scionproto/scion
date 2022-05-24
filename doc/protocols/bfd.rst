@@ -49,8 +49,7 @@ SCION router, in particular, does bootstrapping in the following way.
 
 It creates one "external" BFD session for each SCION
 interface that it owns. Its BFD peer is the SCION router in the neighbouring
-AS. The associated BFD packets must use SCION `OneHopPath
-<https://scion.docs.anapaya.net/en/latest/protocols/scion-header.html#path-type-onehoppath>`__
+AS. The associated BFD packets must use SCION :ref:`OneHopPath <path-type-onehop>`
 type.
 
 This kind of BFD session in unambiguously identified by the ID of the SCION interface the
@@ -58,9 +57,7 @@ packet was received on.
 
 Furthermore, SCION router creates one "internal" BFD session for every
 other SCION router instance within the same AS. The associated BFD packets must use SCION
-`Empty
-<https://scion.docs.anapaya.net/en/latest/protocols/scion-header.html#path-type-empty>`__
-path type.
+:ref:`Empty <path-type-empty>` path type.
 
 These BFD sessions are uniquely identified by the source address and port, as it appears
 in the underlay UPD header.

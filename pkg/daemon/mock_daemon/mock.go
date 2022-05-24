@@ -56,17 +56,17 @@ func (mr *MockConnectorMockRecorder) ASInfo(arg0, arg1 interface{}) *gomock.Call
 }
 
 // Close mocks base method.
-func (m *MockConnector) Close(arg0 context.Context) error {
+func (m *MockConnector) Close() error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Close", arg0)
+	ret := m.ctrl.Call(m, "Close")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Close indicates an expected call of Close.
-func (mr *MockConnectorMockRecorder) Close(arg0 interface{}) *gomock.Call {
+func (mr *MockConnectorMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockConnector)(nil).Close), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockConnector)(nil).Close))
 }
 
 // IFInfo mocks base method.
@@ -129,10 +129,10 @@ func (mr *MockConnectorMockRecorder) RevNotification(arg0, arg1 interface{}) *go
 }
 
 // SVCInfo mocks base method.
-func (m *MockConnector) SVCInfo(arg0 context.Context, arg1 []addr.HostSVC) (map[addr.HostSVC]string, error) {
+func (m *MockConnector) SVCInfo(arg0 context.Context, arg1 []addr.HostSVC) (map[addr.HostSVC][]string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SVCInfo", arg0, arg1)
-	ret0, _ := ret[0].(map[addr.HostSVC]string)
+	ret0, _ := ret[0].(map[addr.HostSVC][]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

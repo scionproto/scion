@@ -28,6 +28,15 @@ def _openapi_generate_go(ctx):
             )
             extra_inputs.append(ctx.file.types_excludes)
 
+        # if a templates folder is provided add it to the command
+        if bool(ctx.files.templates):
+            templates_folder = ctx.files.templates[0].dirname
+            if templates_folder.split("/")[::-1][0] != "templates":
+                fail("The parent directory of the first filegroup file should be 'templates'")
+            cmd += " -templates {folder}".format(
+                folder = templates_folder,
+            )
+
         # Source files must be the last input to the command.
         cmd += " {src}".format(
             src = shell.quote(ctx.file.src.path),
@@ -35,7 +44,7 @@ def _openapi_generate_go(ctx):
 
         ctx.actions.run_shell(
             outputs = [out_file],
-            inputs = [ctx.file.src] + extra_inputs,
+            inputs = [ctx.file.src] + extra_inputs + ctx.files.templates,
             tools = [ctx.executable._oapi_codegen],
             command = cmd,
             mnemonic = "OpenAPIGoGen",
@@ -79,6 +88,13 @@ openapi_generate_go = rule(
         "spec": attr.bool(
             doc = "Whether the spec code should be generated",
             default = True,
+        ),
+        "templates": attr.label_list(
+            doc = """Folder containing Go templates to be used during code generation.
+                Note that the template file names need to match the ones used by the
+                openapi codegen.
+                (see https://github.com/deepmap/oapi-codegen#making-changes-to-code-generation)""",
+            allow_files = [".tmpl"],
         ),
         "_oapi_codegen": attr.label(
             doc = "The code generator binary.",

@@ -1,0 +1,46 @@
+# Copyright 2021 Anapaya Systems
+
+rules:
+- id: marshalyaml-misspell
+  pattern-either:
+    - patterns:
+        - pattern-regex: (?i)func \((.+)\) marshal[l]?yaml\((.*)\)
+        - pattern-not-regex: func \(.+\) MarshalYAML\(
+  message: |
+    Possible misspelling of MarshalYAML found.
+  fix: func ($1) MarshalYAML($2)
+  languages: [go]
+  severity: ERROR
+
+- id: unmarshalyaml-misspell
+  pattern-either:
+    - patterns:
+        - pattern-regex: (?i)func \((.+)\) unmarshal[l]?yaml\((.*)\)
+        - pattern-not-regex: func \(.+\) UnmarshalYAML\(
+  message: |
+    Possible misspelling of UnmarshalYAML found.
+  fix: func ($1) UnmarshalYAML($2)
+  languages: [go]
+  severity: ERROR
+
+- id: marshaljson-misspell
+  pattern-either:
+    - patterns:
+        - pattern-regex: (?i)func \((.+)\) marshal[l]?json\((.*)\)
+        - pattern-not-regex: func \(.+\) MarshalJSON\(
+  message: |
+    Possible misspelling of MarshalJSON found.
+  fix: func ($1) MarshalJSON ($2)
+  languages: [go]
+  severity: ERROR
+
+- id: unmarshaljson-misspell
+  pattern-either:
+    - patterns:
+        - pattern-regex: (?i)func \((.+)\) unmarshal[l]?json\((.*)\)
+        - pattern-not-regex: func \(.+\) UnmarshalJSON\(
+  message: |
+    Possible misspelling of UnmarshalJSON found.
+  fix: func ($1) UnmarshalJSON ($2)
+  languages: [go]
+  severity: ERROR

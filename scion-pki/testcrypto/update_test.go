@@ -15,6 +15,7 @@
 package testcrypto_test
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -40,8 +41,10 @@ func TestUpdateExtend(t *testing.T) {
 	outDir, cleanF := xtest.MustTempDir("", "testcrypto")
 	defer cleanF()
 	topo := "./testdata/test.topo"
-	err := testcrypto.Testcrypto(topo, outDir, false, false, asValidity)
-	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	err := testcrypto.Testcrypto(topo, outDir, false, false, asValidity, &buf)
+	require.NoError(t, err, buf.String())
 
 	cmd := testcrypto.NewUpdate()
 	cmd.SetArgs([]string{"-o", outDir, "--scenario", "extend"})
@@ -112,8 +115,10 @@ func TestUpdateReSign(t *testing.T) {
 	outDir, cleanF := xtest.MustTempDir("", "testcrypto")
 	defer cleanF()
 	topo := "./testdata/test.topo"
-	err := testcrypto.Testcrypto(topo, outDir, false, false, asValidity)
-	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	err := testcrypto.Testcrypto(topo, outDir, false, false, asValidity, &buf)
+	require.NoError(t, err, buf.String())
 
 	cmd := testcrypto.NewUpdate()
 	cmd.SetArgs([]string{"-o", outDir, "--scenario", "re-sign"})
@@ -180,8 +185,10 @@ func TestUpdateReGen(t *testing.T) {
 	outDir, cleanF := xtest.MustTempDir("", "testcrypto")
 	defer cleanF()
 	topo := "./testdata/test.topo"
-	err := testcrypto.Testcrypto(topo, outDir, false, false, asValidity)
-	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	err := testcrypto.Testcrypto(topo, outDir, false, false, asValidity, &buf)
+	require.NoError(t, err, buf.String())
 
 	cmd := testcrypto.NewUpdate()
 	cmd.SetArgs([]string{"-o", outDir, "--scenario", "re-gen"})

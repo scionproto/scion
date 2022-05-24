@@ -16,11 +16,14 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -369,6 +372,8 @@ func realMain(ctx context.Context) error {
 	}
 
 	var chainBuilder renewal.ChainBuilder
+	var caClient *caapi.Client
+	var caHealthCached *cachedCAHealth
 	if globalCfg.CA.Mode != config.Disabled {
 		renewalGauges := libmetrics.NewPromGauge(metrics.RenewalRegisteredHandlers)
 		libmetrics.GaugeWith(renewalGauges, "type", "legacy").Set(0)
@@ -427,17 +432,21 @@ func realMain(ctx context.Context) error {
 			if globalCfg.CA.Service.ClientID != "" {
 				subject = globalCfg.CA.Service.ClientID
 			}
+			caClient = &caapi.Client{
+				Server: globalCfg.CA.Service.Address,
+				Client: jwtauth.NewHTTPClient(
+					&jwtauth.JWTTokenSource{
+						Subject:   subject,
+						Generator: sharedSecret.Get,
+						Lifetime:  globalCfg.CA.Service.Lifetime.Duration,
+					},
+				),
+			}
+			caHealthCached = &cachedCAHealth{status: api.Unavailable}
+			caHealthGauge := libmetrics.NewPromGauge(metrics.CAHealth)
+			updateCAHealthMetrics(caHealthGauge, api.Unavailable)
 			renewalServer.CMSHandler = &renewalgrpc.DelegatingHandler{
-				Client: &caapi.Client{
-					Server: globalCfg.CA.Service.Address,
-					Client: jwtauth.NewHTTPClient(
-						&jwtauth.JWTTokenSource{
-							Subject:   subject,
-							Generator: sharedSecret.Get,
-							Lifetime:  globalCfg.CA.Service.Lifetime.Duration,
-						},
-					),
-				},
+				Client: caClient,
 				Metrics: renewalgrpc.DelegatingHandlerMetrics{
 					BadRequests: libmetrics.CounterWith(delCtr,
 						prom.LabelResult, prom.ErrInvalidReq),
@@ -445,9 +454,33 @@ func realMain(ctx context.Context) error {
 						prom.LabelResult, prom.ErrInternal),
 					Unavailable: libmetrics.CounterWith(delCtr,
 						prom.LabelResult, prom.ErrUnavailable),
-					Success: libmetrics.CounterWith(delCtr, prom.LabelResult, prom.Success),
+					Success: libmetrics.CounterWith(delCtr,
+						prom.LabelResult, prom.Success),
 				},
 			}
+			// Periodically check the connection to the CA backend
+			caHealthChecker := periodic.Start(
+				periodic.Func{
+					TaskName: "ca healthcheck",
+					Task: func(ctx context.Context) {
+						status, err := getCAHealth(ctx, caClient)
+						if err != nil {
+							log.Info("Failed to check the CA health status",
+								"err", err,
+								"server", caClient.Server,
+							)
+							updateCAHealthMetrics(caHealthGauge, api.Unavailable)
+							caHealthCached.SetStatus(api.Unavailable)
+							return
+						}
+						updateCAHealthMetrics(caHealthGauge, status)
+						caHealthCached.SetStatus(status)
+					},
+				},
+				30*time.Second,
+				10*time.Second,
+			)
+			caHealthChecker.TriggerRun()
 		default:
 			return serrors.New("unsupported CA handler", "mode", globalCfg.CA.Mode)
 		}
@@ -566,9 +599,10 @@ func realMain(ctx context.Context) error {
 			Signer:   signer,
 			Topology: topo.HandleHTTP,
 			Healther: &healther{
-				Signer:  signer,
-				TrustDB: trustDB,
-				ISD:     topo.IA().ISD(),
+				Signer:   signer,
+				TrustDB:  trustDB,
+				ISD:      topo.IA().ISD(),
+				CAHealth: caHealthCached,
 			},
 		}
 		log.Info("Exposing API", "addr", globalCfg.API.Addr)
@@ -718,10 +752,30 @@ func adaptInterfaceMap(in map[common.IFIDType]topology.IFInfo) map[uint16]ifstat
 	return converted
 }
 
+type cachedCAHealth struct {
+	status api.CAHealthStatus
+	mtx    sync.Mutex
+}
+
+func (c *cachedCAHealth) SetStatus(status api.CAHealthStatus) {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	c.status = status
+}
+
+func (c *cachedCAHealth) GetStatus() api.CAHealthStatus {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	return c.status
+}
+
 type healther struct {
-	Signer  cstrust.RenewingSigner
-	TrustDB storage.TrustDB
-	ISD     addr.ISD
+	Signer   cstrust.RenewingSigner
+	TrustDB  storage.TrustDB
+	ISD      addr.ISD
+	CAHealth *cachedCAHealth
 }
 
 func (h *healther) GetSignerHealth(ctx context.Context) api.SignerHealthData {
@@ -753,5 +807,59 @@ func (h *healther) GetTRCHealth(ctx context.Context) api.TRCHealthData {
 	}
 	return api.TRCHealthData{
 		TRCID: trc.TRC.ID,
+	}
+}
+
+func (h *healther) GetCAHealth(ctx context.Context) (api.CAHealthStatus, bool) {
+	if h.CAHealth != nil {
+		return h.CAHealth.GetStatus(), true
+	}
+	return api.Unavailable, false
+}
+
+func getCAHealth(
+	ctx context.Context,
+	caClient *caapi.Client,
+) (api.CAHealthStatus, error) {
+
+	logger := log.FromCtx(ctx)
+	rep, err := caClient.GetHealthcheck(ctx)
+	if err != nil {
+		logger.Info("Request to CA service failed", "err", err)
+		return api.Unavailable, serrors.New(
+			"querrying CA service health status",
+			"err", err,
+		)
+	}
+	defer rep.Body.Close()
+	if rep.StatusCode != http.StatusOK {
+		return api.Unavailable, serrors.New(
+			"Status code of response was not OK",
+			"status code", rep.Status,
+		)
+	}
+	var r caapi.HealthCheckStatus
+	if err := json.NewDecoder(rep.Body).Decode(&r); err != nil {
+		logger.Info("Error reading CA service response", "err", err)
+		return api.Unavailable, serrors.New(
+			"reading CA service response",
+			"err", err,
+		)
+	}
+	return api.CAHealthStatus(r.Status), nil
+}
+
+func updateCAHealthMetrics(caHealthGauge libmetrics.Gauge, caStatus api.CAHealthStatus) {
+	potentialCAStatus := []string{
+		"available",
+		"unavailable",
+		"starting",
+		"stopping",
+	}
+	libmetrics.GaugeWith(caHealthGauge, "status", string(caStatus)).Set(1)
+	for _, status := range potentialCAStatus {
+		if strings.ToLower(string(caStatus)) != status {
+			libmetrics.GaugeWith(caHealthGauge, "status", status).Set(0)
+		}
 	}
 }

@@ -247,9 +247,7 @@ func TestLoadChains(t *testing.T) {
 }
 
 func TestLoadTRCs(t *testing.T) {
-	if *updateNonDeterministic {
-		t.Skip("test crypto is being updated")
-	}
+	dir := genCrypto(t)
 
 	mctrl := gomock.NewController(t)
 	defer mctrl.Finish()
@@ -262,7 +260,7 @@ func TestLoadTRCs(t *testing.T) {
 		loaded     []string
 	}{
 		"valid": {
-			inputDir: filepath.Join(goldenDir, "ISD1/trcs"),
+			inputDir: filepath.Join(dir, "ISD1/trcs"),
 			setupDB: func() trust.DB {
 				db := mock_trust.NewMockDB(mctrl)
 				db.EXPECT().InsertTRC(gomock.Any(), gomock.Any()).Times(2).Return(
@@ -271,8 +269,10 @@ func TestLoadTRCs(t *testing.T) {
 				return db
 			},
 			assertFunc: assert.NoError,
-			loaded: []string{filepath.Join(goldenDir, "ISD1/trcs/ISD1-B1-S1.trc"),
-				filepath.Join(goldenDir, "ISD1/trcs/ISD1-B1-S1.pem.trc")},
+			loaded: []string{
+				filepath.Join(dir, "ISD1/trcs/ISD1-B1-S1.trc"),
+				filepath.Join(dir, "ISD1/trcs/ISD1-B1-S1.pem.trc"),
+			},
 		},
 		"invalid dir": {
 			inputDir: "./path/to/nowhere",
@@ -289,7 +289,7 @@ func TestLoadTRCs(t *testing.T) {
 			assertFunc: assert.Error,
 		},
 		"db.InsertTRC error": {
-			inputDir: filepath.Join(goldenDir, "ISD1/trcs"),
+			inputDir: filepath.Join(dir, "ISD1/trcs"),
 			setupDB: func() trust.DB {
 				db := mock_trust.NewMockDB(mctrl)
 				db.EXPECT().InsertTRC(ctxMatcher{}, gomock.Any()).Return(

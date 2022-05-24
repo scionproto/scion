@@ -106,6 +106,9 @@ func Choose(
 		if err != nil {
 			return nil, serrors.WrapStr("probing paths", err)
 		}
+		if len(paths) == 0 {
+			return nil, serrors.New("no healthy paths available")
+		}
 	}
 	if o.interactive {
 		return printAndChoose(paths, remote, o.colorScheme)

@@ -29,10 +29,10 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/private/app/feature"
+	scionflag "github.com/scionproto/scion/private/app/flag"
 	"github.com/scionproto/scion/private/env"
 	"github.com/scionproto/scion/tools/integration"
 	"github.com/scionproto/scion/tools/integration/progress"
@@ -45,6 +45,7 @@ const (
 )
 
 var (
+	envFlags   scionflag.SCIONEnvironment
 	Local      snet.UDPAddr
 	Mode       string
 	Progress   string
@@ -54,20 +55,29 @@ var (
 	features   string
 )
 
-func Setup() {
-	addFlags()
+func Setup() error {
+	err := addFlags()
+	if err != nil {
+		return serrors.WrapStr("adding flags", err)
+	}
 	validateFlags()
+	return nil
 }
 
-func addFlags() {
+func addFlags() error {
+	err := envFlags.LoadExternalVars()
+	if err != nil {
+		return serrors.WrapStr("reading scion environment", err)
+	}
 	flag.Var(&Local, "local", "(Mandatory) address to listen on")
 	flag.StringVar(&Mode, "mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
 	flag.StringVar(&Progress, "progress", "", "Socket to write progress to")
-	flag.StringVar(&daemonAddr, "sciond", daemon.DefaultAPIAddress, "SCION Daemon address")
+	flag.StringVar(&daemonAddr, "sciond", envFlags.Daemon(), "SCION Daemon address")
 	flag.IntVar(&Attempts, "attempts", 1, "Number of attempts before giving up")
 	flag.StringVar(&logConsole, "log.console", "info", "Console logging level: debug|info|error")
 	flag.StringVar(&features, "features", "",
 		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
+	return nil
 }
 
 // InitTracer initializes the global tracer and returns a closer function.
@@ -113,66 +123,6 @@ func validateFlags() {
 	if Local.Host == nil {
 		LogFatal("Missing local address")
 	}
-}
-
-type options struct {
-	scionNetworkMetrics    snet.SCIONNetworkMetrics
-	scmpErrorsCounter      metrics.Counter
-	scionPacketConnMetrics snet.SCIONPacketConnMetrics
-}
-
-type Option func(o *options)
-
-func applyOption(opts []Option) options {
-	var o options
-	for _, option := range opts {
-		option(&o)
-	}
-	return o
-}
-
-// WithSCIONNetworkMetrics sets the metrics that are provided to the SCIONNetwork.
-func WithSCIONNetworkMetrics(m snet.SCIONNetworkMetrics) Option {
-	return func(o *options) {
-		o.scionNetworkMetrics = m
-	}
-}
-
-// WithSCIONNetworkMetrics sets the metrics that are provided to the SCIONPacketConn.
-func WithSCIONPacketConnMetrics(m snet.SCIONPacketConnMetrics) Option {
-	return func(o *options) {
-		o.scionPacketConnMetrics = m
-	}
-}
-
-// WithSCMPErrorCounter sets the counter that be provided to
-// the DefaultPacketDispatcherService of the SCIONNetwork.
-func WithSCMPErrorCounter(m metrics.Counter) Option {
-	return func(o *options) {
-		o.scmpErrorsCounter = m
-	}
-}
-
-func InitNetwork(opts ...Option) *snet.SCIONNetwork {
-	o := applyOption(opts)
-	daemonConn, err := daemon.NewService(daemonAddr).Connect(context.Background())
-	if err != nil {
-		LogFatal("Unable to initialize SCION network", "err", err)
-	}
-	n := &snet.SCIONNetwork{
-		LocalIA: Local.IA,
-		Dispatcher: &snet.DefaultPacketDispatcherService{
-			Dispatcher: reliable.NewDispatcher(""),
-			SCMPHandler: &snet.DefaultSCMPHandler{
-				RevocationHandler: daemon.RevHandler{Connector: daemonConn},
-				SCMPErrors:        o.scmpErrorsCounter,
-			},
-			SCIONPacketConnMetrics: o.scionPacketConnMetrics,
-		},
-		Metrics: o.scionNetworkMetrics,
-	}
-	log.Debug("SCION network successfully initialized")
-	return n
 }
 
 func SDConn() daemon.Connector {

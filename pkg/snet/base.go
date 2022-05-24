@@ -23,7 +23,7 @@ import (
 
 type scionConnBase struct {
 	// Local and remote SCION addresses (IA, L3, L4)
-	listen *net.UDPAddr
+	listen *UDPAddr
 	remote *UDPAddr
 
 	// svc address

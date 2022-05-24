@@ -1,0 +1,12 @@
+# Copyright 2022 Anapaya Systems
+
+rules:
+- id: defer-handlepanic
+  pattern-either:
+    - patterns:
+        - pattern-regex: (?<!defer )log.HandlePanic()
+  message: |
+    Do not use log.HandlePanic() without defer.
+  fix: defer log.HandlePanic()
+  languages: [go]
+  severity: ERROR

@@ -17,6 +17,8 @@ package trust_test
 import (
 	"crypto/tls"
 	"net"
+	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -31,8 +33,13 @@ import (
 )
 
 func TestTLSCryptoManagerVerifyPeerCertificate(t *testing.T) {
-	trc := xtest.LoadTRC(t, "testdata/common/trcs/ISD1-B1-S1.trc")
-	crt111File := "testdata/common/ISD1/ASff00_0_111/crypto/as/ISD1-ASff00_0_111.pem"
+	dir := genCrypto(t)
+
+	trc := xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S1.trc"))
+	crt111File := filepath.Join(dir, "certs/ISD1-ASff00_0_111.pem")
+
+	out, _ := exec.Command("tree", dir).CombinedOutput()
+	t.Log(string(out))
 
 	testCases := map[string]struct {
 		db        func(ctrl *gomock.Controller) trust.DB
@@ -69,9 +76,12 @@ func TestHandshake(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	trc := xtest.LoadTRC(t, "testdata/common/trcs/ISD1-B1-S1.trc")
-	crt111File := "testdata/common/ISD1/ASff00_0_111/crypto/as/ISD1-ASff00_0_111.pem"
-	key111File := "testdata/common/ISD1/ASff00_0_111/crypto/as/cp-as.key"
+	dir := genCrypto(t)
+
+	trc := xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S1.trc"))
+	crt111File := filepath.Join(dir, "certs/ISD1-ASff00_0_111.pem")
+	key111File := filepath.Join(dir, "ISD1/ASff00_0_111/crypto/as/cp-as.key")
+
 	tlsCert, err := tls.LoadX509KeyPair(crt111File, key111File)
 	require.NoError(t, err)
 	chain, err := cppki.ReadPEMCerts(crt111File)
