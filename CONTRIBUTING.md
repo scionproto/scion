@@ -1,4 +1,4 @@
 # Contribution Guide
 
 The Contribution Guide for the SCION project can be found
-[here](https://anapaya-scion.readthedocs-hosted.com/en/latest/contribute.html).
+[here](https://docs.scion.org/en/latest/contribute.html).

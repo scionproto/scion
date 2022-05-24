@@ -25,6 +25,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"net"
 	"time"
@@ -113,7 +114,14 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 		return nil, serrors.WrapStr("listening QUIC/SCION", err)
 	}
 
-	cancel, err := nc.initSvcRedirect(server.LocalAddr().String())
+	serverAddr, ok := server.LocalAddr().(*snet.UDPAddr)
+	if !ok {
+		return nil, serrors.New("unexpected server address type",
+			"type", fmt.Sprintf("%T", server.LocalAddr()),
+		)
+	}
+
+	cancel, err := nc.initSvcRedirect(serverAddr.Host.String())
 	if err != nil {
 		return nil, serrors.WrapStr("starting service redirection", err)
 	}

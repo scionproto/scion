@@ -35,14 +35,10 @@ import (
 )
 
 func TestFetchingProviderGetChains(t *testing.T) {
-	if *updateNonDeterministic {
-		t.Skip("test crypto is being updated")
-	}
-	trc := xtest.LoadTRC(t, filepath.Join(goldenDir, "ISD1/trcs/ISD1-B1-S1.trc"))
-	valid := xtest.LoadChain(t,
-		filepath.Join(goldenDir, "ISD1/ASff00_0_110/crypto/as/ISD1-ASff00_0_110.pem"))
-	inactive := xtest.LoadChain(t,
-		filepath.Join(goldenDir, "ISD1/ASff00_0_110/crypto/as/ISD1-ASff00_0_110.pem"))
+	dir := genCrypto(t)
+	trc := xtest.LoadTRC(t, filepath.Join(dir, "ISD1/trcs/ISD1-B1-S1.trc"))
+	valid := xtest.LoadChain(t, filepath.Join(dir, "certs/ISD1-ASff00_0_110.pem"))
+	inactive := xtest.LoadChain(t, filepath.Join(dir, "certs/ISD1-ASff00_0_110.pem"))
 	inactive[0].NotAfter = time.Now().Add(-time.Second)
 	all := append([][]*x509.Certificate{valid}, inactive)
 
@@ -438,8 +434,7 @@ func TestFetchingProviderGetChains(t *testing.T) {
 			},
 			Fetcher: func(t *testing.T, ctrl *gomock.Controller) trust.Fetcher {
 				f := mock_trust.NewMockFetcher(ctrl)
-				forged := xtest.LoadChain(t,
-					filepath.Join(goldenDir, "ISD1/ASff00_0_110/crypto/as/ISD1-ASff00_0_110.pem"))
+				forged := xtest.LoadChain(t, filepath.Join(dir, "certs/ISD1-ASff00_0_110.pem"))
 				forged[0].Signature[30] ^= 0xFF
 				f.EXPECT().Chains(gomock.Any(), query, &net.UDPAddr{Port: 90}).Return(
 					[][]*x509.Certificate{forged}, nil,
@@ -471,11 +466,10 @@ func TestFetchingProviderGetChains(t *testing.T) {
 }
 
 func TestFetchingProviderNotifyTRC(t *testing.T) {
-	if *updateNonDeterministic {
-		t.Skip("test crypto is being updated")
-	}
-	base := xtest.LoadTRC(t, filepath.Join(goldenDir, "trcs/ISD1-B1-S1.trc"))
-	updated := xtest.LoadTRC(t, filepath.Join(goldenDir, "trcs/ISD1-B1-S2.trc"))
+	dir := genCrypto(t)
+
+	base := xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S1.trc"))
+	updated := xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S2.trc"))
 
 	testCases := map[string]struct {
 		ID           cppki.TRCID
@@ -728,7 +722,7 @@ func TestFetchingProviderNotifyTRC(t *testing.T) {
 			Fetcher: func(t *testing.T, ctrl *gomock.Controller) trust.Fetcher {
 				f := mock_trust.NewMockFetcher(ctrl)
 
-				forged := xtest.LoadTRC(t, filepath.Join(goldenDir, "trcs/ISD1-B1-S2.trc"))
+				forged := xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S2.trc"))
 				for i := range forged.SignerInfos {
 					forged.SignerInfos[i].Signature[0] ^= 0xFF
 				}

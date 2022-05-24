@@ -22,7 +22,7 @@ import (
 const MACBufferSize = 16
 
 // MAC calculates the HopField MAC according to
-// https://scion.docs.anapaya.net/en/latest/protocols/scion-header.html#hop-field-mac-computation
+// https://docs.scion.org/en/latest/protocols/scion-header.html#hop-field-mac-computation
 // this method does not modify info or hf.
 // Modifying the provided buffer after calling this function may change the returned HopField MAC.
 func MAC(h hash.Hash, info InfoField, hf HopField, buffer []byte) [MacLen]byte {
@@ -33,7 +33,7 @@ func MAC(h hash.Hash, info InfoField, hf HopField, buffer []byte) [MacLen]byte {
 }
 
 // FullMAC calculates the HopField MAC according to
-// https://scion.docs.anapaya.net/en/latest/protocols/scion-header.html#hop-field-mac-computation
+// https://docs.scion.org/en/latest/protocols/scion-header.html#hop-field-mac-computation
 // this method does not modify info or hf.
 // Modifying the provided buffer after calling this function may change the returned HopField MAC.
 // In contrast to MAC(), FullMAC returns all the 16 bytes instead of only 6 bytes of the MAC.

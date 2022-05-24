@@ -31,9 +31,10 @@ go_test(
     srcs = [
         "export_test.go",
         "fetcher_test.go",
+        "main_test.go",
         "proto_test.go",
     ],
-    data = ["//private/trust:testdata"],
+    data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
         "//pkg/private/serrors:go_default_library",
@@ -41,8 +42,10 @@ go_test(
         "//pkg/proto/control_plane:go_default_library",
         "//pkg/proto/control_plane/mock_control_plane:go_default_library",
         "//pkg/scrypto/cppki:go_default_library",
+        "//private/app/command:go_default_library",
         "//private/trust:go_default_library",
         "//private/trust/internal/metrics:go_default_library",
+        "//scion-pki/testcrypto:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
         "@com_github_golang_protobuf//ptypes:go_default_library_gen",
         "@com_github_stretchr_testify//assert:go_default_library",

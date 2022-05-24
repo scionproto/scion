@@ -9,7 +9,6 @@ gomock(
         "RenewalRequestVerifier",
         "CMSSigner",
         "CMSRequestHandler",
-        "LegacyRequestHandler",
         "CAServiceClient",
     ],
     library = "//private/ca/renewal/grpc:go_default_library",
@@ -23,7 +22,6 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/proto/control_plane:go_default_library",
-        "//pkg/proto/crypto:go_default_library",
         "//private/ca/api:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
     ],

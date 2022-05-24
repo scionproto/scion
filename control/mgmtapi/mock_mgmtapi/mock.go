@@ -74,6 +74,21 @@ func (m *MockHealther) EXPECT() *MockHealtherMockRecorder {
 	return m.recorder
 }
 
+// GetCAHealth mocks base method.
+func (m *MockHealther) GetCAHealth(arg0 context.Context) (mgmtapi.CAHealthStatus, bool) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCAHealth", arg0)
+	ret0, _ := ret[0].(mgmtapi.CAHealthStatus)
+	ret1, _ := ret[1].(bool)
+	return ret0, ret1
+}
+
+// GetCAHealth indicates an expected call of GetCAHealth.
+func (mr *MockHealtherMockRecorder) GetCAHealth(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCAHealth", reflect.TypeOf((*MockHealther)(nil).GetCAHealth), arg0)
+}
+
 // GetSignerHealth mocks base method.
 func (m *MockHealther) GetSignerHealth(arg0 context.Context) mgmtapi.SignerHealthData {
 	m.ctrl.T.Helper()

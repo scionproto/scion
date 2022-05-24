@@ -140,7 +140,7 @@ func (s *Sequence) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (s *Sequence) MarshalYaml() (interface{}, error) {
+func (s *Sequence) MarshalYAML() (interface{}, error) {
 	return s.srcstr, nil
 }
 

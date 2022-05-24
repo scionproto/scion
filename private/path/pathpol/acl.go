@@ -64,7 +64,7 @@ func (a *ACL) UnmarshalJSON(b []byte) error {
 	return json.Unmarshal(b, &a.Entries)
 }
 
-func (a *ACL) MarshalYaml() (interface{}, error) {
+func (a *ACL) MarshalYAML() (interface{}, error) {
 	return a.Entries, nil
 }
 
@@ -136,7 +136,7 @@ func (ae *ACLEntry) UnmarshalJSON(b []byte) error {
 	return ae.LoadFromString(str)
 }
 
-func (ae *ACLEntry) MarshalYaml() (interface{}, error) {
+func (ae *ACLEntry) MarshalYAML() (interface{}, error) {
 	return ae.String(), nil
 }
 

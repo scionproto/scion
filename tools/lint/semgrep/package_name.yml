@@ -1,0 +1,22 @@
+# Copyright 2022 Anapaya Systems
+
+rules:
+- id: package_name
+  patterns:
+    - pattern: "package $PKG"
+    - metavariable-pattern:
+        metavariable: $PKG
+        patterns:
+          - pattern-regex: _
+          - pattern-not-regex: _test$
+          - pattern-not-regex: ^mock_
+  paths:
+    exclude:
+      - "antlr"
+      - "pkg/private/ctrl/path_mgmt"
+      - "node_modules"
+      - "pkg/proto"
+  message: |
+    Package name should not contain an underscore: https://go.dev/blog/package-names
+  languages: [go]
+  severity: ERROR

@@ -14,6 +14,11 @@ Synopsis
 The chain must be a PEM bundle with the AS certificate first, and the CA
 certificate second.
 
+The ISD-AS property of the subject identified by the certificate
+(or in the case of a certificate chain, the leaf certificate)
+can be validated by specifying the \--subject-isd-as flag and
+the expected ISD-AS value.
+
 
 ::
 
@@ -32,10 +37,11 @@ Options
 
 ::
 
-      --currenttime int   Optional unix timestamp that sets the current time
-  -h, --help              help for verify
-      --trc strings       Comma-separated list of trusted TRC files or glob patterns. If more than two TRCs are specified,
-                           only up to two active TRCs with the highest Base version are used (required)
+      --currenttime int         Optional unix timestamp that sets the current time
+  -h, --help                    help for verify
+      --subject-isd-as string   ISD-AS property of the subject of the certificate
+      --trc strings             Comma-separated list of trusted TRC files or glob patterns. If more than two TRCs are specified,
+                                 only up to two active TRCs with the highest Base version are used (required)
 
 SEE ALSO
 ~~~~~~~~

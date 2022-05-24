@@ -20,15 +20,11 @@ import (
 	"crypto/x509"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
-	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/scrypto/cms/protocol"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
-	"github.com/scionproto/scion/pkg/scrypto/signed"
 	"github.com/scionproto/scion/private/trust"
 )
 
@@ -46,27 +42,6 @@ func NewChainRenewalRequest(ctx context.Context, csr []byte,
 	}, nil
 }
 
-// NewLegacyChainRenewalRequest builds a ChainRenewalRequest given a serialized CSR
-// and a signer enveloped in a protobuf SignedMessage.
-func NewLegacyChainRenewalRequest(ctx context.Context, csr []byte,
-	signer trust.Signer) (*cppb.ChainRenewalRequest, error) {
-
-	body := &cppb.ChainRenewalRequestBody{
-		Csr: csr,
-	}
-	rawBody, err := proto.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	signedMsg, err := signer.Sign(ctx, rawBody)
-	if err != nil {
-		return nil, err
-	}
-	return &cppb.ChainRenewalRequest{
-		SignedRequest: signedMsg,
-	}, nil
-}
-
 type TRCFetcher interface {
 	// SignedTRC fetches the signed TRC for a given ID.
 	// The latest TRC can be requested by setting the serial and base number
@@ -76,36 +51,6 @@ type TRCFetcher interface {
 
 type RequestVerifier struct {
 	TRCFetcher TRCFetcher
-}
-
-// VerifyPbSignedRenewalRequest verifies a renewal request that is encapsulated in a protobuf
-// SignedMessage envelop. It checks that the contained CSR is valid and correctly self-signed, and
-// that the signature is valid and can be verified by a chain in the given chains.
-func (r RequestVerifier) VerifyPbSignedRenewalRequest(ctx context.Context,
-	req *cryptopb.SignedMessage, chains [][]*x509.Certificate) (*x509.CertificateRequest, error) {
-
-	var authCert *x509.Certificate
-	var msg *signed.Message
-	for _, chain := range chains {
-		m, err := signed.Verify(req, chain[0].PublicKey)
-		if err == nil {
-			msg, authCert = m, chain[0]
-			break
-		}
-	}
-	if msg == nil {
-		return nil, serrors.New("no provided chain can verify the signature")
-	}
-	var body cppb.ChainRenewalRequestBody
-	if err := proto.Unmarshal(msg.Body, &body); err != nil {
-		return nil, serrors.WrapStr("parsing request body", err)
-	}
-	csr, err := x509.ParseCertificateRequest(body.Csr)
-	if err != nil {
-		return nil, serrors.WrapStr("parsing CSR", err)
-	}
-
-	return r.processCSR(csr, authCert)
 }
 
 // VerifyCMSSignedRenewalRequest verifies a renewal request that is encapsulated in a CMS

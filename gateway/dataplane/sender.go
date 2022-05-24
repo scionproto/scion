@@ -49,8 +49,8 @@ func newSender(sessID uint8, conn net.PacketConn, path snet.Path,
 	metrics SessionMetrics) (*sender, error) {
 
 	// MTU must account for the size of the SCION header.
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	addrLen := addr.IABytes*2 + len(localAddr.IP) + len(gatewayAddr.IP)
+	localAddr := conn.LocalAddr().(*snet.UDPAddr)
+	addrLen := addr.IABytes*2 + len(localAddr.Host.IP) + len(gatewayAddr.IP)
 	scionPath, ok := path.Dataplane().(snetpath.SCION)
 	if !ok {
 		return nil, serrors.New("not a scion path", "type", common.TypeOf(path.Dataplane()))
