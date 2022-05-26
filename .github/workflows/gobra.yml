@@ -18,7 +18,7 @@ jobs:
           path: ${{ runner.workspace }}/.gobra/cache.json
           key: ${{ env.cache-name }}
       - name: Verify the specified files
-        uses: viperproject/gobra-action@v22.05.1
+        uses: viperproject/gobra-action@v22.05.2
         with:
           # Prefix used to resolve SCION packages
           module: 'github.com/scionproto/scion/'
