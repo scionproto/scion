@@ -448,6 +448,9 @@ func TestAPI(t *testing.T) {
 						},
 					},
 				)
+				h.EXPECT().GetCAHealth(gomock.Any()).Return(
+					api.Available, true,
+				)
 				return api.Handler(s)
 			},
 			RequestURL:      "/health",
@@ -477,6 +480,9 @@ func TestAPI(t *testing.T) {
 						},
 					},
 				)
+				h.EXPECT().GetCAHealth(gomock.Any()).Return(
+					api.Available, true,
+				)
 				return api.Handler(s)
 			},
 			RequestURL:      "/health",
@@ -500,6 +506,9 @@ func TestAPI(t *testing.T) {
 					api.TRCHealthData{
 						TRCNotFound: true,
 					},
+				)
+				h.EXPECT().GetCAHealth(gomock.Any()).Return(
+					api.Available, true,
 				)
 				return api.Handler(s)
 			},
@@ -526,6 +535,9 @@ func TestAPI(t *testing.T) {
 						TRCNotFoundDetail: "internal",
 					},
 				)
+				h.EXPECT().GetCAHealth(gomock.Any()).Return(
+					api.Available, true,
+				)
 				return api.Handler(s)
 			},
 			RequestURL:      "/health",
@@ -547,6 +559,9 @@ func TestAPI(t *testing.T) {
 					api.TRCHealthData{
 						TRCNotFound: true,
 					},
+				)
+				h.EXPECT().GetCAHealth(gomock.Any()).Return(
+					api.Available, true,
 				)
 				return api.Handler(s)
 			},
@@ -575,6 +590,9 @@ func TestAPI(t *testing.T) {
 						},
 					},
 				)
+				h.EXPECT().GetCAHealth(gomock.Any()).Return(
+					api.Available, true,
+				)
 				return api.Handler(s)
 			},
 			RequestURL:      "/health",
@@ -602,6 +620,9 @@ func TestAPI(t *testing.T) {
 							Serial: 1,
 							ISD:    12,
 						}},
+				)
+				h.EXPECT().GetCAHealth(gomock.Any()).Return(
+					api.Available, true,
 				)
 				return api.Handler(s)
 			},
@@ -632,6 +653,9 @@ func TestAPI(t *testing.T) {
 						},
 					},
 				)
+				h.EXPECT().GetCAHealth(gomock.Any()).Return(
+					api.Available, true,
+				)
 				return api.Handler(s)
 			},
 			RequestURL:      "/health",
@@ -655,6 +679,9 @@ func TestAPI(t *testing.T) {
 					api.TRCHealthData{
 						TRCNotFound: true,
 					},
+				)
+				h.EXPECT().GetCAHealth(gomock.Any()).Return(
+					api.Available, true,
 				)
 				return api.Handler(s)
 			},
@@ -680,6 +707,9 @@ func TestAPI(t *testing.T) {
 						TRCNotFound: true,
 					},
 				)
+				h.EXPECT().GetCAHealth(gomock.Any()).Return(
+					api.Available, true,
+				)
 				return api.Handler(s)
 			},
 			RequestURL:      "/health",
@@ -702,10 +732,141 @@ func TestAPI(t *testing.T) {
 						TRCNotFound: true,
 					},
 				)
+				h.EXPECT().GetCAHealth(gomock.Any()).Return(
+					api.Available, true,
+				)
 				return api.Handler(s)
 			},
 			RequestURL: "/health",
 			Status:     200,
+		},
+		"health ca starting": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				h := mock_mgmtapi.NewMockHealther(ctrl)
+				s := &api.Server{
+					Healther: h,
+				}
+				h.EXPECT().GetSignerHealth(gomock.Any()).Return(
+					api.SignerHealthData{
+						SignerMissing: false,
+						Expiration:    now.Add(10 * time.Hour),
+						InGrace:       false,
+					},
+				)
+				h.EXPECT().GetTRCHealth(gomock.Any()).Return(
+					api.TRCHealthData{
+						TRCNotFound: false,
+						TRCID: cppki.TRCID{
+							Base:   2,
+							Serial: 1,
+							ISD:    12,
+						},
+					},
+				)
+				h.EXPECT().GetCAHealth(gomock.Any()).Return(
+					api.Starting, true,
+				)
+				return api.Handler(s)
+			},
+			RequestURL:      "/health",
+			TimestampOffset: 10 * time.Hour,
+			Status:          200,
+		},
+		"health ca stopping": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				h := mock_mgmtapi.NewMockHealther(ctrl)
+				s := &api.Server{
+					Healther: h,
+				}
+				h.EXPECT().GetSignerHealth(gomock.Any()).Return(
+					api.SignerHealthData{
+						SignerMissing: false,
+						Expiration:    now.Add(10 * time.Hour),
+						InGrace:       false,
+					},
+				)
+				h.EXPECT().GetTRCHealth(gomock.Any()).Return(
+					api.TRCHealthData{
+						TRCNotFound: false,
+						TRCID: cppki.TRCID{
+							Base:   2,
+							Serial: 1,
+							ISD:    12,
+						},
+					},
+				)
+				h.EXPECT().GetCAHealth(gomock.Any()).Return(
+					api.Stopping, true,
+				)
+				return api.Handler(s)
+			},
+			RequestURL:      "/health",
+			TimestampOffset: 10 * time.Hour,
+			Status:          200,
+		},
+		"health ca unavailable": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				h := mock_mgmtapi.NewMockHealther(ctrl)
+				s := &api.Server{
+					Healther: h,
+				}
+				h.EXPECT().GetSignerHealth(gomock.Any()).Return(
+					api.SignerHealthData{
+						SignerMissing: false,
+						Expiration:    now.Add(10 * time.Hour),
+						InGrace:       false,
+					},
+				)
+				h.EXPECT().GetTRCHealth(gomock.Any()).Return(
+					api.TRCHealthData{
+						TRCNotFound: false,
+						TRCID: cppki.TRCID{
+							Base:   2,
+							Serial: 1,
+							ISD:    12,
+						},
+					},
+				)
+				h.EXPECT().GetCAHealth(gomock.Any()).Return(
+					api.Unavailable, true,
+				)
+				return api.Handler(s)
+			},
+			RequestURL:      "/health",
+			TimestampOffset: 10 * time.Hour,
+			Status:          200,
+		},
+		"health ca check not run": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				h := mock_mgmtapi.NewMockHealther(ctrl)
+				s := &api.Server{
+					Healther: h,
+				}
+				h.EXPECT().GetSignerHealth(gomock.Any()).Return(
+					api.SignerHealthData{
+						SignerMissing: false,
+						Expiration:    now.Add(10 * time.Hour),
+						InGrace:       false,
+					},
+				)
+				h.EXPECT().GetTRCHealth(gomock.Any()).Return(
+					api.TRCHealthData{
+						TRCNotFound: false,
+						TRCID: cppki.TRCID{
+							Base:   2,
+							Serial: 1,
+							ISD:    12,
+						},
+					},
+				)
+				h.EXPECT().GetCAHealth(gomock.Any()).Return(
+					api.Unavailable, false,
+				)
+				return api.Handler(s)
+			},
+			RequestURL:      "/health",
+			TimestampOffset: 10 * time.Hour,
+			Status:          200,
 		},
 	}
 

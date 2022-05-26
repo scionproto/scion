@@ -17,6 +17,13 @@
                 },
                 "name": "TRC for local ISD available",
                 "status": "passing"
+            },
+            {
+                "data": {
+                    "status": "available"
+                },
+                "name": "CPPKI CA Connection",
+                "status": "passing"
             }
         ],
         "status": "degraded"

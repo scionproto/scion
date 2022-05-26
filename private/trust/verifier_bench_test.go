@@ -20,6 +20,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -35,16 +36,18 @@ import (
 )
 
 func BenchmarkConcurrent10(b *testing.B) {
+	dir := genCrypto(b)
+
 	db, err := sqlite.New("file::memory:")
 	require.NoError(b, err)
 
-	_, err = trust.LoadTRCs(context.Background(), "testdata/common/trcs", db)
+	_, err = trust.LoadTRCs(context.Background(), filepath.Join(dir, "trcs"), db)
 	require.NoError(b, err)
 
-	_, err = trust.LoadChains(context.Background(), "testdata/common/certs", db)
+	_, err = trust.LoadChains(context.Background(), filepath.Join(dir, "certs"), db)
 	require.NoError(b, err)
 
-	signer := loadTrustSigner(b, db)
+	signer := loadTrustSigner(b, dir, db)
 
 	associated := [][]byte{make([]byte, 300), make([]byte, 300), make([]byte, 300)}
 	msg, err := signer.Sign(context.Background(), make([]byte, 5000), associated...)
@@ -75,16 +78,18 @@ func BenchmarkConcurrent10(b *testing.B) {
 }
 
 func BenchmarkConcurrentCache10(b *testing.B) {
+	dir := genCrypto(b)
+
 	db, err := sqlite.New("file::memory:")
 	require.NoError(b, err)
 
-	_, err = trust.LoadTRCs(context.Background(), "testdata/common/trcs", db)
+	_, err = trust.LoadTRCs(context.Background(), filepath.Join(dir, "trcs"), db)
 	require.NoError(b, err)
 
-	_, err = trust.LoadChains(context.Background(), "testdata/common/certs", db)
+	_, err = trust.LoadChains(context.Background(), filepath.Join(dir, "certs"), db)
 	require.NoError(b, err)
 
-	signer := loadTrustSigner(b, db)
+	signer := loadTrustSigner(b, dir, db)
 
 	associated := [][]byte{make([]byte, 300), make([]byte, 300), make([]byte, 300)}
 	msg, err := signer.Sign(context.Background(), make([]byte, 5000), associated...)
@@ -115,8 +120,8 @@ func BenchmarkConcurrentCache10(b *testing.B) {
 	}
 }
 
-func loadTrustSigner(b *testing.B, db trust.DB) trust.Signer {
-	raw, err := os.ReadFile("testdata/common/ISD1/ASff00_0_110/crypto/as/cp-as.key")
+func loadTrustSigner(b *testing.B, dir string, db trust.DB) trust.Signer {
+	raw, err := os.ReadFile(filepath.Join(dir, "ISD1/ASff00_0_110/crypto/as/cp-as.key"))
 	require.NoError(b, err)
 	block, _ := pem.Decode(raw)
 	if block == nil || block.Type != "PRIVATE KEY" {
@@ -128,7 +133,7 @@ func loadTrustSigner(b *testing.B, db trust.DB) trust.Signer {
 	if !ok {
 		panic("no valid ecdsa key")
 	}
-	chain, err := cppki.ReadPEMCerts("testdata/common/certs/ISD1-ASff00_0_110.pem")
+	chain, err := cppki.ReadPEMCerts(filepath.Join(dir, "certs/ISD1-ASff00_0_110.pem"))
 	require.NoError(b, err)
 	return trust.Signer{
 		PrivateKey: ret,

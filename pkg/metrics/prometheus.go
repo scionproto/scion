@@ -36,6 +36,15 @@ func NewPromCounter(cv *prometheus.CounterVec) Counter {
 	return newCounter(cv)
 }
 
+// NewPromHistogram wraps a prometheus histogram vector as a histogram.
+// Returns nil if hv is nil.
+func NewPromHistogram(hv *prometheus.HistogramVec) Histogram {
+	if hv == nil {
+		return nil
+	}
+	return newHistogram(hv)
+}
+
 // NewPromCounterFrom creates a wrapped prometheus counter.
 func NewPromCounterFrom(opts prometheus.CounterOpts, labelNames []string) Counter {
 	return newCounterFrom(opts, labelNames)

@@ -88,7 +88,7 @@ semgrep_lint() {
     lint_header "semgrep"
     lint_step "custom rules"
     docker run --rm -v "${PWD}:/src" returntocorp/semgrep@sha256:8b0735959a6eb737aa945f4d591b6db23b75344135d74c3021b7d427bd317a66 \
-        --config=/src/tools/lint/semgrep
+        --config=/src/tools/lint/semgrep --error
 }
 
 openapi_lint() {

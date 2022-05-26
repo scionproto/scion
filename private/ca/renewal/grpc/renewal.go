@@ -32,12 +32,6 @@ import (
 	"github.com/scionproto/scion/private/ca/renewal"
 )
 
-// LegacyRequestHandler handles legacy requests.
-type LegacyRequestHandler interface {
-	HandleLegacyRequest(context.Context,
-		*cppb.ChainRenewalRequest) (*cppb.ChainRenewalResponse, error)
-}
-
 // CMSRequestHandler handles CMS requests.
 type CMSRequestHandler interface {
 	HandleCMSRequest(context.Context, *cppb.ChainRenewalRequest) ([]*x509.Certificate, error)
@@ -56,10 +50,9 @@ type RenewalServerMetrics struct {
 
 // RenewalServer servers trust material for gRPC requests.
 type RenewalServer struct {
-	IA            addr.IA
-	LegacyHandler LegacyRequestHandler
-	CMSHandler    CMSRequestHandler
-	CMSSigner     CMSSigner
+	IA         addr.IA
+	CMSHandler CMSRequestHandler
+	CMSSigner  CMSSigner
 
 	// Metrics contains the counters. Different error are different counters.
 	Metrics RenewalServerMetrics
@@ -73,17 +66,8 @@ func (s RenewalServer) ChainRenewal(ctx context.Context,
 	ctx = log.CtxWith(ctx, logger)
 
 	if req.CmsSignedRequest == nil {
-		if s.LegacyHandler == nil {
-			metrics.CounterInc(s.Metrics.BackendErrors)
-			return nil, status.Error(codes.Unimplemented, "legacy request not supported")
-		}
-		response, err := s.LegacyHandler.HandleLegacyRequest(ctx, req)
-		if err != nil {
-			metrics.CounterInc(s.Metrics.BackendErrors)
-			return nil, err
-		}
-		metrics.CounterInc(s.Metrics.Success)
-		return response, err
+		metrics.CounterInc(s.Metrics.BackendErrors)
+		return nil, status.Error(codes.InvalidArgument, "signed request missing supported")
 	}
 
 	resp, err := s.CMSHandler.HandleCMSRequest(ctx, req)

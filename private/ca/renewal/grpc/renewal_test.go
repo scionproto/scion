@@ -38,7 +38,6 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	"github.com/scionproto/scion/private/ca/renewal"
 	"github.com/scionproto/scion/private/ca/renewal/grpc"
-	renewalgrpc "github.com/scionproto/scion/private/ca/renewal/grpc"
 	"github.com/scionproto/scion/private/ca/renewal/grpc/mock_grpc"
 	"github.com/scionproto/scion/private/trust"
 )
@@ -62,69 +61,23 @@ func TestRenewalServerChainRenewal(t *testing.T) {
 	require.NoError(t, err)
 
 	tests := map[string]struct {
-		request       func(t *testing.T) *cppb.ChainRenewalRequest
-		legacyHandler func(ctrl *gomock.Controller) grpc.LegacyRequestHandler
-		cmsHandler    func(ctrl *gomock.Controller) grpc.CMSRequestHandler
-		cmsSigner     func(ctrl *gomock.Controller) grpc.CMSSigner
-		metric        string
-		assertion     assert.ErrorAssertionFunc
+		request    func(t *testing.T) *cppb.ChainRenewalRequest
+		cmsHandler func(ctrl *gomock.Controller) grpc.CMSRequestHandler
+		cmsSigner  func(ctrl *gomock.Controller) grpc.CMSSigner
+		metric     string
+		assertion  assert.ErrorAssertionFunc
 	}{
-		"legacy not configured": {
+		"CMS missing": {
 			request: func(t *testing.T) *cppb.ChainRenewalRequest {
 				return &cppb.ChainRenewalRequest{
 					SignedRequest: signedReq.SignedRequest,
 				}
 			},
-			legacyHandler: func(ctrl *gomock.Controller) grpc.LegacyRequestHandler {
-				return nil
-			},
 			cmsHandler: func(ctrl *gomock.Controller) grpc.CMSRequestHandler {
 				r := mock_grpc.NewMockCMSRequestHandler(ctrl)
 				return r
 			},
-			cmsSigner: func(ctrl *gomock.Controller) renewalgrpc.CMSSigner {
-				return mock_grpc.NewMockCMSSigner(ctrl)
-			},
-			assertion: assert.Error,
-			metric:    "err_backend",
-		},
-		"legacy success": {
-			request: func(t *testing.T) *cppb.ChainRenewalRequest {
-				return &cppb.ChainRenewalRequest{}
-			},
-			legacyHandler: func(ctrl *gomock.Controller) grpc.LegacyRequestHandler {
-				r := mock_grpc.NewMockLegacyRequestHandler(ctrl)
-				r.EXPECT().HandleLegacyRequest(
-					gomock.Any(), gomock.Any(),
-				).Return(&cppb.ChainRenewalResponse{}, nil)
-				return r
-			},
-			cmsHandler: func(ctrl *gomock.Controller) grpc.CMSRequestHandler {
-				r := mock_grpc.NewMockCMSRequestHandler(ctrl)
-				return r
-			},
-			cmsSigner: func(ctrl *gomock.Controller) renewalgrpc.CMSSigner {
-				return mock_grpc.NewMockCMSSigner(ctrl)
-			},
-			assertion: assert.NoError,
-			metric:    "ok_success",
-		},
-		"legacy error": {
-			request: func(t *testing.T) *cppb.ChainRenewalRequest {
-				return &cppb.ChainRenewalRequest{}
-			},
-			legacyHandler: func(ctrl *gomock.Controller) grpc.LegacyRequestHandler {
-				r := mock_grpc.NewMockLegacyRequestHandler(ctrl)
-				r.EXPECT().HandleLegacyRequest(
-					gomock.Any(), gomock.Any(),
-				).Return(nil, fmt.Errorf("dummy"))
-				return r
-			},
-			cmsHandler: func(ctrl *gomock.Controller) grpc.CMSRequestHandler {
-				r := mock_grpc.NewMockCMSRequestHandler(ctrl)
-				return r
-			},
-			cmsSigner: func(ctrl *gomock.Controller) renewalgrpc.CMSSigner {
+			cmsSigner: func(ctrl *gomock.Controller) grpc.CMSSigner {
 				return mock_grpc.NewMockCMSSigner(ctrl)
 			},
 			assertion: assert.Error,
@@ -134,10 +87,6 @@ func TestRenewalServerChainRenewal(t *testing.T) {
 			request: func(t *testing.T) *cppb.ChainRenewalRequest {
 				return signedReq
 			},
-			legacyHandler: func(ctrl *gomock.Controller) grpc.LegacyRequestHandler {
-				r := mock_grpc.NewMockLegacyRequestHandler(ctrl)
-				return r
-			},
 			cmsHandler: func(ctrl *gomock.Controller) grpc.CMSRequestHandler {
 				r := mock_grpc.NewMockCMSRequestHandler(ctrl)
 				r.EXPECT().HandleCMSRequest(
@@ -145,7 +94,7 @@ func TestRenewalServerChainRenewal(t *testing.T) {
 				).Return(mockChain, nil)
 				return r
 			},
-			cmsSigner: func(ctrl *gomock.Controller) renewalgrpc.CMSSigner {
+			cmsSigner: func(ctrl *gomock.Controller) grpc.CMSSigner {
 				signer := mock_grpc.NewMockCMSSigner(ctrl)
 				signer.EXPECT().SignCMS(gomock.Any(), gomock.Any())
 				return signer
@@ -157,10 +106,6 @@ func TestRenewalServerChainRenewal(t *testing.T) {
 			request: func(t *testing.T) *cppb.ChainRenewalRequest {
 				return signedReq
 			},
-			legacyHandler: func(ctrl *gomock.Controller) grpc.LegacyRequestHandler {
-				r := mock_grpc.NewMockLegacyRequestHandler(ctrl)
-				return r
-			},
 			cmsHandler: func(ctrl *gomock.Controller) grpc.CMSRequestHandler {
 				r := mock_grpc.NewMockCMSRequestHandler(ctrl)
 				r.EXPECT().HandleCMSRequest(
@@ -168,7 +113,7 @@ func TestRenewalServerChainRenewal(t *testing.T) {
 				).Return(mockChain, nil)
 				return r
 			},
-			cmsSigner: func(ctrl *gomock.Controller) renewalgrpc.CMSSigner {
+			cmsSigner: func(ctrl *gomock.Controller) grpc.CMSSigner {
 				signer := mock_grpc.NewMockCMSSigner(ctrl)
 				signer.EXPECT().SignCMS(gomock.Any(), gomock.Any()).Return(nil, mockErr)
 				return signer
@@ -183,10 +128,6 @@ func TestRenewalServerChainRenewal(t *testing.T) {
 					CmsSignedRequest: []byte("dummy request"),
 				}
 			},
-			legacyHandler: func(ctrl *gomock.Controller) grpc.LegacyRequestHandler {
-				r := mock_grpc.NewMockLegacyRequestHandler(ctrl)
-				return r
-			},
 			cmsHandler: func(ctrl *gomock.Controller) grpc.CMSRequestHandler {
 				r := mock_grpc.NewMockCMSRequestHandler(ctrl)
 				r.EXPECT().HandleCMSRequest(
@@ -194,7 +135,7 @@ func TestRenewalServerChainRenewal(t *testing.T) {
 				).Return(nil, fmt.Errorf("dummy"))
 				return r
 			},
-			cmsSigner: func(ctrl *gomock.Controller) renewalgrpc.CMSSigner {
+			cmsSigner: func(ctrl *gomock.Controller) grpc.CMSSigner {
 				return mock_grpc.NewMockCMSSigner(ctrl)
 			},
 			assertion: assert.Error,
@@ -210,10 +151,9 @@ func TestRenewalServerChainRenewal(t *testing.T) {
 			ctr := metrics.NewTestCounter()
 			defer ctrl.Finish()
 			s := &grpc.RenewalServer{
-				LegacyHandler: tc.legacyHandler(ctrl),
-				CMSHandler:    tc.cmsHandler(ctrl),
-				CMSSigner:     tc.cmsSigner(ctrl),
-				Metrics: renewalgrpc.RenewalServerMetrics{
+				CMSHandler: tc.cmsHandler(ctrl),
+				CMSSigner:  tc.cmsSigner(ctrl),
+				Metrics: grpc.RenewalServerMetrics{
 					BackendErrors: ctr.With("test_tag", "err_backend"),
 					Success:       ctr.With("test_tag", "ok_success"),
 				},

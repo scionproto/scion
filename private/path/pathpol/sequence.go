@@ -140,6 +140,24 @@ func (s *Sequence) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (s *Sequence) MarshalYAML() (interface{}, error) {
+	return s.srcstr, nil
+}
+
+func (s *Sequence) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var str string
+	err := unmarshal(&str)
+	if err != nil {
+		return err
+	}
+	sn, err := NewSequence(str)
+	if err != nil {
+		return err
+	}
+	*s = *sn
+	return nil
+}
+
 type errorListener struct {
 	*antlr.DefaultErrorListener
 	msg string

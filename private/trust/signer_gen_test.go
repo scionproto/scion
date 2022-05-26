@@ -43,17 +43,14 @@ import (
 )
 
 func TestSignerGenGenerate(t *testing.T) {
-	if *updateNonDeterministic {
-		t.Skip("test crypto is being updated")
-	}
+	dir := genCrypto(t)
 
 	getChain := func(t *testing.T) []*x509.Certificate {
-		return xtest.LoadChain(t,
-			filepath.Join(goldenDir, "ISD1/ASff00_0_110/crypto/as/ISD1-ASff00_0_110.pem"))
+		return xtest.LoadChain(t, filepath.Join(dir, "certs/ISD1-ASff00_0_110.pem"))
 	}
 
-	trc := xtest.LoadTRC(t, filepath.Join(goldenDir, "ISD1/trcs/ISD1-B1-S1.trc"))
-	key := loadKey(t, filepath.Join(goldenDir, "ISD1/ASff00_0_110/crypto/as/cp-as.key"))
+	trc := xtest.LoadTRC(t, filepath.Join(dir, "ISD1/trcs/ISD1-B1-S1.trc"))
+	key := loadKey(t, filepath.Join(dir, "ISD1/ASff00_0_110/crypto/as/cp-as.key"))
 	chain := getChain(t)
 
 	now := time.Now()
@@ -173,7 +170,7 @@ func TestSignerGenGenerate(t *testing.T) {
 					skid: cert.SubjectKeyId,
 				}
 
-				trc2 := xtest.LoadTRC(t, filepath.Join(goldenDir, "ISD1/trcs/ISD1-B1-S1.trc"))
+				trc2 := xtest.LoadTRC(t, filepath.Join(dir, "ISD1/trcs/ISD1-B1-S1.trc"))
 				trc2.TRC.ID.Serial = 2
 				trc2.TRC.Validity.NotBefore = now
 				trc2.TRC.GracePeriod = 5 * time.Minute

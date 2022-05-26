@@ -174,7 +174,8 @@ not apply any filtering for traffic from interface 2 to interface 1.
 
 There are two main applications for EPIC-HP:
 
-### <a id="HighlySecureHiddenPaths"></a> Highly Secure Hidden Paths
+<a id="HighlySecureHiddenPaths"></a>
+### Highly Secure Hidden Paths
 
 The last and penultimate ASes on the hidden path only allow EPIC-HP
 traffic on the interface pairs that affect the hidden path.
@@ -194,7 +195,8 @@ packets towards hosts in other ASes, but that those hosts can not
 send a response back if they do not have the necessary
 authenticators.
 
-### <a id="DOSSecureHiddenPaths"></a> DoS-Secure Hidden Paths
+<a id="DOSSecureHiddenPaths"></a>
+### DoS-Secure Hidden Paths
 
 The last and penultimate ASes on the hidden path allow EPIC-HP and
 other path types simultaneously, but prioritize traffic using the
@@ -220,7 +222,7 @@ Proceedings of the USENIX Security Symposium
 
 <a id="2">[2]</a>
 Design Document for the Hidden Path Infrastructure
-[[Link]](https://scion.docs.anapaya.net/en/latest/HiddenPaths.html)
+[[Link]](hidden-paths)
 
 <a id="3">[3]</a>
 T. Lee, C. Pappas, A. Perrig, V. Gligor, and Y. Hu. (2017) <br>

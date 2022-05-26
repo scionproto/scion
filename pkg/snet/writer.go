@@ -70,11 +70,13 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 		Bytes: Bytes(c.buffer),
 		PacketInfo: PacketInfo{
 			Destination: dst,
-			Source: SCIONAddress{IA: c.base.scionNet.LocalIA,
-				Host: addr.HostFromIP(c.base.listen.IP)},
+			Source: SCIONAddress{
+				IA:   c.base.scionNet.LocalIA,
+				Host: addr.HostFromIP(c.base.listen.Host.IP),
+			},
 			Path: path,
 			Payload: UDPPayload{
-				SrcPort: uint16(c.base.listen.Port),
+				SrcPort: uint16(c.base.listen.Host.Port),
 				DstPort: uint16(port),
 				Payload: b,
 			},

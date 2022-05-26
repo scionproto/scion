@@ -123,7 +123,9 @@ func TestNoLeak(t *testing.T) {
 
 func createSession(t *testing.T, ctrl *gomock.Controller, frameChan chan []byte) *Session {
 	conn := mock_net.NewMockPacketConn(ctrl)
-	conn.EXPECT().LocalAddr().Return(&net.UDPAddr{IP: net.IP{192, 168, 1, 1}}).AnyTimes()
+	conn.EXPECT().LocalAddr().Return(
+		&snet.UDPAddr{Host: &net.UDPAddr{IP: net.IP{192, 168, 1, 1}}},
+	).AnyTimes()
 	conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(f []byte, _ interface{}) (int, error) {
 			frameChan <- f

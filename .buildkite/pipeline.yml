@@ -26,7 +26,7 @@ steps:
       automatic:
         - exit_status: -1 # Agent was lost
         - exit_status: 255 # Forced agent shutdown
-    timeout_in_minutes: 10
+    timeout_in_minutes: 20
   - label: "check generated"
     if: build.message !~ /\[doc\]/
     command:
@@ -50,7 +50,7 @@ steps:
       - make antlr
       - diff -ur /tmp/test-artifacts/antlr/ antlr/
       - ./tools/update_testdata.sh
-    timeout_in_minutes: 15
+    timeout_in_minutes: 20
     key: check_generated
     retry:
       automatic:
@@ -60,7 +60,7 @@ steps:
     if: build.message =~ /\[doc\]/
     command: make lint
     key: lint
-    timeout_in_minutes: 15
+    timeout_in_minutes: 20
     retry:
       automatic:
         - exit_status: -1 # Agent was lost
@@ -71,7 +71,7 @@ steps:
       - bazel test --config=integration_go
     artifact_paths:
       - "artifacts.out/**/*"
-    timeout_in_minutes: 10
+    timeout_in_minutes: 15
     key: anapaya_integration_tests
     retry:
       automatic:

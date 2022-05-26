@@ -15,6 +15,7 @@
 package testcrypto_test
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -37,8 +38,10 @@ func TestCmd(t *testing.T) {
 	outDir, cleanF := xtest.MustTempDir("", "testcrypto")
 	defer cleanF()
 	topo := "./testdata/test.topo"
-	err := testcrypto.Testcrypto(topo, outDir, false, false, asValidity)
-	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	err := testcrypto.Testcrypto(topo, outDir, false, false, asValidity, &buf)
+	require.NoError(t, err, buf.String())
 
 	allASes := []addr.IA{
 		xtest.MustParseIA("1-ff00:0:110"),

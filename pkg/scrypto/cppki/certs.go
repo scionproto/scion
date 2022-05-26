@@ -545,6 +545,9 @@ func findIA(dn pkix.Name) (*addr.IA, error) {
 		if ia.IsWildcard() {
 			return nil, serrors.New("wildcard ISD-AS not allowed", "isd_as", ia)
 		}
+		if ia.String() != rawIA {
+			return nil, serrors.New("ISD-AS not in canonical form", "isd_as", ia)
+		}
 		return &ia, nil
 	}
 	// not found

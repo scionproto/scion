@@ -77,3 +77,18 @@ func (cm *ClassMap) UnmarshalJSON(b []byte) error {
 	}
 	return nil
 }
+
+func (cm ClassMap) MarshalYAML() (interface{}, error) {
+	return (map[string]*Class)(cm), nil
+}
+
+func (cm *ClassMap) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	err := unmarshal(cm)
+	if err != nil {
+		return err
+	}
+	for className, class := range *cm {
+		class.name = className
+	}
+	return nil
+}

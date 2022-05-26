@@ -22,11 +22,13 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"net"
 	"strconv"
 	"time"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc/resolver"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -117,6 +119,7 @@ func newRenewCmd(pather command.Pather) *cobra.Command {
 		trcFiles   []string
 		reuseKey   bool
 		ca         []string
+		remotes    []string
 		curve      string
 		expiresIn  string
 
@@ -143,6 +146,8 @@ func newRenewCmd(pather command.Pather) *cobra.Command {
   %[1]s renew --trc ISD1-B1-S1.trc --backup --expires-in 56h cp-as.pem cp-as.key
   %[1]s renew --trc ISD1-B1-S1.trc --backup --expires-in 0.75 cp-as.pem cp-as.key
   %[1]s renew --trc ISD1-B1-S1.trc --backup --ca 1-ff00:0:110,1-ff00:0:120 cp-as.pem cp-as.key
+  %[1]s renew --trc ISD1-B1-S1.trc --backup \
+  	--remote 1-ff00:0:110,10.0.0.3 --remote 1-ff00:0:120,172.30.200.2 cp-as.pem cp-as.key
 `, pather.CommandPath()),
 		Long: `'renew' requests a renewed AS certificate from a remote CA control service.
 
@@ -210,6 +215,10 @@ The template is expressed in JSON. A valid example::
 				return serrors.WrapStr("parsing --expires-in", err)
 			}
 
+			if len(flags.ca) > 0 && len(flags.remotes) > 0 {
+				return serrors.New("--ca and --remote must not both be set")
+			}
+
 			cmd.SilenceUsage = true
 
 			var features Features
@@ -269,6 +278,7 @@ The template is expressed in JSON. A valid example::
 			if err != nil {
 				return serrors.WrapStr("connecting to SCION Daemon", err)
 			}
+			defer sd.Close()
 
 			info, err := app.QueryASInfo(daemonCtx, sd)
 			if err != nil {
@@ -295,7 +305,9 @@ The template is expressed in JSON. A valid example::
 			}
 
 			var cas []addr.IA
-			if len(flags.ca) != 0 {
+			var remotes []*snet.UDPAddr
+			switch {
+			case len(flags.ca) > 0:
 				for _, raw := range flags.ca {
 					ca, err := addr.ParseIA(raw)
 					if err != nil {
@@ -303,7 +315,15 @@ The template is expressed in JSON. A valid example::
 					}
 					cas = append(cas, ca)
 				}
-			} else {
+			case len(flags.remotes) > 0:
+				for _, raw := range flags.remotes {
+					addr, err := snet.ParseUDPAddr(raw)
+					if err != nil {
+						return serrors.WrapStr("parsing remote", err)
+					}
+					remotes = append(remotes, addr)
+				}
+			default:
 				ia, err := cppki.ExtractIA(chain[0].Issuer)
 				if err != nil {
 					panic(fmt.Sprintf("extracting ISD-AS from verified chain: %s", err))
@@ -312,6 +332,7 @@ The template is expressed in JSON. A valid example::
 				cas = []addr.IA{ia}
 			}
 			span.SetTag("ca-options", cas)
+			span.SetTag("remote-options", remotes)
 
 			// Load private key.
 			privPrev, err := key.LoadPrivateKey(keyFile)
@@ -403,6 +424,7 @@ The template is expressed in JSON. A valid example::
 				Daemon:    sd,
 				Disatcher: dispatcher,
 				Timeout:   flags.timeout,
+				StdErr:    cmd.ErrOrStderr(),
 				PathOptions: func() []path.Option {
 					pathOpts := []path.Option{
 						path.WithInteractive(flags.interactive),
@@ -429,13 +451,13 @@ The template is expressed in JSON. A valid example::
 				outKeyFile = flags.outKey
 			}
 
-			request := func(ca addr.IA) ([]*x509.Certificate, error) {
+			request := func(ca addr.IA, remote net.Addr) ([]*x509.Certificate, error) {
 				printf("Attempt certificate renewal with %s\n", ca)
 
 				span, ctx := tracing.CtxWith(ctx, "request")
 				span.SetTag("dst.isd_as", ca)
 
-				chain, err := r.Request(ctx, &req, ca)
+				chain, err := r.Request(ctx, &req, remote, ca)
 				if err != nil {
 					printErr("Sending request failed: %s\n", err)
 					return nil, err
@@ -480,13 +502,26 @@ The template is expressed in JSON. A valid example::
 			}
 
 			var renewed []*x509.Certificate
-			for _, ca := range cas {
-				chain, err := request(ca)
-				if err != nil {
-					continue
+			switch {
+			case len(cas) > 0:
+				for _, ca := range cas {
+					remote := addr.SvcCS
+					chain, err := request(ca, remote)
+					if err != nil {
+						continue
+					}
+					renewed = chain
+					break
 				}
-				renewed = chain
-				break
+			case len(remotes) > 0:
+				for _, remote := range remotes {
+					chain, err := request(remote.IA, remote)
+					if err != nil {
+						continue
+					}
+					renewed = chain
+					break
+				}
 			}
 			if renewed == nil {
 				return serrors.New("failed to request certificate chain")
@@ -536,7 +571,14 @@ The template is expressed in JSON. A valid example::
 	)
 	cmd.Flags().StringSliceVar(&flags.ca, "ca", nil,
 		"Comma-separated list of ISD-AS identifiers of target CAs.\n"+
-			"The CAs are tried in order until success or all of them failed.",
+			"The CAs are tried in order until success or all of them failed.\n"+
+			"--ca is mutually exclusive with --remote",
+	)
+	cmd.Flags().StringArrayVar(&flags.remotes, "remote", nil,
+		"The remote CA address to use for certificate renewal.\n"+
+			"The address is of the form <ISD-AS>,<IP>. --remote can be specified multiple times\n"+
+			"and all specified remotes are tried in order until success or all of them failed.\n"+
+			"--remote is mutually exclusive with --ca.",
 	)
 	cmd.Flags().StringVar(&flags.curve, "curve", "P-256",
 		"The elliptic curve to use (P-256|P-384|P-521)",
@@ -579,11 +621,78 @@ type renewer struct {
 	Daemon      daemon.Connector
 	Disatcher   string
 	Timeout     time.Duration
+	StdErr      io.Writer
 }
 
 func (r *renewer) Request(
 	ctx context.Context,
 	req *cppb.ChainRenewalRequest,
+	remote net.Addr,
+	ca addr.IA,
+) ([]*x509.Certificate, error) {
+
+	ctx, cancel := context.WithTimeout(ctx, r.Timeout)
+	defer cancel()
+
+	if ca == r.LocalIA {
+		return r.requestLocal(ctx, req, remote)
+	}
+	return r.requestRemote(ctx, req, remote, ca)
+}
+
+func (r *renewer) requestLocal(
+	ctx context.Context,
+	req *cppb.ChainRenewalRequest,
+	remote net.Addr,
+) ([]*x509.Certificate, error) {
+
+	dialer := &grpc.TCPDialer{
+		SvcResolver: func(hs addr.HostSVC) []resolver.Address {
+			// Do the SVC resolution
+			entries, err := r.Daemon.SVCInfo(ctx, []addr.HostSVC{hs})
+			if err != nil {
+				fmt.Fprintf(r.StdErr, "Failed to resolve SVC address: %s\n", err)
+				return nil
+			}
+			resolved, ok := entries[hs]
+			if !ok {
+				fmt.Fprintf(r.StdErr, "No SVC address found. [svc=%s]", hs)
+				return nil
+			}
+			// Filter the returned addresses.
+			addrs := make([]resolver.Address, 0, len(resolved))
+			for _, addr := range resolved {
+				_, _, err := net.SplitHostPort(addr)
+				if err != nil {
+					fmt.Fprintf(r.StdErr, "Failed to parse addr %s: %s", addr, err)
+					continue
+				}
+				addrs = append(addrs, resolver.Address{Addr: addr})
+			}
+			// Check if localhost is part of the filtered list and if yes, move
+			// it to the front.
+			for i, a := range addrs {
+				h, _, err := net.SplitHostPort(a.Addr)
+				if err != nil {
+					// We already made sure that the address is valid.
+					panic(err)
+				}
+				if h == r.LocalIP.String() {
+					addrs[0], addrs[i] = addrs[i], addrs[0]
+					break
+				}
+			}
+			return addrs
+		},
+	}
+
+	return r.doRequest(ctx, dialer, remote, req)
+}
+
+func (r *renewer) requestRemote(
+	ctx context.Context,
+	req *cppb.ChainRenewalRequest,
+	remote net.Addr,
 	ca addr.IA,
 ) ([]*x509.Certificate, error) {
 
@@ -591,21 +700,32 @@ func (r *renewer) Request(
 	if err != nil {
 		return nil, err
 	}
-	remote := &snet.SVCAddr{
-		IA:      ca,
-		Path:    path.Dataplane(),
-		NextHop: path.UnderlayNextHop(),
-		SVC:     addr.SvcCS,
+	var dst net.Addr
+	switch r := remote.(type) {
+	case *snet.UDPAddr:
+		dst = &snet.UDPAddr{
+			IA:      ca,
+			Host:    r.Host,
+			Path:    path.Dataplane(),
+			NextHop: path.UnderlayNextHop(),
+		}
+	case addr.HostSVC:
+		dst = &snet.SVCAddr{
+			IA:      ca,
+			SVC:     r,
+			Path:    path.Dataplane(),
+			NextHop: path.UnderlayNextHop(),
+		}
+	default:
+		panic(fmt.Sprintf("unsupported remote address: %s", remote))
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, r.Timeout)
-	defer cancel()
-
 	localIP := r.LocalIP
+	nexthop := path.UnderlayNextHop()
 	if localIP == nil {
 		// Resolve local IP based on underlay next hop
-		if remote.NextHop != nil {
-			if localIP, err = addrutil.ResolveLocal(remote.NextHop.IP); err != nil {
+		if nexthop != nil {
+			if localIP, err = addrutil.ResolveLocal(nexthop.IP); err != nil {
 				return nil, serrors.WrapStr("resolving local address", err)
 			}
 		} else {
@@ -634,6 +754,8 @@ func (r *renewer) Request(
 	if err != nil {
 		return nil, serrors.WrapStr("dialing", err)
 	}
+	defer conn.Close()
+
 	dialer := &grpc.QUICDialer{
 		Rewriter: &infraenv.AddressRewriter{
 			Router: &snet.BaseRouter{
@@ -655,6 +777,16 @@ func (r *renewer) Request(
 			},
 		},
 	}
+
+	return r.doRequest(ctx, dialer, dst, req)
+}
+
+func (r *renewer) doRequest(
+	ctx context.Context,
+	dialer grpc.Dialer,
+	remote net.Addr,
+	req *cppb.ChainRenewalRequest,
+) ([]*x509.Certificate, error) {
 
 	c, err := dialer.Dial(ctx, remote)
 	if err != nil {

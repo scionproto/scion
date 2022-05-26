@@ -72,19 +72,21 @@ func realMain() int {
 		"-log.console", "debug",
 		"-attempts", strconv.Itoa(attempts),
 		"-timeout", timeout.String(),
-		"-sciond", integration.Daemon,
 		"-local", integration.SrcAddrPattern + ":0",
 		"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
 		fmt.Sprintf("-epic=%t", epic),
 	}
 	serverArgs := []string{
 		"-mode", "server",
-		"-sciond", integration.Daemon,
 		"-local", integration.DstAddrPattern + ":0",
 	}
 	if len(features) != 0 {
 		clientArgs = append(clientArgs, "--features", features)
 		serverArgs = append(serverArgs, "--features", features)
+	}
+	if !*integration.Docker {
+		clientArgs = append(clientArgs, "-sciond", integration.Daemon)
+		serverArgs = append(serverArgs, "-sciond", integration.Daemon)
 	}
 
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
@@ -275,7 +277,6 @@ func clientTemplate(progressSock string) integration.Cmd {
 			"-log.console", "debug",
 			"-attempts", strconv.Itoa(attempts),
 			"-timeout", timeout.String(),
-			"-sciond", integration.Daemon,
 			"-local", integration.SrcAddrPattern + ":0",
 			"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
 			fmt.Sprintf("-epic=%t", epic),
@@ -286,6 +287,9 @@ func clientTemplate(progressSock string) integration.Cmd {
 	}
 	if progress {
 		cmd.Args = append(cmd.Args, "-progress", progressSock)
+	}
+	if !*integration.Docker {
+		cmd.Args = append(cmd.Args, "-sciond", integration.Daemon)
 	}
 	return cmd
 }

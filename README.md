@@ -1,7 +1,7 @@
 # SCION
 
 [![Documentation](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/github.com/scionproto/scion)
-[![ReadTheDocs](https://img.shields.io/badge/doc-reference-blue?version=latest&style=flat&label=docs&logo=read-the-docs&logoColor=white)](https://anapaya-scion.readthedocs-hosted.com/en/latest)
+[![ReadTheDocs](https://img.shields.io/badge/doc-reference-blue?version=latest&style=flat&label=docs&logo=read-the-docs&logoColor=white)](https://docs.scion.org/en/latest)
 [![Build Status](https://badge.buildkite.com/e7ca347d947c23883ad7c3a4d091c2df5ae7feb52b238d29a1.svg?branch=master)](https://buildkite.com/scionproto/scion)
 [![Go Report Card](https://goreportcard.com/badge/github.com/scionproto/scion)](https://goreportcard.com/report/github.com/scionproto/scion)
 [![GitHub issues](https://img.shields.io/github/issues/scionproto/scion/help%20wanted.svg?label=help%20wanted&color=purple)](https://github.com/scionproto/scion/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22)
@@ -15,7 +15,7 @@ On next-generation Networks), a future Internet architecture. SCION is the first
 clean-slate Internet architecture designed to provide route control, failure
 isolation, and explicit trust information for end-to-end communication. To find
 out more about the project, please visit our [documentation
-site](https://anapaya-scion.readthedocs-hosted.com/en/latest/).
+site](https://docs.scion.org/en/latest/).
 
 ## Connecting to the SCION Test Network
 
@@ -27,13 +27,13 @@ packages](https://docs.scionlab.org/content/install/).
 ## Building
 
 To find out how to work with SCION, please visit our [documentation
-site](https://anapaya-scion.readthedocs-hosted.com/en/latest/contribute.html#setting-up-the-development-environment)
+site](https://docs.scion.org/en/latest/contribute.html#setting-up-the-development-environment)
 for instructions on how to install build dependencies, build and run SCION.
 
 ## Contributing
 
 Interested in contribution to the SCION project? Please visit us at
-[contribute.rst](https://anapaya-scion.readthedocs-hosted.com/en/latest/contribute.html)
+[contribute.rst](https://docs.scion.org/en/latest/contribute.html)
 for more information about how you can do so.
 
 ## License

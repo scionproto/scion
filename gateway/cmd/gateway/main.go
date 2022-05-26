@@ -58,6 +58,7 @@ func realMain(ctx context.Context) error {
 	if err != nil {
 		return serrors.WrapStr("connecting to daemon", err)
 	}
+	defer daemon.Close()
 	localIA, err := daemon.LocalIA(ctx)
 	if err != nil {
 		return serrors.WrapStr("retrieving local ISD-AS", err)

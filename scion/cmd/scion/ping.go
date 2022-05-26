@@ -115,6 +115,7 @@ On other errors, ping will exit with code 2.
 			if err != nil {
 				return serrors.WrapStr("connecting to SCION Daemon", err)
 			}
+			defer sd.Close()
 
 			info, err := app.QueryASInfo(traceCtx, sd)
 			if err != nil {

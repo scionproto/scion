@@ -88,3 +88,6 @@ _build
 # node modules
 ##############
 node_modules
+
+# gobra
+*.vpr

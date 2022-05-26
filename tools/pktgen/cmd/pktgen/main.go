@@ -120,6 +120,7 @@ func run(cfg flags, dst *snet.UDPAddr) error {
 	if err != nil {
 		return serrors.WrapStr("connecting to SCION daemon", err)
 	}
+	defer sdConn.Close()
 	localIA, err := sdConn.LocalIA(ctx)
 	if err != nil {
 		return serrors.WrapStr("determining local ISD-AS", err)

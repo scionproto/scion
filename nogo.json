@@ -50,7 +50,8 @@
     },
     "printf": {
         "exclude_files": {
-            "/com_github_cloudflare_sidh/": ""
+            "/com_github_cloudflare_sidh/": "",
+            "/com_github_client9_misspell/": ""
         }
     },
     "stringintconv": {

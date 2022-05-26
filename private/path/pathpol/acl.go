@@ -64,6 +64,14 @@ func (a *ACL) UnmarshalJSON(b []byte) error {
 	return json.Unmarshal(b, &a.Entries)
 }
 
+func (a *ACL) MarshalYAML() (interface{}, error) {
+	return a.Entries, nil
+}
+
+func (a *ACL) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	return unmarshal(&a.Entries)
+}
+
 func (a *ACL) evalPath(pm *snet.PathMetadata) ACLAction {
 	for i, iface := range pm.Interfaces {
 		if a.evalInterface(iface, i%2 != 0) == Deny {
@@ -122,6 +130,19 @@ func (ae *ACLEntry) MarshalJSON() ([]byte, error) {
 func (ae *ACLEntry) UnmarshalJSON(b []byte) error {
 	var str string
 	err := json.Unmarshal(b, &str)
+	if err != nil {
+		return err
+	}
+	return ae.LoadFromString(str)
+}
+
+func (ae *ACLEntry) MarshalYAML() (interface{}, error) {
+	return ae.String(), nil
+}
+
+func (ae *ACLEntry) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var str string
+	err := unmarshal(&str)
 	if err != nil {
 		return err
 	}
