@@ -24,6 +24,9 @@ jobs:
           module: 'github.com/scionproto/scion/'
           # Gobra only verifies files annotated with the header "// +gobra"
           headerOnly: '1'
+          # Traverse the entire repository, including nested packages,
+          # in search for annotated files to verify
+          recursive: '1'
           globalTimeout: 30m
           packageTimeout: 10m
           caching: '1'
