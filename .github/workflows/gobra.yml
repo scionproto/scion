@@ -22,17 +22,10 @@ jobs:
         with:
           # Prefix used to resolve SCION packages
           module: 'github.com/scionproto/scion/'
-          # Right now, we only consider the "path" package defined
-          # in the following path. In the future, the idea is to drop
-          # these options in the configuration and to let Gobra verify
-          # only the annotated files.
-          srcDirectory: 'pkg/slayers/path'
-          packages: 'path'
           # Gobra only verifies files annotated with the header "// +gobra"
           headerOnly: '1'
           globalTimeout: 30m
-          packageTimeout: 15m
-          viperBackend: VSWITHSILICON
+          packageTimeout: 10m
           caching: '1'
       - name: Upload the verification report
         uses: actions/upload-artifact@v2
