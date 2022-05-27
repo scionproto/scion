@@ -119,7 +119,8 @@ func (rm *RemoteMonitor) process(ctx context.Context, ias []addr.IA) {
 	defer rm.stateMtx.Unlock()
 	logger := log.FromCtx(ctx)
 	newWatchers := make(map[addr.IA]watcherEntry)
-	for _, ia := range ias {
+	for i := range ias {
+		ia := ias[i]
 		we, ok := rm.currentWatchers[ia]
 		if ok {
 			// Watcher for the remote IA exists. Move it to the new map of
