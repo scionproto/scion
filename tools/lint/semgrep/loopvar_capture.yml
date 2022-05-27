@@ -1,0 +1,26 @@
+rules:
+  - id: loopvar_capture
+    pattern-either:
+      - pattern: |
+          for $X := ...; ...; <... $X ...> { ...; go func(...){ ...; <... $X ...>; ... }(...); ... }
+      - pattern: |
+          for $X := ...; ...; <... $X ...> { ...; defer func(...){ ...; <... $X ...>; ... }(...); ... }
+      - pattern: |
+          for $X := range $SLICE { ...; defer func(...){ ...; <... $X ...>; ... }(...); ... }
+      - pattern: |
+          for $X := range $SLICE { ...; go func(...){ ...; <... $X ...>; ... }(...); ... }
+      - pattern: |
+          for $X := range $SLICE { ...; defer func(...){ ...; <... $X ...>; ... }(...); ... }
+      - pattern: |
+          for $X, ... := range $SLICE { ...; go func(...){ ...; <... $X ...>; ... }(...); ... }
+      - pattern: |
+          for $X, ... := range $SLICE { ...; defer func(...){ ...; <... $X ...>; ... }(...); ... }
+      - pattern: |
+          for ..., $X := range $SLICE { ...; go func(...){ ...; <... $X ...>; ... }(...); ... }
+      - pattern: |
+          for ..., $X := range $SLICE { ...; defer func(...){ ...; <... $X ...>; ... }(...); ... }
+    message: |
+      Captured loop variable `$X` in go or defer statement
+    severity: WARNING
+    languages:
+      - go
