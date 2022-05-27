@@ -68,7 +68,7 @@ const (
 )
 
 type bfdSession interface {
-	Run() error
+	Run(ctx context.Context) error
 	ReceiveMessage(*layers.BFD)
 	IsUp() bool
 }
@@ -309,7 +309,6 @@ func (d *DataPlane) addBFDController(ifID uint16, s *bfdSend, cfg control.BFD,
 	d.bfdSessions[ifID] = &bfd.Session{
 		Sender:                s,
 		DetectMult:            layers.BFDDetectMultiplier(cfg.DetectMult),
-		Logger:                log.New("component", "BFD"),
 		DesiredMinTxInterval:  cfg.DesiredMinTxInterval,
 		RequiredMinRxInterval: cfg.RequiredMinRxInterval,
 		LocalDiscriminator:    disc,
@@ -507,7 +506,7 @@ func (d *DataPlane) Run(ctx context.Context) error {
 	for k, v := range d.bfdSessions {
 		go func(ifID uint16, c bfdSession) {
 			defer log.HandlePanic()
-			if err := c.Run(); err != nil && err != bfd.AlreadyRunning {
+			if err := c.Run(ctx); err != nil && err != bfd.AlreadyRunning {
 				log.Error("BFD session failed to start", "ifID", ifID, "err", err)
 			}
 		}(k, v)
