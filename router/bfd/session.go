@@ -15,6 +15,7 @@
 package bfd
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"sync"
@@ -117,9 +118,6 @@ type Session struct {
 	// must be non-zero.
 	DetectMult layers.BFDDetectMultiplier
 
-	// Logger to which the session should send logging entries. If nil, logging is disabled.
-	Logger log.Logger
-
 	// ReceiveQueueSize is the size of the Session's receive messages queue. The default is 0,
 	// but this is often not desirable as writing to the Session's message queue will block
 	// until the session is ready to read it.
@@ -157,10 +155,10 @@ type Session struct {
 	// If a metric is not initialized, it is not reported.
 	Metrics Metrics
 
-	// testingLogs means that more logs are generated, specifically, logs about
+	// testLogger is set if more logs should be generated, specifically, logs about
 	// periodic events that would in production environment clog the logs. Use
-	// this option only in tests.
-	testingLogs bool
+	// this field only in tests.
+	testLogger log.Logger
 }
 
 func (s *Session) String() string {
@@ -172,7 +170,8 @@ func (s *Session) String() string {
 // packets on the point to point link.
 //
 // Run must only be called once.
-func (s *Session) Run() error {
+func (s *Session) Run(ctx context.Context) error {
+	logger := log.FromCtx(ctx)
 	if err := s.runOnceCheck(); err != nil {
 		return err
 	}
@@ -217,9 +216,9 @@ MainLoop:
 				bfdIntervalToDuration(msg.DesiredMinTxInterval))
 			detectionTimer.Reset(detectionTime)
 
-			if s.testingLogs {
-				s.debug("heartbeat received", "desired_min_tx_interval", msg.DesiredMinTxInterval,
-					"required_min_rx_interval", msg.RequiredMinRxInterval)
+			if s.testLogger != nil {
+				s.testLogger.Debug("heartbeat received", "desired_min_tx_interval",
+					msg.DesiredMinTxInterval, "required_min_rx_interval", msg.RequiredMinRxInterval)
 			}
 			if s.Metrics.PacketsReceived != nil {
 				s.Metrics.PacketsReceived.Add(1)
@@ -229,14 +228,14 @@ MainLoop:
 			s.remoteMinRxInterval = bfdIntervalToDuration(msg.RequiredMinRxInterval)
 			if s.getRemoteDiscriminator() == 0 {
 				s.setRemoteDiscriminator(msg.MyDiscriminator)
-				s.debug("Bootstrapped")
+				logger.Debug("Bootstrapped")
 			}
 
 			// If we transitioned out of the down state, we cancel the current send timer
 			// (because it might send too late to keep the session up) and set up a new
 			// send timer based on the remote's preferences.
 			oldState := s.getLocalState()
-			s.transition(event(s.remoteState))
+			s.transition(ctx, event(s.remoteState))
 			if oldState == stateDown && s.getLocalState() != stateDown {
 				s.desiredMinTXInterval = s.DesiredMinTxInterval
 				// Cancel any pending send to accelerate the timer.
@@ -265,12 +264,12 @@ MainLoop:
 			}
 
 			if err := s.Sender.Send(pkt); err != nil {
-				s.debug("error sending message", "err", err)
+				logger.Debug("error sending message", "err", err)
 				continue
 			}
-			if s.testingLogs {
-				s.debug("heartbeat sent", "desired_min_tx_interval", pkt.DesiredMinTxInterval,
-					"required_min_rx_interval", pkt.RequiredMinRxInterval)
+			if s.testLogger != nil {
+				s.testLogger.Debug("heartbeat sent", "desired_min_tx_interval",
+					pkt.DesiredMinTxInterval, "required_min_rx_interval", pkt.RequiredMinRxInterval)
 			}
 			if s.Metrics.PacketsSent != nil {
 				s.Metrics.PacketsSent.Add(1)
@@ -280,7 +279,7 @@ MainLoop:
 			// other branch wants to stop this timer, it can assume it hasn't been drained.
 			detectionTimer.Reset(defaultDetectionTimeout)
 
-			s.transition(eventTimer)
+			s.transition(ctx, eventTimer)
 			s.setRemoteDiscriminator(0)
 			if s.getLocalState() == stateDown {
 				// Change the desired interval back to the default transmission interval, to
@@ -344,8 +343,8 @@ func (s *Session) computeNextSendInterval() time.Duration {
 // while Run is executed.
 func (s *Session) IsUp() bool {
 	up := s.getLocalState() == stateUp
-	if s.testingLogs {
-		s.debug("IsUp called", "up", up)
+	if s.testLogger != nil {
+		s.testLogger.Debug("IsUp called", "up", up)
 	}
 	return up
 }
@@ -376,7 +375,7 @@ func (s *Session) setRemoteDiscriminator(d layers.BFDDiscriminator) {
 	s.remoteDiscriminator = d
 }
 
-// ReceiveMessage validates a message and enques it for processing.
+// ReceiveMessage validates a message and enqueues it for processing.
 // Callers pass the message received from the network.
 // The actual processing of the messages is asynchronous; the relevant message
 // content is passed over a channel and the Run method continuously processes
@@ -390,8 +389,8 @@ func (s *Session) ReceiveMessage(msg *layers.BFD) {
 
 	discard, discardReason := shouldDiscard(msg)
 	if discard {
-		if discardReason != "" && s.Logger != nil {
-			s.Logger.Debug(discardReason) // no session identifier to avoid data race
+		if discardReason != "" && s.testLogger != nil {
+			s.testLogger.Debug(discardReason) // no session identifier to avoid data race
 		}
 		return
 	}
@@ -428,19 +427,14 @@ func (s *Session) initMessages() {
 	})
 }
 
-// debug logs a debug message if a logger is configured.
-func (s *Session) debug(msg string, ctx ...interface{}) {
-	if s.Logger != nil {
-		s.Logger.Debug(msg, append([]interface{}{"session", s}, ctx...)...)
-	}
-}
-
-func (s *Session) transition(e event) {
+func (s *Session) transition(ctx context.Context, e event) {
 	// The only writer is the single Run method which also calls this, so we don't care
 	// about making the state transition a transaction.
+
+	logger := log.FromCtx(ctx)
 	newState := transition(s.getLocalState(), e)
 	if newState != s.localState {
-		s.debug(fmt.Sprintf("Transitioned from state %v to state %v on event %v",
+		logger.Debug(fmt.Sprintf("Transitioned from state %v to state %v on event %v",
 			s.localState, newState, e))
 		s.setLocalState(newState)
 		if s.Metrics.Up != nil {
