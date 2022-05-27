@@ -543,7 +543,7 @@ func prepRawPacketWithExtn(t *testing.T, extns ...slayers.L4ProtocolType) []byte
 	return buf.Bytes()
 }
 
-var spi = binary.LittleEndian.Uint32([]byte{1, 0, 0, 0})
+var spi = slayers.PacketAuthSPI(binary.LittleEndian.Uint32([]byte{1, 0, 0, 0}))
 var algo = slayers.PacketAuthSHA1_AES_CBC
 var ts = binary.LittleEndian.Uint32([]byte{1, 2, 3, 0})
 var sn = binary.LittleEndian.Uint32([]byte{4, 5, 6, 0})
