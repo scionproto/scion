@@ -448,7 +448,8 @@ func (e *EndToEndExtnSkipper) NextLayerType() gopacket.LayerType {
 }
 
 // PacketAuthSPI is the identifier for the key used for the
-// packet authentication option. It ranges [1, 2^21-1]
+// packet authentication option. DRKey values are in the
+// range [1, 2^21-1].
 type PacketAuthSPI uint32
 
 type DRKeyType uint8
@@ -495,6 +496,10 @@ func (p PacketAuthSPI) Epoch() DRKeyEpochType {
 
 func (p PacketAuthSPI) DRKeyProto() uint16 {
 	return uint16(p >> 16)
+}
+
+func (p PacketAuthSPI) IsDRKey() bool {
+	return p > 0 && p < (1<<21)
 }
 
 func MakePacketAuthSPIDrkey(proto uint16, drkeyType DRKeyType,
@@ -599,8 +604,8 @@ func (o PacketAuthenticatorOption) Reset(spi PacketAuthSPI, alg PacketAuthAlg,
 }
 
 // SPI returns returns the value set in the homonym field in the extension.
-func (o PacketAuthenticatorOption) SPI() uint32 {
-	return binary.BigEndian.Uint32(o.OptData[:4])
+func (o PacketAuthenticatorOption) SPI() PacketAuthSPI {
+	return PacketAuthSPI(binary.BigEndian.Uint32(o.OptData[:4]))
 }
 
 // Algorithm returns the algorithm type stored in the data buffer.
