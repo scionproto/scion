@@ -1,14 +1,29 @@
-build --workspace_status_command=./tools/bazel-build-env --show_timestamps --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092  --incompatible_default_to_explicit_init_py
-test --incompatible_default_to_explicit_init_py
+### common options for all subcommands (help, query, build, ...)
+common --show_timestamps
+# connect to buchgr/bazel-remote cache
+# These flags can unfortunately not be specified for `common`, as they are not accepted by all subcommands (help, version, dump)
+build --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092
+query --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092
+fetch --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092
 
+### options for build, test, run, clean, etc.
+# expose git version (etc) to bazel
+build --workspace_status_command=./tools/bazel-build-env
 # java version for java_binary and java_test rules (used by antlr)
 build --java_runtime_version=remotejdk_11
+# disable legacy_create_init for py_binary, py_test etc. This may eventually become the default.
+build --incompatible_default_to_explicit_init_py
 
+### options for test
+test --build_tests_only --print_relative_test_log_paths --test_output=errors
+
+### predefined configurations (use with --config, eg. `bazel test --config=unit_all`)
 test:race --@io_bazel_rules_go//go/config:race
-test:unit --test_tag_filters=unit --build_tests_only --print_relative_test_log_paths
-test:unit_all --test_tag_filters=unit --build_tests_only --print_relative_test_log_paths //...
+test:unit --test_tag_filters=unit
+test:unit_all --config=unit //...
 
-test:integration --test_tag_filters=integration --build_tests_only --print_relative_test_log_paths
-test:integration_go --test_tag_filters=integration --build_tests_only --print_relative_test_log_paths --  //... -//acceptance/... -//demo/...
+test:integration --test_tag_filters=integration,-lint
+test:integration_go --config=integration -- //... -//acceptance/... -//demo/...
+test:acceptance_all --config=integration //acceptance/... //demo/...
 
-test:lint --test_tag_filters=lint --build_tests_only --print_relative_test_log_paths --test_summary terse --test_output errors --noshow_progress --experimental_convenience_symlinks=ignore //...
+test:lint --test_tag_filters=lint --test_summary=terse --noshow_progress --experimental_convenience_symlinks=ignore //...

@@ -98,7 +98,11 @@ def topogen_test(
         args = args + common_args,
         deps = [":%s_lib" % name],
         data = data + common_data,
-        tags = ["integration"],
+        tags = ["integration", "exclusive"],
+        env = {
+            # Ensure output appears immediately (in particular with --test_output=streamed)
+            "PYTHONUNBUFFERED": "1",
+        },
     )
 
 def container_loaders(tester, gateway):
