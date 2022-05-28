@@ -18,6 +18,15 @@ go_library(
 )
 
 py_binary(
+    name = "gomocks",
+    srcs = ["gomocks.py"],
+    main = "gomocks.py",
+    deps = [
+        requirement("plumbum"),
+    ],
+)
+
+py_binary(
     name = "topogen",
     srcs = ["topogen.py"],
     data = [
