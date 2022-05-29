@@ -1,4 +1,4 @@
-.PHONY: all antlr bazel build clean docker-images gazelle golangci-lint licenses lint mocks protobuf scion-topo test
+.PHONY: all antlr bazel build clean docker-images gazelle golangci-lint licenses lint mocks protobuf scion-topo test test-acceptance
 
 .NOTPARALLEL:
 
@@ -24,7 +24,10 @@ bazel:
 	tar -kxf bazel-bin/scion-ci.tar -C bin
 
 test:
-	bazel test --config=unit_all --test_output=errors
+	bazel test --config=unit_all
+
+test-acceptance:
+	bazel test --config=acceptance_all
 
 go_deps.bzl: go.mod
 	@tools/godeps.sh
@@ -48,7 +51,7 @@ protobuf:
 	chmod 0644 pkg/proto/*/*.pb.go
 
 mocks:
-	tools/gomocks
+	tools/gomocks.py
 
 gazelle:
 	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -go_naming_convention go_default_library $(GAZELLE_DIRS)

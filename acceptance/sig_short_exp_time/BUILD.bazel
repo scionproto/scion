@@ -12,6 +12,11 @@ sh_test(
         ":sig2.tar",
         ":udpproxy.tar",
     ],
+    tags = [
+        "exclusive",
+        "integration",
+        "manual",  # skip this test, it's broken #3935
+    ],
 )
 
 container_image(

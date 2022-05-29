@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import json
+import os
 import re
 import time
 import yaml
@@ -28,8 +29,6 @@ from acceptance.common import scion
 class Test(base.TestBase):
 
     def main(self):
-        print("artifacts dir: %s" % self.test_state.artifacts)
-        self._unpack_topo()
         if not self.nested_command:
             try:
                 self.setup()
@@ -100,8 +99,13 @@ class Test(base.TestBase):
             "container_name": "tc_setup",
             "image": "tester:latest",
             "cap_add": ["NET_ADMIN"],
-            "entrypoint": ["/bin/sh", "-ec",
-                           "/share/tc_setup.sh scn_000 16.0mbit ;"
+            "volumes": [{
+                "type": "bind",
+                "source": os.path.realpath("demo/file_transfer/tc_setup.sh"),
+                "target": "/share/tc_setup.sh",
+            }],
+            "entrypoint": ["/bin/sh", "-exc",
+                           "ls -l /share; /share/tc_setup.sh scn_000 16.0mbit ;"
                            " /share/tc_setup.sh scn_001 16.0mbit"],
             "depends_on": ["scion_br1-ff00_0_111-1", "scion_br1-ff00_0_111-2"],
             "network_mode": "host",
