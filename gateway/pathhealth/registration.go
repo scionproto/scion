@@ -44,31 +44,31 @@ type PathSelector interface {
 }
 
 type pathInfoEntry struct {
-	path         string
-	rejected     bool
-	rejectReason string
-	current      bool
-	revoked      bool
+	Path         string
+	Rejected     bool
+	RejectReason string
+	Current      bool
+	Revoked      bool
 }
 
 func (pie *pathInfoEntry) GetPath() string {
-	return pie.path
+	return pie.Path
 }
 
 func (pie *pathInfoEntry) GetRejected() bool {
-	return pie.rejected
+	return pie.Rejected
 }
 
 func (pie *pathInfoEntry) GetRejectReason() string {
-	return pie.rejectReason
+	return pie.RejectReason
 }
 
 func (pie *pathInfoEntry) GetCurrent() bool {
-	return pie.current
+	return pie.Current
 }
 
 func (pie *pathInfoEntry) GetRevoked() bool {
-	return pie.revoked
+	return pie.Revoked
 }
 
 type PathInfoEntry interface {
