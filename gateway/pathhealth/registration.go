@@ -17,7 +17,6 @@ package pathhealth
 import (
 	"sync"
 
-	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/snet"
 )
 
@@ -44,15 +43,40 @@ type PathSelector interface {
 	Select(selectable []Selectable, current FingerprintSet) Selection
 }
 
-type PathInfoEntry struct {
-	Path         string
-	Rejected     bool
-	RejectReason string
-	Current      bool
-	Revoked      bool
-	Latency      util.DurWrap
-	Jitter       util.DurWrap
-	DropRate     float64
+type pathInfoEntry struct {
+	path         string
+	rejected     bool
+	rejectReason string
+	current      bool
+	revoked      bool
+}
+
+func (pie *pathInfoEntry) GetPath() string {
+	return pie.path
+}
+
+func (pie *pathInfoEntry) GetRejected() bool {
+	return pie.rejected
+}
+
+func (pie *pathInfoEntry) GetRejectReason() string {
+	return pie.rejectReason
+}
+
+func (pie *pathInfoEntry) GetCurrent() bool {
+	return pie.current
+}
+
+func (pie *pathInfoEntry) GetRevoked() bool {
+	return pie.revoked
+}
+
+type PathInfoEntry interface {
+	GetPath() string
+	GetRejected() bool
+	GetRejectReason() string
+	GetCurrent() bool
+	GetRevoked() bool
 }
 
 // PathInfo contains debug info about onging path monitoring.

@@ -96,24 +96,24 @@ func (f *FilteringPathSelector) Select(selectables []Selectable, current Fingerp
 
 	var pathInfo PathInfo
 	for _, a := range allowed {
-		pathInfo = append(pathInfo, PathInfoEntry{
-			Current: a.IsCurrent,
-			Revoked: a.IsRevoked,
-			Path:    fmt.Sprintf("%s", a.Path),
+		pathInfo = append(pathInfo, &pathInfoEntry{
+			current: a.IsCurrent,
+			revoked: a.IsRevoked,
+			path:    fmt.Sprintf("%s", a.Path),
 		})
 	}
 	for _, path := range dead {
-		pathInfo = append(pathInfo, PathInfoEntry{
-			Rejected:     true,
-			RejectReason: deadInfo,
-			Path:         fmt.Sprintf("%s", path),
+		pathInfo = append(pathInfo, &pathInfoEntry{
+			rejected:     true,
+			rejectReason: deadInfo,
+			path:         fmt.Sprintf("%s", path),
 		})
 	}
 	for _, path := range rejected {
-		pathInfo = append(pathInfo, PathInfoEntry{
-			Rejected:     true,
-			RejectReason: rejectedInfo,
-			Path:         fmt.Sprintf("%s", path),
+		pathInfo = append(pathInfo, &pathInfoEntry{
+			rejected:     true,
+			rejectReason: rejectedInfo,
+			path:         fmt.Sprintf("%s", path),
 		})
 	}
 
