@@ -1,0 +1,46 @@
+rules:
+  - id: loopvar_capture
+    patterns:
+      - pattern-either:
+        - pattern-inside: |
+            for $X := ...; ...; <... $X ...> { ... }
+        - pattern-inside: |
+            for $X := range $SLICE { ... }
+        - pattern-inside: |
+            for $X, ... := range $SLICE { ... }
+        - pattern-inside: |
+            for ..., $X := range $SLICE { ... }
+      - pattern-either:
+        - pattern: |
+            go func(...){ ...; <... $X ...>; ... }(...)
+        - pattern: |
+            defer func(...){ ...; <... $X ...>; ... }(...)
+        - pattern: |
+            $ERRGROUP.Go(func() error { ...; <... $X ...>; ...})
+
+      # These additional patterns are a workaround to exclude certain false
+      # positives, which appear to be caused by semgrep not fully handling
+      # multi-variable assignment.
+      # These two patterns exclude this case:
+      #   for i, x := range values {
+      #      i, x := i, x
+      #      go func() { fmt.Println(i,x) }()
+      #   }
+      - pattern-not-inside: |
+            for ... { $X, ... :=  $X, ...;  ... }
+      - pattern-not-inside: |
+            for ... { ..., $X :=  ..., $X; ... }
+      # This pattern excludes odd matches of the _ variable,
+      # for example
+      #   for _, x := range values {
+      #      go func() { v, _ := foo() }()
+      #   }
+      - metavariable-pattern:
+          metavariable: $X
+          patterns:
+            - pattern-not: _
+    message: |
+      Captured loop variable `$X` in go or defer statement
+    severity: WARNING
+    languages:
+      - go
