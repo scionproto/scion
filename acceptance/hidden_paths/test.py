@@ -46,10 +46,10 @@ class Test(base.TestTopogen):
         AS3 <-> AS4 (Group ff00:0:2-3 to group ff00:0:2-4)
     """
 
-    def setup(self):
-        self.setup_prepare()
+    http_server_port = 9099
 
-        http_server_port = 9099
+    def setup_prepare(self):
+        super().setup_prepare()
 
         as_numbers = ["2", "3", "4", "5"]
         # HTTP configuration server runs on 0.0.0.0 and needs to be reachable from
@@ -83,7 +83,7 @@ class Test(base.TestTopogen):
         # the computed configuration URL
         for as_number in as_numbers:
             hp_config_url = "http://%s:%d/acceptance/hidden_paths/testdata/%s" % (
-                server_ips[as_number], http_server_port, hp_configs[as_number])
+                server_ips[as_number], self.http_server_port, hp_configs[as_number])
 
             daemon_path = self.artifacts / "gen" / ("ASff00_0_%s" % as_number) \
                 / "sd.toml"
@@ -107,12 +107,13 @@ class Test(base.TestTopogen):
             topology_file = as_dir_path / "topology.json"
             scion.update_json(topology_update, [topology_file])
 
+    def setup_start(self):
         server = http.server.HTTPServer(
-                ("0.0.0.0", http_server_port), http.server.SimpleHTTPRequestHandler)
+                ("0.0.0.0", self.http_server_port), http.server.SimpleHTTPRequestHandler)
         server_thread = threading.Thread(target=configuration_server, args=[server])
         server_thread.start()
 
-        self.setup_start()
+        super().setup_start()
         time.sleep(4)  # Give applications time to download configurations
 
         self._testers = {

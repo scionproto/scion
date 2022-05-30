@@ -76,7 +76,7 @@ class RouterTest(base.TestBase):
         help="use BFD",
     )
 
-    def setup(self):
+    def setup_prepare(self):
         super().setup_prepare()
 
         shutil.copytree("acceptance/router_multi/conf/", self.artifacts / "conf")
@@ -90,6 +90,9 @@ class RouterTest(base.TestBase):
         self.create_veths("pause")
 
         sudo("rm /var/run/netns/pause")
+
+    def setup_start(self):
+        super().setup_start()
 
         envs = ["-e SCION_EXPERIMENTAL_BFD_DISABLE=true"]
         if self.bfd:

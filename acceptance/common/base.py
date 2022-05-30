@@ -51,6 +51,7 @@ def ContainerLoader(arg):
 class TestBase(ABC):
     """
     Base class for tests. Tests are executed as:
+        - init
         - setup, consisting of the sub steps
             - setup_prepare
             - setup_start
@@ -59,6 +60,9 @@ class TestBase(ABC):
 
     A test can override any of these methods.
     The `_run` method must be defined by each test.
+
+    The commandline subcommands for `setup`, `run` and `teardown` allow to run the steps separately.
+    The `init` function is always called.
 
     Tests should write all their artifacts to the directory `self.artifacts`, which is created
     during setup.
@@ -79,8 +83,23 @@ class TestBase(ABC):
                                help="Directory for test artifacts. " +
                                     "Environment variable TEST_UNDECLARED_OUTPUTS_DIR")
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._setup_prepare_failed = False
+
+    def init(self):
+        """ init is called first. The Test object can be initialized here.
+        The cli parameters have already been parsed when this is called (contrasting to __init__).
+        """
+        pass
+
     def setup(self):
-        self.setup_prepare()
+        try:
+            self._setup_prepare_failed = False
+            self.setup_prepare()
+        except:  # noqa E722, we really want to handle any exception
+            self._setup_prepare_failed = True
+            raise
         self.setup_start()
 
     @abstractmethod
@@ -138,8 +157,11 @@ class TestTopogen(TestBase):
     setup_params = cli.SwitchAttr("setup-params", str, list=True,
                                   help="Additional parameters for topogen")
 
+    def init(self):
+        super().init()
+        self.dc = docker.Compose(compose_file=self.artifacts / "gen/scion-dc.yml")
+
     def setup_prepare(self):
-        self.dc = None
         super().setup_prepare()
         self._setup_generate()
 
@@ -174,7 +196,6 @@ class TestTopogen(TestBase):
     def setup_start(self):
         """Starts the docker containers in the topology.
         """
-        self.dc = docker.Compose(compose_file=self.artifacts / "gen/scion-dc.yml")
         print(self.dc("up", "-d"))
         ps = self.dc("ps")
         print(ps)
@@ -182,7 +203,8 @@ class TestTopogen(TestBase):
             raise Exception("Failed services.\n" + ps)
 
     def teardown(self):
-        if not self.dc:
+        # Avoid running docker-compose teardown if setup_prepare failed
+        if self._setup_prepare_failed:
             return
         out_dir = self.artifacts / "logs"
         self.dc.collect_logs(out_dir=out_dir)
@@ -205,10 +227,10 @@ def main(test_class):
 
     class _TestMain(test_class, cli.Application):
         __doc__ = test_class.__doc__
+        CALL_MAIN_IF_NESTED_COMMAND = False
 
         def main(self):
-            if self.nested_command:
-                return
+            self.init()
             try:
                 self.setup()
                 self._run()
@@ -220,6 +242,7 @@ def main(test_class):
 
     class _TestSetup(test_class, cli.Application):
         def main(self):
+            self.init()
             try:
                 self.setup()
             except Exception:
@@ -228,6 +251,7 @@ def main(test_class):
 
     class _TestRun(test_class, cli.Application):
         def main(self):
+            self.init()
             try:
                 self._run()
             except Exception:
@@ -236,6 +260,7 @@ def main(test_class):
 
     class _TestTeardown(test_class, cli.Application):
         def main(self):
+            self.init()
             try:
                 self.teardown()
             except Exception:

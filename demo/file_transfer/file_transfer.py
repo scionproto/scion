@@ -74,10 +74,10 @@ class Test(base.TestTopogen):
                 return float(m.group(1)) / 1024 / 1024
         return None
 
-    def setup(self):
+    def setup_prepare(self):
         print("setting up the infrastructure")
 
-        self.setup_prepare()
+        super().setup_prepare()
 
         # Add throttling to the inter-AS links.
         scion_dc = self.artifacts / "gen/scion-dc.yml"
@@ -101,8 +101,9 @@ class Test(base.TestTopogen):
         with open(scion_dc, "w") as file:
             yaml.dump(dc, file)
 
+    def setup_start(self):
         # Start the topology
-        self.setup_start()
+        super().setup_start()
 
         # Initialize SSH in tester containers (needed by bbcp)
         self.dc("exec", "-T", "tester_1-ff00_0_110", "/bin/bash",
