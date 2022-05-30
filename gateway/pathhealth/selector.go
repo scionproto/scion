@@ -17,7 +17,6 @@ package pathhealth
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/scionproto/scion/pkg/snet"
 )
@@ -95,22 +94,27 @@ func (f *FilteringPathSelector) Select(selectables []Selectable, current Fingerp
 		return allowed[i].Fingerprint > allowed[j].Fingerprint
 	})
 
-	// Make the info string.
-	var format = "      %-44s %s"
-	info := make([]string, 0, len(selectables)+1)
-	info = append(info, fmt.Sprintf(format, "STATE", "PATH"))
+	var pathInfo PathInfo
 	for _, a := range allowed {
-		var state string
-		if a.IsCurrent {
-			state = "-->"
-		}
-		info = append(info, fmt.Sprintf(format, state, a.Path))
+		pathInfo = append(pathInfo, PathInfoEntry{
+			Current: a.IsCurrent,
+			Revoked: a.IsRevoked,
+			Path:    fmt.Sprintf("%s", a.Path),
+		})
 	}
 	for _, path := range dead {
-		info = append(info, fmt.Sprintf(format, deadInfo, path))
+		pathInfo = append(pathInfo, PathInfoEntry{
+			Rejected:     true,
+			RejectReason: deadInfo,
+			Path:         fmt.Sprintf("%s", path),
+		})
 	}
 	for _, path := range rejected {
-		info = append(info, fmt.Sprintf(format, rejectedInfo, path))
+		pathInfo = append(pathInfo, PathInfoEntry{
+			Rejected:     true,
+			RejectReason: rejectedInfo,
+			Path:         fmt.Sprintf("%s", path),
+		})
 	}
 
 	pathCount := f.PathCount
@@ -127,7 +131,7 @@ func (f *FilteringPathSelector) Select(selectables []Selectable, current Fingerp
 	}
 	return Selection{
 		Paths:         paths,
-		Info:          strings.Join(info, "\n"),
+		PathInfo:      pathInfo,
 		PathsAlive:    len(allowed),
 		PathsDead:     len(dead),
 		PathsRejected: len(rejected),
