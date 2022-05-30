@@ -247,25 +247,22 @@ func renderPathInfo(p pathhealth.PathInfo, w io.Writer, indent int) {
 	var paths [][]string
 	for _, path := range p {
 		state := ""
-		if path.Current {
+		if path.GetCurrent() {
 			state = "-->"
 		}
-		if !path.Rejected {
+		if !path.GetRejected() {
 			paths = append(paths, []string{
 				strings.Repeat(" ", indent),
 				state,
-				fmt.Sprintf("%v", path.Revoked),
-				path.Path,
+				fmt.Sprintf("%v", path.GetRevoked()),
+				path.GetPath(),
 			})
 		} else {
 			paths = append(paths, []string{
 				strings.Repeat(" ", indent),
-				path.RejectReason,
+				path.GetRejectReason(),
 				"",
-				"",
-				"",
-				"",
-				path.Path,
+				path.GetPath(),
 			})
 		}
 	}
