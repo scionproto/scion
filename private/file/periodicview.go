@@ -79,7 +79,11 @@ func (v *PeriodicView) Get() (interface{}, error) {
 		v.readTask.read()
 
 		// Launch goroutine for future reads.
-		v.taskRunner = periodic.Start(v.readTask, v.ReadInterval, v.ReadInterval)
+		v.taskRunner = periodic.StartWithOptionalMetric(
+			periodic.TaskWithMetric{
+				Task: v.readTask,
+			},
+			v.ReadInterval, v.ReadInterval)
 		v.running = true
 	}
 

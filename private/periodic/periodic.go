@@ -34,6 +34,11 @@ type Task interface {
 	Name() string
 }
 
+type TaskWithMetric struct {
+	Task   Task
+	Metric metrics.ExportMetric
+}
+
 // Func implements the Task interface.
 type Func struct {
 	// Task is the function that is executed on Run.
@@ -63,35 +68,6 @@ type Runner struct {
 	cancelF      context.CancelFunc
 	trigger      chan struct{}
 	metric       metrics.ExportMetric
-}
-
-// Start creates and starts a new Runner to run the given task peridiocally.
-// The timeout is used for the context timeout of the task. The timeout can be
-// larger than the periodicity of the task. That means if a tasks takes a long
-// time it will be immediately retriggered.
-func Start(task Task, period, timeout time.Duration) *Runner {
-	ctx, cancelF := context.WithCancel(context.Background())
-	logger := log.New("debug_id", log.NewDebugID())
-	ctx = log.CtxWith(ctx, logger)
-	r := &Runner{
-		task:         task,
-		ticker:       time.NewTicker(period),
-		timeout:      timeout,
-		stop:         make(chan struct{}),
-		loopFinished: make(chan struct{}),
-		ctx:          ctx,
-		cancelF:      cancelF,
-		trigger:      make(chan struct{}),
-		metric:       metrics.NewMetric(task.Name()),
-	}
-	logger.Info("Starting periodic task", "task", task.Name())
-	r.metric.Period(period)
-	r.metric.StartTimestamp(time.Now())
-	go func() {
-		defer log.HandlePanic()
-		r.runLoop()
-	}()
-	return r
 }
 
 // Stop stops the periodic execution of the Runner.
@@ -161,4 +137,43 @@ func (r *Runner) onTick() {
 		r.metric.Runtime(time.Since(start))
 		cancelF()
 	}
+}
+
+// Start creates and starts a new Runner to run the given task peridiocally.
+// The timeout is used for the context timeout of the task. The timeout can be
+// larger than the periodicity of the task. That means if a tasks takes a long
+// time it will be immediately retriggered.
+func Start(task Task, period, timeout time.Duration) *Runner {
+	t := TaskWithMetric{
+		Task:   task,
+		Metric: metrics.NewMetric(task.Name()),
+	}
+	return StartWithOptionalMetric(t, period, timeout)
+}
+
+// StartWithOptionalMetric is identical to Start but allows the caller to
+// specify the metric or no metric at all to be used.
+func StartWithOptionalMetric(task TaskWithMetric, period, timeout time.Duration) *Runner {
+	ctx, cancelF := context.WithCancel(context.Background())
+	logger := log.New("debug_id", log.NewDebugID())
+	ctx = log.CtxWith(ctx, logger)
+	r := &Runner{
+		task:         task.Task,
+		ticker:       time.NewTicker(period),
+		timeout:      timeout,
+		stop:         make(chan struct{}),
+		loopFinished: make(chan struct{}),
+		ctx:          ctx,
+		cancelF:      cancelF,
+		trigger:      make(chan struct{}),
+		metric:       task.Metric,
+	}
+	logger.Info("Starting periodic task", "task", task.Task.Name())
+	r.metric.Period(period)
+	r.metric.StartTimestamp(time.Now())
+	go func() {
+		defer log.HandlePanic()
+		r.runLoop()
+	}()
+	return r
 }
