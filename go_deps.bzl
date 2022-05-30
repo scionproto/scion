@@ -1011,6 +1011,12 @@ def go_deps():
         version = "v0.0.14",
     )
     go_repository(
+        name = "com_github_mattn_go_runewidth",
+        importpath = "github.com/mattn/go-runewidth",
+        sum = "h1:Lm995f3rfxdpd6TSmuVCHVb/QhupuXlYr8sCI/QdE+0=",
+        version = "v0.0.9",
+    )
+    go_repository(
         name = "com_github_mattn_go_sqlite3",
         importpath = "github.com/mattn/go-sqlite3",
         sum = "h1:4rQjbDxdu9fSgI/r3KN72G3c2goxknAqHHgPWWs8UlI=",
@@ -1123,6 +1129,12 @@ def go_deps():
         importpath = "github.com/oklog/ulid",
         sum = "h1:EGfNDEx6MqHz8B3uNV6QAib1UR2Lm97sHi3ocA6ESJ4=",
         version = "v1.3.1",
+    )
+    go_repository(
+        name = "com_github_olekukonko_tablewriter",
+        importpath = "github.com/olekukonko/tablewriter",
+        sum = "h1:P2Ga83D34wi1o9J6Wh1mRuqd4mF/x/lgBS7N7AbDhec=",
+        version = "v0.0.5",
     )
     go_repository(
         name = "com_github_oneofone_xxhash",

@@ -16,6 +16,7 @@ package control
 
 import (
 	"context"
+	"reflect"
 	"sync"
 	"time"
 
@@ -173,8 +174,8 @@ func (s *Session) validate() error {
 type sessionPaths struct {
 	// ID the ID of the session.
 	ID uint8
-	// Info the info from the last path result.
-	Info string
+	// PathInfo the info from the last path result.
+	PathInfo pathhealth.PathInfo
 	// Paths the paths from the last path result.
 	Paths []snet.Path
 }
@@ -184,9 +185,9 @@ func (s *Session) sessionPaths() sessionPaths {
 	defer s.pathResultMtx.RUnlock()
 
 	return sessionPaths{
-		ID:    s.ID,
-		Info:  s.pathResult.Info,
-		Paths: s.pathResult.Paths,
+		ID:       s.ID,
+		PathInfo: s.pathResult.PathInfo,
+		Paths:    s.pathResult.Paths,
 	}
 }
 
@@ -196,7 +197,7 @@ type pathSelectionDiff struct {
 }
 
 func (d pathSelectionDiff) hasDiff() bool {
-	if d.old.Info == d.new.Info {
+	if reflect.DeepEqual(d.old.PathInfo, d.new.PathInfo) {
 		return false
 	}
 	if len(d.old.Paths) != len(d.new.Paths) {
