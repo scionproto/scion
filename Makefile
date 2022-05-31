@@ -26,8 +26,8 @@ bazel:
 test:
 	bazel test --config=unit_all
 
-test-acceptance:
-	bazel test --config=acceptance_all
+test-integration:
+	bazel test --config=integration_all
 
 go_deps.bzl: go.mod
 	@tools/godeps.sh
