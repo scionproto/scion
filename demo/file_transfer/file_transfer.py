@@ -22,53 +22,41 @@ import yaml
 from http import client
 
 from acceptance.common import base
-from acceptance.common import docker
-from acceptance.common import scion
 
 
-class Test(base.TestBase):
-
-    def main(self):
-        if not self.nested_command:
-            try:
-                self.setup()
-                self._run()
-            finally:
-                self.teardown()
+class Test(base.TestTopogen):
 
     def _refresh_paths(self):
-        self.test_state.dc("exec", "-T", "tester_1-ff00_0_110", "ping", "-c", "2",
-                           "172.20.0.39")
-        self.test_state.dc("exec", "-T", "tester_1-ff00_0_111", "ping", "-c", "2",
-                           "172.20.0.23")
-        self.test_state.dc("exec", "-T", "tester_1-ff00_0_110", "scion", "sp", "1-ff00:0:111",
-                           "--timeout", "5s", "--refresh", "--no-probe")
-        self.test_state.dc("exec", "-T", "tester_1-ff00_0_111", "scion", "sp", "1-ff00:0:110",
-                           "--timeout", "5s", "--refresh", "--no-probe")
+        self.dc("exec", "-T", "tester_1-ff00_0_110", "ping", "-c", "2", "172.20.0.39")
+        self.dc("exec", "-T", "tester_1-ff00_0_111", "ping", "-c", "2", "172.20.0.23")
+        self.dc("exec", "-T", "tester_1-ff00_0_110", "scion", "sp", "1-ff00:0:111",
+                "--timeout", "5s", "--refresh", "--no-probe")
+        self.dc("exec", "-T", "tester_1-ff00_0_111", "scion", "sp", "1-ff00:0:110",
+                "--timeout", "5s", "--refresh", "--no-probe")
 
     def _set_path_count(self, path_count):
         # Change the gateway config.
-        config_name = self.test_state.artifacts / "gen" / "ASff00_0_111" / "sig.json"
+        config_name = self.artifacts / "gen" / "ASff00_0_111" / "sig.json"
         with open(config_name, "r") as f:
             t = json.load(f)
         t["ASes"]["1-ff00:0:110"]["PathCount"] = path_count
         with open(config_name, "w") as f:
             json.dump(t, f, indent=2)
         # Reload the config.
-        self.test_state.dc("kill", "-s", "SIGHUP", "scion_sig_1-ff00_0_111")
+        self.dc("kill", "-s", "SIGHUP", "scion_sig_1-ff00_0_111")
         # Give gateway some time to start using the new path count.
         time.sleep(2)
 
     def _transfer(self, filename, size):
         print("transferring a file (%d MB)" % size)
         # Create a large file.
-        self.test_state.dc("exec", "-T", "tester_1-ff00_0_111",
-                           "fallocate", "-l", "%dM" % size, filename)
+        self.dc("exec", "-T", "tester_1-ff00_0_111",
+                "fallocate", "-l", "%dM" % size, filename)
         start_time = time.time()
         # Copy it, via ports 40000-40020, to the other AS.
-        self.test_state.dc("exec", "-T", "tester_1-ff00_0_111",
-                           "bbcp", "-s",  "20", "-Z", "40000:40020",
-                           "localhost:/share/%s" % filename, "172.20.0.23:/share")
+        self.dc("exec", "-T", "tester_1-ff00_0_111",
+                "bbcp", "-s",  "20", "-Z", "40000:40020",
+                "localhost:/share/%s" % filename, "172.20.0.23:/share")
         elapsed = time.time() - start_time
         throughput = float(size * 1024 * 1024 * 8) / 1000000 / elapsed
         print("transfer finished")
@@ -86,13 +74,13 @@ class Test(base.TestBase):
                 return float(m.group(1)) / 1024 / 1024
         return None
 
-    def setup(self):
+    def setup_prepare(self):
         print("setting up the infrastructure")
 
-        self.setup_prepare()
+        super().setup_prepare()
 
         # Add throttling to the inter-AS links.
-        scion_dc = self.test_state.artifacts / "gen/scion-dc.yml"
+        scion_dc = self.artifacts / "gen/scion-dc.yml"
         with open(scion_dc, "r") as file:
             dc = yaml.load(file, Loader=yaml.FullLoader)
         dc["services"]["tc_setup"] = {
@@ -113,14 +101,15 @@ class Test(base.TestBase):
         with open(scion_dc, "w") as file:
             yaml.dump(dc, file)
 
+    def setup_start(self):
         # Start the topology
-        self.setup_start()
+        super().setup_start()
 
         # Initialize SSH in tester containers (needed by bbcp)
-        self.test_state.dc("exec", "-T", "tester_1-ff00_0_110", "/bin/bash",
-                           "/share/ssh_setup.sh")
-        self.test_state.dc("exec", "-T", "tester_1-ff00_0_111", "/bin/bash",
-                           "/share/ssh_setup.sh")
+        self.dc("exec", "-T", "tester_1-ff00_0_110", "/bin/bash",
+                "/share/ssh_setup.sh")
+        self.dc("exec", "-T", "tester_1-ff00_0_111", "/bin/bash",
+                "/share/ssh_setup.sh")
 
         # Wait till everything starts working.
         print("waiting for 30 seconds for the system to bootstrap")
@@ -151,6 +140,4 @@ class Test(base.TestBase):
 
 
 if __name__ == "__main__":
-    base.register_commands(Test)
-    Test.test_state = base.TestState(scion.SCIONDocker(), docker.Compose())
-    Test.run()
+    base.main(Test)

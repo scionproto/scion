@@ -14,85 +14,15 @@
 
 import logging
 import json
-from abc import ABC, abstractmethod
 from typing import Any, Dict, List, MutableMapping
 
 import toml
-from plumbum import local
 import yaml
-from plumbum.cmd import docker
 from plumbum.path.local import LocalPath
 
-from acceptance.common.log import LogExec
 from tools.topology.scion_addr import ISD_AS
 
 logger = logging.getLogger(__name__)
-
-
-class SCION(ABC):
-    """ SCION is the base class for interacting with the infrastructure. """
-    scion_sh = local['./scion.sh']
-    end2end = local['./bin/end2end_integration']
-
-    @abstractmethod
-    def topology(self, topo_file: str, *args: str):
-        """ Create the topology files by invoking scion.sh
-        :param topo_file: The .topo file passed with -c.
-        :param args: List of optional arguments.
-        """
-        pass
-
-    @LogExec(logger, 'running topology')
-    def run(self):
-        """ Run the scion infrastructure. """
-        self.scion_sh('run')
-
-    @abstractmethod
-    def execute(self, isd_as: ISD_AS, cmd: str, *args: str) -> str:
-        """ Execute command as host in specified AS
-        :param isd_as: The ISD-AS of the AS to run the command in.
-        :param cmd: The command to execute.
-        :param args: List of optional arguments.
-        """
-        pass
-
-    def status(self):
-        """ Print the scion infrastructure status. """
-        self.scion_sh('status')
-
-    def stop(self):
-        """ Stop the scion infrastructure. """
-        self.scion_sh('stop')
-
-    @abstractmethod
-    def _send_signals(self, svc_names: List[str], sig: str):
-        """
-        Send the signal to all service names.
-
-        :param svc_names: List of service names.
-        :param sig: signal string (e.g. SIGHUP, SIGKILL)
-        """
-        pass
-
-    def kill_svc(self, svc_names: List[str]):
-        """ Send SIGKILL to services by name. """
-        self._send_signals(svc_names, "SIGKILL")
-
-    def reload_svc(self, svc_names: List[str]):
-        """ Send SIGHUP to services by name. """
-        self._send_signals(svc_names, "SIGHUP")
-
-    @LogExec(logger, 'end2end test')
-    def run_end2end(self, *args, expect_fail=False):
-        self._run_end2end(*args, code=1 if expect_fail else 0)
-
-    @abstractmethod
-    def _run_end2end(self, *args, code=0):
-        """
-        Run the end2end integration test.
-        :param code: The expected return code.
-        """
-        pass
 
 
 def update_toml(change_dict: Dict[str, Any], files: LocalPath):
@@ -139,39 +69,12 @@ def update_json(change_dict: Dict[str, Any], files: LocalPath):
             json.dump(t, f, indent=2)
 
 
-class SCIONDocker(SCION):
-    """
-    SCIONDocker is used for interacting with the dockerized
-    scion infrastructure.
-    """
-    tools_dc = local['./tools/dc']
-
-    @LogExec(logger, "creating dockerized topology")
-    def topology(self, topo_file: str, *args: str):
-        """ Create the dockerized topology files. """
-        self.scion_sh('topology', '-c', topo_file, '-d', *args)
-
-    def execute(self, isd_as: ISD_AS, cmd: str, *args: str) -> str:
-        expanded = []
-        for arg in args:
-            if str(arg).startswith('gen/'):
-                arg = '/share/' + arg
-            expanded.append(arg)
-        return docker('exec', 'tester_%s' % isd_as.file_fmt(), cmd, *expanded)
-
-    def _send_signals(self, svc_names: List[str], sig: str):
-        for svc_name in svc_names:
-            self.tools_dc('scion', 'kill', '-s', sig, 'scion_%s' % svc_name)
-
-    def _run_end2end(self, *args, code=0):
-        self.end2end('-d', *args, retcode=code)
-
-
-class ASList(object):
+class ASList:
     """
     ASList is a list of AS separated by core and non-core ASes. It can be loaded
     from the as_list.yml file created by the topology generator.
     """
+
     def __init__(self, cores: List[ISD_AS], non_cores: List[ISD_AS]):
         self.cores = cores
         self.non_cores = non_cores
