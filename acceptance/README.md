@@ -5,12 +5,13 @@ Each test is defined as a bazel test target, with tags `integration` and `exclus
 
 ## Basic Commands
 
-To run all acceptance tests, execute one of the following (equivalent) commands
+To run all integration tests which include the acceptance tests, execute one of
+the following (equivalent) commands
 
 ```bash
-make test-acceptance                # or,
-bazel test --config=acceptance_all  # or,
-bazel test --config=integration //acceptance/... //demo/...
+make test-integration                # or,
+bazel test --config=integration_all  # or,
+bazel test --config=integration //...
 ```
 
 Run a subset of the tests by specifying a different list of targets:
