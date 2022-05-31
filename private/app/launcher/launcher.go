@@ -143,7 +143,15 @@ func (a *Application) run() error {
 		cancel()
 	}()
 
-	return cmd.ExecuteContext(ctx)
+	err := cmd.ExecuteContext(ctx)
+	// If SIGTERM was already received, ignore the error and exit with error code 0.
+	select {
+	case <-sigtermCtx.Done():
+		log.Error("error occured after SIGTERM, ignoring", "err", err)
+		return nil
+	default:
+		return err
+	}
 }
 
 func (a *Application) getShortName(executable string) string {
