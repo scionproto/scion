@@ -4,7 +4,8 @@ services:
   go-module-proxy:
     container_name: go-module-proxy
     network_mode: host
-    image: $REGISTRY/gomods/athens:v0.11.0
+    # gomods/athens:canary of 29.04.2022 -- using unstable version for the "ATHENS_NETWORK_MODE=offline" feature, see below
+    image: $REGISTRY/gomods/athens@sha256:319701a7541a3e70ff45f290b185364738cac62b845eeb13b25c258f6189af7f
     environment:
       ATHENS_PORT: 3200
       ATHENS_STORAGE_TYPE: "s3"
@@ -12,3 +13,8 @@ services:
       AWS_ACCESS_KEY_ID: $ATHENS_S3_ACCESS_KEY_ID
       AWS_SECRET_ACCESS_KEY: $ATHENS_S3_SECRET_ACCESS_KEY
       ATHENS_S3_BUCKET_NAME: $ATHENS_S3_BUCKET
+      # Optimisations for version listing (e.g. in go mod tidy), see https://github.com/gomods/athens/issues/1733#issuecomment-1063296486
+      # Use proxy.golang.org to accelerate fetching cache misses
+      ATHENS_GO_BINARY_ENV_VARS: "GOPROXY=https://proxy.golang.org|direct"
+      # disable accessing VCS for /list requests
+      ATHENS_NETWORK_MODE: offline
