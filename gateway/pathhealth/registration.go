@@ -43,40 +43,12 @@ type PathSelector interface {
 	Select(selectable []Selectable, current FingerprintSet) Selection
 }
 
-type pathInfoEntry struct {
+type PathInfoEntry struct {
 	Path         string
 	Rejected     bool
 	RejectReason string
 	Current      bool
 	Revoked      bool
-}
-
-func (pie *pathInfoEntry) GetPath() string {
-	return pie.Path
-}
-
-func (pie *pathInfoEntry) GetRejected() bool {
-	return pie.Rejected
-}
-
-func (pie *pathInfoEntry) GetRejectReason() string {
-	return pie.RejectReason
-}
-
-func (pie *pathInfoEntry) GetCurrent() bool {
-	return pie.Current
-}
-
-func (pie *pathInfoEntry) GetRevoked() bool {
-	return pie.Revoked
-}
-
-type PathInfoEntry interface {
-	GetPath() string
-	GetRejected() bool
-	GetRejectReason() string
-	GetCurrent() bool
-	GetRevoked() bool
 }
 
 // PathInfo contains debug info about onging path monitoring.
