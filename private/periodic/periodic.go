@@ -21,6 +21,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/pkg/log"
+	emetrics "github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/private/periodic/internal/metrics"
 )
 
@@ -34,9 +35,49 @@ type Task interface {
 	Name() string
 }
 
-type TaskWithMetric struct {
-	Task   Task
-	Metric metrics.ExportMetric
+const (
+	// EventStop indicates a stop event took place.
+	EventStop = "stop"
+	// EventKill indicates a kill event took place.
+	EventKill = "kill"
+	// EventTrigger indicates a trigger event took place.
+	EventTrigger = "triggered"
+)
+
+// Metrics contins the relavant metrics for the task in the same Runner.
+type Metrics struct {
+	// Events tracks the amount of occurrences of events defined above.
+	Events func(string) emetrics.Counter
+	// Period is a Gauge describing the current period.
+	Period emetrics.Gauge
+	// Runtime tracks how long the task has been running.
+	Runtime emetrics.Gauge
+	// StartTime is a timestamp of when the task was started.
+	StartTime emetrics.Gauge
+}
+
+func (m Metrics) SetStartTimestamp(t time.Time) {
+	if m.StartTime != nil {
+		m.StartTime.Set(float64(t.UnixNano() / 1e9))
+	}
+}
+
+func (m Metrics) SetPeriod(d time.Duration) {
+	if m.Period != nil {
+		m.Period.Set(d.Seconds())
+	}
+}
+
+func (m Metrics) SetRuntime(d time.Duration) {
+	if m.Runtime != nil {
+		m.Runtime.Add(float64(d) / 1e9)
+	}
+}
+
+func (m Metrics) Event(s string) {
+	if m.Events != nil {
+		m.Events(s).Add(1)
+	}
 }
 
 // Func implements the Task interface.
@@ -67,7 +108,7 @@ type Runner struct {
 	ctx          context.Context
 	cancelF      context.CancelFunc
 	trigger      chan struct{}
-	metric       metrics.ExportMetric
+	metric       Metrics
 }
 
 // Stop stops the periodic execution of the Runner.
@@ -76,7 +117,7 @@ func (r *Runner) Stop() {
 	r.ticker.Stop()
 	close(r.stop)
 	<-r.loopFinished
-	r.metric.Event(metrics.EventStop)
+	r.metric.Event(EventStop)
 }
 
 // Kill is like stop but it also cancels the context of the current running method.
@@ -88,7 +129,7 @@ func (r *Runner) Kill() {
 	close(r.stop)
 	r.cancelF()
 	<-r.loopFinished
-	r.metric.Event(metrics.EventKill)
+	r.metric.Event(EventKill)
 }
 
 // TriggerRun triggers the periodic task to run now.
@@ -104,7 +145,7 @@ func (r *Runner) TriggerRun() {
 	case <-r.stop:
 	case r.trigger <- struct{}{}:
 	}
-	r.metric.Event(metrics.EventTrigger)
+	r.metric.Event(EventTrigger)
 }
 
 func (r *Runner) runLoop() {
@@ -134,7 +175,7 @@ func (r *Runner) onTick() {
 		defer span.Finish()
 		start := time.Now()
 		r.task.Run(ctx)
-		r.metric.Runtime(time.Since(start))
+		r.metric.SetRuntime(time.Since(start))
 		cancelF()
 	}
 }
@@ -144,21 +185,24 @@ func (r *Runner) onTick() {
 // larger than the periodicity of the task. That means if a tasks takes a long
 // time it will be immediately retriggered.
 func Start(task Task, period, timeout time.Duration) *Runner {
-	t := TaskWithMetric{
-		Task:   task,
-		Metric: metrics.NewMetric(task.Name()),
+	genMetric := metrics.NewMetric(task.Name())
+	metric := Metrics{
+		Events:    genMetric.GetEvents(),
+		Period:    genMetric.GetPeriod(),
+		Runtime:   genMetric.GetRuntime(),
+		StartTime: genMetric.GetTimestamp(),
 	}
-	return StartWithOptionalMetric(t, period, timeout)
+	return StartWithMetric(task, metric, period, timeout)
 }
 
-// StartWithOptionalMetric is identical to Start but allows the caller to
+// StartWithMetric is identical to Start but allows the caller to
 // specify the metric or no metric at all to be used.
-func StartWithOptionalMetric(task TaskWithMetric, period, timeout time.Duration) *Runner {
+func StartWithMetric(task Task, metric Metrics, period, timeout time.Duration) *Runner {
 	ctx, cancelF := context.WithCancel(context.Background())
 	logger := log.New("debug_id", log.NewDebugID())
 	ctx = log.CtxWith(ctx, logger)
 	r := &Runner{
-		task:         task.Task,
+		task:         task,
 		ticker:       time.NewTicker(period),
 		timeout:      timeout,
 		stop:         make(chan struct{}),
@@ -166,11 +210,15 @@ func StartWithOptionalMetric(task TaskWithMetric, period, timeout time.Duration)
 		ctx:          ctx,
 		cancelF:      cancelF,
 		trigger:      make(chan struct{}),
-		metric:       task.Metric,
+		metric:       metric,
 	}
-	logger.Info("Starting periodic task", "task", task.Task.Name())
-	r.metric.Period(period)
-	r.metric.StartTimestamp(time.Now())
+	logger.Info("Starting periodic task", "task", task.Name())
+	if r.metric.Period != nil {
+		r.metric.Period.Set(period.Seconds())
+	}
+	if r.metric.StartTime != nil {
+		r.metric.SetStartTimestamp(time.Now())
+	}
 	go func() {
 		defer log.HandlePanic()
 		r.runLoop()

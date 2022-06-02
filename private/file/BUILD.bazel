@@ -10,8 +10,11 @@ go_library(
     importpath = "github.com/scionproto/scion/private/file",
     visibility = ["//visibility:public"],
     deps = [
+        "//pkg/metrics:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//private/periodic:go_default_library",
+        "@com_github_iancoleman_strcase//:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus:go_default_library",
     ],
 )
 

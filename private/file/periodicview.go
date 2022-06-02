@@ -15,9 +15,13 @@
 package file
 
 import (
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/iancoleman/strcase"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/periodic"
 )
@@ -78,10 +82,54 @@ func (v *PeriodicView) Get() (interface{}, error) {
 		v.readTask = &readTask{Path: v.Path}
 		v.readTask.read()
 
+		// Set up metrics for goroutine
+		namespace := strcase.ToSnake(strings.Replace(v.readTask.Name(), ".", "_", -1))
+		subsystem := "periodic"
+		events := prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "event_total",
+			Help:      "Total number of events.",
+		},
+			[]string{"event_type"},
+		)
+
+		runtime := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "runtime_duration_seconds_total",
+			Help:      "Total time spend on every periodic run.",
+		},
+			[]string{},
+		)
+
+		startTime := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "runtime_timestamp_seconds",
+			Help:      "The unix timestamp when the periodic run started.",
+		},
+			[]string{},
+		)
+		period := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "period_duration_seconds",
+			Help:      "The period of this job.",
+		},
+			[]string{},
+		)
+
 		// Launch goroutine for future reads.
-		v.taskRunner = periodic.StartWithOptionalMetric(
-			periodic.TaskWithMetric{
-				Task: v.readTask,
+		v.taskRunner = periodic.StartWithMetric(
+			v.readTask,
+			periodic.Metrics{
+				Events: func(s string) metrics.Counter {
+					return metrics.NewPromCounter(events).With("event_type", s)
+				},
+				Runtime:   metrics.NewPromGauge(runtime),
+				StartTime: metrics.NewPromGauge(startTime),
+				Period:    metrics.NewPromGauge(period),
 			},
 			v.ReadInterval, v.ReadInterval)
 		v.running = true
