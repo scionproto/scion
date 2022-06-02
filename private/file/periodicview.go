@@ -21,6 +21,7 @@ import (
 
 	"github.com/iancoleman/strcase"
 	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/periodic"
