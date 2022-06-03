@@ -5,8 +5,8 @@ def go_deps():
     go_repository(
         name = "af_inet_netaddr",
         importpath = "inet.af/netaddr",
-        sum = "h1:tvgqez5ZQoBBiBAGNU/fmJy247yB/7++kcLOEoMYup0=",
-        version = "v0.0.0-20210903134321-85fa6c94624e",
+        sum = "h1:acCzuUSQ79tGsM/O50VRFySfMm19IoMKL+sZztZkCxw=",
+        version = "v0.0.0-20211027220019-c74959edd3b6",
     )
     go_repository(
         name = "co_honnef_go_tools",
@@ -947,8 +947,8 @@ def go_deps():
     go_repository(
         name = "com_github_lucas_clemente_quic_go",
         importpath = "github.com/lucas-clemente/quic-go",
-        sum = "h1:5vFnKtZ6nHDFsc/F3uuiF4T3y/AXaQdxjUqiVw26GZE=",
-        version = "v0.23.0",
+        sum = "h1:sOw+4kFSVrdWOYmUjufQ9GBVPqZ+tu+jMtXxXNmRJyk=",
+        version = "v0.27.1",
     )
     go_repository(
         name = "com_github_lunixbochs_vtclean",
@@ -975,22 +975,22 @@ def go_deps():
         version = "v0.2.1",
     )
     go_repository(
-        name = "com_github_marten_seemann_qtls_go1_15",
-        importpath = "github.com/marten-seemann/qtls-go1-15",
-        sum = "h1:RehYMOyRW8hPVEja1KBVsFVNSm35Jj9Mvs5yNoZZ28A=",
-        version = "v0.1.4",
-    )
-    go_repository(
         name = "com_github_marten_seemann_qtls_go1_16",
         importpath = "github.com/marten-seemann/qtls-go1-16",
-        sum = "h1:xbHbOGGhrenVtII6Co8akhLEdrawwB2iHl5yhJRpnco=",
-        version = "v0.1.4",
+        sum = "h1:o9JrYPPco/Nukd/HpOHMHZoBDXQqoNtUCmny98/1uqQ=",
+        version = "v0.1.5",
     )
     go_repository(
         name = "com_github_marten_seemann_qtls_go1_17",
         importpath = "github.com/marten-seemann/qtls-go1-17",
-        sum = "h1:P9ggrs5xtwiqXv/FHNwntmuLMNq3KaSIG93AtAZ48xk=",
-        version = "v0.1.0",
+        sum = "h1:DQjHPq+aOzUeh9/lixAGunn6rIOQyWChPSI4+hgW7jc=",
+        version = "v0.1.1",
+    )
+    go_repository(
+        name = "com_github_marten_seemann_qtls_go1_18",
+        importpath = "github.com/marten-seemann/qtls-go1-18",
+        sum = "h1:qp7p7XXUFL7fpBvSS1sWD+uSqPvzNQK43DH+/qEkj0Y=",
+        version = "v0.1.1",
     )
     go_repository(
         name = "com_github_matryer_moq",
@@ -1871,14 +1871,14 @@ def go_deps():
     go_repository(
         name = "org_go4_intern",
         importpath = "go4.org/intern",
-        sum = "h1:VFTf+jjIgsldaz/Mr00VaCSswHJrI2hIjQygE/W4IMg=",
-        version = "v0.0.0-20210108033219-3eb7198706b2",
+        sum = "h1:UXLjNohABv4S58tHmeuIZDO6e3mHpW2Dx33gaNt03LE=",
+        version = "v0.0.0-20211027215823-ae77deb06f29",
     )
     go_repository(
         name = "org_go4_unsafe_assume_no_moving_gc",
         importpath = "go4.org/unsafe/assume-no-moving-gc",
-        sum = "h1:1tk03FUNpulq2cuWpXZWj649rwJpk0d20rxWiopKRmc=",
-        version = "v0.0.0-20201222180813-1025295fd063",
+        sum = "h1:Tx9kY6yUkLge/pFG7IEMwDZy6CS2ajFc9TvQdPCW0uA=",
+        version = "v0.0.0-20211027215541-db492cf91b37",
     )
     go_repository(
         name = "org_golang_google_api",
