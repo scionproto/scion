@@ -88,7 +88,7 @@ class Add(GoMocks):
         mock_path = plumbum.local.path(package_path / "mock_%s" % name)
         delete(mock_path // "*.go")
         buildscript = """
-load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+load("@io_bazel_rules_go//go:def.bzl", "gomock")
 gomock(
     name = "go_default_mock",
     out = "mock.go",
