@@ -30,7 +30,9 @@ test-acceptance:
 	bazel test --config=acceptance_all
 
 go_deps.bzl: go.mod
-	@tools/godeps.sh
+	bazel run //:gazelle -- update-repos -prune -from_file=go.mod -to_macro=go_deps.bzl%go_deps
+	@# XXX(matzf): clean up; gazelle update-repose inconsistently inserts blank lines (see bazelbuild/bazel-gazelle#1088).
+	@sed -e '/def go_deps/,$${/^$$/d}' -i go_deps.bzl
 
 docker-images:
 	@echo "Build perapp images"
