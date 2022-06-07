@@ -1,4 +1,9 @@
-# Generated from go.mod by gazelle. DO NOT EDIT
+# This file is kept in sync with go.mod using gazelle update-repos.
+# Manual tweaks and gazelle directives can be applied.
+# To update, run:
+#
+#   make go_deps.bzl
+#
 load("@bazel_gazelle//:deps.bzl", "go_repository")
 
 def go_deps():
@@ -946,6 +951,7 @@ def go_deps():
     )
     go_repository(
         name = "com_github_lucas_clemente_quic_go",
+        build_directives = ["gazelle:exclude internal/qtls/go118.go"],  # XXX(matzf): exclude go-1.18 file that should not be built, but gazelle does not properly understand the release tags.
         importpath = "github.com/lucas-clemente/quic-go",
         sum = "h1:sOw+4kFSVrdWOYmUjufQ9GBVPqZ+tu+jMtXxXNmRJyk=",
         version = "v0.27.1",
@@ -988,6 +994,7 @@ def go_deps():
     )
     go_repository(
         name = "com_github_marten_seemann_qtls_go1_18",
+        build_directives = ["gazelle:exclude generate_cert.go"],  # XXX(matzf): this file has a "// go:build ignore" instruction that gazelle does not understand
         importpath = "github.com/marten-seemann/qtls-go1-18",
         sum = "h1:qp7p7XXUFL7fpBvSS1sWD+uSqPvzNQK43DH+/qEkj0Y=",
         version = "v0.1.1",
