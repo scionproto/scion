@@ -160,16 +160,10 @@ steps:
       automatic:
         - exit_status: -1 # Agent was lost
         - exit_status: 255 # Forced agent shutdown
-  - label: "TRC ceremony :bash:"
+  - label: "TRC ceremony :bazel:"
     if: build.message !~ /\[doc\]/
     command:
-      - echo "--- build"
-      - make scion-topo
-      - echo "--- run test"
-      - mkdir -p /tmp/test-artifacts/trc-ceremony
-      - export SAFEDIR="/tmp/test-artifacts/trc-ceremony"
-      - ./tools/cryptoplayground/trc_ceremony.sh
-      - ./tools/cryptoplayground/trc_ceremony_sensitive.sh
+      - bazel test //tools/cryptoplayground:trc_ceremony_test //tools/cryptoplayground:trc_ceremony_sensitive_test
     timeout_in_minutes: 15
     key: trc_ceremony_test
     artifact_paths:
