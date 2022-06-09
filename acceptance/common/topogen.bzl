@@ -41,16 +41,14 @@ def topogen_test(
         visibility = ["//visibility:public"],
     )
 
-    setup_params = " "
-    if gateway:
-        setup_params += " --sig"
-
     common_args = [
-        "--executables=scion-pki:$(location //scion-pki/cmd/scion-pki)",
-        "--executables=topogen:$(location //tools:topogen)",
+        "--executable=scion-pki:$(location //scion-pki/cmd/scion-pki)",
+        "--executable=topogen:$(location //tools:topogen)",
         "--topo=$(location %s)" % topo,
-        "--setup-params='%s'" % setup_params,
     ]
+    if gateway:
+        common_args += ["--setup-params='--sig'"]
+
     common_data = [
         "//scion-pki/cmd/scion-pki",
         "//tools:topogen",
@@ -61,7 +59,7 @@ def topogen_test(
     for tag in loaders:
         loader = loaders[tag]
         common_data = common_data + ["%s" % loader]
-        common_args = common_args + ["--container_loader=%s#$(location %s)" % (tag, loader)]
+        common_args = common_args + ["--container-loader=%s#$(location %s)" % (tag, loader)]
 
     py_binary(
         name = "%s_setup" % name,
@@ -98,7 +96,11 @@ def topogen_test(
         args = args + common_args,
         deps = [":%s_lib" % name],
         data = data + common_data,
-        tags = ["integration"],
+        tags = ["integration", "exclusive"],
+        env = {
+            # Ensure output appears immediately (in particular with --test_output=streamed)
+            "PYTHONUNBUFFERED": "1",
+        },
     )
 
 def container_loaders(tester, gateway):

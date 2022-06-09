@@ -30,7 +30,7 @@ steps:
   - label: "check generated"
     if: build.message !~ /\[doc\]/
     command:
-      - ./tools/licensechecker.py $(find go acceptance -type f -iname '*.go')
+      - echo "--- go_deps.bzl"
       - mkdir -p /tmp/test-artifacts
       - cp go.mod go.sum go_deps.bzl /tmp/test-artifacts/
       - make go_deps.bzl -B
@@ -38,17 +38,22 @@ steps:
       - diff -u /tmp/test-artifacts/go.mod go.mod
       - diff -u /tmp/test-artifacts/go.sum go.sum
       - diff -u /tmp/test-artifacts/go_deps.bzl go_deps.bzl
+      - echo "--- protobuf"
       - cp -R pkg/proto/ /tmp/test-artifacts
       - make protobuf
       - diff -ur /tmp/test-artifacts/proto/ pkg/proto/
+      - echo "--- licenses"
       - mkdir -p /tmp/test-artifacts/licenses
       - ./tools/licenses.sh /tmp/test-artifacts/licenses
       - diff -rNu3 /tmp/test-artifacts/licenses ./licenses/data
-      - ./tools/gomocks diff
+      - echo "--- gomocks"
+      - ./tools/gomocks.py diff
+      - echo "--- antlr"
       - rm -rf /tmp/test-artifacts/antlr
       - cp -R antlr/ /tmp/test-artifacts/antlr
       - make antlr
       - diff -ur /tmp/test-artifacts/antlr/ antlr/
+      - echo "--- testdata"
       - ./tools/update_testdata.sh
     timeout_in_minutes: 20
     key: check_generated
@@ -155,16 +160,10 @@ steps:
       automatic:
         - exit_status: -1 # Agent was lost
         - exit_status: 255 # Forced agent shutdown
-  - label: "TRC ceremony :bash:"
+  - label: "TRC ceremony :bazel:"
     if: build.message !~ /\[doc\]/
     command:
-      - echo "--- build"
-      - make scion-topo
-      - echo "--- run test"
-      - mkdir -p /tmp/test-artifacts/trc-ceremony
-      - export SAFEDIR="/tmp/test-artifacts/trc-ceremony"
-      - ./tools/cryptoplayground/trc_ceremony.sh
-      - ./tools/cryptoplayground/trc_ceremony_sensitive.sh
+      - bazel test //tools/cryptoplayground:trc_ceremony_test //tools/cryptoplayground:trc_ceremony_sensitive_test
     timeout_in_minutes: 15
     key: trc_ceremony_test
     artifact_paths:

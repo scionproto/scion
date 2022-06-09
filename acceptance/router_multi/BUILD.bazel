@@ -8,20 +8,18 @@ exports_files([
 ])
 
 args = [
-    "--braccept_bin",
-    "$(location //tools/braccept)",
+    "--executable",
+    "braccept:$(location //tools/braccept)",
+    "--container-loader",
+    "posix-router:latest#$(location //acceptance/router_multi:router)",
     "--pause_tar",
     "$(location //acceptance/router_multi:pause.tar)",
-    "--image_tar",
-    "$(location :router.tar)",
-    "--conf_dir",
-    "$(location :conf)",
 ]
 
 data = [
     "pause.tar",
     ":conf",
-    ":router.tar",
+    ":router",
     "//tools/braccept",
 ]
 
@@ -30,7 +28,6 @@ raw_test(
     src = "test.py",
     args = args + [
         "--bfd",
-        "True",
     ],
     data = data,
     # This test uses sudo and accesses /var/run/netns.

@@ -4,7 +4,7 @@ topogen_test(
     name = "file_transfer",
     src = "file_transfer.py",
     args = [],
-    data = [],
+    data = ["tc_setup.sh"],
     gateway = True,
     topo = "topo.topo",
 )

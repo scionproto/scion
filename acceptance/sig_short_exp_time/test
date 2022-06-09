@@ -77,15 +77,22 @@ run_test() {(set -e
     docker kill -s SIGINT tester1
 
     sleep 1
+    local ping_exit_code=$(docker inspect tester1 --format='{{.State.ExitCode}}')
+    if [ "$ping_exit_code" != "0" ]; then
+      docker logs tester1
+      echo "Test failed, ping not successful"
+      return 1
+    fi
     LINE=`docker logs tester1 | tail -n 2 | head -n 1`
     echo "Ping results: $LINE"
 
     ATTEMPTS=`echo $LINE | cut -d ' ' -f 1`
     SUCCESSES=`echo $LINE | cut -d ' ' -f 4`
-    if [ $ATTEMPTS -ne $SUCCESSES ]; then
-        echo "Test failed, attempted $ATTEMPTS pings, but only $SUCCESSES succeeded"
-        return 1
+    if [ $ATTEMPTS -eq $SUCCESSES ]; then
+        return 0
     fi
+    echo "Test failed, attempted $ATTEMPTS pings, but only $SUCCESSES succeeded"
+    return 1
 )}
 
 set +e

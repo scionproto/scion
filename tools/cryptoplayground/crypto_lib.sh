@@ -54,7 +54,7 @@ start_docker() {
 
     docker run --name $name \
         -v $(pwd):/workdir \
-        -v $PLAYGROUND:/scripts \
+        -v $PLAYGROUND/crypto_lib.sh:/scripts/crypto_lib.sh \
         -d emberstack/openssl tail -f /dev/null
 }
 
@@ -86,7 +86,7 @@ in_docker() {
         -e KEYDIR=/keydir  \
         -v $PUBDIR:/pubdir \
         -e PUBDIR=/pubdir  \
-        -v $PLAYGROUND:/scripts \
+        -v $PLAYGROUND/crypto_lib.sh:/scripts/crypto_lib.sh \
         -e STARTDATE=$STARTDATE \
         -e ENDDATE=$ENDDATE \
         -e TRCID=$TRCID \

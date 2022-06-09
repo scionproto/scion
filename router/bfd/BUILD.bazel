@@ -32,6 +32,7 @@ go_test(
     ],
     embed = [":go_default_library"],
     deps = [
+        "//pkg/log:go_default_library",
         "//pkg/log/testlog:go_default_library",
         "//router/bfd/mock_bfd:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",

@@ -93,7 +93,7 @@ func (l *ConnListener) Close() error {
 // be accepted. The connection is accepted with the first call to Read or
 // Write.
 type acceptingConn struct {
-	session quic.Session
+	session quic.Connection
 
 	// once ensures that the stream is accepted at most once.
 	once sync.Once
@@ -124,7 +124,7 @@ type acceptingConn struct {
 
 // newAcceptingConn constructs a new acceptingConn. The context restricts the
 // time spent on accepting the stream.
-func newAcceptingConn(ctx context.Context, session quic.Session) net.Conn {
+func newAcceptingConn(ctx context.Context, session quic.Connection) net.Conn {
 	var cancel context.CancelFunc
 
 	// Use deadline from parent if it exists. Otherwise, use default.
@@ -361,7 +361,7 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 	if d.TLSConfig == nil {
 		return nil, serrors.New("tls.Config not set")
 	}
-	var session quic.Session
+	var session quic.Connection
 	for sleep := 2 * time.Millisecond; ctx.Err() == nil; sleep = sleep * 2 {
 		// Clone TLS config to avoid data races.
 		tlsConfig := d.TLSConfig.Clone()
@@ -416,7 +416,7 @@ func computeAddressStr(address net.Addr) string {
 // acceptedConn is a net.Conn wrapper for a QUIC stream.
 type acceptedConn struct {
 	stream  quic.Stream
-	session quic.Session
+	session quic.Connection
 }
 
 func (c *acceptedConn) Read(b []byte) (int, error) {
