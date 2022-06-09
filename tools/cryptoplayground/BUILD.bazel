@@ -1,3 +1,36 @@
 exports_files([
     "crypto_lib.sh",
 ])
+
+sh_test(
+    name = "trc_ceremony_test",
+    srcs = ["trc_ceremony.sh"],
+    data = [
+        ":crypto_lib.sh",
+        "//scion-pki/cmd/scion-pki",
+    ],
+    env = {
+        "SCION_PKI_BIN": "$(location //scion-pki/cmd/scion-pki)",
+    },
+    tags = [
+        "exclusive",
+        "integration",
+    ],
+)
+
+sh_test(
+    name = "trc_ceremony_sensitive_test",
+    srcs = ["trc_ceremony_sensitive.sh"],
+    data = [
+        "trc_ceremony.sh",
+        ":crypto_lib.sh",
+        "//scion-pki/cmd/scion-pki",
+    ],
+    env = {
+        "SCION_PKI_BIN": "$(location //scion-pki/cmd/scion-pki)",
+    },
+    tags = [
+        "exclusive",
+        "integration",
+    ],
+)
