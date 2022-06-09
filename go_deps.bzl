@@ -1,12 +1,17 @@
-# Generated from go.mod by gazelle. DO NOT EDIT
+# This file is kept in sync with go.mod using gazelle update-repos.
+# Manual tweaks and gazelle directives can be applied.
+# To update, run:
+#
+#   make go_deps.bzl
+#
 load("@bazel_gazelle//:deps.bzl", "go_repository")
 
 def go_deps():
     go_repository(
         name = "af_inet_netaddr",
         importpath = "inet.af/netaddr",
-        sum = "h1:tvgqez5ZQoBBiBAGNU/fmJy247yB/7++kcLOEoMYup0=",
-        version = "v0.0.0-20210903134321-85fa6c94624e",
+        sum = "h1:acCzuUSQ79tGsM/O50VRFySfMm19IoMKL+sZztZkCxw=",
+        version = "v0.0.0-20211027220019-c74959edd3b6",
     )
     go_repository(
         name = "co_honnef_go_tools",
@@ -946,9 +951,10 @@ def go_deps():
     )
     go_repository(
         name = "com_github_lucas_clemente_quic_go",
+        build_directives = ["gazelle:exclude internal/qtls/go118.go"],  # XXX(matzf): exclude go-1.18 file that should not be built, but gazelle does not properly understand the release tags.
         importpath = "github.com/lucas-clemente/quic-go",
-        sum = "h1:5vFnKtZ6nHDFsc/F3uuiF4T3y/AXaQdxjUqiVw26GZE=",
-        version = "v0.23.0",
+        sum = "h1:sOw+4kFSVrdWOYmUjufQ9GBVPqZ+tu+jMtXxXNmRJyk=",
+        version = "v0.27.1",
     )
     go_repository(
         name = "com_github_lunixbochs_vtclean",
@@ -975,22 +981,23 @@ def go_deps():
         version = "v0.2.1",
     )
     go_repository(
-        name = "com_github_marten_seemann_qtls_go1_15",
-        importpath = "github.com/marten-seemann/qtls-go1-15",
-        sum = "h1:RehYMOyRW8hPVEja1KBVsFVNSm35Jj9Mvs5yNoZZ28A=",
-        version = "v0.1.4",
-    )
-    go_repository(
         name = "com_github_marten_seemann_qtls_go1_16",
         importpath = "github.com/marten-seemann/qtls-go1-16",
-        sum = "h1:xbHbOGGhrenVtII6Co8akhLEdrawwB2iHl5yhJRpnco=",
-        version = "v0.1.4",
+        sum = "h1:o9JrYPPco/Nukd/HpOHMHZoBDXQqoNtUCmny98/1uqQ=",
+        version = "v0.1.5",
     )
     go_repository(
         name = "com_github_marten_seemann_qtls_go1_17",
         importpath = "github.com/marten-seemann/qtls-go1-17",
-        sum = "h1:P9ggrs5xtwiqXv/FHNwntmuLMNq3KaSIG93AtAZ48xk=",
-        version = "v0.1.0",
+        sum = "h1:DQjHPq+aOzUeh9/lixAGunn6rIOQyWChPSI4+hgW7jc=",
+        version = "v0.1.1",
+    )
+    go_repository(
+        name = "com_github_marten_seemann_qtls_go1_18",
+        build_directives = ["gazelle:exclude generate_cert.go"],  # XXX(matzf): this file has a "// go:build ignore" instruction that gazelle does not understand
+        importpath = "github.com/marten-seemann/qtls-go1-18",
+        sum = "h1:qp7p7XXUFL7fpBvSS1sWD+uSqPvzNQK43DH+/qEkj0Y=",
+        version = "v0.1.1",
     )
     go_repository(
         name = "com_github_matryer_moq",
@@ -1009,6 +1016,12 @@ def go_deps():
         importpath = "github.com/mattn/go-isatty",
         sum = "h1:yVuAays6BHfxijgZPzw+3Zlu5yQgKGP2/hcQbHb7S9Y=",
         version = "v0.0.14",
+    )
+    go_repository(
+        name = "com_github_mattn_go_runewidth",
+        importpath = "github.com/mattn/go-runewidth",
+        sum = "h1:Lm995f3rfxdpd6TSmuVCHVb/QhupuXlYr8sCI/QdE+0=",
+        version = "v0.0.9",
     )
     go_repository(
         name = "com_github_mattn_go_sqlite3",
@@ -1123,6 +1136,12 @@ def go_deps():
         importpath = "github.com/oklog/ulid",
         sum = "h1:EGfNDEx6MqHz8B3uNV6QAib1UR2Lm97sHi3ocA6ESJ4=",
         version = "v1.3.1",
+    )
+    go_repository(
+        name = "com_github_olekukonko_tablewriter",
+        importpath = "github.com/olekukonko/tablewriter",
+        sum = "h1:P2Ga83D34wi1o9J6Wh1mRuqd4mF/x/lgBS7N7AbDhec=",
+        version = "v0.0.5",
     )
     go_repository(
         name = "com_github_oneofone_xxhash",
@@ -1745,8 +1764,8 @@ def go_deps():
     go_repository(
         name = "in_gopkg_yaml_v3",
         importpath = "gopkg.in/yaml.v3",
-        sum = "h1:h8qDotaEPuJATrMmW04NCwg7v22aHH28wwpauUhK9Oo=",
-        version = "v3.0.0-20210107192922-496545a6307b",
+        sum = "h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=",
+        version = "v3.0.1",
     )
     go_repository(
         name = "io_etcd_go_bbolt",
@@ -1859,14 +1878,14 @@ def go_deps():
     go_repository(
         name = "org_go4_intern",
         importpath = "go4.org/intern",
-        sum = "h1:VFTf+jjIgsldaz/Mr00VaCSswHJrI2hIjQygE/W4IMg=",
-        version = "v0.0.0-20210108033219-3eb7198706b2",
+        sum = "h1:UXLjNohABv4S58tHmeuIZDO6e3mHpW2Dx33gaNt03LE=",
+        version = "v0.0.0-20211027215823-ae77deb06f29",
     )
     go_repository(
         name = "org_go4_unsafe_assume_no_moving_gc",
         importpath = "go4.org/unsafe/assume-no-moving-gc",
-        sum = "h1:1tk03FUNpulq2cuWpXZWj649rwJpk0d20rxWiopKRmc=",
-        version = "v0.0.0-20201222180813-1025295fd063",
+        sum = "h1:Tx9kY6yUkLge/pFG7IEMwDZy6CS2ajFc9TvQdPCW0uA=",
+        version = "v0.0.0-20211027215541-db492cf91b37",
     )
     go_repository(
         name = "org_golang_google_api",

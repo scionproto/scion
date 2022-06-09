@@ -4,8 +4,8 @@ topogen_test(
     name = "test",
     src = "test.py",
     args = [
-        "--gateway_acceptance",
-        "$(location //acceptance/cmd/sig_ping_acceptance)",
+        "--executable",
+        "sig_ping_acceptance:$(location //acceptance/cmd/sig_ping_acceptance)",
     ],
     data = [
         "//acceptance/cmd/sig_ping_acceptance",

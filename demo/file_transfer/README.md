@@ -6,7 +6,7 @@ balancing the traffic among two non-overlapping paths.
 To run the demo:
 
 1. [set up the development environment](https://docs.scion.org/en/latest/build/setup.html)
-1. `bazel run //demo/file_transfer`
+1. `bazel test --test_output=streamed --cache_test_results=no //demo/file_transfer:file_transfer`
 
 The topology consists of two ASes connected by two links, each thottled to 16 mbps of throughput:
 

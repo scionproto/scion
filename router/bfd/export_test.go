@@ -14,6 +14,8 @@
 
 package bfd
 
+import "github.com/scionproto/scion/pkg/log"
+
 const (
 	MinJitter            = minJitter
 	MinJitterDetectMult1 = minJitterDetectMult1
@@ -47,6 +49,6 @@ type (
 	Event                    = event
 )
 
-func (s *Session) TestingLogs(enable bool) {
-	s.testingLogs = enable
+func (s *Session) SetLogger(logger log.Logger) {
+	s.testLogger = logger
 }

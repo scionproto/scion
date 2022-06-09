@@ -26,11 +26,11 @@ fi
 # Install docker-ce
 DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io
 
-# Install docker-compose 2.1.1
+# Install docker-compose v2.5.1
 case "$(uname -m)" in
     x86_64)
-        src=https://github.com/docker/compose/releases/download/v2.1.1/docker-compose-linux-x86_64
-        sum=dad12a5cbc4dae3809138c070c06abe4a92ce3470679a0f67da920052b6e51c7
+        src=https://github.com/docker/compose/releases/download/v2.5.1/docker-compose-linux-x86_64
+        sum=d99de1ea7616f2a4c7914d37674f0650660a5e832be555805a71c0fc377233c9
         file=/usr/libexec/docker/cli-plugins/docker-compose
         ;;
     *)

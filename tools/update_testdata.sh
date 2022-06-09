@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-export PATH=$PATH:$(bazel info output_base)/external/go_sdk/bin
+export PATH=$(bazel info output_base)/external/go_sdk/bin:$PATH
 
 folders=$(grep \
             -lR \
