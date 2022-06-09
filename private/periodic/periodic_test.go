@@ -36,14 +36,6 @@ func (tf taskFunc) Name() string {
 	return "test_task"
 }
 
-func testMetrics() Metrics {
-	return Metrics{
-		Events: func(s string) metrics.Counter {
-			return metrics.NewTestCounter().With("event_type", s)
-		},
-	}
-}
-
 func TestPeriodicExecution(t *testing.T) {
 	events := metrics.NewTestCounter()
 	met := Metrics{
