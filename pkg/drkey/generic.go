@@ -45,23 +45,23 @@ func (p *GenericDeriver) inputDeriveLvl2(input []byte, derType keyType,
 }
 
 // DeriveASHost returns the ASHost derived key.
-func (p *GenericDeriver) DeriveASHost(meta ASHostMeta, key Key) (Key, error) {
-	host, err := packtoHostAddr(meta.DstHost)
+func (p *GenericDeriver) DeriveASHost(proto Protocol, dstHost string, key Key) (Key, error) {
+	host, err := packtoHostAddr(dstHost)
 	if err != nil {
 		return Key{}, serrors.WrapStr("parsing dst host", err)
 	}
-	len := p.inputDeriveLvl2(p.buf[:], asToHost, meta.ProtoId, host)
+	len := p.inputDeriveLvl2(p.buf[:], asToHost, proto, host)
 	outKey, err := deriveKey(p.buf[:], len, key)
 	return outKey, err
 }
 
 // DeriveHostAS returns the HostAS derived key.
-func (p *GenericDeriver) DeriveHostAS(meta HostASMeta, key Key) (Key, error) {
-	host, err := packtoHostAddr(meta.SrcHost)
+func (p *GenericDeriver) DeriveHostAS(proto Protocol, srcHost string, key Key) (Key, error) {
+	host, err := packtoHostAddr(srcHost)
 	if err != nil {
 		return Key{}, serrors.WrapStr("parsing src host", err)
 	}
-	len := p.inputDeriveLvl2(p.buf[:], hostToAS, meta.ProtoId, host)
+	len := p.inputDeriveLvl2(p.buf[:], hostToAS, proto, host)
 	outKey, err := deriveKey(p.buf[:], len, key)
 	return outKey, err
 }

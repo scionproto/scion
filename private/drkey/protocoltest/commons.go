@@ -29,12 +29,7 @@ func GetLvl1(t *testing.T, protoID drkey.Protocol, epoch drkey.Epoch,
 	sv, err := drkey.DeriveSV(protoID, epoch, asSecret)
 	require.NoError(t, err)
 
-	lvl1Meta := drkey.Lvl1Meta{
-		SrcIA:   srcIA,
-		DstIA:   dstIA,
-		ProtoId: sv.ProtoId,
-	}
-	key, err := (&drkey.SpecificDeriver{}).DeriveLvl1(lvl1Meta, sv.Key)
+	key, err := (&drkey.SpecificDeriver{}).DeriveLvl1(dstIA, sv.Key)
 	require.NoError(t, err)
 	return drkey.Lvl1Key{
 		Epoch:   sv.Epoch,
@@ -47,7 +42,8 @@ func GetLvl1(t *testing.T, protoID drkey.Protocol, epoch drkey.Epoch,
 
 func DeriveASHostGeneric(meta drkey.ASHostMeta, lvl1key drkey.Lvl1Key) (drkey.ASHostKey, error) {
 
-	derivedKey, err := (&drkey.GenericDeriver{}).DeriveASHost(meta, lvl1key.Key)
+	derivedKey, err := (&drkey.GenericDeriver{}).DeriveASHost(meta.ProtoId, meta.DstHost,
+		lvl1key.Key)
 	if err != nil {
 		return drkey.ASHostKey{}, err
 	}
@@ -63,7 +59,8 @@ func DeriveASHostGeneric(meta drkey.ASHostMeta, lvl1key drkey.Lvl1Key) (drkey.AS
 }
 
 func DeriveHostASGeneric(meta drkey.HostASMeta, lvl1key drkey.Lvl1Key) (drkey.HostASKey, error) {
-	derivedKey, err := (&drkey.GenericDeriver{}).DeriveHostAS(meta, lvl1key.Key)
+	derivedKey, err := (&drkey.GenericDeriver{}).DeriveHostAS(meta.ProtoId, meta.SrcHost,
+		lvl1key.Key)
 	if err != nil {
 		return drkey.HostASKey{}, err
 	}
@@ -81,11 +78,8 @@ func DeriveHostASGeneric(meta drkey.HostASMeta, lvl1key drkey.Lvl1Key) (drkey.Ho
 func DeriveHostHostGeneric(meta drkey.HostHostMeta,
 	lvl1key drkey.Lvl1Key) (drkey.HostHostKey, error) {
 
-	hostASMeta := drkey.HostASMeta{
-		Lvl2Meta: meta.Lvl2Meta,
-		SrcHost:  meta.SrcHost,
-	}
-	hostASKey, err := (&drkey.GenericDeriver{}).DeriveHostAS(hostASMeta, lvl1key.Key)
+	hostASKey, err := (&drkey.GenericDeriver{}).DeriveHostAS(meta.ProtoId, meta.SrcHost,
+		lvl1key.Key)
 	if err != nil {
 		return drkey.HostHostKey{}, err
 	}
@@ -107,7 +101,7 @@ func DeriveHostHostGeneric(meta drkey.HostHostMeta,
 
 func DeriveASHostSpecific(meta drkey.ASHostMeta, lvl1key drkey.Lvl1Key) (drkey.ASHostKey, error) {
 
-	derivedKey, err := (&drkey.SpecificDeriver{}).DeriveASHost(meta, lvl1key.Key)
+	derivedKey, err := (&drkey.SpecificDeriver{}).DeriveASHost(meta.DstHost, lvl1key.Key)
 	if err != nil {
 		return drkey.ASHostKey{}, err
 	}
@@ -124,7 +118,7 @@ func DeriveASHostSpecific(meta drkey.ASHostMeta, lvl1key drkey.Lvl1Key) (drkey.A
 
 func DeriveHostASSpecific(meta drkey.HostASMeta, lvl1key drkey.Lvl1Key) (drkey.HostASKey, error) {
 
-	derivedKey, err := (&drkey.SpecificDeriver{}).DeriveHostAS(meta, lvl1key.Key)
+	derivedKey, err := (&drkey.SpecificDeriver{}).DeriveHostAS(meta.SrcHost, lvl1key.Key)
 	if err != nil {
 		return drkey.HostASKey{}, err
 	}
@@ -142,12 +136,7 @@ func DeriveHostASSpecific(meta drkey.HostASMeta, lvl1key drkey.Lvl1Key) (drkey.H
 func DeriveHostHostSpecific(meta drkey.HostHostMeta,
 	lvl1key drkey.Lvl1Key) (drkey.HostHostKey, error) {
 
-	hostASMeta := drkey.HostASMeta{
-		Lvl2Meta: meta.Lvl2Meta,
-		SrcHost:  meta.SrcHost,
-	}
-
-	hostASKey, err := (&drkey.SpecificDeriver{}).DeriveHostAS(hostASMeta, lvl1key.Key)
+	hostASKey, err := (&drkey.SpecificDeriver{}).DeriveHostAS(meta.SrcHost, lvl1key.Key)
 	if err != nil {
 		return drkey.HostHostKey{}, err
 	}

@@ -18,6 +18,7 @@ import (
 	"crypto/aes"
 	"encoding/binary"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
@@ -27,16 +28,16 @@ type SpecificDeriver struct {
 }
 
 // DeriveLvl1 returns the Lvl1 derived key.
-func (p *SpecificDeriver) DeriveLvl1(meta Lvl1Meta, key Key) (Key, error) {
-	len := inputDeriveLvl1(p.buf[:], meta)
+func (p *SpecificDeriver) DeriveLvl1(dstIA addr.IA, key Key) (Key, error) {
+	len := inputDeriveLvl1(p.buf[:], dstIA)
 	outKey, err := deriveKey(p.buf[:], len, key)
 	return outKey, err
 }
 
-func inputDeriveLvl1(buf []byte, meta Lvl1Meta) int {
+func inputDeriveLvl1(buf []byte, dstIA addr.IA) int {
 	_ = buf[aes.BlockSize-1]
 	buf[0] = byte(asToAs)
-	binary.BigEndian.PutUint64(buf[1:], uint64(meta.DstIA))
+	binary.BigEndian.PutUint64(buf[1:], uint64(dstIA))
 	copy(buf[9:], zeroBlock[:])
 
 	return aes.BlockSize
@@ -61,8 +62,8 @@ func (p *SpecificDeriver) inputDeriveLvl2(input []byte, derType keyType,
 }
 
 // DeriveASHost returns the ASHost derived key.
-func (p *SpecificDeriver) DeriveASHost(meta ASHostMeta, key Key) (Key, error) {
-	host, err := packtoHostAddr(meta.DstHost)
+func (p *SpecificDeriver) DeriveASHost(dstHost string, key Key) (Key, error) {
+	host, err := packtoHostAddr(dstHost)
 	if err != nil {
 		return Key{}, serrors.WrapStr("parsing dst host", err)
 	}
@@ -72,8 +73,8 @@ func (p *SpecificDeriver) DeriveASHost(meta ASHostMeta, key Key) (Key, error) {
 }
 
 // DeriveHostAS returns the HostAS derived key.
-func (p *SpecificDeriver) DeriveHostAS(meta HostASMeta, key Key) (Key, error) {
-	host, err := packtoHostAddr(meta.SrcHost)
+func (p *SpecificDeriver) DeriveHostAS(srcHost string, key Key) (Key, error) {
+	host, err := packtoHostAddr(srcHost)
 	if err != nil {
 		return Key{}, serrors.WrapStr("parsing src host", err)
 	}

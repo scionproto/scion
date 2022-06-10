@@ -40,26 +40,20 @@ func TestDeriveASHostGeneric(t *testing.T) {
 	}{
 		"wrong no-host": {
 			meta: drkey.ASHostMeta{
-				Lvl2Meta: drkey.Lvl2Meta{
-					ProtoId: drkey.Protocol(10000),
-				},
+				ProtoId: drkey.Protocol(10000),
 			},
 			assertFormatErr: assert.Error,
 		},
 		"invalid as-host": {
 			meta: drkey.ASHostMeta{
-				Lvl2Meta: drkey.Lvl2Meta{
-					ProtoId: drkey.Protocol(10000),
-				},
+				ProtoId: drkey.Protocol(10000),
 				DstHost: "<malformed address>",
 			},
 			assertFormatErr: assert.Error,
 		},
 		"valid as-host": {
 			meta: drkey.ASHostMeta{
-				Lvl2Meta: drkey.Lvl2Meta{
-					ProtoId: drkey.Protocol(10000),
-				},
+				ProtoId: drkey.Protocol(10000),
 				DstHost: dstHost,
 			},
 			assertFormatErr: assert.NoError,
@@ -94,9 +88,7 @@ func TestDeriveGenericHostAS(t *testing.T) {
 	}{
 		"valid host-as": {
 			meta: drkey.HostASMeta{
-				Lvl2Meta: drkey.Lvl2Meta{
-					ProtoId: drkey.Protocol(10000),
-				},
+				ProtoId: drkey.Protocol(10000),
 				SrcHost: srcHost,
 			},
 			assertFormatErr: assert.NoError,
@@ -105,9 +97,7 @@ func TestDeriveGenericHostAS(t *testing.T) {
 		},
 		"invalid host-as": {
 			meta: drkey.HostASMeta{
-				Lvl2Meta: drkey.Lvl2Meta{
-					ProtoId: drkey.Protocol(10000),
-				},
+				ProtoId: drkey.Protocol(10000),
 				SrcHost: "<malformed address>",
 			},
 			assertFormatErr: assert.Error,
@@ -142,9 +132,7 @@ func TestDeriveGenericHostHost(t *testing.T) {
 	}{
 		"valid host-host": {
 			meta: drkey.HostHostMeta{
-				Lvl2Meta: drkey.Lvl2Meta{
-					ProtoId: drkey.Protocol(10000),
-				},
+				ProtoId: drkey.Protocol(10000),
 				SrcHost: srcHost,
 				DstHost: dstHost,
 			},
@@ -154,9 +142,7 @@ func TestDeriveGenericHostHost(t *testing.T) {
 		},
 		"invalid host-host src": {
 			meta: drkey.HostHostMeta{
-				Lvl2Meta: drkey.Lvl2Meta{
-					ProtoId: drkey.Protocol(10000),
-				},
+				ProtoId: drkey.Protocol(10000),
 				SrcHost: "<malformed address>",
 				DstHost: dstHost,
 			},
@@ -164,9 +150,7 @@ func TestDeriveGenericHostHost(t *testing.T) {
 		},
 		"invalid host-host dst": {
 			meta: drkey.HostHostMeta{
-				Lvl2Meta: drkey.Lvl2Meta{
-					ProtoId: drkey.Protocol(10000),
-				},
+				ProtoId: drkey.Protocol(10000),
 				SrcHost: srcHost,
 				DstHost: "<malformed address>",
 			},
@@ -201,26 +185,20 @@ func TestDeriveASHostSpecific(t *testing.T) {
 	}{
 		"wrong no-host": {
 			meta: drkey.ASHostMeta{
-				Lvl2Meta: drkey.Lvl2Meta{
-					ProtoId: drkey.Protocol(10000),
-				},
+				ProtoId: drkey.Protocol(10000),
 			},
 			assertFormatErr: assert.Error,
 		},
 		"invalid as-host": {
 			meta: drkey.ASHostMeta{
-				Lvl2Meta: drkey.Lvl2Meta{
-					ProtoId: drkey.Protocol(10000),
-				},
+				ProtoId: drkey.Protocol(10000),
 				DstHost: "<malformed address>",
 			},
 			assertFormatErr: assert.Error,
 		},
 		"valid as-host": {
 			meta: drkey.ASHostMeta{
-				Lvl2Meta: drkey.Lvl2Meta{
-					ProtoId: drkey.Protocol(10000),
-				},
+				ProtoId: drkey.Protocol(10000),
 				DstHost: dstHost,
 			},
 			assertFormatErr: assert.NoError,
@@ -255,9 +233,7 @@ func TestDeriveSpecificHostAS(t *testing.T) {
 	}{
 		"valid host-as": {
 			meta: drkey.HostASMeta{
-				Lvl2Meta: drkey.Lvl2Meta{
-					ProtoId: drkey.Protocol(10000),
-				},
+				ProtoId: drkey.Protocol(10000),
 				SrcHost: srcHost,
 			},
 			assertFormatErr: assert.NoError,
@@ -266,9 +242,7 @@ func TestDeriveSpecificHostAS(t *testing.T) {
 		},
 		"invalid host-as": {
 			meta: drkey.HostASMeta{
-				Lvl2Meta: drkey.Lvl2Meta{
-					ProtoId: drkey.Protocol(10000),
-				},
+				ProtoId: drkey.Protocol(10000),
 				SrcHost: "<malformed address>",
 			},
 			assertFormatErr: assert.Error,
@@ -303,9 +277,7 @@ func TestDeriveSpecificHostHost(t *testing.T) {
 	}{
 		"valid host-host": {
 			meta: drkey.HostHostMeta{
-				Lvl2Meta: drkey.Lvl2Meta{
-					ProtoId: drkey.Protocol(10000),
-				},
+				ProtoId: drkey.Protocol(10000),
 				SrcHost: srcHost,
 				DstHost: dstHost,
 			},
@@ -315,9 +287,7 @@ func TestDeriveSpecificHostHost(t *testing.T) {
 		},
 		"invalid host-host src": {
 			meta: drkey.HostHostMeta{
-				Lvl2Meta: drkey.Lvl2Meta{
-					ProtoId: drkey.Protocol(10000),
-				},
+				ProtoId: drkey.Protocol(10000),
 				SrcHost: "<malformed address>",
 				DstHost: dstHost,
 			},
@@ -325,9 +295,7 @@ func TestDeriveSpecificHostHost(t *testing.T) {
 		},
 		"invalid host-host dst": {
 			meta: drkey.HostHostMeta{
-				Lvl2Meta: drkey.Lvl2Meta{
-					ProtoId: drkey.Protocol(10000),
-				},
+				ProtoId: drkey.Protocol(10000),
 				SrcHost: srcHost,
 				DstHost: "<malformed address>",
 			},
@@ -354,24 +322,18 @@ func TestDeriveLvl1(t *testing.T) {
 
 	deriver := &drkey.SpecificDeriver{}
 
-	srcIA := xtest.MustParseIA("1-ff00:0:111")
 	dstIA := xtest.MustParseIA("1-ff00:0:112")
 
-	lvl1Meta := drkey.Lvl1Meta{
-		SrcIA:   srcIA,
-		DstIA:   dstIA,
-		ProtoId: drkey.SCMP,
-	}
 	lvl1Target := drkey.Key{0xa8, 0x23, 0xf5, 0xb9, 0x56, 0xde,
 		0x7c, 0xc, 0xbc, 0x5a, 0x69, 0x42, 0xf5, 0xb6, 0xfc, 0x10}
 
-	key, err := deriver.DeriveLvl1(lvl1Meta, sv.Key)
+	key, err := deriver.DeriveLvl1(dstIA, sv.Key)
 	require.NoError(t, err)
 	assert.Equal(t, lvl1Target, key)
 
 	// Calling a second time with the same deriver should yield the
 	// same key
-	key, err = deriver.DeriveLvl1(lvl1Meta, sv.Key)
+	key, err = deriver.DeriveLvl1(dstIA, sv.Key)
 	require.NoError(t, err)
 
 	assert.Equal(t, lvl1Target, key)

@@ -153,19 +153,13 @@ type Lvl1Key struct {
 	Key          Key
 }
 
-// Lvl2Meta contains metadata to obtain end host keys
-// (aka lvl2/3 keys).
-type Lvl2Meta struct {
+// ASHost represents the associated information for the ASHost key.
+type ASHostMeta struct {
 	ProtoId  Protocol
 	Validity time.Time
 	SrcIA    addr.IA
 	DstIA    addr.IA
-}
-
-// ASHost represents the associated information for the ASHost key.
-type ASHostMeta struct {
-	Lvl2Meta
-	DstHost string
+	DstHost  string
 }
 
 // ASHost represents a ASHost key.
@@ -180,8 +174,11 @@ type ASHostKey struct {
 
 // HostASMeta represents the associated information for the HostAS key.
 type HostASMeta struct {
-	Lvl2Meta
-	SrcHost string
+	ProtoId  Protocol
+	Validity time.Time
+	SrcIA    addr.IA
+	DstIA    addr.IA
+	SrcHost  string
 }
 
 // HostASKey represents a Host-AS key.
@@ -196,9 +193,12 @@ type HostASKey struct {
 
 // HostHostMeta represents the associated information for the HostHostMeta key.
 type HostHostMeta struct {
-	Lvl2Meta
-	SrcHost string
-	DstHost string
+	ProtoId  Protocol
+	Validity time.Time
+	SrcIA    addr.IA
+	DstIA    addr.IA
+	SrcHost  string
+	DstHost  string
 }
 
 // HostHostKey represents a Host-Host DRKey.
