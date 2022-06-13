@@ -46,30 +46,30 @@ const (
 
 // Metrics contains the relevant metrics for a periodic task.
 type Metrics struct {
-	// events tracks the amount of occurrences of events defined above.
-	events func(string) metrics.Counter
-	// period is a Gauge describing the current period.
-	period metrics.Gauge
-	// runtime tracks how long the task has been running.
-	runtime metrics.Gauge
-	// startTime is a timestamp of when the task was started.
-	startTime metrics.Gauge
+	// Events tracks the amount of occurrences of Events defined above.
+	Events func(string) metrics.Counter
+	// Period is a Gauge describing the current Period.
+	Period metrics.Gauge
+	// Runtime tracks how long the task has been running.
+	Runtime metrics.Gauge
+	// StartTime is a timestamp of when the task was started.
+	StartTime metrics.Gauge
 }
 
 func (m *Metrics) setStartTimestamp(t time.Time) {
-	metrics.GaugeSet(m.startTime, float64(t.UnixNano()/1e9))
+	metrics.GaugeSet(m.StartTime, float64(t.UnixNano()/1e9))
 }
 
 func (m *Metrics) setPeriod(d time.Duration) {
-	metrics.GaugeSet(m.period, d.Seconds())
+	metrics.GaugeSet(m.Period, d.Seconds())
 }
 
 func (m *Metrics) setRuntime(d time.Duration) {
-	metrics.GaugeAdd(m.runtime, float64(d)/1e9)
+	metrics.GaugeAdd(m.Runtime, float64(d)/1e9)
 }
 
 func (m *Metrics) event(s string) {
-	metrics.CounterAdd(m.events(s), 1)
+	metrics.CounterAdd(m.Events(s), 1)
 }
 
 // Func implements the Task interface.
@@ -108,14 +108,14 @@ type Runner struct {
 // larger than the periodicity of the task. That means if a tasks takes a long
 // time it will be immediately retriggered.
 //
-// Deprecated: Start exists for compatibility reasons, use StartWithMetrics instead
+// Deprecated: Start exists for compatibility reasons, use StartWithMetrics instead.
 func Start(task Task, period, timeout time.Duration) *Runner {
 	genMetric := legacymetrics.NewMetric(task.Name())
 	metric := Metrics{
-		events:    genMetric.Events,
-		period:    genMetric.Period,
-		runtime:   genMetric.Runtime,
-		startTime: genMetric.Timestamp,
+		Events:    genMetric.Events,
+		Period:    genMetric.Period,
+		Runtime:   genMetric.Runtime,
+		StartTime: genMetric.Timestamp,
 	}
 	return StartWithMetrics(task, &metric, period, timeout)
 }
@@ -139,7 +139,6 @@ func StartWithMetrics(task Task, metric *Metrics, period, timeout time.Duration)
 	}
 	logger.Info("Starting periodic task", "task", task.Name())
 	r.metric.setPeriod(period)
-	// metrics.GaugeSet(r.metric.period, period.Seconds())
 	r.metric.setStartTimestamp(time.Now())
 	go func() {
 		defer log.HandlePanic()

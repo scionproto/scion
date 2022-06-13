@@ -25,7 +25,7 @@ import (
 
 // Metrics is the standard metrics used in periodic.Runner
 
-// Deprecated: Metrics is used only my the deprecated function periodic.Start
+// Deprecated: Metrics is used only in the deprecated function periodic.Start
 // which exists only for compatibility reasons. Use periodic.StartWithMetrics
 // along with periodic.Metrics instead.
 type Metrics struct {

@@ -15,7 +15,10 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["periodic_test.go"],
+    srcs = [
+        "export_test.go",
+        "periodic_test.go",
+    ],
     embed = [":go_default_library"],
     deps = [
         "//pkg/metrics:go_default_library",

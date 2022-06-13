@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package periodic
+package periodic_test
 
 import (
 	"context"
@@ -24,6 +24,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/private/periodic"
 )
 
 type taskFunc func(context.Context)
@@ -38,8 +39,8 @@ func (tf taskFunc) Name() string {
 
 func TestPeriodicExecution(t *testing.T) {
 	events := metrics.NewTestCounter()
-	met := Metrics{
-		events: func(s string) metrics.Counter {
+	met := periodic.Metrics{
+		Events: func(s string) metrics.Counter {
 			return events.With("event_type", s)
 		},
 		// Without additional metrics
@@ -51,7 +52,7 @@ func TestPeriodicExecution(t *testing.T) {
 	})
 	want := 5
 	p := time.Duration(want) * 20 * time.Millisecond
-	r := StartWithMetrics(fn, &met, p, time.Hour)
+	r := periodic.StartWithMetrics(fn, &met, p, time.Hour)
 
 	start := time.Now()
 	done := make(chan struct{})
@@ -77,15 +78,15 @@ func TestPeriodicExecution(t *testing.T) {
 	err := runWithTimeout(r.Stop, 2*time.Second)
 	assert.NoError(t, err, "r.Stop() action timed out")
 	// Check that  metrics work as expected
-	assert.Equal(t, float64(1), metrics.CounterValue(r.metric.events(EventStop)))
-	assert.Equal(t, float64(0), metrics.CounterValue(r.metric.events(EventKill)))
-	assert.Equal(t, float64(0), metrics.CounterValue(r.metric.events(EventTrigger)))
+	assert.Equal(t, float64(1), metrics.CounterValue(r.GetMetric().Events(periodic.EventStop)))
+	assert.Equal(t, float64(0), metrics.CounterValue(r.GetMetric().Events(periodic.EventKill)))
+	assert.Equal(t, float64(0), metrics.CounterValue(r.GetMetric().Events(periodic.EventTrigger)))
 }
 
 func TestKillExitsLongRunningFunc(t *testing.T) {
 	events := metrics.NewTestCounter()
-	met := Metrics{
-		events: func(s string) metrics.Counter {
+	met := periodic.Metrics{
+		Events: func(s string) metrics.Counter {
 			return events.With("event_type", s)
 		},
 		// Without additional metrics
@@ -102,7 +103,7 @@ func TestKillExitsLongRunningFunc(t *testing.T) {
 		}
 		errChan <- ctx.Err()
 	})
-	r := StartWithMetrics(fn, &met, p, time.Hour)
+	r := periodic.StartWithMetrics(fn, &met, p, time.Hour)
 	xtest.AssertReadReturnsBefore(t, done, time.Second)
 	err := runWithTimeout(r.Kill, time.Second)
 	assert.NoError(t, err)
@@ -114,21 +115,21 @@ func TestKillExitsLongRunningFunc(t *testing.T) {
 		t.Fatalf("time out while waiting on err")
 	}
 	// Check that  metrics work as expected
-	assert.Equal(t, float64(0), metrics.CounterValue(r.metric.events(EventStop)))
-	assert.Equal(t, float64(1), metrics.CounterValue(r.metric.events(EventKill)))
-	assert.Equal(t, float64(0), metrics.CounterValue(r.metric.events(EventTrigger)))
+	assert.Equal(t, float64(0), metrics.CounterValue(r.GetMetric().Events(periodic.EventStop)))
+	assert.Equal(t, float64(1), metrics.CounterValue(r.GetMetric().Events(periodic.EventKill)))
+	assert.Equal(t, float64(0), metrics.CounterValue(r.GetMetric().Events(periodic.EventTrigger)))
 }
 
 func TestTaskDoesNotRunAfterKill(t *testing.T) {
 	events := metrics.NewTestCounter()
-	met := Metrics{
-		events: func(s string) metrics.Counter {
+	met := periodic.Metrics{
+		Events: func(s string) metrics.Counter {
 			return events.With("event_type", s)
 		},
 		// With additional metrics
-		period:    metrics.NewTestGauge(),
-		runtime:   metrics.NewTestGauge(),
-		startTime: metrics.NewTestGauge(),
+		Period:    metrics.NewTestGauge(),
+		Runtime:   metrics.NewTestGauge(),
+		StartTime: metrics.NewTestGauge(),
 	}
 	cnt := make(chan struct{}, 50)
 	fn := taskFunc(func(ctx context.Context) {
@@ -136,7 +137,7 @@ func TestTaskDoesNotRunAfterKill(t *testing.T) {
 	})
 	p := 10 * time.Millisecond
 	startTime := time.Now()
-	r := StartWithMetrics(fn, &met, p, time.Hour)
+	r := periodic.StartWithMetrics(fn, &met, p, time.Hour)
 
 	done := make(chan struct{})
 	go func() {
@@ -155,31 +156,31 @@ func TestTaskDoesNotRunAfterKill(t *testing.T) {
 	xtest.AssertReadReturnsBefore(t, done, time.Second)
 	assert.Equal(t, len(cnt), 0, "No other run within a period")
 	// Check that  metrics work as expected
-	assert.Equal(t, float64(0), metrics.CounterValue(r.metric.events(EventStop)))
-	assert.Equal(t, float64(1), metrics.CounterValue(r.metric.events(EventKill)))
-	assert.Equal(t, float64(0), metrics.CounterValue(r.metric.events(EventTrigger)))
+	assert.Equal(t, float64(0), metrics.CounterValue(r.GetMetric().Events(periodic.EventStop)))
+	assert.Equal(t, float64(1), metrics.CounterValue(r.GetMetric().Events(periodic.EventKill)))
+	assert.Equal(t, float64(0), metrics.CounterValue(r.GetMetric().Events(periodic.EventTrigger)))
 
-	assert.Equal(t, p.Seconds(), metrics.GaugeValue(r.metric.period))
+	assert.Equal(t, p.Seconds(), metrics.GaugeValue(r.GetMetric().Period))
 
 	assert.GreaterOrEqual(t,
 		float64(time.Now().UnixNano()/1e9),
-		metrics.GaugeValue(r.metric.startTime),
+		metrics.GaugeValue(r.GetMetric().StartTime),
 	)
-	assert.LessOrEqual(t, float64(startTime.UnixNano()/1e9), metrics.GaugeValue(r.metric.startTime))
+	assert.LessOrEqual(t, float64(startTime.UnixNano()/1e9), metrics.GaugeValue(r.GetMetric().StartTime))
 
-	assert.LessOrEqual(t, float64(p.Seconds()/1e9), metrics.GaugeValue(r.metric.runtime))
+	assert.LessOrEqual(t, float64(p.Seconds()/1e9), metrics.GaugeValue(r.GetMetric().Runtime))
 }
 
 func TestTriggerNow(t *testing.T) {
 	events := metrics.NewTestCounter()
-	met := Metrics{
-		events: func(s string) metrics.Counter {
+	met := periodic.Metrics{
+		Events: func(s string) metrics.Counter {
 			return events.With("event_type", s)
 		},
 		// With additional metrics
-		period:    metrics.NewTestGauge(),
-		runtime:   metrics.NewTestGauge(),
-		startTime: metrics.NewTestGauge(),
+		Period:    metrics.NewTestGauge(),
+		Runtime:   metrics.NewTestGauge(),
+		StartTime: metrics.NewTestGauge(),
 	}
 
 	want := 10
@@ -191,7 +192,7 @@ func TestTriggerNow(t *testing.T) {
 
 	p := 10 * time.Millisecond
 	startTime := time.Now()
-	r := StartWithMetrics(fn, &met, p, 3*p)
+	r := periodic.StartWithMetrics(fn, &met, p, 3*p)
 
 	done := make(chan struct{})
 	go func() {
@@ -209,20 +210,20 @@ func TestTriggerNow(t *testing.T) {
 	xtest.AssertReadReturnsBefore(t, done, time.Second)
 	assert.GreaterOrEqual(t, len(cnt), want-1, "Must run %v times within short time", want-1)
 	// Check that  metrics work as expected
-	assert.Equal(t, float64(0), metrics.CounterValue(r.metric.events(EventStop)))
-	assert.Equal(t, float64(0), metrics.CounterValue(r.metric.events(EventKill)))
-	assert.Equal(t, float64(want), metrics.CounterValue(r.metric.events(EventTrigger)))
+	assert.Equal(t, float64(0), metrics.CounterValue(r.GetMetric().Events(periodic.EventStop)))
+	assert.Equal(t, float64(0), metrics.CounterValue(r.GetMetric().Events(periodic.EventKill)))
+	assert.Equal(t, float64(want), metrics.CounterValue(r.GetMetric().Events(periodic.EventTrigger)))
 
-	assert.Equal(t, p.Seconds(), metrics.GaugeValue(r.metric.period))
+	assert.Equal(t, p.Seconds(), metrics.GaugeValue(r.GetMetric().Period))
 
 	assert.GreaterOrEqual(
 		t,
 		float64(time.Now().UnixNano()/1e9),
-		metrics.GaugeValue(r.metric.startTime),
+		metrics.GaugeValue(r.GetMetric().StartTime),
 	)
-	assert.LessOrEqual(t, float64(startTime.UnixNano()/1e9), metrics.GaugeValue(r.metric.startTime))
+	assert.LessOrEqual(t, float64(startTime.UnixNano()/1e9), metrics.GaugeValue(r.GetMetric().StartTime))
 
-	assert.LessOrEqual(t, float64(p.Seconds()/1e9), metrics.GaugeValue(r.metric.runtime))
+	assert.LessOrEqual(t, float64(p.Seconds()/1e9), metrics.GaugeValue(r.GetMetric().Runtime))
 }
 
 func runWithTimeout(f func(), t time.Duration) error {
