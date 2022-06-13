@@ -15,6 +15,7 @@
 package bfd_test
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
@@ -24,7 +25,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/pkg/log/testlog"
 	"github.com/scionproto/scion/router/bfd"
 )
 
@@ -39,7 +39,6 @@ func TestMetrics(t *testing.T) {
 		DetectMult:            1,
 		DesiredMinTxInterval:  200 * time.Millisecond,
 		RequiredMinRxInterval: 100 * time.Millisecond,
-		Logger:                testlog.NewLogger(t).New("session", "a"),
 		LocalDiscriminator:    1,
 		ReceiveQueueSize:      10,
 		Metrics: bfd.Metrics{
@@ -54,7 +53,6 @@ func TestMetrics(t *testing.T) {
 		DetectMult:            1,
 		DesiredMinTxInterval:  200 * time.Millisecond,
 		RequiredMinRxInterval: 100 * time.Millisecond,
-		Logger:                testlog.NewLogger(t).New("session", "b"),
 		LocalDiscriminator:    2,
 		ReceiveQueueSize:      10,
 	}
@@ -68,13 +66,13 @@ func TestMetrics(t *testing.T) {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		err := sessionA.Run()
+		err := sessionA.Run(context.Background())
 		require.NoError(t, err)
 	}()
 
 	go func() {
 		defer wg.Done()
-		err := sessionB.Run()
+		err := sessionB.Run(context.Background())
 		require.NoError(t, err)
 	}()
 

@@ -56,6 +56,10 @@ def raw_test(
         args = args,
         deps = [":%s_lib" % name],
         data = data,
-        tags = tags + ["integration"],
+        tags = tags + ["integration", "exclusive"],
         local = local,
+        env = {
+            # Ensure output appears immediately (in particular with --test_output=streamed)
+            "PYTHONUNBUFFERED": "1",
+        },
     )

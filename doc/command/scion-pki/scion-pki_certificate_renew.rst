@@ -103,6 +103,8 @@ Examples
     scion-pki certificate renew --trc ISD1-B1-S1.trc --backup --expires-in 56h cp-as.pem cp-as.key
     scion-pki certificate renew --trc ISD1-B1-S1.trc --backup --expires-in 0.75 cp-as.pem cp-as.key
     scion-pki certificate renew --trc ISD1-B1-S1.trc --backup --ca 1-ff00:0:110,1-ff00:0:120 cp-as.pem cp-as.key
+    scion-pki certificate renew --trc ISD1-B1-S1.trc --backup \
+    	--remote 1-ff00:0:110,10.0.0.3 --remote 1-ff00:0:120,172.30.200.2 cp-as.pem cp-as.key
 
 
 Options
@@ -113,6 +115,7 @@ Options
       --backup                 Back up existing files before overwriting
       --ca strings             Comma-separated list of ISD-AS identifiers of target CAs.
                                The CAs are tried in order until success or all of them failed.
+                               --ca is mutually exclusive with --remote
       --common-name string     The common name that replaces the common name in the subject template
       --curve string           The elliptic curve to use (P-256|P-384|P-521) (default "P-256")
       --dispatcher string      Path to the dispatcher socket (default "/run/shm/dispatcher/default.sock")
@@ -131,6 +134,10 @@ Options
       --out-csr string         The path to write the CSR sent to the CA
       --out-key string         The path to write the fresh private key
       --refresh                set refresh flag for path request
+      --remote stringArray     The remote CA address to use for certificate renewal.
+                               The address is of the form <ISD-AS>,<IP>. --remote can be specified multiple times
+                               and all specified remotes are tried in order until success or all of them failed.
+                               --remote is mutually exclusive with --ca.
       --reuse-key              Reuse the provided private key instead of creating a fresh private key
       --sciond string          SCION Deamon address. (default "127.0.0.1:30255")
       --sequence string        Space separated list of hop predicates

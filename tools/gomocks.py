@@ -3,13 +3,14 @@
 import os
 import pathlib
 from typing import List
+from typing import Tuple
 
 import plumbum
 from plumbum import cli, cmd
 from plumbum.path.utils import delete
 
 
-def rule_to_file(rule: str) -> (str, str):
+def rule_to_file(rule: str) -> Tuple[str, str]:
     """
     Converts the bazel rule name into a pair of paths to mock files. The first
     path is the mock file in the bazel tree, and the second one is the path in

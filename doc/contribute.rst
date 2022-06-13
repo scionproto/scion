@@ -58,9 +58,9 @@ Finding an issue to contribute to
 We use GitHub labels to categorize issues in the SCION tracker. The two most interesting categories
 when searching for something to contribute to are:
 
-- `Help wanted issues <https://github.com/scionproto/scion/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22>`__.
+- `Help wanted issues <https://github.com/scionproto/scion/labels/i%2Fhelp%20wanted>`__.
   These are issues that nobody is working on at the moment, and are up for grabs.
-- `Good first issue issues <https://github.com/scionproto/scion/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22>`__.
+- `Good first issue issues <https://github.com/scionproto/scion/labels/i%2Fgood%20first%20issue>`__.
   These are usually **Help wanted** uses that are somewhat simpler. These are a good place to start if you've
   never contributed to the project before.
 
@@ -75,6 +75,69 @@ remember to shoot us a question on our `Slack <https://scionproto.slack.com>`__.
 
 Finally, make sure that the code you write adheres to the SCION project
 :ref:`language-style-guides`.
+
+Change Proposal Process
+=======================
+
+Many changes, including bug fixes and documentation improvements, can be
+implemented and reviewed via the normal GitHub pull request workflow.
+
+More **substantial changes** must be submitted as a **proposal**
+in the form of a GitHub issue, in order to create a consensus among the SCION community.
+Typical examples for substantial change proposals include:
+
+* Adding, changing, or removing compontents or functionality
+* Changing interfaces between components
+
+Proposals for changes to the SCION protocol (e.g., header format, processing
+rules, cryptography) are currently following the same process. This may,
+however, change in the near future when a formal specification or standard for
+the SCION protocol is established.
+
+.. hint:: It is recommended to discuss proposals with other (senior) developers
+   before submitting them, for example on our `Slack <https://scionproto.slack.com>`__.
+
+.. warning:: Pull requests for substantial features that did not go through the
+   proposal process will be rejected or put on hold.
+
+Formal Process
+--------------
+
+.. image:: fig/change-proposal-process.excalidraw.png
+
+:Creation: To open a proposal, the author submits a GitHub issue following the
+  proposal template.
+:Review: The proposal may receive feedback from the community, which should be
+  incorporated by the author. Moreover, the assigned technical team triages the
+  proposal and assigns one of its members to manage the process. The technical
+  team discusses the proposal and provides feedback. To increase transparency,
+  the results of these discussions are summarised publicly.
+:Decision:
+  The technical team decides to **accept**, **postpone**, or **reject** the
+  proposal based on the outcomes of the discussion and feedback from the
+  community.
+:Design:
+  If the proposal has been accepted, the authors submit a design document and
+  submit it to the repository (`doc/ <https://github.com/scionproto/scion/tree/master/doc>`__)
+  in the form of a pull request.
+:Final review:
+  The design document will be reviewed by the assigned technical team. Since
+  all major points should already be agreed upon in the proposal review, this
+  final review is expected to be lightweight. After this review, the technical
+  team may start the final comment period, together with a proposition to
+  **merge**, **close**, or **postpone** the proposal.
+
+  The **final comment period** lasts **ten calendar days** and is advertised, such that
+  stakeholders have a chance to lodge any final objections before a decision is
+  reached. If no major comments are raised during the final comment period, the
+  proposed action (close, merge, or postpone) is accepted; otherwise, the
+  proposal goes back to the review step and is discussed further.
+:Implementation:
+  If the final comment period ends with the decision to merge the proposal, it
+  becomes active. The proposal can now be implemented (typically, but not
+  necessarily by the authors). The implementation is submitted as a pull
+  request. The implementation will be reviewed; acceptance of the proposal does
+  not automatically imply that its implementation will be accepted.
 
 Learning resources
 ==================

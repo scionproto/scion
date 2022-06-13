@@ -43,13 +43,24 @@ type PathSelector interface {
 	Select(selectable []Selectable, current FingerprintSet) Selection
 }
 
+type PathInfoEntry struct {
+	Path         string
+	Rejected     bool
+	RejectReason string
+	Current      bool
+	Revoked      bool
+}
+
+// PathInfo contains debug info about onging path monitoring.
+type PathInfo []PathInfoEntry
+
 // Selection contains the set of selected paths with metadata.
 type Selection struct {
 	// Path is the list of selected paths. The list is sorted from best to worst
 	// according to the scoring function used by the selector.
 	Paths []snet.Path
-	// Info is an info string providing more info about why the path was selected.
-	Info string
+	// PathInfo provides more info about why the path was selected.
+	PathInfo PathInfo
 	// PathsAlive is the number of active paths available.
 	PathsAlive int
 	// PathsDead is the number of dead paths.

@@ -1,4 +1,4 @@
-.PHONY: all antlr bazel build clean docker-images gazelle golangci-lint licenses lint mocks protobuf scion-topo test
+.PHONY: all antlr bazel build clean docker-images gazelle golangci-lint licenses lint mocks protobuf scion-topo test test-acceptance
 
 .NOTPARALLEL:
 
@@ -24,10 +24,15 @@ bazel:
 	tar -kxf bazel-bin/scion-ci.tar -C bin
 
 test:
-	bazel test --config=unit_all --test_output=errors
+	bazel test --config=unit_all
+
+test-integration:
+	bazel test --config=integration_all
 
 go_deps.bzl: go.mod
-	@tools/godeps.sh
+	bazel run //:gazelle -- update-repos -prune -from_file=go.mod -to_macro=go_deps.bzl%go_deps
+	@# XXX(matzf): clean up; gazelle update-repose inconsistently inserts blank lines (see bazelbuild/bazel-gazelle#1088).
+	@sed -e '/def go_deps/,$${/^$$/d}' -i go_deps.bzl
 
 docker-images:
 	@echo "Build perapp images"
@@ -48,7 +53,7 @@ protobuf:
 	chmod 0644 pkg/proto/*/*.pb.go
 
 mocks:
-	tools/gomocks
+	tools/gomocks.py
 
 gazelle:
 	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -go_naming_convention go_default_library $(GAZELLE_DIRS)
