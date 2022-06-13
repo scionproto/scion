@@ -79,11 +79,6 @@ Finally, make sure that the code you write adheres to the SCION project
 Change Proposal Process
 =======================
 
-..
-   TODO: add section on governance of the SCION Association and the open source
-   projects inside of this. Reference the corresponding documents once
-   these become available.
-
 Many changes, including bug fixes and documentation improvements, can be
 implemented and reviewed via the normal GitHub pull request workflow.
 
@@ -97,10 +92,10 @@ Typical examples for substantial change proposals include:
 Proposals for changes to the SCION protocol (e.g., header format, processing
 rules, cryptography) are currently following the same process. This may,
 however, change in the near future when a formal specification or standard for
-the SCION protocol is.
+the SCION protocol is established.
 
 .. hint:: It is recommended to discuss proposals with other (senior) developers
-   before submitting it, for example on our `Slack <https://scionproto.slack.com>`__.
+   before submitting them, for example on our `Slack <https://scionproto.slack.com>`__.
 
 .. warning:: Pull requests for substantial features that did not go through the
    proposal process will be rejected or put on hold.
@@ -121,15 +116,6 @@ Formal Process
   The technical team decides to **accept**, **postpone**, or **reject** the
   proposal based on the outcomes of the discussion and feedback from the
   community.
-
-  ..
-    TODO: Once the governance documents have been published, add:
-
-    All decisions require a majority vote of the members of the
-    technical team.
-    If the technical team is not capable of building a majority
-    vote, the chair of the TC must be called to make a final decision.
-
 :Design:
   If the proposal has been accepted, the authors submit a design document and
   submit it to the repository (`doc/ <https://github.com/scionproto/scion/tree/master/doc>`__)
