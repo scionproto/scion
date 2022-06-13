@@ -314,16 +314,13 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}
 	revStore := &pathhealth.MemoryRevocationStore{}
 
-	// periodicly clean up the revocation store.
-	revCleaner := periodic.StartWithMetric(
-		periodic.Func{
-			Task: func(ctx context.Context) {
-				revStore.Cleanup(ctx)
-			},
-			TaskName: "revocation_store_cleaner",
+	// periodically clean up the revocation store.
+	revCleaner := periodic.Start(periodic.Func{
+		Task: func(ctx context.Context) {
+			revStore.Cleanup(ctx)
 		},
-		periodic.Metrics{},
-		30*time.Second, 30*time.Second)
+		TaskName: "revocation_store_cleaner",
+	}, 30*time.Second, 30*time.Second)
 	defer revCleaner.Stop()
 
 	pathMonitor := &PathMonitor{

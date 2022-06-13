@@ -16,7 +16,6 @@ package metrics
 
 import (
 	"strings"
-	"time"
 
 	"github.com/iancoleman/strcase"
 	"github.com/prometheus/client_golang/prometheus"
@@ -24,27 +23,19 @@ import (
 	"github.com/scionproto/scion/pkg/metrics"
 )
 
-// ExportMetric is the interface to export periodic metrics.
-type ExportMetric interface {
-	Runtime(time.Duration)
-	StartTimestamp(time.Time)
-	Period(time.Duration)
-	Event(string)
+// Metrics is the standard metrics used in periodic.Runner
+
+// Deprecated: Metrics is used only my the deprecated function periodic.Start
+// which exists only for compatibility reasons. Use periodic.StartWithMetrics
+// along with periodic.Metrics instead.
+type Metrics struct {
+	Events    func(string) metrics.Counter
+	Runtime   metrics.Gauge
+	Timestamp metrics.Gauge
+	Period    metrics.Gauge
 }
 
-// NewMetric returns the ExportMetric to be used for the exporting metrics.
-func NewMetric(prefix string) exporter {
-	return newExporter(prefix)
-}
-
-type exporter struct {
-	events    func(string) metrics.Counter
-	runtime   metrics.Gauge
-	timestamp metrics.Gauge
-	period    metrics.Gauge
-}
-
-func newExporter(prefix string) exporter {
+func NewMetric(prefix string) Metrics {
 	namespace := strcase.ToSnake(strings.Replace(prefix, ".", "_", -1))
 	subsystem := "periodic"
 
@@ -83,25 +74,12 @@ func newExporter(prefix string) exporter {
 		[]string{},
 	)
 
-	return exporter{
-		events: func(s string) metrics.Counter {
+	return Metrics{
+		Events: func(s string) metrics.Counter {
 			return metrics.NewPromCounter(events).With("event_type", s)
 		},
-		runtime:   metrics.NewPromGauge(runtime),
-		timestamp: metrics.NewPromGauge(timestamp),
-		period:    metrics.NewPromGauge(period),
+		Runtime:   metrics.NewPromGauge(runtime),
+		Timestamp: metrics.NewPromGauge(timestamp),
+		Period:    metrics.NewPromGauge(period),
 	}
-}
-
-func (e exporter) GetEvents() func(string) metrics.Counter {
-	return e.events
-}
-func (e exporter) GetTimestamp() metrics.Gauge {
-	return e.timestamp
-}
-func (e exporter) GetPeriod() metrics.Gauge {
-	return e.period
-}
-func (e exporter) GetRuntime() metrics.Gauge {
-	return e.runtime
 }
