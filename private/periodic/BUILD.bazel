@@ -15,12 +15,9 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = [
-        "export_test.go",
-        "periodic_test.go",
-    ],
-    embed = [":go_default_library"],
+    srcs = ["periodic_test.go"],
     deps = [
+        ":go_default_library",
         "//pkg/metrics:go_default_library",
         "//pkg/private/xtest:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
