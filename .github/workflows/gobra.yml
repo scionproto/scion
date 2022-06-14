@@ -34,4 +34,4 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: verification_statistics
-          path: ${{ runner.workspace }}/scion/.gobra/stats.json
+          path: ${{ runner.workspace }}/.gobra/stats.json
