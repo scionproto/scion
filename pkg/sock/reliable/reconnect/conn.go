@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/sock/reliable"
 )
 
@@ -175,11 +176,20 @@ func (conn *PacketConn) Close() error {
 		panic("double close")
 	}
 	close(conn.closeCh)
+	c := conn.getConn()
+	var closeErrors serrors.List
+	if err := c.Close(); err != nil {
+		closeErrors = append(closeErrors, err)
+	}
 	conn.reconnecter.Stop()
 	// Once Stop() returns, it is guaranteed that snetConn is never recreated
 	// by the reconnecter.
-	err := conn.getConn().Close()
-	return err
+	if c2 := conn.getConn(); c2 != c {
+		if err := c2.Close(); err != nil {
+			closeErrors = append(closeErrors, err)
+		}
+	}
+	return closeErrors.ToError()
 }
 
 func (conn *PacketConn) isClosing() bool {
