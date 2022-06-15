@@ -60,11 +60,12 @@ Bazel & Co.
 
       make
 
-#. Finally, check that unit tests run correctly:
+#. Finally, check that tests run correctly:
 
    .. code-block:: bash
 
       make test
+      make test-integration
 
 #. (Optional) If you already have some code you wish to contribute upstream, you can also run the
    linters locally with:

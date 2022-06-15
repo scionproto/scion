@@ -1,33 +1,35 @@
 env:
   GOPROXY: "http://localhost:3200|https://proxy.golang.org|direct"
 steps:
-  - label: "build scion code :bazel:"
+  - label: "Build :bazel:"
     if: build.message !~ /\[doc\]/
     command:
       - bazel build --verbose_failures --announce_rc //:all
       - bazel run --verbose_failures //docker:prod //docker:test
     key: build
-    retry:
+    retry: &automatic-retry
       automatic:
         - exit_status: -1 # Agent was lost
         - exit_status: 255 # Forced agent shutdown
     timeout_in_minutes: 10
   - wait
-  - label: "UT: unit tests & lint :bazel::bash:"
+  - label: "Unit Tests :bazel:"
     if: build.message !~ /\[doc\]/
     command:
-      - bazel test --config=race --config=unit_all --cache_test_results=${BAZEL_CACHE_TEST_RESULTS:-auto}
-      - make lint
-      - make golangci-lint
+      - bazel test --config=race --config=unit_all
     key: unit_tests
     artifact_paths:
       - "artifacts.out/**/*"
-    retry:
-      automatic:
-        - exit_status: -1 # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
+    retry: *automatic-retry
     timeout_in_minutes: 20
-  - label: "check generated"
+  - label: "Lint :bash:"
+    command:
+      - make lint
+      - make golangci-lint
+    key: lint
+    retry: *automatic-retry
+    timeout_in_minutes: 20
+  - label: "Check Generated :bash:"
     if: build.message !~ /\[doc\]/
     command:
       - echo "--- go_deps.bzl"
@@ -57,118 +59,61 @@ steps:
       - ./tools/update_testdata.sh
     timeout_in_minutes: 20
     key: check_generated
-    retry:
-      automatic:
-        - exit_status: -1 # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
-  - label: "Lint"
-    if: build.message =~ /\[doc\]/
-    command: make lint
-    key: lint
-    timeout_in_minutes: 20
-    retry:
-      automatic:
-        - exit_status: -1 # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
-  - label: "IT: :bazel:"
+    retry: *automatic-retry
+  - group: "End to End"
+    key: e2e
     if: build.message !~ /\[doc\]/
-    command:
-      - bazel test --config=integration_go
-    artifact_paths:
-      - "artifacts.out/**/*"
-    timeout_in_minutes: 15
-    key: anapaya_integration_tests
-    retry:
-      automatic:
-        - exit_status: -1 # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
-  - label: "E2E: default :go: :man_in_business_suit_levitating: (scion, ping)"
-    if: build.message !~ /\[doc\]/
-    parallelism: "${SCION_TESTING_FLAKE_PARALLELISM-1}"
-    command:
-      - echo "--- build"
-      - make
-      - echo "--- start topology"
-      - ./scion.sh topology -c topology/default.topo
-      - ./scion.sh run
-      - tools/await-connectivity
-      - ./bin/scion_integration || ( echo "^^^ +++" && false )
-      - ./bin/end2end_integration || ( echo "^^^ +++" && false )
-    plugins:
-      - scionproto/metahook#v0.3.0:
-          post-command: |
-            echo "--- Shutting down SCION topology"
-            ./scion.sh stop
-            echo "SCION topology successfully shut down"
-    artifact_paths:
-      - "artifacts.out/**/*"
-    timeout_in_minutes: 15
-    key: e2e_integration_tests_v2
-    retry:
-      automatic:
-        - exit_status: -1 # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
-  - label: "E2E: failing links :go: :man_in_business_suit_levitating:"
-    if: build.message !~ /\[doc\]/
-    parallelism: "${SCION_TESTING_FLAKE_PARALLELISM-1}"
-    command:
-      - echo "--- build"
-      - make
-      - echo "--- start topology"
-      - ./scion.sh topology -c topology/default-no-peers.topo
-      - ./scion.sh run
-      - tools/await-connectivity
-      - ./bin/end2end_integration || ( echo "^^^ +++" && false )
-      - ./tools/integration/revocation_test.sh
-    plugins:
-      - scionproto/metahook#v0.3.0:
-          post-command: |
-            echo "--- Shutting down SCION topology"
-            ./scion.sh stop
-            echo "SCION topology successfully shut down"
-    artifact_paths:
-      - "artifacts.out/**/*"
-    timeout_in_minutes: 15
-    key: e2e_revocation_test_v2
-    retry:
-      automatic:
-        - exit_status: -1 # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
-  - label: "E2E: default :go: :docker: (ping)"
-    if: build.message !~ /\[doc\]/
-    parallelism: "${SCION_TESTING_FLAKE_PARALLELISM-1}"
-    command:
-      - echo "--- build"
-      - make build docker-images
-      - echo "--- start topology"
-      - ./scion.sh topology -d
-      - ./scion.sh run
-      - tools/await-connectivity
-      - echo "--- run tests"
-      - ./bin/end2end_integration -d || ( echo "^^^ +++" && false )
-    plugins:
-      - scionproto/metahook#v0.3.0:
-          post-command: |
-            echo "--- Shutting down SCION topology"
-            ./scion.sh stop
-            echo "SCION topology successfully shut down"
-    artifact_paths:
-      - "artifacts.out/**/*"
-    timeout_in_minutes: 15
-    key: docker_integration_e2e_default
-    retry:
-      automatic:
-        - exit_status: -1 # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
-  - label: "TRC ceremony :bazel:"
-    if: build.message !~ /\[doc\]/
-    command:
-      - bazel test //tools/cryptoplayground:trc_ceremony_test //tools/cryptoplayground:trc_ceremony_sensitive_test
-    timeout_in_minutes: 15
-    key: trc_ceremony_test
-    artifact_paths:
-      - "artifacts.out/**/*"
-    retry:
-      automatic:
-        - exit_status: -1 # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
+    steps:
+    - label: "E2E: default :man_in_business_suit_levitating: (scion, ping)"
+      command:
+        - echo "--- build"
+        - make
+        - echo "--- start topology"
+        - ./scion.sh topology -c topology/default.topo
+        - ./scion.sh run
+        - tools/await-connectivity
+        - ./bin/scion_integration || ( echo "^^^ +++" && false )
+        - ./bin/end2end_integration || ( echo "^^^ +++" && false )
+      plugins: &shutdown-scion-post-command
+        - scionproto/metahook#v0.3.0:
+            post-command: |
+              echo "--- Shutting down SCION topology"
+              ./scion.sh stop
+              echo "SCION topology successfully shut down"
+      artifact_paths:
+        - "artifacts.out/**/*"
+      timeout_in_minutes: 15
+      key: e2e_integration_tests_v2
+      retry: *automatic-retry
+    - label: "E2E: failing links :man_in_business_suit_levitating:"
+      command:
+        - echo "--- build"
+        - make
+        - echo "--- start topology"
+        - ./scion.sh topology -c topology/default-no-peers.topo
+        - ./scion.sh run
+        - tools/await-connectivity
+        - ./bin/end2end_integration || ( echo "^^^ +++" && false )
+        - ./tools/integration/revocation_test.sh
+      plugins: *shutdown-scion-post-command
+      artifact_paths:
+        - "artifacts.out/**/*"
+      timeout_in_minutes: 15
+      key: e2e_revocation_test_v2
+      retry: *automatic-retry
+    - label: "E2E: default :docker: (ping)"
+      command:
+        - echo "--- build"
+        - make build docker-images
+        - echo "--- start topology"
+        - ./scion.sh topology -d
+        - ./scion.sh run
+        - tools/await-connectivity
+        - echo "--- run tests"
+        - ./bin/end2end_integration -d || ( echo "^^^ +++" && false )
+      plugins: *shutdown-scion-post-command
+      artifact_paths:
+        - "artifacts.out/**/*"
+      timeout_in_minutes: 15
+      key: docker_integration_e2e_default
+      retry: *automatic-retry
