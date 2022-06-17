@@ -25,7 +25,8 @@ import (
 
 func GetLvl1(t *testing.T, protoID drkey.Protocol, epoch drkey.Epoch,
 	srcIA, dstIA addr.IA) drkey.Lvl1Key {
-	asSecret := []byte{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7}
+	asSecret := []byte{0, 1, 2, 3, 4, 5, 6, 7}
+	asSecret = append(asSecret, byte(srcIA))
 	sv, err := drkey.DeriveSV(protoID, epoch, asSecret)
 	require.NoError(t, err)
 

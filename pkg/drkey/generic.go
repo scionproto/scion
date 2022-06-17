@@ -51,7 +51,7 @@ func (p *GenericDeriver) DeriveASHost(proto Protocol, dstHost string, key Key) (
 		return Key{}, serrors.WrapStr("parsing dst host", err)
 	}
 	len := p.inputDeriveLvl2(p.buf[:], asToHost, proto, host)
-	outKey, err := deriveKey(p.buf[:], len, key)
+	outKey, err := deriveKey(p.buf[:len], key)
 	return outKey, err
 }
 
@@ -62,7 +62,7 @@ func (p *GenericDeriver) DeriveHostAS(proto Protocol, srcHost string, key Key) (
 		return Key{}, serrors.WrapStr("parsing src host", err)
 	}
 	len := p.inputDeriveLvl2(p.buf[:], hostToAS, proto, host)
-	outKey, err := deriveKey(p.buf[:], len, key)
+	outKey, err := deriveKey(p.buf[:len], key)
 	return outKey, err
 }
 
@@ -73,6 +73,6 @@ func (p *GenericDeriver) DeriveHostToHost(dstHost string, key Key) (Key, error) 
 		return Key{}, serrors.WrapStr("deriving input H2H", err)
 	}
 	len := inputDeriveHostToHost(p.buf[:], host)
-	outKey, err := deriveKey(p.buf[:], len, key)
+	outKey, err := deriveKey(p.buf[:len], key)
 	return outKey, err
 }

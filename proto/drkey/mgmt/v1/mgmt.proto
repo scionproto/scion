@@ -58,23 +58,23 @@ message Lvl1Response{
 }
 
 message IntraLvl1Request{
-  // Point in time where requested key is valid.
-  google.protobuf.Timestamp val_time = 1;
-  // Protocol value.
-  Protocol protocol_id = 2;
-  // Src ISD-AS of the requested DRKey.
-  uint64 src_ia = 3;
-  // Dst ISD-AS of the requested DRKey.
-  uint64 dst_ia = 4;
+    // Point in time where requested key is valid.
+    google.protobuf.Timestamp val_time = 1;
+    // Protocol value.
+    Protocol protocol_id = 2;
+    // Src ISD-AS of the requested DRKey.
+    uint64 src_ia = 3;
+    // Dst ISD-AS of the requested DRKey.
+    uint64 dst_ia = 4;
 }
 
 message IntraLvl1Response{
-  // Begin of validity period of DRKey.
-  google.protobuf.Timestamp epoch_begin = 1;
-  // End of validity period of DRKey.
-  google.protobuf.Timestamp epoch_end = 2;
-  // Lvl1 key.
-  bytes key = 3;
+    // Begin of validity period of DRKey.
+    google.protobuf.Timestamp epoch_begin = 1;
+    // End of validity period of DRKey.
+    google.protobuf.Timestamp epoch_end = 2;
+    // Lvl1 key.
+    bytes key = 3;
 }
 
 message HostASRequest{
@@ -88,18 +88,18 @@ message HostASRequest{
     uint64 dst_ia = 4;
     // Src Host of the request DRKey.
     string src_host = 5;
-  }
+}
 
-  message HostASResponse{
+message HostASResponse{
     // Begin of validity period of DRKey.
     google.protobuf.Timestamp epoch_begin = 1;
     // End of validity period of DRKey.
     google.protobuf.Timestamp epoch_end = 2;
     // Lvl2 key.
     bytes key = 3;
-  }
+}
 
-  message ASHostRequest{
+message ASHostRequest{
     // Point in time where requested key is valid.
     google.protobuf.Timestamp val_time = 1;
     // Protocol value.
@@ -110,18 +110,18 @@ message HostASRequest{
     uint64 dst_ia = 4;
     // Dst Host of the request DRKey.
     string dst_host = 5;
-  }
+}
 
-  message ASHostResponse{
+message ASHostResponse{
     // Begin of validity period of DRKey.
     google.protobuf.Timestamp epoch_begin = 1;
     // End of validity period of DRKey.
     google.protobuf.Timestamp epoch_end = 2;
     // Lvl2 key.
     bytes key = 3;
-  }
+}
 
-  message HostHostRequest{
+message HostHostRequest{
     // Point in time where requested key is valid.
     google.protobuf.Timestamp val_time = 1;
     // Protocol value.
@@ -134,16 +134,16 @@ message HostASRequest{
     string src_host = 5;
     // Dst Host of the request DRKey.
     string dst_host = 6;
-  }
+}
 
-  message HostHostResponse{
+message HostHostResponse{
     // Begin of validity period of DRKey.
     google.protobuf.Timestamp epoch_begin = 1;
     // End of validity period of DRKey.
     google.protobuf.Timestamp epoch_end = 2;
     // Lvl2 key.
     bytes key = 3;
-  }
+}
 
 enum Protocol{
     // Generic is used to derive keys in the generic derivation scheme

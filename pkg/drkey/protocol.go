@@ -15,16 +15,14 @@
 package drkey
 
 import (
-	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/binary"
-	"math"
 	"net"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	sc_header "github.com/scionproto/scion/pkg/slayers"
+	"github.com/scionproto/scion/pkg/slayers"
 )
 
 // keyType represents the different types of keys (host->AS, AS->host, host->host).
@@ -44,8 +42,8 @@ var (
 
 // hostAddr is the address representation of a host as defined in the SCION header.
 type hostAddr struct {
-	AddrLen  sc_header.AddrLen
-	AddrType sc_header.AddrType
+	AddrLen  slayers.AddrLen
+	AddrType slayers.AddrType
 	RawAddr  []byte
 }
 
@@ -56,14 +54,14 @@ func packtoHostAddr(host string) (hostAddr, error) {
 	if ipAddr != nil {
 		if ip := ipAddr.IP().To4(); ip != nil {
 			return hostAddr{
-				AddrLen:  sc_header.AddrLen4,
-				AddrType: sc_header.T4Ip,
+				AddrLen:  slayers.AddrLen4,
+				AddrType: slayers.T4Ip,
 				RawAddr:  ip,
 			}, nil
 		}
 		return hostAddr{
-			AddrLen:  sc_header.AddrLen16,
-			AddrType: sc_header.T16Ip,
+			AddrLen:  slayers.AddrLen16,
+			AddrType: slayers.T16Ip,
 			RawAddr:  ipAddr.IP(),
 		}, nil
 	}
@@ -71,8 +69,8 @@ func packtoHostAddr(host string) (hostAddr, error) {
 	svcAddr := addr.HostSVCFromString(host)
 	if svcAddr != addr.SvcNone {
 		return hostAddr{
-			AddrLen:  sc_header.AddrLen4,
-			AddrType: sc_header.T4Svc,
+			AddrLen:  slayers.AddrLen4,
+			AddrType: slayers.T4Svc,
 			RawAddr:  svcAddr.PackWithPad(2),
 		}, nil
 	}
@@ -82,18 +80,18 @@ func packtoHostAddr(host string) (hostAddr, error) {
 // AddrToString returns the string representation of the HostAddr.
 func (h *hostAddr) AddrToString() string {
 	switch h.AddrLen {
-	case sc_header.AddrLen4:
+	case slayers.AddrLen4:
 		switch h.AddrType {
-		case sc_header.T4Ip:
+		case slayers.T4Ip:
 			addr := &net.IPAddr{IP: net.IP(h.RawAddr)}
 			return addr.String()
-		case sc_header.T4Svc:
+		case slayers.T4Svc:
 			addr := addr.HostSVC(binary.BigEndian.Uint16(h.RawAddr[:addr.HostLenSVC]))
 			return addr.String()
 		}
-	case sc_header.AddrLen16:
+	case slayers.AddrLen16:
 		switch h.AddrType {
-		case sc_header.T16Ip:
+		case slayers.T16Ip:
 			addr := &net.IPAddr{IP: net.IP(h.RawAddr)}
 			return addr.String()
 		}
@@ -101,18 +99,13 @@ func (h *hostAddr) AddrToString() string {
 	return ""
 }
 
-// Equal returns returns true if both HostAddresses are equal.
-func (h *hostAddr) Equal(other *hostAddr) bool {
-	return h.AddrLen == other.AddrLen && h.AddrType == other.AddrType &&
-		bytes.Equal(h.RawAddr, other.RawAddr)
-}
-
 func inputDeriveHostToHost(input []byte, host hostAddr) int {
 	hostAddr := host.RawAddr
 	l := len(hostAddr)
 
 	// Calculate a multiple of 16 such that the input fits in
-	nrBlocks := int(math.Ceil((2 + float64(l)) / 16))
+	nrBlocks := (2+l-1)/16 + 1
+
 	inputLength := 16 * nrBlocks
 
 	_ = input[inputLength-1]
@@ -126,13 +119,13 @@ func inputDeriveHostToHost(input []byte, host hostAddr) int {
 
 // DeriveKey derives the following key given an input and a higher-level key.
 // The input buffer is overwritten.
-func deriveKey(input []byte, inputLen int, upKey Key) (Key, error) {
+func deriveKey(input []byte, upKey Key) (Key, error) {
 	var key Key
 	b, err := initAESCBC(upKey[:])
 	if err != nil {
 		return key, err
 	}
-	mac := cbcMac(b, input[:inputLen])
+	mac := cbcMac(b, input[:])
 	copy(key[:], mac)
 	return key, nil
 }

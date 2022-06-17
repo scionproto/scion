@@ -34,12 +34,6 @@ type Epoch struct {
 	cppki.Validity
 }
 
-// Equal returns true if both Epochs are identical.
-func (e Epoch) Equal(other Epoch) bool {
-	return e.NotBefore == other.NotBefore &&
-		e.NotAfter == other.NotAfter
-}
-
 // NewEpoch constructs an Epoch from its uint32 encoded begin and end parts.
 func NewEpoch(begin, end uint32) Epoch {
 	return Epoch{
@@ -48,11 +42,6 @@ func NewEpoch(begin, end uint32) Epoch {
 			NotAfter:  util.SecsToTime(end).UTC(),
 		},
 	}
-}
-
-// Contains indicates whether the time point is inside this Epoch.
-func (e *Epoch) Contains(t time.Time) bool {
-	return e.Validity.Contains(t)
 }
 
 // Protocol is the 2-byte size protocol identifier
@@ -153,7 +142,7 @@ type Lvl1Key struct {
 	Key          Key
 }
 
-// ASHost represents the associated information for the ASHost key.
+// ASHostMeta represents the associated information for the ASHost key.
 type ASHostMeta struct {
 	ProtoId  Protocol
 	Validity time.Time
@@ -162,7 +151,7 @@ type ASHostMeta struct {
 	DstHost  string
 }
 
-// ASHost represents a ASHost key.
+// ASHostKey represents a ASHost key.
 type ASHostKey struct {
 	ProtoId Protocol
 	Epoch   Epoch
