@@ -16,7 +16,7 @@ syntax = "proto3";
 
 option go_package = "github.com/scionproto/scion/pkg/proto/drkey";
 
-package proto.drkey.mgmt.v1;
+package proto.drkey.v1;
 
 import "google/protobuf/timestamp.proto";
 
