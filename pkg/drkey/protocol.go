@@ -26,40 +26,40 @@ import (
 )
 
 // keyType represents the different types of keys (host->AS, AS->host, host->host).
-type keyType uint8
+type KeyType uint8
 
 // Key types.
 const (
-	asToAs keyType = iota
-	asToHost
-	hostToAS
-	hostToHost
+	AsToAs KeyType = iota
+	AsToHost
+	HostToAS
+	HostToHost
 )
 
 var (
-	zeroBlock [aes.BlockSize]byte
+	ZeroBlock [aes.BlockSize]byte
 )
 
-// hostAddr is the address representation of a host as defined in the SCION header.
-type hostAddr struct {
+// HostAddr is the address representation of a host as defined in the SCION header.
+type HostAddr struct {
 	AddrLen  slayers.AddrLen
 	AddrType slayers.AddrType
 	RawAddr  []byte
 }
 
 // packtoHostAddr returns a HostAddr parsing a given address in string format.
-func packtoHostAddr(host string) (hostAddr, error) {
+func HostAddrFromString(host string) (HostAddr, error) {
 	// trying IP
 	ipAddr := addr.HostFromIPStr(host)
 	if ipAddr != nil {
 		if ip := ipAddr.IP().To4(); ip != nil {
-			return hostAddr{
+			return HostAddr{
 				AddrLen:  slayers.AddrLen4,
 				AddrType: slayers.T4Ip,
 				RawAddr:  ip,
 			}, nil
 		}
-		return hostAddr{
+		return HostAddr{
 			AddrLen:  slayers.AddrLen16,
 			AddrType: slayers.T16Ip,
 			RawAddr:  ipAddr.IP(),
@@ -68,17 +68,17 @@ func packtoHostAddr(host string) (hostAddr, error) {
 	// trying SVC
 	svcAddr := addr.HostSVCFromString(host)
 	if svcAddr != addr.SvcNone {
-		return hostAddr{
+		return HostAddr{
 			AddrLen:  slayers.AddrLen4,
 			AddrType: slayers.T4Svc,
 			RawAddr:  svcAddr.PackWithPad(2),
 		}, nil
 	}
-	return hostAddr{}, serrors.New("unsupported address", "addr", host)
+	return HostAddr{}, serrors.New("unsupported address", "addr", host)
 }
 
 // AddrToString returns the string representation of the HostAddr.
-func (h *hostAddr) AddrToString() string {
+func (h *HostAddr) String() string {
 	switch h.AddrLen {
 	case slayers.AddrLen4:
 		switch h.AddrType {
@@ -99,7 +99,10 @@ func (h *hostAddr) AddrToString() string {
 	return ""
 }
 
-func inputDeriveHostToHost(input []byte, host hostAddr) int {
+// SerializeHostToHostInput serializes the input for deriving a HosToHost key,
+// as explained in https://docs.scion.org/en/latest/cryptography/drkey.html#level-derivation.
+// This derivation is common for Generic and Specific derivations.
+func SerializeHostToHostInput(input []byte, host HostAddr) int {
 	hostAddr := host.RawAddr
 	l := len(hostAddr)
 
@@ -109,19 +112,20 @@ func inputDeriveHostToHost(input []byte, host hostAddr) int {
 	inputLength := 16 * nrBlocks
 
 	_ = input[inputLength-1]
-	input[0] = uint8(hostToHost)
+	input[0] = uint8(HostToHost)
 	input[1] = uint8(host.AddrType&0x3)<<2 | uint8(host.AddrLen&0x3)
 	copy(input[2:], hostAddr)
-	copy(input[2+l:inputLength], zeroBlock[:])
+	copy(input[2+l:inputLength], ZeroBlock[:])
 
 	return inputLength
 }
 
-// DeriveKey derives the following key given an input and a higher-level key.
+// DeriveKey derives the following key given an input and a higher-level key,
+// as stated in https://docs.scion.org/en/latest/cryptography/drkey.html#prf-derivation-specification
 // The input buffer is overwritten.
-func deriveKey(input []byte, upKey Key) (Key, error) {
+func DeriveKey(input []byte, upperLevelKey Key) (Key, error) {
 	var key Key
-	b, err := initAESCBC(upKey[:])
+	b, err := initAESCBC(upperLevelKey[:])
 	if err != nil {
 		return key, err
 	}
@@ -135,7 +139,7 @@ func initAESCBC(key []byte) (cipher.BlockMode, error) {
 	if err != nil {
 		return nil, serrors.New("Unable to initialize AES cipher")
 	}
-	mode := cipher.NewCBCEncrypter(block, zeroBlock[:])
+	mode := cipher.NewCBCEncrypter(block, ZeroBlock[:])
 	return mode, nil
 }
 

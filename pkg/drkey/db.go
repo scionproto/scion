@@ -23,23 +23,23 @@ import (
 	"github.com/scionproto/scion/private/storage/db"
 )
 
-var ErrKeyNotFound = serrors.New("Key not found")
+var ErrKeyNotFound = serrors.New("key not found")
 
 // SecretValueDB is the database for Secret Values.
 type SecretValueDB interface {
-	GetSV(ctx context.Context, meta SVMeta) (SV, error)
-	InsertSV(ctx context.Context, key SV) error
-	DeleteExpiredSV(ctx context.Context, cutoff time.Time) (int64, error)
+	GetValue(ctx context.Context, meta SecretValueMeta) (SecretValue, error)
+	InsertValue(ctx context.Context, key SecretValue) error
+	DeleteExpiredValues(ctx context.Context, cutoff time.Time) (int64, error)
 
 	io.Closer
 	db.LimitSetter
 }
 
-// Lvl1DB is the drkey database interface for level 1.
-type Lvl1DB interface {
-	GetLvl1Key(ctx context.Context, meta Lvl1Meta) (Lvl1Key, error)
-	InsertLvl1Key(ctx context.Context, key Lvl1Key) error
-	DeleteExpiredLvl1Keys(ctx context.Context, cutoff time.Time) (int64, error)
+// Level1DB is the drkey database interface for level 1.
+type Level1DB interface {
+	GetLevel1Key(ctx context.Context, meta Level1Meta) (Level1Key, error)
+	InsertLevel1Key(ctx context.Context, key Level1Key) error
+	DeleteExpiredLevel1Keys(ctx context.Context, cutoff time.Time) (int64, error)
 
 	io.Closer
 	db.LimitSetter
@@ -53,7 +53,7 @@ type Lvl2DB interface {
 	InsertASHostKey(ctx context.Context, key ASHostKey) error
 	InsertHostASKey(ctx context.Context, key HostASKey) error
 	InsertHostHostKey(ctx context.Context, key HostHostKey) error
-	DeleteExpiredLvl2Keys(ctx context.Context, cutoff time.Time) (int64, error)
+	DeleteExpiredLevel2Keys(ctx context.Context, cutoff time.Time) (int64, error)
 
 	io.Closer
 	db.LimitSetter

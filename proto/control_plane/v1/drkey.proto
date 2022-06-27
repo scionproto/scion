@@ -1,4 +1,4 @@
-// Copyright 2020 Anapaya Systems
+// Copyright 2020 ETH Zürich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,66 +14,67 @@
 
 syntax = "proto3";
 
-option go_package = "github.com/scionproto/scion/pkg/proto/drkey";
+option go_package = "github.com/scionproto/scion/pkg/proto/control_plane";
 
-package proto.drkey.v1;
+package proto.control_plane.v1;
 
+import "proto/drkey/v1/drkey.proto";
 import "google/protobuf/timestamp.proto";
 
-message SVRequest{
+message SecretValueRequest{
     // Point in time when the requested key is valid.
     google.protobuf.Timestamp val_time = 1;
     // Protocol value.
-    Protocol protocol_id = 2;
+    proto.drkey.v1.Protocol protocol_id = 2;
 }
 
-message SVResponse{
+message SecretValueResponse{
     // Begin of the validity period.
     google.protobuf.Timestamp epoch_begin = 1;
     // End of the validity period.
     google.protobuf.Timestamp epoch_end = 2;
-    // SV key.
+    // SecretValue key.
     bytes key = 3;
 }
 
-// Lvl1Request leaves out the 'dstIA' field which can be extracted from
+// Level1Request leaves out the 'dstIA' field which can be extracted from
 // the transport itself (ideally from authenticated information).
-message Lvl1Request{
+message Level1Request{
     // Point in time where requested key is valid.
     google.protobuf.Timestamp val_time = 1;
     // Protocol value.
-    Protocol protocol_id = 2;
+    proto.drkey.v1.Protocol protocol_id = 2;
 
 }
 
-// Lvl1Response leaves out the 'dstIA' and 'srcIA' fields which can be
+// Level1Response leaves out the 'dstIA' and 'srcIA' fields which can be
 // extracted from the transport itself (ideally from authenticated information).
-message Lvl1Response{
+message Level1Response{
     // Begin of the validity period
     google.protobuf.Timestamp epoch_begin = 1;
     // End of the validity period
     google.protobuf.Timestamp epoch_end = 2;
-    // Lvl1 key
+    // Level1 key
     bytes key = 3;
 }
 
-message IntraLvl1Request{
+message IntraLevel1Request{
     // Point in time where requested key is valid.
     google.protobuf.Timestamp val_time = 1;
     // Protocol value.
-    Protocol protocol_id = 2;
+    proto.drkey.v1.Protocol protocol_id = 2;
     // Src ISD-AS of the requested DRKey.
     uint64 src_ia = 3;
     // Dst ISD-AS of the requested DRKey.
     uint64 dst_ia = 4;
 }
 
-message IntraLvl1Response{
+message IntraLevel1Response{
     // Begin of validity period of DRKey.
     google.protobuf.Timestamp epoch_begin = 1;
     // End of validity period of DRKey.
     google.protobuf.Timestamp epoch_end = 2;
-    // Lvl1 key.
+    // Level1 key.
     bytes key = 3;
 }
 
@@ -81,7 +82,7 @@ message HostASRequest{
     // Point in time where requested key is valid.
     google.protobuf.Timestamp val_time = 1;
     // Protocol value.
-    Protocol protocol_id = 2;
+    proto.drkey.v1.Protocol protocol_id = 2;
     // Src ISD-AS of the requested DRKey.
     uint64 src_ia = 3;
     // Dst ISD-AS of the requested DRKey.
@@ -103,7 +104,7 @@ message ASHostRequest{
     // Point in time where requested key is valid.
     google.protobuf.Timestamp val_time = 1;
     // Protocol value.
-    Protocol protocol_id = 2;
+    proto.drkey.v1.Protocol protocol_id = 2;
     // Src ISD-AS of the requested DRKey.
     uint64 src_ia = 3;
     // Dst ISD-AS of the requested DRKey.
@@ -120,40 +121,3 @@ message ASHostResponse{
     // Lvl2 key.
     bytes key = 3;
 }
-
-message HostHostRequest{
-    // Point in time where requested key is valid.
-    google.protobuf.Timestamp val_time = 1;
-    // Protocol value.
-    Protocol protocol_id = 2;
-    // Src ISD-AS of the requested DRKey.
-    uint64 src_ia = 3;
-    // Dst ISD-AS of the requested DRKey.
-    uint64 dst_ia = 4;
-    // Src Host of the request DRKey.
-    string src_host = 5;
-    // Dst Host of the request DRKey.
-    string dst_host = 6;
-}
-
-message HostHostResponse{
-    // Begin of validity period of DRKey.
-    google.protobuf.Timestamp epoch_begin = 1;
-    // End of validity period of DRKey.
-    google.protobuf.Timestamp epoch_end = 2;
-    // Lvl2 key.
-    bytes key = 3;
-}
-
-enum Protocol{
-    // Generic is used to derive keys in the generic derivation scheme
-    PROTOCOL_GENERIC_UNSPECIFIED = 0;
-    // SCMP protocol
-    PROTOCOL_SCMP = 1;
-    // DNS protocol
-    PROTOCOL_DNS = 2;
-    // COLIBRI protocol
-    PROTOCOL_COLIBRI = 3;
-    reserved 65536 to max; // only 16-bit values allowed
-}
-

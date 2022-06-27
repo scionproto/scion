@@ -15,20 +15,37 @@
 package drkey_test
 
 import (
+	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/drkey"
+	"github.com/scionproto/scion/pkg/private/xtest"
+)
+
+var (
+	update = xtest.UpdateGoldenFiles()
 )
 
 func TestDeriveSV(t *testing.T) {
 
 	asSecret := []byte{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7}
-	targetKey := drkey.Key{0xc3, 0xb4, 0x84, 0x3c, 0x99, 0x3,
-		0x14, 0xf9, 0xac, 0x55, 0x4f, 0x9b, 0x78, 0x1c, 0xde, 0xb7}
 
 	got, err := drkey.DeriveSV(0, drkey.NewEpoch(0, 1), asSecret)
 	require.NoError(t, err)
-	require.EqualValues(t, targetKey, got.Key)
+
+	goldenFile := "testdata/" + xtest.SanitizedName(t)
+	if *update {
+		jsonRaw, err := json.Marshal(got.Key)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(goldenFile, jsonRaw, 0666))
+	}
+	goldenRaw, err := os.ReadFile(goldenFile)
+	require.NoError(t, err)
+
+	var expectedKey drkey.Key
+	require.NoError(t, json.Unmarshal(goldenRaw, &expectedKey))
+	require.Equal(t, expectedKey, got.Key)
 }

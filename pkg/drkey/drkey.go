@@ -51,8 +51,6 @@ type Protocol uint16
 const (
 	Generic = Protocol(pb.Protocol_PROTOCOL_GENERIC_UNSPECIFIED)
 	SCMP    = Protocol(pb.Protocol_PROTOCOL_SCMP)
-	DNS     = Protocol(pb.Protocol_PROTOCOL_DNS)
-	COLIBRI = Protocol(pb.Protocol_PROTOCOL_COLIBRI)
 )
 
 func (p Protocol) String() string {
@@ -85,24 +83,24 @@ func (k Key) String() string {
 
 const drkeySalt = "Derive DRKey Key"
 
-// SVMeta represents the information about a DRKey secret value.
-type SVMeta struct {
+// SecretValueMeta represents the information about a DRKey secret value.
+type SecretValueMeta struct {
 	Validity time.Time
 	ProtoId  Protocol
 }
 
-// SV represents a DRKey secret value.
-type SV struct {
+// SecretValue represents a DRKey secret value.
+type SecretValue struct {
 	Epoch   Epoch
 	ProtoId Protocol
 	Key     Key
 }
 
 // DeriveSV constructs a valid SV. asSecret is typically the AS master secret.
-func DeriveSV(protoID Protocol, epoch Epoch, asSecret []byte) (SV, error) {
+func DeriveSV(protoID Protocol, epoch Epoch, asSecret []byte) (SecretValue, error) {
 	msLen := len(asSecret)
 	if msLen == 0 {
-		return SV{}, serrors.New("Invalid zero sized secret")
+		return SecretValue{}, serrors.New("Invalid zero sized secret")
 	}
 
 	totalLen := msLen + 18
@@ -119,7 +117,7 @@ func DeriveSV(protoID Protocol, epoch Epoch, asSecret []byte) (SV, error) {
 	binary.BigEndian.PutUint32(buf[offset:], util.TimeToSecs(epoch.NotAfter))
 
 	key := pbkdf2.Key(buf, []byte(drkeySalt), 1000, 16, sha256.New)
-	sv := SV{
+	sv := SecretValue{
 		Epoch:   epoch,
 		ProtoId: protoID,
 	}
@@ -127,15 +125,15 @@ func DeriveSV(protoID Protocol, epoch Epoch, asSecret []byte) (SV, error) {
 	return sv, nil
 }
 
-// / Lvl1Meta contains metadata to obtain a lvl1 key.
-type Lvl1Meta struct {
+// / Level1Meta contains metadata to obtain a Level1 key.
+type Level1Meta struct {
 	Validity     time.Time
 	ProtoId      Protocol
 	SrcIA, DstIA addr.IA
 }
 
-// Lvl1Key represents a level 1 DRKey.
-type Lvl1Key struct {
+// Level1Key represents a level 1 DRKey.
+type Level1Key struct {
 	Epoch        Epoch
 	ProtoId      Protocol
 	SrcIA, DstIA addr.IA

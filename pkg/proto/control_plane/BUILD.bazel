@@ -9,5 +9,6 @@ go_proto_library(
     deps = [
         "//pkg/proto/control_plane/experimental:go_default_library",
         "//pkg/proto/crypto:go_default_library",
+        "//pkg/proto/drkey:go_default_library",
     ],
 )
