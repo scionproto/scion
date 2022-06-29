@@ -1,4 +1,4 @@
-// Copyright 2020 ETH Zürich
+// Copyright 2020 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,14 +21,14 @@ package proto.control_plane.v1;
 import "proto/drkey/v1/drkey.proto";
 import "google/protobuf/timestamp.proto";
 
-message SecretValueRequest{
+message DRKeySecretValueRequest{
     // Point in time when the requested key is valid.
     google.protobuf.Timestamp val_time = 1;
     // Protocol value.
     proto.drkey.v1.Protocol protocol_id = 2;
 }
 
-message SecretValueResponse{
+message DRKeySecretValueResponse{
     // Begin of the validity period.
     google.protobuf.Timestamp epoch_begin = 1;
     // End of the validity period.
@@ -37,9 +37,9 @@ message SecretValueResponse{
     bytes key = 3;
 }
 
-// Level1Request leaves out the 'dstIA' field which can be extracted from
+// DRKeyLevel1Request leaves out the 'dstIA' field which can be extracted from
 // the transport itself (ideally from authenticated information).
-message Level1Request{
+message DRKeyLevel1Request{
     // Point in time where requested key is valid.
     google.protobuf.Timestamp val_time = 1;
     // Protocol value.
@@ -47,9 +47,9 @@ message Level1Request{
 
 }
 
-// Level1Response leaves out the 'dstIA' and 'srcIA' fields which can be
+// DRKeyLevel1Response leaves out the 'dstIA' and 'srcIA' fields which can be
 // extracted from the transport itself (ideally from authenticated information).
-message Level1Response{
+message DRKeyLevel1Response{
     // Begin of the validity period
     google.protobuf.Timestamp epoch_begin = 1;
     // End of the validity period
@@ -58,7 +58,7 @@ message Level1Response{
     bytes key = 3;
 }
 
-message IntraLevel1Request{
+message DRKeyIntraLevel1Request{
     // Point in time where requested key is valid.
     google.protobuf.Timestamp val_time = 1;
     // Protocol value.
@@ -69,7 +69,7 @@ message IntraLevel1Request{
     uint64 dst_ia = 4;
 }
 
-message IntraLevel1Response{
+message DRKeyIntraLevel1Response{
     // Begin of validity period of DRKey.
     google.protobuf.Timestamp epoch_begin = 1;
     // End of validity period of DRKey.
@@ -78,7 +78,7 @@ message IntraLevel1Response{
     bytes key = 3;
 }
 
-message HostASRequest{
+message DRKeyHostASRequest{
     // Point in time where requested key is valid.
     google.protobuf.Timestamp val_time = 1;
     // Protocol value.
@@ -91,16 +91,16 @@ message HostASRequest{
     string src_host = 5;
 }
 
-message HostASResponse{
+message DRKeyHostASResponse{
     // Begin of validity period of DRKey.
     google.protobuf.Timestamp epoch_begin = 1;
     // End of validity period of DRKey.
     google.protobuf.Timestamp epoch_end = 2;
-    // Lvl2 key.
+    // Level2 key.
     bytes key = 3;
 }
 
-message ASHostRequest{
+message DRKeyASHostRequest{
     // Point in time where requested key is valid.
     google.protobuf.Timestamp val_time = 1;
     // Protocol value.
@@ -113,11 +113,11 @@ message ASHostRequest{
     string dst_host = 5;
 }
 
-message ASHostResponse{
+message DRKeyASHostResponse{
     // Begin of validity period of DRKey.
     google.protobuf.Timestamp epoch_begin = 1;
     // End of validity period of DRKey.
     google.protobuf.Timestamp epoch_end = 2;
-    // Lvl2 key.
+    // Level2 key.
     bytes key = 3;
 }

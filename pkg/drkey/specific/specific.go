@@ -25,6 +25,9 @@ import (
 
 // SpecificDeriver implements the specific drkey derivation.
 type Deriver struct {
+	// buf is a 32-byte array intended to save some allocations. Internally, it is used
+	// as dst buffer for the input generation functions and as input buffer for
+	// the key derivation functions.
 	buf [32]byte
 }
 
@@ -34,37 +37,6 @@ func (d *Deriver) DeriveLevel1(dstIA addr.IA,
 	len := serializeLevel1Input(d.buf[:], dstIA)
 	outKey, err := drkey.DeriveKey(d.buf[:len], key)
 	return outKey, err
-}
-
-// serializeLevel1Input serializes the input for a Level1 key,
-// as explained in https://docs.scion.org/en/latest/cryptography/drkey.html#protocol-specific-derivation
-func serializeLevel1Input(buf []byte, dstIA addr.IA) int {
-	_ = buf[aes.BlockSize-1]
-	buf[0] = byte(drkey.AsToAs)
-	binary.BigEndian.PutUint64(buf[1:], uint64(dstIA))
-	copy(buf[9:], drkey.ZeroBlock[:])
-
-	return aes.BlockSize
-}
-
-// serializeLevel2Input serializes the input for a ASHost or HostAS key,
-// as explained in https://docs.scion.org/en/latest/cryptography/drkey.html#protocol-specific-derivation
-func (d *Deriver) serializeLevel2Input(input []byte, derType drkey.KeyType,
-	host drkey.HostAddr) int {
-	hostAddr := host.RawAddr
-	l := len(hostAddr)
-
-	// Calculate a multiple of 16 such that the input fits in
-	nrBlocks := (2+l-1)/16 + 1
-	inputLength := 16 * nrBlocks
-
-	_ = input[inputLength-1]
-	input[0] = uint8(derType)
-	input[1] = uint8(host.AddrType&0x3)<<2 | uint8(host.AddrLen&0x3)
-	copy(input[2:], hostAddr)
-	copy(input[2+l:inputLength], drkey.ZeroBlock[:])
-
-	return inputLength
 }
 
 // DeriveASHost returns the ASHost derived key.
@@ -99,4 +71,37 @@ func (d *Deriver) DeriveHostToHost(dstHost string, key drkey.Key) (drkey.Key, er
 	len := drkey.SerializeHostToHostInput(d.buf[:], host)
 	outKey, err := drkey.DeriveKey(d.buf[:len], key)
 	return outKey, err
+}
+
+// serializeLevel2Input serializes the input for a ASHost or HostAS key,
+// as explained in
+// https://docs.scion.org/en/latest/cryptography/drkey.html#protocol-specific-derivation
+func (d *Deriver) serializeLevel2Input(input []byte, derType drkey.KeyType,
+	host drkey.HostAddr) int {
+	hostAddr := host.RawAddr
+	l := len(hostAddr)
+
+	// Calculate a multiple of 16 such that the input fits in
+	nrBlocks := (2+l-1)/16 + 1
+	inputLength := 16 * nrBlocks
+
+	_ = input[inputLength-1]
+	input[0] = uint8(derType)
+	input[1] = uint8(host.AddrType&0x3)<<2 | uint8(host.AddrLen&0x3)
+	copy(input[2:], hostAddr)
+	copy(input[2+l:inputLength], drkey.ZeroBlock[:])
+
+	return inputLength
+}
+
+// serializeLevel1Input serializes the input for a Level1 key,
+// as explained in
+// https://docs.scion.org/en/latest/cryptography/drkey.html#protocol-specific-derivation
+func serializeLevel1Input(buf []byte, dstIA addr.IA) int {
+	_ = buf[aes.BlockSize-1]
+	buf[0] = byte(drkey.AsToAs)
+	binary.BigEndian.PutUint64(buf[1:], uint64(dstIA))
+	copy(buf[9:], drkey.ZeroBlock[:])
+
+	return aes.BlockSize
 }

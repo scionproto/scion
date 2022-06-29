@@ -193,7 +193,7 @@ message NotifyInterfaceDownRequest {
 
 message NotifyInterfaceDownResponse {};
 
-message HostASRequest{
+message DRKeyHostASRequest{
     // Point in time where requested key is valid.
     google.protobuf.Timestamp val_time = 1;
     // Protocol value.
@@ -206,16 +206,16 @@ message HostASRequest{
     string src_host = 5;
 }
 
-message HostASResponse{
+message DRKeyHostASResponse{
     // Begin of validity period of DRKey.
     google.protobuf.Timestamp epoch_begin = 1;
     // End of validity period of DRKey.
     google.protobuf.Timestamp epoch_end = 2;
-    // Lvl2 key.
+    // Level2 key.
     bytes key = 3;
 }
 
-message ASHostRequest{
+message DRKeyASHostRequest{
     // Point in time where requested key is valid.
     google.protobuf.Timestamp val_time = 1;
     // Protocol value.
@@ -228,16 +228,16 @@ message ASHostRequest{
     string dst_host = 5;
 }
 
-message ASHostResponse{
+message DRKeyASHostResponse{
     // Begin of validity period of DRKey.
     google.protobuf.Timestamp epoch_begin = 1;
     // End of validity period of DRKey.
     google.protobuf.Timestamp epoch_end = 2;
-    // Lvl2 key.
+    // Level2 key.
     bytes key = 3;
 }
 
-message HostHostRequest{
+message DRKeyHostHostRequest{
     // Point in time where requested key is valid.
     google.protobuf.Timestamp val_time = 1;
     // Protocol value.
@@ -252,11 +252,11 @@ message HostHostRequest{
     string dst_host = 6;
 }
 
-message HostHostResponse{
+message DRKeyHostHostResponse{
     // Begin of validity period of DRKey.
     google.protobuf.Timestamp epoch_begin = 1;
     // End of validity period of DRKey.
     google.protobuf.Timestamp epoch_end = 2;
-    // Lvl2 key.
+    // Level2 key.
     bytes key = 3;
 }

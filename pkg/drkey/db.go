@@ -45,8 +45,8 @@ type Level1DB interface {
 	db.LimitSetter
 }
 
-// Lvl2DB is the drkey database interface for end-host keys.
-type Lvl2DB interface {
+// Level2DB is the drkey database interface for end-host keys.
+type Level2DB interface {
 	GetASHostKey(ctx context.Context, meta ASHostMeta) (ASHostKey, error)
 	GetHostASKey(ctx context.Context, meta HostASMeta) (HostASKey, error)
 	GetHostHostKey(ctx context.Context, meta HostHostMeta) (HostHostKey, error)

@@ -47,6 +47,28 @@ type HostAddr struct {
 	RawAddr  []byte
 }
 
+// AddrToString returns the string representation of the HostAddr.
+func (h *HostAddr) String() string {
+	switch h.AddrLen {
+	case slayers.AddrLen4:
+		switch h.AddrType {
+		case slayers.T4Ip:
+			addr := &net.IPAddr{IP: net.IP(h.RawAddr)}
+			return addr.String()
+		case slayers.T4Svc:
+			addr := addr.HostSVC(binary.BigEndian.Uint16(h.RawAddr[:addr.HostLenSVC]))
+			return addr.String()
+		}
+	case slayers.AddrLen16:
+		switch h.AddrType {
+		case slayers.T16Ip:
+			addr := &net.IPAddr{IP: net.IP(h.RawAddr)}
+			return addr.String()
+		}
+	}
+	return ""
+}
+
 // packtoHostAddr returns a HostAddr parsing a given address in string format.
 func HostAddrFromString(host string) (HostAddr, error) {
 	// trying IP
@@ -77,30 +99,9 @@ func HostAddrFromString(host string) (HostAddr, error) {
 	return HostAddr{}, serrors.New("unsupported address", "addr", host)
 }
 
-// AddrToString returns the string representation of the HostAddr.
-func (h *HostAddr) String() string {
-	switch h.AddrLen {
-	case slayers.AddrLen4:
-		switch h.AddrType {
-		case slayers.T4Ip:
-			addr := &net.IPAddr{IP: net.IP(h.RawAddr)}
-			return addr.String()
-		case slayers.T4Svc:
-			addr := addr.HostSVC(binary.BigEndian.Uint16(h.RawAddr[:addr.HostLenSVC]))
-			return addr.String()
-		}
-	case slayers.AddrLen16:
-		switch h.AddrType {
-		case slayers.T16Ip:
-			addr := &net.IPAddr{IP: net.IP(h.RawAddr)}
-			return addr.String()
-		}
-	}
-	return ""
-}
-
-// SerializeHostToHostInput serializes the input for deriving a HosToHost key,
-// as explained in https://docs.scion.org/en/latest/cryptography/drkey.html#level-derivation.
+// SerializeHostToHostInput serializes the input for deriving a HostToHost key,
+// as explained in
+// https://docs.scion.org/en/latest/cryptography/drkey.html#level-derivation.
 // This derivation is common for Generic and Specific derivations.
 func SerializeHostToHostInput(input []byte, host HostAddr) int {
 	hostAddr := host.RawAddr
@@ -121,7 +122,8 @@ func SerializeHostToHostInput(input []byte, host HostAddr) int {
 }
 
 // DeriveKey derives the following key given an input and a higher-level key,
-// as stated in https://docs.scion.org/en/latest/cryptography/drkey.html#prf-derivation-specification
+// as stated in
+// https://docs.scion.org/en/latest/cryptography/drkey.html#prf-derivation-specification
 // The input buffer is overwritten.
 func DeriveKey(input []byte, upperLevelKey Key) (Key, error) {
 	var key Key

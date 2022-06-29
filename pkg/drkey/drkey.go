@@ -29,6 +29,12 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 )
 
+// DRKey protocol types.
+const (
+	Generic = Protocol(pb.Protocol_PROTOCOL_GENERIC_UNSPECIFIED)
+	SCMP    = Protocol(pb.Protocol_PROTOCOL_SCMP)
+)
+
 // Epoch represents a validity period.
 type Epoch struct {
 	cppki.Validity
@@ -46,12 +52,6 @@ func NewEpoch(begin, end uint32) Epoch {
 
 // Protocol is the 2-byte size protocol identifier
 type Protocol uint16
-
-// DRKey protocol types.
-const (
-	Generic = Protocol(pb.Protocol_PROTOCOL_GENERIC_UNSPECIFIED)
-	SCMP    = Protocol(pb.Protocol_PROTOCOL_SCMP)
-)
 
 func (p Protocol) String() string {
 	name, ok := pb.Protocol_name[int32(p)]

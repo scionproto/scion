@@ -20,7 +20,7 @@ go_test(
         ":go_default_library",
         "//pkg/drkey:go_default_library",
         "//pkg/private/xtest:go_default_library",
-        "//private/drkey/protocoltest:go_default_library",
+        "//private/drkey/drkeytest:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
     ],

@@ -23,31 +23,10 @@ import (
 
 // Deriver implements the level 2/3 generic drkey derivation.
 type Deriver struct {
-	// buf is a 32-byte inteded to save some allocations. Internally, it is used
+	// buf is a 32-byte array intended to save some allocations. Internally, it is used
 	// as dst buffer for the input generation functions and as input buffer for
 	// the key derivation functions.
 	buf [32]byte
-}
-
-// serializeLevel2Input serializes the input for a ASHost or HostAS key,
-// as explained in https://docs.scion.org/en/latest/cryptography/drkey.html#generic-protocol-derivation
-func (d *Deriver) serializeLevel2Input(input []byte, derType drkey.KeyType,
-	proto drkey.Protocol, host drkey.HostAddr) int {
-	hostAddr := host.RawAddr
-	l := len(hostAddr)
-
-	// Calculate a multiple of 16 such that the input fits in
-	nrBlocks := (4+l-1)/16 + 1
-	inputLength := 16 * nrBlocks
-
-	_ = input[inputLength-1]
-	input[0] = uint8(derType)
-	binary.BigEndian.PutUint16(input[1:], uint16(proto))
-	input[3] = uint8(host.AddrType&0x3)<<2 | uint8(host.AddrLen&0x3)
-	copy(input[4:], hostAddr)
-	copy(input[4+l:inputLength], drkey.ZeroBlock[:])
-
-	return inputLength
 }
 
 // DeriveASHost returns the ASHost derived key.
@@ -84,4 +63,26 @@ func (d *Deriver) DeriveHostToHost(dstHost string,
 	len := drkey.SerializeHostToHostInput(d.buf[:], host)
 	outKey, err := drkey.DeriveKey(d.buf[:len], key)
 	return outKey, err
+}
+
+// serializeLevel2Input serializes the input for a ASHost or HostAS key,
+// as explained in
+// https://docs.scion.org/en/latest/cryptography/drkey.html#generic-protocol-derivation
+func (d *Deriver) serializeLevel2Input(input []byte, derType drkey.KeyType,
+	proto drkey.Protocol, host drkey.HostAddr) int {
+	hostAddr := host.RawAddr
+	l := len(hostAddr)
+
+	// Calculate a multiple of 16 such that the input fits in
+	nrBlocks := (4+l-1)/16 + 1
+	inputLength := 16 * nrBlocks
+
+	_ = input[inputLength-1]
+	input[0] = uint8(derType)
+	binary.BigEndian.PutUint16(input[1:], uint16(proto))
+	input[3] = uint8(host.AddrType&0x3)<<2 | uint8(host.AddrLen&0x3)
+	copy(input[4:], hostAddr)
+	copy(input[4+l:inputLength], drkey.ZeroBlock[:])
+
+	return inputLength
 }

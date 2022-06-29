@@ -15,7 +15,7 @@
 package generic_test
 
 import (
-	"encoding/json"
+	"encoding/hex"
 	"os"
 	"testing"
 
@@ -24,7 +24,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/xtest"
-	"github.com/scionproto/scion/private/drkey/protocoltest"
+	"github.com/scionproto/scion/private/drkey/drkeytest"
 )
 
 var (
@@ -38,7 +38,7 @@ var (
 )
 
 func TestDeriveASHostGeneric(t *testing.T) {
-	level1Key := protocoltest.GetLevel1(t, protoId, epoch, srcIA, dstIA)
+	level1Key := drkeytest.GetLevel1(t, protoId, epoch, srcIA, dstIA)
 
 	testCases := map[string]struct {
 		meta            drkey.ASHostMeta
@@ -69,29 +69,30 @@ func TestDeriveASHostGeneric(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 
-			key, err := protocoltest.DeriveASHostGeneric(tc.meta, level1Key)
+			key, err := drkeytest.DeriveASHostGeneric(tc.meta, level1Key)
 			tc.assertFormatErr(t, err)
 			if err != nil {
 				return
 			}
 			goldenFile := "testdata/" + xtest.SanitizedName(t)
 			if *update {
-				jsonRaw, err := json.Marshal(key.Key)
-				require.NoError(t, err)
-				require.NoError(t, os.WriteFile(goldenFile, jsonRaw, 0666))
+				keyStr := hex.EncodeToString(key.Key[:])
+				require.NoError(t, os.WriteFile(goldenFile, []byte(keyStr), 0666))
 			}
 			goldenRaw, err := os.ReadFile(goldenFile)
 			require.NoError(t, err)
 
 			var expectedKey drkey.Key
-			require.NoError(t, json.Unmarshal(goldenRaw, &expectedKey))
-			assert.Equal(t, expectedKey, key.Key)
+			goldenKey, err := hex.DecodeString(string(goldenRaw))
+			require.NoError(t, err)
+			copy(expectedKey[:], goldenKey)
+			require.Equal(t, expectedKey, key.Key)
 		})
 	}
 }
 
 func TestDeriveGenericHostAS(t *testing.T) {
-	level1Key := protocoltest.GetLevel1(t, protoId, epoch, srcIA, dstIA)
+	level1Key := drkeytest.GetLevel1(t, protoId, epoch, srcIA, dstIA)
 	testCases := map[string]struct {
 		meta            drkey.HostASMeta
 		assertFormatErr assert.ErrorAssertionFunc
@@ -115,29 +116,30 @@ func TestDeriveGenericHostAS(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 
-			key, err := protocoltest.DeriveHostASGeneric(tc.meta, level1Key)
+			key, err := drkeytest.DeriveHostASGeneric(tc.meta, level1Key)
 			tc.assertFormatErr(t, err)
 			if err != nil {
 				return
 			}
 			goldenFile := "testdata/" + xtest.SanitizedName(t)
 			if *update {
-				jsonRaw, err := json.Marshal(key.Key)
-				require.NoError(t, err)
-				require.NoError(t, os.WriteFile(goldenFile, jsonRaw, 0666))
+				keyStr := hex.EncodeToString(key.Key[:])
+				require.NoError(t, os.WriteFile(goldenFile, []byte(keyStr), 0666))
 			}
 			goldenRaw, err := os.ReadFile(goldenFile)
 			require.NoError(t, err)
 
 			var expectedKey drkey.Key
-			require.NoError(t, json.Unmarshal(goldenRaw, &expectedKey))
-			assert.Equal(t, expectedKey, key.Key)
+			goldenKey, err := hex.DecodeString(string(goldenRaw))
+			require.NoError(t, err)
+			copy(expectedKey[:], goldenKey)
+			require.Equal(t, expectedKey, key.Key)
 		})
 	}
 }
 
 func TestDeriveGenericHostHost(t *testing.T) {
-	level1Key := protocoltest.GetLevel1(t, protoId, epoch, srcIA, dstIA)
+	level1Key := drkeytest.GetLevel1(t, protoId, epoch, srcIA, dstIA)
 
 	testCases := map[string]struct {
 		meta            drkey.HostHostMeta
@@ -172,23 +174,24 @@ func TestDeriveGenericHostHost(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 
-			key, err := protocoltest.DeriveHostHostGeneric(tc.meta, level1Key)
+			key, err := drkeytest.DeriveHostHostGeneric(tc.meta, level1Key)
 			tc.assertFormatErr(t, err)
 			if err != nil {
 				return
 			}
 			goldenFile := "testdata/" + xtest.SanitizedName(t)
 			if *update {
-				jsonRaw, err := json.Marshal(key.Key)
-				require.NoError(t, err)
-				require.NoError(t, os.WriteFile(goldenFile, jsonRaw, 0666))
+				keyStr := hex.EncodeToString(key.Key[:])
+				require.NoError(t, os.WriteFile(goldenFile, []byte(keyStr), 0666))
 			}
 			goldenRaw, err := os.ReadFile(goldenFile)
 			require.NoError(t, err)
 
 			var expectedKey drkey.Key
-			require.NoError(t, json.Unmarshal(goldenRaw, &expectedKey))
-			assert.Equal(t, expectedKey, key.Key)
+			goldenKey, err := hex.DecodeString(string(goldenRaw))
+			require.NoError(t, err)
+			copy(expectedKey[:], goldenKey)
+			require.Equal(t, expectedKey, key.Key)
 		})
 	}
 }

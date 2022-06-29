@@ -15,7 +15,7 @@
 package specific_test
 
 import (
-	"encoding/json"
+	"encoding/hex"
 	"os"
 	"testing"
 
@@ -25,7 +25,7 @@ import (
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/drkey/specific"
 	"github.com/scionproto/scion/pkg/private/xtest"
-	"github.com/scionproto/scion/private/drkey/protocoltest"
+	"github.com/scionproto/scion/private/drkey/drkeytest"
 )
 
 var (
@@ -39,7 +39,7 @@ var (
 )
 
 func TestDeriveASHostSpecific(t *testing.T) {
-	level1Key := protocoltest.GetLevel1(t, protoId, epoch, srcIA, dstIA)
+	level1Key := drkeytest.GetLevel1(t, protoId, epoch, srcIA, dstIA)
 
 	testCases := map[string]struct {
 		meta            drkey.ASHostMeta
@@ -70,33 +70,33 @@ func TestDeriveASHostSpecific(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 
-			key, err := protocoltest.DeriveASHostSpecific(tc.meta, level1Key)
+			key, err := drkeytest.DeriveASHostSpecific(tc.meta, level1Key)
 			tc.assertFormatErr(t, err)
 			if err != nil {
 				return
 			}
 			goldenFile := "testdata/" + xtest.SanitizedName(t)
 			if *update {
-				jsonRaw, err := json.Marshal(key.Key)
-				require.NoError(t, err)
-				require.NoError(t, os.WriteFile(goldenFile, jsonRaw, 0666))
+				keyStr := hex.EncodeToString(key.Key[:])
+				require.NoError(t, os.WriteFile(goldenFile, []byte(keyStr), 0666))
 			}
 			goldenRaw, err := os.ReadFile(goldenFile)
 			require.NoError(t, err)
 
 			var expectedKey drkey.Key
-			require.NoError(t, json.Unmarshal(goldenRaw, &expectedKey))
-			assert.Equal(t, expectedKey, key.Key)
+			goldenKey, err := hex.DecodeString(string(goldenRaw))
+			require.NoError(t, err)
+			copy(expectedKey[:], goldenKey)
+			require.Equal(t, expectedKey, key.Key)
 		})
 	}
 }
 
 func TestDeriveSpecificHostAS(t *testing.T) {
-	level1Key := protocoltest.GetLevel1(t, protoId, epoch, srcIA, dstIA)
+	level1Key := drkeytest.GetLevel1(t, protoId, epoch, srcIA, dstIA)
 	testCases := map[string]struct {
 		meta            drkey.HostASMeta
 		assertFormatErr assert.ErrorAssertionFunc
-		expectedKey     drkey.Key
 	}{
 		"valid host-as": {
 			meta: drkey.HostASMeta{
@@ -104,8 +104,6 @@ func TestDeriveSpecificHostAS(t *testing.T) {
 				SrcHost: srcHost,
 			},
 			assertFormatErr: assert.NoError,
-			expectedKey: drkey.Key{0x4c, 0xca, 0x42, 0xcd, 0x61, 0xec,
-				0x9f, 0x84, 0x80, 0x2b, 0x65, 0xf7, 0x77, 0x4e, 0x98, 0x54},
 		},
 		"invalid host-as": {
 			meta: drkey.HostASMeta{
@@ -119,29 +117,30 @@ func TestDeriveSpecificHostAS(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 
-			key, err := protocoltest.DeriveHostASSpecific(tc.meta, level1Key)
+			key, err := drkeytest.DeriveHostASSpecific(tc.meta, level1Key)
 			tc.assertFormatErr(t, err)
 			if err != nil {
 				return
 			}
 			goldenFile := "testdata/" + xtest.SanitizedName(t)
 			if *update {
-				jsonRaw, err := json.Marshal(key.Key)
-				require.NoError(t, err)
-				require.NoError(t, os.WriteFile(goldenFile, jsonRaw, 0666))
+				keyStr := hex.EncodeToString(key.Key[:])
+				require.NoError(t, os.WriteFile(goldenFile, []byte(keyStr), 0666))
 			}
 			goldenRaw, err := os.ReadFile(goldenFile)
 			require.NoError(t, err)
 
 			var expectedKey drkey.Key
-			require.NoError(t, json.Unmarshal(goldenRaw, &expectedKey))
-			assert.Equal(t, expectedKey, key.Key)
+			goldenKey, err := hex.DecodeString(string(goldenRaw))
+			require.NoError(t, err)
+			copy(expectedKey[:], goldenKey)
+			require.Equal(t, expectedKey, key.Key)
 		})
 	}
 }
 
 func TestDeriveSpecificHostHost(t *testing.T) {
-	level1Key := protocoltest.GetLevel1(t, protoId, epoch, srcIA, dstIA)
+	level1Key := drkeytest.GetLevel1(t, protoId, epoch, srcIA, dstIA)
 
 	testCases := map[string]struct {
 		meta            drkey.HostHostMeta
@@ -176,23 +175,24 @@ func TestDeriveSpecificHostHost(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 
-			key, err := protocoltest.DeriveHostHostSpecific(tc.meta, level1Key)
+			key, err := drkeytest.DeriveHostHostSpecific(tc.meta, level1Key)
 			tc.assertFormatErr(t, err)
 			if err != nil {
 				return
 			}
 			goldenFile := "testdata/" + xtest.SanitizedName(t)
 			if *update {
-				jsonRaw, err := json.Marshal(key.Key)
-				require.NoError(t, err)
-				require.NoError(t, os.WriteFile(goldenFile, jsonRaw, 0666))
+				keyStr := hex.EncodeToString(key.Key[:])
+				require.NoError(t, os.WriteFile(goldenFile, []byte(keyStr), 0666))
 			}
 			goldenRaw, err := os.ReadFile(goldenFile)
 			require.NoError(t, err)
 
 			var expectedKey drkey.Key
-			require.NoError(t, json.Unmarshal(goldenRaw, &expectedKey))
-			assert.Equal(t, expectedKey, key.Key)
+			goldenKey, err := hex.DecodeString(string(goldenRaw))
+			require.NoError(t, err)
+			copy(expectedKey[:], goldenKey)
+			require.Equal(t, expectedKey, key.Key)
 		})
 	}
 }

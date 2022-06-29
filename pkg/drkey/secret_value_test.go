@@ -15,7 +15,7 @@
 package drkey_test
 
 import (
-	"encoding/json"
+	"encoding/hex"
 	"os"
 	"testing"
 
@@ -38,14 +38,15 @@ func TestDeriveSV(t *testing.T) {
 
 	goldenFile := "testdata/" + xtest.SanitizedName(t)
 	if *update {
-		jsonRaw, err := json.Marshal(got.Key)
-		require.NoError(t, err)
-		require.NoError(t, os.WriteFile(goldenFile, jsonRaw, 0666))
+		keyStr := hex.EncodeToString(got.Key[:])
+		require.NoError(t, os.WriteFile(goldenFile, []byte(keyStr), 0666))
 	}
 	goldenRaw, err := os.ReadFile(goldenFile)
 	require.NoError(t, err)
 
 	var expectedKey drkey.Key
-	require.NoError(t, json.Unmarshal(goldenRaw, &expectedKey))
+	goldenKey, err := hex.DecodeString(string(goldenRaw))
+	require.NoError(t, err)
+	copy(expectedKey[:], goldenKey)
 	require.Equal(t, expectedKey, got.Key)
 }
