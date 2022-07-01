@@ -24,18 +24,14 @@ import (
 )
 
 // SpecificDeriver implements the specific drkey derivation.
-type Deriver struct {
-	// buf is a 32-byte array intended to save some allocations. Internally, it is used
-	// as dst buffer for the input generation functions and as input buffer for
-	// the key derivation functions.
-	buf [32]byte
-}
+type Deriver struct{}
 
 // DeriveLevel1 returns the Level1 derived key.
 func (d *Deriver) DeriveLevel1(dstIA addr.IA,
 	key drkey.Key) (drkey.Key, error) {
-	len := serializeLevel1Input(d.buf[:], dstIA)
-	outKey, err := drkey.DeriveKey(d.buf[:len], key)
+	buf := make([]byte, aes.BlockSize)
+	len := serializeLevel1Input(buf, dstIA)
+	outKey, err := drkey.DeriveKey(buf[:len], key)
 	return outKey, err
 }
 
@@ -46,8 +42,9 @@ func (d *Deriver) DeriveASHost(dstHost string,
 	if err != nil {
 		return drkey.Key{}, serrors.WrapStr("parsing dst host", err)
 	}
-	len := d.serializeLevel2Input(d.buf[:], drkey.AsToHost, host)
-	outKey, err := drkey.DeriveKey(d.buf[:len], key)
+	buf := make([]byte, 32)
+	len := d.serializeLevel2Input(buf, drkey.AsToHost, host)
+	outKey, err := drkey.DeriveKey(buf[:len], key)
 	return outKey, err
 }
 
@@ -57,8 +54,9 @@ func (p *Deriver) DeriveHostAS(srcHost string, key drkey.Key) (drkey.Key, error)
 	if err != nil {
 		return drkey.Key{}, serrors.WrapStr("parsing src host", err)
 	}
-	len := p.serializeLevel2Input(p.buf[:], drkey.HostToAS, host)
-	outKey, err := drkey.DeriveKey(p.buf[:len], key)
+	buf := make([]byte, 32)
+	len := p.serializeLevel2Input(buf, drkey.HostToAS, host)
+	outKey, err := drkey.DeriveKey(buf[:len], key)
 	return outKey, err
 }
 
@@ -68,8 +66,9 @@ func (d *Deriver) DeriveHostToHost(dstHost string, key drkey.Key) (drkey.Key, er
 	if err != nil {
 		return drkey.Key{}, serrors.WrapStr("deriving input H2H", err)
 	}
-	len := drkey.SerializeHostToHostInput(d.buf[:], host)
-	outKey, err := drkey.DeriveKey(d.buf[:len], key)
+	buf := make([]byte, 32)
+	len := drkey.SerializeHostToHostInput(buf, host)
+	outKey, err := drkey.DeriveKey(buf[:len], key)
 	return outKey, err
 }
 

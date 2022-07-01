@@ -22,12 +22,7 @@ import (
 )
 
 // Deriver implements the level 2/3 generic drkey derivation.
-type Deriver struct {
-	// buf is a 32-byte array intended to save some allocations. Internally, it is used
-	// as dst buffer for the input generation functions and as input buffer for
-	// the key derivation functions.
-	buf [32]byte
-}
+type Deriver struct{}
 
 // DeriveASHost returns the ASHost derived key.
 func (d *Deriver) DeriveASHost(proto drkey.Protocol, dstHost string,
@@ -36,8 +31,9 @@ func (d *Deriver) DeriveASHost(proto drkey.Protocol, dstHost string,
 	if err != nil {
 		return drkey.Key{}, serrors.WrapStr("parsing dst host", err)
 	}
-	len := d.serializeLevel2Input(d.buf[:], drkey.AsToHost, proto, host)
-	outKey, err := drkey.DeriveKey(d.buf[:len], key)
+	buf := make([]byte, 32)
+	len := d.serializeLevel2Input(buf, drkey.AsToHost, proto, host)
+	outKey, err := drkey.DeriveKey(buf[:len], key)
 	return outKey, err
 }
 
@@ -48,8 +44,9 @@ func (d *Deriver) DeriveHostAS(proto drkey.Protocol, srcHost string,
 	if err != nil {
 		return drkey.Key{}, serrors.WrapStr("parsing src host", err)
 	}
-	len := d.serializeLevel2Input(d.buf[:], drkey.HostToAS, proto, host)
-	outKey, err := drkey.DeriveKey(d.buf[:len], key)
+	buf := make([]byte, 32)
+	len := d.serializeLevel2Input(buf, drkey.HostToAS, proto, host)
+	outKey, err := drkey.DeriveKey(buf[:len], key)
 	return outKey, err
 }
 
@@ -60,8 +57,9 @@ func (d *Deriver) DeriveHostToHost(dstHost string,
 	if err != nil {
 		return drkey.Key{}, serrors.WrapStr("deriving input H2H", err)
 	}
-	len := drkey.SerializeHostToHostInput(d.buf[:], host)
-	outKey, err := drkey.DeriveKey(d.buf[:len], key)
+	buf := make([]byte, 32)
+	len := drkey.SerializeHostToHostInput(buf[:], host)
+	outKey, err := drkey.DeriveKey(buf[:len], key)
 	return outKey, err
 }
 
