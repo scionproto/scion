@@ -26,8 +26,8 @@ bazel:
 test:
 	bazel test --config=unit_all
 
-test-acceptance:
-	bazel test --config=acceptance_all
+test-integration:
+	bazel test --config=integration_all
 
 go_deps.bzl: go.mod
 	bazel run //:gazelle -- update-repos -prune -from_file=go.mod -to_macro=go_deps.bzl%go_deps

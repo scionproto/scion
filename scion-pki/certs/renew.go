@@ -468,7 +468,7 @@ The template is expressed in JSON. A valid example::
 				if verifyError := cppki.VerifyChain(chain, verifyOptions); verifyError != nil {
 					suffix := "." + addr.FormatIA(ca, addr.WithFileSeparator()) + ".unverified"
 
-					printErr("Verification failed: %s\n", err)
+					printErr("Verification failed: %s\n", verifyError)
 
 					// Write chain.
 					certFile := outCertFile + suffix

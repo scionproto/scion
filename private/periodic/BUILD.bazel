@@ -7,6 +7,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/log:go_default_library",
+        "//pkg/metrics:go_default_library",
         "//private/periodic/internal/metrics:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
     ],
@@ -15,8 +16,9 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = ["periodic_test.go"],
-    embed = [":go_default_library"],
     deps = [
+        ":go_default_library",
+        "//pkg/metrics:go_default_library",
         "//pkg/private/xtest:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
     ],
