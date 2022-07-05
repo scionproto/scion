@@ -27,9 +27,9 @@ var ErrKeyNotFound = serrors.New("key not found")
 
 // SecretValueDB is the database for Secret Values.
 type SecretValueDB interface {
-	GetValue(ctx context.Context, meta SecretValueMeta) (SecretValue, error)
-	InsertValue(ctx context.Context, key SecretValue) error
-	DeleteExpiredValues(ctx context.Context, cutoff time.Time) (int64, error)
+	GetValue(ctx context.Context, meta SecretValueMeta, asSecret []byte) (SecretValue, error)
+	InsertValue(ctx context.Context, proto Protocol, epoch Epoch) error
+	DeleteExpiredValues(ctx context.Context, cutoff time.Time) (int, error)
 
 	io.Closer
 	db.LimitSetter
@@ -39,7 +39,7 @@ type SecretValueDB interface {
 type Level1DB interface {
 	GetLevel1Key(ctx context.Context, meta Level1Meta) (Level1Key, error)
 	InsertLevel1Key(ctx context.Context, key Level1Key) error
-	DeleteExpiredLevel1Keys(ctx context.Context, cutoff time.Time) (int64, error)
+	DeleteExpiredLevel1Keys(ctx context.Context, cutoff time.Time) (int, error)
 
 	io.Closer
 	db.LimitSetter
@@ -53,7 +53,7 @@ type Level2DB interface {
 	InsertASHostKey(ctx context.Context, key ASHostKey) error
 	InsertHostASKey(ctx context.Context, key HostASKey) error
 	InsertHostHostKey(ctx context.Context, key HostHostKey) error
-	DeleteExpiredLevel2Keys(ctx context.Context, cutoff time.Time) (int64, error)
+	DeleteExpiredLevel2Keys(ctx context.Context, cutoff time.Time) (int, error)
 
 	io.Closer
 	db.LimitSetter
