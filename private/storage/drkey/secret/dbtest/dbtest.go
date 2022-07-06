@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2022 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/drkey"
@@ -27,7 +28,7 @@ import (
 )
 
 const (
-	timeOffset = 10 * 60 // 10 minutes
+	timeOffset = 10 * 60 * time.Second // 10 minutes
 	timeout    = 3 * time.Second
 )
 
@@ -58,7 +59,7 @@ func testDB(t *testing.T, db drkey.SecretValueDB) {
 	epoch := drkey.Epoch{
 		Validity: cppki.Validity{
 			NotBefore: time.Now(),
-			NotAfter:  time.Now().Add(timeOffset * time.Second),
+			NotAfter:  time.Now().Add(timeOffset),
 		},
 	}
 	asSecret := []byte{0, 1, 2, 3, 4, 5, 6, 7}
@@ -67,26 +68,26 @@ func testDB(t *testing.T, db drkey.SecretValueDB) {
 	require.NoError(t, err)
 
 	err = db.InsertValue(ctx, sv.ProtoId, sv.Epoch)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	// same key again. It should be okay.
 	err = db.InsertValue(ctx, sv.ProtoId, sv.Epoch)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	newSecretValue, err := db.GetValue(ctx, drkey.SecretValueMeta{
 		ProtoId:  drkey.Protocol(0),
 		Validity: time.Now(),
 	},
 		asSecret,
 	)
-	require.NoError(t, err)
-	require.EqualValues(t, sv.Key, newSecretValue.Key)
+	assert.NoError(t, err)
+	assert.EqualValues(t, sv.Key, newSecretValue.Key)
 
 	rows, err := db.DeleteExpiredValues(ctx,
-		time.Now().Add(-timeOffset*time.Second))
-	require.NoError(t, err)
-	require.EqualValues(t, 0, rows)
+		time.Now().Add(-timeOffset))
+	assert.NoError(t, err)
+	assert.EqualValues(t, 0, rows)
 
 	rows, err = db.DeleteExpiredValues(ctx,
-		time.Now().Add(2*timeOffset*time.Second))
-	require.NoError(t, err)
-	require.EqualValues(t, 1, rows)
+		time.Now().Add(2*timeOffset))
+	assert.NoError(t, err)
+	assert.EqualValues(t, 1, rows)
 }

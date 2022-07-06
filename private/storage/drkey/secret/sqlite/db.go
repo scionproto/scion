@@ -1,4 +1,4 @@
-// Copyright 2021 ETH Zurich
+// Copyright 2022 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -81,7 +81,7 @@ type executor struct {
 	db db.Sqler
 }
 
-const getSV = `
+const getSVStmt = `
 SELECT EpochBegin, EpochEnd FROM DRKeySV
 WHERE Protocol=?
 AND EpochBegin<=? AND ?<EpochEnd
@@ -89,14 +89,18 @@ AND EpochBegin<=? AND ?<EpochEnd
 
 // GetValue takes the protocol and the time at which the SV must be
 // valid and return such a SV.
-func (e *executor) GetValue(ctx context.Context,
-	meta drkey.SecretValueMeta, asSecret []byte) (drkey.SecretValue, error) {
+func (e *executor) GetValue(
+	ctx context.Context,
+	meta drkey.SecretValueMeta,
+	asSecret []byte,
+) (drkey.SecretValue, error) {
+
 	e.RLock()
 	defer e.RUnlock()
 	var epochBegin, epochEnd int
 
 	valSecs := util.TimeToSecs(meta.Validity)
-	err := e.db.QueryRowContext(ctx, getSV, meta.ProtoId, valSecs, valSecs).Scan(&epochBegin,
+	err := e.db.QueryRowContext(ctx, getSVStmt, meta.ProtoId, valSecs, valSecs).Scan(&epochBegin,
 		&epochEnd)
 	if err != nil {
 		if err != sql.ErrNoRows {
@@ -118,33 +122,21 @@ VALUES (?, ?, ?)
 `
 
 // InsertValue inserts a SV.
-func (e *executor) InsertValue(ctx context.Context, proto drkey.Protocol,
-	epoch drkey.Epoch) error {
+func (e *executor) InsertValue(
+	ctx context.Context,
+	proto drkey.Protocol,
+	epoch drkey.Epoch,
+) error {
 	e.RLock()
 	defer e.RUnlock()
 
 	return db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
-		return insertSV(ctx, tx, proto, epoch)
-	})
-}
-
-func insertSV(ctx context.Context, tx *sql.Tx, proto drkey.Protocol, epoch drkey.Epoch) error {
-	_, err := tx.ExecContext(ctx, insertSVStmt, proto, uint32(epoch.NotBefore.Unix()),
-		uint32(epoch.NotAfter.Unix()))
-	if err != nil {
-		return db.NewWriteError("inserting SV", err)
-	}
-	return nil
-}
-
-// DeleteExpiredValues removes all expired SVs, i.e. all the keys
-// which expiration time is strictly smaller than the cutoff
-func (e *executor) DeleteExpiredValues(ctx context.Context, cutoff time.Time) (int, error) {
-	e.RLock()
-	defer e.RUnlock()
-
-	return db.DeleteInTx(ctx, e.db, func(tx *sql.Tx) (sql.Result, error) {
-		return deleteExpiredSV(ctx, tx, cutoff)
+		_, err := tx.ExecContext(ctx, insertSVStmt, proto, uint32(epoch.NotBefore.Unix()),
+			uint32(epoch.NotAfter.Unix()))
+		if err != nil {
+			return db.NewWriteError("inserting SV", err)
+		}
+		return nil
 	})
 }
 
@@ -152,7 +144,15 @@ const deleteExpiredSVStmt = `
 DELETE FROM DRKeySV WHERE ? >= EpochEnd
 `
 
-func deleteExpiredSV(ctx context.Context, tx *sql.Tx, cutoff time.Time) (sql.Result, error) {
-	cutoffSecs := util.TimeToSecs(cutoff)
-	return tx.ExecContext(ctx, deleteExpiredSVStmt, cutoffSecs)
+// DeleteExpiredValues removes all expired SVs, i.e. all the keys
+// which expiration time is strictly smaller than the cutoff
+func (e *executor) DeleteExpiredValues(ctx context.Context, cutoff time.Time) (int, error) {
+
+	e.RLock()
+	defer e.RUnlock()
+
+	return db.DeleteInTx(ctx, e.db, func(tx *sql.Tx) (sql.Result, error) {
+		cutoffSecs := util.TimeToSecs(cutoff)
+		return tx.ExecContext(ctx, deleteExpiredSVStmt, cutoffSecs)
+	})
 }

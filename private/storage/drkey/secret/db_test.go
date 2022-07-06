@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2022 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sqlite
+package secret_test
 
 import (
 	"context"
@@ -21,18 +21,27 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/private/storage/drkey/sv/dbtest"
+	"github.com/scionproto/scion/pkg/drkey"
+	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/private/storage/drkey/secret"
+	"github.com/scionproto/scion/private/storage/drkey/secret/dbtest"
+	"github.com/scionproto/scion/private/storage/drkey/secret/sqlite"
 )
 
 var _ dbtest.TestableDB = (*TestBackend)(nil)
 
 type TestBackend struct {
-	*Backend
+	drkey.SecretValueDB
 }
 
 func (b *TestBackend) Prepare(t *testing.T, _ context.Context) {
-	db := newSecretValueDatabase(t)
-	b.Backend = db
+	b.SecretValueDB = &secret.Database{
+		Backend: newSecretValueDatabase(t),
+		Metrics: &secret.Metrics{
+			QueriesSVTotal: metrics.NewTestCounter(),
+			ResultsSVTotal: metrics.NewTestCounter(),
+		},
+	}
 }
 
 func TestSecretValueDBSuite(t *testing.T) {
@@ -40,14 +49,14 @@ func TestSecretValueDBSuite(t *testing.T) {
 	dbtest.TestDB(t, tdb)
 }
 
-func newSecretValueDatabase(t *testing.T) *Backend {
+func newSecretValueDatabase(t *testing.T) *sqlite.Backend {
 	dir := t.TempDir()
 	file, err := ioutil.TempFile(dir, "db-test-")
 	require.NoError(t, err)
 	name := file.Name()
 	err = file.Close()
 	require.NoError(t, err)
-	db, err := NewBackend(name)
+	db, err := sqlite.NewBackend(name)
 	require.NoError(t, err)
 	return db
 }
