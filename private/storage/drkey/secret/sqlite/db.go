@@ -127,6 +127,7 @@ func (e *executor) InsertValue(
 	proto drkey.Protocol,
 	epoch drkey.Epoch,
 ) error {
+
 	e.RLock()
 	defer e.RUnlock()
 
