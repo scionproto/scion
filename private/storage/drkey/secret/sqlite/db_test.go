@@ -16,7 +16,7 @@ package sqlite
 
 import (
 	"context"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -42,7 +42,7 @@ func TestSecretValueDBSuite(t *testing.T) {
 
 func newSecretValueDatabase(t *testing.T) *Backend {
 	dir := t.TempDir()
-	file, err := ioutil.TempFile(dir, "db-test-")
+	file, err := os.CreateTemp(dir, "db-test-")
 	require.NoError(t, err)
 	name := file.Name()
 	err = file.Close()

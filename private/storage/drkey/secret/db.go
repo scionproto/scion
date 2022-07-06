@@ -44,7 +44,7 @@ func (m *Metrics) Observe(ctx context.Context, op string, action func(context.Co
 		return
 	}
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, fmt.Sprintf("drkeySVDB.%s", string(op)))
+	span, ctx := opentracing.StartSpanFromContext(ctx, fmt.Sprintf("drkeySVDB.%s", op))
 	defer span.Finish()
 
 	metrics.CounterInc(metrics.CounterWith(m.QueriesSVTotal, "operation", op))
