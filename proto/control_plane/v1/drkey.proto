@@ -21,6 +21,25 @@ package proto.control_plane.v1;
 import "proto/drkey/v1/drkey.proto";
 import "google/protobuf/timestamp.proto";
 
+service DRKeyInterService{
+    // Return the Level1Key that matches the request
+    rpc DRKeyLevel1(DRKeyLevel1Request) returns (DRKeyLevel1Response) {}
+}
+
+service DRKeyIntraService{
+    // Return the ASAS that matches the request
+    rpc DRKeyIntraLevel1(DRKeyIntraLevel1Request) returns (DRKeyIntraLevel1Response) {}
+    // Return the AS-Host that matches the request
+    rpc DRKeyASHost(DRKeyASHostRequest) returns (DRKeyASHostResponse) {}
+    // Return the Host-AS that matches the request
+    rpc DRKeyHostAS(DRKeyHostASRequest) returns (DRKeyHostASResponse) {}
+    // Return the Host-Host that matches the request
+    rpc DRKeyHostHost(DRKeyHostHostRequest) returns (DRKeyHostHostResponse) {}
+    // Return the SecretValue that matches the request
+    rpc DRKeySecretValue(DRKeySecretValueRequest) returns (DRKeySecretValueResponse) {}
+}
+
+
 message DRKeySecretValueRequest{
     // Point in time when the requested key is valid.
     google.protobuf.Timestamp val_time = 1;
@@ -121,3 +140,28 @@ message DRKeyASHostResponse{
     // Level2 key.
     bytes key = 3;
 }
+
+message DRKeyHostHostRequest{
+    // Point in time where requested key is valid.
+    google.protobuf.Timestamp val_time = 1;
+    // Protocol value.
+    proto.drkey.v1.Protocol protocol_id = 2;
+    // Src ISD-AS of the requested DRKey.
+    uint64 src_ia = 3;
+    // Dst ISD-AS of the requested DRKey.
+    uint64 dst_ia = 4;
+    // Src Host of the request DRKey.
+    string src_host = 5;
+    // Dst Host of the request DRKey.
+    string dst_host = 6;
+}
+
+message DRKeyHostHostResponse{
+    // Begin of validity period of DRKey.
+    google.protobuf.Timestamp epoch_begin = 1;
+    // End of validity period of DRKey.
+    google.protobuf.Timestamp epoch_end = 2;
+    // Level2 key.
+    bytes key = 3;
+}
+

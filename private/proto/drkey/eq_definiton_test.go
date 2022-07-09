@@ -49,6 +49,18 @@ func TestEqualHostASResponse(t *testing.T) {
 	checkEquals(t, controlFields, daemonFields)
 }
 
+func TestEqualHostHostRequest(t *testing.T) {
+	controlFields := (&pb_cp.DRKeyHostHostRequest{}).ProtoReflect().Descriptor().Fields()
+	daemonFields := (&pb_daemon.DRKeyHostHostRequest{}).ProtoReflect().Descriptor().Fields()
+	checkEquals(t, controlFields, daemonFields)
+}
+
+func TestEqualHostHostResponse(t *testing.T) {
+	controlFields := (&pb_cp.DRKeyHostHostResponse{}).ProtoReflect().Descriptor().Fields()
+	daemonFields := (&pb_daemon.DRKeyHostHostResponse{}).ProtoReflect().Descriptor().Fields()
+	checkEquals(t, controlFields, daemonFields)
+}
+
 func checkEquals(t *testing.T, controlFields, daemonFields protoreflect.FieldDescriptors) {
 	require.Equal(t, controlFields.Len(), daemonFields.Len())
 	for i := 0; i < controlFields.Len(); i++ {
