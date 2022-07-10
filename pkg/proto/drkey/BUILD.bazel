@@ -1,0 +1,9 @@
+load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
+
+go_proto_library(
+    name = "go_default_library",
+    compiler = "@io_bazel_rules_go//proto:go_grpc",
+    importpath = "github.com/scionproto/scion/pkg/proto/drkey",
+    proto = "//proto/drkey/v1:drkey",
+    visibility = ["//visibility:public"],
+)

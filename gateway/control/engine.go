@@ -27,7 +27,9 @@ import (
 	"time"
 
 	"github.com/google/gopacket"
+	"github.com/olekukonko/tablewriter"
 
+	"github.com/scionproto/scion/gateway/pathhealth"
 	"github.com/scionproto/scion/gateway/pathhealth/policies"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
@@ -163,7 +165,7 @@ func (e *Engine) Status(w io.Writer) {
 
 		ProbeAddr *net.UDPAddr
 		Healthy   bool
-		PathInfo  string
+		PathInfo  pathhealth.PathInfo
 	}
 	sessions := make(map[addr.IA]map[uint8]*session)
 	for _, sm := range e.sessionMonitors {
@@ -191,7 +193,7 @@ func (e *Engine) Status(w io.Writer) {
 			entry = &session{ID: s.ID}
 			iaSessions[s.ID] = entry
 		}
-		entry.PathInfo = s.pathResult.Info
+		entry.PathInfo = s.pathResult.PathInfo
 	}
 	for _, sc := range e.SessionConfigs {
 		iaSessions, ok := sessions[sc.IA]
@@ -222,14 +224,11 @@ func (e *Engine) Status(w io.Writer) {
 		}
 		sort.Slice(iaSessions, func(i, j int) bool { return iaSessions[i].ID < iaSessions[j].ID })
 		for _, s := range iaSessions {
-			lines := []string{
-				fmt.Sprintf("  SESSION %d, POLICY_ID %d, REMOTE: %s, HEALTHY %t",
-					s.ID, s.PolicyID, s.ProbeAddr, s.Healthy),
-				"    PATHS:",
-				s.PathInfo,
-			}
-			w.Write([]byte(strings.Join(lines, "\n")))
-			w.Write([]byte("\n"))
+			fmt.Fprintf(w, "  SESSION %d, POLICY_ID %d, REMOTE: %s, HEALTHY %t\n",
+				s.ID, s.PolicyID, s.ProbeAddr, s.Healthy)
+			fmt.Fprintf(w, "    PATHS:\n")
+			renderPathInfo(s.PathInfo, w, 2)
+			fmt.Fprintf(w, "\n")
 		}
 	}
 	for _, ia := range sortedIAs {
@@ -242,6 +241,44 @@ func (e *Engine) Status(w io.Writer) {
 		w.Write([]byte("\nROUTING TABLE:\n"))
 		dw.DiagnosticsWrite(w)
 	}
+}
+
+func renderPathInfo(p pathhealth.PathInfo, w io.Writer, indent int) {
+	var paths [][]string
+	for _, path := range p {
+		state := ""
+		if path.Current {
+			state = "-->"
+		}
+		if !path.Rejected {
+			paths = append(paths, []string{
+				strings.Repeat(" ", indent),
+				state,
+				fmt.Sprintf("%v", path.Revoked),
+				path.Path,
+			})
+		} else {
+			paths = append(paths, []string{
+				strings.Repeat(" ", indent),
+				path.RejectReason,
+				"",
+				path.Path,
+			})
+		}
+	}
+	table := tablewriter.NewWriter(w)
+	table.SetAutoWrapText(false)
+	table.SetBorder(false)
+	table.SetHeaderLine(false)
+	table.SetCenterSeparator("")
+	table.SetColumnSeparator("")
+	table.SetRowSeparator("")
+	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetHeader([]string{"", "STATE", "REVOKED", "PATH"})
+	table.AppendBulk(paths)
+	table.Render()
+
 }
 
 func (e *Engine) setup(ctx context.Context) error {

@@ -4,9 +4,10 @@
 # Do not remove or modify them!
 
 export SCION_ROOT=${SCION_ROOT:-$(pwd)}
-export PLAYGROUND=${PLAYGROUND:-$SCION_ROOT/tools/cryptoplayground}
+export PLAYGROUND=$(realpath "${PLAYGROUND:-$SCION_ROOT/tools/cryptoplayground}")
 export SAFEDIR=${SAFEDIR:-$(mktemp -d)}
-export PATH="$PATH:$SCION_ROOT/bin"
+export SCION_PKI_BIN=${SCION_PKI_BIN:-$SCION_ROOT/bin/scion-pki}
+export PATH="$(realpath $(dirname "$SCION_PKI_BIN")):$PATH"
 
 . $PLAYGROUND/crypto_lib.sh
 

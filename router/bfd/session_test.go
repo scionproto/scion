@@ -15,6 +15,7 @@
 package bfd_test
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"sync"
@@ -25,6 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/log/testlog"
 	"github.com/scionproto/scion/router/bfd"
 )
@@ -263,32 +265,6 @@ func TestSession(t *testing.T) {
 				time.Sleep(2 * time.Second)
 			},
 		},
-		"run without logging (bootstrapped)": {
-			sessionA: &bfd.Session{
-				DetectMult:            1,
-				DesiredMinTxInterval:  200 * time.Millisecond,
-				RequiredMinRxInterval: 100 * time.Millisecond,
-				LocalDiscriminator:    1,
-				RemoteDiscriminator:   2,
-				ReceiveQueueSize:      10,
-			},
-			sessionB: &bfd.Session{
-				DetectMult:            1,
-				DesiredMinTxInterval:  200 * time.Millisecond,
-				RequiredMinRxInterval: 100 * time.Millisecond,
-				LocalDiscriminator:    2,
-				RemoteDiscriminator:   1,
-				ReceiveQueueSize:      10,
-			},
-			expectedUpA: true,
-			expectedUpB: true,
-			testBehavior: func(linkAToB, linkBToA *redirectSender) {
-				linkAToB.Sending(true)
-				linkBToA.Sending(true)
-				time.Sleep(2 * time.Second)
-			},
-			disableLogging: true,
-		},
 	}
 
 	for name, tc := range testCases {
@@ -303,27 +279,25 @@ func sessionSubtest(name string, tc *sessionTestCase) func(t *testing.T) {
 
 		linkAToB := &redirectSender{Destination: tc.sessionB}
 		linkBToA := &redirectSender{Destination: tc.sessionA}
-
 		tc.sessionA.Sender = linkAToB
 		tc.sessionB.Sender = linkBToA
-		if !tc.disableLogging {
-			tc.sessionA.Logger = testlog.NewLogger(t).New("session", "a")
-			tc.sessionA.TestingLogs(true)
-			tc.sessionB.Logger = testlog.NewLogger(t).New("session", "b")
-			tc.sessionB.TestingLogs(true)
-		}
+
+		loggerA := testlog.NewLogger(t).New("session", "loggerA")
+		loggerB := testlog.NewLogger(t).New("session", "loggerB")
+		tc.sessionA.SetLogger(loggerA)
+		tc.sessionB.SetLogger(loggerB)
 
 		var wg sync.WaitGroup
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
-			err := tc.sessionA.Run()
+			err := tc.sessionA.Run(log.CtxWith(context.Background(), loggerA))
 			require.NoError(t, err)
 		}()
 
 		go func() {
 			defer wg.Done()
-			err := tc.sessionB.Run()
+			err := tc.sessionB.Run(log.CtxWith(context.Background(), loggerB))
 			require.NoError(t, err)
 		}()
 
@@ -345,33 +319,35 @@ func TestSessionDebootstrap(t *testing.T) {
 	//
 	// We check this by having a session A1 be up initially, crashing (simulated by blocking its
 	// forwarding), and coming up with a different local discriminator as session A2.
+
 	sessionA1 := &bfd.Session{
 		DetectMult:            1,
 		DesiredMinTxInterval:  200 * time.Millisecond,
 		RequiredMinRxInterval: 100 * time.Millisecond,
-		Logger:                testlog.NewLogger(t).New("session", "a1"),
 		LocalDiscriminator:    1234,
 		ReceiveQueueSize:      10,
 	}
-	sessionA1.TestingLogs(true)
 	sessionA2 := &bfd.Session{
 		DetectMult:            1,
 		DesiredMinTxInterval:  200 * time.Millisecond,
 		RequiredMinRxInterval: 100 * time.Millisecond,
-		Logger:                testlog.NewLogger(t).New("session", "a2"),
 		LocalDiscriminator:    4321,
 		ReceiveQueueSize:      10,
 	}
-	sessionA2.TestingLogs(true)
 	sessionB := &bfd.Session{
 		DetectMult:            1,
 		DesiredMinTxInterval:  200 * time.Millisecond,
 		RequiredMinRxInterval: 100 * time.Millisecond,
-		Logger:                testlog.NewLogger(t).New("session", "b"),
 		LocalDiscriminator:    2,
 		ReceiveQueueSize:      10,
 	}
-	sessionB.TestingLogs(true)
+	loggerA1 := testlog.NewLogger(t).New("session", "loggerA1")
+	loggerA2 := testlog.NewLogger(t).New("session", "loggerA2")
+	loggerB := testlog.NewLogger(t).New("session", "loggerB")
+
+	sessionA1.SetLogger(loggerA1)
+	sessionA2.SetLogger(loggerA2)
+	sessionB.SetLogger(loggerB)
 
 	linkA1ToB := &redirectSender{Destination: sessionB}
 	linkA2ToB := &redirectSender{Destination: sessionB}
@@ -386,13 +362,13 @@ func TestSessionDebootstrap(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		err := sessionA1.Run()
+		err := sessionA1.Run(log.CtxWith(context.Background(), loggerA1))
 		require.NoError(t, err)
 	}()
 
 	go func() {
 		defer wg.Done()
-		err := sessionB.Run()
+		err := sessionB.Run(log.CtxWith(context.Background(), loggerB))
 		require.NoError(t, err)
 	}()
 
@@ -410,7 +386,7 @@ func TestSessionDebootstrap(t *testing.T) {
 	// Router A "restarts", this time A2 starts with a different local discriminator.
 	go func() {
 		defer wg.Done()
-		err := sessionA2.Run()
+		err := sessionA2.Run(log.CtxWith(context.Background(), loggerA2))
 		require.NoError(t, err)
 	}()
 	linkBToA.SetDestination(sessionA2)
@@ -505,7 +481,11 @@ func TestSessionRun(t *testing.T) {
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			assert.Error(t, tc.session.Run())
+			logger := testlog.NewLogger(t)
+			tc.session.SetLogger(logger)
+			assert.Error(t,
+				tc.session.Run(log.CtxWith(context.Background(), logger)),
+			)
 		})
 	}
 }
@@ -519,15 +499,16 @@ func TestSessionRunMultiple(t *testing.T) {
 		RemoteDiscriminator:   2,
 		Sender:                &redirectSender{},
 	}
-
+	logger := testlog.NewLogger(t)
+	session.SetLogger(logger)
 	go func() {
-		err := session.Run()
+		err := session.Run(log.CtxWith(context.Background(), logger))
 		require.NoError(t, err)
 	}()
 	time.Sleep(200 * time.Millisecond)
 	err := session.Close()
 	require.NoError(t, err)
-	err = session.Run()
+	err = session.Run(log.CtxWith(context.Background(), logger))
 	assert.Error(t, err)
 }
 
@@ -540,14 +521,13 @@ func TestSessionRunInit(t *testing.T) {
 		LocalDiscriminator:    1,
 		RemoteDiscriminator:   2,
 		Sender:                &redirectSender{},
-		Logger:                testlog.NewLogger(t),
 	}
-	session.TestingLogs(true)
-
+	logger := testlog.NewLogger(t)
+	session.SetLogger(logger)
 	barrier := make(chan struct{})
 
 	go func() {
-		err := session.Run()
+		err := session.Run(log.CtxWith(context.Background(), logger))
 		assert.NoError(t, err)
 		close(barrier)
 	}()

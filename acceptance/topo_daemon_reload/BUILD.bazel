@@ -12,7 +12,10 @@ go_test(
         "//acceptance/topo_common:invalid_reloads",
         "//acceptance/topo_common:topology",
     ],
-    tags = ["integration"],
+    tags = [
+        "exclusive",
+        "integration",
+    ],
     deps = [
         "//private/topology:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",

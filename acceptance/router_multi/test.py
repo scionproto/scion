@@ -21,10 +21,12 @@ import time
 from typing import List
 from plumbum import cli
 from plumbum import cmd
-from plumbum import FG
 
 from acceptance.common import base
-from acceptance.common import docker
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def exec_docker(command: str) -> str:
@@ -63,53 +65,24 @@ class RouterTest(base.TestBase):
     can be replaced at any time with any other image e.g. Alpine.
     """
 
-    braccept_bin = cli.SwitchAttr(
-        "braccept_bin",
-        str,
-        help="braccept binary",
-    )
-
-    conf_dir = cli.SwitchAttr(
-        "conf_dir",
-        str,
-        help="directory with the configs",
-    )
-
-    image_tar = cli.SwitchAttr(
-        "image_tar",
-        str,
-        help="tarball with the docker images",
-    )
-
     pause_tar = cli.SwitchAttr(
         "pause_tar",
         str,
         help="taball with the pause image",
     )
 
-    bfd = cli.SwitchAttr(
+    bfd = cli.Flag(
         "bfd",
-        bool,
         help="use BFD",
     )
 
-    def main(self):
-        if not self.nested_command:
-            try:
-                self.setup()
-                self._run()
-            finally:
-                self.teardown()
+    def setup_prepare(self):
+        super().setup_prepare()
 
-    def setup(self):
-        shutil.rmtree(self.test_state.artifacts)
-        cmd.mkdir(self.test_state.artifacts)
-        shutil.copytree(self.conf_dir, self.test_state.artifacts + "/conf")
+        shutil.copytree("acceptance/router_multi/conf/", self.artifacts / "conf")
         sudo("mkdir -p /var/run/netns")
 
         pause_image = exec_docker("image load -q -i %s" % self.pause_tar).rsplit(' ', 1)[1]
-        exec_docker("image load -q -i %s" % self.image_tar)
-
         exec_docker("run -d --network=none --name pause %s" % pause_image)
         ns = exec_docker("inspect pause -f '{{.NetworkSettings.SandboxKey}}'").replace("'", "")
 
@@ -118,27 +91,31 @@ class RouterTest(base.TestBase):
 
         sudo("rm /var/run/netns/pause")
 
+    def setup_start(self):
+        super().setup_start()
+
         envs = ["-e SCION_EXPERIMENTAL_BFD_DISABLE=true"]
         if self.bfd:
             envs = []
 
         exec_docker("run -v %s/conf:/share/conf -d %s --network container:%s \
-                    --name router %s" % (self.test_state.artifacts, " ".join(envs),
+                    --name router %s" % (self.artifacts, " ".join(envs),
                     "pause", "bazel/acceptance/router_multi:router"))
 
         time.sleep(1)
 
     def _run(self):
+        braccept = self.get_executable("braccept")
         bfd_arg = ""
         if self.bfd:
             bfd_arg = "--bfd"
-        sudo("%s --artifacts %s %s" % (self.braccept_bin, self.test_state.artifacts, bfd_arg))
+        sudo("%s --artifacts %s %s" % (braccept.executable, self.artifacts, bfd_arg))
 
     def teardown(self):
-        cmd.docker["logs", "router"] & FG
+        cmd.docker["logs", "router"].run_fg(retcode=None)
         exec_docker("rm -f router")
         exec_docker("rm -f pause")  # veths are deleted automatically
-        sudo("chown -R %s %s" % (cmd.whoami(), self.test_state.artifacts))
+        sudo("chown -R %s %s" % (cmd.whoami(), self.artifacts))
 
     def create_veths(self, ns: str):
         create_veth("veth_int_host", "veth_int", "192.168.0.11/24", "f0:0d:ca:fe:00:01", ns,
@@ -155,6 +132,4 @@ class RouterTest(base.TestBase):
 
 
 if __name__ == "__main__":
-    base.register_commands(RouterTest)
-    base.TestBase.test_state = base.TestState(None, docker.Compose())
-    RouterTest.run()
+    base.main(RouterTest)

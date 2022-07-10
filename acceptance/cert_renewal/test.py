@@ -23,10 +23,8 @@ from typing import List
 import sys
 from http import client
 
-from plumbum import cli
 
 from acceptance.common import base
-from acceptance.common import docker
 from acceptance.common import scion
 from tools.topology.scion_addr import ISD_AS
 import toml
@@ -34,7 +32,7 @@ import toml
 logger = logging.getLogger(__name__)
 
 
-class Test(base.TestBase):
+class Test(base.TestTopogen):
     """
     Test that in a topology with multiple ASes, every AS is capable of
     requesting renewed certificates. The test verifies that each AS has loaded
@@ -53,27 +51,11 @@ class Test(base.TestBase):
          all databases with cached data, including the path and trust database.
       7. Restart control servers and check connectivity again.
     """
-    end2end = cli.SwitchAttr(
-        "end2end_integration",
-        str,
-        default="./bin/end2end_integration",
-        help="The end2end_integration binary " +
-        "(default: ./bin/end2end_integration)",
-    )
-
-    def main(self):
-        if not self.nested_command:
-            try:
-                self.setup()
-                # Give some time for the topology to start.
-                time.sleep(10)
-                self._run()
-            finally:
-                self.teardown()
 
     def _run(self):
+
         isd_ases = scion.ASList.load("%s/gen/as_list.yml" %
-                                     self.test_state.artifacts).all
+                                     self.artifacts).all
         cs_configs = self._cs_configs()
 
         logger.info("==> Start renewal process")
@@ -85,17 +67,16 @@ class Test(base.TestBase):
         self._check_key_cert(cs_configs)
 
         logger.info("==> Check connectivity")
-        subprocess.run(
-            [self.end2end, "-d", "-outDir", self.test_state.artifacts],
-            check=True)
+        end2end = self.get_executable("end2end_integration")["-d", "-outDir", self.artifacts]
+        end2end.run_fg()
 
         logger.info("==> Shutting down control servers and purging caches")
-        for container in self.list_containers("scion_sd.*"):
-            self.test_state.dc("rm", container)
-        for container in self.list_containers("scion_cs.*"):
-            self.stop_container(container)
+        for container in self.dc.list_containers("scion_sd.*"):
+            self.dc("rm", container)
+        for container in self.dc.list_containers("scion_cs.*"):
+            self.dc.stop_container(container)
         for cs_config in cs_configs:
-            files = list((pathlib.Path(self.test_state.artifacts) /
+            files = list((pathlib.Path(self.artifacts) /
                           "gen-cache").glob("%s*" % cs_config.stem))
             for db_file in files:
                 db_file.unlink()
@@ -106,9 +87,7 @@ class Test(base.TestBase):
         time.sleep(5)
 
         logger.info("==> Check connectivity")
-        subprocess.run(
-            [self.end2end, "-d", "-outDir", self.test_state.artifacts],
-            check=True)
+        end2end.run_fg()
 
         logger.info("==> Backup mode")
         for isd_as in isd_ases:
@@ -140,22 +119,22 @@ class Test(base.TestBase):
             "--trc",
             docker_dir / "certs/ISD1-B1-S1.trc",
             "--sciond",
-            self.execute("tester_%s" % isd_as.file_fmt(), "sh", "-c",
-                         "echo $SCION_DAEMON").strip(),
+            self.execute_tester(isd_as, "sh", "-c",
+                                "echo $SCION_DAEMON").strip(),
             *self._local_flags(isd_as),
         ]
 
         logger.info("Requesting certificate chain renewal: %s" %
                     chain.relative_to(docker_dir))
         logger.info(
-            self.execute("tester_%s" % isd_as.file_fmt(), "./bin/scion-pki",
-                         "certificate", "renew", *args))
+            self.execute_tester(isd_as, "./bin/scion-pki",
+                                "certificate", "renew", *args))
 
         logger.info("Verify renewed certificate chain")
-        verify_out = self.execute("tester_%s" % isd_as.file_fmt(),
-                                  "./bin/scion-pki", "certificate", "verify",
-                                  chain, "--trc",
-                                  "/share/gen/trcs/ISD1-B1-S1.trc")
+        verify_out = self.execute_tester(isd_as,
+                                         "./bin/scion-pki", "certificate", "verify",
+                                         chain, "--trc",
+                                         "/share/gen/trcs/ISD1-B1-S1.trc")
         logger.info(str(verify_out).rstrip("\n"))
 
         renewed_chain = read_file(chain_name)
@@ -221,27 +200,24 @@ class Test(base.TestBase):
         return skid
 
     def _rel(self, path: pathlib.Path):
-        return path.relative_to(pathlib.Path(self.test_state.artifacts))
+        return path.relative_to(pathlib.Path(self.artifacts))
 
     def _to_as_dir(self, isd_as: ISD_AS) -> pathlib.Path:
         return pathlib.Path("%s/gen/AS%s" %
-                            (self.test_state.artifacts, isd_as.as_file_fmt()))
+                            (self.artifacts, isd_as.as_file_fmt()))
 
     def _cs_configs(self) -> List[pathlib.Path]:
         return list(
             pathlib.Path("%s/gen" %
-                         self.test_state.artifacts).glob("AS*/cs*.toml"))
+                         self.artifacts).glob("AS*/cs*.toml"))
 
     def _local_flags(self, isd_as: ISD_AS) -> List[str]:
         return [
             "--local",
-            self.execute("tester_%s" % isd_as.file_fmt(), "sh", "-c",
-                         "echo $SCION_LOCAL_ADDR").strip(),
+            self.execute_tester(isd_as, "sh", "-c",
+                                "echo $SCION_LOCAL_ADDR").strip(),
         ]
 
 
 if __name__ == "__main__":
-    base.register_commands(Test)
-    base.TestBase.test_state = base.TestState(scion.SCIONDocker(),
-                                              docker.Compose())
-    Test.run()
+    base.main(Test)
