@@ -24,13 +24,8 @@ import (
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/metrics"
 	dblib "github.com/scionproto/scion/private/storage/db"
+	st_drkey "github.com/scionproto/scion/private/storage/drkey"
 	"github.com/scionproto/scion/private/tracing"
-)
-
-const (
-	promOpGetSV           = "get_sv"
-	promOpInsertSV        = "insert_sv"
-	promOpDeleteExpiredSV = "delete_expired_sv"
 )
 
 type Metrics struct {
@@ -78,7 +73,7 @@ func (db *Database) GetValue(ctx context.Context,
 	meta drkey.SecretValueMeta, asSecret []byte) (drkey.SecretValue, error) {
 	var ret drkey.SecretValue
 	var err error
-	db.Metrics.Observe(ctx, promOpGetSV, func(ctx context.Context) error {
+	db.Metrics.Observe(ctx, st_drkey.PromOpGetKey, func(ctx context.Context) error {
 		ret, err = db.Backend.GetValue(ctx, meta, asSecret)
 		return err
 	})
@@ -88,7 +83,7 @@ func (db *Database) GetValue(ctx context.Context,
 func (db *Database) InsertValue(ctx context.Context,
 	proto drkey.Protocol, epoch drkey.Epoch) error {
 	var err error
-	db.Metrics.Observe(ctx, promOpInsertSV, func(ctx context.Context) error {
+	db.Metrics.Observe(ctx, st_drkey.PromOpInsertKey, func(ctx context.Context) error {
 		err = db.Backend.InsertValue(ctx, proto, epoch)
 		return err
 	})
@@ -98,7 +93,7 @@ func (db *Database) InsertValue(ctx context.Context,
 func (db *Database) DeleteExpiredValues(ctx context.Context, cutoff time.Time) (int, error) {
 	var ret int
 	var err error
-	db.Metrics.Observe(ctx, promOpDeleteExpiredSV, func(ctx context.Context) error {
+	db.Metrics.Observe(ctx, st_drkey.PromOpDeleteExpiredKeys, func(ctx context.Context) error {
 		ret, err = db.Backend.DeleteExpiredValues(ctx, cutoff)
 		return err
 	})

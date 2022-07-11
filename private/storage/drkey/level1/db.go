@@ -24,13 +24,8 @@ import (
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/metrics"
 	dblib "github.com/scionproto/scion/private/storage/db"
+	st_drkey "github.com/scionproto/scion/private/storage/drkey"
 	"github.com/scionproto/scion/private/tracing"
-)
-
-const (
-	promOpGetKey            = "get_lvl1_key"
-	promOpInsertKey         = "insert_lvl1_key"
-	promOpDeleteExpiredKeys = "delete_expired_lvl1_keys"
 )
 
 type Metrics struct {
@@ -78,9 +73,10 @@ func (db *Database) GetLevel1Key(
 	ctx context.Context,
 	meta drkey.Level1Meta,
 ) (drkey.Level1Key, error) {
+
 	var ret drkey.Level1Key
 	var err error
-	db.Metrics.Observe(ctx, promOpGetKey, func(ctx context.Context) error {
+	db.Metrics.Observe(ctx, st_drkey.PromOpGetKey, func(ctx context.Context) error {
 		ret, err = db.Backend.GetLevel1Key(ctx, meta)
 		return err
 	})
@@ -89,7 +85,7 @@ func (db *Database) GetLevel1Key(
 
 func (db *Database) InsertLevel1Key(ctx context.Context, key drkey.Level1Key) error {
 	var err error
-	db.Metrics.Observe(ctx, promOpInsertKey, func(ctx context.Context) error {
+	db.Metrics.Observe(ctx, st_drkey.PromOpInsertKey, func(ctx context.Context) error {
 		err = db.Backend.InsertLevel1Key(ctx, key)
 		return err
 	})
@@ -100,7 +96,7 @@ func (db *Database) DeleteExpiredLevel1Keys(ctx context.Context,
 	cutoff time.Time) (int, error) {
 	var ret int
 	var err error
-	db.Metrics.Observe(ctx, promOpDeleteExpiredKeys, func(ctx context.Context) error {
+	db.Metrics.Observe(ctx, st_drkey.PromOpDeleteExpiredKeys, func(ctx context.Context) error {
 		ret, err = db.Backend.DeleteExpiredLevel1Keys(ctx, cutoff)
 		return err
 	})
