@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package secret
+package level1
 
 import (
 	"context"
@@ -29,8 +29,8 @@ import (
 )
 
 type Metrics struct {
-	QueriesSVTotal metrics.Counter
-	ResultsSVTotal metrics.Counter
+	QueriesTotal metrics.Counter
+	ResultsTotal metrics.Counter
 }
 
 func (m *Metrics) Observe(ctx context.Context, op string, action func(context.Context) error) {
@@ -39,21 +39,21 @@ func (m *Metrics) Observe(ctx context.Context, op string, action func(context.Co
 		return
 	}
 
-	span, ctx := opentracing.StartSpanFromContext(ctx, fmt.Sprintf("drkeySVDB.%s", op))
+	span, ctx := opentracing.StartSpanFromContext(ctx, fmt.Sprintf("drkeyLevel1DB.%s", op))
 	defer span.Finish()
 
-	metrics.CounterInc(metrics.CounterWith(m.QueriesSVTotal, "operation", op))
+	metrics.CounterInc(metrics.CounterWith(m.QueriesTotal, "operation", op))
 	err := action(ctx)
 
 	label := dblib.ErrToMetricLabel(err)
 	tracing.Error(span, err)
 	tracing.ResultLabel(span, label)
 
-	metrics.CounterInc(metrics.CounterWith(m.ResultsSVTotal, "operation", op))
+	metrics.CounterInc(metrics.CounterWith(m.ResultsTotal, "operation", op))
 }
 
 type Database struct {
-	Backend drkey.SecretValueDB
+	Backend drkey.Level1DB
 	Metrics *Metrics
 }
 
@@ -69,34 +69,36 @@ func (db *Database) Close() error {
 	return db.Backend.Close()
 }
 
-func (db *Database) GetValue(ctx context.Context,
-	meta drkey.SecretValueMeta, asSecret []byte) (drkey.SecretValue, error) {
-	var ret drkey.SecretValue
+func (db *Database) GetLevel1Key(
+	ctx context.Context,
+	meta drkey.Level1Meta,
+) (drkey.Level1Key, error) {
+
+	var ret drkey.Level1Key
 	var err error
 	db.Metrics.Observe(ctx, st_drkey.PromOpGetKey, func(ctx context.Context) error {
-		ret, err = db.Backend.GetValue(ctx, meta, asSecret)
+		ret, err = db.Backend.GetLevel1Key(ctx, meta)
 		return err
 	})
 	return ret, err
 }
 
-func (db *Database) InsertValue(ctx context.Context,
-	proto drkey.Protocol, epoch drkey.Epoch) error {
+func (db *Database) InsertLevel1Key(ctx context.Context, key drkey.Level1Key) error {
 	var err error
 	db.Metrics.Observe(ctx, st_drkey.PromOpInsertKey, func(ctx context.Context) error {
-		err = db.Backend.InsertValue(ctx, proto, epoch)
+		err = db.Backend.InsertLevel1Key(ctx, key)
 		return err
 	})
 	return err
 }
 
-func (db *Database) DeleteExpiredValues(ctx context.Context, cutoff time.Time) (int, error) {
+func (db *Database) DeleteExpiredLevel1Keys(ctx context.Context,
+	cutoff time.Time) (int, error) {
 	var ret int
 	var err error
 	db.Metrics.Observe(ctx, st_drkey.PromOpDeleteExpiredKeys, func(ctx context.Context) error {
-		ret, err = db.Backend.DeleteExpiredValues(ctx, cutoff)
+		ret, err = db.Backend.DeleteExpiredLevel1Keys(ctx, cutoff)
 		return err
 	})
-
 	return ret, err
 }
