@@ -425,17 +425,32 @@ func (m *MockX509KeyPairLoader) EXPECT() *MockX509KeyPairLoaderMockRecorder {
 	return m.recorder
 }
 
-// LoadX509KeyPair mocks base method.
-func (m *MockX509KeyPairLoader) LoadX509KeyPair(arg0 context.Context, arg1 x509.ExtKeyUsage) (*tls.Certificate, error) {
+// LoadClientKeyPair mocks base method.
+func (m *MockX509KeyPairLoader) LoadClientKeyPair(arg0 context.Context) (*tls.Certificate, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "LoadX509KeyPair", arg0, arg1)
+	ret := m.ctrl.Call(m, "LoadClientKeyPair", arg0)
 	ret0, _ := ret[0].(*tls.Certificate)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// LoadX509KeyPair indicates an expected call of LoadX509KeyPair.
-func (mr *MockX509KeyPairLoaderMockRecorder) LoadX509KeyPair(arg0, arg1 interface{}) *gomock.Call {
+// LoadClientKeyPair indicates an expected call of LoadClientKeyPair.
+func (mr *MockX509KeyPairLoaderMockRecorder) LoadClientKeyPair(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadX509KeyPair", reflect.TypeOf((*MockX509KeyPairLoader)(nil).LoadX509KeyPair), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadClientKeyPair", reflect.TypeOf((*MockX509KeyPairLoader)(nil).LoadClientKeyPair), arg0)
+}
+
+// LoadServerKeyPair mocks base method.
+func (m *MockX509KeyPairLoader) LoadServerKeyPair(arg0 context.Context) (*tls.Certificate, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LoadServerKeyPair", arg0)
+	ret0, _ := ret[0].(*tls.Certificate)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LoadServerKeyPair indicates an expected call of LoadServerKeyPair.
+func (mr *MockX509KeyPairLoaderMockRecorder) LoadServerKeyPair(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadServerKeyPair", reflect.TypeOf((*MockX509KeyPairLoader)(nil).LoadServerKeyPair), arg0)
 }

@@ -131,7 +131,8 @@ func TestHandshake(t *testing.T) {
 	db := mock_trust.NewMockDB(ctrl)
 	db.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).MaxTimes(2).Return(trc, nil)
 	loader := mock_trust.NewMockX509KeyPairLoader(ctrl)
-	loader.EXPECT().LoadX509KeyPair(gomock.Any(), gomock.Any()).MaxTimes(2).Return(&tlsCert, nil)
+	loader.EXPECT().LoadServerKeyPair(gomock.Any()).Return(&tlsCert, nil)
+	loader.EXPECT().LoadClientKeyPair(gomock.Any()).Return(&tlsCert, nil)
 
 	mgr := trust.NewTLSCryptoManager(loader, db)
 	clientConn, serverConn := net.Pipe()
