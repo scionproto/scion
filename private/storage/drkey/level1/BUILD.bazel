@@ -3,7 +3,7 @@ load("//tools/lint:go.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = ["db.go"],
-    importpath = "github.com/scionproto/scion/private/storage/drkey/secret",
+    importpath = "github.com/scionproto/scion/private/storage/drkey/level1",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/drkey:go_default_library",
@@ -22,8 +22,8 @@ go_test(
         ":go_default_library",
         "//pkg/drkey:go_default_library",
         "//pkg/metrics:go_default_library",
-        "//private/storage/drkey/secret/dbtest:go_default_library",
-        "//private/storage/drkey/secret/sqlite:go_default_library",
+        "//private/storage/drkey/level1/dbtest:go_default_library",
+        "//private/storage/drkey/level1/sqlite:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
     ],
 )
