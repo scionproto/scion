@@ -32,7 +32,7 @@ func (d *Deriver) DeriveASHost(proto drkey.Protocol, dstHost string,
 		return drkey.Key{}, serrors.WrapStr("parsing dst host", err)
 	}
 	buf := make([]byte, 32)
-	len := d.serializeLevel2Input(buf, drkey.AsToHost, proto, host)
+	len := d.serializeLevel2Input(buf, drkey.AsHost, proto, host)
 	outKey, err := drkey.DeriveKey(buf[:len], key)
 	return outKey, err
 }
@@ -45,20 +45,20 @@ func (d *Deriver) DeriveHostAS(proto drkey.Protocol, srcHost string,
 		return drkey.Key{}, serrors.WrapStr("parsing src host", err)
 	}
 	buf := make([]byte, 32)
-	len := d.serializeLevel2Input(buf, drkey.HostToAS, proto, host)
+	len := d.serializeLevel2Input(buf, drkey.HostAS, proto, host)
 	outKey, err := drkey.DeriveKey(buf[:len], key)
 	return outKey, err
 }
 
-// DeriveHostToHost returns the HostHost derived key.
-func (d *Deriver) DeriveHostToHost(dstHost string,
+// DeriveHostHost returns the HostHost derived key.
+func (d *Deriver) DeriveHostHost(dstHost string,
 	key drkey.Key) (drkey.Key, error) {
 	host, err := drkey.HostAddrFromString(dstHost)
 	if err != nil {
 		return drkey.Key{}, serrors.WrapStr("deriving input H2H", err)
 	}
 	buf := make([]byte, 32)
-	len := drkey.SerializeHostToHostInput(buf[:], host)
+	len := drkey.SerializeHostHostInput(buf[:], host)
 	outKey, err := drkey.DeriveKey(buf[:len], key)
 	return outKey, err
 }

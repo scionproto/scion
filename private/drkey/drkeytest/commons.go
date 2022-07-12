@@ -88,7 +88,7 @@ func DeriveHostHostGeneric(meta drkey.HostHostMeta,
 	if err != nil {
 		return drkey.HostHostKey{}, err
 	}
-	h2hKey, err := (&generic.Deriver{}).DeriveHostToHost(meta.DstHost, hostASKey)
+	h2hKey, err := (&generic.Deriver{}).DeriveHostHost(meta.DstHost, hostASKey)
 	if err != nil {
 		return drkey.HostHostKey{}, err
 	}
@@ -147,7 +147,7 @@ func DeriveHostHostSpecific(meta drkey.HostHostMeta,
 	if err != nil {
 		return drkey.HostHostKey{}, err
 	}
-	h2hKey, err := (&specific.Deriver{}).DeriveHostToHost(meta.DstHost, hostASKey)
+	h2hKey, err := (&specific.Deriver{}).DeriveHostHost(meta.DstHost, hostASKey)
 	if err != nil {
 		return drkey.HostHostKey{}, err
 	}

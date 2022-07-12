@@ -43,7 +43,7 @@ func (d *Deriver) DeriveASHost(dstHost string,
 		return drkey.Key{}, serrors.WrapStr("parsing dst host", err)
 	}
 	buf := make([]byte, 32)
-	len := d.serializeLevel2Input(buf, drkey.AsToHost, host)
+	len := d.serializeLevel2Input(buf, drkey.AsHost, host)
 	outKey, err := drkey.DeriveKey(buf[:len], key)
 	return outKey, err
 }
@@ -55,19 +55,19 @@ func (p *Deriver) DeriveHostAS(srcHost string, key drkey.Key) (drkey.Key, error)
 		return drkey.Key{}, serrors.WrapStr("parsing src host", err)
 	}
 	buf := make([]byte, 32)
-	len := p.serializeLevel2Input(buf, drkey.HostToAS, host)
+	len := p.serializeLevel2Input(buf, drkey.HostAS, host)
 	outKey, err := drkey.DeriveKey(buf[:len], key)
 	return outKey, err
 }
 
-// DeriveHostToHost returns the HostHost derived key.
-func (d *Deriver) DeriveHostToHost(dstHost string, key drkey.Key) (drkey.Key, error) {
+// DeriveHostHost returns the HostHost derived key.
+func (d *Deriver) DeriveHostHost(dstHost string, key drkey.Key) (drkey.Key, error) {
 	host, err := drkey.HostAddrFromString(dstHost)
 	if err != nil {
 		return drkey.Key{}, serrors.WrapStr("deriving input H2H", err)
 	}
 	buf := make([]byte, 32)
-	len := drkey.SerializeHostToHostInput(buf, host)
+	len := drkey.SerializeHostHostInput(buf, host)
 	outKey, err := drkey.DeriveKey(buf[:len], key)
 	return outKey, err
 }
@@ -98,7 +98,7 @@ func (d *Deriver) serializeLevel2Input(input []byte, derType drkey.KeyType,
 // https://docs.scion.org/en/latest/cryptography/drkey.html#protocol-specific-derivation
 func serializeLevel1Input(buf []byte, dstIA addr.IA) int {
 	_ = buf[aes.BlockSize-1]
-	buf[0] = byte(drkey.AsToAs)
+	buf[0] = byte(drkey.AsAs)
 	binary.BigEndian.PutUint64(buf[1:], uint64(dstIA))
 	copy(buf[9:], drkey.ZeroBlock[:])
 
