@@ -1,0 +1,29 @@
+load("//tools/lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["db.go"],
+    importpath = "github.com/scionproto/scion/private/storage/drkey/level1",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/drkey:go_default_library",
+        "//pkg/metrics:go_default_library",
+        "//private/storage/db:go_default_library",
+        "//private/storage/drkey:go_default_library",
+        "//private/tracing:go_default_library",
+        "@com_github_opentracing_opentracing_go//:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["db_test.go"],
+    deps = [
+        ":go_default_library",
+        "//pkg/drkey:go_default_library",
+        "//pkg/metrics:go_default_library",
+        "//private/storage/drkey/level1/dbtest:go_default_library",
+        "//private/storage/drkey/level1/sqlite:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)

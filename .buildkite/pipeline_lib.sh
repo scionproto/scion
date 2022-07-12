@@ -2,21 +2,20 @@
 # args:
 #   -1: the bazel directory in which the tests are.
 gen_bazel_test_steps() {
-    targets="$(bazel query "attr(tags, integration, tests(${1}/...)) except attr(tags, \"lint|manual\", tests(${1}/...))" 2>/dev/null)"
+    parallel="${PARALLELISM:-1}"
+    echo "  - group: \"Integration Tests :bazel:\""
+    echo "    key: integration-tests"
+    echo "    if: build.message !~ /\[doc\]/"
+    echo "    steps:"
+
+    targets="$(bazel query "attr(tags, integration, tests(//...)) except attr(tags, \"lint|manual\", tests(//...))" 2>/dev/null)"
     for test in $targets; do
-        name=${test#"$1/"}
-        skip=false
-        cache="--cache_test_results=\${BAZEL_CACHE_TEST_RESULTS:-auto}"
-        parallel="${PARALLELISM:-1}"
+        name=${test#//}
+        cache=""
         args=""
 
         if [[ "$test" =~ "go" ]]; then
           args="--test_arg=-test.v"
-        fi
-
-        ret=$(bazel query "attr(tags, '\\bskip\\b', $test)" 2>/dev/null)
-        if [[ $ret != "" ]]; then
-          continue
         fi
 
         if [ -n "${SINGLE_TEST}" ]; then
@@ -30,29 +29,28 @@ gen_bazel_test_steps() {
             cache="--nocache_test_results"
         fi
 
-        n=${name/test_/}
-        echo "  - label: \"AT: ${n/gateway/gw} :bazel:\""
-        echo "    parallelism: $parallel"
-        echo "    if: build.message !~ /\[doc\]/"
-        echo "    command:"
-        echo "      - bazel test $test $args $cache"
-        if [ "$skip" = true ]; then
-            echo "    skip: true"
+        # Massage the name into a prettier label
+        label=$(echo "$name" | sed -e '
+          s#:test##
+          s#:go_default_test##
+          s#^acceptance/#AT: #
+          s#^demo/\(.*\):.*#Demo: \1#
+          s#\(.*\):go_integration_test$#IT: \1#
+          s#tools/cryptoplayground:\(.*\)_test#AT: \1#
+        ')
+        echo "      - label: \"${label}\""
+        if [ "$parallel" != "1" ]; then
+        echo "        parallelism: $parallel"
         fi
-        echo "    key: \"${name}_acceptance\""
-        echo "    plugins:"
-        echo "      - scionproto/metahook#v0.3.0:"
-        echo "          post-command: |"
-        echo "            echo \"--- Test outputs:\""
-        echo "            cat bazel-testlogs/${1}/${name//://}/test.log"
-        echo "            echo \"--- unzip testlogs\""
-        echo "            unzip bazel-testlogs/${1}/${name//://}/test.outputs/outputs.zip -d outputs 2>//dev//null || true"
-        echo "    artifact_paths:"
-        echo "      - \"artifacts.out/**/*\""
-        echo "    timeout_in_minutes: 20"
-        echo "    retry:"
-        echo "      automatic:"
-        echo "        - exit_status: -1 # Agent was lost"
-        echo "        - exit_status: 255 # Forced agent shutdown"
+        echo "        command:"
+        echo "          - bazel test --test_output=streamed $test $args $cache"
+        echo "        key: \"${name////_}\""
+        echo "        artifact_paths:"
+        echo "          - \"artifacts.out/**/*\""
+        echo "        timeout_in_minutes: 20"
+        echo "        retry:"
+        echo "          automatic:"
+        echo "            - exit_status: -1 # Agent was lost"
+        echo "            - exit_status: 255 # Forced agent shutdown"
     done
 }

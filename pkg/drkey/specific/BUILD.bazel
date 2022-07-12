@@ -1,0 +1,27 @@
+load("//tools/lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["specific.go"],
+    importpath = "github.com/scionproto/scion/pkg/drkey/specific",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/addr:go_default_library",
+        "//pkg/drkey:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["specific_test.go"],
+    data = glob(["testdata/**"]),
+    deps = [
+        ":go_default_library",
+        "//pkg/drkey:go_default_library",
+        "//pkg/private/xtest:go_default_library",
+        "//private/drkey/drkeytest:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)
