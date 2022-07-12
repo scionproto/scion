@@ -30,10 +30,10 @@ type KeyType uint8
 
 // Key types.
 const (
-	AsToAs KeyType = iota
-	AsToHost
-	HostToAS
-	HostToHost
+	AsAs KeyType = iota
+	AsHost
+	HostAS
+	HostHost
 )
 
 var (
@@ -99,11 +99,11 @@ func HostAddrFromString(host string) (HostAddr, error) {
 	return HostAddr{}, serrors.New("unsupported address", "addr", host)
 }
 
-// SerializeHostToHostInput serializes the input for deriving a HostToHost key,
+// SerializeHostHostInput serializes the input for deriving a HostHost key,
 // as explained in
 // https://docs.scion.org/en/latest/cryptography/drkey.html#level-derivation.
 // This derivation is common for Generic and Specific derivations.
-func SerializeHostToHostInput(input []byte, host HostAddr) int {
+func SerializeHostHostInput(input []byte, host HostAddr) int {
 	hostAddr := host.RawAddr
 	l := len(hostAddr)
 
@@ -113,7 +113,7 @@ func SerializeHostToHostInput(input []byte, host HostAddr) int {
 	inputLength := 16 * nrBlocks
 
 	_ = input[inputLength-1]
-	input[0] = uint8(HostToHost)
+	input[0] = uint8(HostHost)
 	input[1] = uint8(host.AddrType&0x3)<<2 | uint8(host.AddrLen&0x3)
 	copy(input[2:], hostAddr)
 	copy(input[2+l:inputLength], ZeroBlock[:])
