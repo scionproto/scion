@@ -1,0 +1,33 @@
+load("//tools/lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "db.go",
+        "drkey.go",
+        "protocol.go",
+    ],
+    importpath = "github.com/scionproto/scion/pkg/drkey",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/addr:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/private/util:go_default_library",
+        "//pkg/proto/drkey:go_default_library",
+        "//pkg/scrypto/cppki:go_default_library",
+        "//pkg/slayers:go_default_library",
+        "//private/storage/db:go_default_library",
+        "@org_golang_x_crypto//pbkdf2:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["secret_value_test.go"],
+    data = glob(["testdata/**"]),
+    deps = [
+        ":go_default_library",
+        "//pkg/private/xtest:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)
