@@ -26,24 +26,24 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 )
 
-// X509KeyPairProvider provides x509 certificate/key pairs
-// from persistence.
+// X509KeyPairProvider loads x509 certificate/key pairs
+// from the trust DB.
 type X509KeyPairProvider struct {
-	IA     addr.IA
-	DB     DB
-	Loader KeyRing
+	IA        addr.IA
+	DB        DB
+	KeyLoader KeyRing
 }
 
 var _ X509KeyPairLoader = (*X509KeyPairProvider)(nil)
 
 // LoadServerKeyPair loads a valid tls.Certificate with id-kp-serverAuth.
-// See: https://scion.docs.anapaya.net/en/latest/cryptography/certificateshtml#extended-key-usage-extension
+// See: https://docs.scion.org/en/latest/cryptography/certificates.html#extended-key-usage-extension
 func (p X509KeyPairProvider) LoadServerKeyPair(ctx context.Context) (*tls.Certificate, error) {
 	return p.loadX509KeyPair(ctx, x509.ExtKeyUsageServerAuth)
 }
 
-// LoadServerKeyPair loads a valid tls.Certificate with id-kp-clientAuth.
-// See: https://scion.docs.anapaya.net/en/latest/cryptography/certificateshtml#extended-key-usage-extension
+// LoadClientKeyPair loads a valid tls.Certificate with id-kp-clientAuth.
+// See: https://docs.scion.org/en/latest/cryptography/certificates.html#extended-key-usage-extension
 func (p X509KeyPairProvider) LoadClientKeyPair(ctx context.Context) (*tls.Certificate, error) {
 	return p.loadX509KeyPair(ctx, x509.ExtKeyUsageServerAuth)
 }
@@ -53,7 +53,7 @@ func (p X509KeyPairProvider) loadX509KeyPair(
 	extKeyUsage x509.ExtKeyUsage,
 ) (*tls.Certificate, error) {
 
-	keys, err := p.Loader.PrivateKeys(ctx)
+	keys, err := p.KeyLoader.PrivateKeys(ctx)
 	if err != nil {
 		return nil, serrors.WrapStr("getting keys", err)
 	}
@@ -77,7 +77,7 @@ func (p X509KeyPairProvider) loadX509KeyPair(
 		if cert == nil {
 			continue
 		}
-		if bestChain != nil && bestExpiry.Before(expiry) {
+		if bestChain != nil && bestExpiry.After(expiry) {
 			continue
 		}
 		bestChain = cert
@@ -85,7 +85,7 @@ func (p X509KeyPairProvider) loadX509KeyPair(
 		bestExpiry = expiry
 	}
 	if bestChain == nil {
-		return nil, serrors.New("no certificate found for DRKey gRPC")
+		return nil, serrors.New("no certificate found")
 	}
 	certificate := make([][]byte, len(bestChain))
 	for i := range bestChain {
@@ -100,14 +100,14 @@ func (p X509KeyPairProvider) loadX509KeyPair(
 
 func (p X509KeyPairProvider) bestKeyPair(
 	ctx context.Context,
-	trcs []cppki.SignedTRC,
+	signedTRCs []cppki.SignedTRC,
 	extKeyUsage x509.ExtKeyUsage,
 	signer crypto.Signer,
 ) ([]*x509.Certificate, time.Time, error) {
 
 	skid, err := cppki.SubjectKeyID(signer.Public())
 	if err != nil {
-		return nil, time.Time{}, nil
+		return nil, time.Time{}, err
 	}
 	chains, err := p.DB.Chains(ctx, ChainQuery{
 		IA:           p.IA,
@@ -117,46 +117,37 @@ func (p X509KeyPairProvider) bestKeyPair(
 	if err != nil {
 		return nil, time.Time{}, err
 	}
-	chain := bestEKUChain(&trcs[0].TRC, chains, extKeyUsage)
-	if chain == nil && len(trcs) == 1 {
+	trcs := make([]*cppki.TRC, len(signedTRCs))
+	for i, signedTRC := range signedTRCs {
+		signedTRC := signedTRC
+		trcs[i] = &signedTRC.TRC
+	}
+	chain := bestChainWithKeyUsage(trcs, chains, extKeyUsage)
+	if chain == nil {
 		return nil, time.Time{}, nil
 	}
-	var inGrace bool
-	// Attempt to find a chain that is verifiable only in grace period. If we
-	// have not found a chain yet.
-	if chain == nil && len(trcs) == 2 {
-		chain = bestEKUChain(&trcs[1].TRC, chains, extKeyUsage)
-		if chain == nil {
-			return nil, time.Time{}, nil
-		}
-		inGrace = true
-	}
-	expiry := min(chain[0].NotAfter, trcs[0].TRC.Validity.NotAfter)
-	if inGrace {
-		expiry = min(chain[0].NotAfter, trcs[0].TRC.GracePeriodEnd())
-	}
-	return chain, expiry, nil
+	return chain, chain[0].NotAfter, nil
 }
 
-func bestEKUChain(
-	trc *cppki.TRC,
+func bestChainWithKeyUsage(
+	trcs []*cppki.TRC,
 	chains [][]*x509.Certificate,
 	extKeyUsage x509.ExtKeyUsage,
 ) []*x509.Certificate {
 
-	opts := cppki.VerifyOptions{TRC: []*cppki.TRC{trc}}
+	opts := cppki.VerifyOptions{TRC: trcs}
 	var best []*x509.Certificate
 	for _, chain := range chains {
-		if err := cppki.VerifyChain(chain, opts); err != nil {
-			continue
-		}
 		if err := verifyExtendedKeyUsage(chain[0], extKeyUsage); err != nil {
 			continue
 		}
-		if len(best) > 0 && chain[0].NotAfter.Before(best[0].NotAfter) {
+		if err := cppki.VerifyChain(chain, opts); err != nil {
 			continue
 		}
-		best = chain
+		// Use the chain if its validity is longer than any other found so far.
+		if len(best) == 0 || chain[0].NotAfter.After(best[0].NotAfter) {
+			best = chain
+		}
 	}
 	return best
 }
