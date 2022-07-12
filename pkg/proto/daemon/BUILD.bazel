@@ -6,4 +6,7 @@ go_proto_library(
     importpath = "github.com/scionproto/scion/pkg/proto/daemon",
     proto = "//proto/daemon/v1:daemon",
     visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/proto/drkey:go_default_library",
+    ],
 )

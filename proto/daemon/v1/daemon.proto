@@ -20,6 +20,7 @@ package proto.daemon.v1;
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
+import "proto/drkey/v1/drkey.proto";
 
 service DaemonService {
     // Return a set of paths to the requested destination.
@@ -191,3 +192,71 @@ message NotifyInterfaceDownRequest {
 }
 
 message NotifyInterfaceDownResponse {};
+
+message DRKeyHostASRequest{
+    // Point in time where requested key is valid.
+    google.protobuf.Timestamp val_time = 1;
+    // Protocol value.
+    proto.drkey.v1.Protocol protocol_id = 2;
+    // Src ISD-AS of the requested DRKey.
+    uint64 src_ia = 3;
+    // Dst ISD-AS of the requested DRKey.
+    uint64 dst_ia = 4;
+    // Src Host of the request DRKey.
+    string src_host = 5;
+}
+
+message DRKeyHostASResponse{
+    // Begin of validity period of DRKey.
+    google.protobuf.Timestamp epoch_begin = 1;
+    // End of validity period of DRKey.
+    google.protobuf.Timestamp epoch_end = 2;
+    // Level2 key.
+    bytes key = 3;
+}
+
+message DRKeyASHostRequest{
+    // Point in time where requested key is valid.
+    google.protobuf.Timestamp val_time = 1;
+    // Protocol value.
+    proto.drkey.v1.Protocol protocol_id = 2;
+    // Src ISD-AS of the requested DRKey.
+    uint64 src_ia = 3;
+    // Dst ISD-AS of the requested DRKey.
+    uint64 dst_ia = 4;
+    // Dst Host of the request DRKey.
+    string dst_host = 5;
+}
+
+message DRKeyASHostResponse{
+    // Begin of validity period of DRKey.
+    google.protobuf.Timestamp epoch_begin = 1;
+    // End of validity period of DRKey.
+    google.protobuf.Timestamp epoch_end = 2;
+    // Level2 key.
+    bytes key = 3;
+}
+
+message DRKeyHostHostRequest{
+    // Point in time where requested key is valid.
+    google.protobuf.Timestamp val_time = 1;
+    // Protocol value.
+    proto.drkey.v1.Protocol protocol_id = 2;
+    // Src ISD-AS of the requested DRKey.
+    uint64 src_ia = 3;
+    // Dst ISD-AS of the requested DRKey.
+    uint64 dst_ia = 4;
+    // Src Host of the request DRKey.
+    string src_host = 5;
+    // Dst Host of the request DRKey.
+    string dst_host = 6;
+}
+
+message DRKeyHostHostResponse{
+    // Begin of validity period of DRKey.
+    google.protobuf.Timestamp epoch_begin = 1;
+    // End of validity period of DRKey.
+    google.protobuf.Timestamp epoch_end = 2;
+    // Level2 key.
+    bytes key = 3;
+}
