@@ -235,6 +235,11 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 				return err
 			}
 			ifinfo.LinkType = LinkTypeFromString(rawIntf.LinkTo)
+			//FIXME
+			if ifinfo.LinkType == Peer {
+				ifinfo.RemoteIFID = 42
+			}
+
 			isCore := false
 			for _, attr := range t.Attributes {
 				if attr == jsontopo.AttrCore {
@@ -269,6 +274,7 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 				return serrors.WrapStr("unable to extract "+
 					"underlay external data-plane remote address", err)
 			}
+
 			ifinfo.Underlay = underlay.UDPIPv6
 			if ifinfo.Local.IP.To4() != nil && ifinfo.Remote.IP.To4() != nil {
 				ifinfo.Underlay = underlay.UDPIPv4

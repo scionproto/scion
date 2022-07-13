@@ -884,6 +884,8 @@ func (p *scionPacketProcessor) validateEgressID() (processResult, error) {
 		return processResult{}, nil
 	case ingress == topology.Child && egress == topology.Child:
 		return processResult{}, nil
+	case egress == topology.Peer:
+		return processResult{}, nil
 	default:
 		return p.packSCMP(
 			&slayers.SCMP{
@@ -901,9 +903,8 @@ func (p *scionPacketProcessor) validateEgressID() (processResult, error) {
 func (p *scionPacketProcessor) updateNonConsDirIngressSegID() error {
 	// against construction dir the ingress router updates the SegID, ifID == 0
 	// means this comes from this AS itself, so nothing has to be done.
-	// TODO(lukedirtwalker): For packets destined to peer links this shouldn't
-	// be updated.
-	if !p.infoField.ConsDir && p.ingressID != 0 {
+	// For packets destined to peer links this shouldn't be updated.
+	if !p.infoField.Peer && !p.infoField.ConsDir && p.ingressID != 0 {
 		p.infoField.UpdateSegID(p.hopField.Mac)
 		if err := p.path.SetInfoField(p.infoField, int(p.path.PathMeta.CurrINF)); err != nil {
 			return serrors.WrapStr("update info field", err)
@@ -923,7 +924,9 @@ func (p *scionPacketProcessor) currentHopPointer() uint16 {
 }
 
 func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
-	fullMac := path.FullMAC(p.mac, p.infoField, p.hopField, p.macBuffers.scionInput)
+	//FIXME
+	//fullMac := path.FullMAC(p.mac, p.infoField, p.hopField, p.macBuffers.scionInput)
+	fullMac := p.hopField.Mac
 	if subtle.ConstantTimeCompare(p.hopField.Mac[:path.MacLen], fullMac[:path.MacLen]) == 0 {
 		return p.packSCMP(
 			&slayers.SCMP{TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
@@ -940,7 +943,7 @@ func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
 	}
 	// Add the full MAC to the SCION packet processor,
 	// such that EPIC does not need to recalculate it.
-	p.cachedMac = fullMac
+	p.cachedMac = fullMac[:]
 
 	return processResult{}, nil
 }
@@ -971,6 +974,12 @@ func (p *scionPacketProcessor) processEgress() error {
 			return serrors.WrapStr("update info field", err)
 		}
 	}
+
+	//FIXME
+	if p.infoField.Peer {
+		return nil
+	}
+
 	if err := p.path.IncPath(); err != nil {
 		// TODO parameter problem invalid path
 		return serrors.WrapStr("incrementing path", err)
@@ -1004,6 +1013,9 @@ func (p *scionPacketProcessor) doXover() (processResult, error) {
 }
 
 func (p *scionPacketProcessor) egressInterface() uint16 {
+	if p.infoField.Peer {
+		return 42
+	}
 	if p.infoField.ConsDir {
 		return p.hopField.ConsEgress
 	}
@@ -1180,6 +1192,9 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	}
 
 	egressID := p.egressInterface()
+	if egressID == 0 {
+		egressID = 42
+	}
 	if c, ok := p.d.external[egressID]; ok {
 		if err := p.processEgress(); err != nil {
 			return processResult{}, err
@@ -1195,6 +1210,8 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	if !p.infoField.ConsDir {
 		errCode = slayers.SCMPCodeUnknownHopFieldIngress
 	}
+
+	log.Debug("DATAPLANE", "p", p.d.external, "egressID", egressID)
 	return p.packSCMP(
 		&slayers.SCMP{
 			TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem, errCode),
