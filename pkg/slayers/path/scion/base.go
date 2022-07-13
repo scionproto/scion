@@ -76,7 +76,7 @@ func (s *Base) IncPath() error {
 	}
 	if int(s.PathMeta.CurrHF) >= s.NumHops-1 {
 		s.PathMeta.CurrHF = uint8(s.NumHops - 1)
-		return serrors.New("path already at end")
+		return serrors.New(fmt.Sprintf("path already at end, currhf %d, numhops %d", s.PathMeta.CurrHF, s.NumHops))
 	}
 	s.PathMeta.CurrHF++
 	// Update CurrINF
