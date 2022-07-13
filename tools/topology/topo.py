@@ -305,6 +305,11 @@ class TopoGenerator(object):
                                                         r_ifid, link_addr_type)
 
         intl_addr = self._reg_addr(local, local_br + "_internal", addr_type)
+
+        intf = self._gen_br_intf(remote, public_addr, remote_addr, attrs, remote_type)
+        if intf['link_to'] == 'peer':
+            intf['remote_if_id'] = r_ifid
+
         if self.topo_dicts[local]["border_routers"].get(local_br) is None:
             intl_port = 30042
             if not self.args.docker:
@@ -313,13 +318,13 @@ class TopoGenerator(object):
             self.topo_dicts[local]["border_routers"][local_br] = {
                 'internal_addr': join_host_port(intl_addr.ip, intl_port),
                 'interfaces': {
-                    l_ifid: self._gen_br_intf(remote, public_addr, remote_addr, attrs, remote_type)
+                    l_ifid: intf
                 }
             }
         else:
             # There is already a BR entry, add interface
-            intf = self._gen_br_intf(remote, public_addr, remote_addr, attrs, remote_type)
             self.topo_dicts[local]["border_routers"][local_br]['interfaces'][l_ifid] = intf
+
 
     def _gen_br_intf(self, remote, public_addr, remote_addr, attrs, remote_type):
         return {
