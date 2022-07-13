@@ -50,10 +50,11 @@ type LinkInfo struct {
 	MTU      int
 }
 
-// LinkEnd represents on end of a link.
+// LinkEnd represents one end of a link.
 type LinkEnd struct {
 	IA   addr.IA
 	Addr *net.UDPAddr
+	IFID common.IFIDType
 }
 
 type ObservableDataplane interface {
@@ -174,10 +175,12 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 			Local: LinkEnd{
 				IA:   cfg.IA,
 				Addr: snet.CopyUDPAddr(iface.Local),
+				IFID: iface.ID,
 			},
 			Remote: LinkEnd{
 				IA:   iface.IA,
 				Addr: snet.CopyUDPAddr(iface.Remote),
+				IFID: iface.RemoteIFID,
 			},
 			Instance: iface.BRName,
 			BFD:      WithDefaults(BFD(iface.BFD)),
