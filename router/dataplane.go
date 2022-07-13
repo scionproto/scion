@@ -837,6 +837,38 @@ func (p *scionPacketProcessor) parsePath() (processResult, error) {
 		// TODO(lukedirtwalker) parameter problem invalid path?
 		return processResult{}, err
 	}
+	if r, err := p.validateHopExpiry(); err != nil {
+		return r, err
+	}
+	if r, err := p.validateIngressID(); err != nil {
+		return r, err
+	}
+	return processResult{}, nil
+}
+
+func (p *scionPacketProcessor) determinePeer() (processResult, error) {
+	if !p.infoField.Peer {
+		return processResult{}, nil
+	}
+
+	// TODO: proper error
+	err := serrors.New("TODO: segment length error (peering)")
+
+	if p.path.PathMeta.SegLen[0] == 0 {
+		return processResult{}, err
+	}
+	if p.path.PathMeta.SegLen[1] == 0 {
+		return processResult{}, err
+	}
+	if p.path.PathMeta.SegLen[2] != 0 {
+		return processResult{}, err
+	}
+
+	// The peer hop fields are the last hop field on the first path
+	// segment and the first hop field of the second path segment.
+	currHF := p.path.PathMeta.CurrHF
+	segLen := p.path.PathMeta.SegLen[0]
+	p.peering = currHF == segLen-1 || currHF == segLen
 	return processResult{}, nil
 }
 
@@ -1279,6 +1311,9 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 		return r, err
 	}
 	if r, err := p.validateIngressID(); err != nil {
+		return r, err
+	}
+	if r, err := p.determinePeer(); err != nil {
 		return r, err
 	}
 	if r, err := p.validatePktLen(); err != nil {
