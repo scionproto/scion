@@ -129,6 +129,7 @@ func realMain(ctx context.Context) error {
 		return topo.Run(errCtx)
 	})
 	intfs := ifstate.NewInterfaces(adaptInterfaceMap(topo.InterfaceInfoMap()), ifstate.Config{})
+	log.Info("XXX INTERFACES", "intfs", intfs)
 	g.Go(func() error {
 		defer log.HandlePanic()
 		sub := topo.Subscribe()
