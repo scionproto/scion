@@ -98,6 +98,7 @@ type DataPlane struct {
 	external          map[uint16]BatchConn
 	linkTypes         map[uint16]topology.LinkType
 	neighborIAs       map[uint16]addr.IA
+	remotePeerIF      map[uint16]uint16
 	internal          BatchConn
 	internalIP        *net.IPAddr
 	internalNextHops  map[uint16]*net.UDPAddr
@@ -262,6 +263,24 @@ func (d *DataPlane) AddLinkType(ifID uint16, linkTo topology.LinkType) error {
 		d.linkTypes = make(map[uint16]topology.LinkType)
 	}
 	d.linkTypes[ifID] = linkTo
+	return nil
+}
+
+// AddRemotePeer adds the remote peering interface ID for local
+// interface ID.  If the link type for the given ID is already set to
+// a different type, this method will return an error. This can only
+// be called on a not yet running dataplane.
+func (d *DataPlane) AddRemotePeer(localifID, remoteifID uint16) error {
+	if t, ok := d.linkTypes[localifID]; ok && t != topology.Peer {
+		return serrors.WithCtx(unsupportedPathType, "type", t)
+	}
+	if _, exists := d.remotePeerIF[localifID]; exists {
+		return serrors.WithCtx(alreadySet, "localifID", localifID)
+	}
+	if d.remotePeerIF == nil {
+		d.remotePeerIF = make(map[uint16]uint16)
+	}
+	d.remotePeerIF[localifID] = remoteifID
 	return nil
 }
 
@@ -781,6 +800,11 @@ type scionPacketProcessor struct {
 	path *scion.Raw
 	// hopField is the current hopField field, is updated during processing.
 	hopField path.HopField
+	// localPeer is the local peerField field, is updated during processing.
+	localPeer path.PeerField
+	// remotePeer is the remote peerField field, is updated during processing.
+	remotePeer path.PeerField
+
 	// infoField is the current infoField field, is updated during processing.
 	infoField path.InfoField
 	// segmentChange indicates if the path segment was changed during processing.
@@ -845,6 +869,24 @@ func (p *scionPacketProcessor) parsePath() (processResult, error) {
 	if err != nil {
 		// TODO(lukedirtwalker) parameter problem invalid path?
 		return processResult{}, err
+	}
+	if p.infoField.Peer {
+		log.Debug("PEER", "PathMeta", p.path.PathMeta)
+		var err error
+		p.localPeer, err = p.path.GetCurrentPeerField()
+		if err != nil {
+			return processResult{}, err
+		}
+		idx := 1
+		if p.infoField.ConsDir {
+			// ConsDir == true, the remotePeerField
+			// is above the current hop field
+			idx = -1
+		}
+		p.remotePeer, err = p.path.GetPeerField(int(p.path.PathMeta.CurrHF) + idx)
+		if err != nil {
+			return processResult{}, err
+		}
 	}
 	return processResult{}, nil
 }
@@ -953,7 +995,8 @@ func (p *scionPacketProcessor) validateEgressID() (processResult, error) {
 	pktEgressID := p.egressInterface()
 	_, ih := p.d.internalNextHops[pktEgressID]
 	_, eh := p.d.external[pktEgressID]
-	if !ih && !eh {
+	_, ph := p.d.remotePeerIF[pktEgressID]
+	if !ih && !eh && !ph {
 		errCode := slayers.SCMPCodeUnknownHopFieldEgress
 		if !p.infoField.ConsDir {
 			errCode = slayers.SCMPCodeUnknownHopFieldIngress
@@ -962,7 +1005,9 @@ func (p *scionPacketProcessor) validateEgressID() (processResult, error) {
 			slayers.SCMPTypeParameterProblem,
 			errCode,
 			&slayers.SCMPParameterProblem{Pointer: p.currentHopPointer()},
-			cannotRoute,
+			serrors.New("egress interface invalid",
+				"pkt_egress", pktEgressID),
+			//cannotRoute,
 		)
 	}
 
@@ -1033,8 +1078,8 @@ func (p *scionPacketProcessor) currentHopPointer() uint16 {
 }
 
 func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
-	//FIXME
 	//fullMac := path.FullMAC(p.mac, p.infoField, p.hopField, p.macBuffers.scionInput)
+	//XXX FIXME TODO LOBOTOMOIZED MAC VERIFICATION
 	fullMac := p.hopField.Mac
 	if subtle.ConstantTimeCompare(p.hopField.Mac[:path.MacLen], fullMac[:path.MacLen]) == 0 {
 		return p.packSCMP(
@@ -1051,6 +1096,8 @@ func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
 	}
 	// Add the full MAC to the SCION packet processor,
 	// such that EPIC does not need to recalculate it.
+	// p.cachedMac = fullMac
+	// XXX
 	p.cachedMac = fullMac[:]
 
 	return processResult{}, nil
@@ -1081,7 +1128,8 @@ func (p *scionPacketProcessor) processEgress() error {
 		}
 	}
 
-	//FIXME
+	//FIXME not incrementing the path but returning early seems to have worked but
+	//no idea why
 	if p.infoField.Peer {
 		return nil
 	}
@@ -1133,7 +1181,9 @@ func (p *scionPacketProcessor) ingressInterface() uint16 {
 
 func (p *scionPacketProcessor) egressInterface() uint16 {
 	if p.infoField.Peer {
-		return 42
+		//FIXME
+		return p.localPeer.PeerIF
+		//return p.d.remotePeerIF[p.remotePeer.PeerIF]
 	}
 	if p.infoField.ConsDir {
 		return p.hopField.ConsEgress
@@ -1322,9 +1372,7 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	}
 
 	egressID := p.egressInterface()
-	if egressID == 0 {
-		egressID = 42
-	}
+
 	if c, ok := p.d.external[egressID]; ok {
 		if err := p.processEgress(); err != nil {
 			return processResult{}, err
@@ -1340,8 +1388,7 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	if !p.infoField.ConsDir {
 		errCode = slayers.SCMPCodeUnknownHopFieldIngress
 	}
-
-	log.Debug("DATAPLANE", "p", p.d.external, "egressID", egressID)
+	log.Debug("SCMP", "egressID", egressID)
 	return p.packSCMP(
 		slayers.SCMPTypeParameterProblem,
 		errCode,

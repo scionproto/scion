@@ -211,7 +211,6 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 
 			// Send probe for each path.
 			for _, path := range paths {
-				log.Info("YYY", "underlay", path.UnderlayNextHop)
 				originalPath, ok := path.Dataplane().(snetpath.SCION)
 				if !ok {
 					return serrors.New("not a scion path")

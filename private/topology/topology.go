@@ -243,9 +243,8 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 				return err
 			}
 			ifinfo.LinkType = LinkTypeFromString(rawIntf.LinkTo)
-			//FIXME
 			if ifinfo.LinkType == Peer {
-				ifinfo.RemoteIFID = 42
+				ifinfo.RemoteIFID = rawIntf.RemoteIFID
 			}
 
 			if err = ifinfo.CheckLinks(t.IsCore, name); err != nil {
