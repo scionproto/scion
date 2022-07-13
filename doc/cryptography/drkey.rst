@@ -1,3 +1,5 @@
+.. _drkey:
+
 **************************************************
 Dynamically Recreatable Key (DRKey) Infrastructure
 **************************************************
@@ -83,12 +85,16 @@ key to derive Level 3 keys locally.
 Therefore, the key :math:`K_{A:H_A,B}` is only available to :math:`A:H_A` and trusted
 infrastructure.
 
+.. _drkey-as-host:
+
 **AS-host (Level 2)**
 
 The ``AS-host`` key is also derived using the Level 1 symmetric key,
 however this key is intended to be used for communication.
 In this case, the key :math:`K_{A,B:H_B}` is shared between :math:`AS_A` trusted nodes
 and :math:`B:H_B`.
+
+.. _drkey-host-host:
 
 **host-host (Level 3)**
 
@@ -414,3 +420,17 @@ Key exchange message format
       // Lvl2 key.
       bytes key = 3;
     }
+
+.. _drkey-protocol-identifiers:
+
+Assigned Protocol Identifiers
+=============================
+
+The following protocol identifiers are assigned:
+
+======= ========== ============================================================== =============
+Decimal Identifier Description                                                    Reference
+======= ========== ============================================================== =============
+0       Generic    Identifier for Level 1 key in :ref:`drkey-generic-derivation`  :ref:`drkey-generic-derivation`
+1       SCMP       Authentication of SCMP messages                                :ref:`scmp-specification`
+======= ========== ============================================================== =============

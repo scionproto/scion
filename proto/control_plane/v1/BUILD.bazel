@@ -4,6 +4,7 @@ proto_library(
     name = "control_plane",
     srcs = [
         "cppki.proto",
+        "drkey.proto",
         "renewal.proto",
         "seg.proto",
         "seg_extensions.proto",
@@ -13,6 +14,7 @@ proto_library(
     deps = [
         "//proto/control_plane/experimental/v1:experimental",
         "//proto/crypto/v1:crypto",
+        "//proto/drkey/v1:drkey",
         "@com_google_protobuf//:timestamp_proto",
     ],
 )
