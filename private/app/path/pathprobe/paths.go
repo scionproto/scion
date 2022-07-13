@@ -186,7 +186,9 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 			continue
 		}
 		pathsPerIP[localIP.String()] = append(pathsPerIP[localIP.String()], path)
-		addStatus(PathKey(path), Status{Status: StatusTimeout, LocalIP: localIP})
+		//FIXME
+		//addStatus(PathKey(path), Status{Status: StatusTimeout, LocalIP: localIP})
+		addStatus(PathKey(path), Status{Status: StatusAlive, LocalIP: localIP})
 	}
 
 	// Sequence number for the sent traceroute packets.
@@ -207,6 +209,7 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 
 			// Send probe for each path.
 			for _, path := range paths {
+				log.Info("YYY", "underlay", path.UnderlayNextHop)
 				originalPath, ok := path.Dataplane().(snetpath.SCION)
 				if !ok {
 					return serrors.New("not a scion path")
