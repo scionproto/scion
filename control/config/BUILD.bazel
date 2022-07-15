@@ -5,11 +5,14 @@ go_library(
     srcs = [
         "bs_sample.go",
         "config.go",
+        "drkey.go",
         "sample.go",
     ],
     importpath = "github.com/scionproto/scion/control/config",
     visibility = ["//visibility:public"],
     deps = [
+        "//pkg/addr:go_default_library",
+        "//pkg/drkey:go_default_library",
         "//pkg/log:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/private/util:go_default_library",
@@ -19,20 +22,28 @@ go_library(
         "//private/mgmtapi/jwtauth:go_default_library",
         "//private/storage:go_default_library",
         "//private/trust/config:go_default_library",
+        "@af_inet_netaddr//:go_default_library",
     ],
 )
 
 go_test(
     name = "go_default_test",
-    srcs = ["config_test.go"],
+    srcs = [
+        "config_test.go",
+        "drkey_test.go",
+    ],
     embed = [":go_default_library"],
     deps = [
+        "//pkg/drkey:go_default_library",
         "//pkg/log/logtest:go_default_library",
         "//private/env/envtest:go_default_library",
         "//private/mgmtapi/jwtauth:go_default_library",
         "//private/mgmtapi/mgmtapitest:go_default_library",
+        "//private/storage:go_default_library",
         "//private/storage/test:go_default_library",
+        "@af_inet_netaddr//:go_default_library",
         "@com_github_pelletier_go_toml//:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
     ],
 )

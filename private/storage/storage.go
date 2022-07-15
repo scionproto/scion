@@ -23,6 +23,7 @@ import (
 
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/private/config"
 	"github.com/scionproto/scion/private/pathdb"
@@ -33,6 +34,9 @@ import (
 	sqlitebeacondb "github.com/scionproto/scion/private/storage/beacon/sqlite"
 	"github.com/scionproto/scion/private/storage/cleaner"
 	"github.com/scionproto/scion/private/storage/db"
+	sqlitelevel1 "github.com/scionproto/scion/private/storage/drkey/level1/sqlite"
+	sqlitelevel2 "github.com/scionproto/scion/private/storage/drkey/level2/sqlite"
+	sqlitesecret "github.com/scionproto/scion/private/storage/drkey/secret/sqlite"
 	sqlitepathdb "github.com/scionproto/scion/private/storage/path/sqlite"
 	truststorage "github.com/scionproto/scion/private/storage/trust"
 	sqlitetrustdb "github.com/scionproto/scion/private/storage/trust/sqlite"
@@ -46,9 +50,12 @@ const (
 	// BackendSqlite indicates an sqlite backend.
 	BackendSqlite Backend = "sqlite"
 	// DefaultPath indicates the default connection string for a generic database.
-	DefaultPath        = "/share/scion.db"
-	DefaultTrustDBPath = "/share/data/%s.trust.db"
-	DefaultPathDBPath  = "/share/cache/%s.path.db"
+	DefaultPath              = "/share/scion.db"
+	DefaultTrustDBPath       = "/share/data/%s.trust.db"
+	DefaultPathDBPath        = "/share/cache/%s.path.db"
+	DefaultDRKeyLevel1DBPath = "/share/cache/%s.drkey_level1.db"
+	DefaultDRKeyLevel2DBPath = "/share/cache/%s.drkey_level2.db"
+	DefaultDRKeySVDBPath     = "/share/cache/%s.drkey_secret_value.db"
 )
 
 // Default samples for various databases.
@@ -61,6 +68,15 @@ var (
 	}
 	SampleTrustDB = DBConfig{
 		Connection: DefaultTrustDBPath,
+	}
+	SampleDRKeyLevel1DB = DBConfig{
+		Connection: DefaultDRKeyLevel1DBPath,
+	}
+	SampleDRKeyLevel2DB = DBConfig{
+		Connection: DefaultDRKeyLevel2DBPath,
+	}
+	SampleDRKeySecretValueDB = DBConfig{
+		Connection: DefaultDRKeySVDBPath,
 	}
 )
 
@@ -227,6 +243,36 @@ func NewRevocationStorage() revcache.RevCache {
 func NewTrustStorage(c DBConfig) (TrustDB, error) {
 	log.Info("Connecting TrustDB", "backend", BackendSqlite, "connection", c.Connection)
 	db, err := sqlitetrustdb.New(c.Connection)
+	if err != nil {
+		return nil, err
+	}
+	SetConnLimits(db, c)
+	return db, nil
+}
+
+func NewDRKeySecretValueStorage(c DBConfig) (drkey.SecretValueDB, error) {
+	log.Info("Connecting DRKeySecretValueDB", "	", BackendSqlite, "connection", c.Connection)
+	db, err := sqlitesecret.NewBackend(c.Connection)
+	if err != nil {
+		return nil, err
+	}
+	SetConnLimits(db, c)
+	return db, nil
+}
+
+func NewDRKeyLevel1Storage(c DBConfig) (drkey.Level1DB, error) {
+	log.Info("Connecting DRKeyLevel1DB", "	", BackendSqlite, "connection", c.Connection)
+	db, err := sqlitelevel1.NewBackend(c.Connection)
+	if err != nil {
+		return nil, err
+	}
+	SetConnLimits(db, c)
+	return db, nil
+}
+
+func NewDRKeyLevel2Storage(c DBConfig) (drkey.Level2DB, error) {
+	log.Info("Connecting DRKeyDB", "	", BackendSqlite, "connection", c.Connection)
+	db, err := sqlitelevel2.NewBackend(c.Connection)
 	if err != nil {
 		return nil, err
 	}
