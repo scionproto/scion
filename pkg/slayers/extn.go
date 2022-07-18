@@ -450,78 +450,83 @@ func (e *EndToEndExtnSkipper) NextLayerType() gopacket.LayerType {
 // PacketAuthSPI is the identifier for the key used for the
 // packet authentication option. DRKey values are in the
 // range [1, 2^21-1].
-type PacketAuthSPI uint32
+type PacketAuthenticatorSPI uint32
 
-type DRKeyType uint8
+type PacketAuthenticatorDRKeyType uint8
 
 const (
-	ASHost DRKeyType = iota
+	ASHost PacketAuthenticatorDRKeyType = iota
 	HostHost
 )
 
-type DRKeyDirection uint8
+type PacketAuthenticatorDRKeyDirection uint8
 
 const (
-	SenderSide DRKeyDirection = iota
+	SenderSide PacketAuthenticatorDRKeyDirection = iota
 	ReceiverSide
 )
 
-type DRKeyEpochType uint8
+type PacketAuthenticatorDRKeyEpochType uint8
 
 const (
-	Later DRKeyEpochType = iota
+	Later PacketAuthenticatorDRKeyEpochType = iota
 	Earlier
 )
 
-func (p PacketAuthSPI) Type() DRKeyType {
-	if p^(1<<13) == 0 {
+func (p PacketAuthenticatorSPI) Type() PacketAuthenticatorDRKeyType {
+	if p&(1<<13) == 0 {
 		return ASHost
 	}
 	return HostHost
 }
 
-func (p PacketAuthSPI) Direction() DRKeyDirection {
-	if p^(1<<14) == 0 {
+func (p PacketAuthenticatorSPI) Direction() PacketAuthenticatorDRKeyDirection {
+	if p&(1<<14) == 0 {
 		return SenderSide
 	}
 	return ReceiverSide
 }
 
-func (p PacketAuthSPI) Epoch() DRKeyEpochType {
-	if p^(1<<14) == 0 {
+func (p PacketAuthenticatorSPI) Epoch() PacketAuthenticatorDRKeyEpochType {
+	if p&(1<<15) == 0 {
 		return Later
 	}
 	return Earlier
 }
 
-func (p PacketAuthSPI) DRKeyProto() uint16 {
+func (p PacketAuthenticatorSPI) DRKeyProto() uint16 {
 	return uint16(p >> 16)
 }
 
-func (p PacketAuthSPI) IsDRKey() bool {
+func (p PacketAuthenticatorSPI) IsDRKey() bool {
 	return p > 0 && p < (1<<21)
 }
 
-func MakePacketAuthSPIDrkey(proto uint16, drkeyType DRKeyType,
-	dir DRKeyDirection, epoch DRKeyEpochType) (PacketAuthSPI, error) {
+func MakePacketAuthSPIDrkey(
+	proto uint16,
+	drkeyType PacketAuthenticatorDRKeyType,
+	dir PacketAuthenticatorDRKeyDirection,
+	epoch PacketAuthenticatorDRKeyEpochType,
+) PacketAuthenticatorSPI {
+
 	if proto < 1 {
-		return 0, serrors.New("Invalid proto identifier value")
+		panic("Invalid proto identifier value")
 	}
 	if drkeyType > 1 {
-		return 0, serrors.New("Invalid DRKeyType value")
+		panic("Invalid DRKeyType value")
 	}
 	if dir > 1 {
-		return 0, serrors.New("Invalid DRKeyDirection value")
+		panic("Invalid DRKeyDirection value")
 	}
 	if epoch > 1 {
-		return 0, serrors.New("Invalid DRKeyEpochType value")
+		panic("Invalid DRKeyEpochType value")
 	}
 	spi := uint32((drkeyType & 0x1)) << 13
 	spi |= uint32((dir & 0x1)) << 14
 	spi |= uint32((epoch & 0x1)) << 15
 	spi |= uint32(proto) << 16
 
-	return PacketAuthSPI(spi), nil
+	return PacketAuthenticatorSPI(spi)
 }
 
 // PacketAuthAlg is the enumerator for authenticator algorithm types in the
@@ -542,8 +547,14 @@ type PacketAuthenticatorOption struct {
 
 // NewPacketAuthenticatorOption creates a new EndToEndOption of
 // OptTypeAuthenticator, initialized with the given SPAO data.
-func NewPacketAuthenticatorOption(spi PacketAuthSPI, alg PacketAuthAlg, ts uint32,
-	sn uint32, auth []byte) PacketAuthenticatorOption {
+func NewPacketAuthenticatorOption(
+	spi PacketAuthenticatorSPI,
+	alg PacketAuthAlg,
+	ts uint32,
+	sn uint32,
+	auth []byte,
+) PacketAuthenticatorOption {
+
 	o := PacketAuthenticatorOption{EndToEndOption: new(EndToEndOption)}
 	o.Reset(spi, alg, ts, sn, auth)
 	return o
@@ -568,8 +579,13 @@ func ParsePacketAuthenticatorOption(o *EndToEndOption) (PacketAuthenticatorOptio
 
 // Reset reinitializes the underlying EndToEndOption with the SPAO data.
 // Reuses the OptData buffer if it is of sufficient capacity.
-func (o PacketAuthenticatorOption) Reset(spi PacketAuthSPI, alg PacketAuthAlg,
-	ts uint32, sn uint32, auth []byte) {
+func (o PacketAuthenticatorOption) Reset(
+	spi PacketAuthenticatorSPI,
+	alg PacketAuthAlg,
+	ts uint32,
+	sn uint32,
+	auth []byte,
+) {
 
 	if ts >= (1 << 24) {
 		panic("Timestamp value should be smaller than 2^24")
@@ -586,7 +602,7 @@ func (o PacketAuthenticatorOption) Reset(spi PacketAuthSPI, alg PacketAuthAlg,
 	} else {
 		o.OptData = make([]byte, n)
 	}
-	binary.BigEndian.PutUint32(o.OptData[:4], uint32(spi))
+	binary.LittleEndian.PutUint32(o.OptData[:4], uint32(spi))
 	o.OptData[4] = byte(alg)
 	o.OptData[5] = byte(ts >> 16)
 	o.OptData[6] = byte(ts >> 8)
@@ -604,8 +620,8 @@ func (o PacketAuthenticatorOption) Reset(spi PacketAuthSPI, alg PacketAuthAlg,
 }
 
 // SPI returns returns the value set in the homonym field in the extension.
-func (o PacketAuthenticatorOption) SPI() PacketAuthSPI {
-	return PacketAuthSPI(binary.BigEndian.Uint32(o.OptData[:4]))
+func (o PacketAuthenticatorOption) SPI() PacketAuthenticatorSPI {
+	return PacketAuthenticatorSPI(binary.LittleEndian.Uint32(o.OptData[:4]))
 }
 
 // Algorithm returns the algorithm type stored in the data buffer.

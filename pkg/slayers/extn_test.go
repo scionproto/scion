@@ -543,7 +543,7 @@ func prepRawPacketWithExtn(t *testing.T, extns ...slayers.L4ProtocolType) []byte
 	return buf.Bytes()
 }
 
-var spi = slayers.PacketAuthSPI(binary.LittleEndian.Uint32([]byte{1, 0, 0, 0}))
+var spi = slayers.PacketAuthenticatorSPI(binary.LittleEndian.Uint32([]byte{0, 0x80, 1, 0}))
 var algo = slayers.PacketAuthSHA1_AES_CBC
 var ts = binary.LittleEndian.Uint32([]byte{1, 2, 3, 0})
 var sn = binary.LittleEndian.Uint32([]byte{4, 5, 6, 0})
@@ -570,7 +570,7 @@ var optAuthMAC = []byte("16byte_mac_foooo")
 var rawE2EOptAuth = append(
 	[]byte{
 		0x11, 0x7, 0x2, 0x1c,
-		0x0, 0x0, 0x0, 0x1,
+		0x0, 0x80, 0x1, 0x0,
 		0x1, 0x3, 0x2, 0x1,
 		0x0, 0x6, 0x5, 0x4,
 	},
@@ -580,7 +580,7 @@ var rawE2EOptAuth = append(
 func TestOptAuthenticatorSerialize(t *testing.T) {
 	cases := []struct {
 		name    string
-		spi     slayers.PacketAuthSPI
+		spi     slayers.PacketAuthenticatorSPI
 		algo    slayers.PacketAuthAlg
 		ts      uint32
 		sn      uint32
@@ -661,8 +661,7 @@ func TestOptAuthenticatorDeserialize(t *testing.T) {
 }
 
 func TestMakePacketAuthSPIDrkey(t *testing.T) {
-	spi, err := slayers.MakePacketAuthSPIDrkey(1, slayers.ASHost, slayers.SenderSide, slayers.Later)
-	require.NoError(t, err)
+	spi := slayers.MakePacketAuthSPIDrkey(1, slayers.ASHost, slayers.SenderSide, slayers.Later)
 	assert.EqualValues(t, binary.LittleEndian.Uint32([]byte{0, 0, 1, 0}), spi)
 }
 
