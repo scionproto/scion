@@ -589,7 +589,7 @@ func TestOptAuthenticatorSerialize(t *testing.T) {
 	}{
 		{
 			name:    "correct",
-			spi:     slayers.PacketAuthSPI(spi),
+			spi:     spi,
 			algo:    algo,
 			ts:      ts,
 			sn:      sn,
@@ -598,7 +598,7 @@ func TestOptAuthenticatorSerialize(t *testing.T) {
 		},
 		{
 			name:    "bad_ts",
-			spi:     slayers.PacketAuthSPI(spi),
+			spi:     spi,
 			algo:    algo,
 			ts:      binary.LittleEndian.Uint32([]byte{0, 0, 0, 1}),
 			sn:      sn,
@@ -607,7 +607,7 @@ func TestOptAuthenticatorSerialize(t *testing.T) {
 		},
 		{
 			name:    "bad_sn",
-			spi:     slayers.PacketAuthSPI(spi),
+			spi:     spi,
 			algo:    algo,
 			ts:      ts,
 			sn:      binary.LittleEndian.Uint32([]byte{0, 0, 0, 1}),
