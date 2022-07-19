@@ -474,28 +474,28 @@ const (
 )
 
 func (p PacketAuthenticatorSPI) Type() PacketAuthenticatorDRKeyType {
-	if p&(1<<13) == 0 {
+	if p&(1<<18) == 0 {
 		return ASHost
 	}
 	return HostHost
 }
 
 func (p PacketAuthenticatorSPI) Direction() PacketAuthenticatorDRKeyDirection {
-	if p&(1<<14) == 0 {
+	if p&(1<<17) == 0 {
 		return SenderSide
 	}
 	return ReceiverSide
 }
 
 func (p PacketAuthenticatorSPI) Epoch() PacketAuthenticatorDRKeyEpochType {
-	if p&(1<<15) == 0 {
+	if p&(1<<16) == 0 {
 		return Later
 	}
 	return Earlier
 }
 
 func (p PacketAuthenticatorSPI) DRKeyProto() uint16 {
-	return uint16(p >> 16)
+	return uint16(p)
 }
 
 func (p PacketAuthenticatorSPI) IsDRKey() bool {
@@ -521,10 +521,10 @@ func MakePacketAuthSPIDrkey(
 	if epoch > 1 {
 		panic("Invalid DRKeyEpochType value")
 	}
-	spi := uint32((drkeyType & 0x1)) << 13
-	spi |= uint32((dir & 0x1)) << 14
-	spi |= uint32((epoch & 0x1)) << 15
-	spi |= uint32(proto) << 16
+	spi := uint32((drkeyType & 0x1)) << 18
+	spi |= uint32((dir & 0x1)) << 17
+	spi |= uint32((epoch & 0x1)) << 16
+	spi |= uint32(proto)
 
 	return PacketAuthenticatorSPI(spi)
 }
@@ -602,7 +602,7 @@ func (o PacketAuthenticatorOption) Reset(
 	} else {
 		o.OptData = make([]byte, n)
 	}
-	binary.LittleEndian.PutUint32(o.OptData[:4], uint32(spi))
+	binary.BigEndian.PutUint32(o.OptData[:4], uint32(spi))
 	o.OptData[4] = byte(alg)
 	o.OptData[5] = byte(ts >> 16)
 	o.OptData[6] = byte(ts >> 8)
@@ -621,7 +621,7 @@ func (o PacketAuthenticatorOption) Reset(
 
 // SPI returns returns the value set in the homonym field in the extension.
 func (o PacketAuthenticatorOption) SPI() PacketAuthenticatorSPI {
-	return PacketAuthenticatorSPI(binary.LittleEndian.Uint32(o.OptData[:4]))
+	return PacketAuthenticatorSPI(binary.BigEndian.Uint32(o.OptData[:4]))
 }
 
 // Algorithm returns the algorithm type stored in the data buffer.
