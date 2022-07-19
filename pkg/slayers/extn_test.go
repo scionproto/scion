@@ -543,7 +543,11 @@ func prepRawPacketWithExtn(t *testing.T, extns ...slayers.L4ProtocolType) []byte
 	return buf.Bytes()
 }
 
-var spi = slayers.PacketAuthenticatorSPI(binary.LittleEndian.Uint32([]byte{0, 0x80, 1, 0}))
+var spi = slayers.MakePacketAuthSPIDrkey(
+	1,
+	slayers.ASHost,
+	slayers.ReceiverSide,
+	slayers.Later)
 var algo = slayers.PacketAuthSHA1_AES_CBC
 var ts = binary.LittleEndian.Uint32([]byte{1, 2, 3, 0})
 var sn = binary.LittleEndian.Uint32([]byte{4, 5, 6, 0})
@@ -570,7 +574,7 @@ var optAuthMAC = []byte("16byte_mac_foooo")
 var rawE2EOptAuth = append(
 	[]byte{
 		0x11, 0x7, 0x2, 0x1c,
-		0x0, 0x80, 0x1, 0x0,
+		0x0, 0x2, 0x0, 0x1,
 		0x1, 0x3, 0x2, 0x1,
 		0x0, 0x6, 0x5, 0x4,
 	},
@@ -635,7 +639,6 @@ func TestOptAuthenticatorSerialize(t *testing.T) {
 			b := gopacket.NewSerializeBuffer()
 			opts := gopacket.SerializeOptions{FixLengths: true}
 			assert.NoError(t, e2e.SerializeTo(b, opts), "SerializeTo")
-
 			assert.Equal(t, rawE2EOptAuth, b.Bytes(), "Raw Buffer")
 		})
 	}
@@ -654,6 +657,10 @@ func TestOptAuthenticatorDeserialize(t *testing.T) {
 	auth, err := slayers.ParsePacketAuthenticatorOption(optAuth)
 	require.NoError(t, err, "ParsePacketAuthenticatorOption")
 	assert.Equal(t, spi, auth.SPI(), "SPI")
+	assert.Equal(t, slayers.ASHost, auth.SPI().Type())
+	assert.Equal(t, slayers.ReceiverSide, auth.SPI().Direction())
+	assert.Equal(t, slayers.Later, auth.SPI().Epoch())
+	assert.Equal(t, true, auth.SPI().IsDRKey())
 	assert.Equal(t, algo, auth.Algorithm(), "Algorithm Type")
 	assert.Equal(t, ts, auth.Timestamp(), "Timestamp")
 	assert.Equal(t, sn, auth.SequenceNumber(), "Sequence Number")
@@ -662,7 +669,7 @@ func TestOptAuthenticatorDeserialize(t *testing.T) {
 
 func TestMakePacketAuthSPIDrkey(t *testing.T) {
 	spi := slayers.MakePacketAuthSPIDrkey(1, slayers.ASHost, slayers.SenderSide, slayers.Later)
-	assert.EqualValues(t, binary.LittleEndian.Uint32([]byte{0, 0, 1, 0}), spi)
+	assert.EqualValues(t, binary.BigEndian.Uint32([]byte{0, 0, 0, 1}), spi)
 }
 
 func TestOptAuthenticatorDeserializeCorrupt(t *testing.T) {
