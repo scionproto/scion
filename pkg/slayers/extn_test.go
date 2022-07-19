@@ -543,11 +543,11 @@ func prepRawPacketWithExtn(t *testing.T, extns ...slayers.L4ProtocolType) []byte
 	return buf.Bytes()
 }
 
-var spi = slayers.MakePacketAuthSPIDrkey(
+var spi = slayers.MakePacketAuthSPIDRKey(
 	1,
-	slayers.ASHost,
-	slayers.ReceiverSide,
-	slayers.Later)
+	slayers.PacketAuthASHost,
+	slayers.PacketAuthReceiverSide,
+	slayers.PacketAuthLater)
 var algo = slayers.PacketAuthSHA1_AES_CBC
 var ts = binary.LittleEndian.Uint32([]byte{1, 2, 3, 0})
 var sn = binary.LittleEndian.Uint32([]byte{4, 5, 6, 0})
@@ -584,7 +584,7 @@ var rawE2EOptAuth = append(
 func TestOptAuthenticatorSerialize(t *testing.T) {
 	cases := []struct {
 		name    string
-		spi     slayers.PacketAuthenticatorSPI
+		spi     slayers.PacketAuthSPI
 		algo    slayers.PacketAuthAlg
 		ts      uint32
 		sn      uint32
@@ -623,14 +623,14 @@ func TestOptAuthenticatorSerialize(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			if c.panics {
 				assert.Panics(t, func() {
-					slayers.NewPacketAuthenticatorOption(c.spi, c.algo, c.ts, c.sn, c.optAuth)
+					slayers.NewPacketAuthOption(c.spi, c.algo, c.ts, c.sn, c.optAuth)
 				},
 					"The code did not panic",
 				)
 				return
 			}
 
-			spao := slayers.NewPacketAuthenticatorOption(c.spi, c.algo, c.ts, c.sn, c.optAuth)
+			spao := slayers.NewPacketAuthOption(c.spi, c.algo, c.ts, c.sn, c.optAuth)
 
 			e2e := slayers.EndToEndExtn{}
 			e2e.NextHdr = slayers.L4UDP
@@ -654,12 +654,12 @@ func TestOptAuthenticatorDeserialize(t *testing.T) {
 	assert.Equal(t, slayers.L4UDP, e2e.NextHdr, "NextHeader")
 	optAuth, err := e2e.FindOption(slayers.OptTypeAuthenticator)
 	require.NoError(t, err, "FindOption")
-	auth, err := slayers.ParsePacketAuthenticatorOption(optAuth)
-	require.NoError(t, err, "ParsePacketAuthenticatorOption")
+	auth, err := slayers.ParsePacketAuthOption(optAuth)
+	require.NoError(t, err, "ParsePacketAuthOption")
 	assert.Equal(t, spi, auth.SPI(), "SPI")
-	assert.Equal(t, slayers.ASHost, auth.SPI().Type())
-	assert.Equal(t, slayers.ReceiverSide, auth.SPI().Direction())
-	assert.Equal(t, slayers.Later, auth.SPI().Epoch())
+	assert.Equal(t, slayers.PacketAuthASHost, auth.SPI().Type())
+	assert.Equal(t, slayers.PacketAuthReceiverSide, auth.SPI().Direction())
+	assert.Equal(t, slayers.PacketAuthLater, auth.SPI().Epoch())
 	assert.Equal(t, true, auth.SPI().IsDRKey())
 	assert.Equal(t, algo, auth.Algorithm(), "Algorithm Type")
 	assert.Equal(t, ts, auth.Timestamp(), "Timestamp")
@@ -668,7 +668,12 @@ func TestOptAuthenticatorDeserialize(t *testing.T) {
 }
 
 func TestMakePacketAuthSPIDrkey(t *testing.T) {
-	spi := slayers.MakePacketAuthSPIDrkey(1, slayers.ASHost, slayers.SenderSide, slayers.Later)
+	spi := slayers.MakePacketAuthSPIDRKey(
+		1,
+		slayers.PacketAuthASHost,
+		slayers.PacketAuthSenderSide,
+		slayers.PacketAuthLater,
+	)
 	assert.EqualValues(t, binary.BigEndian.Uint32([]byte{0, 0, 0, 1}), spi)
 }
 
@@ -688,6 +693,6 @@ func TestOptAuthenticatorDeserializeCorrupt(t *testing.T) {
 	assert.NoError(t, e2e.DecodeFromBytes(b.Bytes(), gopacket.NilDecodeFeedback))
 	optAuth, err := e2e.FindOption(slayers.OptTypeAuthenticator)
 	require.NoError(t, err, "FindOption")
-	_, err = slayers.ParsePacketAuthenticatorOption(optAuth)
-	require.Error(t, err, "ParsePacketAuthenticatorOption should fail")
+	_, err = slayers.ParsePacketAuthOption(optAuth)
+	require.Error(t, err, "ParsePacketAuthOption should fail")
 }
