@@ -74,18 +74,18 @@ func (m *MockLevel1PrefetchListKeeper) EXPECT() *MockLevel1PrefetchListKeeperMoc
 	return m.recorder
 }
 
-// GetLevel1InfoArray mocks base method.
-func (m *MockLevel1PrefetchListKeeper) GetLevel1InfoArray() []drkey.Level1PrefetchInfo {
+// Info mocks base method.
+func (m *MockLevel1PrefetchListKeeper) Info() []drkey.Level1PrefetchInfo {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetLevel1InfoArray")
+	ret := m.ctrl.Call(m, "Info")
 	ret0, _ := ret[0].([]drkey.Level1PrefetchInfo)
 	return ret0
 }
 
-// GetLevel1InfoArray indicates an expected call of GetLevel1InfoArray.
-func (mr *MockLevel1PrefetchListKeeperMockRecorder) GetLevel1InfoArray() *gomock.Call {
+// Info indicates an expected call of Info.
+func (mr *MockLevel1PrefetchListKeeperMockRecorder) Info() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLevel1InfoArray", reflect.TypeOf((*MockLevel1PrefetchListKeeper)(nil).GetLevel1InfoArray))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Info", reflect.TypeOf((*MockLevel1PrefetchListKeeper)(nil).Info))
 }
 
 // Update mocks base method.
