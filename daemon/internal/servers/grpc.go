@@ -348,20 +348,26 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 	return &sdpb.NotifyInterfaceDownResponse{}, nil
 }
 
-func (s *DaemonServer) DRKeyASHost(ctx context.Context,
-	req *pb_daemon.DRKeyASHostRequest) (*pb_daemon.DRKeyASHostResponse, error) {
+func (s *DaemonServer) DRKeyASHost(
+	ctx context.Context,
+	req *pb_daemon.DRKeyASHostRequest,
+) (*pb_daemon.DRKeyASHostResponse, error) {
 
 	panic("not implemented")
 }
 
-func (s *DaemonServer) DRKeyHostAS(ctx context.Context,
-	req *pb_daemon.DRKeyHostASRequest) (*pb_daemon.DRKeyHostASResponse, error) {
+func (s *DaemonServer) DRKeyHostAS(
+	ctx context.Context,
+	req *pb_daemon.DRKeyHostASRequest,
+) (*pb_daemon.DRKeyHostASResponse, error) {
 
 	panic("not implemented")
 }
 
-func (s *DaemonServer) DRKeyHostHost(ctx context.Context,
-	req *pb_daemon.DRKeyHostHostRequest) (*pb_daemon.DRKeyHostHostResponse, error) {
+func (s *DaemonServer) DRKeyHostHost(
+	ctx context.Context,
+	req *pb_daemon.DRKeyHostHostRequest,
+) (*pb_daemon.DRKeyHostHostResponse, error) {
 
 	panic("not implemented")
 }
