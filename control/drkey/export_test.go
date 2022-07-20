@@ -1,4 +1,4 @@
-// Copyright 2021 ETH Zurich
+// Copyright 2022 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,9 +33,9 @@ func NewTestServiceEngine(
 
 	return &serviceEngine{
 		secretBackend:  newSecretValueBackend(svdb, masterKey, keyDur),
-		LocalIA:        localIA,
-		DB:             db,
-		Fetcher:        fetcher,
+		localIA:        localIA,
+		db:             db,
+		fetcher:        fetcher,
 		prefetchKeeper: list,
 	}
 }

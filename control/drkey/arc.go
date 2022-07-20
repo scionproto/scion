@@ -1,4 +1,4 @@
-// Copyright 2021 ETH Zurich
+// Copyright 2022 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,15 +20,13 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-var _ Level1PrefetchListKeeper = (*Level1ARC)(nil)
-
 // Level1ARC maintains an Adaptative Replacement Cache, storing
-// the necessary metadata to prefetch Level1 keys
+// the necessary metadata to prefetch Level1 keys.
 type Level1ARC struct {
 	cache *lru.ARCCache
 }
 
-// NewLevel1ARC returns a Level1ARC cache of a given size
+// NewLevel1ARC returns a Level1ARC cache of a given size.
 func NewLevel1ARC(size int) (*Level1ARC, error) {
 	cache, err := lru.NewARC(size)
 	if err != nil {
@@ -40,13 +38,13 @@ func NewLevel1ARC(size int) (*Level1ARC, error) {
 }
 
 // Update is intended to merely update the frequency of a given Level1Key
-// in the ARC cache
+// in the ARC cache.
 func (c *Level1ARC) Update(keyPair Level1PrefetchInfo) {
-	c.cache.Add(keyPair, keyPair)
+	c.cache.Add(keyPair, struct{}{})
 }
 
-// GetCachedASes returns the list of AS currently in cache
-func (c *Level1ARC) GetLevel1InfoArray() []Level1PrefetchInfo {
+// Info returns the list of AS currently in cache.
+func (c *Level1ARC) Info() []Level1PrefetchInfo {
 	list := []Level1PrefetchInfo{}
 	for _, k := range c.cache.Keys() {
 		lvl1Info := k.(Level1PrefetchInfo)

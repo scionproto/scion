@@ -1,4 +1,4 @@
-// Copyright 2020 ETH Zurich
+// Copyright 2022 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,11 +46,12 @@ func TestGetSV(t *testing.T) {
 	store, err := cs_drkey.NewServiceEngine(srcIA, svdb, masterKey, time.Minute, nil, nil, 10)
 	assert.NoError(t, err)
 
+	// We check that we retrieve the same SV within the same epoch [0,1) minute and a
+	// a different one, with high-probability for the next epoch.
 	meta := drkey.SecretValueMeta{
 		ProtoId:  drkey.Generic,
 		Validity: util.SecsToTime(0).UTC(),
 	}
-
 	rcvKey1, err := store.GetSecretValue(context.Background(), meta)
 	assert.NoError(t, err)
 	meta.Validity = util.SecsToTime(1).UTC()
@@ -76,8 +77,11 @@ func TestDeriveLevel1Key(t *testing.T) {
 		Validity: time.Now(),
 	}
 
-	_, err = store.DeriveLevel1(meta)
+	key, err := store.DeriveLevel1(meta)
 	assert.NoError(t, err)
+	assert.Equal(t, meta.DstIA, key.DstIA)
+	assert.Equal(t, meta.ProtoId, key.ProtoId)
+	assert.WithinDuration(t, key.Epoch.NotBefore, meta.Validity, time.Minute)
 }
 
 func TestGetLevel1Key(t *testing.T) {
@@ -106,13 +110,14 @@ func TestGetLevel1Key(t *testing.T) {
 	defer mctrl.Finish()
 
 	fetcher := mock_drkey.NewMockFetcher(mctrl)
-	firstCall := fetcher.EXPECT().Level1(gomock.Any(),
-		gomock.Any()).Return(firstLevel1Key, nil)
-	secondCall := fetcher.EXPECT().Level1(gomock.Any(),
-		gomock.Any()).Return(secondLevel1Key, nil).After(firstCall)
-	fetcher.EXPECT().Level1(gomock.Any(),
-		gomock.Any()).Return(drkey.Level1Key{},
-		serrors.New("error retrieving key")).After(secondCall)
+	gomock.InOrder(
+		fetcher.EXPECT().Level1(gomock.Any(), gomock.Any()).
+			Return(firstLevel1Key, nil),
+		fetcher.EXPECT().Level1(gomock.Any(), gomock.Any()).
+			Return(secondLevel1Key, nil),
+		fetcher.EXPECT().Level1(gomock.Any(), gomock.Any()).
+			Return(drkey.Level1Key{}, serrors.New("error retrieving key")),
+	)
 
 	cache := mock_drkey.NewMockLevel1PrefetchListKeeper(mctrl)
 	// It must be called exactly 3 times
