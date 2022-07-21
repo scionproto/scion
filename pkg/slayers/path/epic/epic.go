@@ -104,7 +104,7 @@ func (p *Path) Reverse() (path.Path, error) {
 	}
 	ScionPath, ok := revScion.(*scion.Raw)
 	if !ok {
-		return nil, err
+		return nil, serrors.New("reversed path of type scion.Raw must not change type")
 	}
 	p.ScionPath = ScionPath
 	return p, nil
