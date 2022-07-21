@@ -14,32 +14,6 @@
 
 package drkey
 
-import (
-	"time"
-
-	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/drkey"
-)
-
-func NewTestServiceEngine(
-	localIA addr.IA,
-	svdb drkey.SecretValueDB,
-	masterKey []byte,
-	keyDur time.Duration,
-	db drkey.Level1DB,
-	fetcher Fetcher,
-	list Level1PrefetchListKeeper,
-) *serviceEngine {
-
-	return &serviceEngine{
-		secretBackend:  newSecretValueBackend(svdb, masterKey, keyDur),
-		localIA:        localIA,
-		db:             db,
-		fetcher:        fetcher,
-		prefetchKeeper: list,
-	}
-}
-
 func FromPrefetcher() fromPrefetcher {
 	return fromPrefetcher{}
 }

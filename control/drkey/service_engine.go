@@ -47,120 +47,79 @@ type Level1PrefetchInfo struct {
 	Proto drkey.Protocol
 }
 
-// ServiceEngine maintains and provides secret values, level1 keys and prefetching information.
-type ServiceEngine interface {
-	// Storing SVs in the server allows for the server to still have access to
-	// handed out secrets even after rebooting. It is not critical to the server
-	// to derive secret values fast, so the lookup operation is acceptable.
-	GetSecretValue(ctx context.Context, meta drkey.SecretValueMeta) (drkey.SecretValue, error)
-	GetLevel1Key(ctx context.Context, meta drkey.Level1Meta) (drkey.Level1Key, error)
-	GetLevel1PrefetchInfo() []Level1PrefetchInfo
-
-	DeriveLevel1(meta drkey.Level1Meta) (drkey.Level1Key, error)
-	DeriveASHost(ctx context.Context, meta drkey.ASHostMeta) (drkey.ASHostKey, error)
-	DeriveHostAS(ctx context.Context, meta drkey.HostASMeta) (drkey.HostASKey, error)
-	DeriveHostHost(ctx context.Context, meta drkey.HostHostMeta) (drkey.HostHostKey, error)
-
-	DeleteExpiredSecrets(ctx context.Context) (int, error)
-	DeleteExpiredLevel1Keys(ctx context.Context) (int, error)
-}
-
 // NewServiceEngineCleaner creates a Cleaner task that removes expired secrets.
-func NewServiceSecretCleaner(s ServiceEngine) *cleaner.Cleaner {
+func NewServiceSecretCleaner(s interface {
+	DeleteExpiredSecrets(ctx context.Context) (int, error)
+}) *cleaner.Cleaner {
 	return cleaner.New(func(ctx context.Context) (int, error) {
 		return s.DeleteExpiredSecrets(ctx)
 	}, "drkey_serv_store")
 }
 
 // NewServiceEngineCleaner creates a Cleaner task that removes expired level1 keys.
-func NewServiceLevel1Cleaner(s ServiceEngine) *cleaner.Cleaner {
+func NewServiceLevel1Cleaner(s interface {
+	DeleteExpiredLevel1Keys(ctx context.Context) (int, error)
+}) *cleaner.Cleaner {
 	return cleaner.New(func(ctx context.Context) (int, error) {
 		return s.DeleteExpiredLevel1Keys(ctx)
 	}, "drkey_serv_store")
 }
 
-type fromPrefetcher struct{}
-
-// serviceEngine keeps track of the level 1 drkey keys. It is backed by a drkey.DB.
-type serviceEngine struct {
-	secretBackend  *secretValueBackend
-	localIA        addr.IA
-	db             drkey.Level1DB
-	fetcher        Fetcher
-	prefetchKeeper Level1PrefetchListKeeper
-}
-
-var _ ServiceEngine = (*serviceEngine)(nil)
-
-func NewServiceEngine(
-	localIA addr.IA,
-	svdb drkey.SecretValueDB,
-	masterKey []byte,
-	keyDur time.Duration,
-	level1db drkey.Level1DB,
-	fetcher Fetcher,
-	listSize int,
-) (*serviceEngine, error) {
-
-	list, err := NewLevel1ARC(listSize)
-	if err != nil {
-		return nil, err
-	}
-	return &serviceEngine{
-		secretBackend:  newSecretValueBackend(svdb, masterKey, keyDur),
-		localIA:        localIA,
-		db:             level1db,
-		fetcher:        fetcher,
-		prefetchKeeper: list,
-	}, nil
+// ServiceEngine maintains and provides secret values, level1 keys and prefetching information.
+type ServiceEngine struct {
+	SecretBackend  *secretValueBackend
+	LocalIA        addr.IA
+	DB             drkey.Level1DB
+	Fetcher        Fetcher
+	PrefetchKeeper Level1PrefetchListKeeper
 }
 
 // GetSecretValue returns a valid secret value for the provided metadata.
 // It tries to retrieve the secret value from persistence, otherwise
 // it creates a new one and stores it away.
-func (s *serviceEngine) GetSecretValue(
+func (s *ServiceEngine) GetSecretValue(
 	ctx context.Context,
 	meta drkey.SecretValueMeta,
 ) (drkey.SecretValue, error) {
 
-	return s.secretBackend.getSecretValue(ctx, meta)
+	return s.SecretBackend.getSecretValue(ctx, meta)
 }
 
 // GetLevel1Key returns the level 1 drkey from the local DB or, if not found, by asking any CS in
 // the source AS of the key. It also updates the Level1Cache, if needed.
-func (s *serviceEngine) GetLevel1Key(
+func (s *ServiceEngine) GetLevel1Key(
 	ctx context.Context,
 	meta drkey.Level1Meta,
 ) (drkey.Level1Key, error) {
 
 	key, err := s.getLevel1Key(ctx, meta)
-	if err == nil && ctx.Value(fromPrefetcher{}) == nil && meta.SrcIA != s.localIA {
+	if err == nil && ctx.Value(fromPrefetcher{}) == nil && meta.SrcIA != s.LocalIA {
 		keyInfo := Level1PrefetchInfo{
 			IA:    key.SrcIA,
 			Proto: meta.ProtoId,
 		}
-		s.prefetchKeeper.Update(keyInfo)
+		s.PrefetchKeeper.Update(keyInfo)
 	}
 	return key, err
 }
 
 // DeleteExpiredKeys will remove any expired Secrets.
-func (s *serviceEngine) DeleteExpiredSecrets(ctx context.Context) (int, error) {
-	return s.secretBackend.deleteExpiredSV(ctx)
+func (s *ServiceEngine) DeleteExpiredSecrets(ctx context.Context) (int, error) {
+	return s.SecretBackend.deleteExpiredSV(ctx)
 }
 
 // DeleteExpiredKeys will remove any expired keys.
-func (s *serviceEngine) DeleteExpiredLevel1Keys(ctx context.Context) (int, error) {
+func (s *ServiceEngine) DeleteExpiredLevel1Keys(ctx context.Context) (int, error) {
 	return s.deleteExpiredLevel1Keys(ctx)
 }
 
 // GetLevel1PrefetchInfo returns a list of ASes currently in the cache.
-func (s *serviceEngine) GetLevel1PrefetchInfo() []Level1PrefetchInfo {
-	return s.prefetchKeeper.Info()
+func (s *ServiceEngine) GetLevel1PrefetchInfo() []Level1PrefetchInfo {
+	return s.PrefetchKeeper.Info()
 }
 
 // DeriveLevel1 returns a Level1 key based on the presented information.
-func (s *serviceEngine) DeriveLevel1(meta drkey.Level1Meta) (drkey.Level1Key, error) {
+func (s *ServiceEngine) DeriveLevel1(meta drkey.Level1Meta) (drkey.Level1Key, error) {
 	sv, err := s.GetSecretValue(context.Background(), drkey.SecretValueMeta{
 		ProtoId:  meta.ProtoId,
 		Validity: meta.Validity,
@@ -176,7 +135,7 @@ func (s *serviceEngine) DeriveLevel1(meta drkey.Level1Meta) (drkey.Level1Key, er
 }
 
 // DeriveASHost returns an AS-Host key based on the presented information.
-func (s *serviceEngine) DeriveASHost(
+func (s *ServiceEngine) DeriveASHost(
 	ctx context.Context,
 	meta drkey.ASHostMeta,
 ) (drkey.ASHostKey, error) {
@@ -211,7 +170,7 @@ func (s *serviceEngine) DeriveASHost(
 }
 
 // DeriveHostAS returns an Host-AS key based on the presented information.
-func (s *serviceEngine) DeriveHostAS(
+func (s *ServiceEngine) DeriveHostAS(
 	ctx context.Context,
 	meta drkey.HostASMeta,
 ) (drkey.HostASKey, error) {
@@ -247,7 +206,7 @@ func (s *serviceEngine) DeriveHostAS(
 }
 
 // DeriveHostHost returns an Host-Host key based on the presented information.
-func (s *serviceEngine) DeriveHostHost(
+func (s *ServiceEngine) DeriveHostHost(
 	ctx context.Context,
 	meta drkey.HostHostMeta,
 ) (drkey.HostHostKey, error) {
@@ -290,23 +249,23 @@ func (s *serviceEngine) DeriveHostHost(
 	}, nil
 }
 
-func (s *serviceEngine) getLevel1Key(
+func (s *ServiceEngine) getLevel1Key(
 	ctx context.Context,
 	meta drkey.Level1Meta,
 ) (drkey.Level1Key, error) {
 
-	if meta.SrcIA == s.localIA {
+	if meta.SrcIA == s.LocalIA {
 		return s.DeriveLevel1(meta)
 	}
 
-	if meta.DstIA != s.localIA {
+	if meta.DstIA != s.LocalIA {
 		return drkey.Level1Key{},
-			serrors.New("neither srcIA nor dstIA matches localIA", "srcIA", meta.SrcIA,
-				"dstIA", meta.DstIA, "localIA", s.localIA)
+			serrors.New("neither srcIA nor dstIA matches LocalIA", "srcIA", meta.SrcIA,
+				"dstIA", meta.DstIA, "LocalIA", s.LocalIA)
 	}
 
 	// look up in the DB.
-	k, err := s.db.GetLevel1Key(ctx, meta)
+	k, err := s.DB.GetLevel1Key(ctx, meta)
 	if err == nil {
 		return k, nil
 	}
@@ -315,19 +274,19 @@ func (s *serviceEngine) getLevel1Key(
 	}
 
 	// get it from another server.
-	remoteKey, err := s.fetcher.Level1(ctx, meta)
+	remoteKey, err := s.Fetcher.Level1(ctx, meta)
 	if err != nil {
 		return drkey.Level1Key{}, serrors.WrapStr("obtaining level 1 key from CS", err)
 	}
 	// keep it in our DB.
-	err = s.db.InsertLevel1Key(ctx, remoteKey)
+	err = s.DB.InsertLevel1Key(ctx, remoteKey)
 	if err != nil {
 		return drkey.Level1Key{}, serrors.WrapStr("storing obtained key in DB", err)
 	}
 	return remoteKey, nil
 }
 
-func (s *serviceEngine) obtainLevel1Key(
+func (s *ServiceEngine) obtainLevel1Key(
 	ctx context.Context,
 	proto drkey.Protocol,
 	validity time.Time,
@@ -344,13 +303,15 @@ func (s *serviceEngine) obtainLevel1Key(
 	if !proto.IsPredefined() {
 		proto = drkey.Generic
 	}
-	return s.getLevel1Key(ctx, level1Meta)
+	return s.GetLevel1Key(ctx, level1Meta)
 
 }
 
-func (s *serviceEngine) deleteExpiredLevel1Keys(ctx context.Context) (int, error) {
-	return s.db.DeleteExpiredLevel1Keys(ctx, time.Now())
+func (s *ServiceEngine) deleteExpiredLevel1Keys(ctx context.Context) (int, error) {
+	return s.DB.DeleteExpiredLevel1Keys(ctx, time.Now())
 }
+
+type fromPrefetcher struct{}
 
 func deriveLevel1(meta drkey.Level1Meta, sv drkey.SecretValue) (drkey.Level1Key, error) {
 	key, err := specific.Deriver{}.DeriveLevel1(meta.DstIA, sv.Key)

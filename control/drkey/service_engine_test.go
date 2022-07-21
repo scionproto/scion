@@ -42,9 +42,14 @@ var (
 func TestGetSV(t *testing.T) {
 	svdb := newSVDatabase(t)
 	defer svdb.Close()
+	list, err := cs_drkey.NewLevel1ARC(10)
+	require.NoError(t, err)
 
-	store, err := cs_drkey.NewServiceEngine(srcIA, svdb, masterKey, time.Minute, nil, nil, 10)
-	assert.NoError(t, err)
+	store := &cs_drkey.ServiceEngine{
+		SecretBackend:  cs_drkey.NewSecretValueBackend(svdb, masterKey, time.Minute),
+		LocalIA:        srcIA,
+		PrefetchKeeper: list,
+	}
 
 	// We check that we retrieve the same SV within the same epoch [0,1) minute and a
 	// a different one, with high-probability for the next epoch.
@@ -67,9 +72,14 @@ func TestGetSV(t *testing.T) {
 func TestDeriveLevel1Key(t *testing.T) {
 	svdb := newSVDatabase(t)
 	defer svdb.Close()
+	list, err := cs_drkey.NewLevel1ARC(10)
+	require.NoError(t, err)
 
-	store, err := cs_drkey.NewServiceEngine(srcIA, svdb, masterKey, time.Minute, nil, nil, 10)
-	assert.NoError(t, err)
+	store := &cs_drkey.ServiceEngine{
+		SecretBackend:  cs_drkey.NewSecretValueBackend(svdb, masterKey, time.Minute),
+		LocalIA:        srcIA,
+		PrefetchKeeper: list,
+	}
 
 	meta := drkey.Level1Meta{
 		DstIA:    dstIA,
@@ -123,8 +133,13 @@ func TestGetLevel1Key(t *testing.T) {
 	// It must be called exactly 3 times
 	cache.EXPECT().Update(gomock.Any()).Times(3)
 
-	store := cs_drkey.NewTestServiceEngine(dstIA, svdb, masterKey,
-		time.Minute, lvl1db, fetcher, cache)
+	store := &cs_drkey.ServiceEngine{
+		SecretBackend:  cs_drkey.NewSecretValueBackend(svdb, masterKey, time.Minute),
+		LocalIA:        dstIA,
+		DB:             lvl1db,
+		Fetcher:        fetcher,
+		PrefetchKeeper: cache,
+	}
 
 	// it must fetch first key from remote
 	rcvKey1, err := store.GetLevel1Key(context.Background(), drkey.Level1Meta{
@@ -171,7 +186,7 @@ func TestGetLevel1Key(t *testing.T) {
 		Validity: util.SecsToTime(5).UTC(),
 	})
 	assert.Error(t, err)
-	//Requesting local key should not update the cache
+	// Requesting local key should not update the cache
 	locallvl1Meta := drkey.Level1Meta{
 		SrcIA:    dstIA,
 		DstIA:    xtest.MustParseIA("1-ff00:0:111"),
