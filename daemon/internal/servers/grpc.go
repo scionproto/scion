@@ -34,6 +34,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
+	pb_daemon "github.com/scionproto/scion/pkg/proto/daemon"
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
 	"github.com/scionproto/scion/pkg/snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
@@ -345,4 +346,28 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 		}
 	}
 	return &sdpb.NotifyInterfaceDownResponse{}, nil
+}
+
+func (s *DaemonServer) DRKeyASHost(
+	ctx context.Context,
+	req *pb_daemon.DRKeyASHostRequest,
+) (*pb_daemon.DRKeyASHostResponse, error) {
+
+	panic("not implemented")
+}
+
+func (s *DaemonServer) DRKeyHostAS(
+	ctx context.Context,
+	req *pb_daemon.DRKeyHostASRequest,
+) (*pb_daemon.DRKeyHostASResponse, error) {
+
+	panic("not implemented")
+}
+
+func (s *DaemonServer) DRKeyHostHost(
+	ctx context.Context,
+	req *pb_daemon.DRKeyHostHostRequest,
+) (*pb_daemon.DRKeyHostHostResponse, error) {
+
+	panic("not implemented")
 }
