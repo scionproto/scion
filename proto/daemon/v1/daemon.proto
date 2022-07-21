@@ -35,6 +35,12 @@ service DaemonService {
     rpc Services(ServicesRequest) returns (ServicesResponse) {}
     // Inform the SCION Daemon of a revocation.
     rpc NotifyInterfaceDown(NotifyInterfaceDownRequest) returns (NotifyInterfaceDownResponse) {}
+    // DRKeyASHost returns a key that matches the request.
+    rpc DRKeyASHost (DRKeyASHostRequest) returns (DRKeyASHostResponse) {}
+    // DRKeyHostAS returns a key that matches the request.
+    rpc DRKeyHostAS (DRKeyHostASRequest) returns (DRKeyHostASResponse) {}
+    // DRKeyHostHost returns a key that matches the request.
+    rpc DRKeyHostHost (DRKeyHostHostRequest) returns (DRKeyHostHostResponse) {}
 }
 
 message PathsRequest {
