@@ -28,7 +28,7 @@ type secretValueBackend struct {
 	keyDuration time.Duration
 }
 
-func newSecretValueBackend(
+func NewSecretValueBackend(
 	db drkey.SecretValueDB,
 	masterKey []byte,
 	keyDuration time.Duration,

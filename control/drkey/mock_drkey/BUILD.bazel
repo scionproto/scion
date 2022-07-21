@@ -7,7 +7,6 @@ gomock(
     interfaces = [
         "Fetcher",
         "Level1PrefetchListKeeper",
-        "ServiceEngine",
     ],
     library = "//control/drkey:go_default_library",
     package = "mock_drkey",
