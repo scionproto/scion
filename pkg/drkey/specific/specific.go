@@ -27,8 +27,11 @@ import (
 type Deriver struct{}
 
 // DeriveLevel1 returns the Level1 derived key.
-func (d *Deriver) DeriveLevel1(dstIA addr.IA,
-	key drkey.Key) (drkey.Key, error) {
+func (d Deriver) DeriveLevel1(
+	dstIA addr.IA,
+	key drkey.Key,
+) (drkey.Key, error) {
+
 	buf := make([]byte, aes.BlockSize)
 	len := serializeLevel1Input(buf, dstIA)
 	outKey, err := drkey.DeriveKey(buf[:len], key)
@@ -36,8 +39,11 @@ func (d *Deriver) DeriveLevel1(dstIA addr.IA,
 }
 
 // DeriveASHost returns the ASHost derived key.
-func (d *Deriver) DeriveASHost(dstHost string,
-	key drkey.Key) (drkey.Key, error) {
+func (d Deriver) DeriveASHost(
+	dstHost string,
+	key drkey.Key,
+) (drkey.Key, error) {
+
 	host, err := drkey.HostAddrFromString(dstHost)
 	if err != nil {
 		return drkey.Key{}, serrors.WrapStr("parsing dst host", err)
@@ -49,7 +55,7 @@ func (d *Deriver) DeriveASHost(dstHost string,
 }
 
 // DeriveHostAS returns the HostAS derived key.
-func (p *Deriver) DeriveHostAS(srcHost string, key drkey.Key) (drkey.Key, error) {
+func (p Deriver) DeriveHostAS(srcHost string, key drkey.Key) (drkey.Key, error) {
 	host, err := drkey.HostAddrFromString(srcHost)
 	if err != nil {
 		return drkey.Key{}, serrors.WrapStr("parsing src host", err)
@@ -61,7 +67,7 @@ func (p *Deriver) DeriveHostAS(srcHost string, key drkey.Key) (drkey.Key, error)
 }
 
 // DeriveHostHost returns the HostHost derived key.
-func (d *Deriver) DeriveHostHost(dstHost string, key drkey.Key) (drkey.Key, error) {
+func (d Deriver) DeriveHostHost(dstHost string, key drkey.Key) (drkey.Key, error) {
 	host, err := drkey.HostAddrFromString(dstHost)
 	if err != nil {
 		return drkey.Key{}, serrors.WrapStr("deriving input H2H", err)
@@ -75,8 +81,12 @@ func (d *Deriver) DeriveHostHost(dstHost string, key drkey.Key) (drkey.Key, erro
 // serializeLevel2Input serializes the input for a ASHost or HostAS key,
 // as explained in
 // https://docs.scion.org/en/latest/cryptography/drkey.html#protocol-specific-derivation
-func (d *Deriver) serializeLevel2Input(input []byte, derType drkey.KeyType,
-	host drkey.HostAddr) int {
+func (d Deriver) serializeLevel2Input(
+	input []byte,
+	derType drkey.KeyType,
+	host drkey.HostAddr,
+) int {
+
 	hostAddr := host.RawAddr
 	l := len(hostAddr)
 

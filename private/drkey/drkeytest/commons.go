@@ -43,11 +43,15 @@ func GetLevel1(t *testing.T, protoID drkey.Protocol, epoch drkey.Epoch,
 	}
 }
 
-func DeriveASHostGeneric(meta drkey.ASHostMeta,
-	level1key drkey.Level1Key) (drkey.ASHostKey, error) {
+func DeriveASHostGeneric(
+	meta drkey.ASHostMeta,
+	level1key drkey.Level1Key,
+) (drkey.ASHostKey, error) {
 
-	derivedKey, err := (&generic.Deriver{}).DeriveASHost(meta.ProtoId, meta.DstHost,
-		level1key.Key)
+	derivedKey, err := generic.Deriver{
+		Proto: meta.ProtoId,
+	}.DeriveASHost(meta.DstHost, level1key.Key)
+
 	if err != nil {
 		return drkey.ASHostKey{}, err
 	}
@@ -62,10 +66,15 @@ func DeriveASHostGeneric(meta drkey.ASHostMeta,
 	}, nil
 }
 
-func DeriveHostASGeneric(meta drkey.HostASMeta,
-	level1key drkey.Level1Key) (drkey.HostASKey, error) {
-	derivedKey, err := (&generic.Deriver{}).DeriveHostAS(meta.ProtoId, meta.SrcHost,
-		level1key.Key)
+func DeriveHostASGeneric(
+	meta drkey.HostASMeta,
+	level1key drkey.Level1Key,
+) (drkey.HostASKey, error) {
+
+	derivedKey, err := generic.Deriver{
+		Proto: meta.ProtoId,
+	}.DeriveHostAS(meta.SrcHost, level1key.Key)
+
 	if err != nil {
 		return drkey.HostASKey{}, err
 	}
@@ -83,8 +92,10 @@ func DeriveHostASGeneric(meta drkey.HostASMeta,
 func DeriveHostHostGeneric(meta drkey.HostHostMeta,
 	level1key drkey.Level1Key) (drkey.HostHostKey, error) {
 
-	hostASKey, err := (&generic.Deriver{}).DeriveHostAS(meta.ProtoId, meta.SrcHost,
-		level1key.Key)
+	hostASKey, err := generic.Deriver{
+		Proto: meta.ProtoId,
+	}.DeriveHostAS(meta.SrcHost, level1key.Key)
+
 	if err != nil {
 		return drkey.HostHostKey{}, err
 	}
