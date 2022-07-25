@@ -123,12 +123,12 @@ func (e *ClientEngine) CreateStorageCleaners() []*cleaner.Cleaner {
 	cleaners := make([]*cleaner.Cleaner, 3)
 	cleaners[0] = cleaner.New(func(ctx context.Context) (int, error) {
 		return e.DB.DeleteExpiredASHostKeys(ctx, time.Now())
-	}, "drkey_client_store")
+	}, "drkey_client_as_host_store")
 	cleaners[1] = cleaner.New(func(ctx context.Context) (int, error) {
 		return e.DB.DeleteExpiredHostASKeys(ctx, time.Now())
-	}, "drkey_client_store")
+	}, "drkey_client_host_as_store")
 	cleaners[2] = cleaner.New(func(ctx context.Context) (int, error) {
 		return e.DB.DeleteExpiredHostHostKeys(ctx, time.Now())
-	}, "drkey_client_store")
+	}, "drkey_client_host_host_store")
 	return cleaners
 }
