@@ -25,9 +25,11 @@ import (
 	"github.com/scionproto/scion/control/drkey/mock_drkey"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/private/periodic"
 )
 
 var _ cs_drkey.Level1Engine = (*cs_drkey.ServiceEngine)(nil)
+var _ periodic.Task = (*cs_drkey.Prefetcher)(nil)
 
 func TestPrefetcherRun(t *testing.T) {
 	mctrl := gomock.NewController(t)
@@ -65,5 +67,4 @@ func TestPrefetcherRun(t *testing.T) {
 	prefetcher.Run(context.Background())
 	prefetcher.Run(context.Background())
 	prefetcher.Run(context.Background())
-
 }
