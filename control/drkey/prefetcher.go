@@ -82,7 +82,11 @@ func getLevel1Key(
 	}
 	ctx = context.WithValue(ctx, fromPrefetcher{}, true)
 	if _, err := engine.GetLevel1Key(ctx, meta); err != nil {
-		log.FromCtx(ctx).Error("Failed to prefetch the level 1 key", "remote AS", srcIA.String(),
-			"protocol", proto, "error", err)
+		log.FromCtx(ctx).Error(
+			"Failed to prefetch the level 1 key",
+			"remote_isd_as", srcIA,
+			"protocol", proto,
+			"error", err,
+		)
 	}
 }
