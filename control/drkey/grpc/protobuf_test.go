@@ -51,8 +51,7 @@ func TestKeyToLevel1Resp(t *testing.T) {
 		Key:        k,
 	}
 
-	pbResp, err := grpc.KeyToLevel1Resp(lvl1Key)
-	require.NoError(t, err)
+	pbResp := grpc.KeyToLevel1Resp(lvl1Key)
 	assert.Equal(t, targetResp, pbResp)
 
 }
@@ -150,8 +149,7 @@ func TestKeyToASHostResp(t *testing.T) {
 		Key:        asHostKey.Key[:],
 	}
 
-	resp, err := grpc.KeyToASHostResp(asHostKey)
-	require.NoError(t, err)
+	resp := grpc.KeyToASHostResp(asHostKey)
 	assert.Equal(t, targetResp, resp)
 }
 
@@ -171,8 +169,7 @@ func TestKeyToHostASResp(t *testing.T) {
 		Key:        key.Key[:],
 	}
 
-	resp, err := grpc.KeyToHostASResp(key)
-	require.NoError(t, err)
+	resp := grpc.KeyToHostASResp(key)
 	assert.Equal(t, targetResp, resp)
 }
 
@@ -193,8 +190,7 @@ func TestKeyToHostHostResp(t *testing.T) {
 		Key:        key.Key[:],
 	}
 
-	resp, err := grpc.KeyToHostHostResp(key)
-	require.NoError(t, err)
+	resp := grpc.KeyToHostHostResp(key)
 	assert.Equal(t, targetResp, resp)
 }
 
@@ -211,7 +207,6 @@ func TestSVtoProtoResp(t *testing.T) {
 		Key:        k,
 	}
 
-	resp, err := grpc.SecretToProtoResp(sv)
-	require.NoError(t, err)
+	resp := grpc.SecretToProtoResp(sv)
 	require.Equal(t, targetResp, resp)
 }
