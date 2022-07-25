@@ -24,7 +24,7 @@ import (
 	"github.com/scionproto/scion/private/storage/cleaner"
 )
 
-// Fetcher obtains a end host keys from the local CS.
+// Fetcher obtains end host keys from the local CS.
 type Fetcher interface {
 	ASHostKey(ctx context.Context, meta drkey.ASHostMeta) (drkey.ASHostKey, error)
 	HostASKey(ctx context.Context, meta drkey.HostASMeta) (drkey.HostASKey, error)
@@ -39,11 +39,13 @@ type ClientEngine struct {
 }
 
 // GetASHostKey returns the ASHost key from the local DB or if not found, by asking our local CS.
-func (s *ClientEngine) GetASHostKey(ctx context.Context,
-	meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
+func (e *ClientEngine) GetASHostKey(
+	ctx context.Context,
+	meta drkey.ASHostMeta,
+) (drkey.ASHostKey, error) {
 
 	// is it in storage?
-	k, err := s.DB.GetASHostKey(ctx, meta)
+	k, err := e.DB.GetASHostKey(ctx, meta)
 	if err == nil {
 		return k, nil
 	}
@@ -52,35 +54,37 @@ func (s *ClientEngine) GetASHostKey(ctx context.Context,
 	}
 
 	// if not, ask our CS for it
-	remoteKey, err := s.Fetcher.ASHostKey(ctx, meta)
+	remoteKey, err := e.Fetcher.ASHostKey(ctx, meta)
 	if err != nil {
 		return drkey.ASHostKey{}, serrors.WrapStr("fetching AS-Host key from local CS", err)
 	}
-	if err = s.DB.InsertASHostKey(ctx, remoteKey); err != nil {
+	if err = e.DB.InsertASHostKey(ctx, remoteKey); err != nil {
 		return drkey.ASHostKey{}, serrors.WrapStr("inserting AS-Host key in DB", err)
 	}
 	return remoteKey, nil
 }
 
 // GetHostASKey returns the HostAS key from the local DB or if not found, by asking our local CS.
-func (s *ClientEngine) GetHostASKey(ctx context.Context,
-	meta drkey.HostASMeta) (drkey.HostASKey, error) {
+func (e *ClientEngine) GetHostASKey(
+	ctx context.Context,
+	meta drkey.HostASMeta,
+) (drkey.HostASKey, error) {
 
 	// is it in storage?
-	k, err := s.DB.GetHostASKey(ctx, meta)
+	k, err := e.DB.GetHostASKey(ctx, meta)
 	if err == nil {
 		return k, nil
 	}
 	if err != drkey.ErrKeyNotFound {
 		return drkey.HostASKey{}, serrors.WrapStr("looking up Host-AS key in DB", err)
 	}
-	// if not, ask our CS for it
 
-	remoteKey, err := s.Fetcher.HostASKey(ctx, meta)
+	// if not, ask our CS for it
+	remoteKey, err := e.Fetcher.HostASKey(ctx, meta)
 	if err != nil {
 		return drkey.HostASKey{}, serrors.WrapStr("fetching Host-AS key from local CS", err)
 	}
-	if err = s.DB.InsertHostASKey(ctx, remoteKey); err != nil {
+	if err = e.DB.InsertHostASKey(ctx, remoteKey); err != nil {
 		return drkey.HostASKey{}, serrors.WrapStr("inserting Host-AS key in DB", err)
 	}
 	return remoteKey, nil
@@ -88,11 +92,13 @@ func (s *ClientEngine) GetHostASKey(ctx context.Context,
 
 // GetHostHostKey returns the HostHost key from the local DB or if not found,
 // by asking our local CS.
-func (s *ClientEngine) GetHostHostKey(ctx context.Context,
-	meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
+func (e *ClientEngine) GetHostHostKey(
+	ctx context.Context,
+	meta drkey.HostHostMeta,
+) (drkey.HostHostKey, error) {
 
 	// is it in storage?
-	k, err := s.DB.GetHostHostKey(ctx, meta)
+	k, err := e.DB.GetHostHostKey(ctx, meta)
 	if err == nil {
 		return k, nil
 	}
@@ -101,55 +107,28 @@ func (s *ClientEngine) GetHostHostKey(ctx context.Context,
 	}
 	// if not, ask our CS for it
 
-	remoteKey, err := s.Fetcher.HostHostKey(ctx, meta)
+	remoteKey, err := e.Fetcher.HostHostKey(ctx, meta)
 	if err != nil {
 		return drkey.HostHostKey{}, serrors.WrapStr("fetching Host-Host key from local CS", err)
 	}
-	if err = s.DB.InsertHostHostKey(ctx, remoteKey); err != nil {
+	if err = e.DB.InsertHostHostKey(ctx, remoteKey); err != nil {
 		return drkey.HostHostKey{}, serrors.WrapStr("inserting Host-Host key in DB", err)
 	}
 	return remoteKey, nil
 }
 
-// DeleteExpiredKeys will remove any expired keys.
-func (s *ClientEngine) DeleteExpiredASHostKeys(ctx context.Context) (int, error) {
-	return s.DB.DeleteExpiredASHostKeys(ctx, time.Now())
-}
-
-// DeleteExpiredKeys will remove any expired keys.
-func (s *ClientEngine) DeleteExpiredHostASKeys(ctx context.Context) (int, error) {
-	return s.DB.DeleteExpiredHostASKeys(ctx, time.Now())
-}
-
-// DeleteExpiredKeys will remove any expired keys.
-func (s *ClientEngine) DeleteExpiredHostHostKeys(ctx context.Context) (int, error) {
-	return s.DB.DeleteExpiredHostHostKeys(ctx, time.Now())
-
-}
-
-// NewClientASHostCleaner creates a Cleaner task that removes expired AS-Host keys.
-func NewClientASHostCleaner(c interface {
-	DeleteExpiredASHostKeys(ctx context.Context) (int, error)
-}) *cleaner.Cleaner {
-	return cleaner.New(func(ctx context.Context) (int, error) {
-		return c.DeleteExpiredASHostKeys(ctx)
+// CreateStorageCleaners creates three Cleaner tasks that removes
+// AS-Host, Host-AS and Host-Host keys respectively.
+func (e *ClientEngine) CreateStorageCleaners() []*cleaner.Cleaner {
+	cleaners := make([]*cleaner.Cleaner, 3)
+	cleaners[0] = cleaner.New(func(ctx context.Context) (int, error) {
+		return e.DB.DeleteExpiredASHostKeys(ctx, time.Now())
 	}, "drkey_client_store")
-}
-
-// NewClientEngineCleaner creates a Cleaner task that removes expired Host-AS keys.
-func NewClientHostASCleaner(c interface {
-	DeleteExpiredHostASKeys(ctx context.Context) (int, error)
-}) *cleaner.Cleaner {
-	return cleaner.New(func(ctx context.Context) (int, error) {
-		return c.DeleteExpiredHostASKeys(ctx)
+	cleaners[1] = cleaner.New(func(ctx context.Context) (int, error) {
+		return e.DB.DeleteExpiredHostASKeys(ctx, time.Now())
 	}, "drkey_client_store")
-}
-
-// NewClientEngineCleaner creates a Cleaner task that removes expired Host-Host keys.
-func NewClientHostHostCleaner(c interface {
-	DeleteExpiredHostHostKeys(ctx context.Context) (int, error)
-}) *cleaner.Cleaner {
-	return cleaner.New(func(ctx context.Context) (int, error) {
-		return c.DeleteExpiredHostHostKeys(ctx)
+	cleaners[2] = cleaner.New(func(ctx context.Context) (int, error) {
+		return e.DB.DeleteExpiredHostHostKeys(ctx, time.Now())
 	}, "drkey_client_store")
+	return cleaners
 }
