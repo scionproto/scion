@@ -68,7 +68,7 @@ func (d *Server) DRKeyLevel1(
 	}
 	dstIA, err := extractIAFromPeer(peer)
 	if err != nil {
-		return nil, serrors.WrapStr("retrieving info from certficate", err)
+		return nil, serrors.WrapStr("retrieving info from certificate", err)
 	}
 
 	lvl1Meta, err := getMeta(req.ProtocolId, req.ValTime, d.LocalIA, dstIA)
@@ -79,17 +79,14 @@ func (d *Server) DRKeyLevel1(
 	// validate requested ProtoID is specific
 	if !lvl1Meta.ProtoId.IsPredefined() {
 		return nil, serrors.New("the requested protocol id is not recognized",
-			"protoID", lvl1Meta.ProtoId)
+			"proto_id", lvl1Meta.ProtoId)
 	}
 
 	lvl1Key, err := d.Engine.DeriveLevel1(lvl1Meta)
 	if err != nil {
 		return nil, serrors.WrapStr("deriving level 1 key", err)
 	}
-	resp, err := keyToLevel1Resp(lvl1Key)
-	if err != nil {
-		return nil, serrors.WrapStr("parsing DRKey Level1 to protobuf resp", err)
-	}
+	resp := keyToLevel1Resp(lvl1Key)
 	return resp, nil
 }
 
@@ -121,10 +118,7 @@ func (d *Server) DRKeyIntraLevel1(
 		return nil, serrors.WrapStr("getting AS-AS host key", err)
 	}
 
-	resp, err := keyToASASResp(lvl1Key)
-	if err != nil {
-		return nil, serrors.WrapStr("encoding AS-AS to Protobuf response", err)
-	}
+	resp := keyToASASResp(lvl1Key)
 	return resp, nil
 }
 
@@ -152,10 +146,7 @@ func (d *Server) DRKeyASHost(
 		return nil, serrors.WrapStr("deriving AS-Host request", err)
 	}
 
-	resp, err := keyToASHostResp(asHostKey)
-	if err != nil {
-		return nil, serrors.WrapStr("parsing AS-Host request", err)
-	}
+	resp := keyToASHostResp(asHostKey)
 	return resp, nil
 }
 
@@ -182,10 +173,7 @@ func (d *Server) DRKeyHostAS(
 		return nil, serrors.WrapStr("deriving Host-AS request", err)
 	}
 
-	resp, err := keyToHostASResp(key)
-	if err != nil {
-		return nil, serrors.WrapStr("parsing Host-AS request", err)
-	}
+	resp := keyToHostASResp(key)
 	return resp, nil
 }
 
@@ -213,10 +201,7 @@ func (d *Server) DRKeyHostHost(
 		return nil, serrors.WrapStr("deriving Host-Host request", err)
 	}
 
-	resp, err := keyToHostHostResp(key)
-	if err != nil {
-		return nil, serrors.WrapStr("parsing Host-Host request", err)
-	}
+	resp := keyToHostHostResp(key)
 	return resp, nil
 }
 
@@ -242,10 +227,7 @@ func (d *Server) DRKeySecretValue(
 	if err != nil {
 		return nil, serrors.WrapStr("getting SV from persistence", err)
 	}
-	resp, err := secretToProtoResp(sv)
-	if err != nil {
-		return nil, serrors.WrapStr("encoding SV to Protobuf response", err)
-	}
+	resp := secretToProtoResp(sv)
 	return resp, nil
 }
 
@@ -269,13 +251,13 @@ func (d *Server) validateAllowedHost(protoId drkey.Protocol, peerAddr net.Addr) 
 	if foundSet {
 		log.Debug("Authorized delegated secret",
 			"protocol", protoId.String(),
-			"requester address", localAddr.String(),
+			"requester_address", localAddr.String(),
 		)
 		return nil
 	}
 	return serrors.New("endhost not allowed for DRKey request",
 		"protocol", protoId.String(),
-		"requester address", localAddr.String(),
+		"requester_address", localAddr.String(),
 	)
 }
 
@@ -290,7 +272,7 @@ func validateASHostReq(meta drkey.ASHostMeta, localIA addr.IA, peerAddr net.Addr
 
 	if !meta.DstIA.Equal(localIA) {
 		return serrors.New("invalid request, req.dstIA != localIA",
-			"req.dstIA", meta.DstIA, "localIA", localIA)
+			"request_dst_isd_as", meta.DstIA, "local_isd_as", localIA)
 	}
 	dstHost := addr.HostFromIPStr(meta.DstHost)
 	if !hostAddr.Equal(dstHost) {
@@ -311,7 +293,7 @@ func validateHostASReq(meta drkey.HostASMeta, localIA addr.IA, peerAddr net.Addr
 
 	if !meta.SrcIA.Equal(localIA) {
 		return serrors.New("invalid request, req.SrcIA != localIA",
-			"req.SrcIA", meta.SrcIA, "localIA", localIA)
+			"request_src_isd_as", meta.SrcIA, "local_isd_as", localIA)
 	}
 	srcHost := addr.HostFromIPStr(meta.SrcHost)
 	if !hostAddr.Equal(srcHost) {
@@ -335,9 +317,9 @@ func validateHostHostReq(meta drkey.HostHostMeta, localIA addr.IA, peerAddr net.
 		(meta.DstIA.Equal(localIA) && hostAddr.Equal(dstHost))) {
 		return serrors.New(
 			"invalid request",
-			"localIA", localIA,
-			"srcIA", meta.SrcIA,
-			"dstIA", meta.DstIA,
+			"local_isd_as", localIA,
+			"src_isd_as", meta.SrcIA,
+			"dst_isd_as", meta.DstIA,
 			"src_host", srcHost,
 			"dst_host", dstHost,
 			"remote_host", hostAddr,
@@ -376,7 +358,7 @@ func extractIAFromPeer(peer *peer.Peer) (addr.IA, error) {
 	tlsInfo, ok := peer.AuthInfo.(credentials.TLSInfo)
 	if !ok {
 		return 0, serrors.New("auth info is not of type TLS info",
-			"peer", peer, "authType", peer.AuthInfo.AuthType())
+			"peer", peer, "auth_type", peer.AuthInfo.AuthType())
 	}
 	chain := tlsInfo.State.PeerCertificates
 	certIA, err := cppki.ExtractIA(chain[0].Subject)

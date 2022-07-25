@@ -34,28 +34,28 @@ func secretRequestToMeta(req *cppb.DRKeySecretValueRequest) (drkey.SecretValueMe
 	}, nil
 }
 
-func secretToProtoResp(drkey drkey.SecretValue) (*cppb.DRKeySecretValueResponse, error) {
+func secretToProtoResp(drkey drkey.SecretValue) *cppb.DRKeySecretValueResponse {
 	return &cppb.DRKeySecretValueResponse{
 		EpochBegin: timestamppb.New(drkey.Epoch.NotBefore),
 		EpochEnd:   timestamppb.New(drkey.Epoch.NotAfter),
 		Key:        drkey.Key[:],
-	}, nil
+	}
 }
 
-func keyToLevel1Resp(drkey drkey.Level1Key) (*cppb.DRKeyLevel1Response, error) {
+func keyToLevel1Resp(drkey drkey.Level1Key) *cppb.DRKeyLevel1Response {
 	return &cppb.DRKeyLevel1Response{
 		EpochBegin: timestamppb.New(drkey.Epoch.NotBefore),
 		EpochEnd:   timestamppb.New(drkey.Epoch.NotAfter),
 		Key:        drkey.Key[:],
-	}, nil
+	}
 }
 
-func keyToASASResp(drkey drkey.Level1Key) (*cppb.DRKeyIntraLevel1Response, error) {
+func keyToASASResp(drkey drkey.Level1Key) *cppb.DRKeyIntraLevel1Response {
 	return &cppb.DRKeyIntraLevel1Response{
 		EpochBegin: timestamppb.New(drkey.Epoch.NotBefore),
 		EpochEnd:   timestamppb.New(drkey.Epoch.NotAfter),
 		Key:        drkey.Key[:],
-	}, nil
+	}
 }
 
 func requestToASHostMeta(req *cppb.DRKeyASHostRequest) (drkey.ASHostMeta, error) {
@@ -72,12 +72,12 @@ func requestToASHostMeta(req *cppb.DRKeyASHostRequest) (drkey.ASHostMeta, error)
 	}, nil
 }
 
-func keyToASHostResp(drkey drkey.ASHostKey) (*cppb.DRKeyASHostResponse, error) {
+func keyToASHostResp(drkey drkey.ASHostKey) *cppb.DRKeyASHostResponse {
 	return &cppb.DRKeyASHostResponse{
 		EpochBegin: timestamppb.New(drkey.Epoch.NotBefore),
 		EpochEnd:   timestamppb.New(drkey.Epoch.NotAfter),
 		Key:        drkey.Key[:],
-	}, nil
+	}
 }
 
 func requestToHostASMeta(req *cppb.DRKeyHostASRequest) (drkey.HostASMeta, error) {
@@ -94,12 +94,12 @@ func requestToHostASMeta(req *cppb.DRKeyHostASRequest) (drkey.HostASMeta, error)
 	}, nil
 }
 
-func keyToHostASResp(drkey drkey.HostASKey) (*cppb.DRKeyHostASResponse, error) {
+func keyToHostASResp(drkey drkey.HostASKey) *cppb.DRKeyHostASResponse {
 	return &cppb.DRKeyHostASResponse{
 		EpochBegin: timestamppb.New(drkey.Epoch.NotBefore),
 		EpochEnd:   timestamppb.New(drkey.Epoch.NotAfter),
 		Key:        drkey.Key[:],
-	}, nil
+	}
 }
 
 func requestToHostHostMeta(req *cppb.DRKeyHostHostRequest) (drkey.HostHostMeta, error) {
@@ -117,10 +117,10 @@ func requestToHostHostMeta(req *cppb.DRKeyHostHostRequest) (drkey.HostHostMeta, 
 	}, nil
 }
 
-func keyToHostHostResp(drkey drkey.HostHostKey) (*cppb.DRKeyHostHostResponse, error) {
+func keyToHostHostResp(drkey drkey.HostHostKey) *cppb.DRKeyHostHostResponse {
 	return &cppb.DRKeyHostHostResponse{
 		EpochBegin: timestamppb.New(drkey.Epoch.NotBefore),
 		EpochEnd:   timestamppb.New(drkey.Epoch.NotAfter),
 		Key:        drkey.Key[:],
-	}, nil
+	}
 }
