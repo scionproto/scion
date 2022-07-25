@@ -63,3 +63,12 @@ lifetime = "10m"
 # authorization tokens. If not set, the SCION ID is used instead.
 client_id = ""
 `
+
+const drkeySample = `
+# Number of distinct Level1Keys to be prefetched.
+prefetch_entries = 10000
+`
+const drkeySecretValueHostListSample = `
+# The list of hosts authorized to get a SV per protocol.
+scmp = [ "127.0.0.1", "127.0.0.2"]
+`
