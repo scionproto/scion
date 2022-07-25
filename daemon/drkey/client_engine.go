@@ -105,8 +105,8 @@ func (e *ClientEngine) GetHostHostKey(
 	if err != drkey.ErrKeyNotFound {
 		return drkey.HostHostKey{}, serrors.WrapStr("looking up Host-Host key in DB", err)
 	}
-	// if not, ask our CS for it
 
+	// if not, ask our CS for it
 	remoteKey, err := e.Fetcher.HostHostKey(ctx, meta)
 	if err != nil {
 		return drkey.HostHostKey{}, serrors.WrapStr("fetching Host-Host key from local CS", err)
