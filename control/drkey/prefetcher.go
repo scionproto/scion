@@ -16,16 +16,14 @@ package drkey
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/private/periodic"
 )
-
-var _ periodic.Task = (*Prefetcher)(nil)
 
 type Level1Engine interface {
 	GetLevel1Key(ctx context.Context, meta drkey.Level1Meta) (drkey.Level1Key, error)
@@ -46,7 +44,7 @@ type Prefetcher struct {
 
 // Name returns the tasks name.
 func (f *Prefetcher) Name() string {
-	return "drkey.Prefetcher"
+	return fmt.Sprintf("drkey_prefetcher_%s", f.LocalIA)
 }
 
 // Run requests the level 1 keys to other CSs.
@@ -61,7 +59,8 @@ func (f *Prefetcher) Run(ctx context.Context) {
 		wg.Add(1)
 		go func() {
 			defer log.HandlePanic()
-			getLevel1Key(ctx, f.Engine, key.IA, f.LocalIA, key.Proto, when, &wg)
+			defer wg.Done()
+			getLevel1Key(ctx, f.Engine, key.IA, f.LocalIA, key.Proto, when)
 		}()
 	}
 	wg.Wait()
@@ -73,19 +72,17 @@ func getLevel1Key(
 	srcIA, dstIA addr.IA,
 	proto drkey.Protocol,
 	valTime time.Time,
-	wg *sync.WaitGroup) {
+) {
 
-	defer wg.Done()
 	meta := drkey.Level1Meta{
 		Validity: valTime,
 		SrcIA:    srcIA,
 		DstIA:    dstIA,
 		ProtoId:  proto,
 	}
-	pref_ctx := context.WithValue(ctx, fromPrefetcher{}, true)
-	_, err := engine.GetLevel1Key(pref_ctx, meta)
-	if err != nil {
-		log.Error("Failed to prefetch the level 1 key", "remote AS", srcIA.String(),
+	ctx = context.WithValue(ctx, fromPrefetcher{}, true)
+	if _, err := engine.GetLevel1Key(ctx, meta); err != nil {
+		log.FromCtx(ctx).Error("Failed to prefetch the level 1 key", "remote AS", srcIA.String(),
 			"protocol", proto, "error", err)
 	}
 }
