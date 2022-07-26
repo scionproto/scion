@@ -35,5 +35,5 @@ jobs:
       - name: Upload the verification report
         uses: actions/upload-artifact@v2
         with:
-          name: verification_statistics
+          name: verification_stats.json
           path: ${{ env.statsFile }}
