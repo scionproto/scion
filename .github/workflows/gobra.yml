@@ -7,6 +7,8 @@ on:
 jobs:
   setup-and-test:
     runs-on: ubuntu-latest
+    env:
+      statsFile: '/gobra/stats.json'
     steps:
       - name: Checkout the SCION repository
         uses: actions/checkout@v2
@@ -18,7 +20,7 @@ jobs:
           path: ${{ runner.workspace }}/.gobra/cache.json
           key: ${{ env.cache-name }}
       - name: Verify the specified files
-        uses: viperproject/gobra-action@v22.05.2
+        uses: viperproject/gobra-action@v22.07
         with:
           # Prefix used to resolve SCION packages
           module: 'github.com/scionproto/scion/'
@@ -27,11 +29,11 @@ jobs:
           # Traverse the entire repository, including nested packages,
           # in search for annotated files to verify
           recursive: '1'
-          globalTimeout: 30m
           packageTimeout: 10m
           caching: '1'
+          statsFile: ${{ env.statsFile }}
       - name: Upload the verification report
         uses: actions/upload-artifact@v2
         with:
           name: verification_statistics
-          path: ${{ runner.workspace }}/.gobra/stats.json
+          path: ${{ env.statsFile }}
