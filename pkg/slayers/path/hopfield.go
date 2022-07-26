@@ -75,7 +75,7 @@ type HopField struct {
 //@ requires  len(raw) >= HopLen
 // DecodeFromBytes modifies the fields of *h and reads (but does not modify) the contents of raw.
 //@ preserves acc(h) && acc(raw, 1/2)
-// When a call that satifies the precondition (len(raw) >= HopLen) is made,
+// When a call that satisfies the precondition (len(raw) >= HopLen) is made,
 // the return value is guaranteed to be nil.
 //@ ensures   err == nil
 // Calls to DecodeFromBytes are always guaranteed to terminate.
@@ -104,7 +104,7 @@ func (h *HopField) DecodeFromBytes(raw []byte) (err error) {
 //@ requires  len(b) >= HopLen
 // SerializeTo reads (but does not modify) the fields of *h and writes to the contents of b.
 //@ preserves acc(h, 1/2) && acc(b)
-// When a call that satifies the precondition (len(b) >= HopLen) is made,
+// When a call that satisfies the precondition (len(b) >= HopLen) is made,
 // the return value is guaranteed to be nil.
 //@ ensures   err == nil
 // Calls to SerializeTo are guaranteed to terminate.

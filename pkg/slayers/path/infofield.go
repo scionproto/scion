@@ -60,7 +60,7 @@ type InfoField struct {
 //@ requires  len(raw) >= InfoLen
 // DecodeFromBytes modifies *inf and reads (but does not modify) the contents of raw.
 //@ preserves acc(inf) && acc(raw, 1/2)
-// When a call that satifies the precondition (len(raw) >= InfoLen) is made,
+// When a call that satisfies the precondition (len(raw) >= InfoLen) is made,
 // the return value is guaranteed to be nil.
 //@ ensures   err == nil
 // DecodeFromBytes always terminates.
@@ -84,7 +84,7 @@ func (inf *InfoField) DecodeFromBytes(raw []byte) (err error) {
 //@ requires  len(b) >= InfoLen
 // SerializeTo modifies the contents of b and reads (but does not modify) the fields of inf.
 //@ preserves acc(b) && acc(inf, 1/2)
-// When a call that satifies the precondition (len(b) >= InfoLen) is made,
+// When a call that satisfies the precondition (len(b) >= InfoLen) is made,
 // the return value is guaranteed to be nil.
 //@ ensures   err == nil
 // SerializeTo always terminates.
