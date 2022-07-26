@@ -55,11 +55,15 @@ type InfoField struct {
 	Timestamp uint32
 }
 
-// DecodeFromBytes populates the fields from a raw buffer. The buffer must be of length >=
-// path.InfoLen.
+// DecodeFromBytes populates the fields from a raw buffer.
+// The buffer must be of length >= path.InfoLen.
 //@ requires  len(raw) >= InfoLen
+// DecodeFromBytes modifies *inf and reads (but does not modify) the contents of raw.
 //@ preserves acc(inf) && acc(raw, 1/2)
+// When a call that satifies the precondition (len(raw) >= InfoLen) is made,
+// the return value is guaranteed to be nil.
 //@ ensures   err == nil
+// DecodeFromBytes always terminates.
 //@ decreases
 func (inf *InfoField) DecodeFromBytes(raw []byte) (err error) {
 	if len(raw) < InfoLen {
@@ -75,11 +79,15 @@ func (inf *InfoField) DecodeFromBytes(raw []byte) (err error) {
 	return nil
 }
 
-// SerializeTo writes the fields into the provided buffer. The buffer must be of length >=
-// path.InfoLen.
+// SerializeTo writes the fields into the provided buffer.
+// The buffer must be of length >= path.InfoLen.
 //@ requires  len(b) >= InfoLen
+// SerializeTo modifies the contents of b and reads (but does not modify) the fields of inf.
 //@ preserves acc(b) && acc(inf, 1/2)
+// When a call that satifies the precondition (len(b) >= InfoLen) is made,
+// the return value is guaranteed to be nil.
 //@ ensures   err == nil
+// SerializeTo always terminates.
 //@ decreases
 func (inf *InfoField) SerializeTo(b []byte) (err error) {
 	if len(b) < InfoLen {
@@ -106,14 +114,18 @@ func (inf *InfoField) SerializeTo(b []byte) (err error) {
 // UpdateSegID updates the SegID field by XORing the SegID field with the 2
 // first bytes of the MAC. It is the beta calculation according to
 // https://docs.scion.org/en/latest/protocols/scion-header.html#hop-field-mac-computation
-//@ preserves acc(inf)
+//  UpdateSegID only accesses and modifies the contents of inf.SegID.
+//@ preserves acc(&inf.SegID)
+// UpdateSegID always terminates.
 //@ decreases
 func (inf *InfoField) UpdateSegID(hfMac [MacLen]byte) {
 	//@ share hfMac
 	inf.SegID = inf.SegID ^ binary.BigEndian.Uint16(hfMac[:2])
 }
 
+// String is not verified because Gobra does not yet support the fmt package.
 //@ trusted
+// String always terminates.
 //@ decreases
 func (inf InfoField) String() string {
 	return fmt.Sprintf("{Peer: %t, ConsDir: %t, SegID: %d, Timestamp: %s}",

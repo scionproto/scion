@@ -70,11 +70,15 @@ type HopField struct {
 	Mac [MacLen]byte
 }
 
-// DecodeFromBytes populates the fields from a raw buffer. The buffer must be of length >=
-// path.HopLen.
+// DecodeFromBytes populates the fields from a raw buffer.
+// The buffer must be of length >= path.HopLen.
 //@ requires  len(raw) >= HopLen
+// DecodeFromBytes modifies the fields of *h and reads (but does not modify) the contents of raw.
 //@ preserves acc(h) && acc(raw, 1/2)
+// When a call that satifies the precondition (len(raw) >= HopLen) is made,
+// the return value is guaranteed to be nil.
 //@ ensures   err == nil
+// Calls to DecodeFromBytes are always guaranteed to terminate.
 //@ decreases
 func (h *HopField) DecodeFromBytes(raw []byte) (err error) {
 	if len(raw) < HopLen {
@@ -95,11 +99,15 @@ func (h *HopField) DecodeFromBytes(raw []byte) (err error) {
 	return nil
 }
 
-// SerializeTo writes the fields into the provided buffer. The buffer must be of length >=
-// path.HopLen.
+// SerializeTo writes the fields into the provided buffer.
+// The buffer must be of length >= path.HopLen.
 //@ requires  len(b) >= HopLen
+// SerializeTo reads (but does not modify) the fields of *h and writes to the contents of b.
 //@ preserves acc(h, 1/2) && acc(b)
+// When a call that satifies the precondition (len(b) >= HopLen) is made,
+// the return value is guaranteed to be nil.
 //@ ensures   err == nil
+// Calls to SerializeTo are guaranteed to terminate.
 //@ decreases
 func (h *HopField) SerializeTo(b []byte) (err error) {
 	if len(b) < HopLen {
@@ -128,7 +136,10 @@ func (h *HopField) SerializeTo(b []byte) (err error) {
 
 // ExpTimeToDuration calculates the relative expiration time in seconds.
 // Note that for a 0 value ExpTime, the minimal duration is expTimeUnit.
+// ExpTimeToDuration is pure: it does not modify any memory locations and
+// does not produce any side effects.
 //@ pure
+// Calls to ExpTimeToDuration are guaranteed to always terminate.
 //@ decreases
 func ExpTimeToDuration(expTime uint8) time.Duration {
 	return (time.Duration(expTime) + 1) * time.Duration(expTimeUnit) * time.Second
