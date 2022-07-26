@@ -22,7 +22,8 @@
 
 package serrors
 
-// This method always allocates a new (non-nil) error.
+// Allocates a new (non-nil) error.
+// Calls to this method are assumed to always terminate.
 ensures err != nil
-decreases
+decreases _
 func New(msg string, errCtx ...interface{}) (err error)

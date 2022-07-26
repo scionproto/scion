@@ -91,3 +91,5 @@ node_modules
 
 # gobra
 *.vpr
+tmp/
+logger.log
