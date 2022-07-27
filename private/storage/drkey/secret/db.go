@@ -23,14 +23,14 @@ import (
 
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/private/prom"
 	dblib "github.com/scionproto/scion/private/storage/db"
 	st_drkey "github.com/scionproto/scion/private/storage/drkey"
 	"github.com/scionproto/scion/private/tracing"
 )
 
 type Metrics struct {
-	QueriesSVTotal metrics.Counter
-	ResultsSVTotal metrics.Counter
+	QueriesTotal metrics.Counter
 }
 
 func (m *Metrics) Observe(ctx context.Context, op string, action func(context.Context) error) {
@@ -42,14 +42,14 @@ func (m *Metrics) Observe(ctx context.Context, op string, action func(context.Co
 	span, ctx := opentracing.StartSpanFromContext(ctx, fmt.Sprintf("drkeySVDB.%s", op))
 	defer span.Finish()
 
-	metrics.CounterInc(metrics.CounterWith(m.QueriesSVTotal, "operation", op))
 	err := action(ctx)
-
 	label := dblib.ErrToMetricLabel(err)
 	tracing.Error(span, err)
 	tracing.ResultLabel(span, label)
 
-	metrics.CounterInc(metrics.CounterWith(m.ResultsSVTotal, "operation", op))
+	metrics.CounterInc(metrics.CounterWith(m.QueriesTotal,
+		"operation", op,
+		prom.LabelResult, label))
 }
 
 type Database struct {

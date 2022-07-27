@@ -38,8 +38,7 @@ func (b *TestBackend) Prepare(t *testing.T, _ context.Context) {
 	b.SecretValueDB = &secret.Database{
 		Backend: newSecretValueDatabase(t),
 		Metrics: &secret.Metrics{
-			QueriesSVTotal: metrics.NewTestCounter(),
-			ResultsSVTotal: metrics.NewTestCounter(),
+			QueriesTotal: metrics.NewTestCounter(),
 		},
 	}
 }
