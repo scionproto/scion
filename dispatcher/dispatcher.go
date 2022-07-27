@@ -29,8 +29,12 @@ import (
 	"github.com/scionproto/scion/private/underlay/conn"
 )
 
-// ReceiveBufferSize is the size of receive buffers used by the dispatcher.
-const ReceiveBufferSize = 1 << 20
+const (
+	// ReceiveBufferSize is the size of receive buffers used by the dispatcher.
+	ReceiveBufferSize = 1 << 20
+	// SendBufferSize is the size of the send buffers used by the dispatcher.
+	SendBufferSize = 1 << 20
+)
 
 // Server is the main object allowing to create new SCION connections.
 type Server struct {
@@ -213,7 +217,10 @@ func openConn(network, address string) (net.PacketConn, error) {
 		listeningAddress.IP = net.IPv6zero
 	}
 
-	c, err := conn.New(listeningAddress, nil, &conn.Config{ReceiveBufferSize: ReceiveBufferSize})
+	c, err := conn.New(listeningAddress, nil, &conn.Config{
+		SendBufferSize:    SendBufferSize,
+		ReceiveBufferSize: ReceiveBufferSize,
+	})
 	if err != nil {
 		return nil, serrors.WrapStr("unable to open conn", err)
 	}

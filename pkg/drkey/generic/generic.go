@@ -22,37 +22,48 @@ import (
 )
 
 // Deriver implements the level 2/3 generic drkey derivation.
-type Deriver struct{}
+type Deriver struct {
+	Proto drkey.Protocol
+}
 
 // DeriveASHost returns the ASHost derived key.
-func (d *Deriver) DeriveASHost(proto drkey.Protocol, dstHost string,
-	key drkey.Key) (drkey.Key, error) {
+func (d Deriver) DeriveASHost(
+	dstHost string,
+	key drkey.Key,
+) (drkey.Key, error) {
+
 	host, err := drkey.HostAddrFromString(dstHost)
 	if err != nil {
 		return drkey.Key{}, serrors.WrapStr("parsing dst host", err)
 	}
 	buf := make([]byte, 32)
-	len := d.serializeLevel2Input(buf, drkey.AsHost, proto, host)
+	len := d.serializeLevel2Input(buf, drkey.AsHost, d.Proto, host)
 	outKey, err := drkey.DeriveKey(buf[:len], key)
 	return outKey, err
 }
 
 // DeriveHostAS returns the HostAS derived key.
-func (d *Deriver) DeriveHostAS(proto drkey.Protocol, srcHost string,
-	key drkey.Key) (drkey.Key, error) {
+func (d Deriver) DeriveHostAS(
+	srcHost string,
+	key drkey.Key,
+) (drkey.Key, error) {
+
 	host, err := drkey.HostAddrFromString(srcHost)
 	if err != nil {
 		return drkey.Key{}, serrors.WrapStr("parsing src host", err)
 	}
 	buf := make([]byte, 32)
-	len := d.serializeLevel2Input(buf, drkey.HostAS, proto, host)
+	len := d.serializeLevel2Input(buf, drkey.HostAS, d.Proto, host)
 	outKey, err := drkey.DeriveKey(buf[:len], key)
 	return outKey, err
 }
 
 // DeriveHostHost returns the HostHost derived key.
-func (d *Deriver) DeriveHostHost(dstHost string,
-	key drkey.Key) (drkey.Key, error) {
+func (d Deriver) DeriveHostHost(
+	dstHost string,
+	key drkey.Key,
+) (drkey.Key, error) {
+
 	host, err := drkey.HostAddrFromString(dstHost)
 	if err != nil {
 		return drkey.Key{}, serrors.WrapStr("deriving input H2H", err)
@@ -66,8 +77,13 @@ func (d *Deriver) DeriveHostHost(dstHost string,
 // serializeLevel2Input serializes the input for a ASHost or HostAS key,
 // as explained in
 // https://docs.scion.org/en/latest/cryptography/drkey.html#generic-protocol-derivation
-func (d *Deriver) serializeLevel2Input(input []byte, derType drkey.KeyType,
-	proto drkey.Protocol, host drkey.HostAddr) int {
+func (d Deriver) serializeLevel2Input(
+	input []byte,
+	derType drkey.KeyType,
+	proto drkey.Protocol,
+	host drkey.HostAddr,
+) int {
+
 	hostAddr := host.RawAddr
 	l := len(hostAddr)
 
