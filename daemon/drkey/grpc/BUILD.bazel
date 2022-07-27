@@ -27,7 +27,6 @@ go_test(
         ":go_default_library",
         "//daemon/drkey:go_default_library",
         "//pkg/drkey:go_default_library",
-        "//pkg/grpc/mock_grpc:go_default_library",
         "//pkg/private/xtest:go_default_library",
         "//pkg/proto/control_plane:go_default_library",
         "//pkg/proto/control_plane/mock_control_plane:go_default_library",
