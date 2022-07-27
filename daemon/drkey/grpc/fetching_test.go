@@ -16,48 +16,22 @@ package grpc_test
 
 import (
 	"context"
-	"log"
-	"net"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/test/bufconn"
 
 	sd_drkey "github.com/scionproto/scion/daemon/drkey"
 	sd_grpc "github.com/scionproto/scion/daemon/drkey/grpc"
 	"github.com/scionproto/scion/pkg/drkey"
-	"github.com/scionproto/scion/pkg/grpc/mock_grpc"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	mock_cppb "github.com/scionproto/scion/pkg/proto/control_plane/mock_control_plane"
 )
 
 var _ sd_drkey.Fetcher = (*sd_grpc.Fetcher)(nil)
-
-func dialer(drkeyServer cppb.DRKeyIntraServiceServer) func(
-	context.Context,
-	string,
-) (net.Conn, error) {
-
-	bufsize := 1024 * 1024
-	listener := bufconn.Listen(bufsize)
-	server := grpc.NewServer()
-	cppb.RegisterDRKeyIntraServiceServer(server, drkeyServer)
-
-	go func() {
-		if err := server.Serve(listener); err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	return func(context.Context, string) (net.Conn, error) {
-		return listener.Dial()
-	}
-}
 
 func TestGetHostHost(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -82,19 +56,12 @@ func TestGetHostHost(t *testing.T) {
 		nil,
 	)
 
-	conn, err := grpc.DialContext(context.Background(),
-		"",
-		grpc.WithInsecure(),
-		grpc.WithContextDialer(dialer(daemonSrv)),
-	)
-	require.NoError(t, err)
-	defer conn.Close()
-
-	dialer := mock_grpc.NewMockDialer(ctrl)
-	dialer.EXPECT().Dial(gomock.Any(), gomock.Any()).Return(conn, nil)
+	server := xtest.NewGRPCService()
+	cppb.RegisterDRKeyIntraServiceServer(server.Server(), daemonSrv)
+	server.Start(t)
 
 	fetcher := sd_grpc.Fetcher{
-		Dialer: dialer,
+		Dialer: server,
 	}
 
 	meta := drkey.HostHostMeta{}
