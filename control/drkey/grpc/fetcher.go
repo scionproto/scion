@@ -17,14 +17,11 @@ package grpc
 import (
 	"context"
 	"errors"
-	"math/rand"
 	"time"
 
-	csdrkey "github.com/scionproto/scion/control/drkey"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	sc_grpc "github.com/scionproto/scion/pkg/grpc"
-	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/snet"
@@ -49,31 +46,35 @@ type Fetcher struct {
 	Dialer     sc_grpc.Dialer
 	Router     snet.Router
 	MaxRetries int
+
+	errorPaths map[snet.PathFingerprint]struct{}
 }
 
-var _ csdrkey.Fetcher = (*Fetcher)(nil)
-
 // Level1 queries a CS for a level 1 key.
-func (f Fetcher) Level1(
+func (f *Fetcher) Level1(
 	ctx context.Context,
 	meta drkey.Level1Meta,
 ) (drkey.Level1Key, error) {
 
-	logger := log.FromCtx(ctx)
-
 	req := level1MetaToProtoRequest(meta)
 
 	// Keep retrying until the reaching MaxRetries.
-	// getLevel1Key will use a random path out of all Router retrieved paths.
+	// getLevel1Key will use different paths out of Router retrieved paths.
 	// These retries allow to route around broken paths.
 	// Note: this is a temporary solution. In the future, this should be handled
 	// by using longer lived grpc connections over different paths and thereby
 	// explicitly keeping track of the path health.
+	var errList serrors.List
+	f.errorPaths = make(map[snet.PathFingerprint]struct{})
 	for i := 0; i < f.MaxRetries; i++ {
 		rep, err := f.getLevel1Key(ctx, meta.SrcIA, req)
 		if errors.Is(err, errNotReachable) {
-			logger.Debug("Level1 fetch failed", "try", i+1, "peer", meta.SrcIA, "err", err)
-			return drkey.Level1Key{}, err
+			return drkey.Level1Key{}, serrors.New(
+				"level1 fetch failed",
+				"try", i+1,
+				"peer", meta.SrcIA,
+				"err", err,
+			)
 		}
 		if err == nil {
 			lvl1Key, err := getLevel1KeyFromReply(meta, rep)
@@ -82,12 +83,16 @@ func (f Fetcher) Level1(
 			}
 			return lvl1Key, nil
 		}
-		logger.Debug("Level1 fetch failed", "try", i+1, "peer", meta.SrcIA, "err", err)
+		err = serrors.New("level1 fetch failed", "try", i+1, "peer", meta.SrcIA, "err", err)
+		errList = append(errList, err)
 	}
-	return drkey.Level1Key{}, serrors.New("reached max retry attempts on fetching lvl1 key")
+	return drkey.Level1Key{}, serrors.WrapStr(
+		"reached max retry attempts fetching level1 key",
+		errList,
+	)
 }
 
-func (f Fetcher) getLevel1Key(
+func (f *Fetcher) getLevel1Key(
 	ctx context.Context,
 	srcIA addr.IA,
 	req *cppb.DRKeyLevel1Request,
@@ -118,7 +123,7 @@ func (f Fetcher) getLevel1Key(
 	return rep, nil
 }
 
-func (f Fetcher) pathToDst(ctx context.Context, dst addr.IA) (snet.Path, error) {
+func (f *Fetcher) pathToDst(ctx context.Context, dst addr.IA) (snet.Path, error) {
 	paths, err := f.Router.AllRoutes(ctx, dst)
 	if err != nil {
 		return nil, serrors.Wrap(errNotReachable, err)
@@ -126,6 +131,14 @@ func (f Fetcher) pathToDst(ctx context.Context, dst addr.IA) (snet.Path, error) 
 	if len(paths) == 0 {
 		return nil, errNotReachable
 	}
-	path := paths[rand.Intn(len(paths))]
-	return path, nil
+	for _, p := range paths {
+		if _, ok := f.errorPaths[snet.Fingerprint(p)]; ok {
+			continue
+		}
+		f.errorPaths[snet.Fingerprint(p)] = struct{}{}
+		return p, nil
+	}
+	// we've tried out all the paths; we reset the map to retry them.
+	f.errorPaths = make(map[snet.PathFingerprint]struct{})
+	return paths[0], nil
 }

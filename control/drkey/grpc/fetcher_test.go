@@ -25,9 +25,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/test/bufconn"
 
 	csdrkey "github.com/scionproto/scion/control/drkey"
 	dk_grpc "github.com/scionproto/scion/control/drkey/grpc"
@@ -81,13 +79,19 @@ func TestLevel1KeyFetching(t *testing.T) {
 		VerifyConnection:      mgr.VerifyConnection,
 	})
 
-	server := newGRPCService(serverCreds, clientCreds)
+	server := xtest.NewGRPCService(xtest.WithCredentials(clientCreds, serverCreds))
 	cppb.RegisterDRKeyInterServiceServer(server.Server(), &dk_grpc.Server{
 		Engine: lvl1db,
 	})
 	server.Start(t)
 
 	path := mock_snet.NewMockPath(ctrl)
+	path.EXPECT().Metadata().AnyTimes().Return(&snet.PathMetadata{
+		Interfaces: []snet.PathInterface{
+			{IA: xtest.MustParseIA("1-ff00:0:111"), ID: 2},
+			{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 1},
+		},
+	})
 	path.EXPECT().Dataplane().Return(nil)
 	path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{})
 
@@ -107,43 +111,6 @@ func TestLevel1KeyFetching(t *testing.T) {
 	}
 	_, err = fetcher.Level1(context.Background(), meta)
 	require.NoError(t, err)
-}
-
-type grpcService struct {
-	listener          *bufconn.Listener
-	server            *grpc.Server
-	clientCredentials credentials.TransportCredentials
-}
-
-func newGRPCService(serverCreds, clientCreds credentials.TransportCredentials) *grpcService {
-	return &grpcService{
-		listener:          bufconn.Listen(1024 * 1024),
-		server:            grpc.NewServer(grpc.Creds(serverCreds)),
-		clientCredentials: clientCreds,
-	}
-}
-
-func (s *grpcService) Server() *grpc.Server {
-	return s.server
-}
-
-func (s *grpcService) Start(t *testing.T) {
-	go func() {
-		err := s.server.Serve(s.listener)
-		require.NoError(t, err)
-	}()
-	t.Cleanup(s.server.Stop)
-}
-
-func (s *grpcService) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn, error) {
-	return grpc.DialContext(ctx, addr.String(),
-		grpc.WithContextDialer(
-			func(context.Context, string) (net.Conn, error) {
-				return s.listener.Dial()
-			},
-		),
-		grpc.WithTransportCredentials(s.clientCredentials),
-	)
 }
 
 func genCrypto(t testing.TB) string {
