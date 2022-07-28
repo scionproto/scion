@@ -116,7 +116,7 @@ func TestRequesterSegments(t *testing.T) {
 					Return(&hspb.HiddenSegmentsResponse{
 						Segments: hpgrpc.ToHSPB([]*seg.Meta{&testSeg}),
 					}, nil).AnyTimes()
-				svc := xtest.NewGRPCService()
+				svc := xtest.NewGRPCService(xtest.WithInsecureCredentials())
 				hspb.RegisterHiddenSegmentLookupServiceServer(svc.Server(), server)
 				svc.Start(t)
 
@@ -179,7 +179,7 @@ func TestAuthoritativeRequesterHiddenSegments(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			svc := xtest.NewGRPCService()
+			svc := xtest.NewGRPCService(xtest.WithInsecureCredentials())
 			hspb.RegisterAuthoritativeHiddenSegmentLookupServiceServer(svc.Server(),
 				tc.server(ctrl))
 			svc.Start(t)
