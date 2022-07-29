@@ -84,6 +84,7 @@ type Metrics struct {
 	TopoLoader                             topology.LoaderMetrics
 	DRKeySecretValueQueriesTotal           *prometheus.CounterVec
 	DRKeyLevel1QueriesTotal                *prometheus.CounterVec
+	RenewalMetrics                         renewal.Metrics
 }
 
 func NewMetrics() *Metrics {
@@ -256,6 +257,53 @@ func NewMetrics() *Metrics {
 			},
 			[]string{"operation", prom.LabelResult},
 		),
+		RenewalMetrics: renewal.Metrics{
+			CaActive: func(result string) metrics.Gauge {
+				return metrics.NewPromGauge(promauto.NewGaugeVec(
+					prometheus.GaugeOpts{
+						Name: "renewal_signer_active_boolean",
+						Help: "Whether the CA signer is active and can sign certificate chains",
+					},
+					[]string{},
+				)).With()
+			},
+			CaSigners: func(result string) metrics.Counter {
+				return metrics.NewPromCounter(promauto.NewCounterVec(
+					prometheus.CounterOpts{
+						Name: "renewal_generated_signers_total",
+						Help: "Number of generated CA signers that sign certificate chains",
+					},
+					[]string{prom.LabelResult},
+				)).With(prom.LabelResult)
+			},
+			SignedChains: func(result string) metrics.Counter {
+				return metrics.NewPromCounter(promauto.NewCounterVec(
+					prometheus.CounterOpts{
+						Name: "renewal_signed_certificate_chains_total",
+						Help: "Number of certificate chains signed",
+					},
+					[]string{prom.LabelResult},
+				)).With(prom.LabelResult)
+			},
+			LastGeneratedCA: func(result string) metrics.Gauge {
+				return metrics.NewPromGauge(promauto.NewGaugeVec(
+					prometheus.GaugeOpts{
+						Name: "renewal_last_signer_generation_time_second",
+						Help: "The last time a signer for creating AS certificates was successfully generated",
+					},
+					[]string{},
+				)).With()
+			},
+			ExpirationCA: func(result string) metrics.Gauge {
+				return metrics.NewPromGauge(promauto.NewGaugeVec(
+					prometheus.GaugeOpts{
+						Name: "renewal_signer_expiration_time_second",
+						Help: "The expiration time of the current CA signer",
+					},
+					[]string{},
+				)).With()
+			},
+		},
 	}
 }
 
@@ -277,7 +325,7 @@ func RegisterHTTPEndpoints(
 	if topo != nil {
 		statusPages["topology"] = service.NewTopologyStatusPage(topo)
 	}
-	if ca != (renewal.ChainBuilder{}) {
+	if ca.PolicyGen != nil {
 		statusPages["ca"] = caStatusPage(ca)
 	}
 	if err := statusPages.Register(http.DefaultServeMux, elemId); err != nil {
