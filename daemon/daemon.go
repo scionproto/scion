@@ -25,6 +25,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/scionproto/scion/daemon/drkey"
 	"github.com/scionproto/scion/daemon/fetcher"
 	"github.com/scionproto/scion/daemon/internal/servers"
 	"github.com/scionproto/scion/pkg/addr"
@@ -106,12 +107,13 @@ func TrustEngine(
 
 // ServerConfig is the configuration for the daemon API server.
 type ServerConfig struct {
-	IA       addr.IA
-	MTU      uint16
-	Fetcher  fetcher.Fetcher
-	RevCache revcache.RevCache
-	Engine   trust.Engine
-	Topology servers.Topology
+	IA          addr.IA
+	MTU         uint16
+	Fetcher     fetcher.Fetcher
+	RevCache    revcache.RevCache
+	Engine      trust.Engine
+	Topology    servers.Topology
+	DRKeyClient drkey.ClientEngine
 }
 
 // NewServer constructs a daemon API server.
@@ -123,6 +125,7 @@ func NewServer(cfg ServerConfig) *servers.DaemonServer {
 		Fetcher:     cfg.Fetcher,
 		ASInspector: cfg.Engine.Inspector,
 		RevCache:    cfg.RevCache,
+		DRKeyClient: cfg.DRKeyClient,
 		Metrics: servers.Metrics{
 			PathsRequests: servers.RequestMetrics{
 				Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{
