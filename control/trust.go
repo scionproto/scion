@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	cstrust "github.com/scionproto/scion/control/trust"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
@@ -107,9 +108,21 @@ type ChainBuilderConfig struct {
 	ForceECDSAWithSHA512 bool
 }
 
+type MetricsOption func(*metricsOption)
+
+func WithRegistry(registry prometheus.Registerer) MetricsOption {
+	return func(o *metricsOption) {
+		o.registry = registry
+	}
+}
+
+type metricsOption struct {
+	registry prometheus.Registerer
+}
+
 // NewChainBuilder creates a renewing chain builder.
 func NewChainBuilder(cfg ChainBuilderConfig) renewal.ChainBuilder {
-
+	m := NewMetrics().RenewalMetrics
 	return renewal.ChainBuilder{
 		PolicyGen: &renewal.CachingPolicyGen{
 			PolicyGen: renewal.LoadingPolicyGen{
@@ -123,7 +136,54 @@ func NewChainBuilder(cfg ChainBuilderConfig) renewal.ChainBuilder {
 					Dir: filepath.Join(cfg.ConfigDir, "crypto/ca"),
 				},
 				ForceECDSAWithSHA512: cfg.ForceECDSAWithSHA512,
+				CaSigners:            m.CaSigners,
 			},
+			CaActive:        m.CaActive,
+			LastGeneratedCA: m.LastGeneratedCA,
+			ExpirationCA:    m.ExpirationCA,
 		},
+		SignedChains: m.SignedChains,
 	}
 }
+
+// func NewRenewalMetrics(opts ...MetricsOption) *renewal.Metrics {
+// 	var o metricsOption
+// 	for _, opt := range opts {
+// 		opt(&o)
+// 	}
+
+// 	registry := o.registry
+// 	if registry == nil {
+// 		registry = prometheus.DefaultRegisterer
+// 	}
+// 	auto := promauto.With(registry)
+// 	return &renewal.Metrics{
+// 		ResultCounter: func(result string) metrics.Counter {
+// 			return metrics.NewPromCounter(auto.NewCounterVec(
+// 				prometheus.CounterOpts{
+// 					Name: "renewal_chain_builder_result",
+// 					Help: "Counts occurrences of internal and inactive errors as well as successes.",
+// 				},
+// 				[]string{"err"},
+// 			)).With("err", result)
+// 		},
+// 		StatusGauge: func(result string) metrics.Gauge {
+// 			return metrics.NewPromGauge(auto.NewGaugeVec(
+// 				prometheus.GaugeOpts{
+// 					Name: "renewal_chain_builder_result",
+// 					Help: "Counts occurrences of internal and inactive errors as well as successes.",
+// 				},
+// 				[]string{"err"},
+// 			)).With("err", result)
+// 		},
+// 		ErrorCounter: func(result string) metrics.Counter {
+// 			return metrics.NewPromCounter(auto.NewCounterVec(
+// 				prometheus.CounterOpts{
+// 					Name: "renewal_chain_builder_result",
+// 					Help: "Counts occurrences of internal and inactive errors as well as successes.",
+// 				},
+// 				[]string{"err"},
+// 			)).With("err", result)
+// 		},
+// 	}
+// }
