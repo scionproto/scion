@@ -566,7 +566,7 @@ func realMain(ctx context.Context) error {
 	}
 
 	//DRKey feature
-	var drkeyEngine drkey.ServiceEngine
+	var drkeyEngine *drkey.ServiceEngine
 	var quicTLSServer *grpc.Server
 	var epochDuration time.Duration
 	if globalCfg.DRKey.Enabled() {
@@ -622,10 +622,16 @@ func realMain(ctx context.Context) error {
 			Router:     segreq.NewRouter(fetcherCfg),
 			MaxRetries: 20,
 		}
-		drkeyEngine, err = drkey.NewServiceEngine(topo.IA(), svDB, masterKey.Key0,
-			epochDuration, drkeyDB, drkeyFetcher, globalCfg.DRKey.PrefetchEntries)
+		prefetchKeeper, err := drkey.NewLevel1ARC(globalCfg.DRKey.PrefetchEntries)
 		if err != nil {
-			return serrors.WrapStr("initializing Service Store", err)
+			return err
+		}
+		drkeyEngine = &drkey.ServiceEngine{
+			SecretBackend:  drkey.NewSecretValueBackend(svDB, masterKey.Key0, epochDuration),
+			LocalIA:        topo.IA(),
+			DB:             level1DB,
+			Fetcher:        &drkeyFetcher,
+			PrefetchKeeper: prefetchKeeper,
 		}
 		drkeyService := &drkeygrpc.Server{
 			LocalIA:            topo.IA(),
@@ -661,6 +667,16 @@ func realMain(ctx context.Context) error {
 		return nil
 	})
 	cleanup.Add(func() error { quicServer.GracefulStop(); return nil })
+	if quicTLSServer != nil {
+		g.Go(func() error {
+			defer log.HandlePanic()
+			if err := quicTLSServer.Serve(quicStack.Listener); err != nil {
+				return serrors.WrapStr("serving gRPC(TLS)/QUIC API", err)
+			}
+			return nil
+		})
+		cleanup.Add(func() error { quicTLSServer.GracefulStop(); return nil })
+	}
 	g.Go(func() error {
 		defer log.HandlePanic()
 		if err := tcpServer.Serve(tcpStack); err != nil {
