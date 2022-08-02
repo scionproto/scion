@@ -155,7 +155,7 @@ func TestFetcherChains(t *testing.T) {
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
 
-			svc := xtest.NewGRPCService(xtest.WithInsecureCredentials())
+			svc := xtest.NewGRPCService()
 			cppb.RegisterTrustMaterialServiceServer(svc.Server(), tc.Server(mctrl))
 			svc.Start(t)
 
@@ -236,7 +236,7 @@ func TestFetcherTRC(t *testing.T) {
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
 
-			svc := xtest.NewGRPCService(xtest.WithInsecureCredentials())
+			svc := xtest.NewGRPCService()
 			cppb.RegisterTrustMaterialServiceServer(svc.Server(), tc.Server(mctrl))
 			svc.Start(t)
 

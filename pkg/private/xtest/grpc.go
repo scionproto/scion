@@ -73,12 +73,16 @@ func (s *GRPCService) Start(t *testing.T) {
 }
 
 func (s *GRPCService) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn, error) {
+	transportSecurity := grpc.WithInsecure()
+	if s.clientCredentials != nil {
+		transportSecurity = grpc.WithTransportCredentials(s.clientCredentials)
+	}
 	return grpc.DialContext(ctx, addr.String(),
 		grpc.WithContextDialer(
 			func(context.Context, string) (net.Conn, error) {
 				return s.listener.Dial()
 			},
 		),
-		grpc.WithTransportCredentials(s.clientCredentials),
+		transportSecurity,
 	)
 }

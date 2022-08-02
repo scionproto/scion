@@ -83,8 +83,9 @@ func (f *Fetcher) Level1(
 			}
 			return lvl1Key, nil
 		}
-		err = serrors.New("level1 fetch failed", "try", i+1, "peer", meta.SrcIA, "err", err)
-		errList = append(errList, err)
+		errList = append(errList,
+			serrors.WrapStr("fetching level1", err, "try", i+1, "peer", meta.SrcIA),
+		)
 	}
 	return drkey.Level1Key{}, serrors.WrapStr(
 		"reached max retry attempts fetching level1 key",

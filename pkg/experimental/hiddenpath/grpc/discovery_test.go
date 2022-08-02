@@ -75,7 +75,7 @@ func TestDiscovererDiscover(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			svc := xtest.NewGRPCService(xtest.WithInsecureCredentials())
+			svc := xtest.NewGRPCService()
 			dspb.RegisterDiscoveryServiceServer(svc.Server(), tc.server(ctrl))
 			svc.Start(t)
 
