@@ -20,13 +20,17 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/drkey"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
+	dkpb "github.com/scionproto/scion/pkg/proto/drkey"
+	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/private/topology"
@@ -163,6 +167,54 @@ func (c grpcConn) RevNotification(ctx context.Context, revInfo *path_mgmt.RevInf
 
 }
 
+func (c grpcConn) DRKeyGetASHostKey(ctx context.Context,
+	meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
+
+	client := sdpb.NewDaemonServiceClient(c.conn)
+	pbReq := asHostMetaToProtoRequest(meta)
+	reply, err := client.DRKeyASHost(ctx, pbReq)
+	if err != nil {
+		return drkey.ASHostKey{}, err
+	}
+	key, err := getASHostKeyFromReply(reply, meta)
+	if err != nil {
+		return drkey.ASHostKey{}, err
+	}
+	return key, nil
+}
+
+func (c grpcConn) DRKeyGetHostASKey(ctx context.Context,
+	meta drkey.HostASMeta) (drkey.HostASKey, error) {
+
+	client := sdpb.NewDaemonServiceClient(c.conn)
+	req := hostASMetaToProtoRequest(meta)
+	reply, err := client.DRKeyHostAS(ctx, req)
+	if err != nil {
+		return drkey.HostASKey{}, err
+	}
+	key, err := getHostASKeyFromReply(reply, meta)
+	if err != nil {
+		return drkey.HostASKey{}, err
+	}
+	return key, nil
+}
+
+func (c grpcConn) DRKeyGetHostHostKey(ctx context.Context,
+	meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
+
+	client := sdpb.NewDaemonServiceClient(c.conn)
+	pbReq := hostHostMetaToProtoRequest(meta)
+	reply, err := client.DRKeyHostHost(ctx, pbReq)
+	if err != nil {
+		return drkey.HostHostKey{}, err
+	}
+	key, err := getHostHostKeyFromReply(reply, meta)
+	if err != nil {
+		return drkey.HostHostKey{}, err
+	}
+	return key, nil
+}
+
 func (c grpcConn) Close() error {
 	return c.conn.Close()
 }
@@ -270,4 +322,136 @@ func topoServiceTypeToSVCAddr(st topology.ServiceType) addr.HostSVC {
 	default:
 		return addr.SvcNone
 	}
+}
+
+func asHostMetaToProtoRequest(meta drkey.ASHostMeta) *sdpb.DRKeyASHostRequest {
+	return &sdpb.DRKeyASHostRequest{
+		ValTime:    timestamppb.New(meta.Validity),
+		ProtocolId: dkpb.Protocol(meta.ProtoId),
+		DstIa:      uint64(meta.DstIA),
+		SrcIa:      uint64(meta.SrcIA),
+		DstHost:    meta.DstHost,
+	}
+}
+
+func getASHostKeyFromReply(rep *sdpb.DRKeyASHostResponse,
+	meta drkey.ASHostMeta) (drkey.ASHostKey, error) {
+
+	err := rep.EpochBegin.CheckValid()
+	if err != nil {
+		return drkey.ASHostKey{}, serrors.WrapStr("invalid EpochBegin from response", err)
+	}
+	err = rep.EpochEnd.CheckValid()
+	if err != nil {
+		return drkey.ASHostKey{}, serrors.WrapStr("invalid EpochEnd from response", err)
+	}
+	epoch := drkey.Epoch{
+		Validity: cppki.Validity{
+			NotBefore: rep.EpochBegin.AsTime(),
+			NotAfter:  rep.EpochEnd.AsTime(),
+		},
+	}
+
+	returningKey := drkey.ASHostKey{
+		ProtoId: meta.ProtoId,
+		SrcIA:   meta.SrcIA,
+		DstIA:   meta.DstIA,
+		Epoch:   epoch,
+		DstHost: meta.DstHost,
+	}
+
+	if len(rep.Key) != 16 {
+		return drkey.ASHostKey{}, serrors.New("key size in reply is not 16 bytes",
+			"len", len(rep.Key))
+	}
+	copy(returningKey.Key[:], rep.Key)
+	return returningKey, nil
+}
+
+func hostASMetaToProtoRequest(meta drkey.HostASMeta) *sdpb.DRKeyHostASRequest {
+	return &sdpb.DRKeyHostASRequest{
+		ValTime:    timestamppb.New(meta.Validity),
+		ProtocolId: dkpb.Protocol(meta.ProtoId),
+		DstIa:      uint64(meta.DstIA),
+		SrcIa:      uint64(meta.SrcIA),
+		SrcHost:    meta.SrcHost,
+	}
+}
+
+func getHostASKeyFromReply(rep *sdpb.DRKeyHostASResponse,
+	meta drkey.HostASMeta) (drkey.HostASKey, error) {
+
+	err := rep.EpochBegin.CheckValid()
+	if err != nil {
+		return drkey.HostASKey{}, serrors.WrapStr("invalid EpochBegin from response", err)
+	}
+	err = rep.EpochEnd.CheckValid()
+	if err != nil {
+		return drkey.HostASKey{}, serrors.WrapStr("invalid EpochEnd from response", err)
+	}
+	epoch := drkey.Epoch{
+		Validity: cppki.Validity{
+			NotBefore: rep.EpochBegin.AsTime(),
+			NotAfter:  rep.EpochEnd.AsTime(),
+		},
+	}
+
+	returningKey := drkey.HostASKey{
+		ProtoId: meta.ProtoId,
+		SrcIA:   meta.SrcIA,
+		DstIA:   meta.DstIA,
+		Epoch:   epoch,
+		SrcHost: meta.SrcHost,
+	}
+	if len(rep.Key) != 16 {
+		return drkey.HostASKey{}, serrors.New("key size in reply is not 16 bytes",
+			"len", len(rep.Key))
+	}
+	copy(returningKey.Key[:], rep.Key)
+	return returningKey, nil
+}
+
+func hostHostMetaToProtoRequest(meta drkey.HostHostMeta) *sdpb.DRKeyHostHostRequest {
+	return &sdpb.DRKeyHostHostRequest{
+		ValTime:    timestamppb.New(meta.Validity),
+		ProtocolId: dkpb.Protocol(meta.ProtoId),
+		DstIa:      uint64(meta.DstIA),
+		SrcIa:      uint64(meta.SrcIA),
+		DstHost:    meta.DstHost,
+		SrcHost:    meta.SrcHost,
+	}
+}
+
+func getHostHostKeyFromReply(rep *sdpb.DRKeyHostHostResponse,
+	meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
+
+	err := rep.EpochBegin.CheckValid()
+	if err != nil {
+		return drkey.HostHostKey{}, serrors.WrapStr("invalid EpochBegin from response", err)
+	}
+	err = rep.EpochEnd.CheckValid()
+	if err != nil {
+		return drkey.HostHostKey{}, serrors.WrapStr("invalid EpochEnd from response", err)
+	}
+	epoch := drkey.Epoch{
+		Validity: cppki.Validity{
+			NotBefore: rep.EpochBegin.AsTime(),
+			NotAfter:  rep.EpochEnd.AsTime(),
+		},
+	}
+
+	returningKey := drkey.HostHostKey{
+		ProtoId: meta.ProtoId,
+		SrcIA:   meta.SrcIA,
+		DstIA:   meta.DstIA,
+		Epoch:   epoch,
+		SrcHost: meta.SrcHost,
+		DstHost: meta.DstHost,
+	}
+	if len(rep.Key) != 16 {
+		return drkey.HostHostKey{}, serrors.New("key size in reply is not 16 bytes",
+			"len", len(rep.Key))
+	}
+	copy(returningKey.Key[:], rep.Key)
+	return returningKey, nil
 }

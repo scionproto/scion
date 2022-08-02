@@ -22,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon/internal/metrics"
+	"github.com/scionproto/scion/pkg/drkey"
 	libmetrics "github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
@@ -80,6 +81,12 @@ type Connector interface {
 	SVCInfo(ctx context.Context, svcTypes []addr.HostSVC) (map[addr.HostSVC][]string, error)
 	// RevNotification sends a RevocationInfo message to the daemon.
 	RevNotification(ctx context.Context, revInfo *path_mgmt.RevInfo) error
+	// DRKeyGetASHostKey requests a AS-Host Key from the daemon.
+	DRKeyGetASHostKey(ctx context.Context, meta drkey.ASHostMeta) (drkey.ASHostKey, error)
+	// DRKeyGetHostASKey requests a Host-AS Key from the daemon.
+	DRKeyGetHostASKey(ctx context.Context, meta drkey.HostASMeta) (drkey.HostASKey, error)
+	// DRKeyGetHostHostKey requests a Host-Host Key from the daemon.
+	DRKeyGetHostHostKey(ctx context.Context, meta drkey.HostHostMeta) (drkey.HostHostKey, error)
 	// Close shuts down the connection to the daemon.
 	Close() error
 }
