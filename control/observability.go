@@ -89,6 +89,43 @@ type Metrics struct {
 
 func NewMetrics() *Metrics {
 	scionPacketConnMetrics := snetmetrics.NewSCIONPacketConnMetrics()
+
+	renewalActive := metrics.NewPromGauge(promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "renewal_signer_active_boolean",
+			Help: "Whether the CA signer is active and can sign certificate chains",
+		},
+		[]string{},
+	))
+	renewalSigners := metrics.NewPromCounter(promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "renewal_generated_signers_total",
+			Help: "Number of generated CA signers that sign certificate chains",
+		},
+		[]string{prom.LabelResult},
+	))
+	renewalChains := metrics.NewPromCounter(promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "renewal_signed_certificate_chains_total",
+			Help: "Number of certificate chains signed",
+		},
+		[]string{prom.LabelResult},
+	))
+	renewalGenerated := metrics.NewPromGauge(promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "renewal_last_signer_generation_time_second",
+			Help: "The last time a signer for creating AS certificates was successfully generated",
+		},
+		[]string{},
+	))
+	renewalExpiration := metrics.NewPromGauge(promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "renewal_signer_expiration_time_second",
+			Help: "The expiration time of the current CA signer",
+		},
+		[]string{},
+	))
+
 	return &Metrics{
 		BeaconDBQueriesTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
@@ -258,51 +295,15 @@ func NewMetrics() *Metrics {
 			[]string{"operation", prom.LabelResult},
 		),
 		RenewalMetrics: renewal.Metrics{
-			CaActive: func(result string) metrics.Gauge {
-				return metrics.NewPromGauge(promauto.NewGaugeVec(
-					prometheus.GaugeOpts{
-						Name: "renewal_signer_active_boolean",
-						Help: "Whether the CA signer is active and can sign certificate chains",
-					},
-					[]string{},
-				)).With()
-			},
-			CaSigners: func(result string) metrics.Counter {
-				return metrics.NewPromCounter(promauto.NewCounterVec(
-					prometheus.CounterOpts{
-						Name: "renewal_generated_signers_total",
-						Help: "Number of generated CA signers that sign certificate chains",
-					},
-					[]string{prom.LabelResult},
-				)).With(prom.LabelResult)
+			CAActive: renewalActive,
+			CASigners: func(result string) metrics.Counter {
+				return renewalSigners.With(prom.LabelResult, result)
 			},
 			SignedChains: func(result string) metrics.Counter {
-				return metrics.NewPromCounter(promauto.NewCounterVec(
-					prometheus.CounterOpts{
-						Name: "renewal_signed_certificate_chains_total",
-						Help: "Number of certificate chains signed",
-					},
-					[]string{prom.LabelResult},
-				)).With(prom.LabelResult)
+				return renewalChains.With(prom.LabelResult, result)
 			},
-			LastGeneratedCA: func(result string) metrics.Gauge {
-				return metrics.NewPromGauge(promauto.NewGaugeVec(
-					prometheus.GaugeOpts{
-						Name: "renewal_last_signer_generation_time_second",
-						Help: "The last time a signer for creating AS certificates was successfully generated",
-					},
-					[]string{},
-				)).With()
-			},
-			ExpirationCA: func(result string) metrics.Gauge {
-				return metrics.NewPromGauge(promauto.NewGaugeVec(
-					prometheus.GaugeOpts{
-						Name: "renewal_signer_expiration_time_second",
-						Help: "The expiration time of the current CA signer",
-					},
-					[]string{},
-				)).With()
-			},
+			LastGeneratedCA: renewalGenerated,
+			ExpirationCA:    renewalExpiration,
 		},
 	}
 }
