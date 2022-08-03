@@ -17,6 +17,7 @@ package scion
 import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers/path"
+	"github.com/scionproto/scion/pkg/slayers/path/empty"
 )
 
 const (
@@ -94,7 +95,7 @@ func (s *Decoded) SerializeTo(b []byte) error {
 func (s *Decoded) Reverse() (path.Path, error) {
 	if s.NumINF == 0 {
 		// Empty path doesn't need reversal.
-		return nil, nil
+		return empty.Path{}, nil
 	}
 	// Reverse order of InfoFields and SegLens
 	for i, j := 0, s.NumINF-1; i < j; i, j = i+1, j-1 {
