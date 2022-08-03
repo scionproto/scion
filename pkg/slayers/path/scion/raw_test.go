@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/slayers/path"
+	"github.com/scionproto/scion/pkg/slayers/path/empty"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 )
 
@@ -36,6 +37,25 @@ var rawTestPath = &scion.Raw{
 		NumHops: 4,
 	},
 	Raw: rawPath,
+}
+
+var emptyRawTestPath = &scion.Raw{
+	Base: scion.Base{
+		PathMeta: scion.MetaHdr{
+			CurrINF: 0,
+			CurrHF:  0,
+			SegLen:  [3]uint8{0, 0, 0},
+		},
+		NumINF:  0,
+		NumHops: 0,
+	},
+	Raw: make([]byte, scion.MetaLen),
+}
+
+func TestReverseEmpty(t *testing.T) {
+	r, err := emptyRawTestPath.Reverse()
+	assert.NoError(t, err)
+	assert.Equal(t, r, empty.Path{})
 }
 
 func TestRawSerialize(t *testing.T) {
