@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
-	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
@@ -42,18 +41,19 @@ var (
 )
 
 type Metrics struct {
-	// CAActive describes whether or not setting the new CA policy was
-	// successful with 1 indicating success and o indicating fail.
+	// CAActive describes whether the CA signer is active and can sign
+	// certificate chains.
 	CAActive metrics.Gauge
-	// CASigners tracks the status of the certificate signing process.
+	// CASigners tracks the number of generated CA signers that sign certificate
+	// chains.
 	CASigners func(string) metrics.Counter
-	// SignedChains tracks the status of the certificate chain generation
-	// process.
+	// SignedChains tracks the number of certificate chains signed, labeled by
+	// the status of the signing.
 	SignedChains func(string) metrics.Counter
-	// LastGeneratedCA exports the time of the last generation of the CA policy.
+	// LastGeneratedCA exports the last time a signer for creating AS
+	// certificates was successfully generated.
 	LastGeneratedCA metrics.Gauge
-	// ExpirationCA exports the expiration of the most recently generated CA
-	// policy.
+	// ExpirationCA exports the expiration time of the current CA signer.
 	ExpirationCA metrics.Gauge
 }
 
@@ -74,16 +74,22 @@ func (c ChainBuilder) CreateChain(ctx context.Context,
 
 	policy, err := c.PolicyGen.Generate(ctx)
 	if err != nil {
-		metrics.CounterInc(c.SignedChains("err_inactive"))
+		c.incSignedChains("err_inactive")
 		return nil, err
 	}
 	chain, err := policy.CreateChain(csr)
 	if err != nil {
-		metrics.CounterInc(c.SignedChains(prom.ErrInternal))
+		metrics.CounterInc(c.SignedChains("prom.ErrInternal"))
 		return nil, err
 	}
-	metrics.CounterInc(c.SignedChains(prom.Success))
+	metrics.CounterInc(c.SignedChains("prom.Success"))
 	return chain, nil
+}
+
+func (c ChainBuilder) incSignedChains(result string) {
+	if c.SignedChains != nil {
+		metrics.CounterInc(c.SignedChains(result))
+	}
 }
 
 // CachingPolicyGen is a PolicyGen that can cache the previously generated
@@ -168,24 +174,24 @@ type LoadingPolicyGen struct {
 // certificates that authenticate the corresponding public key. The returned
 // policy uses the private which is backed by the CA certificate with the
 // highest expiration time.
-func (g LoadingPolicyGen) Generate(ctx context.Context) (cppki.CAPolicy, error) {
-	keys, err := g.KeyRing.PrivateKeys(ctx)
+func (l LoadingPolicyGen) Generate(ctx context.Context) (cppki.CAPolicy, error) {
+	keys, err := l.KeyRing.PrivateKeys(ctx)
 	if err != nil {
-		metrics.CounterInc(g.CASigners("err_key"))
+		l.incCASigner("err_key")
 		return cppki.CAPolicy{}, err
 	}
 	if len(keys) == 0 {
-		metrics.CounterInc(g.CASigners("err_key"))
+		l.incCASigner("err_key")
 		return cppki.CAPolicy{}, serrors.New("no private key found")
 	}
 
-	certs, err := g.CertProvider.CACerts(ctx)
+	certs, err := l.CertProvider.CACerts(ctx)
 	if err != nil {
-		metrics.CounterInc(g.CASigners("err_certs"))
+		l.incCASigner("err_certs")
 		return cppki.CAPolicy{}, serrors.WrapStr("loading CA certificates", err)
 	}
 	if len(certs) == 0 {
-		metrics.CounterInc(g.CASigners("err_certs"))
+		l.incCASigner("err_certs")
 		return cppki.CAPolicy{}, serrors.New("no CA certificate found")
 	}
 
@@ -207,17 +213,23 @@ func (g LoadingPolicyGen) Generate(ctx context.Context) (cppki.CAPolicy, error) 
 		}
 	}
 	if bestCert == nil {
-		metrics.CounterInc(g.CASigners("err_not_found"))
+		l.incCASigner("err_not_found")
 		return cppki.CAPolicy{}, serrors.New("no CA certificate found",
 			"num_private_keys", len(keys))
 	}
-	metrics.CounterInc(g.CASigners(prom.Success))
+	l.incCASigner("prom.Success")
 	return cppki.CAPolicy{
-		Validity:             g.Validity,
+		Validity:             l.Validity,
 		Certificate:          bestCert,
 		Signer:               bestKey,
-		ForceECDSAWithSHA512: g.ForceECDSAWithSHA512,
+		ForceECDSAWithSHA512: l.ForceECDSAWithSHA512,
 	}, nil
+}
+
+func (l LoadingPolicyGen) incCASigner(result string) {
+	if l.CASigners != nil {
+		metrics.CounterInc(l.CASigners(result))
+	}
 }
 
 // CACertLoader loads CA certificates from disk.
