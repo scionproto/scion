@@ -113,7 +113,7 @@ type ServerConfig struct {
 	RevCache    revcache.RevCache
 	Engine      trust.Engine
 	Topology    servers.Topology
-	DRKeyClient drkey.ClientEngine
+	DRKeyClient *drkey.ClientEngine
 }
 
 // NewServer constructs a daemon API server.
