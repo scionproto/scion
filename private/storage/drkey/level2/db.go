@@ -23,14 +23,13 @@ import (
 
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/metrics"
-	"github.com/scionproto/scion/pkg/private/prom"
 	dblib "github.com/scionproto/scion/private/storage/db"
 	st_drkey "github.com/scionproto/scion/private/storage/drkey"
 	"github.com/scionproto/scion/private/tracing"
 )
 
 type Metrics struct {
-	QueriesTotal metrics.Counter
+	QueriesTotal func(op, result string) metrics.Counter
 }
 
 func (m *Metrics) Observe(
@@ -52,9 +51,9 @@ func (m *Metrics) Observe(
 	tracing.Error(span, err)
 	tracing.ResultLabel(span, label)
 
-	metrics.CounterInc(metrics.CounterWith(m.QueriesTotal,
-		"operation", op,
-		prom.LabelResult, label))
+	if m.QueriesTotal != nil {
+		metrics.CounterInc(m.QueriesTotal(op, label))
+	}
 }
 
 type Database struct {

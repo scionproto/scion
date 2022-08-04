@@ -38,7 +38,9 @@ func (b *TestBackend) Prepare(t *testing.T, _ context.Context) {
 	b.Level2DB = &level2.Database{
 		Backend: newDatabase(t),
 		Metrics: &level2.Metrics{
-			QueriesTotal: metrics.NewTestCounter(),
+			QueriesTotal: func(op, result string) metrics.Counter {
+				return metrics.NewTestCounter()
+			},
 		},
 	}
 }

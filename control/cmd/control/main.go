@@ -586,7 +586,12 @@ func realMain(ctx context.Context) error {
 		svDB := &secret.Database{
 			Backend: svBackend,
 			Metrics: &secret.Metrics{
-				QueriesTotal: libmetrics.NewPromCounter(metrics.DRKeySecretValueQueriesTotal),
+				QueriesTotal: func(op, label string) libmetrics.Counter {
+					return libmetrics.CounterWith(
+						libmetrics.NewPromCounter(metrics.DRKeySecretValueQueriesTotal),
+						"operation", op,
+						prom.LabelResult, label)
+				},
 			},
 		}
 		defer svDB.Close()
@@ -597,7 +602,12 @@ func realMain(ctx context.Context) error {
 		level1DB := &level1.Database{
 			Backend: level1Backend,
 			Metrics: &level1.Metrics{
-				QueriesTotal: libmetrics.NewPromCounter(metrics.DRKeyLevel1QueriesTotal),
+				QueriesTotal: func(op, label string) libmetrics.Counter {
+					return libmetrics.CounterWith(
+						libmetrics.NewPromCounter(metrics.DRKeyLevel1QueriesTotal),
+						"operation", op,
+						prom.LabelResult, label)
+				},
 			},
 		}
 		defer level1DB.Close()
