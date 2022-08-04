@@ -38,16 +38,17 @@ var (
 var _ config.Config = (*Config)(nil)
 
 type Config struct {
-	General     env.General        `toml:"general,omitempty"`
-	Features    env.Features       `toml:"features,omitempty"`
-	Logging     log.Config         `toml:"log,omitempty"`
-	Metrics     env.Metrics        `toml:"metrics,omitempty"`
-	API         api.Config         `toml:"api,omitempty"`
-	Tracing     env.Tracing        `toml:"tracing,omitempty"`
-	TrustDB     storage.DBConfig   `toml:"trust_db,omitempty"`
-	PathDB      storage.DBConfig   `toml:"path_db,omitempty"`
-	SD          SDConfig           `toml:"sd,omitempty"`
-	TrustEngine trustengine.Config `toml:"trustengine,omitempty"`
+	General       env.General        `toml:"general,omitempty"`
+	Features      env.Features       `toml:"features,omitempty"`
+	Logging       log.Config         `toml:"log,omitempty"`
+	Metrics       env.Metrics        `toml:"metrics,omitempty"`
+	API           api.Config         `toml:"api,omitempty"`
+	Tracing       env.Tracing        `toml:"tracing,omitempty"`
+	TrustDB       storage.DBConfig   `toml:"trust_db,omitempty"`
+	PathDB        storage.DBConfig   `toml:"path_db,omitempty"`
+	SD            SDConfig           `toml:"sd,omitempty"`
+	TrustEngine   trustengine.Config `toml:"trustengine,omitempty"`
+	DRKeyLevel2DB storage.DBConfig   `toml:"drkey_level2_db,omitempty"`
 }
 
 func (cfg *Config) InitDefaults() {
@@ -62,6 +63,7 @@ func (cfg *Config) InitDefaults() {
 		cfg.PathDB.WithDefault(fmt.Sprintf(storage.DefaultPathDBPath, "sd")),
 		&cfg.SD,
 		&cfg.TrustEngine,
+		&cfg.DRKeyLevel2DB,
 	)
 }
 
@@ -76,6 +78,7 @@ func (cfg *Config) Validate() error {
 		&cfg.PathDB,
 		&cfg.SD,
 		&cfg.TrustEngine,
+		&cfg.DRKeyLevel2DB,
 	)
 }
 
@@ -103,6 +106,13 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		),
 		&cfg.SD,
 		&cfg.TrustEngine,
+		config.OverrideName(
+			config.FormatData(
+				&cfg.DRKeyLevel2DB,
+				fmt.Sprintf(storage.DefaultDRKeyLevel2DBPath, "sd"),
+			),
+			"drkey_level2_db",
+		),
 	)
 }
 
