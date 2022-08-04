@@ -398,17 +398,11 @@ func realMain(ctx context.Context) error {
 			)
 			chainBuilder = cs.NewChainBuilder(
 				cs.ChainBuilderConfig{
-					IA:          topo.IA(),
-					DB:          trustDB,
-					MaxValidity: globalCfg.CA.MaxASValidity.Duration,
-					ConfigDir:   globalCfg.General.ConfigDir,
-					Metrics: renewal.Metrics{
-						CAActive:        metrics.RenewalMetrics.CAActive,
-						CASigners:       metrics.RenewalMetrics.CASigners,
-						SignedChains:    metrics.RenewalMetrics.SignedChains,
-						LastGeneratedCA: metrics.RenewalMetrics.LastGeneratedCA,
-						ExpirationCA:    metrics.RenewalMetrics.ExpirationCA,
-					},
+					IA:                   topo.IA(),
+					DB:                   trustDB,
+					MaxValidity:          globalCfg.CA.MaxASValidity.Duration,
+					ConfigDir:            globalCfg.General.ConfigDir,
+					Metrics:              metrics.RenewalMetrics,
 					ForceECDSAWithSHA512: !globalCfg.Features.AppropriateDigest,
 				},
 			)
