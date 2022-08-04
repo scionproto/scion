@@ -239,7 +239,9 @@ func (t *TasksConfig) DRKeyPrefetcher() *periodic.Runner {
 			Engine:      t.DRKeyEngine,
 			KeyDuration: t.DRKeyEpochInterval,
 		},
-		prefetchPeriod, prefetchPeriod)
+		prefetchPeriod,
+		prefetchPeriod,
+	)
 }
 
 // Tasks keeps track of the running tasks.

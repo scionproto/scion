@@ -565,7 +565,7 @@ func realMain(ctx context.Context) error {
 		return err
 	}
 
-	//DRKey feature
+	// DRKey feature
 	var drkeyEngine *drkey.ServiceEngine
 	var quicTLSServer *grpc.Server
 	var epochDuration time.Duration

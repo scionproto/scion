@@ -404,7 +404,6 @@ func (s *DaemonServer) DRKeyHostHost(
 	if err != nil {
 		return nil, serrors.WrapStr("parsing protobuf HostHostReq", err)
 	}
-	log.FromCtx(ctx).Debug("XXJ", "meta", meta)
 	lvl2Key, err := s.DRKeyClient.GetHostHostKey(ctx, meta)
 	if err != nil {
 		return nil, serrors.WrapStr("getting Host-Host from client store", err)

@@ -221,7 +221,7 @@ func (s *ServiceEngine) DeriveHostHost(
 	}, nil
 }
 
-// CreateStorageCleaners creates three Cleaner tasks that removes
+// CreateStorageCleaners creates Cleaner tasks that remove
 // SecretValue and Level1 keys respectively.
 func (s *ServiceEngine) CreateStorageCleaners() []*cleaner.Cleaner {
 	cleaners := make([]*cleaner.Cleaner, 2)
