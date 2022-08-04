@@ -22,7 +22,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/slayers/path"
-	"github.com/scionproto/scion/pkg/slayers/path/empty"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 )
 
@@ -92,7 +91,7 @@ func TestRawReverse(t *testing.T) {
 func TestEmptyRawReverse(t *testing.T) {
 	r, err := emptyRawTestPath.Reverse()
 	assert.NoError(t, err)
-	assert.Equal(t, r, empty.Path{})
+	assert.Equal(t, emptyRawTestPath, r)
 }
 
 func TestRawToDecoded(t *testing.T) {
