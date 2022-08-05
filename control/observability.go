@@ -82,6 +82,8 @@ type Metrics struct {
 	SCIONPacketConnMetrics                 snet.SCIONPacketConnMetrics
 	SCMPErrors                             metrics.Counter
 	TopoLoader                             topology.LoaderMetrics
+	DRKeySecretValueQueriesTotal           *prometheus.CounterVec
+	DRKeyLevel1QueriesTotal                *prometheus.CounterVec
 }
 
 func NewMetrics() *Metrics {
@@ -240,6 +242,20 @@ func NewMetrics() *Metrics {
 		SCIONPacketConnMetrics: scionPacketConnMetrics,
 		SCMPErrors:             scionPacketConnMetrics.SCMPErrors,
 		TopoLoader:             loaderMetrics(),
+		DRKeySecretValueQueriesTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "drkey_secretdb_queries_total",
+				Help: "Total queries to the database",
+			},
+			[]string{"operation", prom.LabelResult},
+		),
+		DRKeyLevel1QueriesTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "drkey_level1db_queries_total",
+				Help: "Total queries to the database",
+			},
+			[]string{"operation", prom.LabelResult},
+		),
 	}
 }
 

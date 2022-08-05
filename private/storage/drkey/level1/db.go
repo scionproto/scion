@@ -29,8 +29,7 @@ import (
 )
 
 type Metrics struct {
-	QueriesTotal metrics.Counter
-	ResultsTotal metrics.Counter
+	QueriesTotal func(op, result string) metrics.Counter
 }
 
 func (m *Metrics) Observe(ctx context.Context, op string, action func(context.Context) error) {
@@ -42,14 +41,14 @@ func (m *Metrics) Observe(ctx context.Context, op string, action func(context.Co
 	span, ctx := opentracing.StartSpanFromContext(ctx, fmt.Sprintf("drkeyLevel1DB.%s", op))
 	defer span.Finish()
 
-	metrics.CounterInc(metrics.CounterWith(m.QueriesTotal, "operation", op))
 	err := action(ctx)
-
 	label := dblib.ErrToMetricLabel(err)
 	tracing.Error(span, err)
 	tracing.ResultLabel(span, label)
 
-	metrics.CounterInc(metrics.CounterWith(m.ResultsTotal, "operation", op))
+	if m.QueriesTotal != nil {
+		metrics.CounterInc(m.QueriesTotal(op, label))
+	}
 }
 
 type Database struct {
