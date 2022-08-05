@@ -27,12 +27,15 @@ import (
 	"github.com/go-chi/cors"
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/resolver"
 
 	"github.com/scionproto/scion/daemon"
 	"github.com/scionproto/scion/daemon/config"
+	sd_drkey "github.com/scionproto/scion/daemon/drkey"
+	sd_grpc "github.com/scionproto/scion/daemon/drkey/grpc"
 	"github.com/scionproto/scion/daemon/fetcher"
 	api "github.com/scionproto/scion/daemon/mgmtapi"
 	"github.com/scionproto/scion/pkg/addr"
@@ -58,6 +61,7 @@ import (
 	infra "github.com/scionproto/scion/private/segment/verifier"
 	"github.com/scionproto/scion/private/service"
 	"github.com/scionproto/scion/private/storage"
+	"github.com/scionproto/scion/private/storage/drkey/level2"
 	pathstoragemetrics "github.com/scionproto/scion/private/storage/path/metrics"
 	truststoragemetrics "github.com/scionproto/scion/private/storage/trust/metrics"
 	"github.com/scionproto/scion/private/topology"
@@ -169,6 +173,51 @@ func realMain(ctx context.Context) error {
 	}, 10*time.Second, 10*time.Second)
 	defer trcLoader.Stop()
 
+	var drkeyClientEngine *sd_drkey.ClientEngine
+	if globalCfg.DRKeyLevel2DB.Connection != "" {
+		backend, err := storage.NewDRKeyLevel2Storage(globalCfg.DRKeyLevel2DB)
+		if err != nil {
+			return serrors.WrapStr("creating level2 DRKey DB", err)
+		}
+		counter := metrics.NewPromCounter(
+			promauto.NewCounterVec(
+				prometheus.CounterOpts{
+					Name: "drkey_level2db_queries_total",
+					Help: "Total queries to the database",
+				},
+				[]string{"operation", prom.LabelResult},
+			),
+		)
+		level2DB := &level2.Database{
+			Backend: backend,
+			Metrics: &level2.Metrics{
+				QueriesTotal: func(op, label string) metrics.Counter {
+					return metrics.CounterWith(
+						counter,
+						"operation", op,
+						prom.LabelResult, label,
+					)
+				},
+			},
+		}
+		defer level2DB.Close()
+
+		drkeyFetcher := &sd_grpc.Fetcher{
+			Dialer: dialer,
+		}
+		drkeyClientEngine = &sd_drkey.ClientEngine{
+			IA:      topo.IA(),
+			DB:      level2DB,
+			Fetcher: drkeyFetcher,
+		}
+		cleaners := drkeyClientEngine.CreateStorageCleaners()
+		for _, cleaner := range cleaners {
+			cleaner_task := periodic.Start(cleaner,
+				5*time.Minute, 5*time.Minute)
+			defer cleaner_task.Stop()
+		}
+	}
+
 	listen := daemon.APIAddress(globalCfg.SD.Address)
 	listener, err := net.Listen("tcp", listen)
 	if err != nil {
@@ -222,8 +271,9 @@ func realMain(ctx context.Context) error {
 					Cfg:        globalCfg.SD,
 				},
 			),
-			Engine:   engine,
-			RevCache: revCache,
+			Engine:      engine,
+			RevCache:    revCache,
+			DRKeyClient: drkeyClientEngine,
 		},
 	))
 
