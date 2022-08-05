@@ -583,12 +583,13 @@ func realMain(ctx context.Context) error {
 		if err != nil {
 			return serrors.WrapStr("initializing Secret Value DB", err)
 		}
+		svCounter := libmetrics.NewPromCounter(metrics.DRKeySecretValueQueriesTotal)
 		svDB := &secret.Database{
 			Backend: svBackend,
 			Metrics: &secret.Metrics{
 				QueriesTotal: func(op, label string) libmetrics.Counter {
 					return libmetrics.CounterWith(
-						libmetrics.NewPromCounter(metrics.DRKeySecretValueQueriesTotal),
+						svCounter,
 						"operation", op,
 						prom.LabelResult, label)
 				},
@@ -599,12 +600,13 @@ func realMain(ctx context.Context) error {
 		if err != nil {
 			return serrors.WrapStr("initializing DRKey DB", err)
 		}
+		lvl1Counter := libmetrics.NewPromCounter(metrics.DRKeyLevel1QueriesTotal)
 		level1DB := &level1.Database{
 			Backend: level1Backend,
 			Metrics: &level1.Metrics{
 				QueriesTotal: func(op, label string) libmetrics.Counter {
 					return libmetrics.CounterWith(
-						libmetrics.NewPromCounter(metrics.DRKeyLevel1QueriesTotal),
+						lvl1Counter,
 						"operation", op,
 						prom.LabelResult, label)
 				},

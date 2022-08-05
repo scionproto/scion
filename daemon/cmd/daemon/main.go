@@ -179,19 +179,21 @@ func realMain(ctx context.Context) error {
 		if err != nil {
 			return serrors.WrapStr("creating level2 DRKey DB", err)
 		}
+		counter := metrics.NewPromCounter(
+			promauto.NewCounterVec(
+				prometheus.CounterOpts{
+					Name: "drkey_level2db_queries_total",
+					Help: "Total queries to the database",
+				},
+				[]string{"operation", prom.LabelResult},
+			),
+		)
 		level2DB := &level2.Database{
 			Backend: backend,
 			Metrics: &level2.Metrics{
 				QueriesTotal: func(op, label string) metrics.Counter {
 					return metrics.CounterWith(
-						metrics.NewPromCounter(
-							promauto.NewCounterVec(
-								prometheus.CounterOpts{
-									Name: "drkey_level2db_queries_total",
-									Help: "Total queries to the database",
-								},
-								[]string{"operation", prom.LabelResult},
-							)),
+						counter,
 						"operation", op,
 						prom.LabelResult, label,
 					)
