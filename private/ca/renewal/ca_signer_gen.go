@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
@@ -79,10 +80,10 @@ func (c ChainBuilder) CreateChain(ctx context.Context,
 	}
 	chain, err := policy.CreateChain(csr)
 	if err != nil {
-		metrics.CounterInc(c.SignedChains("prom.ErrInternal"))
+		c.incSignedChains(prom.ErrInternal)
 		return nil, err
 	}
-	metrics.CounterInc(c.SignedChains("prom.Success"))
+	c.incSignedChains(prom.Success)
 	return chain, nil
 }
 
@@ -217,7 +218,7 @@ func (l LoadingPolicyGen) Generate(ctx context.Context) (cppki.CAPolicy, error) 
 		return cppki.CAPolicy{}, serrors.New("no CA certificate found",
 			"num_private_keys", len(keys))
 	}
-	l.incCASigner("prom.Success")
+	l.incCASigner(prom.Success)
 	return cppki.CAPolicy{
 		Validity:             l.Validity,
 		Certificate:          bestCert,
