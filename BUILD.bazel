@@ -78,6 +78,7 @@ pkg_tar(
         "//pkg/private/xtest/graphupdater",
         "//tools/braccept",
         "//tools/buildkite/cmd/buildkite_artifacts",
+        "//tools/drkey",
         "//tools/end2end",
         "//tools/end2end_integration",
         "//tools/pktgen/cmd/pktgen",
