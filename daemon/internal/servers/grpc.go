@@ -59,7 +59,7 @@ type DaemonServer struct {
 	Fetcher     fetcher.Fetcher
 	RevCache    revcache.RevCache
 	ASInspector trust.Inspector
-	DRKeyClient drkey_daemon.ClientEngine
+	DRKeyClient *drkey_daemon.ClientEngine
 
 	Metrics Metrics
 
@@ -404,7 +404,6 @@ func (s *DaemonServer) DRKeyHostHost(
 	if err != nil {
 		return nil, serrors.WrapStr("parsing protobuf HostHostReq", err)
 	}
-
 	lvl2Key, err := s.DRKeyClient.GetHostHostKey(ctx, meta)
 	if err != nil {
 		return nil, serrors.WrapStr("getting Host-Host from client store", err)

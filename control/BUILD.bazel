@@ -18,6 +18,7 @@ go_library(
         "//control/beaconing:go_default_library",
         "//control/beaconing/grpc:go_default_library",
         "//control/config:go_default_library",
+        "//control/drkey:go_default_library",
         "//control/ifstate:go_default_library",
         "//control/segreq:go_default_library",
         "//control/trust:go_default_library",
