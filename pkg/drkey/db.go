@@ -53,7 +53,9 @@ type Level2DB interface {
 	InsertASHostKey(ctx context.Context, key ASHostKey) error
 	InsertHostASKey(ctx context.Context, key HostASKey) error
 	InsertHostHostKey(ctx context.Context, key HostHostKey) error
-	DeleteExpiredLevel2Keys(ctx context.Context, cutoff time.Time) (int, error)
+	DeleteExpiredASHostKeys(ctx context.Context, cutoff time.Time) (int, error)
+	DeleteExpiredHostASKeys(ctx context.Context, cutoff time.Time) (int, error)
+	DeleteExpiredHostHostKeys(ctx context.Context, cutoff time.Time) (int, error)
 
 	io.Closer
 	db.LimitSetter

@@ -22,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beaconing"
+	"github.com/scionproto/scion/control/drkey"
 	"github.com/scionproto/scion/control/ifstate"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
@@ -58,6 +59,7 @@ type TasksConfig struct {
 	Signer                seg.Signer
 	Inspector             trust.Inspector
 	Metrics               *Metrics
+	DRKeyEngine           *drkey.ServiceEngine
 
 	MACGen     func() hash.Hash
 	StaticInfo func() *beaconing.StaticInfoCfg
@@ -65,6 +67,7 @@ type TasksConfig struct {
 	OriginationInterval  time.Duration
 	PropagationInterval  time.Duration
 	RegistrationInterval time.Duration
+	DRKeyEpochInterval   time.Duration
 	// HiddenPathRegistrationCfg contains the required options to configure
 	// hidden paths down segment registration. If it is nil, normal path
 	// registration is used instead.
@@ -212,13 +215,44 @@ func (t *TasksConfig) extender(task string, ia addr.IA, mtu uint16,
 	}
 }
 
+func (t *TasksConfig) DRKeyCleaners() []*periodic.Runner {
+	if t.DRKeyEngine == nil {
+		return nil
+	}
+	cleanerPeriod := 2 * t.DRKeyEpochInterval
+	cleaners := t.DRKeyEngine.CreateStorageCleaners()
+	cleanerTasks := make([]*periodic.Runner, len(cleaners))
+	for i, cleaner := range cleaners {
+		cleanerTasks[i] = periodic.Start(cleaner, cleanerPeriod, cleanerPeriod)
+	}
+	return cleanerTasks
+}
+
+func (t *TasksConfig) DRKeyPrefetcher() *periodic.Runner {
+	if t.DRKeyEngine == nil {
+		return nil
+	}
+	prefetchPeriod := t.DRKeyEpochInterval / 2
+	return periodic.Start(
+		&drkey.Prefetcher{
+			LocalIA:     t.IA,
+			Engine:      t.DRKeyEngine,
+			KeyDuration: t.DRKeyEpochInterval,
+		},
+		prefetchPeriod,
+		prefetchPeriod,
+	)
+}
+
 // Tasks keeps track of the running tasks.
 type Tasks struct {
-	Originator *periodic.Runner
-	Propagator *periodic.Runner
-	Registrars []*periodic.Runner
+	Originator      *periodic.Runner
+	Propagator      *periodic.Runner
+	Registrars      []*periodic.Runner
+	DRKeyPrefetcher *periodic.Runner
 
-	PathCleaner *periodic.Runner
+	PathCleaner   *periodic.Runner
+	DRKeyCleaners []*periodic.Runner
 }
 
 func StartTasks(cfg TasksConfig) (*Tasks, error) {
@@ -240,6 +274,8 @@ func StartTasks(cfg TasksConfig) (*Tasks, error) {
 			10*time.Second,
 			10*time.Second,
 		),
+		DRKeyPrefetcher: cfg.DRKeyPrefetcher(),
+		DRKeyCleaners:   cfg.DRKeyCleaners(),
 	}, nil
 
 }
@@ -253,12 +289,16 @@ func (t *Tasks) Kill() {
 		t.Originator,
 		t.Propagator,
 		t.PathCleaner,
+		t.DRKeyPrefetcher,
 	})
 	killRunners(t.Registrars)
+	killRunners(t.DRKeyCleaners)
 	t.Originator = nil
 	t.Propagator = nil
 	t.PathCleaner = nil
 	t.Registrars = nil
+	t.DRKeyPrefetcher = nil
+	t.DRKeyCleaners = nil
 }
 
 func killRunners(runners []*periodic.Runner) {

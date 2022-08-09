@@ -20,18 +20,46 @@ import (
 	"testing"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 )
 
-type GRPCService struct {
-	listener *bufconn.Listener
-	server   *grpc.Server
+type grpcServiceOptions struct {
+	clientCredentials credentials.TransportCredentials
+	serverCredentials credentials.TransportCredentials
 }
 
-func NewGRPCService() *GRPCService {
+type GRPCServiceOption func(*grpcServiceOptions)
+
+func WithCredentials(client, server credentials.TransportCredentials) func(*grpcServiceOptions) {
+	return func(opts *grpcServiceOptions) {
+		opts.clientCredentials = client
+		opts.serverCredentials = server
+	}
+}
+
+func WithInsecureCredentials() func(*grpcServiceOptions) {
+	return func(opts *grpcServiceOptions) {
+		opts.clientCredentials = insecure.NewCredentials()
+	}
+}
+
+type GRPCService struct {
+	listener          *bufconn.Listener
+	server            *grpc.Server
+	clientCredentials credentials.TransportCredentials
+}
+
+func NewGRPCService(options ...GRPCServiceOption) *GRPCService {
+	opts := grpcServiceOptions{}
+	for _, opt := range options {
+		opt(&opts)
+	}
 	return &GRPCService{
-		listener: bufconn.Listen(1024 * 1024),
-		server:   grpc.NewServer(),
+		listener:          bufconn.Listen(1024 * 1024),
+		server:            grpc.NewServer(grpc.Creds(opts.serverCredentials)),
+		clientCredentials: opts.clientCredentials,
 	}
 }
 
@@ -45,12 +73,16 @@ func (s *GRPCService) Start(t *testing.T) {
 }
 
 func (s *GRPCService) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn, error) {
+	transportSecurity := grpc.WithInsecure()
+	if s.clientCredentials != nil {
+		transportSecurity = grpc.WithTransportCredentials(s.clientCredentials)
+	}
 	return grpc.DialContext(ctx, addr.String(),
 		grpc.WithContextDialer(
 			func(context.Context, string) (net.Conn, error) {
 				return s.listener.Dial()
 			},
 		),
-		grpc.WithInsecure(),
+		transportSecurity,
 	)
 }
