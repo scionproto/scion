@@ -12,6 +12,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/pkg/addr"
 	daemon "github.com/scionproto/scion/pkg/daemon"
+	drkey "github.com/scionproto/scion/pkg/drkey"
 	common "github.com/scionproto/scion/pkg/private/common"
 	path_mgmt "github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	snet "github.com/scionproto/scion/pkg/snet"
@@ -67,6 +68,51 @@ func (m *MockConnector) Close() error {
 func (mr *MockConnectorMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockConnector)(nil).Close))
+}
+
+// DRKeyGetASHostKey mocks base method.
+func (m *MockConnector) DRKeyGetASHostKey(arg0 context.Context, arg1 drkey.ASHostMeta) (drkey.ASHostKey, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DRKeyGetASHostKey", arg0, arg1)
+	ret0, _ := ret[0].(drkey.ASHostKey)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DRKeyGetASHostKey indicates an expected call of DRKeyGetASHostKey.
+func (mr *MockConnectorMockRecorder) DRKeyGetASHostKey(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DRKeyGetASHostKey", reflect.TypeOf((*MockConnector)(nil).DRKeyGetASHostKey), arg0, arg1)
+}
+
+// DRKeyGetHostASKey mocks base method.
+func (m *MockConnector) DRKeyGetHostASKey(arg0 context.Context, arg1 drkey.HostASMeta) (drkey.HostASKey, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DRKeyGetHostASKey", arg0, arg1)
+	ret0, _ := ret[0].(drkey.HostASKey)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DRKeyGetHostASKey indicates an expected call of DRKeyGetHostASKey.
+func (mr *MockConnectorMockRecorder) DRKeyGetHostASKey(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DRKeyGetHostASKey", reflect.TypeOf((*MockConnector)(nil).DRKeyGetHostASKey), arg0, arg1)
+}
+
+// DRKeyGetHostHostKey mocks base method.
+func (m *MockConnector) DRKeyGetHostHostKey(arg0 context.Context, arg1 drkey.HostHostMeta) (drkey.HostHostKey, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DRKeyGetHostHostKey", arg0, arg1)
+	ret0, _ := ret[0].(drkey.HostHostKey)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DRKeyGetHostHostKey indicates an expected call of DRKeyGetHostHostKey.
+func (mr *MockConnectorMockRecorder) DRKeyGetHostHostKey(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DRKeyGetHostHostKey", reflect.TypeOf((*MockConnector)(nil).DRKeyGetHostHostKey), arg0, arg1)
 }
 
 // IFInfo mocks base method.

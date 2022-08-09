@@ -25,8 +25,10 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"golang.org/x/sync/singleflight"
 
+	drkey_daemon "github.com/scionproto/scion/daemon/drkey"
 	"github.com/scionproto/scion/daemon/fetcher"
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
@@ -34,6 +36,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
+	pb_daemon "github.com/scionproto/scion/pkg/proto/daemon"
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
 	"github.com/scionproto/scion/pkg/snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
@@ -56,6 +59,7 @@ type DaemonServer struct {
 	Fetcher     fetcher.Fetcher
 	RevCache    revcache.RevCache
 	ASInspector trust.Inspector
+	DRKeyClient *drkey_daemon.ClientEngine
 
 	Metrics Metrics
 
@@ -345,4 +349,112 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 		}
 	}
 	return &sdpb.NotifyInterfaceDownResponse{}, nil
+}
+
+func (s *DaemonServer) DRKeyASHost(
+	ctx context.Context,
+	req *pb_daemon.DRKeyASHostRequest,
+) (*pb_daemon.DRKeyASHostResponse, error) {
+
+	meta, err := requestToASHostMeta(req)
+	if err != nil {
+		return nil, serrors.WrapStr("parsing protobuf ASHostReq", err)
+	}
+
+	lvl2Key, err := s.DRKeyClient.GetASHostKey(ctx, meta)
+	if err != nil {
+		return nil, serrors.WrapStr("getting AS-Host from client store", err)
+	}
+
+	return &sdpb.DRKeyASHostResponse{
+		EpochBegin: &timestamppb.Timestamp{Seconds: lvl2Key.Epoch.NotBefore.Unix()},
+		EpochEnd:   &timestamppb.Timestamp{Seconds: lvl2Key.Epoch.NotAfter.Unix()},
+		Key:        lvl2Key.Key[:],
+	}, nil
+}
+
+func (s *DaemonServer) DRKeyHostAS(
+	ctx context.Context,
+	req *pb_daemon.DRKeyHostASRequest,
+) (*pb_daemon.DRKeyHostASResponse, error) {
+
+	meta, err := requestToHostASMeta(req)
+	if err != nil {
+		return nil, serrors.WrapStr("parsing protobuf HostASReq", err)
+	}
+
+	lvl2Key, err := s.DRKeyClient.GetHostASKey(ctx, meta)
+	if err != nil {
+		return nil, serrors.WrapStr("getting Host-AS from client store", err)
+	}
+
+	return &sdpb.DRKeyHostASResponse{
+		EpochBegin: &timestamppb.Timestamp{Seconds: lvl2Key.Epoch.NotBefore.Unix()},
+		EpochEnd:   &timestamppb.Timestamp{Seconds: lvl2Key.Epoch.NotAfter.Unix()},
+		Key:        lvl2Key.Key[:],
+	}, nil
+}
+
+func (s *DaemonServer) DRKeyHostHost(
+	ctx context.Context,
+	req *pb_daemon.DRKeyHostHostRequest,
+) (*pb_daemon.DRKeyHostHostResponse, error) {
+
+	meta, err := requestToHostHostMeta(req)
+	if err != nil {
+		return nil, serrors.WrapStr("parsing protobuf HostHostReq", err)
+	}
+	lvl2Key, err := s.DRKeyClient.GetHostHostKey(ctx, meta)
+	if err != nil {
+		return nil, serrors.WrapStr("getting Host-Host from client store", err)
+	}
+
+	return &sdpb.DRKeyHostHostResponse{
+		EpochBegin: &timestamppb.Timestamp{Seconds: lvl2Key.Epoch.NotBefore.Unix()},
+		EpochEnd:   &timestamppb.Timestamp{Seconds: lvl2Key.Epoch.NotAfter.Unix()},
+		Key:        lvl2Key.Key[:],
+	}, nil
+}
+
+func requestToASHostMeta(req *sdpb.DRKeyASHostRequest) (drkey.ASHostMeta, error) {
+	err := req.ValTime.CheckValid()
+	if err != nil {
+		return drkey.ASHostMeta{}, serrors.WrapStr("invalid valTime from pb request", err)
+	}
+	return drkey.ASHostMeta{
+		ProtoId:  drkey.Protocol(req.ProtocolId),
+		Validity: req.ValTime.AsTime(),
+		SrcIA:    addr.IA(req.SrcIa),
+		DstIA:    addr.IA(req.DstIa),
+		DstHost:  req.DstHost,
+	}, nil
+}
+
+func requestToHostASMeta(req *sdpb.DRKeyHostASRequest) (drkey.HostASMeta, error) {
+	err := req.ValTime.CheckValid()
+	if err != nil {
+		return drkey.HostASMeta{}, serrors.WrapStr("invalid valTime from pb request", err)
+	}
+	return drkey.HostASMeta{
+		ProtoId:  drkey.Protocol(req.ProtocolId),
+		Validity: req.ValTime.AsTime(),
+		SrcIA:    addr.IA(req.SrcIa),
+		DstIA:    addr.IA(req.DstIa),
+		SrcHost:  req.SrcHost,
+	}, nil
+}
+
+func requestToHostHostMeta(req *sdpb.DRKeyHostHostRequest) (drkey.HostHostMeta, error) {
+	err := req.ValTime.CheckValid()
+	if err != nil {
+		return drkey.HostHostMeta{}, serrors.WrapStr("invalid valTime from pb request", err)
+	}
+	return drkey.HostHostMeta{
+		ProtoId:  drkey.Protocol(req.ProtocolId),
+		Validity: req.ValTime.AsTime(),
+		SrcIA:    addr.IA(req.SrcIa),
+		DstIA:    addr.IA(req.DstIa),
+		SrcHost:  req.SrcHost,
+		DstHost:  req.DstHost,
+	}, nil
 }

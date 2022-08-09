@@ -1,4 +1,4 @@
-// Copyright 2020 Anapaya Systems
+// Copyright 2022 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,25 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metrics
+package drkey
 
-import (
-	"github.com/scionproto/scion/pkg/private/prom"
-)
-
-// Namespace is the prometheus namespace.
-const Namespace = "renewal"
-
-// Signer exposes the signer metrics.
-var Signer = newSigner()
-
-// Result types
-const (
-	Success = prom.Success
-
-	ErrInactive = "err_inactive"
-	ErrInternal = prom.ErrInternal
-	ErrKey      = "err_key"
-	ErrCerts    = "err_certs"
-	ErrNotFound = "err_not_found"
-)
+func FromPrefetcher() fromPrefetcher {
+	return fromPrefetcher{}
+}
