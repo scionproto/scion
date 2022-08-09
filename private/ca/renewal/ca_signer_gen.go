@@ -28,10 +28,10 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
-	"github.com/scionproto/scion/private/ca/renewal/metrics"
 	"github.com/scionproto/scion/private/trust"
 )
 
@@ -40,6 +40,23 @@ var (
 	errOutsideValidity = serrors.New("outside validity")
 )
 
+type Metrics struct {
+	// CAActive describes whether the CA signer is active and can sign
+	// certificate chains.
+	CAActive metrics.Gauge
+	// CASigners tracks the number of generated CA signers that sign certificate
+	// chains.
+	CASigners func(string) metrics.Counter
+	// SignedChains tracks the number of certificate chains signed, labeled by
+	// the status of the signing.
+	SignedChains func(string) metrics.Counter
+	// LastGeneratedCA exports the last time a signer for creating AS
+	// certificates was successfully generated.
+	LastGeneratedCA metrics.Gauge
+	// ExpirationCA exports the expiration time of the current CA signer.
+	ExpirationCA metrics.Gauge
+}
+
 // PolicyGen generates a new CA policy.
 type PolicyGen interface {
 	Generate(context.Context) (cppki.CAPolicy, error)
@@ -47,26 +64,32 @@ type PolicyGen interface {
 
 // ChainBuilder creates a certificate chain with the generated policy.
 type ChainBuilder struct {
-	PolicyGen PolicyGen
+	PolicyGen    PolicyGen
+	SignedChains func(string) metrics.Counter
 }
 
 // CreateChain creates a certificate chain with the latest available CA policy.
 func (c ChainBuilder) CreateChain(ctx context.Context,
 	csr *x509.CertificateRequest) ([]*x509.Certificate, error) {
 
-	l := metrics.SignerLabels{}
 	policy, err := c.PolicyGen.Generate(ctx)
 	if err != nil {
-		metrics.Signer.SignedChains(l.WithResult(metrics.ErrInactive)).Inc()
+		c.incSignedChains("err_inactive")
 		return nil, err
 	}
 	chain, err := policy.CreateChain(csr)
 	if err != nil {
-		metrics.Signer.SignedChains(l.WithResult(metrics.ErrInternal)).Inc()
+		c.incSignedChains("err_internal")
 		return nil, err
 	}
-	metrics.Signer.SignedChains(l.WithResult(metrics.Success)).Inc()
+	c.incSignedChains("ok_success")
 	return chain, nil
+}
+
+func (c ChainBuilder) incSignedChains(result string) {
+	if c.SignedChains != nil {
+		metrics.CounterInc(c.SignedChains(result))
+	}
 }
 
 // CachingPolicyGen is a PolicyGen that can cache the previously generated
@@ -74,6 +97,10 @@ func (c ChainBuilder) CreateChain(ctx context.Context,
 type CachingPolicyGen struct {
 	PolicyGen PolicyGen
 	Interval  time.Duration
+
+	CAActive        metrics.Gauge
+	LastGeneratedCA metrics.Gauge
+	ExpirationCA    metrics.Gauge
 
 	mtx     sync.Mutex
 	lastGen time.Time
@@ -101,7 +128,7 @@ func (s *CachingPolicyGen) Generate(ctx context.Context) (cppki.CAPolicy, error)
 		s.ok = false
 		log.FromCtx(ctx).Info("Failed to generate a new CA policy, "+
 			"AS certificate signing not possible", "err", err)
-		metrics.Signer.ActiveCA().Set(0)
+		metrics.GaugeSet(s.CAActive, 0)
 		return cppki.CAPolicy{}, err
 	}
 	if !s.cached.Equal(policy) {
@@ -112,9 +139,9 @@ func (s *CachingPolicyGen) Generate(ctx context.Context) (cppki.CAPolicy, error)
 	}
 	s.cached, s.ok = policy, true
 
-	metrics.Signer.ActiveCA().Set(1)
-	metrics.Signer.LastGeneratedCA().SetToCurrentTime()
-	metrics.Signer.ExpirationCA().Set(metrics.Timestamp(policy.Certificate.NotAfter))
+	metrics.GaugeSet(s.CAActive, 1)
+	metrics.GaugeSetCurrentTime(s.LastGeneratedCA)
+	metrics.GaugeSetTimestamp(s.ExpirationCA, policy.Certificate.NotAfter)
 	return s.cached, nil
 }
 
@@ -132,6 +159,8 @@ type LoadingPolicyGen struct {
 	KeyRing      trust.KeyRing
 	CertProvider CACertProvider
 
+	CASigners func(string) metrics.Counter
+
 	// ForceECDSAWithSHA512 forces the CA policy to use ECDSAWithSHA512 as the
 	// signature algorithm for signing the issued certificate. This field
 	// forces the old behavior extending the acceptable signature algorithms
@@ -145,25 +174,24 @@ type LoadingPolicyGen struct {
 // certificates that authenticate the corresponding public key. The returned
 // policy uses the private which is backed by the CA certificate with the
 // highest expiration time.
-func (g LoadingPolicyGen) Generate(ctx context.Context) (cppki.CAPolicy, error) {
-	l := metrics.SignerLabels{}
-	keys, err := g.KeyRing.PrivateKeys(ctx)
+func (l LoadingPolicyGen) Generate(ctx context.Context) (cppki.CAPolicy, error) {
+	keys, err := l.KeyRing.PrivateKeys(ctx)
 	if err != nil {
-		metrics.Signer.GenerateCA(l.WithResult(metrics.ErrKey)).Inc()
+		l.incCASigner("err_key")
 		return cppki.CAPolicy{}, err
 	}
 	if len(keys) == 0 {
-		metrics.Signer.GenerateCA(l.WithResult(metrics.ErrKey)).Inc()
+		l.incCASigner("err_key")
 		return cppki.CAPolicy{}, serrors.New("no private key found")
 	}
 
-	certs, err := g.CertProvider.CACerts(ctx)
+	certs, err := l.CertProvider.CACerts(ctx)
 	if err != nil {
-		metrics.Signer.GenerateCA(l.WithResult(metrics.ErrCerts)).Inc()
+		l.incCASigner("err_certs")
 		return cppki.CAPolicy{}, serrors.WrapStr("loading CA certificates", err)
 	}
 	if len(certs) == 0 {
-		metrics.Signer.GenerateCA(l.WithResult(metrics.ErrCerts)).Inc()
+		l.incCASigner("err_certs")
 		return cppki.CAPolicy{}, serrors.New("no CA certificate found")
 	}
 
@@ -185,17 +213,23 @@ func (g LoadingPolicyGen) Generate(ctx context.Context) (cppki.CAPolicy, error) 
 		}
 	}
 	if bestCert == nil {
-		metrics.Signer.GenerateCA(l.WithResult(metrics.ErrNotFound)).Inc()
+		l.incCASigner("err_not_found")
 		return cppki.CAPolicy{}, serrors.New("no CA certificate found",
 			"num_private_keys", len(keys))
 	}
-	metrics.Signer.GenerateCA(l.WithResult(metrics.Success)).Inc()
+	l.incCASigner("ok_success")
 	return cppki.CAPolicy{
-		Validity:             g.Validity,
+		Validity:             l.Validity,
 		Certificate:          bestCert,
 		Signer:               bestKey,
-		ForceECDSAWithSHA512: g.ForceECDSAWithSHA512,
+		ForceECDSAWithSHA512: l.ForceECDSAWithSHA512,
 	}, nil
+}
+
+func (l LoadingPolicyGen) incCASigner(result string) {
+	if l.CASigners != nil {
+		metrics.CounterInc(l.CASigners(result))
+	}
 }
 
 // CACertLoader loads CA certificates from disk.

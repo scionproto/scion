@@ -411,6 +411,7 @@ func realMain(ctx context.Context) error {
 					DB:                   trustDB,
 					MaxValidity:          globalCfg.CA.MaxASValidity.Duration,
 					ConfigDir:            globalCfg.General.ConfigDir,
+					Metrics:              metrics.RenewalMetrics,
 					ForceECDSAWithSHA512: !globalCfg.Features.AppropriateDigest,
 				},
 			)
