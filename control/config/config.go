@@ -64,6 +64,7 @@ type Config struct {
 	PS          PSConfig           `toml:"path,omitempty"`
 	CA          CA                 `toml:"ca,omitempty"`
 	TrustEngine trustengine.Config `toml:"trustengine,omitempty"`
+	DRKey       DRKeyConfig        `toml:"drkey,omitempty"`
 }
 
 // InitDefaults initializes the default values for all parts of the config.
@@ -82,6 +83,7 @@ func (cfg *Config) InitDefaults() {
 		&cfg.PS,
 		&cfg.CA,
 		&cfg.TrustEngine,
+		&cfg.DRKey,
 	)
 }
 
@@ -100,6 +102,7 @@ func (cfg *Config) Validate() error {
 		&cfg.PS,
 		&cfg.CA,
 		&cfg.TrustEngine,
+		&cfg.DRKey,
 	)
 }
 
@@ -138,6 +141,7 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.PS,
 		&cfg.CA,
 		&cfg.TrustEngine,
+		&cfg.DRKey,
 	)
 }
 

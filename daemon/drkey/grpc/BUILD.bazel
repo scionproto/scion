@@ -1,0 +1,37 @@
+load("//tools/lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "fetcher.go",
+        "protobuf.go",
+    ],
+    importpath = "github.com/scionproto/scion/daemon/drkey/grpc",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/addr:go_default_library",
+        "//pkg/drkey:go_default_library",
+        "//pkg/grpc:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/proto/control_plane:go_default_library",
+        "//pkg/proto/drkey:go_default_library",
+        "//pkg/scrypto/cppki:go_default_library",
+        "@org_golang_google_protobuf//types/known/timestamppb:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["fetching_test.go"],
+    deps = [
+        ":go_default_library",
+        "//daemon/drkey:go_default_library",
+        "//pkg/drkey:go_default_library",
+        "//pkg/private/xtest:go_default_library",
+        "//pkg/proto/control_plane:go_default_library",
+        "//pkg/proto/control_plane/mock_control_plane:go_default_library",
+        "@com_github_golang_mock//gomock:go_default_library",
+        "@com_github_golang_protobuf//ptypes:go_default_library_gen",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)

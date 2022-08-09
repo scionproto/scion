@@ -7,7 +7,11 @@
 package control_plane
 
 import (
+	context "context"
 	drkey "github.com/scionproto/scion/pkg/proto/drkey"
+	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -676,6 +680,156 @@ func (x *DRKeyASHostResponse) GetKey() []byte {
 	return nil
 }
 
+type DRKeyHostHostRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ValTime    *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=val_time,json=valTime,proto3" json:"val_time,omitempty"`
+	ProtocolId drkey.Protocol         `protobuf:"varint,2,opt,name=protocol_id,json=protocolId,proto3,enum=proto.drkey.v1.Protocol" json:"protocol_id,omitempty"`
+	SrcIa      uint64                 `protobuf:"varint,3,opt,name=src_ia,json=srcIa,proto3" json:"src_ia,omitempty"`
+	DstIa      uint64                 `protobuf:"varint,4,opt,name=dst_ia,json=dstIa,proto3" json:"dst_ia,omitempty"`
+	SrcHost    string                 `protobuf:"bytes,5,opt,name=src_host,json=srcHost,proto3" json:"src_host,omitempty"`
+	DstHost    string                 `protobuf:"bytes,6,opt,name=dst_host,json=dstHost,proto3" json:"dst_host,omitempty"`
+}
+
+func (x *DRKeyHostHostRequest) Reset() {
+	*x = DRKeyHostHostRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_proto_control_plane_v1_drkey_proto_msgTypes[10]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *DRKeyHostHostRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DRKeyHostHostRequest) ProtoMessage() {}
+
+func (x *DRKeyHostHostRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_control_plane_v1_drkey_proto_msgTypes[10]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DRKeyHostHostRequest.ProtoReflect.Descriptor instead.
+func (*DRKeyHostHostRequest) Descriptor() ([]byte, []int) {
+	return file_proto_control_plane_v1_drkey_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *DRKeyHostHostRequest) GetValTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ValTime
+	}
+	return nil
+}
+
+func (x *DRKeyHostHostRequest) GetProtocolId() drkey.Protocol {
+	if x != nil {
+		return x.ProtocolId
+	}
+	return drkey.Protocol(0)
+}
+
+func (x *DRKeyHostHostRequest) GetSrcIa() uint64 {
+	if x != nil {
+		return x.SrcIa
+	}
+	return 0
+}
+
+func (x *DRKeyHostHostRequest) GetDstIa() uint64 {
+	if x != nil {
+		return x.DstIa
+	}
+	return 0
+}
+
+func (x *DRKeyHostHostRequest) GetSrcHost() string {
+	if x != nil {
+		return x.SrcHost
+	}
+	return ""
+}
+
+func (x *DRKeyHostHostRequest) GetDstHost() string {
+	if x != nil {
+		return x.DstHost
+	}
+	return ""
+}
+
+type DRKeyHostHostResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	EpochBegin *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=epoch_begin,json=epochBegin,proto3" json:"epoch_begin,omitempty"`
+	EpochEnd   *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=epoch_end,json=epochEnd,proto3" json:"epoch_end,omitempty"`
+	Key        []byte                 `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
+}
+
+func (x *DRKeyHostHostResponse) Reset() {
+	*x = DRKeyHostHostResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_proto_control_plane_v1_drkey_proto_msgTypes[11]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *DRKeyHostHostResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DRKeyHostHostResponse) ProtoMessage() {}
+
+func (x *DRKeyHostHostResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_control_plane_v1_drkey_proto_msgTypes[11]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DRKeyHostHostResponse.ProtoReflect.Descriptor instead.
+func (*DRKeyHostHostResponse) Descriptor() ([]byte, []int) {
+	return file_proto_control_plane_v1_drkey_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *DRKeyHostHostResponse) GetEpochBegin() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EpochBegin
+	}
+	return nil
+}
+
+func (x *DRKeyHostHostResponse) GetEpochEnd() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EpochEnd
+	}
+	return nil
+}
+
+func (x *DRKeyHostHostResponse) GetKey() []byte {
+	if x != nil {
+		return x.Key
+	}
+	return nil
+}
+
 var File_proto_control_plane_v1_drkey_proto protoreflect.FileDescriptor
 
 var file_proto_control_plane_v1_drkey_proto_rawDesc = []byte{
@@ -792,11 +946,81 @@ var file_proto_control_plane_v1_drkey_proto_rawDesc = []byte{
 	0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74,
 	0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x52, 0x08,
 	0x65, 0x70, 0x6f, 0x63, 0x68, 0x45, 0x6e, 0x64, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18,
-	0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x42, 0x35, 0x5a, 0x33, 0x67, 0x69,
-	0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x73, 0x63, 0x69, 0x6f, 0x6e, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x2f, 0x73, 0x63, 0x69, 0x6f, 0x6e, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x5f, 0x70, 0x6c, 0x61, 0x6e,
-	0x65, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x22, 0xec, 0x01, 0x0a, 0x14, 0x44,
+	0x52, 0x4b, 0x65, 0x79, 0x48, 0x6f, 0x73, 0x74, 0x48, 0x6f, 0x73, 0x74, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x12, 0x35, 0x0a, 0x08, 0x76, 0x61, 0x6c, 0x5f, 0x74, 0x69, 0x6d, 0x65, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d,
+	0x70, 0x52, 0x07, 0x76, 0x61, 0x6c, 0x54, 0x69, 0x6d, 0x65, 0x12, 0x39, 0x0a, 0x0b, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x5f, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0e, 0x32,
+	0x18, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x64, 0x72, 0x6b, 0x65, 0x79, 0x2e, 0x76, 0x31,
+	0x2e, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x52, 0x0a, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x63, 0x6f, 0x6c, 0x49, 0x64, 0x12, 0x15, 0x0a, 0x06, 0x73, 0x72, 0x63, 0x5f, 0x69, 0x61, 0x18,
+	0x03, 0x20, 0x01, 0x28, 0x04, 0x52, 0x05, 0x73, 0x72, 0x63, 0x49, 0x61, 0x12, 0x15, 0x0a, 0x06,
+	0x64, 0x73, 0x74, 0x5f, 0x69, 0x61, 0x18, 0x04, 0x20, 0x01, 0x28, 0x04, 0x52, 0x05, 0x64, 0x73,
+	0x74, 0x49, 0x61, 0x12, 0x19, 0x0a, 0x08, 0x73, 0x72, 0x63, 0x5f, 0x68, 0x6f, 0x73, 0x74, 0x18,
+	0x05, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x73, 0x72, 0x63, 0x48, 0x6f, 0x73, 0x74, 0x12, 0x19,
+	0x0a, 0x08, 0x64, 0x73, 0x74, 0x5f, 0x68, 0x6f, 0x73, 0x74, 0x18, 0x06, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x07, 0x64, 0x73, 0x74, 0x48, 0x6f, 0x73, 0x74, 0x22, 0x9f, 0x01, 0x0a, 0x15, 0x44, 0x52,
+	0x4b, 0x65, 0x79, 0x48, 0x6f, 0x73, 0x74, 0x48, 0x6f, 0x73, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x12, 0x3b, 0x0a, 0x0b, 0x65, 0x70, 0x6f, 0x63, 0x68, 0x5f, 0x62, 0x65, 0x67,
+	0x69, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c,
+	0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73,
+	0x74, 0x61, 0x6d, 0x70, 0x52, 0x0a, 0x65, 0x70, 0x6f, 0x63, 0x68, 0x42, 0x65, 0x67, 0x69, 0x6e,
+	0x12, 0x37, 0x0a, 0x09, 0x65, 0x70, 0x6f, 0x63, 0x68, 0x5f, 0x65, 0x6e, 0x64, 0x18, 0x02, 0x20,
+	0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x52,
+	0x08, 0x65, 0x70, 0x6f, 0x63, 0x68, 0x45, 0x6e, 0x64, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79,
+	0x18, 0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x32, 0x7d, 0x0a, 0x11, 0x44,
+	0x52, 0x4b, 0x65, 0x79, 0x49, 0x6e, 0x74, 0x65, 0x72, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65,
+	0x12, 0x68, 0x0a, 0x0b, 0x44, 0x52, 0x4b, 0x65, 0x79, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x31, 0x12,
+	0x2a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x5f,
+	0x70, 0x6c, 0x61, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x44, 0x52, 0x4b, 0x65, 0x79, 0x4c, 0x65,
+	0x76, 0x65, 0x6c, 0x31, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x2b, 0x2e, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x2e, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x5f, 0x70, 0x6c, 0x61, 0x6e,
+	0x65, 0x2e, 0x76, 0x31, 0x2e, 0x44, 0x52, 0x4b, 0x65, 0x79, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x31,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x32, 0xc9, 0x04, 0x0a, 0x11, 0x44,
+	0x52, 0x4b, 0x65, 0x79, 0x49, 0x6e, 0x74, 0x72, 0x61, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65,
+	0x12, 0x77, 0x0a, 0x10, 0x44, 0x52, 0x4b, 0x65, 0x79, 0x49, 0x6e, 0x74, 0x72, 0x61, 0x4c, 0x65,
+	0x76, 0x65, 0x6c, 0x31, 0x12, 0x2f, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x63, 0x6f, 0x6e,
+	0x74, 0x72, 0x6f, 0x6c, 0x5f, 0x70, 0x6c, 0x61, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x44, 0x52,
+	0x4b, 0x65, 0x79, 0x49, 0x6e, 0x74, 0x72, 0x61, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x31, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x30, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x63, 0x6f,
+	0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x5f, 0x70, 0x6c, 0x61, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x44,
+	0x52, 0x4b, 0x65, 0x79, 0x49, 0x6e, 0x74, 0x72, 0x61, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x31, 0x52,
+	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x68, 0x0a, 0x0b, 0x44, 0x52, 0x4b,
+	0x65, 0x79, 0x41, 0x53, 0x48, 0x6f, 0x73, 0x74, 0x12, 0x2a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x2e, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x5f, 0x70, 0x6c, 0x61, 0x6e, 0x65, 0x2e, 0x76,
+	0x31, 0x2e, 0x44, 0x52, 0x4b, 0x65, 0x79, 0x41, 0x53, 0x48, 0x6f, 0x73, 0x74, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x1a, 0x2b, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x63, 0x6f, 0x6e,
+	0x74, 0x72, 0x6f, 0x6c, 0x5f, 0x70, 0x6c, 0x61, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x44, 0x52,
+	0x4b, 0x65, 0x79, 0x41, 0x53, 0x48, 0x6f, 0x73, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x22, 0x00, 0x12, 0x68, 0x0a, 0x0b, 0x44, 0x52, 0x4b, 0x65, 0x79, 0x48, 0x6f, 0x73, 0x74,
+	0x41, 0x53, 0x12, 0x2a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x63, 0x6f, 0x6e, 0x74, 0x72,
+	0x6f, 0x6c, 0x5f, 0x70, 0x6c, 0x61, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x44, 0x52, 0x4b, 0x65,
+	0x79, 0x48, 0x6f, 0x73, 0x74, 0x41, 0x53, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x2b,
+	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x5f, 0x70,
+	0x6c, 0x61, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x44, 0x52, 0x4b, 0x65, 0x79, 0x48, 0x6f, 0x73,
+	0x74, 0x41, 0x53, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x6e, 0x0a,
+	0x0d, 0x44, 0x52, 0x4b, 0x65, 0x79, 0x48, 0x6f, 0x73, 0x74, 0x48, 0x6f, 0x73, 0x74, 0x12, 0x2c,
+	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x5f, 0x70,
+	0x6c, 0x61, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x44, 0x52, 0x4b, 0x65, 0x79, 0x48, 0x6f, 0x73,
+	0x74, 0x48, 0x6f, 0x73, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x2d, 0x2e, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x5f, 0x70, 0x6c, 0x61,
+	0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x44, 0x52, 0x4b, 0x65, 0x79, 0x48, 0x6f, 0x73, 0x74, 0x48,
+	0x6f, 0x73, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x77, 0x0a,
+	0x10, 0x44, 0x52, 0x4b, 0x65, 0x79, 0x53, 0x65, 0x63, 0x72, 0x65, 0x74, 0x56, 0x61, 0x6c, 0x75,
+	0x65, 0x12, 0x2f, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f,
+	0x6c, 0x5f, 0x70, 0x6c, 0x61, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x44, 0x52, 0x4b, 0x65, 0x79,
+	0x53, 0x65, 0x63, 0x72, 0x65, 0x74, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x30, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x63, 0x6f, 0x6e, 0x74, 0x72,
+	0x6f, 0x6c, 0x5f, 0x70, 0x6c, 0x61, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x44, 0x52, 0x4b, 0x65,
+	0x79, 0x53, 0x65, 0x63, 0x72, 0x65, 0x74, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x52, 0x65, 0x73, 0x70,
+	0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x35, 0x5a, 0x33, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62,
+	0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x73, 0x63, 0x69, 0x6f, 0x6e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f,
+	0x73, 0x63, 0x69, 0x6f, 0x6e, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f,
+	0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x5f, 0x70, 0x6c, 0x61, 0x6e, 0x65, 0x62, 0x06, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -811,7 +1035,7 @@ func file_proto_control_plane_v1_drkey_proto_rawDescGZIP() []byte {
 	return file_proto_control_plane_v1_drkey_proto_rawDescData
 }
 
-var file_proto_control_plane_v1_drkey_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_proto_control_plane_v1_drkey_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_proto_control_plane_v1_drkey_proto_goTypes = []interface{}{
 	(*DRKeySecretValueRequest)(nil),  // 0: proto.control_plane.v1.DRKeySecretValueRequest
 	(*DRKeySecretValueResponse)(nil), // 1: proto.control_plane.v1.DRKeySecretValueResponse
@@ -823,35 +1047,53 @@ var file_proto_control_plane_v1_drkey_proto_goTypes = []interface{}{
 	(*DRKeyHostASResponse)(nil),      // 7: proto.control_plane.v1.DRKeyHostASResponse
 	(*DRKeyASHostRequest)(nil),       // 8: proto.control_plane.v1.DRKeyASHostRequest
 	(*DRKeyASHostResponse)(nil),      // 9: proto.control_plane.v1.DRKeyASHostResponse
-	(*timestamppb.Timestamp)(nil),    // 10: google.protobuf.Timestamp
-	(drkey.Protocol)(0),              // 11: proto.drkey.v1.Protocol
+	(*DRKeyHostHostRequest)(nil),     // 10: proto.control_plane.v1.DRKeyHostHostRequest
+	(*DRKeyHostHostResponse)(nil),    // 11: proto.control_plane.v1.DRKeyHostHostResponse
+	(*timestamppb.Timestamp)(nil),    // 12: google.protobuf.Timestamp
+	(drkey.Protocol)(0),              // 13: proto.drkey.v1.Protocol
 }
 var file_proto_control_plane_v1_drkey_proto_depIdxs = []int32{
-	10, // 0: proto.control_plane.v1.DRKeySecretValueRequest.val_time:type_name -> google.protobuf.Timestamp
-	11, // 1: proto.control_plane.v1.DRKeySecretValueRequest.protocol_id:type_name -> proto.drkey.v1.Protocol
-	10, // 2: proto.control_plane.v1.DRKeySecretValueResponse.epoch_begin:type_name -> google.protobuf.Timestamp
-	10, // 3: proto.control_plane.v1.DRKeySecretValueResponse.epoch_end:type_name -> google.protobuf.Timestamp
-	10, // 4: proto.control_plane.v1.DRKeyLevel1Request.val_time:type_name -> google.protobuf.Timestamp
-	11, // 5: proto.control_plane.v1.DRKeyLevel1Request.protocol_id:type_name -> proto.drkey.v1.Protocol
-	10, // 6: proto.control_plane.v1.DRKeyLevel1Response.epoch_begin:type_name -> google.protobuf.Timestamp
-	10, // 7: proto.control_plane.v1.DRKeyLevel1Response.epoch_end:type_name -> google.protobuf.Timestamp
-	10, // 8: proto.control_plane.v1.DRKeyIntraLevel1Request.val_time:type_name -> google.protobuf.Timestamp
-	11, // 9: proto.control_plane.v1.DRKeyIntraLevel1Request.protocol_id:type_name -> proto.drkey.v1.Protocol
-	10, // 10: proto.control_plane.v1.DRKeyIntraLevel1Response.epoch_begin:type_name -> google.protobuf.Timestamp
-	10, // 11: proto.control_plane.v1.DRKeyIntraLevel1Response.epoch_end:type_name -> google.protobuf.Timestamp
-	10, // 12: proto.control_plane.v1.DRKeyHostASRequest.val_time:type_name -> google.protobuf.Timestamp
-	11, // 13: proto.control_plane.v1.DRKeyHostASRequest.protocol_id:type_name -> proto.drkey.v1.Protocol
-	10, // 14: proto.control_plane.v1.DRKeyHostASResponse.epoch_begin:type_name -> google.protobuf.Timestamp
-	10, // 15: proto.control_plane.v1.DRKeyHostASResponse.epoch_end:type_name -> google.protobuf.Timestamp
-	10, // 16: proto.control_plane.v1.DRKeyASHostRequest.val_time:type_name -> google.protobuf.Timestamp
-	11, // 17: proto.control_plane.v1.DRKeyASHostRequest.protocol_id:type_name -> proto.drkey.v1.Protocol
-	10, // 18: proto.control_plane.v1.DRKeyASHostResponse.epoch_begin:type_name -> google.protobuf.Timestamp
-	10, // 19: proto.control_plane.v1.DRKeyASHostResponse.epoch_end:type_name -> google.protobuf.Timestamp
-	20, // [20:20] is the sub-list for method output_type
-	20, // [20:20] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	12, // 0: proto.control_plane.v1.DRKeySecretValueRequest.val_time:type_name -> google.protobuf.Timestamp
+	13, // 1: proto.control_plane.v1.DRKeySecretValueRequest.protocol_id:type_name -> proto.drkey.v1.Protocol
+	12, // 2: proto.control_plane.v1.DRKeySecretValueResponse.epoch_begin:type_name -> google.protobuf.Timestamp
+	12, // 3: proto.control_plane.v1.DRKeySecretValueResponse.epoch_end:type_name -> google.protobuf.Timestamp
+	12, // 4: proto.control_plane.v1.DRKeyLevel1Request.val_time:type_name -> google.protobuf.Timestamp
+	13, // 5: proto.control_plane.v1.DRKeyLevel1Request.protocol_id:type_name -> proto.drkey.v1.Protocol
+	12, // 6: proto.control_plane.v1.DRKeyLevel1Response.epoch_begin:type_name -> google.protobuf.Timestamp
+	12, // 7: proto.control_plane.v1.DRKeyLevel1Response.epoch_end:type_name -> google.protobuf.Timestamp
+	12, // 8: proto.control_plane.v1.DRKeyIntraLevel1Request.val_time:type_name -> google.protobuf.Timestamp
+	13, // 9: proto.control_plane.v1.DRKeyIntraLevel1Request.protocol_id:type_name -> proto.drkey.v1.Protocol
+	12, // 10: proto.control_plane.v1.DRKeyIntraLevel1Response.epoch_begin:type_name -> google.protobuf.Timestamp
+	12, // 11: proto.control_plane.v1.DRKeyIntraLevel1Response.epoch_end:type_name -> google.protobuf.Timestamp
+	12, // 12: proto.control_plane.v1.DRKeyHostASRequest.val_time:type_name -> google.protobuf.Timestamp
+	13, // 13: proto.control_plane.v1.DRKeyHostASRequest.protocol_id:type_name -> proto.drkey.v1.Protocol
+	12, // 14: proto.control_plane.v1.DRKeyHostASResponse.epoch_begin:type_name -> google.protobuf.Timestamp
+	12, // 15: proto.control_plane.v1.DRKeyHostASResponse.epoch_end:type_name -> google.protobuf.Timestamp
+	12, // 16: proto.control_plane.v1.DRKeyASHostRequest.val_time:type_name -> google.protobuf.Timestamp
+	13, // 17: proto.control_plane.v1.DRKeyASHostRequest.protocol_id:type_name -> proto.drkey.v1.Protocol
+	12, // 18: proto.control_plane.v1.DRKeyASHostResponse.epoch_begin:type_name -> google.protobuf.Timestamp
+	12, // 19: proto.control_plane.v1.DRKeyASHostResponse.epoch_end:type_name -> google.protobuf.Timestamp
+	12, // 20: proto.control_plane.v1.DRKeyHostHostRequest.val_time:type_name -> google.protobuf.Timestamp
+	13, // 21: proto.control_plane.v1.DRKeyHostHostRequest.protocol_id:type_name -> proto.drkey.v1.Protocol
+	12, // 22: proto.control_plane.v1.DRKeyHostHostResponse.epoch_begin:type_name -> google.protobuf.Timestamp
+	12, // 23: proto.control_plane.v1.DRKeyHostHostResponse.epoch_end:type_name -> google.protobuf.Timestamp
+	2,  // 24: proto.control_plane.v1.DRKeyInterService.DRKeyLevel1:input_type -> proto.control_plane.v1.DRKeyLevel1Request
+	4,  // 25: proto.control_plane.v1.DRKeyIntraService.DRKeyIntraLevel1:input_type -> proto.control_plane.v1.DRKeyIntraLevel1Request
+	8,  // 26: proto.control_plane.v1.DRKeyIntraService.DRKeyASHost:input_type -> proto.control_plane.v1.DRKeyASHostRequest
+	6,  // 27: proto.control_plane.v1.DRKeyIntraService.DRKeyHostAS:input_type -> proto.control_plane.v1.DRKeyHostASRequest
+	10, // 28: proto.control_plane.v1.DRKeyIntraService.DRKeyHostHost:input_type -> proto.control_plane.v1.DRKeyHostHostRequest
+	0,  // 29: proto.control_plane.v1.DRKeyIntraService.DRKeySecretValue:input_type -> proto.control_plane.v1.DRKeySecretValueRequest
+	3,  // 30: proto.control_plane.v1.DRKeyInterService.DRKeyLevel1:output_type -> proto.control_plane.v1.DRKeyLevel1Response
+	5,  // 31: proto.control_plane.v1.DRKeyIntraService.DRKeyIntraLevel1:output_type -> proto.control_plane.v1.DRKeyIntraLevel1Response
+	9,  // 32: proto.control_plane.v1.DRKeyIntraService.DRKeyASHost:output_type -> proto.control_plane.v1.DRKeyASHostResponse
+	7,  // 33: proto.control_plane.v1.DRKeyIntraService.DRKeyHostAS:output_type -> proto.control_plane.v1.DRKeyHostASResponse
+	11, // 34: proto.control_plane.v1.DRKeyIntraService.DRKeyHostHost:output_type -> proto.control_plane.v1.DRKeyHostHostResponse
+	1,  // 35: proto.control_plane.v1.DRKeyIntraService.DRKeySecretValue:output_type -> proto.control_plane.v1.DRKeySecretValueResponse
+	30, // [30:36] is the sub-list for method output_type
+	24, // [24:30] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_proto_control_plane_v1_drkey_proto_init() }
@@ -980,6 +1222,30 @@ func file_proto_control_plane_v1_drkey_proto_init() {
 				return nil
 			}
 		}
+		file_proto_control_plane_v1_drkey_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*DRKeyHostHostRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_proto_control_plane_v1_drkey_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*DRKeyHostHostResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -987,9 +1253,9 @@ func file_proto_control_plane_v1_drkey_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_proto_control_plane_v1_drkey_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   12,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   2,
 		},
 		GoTypes:           file_proto_control_plane_v1_drkey_proto_goTypes,
 		DependencyIndexes: file_proto_control_plane_v1_drkey_proto_depIdxs,
@@ -999,4 +1265,300 @@ func file_proto_control_plane_v1_drkey_proto_init() {
 	file_proto_control_plane_v1_drkey_proto_rawDesc = nil
 	file_proto_control_plane_v1_drkey_proto_goTypes = nil
 	file_proto_control_plane_v1_drkey_proto_depIdxs = nil
+}
+
+// Reference imports to suppress errors if they are not otherwise used.
+var _ context.Context
+var _ grpc.ClientConnInterface
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the grpc package it is being compiled against.
+const _ = grpc.SupportPackageIsVersion6
+
+// DRKeyInterServiceClient is the client API for DRKeyInterService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type DRKeyInterServiceClient interface {
+	DRKeyLevel1(ctx context.Context, in *DRKeyLevel1Request, opts ...grpc.CallOption) (*DRKeyLevel1Response, error)
+}
+
+type dRKeyInterServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewDRKeyInterServiceClient(cc grpc.ClientConnInterface) DRKeyInterServiceClient {
+	return &dRKeyInterServiceClient{cc}
+}
+
+func (c *dRKeyInterServiceClient) DRKeyLevel1(ctx context.Context, in *DRKeyLevel1Request, opts ...grpc.CallOption) (*DRKeyLevel1Response, error) {
+	out := new(DRKeyLevel1Response)
+	err := c.cc.Invoke(ctx, "/proto.control_plane.v1.DRKeyInterService/DRKeyLevel1", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// DRKeyInterServiceServer is the server API for DRKeyInterService service.
+type DRKeyInterServiceServer interface {
+	DRKeyLevel1(context.Context, *DRKeyLevel1Request) (*DRKeyLevel1Response, error)
+}
+
+// UnimplementedDRKeyInterServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedDRKeyInterServiceServer struct {
+}
+
+func (*UnimplementedDRKeyInterServiceServer) DRKeyLevel1(context.Context, *DRKeyLevel1Request) (*DRKeyLevel1Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DRKeyLevel1 not implemented")
+}
+
+func RegisterDRKeyInterServiceServer(s *grpc.Server, srv DRKeyInterServiceServer) {
+	s.RegisterService(&_DRKeyInterService_serviceDesc, srv)
+}
+
+func _DRKeyInterService_DRKeyLevel1_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DRKeyLevel1Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DRKeyInterServiceServer).DRKeyLevel1(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/proto.control_plane.v1.DRKeyInterService/DRKeyLevel1",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DRKeyInterServiceServer).DRKeyLevel1(ctx, req.(*DRKeyLevel1Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _DRKeyInterService_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "proto.control_plane.v1.DRKeyInterService",
+	HandlerType: (*DRKeyInterServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "DRKeyLevel1",
+			Handler:    _DRKeyInterService_DRKeyLevel1_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "proto/control_plane/v1/drkey.proto",
+}
+
+// DRKeyIntraServiceClient is the client API for DRKeyIntraService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type DRKeyIntraServiceClient interface {
+	DRKeyIntraLevel1(ctx context.Context, in *DRKeyIntraLevel1Request, opts ...grpc.CallOption) (*DRKeyIntraLevel1Response, error)
+	DRKeyASHost(ctx context.Context, in *DRKeyASHostRequest, opts ...grpc.CallOption) (*DRKeyASHostResponse, error)
+	DRKeyHostAS(ctx context.Context, in *DRKeyHostASRequest, opts ...grpc.CallOption) (*DRKeyHostASResponse, error)
+	DRKeyHostHost(ctx context.Context, in *DRKeyHostHostRequest, opts ...grpc.CallOption) (*DRKeyHostHostResponse, error)
+	DRKeySecretValue(ctx context.Context, in *DRKeySecretValueRequest, opts ...grpc.CallOption) (*DRKeySecretValueResponse, error)
+}
+
+type dRKeyIntraServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewDRKeyIntraServiceClient(cc grpc.ClientConnInterface) DRKeyIntraServiceClient {
+	return &dRKeyIntraServiceClient{cc}
+}
+
+func (c *dRKeyIntraServiceClient) DRKeyIntraLevel1(ctx context.Context, in *DRKeyIntraLevel1Request, opts ...grpc.CallOption) (*DRKeyIntraLevel1Response, error) {
+	out := new(DRKeyIntraLevel1Response)
+	err := c.cc.Invoke(ctx, "/proto.control_plane.v1.DRKeyIntraService/DRKeyIntraLevel1", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dRKeyIntraServiceClient) DRKeyASHost(ctx context.Context, in *DRKeyASHostRequest, opts ...grpc.CallOption) (*DRKeyASHostResponse, error) {
+	out := new(DRKeyASHostResponse)
+	err := c.cc.Invoke(ctx, "/proto.control_plane.v1.DRKeyIntraService/DRKeyASHost", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dRKeyIntraServiceClient) DRKeyHostAS(ctx context.Context, in *DRKeyHostASRequest, opts ...grpc.CallOption) (*DRKeyHostASResponse, error) {
+	out := new(DRKeyHostASResponse)
+	err := c.cc.Invoke(ctx, "/proto.control_plane.v1.DRKeyIntraService/DRKeyHostAS", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dRKeyIntraServiceClient) DRKeyHostHost(ctx context.Context, in *DRKeyHostHostRequest, opts ...grpc.CallOption) (*DRKeyHostHostResponse, error) {
+	out := new(DRKeyHostHostResponse)
+	err := c.cc.Invoke(ctx, "/proto.control_plane.v1.DRKeyIntraService/DRKeyHostHost", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dRKeyIntraServiceClient) DRKeySecretValue(ctx context.Context, in *DRKeySecretValueRequest, opts ...grpc.CallOption) (*DRKeySecretValueResponse, error) {
+	out := new(DRKeySecretValueResponse)
+	err := c.cc.Invoke(ctx, "/proto.control_plane.v1.DRKeyIntraService/DRKeySecretValue", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// DRKeyIntraServiceServer is the server API for DRKeyIntraService service.
+type DRKeyIntraServiceServer interface {
+	DRKeyIntraLevel1(context.Context, *DRKeyIntraLevel1Request) (*DRKeyIntraLevel1Response, error)
+	DRKeyASHost(context.Context, *DRKeyASHostRequest) (*DRKeyASHostResponse, error)
+	DRKeyHostAS(context.Context, *DRKeyHostASRequest) (*DRKeyHostASResponse, error)
+	DRKeyHostHost(context.Context, *DRKeyHostHostRequest) (*DRKeyHostHostResponse, error)
+	DRKeySecretValue(context.Context, *DRKeySecretValueRequest) (*DRKeySecretValueResponse, error)
+}
+
+// UnimplementedDRKeyIntraServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedDRKeyIntraServiceServer struct {
+}
+
+func (*UnimplementedDRKeyIntraServiceServer) DRKeyIntraLevel1(context.Context, *DRKeyIntraLevel1Request) (*DRKeyIntraLevel1Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DRKeyIntraLevel1 not implemented")
+}
+func (*UnimplementedDRKeyIntraServiceServer) DRKeyASHost(context.Context, *DRKeyASHostRequest) (*DRKeyASHostResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DRKeyASHost not implemented")
+}
+func (*UnimplementedDRKeyIntraServiceServer) DRKeyHostAS(context.Context, *DRKeyHostASRequest) (*DRKeyHostASResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DRKeyHostAS not implemented")
+}
+func (*UnimplementedDRKeyIntraServiceServer) DRKeyHostHost(context.Context, *DRKeyHostHostRequest) (*DRKeyHostHostResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DRKeyHostHost not implemented")
+}
+func (*UnimplementedDRKeyIntraServiceServer) DRKeySecretValue(context.Context, *DRKeySecretValueRequest) (*DRKeySecretValueResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DRKeySecretValue not implemented")
+}
+
+func RegisterDRKeyIntraServiceServer(s *grpc.Server, srv DRKeyIntraServiceServer) {
+	s.RegisterService(&_DRKeyIntraService_serviceDesc, srv)
+}
+
+func _DRKeyIntraService_DRKeyIntraLevel1_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DRKeyIntraLevel1Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DRKeyIntraServiceServer).DRKeyIntraLevel1(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/proto.control_plane.v1.DRKeyIntraService/DRKeyIntraLevel1",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DRKeyIntraServiceServer).DRKeyIntraLevel1(ctx, req.(*DRKeyIntraLevel1Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DRKeyIntraService_DRKeyASHost_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DRKeyASHostRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DRKeyIntraServiceServer).DRKeyASHost(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/proto.control_plane.v1.DRKeyIntraService/DRKeyASHost",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DRKeyIntraServiceServer).DRKeyASHost(ctx, req.(*DRKeyASHostRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DRKeyIntraService_DRKeyHostAS_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DRKeyHostASRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DRKeyIntraServiceServer).DRKeyHostAS(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/proto.control_plane.v1.DRKeyIntraService/DRKeyHostAS",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DRKeyIntraServiceServer).DRKeyHostAS(ctx, req.(*DRKeyHostASRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DRKeyIntraService_DRKeyHostHost_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DRKeyHostHostRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DRKeyIntraServiceServer).DRKeyHostHost(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/proto.control_plane.v1.DRKeyIntraService/DRKeyHostHost",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DRKeyIntraServiceServer).DRKeyHostHost(ctx, req.(*DRKeyHostHostRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DRKeyIntraService_DRKeySecretValue_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DRKeySecretValueRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DRKeyIntraServiceServer).DRKeySecretValue(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/proto.control_plane.v1.DRKeyIntraService/DRKeySecretValue",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DRKeyIntraServiceServer).DRKeySecretValue(ctx, req.(*DRKeySecretValueRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _DRKeyIntraService_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "proto.control_plane.v1.DRKeyIntraService",
+	HandlerType: (*DRKeyIntraServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "DRKeyIntraLevel1",
+			Handler:    _DRKeyIntraService_DRKeyIntraLevel1_Handler,
+		},
+		{
+			MethodName: "DRKeyASHost",
+			Handler:    _DRKeyIntraService_DRKeyASHost_Handler,
+		},
+		{
+			MethodName: "DRKeyHostAS",
+			Handler:    _DRKeyIntraService_DRKeyHostAS_Handler,
+		},
+		{
+			MethodName: "DRKeyHostHost",
+			Handler:    _DRKeyIntraService_DRKeyHostHost_Handler,
+		},
+		{
+			MethodName: "DRKeySecretValue",
+			Handler:    _DRKeyIntraService_DRKeySecretValue_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "proto/control_plane/v1/drkey.proto",
 }
