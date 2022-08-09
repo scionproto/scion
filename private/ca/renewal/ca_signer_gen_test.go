@@ -31,6 +31,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
@@ -139,8 +140,11 @@ func TestChachingPolicyGenGenerate(t *testing.T) {
 			t.Parallel()
 			mctrl := gomock.NewController(t)
 			gen := renewal.CachingPolicyGen{
-				Interval:  tc.Interval,
-				PolicyGen: tc.PolicyGen(mctrl),
+				Interval:        tc.Interval,
+				PolicyGen:       tc.PolicyGen(mctrl),
+				CAActive:        metrics.NewTestGauge(),
+				LastGeneratedCA: metrics.NewTestGauge(),
+				ExpirationCA:    metrics.NewTestGauge(),
 			}
 			policy, err := gen.Generate(context.Background())
 			if tc.FirstErr(t, err) {
@@ -276,6 +280,9 @@ func TestLoadingPolicyGenGenerate(t *testing.T) {
 				Validity:     time.Hour,
 				CertProvider: tc.CertProvider(t, mctrl),
 				KeyRing:      tc.KeyRing(t, mctrl),
+				CASigners: func(string) metrics.Counter {
+					return metrics.NewTestCounter()
+				},
 			}
 			p, err := g.Generate(context.Background())
 			tc.ErrAssertion(t, err)

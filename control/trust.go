@@ -97,6 +97,7 @@ type ChainBuilderConfig struct {
 	DB          trust.DB
 	MaxValidity time.Duration
 	ConfigDir   string
+	Metrics     renewal.Metrics
 
 	// ForceECDSAWithSHA512 forces the CA policy to use ECDSAWithSHA512 as the
 	// signature algorithm for signing the issued certificate. This field
@@ -109,7 +110,6 @@ type ChainBuilderConfig struct {
 
 // NewChainBuilder creates a renewing chain builder.
 func NewChainBuilder(cfg ChainBuilderConfig) renewal.ChainBuilder {
-
 	return renewal.ChainBuilder{
 		PolicyGen: &renewal.CachingPolicyGen{
 			PolicyGen: renewal.LoadingPolicyGen{
@@ -123,7 +123,12 @@ func NewChainBuilder(cfg ChainBuilderConfig) renewal.ChainBuilder {
 					Dir: filepath.Join(cfg.ConfigDir, "crypto/ca"),
 				},
 				ForceECDSAWithSHA512: cfg.ForceECDSAWithSHA512,
+				CASigners:            cfg.Metrics.CASigners,
 			},
+			CAActive:        cfg.Metrics.CAActive,
+			LastGeneratedCA: cfg.Metrics.LastGeneratedCA,
+			ExpirationCA:    cfg.Metrics.ExpirationCA,
 		},
+		SignedChains: cfg.Metrics.SignedChains,
 	}
 }
