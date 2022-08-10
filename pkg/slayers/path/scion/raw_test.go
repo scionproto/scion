@@ -89,9 +89,8 @@ func TestRawReverse(t *testing.T) {
 }
 
 func TestEmptyRawReverse(t *testing.T) {
-	r, err := emptyRawTestPath.Reverse()
-	assert.NoError(t, err)
-	assert.Equal(t, emptyRawTestPath, r)
+	_, err := emptyRawTestPath.Reverse()
+	assert.Error(t, err)
 }
 
 func TestRawToDecoded(t *testing.T) {
