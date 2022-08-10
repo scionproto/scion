@@ -1,4 +1,4 @@
-// Copyright 2020 Anapaya Systems
+// Copyright 2022 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,25 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metrics
+// This file provides a specification to the function 'New'.
+// The specification cannot currently be added to the file 'errors.go'
+// where the original definition of 'New' is because that file tries to
+// import a third-party package for which we do not yet provide
+// specification ("go.uber.org/zap/zapcore").
 
-import (
-	"github.com/scionproto/scion/pkg/private/prom"
-)
+// +gobra
 
-// Namespace is the prometheus namespace.
-const Namespace = "renewal"
+package serrors
 
-// Signer exposes the signer metrics.
-var Signer = newSigner()
-
-// Result types
-const (
-	Success = prom.Success
-
-	ErrInactive = "err_inactive"
-	ErrInternal = prom.ErrInternal
-	ErrKey      = "err_key"
-	ErrCerts    = "err_certs"
-	ErrNotFound = "err_not_found"
-)
+// Allocates a new (non-nil) error.
+// Calls to this method are assumed to always terminate.
+ensures err != nil
+decreases _
+func New(msg string, errCtx ...interface{}) (err error)

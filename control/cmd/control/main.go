@@ -16,11 +16,13 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -32,6 +34,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"inet.af/netaddr"
@@ -41,6 +44,8 @@ import (
 	"github.com/scionproto/scion/control/beaconing"
 	beaconinggrpc "github.com/scionproto/scion/control/beaconing/grpc"
 	"github.com/scionproto/scion/control/config"
+	"github.com/scionproto/scion/control/drkey"
+	drkeygrpc "github.com/scionproto/scion/control/drkey/grpc"
 	"github.com/scionproto/scion/control/ifstate"
 	api "github.com/scionproto/scion/control/mgmtapi"
 	"github.com/scionproto/scion/control/onehop"
@@ -57,6 +62,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/private/util"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	dpb "github.com/scionproto/scion/pkg/proto/discovery"
 	"github.com/scionproto/scion/pkg/scrypto"
@@ -71,6 +77,7 @@ import (
 	"github.com/scionproto/scion/private/ca/renewal"
 	renewalgrpc "github.com/scionproto/scion/private/ca/renewal/grpc"
 	"github.com/scionproto/scion/private/discovery"
+	"github.com/scionproto/scion/private/keyconf"
 	cppkiapi "github.com/scionproto/scion/private/mgmtapi/cppki/api"
 	"github.com/scionproto/scion/private/mgmtapi/jwtauth"
 	segapi "github.com/scionproto/scion/private/mgmtapi/segments/api"
@@ -80,6 +87,8 @@ import (
 	"github.com/scionproto/scion/private/service"
 	"github.com/scionproto/scion/private/storage"
 	beaconstoragemetrics "github.com/scionproto/scion/private/storage/beacon/metrics"
+	"github.com/scionproto/scion/private/storage/drkey/level1"
+	"github.com/scionproto/scion/private/storage/drkey/secret"
 	pathstoragemetrics "github.com/scionproto/scion/private/storage/path/metrics"
 	truststoragefspersister "github.com/scionproto/scion/private/storage/trust/fspersister"
 	truststoragemetrics "github.com/scionproto/scion/private/storage/trust/metrics"
@@ -402,6 +411,7 @@ func realMain(ctx context.Context) error {
 					DB:                   trustDB,
 					MaxValidity:          globalCfg.CA.MaxASValidity.Duration,
 					ConfigDir:            globalCfg.General.ConfigDir,
+					Metrics:              metrics.RenewalMetrics,
 					ForceECDSAWithSHA512: !globalCfg.Features.AppropriateDigest,
 				},
 			)
@@ -556,6 +566,108 @@ func realMain(ctx context.Context) error {
 		return err
 	}
 
+	// DRKey feature
+	var drkeyEngine *drkey.ServiceEngine
+	var quicTLSServer *grpc.Server
+	var epochDuration time.Duration
+	if globalCfg.DRKey.Enabled() {
+		epochDuration, err = loadEpochDuration()
+		if err != nil {
+			return err
+		}
+		log.Debug("DRKey debug info", "epoch duration", epochDuration.String())
+		masterKey, err := loadMasterSecret(globalCfg.General.ConfigDir)
+		if err != nil {
+			return serrors.WrapStr("loading master secret in DRKey", err)
+		}
+		svBackend, err := storage.NewDRKeySecretValueStorage(globalCfg.DRKey.SecretValueDB)
+		if err != nil {
+			return serrors.WrapStr("initializing Secret Value DB", err)
+		}
+		svCounter := libmetrics.NewPromCounter(metrics.DRKeySecretValueQueriesTotal)
+		svDB := &secret.Database{
+			Backend: svBackend,
+			Metrics: &secret.Metrics{
+				QueriesTotal: func(op, label string) libmetrics.Counter {
+					return libmetrics.CounterWith(
+						svCounter,
+						"operation", op,
+						prom.LabelResult, label)
+				},
+			},
+		}
+		defer svDB.Close()
+		level1Backend, err := storage.NewDRKeyLevel1Storage(globalCfg.DRKey.Level1DB)
+		if err != nil {
+			return serrors.WrapStr("initializing DRKey DB", err)
+		}
+		lvl1Counter := libmetrics.NewPromCounter(metrics.DRKeyLevel1QueriesTotal)
+		level1DB := &level1.Database{
+			Backend: level1Backend,
+			Metrics: &level1.Metrics{
+				QueriesTotal: func(op, label string) libmetrics.Counter {
+					return libmetrics.CounterWith(
+						lvl1Counter,
+						"operation", op,
+						prom.LabelResult, label)
+				},
+			},
+		}
+		defer level1DB.Close()
+		loader := trust.X509KeyPairProvider{
+			IA: topo.IA(),
+			DB: trustDB,
+			KeyLoader: cstrust.LoadingRing{
+				Dir: filepath.Join(globalCfg.General.ConfigDir, "crypto/as"),
+			},
+		}
+		tlsMgr := trust.NewTLSCryptoManager(loader, trustDB)
+		drkeyFetcher := drkeygrpc.Fetcher{
+			Dialer: &libgrpc.TLSQUICDialer{
+				QUICDialer: dialer,
+				Credentials: credentials.NewTLS(&tls.Config{
+					InsecureSkipVerify:    true,
+					GetClientCertificate:  tlsMgr.GetClientCertificate,
+					VerifyPeerCertificate: tlsMgr.VerifyServerCertificate,
+					VerifyConnection:      tlsMgr.VerifyConnection,
+				}),
+			},
+			Router:     segreq.NewRouter(fetcherCfg),
+			MaxRetries: 20,
+		}
+		prefetchKeeper, err := drkey.NewLevel1ARC(globalCfg.DRKey.PrefetchEntries)
+		if err != nil {
+			return err
+		}
+		drkeyEngine = &drkey.ServiceEngine{
+			SecretBackend:  drkey.NewSecretValueBackend(svDB, masterKey.Key0, epochDuration),
+			LocalIA:        topo.IA(),
+			DB:             level1DB,
+			Fetcher:        &drkeyFetcher,
+			PrefetchKeeper: prefetchKeeper,
+		}
+		drkeyService := &drkeygrpc.Server{
+			LocalIA:            topo.IA(),
+			Engine:             drkeyEngine,
+			AllowedSVHostProto: globalCfg.DRKey.Delegation.ToAllowedSet(),
+		}
+		srvConfig := &tls.Config{
+			InsecureSkipVerify:    true,
+			GetCertificate:        tlsMgr.GetCertificate,
+			VerifyPeerCertificate: tlsMgr.VerifyClientCertificate,
+			ClientAuth:            tls.RequireAnyClientCert,
+		}
+		quicTLSServer = grpc.NewServer(
+			grpc.Creds(credentials.NewTLS(srvConfig)),
+			libgrpc.UnaryServerInterceptor(),
+		)
+		cppb.RegisterDRKeyInterServiceServer(quicTLSServer, drkeyService)
+		cppb.RegisterDRKeyIntraServiceServer(tcpServer, drkeyService)
+		log.Info("DRKey is enabled")
+	} else {
+		log.Info("DRKey is DISABLED by configuration")
+	}
+
 	promgrpc.Register(quicServer)
 	promgrpc.Register(tcpServer)
 
@@ -568,6 +680,16 @@ func realMain(ctx context.Context) error {
 		return nil
 	})
 	cleanup.Add(func() error { quicServer.GracefulStop(); return nil })
+	if quicTLSServer != nil {
+		g.Go(func() error {
+			defer log.HandlePanic()
+			if err := quicTLSServer.Serve(quicStack.Listener); err != nil {
+				return serrors.WrapStr("serving gRPC(TLS)/QUIC API", err)
+			}
+			return nil
+		})
+		cleanup.Add(func() error { quicTLSServer.GracefulStop(); return nil })
+	}
 	g.Go(func() error {
 		defer log.HandlePanic()
 		if err := tcpServer.Serve(tcpStack); err != nil {
@@ -676,6 +798,7 @@ func realMain(ctx context.Context) error {
 		Signer:          signer,
 		Inspector:       inspector,
 		Metrics:         metrics,
+		DRKeyEngine:     drkeyEngine,
 		MACGen:          macGen,
 		NextHopper:      topo,
 		StaticInfo:      func() *beaconing.StaticInfoCfg { return staticInfo },
@@ -683,6 +806,7 @@ func realMain(ctx context.Context) error {
 		OriginationInterval:       globalCfg.BS.OriginationInterval.Duration,
 		PropagationInterval:       globalCfg.BS.PropagationInterval.Duration,
 		RegistrationInterval:      globalCfg.BS.RegistrationInterval.Duration,
+		DRKeyEpochInterval:        epochDuration,
 		HiddenPathRegistrationCfg: hpWriterCfg,
 		AllowIsdLoop:              isdLoopAllowed,
 		EPIC:                      globalCfg.BS.EPIC,
@@ -862,4 +986,24 @@ func updateCAHealthMetrics(caHealthGauge libmetrics.Gauge, caStatus api.CAHealth
 			libmetrics.GaugeWith(caHealthGauge, "status", status).Set(0)
 		}
 	}
+}
+
+func loadMasterSecret(dir string) (keyconf.Master, error) {
+	masterKey, err := keyconf.LoadMaster(filepath.Join(dir, "keys"))
+	if err != nil {
+		return keyconf.Master{}, serrors.WrapStr("error getting master secret", err)
+	}
+	return masterKey, nil
+}
+
+func loadEpochDuration() (time.Duration, error) {
+	s := os.Getenv(config.EnvVarEpochDuration)
+	if s == "" {
+		return config.DefaultEpochDuration, nil
+	}
+	duration, err := util.ParseDuration(s)
+	if err != nil {
+		return 0, serrors.WrapStr("parsing SCION_TESTING_DRKEY_EPOCH_DURATION", err)
+	}
+	return duration, nil
 }

@@ -82,10 +82,50 @@ type Metrics struct {
 	SCIONPacketConnMetrics                 snet.SCIONPacketConnMetrics
 	SCMPErrors                             metrics.Counter
 	TopoLoader                             topology.LoaderMetrics
+	DRKeySecretValueQueriesTotal           *prometheus.CounterVec
+	DRKeyLevel1QueriesTotal                *prometheus.CounterVec
+	RenewalMetrics                         renewal.Metrics
 }
 
 func NewMetrics() *Metrics {
 	scionPacketConnMetrics := snetmetrics.NewSCIONPacketConnMetrics()
+
+	renewalActive := metrics.NewPromGauge(promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "renewal_signer_active_boolean",
+			Help: "Whether the CA signer is active and can sign certificate chains",
+		},
+		[]string{},
+	))
+	renewalSigners := metrics.NewPromCounter(promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "renewal_generated_signers_total",
+			Help: "Number of generated CA signers that sign certificate chains",
+		},
+		[]string{prom.LabelResult},
+	))
+	renewalChains := metrics.NewPromCounter(promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "renewal_signed_certificate_chains_total",
+			Help: "Number of certificate chains signed",
+		},
+		[]string{prom.LabelResult},
+	))
+	renewalGenerated := metrics.NewPromGauge(promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "renewal_last_signer_generation_time_second",
+			Help: "The last time a signer for creating AS certificates was successfully generated",
+		},
+		[]string{},
+	))
+	renewalExpiration := metrics.NewPromGauge(promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "renewal_signer_expiration_time_second",
+			Help: "The expiration time of the current CA signer",
+		},
+		[]string{},
+	))
+
 	return &Metrics{
 		BeaconDBQueriesTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
@@ -240,6 +280,31 @@ func NewMetrics() *Metrics {
 		SCIONPacketConnMetrics: scionPacketConnMetrics,
 		SCMPErrors:             scionPacketConnMetrics.SCMPErrors,
 		TopoLoader:             loaderMetrics(),
+		DRKeySecretValueQueriesTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "drkey_secretdb_queries_total",
+				Help: "Total queries to the database",
+			},
+			[]string{"operation", prom.LabelResult},
+		),
+		DRKeyLevel1QueriesTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "drkey_level1db_queries_total",
+				Help: "Total queries to the database",
+			},
+			[]string{"operation", prom.LabelResult},
+		),
+		RenewalMetrics: renewal.Metrics{
+			CAActive: renewalActive,
+			CASigners: func(result string) metrics.Counter {
+				return renewalSigners.With(prom.LabelResult, result)
+			},
+			SignedChains: func(result string) metrics.Counter {
+				return renewalChains.With(prom.LabelResult, result)
+			},
+			LastGeneratedCA: renewalGenerated,
+			ExpirationCA:    renewalExpiration,
+		},
 	}
 }
 
@@ -261,7 +326,7 @@ func RegisterHTTPEndpoints(
 	if topo != nil {
 		statusPages["topology"] = service.NewTopologyStatusPage(topo)
 	}
-	if ca != (renewal.ChainBuilder{}) {
+	if ca.PolicyGen != nil {
 		statusPages["ca"] = caStatusPage(ca)
 	}
 	if err := statusPages.Register(http.DefaultServeMux, elemId); err != nil {
