@@ -47,24 +47,6 @@ type Level1PrefetchInfo struct {
 	Proto drkey.Protocol
 }
 
-// NewServiceEngineCleaner creates a Cleaner task that removes expired secrets.
-func NewServiceSecretCleaner(s interface {
-	DeleteExpiredSecrets(ctx context.Context) (int, error)
-}) *cleaner.Cleaner {
-	return cleaner.New(func(ctx context.Context) (int, error) {
-		return s.DeleteExpiredSecrets(ctx)
-	}, "drkey_serv_store")
-}
-
-// NewServiceEngineCleaner creates a Cleaner task that removes expired level1 keys.
-func NewServiceLevel1Cleaner(s interface {
-	DeleteExpiredLevel1Keys(ctx context.Context) (int, error)
-}) *cleaner.Cleaner {
-	return cleaner.New(func(ctx context.Context) (int, error) {
-		return s.DeleteExpiredLevel1Keys(ctx)
-	}, "drkey_serv_store")
-}
-
 // ServiceEngine maintains and provides secret values, level1 keys and prefetching information.
 type ServiceEngine struct {
 	SecretBackend  *secretValueBackend
@@ -101,16 +83,6 @@ func (s *ServiceEngine) GetLevel1Key(
 		s.PrefetchKeeper.Update(keyInfo)
 	}
 	return key, err
-}
-
-// DeleteExpiredKeys will remove any expired Secrets.
-func (s *ServiceEngine) DeleteExpiredSecrets(ctx context.Context) (int, error) {
-	return s.SecretBackend.deleteExpiredSV(ctx)
-}
-
-// DeleteExpiredKeys will remove any expired keys.
-func (s *ServiceEngine) DeleteExpiredLevel1Keys(ctx context.Context) (int, error) {
-	return s.deleteExpiredLevel1Keys(ctx)
 }
 
 // GetLevel1PrefetchInfo returns a list of ASes currently in the cache.
@@ -249,6 +221,19 @@ func (s *ServiceEngine) DeriveHostHost(
 	}, nil
 }
 
+// CreateStorageCleaners creates Cleaner tasks that remove
+// SecretValue and Level1 keys respectively.
+func (s *ServiceEngine) CreateStorageCleaners() []*cleaner.Cleaner {
+	cleaners := make([]*cleaner.Cleaner, 2)
+	cleaners[0] = cleaner.New(func(ctx context.Context) (int, error) {
+		return s.SecretBackend.deleteExpiredSV(ctx)
+	}, "drkey_serv_secret_store")
+	cleaners[1] = cleaner.New(func(ctx context.Context) (int, error) {
+		return s.DB.DeleteExpiredLevel1Keys(ctx, time.Now())
+	}, "drkey_serv_level1_store")
+	return cleaners
+}
+
 func (s *ServiceEngine) getLevel1Key(
 	ctx context.Context,
 	meta drkey.Level1Meta,
@@ -305,10 +290,6 @@ func (s *ServiceEngine) obtainLevel1Key(
 	}
 	return s.GetLevel1Key(ctx, level1Meta)
 
-}
-
-func (s *ServiceEngine) deleteExpiredLevel1Keys(ctx context.Context) (int, error) {
-	return s.DB.DeleteExpiredLevel1Keys(ctx, time.Now())
 }
 
 type fromPrefetcher struct{}

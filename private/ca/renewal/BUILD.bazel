@@ -11,12 +11,12 @@ go_library(
     deps = [
         "//pkg/addr:go_default_library",
         "//pkg/log:go_default_library",
+        "//pkg/metrics:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/proto/control_plane:go_default_library",
         "//pkg/scrypto:go_default_library",
         "//pkg/scrypto/cms/protocol:go_default_library",
         "//pkg/scrypto/cppki:go_default_library",
-        "//private/ca/renewal/metrics:go_default_library",
         "//private/trust:go_default_library",
     ],
 )
@@ -31,6 +31,7 @@ go_test(
     data = glob(["testdata/**"]),
     deps = [
         ":go_default_library",
+        "//pkg/metrics:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/private/xtest:go_default_library",
         "//pkg/proto/control_plane:go_default_library",

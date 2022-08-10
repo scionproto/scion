@@ -1,0 +1,39 @@
+name: Verify the specified codebase
+
+on:
+  push: # run this workflow on every push
+  pull_request: # run this workflow on every pull_request
+
+jobs:
+  setup-and-test:
+    runs-on: ubuntu-latest
+    env:
+      statsFile: '/gobra/stats.json'
+    steps:
+      - name: Checkout the SCION repository
+        uses: actions/checkout@v2
+      - name: Set-up caching for the verification results
+        uses: actions/cache@v3
+        env:
+          cache-name: gobra-cache
+        with:
+          path: ${{ runner.workspace }}/.gobra/cache.json
+          key: ${{ env.cache-name }}
+      - name: Verify the specified files
+        uses: viperproject/gobra-action@v22.07
+        with:
+          # Prefix used to resolve SCION packages
+          module: 'github.com/scionproto/scion/'
+          # Gobra only verifies files annotated with the header "// +gobra"
+          headerOnly: '1'
+          # Traverse the entire repository, including nested packages,
+          # in search for annotated files to verify
+          recursive: '1'
+          packageTimeout: 10m
+          caching: '1'
+          statsFile: ${{ env.statsFile }}
+      - name: Upload the verification report
+        uses: actions/upload-artifact@v2
+        with:
+          name: verification_stats.json
+          path: ${{ env.statsFile }}
