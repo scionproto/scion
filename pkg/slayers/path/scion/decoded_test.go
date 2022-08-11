@@ -81,6 +81,12 @@ var decodedTestPath = &scion.Decoded{
 	HopFields:  testHopFields,
 }
 
+var emptyDecodedTestPath = &scion.Decoded{
+	Base:       scion.Base{},
+	InfoFields: []path.InfoField{},
+	HopFields:  []path.HopField{},
+}
+
 var rawPath = []byte("\x00\x00\x20\x80\x00\x00\x01\x11\x00\x00\x01\x00\x01\x00\x02\x22\x00\x00" +
 	"\x01\x00\x00\x3f\x00\x01\x00\x00\x01\x02\x03\x04\x05\x06\x00\x3f\x00\x03\x00\x02\x01\x02\x03" +
 	"\x04\x05\x06\x00\x3f\x00\x00\x00\x02\x01\x02\x03\x04\x05\x06\x00\x3f\x00\x01\x00\x00\x01\x02" +
@@ -178,6 +184,11 @@ func TestDecodedReverse(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestEmptyDecodedReverse(t *testing.T) {
+	_, err := emptyDecodedTestPath.Reverse()
+	assert.Error(t, err)
 }
 
 func TestDecodedToRaw(t *testing.T) {
