@@ -122,7 +122,7 @@ func (o *Path) ToSCIONDecoded() (*scion.Decoded, error) {
 }
 
 // Rerverse a OneHop path that returns a reversed SCION path.
-func (o Path) Reverse() (path.Path, error) {
+func (o *Path) Reverse() (path.Path, error) {
 	sp, err := o.ToSCIONDecoded()
 	if err != nil {
 		return nil, serrors.WrapStr("converting to scion path", err)
