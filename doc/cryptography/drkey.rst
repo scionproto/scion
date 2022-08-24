@@ -309,18 +309,39 @@ In this manner, the CS on the slow side SHOULD NOT request a Level 1 key before
 ``epoch_end - (PREFETCHING_PERIOD - t)`` instant in time (the ``PREFETCHING_PERIOD``
 is defined in :ref:`drkey-prefetching`).
 
-Key exchange message format
-===========================
+DRKey Messages Format
+=====================
 
-.. code-block:: text
+The DRKey messages format is specified in terms of their `protobuf
+<https://developers.google.com/protocol-buffers>`__ definitions.
+
+Protocol Enum
+-------------
+
+DRKeys are protocol-specific. The following enum defines the valid protocol IDs.
+
+.. code-block:: protobuf
 
     enum Protocol {
-    GENERIC = 0;
-    SCMP = 1;
-    ...
-    reserved 65536 to max; // only 16-bit values allowed
+      // Generic (unspecified protocol)
+      GENERIC = 0;
+      // SCION Control Message Protocol (SCMP)
+      SCMP = 1;
+      reserved 65536 to max; // only 16-bit values allowed
     }
 
+Control Plane Messages
+----------------------
+
+Control plane messages are used to establish level 0 and level 1 keys. They are always between SCION
+control plane entities, e.g., between two CSes in two different ASes (level 1) or between an CS and
+a router within the same AS (level 0).
+
+.. code-block:: protobuf
+
+    // SVRequest is used to request a secret value (level 0 key) for a given
+    // epoch and protocol. The secret value can then further be used to
+    // locally derive higher-level keys.
     message SVRequest{
       // Point in time when the requested key is valid.
       Timestamp val_time = 1;
@@ -328,6 +349,8 @@ Key exchange message format
       Protocol protocol_id = 2;
     }
 
+    // SVResponse contains the secret value (level 0 key) and the epoch for which
+    // it is valid.
     message SVResponse{
       // Begin of the SV validity period.
       Timestamp epoch_begin = 1;
@@ -337,6 +360,7 @@ Key exchange message format
       bytes key = 3;
     }
 
+    // Lvl1Request is used to request a level 1 key for a given epoch and protocol.
     message Lvl1Request{
       // Point in time when the requested key is valid.
       Timestamp val_time = 1;
@@ -344,6 +368,7 @@ Key exchange message format
       Protocol protocol_id = 2;
     }
 
+    // Lvl1Response contains the level 1 key and the epoch for which it is valid.
     message Lvl1Response{
       // Begin of validity period.
       Timestamp epoch_begin = 1;
@@ -353,6 +378,16 @@ Key exchange message format
       bytes key = 3;
     }
 
+Application Level Messages
+--------------------------
+
+Application level messages are used by SCION applications or SCION daemons to request and establish
+level 2 and level 3 keys from a CS in their AS. These messages constitute the API for applications
+to use DRKeys.
+
+.. code-block:: protobuf
+
+    // HostASRequest is used to request a Host-AS (level 2) key for a given epoch and protocol.
     message HostASRequest{
       // Point in time where requested key is valid.
       Timestamp val_time = 1;
@@ -366,6 +401,7 @@ Key exchange message format
       string src_host = 5;
     }
 
+    // HostASResponse contains the Host-AS (level 2) key and the epoch for which it is valid.
     message HostASResponse{
       // Begin of validity period of DRKey.
       Timestamp epoch_begin = 1;
@@ -375,6 +411,7 @@ Key exchange message format
       bytes key = 3;
     }
 
+    // ASHostRequest is used to request an AS-Host (level 2) key for a given epoch and protocol.
     message ASHostRequest{
       // Point in time where requested key is valid.
       Timestamp val_time = 1;
@@ -388,6 +425,7 @@ Key exchange message format
       string dst_host = 5;
     }
 
+    // ASHostResponse contains the AS-Host (level 2) key and the epoch for which it is valid.
     message ASHostResponse{
       // Begin of validity period of DRKey.
       Timestamp epoch_begin = 1;
@@ -397,6 +435,7 @@ Key exchange message format
       bytes key = 3;
     }
 
+    // HostHostRequest is used to request a Host-Host (level 3) key for a given epoch and protocol.
     message HostHostRequest{
       // Point in time where requested key is valid.
       Timestamp val_time = 1;
@@ -412,6 +451,7 @@ Key exchange message format
       string dst_host = 6;
     }
 
+    // HostHostResponse contains the Host-Host (level 3) key and the epoch for which it is valid.
     message HostHostResponse{
       // Begin of validity period of DRKey.
       Timestamp epoch_begin = 1;
