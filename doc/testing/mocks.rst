@@ -16,7 +16,7 @@ directory ``go/lib/foo``. First, you need to create the subdirectory
 ``BUILD.bazel``. We need to add a ``gomock`` target in this ``BUILD.bazel`` file for our
 interfaces. This would look like the following::
 
-    load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+    load("@io_bazel_rules_go//go:def.bzl", "gomock")
     gomock(
         name = "go_default_mock",
         out = "mock.go",
