@@ -38,6 +38,19 @@ var rawTestPath = &scion.Raw{
 	Raw: rawPath,
 }
 
+var emptyRawTestPath = &scion.Raw{
+	Base: scion.Base{
+		PathMeta: scion.MetaHdr{
+			CurrINF: 0,
+			CurrHF:  0,
+			SegLen:  [3]uint8{0, 0, 0},
+		},
+		NumINF:  0,
+		NumHops: 0,
+	},
+	Raw: make([]byte, scion.MetaLen),
+}
+
 func TestRawSerialize(t *testing.T) {
 	b := make([]byte, rawTestPath.Len())
 	assert.NoError(t, rawTestPath.SerializeTo(b))
@@ -73,6 +86,11 @@ func TestRawReverse(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestEmptyRawReverse(t *testing.T) {
+	_, err := emptyRawTestPath.Reverse()
+	assert.Error(t, err)
 }
 
 func TestRawToDecoded(t *testing.T) {
