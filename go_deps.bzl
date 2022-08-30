@@ -994,7 +994,6 @@ def go_deps():
     )
     go_repository(
         name = "com_github_marten_seemann_qtls_go1_18",
-        build_directives = ["gazelle:exclude generate_cert.go"],  # XXX(matzf): this file has a "// go:build ignore" instruction that gazelle does not understand
         importpath = "github.com/marten-seemann/qtls-go1-18",
         sum = "h1:JH6jmzbduz0ITVQ7ShevK10Av5+jBEKAHMntXmIV7kM=",
         version = "v0.1.2",
