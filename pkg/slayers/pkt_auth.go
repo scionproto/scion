@@ -59,7 +59,7 @@ const (
 
 // MinPacketAuthDataLen is the minimum size of the SPAO OptData.
 // The SPAO header contains the following fixed-length fields:
-// SPI (4 Bytes), Algorithm (1 Byte), Timestamp (3Bytes),
+// SPI (4 Bytes), Algorithm (1 Byte), Timestamp (3 Bytes),
 // RSV (1 Byte) and Sequence Number (3 Bytes).
 const MinPacketAuthDataLen = 12
 
