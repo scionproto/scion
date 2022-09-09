@@ -15,6 +15,25 @@
 // This file includes the SPAO header implementation as specified
 // in https://scion.docs.anapaya.net/en/latest/protocols/authenticator-option.html
 
+// The Authenticator option format is as follows:
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |   NextHdr=UDP |     ExtLen    |  OptType=2    |  OptDataLen   |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                   Security Parameter Index                    |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |    Algorithm  |                    Timestamp                  |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |      RSV      |                  Sequence Number              |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |                                                               |
+// +                                                               +
+// |                                                               |
+// +                        16-octet MAC data                      +
+// |                                                               |
+// +                                                               +
+// |                                                               |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
 package slayers
 
 import (
@@ -38,8 +57,11 @@ const (
 	PacketAuthEarlier
 )
 
-// MinOptDataLen is the minimum size of the SPAO OptData
-const MinOptDataLen = 12
+// MinPacketAuthDataLen is the minimum size of the SPAO OptData.
+// The SPAO header contains the following fixed-length fields:
+// SPI (4 Bytes), Algorithm (1 Byte), Timestamp (3Bytes),
+// RSV (1 Byte) and Sequence Number (3 Bytes).
+const MinPacketAuthDataLen = 12
 
 // PacketAuthSPI (Security Parameter Index) is the identifier for the key
 // used for the packet authentication option. DRKey values are in the
@@ -147,7 +169,7 @@ func ParsePacketAuthOption(o *EndToEndOption) (PacketAuthOption, error) {
 		return PacketAuthOption{},
 			serrors.New("wrong option type", "expected", OptTypeAuthenticator, "actual", o.OptType)
 	}
-	if len(o.OptData) < MinOptDataLen {
+	if len(o.OptData) < MinPacketAuthDataLen {
 		return PacketAuthOption{},
 			serrors.New("buffer too short", "expected at least", 12, "actual", len(o.OptData))
 	}
@@ -169,7 +191,7 @@ func (o PacketAuthOption) Reset(
 
 	o.OptType = OptTypeAuthenticator
 
-	n := 12 + len(p.Auth) // 4 + 1 + 3 + 1 + 3 + len(data)
+	n := MinPacketAuthDataLen + len(p.Auth)
 	if n <= cap(o.OptData) {
 		o.OptData = o.OptData[:n]
 	} else {
