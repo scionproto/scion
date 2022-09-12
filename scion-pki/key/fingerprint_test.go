@@ -15,11 +15,10 @@
 package key_test
 
 import (
-	"fmt"
-	"os"
+	"bytes"
+	"strings"
 	"testing"
 
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/scion-pki/key"
 	"github.com/stretchr/testify/assert"
@@ -27,14 +26,13 @@ import (
 )
 
 func TestNewFingerprintCmd(t *testing.T) {
-	dir, cleanup := xtest.MustTempDir("", "fingerprint-key-test")
-	defer cleanup()
 
 	testCases := map[string]struct {
 		Prepare      func(t *testing.T)
 		Args         []string
+		OutputFormat string
+		Expected     string
 		ErrAssertion assert.ErrorAssertionFunc
-		Expected     []byte
 	}{
 		"key not set": {
 			ErrAssertion: assert.Error,
@@ -43,54 +41,36 @@ func TestNewFingerprintCmd(t *testing.T) {
 			Args:         []string{"testdata/notexist.key"},
 			ErrAssertion: assert.Error,
 		},
-		"subject key id is dir": {
-			Args:         []string{"--out", dir, "testdata/private.key"},
-			ErrAssertion: assert.Error,
-		},
-		"subject key id dir does not exist": {
-			Args:         []string{"--out", dir + "/lol/", "testdata/private.key"},
-			ErrAssertion: assert.Error,
-		},
-		"subject key id already exists": {
-			Prepare: func(t *testing.T) {
-				require.NoError(t, os.WriteFile(dir+"/skid.txt", []byte("exists"), 0666))
-			},
-			Args:         []string{"--out", dir + "/skid.txt", "testdata/private.key"},
-			ErrAssertion: assert.Error,
-		},
-		// "force write subject key id": {
-		// 	Prepare: func(t *testing.T) {
-		// 		require.NoError(t, os.WriteFile(dir+"/force_skid.txt", []byte("exists"), 0666))
-		// 	},
-		// 	Args:         []string{"--out", dir + "/force_skid.txt", "--force", "testdata/private.key"},
-		// 	ErrAssertion: assert.NoError,
-		// 	Expected:     []byte{16, 73, 136, 56, 120, 153, 109, 39, 235, 115, 226, 121, 18, 183, 146, 112, 42, 162, 23, 120},
-		// },
 		// "full key digest": {
-		// 	Args:         []string{"--out", dir + "/full-key-digest.txt", "--full-key-digest", "testdata/private.key"},
+		// 	Args:         []string{"--full-key-digest", "testdata/private.key"},
 		// 	ErrAssertion: assert.NoError,
-		// 	Expected:     []byte{79, 213, 60, 105, 222, 74, 116, 102, 158, 97, 146, 37, 18, 172, 82, 200, 117, 99, 136, 146},
+		// 	OutputFormat: "emoji",
+		// 	Expected:     "???",
 		// },
-		"success private key": {
-			Args:         []string{"--out", dir + "/private_skid.txt", "testdata/private.key"},
-			ErrAssertion: assert.NoError,
-			Expected: []byte("I�8x�m'�s�y��p*�x"),
-		},
-		// "success public key": {
-		// 	Args:         []string{"--out", dir + "/public_skid.txt", "testdata/public.key"},
+		// "success private key": {
+		// 	Args:         []string{"testdata/private.key"},
 		// 	ErrAssertion: assert.NoError,
-		// 	Expected:     []byte{16, 73, 136, 56, 120, 153, 109, 39, 235, 115, 226, 121, 18, 183, 146, 112, 42, 162, 23, 120},
+		// 	OutputFormat: "emoji",
+		// 	Expected:     "🎃🐌🙉🍭🙊⭐🍫😎〰️🎱✉🚀🐢🌼👽🔥🎆⚽⌛👀🚴‍♂️🍁🔑🍋🌼🌕🏠💅♦️🐝🎼⚽",
+		// },
+		// "success public key": {
+		// 	Args:         []string{"testdata/public.key"},
+		// 	ErrAssertion: assert.NoError,
+		// 	OutputFormat: "emoji",
+		// 	Expected:     "🎃🐌🙉🍭🙊⭐🍫😎〰️🎱✉🚀🐢🌼👽🔥🎆⚽⌛👀🚴‍♂️🍁🔑🍋🌼🌕🏠💅♦️🐝🎼⚽",
 		// },
 		// "success certificate": {
-		// 	Args:         []string{"--out", dir + "/cert_skid.txt", "testdata/cert.pem"},
+		// 	Args:         []string{"testdata/cert.pem"},
 		// 	ErrAssertion: assert.NoError,
-		// 	Expected:     []byte{16, 73, 136, 56, 120, 153, 109, 39, 235, 115, 226, 121, 18, 183, 146, 112, 42, 162, 23, 120},
+		// 	OutputFormat: "emoji",
+		// 	Expected:     "🛁😰💪💨💋📎🏇🍫🐢🇮🇹™️😽🔔🇷🇺⭕🕵️‍♀️♣️🍍🚙💋",
 		// },
-		// "success certificate chain": {
-		// 	Args:         []string{"--out", dir + "/chain_skid.txt", "testdata/chain.pem"},
-		// 	ErrAssertion: assert.NoError,
-		// 	Expected:     []byte{16, 73, 136, 56, 120, 153, 109, 39, 235, 115, 226, 121, 18, 183, 146, 112, 42, 162, 23, 120},
-		// },
+		"success certificate chain": {
+			Args:         []string{"testdata/chain.pem"},
+			ErrAssertion: assert.NoError,
+			OutputFormat: "emoji",
+			Expected:     "🛁😰💪💨💋📎🏇🍫🐢🇮🇹™️😽🔔🇷🇺⭕🕵️‍♀️♣️🍍🚙💋",
+		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
@@ -100,15 +80,15 @@ func TestNewFingerprintCmd(t *testing.T) {
 
 			cmd := key.NewFingerprintCmd(command.StringPather("test"))
 			cmd.SetArgs(tc.Args)
+			actualFingerprint := new(bytes.Buffer)
+			cmd.SetOut(actualFingerprint)
 			err := cmd.Execute()
 			tc.ErrAssertion(t, err)
 			if err != nil {
 				return
 			}
-			fmt.Println(tc.Args[1])
-			actual, err := os.ReadFile(tc.Args[1])
 			require.NoError(t, err)
-			assert.Equal(t, tc.Expected, actual)
+			assert.Equal(t, tc.Expected, strings.Trim(actualFingerprint.String(), "\n"))
 		})
 	}
 

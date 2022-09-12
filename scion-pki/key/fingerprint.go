@@ -18,17 +18,20 @@ import (
 	"crypto"
 	"crypto/sha1"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"os"
-	"path/filepath"
+	"strings"
+
+	"github.com/emojisum/emojisum/emoji"
 
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/app/command"
-	"github.com/scionproto/scion/scion-pki/file"
 )
 
 // NewFingerprintCmd returns a cobra command that returns the subject key id of a
@@ -37,21 +40,20 @@ import (
 // key id is computed with respect to the public key of the first certificate in the file.
 func NewFingerprintCmd(pather command.Pather) *cobra.Command {
 	var flags struct {
-		out     string
 		fullKey bool
-		force   bool
+		format  string
 	}
 	var cmd = &cobra.Command{
 		Use:   "fingerprint [flags] <key-file>",
 		Short: "Computes the subject key id fingerprint of the provided key",
-		Example: fmt.Sprintf(`  %[1]s fingerprint cp-as.key
+		Example: fmt.Sprintf(`  %[1]s fingerprint cp-as.key --format base64
   %[1]s fingerprint --full-key-digest ISD1-ASff00_-_110.pem`, pather.CommandPath()),
 		Long: `'fingerprint' computes the subject key id fingerprint of a public key.
 
 If the private key is given, compute on the corresponding public key. For certificates or certificate chains 
 the fingerprint is computed on the public key of the first certificate in the file.
 
-By default, the subject key id is written to standard out.
+The subject key id is written to standard out.
 `,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -76,31 +78,18 @@ By default, the subject key id is written to standard out.
 					return serrors.WrapStr("computing subject key ID", err)
 				}
 			}
-			if flags.out == "" {
-				fmt.Printf("%c\n", skid)
-				return nil
-			}
-			fmt.Printf("testing: %c\n", skid)
-			fmt.Println(skid)
-			// Write subject key id to file system instead of stdout.
-			if err := file.CheckDirExists(filepath.Dir(flags.out)); err != nil {
-				return serrors.WrapStr("checking that directory of public key exists", err)
-			}
-			if err = file.WriteFile(flags.out, skid, 0600, file.WithForce(flags.force)); err != nil {
-				return serrors.WrapStr("writing subject key id", err)
-			}
-			fmt.Printf("Public key successfully written to %q\n", flags.out)
+
+			output, err := encodeSubjectKeyID(skid, flags.format)
+			fmt.Fprintln(cmd.OutOrStdout(), output)
+			// fmt.Printf("stdout: %s\n", output)
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&flags.out, "out", "",
-		"Path to write subject key id",
-	)
 	cmd.Flags().BoolVar(&flags.fullKey, "full-key-digest", false,
 		"Calculate the SHA1 sum of the marshaled public key",
 	)
-	cmd.Flags().BoolVar(&flags.force, "force", false,
-		"Force overwritting existing output file",
+	cmd.Flags().StringVar(&flags.format, "format", "emoji",
+		"The format of the fingerprint, it must be 'hex', 'base64', 'base64-url', 'base64-raw', 'base64-url-raw' or 'emoji'.",
 	)
 	return cmd
 }
@@ -109,7 +98,7 @@ By default, the subject key id is written to standard out.
 func LoadPublicKey(filename string) (crypto.PublicKey, error) {
 	raw, err := os.ReadFile(filename)
 	if err != nil {
-		return nil, serrors.WrapStr("reading private key", err)
+		return nil, serrors.WrapStr("reading input key", err)
 	}
 	block, _ := pem.Decode(raw)
 	if block == nil {
@@ -145,4 +134,27 @@ func LoadPublicKey(filename string) (crypto.PublicKey, error) {
 		return nil, serrors.New("file is not a valid PEM encoding of a private/public key or certificate", "type", block.Type)
 	}
 
+}
+
+// encodeSubjectKeyID encodes the subject key id in provided format (hex, base64, base64-url, base64-raw, base64-url-raw, emoji).
+func encodeSubjectKeyID(skid []byte, format string) (string, error) {
+	switch strings.ToLower(format) {
+	case "hex":
+		return strings.ToLower(hex.EncodeToString(skid)), nil
+	case "base64":
+		return base64.StdEncoding.EncodeToString(skid), nil
+	case "base64-url":
+		return base64.URLEncoding.EncodeToString(skid), nil
+	case "base64-raw":
+		return base64.RawStdEncoding.EncodeToString(skid), nil
+	case "base64-url-raw":
+		return base64.RawURLEncoding.EncodeToString(skid), nil
+	case "emoji":
+		output := hex.EncodeToString(skid)
+		var err error
+		output, err = emoji.FromHexString(output)
+		return output, err
+	default:
+		return "", serrors.New("unsupported format", "format", format)
+	}
 }
