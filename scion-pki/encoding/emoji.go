@@ -1,3 +1,19 @@
+// Copyright 2022 Anapaya Systems
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package encoding contains helper functions for encoding.
+// source: https://github.com/smallstep/cli/blob/1e0b1667db00f1b0756e0d833fca496a323338b7/crypto/fingerprint/emoji.go#L5
 package encoding
 
 import "strings"
@@ -10,7 +26,6 @@ func ToEmoji(input []byte) string {
 	return b.String()
 }
 
-// source:
 // emojiCodeMap is a mapping from byte to emoji.
 //
 // The mapping is based on draft+2 of https://github.com/emojisum/emojisum.
