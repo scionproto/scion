@@ -188,7 +188,9 @@ On other errors, ping will exit with code 2.
 					return err
 				}
 				if overhead > int(flags.pktSize) {
-					return serrors.New("desired packet size smaller than header overhead", "minimum_packet_size", overhead)
+					return serrors.New(
+						"desired packet size smaller than header overhead",
+						"minimum_packet_size", overhead)
 				}
 				pldSize = int(flags.pktSize - uint(overhead))
 			}
