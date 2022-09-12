@@ -187,13 +187,10 @@ On other errors, ping will exit with code 2.
 				if err != nil {
 					return err
 				}
-
 				if overhead > int(flags.pktSize) {
-					return serrors.New("desired packet size smaller than header overhead")
+					return serrors.New("desired packet size smaller than header overhead", "minimum_packet_size", overhead)
 				}
-
 				pldSize = int(flags.pktSize - uint(overhead))
-
 			}
 			if flags.maxMTU {
 				mtu := int(path.Metadata().MTU)
@@ -273,7 +270,7 @@ overrides the 'payload_size' flag.`,
 	cmd.Flags().BoolVar(&flags.maxMTU, "max-mtu", false,
 		`choose the payload size such that the sent SCION packet including the SCION Header,
 SCMP echo header and payload are equal to the MTU of the path. This flag overrides the
-'payload_size' and 'packet_size' flag.`)
+'payload_size' and 'packet_size' flags.`)
 	cmd.Flags().StringVar(&flags.logLevel, "log.level", "", app.LogLevelUsage)
 	cmd.Flags().StringVar(&flags.tracer, "tracing.agent", "", "Tracing agent address")
 	cmd.Flags().BoolVar(&flags.epic, "epic", false, "Enable EPIC for path probing.")
