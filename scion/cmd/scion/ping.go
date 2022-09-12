@@ -221,7 +221,7 @@ On other errors, ping will exit with code 2.
 				Timeout:     flags.timeout,
 				Local:       local,
 				Remote:      remote,
-				PayloadSize: int(flags.size),
+				PayloadSize: pldSize,
 				ErrHandler: func(err error) {
 					fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
 				},
