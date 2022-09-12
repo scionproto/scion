@@ -3,12 +3,12 @@ load("//tools/lint:go.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
+        "fingerprint.go",
         "key.go",
         "match.go",
         "private.go",
         "public.go",
         "symmetric.go",
-        "fingerprint.go",
     ],
     importpath = "github.com/scionproto/scion/scion-pki/key",
     visibility = ["//visibility:public"],
@@ -17,19 +17,19 @@ go_library(
         "//pkg/scrypto:go_default_library",
         "//pkg/scrypto/cppki:go_default_library",
         "//private/app/command:go_default_library",
+        "//scion-pki/encoding:go_default_library",
         "//scion-pki/file:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
-        "@com_github_emojisum_emojisum//emoji:go_default_library",
     ],
 )
 
 go_test(
     name = "go_default_test",
     srcs = [
+        "fingerprint_test.go",
         "private_test.go",
         "public_test.go",
         "symmetric_test.go",
-        "fingerprint_test.go"
     ],
     data = glob(["testdata/**"]),
     deps = [

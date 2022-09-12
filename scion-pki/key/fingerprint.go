@@ -25,13 +25,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/emojisum/emojisum/emoji"
-
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/app/command"
+	"github.com/scionproto/scion/scion-pki/encoding"
 )
 
 // NewFingerprintCmd returns a cobra command that returns the subject key id of a
@@ -47,7 +46,7 @@ func NewFingerprintCmd(pather command.Pather) *cobra.Command {
 		Use:   "fingerprint [flags] <key-file>",
 		Short: "Computes the subject key id fingerprint of the provided key",
 		Example: fmt.Sprintf(`  %[1]s fingerprint cp-as.key --format base64
-  %[1]s fingerprint --full-key-digest ISD1-ASff00_-_110.pem`, pather.CommandPath()),
+  %[1]s fingerprint ISD1-ASff00_-_110.pem --full-key-digest`, pather.CommandPath()),
 		Long: `'fingerprint' computes the subject key id fingerprint of a public key.
 
 If the private key is given, compute on the corresponding public key. For certificates or certificate chains 
@@ -150,10 +149,7 @@ func encodeSubjectKeyID(skid []byte, format string) (string, error) {
 	case "base64-url-raw":
 		return base64.RawURLEncoding.EncodeToString(skid), nil
 	case "emoji":
-		output := hex.EncodeToString(skid)
-		var err error
-		output, err = emoji.FromHexString(output)
-		return output, err
+		return encoding.ToEmoji(skid), nil
 	default:
 		return "", serrors.New("unsupported format", "format", format)
 	}

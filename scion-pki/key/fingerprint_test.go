@@ -28,58 +28,112 @@ import (
 func TestNewFingerprintCmd(t *testing.T) {
 
 	testCases := map[string]struct {
-		Prepare      func(t *testing.T)
-		Args         []string
-		OutputFormat string
-		Expected     string
-		ErrAssertion assert.ErrorAssertionFunc
+		InputCertFile string
+		OutputFormat  string
+		Expected      string
+		FullKeyDigest bool
+		ErrAssertion  assert.ErrorAssertionFunc
 	}{
 		"key not set": {
 			ErrAssertion: assert.Error,
 		},
 		"key does not exist": {
-			Args:         []string{"testdata/notexist.key"},
-			ErrAssertion: assert.Error,
+			InputCertFile: "testdata/notexist.key",
+			ErrAssertion:  assert.Error,
 		},
-		// "full key digest": {
-		// 	Args:         []string{"--full-key-digest", "testdata/private.key"},
-		// 	ErrAssertion: assert.NoError,
-		// 	OutputFormat: "emoji",
-		// 	Expected:     "???",
-		// },
-		// "success private key": {
-		// 	Args:         []string{"testdata/private.key"},
-		// 	ErrAssertion: assert.NoError,
-		// 	OutputFormat: "emoji",
-		// 	Expected:     "🎃🐌🙉🍭🙊⭐🍫😎〰️🎱✉🚀🐢🌼👽🔥🎆⚽⌛👀🚴‍♂️🍁🔑🍋🌼🌕🏠💅♦️🐝🎼⚽",
-		// },
-		// "success public key": {
-		// 	Args:         []string{"testdata/public.key"},
-		// 	ErrAssertion: assert.NoError,
-		// 	OutputFormat: "emoji",
-		// 	Expected:     "🎃🐌🙉🍭🙊⭐🍫😎〰️🎱✉🚀🐢🌼👽🔥🎆⚽⌛👀🚴‍♂️🍁🔑🍋🌼🌕🏠💅♦️🐝🎼⚽",
-		// },
-		// "success certificate": {
-		// 	Args:         []string{"testdata/cert.pem"},
-		// 	ErrAssertion: assert.NoError,
-		// 	OutputFormat: "emoji",
-		// 	Expected:     "🛁😰💪💨💋📎🏇🍫🐢🇮🇹™️😽🔔🇷🇺⭕🕵️‍♀️♣️🍍🚙💋",
-		// },
+		"full key digest private": {
+			InputCertFile: "testdata/private.key",
+			FullKeyDigest: true,
+			OutputFormat:  "emoji",
+			Expected:      "🎹📷🐹❌🍌🐐😰🔪😎©️🎡🔪🍬🔛🌊🍀❌🐰👋🎠",
+			ErrAssertion:  assert.NoError,
+		},
+		"full key digest public": {
+			InputCertFile: "testdata/public.key",
+			FullKeyDigest: true,
+			OutputFormat:  "emoji",
+			Expected:      "🎹📷🐹❌🍌🐐😰🔪😎©️🎡🔪🍬🔛🌊🍀❌🐰👋🎠",
+			ErrAssertion:  assert.NoError,
+		},
+		"full key digest certificate": {
+			InputCertFile: "testdata/cert.pem",
+			FullKeyDigest: true,
+			OutputFormat:  "emoji",
+			Expected:      "🍀🌻🍩🚁🚕🔥🎃✔️🐧🐹⭕🍒🔔🐰🥜🚬👺❤️💪⭕",
+			ErrAssertion:  assert.NoError,
+		},
+		"full key digest certificate chain": {
+			InputCertFile: "testdata/chain.pem",
+			FullKeyDigest: true,
+			OutputFormat:  "emoji",
+			Expected:      "🍀🌻🍩🚁🚕🔥🎃✔️🐧🐹⭕🍒🔔🐰🥜🚬👺❤️💪⭕",
+			ErrAssertion:  assert.NoError,
+		},
+		"success private key": {
+			InputCertFile: "testdata/private.key",
+			OutputFormat:  "emoji",
+			Expected:      "🍒🔓⭕⛔👉☁️♠️☎️🎾🔩🇪🇺🐱🎲👾👸🎼🍌🔥👯‍♀️🤘",
+			ErrAssertion:  assert.NoError,
+		},
+		"success public key": {
+			InputCertFile: "testdata/public.key",
+			OutputFormat:  "emoji",
+			Expected:      "🍒🔓⭕⛔👉☁️♠️☎️🎾🔩🇪🇺🐱🎲👾👸🎼🍌🔥👯‍♀️🤘",
+			ErrAssertion:  assert.NoError,
+		},
+		"success certificate": {
+			InputCertFile: "testdata/cert.pem",
+			OutputFormat:  "emoji",
+			Expected:      "🛁😰💪💨💋📎🏇🍫🐢🇮🇹™️😽🔔🇷🇺⭕🕵️‍♀️♣️🍍🚙💋",
+			ErrAssertion:  assert.NoError,
+		},
 		"success certificate chain": {
-			Args:         []string{"testdata/chain.pem"},
-			ErrAssertion: assert.NoError,
-			OutputFormat: "emoji",
-			Expected:     "🛁😰💪💨💋📎🏇🍫🐢🇮🇹™️😽🔔🇷🇺⭕🕵️‍♀️♣️🍍🚙💋",
+			InputCertFile: "testdata/chain.pem",
+			OutputFormat:  "emoji",
+			Expected:      "🛁😰💪💨💋📎🏇🍫🐢🇮🇹™️😽🔔🇷🇺⭕🕵️‍♀️♣️🍍🚙💋",
+			ErrAssertion:  assert.NoError,
+		},
+		"success hex": {
+			InputCertFile: "testdata/chain.pem",
+			OutputFormat:  "hex",
+			Expected:      "1049883878996d27eb73e27912b792702aa21778",
+			ErrAssertion:  assert.NoError,
+		},
+		"success base64": {
+			InputCertFile: "testdata/chain.pem",
+			OutputFormat:  "base64",
+			Expected:      "EEmIOHiZbSfrc+J5EreScCqiF3g=",
+			ErrAssertion:  assert.NoError,
+		},
+		"success base64-url": {
+			InputCertFile: "testdata/chain.pem",
+			OutputFormat:  "base64-url",
+			Expected:      "EEmIOHiZbSfrc-J5EreScCqiF3g=",
+			ErrAssertion:  assert.NoError,
+		},
+		"success base64-raw": {
+			InputCertFile: "testdata/chain.pem",
+			OutputFormat:  "base64-raw",
+			Expected:      "EEmIOHiZbSfrc+J5EreScCqiF3g",
+			ErrAssertion:  assert.NoError,
+		},
+		"success base64-url-raw": {
+			InputCertFile: "testdata/chain.pem",
+			OutputFormat:  "base64-url-raw",
+			Expected:      "EEmIOHiZbSfrc-J5EreScCqiF3g",
+			ErrAssertion:  assert.NoError,
 		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			if tc.Prepare != nil {
-				tc.Prepare(t)
-			}
-
 			cmd := key.NewFingerprintCmd(command.StringPather("test"))
-			cmd.SetArgs(tc.Args)
+
+			// TODO: fullkeydigest flag
+			args := []string{"--format", tc.OutputFormat, tc.InputCertFile}
+			if tc.FullKeyDigest {
+				args = append(args, "--full-key-digest")
+			}
+			cmd.SetArgs(args)
 			actualFingerprint := new(bytes.Buffer)
 			cmd.SetOut(actualFingerprint)
 			err := cmd.Execute()
