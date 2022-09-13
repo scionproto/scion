@@ -27,6 +27,7 @@ import (
 )
 
 var addrRegexp = regexp.MustCompile(`^(?P<ia>\d+-[\d:A-Fa-f]+),(?P<host>.+)$`)
+var rfcAddrRegexp = regexp.MustCompile(`^[\[](?P<ia>\d+-[\d:A-Fa-f]+),(?P<host>.+)[\]]:(?P<port>.+)$`)
 
 // UDPAddr to be used when UDP host.
 type UDPAddr struct {
@@ -37,7 +38,43 @@ type UDPAddr struct {
 }
 
 // ParseUDPAddr converts an address string to a SCION address.
-// The supported formats are:
+func ParseUDPAddr(s string) (*UDPAddr, error) {
+	addr, err := parseUDPAddr(s)
+	if err != nil {
+		addr, err = parseUDPAddrLegacy(s)
+	}
+	return addr, err
+
+}
+
+// The supported formats are based on the extensions of RFC 3986:
+// https://scion.docs.anapaya.net/en/latest/uri.html#scion-udp
+//
+// Examples:
+//  - [isd-as,ipv4]:port       (e.g., [1-ff00:0:110,192.0.2.1]:80)
+//  - [isd-as,ipv6%zone]:port  (e.g., [1-ff00:0:110,2001:DB8::1]:80)
+func parseUDPAddr(s string) (*UDPAddr, error) {
+	rawIA, rawHost, err := parseScionAddr(s)
+	if err != nil {
+		return nil, err
+	}
+
+	ia, err := addr.ParseIA(rawIA)
+	if err != nil {
+		return nil, serrors.WrapStr("invalid address: IA not parsable", err, "ia", ia)
+	}
+
+	udp, err := net.ResolveUDPAddr("udp", rawHost)
+	if err != nil {
+		return nil, serrors.WrapStr("invalid address: host not parsable", err, "host", rawHost)
+	}
+	if udp.IP == nil {
+		return nil, serrors.WrapStr("invalid address: ip not specified", err, "host", rawHost)
+	}
+	return &UDPAddr{IA: ia, Host: udp}, nil
+}
+
+// The supported legacy formats are:
 //
 // Recommended:
 //  - isd-as,ipv4:port        (e.g., 1-ff00:0:300,192.168.1.1:8080)
@@ -56,7 +93,7 @@ type UDPAddr struct {
 // Not supported:
 //  - isd-as,ipv6:port    (caveat if ipv6:port builds a valid ipv6 address,
 //                         it will successfully parse as ipv6 without error)
-func ParseUDPAddr(s string) (*UDPAddr, error) {
+func parseUDPAddrLegacy(s string) (*UDPAddr, error) {
 	rawIA, rawHost, err := parseAddr(s)
 	if err != nil {
 		return nil, err
@@ -140,6 +177,20 @@ func parseAddr(s string) (string, string, error) {
 		return "", "", serrors.New("invalid address: trailing ':'", "addr", s)
 	}
 	return match[1], match[2], nil
+}
+
+func parseScionAddr(s string) (string, string, error) {
+	match := rfcAddrRegexp.FindStringSubmatch(s)
+	if len(match) != 4 {
+		return "", "", serrors.New("invalid address: regex match failed", "addr", s)
+	}
+	left, right := strings.Count(s, "["), strings.Count(s, "]")
+	if left != right {
+		return "", "", serrors.New("invalid address: bracket count mismatch", "addr", s)
+	}
+	var rawHost string = "[" + match[2] + "]:" + match[3]
+
+	return match[1], rawHost, nil
 }
 
 func ipOnly(s string) bool {

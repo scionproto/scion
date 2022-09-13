@@ -221,6 +221,21 @@ func TestParseUDPAddr(t *testing.T) {
 			port: 0,
 			zone: "some-zone",
 		},
+		{address: "[1-ff00:0:110,192.0.2.1]:80",
+			ia:   "1-ff00:0:110",
+			host: "192.0.2.1",
+			port: 80,
+		},
+		{address: "[1-ff00:0:110,2001:DB8::1]:80",
+			ia:   "1-ff00:0:110",
+			host: "2001:DB8::1",
+			port: 80,
+		},
+		{address: "[1-64496,2001:DB8::1]:80",
+			ia:   "1-64496",
+			host: "2001:DB8::1",
+			port: 80,
+		},
 	}
 	for _, test := range tests {
 		t.Log(fmt.Sprintf("given address %q", test.address))
