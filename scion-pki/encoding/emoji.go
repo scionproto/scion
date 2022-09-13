@@ -11,9 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-// Package encoding contains helper functions for encoding.
-// source: https://github.com/smallstep/cli/blob/1e0b1667db00f1b0756e0d833fca496a323338b7/crypto/fingerprint/emoji.go#L5
 package encoding
 
 import "strings"
@@ -26,10 +23,9 @@ func ToEmoji(input []byte) string {
 	return b.String()
 }
 
-// emojiCodeMap is a mapping from byte to emoji.
-//
-// The mapping is based on draft+2 of https://github.com/emojisum/emojisum.
-// (see: https://github.com/emojisum/emojisum/releases/tag/draft%2B2)
+// Encoding mapping for emojis. This mapping is taken from smallstep to provide
+// compatibility
+// (https://github.com/smallstep/cli/blob/1e0b1667db00f1b0756e0d833fca496a323338b7/crypto/fingerprint/emoji.go).
 var emojiCodeMap = []string{
 	"\U0001f44d",                   // 👍 :+1:
 	"\U0001f3b1",                   // 🎱 :8ball:

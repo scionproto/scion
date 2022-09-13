@@ -68,7 +68,6 @@ If the flag \--format is set to "emoji", the format of the output is a string of
 			var output string
 			if flags.format == "emoji" {
 				output = encoding.ToEmoji(fingerprint)
-
 			} else {
 				output = hex.EncodeToString(fingerprint)
 			}
