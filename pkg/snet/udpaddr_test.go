@@ -157,6 +157,9 @@ func TestParseUDPAddr(t *testing.T) {
 		{address: "1-ff00:0:300,[1.2.3.4]:70000", isError: true},
 		{address: "1-ff00:0:300,[1.2.3.4]]", isError: true},
 		{address: "1-ff00:0:300,::1:60000", isError: true},
+		{address: "[1-ff00:0:110,192.0.2.1]:70000", isError: true},
+		{address: "[1-ff00:0:110,192.0.2.290]:80", isError: true},
+		{address: "[1-,127.0.0.1]:80", isError: true},
 		{address: "", isError: true},
 		{address: "1-ff00:0:300,[1.2.3.4]:80",
 			ia:   "1-ff00:0:300",
@@ -235,6 +238,11 @@ func TestParseUDPAddr(t *testing.T) {
 			ia:   "1-64496",
 			host: "2001:DB8::1",
 			port: 80,
+		},
+		{address: "[1-64496,2001:DB8::1]:60000",
+			ia:   "1-64496",
+			host: "2001:DB8::1",
+			port: 60000,
 		},
 	}
 	for _, test := range tests {
