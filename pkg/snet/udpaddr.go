@@ -27,7 +27,7 @@ import (
 )
 
 var addrRegexpLegacy = regexp.MustCompile(`^(?P<ia>\d+-[\d:A-Fa-f]+),(?P<host>.+)$`)
-var addrRegexp = regexp.MustCompile(`^[\[](?P<ia>\d+-[\d:A-Fa-f]+),(?P<host>.+)[\]]:(?P<port>.+)$`)
+var addrRegexp = regexp.MustCompile(`^\[(?P<ia>\d+-[\d:A-Fa-f]+),(?P<host>.+)\]:(?P<port>.+)$`)
 
 // UDPAddr to be used when UDP host.
 type UDPAddr struct {
@@ -185,8 +185,8 @@ func parseScionAddr(s string) (string, string, error) {
 		return "", "", serrors.New("invalid address: regex match failed", "addr", s)
 	}
 	left, right := strings.Count(s, "["), strings.Count(s, "]")
-	if left != right {
-		return "", "", serrors.New("invalid address: bracket count mismatch", "addr", s)
+	if left != 1 || right != 1 {
+		return "", "", serrors.New("invalid address: brackets mismatch", "addr", s)
 	}
 	var rawHost string = "[" + match[2] + "]:" + match[3]
 
