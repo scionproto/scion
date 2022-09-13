@@ -26,8 +26,8 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-var addrRegexp = regexp.MustCompile(`^(?P<ia>\d+-[\d:A-Fa-f]+),(?P<host>.+)$`)
-var rfcAddrRegexp = regexp.MustCompile(`^[\[](?P<ia>\d+-[\d:A-Fa-f]+),(?P<host>.+)[\]]:(?P<port>.+)$`)
+var addrRegexpLegacy = regexp.MustCompile(`^(?P<ia>\d+-[\d:A-Fa-f]+),(?P<host>.+)$`)
+var addrRegexp = regexp.MustCompile(`^[\[](?P<ia>\d+-[\d:A-Fa-f]+),(?P<host>.+)[\]]:(?P<port>.+)$`)
 
 // UDPAddr to be used when UDP host.
 type UDPAddr struct {
@@ -165,7 +165,7 @@ func CopyUDPAddr(a *net.UDPAddr) *net.UDPAddr {
 }
 
 func parseAddr(s string) (string, string, error) {
-	match := addrRegexp.FindStringSubmatch(s)
+	match := addrRegexpLegacy.FindStringSubmatch(s)
 	if len(match) != 3 {
 		return "", "", serrors.New("invalid address: regex match failed", "addr", s)
 	}
@@ -180,7 +180,7 @@ func parseAddr(s string) (string, string, error) {
 }
 
 func parseScionAddr(s string) (string, string, error) {
-	match := rfcAddrRegexp.FindStringSubmatch(s)
+	match := addrRegexp.FindStringSubmatch(s)
 	if len(match) != 4 {
 		return "", "", serrors.New("invalid address: regex match failed", "addr", s)
 	}
