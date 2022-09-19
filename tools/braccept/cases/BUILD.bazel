@@ -13,6 +13,7 @@ go_library(
         "onehop.go",
         "parent_to_child.go",
         "parent_to_internal.go",
+        "scmp.go",
         "scmp_dest_unreachable.go",
         "scmp_expired_hop.go",
         "scmp_invalid_ia.go",
@@ -28,6 +29,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/addr:go_default_library",
+        "//pkg/drkey:go_default_library",
         "//pkg/private/util:go_default_library",
         "//pkg/private/xtest:go_default_library",
         "//pkg/slayers:go_default_library",
