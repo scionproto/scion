@@ -158,7 +158,9 @@ func SCMPUnknownHop(artifactsDir string, mac hash.Hash) runner.Case {
 	if err := sp.IncPath(); err != nil {
 		panic(err)
 	}
-	scionL.NextHdr = slayers.L4SCMP
+	scionL.NextHdr = slayers.End2EndClass
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
+	e2e.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
 			slayers.SCMPCodeUnknownHopFieldIngress),
@@ -172,18 +174,19 @@ func SCMPUnknownHop(artifactsDir string, mac hash.Hash) runner.Case {
 	quoteStart := 14 + 20 + 8
 	quote := input.Bytes()[quoteStart:]
 	if err := gopacket.SerializeLayers(want, options,
-		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
+		ethernet, ip, udp, scionL, e2e, scmpH, scmpP, gopacket.Payload(quote),
 	); err != nil {
 		panic(err)
 	}
 
 	return runner.Case{
-		Name:     "SCMPUnknownHop",
-		WriteTo:  "veth_131_host",
-		ReadFrom: "veth_131_host",
-		Input:    input.Bytes(),
-		Want:     want.Bytes(),
-		StoreDir: filepath.Join(artifactsDir, "SCMPUnknownHop"),
+		Name:            "SCMPUnknownHop",
+		WriteTo:         "veth_131_host",
+		ReadFrom:        "veth_131_host",
+		Input:           input.Bytes(),
+		Want:            want.Bytes(),
+		StoreDir:        filepath.Join(artifactsDir, "SCMPUnknownHop"),
+		NormalizePacket: scmpNormalizePacket,
 	}
 }
 
@@ -314,7 +317,9 @@ func SCMPUnknownHopEgress(artifactsDir string, mac hash.Hash) runner.Case {
 	if err := sp.IncPath(); err != nil {
 		panic(err)
 	}
-	scionL.NextHdr = slayers.L4SCMP
+	scionL.NextHdr = slayers.End2EndClass
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
+	e2e.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
 			slayers.SCMPCodeUnknownHopFieldEgress),
@@ -326,17 +331,18 @@ func SCMPUnknownHopEgress(artifactsDir string, mac hash.Hash) runner.Case {
 	quoteStart := 14 + 20 + 8
 	quote := input.Bytes()[quoteStart:]
 	if err := gopacket.SerializeLayers(want, options,
-		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
+		ethernet, ip, udp, scionL, e2e, scmpH, scmpP, gopacket.Payload(quote),
 	); err != nil {
 		panic(err)
 	}
 
 	return runner.Case{
-		Name:     "SCMPUnknownHopEgress",
-		WriteTo:  "veth_131_host",
-		ReadFrom: "veth_131_host",
-		Input:    input.Bytes(),
-		Want:     want.Bytes(),
-		StoreDir: filepath.Join(artifactsDir, "SCMPUnknownHopEgress"),
+		Name:            "SCMPUnknownHopEgress",
+		WriteTo:         "veth_131_host",
+		ReadFrom:        "veth_131_host",
+		Input:           input.Bytes(),
+		Want:            want.Bytes(),
+		StoreDir:        filepath.Join(artifactsDir, "SCMPUnknownHopEgress"),
+		NormalizePacket: scmpNormalizePacket,
 	}
 }

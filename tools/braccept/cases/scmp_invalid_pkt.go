@@ -151,7 +151,9 @@ func SCMPBadPktLen(artifactsDir string, mac hash.Hash) runner.Case {
 	if err := sp.IncPath(); err != nil {
 		panic(err)
 	}
-	scionL.NextHdr = slayers.L4SCMP
+	scionL.NextHdr = slayers.End2EndClass
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
+	e2e.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
 			slayers.SCMPCodeInvalidPacketSize),
@@ -165,18 +167,19 @@ func SCMPBadPktLen(artifactsDir string, mac hash.Hash) runner.Case {
 	quoteStart := 14 + 20 + 8
 	quote := input.Bytes()[quoteStart:]
 	if err := gopacket.SerializeLayers(want, options,
-		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
+		ethernet, ip, udp, scionL, e2e, scmpH, scmpP, gopacket.Payload(quote),
 	); err != nil {
 		panic(err)
 	}
 
 	return runner.Case{
-		Name:     "SCMPBadPktLen",
-		WriteTo:  "veth_131_host",
-		ReadFrom: "veth_131_host",
-		Input:    input.Bytes(),
-		Want:     want.Bytes(),
-		StoreDir: filepath.Join(artifactsDir, "SCMPBadPktLen"),
+		Name:            "SCMPBadPktLen",
+		WriteTo:         "veth_131_host",
+		ReadFrom:        "veth_131_host",
+		Input:           input.Bytes(),
+		Want:            want.Bytes(),
+		StoreDir:        filepath.Join(artifactsDir, "SCMPBadPktLen"),
+		NormalizePacket: scmpNormalizePacket,
 	}
 }
 
@@ -306,7 +309,9 @@ func SCMPQuoteCut(artifactsDir string, mac hash.Hash) runner.Case {
 	if err := sp.IncPath(); err != nil {
 		panic(err)
 	}
-	scionL.NextHdr = slayers.L4SCMP
+	scionL.NextHdr = slayers.End2EndClass
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
+	e2e.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
 			slayers.SCMPCodeInvalidPacketSize),
@@ -318,23 +323,25 @@ func SCMPQuoteCut(artifactsDir string, mac hash.Hash) runner.Case {
 
 	// Skip Ethernet + IPv4 + UDP
 	quoteStart := 14 + 20 + 8
-	// headerLen is the length of the SCION header plus the SCMP header (8).
-	headerLen := slayers.CmnHdrLen + scionL.AddrHdrLen() + scionL.Path.Len() + 8
+	// headerLen is the length of the SCION header, plus the e2e.option len
+	// plus the SCMP header (8).
+	headerLen := slayers.CmnHdrLen + scionL.AddrHdrLen() + scionL.Path.Len() + 32 + 8
 	quoteEnd := quoteStart + slayers.MaxSCMPPacketLen - headerLen
 	quote := input.Bytes()[quoteStart:quoteEnd]
 	if err := gopacket.SerializeLayers(want, options,
-		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
+		ethernet, ip, udp, scionL, e2e, scmpH, scmpP, gopacket.Payload(quote),
 	); err != nil {
 		panic(err)
 	}
 
 	return runner.Case{
-		Name:     "SCMPQuoteCut",
-		WriteTo:  "veth_131_host",
-		ReadFrom: "veth_131_host",
-		Input:    input.Bytes(),
-		Want:     want.Bytes(),
-		StoreDir: filepath.Join(artifactsDir, "SCMPQuoteCut"),
+		Name:            "SCMPQuoteCut",
+		WriteTo:         "veth_131_host",
+		ReadFrom:        "veth_131_host",
+		Input:           input.Bytes(),
+		Want:            want.Bytes(),
+		StoreDir:        filepath.Join(artifactsDir, "SCMPQuoteCut"),
+		NormalizePacket: scmpNormalizePacket,
 	}
 }
 
@@ -408,7 +415,9 @@ func NoSCMPReplyForSCMPError(artifactsDir string, mac hash.Hash) runner.Case {
 		panic(err)
 	}
 
-	scionL.NextHdr = slayers.L4SCMP
+	scionL.NextHdr = slayers.End2EndClass
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
+	e2e.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
 			slayers.SCMPCodeInvalidPacketSize),
@@ -422,7 +431,7 @@ func NoSCMPReplyForSCMPError(artifactsDir string, mac hash.Hash) runner.Case {
 
 	// do a serialization run to fix lengths
 	if err := gopacket.SerializeLayers(gopacket.NewSerializeBuffer(), options,
-		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(payload),
+		ethernet, ip, udp, scionL, e2e, scmpH, scmpP, gopacket.Payload(payload),
 	); err != nil {
 		panic(err)
 	}
@@ -438,11 +447,12 @@ func NoSCMPReplyForSCMPError(artifactsDir string, mac hash.Hash) runner.Case {
 		panic(err)
 	}
 	return runner.Case{
-		Name:     "NoSCMPReplyForSCMPError",
-		WriteTo:  "veth_131_host",
-		ReadFrom: "no_pkt_expected",
-		Input:    input.Bytes(),
-		Want:     nil,
-		StoreDir: filepath.Join(artifactsDir, "NoSCMPReplyForSCMPError"),
+		Name:            "NoSCMPReplyForSCMPError",
+		WriteTo:         "veth_131_host",
+		ReadFrom:        "no_pkt_expected",
+		Input:           input.Bytes(),
+		Want:            nil,
+		StoreDir:        filepath.Join(artifactsDir, "NoSCMPReplyForSCMPError"),
+		NormalizePacket: scmpNormalizePacket,
 	}
 }
