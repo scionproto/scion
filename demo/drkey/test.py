@@ -91,7 +91,7 @@ class Test(base.TestTopogen):
         scion.update_toml({"drkey.delegation.scmp": [server_ip]}, server_cs_config)
 
     def _run(self):
-        time.sleep(5)  # wait until CSes are all up and running
+        time.sleep(10)  # wait until CSes are all up and running
 
         self._init_as_list()
 
