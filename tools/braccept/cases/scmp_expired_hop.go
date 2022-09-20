@@ -1383,7 +1383,10 @@ func SCMPExpiredHopAfterXoverInternalConsDir(artifactsDir string, mac hash.Hash)
 // segment is in construction direction. The expired path
 // segment is against construction direction. The relative timestamp can be encoded
 // in the SPAO header and send back to the src.
-func SCMPExpiredHopAfterXoverInternalConsDirMessageBack(artifactsDir string, mac hash.Hash) runner.Case {
+func SCMPExpiredHopAfterXoverInternalConsDirMessageBack(
+	artifactsDir string,
+	mac hash.Hash,
+) runner.Case {
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
@@ -1559,12 +1562,15 @@ func SCMPExpiredHopAfterXoverInternalConsDirMessageBack(artifactsDir string, mac
 	}
 
 	return runner.Case{
-		Name:            "SCMPExpiredHopAfterXoverInternalConsDirMessageBack",
-		WriteTo:         "veth_int_host",
-		ReadFrom:        "veth_int_host",
-		Input:           input.Bytes(),
-		Want:            want.Bytes(),
-		StoreDir:        filepath.Join(artifactsDir, "SCMPExpiredHopAfterXoverInternalConsDirMessageBack"),
+		Name:     "SCMPExpiredHopAfterXoverInternalConsDirMessageBack",
+		WriteTo:  "veth_int_host",
+		ReadFrom: "veth_int_host",
+		Input:    input.Bytes(),
+		Want:     want.Bytes(),
+		StoreDir: filepath.Join(
+			artifactsDir,
+			"SCMPExpiredHopAfterXoverInternalConsDirMessageBack",
+		),
 		NormalizePacket: scmpNormalizePacket,
 	}
 }
