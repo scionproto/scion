@@ -63,11 +63,16 @@ const (
 	PacketAuthEarlier
 )
 
-// MinPacketAuthDataLen is the minimum size of the SPAO OptData.
-// The SPAO header contains the following fixed-length fields:
-// SPI (4 Bytes), Algorithm (1 Byte), Timestamp (3 Bytes),
-// RSV (1 Byte) and Sequence Number (3 Bytes).
-const MinPacketAuthDataLen = 12
+const (
+	// MinPacketAuthDataLen is the minimum size of the SPAO OptData.
+	// The SPAO header contains the following fixed-length fields:
+	// SPI (4 Bytes), Algorithm (1 Byte), Timestamp (3 Bytes),
+	// RSV (1 Byte) and Sequence Number (3 Bytes).
+	MinPacketAuthDataLen = 12
+	// FixAuthDataInputLen is the unvariable fields length for the
+	// authenticated data
+	FixAuthDataInputLen = MinPacketAuthDataLen + 8
+)
 
 // PacketAuthSPI (Security Parameter Index) is the identifier for the key
 // used for the packet authentication option. DRKey values are in the
@@ -248,8 +253,6 @@ func (o PacketAuthOption) Authenticator() []byte {
 	return o.OptData[12:]
 }
 
-// TODO put this where? scrypto/spae (scion packet authenticator extension :/)
-// XXX can we integrate this better with the layer serialization? using this is hairy...
 func ComputeAuthCMAC(
 	key []byte,
 	scionL *SCION,
@@ -264,8 +267,10 @@ func ComputeAuthCMAC(
 		return nil
 	}
 
-	// 12 + 8 + variable 3. + variable 4. (path) + variable (Upper layer payload)
-	inputLen := 20
+	// Compute inputLen = FixAuthDataInputLen + variable 3. + variable 4. (path) +
+	// variable (Upper layer payload)
+	// (https://scion.docs.anapaya.net/en/latest/protocols/authenticator-option.html#authenticated-data)
+	inputLen := FixAuthDataInputLen
 	if !opt.SPI().IsDRKey() {
 		inputLen += 16
 	}

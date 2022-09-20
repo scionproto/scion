@@ -49,7 +49,7 @@ func normalizePacketAuthOption(pkt gopacket.Packet) {
 		0, 0, 0, 0,
 		0, 0, 0, 0,
 		0, 0, 0, 0}
-	optAuth.Reset(slayers.PacketAuthOptionParams{
+	_ = optAuth.Reset(slayers.PacketAuthOptionParams{
 		SPI:            spi,
 		Algorithm:      alg,
 		Timestamp:      uint32(0),

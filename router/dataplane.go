@@ -67,6 +67,10 @@ const (
 	// hopFieldDefaultExpTime is the default validity of the hop field
 	// and 63 is equivalent to 6h.
 	hopFieldDefaultExpTime = 63
+
+	// e2eAuthHdrLen is the length in bytes of added information when a SCMP packet
+	// needs to be authenticated: 16B (e2e.option.Len()) + 16 B(CMAC_tag.Len()).
+	e2eAuthHdrLen = 32
 )
 
 type bfdSession interface {
@@ -571,6 +575,7 @@ func newPacketProcessor(d *DataPlane, ingressID uint16) *scionPacketProcessor {
 			scionInput: make([]byte, path.MACBufferSize),
 			epicInput:  make([]byte, libepic.MACBufferSize),
 		},
+		// TODO(JordiSubira): Replace this with a useful implementation.
 		drkeyProvider: &fakeProvider{},
 	}
 	p.scionLayer.RecyclePaths()
@@ -1609,9 +1614,12 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 
 	scmpH.SetNetworkLayerForChecksum(&scionL)
 
-	// TODO(JordiSubira): Authenticate SCMP message ONLY if needed
+	// TODO(JordiSubira): Authenticate SCMP message ONLY if needed.
+	// Error messages must be authenticated.
+	// Echo Reply packets and Traceroute are OPTIONALLY authenticate
+	// ONLY IF the Request was authenticated.
 	needsAuth := false
-	if cause != nil { // TODO(matzf): || hasValidAuth(p.e2eLayer)
+	if cause != nil { // TODO(JordiSubira): || hasValidAuth(p.e2eLayer)
 		needsAuth = true
 	}
 
@@ -1620,7 +1628,7 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 		// add quote for errors.
 		hdrLen := slayers.CmnHdrLen + scionL.AddrHdrLen() + scionL.Path.Len()
 		if needsAuth {
-			hdrLen += 32 // 16 (e2e.option.Len()) + 16 (CMAC_tag.Len())
+			hdrLen += e2eAuthHdrLen
 		}
 		switch scmpH.TypeCode.Type() {
 		case slayers.SCMPTypeExternalInterfaceDown:
@@ -1663,7 +1671,13 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 
 		e2e.Options = []*slayers.EndToEndOption{optAuth.EndToEndOption}
 		e2e.NextHdr = slayers.L4SCMP
-		if err := slayers.ComputeAuthCMAC(key[:], &scionL, optAuth, p.buffer.Bytes(), optAuth.Authenticator()); err != nil {
+		if err := slayers.ComputeAuthCMAC(
+			key[:],
+			&scionL,
+			optAuth,
+			p.buffer.Bytes(),
+			optAuth.Authenticator(),
+		); err != nil {
 			return nil, serrors.Wrap(cannotRoute, err, "details", "computing CMAC")
 		}
 		if err := e2e.SerializeTo(p.buffer, sopts); err != nil {
@@ -1686,9 +1700,11 @@ func (p *scionPacketProcessor) getSPAO(scmpH *slayers.SCMP) (
 ) {
 	sv := p.drkeyProvider.GetSV()
 	macBuf := make([]byte, 16)
-	// XXX(JordiSubira): at the moment, for creating SCMP responses we use sender side.
-	// We assume the current epoch at the moment
+	// For creating SCMP responses we use sender side.
 	dir := slayers.PacketAuthSenderSide
+	// TODO(JordiSubira): At the moment, We assume the later epoch at the moment.
+	// If the authentication stems from an authenticated request, we want to use
+	// the same key as the one used by the request sender.
 	epoch := slayers.PacketAuthLater
 	drkeyType := slayers.PacketAuthASHost
 	if scmpH.TypeCode.Type() >= slayers.SCMPTypeEchoRequest &&
