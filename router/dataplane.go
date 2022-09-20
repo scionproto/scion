@@ -1595,7 +1595,10 @@ func (p *scionPacketProcessor) getSPAO(scmpH *slayers.SCMP) (
 		drkeyType = slayers.PacketAuthHostHost
 	}
 
-	spi := slayers.MakePacketAuthSPIDRKey(uint16(drkey.SCMP), drkeyType, dir, epoch)
+	spi, err := slayers.MakePacketAuthSPIDRKey(uint16(drkey.SCMP), drkeyType, dir, epoch)
+	if err != nil {
+		return slayers.PacketAuthOption{}, drkey.Key{}, err
+	}
 
 	timestamp, err := slayers.ComputeSPAOTimestamp(p.infoField.Timestamp)
 	if err != nil {
@@ -1605,7 +1608,16 @@ func (p *scionPacketProcessor) getSPAO(scmpH *slayers.SCMP) (
 	// XXX(JordiSubira): Assume that send rate is low so that combination
 	// with timestamp is always unique
 	sn := uint32(0)
-	optAuth := slayers.NewPacketAuthOption(spi, slayers.PacketAuthCMAC, timestamp, sn, macBuf)
+	optAuth, err := slayers.NewPacketAuthOption(slayers.PacketAuthOptionParams{
+		SPI:            spi,
+		Algorithm:      slayers.PacketAuthCMAC,
+		Timestamp:      timestamp,
+		SequenceNumber: sn,
+		Auth:           macBuf,
+	})
+	if err != nil {
+		return slayers.PacketAuthOption{}, drkey.Key{}, err
+	}
 
 	dstA, err := p.scionLayer.SrcAddr()
 	if err != nil {
