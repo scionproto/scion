@@ -37,9 +37,15 @@
 package slayers
 
 import (
+	"crypto/aes"
 	"encoding/binary"
+	"hash"
+	"time"
+
+	"github.com/dchest/cmac"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/private/util"
 )
 
 const (
@@ -240,4 +246,116 @@ func (o PacketAuthOption) SequenceNumber() uint32 {
 // the extension is serialized.
 func (o PacketAuthOption) Authenticator() []byte {
 	return o.OptData[12:]
+}
+
+// TODO put this where? scrypto/spae (scion packet authenticator extension :/)
+// XXX can we integrate this better with the layer serialization? using this is hairy...
+func ComputeAuthCMAC(
+	key []byte,
+	scionL *SCION,
+	opt PacketAuthOption,
+	pld []byte,
+	mac []byte,
+) error {
+
+	// TODO(matzf): avoid allocations, somehow?
+	cmac, err := initCMAC(key)
+	if err != nil {
+		return nil
+	}
+
+	// 12 + 8 + variable 3. + variable 4. (path) + variable (Upper layer payload)
+	inputLen := 20
+	if !opt.SPI().IsDRKey() {
+		inputLen += 16
+	}
+	if !opt.SPI().IsDRKey() ||
+		(opt.SPI().Type() == PacketAuthASHost &&
+			opt.SPI().Direction() == PacketAuthReceiverSide) {
+		inputLen += (int(scionL.SrcAddrLen) + 1) * LineLen
+	}
+	if !opt.SPI().IsDRKey() ||
+		(opt.SPI().Type() == PacketAuthASHost &&
+			opt.SPI().Direction() == PacketAuthSenderSide) {
+		inputLen += (int(scionL.DstAddrLen) + 1) * LineLen
+	}
+
+	inputLen += scionL.Path.Len()
+	inputLen += len(pld)
+	input := make([]byte, inputLen)
+	err = serializeAutenticatedData(input, scionL, opt, pld)
+	if err != nil {
+		return err
+	}
+	cmac.Write(input)
+	copy(mac, cmac.Sum(nil))
+	return nil
+}
+
+func initCMAC(key []byte) (hash.Hash, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, serrors.WrapStr("unable to initialize AES cipher", err)
+	}
+	mac, err := cmac.New(block)
+	if err != nil {
+		return nil, serrors.WrapStr("unable to initialize Mac", err)
+	}
+	return mac, nil
+}
+
+func serializeAutenticatedData(buf []byte, s *SCION, opt PacketAuthOption, pld []byte) error {
+	buf[0] = s.HdrLen
+	buf[1] = byte(L4SCMP)
+	binary.BigEndian.PutUint16(buf[2:], uint16(len(pld)))
+	buf[4] = byte(opt.Algorithm())
+	buf[5] = byte(opt.Timestamp() >> 16)
+	buf[6] = byte(opt.Timestamp() >> 8)
+	buf[7] = byte(opt.Timestamp())
+	buf[8] = byte(0)
+	buf[9] = byte(opt.SequenceNumber() >> 16)
+	buf[10] = byte(opt.SequenceNumber() >> 8)
+	buf[11] = byte(opt.SequenceNumber())
+	firstHdrLine := uint32(s.Version&0xF)<<28 | uint32(s.TrafficClass&0x3f)<<20 | s.FlowID&0xFFFFF
+	binary.BigEndian.PutUint32(buf[12:], firstHdrLine)
+	buf[16] = byte(s.PathType)
+	buf[17] = byte(s.DstAddrType&0x3)<<6 | byte(s.DstAddrLen&0x3)<<4 |
+		byte(s.SrcAddrType&0x3)<<2 | byte(s.SrcAddrLen&0x3)
+	binary.BigEndian.PutUint16(buf[18:], 0)
+	offset := 24
+
+	if !opt.SPI().IsDRKey() {
+		binary.BigEndian.PutUint64(buf[offset:], uint64(s.DstIA))
+		binary.BigEndian.PutUint64(buf[offset+8:], uint64(s.SrcIA))
+		offset += 16
+	}
+	if !opt.SPI().IsDRKey() ||
+		(opt.SPI().Type() == PacketAuthASHost &&
+			opt.SPI().Direction() == PacketAuthReceiverSide) {
+		addrLen := addrBytes(s.DstAddrLen)
+		copy(buf[offset:offset+addrLen], s.RawDstAddr)
+		offset += addrLen
+	}
+	if !opt.SPI().IsDRKey() ||
+		(opt.SPI().Type() == PacketAuthASHost &&
+			opt.SPI().Direction() == PacketAuthSenderSide) {
+		addrLen := addrBytes(s.SrcAddrLen)
+		copy(buf[offset:offset+addrLen], s.RawSrcAddr)
+		offset += addrLen
+	}
+	if err := s.Path.SerializeTo(buf[offset:]); err != nil {
+		return err
+	}
+	offset += s.Path.Len()
+	copy(buf[offset:], pld)
+	return nil
+}
+
+func ComputeSPAOTimestamp(ts uint32) (uint32, error) {
+	// time = info[0].Timestamp+Timestamp⋅𝑞, where q := 6 ms
+	timestamp := time.Since(util.SecsToTime(ts)).Milliseconds() / 6
+	if timestamp >= (1 << 24) {
+		return 0, serrors.New("relative timestamp is bigger than 2^24-1")
+	}
+	return uint32(timestamp), nil
 }
