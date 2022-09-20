@@ -51,7 +51,10 @@ func realMain() int {
 	flag.StringVar(&serverAddrStr, "server-addr", "", "SCION address for the server-side.")
 	flag.StringVar(&clientAddrStr, "client-addr", "", "SCION address for the client-side.")
 	flag.Parse()
-	scionEnv.LoadExternalVars()
+	if err := scionEnv.LoadExternalVars(); err != nil {
+		fmt.Fprintln(os.Stderr, "Error reading SCION environment:", err)
+		return 2
+	}
 
 	if mode != "client" && mode != "server" {
 		fmt.Fprintf(os.Stderr, "Invalid --mode '%s': must be either 'client' or 'server'\n", mode)
