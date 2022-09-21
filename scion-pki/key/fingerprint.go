@@ -49,8 +49,9 @@ func NewFingerprintCmd(pather command.Pather) *cobra.Command {
   %[1]s fingerprint ISD1-ASff00_-_110.pem --full-key-digest`, pather.CommandPath()),
 		Long: `'fingerprint' computes the subject key id fingerprint of a public key.
 
-If the private key is given, compute on the corresponding public key. For certificates or certificate chains 
-the fingerprint is computed on the public key of the first certificate in the file.
+If the private key is given, compute on the corresponding public key. For certificates or
+certificate chains the fingerprint is computed on the public key of the first certificate
+in the file.
 
 The subject key id is written to standard out.
 `,
@@ -79,6 +80,9 @@ The subject key id is written to standard out.
 			}
 
 			output, err := encodeSubjectKeyID(skid, flags.format)
+			if err != nil {
+				return serrors.WrapStr("encoding subject key id", err)
+			}
 			fmt.Fprintln(cmd.OutOrStdout(), output)
 			// fmt.Printf("stdout: %s\n", output)
 			return nil
@@ -88,7 +92,7 @@ The subject key id is written to standard out.
 		"Calculate the SHA1 sum of the marshaled public key",
 	)
 	cmd.Flags().StringVar(&flags.format, "format", "emoji",
-		"The format of the fingerprint, it must be 'hex', 'base64', 'base64-url', 'base64-raw', 'base64-url-raw' or 'emoji'.",
+		`The format of the fingerprint (hex|base64|base64-url|base64-raw|base64-url-raw|emoji).`,
 	)
 	return cmd
 }
@@ -130,12 +134,15 @@ func LoadPublicKey(filename string) (crypto.PublicKey, error) {
 		}
 		return cert.PublicKey, nil
 	default:
-		return nil, serrors.New("file is not a valid PEM encoding of a private/public key or certificate", "type", block.Type)
+		return nil, serrors.New(
+			"file is not a valid PEM encoding of a private/public key or certificate", "type",
+			block.Type)
 	}
 
 }
 
-// encodeSubjectKeyID encodes the subject key id in provided format (hex, base64, base64-url, base64-raw, base64-url-raw, emoji).
+// encodeSubjectKeyID encodes the subject key id in provided format:
+// hex, base64, base64-url, base64-raw, base64-url-raw, emoji
 func encodeSubjectKeyID(skid []byte, format string) (string, error) {
 	switch strings.ToLower(format) {
 	case "hex":

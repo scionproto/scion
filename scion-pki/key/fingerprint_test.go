@@ -19,10 +19,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/scionproto/scion/private/app/command"
-	"github.com/scionproto/scion/scion-pki/key"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/scionproto/scion/private/app/command"
+	"github.com/scionproto/scion/scion-pki/key"
 )
 
 func TestNewFingerprintCmd(t *testing.T) {
