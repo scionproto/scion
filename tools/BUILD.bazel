@@ -7,16 +7,6 @@ sh_binary(
     visibility = ["//visibility:public"],
 )
 
-# For some reason, gazelle insists to referring to the non-existing :go_default_library otherwise
-# gazelle:resolve go github.com/google/go-containerregistry/cmd/registry @com_github_google_go_containerregistry//cmd/registry:registry_lib
-go_library(
-    name = "go_default_library",
-    srcs = ["tools.go"],
-    importpath = "github.com/scionproto/scion/tools",
-    visibility = ["//visibility:public"],
-    deps = ["@com_github_google_go_containerregistry//cmd/registry:registry_lib"],
-)
-
 py_binary(
     name = "gomocks",
     srcs = ["gomocks.py"],
