@@ -110,7 +110,7 @@ func realMain() int {
 			return 1
 		}
 		t0 := time.Now()
-		serverKey, err := server.HostHostKey(sv, meta)
+		serverKey, err := server.DeriveHostHostKey(sv, meta)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error deriving key:", err)
 			return 1
@@ -129,7 +129,7 @@ func realMain() int {
 		// and derive the Host key based on this.
 		client := Client{daemon}
 		t0 := time.Now()
-		clientKey, err := client.HostHostKey(ctx, meta)
+		clientKey, err := client.FetchHostHostKey(ctx, meta)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error fetching key:", err)
 			return 1
@@ -149,7 +149,7 @@ type Client struct {
 	daemon daemon.Connector
 }
 
-func (c Client) HostHostKey(
+func (c Client) FetchHostHostKey(
 	ctx context.Context, meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
 
 	// get L2 key: (slow path)
@@ -160,12 +160,43 @@ type Server struct {
 	daemon daemon.Connector
 }
 
+func (s Server) DeriveHostHostKey(
+	sv drkey.SecretValue,
+	meta drkey.HostHostMeta,
+) (drkey.HostHostKey, error) {
+
+	var deriver specific.Deriver
+	lvl1, err := deriver.DeriveLevel1(meta.DstIA, sv.Key)
+	if err != nil {
+		return drkey.HostHostKey{}, serrors.WrapStr("deriving level 1 key", err)
+	}
+	asHost, err := deriver.DeriveHostAS(meta.SrcHost, lvl1)
+	if err != nil {
+		return drkey.HostHostKey{}, serrors.WrapStr("deriving host-AS key", err)
+	}
+	hosthost, err := deriver.DeriveHostHost(meta.DstHost, asHost)
+	if err != nil {
+		return drkey.HostHostKey{}, serrors.WrapStr("deriving host-host key", err)
+	}
+	return drkey.HostHostKey{
+		ProtoId: sv.ProtoId,
+		Epoch:   sv.Epoch,
+		SrcIA:   meta.SrcIA,
+		DstIA:   meta.DstIA,
+		SrcHost: meta.SrcHost,
+		DstHost: meta.DstHost,
+		Key:     hosthost,
+	}, nil
+}
+
 // fetchSV obtains the Secret Value (SV) for the selected protocol/epoch.
 // From this SV, all keys for this protocol/epoch can be derived locally.
 // The IP address of the server must be explicitly allowed to abtain this SV
 // from the the control server.
 func (s Server) fetchSV(
-	ctx context.Context, meta drkey.SecretValueMeta) (drkey.SecretValue, error) {
+	ctx context.Context,
+	meta drkey.SecretValueMeta,
+) (drkey.SecretValue, error) {
 
 	// Obtain CS address from scion daemon
 	svcs, err := s.daemon.SVCInfo(ctx, nil)
@@ -199,33 +230,6 @@ func (s Server) fetchSV(
 	}
 
 	return key, nil
-}
-
-func (s Server) HostHostKey(
-	sv drkey.SecretValue, meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
-
-	var deriver specific.Deriver
-	lvl1, err := deriver.DeriveLevel1(meta.DstIA, sv.Key)
-	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("deriving level 1 key", err)
-	}
-	asHost, err := deriver.DeriveHostAS(meta.SrcHost, lvl1)
-	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("deriving host-AS key", err)
-	}
-	hosthost, err := deriver.DeriveHostHost(meta.DstHost, asHost)
-	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("deriving host-host key", err)
-	}
-	return drkey.HostHostKey{
-		ProtoId: sv.ProtoId,
-		Epoch:   sv.Epoch,
-		SrcIA:   meta.SrcIA,
-		DstIA:   meta.DstIA,
-		SrcHost: meta.SrcHost,
-		DstHost: meta.DstHost,
-		Key:     hosthost,
-	}, nil
 }
 
 func getSecretFromReply(
