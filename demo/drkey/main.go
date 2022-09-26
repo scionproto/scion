@@ -42,12 +42,13 @@ func main() {
 }
 
 func realMain() int {
-	var mode string
+	var serverMode bool
 	var serverAddrStr, clientAddrStr string
 	var scionEnv env.SCIONEnvironment
 
 	scionEnv.Register(flag.CommandLine)
-	flag.StringVar(&mode, "mode", "", "Mode for obtaining the key (server or client mode")
+	flag.BoolVar(&serverMode, "server", false, "Demonstrate server-side key derivation"+
+		" (default: demonstrate client-side key fetching)")
 	flag.StringVar(&serverAddrStr, "server-addr", "", "SCION address for the server-side.")
 	flag.StringVar(&clientAddrStr, "client-addr", "", "SCION address for the client-side.")
 	flag.Parse()
@@ -56,10 +57,6 @@ func realMain() int {
 		return 2
 	}
 
-	if mode != "client" && mode != "server" {
-		fmt.Fprintf(os.Stderr, "Invalid --mode '%s': must be either 'client' or 'server'\n", mode)
-		return 2
-	}
 	// NOTE: should parse addresses as snet.SCIONAddress not snet.UDPAddress, but
 	// these parsing functions don't exist yet.
 	serverAddr, err := snet.ParseUDPAddr(serverAddrStr)
@@ -98,26 +95,7 @@ func realMain() int {
 		return 1
 	}
 
-	if mode == "client" {
-		// Client: fetch key from daemon
-		// The daemon will in turn obtain the key from the local CS
-		// The CS will fetch the Lvl1 key from the CS in the SrcIA (the server's AS)
-		// and derive the Host key based on this.
-		client := Client{daemon}
-		t0 := time.Now()
-		clientKey, err := client.HostHostKey(ctx, meta)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error fetching key:", err)
-			return 1
-		}
-		durationClient := time.Since(t0)
-
-		fmt.Printf(
-			"Client,\thost key = %s\tduration = %s\n",
-			hex.EncodeToString(clientKey.Key[:]),
-			durationClient,
-		)
-	} else {
+	if serverMode {
 		// Server: get the Secret Value (SV) for the protocol and derive all
 		// subsequent keys in-process
 		server := Server{daemon}
@@ -143,6 +121,25 @@ func realMain() int {
 			"Server,\thost key = %s\tduration = %s\n",
 			hex.EncodeToString(serverKey.Key[:]),
 			durationServer,
+		)
+	} else {
+		// Client: fetch key from daemon
+		// The daemon will in turn obtain the key from the local CS
+		// The CS will fetch the Lvl1 key from the CS in the SrcIA (the server's AS)
+		// and derive the Host key based on this.
+		client := Client{daemon}
+		t0 := time.Now()
+		clientKey, err := client.HostHostKey(ctx, meta)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error fetching key:", err)
+			return 1
+		}
+		durationClient := time.Since(t0)
+
+		fmt.Printf(
+			"Client,\thost key = %s\tduration = %s\n",
+			hex.EncodeToString(clientKey.Key[:]),
+			durationClient,
 		)
 	}
 	return 0
