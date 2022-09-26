@@ -15,7 +15,6 @@
 package slayers
 
 import (
-	"crypto/aes"
 	"fmt"
 
 	"github.com/google/gopacket"
@@ -25,7 +24,6 @@ import (
 
 var (
 	ErrOptionNotFound = serrors.New("Option not found")
-	ZeroBlock         [aes.BlockSize]byte
 )
 
 // OptionType indicates the type of a TLV Option that is part of an extension header.
