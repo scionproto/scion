@@ -18,12 +18,9 @@ import (
 	"crypto"
 	"crypto/sha1"
 	"crypto/x509"
-	"encoding/base64"
-	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -44,19 +41,27 @@ func NewFingerprintCmd(pather command.Pather) *cobra.Command {
 	}
 	var cmd = &cobra.Command{
 		Use:   "fingerprint [flags] <key-file>",
-		Short: "Computes the subject key id fingerprint of the provided key",
+		Short: "Computes the fingerprint of the provided key",
 		Example: fmt.Sprintf(`  %[1]s fingerprint cp-as.key --format base64
   %[1]s fingerprint ISD1-ASff00_-_110.pem --full-key-digest`, pather.CommandPath()),
-		Long: `'fingerprint' computes the subject key id fingerprint of a public key.
+		Long: `'fingerprint' computes the fingerprint of the provided key.
 
-If the private key is given, compute on the corresponding public key. For certificates or
+The fingerprint of a private key will be based on the public part of the key. For certificates or
 certificate chains the fingerprint is computed on the public key of the first certificate
 in the file.
+
+By default the fingerprint calculated is SHA-1 hash of the marshaled public key defined in
+https://tools.ietf.org/html/rfc5280#section-4.2.1.2 (1). With the '--full-key-digest' flag, 
+the computed fingerprint is the SHA-1 hash with ASN.1 DER-encoded subjectPublicKey.
 
 The subject key id is written to standard out.
 `,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			err := encoding.CheckEncodings(flags.format)
+			if err != nil {
+				return err
+			}
 			cmd.SilenceUsage = true
 
 			filename := args[0]
@@ -78,13 +83,11 @@ The subject key id is written to standard out.
 					return serrors.WrapStr("computing subject key ID", err)
 				}
 			}
-
-			output, err := encodeSubjectKeyID(skid, flags.format)
+			output, err := encoding.EncodeBytes(skid, flags.format)
 			if err != nil {
 				return serrors.WrapStr("encoding subject key id", err)
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), output)
-			// fmt.Printf("stdout: %s\n", output)
 			return nil
 		},
 	}
@@ -139,25 +142,4 @@ func LoadPublicKey(filename string) (crypto.PublicKey, error) {
 			block.Type)
 	}
 
-}
-
-// encodeSubjectKeyID encodes the subject key id in provided format:
-// hex, base64, base64-url, base64-raw, base64-url-raw, emoji
-func encodeSubjectKeyID(skid []byte, format string) (string, error) {
-	switch strings.ToLower(format) {
-	case "hex":
-		return strings.ToLower(hex.EncodeToString(skid)), nil
-	case "base64":
-		return base64.StdEncoding.EncodeToString(skid), nil
-	case "base64-url":
-		return base64.URLEncoding.EncodeToString(skid), nil
-	case "base64-raw":
-		return base64.RawStdEncoding.EncodeToString(skid), nil
-	case "base64-url-raw":
-		return base64.RawURLEncoding.EncodeToString(skid), nil
-	case "emoji":
-		return encoding.ToEmoji(skid), nil
-	default:
-		return "", serrors.New("unsupported format", "format", format)
-	}
 }

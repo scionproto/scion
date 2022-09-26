@@ -2,7 +2,11 @@ load("//tools/lint:go.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["emoji.go"],
+    srcs = [
+        "emoji.go",
+        "encoding.go",
+    ],
     importpath = "github.com/scionproto/scion/scion-pki/encoding",
     visibility = ["//visibility:public"],
+    deps = ["//pkg/private/serrors:go_default_library"],
 )
