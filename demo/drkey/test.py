@@ -109,13 +109,13 @@ class Test(base.TestTopogen):
 
         # Demonstrate deriving key (fast) on server side
         rs = self.dc.execute("tester_%s" % self.server_isd_as.file_fmt(),
-                             "drkey-demo", "--mode", "server",
+                             "drkey-demo", "--server",
                              "--server-addr", server_addr, "--client-addr", client_addr)
         print(rs)
 
         # Demonstrate obtaining key (slow) on client side
         rc = self.dc.execute("tester_%s" % self.client_isd_as.file_fmt(),
-                             "drkey-demo", "--mode", "client",
+                             "drkey-demo",
                              "--server-addr", server_addr, "--client-addr", client_addr)
         print(rc)
 
