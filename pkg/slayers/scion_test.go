@@ -218,6 +218,44 @@ func TestSCIONSerializeDecode(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
+func TestSCIONSerializeLengthCheck(t *testing.T) {
+	pkt := prepPacket(t, slayers.L4UDP)
+	baseLen := slayers.CmnHdrLen + pkt.AddrHdrLen()
+
+	testCases := map[string]struct {
+		pathLen   int
+		assertErr assert.ErrorAssertionFunc
+	}{
+		"too long": {
+			pathLen:   1021 - baseLen,
+			assertErr: assert.Error,
+		},
+		"tight": {
+			pathLen:   1020 - baseLen,
+			assertErr: assert.NoError,
+		},
+		"odd": {
+			pathLen:   17,
+			assertErr: assert.Error,
+		},
+		"good": {
+			pathLen:   16,
+			assertErr: assert.NoError,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			pkt.Path = path.NewRawPath()
+			pkt.Path.DecodeFromBytes(make([]byte, tc.pathLen))
+
+			buffer := gopacket.NewSerializeBuffer()
+			err := pkt.SerializeTo(buffer, gopacket.SerializeOptions{FixLengths: true})
+			tc.assertErr(t, err)
+		})
+	}
+}
+
 func TestSetAndGetAddr(t *testing.T) {
 	testCases := map[string]struct {
 		srcAddr net.Addr

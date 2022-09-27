@@ -34,6 +34,8 @@ const (
 	LineLen = 4
 	// CmnHdrLen is the length of the SCION common header in bytes.
 	CmnHdrLen = 12
+	// MaxHdrLen is the maximum allowed length of a SCION header in bytes.
+	MaxHdrLen = 1020
 	// SCIONVersion is the currently supported version of the SCION header format. Different
 	// versions are not guaranteed to be compatible to each other.
 	SCIONVersion = 0
@@ -114,7 +116,7 @@ type SCION struct {
 	NextHdr L4ProtocolType
 	// HdrLen is the length of the SCION header in multiples of 4 bytes. The SCION header length is
 	// computed as HdrLen * 4 bytes. The 8 bits of the HdrLen field limit the SCION header to a
-	// maximum of 1024 bytes.
+	// maximum of 255 * 4 == 1020 bytes.
 	HdrLen uint8
 	// PayloadLen is the length of the payload in bytes. The payload includes extension headers and
 	// the L4 payload. This field is 16 bits long, supporting a maximum payload size of 64KB.
@@ -173,6 +175,14 @@ func (s *SCION) NetworkFlow() gopacket.Flow {
 
 func (s *SCION) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOptions) error {
 	scnLen := CmnHdrLen + s.AddrHdrLen() + s.Path.Len()
+	if scnLen > MaxHdrLen {
+		return serrors.New("header length exceeds maximum",
+			"max", MaxHdrLen, "actual", scnLen)
+	}
+	if scnLen%LineLen != 0 {
+		return serrors.New("header length is not an integer multiple of line length",
+			"actual", scnLen)
+	}
 	buf, err := b.PrependBytes(scnLen)
 	if err != nil {
 		return err
