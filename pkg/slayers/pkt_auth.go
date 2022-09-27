@@ -48,6 +48,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/slayers/path"
+	"github.com/scionproto/scion/pkg/slayers/path/onehop"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 )
 
@@ -77,13 +78,14 @@ const (
 	FixAuthDataInputLen = MinPacketAuthDataLen + 8
 	// UpperBoundMACInput sets an upperBound to the authenticated data
 	// length (excluding the payload). This is:
-	// 1. Authenticator Option Meta = 12B
-	// 2. SCION Common Header = 8B
-	// 3. SCION Address Header = 24B
-	// 4. Path = 796 B (Max len considering Path type SCION/OneHope)
-	// 		   = PathMetaHdr + 3 IFs + 64 HFs
+	// 1. Authenticator Option Meta
+	// 2. SCION Common Header
+	// 3. SCION Address Header
+	// 4. Path
 	// (see https://scion.docs.anapaya.net/en/latest/protocols/authenticator-option.html#authenticated-data)
-	UpperBoundMACInput = 840
+	// We round this up to 12B (authenticator option meta) + 1020B (max SCION header length)
+	// To adapt to any possible path types.
+	MACBufferSize = 1032
 )
 
 // PacketAuthSPI (Security Parameter Index) is the identifier for the key
@@ -344,68 +346,70 @@ func serializeAutenticatedData(
 		copy(buf[offset:offset+addrLen], s.RawSrcAddr)
 		offset += addrLen
 	}
-	zeroedPath, err := zeroOutMutablePath(s.Path)
+	err := zeroOutMutablePath(s.Path, buf[offset:])
 	if err != nil {
-		return 0, err
-	}
-	if err := zeroedPath.SerializeTo(buf[offset:]); err != nil {
 		return 0, err
 	}
 	offset += s.Path.Len()
 	return offset, nil
 }
 
-func ComputeSPAOCurrentTimestamp(ts uint32) (uint32, error) {
+func ComputeSPAOCurrentTimestamp(ts uint32, now time.Time) (uint32, error) {
 	// time = info[0].Timestamp+Timestamp⋅𝑞, where q := 6 ms
-	timestamp := time.Since(util.SecsToTime(ts)).Milliseconds() / 6
+	timestamp := now.Sub(util.SecsToTime(ts)).Milliseconds() / 6
 	if timestamp >= (1 << 24) {
 		return 0, serrors.New("relative timestamp is bigger than 2^24-1")
 	}
 	return uint32(timestamp), nil
 }
 
-func zeroOutMutablePath(orig path.Path) (path.Path, error) {
+func zeroOutMutablePath(orig path.Path, buff []byte) error {
+	err := orig.SerializeTo(buff)
+	if err != nil {
+		return serrors.WrapStr("serializing path for reseting fields", err)
+	}
 	switch p := orig.(type) {
+	// TODO(JordiSubira): process EPIC
+
 	case *scion.Raw:
 		// Zero out CurrInf && CurrHF
-		p.Raw[0] = 0
+		buff[0] = 0
 		offset := 4
 		for i := 0; i < p.Base.NumINF; i++ {
 			// Zero out IF.SegID
-			p.Raw[offset+2] = 0
+			buff[offset+2] = 0
 			offset := 8
 			for j := 0; j < int(p.Base.PathMeta.SegLen[i]); j++ {
 				// Zero out HF.Flags&&Alerts
-				p.Raw[offset] = 0
+				buff[offset] = 0
 				offset += 12
 			}
 		}
-		return p, nil
+		return nil
 	case *scion.Decoded:
-		dec := &scion.Decoded{
-			Base: scion.Base{
-				PathMeta: scion.MetaHdr{
-					SegLen:  p.PathMeta.SegLen,
-					CurrINF: 0,
-					CurrHF:  0,
-				},
-				NumINF:  1,
-				NumHops: 1,
-			},
-			InfoFields: make([]path.InfoField, 0),
-			HopFields:  make([]path.HopField, 0),
+		// Zero out CurrInf && CurrHF
+		buff[0] = 0
+		offset := 4
+		for i := 0; i < p.Base.NumINF; i++ {
+			// Zero out IF.SegID
+			buff[offset+2] = 0
+			offset := 8
+			for j := 0; j < int(p.Base.PathMeta.SegLen[i]); j++ {
+				// Zero out HF.Flags&&Alerts
+				buff[offset] = 0
+				offset += 12
+			}
 		}
-		for _, inf := range p.InfoFields {
-			inf.SegID = 0
-			dec.InfoFields = append(dec.InfoFields, inf)
-		}
-		for _, hf := range dec.HopFields {
-			hf.IngressRouterAlert = false
-			hf.EgressRouterAlert = false
-			dec.HopFields = append(dec.HopFields, hf)
-		}
-		return dec, nil
+		return nil
+	case *onehop.Path:
+		// Zero out IF.SegID
+		buff[2] = 0
+		// Zero out HF.Flags&&Alerts
+		buff[8] = 0
+		// Zero out HF.Flags&&Alerts
+		buff[20] = 0
+		return nil
 	default:
-		return nil, serrors.New(fmt.Sprintf("unknown path type %T", orig))
+		return serrors.New(fmt.Sprintf("unknown path type %T", orig))
 	}
 }

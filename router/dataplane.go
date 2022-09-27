@@ -570,7 +570,7 @@ func newPacketProcessor(d *DataPlane, ingressID uint16) *scionPacketProcessor {
 		macBuffers: macBuffers{
 			scionInput: make([]byte, path.MACBufferSize),
 			epicInput:  make([]byte, libepic.MACBufferSize),
-			drkeyInput: make([]byte, slayers.UpperBoundMACInput),
+			drkeyInput: make([]byte, slayers.MACBufferSize),
 		},
 		// TODO(JordiSubira): Replace this with a useful implementation.
 		drkeyProvider: &fakeProvider{},
@@ -1604,7 +1604,9 @@ func (p *scionPacketProcessor) getSPAO(scmpH *slayers.SCMP) (
 	drkey.Key,
 	error,
 ) {
-	sv := p.drkeyProvider.GetSV(time.Now())
+
+	now := time.Now()
+	sv := p.drkeyProvider.GetSV(now)
 	macBuf := make([]byte, 16)
 	// For creating SCMP responses we use sender side.
 	dir := slayers.PacketAuthSenderSide
@@ -1624,7 +1626,7 @@ func (p *scionPacketProcessor) getSPAO(scmpH *slayers.SCMP) (
 		return slayers.PacketAuthOption{}, drkey.Key{}, err
 	}
 
-	timestamp, err := slayers.ComputeSPAOCurrentTimestamp(firstInfo.Timestamp)
+	timestamp, err := slayers.ComputeSPAOCurrentTimestamp(firstInfo.Timestamp, now)
 	if err != nil {
 		return slayers.PacketAuthOption{}, drkey.Key{}, err
 	}
