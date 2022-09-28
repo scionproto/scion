@@ -98,10 +98,6 @@ class Test(base.TestTopogen):
         print(rs)
 
         # Demonstrate obtaining key (slow) on client side
-
-        # Show available paths that can be used to fetch key:
-        print(self.dc.execute("tester_%s" % self.client_isd_as.file_fmt(),
-                              "scion", "showpaths", str(self.server_isd_as)))
         rc = self.dc.execute("tester_%s" % self.client_isd_as.file_fmt(),
                              "drkey-demo",
                              "--server-addr", server_addr, "--client-addr", client_addr)
