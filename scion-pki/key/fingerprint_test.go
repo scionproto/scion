@@ -129,7 +129,6 @@ func TestNewFingerprintCmd(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			cmd := key.NewFingerprintCmd(command.StringPather("test"))
 
-			// TODO: fullkeydigest flag
 			args := []string{"--format", tc.OutputFormat, tc.InputCertFile}
 			if tc.FullKeyDigest {
 				args = append(args, "--full-key-digest")
@@ -146,5 +145,4 @@ func TestNewFingerprintCmd(t *testing.T) {
 			assert.Equal(t, tc.Expected, strings.Trim(actualFingerprint.String(), "\n"))
 		})
 	}
-
 }

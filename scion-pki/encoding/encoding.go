@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package encoding
 
 import (
@@ -21,6 +22,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
+// CheckEncodings checks if the specified format is supported.
 func CheckEncodings(format string) error {
 	switch strings.ToLower(format) {
 	case "hex", "base64", "base64-url", "base64-raw", "base64-url-raw", "emoji":

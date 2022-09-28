@@ -30,10 +30,10 @@ import (
 	"github.com/scionproto/scion/scion-pki/encoding"
 )
 
-// NewFingerprintCmd returns a cobra command that returns the subject key id of a
-// public key. If a private key is given, the subject key id is computed for the
+// NewFingerprintCmd returns a cobra command that returns the subject key ID of a
+// public key. If a private key is given, the subject key ID is computed for the
 // corresponding public key. For certificated or certificates chains, the subject
-// key id is computed with respect to the public key of the first certificate in the file.
+// key ID is computed with respect to the public key of the first certificate in the file.
 func NewFingerprintCmd(pather command.Pather) *cobra.Command {
 	var flags struct {
 		fullKey bool
@@ -50,11 +50,11 @@ The fingerprint of a private key will be based on the public part of the key. Fo
 certificate chains the fingerprint is computed on the public key of the first certificate
 in the file.
 
-By default the fingerprint calculated is SHA-1 hash of the marshaled public key defined in
+By default the fingerprint calculated is SHA-1 hash of the marshaled public key as defined in
 https://tools.ietf.org/html/rfc5280#section-4.2.1.2 (1). With the '--full-key-digest' flag, 
 the computed fingerprint is the SHA-1 hash with ASN.1 DER-encoded subjectPublicKey.
 
-The subject key id is written to standard out.
+The subject key ID is written to standard out.
 `,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -65,7 +65,7 @@ The subject key id is written to standard out.
 			cmd.SilenceUsage = true
 
 			filename := args[0]
-			pub, err := LoadPublicKey(filename)
+			pub, err := loadPublicKey(filename)
 			if err != nil {
 				return err
 			}
@@ -85,7 +85,7 @@ The subject key id is written to standard out.
 			}
 			output, err := encoding.EncodeBytes(skid, flags.format)
 			if err != nil {
-				return serrors.WrapStr("encoding subject key id", err)
+				return serrors.WrapStr("encoding subject key ID", err)
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), output)
 			return nil
@@ -100,11 +100,11 @@ The subject key id is written to standard out.
 	return cmd
 }
 
-// LoadPublicKey loads the public key from file and distinguishes what type of key it is.
-func LoadPublicKey(filename string) (crypto.PublicKey, error) {
+// loadPublicKey loads the public key from file and distinguishes what type of key it is.
+func loadPublicKey(filename string) (crypto.PublicKey, error) {
 	raw, err := os.ReadFile(filename)
 	if err != nil {
-		return nil, serrors.WrapStr("reading input key", err)
+		return nil, serrors.WrapStr("reading input file", err)
 	}
 	block, _ := pem.Decode(raw)
 	if block == nil {
@@ -119,7 +119,7 @@ func LoadPublicKey(filename string) (crypto.PublicKey, error) {
 
 		pub, ok := key.(crypto.Signer)
 		if !ok {
-			return nil, serrors.New("cannot get public key from private key",
+			return nil, serrors.New("unsupported private key type",
 				"type", fmt.Sprintf("%T", key),
 			)
 		}
@@ -133,13 +133,11 @@ func LoadPublicKey(filename string) (crypto.PublicKey, error) {
 	case "CERTIFICATE":
 		cert, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {
-			return nil, serrors.WrapStr("error parsing certificate", err)
+			return nil, serrors.WrapStr("parsing certificate", err)
 		}
 		return cert.PublicKey, nil
 	default:
-		return nil, serrors.New(
-			"file is not a valid PEM encoding of a private/public key or certificate", "type",
-			block.Type)
+		return nil, serrors.New("unsupported PEM block", "type", block.Type)
 	}
 
 }

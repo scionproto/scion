@@ -48,8 +48,7 @@ If the flag \--format is set to "emoji", the format of the output is a string of
 		`, pather.CommandPath()),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := encoding.CheckEncodings(flags.format)
-			if err != nil {
+			if err := encoding.CheckEncodings(flags.format); err != nil {
 				return err
 			}
 			cmd.SilenceUsage = true
