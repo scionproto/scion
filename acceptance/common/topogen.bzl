@@ -100,6 +100,8 @@ def topogen_test(
         env = {
             # Ensure output appears immediately (in particular with --test_output=streamed)
             "PYTHONUNBUFFERED": "1",
+            # Ensure that unicode output can be printed to the log/console
+            "PYTHONIOENCODING": "utf-8",
         },
     )
 
