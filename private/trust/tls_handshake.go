@@ -81,7 +81,7 @@ func (m *TLSCryptoManager) VerifyServerCertificate(
 	_ [][]*x509.Certificate,
 ) error {
 
-	return m.verifyPeerCertificate(rawCerts, x509.ExtKeyUsageServerAuth)
+	return m.verifyRawPeerCertificate(rawCerts, x509.ExtKeyUsageServerAuth)
 }
 
 // VerifyClientCertificate verifies the certificate presented by the client
@@ -91,7 +91,17 @@ func (m *TLSCryptoManager) VerifyClientCertificate(
 	_ [][]*x509.Certificate,
 ) error {
 
-	return m.verifyPeerCertificate(rawCerts, x509.ExtKeyUsageClientAuth)
+	return m.verifyRawPeerCertificate(rawCerts, x509.ExtKeyUsageClientAuth)
+}
+
+// VerifyParsedClientCertificate verifies the certificate presented by the
+// client using the CP-PKI.
+// If the certificate is valid, returns the subject IA.
+func (m *TLSCryptoManager) VerifyParsedClientCertificate(
+	chain []*x509.Certificate,
+) (addr.IA, error) {
+
+	return m.verifyParsedPeerCertificate(chain, x509.ExtKeyUsageClientAuth)
 }
 
 // VerifyConnection callback is intended to be used by the client to verify
@@ -101,7 +111,7 @@ func (m *TLSCryptoManager) VerifyConnection(cs tls.ConnectionState) error {
 	serverNameIA := strings.Split(cs.ServerName, ",")[0]
 	serverIA, err := addr.ParseIA(serverNameIA)
 	if err != nil {
-		return serrors.WrapStr("extracting IA from server name", err)
+		return serrors.WrapStr("extracting IA from server name", err, "connState", cs)
 	}
 	certIA, err := cppki.ExtractIA(cs.PeerCertificates[0].Subject)
 	if err != nil {
@@ -114,9 +124,9 @@ func (m *TLSCryptoManager) VerifyConnection(cs tls.ConnectionState) error {
 	return nil
 }
 
-// verifyPeerCertificate verifies the certificate presented by the peer during TLS handshake,
+// verifyRawPeerCertificate verifies the certificate presented by the peer during TLS handshake,
 // based on the TRC.
-func (m *TLSCryptoManager) verifyPeerCertificate(
+func (m *TLSCryptoManager) verifyRawPeerCertificate(
 	rawCerts [][]byte,
 	extKeyUsage x509.ExtKeyUsage,
 ) error {
@@ -129,23 +139,37 @@ func (m *TLSCryptoManager) verifyPeerCertificate(
 		}
 		chain[i] = cert
 	}
+	_, err := m.verifyParsedPeerCertificate(chain, extKeyUsage)
+	return err
+}
+
+// verifyParsedPeerCertificate verifies the certificate presented by the peer during TLS handshake,
+// based on the TRC.
+func (m *TLSCryptoManager) verifyParsedPeerCertificate(
+	chain []*x509.Certificate,
+	extKeyUsage x509.ExtKeyUsage,
+) (addr.IA, error) {
+
+	if len(chain) == 0 {
+		return 0, serrors.New("no peer certificate provided")
+	}
 	if err := verifyExtendedKeyUsage(chain[0], extKeyUsage); err != nil {
-		return err
+		return 0, err
 	}
 	ia, err := cppki.ExtractIA(chain[0].Subject)
 	if err != nil {
-		return serrors.WrapStr("extracting ISD-AS from peer certificate", err)
+		return 0, serrors.WrapStr("extracting ISD-AS from peer certificate", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), m.Timeout)
 	defer cancel()
 	trcs, _, err := activeTRCs(ctx, m.DB, ia.ISD())
 	if err != nil {
-		return serrors.WrapStr("loading TRCs", err)
+		return 0, serrors.WrapStr("loading TRCs", err)
 	}
 	if err := verifyChain(chain, trcs); err != nil {
-		return serrors.WrapStr("verifying chains", err)
+		return 0, serrors.WrapStr("verifying chains", err)
 	}
-	return nil
+	return ia, nil
 }
 
 func verifyChain(chain []*x509.Certificate, trcs []cppki.SignedTRC) error {

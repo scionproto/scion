@@ -85,5 +85,6 @@ func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,
 			})
 		}
 	}
+
 	return segfetcher.SegmentsReply{Segments: segs, Peer: segPeer.Addr}, nil
 }
