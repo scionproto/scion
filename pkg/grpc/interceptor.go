@@ -23,9 +23,71 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	jaeger "github.com/uber/jaeger-client-go"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/peer"
 
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/snet/squic"
 )
+
+// PeerAuthServerInterceptor inserts peer auth info based on the QUIC TLS
+// state, extracted from squic.ContextSmuggleAddr.
+func PeerAuthServerInterceptor() grpc.UnaryServerInterceptor {
+	return func(
+		ctx context.Context,
+		req interface{},
+		info *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler,
+	) (interface{}, error) {
+
+		ctx, err := peerAuthInfoCtx(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return handler(ctx, req)
+	}
+}
+
+// PeerAuthServerStreamInterceptor inserts peer auth info based on the QUIC TLS
+// state, extracted from squic.ContextSmuggleAddr.
+func PeerAuthServerStreamInterceptor() grpc.StreamServerInterceptor {
+	return func(
+		srv interface{},
+		ss grpc.ServerStream,
+		info *grpc.StreamServerInfo,
+		handler grpc.StreamHandler,
+	) error {
+		ctx, err := peerAuthInfoCtx(ss.Context())
+		if err != nil {
+			return err
+		}
+		ss = &serverStream{
+			ServerStream: ss,
+			ctx:          ctx,
+		}
+		return handler(srv, ss)
+	}
+}
+
+func peerAuthInfoCtx(ctx context.Context) (context.Context, error) {
+	origPeer, ok := peer.FromContext(ctx)
+	if !ok {
+		return ctx, serrors.New("peer info must exist")
+	}
+	smuggle, ok := origPeer.Addr.(squic.ContextSmuggleAddr)
+	if !ok {
+		return ctx, nil // nothing to do
+	}
+
+	newPeer := &peer.Peer{
+		Addr: smuggle.Addr,
+		AuthInfo: credentials.TLSInfo{
+			State: smuggle.Session.ConnectionState().TLS.ConnectionState,
+		},
+	}
+	return peer.NewContext(ctx, newPeer), nil
+}
 
 func LogIDClientInterceptor() grpc.UnaryClientInterceptor {
 	return func(
@@ -165,6 +227,7 @@ func StreamClientInterceptor() grpc.DialOption {
 // SCION control-plane applications.
 func UnaryServerInterceptor() grpc.ServerOption {
 	return grpc.ChainUnaryInterceptor(
+		PeerAuthServerInterceptor(),
 		grpcprom.UnaryServerInterceptor,
 		otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer()),
 		LogIDServerInterceptor(),
@@ -175,6 +238,7 @@ func UnaryServerInterceptor() grpc.ServerOption {
 // SCION control-plane applications.
 func StreamServerInterceptor() grpc.ServerOption {
 	return grpc.ChainStreamInterceptor(
+		PeerAuthServerStreamInterceptor(),
 		grpcprom.StreamServerInterceptor,
 		otgrpc.OpenTracingStreamServerInterceptor(opentracing.GlobalTracer()),
 		LogIDServerStreamInterceptor(),

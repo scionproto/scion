@@ -37,7 +37,6 @@ func (r LoadingRing) PrivateKeys(ctx context.Context) ([]crypto.Signer, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.FromCtx(ctx).Debug("available keys:", "files", files)
 
 	var signers []crypto.Signer
 	for _, file := range files {
