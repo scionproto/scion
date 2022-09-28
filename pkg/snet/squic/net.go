@@ -309,7 +309,10 @@ func (c *acceptingConn) LocalAddr() net.Addr {
 }
 
 func (c *acceptingConn) RemoteAddr() net.Addr {
-	return c.session.RemoteAddr()
+	return ContextSmuggleAddr{
+		Addr:    c.session.RemoteAddr(),
+		Session: c.session,
+	}
 }
 
 func (c *acceptingConn) Close() error {
@@ -408,7 +411,7 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 // with QUIC SNI.
 func computeAddressStr(address net.Addr) string {
 	if v, ok := address.(*snet.UDPAddr); ok {
-		return fmt.Sprintf("[%s]:%d", v.Host.IP, v.Host.Port)
+		return fmt.Sprintf("[%s,%s]:%d", v.IA, v.Host.IP, v.Host.Port)
 	}
 	return address.String()
 }
@@ -459,4 +462,32 @@ func (c *acceptedConn) Close() error {
 		return fmt.Errorf("closing connection: %v", errs)
 	}
 	return nil
+}
+
+// ContextSmuggleAddr is a net.Addr, returned from RemoteAddr in connections
+// Accept-ed by the ConnListener. This contains both the normally expected
+// net.Addr, as well as some additional context, specifically the quic session
+// object.
+//
+// This is purely a HACK to pass the quic session information through the grpc
+// stack; there is no way to insert something into the request context from the
+// listener directly. And, although the connection object itself is added to
+// the request context by the grpc libraries internally (and we could in turn
+// get the desired session information from the connection object), extracting
+// this information from the request context is reserved to the grpc
+// implementation packages (grpc/internal/transport.GetConnection(ctx)).
+//
+// See pkg/grpc.PeerAuthServer{,Stream}Interceptor where this is processed and
+// inserted into the regular request context as proper peer information.
+type ContextSmuggleAddr struct {
+	Addr    net.Addr
+	Session quic.Connection
+}
+
+func (a ContextSmuggleAddr) String() string {
+	return a.Addr.String()
+}
+
+func (a ContextSmuggleAddr) Network() string {
+	return a.Addr.Network()
 }

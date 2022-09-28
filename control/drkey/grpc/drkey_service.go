@@ -16,6 +16,7 @@ package grpc
 
 import (
 	"context"
+	"crypto/x509"
 	"net"
 
 	"google.golang.org/grpc/credentials"
@@ -31,7 +32,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	drkeypb "github.com/scionproto/scion/pkg/proto/drkey"
-	"github.com/scionproto/scion/pkg/scrypto/cppki"
 )
 
 type Engine interface {
@@ -47,10 +47,15 @@ type Engine interface {
 	DeriveHostHost(ctx context.Context, meta drkey.HostHostMeta) (drkey.HostHostKey, error)
 }
 
+type ClientCertificateVerifier interface {
+	VerifyParsedClientCertificate(chain []*x509.Certificate) (addr.IA, error)
+}
+
 // Server keeps track of the drkeys.
 type Server struct {
-	LocalIA addr.IA
-	Engine  Engine
+	LocalIA                   addr.IA
+	ClientCertificateVerifier ClientCertificateVerifier
+	Engine                    Engine
 	// AllowedSVHostProto is a set of (Host,Protocol) pairs that represents the allowed
 	// protocols hosts can obtain secrets values.
 	AllowedSVHostProto map[config.HostProto]struct{}
@@ -66,7 +71,7 @@ func (d *Server) DRKeyLevel1(
 	if !ok {
 		return nil, serrors.New("cannot retrieve peer information from ctx")
 	}
-	dstIA, err := extractIAFromPeer(peer)
+	dstIA, err := d.validateClientCertificate(peer)
 	if err != nil {
 		return nil, serrors.WrapStr("retrieving info from certificate", err)
 	}
@@ -231,6 +236,26 @@ func (d *Server) DRKeySecretValue(
 	return resp, nil
 }
 
+func (d *Server) validateClientCertificate(peer *peer.Peer) (addr.IA, error) {
+	if peer.AuthInfo == nil {
+		return 0, serrors.New("no auth info", "peer", peer)
+	}
+	tlsInfo, ok := peer.AuthInfo.(credentials.TLSInfo)
+	if !ok {
+		return 0, serrors.New("auth info is not of type TLS info",
+			"peer", peer, "auth_type", peer.AuthInfo.AuthType())
+	}
+	chain := tlsInfo.State.PeerCertificates
+	if len(chain) == 0 {
+		return 0, serrors.New("no client certificate provided")
+	}
+	certIA, err := d.ClientCertificateVerifier.VerifyParsedClientCertificate(chain)
+	if err != nil {
+		return 0, serrors.WrapStr("invalid certificate", err)
+	}
+	return certIA, nil
+}
+
 // validateAllowedHost checks that the requester is authorized to receive a SV.
 func (d *Server) validateAllowedHost(protoId drkey.Protocol, peerAddr net.Addr) error {
 	tcpAddr, ok := peerAddr.(*net.TCPAddr)
@@ -349,21 +374,4 @@ func getMeta(protoId drkeypb.Protocol, ts *timestamppb.Timestamp, srcIA,
 		SrcIA:    srcIA,
 		DstIA:    dstIA,
 	}, nil
-}
-
-func extractIAFromPeer(peer *peer.Peer) (addr.IA, error) {
-	if peer.AuthInfo == nil {
-		return 0, serrors.New("no auth info", "peer", peer)
-	}
-	tlsInfo, ok := peer.AuthInfo.(credentials.TLSInfo)
-	if !ok {
-		return 0, serrors.New("auth info is not of type TLS info",
-			"peer", peer, "auth_type", peer.AuthInfo.AuthType())
-	}
-	chain := tlsInfo.State.PeerCertificates
-	certIA, err := cppki.ExtractIA(chain[0].Subject)
-	if err != nil {
-		return 0, serrors.WrapStr("extracting IA from peer cert", err)
-	}
-	return certIA, nil
 }
