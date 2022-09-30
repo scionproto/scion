@@ -88,17 +88,26 @@ gazelle_dependencies()
 # Python rules
 http_archive(
     name = "rules_python",
-    sha256 = "a30abdfc7126d497a7698c29c46ea9901c6392d6ed315171a6df5ce433aa4502",
-    strip_prefix = "rules_python-0.6.0",
-    url = "https://github.com/bazelbuild/rules_python/archive/0.6.0.tar.gz",
+    sha256 = "8c8fe44ef0a9afc256d1e75ad5f448bb59b81aba149b8958f02f7b3a98f5d9b4",
+    strip_prefix = "rules_python-0.13.0",
+    url = "https://github.com/bazelbuild/rules_python/archive/refs/tags/0.13.0.tar.gz",
 )
 
-load("@rules_python//python:pip.bzl", "pip_install")
+load("@rules_python//python:repositories.bzl", "python_register_toolchains")
 
-pip_install(
-    name = "pip3_deps",
-    requirements = "//tools/env/pip3:requirements.txt",
+python_register_toolchains(
+    name = "python3_10",
+    python_version = "3.10",
 )
+
+load("@python3_10//:defs.bzl", "interpreter")
+load("//tools/env/pip3:deps.bzl", "python_deps")
+
+python_deps(interpreter)
+
+load("@com_github_scionproto_scion_python_deps//:requirements.bzl", install_python_deps = "install_deps")
+
+install_python_deps()
 
 http_archive(
     name = "rules_pkg",
@@ -257,7 +266,11 @@ bbcp_repository()
 
 load("//tools/lint/python:deps.bzl", "python_lint_deps")
 
-python_lint_deps()
+python_lint_deps(interpreter)
+
+load("@com_github_scionproto_scion_python_lint_deps//:requirements.bzl", install_python_lint_deps = "install_deps")
+
+install_python_lint_deps()
 
 load("//rules_openapi:dependencies.bzl", "rules_openapi_dependencies")
 
