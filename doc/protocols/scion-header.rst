@@ -51,7 +51,7 @@ HdrLen
     common header, the address header, and the path header). All SCION header
     fields are aligned to a multiple of 4 bytes. The SCION header length is
     computed as ``HdrLen * 4 bytes``. The 8 bits of the ``HdrLen`` field limit
-    the SCION header to a maximum of 1024 bytes.
+    the SCION header to a maximum of ``255 * 4 == 1020`` bytes.
 PayloadLen
     Length of the payload in bytes. The payload includes extension headers and
     the L4 payload. This field is 16 bits long, supporting a maximum payload

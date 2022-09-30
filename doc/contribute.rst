@@ -7,10 +7,13 @@ Contributing to the SCION code base
 Welcome to the SCION contribution guide! If you are interested in contributing to
 the project, this page will help you out on your journey to your first SCION commit.
 
+.. _slack:
+
 Before starting out, just one thing: if you have any questions, you can always
 find us on our `Slack workspace <https://scionproto.slack.com>`__ or on our
 `Github project page <https://github.com/scionproto/scion>`__. Do not hesitate to
 ask us anything, or feel free to just drop by and say "Hi".
+Please use this invite link to `join scionproto Slack workspace <https://join.slack.com/t/scionproto/shared_invite/zt-1gtgkuvk3-vQzq3gPOWOL6T58yu45vXg>`__.
 
 .. note:: Note for Anapayans
 
@@ -50,7 +53,7 @@ links to resources to get you started if you've never used before), please visit
 
 No matter what language you want to contribute to, one of the first steps to take is to set
 up a development environment. See :ref:`setting-up-the-development-environment` for the needed steps.
-If you encounter issues, please visit `Slack <https://scionproto.slack.com>`__ and ask for help.
+If you encounter issues, please visit our :ref:`Slack <slack>` and ask for help.
 
 Finding an issue to contribute to
 =================================
@@ -71,7 +74,7 @@ the first step in gathering more information about the issue from the SCION team
 
 From this point on, somebody from the SCION maintainers team will reach out to
 you and guide you for the rest of the process. If you have any questions, please
-remember to shoot us a question on our `Slack <https://scionproto.slack.com>`__.
+remember to shoot us a question on our :ref:`Slack <slack>`.
 
 Finally, make sure that the code you write adheres to the SCION project
 :ref:`language-style-guides`.
@@ -95,7 +98,7 @@ however, change in the near future when a formal specification or standard for
 the SCION protocol is established.
 
 .. hint:: It is recommended to discuss proposals with other (senior) developers
-   before submitting them, for example on our `Slack <https://scionproto.slack.com>`__.
+   before submitting them, for example on our :ref:`Slack <slack>`.
 
 .. warning:: Pull requests for substantial features that did not go through the
    proposal process will be rejected or put on hold.
