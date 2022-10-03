@@ -16,13 +16,26 @@ package slayers_test
 
 import (
 	"encoding/binary"
+	"encoding/hex"
+	"fmt"
+	"net"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/google/gopacket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/drkey"
+	"github.com/scionproto/scion/pkg/drkey/specific"
+	"github.com/scionproto/scion/pkg/private/util"
+	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
+	"github.com/scionproto/scion/pkg/slayers/path"
+	"github.com/scionproto/scion/pkg/slayers/path/onehop"
+	"github.com/scionproto/scion/pkg/slayers/path/scion"
 )
 
 var (
@@ -155,6 +168,150 @@ func TestOptAuthenticatorDeserializeCorrupt(t *testing.T) {
 	require.Error(t, err, "ParsePacketAuthOption should fail")
 }
 
+func TestComputeAuthMac(t *testing.T) {
+	now := time.Unix(0, 0)
+	epoch := drkey.NewEpoch(util.TimeToSecs(now), util.TimeToSecs(now.Add(24*time.Hour)))
+	srcIA := xtest.MustParseIA("1-ff00:0:111")
+	dstIA := xtest.MustParseIA("1-ff00:0:112")
+
+	sv := getSV(t, drkey.SCMP, epoch, srcIA)
+	macBuff := make([]byte, path.MACBufferSize)
+
+	testCases := map[string]struct {
+		input           []byte
+		scionL          slayers.SCION
+		pld             []byte
+		assertFormatErr assert.ErrorAssertionFunc
+	}{
+		"decoded": {
+			input: make([]byte, slayers.MACBufferSize),
+			scionL: slayers.SCION{
+				NextHdr:     slayers.End2EndClass,
+				SrcIA:       srcIA,
+				DstIA:       dstIA,
+				DstAddrLen:  slayers.AddrLen4,
+				DstAddrType: slayers.T4Ip,
+				RawDstAddr:  net.IPv4(192, 0, 0, 1),
+				Path: &scion.Decoded{
+					Base: scion.Base{
+						PathMeta: scion.MetaHdr{
+							SegLen: [3]byte{1, 1, 1},
+						},
+						NumINF:  3,
+						NumHops: 3,
+					},
+					InfoFields: []path.InfoField{
+						{
+							ConsDir:   false,
+							SegID:     1,
+							Timestamp: util.TimeToSecs(now),
+						},
+						{
+							ConsDir:   false,
+							SegID:     2,
+							Timestamp: util.TimeToSecs(now),
+						},
+						{
+							ConsDir:   true,
+							SegID:     3,
+							Timestamp: util.TimeToSecs(now),
+						},
+					},
+					HopFields: []path.HopField{
+						{
+							ExpTime:     63,
+							ConsIngress: 1,
+							ConsEgress:  0,
+							Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+						},
+						{
+							ExpTime:     63,
+							ConsIngress: 3,
+							ConsEgress:  2,
+							Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+						},
+						{
+							ExpTime:     63,
+							ConsIngress: 0,
+							ConsEgress:  2,
+							Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+						},
+					},
+				},
+			},
+			pld:             []byte("some payload"),
+			assertFormatErr: assert.NoError,
+		},
+		"one hop": {
+			input: make([]byte, slayers.MACBufferSize),
+			scionL: slayers.SCION{
+				NextHdr:     slayers.End2EndClass,
+				SrcIA:       srcIA,
+				DstIA:       dstIA,
+				DstAddrLen:  slayers.AddrLen4,
+				DstAddrType: slayers.T4Ip,
+				RawDstAddr:  net.IPv4(192, 0, 0, 1),
+				Path: &onehop.Path{
+					Info: path.InfoField{
+						ConsDir:   false,
+						SegID:     1,
+						Timestamp: util.TimeToSecs(now),
+					},
+
+					FirstHop: path.HopField{
+						ExpTime:     63,
+						ConsIngress: 1,
+						ConsEgress:  0,
+						Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+					},
+					SecondHop: path.HopField{
+						ExpTime:     63,
+						ConsIngress: 3,
+						ConsEgress:  2,
+						Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+					},
+				},
+			},
+			pld:             []byte("some payload"),
+			assertFormatErr: assert.NoError,
+		},
+	}
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+
+			dstAddr, err := tc.scionL.DstAddr()
+			require.NoError(t, err)
+			rawPathBuff := make([]byte, tc.scionL.Path.Len())
+			err = tc.scionL.Path.SerializeTo(rawPathBuff)
+			assert.NoError(t, err)
+			spao, key := getSPAO(t, tc.scionL.Path, sv.Key, tc.scionL.DstIA, dstAddr.String(), now)
+			mac, err := slayers.ComputeAuthCMAC(
+				tc.input,
+				key[:],
+				&tc.scionL,
+				spao,
+				tc.pld,
+				macBuff,
+			)
+			tc.assertFormatErr(t, err)
+			if err != nil {
+				return
+			}
+			goldenFile := "testdata/" + xtest.SanitizedName(t)
+			if *update {
+				macStr := hex.EncodeToString(mac)
+				require.NoError(t, os.WriteFile(goldenFile, []byte(macStr), 0666))
+			}
+			goldenRaw, err := os.ReadFile(goldenFile)
+			require.NoError(t, err)
+
+			goldenMac, err := hex.DecodeString(string(goldenRaw))
+			require.NoError(t, err)
+			require.Equal(t, goldenMac, mac)
+		})
+	}
+}
 func initSPI(t *testing.T) slayers.PacketAuthSPI {
 	spi, err := slayers.MakePacketAuthSPIDRKey(
 		1,
@@ -163,4 +320,75 @@ func initSPI(t *testing.T) slayers.PacketAuthSPI {
 		slayers.PacketAuthLater)
 	require.NoError(t, err)
 	return spi
+}
+
+func getSV(
+	t *testing.T,
+	protoID drkey.Protocol,
+	epoch drkey.Epoch,
+	srcIA addr.IA,
+) drkey.SecretValue {
+
+	asSecret := []byte{0, 1, 2, 3, 4, 5, 6, 7}
+	asSecret = append(asSecret, byte(srcIA))
+	sv, err := drkey.DeriveSV(protoID, epoch, asSecret)
+	require.NoError(t, err)
+	return sv
+}
+
+func getSPAO(
+	t *testing.T,
+	packetPath path.Path,
+	sv drkey.Key,
+	dstIA addr.IA,
+	dstHost string,
+	now time.Time,
+) (
+	slayers.PacketAuthOption,
+	drkey.Key,
+) {
+
+	macBuf := make([]byte, 16)
+	dir := slayers.PacketAuthSenderSide
+	epoch := slayers.PacketAuthLater
+	drkeyType := slayers.PacketAuthASHost
+
+	spi, err := slayers.MakePacketAuthSPIDRKey(uint16(drkey.SCMP), drkeyType, dir, epoch)
+	assert.NoError(t, err)
+
+	var firstInfo path.InfoField
+	switch p := packetPath.(type) {
+
+	case *scion.Raw:
+		firstInfo, err = p.GetInfoField(0)
+		require.NoError(t, err)
+	case *scion.Decoded:
+		firstInfo = p.InfoFields[0]
+	case *onehop.Path:
+		firstInfo = p.Info
+	default:
+		panic(fmt.Sprintf("unknown path type %T", packetPath))
+	}
+
+	timestamp, err := slayers.ComputeSPAOCurrentTimestamp(firstInfo.Timestamp, now)
+	assert.NoError(t, err)
+
+	sn := uint32(0)
+	optAuth, err := slayers.NewPacketAuthOption(slayers.PacketAuthOptionParams{
+		SPI:            spi,
+		Algorithm:      slayers.PacketAuthCMAC,
+		Timestamp:      timestamp,
+		SequenceNumber: sn,
+		Auth:           macBuf,
+	})
+	assert.NoError(t, err)
+
+	deriver := specific.Deriver{}
+
+	lvl1, err := deriver.DeriveLevel1(dstIA, sv)
+	require.NoError(t, err)
+
+	key, err := deriver.DeriveASHost(dstHost, lvl1)
+	require.NoError(t, err)
+	return optAuth, key
 }

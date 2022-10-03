@@ -1567,7 +1567,7 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 		var e2e slayers.EndToEndExtn
 		scionL.NextHdr = slayers.End2EndClass
 
-		optAuth, key, err := p.getSPAO(scmpH)
+		optAuth, key, err := p.getSPAO()
 		if err != nil {
 			return nil, err
 		}
@@ -1599,7 +1599,7 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 	return p.buffer.Bytes(), scmpError{TypeCode: scmpH.TypeCode, Cause: cause}
 }
 
-func (p *scionPacketProcessor) getSPAO(scmpH *slayers.SCMP) (
+func (p *scionPacketProcessor) getSPAO() (
 	slayers.PacketAuthOption,
 	drkey.Key,
 	error,
@@ -1654,20 +1654,8 @@ func (p *scionPacketProcessor) getSPAO(scmpH *slayers.SCMP) (
 	if err != nil {
 		return slayers.PacketAuthOption{}, drkey.Key{}, err
 	}
-	if drkeyType == slayers.PacketAuthASHost {
 
-		key, err := p.drkeyDeriver.DeriveASHost(dstA.String(), lvl1)
-		if err != nil {
-			return slayers.PacketAuthOption{}, drkey.Key{}, err
-		}
-		return optAuth, key, nil
-	}
-	localAddr := &net.IPAddr{IP: p.d.internalIP}
-	hostAS, err := p.drkeyDeriver.DeriveHostAS(localAddr.String(), lvl1)
-	if err != nil {
-		return slayers.PacketAuthOption{}, drkey.Key{}, err
-	}
-	key, err := p.drkeyDeriver.DeriveHostHost(dstA.String(), hostAS)
+	key, err := p.drkeyDeriver.DeriveASHost(dstA.String(), lvl1)
 	if err != nil {
 		return slayers.PacketAuthOption{}, drkey.Key{}, err
 	}
