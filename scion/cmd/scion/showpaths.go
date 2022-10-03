@@ -41,6 +41,7 @@ func newShowpaths(pather CommandPather) *cobra.Command {
 		logLevel string
 		noColor  bool
 		tracer   string
+		format   string
 	}
 
 	var cmd = &cobra.Command{
@@ -61,7 +62,7 @@ By default, the paths are probed. Paths served from the SCION Deamon's might not
 forward traffic successfully (e.g. if a network link went down, or there is a black
 hole on the path). To disable path probing, set the appropriate flag.
 
-'showpaths' can be instructed to output the paths as json using the the \--json flag.
+'showpaths' can be instructed to output the paths in a specific format using the \--format flag.
 
 If no alive path is discovered, json output is not enabled, and probing is not
 disabled, showpaths will exit with the code 1.
@@ -81,6 +82,12 @@ On other errors, showpaths will exit with code 2.
 				return serrors.WrapStr("setting up tracing", err)
 			}
 			defer closer()
+			switch flags.format {
+			case "human", "json", "yaml":
+				break
+			default:
+				return serrors.New("format not supported", "format", flags.format)
+			}
 
 			cmd.SilenceUsage = true
 
@@ -107,20 +114,27 @@ On other errors, showpaths will exit with code 2.
 			if err != nil {
 				return err
 			}
-			if flags.json {
+
+			switch flags.format {
+			case "human":
+				if res.IsLocal() {
+					fmt.Fprintf(os.Stdout, "Empty path, destination is local AS %s\n", res.Destination)
+					return nil
+				}
+				fmt.Fprintln(os.Stdout, "Available paths to", res.Destination)
+				if len(res.Paths) == 0 {
+					return app.WithExitCode(serrors.New("no path found"), 1)
+				}
+				res.Human(os.Stdout, flags.extended, !flags.noColor)
+				if res.Alive() == 0 && !flags.cfg.NoProbe {
+					return app.WithExitCode(serrors.New("no path alive"), 1)
+				}
+			case "json":
 				return res.JSON(os.Stdout)
-			}
-			if res.IsLocal() {
-				fmt.Fprintf(os.Stdout, "Empty path, destination is local AS %s\n", res.Destination)
-				return nil
-			}
-			fmt.Fprintln(os.Stdout, "Available paths to", res.Destination)
-			if len(res.Paths) == 0 {
-				return app.WithExitCode(serrors.New("no path found"), 1)
-			}
-			res.Human(os.Stdout, flags.extended, !flags.noColor)
-			if res.Alive() == 0 && !flags.cfg.NoProbe {
-				return app.WithExitCode(serrors.New("no path alive"), 1)
+			case "yaml":
+				return res.YAML(os.Stdout)
+			default:
+				return serrors.New("output format not supported", "format", flags.format)
 			}
 			return nil
 		},
@@ -139,9 +153,12 @@ On other errors, showpaths will exit with code 2.
 		"Do not probe the paths and print the health status")
 	cmd.Flags().BoolVarP(&flags.json, "json", "j", false,
 		"Write the output as machine readable json")
+	cmd.Flags().StringVar(&flags.format, "format", "human",
+		"Specify the output format (json|yaml)")
 	cmd.Flags().BoolVar(&flags.noColor, "no-color", false, "disable colored output")
 	cmd.Flags().StringVar(&flags.logLevel, "log.level", "", app.LogLevelUsage)
 	cmd.Flags().StringVar(&flags.tracer, "tracing.agent", "", "Tracing agent address")
 	cmd.Flags().BoolVar(&flags.cfg.Epic, "epic", false, "Enable EPIC.")
+	cmd.Flags().MarkDeprecated("json", "json flag is deprecated, use format flag")
 	return cmd
 }

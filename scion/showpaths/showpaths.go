@@ -33,27 +33,28 @@ import (
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/app/path"
 	"github.com/scionproto/scion/private/app/path/pathprobe"
+	"gopkg.in/yaml.v2"
 )
 
 // Result contains all the discovered paths.
 type Result struct {
-	LocalIA     addr.IA `json:"local_isd_as"`
-	Destination addr.IA `json:"destination"`
-	Paths       []Path  `json:"paths,omitempty"`
+	LocalIA     addr.IA `json:"local_isd_as" yaml:"local_isd_as"`
+	Destination addr.IA `json:"destination" yaml:"destination"`
+	Paths       []Path  `json:"paths,omitempty" yaml:"paths,omitempty"`
 }
 
 // Path holds information about the discovered path.
 type Path struct {
-	FullPath    snet.Path       `json:"-"`
-	Fingerprint string          `json:"fingerprint"`
-	Hops        []Hop           `json:"hops"`
-	NextHop     string          `json:"next_hop"`
-	Expiry      time.Time       `json:"expiry"`
-	MTU         uint16          `json:"mtu"`
-	Latency     []time.Duration `json:"latency"`
-	Status      string          `json:"status,omitempty"`
-	StatusInfo  string          `json:"status_info,omitempty"`
-	Local       net.IP          `json:"local_ip,omitempty"`
+	FullPath    snet.Path       `json:"-" yaml:"-"`
+	Fingerprint string          `json:"fingerprint" yaml:"fingerprint"`
+	Hops        []Hop           `json:"hops" yaml:"hops"`
+	NextHop     string          `json:"next_hop" yaml:"next_hop"`
+	Expiry      time.Time       `json:"expiry" yaml:"expiry"`
+	MTU         uint16          `json:"mtu" yaml:"mtu"`
+	Latency     []time.Duration `json:"latency" yaml:"latency"`
+	Status      string          `json:"status,omitempty" yaml:"status,omitempty"`
+	StatusInfo  string          `json:"status_info,omitempty" yaml:"status_info,omitempty"`
+	Local       net.IP          `json:"local_ip,omitempty" yaml:"local_ip,omitempty"`
 }
 
 // Hop represents an hop on the path.
@@ -291,6 +292,12 @@ func (r Result) JSON(w io.Writer) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	enc.SetEscapeHTML(false)
+	return enc.Encode(r)
+}
+
+// JSON writes the showpaths result as a yaml object to the writer.
+func (r Result) YAML(w io.Writer) error {
+	enc := yaml.NewEncoder(w)
 	return enc.Encode(r)
 }
 
