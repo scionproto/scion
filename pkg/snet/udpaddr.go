@@ -17,7 +17,9 @@ package snet
 import (
 	"fmt"
 	"net"
+	"net/netip"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"inet.af/netaddr"
@@ -27,7 +29,6 @@ import (
 )
 
 var addrRegexpLegacy = regexp.MustCompile(`^(?P<ia>\d+-[\d:A-Fa-f]+),(?P<host>.+)$`)
-var addrRegexp = regexp.MustCompile(`^\[(?P<ia>\d+-[\d:A-Fa-f]+),(?P<host>.+)\]:(?P<port>.+)$`)
 
 // UDPAddr to be used when UDP host.
 type UDPAddr struct {
@@ -41,7 +42,7 @@ type UDPAddr struct {
 func ParseUDPAddr(s string) (*UDPAddr, error) {
 	addr, err := parseUDPAddr(s)
 	if err != nil {
-		addr, err = parseUDPAddrLegacy(s)
+		return parseUDPAddrLegacy(s)
 	}
 	return addr, err
 
@@ -52,28 +53,38 @@ func ParseUDPAddr(s string) (*UDPAddr, error) {
 //
 // Examples:
 //  - [isd-as,ipv4]:port       (e.g., [1-ff00:0:110,192.0.2.1]:80)
-//  - [isd-as,ipv6%zone]:port  (e.g., [1-ff00:0:110,2001:DB8::1]:80)
+//  - [isd-as,ipv6%zone]:port  (e.g., [1-ff00:0:110,2001:DB8::1%zone]:80)
 func parseUDPAddr(s string) (*UDPAddr, error) {
-	rawIA, rawHost, err := parseScionAddr(s)
+	host, port, err := net.SplitHostPort(s)
 	if err != nil {
-		return nil, err
+		return nil, serrors.WrapStr("invalid address: split host:port", err, "addr", s)
 	}
-
-	ia, err := addr.ParseIA(rawIA)
+	parts := strings.Split(host, ",")
+	if len(parts) != 2 {
+		return nil, serrors.WrapStr("invalid address: host parts invalid", err, "host", host)
+	}
+	ia, err := addr.ParseIA(parts[0])
 	if err != nil {
 		return nil, serrors.WrapStr("invalid address: IA not parsable", err, "ia", ia)
 	}
-
-	udp, err := net.ResolveUDPAddr("udp", rawHost)
+	ip, err := netip.ParseAddr(parts[1])
+	if len(parts) != 2 {
+		return nil, serrors.WrapStr("invalid address: ip not parsable", err, "ip", parts[1])
+	}
+	p, err := strconv.Atoi(port)
 	if err != nil {
-		return nil, serrors.WrapStr("invalid address: host not parsable", err, "host", rawHost)
+		return nil, serrors.WrapStr("invalid address: port invalid", err, "port", port)
 	}
-	if udp.IP == nil {
-		return nil, serrors.WrapStr("invalid address: ip not specified", err, "host", rawHost)
+	udp := &net.UDPAddr{
+		IP:   ip.AsSlice(),
+		Zone: ip.Zone(),
+		Port: p,
 	}
+
 	return &UDPAddr{IA: ia, Host: udp}, nil
 }
 
+// The legacy format of the SCION address URI encoding allows multiple different encodings.
 // The supported legacy formats are:
 //
 // Recommended:
@@ -177,20 +188,6 @@ func parseAddr(s string) (string, string, error) {
 		return "", "", serrors.New("invalid address: trailing ':'", "addr", s)
 	}
 	return match[1], match[2], nil
-}
-
-func parseScionAddr(s string) (string, string, error) {
-	match := addrRegexp.FindStringSubmatch(s)
-	if len(match) != 4 {
-		return "", "", serrors.New("invalid address: regex match failed", "addr", s)
-	}
-	left, right := strings.Count(s, "["), strings.Count(s, "]")
-	if left != 1 || right != 1 {
-		return "", "", serrors.New("invalid address: brackets mismatch", "addr", s)
-	}
-	var rawHost string = "[" + match[2] + "]:" + match[3]
-
-	return match[1], rawHost, nil
 }
 
 func ipOnly(s string) bool {
