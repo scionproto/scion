@@ -98,13 +98,13 @@ func TestLevel1KeyFetching(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 
-			// TODO(matzf): change xtest library to allow specifiying the client
+			// TODO(matzf): change xtest library to allow specifying the client
 			// credentials for individual calls so that server does not need to be
 			// recreated here.
 			serverCreds := credentials.NewTLS(&tls.Config{
 				InsecureSkipVerify:    true,
 				GetCertificate:        mgr.GetCertificate,
-				VerifyPeerCertificate: nil, // certificate verified in the server implementation itself
+				VerifyPeerCertificate: nil, // certificate verified in the service
 				ClientAuth:            tls.RequestClientCert,
 			})
 
