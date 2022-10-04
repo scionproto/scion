@@ -17,7 +17,6 @@ package snet_test
 import (
 	"fmt"
 	"net"
-	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -257,10 +256,8 @@ func TestParseUDPAddr(t *testing.T) {
 		} else {
 			assert.NoError(t, err)
 			assert.Equal(t, test.ia, a.IA.String())
-			ipLegacy := net.ParseIP(test.host)
-			ip, err := netip.ParseAddr(test.host)
-			assert.NoError(t, err)
-			assert.Contains(t, []net.IP{ipLegacy, ip.AsSlice()}, a.Host.IP)
+			ip := net.ParseIP(test.host)
+			assert.True(t, ip.Equal(a.Host.IP))
 			assert.Equal(t, test.port, a.Host.Port)
 			assert.Equal(t, test.zone, a.Host.Zone)
 		}

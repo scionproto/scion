@@ -44,8 +44,7 @@ func ParseUDPAddr(s string) (*UDPAddr, error) {
 	if err != nil {
 		return parseUDPAddrLegacy(s)
 	}
-	return addr, err
-
+	return addr, nil
 }
 
 // The supported formats are based on the extensions of RFC 3986:
@@ -61,14 +60,15 @@ func parseUDPAddr(s string) (*UDPAddr, error) {
 	}
 	parts := strings.Split(host, ",")
 	if len(parts) != 2 {
-		return nil, serrors.WrapStr("invalid address: host parts invalid", err, "host", host)
+		return nil, serrors.New("invalid address: host parts invalid",
+			"expected", 2, "actual", len(parts))
 	}
 	ia, err := addr.ParseIA(parts[0])
 	if err != nil {
 		return nil, serrors.WrapStr("invalid address: IA not parsable", err, "ia", ia)
 	}
 	ip, err := netip.ParseAddr(parts[1])
-	if len(parts) != 2 {
+	if err != nil {
 		return nil, serrors.WrapStr("invalid address: ip not parsable", err, "ip", parts[1])
 	}
 	p, err := strconv.Atoi(port)
