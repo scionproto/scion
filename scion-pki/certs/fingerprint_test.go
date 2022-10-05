@@ -41,7 +41,7 @@ func TestFingerprintOnSingleCert(t *testing.T) {
 		"single certificate emoji fingerprint output": {
 			InputCertFile: "testdata/fingerprint/ISD1-ASff00_0_112.pem",
 			OutputFormat:  "emoji",
-			Expected:      "✂👦🏊💈💂💔👅👋🔓©👦👌🕵🎡🐹🍔🔫👩⛅🐢🍬🎷👬🎱☎🐐🚴🌽🗽〰🐚👅",
+			Expected:      "✂️👦🏊‍♂️💈💂‍♂️💔👅👋🔓©️👦👌🕵️‍♀️🎡🐹🍔🔫👩⛅🐢🍬🎷👭🎱☎️🐐🚴‍♂️🌽🗽〰️🐚👅",
 			ErrAssertion:  assert.NoError,
 		},
 		"certificate chain hex fingerprint output": {
@@ -53,7 +53,7 @@ func TestFingerprintOnSingleCert(t *testing.T) {
 		"certificate chain emoji fingerprint output": {
 			InputCertFile: "testdata/fingerprint/ISD1-ASff00_0_111.pem",
 			OutputFormat:  "emoji",
-			Expected:      "🐑💂🔩🍼🔑😆⛲🌕🌼😆👨🗿👸👾😢🐓☁💥😇🍗❤🍫⭕🍆🎉👧🎲⛺🐗🐢💀🌻",
+			Expected:      "🐑💂‍♂️🔩🍼🔑😆⛲🌕🌼😆👨🗿👸👾😢🐓☁️💥👼🍗❤️🍫⭕🍆🎉👧🎲⛺🐗🐢💀🌻",
 			ErrAssertion:  assert.NoError,
 		},
 		"empty certificate file hex fingerprint output": {
