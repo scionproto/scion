@@ -23,6 +23,147 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 )
 
+func TestPathMetaDecode(t *testing.T) {
+	testCases := map[string]struct {
+		raw       []byte
+		assertErr assert.ErrorAssertionFunc
+		expected  scion.MetaHdr
+	}{
+		"nil": {
+			raw:       nil,
+			assertErr: assert.Error,
+		},
+		"short": {
+			raw:       []byte{1, 2, 3},
+			assertErr: assert.Error,
+		},
+		"ok": {
+			raw: []byte{0x42, 0x0, 0x31, 0x05},
+			expected: scion.MetaHdr{
+				CurrINF: 1,
+				CurrHF:  2,
+				SegLen:  [3]uint8{3, 4, 5},
+			},
+			assertErr: assert.NoError,
+		},
+		"limits": {
+			raw: []byte{0xff, 0x03, 0xff, 0xff},
+			expected: scion.MetaHdr{
+				CurrINF: 3, // nonsensical but can be represented
+				CurrHF:  63,
+				SegLen:  [3]uint8{63, 63, 63},
+			},
+			assertErr: assert.NoError,
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			var actual scion.MetaHdr
+			err := actual.DecodeFromBytes(tc.raw)
+			tc.assertErr(t, err)
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
+func TestPathBaseDecode(t *testing.T) {
+	testCases := map[string]struct {
+		raw       []byte
+		assertErr assert.ErrorAssertionFunc
+		expected  scion.Base
+	}{
+		"nil": {
+			raw:       nil,
+			assertErr: assert.Error,
+		},
+		"short": {
+			raw:       []byte{1, 2, 3},
+			assertErr: assert.Error,
+		},
+		"three segments": {
+			raw: []byte{0x42, 0x0, 0x31, 0x05},
+			expected: scion.Base{
+				PathMeta: scion.MetaHdr{
+					CurrINF: 1,
+					CurrHF:  2,
+					SegLen:  [3]uint8{3, 4, 5},
+				},
+				NumINF:  3,
+				NumHops: 3 + 4 + 5,
+			},
+			assertErr: assert.NoError,
+		},
+		"two segments": {
+			raw: []byte{0x42, 0x0, 0x31, 0x00},
+			expected: scion.Base{
+				PathMeta: scion.MetaHdr{
+					CurrINF: 1,
+					CurrHF:  2,
+					SegLen:  [3]uint8{3, 4, 0},
+				},
+				NumINF:  2,
+				NumHops: 3 + 4,
+			},
+			assertErr: assert.NoError,
+		},
+		"one segment": {
+			raw: []byte{0x02, 0x0, 0x30, 0x00},
+			expected: scion.Base{
+				PathMeta: scion.MetaHdr{
+					CurrINF: 0,
+					CurrHF:  2,
+					SegLen:  [3]uint8{3, 0, 0},
+				},
+				NumINF:  1,
+				NumHops: 3,
+			},
+			assertErr: assert.NoError,
+		},
+		"no segment": {
+			raw:       []byte{0x00, 0x00, 0x00, 0x00},
+			assertErr: assert.Error,
+		},
+		"one segment, currINF out of range": {
+			raw:       []byte{0x42, 0x0, 0x30, 0x00}, // CurrINF is 1
+			assertErr: assert.Error,
+		},
+		"two segments, currINF out of range": {
+			raw:       []byte{0x82, 0x0, 0x31, 0x00}, // CurrINF is 2
+			assertErr: assert.Error,
+		},
+		"one segment, currHF out of range": {
+			raw:       []byte{0x03, 0x0, 0x30, 0x00}, // CurrHF is 3 which is >= SegLen[0]
+			assertErr: assert.Error,
+		},
+		"two segments, currHF out of range": {
+			raw:       []byte{0x07, 0x0, 0x31, 0x00}, // CurrHF is 7 which is >= 3+4
+			assertErr: assert.Error,
+		},
+		"impossible curr inf": {
+			raw:       []byte{0xc0, 0x03, 0xff, 0xff}, // CurrInf is 3
+			assertErr: assert.Error,
+		},
+		"non-zero seglen after zero at 0": {
+			raw:       []byte{0x42, 0x00, 0x0f, 0xff},
+			assertErr: assert.Error,
+		},
+		"non-zero seglen after zero at 1": {
+			raw:       []byte{0x42, 0x03, 0xf0, 0x3f},
+			assertErr: assert.Error,
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			var actual scion.Base
+			err := actual.DecodeFromBytes(tc.raw)
+			tc.assertErr(t, err)
+			if err == nil {
+				assert.Equal(t, tc.expected, actual)
+			}
+		})
+	}
+}
+
 func TestIncPath(t *testing.T) {
 	testCases := map[string]struct {
 		nsegs, nhops     int

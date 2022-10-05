@@ -66,6 +66,13 @@ func (s *Base) DecodeFromBytes(data []byte) error {
 		}
 		s.NumHops += int(s.PathMeta.SegLen[i])
 	}
+	if int(s.PathMeta.CurrINF) >= s.NumINF {
+		return serrors.New("CurrINF out of range", "value", s.PathMeta.CurrINF, "numInfo", s.NumINF)
+	}
+	if int(s.PathMeta.CurrHF) >= s.NumHops {
+		return serrors.New("CurrHF out of range", "value", s.PathMeta.CurrHF, "numHops", s.NumHops)
+	}
+
 	return nil
 }
 
