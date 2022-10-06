@@ -15,7 +15,6 @@
 package snet_test
 
 import (
-	"fmt"
 	"net"
 	"testing"
 
@@ -249,7 +248,7 @@ func TestParseUDPAddr(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		t.Log(fmt.Sprintf("given address %q", test.address))
+		t.Logf("given address %q", test.address)
 		a, err := snet.ParseUDPAddr(test.address)
 		if test.isError {
 			assert.Error(t, err)
