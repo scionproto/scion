@@ -29,11 +29,11 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
-	"github.com/scionproto/scion/pkg/drkey/specific"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
+	"github.com/scionproto/scion/pkg/slayers/path/epic"
 	"github.com/scionproto/scion/pkg/slayers/path/onehop"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 )
@@ -170,12 +170,59 @@ func TestOptAuthenticatorDeserializeCorrupt(t *testing.T) {
 
 func TestComputeAuthMac(t *testing.T) {
 	now := time.Unix(0, 0)
-	epoch := drkey.NewEpoch(util.TimeToSecs(now), util.TimeToSecs(now.Add(24*time.Hour)))
 	srcIA := xtest.MustParseIA("1-ff00:0:111")
 	dstIA := xtest.MustParseIA("1-ff00:0:112")
-
-	sv := getSV(t, drkey.SCMP, epoch, srcIA)
 	macBuff := make([]byte, path.MACBufferSize)
+
+	decodedPath := &scion.Decoded{
+		Base: scion.Base{
+			PathMeta: scion.MetaHdr{
+				SegLen: [3]byte{1, 1, 1},
+			},
+			NumINF:  3,
+			NumHops: 3,
+		},
+		InfoFields: []path.InfoField{
+			{
+				ConsDir:   false,
+				SegID:     1,
+				Timestamp: util.TimeToSecs(now),
+			},
+			{
+				ConsDir:   false,
+				SegID:     2,
+				Timestamp: util.TimeToSecs(now),
+			},
+			{
+				ConsDir:   true,
+				SegID:     3,
+				Timestamp: util.TimeToSecs(now),
+			},
+		},
+		HopFields: []path.HopField{
+			{
+				ExpTime:     63,
+				ConsIngress: 1,
+				ConsEgress:  0,
+				Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+			},
+			{
+				ExpTime:     63,
+				ConsIngress: 3,
+				ConsEgress:  2,
+				Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+			},
+			{
+				ExpTime:     63,
+				ConsIngress: 0,
+				ConsEgress:  2,
+				Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+			},
+		},
+	}
+	rawPath := make([]byte, decodedPath.Len())
+	err := decodedPath.SerializeTo(rawPath)
+	require.NoError(t, err)
 
 	testCases := map[string]struct {
 		input           []byte
@@ -192,52 +239,7 @@ func TestComputeAuthMac(t *testing.T) {
 				DstAddrLen:  slayers.AddrLen4,
 				DstAddrType: slayers.T4Ip,
 				RawDstAddr:  net.IPv4(192, 0, 0, 1),
-				Path: &scion.Decoded{
-					Base: scion.Base{
-						PathMeta: scion.MetaHdr{
-							SegLen: [3]byte{1, 1, 1},
-						},
-						NumINF:  3,
-						NumHops: 3,
-					},
-					InfoFields: []path.InfoField{
-						{
-							ConsDir:   false,
-							SegID:     1,
-							Timestamp: util.TimeToSecs(now),
-						},
-						{
-							ConsDir:   false,
-							SegID:     2,
-							Timestamp: util.TimeToSecs(now),
-						},
-						{
-							ConsDir:   true,
-							SegID:     3,
-							Timestamp: util.TimeToSecs(now),
-						},
-					},
-					HopFields: []path.HopField{
-						{
-							ExpTime:     63,
-							ConsIngress: 1,
-							ConsEgress:  0,
-							Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
-						},
-						{
-							ExpTime:     63,
-							ConsIngress: 3,
-							ConsEgress:  2,
-							Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
-						},
-						{
-							ExpTime:     63,
-							ConsIngress: 0,
-							ConsEgress:  2,
-							Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
-						},
-					},
-				},
+				Path:        decodedPath,
 			},
 			pld:             []byte("some payload"),
 			assertFormatErr: assert.NoError,
@@ -275,6 +277,31 @@ func TestComputeAuthMac(t *testing.T) {
 			pld:             []byte("some payload"),
 			assertFormatErr: assert.NoError,
 		},
+		"epic": {
+			input: make([]byte, slayers.MACBufferSize),
+			scionL: slayers.SCION{
+				NextHdr:     slayers.End2EndClass,
+				SrcIA:       srcIA,
+				DstIA:       dstIA,
+				DstAddrLen:  slayers.AddrLen4,
+				DstAddrType: slayers.T4Ip,
+				RawDstAddr:  net.IPv4(192, 0, 0, 1),
+				Path: &epic.Path{
+					PktID: epic.PktID{
+						Timestamp: 1,
+						Counter:   0x02000003,
+					},
+					PHVF: []byte{1, 2, 3, 4},
+					LHVF: []byte{5, 6, 7, 8},
+					ScionPath: &scion.Raw{
+						Base: decodedPath.Base,
+						Raw:  rawPath,
+					},
+				},
+			},
+			pld:             []byte("some payload"),
+			assertFormatErr: assert.NoError,
+		},
 	}
 	for name, tc := range testCases {
 		name, tc := name, tc
@@ -282,10 +309,7 @@ func TestComputeAuthMac(t *testing.T) {
 
 			dstAddr, err := tc.scionL.DstAddr()
 			require.NoError(t, err)
-			rawPathBuff := make([]byte, tc.scionL.Path.Len())
-			err = tc.scionL.Path.SerializeTo(rawPathBuff)
-			assert.NoError(t, err)
-			spao, key := getSPAO(t, tc.scionL.Path, sv.Key, tc.scionL.DstIA, dstAddr.String(), now)
+			spao, key := getSPAO(t, tc.scionL.Path, tc.scionL.DstIA, dstAddr.String(), now)
 			mac, err := slayers.ComputeAuthCMAC(
 				tc.input,
 				key[:],
@@ -322,24 +346,9 @@ func initSPI(t *testing.T) slayers.PacketAuthSPI {
 	return spi
 }
 
-func getSV(
-	t *testing.T,
-	protoID drkey.Protocol,
-	epoch drkey.Epoch,
-	srcIA addr.IA,
-) drkey.SecretValue {
-
-	asSecret := []byte{0, 1, 2, 3, 4, 5, 6, 7}
-	asSecret = append(asSecret, byte(srcIA))
-	sv, err := drkey.DeriveSV(protoID, epoch, asSecret)
-	require.NoError(t, err)
-	return sv
-}
-
 func getSPAO(
 	t *testing.T,
 	packetPath path.Path,
-	sv drkey.Key,
 	dstIA addr.IA,
 	dstHost string,
 	now time.Time,
@@ -358,19 +367,21 @@ func getSPAO(
 
 	var firstInfo path.InfoField
 	switch p := packetPath.(type) {
-
 	case *scion.Raw:
 		firstInfo, err = p.GetInfoField(0)
 		require.NoError(t, err)
 	case *scion.Decoded:
 		firstInfo = p.InfoFields[0]
+	case *epic.Path:
+		firstInfo, err = p.ScionPath.GetInfoField(0)
+		require.NoError(t, err)
 	case *onehop.Path:
 		firstInfo = p.Info
 	default:
 		panic(fmt.Sprintf("unknown path type %T", packetPath))
 	}
 
-	timestamp, err := slayers.ComputeSPAOCurrentTimestamp(firstInfo.Timestamp, now)
+	timestamp, err := slayers.ComputeSPAORelativeTimestamp(firstInfo.Timestamp, now)
 	assert.NoError(t, err)
 
 	sn := uint32(0)
@@ -383,12 +394,5 @@ func getSPAO(
 	})
 	assert.NoError(t, err)
 
-	deriver := specific.Deriver{}
-
-	lvl1, err := deriver.DeriveLevel1(dstIA, sv)
-	require.NoError(t, err)
-
-	key, err := deriver.DeriveASHost(dstHost, lvl1)
-	require.NoError(t, err)
-	return optAuth, key
+	return optAuth, drkey.Key{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7}
 }

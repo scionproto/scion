@@ -123,6 +123,9 @@ var (
 	noBFDSessionFound             = serrors.New("no BFD sessions was found")
 	noBFDSessionConfigured        = serrors.New("no BFD sessions have been configured")
 	errBFDDisabled                = serrors.New("BFD is disabled")
+	// zeroBuffer will be used to reset the Authenticator option in the
+	// scionPacketProcessor.OptAuth
+	zeroBuffer = make([]byte, 16)
 )
 
 type drkeyProvider interface {
@@ -575,6 +578,7 @@ func newPacketProcessor(d *DataPlane, ingressID uint16) *scionPacketProcessor {
 		// TODO(JordiSubira): Replace this with a useful implementation.
 		drkeyProvider: &fakeProvider{},
 		drkeyDeriver:  specific.Deriver{},
+		optAuth:       slayers.PacketAuthOption{EndToEndOption: new(slayers.EndToEndOption)},
 	}
 	p.scionLayer.RecyclePaths()
 	return p
@@ -780,6 +784,7 @@ type scionPacketProcessor struct {
 
 	// bfdLayer is reusable buffer for parsing BFD messages
 	bfdLayer layers.BFD
+	optAuth  slayers.PacketAuthOption
 
 	drkeyDeriver specific.Deriver
 }
@@ -1567,25 +1572,24 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 		var e2e slayers.EndToEndExtn
 		scionL.NextHdr = slayers.End2EndClass
 
-		optAuth, key, err := p.getSPAO()
+		key, err := p.setSPAO()
 		if err != nil {
 			return nil, err
 		}
 
-		e2e.Options = []*slayers.EndToEndOption{optAuth.EndToEndOption}
+		e2e.Options = []*slayers.EndToEndOption{p.optAuth.EndToEndOption}
 		e2e.NextHdr = slayers.L4SCMP
-		mac, err := slayers.ComputeAuthCMAC(
+		_, err = slayers.ComputeAuthCMAC(
 			p.macBuffers.drkeyInput,
 			key[:],
 			&scionL,
-			optAuth,
+			p.optAuth,
 			p.buffer.Bytes(),
-			optAuth.Authenticator(),
+			p.optAuth.Authenticator(),
 		)
 		if err != nil {
 			return nil, serrors.Wrap(cannotRoute, err, "details", "computing CMAC")
 		}
-		copy(optAuth.Authenticator(), mac)
 		if err := e2e.SerializeTo(p.buffer, sopts); err != nil {
 			return nil, serrors.Wrap(cannotRoute, err, "details", "serializing SCION E2E headers")
 		}
@@ -1599,15 +1603,13 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 	return p.buffer.Bytes(), scmpError{TypeCode: scmpH.TypeCode, Cause: cause}
 }
 
-func (p *scionPacketProcessor) getSPAO() (
-	slayers.PacketAuthOption,
+func (p *scionPacketProcessor) setSPAO() (
 	drkey.Key,
 	error,
 ) {
 
 	now := time.Now()
 	sv := p.drkeyProvider.GetSV(now)
-	macBuf := make([]byte, 16)
 	// For creating SCMP responses we use sender side.
 	dir := slayers.PacketAuthSenderSide
 	// TODO(JordiSubira): At the moment, We assume the later epoch at the moment.
@@ -1618,48 +1620,46 @@ func (p *scionPacketProcessor) getSPAO() (
 
 	spi, err := slayers.MakePacketAuthSPIDRKey(uint16(drkey.SCMP), drkeyType, dir, epoch)
 	if err != nil {
-		return slayers.PacketAuthOption{}, drkey.Key{}, err
+		return drkey.Key{}, err
 	}
 
 	firstInfo, err := p.path.GetInfoField(0)
 	if err != nil {
-		return slayers.PacketAuthOption{}, drkey.Key{}, err
+		return drkey.Key{}, err
 	}
 
-	timestamp, err := slayers.ComputeSPAOCurrentTimestamp(firstInfo.Timestamp, now)
+	timestamp, err := slayers.ComputeSPAORelativeTimestamp(firstInfo.Timestamp, now)
 	if err != nil {
-		return slayers.PacketAuthOption{}, drkey.Key{}, err
+		return drkey.Key{}, err
 	}
 
 	// XXX(JordiSubira): Assume that send rate is low so that combination
 	// with timestamp is always unique
 	sn := uint32(0)
-	optAuth, err := slayers.NewPacketAuthOption(slayers.PacketAuthOptionParams{
+	if err := p.optAuth.Reset(slayers.PacketAuthOptionParams{
 		SPI:            spi,
 		Algorithm:      slayers.PacketAuthCMAC,
 		Timestamp:      timestamp,
 		SequenceNumber: sn,
-		Auth:           macBuf,
-	})
-	if err != nil {
-		return slayers.PacketAuthOption{}, drkey.Key{}, err
+		Auth:           zeroBuffer,
+	}); err != nil {
+		return drkey.Key{}, err
 	}
 
 	dstA, err := p.scionLayer.SrcAddr()
 	if err != nil {
-		return slayers.PacketAuthOption{},
-			drkey.Key{}, serrors.Wrap(cannotRoute, err, "details", "extracting src addr")
+		return drkey.Key{}, serrors.Wrap(cannotRoute, err, "details", "extracting src addr")
 	}
 	lvl1, err := p.drkeyDeriver.DeriveLevel1(p.scionLayer.SrcIA, sv)
 	if err != nil {
-		return slayers.PacketAuthOption{}, drkey.Key{}, err
+		return drkey.Key{}, err
 	}
 
 	key, err := p.drkeyDeriver.DeriveASHost(dstA.String(), lvl1)
 	if err != nil {
-		return slayers.PacketAuthOption{}, drkey.Key{}, err
+		return drkey.Key{}, err
 	}
-	return optAuth, key, nil
+	return key, nil
 }
 
 // decodeLayers implements roughly the functionality of
