@@ -24,10 +24,10 @@
 // consists of four whitespace separated columns. The optional comment is
 // appended at the end of the line and needs to start with a '#'.
 //
-//	accept       1-ff00:0:110     1-ff00:0:112    10.0.1.0/24,10.0.2.0/24    # Accept from AS 110.
-//	accept       2-0              1-ff00:0:112    10.0.3.0/24                # Accept from ISD 2.
-//	reject       !1-ff00:0:110    1-ff00:0:112    10.0.0.0/8                 # Reject unless AS 110.
-//	advertise    1-ff00:0:112     1-ff00:0:110    10.0.9.0/8                 # Advertise to AS 112.
+//	accept       1-ff00:0:110     1-ff00:0:112    10.0.1.0/24,10.0.2.0/24  # Accept from AS 110.
+//	accept       2-0              1-ff00:0:112    10.0.3.0/24              # Accept from ISD 2.
+//	reject       !1-ff00:0:110    1-ff00:0:112    10.0.0.0/8               # Reject unless AS 110.
+//	advertise    1-ff00:0:112     1-ff00:0:110    10.0.9.0/8               # Advertise to AS 112.
 //
 // The first column represents the action. Currently, we support:
 //
