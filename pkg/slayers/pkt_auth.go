@@ -48,6 +48,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/slayers/path"
+	"github.com/scionproto/scion/pkg/slayers/path/epic"
 	"github.com/scionproto/scion/pkg/slayers/path/onehop"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 )
@@ -82,7 +83,7 @@ const (
 	// 2. SCION Common Header
 	// 3. SCION Address Header
 	// 4. Path
-	// (see https://scion.docs.anapaya.net/en/latest/protocols/authenticator-option.html#authenticated-data)
+	// (see https://docs.scion.org/en/latest/protocols/authenticator-option.html#authenticated-data)
 	// We round this up to 12B (authenticator option meta) + 1020B (max SCION header length)
 	// To adapt to any possible path types.
 	MACBufferSize = 1032
@@ -304,7 +305,8 @@ func initCMAC(key []byte) (hash.Hash, error) {
 
 func serializeAutenticatedData(
 	buf []byte,
-	s *SCION, opt PacketAuthOption,
+	s *SCION,
+	opt PacketAuthOption,
 	pld []byte,
 ) (int, error) {
 
@@ -335,16 +337,12 @@ func serializeAutenticatedData(
 	if !opt.SPI().IsDRKey() ||
 		(opt.SPI().Type() == PacketAuthASHost &&
 			opt.SPI().Direction() == PacketAuthReceiverSide) {
-		addrLen := addrBytes(s.DstAddrLen)
-		copy(buf[offset:offset+addrLen], s.RawDstAddr)
-		offset += addrLen
+		offset += copy(buf[offset:], s.RawDstAddr)
 	}
 	if !opt.SPI().IsDRKey() ||
 		(opt.SPI().Type() == PacketAuthASHost &&
 			opt.SPI().Direction() == PacketAuthSenderSide) {
-		addrLen := addrBytes(s.SrcAddrLen)
-		copy(buf[offset:offset+addrLen], s.RawSrcAddr)
-		offset += addrLen
+		offset += copy(buf[offset:], s.RawSrcAddr)
 	}
 	err := zeroOutMutablePath(s.Path, buf[offset:])
 	if err != nil {
@@ -354,8 +352,10 @@ func serializeAutenticatedData(
 	return offset, nil
 }
 
-func ComputeSPAOCurrentTimestamp(ts uint32, now time.Time) (uint32, error) {
-	// time = info[0].Timestamp+Timestamp⋅𝑞, where q := 6 ms
+// ComputeSPAORelativeTimestamp computes the relative timestamp (T) where:
+// now = ts+T⋅𝑞, (where q := 6 ms and ts =  info[0].Timestamp, i.e.,
+// the timestamp field in the first InfoField).
+func ComputeSPAORelativeTimestamp(ts uint32, now time.Time) (uint32, error) {
 	timestamp := now.Sub(util.SecsToTime(ts)).Milliseconds() / 6
 	if timestamp >= (1 << 24) {
 		return 0, serrors.New("relative timestamp is bigger than 2^24-1")
@@ -363,8 +363,8 @@ func ComputeSPAOCurrentTimestamp(ts uint32, now time.Time) (uint32, error) {
 	return uint32(timestamp), nil
 }
 
-func zeroOutMutablePath(orig path.Path, buff []byte) error {
-	err := orig.SerializeTo(buff)
+func zeroOutMutablePath(orig path.Path, buf []byte) error {
+	err := orig.SerializeTo(buf)
 	if err != nil {
 		return serrors.WrapStr("serializing path for reseting fields", err)
 	}
@@ -372,44 +372,39 @@ func zeroOutMutablePath(orig path.Path, buff []byte) error {
 	// TODO(JordiSubira): process EPIC
 
 	case *scion.Raw:
-		// Zero out CurrInf && CurrHF
-		buff[0] = 0
-		offset := 4
-		for i := 0; i < p.Base.NumINF; i++ {
-			// Zero out IF.SegID
-			buff[offset+2] = 0
-			offset := 8
-			for j := 0; j < int(p.Base.PathMeta.SegLen[i]); j++ {
-				// Zero out HF.Flags&&Alerts
-				buff[offset] = 0
-				offset += 12
-			}
-		}
+		zeroOutWithBase(p.Base, 0, buf)
 		return nil
 	case *scion.Decoded:
-		// Zero out CurrInf && CurrHF
-		buff[0] = 0
-		offset := 4
-		for i := 0; i < p.Base.NumINF; i++ {
-			// Zero out IF.SegID
-			buff[offset+2] = 0
-			offset := 8
-			for j := 0; j < int(p.Base.PathMeta.SegLen[i]); j++ {
-				// Zero out HF.Flags&&Alerts
-				buff[offset] = 0
-				offset += 12
-			}
-		}
+		zeroOutWithBase(p.Base, 0, buf)
+		return nil
+	case *epic.Path:
+		zeroOutWithBase(p.ScionPath.Base, epic.MetadataLen, buf)
 		return nil
 	case *onehop.Path:
 		// Zero out IF.SegID
-		buff[2] = 0
+		buf[2] = 0
 		// Zero out HF.Flags&&Alerts
-		buff[8] = 0
+		buf[8] = 0
 		// Zero out HF.Flags&&Alerts
-		buff[20] = 0
+		buf[20] = 0
 		return nil
 	default:
 		return serrors.New(fmt.Sprintf("unknown path type %T", orig))
+	}
+}
+
+func zeroOutWithBase(base scion.Base, offset int, buf []byte) {
+	// Zero out CurrInf && CurrHF
+	buf[0] = 0
+	offset += 4
+	for i := 0; i < base.NumINF; i++ {
+		// Zero out IF.SegID
+		buf[offset+2] = 0
+		offset = 8
+		for j := 0; j < int(base.PathMeta.SegLen[i]); j++ {
+			// Zero out HF.Flags&&Alerts
+			buf[offset] = 0
+			offset += 12
+		}
 	}
 }
