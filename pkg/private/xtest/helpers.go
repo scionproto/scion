@@ -45,15 +45,15 @@ import (
 //
 // To update all golden files, run the following command:
 //
-//   go test ./... -update
+//	go test ./... -update
 //
 // To update a specific package, run the following command:
 //
-//   go test ./path/to/package -update
+//	go test ./path/to/package -update
 //
 // The flag should be registered as a package global variable:
 //
-//   var update = xtest.UpdateGoldenFiles()
+//	var update = xtest.UpdateGoldenFiles()
 func UpdateGoldenFiles() *bool {
 	return flag.Bool("update", false, "set to regenerate the golden files")
 }
@@ -66,15 +66,15 @@ func UpdateGoldenFiles() *bool {
 //
 // To update all golden files, run the following command:
 //
-//   go test ./... -update-non-deterministic
+//	go test ./... -update-non-deterministic
 //
 // To update a specific package, run the following command:
 //
-//   go test ./path/to/package -update-non-deterministic
+//	go test ./path/to/package -update-non-deterministic
 //
 // The flag should be registered as a package global variable:
 //
-//   var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
+//	var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
 func UpdateNonDeterminsticGoldenFiles() *bool {
 	return flag.Bool("update-non-deterministic", false,
 		"set to regenerate the non-deterministic golden files",

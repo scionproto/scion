@@ -43,7 +43,6 @@ type options struct {
 // Example: (pattern: 2021-05-06)
 // - example.txt -> example.2021-05-06.txt
 // - example     -> example.2021-05-06
-//
 func WithBackup(pattern string) Option {
 	return func(o *options) {
 		o.backupPattern = pattern
