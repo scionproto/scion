@@ -51,9 +51,9 @@ var (
 	ErrTrailingData = ASN1Error{"unexpected trailing data"}
 )
 
-// ContentInfo ::= SEQUENCE {
-//   contentType ContentType,
-//   content [0] EXPLICIT ANY DEFINED BY contentType }
+//	ContentInfo ::= SEQUENCE {
+//	  contentType ContentType,
+//	  content [0] EXPLICIT ANY DEFINED BY contentType }
 //
 // ContentType ::= OBJECT IDENTIFIER
 type ContentInfo struct {
@@ -90,9 +90,9 @@ func (ci ContentInfo) SignedDataContent() (*SignedData, error) {
 	return &sd, nil
 }
 
-// EncapsulatedContentInfo ::= SEQUENCE {
-//   eContentType ContentType,
-//   eContent [0] EXPLICIT OCTET STRING OPTIONAL }
+//	EncapsulatedContentInfo ::= SEQUENCE {
+//	  eContentType ContentType,
+//	  eContent [0] EXPLICIT OCTET STRING OPTIONAL }
 //
 // ContentType ::= OBJECT IDENTIFIER
 type EncapsulatedContentInfo struct {
@@ -195,9 +195,9 @@ func (eci EncapsulatedContentInfo) DataEContent() ([]byte, error) {
 	return eci.EContentValue()
 }
 
-// Attribute ::= SEQUENCE {
-//   attrType OBJECT IDENTIFIER,
-//   attrValues SET OF AttributeValue }
+//	Attribute ::= SEQUENCE {
+//	  attrType OBJECT IDENTIFIER,
+//	  attrValues SET OF AttributeValue }
 //
 // AttributeValue ::= ANY
 type Attribute struct {
@@ -241,12 +241,13 @@ type Attributes []Attribute
 
 // MarshaledForSigning DER encodes the Attributes as needed for signing
 // SignedAttributes. RFC5652 explains this encoding:
-//   A separate encoding of the signedAttrs field is performed for message
-//   digest calculation. The IMPLICIT [0] tag in the signedAttrs is not used for
-//   the DER encoding, rather an EXPLICIT SET OF tag is used.  That is, the DER
-//   encoding of the EXPLICIT SET OF tag, rather than of the IMPLICIT [0] tag,
-//   MUST be included in the message digest calculation along with the length
-//   and content octets of the SignedAttributes value.
+//
+//	A separate encoding of the signedAttrs field is performed for message
+//	digest calculation. The IMPLICIT [0] tag in the signedAttrs is not used for
+//	the DER encoding, rather an EXPLICIT SET OF tag is used.  That is, the DER
+//	encoding of the EXPLICIT SET OF tag, rather than of the IMPLICIT [0] tag,
+//	MUST be included in the message digest calculation along with the length
+//	and content octets of the SignedAttributes value.
 //
 // When verifying, use MarshaledForVerifying to guarantee backwards compatibility.
 func (attrs Attributes) MarshaledForSigning() ([]byte, error) {
@@ -353,9 +354,9 @@ func (attrs Attributes) HasAttribute(oid asn1.ObjectIdentifier) bool {
 	return false
 }
 
-// IssuerAndSerialNumber ::= SEQUENCE {
-// 	issuer Name,
-// 	serialNumber CertificateSerialNumber }
+//	IssuerAndSerialNumber ::= SEQUENCE {
+//		issuer Name,
+//		serialNumber CertificateSerialNumber }
 //
 // CertificateSerialNumber ::= INTEGER
 type IssuerAndSerialNumber struct {
@@ -383,21 +384,22 @@ func NewIssuerAndSerialNumber(cert *x509.Certificate) (asn1.RawValue, error) {
 	return rv, nil
 }
 
-// SignerInfo ::= SEQUENCE {
-//   version CMSVersion,
-//   sid SignerIdentifier,
-//   digestAlgorithm DigestAlgorithmIdentifier,
-//   signedAttrs [0] IMPLICIT SignedAttributes OPTIONAL,
-//   signatureAlgorithm SignatureAlgorithmIdentifier,
-//   signature SignatureValue,
-//   unsignedAttrs [1] IMPLICIT UnsignedAttributes OPTIONAL }
+//	SignerInfo ::= SEQUENCE {
+//	  version CMSVersion,
+//	  sid SignerIdentifier,
+//	  digestAlgorithm DigestAlgorithmIdentifier,
+//	  signedAttrs [0] IMPLICIT SignedAttributes OPTIONAL,
+//	  signatureAlgorithm SignatureAlgorithmIdentifier,
+//	  signature SignatureValue,
+//	  unsignedAttrs [1] IMPLICIT UnsignedAttributes OPTIONAL }
 //
 // CMSVersion ::= INTEGER
-//               { v0(0), v1(1), v2(2), v3(3), v4(4), v5(5) }
 //
-// SignerIdentifier ::= CHOICE {
-//   issuerAndSerialNumber IssuerAndSerialNumber,
-//   subjectKeyIdentifier [0] SubjectKeyIdentifier }
+//	{ v0(0), v1(1), v2(2), v3(3), v4(4), v5(5) }
+//
+//	SignerIdentifier ::= CHOICE {
+//	  issuerAndSerialNumber IssuerAndSerialNumber,
+//	  subjectKeyIdentifier [0] SubjectKeyIdentifier }
 //
 // DigestAlgorithmIdentifier ::= AlgorithmIdentifier
 //
@@ -553,41 +555,42 @@ func (si SignerInfo) GetSigningTimeAttribute() (time.Time, error) {
 	return t, nil
 }
 
-// SignedData ::= SEQUENCE {
-//   version CMSVersion,
-//   digestAlgorithms DigestAlgorithmIdentifiers,
-//   encapContentInfo EncapsulatedContentInfo,
-//   certificates [0] IMPLICIT CertificateSet OPTIONAL,
-//   crls [1] IMPLICIT RevocationInfoChoices OPTIONAL,
-//   signerInfos SignerInfos }
+//	SignedData ::= SEQUENCE {
+//	  version CMSVersion,
+//	  digestAlgorithms DigestAlgorithmIdentifiers,
+//	  encapContentInfo EncapsulatedContentInfo,
+//	  certificates [0] IMPLICIT CertificateSet OPTIONAL,
+//	  crls [1] IMPLICIT RevocationInfoChoices OPTIONAL,
+//	  signerInfos SignerInfos }
 //
 // CMSVersion ::= INTEGER
-//               { v0(0), v1(1), v2(2), v3(3), v4(4), v5(5) }
+//
+//	{ v0(0), v1(1), v2(2), v3(3), v4(4), v5(5) }
 //
 // DigestAlgorithmIdentifiers ::= SET OF DigestAlgorithmIdentifier
 //
 // CertificateSet ::= SET OF CertificateChoices
 //
-// CertificateChoices ::= CHOICE {
-//   certificate Certificate,
-//   extendedCertificate [0] IMPLICIT ExtendedCertificate, -- Obsolete
-//   v1AttrCert [1] IMPLICIT AttributeCertificateV1,       -- Obsolete
-//   v2AttrCert [2] IMPLICIT AttributeCertificateV2,
-//   other [3] IMPLICIT OtherCertificateFormat }
+//	CertificateChoices ::= CHOICE {
+//	  certificate Certificate,
+//	  extendedCertificate [0] IMPLICIT ExtendedCertificate, -- Obsolete
+//	  v1AttrCert [1] IMPLICIT AttributeCertificateV1,       -- Obsolete
+//	  v2AttrCert [2] IMPLICIT AttributeCertificateV2,
+//	  other [3] IMPLICIT OtherCertificateFormat }
 //
-// OtherCertificateFormat ::= SEQUENCE {
-//   otherCertFormat OBJECT IDENTIFIER,
-//   otherCert ANY DEFINED BY otherCertFormat }
+//	OtherCertificateFormat ::= SEQUENCE {
+//	  otherCertFormat OBJECT IDENTIFIER,
+//	  otherCert ANY DEFINED BY otherCertFormat }
 //
 // RevocationInfoChoices ::= SET OF RevocationInfoChoice
 //
-// RevocationInfoChoice ::= CHOICE {
-//   crl CertificateList,
-//   other [1] IMPLICIT OtherRevocationInfoFormat }
+//	RevocationInfoChoice ::= CHOICE {
+//	  crl CertificateList,
+//	  other [1] IMPLICIT OtherRevocationInfoFormat }
 //
-// OtherRevocationInfoFormat ::= SEQUENCE {
-//   otherRevInfoFormat OBJECT IDENTIFIER,
-//   otherRevInfo ANY DEFINED BY otherRevInfoFormat }
+//	OtherRevocationInfoFormat ::= SEQUENCE {
+//	  otherRevInfoFormat OBJECT IDENTIFIER,
+//	  otherRevInfo ANY DEFINED BY otherRevInfoFormat }
 //
 // SignerInfos ::= SET OF SignerInfo
 type SignedData struct {
