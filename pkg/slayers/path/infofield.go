@@ -56,14 +56,14 @@ type InfoField struct {
 
 // DecodeFromBytes populates the fields from a raw buffer.
 // The buffer must be of length >= path.InfoLen.
-// @ requires  len(raw) >= InfoLen
+//@ requires  len(raw) >= InfoLen
 // DecodeFromBytes modifies *inf and reads (but does not modify) the contents of raw.
-// @ preserves acc(inf) && acc(raw, 1/2)
+//@ preserves acc(inf) && acc(raw, 1/2)
 // When a call that satisfies the precondition (len(raw) >= InfoLen) is made,
 // the return value is guaranteed to be nil.
-// @ ensures   err == nil
+//@ ensures   err == nil
 // DecodeFromBytes always terminates.
-// @ decreases
+//@ decreases
 func (inf *InfoField) DecodeFromBytes(raw []byte) (err error) {
 	if len(raw) < InfoLen {
 		return serrors.New("InfoField raw too short", "expected", InfoLen, "actual", len(raw))
@@ -80,14 +80,14 @@ func (inf *InfoField) DecodeFromBytes(raw []byte) (err error) {
 
 // SerializeTo writes the fields into the provided buffer.
 // The buffer must be of length >= path.InfoLen.
-// @ requires  len(b) >= InfoLen
+//@ requires  len(b) >= InfoLen
 // SerializeTo modifies the contents of b and reads (but does not modify) the fields of inf.
-// @ preserves acc(b) && acc(inf, 1/2)
+//@ preserves acc(b) && acc(inf, 1/2)
 // When a call that satisfies the precondition (len(b) >= InfoLen) is made,
 // the return value is guaranteed to be nil.
-// @ ensures   err == nil
+//@ ensures   err == nil
 // SerializeTo always terminates.
-// @ decreases
+//@ decreases
 func (inf *InfoField) SerializeTo(b []byte) (err error) {
 	if len(b) < InfoLen {
 		return serrors.New("buffer for InfoField too short", "expected", InfoLen,
@@ -116,18 +116,18 @@ func (inf *InfoField) SerializeTo(b []byte) (err error) {
 //
 //	UpdateSegID only accesses and modifies the contents of inf.SegID.
 //
-// @ preserves acc(&inf.SegID)
+//@ preserves acc(&inf.SegID)
 // UpdateSegID always terminates.
-// @ decreases
+//@ decreases
 func (inf *InfoField) UpdateSegID(hfMac [MacLen]byte) {
 	//@ share hfMac
 	inf.SegID = inf.SegID ^ binary.BigEndian.Uint16(hfMac[:2])
 }
 
 // String is not verified because Gobra does not yet support the fmt package.
-// @ trusted
+//@ trusted
 // String always terminates.
-// @ decreases
+//@ decreases
 func (inf InfoField) String() string {
 	return fmt.Sprintf("{Peer: %t, ConsDir: %t, SegID: %d, Timestamp: %s}",
 		inf.Peer, inf.ConsDir, inf.SegID, util.SecsToCompact(inf.Timestamp))
