@@ -344,12 +344,6 @@ def go_deps():
         version = "v2.9.5+incompatible",
     )
     go_repository(
-        name = "com_github_emojisum_emojisum",
-        importpath = "github.com/emojisum/emojisum",
-        sum = "h1:3fEA+fY1ujuzNCOgd6Y1E/JndDFIm34GcYkdmwba0bI=",
-        version = "v0.0.0-20210601164913-cb9db27ebae2",
-    )
-    go_repository(
         name = "com_github_envoyproxy_go_control_plane",
         importpath = "github.com/envoyproxy/go-control-plane",
         sum = "h1:cgDRLG7bs59Zd+apAWuzLQL95obVYAymNJek76W3mgw=",

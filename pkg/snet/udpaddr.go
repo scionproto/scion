@@ -17,7 +17,9 @@ package snet
 import (
 	"fmt"
 	"net"
+	"net/netip"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"inet.af/netaddr"
@@ -26,7 +28,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-var addrRegexp = regexp.MustCompile(`^(?P<ia>\d+-[\d:A-Fa-f]+),(?P<host>.+)$`)
+var addrRegexpLegacy = regexp.MustCompile(`^(?P<ia>\d+-[\d:A-Fa-f]+),(?P<host>.+)$`)
 
 // UDPAddr to be used when UDP host.
 type UDPAddr struct {
@@ -37,7 +39,53 @@ type UDPAddr struct {
 }
 
 // ParseUDPAddr converts an address string to a SCION address.
-// The supported formats are:
+func ParseUDPAddr(s string) (*UDPAddr, error) {
+	addr, err := parseUDPAddr(s)
+	if err != nil {
+		return parseUDPAddrLegacy(s)
+	}
+	return addr, nil
+}
+
+// The supported formats are based on the extensions of RFC 3986:
+// https://scion.docs.anapaya.net/en/latest/uri.html#scion-udp
+//
+// Examples:
+//  - [isd-as,ipv4]:port       (e.g., [1-ff00:0:110,192.0.2.1]:80)
+//  - [isd-as,ipv6%zone]:port  (e.g., [1-ff00:0:110,2001:DB8::1%zone]:80)
+func parseUDPAddr(s string) (*UDPAddr, error) {
+	host, port, err := net.SplitHostPort(s)
+	if err != nil {
+		return nil, serrors.WrapStr("invalid address: split host:port", err, "addr", s)
+	}
+	parts := strings.Split(host, ",")
+	if len(parts) != 2 {
+		return nil, serrors.New("invalid address: host parts invalid",
+			"expected", 2, "actual", len(parts))
+	}
+	ia, err := addr.ParseIA(parts[0])
+	if err != nil {
+		return nil, serrors.WrapStr("invalid address: IA not parsable", err, "ia", ia)
+	}
+	ip, err := netip.ParseAddr(parts[1])
+	if err != nil {
+		return nil, serrors.WrapStr("invalid address: ip not parsable", err, "ip", parts[1])
+	}
+	p, err := strconv.Atoi(port)
+	if err != nil {
+		return nil, serrors.WrapStr("invalid address: port invalid", err, "port", port)
+	}
+	udp := &net.UDPAddr{
+		IP:   ip.AsSlice(),
+		Zone: ip.Zone(),
+		Port: p,
+	}
+
+	return &UDPAddr{IA: ia, Host: udp}, nil
+}
+
+// The legacy format of the SCION address URI encoding allows multiple different encodings.
+// The supported legacy formats are:
 //
 // Recommended:
 //  - isd-as,ipv4:port        (e.g., 1-ff00:0:300,192.168.1.1:8080)
@@ -56,7 +104,7 @@ type UDPAddr struct {
 // Not supported:
 //  - isd-as,ipv6:port    (caveat if ipv6:port builds a valid ipv6 address,
 //                         it will successfully parse as ipv6 without error)
-func ParseUDPAddr(s string) (*UDPAddr, error) {
+func parseUDPAddrLegacy(s string) (*UDPAddr, error) {
 	rawIA, rawHost, err := parseAddr(s)
 	if err != nil {
 		return nil, err
@@ -128,7 +176,7 @@ func CopyUDPAddr(a *net.UDPAddr) *net.UDPAddr {
 }
 
 func parseAddr(s string) (string, string, error) {
-	match := addrRegexp.FindStringSubmatch(s)
+	match := addrRegexpLegacy.FindStringSubmatch(s)
 	if len(match) != 3 {
 		return "", "", serrors.New("invalid address: regex match failed", "addr", s)
 	}

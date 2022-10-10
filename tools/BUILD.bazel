@@ -1,5 +1,5 @@
-load("@pip3_deps//:requirements.bzl", "requirement")
-load("//tools/lint:go.bzl", "go_library")
+load("@rules_python//python:defs.bzl", "py_binary")
+load("@com_github_scionproto_scion_python_deps//:requirements.bzl", "requirement")
 
 sh_binary(
     name = "docker_ip",
