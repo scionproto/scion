@@ -1,1 +1,1 @@
-../../scripts/cryptoplayground/trc_ceremony.sh
+../../tools/cryptoplayground/trc_ceremony.sh
