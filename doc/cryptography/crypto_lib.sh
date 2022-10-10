@@ -1,1 +1,1 @@
-../../scripts/cryptoplayground/crypto_lib.sh
+../../tools/cryptoplayground/crypto_lib.sh
