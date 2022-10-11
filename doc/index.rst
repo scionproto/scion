@@ -34,6 +34,7 @@ is a good place to start.
    BeaconService
    PathService
    endhost-bootstrap
+   design/router-port-dispatch
 
 .. toctree::
    :maxdepth: 2
