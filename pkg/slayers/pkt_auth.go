@@ -269,12 +269,12 @@ func (o PacketAuthOption) Authenticator() []byte {
 }
 
 func ComputeAuthCMAC(
-	input []byte,
 	key []byte,
-	scionL *SCION,
 	opt PacketAuthOption,
+	scionL *SCION,
 	pld []byte,
-	mac []byte,
+	input []byte,
+	macBuffer []byte,
 ) ([]byte, error) {
 
 	// TODO(matzf): avoid allocations, somehow?
@@ -288,7 +288,7 @@ func ComputeAuthCMAC(
 	}
 	cmac.Write(input[:inputLen])
 	cmac.Write(pld)
-	return cmac.Sum(mac[:0]), nil
+	return cmac.Sum(macBuffer[:0]), nil
 }
 
 func initCMAC(key []byte) (hash.Hash, error) {
@@ -385,8 +385,8 @@ func zeroOutMutablePath(orig path.Path, buf []byte) error {
 		buf[2] = 0
 		// Zero out HF.Flags&&Alerts
 		buf[8] = 0
-		// Zero out HF.Flags&&Alerts
-		buf[20] = 0
+		// Zero out second HF
+		copy(buf[20:], []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 		return nil
 	default:
 		return serrors.New(fmt.Sprintf("unknown path type %T", orig))
@@ -395,12 +395,12 @@ func zeroOutMutablePath(orig path.Path, buf []byte) error {
 
 func zeroOutWithBase(base scion.Base, offset int, buf []byte) {
 	// Zero out CurrInf && CurrHF
-	buf[0] = 0
+	buf[offset] = 0
 	offset += 4
 	for i := 0; i < base.NumINF; i++ {
 		// Zero out IF.SegID
 		buf[offset+2] = 0
-		offset = 8
+		offset += 8
 		for j := 0; j < int(base.PathMeta.SegLen[i]); j++ {
 			// Zero out HF.Flags&&Alerts
 			buf[offset] = 0
