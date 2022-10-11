@@ -15,19 +15,19 @@
 package slayers_test
 
 import (
+	"crypto/aes"
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
 	"net"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/dchest/cmac"
 	"github.com/google/gopacket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
@@ -43,6 +43,57 @@ var (
 	ts         = binary.LittleEndian.Uint32([]byte{1, 2, 3, 0})
 	sn         = binary.LittleEndian.Uint32([]byte{4, 5, 6, 0})
 	optAuthMAC = []byte("16byte_mac_foooo")
+
+	dir         = slayers.PacketAuthSenderSide
+	epoch       = slayers.PacketAuthLater
+	drkeyType   = slayers.PacketAuthASHost
+	decodedPath = &scion.Decoded{
+		Base: scion.Base{
+			PathMeta: scion.MetaHdr{
+				SegLen: [3]byte{1, 1, 1},
+			},
+			NumINF:  3,
+			NumHops: 3,
+		},
+		InfoFields: []path.InfoField{
+			{
+				ConsDir:   false,
+				SegID:     1,
+				Timestamp: ts,
+			},
+			{
+				ConsDir:   false,
+				SegID:     2,
+				Timestamp: ts,
+			},
+			{
+				ConsDir:   true,
+				SegID:     3,
+				Timestamp: ts,
+			},
+		},
+		HopFields: []path.HopField{
+			{
+				ExpTime:     63,
+				ConsIngress: 1,
+				ConsEgress:  0,
+				Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+			},
+			{
+				ExpTime:     63,
+				ConsIngress: 3,
+				ConsEgress:  2,
+				Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+			},
+			{
+				ExpTime:     63,
+				ConsIngress: 0,
+				ConsEgress:  2,
+				Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+			},
+		},
+	}
+	fooPayload = []byte("some payload")
 )
 
 var rawE2EOptAuth = append(
@@ -169,87 +220,286 @@ func TestOptAuthenticatorDeserializeCorrupt(t *testing.T) {
 }
 
 func TestComputeAuthMac(t *testing.T) {
-	now := time.Unix(0, 0)
 	srcIA := xtest.MustParseIA("1-ff00:0:111")
 	dstIA := xtest.MustParseIA("1-ff00:0:112")
-	macBuff := make([]byte, path.MACBufferSize)
+	authKey := drkey.Key{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7}
 
-	decodedPath := &scion.Decoded{
-		Base: scion.Base{
-			PathMeta: scion.MetaHdr{
-				SegLen: [3]byte{1, 1, 1},
-			},
-			NumINF:  3,
-			NumHops: 3,
-		},
-		InfoFields: []path.InfoField{
-			{
-				ConsDir:   false,
-				SegID:     1,
-				Timestamp: util.TimeToSecs(now),
-			},
-			{
-				ConsDir:   false,
-				SegID:     2,
-				Timestamp: util.TimeToSecs(now),
-			},
-			{
-				ConsDir:   true,
-				SegID:     3,
-				Timestamp: util.TimeToSecs(now),
-			},
-		},
-		HopFields: []path.HopField{
-			{
-				ExpTime:     63,
-				ConsIngress: 1,
-				ConsEgress:  0,
-				Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
-			},
-			{
-				ExpTime:     63,
-				ConsIngress: 3,
-				ConsEgress:  2,
-				Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
-			},
-			{
-				ExpTime:     63,
-				ConsIngress: 0,
-				ConsEgress:  2,
-				Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
-			},
-		},
-	}
 	rawPath := make([]byte, decodedPath.Len())
 	err := decodedPath.SerializeTo(rawPath)
 	require.NoError(t, err)
 
 	testCases := map[string]struct {
 		input           []byte
+		optAuth         slayers.PacketAuthOption
+		scionL          slayers.SCION
+		pld             []byte
+		rawMACInput     []byte
+		assertFormatErr assert.ErrorAssertionFunc
+	}{
+		"decoded": {
+			input: make([]byte, slayers.MACBufferSize),
+			optAuth: getSPAO(
+				t,
+				util.SecsToTime(ts+6),
+				decodedPath.InfoFields[0].Timestamp,
+				sn,
+				dir,
+				epoch,
+				drkeyType,
+			),
+			scionL: slayers.SCION{
+				HdrLen:       255,
+				FlowID:       binary.BigEndian.Uint32([]byte{0x00, 0x00, 0x12, 0x34}),
+				TrafficClass: 0xff,
+				NextHdr:      slayers.End2EndClass,
+				SrcIA:        srcIA,
+				DstIA:        dstIA,
+				SrcAddrLen:   slayers.AddrLen4,
+				SrcAddrType:  slayers.T4Ip,
+				RawSrcAddr:   net.IPv4(192, 0, 0, 2).To4(),
+				DstAddrLen:   slayers.AddrLen4,
+				DstAddrType:  slayers.T4Ip,
+				RawDstAddr:   net.IPv4(192, 0, 0, 1).To4(),
+				Path:         decodedPath,
+				PathType:     decodedPath.Type(),
+			},
+			pld: fooPayload,
+			rawMACInput: append([]byte{
+				// 1.
+				0xff, 0xca, 0x0, 0xc, 0x0, 0x0, 0x3, 0xe8, 0x0, 0x6, 0x5, 0x4,
+				// 2
+				0x3, 0xf0, 0x12, 0x34, 0x1, 0x0, 0x0, 0x0,
+				// 3.
+				0xc0, 0x0, 0x0, 0x2,
+				// Zeroed-out path
+				0x0, 0x0, 0x10, 0x41, 0x0, 0x0, 0x0, 0x1,
+				0x0, 0x3, 0x2, 0x1, 0x0, 0x0, 0x0, 0x2,
+				0x0, 0x3, 0x2, 0x1, 0x1, 0x0, 0x0, 0x3,
+				0x0, 0x3, 0x0, 0x1, 0x0, 0x3f, 0x0, 0x1,
+				0x0, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6,
+				0x0, 0x3f, 0x0, 0x3, 0x0, 0x2, 0x0, 0x2,
+				0x3, 0x4, 0x5, 0x6, 0x0, 0x3f, 0x0, 0x0,
+				0x0, 0x2, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6,
+			}, fooPayload...),
+			assertFormatErr: assert.NoError,
+		},
+		"one hop": {
+			input: make([]byte, slayers.MACBufferSize),
+			optAuth: getSPAO(
+				t,
+				util.SecsToTime(ts+6),
+				ts,
+				sn,
+				dir,
+				epoch,
+				drkeyType,
+			),
+			scionL: slayers.SCION{
+				HdrLen:       255,
+				FlowID:       binary.BigEndian.Uint32([]byte{0x00, 0x00, 0x12, 0x34}),
+				TrafficClass: 0xff,
+				NextHdr:      slayers.End2EndClass,
+				SrcIA:        srcIA,
+				DstIA:        dstIA,
+				SrcAddrLen:   slayers.AddrLen4,
+				SrcAddrType:  slayers.T4Ip,
+				RawSrcAddr:   net.IPv4(192, 0, 0, 2).To4(),
+				DstAddrLen:   slayers.AddrLen4,
+				DstAddrType:  slayers.T4Ip,
+				RawDstAddr:   net.IPv4(192, 0, 0, 1).To4(),
+				Path: &onehop.Path{
+					Info: path.InfoField{
+						ConsDir:   false,
+						SegID:     1,
+						Timestamp: ts,
+					},
+
+					FirstHop: path.HopField{
+						ExpTime:     63,
+						ConsIngress: 1,
+						ConsEgress:  0,
+						Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+					},
+					SecondHop: path.HopField{
+						ExpTime:     63,
+						ConsIngress: 3,
+						ConsEgress:  2,
+						Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+					},
+				},
+				PathType: onehop.PathType,
+			},
+			pld: fooPayload,
+			rawMACInput: append([]byte{
+				// 1.
+				0xff, 0xca, 0x0, 0xc, 0x0, 0x0, 0x3, 0xe8, 0x0, 0x6, 0x5, 0x4,
+				// 2
+				0x3, 0xf0, 0x12, 0x34, 0x2, 0x0, 0x0, 0x0,
+				// 3.
+				0xc0, 0x0, 0x0, 0x2,
+				// Zeroed-out path
+				0x0, 0x0, 0x0, 0x1, 0x0, 0x3, 0x2, 0x1,
+				0x0, 0x3f, 0x0, 0x1, 0x0, 0x0, 0x1, 0x2,
+				0x3, 0x4, 0x5, 0x6, 0x0, 0x0, 0x0, 0x0,
+				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+			}, fooPayload...),
+			assertFormatErr: assert.NoError,
+		},
+		"epic": {
+			input: make([]byte, slayers.MACBufferSize),
+			optAuth: getSPAO(
+				t,
+				util.SecsToTime(ts+6),
+				decodedPath.InfoFields[0].Timestamp,
+				sn,
+				dir,
+				epoch,
+				drkeyType,
+			),
+			scionL: slayers.SCION{
+				HdrLen:       255,
+				FlowID:       binary.BigEndian.Uint32([]byte{0x00, 0x00, 0x12, 0x34}),
+				TrafficClass: 0xff,
+				NextHdr:      slayers.End2EndClass,
+				SrcIA:        srcIA,
+				DstIA:        dstIA,
+				SrcAddrLen:   slayers.AddrLen4,
+				SrcAddrType:  slayers.T4Ip,
+				RawSrcAddr:   net.IPv4(192, 0, 0, 2).To4(),
+				DstAddrLen:   slayers.AddrLen4,
+				DstAddrType:  slayers.T4Ip,
+				RawDstAddr:   net.IPv4(192, 0, 0, 1).To4(),
+				PathType:     epic.PathType,
+				Path: &epic.Path{
+					PktID: epic.PktID{
+						Timestamp: 1,
+						Counter:   0x02000003,
+					},
+					PHVF: []byte{1, 2, 3, 4},
+					LHVF: []byte{5, 6, 7, 8},
+					ScionPath: &scion.Raw{
+						Base: decodedPath.Base,
+						Raw:  rawPath,
+					},
+				},
+			},
+			pld: fooPayload,
+			rawMACInput: append([]byte{
+				// 1.
+				0xff, 0xca, 0x0, 0xc, 0x0, 0x0, 0x3, 0xe8, 0x0, 0x6, 0x5, 0x4,
+				// 2
+				0x3, 0xf0, 0x12, 0x34, 0x3, 0x0, 0x0, 0x0,
+				// 3.
+				0xc0, 0x0, 0x0, 0x2,
+				// Epic-HP header
+				0x0, 0x0, 0x0, 0x1, 0x2, 0x0, 0x0, 0x3,
+				0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8,
+				// Zeroed-out path
+				0x0, 0x0, 0x10, 0x41, 0x0, 0x0, 0x0, 0x1,
+				0x0, 0x3, 0x2, 0x1, 0x0, 0x0, 0x0, 0x2,
+				0x0, 0x3, 0x2, 0x1, 0x1, 0x0, 0x0, 0x3,
+				0x0, 0x3, 0x0, 0x1, 0x0, 0x3f, 0x0, 0x1,
+				0x0, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6,
+				0x0, 0x3f, 0x0, 0x3, 0x0, 0x2, 0x0, 0x2,
+				0x3, 0x4, 0x5, 0x6, 0x0, 0x3f, 0x0, 0x0,
+				0x0, 0x2, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6,
+			}, fooPayload...),
+			assertFormatErr: assert.NoError,
+		},
+	}
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+
+			mac, err := slayers.ComputeAuthCMAC(
+				authKey[:],
+				tc.optAuth,
+				&tc.scionL,
+				tc.pld,
+				tc.input,
+				tc.optAuth.Authenticator(),
+			)
+			tc.assertFormatErr(t, err)
+			if err != nil {
+				return
+			}
+
+			block, err := aes.NewCipher(authKey[:])
+			require.NoError(t, err)
+			macFunc, err := cmac.New(block)
+			require.NoError(t, err)
+
+			macFunc.Write(tc.rawMACInput)
+			expectedMac := macFunc.Sum(nil)
+			assert.Equal(t, expectedMac, mac)
+		})
+	}
+}
+
+func TestRegresionComputeAuthMac(t *testing.T) {
+	srcIA := xtest.MustParseIA("1-ff00:0:111")
+	dstIA := xtest.MustParseIA("1-ff00:0:112")
+	authKey := drkey.Key{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7}
+
+	rawPath := make([]byte, decodedPath.Len())
+	err := decodedPath.SerializeTo(rawPath)
+	require.NoError(t, err)
+
+	testCases := map[string]struct {
+		input           []byte
+		optAuth         slayers.PacketAuthOption
 		scionL          slayers.SCION
 		pld             []byte
 		assertFormatErr assert.ErrorAssertionFunc
 	}{
 		"decoded": {
 			input: make([]byte, slayers.MACBufferSize),
+			optAuth: getSPAO(
+				t,
+				util.SecsToTime(ts),
+				decodedPath.InfoFields[0].Timestamp,
+				sn,
+				dir,
+				epoch,
+				drkeyType,
+			),
 			scionL: slayers.SCION{
+				HdrLen:      255,
+				FlowID:      binary.BigEndian.Uint32([]byte{0x12, 0x34, 0x0, 0x0}),
 				NextHdr:     slayers.End2EndClass,
 				SrcIA:       srcIA,
 				DstIA:       dstIA,
+				SrcAddrLen:  slayers.AddrLen4,
+				SrcAddrType: slayers.T4Ip,
+				RawSrcAddr:  net.IPv4(192, 0, 0, 2),
 				DstAddrLen:  slayers.AddrLen4,
 				DstAddrType: slayers.T4Ip,
 				RawDstAddr:  net.IPv4(192, 0, 0, 1),
 				Path:        decodedPath,
 			},
-			pld:             []byte("some payload"),
+			pld:             fooPayload,
 			assertFormatErr: assert.NoError,
 		},
 		"one hop": {
 			input: make([]byte, slayers.MACBufferSize),
+			optAuth: getSPAO(
+				t,
+				util.SecsToTime(ts),
+				ts,
+				sn,
+				dir,
+				epoch,
+				drkeyType,
+			),
 			scionL: slayers.SCION{
+				HdrLen:      255,
+				FlowID:      binary.BigEndian.Uint32([]byte{0x12, 0x34, 0x0, 0x0}),
 				NextHdr:     slayers.End2EndClass,
 				SrcIA:       srcIA,
 				DstIA:       dstIA,
+				SrcAddrLen:  slayers.AddrLen4,
+				SrcAddrType: slayers.T4Ip,
+				RawSrcAddr:  net.IPv4(192, 0, 0, 2),
 				DstAddrLen:  slayers.AddrLen4,
 				DstAddrType: slayers.T4Ip,
 				RawDstAddr:  net.IPv4(192, 0, 0, 1),
@@ -257,7 +507,7 @@ func TestComputeAuthMac(t *testing.T) {
 					Info: path.InfoField{
 						ConsDir:   false,
 						SegID:     1,
-						Timestamp: util.TimeToSecs(now),
+						Timestamp: ts,
 					},
 
 					FirstHop: path.HopField{
@@ -274,18 +524,34 @@ func TestComputeAuthMac(t *testing.T) {
 					},
 				},
 			},
-			pld:             []byte("some payload"),
+			pld:             fooPayload,
 			assertFormatErr: assert.NoError,
 		},
 		"epic": {
 			input: make([]byte, slayers.MACBufferSize),
+			optAuth: getSPAO(
+				t,
+				util.SecsToTime(ts),
+				decodedPath.InfoFields[0].Timestamp,
+				sn,
+				dir,
+				epoch,
+				drkeyType,
+			),
 			scionL: slayers.SCION{
-				NextHdr:     slayers.End2EndClass,
-				SrcIA:       srcIA,
-				DstIA:       dstIA,
-				DstAddrLen:  slayers.AddrLen4,
-				DstAddrType: slayers.T4Ip,
-				RawDstAddr:  net.IPv4(192, 0, 0, 1),
+				HdrLen:       255,
+				FlowID:       binary.BigEndian.Uint32([]byte{0x00, 0x00, 0x12, 0x34}),
+				TrafficClass: 0xff,
+				NextHdr:      slayers.End2EndClass,
+				SrcIA:        srcIA,
+				DstIA:        dstIA,
+				SrcAddrLen:   slayers.AddrLen4,
+				SrcAddrType:  slayers.T4Ip,
+				RawSrcAddr:   net.IPv4(192, 0, 0, 2).To4(),
+				DstAddrLen:   slayers.AddrLen4,
+				DstAddrType:  slayers.T4Ip,
+				RawDstAddr:   net.IPv4(192, 0, 0, 1).To4(),
+				PathType:     epic.PathType,
 				Path: &epic.Path{
 					PktID: epic.PktID{
 						Timestamp: 1,
@@ -299,7 +565,7 @@ func TestComputeAuthMac(t *testing.T) {
 					},
 				},
 			},
-			pld:             []byte("some payload"),
+			pld:             fooPayload,
 			assertFormatErr: assert.NoError,
 		},
 	}
@@ -307,16 +573,13 @@ func TestComputeAuthMac(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 
-			dstAddr, err := tc.scionL.DstAddr()
-			require.NoError(t, err)
-			spao, key := getSPAO(t, tc.scionL.Path, tc.scionL.DstIA, dstAddr.String(), now)
 			mac, err := slayers.ComputeAuthCMAC(
-				tc.input,
-				key[:],
+				authKey[:],
+				tc.optAuth,
 				&tc.scionL,
-				spao,
 				tc.pld,
-				macBuff,
+				tc.input,
+				tc.optAuth.Authenticator(),
 			)
 			tc.assertFormatErr(t, err)
 			if err != nil {
@@ -336,6 +599,7 @@ func TestComputeAuthMac(t *testing.T) {
 		})
 	}
 }
+
 func initSPI(t *testing.T) slayers.PacketAuthSPI {
 	spi, err := slayers.MakePacketAuthSPIDRKey(
 		1,
@@ -348,43 +612,19 @@ func initSPI(t *testing.T) slayers.PacketAuthSPI {
 
 func getSPAO(
 	t *testing.T,
-	packetPath path.Path,
-	dstIA addr.IA,
-	dstHost string,
 	now time.Time,
-) (
-	slayers.PacketAuthOption,
-	drkey.Key,
-) {
+	ts, sn uint32,
+	dir, epoch, drkeyType uint8,
+) slayers.PacketAuthOption {
 
 	macBuf := make([]byte, 16)
-	dir := slayers.PacketAuthSenderSide
-	epoch := slayers.PacketAuthLater
-	drkeyType := slayers.PacketAuthASHost
 
 	spi, err := slayers.MakePacketAuthSPIDRKey(uint16(drkey.SCMP), drkeyType, dir, epoch)
 	assert.NoError(t, err)
 
-	var firstInfo path.InfoField
-	switch p := packetPath.(type) {
-	case *scion.Raw:
-		firstInfo, err = p.GetInfoField(0)
-		require.NoError(t, err)
-	case *scion.Decoded:
-		firstInfo = p.InfoFields[0]
-	case *epic.Path:
-		firstInfo, err = p.ScionPath.GetInfoField(0)
-		require.NoError(t, err)
-	case *onehop.Path:
-		firstInfo = p.Info
-	default:
-		panic(fmt.Sprintf("unknown path type %T", packetPath))
-	}
-
-	timestamp, err := slayers.ComputeSPAORelativeTimestamp(firstInfo.Timestamp, now)
+	timestamp, err := slayers.ComputeSPAORelativeTimestamp(ts, now)
 	assert.NoError(t, err)
 
-	sn := uint32(0)
 	optAuth, err := slayers.NewPacketAuthOption(slayers.PacketAuthOptionParams{
 		SPI:            spi,
 		Algorithm:      slayers.PacketAuthCMAC,
@@ -394,5 +634,5 @@ func getSPAO(
 	})
 	assert.NoError(t, err)
 
-	return optAuth, drkey.Key{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7}
+	return optAuth
 }
