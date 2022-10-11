@@ -29,7 +29,7 @@ jobs:
           # Traverse the entire repository, including nested packages,
           # in search for annotated files to verify
           recursive: '1'
-          packageTimeout: 10m
+          timeout: 10m
           caching: '1'
           statsFile: ${{ env.statsFile }}
       - name: Upload the verification report
