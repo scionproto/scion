@@ -41,6 +41,7 @@ Active
    grpc
    ColibriService
    BorderRouter
+   router-port-dispatch.rst
 
 .. _design-docs-completed:
 
