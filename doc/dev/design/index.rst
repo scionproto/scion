@@ -40,6 +40,7 @@ Active
    uri
    grpc
    BorderRouter
+   router-port-dispatch.rst
 
 .. _design-docs-completed:
 
