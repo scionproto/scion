@@ -1,0 +1,180 @@
+End hosts without dispatcher
+============================
+
+- Author: Matthias Frei. 
+  Originally proposed by Sergiu Costea.
+- Last updated: 2022-10-11
+- Discussion at: https://github.com/scionproto/scion/issues/3961
+
+Abstract
+--------
+
+Remove the dispatcher, because it causes a variety of problems (some merely implementation problems, others inherent to the design).
+SCION applications open a UDP underlay socket directly, and use the corresponding port as the UDP/SCION port.
+The router in the destination AS inspects the Layer 4 UDP header and delivers the packet to this port.
+
+Background
+----------
+
+The SCION router in the destination AS delivers a packet to the end host at the specified destination address.
+The packet is delivered to the end host over UDP/IP, using a fixed end-host data port (30041).
+On the end host the packet is then delivered to the appropriate application socket determined by the protocol and port number; only UDP/SCION (and SCMP) are currently supported.
+We do not have operating system support for SCION on any platform, so this last step happens in user space, in the "dispatcher".
+
+Applications create UDP/SCION sockets by registering with the dispatcher, establishing a connection to the dispatcher's unix domain socket.
+The application then receives and transmits SCION packets (exclusively) over this unix domain socket connection.
+
+The dispatcher also implements other end host stack functionality; in particular, it replies to certain SCMP messages like SCMP Echo (ping).
+
+Problems
+^^^^^^^^
+This dispatcher is the cause of many issues:
+
+- It is a single point of failure for the SCION network stack of a host. If it goes down, a lot of processes (control service, gateway, tooling) go haywire.
+- It lives in userspace, moving every forwarded packet from kernelspace to userspace and back to kernelspace, meaning a performance hit.
+- It requires a UNIX DOMAIN stream socket, meaning awkward volume mounts in dockerized environments (and awkward resource cleanup/access management).
+- It imposes stateful connections that need to be reestablished by client applications if the dispatcher goes down and then up. This has been the cause of many bugs in the past, and the performance impact of the reconnection logic is currently unknown.
+- The UNIX DOMAIN socket is a stream, while the data being sent/received are packets. This requires packetization logic and slows forwarding even further.
+- It has cost us a lot of time in performance tuning, because we never knew if it is the root cause of performance problems in apps like the SCION IP gateway.
+- It is an additional application to configure/deploy/operate on which, crucially, other applications depend on. This has caused headaches in testing where apps need to retry to connect to the dispatcher if it is not up yet, and it led to dependencies in docker-compose.
+
+  This is also a big blocker for deploying multiple separate SCION-enabled applications to a larger variety of platforms.
+  For example, on mobile platforms (iOS, Android) there is simply no good way to install and start the dispatcher as a shared dependency of multiple applications.
+  Attempts to do so seem to require additional user interactions (in the form of: "please install and enable this other application"), which effectively blocks adoption of SCION use in mobile applications for most average users.
+
+- It masks what applications are actually talking on the network, so traditional firewalls cannot filter based on ports and a simple packet capture is often not sufficient to debug.
+- It breaks native network tooling; netstat is ~ useless due to it.
+
+The dispatcher has the following advantages:
+
+- It simulates an end host with full operating system support for SCION, i.e. it's conceptually "correct" and in line with our long-term vision.
+- All SCION traffic is tunneled through a single port; this simplifies connectivity matrices and port firewall rules.
+
+
+Long term vision
+^^^^^^^^^^^^^^^^
+
+In the longer term future, all of the functionality of the dispatcher may be
+included in the operating system's network stack. Applications open a UDP/SCION
+socket directly and the packet dispatching happens in the kernel.
+In this scenario, neither the user-space dispatcher nor the proposed workaround is needed.
+
+Proposal
+--------
+
+For UDP/SCION, SCION applications open a UDP/IP underlay socket directly, and use the corresponding port as the local UDP/SCION port.
+The last SCION router on a path inspects the Layer 4 UDP/SCION destination port to determine the underlay UDP/IP destination port.
+For traffic in the local AS, the source end host determines the underlay UDP/IP destination port analogously.
+
+SCMP
+^^^^
+
+The same procedure applies for SCMP messages, wherever possible.
+For SCMP error messages in response to UDP/SCION packets, the router uses the source port from the quoted offending packet as the underlay destination port.
+For SCMP error messages in response to a packet sent from a local end host, the underlay source address is used directly for the error message.
+
+For SCMP :ref:`Echo Requests <echo-request>` and :ref:`Traceroute Requests <traceroute-request>`, SCION applications open a UDP underlay port on the local host and use this port as the Identifier for the request messages.
+The requests are sent to the destination end host to the default end-host port 30041.
+For SCMP :ref:`Echo Replies <echo-reply>` and :ref:`Traceroute Replies <traceroute-reply>`, the router uses the Identifier field as the destination UDP port.
+
+SCMP Daemon
+^^^^^^^^^^^
+
+The remaining functionality of the dispatcher, namely responding to SCMP echo requests, is implemented to a new, very simple "SCMP daemon".
+This daemon opens UDP/IP port 30041, where it receives and replies to SCMP Echo requests.
+On this port, it will also receive any packet where an appropriate destination port could not be determined (e.g. SCMP error messages for malformed packages).
+These events are only logged and counted, but otherwise no appropriate action is possible.
+
+The SCMP daemon is an optional component for end hosts.
+If it's not running, the host simply doesn't respond to pings.
+
+Port Unreachable
+^^^^^^^^^^^^^^^^
+
+No SCMP Error messages for Port unreachable are sent. On the end host, there is simply no component that could trigger this. Instead, an ICMP port closed message for the UDP/IP port may be triggered.
+Given that the dispatcher currently doesn't even send out these SCMP messages, it does not seem to be worth the effort to translate the ICMP message to an SCMP in the router.
+
+Processing rule
+^^^^^^^^^^^^^^^
+
+1. The underlay UDP/IP destination port for packets towards the destination end host is chosen as follows:
+
+  - UDP/SCION: UDP/SCION destination port
+  - SCMP:
+
+    - :ref:`Echo Reply <echo-reply>`, :ref:`Traceroute Reply <traceroute-reply>`: Identifier field
+    - SCMP error messages:
+
+      - If quoted message is UDP/SCION: UDP/SCION source port
+      - Error message originating from this router to local end host: underlay source address of offending packet
+
+    - any other, in particular :ref:`Echo Request <echo-request>` and :ref:`Traceroute Request <traceroute-request>`: default end-host port 30041
+
+
+.. Hint:: This only applies to the ingress-router in the destination AS at the end of the path.
+   This does not affect the performance of the high-speed core routers that need to forward huge volumes of data.
+
+
+Long term vision compatibility
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If our long term vision materializes and we'd have SCION support directly built-in to the operating system's network stack, then this workaround becomes obsolete.
+In an optimistic scenario, where there are millions of end hosts running SCION-enabled applications, we can not expect that all devices and applications will updated to the same level of SCION support within a useful time frame.
+Therefore, it will be necessary to be able to gradually phase out the use of this workaround, keeping it around for all the future legacy applications.
+For this we propose to *conditionally* use the underlay UDP/IP destination port determined with the rules above only for specific *port ranges*.
+These port ranges are AS specific and are included in the topology configuration that end hosts and routers receive.
+
+Applications pick an appropriate local port when opening a socket.
+For servers listening on "well known ports", a (AS-local) flag day is still required at the point in time where these ports are removed from the special port range.
+
+
+The processing rule above is extended:
+
+2. If the underlay UDP/IP destination port determined above is within the port range specified in the topology configuration,
+   the packet is sent to that destination port.
+
+   Otherwise, the packet is sent to the default end-host port 30041.
+
+   .. Note:: In the future, we'd perhaps use a different port, or no longer use UDP/IP but directly IP as the underlay.
+
+.. Note:: This should not be considered a promise to never break compatiblity for end hosts again.
+
+Rationale
+---------
+
+Alternative without router support
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Instead of having the router inspect the Layer 4 data to determine the destination underlay port, we could keep this logic on the end host.
+Applications open IP/UDP sockets for transmitting packets, as above. To receive packets, a (much simplified) dispatcher process
+listens on port 30041 and forwards the packets to localhost:<UDP/SCION destination port>.
+This could also be implemented as a port rewrite step for example in an XDP program.
+
+This has some advantages:
+
+- it retains the "correct" end-host model, packets on the wire don't change
+- it's an entirely end-host local change
+- it also fixes many of the problems listed above related to unix domain sockets, reconnection, etc.
+
+However, this still requires a shared component on the end-host if multiple applications want to use SCION concurrently.
+For deployment to mobile platforms, in particular, this is still as much of a blocker as the current dispatcher. 
+
+Alternative SCMP handling
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The original proposal did not require the router to inspect SCMP messages. 
+All SCMP messages would be forwarded to the default end-host port and dispatched from there to the correct application with the SCMP daemon.
+
+Same issue as above; this still requires a shared component on the end-host if applications should be able to receive SCMP messages.
+SCMP error messages are crucial for efficient fail-over in SCION. Simply omitting these would not be a good option.
+
+Implementation
+--------------
+
+The roadmap would look like the following:
+
+- Add a feature flag to the router, changing its behavior to set the UDP destination underlay port as described above.
+- Have SCION applications use native ``net.PacketConn`` instead of ``reliable.Conn``. 
+  This only needs changes in ``snet``, and because the interfaces are compatible it is trivial to do.
+- Create new SCMP Daemon (scmpd) that replies to SCMP traffic that targets a host (scion ping)
+- Remove dispatcher, package ``reliable`` and ``ReconnectToDispatcher`` from everywhere.
