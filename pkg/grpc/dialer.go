@@ -155,7 +155,7 @@ func (d *QUICDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn,
 		return d.Dialer.Dial(ctx, addr)
 	}
 	return grpc.DialContext(ctx, addr.String(),
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(PassThroughCredentials{}),
 		grpc.WithContextDialer(dialer),
 		UnaryClientInterceptor(),
 		StreamClientInterceptor(),
