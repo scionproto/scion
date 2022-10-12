@@ -17,6 +17,7 @@ package squic
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	mrand "math/rand"
 	"net"
@@ -309,10 +310,11 @@ func (c *acceptingConn) LocalAddr() net.Addr {
 }
 
 func (c *acceptingConn) RemoteAddr() net.Addr {
-	return ContextSmuggleAddr{
-		Addr:    c.session.RemoteAddr(),
-		Session: c.session,
-	}
+	return c.session.RemoteAddr()
+}
+
+func (c *acceptingConn) ConnectionState() tls.ConnectionState {
+	return c.session.ConnectionState().TLS.ConnectionState
 }
 
 func (c *acceptingConn) Close() error {
@@ -379,9 +381,8 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 		if err == nil {
 			break
 		}
-		// Unfortunately there is no better way to check the error.
-		// https://github.com/lucas-clemente/quic-go/issues/2441
-		if err.Error() != "SERVER_BUSY" {
+		var transportErr *quic.TransportError
+		if !errors.As(err, &transportErr) || transportErr.ErrorCode != quic.ConnectionRefused {
 			return nil, serrors.WrapStr("dialing QUIC/SCION", err)
 		}
 
@@ -450,6 +451,10 @@ func (c *acceptedConn) RemoteAddr() net.Addr {
 	return c.session.RemoteAddr()
 }
 
+func (c *acceptedConn) ConnectionState() tls.ConnectionState {
+	return c.session.ConnectionState().TLS.ConnectionState
+}
+
 func (c *acceptedConn) Close() error {
 	var errs []error
 	if err := c.stream.Close(); err != nil {
@@ -462,32 +467,4 @@ func (c *acceptedConn) Close() error {
 		return fmt.Errorf("closing connection: %v", errs)
 	}
 	return nil
-}
-
-// ContextSmuggleAddr is a net.Addr, returned from RemoteAddr in connections
-// Accept-ed by the ConnListener. This contains both the normally expected
-// net.Addr, as well as some additional context, specifically the quic session
-// object.
-//
-// This is purely a HACK to pass the quic session information through the grpc
-// stack; there is no way to insert something into the request context from the
-// listener directly. And, although the connection object itself is added to
-// the request context by the grpc libraries internally (and we could in turn
-// get the desired session information from the connection object), extracting
-// this information from the request context is reserved to the grpc
-// implementation packages (grpc/internal/transport.GetConnection(ctx)).
-//
-// See pkg/grpc.PeerAuthServer{,Stream}Interceptor where this is processed and
-// inserted into the regular request context as proper peer information.
-type ContextSmuggleAddr struct {
-	Addr    net.Addr
-	Session quic.Connection
-}
-
-func (a ContextSmuggleAddr) String() string {
-	return a.Addr.String()
-}
-
-func (a ContextSmuggleAddr) Network() string {
-	return a.Addr.Network()
 }
