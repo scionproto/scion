@@ -306,7 +306,10 @@ func realMain(ctx context.Context) error {
 		Router: segreq.NewRouter(fetcherCfg),
 	}
 
-	quicServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())
+	quicServer := grpc.NewServer(
+		grpc.Creds(libgrpc.PassThroughCredentials{}),
+		libgrpc.UnaryServerInterceptor(),
+	)
 	tcpServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())
 
 	// Register trust material related handlers.
