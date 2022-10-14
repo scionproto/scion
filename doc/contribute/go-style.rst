@@ -38,12 +38,17 @@ Within each group the imports are alphabetically sorted.
 Function declaration over multiple lines
 ----------------------------------------
 
-If a function declaration uses more than 1 line the first line should be empty:
+If a function declaration uses more than 1 line, each parameter should be
+declared on a separate line and the first line of the function body should be
+empty:
 
 .. code-block:: go
 
     func usingMultipleLines(
-        args string) error {
+        foo int,
+        bar []string,
+        qux bool,
+    ) error {
 
         // start the code here
     }

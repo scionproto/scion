@@ -16,15 +16,14 @@ package certs
 
 import (
 	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 
-	"github.com/emojisum/emojisum/emoji"
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/app/command"
+	"github.com/scionproto/scion/scion-pki/encoding"
 )
 
 func newFingerprintCmd(pather command.Pather) *cobra.Command {
@@ -49,9 +48,8 @@ If the flag \--format is set to "emoji", the format of the output is a string of
 		`, pather.CommandPath()),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-
-			if flags.format != "hex" && flags.format != "emoji" {
-				return serrors.New("format not supported", "format", flags.format)
+			if err := encoding.CheckEncodings(flags.format); err != nil {
+				return err
 			}
 			cmd.SilenceUsage = true
 
@@ -65,12 +63,9 @@ If the flag \--format is set to "emoji", the format of the output is a string of
 				h.Write(chain[i].Raw)
 			}
 			fingerprint := h.Sum(nil)
-			output := hex.EncodeToString(fingerprint)
-			if flags.format == "emoji" {
-				var err error
-				if output, err = emoji.FromHexString(output); err != nil {
-					return serrors.WrapStr("encoding to emojis", err)
-				}
+			output, err := encoding.EncodeBytes(fingerprint, flags.format)
+			if err != nil {
+				return err
 			}
 
 			outputWriter := cmd.OutOrStdout()
@@ -81,7 +76,7 @@ If the flag \--format is set to "emoji", the format of the output is a string of
 	}
 
 	cmd.Flags().StringVar(&flags.format, "format", "hex",
-		"Specify the format of the fingerprint to an string of hex or emoji characters",
+		`The format of the fingerprint (hex|base64|base64-url|base64-raw|base64-url-raw|emoji).`,
 	)
 
 	return cmd

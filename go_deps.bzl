@@ -344,12 +344,6 @@ def go_deps():
         version = "v2.9.5+incompatible",
     )
     go_repository(
-        name = "com_github_emojisum_emojisum",
-        importpath = "github.com/emojisum/emojisum",
-        sum = "h1:3fEA+fY1ujuzNCOgd6Y1E/JndDFIm34GcYkdmwba0bI=",
-        version = "v0.0.0-20210601164913-cb9db27ebae2",
-    )
-    go_repository(
         name = "com_github_envoyproxy_go_control_plane",
         importpath = "github.com/envoyproxy/go-control-plane",
         sum = "h1:cgDRLG7bs59Zd+apAWuzLQL95obVYAymNJek76W3mgw=",
@@ -951,10 +945,10 @@ def go_deps():
     )
     go_repository(
         name = "com_github_lucas_clemente_quic_go",
-        build_directives = ["gazelle:exclude internal/qtls/go118.go"],  # XXX(matzf): exclude go-1.18 file that should not be built, but gazelle does not properly understand the release tags.
+        build_directives = ["gazelle:exclude internal/qtls/go116.go"],  # XXX(matzf): exclude go-1.16 file that should not be built, but gazelle does not properly understand the release tags.
         importpath = "github.com/lucas-clemente/quic-go",
-        sum = "h1:sOw+4kFSVrdWOYmUjufQ9GBVPqZ+tu+jMtXxXNmRJyk=",
-        version = "v0.27.1",
+        sum = "h1:zsMwwniyybb8B/UDNXRSYee7WpQJVOcjQEGgpw2ikXs=",
+        version = "v0.27.2",
     )
     go_repository(
         name = "com_github_lunixbochs_vtclean",
@@ -989,15 +983,14 @@ def go_deps():
     go_repository(
         name = "com_github_marten_seemann_qtls_go1_17",
         importpath = "github.com/marten-seemann/qtls-go1-17",
-        sum = "h1:DQjHPq+aOzUeh9/lixAGunn6rIOQyWChPSI4+hgW7jc=",
-        version = "v0.1.1",
+        sum = "h1:JADBlm0LYiVbuSySCHeY863dNkcpMmDR7s0bLKJeYlQ=",
+        version = "v0.1.2",
     )
     go_repository(
         name = "com_github_marten_seemann_qtls_go1_18",
-        build_directives = ["gazelle:exclude generate_cert.go"],  # XXX(matzf): this file has a "// go:build ignore" instruction that gazelle does not understand
         importpath = "github.com/marten-seemann/qtls-go1-18",
-        sum = "h1:qp7p7XXUFL7fpBvSS1sWD+uSqPvzNQK43DH+/qEkj0Y=",
-        version = "v0.1.1",
+        sum = "h1:JH6jmzbduz0ITVQ7ShevK10Av5+jBEKAHMntXmIV7kM=",
+        version = "v0.1.2",
     )
     go_repository(
         name = "com_github_matryer_moq",

@@ -33,6 +33,7 @@ func Cmd(pather command.Pather) *cobra.Command {
 		NewPrivateCmd(joined),
 		NewPublicCmd(joined),
 		NewSymmetricCmd(joined),
+		NewFingerprintCmd(joined),
 		newMatchCmd(joined),
 	)
 	return cmd

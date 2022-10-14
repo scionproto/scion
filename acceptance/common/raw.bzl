@@ -1,5 +1,5 @@
 load("//tools/lint:py.bzl", "py_binary", "py_library", "py_test")
-load("@pip3_deps//:requirements.bzl", "requirement")
+load("@com_github_scionproto_scion_python_deps//:requirements.bzl", "requirement")
 
 def raw_test(
         name,
@@ -61,5 +61,7 @@ def raw_test(
         env = {
             # Ensure output appears immediately (in particular with --test_output=streamed)
             "PYTHONUNBUFFERED": "1",
+            # Ensure that unicode output can be printed to the log/console
+            "PYTHONIOENCODING": "utf-8",
         },
     )

@@ -32,10 +32,10 @@ lint_setup({
 # Bazel rules for Golang
 http_archive(
     name = "io_bazel_rules_go",
-    sha256 = "f2dcd210c7095febe54b804bb1cd3a58fe8435a909db2ec04e31542631cf715c",
+    sha256 = "16e9fca53ed6bd4ff4ad76facc9b7b651a89db1689a2877d6fd7b82aa824e366",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.31.0/rules_go-v0.31.0.zip",
-        "https://github.com/bazelbuild/rules_go/releases/download/v0.31.0/rules_go-v0.31.0.zip",
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.34.0/rules_go-v0.34.0.zip",
+        "https://github.com/bazelbuild/rules_go/releases/download/v0.34.0/rules_go-v0.34.0.zip",
     ],
 )
 
@@ -43,16 +43,21 @@ load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_depe
 
 go_register_toolchains(
     nogo = "@//:nogo",
-    version = "1.17.6",
+    version = "1.18.5",
 )
 
 # Gazelle
 http_archive(
     name = "bazel_gazelle",
-    sha256 = "de69a09dc70417580aabf20a28619bb3ef60d038470c7cf8442fafcf627c21cb",
+    patch_args = ["-p1"],
+    patches = [
+        # PR: https://github.com/bazelbuild/bazel-gazelle/pull/1243
+        "@//patches/bazel_gazelle:gazelle.patch",
+    ],
+    sha256 = "501deb3d5695ab658e82f6f6f549ba681ea3ca2a5fb7911154b5aa45596183fa",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.24.0/bazel-gazelle-v0.24.0.tar.gz",
-        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.24.0/bazel-gazelle-v0.24.0.tar.gz",
+        "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.26.0/bazel-gazelle-v0.26.0.tar.gz",
+        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.26.0/bazel-gazelle-v0.26.0.tar.gz",
     ],
 )
 
@@ -83,17 +88,26 @@ gazelle_dependencies()
 # Python rules
 http_archive(
     name = "rules_python",
-    sha256 = "a30abdfc7126d497a7698c29c46ea9901c6392d6ed315171a6df5ce433aa4502",
-    strip_prefix = "rules_python-0.6.0",
-    url = "https://github.com/bazelbuild/rules_python/archive/0.6.0.tar.gz",
+    sha256 = "8c8fe44ef0a9afc256d1e75ad5f448bb59b81aba149b8958f02f7b3a98f5d9b4",
+    strip_prefix = "rules_python-0.13.0",
+    url = "https://github.com/bazelbuild/rules_python/archive/refs/tags/0.13.0.tar.gz",
 )
 
-load("@rules_python//python:pip.bzl", "pip_install")
+load("@rules_python//python:repositories.bzl", "python_register_toolchains")
 
-pip_install(
-    name = "pip3_deps",
-    requirements = "//tools/env/pip3:requirements.txt",
+python_register_toolchains(
+    name = "python3_10",
+    python_version = "3.10",
 )
+
+load("@python3_10//:defs.bzl", "interpreter")
+load("//tools/env/pip3:deps.bzl", "python_deps")
+
+python_deps(interpreter)
+
+load("@com_github_scionproto_scion_python_deps//:requirements.bzl", install_python_deps = "install_deps")
+
+install_python_deps()
 
 http_archive(
     name = "rules_pkg",
@@ -236,15 +250,6 @@ http_archive(
     url = "https://github.com/bazelbuild/buildtools/archive/2.2.1.zip",
 )
 
-http_archive(
-    name = "com_github_jmhodges_bazel_gomock",
-    sha256 = "692421b0c5e04ae4bc0bfff42fb1ce8671fe68daee2b8d8ea94657bb1fcddc0a",
-    strip_prefix = "bazel_gomock-fde78c91cf1783cc1e33ba278922ba67a6ee2a84",
-    urls = [
-        "https://github.com/jmhodges/bazel_gomock/archive/fde78c91cf1783cc1e33ba278922ba67a6ee2a84.tar.gz",
-    ],
-)
-
 http_file(
     name = "buf_bin",
     downloaded_file_path = "buf",
@@ -261,7 +266,11 @@ bbcp_repository()
 
 load("//tools/lint/python:deps.bzl", "python_lint_deps")
 
-python_lint_deps()
+python_lint_deps(interpreter)
+
+load("@com_github_scionproto_scion_python_lint_deps//:requirements.bzl", install_python_lint_deps = "install_deps")
+
+install_python_lint_deps()
 
 load("//rules_openapi:dependencies.bzl", "rules_openapi_dependencies")
 

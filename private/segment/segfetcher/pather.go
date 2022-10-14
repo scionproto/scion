@@ -81,7 +81,7 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 	segs, fetchErr := p.Fetcher.Fetch(ctx, reqs, refresh)
 	// Even if fetching failed, attempt to create paths.
 	if fetchErr != nil {
-		logger.Debug("Fetching failed, attempting to build paths anyway", "err", err)
+		logger.Debug("Fetching failed, attempting to build paths anyway", "err", fetchErr)
 	}
 	paths := p.buildAllPaths(src, dst, segs)
 	paths = p.filterRevoked(ctx, paths)

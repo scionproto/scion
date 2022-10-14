@@ -15,7 +15,6 @@
 package snet_test
 
 import (
-	"fmt"
 	"net"
 	"testing"
 
@@ -157,6 +156,12 @@ func TestParseUDPAddr(t *testing.T) {
 		{address: "1-ff00:0:300,[1.2.3.4]:70000", isError: true},
 		{address: "1-ff00:0:300,[1.2.3.4]]", isError: true},
 		{address: "1-ff00:0:300,::1:60000", isError: true},
+		{address: "[1-ff00:0:110,1.2.3.4]:70:300", isError: true},
+		{address: "[1-ff00:0:110,1.2.3.4,80]:80", isError: true},
+		{address: "[1-ff00:0:110,1.2.3.4]", isError: true},
+		{address: "[1-,127.0.0.1]:80", isError: true},
+		{address: "[1-ff00:0:110,1.2.3.4]", isError: true},
+		{address: "[1-ff00:0:110,::1%some-zone]", isError: true},
 		{address: "", isError: true},
 		{address: "1-ff00:0:300,[1.2.3.4]:80",
 			ia:   "1-ff00:0:300",
@@ -221,16 +226,37 @@ func TestParseUDPAddr(t *testing.T) {
 			port: 0,
 			zone: "some-zone",
 		},
+		{address: "[1-ff00:0:110,192.0.2.1]:80",
+			ia:   "1-ff00:0:110",
+			host: "192.0.2.1",
+			port: 80,
+		},
+		{address: "[1-ff00:0:110,2001:DB8::1]:80",
+			ia:   "1-ff00:0:110",
+			host: "2001:DB8::1",
+			port: 80,
+		},
+		{address: "[1-64496,2001:DB8::1]:80",
+			ia:   "1-64496",
+			host: "2001:DB8::1",
+			port: 80,
+		},
+		{address: "[1-64496,2001:DB8::1]:60000",
+			ia:   "1-64496",
+			host: "2001:DB8::1",
+			port: 60000,
+		},
 	}
 	for _, test := range tests {
-		t.Log(fmt.Sprintf("given address %q", test.address))
+		t.Logf("given address %q", test.address)
 		a, err := snet.ParseUDPAddr(test.address)
 		if test.isError {
 			assert.Error(t, err)
 		} else {
 			assert.NoError(t, err)
 			assert.Equal(t, test.ia, a.IA.String())
-			assert.Equal(t, net.ParseIP(test.host), a.Host.IP)
+			ip := net.ParseIP(test.host)
+			assert.True(t, ip.Equal(a.Host.IP))
 			assert.Equal(t, test.port, a.Host.Port)
 			assert.Equal(t, test.zone, a.Host.Zone)
 		}

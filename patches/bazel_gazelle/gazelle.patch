@@ -1,0 +1,1399 @@
+diff --git a/internal/go_repository_tools_srcs.bzl b/internal/go_repository_tools_srcs.bzl
+index 6fd16d2..4a8cadc 100644
+--- a/internal/go_repository_tools_srcs.bzl
++++ b/internal/go_repository_tools_srcs.bzl
+@@ -45,6 +45,7 @@ GO_REPOSITORY_TOOLS_SRCS = [
+ 	"@bazel_gazelle//label:label.go",
+ 	"@bazel_gazelle//language:BUILD.bazel",
+ 	"@bazel_gazelle//language/go:BUILD.bazel",
++	"@bazel_gazelle//language/go:build_constraints.go",
+ 	"@bazel_gazelle//language/go:config.go",
+ 	"@bazel_gazelle//language/go:constants.go",
+ 	"@bazel_gazelle//language/go:dep.go",
+@@ -61,6 +62,7 @@ GO_REPOSITORY_TOOLS_SRCS = [
+ 	"@bazel_gazelle//language/go:package.go",
+ 	"@bazel_gazelle//language/go:resolve.go",
+ 	"@bazel_gazelle//language/go:std_package_list.go",
++	"@bazel_gazelle//language/go:stdlib_links.go",
+ 	"@bazel_gazelle//language/go:update.go",
+ 	"@bazel_gazelle//language/go:utils.go",
+ 	"@bazel_gazelle//language/go:work.go",
+diff --git a/language/go/BUILD.bazel b/language/go/BUILD.bazel
+index 0d0ed71..b519876 100644
+--- a/language/go/BUILD.bazel
++++ b/language/go/BUILD.bazel
+@@ -15,6 +15,7 @@ std_package_list(
+ go_library(
+     name = "go",
+     srcs = [
++        "build_constraints.go",
+         "config.go",
+         "constants.go",
+         "dep.go",
+@@ -29,6 +30,7 @@ go_library(
+         "package.go",
+         "resolve.go",
+         "std_package_list.go",
++        "stdlib_links.go",
+         "update.go",
+         "utils.go",
+         "work.go",
+@@ -56,6 +58,7 @@ go_library(
+ go_test(
+     name = "go_test",
+     srcs = [
++        "build_constraints_test.go",
+         "config_test.go",
+         "fileinfo_go_test.go",
+         "fileinfo_test.go",
+@@ -90,6 +93,8 @@ filegroup(
+     testonly = True,
+     srcs = [
+         "BUILD.bazel",
++        "build_constraints.go",
++        "build_constraints_test.go",
+         "config.go",
+         "config_test.go",
+         "constants.go",
+@@ -111,6 +116,7 @@ filegroup(
+         "resolve.go",
+         "resolve_test.go",
+         "std_package_list.go",
++        "stdlib_links.go",
+         "stubs_test.go",
+         "update.go",
+         "update_import_test.go",
+diff --git a/language/go/build_constraints.go b/language/go/build_constraints.go
+new file mode 100644
+index 0000000..1ce071a
+--- /dev/null
++++ b/language/go/build_constraints.go
+@@ -0,0 +1,381 @@
++/* Copyright 2022 The Bazel Authors. All rights reserved.
++
++Licensed under the Apache License, Version 2.0 (the "License");
++you may not use this file except in compliance with the License.
++You may obtain a copy of the License at
++
++   http://www.apache.org/licenses/LICENSE-2.0
++
++Unless required by applicable law or agreed to in writing, software
++distributed under the License is distributed on an "AS IS" BASIS,
++WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++See the License for the specific language governing permissions and
++limitations under the License.
++*/
++
++package golang
++
++import (
++	"bufio"
++	"bytes"
++	"fmt"
++	"go/build/constraint"
++	"os"
++	"strings"
++)
++
++// readTags reads and extracts build tags from the block of comments
++// and blank lines at the start of a file which is separated from the
++// rest of the file by a blank line. Each string in the returned slice
++// is the trimmed text of a line after a "+build" prefix.
++// Based on go/build.Context.shouldBuild.
++func readTags(path string) (*buildTags, error) {
++	f, err := os.Open(path)
++	if err != nil {
++		return nil, err
++	}
++	defer f.Close()
++
++	content, err := readComments(f)
++	if err != nil {
++		return nil, err
++	}
++
++	content, goBuild, _, err := parseFileHeader(content)
++	if err != nil {
++		return nil, err
++	}
++
++	if goBuild != nil {
++		x, err := constraint.Parse(string(goBuild))
++		if err != nil {
++			return nil, err
++		}
++
++		return newBuildTags(x)
++	}
++
++	var fullConstraint constraint.Expr
++	// Search and parse +build tags
++	scanner := bufio.NewScanner(bytes.NewReader(content))
++	for scanner.Scan() {
++		line := strings.TrimSpace(scanner.Text())
++
++		if !constraint.IsPlusBuild(line) {
++			continue
++		}
++
++		x, err := constraint.Parse(line)
++		if err != nil {
++			return nil, err
++		}
++
++		if fullConstraint != nil {
++			fullConstraint = &constraint.AndExpr{
++				X: fullConstraint,
++				Y: x,
++			}
++		} else {
++			fullConstraint = x
++		}
++	}
++
++	if scanner.Err() != nil {
++		return nil, scanner.Err()
++	}
++
++	if fullConstraint == nil {
++		return nil, nil
++	}
++
++	return newBuildTags(fullConstraint)
++}
++
++// buildTags represents the build tags specified in a file.
++type buildTags struct {
++	// expr represents the parsed constraint expression
++	// that can be used to evaluate a file against a set
++	// of tags.
++	expr constraint.Expr
++	// rawTags represents the concrete tags that make up expr.
++	rawTags []string
++}
++
++// newBuildTags will return a new buildTags structure with any
++// ignored tags filtered out from the provided constraints.
++func newBuildTags(x constraint.Expr) (*buildTags, error) {
++	modified, err := dropNegationForIgnoredTags(pushNot(x, false))
++	if err != nil {
++		return nil, err
++	}
++
++	rawTags, err := collectTags(modified)
++	if err != nil {
++		return nil, err
++	}
++
++	return &buildTags{
++		expr:    modified,
++		rawTags: rawTags,
++	}, nil
++}
++
++func (b *buildTags) tags() []string {
++	if b == nil {
++		return nil
++	}
++
++	return b.rawTags
++}
++
++func (b *buildTags) eval(ok func(string) bool) bool {
++	if b == nil || b.expr == nil {
++		return true
++	}
++
++	return b.expr.Eval(ok)
++}
++
++func (b *buildTags) empty() bool {
++	if b == nil {
++		return true
++	}
++
++	return len(b.rawTags) == 0
++}
++
++// dropNegationForIgnoredTags drops negations for any concrete tags that should be ignored.
++// This is done to ensure that when ignored tags are evaluated, they can always return true
++// without having to worry that the result will be negated later on. Ignored tags should always
++// evaluate to true, regardless of whether they are negated or not leaving the final evaluation
++// to happen at compile time by the compiler.
++func dropNegationForIgnoredTags(expr constraint.Expr) (constraint.Expr, error) {
++	if expr == nil {
++		return nil, nil
++	}
++
++	switch x := expr.(type) {
++	case *constraint.TagExpr:
++		return &constraint.TagExpr{
++			Tag: x.Tag,
++		}, nil
++
++	case *constraint.NotExpr:
++		var toRet constraint.Expr
++		// flip nots on any ignored tags
++		if tag, ok := x.X.(*constraint.TagExpr); ok && isIgnoredTag(tag.Tag) {
++			toRet = &constraint.TagExpr{
++				Tag: tag.Tag,
++			}
++		} else {
++			fixed, err := dropNegationForIgnoredTags(x.X)
++			if err != nil {
++				return nil, err
++			}
++			toRet = &constraint.NotExpr{X: fixed}
++		}
++
++		return toRet, nil
++
++	case *constraint.AndExpr:
++		a, err := dropNegationForIgnoredTags(x.X)
++		if err != nil {
++			return nil, err
++		}
++
++		b, err := dropNegationForIgnoredTags(x.Y)
++		if err != nil {
++			return nil, err
++		}
++
++		return &constraint.AndExpr{
++			X: a,
++			Y: b,
++		}, nil
++
++	case *constraint.OrExpr:
++		a, err := dropNegationForIgnoredTags(x.X)
++		if err != nil {
++			return nil, err
++		}
++
++		b, err := dropNegationForIgnoredTags(x.Y)
++		if err != nil {
++			return nil, err
++		}
++
++		return &constraint.OrExpr{
++			X: a,
++			Y: b,
++		}, nil
++
++	default:
++		return nil, fmt.Errorf("unknown constraint type: %T", x)
++	}
++}
++
++// filterTags will traverse the provided constraint.Expr, recursively, and call
++// the user provided ok func on concrete constraint.TagExpr structures. If the provided
++// func returns true, the tag in question is kept, otherwise it is filtered out.
++func visitTags(expr constraint.Expr, visit func(string)) (err error) {
++	if expr == nil {
++		return nil
++	}
++
++	switch x := expr.(type) {
++	case *constraint.TagExpr:
++		visit(x.Tag)
++
++	case *constraint.NotExpr:
++		err = visitTags(x.X, visit)
++
++	case *constraint.AndExpr:
++		err = visitTags(x.X, visit)
++		if err == nil {
++			err = visitTags(x.Y, visit)
++		}
++
++	case *constraint.OrExpr:
++		err = visitTags(x.X, visit)
++		if err == nil {
++			err = visitTags(x.Y, visit)
++		}
++
++	default:
++		return fmt.Errorf("unknown constraint type: %T", x)
++	}
++
++	return
++}
++
++func collectTags(expr constraint.Expr) ([]string, error) {
++	var tags []string
++	err := visitTags(expr, func(tag string) {
++		tags = append(tags, tag)
++	})
++	if err != nil {
++		return nil, err
++	}
++
++	return tags, err
++}
++
++// cgoTagsAndOpts contains compile or link options which should only be applied
++// if the given set of build tags are satisfied. These options have already
++// been tokenized using the same algorithm that "go build" uses, then joined
++// with OptSeparator.
++type cgoTagsAndOpts struct {
++	*buildTags
++	opts string
++}
++
++func (c *cgoTagsAndOpts) tags() []string {
++	if c == nil {
++		return nil
++	}
++
++	return c.buildTags.tags()
++}
++
++func (c *cgoTagsAndOpts) eval(ok func(string) bool) bool {
++	if c == nil {
++		return true
++	}
++
++	return c.buildTags.eval(ok)
++}
++
++// matchAuto interprets text as either a +build or //go:build expression (whichever works).
++// Forked from go/build.Context.matchAuto
++func matchAuto(tokens []string) (*buildTags, error) {
++	if len(tokens) == 0 {
++		return nil, nil
++	}
++
++	text := strings.Join(tokens, " ")
++	if strings.ContainsAny(text, "&|()") {
++		text = "//go:build " + text
++	} else {
++		text = "// +build " + text
++	}
++
++	x, err := constraint.Parse(text)
++	if err != nil {
++		return nil, err
++	}
++
++	return newBuildTags(x)
++}
++
++// isIgnoredTag returns whether the tag is "cgo" or is a release tag.
++// Release tags match the pattern "go[0-9]\.[0-9]+".
++// Gazelle won't consider whether an ignored tag is satisfied when evaluating
++// build constraints for a file and will instead defer to the compiler at compile
++// time.
++func isIgnoredTag(tag string) bool {
++	if tag == "cgo" || tag == "race" || tag == "msan" {
++		return true
++	}
++	if len(tag) < 5 || !strings.HasPrefix(tag, "go") {
++		return false
++	}
++	if tag[2] < '0' || tag[2] > '9' || tag[3] != '.' {
++		return false
++	}
++	for _, c := range tag[4:] {
++		if c < '0' || c > '9' {
++			return false
++		}
++	}
++	return true
++}
++
++// pushNot applies DeMorgan's law to push negations down the expression,
++// so that only tags are negated in the result.
++// (It applies the rewrites !(X && Y) => (!X || !Y) and !(X || Y) => (!X && !Y).)
++// Forked from go/build/constraint.pushNot
++func pushNot(x constraint.Expr, not bool) constraint.Expr {
++	switch x := x.(type) {
++	default:
++		// unreachable
++		return x
++	case *constraint.NotExpr:
++		if _, ok := x.X.(*constraint.TagExpr); ok && !not {
++			return x
++		}
++		return pushNot(x.X, !not)
++	case *constraint.TagExpr:
++		if not {
++			return &constraint.NotExpr{X: x}
++		}
++		return x
++	case *constraint.AndExpr:
++		x1 := pushNot(x.X, not)
++		y1 := pushNot(x.Y, not)
++		if not {
++			return or(x1, y1)
++		}
++		if x1 == x.X && y1 == x.Y {
++			return x
++		}
++		return and(x1, y1)
++	case *constraint.OrExpr:
++		x1 := pushNot(x.X, not)
++		y1 := pushNot(x.Y, not)
++		if not {
++			return and(x1, y1)
++		}
++		if x1 == x.X && y1 == x.Y {
++			return x
++		}
++		return or(x1, y1)
++	}
++}
++
++func or(x, y constraint.Expr) constraint.Expr {
++	return &constraint.OrExpr{X: x, Y: y}
++}
++
++func and(x, y constraint.Expr) constraint.Expr {
++	return &constraint.AndExpr{X: x, Y: y}
++}
+diff --git a/language/go/build_constraints_test.go b/language/go/build_constraints_test.go
+new file mode 100644
+index 0000000..fc31182
+--- /dev/null
++++ b/language/go/build_constraints_test.go
+@@ -0,0 +1,72 @@
++/* Copyright 2022 The Bazel Authors. All rights reserved.
++
++Licensed under the Apache License, Version 2.0 (the "License");
++you may not use this file except in compliance with the License.
++You may obtain a copy of the License at
++
++   http://www.apache.org/licenses/LICENSE-2.0
++
++Unless required by applicable law or agreed to in writing, software
++distributed under the License is distributed on an "AS IS" BASIS,
++WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++See the License for the specific language governing permissions and
++limitations under the License.
++*/
++
++package golang
++
++import (
++	"go/build/constraint"
++	"testing"
++
++	"github.com/google/go-cmp/cmp"
++)
++
++func TestFilterBuildTags(t *testing.T) {
++	for _, tc := range []struct {
++		desc  string
++		input constraint.Expr
++		want  constraint.Expr
++	}{
++		{
++			desc:  "should remain",
++			input: mustParseBuildTag(t, "go1.8 || go1.9"),
++			want:  mustParseBuildTag(t, "go1.8 || go1.9"),
++		},
++		{
++			desc:  "simple 1",
++			input: mustParseBuildTag(t, "!(go1.8 || go1.9)"),
++			want:  mustParseBuildTag(t, "go1.8 && go1.9"),
++		},
++		{
++			desc:  "simple 2",
++			input: mustParseBuildTag(t, "!(foobar || go1.8 || go1.9)"),
++			want:  mustParseBuildTag(t, "!foobar && go1.8 && go1.9"),
++		},
++		{
++			desc:  "complex 1",
++			input: mustParseBuildTag(t, "!(cgo && (go1.8 || go1.9) || race || msan)"),
++			want:  mustParseBuildTag(t, "(cgo || (go1.8 && go1.9)) && race && msan"),
++		},
++		{
++			desc:  "complex 2",
++			input: mustParseBuildTag(t, "!(cgo && (go1.8 || go1.9 && (race && foobar)))"),
++			want:  mustParseBuildTag(t, "cgo || go1.8 && (go1.9 || (race || !foobar))"),
++		},
++		{
++			desc:  "complex 3",
++			input: mustParseBuildTag(t, "!(cgo && (go1.8 || go1.9 && (race && foobar) || baz))"),
++			want:  mustParseBuildTag(t, "cgo || (go1.8 && (go1.9 || (race || !foobar)) && !baz)"),
++		},
++	} {
++		t.Run(tc.desc, func(t *testing.T) {
++			bt, err := newBuildTags(tc.input)
++			if err != nil {
++				t.Fatal(err)
++			}
++			if diff := cmp.Diff(tc.want, bt.expr); diff != "" {
++				t.Errorf("(-want, +got): %s", diff)
++			}
++		})
++	}
++}
+diff --git a/language/go/fileinfo.go b/language/go/fileinfo.go
+index 7f6671d..fb431b0 100644
+--- a/language/go/fileinfo.go
++++ b/language/go/fileinfo.go
+@@ -16,7 +16,6 @@ limitations under the License.
+ package golang
+ 
+ import (
+-	"bufio"
+ 	"bytes"
+ 	"errors"
+ 	"fmt"
+@@ -24,7 +23,6 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"log"
+-	"os"
+ 	"path"
+ 	"path/filepath"
+ 	"strconv"
+@@ -75,11 +73,11 @@ type fileInfo struct {
+ 
+ 	// tags is a list of build tag lines. Each entry is the trimmed text of
+ 	// a line after a "+build" prefix.
+-	tags []tagLine
++	tags *buildTags
+ 
+ 	// cppopts, copts, cxxopts and clinkopts contain flags that are part
+ 	// of CPPFLAGS, CFLAGS, CXXFLAGS, and LDFLAGS directives in cgo comments.
+-	cppopts, copts, cxxopts, clinkopts []taggedOpts
++	cppopts, copts, cxxopts, clinkopts []*cgoTagsAndOpts
+ 
+ 	// hasServices indicates whether a .proto file has service definitions.
+ 	hasServices bool
+@@ -93,78 +91,6 @@ type fileEmbed struct {
+ 	pos  token.Position
+ }
+ 
+-// tagLine represents the space-separated disjunction of build tag groups
+-// in a line comment.
+-type tagLine []tagGroup
+-
+-// check returns true if at least one of the tag groups is satisfied.
+-func (l tagLine) check(c *config.Config, os, arch string) bool {
+-	if len(l) == 0 {
+-		return false
+-	}
+-	for _, g := range l {
+-		if g.check(c, os, arch) {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+-// tagGroup represents a comma-separated conjuction of build tags.
+-type tagGroup []string
+-
+-// check returns true if all of the tags are true. Tags that start with
+-// "!" are negated (but "!!") is not allowed. Go release tags (e.g., "go1.8")
+-// are ignored. If the group contains an os or arch tag, but the os or arch
+-// parameters are empty, check returns false even if the tag is negated.
+-func (g tagGroup) check(c *config.Config, os, arch string) bool {
+-	goConf := getGoConfig(c)
+-	for _, t := range g {
+-		if strings.HasPrefix(t, "!!") { // bad syntax, reject always
+-			return false
+-		}
+-		not := strings.HasPrefix(t, "!")
+-		if not {
+-			t = t[1:]
+-		}
+-		if isIgnoredTag(t) {
+-			// Release tags are treated as "unknown" and are considered true,
+-			// whether or not they are negated.
+-			continue
+-		}
+-		var match bool
+-		if _, ok := rule.KnownOSSet[t]; ok {
+-			if os == "" {
+-				return false
+-			}
+-			match = matchesOS(os, t)
+-		} else if _, ok := rule.KnownArchSet[t]; ok {
+-			if arch == "" {
+-				return false
+-			}
+-			match = arch == t
+-		} else {
+-			match = goConf.genericTags[t]
+-		}
+-		if not {
+-			match = !match
+-		}
+-		if !match {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+-// taggedOpts a list of compile or link options which should only be applied
+-// if the given set of build tags are satisfied. These options have already
+-// been tokenized using the same algorithm that "go build" uses, then joined
+-// with OptSeparator.
+-type taggedOpts struct {
+-	tags tagLine
+-	opts string
+-}
+-
+ // optSeparator is a special character inserted between options that appeared
+ // together in a #cgo directive. This allows options to be split, modified,
+ // and escaped by other packages.
+@@ -393,27 +319,29 @@ func saveCgo(info *fileInfo, rel string, cg *ast.CommentGroup) error {
+ 		}
+ 
+ 		// Split at colon.
+-		line = strings.TrimSpace(line[4:])
+-		i := strings.Index(line, ":")
+-		if i < 0 {
++		line, argstr, ok := strings.Cut(strings.TrimSpace(line[4:]), ":")
++		if !ok {
+ 			return fmt.Errorf("%s: invalid #cgo line: %s", info.path, orig)
+ 		}
+-		line, optstr := strings.TrimSpace(line[:i]), strings.TrimSpace(line[i+1:])
+ 
+ 		// Parse tags and verb.
+ 		f := strings.Fields(line)
+ 		if len(f) < 1 {
+ 			return fmt.Errorf("%s: invalid #cgo line: %s", info.path, orig)
+ 		}
+-		verb := f[len(f)-1]
+-		tags := parseTagsInGroups(f[:len(f)-1])
++
++		cond, verb := f[:len(f)-1], f[len(f)-1]
++		tags, err := matchAuto(cond)
++		if err != nil {
++			return err
++		}
+ 
+ 		// Parse options.
+-		opts, err := splitQuoted(optstr)
++		opts, err := splitQuoted(argstr)
+ 		if err != nil {
+ 			return fmt.Errorf("%s: invalid #cgo line: %s", info.path, orig)
+ 		}
+-		var ok bool
++
+ 		for i, opt := range opts {
+ 			if opt, ok = expandSrcDir(opt, rel); !ok {
+ 				return fmt.Errorf("%s: malformed #cgo argument: %s", info.path, orig)
+@@ -425,13 +353,16 @@ func saveCgo(info *fileInfo, rel string, cg *ast.CommentGroup) error {
+ 		// Add tags to appropriate list.
+ 		switch verb {
+ 		case "CPPFLAGS":
+-			info.cppopts = append(info.cppopts, taggedOpts{tags, joinedStr})
++			info.cppopts = append(info.cppopts, &cgoTagsAndOpts{tags, joinedStr})
+ 		case "CFLAGS":
+-			info.copts = append(info.copts, taggedOpts{tags, joinedStr})
++			info.copts = append(info.copts, &cgoTagsAndOpts{tags, joinedStr})
+ 		case "CXXFLAGS":
+-			info.cxxopts = append(info.cxxopts, taggedOpts{tags, joinedStr})
++			info.cxxopts = append(info.cxxopts, &cgoTagsAndOpts{tags, joinedStr})
++		case "FFLAGS":
++			// TODO: Add support
++			return fmt.Errorf("%s: unsupported #cgo verb: %s", verb, info.path)
+ 		case "LDFLAGS":
+-			info.clinkopts = append(info.clinkopts, taggedOpts{tags, joinedStr})
++			info.clinkopts = append(info.clinkopts, &cgoTagsAndOpts{tags, joinedStr})
+ 		case "pkg-config":
+ 			return fmt.Errorf("%s: pkg-config not supported: %s", info.path, orig)
+ 		default:
+@@ -559,86 +490,33 @@ func safeCgoName(s string, spaces bool) bool {
+ 	return true
+ }
+ 
+-// readTags reads and extracts build tags from the block of comments
+-// and blank lines at the start of a file which is separated from the
+-// rest of the file by a blank line. Each string in the returned slice
+-// is the trimmed text of a line after a "+build" prefix.
+-// Based on go/build.Context.shouldBuild.
+-func readTags(path string) ([]tagLine, error) {
+-	f, err := os.Open(path)
+-	if err != nil {
+-		return nil, err
+-	}
+-	defer f.Close()
+-	scanner := bufio.NewScanner(f)
+-
+-	// Pass 1: Identify leading run of // comments and blank lines,
+-	// which must be followed by a blank line.
+-	var lines []string
+-	end := 0
+-	for scanner.Scan() {
+-		line := strings.TrimSpace(scanner.Text())
+-		if line == "" {
+-			end = len(lines)
+-			continue
+-		}
+-		if strings.HasPrefix(line, "//") {
+-			lines = append(lines, line[len("//"):])
+-			continue
+-		}
+-		break
+-	}
+-	if err := scanner.Err(); err != nil {
+-		return nil, err
+-	}
+-	lines = lines[:end]
+-
+-	// Pass 2: Process each line in the run.
+-	var tagLines []tagLine
+-	for _, line := range lines {
+-		fields := strings.Fields(line)
+-		if len(fields) > 0 && fields[0] == "+build" {
+-			tagLines = append(tagLines, parseTagsInGroups(fields[1:]))
+-		}
+-	}
+-	return tagLines, nil
+-}
+-
+-func parseTagsInGroups(groups []string) tagLine {
+-	var l tagLine
+-	for _, g := range groups {
+-		l = append(l, tagGroup(strings.Split(g, ",")))
+-	}
+-	return l
+-}
+-
+-func isOSArchSpecific(info fileInfo, cgoTags tagLine) (osSpecific, archSpecific bool) {
++func isOSArchSpecific(info fileInfo, cgoTags *cgoTagsAndOpts) (osSpecific, archSpecific bool) {
+ 	if info.goos != "" {
+ 		osSpecific = true
+ 	}
+ 	if info.goarch != "" {
+ 		archSpecific = true
+ 	}
+-	lines := info.tags
+-	if len(cgoTags) > 0 {
+-		lines = append(lines, cgoTags)
+-	}
+-	for _, line := range lines {
+-		for _, group := range line {
+-			for _, tag := range group {
+-				tag = strings.TrimPrefix(tag, "!")
+-				_, osOk := rule.KnownOSSet[tag]
+-				if osOk {
+-					osSpecific = true
+-				}
+-				_, archOk := rule.KnownArchSet[tag]
+-				if archOk {
+-					archSpecific = true
+-				}
++
++	checkTags := func(tags []string) {
++		for _, tag := range tags {
++			_, osOk := rule.KnownOSSet[tag]
++			if osOk {
++				osSpecific = true
++			}
++			_, archOk := rule.KnownArchSet[tag]
++			if archOk {
++				archSpecific = true
+ 			}
+ 		}
+ 	}
+-	return osSpecific, archSpecific
++	checkTags(info.tags.tags())
++	if osSpecific && archSpecific {
++		return
++	}
++
++	checkTags(cgoTags.tags())
++	return
+ }
+ 
+ // matchesOS checks if a value is equal to either an OS value or to any of its
+@@ -665,22 +543,40 @@ func matchesOS(os, value string) bool {
+ // if they are negated.
+ //
+ // The remaining arguments describe the file being tested. All of these may
+-// be empty or nil. osSuffix and archSuffix are filename suffixes. fileTags
+-// is a list tags from +build comments found near the top of the file. cgoTags
++// be empty or nil. osSuffix and archSuffix are filename suffixes. tags
++// is the parsed build tags found near the top of the file. cgoTags
+ // is an extra set of tags in a #cgo directive.
+-func checkConstraints(c *config.Config, os, arch, osSuffix, archSuffix string, fileTags []tagLine, cgoTags tagLine) bool {
++func checkConstraints(c *config.Config, os, arch, osSuffix, archSuffix string, tags *buildTags, cgoTags *cgoTagsAndOpts) bool {
+ 	if osSuffix != "" && !matchesOS(os, osSuffix) || archSuffix != "" && archSuffix != arch {
+ 		return false
+ 	}
+-	for _, l := range fileTags {
+-		if !l.check(c, os, arch) {
+-			return false
++
++	goConf := getGoConfig(c)
++	checker := func(tag string) bool {
++		if isIgnoredTag(tag) {
++			return true
+ 		}
++
++		if _, ok := rule.KnownOSSet[tag]; ok {
++			if os == "" {
++				return false
++			}
++			return matchesOS(os, tag)
++
++		}
++
++		if _, ok := rule.KnownArchSet[tag]; ok {
++			if arch == "" {
++				return false
++			}
++			return arch == tag
++
++		}
++
++		return goConf.genericTags[tag]
+ 	}
+-	if len(cgoTags) > 0 && !cgoTags.check(c, os, arch) {
+-		return false
+-	}
+-	return true
++
++	return tags.eval(checker) && cgoTags.eval(checker)
+ }
+ 
+ // rulesGoSupportsOS returns whether the os tag is recognized by the version of
+@@ -731,28 +627,6 @@ func rulesGoSupportsPlatform(v version.Version, p rule.Platform) bool {
+ 	return true
+ }
+ 
+-// isIgnoredTag returns whether the tag is "cgo" or is a release tag.
+-// Release tags match the pattern "go[0-9]\.[0-9]+".
+-// Gazelle won't consider whether an ignored tag is satisfied when evaluating
+-// build constraints for a file.
+-func isIgnoredTag(tag string) bool {
+-	if tag == "cgo" || tag == "race" || tag == "msan" {
+-		return true
+-	}
+-	if len(tag) < 5 || !strings.HasPrefix(tag, "go") {
+-		return false
+-	}
+-	if tag[2] < '0' || tag[2] > '9' || tag[3] != '.' {
+-		return false
+-	}
+-	for _, c := range tag[4:] {
+-		if c < '0' || c > '9' {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ // parseGoEmbed parses the text following "//go:embed" to extract the glob patterns.
+ // It accepts unquoted space-separated patterns as well as double-quoted and back-quoted Go strings.
+ // This is based on a similar function in cmd/compile/internal/gc/noder.go;
+diff --git a/language/go/fileinfo_go_test.go b/language/go/fileinfo_go_test.go
+index 8c481d3..206012c 100644
+--- a/language/go/fileinfo_go_test.go
++++ b/language/go/fileinfo_go_test.go
+@@ -16,6 +16,7 @@ limitations under the License.
+ package golang
+ 
+ import (
++	"go/build/constraint"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -29,7 +30,8 @@ var (
+ 	fileInfoCmpOption = cmp.AllowUnexported(
+ 		fileInfo{},
+ 		fileEmbed{},
+-		taggedOpts{},
++		buildTags{},
++		cgoTagsAndOpts{},
+ 	)
+ )
+ 
+@@ -126,7 +128,10 @@ package foo
+ `,
+ 			fileInfo{
+ 				packageName: "foo",
+-				tags:        []tagLine{{{"linux"}, {"darwin"}}, {{"!ignore"}}},
++				tags: &buildTags{
++					expr:    mustParseBuildTag(t, "(linux || darwin) && !ignore"),
++					rawTags: []string{"linux", "darwin", "ignore"},
++				},
+ 			},
+ 		},
+ 		{
+@@ -142,7 +147,10 @@ package route
+ `,
+ 			fileInfo{
+ 				packageName: "route",
+-				tags:        []tagLine{{{"darwin"}, {"dragonfly"}, {"freebsd"}, {"netbsd"}, {"openbsd"}}},
++				tags: &buildTags{
++					expr:    mustParseBuildTag(t, "darwin || dragonfly || freebsd || netbsd || openbsd"),
++					rawTags: []string{"darwin", "dragonfly", "freebsd", "netbsd", "openbsd"},
++				},
+ 			},
+ 		},
+ 		{
+@@ -253,16 +261,16 @@ import "C"
+ `,
+ 			fileInfo{
+ 				isCgo: true,
+-				cppopts: []taggedOpts{
++				cppopts: []*cgoTagsAndOpts{
+ 					{opts: "-O1"},
+ 				},
+-				copts: []taggedOpts{
++				copts: []*cgoTagsAndOpts{
+ 					{opts: "-O0"},
+ 				},
+-				cxxopts: []taggedOpts{
++				cxxopts: []*cgoTagsAndOpts{
+ 					{opts: "-O2"},
+ 				},
+-				clinkopts: []taggedOpts{
++				clinkopts: []*cgoTagsAndOpts{
+ 					{opts: strings.Join([]string{"-O3", "-O4"}, optSeparator)},
+ 				},
+ 			},
+@@ -278,9 +286,12 @@ import "C"
+ `,
+ 			fileInfo{
+ 				isCgo: true,
+-				copts: []taggedOpts{
++				copts: []*cgoTagsAndOpts{
+ 					{
+-						tags: tagLine{{"foo"}, {"bar", "!baz"}},
++						buildTags: &buildTags{
++							expr:    mustParseBuildTag(t, "foo || (bar && !baz)"),
++							rawTags: []string{"foo", "bar", "baz"},
++						},
+ 						opts: "-O0",
+ 					},
+ 				},
+@@ -296,7 +307,7 @@ import "C"
+ `,
+ 			fileInfo{
+ 				isCgo: true,
+-				copts: []taggedOpts{
++				copts: []*cgoTagsAndOpts{
+ 					{opts: "-O0"},
+ 					{opts: "-O1"},
+ 				},
+@@ -313,7 +324,7 @@ import ("C")
+ `,
+ 			fileInfo{
+ 				isCgo: true,
+-				copts: []taggedOpts{
++				copts: []*cgoTagsAndOpts{
+ 					{opts: "-O0"},
+ 				},
+ 			},
+@@ -460,3 +471,12 @@ func TestShellSafety(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func mustParseBuildTag(t *testing.T, in string) constraint.Expr {
++	x, err := constraint.Parse("//go:build " + in)
++	if err != nil {
++		t.Fatalf("%s: %s", in, err)
++	}
++
++	return x
++}
+diff --git a/language/go/fileinfo_test.go b/language/go/fileinfo_test.go
+index 7c73b2c..297962f 100644
+--- a/language/go/fileinfo_test.go
++++ b/language/go/fileinfo_test.go
+@@ -19,7 +19,6 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+-	"reflect"
+ 	"testing"
+ 
+ 	"github.com/google/go-cmp/cmp"
+@@ -29,7 +28,7 @@ func TestOtherFileInfo(t *testing.T) {
+ 	dir := "."
+ 	for _, tc := range []struct {
+ 		desc, name, source string
+-		wantTags           []tagLine
++		wantTags           *buildTags
+ 	}{
+ 		{
+ 			"empty file",
+@@ -44,7 +43,10 @@ func TestOtherFileInfo(t *testing.T) {
+ // +build baz,!ignore
+ 
+ `,
+-			[]tagLine{{{"foo"}, {"bar"}}, {{"baz", "!ignore"}}},
++			&buildTags{
++				expr:    mustParseBuildTag(t, "(foo || bar) && (baz && !ignore)"),
++				rawTags: []string{"foo", "bar", "baz", "ignore"},
++			},
+ 		},
+ 	} {
+ 		t.Run(tc.desc, func(t *testing.T) {
+@@ -252,19 +254,21 @@ func TestFileNameInfo(t *testing.T) {
+ 			},
+ 		},
+ 	} {
+-		tc.want.name = tc.name
+-		tc.want.path = filepath.Join("dir", tc.name)
+-
+-		if got := fileNameInfo(tc.want.path); !reflect.DeepEqual(got, tc.want) {
+-			t.Errorf("case %q: got %#v; want %#v", tc.desc, got, tc.want)
+-		}
++		t.Run(tc.desc, func(t *testing.T) {
++			tc.want.name = tc.name
++			tc.want.path = filepath.Join("dir", tc.name)
++			got := fileNameInfo(tc.want.path)
++			if diff := cmp.Diff(tc.want, got, fileInfoCmpOption); diff != "" {
++				t.Errorf("(-want, +got): %s", diff)
++			}
++		})
+ 	}
+ }
+ 
+ func TestReadTags(t *testing.T) {
+ 	for _, tc := range []struct {
+ 		desc, source string
+-		want         []tagLine
++		want         *buildTags
+ 	}{
+ 		{
+ 			"empty file",
+@@ -284,12 +288,18 @@ func TestReadTags(t *testing.T) {
+ package main
+ 
+ `,
+-			[]tagLine{{{"foo"}}},
++			&buildTags{
++				expr:    mustParseBuildTag(t, "foo"),
++				rawTags: []string{"foo"},
++			},
+ 		},
+ 		{
+ 			"single comment",
+ 			"// +build foo\n\n",
+-			[]tagLine{{{"foo"}}},
++			&buildTags{
++				expr:    mustParseBuildTag(t, "foo"),
++				rawTags: []string{"foo"},
++			},
+ 		},
+ 		{
+ 			"multiple comments",
+@@ -297,7 +307,10 @@ package main
+ // +build bar
+ 
+ package main`,
+-			[]tagLine{{{"foo"}}, {{"bar"}}},
++			&buildTags{
++				expr:    mustParseBuildTag(t, "foo && bar"),
++				rawTags: []string{"foo", "bar"},
++			},
+ 		},
+ 		{
+ 			"multiple comments with blank",
+@@ -306,12 +319,39 @@ package main`,
+ // +build bar
+ 
+ package main`,
+-			[]tagLine{{{"foo"}}, {{"bar"}}},
++			&buildTags{
++				expr:    mustParseBuildTag(t, "foo && bar"),
++				rawTags: []string{"foo", "bar"},
++			},
++		},
++		{
++			"Basic go:build",
++			`//go:build foo && bar
++
++package main`,
++			&buildTags{
++				expr:    mustParseBuildTag(t, "foo && bar"),
++				rawTags: []string{"foo", "bar"},
++			},
++		},
++		{
++			"Both go:build and +build",
++			`//go:build foo && bar
++// +build foo,bar
++
++package main`,
++			&buildTags{
++				expr:    mustParseBuildTag(t, "foo && bar"),
++				rawTags: []string{"foo", "bar"},
++			},
+ 		},
+ 		{
+ 			"comment with space",
+ 			"  //   +build   foo   bar  \n\n",
+-			[]tagLine{{{"foo"}, {"bar"}}},
++			&buildTags{
++				expr:    mustParseBuildTag(t, "foo || bar"),
++				rawTags: []string{"foo", "bar"},
++			},
+ 		},
+ 		{
+ 			"slash star comment",
+@@ -319,24 +359,24 @@ package main`,
+ 			nil,
+ 		},
+ 	} {
+-		f, err := ioutil.TempFile(".", "TestReadTags")
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		path := f.Name()
+-		defer os.Remove(path)
+-		if err = f.Close(); err != nil {
+-			t.Fatal(err)
+-		}
+-		if err = ioutil.WriteFile(path, []byte(tc.source), 0o600); err != nil {
+-			t.Fatal(err)
+-		}
++		t.Run(tc.desc, func(t *testing.T) {
++			f, err := ioutil.TempFile(".", "TestReadTags")
++			if err != nil {
++				t.Fatal(err)
++			}
++			path := f.Name()
++			defer os.Remove(path)
+ 
+-		if got, err := readTags(path); err != nil {
+-			t.Fatal(err)
+-		} else if diff := cmp.Diff(tc.want, got); diff != "" {
+-			t.Errorf("(-want, +got): %s", diff)
+-		}
++			if _, err := f.WriteString(tc.source); err != nil {
++				t.Fatal(err)
++			}
++
++			if got, err := readTags(path); err != nil {
++				t.Fatal(err)
++			} else if diff := cmp.Diff(tc.want, got, fileInfoCmpOption); diff != "" {
++				t.Errorf("(-want, +got): %s", diff)
++			}
++		})
+ 	}
+ }
+ 
+@@ -523,19 +563,19 @@ import "C"
+ 			}
+ 
+ 			path := filepath.Join(dir, filename)
+-			if err := ioutil.WriteFile(path, []byte(content), 0o666); err != nil {
++			if err := ioutil.WriteFile(path, content, 0o666); err != nil {
+ 				t.Fatal(err)
+ 			}
+ 
+ 			fi := goFileInfo(path, "")
+-			var cgoTags tagLine
++			var cgoTags *cgoTagsAndOpts
+ 			if len(fi.copts) > 0 {
+-				cgoTags = fi.copts[0].tags
++				cgoTags = fi.copts[0]
+ 			}
+ 
+ 			got := checkConstraints(c, tc.os, tc.arch, fi.goos, fi.goarch, fi.tags, cgoTags)
+-			if got != tc.want {
+-				t.Errorf("got %v ; want %v", got, tc.want)
++			if diff := cmp.Diff(tc.want, got); diff != "" {
++				t.Errorf("(-want, +got): %s", diff)
+ 			}
+ 		})
+ 	}
+diff --git a/language/go/generate_test.go b/language/go/generate_test.go
+index ea447ea..4d08716 100644
+--- a/language/go/generate_test.go
++++ b/language/go/generate_test.go
+@@ -30,6 +30,7 @@ import (
+ 	"github.com/bazelbuild/bazel-gazelle/rule"
+ 	"github.com/bazelbuild/bazel-gazelle/walk"
+ 	bzl "github.com/bazelbuild/buildtools/build"
++	"github.com/google/go-cmp/cmp"
+ )
+ 
+ func TestGenerateRules(t *testing.T) {
+@@ -97,9 +98,8 @@ func TestGenerateRules(t *testing.T) {
+ 			}
+ 			want := string(wantBytes)
+ 			want = strings.ReplaceAll(want, "\r\n", "\n")
+-
+-			if got != want {
+-				t.Errorf("GenerateRules %q: got:\n%s\nwant:\n%s", rel, got, want)
++			if diff := cmp.Diff(want, got); diff != "" {
++				t.Errorf("(-want, +got): %s", diff)
+ 			}
+ 		})
+ 	})
+diff --git a/language/go/package.go b/language/go/package.go
+index 38b1de7..20502e8 100644
+--- a/language/go/package.go
++++ b/language/go/package.go
+@@ -101,7 +101,7 @@ func (pkg *goPackage) addFile(c *config.Config, er *embedResolver, info fileInfo
+ 			// Only add files in legacy mode. This is used to generate a filegroup
+ 			// that contains all protos. In order modes, we get the .proto files
+ 			// from information emitted by the proto language extension.
+-			pkg.proto.addFile(c, info)
++			pkg.proto.addFile(info)
+ 		}
+ 	case info.isTest:
+ 		if info.isCgo {
+@@ -277,29 +277,29 @@ func (t *goTarget) addFile(c *config.Config, er *embedResolver, info fileInfo) {
+ 	}
+ 	for _, cppopts := range info.cppopts {
+ 		optAdd := add
+-		if len(cppopts.tags) > 0 {
+-			optAdd = getPlatformStringsAddFunction(c, info, cppopts.tags)
++		if !cppopts.empty() {
++			optAdd = getPlatformStringsAddFunction(c, info, cppopts)
+ 		}
+ 		optAdd(&t.cppopts, cppopts.opts)
+ 	}
+ 	for _, copts := range info.copts {
+ 		optAdd := add
+-		if len(copts.tags) > 0 {
+-			optAdd = getPlatformStringsAddFunction(c, info, copts.tags)
++		if !copts.empty() {
++			optAdd = getPlatformStringsAddFunction(c, info, copts)
+ 		}
+ 		optAdd(&t.copts, copts.opts)
+ 	}
+ 	for _, cxxopts := range info.cxxopts {
+ 		optAdd := add
+-		if len(cxxopts.tags) > 0 {
+-			optAdd = getPlatformStringsAddFunction(c, info, cxxopts.tags)
++		if !cxxopts.empty() {
++			optAdd = getPlatformStringsAddFunction(c, info, cxxopts)
+ 		}
+ 		optAdd(&t.cxxopts, cxxopts.opts)
+ 	}
+ 	for _, clinkopts := range info.clinkopts {
+ 		optAdd := add
+-		if len(clinkopts.tags) > 0 {
+-			optAdd = getPlatformStringsAddFunction(c, info, clinkopts.tags)
++		if !clinkopts.empty() {
++			optAdd = getPlatformStringsAddFunction(c, info, clinkopts)
+ 		}
+ 		optAdd(&t.clinkopts, clinkopts.opts)
+ 	}
+@@ -317,7 +317,7 @@ func protoTargetFromProtoPackage(name string, pkg proto.Package) protoTarget {
+ 	return target
+ }
+ 
+-func (t *protoTarget) addFile(c *config.Config, info fileInfo) {
++func (t *protoTarget) addFile(info fileInfo) {
+ 	t.sources.addGenericString(info.name)
+ 	for _, imp := range info.imports {
+ 		t.imports.addGenericString(imp)
+@@ -328,7 +328,7 @@ func (t *protoTarget) addFile(c *config.Config, info fileInfo) {
+ // getPlatformStringsAddFunction returns a function used to add strings to
+ // a *platformStringsBuilder under the same set of constraints. This is a
+ // performance optimization to avoid evaluating constraints repeatedly.
+-func getPlatformStringsAddFunction(c *config.Config, info fileInfo, cgoTags tagLine) func(sb *platformStringsBuilder, ss ...string) {
++func getPlatformStringsAddFunction(c *config.Config, info fileInfo, cgoTags *cgoTagsAndOpts) func(sb *platformStringsBuilder, ss ...string) {
+ 	isOSSpecific, isArchSpecific := isOSArchSpecific(info, cgoTags)
+ 	v := getGoConfig(c).rulesGoVersion
+ 
+diff --git a/language/go/stdlib_links.go b/language/go/stdlib_links.go
+new file mode 100644
+index 0000000..ebc683a
+--- /dev/null
++++ b/language/go/stdlib_links.go
+@@ -0,0 +1,36 @@
++/* Copyright 2022 The Bazel Authors. All rights reserved.
++
++Licensed under the Apache License, Version 2.0 (the "License");
++you may not use this file except in compliance with the License.
++You may obtain a copy of the License at
++
++   http://www.apache.org/licenses/LICENSE-2.0
++
++Unless required by applicable law or agreed to in writing, software
++distributed under the License is distributed on an "AS IS" BASIS,
++WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++See the License for the specific language governing permissions and
++limitations under the License.
++*/
++
++package golang
++
++import (
++	"io"
++	_ "unsafe"
++)
++
++// In order to correctly capture the subtleties of build tag placement
++// and to automatically stay up-to-date with the parsing semantics and
++// syntax, we link to the stdlib version of header parsing.
++//
++// Permalink: https://github.com/golang/go/blob/8ed0e51b5e5cc50985444f39dc56c55e4fa3bcf9/src/go/build/build.go#L1568
++//go:linkname parseFileHeader go/build.parseFileHeader
++func parseFileHeader(_ []byte) ([]byte, []byte, bool, error)
++
++// readComments is like io.ReadAll, except that it only reads the leading
++// block of comments in the file.
++//
++// Permalink: https://github.com/golang/go/blob/8ed0e51b5e5cc50985444f39dc56c55e4fa3bcf9/src/go/build/read.go#L380
++//go:linkname readComments go/build.readComments
++func readComments(_ io.Reader) ([]byte, error)
+diff --git a/language/go/testdata/platforms/BUILD.want b/language/go/testdata/platforms/BUILD.want
+index da3b74b..0eb4c13 100644
+--- a/language/go/testdata/platforms/BUILD.want
++++ b/language/go/testdata/platforms/BUILD.want
+@@ -7,7 +7,11 @@ go_library(
+         "cgo_generic.go",
+         "cgo_linux.c",
+         "cgo_linux.go",
++        "constraints_dual_cgo.go",
++        "constraints_dual_no_cgo.go",
++        "constraints_verify_demorgans_law.go",
+         "generic.go",
++        "new_constraint_a.go",
+         "no_cgo.go",
+         "release.go",
+         "suffix_amd64.go",
+diff --git a/language/go/testdata/platforms/constraints_dual_cgo.go b/language/go/testdata/platforms/constraints_dual_cgo.go
+new file mode 100644
+index 0000000..dfddf66
+--- /dev/null
++++ b/language/go/testdata/platforms/constraints_dual_cgo.go
+@@ -0,0 +1,7 @@
++// +build cgo
++// +build !appengine
++//
++// cgo && !appengine == true ∵
++// cgo == true && appengine == undefined
++
++package platforms
+diff --git a/language/go/testdata/platforms/constraints_dual_no_cgo.go b/language/go/testdata/platforms/constraints_dual_no_cgo.go
+new file mode 100644
+index 0000000..ce5f52b
+--- /dev/null
++++ b/language/go/testdata/platforms/constraints_dual_no_cgo.go
+@@ -0,0 +1,6 @@
++// +build !cgo appengine
++//
++// !cgo || appengine == true ∵
++// !cgo == true
++
++package platforms
+diff --git a/language/go/testdata/platforms/constraints_verify_demorgans_law.go b/language/go/testdata/platforms/constraints_verify_demorgans_law.go
+new file mode 100644
+index 0000000..eba362a
+--- /dev/null
++++ b/language/go/testdata/platforms/constraints_verify_demorgans_law.go
+@@ -0,0 +1,4 @@
++//go:build !(go1.15 || go1.14)
++//
++// ≡ go1.15 && go1.14 == true
++package platforms
+diff --git a/language/go/testdata/platforms/new_constraint_a.go b/language/go/testdata/platforms/new_constraint_a.go
+new file mode 100644
+index 0000000..6d9c51c
+--- /dev/null
++++ b/language/go/testdata/platforms/new_constraint_a.go
+@@ -0,0 +1,3 @@
++//go:build amd64
++
++package platforms
