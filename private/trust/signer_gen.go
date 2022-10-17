@@ -32,11 +32,18 @@ type KeyRing interface {
 	PrivateKeys(ctx context.Context) ([]crypto.Signer, error)
 }
 
+// SignerGenerator generates signers.
+type SignerGenerator interface {
+	Generate(ctx context.Context) (Signer, error)
+}
+
 // SignerGen generates signers from the keys available in key dir.
 type SignerGen struct {
 	IA      addr.IA
 	KeyRing KeyRing
 	DB      DB // FIXME(roosd): Eventually this should use a crypto provider
+
+	KeyUsage x509.ExtKeyUsage // If not ExtKeyUsageAny, return Signer with matching certificate
 }
 
 // Generate fetches private keys from the key ring and searches active
@@ -109,6 +116,9 @@ func (s *SignerGen) bestForKey(ctx context.Context, key crypto.Signer,
 		// TODO	metrics.Signer.Generate(l.WithResult(metrics.ErrDB)).Inc()
 		return nil, err
 	}
+	if s.KeyUsage != x509.ExtKeyUsageAny {
+		chains = filterChains(chains, s.KeyUsage)
+	}
 	chain := bestChain(&trcs[0].TRC, chains)
 	if chain == nil && len(trcs) == 1 {
 		return nil, nil
@@ -142,6 +152,18 @@ func (s *SignerGen) bestForKey(ctx context.Context, key crypto.Signer,
 		},
 		InGrace: inGrace,
 	}, nil
+}
+
+// filterChains returns only the chains with matching key usage.
+func filterChains(chains [][]*x509.Certificate, keyUsage x509.ExtKeyUsage) [][]*x509.Certificate {
+	filtered := make([][]*x509.Certificate, 0, len(chains))
+	for _, chain := range chains {
+		if err := verifyExtendedKeyUsage(chain[0], keyUsage); err != nil {
+			continue
+		}
+		filtered = append(filtered, chain)
+	}
+	return filtered
 }
 
 func bestChain(trc *cppki.TRC, chains [][]*x509.Certificate) []*x509.Certificate {

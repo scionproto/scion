@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -375,10 +376,7 @@ func realMain(ctx context.Context) error {
 
 	}
 
-	signer, err := cs.NewSigner(topo.IA(), trustDB, globalCfg.General.ConfigDir)
-	if err != nil {
-		return serrors.WrapStr("initializing AS signer", err)
-	}
+	signer := cs.NewSigner(topo.IA(), trustDB, globalCfg.General.ConfigDir)
 
 	var chainBuilder renewal.ChainBuilder
 	var caClient *caapi.Client
@@ -614,14 +612,12 @@ func realMain(ctx context.Context) error {
 			},
 		}
 		defer level1DB.Close()
-		loader := trust.X509KeyPairProvider{
-			IA: topo.IA(),
-			DB: trustDB,
-			KeyLoader: cstrust.LoadingRing{
-				Dir: filepath.Join(globalCfg.General.ConfigDir, "crypto/as"),
-			},
-		}
-		tlsMgr := trust.NewTLSCryptoManager(loader, trustDB)
+
+		signerGenServerAuth := cs.NewSignerGen(topo.IA(), x509.ExtKeyUsageServerAuth,
+			trustDB, globalCfg.General.ConfigDir)
+		signerGenClientAuth := cs.NewSignerGen(topo.IA(), x509.ExtKeyUsageClientAuth,
+			trustDB, globalCfg.General.ConfigDir)
+		tlsMgr := trust.NewTLSCryptoManager(signerGenServerAuth, signerGenClientAuth, trustDB)
 		drkeyFetcher := drkeygrpc.Fetcher{
 			Dialer: &libgrpc.TLSQUICDialer{
 				QUICDialer: dialer,

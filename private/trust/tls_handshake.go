@@ -28,38 +28,31 @@ import (
 
 const defaultTimeout = 5 * time.Second
 
-type X509KeyPairLoader interface {
-	// LoadServerKeyPair provides a certificate to be presented by the server
-	// during TLS handshake.
-	LoadServerKeyPair(ctx context.Context) (*tls.Certificate, error)
-	// LoadClientKeyPair provides a certificate to be presented by the client
-	// during TLS handshake.
-	LoadClientKeyPair(ctx context.Context) (*tls.Certificate, error)
-}
-
 // TLSCryptoManager implements callbacks which will be called during TLS handshake.
 type TLSCryptoManager struct {
-	Loader  X509KeyPairLoader
-	DB      DB
-	Timeout time.Duration
+	ServerAuthSignerGen SignerGenerator
+	ClientAuthSignerGen SignerGenerator
+	DB                  DB
+	Timeout             time.Duration
 }
 
 // NewTLSCryptoManager returns a new instance with the defaultTimeout.
-func NewTLSCryptoManager(loader X509KeyPairLoader, db DB) *TLSCryptoManager {
+func NewTLSCryptoManager(serverAuth, clientAuth SignerGenerator, db DB) *TLSCryptoManager {
 	return &TLSCryptoManager{
-		DB:      db,
-		Loader:  loader,
-		Timeout: defaultTimeout,
+		ServerAuthSignerGen: serverAuth,
+		ClientAuthSignerGen: clientAuth,
+		DB:                  db,
+		Timeout:             defaultTimeout,
 	}
 }
 
 // GetCertificate retrieves a certificate to be presented during TLS handshake.
 func (m *TLSCryptoManager) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-	c, err := m.Loader.LoadServerKeyPair(hello.Context())
+	s, err := m.ServerAuthSignerGen.Generate(hello.Context())
 	if err != nil {
 		return nil, serrors.WrapStr("loading server key pair", err)
 	}
-	return c, nil
+	return toTLSCertificate(s), nil
 }
 
 // GetClientCertificate retrieves a client certificate to be presented during TLS handshake.
@@ -67,11 +60,11 @@ func (m *TLSCryptoManager) GetClientCertificate(
 	reqInfo *tls.CertificateRequestInfo,
 ) (*tls.Certificate, error) {
 
-	c, err := m.Loader.LoadClientKeyPair(reqInfo.Context())
+	s, err := m.ClientAuthSignerGen.Generate(reqInfo.Context())
 	if err != nil {
 		return nil, serrors.WrapStr("loading client key pair", err)
 	}
-	return c, nil
+	return toTLSCertificate(s), nil
 }
 
 // VerifyServerCertificate verifies the certificate presented by the server
@@ -146,6 +139,18 @@ func (m *TLSCryptoManager) verifyPeerCertificate(
 		return serrors.WrapStr("verifying chains", err)
 	}
 	return nil
+}
+
+func toTLSCertificate(signer Signer) *tls.Certificate {
+	certificate := make([][]byte, len(signer.Chain))
+	for i := range signer.Chain {
+		certificate[i] = signer.Chain[i].Raw
+	}
+	return &tls.Certificate{
+		Certificate: certificate,
+		PrivateKey:  signer.PrivateKey,
+		Leaf:        signer.Chain[0],
+	}
 }
 
 func verifyChain(chain []*x509.Certificate, trcs []cppki.SignedTRC) error {

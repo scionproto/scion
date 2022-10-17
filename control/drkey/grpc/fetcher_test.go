@@ -61,20 +61,21 @@ func TestLevel1KeyFetching(t *testing.T) {
 
 	mgrdb := mock_trust.NewMockDB(ctrl)
 	mgrdb.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).AnyTimes().Return(trc, nil)
-	loader := mock_trust.NewMockX509KeyPairLoader(ctrl)
-	loader.EXPECT().LoadClientKeyPair(gomock.Any()).AnyTimes().Return(&tlsCert, nil)
-	loader.EXPECT().LoadServerKeyPair(gomock.Any()).AnyTimes().Return(&tlsCert, nil)
-	mgr := trust.NewTLSCryptoManager(loader, mgrdb)
+	mgr := trust.NewTLSCryptoManager(nil, nil, mgrdb)
 
 	serverCreds := credentials.NewTLS(&tls.Config{
-		InsecureSkipVerify:    true,
-		GetCertificate:        mgr.GetCertificate,
+		InsecureSkipVerify: true,
+		GetCertificate: func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return &tlsCert, nil
+		},
 		VerifyPeerCertificate: mgr.VerifyClientCertificate,
 		ClientAuth:            tls.RequireAnyClientCert,
 	})
 	clientCreds := credentials.NewTLS(&tls.Config{
-		InsecureSkipVerify:    true,
-		GetClientCertificate:  mgr.GetClientCertificate,
+		InsecureSkipVerify: true,
+		GetClientCertificate: func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			return &tlsCert, nil
+		},
 		VerifyPeerCertificate: mgr.VerifyServerCertificate,
 		VerifyConnection:      mgr.VerifyConnection,
 	})
