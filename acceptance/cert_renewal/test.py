@@ -53,6 +53,7 @@ class Test(base.TestTopogen):
     """
 
     def _run(self):
+        time.sleep(5)
 
         isd_ases = scion.ASList.load("%s/gen/as_list.yml" %
                                      self.artifacts).all

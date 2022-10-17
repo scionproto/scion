@@ -18,8 +18,6 @@ import (
 	"bytes"
 	"context"
 	"crypto"
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
@@ -44,7 +42,6 @@ import (
 func TestLoadServerKeyPair(t *testing.T) {
 	dir := genCrypto(t)
 
-	trc := xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S1.trc"))
 	key := loadSigner(t, filepath.Join(dir, "ISD1/ASff00_0_110/crypto/as/cp-as.key"))
 
 	chain := getChain(t, dir)
@@ -83,9 +80,6 @@ func TestLoadServerKeyPair(t *testing.T) {
 					ia:   xtest.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
-				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(
-					trc, nil,
-				)
 				db.EXPECT().Chains(gomock.Any(), matcher).Return(
 					[][]*x509.Certificate{chain}, nil,
 				)
@@ -120,9 +114,6 @@ func TestLoadServerKeyPair(t *testing.T) {
 					skid: cert.SubjectKeyId,
 				}
 
-				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(
-					trc, nil,
-				)
 				db.EXPECT().Chains(gomock.Any(), matcher).Return(
 					[][]*x509.Certificate{chain, longer, shorter}, nil,
 				)
@@ -153,9 +144,6 @@ func TestLoadServerKeyPair(t *testing.T) {
 			db: func(mctrl *gomock.Controller) trust.DB {
 				db := mock_trust.NewMockDB(mctrl)
 
-				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(
-					trc, nil,
-				)
 				db.EXPECT().Chains(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
 					func(
 						_ context.Context,
@@ -183,58 +171,6 @@ func TestLoadServerKeyPair(t *testing.T) {
 					Certificate: certificate,
 					PrivateKey:  key,
 					Leaf:        longestChain[0],
-				}
-			},
-		},
-		"select best from grace": {
-			keyLoader: func(mctrl *gomock.Controller) trust.KeyRing {
-				loader := mock_trust.NewMockKeyRing(mctrl)
-				loader.EXPECT().PrivateKeys(gomock.Any()).Return(
-					[]crypto.Signer{key}, nil,
-				)
-				return loader
-			},
-			db: func(mctrl *gomock.Controller) trust.DB {
-				cert := chain[0]
-				db := mock_trust.NewMockDB(mctrl)
-				matcher := chainQueryMatcher{
-					ia:   xtest.MustParseIA("1-ff00:0:110"),
-					skid: cert.SubjectKeyId,
-				}
-
-				trc2 := xtest.LoadTRC(t, filepath.Join(dir, "ISD1/trcs/ISD1-B1-S1.trc"))
-				trc2.TRC.ID.Serial = 2
-				trc2.TRC.Validity.NotBefore = time.Now()
-				trc2.TRC.GracePeriod = 5 * time.Minute
-
-				roots, err := trc2.TRC.RootCerts()
-				require.NoError(t, err)
-				key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-				require.NoError(t, err)
-				for _, root := range roots {
-					root.PublicKey = key.Public()
-				}
-				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(
-					trc2, nil,
-				)
-				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1, Serial: 1, Base: 1}).Return(
-					trc, nil,
-				)
-				db.EXPECT().Chains(gomock.Any(), matcher).Return(
-					[][]*x509.Certificate{chain, longer, shorter}, nil,
-				)
-				return db
-			},
-			assertFunc: assert.NoError,
-			expectedCert: func() *tls.Certificate {
-				certificate := make([][]byte, len(chain))
-				for i := range chain {
-					certificate[i] = longer[i].Raw
-				}
-				return &tls.Certificate{
-					Certificate: certificate,
-					PrivateKey:  key,
-					Leaf:        longer[0],
 				}
 			},
 		},
@@ -268,9 +204,6 @@ func TestLoadServerKeyPair(t *testing.T) {
 			},
 			db: func(mctrl *gomock.Controller) trust.DB {
 				db := mock_trust.NewMockDB(mctrl)
-				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(
-					trc, nil,
-				)
 				return db
 			},
 			assertFunc: assert.Error,
@@ -293,48 +226,7 @@ func TestLoadServerKeyPair(t *testing.T) {
 					ia:   xtest.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
-				db.EXPECT().SignedTRC(ctxMatcher{},
-					cppki.TRCID{ISD: 1}).Return(trc, nil)
 				db.EXPECT().Chains(gomock.Any(), matcher).Return(nil, nil)
-				return db
-			},
-			assertFunc: assert.Error,
-			expectedCert: func() *tls.Certificate {
-				return nil
-			},
-		},
-		"db.SignedTRC error": {
-			keyLoader: func(mctrl *gomock.Controller) trust.KeyRing {
-				loader := mock_trust.NewMockKeyRing(mctrl)
-				loader.EXPECT().PrivateKeys(gomock.Any()).Return(
-					[]crypto.Signer{key}, nil,
-				)
-				return loader
-			},
-			db: func(mctrl *gomock.Controller) trust.DB {
-				db := mock_trust.NewMockDB(mctrl)
-				db.EXPECT().SignedTRC(ctxMatcher{},
-					cppki.TRCID{ISD: 1}).Return(
-					cppki.SignedTRC{}, serrors.New("fail"))
-				return db
-			},
-			assertFunc: assert.Error,
-			expectedCert: func() *tls.Certificate {
-				return nil
-			},
-		},
-		"db.SignedTRC not found": {
-			keyLoader: func(mctrl *gomock.Controller) trust.KeyRing {
-				loader := mock_trust.NewMockKeyRing(mctrl)
-				loader.EXPECT().PrivateKeys(gomock.Any()).Return(
-					[]crypto.Signer{key}, nil,
-				)
-				return loader
-			},
-			db: func(mctrl *gomock.Controller) trust.DB {
-				db := mock_trust.NewMockDB(mctrl)
-				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(
-					cppki.SignedTRC{}, nil)
 				return db
 			},
 			assertFunc: assert.Error,
@@ -357,8 +249,6 @@ func TestLoadServerKeyPair(t *testing.T) {
 					ia:   xtest.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
-				db.EXPECT().SignedTRC(ctxMatcher{},
-					cppki.TRCID{ISD: 1}).Return(trc, nil)
 				db.EXPECT().Chains(gomock.Any(), matcher).Return(
 					nil, serrors.New("fail"),
 				)
@@ -394,9 +284,6 @@ func TestLoadServerKeyPair(t *testing.T) {
 					ia:   xtest.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
-				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(
-					trc, nil,
-				)
 				db.EXPECT().Chains(gomock.Any(), matcher).Return(
 					[][]*x509.Certificate{invalidExtChain, validExtChain}, nil,
 				)
@@ -440,9 +327,6 @@ func TestLoadServerKeyPair(t *testing.T) {
 					ia:   xtest.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
-				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(
-					trc, nil,
-				)
 				db.EXPECT().Chains(gomock.Any(), matcher).Return(
 					[][]*x509.Certificate{extChain}, nil,
 				)
@@ -462,9 +346,9 @@ func TestLoadServerKeyPair(t *testing.T) {
 			defer mctrl.Finish()
 
 			provider := trust.X509KeyPairProvider{
-				IA:        xtest.MustParseIA("1-ff00:0:110"),
-				DB:        tc.db(mctrl),
-				KeyLoader: tc.keyLoader(mctrl),
+				IA:          xtest.MustParseIA("1-ff00:0:110"),
+				ChainLoader: tc.db(mctrl),
+				KeyLoader:   tc.keyLoader(mctrl),
 			}
 			tlsCert, err := provider.LoadServerKeyPair(context.Background())
 			tc.assertFunc(t, err)
@@ -478,7 +362,6 @@ func TestLoadServerKeyPair(t *testing.T) {
 func TestLoadClientKeyPair(t *testing.T) {
 	dir := genCrypto(t)
 
-	trc := xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S1.trc"))
 	key := loadSigner(t, filepath.Join(dir, "ISD1/ASff00_0_110/crypto/as/cp-as.key"))
 
 	chain := getChain(t, dir)
@@ -517,9 +400,6 @@ func TestLoadClientKeyPair(t *testing.T) {
 					ia:   xtest.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
-				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(
-					trc, nil,
-				)
 				db.EXPECT().Chains(gomock.Any(), matcher).Return(
 					[][]*x509.Certificate{chain}, nil,
 				)
@@ -553,10 +433,6 @@ func TestLoadClientKeyPair(t *testing.T) {
 					ia:   xtest.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
-
-				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(
-					trc, nil,
-				)
 				db.EXPECT().Chains(gomock.Any(), matcher).Return(
 					[][]*x509.Certificate{chain, longer, shorter}, nil,
 				)
@@ -586,10 +462,6 @@ func TestLoadClientKeyPair(t *testing.T) {
 			},
 			db: func(mctrl *gomock.Controller) trust.DB {
 				db := mock_trust.NewMockDB(mctrl)
-
-				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(
-					trc, nil,
-				)
 				db.EXPECT().Chains(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
 					func(
 						_ context.Context,
@@ -617,58 +489,6 @@ func TestLoadClientKeyPair(t *testing.T) {
 					Certificate: certificate,
 					PrivateKey:  key,
 					Leaf:        longestChain[0],
-				}
-			},
-		},
-		"select best from grace": {
-			keyLoader: func(mctrl *gomock.Controller) trust.KeyRing {
-				loader := mock_trust.NewMockKeyRing(mctrl)
-				loader.EXPECT().PrivateKeys(gomock.Any()).Return(
-					[]crypto.Signer{key}, nil,
-				)
-				return loader
-			},
-			db: func(mctrl *gomock.Controller) trust.DB {
-				cert := chain[0]
-				db := mock_trust.NewMockDB(mctrl)
-				matcher := chainQueryMatcher{
-					ia:   xtest.MustParseIA("1-ff00:0:110"),
-					skid: cert.SubjectKeyId,
-				}
-
-				trc2 := xtest.LoadTRC(t, filepath.Join(dir, "ISD1/trcs/ISD1-B1-S1.trc"))
-				trc2.TRC.ID.Serial = 2
-				trc2.TRC.Validity.NotBefore = time.Now()
-				trc2.TRC.GracePeriod = 5 * time.Minute
-
-				roots, err := trc2.TRC.RootCerts()
-				require.NoError(t, err)
-				key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-				require.NoError(t, err)
-				for _, root := range roots {
-					root.PublicKey = key.Public()
-				}
-				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(
-					trc2, nil,
-				)
-				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1, Serial: 1, Base: 1}).Return(
-					trc, nil,
-				)
-				db.EXPECT().Chains(gomock.Any(), matcher).Return(
-					[][]*x509.Certificate{chain, longer, shorter}, nil,
-				)
-				return db
-			},
-			assertFunc: assert.NoError,
-			expectedCert: func() *tls.Certificate {
-				certificate := make([][]byte, len(chain))
-				for i := range chain {
-					certificate[i] = longer[i].Raw
-				}
-				return &tls.Certificate{
-					Certificate: certificate,
-					PrivateKey:  key,
-					Leaf:        longer[0],
 				}
 			},
 		},
@@ -702,9 +522,6 @@ func TestLoadClientKeyPair(t *testing.T) {
 			},
 			db: func(mctrl *gomock.Controller) trust.DB {
 				db := mock_trust.NewMockDB(mctrl)
-				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(
-					trc, nil,
-				)
 				return db
 			},
 			assertFunc: assert.Error,
@@ -727,48 +544,7 @@ func TestLoadClientKeyPair(t *testing.T) {
 					ia:   xtest.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
-				db.EXPECT().SignedTRC(ctxMatcher{},
-					cppki.TRCID{ISD: 1}).Return(trc, nil)
 				db.EXPECT().Chains(gomock.Any(), matcher).Return(nil, nil)
-				return db
-			},
-			assertFunc: assert.Error,
-			expectedCert: func() *tls.Certificate {
-				return nil
-			},
-		},
-		"db.SignedTRC error": {
-			keyLoader: func(mctrl *gomock.Controller) trust.KeyRing {
-				loader := mock_trust.NewMockKeyRing(mctrl)
-				loader.EXPECT().PrivateKeys(gomock.Any()).Return(
-					[]crypto.Signer{key}, nil,
-				)
-				return loader
-			},
-			db: func(mctrl *gomock.Controller) trust.DB {
-				db := mock_trust.NewMockDB(mctrl)
-				db.EXPECT().SignedTRC(ctxMatcher{},
-					cppki.TRCID{ISD: 1}).Return(
-					cppki.SignedTRC{}, serrors.New("fail"))
-				return db
-			},
-			assertFunc: assert.Error,
-			expectedCert: func() *tls.Certificate {
-				return nil
-			},
-		},
-		"db.SignedTRC not found": {
-			keyLoader: func(mctrl *gomock.Controller) trust.KeyRing {
-				loader := mock_trust.NewMockKeyRing(mctrl)
-				loader.EXPECT().PrivateKeys(gomock.Any()).Return(
-					[]crypto.Signer{key}, nil,
-				)
-				return loader
-			},
-			db: func(mctrl *gomock.Controller) trust.DB {
-				db := mock_trust.NewMockDB(mctrl)
-				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(
-					cppki.SignedTRC{}, nil)
 				return db
 			},
 			assertFunc: assert.Error,
@@ -791,8 +567,6 @@ func TestLoadClientKeyPair(t *testing.T) {
 					ia:   xtest.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
-				db.EXPECT().SignedTRC(ctxMatcher{},
-					cppki.TRCID{ISD: 1}).Return(trc, nil)
 				db.EXPECT().Chains(gomock.Any(), matcher).Return(
 					nil, serrors.New("fail"),
 				)
@@ -828,9 +602,6 @@ func TestLoadClientKeyPair(t *testing.T) {
 					ia:   xtest.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
-				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(
-					trc, nil,
-				)
 				db.EXPECT().Chains(gomock.Any(), matcher).Return(
 					[][]*x509.Certificate{invalidExtChain, validExtChain}, nil,
 				)
@@ -874,9 +645,6 @@ func TestLoadClientKeyPair(t *testing.T) {
 					ia:   xtest.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
-				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(
-					trc, nil,
-				)
 				db.EXPECT().Chains(gomock.Any(), matcher).Return(
 					[][]*x509.Certificate{extChain}, nil,
 				)
@@ -896,9 +664,9 @@ func TestLoadClientKeyPair(t *testing.T) {
 			defer mctrl.Finish()
 
 			provider := trust.X509KeyPairProvider{
-				IA:        xtest.MustParseIA("1-ff00:0:110"),
-				DB:        tc.db(mctrl),
-				KeyLoader: tc.keyLoader(mctrl),
+				IA:          xtest.MustParseIA("1-ff00:0:110"),
+				ChainLoader: tc.db(mctrl),
+				KeyLoader:   tc.keyLoader(mctrl),
 			}
 			tlsCert, err := provider.LoadClientKeyPair(context.Background())
 			tc.assertFunc(t, err)

@@ -27,11 +27,10 @@ import (
 )
 
 // X509KeyPairProvider loads x509 certificate/key pairs
-// from the trust DB.
 type X509KeyPairProvider struct {
-	IA        addr.IA
-	DB        DB
-	KeyLoader KeyRing
+	IA          addr.IA
+	ChainLoader DB
+	KeyLoader   KeyRing
 }
 
 var _ X509KeyPairLoader = (*X509KeyPairProvider)(nil)
@@ -61,18 +60,17 @@ func (p X509KeyPairProvider) loadX509KeyPair(
 		return nil, serrors.New("no private key found")
 	}
 
-	trcs, _, err := activeTRCs(ctx, p.DB, p.IA.ISD())
-	if err != nil {
-		return nil, serrors.WrapStr("loading TRCs", err)
-	}
-
 	var bestChain []*x509.Certificate
 	var bestKey crypto.Signer
 	var bestExpiry time.Time
 	for _, key := range keys {
-		cert, expiry, err := p.bestKeyPair(ctx, trcs, extKeyUsage, key)
+		skid, err := cppki.SubjectKeyID(key.Public())
 		if err != nil {
-			return nil, serrors.WrapStr("getting best key pair", err)
+			return nil, serrors.WrapStr("computing subject key id", err)
+		}
+		cert, expiry, err := p.bestChainForKey(ctx, skid, extKeyUsage)
+		if err != nil {
+			return nil, serrors.WrapStr("loading certificate chain for key", err)
 		}
 		if cert == nil {
 			continue
@@ -98,18 +96,15 @@ func (p X509KeyPairProvider) loadX509KeyPair(
 	}, nil
 }
 
-func (p X509KeyPairProvider) bestKeyPair(
+// bestChainForKey returns the certificate chain with latest expiry matching
+// the given subject key ID and key usage.
+func (p X509KeyPairProvider) bestChainForKey(
 	ctx context.Context,
-	signedTRCs []cppki.SignedTRC,
+	skid []byte,
 	extKeyUsage x509.ExtKeyUsage,
-	signer crypto.Signer,
 ) ([]*x509.Certificate, time.Time, error) {
 
-	skid, err := cppki.SubjectKeyID(signer.Public())
-	if err != nil {
-		return nil, time.Time{}, err
-	}
-	chains, err := p.DB.Chains(ctx, ChainQuery{
+	chains, err := p.ChainLoader.Chains(ctx, ChainQuery{
 		IA:           p.IA,
 		SubjectKeyID: skid,
 		Date:         time.Now(),
@@ -117,12 +112,7 @@ func (p X509KeyPairProvider) bestKeyPair(
 	if err != nil {
 		return nil, time.Time{}, err
 	}
-	trcs := make([]*cppki.TRC, len(signedTRCs))
-	for i, signedTRC := range signedTRCs {
-		signedTRC := signedTRC
-		trcs[i] = &signedTRC.TRC
-	}
-	chain := bestChainWithKeyUsage(trcs, chains, extKeyUsage)
+	chain := bestChainWithKeyUsage(chains, extKeyUsage)
 	if chain == nil {
 		return nil, time.Time{}, nil
 	}
@@ -130,18 +120,13 @@ func (p X509KeyPairProvider) bestKeyPair(
 }
 
 func bestChainWithKeyUsage(
-	trcs []*cppki.TRC,
 	chains [][]*x509.Certificate,
 	extKeyUsage x509.ExtKeyUsage,
 ) []*x509.Certificate {
 
-	opts := cppki.VerifyOptions{TRC: trcs}
 	var best []*x509.Certificate
 	for _, chain := range chains {
 		if err := verifyExtendedKeyUsage(chain[0], extKeyUsage); err != nil {
-			continue
-		}
-		if err := cppki.VerifyChain(chain, opts); err != nil {
 			continue
 		}
 		// Use the chain if its validity is longer than any other found so far.

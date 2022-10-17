@@ -201,7 +201,11 @@ func realMain(ctx context.Context) error {
 
 	loader := trust.X509KeyPairProvider{
 		IA: topo.IA(),
-		DB: trustDB,
+		ChainLoader: cstrust.CryptoLoader{
+			Dir:     filepath.Join(globalCfg.General.ConfigDir, "crypto/as"),
+			TRCDirs: []string{filepath.Join(globalCfg.General.ConfigDir, "certs")},
+			DB:      trustDB,
+		},
 		KeyLoader: cstrust.LoadingRing{
 			Dir: filepath.Join(globalCfg.General.ConfigDir, "crypto/as"),
 		},
