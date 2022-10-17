@@ -130,23 +130,24 @@ func TestHandshake(t *testing.T) {
 
 	db := mock_trust.NewMockDB(ctrl)
 	db.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).MaxTimes(2).Return(trc, nil)
-	loader := mock_trust.NewMockX509KeyPairLoader(ctrl)
-	loader.EXPECT().LoadServerKeyPair(gomock.Any()).Return(&tlsCert, nil)
-	loader.EXPECT().LoadClientKeyPair(gomock.Any()).Return(&tlsCert, nil)
 
-	mgr := trust.NewTLSCryptoManager(loader, db)
+	mgr := trust.NewTLSCryptoManager(nil, nil, db)
 	clientConn, serverConn := net.Pipe()
 	defer clientConn.Close()
 	defer serverConn.Close()
 
 	client := tls.Client(clientConn, &tls.Config{
-		InsecureSkipVerify:    true,
-		GetClientCertificate:  mgr.GetClientCertificate,
+		InsecureSkipVerify: true,
+		GetClientCertificate: func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			return &tlsCert, nil
+		},
 		VerifyPeerCertificate: mgr.VerifyServerCertificate,
 	})
 	server := tls.Server(serverConn, &tls.Config{
-		InsecureSkipVerify:    true,
-		GetCertificate:        mgr.GetCertificate,
+		InsecureSkipVerify: true,
+		GetCertificate: func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return &tlsCert, nil
+		},
 		VerifyPeerCertificate: mgr.VerifyClientCertificate,
 		ClientAuth:            tls.RequireAnyClientCert,
 	})

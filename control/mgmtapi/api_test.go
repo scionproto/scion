@@ -35,7 +35,6 @@ import (
 	api "github.com/scionproto/scion/control/mgmtapi"
 	"github.com/scionproto/scion/control/mgmtapi/mock_mgmtapi"
 	cstrust "github.com/scionproto/scion/control/trust"
-	"github.com/scionproto/scion/control/trust/mock_trust"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
@@ -45,6 +44,7 @@ import (
 	"github.com/scionproto/scion/private/ca/renewal/mock_renewal"
 	"github.com/scionproto/scion/private/storage/beacon"
 	"github.com/scionproto/scion/private/trust"
+	"github.com/scionproto/scion/private/trust/mock_trust"
 )
 
 var update = xtest.UpdateGoldenFiles()
@@ -281,7 +281,7 @@ func TestAPI(t *testing.T) {
 		},
 		"signer": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
-				g := mock_trust.NewMockSignerGen(ctrl)
+				g := mock_trust.NewMockSignerGenerator(ctrl)
 				s := &api.Server{
 					Signer: cstrust.RenewingSigner{
 						SignerGen: g,
@@ -316,7 +316,7 @@ func TestAPI(t *testing.T) {
 		},
 		"signer error": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
-				g := mock_trust.NewMockSignerGen(ctrl)
+				g := mock_trust.NewMockSignerGenerator(ctrl)
 				s := &api.Server{
 					Signer: cstrust.RenewingSigner{
 						SignerGen: g,
@@ -332,7 +332,7 @@ func TestAPI(t *testing.T) {
 		},
 		"signer blob": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
-				g := mock_trust.NewMockSignerGen(ctrl)
+				g := mock_trust.NewMockSignerGenerator(ctrl)
 				s := &api.Server{
 					Signer: cstrust.RenewingSigner{
 						SignerGen: g,
@@ -351,7 +351,7 @@ func TestAPI(t *testing.T) {
 		},
 		"signer blob error": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
-				g := mock_trust.NewMockSignerGen(ctrl)
+				g := mock_trust.NewMockSignerGenerator(ctrl)
 				s := &api.Server{
 					Signer: cstrust.RenewingSigner{
 						SignerGen: g,

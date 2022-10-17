@@ -22,14 +22,9 @@ import (
 	"github.com/scionproto/scion/private/trust"
 )
 
-// SignerGen generates signers.
-type SignerGen interface {
-	Generate(ctx context.Context) (trust.Signer, error)
-}
-
 // RenewingSigner is a signer that automatically picks up new key/cert material.
 type RenewingSigner struct {
-	SignerGen SignerGen
+	SignerGen trust.SignerGenerator
 }
 
 // Sign signs the message with the latest available Signer.
