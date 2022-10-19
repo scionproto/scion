@@ -613,9 +613,9 @@ func realMain(ctx context.Context) error {
 		}
 		defer level1DB.Close()
 
-		signerGenServerAuth := cs.NewSignerGen(topo.IA(), x509.ExtKeyUsageServerAuth,
+		signerGenServerAuth := cs.NewCachingSignerGen(topo.IA(), x509.ExtKeyUsageServerAuth,
 			trustDB, globalCfg.General.ConfigDir)
-		signerGenClientAuth := cs.NewSignerGen(topo.IA(), x509.ExtKeyUsageClientAuth,
+		signerGenClientAuth := cs.NewCachingSignerGen(topo.IA(), x509.ExtKeyUsageClientAuth,
 			trustDB, globalCfg.General.ConfigDir)
 		tlsMgr := trust.NewTLSCryptoManager(signerGenServerAuth, signerGenClientAuth, trustDB)
 		drkeyFetcher := drkeygrpc.Fetcher{

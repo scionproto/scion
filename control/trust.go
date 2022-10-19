@@ -65,15 +65,15 @@ func LoadTrustMaterial(ctx context.Context, configDir string, db trust.DB) error
 	return nil
 }
 
-// NewSignerGen creates a caching signer generator (i.e. a key/cert loader).
+// NewCachingSignerGen creates a caching signer generator (i.e. a key/cert loader).
 // If key usage is specified (not ExtKeyUsageAny), only signers with matching
 // certificates will be returned.
-func NewSignerGen(
+func NewCachingSignerGen(
 	ia addr.IA,
 	keyUsage x509.ExtKeyUsage,
 	db trust.DB,
 	cfgDir string,
-) trust.SignerGenerator {
+) *cstrust.CachingSignerGen {
 
 	gen := trust.SignerGen{
 		IA: ia,
@@ -96,7 +96,7 @@ func NewSignerGen(
 // NewSigner creates a renewing signer backed by a certificate chain.
 func NewSigner(ia addr.IA, db trust.DB, cfgDir string) cstrust.RenewingSigner {
 	signer := cstrust.RenewingSigner{
-		SignerGen: NewSignerGen(ia, x509.ExtKeyUsageAny, db, cfgDir),
+		SignerGen: NewCachingSignerGen(ia, x509.ExtKeyUsageAny, db, cfgDir),
 	}
 
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
