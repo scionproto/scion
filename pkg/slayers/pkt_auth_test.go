@@ -19,7 +19,6 @@ import (
 	"encoding/binary"
 	"net"
 	"testing"
-	"time"
 
 	"github.com/dchest/cmac"
 	"github.com/google/gopacket"
@@ -27,7 +26,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/drkey"
-	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
@@ -37,18 +35,16 @@ import (
 )
 
 var (
-	algo       = slayers.PacketAuthSHA1_AES_CBC
-	ts         = binary.LittleEndian.Uint32([]byte{1, 2, 3, 0})
-	sn         = binary.LittleEndian.Uint32([]byte{4, 5, 6, 0})
-	optAuthMAC = []byte("16byte_mac_foooo")
-
-	dir         = slayers.PacketAuthSenderSide
-	epoch       = slayers.PacketAuthLater
-	drkeyType   = slayers.PacketAuthASHost
+	algo        = slayers.PacketAuthSHA1_AES_CBC
+	ts          = uint32(0x030201)
+	sn          = uint32(0x060504)
+	optAuthMAC  = []byte("16byte_mac_foooo")
 	decodedPath = &scion.Decoded{
 		Base: scion.Base{
 			PathMeta: scion.MetaHdr{
-				SegLen: [3]byte{1, 1, 1},
+				CurrINF: 0xab,
+				CurrHF:  0xcd,
+				SegLen:  [3]byte{1, 1, 1},
 			},
 			NumINF:  3,
 			NumHops: 3,
@@ -56,38 +52,42 @@ var (
 		InfoFields: []path.InfoField{
 			{
 				ConsDir:   false,
-				SegID:     1,
+				SegID:     0xf001,
 				Timestamp: ts,
 			},
 			{
 				ConsDir:   false,
-				SegID:     2,
+				SegID:     0xf002,
 				Timestamp: ts,
 			},
 			{
 				ConsDir:   true,
-				SegID:     3,
+				SegID:     0xf003,
 				Timestamp: ts,
 			},
 		},
 		HopFields: []path.HopField{
 			{
-				ExpTime:     63,
-				ConsIngress: 1,
-				ConsEgress:  0,
-				Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+				EgressRouterAlert: true,
+				ExpTime:           63,
+				ConsIngress:       0,
+				ConsEgress:        1,
+				Mac:               [path.MacLen]byte{1, 2, 3, 4, 5, 6},
 			},
 			{
-				ExpTime:     63,
-				ConsIngress: 3,
-				ConsEgress:  2,
-				Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+				IngressRouterAlert: true,
+				EgressRouterAlert:  true,
+				ExpTime:            63,
+				ConsIngress:        2,
+				ConsEgress:         3,
+				Mac:                [path.MacLen]byte{1, 2, 3, 4, 5, 6},
 			},
 			{
-				ExpTime:     63,
-				ConsIngress: 0,
-				ConsEgress:  2,
-				Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+				IngressRouterAlert: true,
+				ExpTime:            63,
+				ConsIngress:        4,
+				ConsEgress:         0,
+				Mac:                [path.MacLen]byte{1, 2, 3, 4, 5, 6},
 			},
 		},
 	}
@@ -227,24 +227,20 @@ func TestComputeAuthMac(t *testing.T) {
 	require.NoError(t, err)
 
 	testCases := map[string]struct {
-		input           []byte
-		optAuth         slayers.PacketAuthOption
+		optionParameter slayers.PacketAuthOptionParams
 		scionL          slayers.SCION
 		pld             []byte
 		rawMACInput     []byte
 		assertFormatErr assert.ErrorAssertionFunc
 	}{
 		"decoded": {
-			input: make([]byte, slayers.MACBufferSize),
-			optAuth: getSPAO(
-				t,
-				util.SecsToTime(ts+6),
-				decodedPath.InfoFields[0].Timestamp,
-				sn,
-				dir,
-				epoch,
-				drkeyType,
-			),
+			optionParameter: slayers.PacketAuthOptionParams{
+				SPI:            slayers.PacketAuthSPI(0x1),
+				Algorithm:      slayers.PacketAuthCMAC,
+				Timestamp:      0x3e8,
+				SequenceNumber: sn,
+				Auth:           make([]byte, 16),
+			},
 			scionL: slayers.SCION{
 				HdrLen:       255,
 				FlowID:       binary.BigEndian.Uint32([]byte{0x00, 0x00, 0x12, 0x34}),
@@ -263,35 +259,43 @@ func TestComputeAuthMac(t *testing.T) {
 			},
 			pld: fooPayload,
 			rawMACInput: append([]byte{
-				// 1.
-				0xff, 0xca, 0x0, 0xc, 0x0, 0x0, 0x3, 0xe8, 0x0, 0x6, 0x5, 0x4,
-				// 2
-				0x3, 0xf0, 0x12, 0x34, 0x1, 0x0, 0x0, 0x0,
-				// 3.
+				// 1. Authenticator Option Metadata
+				0xff, 0xca, 0x0, 0xc, // HdrLen | Upper Layer | Upper-Layer Packet Length
+				0x0, 0x0, 0x3, 0xe8, // Algorithm  | Timestamp
+				0x0, 0x6, 0x5, 0x4, // RSV | Sequence Number
+				// 2. SCION Common Header
+				0x3, 0xf0, 0x12, 0x34, // Version | QoS | FlowID
+				0x1, 0x0, 0x0, 0x0, // PathType |DT |DL |ST |SL | RSV
+				// 3.  SCION Address Header
 				0xc0, 0x0, 0x0, 0x2,
 				// Zeroed-out path
-				0x0, 0x0, 0x10, 0x41, 0x0, 0x0, 0x0, 0x1,
-				0x0, 0x3, 0x2, 0x1, 0x0, 0x0, 0x0, 0x2,
-				0x0, 0x3, 0x2, 0x1, 0x1, 0x0, 0x0, 0x3,
-				0x0, 0x3, 0x0, 0x1, 0x0, 0x3f, 0x0, 0x1,
-				0x0, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6,
-				0x0, 0x3f, 0x0, 0x3, 0x0, 0x2, 0x0, 0x2,
-				0x3, 0x4, 0x5, 0x6, 0x0, 0x3f, 0x0, 0x0,
-				0x0, 0x2, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6,
+				0x0, 0x0, 0x10, 0x41, // Path Meta Header (CurrINF, CurrHF = 0)
+				0x0, 0x0, 0x0, 0x0, // Info[0] (SegID = 0)
+				0x0, 0x3, 0x2, 0x1,
+				0x0, 0x0, 0x0, 0x0, // Info[1] (SegID = 0)
+				0x0, 0x3, 0x2, 0x1,
+				0x1, 0x0, 0x0, 0x0, // Info[2] (SegID = 0)
+				0x0, 0x3, 0x2, 0x1,
+				0x0, 0x3f, 0x0, 0x0, // Hop[0] (ConsIngress/Egress Alert = 0)
+				0x0, 0x1, 0x1, 0x2,
+				0x3, 0x4, 0x5, 0x6,
+				0x0, 0x3f, 0x0, 0x2, // Hop[1] (ConsIngress/Egress Alert = 0)
+				0x0, 0x3, 0x1, 0x2,
+				0x3, 0x4, 0x5, 0x6,
+				0x0, 0x3f, 0x0, 0x4, // Hop[2] (ConsIngress/Egress Router Alert = 0)
+				0x0, 0x0, 0x1, 0x2,
+				0x3, 0x4, 0x5, 0x6,
 			}, fooPayload...),
 			assertFormatErr: assert.NoError,
 		},
 		"one hop": {
-			input: make([]byte, slayers.MACBufferSize),
-			optAuth: getSPAO(
-				t,
-				util.SecsToTime(ts+6),
-				ts,
-				sn,
-				dir,
-				epoch,
-				drkeyType,
-			),
+			optionParameter: slayers.PacketAuthOptionParams{
+				SPI:            slayers.PacketAuthSPI(0x1),
+				Algorithm:      slayers.PacketAuthCMAC,
+				Timestamp:      0x3e8,
+				SequenceNumber: sn,
+				Auth:           make([]byte, 16),
+			},
 			scionL: slayers.SCION{
 				HdrLen:       255,
 				FlowID:       binary.BigEndian.Uint32([]byte{0x00, 0x00, 0x12, 0x34}),
@@ -308,52 +312,58 @@ func TestComputeAuthMac(t *testing.T) {
 				Path: &onehop.Path{
 					Info: path.InfoField{
 						ConsDir:   false,
-						SegID:     1,
+						SegID:     0xf001,
 						Timestamp: ts,
 					},
 
 					FirstHop: path.HopField{
-						ExpTime:     63,
-						ConsIngress: 1,
-						ConsEgress:  0,
-						Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+						EgressRouterAlert: true,
+						ExpTime:           63,
+						ConsIngress:       0,
+						ConsEgress:        1,
+						Mac:               [path.MacLen]byte{1, 2, 3, 4, 5, 6},
 					},
 					SecondHop: path.HopField{
-						ExpTime:     63,
-						ConsIngress: 3,
-						ConsEgress:  2,
-						Mac:         [path.MacLen]byte{1, 2, 3, 4, 5, 6},
+						IngressRouterAlert: true,
+						ExpTime:            63,
+						ConsIngress:        2,
+						ConsEgress:         3,
+						Mac:                [path.MacLen]byte{1, 2, 3, 4, 5, 6},
 					},
 				},
 				PathType: onehop.PathType,
 			},
 			pld: fooPayload,
 			rawMACInput: append([]byte{
-				// 1.
-				0xff, 0xca, 0x0, 0xc, 0x0, 0x0, 0x3, 0xe8, 0x0, 0x6, 0x5, 0x4,
-				// 2
-				0x3, 0xf0, 0x12, 0x34, 0x2, 0x0, 0x0, 0x0,
-				// 3.
+				// 1. Authenticator Option Metadata
+				0xff, 0xca, 0x0, 0xc, // HdrLen | Upper Layer | Upper-Layer Packet Length
+				0x0, 0x0, 0x3, 0xe8, // Algorithm  | Timestamp
+				0x0, 0x6, 0x5, 0x4, // RSV | Sequence Number
+				// 2. SCION Common Header
+				0x3, 0xf0, 0x12, 0x34, // Version | QoS | FlowID
+				0x2, 0x0, 0x0, 0x0, // PathType |DT |DL |ST |SL | RSV
+				// 3.  SCION Address Header
 				0xc0, 0x0, 0x0, 0x2,
 				// Zeroed-out path
-				0x0, 0x0, 0x0, 0x1, 0x0, 0x3, 0x2, 0x1,
-				0x0, 0x3f, 0x0, 0x1, 0x0, 0x0, 0x1, 0x2,
-				0x3, 0x4, 0x5, 0x6, 0x0, 0x0, 0x0, 0x0,
-				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+				0x0, 0x0, 0x0, 0x0, // Info (SegID = 0)
+				0x0, 0x3, 0x2, 0x1,
+				0x0, 0x3f, 0x0, 0x0, // Hop[0] (ConsIngress/Egress Alert = 0)
+				0x0, 0x1, 0x1, 0x2,
+				0x3, 0x4, 0x5, 0x6,
+				0x0, 0x0, 0x0, 0x0, // Hop[1] (zeroed-out)
+				0x0, 0x0, 0x0, 0x0,
+				0x0, 0x0, 0x0, 0x0,
 			}, fooPayload...),
 			assertFormatErr: assert.NoError,
 		},
 		"epic": {
-			input: make([]byte, slayers.MACBufferSize),
-			optAuth: getSPAO(
-				t,
-				util.SecsToTime(ts+6),
-				decodedPath.InfoFields[0].Timestamp,
-				sn,
-				dir,
-				epoch,
-				drkeyType,
-			),
+			optionParameter: slayers.PacketAuthOptionParams{
+				SPI:            slayers.PacketAuthSPI(2 ^ 21 - 1),
+				Algorithm:      slayers.PacketAuthCMAC,
+				Timestamp:      0x3e8,
+				SequenceNumber: sn,
+				Auth:           make([]byte, 16),
+			},
 			scionL: slayers.SCION{
 				HdrLen:       255,
 				FlowID:       binary.BigEndian.Uint32([]byte{0x00, 0x00, 0x12, 0x34}),
@@ -383,24 +393,36 @@ func TestComputeAuthMac(t *testing.T) {
 			},
 			pld: fooPayload,
 			rawMACInput: append([]byte{
-				// 1.
-				0xff, 0xca, 0x0, 0xc, 0x0, 0x0, 0x3, 0xe8, 0x0, 0x6, 0x5, 0x4,
-				// 2
-				0x3, 0xf0, 0x12, 0x34, 0x3, 0x0, 0x0, 0x0,
-				// 3.
+
+				// 1. Authenticator Option Metadata
+				0xff, 0xca, 0x0, 0xc, // HdrLen | Upper Layer | Upper-Layer Packet Length
+				0x0, 0x0, 0x3, 0xe8, // Algorithm  | Timestamp
+				0x0, 0x6, 0x5, 0x4, // RSV | Sequence Number
+				// 2. SCION Common Header
+				0x3, 0xf0, 0x12, 0x34, // Version | QoS | FlowID
+				0x3, 0x0, 0x0, 0x0, // PathType |DT |DL |ST |SL | RSV
+				// 3.  SCION Address Header
 				0xc0, 0x0, 0x0, 0x2,
 				// Epic-HP header
 				0x0, 0x0, 0x0, 0x1, 0x2, 0x0, 0x0, 0x3,
 				0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8,
 				// Zeroed-out path
-				0x0, 0x0, 0x10, 0x41, 0x0, 0x0, 0x0, 0x1,
-				0x0, 0x3, 0x2, 0x1, 0x0, 0x0, 0x0, 0x2,
-				0x0, 0x3, 0x2, 0x1, 0x1, 0x0, 0x0, 0x3,
-				0x0, 0x3, 0x0, 0x1, 0x0, 0x3f, 0x0, 0x1,
-				0x0, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6,
-				0x0, 0x3f, 0x0, 0x3, 0x0, 0x2, 0x0, 0x2,
-				0x3, 0x4, 0x5, 0x6, 0x0, 0x3f, 0x0, 0x0,
-				0x0, 0x2, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6,
+				0x0, 0x0, 0x10, 0x41, // Path Meta Header (CurrINF, CurrHF = 0)
+				0x0, 0x0, 0x0, 0x0, // Info[0] (SegID = 0)
+				0x0, 0x3, 0x2, 0x1,
+				0x0, 0x0, 0x0, 0x0, // Info[1] (SegID = 0)
+				0x0, 0x3, 0x2, 0x1,
+				0x1, 0x0, 0x0, 0x0, // Info[2] (SegID = 0)
+				0x0, 0x3, 0x2, 0x1,
+				0x0, 0x3f, 0x0, 0x0, // Hop[0] (ConsIngress/Egress Alert = 0)
+				0x0, 0x1, 0x1, 0x2,
+				0x3, 0x4, 0x5, 0x6,
+				0x0, 0x3f, 0x0, 0x2, // Hop[1] (ConsIngress/Egress Alert = 0)
+				0x0, 0x3, 0x1, 0x2,
+				0x3, 0x4, 0x5, 0x6,
+				0x0, 0x3f, 0x0, 0x4, // Hop[2] (ConsIngress/Egress Router Alert = 0)
+				0x0, 0x0, 0x1, 0x2,
+				0x3, 0x4, 0x5, 0x6,
 			}, fooPayload...),
 			assertFormatErr: assert.NoError,
 		},
@@ -409,13 +431,20 @@ func TestComputeAuthMac(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 
+			optAuth, err := slayers.NewPacketAuthOption(tc.optionParameter)
+			assert.NoError(t, err)
+
+			buf := make([]byte, slayers.MACBufferSize)
+			inpLen, _ := slayers.SerializeAutenticatedData(buf, &tc.scionL, optAuth, tc.pld)
+			require.Equal(t, tc.rawMACInput, append(buf[:inpLen], fooPayload...))
+
 			mac, err := slayers.ComputeAuthCMAC(
 				authKey[:],
-				tc.optAuth,
+				optAuth,
 				&tc.scionL,
 				tc.pld,
-				tc.input,
-				tc.optAuth.Authenticator(),
+				make([]byte, slayers.MACBufferSize),
+				optAuth.Authenticator(),
 			)
 			tc.assertFormatErr(t, err)
 			if err != nil {
@@ -442,31 +471,4 @@ func initSPI(t *testing.T) slayers.PacketAuthSPI {
 		slayers.PacketAuthLater)
 	require.NoError(t, err)
 	return spi
-}
-
-func getSPAO(
-	t *testing.T,
-	now time.Time,
-	ts, sn uint32,
-	dir, epoch, drkeyType uint8,
-) slayers.PacketAuthOption {
-
-	macBuf := make([]byte, 16)
-
-	spi, err := slayers.MakePacketAuthSPIDRKey(uint16(drkey.SCMP), drkeyType, dir, epoch)
-	assert.NoError(t, err)
-
-	timestamp, err := slayers.ComputeSPAORelativeTimestamp(ts, now)
-	assert.NoError(t, err)
-
-	optAuth, err := slayers.NewPacketAuthOption(slayers.PacketAuthOptionParams{
-		SPI:            spi,
-		Algorithm:      slayers.PacketAuthCMAC,
-		Timestamp:      timestamp,
-		SequenceNumber: sn,
-		Auth:           macBuf,
-	})
-	assert.NoError(t, err)
-
-	return optAuth
 }

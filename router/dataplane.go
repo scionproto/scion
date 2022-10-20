@@ -1674,11 +1674,12 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 		scionL.NextHdr = slayers.End2EndClass
 
 		now := time.Now()
-		key, err := p.getAuthKey(now)
+		// srcA == scionL.DstAddr
+		key, err := p.getAuthKey(now, scionL.DstIA, srcA)
 		if err != nil {
 			return nil, err
 		}
-		if err := p.setSPAO(now); err != nil {
+		if err := p.resetSPAOMetadata(now); err != nil {
 			return nil, err
 		}
 
@@ -1708,25 +1709,26 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 	return p.buffer.Bytes(), scmpError{TypeCode: scmpH.TypeCode, Cause: cause}
 }
 
-func (p *scionPacketProcessor) getAuthKey(validTime time.Time) (drkey.Key, error) {
+func (p *scionPacketProcessor) getAuthKey(
+	validTime time.Time,
+	dstIA addr.IA,
+	dstAddr net.Addr,
+) (drkey.Key, error) {
+
 	sv := p.drkeyProvider.GetSV(validTime)
-	dstA, err := p.scionLayer.SrcAddr()
-	if err != nil {
-		return drkey.Key{}, serrors.Wrap(cannotRoute, err, "details", "extracting src addr")
-	}
-	lvl1, err := p.drkeyDeriver.DeriveLevel1(p.scionLayer.SrcIA, sv)
+	lvl1, err := p.drkeyDeriver.DeriveLevel1(dstIA, sv)
 	if err != nil {
 		return drkey.Key{}, err
 	}
 
-	key, err := p.drkeyDeriver.DeriveASHost(dstA.String(), lvl1)
+	key, err := p.drkeyDeriver.DeriveASHost(dstAddr.String(), lvl1)
 	if err != nil {
 		return drkey.Key{}, err
 	}
 	return key, nil
 }
 
-func (p *scionPacketProcessor) setSPAO(now time.Time) error {
+func (p *scionPacketProcessor) resetSPAOMetadata(now time.Time) error {
 	// For creating SCMP responses we use sender side.
 	dir := slayers.PacketAuthSenderSide
 	// TODO(JordiSubira): At the moment, We assume the later epoch at the moment.

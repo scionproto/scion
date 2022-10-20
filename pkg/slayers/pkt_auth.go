@@ -282,7 +282,7 @@ func ComputeAuthCMAC(
 	if err != nil {
 		return nil, err
 	}
-	inputLen, err := serializeAutenticatedData(input, scionL, opt, pld)
+	inputLen, err := SerializeAutenticatedData(input, scionL, opt, pld)
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +303,7 @@ func initCMAC(key []byte) (hash.Hash, error) {
 	return mac, nil
 }
 
-func serializeAutenticatedData(
+func SerializeAutenticatedData(
 	buf []byte,
 	s *SCION,
 	opt PacketAuthOption,
@@ -382,7 +382,7 @@ func zeroOutMutablePath(orig path.Path, buf []byte) error {
 		return nil
 	case *onehop.Path:
 		// Zero out IF.SegID
-		buf[2] = 0
+		binary.BigEndian.PutUint16(buf[2:], 0)
 		// Zero out HF.Flags&&Alerts
 		buf[8] = 0
 		// Zero out second HF
@@ -399,8 +399,10 @@ func zeroOutWithBase(base scion.Base, offset int, buf []byte) {
 	offset += 4
 	for i := 0; i < base.NumINF; i++ {
 		// Zero out IF.SegID
-		buf[offset+2] = 0
+		binary.BigEndian.PutUint16(buf[offset+2:], 0)
 		offset += 8
+	}
+	for i := 0; i < base.NumINF; i++ {
 		for j := 0; j < int(base.PathMeta.SegLen[i]); j++ {
 			// Zero out HF.Flags&&Alerts
 			buf[offset] = 0
