@@ -23,9 +23,9 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	cstrust "github.com/scionproto/scion/control/trust"
+	"github.com/scionproto/scion/control/trust/mock_trust"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/trust"
-	"github.com/scionproto/scion/private/trust/mock_trust"
 )
 
 func TestChachingSignerGen(t *testing.T) {
@@ -34,7 +34,7 @@ func TestChachingSignerGen(t *testing.T) {
 
 	testCases := map[string]struct {
 		Interval     time.Duration
-		SignerGen    func(mctrl *gomock.Controller) trust.SignerGenerator
+		SignerGen    func(mctrl *gomock.Controller) cstrust.SignerGen
 		FirstErr     assert.ErrorAssertionFunc
 		FirstSigner  trust.Signer
 		SecondErr    assert.ErrorAssertionFunc
@@ -42,8 +42,8 @@ func TestChachingSignerGen(t *testing.T) {
 	}{
 		"valid": {
 			Interval: time.Hour,
-			SignerGen: func(mctrl *gomock.Controller) trust.SignerGenerator {
-				gen := mock_trust.NewMockSignerGenerator(mctrl)
+			SignerGen: func(mctrl *gomock.Controller) cstrust.SignerGen {
+				gen := mock_trust.NewMockSignerGen(mctrl)
 				gen.EXPECT().Generate(gomock.Any()).Return(
 					trust.Signer{Expiration: exp}, nil,
 				)
@@ -56,8 +56,8 @@ func TestChachingSignerGen(t *testing.T) {
 		},
 		"valid, regenerate after interval": {
 			Interval: 0,
-			SignerGen: func(mctrl *gomock.Controller) trust.SignerGenerator {
-				gen := mock_trust.NewMockSignerGenerator(mctrl)
+			SignerGen: func(mctrl *gomock.Controller) cstrust.SignerGen {
+				gen := mock_trust.NewMockSignerGen(mctrl)
 				gen.EXPECT().Generate(gomock.Any()).Return(
 					trust.Signer{Expiration: exp}, nil,
 				)
@@ -73,8 +73,8 @@ func TestChachingSignerGen(t *testing.T) {
 		},
 		"first fails, second cached": {
 			Interval: time.Hour,
-			SignerGen: func(mctrl *gomock.Controller) trust.SignerGenerator {
-				gen := mock_trust.NewMockSignerGenerator(mctrl)
+			SignerGen: func(mctrl *gomock.Controller) cstrust.SignerGen {
+				gen := mock_trust.NewMockSignerGen(mctrl)
 				gen.EXPECT().Generate(gomock.Any()).Return(
 					trust.Signer{}, serrors.New("internal"),
 				)
@@ -87,8 +87,8 @@ func TestChachingSignerGen(t *testing.T) {
 		},
 		"first fails, second succeeds": {
 			Interval: 0,
-			SignerGen: func(mctrl *gomock.Controller) trust.SignerGenerator {
-				gen := mock_trust.NewMockSignerGenerator(mctrl)
+			SignerGen: func(mctrl *gomock.Controller) cstrust.SignerGen {
+				gen := mock_trust.NewMockSignerGen(mctrl)
 				gen.EXPECT().Generate(gomock.Any()).Return(
 					trust.Signer{}, serrors.New("internal"),
 				)
@@ -104,8 +104,8 @@ func TestChachingSignerGen(t *testing.T) {
 		},
 		"second fails, serve cached": {
 			Interval: 0,
-			SignerGen: func(mctrl *gomock.Controller) trust.SignerGenerator {
-				gen := mock_trust.NewMockSignerGenerator(mctrl)
+			SignerGen: func(mctrl *gomock.Controller) cstrust.SignerGen {
+				gen := mock_trust.NewMockSignerGen(mctrl)
 				gen.EXPECT().Generate(gomock.Any()).Return(
 					trust.Signer{Expiration: exp}, nil,
 				)

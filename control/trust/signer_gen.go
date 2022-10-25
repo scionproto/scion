@@ -29,7 +29,7 @@ import (
 // CachingSignerGen is a SignerGen that can cache the previously
 // generated Signer for some time.
 type CachingSignerGen struct {
-	SignerGen trust.SignerGenerator
+	SignerGen SignerGen
 	Interval  time.Duration
 
 	mtx     sync.Mutex

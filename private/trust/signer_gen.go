@@ -32,11 +32,6 @@ type KeyRing interface {
 	PrivateKeys(ctx context.Context) ([]crypto.Signer, error)
 }
 
-// SignerGenerator generates signers.
-type SignerGenerator interface {
-	Generate(ctx context.Context) (Signer, error)
-}
-
 // SignerGen generates signers from the keys available in key dir.
 type SignerGen struct {
 	IA      addr.IA
