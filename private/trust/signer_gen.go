@@ -38,7 +38,10 @@ type SignerGen struct {
 	KeyRing KeyRing
 	DB      DB // FIXME(roosd): Eventually this should use a crypto provider
 
-	KeyUsage x509.ExtKeyUsage // If not ExtKeyUsageAny, return Signer with matching certificate
+	// KeyUsage filters the available certificates for specific key usage types.
+	// If KeyUsage is not ExtKeyUsageAny, Generate will return a Signer with
+	// a certificate supporting this usage type (if one exists).
+	KeyUsage x509.ExtKeyUsage
 }
 
 // Generate fetches private keys from the key ring and searches active
