@@ -131,7 +131,7 @@ func TestHandshake(t *testing.T) {
 	db := mock_trust.NewMockDB(ctrl)
 	db.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).MaxTimes(2).Return(trc, nil)
 
-	mgr := trust.NewTLSCryptoManager(nil, nil, db)
+	mgr := trust.NewTLSCryptoManager(db)
 	clientConn, serverConn := net.Pipe()
 	defer clientConn.Close()
 	defer serverConn.Close()

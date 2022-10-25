@@ -61,7 +61,7 @@ func TestLevel1KeyFetching(t *testing.T) {
 
 	mgrdb := mock_trust.NewMockDB(ctrl)
 	mgrdb.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).AnyTimes().Return(trc, nil)
-	mgr := trust.NewTLSCryptoManager(nil, nil, mgrdb)
+	mgr := trust.NewTLSCryptoManager(mgrdb)
 
 	serverCreds := credentials.NewTLS(&tls.Config{
 		InsecureSkipVerify: true,

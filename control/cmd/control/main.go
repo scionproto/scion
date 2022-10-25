@@ -613,17 +613,17 @@ func realMain(ctx context.Context) error {
 		}
 		defer level1DB.Close()
 
-		signerGenServerAuth := cs.NewCachingSignerGen(topo.IA(), x509.ExtKeyUsageServerAuth,
+		tlsCertsServerAuth := cs.NewTLSCertificateLoader(topo.IA(), x509.ExtKeyUsageServerAuth,
 			trustDB, globalCfg.General.ConfigDir)
-		signerGenClientAuth := cs.NewCachingSignerGen(topo.IA(), x509.ExtKeyUsageClientAuth,
+		tlsCertsClientAuth := cs.NewTLSCertificateLoader(topo.IA(), x509.ExtKeyUsageClientAuth,
 			trustDB, globalCfg.General.ConfigDir)
-		tlsMgr := trust.NewTLSCryptoManager(signerGenServerAuth, signerGenClientAuth, trustDB)
+		tlsMgr := trust.NewTLSCryptoManager(trustDB)
 		drkeyFetcher := drkeygrpc.Fetcher{
 			Dialer: &libgrpc.TLSQUICDialer{
 				QUICDialer: dialer,
 				Credentials: credentials.NewTLS(&tls.Config{
 					InsecureSkipVerify:    true,
-					GetClientCertificate:  tlsMgr.GetClientCertificate,
+					GetClientCertificate:  tlsCertsClientAuth.GetClientCertificate,
 					VerifyPeerCertificate: tlsMgr.VerifyServerCertificate,
 					VerifyConnection:      tlsMgr.VerifyConnection,
 				}),
@@ -649,7 +649,7 @@ func realMain(ctx context.Context) error {
 		}
 		srvConfig := &tls.Config{
 			InsecureSkipVerify:    true,
-			GetCertificate:        tlsMgr.GetCertificate,
+			GetCertificate:        tlsCertsServerAuth.GetCertificate,
 			VerifyPeerCertificate: tlsMgr.VerifyClientCertificate,
 			ClientAuth:            tls.RequireAnyClientCert,
 		}

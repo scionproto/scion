@@ -30,41 +30,16 @@ const defaultTimeout = 5 * time.Second
 
 // TLSCryptoManager implements callbacks which will be called during TLS handshake.
 type TLSCryptoManager struct {
-	ServerAuthSignerGen SignerGenerator
-	ClientAuthSignerGen SignerGenerator
-	DB                  DB
-	Timeout             time.Duration
+	DB      DB
+	Timeout time.Duration
 }
 
 // NewTLSCryptoManager returns a new instance with the defaultTimeout.
-func NewTLSCryptoManager(serverAuth, clientAuth SignerGenerator, db DB) *TLSCryptoManager {
+func NewTLSCryptoManager(db DB) *TLSCryptoManager {
 	return &TLSCryptoManager{
-		ServerAuthSignerGen: serverAuth,
-		ClientAuthSignerGen: clientAuth,
-		DB:                  db,
-		Timeout:             defaultTimeout,
+		DB:      db,
+		Timeout: defaultTimeout,
 	}
-}
-
-// GetCertificate retrieves a certificate to be presented during TLS handshake.
-func (m *TLSCryptoManager) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-	s, err := m.ServerAuthSignerGen.Generate(hello.Context())
-	if err != nil {
-		return nil, serrors.WrapStr("loading server key pair", err)
-	}
-	return toTLSCertificate(s), nil
-}
-
-// GetClientCertificate retrieves a client certificate to be presented during TLS handshake.
-func (m *TLSCryptoManager) GetClientCertificate(
-	reqInfo *tls.CertificateRequestInfo,
-) (*tls.Certificate, error) {
-
-	s, err := m.ClientAuthSignerGen.Generate(reqInfo.Context())
-	if err != nil {
-		return nil, serrors.WrapStr("loading client key pair", err)
-	}
-	return toTLSCertificate(s), nil
 }
 
 // VerifyServerCertificate verifies the certificate presented by the server
@@ -139,18 +114,6 @@ func (m *TLSCryptoManager) verifyPeerCertificate(
 		return serrors.WrapStr("verifying chains", err)
 	}
 	return nil
-}
-
-func toTLSCertificate(signer Signer) *tls.Certificate {
-	certificate := make([][]byte, len(signer.Chain))
-	for i := range signer.Chain {
-		certificate[i] = signer.Chain[i].Raw
-	}
-	return &tls.Certificate{
-		Certificate: certificate,
-		PrivateKey:  signer.PrivateKey,
-		Leaf:        signer.Chain[0],
-	}
 }
 
 func verifyChain(chain []*x509.Certificate, trcs []cppki.SignedTRC) error {

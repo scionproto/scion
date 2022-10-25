@@ -7,6 +7,7 @@ go_library(
         "key_loader.go",
         "signer.go",
         "signer_gen.go",
+        "tls_loader.go",
     ],
     importpath = "github.com/scionproto/scion/control/trust",
     visibility = ["//visibility:public"],
