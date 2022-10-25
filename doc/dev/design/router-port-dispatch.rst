@@ -91,7 +91,7 @@ If it's not running, the host simply doesn't respond to pings.
 Port Unreachable
 ^^^^^^^^^^^^^^^^
 
-No SCMP Error messages for Port unreachable are sent. On the end host, there is simply no component that could trigger this. Instead, an ICMP port closed message for the UDP/IP port may be triggered.
+No SCMP error messages for Port unreachable are sent. On the end host, there is simply no component that could trigger this. Instead, an ICMP port closed message for the UDP/IP port may be triggered.
 Given that the dispatcher currently doesn't even send out these SCMP messages, it does not seem to be worth the effort to translate the ICMP message to an SCMP in the router.
 
 Processing rule
@@ -137,7 +137,7 @@ The processing rule above is extended:
 
    .. Note:: In the future, we'd perhaps use a different port, or no longer use UDP/IP but directly IP as the underlay.
 
-.. Note:: This should not be considered a promise to never break compatiblity for end hosts again.
+.. Note:: This should not be considered a promise to never break compatibility for end hosts again.
 
 Rationale
 ---------
