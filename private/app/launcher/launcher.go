@@ -94,7 +94,8 @@ type Application struct {
 // function (if one exists).
 //
 // Run uses the following globals:
-//   os.Args
+//
+//	os.Args
 //
 // Run will exit the application if it encounters a fatal error.
 func (a *Application) Run() {

@@ -131,10 +131,12 @@ type localInfo struct {
 
 // IsSegLocal returns true for segments requests that can be answered authoritatively:
 // if this is a non-core AS:
-//  - only up segment requests
+//   - only up segment requests
+//
 // if this is a core AS:
-//  - down segment requests starting at this AS
-//  - core segment requests starting at this AS
+//   - down segment requests starting at this AS
+//   - core segment requests starting at this AS
+//
 // In summary, these are exactly the segments starting at the local AS.
 func (l *localInfo) IsSegLocal(req segfetcher.Request) bool {
 	return req.Src == l.localIA
@@ -147,12 +149,13 @@ func (l *localInfo) IsSegLocal(req segfetcher.Request) bool {
 // Certain queries (down segment requests) must be sent to ASes for which the
 // path is not a priori locally known. Therefore, this recursively makes use of
 // the Fetcher (via Router and Pather) to obtain this path information.
-// - Core segment requests are sent only to provider core ASes, so the path
-//   will consist of only an up segment.
-// - Down segment requests are sent to all core ASes in the destination ISD.
-//   The path consists of an up segment and a core segment.
-//   The up segment is always locally available, but the core segment might
-//   have to be fetched.
+//   - Core segment requests are sent only to provider core ASes, so the path
+//     will consist of only an up segment.
+//   - Down segment requests are sent to all core ASes in the destination ISD.
+//     The path consists of an up segment and a core segment.
+//     The up segment is always locally available, but the core segment might
+//     have to be fetched.
+//
 // The recursion depth, at runtime, is limited to 2, as this will _only_ be
 // called to fetch core segments when requesting down segments.
 type dstProvider struct {

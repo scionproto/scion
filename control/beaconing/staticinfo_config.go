@@ -105,11 +105,11 @@ func ParseStaticInfoCfg(file string) (*StaticInfoCfg, error) {
 
 // clean checks or corrects the entries in the static info configuration.
 // In particular, it will
-//  - ensure there are no entries for the 0 interface ID (as this is invalid
-//    and the beacon extender code uses 0 as the interface number for
-//    originating/terminating beacons), and
-//  - ensure the symmetry of the interface-to-interface ("Intra") entries,
-//    allowing to specify them in only one direction.
+//   - ensure there are no entries for the 0 interface ID (as this is invalid
+//     and the beacon extender code uses 0 as the interface number for
+//     originating/terminating beacons), and
+//   - ensure the symmetry of the interface-to-interface ("Intra") entries,
+//     allowing to specify them in only one direction.
 func (cfg *StaticInfoCfg) clean() {
 
 	delete(cfg.Latency, 0)

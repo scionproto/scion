@@ -96,8 +96,11 @@ Options
       --log.level string       Console logging level verbosity (debug|info|error)
       --max-mtu                choose the payload size such that the sent SCION packet including the SCION Header,
                                SCMP echo header and payload are equal to the MTU of the path. This flag overrides the
-                               'payload_size' flag.
+                               'payload_size' and 'packet_size' flags.
       --no-color               disable colored output
+      --packet-size uint       number of bytes to be sent including the SCION Header and SCMP echo header,
+                               the desired size must provide enough space for the required headers. This flag 
+                               overrides the 'payload_size' flag.
   -s, --payload-size uint      number of bytes to be sent in addition to the SCION Header and SCMP echo header;
                                the total size of the packet is still variable size due to the variable size of
                                the SCION path.

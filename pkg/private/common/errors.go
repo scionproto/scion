@@ -22,9 +22,10 @@ import (
 // ErrorMsger allows extracting the message from an error. This means a caller
 // can determine the type of error by comparing the returned message with a
 // const error string. E.g.:
-// if GetErrorMsg(err) == addr.ErrorBadHostAddrType {
-//    // Handle bad host addr error
-// }
+//
+//	if GetErrorMsg(err) == addr.ErrorBadHostAddrType {
+//	   // Handle bad host addr error
+//	}
 type ErrorMsger interface {
 	error
 	GetMsg() string
