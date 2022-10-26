@@ -43,7 +43,7 @@ load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_depe
 
 go_register_toolchains(
     nogo = "@//:nogo",
-    version = "1.18.5",
+    version = "1.19.2",
 )
 
 # Gazelle

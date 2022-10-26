@@ -51,8 +51,8 @@ func ParseUDPAddr(s string) (*UDPAddr, error) {
 // https://scion.docs.anapaya.net/en/latest/uri.html#scion-udp
 //
 // Examples:
-//  - [isd-as,ipv4]:port       (e.g., [1-ff00:0:110,192.0.2.1]:80)
-//  - [isd-as,ipv6%zone]:port  (e.g., [1-ff00:0:110,2001:DB8::1%zone]:80)
+//   - [isd-as,ipv4]:port       (e.g., [1-ff00:0:110,192.0.2.1]:80)
+//   - [isd-as,ipv6%zone]:port  (e.g., [1-ff00:0:110,2001:DB8::1%zone]:80)
 func parseUDPAddr(s string) (*UDPAddr, error) {
 	host, port, err := net.SplitHostPort(s)
 	if err != nil {
@@ -88,22 +88,22 @@ func parseUDPAddr(s string) (*UDPAddr, error) {
 // The supported legacy formats are:
 //
 // Recommended:
-//  - isd-as,ipv4:port        (e.g., 1-ff00:0:300,192.168.1.1:8080)
-//  - isd-as,[ipv6]:port      (e.g., 1-ff00:0:300,[f00d::1337]:8080)
-//  - isd-as,[ipv6%zone]:port (e.g., 1-ff00:0:300,[f00d::1337%zone]:8080)
+//   - isd-as,ipv4:port        (e.g., 1-ff00:0:300,192.168.1.1:8080)
+//   - isd-as,[ipv6]:port      (e.g., 1-ff00:0:300,[f00d::1337]:8080)
+//   - isd-as,[ipv6%zone]:port (e.g., 1-ff00:0:300,[f00d::1337%zone]:8080)
 //
 // Others:
-//  - isd-as,[ipv4]:port (e.g., 1-ff00:0:300,[192.168.1.1]:8080)
-//  - isd-as,[ipv4]      (e.g., 1-ff00:0:300,[192.168.1.1])
-//  - isd-as,[ipv6]      (e.g., 1-ff00:0:300,[f00d::1337])
-//  - isd-as,[ipv6%zone] (e.g., 1-ff00:0:300,[f00d::1337%zone])
-//  - isd-as,ipv4        (e.g., 1-ff00:0:300,192.168.1.1)
-//  - isd-as,ipv6        (e.g., 1-ff00:0:300,f00d::1337)
-//  - isd-as,ipv6%zone   (e.g., 1-ff00:0:300,f00d::1337%zone)
+//   - isd-as,[ipv4]:port (e.g., 1-ff00:0:300,[192.168.1.1]:8080)
+//   - isd-as,[ipv4]      (e.g., 1-ff00:0:300,[192.168.1.1])
+//   - isd-as,[ipv6]      (e.g., 1-ff00:0:300,[f00d::1337])
+//   - isd-as,[ipv6%zone] (e.g., 1-ff00:0:300,[f00d::1337%zone])
+//   - isd-as,ipv4        (e.g., 1-ff00:0:300,192.168.1.1)
+//   - isd-as,ipv6        (e.g., 1-ff00:0:300,f00d::1337)
+//   - isd-as,ipv6%zone   (e.g., 1-ff00:0:300,f00d::1337%zone)
 //
 // Not supported:
-//  - isd-as,ipv6:port    (caveat if ipv6:port builds a valid ipv6 address,
-//                         it will successfully parse as ipv6 without error)
+//   - isd-as,ipv6:port    (caveat if ipv6:port builds a valid ipv6 address,
+//     it will successfully parse as ipv6 without error)
 func parseUDPAddrLegacy(s string) (*UDPAddr, error) {
 	rawIA, rawHost, err := parseAddr(s)
 	if err != nil {

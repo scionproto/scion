@@ -26,6 +26,7 @@ type ControlRequest struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Types that are assignable to Request:
+	//
 	//	*ControlRequest_Probe
 	Request isControlRequest_Request `protobuf_oneof:"request"`
 }
@@ -92,6 +93,7 @@ type ControlResponse struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Types that are assignable to Response:
+	//
 	//	*ControlResponse_Probe
 	Response isControlResponse_Response `protobuf_oneof:"response"`
 }

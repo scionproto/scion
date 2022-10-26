@@ -19,32 +19,32 @@ used by packages that only need read access to the topology.
 
 The full JSON format for a SCION address looks like the following:
 
-  "Addrs":{
-    "IPv4": {
-      "Public": {
-        "Addr": "192.168.1.1",
-        "L4Port": 31000,
-        "OverlayPort": 30041,
-      },
-      "Bind": {
-        "Addr": "127.0.0.1",
-        "L4Port": 31000,
-        "OverlayPort": 30041,
-      }
-    },
-    "IPv6": {
-      "Public": {
-        "Addr": "2001:db8:f00:b43::1",
-        "L4Port": 31000,
-        "OverlayPort": 30041,
-      },
-      "Bind": {
-        "Addr": "2001:db8:f00:b43::1",
-        "L4Port": 31000,
-        "OverlayPort": 30041,
-      }
-    }
-  }
+	"Addrs":{
+	  "IPv4": {
+	    "Public": {
+	      "Addr": "192.168.1.1",
+	      "L4Port": 31000,
+	      "OverlayPort": 30041,
+	    },
+	    "Bind": {
+	      "Addr": "127.0.0.1",
+	      "L4Port": 31000,
+	      "OverlayPort": 30041,
+	    }
+	  },
+	  "IPv6": {
+	    "Public": {
+	      "Addr": "2001:db8:f00:b43::1",
+	      "L4Port": 31000,
+	      "OverlayPort": 30041,
+	    },
+	    "Bind": {
+	      "Addr": "2001:db8:f00:b43::1",
+	      "L4Port": 31000,
+	      "OverlayPort": 30041,
+	    }
+	  }
+	}
 
 Go applications parse the above in the following manner:
   - Properties not listed in the above are ignored;
@@ -60,24 +60,24 @@ Go applications parse the above in the following manner:
 
 The full JSON format for a BR data-plane AS-external underlay socket looks like the following:
 
-  {
-    "Overlay": "UDP/IPv4",
-    "ISD_AS": "1-ff00:0:1",
-    "Bandwidth": 1000,
-    "PublicOverlay": {
-      "Addr": "192.168.0.1",
-      "OverlayPort": 50000,
-    },
-    "BindOverlay": {
-      "Addr": "127.0.0.1",
-    },
-    "RemoteOverlay": {
-      "Addr": "192.168.0.2",
-      "OverlayPort": 50000,
-    },
-    "LinkTo": "CORE",
-    "MTU": 1472,
-  }
+	{
+	  "Overlay": "UDP/IPv4",
+	  "ISD_AS": "1-ff00:0:1",
+	  "Bandwidth": 1000,
+	  "PublicOverlay": {
+	    "Addr": "192.168.0.1",
+	    "OverlayPort": 50000,
+	  },
+	  "BindOverlay": {
+	    "Addr": "127.0.0.1",
+	  },
+	  "RemoteOverlay": {
+	    "Addr": "192.168.0.2",
+	    "OverlayPort": 50000,
+	  },
+	  "LinkTo": "CORE",
+	  "MTU": 1472,
+	}
 
 To construct a BR data-plane AS-external underlay socket address out of the above, the following
 rules are used:
@@ -97,29 +97,29 @@ rules are used:
   - If a port property is missing, it is assumed to be 0. The application is free to interpret this
     however it sees fit.
 
-
 The full JSON format for a BR data-plane AS-internal underlay socket address looks like the
 following:
-  {
-    "IPv4": {
-      "PublicOverlay": {
-        "Addr": "192.168.0.1",
-        "OverlayPort": 31000,
-      },
-      BindOverlay": {
-        "Addr": "127.0.0.1"
-      }
-    },
-    "IPv6": {
-      "PublicOverlay": {
-        "Addr": "2001:db8:f00:b43::1",
-        "OverlayPort": 31000
-      },
-      "BindOverlay": {
-        "Addr": "::1"
-      }
-    }
-  }
+
+	{
+	  "IPv4": {
+	    "PublicOverlay": {
+	      "Addr": "192.168.0.1",
+	      "OverlayPort": 31000,
+	    },
+	    BindOverlay": {
+	      "Addr": "127.0.0.1"
+	    }
+	  },
+	  "IPv6": {
+	    "PublicOverlay": {
+	      "Addr": "2001:db8:f00:b43::1",
+	      "OverlayPort": 31000
+	    },
+	    "BindOverlay": {
+	      "Addr": "::1"
+	    }
+	  }
+	}
 
 To construct a BR data-plane AS-internal underlay socket address out of the above, the following
 rules are used:

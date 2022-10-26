@@ -38,16 +38,16 @@ const expTimeUnit = MaxTTL / 256 // ~5m38s
 // HopField is the HopField used in the SCION and OneHop path types.
 //
 // The Hop Field has the following format:
-//    0                   1                   2                   3
-//    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |r r r r r r I E|    ExpTime    |           ConsIngress         |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |        ConsEgress             |                               |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               +
-//   |                              MAC                              |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|r r r r r r I E|    ExpTime    |           ConsIngress         |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|        ConsEgress             |                               |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               +
+//	|                              MAC                              |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 type HopField struct {
 	// IngressRouterAlert flag. If the IngressRouterAlert is set, the ingress router (in
 	// construction direction) will process the L4 payload in the packet.
@@ -72,14 +72,14 @@ type HopField struct {
 
 // DecodeFromBytes populates the fields from a raw buffer.
 // The buffer must be of length >= path.HopLen.
-//@ requires  len(raw) >= HopLen
+// @ requires  len(raw) >= HopLen
 // DecodeFromBytes modifies the fields of *h and reads (but does not modify) the contents of raw.
-//@ preserves acc(h) && acc(raw, 1/2)
+// @ preserves acc(h) && acc(raw, 1/2)
 // When a call that satisfies the precondition (len(raw) >= HopLen) is made,
 // the return value is guaranteed to be nil.
-//@ ensures   err == nil
+// @ ensures   err == nil
 // Calls to DecodeFromBytes are always guaranteed to terminate.
-//@ decreases
+// @ decreases
 func (h *HopField) DecodeFromBytes(raw []byte) (err error) {
 	if len(raw) < HopLen {
 		return serrors.New("HopField raw too short", "expected", HopLen, "actual", len(raw))
@@ -101,14 +101,14 @@ func (h *HopField) DecodeFromBytes(raw []byte) (err error) {
 
 // SerializeTo writes the fields into the provided buffer.
 // The buffer must be of length >= path.HopLen.
-//@ requires  len(b) >= HopLen
+// @ requires  len(b) >= HopLen
 // SerializeTo reads (but does not modify) the fields of *h and writes to the contents of b.
-//@ preserves acc(h, 1/2) && acc(b)
+// @ preserves acc(h, 1/2) && acc(b)
 // When a call that satisfies the precondition (len(b) >= HopLen) is made,
 // the return value is guaranteed to be nil.
-//@ ensures   err == nil
+// @ ensures   err == nil
 // Calls to SerializeTo are guaranteed to terminate.
-//@ decreases
+// @ decreases
 func (h *HopField) SerializeTo(b []byte) (err error) {
 	if len(b) < HopLen {
 		return serrors.New("buffer for HopField too short", "expected", MacLen, "actual", len(b))
@@ -138,9 +138,9 @@ func (h *HopField) SerializeTo(b []byte) (err error) {
 // Note that for a 0 value ExpTime, the minimal duration is expTimeUnit.
 // ExpTimeToDuration is pure: it does not modify any memory locations and
 // does not produce any side effects.
-//@ pure
+// @ pure
 // Calls to ExpTimeToDuration are guaranteed to always terminate.
-//@ decreases
+// @ decreases
 func ExpTimeToDuration(expTime uint8) time.Duration {
 	return (time.Duration(expTime) + 1) * time.Duration(expTimeUnit) * time.Second
 }

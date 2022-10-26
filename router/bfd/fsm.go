@@ -24,24 +24,24 @@ import (
 //
 // The state machine is defined in RFC 5880 as:
 //
-//                             +--+
-//                             |  | UP, ADMIN DOWN, TIMER
-//                             |  V
-//                     DOWN  +------+  INIT
-//              +------------|      |------------+
-//              |            | DOWN |            |
-//              |  +-------->|      |<--------+  |
-//              |  |         +------+         |  |
-//              |  |                          |  |
-//              |  |               ADMIN DOWN,|  |
-//              |  |ADMIN DOWN,          DOWN,|  |
-//              |  |TIMER                TIMER|  |
-//              V  |                          |  V
-//            +------+                      +------+
-//       +----|      |                      |      |----+
-//   DOWN|    | INIT |--------------------->|  UP  |    |INIT, UP
-//       +--->|      | INIT, UP             |      |<---+
-//            +------+                      +------+
+//	                          +--+
+//	                          |  | UP, ADMIN DOWN, TIMER
+//	                          |  V
+//	                  DOWN  +------+  INIT
+//	           +------------|      |------------+
+//	           |            | DOWN |            |
+//	           |  +-------->|      |<--------+  |
+//	           |  |         +------+         |  |
+//	           |  |                          |  |
+//	           |  |               ADMIN DOWN,|  |
+//	           |  |ADMIN DOWN,          DOWN,|  |
+//	           |  |TIMER                TIMER|  |
+//	           V  |                          |  V
+//	         +------+                      +------+
+//	    +----|      |                      |      |----+
+//	DOWN|    | INIT |--------------------->|  UP  |    |INIT, UP
+//	    +--->|      | INIT, UP             |      |<---+
+//	         +------+                      +------+
 //
 // This package implements the full-state machine, including a separate
 // state for Admin Down.
