@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"math"
 	"net"
 	"os"
@@ -57,6 +58,7 @@ func newPing(pather CommandPather) *cobra.Command {
 		timeout     time.Duration
 		tracer      string
 		epic        bool
+		format      string
 	}
 
 	var cmd = &cobra.Command{
@@ -90,6 +92,15 @@ On other errors, ping will exit with code 2.
 				return serrors.WrapStr("setting up tracing", err)
 			}
 			defer closer()
+			var cmdout io.Writer
+			switch flags.format {
+			case "human":
+				cmdout = os.Stdout
+			case "json", "yaml":
+				cmdout = io.Discard
+			default:
+				return serrors.New("format not supported", "format", flags.format)
+			}
 
 			cmd.SilenceUsage = true
 
@@ -172,9 +183,9 @@ On other errors, ping will exit with code 2.
 					return serrors.WrapStr("resolving local address", err)
 
 				}
-				fmt.Printf("Resolved local address:\n  %s\n", localIP)
+				fmt.Fprintf(cmdout, "Resolved local address:\n  %s\n", localIP)
 			}
-			fmt.Printf("Using path:\n  %s\n\n", path)
+			fmt.Fprintf(cmdout, "Using path:\n  %s\n\n", path)
 			span.SetTag("src.host", localIP)
 			local := &snet.UDPAddr{
 				IA:   info.IA,
@@ -205,7 +216,7 @@ On other errors, ping will exit with code 2.
 			if err != nil {
 				return err
 			}
-			fmt.Printf("PING %s pld=%dB scion_pkt=%dB\n", remote, pldSize, pktSize)
+			fmt.Fprintf(cmdout, "PING %s pld=%dB scion_pkt=%dB\n", remote, pldSize, pktSize)
 
 			start := time.Now()
 			ctx = app.WithSignal(traceCtx, os.Interrupt, syscall.SIGTERM)
@@ -213,6 +224,20 @@ On other errors, ping will exit with code 2.
 			if count == 0 {
 				count = math.MaxUint16
 			}
+
+			res := ping.Result{
+				ScionPacketSize: pktSize,
+				Path: ping.Path{
+					Expiry:      path.Metadata().Expiry,
+					Fingerprint: snet.Fingerprint(path).String(),
+					Hops:        snetpath.GetHops(path),
+					Latency:     path.Metadata().Latency,
+					Mtu:         int(path.Metadata().MTU),
+					NextHop:     path.UnderlayNextHop().String(),
+				},
+				PayloadSize: pldSize,
+			}
+
 			stats, err := ping.Run(ctx, ping.Config{
 				Dispatcher:  reliable.NewDispatcher(dispatcher),
 				Attempts:    count,
@@ -225,24 +250,50 @@ On other errors, ping will exit with code 2.
 					fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
 				},
 				UpdateHandler: func(update ping.Update) {
+					state := "success"
 					var additional string
 					switch update.State {
 					case ping.AfterTimeout:
 						additional = " state=After timeout"
+						state = "after_timeout"
 					case ping.OutOfOrder:
 						additional = " state=Out of Order"
+						state = "out_of_order"
 					case ping.Duplicate:
 						additional = " state=Duplicate"
+						state = "duplicate"
 					}
-					fmt.Fprintf(os.Stdout, "%d bytes from %s,%s: scmp_seq=%d time=%s%s\n",
+					res.Replies = append(res.Replies, ping.PingUpdate{
+						RoundTripTime:   update.RTT.String(),
+						ScionPacketSize: update.Size,
+						ScmpSeq:         update.Sequence,
+						SourceHost:      update.Source.Host.String(),
+						SourceIA:        update.Source.IA.String(),
+						State:           state,
+					})
+					fmt.Fprintf(cmdout, "%d bytes from %s,%s: scmp_seq=%d time=%s%s\n",
 						update.Size, update.Source.IA, update.Source.Host, update.Sequence,
 						update.RTT, additional)
 				},
 			})
-			pingSummary(stats, remote, time.Since(start))
+			pktLoss := pingSummary(stats, remote, time.Since(start), cmdout)
 			if err != nil {
 				return err
 			}
+			res.Statistics = ping.PingStatistics{
+				Received: stats.Received,
+				Sent:     stats.Sent,
+				Loss:     pktLoss,
+				Time:     time.Since(start),
+			}
+
+			switch flags.format {
+			case "json":
+				return res.JSON(os.Stdout)
+			case "yaml":
+				return res.YAML(os.Stdout)
+			}
+
 			if stats.Received == 0 {
 				return app.WithExitCode(serrors.New("no reply packet received"), 1)
 			}
@@ -266,7 +317,7 @@ the SCION path.`,
 	)
 	cmd.Flags().UintVar(&flags.pktSize, "packet-size", 0,
 		`number of bytes to be sent including the SCION Header and SCMP echo header,
-the desired size must provide enough space for the required headers. This flag 
+the desired size must provide enough space for the required headers. This flag
 overrides the 'payload_size' flag.`,
 	)
 	cmd.Flags().BoolVar(&flags.maxMTU, "max-mtu", false,
@@ -276,6 +327,8 @@ SCMP echo header and payload are equal to the MTU of the path. This flag overrid
 	cmd.Flags().StringVar(&flags.logLevel, "log.level", "", app.LogLevelUsage)
 	cmd.Flags().StringVar(&flags.tracer, "tracing.agent", "", "Tracing agent address")
 	cmd.Flags().BoolVar(&flags.epic, "epic", false, "Enable EPIC for path probing.")
+	cmd.Flags().StringVar(&flags.format, "format", "human",
+		"Specify the output format (human|json|yaml)")
 	return cmd
 }
 
@@ -287,12 +340,13 @@ func calcMaxPldSize(local, remote *snet.UDPAddr, mtu int) (int, error) {
 	return mtu - overhead, nil
 }
 
-func pingSummary(stats ping.Stats, remote *snet.UDPAddr, run time.Duration) {
+func pingSummary(stats ping.Stats, remote *snet.UDPAddr, run time.Duration, cmdout io.Writer) int {
 	var pktLoss int
 	if stats.Sent != 0 {
 		pktLoss = 100 - stats.Received*100/stats.Sent
 	}
-	fmt.Printf("\n--- %s,%s statistics ---\n", remote.IA, remote.Host.IP)
-	fmt.Printf("%d packets transmitted, %d received, %d%% packet loss, time %v\n",
-		stats.Sent, stats.Received, pktLoss, run.Round(time.Microsecond))
+	fmt.Fprintf(cmdout, "\n--- %s,%s statistics ---\n", remote.IA, remote.Host.IP)
+	fmt.Fprintf(cmdout, "%d packets transmitted, %d received, %d%% packet loss, time %v\n",
+		stats.Sent, stats.Received, stats.Loss, run.Round(time.Microsecond))
+	return pktLoss
 }

@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/path"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/pkg/sock/reliable"
 	"gopkg.in/yaml.v2"
@@ -58,9 +59,35 @@ type Stats struct {
 }
 
 type Result struct {
-	// LocalIA     addr.IA `json:"local_isd_as" yaml:"local_isd_as"`
-	// Destination addr.IA `json:"destination" yaml:"destination"`
-	Updates []Update `json:"updates,omitempty" yaml:"updates,omitempty"`
+	Path Path      `json:"path" yaml:"path"`
+	Hops []HopInfo `json:"hops" yaml:"hops"`
+}
+
+type HopInfo struct {
+	InterfaceID uint16 `json:"interface_id" yaml:"interface_id"`
+	// IP address of the router responding to the traceroute request.
+	IP             string          `json:"ip" yaml:"ip"`
+	IA             addr.IA         `json:"isd_as" yaml:"isd_as"`
+	RoundTripTimes []time.Duration `json:"round_trip_times" yaml:"round_trip_times"`
+}
+
+// Path defines model for Path.
+type Path struct {
+	// Expiration time of the path.
+	Expiry time.Time `json:"expiry" yaml:"expiry"`
+
+	// Hex-string representing the paths fingerprint.
+	Fingerprint string     `json:"fingerprint" yaml:"fingerprint"`
+	Hops        []path.Hop `json:"hops" yaml:"hops"`
+
+	// Optional array of latency measurements between any two consecutive interfaces. Entry i describes the latency between interface i and i+1.
+	Latency []time.Duration `json:"latency,omitempty" yaml:"latency,omitempty"`
+
+	// The maximum transmission unit in bytes for SCION packets. This represents the protocol data unit (PDU) of the SCION layer on this path.
+	Mtu int `json:"mtu" yaml:"mtu"`
+
+	// The internal UDP/IP underlay address of the SCION router that forwards traffic for this path.
+	NextHop string `json:"next_hop" yaml:"next_hop"`
 }
 
 // Config configures the traceroute run.
@@ -315,13 +342,37 @@ type scmpHandler struct {
 
 func (h scmpHandler) Handle(pkt *snet.Packet) error {
 	r, err := h.handle(pkt)
+	ip := make(net.IP, len(pkt.Source.Host.IP()))
+	copy(ip, pkt.Source.Host.IP())
+
+	var path snet.DataplanePath
+	switch p := pkt.Path.(type) {
+	case snetpath.SCION:
+		raw := make([]byte, len(p.Raw))
+		copy(raw, p.Raw)
+		path = snetpath.SCION{
+			Raw: raw,
+		}
+	case *snetpath.EPIC:
+		path = snetpath.CloneEICDataplanePath(p)
+	case snet.RawPath:
+		raw := make([]byte, len(p.Raw))
+		copy(raw, p.Raw)
+		path = snet.RawPath{
+			PathType: p.PathType,
+			Raw:      raw,
+		}
+	default:
+		return serrors.New("unknown type for packet Path", "type", common.TypeOf(pkt.Path))
+	}
+
 	h.replies <- reply{
 		Received: time.Now(),
 		Reply:    r,
 		Remote: &snet.UDPAddr{
 			IA:   pkt.Source.IA,
-			Host: &net.UDPAddr{IP: pkt.Source.Host.IP()},
-			Path: pkt.Path,
+			Host: &net.UDPAddr{IP: ip},
+			Path: path,
 		},
 		Error: err,
 	}
@@ -340,7 +391,7 @@ func (h scmpHandler) handle(pkt *snet.Packet) (snet.SCMPTracerouteReply, error) 
 	return r, nil
 }
 
-// JSON writes the showpaths result as a json object to the writer.
+// JSON writes the traceroute result as a json object to the writer.
 func (r Result) JSON(w io.Writer) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
@@ -348,7 +399,7 @@ func (r Result) JSON(w io.Writer) error {
 	return enc.Encode(r)
 }
 
-// JSON writes the showpaths result as a yaml object to the writer.
+// JSON writes the traceroute result as a yaml object to the writer.
 func (r Result) YAML(w io.Writer) error {
 	enc := yaml.NewEncoder(w)
 	return enc.Encode(r)

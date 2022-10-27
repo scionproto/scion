@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strings"
@@ -30,6 +31,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
+	snetpath "github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/flag"
@@ -55,7 +57,7 @@ func newTraceroute(pather CommandPather) *cobra.Command {
 	}
 
 	var cmd = &cobra.Command{
-		Use:     "traceroute [flags] <remote> TEST",
+		Use:     "traceroute [flags] <remote>",
 		Aliases: []string{"tr"},
 		Short:   "Trace the SCION route to a remote SCION AS using SCMP traceroute packets",
 		Example: fmt.Sprintf("  %[1]s traceroute 1-ff00:0:110,10.0.0.1", pather.CommandPath()),
@@ -80,9 +82,12 @@ On other errors, traceroute will exit with code 2.
 				return serrors.WrapStr("setting up tracing", err)
 			}
 			defer closer()
+			var cmdout io.Writer
 			switch flags.format {
-			case "human", "json", "yaml":
-				break
+			case "human":
+				cmdout = os.Stdout
+			case "json", "yaml":
+				cmdout = io.Discard
 			default:
 				return serrors.New("format not supported", "format", flags.format)
 			}
@@ -144,19 +149,28 @@ On other errors, traceroute will exit with code 2.
 				if localIP, err = addrutil.ResolveLocal(target); err != nil {
 					return serrors.WrapStr("resolving local address", err)
 				}
-				fmt.Printf("Resolved local address:\n  %s\n", localIP)
+				fmt.Fprintf(cmdout, "Resolved local address:\n  %s\n", localIP)
 			}
-			fmt.Printf("Using path:\n  %s\n\n", path)
+			fmt.Fprintf(cmdout, "Using path:\n  %s\n\n", path)
+
+			var res traceroute.Result
+			res.Path = traceroute.Path{
+				Expiry:      path.Metadata().Expiry,
+				Fingerprint: snet.Fingerprint(path).String(),
+				Hops:        snetpath.GetHops(path),
+				Latency:     path.Metadata().Latency,
+				Mtu:         int(path.Metadata().MTU),
+				NextHop:     path.UnderlayNextHop().String(),
+			}
+
 			span.SetTag("src.host", localIP)
 			local := &snet.UDPAddr{
 				IA:   info.IA,
 				Host: &net.UDPAddr{IP: localIP},
 			}
 			ctx = app.WithSignal(traceCtx, os.Interrupt, syscall.SIGTERM)
-			res := &traceroute.Result{
-				Updates: []traceroute.Update{},
-			}
 			var stats traceroute.Stats
+			var updates []traceroute.Update
 			cfg := traceroute.Config{
 				Dispatcher:   reliable.NewDispatcher(dispatcher),
 				Remote:       remote,
@@ -167,13 +181,9 @@ On other errors, traceroute will exit with code 2.
 				ProbesPerHop: 3,
 				ErrHandler:   func(err error) { fmt.Fprintf(os.Stderr, "ERROR: %s\n", err) },
 				UpdateHandler: func(u traceroute.Update) {
-					fmt.Printf("next hop: %s\n", u.Remote.NextHop)
-					fmt.Printf("IP: %s\n", u.Remote.Host.IP)
-					res.Updates = append(res.Updates, u)
-					if flags.format == "human" {
-						fmt.Printf("%d %s %s\n", u.Index, fmtRemote(u.Remote, u.Interface),
-							fmtRTTs(u.RTTs, flags.timeout))
-					}
+					updates = append(updates, u)
+					fmt.Fprintf(cmdout, "%d %s %s\n", u.Index, fmtRemote(u.Remote, u.Interface),
+						fmtRTTs(u.RTTs, flags.timeout))
 				},
 				EPIC: flags.epic,
 			}
@@ -184,6 +194,16 @@ On other errors, traceroute will exit with code 2.
 			if stats.Sent != stats.Recv {
 				return app.WithExitCode(serrors.New("packets were lost"), 1)
 			}
+			res.Hops = make([]traceroute.HopInfo, 0, len(updates))
+			for _, update := range updates {
+				res.Hops = append(res.Hops, traceroute.HopInfo{
+					InterfaceID:    uint16(update.Interface),
+					IP:             update.Remote.Host.IP.String(),
+					IA:             update.Remote.IA,
+					RoundTripTimes: update.RTTs,
+				})
+			}
+
 			switch flags.format {
 			case "json":
 				return res.JSON(os.Stdout)

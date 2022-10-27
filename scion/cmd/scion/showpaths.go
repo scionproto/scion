@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -82,9 +83,12 @@ On other errors, showpaths will exit with code 2.
 				return serrors.WrapStr("setting up tracing", err)
 			}
 			defer closer()
+			var cmdout io.Writer
 			switch flags.format {
-			case "human", "json", "yaml":
-				break
+			case "human":
+				cmdout = os.Stdout
+			case "json", "yaml":
+				cmdout = io.Discard
 			default:
 				return serrors.New("format not supported", "format", flags.format)
 			}
@@ -118,14 +122,14 @@ On other errors, showpaths will exit with code 2.
 			switch flags.format {
 			case "human":
 				if res.IsLocal() {
-					fmt.Fprintf(os.Stdout, "Empty path, destination is local AS %s\n", res.Destination)
+					fmt.Fprintf(cmdout, "Empty path, destination is local AS %s\n", res.Destination)
 					return nil
 				}
-				fmt.Fprintln(os.Stdout, "Available paths to", res.Destination)
+				fmt.Fprintln(cmdout, "Available paths to", res.Destination)
 				if len(res.Paths) == 0 {
 					return app.WithExitCode(serrors.New("no path found"), 1)
 				}
-				res.Human(os.Stdout, flags.extended, !flags.noColor)
+				res.Human(cmdout, flags.extended, !flags.noColor)
 				if res.Alive() == 0 && !flags.cfg.NoProbe {
 					return app.WithExitCode(serrors.New("no path alive"), 1)
 				}

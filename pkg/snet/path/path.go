@@ -38,6 +38,11 @@ type Path struct {
 	Meta          snet.PathMetadata
 }
 
+type Hop struct {
+	Interface int    `json:"interface" yaml:"interface"`
+	IA        string `json:"isd_as" yaml:"isd_as"`
+}
+
 func (p Path) UnderlayNextHop() *net.UDPAddr {
 	if p.NextHop == nil {
 		return nil
@@ -85,5 +90,18 @@ func fmtInterfaces(ifaces []snet.PathInterface) []string {
 	}
 	intf = ifaces[len(ifaces)-1]
 	hops = append(hops, fmt.Sprintf("%d %s", intf.ID, intf.IA))
+	return hops
+}
+
+func GetHops(path snet.Path) []Hop {
+	ifaces := path.Metadata().Interfaces
+	var hops []Hop
+	if len(ifaces) == 0 {
+		return hops
+	}
+	for i := range ifaces {
+		intf := ifaces[i]
+		hops = append(hops, Hop{IA: intf.IA.String(), Interface: int(intf.ID)})
+	}
 	return hops
 }

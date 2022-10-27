@@ -18,6 +18,8 @@ package ping
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
+	"io"
 	"math/rand"
 	"net"
 	"time"
@@ -27,14 +29,17 @@ import (
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/private/topology/underlay"
+	"gopkg.in/yaml.v2"
 )
 
 // Stats contains the statistics of a ping run.
 type Stats struct {
 	Sent     int
 	Received int
+	Loss     int
 }
 
 // Update contains intermediary information about a received echo reply
@@ -78,6 +83,58 @@ type Config struct {
 	// Update handler is invoked for every ping reply. Execution time must be
 	// small, as it is run synchronously.
 	UpdateHandler func(Update)
+}
+
+type Result struct {
+	Path            Path           `json:"path" yaml:"path"`
+	PayloadSize     int            `json:"payload_size" yaml:"payload_size"`
+	ScionPacketSize int            `json:"scion_packet_size" yaml:"scion_packet_size"`
+	Replies         []PingUpdate   `json:"replies" yaml:"replies"`
+	Statistics      PingStatistics `json:"statistics" yaml:"statistics"`
+}
+
+type PingStatistics struct {
+	Sent     int           `json:"sent" yaml:"sent"`
+	Received int           `json:"received" yaml:"received"`
+	Loss     int           `json:"packet_loss" yaml:"packet_loss"`
+	Time     time.Duration `json:"time" yaml:"time"`
+}
+
+// Path defines model for Path.
+type Path struct {
+	// Expiration time of the path.
+	Expiry time.Time `json:"expiry" yaml:"expiry"`
+
+	// Hex-string representing the paths fingerprint.
+	Fingerprint string     `json:"fingerprint" yaml:"fingerprint"`
+	Hops        []path.Hop `json:"hops" yaml:"hops"`
+
+	// Optional array of latency measurements between any two consecutive interfaces. Entry i describes the latency between interface i and i+1.
+	Latency []time.Duration `json:"latency,omitempty" yaml:"latency,omitempty"`
+
+	// The maximum transmission unit in bytes for SCION packets. This represents the protocol data unit (PDU) of the SCION layer on this path.
+	Mtu int `json:"mtu" yaml:"mtu"`
+
+	// The internal UDP/IP underlay address of the SCION router that forwards traffic for this path.
+	NextHop string `json:"next_hop" yaml:"next_hop"`
+}
+
+// PingRun defines model for PingRun.
+type PingUpdate struct {
+	RoundTripTime string `json:"round_trip_time" yaml:"round_trip_time"`
+
+	// Size of the entire SCION packet in bytes. This includes the SCION common header, and the SCION path header.
+	ScionPacketSize int `json:"scion_packet_size" yaml:"scion_packet_size"`
+
+	// SCMP sequence number
+	ScmpSeq int `json:"scmp_seq" yaml:"scmp_seq"`
+
+	// Source host address
+	SourceHost string `json:"source_host" yaml:"source_host"`
+	SourceIA   string `json:"source_isd_as" yaml:"source_isd_as"`
+
+	// Status describing the outcome of a ping response.
+	State string `json:"state" yaml:"state"`
 }
 
 // Run ping with the configuration. This blocks until the configured number
@@ -323,4 +380,18 @@ func (h scmpHandler) handle(pkt *snet.Packet) (snet.SCMPEchoReply, error) {
 			"expected", h.id, "actual", r.Identifier)
 	}
 	return r, nil
+}
+
+// JSON writes the ping result as a json object to the writer.
+func (r Result) JSON(w io.Writer) error {
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	return enc.Encode(r)
+}
+
+// JSON writes the ping result as a yaml object to the writer.
+func (r Result) YAML(w io.Writer) error {
+	enc := yaml.NewEncoder(w)
+	return enc.Encode(r)
 }

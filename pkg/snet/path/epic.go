@@ -47,6 +47,19 @@ func NewEPICDataplanePath(p SCION, auths snet.EpicAuths) (*EPIC, error) {
 	return epicPath, nil
 }
 
+func CloneEICDataplanePath(p *EPIC) *EPIC {
+	res := &EPIC{}
+	res.AuthPHVF = make([]byte, len(p.AuthPHVF))
+	copy(res.AuthPHVF, p.AuthPHVF)
+	res.AuthLHVF = make([]byte, len(p.AuthLHVF))
+	copy(res.AuthLHVF, p.AuthLHVF)
+	res.SCION = make([]byte, len(p.SCION))
+	copy(res.SCION, p.SCION)
+	res.counter = p.counter
+	res.mu = sync.Mutex{}
+	return res
+}
+
 func (e *EPIC) SetPath(s *slayers.SCION) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()

@@ -17,5 +17,6 @@ go_library(
         "//pkg/snet/path:go_default_library",
         "//pkg/sock/reliable:go_default_library",
         "//private/topology/underlay:go_default_library",
+        "@in_gopkg_yaml_v2//:go_default_library",
     ],
 )
