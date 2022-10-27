@@ -74,6 +74,8 @@ and reports back the statistics.
 When the \--healthy-only option is set, ping first determines healthy paths through probing and
 chooses amongst them.
 
+'ping' can be instructed to output the paths in a specific format using the \--format flag.
+
 If no reply packet is received at all, ping will exit with code 1.
 On other errors, ping will exit with code 2.
 
@@ -288,15 +290,16 @@ On other errors, ping will exit with code 2.
 			}
 
 			switch flags.format {
+			case "human":
+				if stats.Received == 0 {
+					return app.WithExitCode(serrors.New("no reply packet received"), 1)
+				}
 			case "json":
 				return res.JSON(os.Stdout)
 			case "yaml":
 				return res.YAML(os.Stdout)
 			}
 
-			if stats.Received == 0 {
-				return app.WithExitCode(serrors.New("no reply packet received"), 1)
-			}
 			return nil
 		},
 	}

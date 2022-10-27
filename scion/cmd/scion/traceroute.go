@@ -64,6 +64,8 @@ func newTraceroute(pather CommandPather) *cobra.Command {
 		Long: fmt.Sprintf(`'traceroute' traces the SCION path to a remote AS using
 SCMP traceroute packets.
 
+'showpaths' can be instructed to output the paths in a specific format using the \--format flag.
+
 If any packet is dropped, traceroute will exit with code 1.
 On other errors, traceroute will exit with code 2.
 %s`, app.SequenceHelp),
@@ -191,9 +193,6 @@ On other errors, traceroute will exit with code 2.
 			if err != nil {
 				return err
 			}
-			if stats.Sent != stats.Recv {
-				return app.WithExitCode(serrors.New("packets were lost"), 1)
-			}
 			res.Hops = make([]traceroute.HopInfo, 0, len(updates))
 			for _, update := range updates {
 				res.Hops = append(res.Hops, traceroute.HopInfo{
@@ -205,6 +204,10 @@ On other errors, traceroute will exit with code 2.
 			}
 
 			switch flags.format {
+			case "human":
+				if stats.Sent != stats.Recv {
+					return app.WithExitCode(serrors.New("packets were lost"), 1)
+				}
 			case "json":
 				return res.JSON(os.Stdout)
 			case "yaml":
