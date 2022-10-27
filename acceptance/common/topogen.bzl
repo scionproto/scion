@@ -1,5 +1,5 @@
 load("//tools/lint:py.bzl", "py_binary", "py_library", "py_test")
-load("@pip3_deps//:requirements.bzl", "requirement")
+load("@com_github_scionproto_scion_python_deps//:requirements.bzl", "requirement")
 
 def topogen_test(
         name,
@@ -33,6 +33,7 @@ def topogen_test(
         name = "%s_lib" % name,
         srcs = [src],
         deps = [
+            requirement("pyyaml"),
             requirement("plumbum"),
             "//acceptance/common:base",
             "//acceptance/common:log",
@@ -47,7 +48,7 @@ def topogen_test(
         "--topo=$(location %s)" % topo,
     ]
     if gateway:
-        common_args += ["--setup-params='--sig'"]
+        common_args.append("--setup-params='--sig'")
 
     common_data = [
         "//scion-pki/cmd/scion-pki",
@@ -100,6 +101,8 @@ def topogen_test(
         env = {
             # Ensure output appears immediately (in particular with --test_output=streamed)
             "PYTHONUNBUFFERED": "1",
+            # Ensure that unicode output can be printed to the log/console
+            "PYTHONIOENCODING": "utf-8",
         },
     )
 

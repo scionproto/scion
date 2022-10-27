@@ -34,7 +34,7 @@ gen_bazel_test_steps() {
           s#:test##
           s#:go_default_test##
           s#^acceptance/#AT: #
-          s#^demo/\(.*\):.*#Demo: \1#
+          s#^demo/\([^:]*\).*#Demo: \1#
           s#\(.*\):go_integration_test$#IT: \1#
           s#tools/cryptoplayground:\(.*\)_test#AT: \1#
         ')

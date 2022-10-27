@@ -87,7 +87,7 @@ type BatchConn interface {
 //
 // XXX(lukedirtwalker): this is still in development and not feature complete.
 // Currently, only the following features are supported:
-//  - initializing connections; MUST be done prior to calling Run
+//   - initializing connections; MUST be done prior to calling Run
 type DataPlane struct {
 	external          map[uint16]BatchConn
 	linkTypes         map[uint16]topology.LinkType

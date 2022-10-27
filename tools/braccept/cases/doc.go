@@ -47,6 +47,5 @@ Step 3. In the braccept/main.go, include the above function
 
 Step 4. Do a local run, which means set up a working router and execute the
 braccept.
-
 */
 package cases

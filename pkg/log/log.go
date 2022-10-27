@@ -155,7 +155,8 @@ type httpLevel struct {
 //
 // GET requests return a JSON description of the current logging level.
 // PUT requests change the logging level and expect a payload like:
-//   {"level":"info"}
+//
+//	{"level":"info"}
 func (l httpLevel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	type errorResponse struct {
 		Error string `json:"error"`

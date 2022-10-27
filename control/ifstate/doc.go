@@ -15,19 +15,19 @@
 // Package ifstate implements the interface state in memory structure as well
 // as related tasks and handlers.
 //
-// Interface state
+// # Interface state
 //
 // The interface state is stored in the Interfaces struct it can be created by
 // calling the NewInterfaces constructor. The state of a specific interface is
 // stored in the Interface struct.
 //
-// Revoker
+// # Revoker
 //
 // The revoker is a periodic task that revokes interfaces that have timed out
 // and renews revocations of already revoked interfaces. Create it with the
 // NewRevoker costructor.
 //
-// Handler
+// # Handler
 //
 // The handler handles interface state requests. It can be instantiated with
 // the NewHandler constructor.

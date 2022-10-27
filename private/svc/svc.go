@@ -44,11 +44,11 @@ const (
 //
 // RequestHandler results during connection read operations are handled in the
 // following way:
-//  - on error result, the error is sent back to the reader
-//  - on forwarding result, the packet is sent back to the app for processing.
-//  - on handled result, the packet is discarded after processing, and a new
-//  read is attempted from the connection, and the entire decision process
-//  repeats.
+//   - on error result, the error is sent back to the reader
+//   - on forwarding result, the packet is sent back to the app for processing.
+//   - on handled result, the packet is discarded after processing, and a new
+//     read is attempted from the connection, and the entire decision process
+//     repeats.
 func NewResolverPacketDispatcher(d snet.PacketDispatcherService,
 	h RequestHandler) *ResolverPacketDispatcher {
 

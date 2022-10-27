@@ -1,4 +1,4 @@
-load("@pip3_deps//:requirements.bzl", "requirement")
+load("@com_github_scionproto_scion_python_deps//:requirements.bzl", "requirement")
 load("//tools/lint:py.bzl", "py_library", "py_test")
 
 package(default_visibility = ["//visibility:public"])
