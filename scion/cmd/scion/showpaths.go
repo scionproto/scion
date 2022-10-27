@@ -154,7 +154,7 @@ On other errors, showpaths will exit with code 2.
 	cmd.Flags().BoolVarP(&flags.json, "json", "j", false,
 		"Write the output as machine readable json")
 	cmd.Flags().StringVar(&flags.format, "format", "human",
-		"Specify the output format (json|yaml)")
+		"Specify the output format (human|json|yaml)")
 	cmd.Flags().BoolVar(&flags.noColor, "no-color", false, "disable colored output")
 	cmd.Flags().StringVar(&flags.logLevel, "log.level", "", app.LogLevelUsage)
 	cmd.Flags().StringVar(&flags.tracer, "tracing.agent", "", "Tracing agent address")

@@ -17,6 +17,8 @@ package traceroute
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"math/rand"
 	"net"
 	"time"
@@ -29,6 +31,7 @@ import (
 	"github.com/scionproto/scion/pkg/snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/pkg/sock/reliable"
+	"gopkg.in/yaml.v2"
 )
 
 // Update contains the information for a single hop.
@@ -52,6 +55,12 @@ func (u Update) empty() bool {
 // Stats contains the amount of sent and received packets.
 type Stats struct {
 	Sent, Recv uint
+}
+
+type Result struct {
+	// LocalIA     addr.IA `json:"local_isd_as" yaml:"local_isd_as"`
+	// Destination addr.IA `json:"destination" yaml:"destination"`
+	Updates []Update `json:"updates,omitempty" yaml:"updates,omitempty"`
 }
 
 // Config configures the traceroute run.
@@ -329,4 +338,18 @@ func (h scmpHandler) handle(pkt *snet.Packet) (snet.SCMPTracerouteReply, error) 
 			"type", common.TypeOf(pkt.Payload))
 	}
 	return r, nil
+}
+
+// JSON writes the showpaths result as a json object to the writer.
+func (r Result) JSON(w io.Writer) error {
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	return enc.Encode(r)
+}
+
+// JSON writes the showpaths result as a yaml object to the writer.
+func (r Result) YAML(w io.Writer) error {
+	enc := yaml.NewEncoder(w)
+	return enc.Encode(r)
 }

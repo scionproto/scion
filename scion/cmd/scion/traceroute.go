@@ -51,10 +51,11 @@ func newTraceroute(pather CommandPather) *cobra.Command {
 		timeout     time.Duration
 		tracer      string
 		epic        bool
+		format      string
 	}
 
 	var cmd = &cobra.Command{
-		Use:     "traceroute [flags] <remote>",
+		Use:     "traceroute [flags] <remote> TEST",
 		Aliases: []string{"tr"},
 		Short:   "Trace the SCION route to a remote SCION AS using SCMP traceroute packets",
 		Example: fmt.Sprintf("  %[1]s traceroute 1-ff00:0:110,10.0.0.1", pather.CommandPath()),
@@ -79,6 +80,12 @@ On other errors, traceroute will exit with code 2.
 				return serrors.WrapStr("setting up tracing", err)
 			}
 			defer closer()
+			switch flags.format {
+			case "human", "json", "yaml":
+				break
+			default:
+				return serrors.New("format not supported", "format", flags.format)
+			}
 
 			cmd.SilenceUsage = true
 
@@ -146,6 +153,9 @@ On other errors, traceroute will exit with code 2.
 				Host: &net.UDPAddr{IP: localIP},
 			}
 			ctx = app.WithSignal(traceCtx, os.Interrupt, syscall.SIGTERM)
+			res := &traceroute.Result{
+				Updates: []traceroute.Update{},
+			}
 			var stats traceroute.Stats
 			cfg := traceroute.Config{
 				Dispatcher:   reliable.NewDispatcher(dispatcher),
@@ -157,8 +167,13 @@ On other errors, traceroute will exit with code 2.
 				ProbesPerHop: 3,
 				ErrHandler:   func(err error) { fmt.Fprintf(os.Stderr, "ERROR: %s\n", err) },
 				UpdateHandler: func(u traceroute.Update) {
-					fmt.Printf("%d %s %s\n", u.Index, fmtRemote(u.Remote, u.Interface),
-						fmtRTTs(u.RTTs, flags.timeout))
+					fmt.Printf("next hop: %s\n", u.Remote.NextHop)
+					fmt.Printf("IP: %s\n", u.Remote.Host.IP)
+					res.Updates = append(res.Updates, u)
+					if flags.format == "human" {
+						fmt.Printf("%d %s %s\n", u.Index, fmtRemote(u.Remote, u.Interface),
+							fmtRTTs(u.RTTs, flags.timeout))
+					}
 				},
 				EPIC: flags.epic,
 			}
@@ -168,6 +183,12 @@ On other errors, traceroute will exit with code 2.
 			}
 			if stats.Sent != stats.Recv {
 				return app.WithExitCode(serrors.New("packets were lost"), 1)
+			}
+			switch flags.format {
+			case "json":
+				return res.JSON(os.Stdout)
+			case "yaml":
+				return res.YAML(os.Stdout)
 			}
 			return nil
 		},
@@ -182,6 +203,8 @@ On other errors, traceroute will exit with code 2.
 	cmd.Flags().StringVar(&flags.logLevel, "log.level", "", app.LogLevelUsage)
 	cmd.Flags().StringVar(&flags.tracer, "tracing.agent", "", "Tracing agent address")
 	cmd.Flags().BoolVar(&flags.epic, "epic", false, "Enable EPIC.")
+	cmd.Flags().StringVar(&flags.format, "format", "human",
+		"Specify the output format (human|json|yaml)")
 	return cmd
 }
 
