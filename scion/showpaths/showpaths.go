@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/app/path"
 	"github.com/scionproto/scion/private/app/path/pathprobe"
+	"github.com/scionproto/scion/private/path/pathpol"
 	"gopkg.in/yaml.v2"
 )
 
@@ -48,6 +49,7 @@ type Path struct {
 	FullPath    snet.Path       `json:"-" yaml:"-"`
 	Fingerprint string          `json:"fingerprint" yaml:"fingerprint"`
 	Hops        []Hop           `json:"hops" yaml:"hops"`
+	Sequence    string          `json:"hops_sequence" yaml:"hops_sequence"`
 	NextHop     string          `json:"next_hop" yaml:"next_hop"`
 	Expiry      time.Time       `json:"expiry" yaml:"expiry"`
 	MTU         uint16          `json:"mtu" yaml:"mtu"`
@@ -411,6 +413,11 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 			rpath.StatusInfo = status.AdditionalInfo
 			rpath.Local = status.LocalIP
 		}
+		seq, err := pathpol.GetSequence(path)
+		if err != nil {
+			continue
+		}
+		rpath.Sequence = seq
 		res.Paths = append(res.Paths, rpath)
 	}
 	return res, nil

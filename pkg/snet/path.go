@@ -70,9 +70,9 @@ type Path interface {
 // PathInterface is an interface of the path.
 type PathInterface struct {
 	// ID is the ID of the interface.
-	ID common.IFIDType
+	ID common.IFIDType `json:"interface" yaml:"interface"`
 	// IA is the ISD AS identifier of the interface.
-	IA addr.IA
+	IA addr.IA `json:"isd_as" yaml:"isd_as"`
 }
 
 func (iface PathInterface) String() string {

@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
-	"github.com/scionproto/scion/pkg/snet/path"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/pkg/sock/reliable"
 	"gopkg.in/yaml.v2"
@@ -77,12 +76,14 @@ type Path struct {
 	Expiry time.Time `json:"expiry" yaml:"expiry"`
 
 	// Hex-string representing the paths fingerprint.
-	Fingerprint string     `json:"fingerprint" yaml:"fingerprint"`
-	Hops        []path.Hop `json:"hops" yaml:"hops"`
+	Fingerprint string               `json:"fingerprint" yaml:"fingerprint"`
+	Hops        []snet.PathInterface `json:"hops" yaml:"hops"`
+	Sequence    string               `json:"hops_sequence" yaml:"hops_sequence"`
 
 	// Optional array of latency measurements between any two consecutive interfaces. Entry i
 	// describes the latency between interface i and i+1.
 	Latency []time.Duration `json:"latency,omitempty" yaml:"latency,omitempty"`
+	LocalIp net.IP          `json:"local_ip,omitempty" yaml:"local_ip,omitempty"`
 
 	// The maximum transmission unit in bytes for SCION packets. This represents the protocol data
 	// unit (PDU) of the SCION layer on this path.

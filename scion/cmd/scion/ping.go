@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math"
@@ -25,6 +26,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/log"
@@ -36,9 +38,49 @@ import (
 	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/flag"
 	"github.com/scionproto/scion/private/app/path"
+	"github.com/scionproto/scion/private/path/pathpol"
 	"github.com/scionproto/scion/private/tracing"
 	"github.com/scionproto/scion/scion/ping"
 )
+
+type Result struct {
+	Path            Path         `json:"path" yaml:"path"`
+	PayloadSize     int          `json:"payload_size" yaml:"payload_size"`
+	ScionPacketSize int          `json:"scion_packet_size" yaml:"scion_packet_size"`
+	Replies         []PingUpdate `json:"replies" yaml:"replies"`
+	Statistics      ping.Stats   `json:"statistics" yaml:"statistics"`
+}
+
+// Path defines model for Path.
+type Path struct {
+	// Expiration time of the path.
+	Expiry time.Time `json:"expiry" yaml:"expiry"`
+
+	// Hex-string representing the paths fingerprint.
+	Fingerprint string               `json:"fingerprint" yaml:"fingerprint"`
+	Hops        []snet.PathInterface `json:"hops" yaml:"hops"`
+	Sequence    string               `json:"hops_sequence" yaml:"hops_sequence"`
+
+	// Optional array of latency measurements between any two consecutive interfaces. Entry i
+	// describes the latency between interface i and i+1.
+	Latency []time.Duration `json:"latency,omitempty" yaml:"latency,omitempty"`
+	LocalIp net.IP          `json:"local_ip,omitempty" yaml:"local_ip,omitempty"`
+
+	// The maximum transmission unit in bytes for SCION packets. This represents the protocol data
+	// unit (PDU) of the SCION layer on this path.
+	Mtu int `json:"mtu" yaml:"mtu"`
+
+	// The internal UDP/IP underlay address of the SCION router that forwards traffic for this path.
+	NextHop string `json:"next_hop" yaml:"next_hop"`
+}
+
+type PingUpdate struct {
+	Size     int           `json:"scion_packet_size" yaml:"scion_packet_size"`
+	Source   string        `json:"source_isd_as" yaml:"source_isd_as"`
+	Sequence int           `json:"scmp_seq" yaml:"scmp_seq"`
+	RTT      time.Duration `json:"round_trip_time" yaml:"round_trip_time"`
+	State    string        `json:"state" yaml:"state"`
+}
 
 func newPing(pather CommandPather) *cobra.Command {
 	var envFlags flag.SCIONEnvironment
@@ -227,13 +269,19 @@ On other errors, ping will exit with code 2.
 				count = math.MaxUint16
 			}
 
-			res := ping.Result{
+			seq, err := pathpol.GetSequence(path)
+			if err != nil {
+				return serrors.New("get sequence from used path")
+			}
+			res := Result{
 				ScionPacketSize: pktSize,
-				Path: ping.Path{
+				Path: Path{
 					Expiry:      path.Metadata().Expiry,
 					Fingerprint: snet.Fingerprint(path).String(),
 					Hops:        snetpath.GetHops(path),
+					Sequence:    seq,
 					Latency:     path.Metadata().Latency,
+					LocalIp:     localIP,
 					Mtu:         int(path.Metadata().MTU),
 					NextHop:     path.UnderlayNextHop().String(),
 				},
@@ -252,42 +300,33 @@ On other errors, ping will exit with code 2.
 					fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
 				},
 				UpdateHandler: func(update ping.Update) {
-					state := "success"
 					var additional string
 					switch update.State {
 					case ping.AfterTimeout:
 						additional = " state=After timeout"
-						state = "after_timeout"
 					case ping.OutOfOrder:
 						additional = " state=Out of Order"
-						state = "out_of_order"
 					case ping.Duplicate:
 						additional = " state=Duplicate"
-						state = "duplicate"
 					}
-					res.Replies = append(res.Replies, ping.PingUpdate{
-						RoundTripTime:   update.RTT.String(),
-						ScionPacketSize: update.Size,
-						ScmpSeq:         update.Sequence,
-						SourceHost:      update.Source.Host.String(),
-						SourceIA:        update.Source.IA.String(),
-						State:           state,
+					res.Replies = append(res.Replies, PingUpdate{
+						Size:     update.Size,
+						Source:   update.Source.String(),
+						Sequence: update.Sequence,
+						RTT:      update.RTT,
+						State:    update.State.String(),
 					})
 					fmt.Fprintf(cmdout, "%d bytes from %s,%s: scmp_seq=%d time=%s%s\n",
 						update.Size, update.Source.IA, update.Source.Host, update.Sequence,
 						update.RTT, additional)
 				},
 			})
-			pktLoss := pingSummary(stats, remote, time.Since(start), cmdout)
+			processRTTs(&stats, res.Replies)
+			pingSummary(&stats, remote, time.Since(start), cmdout)
 			if err != nil {
 				return err
 			}
-			res.Statistics = ping.PingStatistics{
-				Received: stats.Received,
-				Sent:     stats.Sent,
-				Loss:     pktLoss,
-				Time:     time.Since(start),
-			}
+			res.Statistics = stats
 
 			switch flags.format {
 			case "human":
@@ -343,13 +382,62 @@ func calcMaxPldSize(local, remote *snet.UDPAddr, mtu int) (int, error) {
 	return mtu - overhead, nil
 }
 
-func pingSummary(stats ping.Stats, remote *snet.UDPAddr, run time.Duration, cmdout io.Writer) int {
-	var pktLoss int
+func pingSummary(stats *ping.Stats, remote *snet.UDPAddr, run time.Duration, cmdout io.Writer) {
 	if stats.Sent != 0 {
-		pktLoss = 100 - stats.Received*100/stats.Sent
+		stats.Loss = 100 - stats.Received*100/stats.Sent
 	}
+	stats.Time = run
 	fmt.Fprintf(cmdout, "\n--- %s,%s statistics ---\n", remote.IA, remote.Host.IP)
 	fmt.Fprintf(cmdout, "%d packets transmitted, %d received, %d%% packet loss, time %v\n",
-		stats.Sent, stats.Received, stats.Loss, run.Round(time.Microsecond))
-	return pktLoss
+		stats.Sent, stats.Received, stats.Loss, stats.Time.Round(time.Microsecond))
+	if stats.Received != 0 {
+		fmt.Fprintf(cmdout, "rtt min/avg/max/mdev = %v/%v/%v/%v\n",
+			stats.MinRTT.Round(time.Microsecond),
+			stats.AvgRTT.Round(time.Microsecond),
+			stats.MaxRTT.Round(time.Microsecond),
+			stats.MdevRTT.Round(time.Microsecond),
+		)
+	}
+}
+
+// processRTTs computes the min, average, max and standard deviation of the update RTTs
+func processRTTs(stats *ping.Stats, replies []PingUpdate) {
+	if len(replies) == 0 {
+		return
+	}
+	stats.MinRTT = replies[0].RTT
+	stats.MaxRTT = replies[0].RTT
+	var sum time.Duration
+	for i := 0; i < len(replies); i++ {
+		if replies[i].RTT < stats.MinRTT {
+			stats.MinRTT = replies[i].RTT
+		}
+		if replies[i].RTT > stats.MaxRTT {
+			stats.MaxRTT = replies[i].RTT
+		}
+		sum += replies[i].RTT
+	}
+	stats.AvgRTT = time.Duration(int(sum.Nanoseconds()) / len(replies))
+
+	// standard deviation
+	var sd float64
+	for i := 0; i < len(replies); i++ {
+		sd += math.Pow(float64(replies[i].RTT)-float64(stats.AvgRTT), 2)
+	}
+	stats.MdevRTT = time.Duration(math.Sqrt(sd / float64(len(replies))))
+
+}
+
+// JSON writes the ping result as a json object to the writer.
+func (r Result) JSON(w io.Writer) error {
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	return enc.Encode(r)
+}
+
+// JSON writes the ping result as a yaml object to the writer.
+func (r Result) YAML(w io.Writer) error {
+	enc := yaml.NewEncoder(w)
+	return enc.Encode(r)
 }

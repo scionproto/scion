@@ -36,6 +36,7 @@ import (
 	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/flag"
 	"github.com/scionproto/scion/private/app/path"
+	"github.com/scionproto/scion/private/path/pathpol"
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/tracing"
 	"github.com/scionproto/scion/scion/traceroute"
@@ -155,12 +156,18 @@ On other errors, traceroute will exit with code 2.
 			}
 			fmt.Fprintf(cmdout, "Using path:\n  %s\n\n", path)
 
+			seq, err := pathpol.GetSequence(path)
+			if err != nil {
+				return serrors.New("get sequence from used path")
+			}
 			var res traceroute.Result
 			res.Path = traceroute.Path{
 				Expiry:      path.Metadata().Expiry,
 				Fingerprint: snet.Fingerprint(path).String(),
 				Hops:        snetpath.GetHops(path),
+				Sequence:    seq,
 				Latency:     path.Metadata().Latency,
+				LocalIp:     localIP,
 				Mtu:         int(path.Metadata().MTU),
 				NextHop:     path.UnderlayNextHop().String(),
 			}
