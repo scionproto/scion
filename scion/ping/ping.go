@@ -109,10 +109,12 @@ type Path struct {
 	Fingerprint string     `json:"fingerprint" yaml:"fingerprint"`
 	Hops        []path.Hop `json:"hops" yaml:"hops"`
 
-	// Optional array of latency measurements between any two consecutive interfaces. Entry i describes the latency between interface i and i+1.
+	// Optional array of latency measurements between any two consecutive interfaces. Entry i
+	// describes the latency between interface i and i+1.
 	Latency []time.Duration `json:"latency,omitempty" yaml:"latency,omitempty"`
 
-	// The maximum transmission unit in bytes for SCION packets. This represents the protocol data unit (PDU) of the SCION layer on this path.
+	// The maximum transmission unit in bytes for SCION packets. This represents the protocol data
+	// unit (PDU) of the SCION layer on this path.
 	Mtu int `json:"mtu" yaml:"mtu"`
 
 	// The internal UDP/IP underlay address of the SCION router that forwards traffic for this path.
@@ -123,7 +125,8 @@ type Path struct {
 type PingUpdate struct {
 	RoundTripTime string `json:"round_trip_time" yaml:"round_trip_time"`
 
-	// Size of the entire SCION packet in bytes. This includes the SCION common header, and the SCION path header.
+	// Size of the entire SCION packet in bytes. This includes the SCION common header, and the
+	// SCION path header.
 	ScionPacketSize int `json:"scion_packet_size" yaml:"scion_packet_size"`
 
 	// SCMP sequence number
