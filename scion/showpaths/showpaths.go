@@ -400,8 +400,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 		seq, err := pathpol.GetSequence(path)
 		rpath.Sequence = seq
 		if err != nil {
-			// rpath.Sequence = "invalid"
-			continue
+			rpath.Sequence = "invalid"
 		}
 		res.Paths = append(res.Paths, rpath)
 	}

@@ -354,7 +354,12 @@ func calcMaxPldSize(local, remote *snet.UDPAddr, mtu int) (int, error) {
 	return mtu - overhead, nil
 }
 
-func pingSummary(stats *ping.Stats, remote *snet.UDPAddr, run time.Duration, printf func(format string, ctx ...interface{})) {
+func pingSummary(
+	stats *ping.Stats,
+	remote *snet.UDPAddr,
+	run time.Duration,
+	printf func(format string, ctx ...interface{}),
+) {
 	if stats.Sent != 0 {
 		stats.Loss = 100 - stats.Received*100/stats.Sent
 	}

@@ -46,7 +46,10 @@ func getHops(path snet.Path) []Hop {
 
 // getPrintf returns a printf function for the "human" formatting flag and an empty one for machine
 // readable format flags
-func getPrintf(outputFlag string, writer io.Writer) (func(format string, ctx ...interface{}), error) {
+func getPrintf(outputFlag string, writer io.Writer) (
+	func(format string, ctx ...interface{}),
+	error,
+) {
 	printf := func(format string, ctx ...interface{}) {}
 	switch outputFlag {
 	case "human":

@@ -193,14 +193,9 @@ On other errors, traceroute will exit with code 2.
 					LocalIP:     localIP,
 					NextHop:     path.UnderlayNextHop().String(),
 				},
-				Expiry: path.Metadata().Expiry,
-				// Fingerprint: snet.Fingerprint(path).String(),
-				// Hops:        getHops(path),
-				// Sequence:    seq,
+				Expiry:  path.Metadata().Expiry,
 				Latency: path.Metadata().Latency,
-				// LocalIP:     localIP,
-				MTU: int(path.Metadata().MTU),
-				// NextHop:     path.UnderlayNextHop().String(),
+				MTU:     int(path.Metadata().MTU),
 			}
 
 			span.SetTag("src.host", localIP)
@@ -286,8 +281,5 @@ func fmtRTTs(rtts []time.Duration, timeout time.Duration) string {
 }
 
 func fmtRemote(remote snet.SCIONAddress, intf uint64) string {
-	// if remote == nil {
-	// 	return "??"
-	// }
 	return fmt.Sprintf("%s IfID=%d", remote, intf)
 }
