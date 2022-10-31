@@ -94,7 +94,7 @@ func (d Deriver) serializeLevel2Input(
 	_ = input[inputLength-1]
 	input[0] = uint8(derType)
 	binary.BigEndian.PutUint16(input[1:], uint16(proto))
-	input[3] = uint8(host.AddrType&0x3)<<2 | uint8(host.AddrLen&0x3)
+	input[3] = uint8(host.AddrType & 0x7)
 	copy(input[4:], hostAddr)
 	copy(input[4+l:inputLength], drkey.ZeroBlock[:])
 
