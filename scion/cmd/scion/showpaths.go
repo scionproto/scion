@@ -16,12 +16,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"time"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
@@ -83,14 +84,9 @@ On other errors, showpaths will exit with code 2.
 				return serrors.WrapStr("setting up tracing", err)
 			}
 			defer closer()
-			var cmdout io.Writer
-			switch flags.format {
-			case "human":
-				cmdout = os.Stdout
-			case "json", "yaml":
-				cmdout = io.Discard
-			default:
-				return serrors.New("format not supported", "format", flags.format)
+			printf, err := getPrintf(flags.format, cmd.OutOrStdout())
+			if err != nil {
+				return serrors.WrapStr("get formatting", err)
 			}
 
 			cmd.SilenceUsage = true
@@ -122,21 +118,25 @@ On other errors, showpaths will exit with code 2.
 			switch flags.format {
 			case "human":
 				if res.IsLocal() {
-					fmt.Fprintf(cmdout, "Empty path, destination is local AS %s\n", res.Destination)
+					printf("Empty path, destination is local AS %s\n", res.Destination)
 					return nil
 				}
-				fmt.Fprintln(cmdout, "Available paths to", res.Destination)
+				printf("Available paths to", res.Destination)
 				if len(res.Paths) == 0 {
 					return app.WithExitCode(serrors.New("no path found"), 1)
 				}
-				res.Human(cmdout, flags.extended, !flags.noColor)
+				res.Human(cmd.OutOrStdout(), flags.extended, !flags.noColor)
 				if res.Alive() == 0 && !flags.cfg.NoProbe {
 					return app.WithExitCode(serrors.New("no path alive"), 1)
 				}
 			case "json":
-				return res.JSON(os.Stdout)
+				enc := json.NewEncoder(os.Stdout)
+				enc.SetIndent("", "  ")
+				enc.SetEscapeHTML(false)
+				return enc.Encode(res)
 			case "yaml":
-				return res.YAML(os.Stdout)
+				enc := yaml.NewEncoder(os.Stdout)
+				return enc.Encode(res)
 			default:
 				return serrors.New("output format not supported", "format", flags.format)
 			}

@@ -296,7 +296,8 @@ func hop(ia addr.IA, ingress, egress common.IFIDType) string {
 }
 
 // GetSequence constructs the sequence string from snet path
-// example format: "1-ff00:0:133#0 1-ff00:0:120#2,1 0 0 1-ff00:0:110#0"
+// example format:
+// 	1-ff00:0:133#0 1-ff00:0:120#2,1 1-ff00:0:110#0
 func GetSequence(path snet.Path) (string, error) {
 	var desc string
 	ifaces := path.Metadata().Interfaces

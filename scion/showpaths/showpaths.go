@@ -16,7 +16,6 @@ package showpaths
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"math"
@@ -34,7 +33,6 @@ import (
 	"github.com/scionproto/scion/private/app/path"
 	"github.com/scionproto/scion/private/app/path/pathprobe"
 	"github.com/scionproto/scion/private/path/pathpol"
-	"gopkg.in/yaml.v2"
 )
 
 // Result contains all the discovered paths.
@@ -289,20 +287,6 @@ func sanitizeString(str string) string {
 	}, str)
 }
 
-// JSON writes the showpaths result as a json object to the writer.
-func (r Result) JSON(w io.Writer) error {
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	return enc.Encode(r)
-}
-
-// JSON writes the showpaths result as a yaml object to the writer.
-func (r Result) YAML(w io.Writer) error {
-	enc := yaml.NewEncoder(w)
-	return enc.Encode(r)
-}
-
 // IsLocal returns true iff Source and Destination AS are identical
 func (r Result) IsLocal() bool {
 	return r.LocalIA == r.Destination
@@ -414,10 +398,11 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 			rpath.Local = status.LocalIP
 		}
 		seq, err := pathpol.GetSequence(path)
+		rpath.Sequence = seq
 		if err != nil {
+			// rpath.Sequence = "invalid"
 			continue
 		}
-		rpath.Sequence = seq
 		res.Paths = append(res.Paths, rpath)
 	}
 	return res, nil

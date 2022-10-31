@@ -17,8 +17,6 @@ package traceroute
 
 import (
 	"context"
-	"encoding/json"
-	"io"
 	"math/rand"
 	"net"
 	"time"
@@ -29,9 +27,8 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
-	snetpath "github.com/scionproto/scion/pkg/snet/path"
+	"github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/pkg/sock/reliable"
-	"gopkg.in/yaml.v2"
 )
 
 // Update contains the information for a single hop.
@@ -39,7 +36,7 @@ type Update struct {
 	// Index indicates the hop index in the path.
 	Index int
 	// Remote is the remote router.
-	Remote *snet.UDPAddr
+	Remote snet.SCIONAddress
 	// Interface is the interface ID of the remote router.
 	Interface uint64
 	// RTTs are the RTTs for this hop. To detect whether there was a timeout the
@@ -49,48 +46,12 @@ type Update struct {
 }
 
 func (u Update) empty() bool {
-	return u.Index == 0 && u.Remote == nil && u.Interface == 0 && len(u.RTTs) == 0
+	return u.Index == 0 && u.Interface == 0 && len(u.RTTs) == 0
 }
 
 // Stats contains the amount of sent and received packets.
 type Stats struct {
 	Sent, Recv uint
-}
-
-type Result struct {
-	Path Path      `json:"path" yaml:"path"`
-	Hops []HopInfo `json:"hops" yaml:"hops"`
-}
-
-type HopInfo struct {
-	InterfaceID uint16 `json:"interface_id" yaml:"interface_id"`
-	// IP address of the router responding to the traceroute request.
-	IP             string          `json:"ip" yaml:"ip"`
-	IA             addr.IA         `json:"isd_as" yaml:"isd_as"`
-	RoundTripTimes []time.Duration `json:"round_trip_times" yaml:"round_trip_times"`
-}
-
-// Path defines model for Path.
-type Path struct {
-	// Expiration time of the path.
-	Expiry time.Time `json:"expiry" yaml:"expiry"`
-
-	// Hex-string representing the paths fingerprint.
-	Fingerprint string               `json:"fingerprint" yaml:"fingerprint"`
-	Hops        []snet.PathInterface `json:"hops" yaml:"hops"`
-	Sequence    string               `json:"hops_sequence" yaml:"hops_sequence"`
-
-	// Optional array of latency measurements between any two consecutive interfaces. Entry i
-	// describes the latency between interface i and i+1.
-	Latency []time.Duration `json:"latency,omitempty" yaml:"latency,omitempty"`
-	LocalIp net.IP          `json:"local_ip,omitempty" yaml:"local_ip,omitempty"`
-
-	// The maximum transmission unit in bytes for SCION packets. This represents the protocol data
-	// unit (PDU) of the SCION layer on this path.
-	Mtu int `json:"mtu" yaml:"mtu"`
-
-	// The internal UDP/IP underlay address of the SCION router that forwards traffic for this path.
-	NextHop string `json:"next_hop" yaml:"next_hop"`
 }
 
 // Config configures the traceroute run.
@@ -135,7 +96,7 @@ type tracerouter struct {
 
 // Run runs the traceroute.
 func Run(ctx context.Context, cfg Config) (Stats, error) {
-	if _, isEmpty := cfg.PathEntry.Dataplane().(snetpath.Empty); isEmpty {
+	if _, isEmpty := cfg.PathEntry.Dataplane().(path.Empty); isEmpty {
 		return Stats{}, serrors.New("empty path is not allowed for traceroute")
 	}
 	id := rand.Uint64()
@@ -167,7 +128,7 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 }
 
 func (t *tracerouter) Traceroute(ctx context.Context) (Stats, error) {
-	scionPath, ok := t.path.Dataplane().(snetpath.SCION)
+	scionPath, ok := t.path.Dataplane().(path.SCION)
 	if !ok {
 		return Stats{}, serrors.New("only SCION path allowed for traceroute",
 			"type", common.TypeOf(t.path.Dataplane()))
@@ -227,7 +188,7 @@ func (t *tracerouter) Traceroute(ctx context.Context) (Stats, error) {
 
 func (t *tracerouter) probeHop(ctx context.Context, hfIdx uint8, egress bool) (Update, error) {
 	var decoded scion.Decoded
-	if err := decoded.DecodeFromBytes(t.path.Dataplane().(snetpath.SCION).Raw); err != nil {
+	if err := decoded.DecodeFromBytes(t.path.Dataplane().(path.SCION).Raw); err != nil {
 		return Update{}, serrors.WrapStr("decoding path", err)
 	}
 
@@ -238,14 +199,14 @@ func (t *tracerouter) probeHop(ctx context.Context, hfIdx uint8, egress bool) (U
 		hf.IngressRouterAlert = true
 	}
 
-	scionAlertPath, err := snetpath.NewSCIONFromDecoded(decoded)
+	scionAlertPath, err := path.NewSCIONFromDecoded(decoded)
 	if err != nil {
 		return Update{}, serrors.WrapStr("setting alert flag", err)
 	}
 
 	var alertPath snet.DataplanePath
 	if t.epic {
-		epicAlertPath, err := snetpath.NewEPICDataplanePath(
+		epicAlertPath, err := path.NewEPICDataplanePath(
 			scionAlertPath,
 			t.path.Metadata().EpicAuths,
 		)
@@ -335,7 +296,7 @@ func (t tracerouter) drain(ctx context.Context) {
 type reply struct {
 	Received time.Time
 	Reply    snet.SCMPTracerouteReply
-	Remote   *snet.UDPAddr
+	Remote   snet.SCIONAddress
 	Error    error
 }
 
@@ -345,37 +306,13 @@ type scmpHandler struct {
 
 func (h scmpHandler) Handle(pkt *snet.Packet) error {
 	r, err := h.handle(pkt)
-	ip := make(net.IP, len(pkt.Source.Host.IP()))
-	copy(ip, pkt.Source.Host.IP())
-
-	var path snet.DataplanePath
-	switch p := pkt.Path.(type) {
-	case snetpath.SCION:
-		raw := make([]byte, len(p.Raw))
-		copy(raw, p.Raw)
-		path = snetpath.SCION{
-			Raw: raw,
-		}
-	case *snetpath.EPIC:
-		path = snetpath.CloneEICDataplanePath(p)
-	case snet.RawPath:
-		raw := make([]byte, len(p.Raw))
-		copy(raw, p.Raw)
-		path = snet.RawPath{
-			PathType: p.PathType,
-			Raw:      raw,
-		}
-	default:
-		return serrors.New("unknown type for packet Path", "type", common.TypeOf(pkt.Path))
-	}
 
 	h.replies <- reply{
 		Received: time.Now(),
 		Reply:    r,
-		Remote: &snet.UDPAddr{
+		Remote: snet.SCIONAddress{
 			IA:   pkt.Source.IA,
-			Host: &net.UDPAddr{IP: ip},
-			Path: path,
+			Host: pkt.Source.Host.Copy(),
 		},
 		Error: err,
 	}
@@ -392,18 +329,4 @@ func (h scmpHandler) handle(pkt *snet.Packet) (snet.SCMPTracerouteReply, error) 
 			"type", common.TypeOf(pkt.Payload))
 	}
 	return r, nil
-}
-
-// JSON writes the traceroute result as a json object to the writer.
-func (r Result) JSON(w io.Writer) error {
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	return enc.Encode(r)
-}
-
-// JSON writes the traceroute result as a yaml object to the writer.
-func (r Result) YAML(w io.Writer) error {
-	enc := yaml.NewEncoder(w)
-	return enc.Encode(r)
 }

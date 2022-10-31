@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"math"
 	"net"
 	"os"
@@ -49,29 +48,6 @@ type Result struct {
 	ScionPacketSize int          `json:"scion_packet_size" yaml:"scion_packet_size"`
 	Replies         []PingUpdate `json:"replies" yaml:"replies"`
 	Statistics      ping.Stats   `json:"statistics" yaml:"statistics"`
-}
-
-// Path defines model for Path.
-type Path struct {
-	// Expiration time of the path.
-	Expiry time.Time `json:"expiry" yaml:"expiry"`
-
-	// Hex-string representing the paths fingerprint.
-	Fingerprint string               `json:"fingerprint" yaml:"fingerprint"`
-	Hops        []snet.PathInterface `json:"hops" yaml:"hops"`
-	Sequence    string               `json:"hops_sequence" yaml:"hops_sequence"`
-
-	// Optional array of latency measurements between any two consecutive interfaces. Entry i
-	// describes the latency between interface i and i+1.
-	Latency []time.Duration `json:"latency,omitempty" yaml:"latency,omitempty"`
-	LocalIp net.IP          `json:"local_ip,omitempty" yaml:"local_ip,omitempty"`
-
-	// The maximum transmission unit in bytes for SCION packets. This represents the protocol data
-	// unit (PDU) of the SCION layer on this path.
-	Mtu int `json:"mtu" yaml:"mtu"`
-
-	// The internal UDP/IP underlay address of the SCION router that forwards traffic for this path.
-	NextHop string `json:"next_hop" yaml:"next_hop"`
 }
 
 type PingUpdate struct {
@@ -136,14 +112,9 @@ On other errors, ping will exit with code 2.
 				return serrors.WrapStr("setting up tracing", err)
 			}
 			defer closer()
-			var cmdout io.Writer
-			switch flags.format {
-			case "human":
-				cmdout = os.Stdout
-			case "json", "yaml":
-				cmdout = io.Discard
-			default:
-				return serrors.New("format not supported", "format", flags.format)
+			printf, err := getPrintf(flags.format, cmd.OutOrStdout())
+			if err != nil {
+				return serrors.WrapStr("get formatting", err)
 			}
 
 			cmd.SilenceUsage = true
@@ -227,9 +198,9 @@ On other errors, ping will exit with code 2.
 					return serrors.WrapStr("resolving local address", err)
 
 				}
-				fmt.Fprintf(cmdout, "Resolved local address:\n  %s\n", localIP)
+				printf("Resolved local address:\n  %s\n", localIP)
 			}
-			fmt.Fprintf(cmdout, "Using path:\n  %s\n\n", path)
+			printf("Using path:\n  %s\n\n", path)
 			span.SetTag("src.host", localIP)
 			local := &snet.UDPAddr{
 				IA:   info.IA,
@@ -260,7 +231,7 @@ On other errors, ping will exit with code 2.
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmdout, "PING %s pld=%dB scion_pkt=%dB\n", remote, pldSize, pktSize)
+			printf("PING %s pld=%dB scion_pkt=%dB\n", remote, pldSize, pktSize)
 
 			start := time.Now()
 			ctx = app.WithSignal(traceCtx, os.Interrupt, syscall.SIGTERM)
@@ -276,13 +247,10 @@ On other errors, ping will exit with code 2.
 			res := Result{
 				ScionPacketSize: pktSize,
 				Path: Path{
-					Expiry:      path.Metadata().Expiry,
 					Fingerprint: snet.Fingerprint(path).String(),
-					Hops:        snetpath.GetHops(path),
+					Hops:        getHops(path),
 					Sequence:    seq,
-					Latency:     path.Metadata().Latency,
-					LocalIp:     localIP,
-					Mtu:         int(path.Metadata().MTU),
+					LocalIP:     localIP,
 					NextHop:     path.UnderlayNextHop().String(),
 				},
 				PayloadSize: pldSize,
@@ -316,13 +284,13 @@ On other errors, ping will exit with code 2.
 						RTT:      update.RTT,
 						State:    update.State.String(),
 					})
-					fmt.Fprintf(cmdout, "%d bytes from %s,%s: scmp_seq=%d time=%s%s\n",
+					printf("%d bytes from %s,%s: scmp_seq=%d time=%s%s\n",
 						update.Size, update.Source.IA, update.Source.Host, update.Sequence,
 						update.RTT, additional)
 				},
 			})
 			processRTTs(&stats, res.Replies)
-			pingSummary(&stats, remote, time.Since(start), cmdout)
+			pingSummary(&stats, remote, time.Since(start), printf)
 			if err != nil {
 				return err
 			}
@@ -334,9 +302,13 @@ On other errors, ping will exit with code 2.
 					return app.WithExitCode(serrors.New("no reply packet received"), 1)
 				}
 			case "json":
-				return res.JSON(os.Stdout)
+				enc := json.NewEncoder(os.Stdout)
+				enc.SetIndent("", "  ")
+				enc.SetEscapeHTML(false)
+				return enc.Encode(res)
 			case "yaml":
-				return res.YAML(os.Stdout)
+				enc := yaml.NewEncoder(os.Stdout)
+				return enc.Encode(res)
 			}
 
 			return nil
@@ -382,16 +354,16 @@ func calcMaxPldSize(local, remote *snet.UDPAddr, mtu int) (int, error) {
 	return mtu - overhead, nil
 }
 
-func pingSummary(stats *ping.Stats, remote *snet.UDPAddr, run time.Duration, cmdout io.Writer) {
+func pingSummary(stats *ping.Stats, remote *snet.UDPAddr, run time.Duration, printf func(format string, ctx ...interface{})) {
 	if stats.Sent != 0 {
 		stats.Loss = 100 - stats.Received*100/stats.Sent
 	}
 	stats.Time = run
-	fmt.Fprintf(cmdout, "\n--- %s,%s statistics ---\n", remote.IA, remote.Host.IP)
-	fmt.Fprintf(cmdout, "%d packets transmitted, %d received, %d%% packet loss, time %v\n",
+	printf("\n--- %s,%s statistics ---\n", remote.IA, remote.Host.IP)
+	printf("%d packets transmitted, %d received, %d%% packet loss, time %v\n",
 		stats.Sent, stats.Received, stats.Loss, stats.Time.Round(time.Microsecond))
 	if stats.Received != 0 {
-		fmt.Fprintf(cmdout, "rtt min/avg/max/mdev = %v/%v/%v/%v\n",
+		printf("rtt min/avg/max/mdev = %v/%v/%v/%v\n",
 			stats.MinRTT.Round(time.Microsecond),
 			stats.AvgRTT.Round(time.Microsecond),
 			stats.MaxRTT.Round(time.Microsecond),
@@ -426,18 +398,4 @@ func processRTTs(stats *ping.Stats, replies []PingUpdate) {
 	}
 	stats.MdevRTT = time.Duration(math.Sqrt(sd / float64(len(replies))))
 
-}
-
-// JSON writes the ping result as a json object to the writer.
-func (r Result) JSON(w io.Writer) error {
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	return enc.Encode(r)
-}
-
-// JSON writes the ping result as a yaml object to the writer.
-func (r Result) YAML(w io.Writer) error {
-	enc := yaml.NewEncoder(w)
-	return enc.Encode(r)
 }

@@ -87,17 +87,3 @@ func fmtInterfaces(ifaces []snet.PathInterface) []string {
 	hops = append(hops, fmt.Sprintf("%d %s", intf.ID, intf.IA))
 	return hops
 }
-
-// GetHops constructs a list of snet path interfaces from an snet path
-func GetHops(path snet.Path) []snet.PathInterface {
-	ifaces := path.Metadata().Interfaces
-	var hops []snet.PathInterface
-	if len(ifaces) == 0 {
-		return hops
-	}
-	for i := range ifaces {
-		intf := ifaces[i]
-		hops = append(hops, snet.PathInterface{IA: intf.IA, ID: intf.ID})
-	}
-	return hops
-}

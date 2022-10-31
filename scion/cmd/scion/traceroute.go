@@ -16,8 +16,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"strings"
@@ -25,13 +25,14 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
-	snetpath "github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/flag"
@@ -41,6 +42,34 @@ import (
 	"github.com/scionproto/scion/private/tracing"
 	"github.com/scionproto/scion/scion/traceroute"
 )
+
+type ResultTraceroute struct {
+	Path TraceroutePath `json:"path" yaml:"path"`
+	Hops []HopInfo      `json:"hops" yaml:"hops"`
+}
+
+// Path defines model for Path.
+type TraceroutePath struct {
+	Path
+	// Expiration time of the path.
+	Expiry time.Time `json:"expiry" yaml:"expiry"`
+
+	// Optional array of latency measurements between any two consecutive interfaces. Entry i
+	// describes the latency between interface i and i+1.
+	Latency []time.Duration `json:"latency,omitempty" yaml:"latency,omitempty"`
+
+	// The maximum transmission unit in bytes for SCION packets. This represents the protocol data
+	// unit (PDU) of the SCION layer on this path.
+	MTU int `json:"mtu" yaml:"mtu"`
+}
+
+type HopInfo struct {
+	InterfaceID uint16 `json:"interface_id" yaml:"interface_id"`
+	// IP address of the router responding to the traceroute request.
+	IP             string          `json:"ip" yaml:"ip"`
+	IA             addr.IA         `json:"isd_as" yaml:"isd_as"`
+	RoundTripTimes []time.Duration `json:"round_trip_times" yaml:"round_trip_times"`
+}
 
 func newTraceroute(pather CommandPather) *cobra.Command {
 	var envFlags flag.SCIONEnvironment
@@ -85,14 +114,9 @@ On other errors, traceroute will exit with code 2.
 				return serrors.WrapStr("setting up tracing", err)
 			}
 			defer closer()
-			var cmdout io.Writer
-			switch flags.format {
-			case "human":
-				cmdout = os.Stdout
-			case "json", "yaml":
-				cmdout = io.Discard
-			default:
-				return serrors.New("format not supported", "format", flags.format)
+			printf, err := getPrintf(flags.format, cmd.OutOrStdout())
+			if err != nil {
+				return serrors.WrapStr("get formatting", err)
 			}
 
 			cmd.SilenceUsage = true
@@ -152,24 +176,31 @@ On other errors, traceroute will exit with code 2.
 				if localIP, err = addrutil.ResolveLocal(target); err != nil {
 					return serrors.WrapStr("resolving local address", err)
 				}
-				fmt.Fprintf(cmdout, "Resolved local address:\n  %s\n", localIP)
+				printf("Resolved local address:\n  %s\n", localIP)
 			}
-			fmt.Fprintf(cmdout, "Using path:\n  %s\n\n", path)
+			printf("Using path:\n  %s\n\n", path)
 
 			seq, err := pathpol.GetSequence(path)
 			if err != nil {
 				return serrors.New("get sequence from used path")
 			}
-			var res traceroute.Result
-			res.Path = traceroute.Path{
-				Expiry:      path.Metadata().Expiry,
-				Fingerprint: snet.Fingerprint(path).String(),
-				Hops:        snetpath.GetHops(path),
-				Sequence:    seq,
-				Latency:     path.Metadata().Latency,
-				LocalIp:     localIP,
-				Mtu:         int(path.Metadata().MTU),
-				NextHop:     path.UnderlayNextHop().String(),
+			var res ResultTraceroute
+			res.Path = TraceroutePath{
+				Path: Path{
+					Fingerprint: snet.Fingerprint(path).String(),
+					Hops:        getHops(path),
+					Sequence:    seq,
+					LocalIP:     localIP,
+					NextHop:     path.UnderlayNextHop().String(),
+				},
+				Expiry: path.Metadata().Expiry,
+				// Fingerprint: snet.Fingerprint(path).String(),
+				// Hops:        getHops(path),
+				// Sequence:    seq,
+				Latency: path.Metadata().Latency,
+				// LocalIP:     localIP,
+				MTU: int(path.Metadata().MTU),
+				// NextHop:     path.UnderlayNextHop().String(),
 			}
 
 			span.SetTag("src.host", localIP)
@@ -191,7 +222,7 @@ On other errors, traceroute will exit with code 2.
 				ErrHandler:   func(err error) { fmt.Fprintf(os.Stderr, "ERROR: %s\n", err) },
 				UpdateHandler: func(u traceroute.Update) {
 					updates = append(updates, u)
-					fmt.Fprintf(cmdout, "%d %s %s\n", u.Index, fmtRemote(u.Remote, u.Interface),
+					printf("%d %s %s\n", u.Index, fmtRemote(u.Remote, u.Interface),
 						fmtRTTs(u.RTTs, flags.timeout))
 				},
 				EPIC: flags.epic,
@@ -200,11 +231,11 @@ On other errors, traceroute will exit with code 2.
 			if err != nil {
 				return err
 			}
-			res.Hops = make([]traceroute.HopInfo, 0, len(updates))
+			res.Hops = make([]HopInfo, 0, len(updates))
 			for _, update := range updates {
-				res.Hops = append(res.Hops, traceroute.HopInfo{
+				res.Hops = append(res.Hops, HopInfo{
 					InterfaceID:    uint16(update.Interface),
-					IP:             update.Remote.Host.IP.String(),
+					IP:             update.Remote.Host.IP().String(),
 					IA:             update.Remote.IA,
 					RoundTripTimes: update.RTTs,
 				})
@@ -216,9 +247,13 @@ On other errors, traceroute will exit with code 2.
 					return app.WithExitCode(serrors.New("packets were lost"), 1)
 				}
 			case "json":
-				return res.JSON(os.Stdout)
+				enc := json.NewEncoder(os.Stdout)
+				enc.SetIndent("", "  ")
+				enc.SetEscapeHTML(false)
+				return enc.Encode(res)
 			case "yaml":
-				return res.YAML(os.Stdout)
+				enc := yaml.NewEncoder(os.Stdout)
+				return enc.Encode(res)
 			}
 			return nil
 		},
@@ -250,9 +285,9 @@ func fmtRTTs(rtts []time.Duration, timeout time.Duration) string {
 	return strings.Join(parts, " ")
 }
 
-func fmtRemote(remote *snet.UDPAddr, intf uint64) string {
-	if remote == nil {
-		return "??"
-	}
+func fmtRemote(remote snet.SCIONAddress, intf uint64) string {
+	// if remote == nil {
+	// 	return "??"
+	// }
 	return fmt.Sprintf("%s IfID=%d", remote, intf)
 }
