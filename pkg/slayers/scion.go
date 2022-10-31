@@ -48,21 +48,21 @@ func init() {
 	epic.RegisterPath()
 }
 
-// AddrTypeLen indicates the type and length of a host address in the SCION header.
-// Both Type and Length fields are two bits wide.
+// AddrType indicates the type of a host address in the SCION header.
+// The AddrType consists of a sub-type and length part, both two bits wide.
 // The four possible lengths are 4B (0), 8B (1), 12B (2), or 16B (3) bytes.
-// There are four possible types per address length.
-type AddrTypeLen uint8
+// There are four possible sub-types per address length.
+type AddrType uint8
 
-// AddrTypeLen constants
+// AddrType constants
 const (
-	T4Ip  AddrTypeLen = 0b0000 // T=0, L=0
-	T4Svc             = 0b0100 // T=1, L=0
-	T16Ip             = 0b0011 // T=0, L=3
+	T4Ip  AddrType = 0b0000 // T=0, L=0
+	T4Svc          = 0b0100 // T=1, L=0
+	T16Ip          = 0b0011 // T=0, L=3
 )
 
-// Length returns the length of this AddrTypeLen value.
-func (tl AddrTypeLen) Length() int {
+// Length returns the length of this AddrType value.
+func (tl AddrType) Length() int {
 	return LineLen * (1 + (int(tl) & 0x3))
 }
 
@@ -115,9 +115,9 @@ type SCION struct {
 	// PathType specifies the type of path in this SCION header.
 	PathType path.Type
 	// DstAddrType (4 bit) is the type/length of the destination address.
-	DstAddrType AddrTypeLen
+	DstAddrType AddrType
 	// SrcAddrType (4 bit) is the type/length of the source address.
-	SrcAddrType AddrTypeLen
+	SrcAddrType AddrType
 
 	// Address header fields.
 
@@ -215,8 +215,8 @@ func (s *SCION) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	s.HdrLen = data[5]
 	s.PayloadLen = binary.BigEndian.Uint16(data[6:8])
 	s.PathType = path.Type(data[8])
-	s.DstAddrType = AddrTypeLen(data[9] >> 4 & 0x7)
-	s.SrcAddrType = AddrTypeLen(data[9] & 0x7)
+	s.DstAddrType = AddrType(data[9] >> 4 & 0x7)
+	s.SrcAddrType = AddrType(data[9] & 0x7)
 
 	// Decode address header.
 	if err := s.DecodeAddrHdr(data[CmnHdrLen:]); err != nil {
@@ -383,7 +383,7 @@ func (s *SCION) SetSrcAddr(src net.Addr) error {
 	return err
 }
 
-func parseAddr(addrType AddrTypeLen, raw []byte) (net.Addr, error) {
+func parseAddr(addrType AddrType, raw []byte) (net.Addr, error) {
 	switch addrType {
 	case T4Ip:
 		return &net.IPAddr{IP: net.IP(raw)}, nil
@@ -396,7 +396,7 @@ func parseAddr(addrType AddrTypeLen, raw []byte) (net.Addr, error) {
 		"type", addrType, "len", addrType.Length())
 }
 
-func packAddr(hostAddr net.Addr) (AddrTypeLen, []byte, error) {
+func packAddr(hostAddr net.Addr) (AddrType, []byte, error) {
 	switch a := hostAddr.(type) {
 	case *net.IPAddr:
 		if ip := a.IP.To4(); ip != nil {

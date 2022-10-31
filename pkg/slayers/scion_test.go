@@ -309,7 +309,7 @@ func TestSetAndGetAddr(t *testing.T) {
 func TestPackAddr(t *testing.T) {
 	testCases := map[string]struct {
 		addr      net.Addr
-		addrType  slayers.AddrTypeLen
+		addrType  slayers.AddrType
 		rawAddr   []byte
 		errorFunc assert.ErrorAssertionFunc
 	}{
@@ -348,7 +348,7 @@ func TestPackAddr(t *testing.T) {
 
 func TestParseAddr(t *testing.T) {
 	testCases := map[string]struct {
-		addrType  slayers.AddrTypeLen
+		addrType  slayers.AddrType
 		rawAddr   []byte
 		want      net.Addr
 		errorFunc assert.ErrorAssertionFunc

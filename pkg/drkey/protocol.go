@@ -42,7 +42,7 @@ var (
 
 // HostAddr is the address representation of a host as defined in the SCION header.
 type HostAddr struct {
-	AddrType slayers.AddrTypeLen
+	AddrType slayers.AddrType
 	RawAddr  []byte
 }
 
