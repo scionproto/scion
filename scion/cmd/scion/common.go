@@ -15,7 +15,7 @@ type Path struct {
 	// Hex-string representing the paths fingerprint.
 	Fingerprint string `json:"fingerprint" yaml:"fingerprint"`
 	Hops        []Hop  `json:"hops" yaml:"hops"`
-	Sequence    string `json:"hops_sequence" yaml:"hops_sequence"`
+	Sequence    string `json:"sequence" yaml:"sequence"`
 
 	LocalIP net.IP `json:"local_ip,omitempty" yaml:"local_ip,omitempty"`
 

@@ -44,23 +44,8 @@ import (
 )
 
 type ResultTraceroute struct {
-	Path TraceroutePath `json:"path" yaml:"path"`
-	Hops []HopInfo      `json:"hops" yaml:"hops"`
-}
-
-// TraceroutePath extends the basic Path model with additional information
-type TraceroutePath struct {
-	Path
-	// Expiration time of the path.
-	Expiry time.Time `json:"expiry" yaml:"expiry"`
-
-	// Optional array of latency measurements between any two consecutive interfaces. Entry i
-	// describes the latency between interface i and i+1.
-	Latency []time.Duration `json:"latency,omitempty" yaml:"latency,omitempty"`
-
-	// The maximum transmission unit in bytes for SCION packets. This represents the protocol data
-	// unit (PDU) of the SCION layer on this path.
-	MTU int `json:"mtu" yaml:"mtu"`
+	Path Path      `json:"path" yaml:"path"`
+	Hops []HopInfo `json:"hops" yaml:"hops"`
 }
 
 type HopInfo struct {
@@ -183,17 +168,12 @@ On other errors, traceroute will exit with code 2.
 				return serrors.New("get sequence from used path")
 			}
 			var res ResultTraceroute
-			res.Path = TraceroutePath{
-				Path: Path{
-					Fingerprint: snet.Fingerprint(path).String(),
-					Hops:        getHops(path),
-					Sequence:    seq,
-					LocalIP:     localIP,
-					NextHop:     path.UnderlayNextHop().String(),
-				},
-				Expiry:  path.Metadata().Expiry,
-				Latency: path.Metadata().Latency,
-				MTU:     int(path.Metadata().MTU),
+			res.Path = Path{
+				Fingerprint: snet.Fingerprint(path).String(),
+				Hops:        getHops(path),
+				Sequence:    seq,
+				LocalIP:     localIP,
+				NextHop:     path.UnderlayNextHop().String(),
 			}
 
 			span.SetTag("src.host", localIP)

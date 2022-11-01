@@ -119,7 +119,7 @@ On other errors, showpaths will exit with code 2.
 					printf("Empty path, destination is local AS %s\n", res.Destination)
 					return nil
 				}
-				printf("Available paths to", res.Destination)
+				printf("Available paths to %s\n", res.Destination)
 				if len(res.Paths) == 0 {
 					return app.WithExitCode(serrors.New("no path found"), 1)
 				}

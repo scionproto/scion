@@ -52,10 +52,10 @@ type Result struct {
 
 type Stats struct {
 	ping.Stats
-	MinRTT  time.Duration `json:"min_RTT" yaml:"min_RTT"`
-	AvgRTT  time.Duration `json:"avg_RTT" yaml:"avg_RTT"`
-	MaxRTT  time.Duration `json:"max_RTT" yaml:"max_RTT"`
-	MdevRTT time.Duration `json:"mdev_RTT" yaml:"mdev_RTT"`
+	MinRTT  time.Duration `json:"min_rtt" yaml:"min_rtt"`
+	AvgRTT  time.Duration `json:"avg_rtt" yaml:"avg_rtt"`
+	MaxRTT  time.Duration `json:"max_rtt" yaml:"max_rtt"`
+	MdevRTT time.Duration `json:"mdev_rtt" yaml:"mdev_rtt"`
 }
 
 type PingUpdate struct {
@@ -298,12 +298,24 @@ On other errors, ping will exit with code 2.
 			if err != nil {
 				return err
 			}
+			calculateStats(&stats, time.Since(start))
 			res.Statistics.Stats = stats
-			res.Statistics.processRTTs(res.Replies)
-			res.Statistics.pingSummary(remote, time.Since(start), printf)
+			processRTTs(&res.Statistics, res.Replies)
 
 			switch flags.format {
 			case "human":
+				s := res.Statistics.Stats
+				printf("\n--- %s,%s statistics ---\n", remote.IA, remote.Host.IP)
+				printf("%d packets transmitted, %d received, %d%% packet loss, time %v\n",
+					s.Sent, s.Received, s.Loss, s.Time.Round(time.Microsecond))
+				if s.Received != 0 {
+					printf("rtt min/avg/max/mdev = %s/%s/%s/%s ms\n",
+						fmt.Sprintf("%.3f", float64(res.Statistics.MinRTT.Nanoseconds())/1e6),
+						fmt.Sprintf("%.3f", float64(res.Statistics.AvgRTT.Nanoseconds())/1e6),
+						fmt.Sprintf("%.3f", float64(res.Statistics.MaxRTT.Nanoseconds())/1e6),
+						fmt.Sprintf("%.3f", float64(res.Statistics.MdevRTT.Nanoseconds())/1e6),
+					)
+				}
 				if stats.Received == 0 {
 					return app.WithExitCode(serrors.New("no reply packet received"), 1)
 				}
@@ -360,30 +372,16 @@ func calcMaxPldSize(local, remote *snet.UDPAddr, mtu int) (int, error) {
 	return mtu - overhead, nil
 }
 
-func (s *Stats) pingSummary(
-	remote *snet.UDPAddr,
-	run time.Duration,
-	printf func(format string, ctx ...interface{}),
-) {
-	if s.Stats.Sent != 0 {
-		s.Stats.Loss = 100 - s.Stats.Received*100/s.Stats.Sent
+// calculateStats computes the loss percentage and sets the required time
+func calculateStats(s *ping.Stats, run time.Duration) {
+	if s.Sent != 0 {
+		s.Loss = 100 - s.Received*100/s.Sent
 	}
-	s.Stats.Time = run
-	printf("\n--- %s,%s statistics ---\n", remote.IA, remote.Host.IP)
-	printf("%d packets transmitted, %d received, %d%% packet loss, time %v\n",
-		s.Stats.Sent, s.Stats.Received, s.Stats.Loss, s.Stats.Time.Round(time.Microsecond))
-	if s.Stats.Received != 0 {
-		printf("rtt min/avg/max/mdev = %s/%s/%s/%s ms\n",
-			fmt.Sprintf("%.3f", float64(s.MinRTT.Nanoseconds())/1e6),
-			fmt.Sprintf("%.3f", float64(s.AvgRTT.Nanoseconds())/1e6),
-			fmt.Sprintf("%.3f", float64(s.MaxRTT.Nanoseconds())/1e6),
-			fmt.Sprintf("%.3f", float64(s.MdevRTT.Nanoseconds())/1e6),
-		)
-	}
+	s.Time = run
 }
 
 // processRTTs computes the min, average, max and standard deviation of the update RTTs
-func (s *Stats) processRTTs(replies []PingUpdate) {
+func processRTTs(s *Stats, replies []PingUpdate) {
 	if len(replies) == 0 {
 		return
 	}
