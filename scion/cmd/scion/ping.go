@@ -309,11 +309,11 @@ On other errors, ping will exit with code 2.
 				printf("%d packets transmitted, %d received, %d%% packet loss, time %v\n",
 					s.Sent, s.Received, res.Statistics.Loss, res.Statistics.Time.Round(time.Microsecond))
 				if s.Received != 0 {
-					printf("rtt min/avg/max/mdev = %s/%s/%s/%s ms\n",
-						fmt.Sprintf("%.3f", float64(res.Statistics.MinRTT.Nanoseconds())/1e6),
-						fmt.Sprintf("%.3f", float64(res.Statistics.AvgRTT.Nanoseconds())/1e6),
-						fmt.Sprintf("%.3f", float64(res.Statistics.MaxRTT.Nanoseconds())/1e6),
-						fmt.Sprintf("%.3f", float64(res.Statistics.MdevRTT.Nanoseconds())/1e6),
+					printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n",
+						float64(res.Statistics.MinRTT.Nanoseconds())/1e6,
+						float64(res.Statistics.AvgRTT.Nanoseconds())/1e6,
+						float64(res.Statistics.MaxRTT.Nanoseconds())/1e6,
+						float64(res.Statistics.MdevRTT.Nanoseconds())/1e6,
 					)
 				}
 				if stats.Received == 0 {
