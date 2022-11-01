@@ -46,7 +46,7 @@ type Update struct {
 }
 
 func (u Update) empty() bool {
-	return u.Index == 0 && u.Interface == 0 && len(u.RTTs) == 0
+	return u.Index == 0 && u.Remote == (snet.SCIONAddress{}) && u.Interface == 0 && len(u.RTTs) == 0
 }
 
 // Stats contains the amount of sent and received packets.

@@ -7,11 +7,10 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/common"
-	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
 )
 
-// Path defines model for Path.
+// Path defines the base model for the `ping` and `traceroute` result path
 type Path struct {
 	// Hex-string representing the paths fingerprint.
 	Fingerprint string `json:"fingerprint" yaml:"fingerprint"`
@@ -46,20 +45,15 @@ func getHops(path snet.Path) []Hop {
 
 // getPrintf returns a printf function for the "human" formatting flag and an empty one for machine
 // readable format flags
-func getPrintf(outputFlag string, writer io.Writer) (
-	func(format string, ctx ...interface{}),
-	error,
-) {
-	printf := func(format string, ctx ...interface{}) {}
+func getPrintf(outputFlag string, writer io.Writer) func(format string, ctx ...interface{}) {
 	switch outputFlag {
 	case "human":
-		printf = func(format string, ctx ...interface{}) {
+		return func(format string, ctx ...interface{}) {
 			fmt.Fprintf(writer, format, ctx...)
 		}
-		return printf, nil
 	case "yaml", "json":
-		return printf, nil
+		return func(format string, ctx ...interface{}) {}
 	default:
-		return printf, serrors.New("format not supported", "format", outputFlag)
+		return nil
 	}
 }

@@ -64,8 +64,6 @@ By default, the paths are probed. Paths served from the SCION Deamon's might not
 forward traffic successfully (e.g. if a network link went down, or there is a black
 hole on the path). To disable path probing, set the appropriate flag.
 
-'showpaths' can be instructed to output the paths in a specific format using the \--format flag.
-
 If no alive path is discovered, json output is not enabled, and probing is not
 disabled, showpaths will exit with the code 1.
 On other errors, showpaths will exit with code 2.
@@ -84,9 +82,9 @@ On other errors, showpaths will exit with code 2.
 				return serrors.WrapStr("setting up tracing", err)
 			}
 			defer closer()
-			printf, err := getPrintf(flags.format, cmd.OutOrStdout())
-			if err != nil {
-				return serrors.WrapStr("get formatting", err)
+			printf := getPrintf(flags.format, cmd.OutOrStdout())
+			if printf == nil {
+				return fmt.Errorf("output format not supported: %s", flags.format)
 			}
 
 			cmd.SilenceUsage = true

@@ -37,10 +37,6 @@ type Stats struct {
 	Received int           `json:"received" yaml:"received"`
 	Loss     int           `json:"packet_loss" yaml:"packet_loss"`
 	Time     time.Duration `json:"time" yaml:"time"`
-	MinRTT   time.Duration `json:"min_RTT" yaml:"min_RTT"`
-	AvgRTT   time.Duration `json:"avg_RTT" yaml:"avg_RTT"`
-	MaxRTT   time.Duration `json:"max_RTT" yaml:"max_RTT"`
-	MdevRTT  time.Duration `json:"mdev_RTT" yaml:"mdev_RTT"`
 }
 
 // Update contains intermediary information about a received echo reply

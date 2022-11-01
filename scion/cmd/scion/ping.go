@@ -47,7 +47,15 @@ type Result struct {
 	PayloadSize     int          `json:"payload_size" yaml:"payload_size"`
 	ScionPacketSize int          `json:"scion_packet_size" yaml:"scion_packet_size"`
 	Replies         []PingUpdate `json:"replies" yaml:"replies"`
-	Statistics      ping.Stats   `json:"statistics" yaml:"statistics"`
+	Statistics      Stats        `json:"statistics" yaml:"statistics"`
+}
+
+type Stats struct {
+	ping.Stats
+	MinRTT  time.Duration `json:"min_RTT" yaml:"min_RTT"`
+	AvgRTT  time.Duration `json:"avg_RTT" yaml:"avg_RTT"`
+	MaxRTT  time.Duration `json:"max_RTT" yaml:"max_RTT"`
+	MdevRTT time.Duration `json:"mdev_RTT" yaml:"mdev_RTT"`
 }
 
 type PingUpdate struct {
@@ -92,8 +100,6 @@ and reports back the statistics.
 When the \--healthy-only option is set, ping first determines healthy paths through probing and
 chooses amongst them.
 
-'ping' can be instructed to output the paths in a specific format using the \--format flag.
-
 If no reply packet is received at all, ping will exit with code 1.
 On other errors, ping will exit with code 2.
 
@@ -112,9 +118,9 @@ On other errors, ping will exit with code 2.
 				return serrors.WrapStr("setting up tracing", err)
 			}
 			defer closer()
-			printf, err := getPrintf(flags.format, cmd.OutOrStdout())
-			if err != nil {
-				return serrors.WrapStr("get formatting", err)
+			printf := getPrintf(flags.format, cmd.OutOrStdout())
+			if printf == nil {
+				return fmt.Errorf("output format not supported: %s", flags.format)
 			}
 
 			cmd.SilenceUsage = true
@@ -286,15 +292,15 @@ On other errors, ping will exit with code 2.
 					})
 					printf("%d bytes from %s,%s: scmp_seq=%d time=%s%s\n",
 						update.Size, update.Source.IA, update.Source.Host, update.Sequence,
-						update.RTT, additional)
+						fmt.Sprintf("%.3fms", float64(update.RTT.Nanoseconds())/1e6), additional)
 				},
 			})
-			processRTTs(&stats, res.Replies)
-			pingSummary(&stats, remote, time.Since(start), printf)
 			if err != nil {
 				return err
 			}
-			res.Statistics = stats
+			res.Statistics.Stats = stats
+			res.Statistics.processRTTs(res.Replies)
+			res.Statistics.pingSummary(remote, time.Since(start), printf)
 
 			switch flags.format {
 			case "human":
@@ -354,53 +360,52 @@ func calcMaxPldSize(local, remote *snet.UDPAddr, mtu int) (int, error) {
 	return mtu - overhead, nil
 }
 
-func pingSummary(
-	stats *ping.Stats,
+func (s *Stats) pingSummary(
 	remote *snet.UDPAddr,
 	run time.Duration,
 	printf func(format string, ctx ...interface{}),
 ) {
-	if stats.Sent != 0 {
-		stats.Loss = 100 - stats.Received*100/stats.Sent
+	if s.Stats.Sent != 0 {
+		s.Stats.Loss = 100 - s.Stats.Received*100/s.Stats.Sent
 	}
-	stats.Time = run
+	s.Stats.Time = run
 	printf("\n--- %s,%s statistics ---\n", remote.IA, remote.Host.IP)
 	printf("%d packets transmitted, %d received, %d%% packet loss, time %v\n",
-		stats.Sent, stats.Received, stats.Loss, stats.Time.Round(time.Microsecond))
-	if stats.Received != 0 {
-		printf("rtt min/avg/max/mdev = %v/%v/%v/%v\n",
-			stats.MinRTT.Round(time.Microsecond),
-			stats.AvgRTT.Round(time.Microsecond),
-			stats.MaxRTT.Round(time.Microsecond),
-			stats.MdevRTT.Round(time.Microsecond),
+		s.Stats.Sent, s.Stats.Received, s.Stats.Loss, s.Stats.Time.Round(time.Microsecond))
+	if s.Stats.Received != 0 {
+		printf("rtt min/avg/max/mdev = %s/%s/%s/%s ms\n",
+			fmt.Sprintf("%.3f", float64(s.MinRTT.Nanoseconds())/1e6),
+			fmt.Sprintf("%.3f", float64(s.AvgRTT.Nanoseconds())/1e6),
+			fmt.Sprintf("%.3f", float64(s.MaxRTT.Nanoseconds())/1e6),
+			fmt.Sprintf("%.3f", float64(s.MdevRTT.Nanoseconds())/1e6),
 		)
 	}
 }
 
 // processRTTs computes the min, average, max and standard deviation of the update RTTs
-func processRTTs(stats *ping.Stats, replies []PingUpdate) {
+func (s *Stats) processRTTs(replies []PingUpdate) {
 	if len(replies) == 0 {
 		return
 	}
-	stats.MinRTT = replies[0].RTT
-	stats.MaxRTT = replies[0].RTT
+	s.MinRTT = replies[0].RTT
+	s.MaxRTT = replies[0].RTT
 	var sum time.Duration
 	for i := 0; i < len(replies); i++ {
-		if replies[i].RTT < stats.MinRTT {
-			stats.MinRTT = replies[i].RTT
+		if replies[i].RTT < s.MinRTT {
+			s.MinRTT = replies[i].RTT
 		}
-		if replies[i].RTT > stats.MaxRTT {
-			stats.MaxRTT = replies[i].RTT
+		if replies[i].RTT > s.MaxRTT {
+			s.MaxRTT = replies[i].RTT
 		}
 		sum += replies[i].RTT
 	}
-	stats.AvgRTT = time.Duration(int(sum.Nanoseconds()) / len(replies))
+	s.AvgRTT = time.Duration(int(sum.Nanoseconds()) / len(replies))
 
 	// standard deviation
 	var sd float64
 	for i := 0; i < len(replies); i++ {
-		sd += math.Pow(float64(replies[i].RTT)-float64(stats.AvgRTT), 2)
+		sd += math.Pow(float64(replies[i].RTT)-float64(s.AvgRTT), 2)
 	}
-	stats.MdevRTT = time.Duration(math.Sqrt(sd / float64(len(replies))))
+	s.MdevRTT = time.Duration(math.Sqrt(sd / float64(len(replies))))
 
 }

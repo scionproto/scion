@@ -48,7 +48,7 @@ type ResultTraceroute struct {
 	Hops []HopInfo      `json:"hops" yaml:"hops"`
 }
 
-// Path defines model for Path.
+// TraceroutePath extends the basic Path model with additional information
 type TraceroutePath struct {
 	Path
 	// Expiration time of the path.
@@ -94,8 +94,6 @@ func newTraceroute(pather CommandPather) *cobra.Command {
 		Long: fmt.Sprintf(`'traceroute' traces the SCION path to a remote AS using
 SCMP traceroute packets.
 
-'showpaths' can be instructed to output the paths in a specific format using the \--format flag.
-
 If any packet is dropped, traceroute will exit with code 1.
 On other errors, traceroute will exit with code 2.
 %s`, app.SequenceHelp),
@@ -114,9 +112,9 @@ On other errors, traceroute will exit with code 2.
 				return serrors.WrapStr("setting up tracing", err)
 			}
 			defer closer()
-			printf, err := getPrintf(flags.format, cmd.OutOrStdout())
-			if err != nil {
-				return serrors.WrapStr("get formatting", err)
+			printf := getPrintf(flags.format, cmd.OutOrStdout())
+			if printf == nil {
+				return fmt.Errorf("output format not supported: %s", flags.format)
 			}
 
 			cmd.SilenceUsage = true
@@ -275,7 +273,7 @@ func fmtRTTs(rtts []time.Duration, timeout time.Duration) string {
 			parts = append(parts, "*")
 			continue
 		}
-		parts = append(parts, rtt.String())
+		parts = append(parts, fmt.Sprintf("%.3fms", float64(rtt.Nanoseconds())/1e6))
 	}
 	return strings.Join(parts, " ")
 }
