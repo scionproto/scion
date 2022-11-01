@@ -33,10 +33,8 @@ import (
 
 // Stats contains the statistics of a ping run.
 type Stats struct {
-	Sent     int           `json:"sent" yaml:"sent"`
-	Received int           `json:"received" yaml:"received"`
-	Loss     int           `json:"packet_loss" yaml:"packet_loss"`
-	Time     time.Duration `json:"time" yaml:"time"`
+	Sent     int `json:"sent" yaml:"sent"`
+	Received int `json:"received" yaml:"received"`
 }
 
 // Update contains intermediary information about a received echo reply

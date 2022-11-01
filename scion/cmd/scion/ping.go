@@ -52,6 +52,8 @@ type Result struct {
 
 type Stats struct {
 	ping.Stats
+	Loss    int           `json:"packet_loss" yaml:"packet_loss"`
+	Time    time.Duration `json:"time" yaml:"time"`
 	MinRTT  time.Duration `json:"min_rtt" yaml:"min_rtt"`
 	AvgRTT  time.Duration `json:"avg_rtt" yaml:"avg_rtt"`
 	MaxRTT  time.Duration `json:"max_rtt" yaml:"max_rtt"`
@@ -298,16 +300,14 @@ On other errors, ping will exit with code 2.
 			if err != nil {
 				return err
 			}
-			calculateStats(&stats, time.Since(start))
-			res.Statistics.Stats = stats
-			processRTTs(&res.Statistics, res.Replies)
+			res.Statistics = calculateStats(stats, res.Replies, time.Since(start))
 
 			switch flags.format {
 			case "human":
 				s := res.Statistics.Stats
 				printf("\n--- %s,%s statistics ---\n", remote.IA, remote.Host.IP)
 				printf("%d packets transmitted, %d received, %d%% packet loss, time %v\n",
-					s.Sent, s.Received, s.Loss, s.Time.Round(time.Microsecond))
+					s.Sent, s.Received, res.Statistics.Loss, res.Statistics.Time.Round(time.Microsecond))
 				if s.Received != 0 {
 					printf("rtt min/avg/max/mdev = %s/%s/%s/%s ms\n",
 						fmt.Sprintf("%.3f", float64(res.Statistics.MinRTT.Nanoseconds())/1e6),
@@ -372,38 +372,42 @@ func calcMaxPldSize(local, remote *snet.UDPAddr, mtu int) (int, error) {
 	return mtu - overhead, nil
 }
 
-// calculateStats computes the loss percentage and sets the required time
-func calculateStats(s *ping.Stats, run time.Duration) {
+// calculateStats computes the Stats from the ping stats and updates
+func calculateStats(s ping.Stats, replies []PingUpdate, run time.Duration) Stats {
+	var loss int
 	if s.Sent != 0 {
-		s.Loss = 100 - s.Received*100/s.Sent
+		loss = 100 - s.Received*100/s.Sent
 	}
-	s.Time = run
-}
 
-// processRTTs computes the min, average, max and standard deviation of the update RTTs
-func processRTTs(s *Stats, replies []PingUpdate) {
-	if len(replies) == 0 {
-		return
+	stats := Stats{
+		Stats: s,
+		Loss:  loss,
+		Time:  run,
 	}
-	s.MinRTT = replies[0].RTT
-	s.MaxRTT = replies[0].RTT
+
+	if len(replies) == 0 {
+		return stats
+	}
+	stats.MinRTT = replies[0].RTT
+	stats.MaxRTT = replies[0].RTT
 	var sum time.Duration
 	for i := 0; i < len(replies); i++ {
-		if replies[i].RTT < s.MinRTT {
-			s.MinRTT = replies[i].RTT
+		if replies[i].RTT < stats.MinRTT {
+			stats.MinRTT = replies[i].RTT
 		}
-		if replies[i].RTT > s.MaxRTT {
-			s.MaxRTT = replies[i].RTT
+		if replies[i].RTT > stats.MaxRTT {
+			stats.MaxRTT = replies[i].RTT
 		}
 		sum += replies[i].RTT
 	}
-	s.AvgRTT = time.Duration(int(sum.Nanoseconds()) / len(replies))
+	stats.AvgRTT = time.Duration(int(sum.Nanoseconds()) / len(replies))
 
 	// standard deviation
 	var sd float64
 	for i := 0; i < len(replies); i++ {
-		sd += math.Pow(float64(replies[i].RTT)-float64(s.AvgRTT), 2)
+		sd += math.Pow(float64(replies[i].RTT)-float64(stats.AvgRTT), 2)
 	}
-	s.MdevRTT = time.Duration(math.Sqrt(sd / float64(len(replies))))
+	stats.MdevRTT = time.Duration(math.Sqrt(sd / float64(len(replies))))
 
+	return stats
 }
