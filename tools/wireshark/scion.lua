@@ -727,7 +727,7 @@ function scion_packet_authenticator_option_dissect(buffer, pktinfo, tree)
             return -1
         end
         authenticator_tree:add(scion_packet_authenticator_option_authenticator, buffer(12,20)):append_text(" (SHA1)")
-        authenticator_tree:add(scion_packet_authenticator_option_authenticator, buffer(31,16)):append_text(" (AES-CBC MAC)")
+        authenticator_tree:add(scion_packet_authenticator_option_authenticator, buffer(32,16)):append_text(" (AES-CBC MAC)")
     else
         authenticator_tree:add(scion_packet_authenticator_option_authenticator, buffer(12,authenticator_length))
     end
