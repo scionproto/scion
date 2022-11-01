@@ -310,7 +310,7 @@ func SerializeAutenticatedData(
 	pld []byte,
 ) (int, error) {
 
-	buf[0] = s.HdrLen
+	buf[0] = byte(CmnHdrLen + s.AddrHdrLen() + s.Path.Len())
 	buf[1] = byte(L4SCMP)
 	binary.BigEndian.PutUint16(buf[2:], uint16(len(pld)))
 	buf[4] = byte(opt.Algorithm())
@@ -361,6 +361,10 @@ func ComputeSPAORelativeTimestamp(ts uint32, now time.Time) (uint32, error) {
 		return 0, serrors.New("relative timestamp is bigger than 2^24-1")
 	}
 	return uint32(timestamp), nil
+}
+
+func TimeFromRelativeTimeStamp(spaoTS uint32, ts uint32) time.Time {
+	return util.SecsToTime(ts).Add(time.Millisecond * time.Duration(spaoTS) * 6)
 }
 
 func zeroOutMutablePath(orig path.Path, buf []byte) error {

@@ -242,7 +242,6 @@ func TestComputeAuthMac(t *testing.T) {
 				Auth:           make([]byte, 16),
 			},
 			scionL: slayers.SCION{
-				HdrLen:       255,
 				FlowID:       binary.BigEndian.Uint32([]byte{0x00, 0x00, 0x12, 0x34}),
 				TrafficClass: 0xff,
 				NextHdr:      slayers.End2EndClass,
@@ -260,7 +259,7 @@ func TestComputeAuthMac(t *testing.T) {
 			pld: fooPayload,
 			rawMACInput: append([]byte{
 				// 1. Authenticator Option Metadata
-				0xff, 0xca, 0x0, 0xc, // HdrLen | Upper Layer | Upper-Layer Packet Length
+				0x64, 0xca, 0x0, 0xc, // HdrLen | Upper Layer | Upper-Layer Packet Length
 				0x0, 0x0, 0x3, 0xe8, // Algorithm  | Timestamp
 				0x0, 0x6, 0x5, 0x4, // RSV | Sequence Number
 				// 2. SCION Common Header
@@ -336,7 +335,7 @@ func TestComputeAuthMac(t *testing.T) {
 			pld: fooPayload,
 			rawMACInput: append([]byte{
 				// 1. Authenticator Option Metadata
-				0xff, 0xca, 0x0, 0xc, // HdrLen | Upper Layer | Upper-Layer Packet Length
+				0x44, 0xca, 0x0, 0xc, // HdrLen | Upper Layer | Upper-Layer Packet Length
 				0x0, 0x0, 0x3, 0xe8, // Algorithm  | Timestamp
 				0x0, 0x6, 0x5, 0x4, // RSV | Sequence Number
 				// 2. SCION Common Header
@@ -395,7 +394,7 @@ func TestComputeAuthMac(t *testing.T) {
 			rawMACInput: append([]byte{
 
 				// 1. Authenticator Option Metadata
-				0xff, 0xca, 0x0, 0xc, // HdrLen | Upper Layer | Upper-Layer Packet Length
+				0x74, 0xca, 0x0, 0xc, // HdrLen | Upper Layer | Upper-Layer Packet Length
 				0x0, 0x0, 0x3, 0xe8, // Algorithm  | Timestamp
 				0x0, 0x6, 0x5, 0x4, // RSV | Sequence Number
 				// 2. SCION Common Header

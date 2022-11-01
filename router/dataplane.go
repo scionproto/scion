@@ -35,7 +35,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
-	"github.com/scionproto/scion/pkg/drkey/specific"
 	libepic "github.com/scionproto/scion/pkg/experimental/epic"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -132,7 +131,11 @@ var (
 )
 
 type drkeyProvider interface {
-	GetSV(time time.Time) drkey.Key
+	GetAuthKey(
+		validTime time.Time,
+		dstIA addr.IA,
+		dstAddr net.Addr,
+	) (drkey.Key, error)
 }
 
 type scmpError struct {
@@ -580,8 +583,8 @@ func newPacketProcessor(d *DataPlane, ingressID uint16) *scionPacketProcessor {
 		},
 		// TODO(JordiSubira): Replace this with a useful implementation.
 		drkeyProvider: &fakeProvider{},
-		drkeyDeriver:  specific.Deriver{},
 		optAuth:       slayers.PacketAuthOption{EndToEndOption: new(slayers.EndToEndOption)},
+		validAuthBuf:  make([]byte, 16),
 	}
 	p.scionLayer.RecyclePaths()
 	return p
@@ -763,8 +766,6 @@ type scionPacketProcessor struct {
 	buffer gopacket.SerializeBuffer
 	// mac is the hasher for the MAC computation.
 	mac hash.Hash
-	// DRKey key derivation for SCMP authentication
-	drkeyProvider drkeyProvider
 
 	// scionLayer is the SCION gopacket layer.
 	scionLayer slayers.SCION
@@ -790,9 +791,14 @@ type scionPacketProcessor struct {
 
 	// bfdLayer is reusable buffer for parsing BFD messages
 	bfdLayer layers.BFD
-	optAuth  slayers.PacketAuthOption
+	// optAuth is a reusable Packet Authenticator Option
+	optAuth slayers.PacketAuthOption
+	// validAuthBuf is a reusable buffer for the authentication tag
+	// to be used in the hasValidAuth() method.
+	validAuthBuf []byte
 
-	drkeyDeriver specific.Deriver
+	// DRKey key derivation for SCMP authentication
+	drkeyProvider drkeyProvider
 }
 
 // macBuffers are preallocated buffers for the in- and outputs of MAC functions.
@@ -1625,10 +1631,12 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 
 	// TODO(JordiSubira): Authenticate SCMP message ONLY if needed.
 	// Error messages must be authenticated.
-	// Echo Reply packets and Traceroute are OPTIONALLY authenticate
-	// ONLY IF the Request was authenticated.
+	// Traceroute are OPTIONALLY authenticated ONLY IF the Request
+	// was authenticated.
 	needsAuth := false
-	if cause != nil { // TODO(JordiSubira): || hasValidAuth(p.e2eLayer)
+	if cause != nil ||
+		(scmpH.TypeCode.Type() == slayers.SCMPTypeTracerouteReply &&
+			p.hasValidAuth()) {
 		needsAuth = true
 	}
 
@@ -1675,7 +1683,7 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 
 		now := time.Now()
 		// srcA == scionL.DstAddr
-		key, err := p.getAuthKey(now, scionL.DstIA, srcA)
+		key, err := p.drkeyProvider.GetAuthKey(now, scionL.DstIA, srcA)
 		if err != nil {
 			return nil, err
 		}
@@ -1707,25 +1715,6 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 	}
 
 	return p.buffer.Bytes(), scmpError{TypeCode: scmpH.TypeCode, Cause: cause}
-}
-
-func (p *scionPacketProcessor) getAuthKey(
-	validTime time.Time,
-	dstIA addr.IA,
-	dstAddr net.Addr,
-) (drkey.Key, error) {
-
-	sv := p.drkeyProvider.GetSV(validTime)
-	lvl1, err := p.drkeyDeriver.DeriveLevel1(dstIA, sv)
-	if err != nil {
-		return drkey.Key{}, err
-	}
-
-	key, err := p.drkeyDeriver.DeriveASHost(dstAddr.String(), lvl1)
-	if err != nil {
-		return drkey.Key{}, err
-	}
-	return key, nil
 }
 
 func (p *scionPacketProcessor) resetSPAOMetadata(now time.Time) error {
@@ -1765,6 +1754,53 @@ func (p *scionPacketProcessor) resetSPAOMetadata(now time.Time) error {
 		return err
 	}
 	return nil
+}
+
+func (p *scionPacketProcessor) hasValidAuth() bool {
+	// Parse incoming authField
+	e2eLayer := &slayers.EndToEndExtn{}
+	if err := e2eLayer.DecodeFromBytes(p.scionLayer.Payload, gopacket.NilDecodeFeedback); err != nil {
+		return false
+	}
+	e2eOption, err := e2eLayer.FindOption(slayers.OptTypeAuthenticator)
+	if err != nil {
+		return false
+	}
+	authOption, err := slayers.ParsePacketAuthOption(e2eOption)
+	if err != nil {
+		return false
+	}
+	// Computing authField
+	firstInfo, err := p.path.GetInfoField(0)
+	if err != nil {
+		return false
+	}
+	then := slayers.TimeFromRelativeTimeStamp(authOption.Timestamp(), firstInfo.Timestamp)
+	dstAddr, err := p.scionLayer.SrcAddr()
+	if err != nil {
+		return false
+	}
+	// the sender should have use the receiver side key, i.e., K_{localIA-remoteIA:remoteHost}
+	// where remoteIA == p.scionLayer.SrcIA and remoteHost == dstAddr
+	// (for the incoming packet).
+	key, err := p.drkeyProvider.GetAuthKey(then, p.scionLayer.SrcIA, dstAddr)
+	if err != nil {
+		return false
+	}
+	_, err = slayers.ComputeAuthCMAC(
+		key[:],
+		authOption,
+		&p.scionLayer,
+		p.e2eLayer.Payload, // scmpH + scmpP
+		p.macBuffers.drkeyInput,
+		p.validAuthBuf,
+	)
+	if err != nil {
+		return false
+	}
+
+	// compare incoming authField with computed authentication tag
+	return bytes.Equal(authOption.Authenticator(), p.validAuthBuf)
 }
 
 // decodeLayers implements roughly the functionality of
@@ -1855,6 +1891,10 @@ func serviceMetricLabels(localIA addr.IA, svc addr.HostSVC) prometheus.Labels {
 
 type fakeProvider struct{}
 
-func (p *fakeProvider) GetSV(_ time.Time) drkey.Key {
-	return drkey.Key{}
+func (p *fakeProvider) GetAuthKey(
+	_ time.Time,
+	_ addr.IA,
+	_ net.Addr,
+) (drkey.Key, error) {
+	return drkey.Key{}, nil
 }
