@@ -65,43 +65,15 @@ func LoadTrustMaterial(ctx context.Context, configDir string, db trust.DB) error
 	return nil
 }
 
-// NewCachingSignerGen creates a caching signer generator (i.e. a key/cert loader).
-// If key usage is specified (not ExtKeyUsageAny), only signers with matching
-// certificates will be returned.
-func newCachingSignerGen(
-	ia addr.IA,
-	keyUsage x509.ExtKeyUsage,
-	db trust.DB,
-	cfgDir string,
-) *cstrust.CachingSignerGen {
-
-	gen := trust.SignerGen{
-		IA: ia,
-		DB: cstrust.CryptoLoader{
-			Dir:     filepath.Join(cfgDir, "crypto/as"),
-			TRCDirs: []string{filepath.Join(cfgDir, "certs")},
-			DB:      db,
-		},
-		KeyRing: cstrust.LoadingRing{
-			Dir: filepath.Join(cfgDir, "crypto/as"),
-		},
-		KeyUsage: keyUsage,
-	}
-	return &cstrust.CachingSignerGen{
-		SignerGen: gen,
-		Interval:  5 * time.Second,
-	}
-}
-
 func NewTLSCertificateLoader(
 	ia addr.IA,
-	keyUsage x509.ExtKeyUsage,
+	extKeyUsage x509.ExtKeyUsage,
 	db trust.DB,
 	cfgDir string,
 ) cstrust.TLSCertificateLoader {
 
 	return cstrust.TLSCertificateLoader{
-		SignerGen: newCachingSignerGen(ia, x509.ExtKeyUsageAny, db, cfgDir),
+		SignerGen: newCachingSignerGen(ia, extKeyUsage, db, cfgDir),
 	}
 }
 
@@ -117,6 +89,34 @@ func NewSigner(ia addr.IA, db trust.DB, cfgDir string) cstrust.RenewingSigner {
 		log.Debug("Initial signer generation failed", "err", err)
 	}
 	return signer
+}
+
+// newCachingSignerGen creates a caching signer generator (i.e. a key/cert loader).
+// If key usage is specified (not ExtKeyUsageAny), only signers with matching
+// certificates will be returned.
+func newCachingSignerGen(
+	ia addr.IA,
+	extKeyUsage x509.ExtKeyUsage,
+	db trust.DB,
+	cfgDir string,
+) *cstrust.CachingSignerGen {
+
+	gen := trust.SignerGen{
+		IA: ia,
+		DB: cstrust.CryptoLoader{
+			Dir:     filepath.Join(cfgDir, "crypto/as"),
+			TRCDirs: []string{filepath.Join(cfgDir, "certs")},
+			DB:      db,
+		},
+		KeyRing: cstrust.LoadingRing{
+			Dir: filepath.Join(cfgDir, "crypto/as"),
+		},
+		ExtKeyUsage: extKeyUsage,
+	}
+	return &cstrust.CachingSignerGen{
+		SignerGen: gen,
+		Interval:  5 * time.Second,
+	}
 }
 
 type ChainBuilderConfig struct {

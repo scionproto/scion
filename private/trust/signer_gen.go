@@ -38,10 +38,10 @@ type SignerGen struct {
 	KeyRing KeyRing
 	DB      DB // FIXME(roosd): Eventually this should use a crypto provider
 
-	// KeyUsage filters the available certificates for specific key usage types.
-	// If KeyUsage is not ExtKeyUsageAny, Generate will return a Signer with
+	// ExtKeyUsage filters the available certificates for specific key usage types.
+	// If ExtKeyUsage is not ExtKeyUsageAny, Generate will return a Signer with
 	// a certificate supporting this usage type (if one exists).
-	KeyUsage x509.ExtKeyUsage
+	ExtKeyUsage x509.ExtKeyUsage
 }
 
 // Generate fetches private keys from the key ring and searches active
@@ -114,8 +114,8 @@ func (s *SignerGen) bestForKey(ctx context.Context, key crypto.Signer,
 		// TODO	metrics.Signer.Generate(l.WithResult(metrics.ErrDB)).Inc()
 		return nil, err
 	}
-	if s.KeyUsage != x509.ExtKeyUsageAny {
-		chains = filterChains(chains, s.KeyUsage)
+	if s.ExtKeyUsage != x509.ExtKeyUsageAny {
+		chains = filterChains(chains, s.ExtKeyUsage)
 	}
 	chain := bestChain(&trcs[0].TRC, chains)
 	if chain == nil && len(trcs) == 1 {
