@@ -46,11 +46,8 @@ func getHops(path snet.Path) []Hop {
 
 // getPrintf returns a printf function for the "human" formatting flag and an empty one for machine
 // readable format flags
-func getPrintf(outputFlag string, writer io.Writer) (
-	func(format string, ctx ...interface{}),
-	error,
-) {
-	switch outputFlag {
+func getPrintf(output string, writer io.Writer) (func(format string, ctx ...interface{}), error) {
+	switch output {
 	case "human":
 		return func(format string, ctx ...interface{}) {
 			fmt.Fprintf(writer, format, ctx...)
@@ -58,6 +55,6 @@ func getPrintf(outputFlag string, writer io.Writer) (
 	case "yaml", "json":
 		return func(format string, ctx ...interface{}) {}, nil
 	default:
-		return nil, serrors.New("format not supported", "format", outputFlag)
+		return nil, serrors.New("format not supported", "format", output)
 	}
 }
