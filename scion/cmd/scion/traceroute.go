@@ -97,11 +97,10 @@ On other errors, traceroute will exit with code 2.
 				return serrors.WrapStr("setting up tracing", err)
 			}
 			defer closer()
-			printf := getPrintf(flags.format, cmd.OutOrStdout())
-			if printf == nil {
-				return fmt.Errorf("output format not supported: %s", flags.format)
+			printf, err := getPrintf(flags.format, cmd.OutOrStdout())
+			if err != nil {
+				return serrors.WrapStr("get formatting", err)
 			}
-
 			cmd.SilenceUsage = true
 
 			if err := envFlags.LoadExternalVars(); err != nil {

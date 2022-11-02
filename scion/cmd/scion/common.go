@@ -7,6 +7,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
 )
 
@@ -45,15 +46,18 @@ func getHops(path snet.Path) []Hop {
 
 // getPrintf returns a printf function for the "human" formatting flag and an empty one for machine
 // readable format flags
-func getPrintf(outputFlag string, writer io.Writer) func(format string, ctx ...interface{}) {
+func getPrintf(outputFlag string, writer io.Writer) (
+	func(format string, ctx ...interface{}),
+	error,
+) {
 	switch outputFlag {
 	case "human":
 		return func(format string, ctx ...interface{}) {
 			fmt.Fprintf(writer, format, ctx...)
-		}
+		}, nil
 	case "yaml", "json":
-		return func(format string, ctx ...interface{}) {}
+		return func(format string, ctx ...interface{}) {}, nil
 	default:
-		return nil
+		return nil, serrors.New("format not supported", "format", outputFlag)
 	}
 }
