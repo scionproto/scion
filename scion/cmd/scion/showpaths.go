@@ -161,6 +161,9 @@ On other errors, showpaths will exit with code 2.
 	cmd.Flags().StringVar(&flags.logLevel, "log.level", "", app.LogLevelUsage)
 	cmd.Flags().StringVar(&flags.tracer, "tracing.agent", "", "Tracing agent address")
 	cmd.Flags().BoolVar(&flags.cfg.Epic, "epic", false, "Enable EPIC.")
-	cmd.Flags().MarkDeprecated("json", "json flag is deprecated, use format flag")
+	err := cmd.Flags().MarkDeprecated("json", "json flag is deprecated, use format flag")
+	if err != nil {
+		panic(err)
+	}
 	return cmd
 }
