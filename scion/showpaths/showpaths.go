@@ -47,7 +47,7 @@ type Path struct {
 	FullPath    snet.Path       `json:"-" yaml:"-"`
 	Fingerprint string          `json:"fingerprint" yaml:"fingerprint"`
 	Hops        []Hop           `json:"hops" yaml:"hops"`
-	Sequence    string          `json:"hops_sequence" yaml:"hops_sequence"`
+	Sequence    string          `json:"sequence" yaml:"sequence"`
 	NextHop     string          `json:"next_hop" yaml:"next_hop"`
 	Expiry      time.Time       `json:"expiry" yaml:"expiry"`
 	MTU         uint16          `json:"mtu" yaml:"mtu"`

@@ -82,6 +82,10 @@ On other errors, showpaths will exit with code 2.
 				return serrors.WrapStr("setting up tracing", err)
 			}
 			defer closer()
+
+			if flags.json && !cmd.Flags().Lookup("format").Changed {
+				flags.format = "json"
+			}
 			printf, err := getPrintf(flags.format, cmd.OutOrStdout())
 			if err != nil {
 				return serrors.WrapStr("get formatting", err)

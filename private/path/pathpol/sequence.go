@@ -84,6 +84,9 @@ func (s *Sequence) Eval(paths []snet.Path) []snet.Path {
 	result := []snet.Path{}
 	for _, path := range paths {
 		desc, err := GetSequence(path)
+		if desc != "" {
+			desc = desc + " "
+		}
 		if err != nil {
 			log.Error("get sequence from path", "err", err)
 			continue
@@ -322,7 +325,7 @@ func GetSequence(path snet.Path) (string, error) {
 			hops = append(hops, hop(ifaces[i].IA, ifaces[i].ID, ifaces[i+1].ID))
 		}
 		hops = append(hops, hop(ifaces[len(ifaces)-1].IA, ifaces[len(ifaces)-1].ID, 0))
-		desc = strings.Join(hops, " ") + " "
+		desc = strings.Join(hops, " ")
 	}
 	return desc, nil
 }
