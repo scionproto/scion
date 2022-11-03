@@ -1629,7 +1629,6 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 
 	scmpH.SetNetworkLayerForChecksum(&scionL)
 
-	// TODO(JordiSubira): Authenticate SCMP message ONLY if needed.
 	// Error messages must be authenticated.
 	// Traceroute are OPTIONALLY authenticated ONLY IF the Request
 	// was authenticated.
@@ -1759,7 +1758,10 @@ func (p *scionPacketProcessor) resetSPAOMetadata(now time.Time) error {
 func (p *scionPacketProcessor) hasValidAuth() bool {
 	// Parse incoming authField
 	e2eLayer := &slayers.EndToEndExtn{}
-	if err := e2eLayer.DecodeFromBytes(p.scionLayer.Payload, gopacket.NilDecodeFeedback); err != nil {
+	if err := e2eLayer.DecodeFromBytes(
+		p.scionLayer.Payload,
+		gopacket.NilDecodeFeedback,
+	); err != nil {
 		return false
 	}
 	e2eOption, err := e2eLayer.FindOption(slayers.OptTypeAuthenticator)
