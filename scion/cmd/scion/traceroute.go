@@ -51,9 +51,9 @@ type ResultTraceroute struct {
 type HopInfo struct {
 	InterfaceID uint16 `json:"interface_id" yaml:"interface_id"`
 	// IP address of the router responding to the traceroute request.
-	IP             string          `json:"ip" yaml:"ip"`
-	IA             addr.IA         `json:"isd_as" yaml:"isd_as"`
-	RoundTripTimes []time.Duration `json:"round_trip_times" yaml:"round_trip_times"`
+	IP             string    `json:"ip" yaml:"ip"`
+	IA             addr.IA   `json:"isd_as" yaml:"isd_as"`
+	RoundTripTimes []float64 `json:"round_trip_times" yaml:"round_trip_times"`
 }
 
 func newTraceroute(pather CommandPather) *cobra.Command {
@@ -205,11 +205,15 @@ On other errors, traceroute will exit with code 2.
 			}
 			res.Hops = make([]HopInfo, 0, len(updates))
 			for _, update := range updates {
+				RTTs := make([]float64, 0, len(update.RTTs))
+				for _, rtt := range update.RTTs {
+					RTTs = append(RTTs, float64(rtt.Nanoseconds())/1e6)
+				}
 				res.Hops = append(res.Hops, HopInfo{
 					InterfaceID:    uint16(update.Interface),
 					IP:             update.Remote.Host.IP().String(),
 					IA:             update.Remote.IA,
-					RoundTripTimes: update.RTTs,
+					RoundTripTimes: RTTs,
 				})
 			}
 
