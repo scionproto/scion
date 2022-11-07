@@ -617,15 +617,15 @@ func realMain(ctx context.Context) error {
 			trustDB, globalCfg.General.ConfigDir)
 		tlsCertsClientAuth := cs.NewTLSCertificateLoader(topo.IA(), x509.ExtKeyUsageClientAuth,
 			trustDB, globalCfg.General.ConfigDir)
-		tlsMgr := trust.NewTLSCryptoManager(trustDB)
+		tlsVerifier := trust.NewTLSCryptoVerifier(trustDB)
 		drkeyFetcher := drkeygrpc.Fetcher{
 			Dialer: &libgrpc.TLSQUICDialer{
 				QUICDialer: dialer,
 				Credentials: credentials.NewTLS(&tls.Config{
 					InsecureSkipVerify:    true,
 					GetClientCertificate:  tlsCertsClientAuth.GetClientCertificate,
-					VerifyPeerCertificate: tlsMgr.VerifyServerCertificate,
-					VerifyConnection:      tlsMgr.VerifyConnection,
+					VerifyPeerCertificate: tlsVerifier.VerifyServerCertificate,
+					VerifyConnection:      tlsVerifier.VerifyConnection,
 				}),
 			},
 			Router:     segreq.NewRouter(fetcherCfg),
@@ -650,7 +650,7 @@ func realMain(ctx context.Context) error {
 		srvConfig := &tls.Config{
 			InsecureSkipVerify:    true,
 			GetCertificate:        tlsCertsServerAuth.GetCertificate,
-			VerifyPeerCertificate: tlsMgr.VerifyClientCertificate,
+			VerifyPeerCertificate: tlsVerifier.VerifyClientCertificate,
 			ClientAuth:            tls.RequireAnyClientCert,
 		}
 		quicTLSServer = grpc.NewServer(

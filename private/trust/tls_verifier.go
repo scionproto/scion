@@ -28,15 +28,15 @@ import (
 
 const defaultTimeout = 5 * time.Second
 
-// TLSCryptoManager implements callbacks which will be called during TLS handshake.
-type TLSCryptoManager struct {
+// TLSCryptoVerifier implements callbacks which will be called during TLS handshake.
+type TLSCryptoVerifier struct {
 	DB      DB
 	Timeout time.Duration
 }
 
-// NewTLSCryptoManager returns a new instance with the defaultTimeout.
-func NewTLSCryptoManager(db DB) *TLSCryptoManager {
-	return &TLSCryptoManager{
+// NewTLSCryptoVerifier returns a new instance with the defaultTimeout.
+func NewTLSCryptoVerifier(db DB) *TLSCryptoVerifier {
+	return &TLSCryptoVerifier{
 		DB:      db,
 		Timeout: defaultTimeout,
 	}
@@ -44,28 +44,28 @@ func NewTLSCryptoManager(db DB) *TLSCryptoManager {
 
 // VerifyServerCertificate verifies the certificate presented by the server
 // using the CP-PKI.
-func (m *TLSCryptoManager) VerifyServerCertificate(
+func (v *TLSCryptoVerifier) VerifyServerCertificate(
 	rawCerts [][]byte,
 	_ [][]*x509.Certificate,
 ) error {
 
-	return m.verifyPeerCertificate(rawCerts, x509.ExtKeyUsageServerAuth)
+	return v.verifyPeerCertificate(rawCerts, x509.ExtKeyUsageServerAuth)
 }
 
 // VerifyClientCertificate verifies the certificate presented by the client
 // using the CP-PKI.
-func (m *TLSCryptoManager) VerifyClientCertificate(
+func (v *TLSCryptoVerifier) VerifyClientCertificate(
 	rawCerts [][]byte,
 	_ [][]*x509.Certificate,
 ) error {
 
-	return m.verifyPeerCertificate(rawCerts, x509.ExtKeyUsageClientAuth)
+	return v.verifyPeerCertificate(rawCerts, x509.ExtKeyUsageClientAuth)
 }
 
 // VerifyConnection callback is intended to be used by the client to verify
 // that the certificate presented by the server matches the server name
 // the client is trying to connect to.
-func (m *TLSCryptoManager) VerifyConnection(cs tls.ConnectionState) error {
+func (v *TLSCryptoVerifier) VerifyConnection(cs tls.ConnectionState) error {
 	serverNameIA := strings.Split(cs.ServerName, ",")[0]
 	serverIA, err := addr.ParseIA(serverNameIA)
 	if err != nil {
@@ -84,7 +84,7 @@ func (m *TLSCryptoManager) VerifyConnection(cs tls.ConnectionState) error {
 
 // verifyPeerCertificate verifies the certificate presented by the peer during TLS handshake,
 // based on the TRC.
-func (m *TLSCryptoManager) verifyPeerCertificate(
+func (v *TLSCryptoVerifier) verifyPeerCertificate(
 	rawCerts [][]byte,
 	extKeyUsage x509.ExtKeyUsage,
 ) error {
@@ -104,9 +104,9 @@ func (m *TLSCryptoManager) verifyPeerCertificate(
 	if err != nil {
 		return serrors.WrapStr("extracting ISD-AS from peer certificate", err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), m.Timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), v.Timeout)
 	defer cancel()
-	trcs, _, err := activeTRCs(ctx, m.DB, ia.ISD())
+	trcs, _, err := activeTRCs(ctx, v.DB, ia.ISD())
 	if err != nil {
 		return serrors.WrapStr("loading TRCs", err)
 	}

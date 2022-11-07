@@ -59,16 +59,16 @@ func TestLevel1KeyFetching(t *testing.T) {
 	lvl1db := mock_grpc.NewMockEngine(ctrl)
 	lvl1db.EXPECT().DeriveLevel1(gomock.Any()).Return(drkey.Level1Key{}, nil)
 
-	mgrdb := mock_trust.NewMockDB(ctrl)
-	mgrdb.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).AnyTimes().Return(trc, nil)
-	mgr := trust.NewTLSCryptoManager(mgrdb)
+	db := mock_trust.NewMockDB(ctrl)
+	db.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).AnyTimes().Return(trc, nil)
+	verifier := trust.NewTLSCryptoVerifier(db)
 
 	serverCreds := credentials.NewTLS(&tls.Config{
 		InsecureSkipVerify: true,
 		GetCertificate: func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
 			return &tlsCert, nil
 		},
-		VerifyPeerCertificate: mgr.VerifyClientCertificate,
+		VerifyPeerCertificate: verifier.VerifyClientCertificate,
 		ClientAuth:            tls.RequireAnyClientCert,
 	})
 	clientCreds := credentials.NewTLS(&tls.Config{
@@ -76,8 +76,8 @@ func TestLevel1KeyFetching(t *testing.T) {
 		GetClientCertificate: func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
 			return &tlsCert, nil
 		},
-		VerifyPeerCertificate: mgr.VerifyServerCertificate,
-		VerifyConnection:      mgr.VerifyConnection,
+		VerifyPeerCertificate: verifier.VerifyServerCertificate,
+		VerifyConnection:      verifier.VerifyConnection,
 	})
 
 	server := xtest.NewGRPCService(xtest.WithCredentials(clientCreds, serverCreds))
