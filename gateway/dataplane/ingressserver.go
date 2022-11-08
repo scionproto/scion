@@ -93,38 +93,39 @@ func (d *IngressServer) read(ctx context.Context) error {
 				}
 				increaseCounterMetric(d.Metrics.ReceiveExternalError, 1)
 				frame.Release()
-			} else {
-				switch v := src.(type) {
-				case *snet.UDPAddr:
-					if read < sigHdrSize {
-						metrics.CounterInc(metrics.CounterWith(d.Metrics.FramesDiscarded,
-							"remote_isd_as", v.IA.String(), "reason", "invalid"))
-						logger.Info("IngressServer: Frame to short ",
-							"expected", sigHdrSize, "actual", read)
-						frame.Release()
-					} else if frame.raw[0] != 0 {
-						metrics.CounterInc(metrics.CounterWith(d.Metrics.FramesDiscarded,
-							"remote_isd_as", v.IA.String(), "reason", "invalid"))
-						logger.Info("IngressServer: Unsupported SIG protocol version",
-							"supported", 0, "actual", frame.raw[0])
-						frame.Release()
-					} else {
-						frame.frameLen = read
-						frame.sessId = frame.raw[1]
-						metrics.CounterInc(metrics.CounterWith(d.Metrics.FramesRecv,
-							"remote_isd_as", v.IA.String()))
-						metrics.CounterAdd(metrics.CounterWith(d.Metrics.FrameBytesRecv,
-							"remote_isd_as", v.IA.String()), float64(read))
-						d.dispatch(ctx, frame, v)
-					}
-				default:
-					metrics.CounterInc(metrics.CounterWith(d.Metrics.FramesDiscarded,
-						"reason", "invalid"))
-					logger.Info("IngressServer: Not a valid snet address", "address", src)
-					frame.Release()
-				}
+				frames[i] = nil
+				continue
 			}
-			// Clear FrameBuf reference
+			v, ok := src.(*snet.UDPAddr)
+			if !ok {
+				return serrors.New("not a valid snet address", "address", src)
+			}
+			if read < sigHdrSize {
+				metrics.CounterInc(metrics.CounterWith(d.Metrics.FramesDiscarded,
+					"remote_isd_as", v.IA.String(), "reason", "invalid"))
+				logger.Info("IngressServer: Frame to short ",
+					"expected", sigHdrSize, "actual", read)
+				frame.Release()
+				frames[i] = nil
+				continue
+			}
+			if frame.raw[0] != 0 {
+				metrics.CounterInc(metrics.CounterWith(d.Metrics.FramesDiscarded,
+					"remote_isd_as", v.IA.String(), "reason", "invalid"))
+				logger.Info("IngressServer: Unsupported SIG protocol version",
+					"supported", 0, "actual", frame.raw[0])
+				frame.Release()
+				frames[i] = nil
+				continue
+			}
+
+			frame.frameLen = read
+			frame.sessId = frame.raw[1]
+			metrics.CounterInc(metrics.CounterWith(d.Metrics.FramesRecv,
+				"remote_isd_as", v.IA.String()))
+			metrics.CounterAdd(metrics.CounterWith(d.Metrics.FrameBytesRecv,
+				"remote_isd_as", v.IA.String()), float64(read))
+			d.dispatch(ctx, frame, v)
 			frames[i] = nil
 		}
 		if time.Since(lastCleanup) >= workerCleanupInterval {
