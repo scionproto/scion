@@ -85,6 +85,8 @@ func (d *IngressServer) read(ctx context.Context) error {
 		n := newFrameBufs(frames)
 		for i := 0; i < n; i++ {
 			frame := frames[i].(*frameBuf)
+			// Clear FrameBuf reference
+			frames[i] = nil
 			read, src, err := d.Conn.ReadFrom(frame.raw)
 			if err != nil {
 				logger.Error("IngressServer: Unable to read from external ingress", "err", err)
@@ -93,7 +95,6 @@ func (d *IngressServer) read(ctx context.Context) error {
 				}
 				increaseCounterMetric(d.Metrics.ReceiveExternalError, 1)
 				frame.Release()
-				frames[i] = nil
 				continue
 			}
 			v, ok := src.(*snet.UDPAddr)
@@ -106,7 +107,6 @@ func (d *IngressServer) read(ctx context.Context) error {
 				logger.Info("IngressServer: Frame to short ",
 					"expected", sigHdrSize, "actual", read)
 				frame.Release()
-				frames[i] = nil
 				continue
 			}
 			if frame.raw[0] != 0 {
@@ -115,7 +115,6 @@ func (d *IngressServer) read(ctx context.Context) error {
 				logger.Info("IngressServer: Unsupported SIG protocol version",
 					"supported", 0, "actual", frame.raw[0])
 				frame.Release()
-				frames[i] = nil
 				continue
 			}
 
@@ -126,7 +125,6 @@ func (d *IngressServer) read(ctx context.Context) error {
 			metrics.CounterAdd(metrics.CounterWith(d.Metrics.FrameBytesRecv,
 				"remote_isd_as", v.IA.String()), float64(read))
 			d.dispatch(ctx, frame, v)
-			frames[i] = nil
 		}
 		if time.Since(lastCleanup) >= workerCleanupInterval {
 			d.cleanup()
