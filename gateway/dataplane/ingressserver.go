@@ -99,24 +99,29 @@ func (d *IngressServer) read(ctx context.Context) error {
 					if read < sigHdrSize {
 						metrics.CounterInc(metrics.CounterWith(d.Metrics.FramesDiscarded,
 							"remote_isd_as", v.IA.String(), "reason", "invalid"))
-						return serrors.New("frame too short",
+						logger.Info("IngressServer: Frame to short ",
 							"expected", sigHdrSize, "actual", read)
-					}
-					if frame.raw[0] != 0 {
+						frame.Release()
+					} else if frame.raw[0] != 0 {
 						metrics.CounterInc(metrics.CounterWith(d.Metrics.FramesDiscarded,
 							"remote_isd_as", v.IA.String(), "reason", "invalid"))
-						return serrors.New("unsupported SIG protocol version",
+						logger.Info("IngressServer: Unsupported SIG protocol version",
 							"supported", 0, "actual", frame.raw[0])
+						frame.Release()
+					} else {
+						frame.frameLen = read
+						frame.sessId = frame.raw[1]
+						metrics.CounterInc(metrics.CounterWith(d.Metrics.FramesRecv,
+							"remote_isd_as", v.IA.String()))
+						metrics.CounterAdd(metrics.CounterWith(d.Metrics.FrameBytesRecv,
+							"remote_isd_as", v.IA.String()), float64(read))
+						d.dispatch(ctx, frame, v)
 					}
-					frame.frameLen = read
-					frame.sessId = frame.raw[1]
-					metrics.CounterInc(metrics.CounterWith(d.Metrics.FramesRecv,
-						"remote_isd_as", v.IA.String()))
-					metrics.CounterAdd(metrics.CounterWith(d.Metrics.FrameBytesRecv,
-						"remote_isd_as", v.IA.String()), float64(read))
-					d.dispatch(ctx, frame, v)
 				default:
-					return serrors.New("not a valid snet address", "address", src)
+					metrics.CounterInc(metrics.CounterWith(d.Metrics.FramesDiscarded,
+						"reason", "invalid"))
+					logger.Info("IngressServer: Not a valid snet address", "address", src)
+					frame.Release()
 				}
 			}
 			// Clear FrameBuf reference
