@@ -17,6 +17,7 @@ package cases
 import (
 	"github.com/google/gopacket"
 
+	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/tools/braccept/runner"
 )
@@ -56,4 +57,31 @@ func normalizePacketAuthOption(pkt gopacket.Packet) {
 		SequenceNumber: uint32(0),
 		Auth:           auth,
 	})
+}
+
+func normalizedSCMPPacketAuthEndToEndExtn() *slayers.EndToEndExtn {
+	spi, err := slayers.MakePacketAuthSPIDRKey(
+		uint16(drkey.SCMP),
+		slayers.PacketAuthASHost,
+		slayers.PacketAuthSenderSide,
+		slayers.PacketAuthLater,
+	)
+	if err != nil {
+		panic(err)
+	}
+	packAuthOpt, err := slayers.NewPacketAuthOption(slayers.PacketAuthOptionParams{
+		SPI:            spi,
+		Algorithm:      slayers.PacketAuthCMAC,
+		Timestamp:      uint32(0),
+		SequenceNumber: uint32(0),
+		Auth:           make([]byte, 16),
+	})
+	if err != nil {
+		panic(err)
+	}
+	return &slayers.EndToEndExtn{
+		Options: []*slayers.EndToEndOption{
+			packAuthOpt.EndToEndOption,
+		},
+	}
 }

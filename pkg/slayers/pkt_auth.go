@@ -272,6 +272,7 @@ func ComputeAuthCMAC(
 	key []byte,
 	opt PacketAuthOption,
 	scionL *SCION,
+	pldType L4ProtocolType,
 	pld []byte,
 	input []byte,
 	macBuffer []byte,
@@ -282,7 +283,7 @@ func ComputeAuthCMAC(
 	if err != nil {
 		return nil, err
 	}
-	inputLen, err := SerializeAutenticatedData(input, scionL, opt, pld)
+	inputLen, err := serializeAutenticatedData(input, scionL, opt, pldType, pld)
 	if err != nil {
 		return nil, err
 	}
@@ -303,15 +304,16 @@ func initCMAC(key []byte) (hash.Hash, error) {
 	return mac, nil
 }
 
-func SerializeAutenticatedData(
+func serializeAutenticatedData(
 	buf []byte,
 	s *SCION,
 	opt PacketAuthOption,
+	pldType L4ProtocolType,
 	pld []byte,
 ) (int, error) {
 
 	buf[0] = byte(CmnHdrLen + s.AddrHdrLen() + s.Path.Len())
-	buf[1] = byte(L4SCMP)
+	buf[1] = byte(pldType)
 	binary.BigEndian.PutUint16(buf[2:], uint16(len(pld)))
 	buf[4] = byte(opt.Algorithm())
 	buf[5] = byte(opt.Timestamp() >> 16)
@@ -352,8 +354,8 @@ func SerializeAutenticatedData(
 	return offset, nil
 }
 
-// ComputeSPAORelativeTimestamp computes the relative timestamp (T) where:
-// now = ts+T⋅𝑞, (where q := 6 ms and ts =  info[0].Timestamp, i.e.,
+// ComputeSPAORelativeTimestamp computes the relative timestamp (spaoTS) where:
+// now = ts+spaoTS⋅𝑞, (where q := 6 ms and ts =  info[0].Timestamp, i.e.,
 // the timestamp field in the first InfoField).
 func ComputeSPAORelativeTimestamp(ts uint32, now time.Time) (uint32, error) {
 	timestamp := now.Sub(util.SecsToTime(ts)).Milliseconds() / 6
@@ -363,7 +365,10 @@ func ComputeSPAORelativeTimestamp(ts uint32, now time.Time) (uint32, error) {
 	return uint32(timestamp), nil
 }
 
-func TimeFromRelativeTimeStamp(spaoTS uint32, ts uint32) time.Time {
+// TimeFromRelativeTimestamp computes the time instant (then) where:
+// then = ts + spaoTS⋅𝑞, (where q := 6 ms and ts =  info[0].Timestamp, i.e.,
+// the timestamp field in the first InfoField).
+func TimeFromRelativeTimestamp(ts uint32, spaoTS uint32) time.Time {
 	return util.SecsToTime(ts).Add(time.Millisecond * time.Duration(spaoTS) * 6)
 }
 

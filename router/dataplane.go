@@ -1632,12 +1632,11 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 	// Error messages must be authenticated.
 	// Traceroute are OPTIONALLY authenticated ONLY IF the Request
 	// was authenticated.
-	needsAuth := false
-	if cause != nil ||
+	// TODO(JordiSubira): Reuse the key computed in p.hasValidAuth
+	// if SCMPTypeTracerouteReply to create the response.
+	needsAuth := cause != nil ||
 		(scmpH.TypeCode.Type() == slayers.SCMPTypeTracerouteReply &&
-			p.hasValidAuth()) {
-		needsAuth = true
-	}
+			p.hasValidAuth())
 
 	var quote []byte
 	if cause != nil {
@@ -1696,6 +1695,7 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 			key[:],
 			p.optAuth,
 			&scionL,
+			slayers.L4SCMP,
 			p.buffer.Bytes(),
 			p.macBuffers.drkeyInput,
 			p.optAuth.Authenticator(),
@@ -1743,23 +1743,24 @@ func (p *scionPacketProcessor) resetSPAOMetadata(now time.Time) error {
 	// XXX(JordiSubira): Assume that send rate is low so that combination
 	// with timestamp is always unique
 	sn := uint32(0)
-	if err := p.optAuth.Reset(slayers.PacketAuthOptionParams{
+	return p.optAuth.Reset(slayers.PacketAuthOptionParams{
 		SPI:            spi,
 		Algorithm:      slayers.PacketAuthCMAC,
 		Timestamp:      timestamp,
 		SequenceNumber: sn,
 		Auth:           zeroBuffer,
-	}); err != nil {
-		return err
-	}
-	return nil
+	})
 }
 
 func (p *scionPacketProcessor) hasValidAuth() bool {
+	// Check if e2eLayer was parsed for this packet
+	if !p.lastLayer.CanDecode().Contains(slayers.LayerTypeEndToEndExtn) {
+		return false
+	}
 	// Parse incoming authField
 	e2eLayer := &slayers.EndToEndExtn{}
 	if err := e2eLayer.DecodeFromBytes(
-		p.scionLayer.Payload,
+		p.e2eLayer.Contents,
 		gopacket.NilDecodeFeedback,
 	); err != nil {
 		return false
@@ -1777,15 +1778,15 @@ func (p *scionPacketProcessor) hasValidAuth() bool {
 	if err != nil {
 		return false
 	}
-	then := slayers.TimeFromRelativeTimeStamp(authOption.Timestamp(), firstInfo.Timestamp)
-	dstAddr, err := p.scionLayer.SrcAddr()
+	then := slayers.TimeFromRelativeTimestamp(firstInfo.Timestamp, authOption.Timestamp())
+	srcAddr, err := p.scionLayer.SrcAddr()
 	if err != nil {
 		return false
 	}
-	// the sender should have use the receiver side key, i.e., K_{localIA-remoteIA:remoteHost}
-	// where remoteIA == p.scionLayer.SrcIA and remoteHost == dstAddr
+	// the sender should have used the receiver side key, i.e., K_{localIA-remoteIA:remoteHost}
+	// where remoteIA == p.scionLayer.SrcIA and remoteHost == srcAddr
 	// (for the incoming packet).
-	key, err := p.drkeyProvider.GetAuthKey(then, p.scionLayer.SrcIA, dstAddr)
+	key, err := p.drkeyProvider.GetAuthKey(then, p.scionLayer.SrcIA, srcAddr)
 	if err != nil {
 		return false
 	}
@@ -1793,7 +1794,8 @@ func (p *scionPacketProcessor) hasValidAuth() bool {
 		key[:],
 		authOption,
 		&p.scionLayer,
-		p.e2eLayer.Payload, // scmpH + scmpP
+		slayers.L4SCMP,
+		p.lastLayer.LayerPayload(),
 		p.macBuffers.drkeyInput,
 		p.validAuthBuf,
 	)
@@ -1801,8 +1803,11 @@ func (p *scionPacketProcessor) hasValidAuth() bool {
 		return false
 	}
 
+	// Reset p.e2eLayer
+	p.e2eLayer = slayers.EndToEndExtnSkipper{}
+
 	// compare incoming authField with computed authentication tag
-	return bytes.Equal(authOption.Authenticator(), p.validAuthBuf)
+	return subtle.ConstantTimeCompare(authOption.Authenticator(), p.validAuthBuf) != 0
 }
 
 // decodeLayers implements roughly the functionality of

@@ -23,7 +23,6 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 
-	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
@@ -174,30 +173,7 @@ func SCMPParentToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	scionL.NextHdr = slayers.End2EndClass
-	spi, err := slayers.MakePacketAuthSPIDRKey(
-		uint16(drkey.SCMP),
-		slayers.PacketAuthASHost,
-		slayers.PacketAuthSenderSide,
-		slayers.PacketAuthLater,
-	)
-	if err != nil {
-		panic(err)
-	}
-	packAuthOpt, err := slayers.NewPacketAuthOption(slayers.PacketAuthOptionParams{
-		SPI:            spi,
-		Algorithm:      slayers.PacketAuthCMAC,
-		Timestamp:      uint32(0),
-		SequenceNumber: uint32(0),
-		Auth:           make([]byte, 16),
-	})
-	if err != nil {
-		panic(err)
-	}
-	e2e := &slayers.EndToEndExtn{
-		Options: []*slayers.EndToEndOption{
-			packAuthOpt.EndToEndOption,
-		},
-	}
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
 	e2e.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(
@@ -372,30 +348,7 @@ func SCMPParentToChildXover(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	scionL.NextHdr = slayers.End2EndClass
-	spi, err := slayers.MakePacketAuthSPIDRKey(
-		uint16(drkey.SCMP),
-		slayers.PacketAuthASHost,
-		slayers.PacketAuthSenderSide,
-		slayers.PacketAuthLater,
-	)
-	if err != nil {
-		panic(err)
-	}
-	packAuthOpt, err := slayers.NewPacketAuthOption(slayers.PacketAuthOptionParams{
-		SPI:            spi,
-		Algorithm:      slayers.PacketAuthCMAC,
-		Timestamp:      uint32(0),
-		SequenceNumber: uint32(0),
-		Auth:           make([]byte, 16),
-	})
-	if err != nil {
-		panic(err)
-	}
-	e2e := &slayers.EndToEndExtn{
-		Options: []*slayers.EndToEndOption{
-			packAuthOpt.EndToEndOption,
-		},
-	}
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
 	e2e.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(
@@ -574,30 +527,7 @@ func SCMPChildToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	scionL.NextHdr = slayers.End2EndClass
-	spi, err := slayers.MakePacketAuthSPIDRKey(
-		uint16(drkey.SCMP),
-		slayers.PacketAuthASHost,
-		slayers.PacketAuthSenderSide,
-		slayers.PacketAuthLater,
-	)
-	if err != nil {
-		panic(err)
-	}
-	packAuthOpt, err := slayers.NewPacketAuthOption(slayers.PacketAuthOptionParams{
-		SPI:            spi,
-		Algorithm:      slayers.PacketAuthCMAC,
-		Timestamp:      uint32(0),
-		SequenceNumber: uint32(0),
-		Auth:           make([]byte, 16),
-	})
-	if err != nil {
-		panic(err)
-	}
-	e2e := &slayers.EndToEndExtn{
-		Options: []*slayers.EndToEndOption{
-			packAuthOpt.EndToEndOption,
-		},
-	}
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
 	e2e.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(
@@ -772,30 +702,7 @@ func SCMPInternalXover(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	scionL.NextHdr = slayers.End2EndClass
-	spi, err := slayers.MakePacketAuthSPIDRKey(
-		uint16(drkey.SCMP),
-		slayers.PacketAuthASHost,
-		slayers.PacketAuthSenderSide,
-		slayers.PacketAuthLater,
-	)
-	if err != nil {
-		panic(err)
-	}
-	packAuthOpt, err := slayers.NewPacketAuthOption(slayers.PacketAuthOptionParams{
-		SPI:            spi,
-		Algorithm:      slayers.PacketAuthCMAC,
-		Timestamp:      uint32(0),
-		SequenceNumber: uint32(0),
-		Auth:           make([]byte, 16),
-	})
-	if err != nil {
-		panic(err)
-	}
-	e2e := &slayers.EndToEndExtn{
-		Options: []*slayers.EndToEndOption{
-			packAuthOpt.EndToEndOption,
-		},
-	}
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
 	e2e.NextHdr = slayers.L4SCMP
 	scmpH = &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(

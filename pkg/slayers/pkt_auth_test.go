@@ -42,8 +42,8 @@ var (
 	decodedPath = &scion.Decoded{
 		Base: scion.Base{
 			PathMeta: scion.MetaHdr{
-				CurrINF: 0xab,
-				CurrHF:  0xcd,
+				CurrINF: 0x03,
+				CurrHF:  0x3b,
 				SegLen:  [3]byte{1, 1, 1},
 			},
 			NumINF:  3,
@@ -231,7 +231,7 @@ func TestComputeAuthMac(t *testing.T) {
 		scionL          slayers.SCION
 		pld             []byte
 		rawMACInput     []byte
-		assertFormatErr assert.ErrorAssertionFunc
+		assertErr       assert.ErrorAssertionFunc
 	}{
 		"decoded": {
 			optionParameter: slayers.PacketAuthOptionParams{
@@ -285,7 +285,7 @@ func TestComputeAuthMac(t *testing.T) {
 				0x0, 0x0, 0x1, 0x2,
 				0x3, 0x4, 0x5, 0x6,
 			}, fooPayload...),
-			assertFormatErr: assert.NoError,
+			assertErr: assert.NoError,
 		},
 		"one hop": {
 			optionParameter: slayers.PacketAuthOptionParams{
@@ -353,7 +353,7 @@ func TestComputeAuthMac(t *testing.T) {
 				0x0, 0x0, 0x0, 0x0,
 				0x0, 0x0, 0x0, 0x0,
 			}, fooPayload...),
-			assertFormatErr: assert.NoError,
+			assertErr: assert.NoError,
 		},
 		"epic": {
 			optionParameter: slayers.PacketAuthOptionParams{
@@ -423,7 +423,7 @@ func TestComputeAuthMac(t *testing.T) {
 				0x0, 0x0, 0x1, 0x2,
 				0x3, 0x4, 0x5, 0x6,
 			}, fooPayload...),
-			assertFormatErr: assert.NoError,
+			assertErr: assert.NoError,
 		},
 	}
 	for name, tc := range testCases {
@@ -434,18 +434,25 @@ func TestComputeAuthMac(t *testing.T) {
 			assert.NoError(t, err)
 
 			buf := make([]byte, slayers.MACBufferSize)
-			inpLen, _ := slayers.SerializeAutenticatedData(buf, &tc.scionL, optAuth, tc.pld)
+			inpLen, _ := slayers.SerializeAutenticatedData(
+				buf,
+				&tc.scionL,
+				optAuth,
+				slayers.L4SCMP,
+				tc.pld,
+			)
 			require.Equal(t, tc.rawMACInput, append(buf[:inpLen], fooPayload...))
 
 			mac, err := slayers.ComputeAuthCMAC(
 				authKey[:],
 				optAuth,
 				&tc.scionL,
+				slayers.L4SCMP,
 				tc.pld,
 				make([]byte, slayers.MACBufferSize),
 				optAuth.Authenticator(),
 			)
-			tc.assertFormatErr(t, err)
+			tc.assertErr(t, err)
 			if err != nil {
 				return
 			}
