@@ -9,7 +9,6 @@ Prerequisites
 #. Make sure that you are using a clean and recently updated **Ubuntu 18.04**.
    Other Ubuntu versions (or systems) will usually be fine too, but some of the tooling may not work.
    This environment assumes you're running as a non-root user with ``sudo`` access.
-
 #. Install ``docker``.
    Please follow the instructions for `docker-ce <https://docs.docker.com/install/linux/docker-ce/ubuntu/>`_.
    Then, add your user to the ``docker`` group:
