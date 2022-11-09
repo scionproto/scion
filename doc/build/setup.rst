@@ -9,7 +9,7 @@ Prerequisites
 #. Make sure that you are using a clean and recently updated **Ubuntu 18.04**.
    Other Ubuntu versions (or systems) will usually be fine too, but some of the tooling may not work.
    This environment assumes you're running as a non-root user with ``sudo`` access.
-   
+
 #. Install ``docker``.
    Please follow the instructions for `docker-ce <https://docs.docker.com/install/linux/docker-ce/ubuntu/>`_.
    Then, add your user to the ``docker`` group:
@@ -43,6 +43,12 @@ Bazel & Co.
 
    You can also manually install ``bazelisk`` and create an alias so that
    ``bazel`` will resolve to the ``bazelisk`` command.
+
+#. To install the required dependencies, run:
+
+   .. code-block:: bash
+
+      ./tools/install_deps
 
 #. Start the bazel-remote container.
 
