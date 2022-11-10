@@ -51,21 +51,21 @@ type Result struct {
 }
 
 type Stats struct {
-	ping.Stats
-	Loss    int     `json:"packet_loss" yaml:"packet_loss"`
-	Time    float64 `json:"time" yaml:"time"`
-	MinRTT  float64 `json:"min_rtt" yaml:"min_rtt"`
-	AvgRTT  float64 `json:"avg_rtt" yaml:"avg_rtt"`
-	MaxRTT  float64 `json:"max_rtt" yaml:"max_rtt"`
-	MdevRTT float64 `json:"mdev_rtt" yaml:"mdev_rtt"`
+	ping.Stats `yaml:",inline"`
+	Loss       int            `json:"packet_loss" yaml:"packet_loss"`
+	Time       durationMillis `json:"time" yaml:"time"`
+	MinRTT     durationMillis `json:"min_rtt" yaml:"min_rtt"`
+	AvgRTT     durationMillis `json:"avg_rtt" yaml:"avg_rtt"`
+	MaxRTT     durationMillis `json:"max_rtt" yaml:"max_rtt"`
+	MdevRTT    durationMillis `json:"mdev_rtt" yaml:"mdev_rtt"`
 }
 
 type PingUpdate struct {
-	Size     int     `json:"scion_packet_size" yaml:"scion_packet_size"`
-	Source   string  `json:"source_isd_as" yaml:"source_isd_as"`
-	Sequence int     `json:"scmp_seq" yaml:"scmp_seq"`
-	RTT      float64 `json:"round_trip_time" yaml:"round_trip_time"`
-	State    string  `json:"state" yaml:"state"`
+	Size     int            `json:"scion_packet_size" yaml:"scion_packet_size"`
+	Source   string         `json:"source" yaml:"source"`
+	Sequence int            `json:"scmp_seq" yaml:"scmp_seq"`
+	RTT      durationMillis `json:"round_trip_time" yaml:"round_trip_time"`
+	State    string         `json:"state" yaml:"state"`
 }
 
 func newPing(pather CommandPather) *cobra.Command {
@@ -289,12 +289,12 @@ On other errors, ping will exit with code 2.
 						Size:     update.Size,
 						Source:   update.Source.String(),
 						Sequence: update.Sequence,
-						RTT:      float64(update.RTT.Nanoseconds()) / 1e6,
+						RTT:      durationMillis(update.RTT),
 						State:    update.State.String(),
 					})
 					printf("%d bytes from %s,%s: scmp_seq=%d time=%s%s\n",
 						update.Size, update.Source.IA, update.Source.Host, update.Sequence,
-						fmt.Sprintf("%.3fms", float64(update.RTT.Nanoseconds())/1e6), additional)
+						durationMillis(update.RTT), additional)
 				},
 			})
 			if err != nil {
@@ -308,14 +308,14 @@ On other errors, ping will exit with code 2.
 				printf("\n--- %s,%s statistics ---\n", remote.IA, remote.Host.IP)
 				printf("%d packets transmitted, %d received, %d%% packet loss, time %v\n",
 					s.Sent, s.Received, res.Statistics.Loss,
-					time.Duration(res.Statistics.Time)*time.Millisecond,
+					res.Statistics.Time,
 				)
 				if s.Received != 0 {
 					printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n",
-						res.Statistics.MinRTT,
-						res.Statistics.AvgRTT,
-						res.Statistics.MaxRTT,
-						res.Statistics.MdevRTT,
+						res.Statistics.MinRTT.Millis(),
+						res.Statistics.AvgRTT.Millis(),
+						res.Statistics.MaxRTT.Millis(),
+						res.Statistics.MdevRTT.Millis(),
 					)
 				}
 				if stats.Received == 0 {
@@ -384,32 +384,35 @@ func calculateStats(s ping.Stats, replies []PingUpdate, run time.Duration) Stats
 	stats := Stats{
 		Stats: s,
 		Loss:  loss,
-		Time:  math.Round((float64(run.Nanoseconds())/1e6)*1000) / 1000,
+		Time:  durationMillis(run),
 	}
 
 	if len(replies) == 0 {
 		return stats
 	}
-	stats.MinRTT = replies[0].RTT
-	stats.MaxRTT = replies[0].RTT
-	var sum float64
+	minRTT := replies[0].RTT
+	maxRTT := replies[0].RTT
+	var sum durationMillis
 	for i := 0; i < len(replies); i++ {
-		if replies[i].RTT < stats.MinRTT {
-			stats.MinRTT = replies[i].RTT
+		if replies[i].RTT < minRTT {
+			minRTT = replies[i].RTT
 		}
-		if replies[i].RTT > stats.MaxRTT {
-			stats.MaxRTT = replies[i].RTT
+		if replies[i].RTT > maxRTT {
+			maxRTT = replies[i].RTT
 		}
 		sum += replies[i].RTT
 	}
-	stats.AvgRTT = math.Round(sum/float64(len(replies))*1000) / 1000
+	avgRTT := durationMillis(int(sum) / len(replies))
 
 	// standard deviation
 	var sd float64
 	for i := 0; i < len(replies); i++ {
-		sd += math.Pow(replies[i].RTT-stats.AvgRTT, 2)
+		sd += math.Pow(float64(replies[i].RTT-avgRTT), 2)
 	}
-	stats.MdevRTT = math.Round(math.Sqrt(sd/float64(len(replies)))*1000) / 1000
-
+	mdevRTT := math.Sqrt(sd / float64(len(replies)))
+	stats.MinRTT = durationMillis(minRTT)
+	stats.MaxRTT = durationMillis(maxRTT)
+	stats.AvgRTT = durationMillis(avgRTT)
+	stats.MdevRTT = durationMillis(mdevRTT)
 	return stats
 }

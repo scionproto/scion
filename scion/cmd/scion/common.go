@@ -15,9 +15,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net"
+	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/common"
@@ -71,4 +74,29 @@ func getPrintf(output string, writer io.Writer) (func(format string, ctx ...inte
 	default:
 		return nil, serrors.New("format not supported", "format", output)
 	}
+}
+
+type durationMillis time.Duration
+
+func (d durationMillis) String() string {
+	return fmt.Sprintf("%.3fms", d.Millis())
+}
+
+func (d durationMillis) MarshalJSON() ([]byte, error) {
+	return json.Marshal(d.MillisRounded())
+}
+
+func (d durationMillis) MarshalYAML() (interface{}, error) {
+	return d.MillisRounded(), nil
+}
+
+// millis returns the duration as a floating point number of milliseconds
+func (d durationMillis) Millis() float64 {
+	return float64(d) / 1e6
+}
+
+// millisRounded returns the duration as a floating point number of
+// milliseconds, rounded to microseconds (3 digits precision).
+func (d durationMillis) MillisRounded() float64 {
+	return math.Round(float64(d)/1000) / 1000
 }
