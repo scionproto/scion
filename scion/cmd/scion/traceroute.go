@@ -204,17 +204,9 @@ On other errors, traceroute will exit with code 2.
 				return err
 			}
 			res.Hops = make([]HopInfo, 0, len(updates))
-			for _, update := range updates {
-				RTTs := make([]durationMillis, 0, len(update.RTTs))
-				for _, rtt := range update.RTTs {
-					RTTs = append(RTTs, durationMillis(rtt))
-				}
-				res.Hops = append(res.Hops, HopInfo{
-					InterfaceID:    uint16(update.Interface),
-					IP:             update.Remote.Host.IP().String(),
-					IA:             update.Remote.IA,
-					RoundTripTimes: RTTs,
-				})
+			hops := getHops(path)
+			for i, update := range updates {
+				res.Hops = append(res.Hops, getHopInfo(update, hops[i]))
 			}
 
 			switch flags.format {
@@ -262,5 +254,24 @@ func fmtRTTs(rtts []time.Duration, timeout time.Duration) string {
 }
 
 func fmtRemote(remote snet.SCIONAddress, intf uint64) string {
+	if remote == (snet.SCIONAddress{}) {
+		return "??"
+	}
 	return fmt.Sprintf("%s IfID=%d", remote, intf)
+}
+
+func getHopInfo(u traceroute.Update, hop Hop) HopInfo {
+	if u.Remote == (snet.SCIONAddress{}) {
+		return HopInfo{IA: hop.IA, InterfaceID: uint16(hop.ID)}
+	}
+	RTTs := make([]durationMillis, 0, len(u.RTTs))
+	for _, rtt := range u.RTTs {
+		RTTs = append(RTTs, durationMillis(rtt))
+	}
+	return HopInfo{
+		InterfaceID:    uint16(u.Interface),
+		IP:             u.Remote.Host.IP().String(),
+		IA:             u.Remote.IA,
+		RoundTripTimes: RTTs,
+	}
 }
