@@ -410,9 +410,9 @@ func calculateStats(s ping.Stats, replies []PingUpdate, run time.Duration) Stats
 		sd += math.Pow(float64(replies[i].RTT-avgRTT), 2)
 	}
 	mdevRTT := math.Sqrt(sd / float64(len(replies)))
-	stats.MinRTT = durationMillis(minRTT)
-	stats.MaxRTT = durationMillis(maxRTT)
-	stats.AvgRTT = durationMillis(avgRTT)
+	stats.MinRTT = minRTT
+	stats.MaxRTT = maxRTT
+	stats.AvgRTT = avgRTT
 	stats.MdevRTT = durationMillis(mdevRTT)
 	return stats
 }
