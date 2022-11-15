@@ -47,7 +47,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	case nil:
 		return 0, serrors.New("Missing remote address")
 	case *UDPAddr:
-		dst = SCIONAddress{IA: a.IA, Host: addr.HostFromIP(a.Host.IP)}
+		dst = SCIONAddress{IA: a.IA, Host: addr.HostIPFromSlice(a.Host.IP)}
 		port, path = a.Host.Port, a.Path
 		nextHop = a.NextHop
 		if nextHop == nil && c.base.scionNet.LocalIA.Equal(a.IA) {
@@ -59,7 +59,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 
 		}
 	case *SVCAddr:
-		dst, port, path = SCIONAddress{IA: a.IA, Host: a.SVC}, 0, a.Path
+		dst, port, path = SCIONAddress{IA: a.IA, Host: addr.HostSVC(a.SVC)}, 0, a.Path
 		nextHop = a.NextHop
 	default:
 		return 0, serrors.New("Unable to write to non-SCION address",
@@ -72,7 +72,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 			Destination: dst,
 			Source: SCIONAddress{
 				IA:   c.base.scionNet.LocalIA,
-				Host: addr.HostFromIP(c.base.listen.Host.IP),
+				Host: addr.HostIPFromSlice(c.base.listen.Host.IP),
 			},
 			Path: path,
 			Payload: UDPPayload{

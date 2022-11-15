@@ -227,11 +227,11 @@ func (t *tracerouter) probeHop(ctx context.Context, hfIdx uint8, egress bool) (U
 		PacketInfo: snet.PacketInfo{
 			Destination: snet.SCIONAddress{
 				IA:   t.remote.IA,
-				Host: addr.HostFromIP(t.remote.Host.IP),
+				Host: addr.HostIPFromSlice(t.remote.Host.IP),
 			},
 			Source: snet.SCIONAddress{
 				IA:   t.local.IA,
-				Host: addr.HostFromIP(t.local.Host.IP),
+				Host: addr.HostIPFromSlice(t.local.Host.IP),
 			},
 			Path:    alertPath,
 			Payload: snet.SCMPTracerouteRequest{Identifier: t.id},
@@ -310,11 +310,8 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 	h.replies <- reply{
 		Received: time.Now(),
 		Reply:    r,
-		Remote: snet.SCIONAddress{
-			IA:   pkt.Source.IA,
-			Host: pkt.Source.Host.Copy(),
-		},
-		Error: err,
+		Remote:   pkt.Source,
+		Error:    err,
 	}
 	return nil
 }

@@ -50,13 +50,14 @@ import (
 )
 
 func TestDataPlaneAddInternalInterface(t *testing.T) {
+	internalIP := net.ParseIP("198.51.100.1")
 	t.Run("fails after serve", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
 		d := &router.DataPlane{}
 		d.FakeStart()
-		assert.Error(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), net.IP{}))
+		assert.Error(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), internalIP))
 	})
 	t.Run("setting nil value is not allowed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -70,15 +71,15 @@ func TestDataPlaneAddInternalInterface(t *testing.T) {
 		defer ctrl.Finish()
 
 		d := &router.DataPlane{}
-		assert.NoError(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), net.IP{}))
+		assert.NoError(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), internalIP))
 	})
 	t.Run("double set fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
 		d := &router.DataPlane{}
-		assert.NoError(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), net.IP{}))
-		assert.Error(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), net.IP{}))
+		assert.NoError(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), internalIP))
+		assert.Error(t, d.AddInternalInterface(mock_router.NewMockBatchConn(ctrl), internalIP))
 	})
 }
 
@@ -278,7 +279,7 @@ func TestDataPlaneRun(t *testing.T) {
 						YourDiscriminator: 0,
 					}
 
-					_ = scn.SetSrcAddr(&net.IPAddr{IP: src.IP})
+					_ = scn.SetSrcAddr(addr.HostIPFromSlice(src.IP))
 					buffer := gopacket.NewSerializeBuffer()
 					_ = gopacket.SerializeLayers(buffer,
 						gopacket.SerializeOptions{FixLengths: true}, scn, bfdL)
@@ -363,7 +364,7 @@ func TestDataPlaneRun(t *testing.T) {
 							if err != nil {
 								return 1, nil
 							}
-							if !bytes.Equal(a.(*net.IPAddr).IP, localAddr.IP) {
+							if !bytes.Equal(a.IP().AsSlice(), localAddr.IP) {
 								return 1, nil
 							}
 
@@ -371,7 +372,7 @@ func TestDataPlaneRun(t *testing.T) {
 							if err != nil {
 								return 1, nil
 							}
-							if !bytes.Equal(b.(*net.IPAddr).IP, remoteAddr.IP) {
+							if !bytes.Equal(b.IP().AsSlice(), remoteAddr.IP) {
 								return 1, nil
 							}
 
@@ -581,7 +582,7 @@ func TestProcessPkt(t *testing.T) {
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
 				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
-				dst := &net.IPAddr{IP: net.ParseIP("10.0.100.100").To4()}
+				dst := addr.MustParseHost("10.0.100.100")
 				_ = spkt.SetDstAddr(dst)
 				dpath.HopFields = []path.HopField{
 					{ConsIngress: 41, ConsEgress: 40},
@@ -592,7 +593,7 @@ func TestProcessPkt(t *testing.T) {
 				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
 				ret := toMsg(t, spkt, dpath)
 				if afterProcessing {
-					ret.Addr = &net.UDPAddr{IP: dst.IP, Port: topology.EndhostPort}
+					ret.Addr = &net.UDPAddr{IP: dst.IP().AsSlice(), Port: topology.EndhostPort}
 					ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
 				}
 				return ret
@@ -787,8 +788,8 @@ func TestProcessPkt(t *testing.T) {
 		"svc": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					map[addr.HostSVC][]*net.UDPAddr{
-						addr.HostSVCFromString("CS"): {
+					map[addr.SVC][]*net.UDPAddr{
+						addr.SvcCS: {
 							&net.UDPAddr{
 								IP:   net.ParseIP("10.0.200.200").To4(),
 								Port: topology.EndhostPort,
@@ -799,7 +800,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
-				_ = spkt.SetDstAddr(addr.HostSVCFromString("CS"))
+				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
 				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
 				dpath.HopFields = []path.HopField{
 					{ConsIngress: 41, ConsEgress: 40},
@@ -822,12 +823,12 @@ func TestProcessPkt(t *testing.T) {
 		"svc nobackend": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					map[addr.HostSVC][]*net.UDPAddr{},
+					map[addr.SVC][]*net.UDPAddr{},
 					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
-				_ = spkt.SetDstAddr(addr.HostSVCFromString("CS"))
+				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
 				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
 				dpath.HopFields = []path.HopField{
 					{ConsIngress: 41, ConsEgress: 40},
@@ -845,12 +846,12 @@ func TestProcessPkt(t *testing.T) {
 		"svc invalid": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					map[addr.HostSVC][]*net.UDPAddr{},
+					map[addr.SVC][]*net.UDPAddr{},
 					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
-				_ = spkt.SetDstAddr(addr.HostSVCFromString("BS"))
+				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
 				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
 				dpath.HopFields = []path.HopField{
 					{ConsIngress: 41, ConsEgress: 40},
@@ -871,7 +872,7 @@ func TestProcessPkt(t *testing.T) {
 					nil,
 					nil,
 					mock_router.NewMockBatchConn(ctrl), nil,
-					map[addr.HostSVC][]*net.UDPAddr{
+					map[addr.SVC][]*net.UDPAddr{
 						addr.SvcCS: {&net.UDPAddr{
 							IP:   net.ParseIP("172.0.2.10"),
 							Port: topology.EndhostPort,
@@ -887,7 +888,7 @@ func TestProcessPkt(t *testing.T) {
 				spkt.PathType = onehop.PathType
 				spkt.SrcIA = xtest.MustParseIA("1-ff00:0:111")
 				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
-				err := spkt.SetDstAddr(addr.SVCMcast | addr.SvcCS)
+				err := spkt.SetDstAddr(addr.HostSVC(addr.SvcCS.Multicast()))
 				require.NoError(t, err)
 				dpath := &onehop.Path{
 					Info: path.InfoField{
@@ -941,7 +942,7 @@ func TestProcessPkt(t *testing.T) {
 				spkt.PathType = onehop.PathType
 				spkt.SrcIA = xtest.MustParseIA("1-ff00:0:110") // sneaky
 				spkt.DstIA = xtest.MustParseIA("1-ff00:0:111")
-				err := spkt.SetDstAddr(addr.SVCMcast | addr.SvcCS)
+				err := spkt.SetDstAddr(addr.HostSVC(addr.SvcCS.Multicast()))
 				require.NoError(t, err)
 				dpath := &onehop.Path{
 					Info: path.InfoField{
@@ -971,7 +972,7 @@ func TestProcessPkt(t *testing.T) {
 					},
 					nil,
 					mock_router.NewMockBatchConn(ctrl), nil,
-					map[addr.HostSVC][]*net.UDPAddr{
+					map[addr.SVC][]*net.UDPAddr{
 						addr.SvcCS: {&net.UDPAddr{
 							IP:   net.ParseIP("172.0.2.10"),
 							Port: topology.EndhostPort,
@@ -983,7 +984,7 @@ func TestProcessPkt(t *testing.T) {
 				spkt, _ := prepBaseMsg(now)
 				spkt.PathType = scion.PathType
 				spkt.SrcIA = xtest.MustParseIA("1-ff00:0:110")
-				err := spkt.SetDstAddr(addr.SVCMcast | addr.SvcCS)
+				err := spkt.SetDstAddr(addr.HostSVC(addr.SvcCS.Multicast()))
 				require.NoError(t, err)
 				dpath := &onehop.Path{
 					Info: path.InfoField{
@@ -1041,7 +1042,7 @@ func TestProcessPkt(t *testing.T) {
 				spkt.PathType = onehop.PathType
 				spkt.SrcIA = xtest.MustParseIA("1-ff00:0:110")
 				spkt.DstIA = xtest.MustParseIA("1-ff00:0:111")
-				err := spkt.SetDstAddr(addr.SVCMcast | addr.SvcCS)
+				err := spkt.SetDstAddr(addr.HostSVC(addr.SvcCS.Multicast()))
 				require.NoError(t, err)
 				dpath := &onehop.Path{
 					Info: path.InfoField{
@@ -1071,7 +1072,7 @@ func TestProcessPkt(t *testing.T) {
 		"invalid dest": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					map[addr.HostSVC][]*net.UDPAddr{},
+					map[addr.SVC][]*net.UDPAddr{},
 					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
@@ -1260,7 +1261,8 @@ func prepEpicMsg(t *testing.T, afterProcessing bool, key []byte,
 		PHVF:  make([]byte, 4),
 		LHVF:  make([]byte, 4),
 	}
-	require.NoError(t, spkt.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("10.0.200.200").To4()}))
+	require.NoError(t, spkt.SetSrcAddr(addr.MustParseHost("10.0.200.200")))
+
 	spkt.Path = epicpath
 
 	return spkt, epicpath, dpath
@@ -1287,11 +1289,11 @@ func prepareEpicCrypto(t *testing.T, spkt *slayers.SCION,
 
 func toIP(t *testing.T, spkt *slayers.SCION, path path.Path, afterProcessing bool) *ipv4.Message {
 	// Encapsulate in IPv4
-	dst := &net.IPAddr{IP: net.ParseIP("10.0.100.100").To4()}
+	dst := addr.MustParseHost("10.0.100.100")
 	require.NoError(t, spkt.SetDstAddr(dst))
 	ret := toMsg(t, spkt, path)
 	if afterProcessing {
-		ret.Addr = &net.UDPAddr{IP: dst.IP, Port: topology.EndhostPort}
+		ret.Addr = &net.UDPAddr{IP: dst.IP().AsSlice(), Port: topology.EndhostPort}
 		ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
 	}
 	return ret

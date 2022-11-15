@@ -38,7 +38,7 @@ func (m *MockTopology) EXPECT() *MockTopologyMockRecorder {
 }
 
 // Anycast mocks base method.
-func (m *MockTopology) Anycast(arg0 addr.HostSVC) (*net.UDPAddr, error) {
+func (m *MockTopology) Anycast(arg0 addr.SVC) (*net.UDPAddr, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Anycast", arg0)
 	ret0, _ := ret[0].(*net.UDPAddr)
@@ -182,7 +182,7 @@ func (mr *MockTopologyMockRecorder) MakeHostInfos(arg0 interface{}) *gomock.Call
 }
 
 // Multicast mocks base method.
-func (m *MockTopology) Multicast(arg0 addr.HostSVC) ([]*net.UDPAddr, error) {
+func (m *MockTopology) Multicast(arg0 addr.SVC) ([]*net.UDPAddr, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Multicast", arg0)
 	ret0, _ := ret[0].([]*net.UDPAddr)
@@ -197,7 +197,7 @@ func (mr *MockTopologyMockRecorder) Multicast(arg0 interface{}) *gomock.Call {
 }
 
 // PublicAddress mocks base method.
-func (m *MockTopology) PublicAddress(arg0 addr.HostSVC, arg1 string) *net.UDPAddr {
+func (m *MockTopology) PublicAddress(arg0 addr.SVC, arg1 string) *net.UDPAddr {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PublicAddress", arg0, arg1)
 	ret0, _ := ret[0].(*net.UDPAddr)
@@ -211,7 +211,7 @@ func (mr *MockTopologyMockRecorder) PublicAddress(arg0, arg1 interface{}) *gomoc
 }
 
 // SVCNames mocks base method.
-func (m *MockTopology) SVCNames(arg0 addr.HostSVC) topology.ServiceNames {
+func (m *MockTopology) SVCNames(arg0 addr.SVC) topology.ServiceNames {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SVCNames", arg0)
 	ret0, _ := ret[0].(topology.ServiceNames)
@@ -225,7 +225,7 @@ func (mr *MockTopologyMockRecorder) SVCNames(arg0 interface{}) *gomock.Call {
 }
 
 // UnderlayAnycast mocks base method.
-func (m *MockTopology) UnderlayAnycast(arg0 addr.HostSVC) (*net.UDPAddr, error) {
+func (m *MockTopology) UnderlayAnycast(arg0 addr.SVC) (*net.UDPAddr, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UnderlayAnycast", arg0)
 	ret0, _ := ret[0].(*net.UDPAddr)
@@ -240,7 +240,7 @@ func (mr *MockTopologyMockRecorder) UnderlayAnycast(arg0 interface{}) *gomock.Ca
 }
 
 // UnderlayMulticast mocks base method.
-func (m *MockTopology) UnderlayMulticast(arg0 addr.HostSVC) ([]*net.UDPAddr, error) {
+func (m *MockTopology) UnderlayMulticast(arg0 addr.SVC) ([]*net.UDPAddr, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UnderlayMulticast", arg0)
 	ret0, _ := ret[0].([]*net.UDPAddr)

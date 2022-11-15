@@ -84,7 +84,7 @@ func (SCMPExternalInterfaceDownL4) closed() {}
 // SCIONAddress is the fully-specified address of a host.
 type SCIONAddress struct {
 	IA   addr.IA
-	Host addr.HostAddr
+	Host addr.Host
 }
 
 func (a SCIONAddress) String() string {

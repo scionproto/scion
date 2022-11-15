@@ -37,7 +37,7 @@ func (m *MockDispatcher) EXPECT() *MockDispatcherMockRecorder {
 }
 
 // Register mocks base method.
-func (m *MockDispatcher) Register(arg0 context.Context, arg1 addr.IA, arg2 *net.UDPAddr, arg3 addr.HostSVC) (net.PacketConn, uint16, error) {
+func (m *MockDispatcher) Register(arg0 context.Context, arg1 addr.IA, arg2 *net.UDPAddr, arg3 addr.SVC) (net.PacketConn, uint16, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Register", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(net.PacketConn)

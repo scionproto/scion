@@ -24,14 +24,14 @@ import (
 
 type services struct {
 	mtx sync.Mutex
-	m   map[addr.HostSVC][]*net.UDPAddr
+	m   map[addr.SVC][]*net.UDPAddr
 }
 
 func newServices() *services {
-	return &services{m: make(map[addr.HostSVC][]*net.UDPAddr)}
+	return &services{m: make(map[addr.SVC][]*net.UDPAddr)}
 }
 
-func (s *services) AddSvc(svc addr.HostSVC, a *net.UDPAddr) {
+func (s *services) AddSvc(svc addr.SVC, a *net.UDPAddr) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -42,7 +42,7 @@ func (s *services) AddSvc(svc addr.HostSVC, a *net.UDPAddr) {
 	s.m[svc] = append(addrs, a)
 }
 
-func (s *services) DelSvc(svc addr.HostSVC, a *net.UDPAddr) {
+func (s *services) DelSvc(svc addr.SVC, a *net.UDPAddr) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -56,7 +56,7 @@ func (s *services) DelSvc(svc addr.HostSVC, a *net.UDPAddr) {
 	s.m[svc] = addrs[:len(addrs)-1]
 }
 
-func (s *services) Any(svc addr.HostSVC) (*net.UDPAddr, bool) {
+func (s *services) Any(svc addr.SVC) (*net.UDPAddr, bool) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 

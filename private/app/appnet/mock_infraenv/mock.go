@@ -39,7 +39,7 @@ func (m *MockSVCResolver) EXPECT() *MockSVCResolverMockRecorder {
 }
 
 // GetUnderlay mocks base method.
-func (m *MockSVCResolver) GetUnderlay(arg0 addr.HostSVC) (*net.UDPAddr, error) {
+func (m *MockSVCResolver) GetUnderlay(arg0 addr.SVC) (*net.UDPAddr, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUnderlay", arg0)
 	ret0, _ := ret[0].(*net.UDPAddr)
@@ -77,7 +77,7 @@ func (m *MockResolver) EXPECT() *MockResolverMockRecorder {
 }
 
 // LookupSVC mocks base method.
-func (m *MockResolver) LookupSVC(arg0 context.Context, arg1 snet.Path, arg2 addr.HostSVC) (*svc.Reply, error) {
+func (m *MockResolver) LookupSVC(arg0 context.Context, arg1 snet.Path, arg2 addr.SVC) (*svc.Reply, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LookupSVC", arg0, arg1, arg2)
 	ret0, _ := ret[0].(*svc.Reply)

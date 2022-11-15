@@ -33,7 +33,7 @@ import (
 // SVC address to a unicast IP/UDP one.
 type Resolver interface {
 	// LookupSVC resolves the SVC address for the AS terminating the path.
-	LookupSVC(ctx context.Context, path snet.Path, svc addr.HostSVC) (*svc.Reply, error)
+	LookupSVC(ctx context.Context, path snet.Path, svc addr.SVC) (*svc.Reply, error)
 }
 
 // AddressRewriter is used to compute paths and replace SVC destinations with
@@ -174,7 +174,7 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context,
 // The returned path is the path contained in the reply; the path can be used
 // to talk to the remote AS after One-Hop Path construction.
 func (r AddressRewriter) resolveSVC(ctx context.Context, p snet.Path,
-	s addr.HostSVC) (snet.Path, *net.UDPAddr, bool, error) {
+	s addr.SVC) (snet.Path, *net.UDPAddr, bool, error) {
 	logger := log.FromCtx(ctx)
 	if r.SVCResolutionFraction < 1.0 {
 		var cancelF context.CancelFunc
@@ -232,5 +232,5 @@ type SVCResolver interface {
 	// GetUnderlay returns the underlay address of a SVC server of the specified
 	// type. When multiple servers are available, the choice is random. If no
 	// servers are available an error should be returned.
-	GetUnderlay(svc addr.HostSVC) (*net.UDPAddr, error)
+	GetUnderlay(svc addr.SVC) (*net.UDPAddr, error)
 }

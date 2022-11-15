@@ -26,7 +26,7 @@ type SVCAddr struct {
 	IA      addr.IA
 	Path    DataplanePath
 	NextHop *net.UDPAddr
-	SVC     addr.HostSVC
+	SVC     addr.SVC
 }
 
 // Network implements net.Addr interface.

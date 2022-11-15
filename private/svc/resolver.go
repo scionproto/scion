@@ -68,7 +68,7 @@ type Resolver struct {
 }
 
 // LookupSVC resolves the SVC address for the AS terminating the path.
-func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC) (*Reply, error) {
+func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.SVC) (*Reply, error) {
 	var span opentracing.Span
 	span, ctx = opentracing.StartSpanFromContext(ctx, "svc.resolution")
 	span.SetTag("svc", svc.String())
@@ -95,11 +95,11 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 		PacketInfo: snet.PacketInfo{
 			Source: snet.SCIONAddress{
 				IA:   r.LocalIA,
-				Host: addr.HostFromIP(r.LocalIP),
+				Host: addr.HostIPFromSlice(r.LocalIP),
 			},
 			Destination: snet.SCIONAddress{
 				IA:   p.Destination(),
-				Host: svc,
+				Host: addr.HostSVC(svc),
 			},
 			Path: p.Dataplane(),
 			Payload: snet.UDPPayload{

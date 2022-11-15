@@ -27,7 +27,7 @@ type scionConnBase struct {
 	remote *UDPAddr
 
 	// svc address
-	svc addr.HostSVC
+	svc addr.SVC
 
 	// Reference to SCION networking context
 	scionNet *SCIONNetwork
@@ -41,6 +41,6 @@ func (c *scionConnBase) RemoteAddr() net.Addr {
 	return c.remote
 }
 
-func (c *scionConnBase) SVC() addr.HostSVC {
+func (c *scionConnBase) SVC() addr.SVC {
 	return c.svc
 }

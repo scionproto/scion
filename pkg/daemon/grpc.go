@@ -131,8 +131,8 @@ func (c grpcConn) IFInfo(ctx context.Context,
 
 func (c grpcConn) SVCInfo(
 	ctx context.Context,
-	_ []addr.HostSVC,
-) (map[addr.HostSVC][]string, error) {
+	_ []addr.SVC,
+) (map[addr.SVC][]string, error) {
 
 	client := sdpb.NewDaemonServiceClient(c.conn)
 	response, err := client.Services(ctx, &sdpb.ServicesRequest{})
@@ -140,7 +140,7 @@ func (c grpcConn) SVCInfo(
 		c.metrics.incServcies(err)
 		return nil, err
 	}
-	result := make(map[addr.HostSVC][]string)
+	result := make(map[addr.SVC][]string)
 	for st, si := range response.Services {
 		svc := topoServiceTypeToSVCAddr(topology.ServiceTypeFromString(st))
 		if svc == addr.SvcNone || len(si.Services) == 0 {
@@ -315,7 +315,7 @@ func linkTypeFromPB(lt sdpb.LinkType) snet.LinkType {
 	}
 }
 
-func topoServiceTypeToSVCAddr(st topology.ServiceType) addr.HostSVC {
+func topoServiceTypeToSVCAddr(st topology.ServiceType) addr.SVC {
 	switch st {
 	case topology.Control:
 		return addr.SvcCS
