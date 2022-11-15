@@ -35,7 +35,7 @@ type Addr struct {
 	// Egress is the interface over which the remote AS should be reached.
 	Egress uint16
 	// SVC is the service anycast address of the designated service in the remote AS.
-	SVC addr.HostSVC
+	SVC addr.SVC
 	// NextHop is the router that owns the egress interface.
 	NextHop *net.UDPAddr
 }

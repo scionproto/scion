@@ -335,11 +335,11 @@ func (c *client) ping(ctx context.Context, n int, path snet.Path) error {
 		PacketInfo: snet.PacketInfo{
 			Destination: snet.SCIONAddress{
 				IA:   remote.IA,
-				Host: addr.HostFromIP(remote.Host.IP),
+				Host: addr.HostIPFromSlice(remote.Host.IP),
 			},
 			Source: snet.SCIONAddress{
 				IA:   integration.Local.IA,
-				Host: addr.HostFromIP(integration.Local.Host.IP),
+				Host: addr.HostIPFromSlice(integration.Local.Host.IP),
 			},
 			Path: remote.Path,
 			Payload: snet.UDPPayload{

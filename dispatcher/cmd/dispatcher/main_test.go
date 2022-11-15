@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"testing"
@@ -65,11 +66,10 @@ func getSocketName(dir string) (string, error) {
 
 type ClientAddress struct {
 	IA              addr.IA
-	PublicAddress   addr.HostAddr
+	PublicAddress   netip.Addr
 	PublicPort      uint16
-	ServiceAddress  addr.HostSVC
+	ServiceAddress  addr.SVC
 	UnderlayAddress *net.UDPAddr
-	UnderlayPort    uint16
 }
 
 type TestCase struct {
@@ -84,7 +84,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 	// Addressing information
 	var (
 		commonIA              = xtest.MustParseIA("1-ff00:0:1")
-		commonPublicL3Address = addr.HostFromIP(net.IP{127, 0, 0, 1})
+		commonPublicL3Address = netip.AddrFrom4([4]byte{127, 0, 0, 1})
 		commonUnderlayAddress = &net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: dispatcherPort}
 		clientXAddress        = &ClientAddress{
 			IA:              commonIA,
@@ -111,11 +111,11 @@ func genTestCases(dispatcherPort int) []*TestCase {
 					PacketInfo: snet.PacketInfo{
 						Source: snet.SCIONAddress{
 							IA:   clientXAddress.IA,
-							Host: clientXAddress.PublicAddress,
+							Host: addr.HostIP(clientXAddress.PublicAddress),
 						},
 						Destination: snet.SCIONAddress{
 							IA:   clientXAddress.IA,
-							Host: clientXAddress.PublicAddress,
+							Host: addr.HostIP(clientXAddress.PublicAddress),
 						},
 						Payload: snet.UDPPayload{
 							SrcPort: clientXAddress.PublicPort,
@@ -131,11 +131,11 @@ func genTestCases(dispatcherPort int) []*TestCase {
 				PacketInfo: snet.PacketInfo{
 					Source: snet.SCIONAddress{
 						IA:   clientXAddress.IA,
-						Host: clientXAddress.PublicAddress,
+						Host: addr.HostIP(clientXAddress.PublicAddress),
 					},
 					Destination: snet.SCIONAddress{
 						IA:   clientXAddress.IA,
-						Host: clientXAddress.PublicAddress,
+						Host: addr.HostIP(clientXAddress.PublicAddress),
 					},
 					Payload: snet.UDPPayload{
 						SrcPort: clientXAddress.PublicPort,
@@ -154,11 +154,11 @@ func genTestCases(dispatcherPort int) []*TestCase {
 					PacketInfo: snet.PacketInfo{
 						Source: snet.SCIONAddress{
 							IA:   clientYAddress.IA,
-							Host: clientYAddress.PublicAddress,
+							Host: addr.HostIP(clientYAddress.PublicAddress),
 						},
 						Destination: snet.SCIONAddress{
 							IA:   clientYAddress.IA,
-							Host: clientYAddress.ServiceAddress,
+							Host: addr.HostSVC(clientYAddress.ServiceAddress),
 						},
 						Payload: snet.UDPPayload{
 							SrcPort: clientYAddress.PublicPort,
@@ -174,11 +174,11 @@ func genTestCases(dispatcherPort int) []*TestCase {
 				PacketInfo: snet.PacketInfo{
 					Source: snet.SCIONAddress{
 						IA:   clientYAddress.IA,
-						Host: clientYAddress.PublicAddress,
+						Host: addr.HostIP(clientYAddress.PublicAddress),
 					},
 					Destination: snet.SCIONAddress{
 						IA:   clientYAddress.IA,
-						Host: clientYAddress.ServiceAddress,
+						Host: addr.HostSVC(clientYAddress.ServiceAddress),
 					},
 					Payload: snet.UDPPayload{
 						SrcPort: clientYAddress.PublicPort,
@@ -198,22 +198,22 @@ func genTestCases(dispatcherPort int) []*TestCase {
 					PacketInfo: snet.PacketInfo{
 						Source: snet.SCIONAddress{
 							IA:   clientXAddress.IA,
-							Host: clientXAddress.PublicAddress,
+							Host: addr.HostIP(clientXAddress.PublicAddress),
 						},
 						Destination: snet.SCIONAddress{
 							IA:   clientXAddress.IA,
-							Host: clientXAddress.PublicAddress,
+							Host: addr.HostIP(clientXAddress.PublicAddress),
 						},
 						Payload: snet.SCMPDestinationUnreachable{
 							Payload: MustPack(snet.Packet{
 								PacketInfo: snet.PacketInfo{
 									Source: snet.SCIONAddress{
 										IA:   clientXAddress.IA,
-										Host: clientXAddress.PublicAddress,
+										Host: addr.HostIP(clientXAddress.PublicAddress),
 									},
 									Destination: snet.SCIONAddress{
 										IA:   clientXAddress.IA,
-										Host: clientXAddress.PublicAddress,
+										Host: addr.HostIP(clientXAddress.PublicAddress),
 									},
 									Payload: snet.UDPPayload{SrcPort: clientXAddress.PublicPort},
 									Path:    path.Empty{},
@@ -228,22 +228,22 @@ func genTestCases(dispatcherPort int) []*TestCase {
 				PacketInfo: snet.PacketInfo{
 					Source: snet.SCIONAddress{
 						IA:   clientXAddress.IA,
-						Host: clientXAddress.PublicAddress,
+						Host: addr.HostIP(clientXAddress.PublicAddress),
 					},
 					Destination: snet.SCIONAddress{
 						IA:   clientXAddress.IA,
-						Host: clientXAddress.PublicAddress,
+						Host: addr.HostIP(clientXAddress.PublicAddress),
 					},
 					Payload: snet.SCMPDestinationUnreachable{
 						Payload: MustPack(snet.Packet{
 							PacketInfo: snet.PacketInfo{
 								Source: snet.SCIONAddress{
 									IA:   clientXAddress.IA,
-									Host: clientXAddress.PublicAddress,
+									Host: addr.HostIP(clientXAddress.PublicAddress),
 								},
 								Destination: snet.SCIONAddress{
 									IA:   clientXAddress.IA,
-									Host: clientXAddress.PublicAddress,
+									Host: addr.HostIP(clientXAddress.PublicAddress),
 								},
 								Payload: snet.UDPPayload{SrcPort: clientXAddress.PublicPort},
 								Path:    path.Empty{},
@@ -265,11 +265,11 @@ func genTestCases(dispatcherPort int) []*TestCase {
 					PacketInfo: snet.PacketInfo{
 						Source: snet.SCIONAddress{
 							IA:   xtest.MustParseIA("1-ff00:0:42"), // middle of nowhere
-							Host: clientXAddress.PublicAddress,
+							Host: addr.HostIP(clientXAddress.PublicAddress),
 						},
 						Destination: snet.SCIONAddress{
 							IA:   clientYAddress.IA,
-							Host: clientYAddress.PublicAddress,
+							Host: addr.HostIP(clientYAddress.PublicAddress),
 						},
 						Payload: snet.SCMPEchoRequest{Identifier: 0xdead},
 						Path:    path.Empty{},
@@ -279,22 +279,22 @@ func genTestCases(dispatcherPort int) []*TestCase {
 					PacketInfo: snet.PacketInfo{
 						Source: snet.SCIONAddress{
 							IA:   clientXAddress.IA,
-							Host: clientXAddress.PublicAddress,
+							Host: addr.HostIP(clientXAddress.PublicAddress),
 						},
 						Destination: snet.SCIONAddress{
 							IA:   clientXAddress.IA,
-							Host: clientXAddress.PublicAddress,
+							Host: addr.HostIP(clientXAddress.PublicAddress),
 						},
 						Payload: snet.SCMPDestinationUnreachable{
 							Payload: MustPack(snet.Packet{
 								PacketInfo: snet.PacketInfo{
 									Source: snet.SCIONAddress{
 										IA:   clientXAddress.IA,
-										Host: clientXAddress.PublicAddress,
+										Host: addr.HostIP(clientXAddress.PublicAddress),
 									},
 									Destination: snet.SCIONAddress{
 										IA:   clientXAddress.IA,
-										Host: clientXAddress.PublicAddress,
+										Host: addr.HostIP(clientXAddress.PublicAddress),
 									},
 									Payload: snet.SCMPEchoRequest{Identifier: 0xdead},
 									Path:    path.Empty{},
@@ -309,22 +309,22 @@ func genTestCases(dispatcherPort int) []*TestCase {
 				PacketInfo: snet.PacketInfo{
 					Source: snet.SCIONAddress{
 						IA:   clientXAddress.IA,
-						Host: clientXAddress.PublicAddress,
+						Host: addr.HostIP(clientXAddress.PublicAddress),
 					},
 					Destination: snet.SCIONAddress{
 						IA:   clientXAddress.IA,
-						Host: clientXAddress.PublicAddress,
+						Host: addr.HostIP(clientXAddress.PublicAddress),
 					},
 					Payload: snet.SCMPDestinationUnreachable{
 						Payload: MustPack(snet.Packet{
 							PacketInfo: snet.PacketInfo{
 								Source: snet.SCIONAddress{
 									IA:   clientXAddress.IA,
-									Host: clientXAddress.PublicAddress,
+									Host: addr.HostIP(clientXAddress.PublicAddress),
 								},
 								Destination: snet.SCIONAddress{
 									IA:   clientXAddress.IA,
-									Host: clientXAddress.PublicAddress,
+									Host: addr.HostIP(clientXAddress.PublicAddress),
 								},
 								Payload: snet.SCMPEchoRequest{Identifier: 0xdead},
 								Path:    path.Empty{},
@@ -344,11 +344,11 @@ func genTestCases(dispatcherPort int) []*TestCase {
 					PacketInfo: snet.PacketInfo{
 						Source: snet.SCIONAddress{
 							IA:   clientXAddress.IA,
-							Host: clientXAddress.PublicAddress,
+							Host: addr.HostIP(clientXAddress.PublicAddress),
 						},
 						Destination: snet.SCIONAddress{
 							IA:   clientYAddress.IA,
-							Host: clientYAddress.PublicAddress,
+							Host: addr.HostIP(clientYAddress.PublicAddress),
 						},
 						Payload: snet.SCMPEchoRequest{
 							Identifier: 0xdead,
@@ -363,11 +363,11 @@ func genTestCases(dispatcherPort int) []*TestCase {
 				PacketInfo: snet.PacketInfo{
 					Source: snet.SCIONAddress{
 						IA:   clientYAddress.IA,
-						Host: clientYAddress.PublicAddress,
+						Host: addr.HostIP(clientYAddress.PublicAddress),
 					},
 					Destination: snet.SCIONAddress{
 						IA:   clientXAddress.IA,
-						Host: clientXAddress.PublicAddress,
+						Host: addr.HostIP(clientXAddress.PublicAddress),
 					},
 					Payload: snet.SCMPEchoReply{
 						Identifier: 0xdead,
@@ -387,11 +387,11 @@ func genTestCases(dispatcherPort int) []*TestCase {
 					PacketInfo: snet.PacketInfo{
 						Source: snet.SCIONAddress{
 							IA:   clientXAddress.IA,
-							Host: clientXAddress.PublicAddress,
+							Host: addr.HostIP(clientXAddress.PublicAddress),
 						},
 						Destination: snet.SCIONAddress{
 							IA:   clientYAddress.IA,
-							Host: clientYAddress.PublicAddress,
+							Host: addr.HostIP(clientYAddress.PublicAddress),
 						},
 						Payload: snet.SCMPTracerouteRequest{Identifier: 0xdeaf, Sequence: 0xcafd},
 						Path:    path.Empty{},
@@ -402,11 +402,11 @@ func genTestCases(dispatcherPort int) []*TestCase {
 				PacketInfo: snet.PacketInfo{
 					Source: snet.SCIONAddress{
 						IA:   clientYAddress.IA,
-						Host: clientYAddress.PublicAddress,
+						Host: addr.HostIP(clientYAddress.PublicAddress),
 					},
 					Destination: snet.SCIONAddress{
 						IA:   clientXAddress.IA,
-						Host: clientXAddress.PublicAddress,
+						Host: addr.HostIP(clientXAddress.PublicAddress),
 					},
 					Payload: snet.SCMPTracerouteReply{Identifier: 0xdeaf, Sequence: 0xcafd},
 					Path:    snet.RawPath{},
@@ -445,7 +445,7 @@ func RunTestCase(t *testing.T, tc *TestCase, settings *TestSettings) {
 		ctx,
 		tc.ClientAddress.IA,
 		&net.UDPAddr{
-			IP:   tc.ClientAddress.PublicAddress.IP(),
+			IP:   tc.ClientAddress.PublicAddress.AsSlice(),
 			Port: int(tc.ClientAddress.PublicPort),
 		},
 		tc.ClientAddress.ServiceAddress,

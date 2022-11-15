@@ -17,12 +17,14 @@ package cases
 import (
 	"hash"
 	"net"
+	"net/netip"
 	"path/filepath"
 	"time"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
@@ -104,10 +106,10 @@ func ChildToParent(artifactsDir string, mac hash.Hash) runner.Case {
 		DstIA:        xtest.MustParseIA("1-ff00:0:3"),
 		Path:         sp,
 	}
-	if err := scionL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("172.16.4.1")}); err != nil {
+	if err := scionL.SetSrcAddr(addr.HostIP(netip.MustParseAddr("172.16.4.1"))); err != nil {
 		panic(err)
 	}
-	if err := scionL.SetDstAddr(&net.IPAddr{IP: net.ParseIP("174.16.3.1")}); err != nil {
+	if err := scionL.SetDstAddr(addr.HostIP(netip.MustParseAddr("174.16.3.1"))); err != nil {
 		panic(err)
 	}
 

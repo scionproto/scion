@@ -9,6 +9,7 @@ go_library(
         "//pkg/addr:go_default_library",
         "//pkg/drkey:go_default_library",
         "//pkg/private/serrors:go_default_library",
+        "//pkg/slayers:go_default_library",
     ],
 )
 

@@ -505,7 +505,7 @@ The template is expressed in JSON. A valid example::
 			switch {
 			case len(cas) > 0:
 				for _, ca := range cas {
-					remote := addr.SvcCS
+					remote := &snet.SVCAddr{SVC: addr.SvcCS}
 					chain, err := request(ca, remote)
 					if err != nil {
 						continue
@@ -647,9 +647,9 @@ func (r *renewer) requestLocal(
 ) ([]*x509.Certificate, error) {
 
 	dialer := &grpc.TCPDialer{
-		SvcResolver: func(hs addr.HostSVC) []resolver.Address {
+		SvcResolver: func(hs addr.SVC) []resolver.Address {
 			// Do the SVC resolution
-			entries, err := r.Daemon.SVCInfo(ctx, []addr.HostSVC{hs})
+			entries, err := r.Daemon.SVCInfo(ctx, []addr.SVC{hs})
 			if err != nil {
 				fmt.Fprintf(r.StdErr, "Failed to resolve SVC address: %s\n", err)
 				return nil
@@ -709,10 +709,10 @@ func (r *renewer) requestRemote(
 			Path:    path.Dataplane(),
 			NextHop: path.UnderlayNextHop(),
 		}
-	case addr.HostSVC:
+	case *snet.SVCAddr:
 		dst = &snet.SVCAddr{
 			IA:      ca,
-			SVC:     r,
+			SVC:     r.SVC,
 			Path:    path.Dataplane(),
 			NextHop: path.UnderlayNextHop(),
 		}
@@ -960,7 +960,7 @@ type svcRouter struct {
 	Connector daemon.Connector
 }
 
-func (r svcRouter) GetUnderlay(svc addr.HostSVC) (*net.UDPAddr, error) {
+func (r svcRouter) GetUnderlay(svc addr.SVC) (*net.UDPAddr, error) {
 	// XXX(karampok). We need to change the interface to not use TODO context.
 	return daemon.TopoQuerier{Connector: r.Connector}.UnderlayAnycast(context.TODO(), svc)
 }
