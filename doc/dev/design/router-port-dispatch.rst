@@ -1,9 +1,9 @@
 End hosts without dispatcher
 ============================
 
-- Author: Matthias Frei. 
+- Author: Matthias Frei.
   Originally proposed by Sergiu Costea.
-- Last updated: 2022-10-11
+- Last updated: 2022-11-15
 - Discussion at: https://github.com/scionproto/scion/issues/3961
 
 Abstract
@@ -88,6 +88,15 @@ These events are only logged and counted, but otherwise no appropriate action is
 The SCMP daemon is an optional component for end hosts.
 If it's not running, the host simply doesn't respond to pings.
 
+Service Addresses
+^^^^^^^^^^^^^^^^^
+
+Service destination address resolve to a configured underlay UDP/IP
+address, that is, to an IP *and* a (default) port number.
+
+The common use case for service addresses uses a UDP/SCION destination port of 0. In this case, the default underlay port is used.
+In case any other destination port is set, it overrides the default. The processing here is analogous to UDP/SCION packets with IP destination address type.
+
 Port Unreachable
 ^^^^^^^^^^^^^^^^
 
@@ -99,7 +108,11 @@ Processing rule
 
 1. The underlay UDP/IP destination port for packets towards the destination end host is chosen as follows:
 
-  - UDP/SCION: UDP/SCION destination port
+  - UDP/SCION:
+
+      - SVC destination address type and UDP/SCION destination port is 0: default port for resolved service address
+      - Else: UDP/SCION destination port
+
   - SCMP:
 
     - :ref:`Echo Reply <echo-reply>`, :ref:`Traceroute Reply <traceroute-reply>`: Identifier field
@@ -157,12 +170,12 @@ This has some advantages:
 - it also fixes many of the problems listed above related to unix domain sockets, reconnection, etc.
 
 However, this still requires a shared component on the end-host if multiple applications want to use SCION concurrently.
-For deployment to mobile platforms, in particular, this is still as much of a blocker as the current dispatcher. 
+For deployment to mobile platforms, in particular, this is still as much of a blocker as the current dispatcher.
 
 Alternative SCMP handling
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The original proposal did not require the router to inspect SCMP messages. 
+The original proposal did not require the router to inspect SCMP messages.
 All SCMP messages would be forwarded to the default end-host port and dispatched from there to the correct application with the SCMP daemon.
 
 Same issue as above; this still requires a shared component on the end-host if applications should be able to receive SCMP messages.
@@ -174,7 +187,7 @@ Implementation
 The roadmap would look like the following:
 
 - Add a feature flag to the router, changing its behavior to set the UDP destination underlay port as described above.
-- Have SCION applications use native ``net.PacketConn`` instead of ``reliable.Conn``. 
+- Have SCION applications use native ``net.PacketConn`` instead of ``reliable.Conn``.
   This only needs changes in ``snet``, and because the interfaces are compatible it is trivial to do.
 - Create new SCMP Daemon (scmpd) that replies to SCMP traffic that targets a host (scion ping)
 - Remove dispatcher, package ``reliable`` and ``ReconnectToDispatcher`` from everywhere.
