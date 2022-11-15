@@ -72,7 +72,7 @@ type ResolverPacketDispatcher struct {
 }
 
 func (d *ResolverPacketDispatcher) Register(ctx context.Context, ia addr.IA,
-	registration *net.UDPAddr, svc addr.HostSVC) (snet.PacketConn, uint16, error) {
+	registration *net.UDPAddr, svc addr.SVC) (snet.PacketConn, uint16, error) {
 
 	c, port, err := d.dispService.Register(ctx, ia, registration, svc)
 	if err != nil {
@@ -82,7 +82,7 @@ func (d *ResolverPacketDispatcher) Register(ctx context.Context, ia addr.IA,
 		PacketConn: c,
 		source: snet.SCIONAddress{
 			IA:   ia,
-			Host: addr.HostFromIP(registration.IP),
+			Host: addr.HostIPFromSlice(registration.IP),
 		},
 		handler: d.handler,
 	}
@@ -107,11 +107,11 @@ func (c *resolverPacketConn) ReadFrom(pkt *snet.Packet, ov *net.UDPAddr) error {
 		}
 
 		// XXX(scrye): destination address is guaranteed to not be nil
-		svc, ok := pkt.Destination.Host.(addr.HostSVC)
-		if !ok {
+		if pkt.Destination.Host.Type() != addr.HostTypeSVC {
 			// Normal packet, return to caller because data is already parsed and ready
 			return nil
 		}
+		svc := pkt.Destination.Host.SVC()
 
 		// Multicasts do not trigger SVC resolution logic
 		if svc.IsMulticast() {

@@ -25,6 +25,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/spf13/cobra"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
@@ -155,10 +156,10 @@ func run(cfg flags, dst *snet.UDPAddr) error {
 	scionLayer.SrcIA = localIA
 	scionLayer.DstIA = path.Destination()
 	scionLayer.Path = decPath
-	if err := scionLayer.SetDstAddr(&net.IPAddr{IP: dst.Host.IP, Zone: dst.Host.Zone}); err != nil {
+	if err := scionLayer.SetDstAddr(addr.HostIPFromSlice(dst.Host.IP)); err != nil {
 		return serrors.WrapStr("setting SCION dest address", err)
 	}
-	if err := scionLayer.SetSrcAddr(&net.IPAddr{IP: localIP}); err != nil {
+	if err := scionLayer.SetSrcAddr(addr.HostIPFromSlice(localIP)); err != nil {
 		return serrors.WrapStr("setting SCION source address", err)
 	}
 	scionudpLayer := &slayers.UDP{}

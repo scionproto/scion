@@ -34,8 +34,8 @@ type Dataplane interface {
 	CreateIACtx(ia addr.IA) error
 	AddInternalInterface(ia addr.IA, local net.UDPAddr) error
 	AddExternalInterface(localIfID common.IFIDType, info LinkInfo, owned bool) error
-	AddSvc(ia addr.IA, svc addr.HostSVC, ip net.IP) error
-	DelSvc(ia addr.IA, svc addr.HostSVC, ip net.IP) error
+	AddSvc(ia addr.IA, svc addr.SVC, ip net.IP) error
+	DelSvc(ia addr.IA, svc addr.SVC, ip net.IP) error
 	SetKey(ia addr.IA, index int, key []byte) error
 }
 
@@ -206,7 +206,7 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 	return nil
 }
 
-var svcTypes = []addr.HostSVC{
+var svcTypes = []addr.SVC{
 	addr.SvcDS,
 	addr.SvcCS,
 }

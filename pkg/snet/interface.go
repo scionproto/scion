@@ -24,7 +24,7 @@ import (
 
 type Network interface {
 	Listen(ctx context.Context, network string, listen *net.UDPAddr,
-		svc addr.HostSVC) (*Conn, error)
+		svc addr.SVC) (*Conn, error)
 	Dial(ctx context.Context, network string, listen *net.UDPAddr, remote *UDPAddr,
-		svc addr.HostSVC) (*Conn, error)
+		svc addr.SVC) (*Conn, error)
 }

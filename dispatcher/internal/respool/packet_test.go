@@ -15,13 +15,13 @@
 package respool
 
 import (
-	"net"
 	"testing"
 
 	"github.com/google/gopacket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
@@ -131,7 +131,7 @@ func scionLayer(t *testing.T, l4 slayers.L4ProtocolType) *slayers.SCION {
 			},
 		},
 	}
-	require.NoError(t, scion.SetSrcAddr(&net.IPAddr{IP: net.IP{127, 0, 0, 1}}))
-	require.NoError(t, scion.SetDstAddr(&net.IPAddr{IP: net.IP{127, 0, 0, 2}}))
+	require.NoError(t, scion.SetSrcAddr(addr.MustParseHost("127.0.0.1")))
+	require.NoError(t, scion.SetDstAddr(addr.MustParseHost("127.0.0.2")))
 	return scion
 }

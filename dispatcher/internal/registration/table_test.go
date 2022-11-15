@@ -30,7 +30,7 @@ func TestRegister(t *testing.T) {
 	tests := map[string]struct {
 		a   *net.UDPAddr
 		b   net.IP
-		svc addr.HostSVC
+		svc addr.SVC
 		af  assert.ErrorAssertionFunc
 	}{
 		"no public address fails": {

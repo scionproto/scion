@@ -97,10 +97,10 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 	// https://github.com/scionproto/scion/issues/1659.
 	remote := &UDPAddr{
 		IA: pkt.Source.IA,
-		Host: CopyUDPAddr(&net.UDPAddr{
-			IP:   pkt.Source.Host.IP(),
+		Host: &net.UDPAddr{
+			IP:   pkt.Source.Host.IP().AsSlice(),
 			Port: int(udp.SrcPort),
-		}),
+		},
 		Path:    replyPath,
 		NextHop: CopyUDPAddr(&lastHop),
 	}

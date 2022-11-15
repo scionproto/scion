@@ -94,7 +94,7 @@ func (as *Server) Serve() error {
 
 // Register creates a new connection.
 func (as *Server) Register(ctx context.Context, ia addr.IA, address *net.UDPAddr,
-	svc addr.HostSVC) (net.PacketConn, uint16, error) {
+	svc addr.SVC) (net.PacketConn, uint16, error) {
 
 	tableEntry := newTableEntry()
 	ref, err := as.routingTable.Register(ia, address, nil, svc, tableEntry)
@@ -178,7 +178,7 @@ func (ac *Conn) LocalAddr() net.Addr {
 	return ac.regReference.UDPAddr()
 }
 
-func (ac *Conn) SVCAddr() addr.HostSVC {
+func (ac *Conn) SVCAddr() addr.SVC {
 	return ac.regReference.SVCAddr()
 }
 

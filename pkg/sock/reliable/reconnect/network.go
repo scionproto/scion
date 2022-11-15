@@ -45,7 +45,7 @@ func NewDispatcherService(dispatcher reliable.Dispatcher) *DispatcherService {
 }
 
 func (pn *DispatcherService) Register(ctx context.Context, ia addr.IA, public *net.UDPAddr,
-	svc addr.HostSVC) (net.PacketConn, uint16, error) {
+	svc addr.SVC) (net.PacketConn, uint16, error) {
 
 	// Perform initial connection to allocate port. We use a reconnecter here
 	// to set up the initial connection using the same retry logic we use when
@@ -71,7 +71,7 @@ func (pn *DispatcherService) Register(ctx context.Context, ia addr.IA, public *n
 }
 
 func (pn *DispatcherService) newReconnecterFromListenArgs(ctx context.Context, ia addr.IA,
-	public *net.UDPAddr, svc addr.HostSVC) *TickingReconnecter {
+	public *net.UDPAddr, svc addr.SVC) *TickingReconnecter {
 
 	// f represents individual connection attempts
 	f := func(timeout time.Duration) (net.PacketConn, uint16, error) {

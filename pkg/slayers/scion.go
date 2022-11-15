@@ -16,7 +16,7 @@ package slayers
 
 import (
 	"encoding/binary"
-	"net"
+	"net/netip"
 
 	"github.com/google/gopacket"
 
@@ -349,64 +349,66 @@ func scionNextLayerTypeL4(t L4ProtocolType) gopacket.LayerType {
 	}
 }
 
-// DstAddr parses the destination address into a net.Addr. The returned net.Addr references data
-// from the underlaying layer data. Changing the net.Addr object might lead to inconsistent layer
-// information and thus should be treated read-only. Instead, SetDstAddr should be used to update
-// the destination address.
-func (s *SCION) DstAddr() (net.Addr, error) {
-	return parseAddr(s.DstAddrType, s.RawDstAddr)
+// DstAddr parses the destination address into a addr.Host.
+func (s *SCION) DstAddr() (addr.Host, error) {
+	return ParseAddr(s.DstAddrType, s.RawDstAddr)
 }
 
-// SrcAddr parses the source address into a net.Addr. The returned net.Addr references data from the
-// underlaying layer data. Changing the net.Addr object might lead to inconsistent layer information
-// and thus should be treated read-only. Instead, SetDstAddr should be used to update the source
-// address.
-func (s *SCION) SrcAddr() (net.Addr, error) {
-	return parseAddr(s.SrcAddrType, s.RawSrcAddr)
+// SrcAddr parses the source address into a addr.Host.
+func (s *SCION) SrcAddr() (addr.Host, error) {
+	return ParseAddr(s.SrcAddrType, s.RawSrcAddr)
 }
 
 // SetDstAddr sets the destination address and updates the DstAddrType field accordingly.
-// SetDstAddr takes ownership of dst and callers should not write to it after calling SetDstAddr.
-// Changes to dst might leave the layer in an inconsistent state.
-func (s *SCION) SetDstAddr(dst net.Addr) error {
+func (s *SCION) SetDstAddr(dst addr.Host) error {
 	var err error
-	s.DstAddrType, s.RawDstAddr, err = packAddr(dst)
+	s.DstAddrType, s.RawDstAddr, err = PackAddr(dst)
 	return err
 }
 
 // SetSrcAddr sets the source address and updates the DstAddrType field accordingly.
-// SetSrcAddr takes ownership of src and callers should not write to it after calling SetSrcAddr.
-// Changes to src might leave the layer in an inconsistent state.
-func (s *SCION) SetSrcAddr(src net.Addr) error {
+func (s *SCION) SetSrcAddr(src addr.Host) error {
 	var err error
-	s.SrcAddrType, s.RawSrcAddr, err = packAddr(src)
+	s.SrcAddrType, s.RawSrcAddr, err = PackAddr(src)
 	return err
 }
 
-func parseAddr(addrType AddrType, raw []byte) (net.Addr, error) {
+func ParseAddr(addrType AddrType, raw []byte) (addr.Host, error) {
 	switch addrType {
 	case T4Ip:
-		return &net.IPAddr{IP: net.IP(raw)}, nil
+		var raw4 [4]byte
+		copy(raw4[:], raw)
+		return addr.HostIP(netip.AddrFrom4(raw4)), nil
 	case T4Svc:
-		return addr.HostSVC(binary.BigEndian.Uint16(raw[:addr.HostLenSVC])), nil
+		svc := addr.SVC(binary.BigEndian.Uint16(raw[:2]))
+		return addr.HostSVC(svc), nil
 	case T16Ip:
-		return &net.IPAddr{IP: net.IP(raw)}, nil
+		var raw16 [16]byte
+		copy(raw16[:], raw)
+		return addr.HostIP(netip.AddrFrom16(raw16)), nil
 	}
-	return nil, serrors.New("unsupported address type/length combination",
+	return addr.Host{}, serrors.New("unsupported address type/length combination",
 		"type", addrType, "len", addrType.Length())
 }
 
-func packAddr(hostAddr net.Addr) (AddrType, []byte, error) {
-	switch a := hostAddr.(type) {
-	case *net.IPAddr:
-		if ip := a.IP.To4(); ip != nil {
-			return T4Ip, ip, nil
+func PackAddr(host addr.Host) (AddrType, []byte, error) {
+	switch host.Type() {
+	case addr.HostTypeIP:
+		ip := host.IP()
+		if !ip.IsValid() {
+			break
 		}
-		return T16Ip, a.IP, nil
-	case addr.HostSVC:
-		return T4Svc, a.PackWithPad(2), nil
+		t := T4Ip
+		if ip.Is6() {
+			t = T16Ip
+		}
+		return t, ip.AsSlice(), nil
+	case addr.HostTypeSVC:
+		raw := make([]byte, 4)
+		binary.BigEndian.PutUint16(raw, uint16(host.SVC()))
+		return T4Svc, raw, nil
 	}
-	return 0, nil, serrors.New("unsupported address", "addr", hostAddr)
+	return 0, nil, serrors.New("unsupported address", "addr", host)
 }
 
 // AddrHdrLen returns the length of the address header (destination and source ISD-AS-Host triples)

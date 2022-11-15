@@ -30,7 +30,7 @@ import (
 
 // Pather computes the remote address with a path based on the provided segment.
 type Pather interface {
-	GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, error)
+	GetPath(svc addr.SVC, ps *seg.PathSegment) (*snet.SVCAddr, error)
 }
 
 // CoreChecker checks whether a given ia is core.

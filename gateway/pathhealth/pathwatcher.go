@@ -109,7 +109,7 @@ func (f *DefaultPathWatcherFactory) New(
 		id: id,
 		localAddr: snet.SCIONAddress{
 			IA:   f.LocalIA,
-			Host: addr.HostFromIP(f.LocalIP),
+			Host: addr.HostIPFromSlice(f.LocalIP),
 		},
 		pktChan:          pktChan,
 		probesSent:       createCounter(f.ProbesSent, remote),
@@ -290,7 +290,7 @@ func (w *pathWatcher) prepareProbePacket() error {
 		Destination: snet.SCIONAddress{
 			IA: w.remote,
 			// The host doesn't really matter because it's terminated at the router.
-			Host: addr.SvcNone,
+			Host: addr.HostSVC(addr.SvcNone),
 		},
 		Source: w.localAddr,
 		Path:   w.path.dpPath,

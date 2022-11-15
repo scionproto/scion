@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
@@ -159,7 +158,7 @@ func TestComputeAuthMac(t *testing.T) {
 				SrcAddrType:  slayers.T16Ip,
 				RawSrcAddr:   net.ParseIP("2001:cafe::1").To16(),
 				DstAddrType:  slayers.T4Svc,
-				RawDstAddr:   addr.HostSVCFromString("CS").Pack(),
+				RawDstAddr:   nil,
 				Path:         decodedPath,
 				PathType:     decodedPath.Type(),
 			},

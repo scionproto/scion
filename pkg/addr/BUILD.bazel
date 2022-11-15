@@ -7,6 +7,7 @@ go_library(
         "fmt.go",
         "host.go",
         "isdas.go",
+        "svc.go",
     ],
     importpath = "github.com/scionproto/scion/pkg/addr",
     visibility = ["//visibility:public"],
@@ -15,10 +16,7 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = [
-        "host_test.go",
-        "isdas_test.go",
-    ],
+    srcs = ["isdas_test.go"],
     embed = [":go_default_library"],
     deps = ["@com_github_stretchr_testify//assert:go_default_library"],
 )

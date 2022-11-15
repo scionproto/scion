@@ -20,7 +20,7 @@ import (
 	"io"
 	"math"
 	"math/rand"
-	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -54,7 +54,7 @@ type Path struct {
 	Latency     []time.Duration `json:"latency" yaml:"latency"`
 	Status      string          `json:"status,omitempty" yaml:"status,omitempty"`
 	StatusInfo  string          `json:"status_info,omitempty" yaml:"status_info,omitempty"`
-	Local       net.IP          `json:"local_ip,omitempty" yaml:"local_ip,omitempty"`
+	Local       netip.Addr      `json:"local_ip,omitempty" yaml:"local_ip,omitempty"`
 }
 
 // Hop represents an hop on the path.
