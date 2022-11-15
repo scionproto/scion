@@ -31,7 +31,7 @@ Problems
 This dispatcher is the cause of many issues:
 
 - It is a single point of failure for the SCION network stack of a host. If it goes down, a lot of processes (control service, gateway, tooling) go haywire.
-- It lives in userspace, moving every forwarded packet from kernelspace to userspace and back to kernelspace, meaning a performance hit.
+- It lives in user space, moving every forwarded packet from kernel space to user space and back to kernel space, meaning a performance hit.
 - It requires a UNIX DOMAIN stream socket, meaning awkward volume mounts in dockerized environments (and awkward resource cleanup/access management).
 - It imposes stateful connections that need to be reestablished by client applications if the dispatcher goes down and then up. This has been the cause of many bugs in the past, and the performance impact of the reconnection logic is currently unknown.
 - The UNIX DOMAIN socket is a stream, while the data being sent/received are packets. This requires packetization logic and slows forwarding even further.
@@ -169,7 +169,7 @@ This has some advantages:
 - it's an entirely end-host local change
 - it also fixes many of the problems listed above related to unix domain sockets, reconnection, etc.
 
-However, this still requires a shared component on the end-host if multiple applications want to use SCION concurrently.
+However, this still requires a shared component on the end host if multiple applications want to use SCION concurrently.
 For deployment to mobile platforms, in particular, this is still as much of a blocker as the current dispatcher.
 
 Alternative SCMP handling
