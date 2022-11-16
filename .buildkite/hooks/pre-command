@@ -1,5 +1,25 @@
 #!/bin/bash
 
+echo "~~~ Install build tools"
+pathadd() {
+    if [[ ":$PATH:" != *":$1:"* ]]; then
+        PATH="${PATH:+"$PATH:"}$1"
+    fi
+}
+pathadd ~/.local/bin
+printenv PATH
+
+if ! which bazel > /dev/null; then
+  echo "~~~ Install bazel/bazelisk"
+  tools/install_bazel
+fi
+which bazel
+
+sudo yum groupinstall -y "Development Tools"
+pip3 install --require-hashes -r tools/env/pip3/requirements.txt
+
+
+# Clean up left-overs from previous run
 PRE_COMMAND_SETUP=true . .buildkite/hooks/pre-exit
 
 set -euo pipefail
