@@ -88,9 +88,13 @@ cmd_mstart() {
 
 run_setup() {
     tools/set_ipv6_addr.py -a
+    # Ensure base dir for dispatcher socket exists; on ubuntu this symbolic link to /dev/shm always exists.
+    if [ ! -d /run/shm/ ]; then
+      sudo ln -s /dev/shm /run/shm;
+    fi
      # Create dispatcher dir or change owner
     local disp_dir="/run/shm/dispatcher"
-    [ -d "$disp_dir" ] || mkdir -p "$disp_dir"
+    [ -d "$disp_dir" ] || mkdir "$disp_dir"
     [ $(stat -c "%U" "$disp_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $disp_dir - [sudo] password for %p: " chown $LOGNAME: "$disp_dir"; }
 }
 
