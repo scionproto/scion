@@ -3,12 +3,34 @@
 Setting up the development environment
 ======================================
 
+Prerequisites
+-------------
+
+#. Make sure that you are using a clean and recently updated **Ubuntu 18.04**.
+   Other Ubuntu versions (or systems) will usually be fine too, but some of the tooling may not work.
+   This environment assumes you're running as a non-root user with ``sudo`` access.
+#. Install ``docker``.
+   Please follow the instructions for `docker-ce <https://docs.docker.com/install/linux/docker-ce/ubuntu/>`_.
+   Then, add your user to the ``docker`` group:
+   ``sudo usermod -a -G docker ${LOGNAME}``, where ``${LOGNAME}`` is replaced with your user name. Log out
+   and log back in so that your membership of the ``docker`` group is seen by the shell session.
+
+   Optionally install ``docker-compose``. This is needed if you want to run the
+   ``docker-compose`` based test topology setup instead of the default setup based on ``supervisord``.
+   Please follow the instructions for `docker-compose <https://docs.docker.com/compose/install/>`_.
 
 Bazel & Co.
 -----------
 
-#. Make sure that you are using a clean and recently updated **Ubuntu 18.04**.
-   This environment assumes you're running as a non-root user with ``sudo`` access.
+#. Clone the SCION repository into the appropriate directory inside your workspace. In the commands below,
+   replace ``${WORKSPACE}`` with the directory in which you want to set up the project:
+
+   .. code-block:: bash
+
+      cd ${WORKSPACE}
+      git clone https://github.com/scionproto/scion
+      cd scion
+
 #. We use `Bazel <https://bazel.build>`__ for both building and testing. To be
    able to define the bazel version in the repository we use the `bazelisk
    <https://github.com/bazelbuild/bazelisk>`__ wrapper around bazel. To set it
@@ -21,30 +43,11 @@ Bazel & Co.
    You can also manually install ``bazelisk`` and create an alias so that
    ``bazel`` will resolve to the ``bazelisk`` command.
 
-#. Next, clone the SCION repository into the appropriate directory inside your workspace. In the commands below,
-   replace ``${WORKSPACE}`` with the directory in which you want to set up the project:
-
-   .. code-block:: bash
-
-      cd ${WORKSPACE}
-      git clone https://github.com/scionproto/scion
-      cd scion
-
-#. For this step, make sure you are in the ``scion`` repository root. To install the required dependencies, run:
+#. To install the required dependencies, run:
 
    .. code-block:: bash
 
       ./tools/install_deps
-
-#. Install ``docker``.
-   Please follow the instructions for `docker-ce <https://docs.docker.com/install/linux/docker-ce/ubuntu/>`_.
-   Then, add your user to the ``docker`` group:
-   ``sudo usermod -a -G docker ${LOGNAME}``, where ``${LOGNAME}`` is replaced with your user name. Log out
-   and log back in so that your membership of the ``docker`` group is seen by the shell session.
-
-   Optionally install ``docker-compose``. This is needed if you want to run the
-   ``docker-compose`` based test topology setup instead of the default setup based on ``supervisord``.
-   Please follow the instructions for `docker-compose <https://docs.docker.com/compose/install/>`_.
 
 #. Start the bazel-remote container.
 

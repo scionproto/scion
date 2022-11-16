@@ -3,15 +3,12 @@ linters:
   disable-all: true
   enable:
     # Default linters.
-    - deadcode
     - errcheck
     - gosimple
     - govet
     - ineffassign
-    - structcheck
     - typecheck
     - unused
-    - varcheck
     # Extended linters.
     - depguard
     - exportloopref

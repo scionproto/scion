@@ -42,29 +42,20 @@ var (
 
 // HostAddr is the address representation of a host as defined in the SCION header.
 type HostAddr struct {
-	AddrLen  slayers.AddrLen
 	AddrType slayers.AddrType
 	RawAddr  []byte
 }
 
 // AddrToString returns the string representation of the HostAddr.
 func (h *HostAddr) String() string {
-	switch h.AddrLen {
-	case slayers.AddrLen4:
-		switch h.AddrType {
-		case slayers.T4Ip:
-			addr := &net.IPAddr{IP: net.IP(h.RawAddr)}
-			return addr.String()
-		case slayers.T4Svc:
-			addr := addr.HostSVC(binary.BigEndian.Uint16(h.RawAddr[:addr.HostLenSVC]))
-			return addr.String()
-		}
-	case slayers.AddrLen16:
-		switch h.AddrType {
-		case slayers.T16Ip:
-			addr := &net.IPAddr{IP: net.IP(h.RawAddr)}
-			return addr.String()
-		}
+	switch h.AddrType {
+	case slayers.T4Ip:
+		return net.IP(h.RawAddr).String()
+	case slayers.T4Svc:
+		addr := addr.HostSVC(binary.BigEndian.Uint16(h.RawAddr[:addr.HostLenSVC]))
+		return addr.String()
+	case slayers.T16Ip:
+		return net.IP(h.RawAddr).String()
 	}
 	return ""
 }
@@ -76,13 +67,11 @@ func HostAddrFromString(host string) (HostAddr, error) {
 	if ipAddr != nil {
 		if ip := ipAddr.IP().To4(); ip != nil {
 			return HostAddr{
-				AddrLen:  slayers.AddrLen4,
 				AddrType: slayers.T4Ip,
 				RawAddr:  ip,
 			}, nil
 		}
 		return HostAddr{
-			AddrLen:  slayers.AddrLen16,
 			AddrType: slayers.T16Ip,
 			RawAddr:  ipAddr.IP(),
 		}, nil
@@ -91,7 +80,6 @@ func HostAddrFromString(host string) (HostAddr, error) {
 	svcAddr := addr.HostSVCFromString(host)
 	if svcAddr != addr.SvcNone {
 		return HostAddr{
-			AddrLen:  slayers.AddrLen4,
 			AddrType: slayers.T4Svc,
 			RawAddr:  svcAddr.PackWithPad(2),
 		}, nil
@@ -114,7 +102,7 @@ func SerializeHostHostInput(input []byte, host HostAddr) int {
 
 	_ = input[inputLength-1]
 	input[0] = uint8(HostHost)
-	input[1] = uint8(host.AddrType&0x3)<<2 | uint8(host.AddrLen&0x3)
+	input[1] = uint8(host.AddrType & 0x7)
 	copy(input[2:], hostAddr)
 	copy(input[2+l:inputLength], ZeroBlock[:])
 

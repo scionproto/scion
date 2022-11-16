@@ -14,24 +14,24 @@
 
 // Package config provides an unified pattern for configuration structs.
 //
-// Usage
+// # Usage
 //
 // Every configuration struct should implement the Config interface. There
 // are three parts to a configuration: Initialization, validation and
 // sample generation.
 //
-// Initialization
+// # Initialization
 //
 // A config struct is initialized by calling InitDefaults. This recursively
 // initializes all uninitialized fields. Fields that should not be
 // initialized to default must be set before calling InitDefaults.
 //
-// Validation
+// # Validation
 //
 // A config struct is validated by calling Validate. This recursively
 // validates all fields.
 //
-// Sample Generation
+// # Sample Generation
 //
 // A config struct can be used to generate a commented sample toml config
 // by calling Sample. Unit tests guarantee the consistency between
