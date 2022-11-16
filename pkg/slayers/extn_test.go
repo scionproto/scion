@@ -44,41 +44,41 @@ var optY = slayers.TLVOption{
 // A Hop-by-Hop or EndToEnd Options header containing both options X and Y would have one of the two
 // following formats, depending on which option appeared first:
 //
-//   Option X | Option Y
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |  Next Header  | Hdr Ext Len=6 | Option Type=X |Opt Data Len=12|
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |                         4-octet field                         |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |                                                               |
-//   +                         8-octet field                         +
-//   |                                                               |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   | PadN Option=1 |Opt Data Len=1 |       0       | Option Type=Y |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |Opt Data Len=7 | 1-octet field |         2-octet field         |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |                         4-octet field                         |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	Option X | Option Y
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|  Next Header  | Hdr Ext Len=6 | Option Type=X |Opt Data Len=12|
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|                         4-octet field                         |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|                                                               |
+//	+                         8-octet field                         +
+//	|                                                               |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	| PadN Option=1 |Opt Data Len=1 |       0       | Option Type=Y |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|Opt Data Len=7 | 1-octet field |         2-octet field         |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|                         4-octet field                         |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
-//   Option Y | Option X
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |  Next Header  | Hdr Ext Len=7 | Pad1 Option=0 | Option Type=Y |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |Opt Data Len=7 | 1-octet field |         2-octet field         |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |                         4-octet field                         |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   | PadN Option=1 |Opt Data Len=4 |       0       |       0       |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |       0       |       0       | Option Type=X |Opt Data Len=12|
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |                         4-octet field                         |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |                                                               |
-//   +                         8-octet field                         +
-//   |                                                               |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	Option Y | Option X
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|  Next Header  | Hdr Ext Len=7 | Pad1 Option=0 | Option Type=Y |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|Opt Data Len=7 | 1-octet field |         2-octet field         |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|                         4-octet field                         |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	| PadN Option=1 |Opt Data Len=4 |       0       |       0       |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|       0       |       0       | Option Type=X |Opt Data Len=12|
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|                         4-octet field                         |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|                                                               |
+//	+                         8-octet field                         +
+//	|                                                               |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 var rawTLVOptionsXY = []byte{0x1e, 0x0c, 0xaa, 0xaa, 0xaa, 0xaa, 0xbb, 0xbb, 0xbb, 0xbb, 0xbb, 0xbb,
 	0xbb, 0xbb, 0x01, 0x01, 0x00, 0x3e, 0x07, 0x11, 0x22, 0x22, 0x44, 0x44, 0x44, 0x44}
 var rawTLVOptionsYX = []byte{0x00, 0x3e, 0x07, 0x11, 0x22, 0x22, 0x44, 0x44, 0x44, 0x44, 0x01, 0x04,
@@ -540,77 +540,4 @@ func prepRawPacketWithExtn(t *testing.T, extns ...slayers.L4ProtocolType) []byte
 	buf.AppendBytes(9) // dummy UDP with 1 byte payload
 
 	return buf.Bytes()
-}
-
-var optAuthMAC = []byte("16byte_mac_foooo")
-
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |Next Header=UDP| Hdr Ext Len=5 | PadN Option=1 |Opt Data Len=1 |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |       0       | Auth Option=2 |Opt Data Len=17| Algo = CMAC   |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |                                                               |
-//   +                                                               +
-//   |                                                               |
-//   +                        16-octet MAC data                      +
-//   |                                                               |
-//   +                                                               +
-//   |                                                               |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-var rawE2EOptAuth = append(
-	[]byte{
-		0x11, 0x05, 0x01, 0x01,
-		0x0, 0x2, 0x11, 0x0,
-	},
-	optAuthMAC...,
-)
-
-func TestOptAuthenticatorSerialize(t *testing.T) {
-	optAuth := slayers.NewPacketAuthenticatorOption(slayers.PacketAuthCMAC, optAuthMAC)
-
-	e2e := slayers.EndToEndExtn{}
-	e2e.NextHdr = slayers.L4UDP
-	e2e.Options = []*slayers.EndToEndOption{optAuth.EndToEndOption}
-
-	b := gopacket.NewSerializeBuffer()
-	opts := gopacket.SerializeOptions{FixLengths: true}
-	assert.NoError(t, e2e.SerializeTo(b, opts), "SerializeTo")
-
-	assert.Equal(t, rawE2EOptAuth, b.Bytes(), "Raw Buffer")
-}
-
-func TestOptAuthenticatorDeserialize(t *testing.T) {
-	e2e := slayers.EndToEndExtn{}
-
-	_, err := e2e.FindOption(slayers.OptTypeAuthenticator)
-	assert.Error(t, err)
-
-	assert.NoError(t, e2e.DecodeFromBytes(rawE2EOptAuth, gopacket.NilDecodeFeedback))
-	assert.Equal(t, slayers.L4UDP, e2e.NextHdr, "NextHeader")
-	optAuth, err := e2e.FindOption(slayers.OptTypeAuthenticator)
-	require.NoError(t, err, "FindOption")
-	auth, err := slayers.ParsePacketAuthenticatorOption(optAuth)
-	require.NoError(t, err, "ParsePacketAuthenticatorOption")
-	assert.Equal(t, slayers.PacketAuthCMAC, auth.Algorithm(), "Algorithm Type")
-	assert.Equal(t, optAuthMAC, auth.Authenticator(), "Authenticator data (MAC)")
-}
-
-func TestOptAuthenticatorDeserializeCorrupt(t *testing.T) {
-	optAuthCorrupt := slayers.EndToEndOption{
-		OptType: slayers.OptTypeAuthenticator,
-		OptData: []byte{},
-	}
-	e2e := slayers.EndToEndExtn{}
-	e2e.NextHdr = slayers.L4UDP
-	e2e.Options = []*slayers.EndToEndOption{&optAuthCorrupt}
-
-	b := gopacket.NewSerializeBuffer()
-	opts := gopacket.SerializeOptions{FixLengths: true}
-	assert.NoError(t, e2e.SerializeTo(b, opts), "SerializeTo")
-
-	assert.NoError(t, e2e.DecodeFromBytes(b.Bytes(), gopacket.NilDecodeFeedback))
-	optAuth, err := e2e.FindOption(slayers.OptTypeAuthenticator)
-	require.NoError(t, err, "FindOption")
-	_, err = slayers.ParsePacketAuthenticatorOption(optAuth)
-	require.Error(t, err, "ParsePacketAuthenticatorOption should fail")
 }

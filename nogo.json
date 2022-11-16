@@ -144,7 +144,9 @@
     "maincheck": {
         "exclude_files": {
             "/com_github_deepmap_oapi_codegen/": "",
-            "/com_github_golang_mock/mockgen": ""
+            "/com_github_golang_mock/mockgen": "",
+            "/org_golang_x_tools": "",
+            "/com_github_bazelbuild_buildtools": ""
         }
     },
     "reflectvaluecompare": {
@@ -204,7 +206,8 @@
             "org_golang_x_crypto/ed25519/internal/edwards25519": "",
             "com_github_vishvananda_netlink/nl": "",
             "com_github_deepmap_oapi_codegen/pkg/codegen": "",
-            "control/colibri/reservation/e2e/request_test.go": ""
+            "control/colibri/reservation/e2e/request_test.go": "",
+            "com_github_bazelbuild_buildtools": ""
         }
     }
 }

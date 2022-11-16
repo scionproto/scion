@@ -1,7 +1,8 @@
 # SCION
 
-[![Documentation](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/github.com/scionproto/scion)
+[![Slack chat](https://img.shields.io/badge/chat%20on-slack-blue?logo=slack)](https://scionproto.slack.com)
 [![ReadTheDocs](https://img.shields.io/badge/doc-reference-blue?version=latest&style=flat&label=docs&logo=read-the-docs&logoColor=white)](https://docs.scion.org/en/latest)
+[![Documentation](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/github.com/scionproto/scion)
 [![Build Status](https://badge.buildkite.com/e7ca347d947c23883ad7c3a4d091c2df5ae7feb52b238d29a1.svg?branch=master)](https://buildkite.com/scionproto/scion)
 [![Go Report Card](https://goreportcard.com/badge/github.com/scionproto/scion)](https://goreportcard.com/report/github.com/scionproto/scion)
 [![GitHub issues](https://img.shields.io/github/issues/scionproto/scion/help%20wanted.svg?label=help%20wanted&color=purple)](https://github.com/scionproto/scion/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22)
@@ -32,9 +33,12 @@ for instructions on how to install build dependencies, build and run SCION.
 
 ## Contributing
 
-Interested in contribution to the SCION project? Please visit us at
-[contribute.rst](https://docs.scion.org/en/latest/contribute.html)
+Interested in contribution to the SCION project? Please visit our
+[contribution guide](https://docs.scion.org/en/latest/contribute.html)
 for more information about how you can do so.
+
+Join us on our [slack workspace](https://scionproto.slack.com) with this invite link:
+[join scionproto.slack.com](https://join.slack.com/t/scionproto/shared_invite/zt-1gtgkuvk3-vQzq3gPOWOL6T58yu45vXg)
 
 ## License
 

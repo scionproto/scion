@@ -1,5 +1,5 @@
 load("//tools/lint:go.bzl", "go_library")
-load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+load("@io_bazel_rules_go//go:def.bzl", "gomock")
 
 gomock(
     name = "go_default_mock",

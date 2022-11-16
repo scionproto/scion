@@ -1,5 +1,12 @@
 load("@rules_python//python:defs.bzl", "py_binary")
-load("@python_lint_pip_deps//:requirements.bzl", "requirement")
+load("@com_github_scionproto_scion_python_lint_deps//:requirements.bzl", "requirement")
+load("@rules_python//python:pip.bzl", "compile_pip_requirements")
+
+compile_pip_requirements(
+    name = "requirements",
+    requirements_in = ":requirements.in",
+    requirements_txt = ":requirements.txt",
+)
 
 py_binary(
     name = "flake8",

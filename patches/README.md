@@ -2,7 +2,8 @@
 
 This directory is home to [gopatch](https://github.com/uber-go/gopatch) patches
 that simplify the migration when breaking changes to library packages are
-introduced.
+introduced. Furthermore it contains patches to dependencies in subdirectories,
+the remainder of this document is only about the patches for migrations.
 
 ## Installation
 

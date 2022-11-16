@@ -53,6 +53,7 @@ func newPing(pather CommandPather) *cobra.Command {
 		healthyOnly bool
 		sequence    string
 		size        uint
+		pktSize     uint
 		timeout     time.Duration
 		tracer      string
 		epic        bool
@@ -180,6 +181,19 @@ On other errors, ping will exit with code 2.
 				Host: &net.UDPAddr{IP: localIP},
 			}
 			pldSize := int(flags.size)
+
+			if cmd.Flags().Changed("packet-size") {
+				overhead, err := ping.Size(local, remote, 0)
+				if err != nil {
+					return err
+				}
+				if overhead > int(flags.pktSize) {
+					return serrors.New(
+						"desired packet size smaller than header overhead",
+						"minimum_packet_size", overhead)
+				}
+				pldSize = int(flags.pktSize - uint(overhead))
+			}
 			if flags.maxMTU {
 				mtu := int(path.Metadata().MTU)
 				pldSize, err = calcMaxPldSize(local, remote, mtu)
@@ -206,7 +220,7 @@ On other errors, ping will exit with code 2.
 				Timeout:     flags.timeout,
 				Local:       local,
 				Remote:      remote,
-				PayloadSize: int(flags.size),
+				PayloadSize: pldSize,
 				ErrHandler: func(err error) {
 					fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
 				},
@@ -250,10 +264,15 @@ On other errors, ping will exit with code 2.
 the total size of the packet is still variable size due to the variable size of
 the SCION path.`,
 	)
+	cmd.Flags().UintVar(&flags.pktSize, "packet-size", 0,
+		`number of bytes to be sent including the SCION Header and SCMP echo header,
+the desired size must provide enough space for the required headers. This flag 
+overrides the 'payload_size' flag.`,
+	)
 	cmd.Flags().BoolVar(&flags.maxMTU, "max-mtu", false,
 		`choose the payload size such that the sent SCION packet including the SCION Header,
 SCMP echo header and payload are equal to the MTU of the path. This flag overrides the
-'payload_size' flag.`)
+'payload_size' and 'packet_size' flags.`)
 	cmd.Flags().StringVar(&flags.logLevel, "log.level", "", app.LogLevelUsage)
 	cmd.Flags().StringVar(&flags.tracer, "tracing.agent", "", "Tracing agent address")
 	cmd.Flags().BoolVar(&flags.epic, "epic", false, "Enable EPIC for path probing.")

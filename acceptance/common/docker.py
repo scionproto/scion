@@ -29,9 +29,7 @@ import json
 import os
 import re
 import subprocess
-import sys
 from typing import List, NamedTuple
-from contextlib import redirect_stderr
 
 import plumbum
 from plumbum import cmd
@@ -42,7 +40,6 @@ SCION_TESTING_DOCKER_ASSERTIONS_OFF = 'SCION_TESTING_DOCKER_ASSERTIONS_OFF'
 
 
 class Compose(object):
-
     def __init__(self,
                  project: str = DC_PROJECT,
                  compose_file: str = SCION_DC_FILE):
@@ -51,8 +48,14 @@ class Compose(object):
 
     def __call__(self, *args, **kwargs) -> str:
         """Runs docker compose with the given arguments"""
-        with redirect_stderr(sys.stdout):
-            return cmd.docker_compose("-f", self.compose_file, "-p", self.project, *args, **kwargs)
+        # Note: not using plumbum here due to complications with encodings in the captured output
+        try:
+            res = subprocess.run(
+                ["docker-compose", "-f", self.compose_file, "-p", self.project, *args],
+                check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8")
+        except subprocess.CalledProcessError as e:
+            raise _CalledProcessErrorWithOutput(e) from None
+        return res.stdout
 
     def collect_logs(self, out_dir: str = "logs/docker"):
         """Collects the logs from the services into the given directory"""
@@ -144,7 +147,7 @@ class Compose(object):
         """
         user = kwargs.get("user", "{}:{}".format(os.getuid(), os.getgid()))
         return self("exec", "-T", "--user", user, container,
-                    "timeout", "1m", *args)
+                    "timeout", "1m", *args, **kwargs)
 
     def execute_as_user(self, container, user, *args, **kwargs):
         """Executes an arbitrary command in the specified container.
@@ -236,3 +239,11 @@ def _get_networks() -> List[_Network]:
         nets.append(_Network(net_inspect['Name'], net_inspect['Driver'],
                              containers))
     return nets
+
+
+class _CalledProcessErrorWithOutput(Exception):
+    def __init__(self, base):
+        self.base = base
+
+    def __str__(self):
+        return "%s\nSTDOUT:\n%s\nSTDERR:%s\n" % (str(self.base), self.base.stdout, self.base.stderr)

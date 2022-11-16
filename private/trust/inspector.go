@@ -23,9 +23,9 @@ import (
 // Inspector gives insights into the primary ASes of a given ISD.
 //
 // A primary AS is an AS that holds one of the following attributes:
-//  - authoritative
-//  - core
-//  - root CA
+//   - authoritative
+//   - core
+//   - root CA
 type Inspector interface {
 	// ByAttributes returns a list of primary ASes in the specified ISD that
 	// hold all the requested attributes. If no attribute is specified, all

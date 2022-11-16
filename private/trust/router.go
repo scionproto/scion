@@ -58,9 +58,9 @@ type AuthRouter struct {
 }
 
 // ChooseServer builds a CS address for crypto with the subject in a given ISD.
-//  * a local authoritative CS if subject is ISD-local.
-//  * a local authoritative CS if subject is in remote ISD, but no active TRC is available.
-//  * a remote authoritative CS otherwise.
+//   - a local authoritative CS if subject is ISD-local.
+//   - a local authoritative CS if subject is in remote ISD, but no active TRC is available.
+//   - a remote authoritative CS otherwise.
 func (r AuthRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.Addr, error) {
 	dstISD, err := r.dstISD(ctx, subjectISD)
 	if err != nil {

@@ -26,18 +26,18 @@ import (
 //
 // Entries are hierarchical, and conceptually look like the following:
 //
-//  SVC CS:
-//    10.2.3.4
-//      :10080
-//      :10081
-//    192.0.2.1
-//      :20000
-//  SVC PS:
-//    192.0.2.2
-//      :20001
-//    2001:db8::1
-//      :30001
-//      :30002
+//	SVC CS:
+//	  10.2.3.4
+//	    :10080
+//	    :10081
+//	  192.0.2.1
+//	    :20000
+//	SVC PS:
+//	  192.0.2.2
+//	    :20001
+//	  2001:db8::1
+//	    :30001
+//	    :30002
 //
 // Call Register to add a new entry to the table. The IP and port are taken
 // from the UDP address. IP must not be zero (so binding to multiple interfaces
