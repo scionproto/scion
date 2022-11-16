@@ -6,7 +6,6 @@ pathadd() {
     fi
 }
 
-printenv PATH
 pathadd $HOME/.local/bin 
 printenv PATH
 
@@ -17,5 +16,5 @@ fi
 
 which bazel
 
-sudo yum install -y gcc
+sudo yum groupinstall -y "Development Tools"
 pip3 install --require-hashes -r tools/env/pip3/requirements.txt
