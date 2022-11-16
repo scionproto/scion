@@ -16,6 +16,7 @@ fi
 which bazel
 
 sudo yum groupinstall -y "Development Tools"
+sudo yum install -y openssl-devel # for non-hermetic bbcp build
 pip3 install --require-hashes -r tools/env/pip3/requirements.txt
 
 
