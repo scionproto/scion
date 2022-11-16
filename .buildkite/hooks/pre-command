@@ -4,9 +4,6 @@ PRE_COMMAND_SETUP=true . .buildkite/hooks/pre-exit
 
 set -euo pipefail
 
-echo "--- Enable loki log driver"
-docker plugin enable loki || true
-
 echo "--- Increase receive network buffer size"
 sudo sysctl -w net.core.rmem_max=1048576
 

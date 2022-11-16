@@ -1,0 +1,6 @@
+#!/bin/bash
+
+if ! which bazel > /dev/null; then
+  echo "--- Install bazel/bazelisk"
+  tools/install_bazel
+fi
