@@ -1,6 +1,18 @@
 #!/bin/bash
 
+pathadd() {
+    if [ -d "$1" ] && [[ ":$PATH:" != *":$1:"* ]]; then
+        PATH="${PATH:+"$PATH:"}$1"
+    fi
+}
+
+printenv PATH
+pathadd $HOME/.local/bin 
+printenv PATH
+
 if ! which bazel > /dev/null; then
   echo "--- Install bazel/bazelisk"
   tools/install_bazel
 fi
+
+which bazel
