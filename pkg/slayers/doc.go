@@ -16,7 +16,7 @@
 Package slayers contains gopacket style layers for the SCION Header, HopByHop and EndToEnd Extension
 headers, SCMP, and SCION/UDP.
 
-Basic Decoding
+# Basic Decoding
 
 There are multiple ways to decode a SCION packet. If performance is of no concern a new
 gopacket.Packet can be instantiated:
@@ -36,7 +36,7 @@ gopacket.Packet can be instantiated:
 		fmt.Printf("From %d to %d\n", u.SrcPort, u.DstPort)
 	}
 
-Decoding using gopacket.DecodingLayerParser
+# Decoding using gopacket.DecodingLayerParser
 
 Decoding using gopacket.DecodingLayerParser can yield speed ups for more than 10x compared to eager
 decoding. The following can be used to decode any SCION packet (including HBH and E2E extension)
@@ -68,7 +68,7 @@ When using the DecodingLayerParser, the extensions can be explicitly skipped by 
 HopByHop/EndToEndExtnSkipper layer. The content of this Skipper-layer can be decoded into the full
 representation when necessary.
 
-Creating Packet Data
+# Creating Packet Data
 
 Packet data can be created by instantiating the various slayers.* types. To generate an empty
 (and useless) SCION(HBH(UDP(Payload))) packet, for example, you can run:
@@ -94,6 +94,5 @@ using the gopacket/layers.BFD layer type. Applications that want to parse
 SCION/BFD packets need to ensure that gopacket/layers is imported somewhere in
 the application so that the corresponding layer decoder is registered. Note
 that this is naturally ensured when using the DecodingLayer style.
-
 */
 package slayers

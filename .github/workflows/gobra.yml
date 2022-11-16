@@ -20,7 +20,7 @@ jobs:
           path: ${{ runner.workspace }}/.gobra/cache.json
           key: ${{ env.cache-name }}
       - name: Verify the specified files
-        uses: viperproject/gobra-action@v22.07
+        uses: viperproject/gobra-action@v22.10.2
         with:
           # Prefix used to resolve SCION packages
           module: 'github.com/scionproto/scion/'
@@ -29,7 +29,7 @@ jobs:
           # Traverse the entire repository, including nested packages,
           # in search for annotated files to verify
           recursive: '1'
-          packageTimeout: 10m
+          timeout: 10m
           caching: '1'
           statsFile: ${{ env.statsFile }}
       - name: Upload the verification report

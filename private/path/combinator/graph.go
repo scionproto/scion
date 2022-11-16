@@ -513,11 +513,11 @@ func (sl pathSolutionList) Len() int {
 }
 
 // Less sorts according to the following priority list:
-//  - total path cost (number of hops)
-//  - number of segments
-//  - segmentIDs
-//  - shortcut index
-//  - peer entry index
+//   - total path cost (number of hops)
+//   - number of segments
+//   - segmentIDs
+//   - shortcut index
+//   - peer entry index
 func (sl pathSolutionList) Less(i, j int) bool {
 	if sl[i].cost != sl[j].cost {
 		return sl[i].cost < sl[j].cost

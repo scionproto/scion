@@ -35,9 +35,9 @@ type ForwardingLookup struct {
 
 // LookupSegments looks up the segments for the given request
 //
-//  - requests for up segment are answered directly, from the local DB
-//  - down and core segments are forwarded to the responsible core ASes,
-//    and results are cached
+//   - requests for up segment are answered directly, from the local DB
+//   - down and core segments are forwarded to the responsible core ASes,
+//     and results are cached
 func (f ForwardingLookup) LookupSegments(ctx context.Context, src,
 	dst addr.IA) (segfetcher.Segments, error) {
 
