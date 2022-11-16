@@ -14,8 +14,7 @@ fi
 
 echo "--- Cleaning up the topology"
 
-# TODO: install supervisor (etc) when necessary
-# ./scion.sh topo_clean
+./scion.sh topo_clean
 
 echo "--- Cleaning up docker containers/networks/volumes"
 cntrs="$(docker ps -aq | grep -v -f <(docker ps -q --filter "name=go-module-proxy" --filter "name=bazel-remote-cache"))"

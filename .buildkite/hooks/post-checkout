@@ -16,3 +16,6 @@ if ! which bazel > /dev/null; then
 fi
 
 which bazel
+
+sudo yum install -y gcc
+pip3 install --require-hashes -r tools/env/pip3/requirements.txt
