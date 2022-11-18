@@ -1,6 +1,5 @@
 #!/bin/bash
 
-echo "~~~ Install build tools"
 pathadd() {
     if [[ ":$PATH:" != *":$1:"* ]]; then
         PATH="${PATH:+"$PATH:"}$1"
@@ -9,16 +8,8 @@ pathadd() {
 pathadd ~/.local/bin
 printenv PATH
 
-if ! which bazel > /dev/null; then
-  echo "~~~ Install bazel/bazelisk"
-  tools/install_bazel
-fi
-which bazel
-
-sudo yum groupinstall -y "Development Tools"
-sudo yum install -y openssl-devel # for non-hermetic bbcp build
-pip3 install --require-hashes -r tools/env/pip3/requirements.txt
-
+# Install build tools on first job for this runner.
+.buildkite/provision-runner.sh
 
 # Clean up left-overs from previous run
 PRE_COMMAND_SETUP=true . .buildkite/hooks/pre-exit
