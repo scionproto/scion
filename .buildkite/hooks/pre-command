@@ -9,7 +9,7 @@ pathadd ~/.local/bin
 printenv PATH
 
 # Install build tools on first job for this runner.
-.buildkite/provision-runner.sh
+.buildkite/provision-agent.sh
 
 # Clean up left-overs from previous run
 PRE_COMMAND_SETUP=true . .buildkite/hooks/pre-exit

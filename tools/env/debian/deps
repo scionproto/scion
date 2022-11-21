@@ -3,4 +3,4 @@
 set -e
 BASE=$(dirname "$0")
 
-xargs -a "$BASE/pkgs.txt" sudo DEBIAN_FRONTEND=noninteractive apt-get install --no-remove --no-install-recommends
+xargs -a "$BASE/pkgs.txt" sudo DEBIAN_FRONTEND=noninteractive apt-get install --no-remove --no-install-recommends --assume-yes
