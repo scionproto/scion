@@ -23,7 +23,10 @@ The file is transferred from AS ff00:0:111 to AS ff00:0:110.
 The SCION-IP gateway on the sending side is configured to use either one or two paths,
 respectively.
 
-The off-the-shelf file transfer application ([bbcp](https://github.com/eeertekin/bbcp))
-opens several TCP connections to transfer the data. Those connections are then spread
-by the gateway among the two paths.
+In practice, we would use an off-the-shelf file transfer application like ([bbcp](https://github.com/eeertekin/bbcp))
+or [GridFTP](https://en.wikipedia.org/wiki/GridFTP) which open several TCP connections to transfer
+the data. Those connections are then spread by the gateway among the two paths.
 
+For practical reasons (bundling bbcp into the demo containers is a bit painful), we only simulate
+the file transfer in this demo using the network bandwidth measurement tool `iperf3`. The resulting
+effect is identical.

@@ -9,7 +9,7 @@ def build_tester_image():
         image_tar = "@debian10//image",
         packages = [
             "bridge-utils",
-            "iperf",
+            "iperf3",
             "iptables",
             "netcat-openbsd",
             "openssh-server",
@@ -57,20 +57,6 @@ def build_tester_image():
         package_dir = "share",
     )
 
-    pkg_tar(
-        name = "bbcp_binary",
-        srcs = ["@com_github_eeertekin_bbcp//:bbcp_binary"],
-        mode = "0755",
-        package_dir = "bin",
-    )
-
-    pkg_tar(
-        name = "bbcp_sources",
-        srcs = ["@com_github_eeertekin_bbcp//:bbcp_sources"],
-        mode = "0444",
-        package_dir = "src",
-    )
-
     container_image(
         name = "tester",
         base = ":tester_pkgs_image.tar",
@@ -79,8 +65,6 @@ def build_tester_image():
             "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/share/bin",
         },
         tars = [
-            ":bbcp_binary",
-            ":bbcp_sources",
             ":share",
         ],
         workdir = "/share",
