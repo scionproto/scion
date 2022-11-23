@@ -12,8 +12,6 @@ steps:
         - exit_status: -1 # Agent was lost
         - exit_status: 255 # Forced agent shutdown
     timeout_in_minutes: 10
-    agents: &agent-tags
-      "buildkite-aws-stack": "v5.13.0" # XXX for testing the pipeline on the "new" stack
   - wait
   - label: "Unit Tests :bazel:"
     if: build.message !~ /\[doc\]/
@@ -24,7 +22,6 @@ steps:
       - "artifacts.out/**/*"
     retry: *automatic-retry
     timeout_in_minutes: 20
-    agents: *agent-tags
   - label: "Lint :bash:"
     command:
       - make lint
@@ -32,7 +29,6 @@ steps:
     key: lint
     retry: *automatic-retry
     timeout_in_minutes: 20
-    agents: *agent-tags
   - label: "Check Generated :bash:"
     if: build.message !~ /\[doc\]/
     command:
@@ -64,7 +60,6 @@ steps:
     timeout_in_minutes: 20
     key: check_generated
     retry: *automatic-retry
-    agents: *agent-tags
   - group: "End to End"
     key: e2e
     if: build.message !~ /\[doc\]/
@@ -90,7 +85,6 @@ steps:
       timeout_in_minutes: 15
       key: e2e_integration_tests_v2
       retry: *automatic-retry
-      agents: *agent-tags
     - label: "E2E: failing links :man_in_business_suit_levitating:"
       command:
         - echo "--- build"
@@ -107,7 +101,6 @@ steps:
       timeout_in_minutes: 15
       key: e2e_revocation_test_v2
       retry: *automatic-retry
-      agents: *agent-tags
     - label: "E2E: default :docker: (ping)"
       command:
         - echo "--- build"
@@ -124,4 +117,3 @@ steps:
       timeout_in_minutes: 15
       key: docker_integration_e2e_default
       retry: *automatic-retry
-      agents: *agent-tags
