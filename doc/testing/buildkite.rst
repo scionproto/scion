@@ -24,9 +24,9 @@ We run a `buildkite Elastic CI Stack for AWS <https://buildkite.com/docs/agent/v
 7. Clone the github repository to the agent.
 8. The agent runs its job and uploads the output to buildkite.
 
-Importantly, buildkite jobs can spawn new jobs by uploading (from the agent to the central buildkite service) more pipeline steps.
-The first job of a pipeline is configured in the buildkite pipeline, and it's usually a dummy step that loads or expands the pipeline config file from the repository, spawning all the jobs that will then do perform the actual build tasks.
-For the ``scion`` and ``scion-nightly`` pipelines, this first runs the ``.buildkite/pipeline.sh`` in the repository to generate the full pipeline:
+Importantly, buildkite jobs can spawn new jobs by uploading more pipeline steps (from the agent to the central buildkite service).
+The first job of a pipeline is configured in the buildkite pipeline. Usually, this is a dummy step that loads or expands the pipeline config file from the repository, spawning all the jobs that will then perform the actual build tasks.
+For the ``scion`` and ``scion-nightly`` pipelines, this first step is to run ``.buildkite/pipeline.sh`` in the repository to generate the full pipeline:
 
 .. code::
 
