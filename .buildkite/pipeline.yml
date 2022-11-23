@@ -1,5 +1,7 @@
 env:
   GOPROXY: "http://localhost:3200|https://proxy.golang.org|direct"
+agents:
+  stack: buildkite-scionproto  # XXX for testing the pipeline on the "new" stack
 steps:
   - label: "Build :bazel:"
     if: build.message !~ /\[doc\]/
