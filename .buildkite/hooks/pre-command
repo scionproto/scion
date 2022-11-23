@@ -1,11 +1,20 @@
 #!/bin/bash
 
+pathadd() {
+    if [[ ":$PATH:" != *":$1:"* ]]; then
+        PATH="${PATH:+"$PATH:"}$1"
+    fi
+}
+pathadd ~/.local/bin
+printenv PATH
+
+# Install build tools on first job for this runner.
+.buildkite/provision-agent.sh
+
+# Clean up left-overs from previous run
 PRE_COMMAND_SETUP=true . .buildkite/hooks/pre-exit
 
 set -euo pipefail
-
-echo "--- Enable loki log driver"
-docker plugin enable loki || true
 
 echo "--- Increase receive network buffer size"
 sudo sysctl -w net.core.rmem_max=1048576
