@@ -56,7 +56,7 @@ Dependencies
 
 Bazel, as well as additional build tools and dependencies that are not managed by bazel, are installed in the ``pre-command`` hook.
 
-See `.buildkite/provision-agent.sh <https://github.com/scionproto/scion/blob/master/.buildkite/provision-agent.sh>`_ 
+See `.buildkite/provision-agent.sh <https://github.com/scionproto/scion/blob/master/.buildkite/provision-agent.sh>`_
 
 Caching
 -------
@@ -75,7 +75,7 @@ The *Elastic CI Stack for AWS* has a `designated S3 buckets for secrets <https:/
 In particular, this bucket contains an ``env`` script that is sourced by the buildkite agents.
 
 The secrets to access the S3 buckets for the caches mentioned above are injected as environment variables from this ``env`` script.
-See `.buildkite/hooks/bazel-remote.yml <https://github.com/scionproto/scion/blob/master/.buildkite/hooks/bazel-remote.yml>`_ 
+See `.buildkite/hooks/bazel-remote.yml <https://github.com/scionproto/scion/blob/master/.buildkite/hooks/bazel-remote.yml>`_
 and `.buildkite/hooks/go-module-proxy.yml <https://github.com/scionproto/scion/blob/master/.buildkite/hooks/go-module-proxy.yml>`_.
 
 Cluster configuration
@@ -83,7 +83,7 @@ Cluster configuration
 
 .. important::
 
-   The agent cluster is operated by the SCION Association, in the AWS account ``scion-association``. 
+   The agent cluster is operated by the SCION Association, in the AWS account ``scion-association``.
 
    Primary contact `matzf <https://github.com/matzf>`_, alt contact `nicorusti <https://github.com/nicorusti>`_.
 
