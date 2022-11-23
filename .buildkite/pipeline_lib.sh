@@ -54,5 +54,7 @@ gen_bazel_test_steps() {
         echo "            - exit_status: 255 # Forced agent shutdown"
         echo "        agents:"
         echo "           \"buildkite-aws-stack\": \"v5.13.0\""
+        echo "        concurrency: 4"
+        echo "        concurrency_group: \"scion/integration-tests\""
     done
 }
