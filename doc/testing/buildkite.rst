@@ -96,7 +96,7 @@ Excerpt of the most relevant parameters:
    # Instance Configuration:
    ImageId: ""               # use default machine image based on Amazon Linux 2
    InstanceType: t3.2xlarge  # 8 vCPUs, 32GiB memory
-   RootVolumeSize: 250
+   RootVolumeSize: 100
    RootVolumeType: gp3
    BuildkiteAdditionalSudoPermissions: ALL  # allow any sudo commands in pipeline
    EnableDockerUserNamespaceRemap: false    # not compatible with using host network namespace
