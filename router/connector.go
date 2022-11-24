@@ -95,11 +95,6 @@ func (c *Connector) AddExternalInterface(localIfID common.IFIDType, link control
 	if err := c.DataPlane.AddLinkType(intf, link.LinkTo); err != nil {
 		return serrors.WrapStr("adding link type", err, "if_id", localIfID)
 	}
-	if link.LinkTo == topology.Peer {
-		if err := c.DataPlane.AddRemotePeer(intf, uint16(link.Remote.IFID)); err != nil {
-			return serrors.WrapStr("adding peering link", err, "local", localIfID, "remote", link.Remote.IFID)
-		}
-	}
 	if err := c.DataPlane.AddNeighborIA(intf, link.Remote.IA); err != nil {
 		return serrors.WrapStr("adding neighboring IA", err, "if_id", localIfID)
 	}

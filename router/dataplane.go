@@ -592,6 +592,7 @@ func (p *scionPacketProcessor) reset() error {
 	p.hopField = path.HopField{}
 	p.infoField = path.InfoField{}
 	p.segmentChange = false
+	p.peering = false
 	if err := p.buffer.Clear(); err != nil {
 		return serrors.WrapStr("Failed to clear buffer", err)
 	}
@@ -770,15 +771,13 @@ type scionPacketProcessor struct {
 	path *scion.Raw
 	// hopField is the current hopField field, is updated during processing.
 	hopField path.HopField
-	// localPeer is the local peerField field, is updated during processing.
-	localPeer path.PeerField
-	// remotePeer is the remote peerField field, is updated during processing.
-	remotePeer path.PeerField
 
 	// infoField is the current infoField field, is updated during processing.
 	infoField path.InfoField
 	// segmentChange indicates if the path segment was changed during processing.
 	segmentChange bool
+	// peering indicates that the packet is inside of a peering AS
+	peering bool
 
 	// cachedMac contains the full 16 bytes of the MAC. Will be set during processing.
 	// For a hop performing an Xover, it is the MAC corresponding to the down segment.
@@ -832,7 +831,7 @@ func (p *scionPacketProcessor) parsePath() (processResult, error) {
 		return processResult{}, err
 	}
 
-	if p.infoField.Peer {
+	/*if p.infoField.Peer {
 		log.Debug("PEER", "PathMeta", p.path.PathMeta)
 		p.localPeer, err = p.path.GetCurrentPeerField()
 		if err != nil {
@@ -848,7 +847,7 @@ func (p *scionPacketProcessor) parsePath() (processResult, error) {
 		if err != nil {
 			return processResult{}, err
 		}
-	}
+	}*/
 
 	if r, err := p.validateHopExpiry(); err != nil {
 		return r, err
@@ -857,6 +856,33 @@ func (p *scionPacketProcessor) parsePath() (processResult, error) {
 		return r, err
 	}
 	return processResult{}, nil
+}
+
+func (p *scionPacketProcessor) determinePeer() (processResult, error) {
+	if !p.infoField.Peer {
+		return processResult{}, nil
+	}
+
+	// TODO: proper error
+	err := serrors.New("TODO: segment length error (peering)")
+	result := processResult{}
+
+	if p.path.PathMeta.SegLen[0] == 0 {
+		return result, err
+	}
+	if p.path.PathMeta.SegLen[1] == 0 {
+		return result, err
+	}
+	if p.path.PathMeta.SegLen[2] != 0 {
+		return result, err
+	}
+
+	// The peer hop fields are the last hop field on the first path
+	// segment and the first hop field of the second path segment.
+	currHF := p.path.PathMeta.CurrHF
+	segLen := p.path.PathMeta.SegLen[0]
+	p.peering = currHF == segLen-1 || currHF == segLen
+	return result, nil
 }
 
 func (p *scionPacketProcessor) validateHopExpiry() (processResult, error) {
@@ -900,8 +926,7 @@ func (p *scionPacketProcessor) validateEgressID() (processResult, error) {
 	pktEgressID := p.egressInterface()
 	_, ih := p.d.internalNextHops[pktEgressID]
 	_, eh := p.d.external[pktEgressID]
-	_, ph := p.d.remotePeerIF[pktEgressID]
-	if !ih && !eh && !ph {
+	if !ih && !eh {
 		errCode := slayers.SCMPCodeUnknownHopFieldEgress
 		if !p.infoField.ConsDir {
 			errCode = slayers.SCMPCodeUnknownHopFieldIngress
@@ -911,9 +936,7 @@ func (p *scionPacketProcessor) validateEgressID() (processResult, error) {
 				TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem, errCode),
 			},
 			&slayers.SCMPParameterProblem{Pointer: p.currentHopPointer()},
-			serrors.New("egress interface invalid",
-				"pkt_egress", pktEgressID),
-			//cannotRoute,
+			cannotRoute,
 		)
 	}
 
@@ -930,7 +953,11 @@ func (p *scionPacketProcessor) validateEgressID() (processResult, error) {
 		return processResult{}, nil
 	case ingress == topology.Child && egress == topology.Child:
 		return processResult{}, nil
-	case egress == topology.Peer:
+	case ingress == topology.Unset && egress == topology.Peer:
+		return processResult{}, nil
+	case ingress == topology.Child && egress == topology.Peer:
+		return processResult{}, nil
+	case ingress == topology.Peer && egress == topology.Child:
 		return processResult{}, nil
 	default:
 		return p.packSCMP(
@@ -950,7 +977,7 @@ func (p *scionPacketProcessor) updateNonConsDirIngressSegID() error {
 	// against construction dir the ingress router updates the SegID, ifID == 0
 	// means this comes from this AS itself, so nothing has to be done.
 	// For packets destined to peer links this shouldn't be updated.
-	if !p.infoField.Peer && !p.infoField.ConsDir && p.ingressID != 0 {
+	if !p.infoField.ConsDir && p.ingressID != 0 && !p.peering {
 		p.infoField.UpdateSegID(p.hopField.Mac)
 		if err := p.path.SetInfoField(p.infoField, int(p.path.PathMeta.CurrINF)); err != nil {
 			return serrors.WrapStr("update info field", err)
@@ -970,9 +997,7 @@ func (p *scionPacketProcessor) currentHopPointer() uint16 {
 }
 
 func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
-	//fullMac := path.FullMAC(p.mac, p.infoField, p.hopField, p.macBuffers.scionInput)
-	//XXX FIXME TODO LOBOTOMOIZED MAC VERIFICATION
-	fullMac := p.hopField.Mac
+	fullMac := path.FullMAC(p.mac, p.infoField, p.hopField, p.macBuffers.scionInput)
 	if subtle.ConstantTimeCompare(p.hopField.Mac[:path.MacLen], fullMac[:path.MacLen]) == 0 {
 		return p.packSCMP(
 			&slayers.SCMP{TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
@@ -989,9 +1014,7 @@ func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
 	}
 	// Add the full MAC to the SCION packet processor,
 	// such that EPIC does not need to recalculate it.
-	// p.cachedMac = fullMac
-	// XXX
-	p.cachedMac = fullMac[:]
+	p.cachedMac = fullMac
 
 	return processResult{}, nil
 }
@@ -1014,19 +1037,13 @@ func (p *scionPacketProcessor) resolveInbound() (*net.UDPAddr, processResult, er
 
 func (p *scionPacketProcessor) processEgress() error {
 	// we are the egress router and if we go in construction direction we
-	// need to update the SegID.
-	if p.infoField.ConsDir {
+	// need to update the SegID (unless we received the packet via peering link)
+	if p.infoField.ConsDir && !p.peering {
 		p.infoField.UpdateSegID(p.hopField.Mac)
 		if err := p.path.SetInfoField(p.infoField, int(p.path.PathMeta.CurrINF)); err != nil {
 			// TODO parameter problem invalid path
 			return serrors.WrapStr("update info field", err)
 		}
-	}
-
-	//FIXME not incrementing the path but returning early seems to have worked but
-	//no idea why
-	if p.infoField.Peer {
-		return nil
 	}
 
 	if err := p.path.IncPath(); err != nil {
@@ -1062,11 +1079,6 @@ func (p *scionPacketProcessor) doXover() (processResult, error) {
 }
 
 func (p *scionPacketProcessor) egressInterface() uint16 {
-	if p.infoField.Peer {
-		//FIXME
-		return p.localPeer.PeerIF
-		//return p.d.remotePeerIF[p.remotePeer.PeerIF]
-	}
 	if p.infoField.ConsDir {
 		return p.hopField.ConsEgress
 	}
@@ -1199,6 +1211,9 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	if r, err := p.parsePath(); err != nil {
 		return r, err
 	}
+	if r, err := p.determinePeer(); err != nil {
+		return r, err
+	}
 	if r, err := p.validatePktLen(); err != nil {
 		return r, err
 	}
@@ -1224,7 +1239,7 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	// Outbound: pkts leaving the local IA.
 	// BRTransit: pkts leaving from the same BR different interface.
 
-	if p.path.IsXover() {
+	if p.path.IsXover() && !p.peering {
 		if r, err := p.doXover(); err != nil {
 			return r, err
 		}
@@ -1259,7 +1274,6 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	if !p.infoField.ConsDir {
 		errCode = slayers.SCMPCodeUnknownHopFieldIngress
 	}
-	log.Debug("SCMP", "egressID", egressID)
 	return p.packSCMP(
 		&slayers.SCMP{
 			TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem, errCode),
@@ -1596,9 +1610,6 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 		return nil, serrors.Wrap(cannotRoute, err, "details", "serializing SCMP message")
 	}
 	return p.buffer.Bytes(), scmpError{TypeCode: scmpH.TypeCode, Cause: cause}
-}
-
-func debugDecoded(prefix string, path *scion.Decoded) {
 }
 
 // decodeLayers implements roughly the functionality of
