@@ -434,7 +434,7 @@ func TestComputeAuthMac(t *testing.T) {
 			assert.NoError(t, err)
 
 			buf := make([]byte, slayers.MACBufferSize)
-			inpLen, _ := slayers.SerializeAutenticatedData(
+			inpLen, _ := slayers.SerializeAuthenticatedData(
 				buf,
 				&tc.scionL,
 				optAuth,

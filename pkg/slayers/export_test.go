@@ -19,21 +19,12 @@ package slayers
 type TLVOption = tlvOption
 
 var (
-	PackAddr            = packAddr
-	ParseAddr           = parseAddr
-	SerializeTLVOptions = serializeTLVOptions
+	PackAddr                   = packAddr
+	ParseAddr                  = parseAddr
+	SerializeTLVOptions        = serializeTLVOptions
+	SerializeAuthenticatedData = serializeAuthenticatedData
 )
 
 func (s *SCION) ComputeChecksum(upperLayer []byte, protocol uint8) (uint16, error) {
 	return s.computeChecksum(upperLayer, protocol)
-}
-
-func SerializeAutenticatedData(
-	buf []byte,
-	s *SCION,
-	opt PacketAuthOption,
-	pldType L4ProtocolType,
-	pld []byte,
-) (int, error) {
-	return serializeAutenticatedData(buf, s, opt, pldType, pld)
 }

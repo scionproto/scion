@@ -88,7 +88,7 @@ func SCMPTracerouteIngress(artifactsDir string, mac hash.Hash) runner.Case {
 		Version:      0,
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
-		NextHdr:      slayers.End2EndClass,
+		NextHdr:      slayers.L4SCMP,
 		PathType:     scion.PathType,
 		SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
 		DstIA:        xtest.MustParseIA("1-ff00:0:2"),
@@ -156,7 +156,6 @@ func SCMPTracerouteIngress(artifactsDir string, mac hash.Hash) runner.Case {
 		Interface:  141,
 	}
 
-	// Skip Ethernet + IPv4 + UDP
 	if err := gopacket.SerializeLayers(want, options,
 		ethernet, ip, udp, scionL, scmpH, scmpP,
 	); err != nil {
@@ -359,7 +358,6 @@ func SCMPTracerouteIngressWithSPAO(artifactsDir string, mac hash.Hash) runner.Ca
 		Interface:  141,
 	}
 
-	// Skip Ethernet + IPv4 + UDP
 	if err := gopacket.SerializeLayers(want, options,
 		ethernet, ip, udp, scionL, e2e, scmpH, scmpP,
 	); err != nil {
@@ -505,7 +503,6 @@ func SCMPTracerouteIngressConsDir(artifactsDir string, mac hash.Hash) runner.Cas
 		Interface:  131,
 	}
 
-	// Skip Ethernet + IPv4 + UDP
 	if err := gopacket.SerializeLayers(want, options,
 		ethernet, ip, udp, scionL, scmpH, scmpP,
 	); err != nil {
@@ -646,7 +643,6 @@ func SCMPTracerouteEgress(artifactsDir string, mac hash.Hash) runner.Case {
 		Interface:  121,
 	}
 
-	// Skip Ethernet + IPv4 + UDP
 	if err := gopacket.SerializeLayers(want, options,
 		ethernet, ip, udp, scionL, scmpH, scmpP,
 	); err != nil {
@@ -791,7 +787,6 @@ func SCMPTracerouteEgressConsDir(artifactsDir string, mac hash.Hash) runner.Case
 		Interface:  141,
 	}
 
-	// Skip Ethernet + IPv4 + UDP
 	if err := gopacket.SerializeLayers(want, options,
 		ethernet, ip, udp, scionL, scmpH, scmpP,
 	); err != nil {
@@ -950,7 +945,6 @@ func SCMPTracerouteEgressAfterXover(artifactsDir string, mac hash.Hash) runner.C
 		Interface:  141,
 	}
 
-	// Skip Ethernet + IPv4 + UDP
 	if err := gopacket.SerializeLayers(want, options,
 		ethernet, ip, udp, scionL, scmpH, scmpP,
 	); err != nil {
@@ -1086,7 +1080,6 @@ func SCMPTracerouteInternal(artifactsDir string, mac hash.Hash) runner.Case {
 		Interface:  141,
 	}
 
-	// Skip Ethernet + IPv4 + UDP
 	if err := gopacket.SerializeLayers(want, options,
 		ethernet, ip, udp, scionL, scmpH, scmpP,
 	); err != nil {

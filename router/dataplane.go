@@ -602,6 +602,10 @@ func (p *scionPacketProcessor) reset() error {
 	}
 	p.mac.Reset()
 	p.cachedMac = nil
+	// Reset hbh layer
+	p.hbhLayer = slayers.HopByHopExtnSkipper{}
+	// Reset e2e layer
+	p.e2eLayer = slayers.EndToEndExtnSkipper{}
 	return nil
 }
 
@@ -1802,9 +1806,6 @@ func (p *scionPacketProcessor) hasValidAuth() bool {
 	if err != nil {
 		return false
 	}
-
-	// Reset p.e2eLayer
-	p.e2eLayer = slayers.EndToEndExtnSkipper{}
 
 	// compare incoming authField with computed authentication tag
 	return subtle.ConstantTimeCompare(authOption.Authenticator(), p.validAuthBuf) != 0

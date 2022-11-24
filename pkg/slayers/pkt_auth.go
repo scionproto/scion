@@ -283,7 +283,7 @@ func ComputeAuthCMAC(
 	if err != nil {
 		return nil, err
 	}
-	inputLen, err := serializeAutenticatedData(input, scionL, opt, pldType, pld)
+	inputLen, err := serializeAuthenticatedData(input, scionL, opt, pldType, pld)
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +304,7 @@ func initCMAC(key []byte) (hash.Hash, error) {
 	return mac, nil
 }
 
-func serializeAutenticatedData(
+func serializeAuthenticatedData(
 	buf []byte,
 	s *SCION,
 	opt PacketAuthOption,
