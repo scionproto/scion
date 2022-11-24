@@ -163,35 +163,6 @@ func (s *Raw) IsFirstHop() bool {
 	return s.PathMeta.CurrHF == 0
 }
 
-// GetPeerField returns the PeerField at a given index.
-func (s *Raw) GetPeerField(idx int) (path.PeerField, error) {
-	if idx >= s.NumHops {
-		return path.PeerField{},
-			serrors.New("PeerField index out of bounds", "max", s.NumHops-1, "actual", idx)
-	}
-	hopOffset := MetaLen + s.NumINF*path.InfoLen + idx*path.HopLen
-	hop := path.PeerField{}
-	if err := hop.DecodeFromBytes(s.Raw[hopOffset : hopOffset+path.HopLen]); err != nil {
-		return path.PeerField{}, err
-	}
-	return hop, nil
-}
-
-// GetCurrentPeerField is a convenience method that returns the current hop field pointed to by the
-// CurrHF index in the path meta header.
-func (s *Raw) GetCurrentPeerField() (path.PeerField, error) {
-	return s.GetPeerField(int(s.PathMeta.CurrHF))
-}
-
-// SetPeerField updates the PeerField at a given index.
-func (s *Raw) SetPeerField(hop path.PeerField, idx int) error {
-	if idx >= s.NumHops {
-		return serrors.New("PeerField index out of bounds", "max", s.NumHops-1, "actual", idx)
-	}
-	hopOffset := MetaLen + s.NumINF*path.InfoLen + idx*path.HopLen
-	return hop.SerializeTo(s.Raw[hopOffset : hopOffset+path.HopLen])
-}
-
 // IsPenultimateHop returns whether the current hop is the penultimate hop on the path.
 func (s *Raw) IsPenultimateHop() bool {
 	return int(s.PathMeta.CurrHF) == (s.NumHops - 2)

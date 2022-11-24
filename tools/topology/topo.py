@@ -325,7 +325,6 @@ class TopoGenerator(object):
             # There is already a BR entry, add interface
             self.topo_dicts[local]["border_routers"][local_br]['interfaces'][l_ifid] = intf
 
-
     def _gen_br_intf(self, remote, public_addr, remote_addr, attrs, remote_type):
         return {
             'underlay': {
