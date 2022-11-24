@@ -496,6 +496,9 @@ func calculateBeta(se *solutionEdge) uint16 {
 		}
 	} else {
 		index = len(se.segment.ASEntries) - 1
+		if index == se.edge.Shortcut && se.edge.Peer != 0 {
+			index++
+		}
 	}
 	beta := se.segment.Info.SegmentID
 	for i := 0; i < index; i++ {
