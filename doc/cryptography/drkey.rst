@@ -216,6 +216,8 @@ except for the host address whose length is prepended.
 Key Validity time
 =================
 
+.. _drkey-epoch:
+
 Epochs
 ------
 An epoch is an interval between a starting and ending point in time. The epoch
@@ -233,6 +235,11 @@ globally set to 6 minutes.
 
   This lower bound might be changed in the future in case a more suitable
   value is found.
+
+The upper bound for the epoch length is defined to 3 days, looking for a
+between efﬁciency and security.
+
+.. _drkey-grace:
 
 Grace period
 ------------

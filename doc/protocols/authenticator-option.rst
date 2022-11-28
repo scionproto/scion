@@ -35,7 +35,7 @@ Alignment requirement: 4n + 2::
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                   Security Parameter Index                    |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |    Algorithm  |                    Timestamp                  |
+    |    Algorithm  |                    Timestamp                   |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |      RSV      |                  Sequence Number              |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -49,28 +49,38 @@ OptDataLen
   Unsigned 8-bit integer denoting the length in bytes of the full option data
   (12 + length of Authenticator).
   The length depends on algorithm used.
-Timestamp:
+Timestamp (Extended Sequence Number):
   Unsigned 24-bit integer timestamp.
-  The timestamp expressed by the value of this field is relative to the
-  `Timestamp` of the first :ref:`Info Field<scion-path-info-field>` of the
-  SCION Path.
-  The timestamp has a granularity of
+  When used with a DRKey SPI, the timestamp expressed by the value of this field is 
+  relative to the :ref:`Epoch<drkey-epoch>` starting time of the associated DRKey.
+  The granularity must enable to cover the maximum epoch length for DRKey (plus
+  the :ref:`Grace period<drkey-grace>`). 
+  At all times, at most two key
+  epochs can be active; this field distinguishes between these two candidates.
+  If the expressed timestamp is greater than the associated epoch length,
+  it refers to the validity epoch with the active epoch with earlier start time.
+
+  The timestamp has a granularity of 16 ms:
 
   .. math::
       q := \left\lceil\left(
-        \frac{24 \times 60 \times 60 \times 10^3}
+        \frac{3 \times 24 \times 60 \times 60 \times 10^3}
              {2^{24}}
       \right)\right\rceil ms
-          = 6 ms.\\
+          = 16 ms.\\
 
   and the absolute Unix time expressed by this Timestamp field is
 
   .. math::
-    \mathrm{info[0].Timestamp} + \mathrm{Timestamp} \cdot q
+    \mathrm{Epoch.begin} + \mathrm{Timestamp} \cdot q
 
   The Timestamp field can be used for replay detection by the receiver.
   The receiver SHOULD drop packets with timestamps outside of a locally chosen
   range around the current time.
+
+  For other SPI associations, this value can be seen as a 24-bit extension for the
+  Sequence number. This would allow high-speed applications to extend the range
+  of sequence numbers up to 48 bits.
 
 Sequence Number:
   Unsigned 24-bit sequence number.
@@ -92,7 +102,6 @@ Sequence Number:
 
   .. math::
     (\mathrm{Source\ Address, info[0].Timestamp, Timestamp, Sequence\ Number})
-
 
 Security Parameter Index (SPI)
   32-bit identifier for the key used for this authentication option.
@@ -137,7 +146,7 @@ DRKey
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |             0       |R R T D E|       Protocol Identifier     |
+    |             0       |R R T D R|       Protocol Identifier     |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 R
@@ -154,13 +163,6 @@ D
 
     * ``0``: sender-side key derivation
     * ``1``: receiver-side key derivation
-E
-  Epoch. Specifies the key epoch. The time specified by the Timestamp field is
-  used to look up the relevant candidate epochs. At all times, at most two key
-  epochs can be active; this field distinguishes between these two candidates.
-
-    * ``0``: the active epoch with later start time
-    * ``1``: the active epoch with earlier start time
 Protocol Identifier
   16-bit protocol identifier. Note that 0 is a reserved protocol number and
   cannot occur here.
