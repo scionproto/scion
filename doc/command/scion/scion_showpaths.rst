@@ -16,8 +16,6 @@ By default, the paths are probed. Paths served from the SCION Deamon's might not
 forward traffic successfully (e.g. if a network link went down, or there is a black
 hole on the path). To disable path probing, set the appropriate flag.
 
-'showpaths' can be instructed to output the paths as json using the the \--json flag.
-
 If no alive path is discovered, json output is not enabled, and probing is not
 disabled, showpaths will exit with the code 1.
 On other errors, showpaths will exit with code 2.
@@ -93,9 +91,9 @@ Options
       --dispatcher string      Path to the dispatcher socket (default "/run/shm/dispatcher/default.sock")
       --epic                   Enable EPIC.
   -e, --extended               Show extended path meta data information
+      --format string          Specify the output format (human|json|yaml) (default "human")
   -h, --help                   help for showpaths
       --isd-as isd-as          The local ISD-AS to use. (default 0-0)
-  -j, --json                   Write the output as machine readable json
   -l, --local ip               Local IP address to listen on. (default zero IP)
       --log.level string       Console logging level verbosity (debug|info|error)
   -m, --maxpaths int           Maximum number of paths that are displayed (default 10)
