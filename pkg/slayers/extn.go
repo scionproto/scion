@@ -413,7 +413,7 @@ func (h *HopByHopExtnSkipper) NextLayerType() gopacket.LayerType {
 	return scionNextLayerTypeAfterHBH(h.NextHdr)
 }
 
-// EndToEndExtnSkipper is a DecodingLayer which decodes a HopByHop extensions
+// EndToEndExtnSkipper is a DecodingLayer which decodes an EndToEnd extension
 // without parsing its content.
 // This can be used with a DecodingLayerParser to handle SCION packets which
 // may or may not have an EndToEnd extension.

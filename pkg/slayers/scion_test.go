@@ -35,7 +35,7 @@ import (
 
 var (
 	ip6Addr = &net.IPAddr{IP: net.ParseIP("2001:db8::68")}
-	ip4Addr = &net.IPAddr{IP: net.ParseIP("10.0.0.100")}
+	ip4Addr = &net.IPAddr{IP: net.ParseIP("10.0.0.100").To4()}
 	svcAddr = addr.HostSVCFromString("Wildcard")
 	rawPath = func() []byte {
 		return []byte("\x00\x00\x20\x80\x00\x00\x01\x11\x00\x00\x01\x00\x01\x00\x02\x22\x00" +
@@ -76,9 +76,7 @@ func TestSCIONLayerString(t *testing.T) {
 		`PayloadLen=0 `
 	expectMiddle := `` +
 		`DstAddrType=0 ` +
-		`DstAddrLen=0 ` +
 		`SrcAddrType=0 ` +
-		`SrcAddrLen=0 ` +
 		`DstIA=1-ff00:0:1 ` +
 		`SrcIA=1-ff00:0:2 ` +
 		`RawDstAddr=[1, 2, 3, 4] ` +
@@ -312,28 +310,24 @@ func TestPackAddr(t *testing.T) {
 	testCases := map[string]struct {
 		addr      net.Addr
 		addrType  slayers.AddrType
-		addrLen   slayers.AddrLen
 		rawAddr   []byte
 		errorFunc assert.ErrorAssertionFunc
 	}{
 		"pack IPv4": {
 			addr:      ip4Addr,
 			addrType:  slayers.T4Ip,
-			addrLen:   slayers.AddrLen4,
-			rawAddr:   []byte(ip4Addr.IP.To4()),
+			rawAddr:   []byte(ip4Addr.IP),
 			errorFunc: assert.NoError,
 		},
 		"pack IPv6": {
 			addr:      ip6Addr,
 			addrType:  slayers.T16Ip,
-			addrLen:   slayers.AddrLen16,
 			rawAddr:   []byte(ip6Addr.IP),
 			errorFunc: assert.NoError,
 		},
 		"pack SVC": {
 			addr:      svcAddr,
 			addrType:  slayers.T4Svc,
-			addrLen:   slayers.AddrLen4,
 			rawAddr:   svcAddr.PackWithPad(2),
 			errorFunc: assert.NoError,
 		},
@@ -343,10 +337,10 @@ func TestPackAddr(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			addrLen, addrType, rawAddr, err := slayers.PackAddr(tc.addr)
+			require.Equal(t, len(tc.rawAddr), tc.addrType.Length()) // sanity check
+			addrType, rawAddr, err := slayers.PackAddr(tc.addr)
 			tc.errorFunc(t, err)
 			assert.Equal(t, tc.addrType, addrType)
-			assert.Equal(t, tc.addrLen, addrLen)
 			assert.Equal(t, tc.rawAddr, rawAddr)
 		})
 	}
@@ -355,35 +349,30 @@ func TestPackAddr(t *testing.T) {
 func TestParseAddr(t *testing.T) {
 	testCases := map[string]struct {
 		addrType  slayers.AddrType
-		addrLen   slayers.AddrLen
 		rawAddr   []byte
 		want      net.Addr
 		errorFunc assert.ErrorAssertionFunc
 	}{
 		"parse IPv4": {
 			addrType:  slayers.T4Ip,
-			addrLen:   slayers.AddrLen4,
-			rawAddr:   []byte(ip4Addr.IP),
+			rawAddr:   []byte(ip4Addr.IP.To4()),
 			want:      ip4Addr,
 			errorFunc: assert.NoError,
 		},
 		"parse IPv6": {
 			addrType:  slayers.T16Ip,
-			addrLen:   slayers.AddrLen16,
 			rawAddr:   []byte(ip6Addr.IP),
 			want:      ip6Addr,
 			errorFunc: assert.NoError,
 		},
 		"parse SVC": {
 			addrType:  slayers.T4Svc,
-			addrLen:   slayers.AddrLen4,
 			rawAddr:   svcAddr.PackWithPad(2),
 			want:      svcAddr,
 			errorFunc: assert.NoError,
 		},
 		"parse unknown type": {
-			addrType:  0,
-			addrLen:   slayers.AddrLen8,
+			addrType:  0b0001, // T=0,Len=8
 			rawAddr:   []byte{0, 0, 0, 0, 0, 0, 0, 0},
 			want:      nil,
 			errorFunc: assert.Error,
@@ -394,7 +383,8 @@ func TestParseAddr(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			got, err := slayers.ParseAddr(tc.addrType, tc.addrLen, tc.rawAddr)
+			require.Equal(t, tc.addrType.Length(), len(tc.rawAddr)) // sanity check
+			got, err := slayers.ParseAddr(tc.addrType, tc.rawAddr)
 			tc.errorFunc(t, err)
 			assert.Equal(t, tc.want, got)
 		})
@@ -455,9 +445,7 @@ func prepPacket(t testing.TB, c slayers.L4ProtocolType) *slayers.SCION {
 		NextHdr:      c,
 		PathType:     scion.PathType,
 		DstAddrType:  slayers.T16Ip,
-		DstAddrLen:   slayers.AddrLen16,
 		SrcAddrType:  slayers.T4Ip,
-		SrcAddrLen:   slayers.AddrLen4,
 		DstIA:        xtest.MustParseIA("1-ff00:0:111"),
 		SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
 		Path:         &scion.Raw{},

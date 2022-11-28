@@ -1,11 +1,6 @@
 #!/bin/bash
 
 set -e
-
 BASE=$(dirname "$0")
-. $(dirname "$BASE")/common.sh
 
-[ -z "$("$BASE/check")" ] && exit
-
-echo "Installing necessary packages from pip3"
-pip_install pip3 "$BASE/requirements.txt"
+pip3 --disable-pip-version-check install --user --require-hashes -r "$BASE/requirements.txt"
