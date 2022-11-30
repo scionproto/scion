@@ -186,9 +186,7 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 			continue
 		}
 		pathsPerIP[localIP.String()] = append(pathsPerIP[localIP.String()], path)
-		//FIXME
-		//addStatus(PathKey(path), Status{Status: StatusTimeout, LocalIP: localIP})
-		addStatus(PathKey(path), Status{Status: StatusAlive, LocalIP: localIP})
+		addStatus(PathKey(path), Status{Status: StatusTimeout, LocalIP: localIP})
 	}
 
 	// Sequence number for the sent traceroute packets.

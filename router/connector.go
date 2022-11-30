@@ -91,7 +91,6 @@ func (c *Connector) AddExternalInterface(localIfID common.IFIDType, link control
 	if !c.ia.Equal(link.Local.IA) {
 		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", link.Local.IA)
 	}
-	// FIXME, maybe change signature of AddLinkType to include remote ID
 	if err := c.DataPlane.AddLinkType(intf, link.LinkTo); err != nil {
 		return serrors.WrapStr("adding link type", err, "if_id", localIfID)
 	}
