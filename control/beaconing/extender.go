@@ -89,8 +89,6 @@ func (s *DefaultExtender) Extend(
 	if err != nil {
 		return serrors.WrapStr("creating hop entry", err)
 	}
-	// TODO: peer entries are missing here!
-
 	peerBeta := extractBeta(pseg) ^ binary.BigEndian.Uint16(hopEntry.HopField.MAC[:2])
 	peerEntries, epicPeerMacs, err := s.createPeerEntries(egress, peers, ts, peerBeta)
 	if err != nil {
@@ -186,7 +184,6 @@ func (s *DefaultExtender) createPeerEntry(ingress, egress uint16, ts time.Time,
 		return seg.PeerEntry{}, nil, serrors.WrapStr("checking remote ingress interface", err,
 			"ingress_interface", ingress)
 	}
-
 	hopF, epicMac := s.createHopF(ingress, egress, ts, beta)
 	return seg.PeerEntry{
 		PeerMTU:       int(remoteInMTU),

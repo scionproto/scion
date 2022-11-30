@@ -771,7 +771,6 @@ type scionPacketProcessor struct {
 	path *scion.Raw
 	// hopField is the current hopField field, is updated during processing.
 	hopField path.HopField
-
 	// infoField is the current infoField field, is updated during processing.
 	infoField path.InfoField
 	// segmentChange indicates if the path segment was changed during processing.
@@ -830,25 +829,6 @@ func (p *scionPacketProcessor) parsePath() (processResult, error) {
 		// TODO(lukedirtwalker) parameter problem invalid path?
 		return processResult{}, err
 	}
-
-	/*if p.infoField.Peer {
-		log.Debug("PEER", "PathMeta", p.path.PathMeta)
-		p.localPeer, err = p.path.GetCurrentPeerField()
-		if err != nil {
-			return processResult{}, err
-		}
-		idx := 1
-		if p.infoField.ConsDir {
-			// ConsDir == true, the remotePeerField
-			// is above the current hop field
-			idx = -1
-		}
-		p.remotePeer, err = p.path.GetPeerField(int(p.path.PathMeta.CurrHF) + idx)
-		if err != nil {
-			return processResult{}, err
-		}
-	}*/
-
 	if r, err := p.validateHopExpiry(); err != nil {
 		return r, err
 	}
@@ -1045,7 +1025,6 @@ func (p *scionPacketProcessor) processEgress() error {
 			return serrors.WrapStr("update info field", err)
 		}
 	}
-
 	if err := p.path.IncPath(); err != nil {
 		// TODO parameter problem invalid path
 		return serrors.WrapStr("incrementing path", err)
@@ -1258,7 +1237,6 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	}
 
 	egressID := p.egressInterface()
-
 	if c, ok := p.d.external[egressID]; ok {
 		if err := p.processEgress(); err != nil {
 			return processResult{}, err
