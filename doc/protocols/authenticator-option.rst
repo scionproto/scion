@@ -51,14 +51,21 @@ OptDataLen
   The length depends on algorithm used.
 Timestamp (Extended Sequence Number):
   Unsigned 24-bit integer timestamp.
-  When used with a DRKey SPI, the timestamp expressed by the value of this field is 
+  When used with a DRKey SPI, the timestamp (*Ts*) expressed by the value of this field is 
   relative to the :ref:`Epoch<drkey-epoch>` starting time of the associated DRKey.
+  In turn, this timestamp MAY be used to compute the *at* value following the process in 
+  :ref:`Abosulte time derivation<spao-timestamp>`.
+  The absolute time *at* will be within a single epoch (:math:`E_x`).
+  To retrieve the associated DRKey, if:
+
+- *at* is within the :ref:`Grace period<drkey-grace>` of :math:`E_x` AND
+  *Ts* is greater than the Grace period duration ->
+  The candidate DRKey is the key whose epoch is :math:`E_{x-1}`
+-  Otherwise ->
+    The candidate DRKey is the key whose epoch is :math:`E_{x}`.
+     
   The granularity must enable to cover the maximum epoch length for DRKey (plus
   the :ref:`Grace period<drkey-grace>`). 
-  At all times, at most two key
-  epochs can be active; this field distinguishes between these two candidates.
-  If the expressed timestamp is greater than the associated epoch length,
-  it refers to the validity epoch with the active epoch with earlier start time.
 
   The timestamp has a granularity of 16 ms:
 
@@ -69,10 +76,6 @@ Timestamp (Extended Sequence Number):
       \right)\right\rceil ms
           = 16 ms.\\
 
-  and the absolute Unix time expressed by this Timestamp field is
-
-  .. math::
-    \mathrm{Epoch.begin} + \mathrm{Timestamp} \cdot q
 
   The Timestamp field can be used for replay detection by the receiver.
   The receiver SHOULD drop packets with timestamps outside of a locally chosen
@@ -166,6 +169,32 @@ D
 Protocol Identifier
   16-bit protocol identifier. Note that 0 is a reserved protocol number and
   cannot occur here.
+
+.. _spao-timestamp:
+
+Absolute time derivation
+=============================
+
+Firstly, the receiver entity defines an *acceptance window*.
+An *acceptance window* (aw) is a time range of width *a* around the receiver current time *T*,
+i.e.,:
+
+:math:`aw := [T-a/2, T +a/2)`
+
+(i) We consider the minimum epoch length period as the upper bound for the acceptance windows.
+The receiver entity derives the absolute timestamp by:
+
+1. Given a time instant *T*, considering:
+  - The current epoch (:math:`E_{i}`) as the one whose time range includes *T*.
+  - The previous epoch (:math:`E_{i-1}`) as the prior epoch to (:math:`E_{i}`).
+  - The next epoch (:math:`E_{i+1}`) as the subsequent epoch to (:math:`E_{i}`).
+
+2. Adding the relative timestamp (*rt*) (the one in :ref:`SPAO Header<authenticator-option>`) to
+   the start time for :math:`E_{i-1}`, :math:`E_{i}` and :math:`E_{i+1}`, 
+   computing the respective *absolute times* (*at*):
+   :math:`at_{i-1}`, :math:`at_{i}` and :math:`at_{i+1}`.
+3. Given (i) at most one *absolute time* will be within *aw*. 
+   *at* is then considered as the time used by the sender in the packet authentication.
 
 
 Authenticated Data
