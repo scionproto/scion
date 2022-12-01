@@ -273,7 +273,7 @@ The subject-AS on the slow side (i.e. the AS requesting the key) will establish 
 the issuer-AS  on the fast side (i.e. the AS serving the key). Both parties identify each other by using
 the CP-PKI infrastructure.
 
-The Level 1 key request message contains the ``validTime`` for which the key must be active
+The Level 1 key request message contains the ``validTime`` which must be within the key's epoch
 and the ``protocol_id``. The Level 1 key response includes the symmetric key along with the epoch
 for which this key will be valid.
 
