@@ -308,7 +308,7 @@ class TopoGenerator(object):
 
         intf = self._gen_br_intf(remote, public_addr, remote_addr, attrs, remote_type)
         if intf['link_to'] == 'peer':
-            intf['remote_if_id'] = r_ifid
+            intf['remote_interface_id'] = r_ifid
 
         if self.topo_dicts[local]["border_routers"].get(local_br) is None:
             intl_port = 30042
