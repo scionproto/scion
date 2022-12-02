@@ -76,7 +76,7 @@ const (
 	minPacketAuthDataLen = 12
 	// FixAuthDataInputLen is the unvariable fields length for the
 	// authenticated data
-	FixAuthDataInputLen = minPacketAuthDataLen + 8
+	fixAuthDataInputLen = minPacketAuthDataLen + 8
 	// UpperBoundMACInput sets an upperBound to the authenticated data
 	// length (excluding the payload). This is:
 	// 1. Authenticator Option Meta
@@ -337,7 +337,7 @@ func serializeAuthenticatedData(
 	buf[17] = byte(s.DstAddrType&0x3)<<6 | byte(s.DstAddrType.Length()&0x3)<<4 |
 		byte(s.SrcAddrType&0x3)<<2 | byte(s.SrcAddrType.Length()&0x3)
 	binary.BigEndian.PutUint16(buf[18:], 0)
-	offset := FixAuthDataInputLen
+	offset := fixAuthDataInputLen
 
 	if !opt.SPI().IsDRKey() {
 		binary.BigEndian.PutUint64(buf[offset:], uint64(s.DstIA))
