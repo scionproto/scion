@@ -73,10 +73,10 @@ const (
 	// The SPAO header contains the following fixed-length fields:
 	// SPI (4 Bytes), Algorithm (1 Byte), Timestamp (3 Bytes),
 	// RSV (1 Byte) and Sequence Number (3 Bytes).
-	MinPacketAuthDataLen = 12
+	minPacketAuthDataLen = 12
 	// FixAuthDataInputLen is the unvariable fields length for the
 	// authenticated data
-	FixAuthDataInputLen = MinPacketAuthDataLen + 8
+	FixAuthDataInputLen = minPacketAuthDataLen + 8
 	// UpperBoundMACInput sets an upperBound to the authenticated data
 	// length (excluding the payload). This is:
 	// 1. Authenticator Option Meta
@@ -195,7 +195,7 @@ func ParsePacketAuthOption(o *EndToEndOption) (PacketAuthOption, error) {
 		return PacketAuthOption{},
 			serrors.New("wrong option type", "expected", OptTypeAuthenticator, "actual", o.OptType)
 	}
-	if len(o.OptData) < MinPacketAuthDataLen {
+	if len(o.OptData) < minPacketAuthDataLen {
 		return PacketAuthOption{},
 			serrors.New("buffer too short", "expected at least", 12, "actual", len(o.OptData))
 	}
@@ -217,7 +217,7 @@ func (o PacketAuthOption) Reset(
 
 	o.OptType = OptTypeAuthenticator
 
-	n := MinPacketAuthDataLen + len(p.Auth)
+	n := minPacketAuthDataLen + len(p.Auth)
 	if n <= cap(o.OptData) {
 		o.OptData = o.OptData[:n]
 	} else {
@@ -268,6 +268,15 @@ func (o PacketAuthOption) Authenticator() []byte {
 	return o.OptData[12:]
 }
 
+// ComputeAuthCMAC computes the authenticator tag for the AES-CMAC algorithm.
+// The key should correspond to the SPI defined in opt.SPI.
+// The SCION layer, payload type and payload define the input to the MAC, as defined in
+// https://docs.scion.org/en/latest/protocols/authenticator-option.html#authenticated-data.
+//
+// The input buffer is used as a temporary buffer for the MAC computation.
+// It must be at least MACBufferSize long.
+// The resulting MAC is written to macBuffer (appending, if necessary),
+// and returned as a slice of length 16.
 func ComputeAuthCMAC(
 	key []byte,
 	opt PacketAuthOption,
@@ -278,7 +287,6 @@ func ComputeAuthCMAC(
 	macBuffer []byte,
 ) ([]byte, error) {
 
-	// TODO(matzf): avoid allocations, somehow?
 	cmac, err := initCMAC(key)
 	if err != nil {
 		return nil, err
@@ -378,16 +386,14 @@ func zeroOutMutablePath(orig path.Path, buf []byte) error {
 		return serrors.WrapStr("serializing path for reseting fields", err)
 	}
 	switch p := orig.(type) {
-	// TODO(JordiSubira): process EPIC
-
 	case *scion.Raw:
-		zeroOutWithBase(p.Base, 0, buf)
+		zeroOutWithBase(p.Base, buf)
 		return nil
 	case *scion.Decoded:
-		zeroOutWithBase(p.Base, 0, buf)
+		zeroOutWithBase(p.Base, buf)
 		return nil
 	case *epic.Path:
-		zeroOutWithBase(p.ScionPath.Base, epic.MetadataLen, buf)
+		zeroOutWithBase(p.ScionPath.Base, buf[epic.MetadataLen:])
 		return nil
 	case *onehop.Path:
 		// Zero out IF.SegID
@@ -402,8 +408,9 @@ func zeroOutMutablePath(orig path.Path, buf []byte) error {
 	}
 }
 
-func zeroOutWithBase(base scion.Base, offset int, buf []byte) {
+func zeroOutWithBase(base scion.Base, buf []byte) {
 	// Zero out CurrInf && CurrHF
+	offset := 0
 	buf[offset] = 0
 	offset += 4
 	for i := 0; i < base.NumINF; i++ {
