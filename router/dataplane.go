@@ -98,7 +98,7 @@ type DataPlane struct {
 	external          map[uint16]BatchConn
 	linkTypes         map[uint16]topology.LinkType
 	neighborIAs       map[uint16]addr.IA
-	remotePeerIF      map[uint16]uint16
+	peerInterfaces    map[uint16]uint16
 	internal          BatchConn
 	internalIP        *net.IPAddr
 	internalNextHops  map[uint16]*net.UDPAddr
@@ -270,17 +270,17 @@ func (d *DataPlane) AddLinkType(ifID uint16, linkTo topology.LinkType) error {
 // interface ID.  If the link type for the given ID is already set to
 // a different type, this method will return an error. This can only
 // be called on a not yet running dataplane.
-func (d *DataPlane) AddRemotePeer(localifID, remoteifID uint16) error {
-	if t, ok := d.linkTypes[localifID]; ok && t != topology.Peer {
+func (d *DataPlane) AddRemotePeer(local, remote uint16) error {
+	if t, ok := d.linkTypes[local]; ok && t != topology.Peer {
 		return serrors.WithCtx(unsupportedPathType, "type", t)
 	}
-	if _, exists := d.remotePeerIF[localifID]; exists {
-		return serrors.WithCtx(alreadySet, "localifID", localifID)
+	if _, exists := d.peerInterfaces[local]; exists {
+		return serrors.WithCtx(alreadySet, "local_interface", local)
 	}
-	if d.remotePeerIF == nil {
-		d.remotePeerIF = make(map[uint16]uint16)
+	if d.peerInterfaces == nil {
+		d.peerInterfaces = make(map[uint16]uint16)
 	}
-	d.remotePeerIF[localifID] = remoteifID
+	d.peerInterfaces[local] = remote
 	return nil
 }
 
@@ -878,16 +878,15 @@ func (p *scionPacketProcessor) determinePeer() (processResult, error) {
 
 	// TODO: proper error
 	err := serrors.New("TODO: segment length error (peering)")
-	result := processResult{}
 
 	if p.path.PathMeta.SegLen[0] == 0 {
-		return result, err
+		return processResult{}, err
 	}
 	if p.path.PathMeta.SegLen[1] == 0 {
-		return result, err
+		return processResult{}, err
 	}
 	if p.path.PathMeta.SegLen[2] != 0 {
-		return result, err
+		return processResult{}, err
 	}
 
 	// The peer hop fields are the last hop field on the first path
@@ -895,7 +894,7 @@ func (p *scionPacketProcessor) determinePeer() (processResult, error) {
 	currHF := p.path.PathMeta.CurrHF
 	segLen := p.path.PathMeta.SegLen[0]
 	p.peering = currHF == segLen-1 || currHF == segLen
-	return result, nil
+	return processResult{}, nil
 }
 
 func (p *scionPacketProcessor) validateHopExpiry() (processResult, error) {
