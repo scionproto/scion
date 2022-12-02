@@ -622,7 +622,7 @@ func SCMPInternalXover(artifactsDir string, mac hash.Hash) runner.Case {
 		FlowID:       0xdead,
 		NextHdr:      slayers.L4SCMP,
 		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:1"),
+		SrcIA:        xtest.MustParseIA("1-ff00:0:8"),
 		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
 		Path:         sp,
 	}
