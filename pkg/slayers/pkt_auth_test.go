@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
@@ -247,24 +248,27 @@ func TestComputeAuthMac(t *testing.T) {
 				NextHdr:      slayers.End2EndClass,
 				SrcIA:        srcIA,
 				DstIA:        dstIA,
-				SrcAddrType:  slayers.T4Ip,
-				RawSrcAddr:   net.IPv4(192, 0, 0, 2).To4(),
-				DstAddrType:  slayers.T4Ip,
-				RawDstAddr:   net.IPv4(192, 0, 0, 1).To4(),
+				SrcAddrType:  slayers.T16Ip,
+				RawSrcAddr:   net.ParseIP("2001:cafe::1").To16(),
+				DstAddrType:  slayers.T4Svc,
+				RawDstAddr:   addr.HostSVCFromString("CS").Pack(),
 				Path:         decodedPath,
 				PathType:     decodedPath.Type(),
 			},
 			pld: fooPayload,
 			rawMACInput: append([]byte{
 				// 1. Authenticator Option Metadata
-				0x64, 0xca, 0x0, 0xc, // HdrLen | Upper Layer | Upper-Layer Packet Length
+				0x70, 0xca, 0x0, 0xc, // HdrLen | Upper Layer | Upper-Layer Packet Length
 				0x0, 0x0, 0x3, 0xe8, // Algorithm  | Timestamp
 				0x0, 0x6, 0x5, 0x4, // RSV | Sequence Number
 				// 2. SCION Common Header
 				0x3, 0xf0, 0x12, 0x34, // Version | QoS | FlowID
-				0x1, 0x0, 0x0, 0x0, // PathType |DT |DL |ST |SL | RSV
+				0x1, 0x43, 0x0, 0x0, // PathType |DT |DL |ST |SL | RSV
 				// 3.  SCION Address Header
-				0xc0, 0x0, 0x0, 0x2,
+				0x20, 0x01, 0xca, 0xfe,
+				0x0, 0x0, 0x0, 0x0,
+				0x0, 0x0, 0x0, 0x0,
+				0x0, 0x0, 0x0, 0x1,
 				// Zeroed-out path
 				0x0, 0x0, 0x10, 0x41, // Path Meta Header (CurrINF, CurrHF = 0)
 				0x0, 0x0, 0x0, 0x0, // Info[0] (SegID = 0)
