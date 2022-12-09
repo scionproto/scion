@@ -186,9 +186,9 @@ i.e.,:
 The receiver entity derives the absolute timestamp by:
 
 1. Given a time instant *T*, considering:
-  - Epoch (:math:`E_{i}`) as the one whose time range includes *T*.
-  - Epoch (:math:`E_{i-1}`) as the prior epoch to (:math:`E_{i}`).
-  - Epoch (:math:`E_{i+1}`) as the subsequent epoch to (:math:`E_{i}`).
+  - Epoch :math:`E_{i}` as the one whose time range includes *T*.
+  - Epoch :math:`E_{i-1}` as the prior epoch to :math:`E_{i}`.
+  - Epoch :math:`E_{i+1}` as the subsequent epoch to :math:`E_{i}`.
 
 2. Adding the relative timestamp (*rt*) (the one in :ref:`SPAO Header<authenticator-option>`) to
    the start time for :math:`E_{i-1}`, :math:`E_{i}` and :math:`E_{i+1}`, 
