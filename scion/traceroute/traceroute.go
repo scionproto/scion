@@ -162,7 +162,10 @@ func (t *tracerouter) Traceroute(ctx context.Context) (Stats, error) {
 				t.updateHandler(u)
 			}
 		}
-		xover := idxPath.IsXover()
+		// Peering links do not count as regular cross
+		// overs. For peering links we probe all interfaces on
+		// the path.
+		xover := idxPath.IsXover() && !info.Peer
 		// The last hop of the path isn't probed, only the ingress interface is
 		// relevant.
 		// At a crossover (segment change) only the ingress interface is
