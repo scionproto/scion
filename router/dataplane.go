@@ -46,6 +46,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path/epic"
 	"github.com/scionproto/scion/pkg/slayers/path/onehop"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
+	"github.com/scionproto/scion/pkg/spao"
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/underlay/conn"
 	underlayconn "github.com/scionproto/scion/private/underlay/conn"
@@ -131,11 +132,7 @@ var (
 )
 
 type drkeyProvider interface {
-	GetAuthKey(
-		validTime time.Time,
-		dstIA addr.IA,
-		dstAddr net.Addr,
-	) (drkey.Key, error)
+	GetAuthKey(validTime time.Time, dstIA addr.IA, dstAddr net.Addr) (drkey.Key, error)
 }
 
 type scmpError struct {
@@ -1744,7 +1741,7 @@ func (p *scionPacketProcessor) resetSPAOMetadata(now time.Time) error {
 		return err
 	}
 
-	timestamp, err := slayers.ComputeSPAORelativeTimestamp(firstInfo.Timestamp, now)
+	timestamp, err := spao.ComputeRelativeTimestamp(firstInfo.Timestamp, now)
 	if err != nil {
 		return err
 	}
@@ -1787,7 +1784,7 @@ func (p *scionPacketProcessor) hasValidAuth() bool {
 	if err != nil {
 		return false
 	}
-	then := slayers.TimeFromRelativeTimestamp(firstInfo.Timestamp, authOption.Timestamp())
+	then := spao.TimeFromRelativeTimestamp(firstInfo.Timestamp, authOption.Timestamp())
 	srcAddr, err := p.scionLayer.SrcAddr()
 	if err != nil {
 		return false

@@ -1,0 +1,12 @@
+load("//tools/lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["timestamp.go"],
+    importpath = "github.com/scionproto/scion/pkg/spao",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/private/util:go_default_library",
+    ],
+)

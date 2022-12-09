@@ -39,10 +39,8 @@ package slayers
 import (
 	"encoding/binary"
 	"fmt"
-	"time"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/epic"
 	"github.com/scionproto/scion/pkg/slayers/path/onehop"
@@ -319,24 +317,6 @@ func SerializeAuthenticatedData(
 	}
 	offset += s.Path.Len()
 	return offset, nil
-}
-
-// ComputeSPAORelativeTimestamp computes the relative timestamp (spaoTS) where:
-// now = ts+spaoTS⋅𝑞, (where q := 6 ms and ts =  info[0].Timestamp, i.e.,
-// the timestamp field in the first InfoField).
-func ComputeSPAORelativeTimestamp(ts uint32, now time.Time) (uint32, error) {
-	timestamp := now.Sub(util.SecsToTime(ts)).Milliseconds() / 6
-	if timestamp >= (1 << 24) {
-		return 0, serrors.New("relative timestamp is bigger than 2^24-1")
-	}
-	return uint32(timestamp), nil
-}
-
-// TimeFromRelativeTimestamp computes the time instant (then) where:
-// then = ts + spaoTS⋅𝑞, (where q := 6 ms and ts =  info[0].Timestamp, i.e.,
-// the timestamp field in the first InfoField).
-func TimeFromRelativeTimestamp(ts uint32, spaoTS uint32) time.Time {
-	return util.SecsToTime(ts).Add(time.Millisecond * time.Duration(spaoTS) * 6)
 }
 
 func zeroOutMutablePath(orig path.Path, buf []byte) error {
