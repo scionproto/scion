@@ -1695,18 +1695,23 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 
 		e2e.Options = []*slayers.EndToEndOption{p.optAuth.EndToEndOption}
 		e2e.NextHdr = slayers.L4SCMP
-		_, err = slayers.ComputeAuthCMAC(
-			key[:],
-			p.optAuth,
-			&scionL,
-			slayers.L4SCMP,
-			p.buffer.Bytes(),
+		cmac, err := scrypto.InitMac(key[:])
+		if err != nil {
+			return nil, err
+		}
+		inputLen, err := slayers.SerializeAuthenticatedData(
 			p.macBuffers.drkeyInput,
-			p.optAuth.Authenticator(),
+			&scionL,
+			p.optAuth,
+			slayers.L4SCMP,
+			len(p.buffer.Bytes()),
 		)
 		if err != nil {
-			return nil, serrors.Wrap(cannotRoute, err, "details", "computing CMAC")
+			return nil, serrors.Wrap(cannotRoute, err, "details", "serializing MAC input")
 		}
+		cmac.Write(p.macBuffers.drkeyInput[:inputLen])
+		cmac.Write(p.buffer.Bytes())
+		cmac.Sum(p.optAuth.Authenticator()[:0])
 		if err := e2e.SerializeTo(p.buffer, sopts); err != nil {
 			return nil, serrors.Wrap(cannotRoute, err, "details", "serializing SCION E2E headers")
 		}
@@ -1794,18 +1799,23 @@ func (p *scionPacketProcessor) hasValidAuth() bool {
 	if err != nil {
 		return false
 	}
-	_, err = slayers.ComputeAuthCMAC(
-		key[:],
-		authOption,
-		&p.scionLayer,
-		slayers.L4SCMP,
-		p.lastLayer.LayerPayload(),
+	cmac, err := scrypto.InitMac(key[:])
+	if err != nil {
+		return false
+	}
+	inputLen, err := slayers.SerializeAuthenticatedData(
 		p.macBuffers.drkeyInput,
-		p.validAuthBuf,
+		&p.scionLayer,
+		authOption,
+		slayers.L4SCMP,
+		len(p.lastLayer.LayerPayload()),
 	)
 	if err != nil {
 		return false
 	}
+	cmac.Write(p.macBuffers.drkeyInput[:inputLen])
+	cmac.Write(p.lastLayer.LayerPayload())
+	cmac.Sum(p.validAuthBuf[:0])
 
 	// compare incoming authField with computed authentication tag
 	return subtle.ConstantTimeCompare(authOption.Authenticator(), p.validAuthBuf) != 0

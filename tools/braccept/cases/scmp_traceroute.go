@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
@@ -275,18 +276,24 @@ func SCMPTracerouteIngressWithSPAO(artifactsDir string, mac hash.Hash) runner.Ca
 	if err != nil {
 		panic(err)
 	}
-	_, err = slayers.ComputeAuthCMAC(
-		(&drkey.Key{})[:],
-		optAuth,
+	cmac, err := scrypto.InitMac((&drkey.Key{})[:])
+	if err != nil {
+		panic(err)
+	}
+	buf := make([]byte, slayers.MACBufferSize)
+	inputLen, err := slayers.SerializeAuthenticatedData(
+		buf,
 		scionL,
+		optAuth,
 		slayers.L4SCMP,
-		e2ePayload.Bytes(),
-		make([]byte, slayers.MACBufferSize),
-		optAuth.Authenticator(),
+		len(e2ePayload.Bytes()),
 	)
 	if err != nil {
 		panic(err)
 	}
+	cmac.Write(buf[:inputLen])
+	cmac.Write(e2ePayload.Bytes())
+	cmac.Sum(optAuth.Authenticator()[:0])
 
 	// Prepare input packet
 	input := gopacket.NewSerializeBuffer()
