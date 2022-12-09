@@ -1741,7 +1741,7 @@ func (p *scionPacketProcessor) resetSPAOMetadata(now time.Time) error {
 		return err
 	}
 
-	timestamp, err := spao.ComputeRelativeTimestamp(firstInfo.Timestamp, now)
+	timestamp, err := spao.RelativeTimestamp(firstInfo.Timestamp, now)
 	if err != nil {
 		return err
 	}
@@ -1784,7 +1784,7 @@ func (p *scionPacketProcessor) hasValidAuth() bool {
 	if err != nil {
 		return false
 	}
-	then := spao.TimeFromRelativeTimestamp(firstInfo.Timestamp, authOption.Timestamp())
+	then := spao.Time(firstInfo.Timestamp, authOption.Timestamp())
 	srcAddr, err := p.scionLayer.SrcAddr()
 	if err != nil {
 		return false
