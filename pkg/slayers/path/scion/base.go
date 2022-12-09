@@ -76,7 +76,9 @@ func (s *Base) IncPath() error {
 	}
 	if int(s.PathMeta.CurrHF) >= s.NumHops-1 {
 		s.PathMeta.CurrHF = uint8(s.NumHops - 1)
-		return serrors.New("path already at end", "curr_hf", s.PathMeta.CurrHF, "num_hops", s.NumHops)
+		return serrors.New("path already at end",
+			"curr_hf", s.PathMeta.CurrHF,
+			"num_hops", s.NumHops)
 	}
 	s.PathMeta.CurrHF++
 	// Update CurrINF
@@ -84,7 +86,11 @@ func (s *Base) IncPath() error {
 	return nil
 }
 
-// IsXover returns whether we are at a crossover point.
+// IsXover returns whether we are at a crossover point. This includes
+// all segment switches, even over a peering link. Note that handling
+// of a regular segment switch and handling of a segment switch over a
+// peering link are fundamentally different. To distinguish the two,
+// you will need to extract the information from the info field.
 func (s *Base) IsXover() bool {
 	return s.PathMeta.CurrHF+1 < uint8(s.NumHops) &&
 		s.PathMeta.CurrINF != s.infIndexForHF(s.PathMeta.CurrHF+1)

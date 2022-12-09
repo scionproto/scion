@@ -1091,12 +1091,14 @@ func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
 			slayers.SCMPTypeParameterProblem,
 			slayers.SCMPCodeInvalidHopFieldMAC,
 			&slayers.SCMPParameterProblem{Pointer: p.currentHopPointer()},
-			serrors.New("MAC verification failed", "expected", fmt.Sprintf(
-				"%x", fullMac[:path.MacLen]),
+			serrors.New("MAC verification failed",
+				"expected", fmt.Sprintf("%x", fullMac[:path.MacLen]),
 				"actual", fmt.Sprintf("%x", p.hopField.Mac[:path.MacLen]),
 				"cons_dir", p.infoField.ConsDir,
-				"if_id", p.ingressID, "curr_inf", p.path.PathMeta.CurrINF,
-				"curr_hf", p.path.PathMeta.CurrHF, "seg_id", p.infoField.SegID),
+				"if_id", p.ingressID,
+				"curr_inf", p.path.PathMeta.CurrINF,
+				"curr_hf", p.path.PathMeta.CurrHF,
+				"seg_id", p.infoField.SegID),
 		)
 	}
 	// Add the full MAC to the SCION packet processor,
@@ -1646,7 +1648,7 @@ func (p *scionPacketProcessor) prepareSCMP(
 	revPath := revPathTmp.(*scion.Decoded)
 
 	// Revert potential path segment switches that were done during processing.
-	if revPath.IsXover() {
+	if revPath.IsXover() && !p.peering {
 		if err := revPath.IncPath(); err != nil {
 			return nil, serrors.Wrap(cannotRoute, err, "details", "reverting cross over for SCMP")
 		}
@@ -1656,7 +1658,7 @@ func (p *scionPacketProcessor) prepareSCMP(
 	_, external := p.d.external[p.ingressID]
 	if external {
 		infoField := &revPath.InfoFields[revPath.PathMeta.CurrINF]
-		if infoField.ConsDir {
+		if infoField.ConsDir && !p.peering {
 			hopField := revPath.HopFields[revPath.PathMeta.CurrHF]
 			infoField.UpdateSegID(hopField.Mac)
 		}
