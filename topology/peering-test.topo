@@ -33,6 +33,7 @@ links:
   - {a: "1-ff00:0:110#2", b: "1-ff00:0:112#1", linkAtoB: CHILD, bw: 500}
   - {a: "1-ff00:0:112#3", b: "1-ff00:0:113#3", linkAtoB: CHILD, bw: 500}
   - {a: "1-ff00:0:113#4", b: "1-ff00:0:114#4", linkAtoB: CHILD, bw: 500}
+  - {a: "1-ff00:0:112#47", b: "1-ff00:0:114#11", linkAtoB: PEER}
   - {a: "1-ff00:0:110#3", b: "2-ff00:0:210#3", linkAtoB: CORE}
   - {a: "2-ff00:0:210#1", b: "2-ff00:0:211#3", linkAtoB: CHILD, mtu: 1280}
   - {a: "2-ff00:0:210#2", b: "2-ff00:0:212#7", linkAtoB: CHILD, bw: 500}
