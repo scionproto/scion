@@ -231,13 +231,13 @@ Defining a reasonable lower bound for the epoch length used in DRKey
 is necessary to avoid nonsensical scenarios. This value is
 globally set to 6 minutes.
 
-.. note::
-
-  This lower bound might be changed in the future in case a more suitable
-  value is found.
-
 The upper bound for the epoch length is defined to 3 days, looking for a
 between efﬁciency and security.
+
+.. note::
+
+  These bounds might be changed in the future in case a more suitable
+  values are found.
 
 .. _drkey-grace:
 

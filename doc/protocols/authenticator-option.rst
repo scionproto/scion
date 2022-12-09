@@ -53,9 +53,9 @@ Timestamp (Extended Sequence Number):
   Unsigned 24-bit integer timestamp.
   When used with a DRKey SPI, the timestamp (*Ts*) expressed by the value of this field is 
   relative to the :ref:`Epoch<drkey-epoch>` starting time of the associated DRKey.
-  In turn, this timestamp MAY be used to compute the *at* value following the process in 
-  :ref:`Abosulte time derivation<spao-timestamp>`.
-  The absolute time *at* will be within a single epoch (:math:`E_x`).
+  In turn, this timestamp MAY be used to compute the absolute time (*at*) value, 
+  which corresponds to the time at which the packet was sent.
+  The section:ref:`Abosulte time derivation<spao-timestamp>` describes the derivation of *at* in detail.
   To retrieve the associated DRKey, if:
 
 - *at* is within the :ref:`Grace period<drkey-grace>` of :math:`E_x` AND
@@ -181,20 +181,20 @@ i.e.,:
 
 :math:`aw := [T-a/2, T +a/2)`
 
-(i) We consider the minimum epoch length period as the upper bound for the acceptance windows.
+(i) We consider the minimum DRKey epoch length as the upper bound for the acceptance windows.
+
 The receiver entity derives the absolute timestamp by:
 
 1. Given a time instant *T*, considering:
-  - The current epoch (:math:`E_{i}`) as the one whose time range includes *T*.
-  - The previous epoch (:math:`E_{i-1}`) as the prior epoch to (:math:`E_{i}`).
-  - The next epoch (:math:`E_{i+1}`) as the subsequent epoch to (:math:`E_{i}`).
+  - Epoch (:math:`E_{i}`) as the one whose time range includes *T*.
+  - Epoch (:math:`E_{i-1}`) as the prior epoch to (:math:`E_{i}`).
+  - Epoch (:math:`E_{i+1}`) as the subsequent epoch to (:math:`E_{i}`).
 
 2. Adding the relative timestamp (*rt*) (the one in :ref:`SPAO Header<authenticator-option>`) to
    the start time for :math:`E_{i-1}`, :math:`E_{i}` and :math:`E_{i+1}`, 
    computing the respective *absolute times* (*at*):
    :math:`at_{i-1}`, :math:`at_{i}` and :math:`at_{i+1}`.
-3. Given (i) at most one *absolute time* will be within *aw*. 
-   *at* is then considered as the time used by the sender in the packet authentication.
+3. Given (i) at most one *absolute time* will be within *aw*. .
 
 
 Authenticated Data
