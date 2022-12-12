@@ -1,0 +1,10 @@
+steps:
+  - label: "Lint doc :bash:"
+    key: lint_doc
+    command:
+      - tools/mdlint
+    retry:
+      automatic:
+        - exit_status: -1 # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
+    timeout_in_minutes: 10
