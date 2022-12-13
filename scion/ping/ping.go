@@ -33,8 +33,8 @@ import (
 
 // Stats contains the statistics of a ping run.
 type Stats struct {
-	Sent     int
-	Received int
+	Sent     int `json:"sent" yaml:"sent"`
+	Received int `json:"received" yaml:"received"`
 }
 
 // Update contains intermediary information about a received echo reply
@@ -56,6 +56,21 @@ const (
 	OutOfOrder
 	Duplicate
 )
+
+func (s State) String() string {
+	switch s {
+	case Success:
+		return "success"
+	case AfterTimeout:
+		return "after_timeout"
+	case OutOfOrder:
+		return "out_of_order"
+	case Duplicate:
+		return "duplicate"
+	default:
+		return "unknown"
+	}
+}
 
 // Config configures the ping run.
 type Config struct {

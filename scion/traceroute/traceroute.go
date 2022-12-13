@@ -27,7 +27,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
-	snetpath "github.com/scionproto/scion/pkg/snet/path"
+	"github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/pkg/sock/reliable"
 )
 
@@ -36,7 +36,7 @@ type Update struct {
 	// Index indicates the hop index in the path.
 	Index int
 	// Remote is the remote router.
-	Remote *snet.UDPAddr
+	Remote snet.SCIONAddress
 	// Interface is the interface ID of the remote router.
 	Interface uint64
 	// RTTs are the RTTs for this hop. To detect whether there was a timeout the
@@ -46,7 +46,7 @@ type Update struct {
 }
 
 func (u Update) empty() bool {
-	return u.Index == 0 && u.Remote == nil && u.Interface == 0 && len(u.RTTs) == 0
+	return u.Index == 0 && u.Remote == (snet.SCIONAddress{}) && u.Interface == 0 && len(u.RTTs) == 0
 }
 
 // Stats contains the amount of sent and received packets.
@@ -96,7 +96,7 @@ type tracerouter struct {
 
 // Run runs the traceroute.
 func Run(ctx context.Context, cfg Config) (Stats, error) {
-	if _, isEmpty := cfg.PathEntry.Dataplane().(snetpath.Empty); isEmpty {
+	if _, isEmpty := cfg.PathEntry.Dataplane().(path.Empty); isEmpty {
 		return Stats{}, serrors.New("empty path is not allowed for traceroute")
 	}
 	id := rand.Uint64()
@@ -128,7 +128,7 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 }
 
 func (t *tracerouter) Traceroute(ctx context.Context) (Stats, error) {
-	scionPath, ok := t.path.Dataplane().(snetpath.SCION)
+	scionPath, ok := t.path.Dataplane().(path.SCION)
 	if !ok {
 		return Stats{}, serrors.New("only SCION path allowed for traceroute",
 			"type", common.TypeOf(t.path.Dataplane()))
@@ -188,7 +188,7 @@ func (t *tracerouter) Traceroute(ctx context.Context) (Stats, error) {
 
 func (t *tracerouter) probeHop(ctx context.Context, hfIdx uint8, egress bool) (Update, error) {
 	var decoded scion.Decoded
-	if err := decoded.DecodeFromBytes(t.path.Dataplane().(snetpath.SCION).Raw); err != nil {
+	if err := decoded.DecodeFromBytes(t.path.Dataplane().(path.SCION).Raw); err != nil {
 		return Update{}, serrors.WrapStr("decoding path", err)
 	}
 
@@ -199,14 +199,14 @@ func (t *tracerouter) probeHop(ctx context.Context, hfIdx uint8, egress bool) (U
 		hf.IngressRouterAlert = true
 	}
 
-	scionAlertPath, err := snetpath.NewSCIONFromDecoded(decoded)
+	scionAlertPath, err := path.NewSCIONFromDecoded(decoded)
 	if err != nil {
 		return Update{}, serrors.WrapStr("setting alert flag", err)
 	}
 
 	var alertPath snet.DataplanePath
 	if t.epic {
-		epicAlertPath, err := snetpath.NewEPICDataplanePath(
+		epicAlertPath, err := path.NewEPICDataplanePath(
 			scionAlertPath,
 			t.path.Metadata().EpicAuths,
 		)
@@ -296,7 +296,7 @@ func (t tracerouter) drain(ctx context.Context) {
 type reply struct {
 	Received time.Time
 	Reply    snet.SCMPTracerouteReply
-	Remote   *snet.UDPAddr
+	Remote   snet.SCIONAddress
 	Error    error
 }
 
@@ -306,13 +306,13 @@ type scmpHandler struct {
 
 func (h scmpHandler) Handle(pkt *snet.Packet) error {
 	r, err := h.handle(pkt)
+
 	h.replies <- reply{
 		Received: time.Now(),
 		Reply:    r,
-		Remote: &snet.UDPAddr{
+		Remote: snet.SCIONAddress{
 			IA:   pkt.Source.IA,
-			Host: &net.UDPAddr{IP: pkt.Source.Host.IP()},
-			Path: pkt.Path,
+			Host: pkt.Source.Host.Copy(),
 		},
 		Error: err,
 	}

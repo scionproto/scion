@@ -318,7 +318,7 @@ func ChildToInternalParent(artifactsDir string, mac hash.Hash) runner.Case {
 		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
 		SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:1"),
+		DstIA:        xtest.MustParseIA("1-ff00:0:9"),
 		Path:         sp,
 	}
 	if err := scionL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("172.16.4.1")}); err != nil {

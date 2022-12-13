@@ -128,8 +128,10 @@ class SIGGenerator(object):
                 'SCION_EXPERIMENTAL_GATEWAY_PATH_UPDATE_INTERVAL': '1s',
             },
             'cap_add': ['NET_ADMIN'],
-            'user':
-            self.user,
+            # XXX(matzf): running as root; it _should_ work running as unprivileged user. The
+            # gateway is a setcap binary and that should suffice. It does work on Ubuntu,
+            # but on the RHEL machines in in CI it simply doesn't. Needs to be investigated & fixed.
+            #  'user': self.user,
             'volumes': [
                 self._disp_vol(topo_id),
                 '/dev/net/tun:/dev/net/tun',
