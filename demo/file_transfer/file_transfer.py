@@ -49,14 +49,12 @@ class Test(base.TestTopogen):
 
     def _transfer(self, filename, size):
         print("transferring a file (%d MB)" % size)
-        # Create a large file.
-        self.dc("exec", "-T", "tester_1-ff00_0_111",
-                "fallocate", "-l", "%dM" % size, filename)
+        # Send 20M random data, using 20 parallel TCP streams:
         start_time = time.time()
-        # Copy it, via ports 40000-40020, to the other AS.
-        self.dc("exec", "-T", "tester_1-ff00_0_111",
-                "bbcp", "-s",  "20", "-Z", "40000:40020",
-                "localhost:/share/%s" % filename, "172.20.0.23:/share")
+        print(
+            self.dc("exec", "-T", "tester_1-ff00_0_111",
+                    "iperf3", "-c", "172.20.0.23", "-n", "20M", "-P", "20", "--interval", "0")
+        )
         elapsed = time.time() - start_time
         throughput = float(size * 1024 * 1024 * 8) / 1000000 / elapsed
         print("transfer finished")
@@ -105,11 +103,9 @@ class Test(base.TestTopogen):
         # Start the topology
         super().setup_start()
 
-        # Initialize SSH in tester containers (needed by bbcp)
-        self.dc("exec", "-T", "tester_1-ff00_0_110", "/bin/bash",
-                "/share/ssh_setup.sh")
-        self.dc("exec", "-T", "tester_1-ff00_0_111", "/bin/bash",
-                "/share/ssh_setup.sh")
+        # Start IPerf3 server
+        self.dc("exec", "-d", "-T", "tester_1-ff00_0_110", "iperf3", "-s")
+        self.dc("exec", "-d", "-T", "tester_1-ff00_0_111", "iperf3", "-s")
 
         # Wait till everything starts working.
         print("waiting for 30 seconds for the system to bootstrap")

@@ -15,6 +15,7 @@ go_library(
         "parent_to_internal.go",
         "scmp_dest_unreachable.go",
         "scmp_expired_hop.go",
+        "scmp_invalid_ia.go",
         "scmp_invalid_mac.go",
         "scmp_invalid_pkt.go",
         "scmp_invalid_segment_change.go",

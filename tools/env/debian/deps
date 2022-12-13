@@ -1,13 +1,6 @@
 #!/bin/bash
 
 set -e
-
 BASE=$(dirname "$0")
-. $(dirname "$BASE")/common.sh
 
-APTARGS=${APTARGS:---no-remove}
-
-pkgs="$($BASE/check)"
-[ -z "$pkgs" ] && exit
-
-sudo DEBIAN_FRONTEND=noninteractive apt-get install $APTARGS --no-install-recommends $pkgs
+xargs -a "$BASE/pkgs.txt" sudo DEBIAN_FRONTEND=noninteractive apt-get install --no-remove --no-install-recommends --assume-yes

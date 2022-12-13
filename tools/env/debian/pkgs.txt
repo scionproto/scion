@@ -6,7 +6,6 @@ g++
 gcc
 git
 jq
-libssl-dev
 make
 moreutils
 net-tools
