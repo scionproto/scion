@@ -25,7 +25,5 @@ docker network prune -f
 echo "Remove leftover volumes"
 docker volume prune -f
 
-echo "--- Cleaning up packages and logs"
-
-rm -f scion-utils-{rpm,deb}.{version,release}
+echo "--- Cleaning up logs and artifacts"
 rm -rf bazel-testlogs logs/* traces gen gen-cache /tmp/test-artifacts

@@ -135,18 +135,26 @@ func TestBaseIsXOver(t *testing.T) {
 		name, tc := name, tc
 		for i := range tc.xover {
 			i := i
+			s := scion.Base{
+				PathMeta: scion.MetaHdr{
+					CurrINF: uint8(tc.inIdxs[i][0]),
+					CurrHF:  uint8(tc.inIdxs[i][1]),
+					SegLen:  tc.segLens,
+				},
+				NumINF:  tc.nsegs,
+				NumHops: tc.nhops,
+			}
 			t.Run(fmt.Sprintf("%s case %d", name, i+1), func(t *testing.T) {
 				t.Parallel()
-				s := scion.Base{
-					PathMeta: scion.MetaHdr{
-						CurrINF: uint8(tc.inIdxs[i][0]),
-						CurrHF:  uint8(tc.inIdxs[i][1]),
-						SegLen:  tc.segLens,
-					},
-					NumINF:  tc.nsegs,
-					NumHops: tc.nhops,
-				}
 				assert.Equal(t, tc.xover[i], s.IsXover())
+			})
+			t.Run(fmt.Sprintf("%s case %d IsFirstAfterXover", name, i+1), func(t *testing.T) {
+				t.Parallel()
+				firstHopAfterXover := false
+				if i > 0 {
+					firstHopAfterXover = tc.xover[i-1]
+				}
+				assert.Equal(t, firstHopAfterXover, s.IsFirstHopAfterXover())
 			})
 		}
 	}

@@ -87,6 +87,7 @@ Options
   -c, --count uint16           total number of packets to send
       --dispatcher string      Path to the dispatcher socket (default "/run/shm/dispatcher/default.sock")
       --epic                   Enable EPIC for path probing.
+      --format string          Specify the output format (human|json|yaml) (default "human")
       --healthy-only           only use healthy paths
   -h, --help                   help for ping
   -i, --interactive            interactive mode
@@ -99,7 +100,7 @@ Options
                                'payload_size' and 'packet_size' flags.
       --no-color               disable colored output
       --packet-size uint       number of bytes to be sent including the SCION Header and SCMP echo header,
-                               the desired size must provide enough space for the required headers. This flag 
+                               the desired size must provide enough space for the required headers. This flag
                                overrides the 'payload_size' flag.
   -s, --payload-size uint      number of bytes to be sent in addition to the SCION Header and SCMP echo header;
                                the total size of the packet is still variable size due to the variable size of
