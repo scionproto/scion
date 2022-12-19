@@ -23,68 +23,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/slayers"
-	"github.com/scionproto/scion/pkg/slayers/path"
-	"github.com/scionproto/scion/pkg/slayers/path/scion"
 )
 
 var (
-	algo        = slayers.PacketAuthSHA1_AES_CBC
-	ts          = uint32(0x030201)
-	sn          = uint32(0x060504)
-	optAuthMAC  = []byte("16byte_mac_foooo")
-	decodedPath = &scion.Decoded{
-		Base: scion.Base{
-			PathMeta: scion.MetaHdr{
-				CurrINF: 0x03,
-				CurrHF:  0x3b,
-				SegLen:  [3]byte{1, 1, 1},
-			},
-			NumINF:  3,
-			NumHops: 3,
-		},
-		InfoFields: []path.InfoField{
-			{
-				ConsDir:   false,
-				SegID:     0xf001,
-				Timestamp: ts,
-			},
-			{
-				ConsDir:   false,
-				SegID:     0xf002,
-				Timestamp: ts,
-			},
-			{
-				ConsDir:   true,
-				SegID:     0xf003,
-				Timestamp: ts,
-			},
-		},
-		HopFields: []path.HopField{
-			{
-				EgressRouterAlert: true,
-				ExpTime:           63,
-				ConsIngress:       0,
-				ConsEgress:        1,
-				Mac:               [path.MacLen]byte{1, 2, 3, 4, 5, 6},
-			},
-			{
-				IngressRouterAlert: true,
-				EgressRouterAlert:  true,
-				ExpTime:            63,
-				ConsIngress:        2,
-				ConsEgress:         3,
-				Mac:                [path.MacLen]byte{1, 2, 3, 4, 5, 6},
-			},
-			{
-				IngressRouterAlert: true,
-				ExpTime:            63,
-				ConsIngress:        4,
-				ConsEgress:         0,
-				Mac:                [path.MacLen]byte{1, 2, 3, 4, 5, 6},
-			},
-		},
-	}
-	fooPayload = []byte("some payload")
+	algo       = slayers.PacketAuthSHA1_AES_CBC
+	ts         = uint32(0x030201)
+	sn         = uint32(0x060504)
+	optAuthMAC = []byte("16byte_mac_foooo")
 )
 
 var rawE2EOptAuth = append(
