@@ -37,8 +37,12 @@
 package slayers
 
 import (
+	"crypto/aes"
 	"encoding/binary"
 	"fmt"
+	"hash"
+
+	"github.com/dchest/cmac"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers/path"
@@ -262,25 +266,61 @@ func (o PacketAuthOption) Authenticator() []byte {
 	return o.OptData[12:]
 }
 
-// SerializeAuthenticatedData serializes the
-// the SCION layer, the SPAO header and the payload length
-// into the provided buf, as it is defined in
+// ComputeAuthCMAC computes the authenticator tag for the AES-CMAC algorithm.
+// The key should correspond to the SPI defined in opt.SPI.
+// The SCION layer, payload type and payload define the input to the MAC, as defined in
 // https://docs.scion.org/en/latest/protocols/authenticator-option.html#authenticated-data.
 //
-// buf must be at least MACBufferSize long and it is expected
-// to be provided as input, along with the upper layer payload
-// to a MAC function.
-func SerializeAuthenticatedData(
+// The input buffer is used as a temporary buffer for the MAC computation.
+// It must be at least MACBufferSize long.
+// The resulting MAC is written to macBuffer (appending, if necessary),
+// and returned as a slice of length 16.
+func ComputeAuthCMAC(
+	key []byte,
+	opt PacketAuthOption,
+	scionL *SCION,
+	pldType L4ProtocolType,
+	pld []byte,
+	input []byte,
+	macBuffer []byte,
+) ([]byte, error) {
+
+	cmac, err := initCMAC(key)
+	if err != nil {
+		return nil, err
+	}
+	inputLen, err := serializeAuthenticatedData(input, scionL, opt, pldType, pld)
+	if err != nil {
+		return nil, err
+	}
+	cmac.Write(input[:inputLen])
+	cmac.Write(pld)
+	return cmac.Sum(macBuffer[:0]), nil
+}
+
+func initCMAC(key []byte) (hash.Hash, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, serrors.WrapStr("unable to initialize AES cipher", err)
+	}
+	mac, err := cmac.New(block)
+	if err != nil {
+		return nil, serrors.WrapStr("unable to initialize Mac", err)
+	}
+	return mac, nil
+}
+
+func serializeAuthenticatedData(
 	buf []byte,
 	s *SCION,
 	opt PacketAuthOption,
 	pldType L4ProtocolType,
-	pldLen int,
+	pld []byte,
 ) (int, error) {
 
 	buf[0] = byte(CmnHdrLen + s.AddrHdrLen() + s.Path.Len())
 	buf[1] = byte(pldType)
-	binary.BigEndian.PutUint16(buf[2:], uint16(pldLen))
+	binary.BigEndian.PutUint16(buf[2:], uint16(len(pld)))
 	buf[4] = byte(opt.Algorithm())
 	buf[5] = byte(opt.Timestamp() >> 16)
 	buf[6] = byte(opt.Timestamp() >> 8)

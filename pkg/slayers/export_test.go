@@ -19,9 +19,10 @@ package slayers
 type TLVOption = tlvOption
 
 var (
-	PackAddr            = packAddr
-	ParseAddr           = parseAddr
-	SerializeTLVOptions = serializeTLVOptions
+	PackAddr                   = packAddr
+	ParseAddr                  = parseAddr
+	SerializeTLVOptions        = serializeTLVOptions
+	SerializeAuthenticatedData = serializeAuthenticatedData
 )
 
 func (s *SCION) ComputeChecksum(upperLayer []byte, protocol uint8) (uint16, error) {

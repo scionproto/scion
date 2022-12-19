@@ -15,15 +15,18 @@
 package slayers_test
 
 import (
+	"crypto/aes"
 	"encoding/binary"
 	"net"
 	"testing"
 
+	"github.com/dchest/cmac"
 	"github.com/google/gopacket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
@@ -218,6 +221,7 @@ func TestOptAuthenticatorDeserializeCorrupt(t *testing.T) {
 func TestComputeAuthMac(t *testing.T) {
 	srcIA := xtest.MustParseIA("1-ff00:0:111")
 	dstIA := xtest.MustParseIA("1-ff00:0:112")
+	authKey := drkey.Key{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7}
 
 	rawPath := make([]byte, decodedPath.Len())
 	err := decodedPath.SerializeTo(rawPath)
@@ -433,13 +437,32 @@ func TestComputeAuthMac(t *testing.T) {
 				&tc.scionL,
 				optAuth,
 				slayers.L4SCMP,
-				len(tc.pld),
+				tc.pld,
+			)
+			require.Equal(t, tc.rawMACInput, append(buf[:inpLen], fooPayload...))
+
+			mac, err := slayers.ComputeAuthCMAC(
+				authKey[:],
+				optAuth,
+				&tc.scionL,
+				slayers.L4SCMP,
+				tc.pld,
+				make([]byte, slayers.MACBufferSize),
+				optAuth.Authenticator(),
 			)
 			tc.assertErr(t, err)
 			if err != nil {
 				return
 			}
-			require.Equal(t, tc.rawMACInput, append(buf[:inpLen], fooPayload...))
+
+			block, err := aes.NewCipher(authKey[:])
+			require.NoError(t, err)
+			macFunc, err := cmac.New(block)
+			require.NoError(t, err)
+
+			macFunc.Write(tc.rawMACInput)
+			expectedMac := macFunc.Sum(nil)
+			assert.Equal(t, expectedMac, mac)
 		})
 	}
 }
