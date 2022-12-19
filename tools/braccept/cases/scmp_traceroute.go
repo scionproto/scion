@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
+	"github.com/scionproto/scion/pkg/spao"
 	"github.com/scionproto/scion/tools/braccept/runner"
 )
 
@@ -275,12 +276,15 @@ func SCMPTracerouteIngressWithSPAO(artifactsDir string, mac hash.Hash) runner.Ca
 	if err != nil {
 		panic(err)
 	}
-	_, err = slayers.ComputeAuthCMAC(
-		(&drkey.Key{})[:],
-		optAuth,
-		scionL,
-		slayers.L4SCMP,
-		e2ePayload.Bytes(),
+	_, err = spao.ComputeAuthCMAC(
+		spao.MACInput{
+			Key:        (&drkey.Key{})[:],
+			Header:     optAuth,
+			ScionLayer: scionL,
+			PldType:    slayers.L4SCMP,
+			Pld:        e2ePayload.Bytes(),
+		},
+
 		make([]byte, slayers.MACBufferSize),
 		optAuth.Authenticator(),
 	)

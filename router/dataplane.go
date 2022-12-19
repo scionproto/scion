@@ -1692,12 +1692,14 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 
 		e2e.Options = []*slayers.EndToEndOption{p.optAuth.EndToEndOption}
 		e2e.NextHdr = slayers.L4SCMP
-		_, err = slayers.ComputeAuthCMAC(
-			key[:],
-			p.optAuth,
-			&scionL,
-			slayers.L4SCMP,
-			p.buffer.Bytes(),
+		_, err = spao.ComputeAuthCMAC(
+			spao.MACInput{
+				Key:        key[:],
+				Header:     p.optAuth,
+				ScionLayer: &scionL,
+				PldType:    slayers.L4SCMP,
+				Pld:        p.buffer.Bytes(),
+			},
 			p.macBuffers.drkeyInput,
 			p.optAuth.Authenticator(),
 		)
@@ -1791,12 +1793,14 @@ func (p *scionPacketProcessor) hasValidAuth() bool {
 	if err != nil {
 		return false
 	}
-	_, err = slayers.ComputeAuthCMAC(
-		key[:],
-		authOption,
-		&p.scionLayer,
-		slayers.L4SCMP,
-		p.lastLayer.LayerPayload(),
+	_, err = spao.ComputeAuthCMAC(
+		spao.MACInput{
+			Key:        key[:],
+			Header:     authOption,
+			ScionLayer: &p.scionLayer,
+			PldType:    slayers.L4SCMP,
+			Pld:        p.lastLayer.LayerPayload(),
+		},
 		p.macBuffers.drkeyInput,
 		p.validAuthBuf,
 	)

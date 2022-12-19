@@ -1,4 +1,4 @@
-// Copyright 2020 Anapaya Systems
+// Copyright 2022 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Bridge package to expose slayers internals to tests in slayers_test package.
-
-package slayers
-
-type TLVOption = tlvOption
+package spao
 
 var (
-	PackAddr            = packAddr
-	ParseAddr           = parseAddr
-	SerializeTLVOptions = serializeTLVOptions
+	SerializeAuthenticatedData = serializeAuthenticatedData
 )
-
-func (s *SCION) ComputeChecksum(upperLayer []byte, protocol uint8) (uint16, error) {
-	return s.computeChecksum(upperLayer, protocol)
-}
