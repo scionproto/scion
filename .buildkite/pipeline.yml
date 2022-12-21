@@ -25,7 +25,6 @@ steps:
   - label: "Lint :bash:"
     command:
       - make lint
-      - make golangci-lint
     key: lint
     retry: *automatic-retry
     timeout_in_minutes: 20

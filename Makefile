@@ -1,4 +1,4 @@
-.PHONY: all antlr bazel build clean docker-images gazelle golangci-lint licenses lint mocks protobuf scion-topo test test-acceptance
+.PHONY: all antlr bazel build clean docker-images gazelle licenses lint mocks protobuf scion-topo test test-acceptance
 
 .NOTPARALLEL:
 
@@ -66,6 +66,3 @@ antlr:
 
 lint:
 	tools/lint.sh
-
-golangci-lint:
-	docker run --rm -v golangci-lint-modcache:/go -v golangci-lint-buildcache:/root/.cache -v "${PWD}:/src" -w /src golangci/golangci-lint:v1.50.0 golangci-lint run --config=/src/.golangcilint.yml --timeout=3m --skip-dirs doc ./...

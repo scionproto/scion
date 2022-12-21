@@ -25,6 +25,9 @@ run_silently() {
     return $ret
 }
 
+docker_tty=false
+[ -t 1 ] && docker_tty=true
+
 go_lint() {
     lint_header "go"
     local TMPDIR=$(mktemp -d /tmp/scion-lint.XXXXXXX)
@@ -62,6 +65,13 @@ go_lint() {
     lint_step "bazel"
     run_silently make gazelle GAZELLE_MODE=diff || ret=1
     run_silently bazel test --config lint || ret=1
+    lint_step "golangci-lint"
+    run_silently docker run --tty=$docker_tty --rm -v golangci-lint-modcache:/go -v golangci-lint-buildcache:/root/.cache -v "${PWD}:/src" -w /src golangci/golangci-lint:v1.50.0 \
+      golangci-lint run --config=/src/.golangcilint.yml --timeout=3m --skip-dirs doc ./... || ret=1
+    lint_step "semgrep"
+    run_silently docker run --tty=$docker_tty --rm -v "${PWD}:/src" returntocorp/semgrep@sha256:3bef9d533a44e6448c43ac38159d61fad89b4b57f63e565a8a55ca265273f5ba \
+       semgrep --config=/src/tools/lint/semgrep --error || ret=1
+
     # Clean up the binaries
     rm -rf $TMPDIR
     return $ret
@@ -94,13 +104,6 @@ md_lint() {
     ./tools/mdlint
 }
 
-semgrep_lint() {
-    lint_header "semgrep"
-    lint_step "custom rules"
-    run_silently docker run --rm -v "${PWD}:/src" returntocorp/semgrep@sha256:3bef9d533a44e6448c43ac38159d61fad89b4b57f63e565a8a55ca265273f5ba \
-       semgrep --config=/src/tools/lint/semgrep --error
-}
-
 openapi_lint() {
     lint_header "openapi"
     lint_step "spectral"
@@ -120,6 +123,5 @@ go_lint || ret=1
 bazel_lint || ret=1
 protobuf_lint || ret=1
 md_lint || ret=1
-semgrep_lint || ret=1
 openapi_lint || ret=1
 exit $ret
