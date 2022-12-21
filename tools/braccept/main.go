@@ -107,6 +107,8 @@ func realMain() int {
 		cases.SCMPInternalXover(artifactsDir, hfMAC),
 		cases.SCMPUnknownHop(artifactsDir, hfMAC),
 		cases.SCMPUnknownHopEgress(artifactsDir, hfMAC),
+		cases.SCMPInvalidHopParentToParent(artifactsDir, hfMAC),
+		cases.SCMPInvalidHopChildToChild(artifactsDir, hfMAC),
 		cases.SCMPTracerouteIngress(artifactsDir, hfMAC),
 		cases.SCMPTracerouteIngressConsDir(artifactsDir, hfMAC),
 		cases.SCMPTracerouteEgress(artifactsDir, hfMAC),

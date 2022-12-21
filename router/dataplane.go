@@ -800,8 +800,12 @@ type macBuffers struct {
 	epicInput  []byte
 }
 
-func (p *scionPacketProcessor) packSCMP(scmpH *slayers.SCMP, scmpP gopacket.SerializableLayer,
-	cause error) (processResult, error) {
+func (p *scionPacketProcessor) packSCMP(
+	typ slayers.SCMPType,
+	code slayers.SCMPCode,
+	scmpP gopacket.SerializableLayer,
+	cause error,
+) (processResult, error) {
 
 	// check invoking packet was an SCMP error:
 	if p.lastLayer.NextLayerType() == slayers.LayerTypeSCMP {
@@ -815,11 +819,7 @@ func (p *scionPacketProcessor) packSCMP(scmpH *slayers.SCMP, scmpP gopacket.Seri
 		}
 	}
 
-	rawSCMP, err := p.prepareSCMP(
-		scmpH,
-		scmpP,
-		cause,
-	)
+	rawSCMP, err := p.prepareSCMP(typ, code, scmpP, cause)
 	return processResult{OutPkt: rawSCMP}, err
 }
 
@@ -872,9 +872,8 @@ func (p *scionPacketProcessor) validateHopExpiry() (processResult, error) {
 		return processResult{}, nil
 	}
 	return p.packSCMP(
-		&slayers.SCMP{TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
-			slayers.SCMPCodePathExpired),
-		},
+		slayers.SCMPTypeParameterProblem,
+		slayers.SCMPCodePathExpired,
 		&slayers.SCMPParameterProblem{Pointer: p.currentHopPointer()},
 		serrors.New("expired hop", "cons_dir", p.infoField.ConsDir, "if_id", p.ingressID,
 			"curr_inf", p.path.PathMeta.CurrINF, "curr_hf", p.path.PathMeta.CurrHF),
@@ -890,9 +889,8 @@ func (p *scionPacketProcessor) validateIngressID() (processResult, error) {
 	}
 	if p.ingressID != 0 && p.ingressID != pktIngressID {
 		return p.packSCMP(
-			&slayers.SCMP{
-				TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem, errCode),
-			},
+			slayers.SCMPTypeParameterProblem,
+			errCode,
 			&slayers.SCMPParameterProblem{Pointer: p.currentHopPointer()},
 			serrors.New("ingress interface invalid",
 				"pkt_ingress", pktIngressID, "router_ingress", p.ingressID),
@@ -930,10 +928,8 @@ func (p *scionPacketProcessor) validateSrcDstIA() (processResult, error) {
 // invalidSrcIA is a helper to return an SCMP error for an invalid SrcIA.
 func (p *scionPacketProcessor) invalidSrcIA() (processResult, error) {
 	return p.packSCMP(
-		&slayers.SCMP{
-			TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
-				slayers.SCMPCodeInvalidSourceAddress),
-		},
+		slayers.SCMPTypeParameterProblem,
+		slayers.SCMPCodeInvalidSourceAddress,
 		&slayers.SCMPParameterProblem{Pointer: uint16(slayers.CmnHdrLen + addr.IABytes)},
 		invalidSrcIA,
 	)
@@ -942,10 +938,8 @@ func (p *scionPacketProcessor) invalidSrcIA() (processResult, error) {
 // invalidDstIA is a helper to return an SCMP error for an invalid DstIA.
 func (p *scionPacketProcessor) invalidDstIA() (processResult, error) {
 	return p.packSCMP(
-		&slayers.SCMP{
-			TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
-				slayers.SCMPCodeInvalidDestinationAddress),
-		},
+		slayers.SCMPTypeParameterProblem,
+		slayers.SCMPCodeInvalidDestinationAddress,
 		&slayers.SCMPParameterProblem{Pointer: uint16(slayers.CmnHdrLen)},
 		invalidDstIA,
 	)
@@ -980,20 +974,37 @@ func (p *scionPacketProcessor) validateEgressID() (processResult, error) {
 			errCode = slayers.SCMPCodeUnknownHopFieldIngress
 		}
 		return p.packSCMP(
-			&slayers.SCMP{
-				TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem, errCode),
-			},
+			slayers.SCMPTypeParameterProblem,
+			errCode,
 			&slayers.SCMPParameterProblem{Pointer: p.currentHopPointer()},
 			cannotRoute,
 		)
 	}
 
+	ingress, egress := p.d.linkTypes[p.ingressID], p.d.linkTypes[pktEgressID]
 	if !p.segmentChange {
-		return processResult{}, nil
+		// Check that the interface pair is valid within a single segment.
+		// No check required if the packet is received from an internal interface.
+		switch {
+		case p.ingressID == 0:
+			return processResult{}, nil
+		case ingress == topology.Core && egress == topology.Core:
+			return processResult{}, nil
+		case ingress == topology.Child && egress == topology.Parent:
+			return processResult{}, nil
+		case ingress == topology.Parent && egress == topology.Child:
+			return processResult{}, nil
+		default: // malicious
+			return p.packSCMP(
+				slayers.SCMPTypeParameterProblem,
+				slayers.SCMPCodeInvalidPath, // XXX(matzf) new code InvalidHop?
+				&slayers.SCMPParameterProblem{Pointer: p.currentHopPointer()},
+				serrors.WithCtx(cannotRoute, "ingress_id", p.ingressID, "ingress_type", ingress,
+					"egress_id", pktEgressID, "egress_type", egress))
+		}
 	}
 	// Check that the interface pair is valid on a segment switch.
 	// Having a segment change received from the internal interface is never valid.
-	ingress, egress := p.d.linkTypes[p.ingressID], p.d.linkTypes[pktEgressID]
 	switch {
 	case ingress == topology.Core && egress == topology.Child:
 		return processResult{}, nil
@@ -1009,12 +1020,8 @@ func (p *scionPacketProcessor) validateEgressID() (processResult, error) {
 		return processResult{}, nil
 	default:
 		return p.packSCMP(
-			&slayers.SCMP{
-				TypeCode: slayers.CreateSCMPTypeCode(
-					slayers.SCMPTypeParameterProblem,
-					slayers.SCMPCodeInvalidSegmentChange,
-				),
-			},
+			slayers.SCMPTypeParameterProblem,
+			slayers.SCMPCodeInvalidSegmentChange,
 			&slayers.SCMPParameterProblem{Pointer: p.currentInfoPointer()},
 			serrors.WithCtx(cannotRoute, "ingress_id", p.ingressID, "ingress_type", ingress,
 				"egress_id", pktEgressID, "egress_type", egress))
@@ -1048,9 +1055,8 @@ func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
 	fullMac := path.FullMAC(p.mac, p.infoField, p.hopField, p.macBuffers.scionInput)
 	if subtle.ConstantTimeCompare(p.hopField.Mac[:path.MacLen], fullMac[:path.MacLen]) == 0 {
 		return p.packSCMP(
-			&slayers.SCMP{TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
-				slayers.SCMPCodeInvalidHopFieldMAC),
-			},
+			slayers.SCMPTypeParameterProblem,
+			slayers.SCMPCodeInvalidHopFieldMAC,
 			&slayers.SCMPParameterProblem{Pointer: p.currentHopPointer()},
 			serrors.New("MAC verification failed",
 				"expected", fmt.Sprintf("%x", fullMac[:path.MacLen]),
@@ -1074,10 +1080,8 @@ func (p *scionPacketProcessor) resolveInbound() (*net.UDPAddr, processResult, er
 	switch {
 	case errors.Is(err, noSVCBackend):
 		r, err := p.packSCMP(
-			&slayers.SCMP{
-				TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeDestinationUnreachable,
-					slayers.SCMPCodeNoRoute),
-			},
+			slayers.SCMPTypeDestinationUnreachable,
+			slayers.SCMPCodeNoRoute,
 			&slayers.SCMPDestinationUnreachable{}, err)
 		return nil, r, err
 	default:
@@ -1151,23 +1155,20 @@ func (p *scionPacketProcessor) validateEgressUp() (processResult, error) {
 	egressID := p.egressInterface()
 	if v, ok := p.d.bfdSessions[egressID]; ok {
 		if !v.IsUp() {
-			scmpH := &slayers.SCMP{
-				TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeExternalInterfaceDown, 0),
-			}
+			typ := slayers.SCMPTypeExternalInterfaceDown
 			var scmpP gopacket.SerializableLayer = &slayers.SCMPExternalInterfaceDown{
 				IA:   p.d.localIA,
 				IfID: uint64(egressID),
 			}
 			if _, external := p.d.external[egressID]; !external {
-				scmpH.TypeCode =
-					slayers.CreateSCMPTypeCode(slayers.SCMPTypeInternalConnectivityDown, 0)
+				typ = slayers.SCMPTypeInternalConnectivityDown
 				scmpP = &slayers.SCMPInternalConnectivityDown{
 					IA:      p.d.localIA,
 					Ingress: uint64(p.ingressID),
 					Egress:  uint64(egressID),
 				}
 			}
-			return p.packSCMP(scmpH, scmpP, serrors.New("bfd session down"))
+			return p.packSCMP(typ, 0, scmpP, serrors.New("bfd session down"))
 		}
 	}
 	return processResult{}, nil
@@ -1241,16 +1242,13 @@ func (p *scionPacketProcessor) handleSCMPTraceRouteRequest(
 		log.Debug("Parsing SCMPTraceroute", "err", err)
 		return processResult{}, nil
 	}
-	scmpH = slayers.SCMP{
-		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteReply, 0),
-	}
 	scmpP = slayers.SCMPTraceroute{
 		Identifier: scmpP.Identifier,
 		Sequence:   scmpP.Sequence,
 		IA:         p.d.localIA,
 		Interface:  uint64(interfaceID),
 	}
-	return p.packSCMP(&scmpH, &scmpP, nil)
+	return p.packSCMP(slayers.SCMPTypeTracerouteReply, 0, &scmpP, nil)
 }
 
 func (p *scionPacketProcessor) validatePktLen() (processResult, error) {
@@ -1258,10 +1256,8 @@ func (p *scionPacketProcessor) validatePktLen() (processResult, error) {
 		return processResult{}, nil
 	}
 	return p.packSCMP(
-		&slayers.SCMP{
-			TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
-				slayers.SCMPCodeInvalidPacketSize),
-		},
+		slayers.SCMPTypeParameterProblem,
+		slayers.SCMPCodeInvalidPacketSize,
 		&slayers.SCMPParameterProblem{Pointer: 0},
 		serrors.New("bad packet size",
 			"header", p.scionLayer.PayloadLen, "actual", len(p.scionLayer.Payload)),
@@ -1356,9 +1352,8 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 		errCode = slayers.SCMPCodeUnknownHopFieldIngress
 	}
 	return p.packSCMP(
-		&slayers.SCMP{
-			TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem, errCode),
-		},
+		slayers.SCMPTypeParameterProblem,
+		errCode,
 		&slayers.SCMPParameterProblem{Pointer: p.currentHopPointer()},
 		cannotRoute,
 	)
@@ -1580,8 +1575,12 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 	return err
 }
 
-func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.SerializableLayer,
-	cause error) ([]byte, error) {
+func (p *scionPacketProcessor) prepareSCMP(
+	typ slayers.SCMPType,
+	code slayers.SCMPCode,
+	scmpP gopacket.SerializableLayer,
+	cause error,
+) ([]byte, error) {
 
 	// *copy* and reverse path -- the original path should not be modified as this writes directly
 	// back to rawPkt (quote).
@@ -1656,6 +1655,8 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 	}
 	scionL.NextHdr = slayers.L4SCMP
 
+	typeCode := slayers.CreateSCMPTypeCode(typ, code)
+	scmpH := slayers.SCMP{TypeCode: typeCode}
 	scmpH.SetNetworkLayerForChecksum(&scionL)
 
 	if err := p.buffer.Clear(); err != nil {
@@ -1666,7 +1667,7 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 		ComputeChecksums: true,
 		FixLengths:       true,
 	}
-	scmpLayers := []gopacket.SerializableLayer{&scionL, scmpH, scmpP}
+	scmpLayers := []gopacket.SerializableLayer{&scionL, &scmpH, scmpP}
 	if cause != nil {
 		// add quote for errors.
 		hdrLen := slayers.CmnHdrLen + scionL.AddrHdrLen() + scionL.Path.Len()
@@ -1690,7 +1691,7 @@ func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.S
 	if err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "serializing SCMP message")
 	}
-	return p.buffer.Bytes(), scmpError{TypeCode: scmpH.TypeCode, Cause: cause}
+	return p.buffer.Bytes(), scmpError{TypeCode: typeCode, Cause: cause}
 }
 
 // decodeLayers implements roughly the functionality of

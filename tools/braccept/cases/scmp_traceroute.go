@@ -362,8 +362,8 @@ func SCMPTracerouteEgress(artifactsDir string, mac hash.Hash) runner.Case {
 		},
 		HopFields: []path.HopField{
 			{ConsIngress: 411, ConsEgress: 0},
-			{ConsIngress: 121, ConsEgress: 141, IngressRouterAlert: true},
-			{ConsIngress: 0, ConsEgress: 211},
+			{ConsIngress: 131, ConsEgress: 141, IngressRouterAlert: true},
+			{ConsIngress: 0, ConsEgress: 311},
 		},
 	}
 	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
@@ -376,7 +376,7 @@ func SCMPTracerouteEgress(artifactsDir string, mac hash.Hash) runner.Case {
 		NextHdr:      slayers.L4SCMP,
 		PathType:     scion.PathType,
 		SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:2"),
+		DstIA:        xtest.MustParseIA("1-ff00:0:3"),
 		Path:         sp,
 	}
 	srcA := &net.IPAddr{IP: net.ParseIP("172.16.4.1").To4()}
@@ -438,7 +438,7 @@ func SCMPTracerouteEgress(artifactsDir string, mac hash.Hash) runner.Case {
 		Identifier: scmpP.Identifier,
 		Sequence:   scmpP.Sequence,
 		IA:         scionL.SrcIA,
-		Interface:  121,
+		Interface:  131,
 	}
 
 	// Skip Ethernet + IPv4 + UDP
