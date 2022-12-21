@@ -3,19 +3,26 @@
 set -o pipefail
 
 in_red() {
-    tput setaf 1
+    [ -t 1 ] && tput setaf 1
     echo "$1"
-    tput sgr0
+    [ -t 1 ] && tput sgr0
 }
 
 run_silently() {
     tmpfile=$(mktemp /tmp/scion-silent.XXXXXX)
-    $@ >>$tmpfile 2>&1
-    if [ $? -ne 0 ]; then
-        cat $tmpfile
-        return 1
+    if [ -t 1 ]; then
+      # Simple redirect to file loses color for commands that automatically determine if output is a TTY.
+      # Avoid this by using "script", as suggested e.g. here https://stackoverflow.com/a/32981392/4666991
+      script -qefc "$(printf "%q " "$@")" /dev/null >& $tmpfile
+    else
+      "$@" >& $tmpfile
     fi
-    return 0
+    local ret=$?
+    if [ $ret -ne 0 ]; then
+        cat $tmpfile
+    fi
+    rm $tmpfile
+    return $ret
 }
 
 go_lint() {
@@ -54,7 +61,7 @@ go_lint() {
     if [ -n "$out" ]; then in_red "$out"; ret=1; fi
     lint_step "bazel"
     run_silently make gazelle GAZELLE_MODE=diff || ret=1
-    bazel test --config lint || ret=1
+    run_silently bazel test --config lint || ret=1
     # Clean up the binaries
     rm -rf $TMPDIR
     return $ret
@@ -73,6 +80,7 @@ protobuf_lint() {
 bazel_lint() {
     lint_header "bazel"
     local ret=0
+    lint_step "buildifier"
     run_silently bazel run //:buildifier_check || ret=1
     if [ $ret -ne 0 ]; then
         printf "\nto fix run:\nbazel run //:buildifier\n"
@@ -89,14 +97,14 @@ md_lint() {
 semgrep_lint() {
     lint_header "semgrep"
     lint_step "custom rules"
-    docker run --rm -v "${PWD}:/src" returntocorp/semgrep@sha256:3bef9d533a44e6448c43ac38159d61fad89b4b57f63e565a8a55ca265273f5ba \
+    run_silently docker run --rm -v "${PWD}:/src" returntocorp/semgrep@sha256:3bef9d533a44e6448c43ac38159d61fad89b4b57f63e565a8a55ca265273f5ba \
        semgrep --config=/src/tools/lint/semgrep --error
 }
 
 openapi_lint() {
     lint_header "openapi"
     lint_step "spectral"
-    make -C spec lint
+    run_silently make -sC spec lint
 }
 
 lint_header() {
