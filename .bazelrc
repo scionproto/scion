@@ -26,3 +26,6 @@ test:integration --test_tag_filters=integration,-lint
 test:integration_all --config=integration //...
 
 test:lint --test_tag_filters=lint --test_summary=terse --noshow_progress --experimental_convenience_symlinks=ignore //...
+
+# run quietly, only display errors
+common:quiet --ui_event_filters=-warning,-info,-debug,-stdout,-stderr --noshow_progress
