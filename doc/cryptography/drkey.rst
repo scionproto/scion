@@ -231,7 +231,7 @@ Defining a reasonable lower bound for the epoch length used in DRKey
 is necessary to avoid nonsensical scenarios. This value is
 globally set to 6 minutes.
 
-The upper bound for the epoch length is defined to 3 days, looking for a
+The upper bound for the epoch length is defined to 3 days, looking for a trade-off
 between efﬁciency and security.
 
 .. note::
@@ -277,8 +277,10 @@ The subject-AS on the slow side (i.e. the AS requesting the key) will establish 
 the issuer-AS  on the fast side (i.e. the AS serving the key). Both parties identify each other by using
 the CP-PKI infrastructure.
 
-The Level 1 key request message contains the ``validTime`` which must be within the key's epoch
-and the ``protocol_id``. The Level 1 key response includes the symmetric key along with the epoch
+The Level 1 key request message contains the ``validTime`` that specifies for what time the requested
+key must be valid (it implicitly specifies the epoch for which the key will be valid).
+and the ``protocol_id``. 
+The Level 1 key response includes the symmetric key along with the epoch
 for which this key will be valid.
 
 The ``protocol_id`` is either set to ``GENERIC = 0`` to request Lvl1 keys that will be derived according to

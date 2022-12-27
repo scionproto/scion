@@ -55,14 +55,8 @@ Timestamp (Extended Sequence Number):
   relative to the :ref:`Epoch<drkey-epoch>` starting time of the associated DRKey.
   In turn, this timestamp MAY be used to compute the absolute time (*at*) value, 
   which corresponds to the time at which the packet was sent.
-  The section:ref:`Abosulte time derivation<spao-timestamp>` describes the derivation of *at* in detail.
-  To retrieve the associated DRKey, if:
-
-- *at* is within the :ref:`Grace period<drkey-grace>` of :math:`E_x` AND
-  *Ts* is greater than the Grace period duration ->
-  The candidate DRKey is the key whose epoch is :math:`E_{x-1}`
--  Otherwise ->
-    The candidate DRKey is the key whose epoch is :math:`E_{x}`.
+  The section:ref:`Abosulte time derivation<spao-timestamp>` describes the derivation of *at* and
+  the associated DRKey.
      
   The granularity must enable to cover the maximum epoch length for DRKey (plus
   the :ref:`Grace period<drkey-grace>`). 
@@ -172,7 +166,7 @@ Protocol Identifier
 
 .. _spao-timestamp:
 
-Absolute time derivation
+Absolute time and epoch derivation
 =============================
 
 Firstly, the receiver entity defines an *acceptance window*.
@@ -194,7 +188,12 @@ The receiver entity derives the absolute timestamp by:
    the start time for :math:`E_{i-1}`, :math:`E_{i}` and :math:`E_{i+1}`, 
    computing the respective *absolute times* (*at*):
    :math:`at_{i-1}`, :math:`at_{i}` and :math:`at_{i+1}`.
-3. Given (i) at most one *absolute time* will be within *aw*. .
+3. Given (i) at most one *absolute time* will be within *aw*.
+4. The candidate DRKey is the key whose epoch is associated to *at*,
+   e.g., if *at* is :math:`at_{i-1}` the key belong to :math:`E_{i-1}`.
+
+Note that `at_{i-1}` might, for instance be within the :ref:`Grace period<drkey-grace>`, i.e.,
+overlapping at `E_{i}`. Nevertheless, due to (i) we can unambigously distingish it.
 
 
 Authenticated Data
