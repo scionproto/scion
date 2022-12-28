@@ -35,9 +35,9 @@ Alignment requirement: 4n + 2::
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                   Security Parameter Index                    |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |    Algorithm  |                    Timestamp                  |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |      RSV      |                  Sequence Number              |
+    |    Algorithm  |      RSV      |                               |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               +
+    |                     Timestamp/Sequence Number                 |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                          Authenticator ...                    |
     |                                                               |
@@ -49,48 +49,13 @@ OptDataLen
   Unsigned 8-bit integer denoting the length in bytes of the full option data
   (12 + length of Authenticator).
   The length depends on algorithm used.
-Timestamp (Extended Sequence Number):
-  Unsigned 24-bit integer timestamp.
-  When used with a DRKey SPI, the timestamp (*Ts*) expressed by the value of this field is 
-  relative to the :ref:`Epoch<drkey-epoch>` starting time of the associated DRKey.
-  In turn, this timestamp MAY be used to compute the absolute time (*at*) value, 
-  which corresponds to the time at which the packet was sent.
-  The section:ref:`Abosulte time derivation<spao-timestamp>` describes the derivation of *at* and
-  the associated DRKey.
-     
-  The granularity must enable to cover the maximum epoch length for DRKey (plus
-  the :ref:`Grace period<drkey-grace>`). 
+Timestamp (Sequence Number):
+  Unsigned 48-bit integer value.
+  The applications can choose freely how many bits of this field can be used to represent the Timestamp
+  and how many bits are used to represent the sequence number counter.
 
-  The timestamp has a granularity of 16 ms:
+  The Timestamp/Sequence number field can be used for replay detection by the receiver.
 
-  .. math::
-      q := \left\lceil\left(
-        \frac{3 \times 24 \times 60 \times 60 \times 10^3}
-             {2^{24}}
-      \right)\right\rceil ms
-          = 16 ms.\\
-
-
-  The Timestamp field can be used for replay detection by the receiver.
-  The receiver SHOULD drop packets with timestamps outside of a locally chosen
-  range around the current time.
-
-  For other SPI associations, this value can be seen as a 24-bit extension for the
-  Sequence number. This would allow high-speed applications to extend the range
-  of sequence numbers up to 48 bits.
-
-Sequence Number:
-  Unsigned 24-bit sequence number.
-  This field can be used for replay detection by the receiver.
-
-  When used with a :ref:`SPI <spao-spi>` referring to an established
-  security association, this is used as a wrapping counter and replay detection
-  is based on sliding window of expected counter values.
-  This use case is not specified in detail here. Extending this specification
-  in the future will closely follow [`RFC 4302 <https://tools.ietf.org/html/rfc4302>`_].
-
-  When used with :ref:`spao-spi-drkey`, this field is used together with the
-  timestamp field to provide a unique identifier for a packet.
   The sender can arbitrarily choose this value, but it SHOULD ensure
   the uniqueness of the combination of timestamp and sequence number.
   For example, the value can be chosen based on a counter, randomly or even as
@@ -99,6 +64,29 @@ Sequence Number:
 
   .. math::
     (\mathrm{Source\ Address, info[0].Timestamp, Timestamp, Sequence\ Number})
+  
+  Moreover, the receiver SHOULD drop packets with timestamps outside of a locally chosen
+  range around the current time.
+
+  When used with a DRKey SPI, this field is used to represent the timestamp (*Ts*) 
+  relative to the :ref:`Epoch<drkey-epoch>` starting time of the associated DRKey.
+  In turn, this timestamp MAY be used to compute the absolute time (*at*) value, 
+  which corresponds to the time at which the packet was sent.
+  The section:ref:`Abosulte time derivation<spao-timestamp>` describes the derivation of *at* and
+  the associated DRKey.
+     
+  When used with a DRKey SPI, the granularity must enable to cover the maximum epoch length for DRKey (plus
+  the :ref:`Grace period<drkey-grace>`). 
+
+  Choosing a granularity of 1 ns, a range longer than 3 days + grace period can be represented,
+  given that:
+
+  .. math::
+      q := \left\lceil\left(
+        \frac{3 \times 24 \times 60 \times 60 \times 10^9}
+             {2^{48}}
+      \right)\right\rceil ms
+          < 1 ns.\\
 
 Security Parameter Index (SPI)
   32-bit identifier for the key used for this authentication option.
@@ -166,7 +154,7 @@ Protocol Identifier
 
 .. _spao-timestamp:
 
-Absolute time and epoch derivation
+Absolute time and DRKey derivation
 =============================
 
 Firstly, the receiver entity defines an *acceptance window*.
@@ -177,7 +165,7 @@ i.e.,:
 
 (i) We consider the minimum DRKey epoch length as the upper bound for the acceptance windows.
 
-The receiver entity derives the absolute timestamp by:
+The receiver entity derives the absolute timestamp and the associated DRKey by:
 
 1. Given a time instant *T*, considering:
   - Epoch :math:`E_{i}` as the one whose time range includes *T*.
@@ -226,9 +214,9 @@ The input for the MAC is the concatenation of the following items:
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |  HdrLen       |  Upper Layer  |    Upper-Layer Packet Length  |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |    Algorithm  |                    Timestamp                  |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |      RSV      |                  Sequence Number              |
+    |    Algorithm  |      RSV      |                               |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               +
+    |                 Timestamp / Sequence Number                   |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
   HdrLen
