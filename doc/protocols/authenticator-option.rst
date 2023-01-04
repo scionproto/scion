@@ -51,42 +51,39 @@ OptDataLen
   The length depends on algorithm used.
 Timestamp (Sequence Number):
   Unsigned 48-bit integer value.
-  The applications can choose freely how many bits of this field can be used to represent the Timestamp
-  and how many bits are used to represent the sequence number counter.
+  The Timestamp/Sequence Number field contains a unique value for each packet that 
+  can be used for replay detection by the receiver.
+  The detailed interpretation of the Timestamp/Sequence Number field depends on the SPI.
 
-  The Timestamp/Sequence number field can be used for replay detection by the receiver.
+  When used with a DRKey :ref:`SPI <spao-spi>`, the application can choose freely how many bits of this field 
+  can be used to represent the Timestamp (*Ts*) and 
+  how many bits are used to represent the sequence number counter (*SN*).
 
-  The sender can arbitrarily choose this value, but it SHOULD ensure
-  the uniqueness of the combination of timestamp and sequence number.
-  For example, the value can be chosen based on a counter, randomly or even as
-  a constant, provided that the send rate is low enough.
-  The receiver SHOULD drop packets with duplicate
-
-  .. math::
-    (\mathrm{Source\ Address, info[0].Timestamp, Timestamp, Sequence\ Number})
-  
-  Moreover, the receiver SHOULD drop packets with timestamps outside of a locally chosen
-  range around the current time.
-
-  When used with a DRKey SPI, this field is used to represent the timestamp (*Ts*) 
-  relative to the :ref:`Epoch<drkey-epoch>` starting time of the associated DRKey.
+  The Timestamp (*Ts*) is relative to the :ref:`Epoch<drkey-epoch>` starting time of the associated DRKey.
   In turn, this timestamp MAY be used to compute the absolute time (*at*) value, 
-  which corresponds to the time at which the packet was sent.
+  which corresponds to the time when the packet was sent.
   The section:ref:`Abosulte time derivation<spao-timestamp>` describes the derivation of *at* and
   the associated DRKey.
-     
-  When used with a DRKey SPI, the granularity must enable to cover the maximum epoch length for DRKey (plus
-  the :ref:`Grace period<drkey-grace>`). 
 
-  Choosing a granularity of 1 ns, a range longer than 3 days + grace period can be represented,
-  given that:
+  The receiver SHOULD drop packets with *at* outside of a locally chosen
+  range around the current time.
+
+  The Timestamp (*Ts*) granularity must enable covering the maximum epoch length for DRKey (plus
+  the :ref:`Grace period<drkey-grace>`). The field definition allows for granularity down to 1 ns. 
+  See Appendix for a more detailed explanation. 
+
+  The sender can arbitrarily choose this value, but it SHOULD ensure
+  the uniqueness of the combination of the absolute time (*at* )
+  and the sequence number (*Sn*).
+  The receiver SHOULD drop packets with a duplicate:
 
   .. math::
-      q := \left\lceil\left(
-        \frac{3 \times 24 \times 60 \times 60 \times 10^9}
-             {2^{48}}
-      \right)\right\rceil ms
-          < 1 ns.\\
+    (\mathrm{Source\ Address, *at*, *Sn*})
+  
+  When used with a non-DRKey :ref:`SPI <spao-spi>`, this field is used as 
+  a wrapping counter and replay detection is based on sliding window of expected counter values.
+  This use case is not specified in detail here. Extending this specification
+  in the future will closely follow [`RFC 4302 <https://tools.ietf.org/html/rfc4302>`_].
 
 Security Parameter Index (SPI)
   32-bit identifier for the key used for this authentication option.
@@ -414,3 +411,17 @@ The following goals/constraints led to this design:
   sequence number).
   The SPI comes first as we don't need to include it in the MAC computation and
   don't want it between the other fields and the SHA1 hash.
+
+- When the *Ts*/*SN* field is used with DRKey SPI, the application can choose how many bits out of 48
+  are used to represent *Ts* (the rest will be used to represent *SN*). The chosen granularity must
+  cover a range longer than 3 days plus the grace period. In turn, the chosen granularity will depend on the
+  number of bits used to represent *Ts*, e.g., 48 bits allow for a granularity of 1 ns:
+
+  .. math::
+      q := \left\lceil\left(
+        \frac{3 \times 24 \times 60 \times 60 \times 10^9}
+             {2^{48}}
+      \right)\right\rceil ms
+          < 1 ns.\\
+  Nonetheless, the application can choose a more coarse-grained granularity if more bits are used
+  to represent the *SN*.
