@@ -20,6 +20,9 @@ linters:
     - misspell
     - goheader
 linters-settings:
+  lll:
+    line-length: 100
+    tab-width: 4
   depguard:
     list-type: blacklist
     include-go-root: true
@@ -53,9 +56,12 @@ linters-settings:
 
 issues:
   exclude-rules:
-    # don't report lines with long links
+    # don't report long lines with long links
     - linters: [lll]
-      source: "http[s]://\\S{100,}$"
+      source: "http[s]://\\S{80,}$"
+    # don't report long lines with yaml/json/toml tags
+    - linters: [lll]
+      source: "`(yaml|toml|json):\"[^`]*`$"
 
     # these files originate from third-party projects
     - path: pkg/private/util/duration.go
