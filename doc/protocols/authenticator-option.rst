@@ -51,13 +51,13 @@ OptDataLen
   The length depends on algorithm used.
 Timestamp (Sequence Number):
   Unsigned 48-bit integer value.
-  The Timestamp/Sequence Number field contains a unique value for each packet that 
+  The Timestamp/Sequence Number field contains a value for each packet that 
   can be used for replay detection by the receiver.
   The detailed interpretation of the Timestamp/Sequence Number field depends on the SPI.
 
   When used with a DRKey :ref:`SPI <spao-spi>`, the application can choose freely how many bits of this field 
   can be used to represent the Timestamp (*Ts*) and 
-  how many bits are used to represent the sequence number counter (*SN*).
+  how many bits are used to represent the sequence number counter (*SN*). 
 
   The Timestamp (*Ts*) is relative to the :ref:`Epoch<drkey-epoch>` starting time of the associated DRKey.
   In turn, this timestamp MAY be used to compute the absolute time (*at*) value, 
