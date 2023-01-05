@@ -194,7 +194,7 @@ func (rm *RemoteMonitor) DiagnosticsWrite(w io.Writer) {
 		var err error
 		diagnostics.Remotes[ia], err = gatewaywatcher.diagnostics()
 		if err != nil {
-			w.Write([]byte(fmt.Sprintf("Error collecting  diagnostics from gateways %v", err)))
+			fmt.Fprintf(w, "Error collecting  diagnostics from gateways %v", err)
 			return
 		}
 	}
@@ -202,7 +202,7 @@ func (rm *RemoteMonitor) DiagnosticsWrite(w io.Writer) {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "    ")
 	if err := enc.Encode(diagnostics); err != nil {
-		w.Write([]byte(fmt.Sprintf("Error collecting Remotes diagnostics %v", err)))
+		fmt.Fprintf(w, "Error collecting Remotes diagnostics %v", err)
 		return
 	}
 }

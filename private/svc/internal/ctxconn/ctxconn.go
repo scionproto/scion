@@ -41,7 +41,7 @@ type CancelFunc func()
 // safe to call the returned function multiple times at the same time.
 func CloseConnOnDone(ctx context.Context, conn DeadlineCloser) CancelFunc {
 	if deadline, ok := ctx.Deadline(); ok {
-		conn.SetDeadline(deadline)
+		_ = conn.SetDeadline(deadline)
 	}
 
 	cancelSignal := make(chan struct{})

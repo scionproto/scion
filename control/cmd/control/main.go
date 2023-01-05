@@ -513,9 +513,9 @@ func realMain(ctx context.Context) error {
 		periodic.Func{
 			TaskName: "signer generator",
 			Task: func(ctx context.Context) {
-				signer.Sign(ctx, []byte{})
+				_, _ = signer.Sign(ctx, []byte{})
 				if chainBuilder.PolicyGen != nil {
-					chainBuilder.PolicyGen.Generate(ctx)
+					_, _ = chainBuilder.PolicyGen.Generate(ctx)
 				}
 			},
 		},

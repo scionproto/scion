@@ -73,86 +73,14 @@ issues:
     - path: pkg/scrypto/cms
       linters: [goheader]
 
-    # list of exceptions to the errcheck check
-    # TODO(matzf): most of these should rather be fixed! It may be ok to be a
-    # bit more lenient in the test code perhaps, but some of these are lurking
-    # bugs.
-    - path: "^control/beacon/policy.go$|\
-             ^control/cmd/control/main.go$|\
-             ^control/colibri/reservation/conf/capacities_test.go$|\
-             ^control/colibri/reservation/e2e/reservation_test.go$|\
+    # Exceptions to errcheck for some experimental colibri code and some old-ish convey tests.
+    - linters: [errcheck]
+      path: "^control/colibri/reservation/e2e/reservation_test.go$|\
              ^control/colibri/reservation/index_test.go$|\
              ^control/colibri/reservation/reservationdbtest/reservationdbtest.go$|\
-             ^control/colibri/reservation/segment/path.go$|\
              ^control/colibri/reservation/segment/reservation_test.go$|\
              ^control/colibri/reservation/sqlite/db_test.go$|\
              ^control/colibri/reservationstore/store.go$|\
-             ^control/mgmtapi/api.go$|\
-             ^dispatcher/cmd/dispatcher/main.go$|\
-             ^dispatcher/dispatcher.go$|\
-             ^dispatcher/internal/registration/bench_test.go$|\
-             ^gateway/control/aggregator.go$|\
-             ^gateway/control/engine.go$|\
-             ^gateway/control/engine_test.go$|\
-             ^gateway/control/enginecontroller_test.go$|\
-             ^gateway/control/export_test.go$|\
-             ^gateway/control/remotemonitor.go$|\
-             ^gateway/control/router.go$|\
-             ^gateway/control/session.go$|\
-             ^gateway/control/sessionconfigurator.go$|\
-             ^gateway/control/watcher_test.go$|\
-             ^gateway/dataplane/diagnostics_test.go$|\
-             ^gateway/dataplane/ipforwarder_test.go$|\
-             ^gateway/dataplane/routingtable.go$|\
-             ^gateway/dataplane/session_test.go$|\
-             ^gateway/gateway.go$|\
-             ^gateway/routing/file.go$|\
-             ^gateway/xnet/xnet.go$|\
-             ^pkg/experimental/colibri/reservation/types.go$|\
-             ^pkg/experimental/epic/epic_test.go$|\
-             ^pkg/experimental/hiddenpath/beaconwriter_test.go$|\
-             ^pkg/experimental/hiddenpath/grpc/registerer_test.go$|\
-             ^pkg/experimental/hiddenpath/store_test.go$|\
-             ^pkg/grpc/dialer_test.go$|\
-             ^pkg/log/log.go$|\
-             ^pkg/log/testlog/log.go$|\
-             ^pkg/private/xtest/graph/graph.go$|\
-             ^pkg/private/xtest/grpc.go$|\
-             ^pkg/segment/seg.go$|\
-             ^pkg/segment/segs_test.go$|\
-             ^pkg/slayers/extn_test.go$|\
-             ^pkg/slayers/scion_test.go$|\
-             ^pkg/snet/packet_test.go$|\
-             ^pkg/snet/path.go$|\
-             ^pkg/snet/squic/net.go$|\
-             ^pkg/sock/reliable/reconnect/conn.go$|\
              ^pkg/sock/reliable/reconnect/conn_io_test.go$|\
              ^pkg/sock/reliable/reconnect/network_test.go$|\
-             ^pkg/sock/reliable/reconnect/reconnecter_test.go$|\
-             ^pkg/sock/reliable/reliable.go$|\
-             ^private/app/appnet/infraenv.go$|\
-             ^private/app/launcher/launcher.go$|\
-             ^private/app/path/pathprobe/paths.go$|\
-             ^private/config/sample.go$|\
-             ^private/mgmtapi/cppki/api/api.go$|\
-             ^private/mgmtapi/segments/api/api.go$|\
-             ^private/path/combinator/combinator.go$|\
-             ^private/revcache/revcachetest/revcachetest.go$|\
-             ^private/service/statuspages.go$|\
-             ^private/storage/trust/fspersister/db_test.go$|\
-             ^private/svc/internal/ctxconn/ctxconn.go$|\
-             ^private/trust/db_inspector.go$|\
-             ^private/trust/verifier.go$|\
-             ^private/trust/verifier_bench_test.go$|\
-             ^private/worker/worker_test.go$|\
-             ^router/dataplane_test.go$|\
-             ^router/export_test.go$|\
-             ^router/mgmtapi/api.go$|\
-             ^scion-pki/trcs/combine_test.go$|\
-             ^tools/end2end/main.go$|\
-             ^tools/end2end_integration/main.go$|\
-             ^tools/integration/binary.go$|\
-             ^tools/integration/done.go$|\
-             ^tools/integration/integration.go$|\
-             ^tools/integration/progress/progress.go$"
-      linters: [errcheck]
+             ^pkg/sock/reliable/reconnect/reconnecter_test.go$"

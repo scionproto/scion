@@ -485,8 +485,3 @@ func MustPack(pkt snet.Packet) []byte {
 	}
 	return pkt.Bytes
 }
-
-func TestMain(m *testing.M) {
-	// log.Setup(log.Config{Console: log.ConsoleConfig{Level: "debug"}})
-	os.Exit(m.Run())
-}

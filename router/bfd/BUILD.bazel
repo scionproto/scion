@@ -26,7 +26,6 @@ go_test(
         "export_test.go",
         "fsm_test.go",
         "jitter_test.go",
-        "main_test.go",
         "metrics_test.go",
         "session_test.go",
     ],

@@ -283,8 +283,7 @@ type serverStop struct {
 
 func (s *serverStop) Close() error {
 	s.cancel()
-	s.wait.Wait()
-	return nil
+	return s.wait.Wait()
 }
 
 // WithTimestamp returns s with the now timestamp prefixed.

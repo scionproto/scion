@@ -38,6 +38,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
@@ -327,7 +328,9 @@ func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
 		if addStaticInfo {
 			asEntry.Extensions.StaticInfo = generateStaticInfo(g, currIA, inIF, outIF)
 		}
-		segment.AddASEntry(context.Background(), asEntry, g.signers[currIA])
+		if err := segment.AddASEntry(context.Background(), asEntry, g.signers[currIA]); err != nil {
+			panic(serrors.WrapStr("adding AS entry", err))
+		}
 		inIF = remoteOutIF
 		currIA = g.parents[remoteOutIF]
 	}

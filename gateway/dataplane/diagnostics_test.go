@@ -55,8 +55,8 @@ func TestDiagnosticWriter(t *testing.T) {
 						},
 					},
 				})
-				dp.SetSession(1, testPktWriter{ID: 1})
-				dp.SetSession(2, testPktWriter{ID: 2})
+				require.NoError(t, dp.SetSession(1, testPktWriter{ID: 1}))
+				require.NoError(t, dp.SetSession(2, testPktWriter{ID: 2}))
 				return dp
 			},
 			wantFile: "./testdata/routingtable1.txt",

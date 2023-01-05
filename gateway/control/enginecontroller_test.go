@@ -48,7 +48,7 @@ func TestEngineControllerRun(t *testing.T) {
 		}
 
 		go func() {
-			engineController.Run(context.Background())
+			assert.NoError(t, engineController.Run(context.Background()))
 		}()
 		time.Sleep(50 * time.Millisecond)
 		err := engineController.Run(context.Background())

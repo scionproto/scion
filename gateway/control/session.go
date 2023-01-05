@@ -134,7 +134,9 @@ func (s *Session) Run(ctx context.Context) error {
 				diff.log(logger)
 			}
 			s.pathResult = newPathResult
-			s.DataplaneSession.SetPaths(s.pathResult.Paths)
+			if err := s.DataplaneSession.SetPaths(s.pathResult.Paths); err != nil {
+				logger.Error("setting paths", "err", err)
+			}
 			s.pathResultMtx.Unlock()
 		}
 	}

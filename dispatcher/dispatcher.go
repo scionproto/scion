@@ -141,7 +141,7 @@ func (ac *Conn) Write(pkt *respool.Packet) (int, error) {
 	// with the dispatcher. Likelihood that they overlap is very small.
 	// If this becomes ever a problem, we can namespace the ID per registered
 	// application.
-	registerIfSCMPInfo(ac.regReference, pkt)
+	_ = registerIfSCMPInfo(ac.regReference, pkt)
 	return pkt.SendOnConn(ac.conn, pkt.UnderlayRemote)
 }
 

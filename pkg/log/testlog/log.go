@@ -24,11 +24,6 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 )
 
-// SetupGlobal sets up the global logger that writes to stderr.
-func SetupGlobal() {
-	log.Setup(log.Config{Console: log.ConsoleConfig{Level: "debug"}})
-}
-
 // NewLogger builds a new Logger that logs all messages to the given testing.TB.
 func NewLogger(t testing.TB, opts ...zaptest.LoggerOption) log.Logger {
 	return &logger{

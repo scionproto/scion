@@ -32,7 +32,7 @@ func TestWorker(t *testing.T) {
 		worker := &testWorker{}
 
 		go func() {
-			worker.Run()
+			assert.NoError(t, worker.Run())
 		}()
 		time.Sleep(50 * time.Millisecond)
 		err := worker.Run()
@@ -44,7 +44,7 @@ func TestWorker(t *testing.T) {
 		worker := &nilTestWorker{}
 
 		go func() {
-			worker.Run()
+			assert.NoError(t, worker.Run())
 		}()
 		time.Sleep(50 * time.Millisecond)
 		err := worker.Run()

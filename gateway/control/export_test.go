@@ -16,7 +16,8 @@ package control
 
 import (
 	"context"
-	"sync"
+
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -36,18 +37,16 @@ func (w *GatewayWatcher) RunOnce(ctx context.Context) {
 	w.run(ctx)
 }
 
-func (w *GatewayWatcher) RunAllPrefixWatchersOnceForTest(ctx context.Context) {
-	var wg sync.WaitGroup
+func (w *GatewayWatcher) RunAllPrefixWatchersOnceForTest(ctx context.Context) error {
+	var eg errgroup.Group
 	for _, wi := range w.currentWatchers {
 		wi := wi
 		wi.prefixWatcher.resetRunMarker()
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			wi.prefixWatcher.Run(ctx)
-		}()
+		eg.Go(func() error {
+			return wi.prefixWatcher.Run(ctx)
+		})
 	}
-	wg.Wait()
+	return eg.Wait()
 }
 
 func (w *prefixWatcher) resetRunMarker() {

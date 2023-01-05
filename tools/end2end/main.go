@@ -322,7 +322,9 @@ func (c *client) ping(ctx context.Context, n int, path snet.Path) error {
 	if err != nil {
 		return serrors.WrapStr("packing ping", err)
 	}
-	c.conn.SetWriteDeadline(getDeadline(ctx))
+	if err := c.conn.SetWriteDeadline(getDeadline(ctx)); err != nil {
+		return serrors.WrapStr("setting write deadline", err)
+	}
 	if remote.NextHop == nil {
 		remote.NextHop = &net.UDPAddr{
 			IP:   remote.Host.IP,
@@ -410,7 +412,9 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 }
 
 func (c *client) pong(ctx context.Context) error {
-	c.conn.SetReadDeadline(getDeadline(ctx))
+	if err := c.conn.SetReadDeadline(getDeadline(ctx)); err != nil {
+		return serrors.WrapStr("setting read deadline", err)
+	}
 	var p snet.Packet
 	var ov net.UDPAddr
 	if err := readFrom(c.conn, &p, &ov); err != nil {

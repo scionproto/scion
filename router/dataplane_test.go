@@ -1269,7 +1269,7 @@ func prepEpicMsg(t *testing.T, afterProcessing bool, key []byte,
 		PHVF:  make([]byte, 4),
 		LHVF:  make([]byte, 4),
 	}
-	spkt.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("10.0.200.200").To4()})
+	require.NoError(t, spkt.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("10.0.200.200").To4()}))
 	spkt.Path = epicpath
 
 	return spkt, epicpath, dpath
