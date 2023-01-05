@@ -47,7 +47,9 @@ func ListenDone(dir string, onDone func(src, dst addr.IA)) (string, func(), erro
 	srv := progress.Server{OnDone: onDone}
 	go func() {
 		defer log.HandlePanic()
-		srv.Serve(l)
+		if err := srv.Serve(l); err != nil {
+			log.Error("listening for done signals", "err", err)
+		}
 	}()
 	return name, func() { os.Remove(name) }, nil
 }

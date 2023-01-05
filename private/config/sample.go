@@ -39,7 +39,7 @@ func WriteSample(dst io.Writer, path Path, ctx CtxMap, samplers ...Sampler) {
 			continue
 		}
 		sampler.Sample(&buf, path, ctx)
-		io.Copy(dst, &buf)
+		_, _ = io.Copy(dst, &buf)
 	}
 }
 

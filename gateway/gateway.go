@@ -757,9 +757,13 @@ func (g *Gateway) diagnosticsSGRP(
 				d.Learned.Dynamic = append(d.Learned.Dynamic, r.Prefix.String())
 			}
 		}
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "    ")
-		enc.Encode(d)
+		jsonData, err := json.MarshalIndent(d, "", "    ")
+		if err != nil {
+			log.Error("json marshalling", "err", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		_, _ = w.Write(jsonData)
 	}
 }
 

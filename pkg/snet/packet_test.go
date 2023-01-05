@@ -257,7 +257,7 @@ func convertRawPath(r snet.RawPath) (snet.DataplanePath, error) {
 func TestPacketSerialize(t *testing.T) {
 	decodedOHP := onehop.Path{}
 	rawOHP := make([]byte, decodedOHP.Len())
-	decodedOHP.SerializeTo(rawOHP)
+	require.NoError(t, decodedOHP.SerializeTo(rawOHP))
 
 	testCases := map[string]struct {
 		input     snet.Packet

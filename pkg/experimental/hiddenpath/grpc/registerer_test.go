@@ -126,7 +126,9 @@ func createSeg() seg.Meta {
 		},
 	}
 	ps, _ := seg.CreateSegment(time.Now(), 1337)
-	ps.AddASEntry(context.Background(), asEntry, graph.NewSigner())
+	if err := ps.AddASEntry(context.Background(), asEntry, graph.NewSigner()); err != nil {
+		panic(err)
+	}
 
 	return seg.Meta{Type: seg.TypeDown, Segment: ps}
 }

@@ -91,7 +91,8 @@ func TestFilterSegments(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			segs := Segments(test.Segs)
-			segs.FilterSegs(test.KeepF)
+			_, err := segs.FilterSegs(test.KeepF)
+			assert.NoError(t, err)
 			assert.Equal(t, Segments(test.Filtered), segs)
 		})
 	}

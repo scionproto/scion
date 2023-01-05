@@ -23,6 +23,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
 	"github.com/scionproto/scion/pkg/private/mocks/net/mock_net"
@@ -50,7 +51,7 @@ func TestSinglePath(t *testing.T) {
 
 	frameChan := make(chan ([]byte))
 	sess := createSession(t, ctrl, frameChan)
-	sess.SetPaths([]snet.Path{createMockPath(ctrl, 200)})
+	require.NoError(t, sess.SetPaths([]snet.Path{createMockPath(ctrl, 200)}))
 	sendPackets(t, sess, 22, 10)
 	waitFrames(t, frameChan, 22, 10)
 	sess.Close()
@@ -66,17 +67,17 @@ func TestTwoPaths(t *testing.T) {
 
 	sess := createSession(t, ctrl, frameChan)
 
-	sess.SetPaths([]snet.Path{createMockPath(ctrl, 200)})
+	require.NoError(t, sess.SetPaths([]snet.Path{createMockPath(ctrl, 200)}))
 	sendPackets(t, sess, 22, 10)
 
 	// Reuse the same path, thus reusing the sender.
-	sess.SetPaths([]snet.Path{createMockPath(ctrl, 200)})
+	require.NoError(t, sess.SetPaths([]snet.Path{createMockPath(ctrl, 200)}))
 	sendPackets(t, sess, 22, 10)
 
 	// The previous packets are not yet sent, yet we set a new path thus creating a new
 	// sender. The goal is to test that the old packets will still be sent out.
 	// The MTU is used to differentiate the paths
-	sess.SetPaths([]snet.Path{createMockPath(ctrl, 202)})
+	require.NoError(t, sess.SetPaths([]snet.Path{createMockPath(ctrl, 202)}))
 	sendPackets(t, sess, 22, 10)
 	waitFrames(t, frameChan, 22, 30)
 
@@ -100,15 +101,15 @@ func TestNoLeak(t *testing.T) {
 	batchSize := 10
 
 	for i := 0; i < iterations; i++ {
-		sess.SetPaths([]snet.Path{createMockPath(ctrl, 200)})
+		require.NoError(t, sess.SetPaths([]snet.Path{createMockPath(ctrl, 200)}))
 		sendPackets(t, sess, payloadLen, batchSize)
 
-		sess.SetPaths([]snet.Path{
+		require.NoError(t, sess.SetPaths([]snet.Path{
 			createMockPath(ctrl, 200),
 			createMockPath(ctrl, 201),
 			createMockPath(ctrl, 202),
 			createMockPath(ctrl, 203),
-		})
+		}))
 		sendPackets(t, sess, payloadLen, batchSize)
 
 		// Cause error

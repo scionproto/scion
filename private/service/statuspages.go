@@ -128,9 +128,14 @@ func (s StatusPages) Register(serveMux *http.ServeMux, elemId string) error {
 // NewConfigStatusPage returns a page with the specified TOML config.
 func NewConfigStatusPage(config interface{}) StatusPage {
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain")
 		var buf bytes.Buffer
-		toml.NewEncoder(&buf).Order(toml.OrderPreserve).Encode(config)
+		err := toml.NewEncoder(&buf).Order(toml.OrderPreserve).Encode(config)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, err.Error())
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain")
 		fmt.Fprint(w, buf.String())
 	}
 	return StatusPage{

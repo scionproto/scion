@@ -84,7 +84,7 @@ func (id *SegmentID) Read(raw []byte) (int, error) {
 // ToRaw calls Read and returns a new allocated buffer with the ID serialized.
 func (id *SegmentID) ToRaw() []byte {
 	buf := make([]byte, SegmentIDLen)
-	id.Read(buf) // safely ignore errors as they can only come from buffer size
+	_, _ = id.Read(buf) // safely ignore errors as they can only come from buffer size
 	return buf
 }
 
@@ -146,7 +146,7 @@ func (id *E2EID) Read(raw []byte) (int, error) {
 // ToRaw calls Read and returns a new allocated buffer with the ID serialized.
 func (id *E2EID) ToRaw() []byte {
 	buf := make([]byte, E2EIDLen)
-	id.Read(buf) // safely ignore errors as they can only come from buffer size
+	_, _ = id.Read(buf) // safely ignore errors as they can only come from buffer size
 	return buf
 }
 
@@ -349,7 +349,7 @@ func (f *InfoField) ToRaw() []byte {
 	var buff []byte = nil
 	if f != nil {
 		buff = make([]byte, InfoFieldLen)
-		f.Read(buff) // safely ignore errors as they can only come from buffer size
+		_, _ = f.Read(buff) // safely ignore errors as they can only come from buffer size
 	}
 	return buff
 }
@@ -496,7 +496,7 @@ func (hf *HopField) Read(b []byte) (int, error) {
 // ToRaw returns the serial representation of the HopField.
 func (hf *HopField) ToRaw() []byte {
 	buff := make([]byte, HopFieldLen)
-	hf.Read(buff) // discard returned values
+	_, _ = hf.Read(buff) // discard returned values
 	return buff
 }
 
@@ -567,7 +567,7 @@ func (t *Token) Read(b []byte) (int, error) {
 		return 0, err
 	}
 	for i := 0; i < len(t.HopFields); i++ {
-		t.HopFields[i].Read(b[offset : offset+HopFieldLen])
+		_, _ = t.HopFields[i].Read(b[offset : offset+HopFieldLen])
 		offset += HopFieldLen
 	}
 	return offset, nil
@@ -578,7 +578,7 @@ func (t *Token) ToRaw() []byte {
 	var buff []byte = nil
 	if t != nil {
 		buff = make([]byte, t.Len())
-		t.Read(buff) // safely ignore errors as they can only come from buffer size
+		_, _ = t.Read(buff) // safely ignore errors as they can only come from buffer size
 	}
 	return buff
 }

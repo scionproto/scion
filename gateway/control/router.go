@@ -276,9 +276,9 @@ func (r *Router) DiagnosticsWrite(w io.Writer) {
 	}
 	raw, err := json.MarshalIndent(d, "", "    ")
 	if err != nil {
-		w.Write([]byte(fmt.Sprintf("Error collecting Router diagnostics %v", err)))
+		fmt.Fprintf(w, "Error collecting Router diagnostics %v", err)
 		return
 	}
-	w.Write(raw)
-	w.Write([]byte("\n"))
+	_, _ = w.Write(raw)
+	fmt.Fprint(w, "\n")
 }

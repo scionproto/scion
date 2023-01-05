@@ -43,7 +43,7 @@ func TestTCPDial(t *testing.T) {
 
 	s := grpc.NewServer()
 	helloworldpb.RegisterGreeterServer(s, &server{})
-	go func() { s.Serve(lis) }()
+	go func() { assert.NoError(t, s.Serve(lis)) }()
 	defer s.Stop()
 
 	getUnusedAddr := func(t *testing.T) string {

@@ -16,9 +16,11 @@ package xtest
 
 import (
 	"context"
+	"errors"
 	"net"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -68,7 +70,16 @@ func (s *GRPCService) Server() *grpc.Server {
 }
 
 func (s *GRPCService) Start(t *testing.T) {
-	go func() { s.server.Serve(s.listener) }()
+	go func() {
+		err := s.server.Serve(s.listener)
+		if errors.Is(err, grpc.ErrServerStopped) {
+			// Can (only) occur if Stop in the test cleanup is called before
+			// server has started. This can happen if the test does not
+			// actually use the server.
+			return
+		}
+		assert.NoError(t, err)
+	}()
 	t.Cleanup(s.server.Stop)
 }
 

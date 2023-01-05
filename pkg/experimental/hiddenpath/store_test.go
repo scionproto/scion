@@ -160,7 +160,9 @@ func createSegs() ([]*seg.Meta, query.Results) {
 		},
 	}
 	ps, _ := seg.CreateSegment(time.Now(), 1337)
-	ps.AddASEntry(context.Background(), asEntry, graph.NewSigner())
+	if err := ps.AddASEntry(context.Background(), asEntry, graph.NewSigner()); err != nil {
+		panic(err)
+	}
 
 	ret1 := []*seg.Meta{{Type: seg.TypeDown, Segment: ps}}
 	ret2 := query.Results{&query.Result{

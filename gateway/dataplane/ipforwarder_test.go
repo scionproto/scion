@@ -163,16 +163,10 @@ func TestIPForwarderRun(t *testing.T) {
 		art.SetRoutingTable(rt)
 
 		sessionOne := mock_control.NewMockPktWriter(ctrl)
-		rt.SetSession(
-			1,
-			sessionOne,
-		)
+		require.NoError(t, rt.SetSession(1, sessionOne))
 
 		sessionTwo := mock_control.NewMockPktWriter(ctrl)
-		rt.SetSession(
-			2,
-			sessionTwo,
-		)
+		require.NoError(t, rt.SetSession(2, sessionTwo))
 
 		ipv4Packet := newIPv4Packet(t, net.IP{10, 0, 0, 1})
 		reader.EXPECT().Read(gomock.Any()).DoAndReturn(

@@ -79,7 +79,7 @@ func TestGatewayWatcherRun(t *testing.T) {
 	// run initially
 	remotes.Set(0)
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-	go w.Run(ctx)
+	go func() { assert.NoError(t, w.Run(ctx)) }()
 	for {
 		if metrics.GaugeValue(remotes) > 0 {
 			break
@@ -107,7 +107,7 @@ func TestGatewayWatcherRun(t *testing.T) {
 	// nothing really checks the context except the run loop, so we can
 	// immediately cancel and then it will run only once.
 	cancel()
-	w.RunAllPrefixWatchersOnceForTest(ctx)
+	assert.NoError(t, w.RunAllPrefixWatchersOnceForTest(ctx))
 
 	assert.Equal(t, 2, int(metrics.CounterValue(g1)))
 	assert.Equal(t, 1, int(metrics.CounterValue(g2)))
@@ -170,7 +170,7 @@ func TestPrefixWatcherRun(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
-	go w.Run(ctx)
+	go func() { assert.NoError(t, w.Run(ctx)) }()
 	<-ctx.Done()
 	time.Sleep(10 * time.Millisecond)
 

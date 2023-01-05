@@ -59,7 +59,7 @@ func TestJson(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			tc.cap.init()
+			require.NoError(t, tc.cap.init())
 			buf, err := json.MarshalIndent(tc.cap, "", "  ")
 			buf = append(buf, '\n')
 			require.NoError(t, err)

@@ -217,8 +217,10 @@ func (c *acceptingConn) acceptStreamOnce() {
 
 	// Potentially set the deadlines to the values that were set before the
 	// stream was accepted.
-	c.stream.SetReadDeadline(c.readDeadline)
-	c.stream.SetWriteDeadline(c.writeDeadline)
+	c.err = serrors.Join(
+		c.stream.SetReadDeadline(c.readDeadline),
+		c.stream.SetWriteDeadline(c.writeDeadline),
+	)
 }
 
 func (c *acceptingConn) SetDeadline(t time.Time) error {
@@ -398,7 +400,7 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 	}
 	stream, err := session.OpenStreamSync(ctx)
 	if err != nil {
-		session.CloseWithError(OpenStreamError, "")
+		_ = session.CloseWithError(OpenStreamError, "")
 		return nil, serrors.WrapStr("opening stream", err)
 	}
 	return &acceptedConn{
