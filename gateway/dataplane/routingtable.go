@@ -107,7 +107,7 @@ func (rt *RoutingTable) DiagnosticsWrite(w io.Writer) {
 		raw += e.String()
 	}
 
-	w.Write([]byte(raw))
+	_, _ = w.Write([]byte(raw))
 }
 
 // RouteIPv4 returns the session the IPv4 packet should be routed on. It returns after doing a

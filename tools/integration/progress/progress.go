@@ -64,7 +64,9 @@ type Server struct {
 
 // Serve starts serving the RPCs.
 func (s *Server) Serve(l net.Listener) error {
-	rpc.Register(&RPC{onDone: s.OnDone})
+	if err := rpc.Register(&RPC{onDone: s.OnDone}); err != nil {
+		return err
+	}
 	rpc.HandleHTTP()
 	return http.Serve(l, nil)
 }

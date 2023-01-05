@@ -126,7 +126,7 @@ func (p ReservationTransparentPath) ToRaw() []byte {
 		return nil
 	}
 	buff := make([]byte, p.Len())
-	p.Read(buff)
+	_, _ = p.Read(buff)
 	return buff
 }
 

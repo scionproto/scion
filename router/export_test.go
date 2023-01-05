@@ -48,7 +48,9 @@ func NewDP(
 		svc:              &services{m: svc},
 		internal:         internal,
 	}
-	dp.SetKey(key)
+	if err := dp.SetKey(key); err != nil {
+		panic(err)
+	}
 	return dp
 }
 

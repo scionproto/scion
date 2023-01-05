@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/sock/reliable"
 )
 
@@ -152,8 +153,14 @@ func (conn *PacketConn) asyncReconnectWrapper() {
 		close(conn.fatalError)
 		return
 	}
-	newConn.SetReadDeadline(conn.getReadDeadline())
-	newConn.SetWriteDeadline(conn.getWriteDeadline())
+	if err := serrors.Join(
+		newConn.SetReadDeadline(conn.getReadDeadline()),
+		newConn.SetWriteDeadline(conn.getWriteDeadline()),
+	); err != nil {
+		conn.fatalError <- err
+		close(conn.fatalError)
+		return
+	}
 	conn.setConn(newConn)
 	conn.dispatcherState.SetUp()
 }
@@ -197,7 +204,7 @@ func (conn *PacketConn) LocalAddr() net.Addr {
 
 func (conn *PacketConn) SetWriteDeadline(deadline time.Time) error {
 	conn.writeDeadlineMtx.Lock()
-	conn.getConn().SetWriteDeadline(deadline)
+	err := conn.getConn().SetWriteDeadline(deadline)
 	conn.writeDeadline = deadline
 	select {
 	case conn.deadlineChangedEvent <- struct{}{}:
@@ -206,12 +213,12 @@ func (conn *PacketConn) SetWriteDeadline(deadline time.Time) error {
 		// channel reader sees the new deadline.
 	}
 	conn.writeDeadlineMtx.Unlock()
-	return nil
+	return err
 }
 
 func (conn *PacketConn) SetReadDeadline(deadline time.Time) error {
 	conn.readDeadlineMtx.Lock()
-	conn.getConn().SetReadDeadline(deadline)
+	err := conn.getConn().SetReadDeadline(deadline)
 	conn.readDeadline = deadline
 	select {
 	case conn.deadlineChangedEvent <- struct{}{}:
@@ -220,13 +227,14 @@ func (conn *PacketConn) SetReadDeadline(deadline time.Time) error {
 		// channel reader sees the new deadline.
 	}
 	conn.readDeadlineMtx.Unlock()
-	return nil
+	return err
 }
 
 func (conn *PacketConn) SetDeadline(deadline time.Time) error {
-	conn.SetWriteDeadline(deadline)
-	conn.SetReadDeadline(deadline)
-	return nil
+	return serrors.Join(
+		conn.SetWriteDeadline(deadline),
+		conn.SetReadDeadline(deadline),
+	)
 }
 
 func (conn *PacketConn) getDeadlineForOpType(op IOOperation) time.Time {

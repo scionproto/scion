@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"io"
 	"net/http"
 	"sort"
 	"time"
@@ -455,7 +454,7 @@ func (s *Server) GetBeaconBlob(w http.ResponseWriter, r *http.Request, segmentId
 		})
 		return
 	}
-	io.Copy(w, &buf)
+	_, _ = w.Write(buf.Bytes())
 }
 
 // GetSegments gets the stored in the PathDB.
@@ -672,7 +671,7 @@ func (s *Server) GetSignerChain(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	io.Copy(w, &buf)
+	_, _ = w.Write(buf.Bytes())
 }
 
 // GetTopology is an indirection to the http handler.
@@ -799,5 +798,5 @@ func Error(w http.ResponseWriter, p Problem) {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "    ")
 	// no point in catching error here, there is nothing we can do about it anymore.
-	enc.Encode(p)
+	_ = enc.Encode(p)
 }

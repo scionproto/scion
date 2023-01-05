@@ -73,7 +73,7 @@ func TestCombine(t *testing.T) {
 		})
 		raw, err := signed.Encode()
 		require.NoError(t, err)
-		os.WriteFile("./testdata/admin/ISD1-B1-S1.trc", raw, 0644)
+		require.NoError(t, os.WriteFile("./testdata/admin/ISD1-B1-S1.trc", raw, 0644))
 	}
 
 	dir, clean := xtest.MustTempDir("", "scion-pki-trcs-combine")

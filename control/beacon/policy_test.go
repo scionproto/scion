@@ -55,7 +55,7 @@ func TestLoadPolicyFromYaml(t *testing.T) {
 			ErrAssertion: assert.Error,
 		},
 		"policy without type": {
-			File:         "testdata/typedPolicy.yml",
+			File:         "testdata/policy.yml",
 			Type:         beacon.PropPolicy,
 			ErrAssertion: assert.NoError,
 		},

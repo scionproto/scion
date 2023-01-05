@@ -561,7 +561,8 @@ func prepRawPacketWithExtn(t *testing.T, extns ...slayers.L4ProtocolType) []byte
 		b[1] = 6 // ExtLen, see rawTLVOptionsXY
 		copy(b[2:], rawTLVOptionsXY)
 	}
-	buf.AppendBytes(9) // dummy UDP with 1 byte payload
+	_, err := buf.AppendBytes(9) // dummy UDP with 1 byte payload
+	require.NoError(t, err)
 
 	return buf.Bytes()
 }

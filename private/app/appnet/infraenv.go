@@ -280,7 +280,7 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 			case <-done:
 				return
 			default:
-				conn.Read(buf)
+				_, _ = conn.Read(buf)
 			}
 		}
 	}()

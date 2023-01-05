@@ -70,7 +70,8 @@ func BenchmarkConcurrent10(b *testing.B) {
 		for j := 0; j < 10; j++ {
 			go func() {
 				defer wg.Done()
-				verifier.Verify(context.Background(), msg, associated...)
+				_, err := verifier.Verify(context.Background(), msg, associated...)
+				require.NoError(b, err)
 			}()
 		}
 		wg.Wait()
@@ -113,7 +114,8 @@ func BenchmarkConcurrentCache10(b *testing.B) {
 		for j := 0; j < 10; j++ {
 			go func() {
 				defer wg.Done()
-				verifier.Verify(context.Background(), msg, associated...)
+				_, err := verifier.Verify(context.Background(), msg, associated...)
+				require.NoError(b, err)
 			}()
 		}
 		wg.Wait()

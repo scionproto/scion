@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"io"
 	"net/http"
 	"sort"
 	"time"
@@ -216,7 +215,7 @@ func (s *Server) GetCertificateBlob(w http.ResponseWriter, r *http.Request, chai
 			return
 		}
 	}
-	io.Copy(w, &buf)
+	_, _ = w.Write(buf.Bytes())
 }
 
 func (s *Server) GetTrcs(w http.ResponseWriter, r *http.Request, params GetTrcsParams) {
@@ -378,5 +377,5 @@ func Error(w http.ResponseWriter, p Problem) {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "    ")
 	// no point in catching error here, there is nothing we can do about it anymore.
-	enc.Encode(p)
+	_ = enc.Encode(p)
 }

@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"io"
 	"net/http"
 	"sort"
 
@@ -234,7 +233,7 @@ func (s *Server) GetSegmentBlob(w http.ResponseWriter, r *http.Request, segmentI
 		})
 		return
 	}
-	io.Copy(w, &buf)
+	_, _ = w.Write(buf.Bytes())
 }
 
 // SegID makes a hex encoded string of the segment id.
@@ -247,5 +246,5 @@ func Error(w http.ResponseWriter, p Problem) {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "    ")
 	// no point in catching error here, there is nothing we can do about it anymore.
-	enc.Encode(p)
+	_ = enc.Encode(p)
 }

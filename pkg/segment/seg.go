@@ -137,6 +137,7 @@ func (ps *PathSegment) FullID() []byte {
 	return ps.calculateHash(false)
 }
 
+//nolint:errcheck // hash.Write never returns an error
 func (ps *PathSegment) calculateHash(hopOnly bool) []byte {
 	h := sha256.New()
 	for _, ase := range ps.ASEntries {

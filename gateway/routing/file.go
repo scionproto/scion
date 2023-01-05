@@ -17,7 +17,6 @@
 package routing
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -65,7 +64,7 @@ func NewPolicyHandler(policyPublisher PolicyPublisher,
 					http.StatusInternalServerError)
 				return
 			}
-			io.Copy(w, bytes.NewReader(raw))
+			_, _ = w.Write(raw)
 		case http.MethodPut:
 			rawPolicy, err := io.ReadAll(r.Body)
 			if err != nil {

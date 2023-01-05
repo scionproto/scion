@@ -68,8 +68,8 @@ func connectTun(name string) (netlink.Link, io.ReadWriteCloser, error) {
 	return link, tun, nil
 Cleanup:
 	// Don't check for errors, as we're already handling one.
-	tun.Close()
-	netlink.LinkDel(link)
+	_ = tun.Close()
+	_ = netlink.LinkDel(link)
 	return nil, nil, err
 }
 

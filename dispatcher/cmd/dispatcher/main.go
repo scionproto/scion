@@ -116,7 +116,11 @@ func realMain(ctx context.Context) error {
 		return globalCfg.Metrics.ServePrometheus(errCtx)
 	})
 
-	defer deleteSocket(globalCfg.Dispatcher.ApplicationSocket)
+	defer func() {
+		if err := deleteSocket(globalCfg.Dispatcher.ApplicationSocket); err != nil {
+			log.Error("deleting socket", "err", err)
+		}
+	}()
 
 	g.Go(func() error {
 		defer log.HandlePanic()
