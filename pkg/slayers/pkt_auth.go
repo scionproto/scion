@@ -58,24 +58,12 @@ const (
 )
 
 const (
-	// MinPacketAuthDataLen is the minimum size of the SPAO OptData.
+	// AuthOptionMetadataLen is the size of the SPAO Metadata and
+	// corresponds the minimum size of the SPAO OptData.
 	// The SPAO header contains the following fixed-length fields:
 	// SPI (4 Bytes), Algorithm (1 Byte), Timestamp (3 Bytes),
 	// RSV (1 Byte) and Sequence Number (3 Bytes).
-	minPacketAuthDataLen = 12
-	// FixAuthDataInputLen is the unvariable fields length for the
-	// authenticated data
-	FixAuthDataInputLen = minPacketAuthDataLen + 8
-	// UpperBoundMACInput sets an upperBound to the authenticated data
-	// length (excluding the payload). This is:
-	// 1. Authenticator Option Meta
-	// 2. SCION Common Header
-	// 3. SCION Address Header
-	// 4. Path
-	// (see https://docs.scion.org/en/latest/protocols/authenticator-option.html#authenticated-data)
-	// We round this up to 12B (authenticator option meta) + 1020B (max SCION header length)
-	// To adapt to any possible path types.
-	MACBufferSize = 1032
+	AuthOptionMetadataLen = 12
 )
 
 // PacketAuthSPI (Security Parameter Index) is the identifier for the key
@@ -184,7 +172,7 @@ func ParsePacketAuthOption(o *EndToEndOption) (PacketAuthOption, error) {
 		return PacketAuthOption{},
 			serrors.New("wrong option type", "expected", OptTypeAuthenticator, "actual", o.OptType)
 	}
-	if len(o.OptData) < minPacketAuthDataLen {
+	if len(o.OptData) < AuthOptionMetadataLen {
 		return PacketAuthOption{},
 			serrors.New("buffer too short", "expected at least", 12, "actual", len(o.OptData))
 	}
@@ -206,7 +194,7 @@ func (o PacketAuthOption) Reset(
 
 	o.OptType = OptTypeAuthenticator
 
-	n := minPacketAuthDataLen + len(p.Auth)
+	n := AuthOptionMetadataLen + len(p.Auth)
 	if n <= cap(o.OptData) {
 		o.OptData = o.OptData[:n]
 	} else {

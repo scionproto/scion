@@ -303,7 +303,7 @@ func TestComputeAuthMac(t *testing.T) {
 			optAuth, err := slayers.NewPacketAuthOption(tc.optionParameter)
 			assert.NoError(t, err)
 
-			buf := make([]byte, slayers.MACBufferSize)
+			buf := make([]byte, spao.MACBufferSize)
 			inpLen, _ := spao.SerializeAuthenticatedData(
 				buf,
 				&tc.scionL,
@@ -321,7 +321,7 @@ func TestComputeAuthMac(t *testing.T) {
 					slayers.L4SCMP,
 					tc.pld,
 				},
-				make([]byte, slayers.MACBufferSize),
+				make([]byte, spao.MACBufferSize),
 				optAuth.Authenticator(),
 			)
 			tc.assertErr(t, err)

@@ -576,7 +576,7 @@ func newPacketProcessor(d *DataPlane, ingressID uint16) *scionPacketProcessor {
 		macBuffers: macBuffers{
 			scionInput: make([]byte, path.MACBufferSize),
 			epicInput:  make([]byte, libepic.MACBufferSize),
-			drkeyInput: make([]byte, slayers.MACBufferSize),
+			drkeyInput: make([]byte, spao.MACBufferSize),
 		},
 		// TODO(JordiSubira): Replace this with a useful implementation.
 		drkeyProvider: &fakeProvider{},

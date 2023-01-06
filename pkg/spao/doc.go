@@ -18,5 +18,4 @@
 //
 // It provides support for the MAC and the timestamp computations
 // used when utilizing the SPAO header.
-
 package spao

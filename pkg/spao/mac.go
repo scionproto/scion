@@ -30,6 +30,24 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 )
 
+const (
+	// FixAuthDataInputLen is the unvariable fields length for the
+	// authenticated data. It consists of the Authenticator Option Metadata
+	// length and the SCION Common Header without the second row.
+	fixAuthDataInputLen = slayers.AuthOptionMetadataLen +
+		slayers.CmnHdrLen - slayers.LineLen
+	// MACBufferSize sets an upperBound to the authenticated data
+	// length (excluding the payload). This is:
+	// 1. Authenticator Option Meta
+	// 2. SCION Common Header
+	// 3. SCION Address Header
+	// 4. Path
+	// (see https://docs.scion.org/en/latest/protocols/authenticator-option.html#authenticated-data)
+	// We round this up to 12B (authenticator option meta) + 1020B (max SCION header length)
+	// To adapt to any possible path types.
+	MACBufferSize = 1032
+)
+
 type MACInput struct {
 	Key        []byte
 	Header     slayers.PacketAuthOption
@@ -108,7 +126,7 @@ func serializeAuthenticatedData(
 	buf[16] = byte(s.PathType)
 	buf[17] = byte(s.DstAddrType&0x7)<<4 | byte(s.SrcAddrType&0x7)
 	binary.BigEndian.PutUint16(buf[18:], 0)
-	offset := slayers.FixAuthDataInputLen
+	offset := fixAuthDataInputLen
 
 	if !opt.SPI().IsDRKey() {
 		binary.BigEndian.PutUint64(buf[offset:], uint64(s.DstIA))

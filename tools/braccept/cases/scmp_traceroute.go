@@ -285,7 +285,7 @@ func SCMPTracerouteIngressWithSPAO(artifactsDir string, mac hash.Hash) runner.Ca
 			Pld:        e2ePayload.Bytes(),
 		},
 
-		make([]byte, slayers.MACBufferSize),
+		make([]byte, spao.MACBufferSize),
 		optAuth.Authenticator(),
 	)
 	if err != nil {
