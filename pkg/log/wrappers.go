@@ -22,19 +22,27 @@ import (
 
 // Debug logs at debug level.
 func Debug(msg string, ctx ...interface{}) {
-	if zap.L().Core().Enabled(zapcore.DebugLevel) {
+	if Enabled(DebugLevel) {
 		zap.L().Debug(msg, convertCtx(ctx)...)
 	}
 }
 
 // Info logs at info level.
 func Info(msg string, ctx ...interface{}) {
-	zap.L().Info(msg, convertCtx(ctx)...)
+	if Enabled(InfoLevel) {
+		zap.L().Info(msg, convertCtx(ctx)...)
+	}
 }
 
 // Error logs at error level.
 func Error(msg string, ctx ...interface{}) {
-	zap.L().Error(msg, convertCtx(ctx)...)
+	if Enabled(ErrorLevel) {
+		zap.L().Error(msg, convertCtx(ctx)...)
+	}
+}
+
+func Enabled(lvl Level) bool {
+	return zap.L().Core().Enabled(zapcore.Level(lvl))
 }
 
 // WithOptions returns the logger with the options applied.
@@ -74,15 +82,21 @@ func (l *logger) New(ctx ...interface{}) Logger {
 }
 
 func (l *logger) Debug(msg string, ctx ...interface{}) {
-	l.logger.Debug(msg, convertCtx(ctx)...)
+	if l.Enabled(DebugLevel) {
+		l.logger.Debug(msg, convertCtx(ctx)...)
+	}
 }
 
 func (l *logger) Info(msg string, ctx ...interface{}) {
-	l.logger.Info(msg, convertCtx(ctx)...)
+	if l.Enabled(InfoLevel) {
+		l.logger.Info(msg, convertCtx(ctx)...)
+	}
 }
 
 func (l *logger) Error(msg string, ctx ...interface{}) {
-	l.logger.Error(msg, convertCtx(ctx)...)
+	if l.Enabled(ErrorLevel) {
+		l.logger.Error(msg, convertCtx(ctx)...)
+	}
 }
 
 func (l *logger) Enabled(lvl Level) bool {
