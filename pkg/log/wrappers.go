@@ -22,7 +22,9 @@ import (
 
 // Debug logs at debug level.
 func Debug(msg string, ctx ...interface{}) {
-	zap.L().Debug(msg, convertCtx(ctx)...)
+	if zap.L().Core().Enabled(zapcore.DebugLevel) {
+		zap.L().Debug(msg, convertCtx(ctx)...)
+	}
 }
 
 // Info logs at info level.
