@@ -60,7 +60,7 @@ func SCMPParentToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Cas
 		SrcPort: layers.UDPPort(40000),
 		DstPort: layers.UDPPort(50000),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
 	sp := &scion.Decoded{
 		Base: scion.Base{
@@ -232,7 +232,7 @@ func SCMPParentToChildLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 		SrcPort: layers.UDPPort(40000),
 		DstPort: layers.UDPPort(50000),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
 	sp := &scion.Decoded{
 		Base: scion.Base{
@@ -405,7 +405,7 @@ func SCMPChildToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 		SrcPort: layers.UDPPort(40000),
 		DstPort: layers.UDPPort(50000),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
 	sp := &scion.Decoded{
 		Base: scion.Base{

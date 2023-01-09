@@ -59,7 +59,7 @@ func InternalHostToChild(artifactsDir string, mac hash.Hash) runner.Case {
 		SrcPort: layers.UDPPort(30041),
 		DstPort: layers.UDPPort(30001),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
 	// 	SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=5 SrcType=IPv4 DstType=IPv4
 	// 		ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.51 DstIA=1-ff00:0:4 Dst=172.16.4.1
@@ -133,7 +133,9 @@ func InternalHostToChild(artifactsDir string, mac hash.Hash) runner.Case {
 	// 	UDP: Src=50000 Dst=40000
 	udp.SrcPort, udp.DstPort = 50000, 40000
 	// 	SCION: CurrHopF=7
-	sp.IncPath()
+	if err := sp.IncPath(); err != nil {
+		panic(err)
+	}
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[0].Mac)
 
 	if err := gopacket.SerializeLayers(want, options,
@@ -181,7 +183,7 @@ func InternalParentToChild(artifactsDir string, mac hash.Hash) runner.Case {
 		SrcPort: layers.UDPPort(30004),
 		DstPort: layers.UDPPort(30001),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
 	// 	SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
 	// 		ADDR: SrcIA=1-ff00:0:9 Src=174.16.9.1 DstIA=1-ff00:0:4 Dst=174.16.4.1
@@ -257,7 +259,9 @@ func InternalParentToChild(artifactsDir string, mac hash.Hash) runner.Case {
 	// 	UDP: Src=50000 Dst=40000
 	udp.SrcPort, udp.DstPort = 50000, 40000
 	// 	SCION: CurrHopF=7
-	sp.IncPath()
+	if err := sp.IncPath(); err != nil {
+		panic(err)
+	}
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 
 	if err := gopacket.SerializeLayers(want, options,
@@ -306,7 +310,7 @@ func InvalidSrcInternalParentToChild(artifactsDir string, mac hash.Hash) runner.
 		SrcPort: layers.UDPPort(30004),
 		DstPort: layers.UDPPort(30001),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
 	// 	SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
 	// 		ADDR: SrcIA=1-ff00:0:9 Src=174.16.9.1 DstIA=1-ff00:0:4 Dst=174.16.4.1

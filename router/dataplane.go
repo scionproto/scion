@@ -587,7 +587,9 @@ func (p *scionPacketProcessor) reset() error {
 func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 	srcAddr *net.UDPAddr) (processResult, error) {
 
-	p.reset()
+	if err := p.reset(); err != nil {
+		return processResult{}, err
+	}
 	p.rawPkt = rawPkt
 	p.srcAddr = srcAddr
 
