@@ -22,26 +22,26 @@ import (
 
 // Debug logs at debug level.
 func Debug(msg string, ctx ...interface{}) {
-	if Enabled(DebugLevel) {
+	if enabled(DebugLevel) {
 		zap.L().Debug(msg, convertCtx(ctx)...)
 	}
 }
 
 // Info logs at info level.
 func Info(msg string, ctx ...interface{}) {
-	if Enabled(InfoLevel) {
+	if enabled(InfoLevel) {
 		zap.L().Info(msg, convertCtx(ctx)...)
 	}
 }
 
 // Error logs at error level.
 func Error(msg string, ctx ...interface{}) {
-	if Enabled(ErrorLevel) {
+	if enabled(ErrorLevel) {
 		zap.L().Error(msg, convertCtx(ctx)...)
 	}
 }
 
-func Enabled(lvl Level) bool {
+func enabled(lvl Level) bool {
 	return zap.L().Core().Enabled(zapcore.Level(lvl))
 }
 
