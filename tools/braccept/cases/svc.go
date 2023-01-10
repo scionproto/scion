@@ -59,7 +59,7 @@ func SVC(artifactsDir string, mac hash.Hash) runner.Case {
 		SrcPort: layers.UDPPort(40000),
 		DstPort: layers.UDPPort(50000),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 	// SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
 	// 		ADDR: SrcIA=1-ff00:0:4 Src=172.16.4.1 DstIA=1-ff00:0:1 Dst=SVC_CS
 	// 		IF_1: ISD=1 Hops=2

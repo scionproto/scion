@@ -122,7 +122,7 @@ func TestSCMPSerializeTo(t *testing.T) {
 			tc.decoded.Contents = tc.raw[:4]
 			tc.decoded.Payload = tc.raw[4:]
 			buffer := gopacket.NewSerializeBuffer()
-			require.NoError(t, tc.decoded.SetNetworkLayerForChecksum(scnL))
+			tc.decoded.SetNetworkLayerForChecksum(scnL)
 			err := tc.decoded.SerializeTo(buffer, tc.opts)
 			tc.assertFunc(t, err)
 			if err != nil {
@@ -523,7 +523,7 @@ func TestSCMP(t *testing.T) {
 				for _, l := range tc.decodedLayers {
 					switch v := l.(type) {
 					case *slayers.SCMP:
-						require.NoError(t, v.SetNetworkLayerForChecksum(scnL))
+						v.SetNetworkLayerForChecksum(scnL)
 					}
 				}
 

@@ -59,7 +59,7 @@ func SCMPBadMAC(artifactsDir string, mac hash.Hash) runner.Case {
 		SrcPort: layers.UDPPort(40000),
 		DstPort: layers.UDPPort(50000),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
 	// pkt0.ParsePacket(`
 	//	SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
@@ -214,7 +214,7 @@ func SCMPBadMACInternal(artifactsDir string, mac hash.Hash) runner.Case {
 		SrcPort: layers.UDPPort(30004),
 		DstPort: layers.UDPPort(30001),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
 	// 	SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
 	// 		ADDR: SrcIA=1-ff00:0:9 Src=174.16.3.1 DstIA=1-ff00:0:4 Dst=174.16.4.1

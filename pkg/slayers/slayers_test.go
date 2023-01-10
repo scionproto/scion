@@ -208,7 +208,7 @@ func TestPaths(t *testing.T) {
 					Length:   1032,
 					Checksum: 0xb8e4,
 				}
-				require.NoError(t, u.SetNetworkLayerForChecksum(s))
+				u.SetNetworkLayerForChecksum(s)
 				return []gopacket.SerializableLayer{s, u, gopacket.Payload(mkPayload(1024))}
 			},
 		},
@@ -238,7 +238,7 @@ func TestPaths(t *testing.T) {
 					Length:   1032,
 					Checksum: 0xb7d2,
 				}
-				require.NoError(t, u.SetNetworkLayerForChecksum(s))
+				u.SetNetworkLayerForChecksum(s)
 				return []gopacket.SerializableLayer{s, u, gopacket.Payload(mkPayload(1024))}
 			},
 		},
@@ -341,7 +341,7 @@ func TestSerializeSCIONUPDExtn(t *testing.T) {
 	u := &slayers.UDP{}
 	u.SrcPort = 1280
 	u.DstPort = 80
-	require.NoError(t, u.SetNetworkLayerForChecksum(s))
+	u.SetNetworkLayerForChecksum(s)
 	hbh := &slayers.HopByHopExtn{}
 	hbh.NextHdr = slayers.End2EndClass
 	hbh.Options = []*slayers.HopByHopOption{

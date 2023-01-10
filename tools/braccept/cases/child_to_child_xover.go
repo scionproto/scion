@@ -59,7 +59,7 @@ func ChildToChildXover(artifactsDir string, mac hash.Hash) runner.Case {
 		SrcPort: layers.UDPPort(40000),
 		DstPort: layers.UDPPort(50000),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
 	sp := &scion.Decoded{
 		Base: scion.Base{
@@ -136,8 +136,12 @@ func ChildToChildXover(artifactsDir string, mac hash.Hash) runner.Case {
 	ip.SrcIP = net.IP{192, 168, 14, 2}
 	ip.DstIP = net.IP{192, 168, 14, 3}
 	udp.SrcPort, udp.DstPort = udp.DstPort, udp.SrcPort
-	sp.IncPath()
-	sp.IncPath()
+	if err := sp.IncPath(); err != nil {
+		panic(err)
+	}
+	if err := sp.IncPath(); err != nil {
+		panic(err)
+	}
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 	sp.InfoFields[1].UpdateSegID(sp.HopFields[2].Mac)
 

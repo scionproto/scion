@@ -137,16 +137,8 @@ func (s *SCMP) String() string {
 
 // SetNetworkLayerForChecksum tells this layer which network layer is wrapping it.
 // This is needed for computing the checksum when serializing,
-func (s *SCMP) SetNetworkLayerForChecksum(l gopacket.NetworkLayer) error {
-	if l == nil {
-		return serrors.New("cannot use nil layer type for scmp checksum network layer")
-	}
-	if l.LayerType() != LayerTypeSCION {
-		return serrors.New("cannot use layer type for scmp checksum network layer",
-			"type", l.LayerType())
-	}
-	s.scn = l.(*SCION)
-	return nil
+func (s *SCMP) SetNetworkLayerForChecksum(scn *SCION) {
+	s.scn = scn
 }
 
 func decodeSCMP(data []byte, pb gopacket.PacketBuilder) error {

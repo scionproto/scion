@@ -59,7 +59,7 @@ func SCMPExpiredHop(artifactsDir string, mac hash.Hash) runner.Case {
 		SrcPort: layers.UDPPort(40000),
 		DstPort: layers.UDPPort(50000),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
 	// pkt0.ParsePacket(`
 	//	SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
@@ -216,7 +216,7 @@ func SCMPExpiredHopAfterXover(artifactsDir string, mac hash.Hash) runner.Case {
 		SrcPort: layers.UDPPort(40000),
 		DstPort: layers.UDPPort(50000),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
 	sp := &scion.Decoded{
 		Base: scion.Base{
@@ -391,7 +391,7 @@ func SCMPExpiredHopAfterXoverConsDir(artifactsDir string, mac hash.Hash) runner.
 		SrcPort: layers.UDPPort(40000),
 		DstPort: layers.UDPPort(50000),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
 	sp := &scion.Decoded{
 		Base: scion.Base{
@@ -564,7 +564,7 @@ func SCMPExpiredHopAfterXoverInternal(artifactsDir string, mac hash.Hash) runner
 		SrcPort: layers.UDPPort(30003),
 		DstPort: layers.UDPPort(30001),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
 	sp := &scion.Decoded{
 		Base: scion.Base{
@@ -730,7 +730,7 @@ func SCMPExpiredHopAfterXoverInternalConsDir(artifactsDir string, mac hash.Hash)
 		SrcPort: layers.UDPPort(30003),
 		DstPort: layers.UDPPort(30001),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
 	sp := &scion.Decoded{
 		Base: scion.Base{

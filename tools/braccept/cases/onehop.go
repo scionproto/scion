@@ -56,7 +56,7 @@ func IncomingOneHop(artifactsDir string, mac hash.Hash) runner.Case {
 		SrcPort: layers.UDPPort(40000),
 		DstPort: layers.UDPPort(50000),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 	ohp := &onehop.Path{
 		Info: path.InfoField{
 			ConsDir:   true,
@@ -151,7 +151,7 @@ func OutgoingOneHop(artifactsDir string, mac hash.Hash) runner.Case {
 		SrcPort: layers.UDPPort(30041),
 		DstPort: layers.UDPPort(30001),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 	ohp := &onehop.Path{
 		Info: path.InfoField{
 			ConsDir:   true,
