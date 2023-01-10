@@ -96,7 +96,9 @@ func main() {
 
 func run(cfg flags, dst *snet.UDPAddr) error {
 	defer log.Flush()
-	log.Setup(log.Config{Console: log.ConsoleConfig{Level: cfg.logLevel}})
+	if err := log.Setup(log.Config{Console: log.ConsoleConfig{Level: cfg.logLevel}}); err != nil {
+		return serrors.WrapStr("setting up log", err)
+	}
 
 	raw, err := os.ReadFile(cfg.config)
 	if err != nil {
@@ -112,7 +114,7 @@ func run(cfg flags, dst *snet.UDPAddr) error {
 	}
 	ipv4Layer := parseIPv4(&layersCfg)
 	udpLayer := parseUDP(&layersCfg)
-	udpLayer.SetNetworkLayerForChecksum(ipv4Layer)
+	_ = udpLayer.SetNetworkLayerForChecksum(ipv4Layer)
 	scionLayer := parseSCION(&layersCfg)
 
 	ctx := app.WithSignal(context.Background(), os.Kill)

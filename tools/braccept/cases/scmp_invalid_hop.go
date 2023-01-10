@@ -108,7 +108,7 @@ func SCMPInvalidHopParentToParent(artifactsDir string, mac hash.Hash) runner.Cas
 	scionudp := &slayers.UDP{}
 	scionudp.SrcPort = 40111
 	scionudp.DstPort = 40222
-	_ = scionudp.SetNetworkLayerForChecksum(scionL)
+	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")
 
@@ -167,7 +167,7 @@ func SCMPInvalidHopParentToParent(artifactsDir string, mac hash.Hash) runner.Cas
 			slayers.SCMPCodeInvalidPath,
 		),
 	}
-	_ = scmpH.SetNetworkLayerForChecksum(scionL)
+	scmpH.SetNetworkLayerForChecksum(scionL)
 
 	scmpP := &slayers.SCMPParameterProblem{
 		Pointer: uint16(pointer),
@@ -266,7 +266,7 @@ func SCMPInvalidHopChildToChild(artifactsDir string, mac hash.Hash) runner.Case 
 	scionudp := &slayers.UDP{}
 	scionudp.SrcPort = 40111
 	scionudp.DstPort = 40222
-	_ = scionudp.SetNetworkLayerForChecksum(scionL)
+	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")
 
@@ -325,7 +325,7 @@ func SCMPInvalidHopChildToChild(artifactsDir string, mac hash.Hash) runner.Case 
 			slayers.SCMPCodeInvalidPath,
 		),
 	}
-	_ = scmpH.SetNetworkLayerForChecksum(scionL)
+	scmpH.SetNetworkLayerForChecksum(scionL)
 
 	scmpP := &slayers.SCMPParameterProblem{
 		Pointer: uint16(pointer),

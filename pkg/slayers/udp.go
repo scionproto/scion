@@ -117,12 +117,8 @@ func (u *UDP) fixLengths(length int) {
 	u.Length = uint16(length)
 }
 
-func (u *UDP) SetNetworkLayerForChecksum(l gopacket.NetworkLayer) error {
-	if l.LayerType() == LayerTypeSCION {
-		u.scn = l.(*SCION)
-		return nil
-	}
-	return fmt.Errorf("cannot use layer type %v for UDP checksum network layer", l.LayerType())
+func (u *UDP) SetNetworkLayerForChecksum(scn *SCION) {
+	u.scn = scn
 }
 
 func (u *UDP) String() string {

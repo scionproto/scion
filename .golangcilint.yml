@@ -91,8 +91,6 @@ issues:
              ^dispatcher/cmd/dispatcher/main.go$|\
              ^dispatcher/dispatcher.go$|\
              ^dispatcher/internal/registration/bench_test.go$|\
-             ^dispatcher/internal/respool/packet_test.go$|\
-             ^dispatcher/underlay_test.go$|\
              ^gateway/control/aggregator.go$|\
              ^gateway/control/engine.go$|\
              ^gateway/control/engine_test.go$|\
@@ -108,7 +106,6 @@ issues:
              ^gateway/dataplane/routingtable.go$|\
              ^gateway/dataplane/session_test.go$|\
              ^gateway/gateway.go$|\
-             ^gateway/pktcls/cond_test.go$|\
              ^gateway/routing/file.go$|\
              ^gateway/xnet/xnet.go$|\
              ^pkg/experimental/colibri/reservation/types.go$|\
@@ -125,7 +122,6 @@ issues:
              ^pkg/segment/segs_test.go$|\
              ^pkg/slayers/extn_test.go$|\
              ^pkg/slayers/scion_test.go$|\
-             ^pkg/snet/packet.go$|\
              ^pkg/snet/packet_test.go$|\
              ^pkg/snet/path.go$|\
              ^pkg/snet/squic/net.go$|\
@@ -151,34 +147,14 @@ issues:
              ^private/trust/verifier.go$|\
              ^private/trust/verifier_bench_test.go$|\
              ^private/worker/worker_test.go$|\
-             ^router/dataplane.go$|\
              ^router/dataplane_test.go$|\
              ^router/export_test.go$|\
              ^router/mgmtapi/api.go$|\
              ^scion-pki/trcs/combine_test.go$|\
-             ^tools/braccept/cases/bfd.go$|\
-             ^tools/braccept/cases/child_to_child_xover.go$|\
-             ^tools/braccept/cases/child_to_internal.go$|\
-             ^tools/braccept/cases/child_to_parent.go$|\
-             ^tools/braccept/cases/internal_to_child.go$|\
-             ^tools/braccept/cases/jumbo.go$|\
-             ^tools/braccept/cases/onehop.go$|\
-             ^tools/braccept/cases/parent_to_child.go$|\
-             ^tools/braccept/cases/parent_to_internal.go$|\
-             ^tools/braccept/cases/scmp_dest_unreachable.go$|\
-             ^tools/braccept/cases/scmp_expired_hop.go$|\
-             ^tools/braccept/cases/scmp_invalid_mac.go$|\
-             ^tools/braccept/cases/scmp_invalid_pkt.go$|\
-             ^tools/braccept/cases/scmp_invalid_segment_change.go$|\
-             ^tools/braccept/cases/scmp_invalid_segment_change_local.go$|\
-             ^tools/braccept/cases/scmp_traceroute.go$|\
-             ^tools/braccept/cases/scmp_unknown_hop.go$|\
-             ^tools/braccept/cases/svc.go$|\
              ^tools/end2end/main.go$|\
              ^tools/end2end_integration/main.go$|\
              ^tools/integration/binary.go$|\
              ^tools/integration/done.go$|\
              ^tools/integration/integration.go$|\
-             ^tools/integration/progress/progress.go$|\
-             ^tools/pktgen/cmd/pktgen/main.go$"
+             ^tools/integration/progress/progress.go$"
       linters: [errcheck]
