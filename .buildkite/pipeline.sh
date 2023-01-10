@@ -2,6 +2,10 @@
 
 set -eou pipefail
 
+# XXX(matzf): simply test pipeline-doc. Only as check for scionproto/scion#4302.
+cat .buildkite/pipeline-doc.yml
+exit 0
+
 if [ -n "${BUILDKITE_PULL_REQUEST_BASE_BRANCH:-}" ]; then
   if git diff --quiet "${BUILDKITE_PULL_REQUEST_BASE_BRANCH:-}" ':!doc/' ':!**.md'; then
     # No diff other than doc/ and *.md
