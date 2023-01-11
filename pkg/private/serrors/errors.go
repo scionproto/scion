@@ -263,6 +263,28 @@ func (e List) MarshalLogArray(ae zapcore.ArrayEncoder) error {
 	return nil
 }
 
+// Join returns an error that wraps the given errors in a List error.
+// Any nil error values are discarded.
+// Join returns nil if errs contains no non-nil values.
+func Join(errs ...error) error {
+	n := 0
+	for _, err := range errs {
+		if err != nil {
+			n++
+		}
+	}
+	if n == 0 {
+		return nil
+	}
+	l := make(List, 0, n)
+	for _, err := range errs {
+		if err != nil {
+			l = append(l, err)
+		}
+	}
+	return l
+}
+
 func errCtxToFields(errCtx []interface{}) map[string]interface{} {
 	if len(errCtx) == 0 {
 		return nil
