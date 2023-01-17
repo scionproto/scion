@@ -56,19 +56,15 @@ Timestamp (Sequence Number):
   The detailed interpretation of the Timestamp/Sequence Number field depends on the SPI.
 
   When used with a DRKey :ref:`SPI <spao-spi>`, the field represent a relative Timestamp (*Ts*),
-  that is relative to the :ref:`Epoch<drkey-epoch>` starting time of the associated DRKey.
-  In turn, this timestamp MAY be used to compute the absolute time (*at*) value, 
+  counting the nanoseconds since the starting time of the associated DRKey :ref:`Epoch<drkey-epoch>`.
+  (See Appendix for a more detailed explanation about the field interpretation).
+  The timestamp MAY be used to compute the absolute time (*at*) value, 
   which corresponds to the time when the packet was sent.
   The section:ref:`Abosulte time derivation<spao-timestamp>` describes the derivation of *at* and
   the associated DRKey.
 
   The receiver SHOULD drop packets with *at* outside of a locally chosen
   range around the current time.
-
-  The Timestamp (*Ts*) field represents time in nanoseconds. 
-  This allows covering the maximum epoch length for DRKey (plus
-  the :ref:`Grace period<drkey-grace>`).
-  See Appendix for a more detailed explanation. 
 
   The sender SHOULD ensure the uniqueness of the absolute time (*at*) per packet.
   The receiver will use the *at* for replay detection and, thus, 
@@ -403,7 +399,7 @@ The following goals/constraints led to this design:
     directly following the option.
 
 - this does not appear to work with less than 3 rows. We use the available
-  room to make the timestamp and sequence number 3 bytes each and leave one
+  room to make a 48-bit timestamp / sequence number field and leave one
   reserved byte for future extensions (e.g. flags or extended timestamp or
   sequence number).
   The SPI comes first as we don't need to include it in the MAC computation and
@@ -420,5 +416,4 @@ The following goals/constraints led to this design:
           < 1 ns.\\
 
 - When the *Ts*/*SN* field is used with DRKey SPI, the application can use a clock that is less
-  accurate than 1 nanosecond and fill out the less significant bits with a counter that represents
-  at every clock tick.
+  accurate than 1 nanosecond and fill out the less significant bits with a counter.
