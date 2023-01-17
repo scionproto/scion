@@ -45,12 +45,10 @@ func DoInTx(ctx context.Context, db Sqler, action func(context.Context, *sql.Tx)
 		return NewTxError("create tx", err)
 	}
 	if err := action(ctx, tx); err != nil {
-		errRollback := tx.Rollback()
-		return serrors.Join(err, errRollback)
+		return serrors.Join(err, tx.Rollback())
 	}
 	if err := tx.Commit(); err != nil {
-		errRollback := tx.Rollback()
-		return serrors.Join(NewTxError("commit", err), errRollback)
+		return serrors.Join(NewTxError("commit", err), tx.Rollback())
 	}
 	return nil
 }

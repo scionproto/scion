@@ -77,8 +77,7 @@ func (s *DefaultStorage) StoreSegs(ctx context.Context, segs []*seg.Meta) (SegSt
 	for _, seg := range segs {
 		stats, err := tx.Insert(ctx, seg)
 		if err != nil {
-			errRollback := tx.Rollback()
-			return SegStats{}, serrors.Join(err, errRollback)
+			return SegStats{}, serrors.Join(err, tx.Rollback())
 		}
 		if stats.Inserted > 0 {
 			segStats.InsertedSegs = append(segStats.InsertedSegs, seg.Segment.GetLoggingID())
@@ -87,8 +86,7 @@ func (s *DefaultStorage) StoreSegs(ctx context.Context, segs []*seg.Meta) (SegSt
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		errRollback := tx.Rollback()
-		return SegStats{}, serrors.Join(err, errRollback)
+		return SegStats{}, serrors.Join(err, tx.Rollback())
 	}
 	segStats.Log(ctx)
 	return segStats, nil
