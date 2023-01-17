@@ -241,7 +241,6 @@ func (h *HopByHopExtn) SerializeTo(b gopacket.SerializeBuffer,
 	}
 
 	o := make([]*tlvOption, 0, len(h.Options))
-
 	for _, v := range h.Options {
 		o = append(o, (*tlvOption)(v))
 	}
