@@ -270,6 +270,36 @@ func TestList(t *testing.T) {
 	assert.NotNil(t, combinedErr)
 }
 
+func TestJoinNil(t *testing.T) {
+	assert.Nil(t, serrors.Join())
+	assert.Nil(t, serrors.Join(nil))
+	assert.Nil(t, serrors.Join(nil, nil))
+}
+
+func TestJoin(t *testing.T) {
+	err1 := serrors.New("err1")
+	err2 := serrors.New("err2")
+	for _, test := range []struct {
+		errs []error
+		want serrors.List
+	}{{
+		errs: []error{err1},
+		want: serrors.List{err1},
+	}, {
+		errs: []error{err1},
+		want: serrors.List{err1},
+	}, {
+		errs: []error{err1, err2},
+		want: serrors.List{err1, err2},
+	}, {
+		errs: []error{err1, nil, err2},
+		want: serrors.List{err1, err2},
+	}} {
+		got := serrors.Join(test.errs...)
+		assert.Equal(t, got, test.want)
+	}
+}
+
 func TestAtMostOneStacktrace(t *testing.T) {
 	err := errors.New("core")
 	for i := range [20]int{} {

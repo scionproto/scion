@@ -20,6 +20,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
+	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/pathdb"
 	"github.com/scionproto/scion/private/revcache"
@@ -68,7 +69,6 @@ func (s *DefaultStorage) StoreSegs(ctx context.Context, segs []*seg.Meta) (SegSt
 	if err != nil {
 		return SegStats{}, err
 	}
-	defer tx.Rollback()
 	// Sort to prevent sql deadlock.
 	sort.Slice(segs, func(i, j int) bool {
 		return segs[i].Segment.GetLoggingID() < segs[j].Segment.GetLoggingID()
@@ -77,7 +77,7 @@ func (s *DefaultStorage) StoreSegs(ctx context.Context, segs []*seg.Meta) (SegSt
 	for _, seg := range segs {
 		stats, err := tx.Insert(ctx, seg)
 		if err != nil {
-			return SegStats{}, err
+			return SegStats{}, serrors.Join(err, tx.Rollback())
 		}
 		if stats.Inserted > 0 {
 			segStats.InsertedSegs = append(segStats.InsertedSegs, seg.Segment.GetLoggingID())
@@ -86,7 +86,7 @@ func (s *DefaultStorage) StoreSegs(ctx context.Context, segs []*seg.Meta) (SegSt
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		return SegStats{}, err
+		return SegStats{}, serrors.Join(err, tx.Rollback())
 	}
 	segStats.Log(ctx)
 	return segStats, nil

@@ -17,6 +17,8 @@ package db
 import (
 	"context"
 	"database/sql"
+
+	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
 var _ Sqler = (*sql.DB)(nil)
@@ -42,12 +44,11 @@ func DoInTx(ctx context.Context, db Sqler, action func(context.Context, *sql.Tx)
 	if tx, err = db.(*sql.DB).BeginTx(ctx, nil); err != nil {
 		return NewTxError("create tx", err)
 	}
-	defer tx.Rollback()
 	if err := action(ctx, tx); err != nil {
-		return err
+		return serrors.Join(err, tx.Rollback())
 	}
 	if err := tx.Commit(); err != nil {
-		return NewTxError("commit", err)
+		return serrors.Join(NewTxError("commit", err), tx.Rollback())
 	}
 	return nil
 }

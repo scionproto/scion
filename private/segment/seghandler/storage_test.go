@@ -60,7 +60,6 @@ func TestDefaultStorageStoreSegs(t *testing.T) {
 					pathDB.EXPECT().BeginTransaction(gomock.Any(), gomock.Any()).
 						Return(tx, nil),
 					tx.EXPECT().Commit(),
-					tx.EXPECT().Rollback(),
 				)
 				return pathDB
 			},
@@ -75,6 +74,20 @@ func TestDefaultStorageStoreSegs(t *testing.T) {
 						Return(tx, nil),
 					tx.EXPECT().Commit().Return(errors.New("test err")),
 					tx.EXPECT().Rollback(),
+				)
+				return pathDB
+			},
+			ErrorAssertion: assert.Error,
+		},
+		"Rollback error": {
+			PathDB: func(ctrl *gomock.Controller) pathdb.DB {
+				pathDB := mock_pathdb.NewMockDB(ctrl)
+				tx := mock_pathdb.NewMockTransaction(ctrl)
+				gomock.InOrder(
+					pathDB.EXPECT().BeginTransaction(gomock.Any(), gomock.Any()).
+						Return(tx, nil),
+					tx.EXPECT().Commit().Return(errors.New("test err")),
+					tx.EXPECT().Rollback().Return(errors.New("test rollback err")),
 				)
 				return pathDB
 			},
@@ -104,7 +117,6 @@ func TestDefaultStorageStoreSegs(t *testing.T) {
 						},
 					).Return(pathdb.InsertStats{Inserted: 1}, nil),
 					tx.EXPECT().Commit(),
-					tx.EXPECT().Rollback(),
 				)
 				return pathDB
 			},
