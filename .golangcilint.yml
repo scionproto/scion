@@ -138,9 +138,7 @@ issues:
              ^private/mgmtapi/segments/api/api.go$|\
              ^private/path/combinator/combinator.go$|\
              ^private/revcache/revcachetest/revcachetest.go$|\
-             ^private/segment/seghandler/storage.go$|\
              ^private/service/statuspages.go$|\
-             ^private/storage/db/sqler.go$|\
              ^private/storage/trust/fspersister/db_test.go$|\
              ^private/svc/internal/ctxconn/ctxconn.go$|\
              ^private/trust/db_inspector.go$|\
