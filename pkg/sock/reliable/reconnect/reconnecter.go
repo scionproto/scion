@@ -16,12 +16,13 @@ package reconnect
 
 import (
 	"context"
+	"errors"
 	"net"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 )
 
 // Use a var here to allow tests to inject shorter intervals for fast testing.
@@ -81,8 +82,9 @@ func (r *TickingReconnecter) Reconnect(ctx context.Context) (net.PacketConn, uin
 			return nil, 0, ErrReconnecterTimeoutExpired
 		}
 		conn, port, err := r.reconnectF(newTimeout)
+		var sysErr *os.SyscallError
 		switch {
-		case reliable.IsSysError(err):
+		case errors.As(err, &sysErr):
 			// Wait until next tick to retry. If the overall timeout expires
 			// before the next tick, return immediately with an error.
 			// time.Ticker will ensure that no more than one attempt is made
