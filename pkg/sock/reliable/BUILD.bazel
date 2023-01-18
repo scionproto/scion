@@ -25,6 +25,7 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
+        "errors_test.go",
         "frame_test.go",
         "packetizer_test.go",
         "registration_test.go",
