@@ -34,7 +34,7 @@ const (
 	// FixAuthDataInputLen is the unvariable fields length for the
 	// authenticated data. It consists of the Authenticator Option Metadata
 	// length and the SCION Common Header without the second row.
-	fixAuthDataInputLen = slayers.AuthOptionMetadataLen +
+	fixAuthDataInputLen = slayers.PacketAuthOptionMetadataLen +
 		slayers.CmnHdrLen - slayers.LineLen
 	// MACBufferSize sets an upperBound to the authenticated data
 	// length (excluding the payload). This is:
