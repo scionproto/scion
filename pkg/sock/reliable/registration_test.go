@@ -109,7 +109,7 @@ func TestRegistrationMessageSerializeTo(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			b := make([]byte, 1500)
 			n, err := tc.Registration.SerializeTo(b)
-			xtest.AssertErrorsIs(t, err, tc.ExpectedError)
+			assert.ErrorIs(t, err, tc.ExpectedError)
 			assert.Equal(t, tc.ExpectedData, b[:n])
 		})
 	}
@@ -240,7 +240,7 @@ func TestRegistrationMessageDecodeFromBytes(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			var r Registration
 			err := r.DecodeFromBytes(tc.Data)
-			xtest.AssertErrorsIs(t, err, tc.ExpectedError)
+			assert.ErrorIs(t, err, tc.ExpectedError)
 			assert.Equal(t, tc.ExpectedRegistration, r)
 		})
 	}
@@ -251,7 +251,7 @@ func TestConfirmationMessageSerializeTo(t *testing.T) {
 	t.Run("bad buffer", func(t *testing.T) {
 		b := make([]byte, 1)
 		n, err := confirmation.SerializeTo(b)
-		xtest.AssertErrorsIs(t, err, ErrBufferTooSmall)
+		assert.ErrorIs(t, err, ErrBufferTooSmall)
 		assert.Zero(t, n)
 	})
 	t.Run("success", func(t *testing.T) {
@@ -267,7 +267,7 @@ func TestConfirmationDecodeFromBytes(t *testing.T) {
 	t.Run("bad buffer", func(t *testing.T) {
 		b := []byte{0xaa}
 		err := confirmation.DecodeFromBytes(b)
-		xtest.AssertErrorsIs(t, err, ErrIncompletePort)
+		assert.ErrorIs(t, err, ErrIncompletePort)
 		assert.Equal(t, Confirmation{}, confirmation)
 	})
 	t.Run("success", func(t *testing.T) {
