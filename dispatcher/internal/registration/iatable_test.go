@@ -98,7 +98,7 @@ func TestIATableRegister(t *testing.T) {
 		t.Run("already registered ports will cause error", func(t *testing.T) {
 			table := NewIATable(minPort, maxPort)
 			_, err := table.Register(ia, public, nil, addr.SvcNone, value)
-			xtest.FailOnErr(t, err)
+			require.NoError(t, err)
 			ref, err := table.Register(ia, public, nil, addr.SvcNone, value)
 			assert.Error(t, err)
 			assert.Nil(t, ref)

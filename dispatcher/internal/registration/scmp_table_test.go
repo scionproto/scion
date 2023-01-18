@@ -18,8 +18,7 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
-
-	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSCMPEmptyTable(t *testing.T) {
@@ -48,7 +47,7 @@ func TestSCMPTableWithOneItem(t *testing.T) {
 		table := NewSCMPTable()
 		value := "test value"
 		err := table.Register(42, value)
-		xtest.FailOnErr(t, err)
+		require.NoError(t, err)
 		Convey("Lookup for the id succeeds", func() {
 			retValue, ok := table.Lookup(42)
 			SoMsg("ok", ok, ShouldBeTrue)

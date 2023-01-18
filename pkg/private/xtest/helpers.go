@@ -157,15 +157,6 @@ func CopyFile(t testing.TB, src, dst string) {
 	require.NoError(t, os.WriteFile(dst, raw, 0666))
 }
 
-// FailOnErr causes t to exit with a fatal error if err is non-nil.
-func FailOnErr(t testing.TB, err error, desc ...string) {
-	t.Helper()
-
-	if err != nil {
-		t.Fatal(strings.Join(desc, " "), err)
-	}
-}
-
 // MustMarshalJSONToFile marshals v and writes the result to file
 // testdata/baseName. If the file exists, it is truncated; if it doesn't exist,
 // it is created. On errors, t.Fatal() is called.
