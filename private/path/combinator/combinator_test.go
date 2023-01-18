@@ -25,6 +25,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/common"
@@ -86,7 +87,7 @@ func TestBadPeering(t *testing.T) {
 			txtResult := writePaths(result)
 			if *update {
 				err := os.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
-				xtest.FailOnErr(t, err)
+				require.NoError(t, err)
 			}
 			expected, err := os.ReadFile(xtest.ExpandPath(tc.FileName))
 			assert.NoError(t, err)
@@ -132,7 +133,7 @@ func TestMultiPeering(t *testing.T) {
 			txtResult := writePaths(result)
 			if *update {
 				err := os.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
-				xtest.FailOnErr(t, err)
+				require.NoError(t, err)
 			}
 			expected, err := os.ReadFile(xtest.ExpandPath(tc.FileName))
 			assert.NoError(t, err)
@@ -175,7 +176,7 @@ func TestSameCoreParent(t *testing.T) {
 			txtResult := writePaths(result)
 			if *update {
 				err := os.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
-				xtest.FailOnErr(t, err)
+				require.NoError(t, err)
 			}
 			expected, err := os.ReadFile(xtest.ExpandPath(tc.FileName))
 			assert.NoError(t, err)
@@ -226,7 +227,7 @@ func TestLoops(t *testing.T) {
 			txtResult := writePaths(result)
 			if *update {
 				err := os.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
-				xtest.FailOnErr(t, err)
+				require.NoError(t, err)
 			}
 			expected, err := os.ReadFile(xtest.ExpandPath(tc.FileName))
 			assert.NoError(t, err)
@@ -533,7 +534,7 @@ func TestComputePath(t *testing.T) {
 			txtResult := writePaths(result)
 			if *update {
 				err := os.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
-				xtest.FailOnErr(t, err)
+				require.NoError(t, err)
 			}
 			expected, err := os.ReadFile(xtest.ExpandPath(tc.FileName))
 			assert.NoError(t, err)
