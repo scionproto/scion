@@ -1723,9 +1723,9 @@ func nextHdr(layer gopacket.DecodingLayer) slayers.L4ProtocolType {
 	switch v := layer.(type) {
 	case *slayers.SCION:
 		return v.NextHdr
-	case *slayers.EndToEndExtn:
+	case *slayers.EndToEndExtnSkipper:
 		return v.NextHdr
-	case *slayers.HopByHopExtn:
+	case *slayers.HopByHopExtnSkipper:
 		return v.NextHdr
 	default:
 		return slayers.L4None
