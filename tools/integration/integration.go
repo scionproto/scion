@@ -1,4 +1,4 @@
-// Copyright 2018 Anapaya Systems
+// Copyright 2018 Anapaya Systemduring
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,7 +35,6 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/topology"
 )
@@ -55,8 +54,8 @@ const (
 )
 
 var (
-	// ASList exposes the loaded ASList.
-	ASList *util.ASList
+	// LoadedASList exposes the ASList loaded during Init
+	LoadedASList *ASList
 )
 
 type iaArgs []addr.IA
@@ -156,15 +155,15 @@ func validateFlags() error {
 		return err
 	}
 	var err error
-	ASList, err = util.LoadASList(GenFile("as_list.yml"))
+	LoadedASList, err = LoadASList(GenFile("as_list.yml"))
 	if err != nil {
 		return err
 	}
 	if len(srcIAs) == 0 {
-		srcIAs = ASList.AllASes()
+		srcIAs = LoadedASList.AllASes()
 	}
 	if len(dstIAs) == 0 {
-		dstIAs = ASList.AllASes()
+		dstIAs = LoadedASList.AllASes()
 	}
 	return nil
 }
