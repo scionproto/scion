@@ -20,7 +20,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 )
@@ -67,7 +66,7 @@ func TestTRCIDValidate(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			err := tc.ID.Validate()
-			xtest.AssertErrorsIs(t, err, tc.Err)
+			assert.ErrorIs(t, err, tc.Err)
 
 		})
 	}

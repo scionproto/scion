@@ -3,11 +3,9 @@ load("//tools/lint:go.bzl", "go_library")
 go_library(
     name = "go_default_library",
     srcs = [
-        "convey.go",
         "grpc.go",
         "helpers.go",
         "mocking.go",
-        "waiter.go",
         "x509.go",
     ],
     importpath = "github.com/scionproto/scion/pkg/private/xtest",
