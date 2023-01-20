@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path/empty"
@@ -371,7 +370,10 @@ func TestSerializeSCIONUPDExtn(t *testing.T) {
 	// checksum is set should result in 0.
 	udpBuf := gopacket.NewSerializeBuffer()
 	assert.NoError(t, gopacket.SerializeLayers(udpBuf, opts, u, pld))
-	csum := util.Checksum(pseudoHeader(t, s, len(udpBuf.Bytes()), 17), udpBuf.Bytes())
+	csum := referenceChecksum(append(
+		pseudoHeader(t, s, len(udpBuf.Bytes()), 17),
+		udpBuf.Bytes()...,
+	))
 	assert.Zero(t, csum)
 }
 

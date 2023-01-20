@@ -3,7 +3,6 @@ load("//tools/lint:go.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
-        "checksum.go",
         "duration.go",
         "duration_wrap.go",
         "file_mode.go",
@@ -21,7 +20,6 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
-        "checksum_test.go",
         "duration_test.go",
         "export_test.go",
         "time_test.go",

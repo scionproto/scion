@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
@@ -487,6 +486,22 @@ func TestSCIONComputeChecksum(t *testing.T) {
 			Protocol:   1,
 			Checksum:   0x2615,
 		},
+		"IPv4/IPv4 odd length": {
+			Header: func(t *testing.T) *slayers.SCION {
+				s := &slayers.SCION{
+					SrcIA: xtest.MustParseIA("1-ff00:0:110"),
+					DstIA: xtest.MustParseIA("1-ff00:0:112"),
+				}
+				err := s.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("174.16.4.1").To4()})
+				require.NoError(t, err)
+				err = s.SetDstAddr(&net.IPAddr{IP: net.ParseIP("172.16.4.2").To4()})
+				require.NoError(t, err)
+				return s
+			},
+			UpperLayer: xtest.MustParseHexString("aabbccddee"),
+			Protocol:   1,
+			Checksum:   0x3813,
+		},
 		"IPv4/IPv6": {
 			Header: func(t *testing.T) *slayers.SCION {
 				s := &slayers.SCION{
@@ -530,7 +545,10 @@ func TestSCIONComputeChecksum(t *testing.T) {
 			ul := append([]byte{0, 0}, tc.UpperLayer...)
 
 			// Reference checksum
-			reference := util.Checksum(pseudoHeader(t, s, len(ul), tc.Protocol), ul)
+			reference := referenceChecksum(append(
+				pseudoHeader(t, s, len(ul), tc.Protocol),
+				ul...,
+			))
 
 			// Compute checksum
 			csum, err := s.ComputeChecksum(ul, tc.Protocol)
@@ -557,4 +575,19 @@ func pseudoHeader(t *testing.T, s *slayers.SCION, upperLayerLength int, protocol
 	offset += 4
 	binary.BigEndian.PutUint32(pseudo[offset:], uint32(protocol))
 	return pseudo
+}
+
+func referenceChecksum(data []byte) uint16 {
+	// pad at end with 0
+	if len(data)%2 == 1 {
+		data = append(data, 0)
+	}
+	var csum uint32
+	for i := 0; i+1 < len(data); i += 2 {
+		csum += uint32(binary.BigEndian.Uint16(data[i:]))
+	}
+	for csum > 0xffff {
+		csum = (csum >> 16) + (csum & 0xffff)
+	}
+	return ^uint16(csum)
 }
