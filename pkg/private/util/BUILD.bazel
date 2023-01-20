@@ -4,7 +4,6 @@ go_library(
     name = "go_default_library",
     srcs = [
         "checksum.go",
-        "docker.go",
         "duration.go",
         "duration_wrap.go",
         "file_mode.go",
