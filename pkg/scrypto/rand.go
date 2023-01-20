@@ -16,6 +16,7 @@ package scrypto
 
 import (
 	"crypto/rand"
+	"encoding/binary"
 	mrand "math/rand"
 
 	"github.com/scionproto/scion/pkg/private/common"
@@ -38,7 +39,7 @@ func RandUint64() uint64 {
 		// OS, and there's nothing we can do about it.
 		panic("No random numbers available")
 	}
-	return common.NativeOrder.Uint64(b)
+	return binary.LittleEndian.Uint64(b)
 }
 
 // RandInt64 returns a random int64 value. The returned value can be negative.
