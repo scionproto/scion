@@ -1674,13 +1674,10 @@ func (p *scionPacketProcessor) prepareSCMP(
 	// First write the SCMP message only without the SCION header(s) to get a buffer that we
 	// can (re-)use as input in the MAC computation.
 	// XXX(matzf) could we use iovec gather to avoid copying quote?
-	err = gopacket.SerializeLayers(p.buffer, sopts, scmpH, scmpP, gopacket.Payload(quote))
+	err = gopacket.SerializeLayers(p.buffer, sopts, &scmpH, scmpP, gopacket.Payload(quote))
 	if err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "serializing SCMP message")
 	}
-<<<<<<< HEAD
-	return p.buffer.Bytes(), scmpError{TypeCode: typeCode, Cause: cause}
-=======
 
 	if needsAuth {
 		var e2e slayers.EndToEndExtn
@@ -1723,7 +1720,6 @@ func (p *scionPacketProcessor) prepareSCMP(
 	}
 
 	return p.buffer.Bytes(), scmpError{TypeCode: scmpH.TypeCode, Cause: cause}
->>>>>>> 4c21768ea... add scmp_implementation
 }
 
 func (p *scionPacketProcessor) resetSPAOMetadata(now time.Time) error {
