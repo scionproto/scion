@@ -1302,13 +1302,13 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	if r, err := p.parsePath(); err != nil {
 		return r, err
 	}
+	if r, err := p.determinePeer(); err != nil {
+		return r, err
+	}
 	if r, err := p.validateHopExpiry(); err != nil {
 		return r, err
 	}
 	if r, err := p.validateIngressID(); err != nil {
-		return r, err
-	}
-	if r, err := p.determinePeer(); err != nil {
 		return r, err
 	}
 	if r, err := p.validatePktLen(); err != nil {
