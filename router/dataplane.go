@@ -837,12 +837,6 @@ func (p *scionPacketProcessor) parsePath() (processResult, error) {
 		// TODO(lukedirtwalker) parameter problem invalid path?
 		return processResult{}, err
 	}
-	if r, err := p.validateHopExpiry(); err != nil {
-		return r, err
-	}
-	if r, err := p.validateIngressID(); err != nil {
-		return r, err
-	}
 	return processResult{}, nil
 }
 
