@@ -198,7 +198,7 @@ func SCMPTracerouteIngressWithSPAO(artifactsDir string, mac hash.Hash) runner.Ca
 		SrcPort: layers.UDPPort(40000),
 		DstPort: layers.UDPPort(50000),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
 	sp := &scion.Decoded{
 		Base: scion.Base{

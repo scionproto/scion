@@ -160,32 +160,35 @@ func SCMPInvalidHopParentToParent(artifactsDir string, mac hash.Hash) runner.Cas
 		panic(err)
 	}
 
-	scionL.NextHdr = slayers.L4SCMP
+	scionL.NextHdr = slayers.End2EndClass
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
+	e2e.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(
 			slayers.SCMPTypeParameterProblem,
 			slayers.SCMPCodeInvalidPath,
 		),
 	}
-	scmpH.SetNetworkLayerForChecksum(scionL)
 
+	scmpH.SetNetworkLayerForChecksum(scionL)
 	scmpP := &slayers.SCMPParameterProblem{
 		Pointer: uint16(pointer),
 	}
 
 	if err := gopacket.SerializeLayers(want, options,
-		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
+		ethernet, ip, udp, scionL, e2e, scmpH, scmpP, gopacket.Payload(quote),
 	); err != nil {
 		panic(err)
 	}
 
 	return runner.Case{
-		Name:     "SCMPInvalidHopParentToParent",
-		WriteTo:  "veth_131_host",
-		ReadFrom: "veth_131_host",
-		Input:    input.Bytes(),
-		Want:     want.Bytes(),
-		StoreDir: filepath.Join(artifactsDir, "SCMPInvalidHopParentToParent"),
+		Name:            "SCMPInvalidHopParentToParent",
+		WriteTo:         "veth_131_host",
+		ReadFrom:        "veth_131_host",
+		Input:           input.Bytes(),
+		Want:            want.Bytes(),
+		StoreDir:        filepath.Join(artifactsDir, "SCMPInvalidHopParentToParent"),
+		NormalizePacket: scmpNormalizePacket,
 	}
 }
 
@@ -318,31 +321,34 @@ func SCMPInvalidHopChildToChild(artifactsDir string, mac hash.Hash) runner.Case 
 		panic(err)
 	}
 
-	scionL.NextHdr = slayers.L4SCMP
+	scionL.NextHdr = slayers.End2EndClass
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
+	e2e.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(
 			slayers.SCMPTypeParameterProblem,
 			slayers.SCMPCodeInvalidPath,
 		),
 	}
-	scmpH.SetNetworkLayerForChecksum(scionL)
 
+	scmpH.SetNetworkLayerForChecksum(scionL)
 	scmpP := &slayers.SCMPParameterProblem{
 		Pointer: uint16(pointer),
 	}
 
 	if err := gopacket.SerializeLayers(want, options,
-		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
+		ethernet, ip, udp, scionL, e2e, scmpH, scmpP, gopacket.Payload(quote),
 	); err != nil {
 		panic(err)
 	}
 
 	return runner.Case{
-		Name:     "SCMPInvalidHopChildToChild",
-		WriteTo:  "veth_141_host",
-		ReadFrom: "veth_141_host",
-		Input:    input.Bytes(),
-		Want:     want.Bytes(),
-		StoreDir: filepath.Join(artifactsDir, "SCMPInvalidHopChildToChild"),
+		Name:            "SCMPInvalidHopChildToChild",
+		WriteTo:         "veth_141_host",
+		ReadFrom:        "veth_141_host",
+		Input:           input.Bytes(),
+		Want:            want.Bytes(),
+		StoreDir:        filepath.Join(artifactsDir, "SCMPInvalidHopChildToChild"),
+		NormalizePacket: scmpNormalizePacket,
 	}
 }

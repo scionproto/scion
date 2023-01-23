@@ -197,8 +197,8 @@ func SCMPParentToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 
 	return runner.Case{
 		Name:            "SCMPParentToParentXover",
-		WriteTo:         "veth_121_host",
-		ReadFrom:        "veth_121_host",
+		WriteTo:         "veth_131_host",
+		ReadFrom:        "veth_131_host",
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPParentToParentXover"),
@@ -373,8 +373,8 @@ func SCMPParentToChildXover(artifactsDir string, mac hash.Hash) runner.Case {
 
 	return runner.Case{
 		Name:            "SCMPParentToChildXover",
-		WriteTo:         "veth_121_host",
-		ReadFrom:        "veth_121_host",
+		WriteTo:         "veth_131_host",
+		ReadFrom:        "veth_131_host",
 		Input:           input.Bytes(),
 		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPParentToChildXover"),
