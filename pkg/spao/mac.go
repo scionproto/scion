@@ -110,6 +110,8 @@ func serializeAuthenticatedData(
 	pld []byte,
 ) (int, error) {
 
+	_ = buf[MACBufferSize-1]
+
 	buf[0] = byte(slayers.CmnHdrLen + s.AddrHdrLen() + s.Path.Len())
 	buf[1] = byte(pldType)
 	binary.BigEndian.PutUint16(buf[2:], uint16(len(pld)))
