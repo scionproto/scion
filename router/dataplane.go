@@ -953,7 +953,9 @@ func (p *scionPacketProcessor) invalidDstIA() (processResult, error) {
 // this check prevents malicious end hosts in the local AS from bypassing the
 // SrcIA checks by disguising packets as transit traffic.
 func (p *scionPacketProcessor) validateTransitUnderlaySrc() (processResult, error) {
-	if p.path.IsFirstHop() || p.ingressID != 0 {
+	// XXX(benthor) disabling check in case of peering packet
+	// is probably insecture
+	if p.path.IsFirstHop() || p.ingressID != 0 || p.peering {
 		// not a transit packet, nothing to check
 		return processResult{}, nil
 	}
@@ -995,6 +997,10 @@ func (p *scionPacketProcessor) validateEgressID() (processResult, error) {
 		case ingress == topology.Child && egress == topology.Parent:
 			return processResult{}, nil
 		case ingress == topology.Parent && egress == topology.Child:
+			return processResult{}, nil
+		// XXX(benthor) prevent "InvalidPath" from being raised
+		//        not fully grasping the implications yet though
+		case ingress == topology.Peer || egress == topology.Peer:
 			return processResult{}, nil
 		default: // malicious
 			return p.packSCMP(
