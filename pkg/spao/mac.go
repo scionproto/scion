@@ -156,7 +156,7 @@ func serializeAuthenticatedData(
 func zeroOutMutablePath(orig path.Path, buf []byte) error {
 	err := orig.SerializeTo(buf)
 	if err != nil {
-		return serrors.WrapStr("serializing path for reseting fields", err)
+		return serrors.WrapStr("serializing path for resetting fields", err)
 	}
 	switch p := orig.(type) {
 	case *scion.Raw:

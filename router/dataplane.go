@@ -69,7 +69,7 @@ const (
 	hopFieldDefaultExpTime = 63
 
 	// e2eAuthHdrLen is the length in bytes of added information when a SCMP packet
-	// needs to be authenticated: 16B (e2e.option.Len()) + 16 B(CMAC_tag.Len()).
+	// needs to be authenticated: 16B (e2e.option.Len()) + 16B (CMAC_tag.Len()).
 	e2eAuthHdrLen = 32
 )
 
@@ -1634,7 +1634,7 @@ func (p *scionPacketProcessor) prepareSCMP(
 	scmpH.SetNetworkLayerForChecksum(&scionL)
 
 	// Error messages must be authenticated.
-	// Traceroute are OPTIONALLY authenticated ONLY IF the Request
+	// Traceroute are OPTIONALLY authenticated ONLY IF the request
 	// was authenticated.
 	// TODO(JordiSubira): Reuse the key computed in p.hasValidAuth
 	// if SCMPTypeTracerouteReply to create the response.
@@ -1687,10 +1687,10 @@ func (p *scionPacketProcessor) prepareSCMP(
 		// srcA == scionL.DstAddr
 		key, err := p.drkeyProvider.GetAuthKey(now, scionL.DstIA, srcA)
 		if err != nil {
-			return nil, err
+			return nil, serrors.Wrap(cannotRoute, err, "details", "retrieving DRKey")
 		}
 		if err := p.resetSPAOMetadata(now); err != nil {
-			return nil, err
+			return nil, serrors.Wrap(cannotRoute, err, "details", "resetting SPAO header")
 		}
 
 		e2e.Options = []*slayers.EndToEndOption{p.optAuth.EndToEndOption}
@@ -1725,7 +1725,7 @@ func (p *scionPacketProcessor) prepareSCMP(
 func (p *scionPacketProcessor) resetSPAOMetadata(now time.Time) error {
 	// For creating SCMP responses we use sender side.
 	dir := slayers.PacketAuthSenderSide
-	// TODO(JordiSubira): At the moment, We assume the later epoch at the moment.
+	// TODO(JordiSubira): We assume the later epoch at the moment.
 	// If the authentication stems from an authenticated request, we want to use
 	// the same key as the one used by the request sender.
 	epoch := slayers.PacketAuthLater

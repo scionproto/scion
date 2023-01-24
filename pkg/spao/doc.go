@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package spao implements the logic needed to provide support to the
+// Package spao implements the logic needed to provide support for the
 // SCION Packet Authenticator Option defined on:
 // https://docs.scion.org/en/latest/protocols/authenticator-option.html
 //
