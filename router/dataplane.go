@@ -34,6 +34,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/drkey"
 	libepic "github.com/scionproto/scion/pkg/experimental/epic"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -45,6 +46,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path/epic"
 	"github.com/scionproto/scion/pkg/slayers/path/onehop"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
+	"github.com/scionproto/scion/pkg/spao"
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/underlay/conn"
 	underlayconn "github.com/scionproto/scion/private/underlay/conn"
@@ -65,6 +67,10 @@ const (
 	// hopFieldDefaultExpTime is the default validity of the hop field
 	// and 63 is equivalent to 6h.
 	hopFieldDefaultExpTime = 63
+
+	// e2eAuthHdrLen is the length in bytes of added information when a SCMP packet
+	// needs to be authenticated: 16B (e2e.option.Len()) + 16B (CMAC_tag.Len()).
+	e2eAuthHdrLen = 32
 )
 
 type bfdSession interface {
@@ -120,7 +126,14 @@ var (
 	noBFDSessionFound             = serrors.New("no BFD sessions was found")
 	noBFDSessionConfigured        = serrors.New("no BFD sessions have been configured")
 	errBFDDisabled                = serrors.New("BFD is disabled")
+	// zeroBuffer will be used to reset the Authenticator option in the
+	// scionPacketProcessor.OptAuth
+	zeroBuffer = make([]byte, 16)
 )
+
+type drkeyProvider interface {
+	GetAuthKey(validTime time.Time, dstIA addr.IA, dstAddr net.Addr) (drkey.Key, error)
+}
 
 type scmpError struct {
 	TypeCode slayers.SCMPTypeCode
@@ -563,7 +576,12 @@ func newPacketProcessor(d *DataPlane, ingressID uint16) *scionPacketProcessor {
 		macBuffers: macBuffers{
 			scionInput: make([]byte, path.MACBufferSize),
 			epicInput:  make([]byte, libepic.MACBufferSize),
+			drkeyInput: make([]byte, spao.MACBufferSize),
 		},
+		// TODO(JordiSubira): Replace this with a useful implementation.
+		drkeyProvider: &fakeProvider{},
+		optAuth:       slayers.PacketAuthOption{EndToEndOption: new(slayers.EndToEndOption)},
+		validAuthBuf:  make([]byte, 16),
 	}
 	p.scionLayer.RecyclePaths()
 	return p
@@ -581,6 +599,10 @@ func (p *scionPacketProcessor) reset() error {
 	}
 	p.mac.Reset()
 	p.cachedMac = nil
+	// Reset hbh layer
+	p.hbhLayer = slayers.HopByHopExtnSkipper{}
+	// Reset e2e layer
+	p.e2eLayer = slayers.EndToEndExtnSkipper{}
 	return nil
 }
 
@@ -772,12 +794,21 @@ type scionPacketProcessor struct {
 
 	// bfdLayer is reusable buffer for parsing BFD messages
 	bfdLayer layers.BFD
+	// optAuth is a reusable Packet Authenticator Option
+	optAuth slayers.PacketAuthOption
+	// validAuthBuf is a reusable buffer for the authentication tag
+	// to be used in the hasValidAuth() method.
+	validAuthBuf []byte
+
+	// DRKey key derivation for SCMP authentication
+	drkeyProvider drkeyProvider
 }
 
 // macBuffers are preallocated buffers for the in- and outputs of MAC functions.
 type macBuffers struct {
 	scionInput []byte
 	epicInput  []byte
+	drkeyInput []byte
 }
 
 func (p *scionPacketProcessor) packSCMP(
@@ -1602,18 +1633,22 @@ func (p *scionPacketProcessor) prepareSCMP(
 	scmpH := slayers.SCMP{TypeCode: typeCode}
 	scmpH.SetNetworkLayerForChecksum(&scionL)
 
-	if err := p.buffer.Clear(); err != nil {
-		return nil, err
-	}
+	// Error messages must be authenticated.
+	// Traceroute are OPTIONALLY authenticated ONLY IF the request
+	// was authenticated.
+	// TODO(JordiSubira): Reuse the key computed in p.hasValidAuth
+	// if SCMPTypeTracerouteReply to create the response.
+	needsAuth := cause != nil ||
+		(scmpH.TypeCode.Type() == slayers.SCMPTypeTracerouteReply &&
+			p.hasValidAuth())
 
-	sopts := gopacket.SerializeOptions{
-		ComputeChecksums: true,
-		FixLengths:       true,
-	}
-	scmpLayers := []gopacket.SerializableLayer{&scionL, &scmpH, scmpP}
+	var quote []byte
 	if cause != nil {
 		// add quote for errors.
 		hdrLen := slayers.CmnHdrLen + scionL.AddrHdrLen() + scionL.Path.Len()
+		if needsAuth {
+			hdrLen += e2eAuthHdrLen
+		}
 		switch scmpH.TypeCode.Type() {
 		case slayers.SCMPTypeExternalInterfaceDown:
 			hdrLen += 20
@@ -1622,19 +1657,162 @@ func (p *scionPacketProcessor) prepareSCMP(
 		default:
 			hdrLen += 8
 		}
-		quote := p.rawPkt
+		quote = p.rawPkt
 		maxQuoteLen := slayers.MaxSCMPPacketLen - hdrLen
 		if len(quote) > maxQuoteLen {
 			quote = quote[:maxQuoteLen]
 		}
-		scmpLayers = append(scmpLayers, gopacket.Payload(quote))
 	}
+
+	if err := p.buffer.Clear(); err != nil {
+		return nil, err
+	}
+	sopts := gopacket.SerializeOptions{
+		ComputeChecksums: true,
+		FixLengths:       true,
+	}
+	// First write the SCMP message only without the SCION header(s) to get a buffer that we
+	// can (re-)use as input in the MAC computation.
 	// XXX(matzf) could we use iovec gather to avoid copying quote?
-	err = gopacket.SerializeLayers(p.buffer, sopts, scmpLayers...)
+	err = gopacket.SerializeLayers(p.buffer, sopts, &scmpH, scmpP, gopacket.Payload(quote))
 	if err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "serializing SCMP message")
 	}
-	return p.buffer.Bytes(), scmpError{TypeCode: typeCode, Cause: cause}
+
+	if needsAuth {
+		var e2e slayers.EndToEndExtn
+		scionL.NextHdr = slayers.End2EndClass
+
+		now := time.Now()
+		// srcA == scionL.DstAddr
+		key, err := p.drkeyProvider.GetAuthKey(now, scionL.DstIA, srcA)
+		if err != nil {
+			return nil, serrors.Wrap(cannotRoute, err, "details", "retrieving DRKey")
+		}
+		if err := p.resetSPAOMetadata(now); err != nil {
+			return nil, serrors.Wrap(cannotRoute, err, "details", "resetting SPAO header")
+		}
+
+		e2e.Options = []*slayers.EndToEndOption{p.optAuth.EndToEndOption}
+		e2e.NextHdr = slayers.L4SCMP
+		_, err = spao.ComputeAuthCMAC(
+			spao.MACInput{
+				Key:        key[:],
+				Header:     p.optAuth,
+				ScionLayer: &scionL,
+				PldType:    slayers.L4SCMP,
+				Pld:        p.buffer.Bytes(),
+			},
+			p.macBuffers.drkeyInput,
+			p.optAuth.Authenticator(),
+		)
+		if err != nil {
+			return nil, serrors.Wrap(cannotRoute, err, "details", "computing CMAC")
+		}
+		if err := e2e.SerializeTo(p.buffer, sopts); err != nil {
+			return nil, serrors.Wrap(cannotRoute, err, "details", "serializing SCION E2E headers")
+		}
+	} else {
+		scionL.NextHdr = slayers.L4SCMP
+	}
+	if err := scionL.SerializeTo(p.buffer, sopts); err != nil {
+		return nil, serrors.Wrap(cannotRoute, err, "details", "serializing SCION header")
+	}
+
+	return p.buffer.Bytes(), scmpError{TypeCode: scmpH.TypeCode, Cause: cause}
+}
+
+func (p *scionPacketProcessor) resetSPAOMetadata(now time.Time) error {
+	// For creating SCMP responses we use sender side.
+	dir := slayers.PacketAuthSenderSide
+	// TODO(JordiSubira): We assume the later epoch at the moment.
+	// If the authentication stems from an authenticated request, we want to use
+	// the same key as the one used by the request sender.
+	epoch := slayers.PacketAuthLater
+	drkeyType := slayers.PacketAuthASHost
+
+	spi, err := slayers.MakePacketAuthSPIDRKey(uint16(drkey.SCMP), drkeyType, dir, epoch)
+	if err != nil {
+		return err
+	}
+
+	firstInfo, err := p.path.GetInfoField(0)
+	if err != nil {
+		return err
+	}
+
+	timestamp, err := spao.RelativeTimestamp(firstInfo.Timestamp, now)
+	if err != nil {
+		return err
+	}
+
+	// XXX(JordiSubira): Assume that send rate is low so that combination
+	// with timestamp is always unique
+	sn := uint32(0)
+	return p.optAuth.Reset(slayers.PacketAuthOptionParams{
+		SPI:            spi,
+		Algorithm:      slayers.PacketAuthCMAC,
+		Timestamp:      timestamp,
+		SequenceNumber: sn,
+		Auth:           zeroBuffer,
+	})
+}
+
+func (p *scionPacketProcessor) hasValidAuth() bool {
+	// Check if e2eLayer was parsed for this packet
+	if !p.lastLayer.CanDecode().Contains(slayers.LayerTypeEndToEndExtn) {
+		return false
+	}
+	// Parse incoming authField
+	e2eLayer := &slayers.EndToEndExtn{}
+	if err := e2eLayer.DecodeFromBytes(
+		p.e2eLayer.Contents,
+		gopacket.NilDecodeFeedback,
+	); err != nil {
+		return false
+	}
+	e2eOption, err := e2eLayer.FindOption(slayers.OptTypeAuthenticator)
+	if err != nil {
+		return false
+	}
+	authOption, err := slayers.ParsePacketAuthOption(e2eOption)
+	if err != nil {
+		return false
+	}
+	// Computing authField
+	firstInfo, err := p.path.GetInfoField(0)
+	if err != nil {
+		return false
+	}
+	then := spao.Time(firstInfo.Timestamp, authOption.Timestamp())
+	srcAddr, err := p.scionLayer.SrcAddr()
+	if err != nil {
+		return false
+	}
+	// the sender should have used the receiver side key, i.e., K_{localIA-remoteIA:remoteHost}
+	// where remoteIA == p.scionLayer.SrcIA and remoteHost == srcAddr
+	// (for the incoming packet).
+	key, err := p.drkeyProvider.GetAuthKey(then, p.scionLayer.SrcIA, srcAddr)
+	if err != nil {
+		return false
+	}
+	_, err = spao.ComputeAuthCMAC(
+		spao.MACInput{
+			Key:        key[:],
+			Header:     authOption,
+			ScionLayer: &p.scionLayer,
+			PldType:    slayers.L4SCMP,
+			Pld:        p.lastLayer.LayerPayload(),
+		},
+		p.macBuffers.drkeyInput,
+		p.validAuthBuf,
+	)
+	if err != nil {
+		return false
+	}
+
+	// compare incoming authField with computed authentication tag
+	return subtle.ConstantTimeCompare(authOption.Authenticator(), p.validAuthBuf) != 0
 }
 
 // decodeLayers implements roughly the functionality of
@@ -1721,4 +1899,14 @@ func serviceMetricLabels(localIA addr.IA, svc addr.HostSVC) prometheus.Labels {
 		"isd_as":  localIA.String(),
 		"service": svc.BaseString(),
 	}
+}
+
+type fakeProvider struct{}
+
+func (p *fakeProvider) GetAuthKey(
+	_ time.Time,
+	_ addr.IA,
+	_ net.Addr,
+) (drkey.Key, error) {
+	return drkey.Key{}, nil
 }

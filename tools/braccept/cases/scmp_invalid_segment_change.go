@@ -172,7 +172,9 @@ func SCMPParentToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 		panic(err)
 	}
 
-	scionL.NextHdr = slayers.L4SCMP
+	scionL.NextHdr = slayers.End2EndClass
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
+	e2e.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(
 			slayers.SCMPTypeParameterProblem,
@@ -188,18 +190,19 @@ func SCMPParentToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	if err := gopacket.SerializeLayers(want, options,
-		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
+		ethernet, ip, udp, scionL, e2e, scmpH, scmpP, gopacket.Payload(quote),
 	); err != nil {
 		panic(err)
 	}
 
 	return runner.Case{
-		Name:     "SCMPParentToParentXover",
-		WriteTo:  "veth_131_host",
-		ReadFrom: "veth_131_host",
-		Input:    input.Bytes(),
-		Want:     want.Bytes(),
-		StoreDir: filepath.Join(artifactsDir, "SCMPParentToParentXover"),
+		Name:            "SCMPParentToParentXover",
+		WriteTo:         "veth_131_host",
+		ReadFrom:        "veth_131_host",
+		Input:           input.Bytes(),
+		Want:            want.Bytes(),
+		StoreDir:        filepath.Join(artifactsDir, "SCMPParentToParentXover"),
+		NormalizePacket: scmpNormalizePacket,
 	}
 }
 
@@ -344,7 +347,9 @@ func SCMPParentToChildXover(artifactsDir string, mac hash.Hash) runner.Case {
 		panic(err)
 	}
 
-	scionL.NextHdr = slayers.L4SCMP
+	scionL.NextHdr = slayers.End2EndClass
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
+	e2e.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(
 			slayers.SCMPTypeParameterProblem,
@@ -361,18 +366,19 @@ func SCMPParentToChildXover(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	if err := gopacket.SerializeLayers(want, options,
-		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
+		ethernet, ip, udp, scionL, e2e, scmpH, scmpP, gopacket.Payload(quote),
 	); err != nil {
 		panic(err)
 	}
 
 	return runner.Case{
-		Name:     "SCMPParentToChildXover",
-		WriteTo:  "veth_131_host",
-		ReadFrom: "veth_131_host",
-		Input:    input.Bytes(),
-		Want:     want.Bytes(),
-		StoreDir: filepath.Join(artifactsDir, "SCMPParentToChildXover"),
+		Name:            "SCMPParentToChildXover",
+		WriteTo:         "veth_131_host",
+		ReadFrom:        "veth_131_host",
+		Input:           input.Bytes(),
+		Want:            want.Bytes(),
+		StoreDir:        filepath.Join(artifactsDir, "SCMPParentToChildXover"),
+		NormalizePacket: scmpNormalizePacket,
 	}
 }
 
@@ -520,7 +526,9 @@ func SCMPChildToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 		panic(err)
 	}
 
-	scionL.NextHdr = slayers.L4SCMP
+	scionL.NextHdr = slayers.End2EndClass
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
+	e2e.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(
 			slayers.SCMPTypeParameterProblem,
@@ -536,18 +544,19 @@ func SCMPChildToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	if err := gopacket.SerializeLayers(want, options,
-		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
+		ethernet, ip, udp, scionL, e2e, scmpH, scmpP, gopacket.Payload(quote),
 	); err != nil {
 		panic(err)
 	}
 
 	return runner.Case{
-		Name:     "SCMPChildToParentXover",
-		WriteTo:  "veth_141_host",
-		ReadFrom: "veth_141_host",
-		Input:    input.Bytes(),
-		Want:     want.Bytes(),
-		StoreDir: filepath.Join(artifactsDir, "SCMPChildToParentXover"),
+		Name:            "SCMPChildToParentXover",
+		WriteTo:         "veth_141_host",
+		ReadFrom:        "veth_141_host",
+		Input:           input.Bytes(),
+		Want:            want.Bytes(),
+		StoreDir:        filepath.Join(artifactsDir, "SCMPChildToParentXover"),
+		NormalizePacket: scmpNormalizePacket,
 	}
 }
 
@@ -692,7 +701,9 @@ func SCMPInternalXover(artifactsDir string, mac hash.Hash) runner.Case {
 		panic(err)
 	}
 
-	scionL.NextHdr = slayers.L4SCMP
+	scionL.NextHdr = slayers.End2EndClass
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
+	e2e.NextHdr = slayers.L4SCMP
 	scmpH = &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(
 			slayers.SCMPTypeParameterProblem,
@@ -708,17 +719,18 @@ func SCMPInternalXover(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	if err := gopacket.SerializeLayers(want, options,
-		ethernet, ip, udp, scionL, scmpH, scmpReplyP, gopacket.Payload(quote),
+		ethernet, ip, udp, scionL, e2e, scmpH, scmpReplyP, gopacket.Payload(quote),
 	); err != nil {
 		panic(err)
 	}
 
 	return runner.Case{
-		Name:     "SCMPInternalXover",
-		WriteTo:  "veth_int_host",
-		ReadFrom: "veth_int_host",
-		Input:    input.Bytes(),
-		Want:     want.Bytes(),
-		StoreDir: filepath.Join(artifactsDir, "SCMPInternalXover"),
+		Name:            "SCMPInternalXover",
+		WriteTo:         "veth_int_host",
+		ReadFrom:        "veth_int_host",
+		Input:           input.Bytes(),
+		Want:            want.Bytes(),
+		StoreDir:        filepath.Join(artifactsDir, "SCMPInternalXover"),
+		NormalizePacket: scmpNormalizePacket,
 	}
 }

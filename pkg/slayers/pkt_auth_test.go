@@ -27,8 +27,8 @@ import (
 
 var (
 	algo       = slayers.PacketAuthSHA1_AES_CBC
-	ts         = binary.LittleEndian.Uint32([]byte{1, 2, 3, 0})
-	sn         = binary.LittleEndian.Uint32([]byte{4, 5, 6, 0})
+	ts         = uint32(0x030201)
+	sn         = uint32(0x060504)
 	optAuthMAC = []byte("16byte_mac_foooo")
 )
 
