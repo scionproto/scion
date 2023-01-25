@@ -16,7 +16,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -34,7 +33,6 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"inet.af/netaddr"
@@ -167,38 +165,6 @@ func realMain(ctx context.Context) error {
 		return err
 	}
 
-	nc := infraenv.NetworkConfig{
-		IA:                    topo.IA(),
-		Public:                topo.ControlServiceAddress(globalCfg.General.ID),
-		ReconnectToDispatcher: globalCfg.General.ReconnectToDispatcher,
-		QUIC: infraenv.QUIC{
-			Address: globalCfg.QUIC.Address,
-		},
-		SVCResolver: topo,
-		SCMPHandler: snet.DefaultSCMPHandler{
-			RevocationHandler: cs.RevocationHandler{RevCache: revCache},
-			SCMPErrors:        metrics.SCMPErrors,
-		},
-		SCIONNetworkMetrics:    metrics.SCIONNetworkMetrics,
-		SCIONPacketConnMetrics: metrics.SCIONPacketConnMetrics,
-	}
-	quicStack, err := nc.QUICStack()
-	if err != nil {
-		return serrors.WrapStr("initializing QUIC stack", err)
-	}
-	defer quicStack.RedirectCloser()
-	tcpStack, err := nc.TCPStack()
-	if err != nil {
-		return serrors.WrapStr("initializing TCP stack", err)
-	}
-	dialer := &libgrpc.QUICDialer{
-		Rewriter: &onehop.AddressRewriter{
-			Rewriter: nc.AddressRewriter(nil),
-			MAC:      macGen(),
-		},
-		Dialer: quicStack.Dialer,
-	}
-
 	trustDB, err := storage.NewTrustStorage(globalCfg.TrustDB)
 	if err != nil {
 		return serrors.WrapStr("initializing trust storage", err)
@@ -231,6 +197,46 @@ func realMain(ctx context.Context) error {
 	})
 	if err := cs.LoadTrustMaterial(ctx, globalCfg.General.ConfigDir, trustDB); err != nil {
 		return err
+	}
+
+	loader := trust.X509KeyPairProvider{
+		IA: topo.IA(),
+		DB: trustDB,
+		KeyLoader: cstrust.LoadingRing{
+			Dir: filepath.Join(globalCfg.General.ConfigDir, "crypto/as"),
+		},
+	}
+	nc := infraenv.NetworkConfig{
+		IA:                    topo.IA(),
+		Public:                topo.ControlServiceAddress(globalCfg.General.ID),
+		ReconnectToDispatcher: globalCfg.General.ReconnectToDispatcher,
+		QUIC: infraenv.QUIC{
+			Address:    globalCfg.QUIC.Address,
+			TLSManager: trust.NewTLSCryptoManager(loader, trustDB),
+		},
+		SVCResolver: topo,
+		SCMPHandler: snet.DefaultSCMPHandler{
+			RevocationHandler: cs.RevocationHandler{RevCache: revCache},
+			SCMPErrors:        metrics.SCMPErrors,
+		},
+		SCIONNetworkMetrics:    metrics.SCIONNetworkMetrics,
+		SCIONPacketConnMetrics: metrics.SCIONPacketConnMetrics,
+	}
+	quicStack, err := nc.QUICStack()
+	if err != nil {
+		return serrors.WrapStr("initializing QUIC stack", err)
+	}
+	defer quicStack.RedirectCloser()
+	tcpStack, err := nc.TCPStack()
+	if err != nil {
+		return serrors.WrapStr("initializing TCP stack", err)
+	}
+	dialer := &libgrpc.QUICDialer{
+		Rewriter: &onehop.AddressRewriter{
+			Rewriter: nc.AddressRewriter(nil),
+			MAC:      macGen(),
+		},
+		Dialer: quicStack.InsecureDialer,
 	}
 
 	beaconDB, err := storage.NewBeaconStorage(globalCfg.BeaconDB, topo.IA())
@@ -300,7 +306,10 @@ func realMain(ctx context.Context) error {
 		Router: segreq.NewRouter(fetcherCfg),
 	}
 
-	quicServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())
+	quicServer := grpc.NewServer(
+		grpc.Creds(libgrpc.PassThroughCredentials{}),
+		libgrpc.UnaryServerInterceptor(),
+	)
 	tcpServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())
 
 	// Register trust material related handlers.
@@ -568,7 +577,6 @@ func realMain(ctx context.Context) error {
 
 	// DRKey feature
 	var drkeyEngine *drkey.ServiceEngine
-	var quicTLSServer *grpc.Server
 	var epochDuration time.Duration
 	if globalCfg.DRKey.Enabled() {
 		epochDuration, err = loadEpochDuration()
@@ -614,23 +622,10 @@ func realMain(ctx context.Context) error {
 			},
 		}
 		defer level1DB.Close()
-		loader := trust.X509KeyPairProvider{
-			IA: topo.IA(),
-			DB: trustDB,
-			KeyLoader: cstrust.LoadingRing{
-				Dir: filepath.Join(globalCfg.General.ConfigDir, "crypto/as"),
-			},
-		}
-		tlsMgr := trust.NewTLSCryptoManager(loader, trustDB)
 		drkeyFetcher := drkeygrpc.Fetcher{
-			Dialer: &libgrpc.TLSQUICDialer{
-				QUICDialer: dialer,
-				Credentials: credentials.NewTLS(&tls.Config{
-					InsecureSkipVerify:    true,
-					GetClientCertificate:  tlsMgr.GetClientCertificate,
-					VerifyPeerCertificate: tlsMgr.VerifyServerCertificate,
-					VerifyConnection:      tlsMgr.VerifyConnection,
-				}),
+			Dialer: &libgrpc.QUICDialer{
+				Rewriter: nc.AddressRewriter(nil),
+				Dialer:   quicStack.Dialer,
 			},
 			Router:     segreq.NewRouter(fetcherCfg),
 			MaxRetries: 20,
@@ -647,21 +642,12 @@ func realMain(ctx context.Context) error {
 			PrefetchKeeper: prefetchKeeper,
 		}
 		drkeyService := &drkeygrpc.Server{
-			LocalIA:            topo.IA(),
-			Engine:             drkeyEngine,
-			AllowedSVHostProto: globalCfg.DRKey.Delegation.ToAllowedSet(),
+			LocalIA:                   topo.IA(),
+			ClientCertificateVerifier: nc.QUIC.TLSManager,
+			Engine:                    drkeyEngine,
+			AllowedSVHostProto:        globalCfg.DRKey.Delegation.ToAllowedSet(),
 		}
-		srvConfig := &tls.Config{
-			InsecureSkipVerify:    true,
-			GetCertificate:        tlsMgr.GetCertificate,
-			VerifyPeerCertificate: tlsMgr.VerifyClientCertificate,
-			ClientAuth:            tls.RequireAnyClientCert,
-		}
-		quicTLSServer = grpc.NewServer(
-			grpc.Creds(credentials.NewTLS(srvConfig)),
-			libgrpc.UnaryServerInterceptor(),
-		)
-		cppb.RegisterDRKeyInterServiceServer(quicTLSServer, drkeyService)
+		cppb.RegisterDRKeyInterServiceServer(quicServer, drkeyService)
 		cppb.RegisterDRKeyIntraServiceServer(tcpServer, drkeyService)
 		log.Info("DRKey is enabled")
 	} else {
@@ -680,16 +666,6 @@ func realMain(ctx context.Context) error {
 		return nil
 	})
 	cleanup.Add(func() error { quicServer.GracefulStop(); return nil })
-	if quicTLSServer != nil {
-		g.Go(func() error {
-			defer log.HandlePanic()
-			if err := quicTLSServer.Serve(quicStack.Listener); err != nil {
-				return serrors.WrapStr("serving gRPC(TLS)/QUIC API", err)
-			}
-			return nil
-		})
-		cleanup.Add(func() error { quicTLSServer.GracefulStop(); return nil })
-	}
 	g.Go(func() error {
 		defer log.HandlePanic()
 		if err := tcpServer.Serve(tcpStack); err != nil {
