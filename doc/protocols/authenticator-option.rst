@@ -145,7 +145,7 @@ Protocol Identifier
 .. _spao-timestamp:
 
 Absolute time and DRKey derivation
-=============================
+==================================
 
 Firstly, the receiver entity defines an *acceptance window*.
 An *acceptance window* (aw) is a time range of width *a* around the receiver current time *T*,
@@ -153,25 +153,27 @@ i.e.,:
 
 :math:`aw := [T-a/2, T +a/2)`
 
-(i) We consider the minimum DRKey epoch length as the upper bound for the acceptance windows.
+
+[i] We consider the minimum DRKey epoch length as the upper bound for the acceptance windows.
 
 The receiver entity derives the absolute timestamp and the associated DRKey by:
 
 1. Given a time instant *T*, considering:
-  - Epoch :math:`E_{i}` as the one whose time range includes *T*.
-  - Epoch :math:`E_{i-1}` as the prior epoch to :math:`E_{i}`.
-  - Epoch :math:`E_{i+1}` as the subsequent epoch to :math:`E_{i}`.
+
+   - Epoch :math:`E_{i}` as the one whose time range includes *T*.
+   - Epoch :math:`E_{i-1}` as the prior epoch to :math:`E_{i}`.
+   - Epoch :math:`E_{i+1}` as the subsequent epoch to :math:`E_{i}`.
 
 2. Adding the relative timestamp (*rt*) (the one in :ref:`SPAO Header<authenticator-option>`) to
    the start time for :math:`E_{i-1}`, :math:`E_{i}` and :math:`E_{i+1}`, 
    computing the respective *absolute times* (*at*):
    :math:`at_{i-1}`, :math:`at_{i}` and :math:`at_{i+1}`.
-3. Given (i) at most one *absolute time* will be within *aw*.
+3. Given [i] at most one *absolute time* will be within *aw*.
 4. The candidate DRKey is the key whose epoch is associated to *at*,
    e.g., if *at* is :math:`at_{i-1}` the key belong to :math:`E_{i-1}`.
 
 Note that `at_{i-1}` might, for instance be within the :ref:`Grace period<drkey-grace>`, i.e.,
-overlapping at `E_{i}`. Nevertheless, due to (i) we can unambigously distingish it.
+overlapping at `E_{i}`. Nevertheless, due to [i] we can unambigously distingish it.
 
 
 Authenticated Data
@@ -406,14 +408,11 @@ The following goals/constraints led to this design:
   don't want it between the other fields and the SHA1 hash.
 
 - When the *Ts*/*SN* field is used with DRKey SPI, the 48-bits in the field allow to 
-  cover the maximum DRKey epoch length with granularity of 1 nanosecond, since:
+  cover the maximum DRKey epoch length plus the :ref:`Grace period<drkey-grace>`
+  with granularity of 1 nanosecond, since:
 
-  .. math::
-      q := \left\lceil\left(
-        \frac{3 \times 24 \times 60 \times 60 \times 10^9}
-             {2^{48}}
-      \right)\right\rceil ms
-          < 1 ns.\\
+  .. math:: 
+        (3 \times 24 \times 60 \times 60 + 5) \times 10^9 < {2^{48}}
 
 - When the *Ts*/*SN* field is used with DRKey SPI, the application can use a clock that is less
   accurate than 1 nanosecond and fill out the less significant bits with a counter.
