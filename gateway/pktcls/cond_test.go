@@ -221,7 +221,7 @@ func createUDPPacket(src, dst uint16) gopacket.Layer {
 		SrcPort: layers.UDPPort(src),
 		DstPort: layers.UDPPort(dst),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 	payload := []byte("payload")
 	input := gopacket.NewSerializeBuffer()
 	options := gopacket.SerializeOptions{
@@ -233,7 +233,9 @@ func createUDPPacket(src, dst uint16) gopacket.Layer {
 		panic(err)
 	}
 	pkt := &layers.IPv4{}
-	pkt.DecodeFromBytes(input.Bytes(), gopacket.NilDecodeFeedback)
+	if err := pkt.DecodeFromBytes(input.Bytes(), gopacket.NilDecodeFeedback); err != nil {
+		panic(err)
+	}
 	return pkt
 }
 

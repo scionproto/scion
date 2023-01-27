@@ -1,8 +1,16 @@
 #!/bin/bash
 
-tf=$(mktemp --tmpdir scion-quiet.XXXXXXX)
-"$@" &>"$tf"
-result=$?
-[ $result -eq 0 ] || cat "$tf"
-rm "$tf"
-exit $result
+tmpfile=$(mktemp /tmp/scion-silent.XXXXXX)
+if [ -t 1 ]; then
+  # Simple redirect to file loses color for commands that automatically determine if output is a TTY.
+  # Avoid this by using "script", as suggested e.g. here https://stackoverflow.com/a/32981392/4666991
+  script -qefc "$(printf "%q " "$@")" /dev/null >& $tmpfile
+else
+  "$@" >& $tmpfile
+fi
+ret=$?
+if [ $ret -ne 0 ]; then
+    cat $tmpfile
+fi
+rm $tmpfile
+exit $ret

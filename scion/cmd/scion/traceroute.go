@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -24,7 +25,9 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -34,10 +37,24 @@ import (
 	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/flag"
 	"github.com/scionproto/scion/private/app/path"
+	"github.com/scionproto/scion/private/path/pathpol"
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/tracing"
 	"github.com/scionproto/scion/scion/traceroute"
 )
+
+type ResultTraceroute struct {
+	Path Path      `json:"path" yaml:"path"`
+	Hops []HopInfo `json:"hops" yaml:"hops"`
+}
+
+type HopInfo struct {
+	InterfaceID uint16 `json:"interface_id" yaml:"interface_id"`
+	// IP address of the router responding to the traceroute request.
+	IP             string           `json:"ip" yaml:"ip"`
+	IA             addr.IA          `json:"isd_as" yaml:"isd_as"`
+	RoundTripTimes []durationMillis `json:"round_trip_times" yaml:"round_trip_times"`
+}
 
 func newTraceroute(pather CommandPather) *cobra.Command {
 	var envFlags flag.SCIONEnvironment
@@ -51,6 +68,7 @@ func newTraceroute(pather CommandPather) *cobra.Command {
 		timeout     time.Duration
 		tracer      string
 		epic        bool
+		format      string
 	}
 
 	var cmd = &cobra.Command{
@@ -79,7 +97,10 @@ On other errors, traceroute will exit with code 2.
 				return serrors.WrapStr("setting up tracing", err)
 			}
 			defer closer()
-
+			printf, err := getPrintf(flags.format, cmd.OutOrStdout())
+			if err != nil {
+				return serrors.WrapStr("get formatting", err)
+			}
 			cmd.SilenceUsage = true
 
 			if err := envFlags.LoadExternalVars(); err != nil {
@@ -137,9 +158,23 @@ On other errors, traceroute will exit with code 2.
 				if localIP, err = addrutil.ResolveLocal(target); err != nil {
 					return serrors.WrapStr("resolving local address", err)
 				}
-				fmt.Printf("Resolved local address:\n  %s\n", localIP)
+				printf("Resolved local address:\n  %s\n", localIP)
 			}
-			fmt.Printf("Using path:\n  %s\n\n", path)
+			printf("Using path:\n  %s\n\n", path)
+
+			seq, err := pathpol.GetSequence(path)
+			if err != nil {
+				return serrors.New("get sequence from used path")
+			}
+			var res ResultTraceroute
+			res.Path = Path{
+				Fingerprint: snet.Fingerprint(path).String(),
+				Hops:        getHops(path),
+				Sequence:    seq,
+				LocalIP:     localIP,
+				NextHop:     path.UnderlayNextHop().String(),
+			}
+
 			span.SetTag("src.host", localIP)
 			local := &snet.UDPAddr{
 				IA:   info.IA,
@@ -147,6 +182,7 @@ On other errors, traceroute will exit with code 2.
 			}
 			ctx = app.WithSignal(traceCtx, os.Interrupt, syscall.SIGTERM)
 			var stats traceroute.Stats
+			var updates []traceroute.Update
 			cfg := traceroute.Config{
 				Dispatcher:   reliable.NewDispatcher(dispatcher),
 				Remote:       remote,
@@ -157,7 +193,8 @@ On other errors, traceroute will exit with code 2.
 				ProbesPerHop: 3,
 				ErrHandler:   func(err error) { fmt.Fprintf(os.Stderr, "ERROR: %s\n", err) },
 				UpdateHandler: func(u traceroute.Update) {
-					fmt.Printf("%d %s %s\n", u.Index, fmtRemote(u.Remote, u.Interface),
+					updates = append(updates, u)
+					printf("%d %s %s\n", u.Index, fmtRemote(u.Remote, u.Interface),
 						fmtRTTs(u.RTTs, flags.timeout))
 				},
 				EPIC: flags.epic,
@@ -166,8 +203,25 @@ On other errors, traceroute will exit with code 2.
 			if err != nil {
 				return err
 			}
-			if stats.Sent != stats.Recv {
-				return app.WithExitCode(serrors.New("packets were lost"), 1)
+			res.Hops = make([]HopInfo, 0, len(updates))
+			hops := getHops(path)
+			for i, update := range updates {
+				res.Hops = append(res.Hops, getHopInfo(update, hops[i]))
+			}
+
+			switch flags.format {
+			case "human":
+				if stats.Sent != stats.Recv {
+					return app.WithExitCode(serrors.New("packets were lost"), 1)
+				}
+			case "json":
+				enc := json.NewEncoder(os.Stdout)
+				enc.SetIndent("", "  ")
+				enc.SetEscapeHTML(false)
+				return enc.Encode(res)
+			case "yaml":
+				enc := yaml.NewEncoder(os.Stdout)
+				return enc.Encode(res)
 			}
 			return nil
 		},
@@ -182,6 +236,8 @@ On other errors, traceroute will exit with code 2.
 	cmd.Flags().StringVar(&flags.logLevel, "log.level", "", app.LogLevelUsage)
 	cmd.Flags().StringVar(&flags.tracer, "tracing.agent", "", "Tracing agent address")
 	cmd.Flags().BoolVar(&flags.epic, "epic", false, "Enable EPIC.")
+	cmd.Flags().StringVar(&flags.format, "format", "human",
+		"Specify the output format (human|json|yaml)")
 	return cmd
 }
 
@@ -192,14 +248,30 @@ func fmtRTTs(rtts []time.Duration, timeout time.Duration) string {
 			parts = append(parts, "*")
 			continue
 		}
-		parts = append(parts, rtt.String())
+		parts = append(parts, durationMillis(rtt).String())
 	}
 	return strings.Join(parts, " ")
 }
 
-func fmtRemote(remote *snet.UDPAddr, intf uint64) string {
-	if remote == nil {
+func fmtRemote(remote snet.SCIONAddress, intf uint64) string {
+	if remote == (snet.SCIONAddress{}) {
 		return "??"
 	}
 	return fmt.Sprintf("%s IfID=%d", remote, intf)
+}
+
+func getHopInfo(u traceroute.Update, hop Hop) HopInfo {
+	if u.Remote == (snet.SCIONAddress{}) {
+		return HopInfo{IA: hop.IA, InterfaceID: uint16(hop.ID)}
+	}
+	RTTs := make([]durationMillis, 0, len(u.RTTs))
+	for _, rtt := range u.RTTs {
+		RTTs = append(RTTs, durationMillis(rtt))
+	}
+	return HopInfo{
+		InterfaceID:    uint16(u.Interface),
+		IP:             u.Remote.Host.IP().String(),
+		IA:             u.Remote.IA,
+		RoundTripTimes: RTTs,
+	}
 }

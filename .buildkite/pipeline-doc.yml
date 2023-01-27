@@ -1,0 +1,10 @@
+steps:
+  - label: "Lint doc :bash:"
+    key: lint_doc
+    command:
+      - make lint-doc
+    retry:
+      automatic:
+        - exit_status: -1 # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
+    timeout_in_minutes: 10

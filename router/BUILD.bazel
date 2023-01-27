@@ -12,6 +12,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/addr:go_default_library",
+        "//pkg/drkey:go_default_library",
         "//pkg/experimental/epic:go_default_library",
         "//pkg/log:go_default_library",
         "//pkg/private/common:go_default_library",
@@ -24,6 +25,7 @@ go_library(
         "//pkg/slayers/path/epic:go_default_library",
         "//pkg/slayers/path/onehop:go_default_library",
         "//pkg/slayers/path/scion:go_default_library",
+        "//pkg/spao:go_default_library",
         "//private/topology:go_default_library",
         "//private/underlay/conn:go_default_library",
         "//router/bfd:go_default_library",

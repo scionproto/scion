@@ -1,8 +1,11 @@
 #!/bin/bash
 
 set -e
-
 BASE=$(dirname "$0")
 
-"$BASE/env/debian/deps"
 "$BASE/env/pip3/deps"
+if which apt-get >& /dev/null; then
+  "$BASE/env/debian/deps"
+elif which yum >& /dev/null; then
+  "$BASE/env/rhel/deps"
+fi

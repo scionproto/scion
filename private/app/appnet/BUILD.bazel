@@ -20,6 +20,7 @@ go_library(
         "//pkg/sock/reliable/reconnect:go_default_library",
         "//private/env:go_default_library",
         "//private/svc:go_default_library",
+        "//private/trust:go_default_library",
         "@com_github_lucas_clemente_quic_go//:go_default_library",
     ],
 )

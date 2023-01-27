@@ -563,7 +563,7 @@ func (p *Packet) Serialize() error {
 			"address", p.Source.Host)
 	}
 	if err := scionLayer.SetSrcAddr(netSrcAddr); err != nil {
-		return serrors.WrapStr("settting source address", err)
+		return serrors.WrapStr("setting source address", err)
 	}
 
 	// XXX(roosd): Currently, this does not take the extension headers

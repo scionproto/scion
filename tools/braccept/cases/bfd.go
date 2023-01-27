@@ -77,7 +77,7 @@ func ExternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 		SrcPort: layers.UDPPort(40000),
 		DstPort: layers.UDPPort(50000),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 	localIA, _ := addr.ParseIA("1-ff00:0:1")
 	remoteIA, _ := addr.ParseIA("1-ff00:0:3")
 	ohp := &onehop.Path{
@@ -186,7 +186,7 @@ func InternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 		SrcPort: layers.UDPPort(30003),
 		DstPort: layers.UDPPort(30001),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 	localIA, _ := addr.ParseIA("1-ff00:0:1")
 	scionL := &slayers.SCION{
 		Version:      0,

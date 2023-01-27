@@ -42,7 +42,7 @@ func SCMPParentToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Cas
 
 	ethernet := &layers.Ethernet{
 		SrcMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef},
-		DstMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x12},
+		DstMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x13},
 		EthernetType: layers.EthernetTypeIPv4,
 	}
 
@@ -50,8 +50,8 @@ func SCMPParentToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Cas
 		Version:  4,
 		IHL:      5,
 		TTL:      64,
-		SrcIP:    net.IP{192, 168, 12, 3},
-		DstIP:    net.IP{192, 168, 12, 2},
+		SrcIP:    net.IP{192, 168, 13, 3},
+		DstIP:    net.IP{192, 168, 13, 2},
 		Protocol: layers.IPProtocolUDP,
 		Flags:    layers.IPv4DontFragment,
 	}
@@ -60,7 +60,7 @@ func SCMPParentToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Cas
 		SrcPort: layers.UDPPort(40000),
 		DstPort: layers.UDPPort(50000),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
 	sp := &scion.Decoded{
 		Base: scion.Base{
@@ -88,8 +88,8 @@ func SCMPParentToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Cas
 		},
 		HopFields: []path.HopField{
 			{ConsIngress: 0, ConsEgress: 311},
-			{ConsIngress: 121, ConsEgress: 0},
-			{ConsIngress: 121, ConsEgress: 0},
+			{ConsIngress: 131, ConsEgress: 0},
+			{ConsIngress: 131, ConsEgress: 0},
 			{ConsIngress: 0, ConsEgress: 311},
 		},
 	}
@@ -102,8 +102,8 @@ func SCMPParentToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Cas
 		FlowID:       0xdead,
 		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:2"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:2"),
+		SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
+		DstIA:        xtest.MustParseIA("1-ff00:0:3"),
 		Path:         sp,
 	}
 	srcA := &net.IPAddr{IP: net.ParseIP("172.16.5.1")}
@@ -144,10 +144,10 @@ func SCMPParentToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Cas
 
 	// Prepare want packet
 	want := gopacket.NewSerializeBuffer()
-	ethernet.SrcMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x12}
+	ethernet.SrcMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x13}
 	ethernet.DstMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef}
-	ip.SrcIP = net.IP{192, 168, 12, 2}
-	ip.DstIP = net.IP{192, 168, 12, 3}
+	ip.SrcIP = net.IP{192, 168, 13, 2}
+	ip.DstIP = net.IP{192, 168, 13, 3}
 	udp.SrcPort, udp.DstPort = udp.DstPort, udp.SrcPort
 
 	scionL.DstIA = scionL.SrcIA
@@ -172,7 +172,9 @@ func SCMPParentToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Cas
 		panic(err)
 	}
 
-	scionL.NextHdr = slayers.L4SCMP
+	scionL.NextHdr = slayers.End2EndClass
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
+	e2e.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(
 			slayers.SCMPTypeParameterProblem,
@@ -188,18 +190,19 @@ func SCMPParentToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Cas
 	}
 
 	if err := gopacket.SerializeLayers(want, options,
-		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
+		ethernet, ip, udp, scionL, e2e, scmpH, scmpP, gopacket.Payload(quote),
 	); err != nil {
 		panic(err)
 	}
 
 	return runner.Case{
-		Name:     "SCMPParentToParentLocalXover",
-		WriteTo:  "veth_121_host",
-		ReadFrom: "veth_121_host",
-		Input:    input.Bytes(),
-		Want:     want.Bytes(),
-		StoreDir: filepath.Join(artifactsDir, "SCMPParentToParentLocalXover"),
+		Name:            "SCMPParentToParentLocalXover",
+		WriteTo:         "veth_131_host",
+		ReadFrom:        "veth_131_host",
+		Input:           input.Bytes(),
+		Want:            want.Bytes(),
+		StoreDir:        filepath.Join(artifactsDir, "SCMPParentToParentLocalXover"),
+		NormalizePacket: scmpNormalizePacket,
 	}
 }
 
@@ -214,7 +217,7 @@ func SCMPParentToChildLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 
 	ethernet := &layers.Ethernet{
 		SrcMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef},
-		DstMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x12},
+		DstMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x13},
 		EthernetType: layers.EthernetTypeIPv4,
 	}
 
@@ -222,8 +225,8 @@ func SCMPParentToChildLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 		Version:  4,
 		IHL:      5,
 		TTL:      64,
-		SrcIP:    net.IP{192, 168, 12, 3},
-		DstIP:    net.IP{192, 168, 12, 2},
+		SrcIP:    net.IP{192, 168, 13, 3},
+		DstIP:    net.IP{192, 168, 13, 2},
 		Protocol: layers.IPProtocolUDP,
 		Flags:    layers.IPv4DontFragment,
 	}
@@ -232,7 +235,7 @@ func SCMPParentToChildLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 		SrcPort: layers.UDPPort(40000),
 		DstPort: layers.UDPPort(50000),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
 	sp := &scion.Decoded{
 		Base: scion.Base{
@@ -260,8 +263,8 @@ func SCMPParentToChildLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 		},
 		HopFields: []path.HopField{
 			{ConsIngress: 0, ConsEgress: 311},
-			{ConsIngress: 121, ConsEgress: 0},
-			{ConsIngress: 121, ConsEgress: 141},
+			{ConsIngress: 131, ConsEgress: 0},
+			{ConsIngress: 131, ConsEgress: 141},
 			{ConsIngress: 411, ConsEgress: 0},
 		},
 	}
@@ -316,10 +319,10 @@ func SCMPParentToChildLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 
 	// Prepare want packet
 	want := gopacket.NewSerializeBuffer()
-	ethernet.SrcMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x12}
+	ethernet.SrcMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x13}
 	ethernet.DstMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef}
-	ip.SrcIP = net.IP{192, 168, 12, 2}
-	ip.DstIP = net.IP{192, 168, 12, 3}
+	ip.SrcIP = net.IP{192, 168, 13, 2}
+	ip.DstIP = net.IP{192, 168, 13, 3}
 	udp.SrcPort, udp.DstPort = udp.DstPort, udp.SrcPort
 
 	scionL.DstIA = scionL.SrcIA
@@ -344,7 +347,9 @@ func SCMPParentToChildLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 		panic(err)
 	}
 
-	scionL.NextHdr = slayers.L4SCMP
+	scionL.NextHdr = slayers.End2EndClass
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
+	e2e.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(
 			slayers.SCMPTypeParameterProblem,
@@ -361,18 +366,19 @@ func SCMPParentToChildLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 	}
 
 	if err := gopacket.SerializeLayers(want, options,
-		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
+		ethernet, ip, udp, scionL, e2e, scmpH, scmpP, gopacket.Payload(quote),
 	); err != nil {
 		panic(err)
 	}
 
 	return runner.Case{
-		Name:     "SCMPParentToChildLocalXover",
-		WriteTo:  "veth_121_host",
-		ReadFrom: "veth_121_host",
-		Input:    input.Bytes(),
-		Want:     want.Bytes(),
-		StoreDir: filepath.Join(artifactsDir, "SCMPParentToChildLocalXover"),
+		Name:            "SCMPParentToChildLocalXover",
+		WriteTo:         "veth_131_host",
+		ReadFrom:        "veth_131_host",
+		Input:           input.Bytes(),
+		Want:            want.Bytes(),
+		StoreDir:        filepath.Join(artifactsDir, "SCMPParentToChildLocalXover"),
+		NormalizePacket: scmpNormalizePacket,
 	}
 }
 
@@ -405,7 +411,7 @@ func SCMPChildToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 		SrcPort: layers.UDPPort(40000),
 		DstPort: layers.UDPPort(50000),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
 	sp := &scion.Decoded{
 		Base: scion.Base{
@@ -433,8 +439,8 @@ func SCMPChildToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 		},
 		HopFields: []path.HopField{
 			{ConsIngress: 411, ConsEgress: 0},
-			{ConsIngress: 121, ConsEgress: 141},
-			{ConsIngress: 121, ConsEgress: 0},
+			{ConsIngress: 131, ConsEgress: 141},
+			{ConsIngress: 131, ConsEgress: 0},
 			{ConsIngress: 0, ConsEgress: 311},
 		},
 	}
@@ -520,7 +526,9 @@ func SCMPChildToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 		panic(err)
 	}
 
-	scionL.NextHdr = slayers.L4SCMP
+	scionL.NextHdr = slayers.End2EndClass
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
+	e2e.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(
 			slayers.SCMPTypeParameterProblem,
@@ -536,17 +544,18 @@ func SCMPChildToParentLocalXover(artifactsDir string, mac hash.Hash) runner.Case
 	}
 
 	if err := gopacket.SerializeLayers(want, options,
-		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
+		ethernet, ip, udp, scionL, e2e, scmpH, scmpP, gopacket.Payload(quote),
 	); err != nil {
 		panic(err)
 	}
 
 	return runner.Case{
-		Name:     "SCMPChildToParentLocalXover",
-		WriteTo:  "veth_141_host",
-		ReadFrom: "veth_141_host",
-		Input:    input.Bytes(),
-		Want:     want.Bytes(),
-		StoreDir: filepath.Join(artifactsDir, "SCMPChildToParentLocalXover"),
+		Name:            "SCMPChildToParentLocalXover",
+		WriteTo:         "veth_141_host",
+		ReadFrom:        "veth_141_host",
+		Input:           input.Bytes(),
+		Want:            want.Bytes(),
+		StoreDir:        filepath.Join(artifactsDir, "SCMPChildToParentLocalXover"),
+		NormalizePacket: scmpNormalizePacket,
 	}
 }

@@ -251,6 +251,7 @@ func (h *HopByHopExtn) SerializeTo(b gopacket.SerializeBuffer,
 // DecodeFromBytes implementation according to gopacket.DecodingLayer.
 func (h *HopByHopExtn) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	var err error
+	h.Options = nil
 	h.extnBase, err = decodeExtnBase(data, df)
 	if err != nil {
 		return err
@@ -315,6 +316,7 @@ func (e *EndToEndExtn) LayerPayload() []byte {
 // DecodeFromBytes implementation according to gopacket.DecodingLayer.
 func (e *EndToEndExtn) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	var err error
+	e.Options = nil
 	e.extnBase, err = decodeExtnBase(data, df)
 	if err != nil {
 		return err
@@ -413,7 +415,7 @@ func (h *HopByHopExtnSkipper) NextLayerType() gopacket.LayerType {
 	return scionNextLayerTypeAfterHBH(h.NextHdr)
 }
 
-// EndToEndExtnSkipper is a DecodingLayer which decodes a HopByHop extensions
+// EndToEndExtnSkipper is a DecodingLayer which decodes an EndToEnd extension
 // without parsing its content.
 // This can be used with a DecodingLayerParser to handle SCION packets which
 // may or may not have an EndToEnd extension.

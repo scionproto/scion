@@ -98,18 +98,6 @@ pkg_tar(
     package_dir = "",
 )
 
-# This is a package of tools used for linting the source code.
-pkg_tar(
-    name = "lint",
-    srcs = [
-        "@buf_bin//file:buf",
-        "@com_github_client9_misspell//cmd/misspell",
-        "@com_github_jeanmertz_lll//cmd/lll",
-    ],
-    mode = "0755",
-    package_dir = "",
-)
-
 # Nogo - Go code analysis tool
 nogo(
     name = "nogo",

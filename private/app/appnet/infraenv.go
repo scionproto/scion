@@ -42,12 +42,17 @@ import (
 	"github.com/scionproto/scion/pkg/sock/reliable/reconnect"
 	"github.com/scionproto/scion/private/env"
 	"github.com/scionproto/scion/private/svc"
+	"github.com/scionproto/scion/private/trust"
 )
 
 // QUIC contains the QUIC configuration for control-plane speakers.
 type QUIC struct {
 	// Address is the UDP address to start the QUIC server on.
 	Address string
+
+	GetCertificate       func(*tls.ClientHelloInfo) (*tls.Certificate, error)
+	GetClientCertificate func(*tls.CertificateRequestInfo) (*tls.Certificate, error)
+	TLSVerifier          *trust.TLSCryptoVerifier
 }
 
 // NetworkConfig describes the networking configuration of a SCION
@@ -82,6 +87,7 @@ type NetworkConfig struct {
 // QUICStack contains everything to run a QUIC based RPC stack.
 type QUICStack struct {
 	Listener       *squic.ConnListener
+	InsecureDialer *squic.ConnDialer
 	Dialer         *squic.ConnDialer
 	RedirectCloser func()
 }
@@ -105,11 +111,14 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	log.Info("QUIC server conn initialized", "local_addr", server.LocalAddr())
 	log.Info("QUIC client conn initialized", "local_addr", client.LocalAddr())
 
-	tlsConfig, err := GenerateTLSConfig()
-	if err != nil {
-		return nil, err
+	serverTLSConfig := &tls.Config{
+		InsecureSkipVerify: true,
+		GetCertificate:     nc.QUIC.GetCertificate,
+		ClientAuth:         tls.RequestClientCert,
+		NextProtos:         []string{"SCION"},
 	}
-	listener, err := quic.Listen(server, tlsConfig, nil)
+
+	listener, err := quic.Listen(server, serverTLSConfig, nil)
 	if err != nil {
 		return nil, serrors.WrapStr("listening QUIC/SCION", err)
 	}
@@ -126,11 +135,27 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 		return nil, serrors.WrapStr("starting service redirection", err)
 	}
 
+	insecureClientTLSConfig := &tls.Config{
+		InsecureSkipVerify: true,
+		NextProtos:         []string{"SCION"},
+	}
+	clientTLSConfig := &tls.Config{
+		InsecureSkipVerify:    true, // ... but VerifyServerCertificate and VerifyConnection
+		GetClientCertificate:  nc.QUIC.GetClientCertificate,
+		VerifyPeerCertificate: nc.QUIC.TLSVerifier.VerifyServerCertificate,
+		VerifyConnection:      nc.QUIC.TLSVerifier.VerifyConnection,
+		NextProtos:            []string{"SCION"},
+	}
+
 	return &QUICStack{
 		Listener: squic.NewConnListener(listener),
+		InsecureDialer: &squic.ConnDialer{
+			Conn:      client,
+			TLSConfig: insecureClientTLSConfig,
+		},
 		Dialer: &squic.ConnDialer{
 			Conn:      client,
-			TLSConfig: tlsConfig,
+			TLSConfig: clientTLSConfig,
 		},
 		RedirectCloser: cancel,
 	}, nil

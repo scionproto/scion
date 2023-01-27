@@ -311,9 +311,7 @@ func (h SCMPHandler) reverse(pkt *respool.Packet) ([]byte, error) {
 	pkt.SCION.NextHdr = slayers.L4SCMP
 	// FIXME(roosd): Consider moving this to a resource pool.
 	buf := gopacket.NewSerializeBuffer()
-	if err := pkt.SCMP.SetNetworkLayerForChecksum(&pkt.SCION); err != nil {
-		return nil, err
-	}
+	pkt.SCMP.SetNetworkLayerForChecksum(&pkt.SCION)
 	err = gopacket.SerializeLayers(
 		buf,
 		gopacket.SerializeOptions{

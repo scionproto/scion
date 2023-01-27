@@ -15,7 +15,14 @@ linters:
     - rowserrcheck
     - sqlclosecheck
     - unconvert
+    - gofmt
+    - lll
+    - misspell
+    - goheader
 linters-settings:
+  lll:
+    line-length: 100
+    tab-width: 4
   depguard:
     list-type: blacklist
     include-go-root: true
@@ -28,325 +35,124 @@ linters-settings:
   errcheck:
     exclude-functions:
       - (*github.com/spf13/cobra.Command).MarkFlagRequired
+  goheader:
+    values:
+      regexp:
+        copyright-lines: "(Copyright 20[0-9][0-9] .*)(\nCopyright 20[0-9][0-9] .*)*"
+    template: |-
+      {{copyright-lines}}
 
-# The following is a list of exceptions exclusively to the errcheck check.
+      Licensed under the Apache License, Version 2.0 (the "License");
+      you may not use this file except in compliance with the License.
+      You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+      Unless required by applicable law or agreed to in writing, software
+      distributed under the License is distributed on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+      See the License for the specific language governing permissions and
+      limitations under the License.
+
 issues:
   exclude-rules:
+    # don't report long lines with long links
+    - linters: [lll]
+      source: "http[s]://\\S{80,}$"
+    # don't report long lines with yaml/json/toml tags
+    - linters: [lll]
+      source: "`(yaml|toml|json):\"[^`]*`$"
+
+    # these files originate from third-party projects
+    - path: pkg/private/util/duration.go
+      linters: [goheader]
     - path: pkg/private/serrors/stack.go
-      linters:
-        - errcheck
-    - path: control/colibri/reservation/segment/path.go
-      linters:
-        - errcheck
-    - path: private/config/sample.go
-      linters:
-        - errcheck
-    - path: tools/integration/progress/progress.go
-      linters:
-        - errcheck
-    - path: control/colibri/reservation/index_test.go
-      linters:
-        - errcheck
-    - path: pkg/log/log.go
-      linters:
-        - errcheck
-    - path: private/storage/db/sqler.go
-      linters:
-        - errcheck
-    - path: private/svc/internal/ctxconn/ctxconn.go
-      linters:
-        - errcheck
-    - path: pkg/log/testlog/log.go
-      linters:
-        - errcheck
-    - path: pkg/private/xtest/grpc.go
-      linters:
-        - errcheck
-    - path: pkg/sock/reliable/reconnect/conn.go
-      linters:
-        - errcheck
-    - path: pkg/snet/packet.go
-      linters:
-        - errcheck
-    - path: pkg/snet/path.go
-      linters:
-        - errcheck
-    - path: gateway/pktcls/cond_test.go
-      linters:
-        - errcheck
-    - path: dispatcher/internal/registration/bench_test.go
-      linters:
-        - errcheck
-    - path: gateway/routing/file.go
-      linters:
-        - errcheck
-    - path: pkg/slayers/extn_test.go
-      linters:
-        - errcheck
-    - path: pkg/slayers/scion_test.go
-      linters:
-        - errcheck
-    - path: control/colibri/reservation/conf/capacities_test.go
-      linters:
-        - errcheck
-    - path: pkg/experimental/epic/epic_test.go
-      linters:
-        - errcheck
-    - path: pkg/sock/reliable/reliable.go
-      linters:
-        - errcheck
-    - path: private/worker/worker_test.go
-      linters:
-        - errcheck
-    - path: dispatcher/internal/respool/packet_test.go
-      linters:
-        - errcheck
-    - path: pkg/experimental/colibri/reservation/types.go
-      linters:
-        - errcheck
-    - path: tools/braccept/cases/bfd.go
-      linters:
-        - errcheck
-    - path: tools/braccept/cases/child_to_child_xover.go
-      linters:
-        - errcheck
-    - path: tools/braccept/cases/child_to_internal.go
-      linters:
-        - errcheck
-    - path: tools/braccept/cases/child_to_parent.go
-      linters:
-        - errcheck
-    - path: tools/braccept/cases/scmp_dest_unreachable.go
-      linters:
-        - errcheck
-    - path: tools/braccept/cases/scmp_expired_hop.go
-      linters:
-        - errcheck
-    - path: dispatcher/dispatcher.go
-      linters:
-        - errcheck
-    - path: dispatcher/underlay_test.go
-      linters:
-        - errcheck
-    - path: pkg/snet/squic/net.go
-      linters:
-        - errcheck
-    - path: pkg/sock/reliable/reconnect/conn_io_test.go
-      linters:
-        - errcheck
-    - path: pkg/sock/reliable/reconnect/network_test.go
-      linters:
-        - errcheck
-    - path: pkg/sock/reliable/reconnect/reconnecter_test.go
-      linters:
-        - errcheck
-    - path: control/colibri/reservation/reservationdbtest/reservationdbtest.go
-      linters:
-        - errcheck
-    - path: control/colibri/reservation/segment/reservation_test.go
-      linters:
-        - errcheck
-    - path: control/colibri/reservation/e2e/reservation_test.go
-      linters:
-        - errcheck
-    - path: tools/braccept/cases/internal_to_child.go
-      linters:
-        - errcheck
-    - path: tools/braccept/cases/jumbo.go
-      linters:
-        - errcheck
-    - path: tools/braccept/cases/scmp_invalid_mac.go
-      linters:
-        - errcheck
-    - path: tools/braccept/cases/scmp_invalid_pkt.go
-      linters:
-        - errcheck
-    - path: pkg/segment/seg.go
-      linters:
-        - errcheck
-    - path: pkg/segment/segs_test.go
-      linters:
-        - errcheck
-    - path: router/dataplane.go
-      linters:
-        - errcheck
-    - path: router/export_test.go
-      linters:
-        - errcheck
-    - path: private/trust/db_inspector.go
-      linters:
-        - errcheck
-    - path: private/trust/verifier.go
-      linters:
-        - errcheck
-    - path: pkg/snet/packet_test.go
-      linters:
-        - errcheck
-    - path: pkg/grpc/dialer_test.go
-      linters:
-        - errcheck
-    - path: control/beacon/policy.go
-      linters:
-        - errcheck
-    - path: pkg/private/xtest/graph/graph.go
-      linters:
-        - errcheck
-    - path: control/colibri/reservationstore/store.go
-      linters:
-        - errcheck
-    - path: router/mgmtapi/api.go
-      linters:
-        - errcheck
-    - path: router/dataplane_test.go
-      linters:
-        - errcheck
-    - path: gateway/control/aggregator.go
-      linters:
-        - errcheck
-    - path: gateway/control/engine.go
-      linters:
-        - errcheck
-    - path: gateway/control/export_test.go
-      linters:
-        - errcheck
-    - path: gateway/control/session.go
-      linters:
-        - errcheck
-    - path: tools/integration/binary.go
-      linters:
-        - errcheck
-    - path: tools/integration/done.go
-      linters:
-        - errcheck
-    - path: tools/integration/integration.go
-      linters:
-        - errcheck
-    - path: private/revcache/revcachetest/revcachetest.go
-      linters:
-        - errcheck
-    - path: gateway/dataplane/session_test.go
-      linters:
-        - errcheck
-    - path: gateway/xnet/xnet.go
-      linters:
-        - errcheck
-    - path: tools/braccept/cases/onehop.go
-      linters:
-        - errcheck
-    - path: tools/braccept/cases/parent_to_child.go
-      linters:
-        - errcheck
-    - path: tools/braccept/cases/scmp_invalid_segment_change.go
-      linters:
-        - errcheck
-    - path: control/colibri/reservation/sqlite/db_test.go
-      linters:
-        - errcheck
-    - path: gateway/control/remotemonitor.go
-      linters:
-        - errcheck
-    - path: gateway/control/router.go
-      linters:
-        - errcheck
-    - path: private/path/combinator/combinator.go
-      linters:
-        - errcheck
-    - path: private/app/appnet/infraenv.go
-      linters:
-        - errcheck
-    - path: private/service/statuspages.go
-      linters:
-        - errcheck
-    - path: private/app/path/pathprobe/paths.go
-      linters:
-        - errcheck
-    - path: tools/end2end_integration/main.go
-      linters:
-        - errcheck
-    - path: private/mgmtapi/segments/api/api.go
-      linters:
-        - errcheck
-    - path: private/segment/seghandler/storage.go
-      linters:
-        - errcheck
-    - path: gateway/dataplane/diagnostics_test.go
-      linters:
-        - errcheck
-    - path: gateway/dataplane/ipforwarder_test.go
-      linters:
-        - errcheck
-    - path: private/app/launcher/launcher.go
-      linters:
-        - errcheck
-    - path: gateway/control/engine_test.go
-      linters:
-        - errcheck
-    - path: gateway/control/enginecontroller_test.go
-      linters:
-        - errcheck
-    - path: gateway/control/watcher_test.go
-      linters:
-        - errcheck
-    - path: tools/end2end/main.go
-      linters:
-        - errcheck
-    - path: gateway/gateway.go
-      linters:
-        - errcheck
-    - path: dispatcher/cmd/dispatcher/main.go
-      linters:
-        - errcheck
-    - path: tools/pktgen/cmd/pktgen/main.go
-      linters:
-        - errcheck
-    - path: scion-pki/certs/certformat.go
-      linters:
-        - errcheck
-    - path: private/mgmtapi/cppki/api/api.go
-      linters:
-        - errcheck
-    - path: scion-pki/trcs/combine_test.go
-      linters:
-        - errcheck
-    - path: control/mgmtapi/api.go
-      linters:
-        - errcheck
-    - path: private/storage/trust/fspersister/db_test.go
-      linters:
-        - errcheck
-    - path: tools/braccept/cases/parent_to_internal.go
-      linters:
-        - errcheck
-    - path: tools/braccept/cases/scmp_invalid_segment_change_local.go
-      linters:
-        - errcheck
-    - path: gateway/control/sessionconfigurator.go
-      linters:
-        - errcheck
-    - path: private/trust/verifier_bench_test.go
-      linters:
-        - errcheck
-    - path: pkg/experimental/hiddenpath/grpc/registerer_test.go
-      linters:
-        - errcheck
-    - path: pkg/experimental/hiddenpath/store_test.go
-      linters:
-        - errcheck
-    - path: control/cmd/control/main.go
-      linters:
-        - errcheck
-    - path: tools/braccept/cases/scmp_traceroute.go
-      linters:
-        - errcheck
-    - path: tools/braccept/cases/scmp_unknown_hop.go
-      linters:
-        - errcheck
-    - path: tools/braccept/cases/svc.go
-      linters:
-        - errcheck
-    - path: gateway/dataplane/routingtable.go
-      linters:
-        - errcheck
-    - path: pkg/experimental/hiddenpath/beaconwriter_test.go
-      linters:
-        - errcheck
+      linters: [goheader, errcheck]
+    - path: scion-pki/certs/(certinfo|certformat).go
+      linters: [lll, goheader, errcheck]
+    - path: pkg/scrypto/cms
+      linters: [goheader]
+
+    # list of exceptions to the errcheck check
+    # TODO(matzf): most of these should rather be fixed! It may be ok to be a
+    # bit more lenient in the test code perhaps, but some of these are lurking
+    # bugs.
+    - path: "^control/beacon/policy.go$|\
+             ^control/cmd/control/main.go$|\
+             ^control/colibri/reservation/conf/capacities_test.go$|\
+             ^control/colibri/reservation/e2e/reservation_test.go$|\
+             ^control/colibri/reservation/index_test.go$|\
+             ^control/colibri/reservation/reservationdbtest/reservationdbtest.go$|\
+             ^control/colibri/reservation/segment/path.go$|\
+             ^control/colibri/reservation/segment/reservation_test.go$|\
+             ^control/colibri/reservation/sqlite/db_test.go$|\
+             ^control/colibri/reservationstore/store.go$|\
+             ^control/mgmtapi/api.go$|\
+             ^dispatcher/cmd/dispatcher/main.go$|\
+             ^dispatcher/dispatcher.go$|\
+             ^dispatcher/internal/registration/bench_test.go$|\
+             ^gateway/control/aggregator.go$|\
+             ^gateway/control/engine.go$|\
+             ^gateway/control/engine_test.go$|\
+             ^gateway/control/enginecontroller_test.go$|\
+             ^gateway/control/export_test.go$|\
+             ^gateway/control/remotemonitor.go$|\
+             ^gateway/control/router.go$|\
+             ^gateway/control/session.go$|\
+             ^gateway/control/sessionconfigurator.go$|\
+             ^gateway/control/watcher_test.go$|\
+             ^gateway/dataplane/diagnostics_test.go$|\
+             ^gateway/dataplane/ipforwarder_test.go$|\
+             ^gateway/dataplane/routingtable.go$|\
+             ^gateway/dataplane/session_test.go$|\
+             ^gateway/gateway.go$|\
+             ^gateway/routing/file.go$|\
+             ^gateway/xnet/xnet.go$|\
+             ^pkg/experimental/colibri/reservation/types.go$|\
+             ^pkg/experimental/epic/epic_test.go$|\
+             ^pkg/experimental/hiddenpath/beaconwriter_test.go$|\
+             ^pkg/experimental/hiddenpath/grpc/registerer_test.go$|\
+             ^pkg/experimental/hiddenpath/store_test.go$|\
+             ^pkg/grpc/dialer_test.go$|\
+             ^pkg/log/log.go$|\
+             ^pkg/log/testlog/log.go$|\
+             ^pkg/private/xtest/graph/graph.go$|\
+             ^pkg/private/xtest/grpc.go$|\
+             ^pkg/segment/seg.go$|\
+             ^pkg/segment/segs_test.go$|\
+             ^pkg/slayers/extn_test.go$|\
+             ^pkg/slayers/scion_test.go$|\
+             ^pkg/snet/packet_test.go$|\
+             ^pkg/snet/path.go$|\
+             ^pkg/snet/squic/net.go$|\
+             ^pkg/sock/reliable/reconnect/conn.go$|\
+             ^pkg/sock/reliable/reconnect/conn_io_test.go$|\
+             ^pkg/sock/reliable/reconnect/network_test.go$|\
+             ^pkg/sock/reliable/reconnect/reconnecter_test.go$|\
+             ^pkg/sock/reliable/reliable.go$|\
+             ^private/app/appnet/infraenv.go$|\
+             ^private/app/launcher/launcher.go$|\
+             ^private/app/path/pathprobe/paths.go$|\
+             ^private/config/sample.go$|\
+             ^private/mgmtapi/cppki/api/api.go$|\
+             ^private/mgmtapi/segments/api/api.go$|\
+             ^private/path/combinator/combinator.go$|\
+             ^private/revcache/revcachetest/revcachetest.go$|\
+             ^private/service/statuspages.go$|\
+             ^private/storage/trust/fspersister/db_test.go$|\
+             ^private/svc/internal/ctxconn/ctxconn.go$|\
+             ^private/trust/db_inspector.go$|\
+             ^private/trust/verifier.go$|\
+             ^private/trust/verifier_bench_test.go$|\
+             ^private/worker/worker_test.go$|\
+             ^router/dataplane_test.go$|\
+             ^router/export_test.go$|\
+             ^router/mgmtapi/api.go$|\
+             ^scion-pki/trcs/combine_test.go$|\
+             ^tools/end2end/main.go$|\
+             ^tools/end2end_integration/main.go$|\
+             ^tools/integration/binary.go$|\
+             ^tools/integration/done.go$|\
+             ^tools/integration/integration.go$|\
+             ^tools/integration/progress/progress.go$"
+      linters: [errcheck]

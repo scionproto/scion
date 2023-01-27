@@ -16,5 +16,6 @@ go_library(
         "//pkg/snet:go_default_library",
         "//private/app/path:go_default_library",
         "//private/app/path/pathprobe:go_default_library",
+        "//private/path/pathpol:go_default_library",
     ],
 )

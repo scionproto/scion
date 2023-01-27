@@ -59,7 +59,7 @@ func SCMPBadMAC(artifactsDir string, mac hash.Hash) runner.Case {
 		SrcPort: layers.UDPPort(40000),
 		DstPort: layers.UDPPort(50000),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
 	// pkt0.ParsePacket(`
 	//	SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
@@ -157,7 +157,9 @@ func SCMPBadMAC(artifactsDir string, mac hash.Hash) runner.Case {
 	if err := sp.IncPath(); err != nil {
 		panic(err)
 	}
-	scionL.NextHdr = slayers.L4SCMP
+	scionL.NextHdr = slayers.End2EndClass
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
+	e2e.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
 			slayers.SCMPCodeInvalidHopFieldMAC),
@@ -171,18 +173,19 @@ func SCMPBadMAC(artifactsDir string, mac hash.Hash) runner.Case {
 	quoteStart := 14 + 20 + 8
 	quote := input.Bytes()[quoteStart:]
 	if err := gopacket.SerializeLayers(want, options,
-		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
+		ethernet, ip, udp, scionL, e2e, scmpH, scmpP, gopacket.Payload(quote),
 	); err != nil {
 		panic(err)
 	}
 
 	return runner.Case{
-		Name:     "SCMPBadMAC",
-		WriteTo:  "veth_131_host",
-		ReadFrom: "veth_131_host",
-		Input:    input.Bytes(),
-		Want:     want.Bytes(),
-		StoreDir: filepath.Join(artifactsDir, "SCMPBadMAC"),
+		Name:            "SCMPBadMAC",
+		WriteTo:         "veth_131_host",
+		ReadFrom:        "veth_131_host",
+		Input:           input.Bytes(),
+		Want:            want.Bytes(),
+		StoreDir:        filepath.Join(artifactsDir, "SCMPBadMAC"),
+		NormalizePacket: scmpNormalizePacket,
 	}
 }
 
@@ -214,17 +217,15 @@ func SCMPBadMACInternal(artifactsDir string, mac hash.Hash) runner.Case {
 		SrcPort: layers.UDPPort(30004),
 		DstPort: layers.UDPPort(30001),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
-	// pkt0.ParsePacket(`
-	//	SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
-	//		ADDR: SrcIA=1-ff00:0:3 Src=174.16.3.1 DstIA=1-ff00:0:4 Dst=174.16.4.1
-	//		IF_1: ISD=1 Hops=3 Flags=ConsDir
-	//			HF_1: ConsIngress=0 ConsEgress=311
-	//			HF_2: ConsIngress=131 ConsEgress=141
-	//			HF_3: ConsIngress=411 ConsEgress=0
-	//	UDP_1: Src=40111 Dst=40222
-	// `)
+	// 	SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
+	// 		ADDR: SrcIA=1-ff00:0:9 Src=174.16.3.1 DstIA=1-ff00:0:4 Dst=174.16.4.1
+	// 		IF_1: ISD=1 Hops=3 Flags=ConsDir
+	// 			HF_1: ConsIngress=0   ConsEgress=911
+	//			HF_2: ConsIngress=191 ConsEgress=141
+	// 			HF_3: ConsIngress=411 ConsEgress=0
+	// 	UDP_1: Src=40111 Dst=40222
 	sp := &scion.Decoded{
 		Base: scion.Base{
 			PathMeta: scion.MetaHdr{
@@ -242,8 +243,8 @@ func SCMPBadMACInternal(artifactsDir string, mac hash.Hash) runner.Case {
 			},
 		},
 		HopFields: []path.HopField{
-			{ConsIngress: 0, ConsEgress: 311},
-			{ConsIngress: 131, ConsEgress: 141},
+			{ConsIngress: 0, ConsEgress: 911},
+			{ConsIngress: 191, ConsEgress: 141},
 			{ConsIngress: 411, ConsEgress: 0},
 		},
 	}
@@ -254,7 +255,7 @@ func SCMPBadMACInternal(artifactsDir string, mac hash.Hash) runner.Case {
 		FlowID:       0xdead,
 		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
+		SrcIA:        xtest.MustParseIA("1-ff00:0:9"),
 		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
 		Path:         sp,
 	}
@@ -309,7 +310,9 @@ func SCMPBadMACInternal(artifactsDir string, mac hash.Hash) runner.Case {
 		panic(err)
 	}
 	sp = p.(*scion.Decoded)
-	scionL.NextHdr = slayers.L4SCMP
+	scionL.NextHdr = slayers.End2EndClass
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
+	e2e.NextHdr = slayers.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
 			slayers.SCMPCodeInvalidHopFieldMAC),
@@ -323,17 +326,18 @@ func SCMPBadMACInternal(artifactsDir string, mac hash.Hash) runner.Case {
 	quoteStart := 14 + 20 + 8
 	quote := input.Bytes()[quoteStart:]
 	if err := gopacket.SerializeLayers(want, options,
-		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
+		ethernet, ip, udp, scionL, e2e, scmpH, scmpP, gopacket.Payload(quote),
 	); err != nil {
 		panic(err)
 	}
 
 	return runner.Case{
-		Name:     "SCMPBadMACInternal",
-		WriteTo:  "veth_int_host",
-		ReadFrom: "veth_int_host",
-		Input:    input.Bytes(),
-		Want:     want.Bytes(),
-		StoreDir: filepath.Join(artifactsDir, "SCMPBadMACInternal"),
+		Name:            "SCMPBadMACInternal",
+		WriteTo:         "veth_int_host",
+		ReadFrom:        "veth_int_host",
+		Input:           input.Bytes(),
+		Want:            want.Bytes(),
+		StoreDir:        filepath.Join(artifactsDir, "SCMPBadMACInternal"),
+		NormalizePacket: scmpNormalizePacket,
 	}
 }

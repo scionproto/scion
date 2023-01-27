@@ -5,7 +5,6 @@ gen_bazel_test_steps() {
     parallel="${PARALLELISM:-1}"
     echo "  - group: \"Integration Tests :bazel:\""
     echo "    key: integration-tests"
-    echo "    if: build.message !~ /\[doc\]/"
     echo "    steps:"
 
     targets="$(bazel query "attr(tags, integration, tests(//...)) except attr(tags, \"lint|manual\", tests(//...))" 2>/dev/null)"

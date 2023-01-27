@@ -59,7 +59,7 @@ func JumboPacket(artifactsDir string, mac hash.Hash) runner.Case {
 		SrcPort: layers.UDPPort(40000),
 		DstPort: layers.UDPPort(50000),
 	}
-	udp.SetNetworkLayerForChecksum(ip)
+	_ = udp.SetNetworkLayerForChecksum(ip)
 
 	// pkt0.ParsePacket(`
 	//	SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
@@ -141,7 +141,9 @@ func JumboPacket(artifactsDir string, mac hash.Hash) runner.Case {
 	// 	UDP: Src=50000 Dst=40000
 	udp.SrcPort, udp.DstPort = udp.DstPort, udp.SrcPort
 	// 	SCION: CurrHopF=7
-	sp.IncPath()
+	if err := sp.IncPath(); err != nil {
+		panic(err)
+	}
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 
 	if err := gopacket.SerializeLayers(want, options,
