@@ -130,8 +130,7 @@ func NewConfigStatusPage(config interface{}) StatusPage {
 		var buf bytes.Buffer
 		err := toml.NewEncoder(&buf).Order(toml.OrderPreserve).Encode(config)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, err.Error())
+			http.Error(w, "Error encoding toml config", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "text/plain")
