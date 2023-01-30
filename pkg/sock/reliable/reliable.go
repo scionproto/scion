@@ -219,7 +219,7 @@ func register(ctx context.Context, dispatcher string, ia addr.IA, public *net.UD
 				"received", registrationReturn.port)
 		}
 		// Disable deadline to not affect future I/O
-		_ = conn.SetDeadline(time.Time{})
+		err = conn.SetDeadline(time.Time{})
 		return conn, registrationReturn.port, err
 	case <-ctx.Done():
 		// Unblock registration worker I/O
