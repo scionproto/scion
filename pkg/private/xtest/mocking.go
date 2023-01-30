@@ -33,10 +33,3 @@ type PanickingReporter struct {
 func (reporter *PanickingReporter) Fatalf(format string, args ...interface{}) {
 	panic(fmt.Sprintf(format, args...))
 }
-
-// Callback defines an interfaces that provides a callback function that is
-// mockable. A mock implementation implementing this interface can be found
-// in sub-package mock_xtest.
-type Callback interface {
-	Call()
-}
