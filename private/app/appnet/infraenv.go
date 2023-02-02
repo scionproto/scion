@@ -25,6 +25,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"math/big"
 	"net"
@@ -278,7 +279,16 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 			case <-done:
 				return
 			default:
-				_, _ = conn.Read(buf)
+				// All the resolution logic is "hidden" in the
+				// svc.ResolverPacketDispatcher. Here, we just need to Read to
+				// drive this. Ignore errors from reading, just keep going.
+				_, err := conn.Read(buf)
+				if errors.Is(err, svc.ErrHandler) {
+					log.Debug("Error handling SVC request", "err", err)
+				} else if errors.Is(err, net.ErrClosed) {
+					log.Error("SVC resolution socket was closed", "err", err)
+					return
+				}
 			}
 		}
 	}()
