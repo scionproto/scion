@@ -38,7 +38,7 @@ import (
 )
 
 func TestRequesterSegments(t *testing.T) {
-	testSeg := createSeg()
+	testSeg := createSeg(t)
 	hpID := hiddenpath.GroupID{
 		OwnerAS: xtest.MustParseAS("ff00:0:2"),
 		Suffix:  15,
@@ -138,7 +138,7 @@ func TestRequesterSegments(t *testing.T) {
 }
 
 func TestAuthoritativeRequesterHiddenSegments(t *testing.T) {
-	testSeg := createSeg()
+	testSeg := createSeg(t)
 	testCases := map[string]struct {
 		input       hiddenpath.SegmentRequest
 		signer      func(*gomock.Controller) hpgrpc.Signer
