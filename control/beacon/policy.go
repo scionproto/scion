@@ -218,7 +218,7 @@ func ParsePolicyYaml(b []byte, t PolicyType) (*Policy, error) {
 		return nil, serrors.WrapStr("Unable to parse policy", err)
 	}
 	if p.Type != "" && p.Type != t {
-		return nil, serrors.New("Specified policy type does not match",
+		return nil, serrors.New("specified policy type does not match",
 			"expected", t, "actual", p.Type)
 	}
 	p.initDefaults(t)
