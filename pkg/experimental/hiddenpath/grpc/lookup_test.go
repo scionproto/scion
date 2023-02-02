@@ -39,7 +39,7 @@ import (
 )
 
 func TestSegmentServerHiddenSegments(t *testing.T) {
-	segsMeta, wantPB := createSegs()
+	segsMeta, wantPB := createSegs(t)
 
 	testCases := map[string]struct {
 		createCtx     func(t *testing.T) context.Context
@@ -103,7 +103,7 @@ func TestSegmentServerHiddenSegments(t *testing.T) {
 }
 
 func TestAuthoritativeSegmentServerAuthoritativeHiddenSegments(t *testing.T) {
-	segsMeta, _ := createSegs()
+	segsMeta, _ := createSegs(t)
 
 	marshalBody := func(t *testing.T, body *hspb.HiddenSegmentsRequest) []byte {
 		r, err := proto.Marshal(body)
@@ -285,8 +285,10 @@ func groupIDsToInts(ids []hiddenpath.GroupID) []uint64 {
 	return result
 }
 
-func createSegs() ([]*seg.Meta, *hspb.HiddenSegmentsResponse) {
-	s := createSeg()
+func createSegs(t *testing.T) ([]*seg.Meta, *hspb.HiddenSegmentsResponse) {
+	t.Helper()
+
+	s := createSeg(t)
 	ret1 := []*seg.Meta{&s}
 	ret2 := &hspb.HiddenSegmentsResponse{
 		Segments: grpc.ToHSPB(ret1),
