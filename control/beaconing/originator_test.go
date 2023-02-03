@@ -104,7 +104,7 @@ func TestOriginatorRun(t *testing.T) {
 						// Check the interface matches.
 						assert.Equal(t, hopF.ConsEgress, egIfId)
 						// Check that the beacon is sent to the correct border router.
-						br := interfaceInfos(topo)[egIfId].InternalAddr.UDPAddr()
+						br := net.UDPAddrFromAddrPort(interfaceInfos(topo)[egIfId].InternalAddr)
 						assert.Equal(t, br, nextHop)
 						return nil
 					},

@@ -41,6 +41,7 @@ require (
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	go.uber.org/goleak v1.2.1
 	go.uber.org/zap v1.24.0
+	go4.org/netipx v0.0.0-20230125063823-8449b0a6169f
 	golang.org/x/crypto v0.6.0
 	golang.org/x/net v0.7.0
 	golang.org/x/sync v0.1.0

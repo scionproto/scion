@@ -16,6 +16,7 @@ package beaconing
 
 import (
 	"context"
+	"net"
 	"sort"
 	"strconv"
 	"sync"
@@ -266,7 +267,7 @@ func (p *propagator) Propagate(ctx context.Context) error {
 		senderCtx,
 		topoInfo.IA,
 		egress,
-		topoInfo.InternalAddr.UDPAddr(),
+		net.UDPAddrFromAddrPort(topoInfo.InternalAddr),
 	)
 	if err != nil {
 		for _, b := range p.beacons {

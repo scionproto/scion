@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	"inet.af/netaddr"
+	"net/netip"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/private/topology"
@@ -32,7 +32,7 @@ type InterfaceInfo struct {
 	LinkType topology.LinkType
 	// InternalAddr is the AS-internal address of the router that owns this
 	// interface.
-	InternalAddr netaddr.IPPort
+	InternalAddr netip.AddrPort
 	// RemoteID is the remote interface ID.
 	RemoteID uint16
 	// MTU is the SCION MTU supported on this interface.
