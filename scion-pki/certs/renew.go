@@ -264,7 +264,7 @@ The template is expressed in JSON. A valid example::
 			}
 			daemonAddr := envFlags.Daemon()
 			dispatcher := envFlags.Dispatcher()
-			localIP := envFlags.Local().IPAddr().IP
+			localIP := net.IP(envFlags.Local().AsSlice())
 			log.Debug("Resolved SCION environment flags",
 				"daemon", daemonAddr,
 				"dispatcher", dispatcher,

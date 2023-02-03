@@ -18,11 +18,11 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
+	"net/netip"
 	"os"
 	"sync"
 
 	"github.com/spf13/pflag"
-	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
@@ -62,10 +62,10 @@ func (v *iaVal) Set(val string) error {
 func (v *iaVal) Type() string   { return "isd-as" }
 func (v *iaVal) String() string { return addr.IA(*v).String() }
 
-type ipVal netaddr.IP
+type ipVal netip.Addr
 
 func (v *ipVal) Set(val string) error {
-	ip, err := netaddr.ParseIP(val)
+	ip, err := netip.ParseAddr(val)
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func (v *ipVal) Set(val string) error {
 }
 
 func (v *ipVal) Type() string   { return "ip" }
-func (v *ipVal) String() string { return netaddr.IP(*v).String() }
+func (v *ipVal) String() string { return netip.Addr(*v).String() }
 
 // SCIONEnvironment can be used to access the common SCION configuration values,
 // like the SCION daemon address, the dispatcher socket address and the local IP
@@ -86,8 +86,8 @@ type SCIONEnvironment struct {
 	iaFlag     *pflag.Flag
 	dispFlag   *pflag.Flag
 	dispEnv    *string
-	local      netaddr.IP
-	localEnv   *netaddr.IP
+	local      netip.Addr
+	localEnv   *netip.Addr
 	localFlag  *pflag.Flag
 	file       env.SCION
 	filepath   string
@@ -165,7 +165,7 @@ func (e *SCIONEnvironment) loadEnv() error {
 		e.dispEnv = &d
 	}
 	if l, ok := os.LookupEnv("SCION_LOCAL_ADDR"); ok {
-		a, err := netaddr.ParseIP(l)
+		a, err := netip.ParseAddr(l)
 		if err != nil {
 			return serrors.WrapStr("parsing SCION_LOCAL_ADDR", err)
 		}
@@ -222,12 +222,12 @@ func (e *SCIONEnvironment) Dispatcher() string {
 	return defaultDispatcher
 }
 
-// Local returns the loca IP to listen on. The value is loaded from one of the
+// Local returns the local IP to listen on. The value is loaded from one of the
 // following sources with the precedence as listed:
 //  1. Command line flag
 //  2. Environment variable
 //  3. Default value.
-func (e *SCIONEnvironment) Local() netaddr.IP {
+func (e *SCIONEnvironment) Local() netip.Addr {
 	e.mtx.Lock()
 	defer e.mtx.Unlock()
 
@@ -237,5 +237,5 @@ func (e *SCIONEnvironment) Local() netaddr.IP {
 	if e.localEnv != nil {
 		return *e.localEnv
 	}
-	return netaddr.IP{}
+	return netip.Addr{}
 }
