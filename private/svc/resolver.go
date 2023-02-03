@@ -83,6 +83,7 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 		ext.Error.Set(span, true)
 		return nil, serrors.Wrap(errRegistration, err)
 	}
+	cancelF := ctxconn.CloseConnOnDone(ctx, conn)
 
 	requestPacket := &snet.Packet{
 		PacketInfo: snet.PacketInfo{
@@ -102,6 +103,9 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 		},
 	}
 	reply, err := r.getRoundTripper().RoundTrip(ctx, conn, requestPacket, p.UnderlayNextHop())
+
+	cancelF()
+	err = serrors.Join(err, conn.Close())
 	if err != nil {
 		ext.Error.Set(span, true)
 		return nil, err
@@ -136,9 +140,6 @@ type roundTripper struct{}
 
 func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.Packet,
 	u *net.UDPAddr) (*Reply, error) {
-
-	cancelF := ctxconn.CloseConnOnDone(ctx, c)
-	defer cancelF()
 
 	if pkt == nil {
 		return nil, errNilPacket
