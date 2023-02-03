@@ -16,10 +16,9 @@ package config
 
 import (
 	"io"
+	"net/netip"
 	"strings"
 	"time"
-
-	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
@@ -138,7 +137,7 @@ func (cfg *SecretValueHostList) ConfigName() string {
 }
 
 type HostProto struct {
-	Host  netaddr.IP
+	Host  netip.Addr
 	Proto drkey.Protocol
 }
 
@@ -147,7 +146,7 @@ func (cfg *SecretValueHostList) ToAllowedSet() map[HostProto]struct{} {
 	m := make(map[HostProto]struct{})
 	for proto, ipList := range *cfg {
 		for _, ip := range ipList {
-			host, err := netaddr.ParseIP(ip)
+			host, err := netip.ParseAddr(ip)
 			if err != nil {
 				continue
 			}
