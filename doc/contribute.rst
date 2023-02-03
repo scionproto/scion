@@ -85,7 +85,7 @@ Governance: TC Implementation
 =============================
 
 The `Technical Committee (TC) Implementation <https://scion.org/development>`_
-of the SCION Assocation are the custodians of the open-source SCION
+of the SCION Association are the custodians of the open-source SCION
 implementation projects.
 
 .. rubric:: People
@@ -125,7 +125,7 @@ The TC may define technical teams and work groups and delegate tasks.
 No technical teams or work groups are currently defined.
 
 Where not delegated to technical teams, the TC Implementation members
-participatein the day-to-day operations to implement the
+participate in the day-to-day operations to implement the
 :ref:`change-proposal-process` defined below, in particular by
 
 * Participating in change proposal discussions and moderating discussions
