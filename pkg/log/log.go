@@ -138,10 +138,8 @@ func HandlePanic() {
 
 // Flush writes the logs to the underlying buffer.
 func Flush() {
-	if err := zap.L().Sync(); err != nil {
-		zap.L().Error("flushing log", zap.Error(err))
-		_ = zap.L().Sync() // retry...
-	}
+	// Deliberately ignore sync error, see https://github.com/uber-go/zap/issues/328
+	_ = zap.L().Sync()
 }
 
 // ConsoleLevel allows interacting with the logging level at runtime.
