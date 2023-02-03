@@ -19,10 +19,9 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"net/netip"
 	"strings"
 	"text/tabwriter"
-
-	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -147,9 +146,9 @@ func parseNetworkMatcher(b []byte) (NetworkMatcher, error) {
 		negative = true
 		b = b[1:]
 	}
-	var networks []netaddr.IPPrefix
+	var networks []netip.Prefix
 	for _, network := range bytes.Split(b, []byte(",")) {
-		n, err := netaddr.ParseIPPrefix(string(network))
+		n, err := netip.ParsePrefix(string(network))
 		if err != nil {
 			return NetworkMatcher{}, serrors.WrapStr("parsing network", err)
 		}

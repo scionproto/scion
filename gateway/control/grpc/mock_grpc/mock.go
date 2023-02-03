@@ -5,11 +5,11 @@
 package mock_grpc
 
 import (
+	netip "net/netip"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/pkg/addr"
-	netaddr "inet.af/netaddr"
 )
 
 // MockAdvertiser is a mock of Advertiser interface.
@@ -36,10 +36,10 @@ func (m *MockAdvertiser) EXPECT() *MockAdvertiserMockRecorder {
 }
 
 // AdvertiseList mocks base method.
-func (m *MockAdvertiser) AdvertiseList(arg0, arg1 addr.IA) ([]netaddr.IPPrefix, error) {
+func (m *MockAdvertiser) AdvertiseList(arg0, arg1 addr.IA) ([]netip.Prefix, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AdvertiseList", arg0, arg1)
-	ret0, _ := ret[0].([]netaddr.IPPrefix)
+	ret0, _ := ret[0].([]netip.Prefix)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

@@ -18,9 +18,10 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"net"
+	"net/netip"
 	"strings"
 
-	"inet.af/netaddr"
+	"go4.org/netipx"
 
 	"github.com/scionproto/scion/pkg/addr"
 )
@@ -71,12 +72,12 @@ func (p Policy) Digest() []byte {
 }
 
 // Match matches an IP range to the policy and returns the subranges that satisfy it.
-func (p Policy) Match(from, to addr.IA, ipPrefix netaddr.IPPrefix) (IPSet, error) {
+func (p Policy) Match(from, to addr.IA, ipPrefix netip.Prefix) (IPSet, error) {
 	// Compile the rules into a set of allowed addresses.
-	var sb netaddr.IPSetBuilder
+	var sb netipx.IPSetBuilder
 	if p.DefaultAction == Accept {
-		sb.AddPrefix(netaddr.MustParseIPPrefix("0.0.0.0/0"))
-		sb.AddPrefix(netaddr.MustParseIPPrefix("::/0"))
+		sb.AddPrefix(netip.MustParsePrefix("0.0.0.0/0"))
+		sb.AddPrefix(netip.MustParsePrefix("::/0"))
 	}
 	for i := len(p.Rules) - 1; i >= 0; i-- {
 		rule := p.Rules[i]
@@ -95,7 +96,7 @@ func (p Policy) Match(from, to addr.IA, ipPrefix netaddr.IPPrefix) (IPSet, error
 		}
 	}
 	// Intersect the supplied IP range with the allowed range to get the result.
-	var nb netaddr.IPSetBuilder
+	var nb netipx.IPSetBuilder
 	nb.AddPrefix(ipPrefix)
 	ns, err := nb.IPSet()
 	if err != nil {
@@ -126,13 +127,13 @@ type IAMatcher interface {
 
 // NetworkMatcher matches IP networks.
 type NetworkMatcher struct {
-	Allowed []netaddr.IPPrefix
+	Allowed []netip.Prefix
 	Negated bool
 }
 
 // IPSet returns a set containing all IPs allowed by the matcher.
-func (m NetworkMatcher) IPSet() (*netaddr.IPSet, error) {
-	var sb netaddr.IPSetBuilder
+func (m NetworkMatcher) IPSet() (*netipx.IPSet, error) {
+	var sb netipx.IPSetBuilder
 	for _, prefix := range m.Allowed {
 		sb.AddPrefix(prefix)
 	}

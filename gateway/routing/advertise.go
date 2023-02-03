@@ -16,19 +16,20 @@ package routing
 
 import (
 	"net"
+	"net/netip"
 
-	"inet.af/netaddr"
+	"go4.org/netipx"
 
 	"github.com/scionproto/scion/pkg/addr"
 )
 
 // AdvertiseList returns the list of prefixes to advertise for the given policy
 // and ISD-ASes.
-func AdvertiseList(pol *Policy, from, to addr.IA) ([]netaddr.IPPrefix, error) {
+func AdvertiseList(pol *Policy, from, to addr.IA) ([]netip.Prefix, error) {
 	if pol == nil {
-		return []netaddr.IPPrefix{}, nil
+		return []netip.Prefix{}, nil
 	}
-	var nets []netaddr.IPPrefix
+	var nets []netip.Prefix
 	for _, r := range pol.Rules {
 		if r.Action != Advertise || !r.From.Match(from) || !r.To.Match(to) {
 			continue
@@ -56,7 +57,7 @@ func StaticAdvertised(pol *Policy) []*net.IPNet {
 			continue
 		}
 		for _, prefix := range r.Network.Allowed {
-			nets = append(nets, prefix.IPNet())
+			nets = append(nets, netipx.PrefixIPNet(prefix))
 		}
 	}
 	return nets

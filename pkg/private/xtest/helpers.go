@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"flag"
 	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -29,7 +30,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/pkg/addr"
 )
@@ -268,12 +268,12 @@ func MustParseCIDRs(t *testing.T, entries ...string) []*net.IPNet {
 }
 
 // MustParseIPPrefixes parses the CIDR entries and returns a list containing the
-// parsed netaddr.IPPrefix objects.
-func MustParseIPPrefixes(t *testing.T, prefixes ...string) []netaddr.IPPrefix {
+// parsed netip.Prefix objects.
+func MustParseIPPrefixes(t *testing.T, prefixes ...string) []netip.Prefix {
 	t.Helper()
-	var result []netaddr.IPPrefix
+	var result []netip.Prefix
 	for _, prefix := range prefixes {
-		p, err := netaddr.ParseIPPrefix(prefix)
+		p, err := netip.ParsePrefix(prefix)
 		require.NoError(t, err)
 		result = append(result, p)
 	}

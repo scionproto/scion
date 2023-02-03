@@ -16,11 +16,11 @@ package grpc
 
 import (
 	"context"
+	"net/netip"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
-	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/metrics"
@@ -30,7 +30,7 @@ import (
 
 // Advertiser returns a list of IP prefixes to advertise.
 type Advertiser interface {
-	AdvertiseList(from, to addr.IA) ([]netaddr.IPPrefix, error)
+	AdvertiseList(from, to addr.IA) ([]netip.Prefix, error)
 }
 
 // IPPrefixServer serves IP prefix requests.
@@ -68,7 +68,7 @@ func (s IPPrefixServer) Prefixes(ctx context.Context,
 			continue
 		}
 		pb = append(pb, &gpb.Prefix{
-			Prefix: canonicalIP(prefix.IP()),
+			Prefix: canonicalIP(prefix.Addr()),
 			Mask:   uint32(prefix.Bits()),
 		})
 	}
@@ -77,7 +77,7 @@ func (s IPPrefixServer) Prefixes(ctx context.Context,
 	}, nil
 }
 
-func canonicalIP(ip netaddr.IP) []byte {
+func canonicalIP(ip netip.Addr) []byte {
 	if ip.Is4() {
 		a4 := ip.As4()
 		return append([]byte(nil), a4[:]...)

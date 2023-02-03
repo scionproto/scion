@@ -15,10 +15,9 @@
 package routing
 
 import (
+	"net/netip"
 	"strings"
 	"testing"
-
-	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/pkg/private/xtest"
 )
@@ -50,7 +49,7 @@ func NewNetworkMatcher(t *testing.T, networks string) NetworkMatcher {
 	}
 	matcher := NetworkMatcher{Negated: negated}
 	for _, network := range strings.Split(networks, ",") {
-		matcher.Allowed = append(matcher.Allowed, netaddr.MustParseIPPrefix(network))
+		matcher.Allowed = append(matcher.Allowed, netip.MustParsePrefix(network))
 	}
 	return matcher
 }

@@ -17,7 +17,7 @@ package control
 import (
 	"net"
 
-	"inet.af/netaddr"
+	"go4.org/netipx"
 
 	"github.com/scionproto/scion/gateway/routing"
 	"github.com/scionproto/scion/pkg/addr"
@@ -62,11 +62,11 @@ func (f PrefixesFilter) Prefixes(
 	if rp == nil {
 		return nil
 	}
-	var sb netaddr.IPSetBuilder
+	var sb netipx.IPSetBuilder
 	allowedCount := 0
 	rejectedCount := 0
 	for _, prefix := range prefixes {
-		p, ok := netaddr.FromStdIPNet(prefix)
+		p, ok := netipx.FromStdIPNet(prefix)
 		if !ok {
 			return serrors.New("can not convert prefix", "prefix", prefix)
 		}
@@ -92,7 +92,7 @@ func (f PrefixesFilter) Prefixes(
 	}
 	var allowedPrefixes []*net.IPNet
 	for _, prefix := range set.Prefixes() {
-		allowedPrefixes = append(allowedPrefixes, prefix.IPNet())
+		allowedPrefixes = append(allowedPrefixes, netipx.PrefixIPNet(prefix))
 	}
 	return f.Consumer.Prefixes(remote, gateway, allowedPrefixes)
 }
