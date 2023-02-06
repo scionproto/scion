@@ -16,13 +16,13 @@ package api
 
 // AggregateHealthStatus returns the least healthy status of the input.
 func AggregateHealthStatus(checksStatus []Status) Status {
-	lowestStatus := StatusPassing
+	lowestStatus := Passing
 	for _, checkStatus := range checksStatus {
 		switch checkStatus {
-		case StatusFailing:
-			return StatusFailing
-		case StatusDegraded:
-			lowestStatus = StatusDegraded
+		case Failing:
+			return Failing
+		case Degraded:
+			lowestStatus = Degraded
 		}
 	}
 	return lowestStatus

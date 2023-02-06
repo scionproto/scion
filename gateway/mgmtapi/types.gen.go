@@ -5,33 +5,28 @@ package mgmtapi
 
 // Defines values for LogLevelLevel.
 const (
-	LogLevelLevelDebug LogLevelLevel = "debug"
-
-	LogLevelLevelError LogLevelLevel = "error"
-
-	LogLevelLevelInfo LogLevelLevel = "info"
+	Debug LogLevelLevel = "debug"
+	Error LogLevelLevel = "error"
+	Info  LogLevelLevel = "info"
 )
 
 // LogLevel defines model for LogLevel.
 type LogLevel struct {
-	// Logging level
+	// Level Logging level
 	Level LogLevelLevel `json:"level"`
 }
 
-// Logging level
+// LogLevelLevel Logging level
 type LogLevelLevel string
 
 // StandardError defines model for StandardError.
 type StandardError struct {
-	// Error message
+	// Error Error message
 	Error string `json:"error"`
 }
 
 // BadRequest defines model for BadRequest.
-type BadRequest StandardError
-
-// SetLogLevelJSONBody defines parameters for SetLogLevel.
-type SetLogLevelJSONBody LogLevel
+type BadRequest = StandardError
 
 // SetLogLevelJSONRequestBody defines body for SetLogLevel for application/json ContentType.
-type SetLogLevelJSONRequestBody SetLogLevelJSONBody
+type SetLogLevelJSONRequestBody = LogLevel

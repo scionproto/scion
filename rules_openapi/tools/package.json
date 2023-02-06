@@ -1,7 +1,9 @@
 {
     "dependencies": {
-        "@redocly/openapi-cli": "^1.0.0-beta.59",
-        "@stoplight/spectral-cli": "^6.0.0",
-        "redoc-cli": "^0.12.3"
+        "@redocly/cli": "^1.0.0-beta.123",
+        "@stoplight/spectral-cli": "^6.6.0",
+        "lodash.get": "^4.4.2",
+        "lodash.set": "^4.3.2",
+        "redoc-cli": "^0.13.2"
     }
 }

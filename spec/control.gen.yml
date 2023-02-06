@@ -26,10 +26,7 @@ paths:
       tags:
         - segment
       summary: List the SCION path segments
-      description: >-
-        List the SCION path segments that are known to the service. The results
-        can be filtered by the start and end AS of the segment. Inspect the
-        individual segments for a more detailed view.
+      description: List the SCION path segments that are known to the service. The results can be filtered by the start and end AS of the segment. Inspect the individual segments for a more detailed view.
       operationId: get-segments
       parameters:
         - in: query
@@ -121,9 +118,7 @@ paths:
     get:
       tags:
         - cppki
-      summary: >-
-        Prints information about the AS Certificate used to sign the
-        control-plane message.
+      summary: Prints information about the AS Certificate used to sign the control-plane message.
       operationId: get-signer
       responses:
         '200':
@@ -176,10 +171,7 @@ paths:
       tags:
         - cppki
       summary: List the TRCs
-      description: >-
-        List the latest SCION Trust Root Configurations for each ISD that are
-        known to the control service. The result can be filtered by ISD.
-        Optionally, all TRCs can be requested instead of only the latest ones.
+      description: List the latest SCION Trust Root Configurations for each ISD that are known to the control service. The result can be filtered by ISD. Optionally, all TRCs can be requested instead of only the latest ones.
       operationId: get-trcs
       parameters:
         - in: query
@@ -465,25 +457,17 @@ paths:
       tags:
         - beacon
       summary: List the SCION beacons
-      description: >-
-        List the SCION beacons that are known to the control service. The
-        results can be filtered by the start AS, ingress interface and usage of
-        the beacon. By default, all unexpired beacons are returned. This
-        behavior can be changed with the `all` and `valid_at` parameters.
+      description: List the SCION beacons that are known to the control service. The results can be filtered by the start AS, ingress interface and usage of the beacon. By default, all unexpired beacons are returned. This behavior can be changed with the `all` and `valid_at` parameters.
       operationId: get-beacons
       parameters:
         - in: query
-          description: >-
-            Start ISD-AS of beacons. The address can include wildcards (0) both
-            for the ISD and AS identifier.
+          description: Start ISD-AS of beacons. The address can include wildcards (0) both for the ISD and AS identifier.
           name: start_isd_as
           example: 1-ff00:0:110
           schema:
             $ref: '#/components/schemas/IsdAs'
         - in: query
-          description: >-
-            Minimum allowed usages of the returned beacons. Only beacons that
-            are allowed in all the usages in the list will be returned.
+          description: Minimum allowed usages of the returned beacons. Only beacons that are allowed in all the usages in the list will be returned.
           name: usages
           example:
             - up_registration
@@ -499,9 +483,7 @@ paths:
             minimum: 0
             maximum: 65535
         - in: query
-          description: >-
-            Timestamp at which returned beacons are valid. If unset then the
-            current datetime is used. This only has an effect if `all=false`.
+          description: Timestamp at which returned beacons are valid. If unset then the current datetime is used. This only has an effect if `all=false`.
           name: valid_at
           example: '2021-11-25T12:20:50.52Z'
           schema:
@@ -520,9 +502,7 @@ paths:
             default: false
             type: boolean
         - in: query
-          description: >-
-            Attribute by which results are sorted. The value `start_isd_as`
-            refers to the ISD-AS identifier of the first hop.
+          description: Attribute by which results are sorted. The value `start_isd_as` refers to the ISD-AS identifier of the first hop.
           name: sort
           example: expiration
           schema:
@@ -558,10 +538,7 @@ paths:
       parameters:
         - in: path
           name: segment-id
-          description: >-
-            The segment ID of the beacon segment. If the input value is shorter
-            than a segment ID, but matches the prefix of the segment ID of
-            exactly one beacon, then this beacon is returned.
+          description: The segment ID of the beacon segment. If the input value is shorter than a segment ID, but matches the prefix of the segment ID of exactly one beacon, then this beacon is returned.
           required: true
           schema:
             $ref: '#/components/schemas/SegmentID'
@@ -658,45 +635,27 @@ components:
         type:
           type: string
           format: uri-reference
-          description: >-
-            A URI reference that uniquely identifies the problem type only in
-            the context of the provided API. Opposed to the specification in
-            RFC-7807, it is neither recommended to be dereferencable and point
-            to a human-readable documentation nor globally unique for the
-            problem type.
+          description: A URI reference that uniquely identifies the problem type only in the context of the provided API. Opposed to the specification in RFC-7807, it is neither recommended to be dereferencable and point to a human-readable documentation nor globally unique for the problem type.
           default: about:blank
           example: /problem/connection-error
         title:
           type: string
-          description: >-
-            A short summary of the problem type. Written in English and readable
-            for engineers, usually not suited for non technical stakeholders and
-            not localized.
+          description: A short summary of the problem type. Written in English and readable for engineers, usually not suited for non technical stakeholders and not localized.
           example: Service Unavailable
         status:
           type: integer
-          description: >-
-            The HTTP status code generated by the origin server for this
-            occurrence of the problem.
+          description: The HTTP status code generated by the origin server for this occurrence of the problem.
           minimum: 100
           maximum: 599
           example: 503
         detail:
           type: string
-          description: >-
-            A human readable explanation specific to this occurrence of the
-            problem that is helpful to locate the problem and give advice on how
-            to proceed. Written in English and readable for engineers, usually
-            not suited for non technical stakeholders and not localized.
+          description: A human readable explanation specific to this occurrence of the problem that is helpful to locate the problem and give advice on how to proceed. Written in English and readable for engineers, usually not suited for non technical stakeholders and not localized.
           example: Connection to database timed out
         instance:
           type: string
           format: uri-reference
-          description: >-
-            A URI reference that identifies the specific occurrence of the
-            problem, e.g. by adding a fragment identifier or sub-path to the
-            problem type. May be used to locate the root of this problem in the
-            source code.
+          description: A URI reference that identifies the specific occurrence of the problem, e.g. by adding a fragment identifier or sub-path to the problem type. May be used to locate the root of this problem in the source code.
           example: /problem/connection-error#token-info-read-timed-out
     Hop:
       title: Path segment hop

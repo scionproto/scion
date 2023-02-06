@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -478,7 +477,7 @@ func (c *ClientWithResponses) SetLogLevelWithResponse(ctx context.Context, body 
 
 // ParseGetConfigResponse parses an HTTP response from a GetConfigWithResponse call
 func ParseGetConfigResponse(rsp *http.Response) (*GetConfigResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
@@ -504,7 +503,7 @@ func ParseGetConfigResponse(rsp *http.Response) (*GetConfigResponse, error) {
 
 // ParseGetInfoResponse parses an HTTP response from a GetInfoWithResponse call
 func ParseGetInfoResponse(rsp *http.Response) (*GetInfoResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
@@ -530,7 +529,7 @@ func ParseGetInfoResponse(rsp *http.Response) (*GetInfoResponse, error) {
 
 // ParseGetLogLevelResponse parses an HTTP response from a GetLogLevelWithResponse call
 func ParseGetLogLevelResponse(rsp *http.Response) (*GetLogLevelResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
@@ -563,7 +562,7 @@ func ParseGetLogLevelResponse(rsp *http.Response) (*GetLogLevelResponse, error) 
 
 // ParseSetLogLevelResponse parses an HTTP response from a SetLogLevelWithResponse call
 func ParseSetLogLevelResponse(rsp *http.Response) (*SetLogLevelResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err

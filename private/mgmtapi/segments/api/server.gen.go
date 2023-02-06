@@ -31,7 +31,7 @@ type ServerInterfaceWrapper struct {
 	ErrorHandlerFunc   func(w http.ResponseWriter, r *http.Request, err error)
 }
 
-type MiddlewareFunc func(http.HandlerFunc) http.HandlerFunc
+type MiddlewareFunc func(http.Handler) http.Handler
 
 // GetSegments operation middleware
 func (siw *ServerInterfaceWrapper) GetSegments(w http.ResponseWriter, r *http.Request) {
@@ -43,9 +43,6 @@ func (siw *ServerInterfaceWrapper) GetSegments(w http.ResponseWriter, r *http.Re
 	var params GetSegmentsParams
 
 	// ------------- Optional query parameter "start_isd_as" -------------
-	if paramValue := r.URL.Query().Get("start_isd_as"); paramValue != "" {
-
-	}
 
 	err = runtime.BindQueryParameter("form", true, false, "start_isd_as", r.URL.Query(), &params.StartIsdAs)
 	if err != nil {
@@ -54,9 +51,6 @@ func (siw *ServerInterfaceWrapper) GetSegments(w http.ResponseWriter, r *http.Re
 	}
 
 	// ------------- Optional query parameter "end_isd_as" -------------
-	if paramValue := r.URL.Query().Get("end_isd_as"); paramValue != "" {
-
-	}
 
 	err = runtime.BindQueryParameter("form", true, false, "end_isd_as", r.URL.Query(), &params.EndIsdAs)
 	if err != nil {
@@ -64,15 +58,15 @@ func (siw *ServerInterfaceWrapper) GetSegments(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSegments(w, r, params)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetSegment operation middleware
@@ -84,21 +78,21 @@ func (siw *ServerInterfaceWrapper) GetSegment(w http.ResponseWriter, r *http.Req
 	// ------------- Path parameter "segment-id" -------------
 	var segmentId SegmentID
 
-	err = runtime.BindStyledParameter("simple", false, "segment-id", chi.URLParam(r, "segment-id"), &segmentId)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "segment-id", runtime.ParamLocationPath, chi.URLParam(r, "segment-id"), &segmentId)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "segment-id", Err: err})
 		return
 	}
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSegment(w, r, segmentId)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetSegmentBlob operation middleware
@@ -110,21 +104,21 @@ func (siw *ServerInterfaceWrapper) GetSegmentBlob(w http.ResponseWriter, r *http
 	// ------------- Path parameter "segment-id" -------------
 	var segmentId SegmentID
 
-	err = runtime.BindStyledParameter("simple", false, "segment-id", chi.URLParam(r, "segment-id"), &segmentId)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "segment-id", runtime.ParamLocationPath, chi.URLParam(r, "segment-id"), &segmentId)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "segment-id", Err: err})
 		return
 	}
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSegmentBlob(w, r, segmentId)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 type UnescapedCookieParamError struct {
@@ -140,16 +134,16 @@ func (e *UnescapedCookieParamError) Unwrap() error {
 	return e.Err
 }
 
-type UnmarshalingParamError struct {
+type UnmarshallingParamError struct {
 	ParamName string
 	Err       error
 }
 
-func (e *UnmarshalingParamError) Error() string {
-	return fmt.Sprintf("Error unmarshaling parameter %s as JSON: %s", e.ParamName, e.Err.Error())
+func (e *UnmarshallingParamError) Error() string {
+	return fmt.Sprintf("Error unmarshalling parameter %s as JSON: %s", e.ParamName, e.Err.Error())
 }
 
-func (e *UnmarshalingParamError) Unwrap() error {
+func (e *UnmarshallingParamError) Unwrap() error {
 	return e.Err
 }
 
