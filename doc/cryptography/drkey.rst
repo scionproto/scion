@@ -28,7 +28,7 @@ to derive keys in the hierarchy from top to bottom.
 The first secret in the hierarchy (:math:`SV_A`) is derived from a long-term ``master_secret``,
 using a key derivation function.
 For the rest of the derivations, DRKey utilizes pseudorandom functions, which are more efficient.
-Informally, key derivation functions output a cryptographic key indistingushible from
+Informally, key derivation functions output a cryptographic key indistinguishable from
 a random key if the secret is unknown for the attacker.
 In contrast, the security of pseudorandom functions relies on the input being a uniformly
 random secret.
@@ -130,7 +130,7 @@ Protocol-specific derivation
      - host-host key (Level 3)
 
 The SV computation is local, thus the AS is free to compute it as desired as long as
-it outputs a cryptographic key indistingushible from a random key for an attacker.
+it outputs a cryptographic key indistinguishable from a random key for an attacker.
 We suggest to use the *PBKDF2* as KDF function and set ``input`` to:
 ``input = "len(master_secret) || master_secret || protocol || epoch_begin || epoch_end"``.
 
@@ -228,7 +228,7 @@ is necessary to avoid nonsensical scenarios. This value is
 globally set to 6 minutes.
 
 The upper bound for the epoch length is defined to 3 days, looking for a trade-off
-between efﬁciency and security.
+between efficiency and security.
 
 .. note::
 
@@ -251,7 +251,7 @@ Prefetching period
 ------------------
 ASes will be allowed to prefetch keys some time before the key for the current epoch expires.
 This period must be long enough to allow every remote AS to attempt the key prefetching
-enough times to be succesful even in the presence of failures. However, this period
+enough times to be successful even in the presence of failures. However, this period
 should not be too long, since the issuer AS is not assumed to carry out any changes
 once it has issued keys for a given epoch (e.g. modifying SV epoch duration,
 rotating the master secret, etc.).
@@ -274,7 +274,7 @@ the issuer-AS  on the fast side (i.e. the AS serving the key). Both parties iden
 the CP-PKI infrastructure.
 
 The Level 1 key request message contains the ``validTime`` that specifies for what time the requested
-key must be valid (it implicitly specifies the epoch for which the key will be valid).
+key must be valid (it implicitly specifies the epoch for which the key will be valid)
 and the ``protocol_id``. 
 The Level 1 key response includes the symmetric key along with the epoch
 for which this key will be valid.
