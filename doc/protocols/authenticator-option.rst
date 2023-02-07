@@ -57,10 +57,10 @@ Timestamp / Sequence Number:
 
   When used with a DRKey :ref:`SPI <spao-spi>`, the field represents a relative Timestamp (*Ts*),
   counting the nanoseconds since the starting time of the associated DRKey :ref:`Epoch<drkey-epoch>`.
-  (See Appendix for a more detailed explanation about the field interpretation).
+  (See :ref:`Appendix<spao-appendix>` for a more detailed explanation about the field interpretation).
   The timestamp MAY be used to compute the absolute time (*AbsTime*) value, 
   which corresponds to the time when the packet was sent.
-  The section:ref:`Absulte time derivation<spao-timestamp>` describes the derivation of *AbsTime* and
+  The section:ref:`Absolute time derivation<spao-timestamp>` describes the derivation of *AbsTime* and
   the associated DRKey.
 
   The receiver SHOULD drop packets with *AbsTime* outside of a locally chosen
@@ -144,8 +144,8 @@ Protocol Identifier
 
 .. _spao-timestamp:
 
-Absolute time and DRKey derivation
-==================================
+Absolute time and DRKey selection
+=================================
 
 Firstly, the receiver entity defines an *acceptance window*.
 An *acceptance window* (aw) is a time range of width *a* around the receiver's current time *T*,
@@ -154,9 +154,9 @@ i.e.,:
 :math:`aw := [T-a/2, T+a/2)`
 
 
-[i] The minimum DRKey epoch length is defined as the upper bound for the acceptance windows.
+[i] The acceptance window is equal or smaller than the minumum DRKey epoch length.
 
-The receiver entity derives the absolute timestamp and the associated DRKey by:
+The receiver entity derives the absolute timestamp and selects the associated DRKey by:
 
 1. Given a time instant *T*, considering:
 
@@ -374,6 +374,7 @@ It is visible from the metadata whether the addresses are to be skipped from
 the MAC input, as discussed above, so that also in this case no length
 extension attacks are possible.
 
+.. _spao-appendix:
 
 Appendix: Design Rationale
 ==========================
