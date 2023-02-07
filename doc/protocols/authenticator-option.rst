@@ -37,7 +37,7 @@ Alignment requirement: 4n + 2::
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |    Algorithm  |      RSV      |                               |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               +
-    |                     Timestamp/Sequence Number                 |
+    |                    Timestamp / Sequence Number                |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                          Authenticator ...                    |
     |                                                               |
@@ -49,29 +49,29 @@ OptDataLen
   Unsigned 8-bit integer denoting the length in bytes of the full option data
   (12 + length of Authenticator).
   The length depends on algorithm used.
-Timestamp (Sequence Number):
+Timestamp / Sequence Number:
   Unsigned 48-bit integer value.
-  The Timestamp/Sequence Number field contains a value for each packet that 
+  The Timestamp / Sequence Number field contains a value for each packet that 
   can be used for replay detection by the receiver.
-  The detailed interpretation of the Timestamp/Sequence Number field depends on the SPI.
+  The detailed interpretation of the Timestamp / Sequence Number field depends on the SPI.
 
-  When used with a DRKey :ref:`SPI <spao-spi>`, the field represent a relative Timestamp (*Ts*),
+  When used with a DRKey :ref:`SPI <spao-spi>`, the field represents a relative Timestamp (*Ts*),
   counting the nanoseconds since the starting time of the associated DRKey :ref:`Epoch<drkey-epoch>`.
   (See Appendix for a more detailed explanation about the field interpretation).
-  The timestamp MAY be used to compute the absolute time (*at*) value, 
+  The timestamp MAY be used to compute the absolute time (*AbsTime*) value, 
   which corresponds to the time when the packet was sent.
-  The section:ref:`Abosulte time derivation<spao-timestamp>` describes the derivation of *at* and
+  The section:ref:`Absulte time derivation<spao-timestamp>` describes the derivation of *AbsTime* and
   the associated DRKey.
 
-  The receiver SHOULD drop packets with *at* outside of a locally chosen
+  The receiver SHOULD drop packets with *AbsTime* outside of a locally chosen
   range around the current time.
 
-  The sender SHOULD ensure the uniqueness of the absolute time (*at*) per packet.
-  The receiver will use the *at* for replay detection and, thus, 
+  The sender SHOULD ensure the uniqueness of the absolute time (*AbsTime*) per packet.
+  The receiver will use the *AbsTime* for replay detection and, thus, 
   it SHOULD drop packets with a duplicate:
 
   .. math::
-    (\mathrm{Source\ Address, *at*})
+    (\mathrm{SRC\ ISD, SRC\ AS, SrcHostAddr, *AbsTime*})
   
   When used with a non-DRKey :ref:`SPI <spao-spi>`, this field is used as 
   a wrapping counter and replay detection is based on sliding window of expected counter values.
@@ -148,13 +148,13 @@ Absolute time and DRKey derivation
 ==================================
 
 Firstly, the receiver entity defines an *acceptance window*.
-An *acceptance window* (aw) is a time range of width *a* around the receiver current time *T*,
+An *acceptance window* (aw) is a time range of width *a* around the receiver's current time *T*,
 i.e.,:
 
-:math:`aw := [T-a/2, T +a/2)`
+:math:`aw := [T-a/2, T+a/2)`
 
 
-[i] We consider the minimum DRKey epoch length as the upper bound for the acceptance windows.
+[i] The minimum DRKey epoch length is defined as the upper bound for the acceptance windows.
 
 The receiver entity derives the absolute timestamp and the associated DRKey by:
 
@@ -164,16 +164,16 @@ The receiver entity derives the absolute timestamp and the associated DRKey by:
    - Epoch :math:`E_{i-1}` as the prior epoch to :math:`E_{i}`.
    - Epoch :math:`E_{i+1}` as the subsequent epoch to :math:`E_{i}`.
 
-2. Adding the relative timestamp (*rt*) (the one in :ref:`SPAO Header<authenticator-option>`) to
+2. Adding the relative timestamp (*relTime*) (the one in :ref:`SPAO Header<authenticator-option>`) to
    the start time for :math:`E_{i-1}`, :math:`E_{i}` and :math:`E_{i+1}`, 
-   computing the respective *absolute times* (*at*):
+   computing the respective *absolute times* (*AbsTime*):
    :math:`at_{i-1}`, :math:`at_{i}` and :math:`at_{i+1}`.
 3. Given [i] at most one *absolute time* will be within *aw*.
-4. The candidate DRKey is the key whose epoch is associated to *at*,
-   e.g., if *at* is :math:`at_{i-1}` the key belong to :math:`E_{i-1}`.
+4. The candidate DRKey is the key whose epoch is associated to *AbsTime*,
+   e.g., if *AbsTime* is :math:`at_{i-1}` the key belonging to :math:`E_{i-1}`.
 
 Note that `at_{i-1}` might, for instance be within the :ref:`Grace period<drkey-grace>`, i.e.,
-overlapping at `E_{i}`. Nevertheless, due to [i] we can unambigously distingish it.
+overlapping at `E_{i}`. Nevertheless, due to [i] we can unambiguously distinguish it.
 
 
 Authenticated Data
@@ -380,11 +380,8 @@ Appendix: Design Rationale
 
 The following goals/constraints led to this design:
 
-- include a timestamp / sequence number to uniquely identify packets of the
-  entire lifetime of a SCION path (24h).
+- include a timestamp / sequence number to uniquely identify packets.
 
-  - with high rates of packets (>1Gpps) we seem to need about 37 bit (~5bytes)
-    for uniqueness
   - timestamp should be accurate enough to allow dropping obviously old packets
   - sequence number should be long enough to allow sliding window replay
     suppression like in IPSec
@@ -407,12 +404,12 @@ The following goals/constraints led to this design:
   The SPI comes first as we don't need to include it in the MAC computation and
   don't want it between the other fields and the SHA1 hash.
 
-- When the *Ts*/*SN* field is used with DRKey SPI, the 48-bits in the field allow to 
+- When the Timestamp / Sequence Number field is used with DRKey SPI, the 48-bits in the field allow to 
   cover the maximum DRKey epoch length plus the :ref:`Grace period<drkey-grace>`
   with granularity of 1 nanosecond, since:
 
   .. math:: 
         (3 \times 24 \times 60 \times 60 + 5) \times 10^9 < {2^{48}}
 
-- When the *Ts*/*SN* field is used with DRKey SPI, the application can use a clock that is less
+- When the Timestamp / Sequence Number field is used with DRKey SPI, the application can use a clock that is less
   accurate than 1 nanosecond and fill out the less significant bits with a counter.
