@@ -147,6 +147,9 @@ Protocol Identifier
 Absolute time and DRKey selection
 =================================
 
+This section proposes an implementation method to find out the Security Association from the
+SPAO metadata information, i.e., to select the DRKey to authenticate the packet.
+
 Firstly, the receiver entity defines an *acceptance window*.
 An *acceptance window* (aw) is a time range of width *a* around the receiver's current time *T*,
 i.e.,:
