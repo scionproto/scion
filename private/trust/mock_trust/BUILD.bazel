@@ -12,7 +12,6 @@ gomock(
         "Provider",
         "Recurser",
         "Router",
-        "X509KeyPairLoader",
     ],
     library = "//private/trust:go_default_library",
     package = "mock_trust",

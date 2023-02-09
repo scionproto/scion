@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -199,20 +200,19 @@ func realMain(ctx context.Context) error {
 		return err
 	}
 
-	loader := trust.X509KeyPairProvider{
-		IA: topo.IA(),
-		DB: trustDB,
-		KeyLoader: cstrust.LoadingRing{
-			Dir: filepath.Join(globalCfg.General.ConfigDir, "crypto/as"),
-		},
-	}
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.IA(),
 		Public:                topo.ControlServiceAddress(globalCfg.General.ID),
 		ReconnectToDispatcher: globalCfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{
-			Address:    globalCfg.QUIC.Address,
-			TLSManager: trust.NewTLSCryptoManager(loader, trustDB),
+			Address:     globalCfg.QUIC.Address,
+			TLSVerifier: trust.NewTLSCryptoVerifier(trustDB),
+			GetCertificate: cs.NewTLSCertificateLoader(
+				topo.IA(), x509.ExtKeyUsageServerAuth, trustDB, globalCfg.General.ConfigDir,
+			).GetCertificate,
+			GetClientCertificate: cs.NewTLSCertificateLoader(
+				topo.IA(), x509.ExtKeyUsageClientAuth, trustDB, globalCfg.General.ConfigDir,
+			).GetClientCertificate,
 		},
 		SVCResolver: topo,
 		SCMPHandler: snet.DefaultSCMPHandler{
@@ -384,10 +384,7 @@ func realMain(ctx context.Context) error {
 
 	}
 
-	signer, err := cs.NewSigner(topo.IA(), trustDB, globalCfg.General.ConfigDir)
-	if err != nil {
-		return serrors.WrapStr("initializing AS signer", err)
-	}
+	signer := cs.NewSigner(topo.IA(), trustDB, globalCfg.General.ConfigDir)
 
 	var chainBuilder renewal.ChainBuilder
 	var caClient *caapi.Client
@@ -622,6 +619,7 @@ func realMain(ctx context.Context) error {
 			},
 		}
 		defer level1DB.Close()
+
 		drkeyFetcher := drkeygrpc.Fetcher{
 			Dialer: &libgrpc.QUICDialer{
 				Rewriter: nc.AddressRewriter(nil),
@@ -643,7 +641,7 @@ func realMain(ctx context.Context) error {
 		}
 		drkeyService := &drkeygrpc.Server{
 			LocalIA:                   topo.IA(),
-			ClientCertificateVerifier: nc.QUIC.TLSManager,
+			ClientCertificateVerifier: nc.QUIC.TLSVerifier,
 			Engine:                    drkeyEngine,
 			AllowedSVHostProto:        globalCfg.DRKey.Delegation.ToAllowedSet(),
 		}

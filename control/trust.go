@@ -16,6 +16,7 @@ package control
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	"path/filepath"
 	"time"
@@ -64,8 +65,42 @@ func LoadTrustMaterial(ctx context.Context, configDir string, db trust.DB) error
 	return nil
 }
 
+func NewTLSCertificateLoader(
+	ia addr.IA,
+	extKeyUsage x509.ExtKeyUsage,
+	db trust.DB,
+	cfgDir string,
+) cstrust.TLSCertificateLoader {
+
+	return cstrust.TLSCertificateLoader{
+		SignerGen: newCachingSignerGen(ia, extKeyUsage, db, cfgDir),
+	}
+}
+
 // NewSigner creates a renewing signer backed by a certificate chain.
-func NewSigner(ia addr.IA, db trust.DB, cfgDir string) (cstrust.RenewingSigner, error) {
+func NewSigner(ia addr.IA, db trust.DB, cfgDir string) cstrust.RenewingSigner {
+	signer := cstrust.RenewingSigner{
+		SignerGen: newCachingSignerGen(ia, x509.ExtKeyUsageAny, db, cfgDir),
+	}
+
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	defer cancelF()
+	if _, err := signer.SignerGen.Generate(ctx); err != nil {
+		log.Debug("Initial signer generation failed", "err", err)
+	}
+	return signer
+}
+
+// newCachingSignerGen creates a caching signer generator (i.e. a key/cert loader).
+// If key usage is specified (not ExtKeyUsageAny), only signers with matching
+// certificates will be returned.
+func newCachingSignerGen(
+	ia addr.IA,
+	extKeyUsage x509.ExtKeyUsage,
+	db trust.DB,
+	cfgDir string,
+) *cstrust.CachingSignerGen {
+
 	gen := trust.SignerGen{
 		IA: ia,
 		DB: cstrust.CryptoLoader{
@@ -76,20 +111,12 @@ func NewSigner(ia addr.IA, db trust.DB, cfgDir string) (cstrust.RenewingSigner, 
 		KeyRing: cstrust.LoadingRing{
 			Dir: filepath.Join(cfgDir, "crypto/as"),
 		},
+		ExtKeyUsage: extKeyUsage,
 	}
-	signer := cstrust.RenewingSigner{
-		SignerGen: &cstrust.CachingSignerGen{
-			SignerGen: gen,
-			Interval:  5 * time.Second,
-		},
+	return &cstrust.CachingSignerGen{
+		SignerGen: gen,
+		Interval:  5 * time.Second,
 	}
-
-	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
-	defer cancelF()
-	if _, err := signer.SignerGen.Generate(ctx); err != nil {
-		log.Debug("Initial signer generation failed", "err", err)
-	}
-	return signer, nil
 }
 
 type ChainBuilderConfig struct {

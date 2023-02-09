@@ -22,10 +22,10 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/control/trust"
+	cstrust "github.com/scionproto/scion/control/trust"
 	"github.com/scionproto/scion/control/trust/mock_trust"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	libtrust "github.com/scionproto/scion/private/trust"
+	"github.com/scionproto/scion/private/trust"
 )
 
 func TestChachingSignerGen(t *testing.T) {
@@ -34,90 +34,90 @@ func TestChachingSignerGen(t *testing.T) {
 
 	testCases := map[string]struct {
 		Interval     time.Duration
-		SignerGen    func(mctrl *gomock.Controller) trust.SignerGen
+		SignerGen    func(mctrl *gomock.Controller) cstrust.SignerGen
 		FirstErr     assert.ErrorAssertionFunc
-		FirstSigner  libtrust.Signer
+		FirstSigner  trust.Signer
 		SecondErr    assert.ErrorAssertionFunc
-		SecondSigner libtrust.Signer
+		SecondSigner trust.Signer
 	}{
 		"valid": {
 			Interval: time.Hour,
-			SignerGen: func(mctrl *gomock.Controller) trust.SignerGen {
+			SignerGen: func(mctrl *gomock.Controller) cstrust.SignerGen {
 				gen := mock_trust.NewMockSignerGen(mctrl)
 				gen.EXPECT().Generate(gomock.Any()).Return(
-					libtrust.Signer{Expiration: exp}, nil,
+					trust.Signer{Expiration: exp}, nil,
 				)
 				return gen
 			},
 			FirstErr:     assert.NoError,
-			FirstSigner:  libtrust.Signer{Expiration: exp},
+			FirstSigner:  trust.Signer{Expiration: exp},
 			SecondErr:    assert.NoError,
-			SecondSigner: libtrust.Signer{Expiration: exp},
+			SecondSigner: trust.Signer{Expiration: exp},
 		},
 		"valid, regenerate after interval": {
 			Interval: 0,
-			SignerGen: func(mctrl *gomock.Controller) trust.SignerGen {
+			SignerGen: func(mctrl *gomock.Controller) cstrust.SignerGen {
 				gen := mock_trust.NewMockSignerGen(mctrl)
 				gen.EXPECT().Generate(gomock.Any()).Return(
-					libtrust.Signer{Expiration: exp}, nil,
+					trust.Signer{Expiration: exp}, nil,
 				)
 				gen.EXPECT().Generate(gomock.Any()).Return(
-					libtrust.Signer{Expiration: otherExp}, nil,
+					trust.Signer{Expiration: otherExp}, nil,
 				)
 				return gen
 			},
 			FirstErr:     assert.NoError,
-			FirstSigner:  libtrust.Signer{Expiration: exp},
+			FirstSigner:  trust.Signer{Expiration: exp},
 			SecondErr:    assert.NoError,
-			SecondSigner: libtrust.Signer{Expiration: otherExp},
+			SecondSigner: trust.Signer{Expiration: otherExp},
 		},
 		"first fails, second cached": {
 			Interval: time.Hour,
-			SignerGen: func(mctrl *gomock.Controller) trust.SignerGen {
+			SignerGen: func(mctrl *gomock.Controller) cstrust.SignerGen {
 				gen := mock_trust.NewMockSignerGen(mctrl)
 				gen.EXPECT().Generate(gomock.Any()).Return(
-					libtrust.Signer{}, serrors.New("internal"),
+					trust.Signer{}, serrors.New("internal"),
 				)
 				return gen
 			},
 			FirstErr:     assert.Error,
-			FirstSigner:  libtrust.Signer{},
+			FirstSigner:  trust.Signer{},
 			SecondErr:    assert.Error,
-			SecondSigner: libtrust.Signer{},
+			SecondSigner: trust.Signer{},
 		},
 		"first fails, second succeeds": {
 			Interval: 0,
-			SignerGen: func(mctrl *gomock.Controller) trust.SignerGen {
+			SignerGen: func(mctrl *gomock.Controller) cstrust.SignerGen {
 				gen := mock_trust.NewMockSignerGen(mctrl)
 				gen.EXPECT().Generate(gomock.Any()).Return(
-					libtrust.Signer{}, serrors.New("internal"),
+					trust.Signer{}, serrors.New("internal"),
 				)
 				gen.EXPECT().Generate(gomock.Any()).Return(
-					libtrust.Signer{Expiration: exp}, nil,
+					trust.Signer{Expiration: exp}, nil,
 				)
 				return gen
 			},
 			FirstErr:     assert.Error,
-			FirstSigner:  libtrust.Signer{},
+			FirstSigner:  trust.Signer{},
 			SecondErr:    assert.NoError,
-			SecondSigner: libtrust.Signer{Expiration: exp},
+			SecondSigner: trust.Signer{Expiration: exp},
 		},
 		"second fails, serve cached": {
 			Interval: 0,
-			SignerGen: func(mctrl *gomock.Controller) trust.SignerGen {
+			SignerGen: func(mctrl *gomock.Controller) cstrust.SignerGen {
 				gen := mock_trust.NewMockSignerGen(mctrl)
 				gen.EXPECT().Generate(gomock.Any()).Return(
-					libtrust.Signer{Expiration: exp}, nil,
+					trust.Signer{Expiration: exp}, nil,
 				)
 				gen.EXPECT().Generate(gomock.Any()).Return(
-					libtrust.Signer{}, serrors.New("internal"),
+					trust.Signer{}, serrors.New("internal"),
 				)
 				return gen
 			},
 			FirstErr:     assert.NoError,
-			FirstSigner:  libtrust.Signer{Expiration: exp},
+			FirstSigner:  trust.Signer{Expiration: exp},
 			SecondErr:    assert.NoError,
-			SecondSigner: libtrust.Signer{Expiration: exp},
+			SecondSigner: trust.Signer{Expiration: exp},
 		},
 	}
 	for name, tc := range testCases {
@@ -125,7 +125,7 @@ func TestChachingSignerGen(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			mctrl := gomock.NewController(t)
-			gen := trust.CachingSignerGen{
+			gen := cstrust.CachingSignerGen{
 				SignerGen: tc.SignerGen(mctrl),
 				Interval:  tc.Interval,
 			}

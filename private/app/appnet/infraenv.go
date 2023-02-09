@@ -48,8 +48,11 @@ import (
 // QUIC contains the QUIC configuration for control-plane speakers.
 type QUIC struct {
 	// Address is the UDP address to start the QUIC server on.
-	Address    string
-	TLSManager *trust.TLSCryptoManager
+	Address string
+
+	GetCertificate       func(*tls.ClientHelloInfo) (*tls.Certificate, error)
+	GetClientCertificate func(*tls.CertificateRequestInfo) (*tls.Certificate, error)
+	TLSVerifier          *trust.TLSCryptoVerifier
 }
 
 // NetworkConfig describes the networking configuration of a SCION
@@ -108,10 +111,9 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	log.Info("QUIC server conn initialized", "local_addr", server.LocalAddr())
 	log.Info("QUIC client conn initialized", "local_addr", client.LocalAddr())
 
-	tlsMgr := nc.QUIC.TLSManager
 	serverTLSConfig := &tls.Config{
 		InsecureSkipVerify: true,
-		GetCertificate:     tlsMgr.GetCertificate,
+		GetCertificate:     nc.QUIC.GetCertificate,
 		ClientAuth:         tls.RequestClientCert,
 		NextProtos:         []string{"SCION"},
 	}
@@ -139,9 +141,9 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	}
 	clientTLSConfig := &tls.Config{
 		InsecureSkipVerify:    true, // ... but VerifyServerCertificate and VerifyConnection
-		GetClientCertificate:  tlsMgr.GetClientCertificate,
-		VerifyPeerCertificate: tlsMgr.VerifyServerCertificate,
-		VerifyConnection:      tlsMgr.VerifyConnection,
+		GetClientCertificate:  nc.QUIC.GetClientCertificate,
+		VerifyPeerCertificate: nc.QUIC.TLSVerifier.VerifyServerCertificate,
+		VerifyConnection:      nc.QUIC.TLSVerifier.VerifyConnection,
 		NextProtos:            []string{"SCION"},
 	}
 

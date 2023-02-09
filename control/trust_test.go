@@ -35,12 +35,11 @@ func TestNewSigner(t *testing.T) {
 	db, err := sqlite.New("file::memory:")
 	require.NoError(t, err)
 
-	signer, err := cs.NewSigner(
+	signer := cs.NewSigner(
 		xtest.MustParseIA("1-ff00:0:110"),
 		db,
 		filepath.Join(dir, "/ISD1/ASff00_0_110"),
 	)
-	require.NoError(t, err)
 
 	_, err = signer.Sign(context.Background(), []byte("message"))
 	require.NoError(t, err)

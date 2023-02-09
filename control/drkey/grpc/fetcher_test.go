@@ -64,12 +64,9 @@ func TestLevel1KeyFetching(t *testing.T) {
 	lvl1db := mock_grpc.NewMockEngine(ctrl)
 	lvl1db.EXPECT().DeriveLevel1(gomock.Any()).AnyTimes().Return(drkey.Level1Key{}, nil)
 
-	mgrdb := mock_trust.NewMockDB(ctrl)
-	mgrdb.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).AnyTimes().Return(trc, nil)
-	loader := mock_trust.NewMockX509KeyPairLoader(ctrl)
-	loader.EXPECT().LoadClientKeyPair(gomock.Any()).AnyTimes().Return(&tlsCert, nil)
-	loader.EXPECT().LoadServerKeyPair(gomock.Any()).AnyTimes().Return(&tlsCert, nil)
-	mgr := trust.NewTLSCryptoManager(loader, mgrdb)
+	db := mock_trust.NewMockDB(ctrl)
+	db.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).AnyTimes().Return(trc, nil)
+	verifier := trust.NewTLSCryptoVerifier(db)
 
 	path := mock_snet.NewMockPath(ctrl)
 	path.EXPECT().Metadata().AnyTimes().Return(&snet.PathMetadata{
@@ -102,17 +99,21 @@ func TestLevel1KeyFetching(t *testing.T) {
 			// credentials for individual calls so that server does not need to be
 			// recreated here.
 			serverCreds := credentials.NewTLS(&tls.Config{
-				InsecureSkipVerify:    true,
-				GetCertificate:        mgr.GetCertificate,
+				InsecureSkipVerify: true,
+				GetCertificate: func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+					return &tlsCert, nil
+				},
 				VerifyPeerCertificate: nil, // certificate verified in the service
 				ClientAuth:            tls.RequestClientCert,
 			})
 
 			clientTLSConfig := &tls.Config{
-				InsecureSkipVerify:    true,
-				GetClientCertificate:  mgr.GetClientCertificate,
-				VerifyPeerCertificate: mgr.VerifyServerCertificate,
-				VerifyConnection:      mgr.VerifyConnection,
+				InsecureSkipVerify: true,
+				GetClientCertificate: func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+					return &tlsCert, nil
+				},
+				VerifyPeerCertificate: verifier.VerifyServerCertificate,
+				VerifyConnection:      verifier.VerifyConnection,
 			}
 			if tc.omitClientCert {
 				clientTLSConfig.GetClientCertificate = nil
@@ -122,7 +123,7 @@ func TestLevel1KeyFetching(t *testing.T) {
 			server := xtest.NewGRPCService(xtest.WithCredentials(clientCreds, serverCreds))
 			cppb.RegisterDRKeyInterServiceServer(server.Server(), &dk_grpc.Server{
 				Engine:                    lvl1db,
-				ClientCertificateVerifier: mgr,
+				ClientCertificateVerifier: verifier,
 			})
 			server.Start(t)
 

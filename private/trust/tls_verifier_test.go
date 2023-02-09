@@ -32,7 +32,7 @@ import (
 	"github.com/scionproto/scion/private/trust/mock_trust"
 )
 
-func TestTLSCryptoManagerVerifyServerCertificate(t *testing.T) {
+func TestTLSCryptoVerifierVerifyServerCertificate(t *testing.T) {
 	dir := genCrypto(t)
 
 	trc := xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S1.trc"))
@@ -61,18 +61,18 @@ func TestTLSCryptoManagerVerifyServerCertificate(t *testing.T) {
 			defer ctrl.Finish()
 
 			db := tc.db(ctrl)
-			mgr := trust.TLSCryptoManager{
+			verifier := trust.TLSCryptoVerifier{
 				DB:      db,
 				Timeout: 5 * time.Second,
 			}
 			rawChain := loadRawChain(t, crt111File)
-			err := mgr.VerifyServerCertificate(rawChain, nil)
+			err := verifier.VerifyServerCertificate(rawChain, nil)
 			tc.assertErr(t, err)
 		})
 	}
 }
 
-func TestTLSCryptoManagerVerifyClientCertificate(t *testing.T) {
+func TestTLSCryptoVerifierVerifyClientCertificate(t *testing.T) {
 	dir := genCrypto(t)
 
 	trc := xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S1.trc"))
@@ -101,12 +101,12 @@ func TestTLSCryptoManagerVerifyClientCertificate(t *testing.T) {
 			defer ctrl.Finish()
 
 			db := tc.db(ctrl)
-			mgr := trust.TLSCryptoManager{
+			verifier := trust.TLSCryptoVerifier{
 				DB:      db,
 				Timeout: 5 * time.Second,
 			}
 			rawChain := loadRawChain(t, crt111File)
-			err := mgr.VerifyClientCertificate(rawChain, nil)
+			err := verifier.VerifyClientCertificate(rawChain, nil)
 			tc.assertErr(t, err)
 		})
 	}
@@ -130,24 +130,25 @@ func TestHandshake(t *testing.T) {
 
 	db := mock_trust.NewMockDB(ctrl)
 	db.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).MaxTimes(2).Return(trc, nil)
-	loader := mock_trust.NewMockX509KeyPairLoader(ctrl)
-	loader.EXPECT().LoadServerKeyPair(gomock.Any()).Return(&tlsCert, nil)
-	loader.EXPECT().LoadClientKeyPair(gomock.Any()).Return(&tlsCert, nil)
 
-	mgr := trust.NewTLSCryptoManager(loader, db)
+	verifier := trust.NewTLSCryptoVerifier(db)
 	clientConn, serverConn := net.Pipe()
 	defer clientConn.Close()
 	defer serverConn.Close()
 
 	client := tls.Client(clientConn, &tls.Config{
-		InsecureSkipVerify:    true,
-		GetClientCertificate:  mgr.GetClientCertificate,
-		VerifyPeerCertificate: mgr.VerifyServerCertificate,
+		InsecureSkipVerify: true,
+		GetClientCertificate: func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			return &tlsCert, nil
+		},
+		VerifyPeerCertificate: verifier.VerifyServerCertificate,
 	})
 	server := tls.Server(serverConn, &tls.Config{
-		InsecureSkipVerify:    true,
-		GetCertificate:        mgr.GetCertificate,
-		VerifyPeerCertificate: mgr.VerifyClientCertificate,
+		InsecureSkipVerify: true,
+		GetCertificate: func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return &tlsCert, nil
+		},
+		VerifyPeerCertificate: verifier.VerifyClientCertificate,
 		ClientAuth:            tls.RequireAnyClientCert,
 	})
 
