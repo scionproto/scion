@@ -204,7 +204,7 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 			}
 			defer conn.Close()
 			if err := conn.SetDeadline(deadline); err != nil {
-				return serrors.New("setting deadline", "err", err)
+				return serrors.WrapStr("setting deadline", err)
 			}
 
 			// Send probe for each path.
