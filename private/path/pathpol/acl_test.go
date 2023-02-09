@@ -52,7 +52,7 @@ func TestNewACL(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			acl, err := NewACL(test.Entries...)
-			xtest.AssertErrorsIs(t, err, test.ExpectedErr)
+			assert.ErrorIs(t, err, test.ExpectedErr)
 			if test.ExpectedErr == nil {
 				assert.NotNil(t, acl)
 			}

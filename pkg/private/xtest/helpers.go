@@ -20,17 +20,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"inet.af/netaddr"
 
@@ -132,22 +129,6 @@ func SanitizedName(t testing.TB) string {
 	return strings.NewReplacer(" ", "_", "/", "_", "\\", "_", ":", "_").Replace(t.Name())
 }
 
-func TempDir(t testing.TB) (string, func()) {
-	name, err := os.MkdirTemp("", fmt.Sprintf("%s_*", SanitizedName(t)))
-	require.NoError(t, err)
-	return name, func() {
-		os.RemoveAll(name)
-	}
-}
-
-// CopyDir copies "from" to "to", using the unix cp command.
-func CopyDir(t testing.TB, from, to string) {
-	t.Helper()
-	cmd := exec.Command("cp", "-rL", from, to)
-	out, err := cmd.CombinedOutput()
-	require.NoError(t, err, string(out))
-}
-
 // CopyFile copies the file.
 func CopyFile(t testing.TB, src, dst string) {
 	t.Helper()
@@ -155,15 +136,6 @@ func CopyFile(t testing.TB, src, dst string) {
 	raw, err := os.ReadFile(src)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(dst, raw, 0666))
-}
-
-// FailOnErr causes t to exit with a fatal error if err is non-nil.
-func FailOnErr(t testing.TB, err error, desc ...string) {
-	t.Helper()
-
-	if err != nil {
-		t.Fatal(strings.Join(desc, " "), err)
-	}
 }
 
 // MustMarshalJSONToFile marshals v and writes the result to file
@@ -369,14 +341,5 @@ func AssertReadDoesNotReturnBefore(t testing.TB, ch <-chan struct{}, timeout tim
 	case <-ch:
 		t.Fatalf("goroutine finished too quickly")
 	case <-time.After(timeout):
-	}
-}
-
-// AssertError checks that err is not nil if expectError is true and that is it nil otherwise
-func AssertError(t *testing.T, err error, expectError bool) {
-	if expectError {
-		assert.Error(t, err)
-	} else {
-		assert.NoError(t, err)
 	}
 }

@@ -12,31 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package xtest
+package env
 
 import (
-	"sync"
-	"time"
+	"bufio"
+	"os"
+	"strings"
+
+	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-// Waiter wraps the waitgroup and allows waiting with timeouts.
-type Waiter struct {
-	sync.WaitGroup
-}
-
-// WaitWithTimeout returns immediately after the waitgroup is done,
-// or the timeout has passed. The return value indicates whether
-// the call timed out.
-func (w *Waiter) WaitWithTimeout(timeout time.Duration) bool {
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		w.WaitGroup.Wait()
-	}()
-	select {
-	case <-done:
-		return false
-	case <-time.After(timeout):
-		return true
+// RunsInDocker returns whether the current binary is run in a docker container.
+func RunsInDocker() (bool, error) {
+	f, err := os.Open("/proc/self/cgroup")
+	if err != nil {
+		return false, serrors.WrapStr("Failed to open /proc/self/cgroup", err)
 	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		parts := strings.Split(scanner.Text(), ":")
+		if len(parts) == 3 && strings.HasPrefix(parts[2], "/docker/") {
+			return true, nil
+		}
+	}
+	return false, nil
 }

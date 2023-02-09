@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util_test
+package integration_test
 
 import (
 	"testing"
@@ -20,15 +20,15 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/tools/integration"
 )
 
 func TestLoadASList(t *testing.T) {
 	tests := map[string]struct {
 		File     string
 		Error    assert.ErrorAssertionFunc
-		Expected *util.ASList
+		Expected *integration.ASList
 	}{
 		"non-existing file": {
 			File:  "doesntexist.yml",
@@ -41,7 +41,7 @@ func TestLoadASList(t *testing.T) {
 		"valid file": {
 			File:  "testdata/aslist_valid.yml",
 			Error: assert.NoError,
-			Expected: &util.ASList{
+			Expected: &integration.ASList{
 				Core: []addr.IA{xtest.MustParseIA("1-ff00:0:110")},
 				NonCore: []addr.IA{
 					xtest.MustParseIA("1-ff00:0:111"),
@@ -52,7 +52,7 @@ func TestLoadASList(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			asList, err := util.LoadASList(test.File)
+			asList, err := integration.LoadASList(test.File)
 			test.Error(t, err)
 			assert.Equal(t, test.Expected, asList)
 		})

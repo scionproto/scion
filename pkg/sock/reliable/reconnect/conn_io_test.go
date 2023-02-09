@@ -22,6 +22,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/pkg/private/mocks/net/mock_net"
 	"github.com/scionproto/scion/pkg/private/xtest"
@@ -59,7 +60,7 @@ func TestPacketConnIO(t *testing.T) {
 		Convey("IO must return non-dispatcher errors", func() {
 			mockIO.EXPECT().Do(mockConn).Return(writeNonDispatcherError)
 			err := packetConn.DoIO(mockIO)
-			xtest.AssertErrorsIs(t, err, writeNonDispatcherError)
+			assert.ErrorIs(t, err, writeNonDispatcherError)
 		})
 		Convey("IO must return an error if reconnect got an error from the dispatcher", func() {
 			// If reconnection failed while the dispatcher was up (e.g.,

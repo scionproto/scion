@@ -8,7 +8,6 @@ go_library(
     deps = [
         "//pkg/log:go_default_library",
         "//pkg/private/serrors:go_default_library",
-        "//pkg/private/util:go_default_library",
         "//private/env:go_default_library",
         "//private/topology:go_default_library",
         "@com_github_pelletier_go_toml//:go_default_library",

@@ -19,8 +19,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/scionproto/scion/pkg/private/xtest"
 )
 
 func TestUnderlayPacketSerializeTo(t *testing.T) {
@@ -101,7 +99,7 @@ func TestUnderlayPacketSerializeTo(t *testing.T) {
 			t.Run(tc.Name, func(t *testing.T) {
 				b := make([]byte, 1500)
 				n, err := tc.Packet.SerializeTo(b)
-				xtest.AssertErrorsIs(t, err, tc.ExpectedError)
+				assert.ErrorIs(t, err, tc.ExpectedError)
 				assert.Equal(t, tc.ExpectedData, b[:n])
 			})
 		}
@@ -187,7 +185,7 @@ func TestUnderlayPacketDecodeFromBytes(t *testing.T) {
 			t.Run(tc.Name, func(t *testing.T) {
 				var p UnderlayPacket
 				err := p.DecodeFromBytes(tc.Buffer)
-				xtest.AssertErrorsIs(t, err, tc.ExpectedError)
+				assert.ErrorIs(t, err, tc.ExpectedError)
 				assert.Equal(t, tc.ExpectedPacket, p)
 			})
 		}
