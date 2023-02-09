@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -70,8 +71,13 @@ func (s *GRPCService) Server() *grpc.Server {
 }
 
 func (s *GRPCService) Start(t *testing.T) {
-	go func() {
-		err := s.server.Serve(s.listener)
+	var bg errgroup.Group
+	bg.Go(func() error {
+		return s.server.Serve(s.listener)
+	})
+	t.Cleanup(func() {
+		s.server.Stop()
+		err := bg.Wait()
 		if errors.Is(err, grpc.ErrServerStopped) {
 			// Can (only) occur if Stop in the test cleanup is called before
 			// server has started. This can happen if the test does not
@@ -79,8 +85,7 @@ func (s *GRPCService) Start(t *testing.T) {
 			return
 		}
 		assert.NoError(t, err)
-	}()
-	t.Cleanup(s.server.Stop)
+	})
 }
 
 func (s *GRPCService) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn, error) {
