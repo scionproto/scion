@@ -23,6 +23,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
@@ -84,6 +85,11 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 		return nil, serrors.Wrap(errRegistration, err)
 	}
 	cancelF := ctxconn.CloseConnOnDone(ctx, conn)
+	defer func() {
+		if err := cancelF(); err != nil {
+			log.Info("Error closing conn", "err", err)
+		}
+	}()
 
 	requestPacket := &snet.Packet{
 		PacketInfo: snet.PacketInfo{
@@ -103,9 +109,6 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 		},
 	}
 	reply, err := r.getRoundTripper().RoundTrip(ctx, conn, requestPacket, p.UnderlayNextHop())
-
-	cancelF()
-	err = serrors.Join(err, conn.Close())
 	if err != nil {
 		ext.Error.Set(span, true)
 		return nil, err
