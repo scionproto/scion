@@ -29,41 +29,27 @@ type DeadlineCloser interface {
 	io.Closer
 }
 
-// CancelFunc can be used to shut down context watchers. It is safe to call the
-// cancel function multiple times.
-type CancelFunc func()
-
 // CloseConnOnDone closes conn whenever ctx is Done. This includes if ctx is
 // canceled via its cancellation function.
 //
-// Call the returned cancellation function to free up resources. Calling this
-// function does not guarantee that the connection has been closed. It is not
-// safe to call the returned function multiple times at the same time.
-func CloseConnOnDone(ctx context.Context, conn DeadlineCloser) CancelFunc {
+// Call the returned cancellation function to free up resources and closing the
+// connection. The cancellation function returns any error from closing the connection.
+func CloseConnOnDone(ctx context.Context, conn DeadlineCloser) func() error {
 	if deadline, ok := ctx.Deadline(); ok {
 		// ignore error; if deadline cannot be set, we'll just close the conn
 		// when the context is Done anyway.
 		_ = conn.SetDeadline(deadline)
 	}
 
-	cancelSignal := make(chan struct{})
+	ctx, cancelCtx := context.WithCancel(ctx)
+	errChan := make(chan error)
 	go func() {
 		defer log.HandlePanic()
-		select {
-		case <-ctx.Done():
-			if err := conn.Close(); err != nil {
-				log.Info("Error closing conn when ctx canceled", "err", err)
-			}
-		case <-cancelSignal:
-			// shut down goroutine, free up resources
-			return
-		}
+		<-ctx.Done()
+		errChan <- conn.Close()
 	}()
-	return func() {
-		select {
-		case <-cancelSignal:
-		default:
-			close(cancelSignal)
-		}
+	return func() error {
+		cancelCtx()
+		return <-errChan
 	}
 }
