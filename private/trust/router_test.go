@@ -151,7 +151,7 @@ func TestCSRouterChooseServer(t *testing.T) {
 			}
 			res, err := router.ChooseServer(context.Background(), test.ISD)
 			if test.ExpectedErr != nil {
-				xtest.AssertErrorsIs(t, err, test.ExpectedErr)
+				assert.ErrorIs(t, err, test.ExpectedErr)
 			} else {
 				require.NoError(t, err)
 				expected := &snet.SVCAddr{

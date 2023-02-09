@@ -21,6 +21,7 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/common"
@@ -109,13 +110,13 @@ func testGetMultikey(t *testing.T, revCache TestableRevCache) {
 	SoMsg("Should return no revs", revs, ShouldBeEmpty)
 
 	_, err = revCache.Insert(ctx, rev1)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	_, err = revCache.Insert(ctx, rev2)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	_, err = revCache.Insert(ctx, rev3)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	_, err = revCache.Insert(ctx, rev4)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 
 	key1 := *revcache.NewKey(ia110, ifId15)
 	revs, err = revCache.Get(ctx, revcache.KeySet{key1: {}})
@@ -153,13 +154,13 @@ func testGetAll(t *testing.T, revCache TestableRevCache) {
 	rev3 := defaultRevInfo(ia120, ifId15)
 	rev4 := defaultRevInfo(ia120, common.IFIDType(20))
 	_, err = revCache.Insert(ctx, rev1)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	_, err = revCache.Insert(ctx, rev2)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	_, err = revCache.Insert(ctx, rev3)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	_, err = revCache.Insert(ctx, rev4)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 
 	expectedRevs := []*path_mgmt.RevInfo{rev1, rev2, rev3, rev4}
 
@@ -221,7 +222,7 @@ func testInsertNewer(t *testing.T, revCache TestableRevCache) {
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
 	_, err := revCache.Insert(ctx, rev)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	revNew := &path_mgmt.RevInfo{
 		IfID:         ifId15,
 		RawIsdas:     ia110,
@@ -229,7 +230,7 @@ func testInsertNewer(t *testing.T, revCache TestableRevCache) {
 		RawTimestamp: util.TimeToSecs(time.Now().Add(10 * time.Second)),
 		RawTTL:       uint32((time.Duration(10) * time.Second).Seconds()),
 	}
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	inserted, err := revCache.Insert(ctx, revNew)
 	SoMsg("Insert should return true for a new entry", inserted, ShouldBeTrue)
 	SoMsg("Insert a new entry should not err", err, ShouldBeNil)

@@ -15,9 +15,8 @@
 package reliable
 
 import (
+	"errors"
 	"io"
-	"net"
-	"os"
 	"syscall"
 
 	"github.com/scionproto/scion/pkg/private/common"
@@ -39,10 +38,7 @@ var (
 	ErrBufferTooSmall        common.ErrMsg = "buffer too small"
 )
 
-// TODO(lukedirtwalker): Refactor methods in here to use `errors`.
-
 func IsDispatcherError(err error) bool {
-	err = extractNestedError(err)
 	// On Linux, the following errors should prompt a reconnect:
 	//   - An EOF, when a Read happens to a connection that was closed at the
 	//   other end, and there is no outstanding outgoing data.
@@ -51,44 +47,8 @@ func IsDispatcherError(err error) bool {
 	//   - An ECONNRESET, when a Read happens to a connection that was
 	//   closed at the other end, and there is outstanding outgoing data. An
 	//   ECONNRESET may be followed by EOF on repeated attempts.
-	if err == io.EOF ||
-		IsSpecificSysError(err, syscall.EPIPE) ||
-		IsSpecificSysError(err, syscall.ECONNRESET) {
-		return true
-	}
 	// All other errors can be immediately propagated back to the application.
-	return false
-}
-
-// extractNestedError returns the innermost error of err.
-func extractNestedError(err error) error {
-	if nestedError := common.GetNestedError(err); nestedError != nil {
-		return nestedError
-	}
-	return err
-}
-
-func IsSpecificSysError(err error, errno syscall.Errno) bool {
-	serr, ok := getSysError(err)
-	if !ok {
-		return false
-	}
-	return serr.Err == errno
-}
-
-func IsSysError(err error) bool {
-	_, ok := getSysError(err)
-	return ok
-}
-
-func getSysError(err error) (*os.SyscallError, bool) {
-	nerr, ok := err.(*net.OpError)
-	if !ok {
-		return nil, false
-	}
-	serr, ok := nerr.Err.(*os.SyscallError)
-	if !ok {
-		return nil, false
-	}
-	return serr, true
+	return errors.Is(err, io.EOF) ||
+		errors.Is(err, syscall.EPIPE) ||
+		errors.Is(err, syscall.ECONNRESET)
 }

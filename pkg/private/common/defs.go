@@ -22,20 +22,14 @@ import (
 )
 
 const (
-	// LineLen is the number of bytes that all SCION headers are padded to a multiple of.
-	LineLen = 8
-	MinMTU  = 1280
-	MaxMTU  = (1 << 16) - 1
+	MinMTU = 1280
+	MaxMTU = (1 << 16) - 1
 	// SupportedMTU is the MTU supported by dispatcher/snet and router.
 	// Smaller than MaxMTU to avoid excessive overallocation for packet buffers.
 	// It's chosen as a common ethernet jumbo frame size minus IP/UDP headers.
 	SupportedMTU = 9216 - 20 - 8
 	TimeFmt      = "2006-01-02 15:04:05.000000-0700"
 	TimeFmtSecs  = "2006-01-02 15:04:05-0700"
-)
-
-const (
-	CPService = "Control Plane Service"
 )
 
 // IFIDType is the type for interface IDs.

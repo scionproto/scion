@@ -625,7 +625,7 @@ func TestPolicyJsonConversion(t *testing.T) {
 
 func newSequence(t *testing.T, str string) *Sequence {
 	seq, err := NewSequence(str)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	return seq
 }
 
@@ -669,6 +669,6 @@ func (p PathProvider) GetPaths(src, dst addr.IA) []snet.Path {
 
 func mustHopPredicate(t *testing.T, str string) *HopPredicate {
 	hp, err := HopPredicateFromString(str)
-	xtest.FailOnErr(t, err)
+	require.NoError(t, err)
 	return hp
 }

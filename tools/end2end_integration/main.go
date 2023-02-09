@@ -304,11 +304,16 @@ func getPairs() ([]integration.IAPair, error) {
 	if len(parts) != 2 {
 		return nil, serrors.New("Invalid subset", "subset", subset)
 	}
-	return filter(parts[0], parts[1], pairs, integration.ASList), nil
+	return filter(parts[0], parts[1], pairs, integration.LoadedASList), nil
 }
 
 // filter returns the list of ASes that are part of the desired subset.
-func filter(src, dst string, pairs []integration.IAPair, ases *util.ASList) []integration.IAPair {
+func filter(
+	src, dst string,
+	pairs []integration.IAPair,
+	ases *integration.ASList,
+) []integration.IAPair {
+
 	var res []integration.IAPair
 	s, err1 := addr.ParseIA(src)
 	d, err2 := addr.ParseIA(dst)
@@ -333,7 +338,7 @@ func filter(src, dst string, pairs []integration.IAPair, ases *util.ASList) []in
 	return res
 }
 
-func contains(ases *util.ASList, core bool, ia addr.IA) bool {
+func contains(ases *integration.ASList, core bool, ia addr.IA) bool {
 	l := ases.Core
 	if !core {
 		l = ases.NonCore

@@ -184,7 +184,7 @@ func TestTRCValidateInvariant(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			err := tc.trc().Validate()
-			xtest.AssertErrorsIs(t, err, tc.err)
+			assert.ErrorIs(t, err, tc.err)
 		})
 	}
 }
