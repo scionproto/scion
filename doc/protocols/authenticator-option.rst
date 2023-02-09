@@ -53,14 +53,14 @@ Timestamp / Sequence Number:
   Unsigned 48-bit integer value.
   The Timestamp / Sequence Number field contains a value for each packet that 
   can be used for replay detection by the receiver.
-  The detailed interpretation of the Timestamp / Sequence Number field depends on the SPI.
+  The detailed interpretation of the Timestamp / Sequence Number field depends on the :ref:`SPI <spao-spi>`.
 
   When used with a DRKey :ref:`SPI <spao-spi>`, the field represents a relative Timestamp (*Ts*),
   counting the nanoseconds since the starting time of the associated DRKey :ref:`Epoch<drkey-epoch>`.
   (See :ref:`Appendix<spao-appendix>` for a more detailed explanation about the field interpretation).
-  The timestamp MAY be used to compute the absolute time (*AbsTime*) value, 
+  The timestamp MAY be used to compute the absolute time (*AbsTime*) value,
   which corresponds to the time when the packet was sent.
-  The section:ref:`Absolute time derivation<spao-timestamp>` describes the derivation of *AbsTime* and
+  The section :ref:`Absolute time derivation<spao-timestamp>` describes the derivation of *AbsTime* and
   the associated DRKey.
 
   The receiver SHOULD drop packets with *AbsTime* outside of a locally chosen
@@ -72,8 +72,8 @@ Timestamp / Sequence Number:
 
   .. math::
     (\mathrm{SRC\ ISD, SRC\ AS, SrcHostAddr, *AbsTime*})
-  
-  When used with a non-DRKey :ref:`SPI <spao-spi>`, this field is used as 
+
+  When used with a non-DRKey :ref:`SPI <spao-spi>`, this field is used as
   a wrapping counter and replay detection is based on sliding window of expected counter values.
   This use case is not specified in detail here. Extending this specification
   in the future will closely follow [`RFC 4302 <https://tools.ietf.org/html/rfc4302>`_].
@@ -172,8 +172,8 @@ The receiver entity derives the absolute timestamp and selects the associated DR
 4. The candidate DRKey is the key whose epoch is associated to *AbsTime*,
    e.g., if *AbsTime* is :math:`at_{i-1}` the key belonging to :math:`E_{i-1}`.
 
-Note that `at_{i-1}` might, for instance be within the :ref:`Grace period<drkey-grace>`, i.e.,
-overlapping at `E_{i}`. Nevertheless, due to [i] we can unambiguously distinguish it.
+Note that :math:`at_{i-1}` might, for instance be within the :ref:`Grace period<drkey-grace>`, i.e.,
+overlapping at :math:`E_{i}`. Nevertheless, due to [i] we can unambiguously distinguish it.
 
 
 Authenticated Data
@@ -409,7 +409,7 @@ The following goals/constraints led to this design:
   cover the maximum DRKey epoch length plus the :ref:`Grace period<drkey-grace>`
   with granularity of 1 nanosecond, since:
 
-  .. math:: 
+  .. math::
         (3 \times 24 \times 60 \times 60 + 5) \times 10^9 < {2^{48}}
 
 - When the Timestamp / Sequence Number field is used with DRKey SPI, the application can use a clock that is less
