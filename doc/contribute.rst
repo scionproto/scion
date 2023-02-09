@@ -79,6 +79,60 @@ remember to shoot us a question on our :ref:`Slack <slack>`.
 Finally, make sure that the code you write adheres to the SCION project
 :ref:`language-style-guides`.
 
+.. _governance:
+
+Governance: TC Implementation
+=============================
+
+The `Technical Committee (TC) Implementation <https://scion.org/development>`_
+of the SCION Association are the custodians of the open-source SCION
+implementation projects.
+
+.. rubric:: People
+
+The current members of the TC Implementation are:
+
+.. |span-github| raw:: html
+
+   <span class="fa fa-github"/>
+
+.. |span-slack| raw:: html
+
+   <span class="fa fa-slack"/>
+
+* Dominik Roos (|span-github| `@oncilla <https://github.com/oncilla>`_, |span-slack| @roosd)
+* François Wirz (|span-github| `@FR4NK-W <https://github.com/FR4NK-W>`_, |span-slack| @frank)
+* Lukas Vogel (|span-github| `@lukedirtwalker <https://github.com/lukedirtwalker>`_, |span-slack| @luke)
+* Marc Frei (|span-github| `@marcfrei <https://github.com/marcfrei>`_, |span-slack| @marcfrei)
+* Matthias Frei (|span-github| `@matzf <https://github.com/matzf>`_, |span-slack| @matzf)
+
+.. rubric:: Responsibilities and Tasks
+
+The TC Implementation has the following main responsibilities, as defined in its
+`charter <https://www.scion.org/assets/docs/SCION-Association-Charter-TC-Implementation.pdf>`_:
+
+* Coordination with the Association Board and other bodies of the SCION
+  Association. In particular, coordinate with the TC Standardisation to
+  synchronise the evolution of the SCION standards, specifications, and their
+  implementation. Consult with the Advisory Board on strategic planning.
+* Steering strategic direction of the open source SCION project(s); planning
+  projects aligned with priorities of SCION Association members and the open
+  source developer community.
+* Deciding on cross-cutting issues such as development processes, guidelines,
+  tooling, etc.
+
+The TC may define technical teams and work groups and delegate tasks.
+No technical teams or work groups are currently defined.
+
+Where not delegated to technical teams, the TC Implementation members
+participate in the day-to-day operations to implement the
+:ref:`change-proposal-process` defined below, in particular by
+
+* Participating in change proposal discussions and moderating discussions
+* Reviewing and deciding over individual change proposals and pull requests
+
+.. _change-proposal-process:
+
 Change Proposal Process
 =======================
 
