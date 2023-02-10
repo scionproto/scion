@@ -128,29 +128,29 @@ func (e *Engine) DiagnosticsWrite(w io.Writer) {
 	}
 	raw, err := json.MarshalIndent(d, "", "    ")
 	if err != nil {
-		w.Write([]byte(fmt.Sprintf("Error collecting Engine diagnostics %v", err)))
+		fmt.Fprintf(w, "Error collecting Engine diagnostics %v", err)
 		return
 	}
-	w.Write(raw)
-	w.Write([]byte("\n"))
+	_, _ = w.Write(raw)
+	fmt.Fprint(w, "\n")
 
-	w.Write([]byte("Last seen session configs:\n"))
+	fmt.Fprint(w, "Last seen session configs:\n")
 	raw, err = json.MarshalIndent(e.SessionConfigs, "", "    ")
 	if err != nil {
-		w.Write([]byte(fmt.Sprintf("Error collecting Engine SessionConfigs diagnostics %v", err)))
+		fmt.Fprintf(w, "Error collecting Engine SessionConfigs diagnostics %v", err)
 		return
 	}
-	w.Write(raw)
-	w.Write([]byte("\n"))
+	_, _ = w.Write(raw)
+	fmt.Fprint(w, "\n")
 
-	w.Write([]byte("Control-plane routing table:\n"))
+	fmt.Fprint(w, "Control-plane routing table:\n")
 	e.router.DiagnosticsWrite(w)
-	w.Write([]byte("\n"))
+	fmt.Fprint(w, "\n")
 
 	if dw, ok := e.RoutingTable.(DiagnosticsWriter); ok {
-		w.Write([]byte("Data-plane routing table:\n"))
+		fmt.Fprint(w, "Data-plane routing table:\n")
 		dw.DiagnosticsWrite(w)
-		w.Write([]byte("\n"))
+		fmt.Fprint(w, "\n")
 	}
 }
 
@@ -226,19 +226,19 @@ func (e *Engine) Status(w io.Writer) {
 		for _, s := range iaSessions {
 			fmt.Fprintf(w, "  SESSION %d, POLICY_ID %d, REMOTE: %s, HEALTHY %t\n",
 				s.ID, s.PolicyID, s.ProbeAddr, s.Healthy)
-			fmt.Fprintf(w, "    PATHS:\n")
+			fmt.Fprint(w, "    PATHS:\n")
 			renderPathInfo(s.PathInfo, w, 2)
-			fmt.Fprintf(w, "\n")
+			fmt.Fprint(w, "\n")
 		}
 	}
 	for _, ia := range sortedIAs {
-		w.Write([]byte(fmt.Sprintf("ISD-AS %s\n", ia)))
+		fmt.Fprintf(w, "ISD-AS %s\n", ia)
 		printSessions(sessions[ia])
-		w.Write([]byte("\n"))
+		fmt.Fprint(w, "\n")
 	}
 
 	if dw, ok := e.RoutingTable.(DiagnosticsWriter); ok {
-		w.Write([]byte("\nROUTING TABLE:\n"))
+		fmt.Fprint(w, "\nROUTING TABLE:\n")
 		dw.DiagnosticsWrite(w)
 	}
 }

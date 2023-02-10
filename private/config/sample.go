@@ -26,7 +26,7 @@ import (
 type CtxMap map[string]string
 
 // WriteSample writes all sample config blocks in order of appearance with
-// indentation and header to dst.
+// indentation and header to dst. It panics if an error occurs.
 func WriteSample(dst io.Writer, path Path, ctx CtxMap, samplers ...Sampler) {
 	var buf bytes.Buffer
 	for _, sampler := range samplers {
@@ -39,7 +39,10 @@ func WriteSample(dst io.Writer, path Path, ctx CtxMap, samplers ...Sampler) {
 			continue
 		}
 		sampler.Sample(&buf, path, ctx)
-		io.Copy(dst, &buf)
+		_, err := io.Copy(dst, &buf)
+		if err != nil {
+			panic(fmt.Sprintf("Unable to write sample err=%s", err))
+		}
 	}
 }
 

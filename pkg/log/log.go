@@ -138,7 +138,8 @@ func HandlePanic() {
 
 // Flush writes the logs to the underlying buffer.
 func Flush() {
-	zap.L().Sync()
+	// Deliberately ignore sync error, see https://github.com/uber-go/zap/issues/328
+	_ = zap.L().Sync()
 }
 
 // ConsoleLevel allows interacting with the logging level at runtime.
@@ -168,7 +169,7 @@ func (l httpLevel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		lvl := l.a.Level()
-		enc.Encode(payload{Level: &lvl})
+		_ = enc.Encode(payload{Level: &lvl})
 	case http.MethodPut:
 		lvl, err := func() (*zapcore.Level, error) {
 			switch r.Header.Get("Content-Type") {
@@ -203,14 +204,14 @@ func (l httpLevel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}()
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			enc.Encode(errorResponse{Error: err.Error()})
+			_ = enc.Encode(errorResponse{Error: err.Error()})
 			return
 		}
 		l.a.SetLevel(*lvl)
-		enc.Encode(payload{Level: lvl})
+		_ = enc.Encode(payload{Level: lvl})
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		enc.Encode(errorResponse{
+		_ = enc.Encode(errorResponse{
 			Error: fmt.Sprintf("HTTP method not supported: %v", r.Method),
 		})
 	}

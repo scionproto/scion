@@ -21,6 +21,7 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -269,7 +270,8 @@ func testGetMuliKeysExpired(t *testing.T, revCache TestableRevCache) {
 	}
 	revCache.InsertExpired(t, ctx, revNew)
 	rev110_19 := defaultRevInfo(ia110, ifId19)
-	revCache.Insert(ctx, rev110_19)
+	_, err := revCache.Insert(ctx, rev110_19)
+	assert.NoError(t, err)
 	validKey := *revcache.NewKey(ia110, ifId19)
 	srCache, err := revCache.Get(ctx, revcache.KeySet{
 		*revcache.NewKey(ia110, ifId15): {},
@@ -287,7 +289,8 @@ func testDeleteExpired(t *testing.T, revCache TestableRevCache) {
 	SoMsg("DeleteExpired on empty should not error", err, ShouldBeNil)
 	SoMsg("DeleteExpired on empty should delete 0", del, ShouldEqual, 0)
 	rev110_19 := defaultRevInfo(ia110, ifId19)
-	revCache.Insert(ctx, rev110_19)
+	_, err = revCache.Insert(ctx, rev110_19)
+	assert.NoError(t, err)
 	del, err = revCache.DeleteExpired(ctx)
 	SoMsg("DeleteExpired should not error", err, ShouldBeNil)
 	SoMsg("DeleteExpired should delete 0 if entry is not expired", del, ShouldEqual, 0)

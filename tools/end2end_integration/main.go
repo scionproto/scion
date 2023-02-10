@@ -150,7 +150,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 				cleaner := func() {
 					cancel()
 					if waiter != nil {
-						waiter.Wait()
+						_ = waiter.Wait()
 					}
 				}
 				srvResults <- srvResult{cleaner: cleaner, err: err}

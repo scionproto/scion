@@ -21,6 +21,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/worker"
@@ -31,24 +32,26 @@ func TestWorker(t *testing.T) {
 		t.Parallel()
 		worker := &testWorker{}
 
-		go func() {
-			worker.Run()
-		}()
+		var bg errgroup.Group
+		bg.Go(worker.Run)
 		time.Sleep(50 * time.Millisecond)
 		err := worker.Run()
 		assert.Error(t, err)
+		assert.NoError(t, worker.Close())
+		assert.NoError(t, bg.Wait())
 	})
 
 	t.Run("double run nil worker", func(t *testing.T) {
 		t.Parallel()
 		worker := &nilTestWorker{}
 
-		go func() {
-			worker.Run()
-		}()
+		var bg errgroup.Group
+		bg.Go(worker.Run)
 		time.Sleep(50 * time.Millisecond)
 		err := worker.Run()
 		assert.Error(t, err)
+		assert.NoError(t, worker.Close())
+		assert.NoError(t, bg.Wait())
 	})
 
 	t.Run("close before run", func(t *testing.T) {

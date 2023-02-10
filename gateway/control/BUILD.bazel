@@ -87,5 +87,6 @@ go_test(
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
         "@org_golang_google_protobuf//proto:go_default_library",
+        "@org_golang_x_sync//errgroup:go_default_library",
     ],
 )

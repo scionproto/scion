@@ -38,7 +38,7 @@ func TestPrepareMacInput(t *testing.T) {
 		Want        []byte
 	}{
 		"Correct input": {
-			ScionHeader: createScionCmnAddrHdr(),
+			ScionHeader: createScionCmnAddrHdr(t),
 			errorFunc:   assert.NoError,
 			Want: []byte(
 				"\x00\x4a\xf9\xf0\x70\x00\x00\x00\x01\x02\x00\x00\x03" +
@@ -192,7 +192,7 @@ func TestVerifyTimestamp(t *testing.T) {
 
 func TestVerifyHVF(t *testing.T) {
 	// Create packet
-	s := createScionCmnAddrHdr()
+	s := createScionCmnAddrHdr(t)
 	now := time.Now().Truncate(time.Second)
 	timestamp := uint32(now.Add(-time.Minute).Unix())
 	epicTS, _ := libepic.CreateTimestamp(now.Add(-time.Minute), time.Now())
@@ -378,13 +378,14 @@ func TestCoreFromPktCounter(t *testing.T) {
 	}
 }
 
-func createScionCmnAddrHdr() *slayers.SCION {
+func createScionCmnAddrHdr(t *testing.T) *slayers.SCION {
+	t.Helper()
 	spkt := &slayers.SCION{
 		SrcIA:      xtest.MustParseIA("2-ff00:0:222"),
 		PayloadLen: 120,
 	}
 	ip4Addr := &net.IPAddr{IP: net.ParseIP("10.0.0.100")}
-	spkt.SetSrcAddr(ip4Addr)
+	require.NoError(t, spkt.SetSrcAddr(ip4Addr))
 	return spkt
 }
 

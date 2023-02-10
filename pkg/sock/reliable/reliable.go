@@ -193,7 +193,10 @@ func register(ctx context.Context, dispatcher string, ia addr.IA, public *net.UD
 
 		// If a timeout was specified, make reads and writes return if deadline exceeded.
 		if deadline, ok := ctx.Deadline(); ok {
-			conn.SetDeadline(deadline)
+			if err := conn.SetDeadline(deadline); err != nil {
+				resultChannel <- RegistrationReturn{err: err}
+				return
+			}
 		}
 
 		port, err := registrationExchange(conn, reg)
@@ -216,8 +219,8 @@ func register(ctx context.Context, dispatcher string, ia addr.IA, public *net.UD
 				"received", registrationReturn.port)
 		}
 		// Disable deadline to not affect future I/O
-		conn.SetDeadline(time.Time{})
-		return conn, registrationReturn.port, nil
+		err = conn.SetDeadline(time.Time{})
+		return conn, registrationReturn.port, err
 	case <-ctx.Done():
 		// Unblock registration worker I/O
 		conn.Close()
@@ -276,7 +279,9 @@ func (conn *Conn) readFrom(buf []byte) (int, net.Addr, error) {
 		return 0, nil, err
 	}
 	var p UnderlayPacket
-	p.DecodeFromBytes(conn.readBuffer[:n])
+	if err := p.DecodeFromBytes(conn.readBuffer[:n]); err != nil {
+		return 0, nil, err
+	}
 	var underlayAddr *net.UDPAddr
 	if p.Address != nil {
 		underlayAddr = &net.UDPAddr{

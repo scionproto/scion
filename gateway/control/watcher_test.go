@@ -23,6 +23,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/scionproto/scion/gateway/control"
 	"github.com/scionproto/scion/gateway/control/mock_control"
@@ -79,7 +80,14 @@ func TestGatewayWatcherRun(t *testing.T) {
 	// run initially
 	remotes.Set(0)
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-	go w.Run(ctx)
+	var bg errgroup.Group
+	bg.Go(func() error {
+		return w.Run(ctx)
+	})
+	t.Cleanup(func() {
+		assert.NoError(t, bg.Wait())
+	})
+
 	for {
 		if metrics.GaugeValue(remotes) > 0 {
 			break
@@ -107,7 +115,7 @@ func TestGatewayWatcherRun(t *testing.T) {
 	// nothing really checks the context except the run loop, so we can
 	// immediately cancel and then it will run only once.
 	cancel()
-	w.RunAllPrefixWatchersOnceForTest(ctx)
+	assert.NoError(t, w.RunAllPrefixWatchersOnceForTest(ctx))
 
 	assert.Equal(t, 2, int(metrics.CounterValue(g1)))
 	assert.Equal(t, 1, int(metrics.CounterValue(g2)))
@@ -170,7 +178,13 @@ func TestPrefixWatcherRun(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
-	go w.Run(ctx)
+	var bg errgroup.Group
+	bg.Go(func() error {
+		return w.Run(ctx)
+	})
+	t.Cleanup(func() {
+		assert.NoError(t, bg.Wait())
+	})
 	<-ctx.Done()
 	time.Sleep(10 * time.Millisecond)
 

@@ -189,7 +189,7 @@ func (i CachingInspector) cacheAdd(key string, value interface{}, d time.Duratio
 	if i.Cache == nil {
 		return
 	}
-	i.Cache.Add(key, value, d)
+	i.Cache.Add(key, value, d) //nolint:errcheck // XXX(matzf): could use Set, subtle difference
 }
 
 func (i CachingInspector) cacheExpiration() time.Duration {

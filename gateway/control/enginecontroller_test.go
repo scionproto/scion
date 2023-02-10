@@ -22,6 +22,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/gopacket"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/scionproto/scion/gateway/control"
 	"github.com/scionproto/scion/gateway/control/mock_control"
@@ -47,12 +48,15 @@ func TestEngineControllerRun(t *testing.T) {
 			EngineFactory:        engineFactory,
 		}
 
-		go func() {
-			engineController.Run(context.Background())
-		}()
+		var bg errgroup.Group
+		bg.Go(func() error {
+			return engineController.Run(context.Background())
+		})
 		time.Sleep(50 * time.Millisecond)
 		err := engineController.Run(context.Background())
 		assert.Error(t, err)
+		close(configurationUpdates)
+		assert.NoError(t, bg.Wait())
 	})
 
 	t.Run("nil configuration updates", func(t *testing.T) {

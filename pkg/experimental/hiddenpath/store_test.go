@@ -21,6 +21,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
@@ -35,7 +36,7 @@ import (
 )
 
 func TestStorerGet(t *testing.T) {
-	want, dbresult := createSegs()
+	want, dbresult := createSegs(t)
 	groupID := hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:111"), Suffix: 42}
 	testCases := map[string]struct {
 		inputGroups []hiddenpath.GroupID
@@ -101,7 +102,7 @@ func TestStorerGet(t *testing.T) {
 }
 
 func TestStorerPut(t *testing.T) {
-	want, _ := createSegs()
+	want, _ := createSegs(t)
 	testCases := map[string]struct {
 		inputGroup hiddenpath.GroupID
 		inputSegs  []*seg.Meta
@@ -152,7 +153,8 @@ func TestStorerPut(t *testing.T) {
 	}
 }
 
-func createSegs() ([]*seg.Meta, query.Results) {
+func createSegs(t *testing.T) ([]*seg.Meta, query.Results) {
+	t.Helper()
 	asEntry := seg.ASEntry{
 		Local: xtest.MustParseIA("1-ff00:0:110"),
 		HopEntry: seg.HopEntry{
@@ -160,7 +162,7 @@ func createSegs() ([]*seg.Meta, query.Results) {
 		},
 	}
 	ps, _ := seg.CreateSegment(time.Now(), 1337)
-	ps.AddASEntry(context.Background(), asEntry, graph.NewSigner())
+	require.NoError(t, ps.AddASEntry(context.Background(), asEntry, graph.NewSigner()))
 
 	ret1 := []*seg.Meta{{Type: seg.TypeDown, Segment: ps}}
 	ret2 := query.Results{&query.Result{

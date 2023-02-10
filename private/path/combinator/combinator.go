@@ -138,8 +138,12 @@ func filterDuplicates(paths []Path) []Path {
 func fingerprint(interfaces []snet.PathInterface) snet.PathFingerprint {
 	h := sha256.New()
 	for _, intf := range interfaces {
-		binary.Write(h, binary.BigEndian, intf.IA)
-		binary.Write(h, binary.BigEndian, intf.ID)
+		if err := binary.Write(h, binary.BigEndian, intf.IA); err != nil {
+			panic(err)
+		}
+		if err := binary.Write(h, binary.BigEndian, intf.ID); err != nil {
+			panic(err)
+		}
 	}
 	return snet.PathFingerprint(h.Sum(nil))
 }

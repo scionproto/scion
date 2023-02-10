@@ -125,7 +125,7 @@ func TestInsertTRCWithFSPersistence(t *testing.T) {
 
 	t.Run("insert TRC not present in DB but present on FS", func(t *testing.T) {
 		SignedTRC, persistedTrcPath := getTRC(t, "ISD2-B1-S1.trc", testDB.Dir)
-		os.WriteFile(persistedTrcPath, SignedTRC.Raw, 0644)
+		require.NoError(t, os.WriteFile(persistedTrcPath, SignedTRC.Raw, 0644))
 		mtimeBeforeInsert := getModTime(t, persistedTrcPath)
 
 		in, err := testDB.InsertTRC(ctx, SignedTRC)

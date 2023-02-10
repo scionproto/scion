@@ -111,7 +111,7 @@ func (a *Aggregator) run(ctx context.Context) error {
 
 // Close stops the internal goroutines.
 func (a *Aggregator) Close(ctx context.Context) {
-	a.workerBase.CloseWrapper(ctx, nil)
+	_ = a.workerBase.CloseWrapper(ctx, nil)
 }
 
 // Prefixes pushes new set of prefixes for a specific gateway.

@@ -57,7 +57,8 @@ func BenchmarkRegister(b *testing.B) {
 	regData := generateRegisterArgs(b.N)
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		table.Register(regData[n].ia, regData[n].public, nil, addr.SvcNone, regData[n].value)
+		_, _ = table.Register(regData[n].ia, regData[n].public, nil,
+			addr.SvcNone, regData[n].value)
 	}
 }
 
@@ -66,7 +67,8 @@ func BenchmarkLookupPublicIPv4(b *testing.B) {
 	table := NewIATable(minPort, maxPort)
 	regData := generateRegisterArgs(numEntries)
 	for i := 0; i < numEntries; i++ {
-		table.Register(regData[i].ia, regData[i].public, nil, addr.SvcNone, regData[i].value)
+		_, _ = table.Register(regData[i].ia, regData[i].public, nil,
+			addr.SvcNone, regData[i].value)
 	}
 	lookupData := generateLookupPublicArgs(b.N)
 	b.ResetTimer()
@@ -96,7 +98,7 @@ func BenchmarkLookupServiceIPv4(b *testing.B) {
 	table := NewIATable(minPort, maxPort)
 	regData := generateRegisterArgs(numEntries)
 	for i := 0; i < numEntries; i++ {
-		table.Register(regData[i].ia, regData[i].public, regData[i].bind,
+		_, _ = table.Register(regData[i].ia, regData[i].public, regData[i].bind,
 			regData[i].svc, regData[i].value)
 	}
 	lookupData := generateLookupServiceArgs(b.N)

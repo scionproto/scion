@@ -219,8 +219,14 @@ func Fingerprint(path Path) PathFingerprint {
 	}
 	h := sha256.New()
 	for _, intf := range meta.Interfaces {
-		binary.Write(h, binary.BigEndian, intf.IA)
-		binary.Write(h, binary.BigEndian, intf.ID)
+		if err := binary.Write(h, binary.BigEndian, intf.IA); err != nil {
+			// hash.Hash.Write may never error.
+			// The type check in binary.Write should also pass for addr.IA.
+			panic(err)
+		}
+		if err := binary.Write(h, binary.BigEndian, intf.ID); err != nil {
+			panic(err)
+		}
 	}
 	return PathFingerprint(h.Sum(nil))
 }

@@ -24,6 +24,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	helloworldpb "google.golang.org/grpc/examples/helloworld/helloworld"
 	"google.golang.org/grpc/resolver"
@@ -43,8 +44,14 @@ func TestTCPDial(t *testing.T) {
 
 	s := grpc.NewServer()
 	helloworldpb.RegisterGreeterServer(s, &server{})
-	go func() { s.Serve(lis) }()
-	defer s.Stop()
+	var bg errgroup.Group
+	bg.Go(func() error {
+		return s.Serve(lis)
+	})
+	defer func() {
+		s.Stop()
+		assert.NoError(t, bg.Wait())
+	}()
 
 	getUnusedAddr := func(t *testing.T) string {
 		l, err := net.Listen("tcp4", "127.0.0.1:0")

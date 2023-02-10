@@ -204,14 +204,11 @@ func (p *Policy) InitDefaults() {
 	p.Filter.InitDefaults()
 }
 
-func (p *Policy) initDefaults(t PolicyType) error {
+func (p *Policy) initDefaults(t PolicyType) {
 	p.InitDefaults()
-	if p.Type != "" && p.Type != t {
-		return serrors.New("Specified policy type does not match",
-			"expected", t, "actual", p.Type)
+	if p.Type == "" {
+		p.Type = t
 	}
-	p.Type = t
-	return nil
 }
 
 // ParsePolicyYaml parses the policy in yaml format and initializes the default values.
@@ -220,9 +217,11 @@ func ParsePolicyYaml(b []byte, t PolicyType) (*Policy, error) {
 	if err := yaml.UnmarshalStrict(b, p); err != nil {
 		return nil, serrors.WrapStr("Unable to parse policy", err)
 	}
-	if err := p.initDefaults(t); err != nil {
-		return nil, err
+	if p.Type != "" && p.Type != t {
+		return nil, serrors.New("specified policy type does not match",
+			"expected", t, "actual", p.Type)
 	}
+	p.initDefaults(t)
 	return p, nil
 }
 

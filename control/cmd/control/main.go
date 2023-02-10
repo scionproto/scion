@@ -510,9 +510,13 @@ func realMain(ctx context.Context) error {
 		periodic.Func{
 			TaskName: "signer generator",
 			Task: func(ctx context.Context) {
-				signer.Sign(ctx, []byte{})
+				if _, err := signer.Sign(ctx, []byte{}); err != nil {
+					log.Info("Failed signer health check", "err", err)
+				}
 				if chainBuilder.PolicyGen != nil {
-					chainBuilder.PolicyGen.Generate(ctx)
+					if _, err := chainBuilder.PolicyGen.Generate(ctx); err != nil {
+						log.Info("Failed renewal signer health check", "err", err)
+					}
 				}
 			},
 		},

@@ -22,6 +22,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/scionproto/scion/gateway/control"
 	"github.com/scionproto/scion/gateway/control/mock_control"
@@ -41,12 +42,14 @@ func TestEngineRun(t *testing.T) {
 			DataplaneSessionFactory: mock_control.NewMockDataplaneSessionFactory(ctrl),
 		}
 
-		go func() {
-			engine.Run(context.Background())
-		}()
+		var bg errgroup.Group
+		bg.Go(func() error {
+			return engine.Run(context.Background())
+		})
 		time.Sleep(50 * time.Millisecond)
 		err := engine.Run(context.Background())
 		assert.Error(t, err)
+		assert.NoError(t, bg.Wait())
 	})
 
 	t.Run("nil routing table", func(t *testing.T) {
