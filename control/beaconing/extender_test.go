@@ -47,19 +47,30 @@ func TestDefaultExtenderExtend(t *testing.T) {
 	require.NoError(t, err)
 	pub := priv.Public()
 
-	peer := graph.If_111_C_121_X
+	peerRemoteIfs := map[uint16]uint16{
+		graph.If_111_C_121_X: graph.If_121_X_111_C,
+		graph.If_111_C_211_A: graph.If_211_A_111_C,
+	}
 	testsCases := map[string]struct {
 		ingress      uint16
 		egress       uint16
+		peers        []uint16
 		unsetPeers   []uint16
 		errAssertion assert.ErrorAssertionFunc
 	}{
 		"valid": {
 			egress:       graph.If_111_A_112_X,
 			errAssertion: assert.NoError,
+			peers:        []uint16{graph.If_111_C_121_X},
+		},
+		"two peers": {
+			egress:       graph.If_111_A_112_X,
+			peers:        []uint16{graph.If_111_C_121_X, graph.If_111_C_211_A},
+			errAssertion: assert.NoError,
 		},
 		"ignore unset peers": {
 			egress:       graph.If_111_A_112_X,
+			peers:        []uint16{graph.If_111_C_121_X, graph.If_111_C_211_A},
 			unsetPeers:   []uint16{graph.If_111_B_211_A},
 			errAssertion: assert.NoError,
 		},
@@ -83,7 +94,9 @@ func TestDefaultExtenderExtend(t *testing.T) {
 			defer mctrl.Finish()
 			// Setup interfaces with active parent, child and one peer interface.
 			intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
-			intfs.Get(peer).Activate(graph.If_121_X_111_C)
+			for _, peer := range tc.peers {
+				intfs.Get(peer).Activate(peerRemoteIfs[peer])
+			}
 			ext := &beaconing.DefaultExtender{
 				IA:     topo.IA(),
 				Signer: testSigner(t, priv, topo.IA()),
@@ -97,12 +110,12 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
 				StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 			}
-			pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()))
+			pseg, err := seg.CreateSegment(time.Time{}, 0)
 			require.NoError(t, err)
 
 			// Extend the segment.
 			err = ext.Extend(context.Background(), pseg, tc.ingress, tc.egress,
-				append(tc.unsetPeers, peer))
+				append(tc.peers, tc.unsetPeers...))
 			tc.errAssertion(t, err)
 			if err != nil {
 				return
@@ -134,7 +147,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				assert.Equal(t, topo.IA(), entry.Local)
 				assert.Equal(t, ia, entry.Next)
 				// Checks that unset peers are ignored, even when provided.
-				assert.Len(t, entry.PeerEntries, 1)
+				assert.Len(t, entry.PeerEntries, len(tc.peers))
 			})
 			t.Run("hop entry check", func(t *testing.T) {
 				assert.Equal(t, tc.ingress, entry.HopEntry.HopField.ConsIngress)
@@ -143,10 +156,12 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				// FIXME(roosd): Check hop field can be authenticated.
 			})
 			t.Run("peer entry check", func(t *testing.T) {
-				assert.Equal(t, peer, entry.PeerEntries[0].HopField.ConsIngress)
-				assert.Equal(t, tc.egress, entry.PeerEntries[0].HopField.ConsEgress)
-				assert.Equal(t, ext.MaxExpTime(), entry.PeerEntries[0].HopField.ExpTime)
-				// FIXME(roosd): Check hop field can be authenticated.
+				for i := range tc.peers {
+					assert.Equal(t, tc.peers[i], entry.PeerEntries[i].HopField.ConsIngress)
+					assert.Equal(t, tc.egress, entry.PeerEntries[i].HopField.ConsEgress)
+					assert.Equal(t, ext.MaxExpTime(), entry.PeerEntries[i].HopField.ExpTime)
+					// FIXME(roosd): Check hop field can be authenticated.
+				}
 			})
 		})
 	}
