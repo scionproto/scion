@@ -16,6 +16,7 @@ package ctxconn
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -25,15 +26,26 @@ import (
 	"github.com/scionproto/scion/private/svc/internal/ctxconn/mock_ctxconn"
 )
 
-const baseUnit = time.Millisecond
-
 func TestCloseConeOnDone(t *testing.T) {
 
-	t.Run("if no deadline and no ctx canceled, close it not called", func(t *testing.T) {
+	t.Run("if no deadline and no ctx canceled, close is called once", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		cancelFunc := CloseConnOnDone(context.Background(), nil)
-		assert.NotPanics(t, func() { cancelFunc() })
+		closer := mock_ctxconn.NewMockDeadlineCloser(ctrl)
+		closer.EXPECT().Close()
+		cancelFunc := CloseConnOnDone(context.Background(), closer)
+		err := cancelFunc()
+		assert.NoError(t, err)
+	})
+	t.Run("close error is returned", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		closer := mock_ctxconn.NewMockDeadlineCloser(ctrl)
+		testErr := errors.New("test")
+		closer.EXPECT().Close().Return(testErr)
+		cancelFunc := CloseConnOnDone(context.Background(), closer)
+		err := cancelFunc()
+		assert.Equal(t, testErr, err)
 	})
 	t.Run("if no deadline and ctx canceled, close is called once", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -43,20 +55,22 @@ func TestCloseConeOnDone(t *testing.T) {
 		closer := mock_ctxconn.NewMockDeadlineCloser(ctrl)
 		closer.EXPECT().Close()
 		cancelFunc := CloseConnOnDone(ctx, closer)
-		time.Sleep(20 * baseUnit)
-		cancelFunc()
+		err := cancelFunc()
+		assert.NoError(t, err)
 	})
 
 	t.Run("if deadline expires, close is called once", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		deadline := time.Now().Add(0)
-		ctx, cancelF := context.WithDeadline(context.Background(), deadline)
-		defer cancelF()
+		deadline := time.Now().Add(20 * time.Millisecond)
+		ctx, ctxCancelF := context.WithDeadline(context.Background(), deadline)
+
 		closer := mock_ctxconn.NewMockDeadlineCloser(ctrl)
 		closer.EXPECT().Close()
 		closer.EXPECT().SetDeadline(deadline)
-		CloseConnOnDone(ctx, closer)
-		time.Sleep(20 * baseUnit)
+		cancelFunc := CloseConnOnDone(ctx, closer)
+		ctxCancelF() // Pretend that we hit the deadline
+		err := cancelFunc()
+		assert.NoError(t, err)
 	})
 }

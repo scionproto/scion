@@ -23,6 +23,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
@@ -83,6 +84,12 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 		ext.Error.Set(span, true)
 		return nil, serrors.Wrap(errRegistration, err)
 	}
+	cancelF := ctxconn.CloseConnOnDone(ctx, conn)
+	defer func() {
+		if err := cancelF(); err != nil {
+			log.Info("Error closing conn", "err", err)
+		}
+	}()
 
 	requestPacket := &snet.Packet{
 		PacketInfo: snet.PacketInfo{
@@ -136,9 +143,6 @@ type roundTripper struct{}
 
 func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.Packet,
 	u *net.UDPAddr) (*Reply, error) {
-
-	cancelF := ctxconn.CloseConnOnDone(ctx, c)
-	defer cancelF()
 
 	if pkt == nil {
 		return nil, errNilPacket

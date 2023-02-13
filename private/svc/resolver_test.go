@@ -68,6 +68,7 @@ func TestResolver(t *testing.T) {
 		mockPacketDispatcherService.EXPECT().Register(gomock.Any(), srcIA,
 			&net.UDPAddr{IP: net.IP{192, 0, 2, 1}},
 			addr.SvcNone).Return(mockConn, uint16(42), nil)
+		mockConn.EXPECT().Close()
 		mockRoundTripper := mock_svc.NewMockRoundTripper(ctrl)
 		mockRoundTripper.EXPECT().RoundTrip(gomock.Any(), gomock.Any(), gomock.Any(),
 			gomock.Any()).Do(
