@@ -34,7 +34,8 @@ func TestCloseConeOnDone(t *testing.T) {
 		closer := mock_ctxconn.NewMockDeadlineCloser(ctrl)
 		closer.EXPECT().Close()
 		cancelFunc := CloseConnOnDone(context.Background(), closer)
-		cancelFunc()
+		err := cancelFunc()
+		assert.NoError(t, err)
 	})
 	t.Run("close error is returned", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -54,7 +55,8 @@ func TestCloseConeOnDone(t *testing.T) {
 		closer := mock_ctxconn.NewMockDeadlineCloser(ctrl)
 		closer.EXPECT().Close()
 		cancelFunc := CloseConnOnDone(ctx, closer)
-		cancelFunc()
+		err := cancelFunc()
+		assert.NoError(t, err)
 	})
 
 	t.Run("if deadline expires, close is called once", func(t *testing.T) {
@@ -62,12 +64,13 @@ func TestCloseConeOnDone(t *testing.T) {
 		defer ctrl.Finish()
 		deadline := time.Now().Add(20 * time.Millisecond)
 		ctx, ctxCancelF := context.WithDeadline(context.Background(), deadline)
-		defer ctxCancelF()
+
 		closer := mock_ctxconn.NewMockDeadlineCloser(ctrl)
 		closer.EXPECT().Close()
 		closer.EXPECT().SetDeadline(deadline)
 		cancelFunc := CloseConnOnDone(ctx, closer)
-		<-ctx.Done() // Wait context canceled due to Deadline
-		cancelFunc()
+		ctxCancelF() // Pretend that we hit the deadline
+		err := cancelFunc()
+		assert.NoError(t, err)
 	})
 }
