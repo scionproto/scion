@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
+	"github.com/scionproto/scion/pkg/slayers/path/empty"
 	"github.com/scionproto/scion/pkg/slayers/path/epic"
 	"github.com/scionproto/scion/pkg/slayers/path/onehop"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
@@ -106,6 +107,41 @@ func TestComputeAuthMac(t *testing.T) {
 		rawMACInput     []byte
 		assertErr       assert.ErrorAssertionFunc
 	}{
+		"empty": {
+			optionParameter: slayers.PacketAuthOptionParams{
+				SPI:            slayers.PacketAuthSPI(0x1),
+				Algorithm:      slayers.PacketAuthCMAC,
+				Timestamp:      0x3e8,
+				SequenceNumber: sn,
+				Auth:           make([]byte, 16),
+			},
+			scionL: slayers.SCION{
+				FlowID:       binary.BigEndian.Uint32([]byte{0x00, 0x00, 0x12, 0x34}),
+				TrafficClass: 0xff,
+				NextHdr:      slayers.End2EndClass,
+				SrcIA:        dstIA,
+				DstIA:        dstIA,
+				SrcAddrType:  slayers.T4Ip,
+				RawSrcAddr:   net.IPv4(10, 1, 1, 12).To4(),
+				DstAddrType:  slayers.T4Ip,
+				RawDstAddr:   net.IPv4(10, 1, 1, 12).To4(),
+				Path:         &empty.Path{},
+				PathType:     empty.PathType,
+			},
+			pld: fooPayload,
+			rawMACInput: append([]byte{
+				// 1. Authenticator Option Metadata
+				0x24, 0xca, 0x0, 0xc, // HdrLen | Upper Layer | Upper-Layer Packet Length
+				0x0, 0x0, 0x3, 0xe8, // Algorithm  | Timestamp
+				0x0, 0x6, 0x5, 0x4, // RSV | Sequence Number
+				// 2. SCION Common Header
+				0x3, 0xf0, 0x12, 0x34, // Version | QoS | FlowID
+				0x0, 0x0, 0x0, 0x0, // PathType |DT |DL |ST |SL | RSV
+				// 3.  SCION Address Header
+				0xa, 0x1, 0x1, 0xc,
+			}, fooPayload...),
+			assertErr: assert.NoError,
+		},
 		"decoded": {
 			optionParameter: slayers.PacketAuthOptionParams{
 				SPI:            slayers.PacketAuthSPI(0x1),
@@ -304,13 +340,14 @@ func TestComputeAuthMac(t *testing.T) {
 			assert.NoError(t, err)
 
 			buf := make([]byte, spao.MACBufferSize)
-			inpLen, _ := spao.SerializeAuthenticatedData(
+			inpLen, err := spao.SerializeAuthenticatedData(
 				buf,
 				&tc.scionL,
 				optAuth,
 				slayers.L4SCMP,
 				tc.pld,
 			)
+			require.NoError(t, err)
 			require.Equal(t, tc.rawMACInput, append(buf[:inpLen], fooPayload...))
 
 			mac, err := spao.ComputeAuthCMAC(
