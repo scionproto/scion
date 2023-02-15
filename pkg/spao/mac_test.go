@@ -125,7 +125,7 @@ func TestComputeAuthMac(t *testing.T) {
 				RawSrcAddr:   net.IPv4(10, 1, 1, 12).To4(),
 				DstAddrType:  slayers.T4Ip,
 				RawDstAddr:   net.IPv4(10, 1, 1, 12).To4(),
-				Path:         &empty.Path{},
+				Path:         empty.Path{},
 				PathType:     empty.PathType,
 			},
 			pld: fooPayload,

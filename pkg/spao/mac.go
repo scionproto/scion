@@ -160,7 +160,7 @@ func zeroOutMutablePath(orig path.Path, buf []byte) error {
 		return serrors.WrapStr("serializing path for resetting fields", err)
 	}
 	switch p := orig.(type) {
-	case *empty.Path:
+	case empty.Path:
 		return nil
 	case *scion.Raw:
 		zeroOutWithBase(p.Base, buf)
