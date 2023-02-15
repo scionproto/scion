@@ -29,7 +29,7 @@ require (
 	github.com/patrickmn/go-cache v2.1.1-0.20180815053127-5633e0862627+incompatible
 	github.com/pelletier/go-toml v1.9.4
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.11.0
+	github.com/prometheus/client_golang v1.11.1
 	github.com/sergi/go-diff v1.2.0
 	github.com/smartystreets/goconvey v1.6.7
 	github.com/songgao/water v0.0.0-20190725173103-fd331bda3f4b
