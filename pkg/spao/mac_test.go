@@ -122,7 +122,7 @@ func TestComputeAuthMac(t *testing.T) {
 				SrcIA:        dstIA,
 				DstIA:        dstIA,
 				SrcAddrType:  slayers.T4Ip,
-				RawSrcAddr:   net.IPv4(10, 1, 1, 12).To4(),
+				RawSrcAddr:   net.IPv4(10, 1, 1, 11).To4(),
 				DstAddrType:  slayers.T4Ip,
 				RawDstAddr:   net.IPv4(10, 1, 1, 12).To4(),
 				Path:         empty.Path{},
@@ -138,7 +138,7 @@ func TestComputeAuthMac(t *testing.T) {
 				0x3, 0xf0, 0x12, 0x34, // Version | QoS | FlowID
 				0x0, 0x0, 0x0, 0x0, // PathType |DT |DL |ST |SL | RSV
 				// 3.  SCION Address Header
-				0xa, 0x1, 0x1, 0xc,
+				0xa, 0x1, 0x1, 0xb,
 			}, fooPayload...),
 			assertErr: assert.NoError,
 		},
