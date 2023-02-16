@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
+	"github.com/scionproto/scion/pkg/slayers/path/empty"
 	"github.com/scionproto/scion/pkg/slayers/path/epic"
 	"github.com/scionproto/scion/pkg/slayers/path/onehop"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
@@ -159,6 +160,8 @@ func zeroOutMutablePath(orig path.Path, buf []byte) error {
 		return serrors.WrapStr("serializing path for resetting fields", err)
 	}
 	switch p := orig.(type) {
+	case empty.Path:
+		return nil
 	case *scion.Raw:
 		zeroOutWithBase(p.Base, buf)
 		return nil
