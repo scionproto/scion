@@ -113,7 +113,17 @@ func serializeAuthenticatedData(
 
 	_ = buf[MACBufferSize-1]
 
-	buf[0] = byte(slayers.CmnHdrLen + s.AddrHdrLen() + s.Path.Len())
+	hdrLen := slayers.CmnHdrLen + s.AddrHdrLen() + s.Path.Len()
+	if hdrLen > slayers.MaxHdrLen {
+		return 0, serrors.New("SCION header length exceeds maximum",
+			"max", slayers.MaxHdrLen, "actual", hdrLen)
+	}
+	if hdrLen%slayers.LineLen != 0 {
+		return 0, serrors.New("SCION header length is not an integer multiple of line length",
+			"actual", hdrLen)
+	}
+
+	buf[0] = byte(hdrLen / slayers.LineLen)
 	buf[1] = byte(pldType)
 	binary.BigEndian.PutUint16(buf[2:], uint16(len(pld)))
 	buf[4] = byte(opt.Algorithm())
