@@ -66,7 +66,7 @@ Timestamp / Sequence Number:
   The receiver SHOULD drop packets with *AbsTime* outside of a locally chosen
   range around the current time.
 
-  The sender SHOULD ensure the uniqueness of the absolute time (*AbsTime*) per packet.
+  The sender SHOULD ensure the uniqueness of the absolute time (*AbsTime*) per identical packet.
   The receiver will use the *AbsTime* for replay detection and, thus, 
   it SHOULD drop packets with a duplicate:
 
@@ -157,7 +157,7 @@ i.e.,:
 :math:`aw := [T-a/2, T+a/2)`
 
 
-[i] The acceptance window is equal or smaller than the minumum DRKey epoch length.
+[i] The acceptance window is equal or smaller than the minimum DRKey epoch length.
 
 The receiver entity derives the absolute timestamp and selects the associated DRKey by:
 
