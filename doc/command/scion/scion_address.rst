@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion_address:
 
 scion address
@@ -43,5 +45,5 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion <scion.html>`_ 	 - A clean-slate Internet architecture
+* :ref:`scion <scion>` 	 - SCION networking utilities.
 

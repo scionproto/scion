@@ -1,20 +1,27 @@
-# Minimal makefile for Sphinx documentation
-#
-
-# You can set these variables from the command line, and also
-# from the environment for the first two.
+# These variables can be overridden from the command line from the environment.
 SPHINXOPTS    ?=
-SPHINXBUILD   ?= sphinx-build
 SOURCEDIR     = .
 BUILDDIR      = _build
 
-# Put it first so that "make" without argument is like "make help".
-help:
-	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+# Build docs with Sphinx using the "make mode" option.
+# Explicitly list the main build targets so they auto-complete in shells.
+# The first listed name is the default goal (i.e. `make` is `make html`).
+.PHONY: html latex latexpdf linkcheck help
+html latex latexpdf linkcheck help:
+	sphinx-build -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
 
-.PHONY: help Makefile
+# Catch-all pattern to match any unknown target, too.
+.PHONY: %
+%:
+	sphinx-build -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
 
-# Catch-all target: route all unknown targets to Sphinx using the new
-# "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
-%: Makefile
-	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+# Autobuild; automatically build HTML on source changes and serve on localhost
+.PHONY: autobuild
+autobuild:
+	sphinx-autobuild "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
+
+# Generate commandline docs by building the tools and running their `gendocus` subcommand
+.PHONY: command-gendocs
+command-gendocs:
+	bazel run //doc/command:copy_scion
+	bazel run //doc/command:copy_scion-pki

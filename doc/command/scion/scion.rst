@@ -1,15 +1,17 @@
+:orphan:
+
 .. _scion:
 
 scion
 -----
 
-A clean-slate Internet architecture
+SCION networking utilities.
 
 Synopsis
 ~~~~~~~~
 
 
-A clean-slate Internet architecture
+scion is a collection of command line utilities for hosts in the SCION Internet.
 
 Options
 ~~~~~~~
@@ -21,10 +23,10 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion address <scion_address.html>`_ 	 - Show (one of) this host's SCION address(es)
-* `scion completion <scion_completion.html>`_ 	 - Generate the autocompletion script for the specified shell
-* `scion ping <scion_ping.html>`_ 	 - Test connectivity to a remote SCION host using SCMP echo packets
-* `scion showpaths <scion_showpaths.html>`_ 	 - Display paths to a SCION AS
-* `scion traceroute <scion_traceroute.html>`_ 	 - Trace the SCION route to a remote SCION AS using SCMP traceroute packets
-* `scion version <scion_version.html>`_ 	 - Show the SCION version information
+* :ref:`scion address <scion_address>` 	 - Show (one of) this host's SCION address(es)
+* :ref:`scion completion <scion_completion>` 	 - Generate the autocompletion script for the specified shell
+* :ref:`scion ping <scion_ping>` 	 - Test connectivity to a remote SCION host using SCMP echo packets
+* :ref:`scion showpaths <scion_showpaths>` 	 - Display paths to a SCION AS
+* :ref:`scion traceroute <scion_traceroute>` 	 - Trace the SCION route to a remote SCION AS using SCMP traceroute packets
+* :ref:`scion version <scion_version>` 	 - Show the SCION version information
 

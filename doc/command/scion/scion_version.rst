@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion_version:
 
 scion version
@@ -32,5 +34,5 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion <scion.html>`_ 	 - A clean-slate Internet architecture
+* :ref:`scion <scion>` 	 - SCION networking utilities.
 

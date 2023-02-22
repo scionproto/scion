@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion-pki_certificate_sign:
 
 scion-pki certificate sign
@@ -71,5 +73,5 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion-pki certificate <scion-pki_certificate.html>`_ 	 - Manage certificates for the SCION control plane PKI.
+* :ref:`scion-pki certificate <scion-pki_certificate>` 	 - Manage certificates for the SCION control plane PKI.
 

@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion-pki_key:
 
 scion-pki key
@@ -21,10 +23,10 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion-pki <scion-pki.html>`_ 	 - SCION Control Plane PKI Management Tool
-* `scion-pki key fingerprint <scion-pki_key_fingerprint.html>`_ 	 - Computes the fingerprint of the provided key
-* `scion-pki key match <scion-pki_key_match.html>`_ 	 - Match the key with other trust objects
-* `scion-pki key private <scion-pki_key_private.html>`_ 	 - Generate private key at the specified location
-* `scion-pki key public <scion-pki_key_public.html>`_ 	 - Generate public key for the provided private key
-* `scion-pki key symmetric <scion-pki_key_symmetric.html>`_ 	 - Generate symmetric key at the specified location
+* :ref:`scion-pki <scion-pki>` 	 - SCION Control Plane PKI Management Tool
+* :ref:`scion-pki key fingerprint <scion-pki_key_fingerprint>` 	 - Computes the fingerprint of the provided key
+* :ref:`scion-pki key match <scion-pki_key_match>` 	 - Match the key with other trust objects
+* :ref:`scion-pki key private <scion-pki_key_private>` 	 - Generate private key at the specified location
+* :ref:`scion-pki key public <scion-pki_key_public>` 	 - Generate public key for the provided private key
+* :ref:`scion-pki key symmetric <scion-pki_key_symmetric>` 	 - Generate symmetric key at the specified location
 

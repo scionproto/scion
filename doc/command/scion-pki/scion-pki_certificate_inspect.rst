@@ -1,9 +1,11 @@
+:orphan:
+
 .. _scion-pki_certificate_inspect:
 
 scion-pki certificate inspect
 -----------------------------
 
-Inspect a certificate or a certificate signing request 
+Inspect a certificate or a certificate signing request
 
 Synopsis
 ~~~~~~~~
@@ -35,5 +37,5 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion-pki certificate <scion-pki_certificate.html>`_ 	 - Manage certificates for the SCION control plane PKI.
+* :ref:`scion-pki certificate <scion-pki_certificate>` 	 - Manage certificates for the SCION control plane PKI.
 

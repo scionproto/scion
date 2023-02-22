@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion-pki_certificate_match:
 
 scion-pki certificate match
@@ -21,6 +23,6 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion-pki certificate <scion-pki_certificate.html>`_ 	 - Manage certificates for the SCION control plane PKI.
-* `scion-pki certificate match private <scion-pki_certificate_match_private.html>`_ 	 - Find the matching private keys for the certificate
+* :ref:`scion-pki certificate <scion-pki_certificate>` 	 - Manage certificates for the SCION control plane PKI.
+* :ref:`scion-pki certificate match private <scion-pki_certificate_match_private>` 	 - Find the matching private keys for the certificate
 

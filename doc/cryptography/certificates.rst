@@ -566,10 +566,3 @@ must be set. If used on the server-side of CP TLS session establishment,
 establishment, ``id-kp-clientAuth`` must be set.
 
 **Basic constraints**. The extension should not be included.
-
-Resources
-=========
-
-Most of the references linked from this document can be found in the `Anapaya
-standards repository
-<https://drive.google.com/drive/u/0/folders/1q-3mN6Q6R8Rgc_jiwW8G8ua_ABwFb4BA>`_.

@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion-pki_trc:
 
 scion-pki trc
@@ -21,12 +23,12 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion-pki <scion-pki.html>`_ 	 - SCION Control Plane PKI Management Tool
-* `scion-pki trc combine <scion-pki_trc_combine.html>`_ 	 - Combine partially signed TRCs
-* `scion-pki trc extract <scion-pki_trc_extract.html>`_ 	 - Extract parts of a signed TRC
-* `scion-pki trc format <scion-pki_trc_format.html>`_ 	 - Reformat a TRC or TRC payload
-* `scion-pki trc inspect <scion-pki_trc_inspect.html>`_ 	 - Represent TRC in a human readable form
-* `scion-pki trc payload <scion-pki_trc_payload.html>`_ 	 - Generate new TRC payload
-* `scion-pki trc sign <scion-pki_trc_sign.html>`_ 	 - Sign a TRC
-* `scion-pki trc verify <scion-pki_trc_verify.html>`_ 	 - Verify a TRC chain
+* :ref:`scion-pki <scion-pki>` 	 - SCION Control Plane PKI Management Tool
+* :ref:`scion-pki trc combine <scion-pki_trc_combine>` 	 - Combine partially signed TRCs
+* :ref:`scion-pki trc extract <scion-pki_trc_extract>` 	 - Extract parts of a signed TRC
+* :ref:`scion-pki trc format <scion-pki_trc_format>` 	 - Reformat a TRC or TRC payload
+* :ref:`scion-pki trc inspect <scion-pki_trc_inspect>` 	 - Represent TRC in a human readable form
+* :ref:`scion-pki trc payload <scion-pki_trc_payload>` 	 - Generate new TRC payload
+* :ref:`scion-pki trc sign <scion-pki_trc_sign>` 	 - Sign a TRC
+* :ref:`scion-pki trc verify <scion-pki_trc_verify>` 	 - Verify a TRC chain
 

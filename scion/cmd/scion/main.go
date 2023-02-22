@@ -36,8 +36,10 @@ func main() {
 	executable := filepath.Base(os.Args[0])
 	cmd := &cobra.Command{
 		Use:   executable,
-		Short: "A clean-slate Internet architecture",
-		Args:  cobra.NoArgs,
+		Short: "SCION networking utilities.",
+		Long: executable +
+			" is a collection of command line utilities for hosts in the SCION Internet.",
+		Args: cobra.NoArgs,
 		// Silence the errors, since we print them in main. Otherwise, cobra
 		// will print any non-nil errors returned by a RunE function.
 		// See https://github.com/spf13/cobra/issues/340.
@@ -71,6 +73,7 @@ func main() {
 	cmd.SetHelpTemplate(`{{with (or .Long .Short)}}{{. | trimTrailingWhitespaces | removeEscape}}
 
 {{end}}{{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`)
+	cmd.DisableAutoGenTag = true
 
 	if err := cmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err)

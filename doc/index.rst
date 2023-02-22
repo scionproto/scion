@@ -36,7 +36,7 @@ is a good place to start.
    endhost-bootstrap
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Operational manuals:
 
    manuals/common
@@ -47,15 +47,8 @@ is a good place to start.
    manuals/gateway
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: CLI tools:
 
    command/scion/scion
    command/scion-pki/scion-pki
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

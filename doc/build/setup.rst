@@ -194,7 +194,7 @@ interface on a different machine.
 
    - For Ubuntu install as described in the steps above.
    - For MacOS and Windows just download & install from the `wireshark website
-     <https://www.wireshark.org/#download>`_.
+     <https://www.wireshark.org/download.html>`_.
 
 
 #. Install dissector plugin

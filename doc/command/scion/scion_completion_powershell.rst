@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion_completion_powershell:
 
 scion completion powershell
@@ -34,5 +36,5 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion completion <scion_completion.html>`_ 	 - Generate the autocompletion script for the specified shell
+* :ref:`scion completion <scion_completion>` 	 - Generate the autocompletion script for the specified shell
 

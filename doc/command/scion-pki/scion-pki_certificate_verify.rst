@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion-pki_certificate_verify:
 
 scion-pki certificate verify
@@ -46,6 +48,6 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion-pki certificate <scion-pki_certificate.html>`_ 	 - Manage certificates for the SCION control plane PKI.
-* `scion-pki certificate verify ca <scion-pki_certificate_verify_ca.html>`_ 	 - Verify a CA certificate
+* :ref:`scion-pki certificate <scion-pki_certificate>` 	 - Manage certificates for the SCION control plane PKI.
+* :ref:`scion-pki certificate verify ca <scion-pki_certificate_verify_ca>` 	 - Verify a CA certificate
 

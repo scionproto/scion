@@ -43,6 +43,7 @@ compile_commands.json
 # Environment files
 #########################
 /venv/
+doc/venv/
 
 # Docker working directory
 ##########################

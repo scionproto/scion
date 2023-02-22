@@ -35,7 +35,7 @@ func newInspectCmd(pather command.Pather) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "inspect [flags] <certificate-file|CSR-file>",
-		Short: "Inspect a certificate or a certificate signing request ",
+		Short: "Inspect a certificate or a certificate signing request",
 		Long: `outputs the certificate chain or a certificat signing
 request (CSR) in human readable format.`,
 		Example: fmt.Sprintf(
