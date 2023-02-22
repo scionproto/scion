@@ -4,7 +4,7 @@
 Dynamically Recreatable Key (DRKey) Infrastructure
 **************************************************
 
-This document presents the design for the Dynamically Recreatable Key (DRKey)
+This document describes the Dynamically Recreatable Key (DRKey)
 infrastructure.
 
 Overview

@@ -2,8 +2,6 @@
 SCION Cryptography
 ==================
 
-Open source cryptography documentation:
-
 .. toctree::
    :maxdepth: 2
 
@@ -15,6 +13,5 @@ Open source cryptography documentation:
    trc-signing-ceremony-phases-sensitive
    ca-operations
    interactions
-   standards
    drkey
-   forwarding-key-rollover
+   standards

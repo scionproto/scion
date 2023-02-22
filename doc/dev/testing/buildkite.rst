@@ -2,9 +2,12 @@
 Buildkite Continuous Integration
 ********************************
 
-We are currently using `buildkite <https://buildkite.com/scionproto>`_ for
-running build, lint, test and integration tests for all pull requests to the
-`scionproto/scion <https://github.com/scionproto/scion>`_ github repository.
+This document describes `our CI setup on buildkite <https://buildkite.com/scionproto>`_.
+This is targeted to the maintainers of the CI setup, and contributors who want to add or modify
+steps in the CI pipelines.
+
+We are currently using buildkite to run build, lint, test and integration tests for all pull
+requests to the `scionproto/scion <https://github.com/scionproto/scion>`_ github repository.
 
 Overview
 ========

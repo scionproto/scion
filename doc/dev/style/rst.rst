@@ -1,9 +1,7 @@
-.. _rst-style-guide:
-
-reStructured Text style guide
+reStructuredText style guide
 =============================
 
-reStructured Text allows for quite a bit of freedom in how the markup is
+reStructuredText allows for quite a bit of freedom in how the markup is
 written. In the interest of consistency, please follow the rules below for SCION
 documentation.
 
@@ -12,18 +10,6 @@ General
 
 There is no maximum line length, but if possible try to wrap at 80 characters.
 Prefer readability over strict wrapping.
-
-Images
-------
-
-Images should live either in the same folder as the file that embeds them, or
-in a ``fig`` folder. Note that images can be referenced by any documentation file
-in the code base, so be careful when moving them, as we do not have an automatic
-way of detecting this yet.
-
-If possible (e.g., for DrawIO graphics), vector images should have a ``.txt``
-file alongside them with the same name. The file should contain a link to the
-source of the vector image.
 
 Headings
 --------
@@ -47,6 +33,47 @@ Use the following heading styles:
 
    Level 4 (paragraph)
    """""""""""""""""""
+
+Cross-References
+----------------
+
+Use the `:doc: <https://www.sphinx-doc.org/en/master/usage/restructuredtext/roles.html#role-doc>`_-role
+to reference an entire document (a ``.rst`` or ``.md`` file).
+
+.. code-block:: rest
+
+   This is a link to :doc:`/dev/go-style`.
+   This is a link to :doc:`the same thing </dev/go-style>`, but with a different caption.
+   Paths can be :doc:`absolute </dev/go-style>`, or :doc:`relative <go-style>`.
+
+Use the `:ref: <https://www.sphinx-doc.org/en/master/usage/restructuredtext/roles.html#role-ref>`_-role
+to reference a specific section in a document.
+
+.. code-block:: rest
+
+   This is a link to :ref:`governance`.
+   This is a link to :ref:`the same thing <governance>`, but with a different caption.
+
+Use our custom ``:ref-file:``-role (based on the extlink extension) to create a permalink to
+a file in the scionproto/scion github repository.
+
+.. code-block:: rest
+
+   This is a link to the file :ref-file:`tools/wireshark/scion.lua`.
+   As usual, the link caption :ref-file:`the caption can be customized <tools/wireshark/scion.lua>`.
+
+
+Images
+------
+
+Images should live either in the same folder as the file that embeds them, or
+in a ``fig`` folder. Note that images can be referenced by any documentation file
+in the code base, so be careful when moving them, as we do not have an automatic
+way of detecting this yet.
+
+If possible (e.g., for DrawIO graphics), vector images should have a ``.txt``
+file alongside them with the same name. The file should contain a link to the
+source of the vector image.
 
 Including code
 --------------

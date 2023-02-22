@@ -105,10 +105,6 @@ router in a different AS.
 
 **Labels**: ``interface``, ``isd_as`` and ``neighbor_isd_as``.
 
-.. note::
-
-   Not currently supported by the ``router``.
-
 BFD packets sent/received (intra-AS)
 ------------------------------------
 
@@ -120,10 +116,6 @@ BFD packets sent/received (intra-AS)
 router in the local AS.
 
 **Labels**: ``sibling`` and ``isd_as``.
-
-.. note::
-
-   Not currently supported by the ``router``.
 
 Service instance count
 ----------------------

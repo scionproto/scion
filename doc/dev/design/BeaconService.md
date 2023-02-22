@@ -1,6 +1,7 @@
-# Beacon Service Design
+# Beacon Service
 
-​
+- Author: Lukas Vogel
+- Status: **outdated**
 
 ---
 ⚠️  **NOTE** ⚠️<br/>

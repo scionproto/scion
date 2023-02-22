@@ -1,4 +1,10 @@
-# EPIC Design
+# EPIC for Hidden Paths
+
+- Author: Marc Wyss, Markus Legner
+- Last updated: 2020-10-14
+- Status: **implemented**
+- Discussion at: [#3884](https://github.com/scionproto/scion/issues/3653)
+- Implemented in: [#3951](https://github.com/scionproto/scion/issues/3951),[#3954](https://github.com/scionproto/scion/issues/3954), [#4079](https://github.com/scionproto/scion/issues/4079)
 
 This file introduces EPIC and documents the design rationales and best
 practices for EPIC-HP.
@@ -222,7 +228,7 @@ Proceedings of the USENIX Security Symposium
 
 <a id="2">[2]</a>
 Design Document for the Hidden Path Infrastructure
-[[Link]](hidden-paths)
+[[Link]](/hidden-paths)
 
 <a id="3">[3]</a>
 T. Lee, C. Pappas, A. Perrig, V. Gligor, and Y. Hu. (2017) <br>

@@ -559,9 +559,11 @@ entities should be able to access the services, downgrade to the
 SCION path type should be prevented, etc.), ASes need to be able to
 configure the border routers such that only certain Path Types are
 allowed. This is further described in the accompanying
-`EPIC design document`_.
+:doc:`EPIC-HP design document </dev/design/EPIC>`.
 
-.. _`EPIC design document`: ../EPIC.html
+.. TODO
+   We should not reference design documents. The relevant material should
+   be moved copied over to the SCION section.
 
 Packet identifier (PktID)
 -------------------------
@@ -744,4 +746,4 @@ verifies the LHVF field. Again, if the verification fails, the
 packet is dropped.
 
 How to only allow EPIC-HP traffic on a hidden path (and not SCION
-path type packets) is described in the `EPIC design document`_.
+path type packets) is described in the :doc:`EPIC-HP design document </dev/design/EPIC>`.
