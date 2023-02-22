@@ -1,5 +1,12 @@
 # COLIBRI Service Design
 
+- Author: Juan A. García Pardo
+- Last updated: 2020-07-08
+- Status: **experimental**, prototype being developed in [netsec-ethz/scion:scionlab](https://github.com/netsec-ethz/scion/tree/scionlab)
+- Discussion at: [#3653](https://github.com/scionproto/scion/issues/3653), [#3794](https://github.com/scionproto/scion/issues/3794)
+
+## Abstract
+
 This document specifies the design of the COLIBRI service. It aims for correctness not completeness,
 and some parts of the design are deliberately not yet specified.
 

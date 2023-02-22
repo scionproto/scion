@@ -1,7 +1,5 @@
-.. _go-style-guide:
-
 **************
-Go Style Guide
+Go style guide
 **************
 
 Unless specified otherwise below, stick to golang's
@@ -100,7 +98,7 @@ Logging
 
 Here is an example of how logging could be added to a type:
 
-.. literalinclude:: wrappers_test
+.. literalinclude:: /../pkg/log/wrappers_test.go
    :language: Go
    :dedent: 1
    :start-after: LITERALINCLUDE ExampleDiscardLogger START
@@ -120,7 +118,7 @@ To write code that both includes metrics, and is testable, we use the
 
 A simple example with labels (note that ``Foo``'s metrics can be unit tested by mocking the counter):
 
-.. literalinclude:: metrics_test
+.. literalinclude:: /../pkg/metrics/metrics_test.go
    :language: Go
    :dedent: 1
    :start-after: LITERALINCLUDE ExampleCounter_Interface START
@@ -130,7 +128,7 @@ Calling code can later create ``Giant`` objects with Prometheus metric reporting
 by plugging a prometheus counter as the ``Counter``. The Prometheus objects can be
 obtained from the metrics packages in the following way:
 
-.. literalinclude:: metrics_test
+.. literalinclude:: /../pkg/metrics/metrics_test.go
    :language: Go
    :dedent: 1
    :start-after: LITERALINCLUDE ExampleCounter_Implementation START

@@ -2,6 +2,14 @@
 SCION Address URI encoding
 **************************
 
+- Author: Dominik Roos
+- Last updated: 2020-09-02
+- Status: **proposal**
+- Discussion at: -
+
+Abstract
+========
+
 Certain libraries and applications rely on addresses encoded in an URI format.
 This document defines a URI syntax for encoding SCION addresses.
 

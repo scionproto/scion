@@ -1,5 +1,3 @@
-.. _how-to-use-git-and-github:
-
 *************************
 How to Use Git and GitHub
 *************************
@@ -96,7 +94,7 @@ Run the tests using:
 
 .. code-block:: bash
 
-   bazel test --config=unit_all
+   make test
 
 The above runs only the unit tests. As soon as you open your PR, some additional tests
 will run automatically.
