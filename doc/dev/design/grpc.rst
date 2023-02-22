@@ -2,6 +2,14 @@
 Teaching gRPC some path-awareness
 *********************************
 
+- Author: Dominik Roos
+- Last updated: 2020-09-02
+- Status: **proposal**
+- Discussion at: -
+
+Abstract
+========
+
 The SCION control plane uses gRPC to have a reliable RPC mechanism. gRPC is
 very flexible, and employs powerful concepts that we can utilize to make
 our RPC stack path aware.

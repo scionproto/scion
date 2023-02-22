@@ -2,11 +2,10 @@
 Automated end host bootstrapping
 ********************************
 
-This file documents the design of the end host bootstrapping.
-
 - Author(s): Andrea Tulimiero, François Wirz
 - Last updated: 2021-03-09
-- Status: draft
+- Status: **implemented** externally in `netsec-ethz/bootstrapper <https://github.com/netsec-ethz/bootstrapper>`_
+- Discussion at: `#3943 <https://github.com/scionproto/scion/pull/3943>`_
 
 Overview
 ========

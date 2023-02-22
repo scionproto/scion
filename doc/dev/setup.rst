@@ -1,0 +1,122 @@
+.. _setting-up-the-development-environment:
+
+Setting up the development environment
+======================================
+
+Prerequisites
+-------------
+
+#. Make sure that you are using a clean and recently updated **Ubuntu 18.04**.
+   Other Ubuntu versions (or systems) will usually be fine too, but some of the tooling may not work.
+   This environment assumes you're running as a non-root user with ``sudo`` access.
+#. Install ``docker``.
+   Please follow the instructions for `docker-ce <https://docs.docker.com/install/linux/docker-ce/ubuntu/>`_.
+   Then, add your user to the ``docker`` group:
+   ``sudo usermod -a -G docker ${LOGNAME}``, where ``${LOGNAME}`` is replaced with your user name. Log out
+   and log back in so that your membership of the ``docker`` group is seen by the shell session.
+
+   Optionally install ``docker-compose``. This is needed if you want to run the
+   ``docker-compose`` based test topology setup instead of the default setup based on ``supervisord``.
+   Please follow the instructions for `docker-compose <https://docs.docker.com/compose/install/>`_.
+
+Bazel
+-----
+
+#. Clone the SCION repository into the appropriate directory inside your workspace. In the commands below,
+   replace ``${WORKSPACE}`` with the directory in which you want to set up the project:
+
+   .. code-block:: bash
+
+      cd ${WORKSPACE}
+      git clone https://github.com/scionproto/scion
+      cd scion
+
+#. We use `Bazel <https://bazel.build>`__ for both building and testing. To be
+   able to define the bazel version in the repository we use the `bazelisk
+   <https://github.com/bazelbuild/bazelisk>`__ wrapper around bazel. To set it
+   up simply use::
+
+      ./tools/install_bazel
+
+   and make sure that ``~/bin`` is on your ``PATH``.
+
+   You can also manually install ``bazelisk`` and create an alias so that
+   ``bazel`` will resolve to the ``bazelisk`` command.
+
+#. To install the required build toolchains and scripting dependencies, run:
+
+   .. code-block:: bash
+
+      ./tools/install_deps
+
+#. Start the bazel-remote container.
+
+   We use `bazel-remote <https://github.com/buchgr/bazel-remote>`_ to cache
+   build artifacts from bazel. Bazel-remote can manage the disk space and does
+   not infinitely grow like the Bazel built-in disk-cache. To start bazel-remote run::
+
+      ./scion.sh bazel_remote
+
+#. Build SCION services and tools.
+
+   .. code-block:: bash
+
+      make
+
+#. Finally, check that tests run correctly:
+
+   .. code-block:: bash
+
+      make test
+      make test-integration
+
+#. (Optional) If you already have some code you wish to contribute upstream, you can also run the
+   linters locally with:
+
+   .. code-block:: bash
+
+      make lint
+
+
+Alternative: go build
+---------------------
+
+Alternatively to building with bazel, the SCION services and tools can be built
+with ``go build``.
+Please be aware that **this is not the recommended setup for development**.
+Not all checks and linters can be run in this setup. Without running all checks
+locally, it is likely that there will be frustrating cycles with the CI system
+rejecting your changes.
+
+#. Determine the go version used in the bazel setup; the ``WORKSPACE`` file
+   specifies this version in the ``go_register_toolchains`` clause.
+
+   .. literalinclude:: /../WORKSPACE
+      :start-at: go_register_toolchains(
+      :end-at: )
+      :emphasize-lines: 3
+
+   Building with newer go versions *usually* works.
+
+#. Install go. Either follow `the official instructions <https://go.dev/doc/install>`_
+   or check the `Ubuntu specific installation options on the golang wiki <https://github.com/golang/go/wiki/Ubuntu>`_.
+
+#. Build SCION services and tools.
+
+   .. code-block:: bash
+
+      go build -o bin ./<service>/cmd/<service>...
+
+Tips and Tricks
+---------------
+.. toctree::
+   :maxdepth: 1
+
+   wireshark
+
+.. seealso::
+   :doc:`contribute`
+      Learn :doc:`how to contribute <contribute>` to the SCION projects.
+
+   :doc:`run`
+      :doc:`Run a SCION network <run>` on your development machine.

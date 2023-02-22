@@ -1,5 +1,3 @@
-.. _resources-for-learning-go:
-
 *************************
 Resources for learning Go
 *************************
@@ -13,4 +11,4 @@ Here are some resources to help you on your journey to learn Go:
 - https://github.com/golang/go/wiki/LearnConcurrency
 - https://dave.cheney.net/2019/05/07/prefer-table-driven-tests
 
-Also, please also check the SCION :ref:`go-style-guide` if haven't done so already.
+Also, please also check the SCION :doc:`style/go` if haven't done so already.

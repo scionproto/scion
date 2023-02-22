@@ -1,0 +1,11 @@
+/* copied from github.com/readthedocs/readthedocs.org, MIT © 2010 Read the Docs, Inc. & contributors */
+.wy-menu.wy-menu-vertical a.reference.external::after {
+  /* \00a0 = no break space */
+  content: "\00a0\f08e";
+  font-family: FontAwesome;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  text-rendering: auto;
+  -webkit-font-smoothing: antialiased;
+}

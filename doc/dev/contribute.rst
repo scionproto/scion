@@ -1,26 +1,23 @@
 .. _contribution-guide:
 
-***********************************
-Contributing to the SCION code base
-***********************************
+******************
+Contribution Guide
+******************
 
 Welcome to the SCION contribution guide! If you are interested in contributing to
 the project, this page will help you out on your journey to your first SCION commit.
 
 .. _slack:
 
-Before starting out, just one thing: if you have any questions, you can always
-find us on our `Slack workspace <https://scionproto.slack.com>`__ or on our
-`Github project page <https://github.com/scionproto/scion>`__. Do not hesitate to
-ask us anything, or feel free to just drop by and say "Hi".
-Please use this invite link to `join scionproto Slack workspace <https://join.slack.com/t/scionproto/shared_invite/zt-1gtgkuvk3-vQzq3gPOWOL6T58yu45vXg>`__.
 
-.. note:: Note for Anapayans
+.. Hint::
+   If you have any questions, you can always find us
+   on our `Slack workspace <https://scionproto.slack.com>`__
+   or on our `Github project page <https://github.com/scionproto/scion>`__.
+   Do not hesitate to ask us anything, or feel free to just drop by and say "Hi".
 
-   This section contains general rules about how to contribute to the
-   open-source SCION project. If you are an Anapaya employee, some additional
-   rules may apply. Please see the internal Contribution Guide for more
-   information.
+   Please use this invite link to `join scionproto Slack workspace <https://join.slack.com/t/scionproto/shared_invite/zt-1gtgkuvk3-vQzq3gPOWOL6T58yu45vXg>`__.
+
 
 What skills do you need to contribute?
 ======================================
@@ -30,30 +27,25 @@ with some of them, we have compiled a list containing some great resources to ge
 
 +----------------+----------------------------+------------------------------------------+
 |     Language   |    Contribution area       |    Tutorials                             |
-+----------------+----------------------------+------------------------------------------+
-|       Go       |   SCION Control-plane      |    :ref:`resources-for-learning-go`      |
-|                |   SCION Data-plane         |                                          |
++================+============================+==========================================+
+|       Go       |   SCION Control-plane,     |    :doc:`go-learn`                       |
+|                |   SCION Data-plane,        |                                          |
 |                |   SCION Tools              |                                          |
 +----------------+----------------------------+------------------------------------------+
-|   Python       |   Acceptance testing       | Coming soon                              |
-|                |   Helper scripts           |                                          |
+|   Python,      |   Acceptance testing,      | Coming soon                              |
+|   Bash         |   Helper scripts           |                                          |
 +----------------+----------------------------+------------------------------------------+
 |  Starlark      |   Bazel build/test system  | Coming soon                              |
 +----------------+----------------------------+------------------------------------------+
 
-Contributing to the Python and Starlark code bases is a bit trickier, so if you're just now
-starting out, we recommend going for Go first.
-
-You might also see some Bash and Makefile code in the code base. While this code changes from
-time to time, we strongly discourage contributions to these areas. Code in these languages also
-has a high chance of getting deleted completely in a refactoring pass.
-
 For version control, we use Git and GitHub. For more information about using Git (including
-links to resources to get you started if you've never used before), please visit :ref:`how-to-use-git-and-github`.
+links to resources to get you started if you've never used before), please visit :doc:`git`.
 
 No matter what language you want to contribute to, one of the first steps to take is to set
 up a development environment. See :ref:`setting-up-the-development-environment` for the needed steps.
 If you encounter issues, please visit our :ref:`Slack <slack>` and ask for help.
+
+.. _finding-an-issue-to-contribute-to:
 
 Finding an issue to contribute to
 =================================
@@ -77,7 +69,7 @@ you and guide you for the rest of the process. If you have any questions, please
 remember to shoot us a question on our :ref:`Slack <slack>`.
 
 Finally, make sure that the code you write adheres to the SCION project
-:ref:`language-style-guides`.
+:doc:`style/index`.
 
 .. _governance:
 
@@ -88,9 +80,6 @@ The `Technical Committee (TC) Implementation <https://scion.org/development>`_
 of the SCION Association are the custodians of the open-source SCION
 implementation projects.
 
-.. rubric:: People
-
-The current members of the TC Implementation are:
 
 .. |span-github| raw:: html
 
@@ -100,11 +89,16 @@ The current members of the TC Implementation are:
 
    <span class="fa fa-slack"/>
 
+.. rubric:: People
+
+The current members of the TC Implementation are:
+
 * Dominik Roos (|span-github| `@oncilla <https://github.com/oncilla>`_, |span-slack| @roosd)
 * François Wirz (|span-github| `@FR4NK-W <https://github.com/FR4NK-W>`_, |span-slack| @frank)
 * Lukas Vogel (|span-github| `@lukedirtwalker <https://github.com/lukedirtwalker>`_, |span-slack| @luke)
 * Marc Frei (|span-github| `@marcfrei <https://github.com/marcfrei>`_, |span-slack| @marcfrei)
 * Matthias Frei (|span-github| `@matzf <https://github.com/matzf>`_, |span-slack| @matzf)
+
 
 .. rubric:: Responsibilities and Tasks
 
@@ -175,7 +169,7 @@ Formal Process
   community.
 :Design:
   If the proposal has been accepted, the authors submit a design document and
-  submit it to the repository (`doc/ <https://github.com/scionproto/scion/tree/master/doc>`__)
+  submit it to the repository (:file-ref:`doc/`)
   in the form of a pull request.
 :Final review:
   The design document will be reviewed by the assigned technical team. Since
@@ -202,20 +196,16 @@ Learning resources
 .. toctree::
    :maxdepth: 1
 
-   contribute/go-learn.rst
-   contribute/git.rst
+   go-learn
+   git
 
-.. _language-style-guides:
+.. seealso::
 
-Language style guides
-=====================
+   :doc:`setup`
+      Get started by :doc:`cloning the repository and installing the build tools <setup>`.
 
-.. toctree::
-   :maxdepth: 1
+   :doc:`run`
+      :doc:`Run a SCION network <run>` on your development machine
 
-   contribute/bazel-style
-   contribute/go-style
-   contribute/json-style
-   contribute/python-style
-   contribute/rst-style
-   contribute/toml-style
+   :doc:`wireshark`
+      Install :doc:`wireshark` and the SCION packet dissector plugin to inspect packets on the wire.

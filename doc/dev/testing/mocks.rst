@@ -1,5 +1,3 @@
-.. _Go mocks:
-
 ********
 Go mocks
 ********
@@ -29,7 +27,7 @@ interfaces. This would look like the following::
     )
 
 For an example, refer to
-`this exmaple file <https://github.com/scionproto/scion/blob/master/pkg/log/mock_log/BUILD.bazel>`_.
+`this example file <https://github.com/scionproto/scion/blob/master/pkg/log/mock_log/BUILD.bazel>`_.
 For further information on the gomock bazel rules, refer to
 `gomock for Bazel <https://github.com/jmhodges/bazel_gomock>`_.
 
