@@ -19,8 +19,8 @@ import sphinx_rtd_theme  # noqa
 # -- Project information -----------------------------------------------------
 
 project = 'SCION'
-copyright = '2021, Anapaya Systems, ETH Zurich'
-author = 'Anapaya Systems, ETH Zurich'
+copyright = '2023, Anapaya Systems, ETH Zurich, SCION Association'
+author = 'Anapaya Systems, ETH Zurich, SCION Association'
 
 
 # -- General configuration ---------------------------------------------------
@@ -39,7 +39,11 @@ templates_path = ['_templates']
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = [
+    'venv', 'requirements.in', 'requirements.txt',
+    '_build', 'Thumbs.db', '.DS_Store',
+    'manuals/*/*',  # manuals/<x>.rst uses "include" directive to compose files from subdirectories
+]
 
 master_doc = 'index'
 

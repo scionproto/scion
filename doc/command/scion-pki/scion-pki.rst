@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion-pki:
 
 scion-pki
@@ -21,9 +23,9 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion-pki certificate <scion-pki_certificate.html>`_ 	 - Manage certificates for the SCION control plane PKI.
-* `scion-pki completion <scion-pki_completion.html>`_ 	 - Generate the autocompletion script for the specified shell
-* `scion-pki key <scion-pki_key.html>`_ 	 - Manage private and public keys
-* `scion-pki trc <scion-pki_trc.html>`_ 	 - Manage TRCs for the SCION control plane PKI
-* `scion-pki version <scion-pki_version.html>`_ 	 - Show the scion-pki version information
+* :ref:`scion-pki certificate <scion-pki_certificate>` 	 - Manage certificates for the SCION control plane PKI.
+* :ref:`scion-pki completion <scion-pki_completion>` 	 - Generate the autocompletion script for the specified shell
+* :ref:`scion-pki key <scion-pki_key>` 	 - Manage private and public keys
+* :ref:`scion-pki trc <scion-pki_trc>` 	 - Manage TRCs for the SCION control plane PKI
+* :ref:`scion-pki version <scion-pki_version>` 	 - Show the scion-pki version information
 

@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion-pki_completion_fish:
 
 scion-pki completion fish
@@ -37,5 +39,5 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion-pki completion <scion-pki_completion.html>`_ 	 - Generate the autocompletion script for the specified shell
+* :ref:`scion-pki completion <scion-pki_completion>` 	 - Generate the autocompletion script for the specified shell
 

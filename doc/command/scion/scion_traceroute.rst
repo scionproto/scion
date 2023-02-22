@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion_traceroute:
 
 scion traceroute
@@ -95,5 +97,5 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion <scion.html>`_ 	 - A clean-slate Internet architecture
+* :ref:`scion <scion>` 	 - SCION networking utilities.
 

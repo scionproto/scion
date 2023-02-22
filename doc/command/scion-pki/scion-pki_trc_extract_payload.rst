@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion-pki_trc_extract_payload:
 
 scion-pki trc extract payload
@@ -41,5 +43,5 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion-pki trc extract <scion-pki_trc_extract.html>`_ 	 - Extract parts of a signed TRC
+* :ref:`scion-pki trc extract <scion-pki_trc_extract>` 	 - Extract parts of a signed TRC
 

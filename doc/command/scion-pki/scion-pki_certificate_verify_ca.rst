@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion-pki_certificate_verify_ca:
 
 scion-pki certificate verify ca
@@ -37,5 +39,5 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion-pki certificate verify <scion-pki_certificate_verify.html>`_ 	 - Verify a certificate chain
+* :ref:`scion-pki certificate verify <scion-pki_certificate_verify>` 	 - Verify a certificate chain
 

@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion-pki_key_public:
 
 scion-pki key public
@@ -38,5 +40,5 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion-pki key <scion-pki_key.html>`_ 	 - Manage private and public keys
+* :ref:`scion-pki key <scion-pki_key>` 	 - Manage private and public keys
 

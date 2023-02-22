@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion-pki_certificate_match_private:
 
 scion-pki certificate match private
@@ -39,5 +41,5 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion-pki certificate match <scion-pki_certificate_match.html>`_ 	 - Match the certificate with other trust objects
+* :ref:`scion-pki certificate match <scion-pki_certificate_match>` 	 - Match the certificate with other trust objects
 

@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion-pki_completion:
 
 scion-pki completion
@@ -23,9 +25,9 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion-pki <scion-pki.html>`_ 	 - SCION Control Plane PKI Management Tool
-* `scion-pki completion bash <scion-pki_completion_bash.html>`_ 	 - Generate the autocompletion script for bash
-* `scion-pki completion fish <scion-pki_completion_fish.html>`_ 	 - Generate the autocompletion script for fish
-* `scion-pki completion powershell <scion-pki_completion_powershell.html>`_ 	 - Generate the autocompletion script for powershell
-* `scion-pki completion zsh <scion-pki_completion_zsh.html>`_ 	 - Generate the autocompletion script for zsh
+* :ref:`scion-pki <scion-pki>` 	 - SCION Control Plane PKI Management Tool
+* :ref:`scion-pki completion bash <scion-pki_completion_bash>` 	 - Generate the autocompletion script for bash
+* :ref:`scion-pki completion fish <scion-pki_completion_fish>` 	 - Generate the autocompletion script for fish
+* :ref:`scion-pki completion powershell <scion-pki_completion_powershell>` 	 - Generate the autocompletion script for powershell
+* :ref:`scion-pki completion zsh <scion-pki_completion_zsh>` 	 - Generate the autocompletion script for zsh
 

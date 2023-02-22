@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion-pki_trc_extract:
 
 scion-pki trc extract
@@ -21,7 +23,7 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion-pki trc <scion-pki_trc.html>`_ 	 - Manage TRCs for the SCION control plane PKI
-* `scion-pki trc extract certificates <scion-pki_trc_extract_certificates.html>`_ 	 - Extract the bundled certificates
-* `scion-pki trc extract payload <scion-pki_trc_extract_payload.html>`_ 	 - Extract the TRC payload
+* :ref:`scion-pki trc <scion-pki_trc>` 	 - Manage TRCs for the SCION control plane PKI
+* :ref:`scion-pki trc extract certificates <scion-pki_trc_extract_certificates>` 	 - Extract the bundled certificates
+* :ref:`scion-pki trc extract payload <scion-pki_trc_extract_payload>` 	 - Extract the TRC payload
 

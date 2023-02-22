@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion-pki_version:
 
 scion-pki version
@@ -25,5 +27,5 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion-pki <scion-pki.html>`_ 	 - SCION Control Plane PKI Management Tool
+* :ref:`scion-pki <scion-pki>` 	 - SCION Control Plane PKI Management Tool
 

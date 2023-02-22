@@ -7,14 +7,12 @@ exports_files(
 
 recursive_copy_output(
     name = "copy_scion",
-    file_transformation = "head -n -1 $FILE > temp.rst ; mv temp.rst $FILE",
     input_dir = "//scion/cmd/scion:gendocs",
     output_dir = ":scion",
 )
 
 recursive_copy_output(
     name = "copy_scion-pki",
-    file_transformation = "head -n -1 $FILE > temp.rst ; mv temp.rst $FILE",
     input_dir = "//scion-pki/cmd/scion-pki:gendocs",
     output_dir = ":scion-pki",
 )

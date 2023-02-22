@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion-pki_trc_inspect:
 
 scion-pki trc inspect
@@ -43,5 +45,5 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion-pki trc <scion-pki_trc.html>`_ 	 - Manage TRCs for the SCION control plane PKI
+* :ref:`scion-pki trc <scion-pki_trc>` 	 - Manage TRCs for the SCION control plane PKI
 

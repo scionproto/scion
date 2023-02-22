@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion_completion:
 
 scion completion
@@ -23,9 +25,9 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion <scion.html>`_ 	 - A clean-slate Internet architecture
-* `scion completion bash <scion_completion_bash.html>`_ 	 - Generate the autocompletion script for bash
-* `scion completion fish <scion_completion_fish.html>`_ 	 - Generate the autocompletion script for fish
-* `scion completion powershell <scion_completion_powershell.html>`_ 	 - Generate the autocompletion script for powershell
-* `scion completion zsh <scion_completion_zsh.html>`_ 	 - Generate the autocompletion script for zsh
+* :ref:`scion <scion>` 	 - SCION networking utilities.
+* :ref:`scion completion bash <scion_completion_bash>` 	 - Generate the autocompletion script for bash
+* :ref:`scion completion fish <scion_completion_fish>` 	 - Generate the autocompletion script for fish
+* :ref:`scion completion powershell <scion_completion_powershell>` 	 - Generate the autocompletion script for powershell
+* :ref:`scion completion zsh <scion_completion_zsh>` 	 - Generate the autocompletion script for zsh
 

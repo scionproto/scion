@@ -1,3 +1,5 @@
+:orphan:
+
 .. _scion_ping:
 
 scion ping
@@ -114,5 +116,5 @@ Options
 SEE ALSO
 ~~~~~~~~
 
-* `scion <scion.html>`_ 	 - A clean-slate Internet architecture
+* :ref:`scion <scion>` 	 - SCION networking utilities.
 
