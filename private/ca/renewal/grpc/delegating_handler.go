@@ -95,7 +95,7 @@ func (h *DelegatingHandler) HandleCMSRequest(
 	rep, err := h.Client.PostCertificateRenewal(
 		ctx,
 		int(subject.ISD()),
-		api.AS(subject.AS().String()),
+		subject.AS().String(),
 		api.PostCertificateRenewalJSONRequestBody{
 			Csr: req.CmsSignedRequest,
 		},
@@ -152,7 +152,9 @@ func (h *DelegatingHandler) parseChain(rep api.RenewalResponse) ([]*x509.Certifi
 	case pkcs7Err == nil:
 		return extractChain(pkcs7)
 	default:
-		return nil, serrors.New("certificate_chain unset", "chain_err", chainErr, "pkcs7_err", pkcs7Err)
+		return nil, serrors.New("certificate_chain unset",
+			"chain_err", chainErr, "pkcs7_err", pkcs7Err,
+		)
 	}
 }
 

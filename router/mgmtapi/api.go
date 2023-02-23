@@ -106,10 +106,10 @@ func (s *Server) GetInterfaces(w http.ResponseWriter, r *http.Request) {
 			InternalInterface: findInternalInterface(intf.Link.Local.IA),
 			Neighbor: InterfaceNeighbor{
 				Address: intf.Link.Remote.Addr.String(),
-				IsdAs:   IsdAs(intf.Link.Remote.IA.String()),
+				IsdAs:   intf.Link.Remote.IA.String(),
 			},
 			Relationship: LinkRelationship(intf.Link.LinkTo.String()),
-			ScionMtu:     ScionMTU(intf.Link.MTU),
+			ScionMtu:     intf.Link.MTU,
 			State:        LinkState(intf.State),
 		}
 
@@ -121,10 +121,10 @@ func (s *Server) GetInterfaces(w http.ResponseWriter, r *http.Request) {
 			InterfaceId:       int(intf.InterfaceID),
 			InternalInterface: intf.InternalInterface.String(),
 			Neighbor: SiblingNeighbor{
-				IsdAs: IsdAs(intf.NeighborIA.String()),
+				IsdAs: intf.NeighborIA.String(),
 			},
 			Relationship: LinkRelationship(intf.Relationship.String()),
-			ScionMtu:     ScionMTU(intf.MTU),
+			ScionMtu:     intf.MTU,
 			State:        LinkState(intf.State),
 		}
 

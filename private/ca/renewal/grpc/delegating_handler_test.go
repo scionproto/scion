@@ -166,10 +166,11 @@ func TestDelegatingHandler(t *testing.T) {
 			},
 			Client: func(t *testing.T, ctrl *gomock.Controller) renewalgrpc.CAServiceClient {
 				var apiChain api.RenewalResponse_CertificateChain
-				apiChain.FromCertificateChain(api.CertificateChain{
+				err := apiChain.FromCertificateChain(api.CertificateChain{
 					AsCertificate: chain[0].Raw,
 					CaCertificate: chain[1].Raw,
 				})
+				require.NoError(t, err)
 				rep, err := json.Marshal(api.RenewalResponse{
 					CertificateChain: apiChain,
 				})

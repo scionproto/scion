@@ -191,7 +191,7 @@ func (m *MockCAServiceClient) EXPECT() *MockCAServiceClientMockRecorder {
 }
 
 // PostCertificateRenewal mocks base method.
-func (m *MockCAServiceClient) PostCertificateRenewal(arg0 context.Context, arg1 int, arg2 api.AS, arg3 api.PostCertificateRenewalJSONRequestBody, arg4 ...api.RequestEditorFn) (*http.Response, error) {
+func (m *MockCAServiceClient) PostCertificateRenewal(arg0 context.Context, arg1 int, arg2 string, arg3 api.RenewalRequest, arg4 ...api.RequestEditorFn) (*http.Response, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1, arg2, arg3}
 	for _, a := range arg4 {

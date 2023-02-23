@@ -58,18 +58,18 @@ func (s *Server) GetSegments(
 ) {
 
 	p := segapi.GetSegmentsParams{
-		StartIsdAs: (*segapi.IsdAs)(params.StartIsdAs),
-		EndIsdAs:   (*segapi.IsdAs)(params.EndIsdAs),
+		StartIsdAs: params.StartIsdAs,
+		EndIsdAs:   params.EndIsdAs,
 	}
 	s.SegmentsServer.GetSegments(w, r, p)
 }
 
 func (s *Server) GetSegment(w http.ResponseWriter, r *http.Request, id SegmentID) {
-	s.SegmentsServer.GetSegment(w, r, segapi.SegmentID(id))
+	s.SegmentsServer.GetSegment(w, r, id)
 }
 
 func (s *Server) GetSegmentBlob(w http.ResponseWriter, r *http.Request, id SegmentID) {
-	s.SegmentsServer.GetSegmentBlob(w, r, segapi.SegmentID(id))
+	s.SegmentsServer.GetSegmentBlob(w, r, id)
 }
 
 // GetCertificates lists the certificate chains.
@@ -80,7 +80,7 @@ func (s *Server) GetCertificates(
 ) {
 
 	cppkiParams := cppkiapi.GetCertificatesParams{
-		IsdAs:   (*cppkiapi.IsdAs)(params.IsdAs),
+		IsdAs:   params.IsdAs,
 		ValidAt: params.ValidAt,
 		All:     params.All,
 	}
@@ -89,12 +89,12 @@ func (s *Server) GetCertificates(
 
 // GetCertificate lists the certificate chain for a given ChainID.
 func (s *Server) GetCertificate(w http.ResponseWriter, r *http.Request, chainID ChainID) {
-	s.CPPKIServer.GetCertificate(w, r, cppkiapi.ChainID(chainID))
+	s.CPPKIServer.GetCertificate(w, r, chainID)
 }
 
 // GetCertificateBlob gnerates a certificate chain blob response encoded as PEM for a given chainId.
 func (s *Server) GetCertificateBlob(w http.ResponseWriter, r *http.Request, chainID ChainID) {
-	s.CPPKIServer.GetCertificateBlob(w, r, cppkiapi.ChainID(chainID))
+	s.CPPKIServer.GetCertificateBlob(w, r, chainID)
 }
 
 // GetTrcs gets the trcs specified by it's params.

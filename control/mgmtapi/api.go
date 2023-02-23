@@ -114,7 +114,7 @@ func (s *Server) GetBeacons(w http.ResponseWriter, r *http.Request, params GetBe
 	q := beaconstorage.QueryParams{}
 	var errs serrors.List
 	if params.StartIsdAs != nil {
-		if ia, err := addr.ParseIA(string(*params.StartIsdAs)); err == nil {
+		if ia, err := addr.ParseIA(*params.StartIsdAs); err == nil {
 			q.StartsAt = []addr.IA{ia}
 		} else {
 			errs = append(errs, serrors.WrapStr("parsing start_isd_as", err))
@@ -198,16 +198,18 @@ func (s *Server) GetBeacons(w http.ResponseWriter, r *http.Request, params GetBe
 			if i != 0 {
 				hops = append(hops, Hop{
 					Interface: int(as.HopEntry.HopField.ConsIngress),
-					IsdAs:     IsdAs(as.Local.String())})
+					IsdAs:     as.Local.String(),
+				})
 			}
 			hops = append(hops, Hop{
 				Interface: int(as.HopEntry.HopField.ConsEgress),
-				IsdAs:     IsdAs(as.Local.String())})
+				IsdAs:     as.Local.String(),
+			})
 		}
 		rep = append(rep, &Beacon{
 			Usages:           usage,
 			IngressInterface: int(result.Beacon.InIfId),
-			Id:               SegmentID(segapi.SegID(s)),
+			Id:               segapi.SegID(s),
 			LastUpdated:      result.LastUpdated,
 			Timestamp:        s.Info.Timestamp.UTC(),
 			Expiration:       s.MinExpiry().UTC(),
@@ -286,7 +288,7 @@ func sortFactory(sortParam *GetBeaconsParamsSort) (func(b []*Beacon) sort.Interf
 	}, nil
 }
 func (s *Server) GetBeacon(w http.ResponseWriter, r *http.Request, segmentId SegmentID) {
-	id, err := hex.DecodeString(string(segmentId))
+	id, err := hex.DecodeString(segmentId)
 	if err != nil {
 		ErrorResponse(w, Problem{
 			Detail: api.StringRef(err.Error()),
@@ -344,17 +346,19 @@ func (s *Server) GetBeacon(w http.ResponseWriter, r *http.Request, segmentId Seg
 		if i != 0 {
 			hops = append(hops, Hop{
 				Interface: int(as.HopEntry.HopField.ConsIngress),
-				IsdAs:     IsdAs(as.Local.String())})
+				IsdAs:     as.Local.String(),
+			})
 		}
 		hops = append(hops, Hop{
 			Interface: int(as.HopEntry.HopField.ConsEgress),
-			IsdAs:     IsdAs(as.Local.String())})
+			IsdAs:     as.Local.String(),
+		})
 	}
 	res := map[string]Beacon{
 		"beacon": {
 			Usages:           usage,
 			IngressInterface: int(results[0].Beacon.InIfId),
-			Id:               SegmentID(segapi.SegID(seg)),
+			Id:               segapi.SegID(seg),
 			LastUpdated:      results[0].LastUpdated,
 			Timestamp:        seg.Info.Timestamp.UTC(),
 			Expiration:       seg.MinExpiry().UTC(),
@@ -377,7 +381,7 @@ func (s *Server) GetBeacon(w http.ResponseWriter, r *http.Request, segmentId Seg
 func (s *Server) GetBeaconBlob(w http.ResponseWriter, r *http.Request, segmentId SegmentID) {
 	w.Header().Set("Content-Type", "application/x-pem-file")
 
-	id, err := hex.DecodeString(string(segmentId))
+	id, err := hex.DecodeString(segmentId)
 	if err != nil {
 		ErrorResponse(w, Problem{
 			Detail: api.StringRef(err.Error()),
@@ -457,25 +461,25 @@ func (s *Server) GetBeaconBlob(w http.ResponseWriter, r *http.Request, segmentId
 func (s *Server) GetSegments(w http.ResponseWriter,
 	r *http.Request, params GetSegmentsParams) {
 	p := segapi.GetSegmentsParams{
-		StartIsdAs: (*segapi.IsdAs)(params.StartIsdAs),
-		EndIsdAs:   (*segapi.IsdAs)(params.EndIsdAs),
+		StartIsdAs: params.StartIsdAs,
+		EndIsdAs:   params.EndIsdAs,
 	}
 	s.SegmentsServer.GetSegments(w, r, p)
 }
 
 func (s *Server) GetSegment(w http.ResponseWriter, r *http.Request, id SegmentID) {
-	s.SegmentsServer.GetSegment(w, r, segapi.SegmentID(id))
+	s.SegmentsServer.GetSegment(w, r, id)
 }
 
 func (s *Server) GetSegmentBlob(w http.ResponseWriter, r *http.Request, id SegmentID) {
-	s.SegmentsServer.GetSegmentBlob(w, r, segapi.SegmentID(id))
+	s.SegmentsServer.GetSegmentBlob(w, r, id)
 }
 
 // GetCertificates lists the certificate chains.
 func (s *Server) GetCertificates(w http.ResponseWriter,
 	r *http.Request, params GetCertificatesParams) {
 	cppkiParams := cppkiapi.GetCertificatesParams{
-		IsdAs:   (*cppkiapi.IsdAs)(params.IsdAs),
+		IsdAs:   params.IsdAs,
 		ValidAt: params.ValidAt,
 		All:     params.All,
 	}
@@ -484,12 +488,12 @@ func (s *Server) GetCertificates(w http.ResponseWriter,
 
 // GetCertificate lists the certificate chain for a given ChainID.
 func (s *Server) GetCertificate(w http.ResponseWriter, r *http.Request, chainID ChainID) {
-	s.CPPKIServer.GetCertificate(w, r, cppkiapi.ChainID(chainID))
+	s.CPPKIServer.GetCertificate(w, r, chainID)
 }
 
 // GetCertificateBlob gnerates a certificate chain blob response encoded as PEM for a given chainId.
 func (s *Server) GetCertificateBlob(w http.ResponseWriter, r *http.Request, chainID ChainID) {
-	s.CPPKIServer.GetCertificateBlob(w, r, cppkiapi.ChainID(chainID))
+	s.CPPKIServer.GetCertificateBlob(w, r, chainID)
 }
 
 // GetCa gets the CA info.
@@ -534,9 +538,9 @@ func (s *Server) GetCa(w http.ResponseWriter, r *http.Request) {
 			ChainLifetime: p.Validity.String(),
 		},
 		Subject: Subject{
-			IsdAs: IsdAs(ia.String()),
+			IsdAs: ia.String(),
 		},
-		SubjectKeyId: SubjectKeyID(fmt.Sprintf("% X", p.Certificate.SubjectKeyId)),
+		SubjectKeyId: fmt.Sprintf("% X", p.Certificate.SubjectKeyId),
 	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "    ")
@@ -606,9 +610,9 @@ func (s *Server) GetSigner(w http.ResponseWriter, r *http.Request) {
 	rep := Signer{
 		AsCertificate: Certificate{
 			DistinguishedName: p.Subject.String(),
-			IsdAs:             IsdAs(p.IA.String()),
+			IsdAs:             p.IA.String(),
 			SubjectKeyAlgo:    p.Algorithm.String(),
-			SubjectKeyId:      SubjectKeyID(fmt.Sprintf("% X", p.SubjectKeyID)),
+			SubjectKeyId:      fmt.Sprintf("% X", p.SubjectKeyID),
 			Validity: Validity{
 				NotAfter:  p.ChainValidity.NotAfter,
 				NotBefore: p.ChainValidity.NotBefore,

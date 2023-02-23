@@ -46,14 +46,14 @@ func (s *Server) GetSegments(w http.ResponseWriter, r *http.Request, params GetS
 	q := query.Params{}
 	var errs serrors.List
 	if params.StartIsdAs != nil {
-		if ia, err := addr.ParseIA(string(*params.StartIsdAs)); err == nil {
+		if ia, err := addr.ParseIA(*params.StartIsdAs); err == nil {
 			q.StartsAt = []addr.IA{ia}
 		} else {
 			errs = append(errs, serrors.WithCtx(err, "parameter", "start_isd_as"))
 		}
 	}
 	if params.EndIsdAs != nil {
-		if ia, err := addr.ParseIA(string(*params.EndIsdAs)); err == nil {
+		if ia, err := addr.ParseIA(*params.EndIsdAs); err == nil {
 			q.EndsAt = []addr.IA{ia}
 		} else {
 			errs = append(errs, serrors.WithCtx(err, "parameter", "end_isd_as"))
@@ -82,9 +82,9 @@ func (s *Server) GetSegments(w http.ResponseWriter, r *http.Request, params GetS
 	rep := make([]*SegmentBrief, 0, len(res))
 	for _, segRes := range res {
 		rep = append(rep, &SegmentBrief{
-			Id:         SegmentID(SegID(segRes.Seg)),
-			StartIsdAs: IsdAs(segRes.Seg.FirstIA().String()),
-			EndIsdAs:   IsdAs(segRes.Seg.LastIA().String()),
+			Id:         SegID(segRes.Seg),
+			StartIsdAs: segRes.Seg.FirstIA().String(),
+			EndIsdAs:   segRes.Seg.LastIA().String(),
 			Length:     len(segRes.Seg.ASEntries),
 		})
 	}
@@ -103,7 +103,7 @@ func (s *Server) GetSegments(w http.ResponseWriter, r *http.Request, params GetS
 
 // GetSegment gets a segments details specified by its ID.
 func (s *Server) GetSegment(w http.ResponseWriter, r *http.Request, segmentID SegmentID) {
-	id, err := hex.DecodeString(string(segmentID))
+	id, err := hex.DecodeString(segmentID)
 	if err != nil {
 		Error(w, Problem{
 			Detail: api.StringRef(err.Error()),
@@ -142,16 +142,18 @@ func (s *Server) GetSegment(w http.ResponseWriter, r *http.Request, segmentID Se
 		if i != 0 {
 			hops = append(hops, Hop{
 				Interface: int(as.HopEntry.HopField.ConsIngress),
-				IsdAs:     IsdAs(as.Local.String())})
+				IsdAs:     as.Local.String(),
+			})
 		}
 		if i != len(segRes.Seg.ASEntries)-1 {
 			hops = append(hops, Hop{
 				Interface: int(as.HopEntry.HopField.ConsEgress),
-				IsdAs:     IsdAs(as.Local.String())})
+				IsdAs:     as.Local.String(),
+			})
 		}
 	}
 	rep := Segment{
-		Id:          SegmentID(SegID(segRes.Seg)),
+		Id:          SegID(segRes.Seg),
 		Timestamp:   segRes.Seg.Info.Timestamp.UTC(),
 		Expiration:  segRes.Seg.MinExpiry().UTC(),
 		LastUpdated: segRes.LastUpdate.UTC(),
@@ -175,7 +177,7 @@ func (s *Server) GetSegment(w http.ResponseWriter, r *http.Request, segmentID Se
 func (s *Server) GetSegmentBlob(w http.ResponseWriter, r *http.Request, segmentID SegmentID) {
 	w.Header().Set("Content-Type", "application/x-pem-file")
 
-	id, err := hex.DecodeString(string(segmentID))
+	id, err := hex.DecodeString(segmentID)
 	if err != nil {
 		Error(w, Problem{
 			Detail: api.StringRef(err.Error()),
