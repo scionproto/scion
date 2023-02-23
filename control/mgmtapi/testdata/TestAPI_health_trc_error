@@ -9,7 +9,7 @@
                 "status": "passing"
             },
             {
-                "data": {},
+                "data": null,
                 "detail": "internal",
                 "name": "TRC for local ISD available",
                 "status": "failing"

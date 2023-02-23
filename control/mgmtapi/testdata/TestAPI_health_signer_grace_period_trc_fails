@@ -11,7 +11,7 @@
                 "status": "degraded"
             },
             {
-                "data": {},
+                "data": null,
                 "name": "TRC for local ISD available",
                 "status": "failing"
             },

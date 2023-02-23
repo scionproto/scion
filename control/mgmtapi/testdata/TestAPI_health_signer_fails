@@ -2,7 +2,7 @@
     "health": {
         "checks": [
             {
-                "data": {},
+                "data": null,
                 "name": "valid signer available",
                 "status": "failing"
             },

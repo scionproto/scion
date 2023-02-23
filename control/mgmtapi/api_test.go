@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -52,7 +53,15 @@ var update = xtest.UpdateGoldenFiles()
 // TestAPI tests the API response generation of the endpoints implemented in the
 // api package.
 func TestAPI(t *testing.T) {
-	now := time.Now()
+	now := time.Now().Round(time.Second)
+	urlWithValidAt := func(t *testing.T, rawURL string) string {
+		u, err := url.ParseRequestURI(rawURL)
+		require.NoError(t, err)
+		q := u.Query()
+		q.Add("valid_at", now.Format(time.RFC3339Nano))
+		u.RawQuery = q.Encode()
+		return u.String()
+	}
 	beacons := createBeacons(t)
 	testCases := map[string]struct {
 		Handler            func(t *testing.T, ctrl *gomock.Controller) http.Handler
@@ -69,11 +78,11 @@ func TestAPI(t *testing.T) {
 				}
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
-					&beacon.QueryParams{},
+					&beacon.QueryParams{ValidAt: now},
 				).AnyTimes().Return(beacons, nil)
 				return api.Handler(s)
 			},
-			RequestURL: "/beacons",
+			RequestURL: urlWithValidAt(t, "/beacons"),
 			Status:     200,
 		},
 		"beacons non-existing sort": {
@@ -84,11 +93,11 @@ func TestAPI(t *testing.T) {
 				}
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
-					&beacon.QueryParams{},
+					&beacon.QueryParams{ValidAt: now},
 				).Times(0).Return(beacons, nil)
 				return api.Handler(s)
 			},
-			RequestURL: "/beacons?sort=invalid",
+			RequestURL: urlWithValidAt(t, "/beacons?sort=invalid"),
 			Status:     400,
 		},
 		"beacons sort by ingress interface": {
@@ -99,11 +108,11 @@ func TestAPI(t *testing.T) {
 				}
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
-					&beacon.QueryParams{},
+					&beacon.QueryParams{ValidAt: now},
 				).Times(1).Return(beacons, nil)
 				return api.Handler(s)
 			},
-			RequestURL: "/beacons?sort=ingress_interface",
+			RequestURL: urlWithValidAt(t, "/beacons?sort=ingress_interface"),
 			Status:     200,
 		},
 		"beacons descending order": {
@@ -114,11 +123,11 @@ func TestAPI(t *testing.T) {
 				}
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
-					&beacon.QueryParams{},
+					&beacon.QueryParams{ValidAt: now},
 				).Times(1).Return(beacons, nil)
 				return api.Handler(s)
 			},
-			RequestURL: "/beacons?desc=true",
+			RequestURL: urlWithValidAt(t, "/beacons?desc=true"),
 			Status:     200,
 		},
 		"beacons non-existing usages": {
@@ -129,11 +138,11 @@ func TestAPI(t *testing.T) {
 				}
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
-					&beacon.QueryParams{},
+					gomock.Any(),
 				).Times(0).Return(beacons, nil)
 				return api.Handler(s)
 			},
-			RequestURL: "/beacons?usages=up_registration&usages=Invalid",
+			RequestURL: urlWithValidAt(t, "/beacons?usages=up_registration&usages=Invalid"),
 			Status:     400,
 		},
 		"beacons existing usages": {
@@ -145,12 +154,13 @@ func TestAPI(t *testing.T) {
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
 					&beacon.QueryParams{
-						Usages: []beaconlib.Usage{beaconlib.UsageDownReg | beaconlib.UsageUpReg},
+						Usages:  []beaconlib.Usage{beaconlib.UsageDownReg | beaconlib.UsageUpReg},
+						ValidAt: now,
 					},
 				).Times(1).Return(beacons[:1], nil)
 				return api.Handler(s)
 			},
-			RequestURL: "/beacons?usages=up_registration&usages=down_registration",
+			RequestURL: urlWithValidAt(t, "/beacons?usages=up_registration&usages=down_registration"),
 			Status:     200,
 		},
 		"beacon": {
