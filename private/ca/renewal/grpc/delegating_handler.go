@@ -17,7 +17,6 @@ package grpc
 import (
 	"context"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -96,7 +95,7 @@ func (h *DelegatingHandler) HandleCMSRequest(
 	rep, err := h.Client.PostCertificateRenewal(
 		ctx,
 		int(subject.ISD()),
-		api.AS(subject.AS().String()),
+		subject.AS().String(),
 		api.PostCertificateRenewalJSONRequestBody{
 			Csr: req.CmsSignedRequest,
 		},
@@ -145,39 +144,17 @@ func (h *DelegatingHandler) HandleCMSRequest(
 }
 
 func (h *DelegatingHandler) parseChain(rep api.RenewalResponse) ([]*x509.Certificate, error) {
-	switch content := rep.CertificateChain.(type) {
-	case string:
-		raw, err := base64.StdEncoding.DecodeString(content)
-		if err != nil {
-			return nil, serrors.WrapStr("malformed certificate_chain", err)
-		}
-		return extractChain(raw)
-	case map[string]interface{}:
-		decode := func(key string) ([]byte, error) {
-			b64, ok := content[key]
-			if !ok {
-				return nil, serrors.New("certificate missing")
-			}
-			s, ok := b64.(string)
-			if !ok {
-				return nil, serrors.New("wrong type", "type", fmt.Sprintf("%T", s))
-			}
-			return base64.StdEncoding.DecodeString(s)
-		}
-		as, err := decode("as_certificate")
-		if err != nil {
-			return nil, serrors.WrapStr("parsing AS certificate", err, "key", "as_certificate")
-		}
-		ca, err := decode("ca_certificate")
-		if err != nil {
-			return nil, serrors.WrapStr("parsing AS certificate", err, "key", "ca_certificate")
-		}
-		return h.parseChainJSON(api.CertificateChain{
-			AsCertificate: as,
-			CaCertificate: ca,
-		})
+	chain, chainErr := rep.CertificateChain.AsCertificateChain()
+	pkcs7, pkcs7Err := rep.CertificateChain.AsCertificateChainPKCS7()
+	switch {
+	case chainErr == nil:
+		return h.parseChainJSON(chain)
+	case pkcs7Err == nil:
+		return extractChain(pkcs7)
 	default:
-		return nil, serrors.New("certificate_chain unset", "type", fmt.Sprintf("%T", content))
+		return nil, serrors.New("certificate_chain unset",
+			"chain_err", chainErr, "pkcs7_err", pkcs7Err,
+		)
 	}
 }
 

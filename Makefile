@@ -1,5 +1,4 @@
-.PHONY: all antlr bazel build clean docker-images gazelle licenses mocks protobuf scion-topo test test-acceptance
-
+.PHONY: all antlr bazel clean docker-images gazelle go-mod-tidy licenses mocks protobuf scion-topo test test-integration
 GAZELLE_MODE?=fix
 GAZELLE_DIRS=.
 
@@ -29,8 +28,11 @@ test:
 test-integration:
 	bazel test --config=integration_all
 
+go-mod-tidy:
+	bazel run --config=quiet @go_sdk//:bin/go -- mod tidy
+
 go_deps.bzl: go.mod
-	bazel run //:gazelle -- update-repos -prune -from_file=go.mod -to_macro=go_deps.bzl%go_deps
+	bazel run --config=quiet //:gazelle -- update-repos -prune -from_file=go.mod -to_macro=go_deps.bzl%go_deps
 	@# XXX(matzf): clean up; gazelle update-repose inconsistently inserts blank lines (see bazelbuild/bazel-gazelle#1088).
 	@sed -e '/def go_deps/,$${/^$$/d}' -i go_deps.bzl
 

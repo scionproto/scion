@@ -35,7 +35,7 @@ openapi_bundle = rule(
             mandatory = True,
         ),
         "_openapi_cli": attr.label(
-            default = "@rules_openapi_npm//@redocly/openapi-cli/bin:openapi",
+            default = "@rules_openapi_npm//@redocly/cli/bin:openapi",
             executable = True,
             cfg = "target",
         ),

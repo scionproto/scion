@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -346,6 +345,10 @@ type PostAuthTokenResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *AccessToken
+	JSON400      *Problem
+	JSON401      *Problem
+	JSON500      *Problem
+	JSON503      *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -368,6 +371,8 @@ type GetHealthcheckResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *HealthCheckStatus
+	JSON500      *Problem
+	JSON503      *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -390,6 +395,11 @@ type PostCertificateRenewalResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *RenewalResponse
+	JSON400      *Problem
+	JSON401      *Problem
+	JSON404      *Problem
+	JSON500      *Problem
+	JSON503      *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -453,7 +463,7 @@ func (c *ClientWithResponses) PostCertificateRenewalWithResponse(ctx context.Con
 
 // ParsePostAuthTokenResponse parses an HTTP response from a PostAuthTokenWithResponse call
 func ParsePostAuthTokenResponse(rsp *http.Response) (*PostAuthTokenResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
@@ -472,6 +482,34 @@ func ParsePostAuthTokenResponse(rsp *http.Response) (*PostAuthTokenResponse, err
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
 	}
 
 	return response, nil
@@ -479,7 +517,7 @@ func ParsePostAuthTokenResponse(rsp *http.Response) (*PostAuthTokenResponse, err
 
 // ParseGetHealthcheckResponse parses an HTTP response from a GetHealthcheckWithResponse call
 func ParseGetHealthcheckResponse(rsp *http.Response) (*GetHealthcheckResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
@@ -498,6 +536,20 @@ func ParseGetHealthcheckResponse(rsp *http.Response) (*GetHealthcheckResponse, e
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
 	}
 
 	return response, nil
@@ -505,7 +557,7 @@ func ParseGetHealthcheckResponse(rsp *http.Response) (*GetHealthcheckResponse, e
 
 // ParsePostCertificateRenewalResponse parses an HTTP response from a PostCertificateRenewalWithResponse call
 func ParsePostCertificateRenewalResponse(rsp *http.Response) (*PostCertificateRenewalResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
@@ -523,6 +575,41 @@ func ParsePostCertificateRenewalResponse(rsp *http.Response) (*PostCertificateRe
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
 
 	}
 

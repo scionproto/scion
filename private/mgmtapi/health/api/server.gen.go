@@ -24,21 +24,21 @@ type ServerInterfaceWrapper struct {
 	ErrorHandlerFunc   func(w http.ResponseWriter, r *http.Request, err error)
 }
 
-type MiddlewareFunc func(http.HandlerFunc) http.HandlerFunc
+type MiddlewareFunc func(http.Handler) http.Handler
 
 // GetHealth operation middleware
 func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetHealth(w, r)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 type UnescapedCookieParamError struct {
@@ -54,16 +54,16 @@ func (e *UnescapedCookieParamError) Unwrap() error {
 	return e.Err
 }
 
-type UnmarshalingParamError struct {
+type UnmarshallingParamError struct {
 	ParamName string
 	Err       error
 }
 
-func (e *UnmarshalingParamError) Error() string {
-	return fmt.Sprintf("Error unmarshaling parameter %s as JSON: %s", e.ParamName, e.Err.Error())
+func (e *UnmarshallingParamError) Error() string {
+	return fmt.Sprintf("Error unmarshalling parameter %s as JSON: %s", e.ParamName, e.Err.Error())
 }
 
-func (e *UnmarshalingParamError) Unwrap() error {
+func (e *UnmarshallingParamError) Unwrap() error {
 	return e.Err
 }
 

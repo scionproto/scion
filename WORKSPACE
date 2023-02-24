@@ -75,12 +75,12 @@ load("//:go_deps.bzl", "go_deps")
 go_deps()
 
 ## Explictly override xerrors: https://github.com/bazelbuild/bazel-gazelle/issues/1217
-go_repository(
-    name = "org_golang_x_xerrors",
-    importpath = "golang.org/x/xerrors",
-    sum = "h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=",
-    version = "v0.0.0-20200804184101-5ec99f83aff1",
-)
+# go_repository(
+#     name = "org_golang_x_xerrors",
+#     importpath = "golang.org/x/xerrors",
+#     sum = "h1:H2TDz8ibqkAF6YGhCdN3jS9O0/s90v0rJh3X/OLHEUk=",
+#     version = "v0.0.0-20220907171357-04be3eba64a2",
+# )
 
 gazelle_dependencies()
 

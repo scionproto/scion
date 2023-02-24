@@ -2,12 +2,12 @@
     "health": {
         "checks": [
             {
-                "data": {},
+                "data": null,
                 "name": "valid signer available",
                 "status": "failing"
             },
             {
-                "data": {},
+                "data": null,
                 "name": "TRC for local ISD available",
                 "status": "failing"
             },

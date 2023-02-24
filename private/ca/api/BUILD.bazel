@@ -20,5 +20,6 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "@com_github_deepmap_oapi_codegen//pkg/runtime:go_default_library",  # keep
+        "@com_github_deepmap_oapi_codegen//pkg/types:go_default_library",  # keep
     ],
 )

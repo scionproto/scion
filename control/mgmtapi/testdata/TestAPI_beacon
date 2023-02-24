@@ -16,9 +16,9 @@
             }
         ],
         "id": "6e1f2ac35d1382a6064600007f9f270f6506c0b3453ee50423b5f1a73de53345",
+        "ingress_interface": 2,
         "last_updated": "2021-01-02T08:00:00Z",
         "timestamp": "2021-01-01T08:00:00Z",
-        "ingress_interface": 2,
         "usages": [
             "up_registration",
             "down_registration"

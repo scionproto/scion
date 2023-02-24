@@ -69,7 +69,7 @@ func TestAPI(t *testing.T) {
 				}
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
-					&beacon.QueryParams{},
+					matchQuery(&beacon.QueryParams{}),
 				).AnyTimes().Return(beacons, nil)
 				return api.Handler(s)
 			},
@@ -84,7 +84,7 @@ func TestAPI(t *testing.T) {
 				}
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
-					&beacon.QueryParams{},
+					matchQuery(&beacon.QueryParams{}),
 				).Times(0).Return(beacons, nil)
 				return api.Handler(s)
 			},
@@ -99,7 +99,7 @@ func TestAPI(t *testing.T) {
 				}
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
-					&beacon.QueryParams{},
+					matchQuery(&beacon.QueryParams{}),
 				).Times(1).Return(beacons, nil)
 				return api.Handler(s)
 			},
@@ -114,7 +114,7 @@ func TestAPI(t *testing.T) {
 				}
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
-					&beacon.QueryParams{},
+					matchQuery(&beacon.QueryParams{}),
 				).Times(1).Return(beacons, nil)
 				return api.Handler(s)
 			},
@@ -129,7 +129,7 @@ func TestAPI(t *testing.T) {
 				}
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
-					&beacon.QueryParams{},
+					gomock.Any(),
 				).Times(0).Return(beacons, nil)
 				return api.Handler(s)
 			},
@@ -144,9 +144,9 @@ func TestAPI(t *testing.T) {
 				}
 				bs.EXPECT().GetBeacons(
 					gomock.Any(),
-					&beacon.QueryParams{
+					matchQuery(&beacon.QueryParams{
 						Usages: []beaconlib.Usage{beaconlib.UsageDownReg | beaconlib.UsageUpReg},
-					},
+					}),
 				).Times(1).Return(beacons[:1], nil)
 				return api.Handler(s)
 			},
@@ -975,4 +975,38 @@ func createBeacons(t *testing.T) []beacon.Beacon {
 			LastUpdated: time.Date(2021, 2, 2, 8, 0, 0, 0, time.UTC),
 		},
 	}
+}
+
+type queryMatcher struct {
+	query        *beacon.QueryParams
+	creationTime time.Time
+}
+
+// matchQuery creates a matcher that matches the QueryParams with validAt time
+// that needs to be within 10s of the creation.
+func matchQuery(q *beacon.QueryParams) gomock.Matcher {
+	return queryMatcher{
+		query:        q,
+		creationTime: time.Now(),
+	}
+}
+
+func (m queryMatcher) Matches(x any) bool {
+	p, ok := x.(*beacon.QueryParams)
+	if !ok {
+		return false
+	}
+	validAt := p.ValidAt
+	// check that validAt is roughly the same, be lenient and give a 10s window,
+	// for CI.
+	if !assert.WithinDuration(&testing.T{}, m.creationTime, validAt, 10*time.Second) {
+		return false
+	}
+	p.ValidAt = time.Time{}
+	// return whether the rest is equal.
+	return assert.ObjectsAreEqual(m.query, p)
+}
+
+func (m queryMatcher) String() string {
+	return fmt.Sprintf("%v with ValidAt around %s", m.query, m.creationTime)
 }

@@ -7,7 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -322,6 +322,7 @@ type GetSegmentsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *[]SegmentBrief
+	JSON400      *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -344,6 +345,7 @@ type GetSegmentResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *Segment
+	JSON400      *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -365,6 +367,7 @@ func (r GetSegmentResponse) StatusCode() int {
 type GetSegmentBlobResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON400      *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -412,7 +415,7 @@ func (c *ClientWithResponses) GetSegmentBlobWithResponse(ctx context.Context, se
 
 // ParseGetSegmentsResponse parses an HTTP response from a GetSegmentsWithResponse call
 func ParseGetSegmentsResponse(rsp *http.Response) (*GetSegmentsResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
@@ -431,6 +434,13 @@ func ParseGetSegmentsResponse(rsp *http.Response) (*GetSegmentsResponse, error) 
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
 	}
 
 	return response, nil
@@ -438,7 +448,7 @@ func ParseGetSegmentsResponse(rsp *http.Response) (*GetSegmentsResponse, error) 
 
 // ParseGetSegmentResponse parses an HTTP response from a GetSegmentWithResponse call
 func ParseGetSegmentResponse(rsp *http.Response) (*GetSegmentResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
@@ -457,6 +467,13 @@ func ParseGetSegmentResponse(rsp *http.Response) (*GetSegmentResponse, error) {
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
 	}
 
 	return response, nil
@@ -464,7 +481,7 @@ func ParseGetSegmentResponse(rsp *http.Response) (*GetSegmentResponse, error) {
 
 // ParseGetSegmentBlobResponse parses an HTTP response from a GetSegmentBlobWithResponse call
 func ParseGetSegmentBlobResponse(rsp *http.Response) (*GetSegmentBlobResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
@@ -473,6 +490,16 @@ func ParseGetSegmentBlobResponse(rsp *http.Response) (*GetSegmentBlobResponse, e
 	response := &GetSegmentBlobResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
 	}
 
 	return response, nil

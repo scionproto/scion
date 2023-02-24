@@ -85,7 +85,7 @@ type ServerInterfaceWrapper struct {
 	ErrorHandlerFunc   func(w http.ResponseWriter, r *http.Request, err error)
 }
 
-type MiddlewareFunc func(http.HandlerFunc) http.HandlerFunc
+type MiddlewareFunc func(http.Handler) http.Handler
 
 // GetBeacons operation middleware
 func (siw *ServerInterfaceWrapper) GetBeacons(w http.ResponseWriter, r *http.Request) {
@@ -97,9 +97,6 @@ func (siw *ServerInterfaceWrapper) GetBeacons(w http.ResponseWriter, r *http.Req
 	var params GetBeaconsParams
 
 	// ------------- Optional query parameter "start_isd_as" -------------
-	if paramValue := r.URL.Query().Get("start_isd_as"); paramValue != "" {
-
-	}
 
 	err = runtime.BindQueryParameter("form", true, false, "start_isd_as", r.URL.Query(), &params.StartIsdAs)
 	if err != nil {
@@ -108,9 +105,6 @@ func (siw *ServerInterfaceWrapper) GetBeacons(w http.ResponseWriter, r *http.Req
 	}
 
 	// ------------- Optional query parameter "usages" -------------
-	if paramValue := r.URL.Query().Get("usages"); paramValue != "" {
-
-	}
 
 	err = runtime.BindQueryParameter("form", true, false, "usages", r.URL.Query(), &params.Usages)
 	if err != nil {
@@ -119,9 +113,6 @@ func (siw *ServerInterfaceWrapper) GetBeacons(w http.ResponseWriter, r *http.Req
 	}
 
 	// ------------- Optional query parameter "ingress_interface" -------------
-	if paramValue := r.URL.Query().Get("ingress_interface"); paramValue != "" {
-
-	}
 
 	err = runtime.BindQueryParameter("form", true, false, "ingress_interface", r.URL.Query(), &params.IngressInterface)
 	if err != nil {
@@ -130,9 +121,6 @@ func (siw *ServerInterfaceWrapper) GetBeacons(w http.ResponseWriter, r *http.Req
 	}
 
 	// ------------- Optional query parameter "valid_at" -------------
-	if paramValue := r.URL.Query().Get("valid_at"); paramValue != "" {
-
-	}
 
 	err = runtime.BindQueryParameter("form", true, false, "valid_at", r.URL.Query(), &params.ValidAt)
 	if err != nil {
@@ -141,9 +129,6 @@ func (siw *ServerInterfaceWrapper) GetBeacons(w http.ResponseWriter, r *http.Req
 	}
 
 	// ------------- Optional query parameter "all" -------------
-	if paramValue := r.URL.Query().Get("all"); paramValue != "" {
-
-	}
 
 	err = runtime.BindQueryParameter("form", true, false, "all", r.URL.Query(), &params.All)
 	if err != nil {
@@ -152,9 +137,6 @@ func (siw *ServerInterfaceWrapper) GetBeacons(w http.ResponseWriter, r *http.Req
 	}
 
 	// ------------- Optional query parameter "desc" -------------
-	if paramValue := r.URL.Query().Get("desc"); paramValue != "" {
-
-	}
 
 	err = runtime.BindQueryParameter("form", true, false, "desc", r.URL.Query(), &params.Desc)
 	if err != nil {
@@ -163,9 +145,6 @@ func (siw *ServerInterfaceWrapper) GetBeacons(w http.ResponseWriter, r *http.Req
 	}
 
 	// ------------- Optional query parameter "sort" -------------
-	if paramValue := r.URL.Query().Get("sort"); paramValue != "" {
-
-	}
 
 	err = runtime.BindQueryParameter("form", true, false, "sort", r.URL.Query(), &params.Sort)
 	if err != nil {
@@ -173,15 +152,15 @@ func (siw *ServerInterfaceWrapper) GetBeacons(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetBeacons(w, r, params)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetBeacon operation middleware
@@ -193,21 +172,21 @@ func (siw *ServerInterfaceWrapper) GetBeacon(w http.ResponseWriter, r *http.Requ
 	// ------------- Path parameter "segment-id" -------------
 	var segmentId SegmentID
 
-	err = runtime.BindStyledParameter("simple", false, "segment-id", chi.URLParam(r, "segment-id"), &segmentId)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "segment-id", runtime.ParamLocationPath, chi.URLParam(r, "segment-id"), &segmentId)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "segment-id", Err: err})
 		return
 	}
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetBeacon(w, r, segmentId)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetBeaconBlob operation middleware
@@ -219,36 +198,36 @@ func (siw *ServerInterfaceWrapper) GetBeaconBlob(w http.ResponseWriter, r *http.
 	// ------------- Path parameter "segment-id" -------------
 	var segmentId SegmentID
 
-	err = runtime.BindStyledParameter("simple", false, "segment-id", chi.URLParam(r, "segment-id"), &segmentId)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "segment-id", runtime.ParamLocationPath, chi.URLParam(r, "segment-id"), &segmentId)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "segment-id", Err: err})
 		return
 	}
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetBeaconBlob(w, r, segmentId)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetCa operation middleware
 func (siw *ServerInterfaceWrapper) GetCa(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetCa(w, r)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetCertificates operation middleware
@@ -261,9 +240,6 @@ func (siw *ServerInterfaceWrapper) GetCertificates(w http.ResponseWriter, r *htt
 	var params GetCertificatesParams
 
 	// ------------- Optional query parameter "isd_as" -------------
-	if paramValue := r.URL.Query().Get("isd_as"); paramValue != "" {
-
-	}
 
 	err = runtime.BindQueryParameter("form", true, false, "isd_as", r.URL.Query(), &params.IsdAs)
 	if err != nil {
@@ -272,9 +248,6 @@ func (siw *ServerInterfaceWrapper) GetCertificates(w http.ResponseWriter, r *htt
 	}
 
 	// ------------- Optional query parameter "valid_at" -------------
-	if paramValue := r.URL.Query().Get("valid_at"); paramValue != "" {
-
-	}
 
 	err = runtime.BindQueryParameter("form", true, false, "valid_at", r.URL.Query(), &params.ValidAt)
 	if err != nil {
@@ -283,9 +256,6 @@ func (siw *ServerInterfaceWrapper) GetCertificates(w http.ResponseWriter, r *htt
 	}
 
 	// ------------- Optional query parameter "all" -------------
-	if paramValue := r.URL.Query().Get("all"); paramValue != "" {
-
-	}
 
 	err = runtime.BindQueryParameter("form", true, false, "all", r.URL.Query(), &params.All)
 	if err != nil {
@@ -293,15 +263,15 @@ func (siw *ServerInterfaceWrapper) GetCertificates(w http.ResponseWriter, r *htt
 		return
 	}
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetCertificates(w, r, params)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetCertificate operation middleware
@@ -313,21 +283,21 @@ func (siw *ServerInterfaceWrapper) GetCertificate(w http.ResponseWriter, r *http
 	// ------------- Path parameter "chain-id" -------------
 	var chainId ChainID
 
-	err = runtime.BindStyledParameter("simple", false, "chain-id", chi.URLParam(r, "chain-id"), &chainId)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "chain-id", runtime.ParamLocationPath, chi.URLParam(r, "chain-id"), &chainId)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "chain-id", Err: err})
 		return
 	}
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetCertificate(w, r, chainId)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetCertificateBlob operation middleware
@@ -339,96 +309,96 @@ func (siw *ServerInterfaceWrapper) GetCertificateBlob(w http.ResponseWriter, r *
 	// ------------- Path parameter "chain-id" -------------
 	var chainId ChainID
 
-	err = runtime.BindStyledParameter("simple", false, "chain-id", chi.URLParam(r, "chain-id"), &chainId)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "chain-id", runtime.ParamLocationPath, chi.URLParam(r, "chain-id"), &chainId)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "chain-id", Err: err})
 		return
 	}
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetCertificateBlob(w, r, chainId)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetConfig operation middleware
 func (siw *ServerInterfaceWrapper) GetConfig(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetConfig(w, r)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetHealth operation middleware
 func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetHealth(w, r)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetInfo operation middleware
 func (siw *ServerInterfaceWrapper) GetInfo(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetInfo(w, r)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetLogLevel operation middleware
 func (siw *ServerInterfaceWrapper) GetLogLevel(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetLogLevel(w, r)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // SetLogLevel operation middleware
 func (siw *ServerInterfaceWrapper) SetLogLevel(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SetLogLevel(w, r)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetSegments operation middleware
@@ -441,9 +411,6 @@ func (siw *ServerInterfaceWrapper) GetSegments(w http.ResponseWriter, r *http.Re
 	var params GetSegmentsParams
 
 	// ------------- Optional query parameter "start_isd_as" -------------
-	if paramValue := r.URL.Query().Get("start_isd_as"); paramValue != "" {
-
-	}
 
 	err = runtime.BindQueryParameter("form", true, false, "start_isd_as", r.URL.Query(), &params.StartIsdAs)
 	if err != nil {
@@ -452,9 +419,6 @@ func (siw *ServerInterfaceWrapper) GetSegments(w http.ResponseWriter, r *http.Re
 	}
 
 	// ------------- Optional query parameter "end_isd_as" -------------
-	if paramValue := r.URL.Query().Get("end_isd_as"); paramValue != "" {
-
-	}
 
 	err = runtime.BindQueryParameter("form", true, false, "end_isd_as", r.URL.Query(), &params.EndIsdAs)
 	if err != nil {
@@ -462,15 +426,15 @@ func (siw *ServerInterfaceWrapper) GetSegments(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSegments(w, r, params)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetSegment operation middleware
@@ -482,21 +446,21 @@ func (siw *ServerInterfaceWrapper) GetSegment(w http.ResponseWriter, r *http.Req
 	// ------------- Path parameter "segment-id" -------------
 	var segmentId SegmentID
 
-	err = runtime.BindStyledParameter("simple", false, "segment-id", chi.URLParam(r, "segment-id"), &segmentId)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "segment-id", runtime.ParamLocationPath, chi.URLParam(r, "segment-id"), &segmentId)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "segment-id", Err: err})
 		return
 	}
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSegment(w, r, segmentId)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetSegmentBlob operation middleware
@@ -508,66 +472,66 @@ func (siw *ServerInterfaceWrapper) GetSegmentBlob(w http.ResponseWriter, r *http
 	// ------------- Path parameter "segment-id" -------------
 	var segmentId SegmentID
 
-	err = runtime.BindStyledParameter("simple", false, "segment-id", chi.URLParam(r, "segment-id"), &segmentId)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "segment-id", runtime.ParamLocationPath, chi.URLParam(r, "segment-id"), &segmentId)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "segment-id", Err: err})
 		return
 	}
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSegmentBlob(w, r, segmentId)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetSigner operation middleware
 func (siw *ServerInterfaceWrapper) GetSigner(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSigner(w, r)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetSignerChain operation middleware
 func (siw *ServerInterfaceWrapper) GetSignerChain(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSignerChain(w, r)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetTopology operation middleware
 func (siw *ServerInterfaceWrapper) GetTopology(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetTopology(w, r)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetTrcs operation middleware
@@ -580,9 +544,6 @@ func (siw *ServerInterfaceWrapper) GetTrcs(w http.ResponseWriter, r *http.Reques
 	var params GetTrcsParams
 
 	// ------------- Optional query parameter "isd" -------------
-	if paramValue := r.URL.Query().Get("isd"); paramValue != "" {
-
-	}
 
 	err = runtime.BindQueryParameter("form", false, false, "isd", r.URL.Query(), &params.Isd)
 	if err != nil {
@@ -591,9 +552,6 @@ func (siw *ServerInterfaceWrapper) GetTrcs(w http.ResponseWriter, r *http.Reques
 	}
 
 	// ------------- Optional query parameter "all" -------------
-	if paramValue := r.URL.Query().Get("all"); paramValue != "" {
-
-	}
 
 	err = runtime.BindQueryParameter("form", true, false, "all", r.URL.Query(), &params.All)
 	if err != nil {
@@ -601,15 +559,15 @@ func (siw *ServerInterfaceWrapper) GetTrcs(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetTrcs(w, r, params)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetTrc operation middleware
@@ -621,7 +579,7 @@ func (siw *ServerInterfaceWrapper) GetTrc(w http.ResponseWriter, r *http.Request
 	// ------------- Path parameter "isd" -------------
 	var isd int
 
-	err = runtime.BindStyledParameter("simple", false, "isd", chi.URLParam(r, "isd"), &isd)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "isd", runtime.ParamLocationPath, chi.URLParam(r, "isd"), &isd)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "isd", Err: err})
 		return
@@ -630,7 +588,7 @@ func (siw *ServerInterfaceWrapper) GetTrc(w http.ResponseWriter, r *http.Request
 	// ------------- Path parameter "base" -------------
 	var base int
 
-	err = runtime.BindStyledParameter("simple", false, "base", chi.URLParam(r, "base"), &base)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "base", runtime.ParamLocationPath, chi.URLParam(r, "base"), &base)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "base", Err: err})
 		return
@@ -639,21 +597,21 @@ func (siw *ServerInterfaceWrapper) GetTrc(w http.ResponseWriter, r *http.Request
 	// ------------- Path parameter "serial" -------------
 	var serial int
 
-	err = runtime.BindStyledParameter("simple", false, "serial", chi.URLParam(r, "serial"), &serial)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "serial", runtime.ParamLocationPath, chi.URLParam(r, "serial"), &serial)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "serial", Err: err})
 		return
 	}
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetTrc(w, r, isd, base, serial)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetTrcBlob operation middleware
@@ -665,7 +623,7 @@ func (siw *ServerInterfaceWrapper) GetTrcBlob(w http.ResponseWriter, r *http.Req
 	// ------------- Path parameter "isd" -------------
 	var isd int
 
-	err = runtime.BindStyledParameter("simple", false, "isd", chi.URLParam(r, "isd"), &isd)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "isd", runtime.ParamLocationPath, chi.URLParam(r, "isd"), &isd)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "isd", Err: err})
 		return
@@ -674,7 +632,7 @@ func (siw *ServerInterfaceWrapper) GetTrcBlob(w http.ResponseWriter, r *http.Req
 	// ------------- Path parameter "base" -------------
 	var base int
 
-	err = runtime.BindStyledParameter("simple", false, "base", chi.URLParam(r, "base"), &base)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "base", runtime.ParamLocationPath, chi.URLParam(r, "base"), &base)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "base", Err: err})
 		return
@@ -683,21 +641,21 @@ func (siw *ServerInterfaceWrapper) GetTrcBlob(w http.ResponseWriter, r *http.Req
 	// ------------- Path parameter "serial" -------------
 	var serial int
 
-	err = runtime.BindStyledParameter("simple", false, "serial", chi.URLParam(r, "serial"), &serial)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "serial", runtime.ParamLocationPath, chi.URLParam(r, "serial"), &serial)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "serial", Err: err})
 		return
 	}
 
-	var handler = func(w http.ResponseWriter, r *http.Request) {
+	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetTrcBlob(w, r, isd, base, serial)
-	}
+	})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
 	}
 
-	handler(w, r.WithContext(ctx))
+	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 type UnescapedCookieParamError struct {
@@ -713,16 +671,16 @@ func (e *UnescapedCookieParamError) Unwrap() error {
 	return e.Err
 }
 
-type UnmarshalingParamError struct {
+type UnmarshallingParamError struct {
 	ParamName string
 	Err       error
 }
 
-func (e *UnmarshalingParamError) Error() string {
-	return fmt.Sprintf("Error unmarshaling parameter %s as JSON: %s", e.ParamName, e.Err.Error())
+func (e *UnmarshallingParamError) Error() string {
+	return fmt.Sprintf("Error unmarshalling parameter %s as JSON: %s", e.ParamName, e.Err.Error())
 }
 
-func (e *UnmarshalingParamError) Unwrap() error {
+func (e *UnmarshallingParamError) Unwrap() error {
 	return e.Err
 }
 

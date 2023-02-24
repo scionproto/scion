@@ -32,7 +32,7 @@ steps:
       - mkdir -p /tmp/test-artifacts
       - cp go.mod go.sum go_deps.bzl /tmp/test-artifacts/
       - make go_deps.bzl -B
-      - $(bazel info output_base 2>/dev/null)/external/go_sdk/bin/go mod tidy
+      - make go-mod-tidy
       - diff -u /tmp/test-artifacts/go.mod go.mod
       - diff -u /tmp/test-artifacts/go.sum go.sum
       - diff -u /tmp/test-artifacts/go_deps.bzl go_deps.bzl
