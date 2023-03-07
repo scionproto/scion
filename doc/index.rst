@@ -69,6 +69,8 @@ Reference Manuals
    command/scion/scion
    command/scion-pki/scion-pki
 
+   snet API <https://pkg.go.dev/github.com/scionproto/scion/pkg/snet>
+
 * **For operators of a SCION end host**:
   :doc:`command/scion/scion` |
   :doc:`manuals/daemon` |
