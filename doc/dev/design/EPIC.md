@@ -4,7 +4,9 @@
 - Last updated: 2020-10-14
 - Status: **implemented**
 - Discussion at: [#3884](https://github.com/scionproto/scion/issues/3653)
-- Implemented in: [#3951](https://github.com/scionproto/scion/issues/3951),[#3954](https://github.com/scionproto/scion/issues/3954), [#4079](https://github.com/scionproto/scion/issues/4079)
+- Implemented in: [#3951](https://github.com/scionproto/scion/issues/3951),
+                  [#3954](https://github.com/scionproto/scion/issues/3954),
+                  [#4079](https://github.com/scionproto/scion/issues/4079)
 
 This file introduces EPIC and documents the design rationales and best
 practices for EPIC-HP.
