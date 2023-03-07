@@ -54,13 +54,13 @@ to reference a specific section in a document.
    This is a link to :ref:`governance`.
    This is a link to :ref:`the same thing <governance>`, but with a different caption.
 
-Use our custom ``:ref-file:``-role (based on the extlink extension) to create a permalink to
+Use our custom ``:file-ref:``-role (based on the extlink extension) to create a permalink to
 a file in the scionproto/scion github repository.
 
 .. code-block:: rest
 
-   This is a link to the file :ref-file:`tools/wireshark/scion.lua`.
-   As usual, the link caption :ref-file:`the caption can be customized <tools/wireshark/scion.lua>`.
+   This is a link to the file :file-ref:`tools/wireshark/scion.lua`.
+   As usual, the link caption :file-ref:`the caption can be customized <tools/wireshark/scion.lua>`.
 
 
 Images
