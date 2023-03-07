@@ -1,2 +1,4 @@
 ^\./docker/_build/
 ^\./licenses/data
+^\./doc/venv/
+^\./doc/_build/
