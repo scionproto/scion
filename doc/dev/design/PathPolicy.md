@@ -3,7 +3,12 @@
 - Authors: Lukas Bischofberger, Lukas Vogel, Martin Sustrik
 - Last updated: 2019-08-30
 - Status: partially **implemented** / partially outdated
-- Discussion at: [#1909](https://github.com/scionproto/scion/pull/1909), [#1976](https://github.com/scionproto/scion/pull/1976), [#2324](https://github.com/scionproto/scion/pull/2324), [#2346](https://github.com/scionproto/scion/pull/2346), [#2349](https://github.com/scionproto/scion/pull/2349), [#2839](https://github.com/scionproto/scion/pull/2839)
+- Discussion at: [#1909](https://github.com/scionproto/scion/pull/1909),
+                 [#1976](https://github.com/scionproto/scion/pull/1976),
+                 [#2324](https://github.com/scionproto/scion/pull/2324),
+                 [#2346](https://github.com/scionproto/scion/pull/2346),
+                 [#2349](https://github.com/scionproto/scion/pull/2349),
+                 [#2839](https://github.com/scionproto/scion/pull/2839)
 
 The path policy language was originally intended be used by the path server,
 SCIOND and the beacon server for different but overlapping purposes.
@@ -209,7 +214,6 @@ third option which denies only hops in AS _1-ff00:0:133_, is used.
 ```
 
 ## Path policies in path lookup
-
 
 ⚠️  **NOTE** ⚠️<br/>
 Outdated contents! This section is kept for historical purpose.
