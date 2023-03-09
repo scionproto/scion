@@ -169,8 +169,9 @@ Formal Process
   community.
 :Design:
   If the proposal has been accepted, the authors submit a design document and
-  submit it to the repository (:file-ref:`doc/`)
+  submit it to the repository (:file-ref:`doc/dev/design`)
   in the form of a pull request.
+  See :doc:`design/index` for details.
 :Final review:
   The design document will be reviewed by the assigned technical team. Since
   all major points should already be agreed upon in the proposal review, this
