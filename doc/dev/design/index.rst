@@ -8,7 +8,7 @@ See section :ref:`change-proposal-process` for the overview on the overall
 contribution process.
 
 - **Creation**:
-  Design documents are created from the template :file-ref:`doc/design/TEMPLATE.rst`.
+  Design documents are created from the template :file-ref:`doc/dev/design/TEMPLATE.rst`.
 
   Once discussion on a change proposal converges and a design document is
   approved, it is inserted to section :ref:`design-docs-active`.
