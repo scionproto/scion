@@ -127,11 +127,12 @@ func TestDeriveHostAS(t *testing.T) {
 			Return(firstLevel1Key, nil),
 		fetcher.EXPECT().Level1(gomock.Any(), gomock.Any()).
 			DoAndReturn(
-				func (ctx context.Context, meta drkey.Level1Meta) (drkey.Level1Key, error) {
+				func(ctx context.Context, meta drkey.Level1Meta) (drkey.Level1Key, error) {
 					// Simulate behavior of grpc.Server.DRKeyLevel1 in package
 					// "github.com/scionproto/scion/control/drkey/grpc"
 					if !meta.ProtoId.IsPredefined() {
-						return drkey.Level1Key{}, serrors.New("the requested protocol id is not recognized",
+						return drkey.Level1Key{}, serrors.New(
+							"the requested protocol id is not recognized",
 							"proto_id", meta.ProtoId)
 					}
 					return secondLevel1Key, nil
