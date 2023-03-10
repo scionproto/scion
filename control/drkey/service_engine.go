@@ -279,14 +279,14 @@ func (s *ServiceEngine) obtainLevel1Key(
 	dstIA addr.IA,
 ) (drkey.Level1Key, error) {
 
+	if !proto.IsPredefined() {
+		proto = drkey.Generic
+	}
 	level1Meta := drkey.Level1Meta{
 		Validity: validity,
 		SrcIA:    srcIA,
 		DstIA:    dstIA,
 		ProtoId:  proto,
-	}
-	if !proto.IsPredefined() {
-		proto = drkey.Generic
 	}
 	return s.GetLevel1Key(ctx, level1Meta)
 
