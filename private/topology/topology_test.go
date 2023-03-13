@@ -35,7 +35,7 @@ func TestMeta(t *testing.T) {
 	assert.Equal(t, time.Unix(168570123, 0), c.Timestamp, "Field 'Timestamp'")
 	assert.Equal(t, addr.MustIAFrom(1, 0xff0000000311), c.IA, "Field 'ISD_AS'")
 	assert.Equal(t, 1472, c.MTU, "Field 'MTU'")
-	assert.Empty(t, c.Attributes, "Field 'Attributes'")
+	assert.False(t, c.IsCore, "Field 'Attributes'")
 }
 
 func TestActive(t *testing.T) {

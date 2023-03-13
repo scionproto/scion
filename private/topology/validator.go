@@ -122,9 +122,9 @@ func (v *generalValidator) Immutable(new, old *RWTopology) error {
 		return serrors.New("IA is immutable",
 			"expected", old.IA, "actual", new.IA)
 	}
-	if !attributesEqual(new.Attributes, old.Attributes) {
-		return serrors.New("Attributes are immutable",
-			"expected", old.Attributes, "actual", new.Attributes)
+	if new.IsCore != old.IsCore {
+		return serrors.New("IsCore is immutable",
+			"expected", old.IsCore, "actual", new.IsCore)
 	}
 	if new.MTU != old.MTU {
 		return serrors.New("MTU is immutable",

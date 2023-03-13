@@ -58,10 +58,10 @@ type (
 	// there is again a sorted slice of names of the servers that provide the service.
 	// Additionally, there is a map from those names to TopoAddr structs.
 	RWTopology struct {
-		Timestamp  time.Time
-		IA         addr.IA
-		Attributes []jsontopo.Attribute
-		MTU        int
+		Timestamp time.Time
+		IA        addr.IA
+		IsCore    bool
+		MTU       int
 
 		BR        map[string]BRInfo
 		BRNames   []string
@@ -200,7 +200,15 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 		return serrors.New("ISD-AS contains wildcard", "isd_as", t.IA)
 	}
 	t.MTU = raw.MTU
-	t.Attributes = raw.Attributes
+
+	isCore := false
+	for _, attr := range raw.Attributes {
+		if attr == jsontopo.AttrCore {
+			isCore = true
+			break
+		}
+	}
+	t.IsCore = isCore
 	return nil
 }
 
@@ -235,14 +243,7 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 				return err
 			}
 			ifinfo.LinkType = LinkTypeFromString(rawIntf.LinkTo)
-			isCore := false
-			for _, attr := range t.Attributes {
-				if attr == jsontopo.AttrCore {
-					isCore = true
-					break
-				}
-			}
-			if err = ifinfo.CheckLinks(isCore, name); err != nil {
+			if err = ifinfo.CheckLinks(t.IsCore, name); err != nil {
 				return err
 			}
 			if bfd := rawIntf.BFD; bfd != nil {
@@ -373,10 +374,10 @@ func (t *RWTopology) Copy() *RWTopology {
 		return nil
 	}
 	return &RWTopology{
-		Timestamp:  t.Timestamp,
-		IA:         t.IA,
-		MTU:        t.MTU,
-		Attributes: append(t.Attributes[:0:0], t.Attributes...),
+		Timestamp: t.Timestamp,
+		IA:        t.IA,
+		MTU:       t.MTU,
+		IsCore:    t.IsCore,
 
 		BR:        copyBRMap(t.BR),
 		BRNames:   append(t.BRNames[:0:0], t.BRNames...),
