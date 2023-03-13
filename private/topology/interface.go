@@ -39,8 +39,6 @@ type Topology interface {
 	MTU() uint16
 	// Core returns whether the local AS is core.
 	Core() bool
-	// CA returns whether the local AS is a CA.
-	CA() bool
 	// InterfaceIDs returns all interface IDS from the local AS.
 	InterfaceIDs() []common.IFIDType
 
@@ -184,15 +182,6 @@ func (t *topologyS) MakeHostInfos(st ServiceType) ([]*net.UDPAddr, error) {
 func (t *topologyS) Core() bool {
 	for _, attr := range t.Topology.Attributes {
 		if attr == jsontopo.AttrCore {
-			return true
-		}
-	}
-	return false
-}
-
-func (t *topologyS) CA() bool {
-	for _, attr := range t.Topology.Attributes {
-		if attr == jsontopo.Issuing {
 			return true
 		}
 	}
