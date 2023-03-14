@@ -18,11 +18,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/private/app"
+	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/scion-pki/certs"
 	"github.com/scionproto/scion/scion-pki/key"
 	"github.com/scionproto/scion/scion-pki/testcrypto"
@@ -56,20 +56,8 @@ func main() {
 		certs.Cmd(cmd),
 		trcs.Cmd(cmd),
 		testcrypto.Cmd(cmd),
-		newGendocs(cmd),
+		command.NewGendocs(cmd),
 	)
-	// This Templatefunc allows use some escape characters for the rst
-	// documentation conversion without compromising the readability of the help
-	// text in the CLI.
-	cobra.AddTemplateFunc("removeEscape", func(s string) string {
-		s = strings.ReplaceAll(s, "::", ":")
-		s = strings.ReplaceAll(s, "\\-", "-")
-		return s
-	})
-
-	cmd.SetHelpTemplate(`{{with (or .Long .Short)}}{{. | trimTrailingWhitespaces | removeEscape}}
-
-{{end}}{{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`)
 	cmd.DisableAutoGenTag = true
 
 	if err := cmd.Execute(); err != nil {

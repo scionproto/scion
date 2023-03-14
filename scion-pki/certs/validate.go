@@ -52,7 +52,7 @@ a certificate is and validates it accordingly. The identified type is stated in
 the output.
 
 By default, the command does not check that the certificate is in its validity
-period. This can be enabled by specifying the \--check-time flag.
+period. This can be enabled by specifying the --check-time flag.
 `,
 		Example: fmt.Sprintf(`  %[1]s validate --type cp-root /tmp/certs/cp-root.crt
   %[1]s validate --type any /tmp/certs/cp-root.crt`, pather.CommandPath()),

@@ -41,7 +41,7 @@ If 'cert-file' contains a single certificate, the SHA256 is computed over the ra
 DER encoding. If it contains a certificate chain, the SHA256 is computed over the
 concatenation of the raw DER encoding of the certificates in order of appearance.
 
-If the flag \--format is set to "emoji", the format of the output is a string of emojis`,
+If the flag --format is set to "emoji", the format of the output is a string of emojis`,
 		Example: fmt.Sprintf(`  %[1]s fingerprint ISD1-ASff00_0_110.pem
   %[1]s fingerprint --format emoji ISD1-ASff00_0_110.pem
   %[1]s fingerprint --format hex ISD1-ASff00_0_110.pem

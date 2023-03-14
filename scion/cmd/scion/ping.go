@@ -96,11 +96,11 @@ func newPing(pather CommandPather) *cobra.Command {
   %[1]s ping 1-ff00:0:110,10.0.0.1 -c 5`, pather.CommandPath()),
 		Long: fmt.Sprintf(`'ping' test connectivity to a remote SCION host using SCMP echo packets.
 
-When the \--count option is set, ping sends the specified number of SCMP echo packets
-and reports back the statistics.
+When the --count option is set, ping sends the specified number of SCMP echo
+packets and reports back the statistics.
 
-When the \--healthy-only option is set, ping first determines healthy paths through probing and
-chooses amongst them.
+When the --healthy-only option is set, ping first determines healthy paths
+through probing and chooses amongst them.
 
 If no reply packet is received at all, ping will exit with code 1.
 On other errors, ping will exit with code 2.

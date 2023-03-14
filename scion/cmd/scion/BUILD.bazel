@@ -6,7 +6,6 @@ go_library(
     srcs = [
         "address.go",
         "common.go",
-        "gendocs.go",
         "main.go",
         "observability.go",
         "ping.go",
@@ -38,7 +37,6 @@ go_library(
         "//scion/traceroute:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
-        "@com_github_spf13_cobra//doc:go_default_library",
         "@in_gopkg_yaml_v2//:go_default_library",
     ],
 )
