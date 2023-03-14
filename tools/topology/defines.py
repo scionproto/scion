@@ -18,7 +18,7 @@ Contains constant definitions used throughout the codebase.
 """
 
 #: Generated files directory
-GEN_PATH = 'gen'
+GEN_PATH = "gen"
 #: Topology configuration
 TOPO_FILE = "topology.json"
 #: Networks config

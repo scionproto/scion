@@ -1,0 +1,16 @@
+{
+    //////////////////////
+    // Python
+    //////////////////////
+    "python.languageServer": "Pylance",
+    "python.analysis.exclude": [
+        "**/.bazel-*/**",
+        "**/.idea/**",
+        "**/.git/objects/**",
+        "**/.git/subtree-cache/**",
+        "**/.venvs/**",
+        "**/bazel-*/**"
+    ],
+    "python.envFile": "${workspaceFolder}/.vscode/.env",
+    "python.formatting.provider": "black"
+}

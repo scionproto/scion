@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 def update_toml(change_dict: Dict[str, Any], files: LocalPath):
-    """ Overwrite or set the values in the TOML files with the specified changes.
+    """Overwrite or set the values in the TOML files with the specified changes.
 
     Args:
         change_dict: Change dictionary containing a dot separated path
@@ -50,7 +50,7 @@ def update_toml(change_dict: Dict[str, Any], files: LocalPath):
 
 
 def update_json(change_dict: Dict[str, Any], files: LocalPath):
-    """ Overwrite or set the values in the JSON files with the specified changes.
+    """Overwrite or set the values in the JSON files with the specified changes.
 
     Args:
         change_dict: Change dictionary containing a dot separated path
@@ -101,9 +101,9 @@ def sciond_addr(isd_as: ISD_AS, port: bool = True, gen_dir: str = "gen"):
         ip = addrs[str(isd_as)]
         if not port:
             return ip
-        if ':' in ip:
-            return '[%s]:30255' % ip
-        return '%s:30255' % ip
+        if ":" in ip:
+            return "[%s]:30255" % ip
+        return "%s:30255" % ip
 
 
 def path_to_dict(path: str, val: Any) -> Dict:
@@ -112,7 +112,7 @@ def path_to_dict(path: str, val: Any) -> Dict:
     {'a': {'b': {'c': val}}}
     """
     d = val
-    for k in reversed(path.split('.')):
+    for k in reversed(path.split(".")):
         d = {k: d}
     return d
 

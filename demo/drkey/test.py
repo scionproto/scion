@@ -51,26 +51,37 @@ class Test(base.TestTopogen):
         # Enable DRKey in all CSes and SDs
         for isd_as in self.isd_ases:
             conf_dir = self._conf_dir(isd_as)
-            scion.update_toml({
-                "drkey": {
-                    "level1_db": {
-                        "connection": "/share/cache/cs%s-1.drkey_level1.db" % isd_as.file_fmt(),
-                    },
-                    "secret_value_db": {
-                        "connection": "/share/cache/cs%s-1.secret_value.db" % isd_as.file_fmt()
+            scion.update_toml(
+                {
+                    "drkey": {
+                        "level1_db": {
+                            "connection": "/share/cache/cs%s-1.drkey_level1.db"
+                            % isd_as.file_fmt(),
+                        },
+                        "secret_value_db": {
+                            "connection": "/share/cache/cs%s-1.secret_value.db"
+                            % isd_as.file_fmt()
+                        },
                     }
-                }
-            }, conf_dir // "cs*-1.toml")
+                },
+                conf_dir // "cs*-1.toml",
+            )
 
-            scion.update_toml({
-                "drkey_level2_db": {
-                    "connection": "/share/cache/sd%s.drkey_level2.db" % isd_as.file_fmt()
-                }
-            }, [conf_dir / "sd.toml"])
+            scion.update_toml(
+                {
+                    "drkey_level2_db": {
+                        "connection": "/share/cache/sd%s.drkey_level2.db"
+                        % isd_as.file_fmt()
+                    }
+                },
+                [conf_dir / "sd.toml"],
+            )
 
         # Enable delegation for demo "server", i.e. allow server to
         # access the base secret value from which keys can be derived locally.
-        server_ip = self._container_ip("scion_disp_tester_%s" % self.server_isd_as.file_fmt())
+        server_ip = self._container_ip(
+            "scion_disp_tester_%s" % self.server_isd_as.file_fmt()
+        )
         server_cs_config = self._conf_dir(self.server_isd_as) // "cs*-1.toml"
         scion.update_toml({"drkey.delegation.scmp": [server_ip]}, server_cs_config)
 
@@ -80,8 +91,13 @@ class Test(base.TestTopogen):
         self._init_as_list()
 
         # install demo binary in tester containers:
-        drkey_demo = local["realpath"](self.get_executable("drkey-demo").executable).strip()
-        testers = ["tester_%s" % ia.file_fmt() for ia in {self.server_isd_as, self.client_isd_as}]
+        drkey_demo = local["realpath"](
+            self.get_executable("drkey-demo").executable
+        ).strip()
+        testers = [
+            "tester_%s" % ia.file_fmt()
+            for ia in {self.server_isd_as, self.client_isd_as}
+        ]
         for tester in testers:
             local["docker"]("cp", drkey_demo, tester + ":/bin/")
 
@@ -92,19 +108,32 @@ class Test(base.TestTopogen):
         client_addr = "%s,%s" % (self.client_isd_as, client_ip)
 
         # Demonstrate deriving key (fast) on server side
-        rs = self.dc.execute("tester_%s" % self.server_isd_as.file_fmt(),
-                             "drkey-demo", "--server",
-                             "--server-addr", server_addr, "--client-addr", client_addr)
+        rs = self.dc.execute(
+            "tester_%s" % self.server_isd_as.file_fmt(),
+            "drkey-demo",
+            "--server",
+            "--server-addr",
+            server_addr,
+            "--client-addr",
+            client_addr,
+        )
         print(rs)
 
         # Demonstrate obtaining key (slow) on client side
-        rc = self.dc.execute("tester_%s" % self.client_isd_as.file_fmt(),
-                             "drkey-demo",
-                             "--server-addr", server_addr, "--client-addr", client_addr)
+        rc = self.dc.execute(
+            "tester_%s" % self.client_isd_as.file_fmt(),
+            "drkey-demo",
+            "--server-addr",
+            server_addr,
+            "--client-addr",
+            client_addr,
+        )
         print(rc)
 
         # Extract printed keys from output and verify that the keys match
-        key_regex = re.compile(r"^(?:Client|Server),\s*host key\s*=\s*([a-f0-9]+)", re.MULTILINE)
+        key_regex = re.compile(
+            r"^(?:Client|Server),\s*host key\s*=\s*([a-f0-9]+)", re.MULTILINE
+        )
         server_key_match = key_regex.search(rs)
         if server_key_match is None:
             raise AssertionError("Key not found in server output")
@@ -114,30 +143,33 @@ class Test(base.TestTopogen):
             raise AssertionError("Key not found in client output")
         client_key = client_key_match.group(1)
         if server_key != client_key:
-            raise AssertionError("Key derived by server does not match key derived by client!",
-                                 server_key, client_key)
+            raise AssertionError(
+                "Key derived by server does not match key derived by client!",
+                server_key,
+                client_key,
+            )
 
     def _server_ip(self, isd_as: ISD_AS) -> str:
-        """ Determine the IP used for the "server" in the given ISD-AS """
+        """Determine the IP used for the "server" in the given ISD-AS"""
         return self._container_ip("scion_disp_tester_%s" % isd_as.file_fmt())
 
     def _client_ip(self, isd_as: ISD_AS) -> str:
-        """ Determine the IP used for the "client" in the given ISD-AS """
+        """Determine the IP used for the "client" in the given ISD-AS"""
         # The client's address must be the daemon (as this makes requests to the CS on behalf of the
         # application).
         return self._container_ip("scion_sd%s" % isd_as.file_fmt())
 
     def _container_ip(self, container: str) -> str:
-        """ Determine the IP of the container """
+        """Determine the IP of the container"""
         dc_config = yaml.safe_load(self.dc.compose_file.read())
         networks = dc_config["services"][container]["networks"]
         addresses = next(iter(networks.values()))
         return next(iter(addresses.values()))
 
     def _conf_dir(self, isd_as: ISD_AS) -> LocalPath:
-        """ Returns the path of the configuration directory for the given ISD-AS """
+        """Returns the path of the configuration directory for the given ISD-AS"""
         return self.artifacts / "gen" / ("AS" + isd_as.as_file_fmt())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     base.main(Test)

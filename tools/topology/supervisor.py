@@ -30,7 +30,7 @@ from topology.common import (
     SD_CONFIG_NAME,
 )
 
-SUPERVISOR_CONF = 'supervisord.conf'
+SUPERVISOR_CONF = "supervisord.conf"
 
 
 class SupervisorGenArgs(ArgsTopoDicts):
@@ -51,8 +51,7 @@ class SupervisorGenerator(object):
             self._add_as_config(config, topo_id, topo)
         self._add_dispatcher(config)
 
-        self._write_config(config,
-                           os.path.join(self.args.output_dir, SUPERVISOR_CONF))
+        self._write_config(config, os.path.join(self.args.output_dir, SUPERVISOR_CONF))
 
     def _add_as_config(self, config, topo_id, topo):
         entries = self._as_entries(topo_id, topo)
@@ -75,7 +74,7 @@ class SupervisorGenerator(object):
         for k, v in topo.get("border_routers", {}).items():
             conf = os.path.join(base, "%s.toml" % k)
             prog = self._common_entry(k, [cmd, "--config", conf])
-            prog['environment'] += ',GODEBUG="cgocheck=0"'
+            prog["environment"] += ',GODEBUG="cgocheck=0"'
             entries.append((k, prog))
         return entries
 
@@ -91,10 +90,7 @@ class SupervisorGenerator(object):
 
     def _sciond_entry(self, topo_id, conf_dir):
         sd_name = "sd%s" % topo_id.file_fmt()
-        cmd_args = [
-            "bin/daemon", "--config",
-            os.path.join(conf_dir, SD_CONFIG_NAME)
-        ]
+        cmd_args = ["bin/daemon", "--config", os.path.join(conf_dir, SD_CONFIG_NAME)]
         return (sd_name, self._common_entry(sd_name, cmd_args))
 
     def _add_dispatcher(self, config):
@@ -105,8 +101,9 @@ class SupervisorGenerator(object):
         name = "dispatcher"
         conf_dir = os.path.join(self.args.output_dir, name)
         cmd_args = [
-            "bin/dispatcher", "--config",
-            os.path.join(conf_dir, DISP_CONFIG_NAME)
+            "bin/dispatcher",
+            "--config",
+            os.path.join(conf_dir, DISP_CONFIG_NAME),
         ]
         return (name, self._common_entry(name, cmd_args))
 
@@ -115,19 +112,19 @@ class SupervisorGenerator(object):
 
     def _common_entry(self, name, cmd_args):
         entry = {
-            'autostart': 'false',
-            'autorestart': 'false',
-            'environment': 'TZ=UTC',
-            'stdout_logfile': "logs/%s.log" % name,
-            'redirect_stderr': True,
-            'startretries': 0,
-            'startsecs': 5,
-            'priority': 100,
-            'command': ' '.join(shlex.quote(a) for a in cmd_args),
+            "autostart": "false",
+            "autorestart": "false",
+            "environment": "TZ=UTC",
+            "stdout_logfile": "logs/%s.log" % name,
+            "redirect_stderr": True,
+            "startretries": 0,
+            "startsecs": 5,
+            "priority": 100,
+            "command": " ".join(shlex.quote(a) for a in cmd_args),
         }
         if name == "dispatcher":
-            entry['startsecs'] = 1
-            entry['priority'] = 50
+            entry["startsecs"] = 1
+            entry["priority"] = 50
         return entry
 
     def _write_config(self, config, path):

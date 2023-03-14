@@ -39,18 +39,24 @@ def sudo(command: str) -> str:
     return cmd.sudo("-A", str.split(command))
 
 
-def create_veth(host: str, container: str, ip: str, mac: str, ns: str, neighbors: List[str]):
+def create_veth(
+    host: str, container: str, ip: str, mac: str, ns: str, neighbors: List[str]
+):
     sudo("ip link add %s mtu 8000 type veth peer name %s mtu 8000" % (host, container))
     sudo("sysctl -qw net.ipv6.conf.%s.disable_ipv6=1" % host)
     sudo("ip link set %s up" % host)
     sudo("ip link set %s netns %s" % (container, ns))
-    sudo("ip netns exec %s sysctl -qw net.ipv6.conf.%s.disable_ipv6=1" % (ns, container))
+    sudo(
+        "ip netns exec %s sysctl -qw net.ipv6.conf.%s.disable_ipv6=1" % (ns, container)
+    )
     sudo("ip netns exec %s ethtool -K %s rx off tx off" % (ns, container))
     sudo("ip netns exec %s ip link set %s address %s" % (ns, container, mac))
     sudo("ip netns exec %s ip addr add %s dev %s" % (ns, ip, container))
     for n in neighbors:
-        sudo("ip netns exec %s ip neigh add %s lladdr f0:0d:ca:fe:be:ef nud permanent dev %s"
-             % (ns, n, container))
+        sudo(
+            "ip netns exec %s ip neigh add %s lladdr f0:0d:ca:fe:be:ef nud permanent dev %s"
+            % (ns, n, container)
+        )
     sudo("ip netns exec %s ip link set %s up" % (ns, container))
 
 
@@ -82,9 +88,13 @@ class RouterTest(base.TestBase):
         shutil.copytree("acceptance/router_multi/conf/", self.artifacts / "conf")
         sudo("mkdir -p /var/run/netns")
 
-        pause_image = exec_docker("image load -q -i %s" % self.pause_tar).rsplit(' ', 1)[1]
+        pause_image = exec_docker("image load -q -i %s" % self.pause_tar).rsplit(
+            " ", 1
+        )[1]
         exec_docker("run -d --network=none --name pause %s" % pause_image)
-        ns = exec_docker("inspect pause -f '{{.NetworkSettings.SandboxKey}}'").replace("'", "")
+        ns = exec_docker("inspect pause -f '{{.NetworkSettings.SandboxKey}}'").replace(
+            "'", ""
+        )
 
         sudo("ln -sfT %s /var/run/netns/pause" % ns)
         self.create_veths("pause")
@@ -98,9 +108,16 @@ class RouterTest(base.TestBase):
         if self.bfd:
             envs = []
 
-        exec_docker("run -v %s/conf:/share/conf -d %s --network container:%s \
-                    --name router %s" % (self.artifacts, " ".join(envs),
-                    "pause", "bazel/acceptance/router_multi:router"))
+        exec_docker(
+            "run -v %s/conf:/share/conf -d %s --network container:%s \
+                    --name router %s"
+            % (
+                self.artifacts,
+                " ".join(envs),
+                "pause",
+                "bazel/acceptance/router_multi:router",
+            )
+        )
 
         time.sleep(1)
 
@@ -118,17 +135,53 @@ class RouterTest(base.TestBase):
         sudo("chown -R %s %s" % (cmd.whoami(), self.artifacts))
 
     def create_veths(self, ns: str):
-        create_veth("veth_int_host", "veth_int", "192.168.0.11/24", "f0:0d:ca:fe:00:01", ns,
-                    ["192.168.0.12", "192.168.0.13", "192.168.0.14", "192.168.0.51", "192.168.0.61",
-                        "192.168.0.71"])
-        create_veth("veth_121_host", "veth_121", "192.168.12.2/31", "f0:0d:ca:fe:00:12", ns,
-                    ["192.168.12.3"])
-        create_veth("veth_131_host", "veth_131", "192.168.13.2/31", "f0:0d:ca:fe:00:13", ns,
-                    ["192.168.13.3"])
-        create_veth("veth_141_host", "veth_141", "192.168.14.2/31", "f0:0d:ca:fe:00:14", ns,
-                    ["192.168.14.3"])
-        create_veth("veth_151_host", "veth_151", "192.168.15.2/31", "f0:0d:ca:fe:00:15", ns,
-                    ["192.168.15.3"])
+        create_veth(
+            "veth_int_host",
+            "veth_int",
+            "192.168.0.11/24",
+            "f0:0d:ca:fe:00:01",
+            ns,
+            [
+                "192.168.0.12",
+                "192.168.0.13",
+                "192.168.0.14",
+                "192.168.0.51",
+                "192.168.0.61",
+                "192.168.0.71",
+            ],
+        )
+        create_veth(
+            "veth_121_host",
+            "veth_121",
+            "192.168.12.2/31",
+            "f0:0d:ca:fe:00:12",
+            ns,
+            ["192.168.12.3"],
+        )
+        create_veth(
+            "veth_131_host",
+            "veth_131",
+            "192.168.13.2/31",
+            "f0:0d:ca:fe:00:13",
+            ns,
+            ["192.168.13.3"],
+        )
+        create_veth(
+            "veth_141_host",
+            "veth_141",
+            "192.168.14.2/31",
+            "f0:0d:ca:fe:00:14",
+            ns,
+            ["192.168.14.3"],
+        )
+        create_veth(
+            "veth_151_host",
+            "veth_151",
+            "192.168.15.2/31",
+            "f0:0d:ca:fe:00:15",
+            ns,
+            ["192.168.15.3"],
+        )
 
 
 if __name__ == "__main__":

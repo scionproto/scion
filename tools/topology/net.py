@@ -70,7 +70,7 @@ class AddressProxy(yaml.YAMLObject):
 
     @classmethod
     def to_yaml(cls, dumper, inst):
-        return dumper.represent_scalar('tag:yaml.org,2002:str', str(inst.ip))
+        return dumper.represent_scalar("tag:yaml.org,2002:str", str(inst.ip))
 
 
 class AddressGenerator(object):
@@ -103,15 +103,15 @@ class SubnetGenerator(object):
         if self.docker and network == DEFAULT_NETWORK:
             network = DEFAULT_SCN_DC_NETWORK
         if "/" not in network:
-            logging.critical("No prefix length specified for network '%s'",
-                             network)
+            logging.critical("No prefix length specified for network '%s'", network)
         try:
             self._net = ip_network(network)
         except ValueError:
             logging.critical("Invalid network '%s'", network)
             sys.exit(1)
-        self._subnets = defaultdict(lambda: AddressGenerator(self.docker)) \
-            # type: Mapping[str, AddressGenerator]
+        self._subnets = defaultdict(
+            lambda: AddressGenerator(self.docker)
+        )  # type: Mapping[str, AddressGenerator]
         self._allocations = defaultdict(list)
         # Initialise the allocations with the supplied network, making sure to
         # exclude 127.0.0.0/30 (for v4) and DEFAULT6_NETWORK_ADDR/126 (for v6)
@@ -159,9 +159,13 @@ class SubnetGenerator(object):
                 # Carve out subnet of the required size
                 new_net = next(alloc.subnets(new_prefix=req_prefix))
                 new_net = _workaround_ip_network_hosts_py35(new_net)
-                logging.debug("Allocating %s from %s for subnet size %d" %
-                              (new_net, alloc, len(subnet)))
-                networks[new_net] = NetworkDescription(topo, subnet.alloc_addrs(new_net))
+                logging.debug(
+                    "Allocating %s from %s for subnet size %d"
+                    % (new_net, alloc, len(subnet))
+                )
+                networks[new_net] = NetworkDescription(
+                    topo, subnet.alloc_addrs(new_net)
+                )
                 # Repopulate the allocations list with the left-over space
                 self._exclude_net(alloc, new_net)
                 break
@@ -183,7 +187,7 @@ class PortGenerator(object):
     def register(self, id_: str) -> int:
         p = self._ports[id_]
         # reserve a quic port
-        self._ports[id_+"quic"]
+        self._ports[id_ + "quic"]
         return p
 
 
@@ -202,4 +206,4 @@ def _workaround_ip_network_hosts_py35(net: IPNetwork) -> IPNetwork:
     This regression is fixed in python 3.6.6 / 3.7.0.
     See https://bugs.python.org/issue27683
     """
-    return ip_network('%s/%i' % (net.network_address, net.prefixlen))
+    return ip_network("%s/%i" % (net.network_address, net.prefixlen))

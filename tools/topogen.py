@@ -32,37 +32,52 @@ from topology.config import (
 
 
 def add_arguments(parser):
-    parser.add_argument('-c', '--topo-config', default=DEFAULT_TOPOLOGY_FILE,
-                        help='Path policy file')
-    parser.add_argument('-d', '--docker', action='store_true',
-                        help='Create a docker-compose configuration')
-    parser.add_argument('-n', '--network',
-                        help='Network to create subnets in (E.g. "127.0.0.0/8"')
-    parser.add_argument('-o', '--output-dir', default=GEN_PATH,
-                        help='Output directory')
-    parser.add_argument('--random-ifids', action='store_true',
-                        help='Generate random IFIDs')
-    parser.add_argument('--docker-registry', help='Specify docker registry to pull images from')
-    parser.add_argument('--image-tag', help='Docker image tag')
-    parser.add_argument('--sig', action='store_true',
-                        help='Generate a SIG per AS (only available with -d, the SIG image needs\
-                        to be built manually e.g. when running acceptance tests)')
-    parser.add_argument('-qos', '--colibri', action='store_true',
-                        help='Generate COLIBRI service')
-    parser.add_argument('--features', help='Feature flags to enable, a comma separated list\
-                        e.g. foo,bar enables foo and bar feature.')
+    parser.add_argument(
+        "-c", "--topo-config", default=DEFAULT_TOPOLOGY_FILE, help="Path policy file"
+    )
+    parser.add_argument(
+        "-d",
+        "--docker",
+        action="store_true",
+        help="Create a docker-compose configuration",
+    )
+    parser.add_argument(
+        "-n", "--network", help='Network to create subnets in (E.g. "127.0.0.0/8"'
+    )
+    parser.add_argument("-o", "--output-dir", default=GEN_PATH, help="Output directory")
+    parser.add_argument(
+        "--random-ifids", action="store_true", help="Generate random IFIDs"
+    )
+    parser.add_argument(
+        "--docker-registry", help="Specify docker registry to pull images from"
+    )
+    parser.add_argument("--image-tag", help="Docker image tag")
+    parser.add_argument(
+        "--sig",
+        action="store_true",
+        help="Generate a SIG per AS (only available with -d, the SIG image needs\
+                        to be built manually e.g. when running acceptance tests)",
+    )
+    parser.add_argument(
+        "-qos", "--colibri", action="store_true", help="Generate COLIBRI service"
+    )
+    parser.add_argument(
+        "--features",
+        help="Feature flags to enable, a comma separated list\
+                        e.g. foo,bar enables foo and bar feature.",
+    )
     return parser
 
 
 def init_features(raw_args):
-    features = getattr(raw_args, 'features')
+    features = getattr(raw_args, "features")
     if features is None:
-        features = ''
+        features = ""
     feature_dict = {}
-    for f in features.split(','):
-        if f != '':
+    for f in features.split(","):
+        if f != "":
             feature_dict[f] = True
-    setattr(raw_args, 'features', feature_dict)
+    setattr(raw_args, "features", feature_dict)
 
 
 def main():

@@ -24,7 +24,7 @@ import subprocess
 from topology.scion_addr import ISD_AS
 from topology.net import AddressProxy, NetworkDescription, IPNetwork
 
-COMMON_DIR = 'endhost'
+COMMON_DIR = "endhost"
 
 SCION_SERVICE_NAMES = (
     "control_service",
@@ -33,14 +33,14 @@ SCION_SERVICE_NAMES = (
     "colibri_service",
 )
 
-BR_CONFIG_NAME = 'br.toml'
-BS_CONFIG_NAME = 'bs.toml'
-CS_CONFIG_NAME = 'cs.toml'
-PS_CONFIG_NAME = 'ps.toml'
-CO_CONFIG_NAME = 'co.toml'
-SD_CONFIG_NAME = 'sd.toml'
-DISP_CONFIG_NAME = 'disp.toml'
-SIG_CONFIG_NAME = 'sig.toml'
+BR_CONFIG_NAME = "br.toml"
+BS_CONFIG_NAME = "bs.toml"
+CS_CONFIG_NAME = "cs.toml"
+PS_CONFIG_NAME = "ps.toml"
+CO_CONFIG_NAME = "co.toml"
+SD_CONFIG_NAME = "sd.toml"
+DISP_CONFIG_NAME = "disp.toml"
+SIG_CONFIG_NAME = "sig.toml"
 
 SD_API_PORT = 30255
 
@@ -71,7 +71,7 @@ class ArgsTopoDicts(ArgsBase):
         self.topo_dicts = topo_dicts
 
 
-LinkType = Enum('LinkType', ['CHILD', 'PARENT', 'PEER', 'CORE'])
+LinkType = Enum("LinkType", ["CHILD", "PARENT", "PEER", "CORE"])
 
 
 class TopoID(ISD_AS):
@@ -103,54 +103,52 @@ def prom_addr(addr: str, port: int) -> str:
 
 
 def split_host_port(addr: str) -> Tuple[str, int]:
-    parts = urlsplit('//' + addr)
+    parts = urlsplit("//" + addr)
     if parts.port is None:
         raise ValueError("missing port in addr: {}".format(addr))
     # first remove the port, and strip ipv6 brackets:
-    ip = parts.netloc.rsplit(sep=':{}'.format(parts.port),
-                             maxsplit=1)[0].strip('[]')
+    ip = parts.netloc.rsplit(sep=":{}".format(parts.port), maxsplit=1)[0].strip("[]")
     return (ip, parts.port)
 
 
 def join_host_port(host: str, port: int) -> str:
     ip = ip_address(host)
     if ip.version == 4:
-        return '{}:{}'.format(host, port)
-    return '[{}]:{}'.format(host, port)
+        return "{}:{}".format(host, port)
+    return "[{}]:{}".format(host, port)
 
 
-def sciond_ip(docker, topo_id, networks: Mapping[IPNetwork,
-                                                 NetworkDescription]):
+def sciond_ip(docker, topo_id, networks: Mapping[IPNetwork, NetworkDescription]):
     for net_desc in networks.values():
         for prog, ip_net in net_desc.ip_net.items():
-            if prog == 'sd%s' % topo_id.file_fmt():
+            if prog == "sd%s" % topo_id.file_fmt():
                 return ip_net.ip
     return None
 
 
-def prom_addr_dispatcher(docker, topo_id,
-                         networks: Mapping[IPNetwork,
-                                           NetworkDescription], port, name):
+def prom_addr_dispatcher(
+    docker, topo_id, networks: Mapping[IPNetwork, NetworkDescription], port, name
+):
     if not docker:
         return "[127.0.0.1]:%s" % port
-    target_name = ''
-    if name.startswith('disp_br'):
-        target_name = 'br%s%s_internal' % (topo_id.file_fmt(), name[-2:])
-    elif name.startswith('disp_sig'):
-        target_name = 'sig%s' % topo_id.file_fmt()
+    target_name = ""
+    if name.startswith("disp_br"):
+        target_name = "br%s%s_internal" % (topo_id.file_fmt(), name[-2:])
+    elif name.startswith("disp_sig"):
+        target_name = "sig%s" % topo_id.file_fmt()
     else:
-        target_name = 'disp%s' % topo_id.file_fmt()
+        target_name = "disp%s" % topo_id.file_fmt()
     for net_desc in networks.values():
         if target_name in net_desc.ip_net:
-            return '[%s]:%s' % (net_desc.ip_net[target_name].ip, port)
+            return "[%s]:%s" % (net_desc.ip_net[target_name].ip, port)
     return None
 
 
 def docker_image(args, image):
     if args.docker_registry:
-        image = '%s/%s' % (args.docker_registry, image)
+        image = "%s/%s" % (args.docker_registry, image)
     if args.image_tag:
-        image = '%s:%s' % (image, args.image_tag)
+        image = "%s:%s" % (image, args.image_tag)
     return image
 
 
@@ -163,7 +161,7 @@ def docker_host(docker, addr=None):
 
 
 def docker_ip():
-    return subprocess.check_output(['tools/docker-ip']).decode("utf-8").strip()
+    return subprocess.check_output(["tools/docker-ip"]).decode("utf-8").strip()
 
 
 def remote_nets(networks, topo_id):
@@ -175,17 +173,17 @@ def remote_nets(networks, topo_id):
     """
     rem_nets = []
     for key in networks:
-        if 'sig' in key and topo_id.file_fmt() not in key:
-            rem_nets.append(str(networks[key][0]['net']))
-    return ','.join(rem_nets)
+        if "sig" in key and topo_id.file_fmt() not in key:
+            rem_nets.append(str(networks[key][0]["net"]))
+    return ",".join(rem_nets)
 
 
 def sciond_name(topo_id):
-    return 'sd%s' % topo_id.file_fmt()
+    return "sd%s" % topo_id.file_fmt()
 
 
 def sciond_svc_name(topo_id):
-    return 'scion_%s' % sciond_name(topo_id)
+    return "scion_%s" % sciond_name(topo_id)
 
 
 def json_default(o):

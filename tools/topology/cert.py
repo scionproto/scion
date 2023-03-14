@@ -38,33 +38,37 @@ class CertGenerator(object):
         arguments and the parsed topo config.
         """
         self.args = args
-        self.pki = local['./bin/scion-pki']
-        if not local.path('./bin/scion-pki').exists():
+        self.pki = local["./bin/scion-pki"]
+        if not local.path("./bin/scion-pki").exists():
             try:
-                self.pki = local[local.which('scion-pki')]
+                self.pki = local[local.which("scion-pki")]
             except CommandNotFound:
                 sys.exit("ERROR: scion-pki executable not found. Run `make` first.")
         self.core_count = collections.defaultdict(int)
 
     def generate(self, topo_dicts):
-        self.pki('testcrypto', '-t', self.args.topo_config, '-o', self.args.output_dir)
+        self.pki("testcrypto", "-t", self.args.topo_config, "-o", self.args.output_dir)
         self._master_keys(topo_dicts)
         self._copy_files(topo_dicts)
 
     def _master_keys(self, topo_dicts):
         for topo_id in topo_dicts:
             base = topo_id.base_dir(self.args.output_dir)
-            write_file(os.path.join(base, 'keys', 'master0.key'),
-                       base64.b64encode(os.urandom(16)).decode())
-            write_file(os.path.join(base, 'keys', 'master1.key'),
-                       base64.b64encode(os.urandom(16)).decode())
+            write_file(
+                os.path.join(base, "keys", "master0.key"),
+                base64.b64encode(os.urandom(16)).decode(),
+            )
+            write_file(
+                os.path.join(base, "keys", "master1.key"),
+                base64.b64encode(os.urandom(16)).decode(),
+            )
 
     def _copy_files(self, topo_dicts):
-        cp = local['cp']
-        mkdir = local['mkdir']
+        cp = local["cp"]
+        mkdir = local["mkdir"]
         # Copy the certs and key dir for all elements.
         for topo_id, as_topo in topo_dicts.items():
             base = local.path(self.args.output_dir)
             as_dir = local.path(topo_id.base_dir(self.args.output_dir))
-            mkdir('-p', as_dir / 'certs')
-            cp(base // '*/trcs/*.trc', as_dir / 'certs/')
+            mkdir("-p", as_dir / "certs")
+            cp(base // "*/trcs/*.trc", as_dir / "certs/")

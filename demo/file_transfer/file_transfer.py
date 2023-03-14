@@ -25,14 +25,33 @@ from acceptance.common import base
 
 
 class Test(base.TestTopogen):
-
     def _refresh_paths(self):
         self.dc("exec", "-T", "tester_1-ff00_0_110", "ping", "-c", "2", "172.20.0.39")
         self.dc("exec", "-T", "tester_1-ff00_0_111", "ping", "-c", "2", "172.20.0.23")
-        self.dc("exec", "-T", "tester_1-ff00_0_110", "scion", "sp", "1-ff00:0:111",
-                "--timeout", "5s", "--refresh", "--no-probe")
-        self.dc("exec", "-T", "tester_1-ff00_0_111", "scion", "sp", "1-ff00:0:110",
-                "--timeout", "5s", "--refresh", "--no-probe")
+        self.dc(
+            "exec",
+            "-T",
+            "tester_1-ff00_0_110",
+            "scion",
+            "sp",
+            "1-ff00:0:111",
+            "--timeout",
+            "5s",
+            "--refresh",
+            "--no-probe",
+        )
+        self.dc(
+            "exec",
+            "-T",
+            "tester_1-ff00_0_111",
+            "scion",
+            "sp",
+            "1-ff00:0:110",
+            "--timeout",
+            "5s",
+            "--refresh",
+            "--no-probe",
+        )
 
     def _set_path_count(self, path_count):
         # Change the gateway config.
@@ -52,8 +71,20 @@ class Test(base.TestTopogen):
         # Send 20M random data, using 20 parallel TCP streams:
         start_time = time.time()
         print(
-            self.dc("exec", "-T", "tester_1-ff00_0_111",
-                    "iperf3", "-c", "172.20.0.23", "-n", "20M", "-P", "20", "--interval", "0")
+            self.dc(
+                "exec",
+                "-T",
+                "tester_1-ff00_0_111",
+                "iperf3",
+                "-c",
+                "172.20.0.23",
+                "-n",
+                "20M",
+                "-P",
+                "20",
+                "--interval",
+                "0",
+            )
         )
         elapsed = time.time() - start_time
         throughput = float(size * 1024 * 1024 * 8) / 1000000 / elapsed
@@ -63,11 +94,13 @@ class Test(base.TestTopogen):
 
     def _get_br_traffic(self, endpoint):
         conn = client.HTTPConnection(endpoint)
-        conn.request('GET', '/metrics')
+        conn.request("GET", "/metrics")
         resp = conn.getresponse()
-        metrics = resp.read().decode('utf-8')
+        metrics = resp.read().decode("utf-8")
         for line in metrics.splitlines():
-            m = re.search(r"""^router_input_bytes_total{interface="internal".*\s(.*)$""", line)
+            m = re.search(
+                r"""^router_input_bytes_total{interface="internal".*\s(.*)$""", line
+            )
             if m is not None:
                 return float(m.group(1)) / 1024 / 1024
         return None
@@ -85,14 +118,19 @@ class Test(base.TestTopogen):
             "container_name": "tc_setup",
             "image": "tester:latest",
             "cap_add": ["NET_ADMIN"],
-            "volumes": [{
-                "type": "bind",
-                "source": os.path.realpath("demo/file_transfer/tc_setup.sh"),
-                "target": "/share/tc_setup.sh",
-            }],
-            "entrypoint": ["/bin/sh", "-exc",
-                           "ls -l /share; /share/tc_setup.sh scn_000 16.0mbit ;"
-                           " /share/tc_setup.sh scn_001 16.0mbit"],
+            "volumes": [
+                {
+                    "type": "bind",
+                    "source": os.path.realpath("demo/file_transfer/tc_setup.sh"),
+                    "target": "/share/tc_setup.sh",
+                }
+            ],
+            "entrypoint": [
+                "/bin/sh",
+                "-exc",
+                "ls -l /share; /share/tc_setup.sh scn_000 16.0mbit ;"
+                " /share/tc_setup.sh scn_001 16.0mbit",
+            ],
             "depends_on": ["scion_br1-ff00_0_111-1", "scion_br1-ff00_0_111-2"],
             "network_mode": "host",
         }
@@ -122,17 +160,29 @@ class Test(base.TestTopogen):
         self._set_path_count(1)
         self._transfer("foo1.txt", 20)
         traffic1 = self._get_br_traffic("172.20.0.34:30442") - traffic1
-        print("traffic on path 1: %f MB (includes SCION and encapsulation overhead)" % traffic1)
+        print(
+            "traffic on path 1: %f MB (includes SCION and encapsulation overhead)"
+            % traffic1
+        )
         traffic2 = self._get_br_traffic("172.20.0.35:30442") - traffic2
-        print("traffic on path 2: %f MB (includes SCION and encapsulation overhead)" % traffic2)
+        print(
+            "traffic on path 2: %f MB (includes SCION and encapsulation overhead)"
+            % traffic2
+        )
         print("--------------------")
         print("using two paths")
         self._set_path_count(2)
         self._transfer("foo2.txt", 20)
         traffic1 = self._get_br_traffic("172.20.0.34:30442") - traffic1
-        print("traffic on path 1: %f MB (includes SCION and encapsulation overhead)" % traffic1)
+        print(
+            "traffic on path 1: %f MB (includes SCION and encapsulation overhead)"
+            % traffic1
+        )
         traffic2 = self._get_br_traffic("172.20.0.35:30442") - traffic2
-        print("traffic on path 2: %f MB (includes SCION and encapsulation overhead)" % traffic2)
+        print(
+            "traffic on path 2: %f MB (includes SCION and encapsulation overhead)"
+            % traffic2
+        )
 
 
 if __name__ == "__main__":

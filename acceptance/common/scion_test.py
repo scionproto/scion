@@ -22,43 +22,41 @@ from acceptance.common.scion import (
 
 
 class MergeDictTestCase(unittest.TestCase):
-
     def test_add_entry(self):
         actual = self._orig()
-        merge_dict({'trustdb': 'insert'}, actual)
+        merge_dict({"trustdb": "insert"}, actual)
         expected = self._orig()
-        expected['trustdb'] = 'insert'
+        expected["trustdb"] = "insert"
         self.assertEqual(actual, expected, "trustdb not inserted")
 
     def test_replace_leaf_entry(self):
         actual = self._orig()
-        merge_dict(path_to_dict('log.file.level', 'error'), actual)
+        merge_dict(path_to_dict("log.file.level", "error"), actual)
         expected = self._orig()
-        expected['log']['file']['level'] = 'error'
+        expected["log"]["file"]["level"] = "error"
         self.assertEqual(actual, expected, "level not overwritten")
 
     def test_replace_dict(self):
         actual = self._orig()
-        merge_dict(path_to_dict('log.file', 'disable'), actual)
+        merge_dict(path_to_dict("log.file", "disable"), actual)
         expected = self._orig()
-        expected['log']['file'] = 'disable'
+        expected["log"]["file"] = "disable"
         self.assertEqual(actual, expected, "file dict not overwritten")
 
     @staticmethod
     def _orig() -> Dict[str, Any]:
         return {
-            'log': {
-                'file': {
-                    'path': '/var/log/scion/bs.log',
-                    'level': 'info',
+            "log": {
+                "file": {
+                    "path": "/var/log/scion/bs.log",
+                    "level": "info",
                 },
-                'console': False,
+                "console": False,
             }
         }
 
 
 class PathToDictTestCase(unittest.TestCase):
-
     def test_path_to_dict(self):
-        d = path_to_dict('a.b.c', 'd')
-        self.assertEqual(d, {'a': {'b': {'c': 'd'}}}, 'wrong dictionary')
+        d = path_to_dict("a.b.c", "d")
+        self.assertEqual(d, {"a": {"b": {"c": "d"}}}, "wrong dictionary")

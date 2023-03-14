@@ -37,12 +37,12 @@ def ip_missing(addr):  # Can only safely detect the _absences_ of addr
 
 def ip_add(addr, mask):
     if ip_missing(addr):
-        os.system('sudo ip addr replace %s%s dev lo' % (addr, mask))
+        os.system("sudo ip addr replace %s%s dev lo" % (addr, mask))
 
 
 def net_clear(net):
     if not ip_missing(net):
-        os.system('sudo ip addr flush dev lo to %s' % (net))
+        os.system("sudo ip addr flush dev lo to %s" % (net))
 
 
 def set_interfaces():
@@ -50,10 +50,10 @@ def set_interfaces():
     if not os.path.exists(path):
         # no network configuration file, nothing to do
         return
-    with open(path, 'r') as f:
+    with open(path, "r") as f:
         for l in f.readlines():
             split = l.split("= ")
-            if (len(split) < 2):
+            if len(split) < 2:
                 continue
             address = split[1]
             try:
@@ -67,10 +67,18 @@ def set_interfaces():
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-a', '--add', action='store_true',
-                        help='Add IPv6 local host addresses to loopback')
-    parser.add_argument('-d', '--delete', action='store_true',
-                        help='Delete IPv6 local host addresses from loopback')
+    parser.add_argument(
+        "-a",
+        "--add",
+        action="store_true",
+        help="Add IPv6 local host addresses to loopback",
+    )
+    parser.add_argument(
+        "-d",
+        "--delete",
+        action="store_true",
+        help="Delete IPv6 local host addresses from loopback",
+    )
     args = parser.parse_args()
     if args.add:
         ip_add(DEFAULT6_CLIENT, DEFAULT6_MASK)

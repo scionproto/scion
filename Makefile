@@ -66,14 +66,14 @@ licenses:
 antlr:
 	antlr/generate.sh $(GAZELLE_MODE)
 
-.PHONY: lint lint-bazel lint-bazel-buildifier lint-doc lint-doc-mdlint lint-go lint-go-bazel lint-go-gazelle lint-go-golangci lint-go-semgrep lint-openapi lint-openapi-spectral lint-protobuf lint-protobuf-buf
+.PHONY: lint lint-bazel lint-bazel-buildifier lint-doc lint-doc-mdlint lint-go lint-go-bazel lint-go-gazelle lint-go-golangci lint-go-semgrep lint-py lint-py-black lint-openapi lint-openapi-spectral lint-protobuf lint-protobuf-buf
 
 # Enable --keep-going if all goals specified on the command line match the pattern "lint%"
 ifeq ($(filter-out lint%, $(MAKECMDGOALS)), )
 MAKEFLAGS+=--keep-going
 endif
 
-lint: lint-go lint-bazel lint-protobuf lint-openapi lint-doc
+lint: lint-go lint-py lint-bazel lint-protobuf lint-openapi lint-doc
 
 lint-go: lint-go-gazelle lint-go-bazel lint-go-golangci lint-go-semgrep
 
@@ -94,6 +94,12 @@ lint-go-semgrep:
 	$(info ==> $@)
 	@if [ -t 1 ]; then tty=true; else tty=false; fi; \
 		tools/quiet docker run --tty=$$tty --rm -v "${PWD}:/src" returntocorp/semgrep@sha256:3bef9d533a44e6448c43ac38159d61fad89b4b57f63e565a8a55ca265273f5ba semgrep --config=/src/tools/lint/semgrep --error
+
+lint-py: lint-py-black
+
+lint-py-black:
+	$(info ==> $@)
+	docker run --rm --volume ${PWD}:/src --workdir /src pyfound/black:23.1.0 black --check .
 
 lint-bazel: lint-bazel-buildifier
 

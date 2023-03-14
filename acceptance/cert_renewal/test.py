@@ -53,9 +53,7 @@ class Test(base.TestTopogen):
     """
 
     def _run(self):
-
-        isd_ases = scion.ASList.load("%s/gen/as_list.yml" %
-                                     self.artifacts).all
+        isd_ases = scion.ASList.load("%s/gen/as_list.yml" % self.artifacts).all
         cs_configs = self._cs_configs()
 
         logger.info("==> Start renewal process")
@@ -67,7 +65,9 @@ class Test(base.TestTopogen):
         self._check_key_cert(cs_configs)
 
         logger.info("==> Check connectivity")
-        end2end = self.get_executable("end2end_integration")["-d", "-outDir", self.artifacts]
+        end2end = self.get_executable("end2end_integration")[
+            "-d", "-outDir", self.artifacts
+        ]
         end2end.run_fg()
 
         logger.info("==> Shutting down control servers and purging caches")
@@ -76,8 +76,11 @@ class Test(base.TestTopogen):
         for container in self.dc.list_containers("scion_cs.*"):
             self.dc.stop_container(container)
         for cs_config in cs_configs:
-            files = list((pathlib.Path(self.artifacts) /
-                          "gen-cache").glob("%s*" % cs_config.stem))
+            files = list(
+                (pathlib.Path(self.artifacts) / "gen-cache").glob(
+                    "%s*" % cs_config.stem
+                )
+            )
             for db_file in files:
                 db_file.unlink()
             logger.info("Deleted files: %s" % [file.name for file in files])
@@ -106,8 +109,7 @@ class Test(base.TestTopogen):
             with open(as_dir / "crypto/as" / filename) as f:
                 return f.read()
 
-        chain_name = "ISD%s-AS%s.pem" % (isd_as.isd_str(),
-                                         isd_as.as_file_fmt())
+        chain_name = "ISD%s-AS%s.pem" % (isd_as.isd_str(), isd_as.as_file_fmt())
         old_chain = read_file(chain_name)
         old_key = read_file("cp-as.key")
 
@@ -119,29 +121,35 @@ class Test(base.TestTopogen):
             "--trc",
             docker_dir / "certs/ISD1-B1-S1.trc",
             "--sciond",
-            self.execute_tester(isd_as, "sh", "-c",
-                                "echo $SCION_DAEMON").strip(),
+            self.execute_tester(isd_as, "sh", "-c", "echo $SCION_DAEMON").strip(),
             *self._local_flags(isd_as),
         ]
 
-        logger.info("Requesting certificate chain renewal: %s" %
-                    chain.relative_to(docker_dir))
         logger.info(
-            self.execute_tester(isd_as, "./bin/scion-pki",
-                                "certificate", "renew", *args))
+            "Requesting certificate chain renewal: %s" % chain.relative_to(docker_dir)
+        )
+        logger.info(
+            self.execute_tester(
+                isd_as, "./bin/scion-pki", "certificate", "renew", *args
+            )
+        )
 
         logger.info("Verify renewed certificate chain")
-        verify_out = self.execute_tester(isd_as,
-                                         "./bin/scion-pki", "certificate", "verify",
-                                         chain, "--trc",
-                                         "/share/gen/trcs/ISD1-B1-S1.trc")
+        verify_out = self.execute_tester(
+            isd_as,
+            "./bin/scion-pki",
+            "certificate",
+            "verify",
+            chain,
+            "--trc",
+            "/share/gen/trcs/ISD1-B1-S1.trc",
+        )
         logger.info(str(verify_out).rstrip("\n"))
 
         renewed_chain = read_file(chain_name)
         renewed_key = read_file("cp-as.key")
         if renewed_chain == old_chain:
-            raise Exception(
-                "renewed chain does not differ from previous chain")
+            raise Exception("renewed chain does not differ from previous chain")
         if renewed_key == old_key:
             raise Exception("renewed key does not differ from previous key")
 
@@ -157,30 +165,31 @@ class Test(base.TestTopogen):
                 conn.request("GET", "/signer")
                 resp = conn.getresponse()
                 if resp.status != 200:
-                    logger.info("Unexpected response: %d %s", resp.status,
-                                resp.reason)
+                    logger.info("Unexpected response: %d %s", resp.status, resp.reason)
                     continue
 
                 isd_as = ISD_AS(cs_config.stem[2:-2])
                 as_dir = self._to_as_dir(isd_as)
-                chain_name = "ISD%s-AS%s.pem" % (isd_as.isd_str(),
-                                                 isd_as.as_file_fmt())
+                chain_name = "ISD%s-AS%s.pem" % (isd_as.isd_str(), isd_as.as_file_fmt())
 
                 pld = json.loads(resp.read().decode("utf-8"))
                 if pld["subject_key_id"] != self._extract_skid(
-                        as_dir / "crypto/as" / chain_name):
+                    as_dir / "crypto/as" / chain_name
+                ):
                     continue
                 logger.info(
                     "Control server successfully loaded new key and certificate: %s"
-                    % self._rel(cs_config))
+                    % self._rel(cs_config)
+                )
                 not_ready.remove(cs_config)
             if not not_ready:
                 break
             time.sleep(3)
         else:
             logger.error(
-                "Control servers without reloaded key and certificate: %s" %
-                [cs_config.name for cs_config in not_ready])
+                "Control servers without reloaded key and certificate: %s"
+                % [cs_config.name for cs_config in not_ready]
+            )
             sys.exit(1)
 
     def _http_endpoint(self, cs_config: pathlib.Path):
@@ -190,12 +199,14 @@ class Test(base.TestTopogen):
 
     def _extract_skid(self, file: pathlib.Path):
         out = subprocess.check_output(
-            ['openssl', 'x509', '-in', file, '-noout', '-text'])
+            ["openssl", "x509", "-in", file, "-noout", "-text"]
+        )
         lines = out.splitlines()
         for i, v in enumerate(lines):
             if v.decode("utf-8").find("Subject Key Identifier") > -1:
-                skid = lines[i + 1].decode("utf-8").split()[-1].replace(
-                    ":", " ").upper()
+                skid = (
+                    lines[i + 1].decode("utf-8").split()[-1].replace(":", " ").upper()
+                )
                 break
         return skid
 
@@ -203,19 +214,15 @@ class Test(base.TestTopogen):
         return path.relative_to(pathlib.Path(self.artifacts))
 
     def _to_as_dir(self, isd_as: ISD_AS) -> pathlib.Path:
-        return pathlib.Path("%s/gen/AS%s" %
-                            (self.artifacts, isd_as.as_file_fmt()))
+        return pathlib.Path("%s/gen/AS%s" % (self.artifacts, isd_as.as_file_fmt()))
 
     def _cs_configs(self) -> List[pathlib.Path]:
-        return list(
-            pathlib.Path("%s/gen" %
-                         self.artifacts).glob("AS*/cs*.toml"))
+        return list(pathlib.Path("%s/gen" % self.artifacts).glob("AS*/cs*.toml"))
 
     def _local_flags(self, isd_as: ISD_AS) -> List[str]:
         return [
             "--local",
-            self.execute_tester(isd_as, "sh", "-c",
-                                "echo $SCION_LOCAL_ADDR").strip(),
+            self.execute_tester(isd_as, "sh", "-c", "echo $SCION_LOCAL_ADDR").strip(),
         ]
 
 

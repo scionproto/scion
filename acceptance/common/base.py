@@ -68,27 +68,37 @@ class TestBase(ABC):
     during setup.
     """
 
-    @cli.switch("executable", NameExecutable, list=True,
-                help="Paths for executables, format name:path")
+    @cli.switch(
+        "executable",
+        NameExecutable,
+        list=True,
+        help="Paths for executables, format name:path",
+    )
     def _set_executables(self, executables):
         self.executables = {name: executable for (name, executable) in executables}
 
-    container_loaders = cli.SwitchAttr("container-loader", ContainerLoader, list=True,
-                                       help="Container loader, format tag#path")
+    container_loaders = cli.SwitchAttr(
+        "container-loader",
+        ContainerLoader,
+        list=True,
+        help="Container loader, format tag#path",
+    )
 
-    artifacts = cli.SwitchAttr("artifacts-dir",
-                               LocalPath,
-                               envname="TEST_UNDECLARED_OUTPUTS_DIR",
-                               default=LocalPath("/tmp/artifacts-scion"),
-                               help="Directory for test artifacts. " +
-                                    "Environment variable TEST_UNDECLARED_OUTPUTS_DIR")
+    artifacts = cli.SwitchAttr(
+        "artifacts-dir",
+        LocalPath,
+        envname="TEST_UNDECLARED_OUTPUTS_DIR",
+        default=LocalPath("/tmp/artifacts-scion"),
+        help="Directory for test artifacts. "
+        + "Environment variable TEST_UNDECLARED_OUTPUTS_DIR",
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._setup_prepare_failed = False
 
     def init(self):
-        """ init is called first. The Test object can be initialized here.
+        """init is called first. The Test object can be initialized here.
         The cli parameters have already been parsed when this is called (contrasting to __init__).
         """
         pass
@@ -113,15 +123,22 @@ class TestBase(ABC):
         pass
 
     def setup_prepare(self):
-        """Unpacks loads local docker images and generates the topology.
-        """
+        """Unpacks loads local docker images and generates the topology."""
         docker.assert_no_networks()
         self._setup_artifacts()
         self._setup_container_loaders()
         # Define where coredumps will be stored.
         print(
-            cmd.docker("run", "--rm", "--privileged", "alpine", "sysctl", "-w",
-                       "kernel.core_pattern=/share/coredump"))
+            cmd.docker(
+                "run",
+                "--rm",
+                "--privileged",
+                "alpine",
+                "sysctl",
+                "-w",
+                "kernel.core_pattern=/share/coredump",
+            )
+        )
 
     def setup_start(self):
         pass
@@ -139,7 +156,7 @@ class TestBase(ABC):
             if idx < 0:
                 logger.error("extracting tag from loader script %s" % tag)
                 continue
-            bazel_tag = o[idx+len("as "):].strip()
+            bazel_tag = o[idx + len("as ") :].strip()
             logger.info("docker tag %s %s" % (bazel_tag, tag))
             cmd.docker("tag", bazel_tag, tag)
 
@@ -153,9 +170,12 @@ class TestBase(ABC):
 
 
 class TestTopogen(TestBase):
-    topo = cli.SwitchAttr("topo", cli.ExistingFile, help="Config file for topogen, .topo")
-    setup_params = cli.SwitchAttr("setup-params", str, list=True,
-                                  help="Additional parameters for topogen")
+    topo = cli.SwitchAttr(
+        "topo", cli.ExistingFile, help="Config file for topogen, .topo"
+    )
+    setup_params = cli.SwitchAttr(
+        "setup-params", str, list=True, help="Additional parameters for topogen"
+    )
 
     def init(self):
         super().init()
@@ -167,6 +187,7 @@ class TestTopogen(TestBase):
 
     def _setup_generate(self):
         """Generate the topology"""
+
         def copy_file(src, dst):
             cmd.mkdir("-p", os.path.dirname(dst))
             cmd.cp("-L", src, dst)
@@ -190,12 +211,10 @@ class TestTopogen(TestBase):
                 *self.setup_params,
             )
         for support_dir in ["logs", "gen-cache", "gen-data", "traces"]:
-            os.makedirs(self.artifacts / support_dir,
-                        exist_ok=True)
+            os.makedirs(self.artifacts / support_dir, exist_ok=True)
 
     def setup_start(self):
-        """Starts the docker containers in the topology.
-        """
+        """Starts the docker containers in the topology."""
         print(self.dc("up", "-d"))
         ps = self.dc("ps")
         print(ps)

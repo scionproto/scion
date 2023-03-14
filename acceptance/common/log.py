@@ -16,5 +16,5 @@ import logging
 
 
 def init_log():
-    fmt = '%(asctime)-15s [%(levelname)-8s] %(message)s'
-    logging.basicConfig(format=fmt, level='INFO')
+    fmt = "%(asctime)-15s [%(levelname)-8s] %(message)s"
+    logging.basicConfig(format=fmt, level="INFO")

@@ -83,15 +83,23 @@ class Test(base.TestTopogen):
         # the computed configuration URL
         for as_number in as_numbers:
             hp_config_url = "http://%s:%d/acceptance/hidden_paths/testdata/%s" % (
-                server_ips[as_number], self.http_server_port, hp_configs[as_number])
+                server_ips[as_number],
+                self.http_server_port,
+                hp_configs[as_number],
+            )
 
-            daemon_path = self.artifacts / "gen" / ("ASff00_0_%s" % as_number) \
-                / "sd.toml"
+            daemon_path = (
+                self.artifacts / "gen" / ("ASff00_0_%s" % as_number) / "sd.toml"
+            )
             scion.update_toml({"sd.hidden_path_groups": hp_config_url}, [daemon_path])
 
             control_id = "cs1-ff00_0_%s-1" % as_number
-            control_path = self.artifacts / "gen" / ("ASff00_0_%s" % as_number) \
+            control_path = (
+                self.artifacts
+                / "gen"
+                / ("ASff00_0_%s" % as_number)
                 / ("%s.toml" % control_id)
+            )
             scion.update_toml({"path.hidden_paths_cfg": hp_config_url}, [control_path])
 
             # For simplicity, expose the services in all hidden paths ASes,
@@ -99,17 +107,18 @@ class Test(base.TestTopogen):
             as_dir_path = self.artifacts / "gen" / ("ASff00_0_%s" % as_number)
 
             topology_update = {
-                "hidden_segment_lookup_service.%s.addr" % control_id:
-                    control_addresses[as_number],
-                "hidden_segment_registration_service.%s.addr" % control_id:
-                    control_addresses[as_number],
+                "hidden_segment_lookup_service.%s.addr"
+                % control_id: control_addresses[as_number],
+                "hidden_segment_registration_service.%s.addr"
+                % control_id: control_addresses[as_number],
             }
             topology_file = as_dir_path / "topology.json"
             scion.update_json(topology_update, [topology_file])
 
     def setup_start(self):
         server = http.server.HTTPServer(
-                ("0.0.0.0", self.http_server_port), http.server.SimpleHTTPRequestHandler)
+            ("0.0.0.0", self.http_server_port), http.server.SimpleHTTPRequestHandler
+        )
         server_thread = threading.Thread(target=configuration_server, args=[server])
         server_thread.start()
 
@@ -149,10 +158,19 @@ class Test(base.TestTopogen):
         self._showpaths_run(destination, source, retcode)
 
     def _showpaths_run(self, source_as: str, destination_as: str, retcode: int):
-        print(cmd.docker("exec", "-t", self._testers[source_as], "scion",
-                         "sp", self._ases[destination_as],
-                         "--timeout", "2s",
-                         retcode=retcode))
+        print(
+            cmd.docker(
+                "exec",
+                "-t",
+                self._testers[source_as],
+                "scion",
+                "sp",
+                self._ases[destination_as],
+                "--timeout",
+                "2s",
+                retcode=retcode,
+            )
+        )
 
 
 def configuration_server(server):

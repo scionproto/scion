@@ -74,10 +74,10 @@ def _clean_isd_as(isd_as_str):
     """
     m = _RE_ISD_AS.match(isd_as_str)
     if not m:
-        raise ValueError('Invalid ISD-AS', isd_as_str)
+        raise ValueError("Invalid ISD-AS", isd_as_str)
     isd = int(m.group(1), 10)
     if isd >= 2**16:
-        raise ValueError('Invalid ISD-AS, ISD out of range', isd_as_str)
+        raise ValueError("Invalid ISD-AS, ISD out of range", isd_as_str)
     hig = int(m.group(2), 16)
     mid = int(m.group(3), 16)
     low = int(m.group(4), 16)

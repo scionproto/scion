@@ -21,13 +21,15 @@ def rule_to_file(rule: str) -> Tuple[str, str]:
     if ":" not in rule:
         raise ValueError("invalid rule name: '%s', must contain :" % rule)
     package = rule.split(":")[0][2:]
-    return (os.path.join('bazel-bin', package, "mock.go"),
-            os.path.join(package, "mock.go"))
+    return (
+        os.path.join("bazel-bin", package, "mock.go"),
+        os.path.join(package, "mock.go"),
+    )
 
 
 def mock_rules() -> List[str]:
-    bazel = plumbum.local['bazel']
-    raw_rules = bazel("query", "filter(\"go_default_mock$\", kind(gomock, //...))")
+    bazel = plumbum.local["bazel"]
+    raw_rules = bazel("query", 'filter("go_default_mock$", kind(gomock, //...))')
     return raw_rules.splitlines()
 
 
@@ -44,7 +46,7 @@ class GoMocks(cli.Application):
 
     def update_files(self):
         rules = mock_rules()
-        bazel = plumbum.local['bazel']
+        bazel = plumbum.local["bazel"]
         print("building mock files...")
         bazel("build", rules)
         for rule in rules:
@@ -59,9 +61,10 @@ class Diff(GoMocks):
     """
     Checks the difference between generated files and the files in the worktree.
     """
+
     def main(self):
         rules = mock_rules()
-        bazel = plumbum.local['bazel']
+        bazel = plumbum.local["bazel"]
         bazel("build", rules)
         for rule in rules:
             bf, wf = rule_to_file(rule)
@@ -76,10 +79,18 @@ class Add(GoMocks):
     rule, all interfaces need to be specified.
     """
 
-    package = cli.SwitchAttr("--package", str, mandatory=True,
-                             help="The package directory, relatively to the SCION root dir")
-    interfaces = cli.SwitchAttr("--interfaces", str, mandatory=True,
-                                help="The interfaces to mock, separated by comma")
+    package = cli.SwitchAttr(
+        "--package",
+        str,
+        mandatory=True,
+        help="The package directory, relatively to the SCION root dir",
+    )
+    interfaces = cli.SwitchAttr(
+        "--interfaces",
+        str,
+        mandatory=True,
+        help="The interfaces to mock, separated by comma",
+    )
 
     def main(self):
         self.package = self.package.rstrip("/")
@@ -96,11 +107,17 @@ gomock(
     library = "//%s:go_default_library",
     package = "mock_%s",
 )
-""" % (self.interfaces.split(","), self.package, name)
+""" % (
+            self.interfaces.split(","),
+            self.package,
+            name,
+        )
         pathlib.Path(mock_path).mkdir(parents=True, exist_ok=True)
         pathlib.Path(mock_path / "BUILD.bazel").write_text(buildscript)
-        mock_rule = "//%s:go_default_mock" % os.path.join(self.package, "mock_%s" % name)
-        bazel = plumbum.local['bazel']
+        mock_rule = "//%s:go_default_mock" % os.path.join(
+            self.package, "mock_%s" % name
+        )
+        bazel = plumbum.local["bazel"]
         bazel("build", mock_rule)
         bf, wf = rule_to_file(mock_rule)
         cmd.cp(bf, wf)
