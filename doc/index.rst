@@ -36,6 +36,7 @@ This section explains the ideas and concepts of SCION.
    Cryptography <cryptography/index>
    hidden-paths
    beacon-metadata
+   glossary
 
 * **Overview (TODO)**: |
   SCION |
