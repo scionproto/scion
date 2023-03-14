@@ -32,7 +32,9 @@ __pycache__
 
 # VSCode folder
 #########################
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 
 # build files
 #########################

@@ -3,6 +3,8 @@
 The path policy language will be used by the path server, SCIOND and the beacon server for different
 but overlapping purposes.
 
+(HopPredicate)=
+
 ## Hop Predicate (HP)
 
 A hop predicate is of the form **ISD-AS#IF,IF**. The first **IF** means the inbound interface
@@ -30,10 +32,10 @@ Examples:
 
 A policy is defined by a policy object. It can have the following attributes:
 
-- [`extends`](#Extends) (list of extended policies)
-- [`acl`](#ACL) (list of HPs, preceded by `+` or `-`)
-- [`sequence`](#Sequence) (space separated list of HPs, may contain operators)
-- [`options`](#Options) (list of option policies)
+- [`extends`](#extends) (list of extended policies)
+- [`acl`](#acl) (list of HPs, preceded by `+` or `-`)
+- [`sequence`](#sequence) (space separated list of HPs, may contain operators)
+- [`options`](#options) (list of option policies)
     - `weight` (importance level, only valid under `options`)
     - `policy` (a policy object)
 
@@ -63,7 +65,8 @@ Planned:
 - `-` (deny predicate)
 
 The ACL can be used to deny (blacklist) or allow (whitelist) ISDs, ASes and IFs. A deny entry is of
-the following form `- ISD-AS#IF`, where the second part is a [HP](#HP). If a deny entry matches any
+the following form `- ISD-AS#IF`, where the second part is a
+{ref}`HopPredicate`. If a deny entry matches any
 hop on a path, the path is not allowed.
 
 An allow entry uses `+` with a HP, ie. `+ ISD-AS#IF`. For a path to be allowed, every hop of the
@@ -101,7 +104,7 @@ Planned:
 - `!` (logical NOT)
 - `&` (logical AND)
 
-The sequence is a string of space separated HPs. The [operators](#Operators) can be used for
+The sequence is a string of space separated HPs. The [operators](#operators) can be used for
 advanced interface sequences.
 
 The following example specifies a path from any interface in AS _1-ff00:0:133_ to two subsequent

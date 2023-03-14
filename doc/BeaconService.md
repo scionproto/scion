@@ -1,12 +1,10 @@
 # Beacon Service Design
 
-​
+:::{warning}
 
----
-⚠️  **NOTE** ⚠️<br/>
 Outdated contents! This document is kept for historical purpose.
 
----
+:::
 
 ## Overview
 

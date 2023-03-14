@@ -1,0 +1,99 @@
+{
+    //////////////////////
+    // Editor
+    //////////////////////
+    "rewrap.wrappingColumn": 80,
+    "breadcrumbs.enabled": true,
+    "files.eol": "\n",
+    "files.insertFinalNewline": true,
+
+    //////////////////////
+    // Go
+    //////////////////////
+    "[go]": {
+        "editor.snippetSuggestions": "none",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": true
+        }
+    },
+    "gopls": {
+        "formatting.local": "github.com/scionproto/scion",
+        "usePlaceholders": true, // add parameter placeholders when completing a function
+        "build.directoryFilters": [
+            "-bazel-bin",
+            "-bazel-out",
+            "-venv",
+            "-bazel-testlogs"
+        ],
+        // Experimental settings
+        "completeUnimported": true, // autocomplete unimported packages
+        "deepCompletion": true // enable deep completion
+    },
+
+    //////////////////////
+    // Python
+    //////////////////////
+    "python.languageServer": "Pylance",
+    "python.analysis.exclude": [
+        "**/.bazel-*/**",
+        "**/.idea/**",
+        "**/.git/objects/**",
+        "**/.git/subtree-cache/**",
+        "**/.venvs/**",
+        "**/bazel-*/**"
+    ],
+    "python.envFile": "${workspaceFolder}/.vscode/.env",
+
+    //////////////////////
+    // Prettier
+    //////////////////////
+    "prettier.documentSelectors": ["**/*.json"],
+    "[json]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[jsonc]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+
+    //////////////////////
+    // Files, Search
+    //////////////////////
+    "files.associations": {
+        "*.topo": "yaml"
+    },
+    "files.watcherExclude": {
+        "**/.bazel-*/**": true,
+        "**/.idea/**": true,
+        "**/.git/objects/**": true,
+        "**/.git/subtree-cache/**": true,
+        "**/.venvs/**": true,
+        "**/bazel-*/**": true,
+        "**/gen-cache/**": true,
+        "gen*/**": true,
+        "**/logs/**": true,
+        "**/node_modules/**": true
+    },
+    "search.exclude": {
+        "**/.bazel-*/**": true,
+        "**/.idea/**": true,
+        "**/.git/objects/**": true,
+        "**/.git/subtree-cache/**": true,
+        "**/.venvs/**": true,
+        "**/bazel-*/**": true,
+        "**/gen-cache/**": true,
+        "**/logs/**": true,
+        "**/node_modules/**": true
+    },
+    "search.followSymlinks": false,
+
+    //////////////////////
+    // Docker
+    //////////////////////
+    "docker.containers.sortBy": "Label",
+
+    //////////////////////
+    // GitHub
+    //////////////////////
+    "githubPullRequests.pullBranch": "never"
+}

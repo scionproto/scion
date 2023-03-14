@@ -1,0 +1,29 @@
+{
+    "globs": ["**/*.md"],
+    "ignores": [
+        "**/node_modules/**",
+        "**/venv/**",
+        "licenses/data/**",
+        "**/_build/**"
+    ],
+    "config": {
+        "default": true,
+        "MD013": {
+            "line_length": 100,
+            "code_blocks": false,
+            "tables": false
+        },
+        "MD007": {
+            "indent": 4
+        },
+        "MD024": {
+            "allow_different_nesting": true
+        },
+        "MD030": {
+            "ol_multi": 1,
+            "ul_multi": 1,
+            "ol_single": 1,
+            "ul_single": 1
+        }
+    }
+}

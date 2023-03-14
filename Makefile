@@ -117,5 +117,4 @@ lint-doc: lint-doc-mdlint
 
 lint-doc-mdlint:
 	$(info ==> $@)
-	@FILES=$$(find -type f -iname '*.md' -not -path "./rules_openapi/tools/node_modules/*" -not -path "./.github/**/*" | grep -vf tools/md/skipped); \
-		docker run --rm -v ${PWD}:/data -v ${PWD}/tools/md/mdlintstyle.rb:/style.rb $$(docker build -q tools/md) $${FILES} -s /style.rb
+	docker run -v ${PWD}:/workdir davidanson/markdownlint-cli2:v0.6.0

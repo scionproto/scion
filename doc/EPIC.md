@@ -26,12 +26,12 @@ plane packets of other hosts. Because the MACs are static, once
 observed MACs for some path can be reused by the adversary to send
 arbitrarily many other packets (until the authenticators expire).
 
-The EPIC (Every Packet Is Checked) protocol [[1]](#1) solves this
+The EPIC (Every Packet Is Checked) protocol {ref}`[1]<references>` solves this
 problem by introducing per-packet MACs.
 Even if an adversary is able to discover the MACs for one packet, he
 cannot reuse the MACs to send any other traffic.
 The improved path authorization provided by EPIC is especially
-important for hidden paths [[2]](#2). Hidden paths are paths which
+important for hidden paths {ref}`[2]<references>`. Hidden paths are paths which
 are not publicly announced, but only communicated to a group of
 authorized sources. If one of those sources sends traffic on the
 hidden path using SCION path type packets, an on-path adversary can
@@ -82,19 +82,17 @@ meaningful level of security:
   hidden path, the last two ASes employ one of two different
   strategies in the data plane:
 
-    - Only allow EPIC-HP path type traffic. See use case "Highly
-      Secure Hidden Paths" [here](#HighlySecureHiddenPaths). The path
-      type filtering is further explained [here](#PathTypeFiltering).
-    - Prioritize EPIC-HP path type traffic. See use case "DOS-Secure
-      Hidden Paths" [here](#DOSSecureHiddenPaths).
+    - Only allow EPIC-HP path type traffic. See use case {ref}`HighlySecureHiddenPaths`.
+      The path type filtering is further explained in {ref}`PathTypeFiltering`.
+    - Prioritize EPIC-HP path type traffic. See use case {ref}`DOSSecureHiddenPaths`.
 
 - The last two ASes of the hidden path have a duplicate-suppression
-  system in place [[3]](#3). This prohibits DOS attacks based on replayed
+  system in place {ref}`[3]<references>`. This prohibits DOS attacks based on replayed
   packets.
 
 ### Example
 
-![](fig/EPIC/path-type-filtering-small.png).
+![path type filtering figure](fig/EPIC/path-type-filtering-small.png).
 
 Here, AS 6 is the AS protected by the hidden path (blue lines). The
 hidden path terminates at AS 6 (represented by black dot), so AS 6
@@ -156,9 +154,11 @@ The last AS on the path needs to distribute the authenticators to
 the set of trusted sources that should be able to send EPIC-HP
 traffic over the hidden link. This can be done over any secure
 channel, for example using secure end-to-end protocols, out-of-band
-communication, or the dedicated hidden path infrastructure [[2]](#2).
+communication, or the dedicated hidden path infrastructure {ref}`[2]<references>`.
 
-### <a id="PathTypeFiltering"></a> Path Type Filtering
+(PathTypeFiltering)=
+
+### Path Type Filtering
 
 Network operators should be able to clearly define which kind of
 traffic (SCION, EPIC-HP, COLIBRI, and other protocols) they want to
@@ -174,7 +174,8 @@ not apply any filtering for traffic from interface 2 to interface 1.
 
 There are two main applications for EPIC-HP:
 
-<a id="HighlySecureHiddenPaths"></a>
+(HighlySecureHiddenPaths)=
+
 ### Highly Secure Hidden Paths
 
 The last and penultimate ASes on the hidden path only allow EPIC-HP
@@ -195,7 +196,8 @@ packets towards hosts in other ASes, but that those hosts can not
 send a response back if they do not have the necessary
 authenticators.
 
-<a id="DOSSecureHiddenPaths"></a>
+(DOSSecureHiddenPaths)=
+
 ### DoS-Secure Hidden Paths
 
 The last and penultimate ASes on the hidden path allow EPIC-HP and
@@ -212,20 +214,22 @@ packets towards hosts in other ASes, and those hosts can reply
 with SCION path type traffic when they do not have the necessary
 authenticators to send back EPIC-HP traffic.
 
+(references)=
+
 ## References
 
-<a id="1">[1]</a>
-M. Legner, T. Klenze, M. Wyss, C. Sprenger, A. Perrig. (2020) <br>
-EPIC: Every Packet Is Checked in the Data Plane of a Path-Aware Internet <br>
+[1]
+M. Legner, T. Klenze, M. Wyss, C. Sprenger, A. Perrig. (2020)  
+EPIC: Every Packet Is Checked in the Data Plane of a Path-Aware Internet  
 Proceedings of the USENIX Security Symposium
 [[Link]](https://netsec.ethz.ch/publications/papers/Legner_Usenix2020_EPIC.pdf)
 
-<a id="2">[2]</a>
+[2]
 Design Document for the Hidden Path Infrastructure
 [[Link]](hidden-paths)
 
-<a id="3">[3]</a>
-T. Lee, C. Pappas, A. Perrig, V. Gligor, and Y. Hu. (2017) <br>
-The Case for In-Network Replay Suppression <br>
+[3]
+T. Lee, C. Pappas, A. Perrig, V. Gligor, and Y. Hu. (2017)  
+The Case for In-Network Replay Suppression  
 Proceedings of the ACM Asia Conference on Computer and Communications Security
 [[Link]](https://netsec.ethz.ch/publications/papers/replay2017.pdf)

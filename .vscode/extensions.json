@@ -1,0 +1,23 @@
+{
+    "recommendations": [
+        "DavidAnson.vscode-markdownlint",
+        "eamodio.gitlens",
+        "esbenp.prettier-vscode",
+        "GitHub.vscode-pull-request-github",
+        "golang.go",
+        "ms-azuretools.vscode-docker",
+        "ms-python.isort",
+        "ms-python.vscode-pylance",
+        "ms-vscode-remote.remote-containers",
+        "ms-vscode-remote.remote-ssh",
+        "ms-vscode-remote.remote-ssh-edit",
+        "ms-vscode.remote-explorer",
+        "ms-vsliveshare.vsliveshare",
+        "mhutchie.git-graph",
+        "shardulm94.trailing-spaces",
+        "stkb.rewrap",
+        "stackbuild.bazel-stack-vscode",
+        "wayou.vscode-todo-highlight",
+        "windmilleng.vscode-go-autotest"
+    ]
+}
