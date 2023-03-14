@@ -38,6 +38,8 @@ exclude_patterns = [
 
 master_doc = 'index'
 
+nitpicky = True
+
 option_emphasise_placeholders = True
 
 # -- extlinks definitions for links to github ---
@@ -69,6 +71,9 @@ html_theme = 'sphinx_rtd_theme'
 html_theme_options = dict(
     style_external_links=True,
 )
+
+manpages_url = "https://manpages.debian.org/{path}"
+
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

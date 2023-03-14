@@ -44,6 +44,43 @@ Command line reference
    Run :option:`router help completion [shell] <router help>` for usage information on the
    autocomplete script for a particular shell.
 
+Environment variables
+---------------------
+
+.. envvar:: SCION_EXPERIMENTAL_BFD_DISABLE
+
+   Disable :term:`BFD`, unconditionally consider the connection alive.
+
+   Applies to BFD sessions to all sibling routers (other routers in the same AS).
+   Can be overridden for specific inter-AS BFD sessions with :option:`bfd.disable <topology-json disable>`
+   in an interface entry in the ``topology.json`` configuration.
+
+.. envvar:: SCION_EXPERIMENTAL_BFD_DETECT_MULT
+
+   Set the :term:`BFD` detection time multiplier.
+
+   Default 3
+
+   Same applicability as above; can be overridden for specific inter-AS BFD sessions with
+   :option:`bfd.detect_mult <topology-json detect_mult>`.
+
+.. envvar:: SCION_EXPERIMENTAL_BFD_DESIRED_MIN_TX
+
+   Defines the frequence at which this router should send BFD control messages.
+
+   Default 200ms
+
+   Same applicability as above; can be overridden for specific inter-AS BFD sessions with
+   :option:`bfd.desired_min_tx_interval <topology-json desired_min_tx_interval>`.
+
+.. envvar:: SCION_EXPERIMENTAL_BFD_REQUIRED_MIN_RX
+
+   Defines an frequence at which this router should send BFD control messages.
+
+   Default 200ms
+
+   Same applicability as above; can be overridden for specific inter-AS BFD sessions with
+   :option:`bfd.required_min_rx_interval <topology-json required_min_rx_interval>`.
 
 Configuration
 =============
