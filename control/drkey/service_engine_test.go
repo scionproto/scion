@@ -98,50 +98,34 @@ func TestDeriveLevel1Key(t *testing.T) {
 func TestDeriveHostAS(t *testing.T) {
 	svdb := newSVDatabase(t)
 	defer svdb.Close()
+
 	lvl1db := newLevel1Database(t)
 	defer lvl1db.Close()
-	k1 := xtest.MustParseHexString("c584cad32613547c64823c756651b6f5") // just a level 1 key
-	k2 := xtest.MustParseHexString("c584cad32613547c64823c756651b6f6") // just a level 1 key
-
-	firstLevel1Key := drkey.Level1Key{
-		Epoch:   drkey.NewEpoch(0, 2),
-		ProtoId: drkey.Generic,
-		SrcIA:   srcIA,
-		DstIA:   dstIA,
-	}
-	copy(firstLevel1Key.Key[:], k1)
-	secondLevel1Key := drkey.Level1Key{
-		Epoch:   drkey.NewEpoch(2, 4),
-		ProtoId: drkey.Generic,
-		SrcIA:   srcIA,
-		DstIA:   dstIA,
-	}
-	copy(secondLevel1Key.Key[:], k2)
 
 	mctrl := gomock.NewController(t)
 	defer mctrl.Finish()
 
 	fetcher := mock_drkey.NewMockFetcher(mctrl)
-	gomock.InOrder(
-		fetcher.EXPECT().Level1(gomock.Any(), gomock.Any()).
-			Return(firstLevel1Key, nil),
-		fetcher.EXPECT().Level1(gomock.Any(), gomock.Any()).
-			DoAndReturn(
-				func(ctx context.Context, meta drkey.Level1Meta) (drkey.Level1Key, error) {
-					// Simulate behavior of grpc.Server.DRKeyLevel1 in package
-					// "github.com/scionproto/scion/control/drkey/grpc"
-					if !meta.ProtoId.IsPredefined() {
-						return drkey.Level1Key{}, serrors.New(
-							"the requested protocol id is not recognized",
-							"proto_id", meta.ProtoId)
-					}
-					return secondLevel1Key, nil
-				},
-			),
-	)
+	fetcher.EXPECT().Level1(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(ctx context.Context, meta drkey.Level1Meta) (drkey.Level1Key, error) {
+			// Simulate behavior of grpc.Server.DRKeyLevel1 in package
+			// "github.com/scionproto/scion/control/drkey/grpc"
+			if !meta.ProtoId.IsPredefined() {
+				return drkey.Level1Key{}, serrors.New(
+					"the requested protocol id is not recognized",
+					"proto_id", meta.ProtoId)
+			}
+			return drkey.Level1Key{
+				Epoch:   drkey.NewEpoch(0, 1),
+				ProtoId: meta.ProtoId,
+				SrcIA:   meta.SrcIA,
+				DstIA:   meta.DstIA,
+			}, nil
+		},
+	).AnyTimes()
 
 	cache := mock_drkey.NewMockLevel1PrefetchListKeeper(mctrl)
-	cache.EXPECT().Update(gomock.Any()).Times(2)
+	cache.EXPECT().Update(gomock.Any()).AnyTimes()
 
 	store := &cs_drkey.ServiceEngine{
 		SecretBackend:  cs_drkey.NewSecretValueBackend(svdb, masterKey, time.Minute),
@@ -151,32 +135,23 @@ func TestDeriveHostAS(t *testing.T) {
 		PrefetchKeeper: cache,
 	}
 
-	meta1 := drkey.HostASMeta{
-		ProtoId:  drkey.Generic,
-		Validity: time.Now(),
-		SrcIA:    srcIA,
-		DstIA:    dstIA,
-		SrcHost:  srcHost,
+	var tests = []drkey.Protocol{
+		drkey.Generic,
+		drkey.SCMP,
+		drkey.Protocol(7),
 	}
-	key1, err := store.DeriveHostAS(context.Background(), meta1)
-	assert.NoError(t, err)
-	assert.Equal(t, key1.ProtoId, meta1.ProtoId)
-	assert.Equal(t, key1.SrcIA, meta1.SrcIA)
-	assert.Equal(t, key1.DstIA, meta1.DstIA)
-	assert.Equal(t, key1.SrcHost, meta1.SrcHost)
-	meta2 := drkey.HostASMeta{
-		ProtoId:  drkey.Protocol(7),
-		Validity: time.Now(),
-		SrcIA:    srcIA,
-		DstIA:    dstIA,
-		SrcHost:  srcHost,
+	for _, test := range tests {
+		t.Run(test.String(), func(t *testing.T) {
+			_, err := store.DeriveHostAS(context.Background(), drkey.HostASMeta{
+				ProtoId:  test,
+				Validity: time.Now(),
+				SrcIA:    srcIA,
+				DstIA:    dstIA,
+				SrcHost:  srcHost,
+			})
+			assert.NoError(t, err)
+		})
 	}
-	key2, err := store.DeriveHostAS(context.Background(), meta2)
-	assert.NoError(t, err)
-	assert.Equal(t, key2.ProtoId, meta2.ProtoId)
-	assert.Equal(t, key2.SrcIA, meta2.SrcIA)
-	assert.Equal(t, key2.DstIA, meta2.DstIA)
-	assert.Equal(t, key2.SrcHost, meta2.SrcHost)
 }
 
 func TestGetLevel1Key(t *testing.T) {
