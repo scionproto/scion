@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/drkey"
+	"github.com/scionproto/scion/pkg/drkey/generic"
 	"github.com/scionproto/scion/pkg/drkey/specific"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
@@ -44,6 +45,7 @@ func main() {
 func realMain() int {
 	var serverMode bool
 	var serverAddrStr, clientAddrStr string
+	var protocol uint16
 	var scionEnv env.SCIONEnvironment
 
 	scionEnv.Register(flag.CommandLine)
@@ -51,6 +53,7 @@ func realMain() int {
 		" (default: demonstrate client-side key fetching)")
 	flag.StringVar(&serverAddrStr, "server-addr", "", "SCION address for the server-side.")
 	flag.StringVar(&clientAddrStr, "client-addr", "", "SCION address for the client-side.")
+	flag.Uint16Var(&protocol, "protocol", 0, "DRKey protocol identifier.")
 	flag.Parse()
 	if err := scionEnv.LoadExternalVars(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error reading SCION environment:", err)
@@ -75,7 +78,7 @@ func realMain() int {
 
 	// meta describes the key that both client and server derive
 	meta := drkey.HostHostMeta{
-		ProtoId: drkey.SCMP,
+		ProtoId: drkey.Protocol(protocol),
 		// Validity timestamp; both sides need to use a validity time stamp in the same epoch.
 		// Usually this is coordinated by means of a timestamp in the message.
 		Validity: time.Now(),
@@ -99,28 +102,51 @@ func realMain() int {
 		// Server: get the Secret Value (SV) for the protocol and derive all
 		// subsequent keys in-process
 		server := Server{daemon}
-		// Fetch the Secret Value (SV); in a real application, this is only done at
-		// startup and refreshed for each epoch.
-		sv, err := server.fetchSV(ctx, drkey.SecretValueMeta{
-			Validity: meta.Validity,
-			ProtoId:  meta.ProtoId,
-		})
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error fetching secret value:", err)
-			return 1
+		var serverKey drkey.HostHostKey
+		var durationServer time.Duration
+		if meta.ProtoId.IsPredefined() {
+			// Fetch the Secret Value (SV); in a real application, this is only done at
+			// startup and refreshed for each epoch.
+			sv, err := server.FetchSV(ctx, drkey.SecretValueMeta{
+				ProtoId:  meta.ProtoId,
+				Validity: meta.Validity,
+			})
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error fetching secret value:", err)
+				return 1
+			}
+			t0 := time.Now()
+			serverKey, err = server.DeriveHostHostKeySpecific(sv, meta)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error deriving key:", err)
+				return 1
+			}
+			durationServer = time.Since(t0)
+		} else {
+			// Fetch host-AS key (Level 2) in a real application, this is only done at
+			// startup or on demand and refreshed for each epoch.
+			hostASKey, err := server.FetchHostASKey(ctx, drkey.HostASMeta{
+				ProtoId:  meta.ProtoId,
+				Validity: meta.Validity,
+				SrcIA:    meta.SrcIA,
+				DstIA:    meta.DstIA,
+				SrcHost:  meta.SrcHost,
+			})
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error fetching host-AS key:", err)
+				return 1
+			}
+			t0 := time.Now()
+			serverKey, err = server.DeriveHostHostKeyGeneric(hostASKey, meta)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error deriving key:", err)
+				return 1
+			}
+			durationServer = time.Since(t0)
 		}
-		t0 := time.Now()
-		serverKey, err := server.DeriveHostHostKey(sv, meta)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error deriving key:", err)
-			return 1
-		}
-		durationServer := time.Since(t0)
-
 		fmt.Printf(
-			"Server,\thost key = %s\tduration = %s\n",
-			hex.EncodeToString(serverKey.Key[:]),
-			durationServer,
+			"Server,\thost key = %s\tprotocol = %s\tduration = %s\n",
+			hex.EncodeToString(serverKey.Key[:]), meta.ProtoId, durationServer,
 		)
 	} else {
 		// Client: fetch key from daemon
@@ -137,9 +163,8 @@ func realMain() int {
 		durationClient := time.Since(t0)
 
 		fmt.Printf(
-			"Client,\thost key = %s\tduration = %s\n",
-			hex.EncodeToString(clientKey.Key[:]),
-			durationClient,
+			"Client,\thost key = %s\tprotocol = %s\tduration = %s\n",
+			hex.EncodeToString(clientKey.Key[:]), meta.ProtoId, durationClient,
 		)
 	}
 	return 0
@@ -152,7 +177,7 @@ type Client struct {
 func (c Client) FetchHostHostKey(
 	ctx context.Context, meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
 
-	// get L2 key: (slow path)
+	// get level 3 key: (slow path)
 	return c.daemon.DRKeyGetHostHostKey(ctx, meta)
 }
 
@@ -160,7 +185,7 @@ type Server struct {
 	daemon daemon.Connector
 }
 
-func (s Server) DeriveHostHostKey(
+func (s Server) DeriveHostHostKeySpecific(
 	sv drkey.SecretValue,
 	meta drkey.HostHostMeta,
 ) (drkey.HostHostKey, error) {
@@ -189,11 +214,34 @@ func (s Server) DeriveHostHostKey(
 	}, nil
 }
 
-// fetchSV obtains the Secret Value (SV) for the selected protocol/epoch.
+func (s Server) DeriveHostHostKeyGeneric(
+	hostAS drkey.HostASKey,
+	meta drkey.HostHostMeta,
+) (drkey.HostHostKey, error) {
+
+	deriver := generic.Deriver{
+		Proto: hostAS.ProtoId,
+	}
+	hosthost, err := deriver.DeriveHostHost(meta.DstHost, hostAS.Key)
+	if err != nil {
+		return drkey.HostHostKey{}, serrors.WrapStr("deriving host-host key", err)
+	}
+	return drkey.HostHostKey{
+		ProtoId: hostAS.ProtoId,
+		Epoch:   hostAS.Epoch,
+		SrcIA:   meta.SrcIA,
+		DstIA:   meta.DstIA,
+		SrcHost: meta.SrcHost,
+		DstHost: meta.DstHost,
+		Key:     hosthost,
+	}, nil
+}
+
+// FetchSV obtains the Secret Value (SV) for the selected protocol/epoch.
 // From this SV, all keys for this protocol/epoch can be derived locally.
 // The IP address of the server must be explicitly allowed to abtain this SV
 // from the the control server.
-func (s Server) fetchSV(
+func (s Server) FetchSV(
 	ctx context.Context,
 	meta drkey.SecretValueMeta,
 ) (drkey.SecretValue, error) {
@@ -255,4 +303,11 @@ func getSecretFromReply(
 	}
 	copy(returningKey.Key[:], rep.Key)
 	return returningKey, nil
+}
+
+func (s Server) FetchHostASKey(
+	ctx context.Context, meta drkey.HostASMeta) (drkey.HostASKey, error) {
+
+	// get level 2 key: (fast path)
+	return s.daemon.DRKeyGetHostASKey(ctx, meta)
 }
