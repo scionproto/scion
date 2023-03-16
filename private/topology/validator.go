@@ -19,7 +19,6 @@ import (
 	"sync"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
-	jsontopo "github.com/scionproto/scion/private/topology/json"
 )
 
 // DefaultValidator is the default topology update validator.
@@ -200,16 +199,4 @@ func (v *routerValidator) Immutable(new, old *RWTopology) error {
 			old.BR[v.id].InternalAddr, "actual", new.BR[v.id].InternalAddr)
 	}
 	return nil
-}
-
-func attributesEqual(a, b []jsontopo.Attribute) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
