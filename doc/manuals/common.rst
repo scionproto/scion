@@ -62,15 +62,26 @@ topology.json
 
 The ``topology.json`` file of an AS specifies all the inter-AS connections to neighboring ASes, and
 defines the underlay IP/UDP addresses of services and routers running in this AS.
+The topology information is needed by :doc:`router` and :doc:`control` instances, and also by
+end-host applications (including the :doc:`gateway`) which usually obtain it indirectly from the
+:doc:`daemon` running on the same host.
 
-First, the structure of the configuration is presented as a pseudo-JSON.
-The more detailed explanation of the individual fields can be found below.
+.. Note::
+
+   The topology.json configuration file contains information that is not relevant for all consumers
+   of the file.
+
+The structure of the configuration is presented as a pseudo-JSON with a more detailed explanation
+of the individual fields below.
+
 
 ..
-   Note: use YAML syntax highlighting for JSON because this allows annotation comments and
+   Comment: use YAML syntax highlighting for JSON because this allows annotation comments and
    accidentally gives pretty nice coloring for placeholders.
 
 .. code-block:: yaml
+   :caption: Pseudo-JSON description of the structure of the ``topology.json`` configuration file.
+   :name: topology-json-structure
 
    {
       "isd_as": <isd-as>,
@@ -99,9 +110,11 @@ The more detailed explanation of the individual fields can be found below.
       },
    }
 
-Each ``interfaces`` entry defines one inter-domain link to a neighboring AS.
+
 
 .. code-block:: yaml
+   :caption: Each ``interfaces`` entry defines one inter-domain link to a neighboring AS.
+   :name: topology-json-interface-entry
 
    <interface-id>: {
       "isd_as": <neighbor-isd-as>,

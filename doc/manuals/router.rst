@@ -66,7 +66,7 @@ Environment variables
 
 .. envvar:: SCION_EXPERIMENTAL_BFD_DESIRED_MIN_TX
 
-   Defines the frequence at which this router should send BFD control messages.
+   Defines the frequence at which this router should send :term:`BFD` control messages.
 
    Default 200ms
 
@@ -75,7 +75,7 @@ Environment variables
 
 .. envvar:: SCION_EXPERIMENTAL_BFD_REQUIRED_MIN_RX
 
-   Defines an frequence at which this router should send BFD control messages.
+   Defines an frequence at which this router should send :term:`BFD` control messages.
 
    Default 200ms
 
