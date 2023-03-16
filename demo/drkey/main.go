@@ -53,7 +53,7 @@ func realMain() int {
 		" (default: demonstrate client-side key fetching)")
 	flag.StringVar(&serverAddrStr, "server-addr", "", "SCION address for the server-side.")
 	flag.StringVar(&clientAddrStr, "client-addr", "", "SCION address for the client-side.")
-	flag.Uint16Var(&protocol, "protocol", 0, "DRKey protocol identifier.")
+	flag.Uint16Var(&protocol, "protocol", 1 /* SCMP */, "DRKey protocol identifier.")
 	flag.Parse()
 	if err := scionEnv.LoadExternalVars(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error reading SCION environment:", err)
