@@ -37,6 +37,7 @@ var (
 	masterKey = xtest.MustParseHexString("305554050357005ae398259bcdae7468")
 	srcIA     = xtest.MustParseIA("1-ff00:0:112")
 	dstIA     = xtest.MustParseIA("1-ff00:0:111")
+	srcHost   = "10.1.1.12"
 )
 
 func TestGetSV(t *testing.T) {
@@ -92,6 +93,69 @@ func TestDeriveLevel1Key(t *testing.T) {
 	assert.Equal(t, meta.DstIA, key.DstIA)
 	assert.Equal(t, meta.ProtoId, key.ProtoId)
 	assert.WithinDuration(t, key.Epoch.NotBefore, meta.Validity, time.Minute)
+}
+
+func TestDeriveHostAS(t *testing.T) {
+	svdb := newSVDatabase(t)
+	defer svdb.Close()
+
+	lvl1db := newLevel1Database(t)
+	defer lvl1db.Close()
+
+	mctrl := gomock.NewController(t)
+	defer mctrl.Finish()
+
+	fetcher := mock_drkey.NewMockFetcher(mctrl)
+	fetcher.EXPECT().Level1(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(ctx context.Context, meta drkey.Level1Meta) (drkey.Level1Key, error) {
+			// Simulate behavior of grpc.Server.DRKeyLevel1 in package
+			// "github.com/scionproto/scion/control/drkey/grpc"
+			if !meta.ProtoId.IsPredefined() {
+				return drkey.Level1Key{}, serrors.New(
+					"the requested protocol id is not recognized",
+					"proto_id", meta.ProtoId)
+			}
+			return drkey.Level1Key{
+				Epoch:   drkey.NewEpoch(0, 1),
+				ProtoId: meta.ProtoId,
+				SrcIA:   meta.SrcIA,
+				DstIA:   meta.DstIA,
+			}, nil
+		},
+	).AnyTimes()
+
+	cache := mock_drkey.NewMockLevel1PrefetchListKeeper(mctrl)
+	cache.EXPECT().Update(gomock.Any()).AnyTimes()
+
+	store := &cs_drkey.ServiceEngine{
+		SecretBackend:  cs_drkey.NewSecretValueBackend(svdb, masterKey, time.Minute),
+		LocalIA:        dstIA,
+		DB:             lvl1db,
+		Fetcher:        fetcher,
+		PrefetchKeeper: cache,
+	}
+
+	var tests = []drkey.Protocol{
+		drkey.SCMP,
+		drkey.Protocol(7),
+	}
+	for _, test := range tests {
+		t.Run(test.String(), func(t *testing.T) {
+			meta := drkey.HostASMeta{
+				ProtoId:  test,
+				Validity: time.Now(),
+				SrcIA:    srcIA,
+				DstIA:    dstIA,
+				SrcHost:  srcHost,
+			}
+			key, err := store.DeriveHostAS(context.Background(), meta)
+			assert.NoError(t, err)
+			assert.Equal(t, meta.ProtoId, key.ProtoId)
+			assert.Equal(t, meta.SrcIA, key.SrcIA)
+			assert.Equal(t, meta.DstIA, key.DstIA)
+			assert.Equal(t, meta.SrcHost, key.SrcHost)
+		})
+	}
 }
 
 func TestGetLevel1Key(t *testing.T) {
