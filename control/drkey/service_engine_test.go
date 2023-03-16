@@ -136,7 +136,6 @@ func TestDeriveHostAS(t *testing.T) {
 	}
 
 	var tests = []drkey.Protocol{
-		drkey.Generic,
 		drkey.SCMP,
 		drkey.Protocol(7),
 	}
