@@ -90,7 +90,11 @@ class Test(base.TestTopogen):
             "1",  # SCMP
             "7",  # Generic "niche" protocol
         ]:
-            # Determine addresses for test
+            # Determine server and client addresses for test.
+            # Because communication to the control services does not happen
+            # directly from the respective end hosts but via daemon processes on
+            # both sides, the IPs of the corresponding daemon hosts are used for
+            # this purpose. See also function _endhost_ip for more details.
             server_ip = self._endhost_ip(self.server_isd_as)
             client_ip = self._endhost_ip(self.client_isd_as)
             server_addr = "%s,%s" % (self.server_isd_as, server_ip)
