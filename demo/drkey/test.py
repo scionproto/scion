@@ -87,8 +87,8 @@ class Test(base.TestTopogen):
 
         # Define DRKey protocol identifiers for test
         for protocol in [
-            "1", # SCMP
-            "7", # Generic "niche" protocol
+            "1",  # SCMP
+            "7",  # Generic "niche" protocol
         ]:
             # Determine addresses for test
             server_ip = self._endhost_ip(self.server_isd_as)
@@ -109,7 +109,8 @@ class Test(base.TestTopogen):
             print(rc)
 
             # Extract printed keys from output and verify that the keys match
-            key_regex = re.compile(r"^(?:Client|Server),\s*host key\s*=\s*([a-f0-9]+)", re.MULTILINE)
+            key_regex = re.compile(
+                r"^(?:Client|Server),\s*host key\s*=\s*([a-f0-9]+)", re.MULTILINE)
             server_key_match = key_regex.search(rs)
             if server_key_match is None:
                 raise AssertionError("Key not found in server output")
