@@ -151,10 +151,10 @@ func TestDeriveHostAS(t *testing.T) {
 			}
 			key, err := store.DeriveHostAS(context.Background(), meta)
 			assert.NoError(t, err)
-			assert.Equal(t, key.ProtoId, meta.ProtoId)
-			assert.Equal(t, key.SrcIA, meta.SrcIA)
-			assert.Equal(t, key.DstIA, meta.DstIA)
-			assert.Equal(t, key.SrcHost, meta.SrcHost)
+			assert.Equal(t, meta.ProtoId, key.ProtoId)
+			assert.Equal(t, meta.SrcIA, key.SrcIA)
+			assert.Equal(t, meta.DstIA, key.DstIA)
+			assert.Equal(t, meta.SrcHost, key.SrcHost)
 		})
 	}
 }
