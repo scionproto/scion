@@ -238,7 +238,7 @@ class TopoGenerator(object):
         mtu = as_conf.get('mtu', self.args.default_mtu)
         assert mtu >= SCION_MIN_MTU, mtu
         attributes = []
-        for attr in ['authoritative', 'core', 'issuing', 'voting']:
+        for attr in ['core']:
             if as_conf.get(attr, False):
                 attributes.append(attr)
         self.topo_dicts[topo_id] = {
