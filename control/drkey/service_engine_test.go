@@ -142,14 +142,19 @@ func TestDeriveHostAS(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.String(), func(t *testing.T) {
-			_, err := store.DeriveHostAS(context.Background(), drkey.HostASMeta{
+			meta := drkey.HostASMeta{
 				ProtoId:  test,
 				Validity: time.Now(),
 				SrcIA:    srcIA,
 				DstIA:    dstIA,
 				SrcHost:  srcHost,
-			})
+			}
+			key, err := store.DeriveHostAS(context.Background(), meta)
 			assert.NoError(t, err)
+			assert.Equal(t, key.ProtoId, meta.ProtoId)
+			assert.Equal(t, key.SrcIA, meta.SrcIA)
+			assert.Equal(t, key.DstIA, meta.DstIA)
+			assert.Equal(t, key.SrcHost, meta.SrcHost)
 		})
 	}
 }
