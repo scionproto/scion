@@ -68,11 +68,12 @@ class Test(base.TestTopogen):
                 }
             }, [conf_dir / "sd.toml"])
 
-        # Enable delegation for demo "server", i.e. allow server to
-        # access the base secret value from which keys can be derived locally.
-        server_ip = self._container_ip("scion_disp_tester_%s" % self.server_isd_as.file_fmt())
-        server_cs_config = self._conf_dir(self.server_isd_as) // "cs*-1.toml"
-        scion.update_toml({"drkey.delegation.scmp": [server_ip]}, server_cs_config)
+        # Enable delegation for tester host on the fast side (server side), i.e.
+        # allow the tester host to directly request the secret value from which
+        # keys can be derived locally for any host.
+        tester_ip = self._container_ip("scion_disp_tester_%s" % self.server_isd_as.file_fmt())
+        cs_config = self._conf_dir(self.server_isd_as) // "cs*-1.toml"
+        scion.update_toml({"drkey.delegation.scmp": [tester_ip]}, cs_config)
 
     def _run(self):
         time.sleep(10)  # wait until CSes are all up and running
