@@ -2,10 +2,7 @@
   "isd_as": "1-ff00:0:110",
   "mtu": 1472,
   "attributes": [
-    "authoritative",
-    "core",
-    "issuing",
-    "voting"
+      "core"
   ],
   "border_routers": {
     "br1-ff00_0_110-1": {

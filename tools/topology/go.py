@@ -25,7 +25,7 @@ from typing import Mapping
 # SCION
 from topology.util import write_file
 from topology.common import (
-    ArgsTopoDicts,
+    ArgsBase,
     DISP_CONFIG_NAME,
     docker_host,
     prom_addr,
@@ -51,9 +51,17 @@ from topology.prometheus import (
 DEFAULT_COLIBRI_TOTAL_BW = 1000
 
 
-class GoGenArgs(ArgsTopoDicts):
-    def __init__(self, args, topo_dicts, networks: Mapping[IPNetwork, NetworkDescription]):
-        super().__init__(args, topo_dicts)
+class GoGenArgs(ArgsBase):
+    def __init__(self, args, topo_config, topo_dicts,
+                 networks: Mapping[IPNetwork, NetworkDescription]):
+        """
+        :param object args: Contains the passed command line arguments as named attributes.
+        :param dict topo_config: The parsed topology config.
+        :param dict topo_dicts: The generated topo dicts from TopoGenerator.
+        """
+        super().__init__(args)
+        self.config = topo_config
+        self.topo_dicts = topo_dicts
         self.networks = networks
 
 
@@ -95,7 +103,7 @@ class GoGenerator(object):
 
     def generate_control_service(self):
         for topo_id, topo in self.args.topo_dicts.items():
-            ca = 'issuing' in topo.get("attributes", [])
+            ca = self.args.config["ASes"][str(topo_id)].get("issuing", False)
             for elem_id, elem in topo.get("control_service", {}).items():
                 # only a single Go-BS per AS is currently supported
                 if elem_id.endswith("-1"):

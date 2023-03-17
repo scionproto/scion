@@ -41,8 +41,7 @@ func TestLoadRawFromFile(t *testing.T) {
 		TimestampHuman: "May  6 00:00:00 CET 1975",
 		IA:             "6-ff00:0:362",
 		MTU:            1472,
-		Attributes: []jsontopo.Attribute{jsontopo.Authoritative, jsontopo.AttrCore,
-			jsontopo.Issuing, jsontopo.Voting},
+		Attributes:     []jsontopo.Attribute{jsontopo.AttrCore},
 		BorderRouters: map[string]*jsontopo.BRInfo{
 			"borderrouter6-f00:0:362-1": {
 				InternalAddr: "10.1.0.1:0",
@@ -105,4 +104,12 @@ func TestLoadRawFromFile(t *testing.T) {
 			strings.TrimSpace(string(topologyBytes)),
 		)
 	})
+}
+
+func TestLoadIgnoreDeprecatedAttributes(t *testing.T) {
+	reference, err := jsontopo.LoadFromFile("testdata/topology.json")
+	require.NoError(t, err)
+	legacyFiltered, err := jsontopo.LoadFromFile("testdata/topology-deprecated-attrs.json")
+	assert.NoError(t, err)
+	assert.Equal(t, reference, legacyFiltered)
 }

@@ -134,7 +134,7 @@ class ConfigGenerator(object):
         go_gen.generate_disp()
 
     def _go_args(self, topo_dicts):
-        return GoGenArgs(self.args, topo_dicts, self.networks)
+        return GoGenArgs(self.args, self.topo_config, topo_dicts, self.networks)
 
     def _generate_jaeger(self, topo_dicts):
         args = JaegerGenArgs(self.args, topo_dicts)

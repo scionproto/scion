@@ -23,6 +23,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
@@ -32,31 +33,39 @@ import (
 type Attribute string
 
 const (
-	// Authoritative indicates an authoritative AS.
-	Authoritative Attribute = "authoritative"
 	// AttrCore indicates a core AS.
 	AttrCore Attribute = "core"
-	// Issuing indicates an issuing AS.
-	Issuing Attribute = "issuing"
-	// Voting indicates a voting AS. A voting AS must also be a core AS.
-	Voting Attribute = "voting"
 )
 
-// UnmarshalText checks that the attribute is valid. It can either be
-// "authoritative", "core", "issuing", or "voting".
+// UnmarshalText checks that the attribute is valid. It can only be "core";
+// Deprecated values "authoritative", "issuing", or "voting" are ignored.
 func (t *Attribute) UnmarshalText(b []byte) error {
 	switch Attribute(b) {
-	case Authoritative:
-		*t = Authoritative
-	case Issuing:
-		*t = Issuing
-	case Voting:
-		*t = Voting
 	case AttrCore:
 		*t = AttrCore
+	case "authoritative", "issuing", "voting":
+		// ignore
+		log.Info("topology.json; ignoring deprecated attribute value", "value", string(b))
 	default:
 		return serrors.New("invalid attribute", "input", string(b))
 	}
+	return nil
+}
+
+type Attributes []Attribute
+
+func (as *Attributes) UnmarshalJSON(b []byte) error {
+	var attrs []Attribute
+	if err := json.Unmarshal(b, &attrs); err != nil {
+		return err
+	}
+	var filtered Attributes
+	for _, a := range attrs {
+		if a != "" { // drop ignored deprecated values
+			filtered = append(filtered, a)
+		}
+	}
+	*as = filtered
 	return nil
 }
 
@@ -66,9 +75,8 @@ type Topology struct {
 	TimestampHuman string `json:"timestamp_human,omitempty"`
 	IA             string `json:"isd_as"`
 	MTU            int    `json:"mtu"`
-	// Attributes are the primary AS attributes as described in
-	// https://github.com/scionproto/scion/blob/master/doc/ControlPlanePKI.md#primary-ases
-	Attributes          []Attribute             `json:"attributes"`
+	// Attributes specify whether this is a core AS or not.
+	Attributes          Attributes              `json:"attributes"`
 	BorderRouters       map[string]*BRInfo      `json:"border_routers,omitempty"`
 	ControlService      map[string]*ServerInfo  `json:"control_service,omitempty"`
 	DiscoveryService    map[string]*ServerInfo  `json:"discovery_service,omitempty"`

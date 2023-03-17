@@ -24,7 +24,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/private/topology"
-	jsontopo "github.com/scionproto/scion/private/topology/json"
 )
 
 func TestDefaultValidatorValidate(t *testing.T) {
@@ -54,9 +53,8 @@ func TestDefaultValidatorValidate(t *testing.T) {
 			assertErr: assert.Error,
 		},
 		"attributes immutable": {
-			loadOld: defaultTopo,
-			loadNew: topoWithModification(t,
-				setAttributes([]jsontopo.Attribute{jsontopo.AttrCore})),
+			loadOld:   defaultTopo,
+			loadNew:   topoWithModification(t, setIsCore(true)),
 			assertErr: assert.Error,
 		},
 		"valid update": {
@@ -114,9 +112,8 @@ func TestControlValidatorValidate(t *testing.T) {
 			assertErr: assert.Error,
 		},
 		"attributes immutable": {
-			loadOld: defaultTopo,
-			loadNew: topoWithModification(t,
-				setAttributes([]jsontopo.Attribute{jsontopo.AttrCore})),
+			loadOld:   defaultTopo,
+			loadNew:   topoWithModification(t, setIsCore(true)),
 			assertErr: assert.Error,
 		},
 		"valid update": {
@@ -192,9 +189,8 @@ func TestRouterValidatorValidate(t *testing.T) {
 			assertErr: assert.Error,
 		},
 		"attributes immutable": {
-			loadOld: defaultTopo,
-			loadNew: topoWithModification(t,
-				setAttributes([]jsontopo.Attribute{jsontopo.AttrCore})),
+			loadOld:   defaultTopo,
+			loadNew:   topoWithModification(t, setIsCore(true)),
 			assertErr: assert.Error,
 		},
 		"valid update": {
@@ -259,9 +255,9 @@ func setMTU(mtu int) func(topo *topology.RWTopology) {
 	}
 }
 
-func setAttributes(attrs []jsontopo.Attribute) func(topo *topology.RWTopology) {
+func setIsCore(isCore bool) func(topo *topology.RWTopology) {
 	return func(topo *topology.RWTopology) {
-		topo.Attributes = attrs
+		topo.IsCore = isCore
 	}
 }
 

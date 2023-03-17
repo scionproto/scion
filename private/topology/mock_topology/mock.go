@@ -81,20 +81,6 @@ func (mr *MockTopologyMockRecorder) BRNames() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BRNames", reflect.TypeOf((*MockTopology)(nil).BRNames))
 }
 
-// CA mocks base method.
-func (m *MockTopology) CA() bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CA")
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// CA indicates an expected call of CA.
-func (mr *MockTopologyMockRecorder) CA() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CA", reflect.TypeOf((*MockTopology)(nil).CA))
-}
-
 // Core mocks base method.
 func (m *MockTopology) Core() bool {
 	m.ctrl.T.Helper()
