@@ -129,9 +129,9 @@ class Test(base.TestTopogen):
                                      server_key, client_key)
 
     def _endhost_ip(self, isd_as: ISD_AS) -> str:
-        """ Determine the IP used for the endhost (client or server) in the given ISD-AS """
-        # The address must be the daemon (as it makes requests to the CS on behalf of the
-        # endhost application).
+        """ Determine the IP used for the end host (client or server) in the given ISD-AS """
+        # The address must be the daemon IP (as it makes requests to the control
+        # service on behalf of the end host application).
         return self._container_ip("scion_sd%s" % isd_as.file_fmt())
 
     def _container_ip(self, container: str) -> str:
