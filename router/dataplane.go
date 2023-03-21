@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"hash"
@@ -1360,7 +1361,7 @@ func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
 }
 
 func (p *scionPacketProcessor) resolveInbound() (*net.UDPAddr, processResult, error) {
-	a, err := p.d.resolveLocalDst(p.scionLayer)
+	a, err := p.d.resolveLocalDst(p.scionLayer, p.lastLayer)
 	switch {
 	case errors.Is(err, noSVCBackend):
 		r, err := p.packSCMP(
@@ -1717,14 +1718,14 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 	if err := updateSCIONLayer(p.rawPkt, s, p.buffer); err != nil {
 		return processResult{}, err
 	}
-	a, err := p.d.resolveLocalDst(s)
+	a, err := p.d.resolveLocalDst(s, p.lastLayer)
 	if err != nil {
 		return processResult{}, err
 	}
 	return processResult{OutAddr: a, OutPkt: p.rawPkt}, nil
 }
 
-func (d *DataPlane) resolveLocalDst(s slayers.SCION) (*net.UDPAddr, error) {
+func (d *DataPlane) resolveLocalDst(s slayers.SCION, lastLayer gopacket.DecodingLayer) (*net.UDPAddr, error) {
 	dst, err := s.DstAddr()
 	if err != nil {
 		// TODO parameter problem.
@@ -1740,14 +1741,28 @@ func (d *DataPlane) resolveLocalDst(s slayers.SCION) (*net.UDPAddr, error) {
 		}
 		return a, nil
 	case addr.HostTypeIP:
-		return addEndhostPort(dst.IP().AsSlice()), nil
+		// Parse UPD port and rewrite underlay IP/UDP port
+		return addEndhostPort(lastLayer, dst.IP().AsSlice()), nil
 	default:
 		panic("unexpected address type returned from DstAddr")
 	}
 }
 
-func addEndhostPort(dst net.IP) *net.UDPAddr {
-	return &net.UDPAddr{IP: dst, Port: topology.EndhostPort}
+func addEndhostPort(lastLayer gopacket.DecodingLayer, dst []byte) *net.UDPAddr {
+	// Parse UPD port and rewrite underlay IP/UDP port
+	l4Type := nextHdr(lastLayer)
+	switch l4Type {
+	case slayers.L4UDP:
+		// parse UDP Destination Port as specified in RFC 768
+		port := binary.BigEndian.Uint16(lastLayer.LayerPayload()[2:])
+		log.Debug("TBR XXXJ:", "udp port that will be rewritten", port)
+		//return &net.UDPAddr{IP: dst.IP, Port: int(port)}
+		return &net.UDPAddr{IP: dst, Port: topology.EndhostPort}
+	case slayers.L4SCMP:
+		return &net.UDPAddr{IP: dst, Port: topology.EndhostPort}
+	default:
+		panic(fmt.Sprintf("Port rewriting not supported for protcol number %v", l4Type))
+	}
 }
 
 // TODO(matzf) this function is now only used to update the OneHop-path.
