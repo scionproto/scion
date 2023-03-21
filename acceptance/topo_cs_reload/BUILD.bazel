@@ -15,7 +15,6 @@ go_test(
         "docker-compose.yml",
         "testdata/topology_reload.json",
         ":control.tar",
-        ":dispatcher.tar",
         ":invalid_changed_ip",
         ":invalid_changed_port",
         ":testdata/gen_crypto.sh",
@@ -34,32 +33,6 @@ go_test(
         "@com_github_stretchr_testify//require:go_default_library",
         "@io_bazel_rules_go//go/tools/bazel:go_default_library",
     ],
-)
-
-# dispatcher container
-oci_tarball(
-    name = "dispatcher.tar",
-    format = "docker",
-    image = ":dispatcher_image",
-    repo_tags = ["scion/" + package_name() + ":dispatcher"],
-)
-
-oci_image(
-    name = "dispatcher_image",
-    base = "//docker:dispatcher",
-    cmd = [
-        "--config",
-        "/disp.toml",
-    ],
-    entrypoint = ["/app/dispatcher"],
-    tars = [
-        ":dispatcher_data",
-    ],
-)
-
-pkg_tar(
-    name = "dispatcher_data",
-    srcs = ["testdata/disp.toml"],
 )
 
 # control container

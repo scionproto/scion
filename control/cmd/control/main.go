@@ -21,6 +21,7 @@ import (
 	"errors"
 	"net/http"
 	_ "net/http/pprof"
+	"net/netip"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -200,15 +201,9 @@ func realMain(ctx context.Context) error {
 	// FIXME: readability would be improved if we could be consistent with address
 	// representations in NetworkConfig (string or cooked, chose one).
 	nc := infraenv.NetworkConfig{
-		IA: topo.IA(),
-		// Public: (Historical name) The TCP/IP:port address for the control service.
-		Public:                topo.ControlServiceAddress(globalCfg.General.ID),
-		ReconnectToDispatcher: globalCfg.General.ReconnectToDispatcher,
+		IA:     topo.IA(),
+		Public: topo.ControlServiceAddress(globalCfg.General.ID),
 		QUIC: infraenv.QUIC{
-			// Address: the QUIC/SCION address of this service. If not
-			// configured, QUICStack() uses the same IP and port as
-			// for the public address.
-			Address:     globalCfg.QUIC.Address,
 			TLSVerifier: trust.NewTLSCryptoVerifier(trustDB),
 			GetCertificate: cs.NewTLSCertificateLoader(
 				topo.IA(), x509.ExtKeyUsageServerAuth, trustDB, globalCfg.General.ConfigDir,
@@ -225,19 +220,19 @@ func realMain(ctx context.Context) error {
 		SCIONNetworkMetrics:    metrics.SCIONNetworkMetrics,
 		SCIONPacketConnMetrics: metrics.SCIONPacketConnMetrics,
 		MTU:                    topo.MTU(),
+		Topology:               cpInfoProvider{topo: topo},
 	}
 	quicStack, err := nc.QUICStack()
 	if err != nil {
 		return serrors.WrapStr("initializing QUIC stack", err)
 	}
-	defer quicStack.RedirectCloser()
 	tcpStack, err := nc.TCPStack()
 	if err != nil {
 		return serrors.WrapStr("initializing TCP stack", err)
 	}
 	dialer := &libgrpc.QUICDialer{
 		Rewriter: &onehop.AddressRewriter{
-			Rewriter: nc.AddressRewriter(nil),
+			Rewriter: nc.AddressRewriter(),
 			MAC:      macGen(),
 		},
 		Dialer: quicStack.InsecureDialer,
@@ -631,7 +626,7 @@ func realMain(ctx context.Context) error {
 
 		drkeyFetcher := drkeygrpc.Fetcher{
 			Dialer: &libgrpc.QUICDialer{
-				Rewriter: nc.AddressRewriter(nil),
+				Rewriter: nc.AddressRewriter(),
 				Dialer:   quicStack.Dialer,
 			},
 			Router:     segreq.NewRouter(fetcherCfg),
@@ -938,6 +933,31 @@ func (h *healther) GetCAHealth(ctx context.Context) (api.CAHealthStatus, bool) {
 		return h.CAHealth.GetStatus(), true
 	}
 	return api.Unavailable, false
+}
+
+type cpInfoProvider struct {
+	topo *topology.Loader
+}
+
+func (c cpInfoProvider) LocalIA(_ context.Context) (addr.IA, error) {
+	return c.topo.IA(), nil
+}
+
+func (c cpInfoProvider) PortRange(_ context.Context) (uint16, uint16, error) {
+	start, end := c.topo.PortRange()
+	return start, end, nil
+}
+
+func (c cpInfoProvider) Interfaces(_ context.Context) (map[uint16]netip.AddrPort, error) {
+	ifMap := c.topo.InterfaceInfoMap()
+	ifsToUDP := make(map[uint16]netip.AddrPort, len(ifMap))
+	for i, v := range ifMap {
+		if i > (1<<16)-1 {
+			return nil, serrors.New("invalid interface id", "id", i)
+		}
+		ifsToUDP[uint16(i)] = v.InternalAddr
+	}
+	return ifsToUDP, nil
 }
 
 func getCAHealth(
