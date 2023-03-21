@@ -38,6 +38,11 @@ import (
 	env "github.com/scionproto/scion/private/app/flag"
 )
 
+const (
+	genericDerivation  = "generic"
+	specificDerivation = "specific"
+)
+
 func main() {
 	os.Exit(realMain())
 }
@@ -46,14 +51,18 @@ func realMain() int {
 	var serverMode bool
 	var serverAddrStr, clientAddrStr string
 	var protocol uint16
+	var derivation string
 	var scionEnv env.SCIONEnvironment
 
 	scionEnv.Register(flag.CommandLine)
-	flag.BoolVar(&serverMode, "server", false, "Demonstrate server-side key derivation"+
-		" (default: demonstrate client-side key fetching)")
+	flag.BoolVar(&serverMode, "server", false, "Demonstrate server-side key derivation."+
+		" (default demonstrate client-side key fetching)")
 	flag.StringVar(&serverAddrStr, "server-addr", "", "SCION address for the server-side.")
 	flag.StringVar(&clientAddrStr, "client-addr", "", "SCION address for the client-side.")
 	flag.Uint16Var(&protocol, "protocol", 1 /* SCMP */, "DRKey protocol identifier.")
+	flag.StringVar(&derivation, "derivation", genericDerivation,
+		fmt.Sprintf("DRKey derivation type for the server-side (\"%s\"|\"%s\").",
+			genericDerivation, specificDerivation))
 	flag.Parse()
 	if err := scionEnv.LoadExternalVars(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error reading SCION environment:", err)
@@ -71,6 +80,13 @@ func realMain() int {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Invalid --client-addr '%s': %s\n", clientAddrStr, err)
 		return 2
+	}
+
+	if serverMode {
+		if derivation != genericDerivation && derivation != specificDerivation {
+			fmt.Fprintf(os.Stderr, "Invalid --derivation '%s'\n", derivation)
+			return 2
+		}
 	}
 
 	ctx, cancelF := context.WithTimeout(context.Background(), 10*time.Second)
@@ -102,9 +118,9 @@ func realMain() int {
 		// Server: get the Secret Value (SV) for the protocol and derive all
 		// subsequent keys in-process
 		server := Server{daemon}
-		var serverKey drkey.HostHostKey		
+		var serverKey drkey.HostHostKey
 		var t0, t1, t2 time.Time
-		if meta.ProtoId.IsPredefined() {
+		if derivation == specificDerivation {
 			// Fetch the Secret Value (SV); in a real application, this is only done at
 			// startup and refreshed for each epoch.
 			t0 = time.Now()
@@ -148,8 +164,8 @@ func realMain() int {
 			t2 = time.Now()
 		}
 		fmt.Printf(
-			"Server,\thost key = %s\tprotocol = %s\t" + 
-			"duration without cache = %s\tduration with cache = %s\n",
+			"Server,\thost key = %s\tprotocol = %s\t"+
+				"duration without cache = %s\tduration with cache = %s\n",
 			hex.EncodeToString(serverKey.Key[:]), meta.ProtoId, t2.Sub(t0), t2.Sub(t1),
 		)
 	} else {

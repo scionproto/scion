@@ -86,10 +86,10 @@ class Test(base.TestTopogen):
         for tester in testers:
             local["docker"]("cp", drkey_demo, tester + ":/bin/")
 
-        # Define DRKey protocol identifiers for test
-        for protocol in [
-            "1",  # SCMP
-            "7",  # Generic "niche" protocol
+        # Define DRKey protocol identifiers and derivation typ for test
+        for test in [
+            {"protocol": "1", "derivation": "specific"},  # SCMP
+            {"protocol": "7", "derivation": "generic"},   # Generic "niche" protocol
         ]:
             # Determine server and client addresses for test.
             # Because communication to the control services does not happen
@@ -103,13 +103,14 @@ class Test(base.TestTopogen):
 
             # Demonstrate deriving key (fast) on server side
             rs = self.dc.execute("tester_%s" % self.server_isd_as.file_fmt(),
-                                 "drkey-demo", "--server", "--protocol", protocol,
+                                 "drkey-demo", "--server",
+                                 "--protocol", test["protocol"], "--derivation", test["derivation"],
                                  "--server-addr", server_addr, "--client-addr", client_addr)
             print(rs)
 
             # Demonstrate obtaining key (slow) on client side
             rc = self.dc.execute("tester_%s" % self.client_isd_as.file_fmt(),
-                                 "drkey-demo", "--protocol", protocol,
+                                 "drkey-demo", "--protocol", test["protocol"],
                                  "--server-addr", server_addr, "--client-addr", client_addr)
             print(rc)
 
