@@ -44,6 +44,7 @@ import (
 	"github.com/scionproto/scion/private/env"
 	"github.com/scionproto/scion/private/svc"
 	"github.com/scionproto/scion/private/trust"
+	"github.com/scionproto/scion/private/underlay/conn"
 )
 
 // QUIC contains the QUIC configuration for control-plane speakers.
@@ -251,20 +252,29 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 	if nc.ReconnectToDispatcher {
 		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
 	}
-	packetDispatcher := svc.NewResolverPacketDispatcher(
-		&snet.DefaultPacketDispatcherService{
-			Dispatcher:             dispatcherService,
-			SCMPHandler:            nc.SCMPHandler,
-			SCIONPacketConnMetrics: nc.SCIONPacketConnMetrics,
-		},
-		&svc.BaseHandler{
-			Message: svcResolutionReply,
-		},
-	)
 	network := &snet.SCIONNetwork{
-		LocalIA:    nc.IA,
-		Dispatcher: packetDispatcher,
-		Metrics:    nc.SCIONNetworkMetrics,
+		LocalIA: nc.IA,
+		OpenConn: func(network, address string) (snet.PacketConn, error) {
+			pconn, err := conn.OpenConn(network, address)
+			if err != nil {
+				return nil, err
+			}
+			return &svc.ResolverPacketConn{
+				PacketConn: &snet.SCIONPacketConn{
+					Conn:        pconn,
+					SCMPHandler: nc.SCMPHandler,
+					Metrics:     nc.SCIONPacketConnMetrics,
+				},
+				Source: snet.SCIONAddress{
+					IA:   nc.IA,
+					Host: addr.HostFromIP(net.IP(address)),
+				},
+				Handler: &svc.BaseHandler{
+					Message: svcResolutionReply,
+				},
+			}, nil
+		},
+		Metrics: nc.SCIONNetworkMetrics,
 	}
 	conn, err := network.Listen(context.Background(), "udp", nc.Public, addr.SvcWildcard)
 	if err != nil {
@@ -305,13 +315,19 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 
 	serverNet := &snet.SCIONNetwork{
 		LocalIA: nc.IA,
-		Dispatcher: &snet.DefaultPacketDispatcherService{
-			Dispatcher: dispatcherService,
-			// XXX(roosd): This is essential, the server must not read SCMP
-			// errors. Otherwise, the accept loop will always return that error
-			// on every subsequent call to accept.
-			SCMPHandler:            ignoreSCMP{},
-			SCIONPacketConnMetrics: nc.SCIONPacketConnMetrics,
+		OpenConn: func(network, address string) (snet.PacketConn, error) {
+			pconn, err := conn.OpenConn(network, address)
+			if err != nil {
+				return nil, err
+			}
+			return &snet.SCIONPacketConn{
+				Conn: pconn,
+				// XXX(roosd): This is essential, the server must not read SCMP
+				// errors. Otherwise, the accept loop will always return that error
+				// on every subsequent call to accept.
+				SCMPHandler: ignoreSCMP{},
+				Metrics:     nc.SCIONPacketConnMetrics,
+			}, nil
 		},
 		Metrics: nc.SCIONNetworkMetrics,
 	}
@@ -326,10 +342,16 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 
 	clientNet := &snet.SCIONNetwork{
 		LocalIA: nc.IA,
-		Dispatcher: &snet.DefaultPacketDispatcherService{
-			Dispatcher:             dispatcherService,
-			SCMPHandler:            nc.SCMPHandler,
-			SCIONPacketConnMetrics: nc.SCIONPacketConnMetrics,
+		OpenConn: func(network, address string) (snet.PacketConn, error) {
+			pconn, err := conn.OpenConn(network, address)
+			if err != nil {
+				return nil, err
+			}
+			return &snet.SCIONPacketConn{
+				Conn:        pconn,
+				SCMPHandler: nc.SCMPHandler,
+				Metrics:     nc.SCIONPacketConnMetrics,
+			}, nil
 		},
 		Metrics: nc.SCIONNetworkMetrics,
 	}

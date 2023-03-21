@@ -78,6 +78,40 @@ func New(listen, remote *net.UDPAddr, cfg *Config) (Conn, error) {
 	return newConnUDPIPv6(listen, remote, cfg)
 }
 
+// OpenConn opens an underlay socket that tracks additional socket information
+// such as packets dropped due to buffer full.
+//
+// Note that Go-style dual-stacked IPv4/IPv6 connections are not supported. If
+// network is udp, it will be treated as udp4.
+func OpenConn(network, address string) (net.PacketConn, error) {
+	// We cannot allow the Go standard library to open both types of sockets
+	// because the socket options are specific to only one socket type, so we
+	// degrade udp to only udp4.
+	if network == "udp" {
+		network = "udp4"
+	}
+	listeningAddress, err := net.ResolveUDPAddr(network, address)
+	if err != nil {
+		return nil, serrors.WrapStr("unable to construct UDP addr", err)
+	}
+	if network == "udp4" && listeningAddress.IP == nil {
+		listeningAddress.IP = net.IPv4zero
+	}
+	if network == "udp6" && listeningAddress.IP == nil {
+		listeningAddress.IP = net.IPv6zero
+	}
+
+	c, err := New(listeningAddress, nil, &Config{
+		SendBufferSize:    0,
+		ReceiveBufferSize: 0,
+	})
+	if err != nil {
+		return nil, serrors.WrapStr("unable to open conn", err)
+	}
+
+	return &underlayConnWrapper{Conn: c}, nil
+}
+
 type connUDPIPv4 struct {
 	connUDPBase
 	pconn *ipv4.PacketConn
@@ -293,4 +327,43 @@ func NewReadMessages(n int) Messages {
 		m[i].Buffers = make([][]byte, 1)
 	}
 	return m
+}
+
+// underlayConnWrapper wraps a specialized underlay Conn into a net.PacketConn
+// implementation. Only *net.UDPAddr addressing is supported.
+type underlayConnWrapper struct {
+	// Conn is the wrapped underlay connection object.
+	Conn
+}
+
+func (o *underlayConnWrapper) ReadFrom(p []byte) (int, net.Addr, error) {
+	return o.Conn.ReadFrom(p)
+}
+
+func (o *underlayConnWrapper) WriteTo(p []byte, a net.Addr) (int, error) {
+	udpAddr, ok := a.(*net.UDPAddr)
+	if !ok {
+		return 0, serrors.New("address is not UDP", "addr", a)
+	}
+	return o.Conn.WriteTo(p, udpAddr)
+}
+
+func (o *underlayConnWrapper) Close() error {
+	return o.Conn.Close()
+}
+
+func (o *underlayConnWrapper) LocalAddr() net.Addr {
+	return o.Conn.LocalAddr()
+}
+
+func (o *underlayConnWrapper) SetDeadline(t time.Time) error {
+	return o.Conn.SetDeadline(t)
+}
+
+func (o *underlayConnWrapper) SetReadDeadline(t time.Time) error {
+	return o.Conn.SetReadDeadline(t)
+}
+
+func (o *underlayConnWrapper) SetWriteDeadline(t time.Time) error {
+	return o.Conn.SetWriteDeadline(t)
 }

@@ -24,7 +24,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/private/topology/underlay"
 )
 
 type scionConnWriter struct {
@@ -58,7 +57,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 		if nextHop == nil && c.base.scionNet.LocalIA.Equal(a.IA) {
 			nextHop = &net.UDPAddr{
 				IP:   a.Host.IP,
-				Port: underlay.EndhostPort,
+				Port: a.Host.Port,
 				Zone: a.Host.Zone,
 			}
 
