@@ -83,29 +83,29 @@ func (d *ResolverPacketDispatcher) Register(ctx context.Context, ia addr.IA,
 	if err != nil {
 		return nil, 0, err
 	}
-	packetConn := &resolverPacketConn{
+	packetConn := &ResolverPacketConn{
 		PacketConn: c,
-		source: snet.SCIONAddress{
+		Source: snet.SCIONAddress{
 			IA:   ia,
 			Host: addr.HostIP(registrationIP),
 		},
-		handler: d.handler,
+		Handler: d.handler,
 	}
 	return packetConn, port, err
 }
 
-// resolverPacketConn redirects SVC destination packets to SVC resolution
+// ResolverPacketConn redirects SVC destination packets to SVC resolution
 // handler logic.
-type resolverPacketConn struct {
+type ResolverPacketConn struct {
 	// PacketConn is the conn to receive and send packets.
 	snet.PacketConn
 	// source contains the address from which packets should be sent.
-	source snet.SCIONAddress
+	Source snet.SCIONAddress
 	// handler handles packets for SVC destinations.
-	handler RequestHandler
+	Handler RequestHandler
 }
 
-func (c *resolverPacketConn) ReadFrom(pkt *snet.Packet, ov *net.UDPAddr) error {
+func (c *ResolverPacketConn) ReadFrom(pkt *snet.Packet, ov *net.UDPAddr) error {
 	for {
 		if err := c.PacketConn.ReadFrom(pkt, ov); err != nil {
 			return err
@@ -129,11 +129,11 @@ func (c *resolverPacketConn) ReadFrom(pkt *snet.Packet, ov *net.UDPAddr) error {
 		// solution should be good enough for now.
 		r := &Request{
 			Conn:     c.PacketConn,
-			Source:   c.source,
+			Source:   c.Source,
 			Packet:   pkt,
 			Underlay: ov,
 		}
-		switch result, err := c.handler.Handle(r); result {
+		switch result, err := c.Handler.Handle(r); result {
 		case Error:
 			return serrors.Wrap(ErrHandler, err)
 		case Forward:
