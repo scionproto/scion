@@ -47,7 +47,6 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
@@ -63,8 +62,8 @@ type SCIONNetworkMetrics struct {
 
 // SCIONNetwork is the SCION networking context.
 type SCIONNetwork struct {
-	LocalIA    addr.IA
-	Dispatcher PacketDispatcherService
+	LocalIA  addr.IA
+	OpenConn func(network, address string) (PacketConn, error)
 	// ReplyPather is used to create reply paths when reading packets on Conn
 	// (that implements net.Conn). If unset, the default reply pather is used,
 	// which parses the incoming path as a path.Path and reverses it.
@@ -136,14 +135,20 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 			Host: CopyUDPAddr(listen),
 		},
 	}
-	packetConn, port, err := n.Dispatcher.Register(ctx, n.LocalIA, listen, svc)
+
+	// packetConn, port, err := n.Dispatcher.Register(ctx, n.LocalIA, listen, svc)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if port != uint16(listen.Port) {
+	// 	conn.listen.Host.Port = int(port)
+	// }
+	// log.Debug("Registered with dispatcher", "addr", conn.listen)
+
+	packetConn, err := n.OpenConn(network, listen.String())
 	if err != nil {
 		return nil, err
 	}
-	if port != uint16(listen.Port) {
-		conn.listen.Host.Port = int(port)
-	}
-	log.Debug("Registered with dispatcher", "addr", conn.listen)
 
 	replyPather := n.ReplyPather
 	if replyPather == nil {
