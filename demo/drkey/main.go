@@ -102,11 +102,12 @@ func realMain() int {
 		// Server: get the Secret Value (SV) for the protocol and derive all
 		// subsequent keys in-process
 		server := Server{daemon}
-		var serverKey drkey.HostHostKey
-		var durationServer time.Duration
+		var serverKey drkey.HostHostKey		
+		var t0, t1, t2 time.Time
 		if meta.ProtoId.IsPredefined() {
 			// Fetch the Secret Value (SV); in a real application, this is only done at
 			// startup and refreshed for each epoch.
+			t0 = time.Now()
 			sv, err := server.FetchSV(ctx, drkey.SecretValueMeta{
 				ProtoId:  meta.ProtoId,
 				Validity: meta.Validity,
@@ -115,18 +116,18 @@ func realMain() int {
 				fmt.Fprintln(os.Stderr, "Error fetching secret value:", err)
 				return 1
 			}
-			t0 := time.Now()
+			t1 = time.Now()
 			serverKey, err = server.DeriveHostHostKeySpecific(sv, meta)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Error deriving key:", err)
 				return 1
 			}
-			durationServer = time.Since(t0)
+			t2 = time.Now()
 		} else {
-			t0 := time.Now()
 			// Fetch host-AS key (Level 2). This key can be used to derive keys for
 			// all hosts in the destination AS. Depending on the application, it can
 			// be cached and refreshed for each epoch.
+			t0 = time.Now()
 			hostASKey, err := server.FetchHostASKey(ctx, drkey.HostASMeta{
 				ProtoId:  meta.ProtoId,
 				Validity: meta.Validity,
@@ -138,16 +139,18 @@ func realMain() int {
 				fmt.Fprintln(os.Stderr, "Error fetching host-AS key:", err)
 				return 1
 			}
+			t1 = time.Now()
 			serverKey, err = server.DeriveHostHostKeyGeneric(hostASKey, meta)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Error deriving key:", err)
 				return 1
 			}
-			durationServer = time.Since(t0)
+			t2 = time.Now()
 		}
 		fmt.Printf(
-			"Server,\thost key = %s\tprotocol = %s\tduration = %s\n",
-			hex.EncodeToString(serverKey.Key[:]), meta.ProtoId, durationServer,
+			"Server,\thost key = %s\tprotocol = %s\t" + 
+			"duration without cache = %s\tduration with cache = %s\n",
+			hex.EncodeToString(serverKey.Key[:]), meta.ProtoId, t2.Sub(t0), t2.Sub(t1),
 		)
 	} else {
 		// Client: fetch key from daemon
@@ -155,17 +158,18 @@ func realMain() int {
 		// The CS will fetch the Lvl1 key from the CS in the SrcIA (the server's AS)
 		// and derive the Host key based on this.
 		client := Client{daemon}
-		t0 := time.Now()
+		var t0, t1 time.Time
+		t0 = time.Now()
 		clientKey, err := client.FetchHostHostKey(ctx, meta)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error fetching key:", err)
 			return 1
 		}
-		durationClient := time.Since(t0)
+		t1 = time.Now()
 
 		fmt.Printf(
 			"Client,\thost key = %s\tprotocol = %s\tduration = %s\n",
-			hex.EncodeToString(clientKey.Key[:]), meta.ProtoId, durationClient,
+			hex.EncodeToString(clientKey.Key[:]), meta.ProtoId, t1.Sub(t0),
 		)
 	}
 	return 0
