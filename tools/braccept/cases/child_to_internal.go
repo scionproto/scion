@@ -33,7 +33,11 @@ import (
 )
 
 // ChildToInternalHost tests traffic from a child to an AS host.
-func ChildToInternalHost(artifactsDir string, mac hash.Hash) runner.Case {
+func ChildToInternalHost(
+	artifactsDir string,
+	mac hash.Hash,
+) runner.Case {
+	const endhostPort = 21000
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
@@ -106,7 +110,7 @@ func ChildToInternalHost(artifactsDir string, mac hash.Hash) runner.Case {
 
 	scionudp := &slayers.UDP{}
 	scionudp.SrcPort = 2345
-	scionudp.DstPort = 53
+	scionudp.DstPort = uint16(endhostPort)
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")
@@ -127,8 +131,7 @@ func ChildToInternalHost(artifactsDir string, mac hash.Hash) runner.Case {
 	// IP4: Src=192.168.0.11 Dst=192.168.0.51 Checksum=0
 	ip.SrcIP = net.IP{192, 168, 0, 11}
 	ip.DstIP = net.IP{192, 168, 0, 51}
-	// 	UDP: Src=30001 Dst=30041
-	udp.SrcPort, udp.DstPort = 30001, 30041
+	udp.SrcPort, udp.DstPort = 30001, layers.UDPPort(scionudp.DstPort)
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 
 	if err := gopacket.SerializeLayers(want, options,
@@ -149,7 +152,11 @@ func ChildToInternalHost(artifactsDir string, mac hash.Hash) runner.Case {
 
 // ChildToInternalHostShortcut tests traffic from a child to an AS host with a
 // short-cut path. I.e., a path where only a partial path segment is used.
-func ChildToInternalHostShortcut(artifactsDir string, mac hash.Hash) runner.Case {
+func ChildToInternalHostShortcut(
+	artifactsDir string,
+	mac hash.Hash,
+) runner.Case {
+	const endhostPort = 21000
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
@@ -213,7 +220,7 @@ func ChildToInternalHostShortcut(artifactsDir string, mac hash.Hash) runner.Case
 
 	scionudp := &slayers.UDP{}
 	scionudp.SrcPort = 2345
-	scionudp.DstPort = 53
+	scionudp.DstPort = uint16(endhostPort)
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")
@@ -234,8 +241,7 @@ func ChildToInternalHostShortcut(artifactsDir string, mac hash.Hash) runner.Case
 	// IP4: Src=192.168.0.11 Dst=192.168.0.51 Checksum=0
 	ip.SrcIP = net.IP{192, 168, 0, 11}
 	ip.DstIP = net.IP{192, 168, 0, 51}
-	// 	UDP: Src=30001 Dst=30041
-	udp.SrcPort, udp.DstPort = 30001, 30041
+	udp.SrcPort, udp.DstPort = 30001, layers.UDPPort(endhostPort)
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 
 	if err := gopacket.SerializeLayers(want, options,
