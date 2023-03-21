@@ -123,8 +123,10 @@ func realMain() int {
 			}
 			durationServer = time.Since(t0)
 		} else {
-			// Fetch host-AS key (Level 2) in a real application, this is only done at
-			// startup or on demand and refreshed for each epoch.
+			t0 := time.Now()
+			// Fetch host-AS key (Level 2). This key can be used to derive keys for
+			// all hosts in the destination AS. Depending on the application, it can
+			// be cached and refreshed for each epoch.
 			hostASKey, err := server.FetchHostASKey(ctx, drkey.HostASMeta{
 				ProtoId:  meta.ProtoId,
 				Validity: meta.Validity,
@@ -136,7 +138,6 @@ func realMain() int {
 				fmt.Fprintln(os.Stderr, "Error fetching host-AS key:", err)
 				return 1
 			}
-			t0 := time.Now()
 			serverKey, err = server.DeriveHostHostKeyGeneric(hostASKey, meta)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Error deriving key:", err)
