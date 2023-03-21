@@ -62,38 +62,38 @@ services:
     cap_add:
     - NET_ADMIN
     container_name: sig1
-    depends_on:
-    - dispatcher1
     image: bazel/acceptance/sig_short_exp_time:sig1
-    network_mode: service:dispatcher1
+    networks:
+      bridge1:
+        ipv4_address: 242.254.100.2
     privileged: true
     volumes:
-    - vol_scion_disp_sig1-ff00_0_110:/run/shm/dispatcher:rw
     - /dev/net/tun:/dev/net/tun
   sig2:
     cap_add:
     - NET_ADMIN
     container_name: sig2
-    depends_on:
-    - dispatcher2
     image: bazel/acceptance/sig_short_exp_time:sig2
-    network_mode: service:dispatcher2
+    networks:
+      bridge2:
+        ipv4_address: 242.254.200.2
     privileged: true
     volumes:
-    - vol_scion_disp_sig1-ff00_0_111:/run/shm/dispatcher:rw
     - /dev/net/tun:/dev/net/tun
   tester1:
     container_name: tester1
     image: alpine
-    network_mode: service:dispatcher1
+    networks:
+      bridge1:
+        ipv4_address: 242.254.100.10
     privileged: true
   tester2:
     container_name: tester2
     image: alpine
-    network_mode: service:dispatcher2
+    networks:
+      bridge2:
+        ipv4_address: 242.254.200.10
     privileged: true
 version: '2.4'
 volumes:
   vol_logs: null
-  vol_scion_disp_sig1-ff00_0_110: null
-  vol_scion_disp_sig1-ff00_0_111: null

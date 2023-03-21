@@ -18,13 +18,9 @@ package snet
 import (
 	"context"
 	"net"
-
-	"github.com/scionproto/scion/pkg/addr"
 )
 
 type Network interface {
-	Listen(ctx context.Context, network string, listen *net.UDPAddr,
-		svc addr.SVC) (*Conn, error)
-	Dial(ctx context.Context, network string, listen *net.UDPAddr, remote *UDPAddr,
-		svc addr.SVC) (*Conn, error)
+	Listen(ctx context.Context, network string, listen *net.UDPAddr) (*Conn, error)
+	Dial(ctx context.Context, network string, listen *net.UDPAddr, remote *UDPAddr) (*Conn, error)
 }

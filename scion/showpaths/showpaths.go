@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"math/rand"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -353,11 +352,10 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	if !cfg.NoProbe {
 		p := pathprobe.FilterEmptyPaths(paths)
 		statuses, err = pathprobe.Prober{
-			DstIA:      dst,
-			LocalIA:    localIA,
-			LocalIP:    cfg.Local,
-			ID:         uint16(rand.Uint32()),
-			Dispatcher: cfg.Dispatcher,
+			DstIA:          dst,
+			LocalIA:        localIA,
+			LocalIP:        cfg.Local,
+			CPInfoProvider: sdConn,
 		}.GetStatuses(ctx, p, pathprobe.WithEPIC(cfg.Epic))
 		if err != nil {
 			return nil, serrors.WrapStr("getting statuses", err)

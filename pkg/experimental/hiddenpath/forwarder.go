@@ -46,12 +46,13 @@ type Verifier interface {
 // For each group id of the request, it requests the segments at the the
 // respective autoritative registry.
 type ForwardServer struct {
-	Groups    map[GroupID]*Group
-	LocalAuth Lookuper
-	LocalIA   addr.IA
-	RPC       RPC
-	Resolver  AddressResolver
-	Verifier  Verifier
+	Groups     map[GroupID]*Group
+	LocalAuth  Lookuper
+	LocalIA    addr.IA
+	RPC        RPC
+	HPResolver AddressResolver
+	CSResolver AddressResolver
+	Verifier   Verifier
 }
 
 // Segments serves segments for the given request. It finds per group ID
@@ -104,7 +105,7 @@ func (s ForwardServer) Segments(ctx context.Context,
 				replies <- segsOrErr{segs: reply, err: err}
 				return
 			}
-			a, err := s.Resolver.Resolve(ctx, r)
+			a, err := s.HPResolver.Resolve(ctx, r)
 			if err != nil {
 				replies <- segsOrErr{err: err}
 				return
@@ -114,9 +115,14 @@ func (s ForwardServer) Segments(ctx context.Context,
 				replies <- segsOrErr{err: err}
 				return
 			}
+			a, err = s.CSResolver.Resolve(ctx, r)
+			if err != nil {
+				replies <- segsOrErr{err: err}
+				return
+			}
 			if err := s.Verifier.Verify(ctx, reply, a); err != nil {
 				replies <- segsOrErr{
-					err: serrors.New("can not verify segments", "crypto-source", r,
+					err: serrors.WrapStr("verifying segment", err, "crypto-source", r,
 						"server", a),
 				}
 				return

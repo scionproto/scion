@@ -34,7 +34,12 @@ import (
 )
 
 // IncomingOneHop tests one-hop being sent from the remote AS to the local AS.
-func IncomingOneHop(artifactsDir string, mac hash.Hash) runner.Case {
+func IncomingOneHop(
+	artifactsDir string,
+	mac hash.Hash,
+	endHostPort int,
+) runner.Case {
+
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
@@ -88,7 +93,7 @@ func IncomingOneHop(artifactsDir string, mac hash.Hash) runner.Case {
 
 	scionudp := &slayers.UDP{}
 	scionudp.SrcPort = 2345
-	scionudp.DstPort = 53
+	scionudp.DstPort = uint16(endHostPort)
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")
@@ -107,7 +112,7 @@ func IncomingOneHop(artifactsDir string, mac hash.Hash) runner.Case {
 	ethernet.DstMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef}
 	ip.SrcIP = net.IP{192, 168, 0, 11}
 	ip.DstIP = net.IP{192, 168, 0, 71}
-	udp.SrcPort, udp.DstPort = 30001, 30041
+	udp.SrcPort, udp.DstPort = 30001, layers.UDPPort(endHostPort)
 	// Second hop in OHP should have been set by BR.
 	ohp.SecondHop.ConsIngress = 131
 	ohp.SecondHop.Mac = path.MAC(mac, ohp.Info, ohp.SecondHop, nil)

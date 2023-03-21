@@ -19,11 +19,12 @@ package config
 import (
 	"fmt"
 	"io"
+	"net/netip"
+	"strings"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/util"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/private/config"
 	"github.com/scionproto/scion/private/env"
 	api "github.com/scionproto/scion/private/mgmtapi"
@@ -38,46 +39,6 @@ type Config struct {
 	Metrics    env.Metrics  `toml:"metrics,omitempty"`
 	API        api.Config   `toml:"api,omitempty"`
 	Dispatcher Dispatcher   `toml:"dispatcher,omitempty"`
-}
-
-// Dispatcher contains the dispatcher specific config.
-type Dispatcher struct {
-	config.NoDefaulter
-	// ID of the Dispatcher (required)
-	ID string `toml:"id,omitempty"`
-	// ApplicationSocket is the local API socket (default /run/shm/dispatcher/default.sock)
-	ApplicationSocket string `toml:"application_socket,omitempty"`
-	// Socket file permissions when created; read from octal. (default 0770)
-	SocketFileMode util.FileMode `toml:"socket_file_mode,omitempty"`
-	// UnderlayPort is the native port opened by the dispatcher (default 30041)
-	UnderlayPort int `toml:"underlay_port,omitempty"`
-	// DeleteSocket specifies whether the dispatcher should delete the
-	// socket file prior to attempting to create a new one.
-	DeleteSocket bool `toml:"delete_socket,omitempty"`
-}
-
-func (cfg *Dispatcher) Validate() error {
-	if cfg.ApplicationSocket == "" {
-		cfg.ApplicationSocket = reliable.DefaultDispPath
-	}
-	if cfg.SocketFileMode == 0 {
-		cfg.SocketFileMode = reliable.DefaultDispSocketFileMode
-	}
-	if cfg.UnderlayPort == 0 {
-		cfg.UnderlayPort = topology.EndhostPort
-	}
-	if cfg.ID == "" {
-		return serrors.New("id must be set")
-	}
-	return nil
-}
-
-func (cfg *Dispatcher) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
-	config.WriteString(dst, fmt.Sprintf(dispSample, idSample))
-}
-
-func (cfg *Dispatcher) ConfigName() string {
-	return "dispatcher"
 }
 
 func (cfg *Config) InitDefaults() {
@@ -112,4 +73,63 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 
 func (cfg *Config) ConfigName() string {
 	return "dispatcher_config"
+}
+
+// Dispatcher contains the dispatcher specific config.
+type Dispatcher struct {
+	config.NoDefaulter
+	// ID is the SCION element ID of the shim dispatcher.
+	ID                     string            `toml:"id,omitempty"`
+	ServiceAddresses       map[string]string `toml:"service_addresses,omitempty"`
+	ParsedServiceAddresses map[addr.Addr]netip.AddrPort
+	// UnderlayPort is the native port opened by the dispatcher (default 30041)
+	UnderlayPort int `toml:"underlay_port,omitempty"`
+}
+
+func (cfg *Dispatcher) Validate() error {
+	if cfg.UnderlayPort == 0 {
+		cfg.UnderlayPort = topology.EndhostPort
+	}
+	if cfg.ID == "" {
+		return serrors.New("id must be set")
+	}
+
+	// Process ServiceAddresses
+	cfg.ParsedServiceAddresses = make(map[addr.Addr]netip.AddrPort, len(cfg.ServiceAddresses))
+	for iaSvc, addr := range cfg.ServiceAddresses {
+		parsedIASvc, err := parseIASvc(iaSvc)
+		if err != nil {
+			return serrors.WrapStr("parsing IA,SVC", err)
+		}
+		parsedAddr, err := netip.ParseAddrPort(addr)
+		if err != nil {
+			return serrors.WrapStr("parsing address", err)
+		}
+		cfg.ParsedServiceAddresses[parsedIASvc] = parsedAddr
+	}
+	return nil
+}
+
+func (cfg *Dispatcher) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, fmt.Sprintf(dispSample, idSample))
+}
+
+func (cfg *Dispatcher) ConfigName() string {
+	return "dispatcher"
+}
+
+func parseIASvc(str string) (addr.Addr, error) {
+	words := strings.Split(str, ",")
+	if len(words) != 2 {
+		return addr.Addr{}, serrors.New("Host addr doesn't match format \"ia, svc\"", "input", str)
+	}
+	ia, err := addr.ParseIA(words[0])
+	if err != nil {
+		return addr.Addr{}, serrors.WrapStr("parsing IA in Host addr", err)
+	}
+	svc, err := addr.ParseSVC(words[1])
+	if err != nil {
+		return addr.Addr{}, serrors.WrapStr("parsing SVC in Host addr", err)
+	}
+	return addr.Addr{IA: ia, Host: addr.HostSVC(svc)}, nil
 }

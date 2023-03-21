@@ -16,6 +16,7 @@ package snet
 
 import (
 	"net"
+	"syscall"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -23,6 +24,11 @@ import (
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
+	"github.com/scionproto/scion/pkg/slayers/path/empty"
+	"github.com/scionproto/scion/pkg/slayers/path/epic"
+	"github.com/scionproto/scion/pkg/slayers/path/onehop"
+	"github.com/scionproto/scion/pkg/slayers/path/scion"
+	"github.com/scionproto/scion/private/topology/underlay"
 )
 
 // PacketConn gives applications easy access to writing and reading custom
@@ -33,6 +39,8 @@ type PacketConn interface {
 	SetReadDeadline(t time.Time) error
 	SetWriteDeadline(t time.Time) error
 	SetDeadline(t time.Time) error
+	SyscallConn() (syscall.RawConn, error)
+	LocalAddr() net.Addr
 	Close() error
 }
 
@@ -98,21 +106,26 @@ type SCIONPacketConnMetrics struct {
 	ParseErrors metrics.Counter
 	// SCMPErrors records the total number of SCMP Errors encountered.
 	SCMPErrors metrics.Counter
-	// DispatcherErrors records the number of dispatcher errors encountered.
-	DispatcherErrors metrics.Counter
+	// UnderlayConnectionErrors records the number of underlay connection errors encountered.
+	UnderlayConnectionErrors metrics.Counter
 }
 
 // SCIONPacketConn gives applications full control over the content of valid SCION
 // packets.
 type SCIONPacketConn struct {
 	// Conn is the connection to send/receive serialized packets on.
-	Conn net.PacketConn
+	Conn *net.UDPConn
 	// SCMPHandler is invoked for packets that contain an SCMP L4. If the
 	// handler is nil, errors are returned back to applications every time an
 	// SCMP message is received.
 	SCMPHandler SCMPHandler
 	// Metrics are the metrics exported by the conn.
-	Metrics SCIONPacketConnMetrics
+	Metrics        SCIONPacketConnMetrics
+	getLastHopAddr func(id uint16) (*net.UDPAddr, error)
+}
+
+func (c *SCIONPacketConn) SetReadBuffer(bytes int) error {
+	return c.Conn.SetReadBuffer(bytes)
 }
 
 func (c *SCIONPacketConn) SetDeadline(d time.Time) error {
@@ -139,6 +152,10 @@ func (c *SCIONPacketConn) WriteTo(pkt *Packet, ov *net.UDPAddr) error {
 	return nil
 }
 
+func (c *SCIONPacketConn) SetWriteBuffer(bytes int) error {
+	return c.Conn.SetWriteBuffer(bytes)
+}
+
 func (c *SCIONPacketConn) SetWriteDeadline(d time.Time) error {
 	return c.Conn.SetWriteDeadline(d)
 }
@@ -146,9 +163,11 @@ func (c *SCIONPacketConn) SetWriteDeadline(d time.Time) error {
 func (c *SCIONPacketConn) ReadFrom(pkt *Packet, ov *net.UDPAddr) error {
 	for {
 		// Read until we get an error or a data packet
-		if err := c.readFrom(pkt, ov); err != nil {
+		remoteAddr, err := c.readFrom(pkt)
+		if err != nil {
 			return err
 		}
+		*ov = *remoteAddr
 		if scmp, ok := pkt.Payload.(SCMPPayload); ok {
 			if c.SCMPHandler == nil {
 				metrics.CounterInc(c.Metrics.SCMPErrors)
@@ -169,39 +188,137 @@ func (c *SCIONPacketConn) ReadFrom(pkt *Packet, ov *net.UDPAddr) error {
 	}
 }
 
-func (c *SCIONPacketConn) readFrom(pkt *Packet, ov *net.UDPAddr) error {
+func (c *SCIONPacketConn) SyscallConn() (syscall.RawConn, error) {
+	return c.Conn.SyscallConn()
+}
+
+func (c *SCIONPacketConn) readFrom(pkt *Packet) (*net.UDPAddr, error) {
 	pkt.Prepare()
-	n, lastHopNetAddr, err := c.Conn.ReadFrom(pkt.Bytes)
+	n, remoteAddr, err := c.Conn.ReadFrom(pkt.Bytes)
 	if err != nil {
-		metrics.CounterInc(c.Metrics.DispatcherErrors)
-		return serrors.WrapStr("Reliable socket read error", err)
+		metrics.CounterInc(c.Metrics.UnderlayConnectionErrors)
+		return nil, serrors.WrapStr("Reliable socket read error", err)
 	}
 	metrics.CounterAdd(c.Metrics.ReadBytes, float64(n))
 	metrics.CounterInc(c.Metrics.ReadPackets)
 
 	pkt.Bytes = pkt.Bytes[:n]
-	var lastHop *net.UDPAddr
-
-	var ok bool
-	lastHop, ok = lastHopNetAddr.(*net.UDPAddr)
-	if !ok {
-		return serrors.New("Invalid lastHop address Type",
-			"Actual", lastHopNetAddr)
-	}
-
 	if err := pkt.Decode(); err != nil {
 		metrics.CounterInc(c.Metrics.ParseErrors)
-		return serrors.WrapStr("decoding packet", err)
+		return nil, serrors.WrapStr("decoding packet", err)
 	}
 
-	if ov != nil {
-		*ov = *lastHop
+	udpRemoteAddr := remoteAddr.(*net.UDPAddr)
+	lastHop := udpRemoteAddr
+	if c.isShimDispatcher(udpRemoteAddr) {
+		// If packet comes from shim get ingress interface internal address
+		lastHop, err = c.lastHop(pkt)
+		if err != nil {
+			return nil, serrors.WrapStr("extracting last hop based on packet path", err)
+		}
 	}
-	return nil
+	return lastHop, nil
 }
 
 func (c *SCIONPacketConn) SetReadDeadline(d time.Time) error {
 	return c.Conn.SetReadDeadline(d)
+}
+
+func (c *SCIONPacketConn) LocalAddr() net.Addr {
+	return c.Conn.LocalAddr()
+}
+
+// isShimDispatcher checks that udpAddr corresponds to the address where the
+// shim is/should listen on. The shim only sends forwards packets whose underlay
+// IP (i.e., the address on the UDP/IP header) corresponds to the SCION Destination
+// address (i.e., the address on the UDP/SCION header). Therefore, the underlay address
+// for the application using SCIONPacketConn will be the same as the underlay from where
+// the shim dispatcher forwards the packets.
+func (c *SCIONPacketConn) isShimDispatcher(udpAddr *net.UDPAddr) bool {
+	localAddr := c.LocalAddr().(*net.UDPAddr)
+	if udpAddr.IP.Equal(localAddr.IP) && udpAddr.Port == underlay.EndhostPort {
+		return true
+	}
+	return false
+}
+
+func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
+	rpath, ok := p.Path.(RawPath)
+	if !ok {
+		return nil, serrors.New("Unexpected path", "type", common.TypeOf(p.Path))
+	}
+	switch rpath.PathType {
+	case empty.PathType:
+		if p.Source.Host.Type() != addr.HostTypeIP {
+			return nil, serrors.New("Unexpected source address in packet",
+				"type", p.Source.Host.Type().String())
+		}
+		var port int
+		switch p := p.PacketInfo.Payload.(type) {
+		case UDPPayload:
+			port = int(p.SrcPort)
+		case SCMPPayload:
+			port = underlay.EndhostPort
+		default:
+			// we fallback to the endhost port also for unknown payloads
+			port = underlay.EndhostPort
+		}
+		return &net.UDPAddr{
+			IP:   p.Source.Host.IP().AsSlice(),
+			Port: port,
+		}, nil
+	case onehop.PathType:
+		var path onehop.Path
+		err := path.DecodeFromBytes(rpath.Raw)
+		if err != nil {
+			return nil, err
+		}
+		ifid := path.SecondHop.ConsIngress
+		if !path.Info.ConsDir {
+			ifid = path.SecondHop.ConsEgress
+		}
+		return c.getLastHopAddr(ifid)
+	case epic.PathType:
+		var path epic.Path
+		err := path.DecodeFromBytes(rpath.Raw)
+		if err != nil {
+			return nil, err
+		}
+		infoField, err := path.ScionPath.GetCurrentInfoField()
+		if err != nil {
+			return nil, err
+		}
+		hf, err := path.ScionPath.GetCurrentHopField()
+		if err != nil {
+			return nil, err
+		}
+		ifid := hf.ConsIngress
+		if !infoField.ConsDir {
+			ifid = hf.ConsEgress
+		}
+		return c.getLastHopAddr(ifid)
+	case scion.PathType:
+		var path scion.Raw
+		err := path.DecodeFromBytes(rpath.Raw)
+		if err != nil {
+			return nil, err
+		}
+		infoField, err := path.GetCurrentInfoField()
+		if err != nil {
+			return nil, err
+		}
+		hf, err := path.GetCurrentHopField()
+		if err != nil {
+			return nil, err
+		}
+		ifid := hf.ConsIngress
+		if !infoField.ConsDir {
+			ifid = hf.ConsEgress
+		}
+		return c.getLastHopAddr(ifid)
+	default:
+		return nil, serrors.New("Unknown type", "type", rpath.PathType.String())
+	}
 }
 
 type SerializationOptions struct {

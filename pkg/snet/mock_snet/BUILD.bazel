@@ -5,7 +5,7 @@ gomock(
     name = "go_default_mock",
     out = "mock.go",
     interfaces = [
-        "PacketDispatcherService",
+        "Connector",
         "Network",
         "PacketConn",
         "Path",

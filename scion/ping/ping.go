@@ -18,17 +18,14 @@ package ping
 import (
 	"context"
 	"encoding/binary"
-	"math/rand"
 	"net"
 	"sync"
 	"time"
 
-	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/private/topology/underlay"
 )
 
@@ -75,9 +72,12 @@ func (s State) String() string {
 
 // Config configures the ping run.
 type Config struct {
-	Dispatcher reliable.Dispatcher
-	Local      *snet.UDPAddr
-	Remote     *snet.UDPAddr
+	Local  *snet.UDPAddr
+	Remote *snet.UDPAddr
+
+	// CPInfoProvider is the helper class to get control-plane information for the
+	// local AS.
+	CPInfoProvider snet.CPInfoProvider
 
 	// Attempts is the number of pings to send.
 	Attempts uint16
@@ -103,23 +103,20 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		return Stats{}, serrors.New("interval below millisecond")
 	}
 
-	id := rand.Uint64()
 	replies := make(chan reply, 10)
-
-	svc := snet.DefaultPacketDispatcherService{
-		Dispatcher: cfg.Dispatcher,
+	svc := snet.DefaultConnector{
 		SCMPHandler: scmpHandler{
-			id:      uint16(id),
 			replies: replies,
 		},
+		CPInfoProvider: cfg.CPInfoProvider,
 	}
-	conn, port, err := svc.Register(ctx, cfg.Local.IA, cfg.Local.Host, addr.SvcNone)
+	conn, err := svc.OpenUDP(ctx, cfg.Local.Host)
 	if err != nil {
 		return Stats{}, err
 	}
 
 	local := cfg.Local.Copy()
-	local.Host.Port = int(port)
+	local.Host = conn.LocalAddr().(*net.UDPAddr)
 
 	// we need to have at least 8 bytes to store the request time in the
 	// payload.
@@ -132,7 +129,7 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		timeout:       cfg.Timeout,
 		pldSize:       cfg.PayloadSize,
 		pld:           make([]byte, cfg.PayloadSize),
-		id:            id,
+		id:            uint64(local.Host.Port),
 		conn:          conn,
 		local:         local,
 		replies:       replies,
@@ -305,7 +302,6 @@ type reply struct {
 }
 
 type scmpHandler struct {
-	id      uint16
 	replies chan<- reply
 }
 
@@ -339,9 +335,5 @@ func (h scmpHandler) handle(pkt *snet.Packet) (snet.SCMPEchoReply, error) {
 		)
 	}
 	r := pkt.Payload.(snet.SCMPEchoReply)
-	if r.Identifier != h.id {
-		return snet.SCMPEchoReply{}, serrors.New("wrong SCMP ID",
-			"expected", h.id, "actual", r.Identifier)
-	}
 	return r, nil
 }
