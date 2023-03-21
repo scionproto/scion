@@ -56,14 +56,17 @@ func realMain(ctx context.Context) error {
 	}
 	g, errCtx := errgroup.WithContext(ctx)
 	metrics := router.NewMetrics()
+
 	dp := &router.Connector{
 		DataPlane: router.DataPlane{
 			Metrics:                        metrics,
 			ExperimentalSCMPAuthentication: globalCfg.Features.ExperimentalSCMPAuthentication,
 		},
-		ReceiveBufferSize: globalCfg.Router.ReceiveBufferSize,
-		SendBufferSize:    globalCfg.Router.SendBufferSize,
-		BFD:               globalCfg.Router.BFD,
+		ReceiveBufferSize:   globalCfg.Router.ReceiveBufferSize,
+		SendBufferSize:      globalCfg.Router.SendBufferSize,
+		BFD:                 globalCfg.Router.BFD,
+		DispatchedPortStart: globalCfg.Router.DispatchedPortStart,
+		DispatchedPortEnd:   globalCfg.Router.DispatchedPortEnd,
 	}
 	iaCtx := &control.IACtx{
 		Config: controlConfig,

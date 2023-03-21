@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/path"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 )
 
 // Update contains the information for a single hop.
@@ -56,8 +55,8 @@ type Stats struct {
 
 // Config configures the traceroute run.
 type Config struct {
-	Dispatcher  reliable.Dispatcher
 	Local       *snet.UDPAddr
+	Topology    snet.Topology
 	MTU         uint16
 	PathEntry   snet.Path
 	PayloadSize uint
@@ -99,18 +98,17 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 	if _, isEmpty := cfg.PathEntry.Dataplane().(path.Empty); isEmpty {
 		return Stats{}, serrors.New("empty path is not allowed for traceroute")
 	}
-	id := snet.RandomSCMPIdentifer()
 	replies := make(chan reply, 10)
-	dispatcher := snet.DefaultPacketDispatcherService{
-		Dispatcher:  cfg.Dispatcher,
+	sn := &snet.SCIONNetwork{
 		SCMPHandler: scmpHandler{replies: replies},
+		Topology:    cfg.Topology,
 	}
-	conn, port, err := dispatcher.Register(ctx, cfg.Local.IA, cfg.Local.Host, addr.SvcNone)
+	conn, err := sn.OpenRaw(ctx, cfg.Local.Host)
 	if err != nil {
 		return Stats{}, err
 	}
 	local := cfg.Local.Copy()
-	local.Host.Port = int(port)
+	local.Host = conn.LocalAddr().(*net.UDPAddr)
 	t := tracerouter{
 		probesPerHop:  cfg.ProbesPerHop,
 		timeout:       cfg.Timeout,
@@ -120,7 +118,7 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		replies:       replies,
 		errHandler:    cfg.ErrHandler,
 		updateHandler: cfg.UpdateHandler,
-		id:            id,
+		id:            uint16(conn.LocalAddr().(*net.UDPAddr).Port),
 		path:          cfg.PathEntry,
 		epic:          cfg.EPIC,
 	}

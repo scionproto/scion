@@ -167,7 +167,7 @@ func loadKey(artifactsDir string) (hash.Hash, error) {
 // registerScionPorts registers the following UDP ports in gopacket such as SCION is the
 // next layer. In other words, map the following ports to expect SCION as the payload.
 func registerScionPorts() {
-	layers.RegisterUDPPortLayerType(layers.UDPPort(30041), slayers.LayerTypeSCION)
+	layers.RegisterUDPPortLayerType(layers.UDPPort(53), slayers.LayerTypeSCION)
 	for i := 30000; i < 30010; i++ {
 		layers.RegisterUDPPortLayerType(layers.UDPPort(i), slayers.LayerTypeSCION)
 	}

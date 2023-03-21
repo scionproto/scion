@@ -126,7 +126,6 @@ func (s testState) collectLogs(t *testing.T) {
 	require.NoError(t, os.MkdirAll(fmt.Sprintf("%s/logs", outdir), os.ModePerm|os.ModeDir))
 	// collect logs
 	for service, file := range map[string]string{
-		"topo_cs_reload_dispatcher":  "disp.log",
 		"topo_cs_reload_control_srv": "control.log",
 	} {
 		cmd := exec.Command("docker", "compose",

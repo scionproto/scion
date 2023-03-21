@@ -15,7 +15,6 @@ go_test(
         "docker-compose.yml",
         "testdata/topology_reload.json",
         ":control.tar",
-        ":dispatcher.tar",
         ":invalid_changed_ip",
         ":invalid_changed_port",
         ":testdata/gen_crypto.sh",

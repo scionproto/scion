@@ -44,7 +44,8 @@
             "/in_gopkg_yaml_v2/decode.go": "https://github.com/go-yaml/yaml/pull/492",
             "/com_github_mattn_go_sqlite3": "",
             "/com_github_cloudflare_sidh": "",
-            "/com_github_vishvananda_netlink": ""
+            "/com_github_vishvananda_netlink": "",
+            "/com_github_spf13_pflag": ""
         }
     },
     "printf": {
@@ -96,7 +97,12 @@
         },
         "exclude_files": {
             "/com_github_mattn_go_sqlite3/": "",
-            "/com_github_google_gopacket/afpacket/": ""
+            "/com_github_google_gopacket/afpacket/": "",
+            "/org_modernc_memory/": "",
+            "/org_golang_x_sys/": "",
+            "org_modernc_libc": "",
+            "org_modernc_sqlite": "",
+            "com_github_mailru_easyjson": ""
         }
     },
     "shift": {

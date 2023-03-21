@@ -43,10 +43,9 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/addrutil"
 	"github.com/scionproto/scion/pkg/snet/metrics"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
-	"github.com/scionproto/scion/pkg/sock/reliable"
-	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/tracing"
 	libint "github.com/scionproto/scion/tools/integration"
 	integration "github.com/scionproto/scion/tools/integration/integrationlib"
@@ -137,26 +136,26 @@ func (s server) run() {
 
 	sdConn := integration.SDConn()
 	defer sdConn.Close()
-	connFactory := &snet.DefaultPacketDispatcherService{
-		Dispatcher: reliable.NewDispatcher(""),
+	sn := &snet.SCIONNetwork{
 		SCMPHandler: snet.DefaultSCMPHandler{
 			RevocationHandler: daemon.RevHandler{Connector: sdConn},
 			SCMPErrors:        scmpErrorsCounter,
 		},
-		SCIONPacketConnMetrics: scionPacketConnMetrics,
+		PacketConnMetrics: scionPacketConnMetrics,
+		Topology:          sdConn,
 	}
-	conn, port, err := connFactory.Register(context.Background(), integration.Local.IA,
-		integration.Local.Host, addr.SvcNone)
+	conn, err := sn.OpenRaw(context.Background(), integration.Local.Host)
 	if err != nil {
 		integration.LogFatal("Error listening", "err", err)
 	}
 	defer conn.Close()
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	if len(os.Getenv(libint.GoIntegrationEnv)) > 0 {
 		// Needed for integration test ready signal.
-		fmt.Printf("Port=%d\n", port)
+		fmt.Printf("Port=%d\n", localAddr.Port)
 		fmt.Printf("%s%s\n\n", libint.ReadySignal, integration.Local.IA)
 	}
-	log.Info("Listening", "local", fmt.Sprintf("%v:%d", integration.Local.Host, port))
+	log.Info("Listening", "local", fmt.Sprintf("%v:%d", integration.Local.Host.IP, localAddr.Port))
 
 	// Receive ping message
 	for {
@@ -214,7 +213,7 @@ func (s server) handlePing(conn snet.PacketConn) error {
 			"data", pld,
 		))
 	}
-	log.Info(fmt.Sprintf("Ping received from %s, sending pong.", p.Source))
+	log.Info(fmt.Sprintf("Ping received from %s:%d, sending pong.", p.Source, udp.SrcPort))
 	raw, err := json.Marshal(Pong{
 		Client:  p.Source.IA,
 		Server:  integration.Local.IA,
@@ -251,9 +250,9 @@ func (s server) handlePing(conn snet.PacketConn) error {
 }
 
 type client struct {
-	conn       snet.PacketConn
-	port       uint16
-	sdConn     daemon.Connector
+	conn   snet.PacketConn
+	sdConn daemon.Connector
+
 	errorPaths map[snet.PathFingerprint]struct{}
 }
 
@@ -262,25 +261,26 @@ func (c *client) run() int {
 	log.Info("Starting", "pair", pair)
 	defer log.Info("Finished", "pair", pair)
 	defer integration.Done(integration.Local.IA, remote.IA)
-	connFactory := &snet.DefaultPacketDispatcherService{
-		Dispatcher: reliable.NewDispatcher(""),
+	c.sdConn = integration.SDConn()
+	defer c.sdConn.Close()
+
+	sn := &snet.SCIONNetwork{
 		SCMPHandler: snet.DefaultSCMPHandler{
-			RevocationHandler: daemon.RevHandler{Connector: integration.SDConn()},
+			RevocationHandler: daemon.RevHandler{Connector: c.sdConn},
 			SCMPErrors:        scmpErrorsCounter,
 		},
-		SCIONPacketConnMetrics: scionPacketConnMetrics,
+		PacketConnMetrics: scionPacketConnMetrics,
+		Topology:          c.sdConn,
 	}
 
 	var err error
-	c.conn, c.port, err = connFactory.Register(context.Background(), integration.Local.IA,
-		integration.Local.Host, addr.SvcNone)
+	c.conn, err = sn.OpenRaw(context.Background(), integration.Local.Host)
 	if err != nil {
 		integration.LogFatal("Unable to listen", "err", err)
 	}
+	port := c.conn.LocalAddr().(*net.UDPAddr).Port
 	log.Info("Send on", "local",
-		fmt.Sprintf("%v,[%v]:%d", integration.Local.IA, integration.Local.Host.IP, c.port))
-	c.sdConn = integration.SDConn()
-	defer c.sdConn.Close()
+		fmt.Sprintf("%v,[%v]:%d", integration.Local.IA, integration.Local.Host.IP, port))
 	c.errorPaths = make(map[snet.PathFingerprint]struct{})
 	return integration.AttemptRepeatedly("End2End", c.attemptRequest)
 }
@@ -340,7 +340,7 @@ func (c *client) ping(ctx context.Context, n int, path snet.Path) error {
 	if remote.NextHop == nil {
 		remote.NextHop = &net.UDPAddr{
 			IP:   remote.Host.IP,
-			Port: topology.EndhostPort,
+			Port: remote.Host.Port,
 		}
 	}
 
@@ -351,6 +351,16 @@ func (c *client) ping(ctx context.Context, n int, path snet.Path) error {
 	localHostIP, ok := netip.AddrFromSlice(integration.Local.Host.IP)
 	if !ok {
 		return serrors.New("invalid local host IP", "ip", integration.Local.Host.IP)
+	}
+	if localHostIP.IsUnspecified() {
+		resolvedLocal, err := addrutil.ResolveLocal(remote.Host.IP)
+		if err != nil {
+			return err
+		}
+		localHostIP, ok = netip.AddrFromSlice(resolvedLocal)
+		if !ok {
+			return serrors.New("invalid resolved local addr", "ip", resolvedLocal)
+		}
 	}
 	pkt := &snet.Packet{
 		PacketInfo: snet.PacketInfo{
@@ -364,7 +374,7 @@ func (c *client) ping(ctx context.Context, n int, path snet.Path) error {
 			},
 			Path: remote.Path,
 			Payload: snet.UDPPayload{
-				SrcPort: c.port,
+				SrcPort: uint16(c.conn.LocalAddr().(*net.UDPAddr).Port),
 				DstPort: uint16(remote.Host.Port),
 				Payload: rawPing,
 			},

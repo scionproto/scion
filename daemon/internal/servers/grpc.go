@@ -24,6 +24,7 @@ import (
 	timestamppb "github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/opentracing/opentracing-go"
 	"golang.org/x/sync/singleflight"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	drkey_daemon "github.com/scionproto/scion/daemon/drkey"
 	"github.com/scionproto/scion/daemon/fetcher"
@@ -49,6 +50,7 @@ type Topology interface {
 	InterfaceIDs() []uint16
 	UnderlayNextHop(uint16) *net.UDPAddr
 	ControlServiceAddresses() []*net.UDPAddr
+	PortRange() (uint16, uint16)
 }
 
 // DaemonServer handles gRPC requests to the SCION daemon.
@@ -349,6 +351,19 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 		}
 	}
 	return &sdpb.NotifyInterfaceDownResponse{}, nil
+}
+
+// PortRange returns the port range for the dispatched ports.
+func (s *DaemonServer) PortRange(
+	_ context.Context,
+	_ *emptypb.Empty,
+) (*sdpb.PortRangeResponse, error) {
+
+	startPort, endPort := s.Topology.PortRange()
+	return &sdpb.PortRangeResponse{
+		DispatchedPortStart: uint32(startPort),
+		DispatchedPortEnd:   uint32(endPort),
+	}, nil
 }
 
 func (s *DaemonServer) DRKeyASHost(

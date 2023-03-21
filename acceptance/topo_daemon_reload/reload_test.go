@@ -92,8 +92,7 @@ func collectLogs(t *testing.T) {
 	require.NoError(t, os.MkdirAll(fmt.Sprintf("%s/logs", outdir), os.ModePerm|os.ModeDir))
 	// collect logs
 	for service, file := range map[string]string{
-		"topo_daemon_reload_dispatcher": "disp.log",
-		"topo_daemon_reload_daemon":     "daemon.log",
+		"topo_daemon_reload_daemon": "daemon.log",
 	} {
 		cmd := exec.Command("docker", "compose",
 			"-f", "docker-compose.yml", "logs", "--no-color",

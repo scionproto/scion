@@ -9,6 +9,7 @@ proto_library(
     deps = [
         "//proto/drkey/v1:drkey",
         "@com_google_protobuf//:duration_proto",
+        "@com_google_protobuf//:empty_proto",
         "@com_google_protobuf//:timestamp_proto",
     ],
 )

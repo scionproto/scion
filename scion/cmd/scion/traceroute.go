@@ -33,7 +33,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/flag"
 	"github.com/scionproto/scion/private/app/path"
@@ -107,11 +106,9 @@ On other errors, traceroute will exit with code 2.
 				return err
 			}
 			daemonAddr := envFlags.Daemon()
-			dispatcher := envFlags.Dispatcher()
 			localIP := net.IP(envFlags.Local().AsSlice())
 			log.Debug("Resolved SCION environment flags",
 				"daemon", daemonAddr,
-				"dispatcher", dispatcher,
 				"local", localIP,
 			)
 
@@ -184,7 +181,7 @@ On other errors, traceroute will exit with code 2.
 			var stats traceroute.Stats
 			var updates []traceroute.Update
 			cfg := traceroute.Config{
-				Dispatcher:   reliable.NewDispatcher(dispatcher),
+				Topology:     sd,
 				Remote:       remote,
 				MTU:          path.Metadata().MTU,
 				Local:        local,

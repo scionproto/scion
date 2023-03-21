@@ -8,7 +8,6 @@ go_test(
     data = [
         "testdata/topology_reload.json",
         ":daemon.tar",
-        ":dispatcher.tar",
         ":docker-compose.yml",
         "//acceptance/topo_common:invalid_reloads",
         "//acceptance/topo_common:topology",
