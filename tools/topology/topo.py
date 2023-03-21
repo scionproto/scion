@@ -66,7 +66,8 @@ class TopoGenArgs(ArgsBase):
                  topo_config,
                  subnet_gen4: SubnetGenerator,
                  subnet_gen6: SubnetGenerator,
-                 default_mtu: int):
+                 default_mtu: int,
+                 endhost_port_range: str):
         """
         :param ArgsBase args: Contains the passed command line arguments.
         :param dict topo_config: The parsed topology config.
@@ -81,6 +82,7 @@ class TopoGenArgs(ArgsBase):
             ADDR_TYPE_6: subnet_gen6,
         }
         self.default_mtu = default_mtu
+        self.endhost_port_range = endhost_port_range
         self.port_gen = PortGenerator()
 
 
@@ -242,6 +244,8 @@ class TopoGenerator(object):
             'attributes': attributes,
             'isd_as': str(topo_id),
             'mtu': mtu,
+            'test_dispatcher': as_conf.get('test_dispatcher', True),
+            'endhost_port_range': as_conf.get('endhost_port_range', self.args.endhost_port_range),
         }
         for i in SCION_SERVICE_NAMES:
             self.topo_dicts[topo_id][i] = {}

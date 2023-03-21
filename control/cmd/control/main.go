@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"path/filepath"
@@ -202,10 +203,8 @@ func realMain(ctx context.Context) error {
 	// FIXME: readability would be improved if we could be consistent with address
 	// representations in NetworkConfig (string or cooked, chose one).
 	nc := infraenv.NetworkConfig{
-		IA: topo.IA(),
-		// Public: (Historical name) The TCP/IP:port address for the control service.
-		Public:                topo.ControlServiceAddress(globalCfg.General.ID),
-		ReconnectToDispatcher: globalCfg.General.ReconnectToDispatcher,
+		IA:     topo.IA(),
+		Public: topo.ControlServiceAddress(globalCfg.General.ID),
 		QUIC: infraenv.QUIC{
 			// Address: the QUIC/SCION address of this service. If not
 			// configured, QUICStack() uses the same IP and port as
@@ -227,6 +226,7 @@ func realMain(ctx context.Context) error {
 		SCIONNetworkMetrics:    metrics.SCIONNetworkMetrics,
 		SCIONPacketConnMetrics: metrics.SCIONPacketConnMetrics,
 		MTU:                    topo.MTU(),
+		CPInfoProvider:         cpInfoProvider{topo: topo},
 	}
 	quicStack, err := nc.QUICStack()
 	if err != nil {
@@ -572,16 +572,24 @@ func realMain(ctx context.Context) error {
 	healthpb.RegisterHealthServer(tcpServer, dsHealth)
 
 	hpCfg := cs.HiddenPathConfigurator{
-		LocalIA:           topo.IA(),
-		Verifier:          verifier,
-		Signer:            signer,
-		PathDB:            pathDB,
-		Dialer:            dialer,
-		FetcherConfig:     fetcherCfg,
-		IntraASTCPServer:  tcpServer,
-		InterASQUICServer: quicServer,
+		LocalIA:          topo.IA(),
+		Verifier:         verifier,
+		Signer:           signer,
+		PathDB:           pathDB,
+		Dialer:           dialer,
+		FetcherConfig:    fetcherCfg,
+		IntraASTCPServer: tcpServer,
 	}
-	hpWriterCfg, err := hpCfg.Setup(globalCfg.PS.HiddenPathsCfg)
+
+	// (TODO)JordiSubira: Revisit after rebasing and move out to separate PR if applicable.
+	// (XXX)JordiSubira: We should revisit how we want to handle HP service,
+	// right now it only seems to be used within the CS. So perhaps we should treat
+	// it as a part of the CS (same as BS, CertServ, DRKey, etc). For the moment, we
+	// create a different grpc.Server endpoint that will be located behind a different
+	// quic socket using the IP:port in the topology.json file. This is required
+	// because the client side, uses the DS to discover the address of the remote
+	// HP server, thus it should use whatever is written in the topology file.
+	hpInterASServer, hpWriterCfg, err := hpCfg.Setup(globalCfg.PS.HiddenPathsCfg)
 	if err != nil {
 		return err
 	}
@@ -683,6 +691,29 @@ func realMain(ctx context.Context) error {
 		return nil
 	})
 	cleanup.Add(func() error { tcpServer.GracefulStop(); return nil })
+	if hpInterASServer != nil {
+		a, err := topo.HiddenSegmentRegistrationAddresses()
+		if err != nil {
+			return err
+		}
+		if len(a) == 0 {
+			return serrors.New("Hidden Path registration address expected and not found")
+		}
+		// XXX(JordiSubira): Just take the first address, we only use topology.json with
+		// information for one unique AS.
+		hpListener, err := nc.OpenListener(a[0].String())
+		if err != nil {
+			return serrors.WrapStr("opening listener for Hidden Path", err)
+		}
+		g.Go(func() error {
+			defer log.HandlePanic()
+			if err := hpInterASServer.Serve(hpListener); err != nil {
+				return serrors.WrapStr("serving Hidden Path API", err)
+			}
+			return nil
+		})
+		cleanup.Add(func() error { hpInterASServer.GracefulStop(); return nil })
+	}
 
 	if globalCfg.API.Addr != "" {
 		r := chi.NewRouter()
@@ -926,6 +957,27 @@ func (h *healther) GetCAHealth(ctx context.Context) (api.CAHealthStatus, bool) {
 		return h.CAHealth.GetStatus(), true
 	}
 	return api.Unavailable, false
+}
+
+type cpInfoProvider struct {
+	topo *topology.Loader
+}
+
+func (c cpInfoProvider) PortRange(_ context.Context) (uint16, uint16, error) {
+	start, end := c.topo.PortRange()
+	return start, end, nil
+}
+
+func (c cpInfoProvider) Interfaces(_ context.Context) (map[uint16]*net.UDPAddr, error) {
+	ifMap := c.topo.InterfaceInfoMap()
+	ifsToUDP := make(map[uint16]*net.UDPAddr, len(ifMap))
+	for i, v := range ifMap {
+		if i > (1<<16)-1 {
+			return nil, serrors.New("Invalid interface id", "id", i)
+		}
+		ifsToUDP[uint16(i)] = v.InternalAddr
+	}
+	return ifsToUDP, nil
 }
 
 func getCAHealth(

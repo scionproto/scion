@@ -2,6 +2,7 @@
 
 # Copyright 2020 Anapaya Systems
 
+import time
 import http.server
 import threading
 
@@ -52,6 +53,19 @@ class Test(base.TestTopogen):
 
     http_server_port = 9099
 
+    _testers = {
+        "2": "tester_1-ff00_0_2",
+        "3": "tester_1-ff00_0_3",
+        "4": "tester_1-ff00_0_4",
+        "5": "tester_1-ff00_0_5",
+     }
+    _ases = {
+        "2": "1-ff00:0:2",
+        "3": "1-ff00:0:3",
+        "4": "1-ff00:0:4",
+        "5": "1-ff00:0:5",
+    }
+
     def setup_prepare(self):
         super().setup_prepare()
 
@@ -64,6 +78,15 @@ class Test(base.TestTopogen):
             "3": "172.20.0.57",
             "4": "172.20.0.65",
             "5": "172.20.0.73",
+        }
+        # TODO(JordiSubira): These addresses will change if the topology file is modified.
+        # In any case, after rebasing this branch this probably does not work anymore, since
+        # SVC resolution and address setup is modified.
+        control_addresses = {
+            "2": "172.20.0.51:30090",
+            "3": "172.20.0.59:30090",
+            "4": "172.20.0.67:30090",
+            "5": "172.20.0.75:30090",
         }
         # Each AS participating in hidden paths has their own hidden paths configuration file.
         hp_configs = {
@@ -92,16 +115,13 @@ class Test(base.TestTopogen):
             # even though some don't need the registration service.
             as_dir_path = self.artifacts / "gen" / ("ASff00_0_%s" % as_number)
 
-            # The hidden_segment services are behind the same server as the control_service.
-            topology_file = as_dir_path / "topology.json"
-            control_service_addr = scion.load_from_json(
-                'control_service.%s.addr' % control_id, [topology_file])
             topology_update = {
                 "hidden_segment_lookup_service.%s.addr" % control_id:
-                    control_service_addr,
+                    control_addresses[as_number],
                 "hidden_segment_registration_service.%s.addr" % control_id:
-                    control_service_addr,
+                    control_addresses[as_number],
             }
+            topology_file = as_dir_path / "topology.json"
             scion.update_json(topology_update, [topology_file])
 
     def setup_start(self):
@@ -111,10 +131,9 @@ class Test(base.TestTopogen):
         server_thread.start()
         self._server = server
 
-        super().setup_start()
-
         self.await_connectivity()
         self._server.shutdown()  # by now configuration must have been downloaded everywhere
+
 
     def _run(self):
         # Group 3

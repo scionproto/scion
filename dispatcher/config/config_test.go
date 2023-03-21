@@ -23,7 +23,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/pkg/log/logtest"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/private/env/envtest"
 	apitest "github.com/scionproto/scion/private/mgmtapi/mgmtapitest"
 	"github.com/scionproto/scion/private/topology"
@@ -44,7 +43,6 @@ func InitTestConfig(cfg *Config) {
 	apitest.InitConfig(&cfg.API)
 	envtest.InitTest(nil, &cfg.Metrics, nil, nil)
 	logtest.InitTestLogging(&cfg.Logging)
-	cfg.Dispatcher.DeleteSocket = true
 }
 
 func CheckTestConfig(t *testing.T, cfg *Config, id string) {
@@ -52,8 +50,6 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 	envtest.CheckTest(t, nil, &cfg.Metrics, nil, nil, id)
 	logtest.CheckTestLogging(t, &cfg.Logging, id)
 	assert.Equal(t, id, cfg.Dispatcher.ID)
-	assert.Equal(t, reliable.DefaultDispPath, cfg.Dispatcher.ApplicationSocket)
-	assert.Equal(t, reliable.DefaultDispSocketFileMode, int(cfg.Dispatcher.SocketFileMode))
 	assert.Equal(t, topology.EndhostPort, cfg.Dispatcher.UnderlayPort)
-	assert.False(t, cfg.Dispatcher.DeleteSocket)
+	assert.Len(t, cfg.Dispatcher.ParsedServiceAddresses, 0)
 }

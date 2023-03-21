@@ -33,7 +33,6 @@ import (
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/flag"
 	"github.com/scionproto/scion/private/app/path"
@@ -131,11 +130,9 @@ On other errors, ping will exit with code 2.
 				return err
 			}
 			daemonAddr := envFlags.Daemon()
-			dispatcher := envFlags.Dispatcher()
 			localIP := net.IP(envFlags.Local().AsSlice())
 			log.Debug("Resolved SCION environment flags",
 				"daemon", daemonAddr,
-				"dispatcher", dispatcher,
 				"local", localIP,
 			)
 
@@ -167,9 +164,8 @@ On other errors, ping will exit with code 2.
 			}
 			if flags.healthyOnly {
 				opts = append(opts, path.WithProbing(&path.ProbeConfig{
-					LocalIA:    info.IA,
-					LocalIP:    localIP,
-					Dispatcher: dispatcher,
+					LocalIA: info.IA,
+					LocalIP: localIP,
 				}))
 			}
 			path, err := path.Choose(traceCtx, sd, remote.IA, opts...)
@@ -265,13 +261,13 @@ On other errors, ping will exit with code 2.
 			}
 
 			stats, err := ping.Run(ctx, ping.Config{
-				Dispatcher:  reliable.NewDispatcher(dispatcher),
-				Attempts:    count,
-				Interval:    flags.interval,
-				Timeout:     flags.timeout,
-				Local:       local,
-				Remote:      remote,
-				PayloadSize: pldSize,
+				CPInfoProvider: sd,
+				Attempts:       count,
+				Interval:       flags.interval,
+				Timeout:        flags.timeout,
+				Local:          local,
+				Remote:         remote,
+				PayloadSize:    pldSize,
 				ErrHandler: func(err error) {
 					fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
 				},

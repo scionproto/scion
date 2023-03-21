@@ -74,6 +74,34 @@ func (c grpcConn) LocalIA(ctx context.Context) (addr.IA, error) {
 	return ia, nil
 }
 
+func (c grpcConn) PortRange(ctx context.Context) (uint16, uint16, error) {
+	asInfo, err := c.ASInfo(ctx, 0)
+	if err != nil {
+		return 0, 0, err
+	}
+	return asInfo.EndhostStartPort, asInfo.EndhostEndPort, nil
+}
+
+func (c grpcConn) Interfaces(ctx context.Context) (map[uint16]*net.UDPAddr, error) {
+	client := sdpb.NewDaemonServiceClient(c.conn)
+	response, err := client.Interfaces(ctx, &sdpb.InterfacesRequest{})
+	if err != nil {
+		c.metrics.incInterface(err)
+		return nil, err
+	}
+	result := make(map[uint16]*net.UDPAddr)
+	for ifID, intf := range response.Interfaces {
+		a, err := net.ResolveUDPAddr("udp", intf.Address.Address)
+		if err != nil {
+			c.metrics.incInterface(err)
+			return nil, serrors.WrapStr("parsing reply", err, "raw_uri", intf.Address.Address)
+		}
+		result[uint16(ifID)] = a
+	}
+	c.metrics.incInterface(nil)
+	return result, nil
+}
+
 func (c grpcConn) Paths(ctx context.Context, dst, src addr.IA,
 	f PathReqFlags) ([]snet.Path, error) {
 
@@ -102,31 +130,11 @@ func (c grpcConn) ASInfo(ctx context.Context, ia addr.IA) (ASInfo, error) {
 	}
 	c.metrics.incAS(nil)
 	return ASInfo{
-		IA:  addr.IA(response.IsdAs),
-		MTU: uint16(response.Mtu),
+		IA:               addr.IA(response.IsdAs),
+		MTU:              uint16(response.Mtu),
+		EndhostStartPort: uint16(response.EndhostStartPort),
+		EndhostEndPort:   uint16(response.EndhostEndPort),
 	}, nil
-}
-
-func (c grpcConn) IFInfo(ctx context.Context,
-	_ []common.IFIDType) (map[common.IFIDType]*net.UDPAddr, error) {
-
-	client := sdpb.NewDaemonServiceClient(c.conn)
-	response, err := client.Interfaces(ctx, &sdpb.InterfacesRequest{})
-	if err != nil {
-		c.metrics.incInterface(err)
-		return nil, err
-	}
-	result := make(map[common.IFIDType]*net.UDPAddr)
-	for ifID, intf := range response.Interfaces {
-		a, err := net.ResolveUDPAddr("udp", intf.Address.Address)
-		if err != nil {
-			c.metrics.incInterface(err)
-			return nil, serrors.WrapStr("parsing reply", err, "raw_uri", intf.Address.Address)
-		}
-		result[common.IFIDType(ifID)] = a
-	}
-	c.metrics.incInterface(nil)
-	return result, nil
 }
 
 func (c grpcConn) SVCInfo(

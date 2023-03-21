@@ -196,6 +196,21 @@ func (mr *MockTopologyMockRecorder) Multicast(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Multicast", reflect.TypeOf((*MockTopology)(nil).Multicast), arg0)
 }
 
+// PortRange mocks base method.
+func (m *MockTopology) PortRange() (uint16, uint16) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PortRange")
+	ret0, _ := ret[0].(uint16)
+	ret1, _ := ret[1].(uint16)
+	return ret0, ret1
+}
+
+// PortRange indicates an expected call of PortRange.
+func (mr *MockTopologyMockRecorder) PortRange() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PortRange", reflect.TypeOf((*MockTopology)(nil).PortRange))
+}
+
 // PublicAddress mocks base method.
 func (m *MockTopology) PublicAddress(arg0 addr.SVC, arg1 string) *net.UDPAddr {
 	m.ctrl.T.Helper()

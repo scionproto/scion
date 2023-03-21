@@ -16,10 +16,8 @@ package snet
 
 import (
 	"context"
-	"net"
 	"time"
 
-	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/common"
@@ -27,44 +25,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/slayers"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 )
-
-// PacketDispatcherService constructs SCION sockets where applications have
-// fine-grained control over header fields.
-type PacketDispatcherService interface {
-	Register(ctx context.Context, ia addr.IA, registration *net.UDPAddr,
-		svc addr.SVC) (PacketConn, uint16, error)
-}
-
-var _ PacketDispatcherService = (*DefaultPacketDispatcherService)(nil)
-
-// DefaultPacketDispatcherService parses/serializes packets received from /
-// sent to the dispatcher.
-type DefaultPacketDispatcherService struct {
-	// Dispatcher is used to get packets from the local SCION Dispatcher process.
-	Dispatcher reliable.Dispatcher
-	// SCMPHandler is invoked for packets that contain an SCMP L4. If the
-	// handler is nil, errors are returned back to applications every time an
-	// SCMP message is received.
-	SCMPHandler SCMPHandler
-	// Metrics injected into SCIONPacketConn.
-	SCIONPacketConnMetrics SCIONPacketConnMetrics
-}
-
-func (s *DefaultPacketDispatcherService) Register(ctx context.Context, ia addr.IA,
-	registration *net.UDPAddr, svc addr.SVC) (PacketConn, uint16, error) {
-
-	rconn, port, err := s.Dispatcher.Register(ctx, ia, registration, svc)
-	if err != nil {
-		return nil, 0, err
-	}
-	return &SCIONPacketConn{
-		Conn:        rconn,
-		SCMPHandler: s.SCMPHandler,
-		Metrics:     s.SCIONPacketConnMetrics,
-	}, port, nil
-}
 
 // RevocationHandler is called by the default SCMP Handler whenever revocations are encountered.
 type RevocationHandler interface {
@@ -79,7 +40,7 @@ type SCMPHandler interface {
 	//
 	// If the handler returns an error value, snet will propagate the error
 	// back to the caller. If the return value is nil, snet will reattempt to
-	// read a data packet from the underlying dispatcher connection.
+	// read a data packet from the underlying connection.
 	//
 	// Handlers that wish to ignore SCMP can just return nil.
 	//

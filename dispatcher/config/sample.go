@@ -21,15 +21,6 @@ const dispSample = `
 # ID of the Dispatcher. (required)
 id = "%s"
 
-# The local API socket. (default /run/shm/dispatcher/default.sock)
-application_socket = "/run/shm/dispatcher/default.sock"
-
-# File permissions of the ApplicationSocket socket file, in octal. (default "0770")
-socket_file_mode = "0770"
-
 # The native port opened by the dispatcher. (default 30041)
 underlay_port = 30041
-
-# Remove the socket file (if it exists) on start. (default false)
-delete_socket = false
 `

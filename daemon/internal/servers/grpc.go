@@ -49,6 +49,7 @@ type Topology interface {
 	InterfaceIDs() []uint16
 	UnderlayNextHop(uint16) *net.UDPAddr
 	ControlServiceAddresses() []*net.UDPAddr
+	PortRange() (uint16, uint16)
 }
 
 // DaemonServer handles gRPC requests to the SCION daemon.
@@ -242,15 +243,21 @@ func (s *DaemonServer) as(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASRes
 	if reqIA.Equal(s.IA) {
 		mtu = uint32(s.MTU)
 	}
+	var startPort, endPort uint16
+	if reqIA.Equal(s.IA) {
+		startPort, endPort = s.Topology.PortRange()
+	}
 	core, err := s.ASInspector.HasAttributes(ctx, reqIA, trust.Core)
 	if err != nil {
 		log.FromCtx(ctx).Error("Inspecting ISD-AS", "err", err, "isd_as", reqIA)
 		return nil, serrors.WrapStr("inspecting ISD-AS", err, "isd_as", reqIA)
 	}
 	reply := &sdpb.ASResponse{
-		IsdAs: uint64(reqIA),
-		Core:  core,
-		Mtu:   mtu,
+		IsdAs:            uint64(reqIA),
+		Core:             core,
+		Mtu:              mtu,
+		EndhostStartPort: uint32(startPort),
+		EndhostEndPort:   uint32(endPort),
 	}
 	return reply, nil
 }
