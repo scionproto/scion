@@ -38,11 +38,6 @@ import (
 	env "github.com/scionproto/scion/private/app/flag"
 )
 
-const (
-	genericDerivation  = "generic"
-	specificDerivation = "specific"
-)
-
 func main() {
 	os.Exit(realMain())
 }
@@ -60,7 +55,8 @@ func realMain() int {
 	flag.StringVar(&serverAddrStr, "server-addr", "", "SCION address for the server-side.")
 	flag.StringVar(&clientAddrStr, "client-addr", "", "SCION address for the client-side.")
 	flag.Uint16Var(&protocol, "protocol", 1 /* SCMP */, "DRKey protocol identifier.")
-	flag.BoolVar(&fetchSV, "fetch-sv", false, "Fetch protocol specific secret value to derive server-side keys.")
+	flag.BoolVar(&fetchSV, "fetch-sv", false,
+		"Fetch protocol specific secret value to derive server-side keys.")
 	flag.Parse()
 	if err := scionEnv.LoadExternalVars(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error reading SCION environment:", err)
