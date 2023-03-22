@@ -88,8 +88,9 @@ class Test(base.TestTopogen):
 
         # Define DRKey protocol identifiers and derivation typ for test
         for test in [
-            {"protocol": "1", "derivation": "specific"},  # SCMP
-            {"protocol": "7", "derivation": "generic"},   # Generic "niche" protocol
+            {"protocol": "1", "fetch_sv": "--fetch-sv"},  # SCMP based on protocol specific SV
+            {"protocol": "1", "fetch_sv": ""},            # SCMP based on generic key derivation
+            {"protocol": "7", "fetch_sv": ""},            # Generic "niche" protocol
         ]:
             # Determine server and client addresses for test.
             # Because communication to the control services does not happen
@@ -104,7 +105,7 @@ class Test(base.TestTopogen):
             # Demonstrate deriving key (fast) on server side
             rs = self.dc.execute("tester_%s" % self.server_isd_as.file_fmt(),
                                  "drkey-demo", "--server",
-                                 "--protocol", test["protocol"], "--derivation", test["derivation"],
+                                 "--protocol", test["protocol"], test["fetch_sv"],
                                  "--server-addr", server_addr, "--client-addr", client_addr)
             print(rs)
 

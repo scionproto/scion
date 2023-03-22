@@ -51,7 +51,7 @@ func realMain() int {
 	var serverMode bool
 	var serverAddrStr, clientAddrStr string
 	var protocol uint16
-	var derivation string
+	var fetchSV bool
 	var scionEnv env.SCIONEnvironment
 
 	scionEnv.Register(flag.CommandLine)
@@ -60,9 +60,7 @@ func realMain() int {
 	flag.StringVar(&serverAddrStr, "server-addr", "", "SCION address for the server-side.")
 	flag.StringVar(&clientAddrStr, "client-addr", "", "SCION address for the client-side.")
 	flag.Uint16Var(&protocol, "protocol", 1 /* SCMP */, "DRKey protocol identifier.")
-	flag.StringVar(&derivation, "derivation", genericDerivation,
-		fmt.Sprintf("DRKey derivation type for the server-side (\"%s\"|\"%s\").",
-			genericDerivation, specificDerivation))
+	flag.BoolVar(&fetchSV, "fetch-sv", false, "Fetch protocol specific secret value to derive server-side keys.")
 	flag.Parse()
 	if err := scionEnv.LoadExternalVars(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error reading SCION environment:", err)
@@ -82,11 +80,9 @@ func realMain() int {
 		return 2
 	}
 
-	if serverMode {
-		if derivation != genericDerivation && derivation != specificDerivation {
-			fmt.Fprintf(os.Stderr, "Invalid --derivation '%s'\n", derivation)
-			return 2
-		}
+	if !serverMode && fetchSV {
+		fmt.Fprintf(os.Stderr, "Invalid flag --fetch-sv for client-side key derivation\n")
+		return 2
 	}
 
 	ctx, cancelF := context.WithTimeout(context.Background(), 10*time.Second)
@@ -120,7 +116,7 @@ func realMain() int {
 		server := Server{daemon}
 		var serverKey drkey.HostHostKey
 		var t0, t1, t2 time.Time
-		if derivation == specificDerivation {
+		if fetchSV {
 			// Fetch the Secret Value (SV); in a real application, this is only done at
 			// startup and refreshed for each epoch.
 			t0 = time.Now()
@@ -164,9 +160,9 @@ func realMain() int {
 			t2 = time.Now()
 		}
 		fmt.Printf(
-			"Server,\thost key = %s\tprotocol = %s\t"+
+			"Server,\thost key = %s\tprotocol = %s\tfetch-sv = %v\t"+
 				"duration without cache = %s\tduration with cache = %s\n",
-			hex.EncodeToString(serverKey.Key[:]), meta.ProtoId, t2.Sub(t0), t2.Sub(t1),
+			hex.EncodeToString(serverKey.Key[:]), meta.ProtoId, fetchSV, t2.Sub(t0), t2.Sub(t1),
 		)
 	} else {
 		// Client: fetch key from daemon
