@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/path"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 )
 
 // Update contains the information for a single hop.
@@ -56,7 +55,6 @@ type Stats struct {
 
 // Config configures the traceroute run.
 type Config struct {
-	Dispatcher  reliable.Dispatcher
 	Local       *snet.UDPAddr
 	MTU         uint16
 	PathEntry   snet.Path
@@ -101,16 +99,15 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 	}
 	id := rand.Uint64()
 	replies := make(chan reply, 10)
-	dispatcher := snet.DefaultPacketDispatcherService{
-		Dispatcher:  cfg.Dispatcher,
+	connector := &snet.DefaultConnector{
 		SCMPHandler: scmpHandler{replies: replies},
 	}
-	conn, port, err := dispatcher.Register(ctx, cfg.Local.IA, cfg.Local.Host, addr.SvcNone)
+	conn, err := connector.OpenUDP(cfg.Local.Host)
 	if err != nil {
 		return Stats{}, err
 	}
 	local := cfg.Local.Copy()
-	local.Host.Port = int(port)
+	local.Host = conn.LocalAddr().(*net.UDPAddr)
 	t := tracerouter{
 		probesPerHop:  cfg.ProbesPerHop,
 		timeout:       cfg.Timeout,

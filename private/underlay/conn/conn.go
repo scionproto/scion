@@ -83,25 +83,20 @@ func New(listen, remote *net.UDPAddr, cfg *Config) (Conn, error) {
 //
 // Note that Go-style dual-stacked IPv4/IPv6 connections are not supported. If
 // network is udp, it will be treated as udp4.
-func OpenConn(network, address string) (net.PacketConn, error) {
+func OpenConn(addr *net.UDPAddr) (net.PacketConn, error) {
 	// We cannot allow the Go standard library to open both types of sockets
 	// because the socket options are specific to only one socket type, so we
 	// degrade udp to only udp4.
-	if network == "udp" {
-		network = "udp4"
+	listeningAddr := copyUDPAddr(addr)
+	if (listeningAddr.Network() == "udp" || listeningAddr.Network() == "udp4") &&
+		listeningAddr.IP == nil {
+		listeningAddr.IP = net.IPv4zero
 	}
-	listeningAddress, err := net.ResolveUDPAddr(network, address)
-	if err != nil {
-		return nil, serrors.WrapStr("unable to construct UDP addr", err)
-	}
-	if network == "udp4" && listeningAddress.IP == nil {
-		listeningAddress.IP = net.IPv4zero
-	}
-	if network == "udp6" && listeningAddress.IP == nil {
-		listeningAddress.IP = net.IPv6zero
+	if listeningAddr.Network() == "udp6" && listeningAddr.IP == nil {
+		listeningAddr.IP = net.IPv6zero
 	}
 
-	c, err := New(listeningAddress, nil, &Config{
+	c, err := New(listeningAddr, nil, &Config{
 		SendBufferSize:    0,
 		ReceiveBufferSize: 0,
 	})
@@ -282,7 +277,7 @@ func (cc *connUDPBase) initConnUDP(network string, laddr, raddr *net.UDPAddr, cf
 	}
 
 	cc.conn = c
-	cc.Listen = laddr
+	cc.Listen = c.LocalAddr().(*net.UDPAddr)
 	cc.Remote = raddr
 	return nil
 }
@@ -366,4 +361,15 @@ func (o *underlayConnWrapper) SetReadDeadline(t time.Time) error {
 
 func (o *underlayConnWrapper) SetWriteDeadline(t time.Time) error {
 	return o.Conn.SetWriteDeadline(t)
+}
+
+func copyUDPAddr(a *net.UDPAddr) *net.UDPAddr {
+	if a == nil {
+		return nil
+	}
+	return &net.UDPAddr{
+		IP:   append(a.IP[:0:0], a.IP...),
+		Port: a.Port,
+		Zone: a.Zone,
+	}
 }

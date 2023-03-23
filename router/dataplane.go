@@ -623,6 +623,14 @@ func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 		return processResult{}, err
 	}
 	pld := p.lastLayer.LayerPayload()
+	srcHost, _ := p.scionLayer.SrcAddr()
+	dstHost, _ := p.scionLayer.DstAddr()
+	log.Debug("packet",
+		"src IA", p.scionLayer.SrcIA,
+		"dst IA", p.scionLayer.DstIA,
+		"src addr", srcHost.String(),
+		"dst addr", dstHost.String(),
+	)
 
 	pathType := p.scionLayer.PathType
 	switch pathType {
@@ -1452,8 +1460,7 @@ func addEndhostPort(lastLayer gopacket.DecodingLayer, dst *net.IPAddr) *net.UDPA
 		// parse UDP Destination Port as specified in RFC 768
 		port := binary.BigEndian.Uint16(lastLayer.LayerPayload()[2:])
 		log.Debug("TBR XXXJ:", "udp port that will be rewritten", port)
-		//return &net.UDPAddr{IP: dst.IP, Port: int(port)}
-		return &net.UDPAddr{IP: dst.IP, Port: topology.EndhostPort}
+		return &net.UDPAddr{IP: dst.IP, Port: int(port)}
 	case slayers.L4SCMP:
 		return &net.UDPAddr{IP: dst.IP, Port: topology.EndhostPort}
 	default:

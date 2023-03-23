@@ -47,8 +47,10 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/private/underlay/conn"
 )
 
 var _ Network = (*SCIONNetwork)(nil)
@@ -60,10 +62,31 @@ type SCIONNetworkMetrics struct {
 	Listens metrics.Counter
 }
 
+type Connector interface {
+	OpenUDP(address *net.UDPAddr) (PacketConn, error)
+}
+
+type DefaultConnector struct {
+	SCMPHandler SCMPHandler
+	Metrics     SCIONPacketConnMetrics
+}
+
+func (d *DefaultConnector) OpenUDP(addr *net.UDPAddr) (PacketConn, error) {
+	pconn, err := conn.OpenConn(addr)
+	if err != nil {
+		return nil, err
+	}
+	return &SCIONPacketConn{
+		Conn:        pconn,
+		SCMPHandler: d.SCMPHandler,
+		Metrics:     d.Metrics,
+	}, nil
+}
+
 // SCIONNetwork is the SCION networking context.
 type SCIONNetwork struct {
-	LocalIA  addr.IA
-	OpenConn func(network, address string) (PacketConn, error)
+	LocalIA   addr.IA
+	Connector Connector
 	// ReplyPather is used to create reply paths when reading packets on Conn
 	// (that implements net.Conn). If unset, the default reply pather is used,
 	// which parses the incoming path as a path.Path and reverses it.
@@ -95,8 +118,7 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 	return conn, nil
 }
 
-// Listen registers listen with the dispatcher. Nil values for listen are
-// not supported yet. The returned connection's ReadFrom and WriteTo methods
+// Listen opens a PacketConn. The returned connection's ReadFrom and WriteTo methods
 // can be used to receive and send SCION packets with per-packet addressing.
 // Parameter network must be "udp".
 //
@@ -111,43 +133,33 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 		return nil, serrors.New("Unknown network", "network", network)
 	}
 
-	// FIXME(scrye): If no local address is specified, we want to
-	// bind to the address of the outbound interface on a random
-	// free port. However, the current dispatcher version cannot
-	// expose that address. Additionally, the dispatcher does not follow
-	// normal operating system semantics for binding on 0.0.0.0 (it
-	// considers it to be a fixed address instead of a wildcard). To avoid
-	// misuse, disallow binding to nil or 0.0.0.0 addresses for now.
-	if listen == nil {
-		return nil, serrors.New("nil listen addr not supported")
+	// FIXME(JordiSubira): Without the dispatcher if the host in the address parameter is nil
+	// or a literal unspecified IP address we can listen on all available IP addresses, except
+	// multicast. Port and address can be exposed using LocalAddr() on the returned Conn.
+	// if listen == nil {
+	// 	return nil, serrors.New("nil listen addr not supported")
+	// }
+	// if listen.IP == nil {
+	// 	return nil, serrors.New("nil listen IP not supported")
+	// }
+	// if listen.IP.IsUnspecified() {
+	// 	return nil, serrors.New("unspecified listen IP not supported")
+	// }
+
+	packetConn, err := n.Connector.OpenUDP(listen)
+	if err != nil {
+		return nil, err
 	}
-	if listen.IP == nil {
-		return nil, serrors.New("nil listen IP not supported")
-	}
-	if listen.IP.IsUnspecified() {
-		return nil, serrors.New("unspecified listen IP not supported")
-	}
+
+	log.FromCtx(ctx).Debug("UDP socket openned on", "addr", packetConn.LocalAddr())
+
 	conn := scionConnBase{
 		scionNet: n,
 		svc:      svc,
 		listen: &UDPAddr{
 			IA:   n.LocalIA,
-			Host: CopyUDPAddr(listen),
+			Host: packetConn.LocalAddr().(*net.UDPAddr),
 		},
-	}
-
-	// packetConn, port, err := n.Dispatcher.Register(ctx, n.LocalIA, listen, svc)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// if port != uint16(listen.Port) {
-	// 	conn.listen.Host.Port = int(port)
-	// }
-	// log.Debug("Registered with dispatcher", "addr", conn.listen)
-
-	packetConn, err := n.OpenConn(network, listen.String())
-	if err != nil {
-		return nil, err
 	}
 
 	replyPather := n.ReplyPather

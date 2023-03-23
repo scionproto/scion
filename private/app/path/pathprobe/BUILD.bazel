@@ -14,7 +14,6 @@ go_library(
         "//pkg/snet:go_default_library",
         "//pkg/snet/addrutil:go_default_library",
         "//pkg/snet/path:go_default_library",
-        "//pkg/sock/reliable:go_default_library",
         "@org_golang_x_sync//errgroup:go_default_library",
     ],
 )

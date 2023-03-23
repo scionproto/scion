@@ -15,7 +15,6 @@
 package svc_test
 
 import (
-	"context"
 	"errors"
 	"net"
 	"testing"
@@ -35,26 +34,24 @@ import (
 
 func TestSVCResolutionServer(t *testing.T) {
 	testCases := map[string]struct {
-		DispService func(ctrl *gomock.Controller) snet.PacketDispatcherService
+		Connector   func(ctrl *gomock.Controller) snet.Connector
 		ReqHandler  func(ctrl *gomock.Controller) svc.RequestHandler
-		ErrRegister assert.ErrorAssertionFunc
+		ErrOpen     assert.ErrorAssertionFunc
 		ErrConnRead assert.ErrorAssertionFunc
 	}{
 		"Underlying dispatcher service fails to set up underlying conn": {
-			DispService: func(ctrl *gomock.Controller) snet.PacketDispatcherService {
-				s := mock_snet.NewMockPacketDispatcherService(ctrl)
-				s.EXPECT().Register(
-					gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
-				).Return(nil, uint16(0), errors.New("conn error"))
-				return s
+			Connector: func(ctrl *gomock.Controller) snet.Connector {
+				c := mock_snet.NewMockConnector(ctrl)
+				c.EXPECT().OpenUDP(gomock.Any()).Return(nil, errors.New("conn error"))
+				return c
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
 				return mock_svc.NewMockRequestHandler(ctrl)
 			},
-			ErrRegister: assert.Error,
+			ErrOpen: assert.Error,
 		},
 		"If handler fails, caller sees error": {
-			DispService: func(ctrl *gomock.Controller) snet.PacketDispatcherService {
+			Connector: func(ctrl *gomock.Controller) snet.Connector {
 				mockPacketConn := mock_snet.NewMockPacketConn(ctrl)
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, ov *net.UDPAddr) error {
@@ -65,22 +62,20 @@ func TestSVCResolutionServer(t *testing.T) {
 					},
 				)
 
-				s := mock_snet.NewMockPacketDispatcherService(ctrl)
-				s.EXPECT().Register(
-					gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
-				).Return(mockPacketConn, uint16(1337), nil)
-				return s
+				c := mock_snet.NewMockConnector(ctrl)
+				c.EXPECT().OpenUDP(gomock.Any()).Return(mockPacketConn, nil)
+				return c
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
 				h := mock_svc.NewMockRequestHandler(ctrl)
 				h.EXPECT().Handle(gomock.Any()).Return(svc.Error, errors.New("err")).AnyTimes()
 				return h
 			},
-			ErrRegister: assert.NoError,
+			ErrOpen:     assert.NoError,
 			ErrConnRead: assert.Error,
 		},
 		"If handler returns forward, caller sees data": {
-			DispService: func(ctrl *gomock.Controller) snet.PacketDispatcherService {
+			Connector: func(ctrl *gomock.Controller) snet.Connector {
 				mockPacketConn := mock_snet.NewMockPacketConn(ctrl)
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, ov *net.UDPAddr) error {
@@ -91,22 +86,20 @@ func TestSVCResolutionServer(t *testing.T) {
 					},
 				)
 
-				s := mock_snet.NewMockPacketDispatcherService(ctrl)
-				s.EXPECT().Register(
-					gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
-				).Return(mockPacketConn, uint16(1337), nil)
-				return s
+				c := mock_snet.NewMockConnector(ctrl)
+				c.EXPECT().OpenUDP(gomock.Any()).Return(mockPacketConn, nil)
+				return c
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
 				h := mock_svc.NewMockRequestHandler(ctrl)
 				h.EXPECT().Handle(gomock.Any()).Return(svc.Forward, nil).AnyTimes()
 				return h
 			},
-			ErrRegister: assert.NoError,
+			ErrOpen:     assert.NoError,
 			ErrConnRead: assert.NoError,
 		},
 		"return from conn with no error next internal read yields data": {
-			DispService: func(ctrl *gomock.Controller) snet.PacketDispatcherService {
+			Connector: func(ctrl *gomock.Controller) snet.Connector {
 				mockPacketConn := mock_snet.NewMockPacketConn(ctrl)
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, ov *net.UDPAddr) error {
@@ -117,22 +110,20 @@ func TestSVCResolutionServer(t *testing.T) {
 					},
 				)
 
-				s := mock_snet.NewMockPacketDispatcherService(ctrl)
-				s.EXPECT().Register(
-					gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
-				).Return(mockPacketConn, uint16(1337), nil)
-				return s
+				c := mock_snet.NewMockConnector(ctrl)
+				c.EXPECT().OpenUDP(gomock.Any()).Return(mockPacketConn, nil)
+				return c
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
 				h := mock_svc.NewMockRequestHandler(ctrl)
 				h.EXPECT().Handle(gomock.Any()).Return(svc.Handled, nil).AnyTimes()
 				return h
 			},
-			ErrRegister: assert.NoError,
+			ErrOpen:     assert.NoError,
 			ErrConnRead: assert.NoError,
 		},
 		"return from socket with error if next internal read fails": {
-			DispService: func(ctrl *gomock.Controller) snet.PacketDispatcherService {
+			Connector: func(ctrl *gomock.Controller) snet.Connector {
 				mockPacketConn := mock_snet.NewMockPacketConn(ctrl)
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, ov *net.UDPAddr) error {
@@ -140,22 +131,20 @@ func TestSVCResolutionServer(t *testing.T) {
 					},
 				)
 
-				s := mock_snet.NewMockPacketDispatcherService(ctrl)
-				s.EXPECT().Register(
-					gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
-				).Return(mockPacketConn, uint16(1337), nil)
-				return s
+				c := mock_snet.NewMockConnector(ctrl)
+				c.EXPECT().OpenUDP(gomock.Any()).Return(mockPacketConn, nil)
+				return c
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
 				h := mock_svc.NewMockRequestHandler(ctrl)
 				h.EXPECT().Handle(gomock.Any()).Return(svc.Handled, nil).AnyTimes()
 				return h
 			},
-			ErrRegister: assert.NoError,
+			ErrOpen:     assert.NoError,
 			ErrConnRead: assert.Error,
 		},
 		"Multicast SVC packets get delivered to caller": {
-			DispService: func(ctrl *gomock.Controller) snet.PacketDispatcherService {
+			Connector: func(ctrl *gomock.Controller) snet.Connector {
 				mockPacketConn := mock_snet.NewMockPacketConn(ctrl)
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, ov *net.UDPAddr) error {
@@ -166,18 +155,16 @@ func TestSVCResolutionServer(t *testing.T) {
 					},
 				)
 
-				s := mock_snet.NewMockPacketDispatcherService(ctrl)
-				s.EXPECT().Register(
-					gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
-				).Return(mockPacketConn, uint16(1337), nil)
-				return s
+				c := mock_snet.NewMockConnector(ctrl)
+				c.EXPECT().OpenUDP(gomock.Any()).Return(mockPacketConn, nil)
+				return c
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
 				h := mock_svc.NewMockRequestHandler(ctrl)
 				h.EXPECT().Handle(gomock.Any()).Return(svc.Handled, nil).AnyTimes()
 				return h
 			},
-			ErrRegister: assert.NoError,
+			ErrOpen:     assert.NoError,
 			ErrConnRead: assert.NoError,
 		},
 	}
@@ -189,18 +176,19 @@ func TestSVCResolutionServer(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			disp := svc.NewResolverPacketDispatcher(tc.DispService(ctrl), tc.ReqHandler(ctrl))
-			conn, port, err := disp.Register(context.Background(), 0, &net.UDPAddr{},
-				addr.SvcCS)
+			connector := &svc.ResolverPacketConnector{
+				Connector: tc.Connector(ctrl),
+				Handler:   tc.ReqHandler(ctrl),
+			}
 
-			tc.ErrRegister(t, err)
+			conn, err := connector.OpenUDP(&net.UDPAddr{})
+
+			tc.ErrOpen(t, err)
 			if err != nil {
 				assert.Nil(t, conn)
-				assert.Zero(t, port)
 				return
 			} else {
 				assert.NotNil(t, conn)
-				assert.Equal(t, port, uint16(1337))
 			}
 			err = conn.ReadFrom(&snet.Packet{}, &net.UDPAddr{})
 			tc.ErrConnRead(t, err)
