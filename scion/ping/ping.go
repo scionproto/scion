@@ -22,12 +22,10 @@ import (
 	"net"
 	"time"
 
-	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/private/topology/underlay"
 )
 
@@ -74,9 +72,8 @@ func (s State) String() string {
 
 // Config configures the ping run.
 type Config struct {
-	Dispatcher reliable.Dispatcher
-	Local      *snet.UDPAddr
-	Remote     *snet.UDPAddr
+	Local  *snet.UDPAddr
+	Remote *snet.UDPAddr
 
 	// Attempts is the number of pings to send.
 	Attempts uint16
@@ -105,20 +102,19 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 	id := rand.Uint64()
 	replies := make(chan reply, 10)
 
-	svc := snet.DefaultPacketDispatcherService{
-		Dispatcher: cfg.Dispatcher,
+	svc := snet.DefaultConnector{
 		SCMPHandler: scmpHandler{
 			id:      uint16(id),
 			replies: replies,
 		},
 	}
-	conn, port, err := svc.Register(ctx, cfg.Local.IA, cfg.Local.Host, addr.SvcNone)
+	conn, err := svc.OpenUDP(cfg.Local.Host)
 	if err != nil {
 		return Stats{}, err
 	}
 
 	local := cfg.Local.Copy()
-	local.Host.Port = int(port)
+	local.Host = conn.LocalAddr().(*net.UDPAddr)
 
 	// we need to have at least 8 bytes to store the request time in the
 	// payload.

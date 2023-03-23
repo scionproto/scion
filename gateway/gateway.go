@@ -452,15 +452,12 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// connection.
 	scionNetwork := &snet.SCIONNetwork{
 		LocalIA: localIA,
-		Dispatcher: &snet.DefaultPacketDispatcherService{
-			// Enable transparent reconnections to the dispatcher
-			Dispatcher: reconnectingDispatcher,
-			// Forward revocations to Daemon
+		Connector: &snet.DefaultConnector{
 			SCMPHandler: snet.DefaultSCMPHandler{
 				RevocationHandler: revocationHandler,
 				SCMPErrors:        g.Metrics.SCMPErrors,
 			},
-			SCIONPacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
+			Metrics: g.Metrics.SCIONPacketConnMetrics,
 		},
 		Metrics: g.Metrics.SCIONNetworkMetrics,
 	}
@@ -531,8 +528,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 					Resolver: &svc.Resolver{
 						LocalIA: localIA,
 						// Reuse the network with SCMP error support.
-						ConnFactory: scionNetwork.Dispatcher,
-						LocalIP:     g.ServiceDiscoveryClientIP,
+						Connector: scionNetwork.Connector,
+						LocalIP:   g.ServiceDiscoveryClientIP,
 					},
 					SVCResolutionFraction: 1.337,
 				},
@@ -552,12 +549,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// will cause the server's accepts to fail, we ignore SCMP.
 	scionNetworkNoSCMP := &snet.SCIONNetwork{
 		LocalIA: localIA,
-		Dispatcher: &snet.DefaultPacketDispatcherService{
-			// Enable transparent reconnections to the dispatcher
-			Dispatcher: reconnectingDispatcher,
-			// Discard all SCMP, to avoid accept errors on the QUIC server.
-			SCMPHandler:            ignoreSCMP{},
-			SCIONPacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
+		Connector: &snet.DefaultConnector{
+			SCMPHandler: ignoreSCMP{},
+			Metrics:     g.Metrics.SCIONPacketConnMetrics,
 		},
 		Metrics: g.Metrics.SCIONNetworkMetrics,
 	}

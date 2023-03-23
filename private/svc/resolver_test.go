@@ -48,14 +48,12 @@ func TestResolver(t *testing.T) {
 	mockPath.EXPECT().Destination().Return(dstIA).AnyTimes()
 
 	t.Run("If opening up port fails, return error and no reply", func(t *testing.T) {
-		mockPacketDispatcherService := mock_snet.NewMockPacketDispatcherService(ctrl)
-		mockPacketDispatcherService.EXPECT().Register(gomock.Any(), gomock.Any(),
-			gomock.Any(), gomock.Any()).
-			Return(nil, uint16(0), errors.New("no conn"))
+		mockConnector := mock_snet.NewMockConnector(ctrl)
+		mockConnector.EXPECT().OpenUDP(gomock.Any()).
+			Return(nil, errors.New("no conn"))
 		resolver := &svc.Resolver{
-			LocalIA:     srcIA,
-			ConnFactory: mockPacketDispatcherService,
-			LocalIP:     net.IP{0, 0, 0, 0},
+			LocalIA:   srcIA,
+			Connector: mockConnector,
 		}
 
 		reply, err := resolver.LookupSVC(context.Background(), mockPath, addr.SvcCS)
@@ -64,12 +62,10 @@ func TestResolver(t *testing.T) {
 
 	})
 	t.Run("Local machine information is used to build conns", func(t *testing.T) {
-		mockPacketDispatcherService := mock_snet.NewMockPacketDispatcherService(ctrl)
+		mockConnector := mock_snet.NewMockConnector(ctrl)
 		mockConn := mock_snet.NewMockPacketConn(ctrl)
-		mockPacketDispatcherService.EXPECT().Register(gomock.Any(), srcIA,
-			&net.UDPAddr{IP: net.IP{192, 0, 2, 1}},
-			addr.SvcNone).Return(mockConn, uint16(42), nil)
-		mockConn.EXPECT().Close()
+		mockConnector.EXPECT().OpenUDP(net.UDPAddr{
+			IP: net.IP{192, 0, 2, 1}}).Return(mockConn, nil)
 		mockRoundTripper := mock_svc.NewMockRoundTripper(ctrl)
 		mockRoundTripper.EXPECT().RoundTrip(gomock.Any(), gomock.Any(), gomock.Any(),
 			gomock.Any()).Do(
@@ -80,7 +76,7 @@ func TestResolver(t *testing.T) {
 
 		resolver := &svc.Resolver{
 			LocalIA:      srcIA,
-			ConnFactory:  mockPacketDispatcherService,
+			Connector:    mockConnector,
 			LocalIP:      net.IP{192, 0, 2, 1},
 			RoundTripper: mockRoundTripper,
 		}

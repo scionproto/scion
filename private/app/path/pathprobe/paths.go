@@ -36,7 +36,6 @@ import (
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 )
 
 // StatusName defines the different states a path can be in.
@@ -164,11 +163,10 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 		statuses[key] = status
 	}
 
-	// Instantiate dispatcher service
-	disp := &snet.DefaultPacketDispatcherService{
-		Dispatcher:             reliable.NewDispatcher(p.Dispatcher),
-		SCMPHandler:            &scmpHandler{},
-		SCIONPacketConnMetrics: p.SCIONPacketConnMetrics,
+	// Instantiate connector
+	connector := &snet.DefaultConnector{
+		SCMPHandler: &scmpHandler{},
+		Metrics:     p.SCIONPacketConnMetrics,
 	}
 
 	// Resolve all the local IPs per path. We will open one connection
@@ -199,8 +197,7 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 		g.Go(func() error {
 			defer log.HandlePanic()
 
-			conn, _, err := disp.Register(ctx, p.LocalIA,
-				&net.UDPAddr{IP: localIP.AsSlice()}, addr.SvcNone)
+			conn, err := connector.OpenUDP(&net.UDPAddr{IP: localIP.AsSlice()})
 			if err != nil {
 				return serrors.WrapStr("creating packet conn", err, "local", localIP)
 			}
