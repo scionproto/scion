@@ -45,7 +45,6 @@ import (
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
 	"github.com/scionproto/scion/pkg/snet/squic"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/private/app"
 	infraenv "github.com/scionproto/scion/private/app/appnet"
 	"github.com/scionproto/scion/private/app/command"
@@ -743,8 +742,7 @@ func (r *renewer) requestRemote(
 
 	sn := &snet.SCIONNetwork{
 		LocalIA: local.IA,
-		Dispatcher: &snet.DefaultPacketDispatcherService{
-			Dispatcher: reliable.NewDispatcher(r.Disatcher),
+		Connector: &snet.DefaultConnector{
 			SCMPHandler: snet.SCMPPropagationStopper{
 				Handler: snet.DefaultSCMPHandler{
 					RevocationHandler: daemon.RevHandler{Connector: r.Daemon},
@@ -767,9 +765,9 @@ func (r *renewer) requestRemote(
 			},
 			SVCRouter: svcRouter{Connector: r.Daemon},
 			Resolver: &svc.Resolver{
-				LocalIA:     local.IA,
-				ConnFactory: sn.Dispatcher,
-				LocalIP:     local.Host.IP,
+				LocalIA:   local.IA,
+				Connector: sn.Connector,
+				LocalIP:   local.Host.IP,
 			},
 			SVCResolutionFraction: 1,
 		},

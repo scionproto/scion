@@ -16,7 +16,6 @@
 package svc
 
 import (
-	"context"
 	"net"
 	"net/netip"
 
@@ -40,25 +39,7 @@ const (
 	Forward
 )
 
-// NewResolverPacketDispatcher creates a dispatcher service that returns
-// sockets with built-in SVC address resolution capabilities.
-//
-// RequestHandler results during connection read operations are handled in the
-// following way:
-//   - on error result, the error is sent back to the reader
-//   - on forwarding result, the packet is sent back to the app for processing.
-//   - on handled result, the packet is discarded after processing, and a new
-//     read is attempted from the connection, and the entire decision process
-//     repeats.
-func NewResolverPacketDispatcher(d snet.PacketDispatcherService,
-	h RequestHandler) *ResolverPacketDispatcher {
-
-	return &ResolverPacketDispatcher{dispService: d, handler: h}
-}
-
-var _ snet.PacketDispatcherService = (*ResolverPacketDispatcher)(nil)
-
-// ResolverPacketDispatcher is a dispatcher service that returns sockets with
+// ResolverPacketConnector is a Connector service that returns sockets with
 // built-in SVC address resolution capabilities. Every packet received with a
 // destination SVC address is intercepted inside the socket, and sent to an SVC
 // resolution handler which responds back to the client.
@@ -67,31 +48,32 @@ var _ snet.PacketDispatcherService = (*ResolverPacketDispatcher)(nil)
 // seen via ReadFrom. After redirecting a packet, the connection attempts to
 // read another packet before returning, until a non SVC packet is received or
 // an error occurs.
-type ResolverPacketDispatcher struct {
-	dispService snet.PacketDispatcherService
-	handler     RequestHandler
+type ResolverPacketConnector struct {
+	// Connector opens a PacketConn to receive and send packets.
+	Connector snet.Connector
+	// source contains the address from which packets should be sent.
+	LocalIA addr.IA
+	// handler handles packets for SVC destinations.
+	Handler RequestHandler
 }
 
-func (d *ResolverPacketDispatcher) Register(ctx context.Context, ia addr.IA,
-	registration *net.UDPAddr, svc addr.SVC) (snet.PacketConn, uint16, error) {
-
-	registrationIP, ok := netip.AddrFromSlice(registration.IP)
-	if !ok {
-		return nil, 0, serrors.New("invalid registration IP", "ip", registration.IP)
-	}
-	c, port, err := d.dispService.Register(ctx, ia, registration, svc)
+func (c *ResolverPacketConnector) OpenUDP(u *net.UDPAddr) (snet.PacketConn, error) {
+	pconn, err := c.Connector.OpenUDP(u)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	packetConn := &ResolverPacketConn{
-		PacketConn: c,
+	ip, ok := netip.AddrFromSlice(u.IP)
+	if !ok {
+		return nil, serrors.New("Error extracting IP addr", "UDP addr", u.String())
+	}
+	return &ResolverPacketConn{
+		PacketConn: pconn,
 		Source: snet.SCIONAddress{
-			IA:   ia,
-			Host: addr.HostIP(registrationIP),
+			IA:   c.LocalIA,
+			Host: addr.HostIP(ip),
 		},
-		Handler: d.handler,
-	}
-	return packetConn, port, err
+		Handler: c.Handler,
+	}, nil
 }
 
 // ResolverPacketConn redirects SVC destination packets to SVC resolution

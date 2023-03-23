@@ -44,7 +44,6 @@ import (
 	"github.com/scionproto/scion/private/env"
 	"github.com/scionproto/scion/private/svc"
 	"github.com/scionproto/scion/private/trust"
-	"github.com/scionproto/scion/private/underlay/conn"
 )
 
 // QUIC contains the QUIC configuration for control-plane speakers.
@@ -219,21 +218,21 @@ func GenerateTLSConfig() (*tls.Config, error) {
 // The connection factory is used to open sockets for SVC resolution requests.
 // If the connection factory is nil, the default connection factory is used.
 func (nc *NetworkConfig) AddressRewriter(
-	connFactory snet.PacketDispatcherService) *AddressRewriter {
+	connector snet.Connector) *AddressRewriter {
 
-	if connFactory == nil {
-		connFactory = &snet.DefaultPacketDispatcherService{
-			Dispatcher:  reliable.NewDispatcher(""),
+	if connector == nil {
+		connector = &snet.DefaultConnector{
 			SCMPHandler: nc.SCMPHandler,
+			Metrics:     nc.SCIONPacketConnMetrics,
 		}
 	}
 	return &AddressRewriter{
 		Router:    &snet.BaseRouter{Querier: IntraASPathQuerier{IA: nc.IA, MTU: nc.MTU}},
 		SVCRouter: nc.SVCResolver,
 		Resolver: &svc.Resolver{
-			LocalIA:     nc.IA,
-			ConnFactory: connFactory,
-			LocalIP:     nc.Public.IP,
+			LocalIA:   nc.IA,
+			Connector: connector,
+			LocalIP:   nc.Public.IP,
 		},
 		SVCResolutionFraction: 1.337,
 	}
@@ -260,25 +259,15 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 	}
 	network := &snet.SCIONNetwork{
 		LocalIA: nc.IA,
-		OpenConn: func(network, address string) (snet.PacketConn, error) {
-			pconn, err := conn.OpenConn(network, address)
-			if err != nil {
-				return nil, err
-			}
-			return &svc.ResolverPacketConn{
-				PacketConn: &snet.SCIONPacketConn{
-					Conn:        pconn,
-					SCMPHandler: nc.SCMPHandler,
-					Metrics:     nc.SCIONPacketConnMetrics,
-				},
-				Source: snet.SCIONAddress{
-					IA:   nc.IA,
-					Host: addr.HostFromIP(net.IP(address)),
-				},
-				Handler: &svc.BaseHandler{
-					Message: svcResolutionReply,
-				},
-			}, nil
+		Connector: &svc.ResolverPacketConnector{
+			Connector: &snet.DefaultConnector{
+				SCMPHandler: nc.SCMPHandler,
+				Metrics:     nc.SCIONPacketConnMetrics,
+			},
+			LocalIA: nc.IA,
+			Handler: &svc.BaseHandler{
+				Message: svcResolutionReply,
+			},
 		},
 		Metrics: nc.SCIONNetworkMetrics,
 	}
@@ -289,8 +278,7 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 	srAddr := &net.UDPAddr{IP: nc.Public.IP, Port: 0}
 	conn, err := network.Listen(context.Background(), "udp", srAddr, addr.SvcWildcard)
 	if err != nil {
-		log.Info("Listen failed", "err", err)
-		return nil, serrors.WrapStr("listening on SCION", err, "addr", srAddr)
+		return nil, serrors.WrapStr("listening on SCION", err, "addr", conn.LocalAddr())
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -320,26 +308,12 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 }
 
 func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, error) {
-	dispatcherService := reliable.NewDispatcher("")
-	if nc.ReconnectToDispatcher {
-		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
-	}
 
 	serverNet := &snet.SCIONNetwork{
 		LocalIA: nc.IA,
-		OpenConn: func(network, address string) (snet.PacketConn, error) {
-			pconn, err := conn.OpenConn(network, address)
-			if err != nil {
-				return nil, err
-			}
-			return &snet.SCIONPacketConn{
-				Conn: pconn,
-				// XXX(roosd): This is essential, the server must not read SCMP
-				// errors. Otherwise, the accept loop will always return that error
-				// on every subsequent call to accept.
-				SCMPHandler: ignoreSCMP{},
-				Metrics:     nc.SCIONPacketConnMetrics,
-			}, nil
+		Connector: &snet.DefaultConnector{
+			SCMPHandler: ignoreSCMP{},
+			Metrics:     nc.SCIONPacketConnMetrics,
 		},
 		Metrics: nc.SCIONNetworkMetrics,
 	}
@@ -354,26 +328,18 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 
 	clientNet := &snet.SCIONNetwork{
 		LocalIA: nc.IA,
-		OpenConn: func(network, address string) (snet.PacketConn, error) {
-			pconn, err := conn.OpenConn(network, address)
-			if err != nil {
-				return nil, err
-			}
-			return &snet.SCIONPacketConn{
-				Conn: pconn,
-				SCMPHandler: snet.SCMPPropagationStopper{
-					Handler: nc.SCMPHandler,
-					Log:     log.Debug,
-				},
-				Metrics: nc.SCIONPacketConnMetrics,
-			}, nil
+		Connector: &snet.DefaultConnector{
+			SCMPHandler: snet.SCMPPropagationStopper{
+				Handler: nc.SCMPHandler,
+				Log:     log.Debug,
+			},
+			Metrics: nc.SCIONPacketConnMetrics,
 		},
 		Metrics: nc.SCIONNetworkMetrics,
 	}
-	// Let the dispatcher decide on the port for the client connection.
-	clientAddr := &net.UDPAddr{
-		IP:   serverAddr.IP,
-		Zone: serverAddr.Zone,
+	clientAddr, err := net.ResolveUDPAddr("udp", nc.QUIC.Address)
+	if err != nil {
+		return nil, nil, serrors.WrapStr("parsing server QUIC address", err)
 	}
 	client, err := clientNet.Listen(context.Background(), "udp", clientAddr, addr.SvcNone)
 	if err != nil {

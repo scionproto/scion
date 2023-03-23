@@ -33,6 +33,7 @@ type PacketConn interface {
 	SetReadDeadline(t time.Time) error
 	SetWriteDeadline(t time.Time) error
 	SetDeadline(t time.Time) error
+	LocalAddr() net.Addr
 	Close() error
 }
 
@@ -202,6 +203,10 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet, ov *net.UDPAddr) error {
 
 func (c *SCIONPacketConn) SetReadDeadline(d time.Time) error {
 	return c.Conn.SetReadDeadline(d)
+}
+
+func (c *SCIONPacketConn) LocalAddr() net.Addr {
+	return c.Conn.LocalAddr()
 }
 
 type SerializationOptions struct {

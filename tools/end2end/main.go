@@ -39,7 +39,6 @@ import (
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/metrics"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/tracing"
 	libint "github.com/scionproto/scion/tools/integration"
@@ -129,26 +128,25 @@ func (s server) run() {
 
 	sdConn := integration.SDConn()
 	defer sdConn.Close()
-	connFactory := &snet.DefaultPacketDispatcherService{
-		Dispatcher: reliable.NewDispatcher(""),
+	connector := &snet.DefaultConnector{
 		SCMPHandler: snet.DefaultSCMPHandler{
 			RevocationHandler: daemon.RevHandler{Connector: sdConn},
 			SCMPErrors:        scmpErrorsCounter,
 		},
-		SCIONPacketConnMetrics: scionPacketConnMetrics,
+		Metrics: scionPacketConnMetrics,
 	}
-	conn, port, err := connFactory.Register(context.Background(), integration.Local.IA,
-		integration.Local.Host, addr.SvcNone)
+	conn, err := connector.OpenUDP(integration.Local.Host)
 	if err != nil {
 		integration.LogFatal("Error listening", "err", err)
 	}
 	defer conn.Close()
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	if len(os.Getenv(libint.GoIntegrationEnv)) > 0 {
 		// Needed for integration test ready signal.
-		fmt.Printf("Port=%d\n", port)
+		fmt.Printf("Port=%d\n", localAddr.Port)
 		fmt.Printf("%s%s\n\n", libint.ReadySignal, integration.Local.IA)
 	}
-	log.Info("Listening", "local", fmt.Sprintf("%v:%d", integration.Local.Host, port))
+	log.Info("Listening", "local", fmt.Sprintf("%v:%d", integration.Local.Host, localAddr.Port))
 
 	// Receive ping message
 	for {
@@ -255,18 +253,16 @@ func (c *client) run() int {
 	log.Info("Starting", "pair", pair)
 	defer log.Info("Finished", "pair", pair)
 	defer integration.Done(integration.Local.IA, remote.IA)
-	connFactory := &snet.DefaultPacketDispatcherService{
-		Dispatcher: reliable.NewDispatcher(""),
+	connector := &snet.DefaultConnector{
 		SCMPHandler: snet.DefaultSCMPHandler{
 			RevocationHandler: daemon.RevHandler{Connector: integration.SDConn()},
 			SCMPErrors:        scmpErrorsCounter,
 		},
-		SCIONPacketConnMetrics: scionPacketConnMetrics,
+		Metrics: scionPacketConnMetrics,
 	}
 
 	var err error
-	c.conn, c.port, err = connFactory.Register(context.Background(), integration.Local.IA,
-		integration.Local.Host, addr.SvcNone)
+	c.conn, err = connector.OpenUDP(integration.Local.Host)
 	if err != nil {
 		integration.LogFatal("Unable to listen", "err", err)
 	}
