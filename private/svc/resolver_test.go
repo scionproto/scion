@@ -64,7 +64,9 @@ func TestResolver(t *testing.T) {
 	t.Run("Local machine information is used to build conns", func(t *testing.T) {
 		mockConnector := mock_snet.NewMockConnector(ctrl)
 		mockConn := mock_snet.NewMockPacketConn(ctrl)
-		mockConnector.EXPECT().OpenUDP(net.UDPAddr{
+		mockConn.EXPECT().LocalAddr().Return(&net.UDPAddr{
+			IP: net.IP{192, 0, 2, 1}, Port: 30001})
+		mockConnector.EXPECT().OpenUDP(&net.UDPAddr{
 			IP: net.IP{192, 0, 2, 1}}).Return(mockConn, nil)
 		mockRoundTripper := mock_svc.NewMockRoundTripper(ctrl)
 		mockRoundTripper.EXPECT().RoundTrip(gomock.Any(), gomock.Any(), gomock.Any(),
