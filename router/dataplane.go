@@ -131,6 +131,7 @@ var (
 	noBFDSessionFound             = serrors.New("no BFD sessions was found")
 	noBFDSessionConfigured        = serrors.New("no BFD sessions have been configured")
 	errBFDDisabled                = serrors.New("BFD is disabled")
+	invalidUDPLength              = serrors.New("Invalid UDP layer length")
 	// zeroBuffer will be used to reset the Authenticator option in the
 	// scionPacketProcessor.OptAuth
 	zeroBuffer = make([]byte, 16)
@@ -1678,7 +1679,6 @@ func addEndhostPort(lastLayer gopacket.DecodingLayer, dst []byte) *net.UDPAddr {
 	l4Type := nextHdr(lastLayer)
 	switch l4Type {
 	case slayers.L4UDP:
-		// parse UDP Destination Port as specified in RFC 768
 		port := binary.BigEndian.Uint16(lastLayer.LayerPayload()[2:])
 		log.Debug("TBR XXXJ:", "udp port that will be rewritten", port)
 		return &net.UDPAddr{IP: dst, Port: int(port)}
