@@ -49,6 +49,11 @@ import (
 	"github.com/scionproto/scion/router/mock_router"
 )
 
+var (
+	srcUDPPort = 50001
+	dstUDPPort = 50002
+)
+
 func TestDataPlaneAddInternalInterface(t *testing.T) {
 	t.Run("fails after serve", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -592,7 +597,7 @@ func TestProcessPkt(t *testing.T) {
 				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
 				ret := toMsg(t, spkt, dpath)
 				if afterProcessing {
-					ret.Addr = &net.UDPAddr{IP: dst.IP, Port: topology.EndhostPort}
+					ret.Addr = &net.UDPAddr{IP: dst.IP, Port: dstUDPPort}
 					ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
 				}
 				return ret
@@ -791,7 +796,7 @@ func TestProcessPkt(t *testing.T) {
 						addr.HostSVCFromString("CS"): {
 							&net.UDPAddr{
 								IP:   net.ParseIP("10.0.200.200").To4(),
-								Port: topology.EndhostPort,
+								Port: dstUDPPort,
 							},
 						},
 					},
@@ -811,7 +816,7 @@ func TestProcessPkt(t *testing.T) {
 				ret := toMsg(t, spkt, dpath)
 				if afterProcessing {
 					ret.Addr = &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4(),
-						Port: topology.EndhostPort}
+						Port: dstUDPPort}
 					ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
 				}
 				return ret
@@ -874,7 +879,7 @@ func TestProcessPkt(t *testing.T) {
 					map[addr.HostSVC][]*net.UDPAddr{
 						addr.SvcCS: {&net.UDPAddr{
 							IP:   net.ParseIP("172.0.2.10"),
-							Port: topology.EndhostPort,
+							Port: dstUDPPort,
 						}},
 					},
 					xtest.MustParseIA("1-ff00:0:110"),
@@ -919,7 +924,7 @@ func TestProcessPkt(t *testing.T) {
 				ret := toMsg(t, spkt, dpath)
 				ret.Addr = &net.UDPAddr{
 					IP:   net.ParseIP("172.0.2.10"),
-					Port: topology.EndhostPort,
+					Port: dstUDPPort,
 				}
 				ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
 				return ret
@@ -974,7 +979,7 @@ func TestProcessPkt(t *testing.T) {
 					map[addr.HostSVC][]*net.UDPAddr{
 						addr.SvcCS: {&net.UDPAddr{
 							IP:   net.ParseIP("172.0.2.10"),
-							Port: topology.EndhostPort,
+							Port: dstUDPPort,
 						}},
 					},
 					xtest.MustParseIA("1-ff00:0:110"), nil, key)
@@ -1191,9 +1196,13 @@ func toMsg(t *testing.T, spkt *slayers.SCION, dpath path.Path) *ipv4.Message {
 	ret := &ipv4.Message{}
 	spkt.Path = dpath
 	buffer := gopacket.NewSerializeBuffer()
+	scionudpLayer := &slayers.UDP{}
+	scionudpLayer.SrcPort = uint16(srcUDPPort)
+	scionudpLayer.DstPort = uint16(dstUDPPort)
+	scionudpLayer.SetNetworkLayerForChecksum(spkt)
 	payload := []byte("actualpayloadbytes")
 	err := gopacket.SerializeLayers(buffer, gopacket.SerializeOptions{FixLengths: true},
-		spkt, gopacket.Payload(payload))
+		spkt, scionudpLayer, gopacket.Payload(payload))
 	require.NoError(t, err)
 	raw := buffer.Bytes()
 	ret.Buffers = make([][]byte, 1)
