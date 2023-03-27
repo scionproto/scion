@@ -39,7 +39,6 @@ import (
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/metrics"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
-	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/tracing"
 	libint "github.com/scionproto/scion/tools/integration"
 	integration "github.com/scionproto/scion/tools/integration/integrationlib"
@@ -146,7 +145,7 @@ func (s server) run() {
 		fmt.Printf("Port=%d\n", localAddr.Port)
 		fmt.Printf("%s%s\n\n", libint.ReadySignal, integration.Local.IA)
 	}
-	log.Info("Listening", "local", fmt.Sprintf("%v:%d", integration.Local.Host, localAddr.Port))
+	log.Info("Listening", "local", fmt.Sprintf("%v:%d", integration.Local.Host.IP, localAddr.Port))
 
 	// Receive ping message
 	for {
@@ -204,7 +203,8 @@ func (s server) handlePing(conn snet.PacketConn) error {
 			"data", pld,
 		))
 	}
-	log.Info(fmt.Sprintf("Ping received from %s, sending pong.", p.Source))
+	log.Info(fmt.Sprintf("Ping received from %s:%d, sending pong.", p.Source, udp.SrcPort))
+	log.Info((fmt.Sprintf("%v %d", p.Source, udp.SrcPort)))
 	raw, err := json.Marshal(Pong{
 		Client:  p.Source.IA,
 		Server:  integration.Local.IA,
@@ -242,7 +242,6 @@ func (s server) handlePing(conn snet.PacketConn) error {
 
 type client struct {
 	conn   snet.PacketConn
-	port   uint16
 	sdConn daemon.Connector
 
 	errorPaths map[snet.PathFingerprint]struct{}
@@ -266,8 +265,9 @@ func (c *client) run() int {
 	if err != nil {
 		integration.LogFatal("Unable to listen", "err", err)
 	}
+	port := c.conn.LocalAddr().(*net.UDPAddr).Port
 	log.Info("Send on", "local",
-		fmt.Sprintf("%v,[%v]:%d", integration.Local.IA, integration.Local.Host.IP, c.port))
+		fmt.Sprintf("%v,[%v]:%d", integration.Local.IA, integration.Local.Host.IP, port))
 	c.sdConn = integration.SDConn()
 	defer c.sdConn.Close()
 	c.errorPaths = make(map[snet.PathFingerprint]struct{})
@@ -325,7 +325,7 @@ func (c *client) ping(ctx context.Context, n int, path snet.Path) error {
 	if remote.NextHop == nil {
 		remote.NextHop = &net.UDPAddr{
 			IP:   remote.Host.IP,
-			Port: topology.EndhostPort,
+			Port: remote.Host.Port,
 		}
 	}
 
@@ -349,7 +349,7 @@ func (c *client) ping(ctx context.Context, n int, path snet.Path) error {
 			},
 			Path: remote.Path,
 			Payload: snet.UDPPayload{
-				SrcPort: c.port,
+				SrcPort: uint16(c.conn.LocalAddr().(*net.UDPAddr).Port),
 				DstPort: uint16(remote.Host.Port),
 				Payload: rawPing,
 			},
