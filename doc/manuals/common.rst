@@ -74,7 +74,6 @@ end-host applications (including the :doc:`gateway`) which usually obtain it ind
 The structure of the configuration is presented as a pseudo-JSON with a more detailed explanation
 of the individual fields below.
 
-
 ..
    Comment: use YAML syntax highlighting for JSON because this allows annotation comments and
    accidentally gives pretty nice coloring for placeholders.
@@ -109,8 +108,6 @@ of the individual fields below.
          # ...
       },
    }
-
-
 
 .. code-block:: yaml
    :caption: Each ``interfaces`` entry defines one inter-domain link to a neighboring AS.
@@ -185,6 +182,10 @@ of the individual fields below.
       .. option:: link_to = "parent"|"child"|"peer"|"core", required
 
          Type of the relation to the neighbor AS.
+
+         .. warning::
+
+            Link type ``peer`` is not fully implemented yet. See :issue:`4093`.
 
          .. TODO
             Reference overview document that explains these link types.
