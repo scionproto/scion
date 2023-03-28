@@ -203,11 +203,20 @@ considers the following options.
    :ref:`Database connection configuration <common-conf-toml-db>`
    for Path Segment data.
 
-   This database contains path segments, both explicitly registered segments as a result of the
+   This database contains path segments, both explicitly registered segments resulting from the
    beaconing process, as well as cached results from path segment queries.
    If it is destroyed, the explicitly registered paths may be lost until
    they are rediscovered by the beaconing process. The path segments from cached path segment
    queries will be re-fetched on-demand.
+
+
+.. object:: api
+
+   .. option:: api.addr = <string> (Optional)
+
+      Address on which to expose the :ref:`control-rest-api`,
+      in the form ``host:port``, ``ip:port`` or ``:port``.
+
 
 .. _control-conf-topo:
 
@@ -279,7 +288,25 @@ Metrics
 
 .. include:: ./control/metrics.rst
 
+.. _control-http-api:
+
 HTTP API
 ========
 
 .. include:: ./control/http-api.rst
+
+.. _control-rest-api:
+
+REST API
+========
+
+The REST API described by the OpenAPI specification :file-ref:`spec/control.gen.yml`
+is exposed by :program:`control` on the address defined by
+:option:`api.addr <control-conf-toml api.addr>`.
+
+Note that this is **separate** from the partially redundant, ad-hoc :ref:`control-http-api`.
+
+Specification
+-------------
+
+.. openapi:: /../spec/control.gen.yml

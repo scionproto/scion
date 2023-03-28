@@ -21,6 +21,7 @@ extensions = [
     'recommonmark',
     'sphinx_rtd_theme',
     'sphinx.ext.extlinks',
+    'sphinxcontrib.openapi',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
