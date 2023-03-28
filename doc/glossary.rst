@@ -49,6 +49,11 @@ Glossary
       Only the core ASes (i.e. the ASes at the top(s) of this directed acyclic graph) need to
       participate in the less efficient inter-ISD path discovery.
 
+   PCB
+   Path-Construction Beacon
+
+      TODO
+
    SCMP
    SCION Control Message Protocol
 

@@ -54,6 +54,35 @@ The following options are implemented by all applications.
 
       If not set, the HTTP API is not enabled.
 
+.. _common-conf-toml-db:
+
+Database Connections
+^^^^^^^^^^^^^^^^^^^^
+
+The services use different SQLite database files, with paths and advanced connection options
+configured individually.
+The pattern is:
+
+.. object:: some_db
+
+   .. option:: some_db.connection = <string>
+
+      File path or `SQLite URI <https://www.sqlite.org/uri.html>`_ for SQLite database.
+
+   .. option:: some_db.max_open_conns = <int> (Default: 1)
+
+      Sets sets the maximum number of open connections to the database.
+
+      This **should** be left at 1 for SQLite databases.
+
+   .. option:: some_db.max_idle_conns = <int> (Default: 2)
+
+      Sets the maximum number of connections in the idle connection pool.
+      If this value is higher than :option:`max_open_conns <common-conf-toml some_db.max_open_conns>`, then the effective value
+      is the same as :option:`max_open_conns <common-conf-toml some_db.max_open_conns>`.
+
+      This **should** be left > 0 for SQLite databases, in particular
+      if an `in-memory database <https://www.sqlite.org/inmemorydb.html>`_ is used.
 
 .. _common-conf-topo:
 
