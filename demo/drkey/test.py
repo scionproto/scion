@@ -117,7 +117,7 @@ class Test(base.TestTopogen):
 
             # Extract printed keys from output and verify that the keys match
             key_regex = re.compile(
-                r"^(?:Client|Server),\s*host key\s*=\s*([a-f0-9]+)", re.MULTILINE)
+                r"^(?:Client|Server):\s*host key\s*=\s*([a-f0-9]+)", re.MULTILINE)
             server_key_match = key_regex.search(rs)
             if server_key_match is None:
                 raise AssertionError("Key not found in server output")
