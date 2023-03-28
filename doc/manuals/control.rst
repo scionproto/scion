@@ -100,6 +100,16 @@ considers the following options.
       If this is a relative path, it is interpreted as relative to the current working directory of the
       program (i.e. **not** relative to the location of this .toml configuration file).
 
+   .. option:: general.reconnect_to_dispatcher = <bool> (Default: false)
+
+      Transparently reconnect to the dispatcher on dispatcher failure or restarts.
+
+      .. Warning::
+         This should be set to ``true``, unless your service orchestration ensures that
+         failures of the dispatcher trigger a restart of :program:`control` also.
+
+      .. TODO
+         Change default to true!?
 
 .. object:: quic
 
@@ -169,6 +179,35 @@ considers the following options.
          Client identifier for the CA service.
          Defaults to :option:`general.id <control-conf-toml general.id>`.
 
+
+.. option:: trust_db (Required)
+
+   :ref:`Database connection configuration <common-conf-toml-db>`
+   for :term:`Control-Plane PKI` information.
+
+   This database file contains cached certificate data.
+   If it is destroyed, the control service will fetch required certificate information from
+   authoritative ASes on-demand.
+
+.. option:: beacon_db (Required)
+
+   :ref:`Database connection configuration <common-conf-toml-db>`
+   for received :term:`Path-Construction Beacon`\s.
+
+   This database holds beacons that may be candidates for propagation.
+   If it is destroyed, the control service may temporarily not have beacons to propagate to
+   downstream neighbor ASes, until fresh PCBs are received from upstream neighbor ASes.
+
+.. option:: path_db (Required)
+
+   :ref:`Database connection configuration <common-conf-toml-db>`
+   for Path Segment data.
+
+   This database contains path segments, both explicitly registered segments as a result of the
+   beaconing process, as well as cached results from path segment queries.
+   If it is destroyed, the explicitly registered paths may be lost until
+   they are rediscovered by the beaconing process. The path segments from cached path segment
+   queries will be re-fetched on-demand.
 
 .. _control-conf-topo:
 
