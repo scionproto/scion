@@ -129,13 +129,6 @@ func (l *Loader) Core() bool {
 	return l.topo.Core()
 }
 
-func (l *Loader) CA() bool {
-	l.mtx.Lock()
-	defer l.mtx.Unlock()
-
-	return l.topo.CA()
-}
-
 func (l *Loader) UnderlayNextHop(ifID uint16) *net.UDPAddr {
 	l.mtx.Lock()
 	defer l.mtx.Unlock()

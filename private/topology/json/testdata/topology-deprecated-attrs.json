@@ -4,10 +4,13 @@
   "isd_as": "6-ff00:0:362",
   "mtu": 1472,
   "attributes": [
-      "core"
+    "authoritative",
+    "core",
+    "issuing",
+    "voting"
   ],
   "border_routers": {
-    "borderrouter6-ff00:0:362-1": {
+    "borderrouter6-f00:0:362-1": {
       "internal_addr": "10.1.0.1:0",
       "interfaces": {
         "91": {
@@ -18,11 +21,16 @@
           },
           "isd_as": "6-ff00:0:363",
           "link_to": "CORE",
-          "mtu": 1472
+          "mtu": 1472,
+          "bfd": {
+            "detect_mult": 3,
+            "desired_min_tx_interval": "25ms",
+            "required_min_rx_interval": "25ms"
+          }
         }
       }
     },
-    "borderrouter6-ff00:0:362-9": {
+    "borderrouter6-f00:0:362-9": {
       "internal_addr": "[2001:db8:a0b:12f0::2]:0",
       "interfaces": {
         "32": {
