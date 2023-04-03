@@ -68,11 +68,12 @@ class Test(base.TestTopogen):
                 }
             }, [conf_dir / "sd.toml"])
 
-        # Enable delegation for demo "server", i.e. allow server to
-        # access the base secret value from which keys can be derived locally.
-        server_ip = self._container_ip("scion_disp_tester_%s" % self.server_isd_as.file_fmt())
-        server_cs_config = self._conf_dir(self.server_isd_as) // "cs*-1.toml"
-        scion.update_toml({"drkey.delegation.scmp": [server_ip]}, server_cs_config)
+        # Enable delegation for tester host on the fast side (server side), i.e.
+        # allow the tester host to directly request the secret value from which
+        # keys can be derived locally for any host.
+        tester_ip = self._container_ip("scion_disp_tester_%s" % self.server_isd_as.file_fmt())
+        cs_config = self._conf_dir(self.server_isd_as) // "cs*-1.toml"
+        scion.update_toml({"drkey.delegation.scmp": [tester_ip]}, cs_config)
 
     def _run(self):
         time.sleep(10)  # wait until CSes are all up and running
@@ -85,46 +86,54 @@ class Test(base.TestTopogen):
         for tester in testers:
             local["docker"]("cp", drkey_demo, tester + ":/bin/")
 
-        # Determine addresses for test
-        server_ip = self._server_ip(self.server_isd_as)
-        client_ip = self._client_ip(self.client_isd_as)
-        server_addr = "%s,%s" % (self.server_isd_as, server_ip)
-        client_addr = "%s,%s" % (self.client_isd_as, client_ip)
+        # Define DRKey protocol identifiers and derivation typ for test
+        for test in [
+            {"protocol": "1", "fetch_sv": "--fetch-sv"},  # SCMP based on protocol specific SV
+            {"protocol": "1", "fetch_sv": ""},            # SCMP based on generic key derivation
+            {"protocol": "7", "fetch_sv": ""},            # Generic "niche" protocol
+        ]:
+            # Determine server and client addresses for test.
+            # Because communication to the control services does not happen
+            # directly from the respective end hosts but via daemon processes on
+            # both sides, the IPs of the corresponding daemon hosts are used for
+            # this purpose. See also function _endhost_ip for more details.
+            server_ip = self._endhost_ip(self.server_isd_as)
+            client_ip = self._endhost_ip(self.client_isd_as)
+            server_addr = "%s,%s" % (self.server_isd_as, server_ip)
+            client_addr = "%s,%s" % (self.client_isd_as, client_ip)
 
-        # Demonstrate deriving key (fast) on server side
-        rs = self.dc.execute("tester_%s" % self.server_isd_as.file_fmt(),
-                             "drkey-demo", "--server",
-                             "--server-addr", server_addr, "--client-addr", client_addr)
-        print(rs)
+            # Demonstrate deriving key (fast) on server side
+            rs = self.dc.execute("tester_%s" % self.server_isd_as.file_fmt(),
+                                 "drkey-demo", "--server",
+                                 "--protocol", test["protocol"], test["fetch_sv"],
+                                 "--server-addr", server_addr, "--client-addr", client_addr)
+            print(rs)
 
-        # Demonstrate obtaining key (slow) on client side
-        rc = self.dc.execute("tester_%s" % self.client_isd_as.file_fmt(),
-                             "drkey-demo",
-                             "--server-addr", server_addr, "--client-addr", client_addr)
-        print(rc)
+            # Demonstrate obtaining key (slow) on client side
+            rc = self.dc.execute("tester_%s" % self.client_isd_as.file_fmt(),
+                                 "drkey-demo", "--protocol", test["protocol"],
+                                 "--server-addr", server_addr, "--client-addr", client_addr)
+            print(rc)
 
-        # Extract printed keys from output and verify that the keys match
-        key_regex = re.compile(r"^(?:Client|Server),\s*host key\s*=\s*([a-f0-9]+)", re.MULTILINE)
-        server_key_match = key_regex.search(rs)
-        if server_key_match is None:
-            raise AssertionError("Key not found in server output")
-        server_key = server_key_match.group(1)
-        client_key_match = key_regex.search(rc)
-        if client_key_match is None:
-            raise AssertionError("Key not found in client output")
-        client_key = client_key_match.group(1)
-        if server_key != client_key:
-            raise AssertionError("Key derived by server does not match key derived by client!",
-                                 server_key, client_key)
+            # Extract printed keys from output and verify that the keys match
+            key_regex = re.compile(
+                r"^(?:Client|Server):\s*host key\s*=\s*([a-f0-9]+)", re.MULTILINE)
+            server_key_match = key_regex.search(rs)
+            if server_key_match is None:
+                raise AssertionError("Key not found in server output")
+            server_key = server_key_match.group(1)
+            client_key_match = key_regex.search(rc)
+            if client_key_match is None:
+                raise AssertionError("Key not found in client output")
+            client_key = client_key_match.group(1)
+            if server_key != client_key:
+                raise AssertionError("Key derived by server does not match key derived by client!",
+                                     server_key, client_key)
 
-    def _server_ip(self, isd_as: ISD_AS) -> str:
-        """ Determine the IP used for the "server" in the given ISD-AS """
-        return self._container_ip("scion_disp_tester_%s" % isd_as.file_fmt())
-
-    def _client_ip(self, isd_as: ISD_AS) -> str:
-        """ Determine the IP used for the "client" in the given ISD-AS """
-        # The client's address must be the daemon (as this makes requests to the CS on behalf of the
-        # application).
+    def _endhost_ip(self, isd_as: ISD_AS) -> str:
+        """ Determine the IP used for the end host (client or server) in the given ISD-AS """
+        # The address must be the daemon IP (as it makes requests to the control
+        # service on behalf of the end host application).
         return self._container_ip("scion_sd%s" % isd_as.file_fmt())
 
     def _container_ip(self, container: str) -> str:
