@@ -32,7 +32,12 @@ import (
 )
 
 // ParentToInternalHost test traffic from a parent to an AS host.
-func ParentToInternalHost(artifactsDir string, mac hash.Hash) runner.Case {
+func ParentToInternalHost(
+	artifactsDir string,
+	mac hash.Hash,
+	endhostPort int,
+) runner.Case {
+
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
@@ -100,7 +105,7 @@ func ParentToInternalHost(artifactsDir string, mac hash.Hash) runner.Case {
 
 	scionudp := &slayers.UDP{}
 	scionudp.SrcPort = 2354
-	scionudp.DstPort = 53
+	scionudp.DstPort = uint16(endhostPort)
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")
@@ -119,7 +124,7 @@ func ParentToInternalHost(artifactsDir string, mac hash.Hash) runner.Case {
 	ethernet.DstMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef}
 	ip.SrcIP = net.IP{192, 168, 0, 11}
 	ip.DstIP = net.IP{192, 168, 0, 51}
-	udp.SrcPort, udp.DstPort = 30001, 30041
+	udp.SrcPort, udp.DstPort = 30001, layers.UDPPort(scionudp.DstPort)
 
 	if err := gopacket.SerializeLayers(want, options,
 		ethernet, ip, udp, scionL, scionudp, gopacket.Payload(payload),
@@ -139,7 +144,12 @@ func ParentToInternalHost(artifactsDir string, mac hash.Hash) runner.Case {
 
 // ParentToInternalHostMultiSegment test traffic from a parent to an AS host
 // where two path segments are involved.
-func ParentToInternalHostMultiSegment(artifactsDir string, mac hash.Hash) runner.Case {
+func ParentToInternalHostMultiSegment(
+	artifactsDir string,
+	mac hash.Hash,
+	endHostPort int,
+) runner.Case {
+
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
@@ -214,7 +224,7 @@ func ParentToInternalHostMultiSegment(artifactsDir string, mac hash.Hash) runner
 
 	scionudp := &slayers.UDP{}
 	scionudp.SrcPort = 2354
-	scionudp.DstPort = 53
+	scionudp.DstPort = uint16(endHostPort)
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")
@@ -233,7 +243,7 @@ func ParentToInternalHostMultiSegment(artifactsDir string, mac hash.Hash) runner
 	ethernet.DstMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef}
 	ip.SrcIP = net.IP{192, 168, 0, 11}
 	ip.DstIP = net.IP{192, 168, 0, 51}
-	udp.SrcPort, udp.DstPort = 30001, 30041
+	udp.SrcPort, udp.DstPort = 30001, layers.UDPPort(endHostPort)
 
 	if err := gopacket.SerializeLayers(want, options,
 		ethernet, ip, udp, scionL, scionudp, gopacket.Payload(payload),
