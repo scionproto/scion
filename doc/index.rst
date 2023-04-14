@@ -9,23 +9,23 @@ communication.
 .. (Comment)
    This documentation is structured into sections with different purposes/audiences
 
-   - SCION:
+   - Technology:
      Explanations and Specifications. Explain SCION on a conceptual level.
      Should introduce concepts that a user or dev needs to make sense of the manuals etc.
 
      Target audience: anyone (users, developers, outsiders)
 
    - Reference manuals:
-     Target audience: users of this SCION implementation (operator of SCION
+     Target audience: users of **this** SCION implementation (operator of SCION
      infrastructure or hosts), users of any of the SCION APIs.
 
    - Developer section:
-     Target audience: contributors to this SCION implementation
+     Target audience: contributors to **this** SCION implementation
 
-Overview
-^^^^^^^^
+Technology
+^^^^^^^^^^
 
-This section explains the ideas and concepts of SCION.
+The ideas and concepts behind SCION.
 
 .. toctree::
    :maxdepth: 1
@@ -54,6 +54,9 @@ This section explains the ideas and concepts of SCION.
 
 Reference Manuals
 ^^^^^^^^^^^^^^^^^
+
+User documentation for the services, tools and programming libraries of the `open-source SCION
+implementation <https://github.com/scionproto/scion>`_.
 
 .. toctree::
    :maxdepth: 1
@@ -107,7 +110,7 @@ Developer Documentation
    dev/dependencies
    dev/design/index
 
-Start with the :doc:`dev/contribute` you want to contribute to this SCION implementation
+Start with the :doc:`dev/contribute` to contribute to the open-source SCION implementation.
 
 * **Policies and Processes**:
   :ref:`governance` |
