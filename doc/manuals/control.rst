@@ -134,6 +134,53 @@ considers the following options.
       The default for this flag will be change to ``true`` in future releases, and eventually
       removed.
 
+.. object:: beaconing
+
+   .. option:: beaconing.origination_interval = <duration> (Default = "5s")
+
+      Specifies the interval between originating beacons in a core AS.
+
+   .. option:: beaconing.propagation_interval = <duration> (Default = "5s")
+
+      Specifies the interval between propagating beacons.
+
+   .. option:: beaconing.registration_interval = <duration> (Default = "5s")
+
+      Specifies the interval between registering path segments.
+
+   .. option:: beaconing.policies
+
+      File paths for :ref:`control-conf-beacon-policies`.
+      If these are the empty string, the default policy is used.
+
+      The different policies *may* point to the same file(s).
+
+      .. option:: beaconing.policies.propagation = <string>
+
+         The propagation policy
+
+      .. option:: beaconing.policies.core_registration = <string>
+
+
+      .. option:: beaconing.policies.up_registration = <string>
+      .. option:: beaconing.policies.down_registration = <string>
+
+
+         TODO
+
+   .. option:: beaconing.epic = <bool> (Default: false)
+
+      Specifies whether the EPIC authenticators should be added to the beacons.
+
+.. object:: path
+
+   .. option:: path.query_interval = <duration> (Default = "5m")
+
+      Specifies after how much time path segments for a destination AS should be refetched.
+
+   .. option:: path.hidden_paths_cfg = <string>
+
+      TODO
 
 .. object:: ca
 
@@ -145,6 +192,10 @@ considers the following options.
       If set to ``in-process``, :program:`control` handles certificate issuance requests on its own.
       If set to ``delegated``, the certificate issuance is delegated to the service defined in
       :option:`ca.service <control-conf-toml ca.service>`.
+
+   .. option:: ca.max_as_validity = <duration> (Default: "3d")
+
+         Defines the the maximum lifetime for renewed AS certificates.
 
    .. option:: ca.service
 
@@ -209,6 +260,20 @@ considers the following options.
    they are rediscovered by the beaconing process. The path segments from cached path segment
    queries will be re-fetched on-demand.
 
+.. object:: trustengine.cache
+
+   Control the **experimental** in-memory caching of ISD/AS attribute information extracted from
+   :term:`TRCs <TRC>`.
+
+   .. option:: trustengine.cache.disable = <bool> (Default: false)
+
+      Disable caching entirely.
+
+   .. option:: trustengine.cache.expiration = <int> (Default: 60000000000)
+
+      Expiration of cached entries in nanoseconds.
+
+      **TODO:** this should be changed to accept values in :ref:`duration format <control-conf-duration>`.
 
 .. object:: api
 
@@ -231,6 +296,53 @@ define the addresses that :program:`control` will listen on.
 The interface definitions in the ``border_router`` entries define the inter-AS links.
 These entries define the beacons that :program:`control` will originate and propagate.
 
+.. _control-conf-beacon-policies:
+
+Beaconing policies
+------------------
+
+A beaconing policy is a YAML file configuring the processing rules for the beaconing processes.
+There are four policies with different but related purposes, that can individually be configured
+with the :option:`beacon.policies <control-conf-toml beacon.policies>` options.
+
+Propagation
+   Propagating a beacon is the process of receiving a beacon from a neighbor AS, extending it
+   with the own AS entry and forwarding it to downstream neighbor ASes.
+
+   The propagation beacon policy applies to both core- and non-core-ASes.
+   In core-ASes, only core-segment beacons are propagated; non-core-segment beacons are
+   **originated** by the core-ASes and the origination is not controlled by this policy.
+
+CoreRegistration
+   Applies to the registration of core-segments in the local path store of a core-AS.
+
+UpRegistration
+   Applies to the registration of segments in the local path store of a non-core-AS.
+
+   Up-segments are
+
+
+
+.. program:: control-conf-beacon-policy
+
+.. option:: BestSetSize = int
+
+   Maximum number of segments to propagate/register **per origin AS**.
+
+   In the ``Propagation`` policy, this parameter determines the number of beacons
+   propagated to neighbor ASes per origin AS.
+   That is, for each originating AS, up to ``BestSetSize`` beacons are forwarded.
+   For the core-beaconing process, the set of originating ASes are all other core-ASes, which can
+   be very numerous.
+
+   .. warning::
+
+      Keep this parameter reasonably low to avoid explosion of beacon numbers.
+
+.. option:: CandidateSetSize = int
+
+   Number of segments to consider for the selection of best set.
+
 .. _control-conf-cppki:
 
 Control-Plane PKI
@@ -238,6 +350,7 @@ Control-Plane PKI
 
 :program:`control` loads :term:`TRC`\s for the control-plane PKI from :option:`<config_dir>/certs <control-conf-toml general.config_dir>`.
 
+TODO
 
 .. _control-conf-keys:
 
