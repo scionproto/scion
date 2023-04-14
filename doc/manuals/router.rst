@@ -9,7 +9,6 @@ on almost any host system without requiring any special privileges.
 .. TODO
    add reference to dataplane section
 
-
 Command line reference
 ======================
 
@@ -144,7 +143,6 @@ The :program:`router` loads the forwarding secret keys ``master0.key``/``master1
 
 The key files contain a base64-encoded high-entropy random string.
 The keys should be exactly 16 bytes long (corresponding to a base64 encoding of 24 bytes with two trailing pad bytes ``==``).
-These keys must be identical to the :ref:`corresponding keys used by the control service <control-conf-keys>`.
 
 .. note::
    The :program:`router` and :doc:`control` currently use these keys as input for PBKDF2 to generate
