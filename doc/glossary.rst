@@ -64,3 +64,7 @@ Glossary
 
       See :doc:`/protocols/scmp` for more information.
 
+   TRC
+   Trust-Root Configuration
+
+      TODO
