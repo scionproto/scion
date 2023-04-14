@@ -49,11 +49,6 @@ Glossary
       Only the core ASes (i.e. the ASes at the top(s) of this directed acyclic graph) need to
       participate in the less efficient inter-ISD path discovery.
 
-   PCB
-   Path-Construction Beacon
-
-      TODO
-
    SCMP
    SCION Control Message Protocol
 
@@ -63,8 +58,3 @@ Glossary
       send error messages and for diagnostics (ping and traceroute).
 
       See :doc:`/protocols/scmp` for more information.
-
-   TRC
-   Trust-Root Configuration
-
-      TODO

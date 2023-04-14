@@ -6,6 +6,3 @@ The HTTP API does not support user authentication or HTTPS. Applications will wa
 this port or bind to a loopback address.
 
 The :program:`router` currently only supports the :ref:`common HTTP API <common-http-api>`.
-
-.. TODO
-   The router DOES appear to have a partially redundant OpenAPI as well!

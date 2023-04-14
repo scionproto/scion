@@ -305,7 +305,6 @@ of the individual fields below.
    .. option:: <cs-id>
 
       Identifier for a control service instance.
-      Matches the :option:`general.id <control-conf-toml general.id>` of a control service instance.
 
    .. option:: addr = <ip:port>, required
 

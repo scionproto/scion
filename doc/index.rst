@@ -87,10 +87,6 @@ Reference Manuals
 * **For developers of SCION applications**:
   `snet API <https://pkg.go.dev/github.com/scionproto/scion/pkg/snet>`_
 
-
-.. TODO
-   Reference manuals for configuration files.
-
 .. TODO
    snet documentation should be a good starting point for using SCION as an application library.
    For this, the package documentation needs to be streamlined a bit...
