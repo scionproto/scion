@@ -1,17 +1,10 @@
 load("//tools/lint:go.bzl", "go_library", "go_test")
-load("@com_github_scionproto_scion//rules_openapi:defs.bzl", "openapi_generate_go")
+load("@com_github_scionproto_scion//rules_openapi:defs.bzl", "openapi_build_docs", "openapi_generate_go")
 
-genrule(
-    name = "bundle",
-    srcs = ["//spec:control"],
-    outs = ["index.html"],
-    cmd = (
-        "$(execpath @rules_openapi_npm//redoc-cli/bin:redoc-cli) " +
-        "bundle $(location //spec:control) " +
-        "-o $@"
-    ),
-    tools = ["@rules_openapi_npm//redoc-cli/bin:redoc-cli"],
-    visibility = ["//visibility:public"],
+openapi_build_docs(
+    name = "doc",
+    src = "//spec:control",
+    out = "index.html",
 )
 
 openapi_generate_go(
@@ -30,7 +23,7 @@ go_library(
         ":api_generated",  # keep
     ],
     embedsrcs = select({
-        "//:mgmtapi_bundle_doc_build": [":bundle"],
+        "//:mgmtapi_bundle_doc_build": [":doc"],
         "//conditions:default": [":dummy.html"],
     }),  # keep
     importpath = "github.com/scionproto/scion/control/mgmtapi",

@@ -6,6 +6,7 @@ bzl_library(
     name = "rules_openapi_internal",
     srcs = [
         "bundle.bzl",
+        "docs.bzl",
         "generate.bzl",
         "header.bzl",
     ],

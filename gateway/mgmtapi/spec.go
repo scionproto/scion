@@ -47,5 +47,5 @@ func ServeSpecInteractive(w http.ResponseWriter, r *http.Request) {
 
 // ServeSpecJSON serves the json encoded OpenAPI3 spec.
 func ServeSpecJSON(w http.ResponseWriter, r *http.Request) {
-	http.ServeContent(w, r, "spec.json", modtime, bytes.NewReader(spec))
+	http.ServeContent(w, r, "openapi.json", modtime, bytes.NewReader(spec))
 }
