@@ -81,6 +81,8 @@ repository.
 
 There is a subdirectory for each AS (e.g. ``gen/ASff00_0_110`` for AS ``ff00:0:110``), containing
 the configuration for the services and routers of that AS.
+Specifically, these contain the :ref:`.toml <common-conf-toml>` configuration files for the individual
+components and a shared :ref:`topology.json <common-conf-topo>` configuration.
 
 Various helper files are also generated for the benefit of scripts and tooling of the test infrastructure,
 for example, ``gen/sciond_addresses.json`` is a simple mapping from AS number to the address of the
