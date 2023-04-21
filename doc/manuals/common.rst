@@ -100,6 +100,10 @@ end-host applications (including the :doc:`gateway`) which usually obtain it ind
    The topology.json configuration file contains information that is not relevant for all consumers
    of the file.
 
+   For the sake of simplicity, you can use the same topology.json file on all SCION components
+   within the SCION AS. In more advanced configurations, an extract of the topology.json file can be
+   presented to each specific component.
+
 The structure of the configuration is presented as a pseudo-JSON with a more detailed explanation
 of the individual fields below.
 
