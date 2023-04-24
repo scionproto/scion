@@ -55,7 +55,7 @@ cmd_sciond-addr() {
     jq -r 'to_entries |
            map(select(.key | match("'"$1"'";"i"))) |
            if length != 1 then error("No unique match for '"$1"'") else .[0] end |
-           "\(.value):30255"' gen/sciond_addresses.json
+           "[\(.value)]:30255"' gen/sciond_addresses.json
 }
 
 run_jaeger() {
