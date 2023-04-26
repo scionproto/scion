@@ -109,18 +109,6 @@ class Test(base.TestTopogen):
         super().setup_start()
         time.sleep(4)  # Give applications time to download configurations
 
-        self._testers = {
-            "2": "tester_1-ff00_0_2",
-            "3": "tester_1-ff00_0_3",
-            "4": "tester_1-ff00_0_4",
-            "5": "tester_1-ff00_0_5",
-        }
-        self._ases = {
-            "2": "1-ff00:0:2",
-            "3": "1-ff00:0:3",
-            "4": "1-ff00:0:4",
-            "5": "1-ff00:0:5",
-        }
         server.shutdown()
 
     def _run(self):
@@ -145,6 +133,7 @@ class Test(base.TestTopogen):
         print(cmd.docker("exec", "-t", self._testers[source_as], "scion",
                          "sp", self._ases[destination_as],
                          "--timeout", "2s",
+                         "--no-probe",
                          retcode=retcode))
 
 
