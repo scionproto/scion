@@ -20,7 +20,7 @@ import (
 	"os"
 	"testing"
 
-	toml "github.com/pelletier/go-toml"
+	toml "github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -39,8 +39,8 @@ func TestSample(t *testing.T) {
 	var sample bytes.Buffer
 	var cfg DRKeyConfig
 	cfg.Sample(&sample, nil, nil)
-	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).Strict(true).Decode(&cfg)
-	require.NoError(t, err)
+	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).DisallowUnknownFields().Decode(&cfg)
+	require.NoError(t, err, "config:\n%s", sample.String())
 	err = cfg.Validate()
 	assert.NoError(t, err)
 }
@@ -94,14 +94,15 @@ func TestSecretValueHostListSyntax(t *testing.T) {
 	var cfg SecretValueHostList
 	var err error
 	sample1 := `scmp = ["1.1.1.1"]`
-	err = toml.NewDecoder(bytes.NewReader([]byte(sample1))).Strict(true).Decode(&cfg)
+	err = toml.NewDecoder(bytes.NewReader([]byte(sample1))).DisallowUnknownFields().Decode(&cfg)
 	require.NoError(t, err)
 	assert.NoError(t, cfg.Validate())
 
+	var cfg2 SecretValueHostList
 	sample2 := `scmp = ["not an address"]`
-	err = toml.NewDecoder(bytes.NewReader([]byte(sample2))).Strict(true).Decode(&cfg)
+	err = toml.NewDecoder(bytes.NewReader([]byte(sample2))).DisallowUnknownFields().Decode(&cfg2)
 	require.NoError(t, err)
-	assert.Error(t, cfg.Validate())
+	assert.Error(t, cfg2.Validate())
 }
 
 func TestToMapPerHost(t *testing.T) {
@@ -111,7 +112,7 @@ func TestToMapPerHost(t *testing.T) {
 	require.NoError(t, err)
 	ip2222, err := netip.ParseAddr("2.2.2.2")
 	require.NoError(t, err)
-	err = toml.NewDecoder(bytes.NewReader([]byte(sample))).Strict(true).Decode(&cfg)
+	err = toml.NewDecoder(bytes.NewReader([]byte(sample))).DisallowUnknownFields().Decode(&cfg)
 	require.NoError(t, err)
 	assert.NoError(t, cfg.Validate())
 	m := cfg.ToAllowedSet()
