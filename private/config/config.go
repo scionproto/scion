@@ -54,7 +54,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/pelletier/go-toml"
+	"github.com/pelletier/go-toml/v2"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
@@ -162,7 +162,7 @@ func InitAll(defaulters ...Defaulter) {
 
 // Decode decodes a raw config.
 func Decode(raw []byte, cfg interface{}) error {
-	return toml.NewDecoder(bytes.NewReader(raw)).Strict(true).Decode(cfg)
+	return toml.NewDecoder(bytes.NewReader(raw)).DisallowUnknownFields().Decode(cfg)
 }
 
 // LoadFile loads the config from file.

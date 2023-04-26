@@ -10,7 +10,7 @@ go_library(
         "//pkg/private/serrors:go_default_library",
         "//private/env:go_default_library",
         "//private/topology:go_default_library",
-        "@com_github_pelletier_go_toml//:go_default_library",
+        "@com_github_pelletier_go_toml_v2//:go_default_library",
         "@com_github_prometheus_client_golang//prometheus/promhttp:go_default_library",
     ],
 )

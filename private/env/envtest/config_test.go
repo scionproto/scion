@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/pelletier/go-toml"
+	"github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/private/config"
@@ -30,7 +30,7 @@ func TestGeneralSample(t *testing.T) {
 	var cfg env.General
 	cfg.Sample(&sample, nil, map[string]string{config.ID: "general"})
 	InitTestGeneral(&cfg)
-	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).Strict(true).Decode(&cfg)
+	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).DisallowUnknownFields().Decode(&cfg)
 	assert.NoError(t, err)
 	CheckTestGeneral(t, &cfg, "general")
 }
@@ -40,7 +40,7 @@ func TestMetricsSample(t *testing.T) {
 	var cfg env.Metrics
 	cfg.Sample(&sample, nil, nil)
 	InitTestMetrics(&cfg)
-	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).Strict(true).Decode(&cfg)
+	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).DisallowUnknownFields().Decode(&cfg)
 	assert.NoError(t, err)
 	CheckTestMetrics(t, &cfg)
 }
@@ -50,7 +50,7 @@ func TestTracingSample(t *testing.T) {
 	var cfg env.Tracing
 	cfg.Sample(&sample, nil, nil)
 	InitTestTracing(&cfg)
-	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).Strict(true).Decode(&cfg)
+	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).DisallowUnknownFields().Decode(&cfg)
 	assert.NoError(t, err)
 	CheckTestTracing(t, &cfg)
 }
@@ -60,7 +60,7 @@ func TestSCIONDClientSample(t *testing.T) {
 	var cfg env.Daemon
 	cfg.Sample(&sample, nil, nil)
 	InitTestSCIOND(&cfg)
-	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).Strict(true).Decode(&cfg)
+	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).DisallowUnknownFields().Decode(&cfg)
 	assert.NoError(t, err)
 	InitTestSCIOND(&cfg)
 }

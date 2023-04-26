@@ -31,7 +31,7 @@ go_test(
         "//private/env/envtest:go_default_library",
         "//private/mgmtapi/mgmtapitest:go_default_library",
         "//private/storage/test:go_default_library",
-        "@com_github_pelletier_go_toml//:go_default_library",
+        "@com_github_pelletier_go_toml_v2//:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
     ],
 )
