@@ -1680,6 +1680,9 @@ func addEndhostPort(lastLayer gopacket.DecodingLayer, dst []byte) *net.UDPAddr {
 	switch l4Type {
 	case slayers.L4UDP:
 		port := binary.BigEndian.Uint16(lastLayer.LayerPayload()[2:])
+		if port < topology.HostPortRangeLow || port > topology.HostPortRangeHigh {
+			port = topology.EndhostPort
+		}
 		log.Debug("TBR XXXJ:", "udp port that will be rewritten", port)
 		return &net.UDPAddr{IP: dst, Port: int(port)}
 	case slayers.L4SCMP:
