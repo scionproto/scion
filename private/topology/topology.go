@@ -31,8 +31,12 @@ import (
 	"github.com/scionproto/scion/private/topology/underlay"
 )
 
-// EndhostPort is the underlay port that the dispatcher binds to on non-routers.
-const EndhostPort = underlay.EndhostPort
+const (
+	// EndhostPort is the underlay port that the dispatcher binds to on non-routers.
+	EndhostPort       = underlay.EndhostPort
+	HostPortRangeLow  = 0
+	HostPortRangeHigh = 2 ^ 32 - 1
+)
 
 // ErrAddressNotFound indicates the address was not found.
 var ErrAddressNotFound = serrors.New("address not found")

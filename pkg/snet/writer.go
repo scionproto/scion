@@ -23,6 +23,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/private/topology"
 )
 
 type scionConnWriter struct {
@@ -50,9 +51,14 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 		port, path = a.Host.Port, a.Path
 		nextHop = a.NextHop
 		if nextHop == nil && c.base.scionNet.LocalIA.Equal(a.IA) {
+			port := a.Host.Port
+			if a.Host.Port >= topology.HostPortRangeLow &&
+				a.Host.Port <= topology.HostPortRangeHigh {
+				port = topology.EndhostPort
+			}
 			nextHop = &net.UDPAddr{
 				IP:   a.Host.IP,
-				Port: a.Host.Port,
+				Port: port,
 				Zone: a.Host.Zone,
 			}
 
