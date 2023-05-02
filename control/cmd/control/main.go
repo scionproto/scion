@@ -201,9 +201,8 @@ func realMain(ctx context.Context) error {
 	}
 
 	nc := infraenv.NetworkConfig{
-		IA:                    topo.IA(),
-		Public:                topo.ControlServiceAddress(globalCfg.General.ID),
-		ReconnectToDispatcher: globalCfg.General.ReconnectToDispatcher,
+		IA:     topo.IA(),
+		Public: topo.ControlServiceAddress(globalCfg.General.ID),
 		QUIC: infraenv.QUIC{
 			Address:     globalCfg.QUIC.Address,
 			TLSVerifier: trust.NewTLSCryptoVerifier(trustDB),

@@ -78,9 +78,9 @@ func NewSCIONPacketConnMetrics(opts ...Option) snet.SCIONPacketConnMetrics {
 		WritePackets: metrics.NewPromCounter(auto.NewCounterVec(prometheus.CounterOpts{
 			Name: "lib_snet_write_total_pkts",
 			Help: "Total number of packets written"}, []string{})),
-		DispatcherErrors: metrics.NewPromCounter(auto.NewCounterVec(prometheus.CounterOpts{
-			Name: "lib_snet_dispatcher_error_total",
-			Help: "Total number of dispatcher errors"}, []string{})),
+		UnderlayConnectionErrors: metrics.NewPromCounter(auto.NewCounterVec(prometheus.CounterOpts{
+			Name: "lib_snet_underlay_error_total",
+			Help: "Total number of underlay connection errors"}, []string{})),
 		ParseErrors: metrics.NewPromCounter(auto.NewCounterVec(prometheus.CounterOpts{
 			Name: "lib_snet_parse_error_total",
 			Help: "Total number of parse errors"}, []string{})),

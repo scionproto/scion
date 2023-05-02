@@ -16,9 +16,7 @@ package pathhealth
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"net"
 	"sync"
 	"time"
@@ -243,11 +241,6 @@ func (w *pathWatcher) drainConn(ctx context.Context) {
 		// This avoids logging errors for closing connections.
 		if ctx.Err() != nil {
 			return
-		}
-		if errors.Is(err, io.EOF) {
-			// dispatcher is currently down so back off.
-			time.Sleep(500 * time.Millisecond)
-			continue
 		}
 		if err != nil {
 			if _, ok := err.(*snet.OpError); ok {

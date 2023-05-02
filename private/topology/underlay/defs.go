@@ -39,7 +39,7 @@ const (
 )
 
 const (
-	// EndhostPort is the underlay port that the dispatcher binds to on non-routers. Subject to
+	// EndhostPort is the underlay port that SCION binds to on non-routers. Subject to
 	// change during standardisation.
 	EndhostPort = 30041
 )

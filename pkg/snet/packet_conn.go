@@ -107,8 +107,8 @@ type SCIONPacketConnMetrics struct {
 	ParseErrors metrics.Counter
 	// SCMPErrors records the total number of SCMP Errors encountered.
 	SCMPErrors metrics.Counter
-	// DispatcherErrors records the number of dispatcher errors encountered.
-	DispatcherErrors metrics.Counter
+	// UnderlayConnectionErrors records the number of underlay connection errors encountered.
+	UnderlayConnectionErrors metrics.Counter
 }
 
 // SCIONPacketConn gives applications full control over the content of valid SCION
@@ -182,7 +182,7 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet, ov *net.UDPAddr) error {
 	pkt.Prepare()
 	n, lastHopNetAddr, err := c.Conn.ReadFrom(pkt.Bytes)
 	if err != nil {
-		metrics.CounterInc(c.Metrics.DispatcherErrors)
+		metrics.CounterInc(c.Metrics.UnderlayConnectionErrors)
 		return serrors.WrapStr("Reliable socket read error", err)
 	}
 	metrics.CounterAdd(c.Metrics.ReadBytes, float64(n))

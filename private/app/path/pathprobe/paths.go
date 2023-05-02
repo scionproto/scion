@@ -104,10 +104,7 @@ type Prober struct {
 	LocalIP net.IP
 	// ID is the SCMP traceroute ID used by the Prober.
 	ID uint16
-	// Dispatcher is the path to the dispatcher socket. Leaving this empty uses
-	// the default dispatcher socket value.
-	Dispatcher string
-	// Metrics injected into snet.DefaultPacketDispatcherService.
+	// Metrics injected into snet.SCIONPacketConnMetrics.
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 }
 
