@@ -262,11 +262,9 @@ The template is expressed in JSON. A valid example::
 				return err
 			}
 			daemonAddr := envFlags.Daemon()
-			dispatcher := envFlags.Dispatcher()
 			localIP := net.IP(envFlags.Local().AsSlice())
 			log.Debug("Resolved SCION environment flags",
 				"daemon", daemonAddr,
-				"dispatcher", dispatcher,
 				"local", localIP,
 			)
 
@@ -418,12 +416,11 @@ The template is expressed in JSON. A valid example::
 			}
 
 			r := renewer{
-				LocalIA:   info.IA,
-				LocalIP:   localIP,
-				Daemon:    sd,
-				Disatcher: dispatcher,
-				Timeout:   flags.timeout,
-				StdErr:    cmd.ErrOrStderr(),
+				LocalIA: info.IA,
+				LocalIP: localIP,
+				Daemon:  sd,
+				Timeout: flags.timeout,
+				StdErr:  cmd.ErrOrStderr(),
 				PathOptions: func() []path.Option {
 					pathOpts := []path.Option{
 						path.WithInteractive(flags.interactive),
@@ -433,9 +430,8 @@ The template is expressed in JSON. A valid example::
 					}
 					if !flags.noProbe {
 						pathOpts = append(pathOpts, path.WithProbing(&path.ProbeConfig{
-							LocalIA:    info.IA,
-							LocalIP:    localIP,
-							Dispatcher: dispatcher,
+							LocalIA: info.IA,
+							LocalIP: localIP,
 						}))
 					}
 					return pathOpts

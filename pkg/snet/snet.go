@@ -20,26 +20,20 @@
 // Listen methods on the networking context yields connections that run in that
 // context.
 //
-// A connection can be created by calling Dial or Listen; both functions
-// register an address-port pair with the local dispatcher. For Dial, the
+// A connection can be created by calling Dial or Listen. For Dial, the
 // remote address is fixed, meaning only Read and Write can be used. Attempting
 // to ReadFrom or WriteTo a connection created by Dial is an invalid operation.
 // For Listen, the remote address cannot be fixed. ReadFrom can be used to read
 // from the connection and find out the sender's address; and WriteTo can be
 // used to send a message to a chosen destination.
 //
-// Multiple networking contexts can share the same SCIOND and/or dispatcher.
+// Multiple networking contexts can share the same SCIOND.
 //
 // Write calls never return SCMP errors directly. If a write call caused an
 // SCMP message to be received by the Conn, it can be inspected by calling
 // Read. In this case, the error value is non-nil and can be type asserted to
 // *OpError. Method SCMP() can be called on the error to extract the SCMP
 // header.
-//
-// Important: not draining SCMP errors via Read calls can cause the dispatcher
-// to shutdown the socket (see https://github.com/scionproto/scion/pull/1356).
-// To prevent this on a Conn object with only Write calls, run a separate
-// goroutine that continuously calls Read on the Conn.
 package snet
 
 import (
