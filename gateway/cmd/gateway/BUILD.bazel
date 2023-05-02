@@ -15,7 +15,6 @@ go_library(
         "//pkg/log:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/snet/addrutil:go_default_library",
-        "//pkg/sock/reliable:go_default_library",
         "//private/app:go_default_library",
         "//private/app/launcher:go_default_library",
         "//private/service:go_default_library",

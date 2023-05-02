@@ -39,7 +39,7 @@ func TestSVCResolutionServer(t *testing.T) {
 		ErrOpen     assert.ErrorAssertionFunc
 		ErrConnRead assert.ErrorAssertionFunc
 	}{
-		"Underlying dispatcher service fails to set up underlying conn": {
+		"Underlying service fails to set up underlying conn": {
 			Connector: func(ctrl *gomock.Controller) snet.Connector {
 				c := mock_snet.NewMockConnector(ctrl)
 				c.EXPECT().OpenUDP(gomock.Any()).Return(nil, errors.New("conn error"))

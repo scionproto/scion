@@ -46,8 +46,6 @@ import (
 	gatewaypb "github.com/scionproto/scion/pkg/proto/gateway"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/squic"
-	"github.com/scionproto/scion/pkg/sock/reliable"
-	"github.com/scionproto/scion/pkg/sock/reliable/reconnect"
 	infraenv "github.com/scionproto/scion/private/app/appnet"
 	"github.com/scionproto/scion/private/periodic"
 	"github.com/scionproto/scion/private/service"
@@ -109,23 +107,22 @@ func (pcf PacketConnFactory) New() (net.PacketConn, error) {
 }
 
 type ProbeConnFactory struct {
-	Dispatcher *reconnect.DispatcherService
-	LocalIA    addr.IA
-	LocalIP    netip.Addr
+	LocalIA addr.IA
+	LocalIP netip.Addr
 }
 
 func (f ProbeConnFactory) New(ctx context.Context) (net.PacketConn, error) {
-	pathMonitorConnection, pathMonitorPort, err := f.Dispatcher.Register(
-		context.Background(),
-		f.LocalIA,
-		&net.UDPAddr{IP: f.LocalIP.AsSlice()},
-		addr.SvcNone,
-	)
+	pathMonitorConnection, err := (&snet.SCIONNetwork{
+		LocalIA: f.LocalIA,
+		Connector: &snet.DefaultConnector{
+			SCMPHandler: ignoreSCMP{},
+		},
+	}).Listen(ctx, "udp", &net.UDPAddr{IP: f.LocalIP.AsSlice()}, addr.SvcNone)
 	if err != nil {
 		return nil, serrors.WrapStr("unable to open control socket", err)
 	}
 	log.FromCtx(ctx).Debug("Path monitor connection opened on Raw UDP/SCION",
-		"local_ip", f.LocalIP, "local_port", pathMonitorPort)
+		"local_addr", pathMonitorConnection.LocalAddr())
 	return pathMonitorConnection, nil
 }
 
@@ -190,9 +187,6 @@ type Gateway struct {
 
 	// DataIP is the IP that should be used for dataplane traffic.
 	DataAddr *net.UDPAddr
-
-	// Dispatcher is the API of the SCION Dispatcher on the local host.
-	Dispatcher reliable.Dispatcher
 
 	// Daemon is the API of the SCION Daemon.
 	Daemon daemon.Connector
@@ -263,16 +257,14 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 	routePublisherFactory := createRouteManager(ctx, deviceManager)
 
-	// *************************************************************************
-	// Initialize base SCION network information: IA + Dispatcher connectivity
-	// *************************************************************************
+	// *********************************************
+	// Initialize base SCION network information: IA
+	// *********************************************
 	localIA, err := g.Daemon.LocalIA(context.Background())
 	if err != nil {
 		return serrors.WrapStr("unable to learn local ISD-AS number", err)
 	}
 	logger.Info("Learned local IA from SCION Daemon", "ia", localIA)
-
-	reconnectingDispatcher := reconnect.NewDispatcherService(g.Dispatcher)
 
 	// *************************************************************************
 	// Set up path monitoring. The path monitor runs an the SCION/UDP stack
@@ -322,9 +314,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 					LocalIP:           g.PathMonitorIP,
 					RevocationHandler: revocationHandler,
 					ConnFactory: ProbeConnFactory{
-						Dispatcher: reconnectingDispatcher,
-						LocalIA:    localIA,
-						LocalIP:    g.PathMonitorIP,
+						LocalIA: localIA,
+						LocalIP: g.PathMonitorIP,
 					},
 					ProbeInterval:          0, // using default for now
 					ProbesSent:             probesSent,

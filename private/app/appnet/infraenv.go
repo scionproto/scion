@@ -39,8 +39,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/squic"
-	"github.com/scionproto/scion/pkg/sock/reliable"
-	"github.com/scionproto/scion/pkg/sock/reliable/reconnect"
 	"github.com/scionproto/scion/private/env"
 	"github.com/scionproto/scion/private/svc"
 	"github.com/scionproto/scion/private/trust"
@@ -64,10 +62,6 @@ type NetworkConfig struct {
 	// Public is the Internet-reachable address in the case where the service
 	// is behind NAT.
 	Public *net.UDPAddr
-	// ReconnectToDispatcher sets up sockets that automatically reconnect if
-	// the dispatcher closes the connection (e.g., if the dispatcher goes
-	// down).
-	ReconnectToDispatcher bool
 	// QUIC contains configuration details for QUIC servers. If the listening
 	// address is the empty string, then no QUIC socket is opened.
 	QUIC QUIC
@@ -81,7 +75,7 @@ type NetworkConfig struct {
 	SCMPHandler snet.SCMPHandler
 	// Metrics injected into SCIONNetwork.
 	SCIONNetworkMetrics snet.SCIONNetworkMetrics
-	// Metrics injected into DefaultPacketDispatcherService.
+	// Metrics injected into SCIONPacketConn.
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 	// MTU of the local AS
 	MTU uint16
@@ -253,10 +247,6 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 		return nil, serrors.WrapStr("building SVC resolution reply", err)
 	}
 
-	dispatcherService := reliable.NewDispatcher("")
-	if nc.ReconnectToDispatcher {
-		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
-	}
 	network := &snet.SCIONNetwork{
 		LocalIA: nc.IA,
 		Connector: &svc.ResolverPacketConnector{

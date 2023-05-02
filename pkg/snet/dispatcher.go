@@ -40,7 +40,7 @@ type SCMPHandler interface {
 	//
 	// If the handler returns an error value, snet will propagate the error
 	// back to the caller. If the return value is nil, snet will reattempt to
-	// read a data packet from the underlying dispatcher connection.
+	// read a data packet from the underlying connection.
 	//
 	// Handlers that wish to ignore SCMP can just return nil.
 	//

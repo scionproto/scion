@@ -202,10 +202,8 @@ func realMain(ctx context.Context) error {
 	// FIXME: readability would be improved if we could be consistent with address
 	// representations in NetworkConfig (string or cooked, chose one).
 	nc := infraenv.NetworkConfig{
-		IA: topo.IA(),
-		// Public: (Historical name) The TCP/IP:port address for the control service.
-		Public:                topo.ControlServiceAddress(globalCfg.General.ID),
-		ReconnectToDispatcher: globalCfg.General.ReconnectToDispatcher,
+		IA:     topo.IA(),
+		Public: topo.ControlServiceAddress(globalCfg.General.ID),
 		QUIC: infraenv.QUIC{
 			// Address: the QUIC/SCION address of this service. If not
 			// configured, QUICStack() uses the same IP and port as
