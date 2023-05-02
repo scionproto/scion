@@ -32,10 +32,10 @@ import (
 )
 
 const (
-	// EndhostPort is the underlay port that the dispatcher binds to on non-routers.
+	// EndhostPort is the underlay port that SCION binds to on non-routers.
 	EndhostPort       = underlay.EndhostPort
 	HostPortRangeLow  = 0
-	HostPortRangeHigh = 2 ^ 32 - 1
+	HostPortRangeHigh = 1<<16 - 1
 )
 
 // ErrAddressNotFound indicates the address was not found.
