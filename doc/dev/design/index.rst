@@ -40,6 +40,7 @@ Active
    uri
    grpc
    ColibriService
+   BorderRouter
 
 .. _design-docs-completed:
 
