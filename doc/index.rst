@@ -34,6 +34,7 @@ is a good place to start.
    BeaconService
    PathService
    endhost-bootstrap
+   BorderRouter
 
 .. toctree::
    :maxdepth: 1
