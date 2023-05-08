@@ -214,14 +214,12 @@ of the individual fields below.
 
       .. option:: link_to = "parent"|"child"|"peer"|"core", required
 
-         Type of the relation to the neighbor AS.
+         Type of the link relation to the neighbor AS.
+         See :ref:`overview-link-types`.
 
          .. warning::
 
             Link type ``peer`` is not fully implemented yet. See :issue:`4093`.
-
-         .. TODO
-            Reference overview document that explains these link types.
 
       .. option:: mtu = <int>, required
 

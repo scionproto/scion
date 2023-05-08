@@ -1,12 +1,21 @@
-***********************************************
-SCION IP Gateway Framing Protocol Specification
-***********************************************
+****************
+SCION-IP Gateway
+****************
 
-This document contains the specification for the SCION IP Gateway (SIG)
-Framing Protocol.
+The SCION-IP Gateway (SIG) tunnels IP packets over the SCION internet.
 
-Introduction
-============
+An ingress SIG encapsulates IP packets in a SCION packet and sends it to an egress SIG determined
+by the configured routing rules, where the packet is decapsulated and forwarded toward its
+destination IP address.
+From the perspective of IP, a SIG looks like a router.
+From the perspective of SCION, a SIG is a regular application.
+
+.. admonition:: TODO
+
+   SIG Overview and introduction
+
+SIG Framing Protocol
+====================
 
 SIG Framing Protocol describes frames sent between two SIG instances.
 The IP packets transported via SIG are encapsulated in SIG frames.
@@ -26,7 +35,7 @@ Each SIG frame has a sequence number. The remote SIG uses the sequence
 number to reassemble the contained IP packets.
 
 The Stack
-=========
+---------
 
 SIG framing protocol on top of SCION and UDP::
 
@@ -41,7 +50,7 @@ SIG framing protocol on top of SCION and UDP::
   +-----------------------+
 
 SIG Frame Header
-================
+----------------
 
 Each SIG frame starts with SIG frame header with the following format::
 
@@ -78,7 +87,7 @@ All fields within SIG frame header are in network byte order.
   multiple frames.
 
 SIG frame payload
-=================
+-----------------
 
 SIG frame payload may contain multiple IPv4 or IPv6 packets, or parts
 thereof. No other types of packets can be encapsulated. The packets are
@@ -91,7 +100,7 @@ of an IPv4 packet must be at least 20 bytes long. Initial fragment of an IPv6
 packet must be at least 40 bytes long.
 
 Example
-=======
+-------
 
 Following example shows three IP packets packed into three SIG frames::
 

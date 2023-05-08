@@ -1,0 +1,109 @@
+**************
+SCION Overview
+**************
+
+Scope and goals
+===============
+
+SCION is an inter-domain routing protocol, designed to provide route control, failure isolation, and
+explicit trust information for end-to-end communication.
+
+SCION's main goal is to offer highly available and efficient inter-domain packet delivery, even in
+the presence of actively malicious entities.
+
+SCION's aspiration is to improve *inter*-AS routing and to focuses on providing end-to-end
+connectivity. However, SCION does not solve *intra*-AS routing issues, nor does it provide
+end-to-end payload encryption, and identity authentication. These topics, which are equally
+important for the Internet to perform well, lie outside the scope of SCION.
+
+Concepts
+========
+
+Isolation Domains (ISDs)
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+SCION organizes existing :term:`ASes <AS>` into groups of independent routing planes, called
+**Isolation Domains (ISD)**.
+An AS can be a member of multiple ISDs.
+All ASes in an ISD agree on a set of trust roots, called the **Trust Root Configuration (TRC)**.
+The ISD is governed by a set of **core ASes**, which provide connectivity to other ISDs and manage
+the trust roots.
+Typically, a few distinguished ASes within an ISD form the ISD’s core.
+Isolation domains serve the following purposes:
+
+- They allow SCION to support trust heterogeneity, as each ISD can independently define its roots of
+  trust;
+- They provide transparency for trust relationships;
+- They isolate the routing process within an ISD from external influences such as attacks and
+  misconfigurations; and
+- They improve the scalability of the routing protocol by separating it into a process within and
+  one between ISDs.
+
+ISDs provide natural isolation of routing failures and misconfigurations, provide meaningful and
+enforceable trust, enable endpoints to optionally restrict traffic forwarding to trusted parts of
+the Internet infrastructure only, and enable scalable routing updates with high path-freshness.
+
+ISD and AS numbering
+^^^^^^^^^^^^^^^^^^^^
+
+SCION decouples endpoint addressing from inter-domain routing.
+Routing is based on the ISD-AS tuple, agnostic of endpoint addressing.
+
+ISD numbers are 16-bit identifiers.
+The 48-bit AS numbers are globally unique, and uses a super-set of the existing BGP AS numbering
+scheme.
+Formatting rules and and allocations are is currently described in `wiki page "ISD and AS numbering" <https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering>`_.
+
+The endpoint local address is not used for inter-domain routing or forwarding, does not need to be
+globally unique, and can thus be an IPv4, IPv6, or MAC address, for example.
+A SCION endpoint address is the ``ISD-AS,local address`` 3-tuple.
+
+.. _overview-link-types:
+
+Link types
+^^^^^^^^^^
+
+There are three types of links between ASes in SCION:
+
+- A **core link** can only exist between two core ASes.
+- A **parent-child link** requires that both ASes are in the same ISD and
+  that at least one of the two connected ASes is a non-core AS.
+  ASes with a parent-child link usually belong to the same entity or have a provider-customer
+  relationship.
+  Every non-core AS needs at least one parent link.
+- A **peering link** also includes at least one non-core AS. The ASes may be in different ISDs.
+  Peering links are only available for use by children (direct or indirect) of the two linked ASes.
+
+Routing
+^^^^^^^
+
+SCION operates on two routing levels: intra-ISD and inter-ISD. Both levels use **path-segment
+construction beacons (PCBs)** to explore network paths. A PCB is initiated by a core AS and then
+disseminated either within an ISD (to explore intra-ISD paths) or among core ASes (to explore core
+paths across different ISDs). The PCBs accumulate cryptographically protected path and forwarding
+information on AS-level, and store this information in the form of **hop fields (HFs)**. Endpoints
+use information from these hop fields to create end-to-end forwarding paths for data packets, which
+carry this information in their packet headers. This concept is called **packet-carried forwarding
+state**. The concept also supports multi-path communication among endpoints.
+
+The process of creating an end-to-end forwarding path consists of the following steps:
+
+1. First, an AS discovers paths to other ASes, during the *path exploration* (or beaconing) phase.
+2. The AS then selects a few PCBs according to defined policies, transforms the selected PCBs into
+   path segments, and registers these segments with its path infrastructure, thus making them
+   available to other ASes. This happens during the *path registration* phase.
+3. During the *path resolution* phase, the actual creation of an end-to-end forwarding path to the
+   destination takes place. For this, an endpoint performs (a) a *path lookup* step, to obtain path
+   segments, and (b) a *path combination* step, to combine the forwarding path from the segments.
+
+.. figure:: fig/overview-routing.excalidraw.png
+
+
+.. seealso::
+
+   :doc:`control-plane`
+      Overview of SCION's path exploration process.
+
+   :doc:`data-plane`
+      Description of SCION packet header formats and processing rules for packet forwarding based
+      the packed-carried forwarding state.

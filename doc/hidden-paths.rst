@@ -2,9 +2,11 @@
 Hidden Paths
 ************
 
-.. TODO
+.. admonition:: TODO
 
-   Add the EPIC-HP overview documentation (from the design document)
+   Add the EPIC-HP overview documentation (from the design document).
+
+   Move configuration file description to the Manual section.
 
 
 Overview
@@ -37,12 +39,6 @@ communication to leave the AS.
 
 Design
 ======
-
-.. TODO
-
-   Move configuration file description to the Manual section.
-
-
 
 Hidden path configuration file
 ------------------------------

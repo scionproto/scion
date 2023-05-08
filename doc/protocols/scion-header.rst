@@ -561,10 +561,6 @@ configure the border routers such that only certain Path Types are
 allowed. This is further described in the accompanying
 :doc:`EPIC-HP design document </dev/design/EPIC>`.
 
-.. TODO
-   We should not reference design documents. The relevant material should
-   be moved copied over to the SCION section.
-
 Packet identifier (PktID)
 -------------------------
 

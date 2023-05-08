@@ -32,25 +32,19 @@ The ideas and concepts behind SCION.
    :caption: SCION
    :hidden:
 
-   Protocols <protocols/index>
+   Overview <overview>
+   Control Plane <control-plane>
+   Data Plane <data-plane>
    Cryptography <cryptography/index>
-   hidden-paths
-   beacon-metadata
+   sig
    glossary
 
-* **Overview (TODO)**: |
-  SCION |
-  SCION Control Plane |
-  SCION Data Plane |
+* **Overview**:
+  :doc:`SCION <overview>` |
+  :doc:`Control Plane <control-plane>` |
+  :doc:`Data Plane <data-plane>` |
   SCION End Hosts
 
-* **Specifications**:
-  :doc:`protocols/index` |
-  :doc:`cryptography/index`
-
-* **Advanced features**:
-  :doc:`hidden-paths` |
-  :doc:`beacon-metadata`
 
 Reference Manuals
 ^^^^^^^^^^^^^^^^^
