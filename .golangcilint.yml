@@ -63,8 +63,3 @@ issues:
     - path: pkg/scrypto/cms
       linters: [goheader]
 
-    # Exceptions to errcheck for some old-ish convey tests.
-    - linters: [errcheck]
-      path: "^pkg/sock/reliable/reconnect/conn_io_test.go$|\
-             ^pkg/sock/reliable/reconnect/network_test.go$|\
-             ^pkg/sock/reliable/reconnect/reconnecter_test.go$"

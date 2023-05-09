@@ -310,13 +310,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 			RemoteWatcherFactory: &pathhealth.DefaultRemoteWatcherFactory{
 				Router: pathRouter,
 				PathWatcherFactory: &pathhealth.DefaultPathWatcherFactory{
-					LocalIA:           localIA,
-					LocalIP:           g.PathMonitorIP,
-					RevocationHandler: revocationHandler,
-					ConnFactory: ProbeConnFactory{
-						LocalIA: localIA,
-						LocalIP: g.PathMonitorIP,
-					},
+					LocalIA:                localIA,
+					LocalIP:                g.PathMonitorIP,
+					RevocationHandler:      revocationHandler,
 					ProbeInterval:          0, // using default for now
 					ProbesSent:             probesSent,
 					ProbesReceived:         probesReceived,

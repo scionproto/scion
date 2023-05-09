@@ -176,7 +176,6 @@ pkg_tar(
     srcs = [
         "//control/cmd/control",
         "//daemon/cmd/daemon",
-        "//dispatcher/cmd/dispatcher",
         "//gateway/cmd/gateway",
         "//router/cmd/router",
         "//scion-pki/cmd/scion-pki",

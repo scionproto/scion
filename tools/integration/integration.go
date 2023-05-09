@@ -218,12 +218,8 @@ func generateAllSrcDst(hostAddr HostAddr, unique bool) []IAPair {
 
 type HostAddr func(ia addr.IA) *snet.UDPAddr
 
-// DispAddr reads the CS host Addr from the topology for the specified IA. In general this
-// could be the IP of any service (PS/BS/CS) in that IA because they share the same dispatcher in
-// the dockerized topology.
-// The host IP is used as client or server address in the tests because the testing container is
-// connecting to the dispatcher of the services.
-var DispAddr HostAddr = func(ia addr.IA) *snet.UDPAddr {
+// CSAddr reads the CS host Addr from the topology for the specified IA.
+var CSAddr HostAddr = func(ia addr.IA) *snet.UDPAddr {
 	if a := loadAddr(ia); a != nil {
 		return a
 	}

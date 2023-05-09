@@ -87,7 +87,6 @@ class DockerGenerator(object):
                           self.elem_networks)
 
     def _gen_topo(self, topo_id, topo, base):
-        self._dispatcher_conf(topo_id, topo, base)
         self._br_conf(topo_id, topo, base)
         self._control_service_conf(topo_id, topo, base)
         self._sciond_conf(topo_id, base)
@@ -174,46 +173,23 @@ class DockerGenerator(object):
 
     def _control_service_conf(self, topo_id, topo, base):
         for k in topo.get("control_service", {}).keys():
+            
             entry = {
                 'image':
                 docker_image(self.args, 'control'),
                 'container_name':
                 self.prefix + k,
-                'depends_on': ['scion_disp_%s' % k],
-                'network_mode':
-                'service:scion_disp_%s' % k,
+                'networks': {},
                 'user':
                 self.user,
                 'volumes': [
                     self._cache_vol(),
                     self._certs_vol(),
                     '%s:/share/conf:ro' % base,
-                    self._disp_vol(k),
                 ],
                 'command': ['--config', '/share/conf/%s.toml' % k]
             }
-            self.dc_conf['services']['scion_%s' % k] = entry
-
-    def _dispatcher_conf(self, topo_id, topo, base):
-        image = 'dispatcher'
-        base_entry = {
-            'extra_hosts': ['jaeger:%s' % docker_host(self.args.docker)],
-            'image': docker_image(self.args, image),
-            'networks': {},
-            'user': self.user,
-            'volumes': [],
-            'depends_on': {
-                'utils_chowner': {
-                    'condition': 'service_started'
-                },
-            },
-        }
-        keys = (list(topo.get("control_service", {})) +
-                ["tester_%s" % topo_id.file_fmt()])
-        for disp_id in keys:
-            entry = copy.deepcopy(base_entry)
-            net_key = disp_id
-            net = self.elem_networks[net_key][0]
+            net = self.elem_networks[k][0]
             ipv = 'ipv4'
             if ipv not in net:
                 ipv = 'ipv6'
@@ -221,17 +197,7 @@ class DockerGenerator(object):
             entry['networks'][self.bridges[net['net']]] = {
                 '%s_address' % ipv: ip
             }
-            entry['container_name'] = '%sdisp_%s' % (self.prefix, disp_id)
-            entry['volumes'].append(self._disp_vol(disp_id))
-            conf = '%s:/share/conf:rw' % base
-            entry['volumes'].append(conf)
-            entry['command'] = [
-                '--config', '/share/conf/disp_%s.toml' % disp_id
-            ]
-
-            self.dc_conf['services']['scion_disp_%s' % disp_id] = entry
-            self.dc_conf['volumes'][self._disp_vol(disp_id).split(':')
-                                    [0]] = None
+            self.dc_conf['services']['scion_%s' % k] = entry
 
     def _sciond_conf(self, topo_id, base):
         name = sciond_svc_name(topo_id)
@@ -240,18 +206,15 @@ class DockerGenerator(object):
         if ipv not in net:
             ipv = 'ipv6'
         ip = str(net[ipv])
-        disp_id = 'cs%s-1' % topo_id.file_fmt()
         entry = {
             'extra_hosts': ['jaeger:%s' % docker_host(self.args.docker)],
             'image':
             docker_image(self.args, 'daemon'),
             'container_name':
             '%ssd%s' % (self.prefix, topo_id.file_fmt()),
-            'depends_on': ['scion_disp_%s' % disp_id],
             'user':
             self.user,
             'volumes': [
-                self._disp_vol(disp_id),
                 self._cache_vol(),
                 self._certs_vol(),
                 '%s:/share/conf:ro' % base
@@ -264,9 +227,6 @@ class DockerGenerator(object):
             'command': ['--config', '/share/conf/sd.toml'],
         }
         self.dc_conf['services'][name] = entry
-
-    def _disp_vol(self, disp_id):
-        return 'vol_%sdisp_%s:/run/shm/dispatcher:rw' % (self.prefix, disp_id)
 
     def _cache_vol(self):
         return self.output_base + '/gen-cache:/share/cache:rw'

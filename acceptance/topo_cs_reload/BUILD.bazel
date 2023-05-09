@@ -14,7 +14,6 @@ go_test(
         "docker-compose.yml",
         "testdata/topology_reload.json",
         ":control.tar",
-        ":dispatcher.tar",
         ":invalid_changed_ip",
         ":invalid_changed_port",
         ":testdata/gen_crypto.sh",
@@ -34,17 +33,6 @@ go_test(
         "@com_github_stretchr_testify//require:go_default_library",
         "@io_bazel_rules_go//go/tools/bazel:go_default_library",
     ],
-)
-
-container_image(
-    name = "dispatcher",
-    base = "//docker:dispatcher",
-    cmd = [
-        "--config",
-        "/disp.toml",
-    ],
-    entrypoint = ["/app/dispatcher"],
-    files = ["testdata/disp.toml"],
 )
 
 container_image(

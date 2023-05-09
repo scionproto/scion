@@ -229,7 +229,7 @@ func (w *remoteWatcher) updatePaths(ctx context.Context) {
 			}
 			pathW, err := w.pathWatcherFactory.New(ctx, w.remote, path, id)
 			if err != nil {
-				logger.Error("Failed to create path watcher", "path", fmt.Sprint(path))
+				logger.Error("Failed to create path watcher", "path", fmt.Sprint(path), "err", err)
 				continue
 			}
 			pathWCtx, cancel := context.WithCancel(ctx)
