@@ -80,7 +80,4 @@ issues:
              ^control/colibri/reservation/reservationdbtest/reservationdbtest.go$|\
              ^control/colibri/reservation/segment/reservation_test.go$|\
              ^control/colibri/reservation/sqlite/db_test.go$|\
-             ^control/colibri/reservationstore/store.go$|\
-             ^pkg/sock/reliable/reconnect/conn_io_test.go$|\
-             ^pkg/sock/reliable/reconnect/network_test.go$|\
-             ^pkg/sock/reliable/reconnect/reconnecter_test.go$"
+             ^control/colibri/reservationstore/store.go$|\"

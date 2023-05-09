@@ -26,10 +26,8 @@ from typing import Mapping
 from topology.util import write_file
 from topology.common import (
     ArgsBase,
-    DISP_CONFIG_NAME,
     docker_host,
     prom_addr,
-    prom_addr_dispatcher,
     sciond_ip,
     sciond_name,
     translate_features,
@@ -44,7 +42,6 @@ from topology.prometheus import (
     CS_PROM_PORT,
     DEFAULT_BR_PROM_PORT,
     SCIOND_PROM_PORT,
-    DISP_PROM_PORT,
     CO_PROM_PORT,
 )
 
@@ -119,7 +116,6 @@ class GoGenerator(object):
             'general': {
                 'id': name,
                 'config_dir': config_dir,
-                'reconnect_to_dispatcher': True,
             },
             'log': self._log_entry(name),
             'trust_db': {
@@ -163,7 +159,6 @@ class GoGenerator(object):
             'general': {
                 'ID': name,
                 'ConfigDir': config_dir,
-                'ReconnectToDispatcher': True,
             },
             'log': self._log_entry(name),
             'trust_db': {
@@ -244,7 +239,6 @@ class GoGenerator(object):
             'general': {
                 'id': name,
                 'config_dir': config_dir,
-                'reconnect_to_dispatcher': True,
             },
             'log': self._log_entry(name),
             'trust_db': {
@@ -266,45 +260,6 @@ class GoGenerator(object):
             }
         }
         return raw_entry
-
-    def generate_disp(self):
-        if self.args.docker:
-            self._gen_disp_docker()
-        else:
-            elem_dir = os.path.join(self.args.output_dir, "dispatcher")
-            config_file_path = os.path.join(elem_dir, DISP_CONFIG_NAME)
-            write_file(config_file_path, toml.dumps(self._build_disp_conf("dispatcher")))
-
-    def _gen_disp_docker(self):
-        for topo_id, topo in self.args.topo_dicts.items():
-            base = topo_id.base_dir(self.args.output_dir)
-            elem_ids = ['sig_%s' % topo_id.file_fmt()] + \
-                list(topo.get("border_routers", {})) + \
-                list(topo.get("control_service", {})) + \
-                ['tester_%s' % topo_id.file_fmt()]
-            for k in elem_ids:
-                disp_id = 'disp_%s' % k
-                disp_conf = self._build_disp_conf(disp_id, topo_id)
-                write_file(os.path.join(base, '%s.toml' % disp_id), toml.dumps(disp_conf))
-
-    def _build_disp_conf(self, name, topo_id=None):
-        prometheus_addr = prom_addr_dispatcher(self.args.docker, topo_id,
-                                               self.args.networks, DISP_PROM_PORT, name)
-        api_addr = prom_addr_dispatcher(self.args.docker, topo_id,
-                                        self.args.networks, DISP_PROM_PORT+700, name)
-        return {
-            'dispatcher': {
-                'id': name,
-            },
-            'log': self._log_entry(name),
-            'metrics': {
-                'prometheus': prometheus_addr,
-            },
-            'features': translate_features(self.args.features),
-            'api': {
-                'addr': api_addr,
-            },
-        }
 
     def _tracing_entry(self):
         docker_ip = docker_host(self.args.docker)

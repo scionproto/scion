@@ -68,12 +68,11 @@ class Test(base.TestTopogen):
                 }
             }, [conf_dir / "sd.toml"])
 
-        # Enable delegation for tester host on the fast side (server side), i.e.
-        # allow the tester host to directly request the secret value from which
-        # keys can be derived locally for any host.
-        tester_ip = self._container_ip("scion_disp_tester_%s" % self.server_isd_as.file_fmt())
-        cs_config = self._conf_dir(self.server_isd_as) // "cs*-1.toml"
-        scion.update_toml({"drkey.delegation.scmp": [tester_ip]}, cs_config)
+        # Enable delegation for demo "server", i.e. allow server to
+        # access the base secret value from which keys can be derived locally.
+        server_ip = self._server_ip(self.server_isd_as)
+        server_cs_config = self._conf_dir(self.server_isd_as) // "cs*-1.toml"
+        scion.update_toml({"drkey.delegation.scmp": [server_ip]}, server_cs_config)
 
     def _run(self):
         time.sleep(10)  # wait until CSes are all up and running
@@ -130,10 +129,14 @@ class Test(base.TestTopogen):
                 raise AssertionError("Key derived by server does not match key derived by client!",
                                      server_key, client_key)
 
-    def _endhost_ip(self, isd_as: ISD_AS) -> str:
-        """ Determine the IP used for the end host (client or server) in the given ISD-AS """
-        # The address must be the daemon IP (as it makes requests to the control
-        # service on behalf of the end host application).
+    def _server_ip(self, isd_as: ISD_AS) -> str:
+        """ Determine the IP used for the "server" in the given ISD-AS """
+        return self._container_ip("tester_%s" % isd_as.file_fmt())
+
+    def _client_ip(self, isd_as: ISD_AS) -> str:
+        """ Determine the IP used for the "client" in the given ISD-AS """
+        # The client's address must be the daemon (as this makes requests to the CS on behalf of the
+        # application).
         return self._container_ip("scion_sd%s" % isd_as.file_fmt())
 
     def _container_ip(self, container: str) -> str:

@@ -100,7 +100,6 @@ func setupTest(t *testing.T) testState {
 	s.mustExec(t, "tar", "-xf", "crypto.tar", "-C", tmpDir)
 	// first load the docker images from bazel into the docker deamon, the
 	// tars are in the same folder as this test runs in bazel.
-	s.mustExec(t, "docker", "image", "load", "-i", "dispatcher.tar")
 	s.mustExec(t, "docker", "image", "load", "-i", "control.tar")
 	// now start the docker containers
 	s.mustExec(t, "docker-compose", "-f", "docker-compose.yml", "up", "-d")
@@ -119,7 +118,6 @@ func (s testState) teardownTest(t *testing.T) {
 	require.NoError(t, os.MkdirAll(fmt.Sprintf("%s/logs", outdir), os.ModePerm|os.ModeDir))
 	// collect logs
 	for service, file := range map[string]string{
-		"topo_cs_reload_dispatcher":  "disp.log",
 		"topo_cs_reload_control_srv": "control.log",
 	} {
 		cmd := exec.Command("docker-compose", "-f", "docker-compose.yml", "logs", "--no-color",

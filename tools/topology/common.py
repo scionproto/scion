@@ -39,7 +39,6 @@ CS_CONFIG_NAME = 'cs.toml'
 PS_CONFIG_NAME = 'ps.toml'
 CO_CONFIG_NAME = 'co.toml'
 SD_CONFIG_NAME = 'sd.toml'
-DISP_CONFIG_NAME = 'disp.toml'
 SIG_CONFIG_NAME = 'sig.toml'
 
 SD_API_PORT = 30255
@@ -128,24 +127,6 @@ def sciond_ip(docker, topo_id, networks: Mapping[IPNetwork,
     return None
 
 
-def prom_addr_dispatcher(docker, topo_id,
-                         networks: Mapping[IPNetwork,
-                                           NetworkDescription], port, name):
-    if not docker:
-        return "[127.0.0.1]:%s" % port
-    target_name = ''
-    if name.startswith('disp_br'):
-        target_name = 'br%s%s_internal' % (topo_id.file_fmt(), name[-2:])
-    elif name.startswith('disp_sig'):
-        target_name = 'sig%s' % topo_id.file_fmt()
-    else:
-        target_name = 'disp%s' % topo_id.file_fmt()
-    for net_desc in networks.values():
-        if target_name in net_desc.ip_net:
-            return '[%s]:%s' % (net_desc.ip_net[target_name].ip, port)
-    return None
-
-
 def docker_image(args, image):
     if args.docker_registry:
         image = '%s/%s' % (args.docker_registry, image)
@@ -175,7 +156,7 @@ def remote_nets(networks, topo_id):
     """
     rem_nets = []
     for key in networks:
-        if 'sig' in key and topo_id.file_fmt() not in key:
+        if 'sig_setup' in key and topo_id.file_fmt() not in key:
             rem_nets.append(str(networks[key][0]['net']))
     return ','.join(rem_nets)
 

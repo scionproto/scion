@@ -296,7 +296,7 @@ func clientTemplate(progressSock string) integration.Cmd {
 
 // getPairs returns the pairs to test according to the specified subset.
 func getPairs() ([]integration.IAPair, error) {
-	pairs := integration.IAPairs(integration.DispAddr)
+	pairs := integration.IAPairs(integration.CSAddr)
 	if subset == "all" {
 		return pairs, nil
 	}

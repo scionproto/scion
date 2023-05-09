@@ -44,18 +44,16 @@
 #     |                                                     |
 #     |   +---------------------------------------------+   |
 #     +---+                    pathb                    +----
-#         | 242.254.100.3:50000 <-> 242.254.200.4:50000 |
+#         | 242.254.100.4:50000 <-> 242.254.200.4:50000 |
 #         +---------------------------------------------+
 
 run_test() {(set -e
     # Register with the docker daemon the docker images bazel created
     docker image load -i acceptance/sig_short_exp_time/udpproxy.tar
-    docker image load -i acceptance/sig_short_exp_time/dispatcher1.tar
-    docker image load -i acceptance/sig_short_exp_time/dispatcher2.tar
     docker image load -i acceptance/sig_short_exp_time/sig1.tar
     docker image load -i acceptance/sig_short_exp_time/sig2.tar
 
-    docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml up -d dispatcher1 dispatcher2 sig1 sig2 patha pathb
+    docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml up -d sig1 sig2 patha pathb
 
     # Set up forward route on network stack 1 and 2 through the sig tunnel
     # device. The route is a property of the network stack, and persists after
@@ -103,7 +101,7 @@ RC=$?
 OUTPUT_DIR=$TEST_UNDECLARED_OUTPUTS_DIR
 mkdir -p $OUTPUT_DIR/logs
 
-for CNTR in sig1 sig2 dispatcher1 dispatcher2; do
+for CNTR in sig1 sig2; do
     docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml logs "$CNTR" > "$OUTPUT_DIR/logs/$CNTR.log"
 done
 

@@ -374,7 +374,7 @@ func (s *SCION) SetDstAddr(dst net.Addr) error {
 	return err
 }
 
-// SetSrcAddr sets the source address and updates the DstAddrType field accordingly.
+// SetSrcAddr sets the source address and updates the SrcAddrType field accordingly.
 // SetSrcAddr takes ownership of src and callers should not write to it after calling SetSrcAddr.
 // Changes to src might leave the layer in an inconsistent state.
 func (s *SCION) SetSrcAddr(src net.Addr) error {
