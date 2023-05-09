@@ -1223,7 +1223,7 @@ func prepBaseMsg(now time.Time) (*slayers.SCION, *scion.Decoded) {
 		DstIA:        xtest.MustParseIA("4-ff00:0:411"),
 		SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
 		Path:         &scion.Raw{},
-		PayloadLen:   18,
+		PayloadLen:   26, // scionudpLayer + len("actualpayloadbytes")
 	}
 
 	dpath := &scion.Decoded{
@@ -1300,7 +1300,7 @@ func toIP(t *testing.T, spkt *slayers.SCION, path path.Path, afterProcessing boo
 	require.NoError(t, spkt.SetDstAddr(dst))
 	ret := toMsg(t, spkt, path)
 	if afterProcessing {
-		ret.Addr = &net.UDPAddr{IP: dst.IP, Port: topology.EndhostPort}
+		ret.Addr = &net.UDPAddr{IP: dst.IP, Port: dstUDPPort}
 		ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
 	}
 	return ret
