@@ -76,25 +76,25 @@ class DockerUtilsGenerator(object):
         entry = {
             'image': docker_image(self.args, 'tester'),
             'container_name': 'tester_%s' % topo_id.file_fmt(),
-            'depends_on': ['scion_disp_%s' % name],
             'privileged': True,
             'entrypoint': 'sh tester.sh',
             'environment': {},
             # 'user': self.user,
             'volumes': [
-                'vol_scion_disp_%s:/run/shm/dispatcher:rw' % name,
                 self.output_base + '/logs:' + cntr_base + '/logs:rw',
                 self.output_base + '/gen:' + cntr_base + '/gen:rw',
                 self.output_base + '/gen-certs:' + cntr_base + '/gen-certs:rw'
             ],
-            'network_mode': 'service:scion_disp_%s' % name,
+            'networks': {},
         }
         net = self.args.networks[name][0]
         ipv = 'ipv4'
         if ipv not in net:
             ipv = 'ipv6'
-        disp_net = self.args.networks[name][0]
-        entry['environment']['SCION_LOCAL_ADDR'] = str(disp_net[ipv])
+        entry['networks'][self.args.bridges[net['net']]] = {
+            '%s_address' % ipv: str(net[ipv])
+        }
+        entry['environment']['SCION_LOCAL_ADDR'] = str(net[ipv])
         sciond_net = self.args.networks['sd%s' % topo_id.file_fmt()][0]
         if ipv == 'ipv4':
             entry['environment']['SCION_DAEMON'] = '%s:30255' % sciond_net[ipv]

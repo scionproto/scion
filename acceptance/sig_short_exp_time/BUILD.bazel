@@ -6,8 +6,6 @@ sh_test(
     srcs = ["test"],
     data = [
         "docker-compose.yml",
-        ":dispatcher1.tar",
-        ":dispatcher2.tar",
         ":sig1.tar",
         ":sig2.tar",
         ":udpproxy.tar",
@@ -22,28 +20,6 @@ sh_test(
 container_image(
     name = "udpproxy",
     base = "//tools/udpproxy",
-)
-
-container_image(
-    name = "dispatcher1",
-    base = "//docker:dispatcher",
-    cmd = [
-        "--config",
-        "/disp.toml",
-    ],
-    entrypoint = ["/app/dispatcher"],
-    files = ["testdata/1-ff00_0_110/dispatcher/disp.toml"],
-)
-
-container_image(
-    name = "dispatcher2",
-    base = "//docker:dispatcher",
-    cmd = [
-        "--config",
-        "/disp.toml",
-    ],
-    entrypoint = ["/app/dispatcher"],
-    files = ["testdata/1-ff00_0_111/dispatcher/disp.toml"],
 )
 
 container_image(

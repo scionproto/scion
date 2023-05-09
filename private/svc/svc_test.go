@@ -176,17 +176,10 @@ func TestSVCResolutionServer(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-<<<<<<< HEAD
-			disp := svc.NewResolverPacketDispatcher(tc.DispService(ctrl), tc.ReqHandler(ctrl))
-			conn, port, err := disp.Register(context.Background(), 0,
-				&net.UDPAddr{IP: net.ParseIP("198.51.100.1")},
-				addr.SvcCS)
-=======
 			connector := &svc.ResolverPacketConnector{
 				Connector: tc.Connector(ctrl),
 				Handler:   tc.ReqHandler(ctrl),
 			}
->>>>>>> 98bf582ab (intermediate commit remove dispatcher)
 
 			conn, err := connector.OpenUDP(&net.UDPAddr{})
 

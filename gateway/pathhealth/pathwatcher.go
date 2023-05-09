@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
+	"github.com/scionproto/scion/private/topology"
 )
 
 const (
@@ -52,7 +53,6 @@ type DefaultPathWatcherFactory struct {
 	// RevocationHandler is the revocation handler.
 	RevocationHandler snet.RevocationHandler
 	// ConnFactory is used to create probe connections.
-	ConnFactory ProbeConnFactory
 	// Probeinterval defines the interval at which probes are sent. If it is not
 	// set a default is used.
 	ProbeInterval time.Duration
@@ -78,10 +78,6 @@ func (f *DefaultPathWatcherFactory) New(
 	id uint16,
 ) (PathWatcher, error) {
 
-	nc, err := f.ConnFactory.New(ctx)
-	if err != nil {
-		return nil, serrors.WrapStr("creating connection for probing", err)
-	}
 	pktChan := make(chan traceroutePkt, 10)
 	createCounter := func(
 		create func(addr.IA) metrics.Counter, remote addr.IA,
@@ -91,21 +87,24 @@ func (f *DefaultPathWatcherFactory) New(
 		}
 		return create(remote)
 	}
+	nc, err := (&snet.DefaultConnector{
+		SCMPHandler: scmpHandler{
+			wrappedHandler: snet.DefaultSCMPHandler{
+				RevocationHandler: f.RevocationHandler,
+				SCMPErrors:        f.SCMPErrors,
+			},
+			pkts: pktChan,
+		},
+		Metrics: f.SCIONPacketConnMetrics,
+	}).OpenUDP(&net.UDPAddr{IP: f.LocalIP.AsSlice(), Port: topology.EndhostPort})
+	if err != nil {
+		return nil, serrors.WrapStr("creating connection for probing", err)
+	}
 	return &pathWatcher{
 		remote:        remote,
 		probeInterval: f.ProbeInterval,
-		conn: &snet.SCIONPacketConn{
-			Conn: nc,
-			SCMPHandler: scmpHandler{
-				wrappedHandler: snet.DefaultSCMPHandler{
-					RevocationHandler: f.RevocationHandler,
-					SCMPErrors:        f.SCMPErrors,
-				},
-				pkts: pktChan,
-			},
-			Metrics: f.SCIONPacketConnMetrics,
-		},
-		id: id,
+		conn:          nc,
+		id:            id,
 		localAddr: snet.SCIONAddress{
 			IA:   f.LocalIA,
 			Host: addr.HostIP(f.LocalIP),
