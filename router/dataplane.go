@@ -99,7 +99,7 @@ type DataPlane struct {
 	linkTypes         map[uint16]topology.LinkType
 	neighborIAs       map[uint16]addr.IA
 	internal          BatchConn
-	internalIP        net.IP
+	internalIP        *net.IPAddr
 	internalNextHops  map[uint16]*net.UDPAddr
 	svc               *services
 	macFactory        func() hash.Hash
@@ -203,7 +203,7 @@ func (d *DataPlane) AddInternalInterface(conn BatchConn, ip net.IP) error {
 		return alreadySet
 	}
 	d.internal = conn
-	d.internalIP = ip
+	d.internalIP = &net.IPAddr{IP: ip}
 	return nil
 }
 
@@ -1624,7 +1624,7 @@ func (p *scionPacketProcessor) prepareSCMP(
 	if err := scionL.SetDstAddr(srcA); err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "setting dest addr")
 	}
-	if err := scionL.SetSrcAddr(&net.IPAddr{IP: p.d.internalIP}); err != nil {
+	if err := scionL.SetSrcAddr(p.d.internalIP); err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "setting src addr")
 	}
 	scionL.NextHdr = slayers.L4SCMP

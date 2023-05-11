@@ -837,14 +837,10 @@ func TestProcessPkt(t *testing.T) {
 				dpath.Base.PathMeta.CurrHF = 2
 				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
 				ret := toMsg(t, spkt, dpath)
-				if afterProcessing {
-					ret.Addr = &net.IPAddr{IP: net.ParseIP("10.0.200.200").To4()}
-					ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
-				}
 				return ret
 			},
 			srcInterface: 1,
-			assertFunc:   assert.Error,
+			assertFunc:   assertIsSCMPError(slayers.SCMPTypeDestinationUnreachable, 0),
 		},
 		"svc invalid": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -864,14 +860,10 @@ func TestProcessPkt(t *testing.T) {
 				dpath.Base.PathMeta.CurrHF = 2
 				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
 				ret := toMsg(t, spkt, dpath)
-				if afterProcessing {
-					ret.Addr = &net.IPAddr{IP: net.ParseIP("10.0.200.200").To4()}
-					ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
-				}
 				return ret
 			},
 			srcInterface: 1,
-			assertFunc:   assert.Error,
+			assertFunc:   assertIsSCMPError(slayers.SCMPTypeDestinationUnreachable, 0),
 		},
 		"onehop inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -1090,17 +1082,16 @@ func TestProcessPkt(t *testing.T) {
 					{ConsIngress: 31, ConsEgress: 404},
 					{ConsIngress: 1, ConsEgress: 0},
 				}
-				dpath.Base.PathMeta.CurrHF = 1
+				dpath.Base.PathMeta.CurrHF = 2
 				dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[1])
 				ret := toMsg(t, spkt, dpath)
-				if afterProcessing {
-					ret.Addr = &net.IPAddr{IP: net.ParseIP("10.0.200.200").To4()}
-					ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
-				}
 				return ret
 			},
 			srcInterface: 1,
-			assertFunc:   assert.Error,
+			assertFunc: assertIsSCMPError(
+				slayers.SCMPTypeParameterProblem,
+				slayers.SCMPCodeInvalidDestinationAddress,
+			),
 		},
 		"epic inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -1323,5 +1314,16 @@ func bfd() control.BFD {
 		DetectMult:            3,
 		DesiredMinTxInterval:  1 * time.Millisecond,
 		RequiredMinRxInterval: 25 * time.Millisecond,
+	}
+}
+
+// assertIsSCMPError returns an ErrorAssertionFunc asserting that error is an
+// scmpError with the specified type/code.
+func assertIsSCMPError(typ slayers.SCMPType, code slayers.SCMPCode) assert.ErrorAssertionFunc {
+	return func(t assert.TestingT, err error, args ...interface{}) bool {
+		target := router.SCMPError{}
+		return assert.ErrorAs(t, err, &target, args) &&
+			assert.Equal(t, typ, target.TypeCode.Type(), args) &&
+			assert.Equal(t, code, target.TypeCode.Code(), args)
 	}
 }
