@@ -16,13 +16,13 @@ package flag_test
 
 import (
 	"encoding/json"
+	"net/netip"
 	"os"
 	"testing"
 
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
@@ -79,7 +79,7 @@ func TestSCIONEnvironment(t *testing.T) {
 		env        func(t *testing.T)
 		daemon     string
 		dispatcher string
-		local      netaddr.IP
+		local      netip.Addr
 	}{
 		"no flag, no file, no env, defaults only": {
 			flags:      noFlags,
@@ -87,7 +87,7 @@ func TestSCIONEnvironment(t *testing.T) {
 			file:       noFile,
 			daemon:     daemon.DefaultAPIAddress,
 			dispatcher: reliable.DefaultDispPath,
-			local:      netaddr.IP{},
+			local:      netip.Addr{},
 		},
 		"flag values set": {
 			flags:      setupFlags,
@@ -95,7 +95,7 @@ func TestSCIONEnvironment(t *testing.T) {
 			file:       noFile,
 			daemon:     "scion:1234",
 			dispatcher: "/test/dispatcher.socket",
-			local:      netaddr.MustParseIP("10.0.0.42"),
+			local:      netip.MustParseAddr("10.0.0.42"),
 		},
 		"env values set": {
 			flags:      noFlags,
@@ -103,7 +103,7 @@ func TestSCIONEnvironment(t *testing.T) {
 			file:       noFile,
 			daemon:     "scion_env:1234",
 			dispatcher: "/test/dispatcher_env.socket",
-			local:      netaddr.MustParseIP("10.0.42.0"),
+			local:      netip.MustParseAddr("10.0.42.0"),
 		},
 		"file values set": {
 			flags:      noFlags,
@@ -111,7 +111,7 @@ func TestSCIONEnvironment(t *testing.T) {
 			file:       setupFile,
 			daemon:     "scion_file:1234",
 			dispatcher: "/test/dispatcher_file.socket",
-			local:      netaddr.IP{},
+			local:      netip.Addr{},
 		},
 		"all set, flag precedence": {
 			flags:      setupFlags,
@@ -119,7 +119,7 @@ func TestSCIONEnvironment(t *testing.T) {
 			file:       setupFile,
 			daemon:     "scion:1234",
 			dispatcher: "/test/dispatcher.socket",
-			local:      netaddr.MustParseIP("10.0.0.42"),
+			local:      netip.MustParseAddr("10.0.0.42"),
 		},
 		"env set, file set, env precedence": {
 			flags:      noFlags,
@@ -127,7 +127,7 @@ func TestSCIONEnvironment(t *testing.T) {
 			file:       setupFile,
 			daemon:     "scion_env:1234",
 			dispatcher: "/test/dispatcher_env.socket",
-			local:      netaddr.MustParseIP("10.0.42.0"),
+			local:      netip.MustParseAddr("10.0.42.0"),
 		},
 	}
 	for name, tc := range testCases {

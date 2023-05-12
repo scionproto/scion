@@ -8,16 +8,10 @@ load("@bazel_gazelle//:deps.bzl", "go_repository")
 
 def go_deps():
     go_repository(
-        name = "af_inet_netaddr",
-        importpath = "inet.af/netaddr",
-        sum = "h1:U2fwK6P2EqmopP/hFLTOAjWTki0qgd4GMJn5X8wOleU=",
-        version = "v0.0.0-20220811202034-502d2d690317",
-    )
-    go_repository(
         name = "co_honnef_go_tools",
         importpath = "honnef.co/go/tools",
-        sum = "h1:UoveltGrhghAA7ePc+e+QYDHXrBps2PqFZiHkGR/xK8=",
-        version = "v0.0.1-2020.1.4",
+        sum = "h1:ytYb4rOqyp1TSa2EPvNVwtPQJctSELKaMyLfqNP4+34=",
+        version = "v0.3.2",
     )
     go_repository(
         name = "com_github_alecthomas_template",
@@ -88,8 +82,8 @@ def go_deps():
     go_repository(
         name = "com_github_burntsushi_toml",
         importpath = "github.com/BurntSushi/toml",
-        sum = "h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=",
-        version = "v0.3.1",
+        sum = "h1:GaI7EiDXDRfa8VshkTj7Fym7ha+y8/XxIgD2okUIjLw=",
+        version = "v0.4.1",
     )
     go_repository(
         name = "com_github_burntsushi_xgb",
@@ -2037,16 +2031,10 @@ def go_deps():
         version = "v1.3.0",
     )
     go_repository(
-        name = "org_go4_intern",
-        importpath = "go4.org/intern",
-        sum = "h1:UXLjNohABv4S58tHmeuIZDO6e3mHpW2Dx33gaNt03LE=",
-        version = "v0.0.0-20211027215823-ae77deb06f29",
-    )
-    go_repository(
-        name = "org_go4_unsafe_assume_no_moving_gc",
-        importpath = "go4.org/unsafe/assume-no-moving-gc",
-        sum = "h1:FyBZqvoA/jbNzuAWLQE2kG820zMAkcilx6BMjGbL/E4=",
-        version = "v0.0.0-20220617031537-928513b29760",
+        name = "org_go4_netipx",
+        importpath = "go4.org/netipx",
+        sum = "h1:ketMxHg+vWm3yccyYiq+uK8D3fRmna2Fcj+awpQp84s=",
+        version = "v0.0.0-20230125063823-8449b0a6169f",
     )
     go_repository(
         name = "org_golang_google_api",
@@ -2095,6 +2083,12 @@ def go_deps():
         importpath = "golang.org/x/exp",
         sum = "h1:+WEEuIdZHnUeJJmEUjyYC2gfUMj69yZXw17EnHg/otA=",
         version = "v0.0.0-20220722155223-a9213eeb770e",
+    )
+    go_repository(
+        name = "org_golang_x_exp_typeparams",
+        importpath = "golang.org/x/exp/typeparams",
+        sum = "h1:qyrTQ++p1afMkO4DPEeLGq/3oTsdlvdH4vqZUBWzUKM=",
+        version = "v0.0.0-20220218215828-6cf2b201936e",
     )
     go_repository(
         name = "org_golang_x_image",

@@ -15,24 +15,25 @@
 package routing
 
 import (
+	"net/netip"
 	"strings"
 
-	"inet.af/netaddr"
+	"go4.org/netipx"
 )
 
-// IPSet is the same as netaddr.IPSet except that it can be converted to/from string.
+// IPSet is the same as netipx.IPSet except that it can be converted to/from string.
 type IPSet struct {
-	netaddr.IPSet
+	netipx.IPSet
 }
 
 func ParseIPSet(s string) (IPSet, error) {
-	var sb netaddr.IPSetBuilder
+	var sb netipx.IPSetBuilder
 	prefixes := strings.Split(s, ",")
 	for _, prefix := range prefixes {
 		if prefix == "" {
 			continue
 		}
-		p, err := netaddr.ParseIPPrefix(prefix)
+		p, err := netip.ParsePrefix(prefix)
 		if err != nil {
 			return IPSet{}, err
 		}

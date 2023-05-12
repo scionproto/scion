@@ -16,13 +16,13 @@ package config
 
 import (
 	"bytes"
+	"net/netip"
 	"os"
 	"testing"
 
 	toml "github.com/pelletier/go-toml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/private/storage"
@@ -107,9 +107,9 @@ func TestSecretValueHostListSyntax(t *testing.T) {
 func TestToMapPerHost(t *testing.T) {
 	var cfg SecretValueHostList
 	sample := `scmp = ["1.1.1.1", "2.2.2.2"]`
-	ip1111, err := netaddr.ParseIP("1.1.1.1")
+	ip1111, err := netip.ParseAddr("1.1.1.1")
 	require.NoError(t, err)
-	ip2222, err := netaddr.ParseIP("2.2.2.2")
+	ip2222, err := netip.ParseAddr("2.2.2.2")
 	require.NoError(t, err)
 	err = toml.NewDecoder(bytes.NewReader([]byte(sample))).Strict(true).Decode(&cfg)
 	require.NoError(t, err)

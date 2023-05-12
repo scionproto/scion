@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"time"
 
@@ -99,7 +100,7 @@ On other errors, showpaths will exit with code 2.
 
 			flags.cfg.Daemon = envFlags.Daemon()
 			flags.cfg.Dispatcher = envFlags.Dispatcher()
-			flags.cfg.Local = envFlags.Local().IPAddr().IP
+			flags.cfg.Local = net.IP(envFlags.Local().AsSlice())
 			log.Debug("Resolved SCION environment flags",
 				"daemon", flags.cfg.Daemon,
 				"dispatcher", flags.cfg.Dispatcher,

@@ -17,13 +17,13 @@ package grpc_test
 import (
 	"context"
 	"net"
+	"net/netip"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/control/config"
 	dk_grpc "github.com/scionproto/scion/control/drkey/grpc"
@@ -39,8 +39,8 @@ import (
 var (
 	ia111    = xtest.MustParseIA("1-ff00:0:111")
 	ia112    = xtest.MustParseIA("1-ff00:0:112")
-	tcpHost1 = netaddr.MustParseIPPort("127.0.0.1:12345")
-	tcpHost2 = netaddr.MustParseIPPort("127.0.0.2:12345")
+	tcpHost1 = netip.MustParseAddrPort("127.0.0.1:12345")
+	tcpHost2 = netip.MustParseAddrPort("127.0.0.2:12345")
 )
 
 var _ cppb.DRKeyInterServiceServer = &dk_grpc.Server{}
@@ -64,11 +64,11 @@ func TestDRKeySV(t *testing.T) {
 	}{
 		"allowed host": {
 			ctx: peer.NewContext(context.Background(), &peer.Peer{
-				Addr: tcpHost1.TCPAddr(),
+				Addr: net.TCPAddrFromAddrPort(tcpHost1),
 			}),
 			list: map[config.HostProto]struct{}{
 				{
-					Host:  tcpHost1.IP(),
+					Host:  tcpHost1.Addr(),
 					Proto: drkey.SCMP,
 				}: {},
 			},
@@ -81,11 +81,11 @@ func TestDRKeySV(t *testing.T) {
 		},
 		"not allowed host": {
 			ctx: peer.NewContext(context.Background(), &peer.Peer{
-				Addr: tcpHost2.TCPAddr(),
+				Addr: net.TCPAddrFromAddrPort(tcpHost2),
 			}),
 			list: map[config.HostProto]struct{}{
 				{
-					Host:  tcpHost1.IP(),
+					Host:  tcpHost1.Addr(),
 					Proto: drkey.SCMP,
 				}: {},
 			},
@@ -121,7 +121,7 @@ func TestValidateASHost(t *testing.T) {
 		assertErr assert.ErrorAssertionFunc
 	}{
 		"no host": {
-			peerAddr: tcpHost1.TCPAddr(),
+			peerAddr: net.TCPAddrFromAddrPort(tcpHost1),
 			req: drkey.ASHostMeta{
 				SrcIA: ia111,
 				DstIA: ia112,
@@ -130,30 +130,30 @@ func TestValidateASHost(t *testing.T) {
 			assertErr: assert.Error,
 		},
 		"no localIA": {
-			peerAddr: tcpHost1.TCPAddr(),
+			peerAddr: net.TCPAddrFromAddrPort(tcpHost1),
 			req: drkey.ASHostMeta{
 				SrcIA:   ia111,
 				DstIA:   ia112,
-				DstHost: tcpHost1.IP().String(),
+				DstHost: tcpHost1.Addr().String(),
 			},
 			assertErr: assert.Error,
 		},
 		"mismatch addr": {
-			peerAddr: tcpHost1.TCPAddr(),
+			peerAddr: net.TCPAddrFromAddrPort(tcpHost1),
 			req: drkey.ASHostMeta{
 				SrcIA:   ia111,
 				DstIA:   ia112,
-				DstHost: tcpHost2.IP().String(),
+				DstHost: tcpHost2.Addr().String(),
 			},
 			LocalIA:   ia112,
 			assertErr: assert.Error,
 		},
 		"valid host": {
-			peerAddr: tcpHost2.TCPAddr(),
+			peerAddr: net.TCPAddrFromAddrPort(tcpHost2),
 			req: drkey.ASHostMeta{
 				SrcIA:   ia111,
 				DstIA:   ia112,
-				DstHost: tcpHost2.IP().String(),
+				DstHost: tcpHost2.Addr().String(),
 			},
 			LocalIA:   ia112,
 			assertErr: assert.NoError,
@@ -177,7 +177,7 @@ func TestValidateHostASReq(t *testing.T) {
 		assertErr assert.ErrorAssertionFunc
 	}{
 		"no host": {
-			peerAddr: tcpHost1.TCPAddr(),
+			peerAddr: net.TCPAddrFromAddrPort(tcpHost1),
 			req: drkey.HostASMeta{
 				SrcIA: ia111,
 				DstIA: ia112,
@@ -186,16 +186,16 @@ func TestValidateHostASReq(t *testing.T) {
 			assertErr: assert.Error,
 		},
 		"no localIA": {
-			peerAddr: tcpHost1.TCPAddr(),
+			peerAddr: net.TCPAddrFromAddrPort(tcpHost1),
 			req: drkey.HostASMeta{
 				SrcIA:   ia111,
 				DstIA:   ia112,
-				SrcHost: tcpHost1.IP().String(),
+				SrcHost: tcpHost1.Addr().String(),
 			},
 			assertErr: assert.Error,
 		},
 		"mismatch addr": {
-			peerAddr: tcpHost2.TCPAddr(),
+			peerAddr: net.TCPAddrFromAddrPort(tcpHost2),
 			req: drkey.HostASMeta{
 				SrcIA:   ia111,
 				DstIA:   ia112,
@@ -205,11 +205,11 @@ func TestValidateHostASReq(t *testing.T) {
 			assertErr: assert.Error,
 		},
 		"valid src": {
-			peerAddr: tcpHost1.TCPAddr(),
+			peerAddr: net.TCPAddrFromAddrPort(tcpHost1),
 			req: drkey.HostASMeta{
 				SrcIA:   ia111,
 				DstIA:   ia112,
-				SrcHost: tcpHost1.IP().String(),
+				SrcHost: tcpHost1.Addr().String(),
 			},
 			LocalIA:   ia111,
 			assertErr: assert.NoError,
@@ -233,7 +233,7 @@ func TestValidateHostHostReq(t *testing.T) {
 		assertErr assert.ErrorAssertionFunc
 	}{
 		"no host": {
-			peerAddr: tcpHost1.TCPAddr(),
+			peerAddr: net.TCPAddrFromAddrPort(tcpHost1),
 			req: drkey.HostHostMeta{
 				SrcIA: ia111,
 				DstIA: ia112,
@@ -242,44 +242,44 @@ func TestValidateHostHostReq(t *testing.T) {
 			assertErr: assert.Error,
 		},
 		"no localIA": {
-			peerAddr: tcpHost1.TCPAddr(),
+			peerAddr: net.TCPAddrFromAddrPort(tcpHost1),
 			req: drkey.HostHostMeta{
 				SrcIA:   ia111,
 				DstIA:   ia112,
-				SrcHost: tcpHost1.IP().String(),
-				DstHost: tcpHost2.IP().String(),
+				SrcHost: tcpHost1.Addr().String(),
+				DstHost: tcpHost2.Addr().String(),
 			},
 			assertErr: assert.Error,
 		},
 		"mismatch addr": {
-			peerAddr: tcpHost2.TCPAddr(),
+			peerAddr: net.TCPAddrFromAddrPort(tcpHost2),
 			req: drkey.HostHostMeta{
 				SrcIA:   ia111,
 				DstIA:   ia112,
-				SrcHost: tcpHost1.IP().String(),
-				DstHost: tcpHost2.IP().String(),
+				SrcHost: tcpHost1.Addr().String(),
+				DstHost: tcpHost2.Addr().String(),
 			},
 			LocalIA:   ia111,
 			assertErr: assert.Error,
 		},
 		"valid src": {
-			peerAddr: tcpHost1.TCPAddr(),
+			peerAddr: net.TCPAddrFromAddrPort(tcpHost1),
 			req: drkey.HostHostMeta{
 				SrcIA:   ia111,
 				DstIA:   ia112,
-				SrcHost: tcpHost1.IP().String(),
-				DstHost: tcpHost2.IP().String(),
+				SrcHost: tcpHost1.Addr().String(),
+				DstHost: tcpHost2.Addr().String(),
 			},
 			LocalIA:   ia111,
 			assertErr: assert.NoError,
 		},
 		"valid dst": {
-			peerAddr: tcpHost2.TCPAddr(),
+			peerAddr: net.TCPAddrFromAddrPort(tcpHost2),
 			req: drkey.HostHostMeta{
 				SrcIA:   ia111,
 				DstIA:   ia112,
-				SrcHost: tcpHost1.IP().String(),
-				DstHost: tcpHost2.IP().String(),
+				SrcHost: tcpHost1.Addr().String(),
+				DstHost: tcpHost2.Addr().String(),
 			},
 			LocalIA:   ia112,
 			assertErr: assert.NoError,
@@ -321,7 +321,7 @@ func TestASHost(t *testing.T) {
 		Engine:  engine,
 	}
 	remotePeer := peer.Peer{
-		Addr: tcpHost1.TCPAddr(),
+		Addr: net.TCPAddrFromAddrPort(tcpHost1),
 	}
 	request := &cppb.DRKeyASHostRequest{
 		ProtocolId: 200,
@@ -352,7 +352,7 @@ func TestHostAS(t *testing.T) {
 		Engine:  engine,
 	}
 	remotePeer := peer.Peer{
-		Addr: tcpHost1.TCPAddr(),
+		Addr: net.TCPAddrFromAddrPort(tcpHost1),
 	}
 	request := &cppb.DRKeyHostASRequest{
 		ProtocolId: 200,
@@ -383,7 +383,7 @@ func TestHostHost(t *testing.T) {
 		Engine:  engine,
 	}
 	remotePeer := peer.Peer{
-		Addr: tcpHost1.TCPAddr(),
+		Addr: net.TCPAddrFromAddrPort(tcpHost1),
 	}
 	request := &cppb.DRKeyHostHostRequest{
 		ProtocolId: 200,

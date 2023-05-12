@@ -174,7 +174,7 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 		senderCtx,
 		topoInfo.IA,
 		o.intf.TopoInfo().ID,
-		topoInfo.InternalAddr.UDPAddr(),
+		net.UDPAddrFromAddrPort(topoInfo.InternalAddr),
 	)
 	if err != nil {
 		o.incrementMetrics(labels.WithResult(prom.ErrNetwork))

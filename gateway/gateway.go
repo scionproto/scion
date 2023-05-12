@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"strconv"
 	"time"
@@ -26,7 +27,6 @@ import (
 	quic "github.com/lucas-clemente/quic-go"
 	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
-	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/gateway/control"
 	controlgrpc "github.com/scionproto/scion/gateway/control/grpc"
@@ -156,7 +156,7 @@ type SelectAdvertisedRoutes struct {
 	ConfigPublisher *control.ConfigPublisher
 }
 
-func (a *SelectAdvertisedRoutes) AdvertiseList(from, to addr.IA) ([]netaddr.IPPrefix, error) {
+func (a *SelectAdvertisedRoutes) AdvertiseList(from, to addr.IA) ([]netip.Prefix, error) {
 	return routing.AdvertiseList(a.ConfigPublisher.RoutingPolicy(), from, to)
 }
 

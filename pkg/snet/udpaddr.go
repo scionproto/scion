@@ -22,8 +22,6 @@ import (
 	"strconv"
 	"strings"
 
-	"inet.af/netaddr"
-
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
@@ -191,8 +189,8 @@ func parseAddr(s string) (string, string, error) {
 }
 
 func ipOnly(s string) bool {
-	_, portErr := netaddr.ParseIPPort(s)
-	_, ipErr := netaddr.ParseIP(strings.Trim(s, "[]"))
+	_, portErr := netip.ParseAddrPort(s)
+	_, ipErr := netip.ParseAddr(strings.Trim(s, "[]"))
 	return portErr != nil && ipErr == nil
 }
 

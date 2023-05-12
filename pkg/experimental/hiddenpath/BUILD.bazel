@@ -74,7 +74,6 @@ go_test(
         "//private/pathdb/query:go_default_library",
         "//private/topology:go_default_library",
         "//private/trust:go_default_library",
-        "@af_inet_netaddr//:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",

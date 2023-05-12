@@ -15,11 +15,11 @@
 package routing_test
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/gateway/routing"
 	"github.com/scionproto/scion/pkg/private/xtest"
@@ -201,7 +201,7 @@ func TestNetworkMatch(t *testing.T) {
 					To:      iaMatcher,
 				}
 			}
-			out, err := tc.policy.Match(ia, ia, netaddr.MustParseIPPrefix(tc.in))
+			out, err := tc.policy.Match(ia, ia, netip.MustParsePrefix(tc.in))
 			assert.NoError(t, err)
 			assert.Equal(t, tc.out, out.String())
 		})

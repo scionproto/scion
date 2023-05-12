@@ -19,10 +19,10 @@ import (
 	"crypto/x509"
 	"net"
 
+	"go4.org/netipx"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/pkg/addr"
@@ -263,7 +263,7 @@ func (d *Server) validateAllowedHost(protoId drkey.Protocol, peerAddr net.Addr) 
 		return serrors.New("invalid peer address type, expected *net.TCPAddr",
 			"peer", peerAddr, "type", common.TypeOf(peerAddr))
 	}
-	localAddr, ok := netaddr.FromStdIP(tcpAddr.IP)
+	localAddr, ok := netipx.FromStdIP(tcpAddr.IP)
 	if !ok {
 		return serrors.New("unable to parse IP", "addr", tcpAddr.IP.String())
 	}

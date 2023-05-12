@@ -32,11 +32,11 @@ import (
 	"github.com/go-chi/cors"
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/spf13/cobra"
+	"go4.org/netipx"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"inet.af/netaddr"
 
 	cs "github.com/scionproto/scion/control"
 	"github.com/scionproto/scion/control/beacon"
@@ -834,7 +834,7 @@ func createBeaconStore(
 func adaptInterfaceMap(in map[common.IFIDType]topology.IFInfo) map[uint16]ifstate.InterfaceInfo {
 	converted := make(map[uint16]ifstate.InterfaceInfo, len(in))
 	for id, info := range in {
-		addr, ok := netaddr.FromStdAddr(
+		addr, ok := netipx.FromStdAddr(
 			info.InternalAddr.IP,
 			info.InternalAddr.Port,
 			info.InternalAddr.Zone,

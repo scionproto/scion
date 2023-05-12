@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"hash"
 	"net"
+	"net/netip"
 	"sync"
 	"testing"
 	"time"
@@ -30,7 +31,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"inet.af/netaddr"
 
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beaconing"
@@ -259,7 +259,7 @@ func TestRegistrarRun(t *testing.T) {
 						assert.Equal(t, pathHopField.ConsEgress, segHopField.ConsEgress)
 
 						nextHop := pathHopField.ConsIngress
-						a := interfaceInfos(topo)[nextHop].InternalAddr.UDPAddr()
+						a := net.UDPAddrFromAddrPort(interfaceInfos(topo)[nextHop].InternalAddr)
 						assert.Equal(t, a, s.Addr.NextHop)
 					}
 				})
@@ -371,7 +371,7 @@ func interfaceInfos(topo topology.Topology) map[uint16]ifstate.InterfaceInfo {
 			ID:           uint16(info.ID),
 			IA:           info.IA,
 			LinkType:     info.LinkType,
-			InternalAddr: netaddr.MustParseIPPort(info.InternalAddr.String()),
+			InternalAddr: netip.MustParseAddrPort(info.InternalAddr.String()),
 			RemoteID:     uint16(info.RemoteIFID),
 			MTU:          uint16(info.MTU),
 		}
