@@ -15,10 +15,9 @@
 package ifstate
 
 import (
+	"net/netip"
 	"sync"
 	"time"
-
-	"net/netip"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/private/topology"

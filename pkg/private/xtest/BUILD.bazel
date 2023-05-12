@@ -13,7 +13,6 @@ go_library(
     deps = [
         "//pkg/addr:go_default_library",
         "//pkg/scrypto/cppki:go_default_library",
-        "@af_inet_netaddr//:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
         "@org_golang_google_grpc//:go_default_library",

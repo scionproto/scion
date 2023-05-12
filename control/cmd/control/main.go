@@ -28,7 +28,6 @@ import (
 	"sync"
 	"time"
 
-
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
