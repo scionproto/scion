@@ -1,0 +1,6 @@
+{
+    "extends": "../.markdownlint-cli2.jsonc",
+    "config": {
+        "MD041": false
+    }
+}
