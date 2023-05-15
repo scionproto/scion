@@ -57,11 +57,11 @@ implementation <https://github.com/scionproto/scion>`_.
    :caption: Reference Manuals
    :hidden:
 
-   manuals/router
-   manuals/dispatcher
-   manuals/daemon
    manuals/control
+   manuals/router
    manuals/gateway
+   manuals/daemon
+   manuals/dispatcher
    manuals/common
 
    command/scion/scion
@@ -75,8 +75,8 @@ implementation <https://github.com/scionproto/scion>`_.
   :doc:`manuals/dispatcher`
 
 * **For operators of** :term:`SCION ASes <AS>`:
-  :doc:`manuals/router` |
   :doc:`manuals/control` |
+  :doc:`manuals/router` |
   :doc:`manuals/gateway` |
   :doc:`manuals/common` |
   :doc:`command/scion-pki/scion-pki`
