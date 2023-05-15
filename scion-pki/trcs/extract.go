@@ -52,9 +52,9 @@ func newExtractPayload(pather command.Pather) *cobra.Command {
 		Example: fmt.Sprintf(`  %[1]s payload -o payload.der input.trc`, pather.CommandPath()),
 		Long: `'payload' extracts the asn.1 encoded DER TRC payload.
 
-To inspect the created asn.1 file you can use the openssl tool::
+To inspect the created asn.1 file you can use the openssl tool:
 
- openssl asn1parse -inform DER -i -in payload.der
+    openssl asn1parse -inform DER -i -in payload.der
 
 (for more information see 'man asn1parse')
 `,

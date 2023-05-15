@@ -151,24 +151,24 @@ func newCreateCmd(pather command.Pather) *cobra.Command {
 
 The command takes the following positional arguments:
 
-- <subject-template> is the template for the certificate subject distinguished name.
-- <crt-file> is the file path where the certificate or certificate requests is
+- **subject-template** is the template for the certificate subject distinguished name.
+- **crt-file** is the file path where the certificate or certificate requests is
   written to. The parent directory must exist and must be writable.
-- <key-file> is the file path where the fresh private key is written to. The
+- **key-file** is the file path where the fresh private key is written to. The
   parent directory must exist and must be writable.
 
 By default, the command creates a SCION control-plane PKI AS certificate. Another
-certificate type can be selected by providing the \--profile flag. If a certificate
-chain is desired, specify the \--bundle flag.
+certificate type can be selected by providing the --profile flag. If a certificate
+chain is desired, specify the --bundle flag.
 
-A fresh key is created in the provided <key-file>, unless the \--key flag is set.
-If the \--key flag is set, an existing private key is used and the <key-file> is
+A fresh key is created in the provided key-file, unless the --key flag is set.
+If the --key flag is set, an existing private key is used and the key-file is
 ignored.
 
-The \--ca and \--ca-key flags are required if a AS certificate or CA certificate
+The --ca and --ca-key flags are required if a AS certificate or CA certificate
 is being created. Otherwise, they are not allowed.
 
-The \--not-before and \--not-after flags can either be a timestamp or a relative
+The --not-before and --not-after flags can either be a timestamp or a relative
 time offset from the current time.
 
 A timestamp can be provided in two different formats: unix timestamp and
@@ -178,17 +178,17 @@ seconds after the 12th hour of June 26th, 2021 in UTC.
 The relative time offset can be formated as a time duration string with the
 following units: y, w, d, h, m, s. Negative offsets are also allowed. For
 example, -1h indicates the time of tool invocation minus one hour. Note that
-\--not-after is relative to the current time if a relative time offset is used,
-and not to \--not-before.
+--not-after is relative to the current time if a relative time offset is used,
+and not to --not-before.
 
-The <subject-template> is the template for the distinguished name of the
-requested certificate and must either be a x.509 certificate or a JSON file.
-The common name can be overridden by supplying the \--common-name flag.
+The subject-template is the template for the distinguished name of the requested
+certificate and must either be a x.509 certificate or a JSON file.
+The common name can be overridden by supplying the --common-name flag.
 
 If it is a x.509 certificate, the subject of the template is used as the subject
 of the created certificate or certificate chain request.
 
-A valid example for a JSON formatted template::
+A valid example for a JSON formatted template:
 ` + subjectHelp,
 		Args: cobra.RangeArgs(2, 3),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -50,7 +50,7 @@ certificate second.
 
 The ISD-AS property of the subject identified by the certificate
 (or in the case of a certificate chain, the leaf certificate)
-can be validated by specifying the \--subject-isd-as flag and
+can be validated by specifying the --subject-isd-as flag and
 the expected ISD-AS value.
 `,
 		Example: fmt.Sprintf(

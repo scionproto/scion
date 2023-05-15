@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -55,24 +53,8 @@ func main() {
 		newShowpaths(cmd),
 		newTraceroute(cmd),
 		newAddress(cmd),
-		newGendocs(cmd),
+		command.NewGendocs(cmd),
 	)
-	// This Templatefunc allows use some escape characters for the rst
-	// documentation conversion without compromising the readability of the help
-	// text in the CLI.
-	cobra.AddTemplateFunc("removeEscape", func(s string) string {
-		r := regexp.MustCompile("===(=)*")
-		s = r.ReplaceAllLiteralString(s, "")
-		s = strings.ReplaceAll(s, "\\*", "* ")
-		s = strings.ReplaceAll(s, "\\+", "+ ")
-		s = strings.ReplaceAll(s, "\\|", "| ")
-		s = strings.ReplaceAll(s, "\\-", "-")
-		return s
-	})
-
-	cmd.SetHelpTemplate(`{{with (or .Long .Short)}}{{. | trimTrailingWhitespaces | removeEscape}}
-
-{{end}}{{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`)
 	cmd.DisableAutoGenTag = true
 
 	if err := cmd.Execute(); err != nil {

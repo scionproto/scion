@@ -47,7 +47,6 @@ is a good place to start.
    manuals/gateway
 
 .. toctree::
-   :maxdepth: 1
    :caption: CLI tools:
 
    command/scion/scion
