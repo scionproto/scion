@@ -1,5 +1,5 @@
 **************
-Go style guide
+Go Style Guide
 **************
 
 Unless specified otherwise below, stick to golang's

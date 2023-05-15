@@ -9,7 +9,7 @@ This document lists the assigned SCION protocol numbers.
 Considerations
 ==============
 
-SCION attempts to take the `IANA’s assigned internet protocol numbers
+SCION attempts to take the `IANA’s assigned Internet protocol numbers
 <https://perma.cc/FBE8-S2W5>`_ into consideration. Widely used protocols will
 have the same protocol number. SCION specific protocol numbers start at ``200``
 which makes them very unlikely to clash.

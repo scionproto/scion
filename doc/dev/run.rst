@@ -1,12 +1,12 @@
 *********************
-Running SCION locally
+Running SCION Locally
 *********************
 
-SCION is an internet architecture and SCION networks are composed of
-many hosts running the SCION control-plane services, routers and SCION-enabled
+SCION is an Internet architecture and SCION networks are composed of
+many hosts running the SCION control-plane services, routers, and SCION-enabled
 applications.
-To simplify development, testing and tinkering, we provide a tool that generates test
-topologies and runs an entire SCION "internet" on a single machine. Packets are
+To simplify development, testing, and tinkering, we provide a tool that generates test
+topologies and runs an entire SCION "Internet" on a single machine. Packets are
 only sent between different processes on the same host, not over the network.
 
 Running SCION in this developement setup, is also called running a **local topology**.
@@ -30,7 +30,7 @@ Quickstart
 
    * Build, using ``make``
 
-#. Generate the control-plane PKI keys and certificates, configuration files and process
+#. Generate the control-plane PKI keys and certificates, configuration files, and process
    orchestrator (supervisor or docker-compose) configuration.
 
    .. code-block:: bash
@@ -54,12 +54,8 @@ Quickstart
       bin/end2end_integration
 
 #. This local infrastructure runs multiple SCION daemons, one in each AS.
-   We need to specify which instance is used when running end-host applications
+   We need to specify which instance is used when running applications
    that rely on the SCION daemon, e.g. to query paths.
-
-   The ``scion.sh topology`` script writes a file ``gen/sciond_address.json``,
-   mapping AS numbers to SCION daemon instance addresses. Either consult this
-   file manually, or use the ``scion.sh sciond-addr`` command:
 
    .. code-block:: bash
 
@@ -73,7 +69,7 @@ Quickstart
 
       ./scion.sh stop
 
-Local topology environment
+Local Topology Environment
 ==========================
 
 The :option:`scion.sh topology` command generates configuration in the ``gen/`` directory in the
@@ -118,7 +114,7 @@ docker
 The main docker-compose file is ``gen/scion-dc.yml``.
 
 Each SCION service or router runs in a separate container, and the network access of the individual
-contains is configured to mimick real-world connectivity.
+containers is configured to mimick real-world connectivity.
 
 There are "tester" containers configured in each AS to mimick end hosts in a SCION AS.
 These tester containers can be used to run commands accessing the SCION network.
@@ -152,7 +148,7 @@ The basic usage is ``./scion.sh <subcommand> <options>``. The main subcommands a
 
 .. option:: topology
 
-   Generate the control-plane PKI keys and certificates, configuration files
+   Generate the control-plane PKI keys and certificates, configuration files,
    and process orchestrator (supervisor or docker-compose) configuration
    for a given network topopology defined in a
    :file-ref:`*.topo configuration file <topology/README.md>`.
@@ -194,5 +190,3 @@ The basic usage is ``./scion.sh <subcommand> <options>``. The main subcommands a
 .. option:: help
 
    Describe all available subcommands
-
-

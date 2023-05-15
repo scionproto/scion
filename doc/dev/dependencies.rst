@@ -1,7 +1,7 @@
 .. _external-dependencies:
 
-Managing external dependencies
-==============================
+Dependencies
+============
 
 Go
 --

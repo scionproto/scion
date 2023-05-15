@@ -1,6 +1,6 @@
-*********************
-Language style guides
-*********************
+************
+Style Guides
+************
 
 Please consider these language style guides when contributing to this project.
 
@@ -9,8 +9,8 @@ Please consider these language style guides when contributing to this project.
 
    go
    rst
-   Bazel style guide <https://docs.bazel.build/versions/master/skylark/build-style.html>
-   Python style guide (google) <https://google.github.io/styleguide/pyguide.html>
+   Bazel Style Guide <https://docs.bazel.build/versions/master/skylark/build-style.html>
+   Python Style Guide (google) <https://google.github.io/styleguide/pyguide.html>
 
 
 TOML/JSON

@@ -9,7 +9,7 @@ on almost any host system without requiring any special privileges.
 .. TODO
    add reference to dataplane section
 
-Command line reference
+Command Line Reference
 ======================
 
 .. program:: router
@@ -43,7 +43,7 @@ Command line reference
    Run :option:`router help completion [shell] <router help>` for usage information on the
    autocomplete script for a particular shell.
 
-Environment variables
+Environment Variables
 ---------------------
 
 .. envvar:: SCION_EXPERIMENTAL_BFD_DISABLE
@@ -92,7 +92,7 @@ that the router uses to forward packets.
 
 .. _router-conf-toml:
 
-Router configuration
+Router Configuration
 --------------------
 
 In addition to the :ref:`common .toml configuration options <common-conf-toml>`, the router

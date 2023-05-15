@@ -13,7 +13,7 @@ Overview
 Low entry barriers are crucial to push people to experiment with new
 technologies.
 The goal of automated end host bootstrapping is to let anyone join the
-SCION internet effortlessly.
+SCION Internet effortlessly.
 From within an AS, all an end user needs to do is to install a package.
 
 In particular, the package contains a bootstrapper daemon that retrieves

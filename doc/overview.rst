@@ -2,7 +2,7 @@
 SCION Overview
 **************
 
-Scope and goals
+Scope and Goals
 ===============
 
 SCION is an inter-domain routing protocol, designed to provide route control, failure isolation, and
@@ -40,17 +40,18 @@ Isolation domains serve the following purposes:
   one between ISDs.
 
 ISDs provide natural isolation of routing failures and misconfigurations, provide meaningful and
-enforceable trust, enable endpoints to optionally restrict traffic forwarding to trusted parts of
-the Internet infrastructure only, and enable scalable routing updates with high path-freshness.
+enforceable trust, enable :term:`endpoints <endpoint>` to optionally restrict traffic forwarding to
+trusted parts of the Internet infrastructure only, and enable scalable routing updates with high
+path-freshness.
 
-ISD and AS numbering
+ISD and AS Numbering
 ^^^^^^^^^^^^^^^^^^^^
 
-SCION decouples endpoint addressing from inter-domain routing.
+SCION decouples :term:`endpoint` addressing from inter-domain routing.
 Routing is based on the ISD-AS tuple, agnostic of endpoint addressing.
 
 ISD numbers are 16-bit identifiers.
-The 48-bit AS numbers are globally unique, and uses a super-set of the existing BGP AS numbering
+The 48-bit AS numbers are globally unique, and use a superset of the existing BGP AS numbering
 scheme.
 Formatting rules and and allocations are is currently described in `wiki page "ISD and AS numbering" <https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering>`_.
 
@@ -60,7 +61,7 @@ A SCION endpoint address is the ``ISD-AS,local address`` 3-tuple.
 
 .. _overview-link-types:
 
-Link types
+Link Types
 ^^^^^^^^^^
 
 There are three types of links between ASes in SCION:
@@ -81,10 +82,11 @@ SCION operates on two routing levels: intra-ISD and inter-ISD. Both levels use *
 construction beacons (PCBs)** to explore network paths. A PCB is initiated by a core AS and then
 disseminated either within an ISD (to explore intra-ISD paths) or among core ASes (to explore core
 paths across different ISDs). The PCBs accumulate cryptographically protected path and forwarding
-information on AS-level, and store this information in the form of **hop fields (HFs)**. Endpoints
-use information from these hop fields to create end-to-end forwarding paths for data packets, which
-carry this information in their packet headers. This concept is called **packet-carried forwarding
-state**. The concept also supports multi-path communication among endpoints.
+information on the AS-level, and store this information in the form of **hop fields (HFs)**.
+Endpoints use information from these hop fields to create end-to-end forwarding paths for data
+packets, which carry this information in their packet headers.
+This concept is called **packet-carried forwarding state**. The concept also supports multi-path
+communication among :term:`endpoints <endpoint>`.
 
 The process of creating an end-to-end forwarding path consists of the following steps:
 
