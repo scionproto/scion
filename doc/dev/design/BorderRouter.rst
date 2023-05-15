@@ -3,7 +3,7 @@ Border Router Performance Optimized Redesign
 **********************************************
 
 - Author: Justin Rohrer
-- Last Updated: 2023-04-28
+- Last Updated: 2023-05-15
 - Discussion at: `#4334 <https://github.com/scionproto/scion/issues/4334>`_
 
 Abstract
@@ -80,19 +80,32 @@ Afterwards it returns the buffers back to the receivers.
 Mapping of processing routines
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To prevent any packet reordering on the fast-path, we map the triple of source (ISD-AS + local address),
-destination (ISD-AS + local address) and flowID, see the
+To prevent any packet reordering on the fast-path, we map the flowID together with the full address-header, see
 `SCION header documentation <https://github.com/scionproto/scion/blob/master/doc/protocols/scion-header.rst>`_
 to a fixed processing routine using the fnv-1a hash function together with a random value which is generated
 on startup to prevent pre-computations of the exact mapping.
+To mitigate the sticky-zero property of the fnv-1a hash function when hashing, we take the random value first
+and the flowID and address-header afterwards.
+
+Initial parsing in the receiver
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To minimize the time that the receivers need to parse the fields needed to map a packet to a worker
+we will use a custom parse function that just parses the fields that are needed for the mapping.
+The values of those fields will be the same as if they would have been parsed with the slayers.SCION
+parse function.
+
 
 Slow path
 ^^^^^^^^^^^
 
 During processing, packets that have to follow the slow path are identified and forwarded to the
 slow-path processing routines.
-To do so, we hand over the current buffer to the slow-path routine together with all the information
-that the processing routine already computed that are required by the slow-path processing routine.
+To do so, we hand over the current buffer to the slow-path routine together with the error codes.
+Because of that the slow-path processing routine might have to redo some of the parsing if necessary.
+The original processing routine can immediately continue processing its other packets once it forwarded the
+slow-path packet to the slow-path routine without the need of doing anything additional compared to the usual
+packet processing.
 Rate limiting of slow-path operations is not implemented explicitly, but only implictily through
 specifying the number of slow-path processing routines in the configuration.
 In case a packet is identified to belong to the slow path but the queue of the slow path is full, the
@@ -103,21 +116,20 @@ Packets currently identified for slow-path are:
 
 - SCMP traceroute packets
 
+Pool size
+^^^^^^^^^^^
+
+The pool size will be set by calculating the maximum number of packets in-flight through the system:
+
+.. code-block:: text
+
+    pool_size := numReaders * readBatch + numProcessors * (processorQueueSize + 1) + numWriters * (writerQueueSize + writeBatchSize)
+
 Configuration
 ---------------
 
 The configuration of the border router will remain in the border router toml file.
 The following configuration entries are added:
-
-Pool size
-^^^^^^^^^^^
-
-The size of the packet buffer pool of the receivers can be configured.
-An optimal value could be derived by calculating the maximum number of packets in-flight through the system:
-
-.. code-block:: text
-
-    pool_size := numReaders * readBatch + numProcessors * (processorQueueSize + 1) + numWriters * (writerQueueSize + writeBatchSize)
 
 Number of processing routines (N)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -126,6 +138,9 @@ By configuring the number of processing routines one can specify the number of g
 to process packets in parallel.
 An optimal value should be derivable from the maximum latency of processing and forwarding a packet,
 the speed of the network interfaces and the number of available CPU cores.
+Since having more processing routines than number of CPU cores would just lead to swapping, the
+number of processing routines should nbe strictly smaller than the number of CPU cores because we also
+have to take the receivers, forwarders and slow-path processing routines into account that also require CPU time.
 
 Number of slow-path processing routines (M)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -134,6 +149,14 @@ By configuring the number of slow-path processing routines one can specify the n
 process the packets on the slow-path.
 An optimal value could be a percentage of the number of processing routines or even a fixed number.
 A default value would be 1.
+
+Processing routine queue size and read-write batch size
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+By configuring the queue sizes and the batch size one can specify how many packets a read or written
+from / to a network socket and how many packets can be enqueued at the processing routines and the
+forwarders before packets are getting dropped.
+A default value for both queue size and batch size would be 64.
 
 Considerations for future work
 --------------------------------
