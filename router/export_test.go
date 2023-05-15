@@ -29,6 +29,8 @@ type ProcessResult struct {
 	processResult
 }
 
+type SCMPError = scmpError
+
 func NewDP(
 	external map[uint16]BatchConn,
 	linkTypes map[uint16]topology.LinkType,
@@ -47,6 +49,7 @@ func NewDP(
 		internalNextHops: internalNextHops,
 		svc:              &services{m: svc},
 		internal:         internal,
+		internalIP:       &net.IPAddr{IP: net.ParseIP("198.51.100.1")},
 	}
 	if err := dp.SetKey(key); err != nil {
 		panic(err)
