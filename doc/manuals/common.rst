@@ -1,9 +1,6 @@
-***************
-Common settings
-***************
-
+*************
 Configuration
-=============
+*************
 
 The general pattern for the long-running SCION services (:doc:`router`, :doc:`control`,
 :doc:`gateway`, :doc:`daemon`), is to load a :ref:`.toml <common-conf-toml>` configuration file
@@ -16,8 +13,8 @@ are organized specifically to allow sharing the configuration directory between 
 
 .. _common-conf-toml:
 
-Common configuration .toml
----------------------------
+Configuration .toml
+===================
 
 This configuration is a `TOML <https://toml.io/en/>`_-file.
 
@@ -57,7 +54,7 @@ The following options are implemented by all applications.
 .. _common-conf-toml-db:
 
 Database Connections
-^^^^^^^^^^^^^^^^^^^^
+--------------------
 
 The services use different SQLite database files, with paths and advanced connection options
 configured individually.
@@ -78,8 +75,8 @@ The pattern is:
    .. option:: some_db.max_idle_conns = <int> (Default: 2)
 
       Sets the maximum number of connections in the idle connection pool.
-      If this value is higher than :option:`max_open_conns <common-conf-toml some_db.max_open_conns>`, then the effective value
-      is the same as :option:`max_open_conns <common-conf-toml some_db.max_open_conns>`.
+      If this value is higher than :option:`max_open_conns <common-conf-toml some_db.max_open_conns>`,
+      then the effective value is the same as :option:`max_open_conns <common-conf-toml some_db.max_open_conns>`.
 
       This **should** be left > 0 for SQLite databases, in particular
       if an `in-memory database <https://www.sqlite.org/inmemorydb.html>`_ is used.
@@ -87,7 +84,7 @@ The pattern is:
 .. _common-conf-topo:
 
 topology.json
--------------
+=============
 
 The ``topology.json`` file of an AS specifies all the inter-AS connections to neighboring ASes, and
 defines the underlay IP/UDP addresses of services and routers running in this AS.

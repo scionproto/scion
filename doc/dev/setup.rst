@@ -1,6 +1,6 @@
 .. _setting-up-the-development-environment:
 
-Setting up the development environment
+Setting up the Development Environment
 ======================================
 
 Prerequisites

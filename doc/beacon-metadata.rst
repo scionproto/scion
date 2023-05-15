@@ -236,7 +236,7 @@ For now it distinguishes three different types of links:
 Use cases of such information include:
 
 -  Mitigating security concerns.
--  Allowing users to select paths that e.g. avoid the open internet.
+-  Allowing users to select paths that e.g. avoid the open Internet.
 
 Internal Hops
 -------------

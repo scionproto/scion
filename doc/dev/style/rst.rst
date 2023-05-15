@@ -1,4 +1,4 @@
-reStructuredText style guide
+reStructuredText Style Guide
 =============================
 
 reStructuredText allows for quite a bit of freedom in how the markup is
@@ -19,7 +19,7 @@ Use the following heading styles:
 .. code-block:: rest
 
    ********************
-   Page title (chapter)
+   Page Title (chapter)
    ********************
 
    Level 1 (section)

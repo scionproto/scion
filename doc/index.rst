@@ -69,12 +69,12 @@ implementation <https://github.com/scionproto/scion>`_.
 
    snet API <https://pkg.go.dev/github.com/scionproto/scion/pkg/snet>
 
-* **For operators of a SCION end host**:
+* **For operators of SCION end hosts**:
   :doc:`command/scion/scion` |
   :doc:`manuals/daemon` |
   :doc:`manuals/dispatcher`
 
-* **For operators of a SCION AS**:
+* **For operators of** :term:`SCION ASes <AS>`:
   :doc:`manuals/router` |
   :doc:`manuals/control` |
   :doc:`manuals/gateway` |
@@ -111,11 +111,10 @@ Start with the :doc:`dev/contribute` to contribute to the open-source SCION impl
   :ref:`change-proposal-process` |
   :doc:`dev/style/index`
 
-* **Building and running**
+* **Building and Running**:
   :doc:`dev/setup` |
   :doc:`dev/run` |
   :doc:`dev/dependencies` |
   :doc:`dev/testing/index`
 
-* **Design Documents**:
-  :doc:`dev/design/index`
+* :doc:`dev/design/index`

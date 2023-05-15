@@ -92,7 +92,7 @@ interface on a different machine.
    Search for the network-interface that's with the corresponding subnet.
 
 #. Start wireshark and click on the gear next to the interface named
-   "SSH remote capture: sshdump"
+   "SSH remote capture: sshdump".
    Fill in the IP address and Port of the remote host, as well as your preferred
    authentication method in the Authentication tab.
    At the Capture tab write the name of the interface you found in the previous

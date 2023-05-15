@@ -12,7 +12,7 @@ Abstract
 
 Background
 ==========
-[Introduction of the topic, description of the problem being solved]
+[Introduction of the topic, description of the problem being solved.]
 
 Proposal
 ========
@@ -20,7 +20,7 @@ Proposal
 
 Rationale
 =========
-[A discussion of alternate approaches and the trade offs, advantages, and disadvantages of the specified approach.]
+[A discussion of alternate approaches and the trade-offs, advantages, and disadvantages of the specified approach.]
 
 Compatibility
 =============

@@ -2,7 +2,7 @@
 SCION-IP Gateway
 ****************
 
-The SCION-IP Gateway (SIG) tunnels IP packets over the SCION internet.
+The SCION-IP Gateway (SIG) tunnels IP packets over the SCION Internet.
 
 An ingress SIG encapsulates IP packets in a SCION packet and sends it to an egress SIG determined
 by the configured routing rules, where the packet is decapsulated and forwarded toward its
