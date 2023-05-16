@@ -65,11 +65,15 @@ the :ref:`drkey-generic-derivation`. Both of them leverage the 4-level derivatio
 4-level derivation
 ------------------
 
+.. _drkey-secret:
+
 **Secret value (Level 0)**
 
 Each AS locally derives one :math:`SV_A^{protocol}` per protocol and epoch. This secret value
 is renewed at every epoch and it is only shared with trustworthy entities that require
 to derive keys on the fly for the specified protocol.
+
+.. _drkey-as-as:
 
 **AS-AS (Level 1)**
 

@@ -168,7 +168,7 @@ of the individual fields below.
 
 .. option:: attributes = [<"core">?], default []
 
-   Role of this AS. ``["core"]`` for core-ASes, ``[]`` for non-core ASes.
+   Role of this AS. ``["core"]`` for core ASes, ``[]`` for non-core ASes.
 
    .. Note::
 
@@ -196,12 +196,9 @@ of the individual fields below.
 
    .. object:: interfaces
 
-      .. object:: <interface-id>
+      .. option:: <interface-id>
 
-         An interface ID is the AS-local identifier for an inter-domain link.
-
-         The interface ID is an arbitrary number between 1 and 65535,
-         assigned without external coordination by the operator of the AS.
+         The :term:`interface ID <Interface ID>` for an inter-domain link.
 
          In this ``topology.json`` file, the ID is contained in a string.
 
@@ -304,6 +301,7 @@ of the individual fields below.
    .. option:: <cs-id>
 
       Identifier for a control service instance.
+      Matches the :option:`general.id <control-conf-toml general.id>` of a control service instance.
 
    .. option:: addr = <ip:port>, required
 
