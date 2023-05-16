@@ -1,3 +1,9 @@
+.. warning::
+   Note that this ad hoc HTTP API is **separate** from the partially redundant
+   :ref:`control-rest-api`.
+   The REST API should be preferred.
+   This HTTP API will be phased out.
+
 The HTTP API is exposed by the ``control`` application on the IP address and port of the ``metrics.prometheus``
 configuration setting.
 
