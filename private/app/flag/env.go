@@ -75,8 +75,7 @@ func (v *ipVal) Type() string   { return "ip" }
 func (v *ipVal) String() string { return netip.Addr(*v).String() }
 
 // SCIONEnvironment can be used to access the common SCION configuration values,
-// like the SCION daemon address and the local IP
-// as well as the local ISD-AS.
+// like the SCION daemon address and the local IP as well as the local ISD-AS.
 type SCIONEnvironment struct {
 	sciondFlag *pflag.Flag
 	sciondEnv  *string

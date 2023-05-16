@@ -33,7 +33,8 @@ import (
 
 const (
 	// EndhostPort is the underlay port that SCION binds to on non-routers.
-	EndhostPort       = underlay.EndhostPort
+	EndhostPort = underlay.EndhostPort
+	// TODO(JordiSubira): Yet to be defined.
 	HostPortRangeLow  = 0
 	HostPortRangeHigh = 1<<16 - 1
 )

@@ -127,19 +127,6 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 		return nil, serrors.New("Unknown network", "network", network)
 	}
 
-	// FIXME(JordiSubira): Without the dispatcher if the host in the address parameter is nil
-	// or a literal unspecified IP address we can listen on all available IP addresses, except
-	// multicast. Port and address can be exposed using LocalAddr() on the returned Conn.
-	// if listen == nil {
-	// 	return nil, serrors.New("nil listen addr not supported")
-	// }
-	// if listen.IP == nil {
-	// 	return nil, serrors.New("nil listen IP not supported")
-	// }
-	// if listen.IP.IsUnspecified() {
-	// 	return nil, serrors.New("unspecified listen IP not supported")
-	// }
-
 	packetConn, err := n.Connector.OpenUDP(listen)
 	if err != nil {
 		return nil, err
