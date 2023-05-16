@@ -38,12 +38,6 @@ const (
 	defaultProbeInterval = 500 * time.Millisecond
 )
 
-// ProbeConnFactory is used to construct net.PacketConn objects for sending and
-// receiving probes.
-type ProbeConnFactory interface {
-	New(context.Context) (net.PacketConn, error)
-}
-
 // DefaultPathWatcherFactory creates PathWatchers.
 type DefaultPathWatcherFactory struct {
 	// LocalIA is the ID of the local AS.
@@ -52,7 +46,6 @@ type DefaultPathWatcherFactory struct {
 	LocalIP netip.Addr
 	// RevocationHandler is the revocation handler.
 	RevocationHandler snet.RevocationHandler
-	// ConnFactory is used to create probe connections.
 	// Probeinterval defines the interval at which probes are sent. If it is not
 	// set a default is used.
 	ProbeInterval time.Duration
@@ -87,6 +80,8 @@ func (f *DefaultPathWatcherFactory) New(
 		}
 		return create(remote)
 	}
+	// FIXME(JordiSubira): Keep or change the listening port, once we decide
+	// how SCMP are addressed.
 	nc, err := (&snet.DefaultConnector{
 		SCMPHandler: scmpHandler{
 			wrappedHandler: snet.DefaultSCMPHandler{

@@ -204,7 +204,6 @@ func (s server) handlePing(conn snet.PacketConn) error {
 		))
 	}
 	log.Info(fmt.Sprintf("Ping received from %s:%d, sending pong.", p.Source, udp.SrcPort))
-	log.Info((fmt.Sprintf("%v %d", p.Source, udp.SrcPort)))
 	raw, err := json.Marshal(Pong{
 		Client:  p.Source.IA,
 		Server:  integration.Local.IA,

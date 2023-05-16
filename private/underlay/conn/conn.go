@@ -32,6 +32,13 @@ import (
 	"github.com/scionproto/scion/private/underlay/sockctrl"
 )
 
+const (
+	// ReceiveBufferSize is the size of receive buffers used by the dispatcher.
+	ReceiveBufferSize = 1 << 20
+	// SendBufferSize is the size of the send buffers used by the dispatcher.
+	SendBufferSize = 1 << 20
+)
+
 // Messages is a list of ipX.Messages. It is necessary to hide the type alias
 // between ipv4.Message, ipv6.Message and socket.Message.
 type Messages []ipv4.Message
@@ -88,6 +95,11 @@ func OpenConn(addr *net.UDPAddr) (net.PacketConn, error) {
 	// because the socket options are specific to only one socket type, so we
 	// degrade udp to only udp4.
 	listeningAddr := copyUDPAddr(addr)
+	if listeningAddr == nil {
+		listeningAddr = &net.UDPAddr{
+			IP: net.IPv4zero,
+		}
+	}
 	if (listeningAddr.Network() == "udp" || listeningAddr.Network() == "udp4") &&
 		listeningAddr.IP == nil {
 		listeningAddr.IP = net.IPv4zero
@@ -96,9 +108,11 @@ func OpenConn(addr *net.UDPAddr) (net.PacketConn, error) {
 		listeningAddr.IP = net.IPv6zero
 	}
 
+	// TODO(JordiSubira): Should we keep a default config or use the passed-through
+	// configuration.
 	c, err := New(listeningAddr, nil, &Config{
-		SendBufferSize:    0,
-		ReceiveBufferSize: 0,
+		SendBufferSize:    SendBufferSize,
+		ReceiveBufferSize: ReceiveBufferSize,
 	})
 	if err != nil {
 		return nil, serrors.WrapStr("unable to open conn", err)
@@ -193,9 +207,6 @@ type connUDPBase struct {
 func (cc *connUDPBase) initConnUDP(network string, laddr, raddr *net.UDPAddr, cfg *Config) error {
 	var c *net.UDPConn
 	var err error
-	if laddr == nil {
-		return serrors.New("listen address must be specified")
-	}
 	if raddr == nil {
 		if c, err = net.ListenUDP(network, laddr); err != nil {
 			return serrors.WrapStr("Error listening on socket", err,

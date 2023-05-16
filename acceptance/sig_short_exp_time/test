@@ -10,6 +10,7 @@
 # short lifetime expires, the first path is taken down and a ping sent out. If
 # the failover was correct, this ping should not be lost.
 
+# TODO(JordiSubira): Remove dispatcher from schema.
 # Docker topology:
 #
 # +---------------------------+     +---------------------------+
