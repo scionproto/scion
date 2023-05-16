@@ -203,8 +203,8 @@ func GenerateTLSConfig() (*tls.Config, error) {
 
 // AddressRewriter initializes path and svc resolvers for infra servers.
 //
-// The connection factory is used to open sockets for SVC resolution requests.
-// If the connection factory is nil, the default connection factory is used.
+// The connector is used to open sockets for SVC resolution requests.
+// If the connector is nil, the default connection factory is used.
 func (nc *NetworkConfig) AddressRewriter(
 	connector snet.Connector) *AddressRewriter {
 
@@ -291,6 +291,9 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 	serverNet := &snet.SCIONNetwork{
 		LocalIA: nc.IA,
 		Connector: &snet.DefaultConnector{
+			// XXX(roosd): This is essential, the server must not read SCMP
+			// errors. Otherwise, the accept loop will always return that error
+			// on every subsequent call to accept.
 			SCMPHandler: ignoreSCMP{},
 			Metrics:     nc.SCIONPacketConnMetrics,
 		},

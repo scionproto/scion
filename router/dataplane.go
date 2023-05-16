@@ -851,14 +851,6 @@ func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 		return processResult{}, err
 	}
 	pld := p.lastLayer.LayerPayload()
-	srcHost, _ := p.scionLayer.SrcAddr()
-	dstHost, _ := p.scionLayer.DstAddr()
-	log.Debug("packet",
-		"src IA", p.scionLayer.SrcIA,
-		"dst IA", p.scionLayer.DstIA,
-		"src addr", srcHost.String(),
-		"dst addr", dstHost.String(),
-	)
 
 	pathType := p.scionLayer.PathType
 	switch pathType {
@@ -1686,6 +1678,7 @@ func addEndhostPort(lastLayer gopacket.DecodingLayer, dst []byte) *net.UDPAddr {
 		log.Debug("TBR XXXJ:", "udp port that will be rewritten", port)
 		return &net.UDPAddr{IP: dst, Port: int(port)}
 	case slayers.L4SCMP:
+		// TODO(JordiSubira): On-going discussion regarding SCMP dst port
 		return &net.UDPAddr{IP: dst, Port: topology.EndhostPort}
 	default:
 		panic(fmt.Sprintf("Port rewriting not supported for protcol number %v", l4Type))

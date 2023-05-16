@@ -51,9 +51,9 @@ const (
 type ResolverPacketConnector struct {
 	// Connector opens a PacketConn to receive and send packets.
 	Connector snet.Connector
-	// source contains the address from which packets should be sent.
+	// LocalIA contains the address from which packets should be sent.
 	LocalIA addr.IA
-	// handler handles packets for SVC destinations.
+	// Handler handles packets for SVC destinations.
 	Handler RequestHandler
 }
 
@@ -81,9 +81,9 @@ func (c *ResolverPacketConnector) OpenUDP(u *net.UDPAddr) (snet.PacketConn, erro
 type ResolverPacketConn struct {
 	// PacketConn is the conn to receive and send packets.
 	snet.PacketConn
-	// source contains the address from which packets should be sent.
+	// Source contains the address from which packets should be sent.
 	Source snet.SCIONAddress
-	// handler handles packets for SVC destinations.
+	// Handler handles packets for SVC destinations.
 	Handler RequestHandler
 }
 
