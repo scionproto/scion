@@ -4,10 +4,10 @@
    The list of control service metrics is incomplete.
 
 Renewal
-^^^^^^^
+-------
 
 Renewal requests
-----------------
+^^^^^^^^^^^^^^^^
 
 **Name**: ``renewal_received_requests_total``
 
@@ -19,7 +19,7 @@ control services with CA functionality enabled.
 **Labels**: ``result``.
 
 Renewal requests per handler type
----------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Name**: ``renewal_handled_requests_total``
 
@@ -38,7 +38,7 @@ Renewal requests per handler type
    parsed and delegated to a handler.
 
 Renewal request registered handlers
------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Name**: ``renewal_registered_handlers``
 
@@ -50,7 +50,7 @@ registered.
 **Labels**: ``type``.
 
 TRC local filesystem writes
----------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Name**: ``trustengine_trc_file_writes_total``
 

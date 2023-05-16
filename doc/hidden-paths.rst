@@ -2,7 +2,12 @@
 Hidden Paths
 ************
 
-This file documents the design for the hidden paths infrastructure.
+.. admonition:: TODO
+
+   Add the EPIC-HP overview documentation (from the design document).
+
+   Move configuration file description to the Manual section.
+
 
 Overview
 ========
