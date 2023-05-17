@@ -68,6 +68,7 @@ func TestResolver(t *testing.T) {
 			IP: net.IP{192, 0, 2, 1}, Port: 30001})
 		mockConnector.EXPECT().OpenUDP(&net.UDPAddr{
 			IP: net.IP{192, 0, 2, 1}}).Return(mockConn, nil)
+		mockConn.EXPECT().Close().Return(nil)
 		mockRoundTripper := mock_svc.NewMockRoundTripper(ctrl)
 		mockRoundTripper.EXPECT().RoundTrip(gomock.Any(), gomock.Any(), gomock.Any(),
 			gomock.Any()).Do(
