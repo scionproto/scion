@@ -402,7 +402,7 @@ The following goals/constraints led to this design:
     directly following the option.
 
 - this does not appear to work with less than 3 rows. We use the available
-  room to make a 48-bit timestamp / sequence number field and leave one
+  room to make a 48-bit Timestamp / Sequence Number field and leave one
   reserved byte for future extensions (e.g. flags or extended timestamp or
   sequence number).
   The SPI comes first as we don't need to include it in the MAC computation and
