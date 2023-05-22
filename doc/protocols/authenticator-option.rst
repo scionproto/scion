@@ -71,7 +71,14 @@ Timestamp / Sequence Number:
   it SHOULD drop packets with a duplicate:
 
   .. math::
-    (\mathrm{SRC\ ISD, SRC\ AS, SrcHostAddr, *AbsTime*})
+    (\mathrm{SRC\ ISD, SRC\ AS, SrcHostAddr, Authenticator})
+
+  .. note:: 
+  Note that the Authenticator includes the Timestamp (used to derived the *AbsTime*).
+  In other words, the duplicate suppression would happend within the
+  acceptance windows considering identical values for the Authenticator field, which is
+  computed based on packet contents such as the Timestamp and the upper layer payload 
+  (see the section :ref:`Authenticated Data<authenticated-date>`).
 
   When used with a non-DRKey :ref:`SPI <spao-spi>`, this field is used as
   a wrapping counter and replay detection is based on sliding window of expected counter values.
@@ -167,7 +174,7 @@ The receiver entity derives the absolute timestamp and selects the associated DR
    - Epoch :math:`E_{i-1}` as the prior epoch to :math:`E_{i}`.
    - Epoch :math:`E_{i+1}` as the subsequent epoch to :math:`E_{i}`.
 
-2. Adding the relative timestamp (*relTime*) (the one in :ref:`SPAO Header<authenticator-option>`) to
+2. Adding the relative timestamp (*RelTime*) (the one in :ref:`SPAO Header<authenticator-option>`) to
    the start time for :math:`E_{i-1}`, :math:`E_{i}` and :math:`E_{i+1}`, 
    computing the respective *absolute times* (*AbsTime*):
    :math:`at_{i-1}`, :math:`at_{i}` and :math:`at_{i+1}`.
@@ -178,6 +185,8 @@ The receiver entity derives the absolute timestamp and selects the associated DR
 Note that :math:`at_{i-1}` might, for instance be within the :ref:`Grace period<drkey-grace>`, i.e.,
 overlapping at :math:`E_{i}`. Nevertheless, due to [i] we can unambiguously distinguish it.
 
+
+.. _authenticated-date:
 
 Authenticated Data
 ==================
@@ -396,7 +405,7 @@ The following goals/constraints led to this design:
 - reasonable field alignment with little padding with 4n + 2 option alignment
   (to avoid padding before first option)
 
-- 2 AES blocks or fewer for lightning filter use case (SHA1-AES-CBC with DRKey)
+- 2 AES blocks or fewer for LightningFilter use case (SHA1-AES-CBC with DRKey)
 
   - Require as little copying as possible to check MAC in this use case. Hash
     directly following the option.
