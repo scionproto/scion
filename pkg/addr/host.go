@@ -136,3 +136,13 @@ func (h Host) String() string {
 	}
 	panic("unsupported host type")
 }
+
+// Set implements flag.Value interface
+func (h *Host) Set(s string) error {
+	pH, err := ParseHost(s)
+	if err != nil {
+		return err
+	}
+	*h = pH
+	return nil
+}
