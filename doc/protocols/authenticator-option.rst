@@ -68,16 +68,16 @@ Timestamp / Sequence Number:
 
   The sender SHOULD ensure the uniqueness of the absolute time (*AbsTime*) per identical packet.
   The receiver will use the *AbsTime* for replay detection and, thus, 
-  it SHOULD drop packets with a duplicate:
+  it SHOULD drop identical packets, i.e. packets with a duplicate:
 
   .. math::
     (\mathrm{SRC\ ISD, SRC\ AS, SrcHostAddr, Authenticator})
 
   .. note:: 
-  Note that the Authenticator includes the Timestamp (used to derived the *AbsTime*).
   In other words, the duplicate suppression would happend within the
   acceptance windows considering identical values for the Authenticator field, which is
-  computed based on packet contents such as the Timestamp and the upper layer payload 
+  computed based on packet contents, such as the Timestamp (used to derived the *AbsTime*)
+  and the upper layer payload 
   (see the section :ref:`Authenticated Data<authenticated-date>`).
 
   When used with a non-DRKey :ref:`SPI <spao-spi>`, this field is used as
