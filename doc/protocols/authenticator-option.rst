@@ -73,7 +73,7 @@ Timestamp / Sequence Number:
   .. math::
     (\mathrm{SRC\ ISD, SRC\ AS, SrcHostAddr, Authenticator})
 
-  .. note:: 
+.. note:: 
   In other words, the duplicate suppression would happend within the
   acceptance windows considering identical values for the Authenticator field, which is
   computed based on packet contents, such as the Timestamp (used to derived the *AbsTime*)
