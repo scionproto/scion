@@ -51,7 +51,7 @@ OptDataLen
   The length depends on algorithm used.
 Timestamp / Sequence Number:
   Unsigned 48-bit integer value.
-  The Timestamp / Sequence Number field contains a value for each packet that 
+  The Timestamp / Sequence Number field contains a value for each packet that
   can be used for replay detection by the receiver.
   The detailed interpretation of the Timestamp / Sequence Number field depends on the :ref:`SPI <spao-spi>`.
 
@@ -67,18 +67,18 @@ Timestamp / Sequence Number:
   range around the current time.
 
   The sender SHOULD ensure the uniqueness of the absolute time (*AbsTime*) per identical packet.
-  The receiver will use the *AbsTime* for replay detection and, thus, 
+  The receiver will use the *AbsTime* for replay detection and, thus,
   it SHOULD drop identical packets, i.e. packets with a duplicate:
 
   .. math::
     (\mathrm{SRC\ ISD, SRC\ AS, SrcHostAddr, Authenticator})
 
-.. note:: 
-  In other words, the duplicate suppression would happend within the
+.. note::
+  In other words, the duplicate suppression would happen within the
   acceptance windows considering identical values for the Authenticator field, which is
   computed based on packet contents, such as the Timestamp (used to derived the *AbsTime*)
-  and the upper layer payload 
-  (see the section :ref:`Authenticated Data<authenticated-date>`).
+  and the upper layer payload
+  (see the section :ref:`Authenticated Data<authenticated-data>`).
 
   When used with a non-DRKey :ref:`SPI <spao-spi>`, this field is used as
   a wrapping counter and replay detection is based on sliding window of expected counter values.
@@ -175,7 +175,7 @@ The receiver entity derives the absolute timestamp and selects the associated DR
    - Epoch :math:`E_{i+1}` as the subsequent epoch to :math:`E_{i}`.
 
 2. Adding the relative timestamp (*RelTime*) (the one in :ref:`SPAO Header<authenticator-option>`) to
-   the start time for :math:`E_{i-1}`, :math:`E_{i}` and :math:`E_{i+1}`, 
+   the start time for :math:`E_{i-1}`, :math:`E_{i}` and :math:`E_{i+1}`,
    computing the respective *absolute times* (*AbsTime*):
    :math:`at_{i-1}`, :math:`at_{i}` and :math:`at_{i+1}`.
 3. Given [i] at most one *absolute time* will be within *aw*.
@@ -186,7 +186,7 @@ Note that :math:`at_{i-1}` might, for instance be within the :ref:`Grace period<
 overlapping at :math:`E_{i}`. Nevertheless, due to [i] we can unambiguously distinguish it.
 
 
-.. _authenticated-date:
+.. _authenticated-data:
 
 Authenticated Data
 ==================
@@ -417,7 +417,7 @@ The following goals/constraints led to this design:
   The SPI comes first as we don't need to include it in the MAC computation and
   don't want it between the other fields and the SHA1 hash.
 
-- When the Timestamp / Sequence Number field is used with DRKey SPI, the 48-bits in the field allow to 
+- When the Timestamp / Sequence Number field is used with DRKey SPI, the 48-bits in the field allow to
   cover the maximum DRKey epoch length plus the :ref:`Grace period<drkey-grace>`
   with granularity of 1 nanosecond, since:
 
