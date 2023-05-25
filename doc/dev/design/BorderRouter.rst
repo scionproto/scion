@@ -3,7 +3,7 @@ Border Router Performance Optimized Redesign
 **********************************************
 
 - Author: Justin Rohrer
-- Last Updated: 2023-05-15
+- Last Updated: 2023-05-25
 - Discussion at: `#4334 <https://github.com/scionproto/scion/issues/4334>`_
 
 Abstract
@@ -116,6 +116,14 @@ Packets currently identified for slow-path are:
 
 - SCMP traceroute packets
 
+Processor queue size
+^^^^^^^^^^^^^^^^^^^^^^
+
+The processor queue size will be automatically determined as follows:
+
+.. code-block:: text
+    processorQueueSize := max(ceil(numReaders * readBatch / numProcessors), readBatch)
+
 Pool size
 ^^^^^^^^^^^
 
@@ -136,11 +144,8 @@ Number of processing routines (N)
 
 By configuring the number of processing routines one can specify the number of goroutines that are able
 to process packets in parallel.
-An optimal value should be derivable from the maximum latency of processing and forwarding a packet,
-the speed of the network interfaces and the number of available CPU cores.
-Since having more processing routines than number of CPU cores would just lead to swapping, the
-number of processing routines should nbe strictly smaller than the number of CPU cores because we also
-have to take the receivers, forwarders and slow-path processing routines into account that also require CPU time.
+Unlike the other settings, the number of the processing routines are directly taken from the
+environment variable GOMAXPROCS.
 
 Number of slow-path processing routines (M)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -150,13 +155,19 @@ process the packets on the slow-path.
 An optimal value could be a percentage of the number of processing routines or even a fixed number.
 A default value would be 1.
 
-Processing routine queue size and read-write batch size
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Read-write batch size
+^^^^^^^^^^^^^^^^^^^^^^^^
 
-By configuring the queue sizes and the batch size one can specify how many packets a read or written
-from / to a network socket and how many packets can be enqueued at the processing routines and the
-forwarders before packets are getting dropped.
-A default value for both queue size and batch size would be 64.
+By configuring the batch size one can specify how many packets are read or written
+from / to a network socket.
+A default value for both batch sizes would be 256.
+
+UDP read-write buffer
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This setting allows to configure the UDP read and write buffer of the sockets.
+The actual applied values are subject to the system rmem_max.
+A default value would be 1MB.
 
 Considerations for future work
 --------------------------------
