@@ -36,13 +36,17 @@ var (
 )
 
 // SVC is a SCION service address.
+// A service address is a short identifier for the service type, and a
+// flag-bit to for multicast.
+// The package's SVC constant values are defined without multicast.
+// The Multicast and Base methods set/unset the multicast flag.
 type SVC uint16
 
 // ParseSVC returns the SVC address corresponding to str. For anycast
 // SVC addresses, use CS_A and DS_A; shorthand versions without
 // the _A suffix (e.g., CS) also return anycast SVC addresses. For multicast,
 // use CS_M, and DS_M.
-func ParseSVC(str string) SVC {
+func ParseSVC(str string) (SVC, error) {
 	var m SVC
 	switch {
 	case strings.HasSuffix(str, "_A"):
@@ -53,28 +57,32 @@ func ParseSVC(str string) SVC {
 	}
 	switch str {
 	case "DS":
-		return SvcDS | m
+		return SvcDS | m, nil
 	case "CS":
-		return SvcCS | m
+		return SvcCS | m, nil
 	case "Wildcard":
-		return SvcWildcard | m
+		return SvcWildcard | m, nil
 	default:
-		return SvcNone
+		return SvcNone, serrors.New("invalid service address", "value", str)
 	}
 }
 
+// IsMulticast returns the value of the multicast flag.
 func (h SVC) IsMulticast() bool {
 	return (h & SVCMcast) != 0
 }
 
+// Base returns the SVC identifier with the multicast flag unset.
 func (h SVC) Base() SVC {
 	return h & ^SVCMcast
 }
 
+// Multicast returns the SVC identifier with the multicast flag set.
 func (h SVC) Multicast() SVC {
 	return h | SVCMcast
 }
 
+// XXX(matzf): change this to the format accepted by ParseSVC?
 func (h SVC) String() string {
 	name := h.BaseString()
 	cast := 'A'
