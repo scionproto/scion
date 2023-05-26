@@ -60,8 +60,8 @@ type Host struct {
 // s can either be a SVC address, in the format supported by ParseSVC(s),
 // or an IP address in dotted decimal or IPv6 format.
 func ParseHost(s string) (Host, error) {
-	svc := ParseSVC(s)
-	if svc != SvcNone {
+	svc, err := ParseSVC(s)
+	if err == nil {
 		return HostSVC(svc), nil
 	}
 	ip, err := netip.ParseAddr(s)
