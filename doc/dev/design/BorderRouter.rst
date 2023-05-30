@@ -122,7 +122,7 @@ Processor queue size
 The processor queue size will be automatically determined as follows:
 
 .. code-block:: text
-    
+
     processorQueueSize := max(ceil(numReaders * readBatch / numProcessors), readBatch)
 
 Pool size
