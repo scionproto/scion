@@ -222,13 +222,13 @@ The input for the MAC is the concatenation of the following items:
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |Version|  QoS w\o ECN  |                FlowID                 |
+    |Version|   TC w\o ECN  |                FlowID                 |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |    PathType   |DT |DL |ST |SL |              RSV              |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-  QoS w\\o ECN
-    The QoS field from the Common Header, but with the ECN bit set to 0.
+  TC w\\o ECN
+    The TrafficClass field from the Common Header, but with the ECN bit set to 0.
 
 
 3. The :ref:`SCION Address Header <scion-address-header>`

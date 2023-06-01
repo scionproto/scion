@@ -28,13 +28,13 @@ packages](https://docs.scionlab.org/content/install/).
 ## Building
 
 To find out how to work with SCION, please visit our [documentation
-site](https://docs.scion.org/en/latest/contribute.html#setting-up-the-development-environment)
+site](https://docs.scion.org/en/latest/dev/setup.html)
 for instructions on how to install build dependencies, build and run SCION.
 
 ## Contributing
 
 Interested in contribution to the SCION project? Please visit our
-[contribution guide](https://docs.scion.org/en/latest/contribute.html)
+[contribution guide](https://docs.scion.org/en/latest/dev/contribute.html)
 for more information about how you can do so.
 
 Join us on our [slack workspace](https://scionproto.slack.com) with this invite link:
