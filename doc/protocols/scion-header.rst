@@ -21,7 +21,7 @@ The Common Header has the following format::
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |Version|      QoS      |                FlowID                 |
+    |Version| TrafficClass  |                FlowID                 |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |    NextHdr    |    HdrLen     |          PayloadLen           |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -30,7 +30,7 @@ The Common Header has the following format::
 
 Version
     The version of the SCION Header. Currently, only 0 is supported.
-QoS
+TrafficClass
     8-bit traffic class field. The value of the Traffic Class bits in a received
     packet or fragment might be different from the value sent by the packet's
     source. The current use of the Traffic Class field for Differentiated
