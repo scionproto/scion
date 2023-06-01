@@ -24,7 +24,7 @@ General Format
 ==============
 
 Every SCMP message is preceded by a SCION header, and zero or more SCION
-extension headers. The SCMP header is identified by a ``NextHdr`` value of ``1``
+extension headers. The SCMP header is identified by a ``NextHdr`` value of ``202``
 in the immediately preceding header.
 
 The messages have the following general format::

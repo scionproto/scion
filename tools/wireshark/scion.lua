@@ -45,7 +45,7 @@ local HOP_EXP_UNIT = HOP_MAX_TTL / 256
 --local scion_raw = ProtoField.bytes("scion.raw", "Raw packet")
 
 local scion_version = ProtoField.uint32("scion.version", "Version", base.DEC, nil, 0xf0000000)
-local scion_qos = ProtoField.uint32("scion.qos", "QoS", base.HEX, nil, 0x0ff00000)
+local scion_traffic_class = ProtoField.uint32("scion.traffic_class", "Traffic Class", base.HEX, nil, 0x0ff00000)
 local scion_flow_id = ProtoField.uint32("scion.flow_id", "FlowID", base.HEX, nil, 0x000fffff)
 local scion_next_hdr = ProtoField.uint8("scion.next_hdr", "Next Header", base.DEC, hdrTypes)
 local scion_hdr_len = ProtoField.uint8("scion.hdr_len", "Header Length", base.DEC)
@@ -79,7 +79,7 @@ scion_proto.fields = {
     scion_raw,
 
     scion_version,
-    scion_qos,
+    scion_traffic_class,
     scion_flow_id,
     scion_next_hdr,
     scion_hdr_len,
@@ -148,7 +148,7 @@ function scion_proto.dissector(tvbuf, pktinfo, root)
     end
 
     tree:add(scion_version, tvbuf(0, 4))
-    tree:add(scion_qos, tvbuf(0, 4))
+    tree:add(scion_traffic_class, tvbuf(0, 4))
     tree:add(scion_flow_id, tvbuf(0, 4))
 
     scion["next_hdr"] = tvbuf(4, 1)
@@ -787,7 +787,7 @@ function epic_path_dissect(tvbuf, pktinfo, root)
     -- Get the timestamp of the first InfoField
     -- (No checks needed, as SCION path type parsing was successful)
     local tsInfo = tvbuf(24, 4):uint()
-    
+
     -- Calculate and add the EPIC timestamp (absolute)
     -- (depends on the timestamp of the first InfoField)
     packetTsTree:add(epath_ts_abs, tvbuf(0, 4), NSTime.new(tsInfo+epicTsRelSec, epicTsRelNs))
