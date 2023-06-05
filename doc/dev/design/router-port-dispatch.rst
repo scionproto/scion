@@ -152,6 +152,36 @@ The processing rule above is extended:
 
 .. Note:: This should not be considered a promise to never break compatibility for end hosts again.
 
+
+The port range is configured in the ``topology.json`` file in the following format:
+
+  .. code-block:: yaml
+
+     underlay: {
+       dispatched_ports: {
+         "default": {
+            "min": <port>,
+            "max": <port>
+         },
+         "<ip-subnet>": { # any number of subnet-specific port-range configurations (in CIDR-notation)
+            "min": <port>,
+            "max": <port>
+         },
+     }
+
+For a given destination IP address, the configuration entry with longest matching prefix is
+considered, or if no match is found the entry "default" is used.
+
+The ``min``, ``max`` fields define the range of ports ``[min, max]`` (inclusive).
+The configured ``max`` value may be lower than ``min`` to specify an empty port range.
+
+If nothing is configured, the port range initially defaults to an empty range.
+The recommended port range is:
+- ``min``: ``31000``
+- ``max``: ``39999``
+
+As later step, this range will be adopted as the default.
+
 Rationale
 ---------
 
@@ -186,8 +216,23 @@ Implementation
 
 The roadmap would look like the following:
 
-- Add a feature flag to the router, changing its behavior to set the UDP destination underlay port as described above.
-- Have SCION applications use native ``net.PacketConn`` instead of ``reliable.Conn``.
-  This only needs changes in ``snet``, and because the interfaces are compatible it is trivial to do.
-- Create new SCMP Daemon (scmpd) that replies to SCMP traffic that targets a host (scion ping)
-- Remove dispatcher, package ``reliable`` and ``ReconnectToDispatcher`` from everywhere.
+- Add support for dispatched/forwarded port ranges to the topology.json configuration.
+  This first implementation step only ensures that this entry can be parsed from the configuration.
+
+- Change SCION applications to use native ``net.UDPConn`` instead of ``reliable.Conn``.
+
+  Remove ``reliable`` package and replace functionality of dispatcher with a simple stateless UDP
+  packet forwarder. This forwarder listens on UDP port 30041. It inspects the L4 header and forwards
+  all SCION packets to corresponding underlay port on the local host, following the processing
+  rules for the router outlined above.
+
+  This "new" dispatcher still replies to SCMP echos.
+
+- Add support for the ``dispatched_ports`` range to the router, changing its behavior to set the
+  UDP destination underlay port as described above.
+
+- Future release:
+   - remove support for old UDP underlay with default port 30041.
+     Remove the packet dispatching/forwarding functionality from "dispatcher".
+     Only SCMP echo responder remains in dispatcher. Rename to "SCMP Daemon" (scmpd).
+   - set suitable default for port range in ``dispatched_ports`` topology configuration
