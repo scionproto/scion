@@ -67,7 +67,7 @@ func TestReceiver(t *testing.T) {
 
 		key := []byte("testkey_xxxxxxxx")
 		local := xtest.MustParseIA("1-ff00:0:110")
-
+		counter := 0
 		mInternal := mock_router.NewMockBatchConn(ctrl)
 		mInternal.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
 			func(m underlayconn.Messages) (int, error) {
@@ -93,6 +93,10 @@ func TestReceiver(t *testing.T) {
 					copy(m[i].Buffers[0], raw)
 					m[i].N = len(raw)
 					m[i].Addr = &net.UDPAddr{IP: net.IP{10, 0, 200, 200}}
+					counter++
+				}
+				if counter == 20 {
+					ret.SetRunning(false)
 				}
 				return 10, nil
 			},
@@ -111,7 +115,6 @@ func TestReceiver(t *testing.T) {
 	assert.Equal(t, 100, dp.CurrentPoolSize())
 	dp.SetRunning(true)
 	dp.InitMetrics()
-	defer dp.SetRunning(false)
 	go func() {
 		dp.InitReceiver(router.NetworkInterface{
 			InterfaceId: 0,
@@ -128,6 +131,7 @@ func TestReceiver(t *testing.T) {
 			// make sure that the processing routine received exactly 20 messages
 			if i != 20 {
 				t.Fail()
+				dp.SetRunning(false)
 			}
 		}
 	}
@@ -156,6 +160,7 @@ func TestForwarder(t *testing.T) {
 				}
 				totalCount -= len(ms)
 				if totalCount == 0 {
+					ret.SetRunning(false)
 					done <- struct{}{}
 				}
 				return len(ms), nil
@@ -172,7 +177,6 @@ func TestForwarder(t *testing.T) {
 	ch := dp.ConfigureForwarder(ni)
 	dp.SetRunning(true)
 	dp.InitMetrics()
-	defer dp.SetRunning(false)
 	go func() {
 		dp.InitForwarder(ni)
 	}()
@@ -188,6 +192,7 @@ func TestForwarder(t *testing.T) {
 		assert.Equal(t, 100, dp.CurrentPoolSize())
 	case <-time.After(100 * time.Millisecond):
 		t.Fail()
+		dp.SetRunning(false)
 	}
 }
 

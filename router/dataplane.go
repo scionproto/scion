@@ -630,10 +630,14 @@ func (d *DataPlane) runReceiver(ni NetworkInterface) {
 			metrics.InputPacketsTotal.Inc()
 			metrics.InputBytesTotal.Add(float64(pkt.N))
 
+			srcAddr := pkt.Addr.(*net.UDPAddr)
 			currPkt := currentPacketsFromPool[k]
 			currPkt.ingress = ni.InterfaceId
 			currPkt.dstAddr = nil
-			currPkt.srcAddr = pkt.Addr.(*net.UDPAddr)
+			currPkt.srcAddr = &net.UDPAddr{
+				IP:   srcAddr.IP,
+				Port: srcAddr.Port,
+			}
 			currPkt.rawPacket = currPkt.rawPacket[:pkt.N]
 
 			procId, err := d.computeProcId(currPkt.rawPacket)
@@ -694,6 +698,7 @@ func (d *DataPlane) runProcessingRoutine(id int) {
 		metrics := d.forwardingMetrics[p.ingress]
 		result, err := processor.processPkt(p.rawPacket, p.srcAddr)
 		egress := result.EgressID
+		isSCMP := false
 		switch {
 		case err == nil:
 		case errors.As(err, &scmpErr):
@@ -702,13 +707,15 @@ func (d *DataPlane) runProcessingRoutine(id int) {
 			}
 			// SCMP go back the way they came.
 			egress = p.ingress
+			result.OutAddr = p.srcAddr
+			isSCMP = true
 		default:
 			log.Debug("Error processing packet", "err", err)
 			metrics.DroppedPacketsTotal.Inc()
 			d.returnPacketToPool(p)
 			continue
 		}
-		if result.OutConn == nil { // e.g. BFD case no message is forwarded
+		if !isSCMP && result.OutConn == nil { // e.g. BFD case no message is forwarded
 			d.returnPacketToPool(p)
 			continue
 		}
