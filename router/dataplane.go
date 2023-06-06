@@ -708,6 +708,10 @@ func (d *DataPlane) runProcessingRoutine(id int) {
 			// SCMP go back the way they came.
 			egress = p.ingress
 			result.OutAddr = p.srcAddr
+			// SCMP does not use the same buffer as we provide.
+			// Because of that we have to copy it back to our buffer
+			copy(p.rawPacket, result.OutPkt)
+			result.OutPkt = p.rawPacket[:len(result.OutPkt)]
 			isSCMP = true
 		default:
 			log.Debug("Error processing packet", "err", err)
