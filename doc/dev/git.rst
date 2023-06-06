@@ -25,8 +25,8 @@ clicking the 'Fork' button on the top right, and then choosing your own personal
 repository.
 
 This gives you a complete copy of the main scion repo in which you are free to
-make changes without affecting anyone else. The only downside is that 
-you have a little extra work to do to keep it up to date with the main repo.
+make changes without affecting anyone else. The only downside is that you have a 
+little extra work to do to keep it up to date with the main repo.
 This is covered below.
 
 Setting up github auth
@@ -127,7 +127,7 @@ Here is an example of a good commit message:
    Fixes #3766
 
 - Starts with`<subsystem:>`
-- Use lowercase letters for all text
+- Uses lowercase letters for subject line
 - There is always a reference number to an issue
 
 Submitting your pull request
