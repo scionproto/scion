@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2023 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,8 +23,11 @@ import (
 	"errors"
 	"fmt"
 	"hash"
+	"hash/fnv"
+	"math"
 	"math/big"
 	"net"
+	"runtime"
 	"strconv"
 	"sync"
 	"syscall"
@@ -32,6 +36,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
@@ -48,16 +53,12 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/spao"
 	"github.com/scionproto/scion/private/topology"
-	"github.com/scionproto/scion/private/underlay/conn"
 	underlayconn "github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router/bfd"
 	"github.com/scionproto/scion/router/control"
 )
 
 const (
-	// Number of packets to read in a single ReadBatch call.
-	inputBatchCnt = 64
-
 	// TODO(karampok). Investigate whether that value should be higher.  In
 	// theory, PayloadLen in SCION header is 16 bits long, supporting a maximum
 	// payload size of 64KB. At the moment we are limited by Ethernet size
@@ -109,6 +110,20 @@ type DataPlane struct {
 	running           bool
 	Metrics           *Metrics
 	forwardingMetrics map[uint16]forwardingMetrics
+
+	// fields for the router-internal queues and routines, see
+	// https://github.com/scionproto/scion/blob/master/doc/dev/design/BorderRouter.rst
+	interfaces         map[uint16]NetworkInterface
+	numProcRoutines    uint32
+	procChannels       []chan *packet
+	forwardChannels    map[uint16]chan *packet
+	packetPool         chan *packet
+	interfaceBatchSize int
+	processorQueueSize int
+	forwarderQueueSize int
+	// the random value is hashed together with the flowID and the address header
+	// to identify the processing routine that is responsible to process a packet
+	randomValue []byte
 }
 
 var (
@@ -442,81 +457,105 @@ func (d *DataPlane) Run(ctx context.Context) error {
 	d.running = true
 
 	d.initMetrics()
+	d.initComponents(ctx)
 
-	read := func(ingressID uint16, rd BatchConn) {
+	d.mtx.Unlock()
 
-		msgs := conn.NewReadMessages(inputBatchCnt)
-		for _, msg := range msgs {
-			msg.Buffers[0] = make([]byte, bufSize)
+	<-ctx.Done()
+	return nil
+}
+
+func (d *DataPlane) Exit() {
+	d.running = false
+	for _, ni := range d.interfaces {
+		ni.Conn.Close()
+	}
+}
+
+// loadDefaults sets the default configuration for the number of
+// processing routines, the random value, the batch and queue sizes
+func (d *DataPlane) loadDefaults() {
+	// TODO(rohrerj) move this logic to configuration in configuration PR
+	d.numProcRoutines = uint32(runtime.GOMAXPROCS(0))
+	d.forwarderQueueSize = 256
+	d.interfaceBatchSize = 256
+	d.processorQueueSize = int(math.Max(
+		float64(len(d.interfaces)*d.interfaceBatchSize/int(d.numProcRoutines)),
+		float64(d.interfaceBatchSize)))
+	d.randomValue = make([]byte, 16)
+	if _, err := rand.Read(d.randomValue); err != nil {
+		log.Error("Error while generating random value", "err", err)
+	}
+
+}
+
+// initializePacketPool calculates the size of the packet pool based on the
+// current dataplane settings and allocates all the buffers
+func (d *DataPlane) initializePacketPool() {
+	poolSize := len(d.interfaces)*d.interfaceBatchSize +
+		int(d.numProcRoutines)*(d.processorQueueSize+1) +
+		len(d.interfaces)*(d.forwarderQueueSize+d.interfaceBatchSize)
+
+	log.Debug("Initialize packet pool of size", "poolSize", poolSize)
+	d.packetPool = make(chan *packet, poolSize)
+	for i := 0; i < poolSize; i++ {
+		d.packetPool <- &packet{
+			rawPacket: make([]byte, bufSize),
 		}
-		writeMsgs := make(underlayconn.Messages, 1)
-		writeMsgs[0].Buffers = make([][]byte, 1)
+	}
+}
 
-		processor := newPacketProcessor(d, ingressID)
-		var scmpErr scmpError
-		for d.running {
-			pkts, err := rd.ReadBatch(msgs)
-			if err != nil {
-				log.Debug("Failed to read batch", "err", err)
-				// error metric
-				continue
-			}
-			if pkts == 0 {
-				continue
-			}
-			for _, p := range msgs[:pkts] {
-				// input metric
-				inputCounters := d.forwardingMetrics[ingressID]
-				inputCounters.InputPacketsTotal.Inc()
-				inputCounters.InputBytesTotal.Add(float64(p.N))
-
-				srcAddr := p.Addr.(*net.UDPAddr)
-				result, err := processor.processPkt(p.Buffers[0][:p.N], srcAddr)
-
-				switch {
-				case err == nil:
-				case errors.As(err, &scmpErr):
-					if !scmpErr.TypeCode.InfoMsg() {
-						log.Debug("SCMP", "err", scmpErr, "dst_addr", p.Addr)
-					}
-					// SCMP go back the way they came.
-					result.OutAddr = srcAddr
-					result.OutConn = rd
-				default:
-					log.Debug("Error processing packet", "err", err)
-					inputCounters.DroppedPacketsTotal.Inc()
-					continue
-				}
-				if result.OutConn == nil { // e.g. BFD case no message is forwarded
-					continue
-				}
-
-				// Write to OutConn; drop the packet if this would block.
-				// Use WriteBatch because it's the only available function that
-				// supports MSG_DONTWAIT.
-				writeMsgs[0].Buffers[0] = result.OutPkt
-				writeMsgs[0].Addr = nil
-				if result.OutAddr != nil { // don't assign directly to net.Addr, typed nil!
-					writeMsgs[0].Addr = result.OutAddr
-				}
-
-				_, err = result.OutConn.WriteBatch(writeMsgs, syscall.MSG_DONTWAIT)
-				if err != nil {
-					var errno syscall.Errno
-					if !errors.As(err, &errno) ||
-						!(errno == syscall.EAGAIN || errno == syscall.EWOULDBLOCK) {
-						log.Debug("Error writing packet", "err", err)
-						// error metric
-					}
-					inputCounters.DroppedPacketsTotal.Inc()
-					continue
-				}
-				// ok metric
-				outputCounters := d.forwardingMetrics[result.EgressID]
-				outputCounters.OutputPacketsTotal.Inc()
-				outputCounters.OutputBytesTotal.Add(float64(len(result.OutPkt)))
-			}
+// initComponents initializes the channels, buffers, the receivers, the forwarders,
+// processing routines and the bfd sessions
+func (d *DataPlane) initComponents(ctx context.Context) {
+	receiverGroup := &errgroup.Group{}
+	procGroup := &errgroup.Group{}
+	forwarderGroup := &errgroup.Group{}
+	d.interfaces = make(map[uint16]NetworkInterface)
+	d.interfaces[0] = NetworkInterface{
+		InterfaceId: 0,
+		Conn:        d.internal,
+	}
+	for id, conn := range d.external {
+		d.interfaces[id] = NetworkInterface{
+			InterfaceId: id,
+			Conn:        conn,
 		}
+	}
+	d.loadDefaults()
+	d.initializePacketPool()
+
+	d.procChannels = make([]chan *packet, d.numProcRoutines)
+	for i := 0; i < int(d.numProcRoutines); i++ {
+		d.procChannels[i] = make(chan *packet, d.processorQueueSize)
+	}
+	d.forwardChannels = make(map[uint16]chan *packet)
+	for _, ni := range d.interfaces {
+		d.forwardChannels[ni.InterfaceId] = make(chan *packet, d.forwarderQueueSize)
+	}
+
+	for _, ni := range d.interfaces {
+		func(ni NetworkInterface) {
+			receiverGroup.Go(func() error {
+				defer log.HandlePanic()
+				d.runReceiver(ni)
+				return nil
+			})
+			forwarderGroup.Go(func() error {
+				defer log.HandlePanic()
+				d.runForwarder(ni)
+				return nil
+			})
+		}(ni)
+	}
+	for i := 0; i < int(d.numProcRoutines); i++ {
+		func(i int) {
+			procGroup.Go(func() error {
+				defer log.HandlePanic()
+				d.runProcessingRoutine(i)
+				return nil
+			})
+		}(i)
 	}
 
 	for k, v := range d.bfdSessions {
@@ -527,21 +566,231 @@ func (d *DataPlane) Run(ctx context.Context) error {
 			}
 		}(k, v)
 	}
-	for ifID, v := range d.external {
-		go func(i uint16, c BatchConn) {
-			defer log.HandlePanic()
-			read(i, c)
-		}(ifID, v)
+	if err := receiverGroup.Wait(); err != nil {
+		log.Debug("Receiver error", "err", err)
 	}
-	go func(c BatchConn) {
-		defer log.HandlePanic()
-		read(0, c)
-	}(d.internal)
+	for _, ch := range d.procChannels {
+		close(ch)
+	}
+	if err := procGroup.Wait(); err != nil {
+		log.Debug("Processing error", "err", err)
+	}
+	for _, ch := range d.forwardChannels {
+		close(ch)
+	}
+	if err := forwarderGroup.Wait(); err != nil {
+		log.Debug("Forwarder error", "err", err)
+	}
+	log.Debug("all components terminated")
+}
 
-	d.mtx.Unlock()
+type NetworkInterface struct {
+	InterfaceId uint16
+	Addr        net.Addr
+	Conn        BatchConn
+}
 
-	<-ctx.Done()
-	return nil
+type packet struct {
+	// The source address. Will be set by the receiver
+	srcAddr *net.UDPAddr
+	// The address to where we are forwarding the packet.
+	// Will be set by the processing routine
+	dstAddr *net.UDPAddr
+	// The ingress on which this packet arrived. Will be
+	// set by the receiver
+	ingress   uint16
+	rawPacket []byte
+}
+
+func (d *DataPlane) runReceiver(ni NetworkInterface) {
+	log.Debug("Initialize receiver for", "interface", ni.InterfaceId)
+	msgs := underlayconn.NewReadMessages(d.interfaceBatchSize)
+	newBufferCount := 0    // newly loaded buffers
+	unusedBufferCount := 0 // unused buffers from previous loop
+	metrics := d.forwardingMetrics[ni.InterfaceId]
+	currentPacketsFromPool := make([]*packet, d.interfaceBatchSize)
+	for d.running {
+		// collect packets
+		for newBufferCount+unusedBufferCount < d.interfaceBatchSize {
+			p := <-d.packetPool
+			msgs[newBufferCount].Buffers[0] = p.rawPacket[:bufSize]
+			currentPacketsFromPool[newBufferCount] = p
+			newBufferCount++
+		}
+
+		// read batch
+		numPkts, err := ni.Conn.ReadBatch(msgs[:newBufferCount+unusedBufferCount])
+		if err != nil {
+			log.Debug("Error while reading batch", "interfaceId", ni.InterfaceId, "err", err)
+			unusedBufferCount += newBufferCount
+			newBufferCount = 0
+			continue
+		}
+		for k, pkt := range msgs[:numPkts] {
+			metrics.InputPacketsTotal.Inc()
+			metrics.InputBytesTotal.Add(float64(pkt.N))
+
+			currPkt := currentPacketsFromPool[k]
+			currPkt.ingress = ni.InterfaceId
+			currPkt.dstAddr = nil
+			currPkt.srcAddr = pkt.Addr.(*net.UDPAddr)
+			currPkt.rawPacket = currPkt.rawPacket[:pkt.N]
+
+			procId, err := d.computeProcId(currPkt.rawPacket)
+			if err != nil {
+				log.Debug("Error while computing procId", "err", err)
+				continue
+			}
+
+			select {
+			case d.procChannels[procId] <- currPkt:
+				// TODO(rohrerj) add metrics
+			default:
+				d.returnPacketToPool(currPkt)
+				metrics.DroppedPacketsTotal.Inc()
+			}
+		}
+		unusedBufferCount += newBufferCount - numPkts
+		newBufferCount = 0
+	}
+}
+
+func (d *DataPlane) computeProcId(data []byte) (uint32, error) {
+	srcHostAddrLen := ((data[9] & 0x3) + 1) * 4
+	dstHostAddrLen := ((data[9] >> 4 & 0x3) + 1) * 4
+	addrHdrLen := 16 + int(srcHostAddrLen+dstHostAddrLen)
+	if len(data) < slayers.CmnHdrLen+addrHdrLen {
+		return 0, serrors.New("Packet is too short")
+	}
+	if addrHdrLen > 48 {
+		return 0, serrors.New("Address header is invalid")
+	}
+	flowIDBuffer := [3]byte{}
+	copy(flowIDBuffer[0:3], data[1:4])
+	flowIDBuffer[0] &= 0xF // the left 4 bits don't belong to the flowID
+
+	hasher := fnv.New32a()
+	hasher.Write(d.randomValue)
+	hasher.Write(flowIDBuffer[:])
+	hasher.Write(data[slayers.CmnHdrLen : slayers.CmnHdrLen+addrHdrLen+1])
+	return hasher.Sum32() % d.numProcRoutines, nil
+}
+
+func (d *DataPlane) returnPacketToPool(pkt *packet) {
+	d.packetPool <- pkt
+}
+
+func (d *DataPlane) runProcessingRoutine(id int) {
+	log.Debug("Initialize processing routine with", "id", id)
+	c := d.procChannels[id]
+	processor := newPacketProcessor(d, 0)
+	var scmpErr scmpError
+	for d.running {
+		p, ok := <-c
+		if !ok {
+			continue
+		}
+		processor.ingressID = p.ingress
+		metrics := d.forwardingMetrics[p.ingress]
+		result, err := processor.processPkt(p.rawPacket, p.srcAddr)
+		egress := result.EgressID
+		switch {
+		case err == nil:
+		case errors.As(err, &scmpErr):
+			if !scmpErr.TypeCode.InfoMsg() {
+				log.Debug("SCMP", "err", scmpErr)
+			}
+			// SCMP go back the way they came.
+			egress = p.ingress
+		default:
+			log.Debug("Error processing packet", "err", err)
+			metrics.DroppedPacketsTotal.Inc()
+			d.returnPacketToPool(p)
+			continue
+		}
+		if result.OutConn == nil { // e.g. BFD case no message is forwarded
+			d.returnPacketToPool(p)
+			continue
+		}
+		fwCh, ok := d.forwardChannels[egress]
+		if !ok {
+			log.Debug("Error determining forwarder. Egress is invalid", "egress", egress)
+			metrics.DroppedPacketsTotal.Inc()
+			d.returnPacketToPool(p)
+			continue
+		}
+		p.rawPacket = result.OutPkt
+		if result.OutAddr != nil {
+			p.dstAddr = result.OutAddr
+		}
+
+		select {
+		case fwCh <- p:
+			// TODO(rohrerj) add metrics
+		default:
+			d.returnPacketToPool(p)
+			metrics.DroppedPacketsTotal.Inc()
+		}
+
+	}
+}
+
+func (d *DataPlane) runForwarder(ni NetworkInterface) {
+	log.Debug("Initialize forwarder for", "interface", ni.InterfaceId)
+	c := d.forwardChannels[ni.InterfaceId]
+	writeMsgs := make(underlayconn.Messages, d.interfaceBatchSize)
+	for i := range writeMsgs {
+		writeMsgs[i].Buffers = make([][]byte, 1)
+	}
+	metrics := d.forwardingMetrics[ni.InterfaceId]
+	currentPacketsToSend := make([]*packet, d.interfaceBatchSize)
+	// byteLen contains the length of all packets in the batch,
+	// also those that might not be sent correctly
+	byteLen := 0
+	prepareMsg := func(p *packet, i int) {
+		writeMsgs[i].Buffers[0] = p.rawPacket
+		writeMsgs[i].Addr = nil
+		if p.dstAddr != nil {
+			writeMsgs[i].Addr = p.dstAddr
+		}
+		currentPacketsToSend[i] = p
+	}
+	for d.running {
+		p, ok := <-c
+		if !ok {
+			continue
+		}
+		prepareMsg(p, 0)
+		byteLen = len(p.rawPacket)
+		availablePacket := int(math.Min(float64(len(c)), float64(d.interfaceBatchSize-1)) + 1)
+		for i := 1; i < availablePacket; i++ {
+			p, ok = <-c
+			if !ok {
+				availablePacket = i
+				break
+			}
+			prepareMsg(p, i)
+			byteLen += len(p.rawPacket)
+		}
+		k, err := ni.Conn.WriteBatch(writeMsgs[:availablePacket], syscall.MSG_DONTWAIT)
+		if err != nil {
+			var errno syscall.Errno
+			if !errors.As(err, &errno) ||
+				!(errno == syscall.EAGAIN || errno == syscall.EWOULDBLOCK) {
+				log.Debug("Error writing packet", "ni", ni, "err", err)
+				metrics.DroppedPacketsTotal.Add(float64(availablePacket))
+			}
+			// TODO(rohrerj) add metrics
+		} else {
+			metrics.DroppedPacketsTotal.Add(float64(availablePacket - k))
+			metrics.OutputPacketsTotal.Add(float64(k))
+			metrics.OutputBytesTotal.Add(float64(byteLen))
+		}
+		for j := 0; j < availablePacket; j++ {
+			d.returnPacketToPool(currentPacketsToSend[j])
+		}
+
+	}
 }
 
 // initMetrics initializes the metrics related to packet forwarding. The
@@ -1271,7 +1520,6 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	if r, err := p.handleIngressRouterAlert(); err != nil {
 		return r, err
 	}
-
 	// Inbound: pkts destined to the local IA.
 	if p.scionLayer.DstIA == p.d.localIA {
 		a, r, err := p.resolveInbound()
@@ -1283,7 +1531,6 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 
 	// Outbound: pkts leaving the local IA.
 	// BRTransit: pkts leaving from the same BR different interface.
-
 	if p.path.IsXover() {
 		if r, err := p.doXover(); err != nil {
 			return r, err
@@ -1308,7 +1555,6 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	if r, err := p.validateEgressUp(); err != nil {
 		return r, err
 	}
-
 	egressID := p.egressInterface()
 	if c, ok := p.d.external[egressID]; ok {
 		if err := p.processEgress(); err != nil {
@@ -1316,7 +1562,6 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 		}
 		return processResult{EgressID: egressID, OutConn: c, OutPkt: p.rawPkt}, nil
 	}
-
 	// ASTransit: pkts leaving from another AS BR.
 	if a, ok := p.d.internalNextHops[egressID]; ok {
 		return processResult{OutConn: p.d.internal, OutAddr: a, OutPkt: p.rawPkt}, nil

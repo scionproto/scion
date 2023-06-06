@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2023 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -72,6 +73,87 @@ func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message) (ProcessResult, err
 	}
 	result, err := p.processPkt(m.Buffers[0], srcAddr)
 	return ProcessResult{processResult: result}, err
+}
+
+func (d *DataPlane) ComputeProcId(data []byte) (uint32, error) {
+	return d.computeProcId(data)
+}
+
+func (d *DataPlane) ConfigureProcChannels(numProcRoutines int, queueSize int) []chan *packet {
+	d.numProcRoutines = uint32(numProcRoutines)
+	d.processorQueueSize = queueSize
+	d.procChannels = make([]chan *packet, d.numProcRoutines)
+	for i := 0; i < int(d.numProcRoutines); i++ {
+		d.procChannels[i] = make(chan *packet, d.processorQueueSize)
+	}
+	return d.procChannels
+}
+
+func (d *DataPlane) InitMetrics() {
+	d.initMetrics()
+}
+
+func (d *DataPlane) SetRandomValue(v []byte) {
+	d.randomValue = v
+}
+
+func (d *DataPlane) ConfigureBatchSize(size int) {
+	d.interfaceBatchSize = size
+}
+
+func (d *DataPlane) InitializePacketPool(poolSize int) {
+	d.packetPool = make(chan *packet, poolSize)
+	for i := 0; i < poolSize; i++ {
+		d.packetPool <- &packet{
+			rawPacket: make([]byte, bufSize),
+		}
+	}
+}
+
+func (d *DataPlane) InitReceiver(ni NetworkInterface) {
+	d.runReceiver(ni)
+}
+
+func (d *DataPlane) CurrentPoolSize() int {
+	return len(d.packetPool)
+}
+
+func (d *DataPlane) GetBufferFromPool() *packet {
+	return <-d.packetPool
+}
+
+func (d *DataPlane) SendPacketToChannel(pkt *packet, ch chan *packet) {
+	ch <- pkt
+}
+
+func (pkt *packet) UpdateFields(srcAddr *net.UDPAddr, dstAddr *net.UDPAddr, ingress uint16) {
+	pkt.srcAddr = srcAddr
+	pkt.dstAddr = dstAddr
+	pkt.ingress = ingress
+}
+
+func (d *DataPlane) ConfigureForwarder(ni NetworkInterface) chan *packet {
+	if d.forwardChannels == nil {
+		d.forwardChannels = make(map[uint16]chan *packet)
+	}
+	ch, found := d.forwardChannels[ni.InterfaceId]
+	if !found {
+		ch = make(chan *packet, d.interfaceBatchSize)
+		d.forwardChannels[ni.InterfaceId] = ch
+	}
+	return ch
+}
+
+func (d *DataPlane) InitForwarder(ni NetworkInterface) {
+	d.runForwarder(ni)
+}
+
+func (d *DataPlane) GetInternalInterface() BatchConn {
+	return d.internal
+}
+
+func (d *DataPlane) SetRunning(b bool) {
+	d.running = b
 }
 
 func ExtractServices(s *services) map[addr.HostSVC][]*net.UDPAddr {

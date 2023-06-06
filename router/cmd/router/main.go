@@ -84,6 +84,10 @@ func realMain(ctx context.Context) error {
 		<-errCtx.Done()
 		return cleanup.Do()
 	})
+	cleanup.Add(func() error {
+		dp.DataPlane.Exit()
+		return nil
+	})
 
 	// Initialize and start service management API.
 	if globalCfg.API.Addr != "" {
