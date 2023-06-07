@@ -710,8 +710,15 @@ func (d *DataPlane) runProcessingRoutine(id int) {
 			result.OutAddr = p.srcAddr
 			// SCMP does not use the same buffer as we provide.
 			// Because of that we have to copy it back to our buffer
+			if len(result.OutPkt) > bufSize {
+				log.Debug("Error while processing packet. result.OutPkt is too long",
+					"len", len(result.OutPkt))
+				d.returnPacketToPool(p)
+				continue
+			}
+			p.rawPacket = p.rawPacket[:len(result.OutPkt)]
 			copy(p.rawPacket, result.OutPkt)
-			result.OutPkt = p.rawPacket[:len(result.OutPkt)]
+			result.OutPkt = p.rawPacket
 			isSCMP = true
 		default:
 			log.Debug("Error processing packet", "err", err)
