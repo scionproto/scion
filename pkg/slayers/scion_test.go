@@ -16,6 +16,7 @@ package slayers_test
 
 import (
 	"encoding/binary"
+	"fmt"
 	"net"
 	"testing"
 
@@ -388,6 +389,69 @@ func TestParseAddr(t *testing.T) {
 			assert.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestUnkownAddrType(t *testing.T) {
+
+	testCases := []struct {
+		addrType slayers.AddrType
+		rawAddr  []byte
+	}{
+		{
+			addrType: slayers.AddrType(0b1000), // T=2, L=0
+			rawAddr:  []byte(`foo_`),           // 4 bytes
+		},
+		{
+			addrType: slayers.AddrType(0b0001), // T=0, L=1
+			rawAddr:  []byte(`foo_bar_`),       // 8 bytes
+		},
+		{
+			addrType: slayers.AddrType(0b1110), // T=3, L=2
+			rawAddr:  []byte(`foo_bar_boo_`),   // 12 bytes
+		},
+		{
+			addrType: slayers.AddrType(0b0111),   // T=1, L=3
+			rawAddr:  []byte(`foo_bar_boo_bop_`), // 16 bytes
+		},
+	}
+
+	roundTrip := func(in *slayers.SCION) *slayers.SCION {
+		// serialize
+		buffer := gopacket.NewSerializeBuffer()
+		require.NoError(t, in.SerializeTo(buffer, gopacket.SerializeOptions{FixLengths: true}))
+
+		// decode
+		decoded := &slayers.SCION{}
+		err := decoded.DecodeFromBytes(buffer.Bytes(), gopacket.NilDecodeFeedback)
+		require.NoError(t, err)
+
+		return decoded
+	}
+
+	for _, tc := range testCases {
+		require.Equal(t, tc.addrType.Length(), len(tc.rawAddr)) // sanity check
+
+		t.Run(fmt.Sprintf("src 0b%04b", tc.addrType), func(t *testing.T) {
+			pkt := prepPacket(t, slayers.L4UDP)
+			pkt.SrcAddrType = tc.addrType
+			pkt.RawSrcAddr = tc.rawAddr
+
+			got := roundTrip(pkt)
+			assert.Equal(t, tc.addrType, got.SrcAddrType)
+			assert.Equal(t, tc.rawAddr, got.RawSrcAddr)
+		})
+
+		t.Run(fmt.Sprintf("dest 0b%04b", tc.addrType), func(t *testing.T) {
+			pkt := prepPacket(t, slayers.L4UDP)
+			pkt.DstAddrType = tc.addrType
+			pkt.RawDstAddr = tc.rawAddr
+
+			got := roundTrip(pkt)
+			assert.Equal(t, tc.addrType, got.DstAddrType)
+			assert.Equal(t, tc.rawAddr, got.RawDstAddr)
+		})
+	}
+
 }
 
 func BenchmarkDecodePreallocNoParse(b *testing.B) {
