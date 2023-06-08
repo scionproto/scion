@@ -183,7 +183,7 @@ func (s *SCION) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeO
 	buf[5] = s.HdrLen
 	binary.BigEndian.PutUint16(buf[6:8], s.PayloadLen)
 	buf[8] = uint8(s.PathType)
-	buf[9] = uint8(s.DstAddrType&0x7)<<4 | uint8(s.SrcAddrType&0x7)
+	buf[9] = uint8(s.DstAddrType&0xF)<<4 | uint8(s.SrcAddrType&0xF)
 	binary.BigEndian.PutUint16(buf[10:12], 0)
 
 	// Serialize address header.
@@ -215,8 +215,8 @@ func (s *SCION) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	s.HdrLen = data[5]
 	s.PayloadLen = binary.BigEndian.Uint16(data[6:8])
 	s.PathType = path.Type(data[8])
-	s.DstAddrType = AddrType(data[9] >> 4 & 0x7)
-	s.SrcAddrType = AddrType(data[9] & 0x7)
+	s.DstAddrType = AddrType(data[9] >> 4 & 0xF)
+	s.SrcAddrType = AddrType(data[9] & 0xF)
 
 	// Decode address header.
 	if err := s.DecodeAddrHdr(data[CmnHdrLen:]); err != nil {

@@ -137,7 +137,7 @@ func serializeAuthenticatedData(
 	firstHdrLine := uint32(s.Version&0xF)<<28 | uint32(s.TrafficClass&0x3f)<<20 | s.FlowID&0xFFFFF
 	binary.BigEndian.PutUint32(buf[12:], firstHdrLine)
 	buf[16] = byte(s.PathType)
-	buf[17] = byte(s.DstAddrType&0x7)<<4 | byte(s.SrcAddrType&0x7)
+	buf[17] = byte(s.DstAddrType&0xF)<<4 | byte(s.SrcAddrType&0xF)
 	binary.BigEndian.PutUint16(buf[18:], 0)
 	offset := fixAuthDataInputLen
 

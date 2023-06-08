@@ -102,7 +102,7 @@ func SerializeHostHostInput(input []byte, host HostAddr) int {
 
 	_ = input[inputLength-1]
 	input[0] = uint8(HostHost)
-	input[1] = uint8(host.AddrType & 0x7)
+	input[1] = uint8(host.AddrType & 0xF)
 	copy(input[2:], hostAddr)
 	copy(input[2+l:inputLength], ZeroBlock[:])
 
