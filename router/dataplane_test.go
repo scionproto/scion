@@ -530,17 +530,17 @@ func TestDataPlaneRun(t *testing.T) {
 			},
 		},
 	}
-	runConfig := &router.RunConfig{
-		NumProcessorRoutines: 8,
-		InterfaceBatchSize:   256,
-		ProcessorQueueSize:   256,
-		ForwarderQueueSize:   256,
-		RandomValue:          []byte{1, 2, 3, 4, 5, 6, 7, 8},
-	}
 	for name, tc := range testCases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+			runConfig := &router.RunConfig{
+				NumProcessorRoutines: 8,
+				InterfaceBatchSize:   256,
+				ProcessorQueueSize:   256,
+				ForwarderQueueSize:   256,
+				RandomValue:          []byte{1, 2, 3, 4, 5, 6, 7, 8},
+			}
 			ch := make(chan struct{})
 			dp := tc.prepareDP(ctrl, ch)
 			errors := make(chan error)

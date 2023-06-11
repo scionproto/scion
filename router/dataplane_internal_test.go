@@ -225,11 +225,12 @@ func TestComputeProcId(t *testing.T) {
 	numProcs := 10000
 	flowIdBuffer := [3]byte{}
 	hasher := fnv.New32a()
-	hashForScionPacket := func(flowBuf []byte, pktBuf []byte, s *slayers.SCION) uint32 {
+	hashForScionPacket := func(flowBuf []byte, tmpBuffer []byte, s *slayers.SCION) uint32 {
 		hasher := fnv.New32a()
 		hasher.Write(randomValue)
 		hasher.Write(flowBuf[1:4])
-		hasher.Write(pktBuf[slayers.CmnHdrLen : slayers.CmnHdrLen+s.AddrHdrLen()])
+		s.SerializeAddrHdr(tmpBuffer)
+		hasher.Write(tmpBuffer[:s.AddrHdrLen()])
 		return hasher.Sum32() % uint32(numProcs)
 	}
 
@@ -245,7 +246,8 @@ func TestComputeProcId(t *testing.T) {
 		flowBuf := make([]byte, 4)
 		binary.BigEndian.PutUint32(flowBuf, s.FlowID)
 		flowBuf[0] &= 0xF
-		val1 := hashForScionPacket(flowBuf, raw, s)
+		tmpBuffer := make([]byte, 100)
+		val1 := hashForScionPacket(flowBuf, tmpBuffer, s)
 		val2, err := computeProcId(raw, numProcs, randomValue, flowIdBuffer, hasher)
 		assert.NoError(t, err)
 		assert.Equal(t, val1, val2)

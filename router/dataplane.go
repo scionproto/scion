@@ -571,7 +571,7 @@ type packet struct {
 func (d *DataPlane) runReceiver(interfaceId uint16, conn BatchConn, cfg *RunConfig) {
 	log.Debug("Run receiver for", "interface", interfaceId)
 	msgs := underlayconn.NewReadMessages(cfg.InterfaceBatchSize)
-	unusedBufferCount := 0 // unused buffers from previous loop
+	numReusable := 0 // unused buffers from previous loop
 	metrics := d.forwardingMetrics[interfaceId]
 	currentPacketsFromPool := make([][]byte, cfg.InterfaceBatchSize)
 	flowIDBuffer := [3]byte{}
@@ -610,7 +610,7 @@ func (d *DataPlane) runReceiver(interfaceId uint16, conn BatchConn, cfg *RunConf
 
 	for d.running {
 		// collect packets
-		for i := 0; i < cfg.InterfaceBatchSize-unusedBufferCount; i++ {
+		for i := 0; i < cfg.InterfaceBatchSize-numReusable; i++ {
 			p := <-d.packetPool
 			p = p[:cap(p)]
 			msgs[i].Buffers[0] = p
@@ -619,7 +619,7 @@ func (d *DataPlane) runReceiver(interfaceId uint16, conn BatchConn, cfg *RunConf
 
 		// read batch
 		numPkts, err := conn.ReadBatch(msgs)
-		unusedBufferCount = len(msgs) - numPkts
+		numReusable = len(msgs) - numPkts
 		if err != nil {
 			log.Debug("Error while reading batch", "interfaceId", interfaceId, "err", err)
 			continue
@@ -778,7 +778,6 @@ func writeBatchRearrangeOnError(conn BatchConn, msg underlayconn.Messages,
 }
 
 func readUpTo(c chan packet, n int, pkts []*packet, msg []ipv4.Message) int {
-	byteLen := 0
 	for i := 0; i < n; i++ {
 		p, ok := <-c
 		if !ok {
@@ -790,7 +789,6 @@ func readUpTo(c chan packet, n int, pkts []*packet, msg []ipv4.Message) int {
 			msg[i].Addr = p.dstAddr
 		}
 		pkts[i] = &p
-		byteLen += len(p.rawPacket)
 	}
 	return n
 }
