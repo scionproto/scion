@@ -84,10 +84,6 @@ func realMain(ctx context.Context) error {
 		<-errCtx.Done()
 		return cleanup.Do()
 	})
-	cleanup.Add(func() error {
-		dp.DataPlane.Exit()
-		return nil
-	})
 
 	// Initialize and start service management API.
 	if globalCfg.API.Addr != "" {
@@ -125,7 +121,9 @@ func realMain(ctx context.Context) error {
 	})
 	g.Go(func() error {
 		defer log.HandlePanic()
-		if err := dp.DataPlane.Run(errCtx); err != nil {
+		runConfig := &router.RunConfig{}
+		runConfig.LoadDefaults()
+		if err := dp.DataPlane.Run(errCtx, runConfig); err != nil {
 			return serrors.WrapStr("running dataplane", err)
 		}
 		return nil
