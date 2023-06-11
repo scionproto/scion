@@ -229,7 +229,9 @@ func TestComputeProcId(t *testing.T) {
 		hasher := fnv.New32a()
 		hasher.Write(randomValue)
 		hasher.Write(flowBuf[1:4])
-		s.SerializeAddrHdr(tmpBuffer)
+		if err := s.SerializeAddrHdr(tmpBuffer); err != nil {
+			return 0
+		}
 		hasher.Write(tmpBuffer[:s.AddrHdrLen()])
 		return hasher.Sum32() % uint32(numProcs)
 	}
