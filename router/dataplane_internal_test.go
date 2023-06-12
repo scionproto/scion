@@ -95,22 +95,18 @@ func TestReceiver(t *testing.T) {
 	runConfig := &RunConfig{
 		NumProcessorRoutines: 1,
 		InterfaceBatchSize:   64,
-		ProcessorQueueSize:   64,
-		ForwarderQueueSize:   64,
-		RandomValue:          []byte{1, 2, 3, 4},
 	}
-	dp.populateInterfaces()
-	dp.initializePacketPool(runConfig)
-	dp.initializeChannels(runConfig)
+	dp.initializePacketPool(runConfig, 64)
+	procCh, _ := initializeChannels(runConfig, dp.interfaces, 64)
 	initialPoolSize := len(dp.packetPool)
 	dp.running = true
 	dp.initMetrics()
 	go func() {
-		dp.runReceiver(0, dp.internal, runConfig)
+		dp.runReceiver(0, dp.internal, runConfig, procCh)
 	}()
 	for i := 0; i < 21; i++ {
 		select {
-		case <-dp.procChannels[0]:
+		case <-procCh[0]:
 			// make sure that the pool size has decreased
 			assert.Greater(t, initialPoolSize, len(dp.packetPool))
 		case <-time.After(50 * time.Millisecond):
@@ -182,25 +178,20 @@ func TestForwarder(t *testing.T) {
 	runConfig := &RunConfig{
 		NumProcessorRoutines: 20,
 		InterfaceBatchSize:   64,
-		ProcessorQueueSize:   64,
-		ForwarderQueueSize:   64,
-		RandomValue:          []byte{1, 2, 3, 4},
 	}
-	dp.populateInterfaces()
-	dp.initializePacketPool(runConfig)
-	dp.initializeChannels(runConfig)
+	dp.initializePacketPool(runConfig, 64)
+	_, fwCh := initializeChannels(runConfig, dp.interfaces, 64)
 	initialPoolSize := len(dp.packetPool)
 	dp.running = true
 	dp.initMetrics()
-	go func() {
-		dp.runForwarder(0, dp.internal, runConfig)
-	}()
+	go dp.runForwarder(0, dp.internal, runConfig, fwCh[0])
+
 	for i := 0; i < 255; i++ {
 		pkt := <-dp.packetPool
 		assert.NotEqual(t, initialPoolSize, len(dp.packetPool))
 		pkt[0] = byte(i)
 		select {
-		case dp.forwardChannels[0] <- packet{
+		case fwCh[0] <- packet{
 			srcAddr:   nil,
 			dstAddr:   nil,
 			ingress:   0,

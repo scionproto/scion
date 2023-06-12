@@ -205,6 +205,7 @@ func TestDataPlaneRun(t *testing.T) {
 				mInternal.EXPECT().WriteBatch(gomock.Any(), 0).DoAndReturn(
 					func(ms underlayconn.Messages, flags int) (int, error) {
 						if totalCount == 0 {
+							t.Fail()
 							return 0, nil
 						}
 						for _, msg := range ms {
@@ -537,9 +538,6 @@ func TestDataPlaneRun(t *testing.T) {
 			runConfig := &router.RunConfig{
 				NumProcessorRoutines: 8,
 				InterfaceBatchSize:   256,
-				ProcessorQueueSize:   256,
-				ForwarderQueueSize:   256,
-				RandomValue:          []byte{1, 2, 3, 4, 5, 6, 7, 8},
 			}
 			ch := make(chan struct{})
 			dp := tc.prepareDP(ctrl, ch)
@@ -1179,7 +1177,6 @@ func TestProcessPkt(t *testing.T) {
 			if err != nil {
 				return
 			}
-			assert.NotNil(t, result.OutConn)
 			outPkt := &ipv4.Message{
 				Buffers: [][]byte{result.OutPkt},
 				Addr:    result.OutAddr,

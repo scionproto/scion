@@ -94,6 +94,7 @@ type BatchConn interface {
 // Currently, only the following features are supported:
 //   - initializing connections; MUST be done prior to calling Run
 type DataPlane struct {
+	interfaces        map[uint16]BatchConn
 	external          map[uint16]BatchConn
 	linkTypes         map[uint16]topology.LinkType
 	neighborIAs       map[uint16]addr.IA
@@ -109,12 +110,9 @@ type DataPlane struct {
 	Metrics           *Metrics
 	forwardingMetrics map[uint16]forwardingMetrics
 
-	// fields for the router-internal queues and routines, see
+	// The pool that stores all the packet buffers as described in the design document. See
 	// https://github.com/scionproto/scion/blob/master/doc/dev/design/BorderRouter.rst
-	interfaces      map[uint16]BatchConn
-	procChannels    []chan packet
-	forwardChannels map[uint16]chan packet
-	packetPool      chan []byte
+	packetPool chan []byte
 }
 
 var (
@@ -208,6 +206,10 @@ func (d *DataPlane) AddInternalInterface(conn BatchConn, ip net.IP) error {
 	if d.internal != nil {
 		return alreadySet
 	}
+	if d.interfaces == nil {
+		d.interfaces = make(map[uint16]BatchConn)
+	}
+	d.interfaces[0] = conn
 	d.internal = conn
 	d.internalIP = &net.IPAddr{IP: ip}
 	return nil
@@ -231,6 +233,10 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn) error {
 	if d.external == nil {
 		d.external = make(map[uint16]BatchConn)
 	}
+	if d.interfaces == nil {
+		d.interfaces = make(map[uint16]BatchConn)
+	}
+	d.interfaces[ifID] = conn
 	d.external[ifID] = conn
 	return nil
 }
@@ -444,16 +450,6 @@ func (d *DataPlane) AddNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg contro
 type RunConfig struct {
 	NumProcessorRoutines int
 	InterfaceBatchSize   int
-	ProcessorQueueSize   int
-	ForwarderQueueSize   int
-	RandomValue          []byte
-}
-
-func min(a int, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 func max(a int, b int) int {
@@ -468,29 +464,27 @@ func (d *DataPlane) Run(ctx context.Context, cfg *RunConfig) error {
 	d.running = true
 	d.initMetrics()
 
-	d.populateInterfaces()
-
-	cfg.ProcessorQueueSize = max(
+	processorQueueSize := max(
 		len(d.interfaces)*cfg.InterfaceBatchSize/cfg.NumProcessorRoutines,
 		cfg.InterfaceBatchSize)
 
-	d.initializePacketPool(cfg)
-	d.initializeChannels(cfg)
+	d.initializePacketPool(cfg, processorQueueSize)
+	procChannels, fwChannels := initializeChannels(cfg, d.interfaces, processorQueueSize)
 
 	for interfaceId, conn := range d.interfaces {
 		go func(interfaceId uint16, conn BatchConn) {
 			defer log.HandlePanic()
-			d.runReceiver(interfaceId, conn, cfg)
+			d.runReceiver(interfaceId, conn, cfg, procChannels)
 		}(interfaceId, conn)
 		go func(interfaceId uint16, conn BatchConn) {
 			defer log.HandlePanic()
-			d.runForwarder(interfaceId, conn, cfg)
+			d.runForwarder(interfaceId, conn, cfg, fwChannels[interfaceId])
 		}(interfaceId, conn)
 	}
 	for i := 0; i < cfg.NumProcessorRoutines; i++ {
 		go func(i int) {
 			defer log.HandlePanic()
-			d.runProcessingRoutine(i)
+			d.runProcessingRoutine(i, procChannels[i], fwChannels)
 		}(i)
 	}
 
@@ -513,29 +507,16 @@ func (d *DataPlane) Run(ctx context.Context, cfg *RunConfig) error {
 func (r *RunConfig) LoadDefaults() {
 	// TODO(rohrerj) move this logic to configuration in configuration PR
 	r.NumProcessorRoutines = runtime.GOMAXPROCS(0)
-	r.ForwarderQueueSize = 256
 	r.InterfaceBatchSize = 256
-	r.RandomValue = make([]byte, 16)
-	if _, err := rand.Read(r.RandomValue); err != nil {
-		log.Error("Error while generating random value", "err", err)
-	}
-}
 
-// populateInterfaces stores d.internal and d.external in the d.interfaces map
-func (d *DataPlane) populateInterfaces() {
-	d.interfaces = make(map[uint16]BatchConn)
-	d.interfaces[0] = d.internal
-	for id, conn := range d.external {
-		d.interfaces[id] = conn
-	}
 }
 
 // initializePacketPool calculates the size of the packet pool based on the
 // current dataplane settings and allocates all the buffers
-func (d *DataPlane) initializePacketPool(cfg *RunConfig) {
+func (d *DataPlane) initializePacketPool(cfg *RunConfig, processorQueueSize int) {
 	poolSize := len(d.interfaces)*cfg.InterfaceBatchSize +
-		cfg.NumProcessorRoutines*(cfg.ProcessorQueueSize+1) +
-		len(d.interfaces)*(cfg.ForwarderQueueSize+cfg.InterfaceBatchSize)
+		cfg.NumProcessorRoutines*(processorQueueSize+1) +
+		len(d.interfaces)*(2*cfg.InterfaceBatchSize)
 
 	log.Debug("Initialize packet pool of size", "poolSize", poolSize)
 	d.packetPool = make(chan []byte, poolSize)
@@ -545,15 +526,18 @@ func (d *DataPlane) initializePacketPool(cfg *RunConfig) {
 }
 
 // initializes the processing routines and forwarder channels
-func (d *DataPlane) initializeChannels(cfg *RunConfig) {
-	d.procChannels = make([]chan packet, cfg.NumProcessorRoutines)
+func initializeChannels(cfg *RunConfig, interfaces map[uint16]BatchConn,
+	processorQueueSize int) ([]chan packet, map[uint16]chan packet) {
+
+	procChannels := make([]chan packet, cfg.NumProcessorRoutines)
 	for i := 0; i < cfg.NumProcessorRoutines; i++ {
-		d.procChannels[i] = make(chan packet, cfg.ProcessorQueueSize)
+		procChannels[i] = make(chan packet, processorQueueSize)
 	}
-	d.forwardChannels = make(map[uint16]chan packet)
-	for interfaceId := range d.interfaces {
-		d.forwardChannels[interfaceId] = make(chan packet, cfg.ForwarderQueueSize)
+	forwardChannels := make(map[uint16]chan packet)
+	for interfaceId := range interfaces {
+		forwardChannels[interfaceId] = make(chan packet, cfg.InterfaceBatchSize)
 	}
+	return procChannels, forwardChannels
 }
 
 type packet struct {
@@ -568,39 +552,41 @@ type packet struct {
 	rawPacket []byte
 }
 
-func (d *DataPlane) runReceiver(interfaceId uint16, conn BatchConn, cfg *RunConfig) {
+func (d *DataPlane) runReceiver(interfaceId uint16, conn BatchConn, cfg *RunConfig,
+	procChannels []chan packet) {
+
 	log.Debug("Run receiver for", "interface", interfaceId)
+	randomValue := make([]byte, 16)
+	if _, err := rand.Read(randomValue); err != nil {
+		panic("Error while generating random value")
+	}
+
 	msgs := underlayconn.NewReadMessages(cfg.InterfaceBatchSize)
 	numReusable := 0 // unused buffers from previous loop
 	metrics := d.forwardingMetrics[interfaceId]
-	currentPacketsFromPool := make([][]byte, cfg.InterfaceBatchSize)
 	flowIDBuffer := [3]byte{}
 	hasher := fnv.New32a()
 
-	preparePacketAndForward := func(k int, pkt ipv4.Message) {
+	enqueueForProcessing := func(currPkt []byte, pkt ipv4.Message) {
 		metrics.InputPacketsTotal.Inc()
 		metrics.InputBytesTotal.Add(float64(pkt.N))
 
 		srcAddr := pkt.Addr.(*net.UDPAddr)
-		currPkt := currentPacketsFromPool[k]
 
 		procId, err := computeProcId(currPkt,
-			cfg.NumProcessorRoutines, cfg.RandomValue, flowIDBuffer, hasher)
+			cfg.NumProcessorRoutines, randomValue, flowIDBuffer, hasher)
 		if err != nil {
 			log.Debug("Error while computing procId", "err", err)
 			d.returnPacketToPool(currPkt)
 			return
 		}
-
-		select {
-		case d.procChannels[procId] <- packet{
+		outPkt := packet{
 			rawPacket: currPkt[:pkt.N],
 			ingress:   interfaceId,
-			srcAddr: &net.UDPAddr{
-				IP:   srcAddr.IP,
-				Port: srcAddr.Port,
-			},
-		}:
+			srcAddr:   srcAddr,
+		}
+		select {
+		case procChannels[procId] <- outPkt:
 			// TODO(rohrerj) add metrics
 		default:
 			d.returnPacketToPool(currPkt)
@@ -614,7 +600,6 @@ func (d *DataPlane) runReceiver(interfaceId uint16, conn BatchConn, cfg *RunConf
 			p := <-d.packetPool
 			p = p[:cap(p)]
 			msgs[i].Buffers[0] = p
-			currentPacketsFromPool[i] = p
 		}
 
 		// read batch
@@ -624,8 +609,8 @@ func (d *DataPlane) runReceiver(interfaceId uint16, conn BatchConn, cfg *RunConf
 			log.Debug("Error while reading batch", "interfaceId", interfaceId, "err", err)
 			continue
 		}
-		for k, pkt := range msgs[:numPkts] {
-			preparePacketAndForward(k, pkt)
+		for _, pkt := range msgs[:numPkts] {
+			enqueueForProcessing(pkt.Buffers[0], pkt)
 		}
 
 	}
@@ -643,9 +628,6 @@ func computeProcId(data []byte, numProcRoutines int, randomValue []byte,
 	if len(data) < slayers.CmnHdrLen+addrHdrLen {
 		return 0, serrors.New("Packet is too short")
 	}
-	if addrHdrLen > 48 {
-		return 0, serrors.New("Address header is invalid")
-	}
 	copy(flowIDBuffer[0:3], data[1:4])
 	flowIDBuffer[0] &= 0xF // the left 4 bits don't belong to the flowID
 
@@ -660,10 +642,11 @@ func (d *DataPlane) returnPacketToPool(pkt []byte) {
 	d.packetPool <- pkt[:bufSize]
 }
 
-func (d *DataPlane) runProcessingRoutine(id int) {
+func (d *DataPlane) runProcessingRoutine(id int, c chan packet,
+	fwChans map[uint16]chan packet) {
+
 	log.Debug("Initialize processing routine with", "id", id)
-	c := d.procChannels[id]
-	processor := newPacketProcessor(d, 0)
+	processor := newPacketProcessor(d)
 	var scmpErr scmpError
 	for d.running {
 		p, ok := <-c
@@ -672,27 +655,25 @@ func (d *DataPlane) runProcessingRoutine(id int) {
 		}
 		processor.ingressID = p.ingress
 		metrics := d.forwardingMetrics[p.ingress]
-		result, err := processor.processPkt(p.rawPacket, p.srcAddr)
+		result, err := processor.processPkt(p.rawPacket, p.srcAddr, p.ingress)
 		egress := result.EgressID
-		isSCMP := false
 		switch {
 		case err == nil:
 		case errors.As(err, &scmpErr):
 			if !scmpErr.TypeCode.InfoMsg() {
 				log.Debug("SCMP", "err", scmpErr)
 			}
-			isSCMP = true
 		default:
 			log.Debug("Error processing packet", "err", err)
 			metrics.DroppedPacketsTotal.Inc()
 			d.returnPacketToPool(p.rawPacket)
 			continue
 		}
-		if !isSCMP && result.OutConn == nil { // e.g. BFD case no message is forwarded
+		if result.OutPkt == nil { // e.g. BFD case no message is forwarded
 			d.returnPacketToPool(p.rawPacket)
 			continue
 		}
-		fwCh, ok := d.forwardChannels[egress]
+		fwCh, ok := fwChans[egress]
 		if !ok {
 			log.Debug("Error determining forwarder. Egress is invalid", "egress", egress)
 			metrics.DroppedPacketsTotal.Inc()
@@ -700,9 +681,7 @@ func (d *DataPlane) runProcessingRoutine(id int) {
 			continue
 		}
 		p.rawPacket = result.OutPkt
-		if result.OutAddr != nil {
-			p.dstAddr = result.OutAddr
-		}
+		p.dstAddr = result.OutAddr
 
 		select {
 		case fwCh <- p:
@@ -715,82 +694,86 @@ func (d *DataPlane) runProcessingRoutine(id int) {
 	}
 }
 
-func (d *DataPlane) runForwarder(interfaceId uint16, conn BatchConn, cfg *RunConfig) {
+func (d *DataPlane) runForwarder(interfaceId uint16, conn BatchConn,
+	cfg *RunConfig, c chan packet) {
+
 	log.Debug("Initialize forwarder for", "interface", interfaceId)
-	c := d.forwardChannels[interfaceId]
 	writeMsgs := make(underlayconn.Messages, cfg.InterfaceBatchSize)
 	for i := range writeMsgs {
 		writeMsgs[i].Buffers = make([][]byte, 1)
 	}
 	metrics := d.forwardingMetrics[interfaceId]
-	currentPacketsToSend := make([]*packet, cfg.InterfaceBatchSize)
 
-	nextFreeIndex := 0
-	successfullWrites := 0
-	readPackets := 0
-	availablePackets := 0
+	batchFillStartIndex := 0
 	for d.running {
-		if nextFreeIndex != 0 {
+		availablePackets := 0
+		nBlockingReads := 0
+		nNonBlockingReads := 0
+		if batchFillStartIndex != 0 {
 			// since we have packets to forward from the last iteration it is not
 			// necessary to wait for a packet to exist on the channel
-			availablePackets = min(len(c), cfg.InterfaceBatchSize-nextFreeIndex)
+			nBlockingReads = 0
+			nNonBlockingReads = cfg.InterfaceBatchSize - batchFillStartIndex
 		} else {
-			availablePackets = min(max(1, len(c)), cfg.InterfaceBatchSize)
+			nBlockingReads = 1
+			nNonBlockingReads = cfg.InterfaceBatchSize - 1
 		}
-		readPackets = readUpTo(c, availablePackets,
-			currentPacketsToSend[nextFreeIndex:], writeMsgs[nextFreeIndex:])
-		availablePackets = readPackets + nextFreeIndex
-		successfullWrites, nextFreeIndex = writeBatchRearrangeOnError(conn,
-			writeMsgs[:availablePackets], currentPacketsToSend)
-		if successfullWrites != availablePackets {
-			metrics.DroppedPacketsTotal.Inc()
-		}
+		availablePackets = readUpTo(c, nBlockingReads, nNonBlockingReads,
+			writeMsgs[batchFillStartIndex:])
+		availablePackets += batchFillStartIndex
+		k, _ := conn.WriteBatch(writeMsgs[:availablePackets], 0)
 		byteLen := 0
-		for _, pkt := range currentPacketsToSend[:successfullWrites] {
-			byteLen += len(pkt.rawPacket)
+		for i, pkt := range writeMsgs[:k] {
+			byteLen += len(pkt.Buffers[0])
+			d.returnPacketToPool(writeMsgs[i].Buffers[0])
 		}
-		metrics.OutputPacketsTotal.Add(float64(successfullWrites))
+		metrics.OutputPacketsTotal.Add(float64(k))
 		metrics.OutputBytesTotal.Add(float64(byteLen))
-		for j := nextFreeIndex; j < availablePackets; j++ {
-			d.returnPacketToPool(currentPacketsToSend[j].rawPacket)
-		}
 
+		if k != availablePackets {
+			metrics.DroppedPacketsTotal.Inc()
+			d.returnPacketToPool(writeMsgs[k].Buffers[0])
+			batchFillStartIndex = availablePackets - k - 1
+			for i := 0; i < batchFillStartIndex; i++ {
+				writeMsgs[i].Buffers[0] = writeMsgs[i+k+1].Buffers[0]
+				writeMsgs[i].Addr = writeMsgs[i+k+1].Addr
+			}
+		} else {
+			batchFillStartIndex = 0
+		}
 	}
 }
 
-func writeBatchRearrangeOnError(conn BatchConn, msg underlayconn.Messages,
-	pkts []*packet) (int, int) {
-
-	k, _ := conn.WriteBatch(msg, 0)
-	if k != len(msg) {
-		// packet msg[k] failed
-		numRearrangements := len(msg) - k - 1
-		for i := 0; i < numRearrangements; i++ {
-			msg[i].Buffers[0] = msg[i+k+1].Buffers[0]
-			msg[i].Addr = msg[i+k+1].Addr
-			tmp := pkts[i]
-			pkts[i] = pkts[i+k+1]
-			pkts[i+k+1] = tmp
+func readUpTo(c chan packet, nBlocking int, nNonBlocking int, msg []ipv4.Message) int {
+	assign := func(p *packet, m *ipv4.Message) {
+		m.Buffers[0] = p.rawPacket
+		m.Addr = nil
+		if p.dstAddr != nil {
+			m.Addr = p.dstAddr
 		}
-		return k, numRearrangements
 	}
-	return k, 0
-}
 
-func readUpTo(c chan packet, n int, pkts []*packet, msg []ipv4.Message) int {
-	for i := 0; i < n; i++ {
+	for i := 0; i < nBlocking; i++ {
 		p, ok := <-c
 		if !ok {
 			return i
 		}
-		msg[i].Buffers[0] = p.rawPacket
-		msg[i].Addr = nil
-		if p.dstAddr != nil {
-			msg[i].Addr = p.dstAddr
-		}
-		pkts[i] = &p
+		assign(&p, &msg[i])
 	}
-	return n
+
+	for i := 0; i < nNonBlocking; i++ {
+		select {
+		case p, ok := <-c:
+			if !ok {
+				return nBlocking + i
+			}
+			assign(&p, &msg[nBlocking+i])
+		default:
+			return nBlocking + i
+		}
+
+	}
+	return nBlocking + nNonBlocking
 }
 
 // initMetrics initializes the metrics related to packet forwarding. The
@@ -811,17 +794,15 @@ func (d *DataPlane) initMetrics() {
 
 type processResult struct {
 	EgressID uint16
-	OutConn  BatchConn
 	OutAddr  *net.UDPAddr
 	OutPkt   []byte
 }
 
-func newPacketProcessor(d *DataPlane, ingressID uint16) *scionPacketProcessor {
+func newPacketProcessor(d *DataPlane) *scionPacketProcessor {
 	p := &scionPacketProcessor{
-		d:         d,
-		ingressID: ingressID,
-		buffer:    gopacket.NewSerializeBuffer(),
-		mac:       d.macFactory(),
+		d:      d,
+		buffer: gopacket.NewSerializeBuffer(),
+		mac:    d.macFactory(),
 		macBuffers: macBuffers{
 			scionInput: make([]byte, path.MACBufferSize),
 			epicInput:  make([]byte, libepic.MACBufferSize),
@@ -856,13 +837,14 @@ func (p *scionPacketProcessor) reset() error {
 }
 
 func (p *scionPacketProcessor) processPkt(rawPkt []byte,
-	srcAddr *net.UDPAddr) (processResult, error) {
+	srcAddr *net.UDPAddr, ingressID uint16) (processResult, error) {
 
 	if err := p.reset(); err != nil {
 		return processResult{}, err
 	}
 	p.rawPkt = rawPkt
 	p.srcAddr = srcAddr
+	p.ingressID = ingressID
 
 	// parse SCION header and skip extensions;
 	var err error
@@ -1531,7 +1513,7 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 		if err != nil {
 			return r, err
 		}
-		return processResult{OutConn: p.d.internal, OutAddr: a, OutPkt: p.rawPkt}, nil
+		return processResult{OutAddr: a, OutPkt: p.rawPkt}, nil
 	}
 
 	// Outbound: pkts leaving the local IA.
@@ -1561,15 +1543,15 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 		return r, err
 	}
 	egressID := p.egressInterface()
-	if c, ok := p.d.external[egressID]; ok {
+	if _, ok := p.d.external[egressID]; ok {
 		if err := p.processEgress(); err != nil {
 			return processResult{}, err
 		}
-		return processResult{EgressID: egressID, OutConn: c, OutPkt: p.rawPkt}, nil
+		return processResult{EgressID: egressID, OutPkt: p.rawPkt}, nil
 	}
 	// ASTransit: pkts leaving from another AS BR.
 	if a, ok := p.d.internalNextHops[egressID]; ok {
-		return processResult{OutConn: p.d.internal, OutAddr: a, OutPkt: p.rawPkt}, nil
+		return processResult{OutAddr: a, OutPkt: p.rawPkt}, nil
 	}
 	errCode := slayers.SCMPCodeUnknownHopFieldEgress
 	if !p.infoField.ConsDir {
@@ -1628,9 +1610,9 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 			return processResult{}, err
 		}
 		// OHP should always be directed to the correct BR.
-		if c, ok := p.d.external[ohp.FirstHop.ConsEgress]; ok {
+		if _, ok := p.d.external[ohp.FirstHop.ConsEgress]; ok {
 			// buffer should already be correct
-			return processResult{EgressID: ohp.FirstHop.ConsEgress, OutConn: c, OutPkt: p.rawPkt},
+			return processResult{EgressID: ohp.FirstHop.ConsEgress, OutPkt: p.rawPkt},
 				nil
 		}
 		// TODO parameter problem invalid interface
@@ -1667,7 +1649,7 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 	if err != nil {
 		return processResult{}, err
 	}
-	return processResult{OutConn: p.d.internal, OutAddr: a, OutPkt: p.rawPkt}, nil
+	return processResult{OutAddr: a, OutPkt: p.rawPkt}, nil
 }
 
 func (d *DataPlane) resolveLocalDst(s slayers.SCION) (*net.UDPAddr, error) {

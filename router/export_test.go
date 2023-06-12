@@ -70,14 +70,14 @@ func (d *DataPlane) FakeStart() {
 
 func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message) (ProcessResult, error) {
 
-	p := newPacketProcessor(d, ifID)
+	p := newPacketProcessor(d)
 	var srcAddr *net.UDPAddr
 	// for real packets received from ReadBatch this is always non-nil.
 	// Allow nil in test cases for brevity.
 	if m.Addr != nil {
 		srcAddr = m.Addr.(*net.UDPAddr)
 	}
-	result, err := p.processPkt(m.Buffers[0], srcAddr)
+	result, err := p.processPkt(m.Buffers[0], srcAddr, ifID)
 	return ProcessResult{processResult: result}, err
 }
 
