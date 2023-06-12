@@ -25,7 +25,7 @@ clicking the 'Fork' button on the top right, and then choosing your own personal
 repository.
 
 This gives you a complete copy of the main scion repo in which you are free to
-make changes without affecting anyone else. The only downside is that you have a 
+make changes without affecting anyone else. The only downside is that you have a
 little extra work to do to keep it up to date with the main repo.
 This is covered below.
 
