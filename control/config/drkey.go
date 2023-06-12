@@ -31,6 +31,15 @@ const (
 	DefaultEpochDuration   = 24 * time.Hour
 	DefaultPrefetchEntries = 10000
 	EnvVarEpochDuration    = "SCION_TESTING_DRKEY_EPOCH_DURATION"
+	// DefaultAcceptanceWindowOffset is the time width for accepting incoming packets. The
+	// acceptance widown is then compute as:
+	// aw := [T-a, T+a)
+	// where aw:= acceptance window, T := time instant and a := acceptanceWindowOffset
+	//
+	// Picking the value equal or shorter than half of the drkey Grace Period ensures
+	// that we accept packets for active keys only.
+	DefaultAcceptanceWindowOffset = 2*time.Second + 500*time.Millisecond
+	EnvVarAccpetanceWindow        = "SCION_TESTING_ACCEPTANCE_WINDOW"
 )
 
 var _ (config.Config) = (*DRKeyConfig)(nil)

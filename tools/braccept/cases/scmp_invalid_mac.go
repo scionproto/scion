@@ -306,11 +306,10 @@ func SCMPBadMACInternal(artifactsDir string, mac hash.Hash) runner.Case {
 		panic(err)
 	}
 
-	p, err := sp.Reverse()
+	_, err := sp.Reverse()
 	if err != nil {
 		panic(err)
 	}
-	sp = p.(*scion.Decoded)
 	scionL.NextHdr = slayers.End2EndClass
 	e2e := normalizedSCMPPacketAuthEndToEndExtn()
 	e2e.NextHdr = slayers.L4SCMP

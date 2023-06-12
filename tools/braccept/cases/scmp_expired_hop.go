@@ -119,7 +119,10 @@ func SCMPExpiredHop(artifactsDir string, mac hash.Hash) runner.Case {
 	scionudp.DstPort = 40222
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
+	pointer := slayers.CmnHdrLen + scionL.AddrHdrLen() +
+		(4 + 8*sp.NumINF + 12*int(sp.PathMeta.CurrHF))
 	payload := []byte("actualpayloadbytes")
+
 	// Prepare input packet
 	input := gopacket.NewSerializeBuffer()
 	if err := gopacket.SerializeLayers(input, options,
@@ -129,13 +132,61 @@ func SCMPExpiredHop(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	// Prepare want packet
+	want := gopacket.NewSerializeBuffer()
+	// Ethernet: SrcMAC=f0:0d:ca:fe:00:13 DstMAC=f0:0d:ca:fe:be:ef
+	ethernet.SrcMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x13}
+	ethernet.DstMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef}
+	// 	IP4: Src=192.168.14.2 Dst=192.168.13.3 Checksum=0
+	ip.SrcIP = net.IP{192, 168, 13, 2}
+	ip.DstIP = net.IP{192, 168, 13, 3}
+	// 	UDP: Src=50000 Dst=40000
+	udp.SrcPort, udp.DstPort = udp.DstPort, udp.SrcPort
+
+	scionL.DstIA = scionL.SrcIA
+	scionL.SrcIA = xtest.MustParseIA("1-ff00:0:1")
+	if err := scionL.SetDstAddr(srcA); err != nil {
+		panic(err)
+	}
+	intlA := addr.MustParseHost("192.168.0.11")
+	if err := scionL.SetSrcAddr(intlA); err != nil {
+		panic(err)
+	}
+
+	p, err := sp.Reverse()
+	if err != nil {
+		panic(err)
+	}
+	sp = p.(*scion.Decoded)
+	if err := sp.IncPath(); err != nil {
+		panic(err)
+	}
+	scionL.NextHdr = slayers.End2EndClass
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
+	e2e.NextHdr = slayers.L4SCMP
+	scmpH := &slayers.SCMP{
+		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
+			slayers.SCMPCodePathExpired),
+	}
+	scmpH.SetNetworkLayerForChecksum(scionL)
+	scmpP := &slayers.SCMPParameterProblem{
+		Pointer: uint16(pointer),
+	}
+
+	// Skip Ethernet + IPv4 + UDP
+	quoteStart := 14 + 20 + 8
+	quote := input.Bytes()[quoteStart:]
+	if err := gopacket.SerializeLayers(want, options,
+		ethernet, ip, udp, scionL, e2e, scmpH, scmpP, gopacket.Payload(quote),
+	); err != nil {
+		panic(err)
+	}
 
 	return runner.Case{
 		Name:            "SCMPExpiredHop",
 		WriteTo:         "veth_131_host",
 		ReadFrom:        "veth_131_host",
 		Input:           input.Bytes(),
-		Want:            nil,
+		Want:            want.Bytes(),
 		StoreDir:        filepath.Join(artifactsDir, "SCMPExpiredHop"),
 		NormalizePacket: scmpNormalizePacket,
 	}

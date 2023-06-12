@@ -23,6 +23,7 @@ import (
 
 	"github.com/google/gopacket/layers"
 
+	"github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/slayers"
@@ -71,6 +72,13 @@ func realMain() int {
 	rc, err := runner.NewRunConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Loading devices failed: %v\n", err)
+		return 1
+	}
+
+	// Set acceptance window to longer than default value to handle with test time fluctuation
+	err = os.Setenv(config.EnvVarAccpetanceWindow, "1m")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Setting acceptance window: %v\n", err)
 		return 1
 	}
 

@@ -17,12 +17,14 @@ package cases
 import (
 	"hash"
 	"net"
+	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 
+	"github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/util"
@@ -31,6 +33,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/spao"
+	drkeytools "github.com/scionproto/scion/private/drkey"
 	"github.com/scionproto/scion/tools/braccept/runner"
 )
 
@@ -256,8 +259,21 @@ func SCMPTracerouteIngressWithSPAO(artifactsDir string, mac hash.Hash) runner.Ca
 	}
 
 	e2e := &slayers.EndToEndExtn{}
+
+	sendTime := time.Now()
+	key, err := (&drkeytools.FakeProvider{
+		KeyDuration: loadEpochDuration(),
+	}).GetASHostKey(sendTime, xtest.MustParseIA("1-ff00:0:4"), srcA)
+	if err != nil {
+		panic(err)
+	}
+	timestamp, err := spao.RelativeTimestamp(key, sendTime)
+	if err != nil {
+		panic(err)
+	}
 	optAuth, err := slayers.NewPacketAuthOption(slayers.PacketAuthOptionParams{
-		Auth: make([]byte, 16),
+		TimestampSN: timestamp,
+		Auth:        make([]byte, 16),
 	})
 	if err != nil {
 		panic(err)
@@ -279,7 +295,7 @@ func SCMPTracerouteIngressWithSPAO(artifactsDir string, mac hash.Hash) runner.Ca
 	}
 	_, err = spao.ComputeAuthCMAC(
 		spao.MACInput{
-			Key:        (&drkey.Key{})[:],
+			Key:        key.Key[:],
 			Header:     optAuth,
 			ScionLayer: scionL,
 			PldType:    slayers.L4SCMP,
@@ -331,17 +347,15 @@ func SCMPTracerouteIngressWithSPAO(artifactsDir string, mac hash.Hash) runner.Ca
 		uint16(drkey.SCMP),
 		slayers.PacketAuthASHost,
 		slayers.PacketAuthSenderSide,
-		slayers.PacketAuthLater,
 	)
 	if err != nil {
 		panic(err)
 	}
 	packAuthOpt, err := slayers.NewPacketAuthOption(slayers.PacketAuthOptionParams{
-		SPI:            spi,
-		Algorithm:      slayers.PacketAuthCMAC,
-		Timestamp:      uint32(0),
-		SequenceNumber: uint32(0),
-		Auth:           make([]byte, 16),
+		SPI:         spi,
+		Algorithm:   slayers.PacketAuthCMAC,
+		TimestampSN: uint64(0),
+		Auth:        make([]byte, 16),
 	})
 	if err != nil {
 		panic(err)
@@ -1068,11 +1082,10 @@ func SCMPTracerouteInternal(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	sp.HopFields[0].EgressRouterAlert = false
-	p, err := sp.Reverse()
+	_, err := sp.Reverse()
 	if err != nil {
 		panic(err)
 	}
-	sp = p.(*scion.Decoded)
 	scionL.NextHdr = slayers.L4SCMP
 	scmpH = &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteReply, 0),
@@ -1099,4 +1112,16 @@ func SCMPTracerouteInternal(artifactsDir string, mac hash.Hash) runner.Case {
 		Want:     want.Bytes(),
 		StoreDir: filepath.Join(artifactsDir, "SCMPTracerouteInternal"),
 	}
+}
+
+func loadEpochDuration() time.Duration {
+	s := os.Getenv(config.EnvVarEpochDuration)
+	if s == "" {
+		return config.DefaultEpochDuration
+	}
+	duration, err := util.ParseDuration(s)
+	if err != nil {
+		return config.DefaultEpochDuration
+	}
+	return duration
 }
