@@ -10,8 +10,8 @@ go_library(
     importpath = "github.com/scionproto/scion/pkg/spao",
     visibility = ["//visibility:public"],
     deps = [
+        "//pkg/drkey:go_default_library",
         "//pkg/private/serrors:go_default_library",
-        "//pkg/private/util:go_default_library",
         "//pkg/slayers:go_default_library",
         "//pkg/slayers/path:go_default_library",
         "//pkg/slayers/path/empty:go_default_library",
