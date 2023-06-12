@@ -37,7 +37,7 @@ var (
 
 // SVC is a SCION service address.
 // A service address is a short identifier for the service type, and a
-// flag-bit to for multicast.
+// flag-bit for multicast.
 // The package's SVC constant values are defined without multicast.
 // The Multicast and Base methods set/unset the multicast flag.
 type SVC uint16
