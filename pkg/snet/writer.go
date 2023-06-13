@@ -18,6 +18,7 @@ package snet
 import (
 	"fmt"
 	"net"
+	"net/netip"
 	"sync"
 	"time"
 
@@ -47,7 +48,11 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	case nil:
 		return 0, serrors.New("Missing remote address")
 	case *UDPAddr:
-		dst = SCIONAddress{IA: a.IA, Host: addr.HostIPFromSlice(a.Host.IP)}
+		hostIP, ok := netip.AddrFromSlice(a.Host.IP)
+		if !ok {
+			return 0, serrors.New("invalid destination host IP", "ip", a.Host.IP)
+		}
+		dst = SCIONAddress{IA: a.IA, Host: addr.HostIP(hostIP)}
 		port, path = a.Host.Port, a.Path
 		nextHop = a.NextHop
 		if nextHop == nil && c.base.scionNet.LocalIA.Equal(a.IA) {
@@ -66,13 +71,18 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 			"addr", fmt.Sprintf("%v(%T)", a, a))
 	}
 
+	listenHostIP, ok := netip.AddrFromSlice(c.base.listen.Host.IP)
+	if !ok {
+		return 0, serrors.New("invalid listen host IP", "ip", c.base.listen.Host.IP)
+	}
+
 	pkt := &Packet{
 		Bytes: Bytes(c.buffer),
 		PacketInfo: PacketInfo{
 			Destination: dst,
 			Source: SCIONAddress{
 				IA:   c.base.scionNet.LocalIA,
-				Host: addr.HostIPFromSlice(c.base.listen.Host.IP),
+				Host: addr.HostIP(listenHostIP),
 			},
 			Path: path,
 			Payload: UDPPayload{

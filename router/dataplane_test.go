@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/netip"
 	"sync"
 	"syscall"
 	"testing"
@@ -279,7 +280,8 @@ func TestDataPlaneRun(t *testing.T) {
 						YourDiscriminator: 0,
 					}
 
-					_ = scn.SetSrcAddr(addr.HostIPFromSlice(src.IP))
+					srcIP, _ := netip.AddrFromSlice(src.IP)
+					_ = scn.SetSrcAddr(addr.HostIP(srcIP))
 					buffer := gopacket.NewSerializeBuffer()
 					_ = gopacket.SerializeLayers(buffer,
 						gopacket.SerializeOptions{FixLengths: true}, scn, bfdL)
