@@ -17,6 +17,7 @@ package svc
 import (
 	"context"
 	"net"
+	"net/netip"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -78,6 +79,10 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.SVC) (*R
 	u := &net.UDPAddr{
 		IP: r.LocalIP,
 	}
+	localIP, ok := netip.AddrFromSlice(r.LocalIP)
+	if !ok {
+		return nil, serrors.New("invalid local IP", "ip", r.LocalIP)
+	}
 
 	conn, port, err := r.ConnFactory.Register(ctx, r.LocalIA, u, addr.SvcNone)
 	if err != nil {
@@ -95,7 +100,7 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.SVC) (*R
 		PacketInfo: snet.PacketInfo{
 			Source: snet.SCIONAddress{
 				IA:   r.LocalIA,
-				Host: addr.HostIPFromSlice(r.LocalIP),
+				Host: addr.HostIP(localIP),
 			},
 			Destination: snet.SCIONAddress{
 				IA:   p.Destination(),

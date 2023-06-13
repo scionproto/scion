@@ -18,6 +18,7 @@ package svc
 import (
 	"context"
 	"net"
+	"net/netip"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/common"
@@ -74,6 +75,10 @@ type ResolverPacketDispatcher struct {
 func (d *ResolverPacketDispatcher) Register(ctx context.Context, ia addr.IA,
 	registration *net.UDPAddr, svc addr.SVC) (snet.PacketConn, uint16, error) {
 
+	registrationIP, ok := netip.AddrFromSlice(registration.IP)
+	if !ok {
+		return nil, 0, serrors.New("invalid registration IP", "ip", registration.IP)
+	}
 	c, port, err := d.dispService.Register(ctx, ia, registration, svc)
 	if err != nil {
 		return nil, 0, err
@@ -82,7 +87,7 @@ func (d *ResolverPacketDispatcher) Register(ctx context.Context, ia addr.IA,
 		PacketConn: c,
 		source: snet.SCIONAddress{
 			IA:   ia,
-			Host: addr.HostIPFromSlice(registration.IP),
+			Host: addr.HostIP(registrationIP),
 		},
 		handler: d.handler,
 	}

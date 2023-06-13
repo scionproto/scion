@@ -296,7 +296,10 @@ func (d *DataPlane) AddExternalInterfaceBFD(ifID uint16, conn BatchConn,
 			PacketsReceived: d.Metrics.BFDPacketsReceived.With(labels),
 		}
 	}
-	s := newBFDSend(conn, src.IA, dst.IA, src.Addr, dst.Addr, ifID, d.macFactory())
+	s, err := newBFDSend(conn, src.IA, dst.IA, src.Addr, dst.Addr, ifID, d.macFactory())
+	if err != nil {
+		return err
+	}
 	return d.addBFDController(ifID, s, cfg, m)
 }
 
@@ -436,7 +439,10 @@ func (d *DataPlane) AddNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg contro
 		}
 	}
 
-	s := newBFDSend(d.internal, d.localIA, d.localIA, src, dst, 0, d.macFactory())
+	s, err := newBFDSend(d.internal, d.localIA, d.localIA, src, dst, 0, d.macFactory())
+	if err != nil {
+		return err
+	}
 	return d.addBFDController(ifID, s, cfg, m)
 }
 
@@ -1481,7 +1487,7 @@ type bfdSend struct {
 
 // newBFDSend creates and initializes a BFD Sender
 func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr *net.UDPAddr,
-	ifID uint16, mac hash.Hash) *bfdSend {
+	ifID uint16, mac hash.Hash) (*bfdSend, error) {
 
 	scn := &slayers.SCION{
 		Version:      0,
@@ -1492,11 +1498,19 @@ func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr *net.UDPA
 		DstIA:        dstIA,
 	}
 
-	if err := scn.SetSrcAddr(addr.HostIPFromSlice(srcAddr.IP)); err != nil {
-		panic(err) // Must work unless IPAddr is not supported
+	srcAddrIP, ok := netip.AddrFromSlice(srcAddr.IP)
+	if !ok {
+		return nil, serrors.New("invalid source IP", "ip", srcAddr.IP)
 	}
-	if err := scn.SetDstAddr(addr.HostIPFromSlice(dstAddr.IP)); err != nil {
-		panic(err) // Must work unless IPAddr is not supported
+	dstAddrIP, ok := netip.AddrFromSlice(dstAddr.IP)
+	if !ok {
+		return nil, serrors.New("invalid destination IP", "ip", dstAddr.IP)
+	}
+	if err := scn.SetSrcAddr(addr.HostIP(srcAddrIP)); err != nil {
+		panic(err) // Must work
+	}
+	if err := scn.SetDstAddr(addr.HostIP(dstAddrIP)); err != nil {
+		panic(err) // Must work
 	}
 
 	var ohp *onehop.Path
@@ -1527,7 +1541,7 @@ func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr *net.UDPA
 		mac:       mac,
 		macBuffer: make([]byte, path.MACBufferSize),
 		buffer:    gopacket.NewSerializeBuffer(),
-	}
+	}, nil
 }
 
 func (b *bfdSend) String() string {

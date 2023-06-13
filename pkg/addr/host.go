@@ -18,7 +18,6 @@ package addr
 
 import (
 	"fmt"
-	"net"
 	"net/netip"
 )
 
@@ -84,17 +83,6 @@ func MustParseHost(s string) Host {
 // HostIP returns a Host address representing ip, with type HostTypeIP.
 func HostIP(ip netip.Addr) Host {
 	return Host{t: HostTypeIP, ip: ip}
-}
-
-// HostIPFromSlice returns the Host address representing ip, with type HostTypeIP.
-//
-// Hides the ok return value of netip.AddrFromSlice for convenience of use.
-// If the slice's length is not 4 or 16, returns a Host representing an invalid
-// IP address.
-// TODO(matzf): return ok or ...?
-func HostIPFromSlice(ip net.IP) Host {
-	a, _ := netip.AddrFromSlice(ip)
-	return HostIP(a)
 }
 
 // HostSvc returns a Host address representing svc, with type HostTypeSVC.

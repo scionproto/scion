@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
 	"sync"
 	"time"
 
@@ -49,7 +50,7 @@ type DefaultPathWatcherFactory struct {
 	// LocalIA is the ID of the local AS.
 	LocalIA addr.IA
 	// LocalIP is the IP address of the local host.
-	LocalIP net.IP
+	LocalIP netip.Addr
 	// RevocationHandler is the revocation handler.
 	RevocationHandler snet.RevocationHandler
 	// ConnFactory is used to create probe connections.
@@ -109,7 +110,7 @@ func (f *DefaultPathWatcherFactory) New(
 		id: id,
 		localAddr: snet.SCIONAddress{
 			IA:   f.LocalIA,
-			Host: addr.HostIPFromSlice(f.LocalIP),
+			Host: addr.HostIP(f.LocalIP),
 		},
 		pktChan:          pktChan,
 		probesSent:       createCounter(f.ProbesSent, remote),
