@@ -567,21 +567,21 @@ func (d *DataPlane) runReceiver(interfaceId uint16, conn BatchConn, cfg *RunConf
 	flowIDBuffer := [3]byte{}
 	hasher := fnv.New32a()
 
-	enqueueForProcessing := func(currPkt []byte, pkt ipv4.Message) {
+	enqueueForProcessing := func(pkt ipv4.Message) {
 		metrics.InputPacketsTotal.Inc()
 		metrics.InputBytesTotal.Add(float64(pkt.N))
 
 		srcAddr := pkt.Addr.(*net.UDPAddr)
 
-		procId, err := computeProcId(currPkt,
+		procId, err := computeProcId(pkt.Buffers[0],
 			cfg.NumProcessorRoutines, randomValue, flowIDBuffer, hasher)
 		if err != nil {
 			log.Debug("Error while computing procId", "err", err)
-			d.returnPacketToPool(currPkt)
+			d.returnPacketToPool(pkt.Buffers[0])
 			return
 		}
 		outPkt := packet{
-			rawPacket: currPkt[:pkt.N],
+			rawPacket: pkt.Buffers[0][:pkt.N],
 			ingress:   interfaceId,
 			srcAddr:   srcAddr,
 		}
@@ -589,7 +589,7 @@ func (d *DataPlane) runReceiver(interfaceId uint16, conn BatchConn, cfg *RunConf
 		case procChannels[procId] <- outPkt:
 			// TODO(rohrerj) add metrics
 		default:
-			d.returnPacketToPool(currPkt)
+			d.returnPacketToPool(pkt.Buffers[0])
 			metrics.DroppedPacketsTotal.Inc()
 		}
 	}
@@ -610,7 +610,7 @@ func (d *DataPlane) runReceiver(interfaceId uint16, conn BatchConn, cfg *RunConf
 			continue
 		}
 		for _, pkt := range msgs[:numPkts] {
-			enqueueForProcessing(pkt.Buffers[0], pkt)
+			enqueueForProcessing(pkt)
 		}
 
 	}
@@ -642,7 +642,7 @@ func (d *DataPlane) returnPacketToPool(pkt []byte) {
 	d.packetPool <- pkt[:bufSize]
 }
 
-func (d *DataPlane) runProcessingRoutine(id int, c chan packet,
+func (d *DataPlane) runProcessingRoutine(id int, c <-chan packet,
 	fwChans map[uint16]chan packet) {
 
 	log.Debug("Initialize processing routine with", "id", id)
@@ -653,7 +653,6 @@ func (d *DataPlane) runProcessingRoutine(id int, c chan packet,
 		if !ok {
 			continue
 		}
-		processor.ingressID = p.ingress
 		metrics := d.forwardingMetrics[p.ingress]
 		result, err := processor.processPkt(p.rawPacket, p.srcAddr, p.ingress)
 		egress := result.EgressID
@@ -695,7 +694,7 @@ func (d *DataPlane) runProcessingRoutine(id int, c chan packet,
 }
 
 func (d *DataPlane) runForwarder(interfaceId uint16, conn BatchConn,
-	cfg *RunConfig, c chan packet) {
+	cfg *RunConfig, c <-chan packet) {
 
 	log.Debug("Initialize forwarder for", "interface", interfaceId)
 	writeMsgs := make(underlayconn.Messages, cfg.InterfaceBatchSize)
@@ -704,48 +703,48 @@ func (d *DataPlane) runForwarder(interfaceId uint16, conn BatchConn,
 	}
 	metrics := d.forwardingMetrics[interfaceId]
 
-	batchFillStartIndex := 0
+	remaining := 0
 	for d.running {
-		availablePackets := 0
+		available := 0
 		nBlockingReads := 0
 		nNonBlockingReads := 0
-		if batchFillStartIndex != 0 {
+		if remaining != 0 {
 			// since we have packets to forward from the last iteration it is not
 			// necessary to wait for a packet to exist on the channel
 			nBlockingReads = 0
-			nNonBlockingReads = cfg.InterfaceBatchSize - batchFillStartIndex
+			nNonBlockingReads = cfg.InterfaceBatchSize - remaining
 		} else {
 			nBlockingReads = 1
 			nNonBlockingReads = cfg.InterfaceBatchSize - 1
 		}
-		availablePackets = readUpTo(c, nBlockingReads, nNonBlockingReads,
-			writeMsgs[batchFillStartIndex:])
-		availablePackets += batchFillStartIndex
-		k, _ := conn.WriteBatch(writeMsgs[:availablePackets], 0)
-		byteLen := 0
-		for i, pkt := range writeMsgs[:k] {
-			byteLen += len(pkt.Buffers[0])
+		available = readUpTo(c, nBlockingReads, nNonBlockingReads,
+			writeMsgs[remaining:])
+		available += remaining
+		written, _ := conn.WriteBatch(writeMsgs[:available], 0)
+		writtenBytes := 0
+		for i, pkt := range writeMsgs[:written] {
+			writtenBytes += len(pkt.Buffers[0])
 			d.returnPacketToPool(writeMsgs[i].Buffers[0])
 		}
-		metrics.OutputPacketsTotal.Add(float64(k))
-		metrics.OutputBytesTotal.Add(float64(byteLen))
+		metrics.OutputPacketsTotal.Add(float64(written))
+		metrics.OutputBytesTotal.Add(float64(writtenBytes))
 
-		if k != availablePackets {
+		if written != available {
 			metrics.DroppedPacketsTotal.Inc()
-			d.returnPacketToPool(writeMsgs[k].Buffers[0])
-			batchFillStartIndex = availablePackets - k - 1
-			for i := 0; i < batchFillStartIndex; i++ {
-				writeMsgs[i].Buffers[0] = writeMsgs[i+k+1].Buffers[0]
-				writeMsgs[i].Addr = writeMsgs[i+k+1].Addr
+			d.returnPacketToPool(writeMsgs[written].Buffers[0])
+			remaining = available - written - 1
+			for i := 0; i < remaining; i++ {
+				writeMsgs[i].Buffers[0] = writeMsgs[i+written+1].Buffers[0]
+				writeMsgs[i].Addr = writeMsgs[i+written+1].Addr
 			}
 		} else {
-			batchFillStartIndex = 0
+			remaining = 0
 		}
 	}
 }
 
-func readUpTo(c chan packet, nBlocking int, nNonBlocking int, msg []ipv4.Message) int {
-	assign := func(p *packet, m *ipv4.Message) {
+func readUpTo(c <-chan packet, nBlocking int, nNonBlocking int, msg []ipv4.Message) int {
+	assign := func(p packet, m *ipv4.Message) {
 		m.Buffers[0] = p.rawPacket
 		m.Addr = nil
 		if p.dstAddr != nil {
@@ -758,7 +757,7 @@ func readUpTo(c chan packet, nBlocking int, nNonBlocking int, msg []ipv4.Message
 		if !ok {
 			return i
 		}
-		assign(&p, &msg[i])
+		assign(p, &msg[i])
 	}
 
 	for i := 0; i < nNonBlocking; i++ {
@@ -767,7 +766,7 @@ func readUpTo(c chan packet, nBlocking int, nNonBlocking int, msg []ipv4.Message
 			if !ok {
 				return nBlocking + i
 			}
-			assign(&p, &msg[nBlocking+i])
+			assign(p, &msg[nBlocking+i])
 		default:
 			return nBlocking + i
 		}
@@ -1609,15 +1608,8 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 		if err := updateSCIONLayer(p.rawPkt, s, p.buffer); err != nil {
 			return processResult{}, err
 		}
-		// OHP should always be directed to the correct BR.
-		if _, ok := p.d.external[ohp.FirstHop.ConsEgress]; ok {
-			// buffer should already be correct
-			return processResult{EgressID: ohp.FirstHop.ConsEgress, OutPkt: p.rawPkt},
-				nil
-		}
-		// TODO parameter problem invalid interface
-		return processResult{}, serrors.WithCtx(cannotRoute, "type", "ohp",
-			"egress", ohp.FirstHop.ConsEgress, "consDir", ohp.Info.ConsDir)
+		return processResult{EgressID: ohp.FirstHop.ConsEgress, OutPkt: p.rawPkt},
+			nil
 	}
 
 	// OHP entering our IA
