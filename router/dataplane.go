@@ -448,8 +448,8 @@ func (d *DataPlane) AddNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg contro
 }
 
 type RunConfig struct {
-	NumProcessorRoutines int
-	InterfaceBatchSize   int
+	NumProcessors int
+	BatchSize     int
 }
 
 func max(a int, b int) int {
@@ -465,26 +465,26 @@ func (d *DataPlane) Run(ctx context.Context, cfg *RunConfig) error {
 	d.initMetrics()
 
 	processorQueueSize := max(
-		len(d.interfaces)*cfg.InterfaceBatchSize/cfg.NumProcessorRoutines,
-		cfg.InterfaceBatchSize)
+		len(d.interfaces)*cfg.BatchSize/cfg.NumProcessors,
+		cfg.BatchSize)
 
-	d.initializePacketPool(cfg, processorQueueSize)
-	procChannels, fwChannels := initializeChannels(cfg, d.interfaces, processorQueueSize)
+	d.initPacketPool(cfg, processorQueueSize)
+	procQs, fwQs := initQueues(cfg, d.interfaces, processorQueueSize)
 
-	for interfaceId, conn := range d.interfaces {
-		go func(interfaceId uint16, conn BatchConn) {
+	for ifID, conn := range d.interfaces {
+		go func(ifID uint16, conn BatchConn) {
 			defer log.HandlePanic()
-			d.runReceiver(interfaceId, conn, cfg, procChannels)
-		}(interfaceId, conn)
-		go func(interfaceId uint16, conn BatchConn) {
+			d.runReceiver(ifID, conn, cfg, procQs)
+		}(ifID, conn)
+		go func(ifID uint16, conn BatchConn) {
 			defer log.HandlePanic()
-			d.runForwarder(interfaceId, conn, cfg, fwChannels[interfaceId])
-		}(interfaceId, conn)
+			d.runForwarder(ifID, conn, cfg, fwQs[ifID])
+		}(ifID, conn)
 	}
-	for i := 0; i < cfg.NumProcessorRoutines; i++ {
+	for i := 0; i < cfg.NumProcessors; i++ {
 		go func(i int) {
 			defer log.HandlePanic()
-			d.runProcessingRoutine(i, procChannels[i], fwChannels)
+			d.runProcessor(i, procQs[i], fwQs)
 		}(i)
 	}
 
@@ -503,20 +503,20 @@ func (d *DataPlane) Run(ctx context.Context, cfg *RunConfig) error {
 }
 
 // loadDefaults sets the default configuration for the number of
-// processing routines, the random value, the batch and queue sizes
+// processors and the batch size
 func (r *RunConfig) LoadDefaults() {
 	// TODO(rohrerj) move this logic to configuration in configuration PR
-	r.NumProcessorRoutines = runtime.GOMAXPROCS(0)
-	r.InterfaceBatchSize = 256
+	r.NumProcessors = runtime.GOMAXPROCS(0)
+	r.BatchSize = 256
 
 }
 
 // initializePacketPool calculates the size of the packet pool based on the
 // current dataplane settings and allocates all the buffers
-func (d *DataPlane) initializePacketPool(cfg *RunConfig, processorQueueSize int) {
-	poolSize := len(d.interfaces)*cfg.InterfaceBatchSize +
-		cfg.NumProcessorRoutines*(processorQueueSize+1) +
-		len(d.interfaces)*(2*cfg.InterfaceBatchSize)
+func (d *DataPlane) initPacketPool(cfg *RunConfig, processorQueueSize int) {
+	poolSize := len(d.interfaces)*cfg.BatchSize +
+		cfg.NumProcessors*(processorQueueSize+1) +
+		len(d.interfaces)*(2*cfg.BatchSize)
 
 	log.Debug("Initialize packet pool of size", "poolSize", poolSize)
 	d.packetPool = make(chan []byte, poolSize)
@@ -525,19 +525,19 @@ func (d *DataPlane) initializePacketPool(cfg *RunConfig, processorQueueSize int)
 	}
 }
 
-// initializes the processing routines and forwarder channels
-func initializeChannels(cfg *RunConfig, interfaces map[uint16]BatchConn,
+// initializes the processing routines and forwarders queues
+func initQueues(cfg *RunConfig, interfaces map[uint16]BatchConn,
 	processorQueueSize int) ([]chan packet, map[uint16]chan packet) {
 
-	procChannels := make([]chan packet, cfg.NumProcessorRoutines)
-	for i := 0; i < cfg.NumProcessorRoutines; i++ {
-		procChannels[i] = make(chan packet, processorQueueSize)
+	procQs := make([]chan packet, cfg.NumProcessors)
+	for i := 0; i < cfg.NumProcessors; i++ {
+		procQs[i] = make(chan packet, processorQueueSize)
 	}
-	forwardChannels := make(map[uint16]chan packet)
-	for interfaceId := range interfaces {
-		forwardChannels[interfaceId] = make(chan packet, cfg.InterfaceBatchSize)
+	fwQs := make(map[uint16]chan packet)
+	for ifID := range interfaces {
+		fwQs[ifID] = make(chan packet, cfg.BatchSize)
 	}
-	return procChannels, forwardChannels
+	return procQs, fwQs
 }
 
 type packet struct {
@@ -552,19 +552,19 @@ type packet struct {
 	rawPacket []byte
 }
 
-func (d *DataPlane) runReceiver(interfaceId uint16, conn BatchConn, cfg *RunConfig,
-	procChannels []chan packet) {
+func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
+	procQs []chan packet) {
 
-	log.Debug("Run receiver for", "interface", interfaceId)
+	log.Debug("Run receiver for", "interface", ifID)
 	randomValue := make([]byte, 16)
 	if _, err := rand.Read(randomValue); err != nil {
 		panic("Error while generating random value")
 	}
 
-	msgs := underlayconn.NewReadMessages(cfg.InterfaceBatchSize)
+	msgs := underlayconn.NewReadMessages(cfg.BatchSize)
 	numReusable := 0 // unused buffers from previous loop
-	metrics := d.forwardingMetrics[interfaceId]
-	flowIDBuffer := [3]byte{}
+	metrics := d.forwardingMetrics[ifID]
+	flowIDBuffer := make([]byte, 3)
 	hasher := fnv.New32a()
 
 	enqueueForProcessing := func(pkt ipv4.Message) {
@@ -573,20 +573,20 @@ func (d *DataPlane) runReceiver(interfaceId uint16, conn BatchConn, cfg *RunConf
 
 		srcAddr := pkt.Addr.(*net.UDPAddr)
 
-		procId, err := computeProcId(pkt.Buffers[0],
-			cfg.NumProcessorRoutines, randomValue, flowIDBuffer, hasher)
+		procID, err := computeProcID(pkt.Buffers[0],
+			cfg.NumProcessors, randomValue, flowIDBuffer, hasher)
 		if err != nil {
-			log.Debug("Error while computing procId", "err", err)
+			log.Debug("Error while computing procID", "err", err)
 			d.returnPacketToPool(pkt.Buffers[0])
 			return
 		}
 		outPkt := packet{
 			rawPacket: pkt.Buffers[0][:pkt.N],
-			ingress:   interfaceId,
+			ingress:   ifID,
 			srcAddr:   srcAddr,
 		}
 		select {
-		case procChannels[procId] <- outPkt:
+		case procQs[procID] <- outPkt:
 			// TODO(rohrerj) add metrics
 		default:
 			d.returnPacketToPool(pkt.Buffers[0])
@@ -596,9 +596,8 @@ func (d *DataPlane) runReceiver(interfaceId uint16, conn BatchConn, cfg *RunConf
 
 	for d.running {
 		// collect packets
-		for i := 0; i < cfg.InterfaceBatchSize-numReusable; i++ {
+		for i := 0; i < cfg.BatchSize-numReusable; i++ {
 			p := <-d.packetPool
-			p = p[:cap(p)]
 			msgs[i].Buffers[0] = p
 		}
 
@@ -606,7 +605,7 @@ func (d *DataPlane) runReceiver(interfaceId uint16, conn BatchConn, cfg *RunConf
 		numPkts, err := conn.ReadBatch(msgs)
 		numReusable = len(msgs) - numPkts
 		if err != nil {
-			log.Debug("Error while reading batch", "interfaceId", interfaceId, "err", err)
+			log.Debug("Error while reading batch", "interfaceID", ifID, "err", err)
 			continue
 		}
 		for _, pkt := range msgs[:numPkts] {
@@ -616,8 +615,8 @@ func (d *DataPlane) runReceiver(interfaceId uint16, conn BatchConn, cfg *RunConf
 	}
 }
 
-func computeProcId(data []byte, numProcRoutines int, randomValue []byte,
-	flowIDBuffer [3]byte, hasher hash.Hash32) (uint32, error) {
+func computeProcID(data []byte, numProcRoutines int, randomValue []byte,
+	flowIDBuffer []byte, hasher hash.Hash32) (uint32, error) {
 
 	if len(data) < slayers.CmnHdrLen {
 		return 0, serrors.New("Packet is too short")
@@ -639,13 +638,13 @@ func computeProcId(data []byte, numProcRoutines int, randomValue []byte,
 }
 
 func (d *DataPlane) returnPacketToPool(pkt []byte) {
-	d.packetPool <- pkt[:bufSize]
+	d.packetPool <- pkt[:cap(pkt)]
 }
 
-func (d *DataPlane) runProcessingRoutine(id int, c <-chan packet,
+func (d *DataPlane) runProcessor(id int, c <-chan packet,
 	fwChans map[uint16]chan packet) {
 
-	log.Debug("Initialize processing routine with", "id", id)
+	log.Debug("Initialize processor with", "id", id)
 	processor := newPacketProcessor(d)
 	var scmpErr scmpError
 	for d.running {
@@ -693,15 +692,15 @@ func (d *DataPlane) runProcessingRoutine(id int, c <-chan packet,
 	}
 }
 
-func (d *DataPlane) runForwarder(interfaceId uint16, conn BatchConn,
+func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 	cfg *RunConfig, c <-chan packet) {
 
-	log.Debug("Initialize forwarder for", "interface", interfaceId)
-	writeMsgs := make(underlayconn.Messages, cfg.InterfaceBatchSize)
+	log.Debug("Initialize forwarder for", "interface", ifID)
+	writeMsgs := make(underlayconn.Messages, cfg.BatchSize)
 	for i := range writeMsgs {
 		writeMsgs[i].Buffers = make([][]byte, 1)
 	}
-	metrics := d.forwardingMetrics[interfaceId]
+	metrics := d.forwardingMetrics[ifID]
 
 	remaining := 0
 	for d.running {
@@ -710,20 +709,20 @@ func (d *DataPlane) runForwarder(interfaceId uint16, conn BatchConn,
 		nNonBlockingReads := 0
 		if remaining != 0 {
 			// since we have packets to forward from the last iteration it is not
-			// necessary to wait for a packet to exist on the channel
+			// necessary to wait for a packet to exist on the queue
 			nBlockingReads = 0
-			nNonBlockingReads = cfg.InterfaceBatchSize - remaining
+			nNonBlockingReads = cfg.BatchSize - remaining
 		} else {
 			nBlockingReads = 1
-			nNonBlockingReads = cfg.InterfaceBatchSize - 1
+			nNonBlockingReads = cfg.BatchSize - 1
 		}
 		available = readUpTo(c, nBlockingReads, nNonBlockingReads,
 			writeMsgs[remaining:])
 		available += remaining
 		written, _ := conn.WriteBatch(writeMsgs[:available], 0)
 		writtenBytes := 0
-		for i, pkt := range writeMsgs[:written] {
-			writtenBytes += len(pkt.Buffers[0])
+		for i := range writeMsgs[:written] {
+			writtenBytes += len(writeMsgs[i].Buffers[0])
 			d.returnPacketToPool(writeMsgs[i].Buffers[0])
 		}
 		metrics.OutputPacketsTotal.Add(float64(written))
@@ -818,6 +817,8 @@ func newPacketProcessor(d *DataPlane) *scionPacketProcessor {
 
 func (p *scionPacketProcessor) reset() error {
 	p.rawPkt = nil
+	p.srcAddr = nil
+	p.ingressID = 0
 	//p.scionLayer // cannot easily be reset
 	p.path = nil
 	p.hopField = path.HopField{}
