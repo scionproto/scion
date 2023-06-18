@@ -20,6 +20,7 @@ import (
 	"hash/fnv"
 	"math/rand"
 	"net"
+	"reflect"
 	"testing"
 	"time"
 
@@ -32,7 +33,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
-	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
@@ -49,29 +49,17 @@ func TestReceiver(t *testing.T) {
 	defer ctrl.Finish()
 	dp := &DataPlane{Metrics: metrics}
 	counter := 0
-	key := []byte("testkey_xxxxxxxx")
-	local := xtest.MustParseIA("1-ff00:0:110")
 	mInternal := mock_router.NewMockBatchConn(ctrl)
 
 	mInternal.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
 		func(m underlayconn.Messages) (int, error) {
 			for i := 0; i < 10; i++ {
 				payload := bytes.Repeat([]byte("actualpayloadbytes"), i)
-				spkt := prepBaseMsg(t, payload, 0)
-
-				buffer := gopacket.NewSerializeBuffer()
-				err := gopacket.SerializeLayers(buffer,
-					gopacket.SerializeOptions{FixLengths: true},
-					spkt, gopacket.Payload(payload))
-				require.NoError(t, err)
-				raw := buffer.Bytes()
+				raw := serializedBaseMsg(t, payload, 0)
 				copy(m[i].Buffers[0], raw)
 				m[i].N = len(raw)
 				m[i].Addr = &net.UDPAddr{IP: net.IP{10, 0, 200, 200}}
 				counter++
-			}
-			if counter == 20 {
-				dp.running = false
 			}
 			return 10, nil
 		},
@@ -79,8 +67,6 @@ func TestReceiver(t *testing.T) {
 	mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
 	_ = dp.AddInternalInterface(mInternal, net.IP{})
-	_ = dp.SetIA(local)
-	_ = dp.SetKey(key)
 
 	runConfig := &RunConfig{
 		NumProcessors: 1,
@@ -94,6 +80,7 @@ func TestReceiver(t *testing.T) {
 	go func() {
 		dp.runReceiver(0, dp.internal, runConfig, procCh)
 	}()
+	ptrMap := make(map[uintptr]struct{})
 	for i := 0; i < 21; i++ {
 		select {
 		case pkt := <-procCh[0]:
@@ -103,6 +90,10 @@ func TestReceiver(t *testing.T) {
 			assert.Equal(t, 84+i%10*18, len(pkt.rawPacket))
 			// make sure that the source address was set correctly
 			assert.Equal(t, net.UDPAddr{IP: net.IP{10, 0, 200, 200}}, *pkt.srcAddr)
+			// make sure that the received pkt buffer has not been seen before
+			ptr := reflect.ValueOf(pkt.rawPacket).Pointer()
+			assert.NotContains(t, ptrMap, ptr)
+			ptrMap[ptr] = struct{}{}
 		case <-time.After(50 * time.Millisecond):
 			// make sure that the processing routine received exactly 20 messages
 			if i != 20 {
@@ -111,6 +102,9 @@ func TestReceiver(t *testing.T) {
 			}
 		}
 	}
+	time.Sleep(time.Millisecond)
+	// make sure that the packet pool has the expected size after the test
+	assert.Equal(t, initialPoolSize-runConfig.BatchSize-20, len(dp.packetPool))
 }
 
 // TestForwarder sets up a mocked batchConn, starts the forwarder that will write to
@@ -124,8 +118,6 @@ func TestForwarder(t *testing.T) {
 	prepareDP := func(ctrl *gomock.Controller) *DataPlane {
 		ret := &DataPlane{Metrics: metrics}
 
-		key := []byte("testkey_xxxxxxxx")
-		local := xtest.MustParseIA("1-ff00:0:110")
 		mInternal := mock_router.NewMockBatchConn(ctrl)
 		totalCount := 0
 		expectedPktId := byte(0)
@@ -148,17 +140,12 @@ func TestForwarder(t *testing.T) {
 								"expected", expectedPktId, "got", pktId, "ms", ms)
 						}
 						if totalCount <= 100 {
-							if m.Addr == nil {
-								t.Fail()
-								t.Log("Address is nil", m.Addr)
-							}
+							// stronger check than assert.NotNil
+							assert.True(t, m.Addr != nil)
 						} else {
-							if m.Addr != nil {
-								t.Fail()
-								t.Log("Address is not nil", m.Addr)
-							}
+							// stronger check than assert.Nil
+							assert.True(t, m.Addr == nil)
 						}
-
 						expectedPktId++
 					}
 				}
@@ -173,8 +160,6 @@ func TestForwarder(t *testing.T) {
 				return len(ms), nil
 			}).AnyTimes()
 		_ = ret.AddInternalInterface(mInternal, net.IP{})
-		_ = ret.SetIA(local)
-		_ = ret.SetKey(key)
 		return ret
 	}
 	dp := prepareDP(ctrl)
@@ -221,7 +206,10 @@ func TestForwarder(t *testing.T) {
 func TestComputeProcId(t *testing.T) {
 	randomValue := []byte{1, 2, 3, 4}
 	numProcs := 10000
-	hashForScionPacket := func(s *slayers.SCION) uint32 {
+
+	// this function returns the procID by using the slayers.SCION serialization
+	// implementation
+	referenceHash := func(s *slayers.SCION) uint32 {
 		flowBuf := make([]byte, 4)
 		binary.BigEndian.PutUint32(flowBuf, s.FlowID)
 		flowBuf[0] &= 0xF
@@ -230,15 +218,15 @@ func TestComputeProcId(t *testing.T) {
 		hasher.Write(randomValue)
 		hasher.Write(flowBuf[1:4])
 		if err := s.SerializeAddrHdr(tmpBuffer); err != nil {
-			return 0
+			panic(err)
 		}
 		hasher.Write(tmpBuffer[:s.AddrHdrLen()])
 		return hasher.Sum32() % uint32(numProcs)
 	}
 
-	// this internal function compares the hash value using the scion parsed packet
-	// with the custom extraction in dataplane.computeProcID()
-	compareHash := func(payload []byte, s *slayers.SCION) uint32 {
+	// this helper returns the procID by using the extraction
+	// from dataplane.computeProcID()
+	computeProcIDHelper := func(payload []byte, s *slayers.SCION) (uint32, error) {
 		flowIdBuffer := make([]byte, 3)
 		hasher := fnv.New32a()
 		buffer := gopacket.NewSerializeBuffer()
@@ -248,11 +236,8 @@ func TestComputeProcId(t *testing.T) {
 		require.NoError(t, err)
 		raw := buffer.Bytes()
 
-		val1 := hashForScionPacket(s)
 		val2, err := computeProcID(raw, numProcs, randomValue, flowIdBuffer, hasher)
-		assert.NoError(t, err)
-		assert.Equal(t, val1, val2)
-		return val1
+		return val2, err
 	}
 	type ret struct {
 		payload []byte
@@ -354,15 +339,16 @@ func TestComputeProcId(t *testing.T) {
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			valueToCompare := uint32(0)
-			for i, r := range tc(t) {
-				v := compareHash(r.payload, r.s)
-				if i == 0 {
-					valueToCompare = v
-				} else {
-					// make sure that all packets yield the same hash
-					assert.Equal(t, valueToCompare, v)
-				}
+			rets := tc(t)
+			if len(rets) == 0 {
+				return
+			}
+			expected := referenceHash(rets[0].s)
+			for _, r := range rets {
+				actual, err := computeProcIDHelper(r.payload, r.s)
+				// this tests do not test errors, hence no errors should occur
+				assert.NoError(t, err)
+				assert.Equal(t, expected, actual)
 			}
 		})
 	}
@@ -439,6 +425,16 @@ func TestComputeProcIdErrorCases(t *testing.T) {
 	}
 }
 
+func serializedBaseMsg(t *testing.T, payload []byte, flowId uint32) []byte {
+	s := prepBaseMsg(t, payload, flowId)
+	buffer := gopacket.NewSerializeBuffer()
+	err := gopacket.SerializeLayers(buffer,
+		gopacket.SerializeOptions{FixLengths: true},
+		s, gopacket.Payload(payload))
+	assert.NoError(t, err)
+	return buffer.Bytes()
+}
+
 func prepBaseMsg(t *testing.T, payload []byte, flowId uint32) *slayers.SCION {
 	spkt := &slayers.SCION{
 		Version:      0,
@@ -471,15 +467,6 @@ func prepBaseMsg(t *testing.T, payload []byte, flowId uint32) *slayers.SCION {
 			{ConsIngress: 1, ConsEgress: 0},
 		},
 	}
-	dpath.Base.PathMeta.CurrHF = 2
-	dpath.HopFields[2].Mac = computeMAC(t, []byte("testkey_xxxxxxxx"),
-		dpath.InfoFields[0], dpath.HopFields[2])
 	spkt.Path = dpath
 	return spkt
-}
-
-func computeMAC(t *testing.T, key []byte, info path.InfoField, hf path.HopField) [path.MacLen]byte {
-	mac, err := scrypto.InitMac(key)
-	require.NoError(t, err)
-	return path.MAC(mac, info, hf, nil)
 }
