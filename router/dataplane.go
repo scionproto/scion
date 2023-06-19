@@ -704,19 +704,7 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 
 	remaining := 0
 	for d.running {
-		available := 0
-		nBlockingReads := 0
-		nNonBlockingReads := 0
-		if remaining != 0 {
-			// since we have packets to forward from the last iteration it is not
-			// necessary to wait for a packet to exist on the queue
-			nBlockingReads = 0
-			nNonBlockingReads = cfg.BatchSize - remaining
-		} else {
-			nBlockingReads = 1
-			nNonBlockingReads = cfg.BatchSize - 1
-		}
-		available = readUpTo(c, nBlockingReads, nNonBlockingReads,
+		available := readUpTo(c, cfg.BatchSize-remaining, remaining == 0,
 			writeMsgs[remaining:])
 		available += remaining
 		written, _ := conn.WriteBatch(writeMsgs[:available], 0)
@@ -742,7 +730,7 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 	}
 }
 
-func readUpTo(c <-chan packet, nBlocking int, nNonBlocking int, msg []ipv4.Message) int {
+func readUpTo(c <-chan packet, n int, needsBlocking bool, msg []ipv4.Message) int {
 	assign := func(p packet, m *ipv4.Message) {
 		m.Buffers[0] = p.rawPacket
 		m.Addr = nil
@@ -750,28 +738,29 @@ func readUpTo(c <-chan packet, nBlocking int, nNonBlocking int, msg []ipv4.Messa
 			m.Addr = p.dstAddr
 		}
 	}
-
-	for i := 0; i < nBlocking; i++ {
+	i := 0
+	if needsBlocking {
 		p, ok := <-c
 		if !ok {
 			return i
 		}
 		assign(p, &msg[i])
+		i++
 	}
 
-	for i := 0; i < nNonBlocking; i++ {
+	for ; i < n; i++ {
 		select {
 		case p, ok := <-c:
 			if !ok {
-				return nBlocking + i
+				return i
 			}
-			assign(p, &msg[nBlocking+i])
+			assign(p, &msg[i])
 		default:
-			return nBlocking + i
+			return i
 		}
 
 	}
-	return nBlocking + nNonBlocking
+	return i
 }
 
 // initMetrics initializes the metrics related to packet forwarding. The
