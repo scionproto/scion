@@ -50,7 +50,7 @@ func TestReceiver(t *testing.T) {
 	dp := &DataPlane{Metrics: metrics}
 	counter := 0
 	mInternal := mock_router.NewMockBatchConn(ctrl)
-
+	done := make(chan bool)
 	mInternal.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
 		func(m underlayconn.Messages) (int, error) {
 			for i := 0; i < 10; i++ {
@@ -64,7 +64,13 @@ func TestReceiver(t *testing.T) {
 			return 10, nil
 		},
 	).Times(2)
-	mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
+	mInternal.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
+		func(m underlayconn.Messages) (int, error) {
+			dp.running = false
+			done <- true
+			return 0, nil
+		},
+	).Times(1)
 
 	_ = dp.AddInternalInterface(mInternal, net.IP{})
 
@@ -102,7 +108,7 @@ func TestReceiver(t *testing.T) {
 			}
 		}
 	}
-	time.Sleep(time.Millisecond)
+	<-done
 	// make sure that the packet pool has the expected size after the test
 	assert.Equal(t, initialPoolSize-runConfig.BatchSize-20, len(dp.packetPool))
 }
@@ -140,8 +146,7 @@ func TestForwarder(t *testing.T) {
 								"expected", expectedPktId, "got", pktId, "ms", ms)
 						}
 						if totalCount <= 100 {
-							// stronger check than assert.NotNil
-							assert.True(t, m.Addr != nil)
+							assert.NotNil(t, m.Addr)
 						} else {
 							// stronger check than assert.Nil
 							assert.True(t, m.Addr == nil)
@@ -236,8 +241,7 @@ func TestComputeProcId(t *testing.T) {
 		require.NoError(t, err)
 		raw := buffer.Bytes()
 
-		val2, err := computeProcID(raw, numProcs, randomValue, flowIdBuffer, hasher)
-		return val2, err
+		return computeProcID(raw, numProcs, randomValue, flowIdBuffer, hasher)
 	}
 	type ret struct {
 		payload []byte
