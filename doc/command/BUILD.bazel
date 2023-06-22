@@ -1,18 +1,9 @@
-load(":defs.bzl", "recursive_copy_output")
+load("//tools/lint:write_source_files.bzl", "write_source_files")
 
-exports_files(
-    ["defs.bzl"],
-    ["//visibility:public"],
-)
-
-recursive_copy_output(
-    name = "copy_scion",
-    input_dir = "//scion/cmd/scion:gendocs",
-    output_dir = ":scion",
-)
-
-recursive_copy_output(
-    name = "copy_scion-pki",
-    input_dir = "//scion-pki/cmd/scion-pki:gendocs",
-    output_dir = ":scion-pki",
+write_source_files(
+    name = "write_files",
+    files = {
+        "scion": "//scion/cmd/scion:gendocs",
+        "scion-pki": "//scion-pki/cmd/scion-pki:gendocs",
+    },
 )

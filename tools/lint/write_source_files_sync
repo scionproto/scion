@@ -1,0 +1,4 @@
+#!/bin/bash
+
+ROOT="$(bazel info workspace 2> /dev/null)"
+diff -Nu3 <(cat $ROOT/BUILD.bazel) <(bazel run  @com_github_bazelbuild_buildtools//buildozer -- --root_dir $ROOT --stdout "add additional_update_targets $(bazel query  'filter("^.*[^\d]$", kind(_write_source_file, //...)) except //:write_all' | tr '\n' ' ')" //:write_all)

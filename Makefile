@@ -66,6 +66,10 @@ licenses:
 antlr:
 	antlr/generate.sh $(GAZELLE_MODE)
 
+write_all:
+	bazel run //:write_all
+	bazel run //:update_all
+
 .PHONY: lint lint-bazel lint-bazel-buildifier lint-doc lint-doc-mdlint lint-go lint-go-bazel lint-go-gazelle lint-go-golangci lint-go-semgrep lint-openapi lint-openapi-spectral lint-protobuf lint-protobuf-buf
 
 # Enable --keep-going if all goals specified on the command line match the pattern "lint%"
@@ -100,6 +104,10 @@ lint-bazel: lint-bazel-buildifier
 lint-bazel-buildifier:
 	$(info ==> $@)
 	@tools/quiet bazel run --config=quiet //:buildifier_check
+
+lint-bazel-writeall:
+	$(info ==> $@)
+	@tools/quiet ./tools/lint/write_source_files_sync
 
 lint-protobuf: lint-protobuf-buf
 
