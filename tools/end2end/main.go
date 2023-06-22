@@ -22,6 +22,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"math"
 	"net"
 	"os"
 	"time"
@@ -65,7 +66,7 @@ type Pong struct {
 
 var (
 	remote                 snet.UDPAddr
-	timeout                = &util.DurWrap{Duration: 10 * time.Second}
+	timeout                = &util.DurWrap{Duration: 5 * time.Second}
 	scionPacketConnMetrics = metrics.NewSCIONPacketConnMetrics()
 	scmpErrorsCounter      = scionPacketConnMetrics.SCMPErrors
 	epic                   bool
@@ -246,7 +247,7 @@ type client struct {
 	port   uint16
 	sdConn daemon.Connector
 
-	errorPaths map[snet.PathFingerprint]struct{}
+	errorPaths map[snet.PathFingerprint]int // number of encountered errors/timeouts per path
 }
 
 func (c *client) run() int {
@@ -273,7 +274,7 @@ func (c *client) run() int {
 		fmt.Sprintf("%v,[%v]:%d", integration.Local.IA, integration.Local.Host.IP, c.port))
 	c.sdConn = integration.SDConn()
 	defer c.sdConn.Close()
-	c.errorPaths = make(map[snet.PathFingerprint]struct{})
+	c.errorPaths = make(map[snet.PathFingerprint]int)
 	return integration.AttemptRepeatedly("End2End", c.attemptRequest)
 }
 
@@ -295,6 +296,12 @@ func (c *client) attemptRequest(n int) bool {
 	span, ctx = tracing.StartSpanFromCtx(ctx, "attempt.ping")
 	defer span.Finish()
 
+	// While fetching paths may be slow and need a long timeout, the actual ping/pong
+	// is always quick if it works and only needs a very low timeout.
+	ctxPingpong, cancelReply := context.WithTimeout(ctx, 100*time.Millisecond)
+	defer cancelReply()
+	ctx = ctxPingpong
+
 	// Send ping
 	if err := c.ping(ctx, n, path); err != nil {
 		tracing.Error(span, err)
@@ -306,7 +313,7 @@ func (c *client) attemptRequest(n int) bool {
 		tracing.Error(span, err)
 		logger.Error("Error receiving pong", "err", err)
 		if path != nil {
-			c.errorPaths[snet.Fingerprint(path)] = struct{}{}
+			c.errorPaths[snet.Fingerprint(path)]++
 		}
 		return false
 	}
@@ -369,22 +376,18 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 	}
 
 	paths, err := c.sdConn.Paths(ctx, remote.IA, integration.Local.IA,
-		daemon.PathReqFlags{Refresh: n != 0})
+		daemon.PathReqFlags{Refresh: false})
 	if err != nil {
 		return nil, withTag(serrors.WrapStr("requesting paths", err))
 	}
-	// If all paths had an error, let's try them again.
-	if len(paths) <= len(c.errorPaths) {
-		c.errorPaths = make(map[snet.PathFingerprint]struct{})
-	}
-	// Select first path that didn't error before.
+	// Select path that errored fewest times before
 	var path snet.Path
+	lowestErrCount := math.MaxInt
 	for _, p := range paths {
-		if _, ok := c.errorPaths[snet.Fingerprint(p)]; ok {
-			continue
+		if e := c.errorPaths[snet.Fingerprint(p)]; e < lowestErrCount {
+			path = p
+			lowestErrCount = e
 		}
-		path = p
-		break
 	}
 	if path == nil {
 		return nil, withTag(serrors.New("no path found",
