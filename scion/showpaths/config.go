@@ -26,7 +26,7 @@ type Config struct {
 	// Local configures the local IP address to use. If this option is not provided,
 	// a local IP that can reach SCION hosts is selected with the help of the kernel.
 	Local net.IP
-	// Daemon configures a specific SCION Deamon address.
+	// Daemon configures a specific SCION Daemon address.
 	Daemon string
 	// MaxPaths configures the maximum number of displayed paths. If this option is
 	// not provided, the DefaultMaxPaths is used.
