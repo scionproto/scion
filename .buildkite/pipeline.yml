@@ -90,12 +90,20 @@ steps:
         - tools/await-connectivity
         - ./bin/end2end_integration || ( echo "^^^ +++" && false )
         - ./tools/integration/revocation_test.sh
-      plugins: *shutdown-scion-post-command
+      plugins: &shutdown-scion-post-command
+        - scionproto/metahook#v0.3.0:
+            post-command: |
+              echo "--- Shutting down SCION topology"
+              ./scion.sh stop
+              echo "SCION topology successfully shut down"
       artifact_paths:
         - "artifacts.out/**/*"
       timeout_in_minutes: 15
       key: e2e_revocation_test_v2
-      retry: *automatic-retry
+      retry: &automatic-retry
+        automatic:
+          - exit_status: -1 # Agent was lost
+          - exit_status: 255 # Forced agent shutdown
       parallelism: 30
     # - label: "E2E: default :docker: (ping)"
     #   command:
