@@ -127,7 +127,7 @@ Options
   -h, --help                   help for renew
   -i, --interactive            interactive mode
       --isd-as isd-as          The local ISD-AS to use. (default 0-0)
-  -l, --local ip               Local IP address to listen on. (default zero IP)
+  -l, --local ip               Local IP address to listen on. (default invalid IP)
       --log.level string       Console logging level verbosity (debug|info|error)
       --no-color               disable colored output
       --no-probe               do not probe paths for health
@@ -141,7 +141,7 @@ Options
                                and all specified remotes are tried in order until success or all of them failed.
                                --remote is mutually exclusive with --ca.
       --reuse-key              Reuse the provided private key instead of creating a fresh private key
-      --sciond string          SCION Deamon address. (default "127.0.0.1:30255")
+      --sciond string          SCION Daemon address. (default "127.0.0.1:30255")
       --sequence string        Space separated list of hop predicates
       --subject string         The path to the custom subject for the CSR
       --timeout duration       The timeout for the renewal request per CA (default 10s)
