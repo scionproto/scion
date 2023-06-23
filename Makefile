@@ -1,4 +1,4 @@
-.PHONY: all antlr bazel clean docker-images gazelle go-mod-tidy licenses mocks protobuf scion-topo test test-integration
+.PHONY: all antlr bazel clean docker-images gazelle go-mod-tidy licenses mocks protobuf scion-topo test test-integration write_all_source_files
 GAZELLE_MODE?=fix
 GAZELLE_DIRS=.
 
@@ -10,7 +10,7 @@ build: bazel
 # Use NOTPARALLEL to force correct order.
 # Note: From GNU make 4.4, this still allows building any other targets (e.g. lint) in parallel.
 .NOTPARALLEL: all
-all: go_deps.bzl protobuf mocks gazelle licenses build antlr
+all: go_deps.bzl protobuf mocks gazelle licenses build antlr write_all_source_files
 
 clean:
 	bazel clean
@@ -66,8 +66,8 @@ licenses:
 antlr:
 	antlr/generate.sh $(GAZELLE_MODE)
 
-write_all:
-	bazel run //:write_all
+write_all_source_files:
+	bazel run //:write_all_source_files
 	bazel run //:update_all
 
 .PHONY: lint lint-bazel lint-bazel-buildifier lint-doc lint-doc-mdlint lint-go lint-go-bazel lint-go-gazelle lint-go-golangci lint-go-semgrep lint-openapi lint-openapi-spectral lint-protobuf lint-protobuf-buf
@@ -99,7 +99,7 @@ lint-go-semgrep:
 	@if [ -t 1 ]; then tty=true; else tty=false; fi; \
 		tools/quiet docker run --tty=$$tty --rm -v "${PWD}:/src" returntocorp/semgrep@sha256:3bef9d533a44e6448c43ac38159d61fad89b4b57f63e565a8a55ca265273f5ba semgrep --config=/src/tools/lint/semgrep --error
 
-lint-bazel: lint-bazel-buildifier
+lint-bazel: lint-bazel-buildifier lint-bazel-writeall
 
 lint-bazel-buildifier:
 	$(info ==> $@)

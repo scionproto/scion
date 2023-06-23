@@ -9,15 +9,13 @@ def write_source_files(name, **kwargs):
     """
 
     tags = kwargs.get("tags", [])
-    if "lint" not in tags:
-        tags = tags + ["lint"]
     if "write_src" not in tags:
         tags = tags + ["write_src"]
     kwargs["tags"] = tags
 
     suggested_target = kwargs.get("suggested_update_target", None)
     if suggested_target == None:
-        kwargs["suggested_update_target"] = "//:write_all"
+        kwargs["suggested_update_target"] = "//:write_all_source_files"
 
     visibility = kwargs.get("visibility", None)
     if visibility == None:

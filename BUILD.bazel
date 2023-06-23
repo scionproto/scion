@@ -116,15 +116,17 @@ buildifier(
     mode = "check",
 )
 
-# Runs all update_src targets in this Workspace.
+# Runs all update_src targets in this Workspace. Currently, generating the
+# OpenAPI specs is the last target that depends on update_src. Eventually,
+# this should be transitioned to write_all_source_files below.
 updatesrc_update_all(
     name = "update_all",
 )
 
 # Runs all write_source_files targets in this Workspace. To update the list run
-# bazel run @com_github_bazelbuild_buildtools//buildozer -- --root_dir $PWD  "add additional_update_targets $( bazel query 'filter("^.*[^\d]$", kind(_write_source_file, //...)) except //:write_all' | tr '\n' ' ')" //:write_all
+# bazel run @com_github_bazelbuild_buildtools//buildozer -- --root_dir $PWD  "add additional_update_targets $( bazel query 'filter("^.*[^\d]$", kind(_write_source_file, //...)) except //:write_all_source_files' | tr '\n' ' ')" //:write_all_source_files
 write_source_files(
-    name = "write_all",
+    name = "write_all_source_files",
     additional_update_targets = [
         "//doc/command:write_files",
     ],
