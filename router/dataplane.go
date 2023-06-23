@@ -641,14 +641,14 @@ func (d *DataPlane) returnPacketToPool(pkt []byte) {
 	d.packetPool <- pkt[:cap(pkt)]
 }
 
-func (d *DataPlane) runProcessor(id int, c <-chan packet,
-	fwChans map[uint16]chan packet) {
+func (d *DataPlane) runProcessor(id int, q <-chan packet,
+	fwQs map[uint16]chan packet) {
 
 	log.Debug("Initialize processor with", "id", id)
 	processor := newPacketProcessor(d)
 	var scmpErr scmpError
 	for d.running {
-		p, ok := <-c
+		p, ok := <-q
 		if !ok {
 			continue
 		}
@@ -671,7 +671,7 @@ func (d *DataPlane) runProcessor(id int, c <-chan packet,
 			d.returnPacketToPool(p.rawPacket)
 			continue
 		}
-		fwCh, ok := fwChans[egress]
+		fwCh, ok := fwQs[egress]
 		if !ok {
 			log.Debug("Error determining forwarder. Egress is invalid", "egress", egress)
 			metrics.DroppedPacketsTotal.Inc()
