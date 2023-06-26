@@ -65,7 +65,7 @@ type Pong struct {
 
 var (
 	remote                 snet.UDPAddr
-	timeout                = &util.DurWrap{Duration: 5 * time.Second}
+	timeout                = &util.DurWrap{Duration: 10 * time.Second}
 	scionPacketConnMetrics = metrics.NewSCIONPacketConnMetrics()
 	scmpErrorsCounter      = scionPacketConnMetrics.SCMPErrors
 	epic                   bool

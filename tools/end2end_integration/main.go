@@ -37,7 +37,7 @@ import (
 var (
 	subset      string
 	attempts    int
-	timeout     = &util.DurWrap{Duration: 5 * time.Second}
+	timeout     = &util.DurWrap{Duration: 10 * time.Second}
 	parallelism int
 	name        string
 	cmd         string
