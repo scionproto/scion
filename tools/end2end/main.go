@@ -22,7 +22,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"math"
 	"net"
 	"os"
 	"time"
@@ -247,7 +246,8 @@ type client struct {
 	port   uint16
 	sdConn daemon.Connector
 
-	errorPaths map[snet.PathFingerprint]int // number of encountered errors/timeouts per path
+	errorPaths    map[snet.PathFingerprint]struct{}
+	triedAllPaths bool
 }
 
 func (c *client) run() int {
@@ -274,7 +274,7 @@ func (c *client) run() int {
 		fmt.Sprintf("%v,[%v]:%d", integration.Local.IA, integration.Local.Host.IP, c.port))
 	c.sdConn = integration.SDConn()
 	defer c.sdConn.Close()
-	c.errorPaths = make(map[snet.PathFingerprint]int)
+	c.errorPaths = make(map[snet.PathFingerprint]struct{})
 	return integration.AttemptRepeatedly("End2End", c.attemptRequest)
 }
 
@@ -313,7 +313,7 @@ func (c *client) attemptRequest(n int) bool {
 		tracing.Error(span, err)
 		logger.Error("Error receiving pong", "err", err)
 		if path != nil {
-			c.errorPaths[snet.Fingerprint(path)]++
+			c.errorPaths[snet.Fingerprint(path)] = struct{}{}
 		}
 		return false
 	}
@@ -375,20 +375,34 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 		return err
 	}
 
+	refresh := false
+	if c.triedAllPaths {
+		// All paths have been tried, and as we're trying again it appears there was no success.
+		// We'll refresh and retry all available paths.
+		// The refresh could help in case that the beaconing has discovered new paths since the
+		// daemon/CS have first cached the paths to this destination.
+		refresh = true
+		c.errorPaths = make(map[snet.PathFingerprint]struct{})
+		c.triedAllPaths = false
+	}
 	paths, err := c.sdConn.Paths(ctx, remote.IA, integration.Local.IA,
-		daemon.PathReqFlags{Refresh: false})
+		daemon.PathReqFlags{Refresh: refresh})
 	if err != nil {
 		return nil, withTag(serrors.WrapStr("requesting paths", err))
 	}
-	// Select path that errored fewest times before
+	// Select first path that didn't error before.
 	var path snet.Path
-	lowestErrCount := math.MaxInt
+	lastAvailablePath := true
 	for _, p := range paths {
-		if e := c.errorPaths[snet.Fingerprint(p)]; e < lowestErrCount {
+		if _, ok := c.errorPaths[snet.Fingerprint(p)]; !ok {
+			if path != nil {
+				lastAvailablePath = false
+				break
+			}
 			path = p
-			lowestErrCount = e
 		}
 	}
+	c.triedAllPaths = lastAvailablePath
 	if path == nil {
 		return nil, withTag(serrors.New("no path found",
 			"candidates", len(paths),
