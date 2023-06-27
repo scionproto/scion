@@ -49,9 +49,9 @@ func (t HostAddrType) String() string {
 //
 // The zero value is a valid object with Host{}.Type() == HostTypeNone.
 type Host struct {
-	t   HostAddrType
 	ip  netip.Addr
 	svc SVC
+	t   HostAddrType
 }
 
 // ParseHost parses s as either a service address or an IP address,

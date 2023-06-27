@@ -17,7 +17,6 @@ package cases
 import (
 	"hash"
 	"net"
-	"net/netip"
 	"path/filepath"
 
 	"github.com/google/gopacket"
@@ -103,11 +102,11 @@ func ExternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 		DstIA:        localIA,
 		SrcIA:        remoteIA,
 	}
-	err := scionL.SetSrcAddr(addr.HostIP(netip.MustParseAddr("192.168.13.3")))
+	err := scionL.SetSrcAddr(addr.MustParseHost("192.168.13.3"))
 	if err != nil {
 		panic(err)
 	}
-	err = scionL.SetDstAddr(addr.HostIP(netip.MustParseAddr("192.168.13.2")))
+	err = scionL.SetDstAddr(addr.MustParseHost("192.168.13.2"))
 	if err != nil {
 		panic(err)
 	}
@@ -135,11 +134,11 @@ func ExternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 	udp.SrcPort, udp.DstPort = udp.DstPort, udp.SrcPort
 	scionL.DstIA = remoteIA
 	scionL.SrcIA = localIA
-	err = scionL.SetSrcAddr(addr.HostIP(netip.MustParseAddr("192.168.13.2")))
+	err = scionL.SetSrcAddr(addr.MustParseHost("192.168.13.2"))
 	if err != nil {
 		panic(err)
 	}
-	err = scionL.SetDstAddr(addr.HostIP(netip.MustParseAddr("192.168.13.3")))
+	err = scionL.SetDstAddr(addr.MustParseHost("192.168.13.3"))
 	if err != nil {
 		panic(err)
 	}
@@ -199,11 +198,11 @@ func InternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 		SrcIA:        localIA,
 		DstIA:        localIA,
 	}
-	err := scionL.SetSrcAddr(addr.HostIP(netip.MustParseAddr("192.168.0.13")))
+	err := scionL.SetSrcAddr(addr.MustParseHost("192.168.0.13"))
 	if err != nil {
 		panic(err)
 	}
-	err = scionL.SetDstAddr(addr.HostIP(netip.MustParseAddr("192.168.0.11")))
+	err = scionL.SetDstAddr(addr.MustParseHost("192.168.0.11"))
 	if err != nil {
 		panic(err)
 	}
@@ -229,11 +228,11 @@ func InternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 	ip.SrcIP = net.IP{192, 168, 0, 11}
 	ip.DstIP = net.IP{192, 168, 0, 13}
 	udp.SrcPort, udp.DstPort = udp.DstPort, udp.SrcPort
-	err = scionL.SetSrcAddr(addr.HostIP(netip.MustParseAddr("192.168.0.11")))
+	err = scionL.SetSrcAddr(addr.MustParseHost("192.168.0.11"))
 	if err != nil {
 		panic(err)
 	}
-	err = scionL.SetDstAddr(addr.HostIP(netip.MustParseAddr("192.168.0.13")))
+	err = scionL.SetDstAddr(addr.MustParseHost("192.168.0.13"))
 	if err != nil {
 		panic(err)
 	}

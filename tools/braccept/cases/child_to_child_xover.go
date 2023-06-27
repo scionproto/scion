@@ -17,7 +17,6 @@ package cases
 import (
 	"hash"
 	"net"
-	"net/netip"
 	"path/filepath"
 	"time"
 
@@ -109,10 +108,10 @@ func ChildToChildXover(artifactsDir string, mac hash.Hash) runner.Case {
 		Path:         sp,
 	}
 
-	if err := scionL.SetSrcAddr(addr.HostIP(netip.MustParseAddr("172.16.5.1"))); err != nil {
+	if err := scionL.SetSrcAddr(addr.MustParseHost("172.16.5.1")); err != nil {
 		panic(err)
 	}
-	if err := scionL.SetDstAddr(addr.HostIP(netip.MustParseAddr("174.16.4.1"))); err != nil {
+	if err := scionL.SetDstAddr(addr.MustParseHost("174.16.4.1")); err != nil {
 		panic(err)
 	}
 

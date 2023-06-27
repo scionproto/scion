@@ -17,6 +17,8 @@ package addr_test
 import (
 	"fmt"
 	"net/netip"
+	"reflect"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -58,8 +60,23 @@ func ExampleHost() {
 	// h: "<None>", h.Type(): "None", h == addr.Host{}: true
 	// h: "::1", h.Type(): "IP", h.IP().Is4(): false
 	// h: "198.51.100.1", h.Type(): "IP", h.IP().Is4(): true
-	// h: "CS A (0x0002)", h.Type(): "SVC", h.SVC().IsMulticast(): false
+	// h: "CS", h.Type(): "SVC", h.SVC().IsMulticast(): false
 	// has SvcCS: true, has SvcDS: false
+}
+
+func TestHostStructSize(t *testing.T) {
+	if runtime.GOARCH != `amd64` {
+		t.SkipNow()
+	}
+	ipv6 := 16
+	zonePtr := 8
+	svc := 2
+	typ := 1
+	padding := 5
+	expected := ipv6 + zonePtr + svc + typ + padding
+
+	sizeofHost := int(reflect.TypeOf(addr.Host{}).Size())
+	assert.Equal(t, expected, sizeofHost)
 }
 
 func TestParseHost(t *testing.T) {

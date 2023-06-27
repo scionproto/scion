@@ -17,7 +17,6 @@ package cases
 import (
 	"hash"
 	"net"
-	"net/netip"
 	"path/filepath"
 	"time"
 
@@ -98,10 +97,10 @@ func ChildToInternalHost(artifactsDir string, mac hash.Hash) runner.Case {
 		DstIA:        xtest.MustParseIA("1-ff00:0:1"),
 		Path:         sp,
 	}
-	if err := scionL.SetSrcAddr(addr.HostIP(netip.MustParseAddr("172.16.4.1"))); err != nil {
+	if err := scionL.SetSrcAddr(addr.MustParseHost("172.16.4.1")); err != nil {
 		panic(err)
 	}
-	if err := scionL.SetDstAddr(addr.HostIP(netip.MustParseAddr("192.168.0.51"))); err != nil {
+	if err := scionL.SetDstAddr(addr.MustParseHost("192.168.0.51")); err != nil {
 		panic(err)
 	}
 
@@ -205,10 +204,10 @@ func ChildToInternalHostShortcut(artifactsDir string, mac hash.Hash) runner.Case
 		DstIA:        xtest.MustParseIA("1-ff00:0:1"),
 		Path:         sp,
 	}
-	if err := scionL.SetSrcAddr(addr.HostIP(netip.MustParseAddr("172.16.4.1"))); err != nil {
+	if err := scionL.SetSrcAddr(addr.MustParseHost("172.16.4.1")); err != nil {
 		panic(err)
 	}
-	if err := scionL.SetDstAddr(addr.HostIP(netip.MustParseAddr("192.168.0.51"))); err != nil {
+	if err := scionL.SetDstAddr(addr.MustParseHost("192.168.0.51")); err != nil {
 		panic(err)
 	}
 
@@ -323,10 +322,10 @@ func ChildToInternalParent(artifactsDir string, mac hash.Hash) runner.Case {
 		DstIA:        xtest.MustParseIA("1-ff00:0:9"),
 		Path:         sp,
 	}
-	if err := scionL.SetSrcAddr(addr.HostIP(netip.MustParseAddr("172.16.4.1"))); err != nil {
+	if err := scionL.SetSrcAddr(addr.MustParseHost("172.16.4.1")); err != nil {
 		panic(err)
 	}
-	if err := scionL.SetDstAddr(addr.HostIP(netip.MustParseAddr("172.16.9.1"))); err != nil {
+	if err := scionL.SetDstAddr(addr.MustParseHost("172.16.9.1")); err != nil {
 		panic(err)
 	}
 

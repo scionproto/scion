@@ -58,3 +58,21 @@ func TestParseSVC(t *testing.T) {
 		})
 	}
 }
+
+func TestSVCString(t *testing.T) {
+	cases := map[addr.SVC]string{
+		addr.SVC(0xABC):              "SVC:0x0abc",
+		addr.SvcCS:                   "CS",
+		addr.SvcCS.Multicast():       "CS_M",
+		addr.SvcDS:                   "DS",
+		addr.SvcDS.Multicast():       "DS_M",
+		addr.SvcWildcard:             "Wildcard",
+		addr.SvcWildcard.Multicast(): "Wildcard_M",
+	}
+	for svc, expected := range cases {
+		t.Run(expected, func(t *testing.T) {
+			actual := svc.String()
+			assert.Equal(t, expected, actual)
+		})
+	}
+}

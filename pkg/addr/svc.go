@@ -82,18 +82,16 @@ func (h SVC) Multicast() SVC {
 	return h | SVCMcast
 }
 
-// XXX(matzf): change this to the format accepted by ParseSVC?
 func (h SVC) String() string {
-	name := h.BaseString()
-	cast := 'A'
+	s := h.BaseString()
 	if h.IsMulticast() {
-		cast = 'M'
+		s += "_M"
 	}
-	return fmt.Sprintf("%v %c (0x%04x)", name, cast, uint16(h))
+	return s
 }
 
-// BaseString returns the upper case name of the service. For hosts or unrecognized services, it
-// returns UNKNOWN.
+// BaseString returns the upper case name of the service. For unrecognized services, it
+// returns "SVC(<Hex-Value>)".
 func (h SVC) BaseString() string {
 	switch h.Base() {
 	case SvcDS:
@@ -103,6 +101,6 @@ func (h SVC) BaseString() string {
 	case SvcWildcard:
 		return "Wildcard"
 	default:
-		return "UNKNOWN"
+		return fmt.Sprintf("SVC:0x%04x", uint16(h))
 	}
 }
