@@ -71,6 +71,14 @@ func (a *Addr) Set(s string) error {
 	return nil
 }
 
+func (a Addr) MarshalText() ([]byte, error) {
+	return []byte(a.String()), nil
+}
+
+func (a *Addr) UnmarshalText(b []byte) error {
+	return a.Set(string(b))
+}
+
 // ParseAddrPort parses s as a SCION address with a port, in the format
 //
 //	[<ISD>-<AS>,<Host>]:<Port>.
@@ -96,4 +104,14 @@ func ParseAddrPort(s string) (Addr, uint16, error) {
 		return Addr{}, 0, serrors.WrapStr("invalid address: port invalid", err, "port", port)
 	}
 	return a, uint16(p), nil
+}
+
+// FormatAddrPort formats an Addr with a port to the format
+//
+//	[<ISD>-<AS>,<Host>]:<Port>.
+//
+// EXPERIMENTAL: This API is experimental. It may be changed to a String()
+// function an a combined AddrPort type instead.
+func FormatAddrPort(a Addr, port uint16) string {
+	return fmt.Sprintf("[%s]:%d", a, port)
 }

@@ -15,8 +15,11 @@
 package addr_test
 
 import (
+	"encoding"
+	"flag"
 	"fmt"
 	"net/netip"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -27,14 +30,14 @@ import (
 
 func ExampleParseAddr() {
 	a, err := addr.ParseAddr("6-ffaa:0:123,198.51.100.1")
-	fmt.Printf("ia: %v, host: %v, err: %v\n", a.IA, a.Host, err)
-	// Output: ia: 6-ffaa:0:123, host: 198.51.100.1, err: <nil>
+	fmt.Printf("ia: %v, host type: %v, host: %v, err: %v\n", a.IA, a.Host.Type(), a.Host, err)
+	// Output: ia: 6-ffaa:0:123, host type: IP, host: 198.51.100.1, err: <nil>
 }
 
 func ExampleParseAddr_svc() {
 	a, err := addr.ParseAddr("6-ffaa:0:123,CS")
-	fmt.Printf("host type: %v, err: %v\n", a.Host.Type(), err)
-	// Output: host type: SVC, err: <nil>
+	fmt.Printf("ia: %v, host type: %v, host: %v, err: %v\n", a.IA, a.Host.Type(), a.Host, err)
+	// Output: ia: 6-ffaa:0:123, host type: SVC, host: CS, err: <nil>
 }
 
 func TestParseAddr(t *testing.T) {
@@ -52,6 +55,20 @@ func TestParseAddr(t *testing.T) {
 		t.Run(s, func(t *testing.T) {
 			_, err := addr.ParseAddr(s)
 			assert.Error(t, err)
+		})
+		t.Run("unmarshal "+s, func(t *testing.T) {
+			var a addr.Addr
+			var u encoding.TextUnmarshaler = &a
+			err := u.UnmarshalText([]byte(s))
+			assert.Error(t, err)
+			assert.Equal(t, addr.Addr{}, a)
+		})
+		t.Run("set "+s, func(t *testing.T) {
+			var a addr.Addr
+			var v flag.Value = &a
+			err := v.Set(s)
+			assert.Error(t, err)
+			assert.Equal(t, addr.Addr{}, a)
 		})
 	}
 
@@ -94,6 +111,20 @@ func TestParseAddr(t *testing.T) {
 	for s, expected := range valid {
 		t.Run(s, func(t *testing.T) {
 			a, err := addr.ParseAddr(s)
+			require.NoError(t, err)
+			assert.Equal(t, expected, a)
+		})
+		t.Run("unmarshal "+s, func(t *testing.T) {
+			var a addr.Addr
+			var u encoding.TextUnmarshaler = &a
+			err := u.UnmarshalText([]byte(s))
+			require.NoError(t, err)
+			assert.Equal(t, expected, a)
+		})
+		t.Run("set "+s, func(t *testing.T) {
+			var a addr.Addr
+			var v flag.Value = &a
+			err := v.Set(s)
 			require.NoError(t, err)
 			assert.Equal(t, expected, a)
 		})
@@ -180,6 +211,11 @@ func TestParseAddrPort(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, addr.Addr{IA: expected.IA, Host: expected.Host}, a)
 			assert.Equal(t, expected.Port, port)
+
+			fmted := addr.FormatAddrPort(a, port)
+			if strings.Index(s, "]:0") < 0 { // skip cases where port has leading 0s
+				assert.Equal(t, s, fmted)
+			}
 		})
 	}
 }
