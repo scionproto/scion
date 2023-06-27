@@ -213,7 +213,7 @@ func TestParseAddrPort(t *testing.T) {
 			assert.Equal(t, expected.Port, port)
 
 			fmted := addr.FormatAddrPort(a, port)
-			if strings.Index(s, "]:0") < 0 { // skip cases where port has leading 0s
+			if !strings.Contains(s, "]:0") { // skip cases where port has leading 0s
 				assert.Equal(t, s, fmted)
 			}
 		})
