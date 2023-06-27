@@ -61,7 +61,7 @@ func TestParseSVC(t *testing.T) {
 
 func TestSVCString(t *testing.T) {
 	cases := map[addr.SVC]string{
-		addr.SVC(0xABC):              "SVC:0x0abc",
+		addr.SVC(0xABC):              "<SVC:0x0abc>",
 		addr.SvcCS:                   "CS",
 		addr.SvcCS.Multicast():       "CS_M",
 		addr.SvcDS:                   "DS",

@@ -91,7 +91,7 @@ func (h SVC) String() string {
 }
 
 // BaseString returns the upper case name of the service. For unrecognized services, it
-// returns "SVC(<Hex-Value>)".
+// returns "<SVC:Hex-Value>".
 func (h SVC) BaseString() string {
 	switch h.Base() {
 	case SvcDS:
@@ -101,6 +101,6 @@ func (h SVC) BaseString() string {
 	case SvcWildcard:
 		return "Wildcard"
 	default:
-		return fmt.Sprintf("SVC:0x%04x", uint16(h))
+		return fmt.Sprintf("<SVC:0x%04x>", uint16(h))
 	}
 }
