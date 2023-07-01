@@ -21,27 +21,51 @@ import (
 
 // Metrics defines the data-plane metrics for the BR.
 type Metrics struct {
-	InputBytesTotal           *prometheus.CounterVec
-	OutputBytesTotal          *prometheus.CounterVec
-	InputPacketsTotal         *prometheus.CounterVec
-	OutputPacketsTotal        *prometheus.CounterVec
-	DroppedPacketsTotal       *prometheus.CounterVec
-	InterfaceUp               *prometheus.GaugeVec
-	BFDInterfaceStateChanges  *prometheus.CounterVec
-	BFDPacketsSent            *prometheus.CounterVec
-	BFDPacketsReceived        *prometheus.CounterVec
-	ServiceInstanceCount      *prometheus.GaugeVec
-	ServiceInstanceChanges    *prometheus.CounterVec
-	SiblingReachable          *prometheus.GaugeVec
-	SiblingBFDPacketsSent     *prometheus.CounterVec
-	SiblingBFDPacketsReceived *prometheus.CounterVec
-	SiblingBFDStateChanges    *prometheus.CounterVec
+	InputBytesTotal             *prometheus.CounterVec
+	OutputBytesTotal            *prometheus.CounterVec
+	InputPacketsTotal           *prometheus.CounterVec
+	OutputPacketsTotal          *prometheus.CounterVec
+	ProcessedPackets            *prometheus.CounterVec
+	DroppedPacketsBusyProcessor *prometheus.CounterVec
+	DroppedPacketsBusyForwarder *prometheus.CounterVec
+	DroppedPacketsTotal         *prometheus.CounterVec
+	InterfaceUp                 *prometheus.GaugeVec
+	BFDInterfaceStateChanges    *prometheus.CounterVec
+	BFDPacketsSent              *prometheus.CounterVec
+	BFDPacketsReceived          *prometheus.CounterVec
+	ServiceInstanceCount        *prometheus.GaugeVec
+	ServiceInstanceChanges      *prometheus.CounterVec
+	SiblingReachable            *prometheus.GaugeVec
+	SiblingBFDPacketsSent       *prometheus.CounterVec
+	SiblingBFDPacketsReceived   *prometheus.CounterVec
+	SiblingBFDStateChanges      *prometheus.CounterVec
 }
 
 // NewMetrics initializes the metrics for the Border Router, and registers them
 // with the default registry.
 func NewMetrics() *Metrics {
 	return &Metrics{
+		DroppedPacketsBusyProcessor: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "router_dropped_pkts_busy_processor",
+				Help: "Number of packets dropped due to busy processor",
+			},
+			[]string{"interface", "isd_as", "neighbor_isd_as"},
+		),
+		DroppedPacketsBusyForwarder: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "router_dropped_pkts_busy_forwarder",
+				Help: "Number of packets dropped due to busy forwarder",
+			},
+			[]string{"interface", "isd_as", "neighbor_isd_as"},
+		),
+		ProcessedPackets: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "router_processed_pkts_total",
+				Help: "Total number of packets processed by the processor",
+			},
+			[]string{"interface", "isd_as", "neighbor_isd_as"},
+		),
 		InputBytesTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "router_input_bytes_total",
