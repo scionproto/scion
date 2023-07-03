@@ -709,6 +709,11 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 			writeMsgs[remaining:])
 		available += remaining
 		written, _ := conn.WriteBatch(writeMsgs[:available], 0)
+		if written < 0 {
+			// WriteBatch returns -1 on error, we just consider this as
+			// 0 packets written
+			written = 0
+		}
 		writtenBytes := 0
 		for i := range writeMsgs[:written] {
 			writtenBytes += len(writeMsgs[i].Buffers[0])
@@ -2081,15 +2086,19 @@ type forwardingMetrics struct {
 
 func initForwardingMetrics(metrics *Metrics, labels prometheus.Labels) forwardingMetrics {
 	c := forwardingMetrics{
-		InputBytesTotal:             metrics.InputBytesTotal.With(labels),
-		InputPacketsTotal:           metrics.InputPacketsTotal.With(labels),
-		OutputBytesTotal:            metrics.OutputBytesTotal.With(labels),
-		OutputPacketsTotal:          metrics.OutputPacketsTotal.With(labels),
-		DroppedPacketsTotal:         metrics.DroppedPacketsTotal.With(labels),
-		DroppedPacketsBusyProcessor: metrics.DroppedPacketsBusyProcessor.With(labels),
-		DroppedPacketsBusyForwarder: metrics.DroppedPacketsBusyForwarder.With(labels),
-		ProcessedPackets:            metrics.ProcessedPackets.With(labels),
+		InputBytesTotal:    metrics.InputBytesTotal.With(labels),
+		InputPacketsTotal:  metrics.InputPacketsTotal.With(labels),
+		OutputBytesTotal:   metrics.OutputBytesTotal.With(labels),
+		OutputPacketsTotal: metrics.OutputPacketsTotal.With(labels),
+		ProcessedPackets:   metrics.ProcessedPackets.With(labels),
 	}
+	labels["reason"] = "any"
+	c.DroppedPacketsTotal = metrics.DroppedPacketsTotal.With(labels)
+	labels["reason"] = "busy processor"
+	c.DroppedPacketsBusyProcessor = metrics.DroppedPacketsTotal.With(labels)
+	labels["reason"] = "busy forwarder"
+	c.DroppedPacketsBusyForwarder = metrics.DroppedPacketsTotal.With(labels)
+
 	c.InputBytesTotal.Add(0)
 	c.InputPacketsTotal.Add(0)
 	c.OutputBytesTotal.Add(0)
