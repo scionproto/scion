@@ -81,8 +81,7 @@ func NewMetrics() *Metrics {
 		DroppedPacketsTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "router_dropped_pkts_total",
-				Help: "Total number of packets dropped by the router. This metric reports " +
-					"the number of packets that were dropped because of errors.",
+				Help: "Total number of packets dropped by the router.",
 			},
 			[]string{"interface", "isd_as", "neighbor_isd_as", "reason"},
 		),

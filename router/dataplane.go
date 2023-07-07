@@ -578,6 +578,7 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 		if err != nil {
 			log.Debug("Error while computing procID", "err", err)
 			d.returnPacketToPool(pkt.Buffers[0])
+			metrics.DroppedPacketsInvalid.Inc()
 			return
 		}
 		outPkt := packet{
@@ -589,7 +590,6 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 		case procQs[procID] <- outPkt:
 		default:
 			d.returnPacketToPool(pkt.Buffers[0])
-			metrics.DroppedPacketsTotal.Inc()
 			metrics.DroppedPacketsBusyProcessor.Inc()
 		}
 	}
@@ -663,7 +663,7 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 			}
 		default:
 			log.Debug("Error processing packet", "err", err)
-			metrics.DroppedPacketsTotal.Inc()
+			metrics.DroppedPacketsInvalid.Inc()
 			d.returnPacketToPool(p.rawPacket)
 			continue
 		}
@@ -674,7 +674,7 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 		fwCh, ok := fwQs[egress]
 		if !ok {
 			log.Debug("Error determining forwarder. Egress is invalid", "egress", egress)
-			metrics.DroppedPacketsTotal.Inc()
+			metrics.DroppedPacketsInvalid.Inc()
 			d.returnPacketToPool(p.rawPacket)
 			continue
 		}
@@ -686,7 +686,6 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 		case fwCh <- p:
 		default:
 			d.returnPacketToPool(p.rawPacket)
-			metrics.DroppedPacketsTotal.Inc()
 			metrics.DroppedPacketsBusyForwarder.Inc()
 		}
 
@@ -723,7 +722,7 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 		metrics.OutputBytesTotal.Add(float64(writtenBytes))
 
 		if written != available {
-			metrics.DroppedPacketsTotal.Inc()
+			metrics.DroppedPacketsInvalid.Inc()
 			d.returnPacketToPool(writeMsgs[written].Buffers[0])
 			remaining = available - written - 1
 			for i := 0; i < remaining; i++ {
@@ -2078,7 +2077,7 @@ type forwardingMetrics struct {
 	OutputBytesTotal            prometheus.Counter
 	InputPacketsTotal           prometheus.Counter
 	OutputPacketsTotal          prometheus.Counter
-	DroppedPacketsTotal         prometheus.Counter
+	DroppedPacketsInvalid       prometheus.Counter
 	DroppedPacketsBusyProcessor prometheus.Counter
 	DroppedPacketsBusyForwarder prometheus.Counter
 	ProcessedPackets            prometheus.Counter
@@ -2092,18 +2091,18 @@ func initForwardingMetrics(metrics *Metrics, labels prometheus.Labels) forwardin
 		OutputPacketsTotal: metrics.OutputPacketsTotal.With(labels),
 		ProcessedPackets:   metrics.ProcessedPackets.With(labels),
 	}
-	labels["reason"] = "any"
-	c.DroppedPacketsTotal = metrics.DroppedPacketsTotal.With(labels)
-	labels["reason"] = "busy processor"
+	labels["reason"] = "invalid"
+	c.DroppedPacketsInvalid = metrics.DroppedPacketsTotal.With(labels)
+	labels["reason"] = "busy_processor"
 	c.DroppedPacketsBusyProcessor = metrics.DroppedPacketsTotal.With(labels)
-	labels["reason"] = "busy forwarder"
+	labels["reason"] = "busy_forwarder"
 	c.DroppedPacketsBusyForwarder = metrics.DroppedPacketsTotal.With(labels)
 
 	c.InputBytesTotal.Add(0)
 	c.InputPacketsTotal.Add(0)
 	c.OutputBytesTotal.Add(0)
 	c.OutputPacketsTotal.Add(0)
-	c.DroppedPacketsTotal.Add(0)
+	c.DroppedPacketsInvalid.Add(0)
 	c.DroppedPacketsBusyProcessor.Add(0)
 	c.DroppedPacketsBusyForwarder.Add(0)
 	c.ProcessedPackets.Add(0)
