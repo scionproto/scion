@@ -668,6 +668,7 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 			continue
 		}
 		if result.OutPkt == nil { // e.g. BFD case no message is forwarded
+			metrics.ProcessedPackets.Inc()
 			d.returnPacketToPool(p.rawPacket)
 			continue
 		}
