@@ -15,8 +15,6 @@
 package snet
 
 import (
-	"net"
-
 	"github.com/google/gopacket"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -370,20 +368,12 @@ func (p *Packet) Decode() error {
 	if err != nil {
 		return serrors.WrapStr("extracting destination address", err)
 	}
-	dstHost, err := netAddrToHostAddr(dstAddr)
-	if err != nil {
-		return serrors.WrapStr("converting dst address to HostAddr", err)
-	}
 	srcAddr, err := scionLayer.SrcAddr()
 	if err != nil {
 		return serrors.WrapStr("extracting source address", err)
 	}
-	srcHost, err := netAddrToHostAddr(srcAddr)
-	if err != nil {
-		return serrors.WrapStr("converting src address to HostAddr", err)
-	}
-	p.Destination = SCIONAddress{IA: scionLayer.DstIA, Host: dstHost}
-	p.Source = SCIONAddress{IA: scionLayer.SrcIA, Host: srcHost}
+	p.Destination = SCIONAddress{IA: scionLayer.DstIA, Host: dstAddr}
+	p.Source = SCIONAddress{IA: scionLayer.SrcIA, Host: srcAddr}
 
 	rpath := RawPath{
 		PathType: scionLayer.Path.Type(),
@@ -549,20 +539,10 @@ func (p *Packet) Serialize() error {
 	scionLayer.FlowID = 1
 	scionLayer.DstIA = p.Destination.IA
 	scionLayer.SrcIA = p.Source.IA
-	netDstAddr, err := hostAddrToNetAddr(p.Destination.Host)
-	if err != nil {
-		return serrors.WrapStr("converting destination addr.HostAddr to net.Addr", err,
-			"address", p.Destination.Host)
-	}
-	if err := scionLayer.SetDstAddr(netDstAddr); err != nil {
+	if err := scionLayer.SetDstAddr(p.Destination.Host); err != nil {
 		return serrors.WrapStr("setting destination address", err)
 	}
-	netSrcAddr, err := hostAddrToNetAddr(p.Source.Host)
-	if err != nil {
-		return serrors.WrapStr("converting source addr.HostAddr to net.Addr", err,
-			"address", p.Source.Host)
-	}
-	if err := scionLayer.SetSrcAddr(netSrcAddr); err != nil {
+	if err := scionLayer.SetSrcAddr(p.Source.Host); err != nil {
 		return serrors.WrapStr("setting source address", err)
 	}
 
@@ -611,26 +591,4 @@ type PacketInfo struct {
 	Path DataplanePath
 	// Payload is the Payload of the message.
 	Payload Payload
-}
-
-func netAddrToHostAddr(a net.Addr) (addr.HostAddr, error) {
-	switch aImpl := a.(type) {
-	case *net.IPAddr:
-		return addr.HostFromIP(aImpl.IP), nil
-	case addr.HostSVC:
-		return aImpl, nil
-	default:
-		return nil, serrors.New("address not supported", "a", a)
-	}
-}
-
-func hostAddrToNetAddr(a addr.HostAddr) (net.Addr, error) {
-	switch aImpl := a.(type) {
-	case addr.HostSVC:
-		return aImpl, nil
-	case addr.HostIPv4, addr.HostIPv6:
-		return &net.IPAddr{IP: aImpl.IP()}, nil
-	default:
-		return nil, serrors.New("address not supported", "a", a)
-	}
 }

@@ -15,13 +15,13 @@
 package epic_test
 
 import (
-	"net"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/addr"
 	libepic "github.com/scionproto/scion/pkg/experimental/epic"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
@@ -384,8 +384,7 @@ func createScionCmnAddrHdr(t *testing.T) *slayers.SCION {
 		SrcIA:      xtest.MustParseIA("2-ff00:0:222"),
 		PayloadLen: 120,
 	}
-	ip4Addr := &net.IPAddr{IP: net.ParseIP("10.0.0.100")}
-	require.NoError(t, spkt.SetSrcAddr(ip4Addr))
+	_ = spkt.SetSrcAddr(addr.MustParseHost("10.0.0.100"))
 	return spkt
 }
 

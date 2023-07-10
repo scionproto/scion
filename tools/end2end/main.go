@@ -23,6 +23,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"time"
 
@@ -331,15 +332,24 @@ func (c *client) ping(ctx context.Context, n int, path snet.Path) error {
 			Port: topology.EndhostPort,
 		}
 	}
+
+	remoteHostIP, ok := netip.AddrFromSlice(remote.Host.IP)
+	if !ok {
+		return serrors.New("invalid remote host IP", "ip", remote.Host.IP)
+	}
+	localHostIP, ok := netip.AddrFromSlice(integration.Local.Host.IP)
+	if !ok {
+		return serrors.New("invalid local host IP", "ip", integration.Local.Host.IP)
+	}
 	pkt := &snet.Packet{
 		PacketInfo: snet.PacketInfo{
 			Destination: snet.SCIONAddress{
 				IA:   remote.IA,
-				Host: addr.HostFromIP(remote.Host.IP),
+				Host: addr.HostIP(remoteHostIP),
 			},
 			Source: snet.SCIONAddress{
 				IA:   integration.Local.IA,
-				Host: addr.HostFromIP(integration.Local.Host.IP),
+				Host: addr.HostIP(localHostIP),
 			},
 			Path: remote.Path,
 			Payload: snet.UDPPayload{

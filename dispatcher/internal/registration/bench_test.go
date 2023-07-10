@@ -25,7 +25,7 @@ type registerArgs struct {
 	ia     addr.IA
 	public *net.UDPAddr
 	bind   net.IP
-	svc    addr.HostSVC
+	svc    addr.SVC
 	value  interface{}
 }
 
@@ -78,7 +78,7 @@ func BenchmarkLookupPublicIPv4(b *testing.B) {
 }
 
 type lookupServiceArgs struct {
-	svc  addr.HostSVC
+	svc  addr.SVC
 	bind net.IP
 }
 

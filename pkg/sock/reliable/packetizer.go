@@ -18,7 +18,6 @@ import (
 	"encoding/binary"
 	"net"
 
-	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
@@ -85,8 +84,8 @@ func (reader *ReadPacketizer) haveNextPacket(b []byte) []byte {
 	}
 	rcvdAddrType := b[8]
 	payloadLength := binary.BigEndian.Uint32(b[9:13])
-	addressLength := getAddressLength(addr.HostAddrType(rcvdAddrType))
-	portLength := getPortLength(addr.HostAddrType(rcvdAddrType))
+	addressLength := getAddressLength(hostAddrType(rcvdAddrType))
+	portLength := getPortLength(hostAddrType(rcvdAddrType))
 	totalLength := 13 + addressLength + portLength + int(payloadLength)
 	if len(b) < totalLength {
 		return nil

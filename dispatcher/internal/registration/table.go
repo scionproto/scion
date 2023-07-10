@@ -44,7 +44,7 @@ func NewTable(minPort, maxPort int) *Table {
 	}
 }
 
-func (t *Table) Register(public *net.UDPAddr, bind net.IP, svc addr.HostSVC,
+func (t *Table) Register(public *net.UDPAddr, bind net.IP, svc addr.SVC,
 	value interface{}) (*TableReference, error) {
 
 	if public == nil {
@@ -69,7 +69,7 @@ func (t *Table) Register(public *net.UDPAddr, bind net.IP, svc addr.HostSVC,
 	return &TableReference{table: t, address: address, svcRef: svcRef}, nil
 }
 
-func (t *Table) insertSVCIfRequested(svc addr.HostSVC, bind net.IP, port int,
+func (t *Table) insertSVCIfRequested(svc addr.SVC, bind net.IP, port int,
 	value interface{}) (Reference, error) {
 
 	if svc != addr.SvcNone {
@@ -86,7 +86,7 @@ func (t *Table) LookupPublic(address *net.UDPAddr) (interface{}, bool) {
 	return t.udpPortTable.Lookup(address)
 }
 
-func (t *Table) LookupService(svc addr.HostSVC, bind net.IP) []interface{} {
+func (t *Table) LookupService(svc addr.SVC, bind net.IP) []interface{} {
 	return t.svcTable.Lookup(svc, bind)
 }
 

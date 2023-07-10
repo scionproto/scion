@@ -39,7 +39,7 @@ type RegReference interface {
 	UDPAddr() *net.UDPAddr
 	// SVCAddr returns the SVC address associated with this reference. If no
 	// SVC address is associated, it returns SvcNone.
-	SVCAddr() addr.HostSVC
+	SVCAddr() addr.SVC
 	// RegisterID attaches an SCMP ID to this reference. The ID is released
 	// when the reference is freed. Registering another ID does not overwrite
 	// the previous; instead, multiple IDs get associated with the reference.
@@ -69,7 +69,7 @@ type IATable interface {
 	// see the documentation for SVCTable.
 	//
 	// To unregister from the table, free the returned reference.
-	Register(ia addr.IA, public *net.UDPAddr, bind net.IP, svc addr.HostSVC,
+	Register(ia addr.IA, public *net.UDPAddr, bind net.IP, svc addr.SVC,
 		value interface{}) (RegReference, error)
 	// LookupPublic returns the value associated with the selected public
 	// address. Wildcard addresses are supported. If an entry is found, the
@@ -87,7 +87,7 @@ type IATable interface {
 	//
 	// If SVC is a multicast address, more than one entry can be returned. The
 	// bind address is ignored in this case.
-	LookupService(ia addr.IA, svc addr.HostSVC, bind net.IP) []interface{}
+	LookupService(ia addr.IA, svc addr.SVC, bind net.IP) []interface{}
 	// LookupID returns the entry associated with the SCMP General class ID id.
 	// The ID is used for SCMP Echo, TraceRoute, and RecordPath functionality.
 	// If an entry is found, the returned boolean is set to true. Otherwise, it
@@ -122,7 +122,7 @@ func newIATable(minPort, maxPort int) *iaTable {
 	}
 }
 
-func (t *iaTable) Register(ia addr.IA, public *net.UDPAddr, bind net.IP, svc addr.HostSVC,
+func (t *iaTable) Register(ia addr.IA, public *net.UDPAddr, bind net.IP, svc addr.SVC,
 	value interface{}) (RegReference, error) {
 
 	t.mtx.Lock()
@@ -160,7 +160,7 @@ func (t *iaTable) LookupPublic(ia addr.IA, public *net.UDPAddr) (interface{}, bo
 	return nil, false
 }
 
-func (t *iaTable) LookupService(ia addr.IA, svc addr.HostSVC, bind net.IP) []interface{} {
+func (t *iaTable) LookupService(ia addr.IA, svc addr.SVC, bind net.IP) []interface{} {
 	t.mtx.RLock()
 	defer t.mtx.RUnlock()
 	if table, ok := t.ia[ia]; ok {
@@ -184,7 +184,7 @@ type iaTableReference struct {
 	table    *iaTable
 	ia       addr.IA
 	entryRef *TableReference
-	svc      addr.HostSVC
+	svc      addr.SVC
 	// value is the main table information associated with this reference
 	value interface{}
 }
@@ -202,7 +202,7 @@ func (r *iaTableReference) UDPAddr() *net.UDPAddr {
 	return r.entryRef.UDPAddr()
 }
 
-func (r *iaTableReference) SVCAddr() addr.HostSVC {
+func (r *iaTableReference) SVCAddr() addr.SVC {
 	return r.svc
 }
 

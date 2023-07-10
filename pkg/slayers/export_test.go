@@ -19,8 +19,6 @@ package slayers
 type TLVOption = tlvOption
 
 var (
-	PackAddr            = packAddr
-	ParseAddr           = parseAddr
 	SerializeTLVOptions = serializeTLVOptions
 )
 

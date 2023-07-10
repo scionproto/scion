@@ -61,7 +61,7 @@ func TestGetDst(t *testing.T) {
 					},
 					L4: slayers.LayerTypeSCIONUDP,
 				}
-				require.NoError(t, pkt.SCION.SetDstAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 1}}))
+				require.NoError(t, pkt.SCION.SetDstAddr(addr.MustParseHost("192.168.0.1")))
 				return pkt
 			},
 			ExpectedDst: UDPDestination{
@@ -81,7 +81,7 @@ func TestGetDst(t *testing.T) {
 					},
 					L4: slayers.LayerTypeSCIONUDP,
 				}
-				require.NoError(t, pkt.SCION.SetDstAddr(addr.SvcCS))
+				require.NoError(t, pkt.SCION.SetDstAddr(addr.HostSVC(addr.SvcCS)))
 				return pkt
 			},
 			ExpectedDst: SVCDestination{
@@ -252,7 +252,7 @@ func TestGetDst(t *testing.T) {
 					},
 					L4: slayers.LayerTypeSCMP,
 				}
-				require.NoError(t, pkt.SCION.SetDstAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 1}}))
+				require.NoError(t, pkt.SCION.SetDstAddr(addr.MustParseHost("192.168.0.1")))
 				return pkt
 			},
 			ExpectedDst: UDPDestination{
@@ -308,7 +308,7 @@ func TestGetDst(t *testing.T) {
 					},
 					L4: slayers.LayerTypeSCMP,
 				}
-				require.NoError(t, pkt.SCION.SetDstAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 1}}))
+				require.NoError(t, pkt.SCION.SetDstAddr(addr.MustParseHost("192.168.0.1")))
 				return pkt
 			},
 			ExpectedDst: SCMPDestination{
@@ -364,7 +364,7 @@ func TestGetDst(t *testing.T) {
 					},
 					L4: slayers.LayerTypeSCMP,
 				}
-				require.NoError(t, pkt.SCION.SetDstAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 1}}))
+				require.NoError(t, pkt.SCION.SetDstAddr(addr.MustParseHost("192.168.0.1")))
 				return pkt
 			},
 			ExpectedDst: SCMPDestination{
@@ -419,7 +419,7 @@ func TestGetDst(t *testing.T) {
 					},
 					L4: slayers.LayerTypeSCMP,
 				}
-				require.NoError(t, pkt.SCION.SetDstAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 1}}))
+				require.NoError(t, pkt.SCION.SetDstAddr(addr.MustParseHost("192.168.0.1")))
 				return pkt
 			},
 			ExpectedDst: UDPDestination{
@@ -476,7 +476,7 @@ func TestGetDst(t *testing.T) {
 					},
 					L4: slayers.LayerTypeSCMP,
 				}
-				require.NoError(t, pkt.SCION.SetDstAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 1}}))
+				require.NoError(t, pkt.SCION.SetDstAddr(addr.MustParseHost("192.168.0.1")))
 				return pkt
 			},
 			ExpectedDst: SCMPDestination{
@@ -533,7 +533,7 @@ func TestGetDst(t *testing.T) {
 					},
 					L4: slayers.LayerTypeSCMP,
 				}
-				require.NoError(t, pkt.SCION.SetDstAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 1}}))
+				require.NoError(t, pkt.SCION.SetDstAddr(addr.MustParseHost("192.168.0.1")))
 				return pkt
 			},
 			ExpectedDst: SCMPDestination{
@@ -588,7 +588,7 @@ func TestGetDst(t *testing.T) {
 					},
 					L4: slayers.LayerTypeSCMP,
 				}
-				require.NoError(t, pkt.SCION.SetDstAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 1}}))
+				require.NoError(t, pkt.SCION.SetDstAddr(addr.MustParseHost("192.168.0.1")))
 				return pkt
 			},
 			ErrAssertion: assert.Error,
@@ -641,7 +641,7 @@ func TestGetDst(t *testing.T) {
 					},
 					L4: slayers.LayerTypeSCMP,
 				}
-				require.NoError(t, pkt.SCION.SetDstAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 1}}))
+				require.NoError(t, pkt.SCION.SetDstAddr(addr.MustParseHost("192.168.0.1")))
 				return pkt
 			},
 			ErrAssertion: assert.Error,
@@ -859,8 +859,8 @@ func TestSCMPHandlerReverse(t *testing.T) {
 				SCMP: tc.L4(t),
 				L4:   slayers.LayerTypeSCMP,
 			}
-			require.NoError(t, pkt.SCION.SetSrcAddr(&net.IPAddr{IP: net.IP{127, 0, 0, 1}}))
-			require.NoError(t, pkt.SCION.SetDstAddr(&net.IPAddr{IP: net.IP{127, 0, 0, 2}}))
+			require.NoError(t, pkt.SCION.SetSrcAddr(addr.MustParseHost("127.0.0.1")))
+			require.NoError(t, pkt.SCION.SetDstAddr(addr.MustParseHost("127.0.0.2")))
 
 			// Reverse packet
 			raw, err := SCMPHandler{}.reverse(pkt)
@@ -902,8 +902,8 @@ func TestSCMPHandlerReverse(t *testing.T) {
 						},
 					},
 				}
-				require.NoError(t, expected.SetSrcAddr(&net.IPAddr{IP: net.IP{127, 0, 0, 2}}))
-				require.NoError(t, expected.SetDstAddr(&net.IPAddr{IP: net.IP{127, 0, 0, 1}}))
+				require.NoError(t, expected.SetSrcAddr(addr.MustParseHost("127.0.0.2")))
+				require.NoError(t, expected.SetDstAddr(addr.MustParseHost("127.0.0.1")))
 
 				scionL.BaseLayer = slayers.BaseLayer{}
 				var decodedPath scion.Decoded
@@ -951,7 +951,7 @@ func newSCIONHdr(t *testing.T, l4 slayers.L4ProtocolType) *slayers.SCION {
 			},
 		},
 	}
-	require.NoError(t, scion.SetSrcAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 1}}))
-	require.NoError(t, scion.SetDstAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 2}}))
+	require.NoError(t, scion.SetSrcAddr(addr.MustParseHost("192.168.0.1")))
+	require.NoError(t, scion.SetDstAddr(addr.MustParseHost("192.168.0.2")))
 	return scion
 }
