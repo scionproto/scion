@@ -31,6 +31,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
+	"github.com/scionproto/scion/pkg/snet"
 )
 
 func TestTCPDial(t *testing.T) {
@@ -62,22 +63,22 @@ func TestTCPDial(t *testing.T) {
 
 	t.Run("cases", func(t *testing.T) {
 		testCases := map[string]struct {
-			svcResolve      func(*testing.T, addr.HostSVC) []resolver.Address
+			svcResolve      func(*testing.T, addr.SVC) []resolver.Address
 			dst             net.Addr
 			assertDialError assert.ErrorAssertionFunc
 			assertCallError assert.ErrorAssertionFunc
 		}{
 			"valid tcp address": {
 				dst: lis.Addr(),
-				svcResolve: func(*testing.T, addr.HostSVC) []resolver.Address {
+				svcResolve: func(*testing.T, addr.SVC) []resolver.Address {
 					return nil
 				},
 				assertDialError: assert.NoError,
 				assertCallError: assert.NoError,
 			},
 			"valid cs svc address": {
-				dst: addr.SvcCS,
-				svcResolve: func(*testing.T, addr.HostSVC) []resolver.Address {
+				dst: &snet.SVCAddr{SVC: addr.SvcCS},
+				svcResolve: func(*testing.T, addr.SVC) []resolver.Address {
 					return []resolver.Address{
 						{Addr: lis.Addr().String()},
 						{Addr: getUnusedAddr(t)},
@@ -87,8 +88,8 @@ func TestTCPDial(t *testing.T) {
 				assertCallError: assert.NoError,
 			},
 			"valid cs svc address second": {
-				dst: addr.SvcCS,
-				svcResolve: func(*testing.T, addr.HostSVC) []resolver.Address {
+				dst: &snet.SVCAddr{SVC: addr.SvcCS},
+				svcResolve: func(*testing.T, addr.SVC) []resolver.Address {
 					return []resolver.Address{
 						{Addr: getUnusedAddr(t)},
 						{Addr: lis.Addr().String()},
@@ -98,8 +99,8 @@ func TestTCPDial(t *testing.T) {
 				assertCallError: assert.NoError,
 			},
 			"valid, one server with no gRPC": {
-				dst: addr.SvcCS,
-				svcResolve: func(*testing.T, addr.HostSVC) []resolver.Address {
+				dst: &snet.SVCAddr{SVC: addr.SvcCS},
+				svcResolve: func(*testing.T, addr.SVC) []resolver.Address {
 					return []resolver.Address{
 						{Addr: noGRPCLis.Addr().String()},
 						{Addr: lis.Addr().String()},
@@ -109,8 +110,8 @@ func TestTCPDial(t *testing.T) {
 				assertCallError: assert.NoError,
 			},
 			"invalid": {
-				dst: addr.SvcCS,
-				svcResolve: func(*testing.T, addr.HostSVC) []resolver.Address {
+				dst: &snet.SVCAddr{SVC: addr.SvcCS},
+				svcResolve: func(*testing.T, addr.SVC) []resolver.Address {
 					return nil
 				},
 				assertDialError: assert.Error,
@@ -131,7 +132,7 @@ func TestTCPDial(t *testing.T) {
 				defer cancel()
 
 				dialer := libgrpc.TCPDialer{
-					SvcResolver: func(svc addr.HostSVC) []resolver.Address {
+					SvcResolver: func(svc addr.SVC) []resolver.Address {
 						return tc.svcResolve(t, svc)
 					},
 				}

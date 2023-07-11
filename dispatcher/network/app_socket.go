@@ -120,7 +120,7 @@ func (h *AppConnHandler) doRegExchange(appServer *dispatcher.Server) (net.Packet
 }
 
 func (h *AppConnHandler) logRegistration(ia addr.IA, public *net.UDPAddr, bind net.IP,
-	svc addr.HostSVC) {
+	svc addr.SVC) {
 
 	items := []interface{}{"ia", ia, "public", public}
 	if bind != nil {

@@ -17,13 +17,13 @@ package slayers_test
 import (
 	"bytes"
 	"fmt"
-	"net"
 	"testing"
 
 	"github.com/google/gopacket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
 )
@@ -82,9 +82,9 @@ func TestSCMPSerializeTo(t *testing.T) {
 		SrcIA: xtest.MustParseIA("1-ff00:0:1"),
 		DstIA: xtest.MustParseIA("1-ff00:0:4"),
 	}
-	err := scnL.SetDstAddr(&net.IPAddr{IP: net.ParseIP("174.16.4.1")})
+	err := scnL.SetDstAddr(addr.MustParseHost("174.16.4.1"))
 	require.NoError(t, err)
-	err = scnL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("172.16.4.3")})
+	err = scnL.SetSrcAddr(addr.MustParseHost("172.16.4.3"))
 	require.NoError(t, err)
 
 	testCases := map[string]struct {
@@ -513,9 +513,9 @@ func TestSCMP(t *testing.T) {
 					SrcIA: xtest.MustParseIA("1-ff00:0:1"),
 					DstIA: xtest.MustParseIA("1-ff00:0:4"),
 				}
-				err := scnL.SetDstAddr(&net.IPAddr{IP: net.ParseIP("174.16.4.1")})
+				err := scnL.SetDstAddr(addr.MustParseHost("174.16.4.1"))
 				assert.NoError(t, err)
-				err = scnL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("172.16.4.3").To4()})
+				err = scnL.SetSrcAddr(addr.MustParseHost("172.16.4.3"))
 				require.NoError(t, err)
 
 				opts := gopacket.SerializeOptions{ComputeChecksums: true}

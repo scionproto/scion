@@ -18,7 +18,6 @@ import (
 	"encoding/binary"
 	"net"
 
-	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
@@ -88,7 +87,7 @@ func (f *frame) DecodeFromBytes(data []byte) error {
 	f.AddressType = data[8]
 	f.Length = binary.BigEndian.Uint32(data[9:])
 	offset := 13
-	addressType := addr.HostAddrType(f.AddressType)
+	addressType := hostAddrType(f.AddressType)
 	if !isValidReliableSockDestination(addressType) {
 		return serrors.WithCtx(ErrBadAddressType, "type", addressType)
 	}
@@ -136,8 +135,8 @@ func (f *frame) insertAddress(address *net.UDPAddr) error {
 }
 
 func (f *frame) extractAddress() *net.UDPAddr {
-	t := addr.HostAddrType(f.AddressType)
-	if t == addr.HostTypeIPv4 || t == addr.HostTypeIPv6 {
+	t := hostAddrType(f.AddressType)
+	if t == hostTypeIPv4 || t == hostTypeIPv6 {
 		return &net.UDPAddr{
 			IP:   net.IP(f.Address),
 			Port: int(binary.BigEndian.Uint16(f.Port)),

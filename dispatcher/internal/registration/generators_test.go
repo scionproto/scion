@@ -49,7 +49,7 @@ func getRandomIA() addr.IA {
 	)
 }
 
-func getRandomSVC() addr.HostSVC {
+func getRandomSVC() addr.SVC {
 	switch rand.Intn(2) {
 	case 0:
 		return addr.SvcNone

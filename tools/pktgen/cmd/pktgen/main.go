@@ -18,13 +18,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 
 	"github.com/google/gopacket"
 	"github.com/spf13/cobra"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
@@ -155,10 +156,14 @@ func run(cfg flags, dst *snet.UDPAddr) error {
 	scionLayer.SrcIA = localIA
 	scionLayer.DstIA = path.Destination()
 	scionLayer.Path = decPath
-	if err := scionLayer.SetDstAddr(&net.IPAddr{IP: dst.Host.IP, Zone: dst.Host.Zone}); err != nil {
+	dstHostIP, ok := netip.AddrFromSlice(dst.Host.IP)
+	if !ok {
+		return serrors.New("invalid destination host IP", "ip", dst.Host.IP)
+	}
+	if err := scionLayer.SetDstAddr(addr.HostIP(dstHostIP)); err != nil {
 		return serrors.WrapStr("setting SCION dest address", err)
 	}
-	if err := scionLayer.SetSrcAddr(&net.IPAddr{IP: localIP}); err != nil {
+	if err := scionLayer.SetSrcAddr(addr.HostIP(localIP)); err != nil {
 		return serrors.WrapStr("setting SCION source address", err)
 	}
 	scionudpLayer := &slayers.UDP{}
@@ -184,15 +189,18 @@ func run(cfg flags, dst *snet.UDPAddr) error {
 	return nil
 }
 
-func resolveLocal(dst *snet.UDPAddr) (net.IP, error) {
+func resolveLocal(dst *snet.UDPAddr) (netip.Addr, error) {
 	target := dst.Host.IP
 	if dst.NextHop != nil {
 		target = dst.NextHop.IP
 	}
-	localIP, err := addrutil.ResolveLocal(target)
+	resolvedIP, err := addrutil.ResolveLocal(target)
 	if err != nil {
-		return nil, serrors.WrapStr("resolving local address", err)
-
+		return netip.Addr{}, serrors.WrapStr("resolving local address", err)
+	}
+	localIP, ok := netip.AddrFromSlice(resolvedIP)
+	if !ok {
+		return netip.Addr{}, serrors.New("invalid local IP", "ip", resolvedIP)
 	}
 	return localIP, nil
 }

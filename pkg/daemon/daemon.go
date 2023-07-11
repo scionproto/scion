@@ -78,7 +78,7 @@ type Connector interface {
 	// service types. If unset, a fresh (i.e., uncached) answer containing all
 	// service types is returned. The reply is a map from service type to a list
 	// of URIs of the service in the local AS.
-	SVCInfo(ctx context.Context, svcTypes []addr.HostSVC) (map[addr.HostSVC][]string, error)
+	SVCInfo(ctx context.Context, svcTypes []addr.SVC) (map[addr.SVC][]string, error)
 	// RevNotification sends a RevocationInfo message to the daemon.
 	RevNotification(ctx context.Context, revInfo *path_mgmt.RevInfo) error
 	// DRKeyGetASHostKey requests a AS-Host Key from the daemon.

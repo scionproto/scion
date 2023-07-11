@@ -32,7 +32,7 @@ func TestSVCTableLookup(t *testing.T) {
 	value := "test value"
 
 	testCases := map[string]struct {
-		Svc      addr.HostSVC
+		Svc      addr.SVC
 		IP       net.IP
 		Prepare  func(t *testing.T, table SVCTable)
 		Expected []interface{}
@@ -122,7 +122,7 @@ func TestSVCTableRegistration(t *testing.T) {
 	testCases := map[string]struct {
 		Prepare func(t *testing.T, table SVCTable)
 		// Input Register
-		Svc   addr.HostSVC
+		Svc   addr.SVC
 		Addr  *net.UDPAddr
 		Value interface{}
 		// Assertions
@@ -401,7 +401,7 @@ func TestSVCTableWildcard(t *testing.T) {
 	defer reference.Free()
 
 	testCases := map[string]struct {
-		Address           addr.HostSVC
+		Address           addr.SVC
 		LookupResultCount int
 	}{
 		"cs": {
@@ -442,7 +442,7 @@ func TestSVCTableWildcardRollback(t *testing.T) {
 	table := NewSVCTable()
 
 	testCases := map[string]struct {
-		RegisteredAddress   addr.HostSVC
+		RegisteredAddress   addr.SVC
 		LookupResultCSCount int
 		LookupResultDSCount int
 	}{

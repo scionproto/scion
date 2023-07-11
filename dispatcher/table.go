@@ -53,7 +53,7 @@ func (t *IATable) LookupPublic(ia addr.IA, public *net.UDPAddr) (*TableEntry, bo
 	return e.(*TableEntry), true
 }
 
-func (t *IATable) LookupService(ia addr.IA, svc addr.HostSVC, bind net.IP) []*TableEntry {
+func (t *IATable) LookupService(ia addr.IA, svc addr.SVC, bind net.IP) []*TableEntry {
 	ifaces := t.IATable.LookupService(ia, svc, bind)
 	entries := make([]*TableEntry, len(ifaces))
 	for i := range ifaces {
