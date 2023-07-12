@@ -125,9 +125,11 @@ rules_pkg_dependencies()
 # Antlr rules
 http_archive(
     name = "rules_antlr",
-    sha256 = "234c401cfabab78f2d7f5589239d98f16f04338768a72888f660831964948ab1",
+    # XXX(roosd): This hash is not guaranteed to be stable by GitHub.
+    # See: https://github.blog/changelog/2023-01-30-git-archive-checksums-may-change
+    sha256 = "8d7c457cc266965bdcf7e85aa349d2f851b772a55877354d9ae92ada7a62c857",
     strip_prefix = "rules_antlr-0.6.0",
-    urls = ["https://github.com/artisoft-io/rules_antlr/archive/0.6.0.tar.gz"],
+    urls = ["https://github.com/bacek/rules_antlr/archive/refs/tags/0.6.0.tar.gz"],
 )
 
 load("@rules_antlr//antlr:repositories.bzl", "rules_antlr_dependencies")
