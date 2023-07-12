@@ -106,7 +106,7 @@ func (e *SCIONEnvironment) Register(flagSet *pflag.FlagSet) {
 	sciond := defaultDaemon
 	dispatcher := defaultDispatcher
 	e.sciondFlag = flagSet.VarPF((*stringVal)(&sciond), "sciond", "",
-		"SCION Deamon address.")
+		"SCION Daemon address.")
 	e.iaFlag = flagSet.VarPF((*iaVal)(&e.ia), "isd-as", "",
 		"The local ISD-AS to use.")
 	e.dispFlag = flagSet.VarPF((*stringVal)(&dispatcher), "dispatcher", "",

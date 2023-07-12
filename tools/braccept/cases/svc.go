@@ -95,10 +95,10 @@ func SVC(artifactsDir string, mac hash.Hash) runner.Case {
 		DstIA:        xtest.MustParseIA("1-ff00:0:1"),
 		Path:         sp,
 	}
-	if err := scionL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("172.16.4.1")}); err != nil {
+	if err := scionL.SetSrcAddr(addr.MustParseHost("172.16.4.1")); err != nil {
 		panic(err)
 	}
-	if err := scionL.SetDstAddr(addr.HostSVCFromString("CS")); err != nil {
+	if err := scionL.SetDstAddr(addr.HostSVC(addr.SvcCS)); err != nil {
 		panic(err)
 	}
 	scionudp := &slayers.UDP{}

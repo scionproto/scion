@@ -17,6 +17,7 @@ package router
 
 import (
 	"net"
+	"net/netip"
 
 	"golang.org/x/net/ipv4"
 
@@ -43,7 +44,7 @@ func NewDP(
 	linkTypes map[uint16]topology.LinkType,
 	internal BatchConn,
 	internalNextHops map[uint16]*net.UDPAddr,
-	svc map[addr.HostSVC][]*net.UDPAddr,
+	svc map[addr.SVC][]*net.UDPAddr,
 	local addr.IA,
 	neighbors map[uint16]addr.IA,
 	key []byte) *DataPlane {
@@ -56,7 +57,7 @@ func NewDP(
 		internalNextHops: internalNextHops,
 		svc:              &services{m: svc},
 		internal:         internal,
-		internalIP:       &net.IPAddr{IP: net.ParseIP("198.51.100.1")},
+		internalIP:       netip.MustParseAddr("198.51.100.1"),
 	}
 	if err := dp.SetKey(key); err != nil {
 		panic(err)
@@ -81,6 +82,6 @@ func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message) (ProcessResult, err
 	return ProcessResult{processResult: result}, err
 }
 
-func ExtractServices(s *services) map[addr.HostSVC][]*net.UDPAddr {
+func ExtractServices(s *services) map[addr.SVC][]*net.UDPAddr {
 	return s.m
 }

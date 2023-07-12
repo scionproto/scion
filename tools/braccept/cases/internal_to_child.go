@@ -23,6 +23,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
@@ -100,10 +101,10 @@ func InternalHostToChild(artifactsDir string, mac hash.Hash) runner.Case {
 		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
 		Path:         sp,
 	}
-	if err := scionL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("192.168.0.51")}); err != nil {
+	if err := scionL.SetSrcAddr(addr.MustParseHost("192.168.0.51")); err != nil {
 		panic(err)
 	}
-	if err := scionL.SetDstAddr(&net.IPAddr{IP: net.ParseIP("174.16.4.1")}); err != nil {
+	if err := scionL.SetDstAddr(addr.MustParseHost("174.16.4.1")); err != nil {
 		panic(err)
 	}
 
@@ -226,10 +227,10 @@ func InternalParentToChild(artifactsDir string, mac hash.Hash) runner.Case {
 		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
 		Path:         sp,
 	}
-	if err := scionL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("174.16.9.1")}); err != nil {
+	if err := scionL.SetSrcAddr(addr.MustParseHost("174.16.9.1")); err != nil {
 		panic(err)
 	}
-	if err := scionL.SetDstAddr(&net.IPAddr{IP: net.ParseIP("174.16.4.1")}); err != nil {
+	if err := scionL.SetDstAddr(addr.MustParseHost("174.16.4.1")); err != nil {
 		panic(err)
 	}
 
@@ -353,10 +354,10 @@ func InvalidSrcInternalParentToChild(artifactsDir string, mac hash.Hash) runner.
 		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
 		Path:         sp,
 	}
-	if err := scionL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("174.16.9.1")}); err != nil {
+	if err := scionL.SetSrcAddr(addr.MustParseHost("174.16.9.1")); err != nil {
 		panic(err)
 	}
-	if err := scionL.SetDstAddr(&net.IPAddr{IP: net.ParseIP("174.16.4.1")}); err != nil {
+	if err := scionL.SetDstAddr(addr.MustParseHost("174.16.4.1")); err != nil {
 		panic(err)
 	}
 

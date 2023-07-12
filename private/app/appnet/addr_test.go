@@ -318,7 +318,7 @@ func TestBuildFullAddress(t *testing.T) {
 
 func TestResolve(t *testing.T) {
 	testCases := map[string]struct {
-		input                 addr.HostSVC
+		input                 addr.SVC
 		ResolverSetup         func(*mock_infraenv.MockResolver)
 		SVCResolutionFraction float64
 		wantPath              snet.Path

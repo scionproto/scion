@@ -20,6 +20,7 @@ import (
 	"hash/fnv"
 	"math/rand"
 	"net"
+	"net/netip"
 	"reflect"
 	"testing"
 	"time"
@@ -284,8 +285,8 @@ func TestComputeProcId(t *testing.T) {
 		"ipv4 to ipv4": func(t *testing.T) []ret {
 			payload := make([]byte, 100)
 			spkt := prepBaseMsg(t, payload, 1)
-			_ = spkt.SetDstAddr(&net.IPAddr{IP: net.IP{10, 0, 200, 200}})
-			_ = spkt.SetSrcAddr(&net.IPAddr{IP: net.IP{10, 0, 200, 200}})
+			_ = spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200})))
+			_ = spkt.SetSrcAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200})))
 			assert.Equal(t, slayers.T4Ip, spkt.DstAddrType)
 			assert.Equal(t, slayers.T4Ip, spkt.SrcAddrType)
 			return []ret{
@@ -298,8 +299,8 @@ func TestComputeProcId(t *testing.T) {
 		"ipv6 to ipv4": func(t *testing.T) []ret {
 			payload := make([]byte, 100)
 			spkt := prepBaseMsg(t, payload, 1)
-			_ = spkt.SetDstAddr(&net.IPAddr{IP: net.IP{10, 0, 200, 200}})
-			_ = spkt.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("2001:db8::68")})
+			_ = spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200})))
+			_ = spkt.SetSrcAddr(addr.HostIP(netip.MustParseAddr("2001:db8::68")))
 			assert.Equal(t, slayers.T4Ip, spkt.DstAddrType)
 			assert.Equal(t, slayers.T16Ip, int(spkt.SrcAddrType))
 			return []ret{
@@ -313,26 +314,10 @@ func TestComputeProcId(t *testing.T) {
 			payload := make([]byte, 100)
 			spkt := prepBaseMsg(t, payload, 1)
 			spkt.DstAddrType = slayers.T4Ip
-			_ = spkt.SetDstAddr(&net.IPAddr{IP: net.IP{10, 0, 200, 200}})
-			_ = spkt.SetSrcAddr(addr.HostSVCFromString("BS_A"))
+			_ = spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200})))
+			_ = spkt.SetSrcAddr(addr.HostSVC(addr.SvcWildcard))
 			assert.Equal(t, slayers.T4Ip, spkt.DstAddrType)
 			assert.Equal(t, slayers.T4Svc, int(spkt.SrcAddrType))
-			return []ret{
-				{
-					payload: payload,
-					s:       spkt,
-				},
-			}
-		},
-		"undefined to ipv4": func(t *testing.T) []ret {
-			payload := make([]byte, 100)
-			spkt := prepBaseMsg(t, payload, 1)
-			spkt.DstAddrType = slayers.T4Ip
-			_ = spkt.SetDstAddr(&net.IPAddr{IP: net.IP{10, 0, 200, 200}})
-			// UDPAddr is currently considered undefined when parsing
-			_ = spkt.SetSrcAddr(&net.UDPAddr{IP: net.IP{10, 0, 200, 200}})
-			assert.Equal(t, slayers.T4Ip, spkt.DstAddrType)
-			assert.Equal(t, 0, int(spkt.SrcAddrType))
 			return []ret{
 				{
 					payload: payload,

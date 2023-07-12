@@ -145,7 +145,7 @@ func (c *Connector) AddExternalInterface(localIfID common.IFIDType, link control
 }
 
 // AddSvc adds the service address for the given ISD-AS.
-func (c *Connector) AddSvc(ia addr.IA, svc addr.HostSVC, ip net.IP) error {
+func (c *Connector) AddSvc(ia addr.IA, svc addr.SVC, ip net.IP) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	log.Debug("Adding service", "isd_as", ia, "svc", svc, "ip", ip)
@@ -156,7 +156,7 @@ func (c *Connector) AddSvc(ia addr.IA, svc addr.HostSVC, ip net.IP) error {
 }
 
 // DelSvc deletes the service entry for the given ISD-AS and IP pair.
-func (c *Connector) DelSvc(ia addr.IA, svc addr.HostSVC, ip net.IP) error {
+func (c *Connector) DelSvc(ia addr.IA, svc addr.SVC, ip net.IP) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	log.Debug("Deleting service", "isd_as", ia, "svc", svc, "ip", ip)

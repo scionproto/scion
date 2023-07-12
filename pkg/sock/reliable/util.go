@@ -16,22 +16,29 @@ package reliable
 
 import (
 	"net"
-
-	"github.com/scionproto/scion/pkg/addr"
 )
 
-func getAddressType(address *net.UDPAddr) addr.HostAddrType {
+type hostAddrType uint8
+
+const (
+	hostTypeNone = iota
+	hostTypeIPv4
+	hostTypeIPv6
+	hostTypeSVC
+)
+
+func getAddressType(address *net.UDPAddr) hostAddrType {
 	if address == nil || address.IP == nil {
-		return addr.HostTypeNone
+		return hostTypeNone
 	}
 	return getIPAddressType(address.IP)
 }
 
-func getIPAddressType(ip net.IP) addr.HostAddrType {
+func getIPAddressType(ip net.IP) hostAddrType {
 	if ip.To4() != nil {
-		return addr.HostTypeIPv4
+		return hostTypeIPv4
 	}
-	return addr.HostTypeIPv6
+	return hostTypeIPv6
 }
 
 // normalizeIP returns a 4-byte slice for an IPv4 address, and 16-byte slice
@@ -43,17 +50,26 @@ func normalizeIP(ip net.IP) net.IP {
 	return ip
 }
 
-func isValidReliableSockDestination(t addr.HostAddrType) bool {
-	return t == addr.HostTypeNone || t == addr.HostTypeIPv4 || t == addr.HostTypeIPv6
+func isValidReliableSockDestination(t hostAddrType) bool {
+	return t == hostTypeNone || t == hostTypeIPv4 || t == hostTypeIPv6
 }
 
-func getAddressLength(t addr.HostAddrType) int {
-	n, _ := addr.HostLen(t)
-	return int(n)
+func getAddressLength(t hostAddrType) int {
+	switch t {
+	case hostTypeNone:
+		return 0
+	case hostTypeIPv4:
+		return 4
+	case hostTypeIPv6:
+		return 16
+	case hostTypeSVC:
+		return 2
+	}
+	return 0
 }
 
-func getPortLength(t addr.HostAddrType) int {
-	if t == addr.HostTypeIPv4 || t == addr.HostTypeIPv6 {
+func getPortLength(t hostAddrType) int {
+	if t == hostTypeIPv4 || t == hostTypeIPv6 {
 		return 2
 	}
 	return 0

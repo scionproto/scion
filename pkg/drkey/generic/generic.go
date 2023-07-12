@@ -17,8 +17,10 @@ package generic
 import (
 	"encoding/binary"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/slayers"
 )
 
 // Deriver implements the level 2/3 generic drkey derivation.
@@ -32,13 +34,16 @@ func (d Deriver) DeriveASHost(
 	key drkey.Key,
 ) (drkey.Key, error) {
 
-	host, err := drkey.HostAddrFromString(dstHost)
+	host, err := addr.ParseHost(dstHost)
 	if err != nil {
 		return drkey.Key{}, serrors.WrapStr("parsing dst host", err)
 	}
 	buf := make([]byte, 32)
-	len := d.serializeLevel2Input(buf, drkey.AsHost, d.Proto, host)
-	outKey, err := drkey.DeriveKey(buf[:len], key)
+	l, err := d.serializeLevel2Input(buf, drkey.AsHost, d.Proto, host)
+	if err != nil {
+		return drkey.Key{}, serrors.WrapStr("serializing drkey level 2 input", err)
+	}
+	outKey, err := drkey.DeriveKey(buf[:l], key)
 	return outKey, err
 }
 
@@ -48,13 +53,16 @@ func (d Deriver) DeriveHostAS(
 	key drkey.Key,
 ) (drkey.Key, error) {
 
-	host, err := drkey.HostAddrFromString(srcHost)
+	host, err := addr.ParseHost(srcHost)
 	if err != nil {
 		return drkey.Key{}, serrors.WrapStr("parsing src host", err)
 	}
 	buf := make([]byte, 32)
-	len := d.serializeLevel2Input(buf, drkey.HostAS, d.Proto, host)
-	outKey, err := drkey.DeriveKey(buf[:len], key)
+	l, err := d.serializeLevel2Input(buf, drkey.HostAS, d.Proto, host)
+	if err != nil {
+		return drkey.Key{}, serrors.WrapStr("serializing drkey level 2 input", err)
+	}
+	outKey, err := drkey.DeriveKey(buf[:l], key)
 	return outKey, err
 }
 
@@ -64,13 +72,16 @@ func (d Deriver) DeriveHostHost(
 	key drkey.Key,
 ) (drkey.Key, error) {
 
-	host, err := drkey.HostAddrFromString(dstHost)
+	host, err := addr.ParseHost(dstHost)
 	if err != nil {
 		return drkey.Key{}, serrors.WrapStr("deriving input H2H", err)
 	}
 	buf := make([]byte, 32)
-	len := drkey.SerializeHostHostInput(buf[:], host)
-	outKey, err := drkey.DeriveKey(buf[:len], key)
+	l, err := drkey.SerializeHostHostInput(buf[:], host)
+	if err != nil {
+		return drkey.Key{}, serrors.WrapStr("serializing drkey host-host input", err)
+	}
+	outKey, err := drkey.DeriveKey(buf[:l], key)
 	return outKey, err
 }
 
@@ -81,11 +92,14 @@ func (d Deriver) serializeLevel2Input(
 	input []byte,
 	derType drkey.KeyType,
 	proto drkey.Protocol,
-	host drkey.HostAddr,
-) int {
+	host addr.Host,
+) (int, error) {
 
-	hostAddr := host.RawAddr
-	l := len(hostAddr)
+	typ, raw, err := slayers.PackAddr(host)
+	if err != nil {
+		return 0, serrors.WrapStr("packing host address", err)
+	}
+	l := len(raw)
 
 	// Calculate a multiple of 16 such that the input fits in
 	nrBlocks := (4+l-1)/16 + 1
@@ -94,9 +108,9 @@ func (d Deriver) serializeLevel2Input(
 	_ = input[inputLength-1]
 	input[0] = uint8(derType)
 	binary.BigEndian.PutUint16(input[1:], uint16(proto))
-	input[3] = uint8(host.AddrType & 0x7)
-	copy(input[4:], hostAddr)
+	input[3] = uint8(typ & 0xF)
+	copy(input[4:], raw)
 	copy(input[4+l:inputLength], drkey.ZeroBlock[:])
 
-	return inputLength
+	return inputLength, nil
 }

@@ -90,19 +90,19 @@ func getDstUDP(pkt *respool.Packet) (Destination, error) {
 	if err != nil {
 		return nil, err
 	}
-	switch d := dst.(type) {
-	case *net.IPAddr:
+	switch dst.Type() {
+	case addr.HostTypeIP:
 		return UDPDestination{
 			IA: pkt.SCION.DstIA,
 			Public: &net.UDPAddr{
-				IP:   d.IP,
+				IP:   dst.IP().AsSlice(),
 				Port: int(pkt.UDP.DstPort),
 			},
 		}, nil
-	case addr.HostSVC:
+	case addr.HostTypeSVC:
 		return SVCDestination{
 			IA:  pkt.SCION.DstIA,
-			Svc: d,
+			Svc: dst.SVC(),
 		}, nil
 	default:
 		return nil, serrors.WithCtx(ErrUnsupportedDestination, "type", common.TypeOf(dst))
@@ -167,14 +167,13 @@ func getDstSCMPErr(pkt *respool.Packet) (Destination, error) {
 		if err != nil {
 			return nil, err
 		}
-		ipAddr, ok := dst.(*net.IPAddr)
-		if !ok {
-			return nil, serrors.WithCtx(ErrUnsupportedDestination, "type", common.TypeOf(dst))
+		if dst.Type() != addr.HostTypeIP {
+			return nil, serrors.WithCtx(ErrUnsupportedDestination, "type", dst.Type())
 		}
 		return UDPDestination{
 			IA: pkt.SCION.DstIA,
 			Public: &net.UDPAddr{
-				IP:   ipAddr.IP,
+				IP:   dst.IP().AsSlice(),
 				Port: port,
 			},
 		}, nil
@@ -234,7 +233,7 @@ func (d UDPDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
 // service.
 type SVCDestination struct {
 	IA  addr.IA
-	Svc addr.HostSVC
+	Svc addr.SVC
 }
 
 func (d SVCDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {

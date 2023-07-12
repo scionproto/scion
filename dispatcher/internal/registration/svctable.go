@@ -61,7 +61,7 @@ type SVCTable interface {
 	//
 	// To clean up resources, call Free on the returned Reference. Calling Free
 	// more than once will cause a panic.
-	Register(svc addr.HostSVC, address *net.UDPAddr, value interface{}) (Reference, error)
+	Register(svc addr.SVC, address *net.UDPAddr, value interface{}) (Reference, error)
 	// Lookup returns the entries associated with svc and ip.
 	//
 	// If SVC is an anycast address, at most one entry is returned. The ip
@@ -73,7 +73,7 @@ type SVCTable interface {
 	//
 	// If SVC is a multicast address, more than one entry can be returned. The
 	// ip address is ignored in this case.
-	Lookup(svc addr.HostSVC, ip net.IP) []interface{}
+	Lookup(svc addr.SVC, ip net.IP) []interface{}
 	String() string
 }
 
@@ -84,16 +84,16 @@ func NewSVCTable() SVCTable {
 var _ SVCTable = (*svcTable)(nil)
 
 type svcTable struct {
-	m map[addr.HostSVC]unicastIpTable
+	m map[addr.SVC]unicastIpTable
 }
 
 func newSvcTable() *svcTable {
 	return &svcTable{
-		m: make(map[addr.HostSVC]unicastIpTable),
+		m: make(map[addr.SVC]unicastIpTable),
 	}
 }
 
-func (t *svcTable) Register(svc addr.HostSVC, address *net.UDPAddr,
+func (t *svcTable) Register(svc addr.SVC, address *net.UDPAddr,
 	value interface{}) (Reference, error) {
 
 	if err := validateUDPAddr(address); err != nil {
@@ -126,7 +126,7 @@ func (t *svcTable) Register(svc addr.HostSVC, address *net.UDPAddr,
 	return t.registerOne(svc, address, value)
 }
 
-func (t *svcTable) registerOne(svc addr.HostSVC, address *net.UDPAddr,
+func (t *svcTable) registerOne(svc addr.SVC, address *net.UDPAddr,
 	value interface{}) (Reference, error) {
 	if _, ok := t.m[svc]; !ok {
 		t.m[svc] = make(unicastIpTable)
@@ -141,7 +141,7 @@ func (t *svcTable) registerOne(svc addr.HostSVC, address *net.UDPAddr,
 	}, nil
 }
 
-func (t *svcTable) Lookup(svc addr.HostSVC, ip net.IP) []interface{} {
+func (t *svcTable) Lookup(svc addr.SVC, ip net.IP) []interface{} {
 	var values []interface{}
 	if svc.IsMulticast() {
 		values = t.multicast(svc)
@@ -153,7 +153,7 @@ func (t *svcTable) Lookup(svc addr.HostSVC, ip net.IP) []interface{} {
 	return values
 }
 
-func (t *svcTable) multicast(svc addr.HostSVC) []interface{} {
+func (t *svcTable) multicast(svc addr.SVC) []interface{} {
 	var values []interface{}
 	ipTable, ok := t.m[svc.Base()]
 	if !ok {
@@ -167,7 +167,7 @@ func (t *svcTable) multicast(svc addr.HostSVC) []interface{} {
 	return values
 }
 
-func (t *svcTable) anycast(svc addr.HostSVC, ip net.IP) (interface{}, bool) {
+func (t *svcTable) anycast(svc addr.SVC, ip net.IP) (interface{}, bool) {
 	ipTable, ok := t.m[svc]
 	if !ok {
 		return nil, false
@@ -192,13 +192,13 @@ func (t *svcTable) String() string {
 	return fmt.Sprintf("%v", t.m)
 }
 
-func (t *svcTable) buildCleanupCallback(svc addr.HostSVC, ip net.IP, port *ring.Ring) func() {
+func (t *svcTable) buildCleanupCallback(svc addr.SVC, ip net.IP, port *ring.Ring) func() {
 	return func() {
 		t.doCleanup(svc, ip, port)
 	}
 }
 
-func (t *svcTable) doCleanup(svc addr.HostSVC, ip net.IP, port *ring.Ring) {
+func (t *svcTable) doCleanup(svc addr.SVC, ip net.IP, port *ring.Ring) {
 	ipTable := t.m[svc]
 	portList := ipTable[ip.String()]
 	portList.Remove(port)

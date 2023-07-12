@@ -26,6 +26,7 @@ import (
 	"hash/fnv"
 	"math/big"
 	"net"
+	"net/netip"
 	"runtime"
 	"strconv"
 	"sync"
@@ -99,7 +100,7 @@ type DataPlane struct {
 	linkTypes         map[uint16]topology.LinkType
 	neighborIAs       map[uint16]addr.IA
 	internal          BatchConn
-	internalIP        *net.IPAddr
+	internalIP        netip.Addr
 	internalNextHops  map[uint16]*net.UDPAddr
 	svc               *services
 	macFactory        func() hash.Hash
@@ -136,7 +137,7 @@ var (
 )
 
 type drkeyProvider interface {
-	GetAuthKey(validTime time.Time, dstIA addr.IA, dstAddr net.Addr) (drkey.Key, error)
+	GetAuthKey(validTime time.Time, dstIA addr.IA, dstAddr addr.Host) (drkey.Key, error)
 }
 
 type scmpError struct {
@@ -211,7 +212,11 @@ func (d *DataPlane) AddInternalInterface(conn BatchConn, ip net.IP) error {
 	}
 	d.interfaces[0] = conn
 	d.internal = conn
-	d.internalIP = &net.IPAddr{IP: ip}
+	var ok bool
+	d.internalIP, ok = netip.AddrFromSlice(ip)
+	if !ok {
+		return serrors.New("invalid ip", "ip", ip)
+	}
 	return nil
 }
 
@@ -303,7 +308,10 @@ func (d *DataPlane) AddExternalInterfaceBFD(ifID uint16, conn BatchConn,
 			PacketsReceived: d.Metrics.BFDPacketsReceived.With(labels),
 		}
 	}
-	s := newBFDSend(conn, src.IA, dst.IA, src.Addr, dst.Addr, ifID, d.macFactory())
+	s, err := newBFDSend(conn, src.IA, dst.IA, src.Addr, dst.Addr, ifID, d.macFactory())
+	if err != nil {
+		return err
+	}
 	return d.addBFDController(ifID, s, cfg, m)
 }
 
@@ -349,7 +357,7 @@ func (d *DataPlane) addBFDController(ifID uint16, s *bfdSend, cfg control.BFD,
 // AddSvc adds the address for the given service. This can be called multiple
 // times for the same service, with the address added to the list of addresses
 // that provide the service.
-func (d *DataPlane) AddSvc(svc addr.HostSVC, a *net.UDPAddr) error {
+func (d *DataPlane) AddSvc(svc addr.SVC, a *net.UDPAddr) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if a == nil {
@@ -368,7 +376,7 @@ func (d *DataPlane) AddSvc(svc addr.HostSVC, a *net.UDPAddr) error {
 }
 
 // DelSvc deletes the address for the given service.
-func (d *DataPlane) DelSvc(svc addr.HostSVC, a *net.UDPAddr) error {
+func (d *DataPlane) DelSvc(svc addr.SVC, a *net.UDPAddr) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if a == nil {
@@ -443,7 +451,10 @@ func (d *DataPlane) AddNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg contro
 		}
 	}
 
-	s := newBFDSend(d.internal, d.localIA, d.localIA, src, dst, 0, d.macFactory())
+	s, err := newBFDSend(d.internal, d.localIA, d.localIA, src, dst, 0, d.macFactory())
+	if err != nil {
+		return err
+	}
 	return d.addBFDController(ifID, s, cfg, m)
 }
 
@@ -1646,24 +1657,24 @@ func (d *DataPlane) resolveLocalDst(s slayers.SCION) (*net.UDPAddr, error) {
 		// TODO parameter problem.
 		return nil, err
 	}
-	switch v := dst.(type) {
-	case addr.HostSVC:
+	switch dst.Type() {
+	case addr.HostTypeSVC:
 		// For map lookup use the Base address, i.e. strip the multi cast
 		// information, because we only register base addresses in the map.
-		a, ok := d.svc.Any(v.Base())
+		a, ok := d.svc.Any(dst.SVC().Base())
 		if !ok {
 			return nil, noSVCBackend
 		}
 		return a, nil
-	case *net.IPAddr:
-		return addEndhostPort(v), nil
+	case addr.HostTypeIP:
+		return addEndhostPort(dst.IP().AsSlice()), nil
 	default:
 		panic("unexpected address type returned from DstAddr")
 	}
 }
 
-func addEndhostPort(dst *net.IPAddr) *net.UDPAddr {
-	return &net.UDPAddr{IP: dst.IP, Port: topology.EndhostPort}
+func addEndhostPort(dst net.IP) *net.UDPAddr {
+	return &net.UDPAddr{IP: dst, Port: topology.EndhostPort}
 }
 
 // TODO(matzf) this function is now only used to update the OneHop-path.
@@ -1696,7 +1707,7 @@ type bfdSend struct {
 
 // newBFDSend creates and initializes a BFD Sender
 func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr *net.UDPAddr,
-	ifID uint16, mac hash.Hash) *bfdSend {
+	ifID uint16, mac hash.Hash) (*bfdSend, error) {
 
 	scn := &slayers.SCION{
 		Version:      0,
@@ -1707,11 +1718,19 @@ func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr *net.UDPA
 		DstIA:        dstIA,
 	}
 
-	if err := scn.SetSrcAddr(&net.IPAddr{IP: srcAddr.IP}); err != nil {
-		panic(err) // Must work unless IPAddr is not supported
+	srcAddrIP, ok := netip.AddrFromSlice(srcAddr.IP)
+	if !ok {
+		return nil, serrors.New("invalid source IP", "ip", srcAddr.IP)
 	}
-	if err := scn.SetDstAddr(&net.IPAddr{IP: dstAddr.IP}); err != nil {
-		panic(err) // Must work unless IPAddr is not supported
+	dstAddrIP, ok := netip.AddrFromSlice(dstAddr.IP)
+	if !ok {
+		return nil, serrors.New("invalid destination IP", "ip", dstAddr.IP)
+	}
+	if err := scn.SetSrcAddr(addr.HostIP(srcAddrIP)); err != nil {
+		panic(err) // Must work
+	}
+	if err := scn.SetDstAddr(addr.HostIP(dstAddrIP)); err != nil {
+		panic(err) // Must work
 	}
 
 	var ohp *onehop.Path
@@ -1742,7 +1761,7 @@ func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr *net.UDPA
 		mac:       mac,
 		macBuffer: make([]byte, path.MACBufferSize),
 		buffer:    gopacket.NewSerializeBuffer(),
-	}
+	}, nil
 }
 
 func (b *bfdSend) String() string {
@@ -1844,7 +1863,7 @@ func (p *scionPacketProcessor) prepareSCMP(
 	if err := scionL.SetDstAddr(srcA); err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "setting dest addr")
 	}
-	if err := scionL.SetSrcAddr(p.d.internalIP); err != nil {
+	if err := scionL.SetSrcAddr(addr.HostIP(p.d.internalIP)); err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "setting src addr")
 	}
 	scionL.NextHdr = slayers.L4SCMP
@@ -2127,7 +2146,7 @@ func interfaceToMetricLabels(id uint16, localIA addr.IA,
 	}
 }
 
-func serviceMetricLabels(localIA addr.IA, svc addr.HostSVC) prometheus.Labels {
+func serviceMetricLabels(localIA addr.IA, svc addr.SVC) prometheus.Labels {
 	return prometheus.Labels{
 		"isd_as":  localIA.String(),
 		"service": svc.BaseString(),
@@ -2139,7 +2158,7 @@ type fakeProvider struct{}
 func (p *fakeProvider) GetAuthKey(
 	_ time.Time,
 	_ addr.IA,
-	_ net.Addr,
+	_ addr.Host,
 ) (drkey.Key, error) {
 	return drkey.Key{}, nil
 }

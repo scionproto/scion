@@ -121,7 +121,7 @@ func realMain(ctx context.Context) error {
 	defer rcCleaner.Stop()
 
 	dialer := &libgrpc.TCPDialer{
-		SvcResolver: func(dst addr.HostSVC) []resolver.Address {
+		SvcResolver: func(dst addr.SVC) []resolver.Address {
 			if base := dst.Base(); base != addr.SvcCS {
 				panic("Unsupported address type, implementation error?")
 			}

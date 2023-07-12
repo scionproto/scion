@@ -15,13 +15,13 @@
 package runner
 
 import (
-	"net"
 	"testing"
 	"time"
 
 	"github.com/google/gopacket"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto"
@@ -93,10 +93,10 @@ func prepareSCION(t *testing.T, diff string) gopacket.Packet {
 		DstIA:        xtest.MustParseIA("1-ff00:0:3"),
 		Path:         sp,
 	}
-	if err := scionL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP(diff)}); err != nil {
+	if err := scionL.SetSrcAddr(addr.MustParseHost(diff)); err != nil {
 		assert.NoError(t, err)
 	}
-	if err := scionL.SetDstAddr(&net.IPAddr{IP: net.ParseIP("174.16.3.1")}); err != nil {
+	if err := scionL.SetDstAddr(addr.MustParseHost("174.16.3.1")); err != nil {
 		assert.NoError(t, err)
 	}
 

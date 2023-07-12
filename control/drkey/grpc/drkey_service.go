@@ -299,7 +299,7 @@ func validateASHostReq(meta drkey.ASHostMeta, localIA addr.IA, peerAddr net.Addr
 		return serrors.New("invalid request, req.dstIA != localIA",
 			"request_dst_isd_as", meta.DstIA, "local_isd_as", localIA)
 	}
-	dstHost := addr.HostFromIPStr(meta.DstHost)
+	dstHost := net.ParseIP(meta.DstHost)
 	if !hostAddr.Equal(dstHost) {
 		return serrors.New("invalid request, dst_host != remote host",
 			"dst_host", dstHost, "remote_host", hostAddr)
@@ -320,7 +320,7 @@ func validateHostASReq(meta drkey.HostASMeta, localIA addr.IA, peerAddr net.Addr
 		return serrors.New("invalid request, req.SrcIA != localIA",
 			"request_src_isd_as", meta.SrcIA, "local_isd_as", localIA)
 	}
-	srcHost := addr.HostFromIPStr(meta.SrcHost)
+	srcHost := net.ParseIP(meta.SrcHost)
 	if !hostAddr.Equal(srcHost) {
 		return serrors.New("invalid request, src_host != remote host",
 			"src_host", srcHost, "remote_host", hostAddr)
@@ -335,8 +335,8 @@ func validateHostHostReq(meta drkey.HostHostMeta, localIA addr.IA, peerAddr net.
 	if err != nil {
 		return err
 	}
-	srcHost := addr.HostFromIPStr(meta.SrcHost)
-	dstHost := addr.HostFromIPStr(meta.DstHost)
+	srcHost := net.ParseIP(meta.SrcHost)
+	dstHost := net.ParseIP(meta.DstHost)
 
 	if !((meta.SrcIA.Equal(localIA) && hostAddr.Equal(srcHost)) ||
 		(meta.DstIA.Equal(localIA) && hostAddr.Equal(dstHost))) {
@@ -353,13 +353,13 @@ func validateHostHostReq(meta drkey.HostHostMeta, localIA addr.IA, peerAddr net.
 	return nil
 }
 
-func hostAddrFromPeer(peerAddr net.Addr) (addr.HostAddr, error) {
+func hostAddrFromPeer(peerAddr net.Addr) (net.IP, error) {
 	tcpAddr, ok := peerAddr.(*net.TCPAddr)
 	if !ok {
 		return nil, serrors.New("invalid peer address type, expected *net.TCPAddr",
 			"peer", peerAddr, "type", common.TypeOf(peerAddr))
 	}
-	return addr.HostFromIP(tcpAddr.IP), nil
+	return tcpAddr.IP, nil
 }
 
 func getMeta(protoId drkeypb.Protocol, ts *timestamppb.Timestamp, srcIA,

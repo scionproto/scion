@@ -308,7 +308,7 @@ func (m addrMatcher) Matches(other interface{}) bool {
 		if !m.svc.IA.Equal(svc.IA) {
 			return false
 		}
-		if !m.svc.SVC.Equal(svc.SVC) {
+		if m.svc.SVC != svc.SVC {
 			return false
 		}
 		return true

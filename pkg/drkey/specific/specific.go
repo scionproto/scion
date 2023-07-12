@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/slayers"
 )
 
 // SpecificDeriver implements the specific drkey derivation.
@@ -44,37 +45,46 @@ func (d Deriver) DeriveASHost(
 	key drkey.Key,
 ) (drkey.Key, error) {
 
-	host, err := drkey.HostAddrFromString(dstHost)
+	host, err := addr.ParseHost(dstHost)
 	if err != nil {
 		return drkey.Key{}, serrors.WrapStr("parsing dst host", err)
 	}
 	buf := make([]byte, 32)
-	len := d.serializeLevel2Input(buf, drkey.AsHost, host)
-	outKey, err := drkey.DeriveKey(buf[:len], key)
+	l, err := d.serializeLevel2Input(buf, drkey.AsHost, host)
+	if err != nil {
+		return drkey.Key{}, serrors.WrapStr("serializing drkey level 2 input", err)
+	}
+	outKey, err := drkey.DeriveKey(buf[:l], key)
 	return outKey, err
 }
 
 // DeriveHostAS returns the HostAS derived key.
 func (p Deriver) DeriveHostAS(srcHost string, key drkey.Key) (drkey.Key, error) {
-	host, err := drkey.HostAddrFromString(srcHost)
+	host, err := addr.ParseHost(srcHost)
 	if err != nil {
 		return drkey.Key{}, serrors.WrapStr("parsing src host", err)
 	}
 	buf := make([]byte, 32)
-	len := p.serializeLevel2Input(buf, drkey.HostAS, host)
-	outKey, err := drkey.DeriveKey(buf[:len], key)
+	l, err := p.serializeLevel2Input(buf, drkey.HostAS, host)
+	if err != nil {
+		return drkey.Key{}, serrors.WrapStr("serializing drkey level 2 input", err)
+	}
+	outKey, err := drkey.DeriveKey(buf[:l], key)
 	return outKey, err
 }
 
 // DeriveHostHost returns the HostHost derived key.
 func (d Deriver) DeriveHostHost(dstHost string, key drkey.Key) (drkey.Key, error) {
-	host, err := drkey.HostAddrFromString(dstHost)
+	host, err := addr.ParseHost(dstHost)
 	if err != nil {
 		return drkey.Key{}, serrors.WrapStr("deriving input H2H", err)
 	}
 	buf := make([]byte, 32)
-	len := drkey.SerializeHostHostInput(buf, host)
-	outKey, err := drkey.DeriveKey(buf[:len], key)
+	l, err := drkey.SerializeHostHostInput(buf, host)
+	if err != nil {
+		return drkey.Key{}, serrors.WrapStr("serializing drkey host-host input", err)
+	}
+	outKey, err := drkey.DeriveKey(buf[:l], key)
 	return outKey, err
 }
 
@@ -84,11 +94,14 @@ func (d Deriver) DeriveHostHost(dstHost string, key drkey.Key) (drkey.Key, error
 func (d Deriver) serializeLevel2Input(
 	input []byte,
 	derType drkey.KeyType,
-	host drkey.HostAddr,
-) int {
+	host addr.Host,
+) (int, error) {
 
-	hostAddr := host.RawAddr
-	l := len(hostAddr)
+	typ, raw, err := slayers.PackAddr(host)
+	if err != nil {
+		return 0, serrors.WrapStr("packing host address", err)
+	}
+	l := len(raw)
 
 	// Calculate a multiple of 16 such that the input fits in
 	nrBlocks := (2+l-1)/16 + 1
@@ -96,11 +109,11 @@ func (d Deriver) serializeLevel2Input(
 
 	_ = input[inputLength-1]
 	input[0] = uint8(derType)
-	input[1] = uint8(host.AddrType & 0x7)
-	copy(input[2:], hostAddr)
+	input[1] = uint8(typ & 0xF)
+	copy(input[2:], raw)
 	copy(input[2+l:inputLength], drkey.ZeroBlock[:])
 
-	return inputLength
+	return inputLength, nil
 }
 
 // serializeLevel1Input serializes the input for a Level1 key,

@@ -22,6 +22,7 @@ import (
 	sc_grpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
+	"github.com/scionproto/scion/pkg/snet"
 )
 
 // Fetcher obtains end-host key from the local CS.
@@ -34,7 +35,7 @@ func (f *Fetcher) ASHostKey(
 	meta drkey.ASHostMeta,
 ) (drkey.ASHostKey, error) {
 
-	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)
+	conn, err := f.Dialer.Dial(ctx, &snet.SVCAddr{SVC: addr.SvcCS})
 	if err != nil {
 		return drkey.ASHostKey{}, serrors.WrapStr("dialing", err)
 	}
@@ -59,7 +60,7 @@ func (f *Fetcher) HostASKey(
 	meta drkey.HostASMeta,
 ) (drkey.HostASKey, error) {
 
-	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)
+	conn, err := f.Dialer.Dial(ctx, &snet.SVCAddr{SVC: addr.SvcCS})
 	if err != nil {
 		return drkey.HostASKey{}, serrors.WrapStr("dialing", err)
 	}
@@ -84,7 +85,7 @@ func (f *Fetcher) HostHostKey(
 	meta drkey.HostHostMeta,
 ) (drkey.HostHostKey, error) {
 
-	conn, err := f.Dialer.Dial(ctx, addr.SvcCS)
+	conn, err := f.Dialer.Dial(ctx, &snet.SVCAddr{SVC: addr.SvcCS})
 	if err != nil {
 		return drkey.HostHostKey{}, serrors.WrapStr("dialing", err)
 	}

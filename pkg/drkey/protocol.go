@@ -17,8 +17,6 @@ package drkey
 import (
 	"crypto/aes"
 	"crypto/cipher"
-	"encoding/binary"
-	"net"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -40,60 +38,16 @@ var (
 	ZeroBlock [aes.BlockSize]byte
 )
 
-// HostAddr is the address representation of a host as defined in the SCION header.
-type HostAddr struct {
-	AddrType slayers.AddrType
-	RawAddr  []byte
-}
-
-// AddrToString returns the string representation of the HostAddr.
-func (h *HostAddr) String() string {
-	switch h.AddrType {
-	case slayers.T4Ip:
-		return net.IP(h.RawAddr).String()
-	case slayers.T4Svc:
-		addr := addr.HostSVC(binary.BigEndian.Uint16(h.RawAddr[:addr.HostLenSVC]))
-		return addr.String()
-	case slayers.T16Ip:
-		return net.IP(h.RawAddr).String()
-	}
-	return ""
-}
-
-// packtoHostAddr returns a HostAddr parsing a given address in string format.
-func HostAddrFromString(host string) (HostAddr, error) {
-	// trying IP
-	ipAddr := addr.HostFromIPStr(host)
-	if ipAddr != nil {
-		if ip := ipAddr.IP().To4(); ip != nil {
-			return HostAddr{
-				AddrType: slayers.T4Ip,
-				RawAddr:  ip,
-			}, nil
-		}
-		return HostAddr{
-			AddrType: slayers.T16Ip,
-			RawAddr:  ipAddr.IP(),
-		}, nil
-	}
-	// trying SVC
-	svcAddr := addr.HostSVCFromString(host)
-	if svcAddr != addr.SvcNone {
-		return HostAddr{
-			AddrType: slayers.T4Svc,
-			RawAddr:  svcAddr.PackWithPad(2),
-		}, nil
-	}
-	return HostAddr{}, serrors.New("unsupported address", "addr", host)
-}
-
 // SerializeHostHostInput serializes the input for deriving a HostHost key,
 // as explained in
 // https://docs.scion.org/en/latest/cryptography/drkey.html#level-derivation.
 // This derivation is common for Generic and Specific derivations.
-func SerializeHostHostInput(input []byte, host HostAddr) int {
-	hostAddr := host.RawAddr
-	l := len(hostAddr)
+func SerializeHostHostInput(input []byte, host addr.Host) (int, error) {
+	typ, raw, err := slayers.PackAddr(host)
+	if err != nil {
+		return 0, serrors.WrapStr("packing host address", err)
+	}
+	l := len(raw)
 
 	// Calculate a multiple of 16 such that the input fits in
 	nrBlocks := (2+l-1)/16 + 1
@@ -102,11 +56,11 @@ func SerializeHostHostInput(input []byte, host HostAddr) int {
 
 	_ = input[inputLength-1]
 	input[0] = uint8(HostHost)
-	input[1] = uint8(host.AddrType & 0x7)
-	copy(input[2:], hostAddr)
+	input[1] = uint8(typ & 0xF)
+	copy(input[2:], raw)
 	copy(input[2+l:inputLength], ZeroBlock[:])
 
-	return inputLength
+	return inputLength, nil
 }
 
 // DeriveKey derives the following key given an input and a higher-level key,

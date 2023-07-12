@@ -85,11 +85,11 @@ Options
   -h, --help                   help for traceroute
   -i, --interactive            interactive mode
       --isd-as isd-as          The local ISD-AS to use. (default 0-0)
-  -l, --local ip               Local IP address to listen on. (default zero IP)
+  -l, --local ip               Local IP address to listen on. (default invalid IP)
       --log.level string       Console logging level verbosity (debug|info|error)
       --no-color               disable colored output
       --refresh                set refresh flag for path request
-      --sciond string          SCION Deamon address. (default "127.0.0.1:30255")
+      --sciond string          SCION Daemon address. (default "127.0.0.1:30255")
       --sequence string        Space separated list of hop predicates
       --timeout duration       timeout per packet (default 1s)
       --tracing.agent string   Tracing agent address
