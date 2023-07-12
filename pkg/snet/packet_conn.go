@@ -15,7 +15,6 @@
 package snet
 
 import (
-	"fmt"
 	"net"
 	"time"
 
@@ -82,14 +81,7 @@ type SCMPExternalInterfaceDownL4 struct {
 func (SCMPExternalInterfaceDownL4) closed() {}
 
 // SCIONAddress is the fully-specified address of a host.
-type SCIONAddress struct {
-	IA   addr.IA
-	Host addr.HostAddr
-}
-
-func (a SCIONAddress) String() string {
-	return fmt.Sprintf("%v,%s", a.IA, a.Host.String())
-}
+type SCIONAddress = addr.Addr
 
 type SCIONPacketConnMetrics struct {
 	// Closes records the total number of Close calls on the connection.

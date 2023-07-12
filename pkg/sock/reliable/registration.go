@@ -35,7 +35,7 @@ type Registration struct {
 	IA            addr.IA
 	PublicAddress *net.UDPAddr
 	BindAddress   *net.UDPAddr
-	SVCAddress    addr.HostSVC
+	SVCAddress    addr.SVC
 }
 
 func (r *Registration) SerializeTo(b []byte) (int, error) {
@@ -78,7 +78,7 @@ func (r *Registration) DecodeFromBytes(b []byte) error {
 	if len(msg.SVC) == 0 {
 		r.SVCAddress = addr.SvcNone
 	} else {
-		r.SVCAddress = addr.HostSVC(binary.BigEndian.Uint16(msg.SVC))
+		r.SVCAddress = addr.SVC(binary.BigEndian.Uint16(msg.SVC))
 	}
 	if (msg.Command & CmdBindAddress) != 0 {
 		r.BindAddress = &net.UDPAddr{
@@ -175,10 +175,10 @@ func (l *registrationAddressField) DecodeFromBytes(b []byte) error {
 	}
 	l.Port = binary.BigEndian.Uint16(b[:2])
 	l.AddressType = b[2]
-	if !isValidReliableSockDestination(addr.HostAddrType(l.AddressType)) {
+	if !isValidReliableSockDestination(hostAddrType(l.AddressType)) {
 		return ErrBadAddressType
 	}
-	addressLength := getAddressLength(addr.HostAddrType(l.AddressType))
+	addressLength := getAddressLength(hostAddrType(l.AddressType))
 	if len(b[3:]) < addressLength {
 		return ErrIncompleteAddress
 	}

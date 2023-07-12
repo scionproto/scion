@@ -40,7 +40,7 @@ type Pather struct {
 }
 
 // GetPath computes the remote address with a path based on the provided segment.
-func (p Pather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, error) {
+func (p Pather) GetPath(svc addr.SVC, ps *seg.PathSegment) (*snet.SVCAddr, error) {
 	if len(ps.ASEntries) == 0 {
 		return nil, serrors.New("empty path")
 	}

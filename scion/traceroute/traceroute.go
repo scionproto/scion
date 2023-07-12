@@ -19,6 +19,7 @@ import (
 	"context"
 	"math/rand"
 	"net"
+	"net/netip"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -223,15 +224,24 @@ func (t *tracerouter) probeHop(ctx context.Context, hfIdx uint8, egress bool) (U
 		RTTs:  make([]time.Duration, 0, t.probesPerHop),
 	}
 	t.index++
+
+	remoteHostIP, ok := netip.AddrFromSlice(t.remote.Host.IP)
+	if !ok {
+		return Update{}, serrors.New("invalid remote host IP", "ip", t.remote.Host.IP)
+	}
+	localHostIP, ok := netip.AddrFromSlice(t.local.Host.IP)
+	if !ok {
+		return Update{}, serrors.New("invalid local host IP", "ip", t.local.Host.IP)
+	}
 	pkt := &snet.Packet{
 		PacketInfo: snet.PacketInfo{
 			Destination: snet.SCIONAddress{
 				IA:   t.remote.IA,
-				Host: addr.HostFromIP(t.remote.Host.IP),
+				Host: addr.HostIP(remoteHostIP),
 			},
 			Source: snet.SCIONAddress{
 				IA:   t.local.IA,
-				Host: addr.HostFromIP(t.local.Host.IP),
+				Host: addr.HostIP(localHostIP),
 			},
 			Path:    alertPath,
 			Payload: snet.SCMPTracerouteRequest{Identifier: t.id},
@@ -310,11 +320,8 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 	h.replies <- reply{
 		Received: time.Now(),
 		Reply:    r,
-		Remote: snet.SCIONAddress{
-			IA:   pkt.Source.IA,
-			Host: pkt.Source.Host.Copy(),
-		},
-		Error: err,
+		Remote:   pkt.Source,
+		Error:    err,
 	}
 	return nil
 }

@@ -20,7 +20,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/config"
@@ -118,7 +117,7 @@ func (cfg *SecretValueHostList) Validate() error {
 			return serrors.New("GENERIC protocol is not allowed")
 		}
 		for _, ip := range list {
-			if h := addr.HostFromIPStr(ip); h == nil {
+			if _, err := netip.ParseAddr(ip); err != nil {
 				return serrors.New("Syntax error: not a valid address", "ip", ip)
 			}
 		}

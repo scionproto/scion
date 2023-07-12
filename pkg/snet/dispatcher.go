@@ -34,7 +34,7 @@ import (
 // fine-grained control over header fields.
 type PacketDispatcherService interface {
 	Register(ctx context.Context, ia addr.IA, registration *net.UDPAddr,
-		svc addr.HostSVC) (PacketConn, uint16, error)
+		svc addr.SVC) (PacketConn, uint16, error)
 }
 
 var _ PacketDispatcherService = (*DefaultPacketDispatcherService)(nil)
@@ -53,7 +53,7 @@ type DefaultPacketDispatcherService struct {
 }
 
 func (s *DefaultPacketDispatcherService) Register(ctx context.Context, ia addr.IA,
-	registration *net.UDPAddr, svc addr.HostSVC) (PacketConn, uint16, error) {
+	registration *net.UDPAddr, svc addr.SVC) (PacketConn, uint16, error) {
 
 	rconn, port, err := s.Dispatcher.Register(ctx, ia, registration, svc)
 	if err != nil {

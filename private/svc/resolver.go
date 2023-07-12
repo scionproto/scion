@@ -17,6 +17,7 @@ package svc
 import (
 	"context"
 	"net"
+	"net/netip"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -68,7 +69,7 @@ type Resolver struct {
 }
 
 // LookupSVC resolves the SVC address for the AS terminating the path.
-func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC) (*Reply, error) {
+func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.SVC) (*Reply, error) {
 	var span opentracing.Span
 	span, ctx = opentracing.StartSpanFromContext(ctx, "svc.resolution")
 	span.SetTag("svc", svc.String())
@@ -77,6 +78,10 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 
 	u := &net.UDPAddr{
 		IP: r.LocalIP,
+	}
+	localIP, ok := netip.AddrFromSlice(r.LocalIP)
+	if !ok {
+		return nil, serrors.New("invalid local IP", "ip", r.LocalIP)
 	}
 
 	conn, port, err := r.ConnFactory.Register(ctx, r.LocalIA, u, addr.SvcNone)
@@ -95,11 +100,11 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 		PacketInfo: snet.PacketInfo{
 			Source: snet.SCIONAddress{
 				IA:   r.LocalIA,
-				Host: addr.HostFromIP(r.LocalIP),
+				Host: addr.HostIP(localIP),
 			},
 			Destination: snet.SCIONAddress{
 				IA:   p.Destination(),
-				Host: svc,
+				Host: addr.HostSVC(svc),
 			},
 			Path: p.Dataplane(),
 			Payload: snet.UDPPayload{

@@ -95,8 +95,8 @@ func SCMPDestinationUnreachable(artifactsDir string, mac hash.Hash) runner.Case 
 		DstIA:        xtest.MustParseIA("1-ff00:0:1"),
 		Path:         sp,
 	}
-	srcA := &net.IPAddr{IP: net.ParseIP("172.16.3.1")}
-	dstA := addr.HostSVC(15)
+	srcA := addr.MustParseHost("172.16.3.1")
+	dstA := addr.HostSVC(addr.SVC(15))
 	if err := scionL.SetSrcAddr(srcA); err != nil {
 		panic(err)
 	}
@@ -135,7 +135,7 @@ func SCMPDestinationUnreachable(artifactsDir string, mac hash.Hash) runner.Case 
 	if err := scionL.SetDstAddr(srcA); err != nil {
 		panic(err)
 	}
-	intlA := &net.IPAddr{IP: net.IP{192, 168, 0, 11}}
+	intlA := addr.MustParseHost("192.168.0.11")
 	if err := scionL.SetSrcAddr(intlA); err != nil {
 		panic(err)
 	}

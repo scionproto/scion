@@ -23,6 +23,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
@@ -107,10 +108,10 @@ func ChildToChildXover(artifactsDir string, mac hash.Hash) runner.Case {
 		Path:         sp,
 	}
 
-	if err := scionL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("172.16.5.1")}); err != nil {
+	if err := scionL.SetSrcAddr(addr.MustParseHost("172.16.5.1")); err != nil {
 		panic(err)
 	}
-	if err := scionL.SetDstAddr(&net.IPAddr{IP: net.ParseIP("174.16.4.1")}); err != nil {
+	if err := scionL.SetDstAddr(addr.MustParseHost("174.16.4.1")); err != nil {
 		panic(err)
 	}
 

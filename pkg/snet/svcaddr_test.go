@@ -36,7 +36,7 @@ func TestSVCAddrString(t *testing.T) {
 	}{
 		"nil": {
 			input: &snet.SVCAddr{},
-			want:  "0-0,UNKNOWN A (0x0000)",
+			want:  "0-0,<SVC:0x0000>",
 		},
 	}
 	for n, tc := range tests {

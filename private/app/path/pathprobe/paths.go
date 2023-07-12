@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -55,7 +56,7 @@ const (
 // Status indicates the state a path is in.
 type Status struct {
 	Status         StatusName
-	LocalIP        net.IP
+	LocalIP        netip.Addr
 	AdditionalInfo string
 }
 
@@ -172,10 +173,11 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 
 	// Resolve all the local IPs per path. We will open one connection
 	// per local IP address.
-	pathsPerIP := map[string][]snet.Path{}
+	pathsPerIP := map[netip.Addr][]snet.Path{}
 	for _, path := range paths {
-		localIP, err := p.resolveLocalIP(path.UnderlayNextHop())
-		if err != nil {
+		localIPSlice, err := p.resolveLocalIP(path.UnderlayNextHop())
+		localIP, ok := netip.AddrFromSlice(localIPSlice)
+		if err != nil || !ok {
 			addStatus(
 				PathKey(path),
 				Status{
@@ -185,20 +187,20 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 			)
 			continue
 		}
-		pathsPerIP[localIP.String()] = append(pathsPerIP[localIP.String()], path)
+		pathsPerIP[localIP] = append(pathsPerIP[localIP], path)
 		addStatus(PathKey(path), Status{Status: StatusTimeout, LocalIP: localIP})
 	}
 
 	// Sequence number for the sent traceroute packets.
 	var seq int32
 	g, _ := errgroup.WithContext(ctx)
-	for ip, paths := range pathsPerIP {
-		ip, paths := ip, paths
+	for localIP, paths := range pathsPerIP {
+		localIP, paths := localIP, paths
 		g.Go(func() error {
 			defer log.HandlePanic()
 
-			localIP := net.ParseIP(ip)
-			conn, _, err := disp.Register(ctx, p.LocalIA, &net.UDPAddr{IP: localIP}, addr.SvcNone)
+			conn, _, err := disp.Register(ctx, p.LocalIA,
+				&net.UDPAddr{IP: localIP.AsSlice()}, addr.SvcNone)
 			if err != nil {
 				return serrors.WrapStr("creating packet conn", err, "local", localIP)
 			}
@@ -236,11 +238,11 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 					PacketInfo: snet.PacketInfo{
 						Destination: snet.SCIONAddress{
 							IA:   p.DstIA,
-							Host: addr.SvcNone,
+							Host: addr.HostSVC(addr.SvcNone),
 						},
 						Source: snet.SCIONAddress{
 							IA:   p.LocalIA,
-							Host: addr.HostFromIP(localIP),
+							Host: addr.HostIP(localIP),
 						},
 						Path: alertPath,
 						Payload: snet.SCMPTracerouteRequest{

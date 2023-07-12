@@ -82,7 +82,7 @@ type SCIONNetwork struct {
 // The context is used for connection setup, it doesn't affect the returned
 // connection.
 func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDPAddr,
-	remote *UDPAddr, svc addr.HostSVC) (*Conn, error) {
+	remote *UDPAddr, svc addr.SVC) (*Conn, error) {
 
 	metrics.CounterInc(n.Metrics.Dials)
 	if remote == nil {
@@ -104,7 +104,7 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 // The context is used for connection setup, it doesn't affect the returned
 // connection.
 func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.UDPAddr,
-	svc addr.HostSVC) (*Conn, error) {
+	svc addr.SVC) (*Conn, error) {
 
 	metrics.CounterInc(n.Metrics.Listens)
 

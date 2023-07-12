@@ -111,14 +111,14 @@ func (pcf PacketConnFactory) New() (net.PacketConn, error) {
 type ProbeConnFactory struct {
 	Dispatcher *reconnect.DispatcherService
 	LocalIA    addr.IA
-	LocalIP    net.IP
+	LocalIP    netip.Addr
 }
 
 func (f ProbeConnFactory) New(ctx context.Context) (net.PacketConn, error) {
 	pathMonitorConnection, pathMonitorPort, err := f.Dispatcher.Register(
 		context.Background(),
 		f.LocalIA,
-		&net.UDPAddr{IP: f.LocalIP},
+		&net.UDPAddr{IP: f.LocalIP.AsSlice()},
 		addr.SvcNone,
 	)
 	if err != nil {
@@ -186,7 +186,7 @@ type Gateway struct {
 	ServiceDiscoveryClientIP net.IP
 
 	// PathMonitorIP is the IP that should be used for path monitoring SCMP traceroute traffic.
-	PathMonitorIP net.IP
+	PathMonitorIP netip.Addr
 	// ProbeServerAddr is the address for the probe server. The probe server replies
 	// to probe traffic from other gateways.
 	ProbeServerAddr *net.UDPAddr

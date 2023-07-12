@@ -24,6 +24,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
@@ -78,10 +79,10 @@ func IncomingOneHop(artifactsDir string, mac hash.Hash) runner.Case {
 		DstIA:        xtest.MustParseIA("1-ff00:0:1"),
 		Path:         ohp,
 	}
-	if err := scionL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("172.16.4.1")}); err != nil {
+	if err := scionL.SetSrcAddr(addr.MustParseHost("172.16.4.1")); err != nil {
 		panic(err)
 	}
-	if err := scionL.SetDstAddr(&net.IPAddr{IP: net.ParseIP("192.168.0.71")}); err != nil {
+	if err := scionL.SetDstAddr(addr.MustParseHost("192.168.0.71")); err != nil {
 		panic(err)
 	}
 
@@ -173,10 +174,10 @@ func OutgoingOneHop(artifactsDir string, mac hash.Hash) runner.Case {
 		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
 		Path:         ohp,
 	}
-	if err := scionL.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("192.168.0.71")}); err != nil {
+	if err := scionL.SetSrcAddr(addr.MustParseHost("192.168.0.71")); err != nil {
 		panic(err)
 	}
-	if err := scionL.SetDstAddr(&net.IPAddr{IP: net.ParseIP("172.16.4.1")}); err != nil {
+	if err := scionL.SetDstAddr(addr.MustParseHost("172.16.4.1")); err != nil {
 		panic(err)
 	}
 

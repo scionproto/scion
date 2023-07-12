@@ -207,7 +207,7 @@ func (l *Loader) HiddenSegmentRegistrationAddresses() ([]*net.UDPAddr, error) {
 }
 
 // TODO(lukedirtwalker): remove error / cleanup.
-func (l *Loader) GetUnderlay(svc addr.HostSVC) (*net.UDPAddr, error) {
+func (l *Loader) GetUnderlay(svc addr.SVC) (*net.UDPAddr, error) {
 	l.mtx.Lock()
 	defer l.mtx.Unlock()
 

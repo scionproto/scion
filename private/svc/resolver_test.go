@@ -55,6 +55,7 @@ func TestResolver(t *testing.T) {
 		resolver := &svc.Resolver{
 			LocalIA:     srcIA,
 			ConnFactory: mockPacketDispatcherService,
+			LocalIP:     net.IP{0, 0, 0, 0},
 		}
 
 		reply, err := resolver.LookupSVC(context.Background(), mockPath, addr.SvcCS)

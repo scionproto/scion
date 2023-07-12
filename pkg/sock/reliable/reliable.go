@@ -95,7 +95,7 @@ type Dispatcher interface {
 	// Register connects to a SCION Dispatcher's UNIX socket. Future messages for the address in AS
 	// ia which arrive at the dispatcher can be read by calling Read on the returned connection.
 	Register(ctx context.Context, ia addr.IA, address *net.UDPAddr,
-		svc addr.HostSVC) (net.PacketConn, uint16, error)
+		svc addr.SVC) (net.PacketConn, uint16, error)
 }
 
 // NewDispatcher creates a new dispatcher API endpoint on top of a UNIX
@@ -113,7 +113,7 @@ type dispatcherService struct {
 }
 
 func (d *dispatcherService) Register(ctx context.Context, ia addr.IA, public *net.UDPAddr,
-	svc addr.HostSVC) (net.PacketConn, uint16, error) {
+	svc addr.SVC) (net.PacketConn, uint16, error) {
 
 	return registerMetricsWrapper(ctx, d.Address, ia, public, svc)
 }
@@ -161,7 +161,7 @@ func Dial(ctx context.Context, address string) (*Conn, error) {
 }
 
 func registerMetricsWrapper(ctx context.Context, dispatcher string, ia addr.IA,
-	public *net.UDPAddr, svc addr.HostSVC) (*Conn, uint16, error) {
+	public *net.UDPAddr, svc addr.SVC) (*Conn, uint16, error) {
 
 	conn, port, err := register(ctx, dispatcher, ia, public, svc)
 	labels := metrics.RegisterLabels{Result: labelResult(err), SVC: svc.BaseString()}
@@ -170,7 +170,7 @@ func registerMetricsWrapper(ctx context.Context, dispatcher string, ia addr.IA,
 }
 
 func register(ctx context.Context, dispatcher string, ia addr.IA, public *net.UDPAddr,
-	svc addr.HostSVC) (*Conn, uint16, error) {
+	svc addr.SVC) (*Conn, uint16, error) {
 
 	reg := &Registration{
 		IA:            ia,

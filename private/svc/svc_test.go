@@ -59,7 +59,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, ov *net.UDPAddr) error {
 						pkt.Destination = snet.SCIONAddress{
-							Host: addr.SvcCS,
+							Host: addr.HostSVC(addr.SvcCS),
 						}
 						return nil
 					},
@@ -85,7 +85,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, ov *net.UDPAddr) error {
 						pkt.Destination = snet.SCIONAddress{
-							Host: addr.SvcCS,
+							Host: addr.HostSVC(addr.SvcCS),
 						}
 						return nil
 					},
@@ -111,7 +111,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, ov *net.UDPAddr) error {
 						pkt.Destination = snet.SCIONAddress{
-							Host: addr.HostIPv4(net.IP{192, 168, 0, 1}),
+							Host: addr.MustParseHost("192.168.0.1"),
 						}
 						return nil
 					},
@@ -160,7 +160,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, ov *net.UDPAddr) error {
 						pkt.Destination = snet.SCIONAddress{
-							Host: addr.SvcCS.Multicast(),
+							Host: addr.HostSVC(addr.SvcCS.Multicast()),
 						}
 						return nil
 					},
@@ -190,7 +190,8 @@ func TestSVCResolutionServer(t *testing.T) {
 			defer ctrl.Finish()
 
 			disp := svc.NewResolverPacketDispatcher(tc.DispService(ctrl), tc.ReqHandler(ctrl))
-			conn, port, err := disp.Register(context.Background(), 0, &net.UDPAddr{},
+			conn, port, err := disp.Register(context.Background(), 0,
+				&net.UDPAddr{IP: net.ParseIP("198.51.100.1")},
 				addr.SvcCS)
 
 			tc.ErrRegister(t, err)
@@ -280,7 +281,7 @@ func TestDefaultHandler(t *testing.T) {
 			},
 		},
 		"Source address override": {
-			ReplySource: snet.SCIONAddress{Host: addr.HostIPv4(net.IP{192, 168, 0, 1})},
+			ReplySource: snet.SCIONAddress{Host: addr.MustParseHost("192.168.0.1")},
 			InputPacket: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Payload: snet.UDPPayload{},
@@ -289,7 +290,7 @@ func TestDefaultHandler(t *testing.T) {
 			},
 			ExpectedPacket: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
-					Source:  snet.SCIONAddress{Host: addr.HostIPv4(net.IP{192, 168, 0, 1})},
+					Source:  snet.SCIONAddress{Host: addr.MustParseHost("192.168.0.1")},
 					Payload: snet.UDPPayload{},
 					Path: snet.RawReplyPath{
 						Path: empty.Path{},
