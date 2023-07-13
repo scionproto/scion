@@ -665,6 +665,7 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 		}
 		metrics := d.forwardingMetrics[p.ingress]
 		result, err := processor.processPkt(p.rawPacket, p.srcAddr, p.ingress)
+		metrics.ProcessedPackets.Inc()
 		egress := result.EgressID
 		switch {
 		case err == nil:
@@ -679,7 +680,6 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 			continue
 		}
 		if result.OutPkt == nil { // e.g. BFD case no message is forwarded
-			metrics.ProcessedPackets.Inc()
 			d.returnPacketToPool(p.rawPacket)
 			continue
 		}
@@ -693,7 +693,6 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 		p.rawPacket = result.OutPkt
 		p.dstAddr = result.OutAddr
 
-		metrics.ProcessedPackets.Inc()
 		select {
 		case fwCh <- p:
 		default:
