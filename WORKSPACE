@@ -29,6 +29,17 @@ lint_setup({
     "flake8": "//:flake8_lint_config",
 })
 
+http_archive(
+    name = "aspect_bazel_lib",
+    sha256 = "e3151d87910f69cf1fc88755392d7c878034a69d6499b287bcfc00b1cf9bb415",
+    strip_prefix = "bazel-lib-1.32.1",
+    url = "https://github.com/aspect-build/bazel-lib/archive/refs/tags/v1.32.1.tar.gz",
+)
+
+load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies")
+
+aspect_bazel_lib_dependencies()
+
 # Bazel rules for Golang
 http_archive(
     name = "io_bazel_rules_go",
@@ -61,7 +72,7 @@ http_archive(
     ],
 )
 
-load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
+load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
 
 go_rules_dependencies()
 

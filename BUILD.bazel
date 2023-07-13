@@ -3,6 +3,7 @@ load("@bazel_gazelle//:def.bzl", "gazelle")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@io_bazel_rules_go//go:def.bzl", "nogo")
 load("//tools/lint:go_config.bzl", "go_lint_config")
+load("//tools/lint:write_source_files.bzl", "write_source_files")
 load("//tools/lint/python:flake8_config.bzl", "flake8_lint_config")
 load("//:nogo.bzl", "nogo_deps")
 load("@com_github_bazelbuild_buildtools//buildifier:def.bzl", "buildifier")
@@ -115,11 +116,18 @@ buildifier(
     mode = "check",
 )
 
-# Runs all update_src targets in this Workspace.
+# Runs all update_src targets in this Workspace. Currently, generating the
+# OpenAPI specs is the last target that depends on update_src. Eventually,
+# this should be transitioned to write_all_source_files below.
 updatesrc_update_all(
     name = "update_all",
-    targets_to_run = [
-        "//doc/command:copy_scion",
-        "//doc/command:copy_scion-pki",
+)
+
+# Runs all write_source_files targets in this Workspace. To update the list run
+# bazel run @com_github_bazelbuild_buildtools//buildozer -- --root_dir $PWD  "add additional_update_targets $( bazel query 'filter("^.*[^\d]$", kind(_write_source_file, //...)) except //:write_all_source_files' | tr '\n' ' ')" //:write_all_source_files
+write_source_files(
+    name = "write_all_source_files",
+    additional_update_targets = [
+        "//doc/command:write_files",
     ],
 )
