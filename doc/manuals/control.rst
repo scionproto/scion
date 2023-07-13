@@ -10,8 +10,9 @@ It signs and validates the path information based on the :term:`Control-Plane PK
 The :program:`control` service is also the recursive resolver for path information for endpoints in
 the local AS.
 
-In core ASes, the :program:`control` service also acts as the certificate authority from which ASes
-in the local ISD request renewed certificates (or as a proxy thereof).
+In ASes with the :ref:`CA role<overview-as-roles>`, the :program:`control` service also acts as the
+certificate authority from which ASes in the local ISD request renewed certificates (or as a proxy
+thereof).
 
 See :doc:`/control-plane` for an introduction to the SCION control plane and the tasks of the
 :program:`control` service.

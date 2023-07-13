@@ -30,7 +30,7 @@ Glossary
    CA
    Certificate Authority
 
-      An entity that signs and issues digital certificates , certifying the ownership of a public
+      An entity that signs and issues digital certificates, certifying the ownership of a public
       key by the named subject of the certificate.
       CAs are a part of a public key infrastructure, like the SCION :term:`Control-Plane PKI`.
 
