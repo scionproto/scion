@@ -1806,7 +1806,12 @@ func (p *scionPacketProcessor) hasValidAuth(t time.Time) bool {
 	if err != nil {
 		return false
 	}
-	key, err := p.drkeyProvider.GetKeyWithinAcceptanceWindow(t, authOption.TimestampSN(), p.scionLayer.SrcIA, srcAddr)
+	key, err := p.drkeyProvider.GetKeyWithinAcceptanceWindow(
+		t,
+		authOption.TimestampSN(),
+		p.scionLayer.SrcIA,
+		srcAddr,
+	)
 	if err != nil {
 		log.Error("Selecting key to authenticate the incoming packet", "err", err)
 		return false

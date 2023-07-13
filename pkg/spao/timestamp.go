@@ -22,7 +22,7 @@ import (
 )
 
 // RelativeTimestamp returns the relative timestamp (RelTime) as the time diference from
-// time instant t to the begining of the drkey epoch.
+// time instant t to the beginning of the drkey epoch.
 func RelativeTimestamp(key drkey.ASHostKey, t time.Time) (uint64, error) {
 	relTime := t.Sub(key.Epoch.NotBefore).Nanoseconds()
 	if relTime >= (1 << 48) {
