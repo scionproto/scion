@@ -22,6 +22,15 @@ Command line reference
 
 .. program:: control
 
+Synopsis
+--------
+
+:program:`control` [:option:`--config \<config.toml\> <control --config>` | :option:`help <control help>` | :option:`version <control version>`]
+
+
+Options
+-------
+
 .. option:: --config <config.toml>
 
    Specifes the :ref:`configuration file <control-conf-toml>` and starts the control service.
