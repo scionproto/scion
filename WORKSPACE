@@ -29,6 +29,17 @@ lint_setup({
     "flake8": "//:flake8_lint_config",
 })
 
+http_archive(
+    name = "aspect_bazel_lib",
+    sha256 = "e3151d87910f69cf1fc88755392d7c878034a69d6499b287bcfc00b1cf9bb415",
+    strip_prefix = "bazel-lib-1.32.1",
+    url = "https://github.com/aspect-build/bazel-lib/archive/refs/tags/v1.32.1.tar.gz",
+)
+
+load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies")
+
+aspect_bazel_lib_dependencies()
+
 # Bazel rules for Golang
 http_archive(
     name = "io_bazel_rules_go",
@@ -61,7 +72,7 @@ http_archive(
     ],
 )
 
-load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
+load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
 
 go_rules_dependencies()
 
@@ -125,9 +136,11 @@ rules_pkg_dependencies()
 # Antlr rules
 http_archive(
     name = "rules_antlr",
-    sha256 = "234c401cfabab78f2d7f5589239d98f16f04338768a72888f660831964948ab1",
+    # XXX(roosd): This hash is not guaranteed to be stable by GitHub.
+    # See: https://github.blog/changelog/2023-01-30-git-archive-checksums-may-change
+    sha256 = "8d7c457cc266965bdcf7e85aa349d2f851b772a55877354d9ae92ada7a62c857",
     strip_prefix = "rules_antlr-0.6.0",
-    urls = ["https://github.com/artisoft-io/rules_antlr/archive/0.6.0.tar.gz"],
+    urls = ["https://github.com/bacek/rules_antlr/archive/refs/tags/0.6.0.tar.gz"],
 )
 
 load("@rules_antlr//antlr:repositories.bzl", "rules_antlr_dependencies")

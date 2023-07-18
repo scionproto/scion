@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# This script ensures that the "additional_update_targets" entry of the
+# "//:write_all_source_files_source_files" target in the root BUILD.bazel file is up to date.
+# This catches the case that a new write_source_file target is added but not
+# registered in //:write_all_source_files_source_files.
+#
+# We use bazel query to find all the targets. However, the //:write_all_source_files_source_files
+# is also detected. Thus, we need to strip it out. Buildozer is then used to
+# write a new BUILD.bazel file with the all targets registered.
+#
+# The result is diffed against the current BUILD.bazel file. If there is a
+# difference, the script fails and the developer needs to update the target.
+
+
+root_dir="$(bazel info workspace 2> /dev/null)"
+
+ret=0
+diff -Nu3 $root_dir/BUILD.bazel <(bazel run  @com_github_bazelbuild_buildtools//buildozer -- --root_dir $root_dir --stdout "add additional_update_targets $(bazel query  'filter("^.*[^\d]$", kind(_write_source_file, //...)) except //:write_all_source_files' | tr '\n' ' ')" //:write_all_source_files) || ret=$?
+if [[ $ret -ne 0 ]] && [ "${CI+x}" == x ]; then
+    annotate=$(cat <<EOF
+Update the //:write_all_source_files target:
+
+bash:
+\`\`\`
+bazel run @com_github_bazelbuild_buildtools//buildozer -- --root_dir \$PWD "add additional_update_targets \$(bazel query  'filter("^.*[^\d]$", kind(_write_source_file, //...)) except //:write_all_source_files' | tr '\n' ' ')" //:write_all_source_files
+\`\`\`
+EOF
+)
+    echo "$annotate" | buildkite-agent annotate --style 'error' --context 'check_write_targets'
+fi
+exit $ret
