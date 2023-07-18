@@ -254,7 +254,7 @@ The process to look up and fetch path segments consists of the following steps:
 
 All remote path-segment lookups by the control service are cached.
 
-On SCION end-hosts, a :doc:`SCION daemon <manuals/daemon>` is usually employed to do the
+On SCION end hosts, a :doc:`SCION daemon <manuals/daemon>` is usually employed to do the
 path-lookup on behalf of applications. This SCION daemon also caches path-segment lookup results.
 
 .. table:: Control services responsible for different types of path segments
@@ -273,7 +273,7 @@ Path-Segment Combination
 The last step of the path-resolution process is to combine the available up-, core- and down-
 path segments to end-to-end forwarding paths.
 This path-segment combination process is done by each endpoint separately.
-Typically, end-hosts run the :doc:`SCION daemon <manuals/daemon>` which centralizes the
+Typically, end hosts run the :doc:`SCION daemon <manuals/daemon>` which centralizes the
 path-resolution process and returns fully formed end-to-end paths to applications.
 However, applications could also choose to bypass the daemon and perform the path-resolution
 directly.
