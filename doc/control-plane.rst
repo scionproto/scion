@@ -117,7 +117,7 @@ For every interface connecting to a neighboring core AS:
 1. Select the best :math:`N` PCBs for each origin core AS.
    This can take into account both the available PCBs as well as local policies and information
    about the link to the neighbor.
-2. Extend the selected PCBs by adding an *AS Entry*
+2. Extend the selected PCBs by adding an *AS entry*
 3. Send the extended PCBs over the interface
 
 Non-core ASes implement the intra-ISD / non-core beaconing scheme.
@@ -126,13 +126,14 @@ For every interface connecting to a child AS:
 1. Select the best :math:`N` PCBs.
    This can take into account both the available PCBs as well as local policies and information
    about the link to the child AS.
-2. Extend the selected PCBs by adding an *AS Entry*
+2. Extend the selected PCBs by adding an *AS entry*
 3. Send the extended PCBs over the interface
 
 AS Entries
 ----------
 
-Every AS adds a signed *AS entry* to the PCBs it originates, propagates or terminates.
+Every AS adds a signed *AS entry* to the PCBs it originates, propagates or :ref:`registers
+<control-plane-registration>`.
 
 This AS entry includes the relevant network topology information for this AS-hop
 defined by the ingress and egress :term:`interface IDs <Interface ID>` of the beacon.
@@ -144,9 +145,27 @@ details on the hop field format and the MAC chaining mechanism.
 Additionally, an AS entry can contain :doc:`metadata <beacon-metadata>` such as the link MTU,
 geographic locations of the AS routers, latencies, etc.
 
-Such an AS entry includes a hop field that specifies the ingress and egress
-:term:`interface ID <Interface ID>` for this hop through the AS.
-This hop field includes an expiration time MAC,
+For illustration, the following code blocks show the definition of the protobuf message definitions
+for the AS entry "body" and the contained hop field information.
+This is just a small excerpt of the relevant definitions.
+See the `SCION Control Plane IETF draft (section "Components of a PCB") <https://www.ietf.org/archive/id/draft-dekater-scion-controlplane-00.html#name-components-of-a-pcb-in-mess>`_
+for a more complete discussion of the message formats and signature inputs,
+or :file-ref:`proto/control_plane/v1/seg.proto` for the raw protocol definitions used in this project.
+
+.. literalinclude:: /../proto/control_plane/v1/seg.proto
+   :caption: AS entry protobuf message definition.
+             This data will be signed by the creating AS.
+             A PCB is essentially a sequence of such signed AS entries.
+   :language: proto
+   :start-at: message ASEntrySignedBody {
+   :end-at: }
+
+.. literalinclude:: /../proto/control_plane/v1/seg.proto
+   :caption: Hop field protobuf message definition. This is a part of the ``HopEntry``, refererred to
+             in the ``ASEntrySignedBody`` definition above.
+   :language: proto
+   :start-at: message HopField {
+   :end-at: }
 
 Peering Links
 -------------
@@ -174,7 +193,6 @@ reached, based on AS-specific selection critera.
 The next step is to register the selected down-segments with the control service of the
 core AS that originated the PCB.
 
-
 Intra-ISD Path-Segment Registration
 -----------------------------------
 
@@ -201,7 +219,6 @@ segment (i.e. the one at the end of the beacon chain), so that local and remote 
 and use these core-segments.
 In contrast to the down-segment registration procedure, there is no need to register core-segments
 with other core ASes (as each core AS will receive PCBs originated from every other core AS).
-
 
 Path Lookup
 ===========
