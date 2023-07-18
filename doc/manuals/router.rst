@@ -14,6 +14,14 @@ Command Line Reference
 
 .. program:: router
 
+Synopsis
+--------
+
+:program:`router` [:option:`--config \<config.toml\> <router --config>` | :option:`help <router help>` | :option:`version <router version>`]
+
+Options
+-------
+
 .. option:: --config <config.toml>
 
    Specifes the :ref:`configuration file <router-conf-toml>` and starts the router.
