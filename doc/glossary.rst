@@ -60,7 +60,7 @@ Glossary
    Interface ID
       An interface ID is the AS-local identifier for an inter-domain link.
 
-      The interface ID is an arbitrary number between 1 and 65535,
+      The interface ID is an arbitrary 16-bit number between 1 and 65535,
       assigned without external coordination by the operator of the AS.
 
    ISD
