@@ -205,8 +205,8 @@ PCBs to transform into path segments:
 - Down-segments, which allow remote entities to reach this AS.
   Down-segments are registered, via a remote-procedure call, in the path-segment database of the
   core AS that originated the PCB.
-  As a result, a core AS's path database contains all down-segments registered by the
-  non-core ASes in its customer cone.
+  As a result, a core AS's path database contains all down-segments registered by their
+  direct or indirect customer ASes.
 
 Core Path-Segment Registration
 ------------------------------
