@@ -132,8 +132,7 @@ For every interface connecting to a child AS:
 AS Entries
 ----------
 
-Every AS adds a signed *AS entry* to the PCBs it originates, propagates or :ref:`registers
-<control-plane-registration>`.
+Every AS adds a signed *AS entry* to the PCBs it originates, propagates or :ref:`registers <control-plane-registration>`.
 
 This AS entry includes the relevant network topology information for this AS-hop
 defined by the ingress and egress :term:`interface IDs <Interface ID>` of the beacon.
