@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2023 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,6 +24,12 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/private/topology"
 )
+
+var metrics = NewMetrics()
+
+func GetMetrics() *Metrics {
+	return metrics
+}
 
 var NewServices = newServices
 
@@ -64,14 +71,14 @@ func (d *DataPlane) FakeStart() {
 
 func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message) (ProcessResult, error) {
 
-	p := newPacketProcessor(d, ifID)
+	p := newPacketProcessor(d)
 	var srcAddr *net.UDPAddr
 	// for real packets received from ReadBatch this is always non-nil.
 	// Allow nil in test cases for brevity.
 	if m.Addr != nil {
 		srcAddr = m.Addr.(*net.UDPAddr)
 	}
-	result, err := p.processPkt(m.Buffers[0], srcAddr)
+	result, err := p.processPkt(m.Buffers[0], srcAddr, ifID)
 	return ProcessResult{processResult: result}, err
 }
 

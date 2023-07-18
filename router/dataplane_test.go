@@ -1,4 +1,5 @@
 // Copyright 2020 Anapaya Systems
+// Copyright 2023 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +22,6 @@ import (
 	"net"
 	"net/netip"
 	"sync"
-	"syscall"
 	"testing"
 	"time"
 
@@ -49,6 +49,8 @@ import (
 	"github.com/scionproto/scion/router/control"
 	"github.com/scionproto/scion/router/mock_router"
 )
+
+var metrics = router.GetMetrics()
 
 func TestDataPlaneAddInternalInterface(t *testing.T) {
 	internalIP := net.ParseIP("198.51.100.1")
@@ -189,15 +191,12 @@ func TestDataPlaneRun(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	metrics := router.NewMetrics()
-
 	testCases := map[string]struct {
 		prepareDP func(*gomock.Controller, chan<- struct{}) *router.DataPlane
 	}{
 		"route 10 msg from external to internal": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
 				ret := &router.DataPlane{Metrics: metrics}
-
 				key := []byte("testkey_xxxxxxxx")
 				local := xtest.MustParseIA("1-ff00:0:110")
 
@@ -205,22 +204,24 @@ func TestDataPlaneRun(t *testing.T) {
 				mInternal := mock_router.NewMockBatchConn(ctrl)
 				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
-				matchFlags := gomock.Eq(syscall.MSG_DONTWAIT)
-				for i := 0; i < 10; i++ {
-					ii := i
-					mInternal.EXPECT().WriteBatch(gomock.Any(), matchFlags).DoAndReturn(
-						func(ms underlayconn.Messages, flags int) (int, error) {
-							want := bytes.Repeat([]byte("actualpayloadbytes"), ii)
-							if len(ms[0].Buffers[0]) != len(want)+84 {
+				mInternal.EXPECT().WriteBatch(gomock.Any(), 0).DoAndReturn(
+					func(ms underlayconn.Messages, flags int) (int, error) {
+						if totalCount == 0 {
+							t.Fail()
+							return 0, nil
+						}
+						for _, msg := range ms {
+							want := bytes.Repeat([]byte("actualpayloadbytes"), 10-totalCount)
+							if len(msg.Buffers[0]) != len(want)+84 {
 								return 1, nil
 							}
 							totalCount--
 							if totalCount == 0 {
 								done <- struct{}{}
 							}
-							return 1, nil
-						})
-				}
+						}
+						return len(ms), nil
+					}).AnyTimes()
 				_ = ret.AddInternalInterface(mInternal, net.IP{})
 
 				mExternal := mock_router.NewMockBatchConn(ctrl)
@@ -533,18 +534,21 @@ func TestDataPlaneRun(t *testing.T) {
 			},
 		},
 	}
-
 	for name, tc := range testCases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+			runConfig := &router.RunConfig{
+				NumProcessors: 8,
+				BatchSize:     256,
+			}
 			ch := make(chan struct{})
 			dp := tc.prepareDP(ctrl, ch)
 			errors := make(chan error)
 			ctx, cancelF := context.WithCancel(context.Background())
 			defer cancelF()
 			go func() {
-				errors <- dp.Run(ctx)
+				errors <- dp.Run(ctx, runConfig)
 			}()
 
 			for done := false; !done; {
@@ -1176,7 +1180,6 @@ func TestProcessPkt(t *testing.T) {
 			if err != nil {
 				return
 			}
-			assert.NotNil(t, result.OutConn)
 			outPkt := &ipv4.Message{
 				Buffers: [][]byte{result.OutPkt},
 				Addr:    result.OutAddr,

@@ -25,6 +25,7 @@ type Metrics struct {
 	OutputBytesTotal          *prometheus.CounterVec
 	InputPacketsTotal         *prometheus.CounterVec
 	OutputPacketsTotal        *prometheus.CounterVec
+	ProcessedPackets          *prometheus.CounterVec
 	DroppedPacketsTotal       *prometheus.CounterVec
 	InterfaceUp               *prometheus.GaugeVec
 	BFDInterfaceStateChanges  *prometheus.CounterVec
@@ -42,6 +43,13 @@ type Metrics struct {
 // with the default registry.
 func NewMetrics() *Metrics {
 	return &Metrics{
+		ProcessedPackets: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "router_processed_pkts_total",
+				Help: "Total number of packets processed by the processor",
+			},
+			[]string{"interface", "isd_as", "neighbor_isd_as"},
+		),
 		InputBytesTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "router_input_bytes_total",
@@ -73,10 +81,9 @@ func NewMetrics() *Metrics {
 		DroppedPacketsTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "router_dropped_pkts_total",
-				Help: "Total number of packets dropped by the router. This metric reports " +
-					"the number of packets that were dropped because of errors.",
+				Help: "Total number of packets dropped by the router.",
 			},
-			[]string{"interface", "isd_as", "neighbor_isd_as"},
+			[]string{"interface", "isd_as", "neighbor_isd_as", "reason"},
 		),
 		InterfaceUp: promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
