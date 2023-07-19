@@ -60,6 +60,8 @@ func realMain(ctx context.Context) error {
 		DataPlane: router.DataPlane{
 			Metrics: metrics,
 		},
+		ReceiveBufferSize: globalCfg.Router.ReceiveBufferSize,
+		SendBufferSize:    globalCfg.Router.SendBufferSize,
 	}
 	iaCtx := &control.IACtx{
 		Config: controlConfig,
@@ -121,9 +123,7 @@ func realMain(ctx context.Context) error {
 	})
 	g.Go(func() error {
 		defer log.HandlePanic()
-		runConfig := &router.RunConfig{}
-		runConfig.LoadDefaults()
-		if err := dp.DataPlane.Run(errCtx, runConfig); err != nil {
+		if err := dp.DataPlane.Run(errCtx, &globalCfg.Router.RunConfig); err != nil {
 			return serrors.WrapStr("running dataplane", err)
 		}
 		return nil

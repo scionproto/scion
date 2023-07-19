@@ -38,6 +38,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	underlayconn "github.com/scionproto/scion/private/underlay/conn"
+	"github.com/scionproto/scion/router/config"
 	"github.com/scionproto/scion/router/mock_router"
 )
 
@@ -75,12 +76,12 @@ func TestReceiver(t *testing.T) {
 
 	_ = dp.AddInternalInterface(mInternal, net.IP{})
 
-	runConfig := &RunConfig{
+	runConfig := &config.RunConfig{
 		NumProcessors: 1,
 		BatchSize:     64,
 	}
 	dp.initPacketPool(runConfig, 64)
-	procCh, _ := initQueues(runConfig, dp.interfaces, 64)
+	procCh, _, _ := initQueues(runConfig, dp.interfaces, 64)
 	initialPoolSize := len(dp.packetPool)
 	dp.running = true
 	dp.initMetrics()
@@ -169,12 +170,12 @@ func TestForwarder(t *testing.T) {
 		return ret
 	}
 	dp := prepareDP(ctrl)
-	runConfig := &RunConfig{
+	runConfig := &config.RunConfig{
 		NumProcessors: 20,
 		BatchSize:     64,
 	}
 	dp.initPacketPool(runConfig, 64)
-	_, fwCh := initQueues(runConfig, dp.interfaces, 64)
+	_, fwCh, _ := initQueues(runConfig, dp.interfaces, 64)
 	initialPoolSize := len(dp.packetPool)
 	dp.running = true
 	dp.initMetrics()

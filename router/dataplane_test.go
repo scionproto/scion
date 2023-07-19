@@ -46,6 +46,7 @@ import (
 	"github.com/scionproto/scion/private/topology"
 	underlayconn "github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router"
+	"github.com/scionproto/scion/router/config"
 	"github.com/scionproto/scion/router/control"
 	"github.com/scionproto/scion/router/mock_router"
 )
@@ -538,9 +539,10 @@ func TestDataPlaneRun(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			runConfig := &router.RunConfig{
-				NumProcessors: 8,
-				BatchSize:     256,
+			runConfig := &config.RunConfig{
+				NumProcessors:         8,
+				NumSlowPathProcessors: 1,
+				BatchSize:             256,
 			}
 			ch := make(chan struct{})
 			dp := tc.prepareDP(ctrl, ch)

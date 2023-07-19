@@ -27,7 +27,6 @@ import (
 	"math/big"
 	"net"
 	"net/netip"
-	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -54,6 +53,7 @@ import (
 	"github.com/scionproto/scion/private/topology"
 	underlayconn "github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router/bfd"
+	"github.com/scionproto/scion/router/config"
 	"github.com/scionproto/scion/router/control"
 )
 
@@ -458,11 +458,6 @@ func (d *DataPlane) AddNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg contro
 	return d.addBFDController(ifID, s, cfg, m)
 }
 
-type RunConfig struct {
-	NumProcessors int
-	BatchSize     int
-}
-
 func max(a int, b int) int {
 	if a > b {
 		return a
@@ -470,7 +465,7 @@ func max(a int, b int) int {
 	return b
 }
 
-func (d *DataPlane) Run(ctx context.Context, cfg *RunConfig) error {
+func (d *DataPlane) Run(ctx context.Context, cfg *config.RunConfig) error {
 	d.mtx.Lock()
 	d.running = true
 	d.initMetrics()
@@ -480,7 +475,7 @@ func (d *DataPlane) Run(ctx context.Context, cfg *RunConfig) error {
 		cfg.BatchSize)
 
 	d.initPacketPool(cfg, processorQueueSize)
-	procQs, fwQs := initQueues(cfg, d.interfaces, processorQueueSize)
+	procQs, fwQs, slowQs := initQueues(cfg, d.interfaces, processorQueueSize)
 
 	for ifID, conn := range d.interfaces {
 		go func(ifID uint16, conn BatchConn) {
@@ -492,10 +487,17 @@ func (d *DataPlane) Run(ctx context.Context, cfg *RunConfig) error {
 			d.runForwarder(ifID, conn, cfg, fwQs[ifID])
 		}(ifID, conn)
 	}
+
+	for i := 0; i < cfg.NumSlowPathProcessors; i++ {
+		go func(i int) {
+			defer log.HandlePanic()
+			d.runProcessor(i, slowQs[i], fwQs, nil)
+		}(i)
+	}
 	for i := 0; i < cfg.NumProcessors; i++ {
 		go func(i int) {
 			defer log.HandlePanic()
-			d.runProcessor(i, procQs[i], fwQs)
+			d.runProcessor(i, procQs[i], fwQs, slowQs[i%len(slowQs)])
 		}(i)
 	}
 
@@ -513,20 +515,11 @@ func (d *DataPlane) Run(ctx context.Context, cfg *RunConfig) error {
 	return nil
 }
 
-// loadDefaults sets the default configuration for the number of
-// processors and the batch size
-func (r *RunConfig) LoadDefaults() {
-	// TODO(rohrerj) move this logic to configuration in configuration PR
-	r.NumProcessors = runtime.GOMAXPROCS(0)
-	r.BatchSize = 256
-
-}
-
 // initializePacketPool calculates the size of the packet pool based on the
 // current dataplane settings and allocates all the buffers
-func (d *DataPlane) initPacketPool(cfg *RunConfig, processorQueueSize int) {
+func (d *DataPlane) initPacketPool(cfg *config.RunConfig, processorQueueSize int) {
 	poolSize := len(d.interfaces)*cfg.BatchSize +
-		cfg.NumProcessors*(processorQueueSize+1) +
+		(cfg.NumProcessors+cfg.NumSlowPathProcessors)*(processorQueueSize+1) +
 		len(d.interfaces)*(2*cfg.BatchSize)
 
 	log.Debug("Initialize packet pool of size", "poolSize", poolSize)
@@ -537,8 +530,8 @@ func (d *DataPlane) initPacketPool(cfg *RunConfig, processorQueueSize int) {
 }
 
 // initializes the processing routines and forwarders queues
-func initQueues(cfg *RunConfig, interfaces map[uint16]BatchConn,
-	processorQueueSize int) ([]chan packet, map[uint16]chan packet) {
+func initQueues(cfg *config.RunConfig, interfaces map[uint16]BatchConn,
+	processorQueueSize int) ([]chan packet, map[uint16]chan packet, []chan packet) {
 
 	procQs := make([]chan packet, cfg.NumProcessors)
 	for i := 0; i < cfg.NumProcessors; i++ {
@@ -548,7 +541,11 @@ func initQueues(cfg *RunConfig, interfaces map[uint16]BatchConn,
 	for ifID := range interfaces {
 		fwQs[ifID] = make(chan packet, cfg.BatchSize)
 	}
-	return procQs, fwQs
+	slowQs := make([]chan packet, cfg.NumSlowPathProcessors)
+	for i := 0; i < cfg.NumSlowPathProcessors; i++ {
+		slowQs[i] = make(chan packet, 16)
+	}
+	return procQs, fwQs, slowQs
 }
 
 type packet struct {
@@ -561,9 +558,19 @@ type packet struct {
 	// set by the receiver
 	ingress   uint16
 	rawPacket []byte
+	// The scmp state. Only valid if processing of that
+	// packet led to an scmp response. Only used in slow path
+	scmpState *scmpState
 }
 
-func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
+type scmpState struct {
+	typ   slayers.SCMPType
+	code  slayers.SCMPCode
+	scmpP gopacket.SerializableLayer
+	cause error
+}
+
+func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *config.RunConfig,
 	procQs []chan packet) {
 
 	log.Debug("Run receiver for", "interface", ifID)
@@ -653,10 +660,15 @@ func (d *DataPlane) returnPacketToPool(pkt []byte) {
 }
 
 func (d *DataPlane) runProcessor(id int, q <-chan packet,
-	fwQs map[uint16]chan packet) {
+	fwQs map[uint16]chan packet, slowQ chan<- packet) {
 
-	log.Debug("Initialize processor with", "id", id)
 	processor := newPacketProcessor(d)
+	if slowQ == nil {
+		processor.isSlowPath = true
+		log.Debug("Initialize slow path processor with", "id", id)
+	} else {
+		log.Debug("Initialize processor with", "id", id)
+	}
 	var scmpErr scmpError
 	for d.running {
 		p, ok := <-q
@@ -664,7 +676,26 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 			continue
 		}
 		metrics := d.forwardingMetrics[p.ingress]
-		result, err := processor.processPkt(p.rawPacket, p.srcAddr, p.ingress)
+		var result processResult
+		var err error
+		if processor.isSlowPath {
+			result, err = processor.processSlowPathPkt(p.rawPacket, p.srcAddr,
+				p.ingress, *p.scmpState)
+		} else {
+			result, err = processor.processPkt(p.rawPacket, p.srcAddr, p.ingress)
+			if result.ScmpState != nil {
+				// the result is slow path but the current processor is not
+				// responsible for slow path hence we forward the packet to slow path
+				p.scmpState = result.ScmpState
+				select {
+				case slowQ <- p:
+				default:
+					d.returnPacketToPool(p.rawPacket)
+					metrics.DroppedPacketsBusySlowProcessor.Inc()
+				}
+				continue
+			}
+		}
 		metrics.ProcessedPackets.Inc()
 		egress := result.EgressID
 		switch {
@@ -704,7 +735,7 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 }
 
 func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
-	cfg *RunConfig, c <-chan packet) {
+	cfg *config.RunConfig, c <-chan packet) {
 
 	log.Debug("Initialize forwarder for", "interface", ifID)
 	writeMsgs := make(underlayconn.Messages, cfg.BatchSize)
@@ -796,9 +827,10 @@ func (d *DataPlane) initMetrics() {
 }
 
 type processResult struct {
-	EgressID uint16
-	OutAddr  *net.UDPAddr
-	OutPkt   []byte
+	EgressID  uint16
+	OutAddr   *net.UDPAddr
+	OutPkt    []byte
+	ScmpState *scmpState
 }
 
 func newPacketProcessor(d *DataPlane) *scionPacketProcessor {
@@ -839,6 +871,48 @@ func (p *scionPacketProcessor) reset() error {
 	// Reset e2e layer
 	p.e2eLayer = slayers.EndToEndExtnSkipper{}
 	return nil
+}
+
+func (p *scionPacketProcessor) processSlowPathPkt(rawPkt []byte,
+	srcAddr *net.UDPAddr, ingressID uint16,
+	scmp scmpState) (processResult, error) {
+
+	if err := p.reset(); err != nil {
+		return processResult{}, err
+	}
+	p.rawPkt = rawPkt
+	p.srcAddr = srcAddr
+	p.ingressID = ingressID
+
+	var err error
+	p.lastLayer, err = decodeLayers(p.rawPkt, &p.scionLayer, &p.hbhLayer, &p.e2eLayer)
+	if err != nil {
+		return processResult{}, err
+	}
+	pathType := p.scionLayer.PathType
+	switch pathType {
+	case scion.PathType:
+		var ok bool
+		p.path, ok = p.scionLayer.Path.(*scion.Raw)
+		if !ok {
+			return processResult{}, malformedPath
+		}
+	case epic.PathType:
+		epicPath, ok := p.scionLayer.Path.(*epic.Path)
+		if !ok {
+			return processResult{}, malformedPath
+		}
+
+		p.path = epicPath.ScionPath
+		if p.path == nil {
+			return processResult{}, malformedPath
+		}
+	default:
+		return processResult{}, serrors.New("Path type not supported for slow path",
+			"type", pathType)
+	}
+
+	return p.packSCMP(scmp.typ, scmp.code, scmp.scmpP, scmp.cause)
 }
 
 func (p *scionPacketProcessor) processPkt(rawPkt []byte,
@@ -1038,6 +1112,8 @@ type scionPacketProcessor struct {
 
 	// DRKey key derivation for SCMP authentication
 	drkeyProvider drkeyProvider
+
+	isSlowPath bool
 }
 
 // macBuffers are preallocated buffers for the in- and outputs of MAC functions.
@@ -1053,7 +1129,17 @@ func (p *scionPacketProcessor) packSCMP(
 	scmpP gopacket.SerializableLayer,
 	cause error,
 ) (processResult, error) {
-
+	if !p.isSlowPath {
+		// the current processor is not responsible for slow path processing
+		return processResult{
+			ScmpState: &scmpState{
+				typ:   typ,
+				code:  code,
+				scmpP: scmpP,
+				cause: cause,
+			},
+		}, serrors.New("slow path")
+	}
 	// check invoking packet was an SCMP error:
 	if p.lastLayer.NextLayerType() == slayers.LayerTypeSCMP {
 		var scmpLayer slayers.SCMP
@@ -2092,14 +2178,15 @@ func nextHdr(layer gopacket.DecodingLayer) slayers.L4ProtocolType {
 // forwardingMetrics contains the subset of Metrics relevant for forwarding,
 // instantiated with some interface-specific labels.
 type forwardingMetrics struct {
-	InputBytesTotal             prometheus.Counter
-	OutputBytesTotal            prometheus.Counter
-	InputPacketsTotal           prometheus.Counter
-	OutputPacketsTotal          prometheus.Counter
-	DroppedPacketsInvalid       prometheus.Counter
-	DroppedPacketsBusyProcessor prometheus.Counter
-	DroppedPacketsBusyForwarder prometheus.Counter
-	ProcessedPackets            prometheus.Counter
+	InputBytesTotal                 prometheus.Counter
+	OutputBytesTotal                prometheus.Counter
+	InputPacketsTotal               prometheus.Counter
+	OutputPacketsTotal              prometheus.Counter
+	DroppedPacketsInvalid           prometheus.Counter
+	DroppedPacketsBusyProcessor     prometheus.Counter
+	DroppedPacketsBusySlowProcessor prometheus.Counter
+	DroppedPacketsBusyForwarder     prometheus.Counter
+	ProcessedPackets                prometheus.Counter
 }
 
 func initForwardingMetrics(metrics *Metrics, labels prometheus.Labels) forwardingMetrics {
@@ -2116,6 +2203,8 @@ func initForwardingMetrics(metrics *Metrics, labels prometheus.Labels) forwardin
 	c.DroppedPacketsBusyProcessor = metrics.DroppedPacketsTotal.With(labels)
 	labels["reason"] = "busy_forwarder"
 	c.DroppedPacketsBusyForwarder = metrics.DroppedPacketsTotal.With(labels)
+	labels["reason"] = "busy_slow_processor"
+	c.DroppedPacketsBusySlowProcessor = metrics.DroppedPacketsTotal.With(labels)
 
 	c.InputBytesTotal.Add(0)
 	c.InputPacketsTotal.Add(0)
@@ -2123,6 +2212,7 @@ func initForwardingMetrics(metrics *Metrics, labels prometheus.Labels) forwardin
 	c.OutputPacketsTotal.Add(0)
 	c.DroppedPacketsInvalid.Add(0)
 	c.DroppedPacketsBusyProcessor.Add(0)
+	c.DroppedPacketsBusySlowProcessor.Add(0)
 	c.DroppedPacketsBusyForwarder.Add(0)
 	c.ProcessedPackets.Add(0)
 	return c

@@ -79,6 +79,12 @@ func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message) (ProcessResult, err
 		srcAddr = m.Addr.(*net.UDPAddr)
 	}
 	result, err := p.processPkt(m.Buffers[0], srcAddr, ifID)
+	if result.ScmpState != nil {
+		slowProcessor := newPacketProcessor(d)
+		slowProcessor.isSlowPath = true
+		result, err = slowProcessor.processSlowPathPkt(m.Buffers[0], srcAddr,
+			ifID, *result.ScmpState)
+	}
 	return ProcessResult{processResult: result}, err
 }
 

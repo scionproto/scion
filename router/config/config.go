@@ -18,6 +18,7 @@ package config
 
 import (
 	"io"
+	"runtime"
 
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/private/config"
@@ -33,6 +34,73 @@ type Config struct {
 	Logging  log.Config   `toml:"log,omitempty"`
 	Metrics  env.Metrics  `toml:"metrics,omitempty"`
 	API      api.Config   `toml:"api,omitempty"`
+	Router   RouterConfig `toml:"router,omitempty"`
+}
+
+type RouterConfig struct {
+	ReceiveBufferSize int       `toml:"receive_buffer_size,omitempty"`
+	SendBufferSize    int       `toml:"send_buffer_size,omitempty"`
+	RunConfig         RunConfig `toml:"run_config,omitempty"`
+}
+
+func (cfg *RouterConfig) ConfigName() string {
+	return "router"
+}
+
+func (cfg *RouterConfig) Validate() error {
+	ok := cfg.RunConfig.Validate()
+	if cfg.ReceiveBufferSize < 0 {
+		ok = false
+	}
+	if cfg.SendBufferSize < 0 {
+		ok = false
+	}
+	if !ok {
+		cfg.InitDefaults()
+		log.Error("Provided router config is invalid. Use default settings.")
+	}
+
+	return nil
+}
+
+func (cfg *RouterConfig) InitDefaults() {
+	cfg.ReceiveBufferSize = 1 << 20
+	cfg.SendBufferSize = 0 // use system default
+}
+
+func (cfg *RouterConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, routerConfigSample)
+}
+
+type RunConfig struct {
+	NumProcessors         int `toml:"num_processors,omitempty"`
+	NumSlowPathProcessors int `toml:"num_slow_processors,omitempty"`
+	BatchSize             int `toml:"batch_size,omitempty"`
+}
+
+func (cfg *RunConfig) Validate() bool {
+	ok := true
+	if cfg.BatchSize <= 0 {
+		ok = false
+	}
+	if cfg.NumProcessors == 0 {
+		cfg.NumProcessors = runtime.GOMAXPROCS(0)
+	}
+	if cfg.NumProcessors < 0 {
+		ok = false
+	}
+	if cfg.NumSlowPathProcessors <= 0 {
+		ok = false
+	}
+	if !ok {
+		cfg.InitDefaults()
+	}
+	return ok
+}
+func (cfg *RunConfig) InitDefaults() {
+	cfg.NumProcessors = runtime.GOMAXPROCS(0)
+	cfg.NumSlowPathProcessors = 1
+	cfg.BatchSize = 256
 }
 
 func (cfg *Config) InitDefaults() {
@@ -42,6 +110,7 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Logging,
 		&cfg.Metrics,
 		&cfg.API,
+		&cfg.Router,
 	)
 }
 
@@ -52,6 +121,7 @@ func (cfg *Config) Validate() error {
 		&cfg.Logging,
 		&cfg.Metrics,
 		&cfg.API,
+		&cfg.Router,
 	)
 }
 
@@ -62,5 +132,6 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.Logging,
 		&cfg.Metrics,
 		&cfg.API,
+		&cfg.Router,
 	)
 }
