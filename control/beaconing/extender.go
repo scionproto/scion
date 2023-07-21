@@ -23,13 +23,21 @@ import (
 	"github.com/scionproto/scion/control/ifstate"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/segment/extensions/digest"
 	"github.com/scionproto/scion/pkg/segment/extensions/epic"
 	"github.com/scionproto/scion/pkg/slayers/path"
+	"github.com/scionproto/scion/private/trust"
 )
+
+// SignerGen generates signers and returns their expiration time.
+type SignerGen interface {
+	// Generate generates a signer it.
+	Generate(ctx context.Context) (trust.Signer, error)
+}
 
 // Extender extends path segments.
 type Extender interface {
@@ -44,8 +52,8 @@ type Extender interface {
 type DefaultExtender struct {
 	// IA is the local IA
 	IA addr.IA
-	// Signer is used to sign path segments.
-	Signer seg.Signer
+	// SignerGen is used to sign path segments.
+	SignerGen SignerGen
 	// MAC is used to calculate the hop field MAC.
 	MAC func() hash.Hash
 	// Intfs holds all interfaces in the AS.
@@ -60,6 +68,11 @@ type DefaultExtender struct {
 	StaticInfo func() *StaticInfoCfg
 	// EPIC defines whether the EPIC authenticators should be added when the segment is extended.
 	EPIC bool
+
+	// SegmentExpirationDeficient is a gauge that is set to 1 if the expiration time of the segment
+	// is below the maximum expiration time. This happens when the signer expiration time is lower
+	// than the maximum segment expiration time.
+	SegmentExpirationDeficient metrics.Gauge
 }
 
 // Extend extends the beacon with hop fields.
@@ -85,8 +98,27 @@ func (s *DefaultExtender) Extend(
 	}
 	ts := pseg.Info.Timestamp
 
+	signer, err := s.SignerGen.Generate(ctx)
+	if err != nil {
+		return serrors.WrapStr("getting signer", err)
+	}
+	// Make sure the hop expiration time is not longer than the signer expiration time.
+	expTime := s.MaxExpTime()
+	if ts.Add(path.ExpTimeToDuration(expTime)).After(signer.Expiration) {
+		metrics.GaugeSet(s.SegmentExpirationDeficient, 1)
+		var err error
+		expTime, err = path.ExpTimeFromDuration(signer.Expiration.Sub(ts))
+		if err != nil {
+			return serrors.WrapStr(
+				"calculating expiry time from signer expiration time", err,
+				"signer_expiration", signer.Expiration,
+			)
+		}
+	} else {
+		metrics.GaugeSet(s.SegmentExpirationDeficient, 0)
+	}
 	hopBeta := extractBeta(pseg)
-	hopEntry, epicHopMac, err := s.createHopEntry(ingress, egress, ts, hopBeta)
+	hopEntry, epicHopMac, err := s.createHopEntry(ingress, egress, expTime, ts, hopBeta)
 	if err != nil {
 		return serrors.WrapStr("creating hop entry", err)
 	}
@@ -104,7 +136,7 @@ func (s *DefaultExtender) Extend(
 	// is traversed.
 
 	peerBeta := hopBeta ^ binary.BigEndian.Uint16(hopEntry.HopField.MAC[:2])
-	peerEntries, epicPeerMacs, err := s.createPeerEntries(egress, peers, ts, peerBeta)
+	peerEntries, epicPeerMacs, err := s.createPeerEntries(egress, peers, expTime, ts, peerBeta)
 	if err != nil {
 		return err
 	}
@@ -143,7 +175,7 @@ func (s *DefaultExtender) Extend(
 		}
 	}
 
-	if err := pseg.AddASEntry(ctx, asEntry, s.Signer); err != nil {
+	if err := pseg.AddASEntry(ctx, asEntry, signer); err != nil {
 		return err
 	}
 	if egress == 0 {
@@ -153,12 +185,12 @@ func (s *DefaultExtender) Extend(
 }
 
 func (s *DefaultExtender) createPeerEntries(egress uint16, peers []uint16,
-	ts time.Time, beta uint16) ([]seg.PeerEntry, [][]byte, error) {
+	expTime uint8, ts time.Time, beta uint16) ([]seg.PeerEntry, [][]byte, error) {
 
 	peerEntries := make([]seg.PeerEntry, 0, len(peers))
 	peerEpicMacs := make([][]byte, 0, len(peers))
 	for _, peer := range peers {
-		peerEntry, epicMac, err := s.createPeerEntry(peer, egress, ts, beta)
+		peerEntry, epicMac, err := s.createPeerEntry(peer, egress, expTime, ts, beta)
 		if err != nil {
 			log.Debug("Ignoring peer link upon error",
 				"task", s.Task, "peer_interface", peer, "err", err)
@@ -170,15 +202,20 @@ func (s *DefaultExtender) createPeerEntries(egress uint16, peers []uint16,
 	return peerEntries, peerEpicMacs, nil
 }
 
-func (s *DefaultExtender) createHopEntry(ingress, egress uint16, ts time.Time,
-	beta uint16) (seg.HopEntry, []byte, error) {
+func (s *DefaultExtender) createHopEntry(
+	ingress,
+	egress uint16,
+	expTime uint8,
+	ts time.Time,
+	beta uint16,
+) (seg.HopEntry, []byte, error) {
 
 	remoteInMTU, err := s.remoteMTU(ingress)
 	if err != nil {
 		return seg.HopEntry{}, nil, serrors.WrapStr("checking remote ingress interface (mtu)", err,
 			"interfaces", ingress)
 	}
-	hopF, epicMac := s.createHopF(ingress, egress, ts, beta)
+	hopF, epicMac := s.createHopF(ingress, egress, expTime, ts, beta)
 	return seg.HopEntry{
 		IngressMTU: int(remoteInMTU),
 		HopField: seg.HopField{
@@ -190,7 +227,7 @@ func (s *DefaultExtender) createHopEntry(ingress, egress uint16, ts time.Time,
 	}, epicMac, nil
 }
 
-func (s *DefaultExtender) createPeerEntry(ingress, egress uint16, ts time.Time,
+func (s *DefaultExtender) createPeerEntry(ingress, egress uint16, expTime uint8, ts time.Time,
 	beta uint16) (seg.PeerEntry, []byte, error) {
 
 	remoteInIA, remoteInIfID, remoteInMTU, err := s.remoteInfo(ingress)
@@ -198,7 +235,7 @@ func (s *DefaultExtender) createPeerEntry(ingress, egress uint16, ts time.Time,
 		return seg.PeerEntry{}, nil, serrors.WrapStr("checking remote ingress interface", err,
 			"ingress_interface", ingress)
 	}
-	hopF, epicMac := s.createHopF(ingress, egress, ts, beta)
+	hopF, epicMac := s.createHopF(ingress, egress, expTime, ts, beta)
 	return seg.PeerEntry{
 		PeerMTU:       int(remoteInMTU),
 		Peer:          remoteInIA,
@@ -259,10 +296,9 @@ func (s *DefaultExtender) remoteInfo(ifid uint16) (
 	return topoInfo.IA, topoInfo.RemoteID, topoInfo.MTU, nil
 }
 
-func (s *DefaultExtender) createHopF(ingress, egress uint16, ts time.Time,
+func (s *DefaultExtender) createHopF(ingress, egress uint16, expTime uint8, ts time.Time,
 	beta uint16) (path.HopField, []byte) {
 
-	expTime := s.MaxExpTime()
 	input := make([]byte, path.MACBufferSize)
 	path.MACInput(beta, util.TimeToSecs(ts), expTime, ingress, egress, input)
 

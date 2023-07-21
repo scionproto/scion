@@ -73,6 +73,7 @@ type Metrics struct {
 	SegmentLookupRequestsTotal             *prometheus.CounterVec
 	SegmentLookupSegmentsSentTotal         *prometheus.CounterVec
 	SegmentRegistrationsTotal              *prometheus.CounterVec
+	SegmentExpirationDeficient             *prometheus.GaugeVec
 	TrustDBQueriesTotal                    *prometheus.CounterVec
 	TrustLatestTRCNotBefore                prometheus.Gauge
 	TrustLatestTRCNotAfter                 prometheus.Gauge
@@ -241,6 +242,15 @@ func NewMetrics() *Metrics {
 				Help: "Total number of path segments received through registrations.",
 			},
 			[]string{"src", "seg_type", prom.LabelResult},
+		),
+		SegmentExpirationDeficient: promauto.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "control_segment_expiration_deficient",
+				Help: "Indicates whether the expiration time of the segment is below the " +
+					"configured maximum. This happens when the signer expiration time is lower " +
+					"than the maximum segment expiration time.",
+			},
+			[]string{},
 		),
 		TrustDBQueriesTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{

@@ -99,7 +99,7 @@ func TestRegistrarRun(t *testing.T) {
 					Extender: &beaconing.DefaultExtender{
 						IA:         topo.IA(),
 						MTU:        topo.MTU(),
-						Signer:     testSigner(t, priv, topo.IA()),
+						SignerGen:  testSignerGen{Signer: testSigner(t, priv, topo.IA())},
 						Intfs:      intfs,
 						MAC:        macFactory,
 						MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
@@ -185,7 +185,7 @@ func TestRegistrarRun(t *testing.T) {
 					Extender: &beaconing.DefaultExtender{
 						IA:         topo.IA(),
 						MTU:        topo.MTU(),
-						Signer:     testSigner(t, priv, topo.IA()),
+						SignerGen:  testSignerGen{Signer: testSigner(t, priv, topo.IA())},
 						Intfs:      intfs,
 						MAC:        macFactory,
 						MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
@@ -284,7 +284,7 @@ func TestRegistrarRun(t *testing.T) {
 				Extender: &beaconing.DefaultExtender{
 					IA:         topo.IA(),
 					MTU:        topo.MTU(),
-					Signer:     testSigner(t, priv, topo.IA()),
+					SignerGen:  testSignerGen{Signer: testSigner(t, priv, topo.IA())},
 					Intfs:      intfs,
 					MAC:        macFactory,
 					MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
@@ -330,7 +330,7 @@ func testBeacon(g *graph.Graph, desc []uint16) beacon.Beacon {
 	}
 }
 
-func testSigner(t *testing.T, priv crypto.Signer, ia addr.IA) seg.Signer {
+func testSigner(t *testing.T, priv crypto.Signer, ia addr.IA) trust.Signer {
 	return trust.Signer{
 		PrivateKey: priv,
 		Algorithm:  signed.ECDSAWithSHA256,
@@ -343,6 +343,14 @@ func testSigner(t *testing.T, priv crypto.Signer, ia addr.IA) seg.Signer {
 		SubjectKeyID: []byte("skid"),
 		Expiration:   time.Now().Add(time.Hour),
 	}
+}
+
+type testSignerGen struct {
+	Signer trust.Signer
+}
+
+func (s testSignerGen) Generate(ctx context.Context) (trust.Signer, error) {
+	return s.Signer, nil
 }
 
 var macFactory = func() hash.Hash {

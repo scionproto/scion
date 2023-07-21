@@ -56,7 +56,7 @@ type TasksConfig struct {
 	BeaconSenderFactory   beaconing.SenderFactory
 	SegmentRegister       beaconing.RPC
 	BeaconStore           Store
-	Signer                seg.Signer
+	SignerGen             beaconing.SignerGen
 	Inspector             trust.Inspector
 	Metrics               *Metrics
 	DRKeyEngine           *drkey.ServiceEngine
@@ -92,7 +92,6 @@ func (t *TasksConfig) Originator() *periodic.Runner {
 		IA:                    t.IA,
 		AllInterfaces:         t.AllInterfaces,
 		OriginationInterfaces: t.OriginationInterfaces,
-		Signer:                t.Signer,
 		Tick:                  beaconing.NewTick(t.OriginationInterval),
 	}
 	if t.Metrics != nil {
@@ -110,7 +109,6 @@ func (t *TasksConfig) Propagator() *periodic.Runner {
 		SenderFactory:         t.BeaconSenderFactory,
 		Provider:              t.BeaconStore,
 		IA:                    t.IA,
-		Signer:                t.Signer,
 		AllInterfaces:         t.AllInterfaces,
 		PropagationInterfaces: t.PropagationInterfaces,
 		AllowIsdLoop:          t.AllowIsdLoop,
@@ -204,12 +202,16 @@ func (t *TasksConfig) segmentWriter(segType seg.Type,
 	return periodic.Start(r, 500*time.Millisecond, t.RegistrationInterval)
 }
 
-func (t *TasksConfig) extender(task string, ia addr.IA, mtu uint16,
-	maxExp func() uint8) beaconing.Extender {
+func (t *TasksConfig) extender(
+	task string,
+	ia addr.IA,
+	mtu uint16,
+	maxExp func() uint8,
+) beaconing.Extender {
 
 	return &beaconing.DefaultExtender{
 		IA:         ia,
-		Signer:     t.Signer,
+		SignerGen:  t.SignerGen,
 		MAC:        t.MACGen,
 		Intfs:      t.AllInterfaces,
 		MTU:        mtu,
@@ -217,6 +219,12 @@ func (t *TasksConfig) extender(task string, ia addr.IA, mtu uint16,
 		StaticInfo: t.StaticInfo,
 		Task:       task,
 		EPIC:       t.EPIC,
+		SegmentExpirationDeficient: func() metrics.Gauge {
+			if t.Metrics == nil {
+				return nil
+			}
+			return metrics.NewPromGauge(t.Metrics.SegmentExpirationDeficient)
+		}(),
 	}
 }
 
