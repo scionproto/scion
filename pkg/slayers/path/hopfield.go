@@ -149,12 +149,12 @@ func ExpTimeToDuration(expTime uint8) time.Duration {
 // fits into the provided duration. The returned value is the ExpTime that
 // can be used in a HopField. The returned value is guaranteed to be >= 1.
 // For durations that are out of range, an error is returned.
-func ExpTimeFromDuration(d time.Duration) (uint8, error) {
-	if d.Seconds() < expTimeUnit {
-		return 0, serrors.New("duration too small", "duration", d)
+func ExpTimeFromSeconds(seconds float64) (uint8, error) {
+	if seconds < expTimeUnit {
+		return 0, serrors.New("duration too small", "seconds", seconds)
 	}
-	if d.Seconds() > MaxTTL {
-		return 0, serrors.New("duration too large", "duration", d)
+	if seconds > MaxTTL {
+		return 0, serrors.New("duration too large", "seconds", seconds)
 	}
-	return uint8(d.Seconds()*256/MaxTTL - 1), nil
+	return uint8(seconds*256/MaxTTL - 1), nil
 }

@@ -99,7 +99,7 @@ func (s *DefaultExtender) Extend(
 	expTime := s.MaxExpTime()
 	if ts.Add(path.ExpTimeToDuration(expTime)).After(signExp) {
 		var err error
-		expTime, err = path.ExpTimeFromDuration(signExp.Sub(ts))
+		expTime, err = path.ExpTimeFromSeconds(signExp.Sub(ts).Seconds())
 		if err != nil {
 			return serrors.WrapStr(
 				"calculating expiry time from signer expiration time", err,
