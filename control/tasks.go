@@ -57,6 +57,7 @@ type TasksConfig struct {
 	SegmentRegister       beaconing.RPC
 	BeaconStore           Store
 	Signer                seg.Signer
+	SignerGen             beaconing.SignerGen
 	Inspector             trust.Inspector
 	Metrics               *Metrics
 	DRKeyEngine           *drkey.ServiceEngine
@@ -204,7 +205,7 @@ func (t *TasksConfig) extender(task string, ia addr.IA, mtu uint16,
 
 	return &beaconing.DefaultExtender{
 		IA:         ia,
-		Signer:     t.Signer,
+		SignerGen:  t.SignerGen,
 		MAC:        t.MACGen,
 		Intfs:      t.AllInterfaces,
 		MTU:        mtu,
