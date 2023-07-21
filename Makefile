@@ -1,4 +1,4 @@
-.PHONY: all antlr bazel clean docker-images gazelle go-mod-tidy licenses mocks protobuf scion-topo test test-integration write_all_source_files
+.PHONY: all antlr bazel clean docker-images gazelle go.mod licenses mocks protobuf scion-topo test test-integration write_all_source_files
 GAZELLE_MODE?=fix
 GAZELLE_DIRS=.
 
@@ -28,7 +28,7 @@ test:
 test-integration:
 	bazel test --config=integration_all
 
-go-mod-tidy:
+go.mod:
 	bazel run --config=quiet @go_sdk//:bin/go -- mod tidy
 
 go_deps.bzl: go.mod
@@ -57,7 +57,8 @@ protobuf:
 mocks:
 	tools/gomocks.py
 
-gazelle:
+gazelle: go_deps.bzl
+	tools/licenses.sh
 	bazel run //:gazelle --config=quiet -- update -mode=$(GAZELLE_MODE) -go_naming_convention go_default_library $(GAZELLE_DIRS)
 
 licenses:
