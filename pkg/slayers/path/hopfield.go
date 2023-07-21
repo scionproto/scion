@@ -18,6 +18,7 @@ package path
 
 import (
 	"encoding/binary"
+	"math"
 	"time"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -143,4 +144,19 @@ func (h *HopField) SerializeTo(b []byte) (err error) {
 // @ decreases
 func ExpTimeToDuration(expTime uint8) time.Duration {
 	return (time.Duration(expTime) + 1) * time.Duration(expTimeUnit) * time.Second
+}
+
+// ExpTimeFromDuration calculates the largest relative expiration time that
+// fits into the provided duration. The returned value is the ExpTime that
+// can be used in a HopField. The returned value is guaranteed to be >= 1.
+// For durations that are out of range, an error is returned.
+func ExpTimeFromDuration(d time.Duration) (uint8, error) {
+	if d.Seconds() < expTimeUnit {
+		return 0, serrors.New("duration too small", "duration", d)
+	}
+	if d.Seconds() > MaxTTL {
+		return 0, serrors.New("duration too large", "duration", d)
+	}
+	expTime := math.Floor(d.Seconds()*256/MaxTTL - 1)
+	return uint8(expTime), nil
 }

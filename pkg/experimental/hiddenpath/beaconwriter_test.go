@@ -196,7 +196,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 				Extender: &beaconing.DefaultExtender{
 					IA:         topo.IA(),
 					MTU:        topo.MTU(),
-					Signer:     testSigner(t, priv, topo.IA()),
+					SignerGen:  testSigner(t, priv, topo.IA()),
 					Intfs:      intfs,
 					MAC:        macFactory,
 					MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },

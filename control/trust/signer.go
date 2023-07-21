@@ -16,9 +16,11 @@ package trust
 
 import (
 	"context"
+	"time"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
+	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/trust"
 )
 
@@ -53,4 +55,13 @@ func (s RenewingSigner) SignCMS(ctx context.Context, msg []byte) ([]byte, error)
 		return nil, serrors.WrapStr("failed to generate signer", err)
 	}
 	return signer.SignCMS(ctx, msg)
+}
+
+// Generate returns the latest available Signer and its expiration time.
+func (s RenewingSigner) Generate(ctx context.Context) (seg.Signer, time.Time, error) {
+	signer, err := s.SignerGen.Generate(ctx)
+	if err != nil {
+		return trust.Signer{}, time.Time{}, serrors.WrapStr("failed to generate signer", err)
+	}
+	return signer, signer.Expiration, nil
 }

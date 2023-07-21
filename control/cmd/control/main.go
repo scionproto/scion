@@ -781,6 +781,7 @@ func realMain(ctx context.Context) error {
 		SegmentRegister: beaconinggrpc.Registrar{Dialer: dialer},
 		BeaconStore:     beaconStore,
 		Signer:          signer,
+		SignerGen:       signer,
 		Inspector:       inspector,
 		Metrics:         metrics,
 		DRKeyEngine:     drkeyEngine,
