@@ -18,7 +18,6 @@ package path
 
 import (
 	"encoding/binary"
-	"math"
 	"time"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -157,6 +156,5 @@ func ExpTimeFromDuration(d time.Duration) (uint8, error) {
 	if d.Seconds() > MaxTTL {
 		return 0, serrors.New("duration too large", "duration", d)
 	}
-	expTime := math.Floor(d.Seconds()*256/MaxTTL - 1)
-	return uint8(expTime), nil
+	return uint8(d.Seconds()*256/MaxTTL - 1), nil
 }
