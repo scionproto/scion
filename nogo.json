@@ -2,7 +2,8 @@
     "assign": {
         "exclude_files": {
             "gazelle/walk/walk.go": "",
-            "com_github_deepmap_oapi_codegen/pkg/codegen/": ""
+            "com_github_deepmap_oapi_codegen/pkg/codegen/": "",
+	    "/org_modernc_sqlite": "",
         }
     },
     "composites": {
@@ -73,7 +74,9 @@
             "/com_github_magiconair_properties": "",
             "/com_github_ghodss_yaml/": "",
             "/com_github_lestrrat_go_iter/mapiter/": "",
-            "/com_github_lestrrat_go_iter/arrayiter/": ""
+            "/com_github_lestrrat_go_iter/arrayiter/": "",
+	    "/org_modernc_libc": "",
+	    "/org_modernc_sqlite": "",
         }
     },
     "unsafeptr": {
@@ -105,7 +108,9 @@
     },
     "stdmethods": {
         "exclude_files": {
-            "/com_github_uber_jaeger_client_go": ""
+            "/com_github_uber_jaeger_client_go": "",
+	    "/org_modernc_sqlite": "",
+	    "/org_modernc_mathutil": ""
         }
     },
     "structtag": {

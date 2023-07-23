@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"net/url"
 
+	"modernc.org/sqlite"
+
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
@@ -69,12 +71,12 @@ func open(path string) (*sql.DB, error) {
 	}
 	q := u.Query()
 	// Add foreign_key parameter to path to enable foreign key support.
-	q.Set("_foreign_keys", "1")
+	q.Add("_pragma", "foreign_keys=1")
 	// prevent weird errors. (see https://stackoverflow.com/a/35805826)
-	q.Set("_journal_mode", "WAL")
+	q.Add("_pragma", "journal_mode=WAL")
 	u.RawQuery = q.Encode()
 	path = u.String()
-	db, err := sql.Open("sqlite3", path)
+	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, serrors.WrapStr("Couldn't open SQLite database", err, "path", path)
 	}
@@ -119,4 +121,26 @@ func setup(db *sql.DB, schema string, schemaVersion int, path string) error {
 		return serrors.WrapStr("Failed to write schema version", err, "path", path)
 	}
 	return nil
+}
+
+// FilterError returns err unless err is a sqlite-specific error
+// that we do not care about. Currently we do not care about ErrConstraint.
+// If the error is filtered, we return nil.
+func FilterError(err error) error {
+	if err == nil {
+		return err
+	}
+	sqliteError, ok := err.(*sqlite.Error)
+	if ok && sqliteError.Code() & 0xff == 19 { // FIX the magic #
+		return nil
+	}
+	return err
+}
+
+// IsSqliteError returns true if the error is a Sqlite-specific
+// error. Without this redirection, using code would need to import the
+// actual implementation directly in order to find out.
+func IsSqliteError(err error) bool {
+	_, ok := err.(*sqlite.Error)
+	return ok
 }

@@ -17,7 +17,6 @@ go_library(
         "//private/storage/db:go_default_library",
         "//private/storage/path:go_default_library",
         "//private/storage/utils:go_default_library",
-        "@com_github_mattn_go_sqlite3//:go_default_library",
     ],
 )
 

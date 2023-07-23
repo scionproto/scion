@@ -18,7 +18,6 @@ go_library(
         "//pkg/private/serrors:go_default_library",
         "//pkg/private/util:go_default_library",
         "//private/storage/db:go_default_library",
-        "@com_github_mattn_go_sqlite3//:go_default_library",
     ],
 )
 
@@ -32,7 +31,7 @@ go_test(
         "//pkg/addr:go_default_library",
         "//pkg/experimental/colibri/reservation:go_default_library",
         "//pkg/private/xtest:go_default_library",
-        "@com_github_mattn_go_sqlite3//:go_default_library",
+        "//private/storage/db:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
     ],
 )

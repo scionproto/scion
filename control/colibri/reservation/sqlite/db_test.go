@@ -19,7 +19,6 @@ import (
 	"database/sql"
 	"testing"
 
-	"github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/control/colibri/reservation/reservationdbtest"
@@ -27,6 +26,8 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/colibri/reservation"
 	"github.com/scionproto/scion/pkg/private/xtest"
+
+	sqlite "github.com/scionproto/scion/private/storage/db"
 )
 
 type TestDB struct {
@@ -79,9 +80,9 @@ func TestRaceForSuffix(t *testing.T) {
 	require.NoError(t, err)
 	err = testInsertNewSegReservation(ctx, t, db.db, rsv, suffix2)
 	require.Error(t, err)
-	sqliteError, ok := err.(sqlite3.Error)
-	require.True(t, ok)
-	require.Equal(t, sqlite3.ErrConstraint, sqliteError.Code)
+	require.True(t, sqlite.IsSqliteError(err))
+	require.Nil(t, sqlite.FilterError(err))
+	
 }
 
 func BenchmarkNewSuffix10K(b *testing.B)  { benchmarkNewSuffix(b, 10000) }

@@ -24,9 +24,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mattn/go-sqlite3"
-	_ "github.com/mattn/go-sqlite3"
-
 	base "github.com/scionproto/scion/control/colibri/reservation"
 	"github.com/scionproto/scion/control/colibri/reservation/e2e"
 	"github.com/scionproto/scion/control/colibri/reservation/segment"
@@ -224,13 +221,10 @@ func (x *executor) NewSegmentRsv(ctx context.Context, rsv *segment.Reservation) 
 			binary.BigEndian.PutUint32(rsv.ID.Suffix[:], suffix)
 			return nil
 		})
-		if err == nil {
+		if db.FilterError(err) == nil {
 			return nil
 		}
-		sqliteError, ok := err.(sqlite3.Error)
-		if !ok || sqliteError.Code != sqlite3.ErrConstraint {
-			return db.NewTxError("error inserting segment reservation", err)
-		}
+		return db.NewTxError("error inserting segment reservation", err)
 	}
 	return db.NewTxError("error inserting segment reservation after 3 retries", err)
 }
