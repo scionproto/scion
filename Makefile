@@ -35,9 +35,6 @@ go_deps.bzl: go.mod
 	bazel run --config=quiet //:gazelle -- update-repos -prune -from_file=go.mod -to_macro=go_deps.bzl%go_deps
 	@# XXX(matzf): clean up; gazelle update-repose inconsistently inserts blank lines (see bazelbuild/bazel-gazelle#1088).
 	@sed -e '/def go_deps/,$${/^$$/d}' -i go_deps.bzl
-	@# XXX(jice): Rename the sqlite implementation...figure a way out of this hack...and, there can be only one impl.
-	@# sed -e 's/name = "org_modernc_sqlite"/name = "sqlite_impl", canonical_id = "org_modernc_sqlite"/g' -i go_deps.bzl
-	@# sed -e 's/name = "com_github_mattn_go_sqlite3"/name = "sqlite_impl", canonical_id = "com_github_mattn_go_sqlite3"/g' -i go_deps.bzl
 
 docker-images:
 	@echo "Build perapp images"
