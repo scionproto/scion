@@ -3,7 +3,7 @@
         "exclude_files": {
             "gazelle/walk/walk.go": "",
             "com_github_deepmap_oapi_codegen/pkg/codegen/": "",
-	    "/org_modernc_sqlite": "",
+	    "/org_modernc_sqlite": ""
         }
     },
     "composites": {
@@ -76,7 +76,7 @@
             "/com_github_lestrrat_go_iter/mapiter/": "",
             "/com_github_lestrrat_go_iter/arrayiter/": "",
 	    "/org_modernc_libc": "",
-	    "/org_modernc_sqlite": "",
+	    "/org_modernc_sqlite": ""
         }
     },
     "unsafeptr": {
