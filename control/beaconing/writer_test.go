@@ -349,8 +349,8 @@ type testSignerGen struct {
 	Signer trust.Signer
 }
 
-func (s testSignerGen) Generate(ctx context.Context) (seg.Signer, time.Time, error) {
-	return s.Signer, s.Signer.Expiration, nil
+func (s testSignerGen) Generate(ctx context.Context) (trust.Signer, error) {
+	return s.Signer, nil
 }
 
 var macFactory = func() hash.Hash {

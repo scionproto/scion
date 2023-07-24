@@ -56,7 +56,6 @@ type TasksConfig struct {
 	BeaconSenderFactory   beaconing.SenderFactory
 	SegmentRegister       beaconing.RPC
 	BeaconStore           Store
-	Signer                seg.Signer
 	SignerGen             beaconing.SignerGen
 	Inspector             trust.Inspector
 	Metrics               *Metrics
@@ -93,7 +92,6 @@ func (t *TasksConfig) Originator() *periodic.Runner {
 		IA:                    t.IA,
 		AllInterfaces:         t.AllInterfaces,
 		OriginationInterfaces: t.OriginationInterfaces,
-		Signer:                t.Signer,
 		Tick:                  beaconing.NewTick(t.OriginationInterval),
 	}
 	if t.Metrics != nil {
@@ -111,7 +109,6 @@ func (t *TasksConfig) Propagator() *periodic.Runner {
 		SenderFactory:         t.BeaconSenderFactory,
 		Provider:              t.BeaconStore,
 		IA:                    t.IA,
-		Signer:                t.Signer,
 		AllInterfaces:         t.AllInterfaces,
 		PropagationInterfaces: t.PropagationInterfaces,
 		AllowIsdLoop:          t.AllowIsdLoop,
