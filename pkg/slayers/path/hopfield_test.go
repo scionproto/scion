@@ -16,6 +16,7 @@ package path_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -41,44 +42,44 @@ func TestHopSerializeDecode(t *testing.T) {
 
 func TestExpTimeFromDuration(t *testing.T) {
 	tests := map[string]struct {
-		Seconds float64
+		d       time.Duration
 		ExpTime uint8
 		ErrorF  assert.ErrorAssertionFunc
 	}{
 		"Zero": {
-			Seconds: 0,
+			d:       0,
 			ExpTime: 0,
 			ErrorF:  assert.Error,
 		},
 		"Max": {
-			Seconds: path.MaxTTL,
+			d:       path.MaxTTL,
 			ExpTime: 255,
 			ErrorF:  assert.NoError,
 		},
 		"Overflow": {
-			Seconds: (path.MaxTTL + 1),
+			d:       (path.MaxTTL + 1),
 			ExpTime: 0,
 			ErrorF:  assert.Error,
 		},
 		"Underflow": {
-			Seconds: -1,
+			d:       -1,
 			ExpTime: 0,
 			ErrorF:  assert.Error,
 		},
 		"Max-1": {
-			Seconds: (path.MaxTTL - 1),
+			d:       (path.MaxTTL - 1),
 			ExpTime: 254,
 			ErrorF:  assert.NoError,
 		},
 		"Half": {
-			Seconds: (path.MaxTTL / 2),
+			d:       (path.MaxTTL / 2),
 			ExpTime: 127,
 			ErrorF:  assert.NoError,
 		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			expTime, err := path.ExpTimeFromSeconds(test.Seconds)
+			expTime, err := path.ExpTimeFromDuration(test.d)
 			test.ErrorF(t, err)
 			assert.Equal(t, test.ExpTime, expTime)
 		})

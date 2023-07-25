@@ -1,6 +1,6 @@
 {
     "beacon": {
-        "expiration": "2021-01-01T08:05:37Z",
+        "expiration": "2021-01-01T08:05:37.5Z",
         "hops": [
             {
                 "interface": 1,

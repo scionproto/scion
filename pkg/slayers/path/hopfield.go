@@ -31,7 +31,7 @@ const (
 )
 
 // MaxTTL is the maximum age of a HopField in seconds.
-const MaxTTL = 24 * 60 * 60 // One day in seconds
+const MaxTTL = 24 * 60 * 60 * time.Second // One day in seconds
 
 const expTimeUnit = MaxTTL / 256 // ~5m38s
 
@@ -142,19 +142,20 @@ func (h *HopField) SerializeTo(b []byte) (err error) {
 // Calls to ExpTimeToDuration are guaranteed to always terminate.
 // @ decreases
 func ExpTimeToDuration(expTime uint8) time.Duration {
-	return (time.Duration(expTime) + 1) * time.Duration(expTimeUnit) * time.Second
+	return (time.Duration(expTime) + 1) * expTimeUnit
 }
 
 // ExpTimeFromDuration calculates the largest relative expiration time that
-// fits into the provided duration. The returned value is the ExpTime that
-// can be used in a HopField. The returned value is guaranteed to be >= 1.
+// represents a duration <= the provided duration, that is:
+// d <= ExpTimeToDuration(ExpTimeFromDuration(d)).
+// The returned value is the ExpTime that can be used in a HopField.
 // For durations that are out of range, an error is returned.
-func ExpTimeFromSeconds(seconds float64) (uint8, error) {
-	if seconds < expTimeUnit {
-		return 0, serrors.New("duration too small", "seconds", seconds)
+func ExpTimeFromDuration(d time.Duration) (uint8, error) {
+	if d < expTimeUnit {
+		return 0, serrors.New("duration too small", "seconds", d)
 	}
-	if seconds > MaxTTL {
-		return 0, serrors.New("duration too large", "seconds", seconds)
+	if d > MaxTTL {
+		return 0, serrors.New("duration too large", "seconds", d)
 	}
-	return uint8(seconds*256/MaxTTL - 1), nil
+	return uint8(d*256/MaxTTL - 1), nil
 }

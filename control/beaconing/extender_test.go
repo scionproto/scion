@@ -204,7 +204,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				SignerGen: testSignerGen{
 					Signer: func() trust.Signer {
 						s := testSigner(t, priv, topo.IA())
-						s.Expiration = ts.Add(path.MaxTTL / 2 * time.Second)
+						s.Expiration = ts.Add(path.MaxTTL / 2)
 						return s
 					}(),
 				},
@@ -216,7 +216,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				SignerGen: testSignerGen{
 					Signer: func() trust.Signer {
 						s := testSigner(t, priv, topo.IA())
-						s.Expiration = ts.Add(path.MaxTTL * time.Second)
+						s.Expiration = ts.Add(path.MaxTTL)
 						return s
 					}(),
 				},
@@ -228,7 +228,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				SignerGen: testSignerGen{
 					Signer: func() trust.Signer {
 						s := testSigner(t, priv, topo.IA())
-						s.Expiration = ts.Add(path.MaxTTL / 256 * time.Second)
+						s.Expiration = ts.Add(path.MaxTTL / 256)
 						return s
 					}(),
 				},
@@ -240,7 +240,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				SignerGen: testSignerGen{
 					Signer: func() trust.Signer {
 						s := testSigner(t, priv, topo.IA())
-						s.Expiration = ts.Add(path.MaxTTL / 257 * time.Second)
+						s.Expiration = ts.Add(path.MaxTTL / 257)
 						return s
 					}(),
 				},
@@ -251,7 +251,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				SignerGen: testSignerGen{
 					Signer: func() trust.Signer {
 						s := testSigner(t, priv, topo.IA())
-						s.Expiration = ts.Add(2 * path.MaxTTL * time.Second)
+						s.Expiration = ts.Add(2 * path.MaxTTL)
 						return s
 					}(),
 				},
