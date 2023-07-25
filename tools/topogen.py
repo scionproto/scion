@@ -47,8 +47,6 @@ def add_arguments(parser):
     parser.add_argument('--sig', action='store_true',
                         help='Generate a SIG per AS (only available with -d, the SIG image needs\
                         to be built manually e.g. when running acceptance tests)')
-    parser.add_argument('-qos', '--colibri', action='store_true',
-                        help='Generate COLIBRI service')
     parser.add_argument('--features', help='Feature flags to enable, a comma separated list\
                         e.g. foo,bar enables foo and bar feature.')
     return parser

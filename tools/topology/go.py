@@ -19,7 +19,6 @@
 # Stdlib
 import os
 import toml
-import yaml
 from typing import Mapping
 
 # SCION
@@ -35,7 +34,6 @@ from topology.common import (
     translate_features,
     SD_API_PORT,
     SD_CONFIG_NAME,
-    CO_CONFIG_NAME,
 )
 
 from topology.net import socket_address_str, NetworkDescription, IPNetwork
@@ -45,10 +43,7 @@ from topology.prometheus import (
     DEFAULT_BR_PROM_PORT,
     SCIOND_PROM_PORT,
     DISP_PROM_PORT,
-    CO_PROM_PORT,
 )
-
-DEFAULT_COLIBRI_TOTAL_BW = 1000
 
 
 class GoGenArgs(ArgsBase):
@@ -139,96 +134,6 @@ class GoGenerator(object):
         if ca:
             raw_entry['ca'] = {'mode': 'in-process'}
         return raw_entry
-
-    def generate_co(self):
-        if not self.args.colibri:
-            return
-        for topo_id, topo in self.args.topo_dicts.items():
-            for elem_id, elem in topo.get("colibri_service", {}).items():
-                # only a single Go-CO per AS is currently supported
-                if elem_id.endswith("-1"):
-                    base = topo_id.base_dir(self.args.output_dir)
-                    co_conf = self._build_co_conf(topo_id, topo["isd_as"], base, elem_id, elem)
-                    write_file(os.path.join(base, elem_id, CO_CONFIG_NAME), toml.dumps(co_conf))
-                    traffic_matrix = self._build_co_traffic_matrix(topo_id)
-                    write_file(os.path.join(base, elem_id, 'matrix.yml'),
-                               yaml.dump(traffic_matrix, default_flow_style=False))
-                    rsvps = self._build_co_reservations(topo_id)
-                    write_file(os.path.join(base, elem_id, 'reservations.yml'),
-                               yaml.dump(rsvps, default_flow_style=False))
-
-    def _build_co_conf(self, topo_id, ia, base, name, infra_elem):
-        config_dir = '/share/conf' if self.args.docker else base
-        raw_entry = {
-            'general': {
-                'ID': name,
-                'ConfigDir': config_dir,
-                'ReconnectToDispatcher': True,
-            },
-            'log': self._log_entry(name),
-            'trust_db': {
-                'connection': os.path.join(self.db_dir, '%s.trust.db' % name),
-            },
-            'tracing': self._tracing_entry(),
-            'metrics': self._metrics_entry(infra_elem, CO_PROM_PORT),
-            'features': translate_features(self.args.features),
-        }
-        return raw_entry
-
-    def _build_co_traffic_matrix(self, ia):
-        """
-        Creates a NxN traffic matrix for colibri with N = len(interfaces)
-        """
-        topo = self.args.topo_dicts[ia]
-        if_ids = {iface for br in topo['border_routers'].values() for iface in br['interfaces']}
-        if_ids.add(0)
-        bw = int(DEFAULT_COLIBRI_TOTAL_BW / (len(if_ids) - 1))
-        traffic_matrix = {}
-        for inIfid in if_ids:
-            traffic_matrix[inIfid] = {}
-            for egIfid in if_ids.difference({inIfid}):
-                traffic_matrix[inIfid][egIfid] = bw
-        return traffic_matrix
-
-    def _build_co_reservations(self, ia):
-        """
-        Generates a dictionary of reservations with one entry per core AS (if "ia" is core)
-        excluding itself, or a pair (up and down) per core AS in the ISD if "ia" is not core.
-        """
-        rsvps = {}
-        this_as = self.args.topo_dicts[ia]
-        if this_as['Core']:
-            for dst_ia, topo in self.args.topo_dicts.items():
-                if dst_ia != ia and topo['Core']:
-                    rsvps['Core-%s' % dst_ia] = self._build_co_reservation(dst_ia, 'Core')
-        else:
-            for dst_ia, topo in self.args.topo_dicts.items():
-                if dst_ia != ia and dst_ia._isd == ia._isd and topo['Core']:
-                    # reach this core AS in the same ISD
-                    rsvps['Up-%s' % dst_ia] = self._build_co_reservation(dst_ia, 'Up')
-                    rsvps['Down-%s' % dst_ia] = self._build_co_reservation(dst_ia, 'Down')
-        return rsvps
-
-    def _build_co_reservation(self, dst_ia, path_type):
-        start_props = {'L', 'T'}
-        end_props = {'L', 'T'}
-        if path_type == 'Up':
-            start_props.remove('T')
-        elif path_type == 'Down':
-            end_props.remove('T')
-        return {
-            'desired_size': 27,
-            'ia': str(dst_ia),
-            'max_size': 30,
-            'min_size': 1,
-            'path_predicate': '%s#0' % dst_ia,
-            'path_type': path_type,
-            'split_cls': 8,
-            'end_props': {
-                'start': list(start_props),
-                'end': list(end_props)
-            }
-        }
 
     def generate_sciond(self):
         for topo_id, topo in self.args.topo_dicts.items():
