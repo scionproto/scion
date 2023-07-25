@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// go:build (sqlite_mattn)
+//go:build (sqlite_mattn)
 // +build sqlite_mattn
 
 package db
