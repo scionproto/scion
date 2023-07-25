@@ -54,8 +54,3 @@ func (s RenewingSigner) SignCMS(ctx context.Context, msg []byte) ([]byte, error)
 	}
 	return signer.SignCMS(ctx, msg)
 }
-
-// Generate returns the latest available Signer.
-func (s RenewingSigner) Generate(ctx context.Context) (trust.Signer, error) {
-	return s.SignerGen.Generate(ctx)
-}
