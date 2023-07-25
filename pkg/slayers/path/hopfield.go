@@ -30,10 +30,10 @@ const (
 	MacLen = 6
 )
 
-// MaxTTL is the maximum age of a HopField in seconds.
-const MaxTTL = 24 * 60 * 60 * time.Second // One day in seconds
+// MaxTTL is the maximum age of a HopField.
+const MaxTTL = 24 * time.Hour
 
-const expTimeUnit = MaxTTL / 256 // ~5m38s
+const expTimeUnit = MaxTTL / 256 // ~5m38.5s
 
 // HopField is the HopField used in the SCION and OneHop path types.
 //

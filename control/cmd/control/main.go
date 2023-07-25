@@ -773,7 +773,7 @@ func realMain(ctx context.Context) error {
 		},
 		SegmentRegister: beaconinggrpc.Registrar{Dialer: dialer},
 		BeaconStore:     beaconStore,
-		SignerGen:       signer,
+		SignerGen:       signer.SignerGen,
 		Inspector:       inspector,
 		Metrics:         metrics,
 		DRKeyEngine:     drkeyEngine,

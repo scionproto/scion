@@ -189,7 +189,6 @@ func (s *DefaultExtender) createHopEntry(ingress, egress uint16, expTime uint8, 
 			"interfaces", ingress)
 	}
 	hopF, epicMac := s.createHopF(ingress, egress, expTime, ts, beta)
-	// make sure
 	return seg.HopEntry{
 		IngressMTU: int(remoteInMTU),
 		HopField: seg.HopField{
