@@ -17,7 +17,40 @@ load("@cgrindel_bazel_starlib//updatesrc:defs.bzl", "updatesrc_update_all")
 # gazelle:exclude doc/**
 # gazelle:exclude rules_openapi/tools/node_modules/**
 # gazelle:exclude tools/lint/**/testdata/src/**
-gazelle(name = "gazelle")
+
+# This is simplistic but the complete, by-the-everchanging-bazel-book, solution
+# is ludicrously complicated. Go there if and when needed.
+config_setting(
+    name = "sqlite_mattn",
+    define_values = {
+        "gotags": "sqlite_mattn",
+    },
+)
+
+config_setting(
+    name = "sqlite_modernc",
+    define_values = {
+        "gotags": "sqlite_modernc",
+    },
+)
+
+gazelle(
+    name = "gazelle",
+    build_tags = select({
+        ":sqlite_modernc": ["sqlite_modernc"],
+        ":sqlite_mattn": ["sqlite_mattn"],
+    }),
+    command = "update",
+    extra_args = [
+        "-go_naming_convention",
+        "go_default_library",
+    ],
+)
+
+gazelle(
+    name = "gazelle_update_repos",
+    command = "update-repos",
+)
 
 go_lint_config(
     name = "go_lint_config",

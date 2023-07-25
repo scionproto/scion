@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// go:build (sqlite_modernc)
+// +build sqlite_modernc
+
 package db
 
 import (

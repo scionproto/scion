@@ -1,15 +1,7 @@
 load("//tools/lint:go.bzl", "go_library", "go_test")
 
-# Gazelle cannot deal with a select() in srcs, and neither can lint.
-# replace sqlite_mattn.go with sqlite_modernc.go in the list below if
-# you want to use the modernc implementation.
-# DO NOT remove the keep comment.
-# In the deps attribute, only one of the two sqlite libraries
-# is needed at any one time, but since Gazelle can't deal with it,
-# just leave both. It doesn't hurt.
 go_library(
     name = "go_default_library",
-    # keep
     srcs = [
         "doc.go",
         "errors.go",
@@ -24,7 +16,6 @@ go_library(
         "//pkg/private/common:go_default_library",
         "//pkg/private/prom:go_default_library",
         "//pkg/private/serrors:go_default_library",
-        "@com_github_mattn_go_sqlite3//:go_default_library",
         "@org_modernc_sqlite//:go_default_library",
     ],
 )

@@ -10,7 +10,7 @@ build: bazel
 # Use NOTPARALLEL to force correct order.
 # Note: From GNU make 4.4, this still allows building any other targets (e.g. lint) in parallel.
 .NOTPARALLEL: all
-all: go_deps.bzl protobuf mocks gazelle licenses build antlr write_all_source_files
+all: go_deps.bzl protobuf mocks gazelle build antlr write_all_source_files licenses
 
 clean:
 	bazel clean
@@ -32,7 +32,8 @@ go.mod:
 	bazel run --config=quiet @go_sdk//:bin/go -- mod tidy
 
 go_deps.bzl: go.mod
-	bazel run --config=quiet //:gazelle -- update-repos -prune -from_file=go.mod -to_macro=go_deps.bzl%go_deps
+	@# gazelle is run with "-args"; so our arguments are added to those from the gazelle() rule. 
+	bazel run --verbose_failures --config=quiet //:gazelle_update_repos -- -args -prune -from_file=go.mod -to_macro=go_deps.bzl%go_deps
 	@# XXX(matzf): clean up; gazelle update-repose inconsistently inserts blank lines (see bazelbuild/bazel-gazelle#1088).
 	@sed -e '/def go_deps/,$${/^$$/d}' -i go_deps.bzl
 
@@ -58,10 +59,10 @@ mocks:
 	tools/gomocks.py
 
 gazelle: go_deps.bzl
-	tools/licenses.sh
-	bazel run //:gazelle --config=quiet -- update -mode=$(GAZELLE_MODE) -go_naming_convention go_default_library $(GAZELLE_DIRS)
+	@# call gazelle with -args, which appends our arguments to those from the gazelle() rule
+	bazel run //:gazelle --verbose_failures --config=quiet -- -args -mode=$(GAZELLE_MODE) $(GAZELLE_DIRS)
 
-licenses:
+licenses: bazel
 	tools/licenses.sh
 
 antlr:
