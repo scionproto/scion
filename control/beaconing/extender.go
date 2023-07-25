@@ -94,13 +94,13 @@ func (s *DefaultExtender) Extend(
 
 	signer, err := s.SignerGen.Generate(ctx)
 	if err != nil {
-		serrors.WrapStr("getting signer", err)
+		return serrors.WrapStr("getting signer", err)
 	}
 	// Make sure the hop expiration time is not longer than the signer expiration time.
 	expTime := s.MaxExpTime()
 	if ts.Add(path.ExpTimeToDuration(expTime)).After(signer.Expiration) {
 		var err error
-		expTime, err = path.ExpTimeFromSeconds(signer.Expiration.Sub(ts).Seconds())
+		expTime, err = path.ExpTimeFromDuration(signer.Expiration.Sub(ts))
 		if err != nil {
 			return serrors.WrapStr(
 				"calculating expiry time from signer expiration time", err,

@@ -600,7 +600,7 @@ func (segment *segment) ComputeExpTime() time.Time {
 }
 
 func (segment *segment) computeHopFieldsTTL() time.Duration {
-	minTTL := time.Duration(path.MaxTTL) * time.Second
+	minTTL := path.MaxTTL
 	for _, hf := range segment.HopFields {
 		offset := path.ExpTimeToDuration(hf.ExpTime)
 		if minTTL > offset {
