@@ -39,7 +39,6 @@ Active
 
    uri
    grpc
-   ColibriService
    BorderRouter
 
 .. _design-docs-completed:
@@ -63,6 +62,7 @@ Outdated
    BeaconService
    PathService
    forwarding-key-rollover
+   ColibriService
 
 
 .. seealso::
