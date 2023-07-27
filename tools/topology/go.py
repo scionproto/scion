@@ -97,6 +97,12 @@ class GoGenerator(object):
             'features': translate_features(self.args.features),
             'api': {
                 'addr': prom_addr(v['internal_addr'], DEFAULT_BR_PROM_PORT+700)
+            },
+            'router': {
+                'receive_buffer_size': 1 << 20,
+                'send_buffer_size': 0,
+                'num_slow_processors': 1,
+                'batch_size': 256
             }
         }
         return raw_entry

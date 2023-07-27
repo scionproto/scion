@@ -27,7 +27,6 @@ import (
 	"math/big"
 	"net"
 	"net/netip"
-	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -54,6 +53,7 @@ import (
 	"github.com/scionproto/scion/private/topology"
 	underlayconn "github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router/bfd"
+	"github.com/scionproto/scion/router/config"
 	"github.com/scionproto/scion/router/control"
 )
 
@@ -458,11 +458,6 @@ func (d *DataPlane) AddNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg contro
 	return d.addBFDController(ifID, s, cfg, m)
 }
 
-type RunConfig struct {
-	NumProcessors int
-	BatchSize     int
-}
-
 func max(a int, b int) int {
 	if a > b {
 		return a
@@ -470,7 +465,7 @@ func max(a int, b int) int {
 	return b
 }
 
-func (d *DataPlane) Run(ctx context.Context, cfg *RunConfig) error {
+func (d *DataPlane) Run(ctx context.Context, cfg *config.RunConfig) error {
 	d.mtx.Lock()
 	d.running = true
 	d.initMetrics()
@@ -513,18 +508,9 @@ func (d *DataPlane) Run(ctx context.Context, cfg *RunConfig) error {
 	return nil
 }
 
-// loadDefaults sets the default configuration for the number of
-// processors and the batch size
-func (r *RunConfig) LoadDefaults() {
-	// TODO(rohrerj) move this logic to configuration in configuration PR
-	r.NumProcessors = runtime.GOMAXPROCS(0)
-	r.BatchSize = 256
-
-}
-
 // initializePacketPool calculates the size of the packet pool based on the
 // current dataplane settings and allocates all the buffers
-func (d *DataPlane) initPacketPool(cfg *RunConfig, processorQueueSize int) {
+func (d *DataPlane) initPacketPool(cfg *config.RunConfig, processorQueueSize int) {
 	poolSize := len(d.interfaces)*cfg.BatchSize +
 		cfg.NumProcessors*(processorQueueSize+1) +
 		len(d.interfaces)*(2*cfg.BatchSize)
@@ -537,7 +523,7 @@ func (d *DataPlane) initPacketPool(cfg *RunConfig, processorQueueSize int) {
 }
 
 // initializes the processing routines and forwarders queues
-func initQueues(cfg *RunConfig, interfaces map[uint16]BatchConn,
+func initQueues(cfg *config.RunConfig, interfaces map[uint16]BatchConn,
 	processorQueueSize int) ([]chan packet, map[uint16]chan packet) {
 
 	procQs := make([]chan packet, cfg.NumProcessors)
@@ -563,7 +549,7 @@ type packet struct {
 	rawPacket []byte
 }
 
-func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
+func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *config.RunConfig,
 	procQs []chan packet) {
 
 	log.Debug("Run receiver for", "interface", ifID)
@@ -704,7 +690,7 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 }
 
 func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
-	cfg *RunConfig, c <-chan packet) {
+	cfg *config.RunConfig, c <-chan packet) {
 
 	log.Debug("Initialize forwarder for", "interface", ifID)
 	writeMsgs := make(underlayconn.Messages, cfg.BatchSize)

@@ -18,8 +18,10 @@ package config
 
 import (
 	"io"
+	"runtime"
 
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/config"
 	"github.com/scionproto/scion/private/env"
 	api "github.com/scionproto/scion/private/mgmtapi"
@@ -33,6 +35,64 @@ type Config struct {
 	Logging  log.Config   `toml:"log,omitempty"`
 	Metrics  env.Metrics  `toml:"metrics,omitempty"`
 	API      api.Config   `toml:"api,omitempty"`
+	Router   RouterConfig `toml:"router,omitempty"`
+}
+
+type RouterConfig struct {
+	ReceiveBufferSize     int `toml:"receive_buffer_size,omitempty"`
+	SendBufferSize        int `toml:"send_buffer_size,omitempty"`
+	NumProcessors         int `toml:"num_processors,omitempty"`
+	NumSlowPathProcessors int `toml:"num_slow_processors,omitempty"`
+	BatchSize             int `toml:"batch_size,omitempty"`
+}
+
+func (cfg *RouterConfig) ConfigName() string {
+	return "router"
+}
+
+func (cfg *RouterConfig) Validate() error {
+	if cfg.ReceiveBufferSize < 0 {
+		return serrors.New("Provided router config is invalid. ReceiveBufferSize < 0")
+	}
+	if cfg.SendBufferSize < 0 {
+		return serrors.New("Provided router config is invalid. SendBufferSize < 0")
+	}
+	if cfg.BatchSize < 1 {
+		return serrors.New("Provided router config is invalid. BatchSize < 1")
+	}
+	if cfg.NumProcessors < 0 {
+		return serrors.New("Provided router config is invalid. NumProcessors < 0")
+	}
+	if cfg.NumSlowPathProcessors <= 0 {
+		return serrors.New("Provided router config is invalid. NumSlowPathProcessors < 0")
+	}
+
+	return nil
+}
+
+func (cfg *RouterConfig) InitDefaults() {
+	if cfg.ReceiveBufferSize == 0 {
+		cfg.ReceiveBufferSize = 1 << 20
+	}
+	if cfg.NumProcessors == 0 {
+		cfg.NumProcessors = runtime.GOMAXPROCS(0)
+	}
+	if cfg.NumSlowPathProcessors == 0 {
+		cfg.NumSlowPathProcessors = 1
+	}
+	if cfg.BatchSize == 0 {
+		cfg.BatchSize = 256
+	}
+}
+
+func (cfg *RouterConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, routerConfigSample)
+}
+
+type RunConfig struct {
+	NumProcessors         int
+	NumSlowPathProcessors int
+	BatchSize             int
 }
 
 func (cfg *Config) InitDefaults() {
@@ -42,6 +102,7 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Logging,
 		&cfg.Metrics,
 		&cfg.API,
+		&cfg.Router,
 	)
 }
 
@@ -52,6 +113,7 @@ func (cfg *Config) Validate() error {
 		&cfg.Logging,
 		&cfg.Metrics,
 		&cfg.API,
+		&cfg.Router,
 	)
 }
 
@@ -62,5 +124,6 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.Logging,
 		&cfg.Metrics,
 		&cfg.API,
+		&cfg.Router,
 	)
 }
