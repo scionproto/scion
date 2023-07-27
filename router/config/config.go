@@ -63,8 +63,8 @@ func (cfg *RouterConfig) Validate() error {
 	if cfg.NumProcessors < 0 {
 		return serrors.New("Provided router config is invalid. NumProcessors < 0")
 	}
-	if cfg.NumSlowPathProcessors <= 0 {
-		return serrors.New("Provided router config is invalid. NumSlowPathProcessors < 0")
+	if cfg.NumSlowPathProcessors < 1 {
+		return serrors.New("Provided router config is invalid. NumSlowPathProcessors < 1")
 	}
 
 	return nil
