@@ -1,6 +1,4 @@
 .PHONY: all antlr bazel clean docker-images gazelle go.mod licenses mocks protobuf scion-topo test test-integration write_all_source_files
-GAZELLE_MODE?=fix
-GAZELLE_DIRS=.
 
 build: bazel
 
@@ -59,14 +57,13 @@ mocks:
 	tools/gomocks.py
 
 gazelle: go_deps.bzl
-	@# call gazelle with -args, which appends our arguments to those from the gazelle() rule
-	bazel run //:gazelle --verbose_failures --config=quiet -- -args -mode=$(GAZELLE_MODE) $(GAZELLE_DIRS)
+	bazel run //:gazelle --verbose_failures --config=quiet
 
-licenses: bazel
+licenses:
 	tools/licenses.sh
 
 antlr:
-	antlr/generate.sh $(GAZELLE_MODE)
+	antlr/generate.sh fix
 
 write_all_source_files:
 	bazel run //:write_all_source_files
@@ -85,7 +82,7 @@ lint-go: lint-go-gazelle lint-go-bazel lint-go-golangci lint-go-semgrep
 
 lint-go-gazelle:
 	$(info ==> $@)
-	@$(MAKE) -s gazelle GAZELLE_MODE=diff
+	bazel run //:gazelle_diff --verbose_failures --config=quiet
 
 lint-go-bazel:
 	$(info ==> $@)

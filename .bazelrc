@@ -1,4 +1,5 @@
 ### common options for all subcommands (help, query, build, ...)
+# include one of "--define gotags=sqlite_mattn" or "--define gotags=sqlite_modernc"
 common --show_timestamps --define gotags=sqlite_modernc
 
 # connect to buchgr/bazel-remote cache

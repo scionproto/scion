@@ -22,10 +22,12 @@ import (
 	"fmt"
 	"net/url"
 
-	"modernc.org/sqlite"
+	_ "modernc.org/sqlite"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
+
+const buildtag_guard = "must choose an sqlite implementation to build, by defining exactly one of the gotags 'sqlite_modernc' or 'sqlite_mattn'"
 
 // NewSqlite returns a new SQLite backend opening a database at the given path. If
 // no database exists a new database is be created. If the schema version of the
@@ -124,26 +126,4 @@ func setup(db *sql.DB, schema string, schemaVersion int, path string) error {
 		return serrors.WrapStr("Failed to write schema version", err, "path", path)
 	}
 	return nil
-}
-
-// FilterError returns err unless err is a sqlite-specific error
-// that we do not care about. Currently we do not care about ErrConstraint.
-// If the error is filtered, we return nil.
-func FilterError(err error) error {
-	if err == nil {
-		return err
-	}
-	sqliteError, ok := err.(*sqlite.Error)
-	if ok && sqliteError.Code() & 0xff == 19 { // FIX the magic #
-		return nil
-	}
-	return err
-}
-
-// IsSqliteError returns true if the error is a Sqlite-specific
-// error. Without this redirection, using code would need to import the
-// actual implementation directly in order to find out.
-func IsSqliteError(err error) bool {
-	_, ok := err.(*sqlite.Error)
-	return ok
 }
