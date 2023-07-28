@@ -7,9 +7,9 @@ Prerequisites
 -------------
 
 #. Make sure that you are using a clean and recently updated linux distribution. Distributions that are
-   nown to work are:
+   known to work are:
 
-   * **Ubuntu** release 18 or later.
+   * **Ubuntu** release 18.04 or later.
    * **Fedora** release 38 or later.
    * **Amazon** Linux 2.
 
