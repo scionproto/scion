@@ -8,6 +8,7 @@ go_library(
         "limits.go",
         "metrics.go",
         "sqler.go",
+        "sqlite.go",
         "sqlite_modernc.go",
     ],
     importpath = "github.com/scionproto/scion/private/storage/db",
