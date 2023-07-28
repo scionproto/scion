@@ -1,6 +1,5 @@
 ### common options for all subcommands (help, query, build, ...)
-# include one of "--define gotags=sqlite_mattn" or "--define gotags=sqlite_modernc"
-common --show_timestamps --define gotags=sqlite_modernc
+common --show_timestamps
 
 # connect to buchgr/bazel-remote cache
 # These flags can unfortunately not be specified for `common`, as they are not accepted by all subcommands (help, version, dump)
@@ -15,6 +14,11 @@ build --workspace_status_command=./tools/bazel-build-env
 build --java_runtime_version=remotejdk_11
 # disable legacy_create_init for py_binary, py_test etc. This may eventually become the default.
 build --incompatible_default_to_explicit_init_py
+
+# include one of "--define gotags=sqlite_mattn" or "--define gotags=sqlite_modernc"
+# cannot be in common, because query chokes on it.
+build --define gotags=sqlite_modernc
+run --define gotags=sqlite_modernc
 
 ### options for test
 test --build_tests_only --print_relative_test_log_paths --test_output=errors
