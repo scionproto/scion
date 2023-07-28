@@ -52,7 +52,6 @@ from topology.net import (
 
 DEFAULT_BEACON_SERVERS = 1
 DEFAULT_CONTROL_SERVERS = 1
-DEFAULT_COLIBRI_SERVERS = 1
 
 UNDERLAY_4 = 'UDP/IPv4'
 UNDERLAY_6 = 'UDP/IPv6'
@@ -148,8 +147,6 @@ class TopoGenerator(object):
 
     def _register_srv_entries(self, topo_id, as_conf):
         srvs = [("control_servers", DEFAULT_CONTROL_SERVERS, "cs")]
-        if self.args.colibri:
-            srvs.append(("colibri_servers", DEFAULT_COLIBRI_SERVERS, "co"))
         for conf_key, def_num, nick in srvs:
             self._register_srv_entry(topo_id, as_conf, conf_key, def_num, nick)
 
@@ -257,8 +254,6 @@ class TopoGenerator(object):
     def _gen_srv_entries(self, topo_id, as_conf):
         srvs = [("control_servers", DEFAULT_CONTROL_SERVERS, "cs", "control_service")]
         srvs.append(("control_servers", DEFAULT_CONTROL_SERVERS, "cs", "discovery_service"))
-        if self.args.colibri:
-            srvs.append(("colibri_servers", DEFAULT_COLIBRI_SERVERS, "co", "colibri_service"))
         for conf_key, def_num, nick, topo_key in srvs:
             self._gen_srv_entry(topo_id, as_conf, conf_key, def_num, nick, topo_key)
 
@@ -281,8 +276,6 @@ class TopoGenerator(object):
     def _default_ctrl_port(self, nick):
         if nick == "cs":
             return 30252
-        if nick == "co":
-            return 30257
         print('Invalid nick: %s' % nick)
         sys.exit(1)
 
