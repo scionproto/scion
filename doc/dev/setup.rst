@@ -6,11 +6,19 @@ Setting up the Development Environment
 Prerequisites
 -------------
 
-#. Make sure that you are using a clean and recently updated **Ubuntu 18.04**.
-   Other Ubuntu versions (or systems) will usually be fine too, but some of the tooling may not work.
+#. Make sure that you are using a clean and recently updated linux distribution. Distributions that are
+   known to work are:
+
+   * **Ubuntu** release 18.04 or later.
+   * **Fedora** release 38 or later.
+   * **Amazon** Linux 2.
+
+   Other Linux environments will usually be fine too, but some of the tooling might need
+   tweaking. If you make things work for other distributions, please update this list.
+
    This environment assumes you're running as a non-root user with ``sudo`` access.
 #. Install ``docker``.
-   Please follow the instructions for `docker-ce <https://docs.docker.com/install/linux/docker-ce/ubuntu/>`_.
+   Please follow the instructions for `docker server <https://docs.docker.com/engine/install/#server>`_.
    Then, add your user to the ``docker`` group:
    ``sudo usermod -a -G docker ${LOGNAME}``, where ``${LOGNAME}`` is replaced with your user name. Log out
    and log back in so that your membership of the ``docker`` group is seen by the shell session.
