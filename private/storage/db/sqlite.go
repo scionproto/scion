@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"net/url"
 
-	_ "modernc.org/sqlite"
-
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
