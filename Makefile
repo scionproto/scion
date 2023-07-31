@@ -88,7 +88,7 @@ lint-go-bazel:
 	$(info ==> $@)
 	@tools/quiet bazel test --config lint
 
-GO_BUILD_TAGS_ARG=$(shell bazel build --ui_event_filters=-stdout,-stderr --announce_rc --noshow_progress :dummy_setting 2>&1 | grep "'build' options" | sed "s/^.*--define gotags=\(\S*\)\s.*/--build-tags \1/" )
+GO_BUILD_TAGS_ARG=$(shell bazel build --ui_event_filters=-stdout,-stderr --announce_rc --noshow_progress :dummy_setting 2>&1 | grep "'build' options" | sed "s/^.*--define gotags=\(\S*\).*/--build-tags \1/" )
 
 lint-go-golangci:
 	$(info ==> $@)
