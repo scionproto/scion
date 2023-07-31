@@ -23,7 +23,7 @@ load("@cgrindel_bazel_starlib//updatesrc:defs.bzl", "updatesrc_update_all")
 # driver gets compiled and linked is controled by a go build tag: sqlite_mattn
 # or sqlite_modernc. Those are specified on the command line
 # with "--define gotags=sqlite_mattn" or "--define gotags=sqlite_modernc"
-# (see the build and run options in .bazelrc).
+# (see the build options in .bazelrc).
 #
 # Unfortunately Gazelle needs to be given these tags explicitly via the builtags
 # attribute. So, to ensure consistency we have to translate our two gotags into
