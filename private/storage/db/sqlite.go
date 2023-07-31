@@ -71,10 +71,10 @@ func open(path string) (*sql.DB, error) {
 	}
 	// Add foreign_key parameter to path to enable foreign key support.
 	q := u.Query()
-	AddPragmas(q)
+	addPragmas(q)
 	u.RawQuery = q.Encode()
 	path = u.String()
-	db, err := sql.Open(DriverName(), path)
+	db, err := sql.Open(driverName(), path)
 	if err != nil {
 		return nil, serrors.WrapStr("Couldn't open SQLite database", err, "path", path)
 	}

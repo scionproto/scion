@@ -26,16 +26,16 @@ import (
 const Buildtag_guard = "must choose an sqlite implementation to build, by defining " +
 	"exactly one of the gotags 'sqlite_modernc' or 'sqlite_mattn'"
 
-// AddPragmas() modifies given URL query so it can be used to make the correct uri
+// addPragmas() modifies given URL query so it can be used to make the correct uri
 // connection path for this sqlite implementation. The modifications turn on
 // foreign keys and WAL journal mode for every SQL query.
-func AddPragmas(q url.Values) {
+func addPragmas(q url.Values) {
 	// Add foreign_key parameter to path to enable foreign key support.
 	q.Add("_pragma", "foreign_keys=1")
 	// prevent weird errors. (see https://stackoverflow.com/a/35805826)
 	q.Add("_pragma", "journal_mode=WAL")
 }
 
-func DriverName() string {
+func driverName() string {
 	return "sqlite"
 }
