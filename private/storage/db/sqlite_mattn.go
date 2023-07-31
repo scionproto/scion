@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build (sqlite_mattn)
+//go:build sqlite_mattn
 // +build sqlite_mattn
 
 package db
@@ -23,10 +23,11 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const buildtag_guard = "must choose an sqlite implementation to build, by defining exactly one of the gotags 'sqlite_modernc' or 'sqlite_mattn'"
+const Buildtag_guard = "must choose an sqlite implementation to build, by defining " +
+	"exactly one of the gotags 'sqlite_modernc' or 'sqlite_mattn'"
 
 // AddPragmas() modifies given URL query so it can be used to make the correct uri
-// connection path for this sqlite implementation. The modifications turn on 
+// connection path for this sqlite implementation. The modifications turn on
 // foreign keys and WAL journal mode for every SQL query.
 func AddPragmas(q url.Values) {
 	// Add foreign_key parameter to path to enable foreign key support.

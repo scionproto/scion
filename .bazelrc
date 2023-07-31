@@ -19,6 +19,7 @@ build --incompatible_default_to_explicit_init_py
 # cannot be in common, because query chokes on it.
 build --define gotags=sqlite_modernc
 run --define gotags=sqlite_modernc
+test --define gotags=sqlite_modernc
 
 ### options for test
 test --build_tests_only --print_relative_test_log_paths --test_output=errors
