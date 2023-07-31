@@ -123,7 +123,7 @@ func realMain(ctx context.Context) error {
 	})
 	g.Go(func() error {
 		defer log.HandlePanic()
-		runConfig := &config.RunConfig{
+		runConfig := &router.RunConfig{
 			NumProcessors:         globalCfg.Router.NumProcessors,
 			NumSlowPathProcessors: globalCfg.Router.NumSlowPathProcessors,
 			BatchSize:             globalCfg.Router.BatchSize,

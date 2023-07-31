@@ -15,15 +15,19 @@
 package config
 
 const routerConfigSample = `
-# The receive buffer size in bytes.
-# (default 1048576)
-receive_buffer_size = 1048576
+# The receive buffer size in bytes. 0 means use system default.
+# (default 0)
+receive_buffer_size = 0
 
 # The send buffer size in bytes. 0 means use system default.
 # (default 0)
 send_buffer_size = 0
 
-# The number of slow path processors.
+# The number of fast-path processors.
+# (default GOMAXPROCS)
+num_processors = 8
+
+# The number of slow-path processors.
 # (default 1)
 num_slow_processors = 1
 

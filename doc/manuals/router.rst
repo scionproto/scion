@@ -117,6 +117,29 @@ considers the following options.
       If this is a relative path, it is interpreted as relative to the current working directory of the
       program (i.e. **not** relative to the location of this .toml configuration file).
 
+.. object:: router
+
+   .. option:: router.receive_buffer_size = <int> (Default: 0)
+
+      The receive buffer size in bytes. 0 means use system default.
+
+   .. option:: router.send_buffer_size = <int> (Default: 0)
+
+      The send buffer size in bytes. 0 means use system default.
+
+   .. option:: router.num_processors = <int> (Default: GOMAXPROCS)
+
+      The number of fast-path processors.
+
+   .. option:: router.num_slow_processors = <int> (Default: 1)
+
+      The number of slow-path processors.
+
+   .. option:: router.batch_size = <int> (Default: 256)
+
+      The batch size used by the receiver and forwarder to
+      read or write from / to the network socket.
+
 .. _router-conf-topo:
 
 topology.json

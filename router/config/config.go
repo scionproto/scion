@@ -71,9 +71,6 @@ func (cfg *RouterConfig) Validate() error {
 }
 
 func (cfg *RouterConfig) InitDefaults() {
-	if cfg.ReceiveBufferSize == 0 {
-		cfg.ReceiveBufferSize = 1 << 20
-	}
 	if cfg.NumProcessors == 0 {
 		cfg.NumProcessors = runtime.GOMAXPROCS(0)
 	}
@@ -87,12 +84,6 @@ func (cfg *RouterConfig) InitDefaults() {
 
 func (cfg *RouterConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
 	config.WriteString(dst, routerConfigSample)
-}
-
-type RunConfig struct {
-	NumProcessors         int
-	NumSlowPathProcessors int
-	BatchSize             int
 }
 
 func (cfg *Config) InitDefaults() {
