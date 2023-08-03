@@ -83,7 +83,7 @@ Configuration
 
 The :program:`control` service is configured with multiple files:
 
-- the :ref:`.toml <control-conf-toml>`,
+- the :ref:`.toml <control-conf-toml>` file,
   specified on the command line by the :option:`--config <control --config>` option, is the main
   configuration file.
   It configures common features like logging and metrics and
@@ -108,9 +108,9 @@ considers the following options.
 
    .. option:: general.id = <string> (Required)
 
-      Identifier for this control service.
+      An identifier for this control service.
 
-      This is used to identify which parts of the :ref:`control-conf-topo` file refer to self.
+      This is used to identify which parts of the :ref:`control-conf-topo` file are refering to self.
       Thus, ``id`` must match a key in the :ref:`control-conf-topo` files' ``control_service`` section.
 
    .. option:: general.config_dir = <string> (Required)
@@ -126,7 +126,7 @@ considers the following options.
 
       .. Warning::
          This should be set to ``true``, unless your service orchestration ensures that
-         failures of the dispatcher trigger a restart of :program:`control` also.
+         failures of the dispatcher also trigger a restart of :program:`control`.
 
 .. object:: features
 
@@ -147,7 +147,7 @@ considers the following options.
 
    .. option:: api.addr = <string> (Optional)
 
-      Address on which to expose the :ref:`control-rest-api`,
+      Address at which to expose the :ref:`control-rest-api`,
       in the form ``host:port``, ``ip:port`` or ``:port``.
 
 .. object:: tracing
@@ -169,8 +169,8 @@ considers the following options.
    .. option:: quic.address = <ip:port> (Optional)
 
       Local SCION address for inter-AS communication by QUIC/gRPC.
-      By default, the address specified for this control service in its ``control_service`` entry of
-      the :ref:`control-conf-topo` is used.
+      By default, the address used is that specified for this control service in its ``control_service`` entry of
+      the :ref:`control-conf-topo`.
 
 .. object:: beaconing
 
@@ -224,7 +224,7 @@ considers the following options.
       This should be enabled in core ASes that are labeled as ``issuing`` ASes in the :term:`TRC`.
 
       If set to ``in-process``, :program:`control` handles certificate issuance requests on its own.
-      If set to ``delegated``, the certificate issuance is delegated to the service defined in
+      If set to ``delegating``, the certificate issuance is delegated to the service defined in
       :option:`ca.service <control-conf-toml ca.service>`.
 
    .. option:: ca.max_as_validity = <duration> (Default: "3d")
@@ -234,7 +234,7 @@ considers the following options.
    .. option:: ca.service
 
       Configuration for the :term:`CA` service,
-      effective with the :option:`ca.mode <control-conf-toml ca.mode>` mode ``delegated``.
+      effective with the :option:`ca.mode <control-conf-toml ca.mode>` mode ``delegating``.
 
       The CA service is expected to implement the API described by :file-ref:`spec/ca.gen.yml`.
 
@@ -248,7 +248,7 @@ considers the following options.
          - use the `netsys-lab/scion-ca <https://github.com/netsys-lab/scion-ca>`_ SCION CA
            based on `smallstep's step-ca <https://github.com/smallstep/certificates>`_,
          - ask SCION vendors for proprietary CA implementations and offerings,
-         - or plug in your own CA service implementing the :file-ref:`spec/ca.gen.yaml` API.
+         - plug in your own CA service implementing the :file-ref:`spec/ca.gen.yaml` API.
 
       .. option:: ca.service.address = <string>
 
@@ -378,7 +378,7 @@ considers the following options.
 topology.json
 -------------
 
-The :program:`control` reads the ``control_service`` section of the :ref:`topology.json <common-conf-topo>` file.
+The :program:`control` service reads the ``control_service`` section of the :ref:`topology.json <common-conf-topo>` file.
 
 The entry referring to its own :option:`general.id <control-conf-toml general.id>`
 define the addresses that :program:`control` will listen on.
@@ -398,7 +398,7 @@ with the :option:`beacon.policies <control-conf-toml beaconing.policies>` option
 
 Propagation
    Propagation is the process of receiving a beacon from a neighbor AS, extending it
-   with the own AS entry and forwarding it to downstream neighbor ASes.
+   with one's own AS entry and forwarding it to downstream neighbor ASes.
    See :ref:`control-plane-beaconing`.
 
    The propagation policy determines which beacons are selected to be propagated and how they are
@@ -467,7 +467,7 @@ The beaconing policy YAML configuration considers the following options:
 
    .. warning::
 
-      Keep this parameter reasonably low to avoid explosion of beacon numbers.
+      Keep this parameter reasonably low to avoid an explosion of beacon numbers.
 
 .. option:: CandidateSetSize = int (Default: 100)
 
@@ -515,7 +515,7 @@ The beaconing policy YAML configuration considers the following options:
 
    Filters are applied when a beacon is received, resulting in a "usage" classification of the
    beacon that is stored in the local beacon database.
-   When the policy is changed, it will thus only be effective for newly received beacons.
+   Therefore, when the policy is changed, it will only be effective for newly received beacons.
 
    .. note::
 
@@ -523,7 +523,7 @@ The beaconing policy YAML configuration considers the following options:
       that take into account the ingress or egress interface of the beacon.
 
       There are plans to extend this functionality but so far there are no concrete proposals.
-      If you're interested to work on this, get in contact in the :ref:`chat <slack>` or create a
+      If you're interested in working on this, get in contact in the :ref:`chat <slack>` or create a
       :ref:`proposal <change-proposal-process>` on github.
 
    .. option:: MaxHopsLength = <int>
@@ -643,9 +643,9 @@ If the file does not exist, or if the configuration does not specify values for 
 types or for certain interfaces, the corresponding ``StaticInfoExtension`` will either be omitted or
 include only partial metadata.
 
-If the configuration file exists, it must be syntactically valid..
+If the configuration file exists, it must be syntactically valid.
 
-The structure of the configuration is presented as a pseudo-JSON with a more detailed explanation
+The structure of the configuration is presented as pseudo-JSON with a more detailed explanation
 of the individual fields below.
 
 .. code-block:: yaml
