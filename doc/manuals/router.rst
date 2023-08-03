@@ -133,11 +133,13 @@ considers the following options.
       These goroutines make the routing decision for the SCION packets by inspecting, validating and
       updating the path information in the packet header. Packets are processed asynchronously from the
       corresponding read/write operations on the individual interface sockets.
+
       `Goroutines <https://en.wikipedia.org/wiki/Go_(programming_language)#Concurrency:_goroutines_and_channels>`_
       are the Go pramming language's light-weight user-space concurrency primitives. Go's runtime schedules
       goroutines on top of a fixed number of kernel threads. The number of kernel threads is controlled by
-      the GOMAXPROCS environment variable. `See also <https://pkg.go.dev/runtime#hdr-Environment_Variables>`_.
-      By default, the router uses GOMAXPROCS packet processor goroutines, i.e. exactly one goroutine for
+      the ``GOMAXPROCS`` environment variable. See also the `go runtime documentation <https://pkg.go.dev/runtime#hdr-Environment_Variables>`_.
+      
+      By default, the router uses ``GOMAXPROCS`` packet processor goroutines, i.e. exactly one goroutine for
       each kernel thread created by the runtime.
 
    .. option:: router.num_slow_processors = <int> (Default: 1)
