@@ -111,7 +111,7 @@ rejecting your changes.
 
 #. Decide which implementation of sqlite you want to use:
 
-   - `mattn`: A cgo implementation. It is well established but can makes go
+   - `mattn`: A cgo implementation. It is well established but makes go
      executables dependent on a minimum glibc version.
    - `modernc`: A pure go implementation. It does not cause glibc version
      issues but is less common. modernc is currently recommended due to
