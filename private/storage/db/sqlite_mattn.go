@@ -23,8 +23,9 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const Buildtag_guard = "must choose an sqlite implementation to build, by defining " +
-	"exactly one of the gotags 'sqlite_modernc' or 'sqlite_mattn'"
+const buildtag_guard_either_sqlite_mattn_or_sqlite_modernc = "must choose an sqlite " +
+	"implementation to build, by defining exactly one of the " +
+	"gotags 'sqlite_modernc' or 'sqlite_mattn'"
 
 // addPragmas() modifies given URL query so it can be used to make the correct uri
 // connection path for this sqlite implementation. The modifications turn on

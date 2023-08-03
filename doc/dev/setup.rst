@@ -9,9 +9,9 @@ Prerequisites
 #. Make sure that you are using a clean and recently updated linux distribution. Distributions that are
    known to work are:
 
-   * **Ubuntu** release 18.04 or later.
-   * **Fedora** release 38 or later.
-   * **Amazon** Linux 2.
+   - **Ubuntu** release 18.04 or later.
+   - **Fedora** release 38 or later.
+   - **Amazon** Linux 2.
 
    Other Linux environments will usually be fine too, but some of the tooling might need
    tweaking. If you make things work for other distributions, please update this list.
@@ -109,11 +109,22 @@ rejecting your changes.
 #. Install go. Either follow `the official instructions <https://go.dev/doc/install>`_
    or check the `Ubuntu specific installation options on the golang wiki <https://github.com/golang/go/wiki/Ubuntu>`_.
 
+#. Decide which implementation of sqlite you want to use:
+
+   - `mattn`: A cgo implementation. It is well established but can makes go
+     executables dependent on a minimum glibc version.
+   - `modernc`: A pure go implementation. It does not cause glibc version
+     issues but is less common. modernc is currently recommended due to
+     the glibc issue.
+
 #. Build SCION services and tools.
 
    .. code-block:: bash
 
-      go build -o bin ./<service>/cmd/<service>...
+      go build -o -tags sqlite_<impl> bin ./<service>/cmd/<service>...
+
+   where <impl> is one of `modernc` or `mattn`.
+
 
 Tips and Tricks
 ---------------

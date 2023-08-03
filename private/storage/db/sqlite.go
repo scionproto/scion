@@ -22,6 +22,8 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
+const _ = buildtag_guard_either_sqlite_mattn_or_sqlite_modernc
+
 // NewSqlite returns a new SQLite backend opening a database at the given path. If
 // no database exists a new database is be created. If the schema version of the
 // stored database is different from schemaVersion, an error is returned.
