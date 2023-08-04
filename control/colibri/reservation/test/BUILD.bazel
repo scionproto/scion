@@ -1,9 +1,0 @@
-load("//tools/lint:go.bzl", "go_library")
-
-go_library(
-    name = "go_default_library",
-    srcs = ["path.go"],
-    importpath = "github.com/scionproto/scion/control/colibri/reservation/test",
-    visibility = ["//visibility:public"],
-    deps = ["//control/colibri/reservation:go_default_library"],
-)

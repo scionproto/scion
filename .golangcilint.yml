@@ -73,14 +73,8 @@ issues:
     - path: pkg/scrypto/cms
       linters: [goheader]
 
-    # Exceptions to errcheck for some experimental colibri code and some old-ish convey tests.
+    # Exceptions to errcheck for some old-ish convey tests.
     - linters: [errcheck]
-      path: "^control/colibri/reservation/e2e/reservation_test.go$|\
-             ^control/colibri/reservation/index_test.go$|\
-             ^control/colibri/reservation/reservationdbtest/reservationdbtest.go$|\
-             ^control/colibri/reservation/segment/reservation_test.go$|\
-             ^control/colibri/reservation/sqlite/db_test.go$|\
-             ^control/colibri/reservationstore/store.go$|\
-             ^pkg/sock/reliable/reconnect/conn_io_test.go$|\
+      path: "^pkg/sock/reliable/reconnect/conn_io_test.go$|\
              ^pkg/sock/reliable/reconnect/network_test.go$|\
              ^pkg/sock/reliable/reconnect/reconnecter_test.go$"

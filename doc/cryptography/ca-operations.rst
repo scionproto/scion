@@ -120,6 +120,8 @@ To comply with custom security policies that dictate that a Root Key should sit
 behind an air gap, multiple CA certificates can be pre-generated for the same
 entity.
 
+.. _ca-ops-as-certs:
+
 AS Certificates
 ===============
 
