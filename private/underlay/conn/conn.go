@@ -214,7 +214,7 @@ func (cc *connUDPBase) initConnUDP(network string, laddr, raddr *net.UDPAddr, cf
 	}
 
 	// Set and confirm receive buffer size
-	{
+	if cfg.ReceiveBufferSize != 0 {
 		before, err := sockctrl.GetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_RCVBUF)
 		if err != nil {
 			return serrors.WrapStr("Error getting SO_RCVBUF socket option (before)", err,

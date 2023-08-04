@@ -27,7 +27,6 @@ import (
 	"math/big"
 	"net"
 	"net/netip"
-	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -458,16 +457,17 @@ func (d *DataPlane) AddNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg contro
 	return d.addBFDController(ifID, s, cfg, m)
 }
 
-type RunConfig struct {
-	NumProcessors int
-	BatchSize     int
-}
-
 func max(a int, b int) int {
 	if a > b {
 		return a
 	}
 	return b
+}
+
+type RunConfig struct {
+	NumProcessors         int
+	NumSlowPathProcessors int
+	BatchSize             int
 }
 
 func (d *DataPlane) Run(ctx context.Context, cfg *RunConfig) error {
@@ -511,15 +511,6 @@ func (d *DataPlane) Run(ctx context.Context, cfg *RunConfig) error {
 	d.mtx.Unlock()
 	<-ctx.Done()
 	return nil
-}
-
-// loadDefaults sets the default configuration for the number of
-// processors and the batch size
-func (r *RunConfig) LoadDefaults() {
-	// TODO(rohrerj) move this logic to configuration in configuration PR
-	r.NumProcessors = runtime.GOMAXPROCS(0)
-	r.BatchSize = 256
-
 }
 
 // initializePacketPool calculates the size of the packet pool based on the

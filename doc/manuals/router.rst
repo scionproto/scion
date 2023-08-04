@@ -125,6 +125,41 @@ considers the following options.
       If this is a relative path, it is interpreted as relative to the current working directory of the
       program (i.e. **not** relative to the location of this .toml configuration file).
 
+.. object:: router
+
+   .. option:: router.receive_buffer_size = <int> (Default: 0)
+
+      The receive buffer size in bytes. 0 means use system default.
+
+   .. option:: router.send_buffer_size = <int> (Default: 0)
+
+      The send buffer size in bytes. 0 means use system default.
+
+   .. option:: router.num_processors = <int> (Default: GOMAXPROCS)
+
+      Number of goroutines started for SCION packets processing.
+      These goroutines make the routing decision for the SCION packets by inspecting, validating and
+      updating the path information in the packet header. Packets are processed asynchronously from the
+      corresponding read/write operations on the individual interface sockets.
+
+      `Goroutines <https://en.wikipedia.org/wiki/Go_(programming_language)#Concurrency:_goroutines_and_channels>`_
+      are the Go pramming language's light-weight user-space concurrency primitives. Go's runtime schedules
+      goroutines on top of a fixed number of kernel threads. The number of kernel threads is controlled by
+      the ``GOMAXPROCS`` environment variable. See also the `go runtime documentation <https://pkg.go.dev/runtime#hdr-Environment_Variables>`_.
+
+      By default, the router uses ``GOMAXPROCS`` packet processor goroutines, i.e. exactly one goroutine for
+      each kernel thread created by the runtime.
+
+   .. option:: router.num_slow_processors = <int> (Default: 1)
+
+      Number of goroutines started for the slow-path processing. This feature will be implemented soon. Currently
+      this setting has no effect.
+
+   .. option:: router.batch_size = <int> (Default: 256)
+
+      The batch size used by the receiver and forwarder to
+      read or write from / to the network socket.
+
 .. _router-conf-topo:
 
 topology.json
