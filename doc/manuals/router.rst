@@ -138,7 +138,7 @@ considers the following options.
       are the Go pramming language's light-weight user-space concurrency primitives. Go's runtime schedules
       goroutines on top of a fixed number of kernel threads. The number of kernel threads is controlled by
       the ``GOMAXPROCS`` environment variable. See also the `go runtime documentation <https://pkg.go.dev/runtime#hdr-Environment_Variables>`_.
-      
+
       By default, the router uses ``GOMAXPROCS`` packet processor goroutines, i.e. exactly one goroutine for
       each kernel thread created by the runtime.
 
