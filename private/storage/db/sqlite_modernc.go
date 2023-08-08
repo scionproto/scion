@@ -12,8 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build sqlite_modernc
-// +build sqlite_modernc
+//go:build sqlite_modernc || !sqlite_mattn
+
+// Note that above go:build expression makes modernc the default by matching
+// the absence of sqlite_mattn. Should there be more alternatives, please
+// update that expression to match their absence too.
+// Also note that this default is overriden by a build configuration
+// in .bazelrc, so this is only useful when building with "go build" and
+// may not match the bazel build configuration.
 
 package db
 
@@ -24,8 +30,8 @@ import (
 )
 
 const buildtag_guard_either_sqlite_mattn_or_sqlite_modernc = "must choose an sqlite " +
-	"implementation to build, by defining exactly one of the " +
-	"gotags 'sqlite_modernc' or 'sqlite_mattn'"
+	"implementation to build, by defining exactly one of the gotags " +
+	"'sqlite_modernc' or 'sqlite_mattn'"
 
 // addPragmas() modifies given URL query so it can be used to make the correct uri
 // connection path for this sqlite implementation. The modifications turn on
