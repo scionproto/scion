@@ -281,10 +281,10 @@ func (mr *MockPathMockRecorder) Metadata() *gomock.Call {
 }
 
 // Metadata mocks base method.
-func (m *MockPath) Interaces() []snet.Interface {
+func (m *MockPath) Interaces() []snet.PathInterface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Interfaces")
-	ret0, _ := ret[0].([]snet.Interfaces)
+	ret0, _ := ret[0].([]snet.PathInterface)
 	return ret0
 }
 
