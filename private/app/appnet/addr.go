@@ -155,12 +155,13 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context,
 	ret.NextHop = p.UnderlayNextHop()
 
 	// SVC addresses in the local AS get resolved via topology lookup
-	if len(p.Metadata().Interfaces) == 0 { //when local AS
+	if len(p.Interfaces()) == 0 { //when local AS
 		ov, err := r.SVCRouter.GetUnderlay(s.SVC)
 		if err != nil {
 			return nil, serrors.WrapStr("Unable to resolve underlay", err)
 		}
 		ret.NextHop = ov
+		ret.Path = path.Empty{}
 	}
 
 	return ret, nil

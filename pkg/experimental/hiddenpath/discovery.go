@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/path"
 )
 
 // Servers is a list of discovered remote hidden segment server.
@@ -80,31 +81,21 @@ func (r LookupResolver) Resolve(ctx context.Context, ia addr.IA) (net.Addr, erro
 func resolve(ctx context.Context, ia addr.IA, discoverer Discoverer, router snet.Router,
 	extractAddr func(Servers) (*net.UDPAddr, error)) (net.Addr, error) {
 
-	path, err := router.Route(ctx, ia)
+	p, err := router.Route(ctx, ia)
 	if err != nil {
 		return nil, serrors.WrapStr("looking up path", err)
 	}
-	if path == nil {
+	if p == nil {
 		return nil, serrors.WrapStr("no path found to remote", err)
 	}
 	dsAddr := &snet.SVCAddr{
 		IA:      ia,
-		NextHop: path.UnderlayNextHop(),
-		Path:    path.Dataplane(),
-		SVC:     addr.SvcDS,
+		NextHop: p.UnderlayNextHop(),
+		Path:    p.Dataplane(),
+		SVC:     addr.SvcCS,
 	}
-	hps, err := discoverer.Discover(ctx, dsAddr)
-	if err != nil {
-		return nil, serrors.WrapStr("discovering hidden path server", err)
+	if dsAddr.Path == nil {
+		dsAddr.Path = path.Empty{}
 	}
-	a, err := extractAddr(hps)
-	if err != nil {
-		return nil, serrors.WithCtx(err, "isd_as", ia)
-	}
-	return &snet.UDPAddr{
-		IA:      ia,
-		Host:    a,
-		NextHop: path.UnderlayNextHop(),
-		Path:    path.Dataplane(),
-	}, nil
+	return dsAddr, nil
 }
