@@ -280,6 +280,20 @@ func (mr *MockPathMockRecorder) Metadata() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Metadata", reflect.TypeOf((*MockPath)(nil).Metadata))
 }
 
+// Metadata mocks base method.
+func (m *MockPath) Interaces() []snet.Interface {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Interfaces")
+	ret0, _ := ret[0].([]snet.Interfaces)
+	return ret0
+}
+
+// Metadata indicates an expected call of Interfaces.
+func (mr *MockPathMockRecorder) Interfaces() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Interfaces", reflect.TypeOf((*MockPath)(nil).Interfaces))
+}
+
 // Source mocks base method.
 func (m *MockPath) Source() addr.IA {
 	m.ctrl.T.Helper()
