@@ -23,8 +23,6 @@ import (
 	"strings"
 	"sync"
 
-	_ "github.com/mattn/go-sqlite3"
-
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/storage/db"

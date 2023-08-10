@@ -22,10 +22,9 @@ Workflow to modify dependencies
 To add/remove or update dependencies:
 
 1. Modify ``go.mod``, manually or using e.g. ``go get``.
-2. ``make go-mod-tidy``
-3. ``make go_deps.bzl``
-4. ``make licenses``, to update the licenses with the new dependency
-5. ``make gazelle``, to update the build files that depend on the newly added dependency
+2. ``make go_deps.bzl``
+3. ``make licenses``, to update the licenses with the new dependency
+4. ``make gazelle``, to update the build files that depend on the newly added dependency
 
 .. Warning::
   The Go rules for Bazel (rules_go) declares some internally used dependencies.

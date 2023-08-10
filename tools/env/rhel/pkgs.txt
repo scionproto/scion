@@ -1,0 +1,10 @@
+bridge-utils
+moreutils
+gcc
+g++
+python3-pip
+python3-setuptools
+python3-wheel
+jq
+sqlite3
+openssl

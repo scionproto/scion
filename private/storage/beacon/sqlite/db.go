@@ -22,8 +22,6 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
-
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/common"

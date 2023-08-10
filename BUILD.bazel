@@ -17,7 +17,81 @@ load("@cgrindel_bazel_starlib//updatesrc:defs.bzl", "updatesrc_update_all")
 # gazelle:exclude doc/**
 # gazelle:exclude rules_openapi/tools/node_modules/**
 # gazelle:exclude tools/lint/**/testdata/src/**
-gazelle(name = "gazelle")
+
+# We suport two sqlite implementations: modernc and mattn. Each implementation
+# has a corresponding sqlite_<impl>.go "driver" in private/storage/db. Which
+# driver gets compiled and linked is controled by a go build tag: sqlite_mattn
+# or sqlite_modernc. Those are specified on the command line
+# with "--define gotags=sqlite_mattn" or "--define gotags=sqlite_modernc"
+# (see the build options in .bazelrc).
+#
+# Unfortunately Gazelle needs to be given these tags explicitly via the builtags
+# attribute. So, to ensure consistency we have to translate our two gotags into
+# build_tags. To that end, we create two config_setting flags that are
+# set in response to matching the gotags value and use them to select the relevant
+# tag for gazelle. (The "define_value" attribute of config_setting doesn't define
+# anything. It matches a key-value pair from "--define").
+#
+# This is simplistic but the complete, by-the-everchanging-bazel-book, solution
+# is ludicrously complicated. Go there if and when needed.
+config_setting(
+    name = "sqlite_mattn",
+    define_values = {
+        "gotags": "sqlite_mattn",
+    },
+)
+
+config_setting(
+    name = "sqlite_modernc",
+    define_values = {
+        "gotags": "sqlite_modernc",
+    },
+)
+
+# This is a dummy target so Make can "blaze build --announce_rc <something>
+# Where something truly does nothing that we may care about.
+
+config_setting(
+    name = "dummy_setting",
+    define_values = {
+        "whatever": "whatever",
+    },
+)
+
+gazelle(
+    name = "gazelle",
+    build_tags = select({
+        ":sqlite_modernc": ["sqlite_modernc"],
+        ":sqlite_mattn": ["sqlite_mattn"],
+    }),
+    command = "update",
+    extra_args = [
+        "-mode",
+        "fix",
+        "-go_naming_convention",
+        "go_default_library",
+    ],
+)
+
+gazelle(
+    name = "gazelle_diff",
+    build_tags = select({
+        ":sqlite_modernc": ["sqlite_modernc"],
+        ":sqlite_mattn": ["sqlite_mattn"],
+    }),
+    command = "update",
+    extra_args = [
+        "-mode",
+        "diff",
+        "-go_naming_convention",
+        "go_default_library",
+    ],
+)
+
+gazelle(
+    name = "gazelle_update_repos",
+    command = "update-repos",
+)
 
 go_lint_config(
     name = "go_lint_config",

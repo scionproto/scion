@@ -3,4 +3,5 @@
 set -e
 
 sudo yum groupinstall -y "Development Tools"
-sudo yum install -y jq
+BASE=$(dirname "$0")
+xargs -a "$BASE/pkgs.txt" sudo yum install -y

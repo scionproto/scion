@@ -1,6 +1,4 @@
-.PHONY: all antlr bazel clean docker-images gazelle go-mod-tidy licenses mocks protobuf scion-topo test test-integration write_all_source_files
-GAZELLE_MODE?=fix
-GAZELLE_DIRS=.
+.PHONY: all antlr bazel clean docker-images gazelle go.mod licenses mocks protobuf scion-topo test test-integration write_all_source_files
 
 build: bazel
 
@@ -10,7 +8,7 @@ build: bazel
 # Use NOTPARALLEL to force correct order.
 # Note: From GNU make 4.4, this still allows building any other targets (e.g. lint) in parallel.
 .NOTPARALLEL: all
-all: go_deps.bzl protobuf mocks gazelle licenses build antlr write_all_source_files
+all: go_deps.bzl protobuf mocks gazelle build antlr write_all_source_files licenses
 
 clean:
 	bazel clean
@@ -28,11 +26,12 @@ test:
 test-integration:
 	bazel test --config=integration_all
 
-go-mod-tidy:
+go.mod:
 	bazel run --config=quiet @go_sdk//:bin/go -- mod tidy
 
 go_deps.bzl: go.mod
-	bazel run --config=quiet //:gazelle -- update-repos -prune -from_file=go.mod -to_macro=go_deps.bzl%go_deps
+	@# gazelle is run with "-args"; so our arguments are added to those from the gazelle() rule. 
+	bazel run --verbose_failures --config=quiet //:gazelle_update_repos -- -args -prune -from_file=go.mod -to_macro=go_deps.bzl%go_deps
 	@# XXX(matzf): clean up; gazelle update-repose inconsistently inserts blank lines (see bazelbuild/bazel-gazelle#1088).
 	@sed -e '/def go_deps/,$${/^$$/d}' -i go_deps.bzl
 
@@ -57,14 +56,14 @@ protobuf:
 mocks:
 	tools/gomocks.py
 
-gazelle:
-	bazel run //:gazelle --config=quiet -- update -mode=$(GAZELLE_MODE) -go_naming_convention go_default_library $(GAZELLE_DIRS)
+gazelle: go_deps.bzl
+	bazel run //:gazelle --verbose_failures --config=quiet
 
 licenses:
 	tools/licenses.sh
 
 antlr:
-	antlr/generate.sh $(GAZELLE_MODE)
+	antlr/generate.sh fix
 
 write_all_source_files:
 	bazel run //:write_all_source_files
@@ -83,16 +82,18 @@ lint-go: lint-go-gazelle lint-go-bazel lint-go-golangci lint-go-semgrep
 
 lint-go-gazelle:
 	$(info ==> $@)
-	@$(MAKE) -s gazelle GAZELLE_MODE=diff
+	bazel run //:gazelle_diff --verbose_failures --config=quiet
 
 lint-go-bazel:
 	$(info ==> $@)
 	@tools/quiet bazel test --config lint
 
+GO_BUILD_TAGS_ARG=$(shell bazel build --ui_event_filters=-stdout,-stderr --announce_rc --noshow_progress :dummy_setting 2>&1 | grep "'build' options" | sed -n "s/^.*--define gotags=\(\S*\).*/--build-tags \1/p" )
+
 lint-go-golangci:
 	$(info ==> $@)
 	@if [ -t 1 ]; then tty=true; else tty=false; fi; \
-		tools/quiet docker run --tty=$$tty --rm -v golangci-lint-modcache:/go -v golangci-lint-buildcache:/root/.cache -v "${PWD}:/src" -w /src golangci/golangci-lint:v1.50.0 golangci-lint run --config=/src/.golangcilint.yml --timeout=3m --skip-dirs doc ./...
+		tools/quiet docker run --tty=$$tty --rm -v golangci-lint-modcache:/go -v golangci-lint-buildcache:/root/.cache -v "${PWD}:/src" -w /src golangci/golangci-lint:v1.50.0 golangci-lint run --config=/src/.golangcilint.yml --timeout=3m $(GO_BUILD_TAGS_ARG) --skip-dirs doc ./...
 
 lint-go-semgrep:
 	$(info ==> $@)

@@ -83,7 +83,7 @@ dc() {
     local project="$1"
     local dc_file="gen/$1-dc.yml"
     shift
-    COMPOSE_FILE="$dc_file" docker-compose -p "$project" --no-ansi "$@"
+    COMPOSE_FILE="$dc_file" docker-compose -p "$project" --ansi never "$@"
 }
 
 cmd_collect_logs() {
