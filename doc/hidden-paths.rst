@@ -325,56 +325,17 @@ Everything combined the path lookup looks as follows:
 Hidden segment service discovery
 --------------------------------
 
-Hidden segment services in remote ASes can be discovered via a hidden segment
-service discovery. Similar to the gateway discovery an initial UDP roundtrip is
-done to find the discovery service. The discovery service can then be queried
-for hidden segment services. The reply of the discovery contains a list of
+Hidden segment services in remote ASes can be queried for hidden segment
+services. The hidden segment services are build into the control service
+and share the same address, so they can be connected to by dialing the
+'CS' service address directly. The reply of the discovery contains a list of
 hidden segment lookup services and a list of hidden segment registration
 services.
-
-To make the information of what hidden segment services exist in an AS available
-to the discovery service, the servers that run hidden segment services must
-register in the topology file:
-
-- Servers that run the hidden segment lookup service must be listed as
-  ``hidden_segment_lookup_service``.
-
-- Servers that run the hidden segment registration service must be listed as
-  ``hidden_segment_registration_service``.
 
 Note that having access control on the hidden segment discovery service is not
 strictly required, since even if someone can get access to the endpoints, which
 service hidden segment infrastructure, the services themselves must verify
 that only authorized parties read or write hidden segment data.
-
-Discovery service gRPC definition
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: protobuf
-
-   service DiscoveryService {
-       // Return the remote hidden segment services.
-       rpc HiddenSegmentServices(HiddenSegmentServicesRequest) returns (HiddenSegmentServicesResponse) {}
-   }
-
-   message HiddenSegmentServicesRequest {}
-
-   message HiddenSegmentServicesResponse {
-       // The list of lookup service instances.
-       repeated HiddenSegmentLookupServer lookup = 1;
-       // The list of registration service instances.
-       repeated HiddenSegmentRegistrationServer registration = 2;
-   }
-
-   message HiddenSegmentLookupServer {
-       // The address of a hidden segment lookup service instance.
-       string address = 1;
-   }
-
-   message HiddenSegmentRegistrationServer {
-       // The address of a hidden segment registration service instance.
-       string address = 1;
-   }
 
 Security
 --------
