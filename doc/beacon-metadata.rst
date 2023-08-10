@@ -294,64 +294,10 @@ are available:
 | Notes             | The notes for each AS on the path                                               |
 +-------------------+---------------------------------------------------------------------------------+
 
-Configuration File Format
-=========================
-
-The control service obtains the information for the ``StaticInfoExtension``
-for the PCBs it sends out from a JSON configuration file, ``staticInfoConfig.json``.
-
-There is one top-level entry for each type of metadata. All entries are optional.
-
--  ``Latency`` is a map where the key is Interface ID ``i`` and the values are:
-
-   +-------------+-------------------------------------------+-------------------------------------------------+
-   | Name        | Type                                      | Description                                     |
-   +=============+===========================================+=================================================+
-   | ``Inter``   | Duration                                  | Latency from interface ``i`` to remote AS       |
-   +-------------+-------------------------------------------+-------------------------------------------------+
-   | ``Intra``   | Map: Interface ID ``j`` : Duration        | Latency from interface ``i`` to interface ``j`` |
-   +-------------+-------------------------------------------+-------------------------------------------------+
-
--  ``Bandwidth`` is a map where the key is Interface ID ``i`` and the values are:
-
-   +-------------+-------------------------------------------+-----------------------------------------------------------------+
-   | Name        | Type                                      | Description                                                     |
-   +=============+===========================================+=================================================================+
-   | ``Inter``   | Integer                                   | Bandwidth in Kbit/s between interface ``i`` and the remote AS   |
-   +-------------+-------------------------------------------+-----------------------------------------------------------------+
-   | ``Intra``   | Map: Interface ID ``j`` : Integer         | Bandwidth in Kbit/s between interface ``i`` and interface ``j`` |
-   +-------------+-------------------------------------------+-----------------------------------------------------------------+
-
--  ``Geo`` is a map where the key is Interface ID ``i`` and the values are:
-
-   +-----------------+-----------------+-----------------------------------------------+
-   | Name            | Type            | Description                                   |
-   +=================+=================+===============================================+
-   | ``Latitude``    | Decimal value   | Longitude GPS coordinates of interface ``i``  |
-   +-----------------+-----------------+-----------------------------------------------+
-   | ``Longitude``   | Decimal value   | Latitude GPS coordinate of interface ``i``    |
-   +-----------------+-----------------+-----------------------------------------------+
-   | ``Address``     | String          | Address of interface ``i``                    |
-   +-----------------+-----------------+-----------------------------------------------+
-
--  ``LinkType`` is a map where the key is Interface ID ``i`` and the value is one of
-
-   -  ``"direct"``
-   -  ``"multihop"``
-   -  ``"opennet"``
-
--  ``Hops`` is a map where the key is Interface ID ``i`` and the values are:
-
-   +-------------+------------------------------------+----------------------------------------------------------------------+
-   | Name        | Type                               | Description                                                          |
-   +=============+====================================+======================================================================+
-   | ``Intra``   | Map: Interface ID ``j`` : Integer  | Number of internal hops between interface ``i`` and interface ``j``  |
-   +-------------+------------------------------------+----------------------------------------------------------------------+
-
--  ``Note`` is a string.
+.. _path-metadata-example-conf:
 
 Example Configuration
----------------------
+=====================
 
 Let us look at an AS with three interfaces with IDs 1, 2, 3 and 5 which
 looks like the diagram below. The values attached to the connections
@@ -360,7 +306,7 @@ represent the latency in milliseconds between interfaces.
 .. figure:: fig/beacon_metadata/example_config_metrics.png
    :width: 50%
 
-The configuration file for this AS could then look like this:
+The :ref:`staticInfoConfig.json <control-conf-path-metadata>` configuration file for this AS could then look like this:
 
 .. code:: JSON
 

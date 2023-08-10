@@ -245,6 +245,9 @@ E
         without further forwarding the request along the path. Use cases that
         require multiple routers/hops on the path to process a packet should
         instead rely on a **hop-by-hop extension**.
+
+.. _scion-path-exptime:
+
 ExpTime
     Expiry time of a hop field. The field is 1-byte long, thus there are 256
     different values available to express an expiration time. The expiration

@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -42,6 +43,10 @@ var (
 )
 
 func TestPSTopoReload(t *testing.T) {
+	if !strings.HasSuffix(os.Getenv("TEST_TARGET"), "go_default_test") {
+		t.Skip("This test only runs as bazel unit test")
+	}
+
 	// BUG(matzf): teardown is not called when setup fails. Rewrite with T.Cleanup and T.Tempdir
 	s := setupTest(t)
 	defer s.teardownTest(t)
