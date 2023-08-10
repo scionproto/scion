@@ -19,6 +19,8 @@ important for the Internet to perform well, lie outside the scope of SCION.
 Concepts
 ========
 
+.. _overview-isds:
+
 Isolation Domains (ISDs)
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -58,6 +60,27 @@ Formatting rules and and allocations are is currently described in `wiki page "I
 The endpoint local address is not used for inter-domain routing or forwarding, does not need to be
 globally unique, and can thus be an IPv4, IPv6, or MAC address, for example.
 A SCION endpoint address is the ``ISD-AS,local address`` 3-tuple.
+
+.. _overview-as-roles:
+
+AS Roles
+^^^^^^^^
+
+Some ASes have special roles in their ISD.
+The TRC of an ISD declares which AS has which designated roles.
+An AS can have multiple, or all, of these roles at the same time.
+
+- **Core ASes** have a special role in routing.
+  They are at the top of their ISD's routing domain, and connect their customer ASes to the outside.
+  Core ASes participate in the inter-ISD *and* the intra-ISD path-exploration process (see
+  `Routing`_ below).
+
+- **Certification authorities (CAs)** are responsible for issuing AS certificates to other ASes
+  and/or themselves.
+
+- **Voting ASes** and **Authoritative ASes** are related to the update mechanism for TRCs.
+  Voting ASes can "vote" to accept an updated TRC.
+  Authoritative ASes always have the latest TRCs of the ISD and start the announcement of a TRC update.
 
 .. _overview-link-types:
 

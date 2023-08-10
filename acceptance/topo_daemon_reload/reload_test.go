@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,6 +32,10 @@ import (
 )
 
 func TestSDTopoReload(t *testing.T) {
+	if !strings.HasSuffix(os.Getenv("TEST_TARGET"), "go_default_test") {
+		t.Skip("This test only runs as bazel unit test")
+	}
+
 	defer teardownTest(t)
 	setupTest(t)
 
