@@ -481,6 +481,10 @@ func (t *testPath) Metadata() *snet.PathMetadata {
 	panic("not implemented")
 }
 
+func (t *testPath) Interfaces() []snet.PathInterface {
+	panic("not implemented")
+}
+
 func (t *testPath) Copy() snet.Path {
 	panic("not implemented")
 }
