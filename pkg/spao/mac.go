@@ -128,9 +128,7 @@ func serializeAuthenticatedData(
 	binary.BigEndian.PutUint16(buf[2:], uint16(len(pld)))
 	buf[4] = byte(opt.Algorithm())
 	buf[5] = byte(0)
-	buf[6] = byte(opt.TimestampSN() >> 40)
-	buf[7] = byte(opt.TimestampSN() >> 32)
-	binary.BigEndian.PutUint32(buf[8:12], uint32(opt.TimestampSN()))
+	bigEndianPutUint48(buf[6:12], opt.TimestampSN())
 	firstHdrLine := uint32(s.Version&0xF)<<28 | uint32(s.TrafficClass&0x3f)<<20 | s.FlowID&0xFFFFF
 	binary.BigEndian.PutUint32(buf[12:], firstHdrLine)
 	buf[16] = byte(s.PathType)
@@ -208,4 +206,15 @@ func zeroOutWithBase(base scion.Base, buf []byte) {
 			offset += 12
 		}
 	}
+}
+
+func bigEndian(b []byte) uint64 {
+	return uint64(b[0])<<40 + uint64(b[1]) +
+		uint64(binary.BigEndian.Uint32(b[2:6]))
+}
+
+func bigEndianPutUint48(b []byte, v uint64) {
+	b[0] = byte(v >> 40)
+	b[1] = byte(v >> 32)
+	binary.BigEndian.PutUint32(b[2:6], uint32(v))
 }

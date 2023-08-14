@@ -23,8 +23,8 @@ import (
 
 // RelativeTimestamp returns the relative timestamp (RelTime) as the time diference from
 // time instant t to the beginning of the drkey epoch.
-func RelativeTimestamp(key drkey.ASHostKey, t time.Time) (uint64, error) {
-	relTime := t.Sub(key.Epoch.NotBefore).Nanoseconds()
+func RelativeTimestamp(e drkey.Epoch, t time.Time) (uint64, error) {
+	relTime := t.Sub(e.NotBefore).Nanoseconds()
 	if relTime >= (1 << 48) {
 		return 0, serrors.New("relative timestamp is bigger than 2^48-1")
 	}
@@ -32,8 +32,8 @@ func RelativeTimestamp(key drkey.ASHostKey, t time.Time) (uint64, error) {
 }
 
 // AbsoluteTimestamp returns the absolute timestamp (AbsTime) based on the
-// relTime (Timestamp / Sequence Number field in SPAO hedaer) and the DRKey
+// relTime (Timestamp / Sequence Number field in SPAO header) and the DRKey
 // information.
-func AbsoluteTimestamp(key drkey.ASHostKey, relTime uint64) time.Time {
-	return key.Epoch.NotBefore.Add(time.Duration(relTime))
+func AbsoluteTimestamp(e drkey.Epoch, relTime uint64) time.Time {
+	return e.NotBefore.Add(time.Duration(relTime))
 }
