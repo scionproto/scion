@@ -27,6 +27,7 @@ go_test(
     srcs = [
         "export_test.go",
         "mac_test.go",
+        "timestamp_test.go",
     ],
     embed = [":go_default_library"],
     deps = [
@@ -38,6 +39,7 @@ go_test(
         "//pkg/slayers/path/epic:go_default_library",
         "//pkg/slayers/path/onehop:go_default_library",
         "//pkg/slayers/path/scion:go_default_library",
+        "//private/drkey/drkeyutil:go_default_library",
         "@com_github_dchest_cmac//:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",

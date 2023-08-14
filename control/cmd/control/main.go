@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -61,7 +60,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/util"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	dpb "github.com/scionproto/scion/pkg/proto/discovery"
 	"github.com/scionproto/scion/pkg/scrypto"
@@ -76,6 +74,7 @@ import (
 	"github.com/scionproto/scion/private/ca/renewal"
 	renewalgrpc "github.com/scionproto/scion/private/ca/renewal/grpc"
 	"github.com/scionproto/scion/private/discovery"
+	"github.com/scionproto/scion/private/drkey/drkeyutil"
 	"github.com/scionproto/scion/private/keyconf"
 	cppkiapi "github.com/scionproto/scion/private/mgmtapi/cppki/api"
 	"github.com/scionproto/scion/private/mgmtapi/jwtauth"
@@ -587,10 +586,7 @@ func realMain(ctx context.Context) error {
 	var drkeyEngine *drkey.ServiceEngine
 	var epochDuration time.Duration
 	if globalCfg.DRKey.Enabled() {
-		epochDuration, err = loadEpochDuration()
-		if err != nil {
-			return err
-		}
+		epochDuration = drkeyutil.LoadEpochDuration()
 		log.Debug("DRKey debug info", "epoch duration", epochDuration.String())
 		masterKey, err := loadMasterSecret(globalCfg.General.ConfigDir)
 		if err != nil {
@@ -979,16 +975,4 @@ func loadMasterSecret(dir string) (keyconf.Master, error) {
 		return keyconf.Master{}, serrors.WrapStr("error getting master secret", err)
 	}
 	return masterKey, nil
-}
-
-func loadEpochDuration() (time.Duration, error) {
-	s := os.Getenv(config.EnvVarEpochDuration)
-	if s == "" {
-		return config.DefaultEpochDuration, nil
-	}
-	duration, err := util.ParseDuration(s)
-	if err != nil {
-		return 0, serrors.WrapStr("parsing SCION_TESTING_DRKEY_EPOCH_DURATION", err)
-	}
-	return duration, nil
 }

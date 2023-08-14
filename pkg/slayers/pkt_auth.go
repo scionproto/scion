@@ -168,7 +168,7 @@ func (o PacketAuthOption) Reset(
 ) error {
 
 	if p.TimestampSN >= (1 << 48) {
-		return serrors.New("Timestamp value should be smaller than 2^24")
+		return serrors.New("Timestamp value should be smaller than 2^48")
 	}
 
 	o.OptType = OptTypeAuthenticator
@@ -182,9 +182,7 @@ func (o PacketAuthOption) Reset(
 	binary.BigEndian.PutUint32(o.OptData[:4], uint32(p.SPI))
 	o.OptData[4] = byte(p.Algorithm)
 	o.OptData[5] = byte(0)
-	o.OptData[6] = byte(p.TimestampSN >> 40)
-	o.OptData[7] = byte(p.TimestampSN >> 32)
-	binary.BigEndian.PutUint32(o.OptData[8:12], uint32(p.TimestampSN))
+	bigEndianPutUint48(o.OptData[6:12], p.TimestampSN)
 	copy(o.OptData[12:], p.Auth)
 
 	o.OptAlign = [2]uint8{4, 2}
@@ -206,8 +204,7 @@ func (o PacketAuthOption) Algorithm() PacketAuthAlg {
 
 // Timestamp returns the value set in the homonym field in the extension.
 func (o PacketAuthOption) TimestampSN() uint64 {
-	return uint64(o.OptData[6])<<40 + uint64(o.OptData[7])<<32 +
-		uint64(binary.BigEndian.Uint32(o.OptData[8:12]))
+	return bigEndian(o.OptData[6:12])
 }
 
 // Authenticator returns slice of the underlying auth buffer.
@@ -215,4 +212,15 @@ func (o PacketAuthOption) TimestampSN() uint64 {
 // the extension is serialized.
 func (o PacketAuthOption) Authenticator() []byte {
 	return o.OptData[12:]
+}
+
+func bigEndian(b []byte) uint64 {
+	return uint64(b[0])<<40 + uint64(b[1])<<32 +
+		uint64(binary.BigEndian.Uint32(b[2:6]))
+}
+
+func bigEndianPutUint48(b []byte, v uint64) {
+	b[0] = byte(v >> 40)
+	b[1] = byte(v >> 32)
+	binary.BigEndian.PutUint32(b[2:6], uint32(v))
 }

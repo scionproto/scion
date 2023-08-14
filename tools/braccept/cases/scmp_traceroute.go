@@ -17,14 +17,12 @@ package cases
 import (
 	"hash"
 	"net"
-	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 
-	"github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/util"
@@ -33,7 +31,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/spao"
-	drkeytools "github.com/scionproto/scion/private/drkey"
+	"github.com/scionproto/scion/private/drkey/drkeyutil"
 	"github.com/scionproto/scion/tools/braccept/runner"
 )
 
@@ -261,13 +259,13 @@ func SCMPTracerouteIngressWithSPAO(artifactsDir string, mac hash.Hash) runner.Ca
 	e2e := &slayers.EndToEndExtn{}
 
 	sendTime := time.Now()
-	key, err := (&drkeytools.FakeProvider{
-		KeyDuration: loadEpochDuration(),
+	key, err := (&drkeyutil.FakeProvider{
+		EpochDuration: drkeyutil.LoadEpochDuration(),
 	}).GetASHostKey(sendTime, xtest.MustParseIA("1-ff00:0:4"), srcA)
 	if err != nil {
 		panic(err)
 	}
-	timestamp, err := spao.RelativeTimestamp(key, sendTime)
+	timestamp, err := spao.RelativeTimestamp(key.Epoch, sendTime)
 	if err != nil {
 		panic(err)
 	}
@@ -1112,16 +1110,4 @@ func SCMPTracerouteInternal(artifactsDir string, mac hash.Hash) runner.Case {
 		Want:     want.Bytes(),
 		StoreDir: filepath.Join(artifactsDir, "SCMPTracerouteInternal"),
 	}
-}
-
-func loadEpochDuration() time.Duration {
-	s := os.Getenv(config.EnvVarEpochDuration)
-	if s == "" {
-		return config.DefaultEpochDuration
-	}
-	duration, err := util.ParseDuration(s)
-	if err != nil {
-		return config.DefaultEpochDuration
-	}
-	return duration
 }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package drkey
+package drkeyutil
 
 import (
 	"time"
@@ -20,11 +20,12 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/spao"
 )
 
 type FakeProvider struct {
-	KeyDuration      time.Duration
+	EpochDuration    time.Duration
 	AcceptanceWindow time.Duration
 }
 
@@ -34,7 +35,7 @@ func (p *FakeProvider) GetASHostKey(
 	_ addr.Host,
 ) (drkey.ASHostKey, error) {
 
-	duration := int64(p.KeyDuration / time.Second)
+	duration := int64(p.EpochDuration / time.Second)
 	idxCurrent := validTime.Unix() / duration
 	epochCurrent := newEpoch(idxCurrent, duration)
 	return drkey.ASHostKey{
@@ -50,23 +51,28 @@ func (p *FakeProvider) GetKeyWithinAcceptanceWindow(
 	dstAddr addr.Host,
 ) (drkey.ASHostKey, error) {
 
-	keys, err := p.getASHostTreble(t, dstIA, dstAddr)
+	keys, err := p.getASHostTriple(t, dstIA, dstAddr)
 	if err != nil {
 		return drkey.ASHostKey{}, err
 	}
 
-	awBegin := t.Add(-(p.AcceptanceWindow + time.Nanosecond))
+	awBegin := t.Add(-(p.AcceptanceWindow))
 	awEnd := t.Add(p.AcceptanceWindow)
+	validity := cppki.Validity{
+		NotBefore: awBegin,
+		NotAfter:  awEnd,
+	}
 
-	absTimePrevious := spao.AbsoluteTimestamp(keys[0], timestamp)
-	absTimeCurrent := spao.AbsoluteTimestamp(keys[1], timestamp)
-	absTimeNext := spao.AbsoluteTimestamp(keys[2], timestamp)
+	absTimePrevious := spao.AbsoluteTimestamp(keys[0].Epoch, timestamp)
+	absTimeCurrent := spao.AbsoluteTimestamp(keys[1].Epoch, timestamp)
+	absTimeNext := spao.AbsoluteTimestamp(keys[2].Epoch, timestamp)
 	switch {
-	case absTimeCurrent.After(awBegin) && absTimeCurrent.Before(awEnd):
+	// case absTimeCurrent.After(awBegin) && absTimeCurrent.Before(awEnd):
+	case validity.Contains(absTimeCurrent):
 		return keys[1], nil
-	case absTimePrevious.After(awBegin) && absTimePrevious.Before(awEnd):
+	case validity.Contains(absTimePrevious):
 		return keys[0], nil
-	case absTimeNext.After(awBegin) && absTimeNext.Before(awEnd):
+	case validity.Contains(absTimeNext):
 		return keys[2], nil
 	default:
 		return drkey.ASHostKey{}, serrors.New("no absTime falls into the acceptance window",
@@ -75,13 +81,13 @@ func (p *FakeProvider) GetKeyWithinAcceptanceWindow(
 	}
 }
 
-func (p *FakeProvider) getASHostTreble(
+func (p *FakeProvider) getASHostTriple(
 	validTime time.Time,
 	_ addr.IA,
 	_ addr.Host,
 ) ([]drkey.ASHostKey, error) {
 
-	duration := int64(p.KeyDuration / time.Second)
+	duration := int64(p.EpochDuration / time.Second)
 	idxCurrent := validTime.Unix() / duration
 	idxPrevious, idxNext := idxCurrent-1, idxCurrent+1
 	epochPrevious := newEpoch(idxPrevious, duration)
