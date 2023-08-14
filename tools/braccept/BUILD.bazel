@@ -7,7 +7,6 @@ go_library(
     importpath = "github.com/scionproto/scion/tools/braccept",
     visibility = ["//visibility:private"],
     deps = [
-        "//control/config:go_default_library",
         "//pkg/log:go_default_library",
         "//pkg/scrypto:go_default_library",
         "//pkg/slayers:go_default_library",

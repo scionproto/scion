@@ -23,7 +23,6 @@ import (
 
 	"github.com/google/gopacket/layers"
 
-	"github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/slayers"
@@ -75,13 +74,6 @@ func realMain() int {
 		return 1
 	}
 
-	// Set acceptance window to longer than default value to handle with test time fluctuation
-	err = os.Setenv(config.EnvVarAccpetanceWindow, "1m")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Setting acceptance window: %v\n", err)
-		return 1
-	}
-
 	registerScionPorts()
 
 	log.Info("BR V2 acceptance tests:")
@@ -101,12 +93,11 @@ func realMain() int {
 		cases.SCMPDestinationUnreachable(artifactsDir, hfMAC),
 		cases.SCMPBadMAC(artifactsDir, hfMAC),
 		cases.SCMPBadMACInternal(artifactsDir, hfMAC),
-		cases.SCMPExpiredHopAfterXoverMessageBack(artifactsDir, hfMAC),
-		cases.SCMPExpiredHopAfterXoverConsDirMessageBack(artifactsDir, hfMAC),
-		cases.SCMPExpiredHopAfterXoverInternalMessageBack(artifactsDir, hfMAC),
-		cases.SCMPExpiredHopAfterXoverInternalConsDirMessageBack(artifactsDir, hfMAC),
+		cases.SCMPExpiredHopAfterXover(artifactsDir, hfMAC),
+		cases.SCMPExpiredHopAfterXoverConsDir(artifactsDir, hfMAC),
+		cases.SCMPExpiredHopAfterXoverInternal(artifactsDir, hfMAC),
+		cases.SCMPExpiredHopAfterXoverInternalConsDir(artifactsDir, hfMAC),
 		cases.SCMPExpiredHop(artifactsDir, hfMAC),
-		cases.SCMPExpiredHopMessageBack(artifactsDir, hfMAC),
 		cases.SCMPChildToParentXover(artifactsDir, hfMAC),
 		cases.SCMPParentToChildXover(artifactsDir, hfMAC),
 		cases.SCMPParentToParentXover(artifactsDir, hfMAC),

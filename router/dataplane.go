@@ -27,7 +27,6 @@ import (
 	"math/big"
 	"net"
 	"net/netip"
-	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -37,7 +36,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/ipv4"
 
-	"github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	libepic "github.com/scionproto/scion/pkg/experimental/epic"
@@ -52,7 +50,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path/onehop"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/spao"
-	drkeytools "github.com/scionproto/scion/private/drkey"
+	"github.com/scionproto/scion/private/drkey/drkeyutil"
 	"github.com/scionproto/scion/private/topology"
 	underlayconn "github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router/bfd"
@@ -813,9 +811,9 @@ func newPacketProcessor(d *DataPlane) *scionPacketProcessor {
 		},
 		// TODO(JordiSubira): Replace this with a useful implementation.
 
-		drkeyProvider: &drkeytools.FakeProvider{
-			KeyDuration:      loadEpochDuration(),
-			AcceptanceWindow: loadAcceptanceWindow(),
+		drkeyProvider: &drkeyutil.FakeProvider{
+			EpochDuration:    drkeyutil.LoadEpochDuration(),
+			AcceptanceWindow: drkeyutil.LoadAcceptanceWindow(),
 		},
 		optAuth:      slayers.PacketAuthOption{EndToEndOption: new(slayers.EndToEndOption)},
 		validAuthBuf: make([]byte, 16),
@@ -1974,7 +1972,7 @@ func (p *scionPacketProcessor) resetSPAOMetadata(key drkey.ASHostKey, now time.T
 		return err
 	}
 
-	timestamp, err := spao.RelativeTimestamp(key, now)
+	timestamp, err := spao.RelativeTimestamp(key.Epoch, now)
 	if err != nil {
 		return err
 	}
@@ -2023,7 +2021,7 @@ func (p *scionPacketProcessor) hasValidAuth(t time.Time) bool {
 		srcAddr,
 	)
 	if err != nil {
-		log.Error("Selecting key to authenticate the incoming packet", "err", err)
+		log.Debug("Selecting key to authenticate the incoming packet", "err", err)
 		return false
 	}
 
@@ -2143,28 +2141,4 @@ func serviceMetricLabels(localIA addr.IA, svc addr.SVC) prometheus.Labels {
 		"isd_as":  localIA.String(),
 		"service": svc.BaseString(),
 	}
-}
-
-func loadEpochDuration() time.Duration {
-	s := os.Getenv(config.EnvVarEpochDuration)
-	if s == "" {
-		return config.DefaultEpochDuration
-	}
-	duration, err := util.ParseDuration(s)
-	if err != nil {
-		return config.DefaultEpochDuration
-	}
-	return duration
-}
-
-func loadAcceptanceWindow() time.Duration {
-	s := os.Getenv(config.EnvVarAccpetanceWindow)
-	if s == "" {
-		return config.DefaultAcceptanceWindowOffset
-	}
-	duration, err := util.ParseDuration(s)
-	if err != nil {
-		return config.DefaultAcceptanceWindowOffset
-	}
-	return duration
 }

@@ -59,12 +59,10 @@ func TestOptAuthenticatorSerialize(t *testing.T) {
 			errorFunc: assert.NoError,
 		},
 		{
-			name:    "bad_ts",
-			spiFunc: initSPI,
-			algo:    algo,
-			ts: binary.LittleEndian.Uint64(
-				[]byte{0, 0, 0, 0, 0, 0, 0, 1},
-			),
+			name:      "bad_ts",
+			spiFunc:   initSPI,
+			algo:      algo,
+			ts:        uint64(1 << 48),
 			optAuth:   optAuthMAC,
 			errorFunc: assert.Error,
 		},
