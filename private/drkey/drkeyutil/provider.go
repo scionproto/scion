@@ -56,8 +56,8 @@ func (p *FakeProvider) GetKeyWithinAcceptanceWindow(
 		return drkey.ASHostKey{}, err
 	}
 
-	awBegin := t.Add(-(p.AcceptanceWindow))
-	awEnd := t.Add(p.AcceptanceWindow)
+	awBegin := t.Add(-(p.AcceptanceWindow / 2))
+	awEnd := t.Add(p.AcceptanceWindow / 2)
 	validity := cppki.Validity{
 		NotBefore: awBegin,
 		NotAfter:  awEnd,

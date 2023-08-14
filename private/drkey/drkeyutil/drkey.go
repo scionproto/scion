@@ -19,7 +19,7 @@ const (
 	//
 	// Picking the value equal or shorter than half of the drkey Grace Period ensures
 	// that we accept packets for active keys only.
-	DefaultAcceptanceWindowOffset = 2*time.Second + 500*time.Millisecond
+	DefaultAcceptanceWindowLength = 5
 	EnvVarAccpetanceWindow        = "SCION_TESTING_ACCEPTANCE_WINDOW"
 )
 
@@ -38,11 +38,11 @@ func LoadEpochDuration() time.Duration {
 func LoadAcceptanceWindow() time.Duration {
 	s := os.Getenv(EnvVarAccpetanceWindow)
 	if s == "" {
-		return DefaultAcceptanceWindowOffset
+		return DefaultAcceptanceWindowLength
 	}
 	duration, err := util.ParseDuration(s)
 	if err != nil {
-		return DefaultAcceptanceWindowOffset
+		return DefaultAcceptanceWindowLength
 	}
 	return duration
 }
