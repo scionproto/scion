@@ -398,6 +398,10 @@ func PackAddr(host addr.Host) (AddrType, []byte, error) {
 		if !ip.IsValid() {
 			break
 		}
+		// If the IP is IPv4-in-IPv6, we need to unmap it.
+		if ip.Is4In6() {
+			return T4Ip, ip.Unmap().AsSlice(), nil
+		}
 		t := T4Ip
 		if ip.Is6() {
 			t = T16Ip
