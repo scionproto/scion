@@ -92,10 +92,23 @@ func resolve(ctx context.Context, ia addr.IA, discoverer Discoverer, router snet
 		IA:      ia,
 		NextHop: p.UnderlayNextHop(),
 		Path:    p.Dataplane(),
-		SVC:     addr.SvcCS,
+		SVC:     addr.SvcDS,
 	}
 	if dsAddr.Path == nil {
 		dsAddr.Path = path.Empty{}
 	}
-	return dsAddr, nil
+	hps, err := discoverer.Discover(ctx, dsAddr)
+	if err != nil {
+		return nil, serrors.WrapStr("discovering hidden path server", err)
+	}
+	a, err := extractAddr(hps)
+	if err != nil {
+		return nil, serrors.WithCtx(err, "isd_as", ia)
+	}
+	return &snet.UDPAddr{
+		IA:      ia,
+		Host:    a,
+		NextHop: dsAddr.NextHop,
+		Path:    dsAddr.Path,
+	}, nil
 }

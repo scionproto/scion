@@ -66,10 +66,10 @@ class Test(base.TestTopogen):
         # can use them. Optimally we would define a static server port inside
         # the CS and use that one instead.
         control_addresses = {
-            "2": "172.20.0.51:32768",
-            "3": "172.20.0.59:32768",
-            "4": "172.20.0.67:32768",
-            "5": "172.20.0.75:32768",
+            "2": "172.20.0.51:42768",
+            "3": "172.20.0.59:42768",
+            "4": "172.20.0.67:42768",
+            "5": "172.20.0.75:42768",
         }
         # Each AS participating in hidden paths has their own hidden paths configuration file.
         hp_configs = {
@@ -93,6 +93,7 @@ class Test(base.TestTopogen):
             control_path = self.artifacts / "gen" / ("ASff00_0_%s" % as_number) \
                 / ("%s.toml" % control_id)
             scion.update_toml({"path.hidden_paths_cfg": hp_config_url}, [control_path])
+            scion.update_toml({"quic.address": control_addresses[as_number]}, [control_path])
 
             # For simplicity, expose the services in all hidden paths ASes,
             # even though some don't need the registration service.
