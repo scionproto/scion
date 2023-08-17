@@ -27,7 +27,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/lucas-clemente/quic-go"
+	"github.com/quic-go/quic-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -66,6 +66,7 @@ func TestAcceptLoopParallelism(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for i := 0; i < 500; i++ {
+		i := i
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -81,12 +82,14 @@ func TestAcceptLoopParallelism(t *testing.T) {
 					}),
 				)
 				if err != nil {
+					t.Log(err)
 					return false
 				}
 				defer conn.Close()
 
 				client := cppb.NewTrustMaterialServiceClient(conn)
 				if _, err := client.TRC(ctx, &cppb.TRCRequest{}); err != nil {
+					t.Log(err)
 					return false
 				}
 				return true
@@ -204,7 +207,7 @@ func netListener(t *testing.T) (net.Listener, *net.UDPConn) {
 	srvConn := newConn(t)
 	listener, err := quic.Listen(srvConn, tlsConfig(t), nil)
 	require.NoError(t, err)
-	return squic.NewConnListener(listener), srvConn
+	return squic.NewConnListener(*listener), srvConn
 }
 
 func connDialer(t *testing.T) *squic.ConnDialer {

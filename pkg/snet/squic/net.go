@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lucas-clemente/quic-go"
+	"github.com/quic-go/quic-go"
 
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -316,7 +316,7 @@ func (c *acceptingConn) RemoteAddr() net.Addr {
 }
 
 func (c *acceptingConn) ConnectionState() tls.ConnectionState {
-	return c.session.ConnectionState().TLS.ConnectionState
+	return c.session.ConnectionState().TLS
 }
 
 func (c *acceptingConn) Close() error {
@@ -363,8 +363,6 @@ type ConnDialer struct {
 // fails due to a SERVER_BUSY error. Timers, number of attempts are EXPERIMENTAL
 // and subject to change.
 func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
-	addressStr := computeAddressStr(dst)
-
 	if d.TLSConfig == nil {
 		return nil, serrors.New("tls.Config not set")
 	}
@@ -372,6 +370,7 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 	for sleep := 2 * time.Millisecond; ctx.Err() == nil; sleep = sleep * 2 {
 		// Clone TLS config to avoid data races.
 		tlsConfig := d.TLSConfig.Clone()
+		tlsConfig.ServerName = computeAddressStr(dst)
 		// Clone QUIC config to avoid data races, if it exists.
 		var quicConfig *quic.Config
 		if d.QUICConfig != nil {
@@ -379,7 +378,7 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 		}
 
 		var err error
-		session, err = quic.DialContext(ctx, d.Conn, dst, addressStr, tlsConfig, quicConfig)
+		session, err = quic.Dial(ctx, d.Conn, dst, tlsConfig, quicConfig)
 		if err == nil {
 			break
 		}
@@ -454,7 +453,7 @@ func (c *acceptedConn) RemoteAddr() net.Addr {
 }
 
 func (c *acceptedConn) ConnectionState() tls.ConnectionState {
-	return c.session.ConnectionState().TLS.ConnectionState
+	return c.session.ConnectionState().TLS
 }
 
 func (c *acceptedConn) Close() error {

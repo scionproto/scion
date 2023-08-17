@@ -31,7 +31,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/lucas-clemente/quic-go"
+	"github.com/quic-go/quic-go"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
@@ -149,7 +149,7 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	}
 
 	return &QUICStack{
-		Listener: squic.NewConnListener(listener),
+		Listener: squic.NewConnListener(*listener),
 		InsecureDialer: &squic.ConnDialer{
 			Conn:      client,
 			TLSConfig: insecureClientTLSConfig,
