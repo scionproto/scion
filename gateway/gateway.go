@@ -24,8 +24,8 @@ import (
 	"strconv"
 	"time"
 
-	quic "github.com/lucas-clemente/quic-go"
 	"github.com/prometheus/client_golang/prometheus"
+	quic "github.com/quic-go/quic-go"
 	"google.golang.org/grpc"
 
 	"github.com/scionproto/scion/gateway/control"
@@ -578,7 +578,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 		return serrors.WrapStr("unable to initializer server QUIC listener", err)
 	}
 	// Wrap in net.Listener for use with gRPC
-	quicServerListener := squic.NewConnListener(internalQUICServerListener)
+	quicServerListener := squic.NewConnListener(*internalQUICServerListener)
 
 	var paMetric metrics.Gauge
 	if g.Metrics != nil {
