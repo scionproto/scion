@@ -83,6 +83,7 @@ type Topology struct {
 	HiddenSegmentLookup map[string]*ServerInfo  `json:"hidden_segment_lookup_service,omitempty"`
 	HiddenSegmentReg    map[string]*ServerInfo  `json:"hidden_segment_registration_service,omitempty"`
 	SIG                 map[string]*GatewayInfo `json:"sigs,omitempty"`
+	ServiceResolution   map[string]*ServerInfo  `json:"service_resolution,omitempty"`
 }
 
 // ServerInfo contains the information for a SCION application running in the local AS.

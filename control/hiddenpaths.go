@@ -80,26 +80,27 @@ func (c HiddenPathConfigurator) Setup(location string) (*HiddenPathRegistrationC
 	})
 	if roles.Registry {
 		log.Info("Starting hidden path authoritative and registration server")
-		hspb.RegisterAuthoritativeHiddenSegmentLookupServiceServer(c.InterASQUICServer,
-			&hpgrpc.AuthoritativeSegmentServer{
+		hsSegmentService := &hpgrpc.AuthoritativeSegmentServer{
 				Lookup:   c.localAuthServer(groups),
 				Verifier: c.Verifier,
-			})
-		hspb.RegisterHiddenSegmentRegistrationServiceServer(c.InterASQUICServer,
-			&hpgrpc.RegistrationServer{
-				Registry: hiddenpath.RegistryServer{
-					Groups: groups,
-					DB: &hiddenpath.Storer{
-						DB: c.PathDB,
-					},
-					Verifier: hiddenpath.VerifierAdapter{
-						Verifier: c.Verifier,
-					},
-					LocalIA: c.LocalIA,
+		}
+		hspb.RegisterAuthoritativeHiddenSegmentLookupServiceServer(c.InterASQUICServer, hsSegmentService)
+		hspb.RegisterAuthoritativeHiddenSegmentLookupServiceServer(c.IntraASTCPServer, hsSegmentService)
+		hsRegistrationService := &hpgrpc.RegistrationServer{
+			Registry: hiddenpath.RegistryServer{
+				Groups: groups,
+				DB: &hiddenpath.Storer{
+					DB: c.PathDB,
 				},
-				Verifier: c.Verifier,
+				Verifier: hiddenpath.VerifierAdapter{
+					Verifier: c.Verifier,
+				},
+				LocalIA: c.LocalIA,
 			},
-		)
+			Verifier: c.Verifier,
+		}
+		hspb.RegisterHiddenSegmentRegistrationServiceServer(c.InterASQUICServer, hsRegistrationService)
+		hspb.RegisterHiddenSegmentRegistrationServiceServer(c.IntraASTCPServer, hsRegistrationService)
 	}
 	if !roles.Writer {
 		return nil, nil

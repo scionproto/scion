@@ -64,6 +64,8 @@ type NetworkConfig struct {
 	// Public is the Internet-reachable address in the case where the service
 	// is behind NAT.
 	Public *net.UDPAddr
+	// ServiceResolution is the address of the service resolver.
+	ServiceResolution *net.UDPAddr
 	// ReconnectToDispatcher sets up sockets that automatically reconnect if
 	// the dispatcher closes the connection (e.g., if the dispatcher goes
 	// down).
@@ -266,7 +268,7 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 		Dispatcher: packetDispatcher,
 		Metrics:    nc.SCIONNetworkMetrics,
 	}
-	conn, err := network.Listen(context.Background(), "udp", nc.Public, addr.SvcWildcard)
+	conn, err := network.Listen(context.Background(), "udp", nc.ServiceResolution, addr.SvcWildcard)
 	if err != nil {
 		return nil, serrors.WrapStr("listening on SCION", err, "addr", nc.Public)
 	}
