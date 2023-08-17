@@ -208,11 +208,6 @@ func zeroOutWithBase(base scion.Base, buf []byte) {
 	}
 }
 
-func bigEndian(b []byte) uint64 {
-	return uint64(b[0])<<40 + uint64(b[1]) +
-		uint64(binary.BigEndian.Uint32(b[2:6]))
-}
-
 func bigEndianPutUint48(b []byte, v uint64) {
 	b[0] = byte(v >> 40)
 	b[1] = byte(v >> 32)

@@ -260,7 +260,8 @@ func SCMPTracerouteIngressWithSPAO(artifactsDir string, mac hash.Hash) runner.Ca
 
 	sendTime := time.Now()
 	key, err := (&drkeyutil.FakeProvider{
-		EpochDuration: drkeyutil.LoadEpochDuration(),
+		EpochDuration:    drkeyutil.LoadEpochDuration(),
+		AcceptanceWindow: drkeyutil.LoadAcceptanceWindow(),
 	}).GetASHostKey(sendTime, xtest.MustParseIA("1-ff00:0:4"), srcA)
 	if err != nil {
 		panic(err)
