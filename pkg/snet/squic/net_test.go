@@ -81,12 +81,14 @@ func TestAcceptLoopParallelism(t *testing.T) {
 					}),
 				)
 				if err != nil {
+					t.Log(err)
 					return false
 				}
 				defer conn.Close()
 
 				client := cppb.NewTrustMaterialServiceClient(conn)
 				if _, err := client.TRC(ctx, &cppb.TRCRequest{}); err != nil {
+					t.Log(err)
 					return false
 				}
 				return true
