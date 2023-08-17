@@ -1401,6 +1401,11 @@ def go_deps():
     )
     go_repository(
         name = "org_golang_google_grpc",
+        # XXX(uniquefine):
+        # Starting with release v0.41.0 rules_go no longer includes the @go_googleapis repo.
+        # Instead all code code generated from protobufs for Google APIs will have to depend on
+        # @org_golang_google_genproto. As of v0.32.0 gazelle does not yet correctly resolve dependencies
+        # to this repository. Thus we have to manually add this here.
         build_directives = [
             "gazelle:resolve go google.golang.org/genproto/googleapis/rpc/status @org_golang_google_genproto_googleapis_rpc//status",
         ],
