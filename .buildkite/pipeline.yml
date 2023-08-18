@@ -1,114 +1,119 @@
 env:
-  GOPROXY: "http://localhost:3200|https://proxy.golang.org|direct"
+    GOPROXY: "http://localhost:3200|https://proxy.golang.org|direct"
 steps:
-  - label: "Build :bazel:"
-    command:
-      - bazel build --verbose_failures --announce_rc //:all
-      - bazel run --verbose_failures //docker:prod //docker:test
-    key: build
-    retry: &automatic-retry
-      automatic:
-        - exit_status: -1 # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
-    timeout_in_minutes: 10
-  - wait
-  - label: "Unit Tests :bazel:"
-    command:
-      - bazel test --config=race --config=unit_all
-    key: unit_tests
-    artifact_paths:
-      - "artifacts.out/**/*"
-    retry: *automatic-retry
-    timeout_in_minutes: 20
-  - label: "Lint :bash:"
-    command:
-      - make lint
-    key: lint
-    retry: *automatic-retry
-    timeout_in_minutes: 20
-  - label: "Check Generated :bash:"
-    command:
-      - echo "--- go_deps.bzl"
-      - mkdir -p /tmp/test-artifacts
-      - cp go.mod go.sum go_deps.bzl /tmp/test-artifacts/
-      - make go.mod
-      - make go_deps.bzl -B
-      - diff -u /tmp/test-artifacts/go.mod go.mod
-      - diff -u /tmp/test-artifacts/go.sum go.sum
-      - diff -u /tmp/test-artifacts/go_deps.bzl go_deps.bzl
-      - echo "--- protobuf"
-      - cp -R pkg/proto/ /tmp/test-artifacts
-      - make protobuf
-      - diff -ur /tmp/test-artifacts/proto/ pkg/proto/
-      - echo "--- licenses"
-      - mkdir -p /tmp/test-artifacts/licenses
-      - ./tools/licenses.sh /tmp/test-artifacts/licenses
-      - diff -rNu3 /tmp/test-artifacts/licenses ./licenses/data
-      - echo "--- gomocks"
-      - ./tools/gomocks.py diff
-      - echo "--- antlr"
-      - rm -rf /tmp/test-artifacts/antlr
-      - cp -R antlr/ /tmp/test-artifacts/antlr
-      - make antlr
-      - diff -ur /tmp/test-artifacts/antlr/ antlr/
-      - echo "--- testdata"
-      - ./tools/update_testdata.sh
-    timeout_in_minutes: 20
-    key: check_generated
-    retry: *automatic-retry
-  - group: "End to End"
-    key: e2e
-    steps:
-    - label: "E2E: default :man_in_business_suit_levitating: (scion, ping)"
+    - label: Build pipeline
       command:
-        - echo "--- build"
-        - make
-        - echo "--- start topology"
-        - ./scion.sh topology -c topology/default.topo
-        - ./scion.sh run
-        - tools/await-connectivity
-        - ./bin/scion_integration || ( echo "^^^ +++" && false )
-        - ./bin/end2end_integration || ( echo "^^^ +++" && false )
-      plugins: &shutdown-scion-post-command
-        - scionproto/metahook#v0.3.0:
-            post-command: |
-              echo "--- Shutting down SCION topology"
-              ./scion.sh stop
-              echo "SCION topology successfully shut down"
-      artifact_paths:
-        - "artifacts.out/**/*"
-      timeout_in_minutes: 15
-      key: e2e_integration_tests_v2
-      retry: *automatic-retry
-    - label: "E2E: failing links :man_in_business_suit_levitating:"
+          - ./.buildkite/pipeline_backup.sh
+      key: build-pipeline
+      timeout_in_minutes: 10
+    - label: "Build :bazel:"
       command:
-        - echo "--- build"
-        - make
-        - echo "--- start topology"
-        - ./scion.sh topology -c topology/default-no-peers.topo
-        - ./scion.sh run
-        - tools/await-connectivity
-        - ./bin/end2end_integration || ( echo "^^^ +++" && false )
-        - ./tools/integration/revocation_test.sh
-      plugins: *shutdown-scion-post-command
-      artifact_paths:
-        - "artifacts.out/**/*"
-      timeout_in_minutes: 15
-      key: e2e_revocation_test_v2
-      retry: *automatic-retry
-    - label: "E2E: default :docker: (ping)"
+          - bazel build --verbose_failures --announce_rc //:all
+          - bazel run --verbose_failures //docker:prod //docker:test
+      key: build
+      retry: &automatic-retry
+          automatic:
+              - exit_status: -1 # Agent was lost
+              - exit_status: 255 # Forced agent shutdown
+      timeout_in_minutes: 10
+    - wait
+    - label: "Unit Tests :bazel:"
       command:
-        - echo "--- build"
-        - make build docker-images
-        - echo "--- start topology"
-        - ./scion.sh topology -d
-        - ./scion.sh run
-        - tools/await-connectivity
-        - echo "--- run tests"
-        - ./bin/end2end_integration -d || ( echo "^^^ +++" && false )
-      plugins: *shutdown-scion-post-command
+          - bazel test --config=race --config=unit_all
+      key: unit_tests
       artifact_paths:
-        - "artifacts.out/**/*"
-      timeout_in_minutes: 15
-      key: docker_integration_e2e_default
+          - "artifacts.out/**/*"
       retry: *automatic-retry
+      timeout_in_minutes: 20
+    - label: "Lint :bash:"
+      command:
+          - make lint
+      key: lint
+      retry: *automatic-retry
+      timeout_in_minutes: 20
+    - label: "Check Generated :bash:"
+      command:
+          - echo "--- go_deps.bzl"
+          - mkdir -p /tmp/test-artifacts
+          - cp go.mod go.sum go_deps.bzl /tmp/test-artifacts/
+          - make go.mod
+          - make go_deps.bzl -B
+          - diff -u /tmp/test-artifacts/go.mod go.mod
+          - diff -u /tmp/test-artifacts/go.sum go.sum
+          - diff -u /tmp/test-artifacts/go_deps.bzl go_deps.bzl
+          - echo "--- protobuf"
+          - cp -R pkg/proto/ /tmp/test-artifacts
+          - make protobuf
+          - diff -ur /tmp/test-artifacts/proto/ pkg/proto/
+          - echo "--- licenses"
+          - mkdir -p /tmp/test-artifacts/licenses
+          - ./tools/licenses.sh /tmp/test-artifacts/licenses
+          - diff -rNu3 /tmp/test-artifacts/licenses ./licenses/data
+          - echo "--- gomocks"
+          - ./tools/gomocks.py diff
+          - echo "--- antlr"
+          - rm -rf /tmp/test-artifacts/antlr
+          - cp -R antlr/ /tmp/test-artifacts/antlr
+          - make antlr
+          - diff -ur /tmp/test-artifacts/antlr/ antlr/
+          - echo "--- testdata"
+          - ./tools/update_testdata.sh
+      timeout_in_minutes: 20
+      key: check_generated
+      retry: *automatic-retry
+    - group: "End to End"
+      key: e2e
+      steps:
+          - label: "E2E: default :man_in_business_suit_levitating: (scion, ping)"
+            command:
+                - echo "--- build"
+                - make
+                - echo "--- start topology"
+                - ./scion.sh topology -c topology/default.topo
+                - ./scion.sh run
+                - tools/await-connectivity
+                - ./bin/scion_integration || ( echo "^^^ +++" && false )
+                - ./bin/end2end_integration || ( echo "^^^ +++" && false )
+            plugins: &shutdown-scion-post-command
+                - scionproto/metahook#v0.3.0:
+                      post-command: |
+                          echo "--- Shutting down SCION topology"
+                          ./scion.sh stop
+                          echo "SCION topology successfully shut down"
+            artifact_paths:
+                - "artifacts.out/**/*"
+            timeout_in_minutes: 15
+            key: e2e_integration_tests_v2
+            retry: *automatic-retry
+          - label: "E2E: failing links :man_in_business_suit_levitating:"
+            command:
+                - echo "--- build"
+                - make
+                - echo "--- start topology"
+                - ./scion.sh topology -c topology/default-no-peers.topo
+                - ./scion.sh run
+                - tools/await-connectivity
+                - ./bin/end2end_integration || ( echo "^^^ +++" && false )
+                - ./tools/integration/revocation_test.sh
+            plugins: *shutdown-scion-post-command
+            artifact_paths:
+                - "artifacts.out/**/*"
+            timeout_in_minutes: 15
+            key: e2e_revocation_test_v2
+            retry: *automatic-retry
+          - label: "E2E: default :docker: (ping)"
+            command:
+                - echo "--- build"
+                - make build docker-images
+                - echo "--- start topology"
+                - ./scion.sh topology -d
+                - ./scion.sh run
+                - tools/await-connectivity
+                - echo "--- run tests"
+                - ./bin/end2end_integration -d || ( echo "^^^ +++" && false )
+            plugins: *shutdown-scion-post-command
+            artifact_paths:
+                - "artifacts.out/**/*"
+            timeout_in_minutes: 15
+            key: docker_integration_e2e_default
+            retry: *automatic-retry
