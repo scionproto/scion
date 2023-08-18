@@ -41,14 +41,14 @@ type Topology interface {
 	// InterfaceIDs returns all interface IDS from the local AS.
 	InterfaceIDs() []common.IFIDType
 
-	// PublicAddress gets the public address of a server with the requested type and name, and nil
-	// if no such server exists. The service type is specified as a addr.SVC and retricted to
-	// addr.SvcDS and addr.SvcCS.
+	// PublicAddress gets the public address of a server with the requested type and
+	// name, and nil if no such server exists. The service type is specified as a
+	// addr.SVC and retricted to addr.SvcDS and addr.SvcCS.
 	PublicAddress(svc addr.SVC, name string) *net.UDPAddr
 
-	// PublicAddressByType gets the public address of a server with the requested type and name, and nil
-	// if no such server exists. This support more types than PublicAddress. That is, all the types
-	// specified by topology.ServiceType.
+	// PublicAddressByType gets the public address of a server with the requested type
+	// and name, and nil if no such server exists. This support more types than
+	// PublicAddress. That is, all the types specified by topology.ServiceType.
 	PublicAddressByType(svc ServiceType, name string) *net.UDPAddr
 
 	// Anycast returns the address for an arbitrary server of the requested type.
@@ -56,7 +56,8 @@ type Topology interface {
 	// Multicast returns all addresses for the requested type.
 	Multicast(svc addr.SVC) ([]*net.UDPAddr, error)
 
-	// UnderlayAnycast returns the underlay address for an arbitrary server of the requested type.
+	// UnderlayAnycast returns the underlay address for an arbitrary server of the
+	// requested type.
 	UnderlayAnycast(svc addr.SVC) (*net.UDPAddr, error)
 	// UnderlayMulticast returns all underlay addresses for the requested type.
 	UnderlayMulticast(svc addr.SVC) ([]*net.UDPAddr, error)

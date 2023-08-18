@@ -201,16 +201,17 @@ func realMain(ctx context.Context) error {
 	}
 
 	nc := infraenv.NetworkConfig{
-		IA:                    topo.IA(),
-		// Public: (Historical name) The TCP/IP:port address for this (control) service.
-		Public:                topo.ControlServiceAddress(globalCfg.General.ID),
-		// ServiceResolution: The UDP/SCION address of the service "redirector". It is hosted by this
-		// (control service) process but as a separate service.
+		IA: topo.IA(),
+		// Public: (Historical name) The TCP/IP:port address for the control service.
+		Public: topo.ControlServiceAddress(globalCfg.General.ID),
+		// ServiceResolution: The UDP/SCION address of the service "redirector".
+		// It is hosted as a separate service.
 		ServiceResolution:     topo.ServiceResolutionAddress(globalCfg.General.ID),
 		ReconnectToDispatcher: globalCfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{
-			// Address: the QUIC/SCION address of this service. See QUICStack() for how address
-			// assigned. This can be configured statically and can be identical to the Public address.
+			// Address: the QUIC/SCION address of this service. See QUICStack()
+			// for how the address is assigned. This can be configured
+			// statically and can be identical to the Public address.
 			// If not configured: a dynamic port is assigned.
 			Address:     globalCfg.QUIC.Address,
 			TLSVerifier: trust.NewTLSCryptoVerifier(trustDB),

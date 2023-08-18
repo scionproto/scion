@@ -279,7 +279,12 @@ func TestBuildFullAddress(t *testing.T) {
 		input := &snet.SVCAddr{IA: localIA, SVC: addr.SvcCS, Path: snetpath.Empty{}}
 		a, err := aw.BuildFullAddress(context.Background(), input)
 
-		want := &snet.SVCAddr{IA: localIA, NextHop: underlayAddr, SVC: addr.SvcCS, Path: snetpath.Empty{}}
+		want := &snet.SVCAddr{
+			IA: localIA,
+			NextHop: underlayAddr,
+			SVC: addr.SvcCS,
+			Path: snetpath.Empty{},
+		}
 		assert.Equal(t, want, a)
 		assert.NoError(t, err)
 	})
