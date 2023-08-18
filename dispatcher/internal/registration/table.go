@@ -60,7 +60,7 @@ func (t *Table) Register(public *net.UDPAddr, bind net.IP, svc addr.SVC,
 	if bind == nil {
 		bind = public.IP
 	}
-	svcRef, err := t.insertSVCIfRequested(svc, bind, public.Port, value)
+	svcRef, err := t.insertSVCIfRequested(svc, bind, address.Port, value)
 	if err != nil {
 		t.udpPortTable.Remove(public)
 		return nil, err
