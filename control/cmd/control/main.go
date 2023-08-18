@@ -200,6 +200,8 @@ func realMain(ctx context.Context) error {
 		return err
 	}
 
+	// FIXME: readability would be improved if we could be consistent with address
+	// representations in NetworkConfig (string or cooked, chose one).
 	nc := infraenv.NetworkConfig{
 		IA: topo.IA(),
 		// Public: (Historical name) The TCP/IP:port address for the control service.

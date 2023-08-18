@@ -107,6 +107,14 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	if nc.QUIC.Address == "" {
 		nc.QUIC.Address = net.JoinHostPort(nc.Public.IP.String(), "0")
 	}
+	if nc.ServiceResolution == nil {
+		srAddr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(nc.Public.IP.String(), "0"))
+		if err != nil {
+			return nil, serrors.WrapStr("parsing service_resolution QUIC address", err)
+		}
+		nc.ServiceResolution = srAddr
+	}
+
 	client, server, err := nc.initQUICSockets()
 	if err != nil {
 		return nil, err
@@ -268,9 +276,11 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 		Dispatcher: packetDispatcher,
 		Metrics:    nc.SCIONNetworkMetrics,
 	}
+
 	conn, err := network.Listen(context.Background(), "udp", nc.ServiceResolution, addr.SvcWildcard)
 	if err != nil {
-		return nil, serrors.WrapStr("listening on SCION", err, "addr", nc.Public)
+		log.Info("Listen failed", "err", err)
+		return nil, serrors.WrapStr("listening on SCION", err, "addr", nc.ServiceResolution)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
