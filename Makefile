@@ -31,7 +31,7 @@ go.mod:
 
 go_deps.bzl: go.mod
 	@# gazelle is run with "-args"; so our arguments are added to those from the gazelle() rule. 
-	bazel run --verbose_failures --config=quiet //:gazelle_update_repos -- -args -prune -from_file=go.mod -to_macro=go_deps.bzl%go_deps
+	bazel run --verbose_failures --config=quiet //:gazelle_update_repos -- -prune -from_file=go.mod -to_macro=go_deps.bzl%go_deps
 	@# XXX(matzf): clean up; gazelle update-repose inconsistently inserts blank lines (see bazelbuild/bazel-gazelle#1088).
 	@sed -e '/def go_deps/,$${/^$$/d}' -i go_deps.bzl
 
