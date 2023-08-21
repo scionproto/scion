@@ -280,10 +280,10 @@ func TestBuildFullAddress(t *testing.T) {
 		a, err := aw.BuildFullAddress(context.Background(), input)
 
 		want := &snet.SVCAddr{
-			IA: localIA,
+			IA:      localIA,
 			NextHop: underlayAddr,
-			SVC: addr.SvcCS,
-			Path: snetpath.Empty{},
+			SVC:     addr.SvcCS,
+			Path:    snetpath.Empty{},
 		}
 		assert.Equal(t, want, a)
 		assert.NoError(t, err)
