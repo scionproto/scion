@@ -16,6 +16,7 @@ package snet
 
 import (
 	"net"
+	"syscall"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -107,13 +108,17 @@ type SCIONPacketConnMetrics struct {
 // packets.
 type SCIONPacketConn struct {
 	// Conn is the connection to send/receive serialized packets on.
-	Conn net.PacketConn
+	Conn *net.UDPConn
 	// SCMPHandler is invoked for packets that contain an SCMP L4. If the
 	// handler is nil, errors are returned back to applications every time an
 	// SCMP message is received.
 	SCMPHandler SCMPHandler
 	// Metrics are the metrics exported by the conn.
 	Metrics SCIONPacketConnMetrics
+}
+
+func (c *SCIONPacketConn) SetReadBuffer(bytes int) error {
+	return c.Conn.SetReadBuffer(bytes)
 }
 
 func (c *SCIONPacketConn) SetDeadline(d time.Time) error {
@@ -138,6 +143,10 @@ func (c *SCIONPacketConn) WriteTo(pkt *Packet, ov *net.UDPAddr) error {
 	metrics.CounterAdd(c.Metrics.WriteBytes, float64(n))
 	metrics.CounterInc(c.Metrics.WritePackets)
 	return nil
+}
+
+func (c *SCIONPacketConn) SetWriteBuffer(bytes int) error {
+	return c.Conn.SetWriteBuffer(bytes)
 }
 
 func (c *SCIONPacketConn) SetWriteDeadline(d time.Time) error {
@@ -168,6 +177,10 @@ func (c *SCIONPacketConn) ReadFrom(pkt *Packet, ov *net.UDPAddr) error {
 		// app.
 		return nil
 	}
+}
+
+func (c *SCIONPacketConn) SyscallConn() (syscall.RawConn, error) {
+	return c.Conn.SyscallConn()
 }
 
 func (c *SCIONPacketConn) readFrom(pkt *Packet, ov *net.UDPAddr) error {
