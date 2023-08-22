@@ -69,6 +69,24 @@ def update_json(change_dict: Dict[str, Any], files: LocalPath):
             json.dump(t, f, indent=2)
 
 
+def load_from_json(key: str, files: LocalPath) -> Any:
+    """ Reads the value associated with the given key from the given json files.
+
+    The first value found is returned.
+
+    Args:
+        key: dot separated path of the JSON key.
+        files: names of file or files to update.
+
+    Raises:
+        IOError / FileNotFoundError: File path is not valid
+    """
+    for file in files:
+        with open(file, "r") as f:
+            t = json.load(f)
+        for path, val in t.items():
+            return val
+
 class ASList:
     """
     ASList is a list of AS separated by core and non-core ASes. It can be loaded

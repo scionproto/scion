@@ -61,16 +61,6 @@ class Test(base.TestTopogen):
             "4": "172.20.0.65",
             "5": "172.20.0.73",
         }
-        # XXX(lukedirtwalker): The ports below are the dynamic QUIC server
-        # ports. Thanks to the docker setup they are setup consistently so we
-        # can use them. Optimally we would define a static server port inside
-        # the CS and use that one instead.
-        control_addresses = {
-            "2": "172.20.0.51:42768",
-            "3": "172.20.0.59:42768",
-            "4": "172.20.0.67:42768",
-            "5": "172.20.0.75:42768",
-        }
         # Each AS participating in hidden paths has their own hidden paths configuration file.
         hp_configs = {
             "2": "hp_groups_as2_as5.yml",
@@ -93,19 +83,20 @@ class Test(base.TestTopogen):
             control_path = self.artifacts / "gen" / ("ASff00_0_%s" % as_number) \
                 / ("%s.toml" % control_id)
             scion.update_toml({"path.hidden_paths_cfg": hp_config_url}, [control_path])
-            scion.update_toml({"quic.address": control_addresses[as_number]}, [control_path])
 
             # For simplicity, expose the services in all hidden paths ASes,
             # even though some don't need the registration service.
             as_dir_path = self.artifacts / "gen" / ("ASff00_0_%s" % as_number)
 
+            # The hidden_segment services are behind the same server as the control_service.
+            topology_file = as_dir_path / "topology.json"
+            control_service_addr = scion.load_from_json('control_service.%s.addr' % control_id, [topology_file])
             topology_update = {
                 "hidden_segment_lookup_service.%s.addr" % control_id:
-                    control_addresses[as_number],
+                    control_service_addr,
                 "hidden_segment_registration_service.%s.addr" % control_id:
-                    control_addresses[as_number],
+                    control_service_addr,
             }
-            topology_file = as_dir_path / "topology.json"
             scion.update_json(topology_update, [topology_file])
 
     def setup_start(self):
