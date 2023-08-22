@@ -105,14 +105,7 @@ func (nc *NetworkConfig) TCPStack() (net.Listener, error) {
 
 func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	if nc.QUIC.Address == "" {
-		nc.QUIC.Address = net.JoinHostPort(nc.Public.IP.String(), "0")
-	}
-	if nc.ServiceResolution == nil {
-		srAddr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(nc.Public.IP.String(), "0"))
-		if err != nil {
-			return nil, serrors.WrapStr("parsing service_resolution QUIC address", err)
-		}
-		nc.ServiceResolution = srAddr
+		nc.QUIC.Address = nc.Public.String()
 	}
 
 	client, server, err := nc.initQUICSockets()
@@ -277,7 +270,13 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 		Metrics:    nc.SCIONNetworkMetrics,
 	}
 
-	conn, err := network.Listen(context.Background(), "udp", nc.ServiceResolution, addr.SvcWildcard)
+	// The service resolution address has a dynamic port. The port isn't used but for
+	// some reason the dispatcher wants one (and it must be unique too).
+	srAddr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(nc.Public.IP.String(), "0"))
+	if err != nil {
+		return nil, serrors.WrapStr("parsing service_resolution QUIC address", err)
+	}
+	conn, err := network.Listen(context.Background(), "udp", srAddr, addr.SvcWildcard)
 	if err != nil {
 		log.Info("Listen failed", "err", err)
 		return nil, serrors.WrapStr("listening on SCION", err, "addr", nc.ServiceResolution)

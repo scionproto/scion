@@ -72,7 +72,6 @@ type (
 		HiddenSegmentLookup       IDAddrMap
 		HiddenSegmentRegistration IDAddrMap
 		SIG                       map[string]GatewayInfo
-		ServiceResolution         IDAddrMap
 	}
 
 	// GatewayInfo describes a scion gateway.
@@ -147,7 +146,6 @@ func NewRWTopology() *RWTopology {
 		HiddenSegmentRegistration: make(IDAddrMap),
 		SIG:                       make(map[string]GatewayInfo),
 		IFInfoMap:                 make(IfInfoMap),
-		ServiceResolution:         make(IDAddrMap),
 	}
 }
 
@@ -311,10 +309,6 @@ func (t *RWTopology) populateServices(raw *jsontopo.Topology) error {
 	if err != nil {
 		return serrors.WrapStr("unable to extract hidden segment registration address", err)
 	}
-	t.ServiceResolution, err = svcMapFromRaw(raw.ServiceResolution)
-	if err != nil {
-		return serrors.WrapStr("unable to extract service resolution address", err)
-	}
 	return nil
 }
 
@@ -369,8 +363,6 @@ func (t *RWTopology) getSvcInfo(svc ServiceType) (*svcInfo, error) {
 			m[k] = *v.CtrlAddr
 		}
 		return &svcInfo{idTopoAddrMap: m}, nil
-	case ServiceResolution:
-		return &svcInfo{idTopoAddrMap: t.ServiceResolution}, nil
 	default:
 		return nil, serrors.New("unsupported service type", "type", svc)
 	}
@@ -393,10 +385,9 @@ func (t *RWTopology) Copy() *RWTopology {
 
 		CS:                        t.CS.copy(),
 		DS:                        t.DS.copy(),
+		SIG:                       copySIGMap(t.SIG),
 		HiddenSegmentLookup:       t.HiddenSegmentLookup.copy(),
 		HiddenSegmentRegistration: t.HiddenSegmentRegistration.copy(),
-		SIG:                       copySIGMap(t.SIG),
-		ServiceResolution:         t.ServiceResolution.copy(),
 	}
 }
 

@@ -28,7 +28,6 @@ const (
 	Gateway
 	HiddenSegmentLookup
 	HiddenSegmentRegistration
-	ServiceResolution
 )
 
 func (t ServiceType) String() string {
@@ -65,8 +64,6 @@ func ServiceTypeFromString(s string) ServiceType {
 		return HiddenSegmentLookup
 	case "hiddensegmentregistration":
 		return HiddenSegmentRegistration
-	case "serviceresolution":
-		return ServiceResolution
 	default:
 		return Unknown
 	}
