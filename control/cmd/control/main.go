@@ -206,8 +206,6 @@ func realMain(ctx context.Context) error {
 		IA: topo.IA(),
 		// Public: (Historical name) The TCP/IP:port address for the control service.
 		Public: topo.ControlServiceAddress(globalCfg.General.ID),
-		// ServiceResolution: The UDP/SCION address of the service "redirector".
-		// It is hosted as a separate service.
 		ReconnectToDispatcher: globalCfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{
 			// Address: the QUIC/SCION address of this service. If not
