@@ -44,7 +44,6 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/private/underlay/conn"
 )
 
 var _ Network = (*SCIONNetwork)(nil)
@@ -66,7 +65,7 @@ type DefaultConnector struct {
 }
 
 func (d *DefaultConnector) OpenUDP(addr *net.UDPAddr) (PacketConn, error) {
-	pconn, err := conn.OpenConn(addr)
+	pconn, err := net.ListenUDP(addr.Network(), addr)
 	if err != nil {
 		return nil, err
 	}
