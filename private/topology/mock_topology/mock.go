@@ -210,20 +210,6 @@ func (mr *MockTopologyMockRecorder) PublicAddress(arg0, arg1 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublicAddress", reflect.TypeOf((*MockTopology)(nil).PublicAddress), arg0, arg1)
 }
 
-// PublicAddressByType mocks base method.
-func (m *MockTopology) PublicAddressByType(arg0 topology.ServiceType, arg1 string) *net.UDPAddr {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PublicAddressByType", arg0, arg1)
-	ret0, _ := ret[0].(*net.UDPAddr)
-	return ret0
-}
-
-// PublicAddressByType indicates an expected call of PublicAddressByType.
-func (mr *MockTopologyMockRecorder) PublicAddressByType(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublicAddressByType", reflect.TypeOf((*MockTopology)(nil).PublicAddressByType), arg0, arg1)
-}
-
 // SVCNames mocks base method.
 func (m *MockTopology) SVCNames(arg0 addr.SVC) topology.ServiceNames {
 	m.ctrl.T.Helper()
