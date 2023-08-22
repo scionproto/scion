@@ -277,7 +277,7 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 	conn, err := network.Listen(context.Background(), "udp", srAddr, addr.SvcWildcard)
 	if err != nil {
 		log.Info("Listen failed", "err", err)
-		return nil, serrors.WrapStr("listening on SCION", err, "addr", nc.ServiceResolution)
+		return nil, serrors.WrapStr("listening on SCION", err, "addr", srAddr)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
