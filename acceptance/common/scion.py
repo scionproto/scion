@@ -14,7 +14,7 @@
 
 import logging
 import json
-from typing import Any, Dict, List, MutableMapping
+from typing import Any, Dict, List, MutableMapping, Mapping
 
 import toml
 import yaml
@@ -72,11 +72,14 @@ def update_json(change_dict: Dict[str, Any], files: LocalPath):
 def load_from_json(key: str, files: LocalPath) -> Any:
     """ Reads the value associated with the given key from the given json files.
 
-    The first value found is returned.
+    The first value found is returned. If not found, None is returned.
 
     Args:
         key: dot separated path of the JSON key.
         files: names of file or files to update.
+
+    Returns:
+        The value. None if the path doesn't exist in the dictionary tree.
 
     Raises:
         IOError / FileNotFoundError: File path is not valid
@@ -84,8 +87,9 @@ def load_from_json(key: str, files: LocalPath) -> Any:
     for file in files:
         with open(file, "r") as f:
             t = json.load(f)
-        for path, val in t.items():
-            return val
+            v = val_at_path(t, key)
+            if v != None:
+                return v
 
 class ASList:
     """
@@ -134,7 +138,17 @@ def path_to_dict(path: str, val: Any) -> Dict:
         d = {k: d}
     return d
 
-
+def val_at_path(d: Mapping[str, Any], path: str) -> Any:
+    """
+    Walks nested dictionaries by following the given path and returns the value
+    associated with the leaf key.
+    """
+    v = d
+    for k in path.split('.'):
+        v = v.get(k, None)
+        if not isinstance(v, Mapping):
+            return v
+        
 def merge_dict(change_dict: Dict[str, Any], orig_dict: MutableMapping[str, Any]):
     """
     Merge changes into the original dictionary. Leaf values in the change dict
