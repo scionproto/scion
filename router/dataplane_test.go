@@ -539,8 +539,9 @@ func TestDataPlaneRun(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			runConfig := &router.RunConfig{
-				NumProcessors: 8,
-				BatchSize:     256,
+				NumProcessors:         8,
+				BatchSize:             256,
+				NumSlowPathProcessors: 1,
 			}
 			ch := make(chan struct{})
 			dp := tc.prepareDP(ctrl, ch)

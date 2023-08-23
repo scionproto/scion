@@ -16,6 +16,7 @@
 package router
 
 import (
+	"errors"
 	"net"
 	"net/netip"
 
@@ -79,6 +80,17 @@ func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message) (ProcessResult, err
 		srcAddr = m.Addr.(*net.UDPAddr)
 	}
 	result, err := p.processPkt(m.Buffers[0], srcAddr, ifID)
+	if errors.Is(err, slowPathRequired) {
+		slowP := newSlowPathProcessor(d)
+		result, err = slowP.processPacket(slow_packet{
+			packet: packet{
+				srcAddr:   srcAddr,
+				ingress:   ifID,
+				rawPacket: m.Buffers[0],
+			},
+			slowPathState: p.slowPathState,
+		})
+	}
 	return ProcessResult{processResult: result}, err
 }
 

@@ -152,8 +152,8 @@ considers the following options.
 
    .. option:: router.num_slow_processors = <int> (Default: 1)
 
-      Number of goroutines started for the slow-path processing. This feature will be implemented soon. Currently
-      this setting has no effect.
+      Number of goroutines started for the slow-path processing which includes all SCMP traffic and traceroutes.
+      A minimum of 1 slow-path processor is required.
 
    .. option:: router.batch_size = <int> (Default: 256)
 

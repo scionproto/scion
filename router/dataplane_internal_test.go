@@ -80,7 +80,7 @@ func TestReceiver(t *testing.T) {
 		BatchSize:     64,
 	}
 	dp.initPacketPool(runConfig, 64)
-	procCh, _ := initQueues(runConfig, dp.interfaces, 64)
+	procCh, _, _ := initQueues(runConfig, dp.interfaces, 64)
 	initialPoolSize := len(dp.packetPool)
 	dp.running = true
 	dp.initMetrics()
@@ -174,7 +174,7 @@ func TestForwarder(t *testing.T) {
 		BatchSize:     64,
 	}
 	dp.initPacketPool(runConfig, 64)
-	_, fwCh := initQueues(runConfig, dp.interfaces, 64)
+	_, fwCh, _ := initQueues(runConfig, dp.interfaces, 64)
 	initialPoolSize := len(dp.packetPool)
 	dp.running = true
 	dp.initMetrics()
