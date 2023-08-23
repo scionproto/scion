@@ -268,12 +268,10 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 		Metrics:    nc.SCIONNetworkMetrics,
 	}
 
-	// The service resolution address has a dynamic port. The port isn't used but for
-	// some reason the dispatcher wants one (and it must be unique too).
-	srAddr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(nc.Public.IP.String(), "0"))
-	if err != nil {
-		return nil, serrors.WrapStr("parsing service_resolution QUIC address", err)
-	}
+	// The service resolution address gets a dynamic port. In reality, neither the
+	// address nor the port are needed to address the resolver, but the dispatcher still
+	// requires them and checks unicity. At least a dynamic port is allowed.
+	srAddr := &net.UDPAddr{IP: nc.Public.IP, Port: 0}
 	conn, err := network.Listen(context.Background(), "udp", srAddr, addr.SvcWildcard)
 	if err != nil {
 		log.Info("Listen failed", "err", err)
