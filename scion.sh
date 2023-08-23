@@ -109,9 +109,9 @@ run_teardown() {
 cmd_stop() {
     echo "Terminating this run of the SCION infrastructure"
     if is_docker_be; then
-        ./tools/quiet ./tools/dc stop 'scion*'
+        ./tools/quiet ./tools/dc down 'scion*'
     else
-        ./tools/quiet tools/supervisor.sh stop all
+        ./tools/quiet tools/supervisor.sh shutdown
         run_teardown
     fi
     stop_jaeger

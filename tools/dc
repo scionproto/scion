@@ -59,7 +59,7 @@ cmd_stop() {
 }
 
 cmd_down() {
-    cmd_scion down -v
+    cmd_scion down -v --remove-orphans
 }
 
 cmd_run() {
