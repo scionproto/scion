@@ -205,7 +205,7 @@ func realMain(ctx context.Context) error {
 	nc := infraenv.NetworkConfig{
 		IA: topo.IA(),
 		// Public: (Historical name) The TCP/IP:port address for the control service.
-		Public: topo.ControlServiceAddress(globalCfg.General.ID),
+		Public:                topo.ControlServiceAddress(globalCfg.General.ID),
 		ReconnectToDispatcher: globalCfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{
 			// Address: the QUIC/SCION address of this service. If not

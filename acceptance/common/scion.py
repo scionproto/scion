@@ -88,8 +88,9 @@ def load_from_json(key: str, files: LocalPath) -> Any:
         with open(file, "r") as f:
             t = json.load(f)
             v = val_at_path(t, key)
-            if v != None:
+            if v is not None:
                 return v
+
 
 class ASList:
     """
@@ -138,6 +139,7 @@ def path_to_dict(path: str, val: Any) -> Dict:
         d = {k: d}
     return d
 
+
 def val_at_path(d: Mapping[str, Any], path: str) -> Any:
     """
     Walks nested dictionaries by following the given path and returns the value
@@ -148,7 +150,8 @@ def val_at_path(d: Mapping[str, Any], path: str) -> Any:
         v = v.get(k, None)
         if not isinstance(v, Mapping):
             return v
-        
+
+
 def merge_dict(change_dict: Dict[str, Any], orig_dict: MutableMapping[str, Any]):
     """
     Merge changes into the original dictionary. Leaf values in the change dict

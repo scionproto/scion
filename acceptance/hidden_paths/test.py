@@ -90,7 +90,8 @@ class Test(base.TestTopogen):
 
             # The hidden_segment services are behind the same server as the control_service.
             topology_file = as_dir_path / "topology.json"
-            control_service_addr = scion.load_from_json('control_service.%s.addr' % control_id, [topology_file])
+            control_service_addr = scion.load_from_json(
+                'control_service.%s.addr' % control_id, [topology_file])
             topology_update = {
                 "hidden_segment_lookup_service.%s.addr" % control_id:
                     control_service_addr,
