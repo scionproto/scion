@@ -76,7 +76,7 @@ def load_from_json(key: str, files: LocalPath) -> Any:
 
     Args:
         key: dot separated path of the JSON key.
-        files: names of file or files to update.
+        files: names of file or files to read.
 
     Returns:
         The value. None if the path doesn't exist in the dictionary tree.
