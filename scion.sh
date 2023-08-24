@@ -11,14 +11,7 @@ cmd_bazel_remote() {
 
 cmd_topo_clean() {
     set -e
-    if is_docker_be; then
-        echo "Shutting down dockerized topology..."
-        ./tools/quiet ./tools/dc down || true
-    else
-        ./tools/quiet tools/supervisor.sh shutdown
-        run_teardown
-    fi
-    stop_jaeger
+    cmd_stop || true
     rm -rf traces/*
     mkdir -p logs traces gen gen-cache gen-certs
     find gen gen-cache gen-certs -mindepth 1 -maxdepth 1 -exec rm -r {} +
@@ -109,7 +102,7 @@ run_teardown() {
 cmd_stop() {
     echo "Terminating this run of the SCION infrastructure"
     if is_docker_be; then
-        ./tools/quiet ./tools/dc down 'scion*'
+        ./tools/quiet ./tools/dc down
     else
         ./tools/quiet tools/supervisor.sh shutdown
         run_teardown
