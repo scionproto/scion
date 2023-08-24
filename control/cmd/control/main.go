@@ -227,7 +227,7 @@ func realMain(ctx context.Context) error {
 		},
 		SCIONNetworkMetrics:    metrics.SCIONNetworkMetrics,
 		SCIONPacketConnMetrics: metrics.SCIONPacketConnMetrics,
-		MTU: topo.MTU(),
+		MTU:                    topo.MTU(),
 	}
 	quicStack, err := nc.QUICStack()
 	if err != nil {

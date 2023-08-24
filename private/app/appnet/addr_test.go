@@ -99,7 +99,7 @@ func TestRedirectQUIC(t *testing.T) {
 		path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{IP: net.ParseIP("10.1.1.1")})
 		path.EXPECT().Metadata().Return(&snet.PathMetadata{
 			Interfaces: make([]snet.PathInterface, 1), // just non-empty
-		})		
+		})
 		aw := infraenv.AddressRewriter{
 			Router:                router,
 			Resolver:              resolver,
@@ -243,7 +243,7 @@ func TestBuildFullAddress(t *testing.T) {
 		path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{})
 		path.EXPECT().Metadata().Return(&snet.PathMetadata{
 			Interfaces: make([]snet.PathInterface, 1), // just non-empty
-		})		
+		})
 		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 		input := &snet.SVCAddr{IA: remoteIA, SVC: addr.SvcCS, Path: snetpath.Empty{}}
 		a, err := aw.BuildFullAddress(context.Background(), input)
