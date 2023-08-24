@@ -32,7 +32,6 @@ import (
 	"github.com/scionproto/scion/pkg/snet"
 )
 
-
 // IntraASPathQuerier implements the PathQuerier interface. It will only provide
 // AS internal paths, i.e., empty paths with only the IA as destination. This
 // should only be used in places where you know that you only need to
