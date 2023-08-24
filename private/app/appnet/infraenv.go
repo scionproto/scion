@@ -38,6 +38,7 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/pkg/snet/squic"
 	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/pkg/sock/reliable/reconnect"
@@ -83,6 +84,8 @@ type NetworkConfig struct {
 	SCIONNetworkMetrics snet.SCIONNetworkMetrics
 	// Metrics injected into DefaultPacketDispatcherService.
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
+	// MTU of the local AS
+	MTU uint16
 }
 
 // QUICStack contains everything to run a QUIC based RPC stack.
@@ -222,7 +225,7 @@ func (nc *NetworkConfig) AddressRewriter(
 		}
 	}
 	return &AddressRewriter{
-		Router:    &snet.BaseRouter{Querier: snet.IntraASPathQuerier{IA: nc.IA}},
+		Router:    &snet.BaseRouter{Querier: path.IntraASPathQuerier{IA: nc.IA, MTU: nc.MTU}},
 		SVCRouter: nc.SVCResolver,
 		Resolver: &svc.Resolver{
 			LocalIA:     nc.IA,
