@@ -65,10 +65,6 @@ func (p Path) Metadata() *snet.PathMetadata {
 	return p.Meta.Copy()
 }
 
-func (p Path) Interfaces() []snet.PathInterface {
-	return p.Meta.Interfaces
-}
-
 func (p Path) String() string {
 	hops := fmtInterfaces(p.Meta.Interfaces)
 	return fmt.Sprintf("Hops: [%s] MTU: %d NextHop: %s",

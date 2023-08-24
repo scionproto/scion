@@ -65,11 +65,6 @@ type Path interface {
 	// Metadata returns supplementary information about this path.
 	// Returns nil if the metadata is not available.
 	Metadata() *PathMetadata
-	// Interfaces returns Metada().Interfaces() if the underlying implementation supports it
-	// Else returns nil. The difference between calling this and accessing Metadata().Interfaces is
-	// that there is no need to check if Metadata() is nil. An alternative could be to have an
-	// Interfaces() method to PathMetadata that accepts nil, and to call that instead.
-	Interfaces() []PathInterface
 }
 
 // PathInterface is an interface of the path.
@@ -252,10 +247,6 @@ func (p *partialPath) UnderlayNextHop() *net.UDPAddr {
 
 func (p *partialPath) Dataplane() DataplanePath {
 	return p.dataplane
-}
-
-func (p *partialPath) Interfaces() []PathInterface {
-	return nil
 }
 
 func (p *partialPath) Source() addr.IA {
