@@ -972,7 +972,6 @@ type processResult struct {
 	EgressID uint16
 	OutAddr  *net.UDPAddr
 	OutPkt   []byte
-	Data     interface{}
 }
 
 func newPacketProcessor(d *DataPlane) *scionPacketProcessor {
