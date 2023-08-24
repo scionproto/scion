@@ -241,7 +241,9 @@ func TestBuildFullAddress(t *testing.T) {
 		path := mock_snet.NewMockPath(ctrl)
 		path.EXPECT().Dataplane().Return(snetpath.SCION{})
 		path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{})
-		path.EXPECT().Interfaces().Return(make([]snet.PathInterface, 1)) // just non-empty
+		path.EXPECT().Metadata().Return(&snet.PathMetadata{
+			Interfaces: make([]snet.PathInterface, 1), // just non-empty
+		})		
 		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 		input := &snet.SVCAddr{IA: remoteIA, SVC: addr.SvcCS, Path: snetpath.Empty{}}
 		a, err := aw.BuildFullAddress(context.Background(), input)
