@@ -37,8 +37,9 @@ type IntraASPathQuerier struct {
 // Query implements PathQuerier.
 func (q IntraASPathQuerier) Query(_ context.Context, _ addr.IA) ([]snet.Path, error) {
 	return []snet.Path{path.Path{
-		Src: q.IA,
-		Dst: q.IA,
+		Src:           q.IA,
+		Dst:           q.IA,
+		DataplanePath: path.Empty{},
 		Meta: snet.PathMetadata{
 			MTU:    q.MTU,
 			Expiry: time.Now().Add(rawpath.MaxTTL * time.Second),
