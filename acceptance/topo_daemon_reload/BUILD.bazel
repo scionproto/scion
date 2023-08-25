@@ -23,6 +23,17 @@ go_test(
 )
 
 container_image(
+    name = "dispatcher",
+    base = "//docker:dispatcher",
+    cmd = [
+        "--config",
+        "/disp.toml",
+    ],
+    entrypoint = ["/app/dispatcher"],
+    files = ["testdata/disp.toml"],
+)
+
+container_image(
     name = "daemon",
     base = "//docker:daemon",
     cmd = [

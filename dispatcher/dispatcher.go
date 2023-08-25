@@ -39,7 +39,6 @@ const (
 	ReceiveBufferSize = 1 << 20
 	// SendBufferSize is the size of the send buffers used by the dispatcher.
 	SendBufferSize = 1 << 20
-	mtu            = 1920 - 20 - 8
 )
 
 // Server is the main object allowing to create new SCION connections.
@@ -66,7 +65,7 @@ func NewServer(topo *topology.Loader, conn *net.UDPConn) *Server {
 	server := Server{
 		topo:      topo,
 		conn:      conn,
-		buf:       make([]byte, mtu),
+		buf:       make([]byte, common.SupportedMTU),
 		decoded:   make([]gopacket.LayerType, 4),
 		outBuffer: gopacket.NewSerializeBuffer(),
 		options: gopacket.SerializeOptions{

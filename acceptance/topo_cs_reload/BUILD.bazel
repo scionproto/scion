@@ -14,6 +14,7 @@ go_test(
         "docker-compose.yml",
         "testdata/topology_reload.json",
         ":control.tar",
+        ":dispatcher.tar",
         ":invalid_changed_ip",
         ":invalid_changed_port",
         ":testdata/gen_crypto.sh",
@@ -53,6 +54,17 @@ container_image(
         "//acceptance/topo_common:invalid_reloads",
         "//acceptance/topo_common:topology",
     ],
+)
+
+container_image(
+    name = "dispatcher",
+    base = "//docker:dispatcher",
+    cmd = [
+        "--config",
+        "/disp.toml",
+    ],
+    entrypoint = ["/app/dispatcher"],
+    files = ["testdata/disp.toml"],
 )
 
 genrule(

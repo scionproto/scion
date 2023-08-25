@@ -7,6 +7,7 @@ container_bundle(
     images = {
         "control:latest": ":control",
         "daemon:latest": ":daemon",
+        "dispatcher:latest": ":dispatcher",
         "posix-gateway:latest": ":posix_gateway",
         "posix-router:latest": "posix_router",
     },
@@ -43,6 +44,16 @@ scion_app_images(
         "/share/conf/cs.toml",
     ],
     entrypoint = ["/app/control"],
+)
+
+scion_app_images(
+    name = "dispatcher",
+    src = "//dispatcher/cmd/dispatcher",
+    cmd = [
+        "--config",
+        "/share/conf/disp.toml",
+    ],
+    entrypoint = ["/app/dispatcher"],
 )
 
 scion_app_images(
