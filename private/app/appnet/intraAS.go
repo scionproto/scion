@@ -12,16 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package path implements snet.Path with full metadata
-// This is used by libraries that provide paths for applications to use, such
-// as the path combinator and the SCION Daemon API. Applications using snet will not
-// usually make use of this package directly.
-//
-// This component implements a path querier that returns only paths
-// within the local AS in the form of a standard Path with metadata
-// but zero hops.
-
-package path
+package appnet
 
 import (
 	"context"
@@ -30,12 +21,14 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	rawpath "github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/path"
 )
 
 // IntraASPathQuerier implements the PathQuerier interface. It will only provide
-// AS internal paths, i.e., empty paths with only the IA as destination. This
+// AS-internal paths, i.e., zero-hops paths with only the IA as destination. This
 // should only be used in places where you know that you only need to
-// communicate inside the AS.
+// communicate inside the AS. The type of Path returned is a complete
+// implementation with proper metadata.
 type IntraASPathQuerier struct {
 	IA  addr.IA
 	MTU uint16
@@ -43,7 +36,7 @@ type IntraASPathQuerier struct {
 
 // Query implements PathQuerier.
 func (q IntraASPathQuerier) Query(_ context.Context, _ addr.IA) ([]snet.Path, error) {
-	return []snet.Path{Path{
+	return []snet.Path{path.Path{
 		Src: q.IA,
 		Dst: q.IA,
 		Meta: snet.PathMetadata{

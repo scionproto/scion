@@ -38,7 +38,6 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
-	"github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/pkg/snet/squic"
 	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/pkg/sock/reliable/reconnect"
@@ -225,7 +224,7 @@ func (nc *NetworkConfig) AddressRewriter(
 		}
 	}
 	return &AddressRewriter{
-		Router:    &snet.BaseRouter{Querier: path.IntraASPathQuerier{IA: nc.IA, MTU: nc.MTU}},
+		Router:    &snet.BaseRouter{Querier: IntraASPathQuerier{IA: nc.IA, MTU: nc.MTU}},
 		SVCRouter: nc.SVCResolver,
 		Resolver: &svc.Resolver{
 			LocalIA:     nc.IA,

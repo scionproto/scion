@@ -5,7 +5,6 @@ go_library(
     srcs = [
         "empty.go",
         "epic.go",
-        "intraAS.go",
         "onehop.go",
         "path.go",
         "scion.go",
