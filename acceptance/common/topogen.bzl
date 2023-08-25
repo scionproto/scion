@@ -110,6 +110,7 @@ def container_loaders(tester, gateway):
     images = {
         "control:latest": "//docker:control",
         "daemon:latest": "//docker:daemon",
+        "dispatcher:latest": "//docker:disptacher",
         "tester:latest": tester,
         "posix-router:latest": "//docker:posix_router",
     }

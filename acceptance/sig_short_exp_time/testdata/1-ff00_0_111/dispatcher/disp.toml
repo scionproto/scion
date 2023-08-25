@@ -1,0 +1,5 @@
+[dispatcher]
+id = "disp_1-ff00_0_111"
+
+[log.console]
+level = "debug"
