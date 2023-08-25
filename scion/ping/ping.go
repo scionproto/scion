@@ -18,7 +18,6 @@ package ping
 import (
 	"context"
 	"encoding/binary"
-	"math/rand"
 	"net"
 	"time"
 
@@ -99,12 +98,9 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		return Stats{}, serrors.New("interval below millisecond")
 	}
 
-	id := rand.Uint64()
 	replies := make(chan reply, 10)
-
 	svc := snet.DefaultConnector{
 		SCMPHandler: scmpHandler{
-			id:      uint16(id),
 			replies: replies,
 		},
 	}
@@ -127,7 +123,7 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		timeout:       cfg.Timeout,
 		pldSize:       cfg.PayloadSize,
 		pld:           make([]byte, cfg.PayloadSize),
-		id:            id,
+		id:            uint64(local.Host.Port),
 		conn:          conn,
 		local:         local,
 		replies:       replies,
@@ -295,7 +291,6 @@ type reply struct {
 }
 
 type scmpHandler struct {
-	id      uint16
 	replies chan<- reply
 }
 
@@ -329,9 +324,5 @@ func (h scmpHandler) handle(pkt *snet.Packet) (snet.SCMPEchoReply, error) {
 		)
 	}
 	r := pkt.Payload.(snet.SCMPEchoReply)
-	if r.Identifier != h.id {
-		return snet.SCMPEchoReply{}, serrors.New("wrong SCMP ID",
-			"expected", h.id, "actual", r.Identifier)
-	}
 	return r, nil
 }
