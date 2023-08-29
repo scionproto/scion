@@ -80,8 +80,8 @@ func TestRedirectQUIC(t *testing.T) {
 
 			a, r, err := aw.RedirectToQUIC(context.Background(), tc.input)
 			tc.assertErr(t, err)
-			assert.Equal(t, a, tc.wantAddr)
-			assert.Equal(t, r, tc.wantRedirect)
+			assert.Equal(t, tc.wantAddr, a)
+			assert.Equal(t, tc.wantRedirect, r)
 		})
 	}
 
@@ -100,7 +100,6 @@ func TestRedirectQUIC(t *testing.T) {
 		path.EXPECT().Metadata().Return(&snet.PathMetadata{
 			Interfaces: make([]snet.PathInterface, 1), // just non-empty
 		})
-
 		aw := infraenv.AddressRewriter{
 			Router:                router,
 			Resolver:              resolver,
@@ -137,7 +136,6 @@ func TestRedirectQUIC(t *testing.T) {
 		path.EXPECT().Metadata().Return(&snet.PathMetadata{
 			Interfaces: make([]snet.PathInterface, 1), // just non-empty
 		})
-
 		aw := infraenv.AddressRewriter{
 			Router:                router,
 			Resolver:              resolver,
@@ -182,7 +180,7 @@ func TestRedirectQUIC(t *testing.T) {
 		want := &snet.SVCAddr{
 			SVC:     addr.SvcCS,
 			NextHop: &net.UDPAddr{IP: net.ParseIP("10.1.1.1")},
-			Path:    snetpath.SCION{},
+			Path:    snetpath.Empty{},
 		}
 		a, r, err := aw.RedirectToQUIC(context.Background(), input)
 		assert.NoError(t, err)
@@ -225,7 +223,7 @@ func TestBuildFullAddress(t *testing.T) {
 			SVC:  addr.SvcCS,
 		}
 		a, err := aw.BuildFullAddress(context.Background(), input)
-		assert.Equal(t, a, input)
+		assert.Equal(t, input, a)
 		assert.NoError(t, err)
 	})
 
@@ -255,7 +253,7 @@ func TestBuildFullAddress(t *testing.T) {
 			NextHop: &net.UDPAddr{},
 			SVC:     addr.SvcCS,
 		}
-		assert.Equal(t, a, want)
+		assert.Equal(t, want, a)
 		assert.NoError(t, err)
 	})
 
@@ -285,8 +283,13 @@ func TestBuildFullAddress(t *testing.T) {
 		input := &snet.SVCAddr{IA: localIA, SVC: addr.SvcCS, Path: snetpath.Empty{}}
 		a, err := aw.BuildFullAddress(context.Background(), input)
 
-		want := &snet.SVCAddr{IA: localIA, NextHop: underlayAddr, SVC: addr.SvcCS}
-		assert.Equal(t, a, want)
+		want := &snet.SVCAddr{
+			IA:      localIA,
+			NextHop: underlayAddr,
+			SVC:     addr.SvcCS,
+			Path:    snetpath.Empty{},
+		}
+		assert.Equal(t, want, a)
 		assert.NoError(t, err)
 	})
 
@@ -388,9 +391,9 @@ func TestResolve(t *testing.T) {
 			}
 			initResolver(resolver, tc.ResolverSetup)
 			p, a, redirect, err := aw.ResolveSVC(context.Background(), path, tc.input)
-			assert.Equal(t, p, tc.wantPath)
-			assert.Equal(t, a.String(), tc.want.String())
-			assert.Equal(t, redirect, tc.wantQUICRedirect)
+			assert.Equal(t, tc.wantPath, p)
+			assert.Equal(t, tc.want.String(), a.String())
+			assert.Equal(t, tc.wantQUICRedirect, redirect)
 			tc.assertErr(t, err)
 		})
 	}
@@ -448,7 +451,7 @@ func TestParseReply(t *testing.T) {
 			if err != nil {
 				return
 			}
-			assert.Equal(t, a.String(), tc.want.String())
+			assert.Equal(t, tc.want.String(), a.String())
 		})
 	}
 }

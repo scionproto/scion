@@ -196,6 +196,11 @@ func (t *TasksConfig) segmentWriter(segType seg.Type,
 		Writer:   writer,
 		Tick:     beaconing.NewTick(t.RegistrationInterval),
 	}
+	// The period of the task is short because we want to retry quickly
+	// if we fail fast. So during one interval we'll make as many attempts
+	// as we can until we succeed. After succeeding, the task does nothing
+	// until the end of the interval. The interval itself is used as a
+	// timeout. If we fail slow we give up at the end of the cycle.
 	return periodic.Start(r, 500*time.Millisecond, t.RegistrationInterval)
 }
 
