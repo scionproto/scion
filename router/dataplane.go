@@ -1743,28 +1743,35 @@ func (d *DataPlane) resolveLocalDst(s slayers.SCION, lastLayer gopacket.Decoding
 		return a, nil
 	case addr.HostTypeIP:
 		// Parse UPD port and rewrite underlay IP/UDP port
-		return addEndhostPort(lastLayer, dst.IP().AsSlice()), nil
+		return addEndhostPort(lastLayer, dst.IP().AsSlice())
 	default:
 		panic("unexpected address type returned from DstAddr")
 	}
 }
 
-func addEndhostPort(lastLayer gopacket.DecodingLayer, dst []byte) *net.UDPAddr {
+func addEndhostPort(lastLayer gopacket.DecodingLayer, dst []byte) (*net.UDPAddr, error) {
 	// Parse UPD port and rewrite underlay IP/UDP port
 	l4Type := nextHdr(lastLayer)
 	switch l4Type {
 	case slayers.L4UDP:
+		// TODO(JordiSubira): Treat this as a parameter problem?
+		if len(lastLayer.LayerPayload()) < 8 {
+			return nil, serrors.New(fmt.Sprintf("SCION/UDP header len too small: %d",
+				len(lastLayer.LayerPayload())))
+		}
 		port := binary.BigEndian.Uint16(lastLayer.LayerPayload()[2:])
 		if port < topology.HostPortRangeLow || port > topology.HostPortRangeHigh {
 			port = topology.EndhostPort
 		}
 		log.Debug("TBR XXXJ:", "udp port that will be rewritten", port)
-		return &net.UDPAddr{IP: dst, Port: int(port)}
+		return &net.UDPAddr{IP: dst, Port: int(port)}, nil
 	case slayers.L4SCMP:
 		// TODO(JordiSubira): On-going discussion regarding SCMP dst port
-		return &net.UDPAddr{IP: dst, Port: topology.EndhostPort}
+		log.Debug("TBR XXXJ:", "sending SCMP packet to", &net.UDPAddr{IP: dst, Port: topology.EndhostPort})
+		return &net.UDPAddr{IP: dst, Port: topology.EndhostPort}, nil
 	default:
-		panic(fmt.Sprintf("Port rewriting not supported for protcol number %v", l4Type))
+		log.Debug(fmt.Sprintf("Port rewriting not supported for protcol number %v", l4Type))
+		return &net.UDPAddr{IP: dst, Port: topology.EndhostPort}, nil
 	}
 }
 
