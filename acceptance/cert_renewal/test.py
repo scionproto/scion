@@ -123,7 +123,6 @@ class Test(base.TestTopogen):
                                 "echo $SCION_DAEMON").strip(),
             *self._local_flags(isd_as),
             "--log.level", "debug",
-            "--no-probe"
         ]
 
         logger.info("Requesting certificate chain renewal: %s" %

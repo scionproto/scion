@@ -103,8 +103,6 @@ type Prober struct {
 	// an appropriate local IP endpoint depending on the path that should be probed. Note, LocalIP
 	// should not be set, unless you know what you are doing.
 	LocalIP net.IP
-	// ID is the SCMP traceroute ID used by the Prober.
-	ID uint16
 	// Metrics injected into snet.SCIONPacketConnMetrics.
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 }
@@ -240,7 +238,7 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 						},
 						Path: alertPath,
 						Payload: snet.SCMPTracerouteRequest{
-							Identifier: p.ID,
+							Identifier: uint16(conn.LocalAddr().(*net.UDPAddr).Port),
 							Sequence:   uint16(atomic.AddInt32(&seq, 1)),
 						},
 					},

@@ -24,6 +24,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers/path/empty"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/mock_snet"
@@ -181,7 +182,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				Handler:   tc.ReqHandler(ctrl),
 			}
 
-			conn, err := connector.OpenUDP(&net.UDPAddr{})
+			conn, err := connector.OpenUDP(&net.UDPAddr{IP: xtest.MustParseIP(t, "127.0.0.1")})
 
 			tc.ErrOpen(t, err)
 			if err != nil {
