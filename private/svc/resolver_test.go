@@ -53,6 +53,7 @@ func TestResolver(t *testing.T) {
 			Return(nil, errors.New("no conn"))
 		resolver := &svc.Resolver{
 			LocalIA:   srcIA,
+			LocalIP:   xtest.MustParseIP(t, "127.0.0.1"),
 			Connector: mockConnector,
 		}
 

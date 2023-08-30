@@ -154,7 +154,6 @@ class Test(base.TestTopogen):
         print(cmd.docker("exec", "-t", self._testers[source_as], "scion",
                          "sp", self._ases[destination_as],
                          "--timeout", "2s",
-                         "--no-probe",
                          retcode=retcode))
 
 
