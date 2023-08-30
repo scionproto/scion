@@ -15,6 +15,7 @@
 package dispatcher
 
 import (
+	"fmt"
 	"net"
 	"net/netip"
 
@@ -43,7 +44,9 @@ const (
 
 // Server is the main object allowing to create new SCION connections.
 type Server struct {
-	topo *topology.Loader
+	// topo keeps the topology for the local AS. It can keep multiple ASes
+	// in case we run several topologies locally, e.g., developer environment.
+	topo map[addr.AS]*topology.Loader
 	conn *net.UDPConn
 
 	buf       []byte
@@ -61,7 +64,7 @@ type Server struct {
 
 // NewServer creates new instance of Server. Internally, it opens the dispatcher ports
 // for both IPv4 and IPv6. Returns error if the ports can't be opened.
-func NewServer(topo *topology.Loader, conn *net.UDPConn) *Server {
+func NewServer(topo map[addr.AS]*topology.Loader, conn *net.UDPConn) *Server {
 	server := Server{
 		topo:      topo,
 		conn:      conn,
@@ -81,6 +84,7 @@ func NewServer(topo *topology.Loader, conn *net.UDPConn) *Server {
 		&server.udpLayer,
 		&server.scmpLayer,
 	)
+	parser.IgnoreUnsupported = true
 	server.parser = parser
 	server.scionLayer.RecyclePaths()
 	server.udpLayer.SetNetworkLayerForChecksum(&server.scionLayer)
@@ -88,13 +92,14 @@ func NewServer(topo *topology.Loader, conn *net.UDPConn) *Server {
 	return &server
 }
 
-// Serve starts reading packets from network and dispatching them to different connections.
+// Serve starts reading packets from network and dispatching them to the end application.
+// It also replies to SCMPEchoRequest and SCMPTracerouteRequest.
 // The function blocks and returns if there's an error or when Close has been called.
 func (s *Server) Serve() error {
 	for {
 		s.buf = s.buf[:cap(s.buf)]
 
-		n, remoteUDPAddrPort, err := s.conn.ReadFromUDPAddrPort(s.buf)
+		n, nextHop, err := s.conn.ReadFromUDPAddrPort(s.buf)
 		if err != nil {
 			log.Error("Decoding layers", "err", err)
 			continue
@@ -109,27 +114,28 @@ func (s *Server) Serve() error {
 			log.Error("Unexpected decode packet", "layers decoded", len(s.decoded))
 			continue
 		}
-		host, err := s.scionLayer.DstAddr()
-		if err != nil {
-			log.Error("Unexpected error decoding host addr", "err", err)
-			continue
-		}
 		err = s.outBuffer.Clear()
 		if err != nil {
 			return err
 		}
-		var dstPort uint16
+		// Packet handling
+		var dstAddrPort netip.AddrPort
 		switch s.decoded[len(s.decoded)-1] {
 		case slayers.LayerTypeSCMP:
+			// send response to BR
 			if s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeTracerouteRequest ||
 				s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeEchoRequest {
-				_ = s.processSCMPRequest(remoteUDPAddrPort)
-				continue
-			}
-			dstPort, err = getDstSCMPErr(&s.scmpLayer)
-			if err != nil {
-				log.Error("Getting for SCMP message", "err", err)
-				continue
+				err = s.reverseSCMPInfo()
+				if err != nil {
+					return err
+				}
+				dstAddrPort = nextHop
+			} else { // rely to end application
+				dstAddrPort, err = s.getDstSCMP()
+				if err != nil {
+					log.Error("Getting destination for SCMP message", "err", err)
+					continue
+				}
 			}
 			payload := gopacket.Payload(s.scmpLayer.Payload)
 			err = payload.SerializeTo(s.outBuffer, s.options)
@@ -144,7 +150,11 @@ func (s *Server) Serve() error {
 			}
 			s.outBuffer.PushLayer(s.scmpLayer.LayerType())
 		case slayers.LayerTypeSCIONUDP:
-			dstPort = s.udpLayer.DstPort
+			dstAddrPort, err = s.getDstSCIONUDP()
+			if err != nil {
+				log.Error("Getting destination for SCION/UDP message", "err", err)
+				continue
+			}
 			payload := gopacket.Payload(s.udpLayer.Payload)
 			err = payload.SerializeTo(s.outBuffer, s.options)
 			if err != nil {
@@ -171,25 +181,6 @@ func (s *Server) Serve() error {
 		}
 		s.outBuffer.PushLayer(s.scionLayer.LayerType())
 
-		// Send packet out to the right application
-		var dstAddr netip.Addr
-		switch host.Type() {
-		case addr.HostTypeSVC:
-			udpAddr, err := s.topo.GetUnderlay(host.SVC())
-			if err != nil {
-				log.Error("Could not resolve SVC underlay", "err", err)
-				continue
-			}
-			dstAddr = udpAddr.AddrPort().Addr()
-			dstPort = udpAddr.AddrPort().Port()
-		case addr.HostTypeIP:
-			var ok bool
-			dstAddr, ok = netip.AddrFromSlice(s.scionLayer.RawDstAddr)
-			if !ok {
-				return serrors.New("Unexpected raw address byte slice format")
-			}
-		}
-		dstAddrPort := netip.AddrPortFrom(dstAddr, dstPort)
 		m, err := s.conn.WriteToUDPAddrPort(s.outBuffer.Bytes(), dstAddrPort)
 		if err != nil || m != len(s.outBuffer.Bytes()) {
 			log.Error("writing packet out", "err", err)
@@ -197,52 +188,24 @@ func (s *Server) Serve() error {
 	}
 }
 
-func (s *Server) processSCMPRequest(dst netip.AddrPort) error {
-	buf, err := s.reverseSCMPInfo()
-	if err != nil {
-		log.Error("Processing SCMP Request", "err", err)
-		return err
-	}
-	_, err = s.conn.WriteToUDPAddrPort(buf, dst)
-	if err != nil {
-		log.Info("Unable to write to underlay socket", "err", err)
-	}
-	return nil
-}
-
-func (s *Server) reverseSCMPInfo() ([]byte, error) {
-	l, err := decodeSCMP(&s.scmpLayer)
-	if err != nil {
-		return nil, err
-	}
+func (s *Server) reverseSCMPInfo() error {
 	// Translate request to a reply.
-	switch l[0].LayerType() {
+	switch s.scmpLayer.NextLayerType() {
 	case slayers.LayerTypeSCMPEcho:
 		s.scmpLayer.TypeCode = slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoReply, 0)
 	case slayers.LayerTypeSCMPTraceroute:
 		s.scmpLayer.TypeCode = slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteReply, 0)
 	default:
-		return nil, serrors.New("unsupported SCMP informational message")
+		return serrors.New("unsupported SCMP informational message")
 	}
 	if err := s.reverseSCION(); err != nil {
-		return nil, err
+		return err
 	}
 	// XXX(roosd): This does not take HBH and E2E extensions into consideration.
 	// See: https://github.com/scionproto/scion/issues/4128
 	// TODO(JordiSubira): Add support for SPAO-E2E
 	s.scionLayer.NextHdr = slayers.L4SCMP
-	err = gopacket.SerializeLayers(
-		s.outBuffer,
-		gopacket.SerializeOptions{
-			ComputeChecksums: true,
-			FixLengths:       true,
-		},
-		append([]gopacket.SerializableLayer{&s.scionLayer, &s.scmpLayer}, l...)...,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return s.outBuffer.Bytes(), nil
+	return nil
 }
 
 func (s *Server) reverseSCION() error {
@@ -277,12 +240,111 @@ func (s *Server) reverseSCION() error {
 	return nil
 }
 
-func ListenAndServe(topo *topology.Loader, addr *net.UDPAddr) error {
+func (s *Server) getDstSCMP() (netip.AddrPort, error) {
+	// Check if its SCMPEcho or SCMPTraceroute reply
+	if s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeEchoReply {
+		var scmpEcho slayers.SCMPEcho
+		err := scmpEcho.DecodeFromBytes(s.scmpLayer.Payload, gopacket.NilDecodeFeedback)
+		if err != nil {
+			return netip.AddrPort{}, err
+		}
+		return addrPortFromBytes(s.scionLayer.RawDstAddr, scmpEcho.Identifier)
+	}
+	if s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeTracerouteReply {
+		var scmpTraceroute slayers.SCMPTraceroute
+		err := scmpTraceroute.DecodeFromBytes(s.scmpLayer.Payload, gopacket.NilDecodeFeedback)
+		if err != nil {
+			return netip.AddrPort{}, err
+		}
+		return addrPortFromBytes(s.scionLayer.RawDstAddr, scmpTraceroute.Identifier)
+	}
+
+	// Drop unknown SCMP error messages.
+	if s.scmpLayer.NextLayerType() == gopacket.LayerTypePayload {
+		return netip.AddrPort{}, serrors.New("unsupported SCMP error message", "type", s.scmpLayer.TypeCode.Type())
+	}
+	l, err := decodeSCMP(&s.scmpLayer)
+	if err != nil {
+		return netip.AddrPort{}, err
+	}
+	if len(l) != 2 {
+		return netip.AddrPort{}, serrors.New("SCMP error message without payload")
+	}
+	gpkt := gopacket.NewPacket(*l[1].(*gopacket.Payload), slayers.LayerTypeSCION,
+		gopacket.DecodeOptions{
+			NoCopy: true,
+		},
+	)
+
+	// If the offending packet was UDP/SCION, use the source port to deliver.
+	if udp := gpkt.Layer(slayers.LayerTypeSCIONUDP); udp != nil {
+		port := udp.(*slayers.UDP).SrcPort
+		// XXX(roosd): We assume that the zero value means the UDP header is
+		// truncated. This flags packets of misbehaving senders as truncated, if
+		// they set the source port to 0. But there is no harm, since those
+		// packets are destined to be dropped anyway.
+		if port == 0 {
+			return netip.AddrPort{}, serrors.New("SCMP error with truncated UDP header")
+		}
+		return addrPortFromBytes(s.scionLayer.RawDstAddr, port)
+	}
+
+	// If the offending packet was SCMP/SCION, and it is an echo or traceroute,
+	// use the Identifier to deliver. In all other cases, the message is dropped.
+	if scmp := gpkt.Layer(slayers.LayerTypeSCMP); scmp != nil {
+
+		tc := scmp.(*slayers.SCMP).TypeCode
+		// SCMP Error messages in response to an SCMP error message are not allowed.
+		if !tc.InfoMsg() {
+			return netip.AddrPort{}, serrors.New("SCMP error message in response to SCMP error message",
+				"type", tc.Type())
+		}
+		// We only support echo and traceroute requests.
+		t := tc.Type()
+		if t != slayers.SCMPTypeEchoRequest && t != slayers.SCMPTypeTracerouteRequest {
+			return netip.AddrPort{}, serrors.New("unsupported SCMP info message", "type", t)
+		}
+
+		var port uint16
+		// Extract the port from the echo or traceroute ID field.
+		if echo := gpkt.Layer(slayers.LayerTypeSCMPEcho); echo != nil {
+			port = echo.(*slayers.SCMPEcho).Identifier
+		} else if tr := gpkt.Layer(slayers.LayerTypeSCMPTraceroute); tr != nil {
+			port = tr.(*slayers.SCMPTraceroute).Identifier
+		} else {
+			return netip.AddrPort{}, serrors.New("SCMP error with truncated payload")
+		}
+		return addrPortFromBytes(s.scionLayer.RawDstAddr, port)
+	}
+	return netip.AddrPort{}, ErrUnsupportedL4
+}
+
+func (s *Server) getDstSCIONUDP() (netip.AddrPort, error) {
+	host, err := s.scionLayer.DstAddr()
+	if err != nil {
+		return netip.AddrPort{}, err
+	}
+	switch host.Type() {
+	case addr.HostTypeSVC:
+		udpAddr, err := s.topo[s.scionLayer.DstIA.AS()].GetUnderlay(host.SVC())
+		if err != nil {
+			return netip.AddrPort{}, err
+		}
+		return netip.AddrPortFrom(udpAddr.AddrPort().Addr(), udpAddr.AddrPort().Port()), nil
+	case addr.HostTypeIP:
+		return addrPortFromBytes(s.scionLayer.RawDstAddr, s.udpLayer.DstPort)
+	default:
+		return netip.AddrPort{}, serrors.New("Invalid host type", "type", host.Type().String())
+	}
+}
+
+func ListenAndServe(topo map[addr.AS]*topology.Loader, addr *net.UDPAddr) error {
 	conn, err := net.ListenUDP(addr.Network(), addr)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
+	log.Debug(fmt.Sprintf("local address: %s", conn.LocalAddr()))
 	dispServer := NewServer(topo, conn)
 
 	errChan := make(chan error)
@@ -313,81 +375,10 @@ func decodeSCMP(scmp *slayers.SCMP) ([]gopacket.SerializableLayer, error) {
 	return ret, nil
 }
 
-func getDstSCMPErr(scmp *slayers.SCMP) (uint16, error) {
-	// Check if its SCMPEcho or SCMPTraceroute reply
-	if scmp.TypeCode.Type() == slayers.SCMPTypeTracerouteRequest {
-		var scmpEcho slayers.SCMPEcho
-		err := scmpEcho.DecodeFromBytes(scmp.Payload, gopacket.NilDecodeFeedback)
-		if err != nil {
-			return 0, err
-		}
-		return scmpEcho.Identifier, nil
+func addrPortFromBytes(addr []byte, port uint16) (netip.AddrPort, error) {
+	a, ok := netip.AddrFromSlice(addr)
+	if !ok {
+		return netip.AddrPort{}, serrors.New("Unexpected raw address byte slice format")
 	}
-	if scmp.TypeCode.Type() == slayers.SCMPTypeEchoRequest {
-		var scmpTraceroute slayers.SCMPTraceroute
-		err := scmpTraceroute.DecodeFromBytes(scmp.Payload, gopacket.NilDecodeFeedback)
-		if err != nil {
-			return 0, err
-		}
-		return scmpTraceroute.Identifier, nil
-	}
-
-	// Drop unknown SCMP error messages.
-	if scmp.NextLayerType() == gopacket.LayerTypePayload {
-		return 0, serrors.New("unsupported SCMP error message", "type", scmp.TypeCode.Type())
-	}
-	l, err := decodeSCMP(scmp)
-	if err != nil {
-		return 0, err
-	}
-	if len(l) != 2 {
-		return 0, serrors.New("SCMP error message without payload")
-	}
-	gpkt := gopacket.NewPacket(*l[1].(*gopacket.Payload), slayers.LayerTypeSCION,
-		gopacket.DecodeOptions{
-			NoCopy: true,
-		},
-	)
-
-	// If the offending packet was UDP/SCION, use the source port to deliver.
-	if udp := gpkt.Layer(slayers.LayerTypeSCIONUDP); udp != nil {
-		port := udp.(*slayers.UDP).SrcPort
-		// XXX(roosd): We assume that the zero value means the UDP header is
-		// truncated. This flags packets of misbehaving senders as truncated, if
-		// they set the source port to 0. But there is no harm, since those
-		// packets are destined to be dropped anyway.
-		if port == 0 {
-			return 0, serrors.New("SCMP error with truncated UDP header")
-		}
-		return port, nil
-	}
-
-	// If the offending packet was SCMP/SCION, and it is an echo or traceroute,
-	// use the Identifier to deliver. In all other cases, the message is dropped.
-	if scmp := gpkt.Layer(slayers.LayerTypeSCMP); scmp != nil {
-
-		tc := scmp.(*slayers.SCMP).TypeCode
-		// SCMP Error messages in response to an SCMP error message are not allowed.
-		if !tc.InfoMsg() {
-			return 0, serrors.New("SCMP error message in response to SCMP error message",
-				"type", tc.Type())
-		}
-		// We only support echo and traceroute requests.
-		t := tc.Type()
-		if t != slayers.SCMPTypeEchoRequest && t != slayers.SCMPTypeTracerouteRequest {
-			return 0, serrors.New("unsupported SCMP info message", "type", t)
-		}
-
-		var port uint16
-		// Extract the port from the echo or traceroute ID field.
-		if echo := gpkt.Layer(slayers.LayerTypeSCMPEcho); echo != nil {
-			port = echo.(*slayers.SCMPEcho).Identifier
-		} else if tr := gpkt.Layer(slayers.LayerTypeSCMPTraceroute); tr != nil {
-			port = tr.(*slayers.SCMPTraceroute).Identifier
-		} else {
-			return 0, serrors.New("SCMP error with truncated payload")
-		}
-		return port, nil
-	}
-	return 0, ErrUnsupportedL4
+	return netip.AddrPortFrom(a, port), nil
 }

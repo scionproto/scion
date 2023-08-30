@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/dispatcher"
 	"github.com/scionproto/scion/dispatcher/config"
 	api "github.com/scionproto/scion/dispatcher/mgmtapi"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers/path"
@@ -53,25 +54,24 @@ func main() {
 
 func realMain(ctx context.Context) error {
 	path.StrictDecoding(false)
-	topo, err := topology.NewLoader(topology.LoaderCfg{
-		File:      globalCfg.General.Topology(),
-		Reload:    app.SIGHUPChannel(ctx),
-		Validator: &topology.ControlValidator{ID: globalCfg.General.ID},
-	})
+	topos, err := globalCfg.Topolgies(ctx)
 	if err != nil {
 		return err
 	}
 
 	var cleanup app.Cleanup
 	g, errCtx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		defer log.HandlePanic()
-		return topo.Run(errCtx)
-	})
+	for _, topo := range topos {
+		t := topo
+		g.Go(func() error {
+			defer log.HandlePanic()
+			return t.Run(errCtx)
+		})
+	}
 	g.Go(func() error {
 		defer log.HandlePanic()
 		return RunDispatcher(
-			topo,
+			topos,
 			globalCfg.Dispatcher.UnderlayPort,
 		)
 	})
@@ -137,7 +137,7 @@ func realMain(ctx context.Context) error {
 	}
 }
 
-func RunDispatcher(topo *topology.Loader, underlayPort int) error {
+func RunDispatcher(topo map[addr.AS]*topology.Loader, underlayPort int) error {
 	localAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf(":%d", underlayPort))
 	if err != nil {
 		return err
