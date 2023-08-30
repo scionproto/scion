@@ -130,6 +130,7 @@ class ConfigGenerator(object):
         go_gen.generate_br()
         go_gen.generate_sciond()
         go_gen.generate_control_service()
+        go_gen.generate_disp(topo_dicts)
 
     def _go_args(self, topo_dicts):
         return GoGenArgs(self.args, self.topo_config, topo_dicts, self.networks)

@@ -26,6 +26,7 @@ from io import StringIO
 from topology.util import write_file
 from topology.common import (
     ArgsTopoDicts,
+    DISP_CONFIG_NAME,
     SD_CONFIG_NAME,
 )
 
@@ -48,6 +49,7 @@ class SupervisorGenerator(object):
 
         for topo_id, topo in self.args.topo_dicts.items():
             self._add_as_config(config, topo_id, topo)
+        self._add_dispatcher(config)
 
         self._write_config(config,
                            os.path.join(self.args.output_dir, SUPERVISOR_CONF))
@@ -95,6 +97,19 @@ class SupervisorGenerator(object):
         ]
         return (sd_name, self._common_entry(sd_name, cmd_args))
 
+    def _add_dispatcher(self, config):
+        name, entry = self._dispatcher_entry()
+        self._add_prog(config, name, entry)
+
+    def _dispatcher_entry(self):
+        name = "dispatcher"
+        conf_dir = os.path.join(self.args.output_dir, name)
+        cmd_args = [
+            "bin/dispatcher", "--config",
+            os.path.join(conf_dir, DISP_CONFIG_NAME)
+        ]
+        return (name, self._common_entry(name, cmd_args))
+
     def _add_prog(self, config, name, entry):
         config["program:%s" % name] = entry
 
@@ -110,6 +125,9 @@ class SupervisorGenerator(object):
             'priority': 100,
             'command': ' '.join(shlex.quote(a) for a in cmd_args),
         }
+        if name == "dispatcher":
+            entry['startsecs'] = 1
+            entry['priority'] = 50
         return entry
 
     def _write_config(self, config, path):

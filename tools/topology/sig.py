@@ -61,40 +61,65 @@ class SIGGenerator(object):
         for topo_id, topo in self.args.topo_dicts.items():
             base = os.path.join(self.output_base,
                                 topo_id.base_dir(self.args.output_dir))
+            self._dispatcher_conf(topo_id, base)
             self._sig_dc_conf(topo_id, base)
             self._sig_toml(topo_id, topo)
             self._sig_json(topo_id)
         return self.dc_conf
 
+    def _dispatcher_conf(self, topo_id, base):
+        # Create dispatcher config
+        entry = {
+            'image':
+            'dispatcher',
+            'container_name':
+            'scion_%sdisp_sig_%s' % (self.prefix, topo_id.file_fmt()),
+            'depends_on': {
+                'utils_chowner': {
+                    'condition': 'service_started'
+                },
+            },
+            'user':
+            self.user,
+            'networks': {},
+            'volumes': [
+                '%s:/share/conf:rw' % base,
+            ],
+            'command':
+            ['--config',
+             '/share/conf/disp_sig_%s.toml' % topo_id.file_fmt()],
+        }
+
+        net = self.args.networks['sig%s' % topo_id.file_fmt()][0]
+        ipv = 'ipv4'
+        if ipv not in net:
+            ipv = 'ipv6'
+        entry['networks'][self.args.bridges[net['net']]] = {
+            '%s_address' % ipv: str(net[ipv])
+        }
+        self.dc_conf['services']['scion_disp_sig_%s' %
+                                 topo_id.file_fmt()] = entry
+        vol_name = 'vol_scion_%sdisp_sig_%s' % (self.prefix,
+                                                topo_id.file_fmt())
+        self.dc_conf['volumes'][vol_name] = None
 
     def _sig_dc_conf(self, topo_id, base):
-        setup_name = 'sig_setup%s' % topo_id.file_fmt()
-        setup_net = self.args.networks[setup_name][0]
-        ipv_setup = 'ipv4'
-        if ipv_setup not in setup_net:
-            ipv_setup = 'ipv6'
-        entry = {
+        setup_name = 'scion_sig_setup_%s' % topo_id.file_fmt()
+        disp_id = 'scion_disp_sig_%s' % topo_id.file_fmt()
+        self.dc_conf['services'][setup_name] = {
             'image': 'tester:latest',
-            'container_name': setup_name,
+            'depends_on': [disp_id],
             'entrypoint': './sig_setup.sh',
-            'networks': {},
             'privileged': True,
+            'network_mode': 'service:%s' % disp_id,
         }
-        entry['networks'][self.args.bridges[setup_net['net']]] = {
-            '%s_address' % ipv_setup: str(setup_net[ipv_setup])
-        }
-        self.dc_conf['services'][setup_name] = entry
-
-        sig_net = self.args.networks['sig%s' % topo_id.file_fmt()][0]
-        ipv_sig = 'ipv4'
-        if ipv_sig not in sig_net:
-            ipv_sig = 'ipv6'
-        entry = {
+        self.dc_conf['services']['scion_sig_%s' % topo_id.file_fmt()] = {
             'image':
             'posix-gateway:latest',
             'container_name':
             'scion_%ssig_%s' % (self.prefix, topo_id.file_fmt()),
             'depends_on': [
+                disp_id,
                 sciond_svc_name(topo_id),
                 setup_name,
             ],
@@ -110,13 +135,10 @@ class SIGGenerator(object):
                 '/dev/net/tun:/dev/net/tun',
                 '%s:/share/conf' % base,
             ],
-            'networks': {},
+            'network_mode':
+            'service:%s' % disp_id,
             'command': ['--config', '/share/conf/sig.toml'],
         }
-        entry['networks'][self.args.bridges[sig_net['net']]] = {
-            '%s_address' % ipv_sig: str(sig_net[ipv_sig])
-        }
-        self.dc_conf['services']['scion_sig_%s' % topo_id.file_fmt()] = entry
 
     def _sig_json(self, topo_id):
         sig_cfg = {"ConfigVersion": 1, "ASes": {}}
@@ -170,4 +192,3 @@ class SIGGenerator(object):
         path = os.path.join(topo_id.base_dir(self.args.output_dir),
                             SIG_CONFIG_NAME)
         write_file(path, toml.dumps(sig_conf))
-

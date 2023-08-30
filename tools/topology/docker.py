@@ -87,6 +87,7 @@ class DockerGenerator(object):
                           self.elem_networks)
 
     def _gen_topo(self, topo_id, topo, base):
+        self._dispatcher_conf(topo_id, topo, base)
         self._br_conf(topo_id, topo, base)
         self._control_service_conf(topo_id, topo, base)
         self._sciond_conf(topo_id, base)
@@ -173,13 +174,14 @@ class DockerGenerator(object):
 
     def _control_service_conf(self, topo_id, topo, base):
         for k in topo.get("control_service", {}).keys():
-            
             entry = {
                 'image':
                 docker_image(self.args, 'control'),
                 'container_name':
                 self.prefix + k,
-                'networks': {},
+                'depends_on': ['scion_disp_%s' % k],
+                'network_mode':
+                'service:scion_disp_%s' % k,
                 'user':
                 self.user,
                 'volumes': [
@@ -189,7 +191,28 @@ class DockerGenerator(object):
                 ],
                 'command': ['--config', '/share/conf/%s.toml' % k]
             }
-            net = self.elem_networks[k][0]
+            self.dc_conf['services']['scion_%s' % k] = entry
+
+    def _dispatcher_conf(self, topo_id, topo, base):
+        image = 'dispatcher'
+        base_entry = {
+            'extra_hosts': ['jaeger:%s' % docker_host(self.args.docker)],
+            'image': docker_image(self.args, image),
+            'networks': {},
+            'user': self.user,
+            'volumes': [],
+            'depends_on': {
+                'utils_chowner': {
+                    'condition': 'service_started'
+                },
+            },
+        }
+        keys = (list(topo.get("control_service", {})) +
+                ["tester_%s" % topo_id.file_fmt()])
+        for disp_id in keys:
+            entry = copy.deepcopy(base_entry)
+            net_key = disp_id
+            net = self.elem_networks[net_key][0]
             ipv = 'ipv4'
             if ipv not in net:
                 ipv = 'ipv6'
@@ -197,7 +220,14 @@ class DockerGenerator(object):
             entry['networks'][self.bridges[net['net']]] = {
                 '%s_address' % ipv: ip
             }
-            self.dc_conf['services']['scion_%s' % k] = entry
+            entry['container_name'] = '%sdisp_%s' % (self.prefix, disp_id)
+            conf = '%s:/share/conf:rw' % base
+            entry['volumes'].append(conf)
+            entry['command'] = [
+                '--config', '/share/conf/disp_%s.toml' % disp_id
+            ]
+
+            self.dc_conf['services']['scion_disp_%s' % disp_id] = entry
 
     def _sciond_conf(self, topo_id, base):
         name = sciond_svc_name(topo_id)
@@ -206,12 +236,14 @@ class DockerGenerator(object):
         if ipv not in net:
             ipv = 'ipv6'
         ip = str(net[ipv])
+        disp_id = 'cs%s-1' % topo_id.file_fmt()
         entry = {
             'extra_hosts': ['jaeger:%s' % docker_host(self.args.docker)],
             'image':
             docker_image(self.args, 'daemon'),
             'container_name':
             '%ssd%s' % (self.prefix, topo_id.file_fmt()),
+            'depends_on': ['scion_disp_%s' % disp_id],
             'user':
             self.user,
             'volumes': [
