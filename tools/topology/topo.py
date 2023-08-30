@@ -176,7 +176,6 @@ class TopoGenerator(object):
     def _register_sig(self, topo_id, as_conf):
         addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
         self._reg_addr(topo_id, "sig" + topo_id.file_fmt(), addr_type)
-        self._reg_addr(topo_id, "sig_setup" + topo_id.file_fmt(), addr_type)
 
     def _register_sciond(self, topo_id, as_conf):
         addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
@@ -259,7 +258,7 @@ class TopoGenerator(object):
             self._gen_srv_entry(topo_id, as_conf, conf_key, def_num, nick, topo_key)
 
     def _gen_srv_entry(self, topo_id, as_conf, conf_key, def_num, nick,
-                       topo_key):
+                       topo_key, uses_dispatcher=True):
         addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
         count = self._srv_count(as_conf, conf_key, def_num)
         for i in range(1, count + 1):

@@ -19,14 +19,18 @@
 # Stdlib
 import os
 import toml
+import json
 from typing import Mapping
 
 # SCION
 from topology.util import write_file
 from topology.common import (
     ArgsBase,
+    DISP_CONFIG_NAME,
     docker_host,
+    json_default,
     prom_addr,
+    prom_addr_dispatcher,
     sciond_ip,
     sciond_name,
     translate_features,
@@ -34,12 +38,15 @@ from topology.common import (
     SD_CONFIG_NAME,
 )
 
+from topology.defines import TOPO_FILE
+
 from topology.net import socket_address_str, NetworkDescription, IPNetwork
 
 from topology.prometheus import (
     CS_PROM_PORT,
     DEFAULT_BR_PROM_PORT,
     SCIOND_PROM_PORT,
+    DISP_PROM_PORT,
 )
 
 
@@ -166,6 +173,47 @@ class GoGenerator(object):
             }
         }
         return raw_entry
+
+    def generate_disp(self, topo_dicts):
+        if self.args.docker:
+            self._gen_disp_docker()
+        else:
+            elem_dir = os.path.join(self.args.output_dir, "dispatcher")
+            config_file_path = os.path.join(elem_dir, DISP_CONFIG_NAME)
+            write_file(config_file_path, toml.dumps(self._build_disp_conf("dispatcher", self.args.output_dir)))
+
+    def _gen_disp_docker(self):
+        for topo_id, topo in self.args.topo_dicts.items():
+            base = topo_id.base_dir(self.args.output_dir)
+            elem_ids = ['sig_%s' % topo_id.file_fmt()] + \
+                list(topo.get("border_routers", {})) + \
+                list(topo.get("control_service", {})) + \
+                ['tester_%s' % topo_id.file_fmt()]
+            for k in elem_ids:
+                disp_id = 'disp_%s' % k
+                disp_conf = self._build_disp_conf(disp_id, base,topo_id)
+                write_file(os.path.join(base, '%s.toml' % disp_id), toml.dumps(disp_conf))
+
+    def _build_disp_conf(self, name, config_path, topo_id=None):
+        prometheus_addr = prom_addr_dispatcher(self.args.docker, topo_id,
+                                               self.args.networks, DISP_PROM_PORT, name)
+        api_addr = prom_addr_dispatcher(self.args.docker, topo_id,
+                                        self.args.networks, DISP_PROM_PORT+700, name)
+        config_dir = '/share/conf' if self.args.docker else config_path
+        return {
+            'dispatcher': {
+                'id': name,
+                "config_dir": config_dir,
+            },
+            'log': self._log_entry(name),
+            'metrics': {
+                'prometheus': prometheus_addr,
+            },
+            'features': translate_features(self.args.features),
+            'api': {
+                'addr': api_addr,
+            },
+        }
 
     def _tracing_entry(self):
         docker_ip = docker_host(self.args.docker)
