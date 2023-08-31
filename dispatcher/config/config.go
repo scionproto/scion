@@ -117,21 +117,23 @@ func (cfg *Config) Topolgies(ctx context.Context) (map[addr.AS]*topology.Loader,
 	}
 	topologies := make(map[addr.AS]*topology.Loader)
 	for _, e := range entries {
-		log.Debug(e.Name())
+		var path string
 		if e.Type().IsDir() && regexp.MustCompile(pattern).FindSubmatch([]byte(e.Name())) != nil {
+			path = filepath.Join(cfg.Dispatcher.ConfigDir, e.Name(), env.TopologyFile)
+		}
+		if e.Type().IsRegular() && e.Name() == env.TopologyFile {
+			path = filepath.Join(cfg.Dispatcher.ConfigDir, env.TopologyFile)
+		}
+		if path != "" {
 			topo, err := topology.NewLoader(topology.LoaderCfg{
-				File:   filepath.Join(cfg.Dispatcher.ConfigDir, e.Name(), env.TopologyFile),
+				File:   path,
 				Reload: app.SIGHUPChannel(ctx),
 			})
 			if err != nil {
 				log.Error("loading topologies", "err", err)
 				continue
 			}
-			as, err := addr.ParseFormattedAS(e.Name()[2:], addr.WithFileSeparator())
-			if err != nil {
-				return nil, err
-			}
-			topologies[as] = topo
+			topologies[topo.IA().AS()] = topo
 		}
 	}
 	if len(topologies) == 0 {
