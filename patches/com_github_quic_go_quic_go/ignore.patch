@@ -1,0 +1,12 @@
+diff --git a/internal/qtls/BUILD.bazel b/internal/qtls/BUILD.bazel
+index 0dd9af2..f500bc9 100644
+--- a/internal/qtls/BUILD.bazel
++++ b/internal/qtls/BUILD.bazel
+@@ -12,7 +12,6 @@ go_library(
+     visibility = ["//:__subpackages__"],
+     deps = [
+         "@com_github_quic_go_qtls_go1_19//:qtls-go1-19",
+-        "@com_github_quic_go_qtls_go1_20//:qtls-go1-20",
+     ],
+ )
+ 

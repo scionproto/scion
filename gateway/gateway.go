@@ -24,8 +24,8 @@ import (
 	"strconv"
 	"time"
 
-	quic "github.com/lucas-clemente/quic-go"
 	"github.com/prometheus/client_golang/prometheus"
+	quic "github.com/quic-go/quic-go"
 	"google.golang.org/grpc"
 
 	"github.com/scionproto/scion/gateway/control"

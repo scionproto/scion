@@ -24,11 +24,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lucas-clemente/quic-go"
+	"github.com/quic-go/quic-go"
 
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/snet"
 )
 
 const (
@@ -48,14 +47,14 @@ const streamAcceptTimeout = 5 * time.Second
 
 // ConnListener wraps a quic.Listener as a net.Listener.
 type ConnListener struct {
-	quic.Listener
+	*quic.Listener
 
 	ctx    context.Context
 	cancel func()
 }
 
 // NewConnListener constructs a new listener with the appropriate buffers set.
-func NewConnListener(l quic.Listener) *ConnListener {
+func NewConnListener(l *quic.Listener) *ConnListener {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &ConnListener{
 		Listener: l,
@@ -363,8 +362,6 @@ type ConnDialer struct {
 // fails due to a SERVER_BUSY error. Timers, number of attempts are EXPERIMENTAL
 // and subject to change.
 func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
-	addressStr := computeAddressStr(dst)
-
 	if d.TLSConfig == nil {
 		return nil, serrors.New("tls.Config not set")
 	}
@@ -379,7 +376,7 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 		}
 
 		var err error
-		session, err = quic.DialContext(ctx, d.Conn, dst, addressStr, tlsConfig, quicConfig)
+		session, err = quic.Dial(ctx, d.Conn, dst, tlsConfig, quicConfig)
 		if err == nil {
 			break
 		}
@@ -408,15 +405,6 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 		session: session,
 	}, nil
 
-}
-
-// computeAddressStr returns a parseable version of the SCION address for use
-// with QUIC SNI.
-func computeAddressStr(address net.Addr) string {
-	if v, ok := address.(*snet.UDPAddr); ok {
-		return fmt.Sprintf("[%s,%s]:%d", v.IA, v.Host.IP, v.Host.Port)
-	}
-	return address.String()
 }
 
 // acceptedConn is a net.Conn wrapper for a QUIC stream.
