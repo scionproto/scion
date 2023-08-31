@@ -147,15 +147,18 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 		VerifyConnection:      nc.QUIC.TLSVerifier.VerifyConnection,
 		NextProtos:            []string{"SCION"},
 	}
+	clientTransport := &quic.Transport{
+		Conn: client,
+	}
 
 	return &QUICStack{
-		Listener: squic.NewConnListener(*listener),
+		Listener: squic.NewConnListener(listener),
 		InsecureDialer: &squic.ConnDialer{
-			Conn:      client,
+			Transport: clientTransport,
 			TLSConfig: insecureClientTLSConfig,
 		},
 		Dialer: &squic.ConnDialer{
-			Conn:      client,
+			Transport: clientTransport,
 			TLSConfig: clientTLSConfig,
 		},
 		RedirectCloser: cancel,
