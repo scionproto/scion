@@ -45,7 +45,6 @@
             "gazelle/cmd/gazelle/diff.go": "",
             "/in_gopkg_yaml_v2/decode.go": "https://github.com/go-yaml/yaml/pull/492",
             "/com_github_mattn_go_sqlite3": "",
-            "/com_github_lucas_clemente_quic_go": "",
             "/com_github_cloudflare_sidh": "",
             "/com_github_vishvananda_netlink": ""
         }
@@ -188,9 +187,6 @@
             "com_github_hashicorp_hcl": "",
             "com_github_stretchr_testify/assert": "",
             "com_github_spf13_afero": "",
-            "com_github_marten_seemann_qtls_go1_16": "",
-            "com_github_marten_seemann_qtls_go1_17": "",
-            "com_github_lucas_clemente_quic_go": "",
             "com_github_lestrrat_go_jwx": "",
             "com_github_pelletier_go_toml": "",
             "com_github_mdlayher_raw": "",
@@ -202,7 +198,6 @@
             "com_github_spf13_viper": "",
             "com_github_labstack_echo_v4": "",
             "com_github_deepmap_oapi_codegen": "",
-
             "pkg/private/serrors/errors.go": "err shadowed",
             "pkg/slayers/path/scion/raw.go": "err shadowed",
             "pkg/scrypto/cppki/trc.go": "err shadowed",

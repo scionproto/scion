@@ -480,7 +480,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 		"local_addr", clientConn.LocalAddr())
 
 	quicClientDialer := &squic.ConnDialer{
-		Conn:      clientConn,
+		Transport: &quic.Transport{
+			Conn: clientConn,
+		},
 		TLSConfig: ephemeralTLSConfig,
 	}
 
@@ -578,7 +580,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 		return serrors.WrapStr("unable to initializer server QUIC listener", err)
 	}
 	// Wrap in net.Listener for use with gRPC
-	quicServerListener := squic.NewConnListener(*internalQUICServerListener)
+	quicServerListener := squic.NewConnListener(internalQUICServerListener)
 
 	var paMetric metrics.Gauge
 	if g.Metrics != nil {

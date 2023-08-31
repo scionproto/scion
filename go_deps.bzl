@@ -1024,14 +1024,14 @@ def go_deps():
     go_repository(
         name = "com_github_quic_go_qtls_go1_20",
         importpath = "github.com/quic-go/qtls-go1-20",
-        sum = "h1:O4BLOM3hwfVF3AcktIylQXyl7Yi2iBNVy5QsV+ySxbg=",
-        version = "v0.3.1",
+        sum = "h1:17/glZSLI9P9fDAeyCHBFSWSqJcwx1byhLwP5eUIDCM=",
+        version = "v0.3.3",
     )
     go_repository(
         name = "com_github_quic_go_quic_go",
         importpath = "github.com/quic-go/quic-go",
-        sum = "h1:pzkYe8AgaxHi+7KJrYBMF+u2rLO5a9kwyCp2dAsljzk=",
-        version = "v0.37.5",
+        sum = "h1:M36YWA5dEhEeT+slOu/SwMEucbYd0YFidxG3KlGPZaE=",
+        version = "v0.38.1",
     )
     go_repository(
         name = "com_github_ravenox_go_jsoncommentstrip",

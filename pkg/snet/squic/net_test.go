@@ -212,7 +212,7 @@ func netListener(t *testing.T) (net.Listener, *net.UDPConn) {
 
 func connDialer(t *testing.T) *squic.ConnDialer {
 	return &squic.ConnDialer{
-		Conn:      newConn(t),
+		Transport: &quic.Transport{Conn: newConn(t)},
 		TLSConfig: tlsConfig(t),
 	}
 }
