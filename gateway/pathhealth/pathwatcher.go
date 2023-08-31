@@ -30,7 +30,6 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
-	"github.com/scionproto/scion/private/topology"
 )
 
 const (
@@ -68,7 +67,6 @@ func (f *DefaultPathWatcherFactory) New(
 	ctx context.Context,
 	remote addr.IA,
 	path snet.Path,
-	id uint16,
 ) (PathWatcher, error) {
 
 	pktChan := make(chan traceroutePkt, 10)
@@ -91,7 +89,7 @@ func (f *DefaultPathWatcherFactory) New(
 			pkts: pktChan,
 		},
 		Metrics: f.SCIONPacketConnMetrics,
-	}).OpenUDP(&net.UDPAddr{IP: f.LocalIP.AsSlice(), Port: topology.EndhostPort})
+	}).OpenUDP(&net.UDPAddr{IP: f.LocalIP.AsSlice()})
 	if err != nil {
 		return nil, serrors.WrapStr("creating connection for probing", err)
 	}
@@ -99,7 +97,7 @@ func (f *DefaultPathWatcherFactory) New(
 		remote:        remote,
 		probeInterval: f.ProbeInterval,
 		conn:          nc,
-		id:            id,
+		id:            uint16(nc.LocalAddr().(*net.UDPAddr).Port),
 		localAddr: snet.SCIONAddress{
 			IA:   f.LocalIA,
 			Host: addr.HostIP(f.LocalIP),

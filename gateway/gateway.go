@@ -106,26 +106,6 @@ func (pcf PacketConnFactory) New() (net.PacketConn, error) {
 	return conn, nil
 }
 
-type ProbeConnFactory struct {
-	LocalIA addr.IA
-	LocalIP netip.Addr
-}
-
-func (f ProbeConnFactory) New(ctx context.Context) (net.PacketConn, error) {
-	pathMonitorConnection, err := (&snet.SCIONNetwork{
-		LocalIA: f.LocalIA,
-		Connector: &snet.DefaultConnector{
-			SCMPHandler: ignoreSCMP{},
-		},
-	}).Listen(ctx, "udp", &net.UDPAddr{IP: f.LocalIP.AsSlice()}, addr.SvcNone)
-	if err != nil {
-		return nil, serrors.WrapStr("unable to open control socket", err)
-	}
-	log.FromCtx(ctx).Debug("Path monitor connection opened on Raw UDP/SCION",
-		"local_addr", pathMonitorConnection.LocalAddr())
-	return pathMonitorConnection, nil
-}
-
 type RoutingTableFactory struct {
 	RoutePublisherFactory control.PublisherFactory
 }

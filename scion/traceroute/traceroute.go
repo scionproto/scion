@@ -17,7 +17,6 @@ package traceroute
 
 import (
 	"context"
-	"math/rand"
 	"net"
 	"net/netip"
 	"time"
@@ -98,7 +97,6 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 	if _, isEmpty := cfg.PathEntry.Dataplane().(path.Empty); isEmpty {
 		return Stats{}, serrors.New("empty path is not allowed for traceroute")
 	}
-	id := rand.Uint64()
 	replies := make(chan reply, 10)
 	connector := &snet.DefaultConnector{
 		SCMPHandler: scmpHandler{replies: replies},
@@ -118,7 +116,7 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		replies:       replies,
 		errHandler:    cfg.ErrHandler,
 		updateHandler: cfg.UpdateHandler,
-		id:            uint16(id),
+		id:            uint16(conn.LocalAddr().(*net.UDPAddr).Port),
 		path:          cfg.PathEntry,
 		epic:          cfg.EPIC,
 	}
