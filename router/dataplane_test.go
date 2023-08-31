@@ -566,6 +566,96 @@ func TestDataPlaneRun(t *testing.T) {
 	}
 }
 
+func TestSlowPathProcessing(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	key := []byte("testkey_xxxxxxxx")
+	now := time.Now()
+	testCases := map[string]struct {
+		mockMsg      func() *ipv4.Message
+		prepareDP    func(*gomock.Controller) *router.DataPlane
+		srcInterface uint16
+	}{
+		"svc nobackend": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+					map[addr.SVC][]*net.UDPAddr{},
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+			},
+			mockMsg: func() *ipv4.Message {
+				spkt, dpath := prepBaseMsg(now)
+				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
+				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
+				dpath.HopFields = []path.HopField{
+					{ConsIngress: 41, ConsEgress: 40},
+					{ConsIngress: 31, ConsEgress: 30},
+					{ConsIngress: 1, ConsEgress: 0},
+				}
+				dpath.Base.PathMeta.CurrHF = 2
+				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
+				ret := toMsg(t, spkt, dpath)
+				return ret
+			},
+			srcInterface: 1,
+		},
+		"svc invalid": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+					map[addr.SVC][]*net.UDPAddr{},
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+			},
+			mockMsg: func() *ipv4.Message {
+				spkt, dpath := prepBaseMsg(now)
+				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
+				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
+				dpath.HopFields = []path.HopField{
+					{ConsIngress: 41, ConsEgress: 40},
+					{ConsIngress: 31, ConsEgress: 30},
+					{ConsIngress: 1, ConsEgress: 0},
+				}
+				dpath.Base.PathMeta.CurrHF = 2
+				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
+				ret := toMsg(t, spkt, dpath)
+				return ret
+			},
+			srcInterface: 1,
+		},
+		"invalid dest": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+					map[addr.SVC][]*net.UDPAddr{},
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+			},
+			mockMsg: func() *ipv4.Message {
+				spkt, dpath := prepBaseMsg(now)
+				spkt.DstIA = xtest.MustParseIA("1-ff00:0:f1")
+				dpath.HopFields = []path.HopField{
+					{ConsIngress: 41, ConsEgress: 40},
+					{ConsIngress: 31, ConsEgress: 404},
+					{ConsIngress: 1, ConsEgress: 0},
+				}
+				dpath.Base.PathMeta.CurrHF = 2
+				dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[1])
+				ret := toMsg(t, spkt, dpath)
+				return ret
+			},
+			srcInterface: 1,
+		},
+	}
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			dp := tc.prepareDP(ctrl)
+			input := tc.mockMsg()
+			result, err := dp.ProcessPkt(tc.srcInterface, input)
+			assert.ErrorIs(t, err, router.SlowPathRequired)
+			_, err = dp.ProcessSlowPath(tc.srcInterface, input, result.SlowPathRequest)
+			assert.NoError(t, err)
+		})
+	}
+}
+
 func TestProcessPkt(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -827,52 +917,6 @@ func TestProcessPkt(t *testing.T) {
 			srcInterface: 1,
 			assertFunc:   assert.NoError,
 		},
-		"svc nobackend": {
-			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
-			},
-			mockMsg: func(afterProcessing bool) *ipv4.Message {
-				spkt, dpath := prepBaseMsg(now)
-				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
-				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
-				dpath.HopFields = []path.HopField{
-					{ConsIngress: 41, ConsEgress: 40},
-					{ConsIngress: 31, ConsEgress: 30},
-					{ConsIngress: 1, ConsEgress: 0},
-				}
-				dpath.Base.PathMeta.CurrHF = 2
-				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
-				ret := toMsg(t, spkt, dpath)
-				return ret
-			},
-			srcInterface: 1,
-			assertFunc:   assertIsSCMPError(slayers.SCMPTypeDestinationUnreachable, 0),
-		},
-		"svc invalid": {
-			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
-			},
-			mockMsg: func(afterProcessing bool) *ipv4.Message {
-				spkt, dpath := prepBaseMsg(now)
-				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
-				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
-				dpath.HopFields = []path.HopField{
-					{ConsIngress: 41, ConsEgress: 40},
-					{ConsIngress: 31, ConsEgress: 30},
-					{ConsIngress: 1, ConsEgress: 0},
-				}
-				dpath.Base.PathMeta.CurrHF = 2
-				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
-				ret := toMsg(t, spkt, dpath)
-				return ret
-			},
-			srcInterface: 1,
-			assertFunc:   assertIsSCMPError(slayers.SCMPTypeDestinationUnreachable, 0),
-		},
 		"onehop inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
@@ -1075,31 +1119,6 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface: 0,
 			assertFunc:   assert.NoError,
-		},
-		"invalid dest": {
-			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
-			},
-			mockMsg: func(afterProcessing bool) *ipv4.Message {
-				spkt, dpath := prepBaseMsg(now)
-				spkt.DstIA = xtest.MustParseIA("1-ff00:0:f1")
-				dpath.HopFields = []path.HopField{
-					{ConsIngress: 41, ConsEgress: 40},
-					{ConsIngress: 31, ConsEgress: 404},
-					{ConsIngress: 1, ConsEgress: 0},
-				}
-				dpath.Base.PathMeta.CurrHF = 2
-				dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[1])
-				ret := toMsg(t, spkt, dpath)
-				return ret
-			},
-			srcInterface: 1,
-			assertFunc: assertIsSCMPError(
-				slayers.SCMPTypeParameterProblem,
-				slayers.SCMPCodeInvalidDestinationAddress,
-			),
 		},
 		"epic inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -1322,16 +1341,5 @@ func bfd() control.BFD {
 		DetectMult:            3,
 		DesiredMinTxInterval:  1 * time.Millisecond,
 		RequiredMinRxInterval: 25 * time.Millisecond,
-	}
-}
-
-// assertIsSCMPError returns an ErrorAssertionFunc asserting that error is an
-// scmpError with the specified type/code.
-func assertIsSCMPError(typ slayers.SCMPType, code slayers.SCMPCode) assert.ErrorAssertionFunc {
-	return func(t assert.TestingT, err error, args ...interface{}) bool {
-		target := router.SCMPError{}
-		return assert.ErrorAs(t, err, &target, args) &&
-			assert.Equal(t, typ, target.TypeCode.Type(), args) &&
-			assert.Equal(t, code, target.TypeCode.Code(), args)
 	}
 }

@@ -16,7 +16,6 @@
 package router
 
 import (
-	"errors"
 	"net"
 	"net/netip"
 
@@ -38,7 +37,7 @@ type ProcessResult struct {
 	processResult
 }
 
-type SCMPError = scmpError
+var SlowPathRequired error = slowPathRequired
 
 func NewDP(
 	external map[uint16]BatchConn,
@@ -80,17 +79,25 @@ func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message) (ProcessResult, err
 		srcAddr = m.Addr.(*net.UDPAddr)
 	}
 	result, err := p.processPkt(m.Buffers[0], srcAddr, ifID)
-	if errors.Is(err, slowPathRequired) {
-		slowP := newSlowPathProcessor(d)
-		result, err = slowP.processPacket(slow_packet{
-			packet: packet{
-				srcAddr:   srcAddr,
-				ingress:   ifID,
-				rawPacket: m.Buffers[0],
-			},
-			slowPathState: p.slowPathState,
-		})
+	return ProcessResult{processResult: result}, err
+}
+
+func (d *DataPlane) ProcessSlowPath(ifID uint16, m *ipv4.Message,
+	s slowPathRequest) (ProcessResult, error) {
+
+	var srcAddr *net.UDPAddr
+	if m.Addr != nil {
+		srcAddr = m.Addr.(*net.UDPAddr)
 	}
+	slowP := newSlowPathProcessor(d)
+	result, err := slowP.processPacket(slowPacket{
+		packet: packet{
+			srcAddr:   srcAddr,
+			ingress:   ifID,
+			rawPacket: m.Buffers[0],
+		},
+		slowPathRequest: s,
+	})
 	return ProcessResult{processResult: result}, err
 }
 
