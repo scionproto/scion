@@ -346,10 +346,10 @@ func (c *acceptingConn) Close() error {
 
 // ConnDialer dials a net.Conn over a QUIC stream.
 type ConnDialer struct {
-	// Conn is the connection to initiate QUIC Sessions on. It can be shared
+	// Conn is the transport to initiate QUIC Sessions on. It can be shared
 	// between clients and servers, because QUIC connection IDs are used to
 	// demux the packets.
-	Conn net.PacketConn
+	Transport *quic.Transport
 	// TLSConfig is the client's TLS configuration for starting QUIC connections.
 	TLSConfig *tls.Config
 	// QUICConfig is the client's QUIC configuration.
@@ -362,6 +362,7 @@ type ConnDialer struct {
 // fails due to a SERVER_BUSY error. Timers, number of attempts are EXPERIMENTAL
 // and subject to change.
 func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
+
 	if d.TLSConfig == nil {
 		return nil, serrors.New("tls.Config not set")
 	}
@@ -376,7 +377,7 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 		}
 
 		var err error
-		session, err = quic.Dial(ctx, d.Conn, dst, tlsConfig, quicConfig)
+		session, err = d.Transport.Dial(ctx, dst, tlsConfig, quicConfig)
 		if err == nil {
 			break
 		}

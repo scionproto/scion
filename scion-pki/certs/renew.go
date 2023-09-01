@@ -27,6 +27,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/quic-go/quic-go"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/resolver"
 	"google.golang.org/protobuf/proto"
@@ -770,7 +771,7 @@ func (r *renewer) requestRemote(
 			SVCResolutionFraction: 1,
 		},
 		Dialer: squic.ConnDialer{
-			Conn: conn,
+			Transport: &quic.Transport{Conn: conn},
 			TLSConfig: &tls.Config{
 				InsecureSkipVerify: true,
 				NextProtos:         []string{"SCION"},

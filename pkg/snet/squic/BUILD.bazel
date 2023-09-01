@@ -8,7 +8,6 @@ go_library(
     deps = [
         "//pkg/log:go_default_library",
         "//pkg/private/serrors:go_default_library",
-        "//pkg/snet:go_default_library",
         "@com_github_quic_go_quic_go//:go_default_library",
     ],
 )

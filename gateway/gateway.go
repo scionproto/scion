@@ -480,7 +480,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 		"local_addr", clientConn.LocalAddr())
 
 	quicClientDialer := &squic.ConnDialer{
-		Conn:      clientConn,
+		Transport: &quic.Transport{
+			Conn: clientConn,
+		},
 		TLSConfig: ephemeralTLSConfig,
 	}
 
