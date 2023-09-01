@@ -85,13 +85,9 @@ func extractIngressIfID(path snet.DataplanePath) (uint16, error) {
 	if !ok {
 		return 0, serrors.New("unexpected path", "type", common.TypeOf(path))
 	}
-	rawScionPath, ok := invertedPath.Path.(*scion.Raw)
+	rawScionPath, ok := invertedPath.Path.(*scion.Decoded)
 	if !ok {
-		return 0, serrors.New("unexpected path", "type", common.TypeOf(path))
+		return 0, serrors.New("unexpected path", "type", common.TypeOf(invertedPath.Path))
 	}
-	hf, err := rawScionPath.GetCurrentHopField()
-	if err != nil {
-		return 0, serrors.WrapStr("getting current hop field", err)
-	}
-	return hf.ConsIngress, nil
+	return rawScionPath.HopFields[0].ConsIngress, nil
 }

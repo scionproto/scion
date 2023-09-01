@@ -16,7 +16,6 @@ package appnet
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -72,7 +71,6 @@ type AddressRewriter struct {
 // If the address is already unicast, no redirection to QUIC is attempted.
 func (r AddressRewriter) RedirectToQUIC(ctx context.Context,
 	address net.Addr) (net.Addr, bool, error) {
-	logger := log.FromCtx(ctx)
 
 	// FIXME(scrye): This is not legitimate use. It's only included for
 	// compatibility with older unit tests. See
@@ -85,40 +83,7 @@ func (r AddressRewriter) RedirectToQUIC(ctx context.Context,
 	case *snet.UDPAddr:
 		return a, false, nil
 	case *snet.SVCAddr:
-		fa, err := r.buildFullAddress(ctx, a)
-		if err != nil {
-			return nil, false, err
-		}
-		if r.SVCResolutionFraction <= 0.0 {
-			return fa, false, nil
-		}
-
-		path, err := fa.GetPath()
-		if err != nil {
-			return nil, false, serrors.WrapStr("bad path", err)
-		}
-
-		// During One-Hop Path operation, use SVC resolution to also bootstrap the path.
-		p, u, quicRedirect, err := r.resolveSVC(ctx, path, fa.SVC)
-		if err != nil {
-			// For a revoked path we don't fallback we want to give the option
-			// to retry with a new path.
-			isRevokedPath := func(err error) bool {
-				var opErr *snet.OpError
-				return errors.As(err, &opErr) && opErr.RevInfo() != nil
-			}
-			if r.SVCResolutionFraction < 1.0 && !isRevokedPath(err) {
-				// SVC resolution failed but we allow legacy behavior and have some
-				// fraction of the timeout left for data transfers, so return
-				// address with SVC destination still set
-				logger.Debug("Falling back to legacy mode, ignore error", "err", err)
-				return fa, false, nil
-			}
-			return a, false, err
-		}
-
-		ret := &snet.UDPAddr{IA: fa.IA, Path: p.Dataplane(), NextHop: fa.NextHop, Host: u}
-		return ret, quicRedirect, err
+		return a, false, nil
 	}
 
 	return nil, false, serrors.New("address type not supported",
