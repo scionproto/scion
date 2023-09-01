@@ -1726,7 +1726,11 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 	return processResult{OutAddr: a, OutPkt: p.rawPkt}, nil
 }
 
-func (d *DataPlane) resolveLocalDst(s slayers.SCION, lastLayer gopacket.DecodingLayer) (*net.UDPAddr, error) {
+func (d *DataPlane) resolveLocalDst(
+	s slayers.SCION,
+	lastLayer gopacket.DecodingLayer,
+) (*net.UDPAddr, error) {
+
 	dst, err := s.DstAddr()
 	if err != nil {
 		// TODO parameter problem.
@@ -1767,7 +1771,8 @@ func addEndhostPort(lastLayer gopacket.DecodingLayer, dst []byte) (*net.UDPAddr,
 		return &net.UDPAddr{IP: dst, Port: int(port)}, nil
 	case slayers.L4SCMP:
 		// TODO(JordiSubira): On-going discussion regarding SCMP dst port
-		log.Debug("TBR XXXJ:", "sending SCMP packet to", &net.UDPAddr{IP: dst, Port: topology.EndhostPort})
+		log.Debug("TBR XXXJ:",
+			"sending SCMP packet to", &net.UDPAddr{IP: dst, Port: topology.EndhostPort})
 		return &net.UDPAddr{IP: dst, Port: topology.EndhostPort}, nil
 	default:
 		log.Debug(fmt.Sprintf("Port rewriting not supported for protcol number %v", l4Type))

@@ -56,6 +56,7 @@ class DockerUtilsGenerator(object):
             self._sig_testing_conf()
         return self.dc_conf
 
+    # TODO(JordiSubira): Remove container if not needed
     def _utils_conf(self):
         entry_chown = {
             'image': 'busybox',
@@ -64,7 +65,7 @@ class DockerUtilsGenerator(object):
                 '/etc/passwd:/etc/passwd:ro',
                 '/etc/group:/etc/group:ro'
             ],
-            'command': 'chown -R ' + self.user + ' /mnt/volumes'
+            'command': 'echo hello'
         }
         for volume in self.dc_conf['volumes']:
             entry_chown['volumes'].append('%s:/mnt/volumes/%s' % (volume, volume))

@@ -99,9 +99,6 @@ class SIGGenerator(object):
         }
         self.dc_conf['services']['scion_disp_sig_%s' %
                                  topo_id.file_fmt()] = entry
-        vol_name = 'vol_scion_%sdisp_sig_%s' % (self.prefix,
-                                                topo_id.file_fmt())
-        self.dc_conf['volumes'][vol_name] = None
 
     def _sig_dc_conf(self, topo_id, base):
         setup_name = 'scion_sig_setup_%s' % topo_id.file_fmt()
