@@ -363,16 +363,19 @@ type ConnDialer struct {
 // fails due to a SERVER_BUSY error. Timers, number of attempts are EXPERIMENTAL
 // and subject to change.
 func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
-	addressStr := computeAddressStr(dst)
-
 	if d.TLSConfig == nil {
 		return nil, serrors.New("tls.Config not set")
 	}
+	serverName := d.TLSConfig.ServerName
+	if serverName == "" {
+		serverName = computeServerName(dst)
+	}
+
 	var session quic.Connection
 	for sleep := 2 * time.Millisecond; ctx.Err() == nil; sleep = sleep * 2 {
 		// Clone TLS config to avoid data races.
 		tlsConfig := d.TLSConfig.Clone()
-		tlsConfig.ServerName = addressStr
+		tlsConfig.ServerName = serverName
 		// Clone QUIC config to avoid data races, if it exists.
 		var quicConfig *quic.Config
 		if d.QUICConfig != nil {
@@ -411,13 +414,21 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 
 }
 
-// computeAddressStr returns a parseable version of the SCION address for use
+// computeServerName returns a parseable version of the SCION address for use
 // with QUIC SNI.
-func computeAddressStr(address net.Addr) string {
+func computeServerName(address net.Addr) string {
+	// XXX(roosd): Special case snet.UDPAddr because its string encoding is not
+	// processable by net.SplitHostPort.
 	if v, ok := address.(*snet.UDPAddr); ok {
-		return fmt.Sprintf("[%s,%s]:%d", v.IA, v.Host.IP, v.Host.Port)
+		return fmt.Sprintf("%s,%s", v.IA, v.Host.IP)
 	}
-	return address.String()
+	host := address.String()
+	sni, _, err := net.SplitHostPort(host)
+	if err != nil {
+		// It's ok if net.SplitHostPort returns an error - it could be a hostname/IP address without a port.
+		sni = host
+	}
+	return sni
 }
 
 // acceptedConn is a net.Conn wrapper for a QUIC stream.
