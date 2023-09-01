@@ -1,16 +1,11 @@
-load("//tools/lint:go.bzl", "go_library", "go_test")
+load("//tools/lint:go.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = [
-        "dispatcher.go",
-        "table.go",
-        "underlay.go",
-    ],
+    srcs = ["dispatcher.go"],
     importpath = "github.com/scionproto/scion/dispatcher",
     visibility = ["//visibility:public"],
     deps = [
-        "//dispatcher/internal/registration:go_default_library",
         "//pkg/addr:go_default_library",
         "//pkg/log:go_default_library",
         "//pkg/private/common:go_default_library",
@@ -18,14 +13,7 @@ go_library(
         "//pkg/slayers:go_default_library",
         "//pkg/slayers/path/epic:go_default_library",
         "//pkg/slayers/path/scion:go_default_library",
-        "//private/ringbuf:go_default_library",
         "//private/topology:go_default_library",
         "@com_github_google_gopacket//:go_default_library",
     ],
-)
-
-go_test(
-    name = "go_default_test",
-    srcs = ["underlay_test.go"],
-    embed = [":go_default_library"],
 )

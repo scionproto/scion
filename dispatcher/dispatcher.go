@@ -20,6 +20,7 @@ import (
 	"net/netip"
 
 	"github.com/google/gopacket"
+
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
@@ -261,7 +262,8 @@ func (s *Server) getDstSCMP() (netip.AddrPort, error) {
 
 	// Drop unknown SCMP error messages.
 	if s.scmpLayer.NextLayerType() == gopacket.LayerTypePayload {
-		return netip.AddrPort{}, serrors.New("unsupported SCMP error message", "type", s.scmpLayer.TypeCode.Type())
+		return netip.AddrPort{}, serrors.New("unsupported SCMP error message",
+			"type", s.scmpLayer.TypeCode.Type())
 	}
 	l, err := decodeSCMP(&s.scmpLayer)
 	if err != nil {
@@ -296,8 +298,9 @@ func (s *Server) getDstSCMP() (netip.AddrPort, error) {
 		tc := scmp.(*slayers.SCMP).TypeCode
 		// SCMP Error messages in response to an SCMP error message are not allowed.
 		if !tc.InfoMsg() {
-			return netip.AddrPort{}, serrors.New("SCMP error message in response to SCMP error message",
-				"type", tc.Type())
+			return netip.AddrPort{},
+				serrors.New("SCMP error message in response to SCMP error message",
+					"type", tc.Type())
 		}
 		// We only support echo and traceroute requests.
 		t := tc.Type()

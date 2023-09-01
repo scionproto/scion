@@ -61,7 +61,6 @@ class Test(base.TestTopogen):
         "5": "1-ff00:0:5",
     }
 
-
     def setup_prepare(self):
         super().setup_prepare()
 

@@ -18,9 +18,10 @@ import (
 	"net"
 	"testing"
 
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/scionproto/scion/pkg/private/xtest"
 )
 
 func TestOpenConn(t *testing.T) {

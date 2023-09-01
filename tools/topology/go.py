@@ -19,7 +19,6 @@
 # Stdlib
 import os
 import toml
-import json
 from typing import Mapping
 
 # SCION
@@ -28,7 +27,6 @@ from topology.common import (
     ArgsBase,
     DISP_CONFIG_NAME,
     docker_host,
-    json_default,
     prom_addr,
     prom_addr_dispatcher,
     sciond_ip,
@@ -37,8 +35,6 @@ from topology.common import (
     SD_API_PORT,
     SD_CONFIG_NAME,
 )
-
-from topology.defines import TOPO_FILE
 
 from topology.net import socket_address_str, NetworkDescription, IPNetwork
 
@@ -180,7 +176,8 @@ class GoGenerator(object):
         else:
             elem_dir = os.path.join(self.args.output_dir, "dispatcher")
             config_file_path = os.path.join(elem_dir, DISP_CONFIG_NAME)
-            write_file(config_file_path, toml.dumps(self._build_disp_conf("dispatcher", self.args.output_dir)))
+            write_file(config_file_path, toml.dumps(self._build_disp_conf(
+                "dispatcher", self.args.output_dir)))
 
     def _gen_disp_docker(self):
         for topo_id, topo in self.args.topo_dicts.items():
@@ -191,7 +188,7 @@ class GoGenerator(object):
                 ['tester_%s' % topo_id.file_fmt()]
             for k in elem_ids:
                 disp_id = 'disp_%s' % k
-                disp_conf = self._build_disp_conf(disp_id, base,topo_id)
+                disp_conf = self._build_disp_conf(disp_id, base, topo_id)
                 write_file(os.path.join(base, '%s.toml' % disp_id), toml.dumps(disp_conf))
 
     def _build_disp_conf(self, name, config_path, topo_id=None):

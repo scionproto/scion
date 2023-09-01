@@ -166,3 +166,4 @@ class PrometheusGenerator(object):
         }
         write_file(os.path.join(self.args.output_dir, PROM_DC_FILE),
                    yaml.dump(prom_dc, default_flow_style=False))
+        
