@@ -241,6 +241,7 @@ all existing addresses can be represented in the new scheme, but out of precauti
 we should be able to perform downgrades too.
 
 These recipes would direct the operations of the following code (non-exhaustive):
+
 * Convert a binary V6 address into a componentized SCION address structure.
 * Convert a componentized SCION address into a V6 address structure,
 * Validate that a V6 address is convertible to a SCION address (i.e. it is in
