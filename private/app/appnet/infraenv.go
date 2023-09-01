@@ -274,7 +274,7 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 	// address nor the port are needed to address the resolver, but the dispatcher still
 	// requires them and checks unicity. At least a dynamic port is allowed.
 	srAddr := &net.UDPAddr{IP: nc.Public.IP, Port: 0}
-	conn, err := network.Listen(context.Background(), "udp", srAddr, addr.SvcWildcard)
+	conn, err := network.Listen(context.Background(), "udp", srAddr, addr.SvcNone)
 	if err != nil {
 		log.Info("Listen failed", "err", err)
 		return nil, serrors.WrapStr("listening on SCION", err, "addr", srAddr)
@@ -328,7 +328,7 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 	if err != nil {
 		return nil, nil, serrors.WrapStr("parsing server QUIC address", err)
 	}
-	server, err := serverNet.Listen(context.Background(), "udp", serverAddr, addr.SvcNone)
+	server, err := serverNet.Listen(context.Background(), "udp", serverAddr, addr.SvcWildcard)
 	if err != nil {
 		return nil, nil, serrors.WrapStr("creating server connection", err)
 	}

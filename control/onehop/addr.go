@@ -64,7 +64,8 @@ func (r *AddressRewriter) RedirectToQUIC(
 ) (net.Addr, bool, error) {
 	a, ok := address.(*Addr)
 	if !ok {
-		return r.Rewriter.RedirectToQUIC(ctx, address)
+		return address, false, nil
+		//return r.Rewriter.RedirectToQUIC(ctx, address)
 	}
 	path, err := r.getPath(a.Egress)
 	if err != nil {
@@ -76,7 +77,7 @@ func (r *AddressRewriter) RedirectToQUIC(
 		SVC:     addr.SvcCS,
 		NextHop: a.NextHop,
 	}
-	return r.Rewriter.RedirectToQUIC(ctx, svc)
+	return svc, false, nil
 }
 
 func (r *AddressRewriter) getPath(egress uint16) (path.OneHop, error) {

@@ -416,6 +416,9 @@ func computeAddressStr(address net.Addr) string {
 	if v, ok := address.(*snet.UDPAddr); ok {
 		return fmt.Sprintf("[%s,%s]:%d", v.IA, v.Host.IP, v.Host.Port)
 	}
+	if v, ok := address.(*snet.SVCAddr); ok {
+		return fmt.Sprintf("[%s,%s]:0", v.IA, v.SVC)
+	}
 	return address.String()
 }
 
