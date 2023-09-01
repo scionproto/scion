@@ -46,6 +46,7 @@ This includes all relevant aspects:
 
 Background
 ==========
+
 Currently SCION addresses are specified to be as large as as 192 bits. As a result they
 are both logically and physically incompatible with IPV6 addresses. Although nothing says
 that SCION has to use IPV6 addresses in order to cohabitate peacefully with IPV6, the adoption
@@ -61,7 +62,7 @@ to make any realisitic use of SCION, it needs new code to at least:
 Instead, what we would like is that applications can use SCION without even knowing
 it, simply as a result of:
 
-* Parsing a normal-looking testual V6 address from a config file or URL.
+* Parsing a normal-looking textual V6 address from a config file or URL.
 * Getting a normal AAAA result from a DNS query.
 * Opening a UDP/TCP connection to said address via the regular socket API. This would imply
   the existence of SCION-aware code below the socket API that:
@@ -80,7 +81,7 @@ addresses must occupy their own, properly reserved, portion of the IPV6 address 
 Therefore they must not just be IPV6-like addresses, they must **be** IPV6 addresses.
 
 This constraint comes with a silver-lining though. Currently, SCION addresses are very large
-because they include a complete IPV6 address as a way to deignate the destination host within
+because they include a complete IPV6 address as a way to designate the destination host within
 the destination AS. If SCION addresses are real IPV6 addresses, there is no need to embbed
 the destination host's IPV6 address in its SCION address; they are one and the same. This means
 that we "only" need to fit the ISD-AS portion (64 bits) of a SCION address into a V6 address
@@ -90,7 +91,7 @@ Here are the constraints:
 
 * RFC4291 insists on the 64 LSbits to be available to contain a NIC number.
 * RFC6890 Instructs IANA to reserve 2001::/23 for experimental protocols, which they allocate
-  in blocks of /29. Many of those are available an dprobably easy to get.
+  in blocks of /29. Many of those are available and probably easy to get.
   (https://www.iana.org/assignments/iana-ipv6-special-registry/iana-ipv6-special-registry.xhtml)
 * RFC3587 reminds that IANA does not allocate addresses outside the 2000::/3 range
   (https://www.iana.org/assignments/ipv6-unicast-address-assignments/ipv6-unicast-address-assignments.xhtml).
@@ -113,7 +114,7 @@ Getting a /8 block is probably feasible, especially if we have an IETF sponsor. 
 us 56 bits, which is quite enough unless SCION is successful beyond belief, in which case
 it will make sense to ask for a larger block and we'll get it.
 
-If we ever get a /3 block, we'll have to move which liberate more bits for ISD-AS numbers.
+If we ever get a /3 block, we'll have to move as the price to get more bits for ISD-AS numbers.
 We can't count on getting it today, so we just need to be able to move.
 
 So, it seems like explicitly supporting changes in prefix and address structure is a good
@@ -154,7 +155,7 @@ Address structure evolution
     
     The two different ASNs blocks exist so that IP ASNs can be grand-fathered
     into SCION while non IP ASNs can be given a SCION ASN number without
-    coliding with the grand fathered numbers. However, IP ASNs only use
+    coliding with the grand-fathered numbers. However, IP ASNs only use
     19 bits today (https://www.iana.org/assignments/as-numbers/as-numbers.xhtml).
     The rate of allocation is about linear at a rate of ~6K/Y, so it won't
     even double over the next 20 years.
@@ -220,6 +221,9 @@ a tuple: (IPV6-prefix, ASN-width, ISD-width, Host-width) where:
   The number of bits used to represent ASN.
 * ISD-width:
   The number of bits used to represent ISD.
+* HOST-width:
+  The number of bits used to uniquely identify the destination host within the
+  destination ISD-AS.
 
 The existence of one such a recipe indicates that SCION addresses of the
 given ASN and ISD widths must be encoded as IPV6 addresses of the given block,
@@ -235,6 +239,18 @@ The preference applies to addresses that *can* be represented according to that
 recipe. Since we would only carry out address growth, it should be expected that
 all existing addresses can be represented in the new scheme, but out of precaution,
 we should be able to perform downgrades too.
+
+These recipes would direct the operations of the following code (non-exhaustive):
+* Convert a binary V6 address into a componentized SCION address structure.
+* Convert a componentized SCION address into a V6 address structure,
+* Validate that a V6 address is convertible to a SCION address (i.e. it is in
+  a SCION block).
+* Validate that a componentized SCION address is convertible to a V6 address (i.e.
+  the bit width are compatible with one of the allowed recipes).
+* Shortcut methods to parse SCION addresses from, or print then to, V6 textual
+  representations.
+* Shortcut methods to parse V6 addresses from, or print then to, SCION textual
+  representations.
 
 Migration between IPV6 representations
 --------------------------------------
@@ -284,7 +300,7 @@ Compatibility
 Migration from current addressing
 ---------------------------------
 
-The address format described in this proposal needs not, at first, apply to the wire fomat,
+The address format described in this proposal needs not, at first, apply to the wire fomat.
 The main objective is for applications to be able to designate SCION hosts by way of a
 regular IPV6 address. This means that the only decoding and encoding taking place must be
 at the boundary of the SCION API. An application would be allowed to use new methods that
