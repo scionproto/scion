@@ -1,11 +1,11 @@
-*******************************
-[V6 compatible SCION addresses]
-*******************************
+*****************************
+V6 compatible SCION addresses
+*****************************
 
 :Author(s): J-C HUgly
 :Last updated: 2023-08-31
 :Status: **proposal**
-:Discussion: `Discussions/4324_`
+:Discussion: `Discussions/4324`_
 
 
 .. _`Discussions/4324`: https://github.com/scionproto/scion/discussions/4324
@@ -21,15 +21,22 @@ subset of those suggestions in real code.
 This includes all relevant aspects:
 
 * Validation/Identification:
+
   * "Is this V6 address a valid SCION address?"
   * "Is this scion address representable as V6?"
+
 * Structured conversions:
+
   * "Turn this V6 address into a SCION address if you can."
   * "Turn this SCION address into a V6 address if you can."
+
 * String representation:
+
   * "Construct a SCION address from this V6 address string."
   * "Construct a SCION address from this SCION-style address string if you can."
+
 * Viable migration path and future growth support:
+
   * Configurable address structure with support for the existing V6-incompatible
     structure.
   * Support of existing addresses that are convertible to the new structure
@@ -53,10 +60,12 @@ to make any realisitic use of SCION, it needs new code to at least:
 
 Instead, what we would like is that applications can use SCION without even knowing
 it, simply as a result of:
+
 * Parsing a normal-looking testual V6 address from a config file or URL.
 * Getting a normal AAAA result from a DNS query.
 * Opening a UDP/TCP connection to said address via the regular socket API. This would imply
   the existence of SCION-aware code below the socket API that:
+
   * Recognizes scion addresses and handles the traffic accordingly.
   * Performs some default route selection on behalf of the oblivious application.
 
@@ -95,6 +104,7 @@ to happen until SCION becomes the dominant internet protocol. So we probably sho
 lead with that.
 
 Getting a pair of /29 blocks is likely easy with the following caveats:
+
 * It is meant for experimental protocols, so typically temporary. IANA will want to
   set an end date. If do that we have to plan on moving within a few years.
 * It gives us only 36 bits; another reason to plan on moving.
@@ -115,6 +125,7 @@ Proposal
 
 Address structure roadmap
 -------------------------
+
 * Near-term (1 or 2 years):
   Get a /28 block. Cram ISD-AS into 36 bits.
 * Mid-term (~10 years, depending on adoption):
@@ -127,12 +138,15 @@ Address structure roadmap
 
 Address structure evolution
 ---------------------------
+
 * 36 bits ISD-AS:
+
   * ISD is currently defined as a 16 bits field with only 12 bits
     allowed to be non-zero. The rest is specified as reserved. So, 12 bits ought
     to be enough for as long as we refuse to change the spec.
   * AS is currently defined as a 48 bit field but only the following is
     allowed:
+
     * One 32 bits-wide block for IP ASNs.
     * One 32 bits-wide block for pure SCION ASNs.
     * One 16 bits-wide block for examples.
@@ -157,7 +171,9 @@ Address structure evolution
     ISD number. Why the ISD? That's because at 14 bits it is less likely to require
     future expansion. That way, we might avoid having to change it any time soon.
     The AS number, on the other hand, is likely to need future expansion anyway.
+
 * Growing into the bright future; 56-bits ISD-AS:
+
   * The AS number expands to 42 bits (unless my earlier prediction was wrong
     and we need to grow ISD).
   * If we were smart about the layout and put the AS number on the left side, we can
@@ -167,9 +183,13 @@ Address structure evolution
   * The growth comes with a change of address prefix, so, the code can tell how
     to read and write addresses. If we did our job right, this is entirely contained
     in header and address code that already knows how to do that.
+
 * The same pattern coutinues with a /3 block:
+
   * For what it's worth, the ASN number can grow to 47 bits (not 48... too bad).
+
 * SCION has taken over the internet:
+
   * We can finally expand ISD-AS to its glorious initial specification (at the
     expanse of being forced to move the boundary between the two; that's a good
     problem to have, I guess).
@@ -191,6 +211,7 @@ The following scheme is proposed:
 
 A small number of valid address format recipes are specified in the form of
 a tuple: (IPV6-prefix, ASN-width, ISD-width, Host-width) where:
+
 * IPV6-prefix:
   A prefix in the form v6-addr-fragment/width, for example "2001:40::/28"
   which indicates that the rest of the parameters describe the encoding of
@@ -219,6 +240,7 @@ Migration between IPV6 representations
 --------------------------------------
 
 A migration from one address scheme to the next would occur in three phases:
+
 * Phase 1:
   Between 0 and 100% of hosts have received the new recipe config.
   Every host continues encoding SCION addresses according to the old scheme but
@@ -244,12 +266,15 @@ Rationale
 =========
 
 Alternatives considered (regarding hidding SCION-specifcs from apps):
+
 * Do Nothing:
+
   * SCION can only be used via especially crafted applications or the SCION gateway.
   * The gateway is inherently limitted by the IP-SCION address mapping. If all of SCION
     has to be used through it, then it is pointless.
   * Are we planning on providing replacement for all the applications and libraries
     using internet today? Is someone else?
+
 * Map IPV6 addresses to scion ISD-AS downstream from the application:
   That's only a temporary patch see the same issue with the gateway.
 
@@ -267,6 +292,7 @@ accept IPV6 addresses in-lieu of SCION addresses, and chose a default route impl
 
 However, the SCION/IPV6 address encoding is predicated on the fact that the the full IPV6
 address of the destination host is identical to its SCION address; this means that:
+
 * When the new schema is in use, a destination address supplied by the application
   is partially redundantly encoded as the HOST portion of the wire format SCION address.
 * That address is a real IPV6 address, reachable by the destination border router.
@@ -286,10 +312,10 @@ addresses with plain V6 addresses. A possible migration plan would be:
    sized), and add the proper, parametrized, encoding/decoding layer between the code and
    the wire format. That code follows the same configuration as that used at the API, with
    one additional option to emit the legacy wire format entirely unchanged.
-1. Between 0 and 100% of hosts can process the new format but emit the legacy format.
-1. 100% can process the new format. Between 0 and 100% of host are configured to emit the
+2. Between 0 and 100% of hosts can process the new format but emit the legacy format.
+3. 100% can process the new format. Between 0 and 100% of host are configured to emit the
    new format.
-1. 100% of hosts use the new format. The legacy code can be deleted when convenient.
+4. 100% of hosts use the new format. The legacy code can be deleted when convenient.
 
 It might prove helpful to extend the internal (componentized) address representation to
 include the IPV6 prefix that is part of the native V6 representation.
