@@ -28,6 +28,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/snet"
 )
 
 const (
@@ -362,6 +363,7 @@ type ConnDialer struct {
 // fails due to a SERVER_BUSY error. Timers, number of attempts are EXPERIMENTAL
 // and subject to change.
 func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
+	addressStr := computeAddressStr(dst)
 
 	if d.TLSConfig == nil {
 		return nil, serrors.New("tls.Config not set")
@@ -370,6 +372,7 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 	for sleep := 2 * time.Millisecond; ctx.Err() == nil; sleep = sleep * 2 {
 		// Clone TLS config to avoid data races.
 		tlsConfig := d.TLSConfig.Clone()
+		tlsConfig.ServerName = addressStr
 		// Clone QUIC config to avoid data races, if it exists.
 		var quicConfig *quic.Config
 		if d.QUICConfig != nil {
@@ -406,6 +409,15 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 		session: session,
 	}, nil
 
+}
+
+// computeAddressStr returns a parseable version of the SCION address for use
+// with QUIC SNI.
+func computeAddressStr(address net.Addr) string {
+	if v, ok := address.(*snet.UDPAddr); ok {
+		return fmt.Sprintf("[%s,%s]:%d", v.IA, v.Host.IP, v.Host.Port)
+	}
+	return address.String()
 }
 
 // acceptedConn is a net.Conn wrapper for a QUIC stream.
