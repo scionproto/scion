@@ -340,4 +340,25 @@ include the IPV6 prefix that is part of the native V6 representation.
 Implementation
 ==============
 
-Investigation of specifics in progress.
+(This section, is not finished - just an intro).
+
+Considering only the transition to using V6 addresses at the API:
+
+The thing currently most ressembling a SCION API is the snet package. The snet API, as it
+currently is does not allow the use of addresses as opaque entities. The application is
+expected to openly manipulate address components, find a route, and even connect to the
+border router by itself. Under these conditions it not even possible to initiate the
+transition to V6 addresses for our own client code (i.e. the control server, ping, others?). 
+
+So, to make that possible we must first give our application some API that allows them
+to treat an address as just that: a bunch of random bits plus, may be a port; something
+equivalent to bind([addr]), connect(addr [,routespec]), or sendto(addr, stuff, [,routespec]),
+where addr does not need to include the next hop and where routespec is entirely optional.
+
+Once we have that, we can start enabling the use of V6 addresses as the addr argument.
+
+The netsec tree also offers a number of scion-enabled apps. Those rely on "pan", a custom
+API-like layer. It would be good to try and converge pan and the new API contemplated
+above, so that eventually, these scion-enabled apps are able to use plain IPV6 addresses
+too.
+
