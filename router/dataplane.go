@@ -98,6 +98,7 @@ type DataPlane struct {
 	external          map[uint16]BatchConn
 	linkTypes         map[uint16]topology.LinkType
 	neighborIAs       map[uint16]addr.IA
+	peerInterfaces    map[uint16]uint16
 	internal          BatchConn
 	internalIP        netip.Addr
 	internalNextHops  map[uint16]*net.UDPAddr
@@ -278,6 +279,24 @@ func (d *DataPlane) AddLinkType(ifID uint16, linkTo topology.LinkType) error {
 		d.linkTypes = make(map[uint16]topology.LinkType)
 	}
 	d.linkTypes[ifID] = linkTo
+	return nil
+}
+
+// AddRemotePeer adds the remote peering interface ID for local
+// interface ID.  If the link type for the given ID is already set to
+// a different type, this method will return an error. This can only
+// be called on a not yet running dataplane.
+func (d *DataPlane) AddRemotePeer(local, remote uint16) error {
+	if t, ok := d.linkTypes[local]; ok && t != topology.Peer {
+		return serrors.WithCtx(unsupportedPathType, "type", t)
+	}
+	if _, exists := d.peerInterfaces[local]; exists {
+		return serrors.WithCtx(alreadySet, "local_interface", local)
+	}
+	if d.peerInterfaces == nil {
+		d.peerInterfaces = make(map[uint16]uint16)
+	}
+	d.peerInterfaces[local] = remote
 	return nil
 }
 
@@ -820,6 +839,7 @@ func (p *scionPacketProcessor) reset() error {
 	p.hopField = path.HopField{}
 	p.infoField = path.InfoField{}
 	p.segmentChange = false
+	p.peering = false
 	if err := p.buffer.Clear(); err != nil {
 		return serrors.WrapStr("Failed to clear buffer", err)
 	}
@@ -1012,6 +1032,8 @@ type scionPacketProcessor struct {
 	infoField path.InfoField
 	// segmentChange indicates if the path segment was changed during processing.
 	segmentChange bool
+	// peering indicates that the packet is inside of a peering AS
+	peering bool
 
 	// cachedMac contains the full 16 bytes of the MAC. Will be set during processing.
 	// For a hop performing an Xover, it is the MAC corresponding to the down segment.
@@ -1078,6 +1100,32 @@ func (p *scionPacketProcessor) parsePath() (processResult, error) {
 		// TODO(lukedirtwalker) parameter problem invalid path?
 		return processResult{}, err
 	}
+	return processResult{}, nil
+}
+
+func (p *scionPacketProcessor) determinePeer() (processResult, error) {
+	if !p.infoField.Peer {
+		return processResult{}, nil
+	}
+
+	// TODO: proper error
+	err := serrors.New("TODO: segment length error (peering)")
+
+	if p.path.PathMeta.SegLen[0] == 0 {
+		return processResult{}, err
+	}
+	if p.path.PathMeta.SegLen[1] == 0 {
+		return processResult{}, err
+	}
+	if p.path.PathMeta.SegLen[2] != 0 {
+		return processResult{}, err
+	}
+
+	// The peer hop fields are the last hop field on the first path
+	// segment and the first hop field of the second path segment.
+	currHF := p.path.PathMeta.CurrHF
+	segLen := p.path.PathMeta.SegLen[0]
+	p.peering = currHF == segLen-1 || currHF == segLen
 	return processResult{}, nil
 }
 
@@ -1168,7 +1216,9 @@ func (p *scionPacketProcessor) invalidDstIA() (processResult, error) {
 // this check prevents malicious end hosts in the local AS from bypassing the
 // SrcIA checks by disguising packets as transit traffic.
 func (p *scionPacketProcessor) validateTransitUnderlaySrc() (processResult, error) {
-	if p.path.IsFirstHop() || p.ingressID != 0 {
+	// XXX(benthor) disabling check in case of peering packet
+	// is probably insecture
+	if p.path.IsFirstHop() || p.ingressID != 0 || p.peering {
 		// not a transit packet, nothing to check
 		return processResult{}, nil
 	}
@@ -1211,6 +1261,10 @@ func (p *scionPacketProcessor) validateEgressID() (processResult, error) {
 			return processResult{}, nil
 		case ingress == topology.Parent && egress == topology.Child:
 			return processResult{}, nil
+		// XXX(benthor) prevent "InvalidPath" from being raised
+		//        not fully grasping the implications yet though
+		case ingress == topology.Peer || egress == topology.Peer:
+			return processResult{}, nil
 		default: // malicious
 			return p.packSCMP(
 				slayers.SCMPTypeParameterProblem,
@@ -1229,6 +1283,12 @@ func (p *scionPacketProcessor) validateEgressID() (processResult, error) {
 		return processResult{}, nil
 	case ingress == topology.Child && egress == topology.Child:
 		return processResult{}, nil
+	case ingress == topology.Unset && egress == topology.Peer:
+		return processResult{}, nil
+	case ingress == topology.Child && egress == topology.Peer:
+		return processResult{}, nil
+	case ingress == topology.Peer && egress == topology.Child:
+		return processResult{}, nil
 	default:
 		return p.packSCMP(
 			slayers.SCMPTypeParameterProblem,
@@ -1242,9 +1302,8 @@ func (p *scionPacketProcessor) validateEgressID() (processResult, error) {
 func (p *scionPacketProcessor) updateNonConsDirIngressSegID() error {
 	// against construction dir the ingress router updates the SegID, ifID == 0
 	// means this comes from this AS itself, so nothing has to be done.
-	// TODO(lukedirtwalker): For packets destined to peer links this shouldn't
-	// be updated.
-	if !p.infoField.ConsDir && p.ingressID != 0 {
+	// For packets destined to peer links this shouldn't be updated.
+	if !p.infoField.ConsDir && p.ingressID != 0 && !p.peering {
 		p.infoField.UpdateSegID(p.hopField.Mac)
 		if err := p.path.SetInfoField(p.infoField, int(p.path.PathMeta.CurrINF)); err != nil {
 			return serrors.WrapStr("update info field", err)
@@ -1270,12 +1329,14 @@ func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
 			slayers.SCMPTypeParameterProblem,
 			slayers.SCMPCodeInvalidHopFieldMAC,
 			&slayers.SCMPParameterProblem{Pointer: p.currentHopPointer()},
-			serrors.New("MAC verification failed", "expected", fmt.Sprintf(
-				"%x", fullMac[:path.MacLen]),
+			serrors.New("MAC verification failed",
+				"expected", fmt.Sprintf("%x", fullMac[:path.MacLen]),
 				"actual", fmt.Sprintf("%x", p.hopField.Mac[:path.MacLen]),
 				"cons_dir", p.infoField.ConsDir,
-				"if_id", p.ingressID, "curr_inf", p.path.PathMeta.CurrINF,
-				"curr_hf", p.path.PathMeta.CurrHF, "seg_id", p.infoField.SegID),
+				"if_id", p.ingressID,
+				"curr_inf", p.path.PathMeta.CurrINF,
+				"curr_hf", p.path.PathMeta.CurrHF,
+				"seg_id", p.infoField.SegID),
 		)
 	}
 	// Add the full MAC to the SCION packet processor,
@@ -1301,8 +1362,8 @@ func (p *scionPacketProcessor) resolveInbound() (*net.UDPAddr, processResult, er
 
 func (p *scionPacketProcessor) processEgress() error {
 	// we are the egress router and if we go in construction direction we
-	// need to update the SegID.
-	if p.infoField.ConsDir {
+	// need to update the SegID (unless we received the packet via peering link)
+	if p.infoField.ConsDir && !p.peering {
 		p.infoField.UpdateSegID(p.hopField.Mac)
 		if err := p.path.SetInfoField(p.infoField, int(p.path.PathMeta.CurrINF)); err != nil {
 			// TODO parameter problem invalid path
@@ -1479,6 +1540,9 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	if r, err := p.parsePath(); err != nil {
 		return r, err
 	}
+	if r, err := p.determinePeer(); err != nil {
+		return r, err
+	}
 	if r, err := p.validateHopExpiry(); err != nil {
 		return r, err
 	}
@@ -1514,7 +1578,7 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 
 	// Outbound: pkts leaving the local IA.
 	// BRTransit: pkts leaving from the same BR different interface.
-	if p.path.IsXover() {
+	if p.path.IsXover() && !p.peering {
 		if r, err := p.doXover(); err != nil {
 			return r, err
 		}
@@ -1819,7 +1883,7 @@ func (p *scionPacketProcessor) prepareSCMP(
 	revPath := revPathTmp.(*scion.Decoded)
 
 	// Revert potential path segment switches that were done during processing.
-	if revPath.IsXover() {
+	if revPath.IsXover() && !p.peering {
 		if err := revPath.IncPath(); err != nil {
 			return nil, serrors.Wrap(cannotRoute, err, "details", "reverting cross over for SCMP")
 		}
@@ -1829,7 +1893,7 @@ func (p *scionPacketProcessor) prepareSCMP(
 	_, external := p.d.external[p.ingressID]
 	if external {
 		infoField := &revPath.InfoFields[revPath.PathMeta.CurrINF]
-		if infoField.ConsDir {
+		if infoField.ConsDir && !p.peering {
 			hopField := revPath.HopFields[revPath.PathMeta.CurrHF]
 			infoField.UpdateSegID(hopField.Mac)
 		}
