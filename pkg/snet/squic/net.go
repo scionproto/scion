@@ -357,6 +357,7 @@ type ConnDialer struct {
 	QUICConfig *quic.Config
 
 	Dialer func(context.Context) (net.PacketConn, error)
+	Type   string
 }
 
 // Dial dials a QUIC stream and returns it as a net.Conn.
@@ -371,6 +372,10 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 	serverName := d.TLSConfig.ServerName
 	if serverName == "" {
 		serverName = computeServerName(dst)
+	}
+
+	if d.Dialer == nil {
+		panic("Dialer not set: " + d.Type + " ; dialing " + dst.String() + " ; serverName: " + serverName)
 	}
 
 	conn, err := d.Dialer(ctx)

@@ -105,7 +105,7 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	if nc.QUIC.Address == "" {
 		nc.QUIC.Address = net.JoinHostPort(nc.Public.IP.String(), "0")
 	}
-	client, server, err := nc.initQUICSockets()
+	client, server, dialer, err := nc.initQUICSockets()
 	if err != nil {
 		return nil, err
 	}
@@ -155,10 +155,13 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 		Listener: squic.NewConnListener(listener),
 		InsecureDialer: &squic.ConnDialer{
 			Transport: clientTransport,
+			Dialer:    dialer,
+			Type:      "Insecure",
 			TLSConfig: insecureClientTLSConfig,
 		},
 		Dialer: &squic.ConnDialer{
 			Transport: clientTransport,
+			Type:      "Secure",
 			TLSConfig: clientTLSConfig,
 		},
 		RedirectCloser: cancel,
@@ -300,7 +303,7 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 	return cancel, nil
 }
 
-func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, error) {
+func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, func(context.Context) (net.PacketConn, error), error) {
 	dispatcherService := reliable.NewDispatcher("")
 	if nc.ReconnectToDispatcher {
 		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
@@ -320,11 +323,11 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 	}
 	serverAddr, err := net.ResolveUDPAddr("udp", nc.QUIC.Address)
 	if err != nil {
-		return nil, nil, serrors.WrapStr("parsing server QUIC address", err)
+		return nil, nil, nil, serrors.WrapStr("parsing server QUIC address", err)
 	}
 	server, err := serverNet.Listen(context.Background(), "udp", serverAddr, addr.SvcNone)
 	if err != nil {
-		return nil, nil, serrors.WrapStr("creating server connection", err)
+		return nil, nil, nil, serrors.WrapStr("creating server connection", err)
 	}
 
 	clientNet := &snet.SCIONNetwork{
@@ -343,9 +346,15 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 	}
 	client, err := clientNet.Listen(context.Background(), "udp", clientAddr, addr.SvcNone)
 	if err != nil {
-		return nil, nil, serrors.WrapStr("creating client connection", err)
+		return nil, nil, nil, serrors.WrapStr("creating client connection", err)
 	}
-	return client, server, nil
+	return client, server, func(ctx context.Context) (net.PacketConn, error) {
+		clientAddr := &net.UDPAddr{
+			IP:   serverAddr.IP,
+			Zone: serverAddr.Zone,
+		}
+		return clientNet.Listen(context.Background(), "udp", clientAddr, addr.SvcNone)
+	}, nil
 }
 
 // NewRouter constructs a path router for paths starting from localIA.
