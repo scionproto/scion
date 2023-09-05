@@ -378,11 +378,12 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 		panic("Dialer not set: " + d.Type + " ; dialing " + dst.String() + " ; serverName: " + serverName)
 	}
 
-	conn, err := d.Dialer(ctx)
-	if err != nil {
-		return nil, err
-	}
-	transport := &quic.Transport{Conn: conn}
+	// conn, err := d.Dialer(ctx)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// transport := // &quic.Transport{Conn: conn}
+	transport := d.Transport
 
 	var session quic.Connection
 	for sleep := 2 * time.Millisecond; ctx.Err() == nil; sleep = sleep * 2 {

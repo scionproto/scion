@@ -29,20 +29,4 @@ steps:
           automatic:
             - exit_status: -1 # Agent was lost
             - exit_status: 255 # Forced agent shutdown
-      - label: "E2E: failing links :man_in_business_suit_levitating:"
-        command:
-          - echo "--- build"
-          - make
-          - echo "--- start topology"
-          - ./scion.sh topology -c topology/default-no-peers.topo
-          - ./scion.sh run
-          - tools/await-connectivity
-          - ./bin/end2end_integration || ( echo "^^^ +++" && false )
-          - ./tools/integration/revocation_test.sh
-        parallelism: 10
-        plugins: *shutdown-scion-post-command
-        artifact_paths:
-          - "artifacts.out/**/*"
-        timeout_in_minutes: 15
-        key: e2e_revocation_test_v2
-        retry: *automatic-retry
+

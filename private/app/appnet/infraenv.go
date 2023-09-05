@@ -119,7 +119,10 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 		NextProtos:         []string{"SCION"},
 	}
 
-	listener, err := quic.Listen(server, serverTLSConfig, nil)
+	key := quic.StatelessResetKey{1: 1}
+	tr := &quic.Transport{Conn: server, StatelessResetKey: &key}
+
+	listener, err := tr.Listen(serverTLSConfig, nil)
 	if err != nil {
 		return nil, serrors.WrapStr("listening QUIC/SCION", err)
 	}
