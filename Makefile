@@ -16,7 +16,7 @@ clean:
 
 bazel:
 	rm -f bin/*
-	bazel build --@io_bazel_rules_go//go/config:race //:scion //:scion-ci
+	bazel build //:scion //:scion-ci
 	tar -kxf bazel-bin/scion.tar -C bin
 	tar -kxf bazel-bin/scion-ci.tar -C bin
 
