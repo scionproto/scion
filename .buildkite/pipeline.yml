@@ -14,7 +14,7 @@ steps:
           - tools/await-connectivity
           - ./bin/scion_integration || ( echo "^^^ +++" && false )
           - ./bin/end2end_integration || ( echo "^^^ +++" && false )
-        parallelism: 10
+        parallelism: 20
         plugins: &shutdown-scion-post-command
           - scionproto/metahook#v0.3.0:
               post-command: |
