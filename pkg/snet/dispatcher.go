@@ -143,3 +143,21 @@ func (h *DefaultSCMPHandler) handleSCMPRev(typeCode slayers.SCMPTypeCode,
 	}
 	return &OpError{typeCode: typeCode, revInfo: revInfo}
 }
+
+// NonPorpagatingSCMPHandler wraps an SCMP handler and stops propagation of the
+// SCMP errors. This can be necessary if the client code aborts on unexpected
+// errors.
+type NonPropagatingSCMPHandler struct {
+	// Handler is the wrapped handler.
+	Handler SCMPHandler
+	// Log is an optional function that is called when the wrapped handler
+	// returns an error and propagation is stopped.
+	Log func(msg string, ctx ...any)
+}
+
+func (h NonPropagatingSCMPHandler) Handle(pkt *Packet) error {
+	if err := h.Handler.Handle(pkt); err != nil && h.Log != nil {
+		h.Log("Stop SCMP error propagation", "err", err)
+	}
+	return nil
+}

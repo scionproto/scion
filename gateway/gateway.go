@@ -456,9 +456,12 @@ func (g *Gateway) Run(ctx context.Context) error {
 			// Enable transparent reconnections to the dispatcher
 			Dispatcher: reconnectingDispatcher,
 			// Forward revocations to Daemon
-			SCMPHandler: snet.DefaultSCMPHandler{
-				RevocationHandler: revocationHandler,
-				SCMPErrors:        g.Metrics.SCMPErrors,
+			SCMPHandler: snet.NonPropagatingSCMPHandler{
+				Handler: snet.DefaultSCMPHandler{
+					RevocationHandler: revocationHandler,
+					SCMPErrors:        g.Metrics.SCMPErrors,
+				},
+				Log: log.FromCtx(ctx).Debug,
 			},
 			SCIONPacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
 		},
