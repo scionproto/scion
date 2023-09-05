@@ -40,7 +40,7 @@ ASes:
     voting: true
     authoritative: true
     issuing: true
-    mtu: 1280
+    mtu: 1380
   "2-ff00:0:220":
     core: true
     voting: true
