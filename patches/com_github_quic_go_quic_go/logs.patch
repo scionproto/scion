@@ -19,7 +19,7 @@ index 877f2d03..3065b91a 100644
  	select {
  	case s.receivedPackets <- p:
 +		connID, _ := wire.ParseConnectionID(p.data, 4)
-+		s.logger.Debugf("XXX: Queued packet for conn: %q, handler: %p", connID, conn)
++		s.logger.Debugf("XXX: Queued packet for conn: %q, handler: %p", connID, s)
  	default:
  		if s.tracer != nil {
  			s.tracer.DroppedPacket(logging.PacketTypeNotDetermined, p.Size(), logging.PacketDropDOSPrevention)
