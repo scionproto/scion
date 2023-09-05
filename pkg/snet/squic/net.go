@@ -397,6 +397,7 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 		}
 		var transportErr *quic.TransportError
 		if !errors.As(err, &transportErr) || transportErr.ErrorCode != quic.ConnectionRefused {
+			log.Info("Connection refused", "err", err, "transport", transportErr)
 			return nil, serrors.WrapStr("dialing QUIC/SCION", err)
 		}
 
