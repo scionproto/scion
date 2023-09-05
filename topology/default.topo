@@ -22,7 +22,6 @@ ASes:
     underlay: UDP/IPv6
   "1-ff00:0:112":
     cert_issuer: 1-ff00:0:110
-    mtu: 1450
   "1-ff00:0:121":
     cert_issuer: 1-ff00:0:120
   "1-ff00:0:122":
@@ -40,7 +39,6 @@ ASes:
     voting: true
     authoritative: true
     issuing: true
-    mtu: 1450
   "2-ff00:0:220":
     core: true
     voting: true
@@ -62,8 +60,8 @@ links:
   - {a: "1-ff00:0:110#2",     b: "1-ff00:0:130-A#104", linkAtoB: CORE, underlay: UDP/IPv6}
   - {a: "1-ff00:0:110#3",     b: "2-ff00:0:210#453",   linkAtoB: CORE}
   - {a: "1-ff00:0:120-A#1",   b: "1-ff00:0:130-B#105", linkAtoB: CORE}
-  - {a: "1-ff00:0:120-B#2",   b: "2-ff00:0:220#501",   linkAtoB: CORE, mtu: 1350}
-  - {a: "1-ff00:0:120-B#3",   b: "2-ff00:0:220#502",   linkAtoB: CORE, mtu: 1400}
+  - {a: "1-ff00:0:120-B#2",   b: "2-ff00:0:220#501",   linkAtoB: CORE }
+  - {a: "1-ff00:0:120-B#3",   b: "2-ff00:0:220#502",   linkAtoB: CORE}
   - {a: "1-ff00:0:120-B#4",   b: "1-ff00:0:121#3",     linkAtoB: CHILD}
   - {a: "1-ff00:0:120#5",     b: "1-ff00:0:111-B#104", linkAtoB: CHILD}
   - {a: "1-ff00:0:130-A#111", b: "1-ff00:0:131#479",   linkAtoB: CHILD}
