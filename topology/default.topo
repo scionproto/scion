@@ -60,9 +60,8 @@ links:
   - {a: "1-ff00:0:110#2",     b: "1-ff00:0:130-A#104", linkAtoB: CORE, }
   - {a: "1-ff00:0:110#3",     b: "2-ff00:0:210#453",   linkAtoB: CORE}
   - {a: "1-ff00:0:120-A#1",   b: "1-ff00:0:130-B#105", linkAtoB: CORE}
-  - {a: "1-ff00:0:120-B#2",   b: "2-ff00:0:220#501",   linkAtoB: CORE }
-  - {a: "1-ff00:0:120-B#3",   b: "2-ff00:0:220#502",   linkAtoB: CORE}
-  - {a: "1-ff00:0:120-B#4",   b: "1-ff00:0:121#3",     linkAtoB: CHILD}
+  - {a: "1-ff00:0:120-A#2",   b: "2-ff00:0:220#501",   linkAtoB: CORE }
+  - {a: "1-ff00:0:120-A#4",   b: "1-ff00:0:121#3",     linkAtoB: CHILD}
   - {a: "1-ff00:0:120#5",     b: "1-ff00:0:111-B#104", linkAtoB: CHILD}
   - {a: "1-ff00:0:130-A#111", b: "1-ff00:0:131#479",   linkAtoB: CHILD}
   - {a: "1-ff00:0:130-B#112", b: "1-ff00:0:111-A#105", linkAtoB: CHILD, }
