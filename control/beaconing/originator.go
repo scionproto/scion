@@ -116,7 +116,11 @@ func (o *Originator) originateBeacons(ctx context.Context) {
 
 			if err := b.originateBeacon(ctx); err != nil {
 				logger.Info("Unable to originate on interface",
-					"egress_interface", b.intf.TopoInfo().ID, "err", err)
+					"remote.isd_as", b.intf.TopoInfo().IA,
+					"remote.interface", b.intf.TopoInfo().ID,
+					"egress_interface", b.intf.TopoInfo().ID,
+					"err", err,
+				)
 			}
 		}()
 	}

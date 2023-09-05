@@ -402,6 +402,10 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, serrors.WrapStr("dialing QUIC/SCION, after loop", err)
 	}
+	log.FromCtx(ctx).Info("Dialed QUIC connection",
+		"local", session.LocalAddr(),
+		"remote", session.RemoteAddr(),
+	)
 	stream, err := session.OpenStreamSync(ctx)
 	if err != nil {
 		_ = session.CloseWithError(OpenStreamError, "")
