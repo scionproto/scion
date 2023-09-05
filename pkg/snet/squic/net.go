@@ -355,6 +355,8 @@ type ConnDialer struct {
 	TLSConfig *tls.Config
 	// QUICConfig is the client's QUIC configuration.
 	QUICConfig *quic.Config
+
+	Dialer func(context.Context) (net.PacketConn, error)
 }
 
 // Dial dials a QUIC stream and returns it as a net.Conn.
@@ -371,6 +373,12 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 		serverName = computeServerName(dst)
 	}
 
+	conn, err := d.Dialer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	transport := &quic.Transport{Conn: conn}
+
 	var session quic.Connection
 	for sleep := 2 * time.Millisecond; ctx.Err() == nil; sleep = sleep * 2 {
 		// Clone TLS config to avoid data races.
@@ -383,7 +391,7 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 		}
 
 		var err error
-		session, err = d.Transport.Dial(ctx, dst, tlsConfig, quicConfig)
+		session, err = transport.Dial(ctx, dst, tlsConfig, quicConfig)
 		if err == nil {
 			break
 		}
