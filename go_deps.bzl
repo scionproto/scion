@@ -1032,6 +1032,8 @@ def go_deps():
         importpath = "github.com/quic-go/quic-go",
         sum = "h1:M36YWA5dEhEeT+slOu/SwMEucbYd0YFidxG3KlGPZaE=",
         version = "v0.38.1",
+        patches = ["//patches/com_github_quic_go_quic_go:logs.patch"],
+        patch_args = ["-p1"],
     )
     go_repository(
         name = "com_github_ravenox_go_jsoncommentstrip",

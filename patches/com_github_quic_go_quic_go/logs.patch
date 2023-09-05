@@ -1,0 +1,106 @@
+diff --git a/closed_conn.go b/closed_conn.go
+index 0c988b53..39d4d314 100644
+--- a/closed_conn.go
++++ b/closed_conn.go
+@@ -35,6 +35,7 @@ func (c *closedLocalConn) handlePacket(p receivedPacket) {
+ 	// exponential backoff
+ 	// only send a CONNECTION_CLOSE for the 1st, 2nd, 4th, 8th, 16th, ... packet arriving
+ 	if bits.OnesCount32(c.counter) != 1 {
++		c.logger.Debugf("XXX: Received %d packets after sending CONNECTION_CLOSE. Not retransmitting.", c.counter)
+ 		return
+ 	}
+ 	c.logger.Debugf("Received %d packets after sending CONNECTION_CLOSE. Retransmitting.", c.counter)
+diff --git a/connection.go b/connection.go
+index 877f2d03..3065b91a 100644
+--- a/connection.go
++++ b/connection.go
+@@ -1335,6 +1335,8 @@ func (s *connection) handlePacket(p receivedPacket) {
+ 	// the channel size, protocol.MaxConnUnprocessedPackets
+ 	select {
+ 	case s.receivedPackets <- p:
++		connID, _ := wire.ParseConnectionID(p.data, 4)
++		s.logger.Debugf("XXX: Queued packet for conn: %q", connID)
+ 	default:
+ 		if s.tracer != nil {
+ 			s.tracer.DroppedPacket(logging.PacketTypeNotDetermined, p.Size(), logging.PacketDropDOSPrevention)
+diff --git a/packet_handler_map.go b/packet_handler_map.go
+index e0f0567d..1cd1dfdc 100644
+--- a/packet_handler_map.go
++++ b/packet_handler_map.go
+@@ -130,7 +130,7 @@ func (h *packetHandlerMap) Add(id protocol.ConnectionID, handler packetHandler)
+ 		return false
+ 	}
+ 	h.handlers[id] = handler
+-	h.logger.Debugf("Adding connection ID %s.", id)
++	h.logger.Debugf("Adding connection ID %s with handler %v.", id, handler)
+ 	return true
+ }
+ 
+@@ -148,15 +148,16 @@ func (h *packetHandlerMap) AddWithConnID(clientDestConnID, newConnID protocol.Co
+ 	}
+ 	h.handlers[clientDestConnID] = conn
+ 	h.handlers[newConnID] = conn
+-	h.logger.Debugf("Adding connection IDs %s and %s for a new connection.", clientDestConnID, newConnID)
++	h.logger.Debugf("Adding connection IDs %s and %s for a new connection with handler %v", clientDestConnID, newConnID, conn)
+ 	return true
+ }
+ 
+ func (h *packetHandlerMap) Remove(id protocol.ConnectionID) {
+ 	h.mutex.Lock()
++	conn := h.handlers[id]
+ 	delete(h.handlers, id)
+ 	h.mutex.Unlock()
+-	h.logger.Debugf("Removing connection ID %s.", id)
++	h.logger.Debugf("Removing connection ID %s with handler %v.", id, conn)
+ }
+ 
+ func (h *packetHandlerMap) Retire(id protocol.ConnectionID) {
+diff --git a/transport.go b/transport.go
+index d8da9b1a..0c617e7b 100644
+--- a/transport.go
++++ b/transport.go
+@@ -340,6 +340,7 @@ func (t *Transport) handlePacket(p receivedPacket) {
+ 		return
+ 	}
+ 	if !wire.IsPotentialQUICPacket(p.data[0]) && !wire.IsLongHeaderPacket(p.data[0]) {
++		t.logger.Debugf("XXX: Handling non-quic packet: %x", p.data[0])
+ 		t.handleNonQUICPacket(p)
+ 		return
+ 	}
+@@ -354,9 +355,11 @@ func (t *Transport) handlePacket(p receivedPacket) {
+ 	}
+ 
+ 	if isStatelessReset := t.maybeHandleStatelessReset(p.data); isStatelessReset {
++		t.logger.Debugf("XXX: Received stateless reset")
+ 		return
+ 	}
+ 	if handler, ok := t.handlerMap.Get(connID); ok {
++		t.logger.Debugf("XXX: Found handler %v for %q", handler, connID)
+ 		handler.handlePacket(p)
+ 		return
+ 	}
+@@ -376,6 +379,7 @@ func (t *Transport) handlePacket(p receivedPacket) {
+ 
+ func (t *Transport) maybeSendStatelessReset(p receivedPacket) {
+ 	if t.StatelessResetKey == nil {
++		t.logger.Debugf("XXX: Not sending stateless reset token, no key")
+ 		p.buffer.Release()
+ 		return
+ 	}
+@@ -383,13 +387,16 @@ func (t *Transport) maybeSendStatelessReset(p receivedPacket) {
+ 	// Don't send a stateless reset in response to very small packets.
+ 	// This includes packets that could be stateless resets.
+ 	if len(p.data) <= protocol.MinStatelessResetSize {
++		t.logger.Debugf("XXX: Not sending stateless reset token, packet too small")
+ 		p.buffer.Release()
+ 		return
+ 	}
+ 
+ 	select {
+ 	case t.statelessResetQueue <- p:
++		t.logger.Debugf("XXX: Sent stateless reset token")
+ 	default:
++		t.logger.Debugf("XXX: Not sending stateless reset token, busy")
+ 		// it's fine to not send a stateless reset when we're busy
+ 		p.buffer.Release()
+ 	}
