@@ -572,9 +572,10 @@ func TestSlowPathProcessing(t *testing.T) {
 	key := []byte("testkey_xxxxxxxx")
 	now := time.Now()
 	testCases := map[string]struct {
-		mockMsg      func() *ipv4.Message
-		prepareDP    func(*gomock.Controller) *router.DataPlane
-		srcInterface uint16
+		mockMsg                 func() *ipv4.Message
+		prepareDP               func(*gomock.Controller) *router.DataPlane
+		expectedSlowPathRequest router.SlowPathRequest
+		srcInterface            uint16
 	}{
 		"svc nobackend": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -597,6 +598,11 @@ func TestSlowPathProcessing(t *testing.T) {
 				return ret
 			},
 			srcInterface: 1,
+			expectedSlowPathRequest: router.SlowPathRequest{
+				Typ:      0,
+				ScmpType: slayers.SCMPTypeDestinationUnreachable,
+				Code:     slayers.SCMPCodeNoRoute,
+			},
 		},
 		"svc invalid": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -619,6 +625,11 @@ func TestSlowPathProcessing(t *testing.T) {
 				return ret
 			},
 			srcInterface: 1,
+			expectedSlowPathRequest: router.SlowPathRequest{
+				Typ:      0,
+				ScmpType: slayers.SCMPTypeDestinationUnreachable,
+				Code:     slayers.SCMPCodeNoRoute,
+			},
 		},
 		"invalid dest": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -640,6 +651,11 @@ func TestSlowPathProcessing(t *testing.T) {
 				return ret
 			},
 			srcInterface: 1,
+			expectedSlowPathRequest: router.SlowPathRequest{
+				Typ:      0,
+				ScmpType: slayers.SCMPTypeParameterProblem,
+				Code:     slayers.SCMPCodeInvalidDestinationAddress,
+			},
 		},
 	}
 	for name, tc := range testCases {
@@ -650,7 +666,8 @@ func TestSlowPathProcessing(t *testing.T) {
 			input := tc.mockMsg()
 			result, err := dp.ProcessPkt(tc.srcInterface, input)
 			assert.ErrorIs(t, err, router.SlowPathRequired)
-			_, err = dp.ProcessSlowPath(tc.srcInterface, input, result.SlowPathRequest)
+			assert.Equal(t, tc.expectedSlowPathRequest, result.SlowPathRequest.Wrap())
+			result, err = dp.ProcessSlowPath(tc.srcInterface, input, result.SlowPathRequest)
 			assert.NoError(t, err)
 		})
 	}
