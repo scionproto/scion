@@ -351,13 +351,53 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, func
 	if err != nil {
 		return nil, nil, nil, serrors.WrapStr("creating client connection", err)
 	}
-	return client, server, func(ctx context.Context) (net.PacketConn, error) {
+	return &LoggingConn{Conn: client}, server, func(ctx context.Context) (net.PacketConn, error) {
 		clientAddr := &net.UDPAddr{
 			IP:   serverAddr.IP,
 			Zone: serverAddr.Zone,
 		}
-		return clientNet.Listen(context.Background(), "udp", clientAddr, addr.SvcNone)
+		client, err := clientNet.Listen(context.Background(), "udp", clientAddr, addr.SvcNone)
+		if err != nil {
+			return nil, err
+		}
+		return &LoggingConn{Conn: client}, nil
 	}, nil
+}
+
+type LoggingConn struct {
+	*snet.Conn
+}
+
+func (l *LoggingConn) ReadFrom(p []byte) (int, net.Addr, error) {
+	n, addr, err := l.Conn.ReadFrom(p)
+	log.Info("YYY: ReadFrom", "local", l.Conn.LocalAddr(), "n", n, "addr", addr, "err", err)
+	return n, addr, err
+}
+
+func (l *LoggingConn) WriteTo(p []byte, addr net.Addr) (int, error) {
+	n, err := l.Conn.WriteTo(p, addr)
+	log.Info("YYY: WriteTo", "local", l.Conn.LocalAddr(), "n", n, "addr", addr, "err", err)
+	return n, err
+}
+
+func (l *LoggingConn) Close() error {
+	log.Info("YYY: Close", "local", l.Conn.LocalAddr())
+	return l.Close()
+}
+
+func (l *LoggingConn) SetDeadline(t time.Time) error {
+	log.Info("YYY: SetDeadline", "local", l.Conn.LocalAddr(), "time", t)
+	return l.SetDeadline(t)
+}
+
+func (l *LoggingConn) SetReadDeadline(t time.Time) error {
+	log.Info("YYY: SetReadDeadline", "local", l.Conn.LocalAddr(), "time", t)
+	return l.SetReadDeadline(t)
+}
+
+func (l *LoggingConn) SetWriteDeadline(t time.Time) error {
+	log.Info("YYY: SetWriteDeadline", "local", l.Conn.LocalAddr(), "time", t)
+	return l.SetWriteDeadline(t)
 }
 
 // NewRouter constructs a path router for paths starting from localIA.
