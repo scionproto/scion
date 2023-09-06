@@ -63,25 +63,11 @@ http_archive(
     sha256 = "29218f8e0cebe583643cbf93cae6f971be8a2484cdcfa1e45057658df8d54002",
     urls = [
         "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.32.0/bazel-gazelle-v0.32.0.tar.gz",
-        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.32.0/bazel-gazelle-v0.32.0.tar.gz"
+        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.32.0/bazel-gazelle-v0.32.0.tar.gz",
     ],
 )
 
-load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
-
-# Explictly override golang.org/x/sys. Our github.com/quic-go/quic-go cannot
-# compile without at least golang.org/x/sys@v0.2.0. The rules_go version that
-# we use (v0.34.0) imports an older version. A recent enough version was only introduced
-# in v0.36.0. See: https://github.com/bazelbuild/rules_go/commit/64b9226a3bca997866b8831889ffb9de87405a0d
-#
-# This version should be kept in sync with the go_deps.bzl file. We can remove it
-# once we update the rules_go version.
-go_repository(
-    name = "org_golang_x_sys",
-    importpath = "golang.org/x/sys",
-    sum = "h1:EBmGv8NaZBZTWvrbjNoL6HVt+IVy3QDQpJs7VRIw3tU=",
-    version = "v0.8.0",
-)
+load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
 
 go_rules_dependencies()
 

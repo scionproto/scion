@@ -117,7 +117,7 @@ class SupervisorGenerator(object):
         entry = {
             'autostart': 'false',
             'autorestart': 'false',
-            'environment': 'TZ=UTC,QUIC_GO_LOG_LEVEL=debug',
+            'environment': 'TZ=UTC',
             'stdout_logfile': "logs/%s.log" % name,
             'redirect_stderr': True,
             'startretries': 0,
