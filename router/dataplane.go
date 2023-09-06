@@ -1265,7 +1265,8 @@ func (p *scionPacketProcessor) validateIngressID() (processResult, error) {
 		errCode = slayers.SCMPCodeUnknownHopFieldEgress
 	}
 	if p.ingressID != 0 && p.ingressID != pktIngressID {
-		log.Debug("SCMP: ingress interface invalid", "pkt_ingress", pktIngressID, "router_ingress", p.ingressID)
+		log.Debug("SCMP: ingress interface invalid", "pkt_ingress",
+			pktIngressID, "router_ingress", p.ingressID)
 		slowPathRequest := slowPathRequest{
 			scmpType: slayers.SCMPTypeParameterProblem,
 			code:     errCode,
