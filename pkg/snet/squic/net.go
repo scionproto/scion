@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/quic-go/quic-go"
+	quic "github.com/quic-go/quic-go"
 
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"

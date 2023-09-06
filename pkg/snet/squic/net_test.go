@@ -66,7 +66,6 @@ func TestAcceptLoopParallelism(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for i := 0; i < 500; i++ {
-		i := i
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -207,7 +206,7 @@ func netListener(t *testing.T) (net.Listener, *net.UDPConn) {
 	srvConn := newConn(t)
 	listener, err := quic.Listen(srvConn, tlsConfig(t), nil)
 	require.NoError(t, err)
-	return squic.NewConnListener(*listener), srvConn
+	return squic.NewConnListener(listener), srvConn
 }
 
 func connDialer(t *testing.T) *squic.ConnDialer {
