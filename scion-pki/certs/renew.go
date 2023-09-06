@@ -745,8 +745,11 @@ func (r *renewer) requestRemote(
 		LocalIA: local.IA,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
 			Dispatcher: reliable.NewDispatcher(r.Disatcher),
-			SCMPHandler: snet.DefaultSCMPHandler{
-				RevocationHandler: daemon.RevHandler{Connector: r.Daemon},
+			SCMPHandler: snet.SCMPPropagationStopper{
+				Handler: snet.DefaultSCMPHandler{
+					RevocationHandler: daemon.RevHandler{Connector: r.Daemon},
+				},
+				Log: log.FromCtx(ctx).Debug,
 			},
 		},
 	}

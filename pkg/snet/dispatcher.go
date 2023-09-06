@@ -143,3 +143,24 @@ func (h *DefaultSCMPHandler) handleSCMPRev(typeCode slayers.SCMPTypeCode,
 	}
 	return &OpError{typeCode: typeCode, revInfo: revInfo}
 }
+
+// SCMPPropagationStopper wraps an SCMP handler and stops propagation of the
+// SCMP errors up the stack. This can be necessary if the client code aborts on
+// unexpected errors. This is a temporary solution until we address
+// https://github.com/scionproto/scion/issues/4389.
+//
+// EXPERIMENTAL: This handler is experimental and may be removed in the future.
+type SCMPPropagationStopper struct {
+	// Handler is the wrapped handler.
+	Handler SCMPHandler
+	// Log is an optional function that is called when the wrapped handler
+	// returns an error and propagation is stopped.
+	Log func(msg string, ctx ...any)
+}
+
+func (h SCMPPropagationStopper) Handle(pkt *Packet) error {
+	if err := h.Handler.Handle(pkt); err != nil && h.Log != nil {
+		h.Log("Stopped SCMP error propagation", "err", err)
+	}
+	return nil
+}
