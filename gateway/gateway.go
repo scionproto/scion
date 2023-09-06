@@ -140,16 +140,6 @@ func (rtf RoutingTableFactory) New(
 	return dataplane.NewRoutingTable(routingChains), nil
 }
 
-// ignoreSCMP ignores all received SCMP packets.
-//
-// XXX(scrye): This is needed such that the QUIC server does not shut down when
-// receiving a SCMP error. DO NOT REMOVE!
-type ignoreSCMP struct{}
-
-func (ignoreSCMP) Handle(pkt *snet.Packet) error {
-	return nil
-}
-
 // SelectAdvertisedRoutes computes the networks that should be advertised
 // depending on the state of the last published routing policy file.
 type SelectAdvertisedRoutes struct {
