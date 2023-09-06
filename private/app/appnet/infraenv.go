@@ -339,8 +339,13 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 	clientNet := &snet.SCIONNetwork{
 		LocalIA: nc.IA,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
-			Dispatcher:             dispatcherService,
-			SCMPHandler:            nc.SCMPHandler,
+			Dispatcher: dispatcherService,
+			// Discard all SCMP propagation, to avoid read errors on the QUIC
+			// client.
+			SCMPHandler: snet.SCMPPropagationStopper{
+				Handler: nc.SCMPHandler,
+				Log:     log.Debug,
+			},
 			SCIONPacketConnMetrics: nc.SCIONPacketConnMetrics,
 		},
 		Metrics: nc.SCIONNetworkMetrics,

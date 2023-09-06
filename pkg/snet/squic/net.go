@@ -350,6 +350,12 @@ type ConnDialer struct {
 	// Conn is the transport to initiate QUIC Sessions on. It can be shared
 	// between clients and servers, because QUIC connection IDs are used to
 	// demux the packets.
+	//
+	// Note: When creating the transport, ensure that the SCMP errors are not
+	// propagated. You can for example use
+	// [github.com/scionproto/scion/pkg/snet.SCMPPropagationStopper]. Otherwise,
+	// the QUIC transport will close the listening side on SCMP errors and enter
+	// a broken state.
 	Transport *quic.Transport
 	// TLSConfig is the client's TLS configuration for starting QUIC connections.
 	TLSConfig *tls.Config
