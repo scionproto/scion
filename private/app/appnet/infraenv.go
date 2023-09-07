@@ -31,7 +31,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/lucas-clemente/quic-go"
+	"github.com/quic-go/quic-go"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
@@ -150,15 +150,18 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 		VerifyConnection:      nc.QUIC.TLSVerifier.VerifyConnection,
 		NextProtos:            []string{"SCION"},
 	}
+	clientTransport := &quic.Transport{
+		Conn: client,
+	}
 
 	return &QUICStack{
 		Listener: squic.NewConnListener(listener),
 		InsecureDialer: &squic.ConnDialer{
-			Conn:      client,
+			Transport: clientTransport,
 			TLSConfig: insecureClientTLSConfig,
 		},
 		Dialer: &squic.ConnDialer{
-			Conn:      client,
+			Transport: clientTransport,
 			TLSConfig: clientTLSConfig,
 		},
 		RedirectCloser: cancel,
@@ -336,8 +339,13 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 	clientNet := &snet.SCIONNetwork{
 		LocalIA: nc.IA,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
-			Dispatcher:             dispatcherService,
-			SCMPHandler:            nc.SCMPHandler,
+			Dispatcher: dispatcherService,
+			// Discard all SCMP propagation, to avoid read errors on the QUIC
+			// client.
+			SCMPHandler: snet.SCMPPropagationStopper{
+				Handler: nc.SCMPHandler,
+				Log:     log.Debug,
+			},
 			SCIONPacketConnMetrics: nc.SCIONPacketConnMetrics,
 		},
 		Metrics: nc.SCIONNetworkMetrics,
