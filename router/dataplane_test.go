@@ -675,6 +675,144 @@ func TestProcessPkt(t *testing.T) {
 			srcInterface: 1,
 			assertFunc:   assert.NoError,
 		},
+		"brtransit peering consdir": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(
+					map[uint16]router.BatchConn{
+						uint16(2): mock_router.NewMockBatchConn(ctrl),
+					},
+					map[uint16]topology.LinkType{
+						1: topology.Peer,
+						2: topology.Child,
+					},
+					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				// Story: the packet just left segment 0 which ends at
+				// (peering) hop 0 and is landing on segment 1 wich
+				// begins at (peering) hop 1. We do not care what hop 0
+				// looks like. The forwarding code is looking at hop 1 and
+				// should leave the message in shape to be processed at hop 2.
+				spkt, _ := prepBaseMsg(now)
+				dpath := &scion.Decoded{
+					Base: scion.Base{
+						PathMeta: scion.MetaHdr{
+							CurrHF: 1,
+							CurrINF: 1,
+							SegLen: [3]uint8{1, 2, 0},
+						},
+						NumINF:  2,
+						NumHops: 3,
+					},
+					InfoFields: []path.InfoField{
+						// up seg
+						{SegID: 0x111, ConsDir: true, Timestamp: util.TimeToSecs(now), Peer: true},
+						// core seg
+						{SegID: 0x222, ConsDir: true, Timestamp: util.TimeToSecs(now), Peer: true},
+					},
+					HopFields: []path.HopField{
+						{ConsIngress: 31, ConsEgress: 30},
+						{ConsIngress: 1, ConsEgress: 2},
+						{ConsIngress: 40, ConsEgress: 41},
+					},
+				}
+
+				// Make obvious the unusual aspect of the path: two
+				// hopfield MACs (1 and 2) derive from the same SegID
+				// accumulator value. However, the forwarding code isn't
+				// supposed to even look at the second one. The SegID
+				// accumulator value can be anything, we use one from an
+				// info field because computeMAC makes that easy.
+				dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[1], dpath.HopFields[1])
+				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[1], dpath.HopFields[2])
+				if !afterProcessing {
+					return toMsg(t, spkt, dpath)
+				}
+				_ = dpath.IncPath()
+
+				// ... The SegID accumulator wasn't updated from HF[1], it is still the same. That is
+				// the key behavior.
+
+				ret := toMsg(t, spkt, dpath)
+				ret.Addr = nil
+				ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
+				return ret
+			},
+			srcInterface: 1, // from peering link
+			assertFunc:   assert.NoError,
+		},
+		"brtransit peering non consdir": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(
+					map[uint16]router.BatchConn{
+						uint16(1): mock_router.NewMockBatchConn(ctrl),
+					},
+					map[uint16]topology.LinkType{
+						1: topology.Peer,
+						2: topology.Child,
+					},
+					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				// Story: the packet lands on the last (peering) hop of
+				// segment 0. After processing, the packet is ready to
+				// be processed by the first (peering) hop of segment 1.
+				spkt, _ := prepBaseMsg(now)
+				dpath := &scion.Decoded{
+					Base: scion.Base{
+						PathMeta: scion.MetaHdr{
+							CurrHF: 1,
+							CurrINF: 0,
+							SegLen: [3]uint8{2, 1, 0},
+						},
+						NumINF:  2,
+						NumHops: 3,
+					},
+					InfoFields: []path.InfoField{
+						// up seg
+						{SegID: 0x111, ConsDir: false, Timestamp: util.TimeToSecs(now), Peer: true},
+						// down seg
+						{SegID: 0x222, ConsDir: true, Timestamp: util.TimeToSecs(now), Peer: true},
+					},
+					HopFields: []path.HopField{
+						{ConsIngress: 31, ConsEgress: 30},
+						{ConsIngress: 1, ConsEgress: 2},
+						{ConsIngress: 40, ConsEgress: 41},
+					},
+				}
+
+				// Make obvious the unusual aspect of the path: two
+				// hopfield MACs (0 and 1) derive from the same SegID
+				// accumulator value. However, the forwarding code isn't
+				// supposed to even look at the first one. The SegID
+				// accumulator value can be anything, we use one from an
+				// info field because computeMAC makes that easy.
+				dpath.HopFields[0].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[0])
+				dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[1])
+
+				// We're going against construction order, so the accumulator value
+				// is that of the previous hop in traversal order. The story starts
+				// with the packet arriving at hop 1, so the accumulator value
+				// must match hop field 0. In this case, it is identical to that for
+				// hop field 1, which we made identical to the original SegID.
+				// So, we're all set.
+				if !afterProcessing {
+					return toMsg(t, spkt, dpath)
+				}
+
+				_ = dpath.IncPath()
+
+				// The SegID should not get updated on arrival. If it is, then MAC validation
+				// of HF1 will fail. Otherwise, this isn't visible because we changed segment.
+
+				ret := toMsg(t, spkt, dpath)
+				ret.Addr = nil
+				ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
+				return ret
+			},
+			srcInterface: 2, // from child link
+			assertFunc:   assert.NoError,
+		},
 		"brtransit non consdir": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(

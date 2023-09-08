@@ -62,7 +62,7 @@ type DefaultExtender struct {
 	EPIC bool
 }
 
-// Extend extends the beacon with hop fields of the old format.
+// Extend extends the beacon with hop fields.
 func (s *DefaultExtender) Extend(
 	ctx context.Context,
 	pseg *seg.PathSegment,
@@ -89,6 +89,20 @@ func (s *DefaultExtender) Extend(
 	if err != nil {
 		return serrors.WrapStr("creating hop entry", err)
 	}
+
+	// The peer hop fields chain to the main hop field, just like any child hop field.
+	// The effect of this is that when a peer hop field is used in a path, both the
+	// peer hop field and its child are validated using the same SegID accumlator value:
+	// that originally intended for the child.
+	//
+	// The corrolary is that one cannot validate a hop field's MAC by looking at the
+	// parent hop field MAC when the parent is a peering hop field. This is ok: that
+	// is never done that way, it is always done by validating agains the SegID accumulator
+	// supplied by the previous router on the forwarding path. The forwarding code
+	// takes care of not updating that accumulator when a peering hop is traversed.
+
+	// FIXME: why do we compute Beta(pseg) a second time? It hasn't changed since last
+	// time.
 	peerBeta := extractBeta(pseg) ^ binary.BigEndian.Uint16(hopEntry.HopField.MAC[:2])
 	peerEntries, epicPeerMacs, err := s.createPeerEntries(egress, peers, ts, peerBeta)
 	if err != nil {

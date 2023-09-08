@@ -239,7 +239,11 @@ func (g *dmg) GetPaths(src, dst vertex) pathSolutionList {
 }
 
 // inputSegment is a local representation of a path segment that includes the
-// segment's type.
+// segment's type. The type (up down or core) indicates the role that this
+// segment holds in a path solution. That is, in which order the hops would
+// be used for building an actual forwarding path (e.g. from the end in the
+// case of an UP segment). However, the hops within the referred PathSegment
+// *always* remain in construction order.
 type inputSegment struct {
 	*seg.PathSegment
 	Type proto.PathSegType
@@ -316,7 +320,11 @@ func (solution *pathSolution) Path() Path {
 		var pathASEntries []seg.ASEntry // ASEntries that on the path, eventually in path order.
 		var epicSegAuths [][]byte
 
-		// Go through each ASEntry, starting from the last one, until we
+		// Segments are in construction order, regardless of whether they're
+		// up or down segments. We traverse them FROM THE END. So, in reverse
+		// forwarding order for down segments and in forwarding order for
+		// up segments.
+		// We go through each ASEntry, starting from the last one until we
 		// find a shortcut (which can be 0, meaning the end of the segment).
 		asEntries := solEdge.segment.ASEntries
 		for asEntryIdx := len(asEntries) - 1; asEntryIdx >= solEdge.edge.Shortcut; asEntryIdx-- {
@@ -378,6 +386,9 @@ func (solution *pathSolution) Path() Path {
 			}
 		}
 
+		// Put the hops in forwarding order. Needed for down segments
+		// since we collected hops from the end, just like for up
+		// segments.
 		if solEdge.segment.Type == proto.PathSegType_down {
 			reverseHops(hops)
 			reverseIntfs(intfs)
@@ -487,10 +498,22 @@ func reverseEpicAuths(s [][]byte) {
 }
 
 func calculateBeta(se *solutionEdge) uint16 {
+
+	// If this is a peer hop, we need to set beta[i] = beta[i+1]. That is, the SegID
+	// accumulator must correspond to the next (in construction order) hop.
+	//
+	// This is because this peering hop has a MAC that chains to its non-peering
+	// counterpart, the same as what the next hop (in construction order) chains to.
+	// So both this and the next hop are to be validated from the same SegID
+	// accumulator value: the one for the *next* hop, calculated on the regular
+	// non-peering segment.
+	//
+	// Note that, when traversing peer hops, the SegID accumulator is left untouched for the
+	// next router on the path to use.
+
 	var index int
 	if se.segment.IsDownSeg() {
 		index = se.edge.Shortcut
-		// If this is a peer, we need to set beta i+1.
 		if se.edge.Peer != 0 {
 			index++
 		}
@@ -589,7 +612,8 @@ func validNextSeg(currSeg, nextSeg *inputSegment) bool {
 }
 
 // segment is a helper that represents a path segment during the conversion
-// from the graph solution to the raw forwarding information.
+// from the graph solution to the raw forwarding information. The hops should
+// be in forwarding order.
 type segment struct {
 	InfoField  path.InfoField
 	HopFields  []path.HopField
