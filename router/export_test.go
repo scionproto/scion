@@ -22,7 +22,6 @@ import (
 	"golang.org/x/net/ipv4"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/private/topology"
 )
 
@@ -100,20 +99,6 @@ func (d *DataPlane) ProcessSlowPath(ifID uint16, m *ipv4.Message,
 		slowPathRequest: s,
 	})
 	return ProcessResult{processResult: result}, err
-}
-
-type SlowPathRequest struct {
-	Typ      int
-	ScmpType slayers.SCMPType
-	Code     slayers.SCMPCode
-}
-
-func (s slowPathRequest) Wrap() SlowPathRequest {
-	return SlowPathRequest{
-		Typ:      int(s.typ),
-		ScmpType: s.scmpType,
-		Code:     s.code,
-	}
 }
 
 func ExtractServices(s *services) map[addr.SVC][]*net.UDPAddr {
