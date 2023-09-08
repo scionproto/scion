@@ -48,7 +48,6 @@ require (
 	golang.org/x/tools v0.9.1
 	google.golang.org/grpc v1.57.0
 	google.golang.org/grpc/examples v0.0.0-20230222033013-5353eaa44095
-	// Necessary so @org_golang_google_genproto is included in the go_deps.bzl.
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/yaml.v2 v2.4.0
 	modernc.org/sqlite v1.24.0
