@@ -4,6 +4,8 @@ go_library(
     name = "go_default_library",
     srcs = [
         "bfd.go",
+        "child_to_child_peering_in.go",
+        "child_to_child_peering_out.go",
         "child_to_child_xover.go",
         "child_to_internal.go",
         "child_to_parent.go",

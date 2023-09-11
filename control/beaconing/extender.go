@@ -97,9 +97,10 @@ func (s *DefaultExtender) Extend(
 	//
 	// The corrolary is that one cannot validate a hop field's MAC by looking at the
 	// parent hop field MAC when the parent is a peering hop field. This is ok: that
-	// is never done that way, it is always done by validating agains the SegID accumulator
-	// supplied by the previous router on the forwarding path. The forwarding code
-	// takes care of not updating that accumulator when a peering hop is traversed.
+	// is never done that way, it is always done by validating against the SegID
+	// accumulator supplied by the previous router on the forwarding path. The
+	// forwarding code takes care of not updating that accumulator when a peering hop
+	// is traversed.
 
 	// FIXME: why do we compute Beta(pseg) a second time? It hasn't changed since last
 	// time.

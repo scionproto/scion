@@ -331,7 +331,6 @@ class TopoGenerator(object):
             intf['remote_interface_id'] = r_ifid
         return intf
 
-
     def _gen_sig_entries(self, topo_id, as_conf):
         addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
         elem_id = "sig" + topo_id.file_fmt()

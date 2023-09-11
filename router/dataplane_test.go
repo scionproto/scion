@@ -689,7 +689,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				// Story: the packet just left segment 0 which ends at
-				// (peering) hop 0 and is landing on segment 1 wich
+				// (peering) hop 0 and is landing on segment 1 which
 				// begins at (peering) hop 1. We do not care what hop 0
 				// looks like. The forwarding code is looking at hop 1 and
 				// should leave the message in shape to be processed at hop 2.
@@ -697,9 +697,9 @@ func TestProcessPkt(t *testing.T) {
 				dpath := &scion.Decoded{
 					Base: scion.Base{
 						PathMeta: scion.MetaHdr{
-							CurrHF: 1,
+							CurrHF:  1,
 							CurrINF: 1,
-							SegLen: [3]uint8{1, 2, 0},
+							SegLen:  [3]uint8{1, 2, 0},
 						},
 						NumINF:  2,
 						NumHops: 3,
@@ -730,8 +730,8 @@ func TestProcessPkt(t *testing.T) {
 				}
 				_ = dpath.IncPath()
 
-				// ... The SegID accumulator wasn't updated from HF[1], it is still the same. That is
-				// the key behavior.
+				// ... The SegID accumulator wasn't updated from HF[1],
+				// it is still the same. That is the key behavior.
 
 				ret := toMsg(t, spkt, dpath)
 				ret.Addr = nil
@@ -761,9 +761,9 @@ func TestProcessPkt(t *testing.T) {
 				dpath := &scion.Decoded{
 					Base: scion.Base{
 						PathMeta: scion.MetaHdr{
-							CurrHF: 1,
+							CurrHF:  1,
 							CurrINF: 0,
-							SegLen: [3]uint8{2, 1, 0},
+							SegLen:  [3]uint8{2, 1, 0},
 						},
 						NumINF:  2,
 						NumHops: 3,
