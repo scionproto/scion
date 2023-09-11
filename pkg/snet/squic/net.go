@@ -316,7 +316,7 @@ func (c *acceptingConn) RemoteAddr() net.Addr {
 }
 
 func (c *acceptingConn) ConnectionState() tls.ConnectionState {
-	return c.session.ConnectionState().TLS.ConnectionState
+	return c.session.ConnectionState().TLS
 }
 
 func (c *acceptingConn) Close() error {
@@ -473,7 +473,7 @@ func (c *acceptedConn) RemoteAddr() net.Addr {
 }
 
 func (c *acceptedConn) ConnectionState() tls.ConnectionState {
-	return c.session.ConnectionState().TLS.ConnectionState
+	return c.session.ConnectionState().TLS
 }
 
 func (c *acceptedConn) Close() error {

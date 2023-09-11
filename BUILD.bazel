@@ -91,6 +91,11 @@ gazelle(
 gazelle(
     name = "gazelle_update_repos",
     command = "update-repos",
+    extra_args = [
+        "-prune",
+        "-from_file=go.mod",
+        "-to_macro=go_deps.bzl%go_deps",
+    ],
 )
 
 go_lint_config(

@@ -10,7 +10,6 @@ linters:
     - typecheck
     - unused
     # Extended linters.
-    - depguard
     - exportloopref
     - rowserrcheck
     - sqlclosecheck
@@ -23,15 +22,6 @@ linters-settings:
   lll:
     line-length: 100
     tab-width: 4
-  depguard:
-    list-type: blacklist
-    include-go-root: true
-    packages: "io/ioutil"
-    packages-with-error-message:
-      # specify an error message to output when a blacklisted package is used
-      "io/ioutil": >
-        "The use of 'io/ioutil' is deprecated. Check
-        https://pkg.go.dev/io/ioutil for alternatives"
   errcheck:
     exclude-functions:
       - (*github.com/spf13/cobra.Command).MarkFlagRequired
