@@ -6,7 +6,6 @@ Each test is defined as a bazel test target, with tags `integration` and `exclus
 Some integration tests use code outside this directory. For example, the
 `router_multi` acceptance test cases and main executable are in `tools/braccept`.
 
-
 ## Basic Commands
 
 To run all integration tests which include the acceptance tests, execute one of
@@ -47,6 +46,7 @@ bazel run //<test-package>:<target>_teardown
 ```
 
 For example:
+
 ```bash
 bazel run //acceptance/router_multi:test_bfd_setup
 bazel run //acceptance/router_multi:test_bfd_run
