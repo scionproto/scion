@@ -282,8 +282,8 @@ func (s *DefaultExtender) createHopF(ingress, egress uint16, ts time.Time,
 	}, fullMAC[path.MacLen:]
 }
 
-// extractBeta computes the beta value that must be used for the next hop to be added to
-// be added at the end of the segment.
+// extractBeta computes the beta value that must be used for the next hop to be
+// added at the end of the segment.
 // FIXME(jice): keeping an accumulator would be just as easy to do as it is during
 // forwarding. What's the benefit of re-calculating the whole chain every time?
 func extractBeta(pseg *seg.PathSegment) uint16 {
