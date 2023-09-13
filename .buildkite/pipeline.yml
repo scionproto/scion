@@ -20,9 +20,10 @@ steps:
       - bazel test --config=race --config=unit_all
     key: unit_tests
     plugins:
-      - test-collector#v1.0.0:
-          files: "bazel-testlogs/**/test.xml"
-          format: "junit"
+      - scionproto/metahook#v0.3.0:
+          pre-artifact: tar -chaf bazel-testlogs.tar.gz bazel-testlogs
+    artifact_paths:
+      - bazel-testlogs.tar.gz
     retry: *automatic-retry
     timeout_in_minutes: 20
   - label: "Lint :bash:"
