@@ -1,4 +1,4 @@
-// Copyright 2020 Anapaya Systems
+// Copyright 2023 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,28 +26,31 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/tools/braccept/runner"
 )
 
-// ChildToChildPeeringOut tests transit traffic over one BR host and one peering hop.
+// ChildToPeer tests transit traffic over one BR host and one peering hop.
 // In this case, traffic enters via a regular link, and leaves via a peering link from
 // the same router. To be valid, the path as to be constructed as one up segment over
-// the normal link and one single hop segment at the peering link's destination.
-// The peering hop is the second hop on the first segment: it crosses from a child
-// interface to a peering interface.
-func ChildToChildPeeringOut(artifactsDir string, mac hash.Hash) runner.Case {
+// the normal link ending with a peering hop and one down segment starting at the
+// peering link's destination. The peering hop is the second hop on the first segment
+// as it crosses from a child interface to a peering interface.
+// In this test case, the down segment is a one-hop segment. The peering link's destination
+// is the only hop.
+func ChildToPeer(artifactsDir string, mac hash.Hash) runner.Case {
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
 	}
 
-	// We inject the packet into A (at I/F 151) as if coming from 5 (at I/F 511)
+	// We inject the packet into A (at IF 151) as if coming from 5 (at IF 511)
 	ethernet := &layers.Ethernet{
-		SrcMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef}, // I/F 511
-		DstMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x15}, // I/F 151
+		SrcMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef}, // IF 511
+		DstMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x15}, // IF 151
 		EthernetType: layers.EthernetTypeIPv4,
 	}
 
@@ -98,14 +101,28 @@ func ChildToChildPeeringOut(artifactsDir string, mac hash.Hash) runner.Case {
 			{ConsIngress: 211, ConsEgress: 0},   // at 2 in coming from A
 		},
 	}
-	// Make the packet look the way it should.
-	// HF[1] is a peering hop, so it has the same SegID acc value as the next one
-	// in construction direction, HF[0]. Therefore the segment's SegID.
-	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
-	sp.HopFields[0].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[0], nil)
 
-	// The second segment as just one hop.
-	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
+	// Make the packet look the way it should... We have three hops of interrest.
+
+	// Hops are all signed with different keys. Only HF[1] was signed by
+	// the AS that we hand the packet to. The others can be anything as they
+	// couldn't be check at that AS anyway.
+	macGenX, err := scrypto.HFMacFactory([]byte("1234567812345678"))
+	if err != nil {
+		panic(err)
+	}
+	macGenY, err := scrypto.HFMacFactory([]byte("1234567812345678"))
+	if err != nil {
+		panic(err)
+	}
+
+	// HF[1] is a peering hop, so it has the same SegID acc value as the next one
+	// in construction direction, HF[0]. That is, SEG[0]'s SegID.
+	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
+	sp.HopFields[0].Mac = path.MAC(macGenX(), sp.InfoFields[0], sp.HopFields[0], nil)
+
+	// The second segment has just one hop.
+	sp.HopFields[2].Mac = path.MAC(macGenY(), sp.InfoFields[1], sp.HopFields[2], nil)
 
 	// The message is ready for injest at A, that is at HF[1]. Going against consruction
 	// direction, the SegID acc value must match that of HF[0], which is the same
@@ -146,11 +163,11 @@ func ChildToChildPeeringOut(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	// Prepare want packet
-	// We expect it out of A's 121 I/F on its way to 4's 211 I/F.
+	// We expect it out of A's 121 IF on its way to 4's 211 IF.
 
 	want := gopacket.NewSerializeBuffer()
-	ethernet.SrcMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x12} // I/F 121
-	ethernet.DstMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef} // I/F 211
+	ethernet.SrcMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x12} // IF 121
+	ethernet.DstMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef} // IF 211
 	ip.SrcIP = net.IP{192, 168, 12, 2}                                     // from A's 121 IP
 	ip.DstIP = net.IP{192, 168, 12, 3}                                     // to 2's 211 IP
 	udp.SrcPort, udp.DstPort = udp.DstPort, udp.SrcPort

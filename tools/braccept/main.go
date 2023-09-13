@@ -128,8 +128,8 @@ func realMain() int {
 		cases.OutgoingOneHop(artifactsDir, hfMAC),
 		cases.SVC(artifactsDir, hfMAC),
 		cases.JumboPacket(artifactsDir, hfMAC),
-		cases.ChildToChildPeeringOut(artifactsDir, hfMAC),
-		cases.ChildToChildPeeringIn(artifactsDir, hfMAC),
+		cases.ChildToPeer(artifactsDir, hfMAC),
+		cases.PeerToChild(artifactsDir, hfMAC),
 	}
 
 	if *bfd {

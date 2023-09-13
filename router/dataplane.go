@@ -1032,7 +1032,7 @@ type scionPacketProcessor struct {
 	infoField path.InfoField
 	// effectiveXover indicates if a cross-over segment change was done during processing.
 	effectiveXover bool
-	// peering indicates that the packet is inside of a peering AS
+	// peering indicates that the hop field being processed is a peering hop field.
 	peering bool
 
 	// cachedMac contains the full 16 bytes of the MAC. Will be set during processing.
@@ -1364,7 +1364,7 @@ func (p *scionPacketProcessor) resolveInbound() (*net.UDPAddr, processResult, er
 func (p *scionPacketProcessor) processEgress() error {
 	// We are the egress router and if we go in construction direction we
 	// need to update the SegID (unless we are effecting a peering hop).
-	// When we're at a peering hop, the SegID for this HOP and for the next
+	// When we're at a peering hop, the SegID for this hop and for the next
 	// are one and the same, both hops chain to the same parent. So do not
 	// update SegID.
 	if p.infoField.ConsDir && !p.peering {

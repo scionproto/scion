@@ -570,6 +570,7 @@ func TestProcessPkt(t *testing.T) {
 	defer ctrl.Finish()
 
 	key := []byte("testkey_xxxxxxxx")
+	otherKey := []byte("testkey_yyyyyyyy")
 	now := time.Now()
 	epicTS, err := libepic.CreateTimestamp(now, now)
 	require.NoError(t, err)
@@ -721,10 +722,12 @@ func TestProcessPkt(t *testing.T) {
 				// hopfield MACs (1 and 2) derive from the same SegID
 				// accumulator value. However, the forwarding code isn't
 				// supposed to even look at the second one. The SegID
-				// accumulator value can be anything, we use one from an
+				// accumulator value can be anything (it comes from the
+				// parent hop of HF[1] in the original beaconned segment,
+				// which is not in the path). So, we use one from an
 				// info field because computeMAC makes that easy.
 				dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[1], dpath.HopFields[1])
-				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[1], dpath.HopFields[2])
+				dpath.HopFields[2].Mac = computeMAC(t, otherKey, dpath.InfoFields[1], dpath.HopFields[2])
 				if !afterProcessing {
 					return toMsg(t, spkt, dpath)
 				}
@@ -785,9 +788,11 @@ func TestProcessPkt(t *testing.T) {
 				// hopfield MACs (0 and 1) derive from the same SegID
 				// accumulator value. However, the forwarding code isn't
 				// supposed to even look at the first one. The SegID
-				// accumulator value can be anything, we use one from an
+				// accumulator value can be anything (it comes from the
+				// parent hop of HF[1] in the original beaconned segment,
+				// which is not in the path). So, we use one from an
 				// info field because computeMAC makes that easy.
-				dpath.HopFields[0].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[0])
+				dpath.HopFields[0].Mac = computeMAC(t, otherKey, dpath.InfoFields[0], dpath.HopFields[0])
 				dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[1])
 
 				// We're going against construction order, so the accumulator value

@@ -85,7 +85,8 @@ func (s *DefaultExtender) Extend(
 	}
 	ts := pseg.Info.Timestamp
 
-	hopEntry, epicHopMac, err := s.createHopEntry(ingress, egress, ts, extractBeta(pseg))
+	hopBeta := extractBeta(pseg)
+	hopEntry, epicHopMac, err := s.createHopEntry(ingress, egress, ts, hopBeta)
 	if err != nil {
 		return serrors.WrapStr("creating hop entry", err)
 	}
@@ -102,9 +103,7 @@ func (s *DefaultExtender) Extend(
 	// forwarding code takes care of not updating that accumulator when a peering hop
 	// is traversed.
 
-	// FIXME: why do we compute Beta(pseg) a second time? It hasn't changed since last
-	// time.
-	peerBeta := extractBeta(pseg) ^ binary.BigEndian.Uint16(hopEntry.HopField.MAC[:2])
+	peerBeta := hopBeta ^ binary.BigEndian.Uint16(hopEntry.HopField.MAC[:2])
 	peerEntries, epicPeerMacs, err := s.createPeerEntries(egress, peers, ts, peerBeta)
 	if err != nil {
 		return err
@@ -283,6 +282,10 @@ func (s *DefaultExtender) createHopF(ingress, egress uint16, ts time.Time,
 	}, fullMAC[path.MacLen:]
 }
 
+// extractBeta computes the beta value that must be used for the next hop to be added to
+// be added at the end of the segment.
+// FIXME(jice): keeping an accumulator would be just as easy to do as it is during
+// forwarding. What's the benefit of re-calculating the whole chain every time?
 func extractBeta(pseg *seg.PathSegment) uint16 {
 	beta := pseg.Info.SegmentID
 	for _, entry := range pseg.ASEntries {
