@@ -579,6 +579,7 @@ func TestProcessPkt(t *testing.T) {
 		mockMsg      func(bool) *ipv4.Message
 		prepareDP    func(*gomock.Controller) *router.DataPlane
 		srcInterface uint16
+		egressInterface uint16
 		assertFunc   assert.ErrorAssertionFunc
 	}{
 		"inbound": {
@@ -606,6 +607,7 @@ func TestProcessPkt(t *testing.T) {
 				return ret
 			},
 			srcInterface: 1,
+			egressInterface: 0,
 			assertFunc:   assert.NoError,
 		},
 		"outbound": {
@@ -640,6 +642,7 @@ func TestProcessPkt(t *testing.T) {
 				return ret
 			},
 			srcInterface: 0,
+			egressInterface: 1,
 			assertFunc:   assert.NoError,
 		},
 		"brtransit": {
@@ -674,6 +677,7 @@ func TestProcessPkt(t *testing.T) {
 				return ret
 			},
 			srcInterface: 1,
+			egressInterface: 2,
 			assertFunc:   assert.NoError,
 		},
 		"brtransit peering consdir": {
@@ -742,6 +746,7 @@ func TestProcessPkt(t *testing.T) {
 				return ret
 			},
 			srcInterface: 1, // from peering link
+			egressInterface: 2,
 			assertFunc:   assert.NoError,
 		},
 		"brtransit peering non consdir": {
@@ -816,6 +821,7 @@ func TestProcessPkt(t *testing.T) {
 				return ret
 			},
 			srcInterface: 2, // from child link
+			egressInterface: 1,
 			assertFunc:   assert.NoError,
 		},
 		"brtransit non consdir": {
@@ -850,6 +856,7 @@ func TestProcessPkt(t *testing.T) {
 				return ret
 			},
 			srcInterface: 1,
+			egressInterface: 2,
 			assertFunc:   assert.NoError,
 		},
 		"astransit direct": {
@@ -880,6 +887,7 @@ func TestProcessPkt(t *testing.T) {
 				return ret
 			},
 			srcInterface: 1,
+			egressInterface: 0,
 			assertFunc:   assert.NoError,
 		},
 		"astransit xover": {
@@ -932,6 +940,7 @@ func TestProcessPkt(t *testing.T) {
 				return ret
 			},
 			srcInterface: 51,
+			egressInterface: 0,
 			assertFunc:   assert.NoError,
 		},
 		"svc": {
@@ -967,6 +976,7 @@ func TestProcessPkt(t *testing.T) {
 				return ret
 			},
 			srcInterface: 1,
+			egressInterface: 0,
 			assertFunc:   assert.NoError,
 		},
 		"svc nobackend": {
@@ -990,6 +1000,7 @@ func TestProcessPkt(t *testing.T) {
 				return ret
 			},
 			srcInterface: 1,
+			egressInterface: 0,
 			assertFunc:   assertIsSCMPError(slayers.SCMPTypeDestinationUnreachable, 0),
 		},
 		"svc invalid": {
@@ -1013,6 +1024,7 @@ func TestProcessPkt(t *testing.T) {
 				return ret
 			},
 			srcInterface: 1,
+			egressInterface: 0,
 			assertFunc:   assertIsSCMPError(slayers.SCMPTypeDestinationUnreachable, 0),
 		},
 		"onehop inbound": {
@@ -1075,6 +1087,7 @@ func TestProcessPkt(t *testing.T) {
 				return ret
 			},
 			srcInterface: 1,
+			egressInterface: 0,
 			assertFunc:   assert.NoError,
 		},
 		"onehop inbound invalid src": {
@@ -1111,6 +1124,7 @@ func TestProcessPkt(t *testing.T) {
 				return toMsg(t, spkt, dpath)
 			},
 			srcInterface: 1,
+			egressInterface: 21,
 			assertFunc:   assert.Error,
 		},
 		"reversed onehop outbound": {
@@ -1170,6 +1184,7 @@ func TestProcessPkt(t *testing.T) {
 				return ret
 			},
 			srcInterface: 0,
+			egressInterface: 1,
 			assertFunc:   assert.NoError,
 		},
 		"onehop outbound": {
@@ -1216,6 +1231,7 @@ func TestProcessPkt(t *testing.T) {
 				return ret
 			},
 			srcInterface: 0,
+			egressInterface: 2,
 			assertFunc:   assert.NoError,
 		},
 		"invalid dest": {
@@ -1238,6 +1254,7 @@ func TestProcessPkt(t *testing.T) {
 				return ret
 			},
 			srcInterface: 1,
+			egressInterface: 0,
 			assertFunc: assertIsSCMPError(
 				slayers.SCMPTypeParameterProblem,
 				slayers.SCMPCodeInvalidDestinationAddress,
@@ -1256,6 +1273,7 @@ func TestProcessPkt(t *testing.T) {
 				return toIP(t, spkt, epicpath, afterProcessing)
 			},
 			srcInterface: 1,
+			egressInterface: 0,
 			assertFunc:   assert.NoError,
 		},
 		"epic malformed path": {
@@ -1272,6 +1290,7 @@ func TestProcessPkt(t *testing.T) {
 				return toIP(t, spkt, &scion.Decoded{}, afterProcessing)
 			},
 			srcInterface: 1,
+			egressInterface: 0,
 			assertFunc:   assert.Error,
 		},
 		"epic invalid timestamp": {
@@ -1290,6 +1309,7 @@ func TestProcessPkt(t *testing.T) {
 				return toIP(t, spkt, epicpath, afterProcessing)
 			},
 			srcInterface: 1,
+			egressInterface: 0,
 			assertFunc:   assert.Error,
 		},
 		"epic invalid LHVF": {
@@ -1308,6 +1328,7 @@ func TestProcessPkt(t *testing.T) {
 				return toIP(t, spkt, epicpath, afterProcessing)
 			},
 			srcInterface: 1,
+			egressInterface: 0,
 			assertFunc:   assert.Error,
 		},
 	}
@@ -1331,6 +1352,7 @@ func TestProcessPkt(t *testing.T) {
 				outPkt.Addr = nil
 			}
 			assert.Equal(t, want, outPkt)
+			assert.Equal(t, tc.egressInterface, result.EgressID)
 		})
 	}
 }
