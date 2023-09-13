@@ -3,11 +3,12 @@ env:
 steps:
   - label: "Build :bazel:"
     command:
-      - bazel build --verbose_failures --announce_rc //:all
+      - bazel build --verbose_failures --announce_rc //:scion //:scion-ci
       - bazel run --verbose_failures //docker:prod //docker:test
     key: build
     artifact_paths:
-      - "bin/*"
+      - "bazel-bin/scion.tar"
+      - "bazel-bin/scion-ci.tar"
     retry: &automatic-retry
       automatic:
         - exit_status: -1 # Agent was lost
@@ -18,8 +19,10 @@ steps:
     command:
       - bazel test --config=race --config=unit_all
     key: unit_tests
-    artifact_paths:
-      - "bazel-testlogs/**/*"
+    plugins:
+      - test-collector#v1.0.0:
+          files: "bazel-testlogs/**/test.xml"
+          format: "junit"
     retry: *automatic-retry
     timeout_in_minutes: 20
   - label: "Lint :bash:"
@@ -77,16 +80,14 @@ steps:
             post-command: |
               echo "~~~ Shutting down SCION topology"
               ./scion.sh stop
-            pre-artifacts: |
+            pre-artifact: |
               if [ -f "gen/scion-dc.yml" ]; then
                   tools/dc collect_logs scion logs/
               fi
+              tar -chaf test-out.tar.gz $(ls -d logs traces gen gen-cache) # ls -d to filter missing directories
             pre-exit: .buildkite/cleanup-leftovers.sh
       artifact_paths: &scion-run-artifact-paths
-        - "logs"
-        - "traces"
-        - "gen"
-        - "gen-cache"
+        - test-out.tar.gz
       timeout_in_minutes: 15
       key: e2e_integration_tests_v2
       retry: *automatic-retry

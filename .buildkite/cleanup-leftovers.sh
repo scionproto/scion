@@ -8,4 +8,4 @@ docker network prune -f
 echo "Remove leftover volumes"
 docker volume prune -f
 
-rm -rf bazel-testlogs logs/* traces gen gen-cache /tmp/test-artifacts
+rm -rf bazel-testlogs logs/* traces gen gen-cache /tmp/test-artifacts test-out.tar.gz
