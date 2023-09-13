@@ -1288,8 +1288,6 @@ func (p *scionPacketProcessor) validateEgressID() (processResult, error) {
 		return processResult{}, nil
 	case ingress == topology.Child && egress == topology.Child:
 		return processResult{}, nil
-	case ingress == topology.Unset && egress == topology.Peer:
-		return processResult{}, nil
 	default:
 		return p.packSCMP(
 			slayers.SCMPTypeParameterProblem,
