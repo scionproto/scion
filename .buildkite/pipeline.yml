@@ -6,6 +6,8 @@ steps:
       - bazel build --verbose_failures --announce_rc //:all
       - bazel run --verbose_failures //docker:prod //docker:test
     key: build
+    artifact_paths:
+      - "bin/*"
     retry: &automatic-retry
       automatic:
         - exit_status: -1 # Agent was lost
@@ -17,7 +19,7 @@ steps:
       - bazel test --config=race --config=unit_all
     key: unit_tests
     artifact_paths:
-      - "artifacts.out/**/*"
+      - "bazel-testlogs/**/*"
     retry: *automatic-retry
     timeout_in_minutes: 20
   - label: "Lint :bash:"
@@ -69,14 +71,22 @@ steps:
         - tools/await-connectivity
         - ./bin/scion_integration || ( echo "^^^ +++" && false )
         - ./bin/end2end_integration || ( echo "^^^ +++" && false )
-      plugins: &shutdown-scion-post-command
+      plugins: &scion-run-hooks
         - scionproto/metahook#v0.3.0:
+            pre-command: .buildkite/cleanup-leftovers.sh
             post-command: |
-              echo "--- Shutting down SCION topology"
+              echo "~~~ Shutting down SCION topology"
               ./scion.sh stop
-              echo "SCION topology successfully shut down"
-      artifact_paths:
-        - "artifacts.out/**/*"
+            pre-artifacts: |
+              if [ -f "gen/scion-dc.yml" ]; then
+                  tools/dc collect_logs scion logs/
+              fi
+            pre-exit: .buildkite/cleanup-leftovers.sh
+      artifact_paths: &scion-run-artifact-paths
+        - "logs"
+        - "traces"
+        - "gen"
+        - "gen-cache"
       timeout_in_minutes: 15
       key: e2e_integration_tests_v2
       retry: *automatic-retry
@@ -90,9 +100,8 @@ steps:
         - tools/await-connectivity
         - ./bin/end2end_integration || ( echo "^^^ +++" && false )
         - ./tools/integration/revocation_test.sh
-      plugins: *shutdown-scion-post-command
-      artifact_paths:
-        - "artifacts.out/**/*"
+      plugins: *scion-run-hooks
+      artifact_paths: *scion-run-artifact-paths
       timeout_in_minutes: 15
       key: e2e_revocation_test_v2
       retry: *automatic-retry
@@ -106,9 +115,8 @@ steps:
         - tools/await-connectivity
         - echo "--- run tests"
         - ./bin/end2end_integration -d || ( echo "^^^ +++" && false )
-      plugins: *shutdown-scion-post-command
-      artifact_paths:
-        - "artifacts.out/**/*"
+      plugins: *scion-run-hooks
+      artifact_paths: *scion-run-artifact-paths
       timeout_in_minutes: 15
       key: docker_integration_e2e_default
       retry: *automatic-retry
