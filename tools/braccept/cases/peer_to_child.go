@@ -124,7 +124,7 @@ func PeerToChild(artifactsDir string, mac hash.Hash) runner.Case {
 	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[1], nil)
 	sp.HopFields[2].Mac = path.MAC(macGenY(), sp.InfoFields[1], sp.HopFields[2], nil)
 
-	// The message if ready for injest at A, that is at HF[1], the start of the
+	// The message if ready for ingest at A, that is at HF[1], the start of the
 	// second segment, in construction direction. So SegID is already correct.
 
 	// The end-to-end trip is from  2,172.16.2.1 to 5,172.16.5.1

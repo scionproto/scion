@@ -124,7 +124,7 @@ func ChildToPeer(artifactsDir string, mac hash.Hash) runner.Case {
 	// The second segment has just one hop.
 	sp.HopFields[2].Mac = path.MAC(macGenY(), sp.InfoFields[1], sp.HopFields[2], nil)
 
-	// The message is ready for injest at A, that is at HF[1]. Going against consruction
+	// The message is ready for ingest at A, that is at HF[1]. Going against consruction
 	// direction, the SegID acc value must match that of HF[0], which is the same
 	// as that of HF[1], which is also SEG[0]'s SegID. So it's already correct.
 
