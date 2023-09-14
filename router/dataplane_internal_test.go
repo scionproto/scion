@@ -29,7 +29,6 @@ import (
 	"github.com/google/gopacket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/ipv4"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -43,7 +42,7 @@ import (
 	"github.com/scionproto/scion/router/mock_router"
 )
 
-var key = []byte("testkey_xxxxxxxx")
+var testKey = []byte("testkey_xxxxxxxx")
 
 // TestReceiver sets up a mocked batchConn, starts the receiver that reads from
 // this batchConn and forwards it to the processing routines channels. We verify
@@ -421,10 +420,9 @@ func TestComputeProcIdErrorCases(t *testing.T) {
 func TestSlowPathProcessing(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	key := []byte("testkey_xxxxxxxx")
 	payload := []byte("actualpayloadbytes")
 	testCases := map[string]struct {
-		mockMsg                 func() *ipv4.Message
+		mockMsg                 func() []byte
 		prepareDP               func(*gomock.Controller) *DataPlane
 		expectedSlowPathRequest slowPathRequest
 		srcInterface            uint16
@@ -434,13 +432,13 @@ func TestSlowPathProcessing(t *testing.T) {
 			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
 				return NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
 					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
-			mockMsg: func() *ipv4.Message {
+			mockMsg: func() []byte {
 				spkt := prepBaseMsg(t, payload, 0)
 				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
 				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
-				ret := toMsg(t, spkt, spkt.Path)
+				ret := toMsg(t, spkt)
 				return ret
 			},
 			srcInterface: 1,
@@ -456,13 +454,13 @@ func TestSlowPathProcessing(t *testing.T) {
 			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
 				return NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
 					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
-			mockMsg: func() *ipv4.Message {
+			mockMsg: func() []byte {
 				spkt := prepBaseMsg(t, payload, 0)
 				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
 				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
-				ret := toMsg(t, spkt, spkt.Path)
+				ret := toMsg(t, spkt)
 				return ret
 			},
 			srcInterface: 1,
@@ -478,12 +476,12 @@ func TestSlowPathProcessing(t *testing.T) {
 			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
 				return NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
 					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
-			mockMsg: func() *ipv4.Message {
+			mockMsg: func() []byte {
 				spkt := prepBaseMsg(t, payload, 0)
 				spkt.DstIA = xtest.MustParseIA("1-ff00:0:f1")
-				ret := toMsg(t, spkt, spkt.Path)
+				ret := toMsg(t, spkt)
 				return ret
 			},
 			srcInterface: 1,
@@ -492,6 +490,7 @@ func TestSlowPathProcessing(t *testing.T) {
 				scmpType: slayers.SCMPTypeParameterProblem,
 				code:     slayers.SCMPCodeInvalidDestinationAddress,
 				cause:    invalidDstIA,
+				pointer:  0xc,
 			},
 			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
 		},
@@ -501,55 +500,49 @@ func TestSlowPathProcessing(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			dp := tc.prepareDP(ctrl)
-			input := tc.mockMsg()
-			result, err := dp.ProcessPkt(tc.srcInterface, input)
+			rawPacket := tc.mockMsg()
+			var srcAddr *net.UDPAddr
+
+			processor := newPacketProcessor(dp)
+			result, err := processor.processPkt(rawPacket, srcAddr, tc.srcInterface)
 			assert.ErrorIs(t, err, SlowPathRequired)
-			selectedResult := slowPathRequest{
-				typ:      result.SlowPathRequest.typ,
-				scmpType: result.SlowPathRequest.scmpType,
-				code:     result.SlowPathRequest.code,
-				cause:    result.SlowPathRequest.cause,
-			}
-			assert.Equal(t, tc.expectedSlowPathRequest, selectedResult)
-			result, err = dp.ProcessSlowPath(tc.srcInterface, input, result.SlowPathRequest)
+
+			assert.Equal(t, tc.expectedSlowPathRequest, result.SlowPathRequest)
+			slowPathProcessor := newSlowPathProcessor(dp)
+			result, err = slowPathProcessor.processPacket(slowPacket{
+				packet: packet{
+					srcAddr:   srcAddr,
+					dstAddr:   result.OutAddr,
+					ingress:   tc.srcInterface,
+					rawPacket: rawPacket,
+				},
+				slowPathRequest: result.SlowPathRequest,
+			})
 			assert.NoError(t, err)
 
 			// here we parse the result.OutPkt to verify that it contains the correct SCMP
 			// header and typecodes.
 			packet := gopacket.NewPacket(result.OutPkt, slayers.LayerTypeSCION, gopacket.Default)
-			scmpLayer := packet.Layer(slayers.LayerTypeSCMP)
-			scmp := scmpLayer.(*slayers.SCMP)
+			scmp := packet.Layer(slayers.LayerTypeSCMP).(*slayers.SCMP)
 			expectedTypeCode := slayers.CreateSCMPTypeCode(tc.expectedSlowPathRequest.scmpType,
 				tc.expectedSlowPathRequest.code)
 			assert.Equal(t, expectedTypeCode, scmp.TypeCode)
-			layerFound := false
-			for _, l := range packet.Layers() {
-				if l.LayerType() == tc.expectedLayerType {
-					layerFound = true
-					break
-				}
-			}
-			assert.True(t, layerFound)
+			assert.NotNil(t, packet.Layer(tc.expectedLayerType))
 		})
 	}
 }
 
-func toMsg(t *testing.T, spkt *slayers.SCION, dpath path.Path) *ipv4.Message {
+func toMsg(t *testing.T, spkt *slayers.SCION) []byte {
 	t.Helper()
-	ret := &ipv4.Message{}
-	spkt.Path = dpath
 	buffer := gopacket.NewSerializeBuffer()
 	payload := []byte("actualpayloadbytes")
 	err := gopacket.SerializeLayers(buffer, gopacket.SerializeOptions{FixLengths: true},
 		spkt, gopacket.Payload(payload))
 	require.NoError(t, err)
 	raw := buffer.Bytes()
-	ret.Buffers = make([][]byte, 1)
-	ret.Buffers[0] = make([]byte, 1500)
-	copy(ret.Buffers[0], raw)
-	ret.N = len(raw)
-	ret.Buffers[0] = ret.Buffers[0][:ret.N]
-	return ret
+	ret := make([]byte, bufSize)
+	copy(ret, raw)
+	return ret[:len(raw)]
 }
 
 func computeMAC(t *testing.T, key []byte, info path.InfoField, hf path.HopField) [path.MacLen]byte {
@@ -600,7 +593,7 @@ func prepBaseMsg(t *testing.T, payload []byte, flowId uint32) *slayers.SCION {
 			{ConsIngress: 1, ConsEgress: 0},
 		},
 	}
-	dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
+	dpath.HopFields[2].Mac = computeMAC(t, testKey, dpath.InfoFields[0], dpath.HopFields[2])
 	spkt.Path = dpath
 	return spkt
 }

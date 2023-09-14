@@ -82,25 +82,6 @@ func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message) (ProcessResult, err
 	return ProcessResult{processResult: result}, err
 }
 
-func (d *DataPlane) ProcessSlowPath(ifID uint16, m *ipv4.Message,
-	s slowPathRequest) (ProcessResult, error) {
-
-	var srcAddr *net.UDPAddr
-	if m.Addr != nil {
-		srcAddr = m.Addr.(*net.UDPAddr)
-	}
-	slowP := newSlowPathProcessor(d)
-	result, err := slowP.processPacket(slowPacket{
-		packet: packet{
-			srcAddr:   srcAddr,
-			ingress:   ifID,
-			rawPacket: m.Buffers[0],
-		},
-		slowPathRequest: s,
-	})
-	return ProcessResult{processResult: result}, err
-}
-
 func ExtractServices(s *services) map[addr.SVC][]*net.UDPAddr {
 	return s.m
 }
