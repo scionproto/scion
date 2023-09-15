@@ -111,7 +111,7 @@ func PeerToChild(artifactsDir string, mac hash.Hash) runner.Case {
 	if err != nil {
 		panic(err)
 	}
-	macGenY, err := scrypto.HFMacFactory([]byte("1234567812345678"))
+	macGenY, err := scrypto.HFMacFactory([]byte("abcdefghabcdefgh"))
 	if err != nil {
 		panic(err)
 	}
