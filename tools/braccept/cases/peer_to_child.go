@@ -107,22 +107,22 @@ func PeerToChild(artifactsDir string, mac hash.Hash) runner.Case {
 	// Hops are all signed with different keys. Only HF[1] was signed by
 	// the AS that we hand the packet to. The others can be anything as they
 	// couldn't be check at that AS anyway.
-	macGenX, err := scrypto.HFMacFactory([]byte("1234567812345678"))
+	macGenX, err := scrypto.InitMac([]byte("1234567812345678"))
 	if err != nil {
 		panic(err)
 	}
-	macGenY, err := scrypto.HFMacFactory([]byte("abcdefghabcdefgh"))
+	macGenY, err := scrypto.InitMac([]byte("abcdefghabcdefgh"))
 	if err != nil {
 		panic(err)
 	}
 
 	// HF[0] is a regular hop.
-	sp.HopFields[0].Mac = path.MAC(macGenX(), sp.InfoFields[0], sp.HopFields[0], nil)
+	sp.HopFields[0].Mac = path.MAC(macGenX, sp.InfoFields[0], sp.HopFields[0], nil)
 
 	// HF[1] is a peering hop so it has the same SegID acc value as the next one
 	// in construction direction, HF[2]. That is, SEG[1]'s SegID.
 	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[1], nil)
-	sp.HopFields[2].Mac = path.MAC(macGenY(), sp.InfoFields[1], sp.HopFields[2], nil)
+	sp.HopFields[2].Mac = path.MAC(macGenY, sp.InfoFields[1], sp.HopFields[2], nil)
 
 	// The message if ready for ingest at A, that is at HF[1], the start of the
 	// second segment, in construction direction. So SegID is already correct.
