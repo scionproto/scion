@@ -31,6 +31,8 @@ To find out how to work with SCION, please visit our [documentation
 site](https://docs.scion.org/en/latest/dev/setup.html)
 for instructions on how to install build dependencies, build and run SCION.
 
+Pre-built binaries for x86-64 Linux are also available from the [latest nightly build](https://buildkite.com/scionproto/scion-nightly/builds/latest).
+
 ## Contributing
 
 Interested in contribution to the SCION project? Please visit our
