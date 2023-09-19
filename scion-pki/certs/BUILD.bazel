@@ -49,6 +49,7 @@ go_library(
         "//scion-pki/key:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
         "@com_github_pkg_errors//:go_default_library",
+        "@com_github_quic_go_quic_go//:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
         "@org_golang_google_grpc//resolver:go_default_library",
         "@org_golang_google_protobuf//proto:go_default_library",
