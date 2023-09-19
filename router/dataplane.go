@@ -131,6 +131,11 @@ var (
 	noBFDSessionFound             = serrors.New("no BFD sessions was found")
 	noBFDSessionConfigured        = serrors.New("no BFD sessions have been configured")
 	errBFDDisabled                = serrors.New("BFD is disabled")
+	errPeeringEmptySeg0           = serrors.New("zero-length segment[0] in peering path")
+	errPeeringEmptySeg1           = serrors.New("zero-length segment[1] in peering path")
+	errPeeringNonemptySeg2        = serrors.New("non-zero-length segment[2] in peering path")
+	errShortPacket                = serrors.New("Packet is too short")
+	errBFDSessionDown              = serrors.New("bfd session down")
 	// zeroBuffer will be used to reset the Authenticator option in the
 	// scionPacketProcessor.OptAuth
 	zeroBuffer = make([]byte, 16)
@@ -640,13 +645,13 @@ func computeProcID(data []byte, numProcRoutines int, randomValue []byte,
 	flowIDBuffer []byte, hasher hash.Hash32) (uint32, error) {
 
 	if len(data) < slayers.CmnHdrLen {
-		return 0, serrors.New("Packet is too short")
+		return 0, errShortPacket
 	}
 	dstHostAddrLen := slayers.AddrType(data[9] >> 4 & 0xf).Length()
 	srcHostAddrLen := slayers.AddrType(data[9] & 0xf).Length()
 	addrHdrLen := 2*addr.IABytes + srcHostAddrLen + dstHostAddrLen
 	if len(data) < slayers.CmnHdrLen+addrHdrLen {
-		return 0, serrors.New("Packet is too short")
+		return 0, errShortPacket
 	}
 	copy(flowIDBuffer[0:3], data[1:4])
 	flowIDBuffer[0] &= 0xF // the left 4 bits don't belong to the flowID
@@ -1108,23 +1113,21 @@ func (p *scionPacketProcessor) determinePeer() (processResult, error) {
 		return processResult{}, nil
 	}
 
-	// TODO: proper error
-	err := serrors.New("TODO: segment length error (peering)")
-
 	if p.path.PathMeta.SegLen[0] == 0 {
-		return processResult{}, err
+		return processResult{},  errPeeringEmptySeg0
 	}
 	if p.path.PathMeta.SegLen[1] == 0 {
-		return processResult{}, err
+		return processResult{},  errPeeringEmptySeg1
+
 	}
 	if p.path.PathMeta.SegLen[2] != 0 {
-		return processResult{}, err
+		return processResult{},  errPeeringNonemptySeg2
 	}
 
 	// The peer hop fields are the last hop field on the first path
 	// segment (at SegLen[0] - 1) and the first hop field of the second
 	// path segment (at SegLen[0]). The below check applies only
-	// because we already know this is a peering path.
+	// because we already know this is a well-formed peering path.
 	currHF := p.path.PathMeta.CurrHF
 	segLen := p.path.PathMeta.SegLen[0]
 	p.peering = currHF == segLen-1 || currHF == segLen
@@ -1441,7 +1444,7 @@ func (p *scionPacketProcessor) validateEgressUp() (processResult, error) {
 					Egress:  uint64(egressID),
 				}
 			}
-			return p.packSCMP(typ, 0, scmpP, serrors.New("bfd session down"))
+			return p.packSCMP(typ, 0, scmpP, errBFDSessionDown)
 		}
 	}
 	return processResult{}, nil
