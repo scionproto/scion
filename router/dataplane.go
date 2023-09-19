@@ -135,7 +135,7 @@ var (
 	errPeeringEmptySeg1           = serrors.New("zero-length segment[1] in peering path")
 	errPeeringNonemptySeg2        = serrors.New("non-zero-length segment[2] in peering path")
 	errShortPacket                = serrors.New("Packet is too short")
-	errBFDSessionDown              = serrors.New("bfd session down")
+	errBFDSessionDown             = serrors.New("bfd session down")
 	// zeroBuffer will be used to reset the Authenticator option in the
 	// scionPacketProcessor.OptAuth
 	zeroBuffer = make([]byte, 16)
@@ -1114,14 +1114,14 @@ func (p *scionPacketProcessor) determinePeer() (processResult, error) {
 	}
 
 	if p.path.PathMeta.SegLen[0] == 0 {
-		return processResult{},  errPeeringEmptySeg0
+		return processResult{}, errPeeringEmptySeg0
 	}
 	if p.path.PathMeta.SegLen[1] == 0 {
-		return processResult{},  errPeeringEmptySeg1
+		return processResult{}, errPeeringEmptySeg1
 
 	}
 	if p.path.PathMeta.SegLen[2] != 0 {
-		return processResult{},  errPeeringNonemptySeg2
+		return processResult{}, errPeeringNonemptySeg2
 	}
 
 	// The peer hop fields are the last hop field on the first path
