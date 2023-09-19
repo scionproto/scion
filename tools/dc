@@ -76,10 +76,9 @@ cmd_monitoring() {
 
 # Runs docker compose for the given project
 dc() {
-    local project="$1"
     local dc_file="gen/$1-dc.yml"
     shift
-    COMPOSE_FILE="$dc_file" docker compose --compatibility -p "$project" --ansi never "$@"
+    COMPOSE_FILE="$dc_file" docker compose --compatibility --ansi never "$@"
 }
 
 cmd_collect_logs() {

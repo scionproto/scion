@@ -6,7 +6,7 @@ cmd_bazel-remote() {
     mkdir -p "$HOME/.cache/bazel/remote"
     uid=$(id -u)
     gid=$(id -g)
-    USER_ID="$uid" GROUP_ID="$gid" docker compose --compatibility -f bazel-remote.yml -p bazel_remote up -d
+    USER_ID="$uid" GROUP_ID="$gid" docker compose --compatibility -f bazel-remote.yml up -d
 }
 
 cmd_topo-clean() {
@@ -36,7 +36,7 @@ cmd_topodot() {
 start_scion() {
     echo "Running the network..."
     if is_docker_be; then
-        docker compose --compatibility -f gen/scion-dc.yml -p scion up -d
+        docker compose --compatibility -f gen/scion-dc.yml up -d
         return 0
     else
         run_setup
