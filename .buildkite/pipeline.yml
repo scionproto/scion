@@ -9,6 +9,13 @@ steps:
     artifact_paths:
       - "bazel-bin/scion.tar"
       - "bazel-bin/scion-ci.tar"
+    plugins:
+      - scionproto/metahook#v0.3.0:
+          post-artifact: |
+            cat << EOF | buildkite-agent annotate
+            - <a href="artifact://bazel-bin/scion.tar">SCION binaries</a>
+            - <a href="artifact://bazel-bin/scion-ci.tar">SCION test tools and utilities binaries</a>
+            EOF
     retry: &automatic-retry
       automatic:
         - exit_status: -1 # Agent was lost
