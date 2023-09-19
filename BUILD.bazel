@@ -37,14 +37,14 @@ load("@cgrindel_bazel_starlib//updatesrc:defs.bzl", "updatesrc_update_all")
 config_setting(
     name = "sqlite_mattn",
     define_values = {
-        "gotags": "sqlite_mattn",
+        "gotags": "sqlite_mattn,netgo",
     },
 )
 
 config_setting(
     name = "sqlite_modernc",
     define_values = {
-        "gotags": "sqlite_modernc",
+        "gotags": "sqlite_modernc,netgo",
     },
 )
 
