@@ -22,9 +22,10 @@ import (
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/config"
-	"github.com/scionproto/scion/private/drkey/drkeyutil"
 	"github.com/scionproto/scion/private/storage"
 )
+
+const DefaultPrefetchEntries = 10000
 
 var _ (config.Config) = (*DRKeyConfig)(nil)
 
@@ -39,7 +40,7 @@ type DRKeyConfig struct {
 // InitDefaults initializes values of unset keys and determines if the configuration enables DRKey.
 func (cfg *DRKeyConfig) InitDefaults() {
 	if cfg.PrefetchEntries == 0 {
-		cfg.PrefetchEntries = drkeyutil.DefaultPrefetchEntries
+		cfg.PrefetchEntries = DefaultPrefetchEntries
 	}
 	config.InitAll(
 		cfg.Level1DB.WithDefault(""),

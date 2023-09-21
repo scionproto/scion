@@ -26,19 +26,20 @@ import (
 )
 
 func TestTimestamp(t *testing.T) {
+	now := time.Now()
 	testCases := map[string]struct {
 		currentTime time.Time
 		epoch       drkey.Epoch
 		assertErr   assert.ErrorAssertionFunc
 	}{
 		"valid": {
-			currentTime: time.Now().UTC(),
-			epoch:       getEpoch(time.Now()),
+			currentTime: now,
+			epoch:       getEpoch(now),
 			assertErr:   assert.NoError,
 		},
 		"invalid": {
-			currentTime: time.Now().UTC(),
-			epoch:       getEpoch(time.Now().UTC().Add(-4 * 24 * time.Hour)),
+			currentTime: now,
+			epoch:       getEpoch(now.Add(-4 * 24 * time.Hour)),
 			assertErr:   assert.Error,
 		},
 	}
@@ -52,7 +53,11 @@ func TestTimestamp(t *testing.T) {
 				return
 			}
 			recoveredTime := spao.AbsoluteTimestamp(tc.epoch, rt)
-			assert.EqualValues(t, tc.currentTime, recoveredTime)
+			// XXX(JordiSubira): It seems that until testify v2
+			// using assert.Equal(·) with time.Time vales will
+			// due to monotonic clock being drop between conversions
+			// https://github.com/stretchr/testify/issues/502#issuecomment-660946051
+			assert.True(t, tc.currentTime.Equal(recoveredTime))
 		})
 	}
 }

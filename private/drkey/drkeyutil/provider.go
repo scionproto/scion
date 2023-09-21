@@ -67,7 +67,6 @@ func (p *FakeProvider) GetKeyWithinAcceptanceWindow(
 	absTimeCurrent := spao.AbsoluteTimestamp(keys[1].Epoch, timestamp)
 	absTimeNext := spao.AbsoluteTimestamp(keys[2].Epoch, timestamp)
 	switch {
-	// case absTimeCurrent.After(awBegin) && absTimeCurrent.Before(awEnd):
 	case validity.Contains(absTimeCurrent):
 		return keys[1], nil
 	case validity.Contains(absTimePrevious):
