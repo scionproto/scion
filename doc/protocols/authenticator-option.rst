@@ -149,7 +149,7 @@ Protocol Identifier
   16-bit protocol identifier. Note that 0 is a reserved protocol number and
   cannot occur here.
 
-.. _spao-timestamp:
+.. _spao-absTime:
 
 Absolute time and DRKey selection
 =================================
