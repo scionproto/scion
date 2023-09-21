@@ -25,14 +25,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/drkey"
-	"github.com/scionproto/scion/private/drkey/drkeyutil"
 	"github.com/scionproto/scion/private/storage"
 )
 
 func TestInitDefaults(t *testing.T) {
 	var cfg DRKeyConfig
 	cfg.InitDefaults()
-	assert.EqualValues(t, drkeyutil.DefaultPrefetchEntries, cfg.PrefetchEntries)
+	assert.EqualValues(t, DefaultPrefetchEntries, cfg.PrefetchEntries)
 	assert.NotNil(t, cfg.Delegation)
 }
 
