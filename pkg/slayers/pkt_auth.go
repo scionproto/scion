@@ -204,7 +204,7 @@ func (o PacketAuthOption) Algorithm() PacketAuthAlg {
 
 // Timestamp returns the value set in the homonym field in the extension.
 func (o PacketAuthOption) TimestampSN() uint64 {
-	return bigEndian(o.OptData[6:12])
+	return bigEndianUint48(o.OptData[6:12])
 }
 
 // Authenticator returns slice of the underlying auth buffer.
@@ -214,7 +214,7 @@ func (o PacketAuthOption) Authenticator() []byte {
 	return o.OptData[12:]
 }
 
-func bigEndian(b []byte) uint64 {
+func bigEndianUint48(b []byte) uint64 {
 	return uint64(b[0])<<40 + uint64(b[1])<<32 +
 		uint64(binary.BigEndian.Uint32(b[2:6]))
 }
