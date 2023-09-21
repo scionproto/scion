@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/control/ifstate"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	seg "github.com/scionproto/scion/pkg/segment"
@@ -67,6 +68,11 @@ type DefaultExtender struct {
 	StaticInfo func() *StaticInfoCfg
 	// EPIC defines whether the EPIC authenticators should be added when the segment is extended.
 	EPIC bool
+
+	// SegmentExpirationDeficient is a gauge that is set to 1 if the expiration time of the segment
+	// is below the maximum expiration time. This happens when the signer expiration time is lower
+	// than the maximum segment expiration time.
+	SegmentExpirationDeficient metrics.Gauge
 }
 
 // Extend extends the beacon with hop fields of the old format.
@@ -99,6 +105,7 @@ func (s *DefaultExtender) Extend(
 	// Make sure the hop expiration time is not longer than the signer expiration time.
 	expTime := s.MaxExpTime()
 	if ts.Add(path.ExpTimeToDuration(expTime)).After(signer.Expiration) {
+		metrics.GaugeSet(s.SegmentExpirationDeficient,1)
 		var err error
 		expTime, err = path.ExpTimeFromDuration(signer.Expiration.Sub(ts))
 		if err != nil {

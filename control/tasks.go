@@ -205,7 +205,7 @@ func (t *TasksConfig) segmentWriter(segType seg.Type,
 func (t *TasksConfig) extender(task string, ia addr.IA, mtu uint16,
 	maxExp func() uint8) beaconing.Extender {
 
-	return &beaconing.DefaultExtender{
+	e := &beaconing.DefaultExtender{
 		IA:         ia,
 		SignerGen:  t.SignerGen,
 		MAC:        t.MACGen,
@@ -216,6 +216,13 @@ func (t *TasksConfig) extender(task string, ia addr.IA, mtu uint16,
 		Task:       task,
 		EPIC:       t.EPIC,
 	}
+	if t.Metrics != nil {
+		e.SegmentExpirationDeficient = metrics.GaugeWith(
+			metrics.NewPromGauge(t.Metrics.SegmentExpirationDeficient),
+			"src", ia.String(),
+		)
+	}
+	return e
 }
 
 func (t *TasksConfig) DRKeyCleaners() []*periodic.Runner {
