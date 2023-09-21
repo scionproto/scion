@@ -16,7 +16,6 @@ go_library(
         "//pkg/private/serrors:go_default_library",
         "//pkg/private/util:go_default_library",
         "//private/config:go_default_library",
-        "//private/drkey/drkeyutil:go_default_library",
         "//private/env:go_default_library",
         "//private/mgmtapi:go_default_library",
         "//private/mgmtapi/jwtauth:go_default_library",
@@ -35,7 +34,6 @@ go_test(
     deps = [
         "//pkg/drkey:go_default_library",
         "//pkg/log/logtest:go_default_library",
-        "//private/drkey/drkeyutil:go_default_library",
         "//private/env/envtest:go_default_library",
         "//private/mgmtapi/jwtauth:go_default_library",
         "//private/mgmtapi/mgmtapitest:go_default_library",
