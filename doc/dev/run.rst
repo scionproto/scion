@@ -16,6 +16,10 @@ The scripts support two different process orchestrators as "backends":
 - `supervisor <http://supervisord.org/>`_. This is the default and a bit more light-weight. Packets are sent over the loopback interface.
 - `docker-compose <https://docs.docker.com/compose/>`_. Runs individual processes in separate containers connected with docker network bridges. Only this mode supports running a "SCION-IP gateway".
 
+Before attempting to use the docker-compose mode, be sure to build the necessary docker images with:
+.. code-block:: bash
+
+   make docker-images
 
 .. TODO
    - Describe configuration directory (referencing manuals)
@@ -83,6 +87,10 @@ components and a shared :ref:`topology.json <common-conf-topo>` configuration.
 Various helper files are also generated for the benefit of scripts and tooling of the test infrastructure,
 for example, ``gen/sciond_addresses.json`` is a simple mapping from AS number to the address of the
 corresponding :doc:`scion daemon </manuals/daemon>` instance.
+
+If  :option:`scion.sh topology -d` command is used, additional configuration files are created to
+enable running the SCION services in docker containers (see `docker`_). Otherwise,  a configuration
+file is created to enable running the SCION services as plain processes (see `supervisor`_)
 
 supervisor
 ----------
@@ -180,6 +188,14 @@ The basic usage is ``./scion.sh <subcommand> <options>``. The main subcommands a
 
    Terminate this run of the local SCION topology.
 
+.. option:: run_monitoring
+
+   Start the monitoring services (jaeger and prometheus).
+
+.. option:: stop_monitoring
+
+   Stop the monitoring services.
+	    
 .. option:: sciond-addr <ISD-AS>
 
    Return the address for the scion daemon for the matching ISD-AS by consulting
@@ -190,3 +206,15 @@ The basic usage is ``./scion.sh <subcommand> <options>``. The main subcommands a
 .. option:: help
 
    Describe all available subcommands
+
+end2end_integration
+===================
+
+:program:bin/end2end_integration is a basic functional test.
+
+The basic usage is ``./end2end_integration <options>``.
+
+.. option:: -d
+
+   Assume the SCION services are dockerized. Must be consistent with the last
+   invocation of ``scion.sh topology``.
