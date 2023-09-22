@@ -11,7 +11,8 @@ cmd_bazel_remote() {
 
 cmd_topo_clean() {
     set -e
-    cmd_stop || true
+    stop_scion || true
+    cmd_stop_monitoring || true
     rm -rf traces/*
     mkdir -p logs traces gen gen-cache gen-certs
     find gen gen-cache gen-certs -mindepth 1 -maxdepth 1 -exec rm -r {} +
@@ -32,8 +33,7 @@ cmd_topodot() {
     ./tools/topodot.py "$@"
 }
 
-cmd_run() {
-    run_jaeger
+run_scion() {
     echo "Running the network..."
     if is_docker_be; then
         docker-compose -f gen/scion-dc.yml -p scion up -d
@@ -44,6 +44,13 @@ cmd_run() {
     fi
 }
 
+cmd_run() {
+    run_scion
+    echo "Note that jaeger is not included anymore."
+    echo "To run jaeger and prometheus, use run_monitoring."
+
+}
+
 cmd_sciond-addr() {
     jq -r 'to_entries |
            map(select(.key | match("'"$1"'";"i"))) |
@@ -51,20 +58,20 @@ cmd_sciond-addr() {
            "[\(.value)]:30255"' gen/sciond_addresses.json
 }
 
-run_jaeger() {
-    if [ ! -f "gen/jaeger-dc.yml" ]; then
+cmd_run_monitoring() {
+    if [ ! -f "gen/monitoring-dc.yml" ]; then
         return
     fi
-    echo "Running jaeger..."
-    ./tools/quiet ./tools/dc jaeger up -d
+    echo "Running monitoring..."
+    ./tools/quiet ./tools/dc monitoring up -d
 }
 
-stop_jaeger() {
-    if [ ! -f "gen/jaeger-dc.yml" ]; then
+cmd_stop_monitoring() {
+    if [ ! -f "gen/monitoring-dc.yml" ]; then
         return
     fi
-    echo "Stopping jaeger..."
-    ./tools/quiet ./tools/dc jaeger down -v
+    echo "Stopping monitoring..."
+    ./tools/quiet ./tools/dc monitoring down -v
 }
 
 cmd_mstart() {
@@ -99,7 +106,7 @@ run_teardown() {
     fi
 }
 
-cmd_stop() {
+stop_scion() {
     echo "Terminating this run of the SCION infrastructure"
     if is_docker_be; then
         ./tools/quiet ./tools/dc down
@@ -107,7 +114,12 @@ cmd_stop() {
         ./tools/quiet tools/supervisor.sh shutdown
         run_teardown
     fi
-    stop_jaeger
+}
+
+cmd_stop() {
+    stop_scion
+    echo "Note that jaeger is not included anymore."
+    echo "To stop jaeger and prometheus, use stop_monitoring."
 }
 
 cmd_mstop() {
@@ -236,15 +248,19 @@ cmd_help() {
 	    $PROGRAM run
 	        Run network.
 	    $PROGRAM mstart PROCESS
-	        Start multiple processes
+	        Start multiple processes.
 	    $PROGRAM stop
 	        Terminate this run of the SCION infrastructure.
 	    $PROGRAM mstop PROCESS
-	        Stop multiple processes
+	        Stop multiple processes.
+	    $PROGRAM run_monitoring
+	        Run the monitoring infrastructure.
+	    $PROGRAM stop_monitoring
+	        Terminate this run of the monitoring infrastructure.
 	    $PROGRAM status
 	        Show all non-running tasks.
 	    $PROGRAM mstatus PROCESS
-	        Show status of provided processes
+	        Show status of provided processes.
 	    $PROGRAM sciond-addr ISD-AS
 	        Return the address for the scion daemon for the matching ISD-AS by
 	        consulting gen/sciond_addresses.json.
@@ -255,9 +271,9 @@ cmd_help() {
 	    $PROGRAM help
 	        Show this text.
 	    $PROGRAM traces [folder]
-	        Serve jaeger traces from the specified folder (default: traces/)
+	        Serve jaeger traces from the specified folder (default: traces/).
 	    $PROGRAM stop_traces
-	        Stop the jaeger container started during the traces command
+	        Stop the jaeger container started during the traces command.
 	    $PROGRAM bazel_remote
 	        Starts the bazel remote.
 	_EOF
@@ -269,7 +285,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    help|run|mstart|mstatus|mstop|stop|status|topology|sciond-addr|traces|stop_traces|topo_clean|topodot|bazel_remote)
+    help|run|run_monitoring|mstart|mstatus|mstop|stop|stop_monitoring|status|topology|sciond-addr|traces|stop_traces|topo_clean|topodot|bazel_remote)
         "cmd_$COMMAND" "$@" ;;
     start) cmd_run "$@" ;;
     *)  cmd_help; exit 1 ;;

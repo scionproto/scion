@@ -1,5 +1,7 @@
 # Copyright 2014 ETH Zurich
 # Copyright 2018 ETH Zurich, Anapaya Systems
+# Copyright 2019 Anapaya Systems
+# Copyright 2023 SCION Association
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,9 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`prometheus` --- SCION topology prometheus generator
-=============================================
+:mod:`monitoring` --- SCION topology monitoring generator
+=========================================================
 """
+
 # Stdlib
 import os
 from collections import defaultdict
@@ -43,17 +46,15 @@ SCIOND_PROM_PORT = 30455
 SIG_PROM_PORT = 30456
 DISP_PROM_PORT = 30441
 DEFAULT_BR_PROM_PORT = 30442
+MONITORING_DC_FILE = "monitoring-dc.yml"
 
-PROM_DC_FILE = "prom-dc.yml"
 
-
-class PrometheusGenArgs(ArgsTopoDicts):
+class MonitoringGenArgs(ArgsTopoDicts):
     def __init__(self, args, topo_dicts, networks: Mapping[IPNetwork, NetworkDescription]):
         super().__init__(args, topo_dicts)
         self.networks = networks
 
-
-class PrometheusGenerator(object):
+class MonitoringGenerator(object):
     PROM_DIR = "prometheus"
     TARGET_FILES = {
         "BorderRouters": "br.yml",
@@ -70,10 +71,12 @@ class PrometheusGenerator(object):
 
     def __init__(self, args):
         """
-        :param PrometheusGenArgs args: Contains the passed command line arguments and topo dicts.
+        :param MonitoringGenArgs args: Contains the passed command line arguments and topo dicts.
         """
         self.args = args
         self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
+        self.local_jaeger_dir = os.path.join('traces')
+        self.docker_jaeger_dir = os.path.join(self.output_base, self.local_jaeger_dir)
 
     def generate(self):
         config_dict = {}
@@ -99,7 +102,12 @@ class PrometheusGenerator(object):
         self._write_dc_file()
         self._write_disp_file()
 
+        # For yeager
+        os.makedirs(os.path.join(self.local_jaeger_dir, 'data'), exist_ok=True)
+        os.makedirs(os.path.join(self.local_jaeger_dir, 'key'), exist_ok=True)
+
     def _write_config_files(self, config_dict):
+        # For Prometheus
         targets_paths = defaultdict(list)
         for topo_id, ele_dict in config_dict.items():
             base = topo_id.base_dir(self.args.output_dir)
@@ -143,26 +151,46 @@ class PrometheusGenerator(object):
         if self.args.docker:
             return
         targets_path = os.path.join(self.args.output_dir, "dispatcher",
-                                    PrometheusGenerator.PROM_DIR, "disp.yml")
+                                    self.PROM_DIR, "disp.yml")
         target_config = [{'targets': [prom_addr_dispatcher(False, None, None,
                                                            DISP_PROM_PORT, None)]}]
         write_file(targets_path, yaml.dump(target_config, default_flow_style=False))
 
     def _write_dc_file(self):
-        name = 'prometheus'
-        prom_dc = {
+        # Merged yeager and prometheus files.
+        # FIXME: should be a single container
+        name = 'monitoring'
+        monitoring_dc = {
             'version': DOCKER_COMPOSE_CONFIG_VERSION,
             'services': {
-                name: {
+                'prometheus': {
                     'image': 'prom/prometheus:v2.6.0',
-                    'container_name': name,
+                    'container_name': name+'prometheus',
                     'network_mode': 'host',
                     'volumes': [
                         self.output_base + '/gen:/prom-config:ro'
                     ],
                     'command': ['--config.file', '/prom-config/prometheus.yml'],
+                },
+                'jaeger': {
+                    'image': 'jaegertracing/all-in-one:1.22.0',
+                    'container_name': name+'yeager',
+                    'user': '%s:%s' % (str(os.getuid()), str(os.getgid())),
+                    'ports': [
+                        '6831:6831/udp',
+                        '16686:16686'
+                    ],
+                    'environment': [
+                        'SPAN_STORAGE_TYPE=badger',
+                        'BADGER_EPHEMERAL=false',
+                        'BADGER_DIRECTORY_VALUE=/badger/data',
+                        'BADGER_DIRECTORY_KEY=/badger/key',
+                    ],
+                    'volumes': [
+                        '%s:/badger:rw' % self.docker_jaeger_dir,
+                    ],
                 }
             }
         }
-        write_file(os.path.join(self.args.output_dir, PROM_DC_FILE),
-                   yaml.dump(prom_dc, default_flow_style=False))
+        write_file(os.path.join(self.args.output_dir, MONITORING_DC_FILE),
+                   yaml.dump(monitoring_dc, default_flow_style=False))
