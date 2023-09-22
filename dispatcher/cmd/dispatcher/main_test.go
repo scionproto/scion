@@ -377,7 +377,10 @@ package main
 // 							IA:   clientYAddress.IA,
 // 							Host: addr.HostIP(clientYAddress.PublicAddress),
 // 						},
-// 						Payload: snet.SCMPTracerouteRequest{Identifier: 0xdeaf, Sequence: 0xcafd},
+// 						Payload: snet.SCMPTracerouteRequest{
+// 										Identifier: 0xdeaf,
+// 										Sequence: 0xcafd
+//								},
 // 						Path:    path.Empty{},
 // 					},
 // 				},
