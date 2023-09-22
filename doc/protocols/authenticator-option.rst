@@ -73,17 +73,17 @@ Timestamp / Sequence Number:
   .. math::
     (\mathrm{SRC\ ISD, SRC\ AS, SrcHostAddr, Authenticator})
 
-.. note::
-  In other words, the duplicate suppression would happen within the
-  acceptance windows considering identical values for the Authenticator field, which is
-  computed based on packet contents, such as the Timestamp (used to derived the *AbsTime*)
-  and the upper layer payload
-  (see the section :ref:`Authenticated Data<authenticated-data>`).
+  .. note::
+    In other words, the duplicate suppression would happen within the
+    acceptance windows considering identical values for the Authenticator field, which is
+    computed based on packet contents, such as the Timestamp (used to derived the *AbsTime*)
+    and the upper layer payload
+    (see the section :ref:`Authenticated Data<authenticated-data>`).
 
-  When used with a non-DRKey :ref:`SPI <spao-spi>`, this field is used as
-  a wrapping counter and replay detection is based on sliding window of expected counter values.
-  This use case is not specified in detail here. Extending this specification
-  in the future will closely follow [`RFC 4302 <https://tools.ietf.org/html/rfc4302>`_].
+    When used with a non-DRKey :ref:`SPI <spao-spi>`, this field is used as
+    a wrapping counter and replay detection is based on sliding window of expected counter values.
+    This use case is not specified in detail here. Extending this specification
+    in the future will closely follow [`RFC 4302 <https://tools.ietf.org/html/rfc4302>`_].
 
 Security Parameter Index (SPI)
   32-bit identifier for the key used for this authentication option.
