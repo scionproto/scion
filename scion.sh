@@ -33,7 +33,7 @@ cmd_topodot() {
     ./tools/topodot.py "$@"
 }
 
-run_scion() {
+start_scion() {
     echo "Running the network..."
     if is_docker_be; then
         docker-compose -f gen/scion-dc.yml -p scion up -d
@@ -44,8 +44,8 @@ run_scion() {
     fi
 }
 
-cmd_run() {
-    run_scion
+cmd_start() {
+    start_scion
     echo "Note that jaeger is not included anymore."
     echo "To run jaeger and prometheus, use run_monitoring."
 
@@ -58,7 +58,7 @@ cmd_sciond-addr() {
            "[\(.value)]:30255"' gen/sciond_addresses.json
 }
 
-cmd_run_monitoring() {
+cmd_start_monitoring() {
     if [ ! -f "gen/monitoring-dc.yml" ]; then
         return
     fi
@@ -253,7 +253,7 @@ cmd_help() {
 	        Terminate this run of the SCION infrastructure.
 	    $PROGRAM mstop PROCESS
 	        Stop multiple processes.
-	    $PROGRAM run_monitoring
+	    $PROGRAM start_monitoring
 	        Run the monitoring infrastructure.
 	    $PROGRAM stop_monitoring
 	        Terminate this run of the monitoring infrastructure.
@@ -285,8 +285,8 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    help|run|run_monitoring|mstart|mstatus|mstop|stop|stop_monitoring|status|topology|sciond-addr|traces|stop_traces|topo_clean|topodot|bazel_remote)
+    help|start|start_monitoring|mstart|mstatus|mstop|stop|stop_monitoring|status|topology|sciond-addr|traces|stop_traces|topo_clean|topodot|bazel_remote)
         "cmd_$COMMAND" "$@" ;;
-    start) cmd_run "$@" ;;
+    run) cmd_start "$@" ;;
     *)  cmd_help; exit 1 ;;
 esac
