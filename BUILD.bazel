@@ -35,6 +35,20 @@ load("@cgrindel_bazel_starlib//updatesrc:defs.bzl", "updatesrc_update_all")
 # This is simplistic but the complete, by-the-everchanging-bazel-book, solution
 # is ludicrously complicated. Go there if and when needed.
 config_setting(
+    name = "sqlite_mattn_netgo",
+    define_values = {
+        "gotags": "sqlite_mattn,netgo",
+    },
+)
+
+config_setting(
+    name = "sqlite_modernc_netgo",
+    define_values = {
+        "gotags": "sqlite_modernc,netgo",
+    },
+)
+
+config_setting(
     name = "sqlite_mattn",
     define_values = {
         "gotags": "sqlite_mattn",
@@ -61,8 +75,20 @@ config_setting(
 gazelle(
     name = "gazelle",
     build_tags = select({
-        ":sqlite_modernc": ["sqlite_modernc"],
-        ":sqlite_mattn": ["sqlite_mattn"],
+        ":sqlite_modernc_netgo": [
+            "sqlite_modernc",
+            "sqlite_modernc_netgo",
+        ],
+        ":sqlite_modernc": [
+            "sqlite_modernc",
+        ],
+        ":sqlite_mattn_netgo": [
+            "sqlite_mattn",
+            "netgo",
+        ],
+        ":sqlite_mattn": [
+            "sqlite_mattn",
+        ],
     }),
     command = "update",
     extra_args = [
@@ -76,8 +102,20 @@ gazelle(
 gazelle(
     name = "gazelle_diff",
     build_tags = select({
-        ":sqlite_modernc": ["sqlite_modernc"],
-        ":sqlite_mattn": ["sqlite_mattn"],
+        ":sqlite_modernc_netgo": [
+            "sqlite_modernc",
+            "netgo",
+        ],
+        ":sqlite_modernc": [
+            "sqlite_modernc",
+        ],
+        ":sqlite_mattn_netgo": [
+            "sqlite_mattn",
+            "netgo",
+        ],
+        ":sqlite_mattn": [
+            "sqlite_mattn",
+        ],
     }),
     command = "update",
     extra_args = [
