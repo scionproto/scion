@@ -11,15 +11,12 @@ printenv PATH
 # Install build tools on first job for this runner.
 .buildkite/provision-agent.sh
 
-# Clean up left-overs from previous run
-PRE_COMMAND_SETUP=true . .buildkite/hooks/pre-exit
-
 set -euo pipefail
 
-echo "--- Increase receive network buffer size"
+echo "~~~ Increase receive network buffer size"
 sudo sysctl -w net.core.rmem_max=1048576
 
-echo "--- Setting up bazel environment"
+echo "~~~ Setting up bazel environment"
 
 if [ -z ${BAZEL_REMOTE_S3_ACCESS_KEY_ID+x} ]; then
     echo "S3 env not set, not starting bazel remote proxy"
@@ -41,12 +38,12 @@ else
 fi
 echo "test --test_env CI" >> $HOME/.bazelrc
 
-echo "--- Starting bazel remote cache proxy"
+echo "~~~ Starting bazel remote cache proxy"
 
 # Start bazel remote cache proxy for S3
 # Note that S3 keys are injected by buildkite, see
 # https://buildkite.com/docs/pipelines/secrets#storing-secrets-with-the-elastic-ci-stack-for-aws
 docker-compose -f .buildkite/hooks/bazel-remote.yml -p bazel_remote up -d
 
-echo "--- Starting go module proxy"
+echo "~~~ Starting go module proxy"
 docker-compose -f .buildkite/hooks/go-module-proxy.yml -p athens up -d
