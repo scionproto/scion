@@ -105,7 +105,7 @@ func (s *DefaultExtender) Extend(
 	// Make sure the hop expiration time is not longer than the signer expiration time.
 	expTime := s.MaxExpTime()
 	if ts.Add(path.ExpTimeToDuration(expTime)).After(signer.Expiration) {
-		metrics.GaugeSet(s.SegmentExpirationDeficient,1)
+		metrics.GaugeSet(s.SegmentExpirationDeficient, 1)
 		var err error
 		expTime, err = path.ExpTimeFromDuration(signer.Expiration.Sub(ts))
 		if err != nil {
@@ -114,6 +114,8 @@ func (s *DefaultExtender) Extend(
 				"signer_expiration", signer.Expiration,
 			)
 		}
+	} else {
+		metrics.GaugeSet(s.SegmentExpirationDeficient, 0)
 	}
 
 	hopEntry, epicHopMac, err := s.createHopEntry(ingress, egress, expTime, ts, extractBeta(pseg))

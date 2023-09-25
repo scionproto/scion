@@ -157,5 +157,5 @@ func ExpTimeFromDuration(d time.Duration) (uint8, error) {
 	if d > MaxTTL {
 		return 0, serrors.New("duration too large", "seconds", d)
 	}
-	return uint8((d * 256 / MaxTTL) - 1), nil
+	return uint8((d*256)/MaxTTL - 1), nil
 }
