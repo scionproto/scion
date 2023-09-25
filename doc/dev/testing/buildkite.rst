@@ -44,12 +44,13 @@ Agents
 Machine Image
 -------------
 
-We use the default machine image of the *Elastic CI Stack for AWS*. `What's on each machine <https://buildkite.com/docs/agent/v3/elastic-ci-aws#whats-on-each-machine>`_:
+We use the default machine image of the *Elastic CI Stack for AWS* release `v6.7.1 <https://github.com/buildkite/elastic-ci-stack-for-aws/releases/tag/v6.7.1>`.
+`What's on each machine <https://buildkite.com/docs/agent/v3/elastic-ci-aws#before-you-start-whats-on-each-machine>`_:
 
-- Amazon Linux 2
-- Buildkite Agent v3.39.1
-- Docker v20.10.7
-- Docker Compose v1.29.2
+- Amazon Linux 2023
+- Buildkite Agent v3.50.2
+- Docker v20.10.25
+- Docker Compose v2.20.3
 - AWS CLI
 - jq
 
