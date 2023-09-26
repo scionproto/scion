@@ -694,6 +694,9 @@ func realMain(ctx context.Context) error {
 		// XXX(JordiSubira): Just take the first address, we only use topology.json with
 		// information for one unique AS.
 		hpListener, err := nc.OpenListener(a[0].String())
+		if err != nil {
+			return serrors.WrapStr("opening listener for HP", err)
+		}
 		g.Go(func() error {
 			defer log.HandlePanic()
 			if err := hpInterASServer.Serve(hpListener); err != nil {

@@ -45,7 +45,10 @@ type HiddenPathConfigurator struct {
 // location. An empty location will not enable any hidden path behavior. It
 // returns the configuration for the hidden segment writer. The return value can
 // be nil if this AS isn't a writer.
-func (c HiddenPathConfigurator) Setup(location string) (*grpc.Server, *HiddenPathRegistrationCfg, error) {
+func (c HiddenPathConfigurator) Setup(
+	location string,
+) (*grpc.Server, *HiddenPathRegistrationCfg, error) {
+
 	if location == "" {
 		return nil, nil, nil
 	}
