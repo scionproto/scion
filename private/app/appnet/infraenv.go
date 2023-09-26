@@ -232,6 +232,37 @@ func (nc *NetworkConfig) AddressRewriter(
 	}
 }
 
+func (nc *NetworkConfig) OpenListener(a string) (*squic.ConnListener, error) {
+	scionNet := &snet.SCIONNetwork{
+		LocalIA: nc.IA,
+		Connector: &snet.DefaultConnector{
+			// XXX(roosd): This is essential, the server must not read SCMP
+			// errors. Otherwise, the accept loop will always return that error
+			// on every subsequent call to accept.
+			SCMPHandler: ignoreSCMP{},
+			Metrics:     nc.SCIONPacketConnMetrics,
+		},
+		Metrics: nc.SCIONNetworkMetrics,
+	}
+	udpAddr, err := net.ResolveUDPAddr("udp", a)
+	if err != nil {
+		return nil, serrors.WrapStr("parsing server QUIC address", err)
+	}
+	server, err := scionNet.Listen(context.Background(), "udp", udpAddr, addr.SvcNone)
+	if err != nil {
+		return nil, serrors.WrapStr("creating server connection", err)
+	}
+	serverTLSConfig, err := GenerateTLSConfig()
+	if err != nil {
+		return nil, err
+	}
+	listener, err := quic.Listen(server, serverTLSConfig, nil)
+	if err != nil {
+		return nil, err
+	}
+	return squic.NewConnListener(listener), nil
+}
+
 // initSvcRedirect creates the main control-plane UDP socket. SVC anycasts will be
 // delivered to this socket, which replies to SVC resolution requests. The
 // address will be included as the QUIC address in SVC resolution replies.
