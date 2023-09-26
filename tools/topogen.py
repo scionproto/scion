@@ -35,7 +35,7 @@ def add_arguments(parser):
     parser.add_argument('-c', '--topo-config', default=DEFAULT_TOPOLOGY_FILE,
                         help='Path policy file')
     parser.add_argument('-d', '--docker', action='store_true',
-                        help='Create a docker-compose configuration')
+                        help='Create a docker compose configuration')
     parser.add_argument('-n', '--network',
                         help='Network to create subnets in (E.g. "127.0.0.0/8"')
     parser.add_argument('-o', '--output-dir', default=GEN_PATH,

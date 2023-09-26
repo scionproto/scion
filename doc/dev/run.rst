@@ -14,9 +14,9 @@ Running SCION in this developement setup, is also called running a **local topol
 The scripts support two different process orchestrators as "backends":
 
 - `supervisor <http://supervisord.org/>`_. This is the default and a bit more light-weight. Packets are sent over the loopback interface.
-- `docker-compose <https://docs.docker.com/compose/>`_. Runs individual processes in separate containers connected with docker network bridges. Only this mode supports running a "SCION-IP gateway".
+- `docker compose <https://docs.docker.com/compose/>`_. Runs individual processes in separate containers connected with docker network bridges. Only this mode supports running a "SCION-IP gateway".
 
-Before attempting to use the docker-compose mode, be sure to build the necessary docker images with:
+Before attempting to use the docker compose mode, be sure to build the necessary docker images with:
 .. code-block:: bash
 
    make docker-images
@@ -35,7 +35,7 @@ Quickstart
    * Build, using ``make``
 
 #. Generate the control-plane PKI keys and certificates, configuration files, and process
-   orchestrator (supervisor or docker-compose) configuration.
+   orchestrator (supervisor or docker compose) configuration.
 
    .. code-block:: bash
 
@@ -119,14 +119,14 @@ For example::
 
 docker
 ------
-The main docker-compose file is ``gen/scion-dc.yml``.
+The main docker compose file is ``gen/scion-dc.yml``.
 
 Each SCION service or router runs in a separate container, and the network access of the individual
 containers is configured to mimick real-world connectivity.
 
 There are "tester" containers configured in each AS to mimick end hosts in a SCION AS.
 These tester containers can be used to run commands accessing the SCION network.
-As a shorthand for the somewhat unwieldy ``docker-compose`` invocation, the :file-ref:`tools/dc`
+As a shorthand for the somewhat unwieldy ``docker compose`` invocation, the :file-ref:`tools/dc`
 script can be used. For example::
 
    # show paths from 1-ff00:0:112 to 1-ff00:0:110
@@ -148,7 +148,7 @@ scion.sh
 
 .. Note::
    The SCION tools and services need to be built **before** running these commands, using
-   ``make`` or ``make docker-images`` (when using the docker-compose configuration).
+   ``make`` or ``make docker-images`` (when using the docker compose configuration).
 
 The basic usage is ``./scion.sh <subcommand> <options>``. The main subcommands are:
 
@@ -157,7 +157,7 @@ The basic usage is ``./scion.sh <subcommand> <options>``. The main subcommands a
 .. option:: topology
 
    Generate the control-plane PKI keys and certificates, configuration files,
-   and process orchestrator (supervisor or docker-compose) configuration
+   and process orchestrator (supervisor or docker compose) configuration
    for a given network topopology defined in a
    :file-ref:`*.topo configuration file <topology/README.md>`.
 
@@ -169,7 +169,7 @@ The basic usage is ``./scion.sh <subcommand> <options>``. The main subcommands a
 
    .. option:: -d, --docker
 
-      Create a docker-compose configuration (instead of default supervisord).
+      Create a docker compose configuration (instead of default supervisord).
 
    .. option:: --sig
 

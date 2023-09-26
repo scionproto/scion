@@ -6,7 +6,7 @@ cmd_bazel_remote() {
     mkdir -p "$HOME/.cache/bazel/remote"
     uid=$(id -u)
     gid=$(id -g)
-    USER_ID="$uid" GROUP_ID="$gid" docker-compose -f bazel-remote.yml -p bazel_remote up -d
+    USER_ID="$uid" GROUP_ID="$gid" docker compose --compatibility -f bazel-remote.yml -p bazel_remote up -d
 }
 
 cmd_topo_clean() {
@@ -36,7 +36,7 @@ cmd_topodot() {
 start_scion() {
     echo "Running the network..."
     if is_docker_be; then
-        docker-compose -f gen/scion-dc.yml -p scion up -d
+        docker compose --compatibility -f gen/scion-dc.yml -p scion up -d
         return 0
     else
         run_setup
@@ -75,7 +75,7 @@ cmd_stop_monitoring() {
 }
 
 cmd_mstart() {
-    # Run with docker-compose or supervisor
+    # Run with docker compose or supervisor
     if is_docker_be; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
@@ -237,7 +237,7 @@ cmd_help() {
 	Two options for process control systems are supported to run the SCION
 	services.
 	  - supervisord (default)
-	  - docker-compose
+	  - docker compose
 	This can be selected when initially creating the configuration with the
 	topology subcommand.
 

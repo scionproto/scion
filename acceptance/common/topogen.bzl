@@ -103,6 +103,7 @@ def topogen_test(
             "PYTHONUNBUFFERED": "1",
             # Ensure that unicode output can be printed to the log/console
             "PYTHONIOENCODING": "utf-8",
+            "HOME": "/tmp",
         },
     )
 

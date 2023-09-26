@@ -75,7 +75,7 @@ func Run(ctx context.Context, cfg RunConfig) error {
 	if cfg.Tester != "" {
 		args := append([]string{}, dockerArgs...)
 		args = append(args, cfg.Tester, "sh", "-c", joinCmds(cfg.Commands))
-		cmd = exec.CommandContext(ctx, "docker-compose", args...)
+		cmd = exec.CommandContext(ctx, "docker", args...)
 		log.Debug("Running docker command", "cmd", cmd)
 	} else {
 		cmd = exec.CommandContext(ctx, "sh", "-c", joinCmds(cfg.Commands))

@@ -54,6 +54,7 @@ class MonitoringGenArgs(ArgsTopoDicts):
         super().__init__(args, topo_dicts)
         self.networks = networks
 
+
 class MonitoringGenerator(object):
     PROM_DIR = "prometheus"
     TARGET_FILES = {

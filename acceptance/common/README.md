@@ -56,7 +56,7 @@ Tests can use:
 
 - `self.artifacts`: the specified directory for test outputs, created during setup.
 - `self.get_executable(<name>)`: returns an executable specified using the `--executable` switch.
-- `self.dc`: a wrapper for `docker-compose`, instantiated during `TestTopogen.setup`.
+- `self.dc`: a wrapper for `docker compose`, instantiated during `TestTopogen.setup`.
 
 The `base.main` function is the main entry point to run the tests and must be
 invoked in `__main__`.

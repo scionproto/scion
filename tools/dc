@@ -38,7 +38,7 @@ cmd_help() {
 	    - [GROUP]:
 	        - scion:    For all scion services.
 	        - monitoring:     For the prometheus service.
-	    - [COMMAND]: A docker-compose command like 'up -d' or 'down'
+	    - [COMMAND]: A docker compose command like 'up -d' or 'down'
 	    - [IA]: An IA number like 1-ff00:0:110
 	    - [LOG_DIR]: A folder.
 	_EOF
@@ -79,7 +79,7 @@ dc() {
     local project="$1"
     local dc_file="gen/$1-dc.yml"
     shift
-    COMPOSE_FILE="$dc_file" docker-compose -p "$project" --ansi never "$@"
+    COMPOSE_FILE="$dc_file" docker compose --compatibility -p "$project" --ansi never "$@"
 }
 
 cmd_collect_logs() {
