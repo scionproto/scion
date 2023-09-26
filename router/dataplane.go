@@ -50,6 +50,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path/onehop"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/spao"
+	"github.com/scionproto/scion/private/drkey/drkeyutil"
 	"github.com/scionproto/scion/private/topology"
 	underlayconn "github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router/bfd"
@@ -142,7 +143,13 @@ var (
 )
 
 type drkeyProvider interface {
-	GetAuthKey(validTime time.Time, dstIA addr.IA, dstAddr addr.Host) (drkey.Key, error)
+	GetASHostKey(validTime time.Time, dstIA addr.IA, dstAddr addr.Host) (drkey.ASHostKey, error)
+	GetKeyWithinAcceptanceWindow(
+		validTime time.Time,
+		timestamp uint64,
+		dstIA addr.IA,
+		dstAddr addr.Host,
+	) (drkey.ASHostKey, error)
 }
 
 type scmpError struct {
@@ -827,9 +834,13 @@ func newPacketProcessor(d *DataPlane) *scionPacketProcessor {
 			drkeyInput: make([]byte, spao.MACBufferSize),
 		},
 		// TODO(JordiSubira): Replace this with a useful implementation.
-		drkeyProvider: &fakeProvider{},
-		optAuth:       slayers.PacketAuthOption{EndToEndOption: new(slayers.EndToEndOption)},
-		validAuthBuf:  make([]byte, 16),
+
+		drkeyProvider: &drkeyutil.FakeProvider{
+			EpochDuration:    drkeyutil.LoadEpochDuration(),
+			AcceptanceWindow: drkeyutil.LoadAcceptanceWindow(),
+		},
+		optAuth:      slayers.PacketAuthOption{EndToEndOption: new(slayers.EndToEndOption)},
+		validAuthBuf: make([]byte, 16),
 	}
 	p.scionLayer.RecyclePaths()
 	return p
@@ -1943,7 +1954,7 @@ func (p *scionPacketProcessor) prepareSCMP(
 	// if SCMPTypeTracerouteReply to create the response.
 	needsAuth := cause != nil ||
 		(scmpH.TypeCode.Type() == slayers.SCMPTypeTracerouteReply &&
-			p.hasValidAuth())
+			p.hasValidAuth(time.Now()))
 
 	var quote []byte
 	if cause != nil {
@@ -1988,11 +1999,11 @@ func (p *scionPacketProcessor) prepareSCMP(
 
 		now := time.Now()
 		// srcA == scionL.DstAddr
-		key, err := p.drkeyProvider.GetAuthKey(now, scionL.DstIA, srcA)
+		key, err := p.drkeyProvider.GetASHostKey(now, scionL.DstIA, srcA)
 		if err != nil {
 			return nil, serrors.Wrap(cannotRoute, err, "details", "retrieving DRKey")
 		}
-		if err := p.resetSPAOMetadata(now); err != nil {
+		if err := p.resetSPAOMetadata(key, now); err != nil {
 			return nil, serrors.Wrap(cannotRoute, err, "details", "resetting SPAO header")
 		}
 
@@ -2000,7 +2011,7 @@ func (p *scionPacketProcessor) prepareSCMP(
 		e2e.NextHdr = slayers.L4SCMP
 		_, err = spao.ComputeAuthCMAC(
 			spao.MACInput{
-				Key:        key[:],
+				Key:        key.Key[:],
 				Header:     p.optAuth,
 				ScionLayer: &scionL,
 				PldType:    slayers.L4SCMP,
@@ -2025,43 +2036,30 @@ func (p *scionPacketProcessor) prepareSCMP(
 	return p.buffer.Bytes(), scmpError{TypeCode: scmpH.TypeCode, Cause: cause}
 }
 
-func (p *scionPacketProcessor) resetSPAOMetadata(now time.Time) error {
+func (p *scionPacketProcessor) resetSPAOMetadata(key drkey.ASHostKey, now time.Time) error {
 	// For creating SCMP responses we use sender side.
 	dir := slayers.PacketAuthSenderSide
-	// TODO(JordiSubira): We assume the later epoch at the moment.
-	// If the authentication stems from an authenticated request, we want to use
-	// the same key as the one used by the request sender.
-	epoch := slayers.PacketAuthLater
 	drkeyType := slayers.PacketAuthASHost
 
-	spi, err := slayers.MakePacketAuthSPIDRKey(uint16(drkey.SCMP), drkeyType, dir, epoch)
+	spi, err := slayers.MakePacketAuthSPIDRKey(uint16(drkey.SCMP), drkeyType, dir)
 	if err != nil {
 		return err
 	}
 
-	firstInfo, err := p.path.GetInfoField(0)
+	timestamp, err := spao.RelativeTimestamp(key.Epoch, now)
 	if err != nil {
 		return err
 	}
 
-	timestamp, err := spao.RelativeTimestamp(firstInfo.Timestamp, now)
-	if err != nil {
-		return err
-	}
-
-	// XXX(JordiSubira): Assume that send rate is low so that combination
-	// with timestamp is always unique
-	sn := uint32(0)
 	return p.optAuth.Reset(slayers.PacketAuthOptionParams{
-		SPI:            spi,
-		Algorithm:      slayers.PacketAuthCMAC,
-		Timestamp:      timestamp,
-		SequenceNumber: sn,
-		Auth:           zeroBuffer,
+		SPI:         spi,
+		Algorithm:   slayers.PacketAuthCMAC,
+		TimestampSN: timestamp,
+		Auth:        zeroBuffer,
 	})
 }
 
-func (p *scionPacketProcessor) hasValidAuth() bool {
+func (p *scionPacketProcessor) hasValidAuth(t time.Time) bool {
 	// Check if e2eLayer was parsed for this packet
 	if !p.lastLayer.CanDecode().Contains(slayers.LayerTypeEndToEndExtn) {
 		return false
@@ -2083,25 +2081,27 @@ func (p *scionPacketProcessor) hasValidAuth() bool {
 		return false
 	}
 	// Computing authField
-	firstInfo, err := p.path.GetInfoField(0)
-	if err != nil {
-		return false
-	}
-	then := spao.Time(firstInfo.Timestamp, authOption.Timestamp())
+	// the sender should have used the receiver side key, i.e., K_{localIA-remoteIA:remoteHost}
+	// where remoteIA == p.scionLayer.SrcIA and remoteHost == srcAddr
+	// (for the incoming packet).
 	srcAddr, err := p.scionLayer.SrcAddr()
 	if err != nil {
 		return false
 	}
-	// the sender should have used the receiver side key, i.e., K_{localIA-remoteIA:remoteHost}
-	// where remoteIA == p.scionLayer.SrcIA and remoteHost == srcAddr
-	// (for the incoming packet).
-	key, err := p.drkeyProvider.GetAuthKey(then, p.scionLayer.SrcIA, srcAddr)
+	key, err := p.drkeyProvider.GetKeyWithinAcceptanceWindow(
+		t,
+		authOption.TimestampSN(),
+		p.scionLayer.SrcIA,
+		srcAddr,
+	)
 	if err != nil {
+		log.Debug("Selecting key to authenticate the incoming packet", "err", err)
 		return false
 	}
+
 	_, err = spao.ComputeAuthCMAC(
 		spao.MACInput{
-			Key:        key[:],
+			Key:        key.Key[:],
 			Header:     authOption,
 			ScionLayer: &p.scionLayer,
 			PldType:    slayers.L4SCMP,
@@ -2215,14 +2215,4 @@ func serviceMetricLabels(localIA addr.IA, svc addr.SVC) prometheus.Labels {
 		"isd_as":  localIA.String(),
 		"service": svc.BaseString(),
 	}
-}
-
-type fakeProvider struct{}
-
-func (p *fakeProvider) GetAuthKey(
-	_ time.Time,
-	_ addr.IA,
-	_ addr.Host,
-) (drkey.Key, error) {
-	return drkey.Key{}, nil
 }

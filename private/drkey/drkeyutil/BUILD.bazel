@@ -1,0 +1,19 @@
+load("//tools/lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "drkey.go",
+        "provider.go",
+    ],
+    importpath = "github.com/scionproto/scion/private/drkey/drkeyutil",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/addr:go_default_library",
+        "//pkg/drkey:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/private/util:go_default_library",
+        "//pkg/scrypto/cppki:go_default_library",
+        "//pkg/spao:go_default_library",
+    ],
+)
