@@ -4,7 +4,6 @@
 
 import http.server
 import threading
-import sys
 
 from acceptance.common import base
 from acceptance.common import scion
@@ -135,7 +134,7 @@ class Test(base.TestTopogen):
         except Exception as e:
             print(e)
         else:
-            assert("Unexpected success; should not have paths 3 -> 4")
+            raise AssertionError("Unexpected success; should not have paths 3 -> 4")
 
     def _showpaths_bidirectional(self, source: str, destination: str):
         self._showpaths_run(source, destination)

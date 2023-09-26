@@ -39,7 +39,7 @@ var dockerArgs []string
 
 func initDockerArgs() {
 	dockerArgs = []string{"compose", "--compatibility",
-		"-f", GenFile("scion-dc.yml"), "-p", "scion", "exec", "-T", "-e",
+		"-f", GenFile("scion-dc.yml"), "exec", "-T", "-e",
 		fmt.Sprintf("%s=1", GoIntegrationEnv)}
 }
 
