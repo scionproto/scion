@@ -298,6 +298,9 @@ class TopoGenerator(object):
                                                         r_ifid, link_addr_type)
 
         intl_addr = self._reg_addr(local, local_br + "_internal", addr_type)
+
+        intf = self._gen_br_intf(remote, r_ifid, public_addr, remote_addr, attrs, remote_type)
+
         if self.topo_dicts[local]["border_routers"].get(local_br) is None:
             intl_port = 30042
             if not self.args.docker:
@@ -306,24 +309,27 @@ class TopoGenerator(object):
             self.topo_dicts[local]["border_routers"][local_br] = {
                 'internal_addr': join_host_port(intl_addr.ip, intl_port),
                 'interfaces': {
-                    l_ifid: self._gen_br_intf(remote, public_addr, remote_addr, attrs, remote_type)
+                    l_ifid: intf
                 }
             }
         else:
             # There is already a BR entry, add interface
-            intf = self._gen_br_intf(remote, public_addr, remote_addr, attrs, remote_type)
             self.topo_dicts[local]["border_routers"][local_br]['interfaces'][l_ifid] = intf
 
-    def _gen_br_intf(self, remote, public_addr, remote_addr, attrs, remote_type):
-        return {
+    def _gen_br_intf(self, remote, r_ifid, public_addr, remote_addr, attrs, remote_type):
+        link_to = remote_type.name.lower()
+        intf = {
             'underlay': {
                 'public': join_host_port(public_addr.ip, SCION_ROUTER_PORT),
                 'remote': join_host_port(remote_addr.ip, SCION_ROUTER_PORT),
             },
             'isd_as': str(remote),
-            'link_to': remote_type.name.lower(),
-            'mtu': attrs.get('mtu', self.args.default_mtu)
+            'link_to': link_to,
+            'mtu': attrs.get('mtu', self.args.default_mtu),
         }
+        if link_to == 'peer':
+            intf['remote_interface_id'] = r_ifid
+        return intf
 
     def _gen_sig_entries(self, topo_id, as_conf):
         addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))

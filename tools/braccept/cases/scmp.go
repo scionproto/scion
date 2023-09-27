@@ -51,11 +51,10 @@ func normalizePacketAuthOption(pkt gopacket.Packet) {
 		0, 0, 0, 0,
 		0, 0, 0, 0}
 	_ = optAuth.Reset(slayers.PacketAuthOptionParams{
-		SPI:            spi,
-		Algorithm:      alg,
-		Timestamp:      uint32(0),
-		SequenceNumber: uint32(0),
-		Auth:           auth,
+		SPI:         spi,
+		Algorithm:   alg,
+		TimestampSN: uint64(0),
+		Auth:        auth,
 	})
 }
 
@@ -64,17 +63,15 @@ func normalizedSCMPPacketAuthEndToEndExtn() *slayers.EndToEndExtn {
 		uint16(drkey.SCMP),
 		slayers.PacketAuthASHost,
 		slayers.PacketAuthSenderSide,
-		slayers.PacketAuthLater,
 	)
 	if err != nil {
 		panic(err)
 	}
 	packAuthOpt, err := slayers.NewPacketAuthOption(slayers.PacketAuthOptionParams{
-		SPI:            spi,
-		Algorithm:      slayers.PacketAuthCMAC,
-		Timestamp:      uint32(0),
-		SequenceNumber: uint32(0),
-		Auth:           make([]byte, 16),
+		SPI:         spi,
+		Algorithm:   slayers.PacketAuthCMAC,
+		TimestampSN: uint64(0),
+		Auth:        make([]byte, 16),
 	})
 	if err != nil {
 		panic(err)

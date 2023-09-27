@@ -31,7 +31,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/lucas-clemente/quic-go"
+	"github.com/quic-go/quic-go"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
@@ -83,6 +83,8 @@ type NetworkConfig struct {
 	SCIONNetworkMetrics snet.SCIONNetworkMetrics
 	// Metrics injected into DefaultPacketDispatcherService.
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
+	// MTU of the local AS
+	MTU uint16
 }
 
 // QUICStack contains everything to run a QUIC based RPC stack.
@@ -103,8 +105,9 @@ func (nc *NetworkConfig) TCPStack() (net.Listener, error) {
 
 func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	if nc.QUIC.Address == "" {
-		nc.QUIC.Address = net.JoinHostPort(nc.Public.IP.String(), "0")
+		nc.QUIC.Address = nc.Public.String()
 	}
+
 	client, server, err := nc.initQUICSockets()
 	if err != nil {
 		return nil, err
@@ -147,15 +150,18 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 		VerifyConnection:      nc.QUIC.TLSVerifier.VerifyConnection,
 		NextProtos:            []string{"SCION"},
 	}
+	clientTransport := &quic.Transport{
+		Conn: client,
+	}
 
 	return &QUICStack{
 		Listener: squic.NewConnListener(listener),
 		InsecureDialer: &squic.ConnDialer{
-			Conn:      client,
+			Transport: clientTransport,
 			TLSConfig: insecureClientTLSConfig,
 		},
 		Dialer: &squic.ConnDialer{
-			Conn:      client,
+			Transport: clientTransport,
 			TLSConfig: clientTLSConfig,
 		},
 		RedirectCloser: cancel,
@@ -221,7 +227,7 @@ func (nc *NetworkConfig) AddressRewriter(
 		}
 	}
 	return &AddressRewriter{
-		Router:    &snet.BaseRouter{Querier: snet.IntraASPathQuerier{IA: nc.IA}},
+		Router:    &snet.BaseRouter{Querier: IntraASPathQuerier{IA: nc.IA, MTU: nc.MTU}},
 		SVCRouter: nc.SVCResolver,
 		Resolver: &svc.Resolver{
 			LocalIA:     nc.IA,
@@ -266,9 +272,15 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 		Dispatcher: packetDispatcher,
 		Metrics:    nc.SCIONNetworkMetrics,
 	}
-	conn, err := network.Listen(context.Background(), "udp", nc.Public, addr.SvcWildcard)
+
+	// The service resolution address gets a dynamic port. In reality, neither the
+	// address nor the port are needed to address the resolver, but the dispatcher still
+	// requires them and checks unicity. At least a dynamic port is allowed.
+	srAddr := &net.UDPAddr{IP: nc.Public.IP, Port: 0}
+	conn, err := network.Listen(context.Background(), "udp", srAddr, addr.SvcWildcard)
 	if err != nil {
-		return nil, serrors.WrapStr("listening on SCION", err, "addr", nc.Public)
+		log.Info("Listen failed", "err", err)
+		return nil, serrors.WrapStr("listening on SCION", err, "addr", srAddr)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -327,8 +339,13 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 	clientNet := &snet.SCIONNetwork{
 		LocalIA: nc.IA,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
-			Dispatcher:             dispatcherService,
-			SCMPHandler:            nc.SCMPHandler,
+			Dispatcher: dispatcherService,
+			// Discard all SCMP propagation, to avoid read errors on the QUIC
+			// client.
+			SCMPHandler: snet.SCMPPropagationStopper{
+				Handler: nc.SCMPHandler,
+				Log:     log.Debug,
+			},
 			SCIONPacketConnMetrics: nc.SCIONPacketConnMetrics,
 		},
 		Metrics: nc.SCIONNetworkMetrics,

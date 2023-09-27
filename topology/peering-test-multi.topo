@@ -1,0 +1,41 @@
+--- # Topology demonstrating peering, IPv4 Only
+ASes:
+  "1-ff00:0:110":
+    core: true
+    voting: true
+    authoritative: true
+    issuing: true
+    mtu: 1400
+  "1-ff00:0:111":
+    cert_issuer: 1-ff00:0:110
+  "1-ff00:0:112":
+    cert_issuer: 1-ff00:0:110
+  "1-ff00:0:113":
+    cert_issuer: 1-ff00:0:110
+  "1-ff00:0:114":
+    cert_issuer: 1-ff00:0:110
+  "2-ff00:0:210":
+    core: true
+    voting: true
+    authoritative: true
+    issuing: true
+    mtu: 1400
+  "2-ff00:0:211":
+    cert_issuer: 2-ff00:0:210
+  "2-ff00:0:212":
+    cert_issuer: 2-ff00:0:210
+  "2-ff00:0:213":
+    cert_issuer: 2-ff00:0:210
+    
+
+links:
+  - {a: "1-ff00:0:110#1", b: "1-ff00:0:111#41", linkAtoB: CHILD, mtu: 1280}
+  - {a: "1-ff00:0:110#2", b: "1-ff00:0:112#1", linkAtoB: CHILD, bw: 500}
+  - {a: "1-ff00:0:112#3", b: "1-ff00:0:113#3", linkAtoB: CHILD, bw: 500}
+  - {a: "1-ff00:0:113#4", b: "1-ff00:0:114#4", linkAtoB: CHILD, bw: 500}
+  - {a: "1-ff00:0:112#47", b: "1-ff00:0:114#11", linkAtoB: PEER}
+  - {a: "1-ff00:0:110#3", b: "2-ff00:0:210#3", linkAtoB: CORE}
+  - {a: "2-ff00:0:210#1", b: "2-ff00:0:211#3", linkAtoB: CHILD, mtu: 1280}
+  - {a: "2-ff00:0:210#2", b: "2-ff00:0:212#7", linkAtoB: CHILD, bw: 500}
+  - {a: "2-ff00:0:212#3", b: "2-ff00:0:213#3", linkAtoB: CHILD, bw: 500}
+  - {a: "1-ff00:0:112#42", b: "2-ff00:0:212#23", linkAtoB: PEER}

@@ -9,7 +9,7 @@ go_library(
         "//pkg/log:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/snet:go_default_library",
-        "@com_github_lucas_clemente_quic_go//:go_default_library",
+        "@com_github_quic_go_quic_go//:go_default_library",
     ],
 )
 
@@ -23,7 +23,7 @@ go_test(
         "//pkg/proto/control_plane:go_default_library",
         "//pkg/proto/control_plane/mock_control_plane:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
-        "@com_github_lucas_clemente_quic_go//:go_default_library",
+        "@com_github_quic_go_quic_go//:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
         "@org_golang_google_grpc//:go_default_library",

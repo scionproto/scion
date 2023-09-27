@@ -249,10 +249,6 @@ func (p *partialPath) Dataplane() DataplanePath {
 	return p.dataplane
 }
 
-func (p *partialPath) Interfaces() []PathInterface {
-	return nil
-}
-
 func (p *partialPath) Source() addr.IA {
 	return p.source
 }

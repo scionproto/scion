@@ -93,12 +93,11 @@ func realMain() int {
 		cases.SCMPDestinationUnreachable(artifactsDir, hfMAC),
 		cases.SCMPBadMAC(artifactsDir, hfMAC),
 		cases.SCMPBadMACInternal(artifactsDir, hfMAC),
-		cases.SCMPExpiredHopAfterXoverMessageBack(artifactsDir, hfMAC),
-		cases.SCMPExpiredHopAfterXoverConsDirMessageBack(artifactsDir, hfMAC),
-		cases.SCMPExpiredHopAfterXoverInternalMessageBack(artifactsDir, hfMAC),
-		cases.SCMPExpiredHopAfterXoverInternalConsDirMessageBack(artifactsDir, hfMAC),
+		cases.SCMPExpiredHopAfterXover(artifactsDir, hfMAC),
+		cases.SCMPExpiredHopAfterXoverConsDir(artifactsDir, hfMAC),
+		cases.SCMPExpiredHopAfterXoverInternal(artifactsDir, hfMAC),
+		cases.SCMPExpiredHopAfterXoverInternalConsDir(artifactsDir, hfMAC),
 		cases.SCMPExpiredHop(artifactsDir, hfMAC),
-		cases.SCMPExpiredHopMessageBack(artifactsDir, hfMAC),
 		cases.SCMPChildToParentXover(artifactsDir, hfMAC),
 		cases.SCMPParentToChildXover(artifactsDir, hfMAC),
 		cases.SCMPParentToParentXover(artifactsDir, hfMAC),
@@ -128,6 +127,8 @@ func realMain() int {
 		cases.OutgoingOneHop(artifactsDir, hfMAC),
 		cases.SVC(artifactsDir, hfMAC),
 		cases.JumboPacket(artifactsDir, hfMAC),
+		cases.ChildToPeer(artifactsDir, hfMAC),
+		cases.PeerToChild(artifactsDir, hfMAC),
 	}
 
 	if *bfd {

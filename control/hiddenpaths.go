@@ -84,7 +84,8 @@ func (c HiddenPathConfigurator) Setup(location string) (*HiddenPathRegistrationC
 			&hpgrpc.AuthoritativeSegmentServer{
 				Lookup:   c.localAuthServer(groups),
 				Verifier: c.Verifier,
-			})
+			},
+		)
 		hspb.RegisterHiddenSegmentRegistrationServiceServer(c.InterASQUICServer,
 			&hpgrpc.RegistrationServer{
 				Registry: hiddenpath.RegistryServer{

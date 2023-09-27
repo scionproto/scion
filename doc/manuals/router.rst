@@ -88,6 +88,14 @@ Environment Variables
 
    Same applicability as above; can be overridden for specific inter-AS BFD sessions with
    :option:`bfd.required_min_rx_interval <topology-json required_min_rx_interval>`.
+.. envvar:: SCION_TESTING_DRKEY_EPOCH_DURATION
+
+   Defines the global DRKey :ref:`Epoch<drkey-epoch>` duration that the border router
+   assumes.
+
+.. envvar:: SCION_TESTING_ACCEPTANCE_WINDOW
+
+   Defines the acceptance window following the :ref:`SPAO specification<spao-absTime>`.
 
 Configuration
 =============
