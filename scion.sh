@@ -140,10 +140,16 @@ cmd_mstatus() {
     if is_docker_be; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
-        out=$(./tools/dc scion ps $services | tail -n +3)
-        rscount=$(echo "$out" | grep '\<Up\>' | wc -l) # Number of running services
+        rscount=$(./tools/dc scion ps --status=running --format "{{.Name}}" $services | wc -l)
         tscount=$(echo "$services" | wc -w) # Number of all globed services
-        echo "$out" | grep -v '\<Up\>'
+	./tools/dc scion ps -a \
+		   --status=paused \
+		   --status=restarting \
+		   --status=removing \
+		   --status=dead \
+		   --status=created \
+		   --status=exited \
+		   --format "{{.Name}} {{.State}}" $services
         [ $rscount -eq $tscount ]
     else
         if [ $# -ne 0 ]; then
