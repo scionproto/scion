@@ -27,17 +27,16 @@ import (
 
 var (
 	algo       = slayers.PacketAuthSHA1_AES_CBC
-	ts         = uint32(0x030201)
-	sn         = uint32(0x060504)
+	ts         = uint64(0x060504030201)
 	optAuthMAC = []byte("16byte_mac_foooo")
 )
 
 var rawE2EOptAuth = append(
 	[]byte{
 		0x11, 0x7, 0x2, 0x1c,
-		0x0, 0x2, 0x0, 0x1,
-		0x1, 0x3, 0x2, 0x1,
-		0x0, 0x6, 0x5, 0x4,
+		0x0, 0x1, 0x0, 0x1,
+		0x1, 0x0, 0x6, 0x5,
+		0x4, 0x3, 0x2, 0x1,
 	},
 	optAuthMAC...,
 )
@@ -47,8 +46,7 @@ func TestOptAuthenticatorSerialize(t *testing.T) {
 		name      string
 		spiFunc   func(t *testing.T) slayers.PacketAuthSPI
 		algo      slayers.PacketAuthAlg
-		ts        uint32
-		sn        uint32
+		ts        uint64
 		optAuth   []byte
 		errorFunc assert.ErrorAssertionFunc
 	}{
@@ -57,7 +55,6 @@ func TestOptAuthenticatorSerialize(t *testing.T) {
 			spiFunc:   initSPI,
 			algo:      algo,
 			ts:        ts,
-			sn:        sn,
 			optAuth:   optAuthMAC,
 			errorFunc: assert.NoError,
 		},
@@ -65,17 +62,7 @@ func TestOptAuthenticatorSerialize(t *testing.T) {
 			name:      "bad_ts",
 			spiFunc:   initSPI,
 			algo:      algo,
-			ts:        binary.LittleEndian.Uint32([]byte{0, 0, 0, 1}),
-			sn:        sn,
-			optAuth:   optAuthMAC,
-			errorFunc: assert.Error,
-		},
-		{
-			name:      "bad_sn",
-			spiFunc:   initSPI,
-			algo:      algo,
-			ts:        ts,
-			sn:        binary.LittleEndian.Uint32([]byte{0, 0, 0, 1}),
+			ts:        uint64(1 << 48),
 			optAuth:   optAuthMAC,
 			errorFunc: assert.Error,
 		},
@@ -84,11 +71,10 @@ func TestOptAuthenticatorSerialize(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 
 			spao, err := slayers.NewPacketAuthOption(slayers.PacketAuthOptionParams{
-				SPI:            c.spiFunc(t),
-				Algorithm:      c.algo,
-				Timestamp:      c.ts,
-				SequenceNumber: c.sn,
-				Auth:           c.optAuth,
+				SPI:         c.spiFunc(t),
+				Algorithm:   c.algo,
+				TimestampSN: c.ts,
+				Auth:        c.optAuth,
 			})
 			c.errorFunc(t, err)
 			if err != nil {
@@ -122,17 +108,15 @@ func TestOptAuthenticatorDeserialize(t *testing.T) {
 	assert.Equal(t, initSPI(t), auth.SPI(), "SPI")
 	assert.Equal(t, slayers.PacketAuthASHost, auth.SPI().Type())
 	assert.Equal(t, slayers.PacketAuthReceiverSide, auth.SPI().Direction())
-	assert.Equal(t, slayers.PacketAuthLater, auth.SPI().Epoch())
 	assert.Equal(t, true, auth.SPI().IsDRKey())
 	assert.Equal(t, algo, auth.Algorithm(), "Algorithm Type")
-	assert.Equal(t, ts, auth.Timestamp(), "Timestamp")
-	assert.Equal(t, sn, auth.SequenceNumber(), "Sequence Number")
+	assert.Equal(t, ts, auth.TimestampSN(), "TimestampSN")
 	assert.Equal(t, optAuthMAC, auth.Authenticator(), "Authenticator data (MAC)")
 }
 
 func TestMakePacketAuthSPIDrkey(t *testing.T) {
 	spi := initSPI(t)
-	assert.EqualValues(t, binary.BigEndian.Uint32([]byte{0, 2, 0, 1}), spi)
+	assert.EqualValues(t, binary.BigEndian.Uint32([]byte{0, 1, 0, 1}), spi)
 }
 
 func TestOptAuthenticatorDeserializeCorrupt(t *testing.T) {
@@ -159,8 +143,7 @@ func initSPI(t *testing.T) slayers.PacketAuthSPI {
 	spi, err := slayers.MakePacketAuthSPIDRKey(
 		1,
 		slayers.PacketAuthASHost,
-		slayers.PacketAuthReceiverSide,
-		slayers.PacketAuthLater)
+		slayers.PacketAuthReceiverSide)
 	require.NoError(t, err)
 	return spi
 }
