@@ -114,7 +114,7 @@ func loadTopo(t *testing.T, name string) {
 	mustExec(t, "docker", "compose", "--compatibility", "-f", "docker-compose.yml",
 		"exec", "-T", "topo_daemon_reload_daemon", "mv", name, "/topology.json")
 	mustExec(t, "docker", "compose", "--compatibility", "-f", "docker-compose.yml",
-		"kill", "-s", "SIGHUP",	"topo_daemon_reload_daemon")
+		"kill", "-s", "SIGHUP", "topo_daemon_reload_daemon")
 }
 
 func mustExec(t *testing.T, name string, arg ...string) {
