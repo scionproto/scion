@@ -53,6 +53,7 @@ class Test(base.TestTopogen):
     """
 
     def _run(self):
+        self.await_connectivity()
 
         isd_ases = scion.ASList.load("%s/gen/as_list.yml" %
                                      self.artifacts).all
@@ -84,6 +85,7 @@ class Test(base.TestTopogen):
 
         logger.info("==> Restart containers")
         self.setup_start()
+        self.await_connectivity()
 
         logger.info("==> Check connectivity")
         end2end.run_fg()
