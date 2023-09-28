@@ -37,7 +37,7 @@ cmd_help() {
 	    - [SERVICE]: As scion service glob, e.g. cs1*.
 	    - [GROUP]:
 	        - scion:    For all scion services.
-	        - monitoring:     For the monitoring service (i.e. prometheus seand yaeger.
+	        - monitoring:     For the monitoring service (i.e. prometheus and yaeger).
 	    - [COMMAND]: A docker compose command like 'up -d' or 'down'
 	    - [IA]: An IA number like 1-ff00:0:110
 	    - [LOG_DIR]: A folder.
