@@ -3,7 +3,6 @@
 # Copyright 2020 Anapaya Systems
 
 import http.server
-import time
 import threading
 
 from plumbum import cmd
