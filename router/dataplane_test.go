@@ -539,8 +539,9 @@ func TestDataPlaneRun(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			runConfig := &router.RunConfig{
-				NumProcessors: 8,
-				BatchSize:     256,
+				NumProcessors:         8,
+				BatchSize:             256,
+				NumSlowPathProcessors: 1,
 			}
 			ch := make(chan struct{})
 			dp := tc.prepareDP(ctrl, ch)
@@ -1146,54 +1147,6 @@ func TestProcessPkt(t *testing.T) {
 			egressInterface: 0,
 			assertFunc:      assert.NoError,
 		},
-		"svc nobackend": {
-			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
-			},
-			mockMsg: func(afterProcessing bool) *ipv4.Message {
-				spkt, dpath := prepBaseMsg(now)
-				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
-				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
-				dpath.HopFields = []path.HopField{
-					{ConsIngress: 41, ConsEgress: 40},
-					{ConsIngress: 31, ConsEgress: 30},
-					{ConsIngress: 1, ConsEgress: 0},
-				}
-				dpath.Base.PathMeta.CurrHF = 2
-				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
-				ret := toMsg(t, spkt, dpath)
-				return ret
-			},
-			srcInterface:    1,
-			egressInterface: 0,
-			assertFunc:      assertIsSCMPError(slayers.SCMPTypeDestinationUnreachable, 0),
-		},
-		"svc invalid": {
-			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
-			},
-			mockMsg: func(afterProcessing bool) *ipv4.Message {
-				spkt, dpath := prepBaseMsg(now)
-				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
-				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
-				dpath.HopFields = []path.HopField{
-					{ConsIngress: 41, ConsEgress: 40},
-					{ConsIngress: 31, ConsEgress: 30},
-					{ConsIngress: 1, ConsEgress: 0},
-				}
-				dpath.Base.PathMeta.CurrHF = 2
-				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
-				ret := toMsg(t, spkt, dpath)
-				return ret
-			},
-			srcInterface:    1,
-			egressInterface: 0,
-			assertFunc:      assertIsSCMPError(slayers.SCMPTypeDestinationUnreachable, 0),
-		},
 		"onehop inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
@@ -1400,32 +1353,6 @@ func TestProcessPkt(t *testing.T) {
 			srcInterface:    0,
 			egressInterface: 2,
 			assertFunc:      assert.NoError,
-		},
-		"invalid dest": {
-			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
-			},
-			mockMsg: func(afterProcessing bool) *ipv4.Message {
-				spkt, dpath := prepBaseMsg(now)
-				spkt.DstIA = xtest.MustParseIA("1-ff00:0:f1")
-				dpath.HopFields = []path.HopField{
-					{ConsIngress: 41, ConsEgress: 40},
-					{ConsIngress: 31, ConsEgress: 404},
-					{ConsIngress: 1, ConsEgress: 0},
-				}
-				dpath.Base.PathMeta.CurrHF = 2
-				dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[1])
-				ret := toMsg(t, spkt, dpath)
-				return ret
-			},
-			srcInterface:    1,
-			egressInterface: 0,
-			assertFunc: assertIsSCMPError(
-				slayers.SCMPTypeParameterProblem,
-				slayers.SCMPCodeInvalidDestinationAddress,
-			),
 		},
 		"epic inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -1653,16 +1580,5 @@ func bfd() control.BFD {
 		DetectMult:            3,
 		DesiredMinTxInterval:  1 * time.Millisecond,
 		RequiredMinRxInterval: 25 * time.Millisecond,
-	}
-}
-
-// assertIsSCMPError returns an ErrorAssertionFunc asserting that error is an
-// scmpError with the specified type/code.
-func assertIsSCMPError(typ slayers.SCMPType, code slayers.SCMPCode) assert.ErrorAssertionFunc {
-	return func(t assert.TestingT, err error, args ...interface{}) bool {
-		target := router.SCMPError{}
-		return assert.ErrorAs(t, err, &target, args) &&
-			assert.Equal(t, typ, target.TypeCode.Type(), args) &&
-			assert.Equal(t, code, target.TypeCode.Code(), args)
 	}
 }
