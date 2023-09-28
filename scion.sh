@@ -236,53 +236,53 @@ cmd_stop-traces() {
 }
 
 cmd_help() {
-        cat <<-_EOF
-        SCION
+    cat <<-_EOF
+	SCION
 
-        $PROGRAM runs a SCION network locally for development and testing purposes.
-        Two options for process control systems are supported to run the SCION
-        services.
-          - supervisord (default)
-          - docker compose
-        This can be selected when initially creating the configuration with the
-        topology subcommand.
+	$PROGRAM runs a SCION network locally for development and testing purposes.
+	Two options for process control systems are supported to run the SCION
+	services.
+	  - supervisord (default)
+	  - docker compose
+	This can be selected when initially creating the configuration with the
+	topology subcommand.
 
-        Usage:
-            $PROGRAM topology [-d] [-c TOPOFILE]
-                Create topology, configuration, and execution files.
-                All arguments or options are passed to tools/topogen.py
-            $PROGRAM run
-                Run network.
-            $PROGRAM mstart PROCESS
-                Start multiple processes.
-            $PROGRAM stop
-                Terminate this run of the SCION infrastructure.
-            $PROGRAM mstop PROCESS
-                Stop multiple processes.
-            $PROGRAM start-monitoring
-                Run the monitoring infrastructure.
-            $PROGRAM stop-monitoring
-                Terminate this run of the monitoring infrastructure.
-            $PROGRAM status
-                Show all non-running tasks.
-            $PROGRAM mstatus PROCESS
-                Show status of provided processes.
-            $PROGRAM sciond-addr ISD-AS
-                Return the address for the scion daemon for the matching ISD-AS by
-                consulting gen/sciond_addresses.json.
-                The ISD-AS parameter can be a substring of the full ISD-AS (e.g. last
-                three digits), as long as there is a unique match.
-            $PROGRAM topodot [-s|--show] TOPOFILE
-                Draw a graphviz graph of a *.topo topology configuration file.
-            $PROGRAM help
-                Show this text.
-            $PROGRAM start-traces [folder]
-                Serve jaeger traces from the specified folder (default: traces/).
-            $PROGRAM stop-traces
-                Stop the jaeger container started during the start-traces command.
-            $PROGRAM bazel-remote
-                Starts the bazel remote.
-        _EOF
+	Usage:
+	    $PROGRAM topology [-d] [-c TOPOFILE]
+		Create topology, configuration, and execution files.
+		All arguments or options are passed to tools/topogen.py
+	    $PROGRAM run
+		Run network.
+	    $PROGRAM mstart PROCESS
+		Start multiple processes.
+	    $PROGRAM stop
+		Terminate this run of the SCION infrastructure.
+	    $PROGRAM mstop PROCESS
+		Stop multiple processes.
+	    $PROGRAM start-monitoring
+		Run the monitoring infrastructure.
+	    $PROGRAM stop-monitoring
+		Terminate this run of the monitoring infrastructure.
+	    $PROGRAM status
+		Show all non-running tasks.
+	    $PROGRAM mstatus PROCESS
+		Show status of provided processes.
+	    $PROGRAM sciond-addr ISD-AS
+		Return the address for the scion daemon for the matching ISD-AS by
+		consulting gen/sciond_addresses.json.
+		The ISD-AS parameter can be a substring of the full ISD-AS (e.g. last
+		three digits), as long as there is a unique match.
+	    $PROGRAM topodot [-s|--show] TOPOFILE
+		Draw a graphviz graph of a *.topo topology configuration file.
+	    $PROGRAM help
+		Show this text.
+	    $PROGRAM start-traces [folder]
+		Serve jaeger traces from the specified folder (default: traces/).
+	    $PROGRAM stop-traces
+		Stop the jaeger container started during the start-traces command.
+	    $PROGRAM bazel-remote
+	        Starts the bazel remote.
+	_EOF
 }
 # END subcommand functions
 
