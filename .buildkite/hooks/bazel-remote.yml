@@ -9,7 +9,6 @@ services:
         "--experimental_remote_asset_api",
         "--profile_port=0",
         "--s3.auth_method=access_key",
-        "--s3.disable_ssl",  # Speed up (?) https://github.com/buchgr/bazel-remote/issues/675
         "--enable_endpoint_metrics",
       ]
     network_mode: host
