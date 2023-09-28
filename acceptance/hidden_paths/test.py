@@ -105,9 +105,9 @@ class Test(base.TestTopogen):
                 ("0.0.0.0", self.http_server_port), http.server.SimpleHTTPRequestHandler)
         server_thread = threading.Thread(target=configuration_server, args=[server])
         server_thread.start()
+        self._server = server
 
         super().setup_start()
-        time.sleep(4)  # Give applications time to download configurations
 
         self._testers = {
             "2": "tester_1-ff00_0_2",
@@ -121,9 +121,11 @@ class Test(base.TestTopogen):
             "4": "1-ff00:0:4",
             "5": "1-ff00:0:5",
         }
-        server.shutdown()
 
     def _run(self):
+        self.await_connectivity()
+        self._server.shutdown()  # by now configuration must have been downloaded everywhere
+
         # Group 3
         self._showpaths_bidirectional("2", "3", 0)
         self._showpaths_bidirectional("2", "5", 0)

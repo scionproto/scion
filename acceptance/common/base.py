@@ -213,6 +213,26 @@ class TestTopogen(TestBase):
         if re.search(r"Exit\s+[1-9]\d*", ps):
             raise Exception("Failed services.\n" + ps)
 
+    def await_connectivity(self, quiet_seconds=None, timeout_seconds=None):
+        """
+        Wait for the beaconing process in a local topology to establish full connectivity, i.e. at
+        least one path between any two ASes.
+        Runs the tool/await-connectivity script.
+
+        Returns success when full connectivity is established or an error (exception) at
+        timeout (default 20s).
+
+        Remains quiet for a configurable time (default 10s). After that,
+        it reports the missing segments at 1s interval.
+        """
+        cmd = self.get_executable("await-connectivity")
+        if quiet_seconds is not None:
+            cmd = cmd["-q", str(quiet_seconds)]
+        if timeout_seconds is not None:
+            cmd = cmd["-t", str(timeout_seconds)]
+        with local.cwd(self.artifacts):
+            cmd.run_fg()
+
     def execute_tester(self, isd_as: ISD_AS, cmd: str, *args: str) -> str:
         """Executes a command in the designated "tester" container for the specified ISD-AS.
 
