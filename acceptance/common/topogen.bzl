@@ -45,6 +45,7 @@ def topogen_test(
     common_args = [
         "--executable=scion-pki:$(location //scion-pki/cmd/scion-pki)",
         "--executable=topogen:$(location //tools:topogen)",
+        "--executable=await-connectivity:$(location //tools:await_connectivity)",
         "--topo=$(location %s)" % topo,
     ]
     if gateway:
@@ -54,6 +55,7 @@ def topogen_test(
         "//scion-pki/cmd/scion-pki",
         "//tools:topogen",
         "//tools:docker_ip",
+        "//tools:await_connectivity",
         topo,
     ]
     loaders = container_loaders(tester, gateway)

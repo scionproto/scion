@@ -7,6 +7,12 @@ sh_binary(
     visibility = ["//visibility:public"],
 )
 
+sh_binary(
+    name = "await_connectivity",
+    srcs = ["await-connectivity"],
+    visibility = ["//visibility:public"],
+)
+
 py_binary(
     name = "gomocks",
     srcs = ["gomocks.py"],
