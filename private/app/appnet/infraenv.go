@@ -99,7 +99,7 @@ func (nc *NetworkConfig) TCPStack() (net.Listener, error) {
 
 func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	if nc.QUIC.Address == "" {
-		nc.QUIC.Address = nc.Public.String()
+		nc.QUIC.Address = net.JoinHostPort(nc.Public.IP.String(), "0")
 	}
 
 	client, server, err := nc.initQUICSockets()
@@ -293,11 +293,7 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 		Metrics: nc.SCIONNetworkMetrics,
 	}
 
-	// The service resolution address gets a dynamic port. In reality, neither the
-	// address nor the port are needed to address the resolver, but the dispatcher still
-	// requires them and checks unicity. At least a dynamic port is allowed.
-	srAddr := &net.UDPAddr{IP: nc.Public.IP, Port: 0}
-	conn, err := network.Listen(context.Background(), "udp", srAddr, addr.SvcWildcard)
+	conn, err := network.Listen(context.Background(), "udp", nc.Public, addr.SvcWildcard)
 	if err != nil {
 		return nil, serrors.WrapStr("listening on SCION", err, "addr", conn.LocalAddr())
 	}
