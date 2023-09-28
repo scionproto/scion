@@ -85,7 +85,6 @@ class Test(base.TestTopogen):
 
         logger.info("==> Restart containers")
         self.setup_start()
-        self.await_connectivity()
 
         logger.info("==> Check connectivity")
         end2end.run_fg()

@@ -145,7 +145,7 @@ class Test(base.TestTopogen):
     def _showpaths_run(self, source_as: str, destination_as: str, retcode: int):
         print(cmd.docker("exec", "-t", self._testers[source_as], "scion",
                          "sp", self._ases[destination_as],
-                         "--timeout", "3s",
+                         "--timeout", "2s",
                          retcode=retcode))
 
 
