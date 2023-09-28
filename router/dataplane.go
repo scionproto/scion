@@ -118,25 +118,25 @@ type DataPlane struct {
 }
 
 var (
-	alreadySet                    = serrors.New("already set")
-	invalidSrcIA                  = serrors.New("invalid source ISD-AS")
-	invalidDstIA                  = serrors.New("invalid destination ISD-AS")
-	invalidSrcAddrForTransit      = serrors.New("invalid source address for transit pkt")
-	cannotRoute                   = serrors.New("cannot route, dropping pkt")
-	emptyValue                    = serrors.New("empty value")
-	malformedPath                 = serrors.New("malformed path content")
-	modifyExisting                = serrors.New("modifying a running dataplane is not allowed")
-	noSVCBackend                  = serrors.New("cannot find internal IP for the SVC")
-	unsupportedPathType           = serrors.New("unsupported path type")
-	unsupportedPathTypeNextHeader = serrors.New("unsupported combination")
-	noBFDSessionFound             = serrors.New("no BFD sessions was found")
-	noBFDSessionConfigured        = serrors.New("no BFD sessions have been configured")
-	errBFDDisabled                = serrors.New("BFD is disabled")
-	errPeeringEmptySeg0           = serrors.New("zero-length segment[0] in peering path")
-	errPeeringEmptySeg1           = serrors.New("zero-length segment[1] in peering path")
-	errPeeringNonemptySeg2        = serrors.New("non-zero-length segment[2] in peering path")
-	errShortPacket                = serrors.New("Packet is too short")
-	errBFDSessionDown             = serrors.New("bfd session down")
+	alreadySet                    = errors.New("already set")
+	invalidSrcIA                  = errors.New("invalid source ISD-AS")
+	invalidDstIA                  = errors.New("invalid destination ISD-AS")
+	invalidSrcAddrForTransit      = errors.New("invalid source address for transit pkt")
+	cannotRoute                   = errors.New("cannot route, dropping pkt")
+	emptyValue                    = errors.New("empty value")
+	malformedPath                 = errors.New("malformed path content")
+	modifyExisting                = errors.New("modifying a running dataplane is not allowed")
+	noSVCBackend                  = errors.New("cannot find internal IP for the SVC")
+	unsupportedPathType           = errors.New("unsupported path type")
+	unsupportedPathTypeNextHeader = errors.New("unsupported combination")
+	noBFDSessionFound             = errors.New("no BFD sessions was found")
+	noBFDSessionConfigured        = errors.New("no BFD sessions have been configured")
+	errBFDDisabled                = errors.New("BFD is disabled")
+	errPeeringEmptySeg0           = errors.New("zero-length segment[0] in peering path")
+	errPeeringEmptySeg1           = errors.New("zero-length segment[1] in peering path")
+	errPeeringNonemptySeg2        = errors.New("non-zero-length segment[2] in peering path")
+	errShortPacket                = errors.New("Packet is too short")
+	errBFDSessionDown             = errors.New("bfd session down")
 	expiredHop                    = errors.New("expired hop")
 	ingressInterfaceInvalid       = errors.New("ingress interface invalid")
 	macVerificationFailed         = errors.New("MAC verification failed")
@@ -816,8 +816,6 @@ type slowPathPacketProcessor struct {
 
 	// DRKey key derivation for SCMP authentication
 	drkeyProvider drkeyProvider
-
-	peering bool
 }
 
 func (p *slowPathPacketProcessor) reset() {
@@ -827,7 +825,6 @@ func (p *slowPathPacketProcessor) reset() {
 	p.path = nil
 	p.hbhLayer = slayers.HopByHopExtnSkipper{}
 	p.e2eLayer = slayers.EndToEndExtnSkipper{}
-	p.peering = false
 }
 
 func (p *slowPathPacketProcessor) processPacket(pkt slowPacket) (processResult, error) {
@@ -862,9 +859,6 @@ func (p *slowPathPacketProcessor) processPacket(pkt slowPacket) (processResult, 
 		//unsupported path type
 		return processResult{}, serrors.New("Path type not supported for slow-path",
 			"type", pathType)
-	}
-	if err = p.determinePeer(); err != nil {
-		return processResult{}, err
 	}
 	switch pkt.slowPathRequest.typ {
 	case slowPathSCMP: //SCMP
@@ -1282,23 +1276,19 @@ func (p *scionPacketProcessor) parsePath() (processResult, error) {
 	return processResult{}, nil
 }
 
-func determinePeer(path *scion.Raw) (bool, error) {
-	infoField, err := path.GetCurrentInfoField()
-	if err != nil {
-		return false, err
-	}
-	if !infoField.Peer {
+func determinePeer(pathMeta scion.MetaHdr, inf path.InfoField) (bool, error) {
+	if !inf.Peer {
 		return false, nil
 	}
 
-	if path.PathMeta.SegLen[0] == 0 {
+	if pathMeta.SegLen[0] == 0 {
 		return false, errPeeringEmptySeg0
 	}
-	if path.PathMeta.SegLen[1] == 0 {
+	if pathMeta.SegLen[1] == 0 {
 		return false, errPeeringEmptySeg1
 
 	}
-	if path.PathMeta.SegLen[2] != 0 {
+	if pathMeta.SegLen[2] != 0 {
 		return false, errPeeringNonemptySeg2
 	}
 
@@ -1306,21 +1296,15 @@ func determinePeer(path *scion.Raw) (bool, error) {
 	// segment (at SegLen[0] - 1) and the first hop field of the second
 	// path segment (at SegLen[0]). The below check applies only
 	// because we already know this is a well-formed peering path.
-	currHF := path.PathMeta.CurrHF
-	segLen := path.PathMeta.SegLen[0]
+	currHF := pathMeta.CurrHF
+	segLen := pathMeta.SegLen[0]
 	return currHF == segLen-1 || currHF == segLen, nil
 }
 
 func (p *scionPacketProcessor) determinePeer() (processResult, error) {
-	peer, err := determinePeer(p.path)
+	peer, err := determinePeer(p.path.PathMeta, p.infoField)
 	p.peering = peer
 	return processResult{}, err
-}
-
-func (p *slowPathPacketProcessor) determinePeer() error {
-	peer, err := determinePeer(p.path)
-	p.peering = peer
-	return err
 }
 
 func (p *scionPacketProcessor) validateHopExpiry() (processResult, error) {
@@ -2118,8 +2102,13 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	}
 	revPath := revPathTmp.(*scion.Decoded)
 
+	peering, err := determinePeer(revPath.PathMeta, revPath.InfoFields[revPath.PathMeta.CurrINF])
+	if err != nil {
+		return nil, serrors.Wrap(cannotRoute, err, "details", "peering cannot be determined")
+	}
+
 	// Revert potential path segment switches that were done during processing.
-	if revPath.IsXover() && !p.peering {
+	if revPath.IsXover() && !peering {
 		// An effective cross-over is a change of segment other than at
 		// a peering hop.
 		if err := revPath.IncPath(); err != nil {
@@ -2131,7 +2120,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	_, external := p.d.external[p.ingressID]
 	if external {
 		infoField := &revPath.InfoFields[revPath.PathMeta.CurrINF]
-		if infoField.ConsDir && !p.peering {
+		if infoField.ConsDir && !peering {
 			hopField := revPath.HopFields[revPath.PathMeta.CurrHF]
 			infoField.UpdateSegID(hopField.Mac)
 		}
