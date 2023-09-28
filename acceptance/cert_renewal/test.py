@@ -58,9 +58,6 @@ class Test(base.TestTopogen):
                                      self.artifacts).all
         cs_configs = self._cs_configs()
 
-        # Services in their containers need time to start.
-        time.sleep(5)
-
         logger.info("==> Start renewal process")
         for isd_as in isd_ases:
             logging.info("===> Start renewal: %s" % isd_as)
@@ -87,9 +84,6 @@ class Test(base.TestTopogen):
 
         logger.info("==> Restart containers")
         self.setup_start()
-
-        # Services in their containers need time to start.
-        time.sleep(5)
 
         logger.info("==> Check connectivity")
         end2end.run_fg()

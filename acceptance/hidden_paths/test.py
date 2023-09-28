@@ -107,7 +107,7 @@ class Test(base.TestTopogen):
         server_thread.start()
 
         super().setup_start()
-        time.sleep(6)  # Give applications time to download configurations
+        time.sleep(4)  # Give applications time to download configurations
 
         self._testers = {
             "2": "tester_1-ff00_0_2",
@@ -144,7 +144,7 @@ class Test(base.TestTopogen):
     def _showpaths_run(self, source_as: str, destination_as: str, retcode: int):
         print(cmd.docker("exec", "-t", self._testers[source_as], "scion",
                          "sp", self._ases[destination_as],
-                         "--timeout", "3s",
+                         "--timeout", "2s",
                          retcode=retcode))
 
 
