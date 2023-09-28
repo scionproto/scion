@@ -226,12 +226,12 @@ class TestTopogen(TestBase):
         it reports the missing segments at 1s interval.
         """
         cmd = self.get_executable("await-connectivity")
+        cmd.cwd = self.artifacts
         if quiet_seconds is not None:
             cmd = cmd["-q", str(quiet_seconds)]
         if timeout_seconds is not None:
             cmd = cmd["-t", str(timeout_seconds)]
-        with local.cwd(self.artifacts):
-            cmd.run_fg()
+        cmd.run_fg()
 
     def execute_tester(self, isd_as: ISD_AS, cmd: str, *args: str) -> str:
         """Executes a command in the designated "tester" container for the specified ISD-AS.
