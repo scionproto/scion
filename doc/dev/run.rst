@@ -188,11 +188,11 @@ The basic usage is ``./scion.sh <subcommand> <options>``. The main subcommands a
 
    Terminate this run of the local SCION topology.
 
-.. option:: run_monitoring
+.. option:: start-monitoring
 
    Start the monitoring services (jaeger and prometheus).
 
-.. option:: stop_monitoring
+.. option:: stop-monitoring
 
    Stop the monitoring services.
 	    

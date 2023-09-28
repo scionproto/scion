@@ -159,7 +159,6 @@ class MonitoringGenerator(object):
 
     def _write_dc_file(self):
         # Merged yeager and prometheus files.
-        # FIXME: should be a single container
         name = 'monitoring'
         monitoring_dc = {
             'version': DOCKER_COMPOSE_CONFIG_VERSION,

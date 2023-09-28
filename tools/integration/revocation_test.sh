@@ -35,12 +35,6 @@ if [ $? -ne 0 ]; then
 fi
 sleep 4
 
-# The below seemed do be missing.
-# Was there a time when end2end_integration would start the
-# scion service containers?
-./scion.sh mstart $REV_BRS
-sleep 2
-
 if [ -f gen/scion-dc.yml ]; then
     DOCKER_ARGS="-d"
 fi

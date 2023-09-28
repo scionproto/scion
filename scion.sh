@@ -2,17 +2,17 @@
 
 # BEGIN subcommand functions
 
-cmd_bazel_remote() {
+cmd_bazel-remote() {
     mkdir -p "$HOME/.cache/bazel/remote"
     uid=$(id -u)
     gid=$(id -g)
     USER_ID="$uid" GROUP_ID="$gid" docker compose --compatibility -f bazel-remote.yml -p bazel_remote up -d
 }
 
-cmd_topo_clean() {
+cmd_topo-clean() {
     set -e
     stop_scion || true
-    cmd_stop_monitoring || true
+    cmd_stop-monitoring || true
     rm -rf traces/*
     mkdir -p logs traces gen gen-cache gen-certs
     find gen gen-cache gen-certs -mindepth 1 -maxdepth 1 -exec rm -r {} +
@@ -20,7 +20,7 @@ cmd_topo_clean() {
 
 cmd_topology() {
     set -e
-    cmd_topo_clean
+    cmd_topo-clean
 
     echo "Create topology, configuration, and execution files."
     tools/topogen.py "$@"
@@ -58,7 +58,7 @@ cmd_sciond-addr() {
            "[\(.value)]:30255"' gen/sciond_addresses.json
 }
 
-cmd_start_monitoring() {
+cmd_start-monitoring() {
     if [ ! -f "gen/monitoring-dc.yml" ]; then
         return
     fi
@@ -66,7 +66,7 @@ cmd_start_monitoring() {
     ./tools/quiet ./tools/dc monitoring up -d
 }
 
-cmd_stop_monitoring() {
+cmd_stop-monitoring() {
     if [ ! -f "gen/monitoring-dc.yml" ]; then
         return
     fi
@@ -119,7 +119,7 @@ stop_scion() {
 cmd_stop() {
     stop_scion
     echo "Note that jaeger is not included anymore."
-    echo "To stop jaeger and prometheus, use stop_monitoring."
+    echo "To stop jaeger and prometheus, use stop-monitoring."
 }
 
 cmd_mstop() {
@@ -142,14 +142,14 @@ cmd_mstatus() {
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
         rscount=$(./tools/dc scion ps --status=running --format "{{.Name}}" $services | wc -l)
         tscount=$(echo "$services" | wc -w) # Number of all globed services
-	./tools/dc scion ps -a \
-		   --status=paused \
-		   --status=restarting \
-		   --status=removing \
-		   --status=dead \
-		   --status=created \
-		   --status=exited \
-		   --format "{{.Name}} {{.State}}" $services
+        ./tools/dc scion ps -a \
+                   --status=paused \
+                   --status=restarting \
+                   --status=removing \
+                   --status=dead \
+                   --status=created \
+                   --status=exited \
+                   --format "{{.Name}} {{.State}}" $services
         [ $rscount -eq $tscount ]
     else
         if [ $# -ne 0 ]; then
@@ -210,12 +210,12 @@ traces_name() {
     echo "$name"
 }
 
-cmd_traces() {
+cmd_start-traces() {
     set -e
     local trace_dir=${1:-"$(readlink -e .)/traces"}
     local port=16687
     local name=$(traces_name)
-    cmd_stop_traces
+    cmd_stop-traces
     docker run -d --name "$name" \
         -u "$(id -u):$(id -g)" \
         -e SPAN_STORAGE_TYPE=badger \
@@ -229,60 +229,60 @@ cmd_traces() {
     x-www-browser "http://localhost:$port"
 }
 
-cmd_stop_traces() {
+cmd_stop-traces() {
     local name=$(traces_name)
     docker stop "$name" || true
     docker rm "$name" || true
 }
 
 cmd_help() {
-	cat <<-_EOF
-	SCION
+        cat <<-_EOF
+        SCION
 
-	$PROGRAM runs a SCION network locally for development and testing purposes.
-	Two options for process control systems are supported to run the SCION
-	services.
-	  - supervisord (default)
-	  - docker compose
-	This can be selected when initially creating the configuration with the
-	topology subcommand.
+        $PROGRAM runs a SCION network locally for development and testing purposes.
+        Two options for process control systems are supported to run the SCION
+        services.
+          - supervisord (default)
+          - docker compose
+        This can be selected when initially creating the configuration with the
+        topology subcommand.
 
-	Usage:
-	    $PROGRAM topology [-d] [-c TOPOFILE]
-	        Create topology, configuration, and execution files.
-	        All arguments or options are passed to tools/topogen.py
-	    $PROGRAM run
-	        Run network.
-	    $PROGRAM mstart PROCESS
-	        Start multiple processes.
-	    $PROGRAM stop
-	        Terminate this run of the SCION infrastructure.
-	    $PROGRAM mstop PROCESS
-	        Stop multiple processes.
-	    $PROGRAM start_monitoring
-	        Run the monitoring infrastructure.
-	    $PROGRAM stop_monitoring
-	        Terminate this run of the monitoring infrastructure.
-	    $PROGRAM status
-	        Show all non-running tasks.
-	    $PROGRAM mstatus PROCESS
-	        Show status of provided processes.
-	    $PROGRAM sciond-addr ISD-AS
-	        Return the address for the scion daemon for the matching ISD-AS by
-	        consulting gen/sciond_addresses.json.
-	        The ISD-AS parameter can be a substring of the full ISD-AS (e.g. last
-	        three digits), as long as there is a unique match.
-	    $PROGRAM topodot [-s|--show] TOPOFILE
-	        Draw a graphviz graph of a *.topo topology configuration file.
-	    $PROGRAM help
-	        Show this text.
-	    $PROGRAM traces [folder]
-	        Serve jaeger traces from the specified folder (default: traces/).
-	    $PROGRAM stop_traces
-	        Stop the jaeger container started during the traces command.
-	    $PROGRAM bazel_remote
-	        Starts the bazel remote.
-	_EOF
+        Usage:
+            $PROGRAM topology [-d] [-c TOPOFILE]
+                Create topology, configuration, and execution files.
+                All arguments or options are passed to tools/topogen.py
+            $PROGRAM run
+                Run network.
+            $PROGRAM mstart PROCESS
+                Start multiple processes.
+            $PROGRAM stop
+                Terminate this run of the SCION infrastructure.
+            $PROGRAM mstop PROCESS
+                Stop multiple processes.
+            $PROGRAM start-monitoring
+                Run the monitoring infrastructure.
+            $PROGRAM stop-monitoring
+                Terminate this run of the monitoring infrastructure.
+            $PROGRAM status
+                Show all non-running tasks.
+            $PROGRAM mstatus PROCESS
+                Show status of provided processes.
+            $PROGRAM sciond-addr ISD-AS
+                Return the address for the scion daemon for the matching ISD-AS by
+                consulting gen/sciond_addresses.json.
+                The ISD-AS parameter can be a substring of the full ISD-AS (e.g. last
+                three digits), as long as there is a unique match.
+            $PROGRAM topodot [-s|--show] TOPOFILE
+                Draw a graphviz graph of a *.topo topology configuration file.
+            $PROGRAM help
+                Show this text.
+            $PROGRAM start-traces [folder]
+                Serve jaeger traces from the specified folder (default: traces/).
+            $PROGRAM stop-traces
+                Stop the jaeger container started during the start-traces command.
+            $PROGRAM bazel-remote
+                Starts the bazel remote.
+        _EOF
 }
 # END subcommand functions
 
@@ -291,7 +291,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    help|start|start_monitoring|mstart|mstatus|mstop|stop|stop_monitoring|status|topology|sciond-addr|traces|stop_traces|topo_clean|topodot|bazel_remote)
+    help|start|start-monitoring|mstart|mstatus|mstop|stop|stop-monitoring|status|topology|sciond-addr|start-traces|stop-traces|topo-clean|topodot|bazel-remote)
         "cmd_$COMMAND" "$@" ;;
     run) cmd_start "$@" ;;
     *)  cmd_help; exit 1 ;;

@@ -64,7 +64,7 @@ Bazel
    build artifacts from bazel. Bazel-remote can manage the disk space and does
    not infinitely grow like the Bazel built-in disk-cache. To start bazel-remote run::
 
-      ./scion.sh bazel_remote
+      ./scion.sh bazel-remote
 
 #. Build SCION services and tools.
 
