@@ -138,7 +138,6 @@ var (
 	errPeeringNonemptySeg2        = serrors.New("non-zero-length segment[2] in peering path")
 	errShortPacket                = serrors.New("Packet is too short")
 	errBFDSessionDown             = serrors.New("bfd session down")
-	invalidUDPLength              = serrors.New("Invalid UDP layer length")
 	// zeroBuffer will be used to reset the Authenticator option in the
 	// scionPacketProcessor.OptAuth
 	zeroBuffer = make([]byte, 16)
