@@ -37,7 +37,7 @@ type ProcessResult struct {
 	processResult
 }
 
-type SCMPError = scmpError
+var SlowPathRequired error = slowPathRequired
 
 func NewDP(
 	external map[uint16]BatchConn,
