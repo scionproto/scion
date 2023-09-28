@@ -249,37 +249,37 @@ cmd_help() {
 
 	Usage:
 	    $PROGRAM topology [-d] [-c TOPOFILE]
-		Create topology, configuration, and execution files.
-		All arguments or options are passed to tools/topogen.py
+	        Create topology, configuration, and execution files.
+	        All arguments or options are passed to tools/topogen.py
 	    $PROGRAM run
-		Run network.
+	        Run network.
 	    $PROGRAM mstart PROCESS
-		Start multiple processes.
+	        Start multiple processes.
 	    $PROGRAM stop
-		Terminate this run of the SCION infrastructure.
+	        Terminate this run of the SCION infrastructure.
 	    $PROGRAM mstop PROCESS
-		Stop multiple processes.
+	        Stop multiple processes.
 	    $PROGRAM start-monitoring
-		Run the monitoring infrastructure.
+	        Run the monitoring infrastructure.
 	    $PROGRAM stop-monitoring
-		Terminate this run of the monitoring infrastructure.
+	        Terminate this run of the monitoring infrastructure.
 	    $PROGRAM status
-		Show all non-running tasks.
+	        Show all non-running tasks.
 	    $PROGRAM mstatus PROCESS
-		Show status of provided processes.
+	        Show status of provided processes.
 	    $PROGRAM sciond-addr ISD-AS
-		Return the address for the scion daemon for the matching ISD-AS by
-		consulting gen/sciond_addresses.json.
-		The ISD-AS parameter can be a substring of the full ISD-AS (e.g. last
-		three digits), as long as there is a unique match.
+	        Return the address for the scion daemon for the matching ISD-AS by
+	        consulting gen/sciond_addresses.json.
+	        The ISD-AS parameter can be a substring of the full ISD-AS (e.g. last
+	        three digits), as long as there is a unique match.
 	    $PROGRAM topodot [-s|--show] TOPOFILE
-		Draw a graphviz graph of a *.topo topology configuration file.
+	        Draw a graphviz graph of a *.topo topology configuration file.
 	    $PROGRAM help
-		Show this text.
+	        Show this text.
 	    $PROGRAM start-traces [folder]
-		Serve jaeger traces from the specified folder (default: traces/).
+	        Serve jaeger traces from the specified folder (default: traces/).
 	    $PROGRAM stop-traces
-		Stop the jaeger container started during the start-traces command.
+	        Stop the jaeger container started during the start-traces command.
 	    $PROGRAM bazel-remote
 	        Starts the bazel remote.
 	_EOF
