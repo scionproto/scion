@@ -3,8 +3,7 @@
 # BEGIN subcommand functions
 
 traces_name() {
-    local name=jaeger_read_badger_traces
-    echo "$name"
+    echo "jaeger_read_badger_traces"
 }
 
 cmd_start() {
