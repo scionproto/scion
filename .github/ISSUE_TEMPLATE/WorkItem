@@ -1,0 +1,5 @@
+---
+name: WorkItem
+about: "Something needs doing"
+labels: workitem
+---
