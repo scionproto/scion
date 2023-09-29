@@ -103,7 +103,7 @@ type Prober struct {
 	// an appropriate local IP endpoint depending on the path that should be probed. Note, LocalIP
 	// should not be set, unless you know what you are doing.
 	LocalIP net.IP
-	// Metrics injected into snet.SCIONPacketConnMetrics.
+	// Metrics injected into snet.DefaultConnector.
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 }
 

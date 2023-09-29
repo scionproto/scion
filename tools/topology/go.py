@@ -170,7 +170,7 @@ class GoGenerator(object):
         }
         return raw_entry
 
-    def generate_disp(self, topo_dicts):
+    def generate_disp(self):
         if self.args.docker:
             self._gen_disp_docker()
         else:

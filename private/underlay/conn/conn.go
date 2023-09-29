@@ -32,13 +32,6 @@ import (
 	"github.com/scionproto/scion/private/underlay/sockctrl"
 )
 
-const (
-	// ReceiveBufferSize is the size of receive buffers used by the dispatcher.
-	ReceiveBufferSize = 1 << 20
-	// SendBufferSize is the size of the send buffers used by the dispatcher.
-	SendBufferSize = 1 << 20
-)
-
 // Messages is a list of ipX.Messages. It is necessary to hide the type alias
 // between ipv4.Message, ipv6.Message and socket.Message.
 type Messages []ipv4.Message
@@ -83,42 +76,6 @@ func New(listen, remote *net.UDPAddr, cfg *Config) (Conn, error) {
 		return newConnUDPIPv4(listen, remote, cfg)
 	}
 	return newConnUDPIPv6(listen, remote, cfg)
-}
-
-// OpenConn opens an underlay socket that tracks additional socket information
-// such as packets dropped due to buffer full.
-//
-// Note that Go-style dual-stacked IPv4/IPv6 connections are not supported. If
-// network is udp, it will be treated as udp4.
-func OpenConn(addr *net.UDPAddr) (net.PacketConn, error) {
-	// We cannot allow the Go standard library to open both types of sockets
-	// because the socket options are specific to only one socket type, so we
-	// degrade udp to only udp4.
-	listeningAddr := copyUDPAddr(addr)
-	if listeningAddr == nil {
-		listeningAddr = &net.UDPAddr{
-			IP: net.IPv4zero,
-		}
-	}
-	if (listeningAddr.Network() == "udp" || listeningAddr.Network() == "udp4") &&
-		listeningAddr.IP == nil {
-		listeningAddr.IP = net.IPv4zero
-	}
-	if listeningAddr.Network() == "udp6" && listeningAddr.IP == nil {
-		listeningAddr.IP = net.IPv6zero
-	}
-
-	// TODO(JordiSubira): Should we keep a default config or use the passed-through
-	// configuration.
-	c, err := New(listeningAddr, nil, &Config{
-		SendBufferSize:    SendBufferSize,
-		ReceiveBufferSize: ReceiveBufferSize,
-	})
-	if err != nil {
-		return nil, serrors.WrapStr("unable to open conn", err)
-	}
-
-	return &underlayConnWrapper{Conn: c}, nil
 }
 
 type connUDPIPv4 struct {
@@ -333,54 +290,4 @@ func NewReadMessages(n int) Messages {
 		m[i].Buffers = make([][]byte, 1)
 	}
 	return m
-}
-
-// underlayConnWrapper wraps a specialized underlay Conn into a net.PacketConn
-// implementation. Only *net.UDPAddr addressing is supported.
-type underlayConnWrapper struct {
-	// Conn is the wrapped underlay connection object.
-	Conn
-}
-
-func (o *underlayConnWrapper) ReadFrom(p []byte) (int, net.Addr, error) {
-	return o.Conn.ReadFrom(p)
-}
-
-func (o *underlayConnWrapper) WriteTo(p []byte, a net.Addr) (int, error) {
-	udpAddr, ok := a.(*net.UDPAddr)
-	if !ok {
-		return 0, serrors.New("address is not UDP", "addr", a)
-	}
-	return o.Conn.WriteTo(p, udpAddr)
-}
-
-func (o *underlayConnWrapper) Close() error {
-	return o.Conn.Close()
-}
-
-func (o *underlayConnWrapper) LocalAddr() net.Addr {
-	return o.Conn.LocalAddr()
-}
-
-func (o *underlayConnWrapper) SetDeadline(t time.Time) error {
-	return o.Conn.SetDeadline(t)
-}
-
-func (o *underlayConnWrapper) SetReadDeadline(t time.Time) error {
-	return o.Conn.SetReadDeadline(t)
-}
-
-func (o *underlayConnWrapper) SetWriteDeadline(t time.Time) error {
-	return o.Conn.SetWriteDeadline(t)
-}
-
-func copyUDPAddr(a *net.UDPAddr) *net.UDPAddr {
-	if a == nil {
-		return nil
-	}
-	return &net.UDPAddr{
-		IP:   append(a.IP[:0:0], a.IP...),
-		Port: a.Port,
-		Zone: a.Zone,
-	}
 }

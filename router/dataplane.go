@@ -835,7 +835,6 @@ func newPacketProcessor(d *DataPlane) *scionPacketProcessor {
 			drkeyInput: make([]byte, spao.MACBufferSize),
 		},
 		// TODO(JordiSubira): Replace this with a useful implementation.
-
 		drkeyProvider: &drkeyutil.FakeProvider{
 			EpochDuration:    drkeyutil.LoadEpochDuration(),
 			AcceptanceWindow: drkeyutil.LoadAcceptanceWindow(),
@@ -1766,12 +1765,8 @@ func addEndhostPort(lastLayer gopacket.DecodingLayer, dst []byte) (*net.UDPAddr,
 		if port < topology.HostPortRangeLow || port > topology.HostPortRangeHigh {
 			port = topology.EndhostPort
 		}
-		log.Debug("TBR XXXJ:", "udp port that will be rewritten", port)
 		return &net.UDPAddr{IP: dst, Port: int(port)}, nil
 	case slayers.L4SCMP:
-		// TODO(JordiSubira): On-going discussion regarding SCMP dst port
-		log.Debug("TBR XXXJ:",
-			"sending SCMP packet to", &net.UDPAddr{IP: dst, Port: topology.EndhostPort})
 		return &net.UDPAddr{IP: dst, Port: topology.EndhostPort}, nil
 	default:
 		log.Debug(fmt.Sprintf("Port rewriting not supported for protcol number %v", l4Type))

@@ -32,6 +32,9 @@ var (
 // LogAppStarted should be called by applications as soon as logging is
 // initialized.
 func LogAppStarted(svcType, elemID string) error {
+	// XXX(JordiSubira): Right now RunsInDocker() only is Linux-compatible.
+	// If we are going to run apps in docker also in macOS (and potentially in Windows)
+	// we should make the method compatible.
 	inDocker := false
 	if runtime.GOOS == "linux" {
 		var err error

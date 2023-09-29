@@ -24,13 +24,10 @@ import (
 	"github.com/scionproto/scion/pkg/private/xtest"
 )
 
-func TestOpenConn(t *testing.T) {
+func TestNew(t *testing.T) {
 	testCases := map[string]struct {
 		addr *net.UDPAddr
 	}{
-		"nil": {
-			addr: nil,
-		},
 		"undefined_addr": {
 			addr: xtest.MustParseUDPAddr(t, "0.0.0.0:0"),
 		},
@@ -40,10 +37,13 @@ func TestOpenConn(t *testing.T) {
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			sc, err := OpenConn(tc.addr)
+			sc, err := New(tc.addr, nil, &Config{
+				SendBufferSize:    0,
+				ReceiveBufferSize: 0,
+			})
 			require.NoError(t, err)
 			defer sc.Close()
-			lAddr := sc.LocalAddr().(*net.UDPAddr)
+			lAddr := sc.LocalAddr()
 
 			if tc.addr != nil && !tc.addr.IP.IsUnspecified() {
 				assert.Equal(t, tc.addr.IP, lAddr.IP)
@@ -57,7 +57,7 @@ func TestOpenConn(t *testing.T) {
 			require.NoError(t, err)
 			defer cc.Close()
 
-			exchangeMessages := func(sc net.PacketConn, cc Conn) {
+			exchangeMessages := func(sc Conn, cc Conn) {
 				msg := []byte("hello")
 
 				go func() {

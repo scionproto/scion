@@ -31,19 +31,11 @@ import (
 	"github.com/scionproto/scion/private/topology"
 )
 
-const (
-	ErrUnsupportedL4 common.ErrMsg = "unsupported SCION L4 protocol"
-	// 	ErrUnsupportedDestination     common.ErrMsg = "unsupported destination address type"
-	// 	ErrUnsupportedSCMPDestination common.ErrMsg = "unsupported SCMP destination address type"
-	// 	ErrUnsupportedQuotedL4Type    common.ErrMsg = "unsupported quoted L4 protocol type"
-	// 	ErrMalformedL4Quote           common.ErrMsg = "malformed L4 quote"
-	// ReceiveBufferSize is the size of receive buffers used by the dispatcher.
-	ReceiveBufferSize = 1 << 20
-	// SendBufferSize is the size of the send buffers used by the dispatcher.
-	SendBufferSize = 1 << 20
-)
+const ErrUnsupportedL4 common.ErrMsg = "unsupported SCION L4 protocol"
 
-// Server is the main object allowing to create new SCION connections.
+// Server is the main object allowing to forward SCION packets coming
+// from legacy BR to the final endhost application and to handle SCMP
+// info packets destined to this endhost.
 type Server struct {
 	// topo keeps the topology for the local AS. It can keep multiple ASes
 	// in case we run several topologies locally, e.g., developer environment.

@@ -474,8 +474,6 @@ func (g *Gateway) Run(ctx context.Context) error {
 	scionNetwork := &snet.SCIONNetwork{
 		LocalIA: localIA,
 		Connector: &snet.DefaultConnector{
-			// Enable transparent reconnections to the dispatcher
-			// Forward revocations to Daemon
 			SCMPHandler: snet.DefaultSCMPHandler{
 				RevocationHandler: revocationHandler,
 				SCMPErrors:        g.Metrics.SCMPErrors,

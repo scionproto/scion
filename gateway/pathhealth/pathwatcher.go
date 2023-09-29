@@ -78,8 +78,6 @@ func (f *DefaultPathWatcherFactory) New(
 		}
 		return create(remote)
 	}
-	// FIXME(JordiSubira): Keep or change the listening port, once we decide
-	// how SCMP are addressed.
 	nc, err := (&snet.DefaultConnector{
 		SCMPHandler: scmpHandler{
 			wrappedHandler: snet.DefaultSCMPHandler{
