@@ -15,11 +15,7 @@ The scripts support two different process orchestrators as "backends":
 
 - `supervisor <http://supervisord.org/>`_. This is the default and a bit more light-weight. Packets are sent over the loopback interface.
 - `docker compose <https://docs.docker.com/compose/>`_. Runs individual processes in separate containers connected with docker network bridges. Only this mode supports running a "SCION-IP gateway".
-
-Before attempting to use the docker compose mode, be sure to build the necessary docker images with:
-.. code-block:: bash
-
-   make docker-images
+  .. hint:: Before attempting to use the docker compose mode, be sure to build the necessary docker images with `make docker-images`
 
 .. TODO
    - Describe configuration directory (referencing manuals)
@@ -88,10 +84,12 @@ Various helper files are also generated for the benefit of scripts and tooling o
 for example, ``gen/sciond_addresses.json`` is a simple mapping from AS number to the address of the
 corresponding :doc:`scion daemon </manuals/daemon>` instance.
 
-If  :option:`scion.sh topology -d` command is used, additional configuration files are created to
-enable running the SCION services in docker containers (see `docker`_). Otherwise,  a configuration
-file is created to enable running the SCION services as plain processes (see `supervisor`_)
+If  :option:`scion.sh topology -d` command is used, configuration files are created to
+enable running the SCION services in docker containers (see :ref:`docker-section`_). Otherwise,
+a configuration file is created to enable running the SCION services as plain processes
+(see :ref:`supervisor-section`_)
 
+.. _supervisor-section:
 supervisor
 ----------
 The ``gen/supervisord.conf`` configuration defines the programs that make up the local topology.
@@ -117,6 +115,7 @@ For example::
    # and now ping this host from inside AS 1-ff00:0:110, with interactive path prompt
    bin/scion ping --sciond $(./scion.sh sciond-addr 110) 1-ff00:0:111,127.0.0.1 --interactive
 
+.. _docker-section:
 docker
 ------
 The main docker compose file is ``gen/scion-dc.yml``.
@@ -195,7 +194,7 @@ The basic usage is ``./scion.sh <subcommand> <options>``. The main subcommands a
 .. option:: stop-monitoring
 
    Stop the monitoring services.
-	    
+
 .. option:: sciond-addr <ISD-AS>
 
    Return the address for the scion daemon for the matching ISD-AS by consulting

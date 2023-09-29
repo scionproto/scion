@@ -46,8 +46,8 @@ start_scion() {
 
 cmd_start() {
     start_scion
-    echo "Note that jaeger is not included anymore."
-    echo "To run jaeger and prometheus, use run_monitoring."
+    echo "Note that jaeger is no longer started automatically."
+    echo "To run jaeger and prometheus, use $PROGRAM start-monitoring."
 
 }
 
@@ -63,6 +63,8 @@ cmd_start-monitoring() {
         return
     fi
     echo "Running monitoring..."
+    echo "Jaeger UI: http://localhost:16686"
+    echo "Prometheus UI: http://localhost:9090"
     ./tools/quiet ./tools/dc monitoring up -d
 }
 
@@ -118,8 +120,8 @@ stop_scion() {
 
 cmd_stop() {
     stop_scion
-    echo "Note that jaeger is not included anymore."
-    echo "To stop jaeger and prometheus, use stop-monitoring."
+    echo "Note that jaeger is no longer stopped automatically."
+    echo "To stop jaeger and prometheus, use $PROGRAM stop-monitoring."
 }
 
 cmd_mstop() {
@@ -142,22 +144,15 @@ cmd_mstatus() {
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
         rscount=$(./tools/dc scion ps --status=running --format "{{.Name}}" $services | wc -l)
         tscount=$(echo "$services" | wc -w) # Number of all globed services
-        ./tools/dc scion ps -a \
-                   --status=paused \
-                   --status=restarting \
-                   --status=removing \
-                   --status=dead \
-                   --status=created \
-                   --status=exited \
-                   --format "{{.Name}} {{.State}}" $services
+        ./tools/dc scion ps -a --format "table {{.Name}}\t{{upper .State}}\tuptime {{.RunningFor}}" $services | sed "s/ ago//" | tail -n+2
         [ $rscount -eq $tscount ]
     else
         if [ $# -ne 0 ]; then
             services="$(glob_supervisor "$@")"
             [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
-            tools/supervisor.sh status "$services" | grep -v RUNNING
+            tools/supervisor.sh status "$services"
         else
-            tools/supervisor.sh status | grep -v RUNNING
+            tools/supervisor.sh status
         fi
         [ $? -eq 1 ]
     fi
@@ -205,36 +200,6 @@ is_docker_be() {
     [ -f gen/scion-dc.yml ]
 }
 
-traces_name() {
-    local name=jaeger_read_badger_traces
-    echo "$name"
-}
-
-cmd_start-traces() {
-    set -e
-    local trace_dir=${1:-"$(readlink -e .)/traces"}
-    local port=16687
-    local name=$(traces_name)
-    cmd_stop-traces
-    docker run -d --name "$name" \
-        -u "$(id -u):$(id -g)" \
-        -e SPAN_STORAGE_TYPE=badger \
-        -e BADGER_EPHEMERAL=false \
-        -e BADGER_DIRECTORY_VALUE=/badger/data \
-        -e BADGER_DIRECTORY_KEY=/badger/key \
-        -v "$trace_dir:/badger" \
-        -p "$port":16686 \
-        jaegertracing/all-in-one:1.22.0
-    sleep 3
-    x-www-browser "http://localhost:$port"
-}
-
-cmd_stop-traces() {
-    local name=$(traces_name)
-    docker stop "$name" || true
-    docker rm "$name" || true
-}
-
 cmd_help() {
     cat <<-_EOF
 	SCION
@@ -276,10 +241,6 @@ cmd_help() {
 	        Draw a graphviz graph of a *.topo topology configuration file.
 	    $PROGRAM help
 	        Show this text.
-	    $PROGRAM start-traces [folder]
-	        Serve jaeger traces from the specified folder (default: traces/).
-	    $PROGRAM stop-traces
-	        Stop the jaeger container started during the start-traces command.
 	    $PROGRAM bazel-remote
 	        Starts the bazel remote.
 	_EOF
@@ -291,7 +252,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    help|start|start-monitoring|mstart|mstatus|mstop|stop|stop-monitoring|status|topology|sciond-addr|start-traces|stop-traces|topo-clean|topodot|bazel-remote)
+    help|start|start-monitoring|mstart|mstatus|mstop|stop|stop-monitoring|status|topology|sciond-addr|topo-clean|topodot|bazel-remote)
         "cmd_$COMMAND" "$@" ;;
     run) cmd_start "$@" ;;
     *)  cmd_help; exit 1 ;;
