@@ -139,24 +139,23 @@ cmd_status() {
 }
 
 cmd_mstatus() {
+    rscount=0
+    tscount=0
     if is_docker_be; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
         rscount=$(./tools/dc scion ps --status=running --format "{{.Name}}" $services | wc -l)
         tscount=$(echo "$services" | wc -w) # Number of all globed services
         ./tools/dc scion ps -a --format "table {{.Name}}\t{{upper .State}}\tuptime {{.RunningFor}}" $services | sed "s/ ago//" | tail -n+2
-        [ $rscount -eq $tscount ]
     else
-        if [ $# -ne 0 ]; then
-            services="$(glob_supervisor "$@")"
-            [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
-            tools/supervisor.sh status "$services"
-        else
-            tools/supervisor.sh status
-        fi
-        [ $? -eq 1 ]
+        services="$(glob_supervisor "$@")"
+        [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
+        rscount=$(./tools/supervisor.sh status "$services" | grep RUNNIN | wc -l)
+        tscount=$(echo "$services" | wc -w) # Number of all globed services
+        tools/supervisor.sh status "$services"
     fi
     # If all tasks are running, then return 0. Else return 1.
+    [ $rscount -eq $tscount ]
     return
 }
 
