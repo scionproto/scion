@@ -85,11 +85,12 @@ for example, ``gen/sciond_addresses.json`` is a simple mapping from AS number to
 corresponding :doc:`scion daemon </manuals/daemon>` instance.
 
 If  :option:`scion.sh topology -d` command is used, configuration files are created to
-enable running the SCION services in docker containers (see :ref:`docker-section`_). Otherwise,
+enable running the SCION services in docker containers (see :ref:`docker-section`). Otherwise,
 a configuration file is created to enable running the SCION services as plain processes
-(see :ref:`supervisor-section`_)
+(see :ref:`supervisor-section`)
 
 .. _supervisor-section:
+
 supervisor
 ----------
 The ``gen/supervisord.conf`` configuration defines the programs that make up the local topology.
@@ -116,6 +117,7 @@ For example::
    bin/scion ping --sciond $(./scion.sh sciond-addr 110) 1-ff00:0:111,127.0.0.1 --interactive
 
 .. _docker-section:
+
 docker
 ------
 The main docker compose file is ``gen/scion-dc.yml``.
