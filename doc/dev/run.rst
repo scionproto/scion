@@ -15,7 +15,8 @@ The scripts support two different process orchestrators as "backends":
 
 - `supervisor <http://supervisord.org/>`_. This is the default and a bit more light-weight. Packets are sent over the loopback interface.
 - `docker compose <https://docs.docker.com/compose/>`_. Runs individual processes in separate containers connected with docker network bridges. Only this mode supports running a "SCION-IP gateway".
-  .. hint:: Before attempting to use the docker compose mode, be sure to build the necessary docker images with `make docker-images`
+
+  .. hint:: Before attempting to use the docker compose mode, be sure to build the necessary docker images with ``make docker-images``
 
 .. TODO
    - Describe configuration directory (referencing manuals)
