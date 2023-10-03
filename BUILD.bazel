@@ -245,6 +245,7 @@ updatesrc_update_all(
 write_source_files(
     name = "write_all_source_files",
     additional_update_targets = [
+        "//doc/_build/_static/command:write_files",
         "//doc/command:write_files",
     ],
 )
