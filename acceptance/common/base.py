@@ -203,7 +203,7 @@ class TestTopogen(TestBase):
             raise Exception("Failed services.\n" + ps)
 
     def teardown(self):
-        # Avoid running docker-compose teardown if setup_prepare failed
+        # Avoid running docker compose teardown if setup_prepare failed
         if self._setup_prepare_failed:
             return
         out_dir = self.artifacts / "logs"

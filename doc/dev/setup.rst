@@ -23,9 +23,10 @@ Prerequisites
    ``sudo usermod -a -G docker ${LOGNAME}``, where ``${LOGNAME}`` is replaced with your user name. Log out
    and log back in so that your membership of the ``docker`` group is seen by the shell session.
 
-   Optionally install ``docker-compose``. This is needed if you want to run the
-   ``docker-compose`` based test topology setup instead of the default setup based on ``supervisord``.
-   Please follow the instructions for `docker-compose <https://docs.docker.com/compose/install/>`_.
+   Optionally install the ``Docker Compose Plugin``. This is needed if you want to run the
+   ``docker compose`` based test topology setup instead of the default setup based on ``supervisord``.
+   Please follow the instructions for
+   `Install Compose Plugin <https://docs.docker.com/compose/install/linux/#install-using-the-repository>`_.
 
 Bazel
 -----
@@ -63,7 +64,7 @@ Bazel
    build artifacts from bazel. Bazel-remote can manage the disk space and does
    not infinitely grow like the Bazel built-in disk-cache. To start bazel-remote run::
 
-      ./scion.sh bazel_remote
+      ./scion.sh bazel-remote
 
 #. Build SCION services and tools.
 

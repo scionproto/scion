@@ -29,7 +29,7 @@ from topology.common import (
     translate_features,
 )
 from topology.net import socket_address_str
-from topology.prometheus import SIG_PROM_PORT
+from topology.monitoring import SIG_PROM_PORT
 
 
 class SIGGenArgs(ArgsBase):

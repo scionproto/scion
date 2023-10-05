@@ -38,14 +38,13 @@ from topology.cert import CertGenArgs, CertGenerator
 from topology.common import ArgsBase
 from topology.docker import DockerGenArgs, DockerGenerator
 from topology.go import GoGenArgs, GoGenerator
-from topology.jaeger import JaegerGenArgs, JaegerGenerator
 from topology.net import (
     NetworkDescription,
     IPNetwork,
     SubnetGenerator,
     DEFAULT_NETWORK,
 )
-from topology.prometheus import PrometheusGenArgs, PrometheusGenerator
+from topology.monitoring import MonitoringGenArgs, MonitoringGenerator
 from topology.supervisor import SupervisorGenArgs, SupervisorGenerator
 from topology.topo import TopoGenArgs, TopoGenerator
 
@@ -113,8 +112,7 @@ class ConfigGenerator(object):
             self._generate_docker(topo_dicts)
         else:
             self._generate_supervisor(topo_dicts)
-        self._generate_jaeger(topo_dicts)
-        self._generate_prom_conf(topo_dicts)
+        self._generate_monitoring_conf(topo_dicts)
         self._generate_certs_trcs(topo_dicts)
 
     def _generate_certs_trcs(self, topo_dicts):
@@ -134,11 +132,6 @@ class ConfigGenerator(object):
 
     def _go_args(self, topo_dicts):
         return GoGenArgs(self.args, self.topo_config, topo_dicts, self.networks)
-
-    def _generate_jaeger(self, topo_dicts):
-        args = JaegerGenArgs(self.args, topo_dicts)
-        jaeger_gen = JaegerGenerator(args)
-        jaeger_gen.generate()
 
     def _generate_topology(self):
         topo_gen = TopoGenerator(self._topo_args())
@@ -164,13 +157,13 @@ class ConfigGenerator(object):
     def _docker_args(self, topo_dicts):
         return DockerGenArgs(self.args, topo_dicts, self.all_networks)
 
-    def _generate_prom_conf(self, topo_dicts):
-        args = self._prometheus_args(topo_dicts)
-        prom_gen = PrometheusGenerator(args)
-        prom_gen.generate()
+    def _generate_monitoring_conf(self, topo_dicts):
+        args = self._monitoring_args(topo_dicts)
+        mon_gen = MonitoringGenerator(args)
+        mon_gen.generate()
 
-    def _prometheus_args(self, topo_dicts):
-        return PrometheusGenArgs(self.args, topo_dicts, self.networks)
+    def _monitoring_args(self, topo_dicts):
+        return MonitoringGenArgs(self.args, topo_dicts, self.networks)
 
     def _write_ca_files(self, topo_dicts, ca_files):
         isds = set()

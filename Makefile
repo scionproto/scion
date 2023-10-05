@@ -14,6 +14,10 @@ clean:
 	bazel clean
 	rm -f bin/*
 
+scrub:
+	bazel clean --expunge
+	rm -f bin/*
+
 bazel:
 	rm -f bin/*
 	bazel build //:scion //:scion-ci
