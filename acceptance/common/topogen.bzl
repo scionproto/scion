@@ -1,6 +1,11 @@
 load("//tools/lint:py.bzl", "py_binary", "py_library", "py_test")
 load("@com_github_scionproto_scion_python_deps//:requirements.bzl", "requirement")
 
+# Bug in bazel: HOME isn't set to TEST_TMPDIR.
+# Bug in docker-compose v2.21 a writable HOME is required (eventhough not used).
+# Poor design in Bazel, there's no sane way to obtain the path to some
+# location that's not a litteral dependency.
+# So, HOME must be provided by the invoker.
 def topogen_test(
         name,
         src,
@@ -10,6 +15,7 @@ def topogen_test(
         args = [],
         deps = [],
         data = [],
+        homedir = "",
         tester = "//docker:tester"):
     """Creates a test based on a topology file.
 
@@ -105,6 +111,7 @@ def topogen_test(
             "PYTHONUNBUFFERED": "1",
             # Ensure that unicode output can be printed to the log/console
             "PYTHONIOENCODING": "utf-8",
+            "HOME": homedir,
         },
     )
 

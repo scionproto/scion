@@ -38,7 +38,7 @@ from topology.common import (
 
 from topology.net import socket_address_str, NetworkDescription, IPNetwork
 
-from topology.prometheus import (
+from topology.monitoring import (
     CS_PROM_PORT,
     DEFAULT_BR_PROM_PORT,
     SCIOND_PROM_PORT,

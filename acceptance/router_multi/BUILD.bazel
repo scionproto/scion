@@ -30,6 +30,7 @@ raw_test(
         "--bfd",
     ],
     data = data,
+    homedir = "$(rootpath :router)",
     # This test uses sudo and accesses /var/run/netns.
     local = True,
 )
@@ -39,6 +40,7 @@ raw_test(
     src = "test.py",
     args = args,
     data = data,
+    homedir = "$(rootpath :router)",
     # This test uses sudo and accesses /var/run/netns.
     local = True,
 )

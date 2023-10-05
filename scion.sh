@@ -2,16 +2,17 @@
 
 # BEGIN subcommand functions
 
-cmd_bazel_remote() {
+cmd_bazel-remote() {
     mkdir -p "$HOME/.cache/bazel/remote"
     uid=$(id -u)
     gid=$(id -g)
-    USER_ID="$uid" GROUP_ID="$gid" docker-compose -f bazel-remote.yml -p bazel_remote up -d
+    USER_ID="$uid" GROUP_ID="$gid" docker compose --compatibility -f bazel-remote.yml -p bazel_remote up -d
 }
 
-cmd_topo_clean() {
+cmd_topo-clean() {
     set -e
-    cmd_stop || true
+    stop_scion || true
+    cmd_stop-monitoring || true
     rm -rf traces/*
     mkdir -p logs traces gen gen-cache gen-certs
     find gen gen-cache gen-certs -mindepth 1 -maxdepth 1 -exec rm -r {} +
@@ -19,7 +20,7 @@ cmd_topo_clean() {
 
 cmd_topology() {
     set -e
-    cmd_topo_clean
+    cmd_topo-clean
 
     echo "Create topology, configuration, and execution files."
     tools/topogen.py "$@"
@@ -32,16 +33,22 @@ cmd_topodot() {
     ./tools/topodot.py "$@"
 }
 
-cmd_run() {
-    run_jaeger
+start_scion() {
     echo "Running the network..."
     if is_docker_be; then
-        docker-compose -f gen/scion-dc.yml -p scion up -d
+        docker compose --compatibility -f gen/scion-dc.yml -p scion up -d
         return 0
     else
         run_setup
         ./tools/quiet tools/supervisor.sh start all
     fi
+}
+
+cmd_start() {
+    start_scion
+    echo "Note that jaeger is no longer started automatically."
+    echo "To run jaeger and prometheus, use $PROGRAM start-monitoring."
+
 }
 
 cmd_sciond-addr() {
@@ -51,24 +58,26 @@ cmd_sciond-addr() {
            "[\(.value)]:30255"' gen/sciond_addresses.json
 }
 
-run_jaeger() {
-    if [ ! -f "gen/jaeger-dc.yml" ]; then
+cmd_start-monitoring() {
+    if [ ! -f "gen/monitoring-dc.yml" ]; then
         return
     fi
-    echo "Running jaeger..."
-    ./tools/quiet ./tools/dc jaeger up -d
+    echo "Running monitoring..."
+    echo "Jaeger UI: http://localhost:16686"
+    echo "Prometheus UI: http://localhost:9090"
+    ./tools/quiet ./tools/dc monitoring up -d
 }
 
-stop_jaeger() {
-    if [ ! -f "gen/jaeger-dc.yml" ]; then
+cmd_stop-monitoring() {
+    if [ ! -f "gen/monitoring-dc.yml" ]; then
         return
     fi
-    echo "Stopping jaeger..."
-    ./tools/quiet ./tools/dc jaeger down -v
+    echo "Stopping monitoring..."
+    ./tools/quiet ./tools/dc monitoring down -v
 }
 
 cmd_mstart() {
-    # Run with docker-compose or supervisor
+    # Run with docker compose or supervisor
     if is_docker_be; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
@@ -99,7 +108,7 @@ run_teardown() {
     fi
 }
 
-cmd_stop() {
+stop_scion() {
     echo "Terminating this run of the SCION infrastructure"
     if is_docker_be; then
         ./tools/quiet ./tools/dc down
@@ -107,7 +116,12 @@ cmd_stop() {
         ./tools/quiet tools/supervisor.sh shutdown
         run_teardown
     fi
-    stop_jaeger
+}
+
+cmd_stop() {
+    stop_scion
+    echo "Note that jaeger is no longer stopped automatically."
+    echo "To stop jaeger and prometheus, use $PROGRAM stop-monitoring."
 }
 
 cmd_mstop() {
@@ -125,25 +139,23 @@ cmd_status() {
 }
 
 cmd_mstatus() {
+    rscount=0
+    tscount=0
     if is_docker_be; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
-        out=$(./tools/dc scion ps $services | tail -n +3)
-        rscount=$(echo "$out" | grep '\<Up\>' | wc -l) # Number of running services
+        rscount=$(./tools/dc scion ps --status=running --format "{{.Name}}" $services | wc -l)
         tscount=$(echo "$services" | wc -w) # Number of all globed services
-        echo "$out" | grep -v '\<Up\>'
-        [ $rscount -eq $tscount ]
+        ./tools/dc scion ps -a --format "table {{.Name}}\t{{upper .State}}\tuptime {{.RunningFor}}" $services | sed "s/ ago//" | tail -n+2
     else
-        if [ $# -ne 0 ]; then
-            services="$(glob_supervisor "$@")"
-            [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
-            tools/supervisor.sh status "$services" | grep -v RUNNING
-        else
-            tools/supervisor.sh status | grep -v RUNNING
-        fi
-        [ $? -eq 1 ]
+        services="$(glob_supervisor "$@")"
+        [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
+        rscount=$(./tools/supervisor.sh status "$services" | grep RUNNIN | wc -l)
+        tscount=$(echo "$services" | wc -w) # Number of all globed services
+        tools/supervisor.sh status "$services"
     fi
     # If all tasks are running, then return 0. Else return 1.
+    [ $rscount -eq $tscount ]
     return
 }
 
@@ -187,45 +199,15 @@ is_docker_be() {
     [ -f gen/scion-dc.yml ]
 }
 
-traces_name() {
-    local name=jaeger_read_badger_traces
-    echo "$name"
-}
-
-cmd_traces() {
-    set -e
-    local trace_dir=${1:-"$(readlink -e .)/traces"}
-    local port=16687
-    local name=$(traces_name)
-    cmd_stop_traces
-    docker run -d --name "$name" \
-        -u "$(id -u):$(id -g)" \
-        -e SPAN_STORAGE_TYPE=badger \
-        -e BADGER_EPHEMERAL=false \
-        -e BADGER_DIRECTORY_VALUE=/badger/data \
-        -e BADGER_DIRECTORY_KEY=/badger/key \
-        -v "$trace_dir:/badger" \
-        -p "$port":16686 \
-        jaegertracing/all-in-one:1.22.0
-    sleep 3
-    x-www-browser "http://localhost:$port"
-}
-
-cmd_stop_traces() {
-    local name=$(traces_name)
-    docker stop "$name" || true
-    docker rm "$name" || true
-}
-
 cmd_help() {
-	cat <<-_EOF
+    cat <<-_EOF
 	SCION
 
 	$PROGRAM runs a SCION network locally for development and testing purposes.
 	Two options for process control systems are supported to run the SCION
 	services.
 	  - supervisord (default)
-	  - docker-compose
+	  - docker compose
 	This can be selected when initially creating the configuration with the
 	topology subcommand.
 
@@ -236,15 +218,19 @@ cmd_help() {
 	    $PROGRAM run
 	        Run network.
 	    $PROGRAM mstart PROCESS
-	        Start multiple processes
+	        Start multiple processes.
 	    $PROGRAM stop
 	        Terminate this run of the SCION infrastructure.
 	    $PROGRAM mstop PROCESS
-	        Stop multiple processes
+	        Stop multiple processes.
+	    $PROGRAM start-monitoring
+	        Run the monitoring infrastructure.
+	    $PROGRAM stop-monitoring
+	        Terminate this run of the monitoring infrastructure.
 	    $PROGRAM status
 	        Show all non-running tasks.
 	    $PROGRAM mstatus PROCESS
-	        Show status of provided processes
+	        Show status of provided processes.
 	    $PROGRAM sciond-addr ISD-AS
 	        Return the address for the scion daemon for the matching ISD-AS by
 	        consulting gen/sciond_addresses.json.
@@ -254,11 +240,7 @@ cmd_help() {
 	        Draw a graphviz graph of a *.topo topology configuration file.
 	    $PROGRAM help
 	        Show this text.
-	    $PROGRAM traces [folder]
-	        Serve jaeger traces from the specified folder (default: traces/)
-	    $PROGRAM stop_traces
-	        Stop the jaeger container started during the traces command
-	    $PROGRAM bazel_remote
+	    $PROGRAM bazel-remote
 	        Starts the bazel remote.
 	_EOF
 }
@@ -269,8 +251,8 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    help|run|mstart|mstatus|mstop|stop|status|topology|sciond-addr|traces|stop_traces|topo_clean|topodot|bazel_remote)
+    help|start|start-monitoring|mstart|mstatus|mstop|stop|stop-monitoring|status|topology|sciond-addr|topo-clean|topodot|bazel-remote)
         "cmd_$COMMAND" "$@" ;;
-    start) cmd_run "$@" ;;
+    run) cmd_start "$@" ;;
     *)  cmd_help; exit 1 ;;
 esac
