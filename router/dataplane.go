@@ -622,6 +622,8 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 		// For non-broken packets, we defer the ingress-side metrics accounting
 		// until we have a chance to figure the traffic type.
 		// That's in runProcessor and processPkt.
+		size := pkt.N
+		sc := sizeClass(size)
 
 		procID, err := computeProcID(pkt.Buffers[0],
 			cfg.NumProcessors, randomValue, flowIDBuffer, hasher)
@@ -630,9 +632,9 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 			d.returnPacketToPool(pkt.Buffers[0])
 			// No processPkt; do the ingress metrics in one arbitrary category
 			// just so the number add-up.
-			metrics[trafficKey{}].InputPacketsTotal.Inc()
-			metrics[trafficKey{}].InputBytesTotal.Add(float64(pkt.N))
-			metrics[trafficKey{}].DroppedPacketsInvalid.Inc()
+			metrics[trafficKey{false, sc}].InputPacketsTotal.Inc()
+			metrics[trafficKey{false, sc}].InputBytesTotal.Add(float64(size))
+			metrics[trafficKey{false, sc}].DroppedPacketsInvalid.Inc()
 			return
 		}
 		outPkt := packet{
@@ -646,9 +648,9 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 			d.returnPacketToPool(pkt.Buffers[0])
 			// No processPkt; do the ingress metrics in one arbitrary category
 			// just so the number add-up.
-			metrics[trafficKey{}].InputPacketsTotal.Inc()
-			metrics[trafficKey{}].InputBytesTotal.Add(float64(pkt.N))
-			metrics[trafficKey{}].DroppedPacketsBusyProcessor.Inc()
+			metrics[trafficKey{false, sc}].InputPacketsTotal.Inc()
+			metrics[trafficKey{false, sc}].InputBytesTotal.Add(float64(size))
+			metrics[trafficKey{false, sc}].DroppedPacketsBusyProcessor.Inc()
 		}
 	}
 
@@ -713,7 +715,8 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 
 		// Ingress-side metrics are updated by processPkt, except for packet drops,
 		// which happens here, and the overall processed packet count.
-		metrics := d.forwardingMetrics[p.ingress][trafficKey{result.Crossing}]
+		sc := sizeClass(len(p.rawPacket))
+		metrics := d.forwardingMetrics[p.ingress][trafficKey{result.Crossing, sc}]
 		metrics.ProcessedPackets.Inc()
 
 		egress := result.EgressID
@@ -768,7 +771,8 @@ func (d *DataPlane) runSlowPathProcessor(id int, q <-chan slowPacket,
 			continue
 		}
 		res, err := processor.processPacket(p)
-		metrics := d.forwardingMetrics[p.packet.ingress][trafficKey{res.Crossing}]
+		sc := sizeClass(len(p.rawPacket))
+		metrics := d.forwardingMetrics[p.packet.ingress][trafficKey{res.Crossing, sc}]
 		if err != nil {
 			log.Debug("Error processing packet", "err", err)
 			metrics.DroppedPacketsInvalid.Inc()
