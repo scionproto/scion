@@ -611,22 +611,24 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 
 	msgs := underlayconn.NewReadMessages(cfg.BatchSize)
 	numReusable := 0 // unused buffers from previous loop
-	metrics := d.forwardingMetrics[ifID]
+	metrics := d.forwardingMetrics[ifID] // If receiver exists, fw metrics exist too.
 	flowIDBuffer := make([]byte, 3)
 	hasher := fnv.New32a()
 
 	enqueueForProcessing := func(pkt ipv4.Message) {
 		srcAddr := pkt.Addr.(*net.UDPAddr)
 
+		// For non-broken packets, we defer the ingress-side metrics accounting
+		// until we have a chance to figure the traffic type.
+		// That's in runProcessor and processPkt.
+
 		procID, err := computeProcID(pkt.Buffers[0],
 			cfg.NumProcessors, randomValue, flowIDBuffer, hasher)
 		if err != nil {
 			log.Debug("Error while computing procID", "err", err)
 			d.returnPacketToPool(pkt.Buffers[0])
-			// Normally we defer these until we can classify
-			// the packet by traffic type. But in this case
-			// there isn't enough to get the traffic type. So, pick
-			// one category just so the number add-up.
+			// No processPkt; do the ingress metrics in one arbitrary category
+			// just so the number add-up.
 			metrics[false].InputPacketsTotal.Inc()
 			metrics[false].InputBytesTotal.Add(float64(pkt.N))
 			metrics[false].DroppedPacketsInvalid.Inc()
@@ -641,10 +643,8 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 		case procQs[procID] <- outPkt:
 		default:
 			d.returnPacketToPool(pkt.Buffers[0])
-			// Normally we defer these until we can classify
-			// the packet by traffic type. But in this case
-			// we're too busy to even get the traffic type. So,
-			// pick one category just so the number add-up.
+			// No processPkt; do the ingress metrics in one arbitrary category
+			// just so the number add-up.
 			metrics[false].InputPacketsTotal.Inc()
 			metrics[false].InputBytesTotal.Add(float64(pkt.N))
 			metrics[false].DroppedPacketsBusyProcessor.Inc()
@@ -709,8 +709,12 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 			continue
 		}
 		result, err := processor.processPkt(p.rawPacket, p.srcAddr, p.ingress)
+
+		// Ingress-side metrics are updated by processPkt, except for packet drops,
+		// which happens here, and the overall processed packet count.
 		metrics := d.forwardingMetrics[p.ingress][result.Crossing]
 		metrics.ProcessedPackets.Inc()
+
 		egress := result.EgressID
 		switch {
 		case err == nil:
@@ -1063,9 +1067,14 @@ func (p *scionPacketProcessor) reset() error {
 func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 	srcAddr *net.UDPAddr, ingressID uint16) (processResult, error) {
 
+	// processPkt is in charge of collecting the ingress-side metrics because
+	// the Receiver doesn't extract quite enough information.
+	metrics := p.d.forwardingMetrics[ingressID]
 	if err := p.reset(); err != nil {
-		// This can actually not happen, the error is only imposed
-		// by an interface.
+		// This doesn't actually happen, the error is only imposed
+		// by an interface. We're just planning for the worst.
+		metrics[false].InputPacketsTotal.Inc()
+		metrics[false].InputBytesTotal.Add(float64(len(rawPkt)))
 		return processResult{}, err
 	}
 	p.rawPkt = rawPkt
@@ -1076,7 +1085,9 @@ func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 	var err error
 	p.lastLayer, err = decodeLayers(p.rawPkt, &p.scionLayer, &p.hbhLayer, &p.e2eLayer)
 	if err != nil {
-		// So broken that we can't even get a destination IA.
+		// So broken that we can't even get a destination IA. Pick a category.
+		metrics[false].InputPacketsTotal.Inc()
+		metrics[false].InputBytesTotal.Add(float64(len(rawPkt)))
 		return processResult{}, err
 	}
 
@@ -1084,8 +1095,8 @@ func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 	crossing := ((ingressID == 0) != (p.scionLayer.DstIA == p.d.localIA))
 
 	// Now that we know that, we can properly count the input.
-	p.d.forwardingMetrics[ingressID][crossing].InputPacketsTotal.Inc()
-	p.d.forwardingMetrics[ingressID][crossing].InputBytesTotal.Add(float64(len(rawPkt)))
+	metrics[crossing].InputPacketsTotal.Inc()
+	metrics[crossing].InputBytesTotal.Add(float64(len(rawPkt)))
 
 	pld := p.lastLayer.LayerPayload()
 	minResult := processResult{ Crossing: crossing}
@@ -2458,14 +2469,19 @@ func initForwardingMetrics(metrics *Metrics, labels prometheus.Labels) forwardin
 		OutputPacketsTotal: metrics.OutputPacketsTotal.With(labels),
 		ProcessedPackets:   metrics.ProcessedPackets.With(labels),
 	}
-	labels["reason"] = "invalid"
-	c.DroppedPacketsInvalid = metrics.DroppedPacketsTotal.With(labels)
-	labels["reason"] = "busy_processor"
-	c.DroppedPacketsBusyProcessor = metrics.DroppedPacketsTotal.With(labels)
-	labels["reason"] = "busy_forwarder"
-	c.DroppedPacketsBusyForwarder = metrics.DroppedPacketsTotal.With(labels)
-	labels["reason"] = "busy_slow_path"
-	c.DroppedPacketsBusySlowPath = metrics.DroppedPacketsTotal.With(labels)
+	reasonMap := map[string]string{}
+
+	reasonMap["reason"] = "invalid"
+	c.DroppedPacketsInvalid = metrics.DroppedPacketsTotal.MustCurryWith(labels).With(reasonMap)
+
+	reasonMap["reason"] = "busy_processor"
+	c.DroppedPacketsBusyProcessor = metrics.DroppedPacketsTotal.MustCurryWith(labels).With(reasonMap)
+
+	reasonMap["reason"] = "busy_forwarder"
+	c.DroppedPacketsBusyForwarder = metrics.DroppedPacketsTotal.MustCurryWith(labels).With(reasonMap)
+
+	reasonMap["reason"] = "busy_slow_path"
+	c.DroppedPacketsBusySlowPath = metrics.DroppedPacketsTotal.MustCurryWith(labels).With(reasonMap)
 
 	c.InputBytesTotal.Add(0)
 	c.InputPacketsTotal.Add(0)
@@ -2480,14 +2496,17 @@ func initForwardingMetrics(metrics *Metrics, labels prometheus.Labels) forwardin
 }
 
 func initSplitForwardingMetrics(metrics *Metrics, labels prometheus.Labels) splitForwardingMetrics {
-	labelsNonCrossing := labels
-	labels["crossing"] = "t"
-	labelsNonCrossing["crossing"] = "f"
+	m := splitForwardingMetrics{}
 
-	return splitForwardingMetrics {
-		true: initForwardingMetrics(metrics, labels),
-		false: initForwardingMetrics(metrics, labelsNonCrossing),
-	}
+	labels["crossing"] = "t"
+	m[true] = initForwardingMetrics(metrics, labels)
+
+	labels["crossing"] = "f"
+	m[false] = initForwardingMetrics(metrics, labels)
+
+	// Be nice, leave the labels dic as we found it.
+	delete(labels, "crossing")
+	return m
 }
 
 func interfaceToMetricLabels(id uint16, localIA addr.IA,

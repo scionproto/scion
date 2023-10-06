@@ -66,11 +66,15 @@ class Test(base.TestTopogen):
         conn.request('GET', '/metrics')
         resp = conn.getresponse()
         metrics = resp.read().decode('utf-8')
+        total = 0
+        regexp = re.compile(r"""^router_input_bytes_total{.*interface="internal".*\s(.*)$""")
         for line in metrics.splitlines():
-            m = re.search(r"""^router_input_bytes_total{interface="internal".*\s(.*)$""", line)
-            if m is not None:
-                return float(m.group(1)) / 1024 / 1024
-        return None
+            try:
+                m = regexp.search(line)
+                total += float(m.group(1)) / 1024 / 1024
+            except:
+                pass
+        return total
 
     def setup_prepare(self):
         print("setting up the infrastructure")

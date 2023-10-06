@@ -421,6 +421,12 @@ func TestSlowPathProcessing(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	payload := []byte("actualpayloadbytes")
+
+	// ProcessPacket assumes some pre-conditions:
+	// * The ingress interface has to exist. This fake map is good for the test cases we have.
+	// * InternalNextHops may not be nil. Empty is ok for all the test cases we have.
+	fakeExternalInterfaces := map[uint16]BatchConn{1:nil}
+	fakeInternalNextHops := map[uint16]*net.UDPAddr{}
 	testCases := map[string]struct {
 		mockMsg                 func() []byte
 		prepareDP               func(*gomock.Controller) *DataPlane
@@ -430,9 +436,12 @@ func TestSlowPathProcessing(t *testing.T) {
 	}{
 		"svc nobackend": {
 			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
-				return NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+				return NewDP(fakeExternalInterfaces,
+					nil, mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops,
 					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), nil, testKey)
+					xtest.MustParseIA("1-ff00:0:110"),
+					nil, testKey)
 			},
 			mockMsg: func() []byte {
 				spkt := prepBaseMsg(t, payload, 0)
@@ -452,7 +461,9 @@ func TestSlowPathProcessing(t *testing.T) {
 		},
 		"svc invalid": {
 			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
-				return NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+				return NewDP(fakeExternalInterfaces,
+					nil, mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops,
 					map[addr.SVC][]*net.UDPAddr{},
 					xtest.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
@@ -474,7 +485,9 @@ func TestSlowPathProcessing(t *testing.T) {
 		},
 		"invalid dest": {
 			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
-				return NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+				return NewDP(fakeExternalInterfaces,
+					nil, mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops,
 					map[addr.SVC][]*net.UDPAddr{},
 					xtest.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
@@ -500,6 +513,9 @@ func TestSlowPathProcessing(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			dp := tc.prepareDP(ctrl)
+			dp.initMetrics()
+			dp.forwardingMetrics[1][false].InputPacketsTotal.Inc()
+
 			rawPacket := tc.mockMsg()
 			var srcAddr *net.UDPAddr
 
