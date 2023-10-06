@@ -345,6 +345,28 @@ of the individual fields below.
    .. option:: addr = <ip:port>, required
 
       See ``control_service.addr``, above.
+
+.. _common-conf-duration:
+
+Duration Format
+===============
+
+Where duration values are loaded from configuration options, the following format is expected:
+
+.. code-block::
+
+   [\-0-9]+(y|w|d|h|m|s|ms|us|µs|ns)
+
+The unit suffixes have their usual meaning of ``y`` year, ``w`` week, ``d`` day, ``h`` hour,
+``m`` minute, ``s`` second, ``ms`` millisecond, ``us`` or ``µs`` microsecond, and ``ns`` nanosecond.
+
+Mixed unit durations are not supported (e.g. ``1h10m10s`` is not supported).
+The long duration units are simple factors, not calendar offsets:
+
+- ``d`` is always 24 hours
+- ``w`` is always 7 days
+- ``y`` is always 365 days
+
 .. _common-http-api:
 
 HTTP API
