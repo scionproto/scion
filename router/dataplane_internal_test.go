@@ -514,7 +514,6 @@ func TestSlowPathProcessing(t *testing.T) {
 			t.Parallel()
 			dp := tc.prepareDP(ctrl)
 			dp.initMetrics()
-			dp.forwardingMetrics[1][false].InputPacketsTotal.Inc()
 
 			rawPacket := tc.mockMsg()
 			var srcAddr *net.UDPAddr

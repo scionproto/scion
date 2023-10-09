@@ -48,42 +48,42 @@ func NewMetrics() *Metrics {
 				Name: "router_processed_pkts_total",
 				Help: "Total number of packets processed by the processor",
 			},
-			[]string{"crossing", "interface", "isd_as", "neighbor_isd_as"},
+			[]string{"interface", "isd_as", "neighbor_isd_as", "sizeclass", "crossing"},
 		),
 		InputBytesTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "router_input_bytes_total",
 				Help: "Total number of bytes received",
 			},
-			[]string{"crossing", "interface", "isd_as", "neighbor_isd_as"},
+			[]string{"interface", "isd_as", "neighbor_isd_as", "sizeclass", "crossing"},
 		),
 		OutputBytesTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "router_output_bytes_total",
 				Help: "Total number of bytes sent.",
 			},
-			[]string{"crossing", "interface", "isd_as", "neighbor_isd_as"},
+			[]string{"interface", "isd_as", "neighbor_isd_as", "sizeclass", "crossing"},
 		),
 		InputPacketsTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "router_input_pkts_total",
 				Help: "Total number of packets received",
 			},
-			[]string{"crossing", "interface", "isd_as", "neighbor_isd_as"},
+			[]string{"interface", "isd_as", "neighbor_isd_as", "sizeclass", "crossing"},
 		),
 		OutputPacketsTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "router_output_pkts_total",
 				Help: "Total number of packets sent.",
 			},
-			[]string{"crossing", "interface", "isd_as", "neighbor_isd_as"},
+			[]string{"interface", "isd_as", "neighbor_isd_as", "sizeclass", "crossing"},
 		),
 		DroppedPacketsTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "router_dropped_pkts_total",
 				Help: "Total number of packets dropped by the router.",
 			},
-			[]string{"crossing", "interface", "isd_as", "neighbor_isd_as", "reason"},
+			[]string{"interface", "isd_as", "neighbor_isd_as", "sizeclass", "crossing", "reason"},
 		),
 		InterfaceUp: promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
