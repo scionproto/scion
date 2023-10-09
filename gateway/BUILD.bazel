@@ -38,9 +38,9 @@ go_library(
         "//private/service:go_default_library",
         "//private/svc:go_default_library",
         "//private/worker:go_default_library",
-        "@com_github_lucas_clemente_quic_go//:go_default_library",
         "@com_github_prometheus_client_golang//prometheus:go_default_library",
         "@com_github_prometheus_client_golang//prometheus/promauto:go_default_library",
+        "@com_github_quic_go_quic_go//:go_default_library",
         "@org_golang_google_grpc//:go_default_library",
     ],
 )

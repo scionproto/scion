@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # This script waits for the beaconing process in a local topology (running
-# either with supervisor or docker-compose) to establish full connectivity.
+# either with supervisor or docker compose) to establish full connectivity.
 # Uses the control service's segments/ API to determine whether segments have
 # been registered.
 #
@@ -13,7 +13,7 @@
 # 
 # Usage: await-connectivity -q QUIET -t TIMEOUT
 
-set -euo pipefail
+set -Eeuo pipefail
 
 QUIET=10
 TIMEOUT=20
@@ -83,6 +83,7 @@ main() {
   parse_opts "$@"
 
   # poor bash-man's yaml parser
+  stat gen/as_list.yml > /dev/null # ensure file exists; command substitutions below don't fail because local (!?)
   local cores=$(sed -n '1,/Non-core/{s/^- //p}' gen/as_list.yml)
   local noncores=$(sed -n '/Non-core/,${s/^- //p}' gen/as_list.yml)
 

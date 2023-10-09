@@ -3,7 +3,6 @@
 # Copyright 2020 Anapaya Systems
 
 import http.server
-import time
 import threading
 
 from plumbum import cmd
@@ -61,16 +60,6 @@ class Test(base.TestTopogen):
             "4": "172.20.0.65",
             "5": "172.20.0.73",
         }
-        # XXX(lukedirtwalker): The ports below are the dynamic QUIC server
-        # ports. Thanks to the docker setup they are setup consistently so we
-        # can use them. Optimally we would define a static server port inside
-        # the CS and use that one instead.
-        control_addresses = {
-            "2": "172.20.0.51:32768",
-            "3": "172.20.0.59:32768",
-            "4": "172.20.0.67:32768",
-            "5": "172.20.0.75:32768",
-        }
         # Each AS participating in hidden paths has their own hidden paths configuration file.
         hp_configs = {
             "2": "hp_groups_as2_as5.yml",
@@ -98,13 +87,16 @@ class Test(base.TestTopogen):
             # even though some don't need the registration service.
             as_dir_path = self.artifacts / "gen" / ("ASff00_0_%s" % as_number)
 
+            # The hidden_segment services are behind the same server as the control_service.
+            topology_file = as_dir_path / "topology.json"
+            control_service_addr = scion.load_from_json(
+                'control_service.%s.addr' % control_id, [topology_file])
             topology_update = {
                 "hidden_segment_lookup_service.%s.addr" % control_id:
-                    control_addresses[as_number],
+                    control_service_addr,
                 "hidden_segment_registration_service.%s.addr" % control_id:
-                    control_addresses[as_number],
+                    control_service_addr,
             }
-            topology_file = as_dir_path / "topology.json"
             scion.update_json(topology_update, [topology_file])
 
     def setup_start(self):
@@ -112,9 +104,9 @@ class Test(base.TestTopogen):
                 ("0.0.0.0", self.http_server_port), http.server.SimpleHTTPRequestHandler)
         server_thread = threading.Thread(target=configuration_server, args=[server])
         server_thread.start()
+        self._server = server
 
         super().setup_start()
-        time.sleep(4)  # Give applications time to download configurations
 
         self._testers = {
             "2": "tester_1-ff00_0_2",
@@ -128,9 +120,11 @@ class Test(base.TestTopogen):
             "4": "1-ff00:0:4",
             "5": "1-ff00:0:5",
         }
-        server.shutdown()
 
     def _run(self):
+        self.await_connectivity()
+        self._server.shutdown()  # by now configuration must have been downloaded everywhere
+
         # Group 3
         self._showpaths_bidirectional("2", "3", 0)
         self._showpaths_bidirectional("2", "5", 0)

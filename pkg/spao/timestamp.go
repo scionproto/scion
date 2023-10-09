@@ -17,24 +17,23 @@ package spao
 import (
 	"time"
 
+	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/util"
 )
 
-// RelativeTimestamp computes the relative timestamp (spaoTS) where:
-// now = ts+spaoTS⋅𝑞, (where q := 6 ms and ts =  info[0].Timestamp, i.e.,
-// the timestamp field in the first InfoField).
-func RelativeTimestamp(ts uint32, now time.Time) (uint32, error) {
-	timestamp := now.Sub(util.SecsToTime(ts)).Milliseconds() / 6
-	if timestamp >= (1 << 24) {
-		return 0, serrors.New("relative timestamp is bigger than 2^24-1")
+// RelativeTimestamp returns the relative timestamp (RelTime) as the time diference from
+// time instant t to the beginning of the drkey epoch.
+func RelativeTimestamp(e drkey.Epoch, t time.Time) (uint64, error) {
+	relTime := t.Sub(e.NotBefore).Nanoseconds()
+	if relTime >= (1 << 48) {
+		return 0, serrors.New("relative timestamp is bigger than 2^48-1")
 	}
-	return uint32(timestamp), nil
+	return uint64(relTime), nil
 }
 
-// Time computes the time instant (then) where:
-// then = ts + spaoTS⋅𝑞, (where q := 6 ms and ts =  info[0].Timestamp, i.e.,
-// the timestamp field in the first InfoField).
-func Time(ts uint32, spaoTS uint32) time.Time {
-	return util.SecsToTime(ts).Add(time.Millisecond * time.Duration(spaoTS) * 6)
+// AbsoluteTimestamp returns the absolute timestamp (AbsTime) based on the
+// relTime (Timestamp / Sequence Number field in SPAO header) and the DRKey
+// information.
+func AbsoluteTimestamp(e drkey.Epoch, relTime uint64) time.Time {
+	return e.NotBefore.Add(time.Duration(relTime))
 }

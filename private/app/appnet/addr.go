@@ -161,6 +161,7 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context,
 			return nil, serrors.WrapStr("Unable to resolve underlay", err)
 		}
 		ret.NextHop = ov
+		ret.Path = path.Empty{}
 	}
 
 	return ret, nil

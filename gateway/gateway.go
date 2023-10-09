@@ -24,8 +24,8 @@ import (
 	"strconv"
 	"time"
 
-	quic "github.com/lucas-clemente/quic-go"
 	"github.com/prometheus/client_golang/prometheus"
+	quic "github.com/quic-go/quic-go"
 	"google.golang.org/grpc"
 
 	"github.com/scionproto/scion/gateway/control"
@@ -138,16 +138,6 @@ func (rtf RoutingTableFactory) New(
 ) (control.RoutingTable, error) {
 
 	return dataplane.NewRoutingTable(routingChains), nil
-}
-
-// ignoreSCMP ignores all received SCMP packets.
-//
-// XXX(scrye): This is needed such that the QUIC server does not shut down when
-// receiving a SCMP error. DO NOT REMOVE!
-type ignoreSCMP struct{}
-
-func (ignoreSCMP) Handle(pkt *snet.Packet) error {
-	return nil
 }
 
 // SelectAdvertisedRoutes computes the networks that should be advertised
@@ -448,17 +438,21 @@ func (g *Gateway) Run(ctx context.Context) error {
 		return serrors.WrapStr("unable to generate TLS config", err)
 	}
 
-	// scionNetwork is the network for all SCION connections, with the exception of the QUIC server
-	// connection.
-	scionNetwork := &snet.SCIONNetwork{
+	// scionNetworkNoSCMP is the network for the QUIC server connection. Because SCMP errors
+	// will cause the server's accepts to fail, we ignore SCMP.
+	scionNetworkNoSCMP := &snet.SCIONNetwork{
 		LocalIA: localIA,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
 			// Enable transparent reconnections to the dispatcher
 			Dispatcher: reconnectingDispatcher,
-			// Forward revocations to Daemon
-			SCMPHandler: snet.DefaultSCMPHandler{
-				RevocationHandler: revocationHandler,
-				SCMPErrors:        g.Metrics.SCMPErrors,
+			// Discard all SCMP propagation, to avoid accept/read errors on the
+			// QUIC server/client.
+			SCMPHandler: snet.SCMPPropagationStopper{
+				Handler: snet.DefaultSCMPHandler{
+					RevocationHandler: revocationHandler,
+					SCMPErrors:        g.Metrics.SCMPErrors,
+				},
+				Log: log.FromCtx(ctx).Debug,
 			},
 			SCIONPacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
 		},
@@ -467,7 +461,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 	// Initialize the UDP/SCION QUIC conn for outgoing Gateway Discovery RPCs and outgoing Prefix
 	// Fetching. Open up a random high port for this.
-	clientConn, err := scionNetwork.Listen(
+	clientConn, err := scionNetworkNoSCMP.Listen(
 		context.TODO(),
 		"udp",
 		&net.UDPAddr{IP: g.ControlClientIP},
@@ -480,7 +474,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 		"local_addr", clientConn.LocalAddr())
 
 	quicClientDialer := &squic.ConnDialer{
-		Conn:      clientConn,
+		Transport: &quic.Transport{
+			Conn: clientConn,
+		},
 		TLSConfig: ephemeralTLSConfig,
 	}
 
@@ -508,6 +504,23 @@ func (g *Gateway) Run(ctx context.Context) error {
 			return metrics.CounterWith(metrics.NewPromCounter(g.Metrics.PrefixFetchErrors),
 				"remote_isd_as", ia.String())
 		}
+	}
+
+	// scionNetwork is the network for all SCION connections, with the exception of the QUIC server
+	// and client connection.
+	scionNetwork := &snet.SCIONNetwork{
+		LocalIA: localIA,
+		Dispatcher: &snet.DefaultPacketDispatcherService{
+			// Enable transparent reconnections to the dispatcher
+			Dispatcher: reconnectingDispatcher,
+			// Forward revocations to Daemon
+			SCMPHandler: snet.DefaultSCMPHandler{
+				RevocationHandler: revocationHandler,
+				SCMPErrors:        g.Metrics.SCMPErrors,
+			},
+			SCIONPacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
+		},
+		Metrics: g.Metrics.SCIONNetworkMetrics,
 	}
 	remoteMonitor := &control.RemoteMonitor{
 		IAs:                   remoteIAsChannel,
@@ -548,19 +561,6 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}()
 	logger.Debug("Remote monitor started.")
 
-	// scionNetworkNoSCMP is the network for the QUIC server connection. Because SCMP errors
-	// will cause the server's accepts to fail, we ignore SCMP.
-	scionNetworkNoSCMP := &snet.SCIONNetwork{
-		LocalIA: localIA,
-		Dispatcher: &snet.DefaultPacketDispatcherService{
-			// Enable transparent reconnections to the dispatcher
-			Dispatcher: reconnectingDispatcher,
-			// Discard all SCMP, to avoid accept errors on the QUIC server.
-			SCMPHandler:            ignoreSCMP{},
-			SCIONPacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
-		},
-		Metrics: g.Metrics.SCIONNetworkMetrics,
-	}
 	serverConn, err := scionNetworkNoSCMP.Listen(
 		context.TODO(),
 		"udp",

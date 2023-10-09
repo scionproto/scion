@@ -14,6 +14,10 @@ clean:
 	bazel clean
 	rm -f bin/*
 
+scrub:
+	bazel clean --expunge
+	rm -f bin/*
+
 bazel:
 	rm -f bin/*
 	bazel build //:scion //:scion-ci
@@ -30,8 +34,7 @@ go.mod:
 	bazel run --config=quiet @go_sdk//:bin/go -- mod tidy
 
 go_deps.bzl: go.mod
-	@# gazelle is run with "-args"; so our arguments are added to those from the gazelle() rule. 
-	bazel run --verbose_failures --config=quiet //:gazelle_update_repos -- -args -prune -from_file=go.mod -to_macro=go_deps.bzl%go_deps
+	bazel run --verbose_failures --config=quiet //:gazelle_update_repos
 	@# XXX(matzf): clean up; gazelle update-repose inconsistently inserts blank lines (see bazelbuild/bazel-gazelle#1088).
 	@sed -e '/def go_deps/,$${/^$$/d}' -i go_deps.bzl
 
@@ -93,7 +96,7 @@ GO_BUILD_TAGS_ARG=$(shell bazel build --ui_event_filters=-stdout,-stderr --annou
 lint-go-golangci:
 	$(info ==> $@)
 	@if [ -t 1 ]; then tty=true; else tty=false; fi; \
-		tools/quiet docker run --tty=$$tty --rm -v golangci-lint-modcache:/go -v golangci-lint-buildcache:/root/.cache -v "${PWD}:/src" -w /src golangci/golangci-lint:v1.50.0 golangci-lint run --config=/src/.golangcilint.yml --timeout=3m $(GO_BUILD_TAGS_ARG) --skip-dirs doc ./...
+		tools/quiet docker run --tty=$$tty --rm -v golangci-lint-modcache:/go -v golangci-lint-buildcache:/root/.cache -v "${PWD}:/src" -w /src golangci/golangci-lint:v1.54.2 golangci-lint run --config=/src/.golangcilint.yml --timeout=3m $(GO_BUILD_TAGS_ARG) --skip-dirs doc ./...
 
 lint-go-semgrep:
 	$(info ==> $@)

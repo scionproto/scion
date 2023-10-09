@@ -88,6 +88,14 @@ Environment Variables
 
    Same applicability as above; can be overridden for specific inter-AS BFD sessions with
    :option:`bfd.required_min_rx_interval <topology-json required_min_rx_interval>`.
+.. envvar:: SCION_TESTING_DRKEY_EPOCH_DURATION
+
+   Defines the global DRKey :ref:`Epoch<drkey-epoch>` duration that the border router
+   assumes.
+
+.. envvar:: SCION_TESTING_ACCEPTANCE_WINDOW
+
+   Defines the acceptance window following the :ref:`SPAO specification<spao-absTime>`.
 
 Configuration
 =============
@@ -152,8 +160,8 @@ considers the following options.
 
    .. option:: router.num_slow_processors = <int> (Default: 1)
 
-      Number of goroutines started for the slow-path processing. This feature will be implemented soon. Currently
-      this setting has no effect.
+      Number of goroutines started for the slow-path processing which includes all SCMP traffic and traceroutes.
+      A minimum of 1 slow-path processor is required.
 
    .. option:: router.batch_size = <int> (Default: 256)
 

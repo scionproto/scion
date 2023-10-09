@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"math/rand"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -178,8 +179,12 @@ func (p *pinger) Ping(ctx context.Context, remote *snet.UDPAddr) (Stats, error) 
 		p.drain(ctx)
 	}()
 
+	var wg sync.WaitGroup
+	wg.Add(1)
+
 	go func() {
 		defer log.HandlePanic()
+		defer wg.Done()
 		for i := uint16(0); i < p.attempts; i++ {
 			if err := p.send(remote); err != nil {
 				errSend <- serrors.WrapStr("sending", err)
@@ -210,6 +215,7 @@ func (p *pinger) Ping(ctx context.Context, remote *snet.UDPAddr) (Stats, error) 
 			p.receive(reply)
 		}
 	}
+	wg.Wait()
 	return p.stats, nil
 }
 
