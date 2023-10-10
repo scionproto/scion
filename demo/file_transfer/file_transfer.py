@@ -72,7 +72,7 @@ class Test(base.TestTopogen):
             try:
                 m = regexp.search(line)
                 total += float(m.group(1)) / 1024 / 1024
-            except:
+            except (TypeError, AttributeError, ValueError):
                 pass
         return total
 

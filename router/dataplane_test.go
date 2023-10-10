@@ -580,7 +580,7 @@ func TestProcessPkt(t *testing.T) {
 	// * The ingress interface has to exist. This fake map is good for most test cases.
 	//   Others need a custom one.
 	// * InternalNextHops may not be nil. Empty is ok (sufficient unless testing AS transit).
-	fakeExternalInterfaces := map[uint16]router.BatchConn{1:nil, 2:nil, 3:nil}
+	fakeExternalInterfaces := map[uint16]router.BatchConn{1: nil, 2: nil, 3: nil}
 	fakeInternalNextHops := map[uint16]*net.UDPAddr{}
 
 	testCases := map[string]struct {
@@ -1071,7 +1071,7 @@ func TestProcessPkt(t *testing.T) {
 					mock_router.NewMockBatchConn(ctrl),
 					map[uint16]*net.UDPAddr{
 						uint16(3): {IP: net.ParseIP("10.0.200.200").To4(), Port: 30043},
-					}, nil,	xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -1089,7 +1089,7 @@ func TestProcessPkt(t *testing.T) {
 				return ret
 			},
 			srcInterface:    1,
-			egressInterface: 0, // Internal forward to the border router that has the egress interface
+			egressInterface: 0, // Internal forward to the egress router
 			assertFunc:      assert.NoError,
 		},
 		"astransit xover": {

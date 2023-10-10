@@ -29,6 +29,7 @@ import (
 	"net"
 	"net/netip"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -611,7 +612,7 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 	}
 
 	msgs := underlayconn.NewReadMessages(cfg.BatchSize)
-	numReusable := 0 // unused buffers from previous loop
+	numReusable := 0                     // unused buffers from previous loop
 	metrics := d.forwardingMetrics[ifID] // If receiver exists, fw metrics exist too.
 	flowIDBuffer := make([]byte, 3)
 	hasher := fnv.New32a()
@@ -623,7 +624,7 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 		// until we have a chance to figure the traffic type.
 		// That's in runProcessor and processPkt.
 		size := pkt.N
-		sc := sizeClass(size)
+		sc := classOfSize(size)
 
 		procID, err := computeProcID(pkt.Buffers[0],
 			cfg.NumProcessors, randomValue, flowIDBuffer, hasher)
@@ -715,7 +716,7 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 
 		// Ingress-side metrics are updated by processPkt, except for packet drops,
 		// which happens here, and the overall processed packet count.
-		sc := sizeClass(len(p.rawPacket))
+		sc := classOfSize(len(p.rawPacket))
 		metrics := d.forwardingMetrics[p.ingress][trafficKey{result.Crossing, sc}]
 		metrics.ProcessedPackets.Inc()
 
@@ -771,7 +772,7 @@ func (d *DataPlane) runSlowPathProcessor(id int, q <-chan slowPacket,
 			continue
 		}
 		res, err := processor.processPacket(p)
-		sc := sizeClass(len(p.rawPacket))
+		sc := classOfSize(len(p.rawPacket))
 		metrics := d.forwardingMetrics[p.packet.ingress][trafficKey{res.Crossing, sc}]
 		if err != nil {
 			log.Debug("Error processing packet", "err", err)
@@ -916,7 +917,7 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 	// that was batch-written successfully to output socket :-(
 	// readUpTo() has been persuaded to do that.
 	ingressIDs := make([]uint16, cfg.BatchSize)
-	
+
 	for i := range writeMsgs {
 		writeMsgs[i].Buffers = make([][]byte, 1)
 	}
@@ -937,15 +938,14 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 
 		// We need to collect stats by traffic type and size class.
 		// Try to reduce the metrics lookup penalty by using some
-		// simpler staging data structure. There are less than 18
-		// size classes (SCION payload size limit).
-		writtenCrossing := [17]int{}
-		writtenBytesCrossing := [17]int{}
-		writtenNonCrossing :=  [17]int{}
-		writtenBytesNonCrossing :=  [17]int{}
+		// simpler staging data structure.
+		writtenCrossing := [maxSizeClass]int{}
+		writtenBytesCrossing := [maxSizeClass]int{}
+		writtenNonCrossing := [maxSizeClass]int{}
+		writtenBytesNonCrossing := [maxSizeClass]int{}
 		for i := range writeMsgs[:written] {
 			crossing := ((ingressIDs[i] == 0) != (ifID == 0))
-			sc := sizeClass(len(writeMsgs[i].Buffers[0]))
+			sc := classOfSize(len(writeMsgs[i].Buffers[0]))
 			if crossing {
 				writtenCrossing[sc]++
 				writtenBytesCrossing[sc] += len(writeMsgs[i].Buffers[0])
@@ -955,21 +955,25 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 			}
 			d.returnPacketToPool(writeMsgs[i].Buffers[0])
 		}
-		for sc:=uint8(0); sc<17; sc++ {
+		for sc := sizeClass(0); sc < maxSizeClass; sc++ {
 			if writtenCrossing[sc] > 0 {
-				metrics[trafficKey{true, sc}].OutputPacketsTotal.Add(float64(writtenCrossing[sc]))
-				metrics[trafficKey{true, sc}].OutputBytesTotal.Add(float64(writtenBytesCrossing[sc]))
+				metrics[trafficKey{true, sc}].OutputPacketsTotal.Add(
+					float64(writtenCrossing[sc]))
+				metrics[trafficKey{true, sc}].OutputBytesTotal.Add(
+					float64(writtenBytesCrossing[sc]))
 			}
 			if writtenNonCrossing[sc] > 0 {
-				metrics[trafficKey{false, sc}].OutputPacketsTotal.Add(float64(writtenNonCrossing[sc]))
-				metrics[trafficKey{false, sc}].OutputBytesTotal.Add(float64(writtenBytesNonCrossing[sc]))
+				metrics[trafficKey{false, sc}].OutputPacketsTotal.Add(
+					float64(writtenNonCrossing[sc]))
+				metrics[trafficKey{false, sc}].OutputBytesTotal.Add(
+					float64(writtenBytesNonCrossing[sc]))
 			}
 		}
 
 		if written != available {
 			// Only one is dropped at this time. We'll retry the rest.
 			crossing := ((ingressIDs[written] == 0) != (ifID == 0))
-			sc := sizeClass(len(writeMsgs[written].Buffers[0]))
+			sc := classOfSize(len(writeMsgs[written].Buffers[0]))
 			metrics[trafficKey{crossing, sc}].DroppedPacketsInvalid.Inc()
 			d.returnPacketToPool(writeMsgs[written].Buffers[0])
 			remaining = available - written - 1
@@ -983,7 +987,9 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 	}
 }
 
-func readUpTo(c <-chan packet, n int, needsBlocking bool, msg []ipv4.Message, ingressIDs []uint16) int {
+func readUpTo(c <-chan packet,
+	n int, needsBlocking bool, msg []ipv4.Message, ingressIDs []uint16) int {
+
 	assign := func(p packet, m *ipv4.Message) {
 		m.Buffers[0] = p.rawPacket
 		m.Addr = nil
@@ -1073,7 +1079,7 @@ func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 	// the Receiver doesn't extract quite enough information.
 	metrics := p.d.forwardingMetrics[ingressID]
 	size := len(rawPkt)
-	sc := sizeClass(size)
+	sc := classOfSize(size)
 	if err := p.reset(); err != nil {
 		// This doesn't actually happen, the error is only imposed
 		// by an interface. But, we're defensive.
@@ -1103,7 +1109,7 @@ func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 	metrics[trafficKey{crossing, sc}].InputBytesTotal.Add(float64(size))
 
 	pld := p.lastLayer.LayerPayload()
-	minResult := processResult{ Crossing: crossing}
+	minResult := processResult{Crossing: crossing}
 
 	pathType := p.scionLayer.PathType
 	switch pathType {
@@ -2435,17 +2441,27 @@ func nextHdr(layer gopacket.DecodingLayer) slayers.L4ProtocolType {
 // with the set of metrics belonging to that interface that have these label values.
 // This set of metrics is itself a trafficMetric structure.
 // Explanation:
-// Metrics are labeled by interface, local-as, neighbor-as traffic type, and packet size. Instances
-// are grouped in a hierarchical manner for efficient access by the using code.
+// Metrics are labeled by interface, local-as, neighbor-as, traffic type, and packet size.
+// Instances are grouped in a hierarchical manner for efficient access by the using code.
 // forwardingMetrics is a map of interface to interfaceMetrics.
 // To access a specific InputPacketsTotal counter, one referes to:
 // dataplane.forwardingMetrics[interface][(traffic-type, size-class)]
 type interfaceMetrics map[trafficKey]trafficMetrics
 
+// The number of bits needed to represent some given size.
+// This is quicker than computing Log2 and serves the same purpose.
+type sizeClass uint8
+
+// maxSizeClass is the number of sizeClass values that we have metrics for.
+// To be precise, this is the smallest NOT-supported value. This is enough because the largest
+// packet's size is <128k. Just in case that would change, larger packets are simply put in the
+// last class.
+const maxSizeClass = 18
+
 // Traffic key is the composite key used in interfaceMetrics to sort metrics by traffic features.
 type trafficKey struct {
-	crossing bool   // true if border crossing
-	sizeClass uint8 // log2 of the pkt size
+	crossing bool      // true if border crossing
+	sc       sizeClass // ~log2 of the pkt size
 }
 
 // trafficMetrics groups all the metrics instances that all share the same interface AND traffic
@@ -2462,12 +2478,24 @@ type trafficMetrics struct {
 	ProcessedPackets            prometheus.Counter
 }
 
-func sizeClass(pktSize int) uint8 {
-	// We assume that absurly large packets do not reach us.
-	// Currently we can't get packets larger than 9K. The theoretical
-	// max would be 64K + headers. Possibly we could assume 64K incl. headers
-	// and use Len16. But, for now...
-	return uint8(bits.Len32(uint32(pktSize)))
+// Returns the sizeClass of the given size. All classes above
+// maxSizeClass - 1 are conflated with maxSizeClass - 1.
+func classOfSize(pktSize int) sizeClass {
+	cs := sizeClass(bits.Len32(uint32(pktSize)))
+	if cs >= maxSizeClass {
+		return maxSizeClass
+	}
+	return cs
+}
+
+// Returns a human-friendly representation of the given size class.
+// Avoid bracket notation to make the values possibly easier to use
+// in monitoring queries.
+func (sc sizeClass) String() string {
+	return strings.Join(
+		[]string{strconv.Itoa((1 << sc) >> 1), strconv.Itoa(1<<sc - 1)},
+		"_",
+	)
 }
 
 // initMetrics initializes the metrics related to packet forwarding. The
@@ -2489,9 +2517,9 @@ func (d *DataPlane) initMetrics() {
 func initInterfaceMetrics(metrics *Metrics, labels prometheus.Labels) interfaceMetrics {
 	m := interfaceMetrics{}
 
-	for sc := uint8(0); sc < 17; sc++ {
-		labels["sizeclass"] = string(sc)
-		
+	for sc := sizeClass(0); sc < maxSizeClass; sc++ {
+		labels["sizeclass"] = sc.String()
+
 		labels["crossing"] = "t"
 		m[trafficKey{true, sc}] = initTrafficMetrics(metrics, labels)
 
@@ -2529,16 +2557,20 @@ func initTrafficMetrics(metrics *Metrics, labels prometheus.Labels) trafficMetri
 	reasonMap := map[string]string{}
 
 	reasonMap["reason"] = "invalid"
-	c.DroppedPacketsInvalid = metrics.DroppedPacketsTotal.MustCurryWith(labels).With(reasonMap)
+	c.DroppedPacketsInvalid =
+		metrics.DroppedPacketsTotal.MustCurryWith(labels).With(reasonMap)
 
 	reasonMap["reason"] = "busy_processor"
-	c.DroppedPacketsBusyProcessor = metrics.DroppedPacketsTotal.MustCurryWith(labels).With(reasonMap)
+	c.DroppedPacketsBusyProcessor =
+		metrics.DroppedPacketsTotal.MustCurryWith(labels).With(reasonMap)
 
 	reasonMap["reason"] = "busy_forwarder"
-	c.DroppedPacketsBusyForwarder = metrics.DroppedPacketsTotal.MustCurryWith(labels).With(reasonMap)
+	c.DroppedPacketsBusyForwarder =
+		metrics.DroppedPacketsTotal.MustCurryWith(labels).With(reasonMap)
 
 	reasonMap["reason"] = "busy_slow_path"
-	c.DroppedPacketsBusySlowPath = metrics.DroppedPacketsTotal.MustCurryWith(labels).With(reasonMap)
+	c.DroppedPacketsBusySlowPath =
+		metrics.DroppedPacketsTotal.MustCurryWith(labels).With(reasonMap)
 
 	c.InputBytesTotal.Add(0)
 	c.InputPacketsTotal.Add(0)
