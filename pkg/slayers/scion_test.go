@@ -33,10 +33,11 @@ import (
 )
 
 var (
-	ip6Addr = addr.MustParseHost("2001:db8::68")
-	ip4Addr = addr.MustParseHost("10.0.0.100")
-	svcAddr = addr.MustParseHost("Wildcard")
-	rawPath = func() []byte {
+	ip6Addr    = addr.MustParseHost("2001:db8::68")
+	ip4Addr    = addr.MustParseHost("10.0.0.100")
+	ip4in6Addr = addr.MustParseHost("::ffff:10.0.0.100")
+	svcAddr    = addr.MustParseHost("Wildcard")
+	rawPath    = func() []byte {
 		return []byte("\x00\x00\x20\x80\x00\x00\x01\x11\x00\x00\x01\x00\x01\x00\x02\x22\x00" +
 			"\x00\x01\x00\x00\x3f\x00\x01\x00\x00\x01\x02\x03\x04\x05\x06\x00\x3f\x00\x03\x00" +
 			"\x02\x01\x02\x03\x04\x05\x06\x00\x3f\x00\x00\x00\x02\x01\x02\x03\x04\x05\x06\x00" +
@@ -309,6 +310,12 @@ func TestPackAddr(t *testing.T) {
 			addr:      ip4Addr,
 			addrType:  slayers.T4Ip,
 			rawAddr:   ip4Addr.IP().AsSlice(),
+			errorFunc: assert.NoError,
+		},
+		"pack IPv4-mapped IPv6": {
+			addr:      ip4in6Addr,
+			addrType:  slayers.T4Ip,
+			rawAddr:   []byte{0xa, 0x0, 0x0, 0x64},
 			errorFunc: assert.NoError,
 		},
 		"pack IPv6": {
