@@ -311,11 +311,9 @@ considers the following options.
 
       Disable caching entirely.
 
-   .. option:: trustengine.cache.expiration = <int> (Default: 60000000000)
+   .. option:: trustengine.cache.expiration = <duration> (Default: "1m")
 
-      Expiration of cached entries in nanoseconds.
-
-      **TODO:** this should be changed to accept values in :ref:`duration format <control-conf-duration>`.
+      Expiration time for cached entries.
 
 .. object:: drkey
 
