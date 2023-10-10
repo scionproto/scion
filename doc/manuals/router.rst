@@ -88,14 +88,28 @@ Environment Variables
 
    Same applicability as above; can be overridden for specific inter-AS BFD sessions with
    :option:`bfd.required_min_rx_interval <topology-json required_min_rx_interval>`.
-.. envvar:: SCION_TESTING_DRKEY_EPOCH_DURATION
 
-   Defines the global DRKey :ref:`Epoch<drkey-epoch>` duration that the border router
-   assumes.
+.. object:: SCION_TESTING_DRKEY_EPOCH_DURATION
+
+   For **testing only**.
+   This option relates :option:`features.experimental_scmp_authentication <router-conf-toml features.experimental_scmp_authentication>`.
+
+   Override the global duration for :doc:`/cryptography/drkey` epochs.
+   This environment variable also applies to :program:`control`, see :envvar:`SCION_TESTING_DRKEY_EPOCH_DURATION`.
+
+   :Type: :ref:`duration <control-conf-duration>`
 
 .. envvar:: SCION_TESTING_ACCEPTANCE_WINDOW
 
-   Defines the acceptance window following the :ref:`SPAO specification<spao-absTime>`.
+   For **testing only**.
+   This option relates :option:`features.experimental_scmp_authentication <router-conf-toml features.experimental_scmp_authentication>`.
+
+   Defines the length of the window around the current time for which SCMP authentication timestamps
+   are accepted. See :ref:`SPAO specification <spao-absTime>`.
+
+   :Type: :ref:`duration <control-conf-duration>`
+   :Default: 5m
+
 
 Configuration
 =============
@@ -132,6 +146,19 @@ considers the following options.
 
       If this is a relative path, it is interpreted as relative to the current working directory of the
       program (i.e. **not** relative to the location of this .toml configuration file).
+
+.. object:: features
+
+   Features is a container for generic, boolean feature flags (usually for experimental or
+   transitional features).
+
+   .. option:: features.experimental_scmp_authentication = <bool> (Default: false)
+
+      Enable the :ref:`DRKey-based authentication of SCMPs <scmp-authentication>` in the
+      router, which is **experimental** and currently **incomplete**.
+
+      When enabled, the router inserts the :ref:`authenticator-option` for SCMP messages.
+      For now, the MAC is computed based on a dummy key, and consequently is not practically useful.
 
 .. object:: router
 
