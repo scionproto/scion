@@ -42,6 +42,7 @@ import (
 	"github.com/scionproto/scion/pkg/drkey"
 	libepic "github.com/scionproto/scion/pkg/experimental/epic"
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/private/processmetrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/scrypto"
@@ -2512,6 +2513,10 @@ func (d *DataPlane) initMetrics() {
 		labels = interfaceToMetricLabels(id, d.localIA, d.neighborIAs)
 		d.forwardingMetrics[id] = initInterfaceMetrics(d.Metrics, labels)
 	}
+
+	// Start our custom /proc/pid/stat collector to export iowait time and
+	// (in the future) other process-wide metrics that prometheus does not.
+	_ = processmetrics.NewProcStatCollector()
 }
 
 func initInterfaceMetrics(metrics *Metrics, labels prometheus.Labels) interfaceMetrics {
@@ -2541,9 +2546,9 @@ func initInterfaceMetrics(metrics *Metrics, labels prometheus.Labels) interfaceM
 // However this includes time while preempted, which should
 // not count.
 // /proc/pid/stat exposes 'delayacct_blkio_ticks' which indicates
-// time spend blocking on IO; per thread. Process's total is via
-// a netlink command TASKSTATS_CMD_GET :-(.
-// Choose your poison.
+// time spend blocking on IO; per thread. sysctl kernel.task_delayacct=1
+// enables that feature. Process's total is via a netlink command
+// TASKSTATS_CMD_GET :-(. Choose your poison.
 // https://pkg.go.dev/github.com/gyuho/linux-inspect/proc#GetStatByPID
 
 func initTrafficMetrics(metrics *Metrics, labels prometheus.Labels) trafficMetrics {
