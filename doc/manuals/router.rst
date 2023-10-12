@@ -51,6 +51,8 @@ Options
    Run :option:`router help completion [shell] <router help>` for usage information on the
    autocomplete script for a particular shell.
 
+.. _router-envvars:
+
 Environment Variables
 ---------------------
 
@@ -62,40 +64,63 @@ Environment Variables
    Can be overridden for specific inter-AS BFD sessions with :option:`bfd.disable <topology-json disable>`
    in an interface entry in the ``topology.json`` configuration.
 
+   :Type: bool (``0``/``f``/``F``/``FALSE``/``false``/``False``,  ``1``/``t``/``T``/``TRUE``/``true``/``True``)
+   :Default: ``false``
+
 .. envvar:: SCION_EXPERIMENTAL_BFD_DETECT_MULT
 
    Set the :term:`BFD` detection time multiplier.
 
-   Default 3
-
    Same applicability as above; can be overridden for specific inter-AS BFD sessions with
    :option:`bfd.detect_mult <topology-json detect_mult>`.
+
+   :Type: unsigned integer
+   :Default: ``3``
 
 .. envvar:: SCION_EXPERIMENTAL_BFD_DESIRED_MIN_TX
 
    Defines the frequence at which this router should send :term:`BFD` control messages.
 
-   Default 200ms
-
    Same applicability as above; can be overridden for specific inter-AS BFD sessions with
    :option:`bfd.desired_min_tx_interval <topology-json desired_min_tx_interval>`.
+
+   :Type: :ref:`duration <common-conf-duration>`
+   :Default: ``200ms``
 
 .. envvar:: SCION_EXPERIMENTAL_BFD_REQUIRED_MIN_RX
 
    Defines an frequence at which this router should send :term:`BFD` control messages.
 
-   Default 200ms
-
    Same applicability as above; can be overridden for specific inter-AS BFD sessions with
    :option:`bfd.required_min_rx_interval <topology-json required_min_rx_interval>`.
-.. envvar:: SCION_TESTING_DRKEY_EPOCH_DURATION
 
-   Defines the global DRKey :ref:`Epoch<drkey-epoch>` duration that the border router
-   assumes.
+   :Type: :ref:`duration <common-conf-duration>`
+   :Default: ``200ms``
+
+.. object:: SCION_TESTING_DRKEY_EPOCH_DURATION
+
+   For **testing only**.
+   This option relates to :ref:`DRKey-based authentication of SCMPs <scmp-authentication>` in the
+   router, which is **experimental** and currently **incomplete**.
+
+   Override the global duration for :doc:`/cryptography/drkey` epochs.
+
+   Also applies to the :ref:`control service <control-envvars>`.
+
+   :Type: :ref:`duration <common-conf-duration>`
+   :Default: ``24h``
 
 .. envvar:: SCION_TESTING_ACCEPTANCE_WINDOW
 
-   Defines the acceptance window following the :ref:`SPAO specification<spao-absTime>`.
+   For **testing only**.
+   This option relates to :ref:`DRKey-based authentication of SCMPs <scmp-authentication>` in the
+   router, which is **experimental** and currently **incomplete**.
+
+   Defines the length of the window around the current time for which SCMP authentication timestamps
+   are accepted. See :ref:`SPAO specification <spao-absTime>`.
+
+   :Type: :ref:`duration <common-conf-duration>`
+   :Default: ``5m``
 
 Configuration
 =============
