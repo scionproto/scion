@@ -70,7 +70,7 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 			Dst: dst,
 			Meta: snet.PathMetadata{
 				MTU:    p.MTU,
-				Expiry: time.Now().Add(rawpath.MaxTTL * time.Second),
+				Expiry: time.Now().Add(rawpath.MaxTTL),
 			},
 		}}, nil
 	}

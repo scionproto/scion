@@ -42,7 +42,7 @@ func (q IntraASPathQuerier) Query(_ context.Context, _ addr.IA) ([]snet.Path, er
 		DataplanePath: path.Empty{},
 		Meta: snet.PathMetadata{
 			MTU:    q.MTU,
-			Expiry: time.Now().Add(rawpath.MaxTTL * time.Second),
+			Expiry: time.Now().Add(rawpath.MaxTTL),
 		},
 	}}, nil
 }
