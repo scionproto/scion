@@ -76,7 +76,7 @@ Timestamp / Sequence Number:
   .. note::
     In other words, the duplicate suppression would happen within the
     acceptance windows considering identical values for the Authenticator field, which is
-    computed based on packet contents, such as the Timestamp (used to derived the *AbsTime*)
+    computed based on packet contents, such as the Timestamp (used to derive the *AbsTime*)
     and the upper layer payload
     (see the section :ref:`Authenticated Data<authenticated-data>`).
 

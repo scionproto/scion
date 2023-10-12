@@ -173,7 +173,7 @@ current and preceding info fields.
 This construction allows for up to three info fields, which is the maximum for a
 SCION path. Should there ever be a path type with more than three segments, this
 would require a new path type to be introduced (which would also allow for a
-backwards-compatible upgrade). The advantage of this construction is that all
+backward-compatible upgrade). The advantage of this construction is that all
 the offsets can be calculated and validated purely from the path meta header,
 which greatly simplifies processing logic.
 
@@ -203,7 +203,7 @@ C
 RSV
     Unused and reserved for future use.
 SegID
-    SegID is a updatable field that is required for the MAC-chaining mechanism.
+    SegID is an updatable field that is required for the MAC-chaining mechanism.
 Timestamp
     Timestamp created by the initiator of the corresponding beacon. The
     timestamp is expressed in Unix time, and is encoded as an unsigned integer
