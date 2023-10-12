@@ -60,7 +60,7 @@ Timestamp / Sequence Number:
   (See :ref:`Appendix<spao-appendix>` for a more detailed explanation about the field interpretation).
   The timestamp MAY be used to compute the absolute time (*AbsTime*) value,
   which corresponds to the time when the packet was sent.
-  The section :ref:`Absolute time derivation<spao-timestamp>` describes the derivation of *AbsTime* and
+  The section :ref:`Absolute time derivation<spao-absTime>` describes the derivation of *AbsTime* and
   the associated DRKey.
 
   The receiver SHOULD drop packets with *AbsTime* outside of a locally chosen

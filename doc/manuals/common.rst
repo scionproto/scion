@@ -202,6 +202,8 @@ of the individual fields below.
 
          In this ``topology.json`` file, the ID is contained in a string.
 
+      .. _topology-json-interface-isd_as:
+
       .. option:: isd_as = <isd-as>, required
 
          The ISD-AS of the neighboring AS.
@@ -211,15 +213,33 @@ of the individual fields below.
          Type of the link relation to the neighbor AS.
          See :ref:`overview-link-types`.
 
-         .. warning::
+      .. option:: remote_interface_id = <int>
 
-            Link type ``peer`` is not fully implemented yet. See :issue:`4093`.
+         The :term:`interface ID <Interface ID>` for the corresponding interface in the
+         neighboring AS.
+
+         This is required if, and only if, :option:`link_to <topology-json link_to>` is ``peer``.
+
+         This ``remote_interface_id`` is used when announcing peering links as part of AS Entries in
+         PCBs (see :ref:`control-plane-beaconing`).
+         During :ref:`path-segment combination <control-plane-segment-combination>`, this interface
+         ID, will then be used together with the ISD-AS to match up the peering entries from
+         AS entries in different path segments.
+
+         If ``remote_interface_id`` is set incorrectly, the peering entries cannot be matched up
+         correctly, resulting in missing or broken end-to-end paths:
+
+         - If the ``remote_interface_id`` does not match `any` interface ID used for peering links
+           in the neighboring AS, the segment combination will not find paths making use of this
+           interface.
+         - If two ASes are connected by multiple peering links and ``remote_interface_id`` matches the
+           `wrong` interface ID, an incorrect path may be constructed which will be rejected in the
+           data plane (i.e. the routers will drop all packets).
 
       .. option:: mtu = <int>, required
 
          Maximum Transmission Unit in bytes for SCION packets (SCION headers and payload) on this
          link.
-
 
       .. object:: underlay, required for "self"
 
@@ -325,6 +345,28 @@ of the individual fields below.
    .. option:: addr = <ip:port>, required
 
       See ``control_service.addr``, above.
+
+.. _common-conf-duration:
+
+Duration Format
+===============
+
+Where duration values are loaded from configuration options, the following format is expected:
+
+.. code-block::
+
+   [\-0-9]+(y|w|d|h|m|s|ms|us|µs|ns)
+
+The unit suffixes have their usual meaning of ``y`` year, ``w`` week, ``d`` day, ``h`` hour,
+``m`` minute, ``s`` second, ``ms`` millisecond, ``us`` or ``µs`` microsecond, and ``ns`` nanosecond.
+
+Mixed unit durations are not supported (e.g. ``1h10m10s`` is not supported).
+The long duration units are simple factors, not calendar offsets:
+
+- ``d`` is always 24 hours
+- ``w`` is always 7 days
+- ``y`` is always 365 days
+
 .. _common-http-api:
 
 HTTP API

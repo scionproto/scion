@@ -266,6 +266,8 @@ path-lookup on behalf of applications. This SCION daemon also caches path-segmen
    Down-segment Control service of core ASes in destination ISD (either the local ISD or a remote ISD)
    ============ ===========================
 
+.. _control-plane-segment-combination:
+
 Path-Segment Combination
 ========================
 
