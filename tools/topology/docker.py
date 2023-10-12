@@ -149,7 +149,8 @@ class DockerGenerator(object):
                 'networks': {},
                 'user': self.user,
                 'volumes':
-                ['%s:/share/conf:ro' % base],
+                ['%s:/share/conf:ro' % base,
+                 '/proc:/proc:rw'],
                 'environment': {
                     'SCION_EXPERIMENTAL_BFD_DETECT_MULT':
                     '${SCION_EXPERIMENTAL_BFD_DETECT_MULT}',

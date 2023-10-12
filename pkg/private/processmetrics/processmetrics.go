@@ -23,9 +23,12 @@ package processmetrics
 
 
 import (
+	"os"
+	"syscall"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/procfs"
-	"os"
+	"github.com/scionproto/scion/pkg/log"
 )
 
 var (
@@ -34,20 +37,25 @@ var (
 		"IO wait time accumulated by the process since it started (all threads summed).",
 		nil, nil,
 	)
+	preemptedCount = prometheus.NewDesc(
+		"process_preempted_count_total",
+		"Number of times the process was preempted since it started (all threads summed).",
+		nil, nil,
+	)
 )
 
 type procStatCollector struct {
 	myPid int
 	lastProcStats map[int]procfs.ProcStat
+	rusage syscall.Rusage // Some metrics not included in proc/pid/stat
 }
 
-func (c *procStatCollector) updateStat() {
-	// FIXME: ... if we can. Allthreads builds a list and it
+func (c *procStatCollector) updateStat() error {
+	// FIXME (if we can): AllThreads builds a list and it
 	// ends-up on the garbage pile.
 	myProcs, err := procfs.AllThreads(c.myPid)
 	if err != nil {
-		// TODO: make this more visible.
-		return
+		return err
 	}
 	
 	// What we really want is to replace our map with a new map, but that would hurt the GC
@@ -61,9 +69,19 @@ func (c *procStatCollector) updateStat() {
 
 	// Get a fresh set.
 	for _, p := range myProcs {
-		c.lastProcStats[p.PID], _ = p.Stat()
-		// TODO: consider what to do if this fails
+		var oneErr error
+		c.lastProcStats[p.PID], oneErr = p.Stat()
+		if oneErr != nil {
+			err = oneErr
+		}
 	}
+
+	if err != nil {
+		return err
+	}
+
+	// Update rusage
+	return syscall.Getrusage(syscall.RUSAGE_SELF, &c.rusage)
 }
 
 func (c *procStatCollector) Describe(ch chan<- *prometheus.Desc) {
@@ -71,7 +89,7 @@ func (c *procStatCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *procStatCollector) Collect(ch chan<- prometheus.Metric) {
-	c.updateStat()
+	_ = c.updateStat()
 
 	// Summ the iowait of all threads.
 	var t uint64
@@ -83,6 +101,11 @@ func (c *procStatCollector) Collect(ch chan<- prometheus.Metric) {
 		prometheus.CounterValue,
 		float64(t),
 	)
+	ch <- prometheus.MustNewConstMetric(
+		preemptedCount,
+		prometheus.CounterValue,
+		float64(c.rusage.Nivcsw),
+	)
 }
 
 func NewProcStatCollector() error {
@@ -90,6 +113,12 @@ func NewProcStatCollector() error {
 		myPid: os.Getpid(),
 		lastProcStats: make(map[int]procfs.ProcStat),
 	}
+
+	err := c.updateStat()
+	if err != nil {
+		log.Error("NewProcStatCollector", "error in first update", err)
+	}
+	log.Info("NewProcStatCollector OK")
 
 	prometheus.MustRegister(c)
 	return nil

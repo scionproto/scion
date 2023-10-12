@@ -2537,19 +2537,18 @@ func initInterfaceMetrics(metrics *Metrics, labels prometheus.Labels) interfaceM
 	return m
 }
 
-// TODO: Add metrics for real-time packet latency
-// CLOCK_CPU_TIME_ID: the total CPU time consumed by the process
-// since it started. This can be used to measure time ignoring
-// perturbations like preemption. However, it also discounts
-// blocking time, not right.
-// CLOCK_MONOTONIC_RAW: the accurate/hi-res real time elapsed.
-// However this includes time while preempted, which should
-// not count.
-// /proc/pid/stat exposes 'delayacct_blkio_ticks' which indicates
-// time spend blocking on IO; per thread. sysctl kernel.task_delayacct=1
-// enables that feature. Process's total is via a netlink command
-// TASKSTATS_CMD_GET :-(. Choose your poison.
-// https://pkg.go.dev/github.com/gyuho/linux-inspect/proc#GetStatByPID
+// Total time = Running + Preempted + IOWaiting + Sleeping
+// Ideally we want to know how much the process had a chance to
+// run. That is all of the above except preempted.
+// We can know Total: That's CLOCK_MONOTONIC_RAW
+// We can know Running: that CLOCK_CPU_TIME_ID.
+// We can know IOWaiting: /proc/pid/stat#delayacct_blkio_ticks
+//    (feature enabled by sysctl kernel.task_delayacct=1)
+// We cannot know Preempted
+// We cannot know Sleeping
+// We cannot know IOWaiting + Sleeping (i.e. "not runnable")
+// We cannot know Running + IOWaiting + Sleeping (i.e. "not preempted")
+// We cannot know Running + Preempted (i.e. "runnable")
 
 func initTrafficMetrics(metrics *Metrics, labels prometheus.Labels) trafficMetrics {
 	c := trafficMetrics{

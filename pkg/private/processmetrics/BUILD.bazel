@@ -7,10 +7,12 @@ go_library(
     visibility = ["//visibility:public"],
     deps = select({
         "@io_bazel_rules_go//go/platform:android": [
+            "//pkg/log:go_default_library",
             "@com_github_prometheus_client_golang//prometheus:go_default_library",
             "@com_github_prometheus_procfs//:go_default_library",
         ],
         "@io_bazel_rules_go//go/platform:linux": [
+            "//pkg/log:go_default_library",
             "@com_github_prometheus_client_golang//prometheus:go_default_library",
             "@com_github_prometheus_procfs//:go_default_library",
         ],
