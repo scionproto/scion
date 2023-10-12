@@ -2,6 +2,9 @@
   id = "brA"
   config_dir = "/share/conf"
 
+[features]
+  experimental_scmp_authentication = true
+
 [log]
   [log.console]
     level = "debug"

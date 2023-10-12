@@ -58,7 +58,8 @@ func realMain(ctx context.Context) error {
 	metrics := router.NewMetrics()
 	dp := &router.Connector{
 		DataPlane: router.DataPlane{
-			Metrics: metrics,
+			Metrics:                        metrics,
+			ExperimentalSCMPAuthentication: globalCfg.Features.ExperimentalSCMPAuthentication,
 		},
 		ReceiveBufferSize: globalCfg.Router.ReceiveBufferSize,
 		SendBufferSize:    globalCfg.Router.SendBufferSize,

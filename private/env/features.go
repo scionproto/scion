@@ -36,6 +36,15 @@ type Features struct {
 
 	// Example:
 	// DanceAtMidnight bool `toml:"dance_at_midnight,omitempty"`
+
+	// ExperimentalSCMPAuthentication enables experimental, DRKey-based
+	// authentication of SCMP messages.
+	//
+	// When enabled, the router inserts the SPAO authenticator for SCMP error messages,
+	// generated with a dummy key!
+	//
+	// Experimental: This field is experimental and will be subject to change.
+	ExperimentalSCMPAuthentication bool `toml:"experimental_scmp_authentication"`
 }
 
 func (cfg *Features) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
