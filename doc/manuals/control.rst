@@ -64,6 +64,7 @@ Options
    Run :option:`control help completion [shell] <control help>` for usage information on the
    autocomplete script for a particular shell.
 
+.. _control-envvars:
 
 Environment variables
 ---------------------
@@ -76,7 +77,10 @@ Environment variables
    This can only work correctly if the same value is set for all connected control services in the
    test network.
 
-   The format is a :ref:`duration <control-conf-duration>` with unit suffix (e.g. ``10s``).
+   Also applies to the :ref:`router <router-envvars>`.
+
+   :Type: :ref:`duration <control-conf-duration>`
+   :Default: ``24h``
 
 Configuration
 =============
