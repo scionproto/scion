@@ -51,6 +51,8 @@ Options
    Run :option:`router help completion [shell] <router help>` for usage information on the
    autocomplete script for a particular shell.
 
+.. _router-envvars:
+
 Environment Variables
 ---------------------
 
@@ -102,9 +104,11 @@ Environment Variables
    router, which is **experimental** and currently **incomplete**.
 
    Override the global duration for :doc:`/cryptography/drkey` epochs.
-   This environment variable also applies to :program:`control`, see :envvar:`SCION_TESTING_DRKEY_EPOCH_DURATION`.
+
+   Also applies to the :ref:`control service <control-envvars>`.
 
    :Type: :ref:`duration <common-conf-duration>`
+   :Default: ``24h``
 
 .. envvar:: SCION_TESTING_ACCEPTANCE_WINDOW
 
@@ -116,7 +120,7 @@ Environment Variables
    are accepted. See :ref:`SPAO specification <spao-absTime>`.
 
    :Type: :ref:`duration <common-conf-duration>`
-   :Default: 5m
+   :Default: ``5m``
 
 Configuration
 =============
