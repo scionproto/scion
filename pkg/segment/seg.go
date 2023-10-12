@@ -220,7 +220,7 @@ func (ps *PathSegment) MaxExpiry() time.Time {
 // MinExpiry returns the minimum expiry of all hop fields.
 // Assumes segment is validated.
 func (ps *PathSegment) MinExpiry() time.Time {
-	return ps.expiry(path.MaxTTL*time.Second, func(hfTtl time.Duration, ttl time.Duration) bool {
+	return ps.expiry(path.MaxTTL, func(hfTtl time.Duration, ttl time.Duration) bool {
 		return hfTtl < ttl
 	})
 }

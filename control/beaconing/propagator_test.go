@@ -64,7 +64,7 @@ func TestPropagatorRunNonCore(t *testing.T) {
 		Extender: &beaconing.DefaultExtender{
 			IA:         topo.IA(),
 			MTU:        topo.MTU(),
-			Signer:     testSigner(t, priv, topo.IA()),
+			SignerGen:  testSignerGen{Signer: testSigner(t, priv, topo.IA())},
 			Intfs:      intfs,
 			MAC:        macFactory,
 			MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
@@ -138,7 +138,7 @@ func TestPropagatorRunCore(t *testing.T) {
 		Extender: &beaconing.DefaultExtender{
 			IA:         topo.IA(),
 			MTU:        topo.MTU(),
-			Signer:     testSigner(t, priv, topo.IA()),
+			SignerGen:  testSignerGen{Signer: testSigner(t, priv, topo.IA())},
 			Intfs:      intfs,
 			MAC:        macFactory,
 			MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
@@ -226,7 +226,7 @@ func TestPropagatorFastRecovery(t *testing.T) {
 		Extender: &beaconing.DefaultExtender{
 			IA:         topo.IA(),
 			MTU:        topo.MTU(),
-			Signer:     testSigner(t, priv, topo.IA()),
+			SignerGen:  testSignerGen{Signer: testSigner(t, priv, topo.IA())},
 			Intfs:      intfs,
 			MAC:        macFactory,
 			MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },

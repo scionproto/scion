@@ -16,6 +16,7 @@ package path_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -37,4 +38,50 @@ func TestHopSerializeDecode(t *testing.T) {
 	got := &path.HopField{}
 	assert.NoError(t, got.DecodeFromBytes(b))
 	assert.Equal(t, want, got)
+}
+
+func TestExpTimeFromDuration(t *testing.T) {
+	tests := map[string]struct {
+		d       time.Duration
+		ExpTime uint8
+		ErrorF  assert.ErrorAssertionFunc
+	}{
+		"Zero": {
+			d:       0,
+			ExpTime: 0,
+			ErrorF:  assert.Error,
+		},
+		"Max": {
+			d:       path.MaxTTL,
+			ExpTime: 255,
+			ErrorF:  assert.NoError,
+		},
+		"Overflow": {
+			d:       (path.MaxTTL + 1),
+			ExpTime: 0,
+			ErrorF:  assert.Error,
+		},
+		"Underflow": {
+			d:       -1,
+			ExpTime: 0,
+			ErrorF:  assert.Error,
+		},
+		"Max-1": {
+			d:       (path.MaxTTL - 1),
+			ExpTime: 254,
+			ErrorF:  assert.NoError,
+		},
+		"Half": {
+			d:       (path.MaxTTL / 2),
+			ExpTime: 127,
+			ErrorF:  assert.NoError,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			expTime, err := path.ExpTimeFromDuration(test.d)
+			test.ErrorF(t, err)
+			assert.Equal(t, test.ExpTime, expTime)
+		})
+	}
 }
