@@ -2537,19 +2537,27 @@ func initInterfaceMetrics(metrics *Metrics, labels prometheus.Labels) interfaceM
 	return m
 }
 
-// Total time = Running + Preempted + IOWaiting + Sleeping
-// Ideally we want to know how much the process had a chance to
-// run. That is all of the above except preempted.
-// We can know Total: That's CLOCK_MONOTONIC_RAW
-// We can know Running: that CLOCK_CPU_TIME_ID.
-// We can know IOWaiting: /proc/pid/stat#delayacct_blkio_ticks
-//    (feature enabled by sysctl kernel.task_delayacct=1)
-// We cannot know Preempted
-// We cannot know Sleeping
-// We cannot know IOWaiting + Sleeping (i.e. "not runnable")
-// We cannot know Running + IOWaiting + Sleeping (i.e. "not preempted")
-// We cannot know Running + Preempted (i.e. "runnable")
-
+// In order to make a fair run-to-run comparison of these metrics, we must
+// relate them to the actual CPU time that was *available* to the router.
+// That is, the time that the process was either running, blocked, or sleeping,
+// but not "runnable" (which in unix-ese implies *not* running).
+// A custom collector in pkg/processmetrics exposes the running and runnable
+// metrics directly from the scheduler.
+// Possibly crude example of a query that accounts for available cpu:
+//
+//	rate(router_processed_pkts_total[1m])
+//	  / on (instance, job) group_left ()
+//	(1 - rate(process_runnable_seconds_total[1m]))
+//
+// This shows processed_packets per available cpu seconds, as opposed to
+// real time.
+// Possibly crude example of a query that only looks at cpu use efficiency:
+//
+//	rate(router_processed_pkts_total[1m])
+//	  / on (instance, job) group_left ()
+//	(rate(process_running_seconds_total[1m]))
+//
+// This shows processed_packets per consumed cpu seconds.
 func initTrafficMetrics(metrics *Metrics, labels prometheus.Labels) trafficMetrics {
 	c := trafficMetrics{
 		InputBytesTotal:    metrics.InputBytesTotal.With(labels),
