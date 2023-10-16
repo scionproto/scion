@@ -69,6 +69,28 @@ class MonitoringGenerator(object):
         "Sciond": "SD",
         "Dispatcher": "dispatcher",
     }
+    JOB_METRIC_RELABEL = {
+        "BR":[
+            {'source_labels': ['crossing', 'interface'],
+             'regex': 't;internal',
+             'target_label': 'type',
+             'replacement': 'outgoing'},
+            {'source_labels': ['crossing', 'interface'],
+             'regex': 't;[0-9][0-9]*',
+             'target_label': 'type',
+             'replacement': 'incoming'},
+            {'source_labels': ['crossing', 'interface'],
+             'regex': 'f;internal',
+             'target_label': 'type',
+             'replacement': 'local'},
+            {'source_labels': ['crossing', 'interface'],
+             'regex': 'f;[0-9][0-9]*',
+             'target_label': 'type',
+             'replacement': 'transit'},
+            {'regex': 'crossing',
+             'action': 'labeldrop'},
+        ],
+    }
 
     def __init__(self, args):
         """
@@ -127,10 +149,14 @@ class MonitoringGenerator(object):
     def _write_config_file(self, config_path, job_dict):
         scrape_configs = []
         for job_name, file_paths in job_dict.items():
-            scrape_configs.append({
+            job_scrape_config = {
                 'job_name': job_name,
                 'file_sd_configs': [{'files': file_paths}],
-            })
+            }
+            relabels = self.JOB_METRIC_RELABEL.get(job_name)
+            if relabels is not None:
+                job_scrape_config['metric_relabel_configs'] = relabels
+            scrape_configs.append(job_scrape_config)
         config = {
             'global': {
                 'scrape_interval': '1s',
@@ -164,7 +190,7 @@ class MonitoringGenerator(object):
             'version': DOCKER_COMPOSE_CONFIG_VERSION,
             'services': {
                 'prometheus': {
-                    'image': 'prom/prometheus:v2.6.0',
+                    'image': 'prom/prometheus:v2.47.2',
                     'container_name': name+'prometheus',
                     'network_mode': 'host',
                     'volumes': [
