@@ -13,6 +13,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This is a general purpose client/server code for end2end tests. It plays
+// ping-pong with some variantions depending on command line arguments.
+//
+// One of the variants is for the client to send pings to the server
+// until it receives at least one pong from the server or a given
+// deadline was reached. The server responds to pings and the client
+// wait for a response before doing anything else.
+//
+// Another variant is for the client to send back-to-back pings to the
+// server until the sending fails or some deadline was reached. In this case
+// the client isn't waiting for responses. The client checks at the end
+// whether at least one response has been received.
+
 package main
 
 import (
@@ -70,6 +83,8 @@ var (
 	scionPacketConnMetrics = metrics.NewSCIONPacketConnMetrics()
 	scmpErrorsCounter      = scionPacketConnMetrics.SCMPErrors
 	epic                   bool
+	game                   string
+	traces                 bool
 )
 
 func main() {
@@ -102,9 +117,11 @@ func realMain() int {
 }
 
 func addFlags() {
+	flag.StringVar(&game, "game", "pingpong", "Which game to play: pingpong or packetflood")
 	flag.Var(&remote, "remote", "(Mandatory for clients) address to connect to")
 	flag.Var(timeout, "timeout", "The timeout for each attempt")
-	flag.BoolVar(&epic, "epic", false, "Enable EPIC.")
+	flag.BoolVar(&epic, "epic", false, "Enable EPIC")
+	flag.BoolVar(&epic, "traces", true, "Enable Jaeger traces")
 }
 
 func validateFlags() {
@@ -118,6 +135,12 @@ func validateFlags() {
 		if timeout.Duration == 0 {
 			integration.LogFatal("Invalid timeout provided", "timeout", timeout)
 		}
+	}
+	switch game {
+	case "pingpong":
+	case "packetflood":
+	default:
+		integration.LogFatal("Unknown game requested", "game", game)
 	}
 }
 
@@ -181,22 +204,27 @@ func (s server) handlePing(conn snet.PacketConn) error {
 		)
 	}
 
-	spanCtx, err := opentracing.GlobalTracer().Extract(
-		opentracing.Binary,
-		bytes.NewReader(pld.Trace),
-	)
-	if err != nil {
-		return serrors.WrapStr("extracting trace information", err)
-	}
-	span, _ := opentracing.StartSpanFromContext(
-		context.Background(),
-		"handle_ping",
-		ext.RPCServerOption(spanCtx),
-	)
-	defer span.Finish()
 	withTag := func(err error) error {
-		tracing.Error(span, err)
 		return err
+	}
+	if traces {
+		spanCtx, err := opentracing.GlobalTracer().Extract(
+			opentracing.Binary,
+			bytes.NewReader(pld.Trace),
+		)
+		if err != nil {
+			return serrors.WrapStr("extracting trace information", err)
+		}
+		span, _ := opentracing.StartSpanFromContext(
+			context.Background(),
+			"handle_ping",
+			ext.RPCServerOption(spanCtx),
+		)
+		defer span.Finish()
+		withTag = func(err error) error {
+			tracing.Error(span, err)
+			return err
+		}
 	}
 
 	if pld.Message != ping || !pld.Server.Equal(integration.Local.IA) {
@@ -275,17 +303,34 @@ func (c *client) run() int {
 	c.sdConn = integration.SDConn()
 	defer c.sdConn.Close()
 	c.errorPaths = make(map[snet.PathFingerprint]struct{})
-	return integration.AttemptRepeatedly("End2End", c.attemptRequest)
+	switch game {
+	case "pingpong":
+		return integration.AttemptRepeatedly("End2End", c.attemptRequest)
+	case "packetflood":
+		go func() {
+			integration.RepeatUntilFail("End2End", c.drainPong)
+		}()
+		return integration.RepeatUntilFail("End2End", c.blindPing)
+	default:
+		return 0
+	}
 }
 
+// attemptRequest sends one ping packet and expect a pong.
+// Returns true (which means "stop") *if both worked*.
 func (c *client) attemptRequest(n int) bool {
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout.Duration)
+	span, ctx := tracing.NilCtx()
 	defer cancel()
-	span, ctx := tracing.CtxWith(timeoutCtx, "attempt")
-	span.SetTag("attempt", n)
-	span.SetTag("src", integration.Local.IA)
-	span.SetTag("dst", remote.IA)
-	defer span.Finish()
+	if traces {
+		span, ctx = tracing.CtxWith(timeoutCtx, "attempt")
+		span.SetTag("attempt", n)
+		span.SetTag("src", integration.Local.IA)
+		span.SetTag("dst", remote.IA)
+		defer span.Finish()
+	} else {
+		ctx = timeoutCtx
+	}
 	logger := log.FromCtx(ctx)
 
 	path, err := c.getRemote(ctx, n)
@@ -293,25 +338,105 @@ func (c *client) attemptRequest(n int) bool {
 		logger.Error("Could not get remote", "err", err)
 		return false
 	}
-	span, ctx = tracing.StartSpanFromCtx(ctx, "attempt.ping")
-	defer span.Finish()
 
+	withTag := func(err error) error {
+		return err
+	}
+	if traces {
+		span, ctx = tracing.StartSpanFromCtx(ctx, "attempt.ping")
+		defer span.Finish()
+		withTag = func(err error) error {
+			tracing.Error(span, err)
+			return err
+		}
+	}
+	
 	// Send ping
 	if err := c.ping(ctx, n, path); err != nil {
-		tracing.Error(span, err)
-		logger.Error("Could not send packet", "err", err)
+		logger.Error("Could not send packet", "err", withTag(err))
 		return false
 	}
 	// Receive pong
 	if err := c.pong(ctx); err != nil {
 		tracing.Error(span, err)
-		logger.Error("Error receiving pong", "err", err)
+		logger.Error("Error receiving pong", "err", withTag(err))
 		if path != nil {
 			c.errorPaths[snet.Fingerprint(path)] = struct{}{}
 		}
 		return false
 	}
 	return true
+}
+
+// blindping sends one ping packet and expect no response.
+// Returns true (which means finished) *if sending failed*
+func (c *client) blindPing(n int) bool {
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout.Duration)
+	defer cancel()
+	span, ctx := tracing.NilCtx()
+	if traces {
+		span, ctx = tracing.CtxWith(timeoutCtx, "blindping")
+		span.SetTag("blindping", n)
+		span.SetTag("src", integration.Local.IA)
+		span.SetTag("dst", remote.IA)
+		defer span.Finish()
+	} else {
+		ctx = timeoutCtx
+	}
+	logger := log.FromCtx(ctx)
+
+	path, err := c.getRemote(ctx, n)
+	if err != nil {
+		logger.Error("Could not get remote", "err", err)
+		return true
+	}
+
+	withTag := func (err error) error {
+		return err
+	}
+	
+	if traces {
+		span, ctx = tracing.StartSpanFromCtx(ctx, "attempt.ping")
+		defer span.Finish()
+		withTag = func (err error) error {
+			tracing.Error(span, err)
+			return err
+		}
+	}
+
+	// Send ping
+	if err := c.ping(ctx, n, path); err != nil {
+		logger.Error("Could not send packet", "err", withTag(err))
+		return true
+	}
+
+	return false // Don't stop. Do it again!
+}
+
+// drainPong consumes any pong message that might be received.
+// We really want just one. All other don't mater.
+func (c *client) drainPong(n int) bool {
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout.Duration)
+	defer cancel()
+	span, ctx := tracing.NilCtx()
+	if traces {
+		span, ctx = tracing.CtxWith(timeoutCtx, "drainpong")
+		span.SetTag("drainpong", n)
+		span.SetTag("dst", integration.Local.IA)
+		span.SetTag("src", remote.IA)
+		defer span.Finish()
+	} else {
+		ctx = timeoutCtx
+	}
+	logger := log.FromCtx(ctx)
+	if err := c.pong(ctx); err != nil {
+		if traces {
+			tracing.Error(span, err)
+		}
+		logger.Error("Error receiving pong", "err", err)
+		return false // Stop. The test failed to elicit a single response.
+	}
+	return false // Don't stop; keep consuming pongs
 }
 
 func (c *client) ping(ctx context.Context, n int, path snet.Path) error {
