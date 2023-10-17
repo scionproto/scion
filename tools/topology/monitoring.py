@@ -70,7 +70,7 @@ class MonitoringGenerator(object):
         "Dispatcher": "dispatcher",
     }
     JOB_METRIC_RELABEL = {
-        "BR":[
+        "BR": [
             {'source_labels': ['crossing', 'interface'],
              'regex': 't;internal',
              'target_label': 'type',
