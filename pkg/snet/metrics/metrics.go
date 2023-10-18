@@ -84,7 +84,7 @@ func NewSCIONPacketConnMetrics(opts ...Option) snet.SCIONPacketConnMetrics {
 		ParseErrors: metrics.NewPromCounter(auto.NewCounterVec(prometheus.CounterOpts{
 			Name: "lib_snet_parse_error_total",
 			Help: "Total number of parse errors"}, []string{})),
-		SCMPErrors: NewSCMPErrors(),
+		SCMPErrors: NewSCMPErrors(opts...),
 	}
 }
 
