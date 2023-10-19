@@ -20,9 +20,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
-	"regexp"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
@@ -35,8 +32,6 @@ import (
 )
 
 var _ config.Config = (*Config)(nil)
-
-var pattern = "^AS([0-9a-fA-F]{1,4})[_]([0-9a-fA-F]{1,4})[_]([0-9a-fA-F]{1,4})$"
 
 type Config struct {
 	Features   env.Features `toml:"features,omitempty"`
@@ -52,8 +47,13 @@ type Dispatcher struct {
 	// ID is the SCION element ID. This is used to choose the relevant
 	// portion of the topology file for some services.
 	ID string `toml:"id,omitempty"`
-	// ConfigDir for loading extra files (currently, only topology.json and staticInfoConfig.json)
-	ConfigDir string `toml:"config_dir,omitempty"`
+	// Topologies contain a list of topology files to be loaded.
+	//
+	// When supporting regular endhost, this value can be omitted.
+	// When supporting infrastructure nodes, the list must contain the
+	// topologies for their respective ASes. Normally, in a developer/testing
+	// environment this list may contain multiple ASes.
+	Topologies []string `toml:"topologies,omitempty"`
 	// UnderlayPort is the native port opened by the dispatcher (default 30041)
 	UnderlayPort int `toml:"underlay_port,omitempty"`
 }
@@ -110,34 +110,18 @@ func (cfg *Config) ConfigName() string {
 	return "dispatcher_config"
 }
 
-func (cfg *Config) Topolgies(ctx context.Context) (map[addr.AS]*topology.Loader, error) {
-	entries, err := os.ReadDir(cfg.Dispatcher.ConfigDir)
-	if err != nil {
-		return nil, err
-	}
+func (cfg *Config) Topologies(ctx context.Context) (map[addr.AS]*topology.Loader, error) {
 	topologies := make(map[addr.AS]*topology.Loader)
-	for _, e := range entries {
-		var path string
-		if e.Type().IsDir() && regexp.MustCompile(pattern).FindSubmatch([]byte(e.Name())) != nil {
-			path = filepath.Join(cfg.Dispatcher.ConfigDir, e.Name(), env.TopologyFile)
+	for _, path := range cfg.Dispatcher.Topologies {
+		topo, err := topology.NewLoader(topology.LoaderCfg{
+			File:   path,
+			Reload: app.SIGHUPChannel(ctx),
+		})
+		if err != nil {
+			log.Error("loading topologies", "err", err)
+			continue
 		}
-		if e.Type().IsRegular() && e.Name() == env.TopologyFile {
-			path = filepath.Join(cfg.Dispatcher.ConfigDir, env.TopologyFile)
-		}
-		if path != "" {
-			topo, err := topology.NewLoader(topology.LoaderCfg{
-				File:   path,
-				Reload: app.SIGHUPChannel(ctx),
-			})
-			if err != nil {
-				log.Error("loading topologies", "err", err)
-				continue
-			}
-			topologies[topo.IA().AS()] = topo
-		}
-	}
-	if len(topologies) == 0 {
-		return nil, serrors.New("No topologies load!")
+		topologies[topo.IA().AS()] = topo
 	}
 	return topologies, nil
 }

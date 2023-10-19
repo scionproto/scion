@@ -54,7 +54,7 @@ func main() {
 
 func realMain(ctx context.Context) error {
 	path.StrictDecoding(false)
-	topos, err := globalCfg.Topolgies(ctx)
+	topos, err := globalCfg.Topologies(ctx)
 	if err != nil {
 		return err
 	}

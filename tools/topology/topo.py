@@ -91,6 +91,7 @@ class TopoGenerator(object):
         """
         self.args = args
         self.topo_dicts = {}
+        self.topo_paths = list()
         self.hosts = []
         self.virt_addrs = set()
         self.as_list = defaultdict(list)
@@ -136,7 +137,7 @@ class TopoGenerator(object):
         self._iterate(self._write_as_topo)
         self._write_as_list()
         self._write_ifids()
-        return self.topo_dicts, networks
+        return self.topo_dicts, networks, self.topo_paths
 
     def _register_addrs(self, topo_id, as_conf):
         self._register_srv_entries(topo_id, as_conf)
@@ -355,6 +356,7 @@ class TopoGenerator(object):
         path = os.path.join(topo_id.base_dir(self.args.output_dir), TOPO_FILE)
         contents_json = json.dumps(self.topo_dicts[topo_id],
                                    default=json_default, indent=2)
+        self.topo_paths.append(path)
         write_file(path, contents_json + '\n')
 
     def _write_as_list(self):

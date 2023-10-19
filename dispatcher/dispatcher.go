@@ -321,7 +321,12 @@ func (s *Server) getDstSCIONUDP() (netip.AddrPort, error) {
 	}
 	switch host.Type() {
 	case addr.HostTypeSVC:
-		udpAddr, err := s.topo[s.scionLayer.DstIA.AS()].GetUnderlay(host.SVC())
+		topo, ok := s.topo[s.scionLayer.DstIA.AS()]
+		if !ok {
+			return netip.AddrPort{}, serrors.New("SVC destination not found",
+				"IA", s.scionLayer.DstIA)
+		}
+		udpAddr, err := topo.GetUnderlay(host.SVC())
 		if err != nil {
 			return netip.AddrPort{}, err
 		}
