@@ -121,7 +121,7 @@ func addFlags() {
 	flag.Var(&remote, "remote", "(Mandatory for clients) address to connect to")
 	flag.Var(timeout, "timeout", "The timeout for each attempt")
 	flag.BoolVar(&epic, "epic", false, "Enable EPIC")
-	flag.BoolVar(&epic, "traces", true, "Enable Jaeger traces")
+	flag.BoolVar(&traces, "traces", true, "Enable Jaeger traces")
 }
 
 func validateFlags() {
@@ -142,6 +142,7 @@ func validateFlags() {
 	default:
 		integration.LogFatal("Unknown game requested", "game", game)
 	}
+	log.Info("Flags", "game", game, "traces", traces, "timeout", timeout, "epic", epic, "remote", remote)
 }
 
 type server struct{}
@@ -307,11 +308,28 @@ func (c *client) run() int {
 	case "pingpong":
 		return integration.AttemptRepeatedly("End2End", c.attemptRequest)
 	case "packetflood":
-		go func() {
+		pong_out := make(chan int)
+		go func(out chan int) {
 			defer log.HandlePanic()
-			integration.RepeatUntilFail("End2End", c.drainPong)
-		}()
-		return integration.RepeatUntilFail("End2End", c.blindPing)
+			totalFailed := 1
+			// Drain pongs as long as we get them. We assume that failure means
+			// there are no more pongs. We want ro receive at least one pong. The
+			// rest doesn't matter.
+			integration.RepeatUntilFail("End2End", func(n int) bool {
+				failed := c.drainPong(n)
+				if !failed {
+					totalFailed = 0
+				}
+				return failed
+			})
+			out <- totalFailed
+		}(pong_out)
+
+		// We return a "number of failures". So 0 means everything is fine.
+		ping_result := integration.RepeatUntilFail("End2End", c.blindPing)
+		pong_result := <- pong_out
+		log.Info("Pong drains", "result", pong_result)
+		return ping_result + pong_result
 	default:
 		return 0
 	}
@@ -353,12 +371,12 @@ func (c *client) attemptRequest(n int) bool {
 	}
 	
 	// Send ping
-	if err := c.ping(ctx, n, path); err != nil {
+	if err := c.ping(ctx, n, path, true); err != nil {
 		logger.Error("Could not send packet", "err", withTag(err))
 		return false
 	}
 	// Receive pong
-	if err := c.pong(ctx); err != nil {
+	if err := c.pong(ctx, true); err != nil {
 		tracing.Error(span, err)
 		logger.Error("Error receiving pong", "err", withTag(err))
 		if path != nil {
@@ -406,7 +424,7 @@ func (c *client) blindPing(n int) bool {
 	}
 
 	// Send ping
-	if err := c.ping(ctx, n, path); err != nil {
+	if err := c.ping(ctx, n, path, false); err != nil {
 		logger.Error("Could not send packet", "err", withTag(err))
 		return true
 	}
@@ -415,7 +433,6 @@ func (c *client) blindPing(n int) bool {
 }
 
 // drainPong consumes any pong message that might be received.
-// We really want just one. All other don't mater.
 func (c *client) drainPong(n int) bool {
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout.Duration)
 	defer cancel()
@@ -430,17 +447,17 @@ func (c *client) drainPong(n int) bool {
 		ctx = timeoutCtx
 	}
 	logger := log.FromCtx(ctx)
-	if err := c.pong(ctx); err != nil {
+	if err := c.pong(ctx, false); err != nil {
 		if traces {
 			tracing.Error(span, err)
 		}
 		logger.Error("Error receiving pong", "err", err)
-		return false // Stop. The test failed to elicit a single response.
+		return true // Stop. The test failed to elicit a single response.
 	}
 	return false // Don't stop; keep consuming pongs
 }
 
-func (c *client) ping(ctx context.Context, n int, path snet.Path) error {
+func (c *client) ping(ctx context.Context, n int, path snet.Path, log_ok bool) error {
 	rawPing, err := json.Marshal(Ping{
 		Server:  remote.IA,
 		Message: ping,
@@ -485,7 +502,9 @@ func (c *client) ping(ctx context.Context, n int, path snet.Path) error {
 			},
 		},
 	}
-	log.Info("sending ping", "attempt", n, "path", path)
+	if log_ok {
+		log.Info("sending ping", "attempt", n, "path", path)
+	}
 	if err := c.conn.WriteTo(pkt, remote.NextHop); err != nil {
 		return err
 	}
@@ -547,7 +566,7 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 	return path, nil
 }
 
-func (c *client) pong(ctx context.Context) error {
+func (c *client) pong(ctx context.Context, log_ok bool) error {
 	if err := c.conn.SetReadDeadline(getDeadline(ctx)); err != nil {
 		return serrors.WrapStr("setting read deadline", err)
 	}
@@ -575,7 +594,9 @@ func (c *client) pong(ctx context.Context) error {
 	if pld.Client != expected.Client || pld.Server != expected.Server || pld.Message != pong {
 		return serrors.New("unexpected contents received", "data", pld, "expected", expected)
 	}
-	log.Info("Received pong", "server", p.Source)
+	if log_ok {
+		log.Info("Received pong", "server", p.Source)
+	}
 	return nil
 }
 

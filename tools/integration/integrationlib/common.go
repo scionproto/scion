@@ -142,7 +142,7 @@ type AttemptFunc func(n int) bool
 // were executed. Between two attempts at least RetryTimeout time has to pass.
 // Returns 0 on success, 1 on failure.
 func AttemptRepeatedly(name string, attempt AttemptFunc) int {
-	for attempts := 0; attempts < Attempts; attempts++{
+	for attempts := 0; attempts < Attempts; attempts++ {
 		if attempt(attempts) {
 			return 0
 		}
@@ -154,12 +154,12 @@ func AttemptRepeatedly(name string, attempt AttemptFunc) int {
 }
 
 // RepeatUntilFail runs doit() until it returns true (failed -> stop) or more than Attempts
-// were executed. There is no delay not logging between attempts.
+// were executed. There is no delay nor logging between attempts.
 // Returns 0 if all Attempts succeeded, 1 on failure.
 // This is very similar to AttemptRepeatedly, but difference in failure/success behaviour
 // justify a different function: parameter-based tweaks would be easily confusing.
 func RepeatUntilFail(name string, doit AttemptFunc) int {
-	for attempts := 0; attempts < Attempts; attempts++{
+	for attempts := 0; attempts < Attempts; attempts++ {
 		if doit(attempts) {
 			log.Error(fmt.Sprintf("%s failed...", name))
 			return 1
