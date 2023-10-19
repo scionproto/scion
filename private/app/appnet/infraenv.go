@@ -357,9 +357,9 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 		},
 		Metrics: nc.SCIONNetworkMetrics,
 	}
-	clientAddr, err := net.ResolveUDPAddr("udp", nc.QUIC.Address)
-	if err != nil {
-		return nil, nil, serrors.WrapStr("parsing server QUIC address", err)
+	clientAddr := &net.UDPAddr{
+		IP:   serverAddr.IP,
+		Zone: serverAddr.Zone,
 	}
 	client, err := clientNet.Listen(context.Background(), "udp", clientAddr, addr.SvcNone)
 	if err != nil {
