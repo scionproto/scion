@@ -308,6 +308,7 @@ func (c *client) run() int {
 		return integration.AttemptRepeatedly("End2End", c.attemptRequest)
 	case "packetflood":
 		go func() {
+			defer log.HandlePanic()
 			integration.RepeatUntilFail("End2End", c.drainPong)
 		}()
 		return integration.RepeatUntilFail("End2End", c.blindPing)
