@@ -25,8 +25,8 @@ package processmetrics
 
 import (
 	"os"
-	"strconv"
 	"path/filepath"
+	"strconv"
 	"syscall"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -58,7 +58,7 @@ var (
 	// other two at a reasonable cost.
 	tasklistUpdates = prometheus.NewDesc(
 		"process_metrics_tasklist_updates_total",
-		"The number of time the processmetrics collector had to recreate its list of tasks since it started.",
+		"The number of time the processmetrics collector recreated its list of tasks.",
 		nil, nil,
 	)
 )
@@ -166,7 +166,7 @@ func (c *procStatCollector) Collect(ch chan<- prometheus.Metric) {
 // to scraping requests. Call this only once per process or get an error.
 // It is safe to ignore errors from this but prometheus may lack some
 // metrics.
-func NewProcStatCollector() error {	
+func NewProcStatCollector() error {
 	me := os.Getpid()
 	taskPath := filepath.Join(procfs.DefaultMountPoint, strconv.Itoa(me), "task")
 	taskDir, err := os.Open(taskPath)
@@ -177,9 +177,9 @@ func NewProcStatCollector() error {
 	}
 
 	c := &procStatCollector{
-		myPid: me,
-		myTasks: taskDir,
-		lastTaskCount: 0,
+		myPid:          me,
+		myTasks:        taskDir,
+		lastTaskCount:  0,
 		lastSchedstats: make(map[int]procfs.ProcSchedstat),
 	}
 
