@@ -309,7 +309,7 @@ func (c *client) run() int {
 		return integration.AttemptRepeatedly("End2End", c.attemptRequest)
 	case "packetflood":
 		pong_out := make(chan int)
-		go func(out chan int) {
+		go func() {
 			defer log.HandlePanic()
 			totalFailed := 1
 			// Drain pongs as long as we get them. We assume that failure means
@@ -322,13 +322,12 @@ func (c *client) run() int {
 				}
 				return failed
 			})
-			out <- totalFailed
-		}(pong_out)
+			pong_out <- totalFailed
+		}()
 
 		// We return a "number of failures". So 0 means everything is fine.
 		ping_result := integration.RepeatUntilFail("End2End", c.blindPing)
 		pong_result := <- pong_out
-		log.Info("Pong drains", "result", pong_result)
 		return ping_result + pong_result
 	default:
 		return 0
