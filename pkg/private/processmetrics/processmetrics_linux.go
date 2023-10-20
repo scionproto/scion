@@ -25,6 +25,9 @@ package processmetrics
 
 import (
 	"os"
+	"strconv"
+	"path/filepath"
+	"syscall"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/procfs"
@@ -51,13 +54,24 @@ var (
 		"Time the process spend runnable (unscheduled) since it started (all threads summed).",
 		nil, nil,
 	)
+	// This metric is introspective. It's trying to gauge if we're successful in collecting the
+	// other two at a reasonable cost.
+	tasklistUpdates = prometheus.NewDesc(
+		"process_metrics_tasklist_updates_total",
+		"The number of time the processmetrics collector had to recreate its list of tasks since it started.",
+		nil, nil,
+	)
 )
 
 // procStatCollector is a custom collector for some process-wide statistics
 // that are not available in default collectors.
 type procStatCollector struct {
-	myPid          int
-	lastSchedstats map[int]procfs.ProcSchedstat
+	myPid           int
+	myProcs         procfs.Procs
+	myTasks         *os.File
+	lastTaskCount   uint64
+	lastSchedstats  map[int]procfs.ProcSchedstat
+	taskListUpdates int64
 }
 
 // UpdateStat fetches the raw per-thread scheduling metrics from /proc.
@@ -65,11 +79,28 @@ type procStatCollector struct {
 // This raw data is cached for Collect to pick-up and reshape
 // when prometheus scrapes.
 func (c *procStatCollector) updateStat() error {
-	// FIXME (if we can): AllThreads builds a list and it
-	// ends-up on the garbage pile.
-	myProcs, err := procfs.AllThreads(c.myPid)
+
+	// procfs.AllThreads is expensive (lots of garbage in its wake) and often idempotent.
+	// To reduce the cost, we skip doing it when we know that the threads line-up is
+	// unchanged. Since Go never terminates the threads it creates, if the lineup has
+	// changed, the count has changed. We can only get that from the syscall API.
+	// As soon as we get the bareFd the IOs with that file become blocking. So, the thread
+	// collector thread could theoretically block on the IO (not sure stating /proc results
+	// in any IO wait, though).
+
+	var taskStat syscall.Stat_t
+	err := syscall.Fstat(int(c.myTasks.Fd()), &taskStat)
 	if err != nil {
 		return err
+	}
+	newCount := taskStat.Nlink - 2
+	if newCount != c.lastTaskCount {
+		c.taskListUpdates++
+		c.myProcs, err = procfs.AllThreads(c.myPid)
+		if err != nil {
+			return err
+		}
+		c.lastTaskCount = newCount
 	}
 
 	// What we really want is to replace our map with a new map, but that would hurt the GC
@@ -82,7 +113,7 @@ func (c *procStatCollector) updateStat() error {
 	}
 
 	// Get a fresh set.
-	for _, p := range myProcs {
+	for _, p := range c.myProcs {
 		var oneErr error
 		c.lastSchedstats[p.PID], oneErr = p.Schedstat()
 		if oneErr != nil {
@@ -123,6 +154,11 @@ func (c *procStatCollector) Collect(ch chan<- prometheus.Metric) {
 		prometheus.CounterValue,
 		float64(able)/1000000000, // Report duration in SI
 	)
+	ch <- prometheus.MustNewConstMetric(
+		tasklistUpdates,
+		prometheus.CounterValue,
+		float64(c.taskListUpdates),
+	)
 }
 
 // NewProcStatCollector creates a new collector for process statistics.
@@ -130,15 +166,26 @@ func (c *procStatCollector) Collect(ch chan<- prometheus.Metric) {
 // to scraping requests. Call this only once per process or get an error.
 // It is safe to ignore errors from this but prometheus may lack some
 // metrics.
-func NewProcStatCollector() error {
+func NewProcStatCollector() error {	
+	me := os.Getpid()
+	taskPath := filepath.Join(procfs.DefaultMountPoint, strconv.Itoa(me), "task")
+	taskDir, err := os.Open(taskPath)
+	if err != nil {
+		log.Error("NewProcStatCollector: opening /proc/pid/task/ failed",
+			"pid", me, "error", err)
+		return err
+	}
+
 	c := &procStatCollector{
-		myPid:          os.Getpid(),
+		myPid: me,
+		myTasks: taskDir,
+		lastTaskCount: 0,
 		lastSchedstats: make(map[int]procfs.ProcSchedstat),
 	}
 
-	err := c.updateStat()
+	err = c.updateStat()
 	if err != nil {
-		log.Error("NewProcStatCollector", "error in first update", err)
+		log.Error("NewProcStatCollector: first update failed", "error", err)
 		// Ditch the broken collector. It won't do anything useful.
 		return err
 	}
