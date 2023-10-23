@@ -1,0 +1,12 @@
+load("//acceptance/common:topogen.bzl", "topogen_test")
+
+topogen_test(
+    name = "test",
+    src = "test.py",
+    args = [
+        "--executable=router_loadtest:$(location //tools/router_loadtest)",
+    ],
+    data = ["//tools/router_loadtest"],
+    homedir = "$(rootpath //tools/router_loadtest)",
+    topo = "//topology:tiny4.topo",
+)
