@@ -70,8 +70,9 @@ type procStatCollector struct {
 	myProcs         procfs.Procs
 	myTasks         *os.File
 	lastTaskCount   uint64
-	lastSchedstats  map[int]procfs.ProcSchedstat
 	taskListUpdates int64
+	totalRunning    uint64
+	totalRunnable   uint64
 }
 
 // UpdateStat fetches the raw per-thread scheduling metrics from /proc.
@@ -103,24 +104,25 @@ func (c *procStatCollector) updateStat() error {
 		c.lastTaskCount = newCount
 	}
 
-	// What we really want is to replace our map with a new map, but that would hurt the GC
-	// horribly. Instead, we just delete the keys in the map, which (normally) keeps all
-	// elements available for reuse. It'd be better if we could just mark entries as stale
-	// and remove only the unupdated ones, but Go makes map values un-addressible. We'd need
-	// to use pointers instead, which would probably make things worse. TBD.
-	for pid := range c.lastSchedstats {
-		delete(c.lastSchedstats, pid)
-	}
-
-	// Get a fresh set.
+	// Sum the times of all threads.
+	totalRunning := uint64(0)
+	totalRunnable := uint64(0)
 	for _, p := range c.myProcs {
-		var oneErr error
-		c.lastSchedstats[p.PID], oneErr = p.Schedstat()
+		// The procfs API gives us no choice. For each thread, it builds an object with a
+		// set of stats, which we throw on the garbage pile after picking what we need.
+		schedStat, oneErr := p.Schedstat()
 		if oneErr != nil {
 			err = oneErr
+			// The only reason would be that this thread has disappeared, which doesn't
+			// invalidate the values from the others. So, continuing makes more sense.
+			continue
 		}
+		totalRunning += schedStat.RunningNanoseconds
+		totalRunnable += schedStat.WaitingNanoseconds
 	}
 
+	c.totalRunning = totalRunning
+	c.totalRunnable = totalRunnable
 	return err
 }
 
@@ -138,21 +140,15 @@ func (c *procStatCollector) Describe(ch chan<- *prometheus.Desc) {
 func (c *procStatCollector) Collect(ch chan<- prometheus.Metric) {
 	_ = c.updateStat()
 
-	// Sum the times of all threads.
-	var ing, able uint64
-	for _, p := range c.lastSchedstats {
-		ing += p.RunningNanoseconds
-		able += p.WaitingNanoseconds
-	}
 	ch <- prometheus.MustNewConstMetric(
 		runningTime,
 		prometheus.CounterValue,
-		float64(ing)/1000000000, // Report duration in SI
+		float64(c.totalRunning)/1000000000, // Report duration in SI
 	)
 	ch <- prometheus.MustNewConstMetric(
 		runnableTime,
 		prometheus.CounterValue,
-		float64(able)/1000000000, // Report duration in SI
+		float64(c.totalRunnable)/1000000000, // Report duration in SI
 	)
 	ch <- prometheus.MustNewConstMetric(
 		tasklistUpdates,
@@ -179,8 +175,6 @@ func NewProcStatCollector() error {
 	c := &procStatCollector{
 		myPid:          me,
 		myTasks:        taskDir,
-		lastTaskCount:  0,
-		lastSchedstats: make(map[int]procfs.ProcSchedstat),
 	}
 
 	err = c.updateStat()
