@@ -2521,7 +2521,12 @@ func (d *DataPlane) initMetrics() {
 
 	// Start our custom /proc/pid/stat collector to export iowait time and
 	// (in the future) other process-wide metrics that prometheus does not.
-	_ = processmetrics.NewProcStatCollector()
+	err := processmetrics.Init()
+
+	// we can live without these metrics. Just log the error.
+	if err != nil {
+		log.Error("Could not initialize processmetrics", "err", err)
+	}
 }
 
 func initInterfaceMetrics(metrics *Metrics, labels prometheus.Labels) interfaceMetrics {

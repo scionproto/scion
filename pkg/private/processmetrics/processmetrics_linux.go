@@ -32,7 +32,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/procfs"
 
-	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
 var (
@@ -157,19 +157,18 @@ func (c *procStatCollector) Collect(ch chan<- prometheus.Metric) {
 	)
 }
 
-// NewProcStatCollector creates a new collector for process statistics.
+// Init creates a new collector for process statistics.
 // The collector exposes those statistics to prometheus and responds
 // to scraping requests. Call this only once per process or get an error.
 // It is safe to ignore errors from this but prometheus may lack some
 // metrics.
-func NewProcStatCollector() error {
+func Init() error {
 	me := os.Getpid()
 	taskPath := filepath.Join(procfs.DefaultMountPoint, strconv.Itoa(me), "task")
 	taskDir, err := os.Open(taskPath)
 	if err != nil {
-		log.Error("NewProcStatCollector: opening /proc/pid/task/ failed",
-			"pid", me, "error", err)
-		return err
+		return serrors.WrapStr("Opening /proc/pid/task/ failed", err,
+			"pid", me)
 	}
 
 	c := &procStatCollector{
@@ -179,18 +178,15 @@ func NewProcStatCollector() error {
 
 	err = c.updateStat()
 	if err != nil {
-		log.Error("NewProcStatCollector: first update failed", "error", err)
 		// Ditch the broken collector. It won't do anything useful.
-		return err
+		return serrors.WrapStr("First update failed", err)
 	}
 
 	// It works. Register it so prometheus milks it.
 	err = prometheus.Register(c)
 	if err != nil {
-		log.Error("NewProcStatCollector", "registration failed", err)
-		return err
+		return serrors.WrapStr("Registration failed", err)
 	}
 
-	log.Info("NewProcStatCollector", "collector", c)
 	return nil
 }

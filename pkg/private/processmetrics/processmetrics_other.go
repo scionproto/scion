@@ -21,10 +21,9 @@
 package processmetrics
 
 import (
-	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-func NewProcStatCollector() error {
-	log.Info("NewProcStatCollector not supported for this platform")
-	return error("Not supported for this platform)
+func Init() error {
+	return serrors.New("Not supported for this platform")
 }
