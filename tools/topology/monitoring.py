@@ -69,28 +69,6 @@ class MonitoringGenerator(object):
         "Sciond": "SD",
         "Dispatcher": "dispatcher",
     }
-    JOB_METRIC_RELABEL = {
-        "BR": [
-            {'source_labels': ['crossing', 'interface'],
-             'regex': 't;internal',
-             'target_label': 'type',
-             'replacement': 'outgoing'},
-            {'source_labels': ['crossing', 'interface'],
-             'regex': 't;[0-9][0-9]*',
-             'target_label': 'type',
-             'replacement': 'incoming'},
-            {'source_labels': ['crossing', 'interface'],
-             'regex': 'f;internal',
-             'target_label': 'type',
-             'replacement': 'local'},
-            {'source_labels': ['crossing', 'interface'],
-             'regex': 'f;[0-9][0-9]*',
-             'target_label': 'type',
-             'replacement': 'transit'},
-            {'regex': 'crossing',
-             'action': 'labeldrop'},
-        ],
-    }
 
     def __init__(self, args):
         """

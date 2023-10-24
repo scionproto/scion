@@ -593,10 +593,12 @@ type packet struct {
 	// Will be set by the processing routine
 	dstAddr *net.UDPAddr
 	// The ingress on which this packet arrived. This is
-	// set by the receiver and must be preserved all the
-	// way till the packet is finished processing by the
-	// forwarder
+	// set by the receiver.
 	ingress   uint16
+	// The type of traffic. This is used for metrics at the forwarding stage, but is most
+	// economically determined at the processing stage. So transport it here.
+	trafficType trafficType
+	// The goods
 	rawPacket []byte
 }
 
@@ -628,17 +630,15 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 		// That's in runProcessor and processPkt.
 		size := pkt.N
 		sc := classOfSize(size)
+		metrics[sc].InputPacketsTotal.Inc()
+		metrics[sc].InputBytesTotal.Add(float64(size))
 
 		procID, err := computeProcID(pkt.Buffers[0],
 			cfg.NumProcessors, randomValue, flowIDBuffer, hasher)
 		if err != nil {
 			log.Debug("Error while computing procID", "err", err)
 			d.returnPacketToPool(pkt.Buffers[0])
-			// No processPkt; do the ingress metrics in one arbitrary category
-			// just so the number add-up.
-			metrics[trafficKey{false, sc}].InputPacketsTotal.Inc()
-			metrics[trafficKey{false, sc}].InputBytesTotal.Add(float64(size))
-			metrics[trafficKey{false, sc}].DroppedPacketsInvalid.Inc()
+			metrics[sc].DroppedPacketsInvalid.Inc()
 			return
 		}
 		outPkt := packet{
@@ -650,11 +650,7 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 		case procQs[procID] <- outPkt:
 		default:
 			d.returnPacketToPool(pkt.Buffers[0])
-			// No processPkt; do the ingress metrics in one arbitrary category
-			// just so the number add-up.
-			metrics[trafficKey{false, sc}].InputPacketsTotal.Inc()
-			metrics[trafficKey{false, sc}].InputBytesTotal.Add(float64(size))
-			metrics[trafficKey{false, sc}].DroppedPacketsBusyProcessor.Inc()
+			metrics[sc].DroppedPacketsBusyProcessor.Inc()
 		}
 	}
 
@@ -717,10 +713,8 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 		}
 		result, err := processor.processPkt(p.rawPacket, p.srcAddr, p.ingress)
 
-		// Ingress-side metrics are updated by processPkt, except for packet drops,
-		// which happens here, and the overall processed packet count.
 		sc := classOfSize(len(p.rawPacket))
-		metrics := d.forwardingMetrics[p.ingress][trafficKey{result.Crossing, sc}]
+		metrics := d.forwardingMetrics[p.ingress][sc]
 		metrics.ProcessedPackets.Inc()
 
 		egress := result.EgressID
@@ -753,7 +747,7 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 		}
 		p.rawPacket = result.OutPkt
 		p.dstAddr = result.OutAddr
-
+		p.trafficType = result.TrafficType
 		select {
 		case fwCh <- p:
 		default:
@@ -776,7 +770,7 @@ func (d *DataPlane) runSlowPathProcessor(id int, q <-chan slowPacket,
 		}
 		res, err := processor.processPacket(p)
 		sc := classOfSize(len(p.rawPacket))
-		metrics := d.forwardingMetrics[p.packet.ingress][trafficKey{res.Crossing, sc}]
+		metrics := d.forwardingMetrics[p.packet.ingress][sc]
 		if err != nil {
 			log.Debug("Error processing packet", "err", err)
 			metrics.DroppedPacketsInvalid.Inc()
@@ -851,6 +845,17 @@ func (p *slowPathPacketProcessor) reset() {
 	p.e2eLayer = slayers.EndToEndExtnSkipper{}
 }
 
+// processResults carries what could be determined while processing
+// a packet. In most cases of error, all fields are left to their
+// zero value.
+type processResult struct {
+	EgressID        uint16
+	OutAddr         *net.UDPAddr
+	OutPkt          []byte
+	SlowPathRequest slowPathRequest
+	TrafficType     trafficType
+}
+
 func (p *slowPathPacketProcessor) processPacket(pkt slowPacket) (processResult, error) {
 	var err error
 	p.reset()
@@ -915,11 +920,9 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 	log.Debug("Initialize forwarder for", "interface", ifID)
 	writeMsgs := make(underlayconn.Messages, cfg.BatchSize)
 
-	// Classifying the outcome by traffic type isn't easy here.
-	// We need the original ingress interface of each packet
-	// that was batch-written successfully to output socket :-(
-	// readUpTo() has been persuaded to do that.
-	ingressIDs := make([]uint16, cfg.BatchSize)
+	// The traffic type is part of the Packet structure which readUpTo consumes.
+	// readUpTo() has been persuaded to give it back to us.
+	trafficTypes := make([]trafficType, cfg.BatchSize)
 
 	for i := range writeMsgs {
 		writeMsgs[i].Buffers = make([][]byte, 1)
@@ -930,7 +933,7 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 	remaining := 0
 	for d.running {
 		available := readUpTo(c, cfg.BatchSize-remaining, remaining == 0,
-			writeMsgs[remaining:], ingressIDs[remaining:])
+			writeMsgs[remaining:], trafficTypes[remaining:])
 		available += remaining
 		written, _ := conn.WriteBatch(writeMsgs[:available], 0)
 		if written < 0 {
@@ -942,47 +945,36 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 		// We need to collect stats by traffic type and size class.
 		// Try to reduce the metrics lookup penalty by using some
 		// simpler staging data structure.
-		writtenCrossing := [maxSizeClass]int{}
-		writtenBytesCrossing := [maxSizeClass]int{}
-		writtenNonCrossing := [maxSizeClass]int{}
-		writtenBytesNonCrossing := [maxSizeClass]int{}
+		writtenPkts := [ttMax][maxSizeClass]int{}
+		writtenBytes := [ttMax][maxSizeClass]int{}
 		for i := range writeMsgs[:written] {
-			crossing := ((ingressIDs[i] == 0) != (ifID == 0))
+			tt := trafficTypes[i]
 			sc := classOfSize(len(writeMsgs[i].Buffers[0]))
-			if crossing {
-				writtenCrossing[sc]++
-				writtenBytesCrossing[sc] += len(writeMsgs[i].Buffers[0])
-			} else {
-				writtenNonCrossing[sc]++
-				writtenBytesNonCrossing[sc] += len(writeMsgs[i].Buffers[0])
-			}
+			writtenPkts[tt][sc]++
+			writtenBytes[tt][sc] += len(writeMsgs[i].Buffers[0])
 			d.returnPacketToPool(writeMsgs[i].Buffers[0])
 		}
-		for sc := sizeClass(0); sc < maxSizeClass; sc++ {
-			if writtenCrossing[sc] > 0 {
-				metrics[trafficKey{true, sc}].OutputPacketsTotal.Add(
-					float64(writtenCrossing[sc]))
-				metrics[trafficKey{true, sc}].OutputBytesTotal.Add(
-					float64(writtenBytesCrossing[sc]))
-			}
-			if writtenNonCrossing[sc] > 0 {
-				metrics[trafficKey{false, sc}].OutputPacketsTotal.Add(
-					float64(writtenNonCrossing[sc]))
-				metrics[trafficKey{false, sc}].OutputBytesTotal.Add(
-					float64(writtenBytesNonCrossing[sc]))
+		for t := ttOther; t < ttMax; t++ {
+			for sc := sizeClass(0); sc < maxSizeClass; sc++ {
+				if writtenPkts[t][sc] > 0 {
+					metrics[sc].Output[t].OutputPacketsTotal.Add(
+						float64(writtenPkts[t][sc]))
+					metrics[sc].Output[t].OutputBytesTotal.Add(
+						float64(writtenBytes[t][sc]))
+				}
 			}
 		}
 
 		if written != available {
 			// Only one is dropped at this time. We'll retry the rest.
-			crossing := ((ingressIDs[written] == 0) != (ifID == 0))
 			sc := classOfSize(len(writeMsgs[written].Buffers[0]))
-			metrics[trafficKey{crossing, sc}].DroppedPacketsInvalid.Inc()
+			metrics[sc].DroppedPacketsInvalid.Inc()
 			d.returnPacketToPool(writeMsgs[written].Buffers[0])
 			remaining = available - written - 1
 			for i := 0; i < remaining; i++ {
 				writeMsgs[i].Buffers[0] = writeMsgs[i+written+1].Buffers[0]
 				writeMsgs[i].Addr = writeMsgs[i+written+1].Addr
+				trafficTypes[i] = trafficTypes[i+written+1]
 			}
 		} else {
 			remaining = 0
@@ -991,7 +983,7 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 }
 
 func readUpTo(c <-chan packet,
-	n int, needsBlocking bool, msg []ipv4.Message, ingressIDs []uint16) int {
+	n int, needsBlocking bool, msg []ipv4.Message, trafficTypes []trafficType) int {
 
 	assign := func(p packet, m *ipv4.Message) {
 		m.Buffers[0] = p.rawPacket
@@ -1007,7 +999,7 @@ func readUpTo(c <-chan packet,
 			return i
 		}
 		assign(p, &msg[i])
-		ingressIDs[i] = p.ingress
+		trafficTypes[i] = p.trafficType
 		i++
 	}
 
@@ -1018,28 +1010,13 @@ func readUpTo(c <-chan packet,
 				return i
 			}
 			assign(p, &msg[i])
-			ingressIDs[i] = p.ingress
+			trafficTypes[i] = p.trafficType
 		default:
 			return i
 		}
 
 	}
 	return i
-}
-
-// processResults carries what could be determined while processing
-// a packet. In most cases of error, all fields are left to their
-// zero value.
-// Crossing: If true, the packet goes to XOR enters from another AS.
-// In all but the earliest errors, this can be figured out. If not,
-// it is false. This is used for packet counting metrics and we count
-// broken packets as non-crossing rather than creating a 3rd category.
-type processResult struct {
-	EgressID        uint16
-	OutAddr         *net.UDPAddr
-	OutPkt          []byte
-	SlowPathRequest slowPathRequest
-	Crossing        bool
 }
 
 func newPacketProcessor(d *DataPlane) *scionPacketProcessor {
@@ -1078,16 +1055,7 @@ func (p *scionPacketProcessor) reset() error {
 func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 	srcAddr *net.UDPAddr, ingressID uint16) (processResult, error) {
 
-	// processPkt is in charge of collecting the ingress-side metrics because
-	// the Receiver doesn't extract quite enough information.
-	metrics := p.d.forwardingMetrics[ingressID]
-	size := len(rawPkt)
-	sc := classOfSize(size)
 	if err := p.reset(); err != nil {
-		// This doesn't actually happen, the error is only imposed
-		// by an interface. But, we're defensive.
-		metrics[trafficKey{false, sc}].InputPacketsTotal.Inc()
-		metrics[trafficKey{false, sc}].InputBytesTotal.Add(float64(size))
 		return processResult{}, err
 	}
 	p.rawPkt = rawPkt
@@ -1098,21 +1066,11 @@ func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 	var err error
 	p.lastLayer, err = decodeLayers(p.rawPkt, &p.scionLayer, &p.hbhLayer, &p.e2eLayer)
 	if err != nil {
-		// So broken that we can't even get a destination IA. Pick a category.
-		metrics[trafficKey{false, sc}].InputPacketsTotal.Inc()
-		metrics[trafficKey{false, sc}].InputBytesTotal.Add(float64(size))
 		return processResult{}, err
 	}
 
-	// crossing means local src and remote dst or vice-versa.
-	crossing := ((ingressID == 0) != (p.scionLayer.DstIA == p.d.localIA))
-
-	// Now that we know that, we can properly count the input.
-	metrics[trafficKey{crossing, sc}].InputPacketsTotal.Inc()
-	metrics[trafficKey{crossing, sc}].InputBytesTotal.Add(float64(size))
-
 	pld := p.lastLayer.LayerPayload()
-	minResult := processResult{Crossing: crossing}
+	minResult := processResult{}
 
 	pathType := p.scionLayer.PathType
 	switch pathType {
@@ -1859,17 +1817,20 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	if r, err := p.handleIngressRouterAlert(); err != nil {
 		return r, err
 	}
-	// Inbound: pkts destined to the local IA.
+	// Inbound: pkt destined to the local IA.
 	if p.scionLayer.DstIA == p.d.localIA {
 		a, r, err := p.resolveInbound()
 		if err != nil {
 			return r, err
 		}
-		return processResult{OutAddr: a, OutPkt: p.rawPkt}, nil
+		return processResult{OutAddr: a, OutPkt: p.rawPkt, TrafficType: ttIn}, nil
 	}
 
-	// Outbound: pkts leaving the local IA.
-	// BRTransit: pkts leaving from the same BR different interface.
+	// Outbound: pkt leaving the local IA. This Could be:
+	// * Pure outbound: from this AS, in via internal, out via external.
+	// * ASTransit in: from another AS, in via external, out via internal to other BR.
+	// * ASTransit out: from another AS, in via internal from other BR, out via external.
+	// * BRTransit: from another AS, in via external, out via external.
 	if p.path.IsXover() && !p.peering {
 		// An effective cross-over is a change of segment other than at
 		// a peering hop.
@@ -1900,14 +1861,27 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	}
 	egressID := p.egressInterface()
 	if _, ok := p.d.external[egressID]; ok {
+		// Not ASTransit in
 		if err := p.processEgress(); err != nil {
 			return processResult{}, err
 		}
-		return processResult{EgressID: egressID, OutPkt: p.rawPkt}, nil
+		// Finish deciding the trafficType...
+		var tt trafficType
+		if p.scionLayer.SrcIA == p.d.localIA {
+			// Pure outbound
+			tt = ttOut
+		} else if p.ingressID == 0 {
+			// ASTransit out
+			tt = ttOutTransit
+		} else {
+			// Therefore it is BRTransit
+			tt = ttBrTransit
+		}
+		return processResult{EgressID: egressID, OutPkt: p.rawPkt, TrafficType: tt}, nil
 	}
-	// ASTransit: pkts leaving from another AS BR.
+	// ASTransit in: pkt leaving this AS through another BR.
 	if a, ok := p.d.internalNextHops[egressID]; ok {
-		return processResult{OutAddr: a, OutPkt: p.rawPkt}, nil
+		return processResult{OutAddr: a, OutPkt: p.rawPkt, TrafficType: ttInTransit}, nil
 	}
 	errCode := slayers.SCMPCodeUnknownHopFieldEgress
 	if !p.infoField.ConsDir {
@@ -2447,49 +2421,35 @@ func nextHdr(layer gopacket.DecodingLayer) slayers.L4ProtocolType {
 // with the set of metrics belonging to that interface that have these label values.
 // This set of metrics is itself a trafficMetric structure.
 // Explanation:
-// Metrics are labeled by interface, local-as, neighbor-as, traffic type, and packet size.
+// Metrics are labeled by interface, local-as, neighbor-as, packet size, and (for output
+// metrics only) traffic type.
 // Instances are grouped in a hierarchical manner for efficient access by the using code.
 // forwardingMetrics is a map of interface to interfaceMetrics.
-// To access a specific InputPacketsTotal counter, one referes to:
-// dataplane.forwardingMetrics[interface][(traffic-type, size-class)]
-type interfaceMetrics map[trafficKey]trafficMetrics
+// To access a specific InputPacketsTotal counter, one refers to:
+// dataplane.forwardingMetrics[interface][size-class].
+// trafficMetrics.Output is a map of traffic type to outputMetrics.
+type interfaceMetrics map[sizeClass]trafficMetrics
 
 // The number of bits needed to represent some given size.
 // This is quicker than computing Log2 and serves the same purpose.
 type sizeClass uint8
 
-// maxSizeClass is the number of sizeClass values that we have metrics for.
-// To be precise, this is the smallest NOT-supported value. This is enough because the largest
+// maxSizeClass is the smallest NOT-supported sizeClass. This is enough because the largest
 // packet's size is <128k. Just in case that would change, larger packets are simply put in the
 // last class.
-const maxSizeClass = 18
+const maxSizeClass sizeClass = 18
 
-// Traffic key is the composite key used in interfaceMetrics to sort metrics by traffic features.
-type trafficKey struct {
-	crossing bool      // true if border crossing
-	sc       sizeClass // ~log2 of the pkt size
-}
+// minSizeClass is the smallest sizeClass that we care about.
+// All packets of a smaller classes are conflated with this one. 
+const minSizeClass sizeClass = 6
 
-// trafficMetrics groups all the metrics instances that all share the same interface AND traffic
-// specific label values (but have different names - i.e. they count different things).
-type trafficMetrics struct {
-	InputBytesTotal             prometheus.Counter
-	OutputBytesTotal            prometheus.Counter
-	InputPacketsTotal           prometheus.Counter
-	OutputPacketsTotal          prometheus.Counter
-	DroppedPacketsInvalid       prometheus.Counter
-	DroppedPacketsBusyProcessor prometheus.Counter
-	DroppedPacketsBusyForwarder prometheus.Counter
-	DroppedPacketsBusySlowPath  prometheus.Counter
-	ProcessedPackets            prometheus.Counter
-}
-
-// Returns the sizeClass of the given size. All classes above
-// maxSizeClass - 1 are conflated with maxSizeClass - 1.
 func classOfSize(pktSize int) sizeClass {
 	cs := sizeClass(bits.Len32(uint32(pktSize)))
-	if cs >= maxSizeClass {
-		return maxSizeClass
+	if cs > maxSizeClass - 1 {
+		return maxSizeClass - 1
+	}
+	if cs <= minSizeClass {
+		return minSizeClass
 	}
 	return cs
 }
@@ -2502,6 +2462,63 @@ func (sc sizeClass) String() string {
 		[]string{strconv.Itoa((1 << sc) >> 1), strconv.Itoa(1<<sc - 1)},
 		"_",
 	)
+}
+
+// trafficMetrics groups all the metrics instances that all share the same interface AND
+// sizeClass label values (but have different names - i.e. they count different things).
+type trafficMetrics struct {
+	InputBytesTotal             prometheus.Counter
+	InputPacketsTotal           prometheus.Counter
+	DroppedPacketsInvalid       prometheus.Counter
+	DroppedPacketsBusyProcessor prometheus.Counter
+	DroppedPacketsBusyForwarder prometheus.Counter
+	DroppedPacketsBusySlowPath  prometheus.Counter
+	ProcessedPackets            prometheus.Counter
+	Output                      map[trafficType]outputMetrics
+}
+
+// trafficType labels traffic as being of either of the following types:
+// in, out, inTransit, outTransit, brTransit.
+// inTransit or outTransit means that traffic is crossing the local AS via two routers.
+// If the router being observed is the one receiving the packet from the outside,
+// then the type is inTransit; else it is outTransit.
+// brTransit means that traffic is crossing only the observed router.
+// Non-scion traffic or somehow malformed traffic has type Other.
+type trafficType uint8
+
+const (
+	ttOther trafficType = iota
+	ttIn
+	ttOut
+	ttInTransit
+	ttOutTransit
+	ttBrTransit
+	ttMax
+)
+
+// Returns a human-friendly representation of the given traffic type.
+func (t trafficType) String() string {
+	switch t {
+	case ttIn:
+		return "in"
+	case ttOut:
+		return "out"
+	case ttInTransit:
+		return "inTransit"
+	case ttOutTransit:
+		return "outTransit"
+	case ttBrTransit:
+		return "brTransit"
+	}
+	return "other"
+}
+
+// outputMetrics groups all the metrics about traffic that has reached the output stage.
+// Metrics instances in each of these all have the same interface AND sizeClass AND
+// trafficType label values.
+type outputMetrics struct {
+	OutputBytesTotal            prometheus.Counter
+	OutputPacketsTotal          prometheus.Counter	
 }
 
 // initMetrics initializes the metrics related to packet forwarding. The
@@ -2531,79 +2548,63 @@ func (d *DataPlane) initMetrics() {
 
 func initInterfaceMetrics(metrics *Metrics, labels prometheus.Labels) interfaceMetrics {
 	m := interfaceMetrics{}
-
-	for sc := sizeClass(0); sc < maxSizeClass; sc++ {
-		labels["sizeclass"] = sc.String()
-
-		labels["crossing"] = "t"
-		m[trafficKey{true, sc}] = initTrafficMetrics(metrics, labels)
-
-		labels["crossing"] = "f"
-		m[trafficKey{false, sc}] = initTrafficMetrics(metrics, labels)
+	for sc := minSizeClass; sc < maxSizeClass; sc++ {
+		scLabels := prometheus.Labels{ "sizeclass": sc.String() }
+		m[sc] = initTrafficMetrics(metrics, labels, scLabels)
 	}
-	// Be nice, leave the labels dic as we found it.
-	delete(labels, "crossing")
-	delete(labels, "sizeclass")
 	return m
 }
 
-// In order to make a fair run-to-run comparison of these metrics, we must
-// relate them to the actual CPU time that was *available* to the router.
-// That is, the time that the process was either running, blocked, or sleeping,
-// but not "runnable" (which in unix-ese implies *not* running).
-// A custom collector in pkg/processmetrics exposes the running and runnable
-// metrics directly from the scheduler.
-// Possibly crude example of a query that accounts for available cpu:
-//
-//	rate(router_processed_pkts_total[1m])
-//	  / on (instance, job) group_left ()
-//	(1 - rate(process_runnable_seconds_total[1m]))
-//
-// This shows processed_packets per available cpu seconds, as opposed to
-// real time.
-// Possibly crude example of a query that only looks at cpu use efficiency:
-//
-//	rate(router_processed_pkts_total[1m])
-//	  / on (instance, job) group_left ()
-//	(rate(process_running_seconds_total[1m]))
-//
-// This shows processed_packets per consumed cpu seconds.
-func initTrafficMetrics(metrics *Metrics, labels prometheus.Labels) trafficMetrics {
+func initTrafficMetrics(metrics *Metrics, labels prometheus.Labels, scLabels prometheus.Labels) trafficMetrics {
 	c := trafficMetrics{
-		InputBytesTotal:    metrics.InputBytesTotal.With(labels),
-		InputPacketsTotal:  metrics.InputPacketsTotal.With(labels),
-		OutputBytesTotal:   metrics.OutputBytesTotal.With(labels),
-		OutputPacketsTotal: metrics.OutputPacketsTotal.With(labels),
-		ProcessedPackets:   metrics.ProcessedPackets.With(labels),
+		InputBytesTotal:    metrics.InputBytesTotal.MustCurryWith(labels).With(scLabels),
+		InputPacketsTotal:  metrics.InputPacketsTotal.MustCurryWith(labels).With(scLabels),
+		ProcessedPackets:   metrics.ProcessedPackets.MustCurryWith(labels).With(scLabels),
+		Output: make(map[trafficType]outputMetrics),
 	}
+
+	// Output metrics have the extra "trafficType" label.
+	for t := ttOther; t < ttMax; t++ {
+		ttLabels := prometheus.Labels{ "type": t.String() }
+		c.Output[t] = initOutputMetrics(metrics, labels, scLabels, ttLabels)
+	}
+
+	// Dropped metrics have the extra "Reason" label.
 	reasonMap := map[string]string{}
 
 	reasonMap["reason"] = "invalid"
 	c.DroppedPacketsInvalid =
-		metrics.DroppedPacketsTotal.MustCurryWith(labels).With(reasonMap)
+		metrics.DroppedPacketsTotal.MustCurryWith(labels).MustCurryWith(scLabels).With(reasonMap)
 
 	reasonMap["reason"] = "busy_processor"
 	c.DroppedPacketsBusyProcessor =
-		metrics.DroppedPacketsTotal.MustCurryWith(labels).With(reasonMap)
+		metrics.DroppedPacketsTotal.MustCurryWith(labels).MustCurryWith(scLabels).With(reasonMap)
 
 	reasonMap["reason"] = "busy_forwarder"
 	c.DroppedPacketsBusyForwarder =
-		metrics.DroppedPacketsTotal.MustCurryWith(labels).With(reasonMap)
+		metrics.DroppedPacketsTotal.MustCurryWith(labels).MustCurryWith(scLabels).With(reasonMap)
 
 	reasonMap["reason"] = "busy_slow_path"
 	c.DroppedPacketsBusySlowPath =
-		metrics.DroppedPacketsTotal.MustCurryWith(labels).With(reasonMap)
+		metrics.DroppedPacketsTotal.MustCurryWith(labels).MustCurryWith(scLabels).With(reasonMap)
 
 	c.InputBytesTotal.Add(0)
 	c.InputPacketsTotal.Add(0)
-	c.OutputBytesTotal.Add(0)
-	c.OutputPacketsTotal.Add(0)
 	c.DroppedPacketsInvalid.Add(0)
 	c.DroppedPacketsBusyProcessor.Add(0)
 	c.DroppedPacketsBusyForwarder.Add(0)
 	c.DroppedPacketsBusySlowPath.Add(0)
 	c.ProcessedPackets.Add(0)
 	return c
+}
+
+func initOutputMetrics(metrics *Metrics, labels prometheus.Labels, scLabels prometheus.Labels, ttLabels prometheus.Labels) outputMetrics {
+	om := outputMetrics{}
+	om.OutputBytesTotal =   metrics.OutputBytesTotal.MustCurryWith(labels).MustCurryWith(scLabels).With(ttLabels)
+	om.OutputPacketsTotal = metrics.OutputPacketsTotal.MustCurryWith(labels).MustCurryWith(scLabels).With(ttLabels)	
+	om.OutputBytesTotal.Add(0)
+	om.OutputPacketsTotal.Add(0)
+	return om
 }
 
 func interfaceToMetricLabels(id uint16, localIA addr.IA,

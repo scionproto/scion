@@ -18,6 +18,28 @@
 // does nothing.
 // This code works only if the delayacct kernel feature is turned on.
 // this is done by "sysctl kernel.task_delayacct=1".
+//
+// In order to make a fair run-to-run comparison of these metrics, we must
+// relate them to the actual CPU time that was *available* to the router.
+// That is, the time that the process was either running, blocked, or sleeping,
+// but not "runnable" (which in unix-ese implies *not* running).
+// A custom collector in pkg/processmetrics exposes the running and runnable
+// metrics directly from the scheduler.
+// Possibly crude example of a query that accounts for available cpu:
+//
+//	rate(router_processed_pkts_total[1m])
+//	  / on (instance, job) group_left ()
+//	(1 - rate(process_runnable_seconds_total[1m]))
+//
+// This shows processed_packets per available cpu seconds, as opposed to
+// real time.
+// Possibly crude example of a query that only looks at cpu use efficiency;
+// This shows processed_packets per consumed cpu seconds:
+//
+//	rate(router_processed_pkts_total[1m])
+//	  / on (instance, job) group_left ()
+//	(rate(process_running_seconds_total[1m]))
+//
 
 //go:build linux
 
