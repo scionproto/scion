@@ -69,6 +69,9 @@ class MonitoringGenerator(object):
         "Sciond": "SD",
         "Dispatcher": "dispatcher",
     }
+    JOB_METRIC_RELABEL = {
+        # "BR": "<relabel dict>"
+    }
 
     def __init__(self, args):
         """
