@@ -594,7 +594,7 @@ type packet struct {
 	dstAddr *net.UDPAddr
 	// The ingress on which this packet arrived. This is
 	// set by the receiver.
-	ingress   uint16
+	ingress uint16
 	// The type of traffic. This is used for metrics at the forwarding stage, but is most
 	// economically determined at the processing stage. So transport it here.
 	trafficType trafficType
@@ -2443,19 +2443,18 @@ type sizeClass uint8
 const maxSizeClass sizeClass = 15
 
 func init() {
-	if sizeClass(bits.Len32(uint32(bufSize))) > maxSizeClass - 1 {
-		panic("maxSizeClass is too small compared to bufSize.")	
+	if sizeClass(bits.Len32(uint32(bufSize))) > maxSizeClass-1 {
+		panic("maxSizeClass is too small compared to bufSize.")
 	}
 }
 
-
 // minSizeClass is the smallest sizeClass that we care about.
-// All smaller classes are conflated with this one. 
+// All smaller classes are conflated with this one.
 const minSizeClass sizeClass = 6
 
 func classOfSize(pktSize int) sizeClass {
 	cs := sizeClass(bits.Len32(uint32(pktSize)))
-	if cs > maxSizeClass - 1 {
+	if cs > maxSizeClass-1 {
 		return maxSizeClass - 1
 	}
 	if cs <= minSizeClass {
@@ -2527,8 +2526,8 @@ func (t trafficType) String() string {
 // Metrics instances in each of these all have the same interface AND sizeClass AND
 // trafficType label values.
 type outputMetrics struct {
-	OutputBytesTotal            prometheus.Counter
-	OutputPacketsTotal          prometheus.Counter	
+	OutputBytesTotal   prometheus.Counter
+	OutputPacketsTotal prometheus.Counter
 }
 
 // initMetrics initializes the metrics related to packet forwarding. The
@@ -2559,23 +2558,24 @@ func (d *DataPlane) initMetrics() {
 func initInterfaceMetrics(metrics *Metrics, labels prometheus.Labels) interfaceMetrics {
 	m := interfaceMetrics{}
 	for sc := minSizeClass; sc < maxSizeClass; sc++ {
-		scLabels := prometheus.Labels{ "sizeclass": sc.String() }
+		scLabels := prometheus.Labels{"sizeclass": sc.String()}
 		m[sc] = initTrafficMetrics(metrics, labels, scLabels)
 	}
 	return m
 }
 
-func initTrafficMetrics(metrics *Metrics, labels prometheus.Labels, scLabels prometheus.Labels) trafficMetrics {
+func initTrafficMetrics(metrics *Metrics,
+	labels prometheus.Labels, scLabels prometheus.Labels) trafficMetrics {
 	c := trafficMetrics{
-		InputBytesTotal:    metrics.InputBytesTotal.MustCurryWith(labels).With(scLabels),
-		InputPacketsTotal:  metrics.InputPacketsTotal.MustCurryWith(labels).With(scLabels),
-		ProcessedPackets:   metrics.ProcessedPackets.MustCurryWith(labels).With(scLabels),
-		Output: make(map[trafficType]outputMetrics),
+		InputBytesTotal:   metrics.InputBytesTotal.MustCurryWith(labels).With(scLabels),
+		InputPacketsTotal: metrics.InputPacketsTotal.MustCurryWith(labels).With(scLabels),
+		ProcessedPackets:  metrics.ProcessedPackets.MustCurryWith(labels).With(scLabels),
+		Output:            make(map[trafficType]outputMetrics),
 	}
 
 	// Output metrics have the extra "trafficType" label.
 	for t := ttOther; t < ttMax; t++ {
-		ttLabels := prometheus.Labels{ "type": t.String() }
+		ttLabels := prometheus.Labels{"type": t.String()}
 		c.Output[t] = initOutputMetrics(metrics, labels, scLabels, ttLabels)
 	}
 
@@ -2608,10 +2608,13 @@ func initTrafficMetrics(metrics *Metrics, labels prometheus.Labels, scLabels pro
 	return c
 }
 
-func initOutputMetrics(metrics *Metrics, labels prometheus.Labels, scLabels prometheus.Labels, ttLabels prometheus.Labels) outputMetrics {
+func initOutputMetrics(metrics *Metrics, labels prometheus.Labels,
+	scLabels prometheus.Labels, ttLabels prometheus.Labels) outputMetrics {
 	om := outputMetrics{}
-	om.OutputBytesTotal =   metrics.OutputBytesTotal.MustCurryWith(labels).MustCurryWith(scLabels).With(ttLabels)
-	om.OutputPacketsTotal = metrics.OutputPacketsTotal.MustCurryWith(labels).MustCurryWith(scLabels).With(ttLabels)	
+	om.OutputBytesTotal =
+		metrics.OutputBytesTotal.MustCurryWith(labels).MustCurryWith(scLabels).With(ttLabels)
+	om.OutputPacketsTotal =
+		metrics.OutputPacketsTotal.MustCurryWith(labels).MustCurryWith(scLabels).With(ttLabels)
 	om.OutputBytesTotal.Add(0)
 	om.OutputPacketsTotal.Add(0)
 	return om

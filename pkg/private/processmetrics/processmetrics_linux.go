@@ -194,8 +194,8 @@ func Init() error {
 	}
 
 	c := &procStatCollector{
-		myPid:          me,
-		myTasks:        taskDir,
+		myPid:   me,
+		myTasks: taskDir,
 	}
 
 	err = c.updateStat()
