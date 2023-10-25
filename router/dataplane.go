@@ -917,12 +917,10 @@ func (p *slowPathPacketProcessor) processPacket(pkt slowPacket) (processResult, 
 func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 	cfg *RunConfig, c <-chan packet) {
 
+	fmt.Println("Initialize forwarder for", "interface")
 	log.Debug("Initialize forwarder for", "interface", ifID)
+	readPkts := make([]packet, cfg.BatchSize)
 	writeMsgs := make(underlayconn.Messages, cfg.BatchSize)
-
-	// The traffic type is part of the Packet structure which readUpTo consumes.
-	// readUpTo() has been persuaded to give it back to us.
-	trafficTypes := make([]trafficType, cfg.BatchSize)
 
 	for i := range writeMsgs {
 		writeMsgs[i].Buffers = make([][]byte, 1)
@@ -933,7 +931,17 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 	remaining := 0
 	for d.running {
 		available := readUpTo(c, cfg.BatchSize-remaining, remaining == 0,
-			writeMsgs[remaining:], trafficTypes[remaining:])
+			readPkts[remaining:])
+		// Turn the packets into underlay messages that WriteBatch can send.
+		// Note: we could use a disposable array for that, but we'd have to
+		// redo the copies for the packets that we retry.
+		for i := remaining; i < remaining+available; i++ {
+			writeMsgs[i].Buffers[0] = readPkts[i].rawPacket
+			writeMsgs[i].Addr = nil
+			if readPkts[i].dstAddr != nil {
+				writeMsgs[i].Addr = readPkts[i].dstAddr
+			}
+		}
 		available += remaining
 		written, _ := conn.WriteBatch(writeMsgs[:available], 0)
 		if written < 0 {
@@ -948,11 +956,12 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 		writtenPkts := [ttMax][maxSizeClass]int{}
 		writtenBytes := [ttMax][maxSizeClass]int{}
 		for i := range writeMsgs[:written] {
-			tt := trafficTypes[i]
-			sc := classOfSize(len(writeMsgs[i].Buffers[0]))
+			s := len(readPkts[i].rawPacket)
+			sc := classOfSize(s)
+			tt := readPkts[i].trafficType
 			writtenPkts[tt][sc]++
-			writtenBytes[tt][sc] += len(writeMsgs[i].Buffers[0])
-			d.returnPacketToPool(writeMsgs[i].Buffers[0])
+			writtenBytes[tt][sc] += s
+			d.returnPacketToPool(readPkts[i].rawPacket)
 		}
 		for t := ttOther; t < ttMax; t++ {
 			for sc := sizeClass(0); sc < maxSizeClass; sc++ {
@@ -967,15 +976,21 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 
 		if written != available {
 			// Only one is dropped at this time. We'll retry the rest.
-			sc := classOfSize(len(writeMsgs[written].Buffers[0]))
+			sc := classOfSize(len(readPkts[written].rawPacket))
 			metrics[sc].DroppedPacketsInvalid.Inc()
-			d.returnPacketToPool(writeMsgs[written].Buffers[0])
+			d.returnPacketToPool(readPkts[written].rawPacket)
 			remaining = available - written - 1
+			// Shift the leftovers to the head of the buffers.
+			// Do not whipe originals, there's no garbage to be found there.
 			for i := 0; i < remaining; i++ {
+				// Can't just copy writeMsg[n] whole. Buffers is a slice.
+				// If we shallow copy, we end-up sharing the set of buffers
+				// between the elements of writeMsgs.
 				writeMsgs[i].Buffers[0] = writeMsgs[i+written+1].Buffers[0]
 				writeMsgs[i].Addr = writeMsgs[i+written+1].Addr
-				trafficTypes[i] = trafficTypes[i+written+1]
+				readPkts[i] = readPkts[i+written+1]
 			}
+
 		} else {
 			remaining = 0
 		}
@@ -983,23 +998,14 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 }
 
 func readUpTo(c <-chan packet,
-	n int, needsBlocking bool, msg []ipv4.Message, trafficTypes []trafficType) int {
-
-	assign := func(p packet, m *ipv4.Message) {
-		m.Buffers[0] = p.rawPacket
-		m.Addr = nil
-		if p.dstAddr != nil {
-			m.Addr = p.dstAddr
-		}
-	}
+	n int, needsBlocking bool, pkts []packet) int {
 	i := 0
 	if needsBlocking {
 		p, ok := <-c
 		if !ok {
 			return i
 		}
-		assign(p, &msg[i])
-		trafficTypes[i] = p.trafficType
+		pkts[i] = p
 		i++
 	}
 
@@ -1009,8 +1015,7 @@ func readUpTo(c <-chan packet,
 			if !ok {
 				return i
 			}
-			assign(p, &msg[i])
-			trafficTypes[i] = p.trafficType
+			pkts[i] = p
 		default:
 			return i
 		}
