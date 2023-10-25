@@ -2434,13 +2434,23 @@ type interfaceMetrics map[sizeClass]trafficMetrics
 // This is quicker than computing Log2 and serves the same purpose.
 type sizeClass uint8
 
-// maxSizeClass is the smallest NOT-supported sizeClass. This is enough because the largest
-// packet's size is <128k. Just in case that would change, larger packets are simply put in the
-// last class.
-const maxSizeClass sizeClass = 18
+// maxSizeClass is the smallest NOT-supported sizeClass. This must be
+// enough to support the largest possible packet size (defined by
+// bufSize). Since this must be a constant (to allow efficient fixed-sized
+// arrays), we have an init function to assert it's large enough for
+// bufSize. Just in case we do get packets larger than bufSize, they are
+// simply put in the last class.
+const maxSizeClass sizeClass = 15
+
+func init() {
+	if sizeClass(bits.Len32(uint32(bufSize))) > maxSizeClass - 1 {
+		panic("maxSizeClass is too small compared to bufSize.")	
+	}
+}
+
 
 // minSizeClass is the smallest sizeClass that we care about.
-// All packets of a smaller classes are conflated with this one. 
+// All smaller classes are conflated with this one. 
 const minSizeClass sizeClass = 6
 
 func classOfSize(pktSize int) sizeClass {
