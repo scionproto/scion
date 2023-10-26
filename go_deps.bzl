@@ -1410,8 +1410,8 @@ def go_deps():
             "gazelle:resolve go google.golang.org/genproto/googleapis/rpc/status @org_golang_google_genproto_googleapis_rpc//status",
         ],
         importpath = "google.golang.org/grpc",
-        sum = "h1:kfzNeI/klCGD2YPMUlaGNT3pxvYfga7smW3Vth8Zsiw=",
-        version = "v1.57.0",
+        sum = "h1:uw37EN34aMFFXB2QPW7Tq6tdTbind1GpRxw5aOX3a5k=",
+        version = "v1.57.2",
     )
     go_repository(
         name = "org_golang_google_grpc_examples",

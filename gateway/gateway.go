@@ -584,7 +584,10 @@ func (g *Gateway) Run(ctx context.Context) error {
 	if g.Metrics != nil {
 		paMetric = metrics.NewPromGauge(g.Metrics.PrefixesAdvertised)
 	}
-	discoveryServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())
+	discoveryServer := grpc.NewServer(
+		libgrpc.UnaryServerInterceptor(),
+		libgrpc.DefaultMaxConcurrentStreams(),
+	)
 	gatewaypb.RegisterIPPrefixesServiceServer(
 		discoveryServer,
 		controlgrpc.IPPrefixServer{

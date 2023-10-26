@@ -315,8 +315,12 @@ func realMain(ctx context.Context) error {
 	quicServer := grpc.NewServer(
 		grpc.Creds(libgrpc.PassThroughCredentials{}),
 		libgrpc.UnaryServerInterceptor(),
+		libgrpc.DefaultMaxConcurrentStreams(),
 	)
-	tcpServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())
+	tcpServer := grpc.NewServer(
+		libgrpc.UnaryServerInterceptor(),
+		libgrpc.DefaultMaxConcurrentStreams(),
+	)
 
 	// Register trust material related handlers.
 	trustServer := &cstrustgrpc.MaterialServer{

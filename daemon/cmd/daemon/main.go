@@ -251,7 +251,10 @@ func realMain(ctx context.Context) error {
 		}}
 	}
 
-	server := grpc.NewServer(libgrpc.UnaryServerInterceptor())
+	server := grpc.NewServer(
+		libgrpc.UnaryServerInterceptor(),
+		libgrpc.DefaultMaxConcurrentStreams(),
+	)
 	sdpb.RegisterDaemonServiceServer(server, daemon.NewServer(
 		daemon.ServerConfig{
 			IA:       topo.IA(),
