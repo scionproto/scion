@@ -25,11 +25,8 @@ import (
 	"hash"
 	"hash/fnv"
 	"math/big"
-	"math/bits"
 	"net"
 	"net/netip"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -42,7 +39,6 @@ import (
 	"github.com/scionproto/scion/pkg/drkey"
 	libepic "github.com/scionproto/scion/pkg/experimental/epic"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/private/processmetrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/scrypto"
@@ -958,13 +954,13 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 		// simpler staging data structure.
 		writtenPkts := [ttMax][maxSizeClass]int{}
 		writtenBytes := [ttMax][maxSizeClass]int{}
-		for i := range writeMsgs[:written] {
-			s := len(readPkts[i].rawPacket)
+		for _, p := range readPkts[:written] {
+			s := len(p.rawPacket)
 			sc := classOfSize(s)
-			tt := readPkts[i].trafficType
+			tt := p.trafficType
 			writtenPkts[tt][sc]++
 			writtenBytes[tt][sc] += s
-			d.returnPacketToPool(readPkts[i].rawPacket)
+			d.returnPacketToPool(p.rawPacket)
 		}
 		for t := ttOther; t < ttMax; t++ {
 			for sc := sizeClass(0); sc < maxSizeClass; sc++ {
@@ -994,8 +990,7 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 	}
 }
 
-func readUpTo(c <-chan packet,
-	n int, needsBlocking bool, pkts []packet) int {
+func readUpTo(c <-chan packet, n int, needsBlocking bool, pkts []packet) int {
 	i := 0
 	if needsBlocking {
 		p, ok := <-c
@@ -1072,23 +1067,22 @@ func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 	}
 
 	pld := p.lastLayer.LayerPayload()
-	minResult := processResult{}
 
 	pathType := p.scionLayer.PathType
 	switch pathType {
 	case empty.PathType:
 		if p.lastLayer.NextLayerType() == layers.LayerTypeBFD {
-			return minResult, p.processIntraBFD(pld)
+			return processResult{}, p.processIntraBFD(pld)
 		}
-		return minResult, serrors.WithCtx(unsupportedPathTypeNextHeader,
+		return processResult{}, serrors.WithCtx(unsupportedPathTypeNextHeader,
 			"type", pathType, "header", nextHdr(p.lastLayer))
 	case onehop.PathType:
 		if p.lastLayer.NextLayerType() == layers.LayerTypeBFD {
 			ohp, ok := p.scionLayer.Path.(*onehop.Path)
 			if !ok {
-				return minResult, malformedPath
+				return processResult{}, malformedPath
 			}
-			return minResult, p.processInterBFD(ohp, pld)
+			return processResult{}, p.processInterBFD(ohp, pld)
 		}
 		return p.processOHP()
 	case scion.PathType:
@@ -1096,7 +1090,7 @@ func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 	case epic.PathType:
 		return p.processEPIC()
 	default:
-		return minResult, serrors.WithCtx(unsupportedPathType, "type", pathType)
+		return processResult{}, serrors.WithCtx(unsupportedPathType, "type", pathType)
 	}
 }
 
@@ -2415,233 +2409,5 @@ func nextHdr(layer gopacket.DecodingLayer) slayers.L4ProtocolType {
 		return v.NextHdr
 	default:
 		return slayers.L4None
-	}
-}
-
-// interfaceMetrics is the set of metrics that are relevant for one given interface.
-// It is a map that associates each (traffic-type, size-class) pair
-// with the set of metrics belonging to that interface that have these label values.
-// This set of metrics is itself a trafficMetric structure.
-// Explanation:
-// Metrics are labeled by interface, local-as, neighbor-as, packet size, and (for output
-// metrics only) traffic type.
-// Instances are grouped in a hierarchical manner for efficient access by the using code.
-// forwardingMetrics is a map of interface to interfaceMetrics.
-// To access a specific InputPacketsTotal counter, one refers to:
-// dataplane.forwardingMetrics[interface][size-class].
-// trafficMetrics.Output is a map of traffic type to outputMetrics.
-type interfaceMetrics map[sizeClass]trafficMetrics
-
-// The number of bits needed to represent some given size.
-// This is quicker than computing Log2 and serves the same purpose.
-type sizeClass uint8
-
-// maxSizeClass is the smallest NOT-supported sizeClass. This must be
-// enough to support the largest possible packet size (defined by
-// bufSize). Since this must be a constant (to allow efficient fixed-sized
-// arrays), we have an init function to assert it's large enough for
-// bufSize. Just in case we do get packets larger than bufSize, they are
-// simply put in the last class.
-const maxSizeClass sizeClass = 15
-
-func init() {
-	if sizeClass(bits.Len32(uint32(bufSize))) > maxSizeClass-1 {
-		panic("maxSizeClass is too small compared to bufSize.")
-	}
-}
-
-// minSizeClass is the smallest sizeClass that we care about.
-// All smaller classes are conflated with this one.
-const minSizeClass sizeClass = 6
-
-func classOfSize(pktSize int) sizeClass {
-	cs := sizeClass(bits.Len32(uint32(pktSize)))
-	if cs > maxSizeClass-1 {
-		return maxSizeClass - 1
-	}
-	if cs <= minSizeClass {
-		return minSizeClass
-	}
-	return cs
-}
-
-// Returns a human-friendly representation of the given size class.
-// Avoid bracket notation to make the values possibly easier to use
-// in monitoring queries.
-func (sc sizeClass) String() string {
-	return strings.Join(
-		[]string{strconv.Itoa((1 << sc) >> 1), strconv.Itoa(1<<sc - 1)},
-		"_",
-	)
-}
-
-// trafficMetrics groups all the metrics instances that all share the same interface AND
-// sizeClass label values (but have different names - i.e. they count different things).
-type trafficMetrics struct {
-	InputBytesTotal             prometheus.Counter
-	InputPacketsTotal           prometheus.Counter
-	DroppedPacketsInvalid       prometheus.Counter
-	DroppedPacketsBusyProcessor prometheus.Counter
-	DroppedPacketsBusyForwarder prometheus.Counter
-	DroppedPacketsBusySlowPath  prometheus.Counter
-	ProcessedPackets            prometheus.Counter
-	Output                      map[trafficType]outputMetrics
-}
-
-// trafficType labels traffic as being of either of the following types:
-// in, out, inTransit, outTransit, brTransit.
-// inTransit or outTransit means that traffic is crossing the local AS via two routers.
-// If the router being observed is the one receiving the packet from the outside,
-// then the type is inTransit; else it is outTransit.
-// brTransit means that traffic is crossing only the observed router.
-// Non-scion traffic or somehow malformed traffic has type Other.
-type trafficType uint8
-
-const (
-	ttOther trafficType = iota
-	ttIn
-	ttOut
-	ttInTransit
-	ttOutTransit
-	ttBrTransit
-	ttMax
-)
-
-// Returns a human-friendly representation of the given traffic type.
-func (t trafficType) String() string {
-	switch t {
-	case ttIn:
-		return "in"
-	case ttOut:
-		return "out"
-	case ttInTransit:
-		return "inTransit"
-	case ttOutTransit:
-		return "outTransit"
-	case ttBrTransit:
-		return "brTransit"
-	}
-	return "other"
-}
-
-// outputMetrics groups all the metrics about traffic that has reached the output stage.
-// Metrics instances in each of these all have the same interface AND sizeClass AND
-// trafficType label values.
-type outputMetrics struct {
-	OutputBytesTotal   prometheus.Counter
-	OutputPacketsTotal prometheus.Counter
-}
-
-// initMetrics initializes the metrics related to packet forwarding. The
-// counters are already instantiated for all the relevant interfaces so this
-// will not have to be repeated during packet forwarding.
-func (d *DataPlane) initMetrics() {
-	d.forwardingMetrics = make(map[uint16]interfaceMetrics)
-	labels := interfaceToMetricLabels(0, d.localIA, d.neighborIAs)
-	d.forwardingMetrics[0] = initInterfaceMetrics(d.Metrics, labels)
-	for id := range d.external {
-		if _, notOwned := d.internalNextHops[id]; notOwned {
-			continue
-		}
-		labels = interfaceToMetricLabels(id, d.localIA, d.neighborIAs)
-		d.forwardingMetrics[id] = initInterfaceMetrics(d.Metrics, labels)
-	}
-
-	// Start our custom /proc/pid/stat collector to export iowait time and
-	// (in the future) other process-wide metrics that prometheus does not.
-	err := processmetrics.Init()
-
-	// we can live without these metrics. Just log the error.
-	if err != nil {
-		log.Error("Could not initialize processmetrics", "err", err)
-	}
-}
-
-func initInterfaceMetrics(metrics *Metrics, labels prometheus.Labels) interfaceMetrics {
-	m := interfaceMetrics{}
-	for sc := minSizeClass; sc < maxSizeClass; sc++ {
-		scLabels := prometheus.Labels{"sizeclass": sc.String()}
-		m[sc] = initTrafficMetrics(metrics, labels, scLabels)
-	}
-	return m
-}
-
-func initTrafficMetrics(metrics *Metrics,
-	labels prometheus.Labels, scLabels prometheus.Labels) trafficMetrics {
-	c := trafficMetrics{
-		InputBytesTotal:   metrics.InputBytesTotal.MustCurryWith(labels).With(scLabels),
-		InputPacketsTotal: metrics.InputPacketsTotal.MustCurryWith(labels).With(scLabels),
-		ProcessedPackets:  metrics.ProcessedPackets.MustCurryWith(labels).With(scLabels),
-		Output:            make(map[trafficType]outputMetrics),
-	}
-
-	// Output metrics have the extra "trafficType" label.
-	for t := ttOther; t < ttMax; t++ {
-		ttLabels := prometheus.Labels{"type": t.String()}
-		c.Output[t] = initOutputMetrics(metrics, labels, scLabels, ttLabels)
-	}
-
-	// Dropped metrics have the extra "Reason" label.
-	reasonMap := map[string]string{}
-
-	reasonMap["reason"] = "invalid"
-	c.DroppedPacketsInvalid =
-		metrics.DroppedPacketsTotal.MustCurryWith(labels).MustCurryWith(scLabels).With(reasonMap)
-
-	reasonMap["reason"] = "busy_processor"
-	c.DroppedPacketsBusyProcessor =
-		metrics.DroppedPacketsTotal.MustCurryWith(labels).MustCurryWith(scLabels).With(reasonMap)
-
-	reasonMap["reason"] = "busy_forwarder"
-	c.DroppedPacketsBusyForwarder =
-		metrics.DroppedPacketsTotal.MustCurryWith(labels).MustCurryWith(scLabels).With(reasonMap)
-
-	reasonMap["reason"] = "busy_slow_path"
-	c.DroppedPacketsBusySlowPath =
-		metrics.DroppedPacketsTotal.MustCurryWith(labels).MustCurryWith(scLabels).With(reasonMap)
-
-	c.InputBytesTotal.Add(0)
-	c.InputPacketsTotal.Add(0)
-	c.DroppedPacketsInvalid.Add(0)
-	c.DroppedPacketsBusyProcessor.Add(0)
-	c.DroppedPacketsBusyForwarder.Add(0)
-	c.DroppedPacketsBusySlowPath.Add(0)
-	c.ProcessedPackets.Add(0)
-	return c
-}
-
-func initOutputMetrics(metrics *Metrics, labels prometheus.Labels,
-	scLabels prometheus.Labels, ttLabels prometheus.Labels) outputMetrics {
-	om := outputMetrics{}
-	om.OutputBytesTotal =
-		metrics.OutputBytesTotal.MustCurryWith(labels).MustCurryWith(scLabels).With(ttLabels)
-	om.OutputPacketsTotal =
-		metrics.OutputPacketsTotal.MustCurryWith(labels).MustCurryWith(scLabels).With(ttLabels)
-	om.OutputBytesTotal.Add(0)
-	om.OutputPacketsTotal.Add(0)
-	return om
-}
-
-func interfaceToMetricLabels(id uint16, localIA addr.IA,
-	neighbors map[uint16]addr.IA) prometheus.Labels {
-
-	if id == 0 {
-		return prometheus.Labels{
-			"isd_as":          localIA.String(),
-			"interface":       "internal",
-			"neighbor_isd_as": localIA.String(),
-		}
-	}
-	return prometheus.Labels{
-		"isd_as":          localIA.String(),
-		"interface":       strconv.FormatUint(uint64(id), 10),
-		"neighbor_isd_as": neighbors[id].String(),
-	}
-}
-
-func serviceMetricLabels(localIA addr.IA, svc addr.SVC) prometheus.Labels {
-	return prometheus.Labels{
-		"isd_as":  localIA.String(),
-		"service": svc.BaseString(),
 	}
 }
