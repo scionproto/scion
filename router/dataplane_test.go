@@ -1482,7 +1482,6 @@ func TestProcessPkt(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			dp := tc.prepareDP(ctrl)
-			router.InitDPMetrics(dp)
 			input, want := tc.mockMsg(false), tc.mockMsg(true)
 			result, err := dp.ProcessPkt(tc.srcInterface, input)
 			tc.assertFunc(t, err)

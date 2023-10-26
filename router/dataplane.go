@@ -39,6 +39,7 @@ import (
 	"github.com/scionproto/scion/pkg/drkey"
 	libepic "github.com/scionproto/scion/pkg/experimental/epic"
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/private/processmetrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/scrypto"
@@ -396,7 +397,7 @@ func (d *DataPlane) AddSvc(svc addr.SVC, a *net.UDPAddr) error {
 	}
 	d.svc.AddSvc(svc, a)
 	if d.Metrics != nil {
-		labels := serviceMetricLabels(d.localIA, svc)
+		labels := serviceLabels(d.localIA, svc)
 		d.Metrics.ServiceInstanceChanges.With(labels).Add(1)
 		d.Metrics.ServiceInstanceCount.With(labels).Add(1)
 	}
@@ -415,7 +416,7 @@ func (d *DataPlane) DelSvc(svc addr.SVC, a *net.UDPAddr) error {
 	}
 	d.svc.DelSvc(svc, a)
 	if d.Metrics != nil {
-		labels := serviceMetricLabels(d.localIA, svc)
+		labels := serviceLabels(d.localIA, svc)
 		d.Metrics.ServiceInstanceChanges.With(labels).Add(1)
 		d.Metrics.ServiceInstanceCount.With(labels).Add(-1)
 	}
@@ -620,10 +621,6 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 
 	enqueueForProcessing := func(pkt ipv4.Message) {
 		srcAddr := pkt.Addr.(*net.UDPAddr)
-
-		// For non-broken packets, we defer the ingress-side metrics accounting
-		// until we have a chance to figure the traffic type.
-		// That's in runProcessor and processPkt.
 		size := pkt.N
 		sc := classOfSize(size)
 		metrics[sc].InputPacketsTotal.Inc()
@@ -924,21 +921,17 @@ func updateOutputMetrics(metrics interfaceMetrics, packets []packet) {
 		writtenBytes[tt][sc] += s
 	}
 	for t := ttOther; t < ttMax; t++ {
-		for sc := sizeClass(0); sc < maxSizeClass; sc++ {
+		for sc := minSizeClass; sc < maxSizeClass; sc++ {
 			if writtenPkts[t][sc] > 0 {
-				metrics[sc].Output[t].OutputPacketsTotal.Add(
-					float64(writtenPkts[t][sc]))
-				metrics[sc].Output[t].OutputBytesTotal.Add(
-					float64(writtenBytes[t][sc]))
+				metrics[sc].Output[t].OutputPacketsTotal.Add(float64(writtenPkts[t][sc]))
+				metrics[sc].Output[t].OutputBytesTotal.Add(float64(writtenBytes[t][sc]))
 			}
 		}
 	}
 }
 
-func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
-	cfg *RunConfig, c <-chan packet) {
+func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn, cfg *RunConfig, c <-chan packet) {
 
-	fmt.Println("Initialize forwarder for", "interface")
 	log.Debug("Initialize forwarder for", "interface", ifID)
 
 	// We use this somewhat like a ring buffer.
@@ -955,8 +948,7 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 
 	toWrite := 0
 	for d.running {
-		toWrite += readUpTo(c, cfg.BatchSize-toWrite, toWrite == 0,
-			pkts[toWrite:])
+		toWrite += readUpTo(c, cfg.BatchSize-toWrite, toWrite == 0, pkts[toWrite:])
 
 		// Turn the packets into underlay messages that WriteBatch can send.
 		for i, p := range pkts[:toWrite] {
@@ -2415,5 +2407,28 @@ func nextHdr(layer gopacket.DecodingLayer) slayers.L4ProtocolType {
 		return v.NextHdr
 	default:
 		return slayers.L4None
+	}
+}
+
+// initMetrics initializes the metrics related to packet forwarding. The counters are already
+// instantiated for all the relevant interfaces so this will not have to be repeated during packet
+// forwarding.
+func (d *DataPlane) initMetrics() {
+	d.forwardingMetrics = make(map[uint16]interfaceMetrics)
+	d.forwardingMetrics[0] = newInterfaceMetrics(d.Metrics, 0, d.localIA, d.neighborIAs)
+	for id := range d.external {
+		if _, notOwned := d.internalNextHops[id]; notOwned {
+			continue
+		}
+		d.forwardingMetrics[id] = newInterfaceMetrics(d.Metrics, id, d.localIA, d.neighborIAs)
+	}
+
+	// Start our custom /proc/pid/stat collector to export iowait time and (in the future) other
+	// process-wide metrics that prometheus does not.
+	err := processmetrics.Init()
+
+	// we can live without these metrics. Just log the error.
+	if err != nil {
+		log.Error("Could not initialize processmetrics", "err", err)
 	}
 }

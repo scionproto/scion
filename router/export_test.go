@@ -63,11 +63,8 @@ func NewDP(
 	if err := dp.SetKey(key); err != nil {
 		panic(err)
 	}
-	return dp
-}
-
-func InitDPMetrics(dp *DataPlane) {
 	dp.initMetrics()
+	return dp
 }
 
 func (d *DataPlane) FakeStart() {
