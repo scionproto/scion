@@ -195,7 +195,7 @@ type sizeClass uint8
 const maxSizeClass sizeClass = 15
 
 // This will failto compile if bufSize cannot fit in (maxSizeClass - 1) bits.
-const _ = uint(1 << (maxSizeClass - 1) - 1 - bufSize)
+const _ = uint(1<<(maxSizeClass-1) - 1 - bufSize)
 
 // minSizeClass is the smallest sizeClass that we care about.
 // All smaller classes are conflated with this one.
@@ -262,11 +262,11 @@ func (t trafficType) String() string {
 	case ttOut:
 		return "out"
 	case ttInTransit:
-		return "inTransit"
+		return "in_transit"
 	case ttOutTransit:
-		return "outTransit"
+		return "out_transit"
 	case ttBrTransit:
-		return "brTransit"
+		return "br_transit"
 	}
 	return "other"
 }
