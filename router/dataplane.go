@@ -919,9 +919,13 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 
 	fmt.Println("Initialize forwarder for", "interface")
 	log.Debug("Initialize forwarder for", "interface", ifID)
-	readPkts := make([]packet, cfg.BatchSize)
-	writeMsgs := make(underlayconn.Messages, cfg.BatchSize)
 
+	// We use this somewhat like a ring buffer.
+	readPkts := make([]packet, cfg.BatchSize)
+
+	// We use this as a temporary buffer, but allocate it just once
+	// to save on garbage handling.
+	writeMsgs := make(underlayconn.Messages, cfg.BatchSize)
 	for i := range writeMsgs {
 		writeMsgs[i].Buffers = make([][]byte, 1)
 	}
@@ -932,17 +936,16 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 	for d.running {
 		available := readUpTo(c, cfg.BatchSize-remaining, remaining == 0,
 			readPkts[remaining:])
+		available += remaining
+
 		// Turn the packets into underlay messages that WriteBatch can send.
-		// Note: we could use a disposable array for that, but we'd have to
-		// redo the copies for the packets that we retry.
-		for i := remaining; i < remaining+available; i++ {
-			writeMsgs[i].Buffers[0] = readPkts[i].rawPacket
+		for i, p := range readPkts[:available] {
+			writeMsgs[i].Buffers[0] = p.rawPacket
 			writeMsgs[i].Addr = nil
-			if readPkts[i].dstAddr != nil {
-				writeMsgs[i].Addr = readPkts[i].dstAddr
+			if p.dstAddr != nil {
+				writeMsgs[i].Addr = p.dstAddr
 			}
 		}
-		available += remaining
 		written, _ := conn.WriteBatch(writeMsgs[:available], 0)
 		if written < 0 {
 			// WriteBatch returns -1 on error, we just consider this as
@@ -981,13 +984,7 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
 			d.returnPacketToPool(readPkts[written].rawPacket)
 			remaining = available - written - 1
 			// Shift the leftovers to the head of the buffers.
-			// Do not whipe originals, there's no garbage to be found there.
 			for i := 0; i < remaining; i++ {
-				// Can't just copy writeMsg[n] whole. Buffers is a slice.
-				// If we shallow copy, we end-up sharing the set of buffers
-				// between the elements of writeMsgs.
-				writeMsgs[i].Buffers[0] = writeMsgs[i+written+1].Buffers[0]
-				writeMsgs[i].Addr = writeMsgs[i+written+1].Addr
 				readPkts[i] = readPkts[i+written+1]
 			}
 
