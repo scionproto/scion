@@ -29,6 +29,14 @@ from acceptance.common import base, docker, log
 
 logger = logging.getLogger(__name__)
 
+# This test relies ona specific topology router_bm.topo.
+# This topology is 1 core AS with two children and one core AS with none like so:
+#
+#       CoreAS-A      CoreAS-B
+#    BR-A1   BR-A2 ---- BR-B
+#    |   |   
+# BR-C   BR-D
+# AS-C   AS-D
 
 class Test(base.TestTopogen):
     """
@@ -46,7 +54,12 @@ class Test(base.TestTopogen):
         # Give some time for the topology to start.
         time.sleep(10)
 
-        logger.info("==> Starting load")
+        # Start as-transiting load. With the router_bm topology
+        
+        # The subset noncore#nonlocalcore gives us outgoing traffic at each
+        # child, incoming traffic at BR-B, AS-transit-in traffic at BR-A1,
+        # and AS-transit-out traffic at BR-A2. No traffic mix anywhere.
+        logger.info("==> Starting load no transit")
         loadtest = self.get_executable("end2end_integration")
         loadtest[
             "-d",
@@ -56,9 +69,10 @@ class Test(base.TestTopogen):
             "-attempts", 5000,
             "-parallelism", 100,
             "-traces=false",
+            "-subset=noncore#localcore"
         ].run_fg()
 
-        logger.info('==> Collecting performance metrics...')
+        logger.info('==> Collecting in/out/as-transit performance metrics...')
 
         # Very dumb query for now. Will make right later, when good metrics become available.
         conn = HTTPConnection("localhost:9090")
@@ -78,9 +92,46 @@ class Test(base.TestTopogen):
             print(f'value: {val}')
             print(f'timestamp: {ts}')
 
+        # Start br-transiting load.
+        # The subset noncore#noncore gives us a mix of in and out traffic at
+        # the childrem and pure BR-transit traffic at BR-A1.
+        logger.info("==> Starting load no transit")
+        loadtest = self.get_executable("end2end_integration")
+        loadtest[
+            "-d",
+            "-outDir", self.artifacts,
+            "-name", "router_benchmark",
+            "-game", "packetflood",
+            "-attempts", 5000,
+            "-parallelism", 100,
+            "-traces=false",
+            "-subset=noncore#localcore"
+        ].run_fg()
+
+        logger.info('==> Collecting br-transit performance metrics...')
+
+        # Very dumb query for now. Will make right later, when good metrics become available.
+        conn = HTTPConnection("localhost:9090")
+        conn.request('GET', '/api/v1/query?query=rate(router_processed_pkts_total%5B1m%5D)')
+        resp = conn.getresponse()
+        if resp.status != 200:
+            raise RuntimeError(f'Unexpected response: {resp.status} {resp.reason}')
+
+        pld = json.loads(resp.read().decode('utf-8'))
+        results = pld['data']['result']
+        for result in results:
+            print("labels: {")
+            for label, value in result['metric'].items():
+                print(f'{label}={value},')
+            print("}")
+            ts, val = result['value']
+            print(f'value: {val}')
+            print(f'timestamp: {ts}')
+    
     def teardown(self):
         self.monitoring_dc("down")
         super().teardown()
-        
+
+
 if __name__ == '__main__':
     base.main(Test)

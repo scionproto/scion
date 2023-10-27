@@ -145,11 +145,17 @@ func validateFlags() {
 	log.Info("Flags", "game", game, "traces", traces, "timeout", timeout, "epic", epic, "remote", remote)
 }
 
-type server struct{}
+type server struct {
+	packetFloodGame bool
+	pongs           uint8 // chosen to overflow.
+}
 
 func (s server) run() {
 	log.Info("Starting server", "isd_as", integration.Local.IA)
 	defer log.Info("Finished server", "isd_as", integration.Local.IA)
+	if game == "packetflood" {
+		s.packetFloodGame = true
+	}
 
 	sdConn := integration.SDConn()
 	defer sdConn.Close()
@@ -234,6 +240,15 @@ func (s server) handlePing(conn snet.PacketConn) error {
 			"destination", p.Destination,
 			"data", pld,
 		))
+	}
+
+	// In the packetflood game, we respond to ~0.4% of the pings. Just enough
+	// to prove that some pings were received, but not enough to distort
+	// performance data by mixing in traffic types.
+	if s.packetFloodGame {
+		if s.pongs++; s.pongs == 0 {
+			return nil
+		}
 	}
 	log.Info(fmt.Sprintf("Ping received from %s, sending pong.", p.Source))
 	raw, err := json.Marshal(Pong{
@@ -327,7 +342,7 @@ func (c *client) run() int {
 
 		// We return a "number of failures". So 0 means everything is fine.
 		ping_result := integration.RepeatUntilFail("End2End", c.blindPing)
-		pong_result := <- pong_out
+		pong_result := <-pong_out
 		return ping_result + pong_result
 	default:
 		return 0
@@ -368,7 +383,7 @@ func (c *client) attemptRequest(n int) bool {
 			return err
 		}
 	}
-	
+
 	// Send ping
 	if err := c.ping(ctx, n, path, true); err != nil {
 		logger.Error("Could not send packet", "err", withTag(err))
@@ -409,14 +424,14 @@ func (c *client) blindPing(n int) bool {
 		return true
 	}
 
-	withTag := func (err error) error {
+	withTag := func(err error) error {
 		return err
 	}
-	
+
 	if traces {
 		span, ctx = tracing.StartSpanFromCtx(ctx, "attempt.ping")
 		defer span.Finish()
-		withTag = func (err error) error {
+		withTag = func(err error) error {
 			tracing.Error(span, err)
 			return err
 		}
