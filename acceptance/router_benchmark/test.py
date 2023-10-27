@@ -39,7 +39,7 @@ class Test(base.TestTopogen):
     def setup(self):
         super().setup()
         self.monitoring_dc = docker.Compose(project="monitoring",
-                                       compose_file=self.artifacts / "gen/monitoring-dc.yml")
+                                            compose_file=self.artifacts / "gen/monitoring-dc.yml")
         self.monitoring_dc("up", "-d")
 
     def _run(self):
@@ -47,8 +47,16 @@ class Test(base.TestTopogen):
         time.sleep(10)
 
         logger.info("==> Starting load")
-        loadtest = self.get_executable("router_loadtest")
-        loadtest["-d", "-outDir", self.artifacts].run_fg()
+        loadtest = self.get_executable("end2end_integration")
+        loadtest[
+            "-d",
+            "-outDir", self.artifacts,
+            "-name", "router_benchmark",
+            "-game", "packetflood",
+            "-attempts", 5000,
+            "-parallelism", 100,
+            "-traces=false",
+        ].run_fg()
 
         logger.info('==> Collecting performance metrics...')
 

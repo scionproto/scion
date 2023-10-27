@@ -4,9 +4,9 @@ topogen_test(
     name = "test",
     src = "test.py",
     args = [
-        "--executable=router_loadtest:$(location //tools/router_loadtest)",
+        "--executable=end2end_integration:$(location //tools/end2end_integration)",
     ],
-    data = ["//tools/router_loadtest"],
-    homedir = "$(rootpath //tools/router_loadtest)",
-    topo = "//topology:tiny4.topo",
+    data = ["//tools/end2end_integration"],
+    homedir = "$(rootpath //tools/end2end_integration)",
+    topo = "//topology:router_bm.topo",
 )

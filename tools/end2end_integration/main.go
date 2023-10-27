@@ -43,6 +43,8 @@ var (
 	cmd         string
 	features    string
 	epic        bool
+	traces      bool
+	game        string
 )
 
 func getCmd() (string, bool) {
@@ -74,11 +76,15 @@ func realMain() int {
 		"-timeout", timeout.String(),
 		"-local", integration.SrcAddrPattern + ":0",
 		"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
+		"-game", game,
 		fmt.Sprintf("-epic=%t", epic),
+		fmt.Sprintf("-traces=%t", traces),
 	}
 	serverArgs := []string{
 		"-mode", "server",
 		"-local", integration.DstAddrPattern + ":0",
+		"-game", game,
+		fmt.Sprintf("-traces=%t", traces),
 	}
 	if len(features) != 0 {
 		clientArgs = append(clientArgs, "--features", features)
@@ -111,11 +117,14 @@ func addFlags() {
 		"The name of the test that is running (default: end2end_integration)")
 	flag.Var(timeout, "timeout", "The timeout for each attempt")
 	flag.StringVar(&subset, "subset", "all", "Subset of pairs to run (all|core#core|"+
-		"noncore#localcore|noncore#core|noncore#noncore)")
+		"noncore#localcore|noncore#core|noncore#noncore|noncore#nonlocalcore|core#nonlocalcore)")
 	flag.IntVar(&parallelism, "parallelism", 1, "How many end2end tests run in parallel.")
 	flag.StringVar(&features, "features", "",
 		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
 	flag.BoolVar(&epic, "epic", false, "Enable EPIC.")
+	flag.BoolVar(&traces, "traces", true, "Enable Jaeger traces.")
+	flag.StringVar(&game, "game", "pingpong",
+		"The game that the clients and servers shall play (pingpong|packetflood)")
 }
 
 // runTests runs the end2end tests for all pairs. In case of an error the
@@ -279,6 +288,8 @@ func clientTemplate(progressSock string) integration.Cmd {
 			"-timeout", timeout.String(),
 			"-local", integration.SrcAddrPattern + ":0",
 			"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
+			"-game", game,
+			fmt.Sprintf("-traces=%t", traces),
 			fmt.Sprintf("-epic=%t", epic),
 		},
 	}
@@ -325,11 +336,23 @@ func filter(
 			}
 		}
 	}
+
+	// Selection based on role.
+	// Returns all src:dst pairs matching role1#role2 such that src has role1
+	// and dst has role2 (and NOT the other way around).
+	// This implies that IFF role1 == role2, then h1:h2 pairs are mirrored with h2:h1, h2:h2 and
+	// h1:h1.
+	// localcore/nonlocalcore are only for dst and are relative to src.
+	// Remarkable consequences of the above:
+	// For core#localcore, the result is always src:src.
+	// For core#nonlocalcore the result is like core#core, except src:src can't be in the list.
 	for _, pair := range pairs {
 		filter := !contains(ases, src != "noncore", pair.Src.IA)
 		filter = filter || !contains(ases, dst != "noncore", pair.Dst.IA)
 		if dst == "localcore" {
 			filter = filter || pair.Src.IA.ISD() != pair.Dst.IA.ISD()
+		} else if dst == "nonlocalcore" {
+			filter = filter || pair.Src.IA.ISD() == pair.Dst.IA.ISD()
 		}
 		if !filter {
 			res = append(res, pair)
