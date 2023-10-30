@@ -165,8 +165,8 @@ func StreamClientInterceptor() grpc.DialOption {
 // grpc-go prohibits more than MaxConcurrentStreams handlers from running at once, and setting this
 // option so prevents easy resource exhaustion attacks from malicious clients.
 func DefaultMaxConcurrentStreams() grpc.ServerOption {
-	// FIXME this number is pulled out of thin air.
-	return grpc.MaxConcurrentStreams(16)
+	// A very generic default value; this is the default that nginx appears to use.
+	return grpc.MaxConcurrentStreams(128)
 }
 
 // UnaryServerInterceptor constructs the default unary RPC server-side interceptor for
