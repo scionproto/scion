@@ -199,7 +199,6 @@ pkg_tar(
         "//tools/end2end",
         "//tools/end2end_integration",
         "//tools/pktgen/cmd/pktgen",
-        "//tools/router_loadtest",
         "//tools/scion_integration",
         "//tools/udpproxy",
     ],

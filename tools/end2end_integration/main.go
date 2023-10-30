@@ -116,8 +116,9 @@ func addFlags() {
 	flag.StringVar(&name, "name", "end2end_integration",
 		"The name of the test that is running (default: end2end_integration)")
 	flag.Var(timeout, "timeout", "The timeout for each attempt")
-	flag.StringVar(&subset, "subset", "all", "Subset of pairs to run (all|core#core|"+
-		"noncore#localcore|noncore#core|noncore#noncore|noncore#nonlocalcore|core#nonlocalcore)")
+	flag.StringVar(&subset, "subset", "all", "Subset of pairs to run (all|<src>#<dst>[#<local>] "+
+		" where <src>=[<AS>|core|noncore] dst=[<AS>|core|noncore] and "+
+		" <local> is [localAS|remoteAS|localISD|remoteISD])")
 	flag.IntVar(&parallelism, "parallelism", 1, "How many end2end tests run in parallel.")
 	flag.StringVar(&features, "features", "",
 		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
@@ -306,21 +307,33 @@ func clientTemplate(progressSock string) integration.Cmd {
 }
 
 // getPairs returns the pairs to test according to the specified subset.
+// The subset can be based on role, as follows:
+// role1#role2[#local] selects all src:dst pairs matching  such that src has role1
+// and dst has role2 (and NOT the other way around). If local[ISD|AS]/remote[ISD|AS] is specified
+// then src and dst must/must-not be in the same ISD/AS
+//
+// This implies that IFF role1 == role2, then h1:h2 pairs are mirrored with h2:h1 and, unless
+// remote[ISD/AS] is specified, h2:h2 and h1:h1. Not all combinations yield something useful... caveat
+// emptor.
 func getPairs() ([]integration.IAPair, error) {
 	pairs := integration.IAPairs(integration.DispAddr)
 	if subset == "all" {
 		return pairs, nil
 	}
 	parts := strings.Split(subset, "#")
-	if len(parts) != 2 {
+	switch len(parts) {
+	case 2:
+		return filter(parts[0], parts[1], "", pairs, integration.LoadedASList), nil
+	case 3:
+		return filter(parts[0], parts[1], parts[2], pairs, integration.LoadedASList), nil
+	default:
 		return nil, serrors.New("Invalid subset", "subset", subset)
 	}
-	return filter(parts[0], parts[1], pairs, integration.LoadedASList), nil
 }
 
 // filter returns the list of ASes that are part of the desired subset.
 func filter(
-	src, dst string,
+	src, dst, local string,
 	pairs []integration.IAPair,
 	ases *integration.ASList,
 ) []integration.IAPair {
@@ -338,21 +351,19 @@ func filter(
 	}
 
 	// Selection based on role.
-	// Returns all src:dst pairs matching role1#role2 such that src has role1
-	// and dst has role2 (and NOT the other way around).
-	// This implies that IFF role1 == role2, then h1:h2 pairs are mirrored with h2:h1, h2:h2 and
-	// h1:h1.
-	// localcore/nonlocalcore are only for dst and are relative to src.
-	// Remarkable consequences of the above:
-	// For core#localcore, the result is always src:src.
-	// For core#nonlocalcore the result is like core#core, except src:src can't be in the list.
 	for _, pair := range pairs {
 		filter := !contains(ases, src != "noncore", pair.Src.IA)
 		filter = filter || !contains(ases, dst != "noncore", pair.Dst.IA)
-		if dst == "localcore" {
+		switch local {
+		case "localISD":
 			filter = filter || pair.Src.IA.ISD() != pair.Dst.IA.ISD()
-		} else if dst == "nonlocalcore" {
+		case "remoteISD":
 			filter = filter || pair.Src.IA.ISD() == pair.Dst.IA.ISD()
+		case "localAS":
+			filter = filter || pair.Src.IA != pair.Dst.IA
+		case "remoteAS":
+			filter = filter || pair.Src.IA == pair.Dst.IA
+		default:
 		}
 		if !filter {
 			res = append(res, pair)

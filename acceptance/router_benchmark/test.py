@@ -63,13 +63,13 @@ class Test(base.TestTopogen):
         loadtest = self.get_executable("end2end_integration")
         loadtest[
             "-d",
+            "-traces=false",
             "-outDir", self.artifacts,
             "-name", "router_benchmark",
             "-game", "packetflood",
             "-attempts", 5000,
             "-parallelism", 100,
-            "-traces=false",
-            "-subset=noncore#localcore"
+            "-subset", "noncore#core#remoteISD"
         ].run_fg()
 
         logger.info('==> Collecting in/out/as-transit performance metrics...')
@@ -99,13 +99,13 @@ class Test(base.TestTopogen):
         loadtest = self.get_executable("end2end_integration")
         loadtest[
             "-d",
+            "-traces=false",
             "-outDir", self.artifacts,
             "-name", "router_benchmark",
             "-game", "packetflood",
             "-attempts", 5000,
             "-parallelism", 100,
-            "-traces=false",
-            "-subset=noncore#localcore"
+            "-subset", "noncore#noncore#remoteAS"
         ].run_fg()
 
         logger.info('==> Collecting br-transit performance metrics...')

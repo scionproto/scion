@@ -102,12 +102,15 @@ func realMain() int {
 	}
 	validateFlags()
 
-	closeTracer, err := integration.InitTracer("end2end-" + integration.Mode)
-	if err != nil {
-		log.Error("Tracer initialization failed", "err", err)
-		return 1
+	if traces {
+		closeTracer, err := integration.InitTracer("end2end-" + integration.Mode)
+		if err != nil {
+			log.Error("Tracer initialization failed", "err", err)
+			return 1
+		}
+		defer closeTracer()
 	}
-	defer closeTracer()
+
 	if integration.Mode == integration.ModeServer {
 		server{}.run()
 		return 0
@@ -287,10 +290,10 @@ func (s server) handlePing(conn snet.PacketConn) error {
 }
 
 type client struct {
-	conn   snet.PacketConn
-	port   uint16
-	sdConn daemon.Connector
-
+	conn       snet.PacketConn
+	port       uint16
+	sdConn     daemon.Connector
+	path       snet.Path
 	errorPaths map[snet.PathFingerprint]struct{}
 }
 
@@ -418,12 +421,16 @@ func (c *client) blindPing(n int) bool {
 	}
 	logger := log.FromCtx(ctx)
 
-	path, err := c.getRemote(ctx, n)
-	if err != nil {
-		logger.Error("Could not get remote", "err", err)
-		return true
+	if c.path == nil {
+		p, err := c.getRemote(ctx, n)
+		if err != nil {
+			logger.Error("Could not get remote", "err", err)
+			return true
+		}
+		c.path = p // struct fields cannot be assigned with :=
 	}
 
+	// Default closure if traces are off.
 	withTag := func(err error) error {
 		return err
 	}
@@ -438,7 +445,7 @@ func (c *client) blindPing(n int) bool {
 	}
 
 	// Send ping
-	if err := c.ping(ctx, n, path, false); err != nil {
+	if err := c.ping(ctx, n, c.path, false); err != nil {
 		logger.Error("Could not send packet", "err", withTag(err))
 		return true
 	}
