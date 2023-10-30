@@ -155,7 +155,8 @@
             "gazelle/language/go/gen_std_package_list": "",
             "gazelle/language/proto/gen/gen_known_imports": "",
             "gazelle/cmd/gazelle/gazelle": "",
-            "/com_github_bazelbuild_buildtools": ""
+            "/com_github_bazelbuild_buildtools": "",
+            "/io_bazel_rules_docker/": ""
         }
     },
     "reflectvaluecompare": {
