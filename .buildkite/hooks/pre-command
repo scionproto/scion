@@ -46,4 +46,4 @@ echo "~~~ Starting bazel remote cache proxy"
 docker compose --compatibility -f .buildkite/hooks/bazel-remote.yml up -d
 
 echo "~~~ Starting go module proxy"
-docker compose --compatibility -f .buildkite/hooks/go-module-proxy.yml -p up -d
+docker compose --compatibility -f .buildkite/hooks/go-module-proxy.yml up -d
