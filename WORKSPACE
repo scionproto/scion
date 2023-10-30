@@ -297,9 +297,3 @@ rules_openapi_dependencies()
 load("//rules_openapi:install.bzl", "rules_openapi_install_yarn_dependencies")
 
 rules_openapi_install_yarn_dependencies()
-
-# TODO(lukedirtwalker): can that be integrated in the rules_openapi_dependencies
-# call above somehow?
-load("@cgrindel_bazel_starlib//:deps.bzl", "bazel_starlib_dependencies")
-
-bazel_starlib_dependencies()
