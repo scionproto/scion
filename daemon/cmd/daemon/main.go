@@ -156,7 +156,7 @@ func realMain(ctx context.Context) error {
 		Inspector:          engine.Inspector,
 		Cache:              globalCfg.TrustEngine.Cache.New(),
 		CacheHits:          metrics.NewPromCounter(trustmetrics.CacheHitsTotal),
-		MaxCacheExpiration: globalCfg.TrustEngine.Cache.Expiration,
+		MaxCacheExpiration: globalCfg.TrustEngine.Cache.Expiration.Duration,
 	}
 	trcLoader := periodic.Start(periodic.Func{
 		Task: func(ctx context.Context) {
@@ -247,11 +247,14 @@ func realMain(ctx context.Context) error {
 			Engine:             engine,
 			Cache:              globalCfg.TrustEngine.Cache.New(),
 			CacheHits:          metrics.NewPromCounter(trustmetrics.CacheHitsTotal),
-			MaxCacheExpiration: globalCfg.TrustEngine.Cache.Expiration,
+			MaxCacheExpiration: globalCfg.TrustEngine.Cache.Expiration.Duration,
 		}}
 	}
 
-	server := grpc.NewServer(libgrpc.UnaryServerInterceptor())
+	server := grpc.NewServer(
+		libgrpc.UnaryServerInterceptor(),
+		libgrpc.DefaultMaxConcurrentStreams(),
+	)
 	sdpb.RegisterDaemonServiceServer(server, daemon.NewServer(
 		daemon.ServerConfig{
 			IA:       topo.IA(),

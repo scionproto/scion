@@ -271,7 +271,7 @@ func realMain(ctx context.Context) error {
 			DB: trustDB,
 		},
 		CacheHits:          cacheHits,
-		MaxCacheExpiration: globalCfg.TrustEngine.Cache.Expiration,
+		MaxCacheExpiration: globalCfg.TrustEngine.Cache.Expiration.Duration,
 		Cache:              trustengineCache,
 	}
 	provider := trust.FetchingProvider{
@@ -288,7 +288,7 @@ func realMain(ctx context.Context) error {
 		Verifier: trust.Verifier{
 			Engine:             provider,
 			CacheHits:          cacheHits,
-			MaxCacheExpiration: globalCfg.TrustEngine.Cache.Expiration,
+			MaxCacheExpiration: globalCfg.TrustEngine.Cache.Expiration.Duration,
 			Cache:              trustengineCache,
 		},
 	}
@@ -315,8 +315,12 @@ func realMain(ctx context.Context) error {
 	quicServer := grpc.NewServer(
 		grpc.Creds(libgrpc.PassThroughCredentials{}),
 		libgrpc.UnaryServerInterceptor(),
+		libgrpc.DefaultMaxConcurrentStreams(),
 	)
-	tcpServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())
+	tcpServer := grpc.NewServer(
+		libgrpc.UnaryServerInterceptor(),
+		libgrpc.DefaultMaxConcurrentStreams(),
+	)
 
 	// Register trust material related handlers.
 	trustServer := &cstrustgrpc.MaterialServer{
