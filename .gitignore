@@ -91,6 +91,11 @@ _build
 node_modules
 
 # gobra
+#######
 *.vpr
 tmp/
 logger.log
+
+# emacs backup files
+####################
+*~

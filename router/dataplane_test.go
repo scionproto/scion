@@ -576,6 +576,13 @@ func TestProcessPkt(t *testing.T) {
 	epicTS, err := libepic.CreateTimestamp(now, now)
 	require.NoError(t, err)
 
+	// ProcessPacket assumes some pre-conditions:
+	// * The ingress interface has to exist. This fake map is good for most test cases.
+	//   Others need a custom one.
+	// * InternalNextHops may not be nil. Empty is ok (sufficient unless testing AS transit).
+	fakeExternalInterfaces := map[uint16]router.BatchConn{1: nil, 2: nil, 3: nil}
+	fakeInternalNextHops := map[uint16]*net.UDPAddr{}
+
 	testCases := map[string]struct {
 		mockMsg         func(bool) *ipv4.Message
 		prepareDP       func(*gomock.Controller) *router.DataPlane
@@ -585,8 +592,10 @@ func TestProcessPkt(t *testing.T) {
 	}{
 		"inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+				return router.NewDP(fakeExternalInterfaces,
+					nil, mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops, nil,
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -596,7 +605,7 @@ func TestProcessPkt(t *testing.T) {
 				dpath.HopFields = []path.HopField{
 					{ConsIngress: 41, ConsEgress: 40},
 					{ConsIngress: 31, ConsEgress: 30},
-					{ConsIngress: 01, ConsEgress: 0},
+					{ConsIngress: 1, ConsEgress: 0},
 				}
 				dpath.Base.PathMeta.CurrHF = 2
 				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
@@ -620,7 +629,9 @@ func TestProcessPkt(t *testing.T) {
 					map[uint16]topology.LinkType{
 						1: topology.Child,
 					},
-					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil,
+					fakeInternalNextHops, nil,
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -650,13 +661,16 @@ func TestProcessPkt(t *testing.T) {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
 					map[uint16]router.BatchConn{
+						uint16(1): mock_router.NewMockBatchConn(ctrl),
 						uint16(2): mock_router.NewMockBatchConn(ctrl),
 					},
 					map[uint16]topology.LinkType{
 						1: topology.Parent,
 						2: topology.Child,
 					},
-					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil,
+					fakeInternalNextHops, nil,
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -685,12 +699,15 @@ func TestProcessPkt(t *testing.T) {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
 					map[uint16]router.BatchConn{
+						uint16(1): mock_router.NewMockBatchConn(ctrl),
 						uint16(2): mock_router.NewMockBatchConn(ctrl),
 					},
 					map[uint16]topology.LinkType{
 						2: topology.Parent,
 						1: topology.Child,
-					}, nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					}, nil,
+					fakeInternalNextHops, nil,
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -720,13 +737,16 @@ func TestProcessPkt(t *testing.T) {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
 					map[uint16]router.BatchConn{
+						uint16(1): mock_router.NewMockBatchConn(ctrl),
 						uint16(2): mock_router.NewMockBatchConn(ctrl),
 					},
 					map[uint16]topology.LinkType{
 						1: topology.Peer,
 						2: topology.Child,
 					},
-					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil,
+					fakeInternalNextHops, nil,
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				// Story: the packet just left segment 0 which ends at
@@ -792,12 +812,15 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(
 					map[uint16]router.BatchConn{
 						uint16(1): mock_router.NewMockBatchConn(ctrl),
+						uint16(2): mock_router.NewMockBatchConn(ctrl),
 					},
 					map[uint16]topology.LinkType{
 						1: topology.Peer,
 						2: topology.Child,
 					},
-					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil,
+					fakeInternalNextHops, nil,
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				// Story: the packet lands on the last (peering) hop of
@@ -870,13 +893,16 @@ func TestProcessPkt(t *testing.T) {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
 					map[uint16]router.BatchConn{
+						uint16(1): mock_router.NewMockBatchConn(ctrl),
 						uint16(2): mock_router.NewMockBatchConn(ctrl),
 					},
 					map[uint16]topology.LinkType{
 						1: topology.Peer,
 						2: topology.Child,
 					},
-					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil,
+					fakeInternalNextHops, nil,
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				// Story: the packet just left hop 1 (the first hop
@@ -946,12 +972,15 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(
 					map[uint16]router.BatchConn{
 						uint16(1): mock_router.NewMockBatchConn(ctrl),
+						uint16(2): mock_router.NewMockBatchConn(ctrl),
 					},
 					map[uint16]topology.LinkType{
 						1: topology.Peer,
 						2: topology.Child,
 					},
-					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					nil,
+					fakeInternalNextHops, nil,
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				// Story: the packet lands on the second (non-peering) hop of
@@ -1029,7 +1058,12 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"astransit direct": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil,
+				return router.NewDP(
+					map[uint16]router.BatchConn{
+						uint16(1): mock_router.NewMockBatchConn(ctrl),
+						// Interface 3 isn't in the external interfaces of this router
+						// another router has it.
+					},
 					map[uint16]topology.LinkType{
 						1: topology.Core,
 						3: topology.Core,
@@ -1055,12 +1089,15 @@ func TestProcessPkt(t *testing.T) {
 				return ret
 			},
 			srcInterface:    1,
-			egressInterface: 0,
+			egressInterface: 0, // Internal forward to the egress router
 			assertFunc:      assert.NoError,
 		},
 		"astransit xover": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil,
+				return router.NewDP(
+					map[uint16]router.BatchConn{
+						uint16(51): mock_router.NewMockBatchConn(ctrl),
+					},
 					map[uint16]topology.LinkType{
 						51: topology.Child,
 						3:  topology.Core,
@@ -1107,13 +1144,15 @@ func TestProcessPkt(t *testing.T) {
 				ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
 				return ret
 			},
-			srcInterface:    51,
-			egressInterface: 0,
+			srcInterface:    51, // == consEgress, bc non-consdir
+			egressInterface: 0,  // Cross-over. The egress happens in the next segment.
 			assertFunc:      assert.NoError,
 		},
 		"svc": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+				return router.NewDP(fakeExternalInterfaces,
+					nil, mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops,
 					map[addr.SVC][]*net.UDPAddr{
 						addr.SvcCS: {
 							&net.UDPAddr{
@@ -1150,7 +1189,7 @@ func TestProcessPkt(t *testing.T) {
 		"onehop inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					nil,
+					fakeExternalInterfaces,
 					nil,
 					mock_router.NewMockBatchConn(ctrl), nil,
 					map[addr.SVC][]*net.UDPAddr{
@@ -1213,7 +1252,9 @@ func TestProcessPkt(t *testing.T) {
 		"onehop inbound invalid src": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					nil, nil, nil, nil, nil,
+					fakeExternalInterfaces,
+					nil, nil,
+					fakeInternalNextHops, nil,
 					xtest.MustParseIA("1-ff00:0:110"),
 					map[uint16]addr.IA{
 						uint16(1): xtest.MustParseIA("1-ff00:0:111"),
@@ -1243,7 +1284,7 @@ func TestProcessPkt(t *testing.T) {
 				}
 				return toMsg(t, spkt, dpath)
 			},
-			srcInterface:    1,
+			srcInterface:    2,
 			egressInterface: 21,
 			assertFunc:      assert.Error,
 		},
@@ -1254,7 +1295,8 @@ func TestProcessPkt(t *testing.T) {
 						uint16(1): mock_router.NewMockBatchConn(ctrl),
 					},
 					nil,
-					mock_router.NewMockBatchConn(ctrl), nil,
+					mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops,
 					map[addr.SVC][]*net.UDPAddr{
 						addr.SvcCS: {&net.UDPAddr{
 							IP:   net.ParseIP("172.0.2.10"),
@@ -1314,8 +1356,8 @@ func TestProcessPkt(t *testing.T) {
 						uint16(2): mock_router.NewMockBatchConn(ctrl),
 					},
 					nil,
-					mock_router.NewMockBatchConn(ctrl), nil,
-					nil,
+					mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops, nil,
 					xtest.MustParseIA("1-ff00:0:110"),
 					map[uint16]addr.IA{
 						uint16(2): xtest.MustParseIA("1-ff00:0:111"),
@@ -1356,8 +1398,10 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"epic inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+				return router.NewDP(fakeExternalInterfaces,
+					nil, mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops, nil,
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, epicpath, dpath := prepEpicMsg(t,
@@ -1372,8 +1416,10 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"epic malformed path": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+				return router.NewDP(fakeExternalInterfaces,
+					nil, mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops, nil,
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, epicpath, dpath := prepEpicMsg(t,
@@ -1389,8 +1435,10 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"epic invalid timestamp": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+				return router.NewDP(fakeExternalInterfaces,
+					nil, mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops, nil,
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, epicpath, dpath := prepEpicMsg(t,
@@ -1408,8 +1456,10 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"epic invalid LHVF": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+				return router.NewDP(fakeExternalInterfaces,
+					nil, mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops, nil,
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, epicpath, dpath := prepEpicMsg(t,

@@ -58,10 +58,12 @@ func NewDP(
 		svc:              &services{m: svc},
 		internal:         internal,
 		internalIP:       netip.MustParseAddr("198.51.100.1"),
+		Metrics:          metrics,
 	}
 	if err := dp.SetKey(key); err != nil {
 		panic(err)
 	}
+	dp.initMetrics()
 	return dp
 }
 

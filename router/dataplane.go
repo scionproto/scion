@@ -27,7 +27,6 @@ import (
 	"math/big"
 	"net"
 	"net/netip"
-	"strconv"
 	"sync"
 	"time"
 
@@ -40,6 +39,7 @@ import (
 	"github.com/scionproto/scion/pkg/drkey"
 	libepic "github.com/scionproto/scion/pkg/experimental/epic"
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/private/processmetrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/scrypto"
@@ -110,7 +110,7 @@ type DataPlane struct {
 	mtx               sync.Mutex
 	running           bool
 	Metrics           *Metrics
-	forwardingMetrics map[uint16]forwardingMetrics
+	forwardingMetrics map[uint16]interfaceMetrics
 
 	ExperimentalSCMPAuthentication bool
 
@@ -397,7 +397,7 @@ func (d *DataPlane) AddSvc(svc addr.SVC, a *net.UDPAddr) error {
 	}
 	d.svc.AddSvc(svc, a)
 	if d.Metrics != nil {
-		labels := serviceMetricLabels(d.localIA, svc)
+		labels := serviceLabels(d.localIA, svc)
 		d.Metrics.ServiceInstanceChanges.With(labels).Add(1)
 		d.Metrics.ServiceInstanceCount.With(labels).Add(1)
 	}
@@ -416,7 +416,7 @@ func (d *DataPlane) DelSvc(svc addr.SVC, a *net.UDPAddr) error {
 	}
 	d.svc.DelSvc(svc, a)
 	if d.Metrics != nil {
-		labels := serviceMetricLabels(d.localIA, svc)
+		labels := serviceLabels(d.localIA, svc)
 		d.Metrics.ServiceInstanceChanges.With(labels).Add(1)
 		d.Metrics.ServiceInstanceCount.With(labels).Add(-1)
 	}
@@ -589,9 +589,13 @@ type packet struct {
 	// The address to where we are forwarding the packet.
 	// Will be set by the processing routine
 	dstAddr *net.UDPAddr
-	// The ingress on which this packet arrived. Will be
-	// set by the receiver
-	ingress   uint16
+	// The ingress on which this packet arrived. This is
+	// set by the receiver.
+	ingress uint16
+	// The type of traffic. This is used for metrics at the forwarding stage, but is most
+	// economically determined at the processing stage. So transport it here.
+	trafficType trafficType
+	// The goods
 	rawPacket []byte
 }
 
@@ -610,23 +614,24 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 	}
 
 	msgs := underlayconn.NewReadMessages(cfg.BatchSize)
-	numReusable := 0 // unused buffers from previous loop
-	metrics := d.forwardingMetrics[ifID]
+	numReusable := 0                     // unused buffers from previous loop
+	metrics := d.forwardingMetrics[ifID] // If receiver exists, fw metrics exist too.
 	flowIDBuffer := make([]byte, 3)
 	hasher := fnv.New32a()
 
 	enqueueForProcessing := func(pkt ipv4.Message) {
-		metrics.InputPacketsTotal.Inc()
-		metrics.InputBytesTotal.Add(float64(pkt.N))
-
 		srcAddr := pkt.Addr.(*net.UDPAddr)
+		size := pkt.N
+		sc := classOfSize(size)
+		metrics[sc].InputPacketsTotal.Inc()
+		metrics[sc].InputBytesTotal.Add(float64(size))
 
 		procID, err := computeProcID(pkt.Buffers[0],
 			cfg.NumProcessors, randomValue, flowIDBuffer, hasher)
 		if err != nil {
 			log.Debug("Error while computing procID", "err", err)
 			d.returnPacketToPool(pkt.Buffers[0])
-			metrics.DroppedPacketsInvalid.Inc()
+			metrics[sc].DroppedPacketsInvalid.Inc()
 			return
 		}
 		outPkt := packet{
@@ -638,7 +643,7 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 		case procQs[procID] <- outPkt:
 		default:
 			d.returnPacketToPool(pkt.Buffers[0])
-			metrics.DroppedPacketsBusyProcessor.Inc()
+			metrics[sc].DroppedPacketsBusyProcessor.Inc()
 		}
 	}
 
@@ -699,9 +704,12 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 		if !ok {
 			continue
 		}
-		metrics := d.forwardingMetrics[p.ingress]
 		result, err := processor.processPkt(p.rawPacket, p.srcAddr, p.ingress)
+
+		sc := classOfSize(len(p.rawPacket))
+		metrics := d.forwardingMetrics[p.ingress][sc]
 		metrics.ProcessedPackets.Inc()
+
 		egress := result.EgressID
 		switch {
 		case err == nil:
@@ -732,7 +740,7 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 		}
 		p.rawPacket = result.OutPkt
 		p.dstAddr = result.OutAddr
-
+		p.trafficType = result.TrafficType
 		select {
 		case fwCh <- p:
 		default:
@@ -753,8 +761,9 @@ func (d *DataPlane) runSlowPathProcessor(id int, q <-chan slowPacket,
 		if !ok {
 			continue
 		}
-		metrics := d.forwardingMetrics[p.packet.ingress]
 		res, err := processor.processPacket(p)
+		sc := classOfSize(len(p.rawPacket))
+		metrics := d.forwardingMetrics[p.packet.ingress][sc]
 		if err != nil {
 			log.Debug("Error processing packet", "err", err)
 			metrics.DroppedPacketsInvalid.Inc()
@@ -829,6 +838,17 @@ func (p *slowPathPacketProcessor) reset() {
 	p.e2eLayer = slayers.EndToEndExtnSkipper{}
 }
 
+// processResults carries what could be determined while processing
+// a packet. In most cases of error, all fields are left to their
+// zero value.
+type processResult struct {
+	EgressID        uint16
+	OutAddr         *net.UDPAddr
+	OutPkt          []byte
+	SlowPathRequest slowPathRequest
+	TrafficType     trafficType
+}
+
 func (p *slowPathPacketProcessor) processPacket(pkt slowPacket) (processResult, error) {
 	var err error
 	p.reset()
@@ -887,64 +907,95 @@ func (p *slowPathPacketProcessor) processPacket(pkt slowPacket) (processResult, 
 	}
 }
 
-func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn,
-	cfg *RunConfig, c <-chan packet) {
+func updateOutputMetrics(metrics interfaceMetrics, packets []packet) {
+	// We need to collect stats by traffic type and size class.
+	// Try to reduce the metrics lookup penalty by using some
+	// simpler staging data structure.
+	writtenPkts := [ttMax][maxSizeClass]int{}
+	writtenBytes := [ttMax][maxSizeClass]int{}
+	for _, p := range packets {
+		s := len(p.rawPacket)
+		sc := classOfSize(s)
+		tt := p.trafficType
+		writtenPkts[tt][sc]++
+		writtenBytes[tt][sc] += s
+	}
+	for t := ttOther; t < ttMax; t++ {
+		for sc := minSizeClass; sc < maxSizeClass; sc++ {
+			if writtenPkts[t][sc] > 0 {
+				metrics[sc].Output[t].OutputPacketsTotal.Add(float64(writtenPkts[t][sc]))
+				metrics[sc].Output[t].OutputBytesTotal.Add(float64(writtenBytes[t][sc]))
+			}
+		}
+	}
+}
+
+func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn, cfg *RunConfig, c <-chan packet) {
 
 	log.Debug("Initialize forwarder for", "interface", ifID)
-	writeMsgs := make(underlayconn.Messages, cfg.BatchSize)
-	for i := range writeMsgs {
-		writeMsgs[i].Buffers = make([][]byte, 1)
+
+	// We use this somewhat like a ring buffer.
+	pkts := make([]packet, cfg.BatchSize)
+
+	// We use this as a temporary buffer, but allocate it just once
+	// to save on garbage handling.
+	msgs := make(underlayconn.Messages, cfg.BatchSize)
+	for i := range msgs {
+		msgs[i].Buffers = make([][]byte, 1)
 	}
+
 	metrics := d.forwardingMetrics[ifID]
 
-	remaining := 0
+	toWrite := 0
 	for d.running {
-		available := readUpTo(c, cfg.BatchSize-remaining, remaining == 0,
-			writeMsgs[remaining:])
-		available += remaining
-		written, _ := conn.WriteBatch(writeMsgs[:available], 0)
+		toWrite += readUpTo(c, cfg.BatchSize-toWrite, toWrite == 0, pkts[toWrite:])
+
+		// Turn the packets into underlay messages that WriteBatch can send.
+		for i, p := range pkts[:toWrite] {
+			msgs[i].Buffers[0] = p.rawPacket
+			msgs[i].Addr = nil
+			if p.dstAddr != nil {
+				msgs[i].Addr = p.dstAddr
+			}
+		}
+		written, _ := conn.WriteBatch(msgs[:toWrite], 0)
 		if written < 0 {
 			// WriteBatch returns -1 on error, we just consider this as
 			// 0 packets written
 			written = 0
 		}
-		writtenBytes := 0
-		for i := range writeMsgs[:written] {
-			writtenBytes += len(writeMsgs[i].Buffers[0])
-			d.returnPacketToPool(writeMsgs[i].Buffers[0])
-		}
-		metrics.OutputPacketsTotal.Add(float64(written))
-		metrics.OutputBytesTotal.Add(float64(writtenBytes))
 
-		if written != available {
-			metrics.DroppedPacketsInvalid.Inc()
-			d.returnPacketToPool(writeMsgs[written].Buffers[0])
-			remaining = available - written - 1
-			for i := 0; i < remaining; i++ {
-				writeMsgs[i].Buffers[0] = writeMsgs[i+written+1].Buffers[0]
-				writeMsgs[i].Addr = writeMsgs[i+written+1].Addr
+		updateOutputMetrics(metrics, pkts[:written])
+
+		for _, p := range pkts[:written] {
+			d.returnPacketToPool(p.rawPacket)
+		}
+
+		if written != toWrite {
+			// Only one is dropped at this time. We'll retry the rest.
+			sc := classOfSize(len(pkts[written].rawPacket))
+			metrics[sc].DroppedPacketsInvalid.Inc()
+			d.returnPacketToPool(pkts[written].rawPacket)
+			toWrite -= (written + 1)
+			// Shift the leftovers to the head of the buffers.
+			for i := 0; i < toWrite; i++ {
+				pkts[i] = pkts[i+written+1]
 			}
+
 		} else {
-			remaining = 0
+			toWrite = 0
 		}
 	}
 }
 
-func readUpTo(c <-chan packet, n int, needsBlocking bool, msg []ipv4.Message) int {
-	assign := func(p packet, m *ipv4.Message) {
-		m.Buffers[0] = p.rawPacket
-		m.Addr = nil
-		if p.dstAddr != nil {
-			m.Addr = p.dstAddr
-		}
-	}
+func readUpTo(c <-chan packet, n int, needsBlocking bool, pkts []packet) int {
 	i := 0
 	if needsBlocking {
 		p, ok := <-c
 		if !ok {
 			return i
 		}
-		assign(p, &msg[i])
+		pkts[i] = p
 		i++
 	}
 
@@ -954,36 +1005,13 @@ func readUpTo(c <-chan packet, n int, needsBlocking bool, msg []ipv4.Message) in
 			if !ok {
 				return i
 			}
-			assign(p, &msg[i])
+			pkts[i] = p
 		default:
 			return i
 		}
 
 	}
 	return i
-}
-
-// initMetrics initializes the metrics related to packet forwarding. The
-// counters are already instantiated for all the relevant interfaces so this
-// will not have to be repeated during packet forwarding.
-func (d *DataPlane) initMetrics() {
-	d.forwardingMetrics = make(map[uint16]forwardingMetrics)
-	labels := interfaceToMetricLabels(0, d.localIA, d.neighborIAs)
-	d.forwardingMetrics[0] = initForwardingMetrics(d.Metrics, labels)
-	for id := range d.external {
-		if _, notOwned := d.internalNextHops[id]; notOwned {
-			continue
-		}
-		labels = interfaceToMetricLabels(id, d.localIA, d.neighborIAs)
-		d.forwardingMetrics[id] = initForwardingMetrics(d.Metrics, labels)
-	}
-}
-
-type processResult struct {
-	EgressID        uint16
-	OutAddr         *net.UDPAddr
-	OutPkt          []byte
-	SlowPathRequest slowPathRequest
 }
 
 func newPacketProcessor(d *DataPlane) *scionPacketProcessor {
@@ -1035,6 +1063,7 @@ func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 	if err != nil {
 		return processResult{}, err
 	}
+
 	pld := p.lastLayer.LayerPayload()
 
 	pathType := p.scionLayer.PathType
@@ -1782,17 +1811,20 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	if r, err := p.handleIngressRouterAlert(); err != nil {
 		return r, err
 	}
-	// Inbound: pkts destined to the local IA.
+	// Inbound: pkt destined to the local IA.
 	if p.scionLayer.DstIA == p.d.localIA {
 		a, r, err := p.resolveInbound()
 		if err != nil {
 			return r, err
 		}
-		return processResult{OutAddr: a, OutPkt: p.rawPkt}, nil
+		return processResult{OutAddr: a, OutPkt: p.rawPkt, TrafficType: ttIn}, nil
 	}
 
-	// Outbound: pkts leaving the local IA.
-	// BRTransit: pkts leaving from the same BR different interface.
+	// Outbound: pkt leaving the local IA. This Could be:
+	// * Pure outbound: from this AS, in via internal, out via external.
+	// * ASTransit in: from another AS, in via external, out via internal to other BR.
+	// * ASTransit out: from another AS, in via internal from other BR, out via external.
+	// * BRTransit: from another AS, in via external, out via external.
 	if p.path.IsXover() && !p.peering {
 		// An effective cross-over is a change of segment other than at
 		// a peering hop.
@@ -1823,14 +1855,27 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	}
 	egressID := p.egressInterface()
 	if _, ok := p.d.external[egressID]; ok {
+		// Not ASTransit in
 		if err := p.processEgress(); err != nil {
 			return processResult{}, err
 		}
-		return processResult{EgressID: egressID, OutPkt: p.rawPkt}, nil
+		// Finish deciding the trafficType...
+		var tt trafficType
+		if p.scionLayer.SrcIA == p.d.localIA {
+			// Pure outbound
+			tt = ttOut
+		} else if p.ingressID == 0 {
+			// ASTransit out
+			tt = ttOutTransit
+		} else {
+			// Therefore it is BRTransit
+			tt = ttBrTransit
+		}
+		return processResult{EgressID: egressID, OutPkt: p.rawPkt, TrafficType: tt}, nil
 	}
-	// ASTransit: pkts leaving from another AS BR.
+	// ASTransit in: pkt leaving this AS through another BR.
 	if a, ok := p.d.internalNextHops[egressID]; ok {
-		return processResult{OutAddr: a, OutPkt: p.rawPkt}, nil
+		return processResult{OutAddr: a, OutPkt: p.rawPkt, TrafficType: ttInTransit}, nil
 	}
 	errCode := slayers.SCMPCodeUnknownHopFieldEgress
 	if !p.infoField.ConsDir {
@@ -2365,69 +2410,25 @@ func nextHdr(layer gopacket.DecodingLayer) slayers.L4ProtocolType {
 	}
 }
 
-// forwardingMetrics contains the subset of Metrics relevant for forwarding,
-// instantiated with some interface-specific labels.
-type forwardingMetrics struct {
-	InputBytesTotal             prometheus.Counter
-	OutputBytesTotal            prometheus.Counter
-	InputPacketsTotal           prometheus.Counter
-	OutputPacketsTotal          prometheus.Counter
-	DroppedPacketsInvalid       prometheus.Counter
-	DroppedPacketsBusyProcessor prometheus.Counter
-	DroppedPacketsBusyForwarder prometheus.Counter
-	DroppedPacketsBusySlowPath  prometheus.Counter
-	ProcessedPackets            prometheus.Counter
-}
-
-func initForwardingMetrics(metrics *Metrics, labels prometheus.Labels) forwardingMetrics {
-	c := forwardingMetrics{
-		InputBytesTotal:    metrics.InputBytesTotal.With(labels),
-		InputPacketsTotal:  metrics.InputPacketsTotal.With(labels),
-		OutputBytesTotal:   metrics.OutputBytesTotal.With(labels),
-		OutputPacketsTotal: metrics.OutputPacketsTotal.With(labels),
-		ProcessedPackets:   metrics.ProcessedPackets.With(labels),
-	}
-	labels["reason"] = "invalid"
-	c.DroppedPacketsInvalid = metrics.DroppedPacketsTotal.With(labels)
-	labels["reason"] = "busy_processor"
-	c.DroppedPacketsBusyProcessor = metrics.DroppedPacketsTotal.With(labels)
-	labels["reason"] = "busy_forwarder"
-	c.DroppedPacketsBusyForwarder = metrics.DroppedPacketsTotal.With(labels)
-	labels["reason"] = "busy_slow_path"
-	c.DroppedPacketsBusySlowPath = metrics.DroppedPacketsTotal.With(labels)
-
-	c.InputBytesTotal.Add(0)
-	c.InputPacketsTotal.Add(0)
-	c.OutputBytesTotal.Add(0)
-	c.OutputPacketsTotal.Add(0)
-	c.DroppedPacketsInvalid.Add(0)
-	c.DroppedPacketsBusyProcessor.Add(0)
-	c.DroppedPacketsBusyForwarder.Add(0)
-	c.DroppedPacketsBusySlowPath.Add(0)
-	c.ProcessedPackets.Add(0)
-	return c
-}
-
-func interfaceToMetricLabels(id uint16, localIA addr.IA,
-	neighbors map[uint16]addr.IA) prometheus.Labels {
-
-	if id == 0 {
-		return prometheus.Labels{
-			"isd_as":          localIA.String(),
-			"interface":       "internal",
-			"neighbor_isd_as": localIA.String(),
+// initMetrics initializes the metrics related to packet forwarding. The counters are already
+// instantiated for all the relevant interfaces so this will not have to be repeated during packet
+// forwarding.
+func (d *DataPlane) initMetrics() {
+	d.forwardingMetrics = make(map[uint16]interfaceMetrics)
+	d.forwardingMetrics[0] = newInterfaceMetrics(d.Metrics, 0, d.localIA, d.neighborIAs)
+	for id := range d.external {
+		if _, notOwned := d.internalNextHops[id]; notOwned {
+			continue
 		}
+		d.forwardingMetrics[id] = newInterfaceMetrics(d.Metrics, id, d.localIA, d.neighborIAs)
 	}
-	return prometheus.Labels{
-		"isd_as":          localIA.String(),
-		"interface":       strconv.FormatUint(uint64(id), 10),
-		"neighbor_isd_as": neighbors[id].String(),
-	}
-}
 
-func serviceMetricLabels(localIA addr.IA, svc addr.SVC) prometheus.Labels {
-	return prometheus.Labels{
-		"isd_as":  localIA.String(),
-		"service": svc.BaseString(),
+	// Start our custom /proc/pid/stat collector to export iowait time and (in the future) other
+	// process-wide metrics that prometheus does not.
+	err := processmetrics.Init()
+
+	// we can live without these metrics. Just log the error.
+	if err != nil {
+		log.Error("Could not initialize processmetrics", "err", err)
 	}
 }
