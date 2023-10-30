@@ -1,8 +1,5 @@
 workspace(
     name = "com_github_scionproto_scion",
-    managed_directories = {
-        "@rules_openapi_npm": ["rules_openapi/tools/node_modules"],
-    },
 )
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
@@ -91,7 +88,9 @@ http_archive(
     url = "https://github.com/bazelbuild/rules_python/releases/download/0.26.0/rules_python-0.26.0.tar.gz",
 )
 
-load("@rules_python//python:repositories.bzl", "python_register_toolchains")
+load("@rules_python//python:repositories.bzl", "py_repositories", "python_register_toolchains")
+
+py_repositories()
 
 python_register_toolchains(
     name = "python3_10",
@@ -137,7 +136,6 @@ rules_antlr_dependencies("4.9.3")
 http_archive(
     name = "io_bazel_rules_docker",
     sha256 = "b1e80761a8a8243d03ebca8845e9cc1ba6c82ce7c5179ce2b295cd36f7e394bf",
-    strip_prefix = "rules_docker-0.25.0",
     urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.25.0/rules_docker-v0.25.0.tar.gz"],
 )
 
@@ -219,9 +217,9 @@ container_pull(
 # protobuf/gRPC
 http_archive(
     name = "rules_proto_grpc",
-    sha256 = "7954abbb6898830cd10ac9714fbcacf092299fda00ed2baf781172f545120419",
-    strip_prefix = "rules_proto_grpc-3.1.1",
-    urls = ["https://github.com/rules-proto-grpc/rules_proto_grpc/archive/3.1.1.tar.gz"],
+    sha256 = "9ba7299c5eb6ec45b6b9a0ceb9916d0ab96789ac8218269322f0124c0c0d24e2",
+    strip_prefix = "rules_proto_grpc-4.5.0",
+    urls = ["https://github.com/rules-proto-grpc/rules_proto_grpc/releases/download/4.5.0/rules_proto_grpc-4.5.0.tar.gz"],
 )
 
 load("@rules_proto_grpc//:repositories.bzl", "rules_proto_grpc_repos", "rules_proto_grpc_toolchains")
