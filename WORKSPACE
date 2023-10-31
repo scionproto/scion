@@ -28,14 +28,20 @@ lint_setup({
 
 http_archive(
     name = "aspect_bazel_lib",
-    sha256 = "e3151d87910f69cf1fc88755392d7c878034a69d6499b287bcfc00b1cf9bb415",
-    strip_prefix = "bazel-lib-1.32.1",
-    url = "https://github.com/aspect-build/bazel-lib/archive/refs/tags/v1.32.1.tar.gz",
+    sha256 = "a185ccff9c1b8589c63f66d7eb908de15c5d6bb05562be5f46336c53e7a7326a",
+    strip_prefix = "bazel-lib-2.0.0-rc1",
+    url = "https://github.com/aspect-build/bazel-lib/releases/download/v2.0.0-rc1/bazel-lib-v2.0.0-rc1.tar.gz",
 )
 
-load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies")
+load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies", "aspect_bazel_lib_register_toolchains")
+
+# Required bazel-lib dependencies
 
 aspect_bazel_lib_dependencies()
+
+# Register bazel-lib toolchains
+
+aspect_bazel_lib_register_toolchains()
 
 # Bazel rules for Golang
 http_archive(
@@ -240,8 +246,10 @@ rules_proto_grpc_buf_repos()
 
 http_archive(
     name = "com_github_bazelbuild_buildtools",
-    strip_prefix = "buildtools-master",
-    url = "https://github.com/bazelbuild/buildtools/archive/2.2.1.zip",
+    strip_prefix = "buildtools-6.3.3",
+    urls = [
+        "https://github.com/bazelbuild/buildtools/archive/refs/tags/6.3.3.tar.gz",
+    ],
 )
 
 http_file(
@@ -262,10 +270,32 @@ load("@com_github_scionproto_scion_python_lint_deps//:requirements.bzl", install
 
 install_python_lint_deps()
 
-load("//rules_openapi:dependencies.bzl", "rules_openapi_dependencies")
+http_archive(
+    name = "aspect_rules_js",
+    sha256 = "a949d56fed8fa0a8dd82a0a660acc949253a05b2b0c52a07e4034e27f11218f6",
+    strip_prefix = "rules_js-1.33.1",
+    url = "https://github.com/aspect-build/rules_js/releases/download/v1.33.1/rules_js-v1.33.1.tar.gz",
+)
 
-rules_openapi_dependencies()
+load("@aspect_rules_js//js:repositories.bzl", "rules_js_dependencies")
 
-load("//rules_openapi:install.bzl", "rules_openapi_install_yarn_dependencies")
+rules_js_dependencies()
 
-rules_openapi_install_yarn_dependencies()
+load("@rules_nodejs//nodejs:repositories.bzl", "DEFAULT_NODE_VERSION", "nodejs_register_toolchains")
+
+nodejs_register_toolchains(
+    name = "nodejs",
+    node_version = DEFAULT_NODE_VERSION,
+)
+
+load("@aspect_rules_js//npm:npm_import.bzl", "npm_translate_lock")
+
+npm_translate_lock(
+    name = "npm",
+    pnpm_lock = "@com_github_scionproto_scion//private/mgmtapi/tools:pnpm-lock.yaml",
+    verify_node_modules_ignored = "@com_github_scionproto_scion//:.bazelignore",
+)
+
+load("@npm//:repositories.bzl", "npm_repositories")
+
+npm_repositories()
