@@ -113,6 +113,9 @@ type SCIONPacketConn struct {
 	SCMPHandler SCMPHandler
 	// Metrics are the metrics exported by the conn.
 	Metrics SCIONPacketConnMetrics
+	// FlowID: arbitrary value to distribute connections over router CPUs.
+	// Initialize to 1 if backward compatible (no-distribution) behavior is desired.
+	FlowID uint32
 }
 
 func (c *SCIONPacketConn) SetDeadline(d time.Time) error {
@@ -125,10 +128,9 @@ func (c *SCIONPacketConn) Close() error {
 }
 
 func (c *SCIONPacketConn) WriteTo(pkt *Packet, ov *net.UDPAddr) error {
-	if err := pkt.Serialize(); err != nil {
+	if err := pkt.SerializeWithFlowID(c.FlowID); err != nil {
 		return serrors.WrapStr("serialize SCION packet", err)
 	}
-
 	// Send message
 	n, err := c.Conn.WriteTo(pkt.Bytes, ov)
 	if err != nil {

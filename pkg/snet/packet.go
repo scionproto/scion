@@ -519,6 +519,12 @@ func (p *Packet) Decode() error {
 
 // Serialize serializes the PacketInfo into the raw buffer of the packet.
 func (p *Packet) Serialize() error {
+	// Use the bw compatible default value.
+	return p.SerializeWithFlowID(1)
+}
+
+// Serialize serializes the PacketInfo into the raw buffer of the packet.
+func (p *Packet) SerializeWithFlowID(flowID uint32) error {
 	p.Prepare()
 	if p.Payload == nil {
 		return serrors.New("no payload set")

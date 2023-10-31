@@ -35,6 +35,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"math/rand"
 	"net"
 	"net/netip"
 	"os"
@@ -245,11 +246,11 @@ func (s server) handlePing(conn snet.PacketConn) error {
 		))
 	}
 
-	// In the packetflood game, we respond to ~0.4% of the pings. Just enough
+	// In the packetflood game, we respond to 1/256 (~0.4%) of the pings. Just enough
 	// to prove that some pings were received, but not enough to distort
 	// performance data by mixing in traffic types.
 	if s.packetFloodGame {
-		if s.pongs++; s.pongs == 0 {
+		if s.pongs++; s.pongs != 0 {
 			return nil
 		}
 	}
@@ -273,7 +274,7 @@ func (s server) handlePing(conn snet.PacketConn) error {
 	// reverse path
 	rpath, ok := p.Path.(snet.RawPath)
 	if !ok {
-		return serrors.New("unecpected path", "type", common.TypeOf(p.Path))
+		return serrors.New("unexpected path", "type", common.TypeOf(p.Path))
 	}
 	replypather := snet.DefaultReplyPather{}
 	replyPath, err := replypather.ReplyPath(rpath)
@@ -312,8 +313,8 @@ func (c *client) run() int {
 	}
 
 	var err error
-	c.conn, c.port, err = connFactory.Register(context.Background(), integration.Local.IA,
-		integration.Local.Host, addr.SvcNone)
+	c.conn, c.port, err = connFactory.RegisterWithFlowID(context.Background(), integration.Local.IA,
+		integration.Local.Host, addr.SvcNone, rand.Uint32())
 	if err != nil {
 		integration.LogFatal("Unable to listen", "err", err)
 	}
