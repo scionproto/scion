@@ -17,12 +17,7 @@ def openapi_bundle(
         name = name,
         srcs = [name + "-no-header"],
         outs = [name + ".bzl.gen.yml"],
-        cmd = "$(location @com_github_scionproto_scion//rules_openapi/internal:header.sh)  \
-            '$(location " + name + "-no-header)' \
-            '$(location " + name + ".bzl.gen.yml)' \
-            '# GENERATED FILE DO NOT EDIT' \
-        ",
-        tools = ["@com_github_scionproto_scion//rules_openapi/internal:header.sh"],
+        cmd = "(echo '# GENERATED FILE DO NOT EDIT'; cat $<) > $@",
         visibility = visibility,
     )
 

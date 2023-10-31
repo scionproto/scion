@@ -29,27 +29,17 @@ def openapi_generate_go(
         **kwargs: Ad.
     """
 
-    _openapi_generate_go(
-        name = name + "_gen",
-        out_client = "client.bzl.gen.go" if client else None,
-        out_server = "server.bzl.gen.go" if server else None,
-        out_spec = "spec.bzl.gen.go" if spec else None,
-        out_types = "types.bzl.gen.go" if types else None,
-        **kwargs
-    )
-
-    out_files = []
     write_files = {}
     for typ, gen in {"client": client, "server": server, "spec": spec, "types": types}.items():
         if not gen:
             continue
         src = typ + ".bzl.gen.go"
-        out_files.append(src)
+        kwargs["out_" + typ] = typ + ".bzl.gen.go"
         write_files[typ + ".gen.go"] = src
 
-    native.filegroup(
+    _openapi_generate_go(
         name = name,
-        srcs = out_files,
+        **kwargs
     )
 
     write_source_files(
