@@ -71,18 +71,17 @@ func setupTest(t *testing.T) {
 	mustExec(t, "docker", "image", "load", "-i", "dispatcher.tar")
 	mustExec(t, "docker", "image", "load", "-i", "daemon.tar")
 	// now start the docker containers
-	mustExec(t, "docker", "compose", "--compatibility", "-f", "docker-compose.yml",
+	mustExec(t, "docker", "compose", "-f", "docker-compose.yml",
 		"up", "-d", "topo_daemon_reload_dispatcher", "topo_daemon_reload_daemon")
 	// wait a bit to make sure the containers are ready.
 	time.Sleep(time.Second / 2)
 	t.Log("Test setup done")
-	mustExec(t, "docker", "compose", "--compatibility", "-f", "docker-compose.yml",
+	mustExec(t, "docker", "compose", "-f", "docker-compose.yml",
 		"ps")
 }
 
 func teardownTest(t *testing.T) {
-	defer mustExec(t, "docker", "compose", "--compatibility",
-		"-f", "docker-compose.yml", "down", "-v")
+	defer mustExec(t, "docker", "compose", "-f", "docker-compose.yml", "down", "-v")
 
 	outdir, exists := os.LookupEnv("TEST_UNDECLARED_OUTPUTS_DIR")
 	require.True(t, exists, "TEST_UNDECLARED_OUTPUTS_DIR must be defined")
@@ -92,7 +91,7 @@ func teardownTest(t *testing.T) {
 		"topo_daemon_reload_dispatcher": "disp.log",
 		"topo_daemon_reload_daemon":     "daemon.log",
 	} {
-		cmd := exec.Command("docker", "compose", "--compatibility",
+		cmd := exec.Command("docker", "compose",
 			"-f", "docker-compose.yml", "logs", "--no-color",
 			service)
 		logFileName := fmt.Sprintf("%s/logs/%s", outdir, file)
@@ -111,9 +110,9 @@ func teardownTest(t *testing.T) {
 func loadTopo(t *testing.T, name string) {
 	t.Helper()
 
-	mustExec(t, "docker", "compose", "--compatibility", "-f", "docker-compose.yml",
+	mustExec(t, "docker", "compose", "-f", "docker-compose.yml",
 		"exec", "-T", "topo_daemon_reload_daemon", "mv", name, "/topology.json")
-	mustExec(t, "docker", "compose", "--compatibility", "-f", "docker-compose.yml",
+	mustExec(t, "docker", "compose", "-f", "docker-compose.yml",
 		"kill", "-s", "SIGHUP", "topo_daemon_reload_daemon")
 }
 

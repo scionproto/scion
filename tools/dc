@@ -78,7 +78,7 @@ cmd_monitoring() {
 dc() {
     local dc_file="gen/$1-dc.yml"
     shift
-    COMPOSE_FILE="$dc_file" docker compose --compatibility --ansi never "$@"
+    COMPOSE_FILE="$dc_file" docker compose --ansi never "$@"
 }
 
 cmd_collect_logs() {

@@ -100,27 +100,23 @@ func setupTest(t *testing.T) testState {
 	require.NoError(t, err)
 	topoFile, err := bazel.Runfile(*topoLocation)
 	require.NoError(t, err)
-	s.mustExec(t, *genCryptoLocation, scionPKI,
-		"crypto.tar", topoFile, cryptoLib)
+	s.mustExec(t, *genCryptoLocation, scionPKI, "crypto.tar", topoFile, cryptoLib)
 	s.mustExec(t, "tar", "-xf", "crypto.tar", "-C", tmpDir)
 	// first load the docker images from bazel into the docker deamon, the
 	// tars are in the same folder as this test runs in bazel.
 	s.mustExec(t, "docker", "image", "load", "-i", "dispatcher.tar")
 	s.mustExec(t, "docker", "image", "load", "-i", "control.tar")
 	// now start the docker containers
-	s.mustExec(t, "docker", "compose", "--compatibility", "-f", "docker-compose.yml",
-		"up", "-d")
+	s.mustExec(t, "docker", "compose", "-f", "docker-compose.yml", "up", "-d")
 	// wait a bit to make sure the containers are ready.
 	time.Sleep(time.Second / 2)
 	t.Log("Test setup done")
-	s.mustExec(t, "docker", "compose", "--compatibility", "-f", "docker-compose.yml",
-		"ps")
+	s.mustExec(t, "docker", "compose", "-f", "docker-compose.yml", "ps")
 	return s
 }
 
 func (s testState) teardownTest(t *testing.T) {
-	defer s.mustExec(t, "docker", "compose", "--compatibility",
-		"-f", "docker-compose.yml", "down", "-v")
+	defer s.mustExec(t, "docker", "compose", "-f", "docker-compose.yml", "down", "-v")
 
 	outdir, exists := os.LookupEnv("TEST_UNDECLARED_OUTPUTS_DIR")
 	require.True(t, exists, "TEST_UNDECLARED_OUTPUTS_DIR must be defined")
@@ -130,7 +126,7 @@ func (s testState) teardownTest(t *testing.T) {
 		"topo_cs_reload_dispatcher":  "disp.log",
 		"topo_cs_reload_control_srv": "control.log",
 	} {
-		cmd := exec.Command("docker", "compose", "--compatibility",
+		cmd := exec.Command("docker", "compose",
 			"-f", "docker-compose.yml", "logs", "--no-color", service)
 		logFileName := fmt.Sprintf("%s/logs/%s", outdir, file)
 		logFile, err := os.Create(logFileName)
@@ -149,9 +145,9 @@ func (s testState) teardownTest(t *testing.T) {
 func (s testState) loadTopo(t *testing.T, name string) {
 	t.Helper()
 
-	s.mustExec(t, "docker", "compose", "--compatibility", "-f", "docker-compose.yml",
+	s.mustExec(t, "docker", "compose", "-f", "docker-compose.yml",
 		"exec", "-T", "topo_cs_reload_control_srv", "mv", name, "/topology.json")
-	s.mustExec(t, "docker", "compose", "--compatibility", "-f", "docker-compose.yml",
+	s.mustExec(t, "docker", "compose", "-f", "docker-compose.yml",
 		"kill", "-s", "SIGHUP", "topo_cs_reload_control_srv")
 }
 

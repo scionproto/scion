@@ -48,7 +48,7 @@ class Compose(object):
         # Note: not using plumbum here due to complications with encodings in the captured output
         try:
             res = subprocess.run(
-                ["docker", "compose", "--compatibility", "-f", self.compose_file, *args],
+                ["docker", "compose", "-f", self.compose_file, *args],
                 check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8")
         except subprocess.CalledProcessError as e:
             raise _CalledProcessErrorWithOutput(e) from None
