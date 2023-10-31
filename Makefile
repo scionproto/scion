@@ -70,7 +70,6 @@ antlr:
 
 write_all_source_files:
 	bazel run //:write_all_source_files
-	bazel run //:update_all
 
 .PHONY: lint lint-bazel lint-bazel-buildifier lint-doc lint-doc-mdlint lint-go lint-go-bazel lint-go-gazelle lint-go-golangci lint-go-semgrep lint-openapi lint-openapi-spectral lint-protobuf lint-protobuf-buf
 

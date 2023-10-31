@@ -1,8 +1,11 @@
 load("@bazel_skylib//lib:shell.bzl", "shell")
 
 def _openapi_bundle_impl(ctx):
-    prefix = ctx.label.name
-    out_file = ctx.actions.declare_file(prefix + ".gen.yml")
+    if ctx.outputs.out:
+        out_file = ctx.outputs.out
+    else:
+        out_file = ctx.actions.declare_file(ctx.label.name + ".bzl.gen.yml")
+
     cmd = "{bin} bundle --output {out} {entrypoint}".format(
         bin = ctx.executable._openapi_cli.path,
         out = shell.quote(out_file.path),
@@ -28,6 +31,10 @@ openapi_bundle = rule(
         "srcs": attr.label_list(
             doc = "All files that are referenced in the entrypoint file",
             allow_files = [".yml"],
+        ),
+        "out": attr.output(
+            doc = "The bundled open API specification file",
+            mandatory = False,
         ),
         "entrypoint": attr.label(
             doc = "The main source to generate files from",
