@@ -2,7 +2,6 @@ load("@apple_rules_lint//lint:defs.bzl", "get_lint_config")
 load("@io_bazel_rules_go//go:def.bzl", _go_library = "go_library", _go_test = "go_test")
 load(":impi.bzl", "impi_test")
 load(":ineffassign.bzl", "ineffassign_test")
-load(":go_embed.bzl", _go_embed_data = "go_embed_data")
 
 def _add_go_lint_tests(name, **kwargs):
     tags = kwargs.get("tags", [])
@@ -37,5 +36,3 @@ def go_test(name, **kwargs):
         tags = tags + ["unit"]
     kwargs["tags"] = tags
     _go_test(name = name, **kwargs)
-
-go_embed_data = _go_embed_data

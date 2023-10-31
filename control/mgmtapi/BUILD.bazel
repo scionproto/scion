@@ -1,8 +1,7 @@
 load("//tools/lint:go.bzl", "go_library", "go_test")
-load("@com_github_scionproto_scion//rules_openapi:defs.bzl", "openapi_build_docs")
-load("//private/mgmtapi:api.bzl", "openapi_generate_go")
+load("//private/mgmtapi:api.bzl", "openapi_docs", "openapi_generate_go")
 
-openapi_build_docs(
+openapi_docs(
     name = "doc",
     src = "//spec:control",
     out = "index.html",

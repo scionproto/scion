@@ -122,11 +122,11 @@ lint-openapi: lint-openapi-spectral
 
 lint-openapi-spectral:
 	$(info ==> $@)
-	@tools/quiet bazel run --config=quiet @rules_openapi_npm//@stoplight/spectral-cli/bin:spectral -- lint --ruleset ${PWD}/spec/.spectral.yml ${PWD}/spec/*.gen.yml
+	@tools/quiet bazel run --config=quiet //:spectral -- lint --ruleset ${PWD}/spec/.spectral.yml ${PWD}/spec/*.gen.yml
 
 lint-doc: lint-doc-mdlint
 
 lint-doc-mdlint:
 	$(info ==> $@)
-	@FILES=$$(find -type f -iname '*.md' -not -path "./rules_openapi/tools/node_modules/*" -not -path "./.github/**/*" | grep -vf tools/md/skipped); \
+	@FILES=$$(find -type f -iname '*.md' -not -path "./private/mgmtapi/tools/node_modules/*" -not -path "./.github/**/*" | grep -vf tools/md/skipped); \
 		docker run --rm -v ${PWD}:/data -v ${PWD}/tools/md/mdlintstyle.rb:/style.rb $$(docker build -q tools/md) $${FILES} -s /style.rb
