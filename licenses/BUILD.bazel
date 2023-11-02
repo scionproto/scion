@@ -2,7 +2,7 @@ load("@rules_pkg//:pkg.bzl", "pkg_tar")
 
 pkg_tar(
     name = "licenses",
-    srcs = ["data"],
+    srcs = glob(["data/**/*"]),
     package_dir = "/licenses",
     strip_prefix = "data",
     visibility = ["//visibility:public"],

@@ -7,6 +7,7 @@ load("//tools/lint:write_source_files.bzl", "write_source_files")
 load("//tools/lint/python:flake8_config.bzl", "flake8_lint_config")
 load("//:nogo.bzl", "nogo_deps")
 load("@com_github_bazelbuild_buildtools//buildifier:def.bzl", "buildifier")
+load("@npm//private/mgmtapi/tools:@stoplight/spectral-cli/package_json.bzl", spectral_bin = "bin")
 
 # gazelle:prefix github.com/scionproto/scion
 # gazelle:map_kind go_library go_library //tools/lint:go.bzl
@@ -230,6 +231,10 @@ buildifier(
 buildifier(
     name = "buildifier_check",
     mode = "check",
+)
+
+spectral_bin.spectral_binary(
+    name = "spectral",
 )
 
 # Runs all write_source_files targets in this Workspace. To update the list run

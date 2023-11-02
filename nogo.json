@@ -155,7 +155,9 @@
             "gazelle/language/go/gen_std_package_list": "",
             "gazelle/language/proto/gen/gen_known_imports": "",
             "gazelle/cmd/gazelle/gazelle": "",
-            "/com_github_bazelbuild_buildtools": ""
+            "/com_github_bazelbuild_buildtools": "",
+            "/io_bazel_rules_docker/": "",
+            "/com_github_oncilla_ineffassign/": ""
         }
     },
     "reflectvaluecompare": {
@@ -212,7 +214,8 @@
             "com_github_vishvananda_netlink/nl": "",
             "com_github_deepmap_oapi_codegen/pkg/codegen": "",
             "com_github_quic_go_quic_go": "",
-            "com_github_bazelbuild_buildtools": ""
+            "com_github_bazelbuild_buildtools": "",
+            "/bazel_gazelle/": ""
         }
     }
 }
