@@ -1,0 +1,20 @@
+[Unit]
+Description=SCION Router
+Documentation=https://docs.scion.org
+After=network-online.target
+Wants=network-online.target
+PartOf=scion.target
+
+[Service]
+Type=simple
+User=scion
+Group=scion
+ExecStart=/usr/bin/scion-router --config /etc/scion/%i.toml
+RemainAfterExit=False
+KillMode=control-group
+Restart=on-failure
+
+[Install]
+# FIXME unusual wantedby target ?
+WantedBy=scion.target
+DefaultInstance=br-1
