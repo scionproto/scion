@@ -17,15 +17,9 @@
 import logging
 import json
 import time
-import toml
-import sys
 from http.client import HTTPConnection
-from typing import List
 
-from plumbum import local
-from plumbum.path.local import LocalPath
-
-from acceptance.common import base, docker, log
+from acceptance.common import base, docker
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +28,10 @@ logger = logging.getLogger(__name__)
 #
 #       CoreAS-A      CoreAS-B
 #    BR-A1   BR-A2 ---- BR-B
-#    |   |   
+#    |   |
 # BR-C   BR-D
 # AS-C   AS-D
+
 
 class Test(base.TestTopogen):
     """
@@ -55,11 +50,11 @@ class Test(base.TestTopogen):
         time.sleep(10)
 
         # Start as-transiting load. With the router_bm topology
-        
+
         # The subset noncore#nonlocalcore gives us outgoing traffic at each
         # child, incoming traffic at BR-B, AS-transit-in traffic at BR-A1,
         # and AS-transit-out traffic at BR-A2. No traffic mix anywhere.
-        logger.info("==> Starting load no transit")
+        logger.info("==> Starting load as-transit")
         loadtest = self.get_executable("end2end_integration")
         loadtest[
             "-d",
@@ -95,7 +90,7 @@ class Test(base.TestTopogen):
         # Start br-transiting load.
         # The subset noncore#noncore gives us a mix of in and out traffic at
         # the childrem and pure BR-transit traffic at BR-A1.
-        logger.info("==> Starting load no transit")
+        logger.info("==> Starting load br-transit")
         loadtest = self.get_executable("end2end_integration")
         loadtest[
             "-d",
@@ -127,7 +122,7 @@ class Test(base.TestTopogen):
             ts, val = result['value']
             print(f'value: {val}')
             print(f'timestamp: {ts}')
-    
+
     def teardown(self):
         self.monitoring_dc("down")
         super().teardown()

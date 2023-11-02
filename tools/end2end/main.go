@@ -113,7 +113,7 @@ func realMain() int {
 	}
 
 	if integration.Mode == integration.ModeServer {
-		server{}.run()
+		(&server{}).run()
 		return 0
 	}
 	c := client{}
@@ -146,7 +146,8 @@ func validateFlags() {
 	default:
 		integration.LogFatal("Unknown game requested", "game", game)
 	}
-	log.Info("Flags", "game", game, "traces", traces, "timeout", timeout, "epic", epic, "remote", remote)
+	log.Info("Flags", "game", game, "traces", traces, "timeout", timeout, "epic", epic,
+		"remote", remote)
 }
 
 type server struct {
@@ -154,7 +155,7 @@ type server struct {
 	pongs           uint8 // chosen to overflow.
 }
 
-func (s server) run() {
+func (s *server) run() {
 	log.Info("Starting server", "isd_as", integration.Local.IA)
 	defer log.Info("Finished server", "isd_as", integration.Local.IA)
 	if game == "packetflood" {
@@ -192,7 +193,7 @@ func (s server) run() {
 	}
 }
 
-func (s server) handlePing(conn snet.PacketConn) error {
+func (s *server) handlePing(conn snet.PacketConn) error {
 	var p snet.Packet
 	var ov net.UDPAddr
 	if err := readFrom(conn, &p, &ov); err != nil {
@@ -347,6 +348,9 @@ func (c *client) run() int {
 		// We return a "number of failures". So 0 means everything is fine.
 		ping_result := integration.RepeatUntilFail("End2End", c.blindPing)
 		pong_result := <-pong_out
+		if pong_result != 0 {
+			log.Info("Never got a single pong")
+		}
 		return ping_result + pong_result
 	default:
 		return 0
@@ -357,17 +361,18 @@ func (c *client) run() int {
 // Returns true (which means "stop") *if both worked*.
 func (c *client) attemptRequest(n int) bool {
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout.Duration)
-	span, ctx := tracing.NilCtx()
 	defer cancel()
+	ctx := timeoutCtx
+	span, _ := tracing.NilCtx()
+
 	if traces {
 		span, ctx = tracing.CtxWith(timeoutCtx, "attempt")
 		span.SetTag("attempt", n)
 		span.SetTag("src", integration.Local.IA)
 		span.SetTag("dst", remote.IA)
 		defer span.Finish()
-	} else {
-		ctx = timeoutCtx
 	}
+
 	logger := log.FromCtx(ctx)
 
 	path, err := c.getRemote(ctx, n)
@@ -410,15 +415,15 @@ func (c *client) attemptRequest(n int) bool {
 func (c *client) blindPing(n int) bool {
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout.Duration)
 	defer cancel()
-	span, ctx := tracing.NilCtx()
+	ctx := timeoutCtx
+	span, _ := tracing.NilCtx()
+
 	if traces {
 		span, ctx = tracing.CtxWith(timeoutCtx, "blindping")
 		span.SetTag("blindping", n)
 		span.SetTag("src", integration.Local.IA)
 		span.SetTag("dst", remote.IA)
 		defer span.Finish()
-	} else {
-		ctx = timeoutCtx
 	}
 	logger := log.FromCtx(ctx)
 
@@ -458,23 +463,21 @@ func (c *client) blindPing(n int) bool {
 func (c *client) drainPong(n int) bool {
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout.Duration)
 	defer cancel()
-	span, ctx := tracing.NilCtx()
+	ctx := timeoutCtx
+	span, _ := tracing.NilCtx()
+
 	if traces {
 		span, ctx = tracing.CtxWith(timeoutCtx, "drainpong")
 		span.SetTag("drainpong", n)
 		span.SetTag("dst", integration.Local.IA)
 		span.SetTag("src", remote.IA)
 		defer span.Finish()
-	} else {
-		ctx = timeoutCtx
 	}
-	logger := log.FromCtx(ctx)
 	if err := c.pong(ctx, false); err != nil {
-		if traces {
-			tracing.Error(span, err)
-		}
-		logger.Error("Error receiving pong", "err", err)
-		return true // Stop. The test failed to elicit a single response.
+		// We should receive at least one within 10s, but this is called until pings stop
+		// coming, so there will always be one failure in the end. Therefore... do not report an
+		// error here.
+		return true // Stop. Responses don't arrive anymore (or never did).
 	}
 	return false // Don't stop; keep consuming pongs
 }

@@ -138,7 +138,7 @@ func SDConn() daemon.Connector {
 // AttemptFunc attempts a request repeatedly, receives the attempt number
 type AttemptFunc func(n int) bool
 
-// AttemptRepeatedly runs attempt until it returns true (succeded -> stop) or more than Attempts
+// AttemptRepeatedly runs attempt until it returns true (succeeded => stop) or more than Attempts
 // were executed. Between two attempts at least RetryTimeout time has to pass.
 // Returns 0 on success, 1 on failure.
 func AttemptRepeatedly(name string, attempt AttemptFunc) int {

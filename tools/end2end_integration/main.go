@@ -313,8 +313,8 @@ func clientTemplate(progressSock string) integration.Cmd {
 // then src and dst must/must-not be in the same ISD/AS
 //
 // This implies that IFF role1 == role2, then h1:h2 pairs are mirrored with h2:h1 and, unless
-// remote[ISD/AS] is specified, h2:h2 and h1:h1. Not all combinations yield something useful... caveat
-// emptor.
+// remote[ISD/AS] is specified, h2:h2 and h1:h1. Not all combinations yield something useful...
+// caveat emptor.
 func getPairs() ([]integration.IAPair, error) {
 	pairs := integration.IAPairs(integration.DispAddr)
 	if subset == "all" {
