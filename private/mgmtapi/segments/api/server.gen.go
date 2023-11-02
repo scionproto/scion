@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/deepmap/oapi-codegen/pkg/runtime"
 	"github.com/go-chi/chi/v5"
+	"github.com/oapi-codegen/runtime"
 )
 
 // ServerInterface represents all server handlers.
@@ -22,6 +22,28 @@ type ServerInterface interface {
 	// Get the SCION path segment blob
 	// (GET /segments/{segment-id}/blob)
 	GetSegmentBlob(w http.ResponseWriter, r *http.Request, segmentId SegmentID)
+}
+
+// Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
+
+type Unimplemented struct{}
+
+// List the SCION path segments
+// (GET /segments)
+func (_ Unimplemented) GetSegments(w http.ResponseWriter, r *http.Request, params GetSegmentsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get the SCION path segment description
+// (GET /segments/{segment-id})
+func (_ Unimplemented) GetSegment(w http.ResponseWriter, r *http.Request, segmentId SegmentID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get the SCION path segment blob
+// (GET /segments/{segment-id}/blob)
+func (_ Unimplemented) GetSegmentBlob(w http.ResponseWriter, r *http.Request, segmentId SegmentID) {
+	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -58,9 +80,9 @@ func (siw *ServerInterfaceWrapper) GetSegments(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSegments(w, r, params)
-	})
+	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
@@ -84,9 +106,9 @@ func (siw *ServerInterfaceWrapper) GetSegment(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSegment(w, r, segmentId)
-	})
+	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
@@ -110,9 +132,9 @@ func (siw *ServerInterfaceWrapper) GetSegmentBlob(w http.ResponseWriter, r *http
 		return
 	}
 
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSegmentBlob(w, r, segmentId)
-	})
+	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		handler = middleware(handler)
@@ -134,16 +156,16 @@ func (e *UnescapedCookieParamError) Unwrap() error {
 	return e.Err
 }
 
-type UnmarshallingParamError struct {
+type UnmarshalingParamError struct {
 	ParamName string
 	Err       error
 }
 
-func (e *UnmarshallingParamError) Error() string {
-	return fmt.Sprintf("Error unmarshalling parameter %s as JSON: %s", e.ParamName, e.Err.Error())
+func (e *UnmarshalingParamError) Error() string {
+	return fmt.Sprintf("Error unmarshaling parameter %s as JSON: %s", e.ParamName, e.Err.Error())
 }
 
-func (e *UnmarshallingParamError) Unwrap() error {
+func (e *UnmarshalingParamError) Unwrap() error {
 	return e.Err
 }
 

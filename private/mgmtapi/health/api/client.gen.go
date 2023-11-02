@@ -172,7 +172,7 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// GetHealth request
+	// GetHealthWithResponse request
 	GetHealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHealthResponse, error)
 }
 
@@ -180,7 +180,7 @@ type GetHealthResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *HealthResponse
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -230,7 +230,7 @@ func ParseGetHealthResponse(rsp *http.Response) (*GetHealthResponse, error) {
 		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
