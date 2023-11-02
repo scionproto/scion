@@ -288,10 +288,6 @@ nodejs_register_toolchains(
     node_version = DEFAULT_NODE_VERSION,
 )
 
-load("//rules_openapi:deps.bzl", "rules_openapi_dependencies")
-
-rules_openapi_dependencies()
-
 load("@aspect_rules_js//npm:npm_import.bzl", "npm_translate_lock")
 
 npm_translate_lock(
