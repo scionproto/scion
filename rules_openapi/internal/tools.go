@@ -14,7 +14,7 @@
 
 //go:build tools
 
-package rules_openapi
+package rulesopenapi
 
 import (
 	// The bazel rule openapi_generate_go uses oapi-codegen as a build tool.
