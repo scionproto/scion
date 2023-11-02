@@ -1,0 +1,62 @@
+load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_filegroup", "pkg_files", "pkg_mkdirs", "strip_prefix")
+load("@rules_pkg//:pkg.bzl", "pkg_deb", "pkg_tar")
+load(":package_name_variables.bzl", "package_name_variables")
+
+# Variables used to prepare DEB and RPM packages
+PKG_HOMEPAGE = "https://github.com/scionproto/scion"
+PKG_MAINTAINER = "SCION Contributors" # FIXME
+# License
+PKG_PRORITY = "optional"
+PKG_SECTION = "net"
+
+package_name_variables(
+    name = "package_name_variables",
+    revision = "1",
+)
+
+# SCION Router
+pkg_tar(
+    name = "router-bin",
+    srcs = [
+        "//router/cmd/router:router"
+    ],
+    mode = "0755",
+    package_dir = "/usr/bin",
+)
+
+pkg_tar(
+    name = "router-systemd",
+    srcs = [
+        "systemd/scion-router@.service",
+    ],
+    mode = "0644",
+    package_dir = "/lib/systemd/system",
+)
+
+pkg_tar(
+    name = "router",
+    extension = "tar.gz",
+    deps = [
+        ":router-bin",
+        ":router-systemd",
+    ],
+)
+
+pkg_deb(
+    name = "router-deb",
+    data = ":router",
+    depends = [
+        "adduser",
+    ],
+    description = "SCION router", #FIXME
+    homepage = PKG_HOMEPAGE,
+    maintainer = PKG_MAINTAINER,
+    package = "scion-router",
+    #postinst = "debian/scripts/scion.postinst",
+    # TODO: use debhelper library scripts to deal with user mgmt, systemd, ...
+    priority = PKG_PRORITY,
+    section = PKG_SECTION,
+    version = "WHAAAAT",
+    package_file_name = "scion-router_{version}-{revision}_{target_cpu}.deb",
+    package_variables = ":package_name_variables",
+)
