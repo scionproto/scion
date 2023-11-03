@@ -12,7 +12,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/deepmap/oapi-codegen/pkg/runtime"
+	"github.com/oapi-codegen/runtime"
 )
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
@@ -153,41 +153,43 @@ func NewGetSegmentsRequest(server string, params *GetSegmentsParams) (*http.Requ
 		return nil, err
 	}
 
-	queryValues := queryURL.Query()
+	if params != nil {
+		queryValues := queryURL.Query()
 
-	if params.StartIsdAs != nil {
+		if params.StartIsdAs != nil {
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "start_isd_as", runtime.ParamLocationQuery, *params.StartIsdAs); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "start_isd_as", runtime.ParamLocationQuery, *params.StartIsdAs); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
-	}
+		if params.EndIsdAs != nil {
 
-	if params.EndIsdAs != nil {
-
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "end_isd_as", runtime.ParamLocationQuery, *params.EndIsdAs); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "end_isd_as", runtime.ParamLocationQuery, *params.EndIsdAs); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
+		queryURL.RawQuery = queryValues.Encode()
 	}
-
-	queryURL.RawQuery = queryValues.Encode()
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
@@ -308,21 +310,21 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// GetSegments request
+	// GetSegmentsWithResponse request
 	GetSegmentsWithResponse(ctx context.Context, params *GetSegmentsParams, reqEditors ...RequestEditorFn) (*GetSegmentsResponse, error)
 
-	// GetSegment request
+	// GetSegmentWithResponse request
 	GetSegmentWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetSegmentResponse, error)
 
-	// GetSegmentBlob request
+	// GetSegmentBlobWithResponse request
 	GetSegmentBlobWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetSegmentBlobResponse, error)
 }
 
 type GetSegmentsResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *[]SegmentBrief
-	JSON400      *Problem
+	Body                      []byte
+	HTTPResponse              *http.Response
+	JSON200                   *[]SegmentBrief
+	ApplicationproblemJSON400 *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -342,10 +344,10 @@ func (r GetSegmentsResponse) StatusCode() int {
 }
 
 type GetSegmentResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *Segment
-	JSON400      *Problem
+	Body                      []byte
+	HTTPResponse              *http.Response
+	JSON200                   *Segment
+	ApplicationproblemJSON400 *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -365,9 +367,9 @@ func (r GetSegmentResponse) StatusCode() int {
 }
 
 type GetSegmentBlobResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON400      *Problem
+	Body                      []byte
+	HTTPResponse              *http.Response
+	ApplicationproblemJSON400 *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -439,7 +441,7 @@ func ParseGetSegmentsResponse(rsp *http.Response) (*GetSegmentsResponse, error) 
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON400 = &dest
+		response.ApplicationproblemJSON400 = &dest
 
 	}
 
@@ -472,7 +474,7 @@ func ParseGetSegmentResponse(rsp *http.Response) (*GetSegmentResponse, error) {
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON400 = &dest
+		response.ApplicationproblemJSON400 = &dest
 
 	}
 
@@ -498,7 +500,7 @@ func ParseGetSegmentBlobResponse(rsp *http.Response) (*GetSegmentBlobResponse, e
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON400 = &dest
+		response.ApplicationproblemJSON400 = &dest
 
 	}
 

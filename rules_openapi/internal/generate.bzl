@@ -81,9 +81,9 @@ openapi_generate_go = rule(
         ),
         "_oapi_codegen": attr.label(
             doc = "The code generator binary.",
-            default = "@com_github_deepmap_oapi_codegen//cmd/oapi-codegen:oapi-codegen",
+            default = "@com_github_deepmap_oapi_codegen_v2//cmd/oapi-codegen:oapi-codegen",
             executable = True,
-            cfg = "target",
+            cfg = "exec",
         ),
         "out_types": attr.output(
             doc = "The generated types file.",
