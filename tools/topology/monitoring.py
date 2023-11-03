@@ -166,13 +166,12 @@ class MonitoringGenerator(object):
 
     def _write_dc_file(self):
         # Merged yeager and prometheus files.
-        name = 'monitoring'
         monitoring_dc = {
             'version': DOCKER_COMPOSE_CONFIG_VERSION,
+            'name': 'monitoring',
             'services': {
                 'prometheus': {
                     'image': 'prom/prometheus:v2.47.2',
-                    'container_name': name+'prometheus',
                     'network_mode': 'host',
                     'volumes': [
                         self.output_base + '/gen:/prom-config:ro'
@@ -181,7 +180,6 @@ class MonitoringGenerator(object):
                 },
                 'jaeger': {
                     'image': 'jaegertracing/all-in-one:1.22.0',
-                    'container_name': name+'yeager',
                     'user': '%s:%s' % (str(os.getuid()), str(os.getgid())),
                     'ports': [
                         '6831:6831/udp',

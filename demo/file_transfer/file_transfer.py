@@ -43,7 +43,7 @@ class Test(base.TestTopogen):
         with open(config_name, "w") as f:
             json.dump(t, f, indent=2)
         # Reload the config.
-        self.dc("kill", "-s", "SIGHUP", "scion_sig_1-ff00_0_111")
+        self.dc("kill", "-s", "SIGHUP", "sig_1-ff00_0_111")
         # Give gateway some time to start using the new path count.
         time.sleep(2)
 
@@ -86,7 +86,6 @@ class Test(base.TestTopogen):
         with open(scion_dc, "r") as file:
             dc = yaml.load(file, Loader=yaml.FullLoader)
         dc["services"]["tc_setup"] = {
-            "container_name": "tc_setup",
             "image": "tester:latest",
             "cap_add": ["NET_ADMIN"],
             "volumes": [{
@@ -97,7 +96,7 @@ class Test(base.TestTopogen):
             "entrypoint": ["/bin/sh", "-exc",
                            "ls -l /share; /share/tc_setup.sh scn_000 16.0mbit ;"
                            " /share/tc_setup.sh scn_001 16.0mbit"],
-            "depends_on": ["scion_br1-ff00_0_111-1", "scion_br1-ff00_0_111-2"],
+            "depends_on": ["br1-ff00_0_111-1", "br1-ff00_0_111-2"],
             "network_mode": "host",
         }
         with open(scion_dc, "w") as file:

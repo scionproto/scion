@@ -182,10 +182,6 @@ def sciond_name(topo_id):
     return 'sd%s' % topo_id.file_fmt()
 
 
-def sciond_svc_name(topo_id):
-    return 'scion_%s' % sciond_name(topo_id)
-
-
 def json_default(o):
     if isinstance(o, AddressProxy):
         return str(o.ip)

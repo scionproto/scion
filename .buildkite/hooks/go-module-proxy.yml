@@ -1,5 +1,6 @@
 ---
 version: "2.4"
+name: athens
 services:
   go-module-proxy:
     container_name: go-module-proxy

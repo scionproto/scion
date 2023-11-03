@@ -55,24 +55,24 @@ run_test() {(set -e
     docker image load -i acceptance/sig_short_exp_time/sig1.tar
     docker image load -i acceptance/sig_short_exp_time/sig2.tar
 
-    docker compose --compatibility -f acceptance/sig_short_exp_time/docker-compose.yml up -d dispatcher1 dispatcher2 sig1 sig2 patha pathb
+    docker compose -f acceptance/sig_short_exp_time/docker-compose.yml up -d dispatcher1 dispatcher2 sig1 sig2 patha pathb
 
     # Set up forward route on network stack 1 and 2 through the sig tunnel
     # device. The route is a property of the network stack, and persists after
     # the container that added it has exited.
     #
     # If the route configuration fails, the test is not stopped.
-    docker compose --compatibility -f acceptance/sig_short_exp_time/docker-compose.yml run --name route1 --rm tester1 ip route add 242.254.200.2/32 dev sig || true
-    docker compose --compatibility -f acceptance/sig_short_exp_time/docker-compose.yml run --name route2 --rm tester2 ip route add 242.254.100.2/32 dev sig || true
+    docker compose -f acceptance/sig_short_exp_time/docker-compose.yml run --name route1 --rm tester1 ip route add 242.254.200.2/32 dev sig || true
+    docker compose -f acceptance/sig_short_exp_time/docker-compose.yml run --name route2 --rm tester2 ip route add 242.254.100.2/32 dev sig || true
 
     echo "Start background ping, ping every 0.2 seconds"
-    docker compose --compatibility -f acceptance/sig_short_exp_time/docker-compose.yml run --name tester1 -d tester1 ping -i 0.2 242.254.200.2
+    docker compose -f acceptance/sig_short_exp_time/docker-compose.yml run --name tester1 -d tester1 ping -i 0.2 242.254.200.2
 
     echo "Waiting 10 seconds for path A to expire..."
     sleep 10
     echo "Path A expired, simulating it by shutting down path A proxy"
     # Traffic should have switched beforehand to path b, and no pings should be lost
-    docker compose --compatibility -f acceptance/sig_short_exp_time/docker-compose.yml stop patha
+    docker compose -f acceptance/sig_short_exp_time/docker-compose.yml stop patha
     sleep 1
     docker kill -s SIGINT tester1
 
@@ -104,9 +104,9 @@ OUTPUT_DIR=$TEST_UNDECLARED_OUTPUTS_DIR
 mkdir -p $OUTPUT_DIR/logs
 
 for CNTR in sig1 sig2 dispatcher1 dispatcher2; do
-    docker compose --compatibility -f acceptance/sig_short_exp_time/docker-compose.yml logs "$CNTR" > "$OUTPUT_DIR/logs/$CNTR.log"
+    docker compose -f acceptance/sig_short_exp_time/docker-compose.yml logs "$CNTR" > "$OUTPUT_DIR/logs/$CNTR.log"
 done
 
-docker compose --compatibility -f acceptance/sig_short_exp_time/docker-compose.yml down -v
+docker compose -f acceptance/sig_short_exp_time/docker-compose.yml down -v
 
 exit $RC

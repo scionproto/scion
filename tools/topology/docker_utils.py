@@ -75,19 +75,18 @@ class DockerUtilsGenerator(object):
         name = 'tester_%s' % topo_id.file_fmt()
         entry = {
             'image': docker_image(self.args, 'tester'),
-            'container_name': 'tester_%s' % topo_id.file_fmt(),
-            'depends_on': ['scion_disp_%s' % name],
+            'depends_on': ['disp_%s' % name],
             'privileged': True,
             'entrypoint': 'sh tester.sh',
             'environment': {},
             # 'user': self.user,
             'volumes': [
-                'vol_scion_disp_%s:/run/shm/dispatcher:rw' % name,
+                'vol_disp_%s:/run/shm/dispatcher:rw' % name,
                 self.output_base + '/logs:' + cntr_base + '/logs:rw',
                 self.output_base + '/gen:' + cntr_base + '/gen:rw',
                 self.output_base + '/gen-certs:' + cntr_base + '/gen-certs:rw'
             ],
-            'network_mode': 'service:scion_disp_%s' % name,
+            'network_mode': 'service:disp_%s' % name,
         }
         net = self.args.networks[name][0]
         ipv = 'ipv4'

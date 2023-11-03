@@ -35,15 +35,12 @@ import plumbum
 from plumbum import cmd
 
 SCION_DC_FILE = "gen/scion-dc.yml"
-DC_PROJECT = "scion"
 SCION_TESTING_DOCKER_ASSERTIONS_OFF = 'SCION_TESTING_DOCKER_ASSERTIONS_OFF'
 
 
 class Compose(object):
     def __init__(self,
-                 project: str = DC_PROJECT,
                  compose_file: str = SCION_DC_FILE):
-        self.project = project
         self.compose_file = compose_file
 
     def __call__(self, *args, **kwargs) -> str:
@@ -51,8 +48,7 @@ class Compose(object):
         # Note: not using plumbum here due to complications with encodings in the captured output
         try:
             res = subprocess.run(
-                ["docker", "compose", "--compatibility",
-                 "-f", self.compose_file, "-p", self.project, *args],
+                ["docker", "compose", "-f", self.compose_file, *args],
                 check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8")
         except subprocess.CalledProcessError as e:
             raise _CalledProcessErrorWithOutput(e) from None

@@ -8,7 +8,6 @@ networks:
       - subnet: 242.253.100.0/24
 services:
   topo_cs_reload_dispatcher:
-    container_name: topo_cs_reload_dispatcher
     image: bazel/acceptance/topo_cs_reload:dispatcher
     networks:
       bridge1:
@@ -16,7 +15,6 @@ services:
     volumes:
     - vol_topo_cs_reload_disp:/run/shm/dispatcher:rw
   topo_cs_reload_control_srv:
-    container_name: topo_cs_reload_control_srv
     image: bazel/acceptance/topo_cs_reload:control
     depends_on:
       - topo_cs_reload_dispatcher

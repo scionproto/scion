@@ -72,7 +72,7 @@ class Test(base.TestTopogen):
         end2end["-d", "-outDir", artifacts].run_fg()
 
         logger.info('==> Shutting down control servers and purging caches')
-        cs_services = self.dc.list_containers(".*_cs.*")
+        cs_services = self.dc.list_containers("cs.*")
         for cs in cs_services:
             self.dc.stop_container(cs)
 
