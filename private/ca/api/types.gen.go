@@ -6,8 +6,8 @@ package api
 import (
 	"encoding/json"
 
-	"github.com/deepmap/oapi-codegen/pkg/runtime"
-	openapi_types "github.com/deepmap/oapi-codegen/pkg/types"
+	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 const (
@@ -133,6 +133,26 @@ type RenewalResponse_CertificateChain struct {
 	union json.RawMessage
 }
 
+// N400BadRequest Error message encoded as specified in
+// [RFC7807](https://tools.ietf.org/html/rfc7807)
+type N400BadRequest = Problem
+
+// N401UnauthorizedError Error message encoded as specified in
+// [RFC7807](https://tools.ietf.org/html/rfc7807)
+type N401UnauthorizedError = Problem
+
+// N404NotFound Error message encoded as specified in
+// [RFC7807](https://tools.ietf.org/html/rfc7807)
+type N404NotFound = Problem
+
+// N500InternalServerError Error message encoded as specified in
+// [RFC7807](https://tools.ietf.org/html/rfc7807)
+type N500InternalServerError = Problem
+
+// N503ServiceUnavailable Error message encoded as specified in
+// [RFC7807](https://tools.ietf.org/html/rfc7807)
+type N503ServiceUnavailable = Problem
+
 // PostAuthTokenJSONRequestBody defines body for PostAuthToken for application/json ContentType.
 type PostAuthTokenJSONRequestBody = AccessCredentials
 
@@ -160,7 +180,7 @@ func (t *RenewalResponse_CertificateChain) MergeCertificateChain(v CertificateCh
 		return err
 	}
 
-	merged, err := runtime.JsonMerge(b, t.union)
+	merged, err := runtime.JsonMerge(t.union, b)
 	t.union = merged
 	return err
 }
@@ -186,7 +206,7 @@ func (t *RenewalResponse_CertificateChain) MergeCertificateChainPKCS7(v Certific
 		return err
 	}
 
-	merged, err := runtime.JsonMerge(b, t.union)
+	merged, err := runtime.JsonMerge(t.union, b)
 	t.union = merged
 	return err
 }

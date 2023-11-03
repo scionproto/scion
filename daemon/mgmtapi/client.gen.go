@@ -13,7 +13,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/deepmap/oapi-codegen/pkg/runtime"
+	"github.com/oapi-codegen/runtime"
 )
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
@@ -107,7 +107,7 @@ type ClientInterface interface {
 	// GetLogLevel request
 	GetLogLevel(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// SetLogLevel request with any body
+	// SetLogLevelWithBody request with any body
 	SetLogLevelWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	SetLogLevel(ctx context.Context, body SetLogLevelJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -318,57 +318,59 @@ func NewGetCertificatesRequest(server string, params *GetCertificatesParams) (*h
 		return nil, err
 	}
 
-	queryValues := queryURL.Query()
+	if params != nil {
+		queryValues := queryURL.Query()
 
-	if params.IsdAs != nil {
+		if params.IsdAs != nil {
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "isd_as", runtime.ParamLocationQuery, *params.IsdAs); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "isd_as", runtime.ParamLocationQuery, *params.IsdAs); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
-	}
+		if params.ValidAt != nil {
 
-	if params.ValidAt != nil {
-
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "valid_at", runtime.ParamLocationQuery, *params.ValidAt); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "valid_at", runtime.ParamLocationQuery, *params.ValidAt); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
-	}
+		if params.All != nil {
 
-	if params.All != nil {
-
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "all", runtime.ParamLocationQuery, *params.All); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "all", runtime.ParamLocationQuery, *params.All); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
+		queryURL.RawQuery = queryValues.Encode()
 	}
-
-	queryURL.RawQuery = queryValues.Encode()
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
@@ -586,41 +588,43 @@ func NewGetSegmentsRequest(server string, params *GetSegmentsParams) (*http.Requ
 		return nil, err
 	}
 
-	queryValues := queryURL.Query()
+	if params != nil {
+		queryValues := queryURL.Query()
 
-	if params.StartIsdAs != nil {
+		if params.StartIsdAs != nil {
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "start_isd_as", runtime.ParamLocationQuery, *params.StartIsdAs); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "start_isd_as", runtime.ParamLocationQuery, *params.StartIsdAs); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
-	}
+		if params.EndIsdAs != nil {
 
-	if params.EndIsdAs != nil {
-
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "end_isd_as", runtime.ParamLocationQuery, *params.EndIsdAs); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "end_isd_as", runtime.ParamLocationQuery, *params.EndIsdAs); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
+		queryURL.RawQuery = queryValues.Encode()
 	}
-
-	queryURL.RawQuery = queryValues.Encode()
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
@@ -717,41 +721,43 @@ func NewGetTrcsRequest(server string, params *GetTrcsParams) (*http.Request, err
 		return nil, err
 	}
 
-	queryValues := queryURL.Query()
+	if params != nil {
+		queryValues := queryURL.Query()
 
-	if params.Isd != nil {
+		if params.Isd != nil {
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", false, "isd", runtime.ParamLocationQuery, *params.Isd); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", false, "isd", runtime.ParamLocationQuery, *params.Isd); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
-	}
+		if params.All != nil {
 
-	if params.All != nil {
-
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "all", runtime.ParamLocationQuery, *params.All); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "all", runtime.ParamLocationQuery, *params.All); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
+		queryURL.RawQuery = queryValues.Encode()
 	}
-
-	queryURL.RawQuery = queryValues.Encode()
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
@@ -900,53 +906,53 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// GetCertificates request
+	// GetCertificatesWithResponse request
 	GetCertificatesWithResponse(ctx context.Context, params *GetCertificatesParams, reqEditors ...RequestEditorFn) (*GetCertificatesResponse, error)
 
-	// GetCertificate request
+	// GetCertificateWithResponse request
 	GetCertificateWithResponse(ctx context.Context, chainId ChainID, reqEditors ...RequestEditorFn) (*GetCertificateResponse, error)
 
-	// GetCertificateBlob request
+	// GetCertificateBlobWithResponse request
 	GetCertificateBlobWithResponse(ctx context.Context, chainId ChainID, reqEditors ...RequestEditorFn) (*GetCertificateBlobResponse, error)
 
-	// GetConfig request
+	// GetConfigWithResponse request
 	GetConfigWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetConfigResponse, error)
 
-	// GetInfo request
+	// GetInfoWithResponse request
 	GetInfoWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetInfoResponse, error)
 
-	// GetLogLevel request
+	// GetLogLevelWithResponse request
 	GetLogLevelWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetLogLevelResponse, error)
 
-	// SetLogLevel request with any body
+	// SetLogLevelWithBodyWithResponse request with any body
 	SetLogLevelWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetLogLevelResponse, error)
 
 	SetLogLevelWithResponse(ctx context.Context, body SetLogLevelJSONRequestBody, reqEditors ...RequestEditorFn) (*SetLogLevelResponse, error)
 
-	// GetSegments request
+	// GetSegmentsWithResponse request
 	GetSegmentsWithResponse(ctx context.Context, params *GetSegmentsParams, reqEditors ...RequestEditorFn) (*GetSegmentsResponse, error)
 
-	// GetSegment request
+	// GetSegmentWithResponse request
 	GetSegmentWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetSegmentResponse, error)
 
-	// GetSegmentBlob request
+	// GetSegmentBlobWithResponse request
 	GetSegmentBlobWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetSegmentBlobResponse, error)
 
-	// GetTrcs request
+	// GetTrcsWithResponse request
 	GetTrcsWithResponse(ctx context.Context, params *GetTrcsParams, reqEditors ...RequestEditorFn) (*GetTrcsResponse, error)
 
-	// GetTrc request
+	// GetTrcWithResponse request
 	GetTrcWithResponse(ctx context.Context, isd int, base int, serial int, reqEditors ...RequestEditorFn) (*GetTrcResponse, error)
 
-	// GetTrcBlob request
+	// GetTrcBlobWithResponse request
 	GetTrcBlobWithResponse(ctx context.Context, isd int, base int, serial int, reqEditors ...RequestEditorFn) (*GetTrcBlobResponse, error)
 }
 
 type GetCertificatesResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *[]ChainBrief
-	JSON400      *Problem
+	Body                      []byte
+	HTTPResponse              *http.Response
+	JSON200                   *[]ChainBrief
+	ApplicationproblemJSON400 *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -966,10 +972,10 @@ func (r GetCertificatesResponse) StatusCode() int {
 }
 
 type GetCertificateResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *Chain
-	JSON400      *Problem
+	Body                      []byte
+	HTTPResponse              *http.Response
+	JSON200                   *Chain
+	ApplicationproblemJSON400 *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -989,9 +995,9 @@ func (r GetCertificateResponse) StatusCode() int {
 }
 
 type GetCertificateBlobResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON400      *Problem
+	Body                      []byte
+	HTTPResponse              *http.Response
+	ApplicationproblemJSON400 *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -1013,7 +1019,7 @@ func (r GetCertificateBlobResponse) StatusCode() int {
 type GetConfigResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1035,7 +1041,7 @@ func (r GetConfigResponse) StatusCode() int {
 type GetInfoResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1058,7 +1064,7 @@ type GetLogLevelResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *LogLevel
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1081,7 +1087,7 @@ type SetLogLevelResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *LogLevel
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1101,10 +1107,10 @@ func (r SetLogLevelResponse) StatusCode() int {
 }
 
 type GetSegmentsResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *[]SegmentBrief
-	JSON400      *Problem
+	Body                      []byte
+	HTTPResponse              *http.Response
+	JSON200                   *[]SegmentBrief
+	ApplicationproblemJSON400 *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -1124,10 +1130,10 @@ func (r GetSegmentsResponse) StatusCode() int {
 }
 
 type GetSegmentResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *Segment
-	JSON400      *Problem
+	Body                      []byte
+	HTTPResponse              *http.Response
+	JSON200                   *Segment
+	ApplicationproblemJSON400 *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -1147,9 +1153,9 @@ func (r GetSegmentResponse) StatusCode() int {
 }
 
 type GetSegmentBlobResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON400      *Problem
+	Body                      []byte
+	HTTPResponse              *http.Response
+	ApplicationproblemJSON400 *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -1172,7 +1178,7 @@ type GetTrcsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *[]TRCBrief
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1195,7 +1201,7 @@ type GetTrcResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *TRC
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1217,7 +1223,7 @@ func (r GetTrcResponse) StatusCode() int {
 type GetTrcBlobResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON400      *StandardError
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
@@ -1387,7 +1393,7 @@ func ParseGetCertificatesResponse(rsp *http.Response) (*GetCertificatesResponse,
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON400 = &dest
+		response.ApplicationproblemJSON400 = &dest
 
 	}
 
@@ -1420,7 +1426,7 @@ func ParseGetCertificateResponse(rsp *http.Response) (*GetCertificateResponse, e
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON400 = &dest
+		response.ApplicationproblemJSON400 = &dest
 
 	}
 
@@ -1446,7 +1452,7 @@ func ParseGetCertificateBlobResponse(rsp *http.Response) (*GetCertificateBlobRes
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON400 = &dest
+		response.ApplicationproblemJSON400 = &dest
 
 	}
 
@@ -1468,7 +1474,7 @@ func ParseGetConfigResponse(rsp *http.Response) (*GetConfigResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1494,7 +1500,7 @@ func ParseGetInfoResponse(rsp *http.Response) (*GetInfoResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1527,7 +1533,7 @@ func ParseGetLogLevelResponse(rsp *http.Response) (*GetLogLevelResponse, error) 
 		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1560,7 +1566,7 @@ func ParseSetLogLevelResponse(rsp *http.Response) (*SetLogLevelResponse, error) 
 		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1597,7 +1603,7 @@ func ParseGetSegmentsResponse(rsp *http.Response) (*GetSegmentsResponse, error) 
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON400 = &dest
+		response.ApplicationproblemJSON400 = &dest
 
 	}
 
@@ -1630,7 +1636,7 @@ func ParseGetSegmentResponse(rsp *http.Response) (*GetSegmentResponse, error) {
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON400 = &dest
+		response.ApplicationproblemJSON400 = &dest
 
 	}
 
@@ -1656,7 +1662,7 @@ func ParseGetSegmentBlobResponse(rsp *http.Response) (*GetSegmentBlobResponse, e
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON400 = &dest
+		response.ApplicationproblemJSON400 = &dest
 
 	}
 
@@ -1685,7 +1691,7 @@ func ParseGetTrcsResponse(rsp *http.Response) (*GetTrcsResponse, error) {
 		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1718,7 +1724,7 @@ func ParseGetTrcResponse(rsp *http.Response) (*GetTrcResponse, error) {
 		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1744,7 +1750,7 @@ func ParseGetTrcBlobResponse(rsp *http.Response) (*GetTrcBlobResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest StandardError
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
