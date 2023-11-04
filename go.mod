@@ -1,6 +1,7 @@
 module github.com/scionproto/scion
 
 require (
+	connectrpc.com/connect v1.12.0
 	github.com/antlr/antlr4/runtime/Go/antlr v0.0.0-20220209173558-ad29539cd2e9
 	github.com/bazelbuild/rules_go v0.38.1
 	github.com/buildkite/go-buildkite/v2 v2.9.0
