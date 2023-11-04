@@ -9,6 +9,10 @@ This document helps you set up a SCION demo environment, which consists of a sta
 Setup
 -----
 
+This first section provides an overview of the setup and topology of the sample demo environment. It lists some details of the ISD and each AS in the ISD, such as the ISD- and AS number, the DNS names, the kind of AS (core or leaf) and the IP addresses.
+
+The topology of the ISD includes the inter-AS connections to neighboring ASes, and defines the underlay IP/UDP addresses of services and routers running in this AS. This is specified in topology files - this guide explains how to configure these files.
+
 
 Sample SCION Setup
 ..................
@@ -46,8 +50,7 @@ The SCION topology looks like this:
 Prerequisites
 -------------
 
-There are some prerequisites before you can start setting up your demo environment. These are listed here:
-
+Before you can start setting up your demo environment, you need to set up some virtual machines (VMs), one per AS in our ISD/demo environment. We recommend the following VMs:
 
 - 5 VMs - **Ubuntu** 22.04.3 LTS (Jammy Jellyfish). For more information, see `Ubuntu Jammy Jellyfish <https://releases.ubuntu.com/jammy/>`_. These 5 virtual maschines resemble the ASes shown in the setup overview above - each maschine is one AS.
 
