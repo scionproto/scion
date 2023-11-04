@@ -56,7 +56,7 @@ func (f *Fetcher) Level1(
 	meta drkey.Level1Meta,
 ) (drkey.Level1Key, error) {
 
-	req := level1MetaToProtoRequest(meta)
+	req := Level1MetaToProtoRequest(meta)
 
 	// Keep retrying until the reaching MaxRetries.
 	// getLevel1Key will use different paths out of Router retrieved paths.
@@ -77,7 +77,7 @@ func (f *Fetcher) Level1(
 			)
 		}
 		if err == nil {
-			lvl1Key, err := getLevel1KeyFromReply(meta, rep)
+			lvl1Key, err := GetLevel1KeyFromReply(meta, rep)
 			if err != nil {
 				return drkey.Level1Key{}, serrors.Wrap("obtaining level 1 key from reply", err)
 			}

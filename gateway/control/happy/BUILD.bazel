@@ -1,0 +1,15 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "discoverer.go",
+        "prefix_fetcher.go",
+    ],
+    importpath = "github.com/scionproto/scion/gateway/control/happy",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gateway/control:go_default_library",
+        "//pkg/connect/happy:go_default_library",
+    ],
+)
