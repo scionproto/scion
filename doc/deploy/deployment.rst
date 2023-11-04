@@ -3,21 +3,18 @@
 Setting Up a Demo Environment
 =============================
 
-This document helps you set up a SCION demo environment, which consists of a stand-alone full-scale SCION environment distributed among five computers. The demo environment resembles one SCION Isolation Domain, with three core ASes and two non-core, leaf ASes.
+This document helps you set up a SCION demo configuration, which consists of a stand-alone full-scale SCION environment distributed among five computers. The demo environment resembles one SCION Isolation Domain ISD, with three core ASes and two non-core, leaf ASes.
 
 
 Setup
 -----
 
-This first section provides an overview of the setup and topology of the sample demo environment. It lists some details of the ISD and each AS in the ISD, such as the ISD- and AS number, the DNS names, the kind of AS (core or leaf) and the IP addresses.
+This first section provides an overview of the setup and topology of the sample demo environment.
 
-The topology of the ISD includes the inter-AS connections to neighboring ASes, and defines the underlay IP/UDP addresses of services and routers running in this AS. This is specified in topology files - this guide explains how to configure these files.
+Sample SCION Demo Setup
+.......................
 
-
-Sample SCION Setup
-..................
-
-This is the sample setup:
+The sample SCION demo setup consists of one ISD with three core ASes and two non-core, leaf ASes. The following table lists some details of the sample ISD and each AS in it, such as the DNS names, the ISD- and AS numbers, the kind of AS (core or leaf) and the IP addresses.
 
 ======================= ==== ========= ======== =========== ===============
 DNS Name                ISD  AS        Purpose  Notes       IP Address
@@ -32,10 +29,10 @@ scion06.martincoit.net  42   ffaa:1:5  Leaf                 147.28.184.148
 *Table 1: Sample setup*
 
 
-Sample SCION Topology
-.....................
+Sample SCION Demo Topology
+..........................
 
-The SCION topology looks like this:
+The topology of the ISD includes the inter-AS connections to neighboring ASes, and defines the underlay IP/UDP addresses of services and routers running in this AS. This is specified in topology files - this guide later explains how to configure these files. A following graphic depicts the topology on a high level.
 
 .. figure:: SCION-deployment-guide.drawio.png
    :width: 95 %
@@ -50,20 +47,20 @@ The SCION topology looks like this:
 Prerequisites
 -------------
 
-Before you can start setting up your demo environment, you need to set up some virtual machines (VMs), one per AS in our ISD/demo environment. We recommend the following VMs:
+Before you can start setting up your demo environment, you need to set up five virtual machines (VMs), one per AS in our ISD/demo environment. We recommend using Ubuntu VMs for this.
 
 - 5 VMs - **Ubuntu** 22.04.3 LTS (Jammy Jellyfish). For more information, see `Ubuntu Jammy Jellyfish <https://releases.ubuntu.com/jammy/>`_. These 5 virtual maschines resemble the ASes shown in the setup overview above - each maschine is one AS.
 
 .. note::
 
-   It is useful to give the machines names that fit/suit the setup of your demo environment.
+   It is useful to give each VM a name that fits/suits the setup of your demo environment.
 
 
 
 Tasks to Perform
 ----------------
 
-To create this environment, you need to perform the following tasks, in this order:
+To create the sample ISD environment, you need to perform the following tasks, in this order:
 
 - Task 1: Installation (:ref:`step1`)
 - Task 2: Configuration (:ref:`step2`)
@@ -90,7 +87,7 @@ Here is where you can get the software:
 In this example, we install software with the following release version:
 *scion_v0.9.1_amd64_linux.tar.gz*
 
-Note that we have to install the software five times: Once for each virual machine we created previously, where three machines represent core ASes and two machines are non-core, leaf ASes. Proceed as described in the following sections.
+Note that we have to install the software five times: Once per virtual machine we created previously. Proceed as described in the following sections.
 
 
 Downloading and Installing the SCION Software
@@ -133,7 +130,7 @@ Step 1 - Configure the Topology (Files)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 First, you have to configure the topology files for your demo environment.
-You have to create is one "global" topology file which describes the setup of the entire ISD environment, as well as one specific AS  topology file, one for each of the ASes in your demo ISD. The topology file of an AS specifies all the inter-AS connections to neighboring ASes, and defines the underlay IP/UDP addresses of services and routers running in this AS. This implies that the topology file will be different for each AS in your demo environment.
+You have to create one "global" topology file which describes the setup of the entire ISD environment, as well as one specific AS topology file per AS in your demo ISD. The topology file of an AS specifies all the inter-AS connections to neighboring ASes, and defines the underlay IP/UDP addresses of services and routers running in this AS. This implies that the topology file will be different for each AS in your demo environment.
 
 The topology information is needed by Router and Control Service instances, and also by end-host applications. For more information on the topology files, see `<https://docs.scion.org/en/latest/manuals/common.html#topology-json>`_
 
@@ -172,8 +169,18 @@ The topology information is needed by Router and Control Service instances, and 
 
 3. Save the just-created global topology file (with the name *GlobalDeploymentTopology.topo*).
 
-4. Now you have to create a topology file per AS.
-**TODO - Link to sample config files per AS**
+4. Now you have to create a topology file per AS. Sample topology files for each AS in our sample ISD environment are listed below. Click on the file name to download it, then copy the file to the corresponding AS.
+
+   - **AS 1 (ffaa:1:1)**: `topology1.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology1.json>`_
+
+   - **AS 2 (ffaa:1:2)**: `topology2.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology2.json>`_
+
+   - **AS 3 (ffaa:1:3)**: `topology3.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology3.json>`_
+
+   - **AS 4 (ffaa:1:4)**: `topology4.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology4.json>`_
+
+   - **AS 5 (ffaa:1:5)**: `topology5.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology5.json>`_
+
 
 
 Step 2 - Generate All Required Certificates
@@ -192,7 +199,7 @@ The next step is to generate all required certificates by using the global topol
 2. Now you have to distribute the just-generated keys to the AS routers. Proceed as follows:
 
    - Copy the *gen/* directory with its content to each of the five AS routers. **TODO**
-   - Now for each AS, execute the commands in the following code block. Pay attention to the following:
+   - For each AS, execute the commands in the following code block. Pay attention to the following:
 
      - All lines except for the last line are the same for each AS.
      - The part *ASffaa_1_1* in the last line needs to be adapted per AS, so that it contains the correct AS number for the corresponding AS.
@@ -226,76 +233,24 @@ To create the required directories for the support database files, execute the f
 Step 4 - Create the Configuration Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Next, you have to create ("copy over") a couple of configuration files in the */etc/scion/* directory.
-The files including their names are listed below. Use the added sample code snippets to configure the files. Again, you have to create these files on every AS machine.
+Next, you have to create ("copy over") a couple of configuration files in the */etc/scion/* directory of each AS.
 
-- **Border router**: *br.toml* file
+The files including their names are listed below. Click on the corresponding link to download the file, then copy it into the */etc/scion/* directory of each AS.
 
-  .. code-block::
+- **Border router**: `br.toml <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/br.toml>`_
 
-     [general]
-     id = "br"
-     config_dir = "/etc/scion"
+- **Control service**: `cs.toml <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/cs.toml>`_
 
+- **Dispatcher**: `dispatcher.toml <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/dispatcher.toml>`_
 
-- **Control service**: *cs.toml* file
-
-  .. code-block::
-
-     [general]
-     id = "cs"
-     config_dir = "/etc/scion"
-     reconnect_to_dispatcher = true
-
-     [log.console]
-     level = "info"
-
-     [beacon_db]
-     connection = "/var/lib/scion/control.beacon.db"
-
-     [path_db]
-     connection = "/var/lib/scion/control.path.db"
-
-     [trust_db]
-     connection = "/var/lib/scion/control.trust.db"
-
-
-- **Dispatcher**: *dispatcher.toml* file
-
-  .. code-block::
-
-     [log.console]
-     # Console logging level (debug|info|error) (default info)
-     level = "info"
-
-     [dispatcher]
-     id = "dispatcher"
-
-     # File permissions of the ApplicationSocket socket file, in octal. (default "0770")
-     socket_file_mode = "0770"
-
-
-- **SCION deamon**: *sd.toml* file
-
-  .. code-block::
-
-     [general]
-     id = "sd"
-     config_dir = "/etc/scion"
-     reconnect_to_dispatcher = true
-
-     [trust_db]
-     connection = "/var/lib/sd42-ffaa_1_1.trust.db"
-
-     [path_db]
-     connection = "/var/lib/sd42-ffaa_1_1.path.db"
+- **SCION deamon**: `sd.toml <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/sd.toml>`_
 
 
 
 Step 5 - Start the Services
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You now have to start the services on each of the five ASes. Execute the following commands on every AS:
+As a last step, you have to start the services on each of the five ASes. Execute the following commands on every AS:
 
 .. code-block::
 
@@ -312,7 +267,8 @@ You now have to start the services on each of the five ASes. Execute the followi
 Testing the Environment
 .......................
 
-You can now test your environment. This section shows how.
+You can now test your environment. The code block below includes some PING tests you could perform to check whether your environment works well.
+
 
 .. code-block::
 
