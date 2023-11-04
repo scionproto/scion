@@ -323,6 +323,39 @@ Tasks
 1. Do this
 2. Do that
 
+# /usr/local/scion/scion address
+42-ffaa:1:1,127.0.0.1
+
+
+
+# /usr/local/scion/scion ping 42-ffaa:1:5,127.0.0.1 -c 5
+Resolved local address:
+  127.0.0.1
+Using path:
+  Hops: [42-ffaa:1:1 3>1 42-ffaa:1:3 4>2 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002
+
+PING 42-ffaa:1:5,127.0.0.1:0 pld=0B scion_pkt=112B
+120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=0 time=0.788ms
+120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=1 time=3.502ms
+120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=2 time=3.313ms
+120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=3 time=3.838ms
+120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=4 time=3.401ms
+
+--- 42-ffaa:1:5,127.0.0.1 statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 5000.718ms
+rtt min/avg/max/mdev = 0.788/2.968/3.838/1.105 ms
+
+
+# /usr/local/scion/scion showpaths 42-ffaa:1:5
+Available paths to 42-ffaa:1:5
+3 Hops:
+[0] Hops: [42-ffaa:1:1 2>1 42-ffaa:1:2 3>1 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
+[1] Hops: [42-ffaa:1:1 3>1 42-ffaa:1:3 4>2 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
+4 Hops:
+[2] Hops: [42-ffaa:1:1 2>1 42-ffaa:1:2 2>2 42-ffaa:1:3 4>2 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
+[3] Hops: [42-ffaa:1:1 3>1 42-ffaa:1:3 2>2 42-ffaa:1:2 3>1 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
+
+
 
 .. _step4:
 
