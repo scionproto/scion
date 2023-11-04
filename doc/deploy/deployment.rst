@@ -299,10 +299,12 @@ You now have to start the services on each of the five ASes. Execute the followi
 
 .. code-block::
 
-   screen /usr/local/scion/router --config /etc/scion/br.toml
-   screen /usr/local/scion/dispatcher --config /etc/scion/dispatcher.toml
-   screen /usr/local/scion/control --config /etc/scion/cs.toml
-   screen /usr/local/scion/daemon --config /etc/scion/sd.toml
+ screen -dmS BR /usr/local/scion/router --config /etc/scion/br.toml
+
+   screen -dmS BorderRouter /usr/local/scion/router --config /etc/scion/br.toml
+   screen -dmS Dispatcher /usr/local/scion/dispatcher --config /etc/scion/dispatcher.toml
+   screen -dmS Control /usr/local/scion/control --config /etc/scion/cs.toml
+   screen -dmS Daemon /usr/local/scion/daemon --config /etc/scion/sd.toml
 
 
 
