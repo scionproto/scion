@@ -20,9 +20,12 @@ import (
 	"sync"
 
 	"github.com/scionproto/scion/gateway/control"
+	controlconnect "github.com/scionproto/scion/gateway/control/connect"
 	controlgrpc "github.com/scionproto/scion/gateway/control/grpc"
+	"github.com/scionproto/scion/gateway/control/happy"
 	"github.com/scionproto/scion/gateway/pathhealth/policies"
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/connect"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
@@ -35,34 +38,44 @@ type fetcherFactory struct {
 func (f fetcherFactory) NewPrefixFetcher(ctx context.Context,
 	gateway control.Gateway) control.PrefixFetcher {
 
-	return &prefixFetcher{
-		PrefixFetcher: &controlgrpc.PrefixFetcher{
-			Remote: f.remote,
-			Dialer: f.wf.Dialer,
-			Pather: f.wf.PathMonitor.Register(
-				ctx,
+	pather := f.wf.PathMonitor.Register(
+		ctx,
+		f.remote,
+		&policies.Policies{
+			PathPolicy: control.PathPolicyWithAllowedInterfaces(
+				f.wf.Policies.PathPolicy,
 				f.remote,
-				&policies.Policies{
-					PathPolicy: control.PathPolicyWithAllowedInterfaces(
-						f.wf.Policies.PathPolicy,
-						f.remote,
-						gateway.Interfaces,
-					),
-					PerfPolicy: f.wf.Policies.PerfPolicy,
-					PathCount:  f.wf.Policies.PathCount,
-				},
-				// XXX(roosd): This potentially can lead to label value
-				// explosion. However, the gateway IPs are rather stable in
-				// practice. Conceptually, this is similar to using the remote
-				// ISD-AS as a label value, which we do as well.
-				fmt.Sprintf("prefix-watcher-%s", gateway.Control.IP),
+				gateway.Interfaces,
 			),
+			PerfPolicy: f.wf.Policies.PerfPolicy,
+			PathCount:  f.wf.Policies.PathCount,
 		},
+		// XXX(roosd): This potentially can lead to label value
+		// explosion. However, the gateway IPs are rather stable in
+		// practice. Conceptually, this is similar to using the remote
+		// ISD-AS as a label value, which we do as well.
+		fmt.Sprintf("prefix-watcher-%s", gateway.Control.IP),
+	)
+	return &prefixFetcher{
+		SimplePrefixFetcher: happy.PrefixFetcher{
+			Connect: &controlconnect.PrefixFetcher{
+				Remote: f.remote,
+				Dialer: f.wf.ConnectDialer,
+				Paths:  pather,
+			},
+			Grpc: &controlgrpc.PrefixFetcher{
+				Remote: f.remote,
+				Dialer: f.wf.Dialer,
+				Pather: pather,
+			},
+		},
+		pather: pather,
 	}
 }
 
 type prefixFetcher struct {
-	*controlgrpc.PrefixFetcher
+	control.SimplePrefixFetcher
+	pather control.PathMonitorRegistration
 
 	closedMtx sync.RWMutex
 	closed    bool
@@ -75,15 +88,16 @@ func (f *prefixFetcher) Close() error {
 		return serrors.New("already closed")
 	}
 	f.closed = true
-	f.PrefixFetcher.Pather.Close()
+	f.pather.Close()
 	return nil
 }
 
 type WatcherFactory struct {
-	Dialer      libgrpc.Dialer
-	PathMonitor control.PathMonitor
-	Aggregator  control.PrefixConsumer
-	Policies    *policies.Policies
+	Dialer        libgrpc.Dialer
+	ConnectDialer connect.Dialer
+	PathMonitor   control.PathMonitor
+	Aggregator    control.PrefixConsumer
+	Policies      *policies.Policies
 }
 
 func (wf *WatcherFactory) New(
@@ -96,11 +110,19 @@ func (wf *WatcherFactory) New(
 	return &watcherWrapper{
 		GatewayWatcher: control.GatewayWatcher{
 			Remote: remote,
-			Discoverer: controlgrpc.Discoverer{
-				Remote: remote,
-				Dialer: wf.Dialer,
-				Paths:  pather,
+			Discoverer: happy.Discoverer{
+				Connect: controlconnect.Discoverer{
+					Remote: remote,
+					Dialer: wf.ConnectDialer,
+					Paths:  pather,
+				},
+				Grpc: controlgrpc.Discoverer{
+					Remote: remote,
+					Dialer: wf.Dialer,
+					Paths:  pather,
+				},
 			},
+
 			Template: control.PrefixWatcherConfig{
 				Consumer: wf.Aggregator,
 				FetcherFactory: fetcherFactory{

@@ -46,48 +46,63 @@ const (
 // streamAcceptTimeout is the default timeout for accepting connections.
 const streamAcceptTimeout = 5 * time.Second
 
+// TODO: move this ?
 // ConnListener wraps a quic.Listener as a net.Listener.
 type ConnListener struct {
-	*quic.Listener
+	Conns <-chan quic.Connection
 
 	ctx    context.Context
 	cancel func()
+
+	addr net.Addr
 }
 
 // NewConnListener constructs a new listener with the appropriate buffers set.
-func NewConnListener(l *quic.Listener) *ConnListener {
+func NewConnListener(conns <-chan quic.Connection, addr net.Addr) *ConnListener {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &ConnListener{
-		Listener: l,
-		ctx:      ctx,
-		cancel:   cancel,
+		Conns:  conns,
+		ctx:    ctx,
+		cancel: cancel,
+		addr:   addr,
 	}
 	return c
 }
 
+func (l *ConnListener) Addr() net.Addr {
+	fmt.Println("Addr():", l.addr)
+	return l.addr
+}
+
 // Accept accepts the first stream on a session and wraps it as a net.Conn.
 func (l *ConnListener) Accept() (net.Conn, error) {
-	session, err := l.Listener.Accept(l.ctx)
-	if err != nil {
-		return nil, err
+	fmt.Println("accept")
+	select {
+	case conn := <-l.Conns:
+		fmt.Println("conn <-")
+		return newAcceptingConn(l.ctx, conn), nil
+	case <-l.ctx.Done():
+		return nil, l.ctx.Err()
 	}
-	return newAcceptingConn(l.ctx, session), nil
 }
 
 // AcceptCtx accepts the first stream on a session and wraps it as a net.Conn. Accepts a context in
 // case the caller doesn't want this to block indefinitely.
 func (l *ConnListener) AcceptCtx(ctx context.Context) (net.Conn, error) {
-	session, err := l.Listener.Accept(ctx)
-	if err != nil {
-		return nil, err
+	fmt.Println("acceptctx")
+	select {
+	case conn := <-l.Conns:
+		fmt.Println("conn ctx <-")
+		return newAcceptingConn(ctx, conn), nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
-	return newAcceptingConn(ctx, session), nil
 }
 
 // Close closes the listener.
 func (l *ConnListener) Close() error {
 	l.cancel()
-	return l.Listener.Close()
+	return nil
 }
 
 // acceptingConn is a net.Conn wrapper for a QUIC stream that is yet to

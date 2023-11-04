@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 load("//tools/proto:connect.bzl", "go_connect_library")
 
 go_connect_library(
@@ -6,4 +7,17 @@ go_connect_library(
         "prefix.connect.go",
     ],
     proto = "gateway",
+=======
+load("//tools/lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["prefix.connect.go"],
+    importpath = "github.com/scionproto/scion/pkg/proto/gateway/v1/gatewayconnect",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/proto/gateway:go_default_library",
+        "@com_connectrpc_connect//:go_default_library",
+    ],
+>>>>>>> 244e9b483 (THE GRAND MERGE)
 )

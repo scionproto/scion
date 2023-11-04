@@ -1,0 +1,14 @@
+load("//tools/lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["material.go"],
+    importpath = "github.com/scionproto/scion/control/trust/connect",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//control/trust/grpc:go_default_library",
+        "//pkg/proto/control_plane:go_default_library",
+        "//pkg/proto/control_plane/v1/control_planeconnect:go_default_library",
+        "@com_connectrpc_connect//:go_default_library",
+    ],
+)
