@@ -177,7 +177,7 @@ pkg_tar(
         "//control/cmd/control",
         "//daemon/cmd/daemon",
         "//dispatcher/cmd/dispatcher",
-        "//gateway/cmd/gateway",
+        #"//gateway/cmd/gateway",
         "//router/cmd/router",
         "//scion-pki/cmd/scion-pki",
         "//scion/cmd/scion",

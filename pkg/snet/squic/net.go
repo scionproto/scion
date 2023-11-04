@@ -53,28 +53,33 @@ type ConnListener struct {
 
 	ctx    context.Context
 	cancel func()
+
+	addr net.Addr
 }
 
 // NewConnListener constructs a new listener with the appropriate buffers set.
-func NewConnListener(conns <-chan quic.Connection) *ConnListener {
+func NewConnListener(conns <-chan quic.Connection, addr net.Addr) *ConnListener {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &ConnListener{
 		Conns:  conns,
 		ctx:    ctx,
 		cancel: cancel,
+		addr:   addr,
 	}
 	return c
 }
 
 func (l *ConnListener) Addr() net.Addr {
-	// TODO
-	return nil
+	fmt.Println("Addr():", l.addr)
+	return l.addr
 }
 
 // Accept accepts the first stream on a session and wraps it as a net.Conn.
 func (l *ConnListener) Accept() (net.Conn, error) {
+	fmt.Println("accept")
 	select {
 	case conn := <-l.Conns:
+		fmt.Println("conn <-")
 		return newAcceptingConn(l.ctx, conn), nil
 	case <-l.ctx.Done():
 		return nil, l.ctx.Err()
@@ -84,8 +89,10 @@ func (l *ConnListener) Accept() (net.Conn, error) {
 // AcceptCtx accepts the first stream on a session and wraps it as a net.Conn. Accepts a context in
 // case the caller doesn't want this to block indefinitely.
 func (l *ConnListener) AcceptCtx(ctx context.Context) (net.Conn, error) {
+	fmt.Println("acceptctx")
 	select {
 	case conn := <-l.Conns:
+		fmt.Println("conn ctx <-")
 		return newAcceptingConn(ctx, conn), nil
 	case <-ctx.Done():
 		return nil, ctx.Err()

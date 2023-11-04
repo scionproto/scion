@@ -107,6 +107,14 @@ import (
 	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 )
 
+type loggingHandler struct{ next http.Handler }
+
+func (h loggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(r.Method)
+	fmt.Println(r.URL)
+	h.next.ServeHTTP(w, r)
+}
+
 var globalCfg config.Config
 
 func main() {
@@ -340,7 +348,7 @@ func realMain(ctx context.Context) error {
 		Requests: libmetrics.NewPromCounter(cstrustmetrics.Handler.Requests),
 	}
 	// TODO needs a wrapper here...
-	connectMux.Handle(cpconnect.NewTrustMaterialServiceHandler(nil))
+	//connectMux.Handle(cpconnect.NewTrustMaterialServiceHandler(nil))
 	cppb.RegisterTrustMaterialServiceServer(quicServer, trustServer)
 	cppb.RegisterTrustMaterialServiceServer(tcpServer, trustServer)
 
@@ -355,7 +363,11 @@ func realMain(ctx context.Context) error {
 		},
 	}
 	cppb.RegisterSegmentCreationServiceServer(quicServer, segmentCreationServer)
-	connectMux.Handle(cpconnect.NewSegmentCreationServiceHandler(beaconingconnect.SegmentCreationServer{SegmentCreationServer: segmentCreationServer}))
+	{
+		pattern, handler := cpconnect.NewSegmentCreationServiceHandler(beaconingconnect.SegmentCreationServer{SegmentCreationServer: segmentCreationServer})
+		fmt.Println(pattern)
+		connectMux.Handle(pattern, handler)
+	}
 
 	// Handle segment lookup
 	authLookupServer := &segreqgrpc.LookupServer{
@@ -387,7 +399,6 @@ func realMain(ctx context.Context) error {
 
 	// Always register a forwarding lookup for AS internal requests.
 	cppb.RegisterSegmentLookupServiceServer(tcpServer, forwardingLookupServer)
-	connectMux.Handle(cpconnect.NewSegmentLookupServiceHandler(segreqconnect.LookupServer{LookupServer: forwardingLookupServer}))
 	if topo.Core() {
 		cppb.RegisterSegmentLookupServiceServer(quicServer, authLookupServer)
 		connectMux.Handle(cpconnect.NewSegmentLookupServiceHandler(segreqconnect.LookupServer{LookupServer: authLookupServer}))
@@ -687,7 +698,7 @@ func realMain(ctx context.Context) error {
 
 	var cleanup app.Cleanup
 	connectServer := http3.Server{
-		Handler: connectMux,
+		Handler: loggingHandler{connectMux},
 	}
 
 	grpcConns := make(chan quic.Connection)
@@ -705,13 +716,15 @@ func realMain(ctx context.Context) error {
 			}
 			go func() {
 				defer log.HandlePanic()
-
+				fmt.Println("protocol", conn.ConnectionState().TLS.NegotiatedProtocol)
 				if conn.ConnectionState().TLS.NegotiatedProtocol == "h3" {
 					if err := connectServer.ServeQUICConn(conn); err != nil {
 						log.Debug(err.Error())
 					}
 				} else {
+					fmt.Println("<- conn")
 					grpcConns <- conn
+					fmt.Println("<- conn ok")
 				}
 			}()
 		}
@@ -719,10 +732,13 @@ func realMain(ctx context.Context) error {
 
 	g.Go(func() error {
 		defer log.HandlePanic()
-		grpcListener := squic.NewConnListener(grpcConns)
+		grpcListener := squic.NewConnListener(grpcConns, quicStack.Listener.Addr())
+		fmt.Println("serving gRPC")
 		if err := quicServer.Serve(grpcListener); err != nil {
-			return serrors.WrapStr("serving gRPC/TCP API", err)
+			panic(err)
+			//return serrors.WrapStr("serving gRPC/TCP API", err)
 		}
+		fmt.Println("whwwwwat?")
 		return nil
 	})
 	cleanup.Add(func() error { quicServer.GracefulStop(); return nil })
