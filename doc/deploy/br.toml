@@ -1,0 +1,5 @@
+# Deployment Guide Bridge Router Configuration File
+# Save this file as /etc/scion/br.toml
+[general]
+id = "br"
+config_dir = "/etc/scion"
