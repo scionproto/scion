@@ -37,7 +37,7 @@ The SCION topology looks like this:
    :width: 95 %
    :figwidth: 100 %
 
-   *Topology of the sample SCION demo environment*
+   *Figure 1 - Topology of the sample SCION demo environment. It consists of 1 ISD, 3 core ASes and 2 non-core ASes.*
 
 
 
@@ -127,7 +127,7 @@ Configuration
 To configure your demo SCION environment, perform the following steps.
 
 
-Step 1 - Configure the topology (files)
+Step 1 - Configure the Topology (Files)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 First, you have to configure the topology files for your demo environment.
@@ -177,7 +177,7 @@ The topology information is needed by Router and Control Service instances, and 
 4. Now you have to create a topology file per AS. **TODO**
 
 
-Step 2 - Generate all required certificates
+Step 2 - Generate All Required Certificates
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The next step is to generate all required certificates by using the global topology file. Proceed as follows:
@@ -214,7 +214,7 @@ The next step is to generate all required certificates by using the global topol
       The above script will distribute the SCION control-plane PKI keys/certificates to the ASes. Additionally, it will create the two symmetric keys *master0.key* and *master1.key* per AS, and store them in the AS's */etc/scion/keys/* directory. The symmetric key is used by the AS in the date plane to verify the MACs in the hop fields of a SCION path (header).
 
 
-Step 3 - Create the directories for the support database files
+Step 3 - Create the Directories For the Support Database Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To create the required directories for the support database files, execute the following command. Do this once per each AS.
@@ -224,16 +224,79 @@ To create the required directories for the support database files, execute the f
    mkdir /var/lib/scion
 
 
-Step 4 - Copy over the configuration files
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 4 - Create the Configuration Files
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**TODO**
+Next, you have to create ("copy over") a couple of configuration files in the */etc/scion/* directory.
+The files including their names are listed below. Use the added sample code snippets to configure the files. Again, you have to create these files on every AS machine.
+
+- **Border router**: *br.toml* file
+
+  .. code-block::
+
+     [general]
+     id = "br"
+     config_dir = "/etc/scion"
 
 
-Step 5 - Start the services
+- **Control service**: *cs.toml* file
+
+  .. code-block::
+
+     [general]
+     id = "cs"
+     config_dir = "/etc/scion"
+     reconnect_to_dispatcher = true
+
+     [log.console]
+     level = "info"
+
+     [beacon_db]
+     connection = "/var/lib/scion/control.beacon.db"
+
+     [path_db]
+     connection = "/var/lib/scion/control.path.db"
+
+     [trust_db]
+     connection = "/var/lib/scion/control.trust.db"
+
+
+- **Dispatcher**: *dispatcher.toml* file
+
+  .. code-block::
+
+     [log.console]
+     # Console logging level (debug|info|error) (default info)
+     level = "info"
+
+     [dispatcher]
+     id = "dispatcher"
+
+     # File permissions of the ApplicationSocket socket file, in octal. (default "0770")
+     socket_file_mode = "0770"
+
+
+- **Service discovery**: *sd.toml* file
+
+  .. code-block::
+
+     [general]
+     id = "sd"
+     config_dir = "/etc/scion"
+     reconnect_to_dispatcher = true
+
+     [trust_db]
+     connection = "/var/lib/sd42-ffaa_1_1.trust.db"
+
+     [path_db]
+     connection = "/var/lib/sd42-ffaa_1_1.path.db"
+
+
+
+Step 5 - Start the Services
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You now have to start the services on each of the five ASes. Execute the following commands on each AS:
+You now have to start the services on each of the five ASes. Execute the following commands on every AS:
 
 .. code-block::
 
