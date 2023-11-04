@@ -22,11 +22,11 @@ This is the sample setup:
 ======================= ==== ========= ======== =========== ===============
 DNS Name                ISD  AS        Purpose  Notes       IP Address
 ======================= ==== ========= ======== =========== ===============
-scion01.martincoit.net  42   ffaa:1:1  Core     ISD Voting
-scion02.martincoit.net  42   ffaa:1:2  Core     ISD Voting
-scion04.martincoit.net  42   ffaa:1:3  Core     ISD Voting
-scion05.martincoit.net  42   ffaa:1:4  Leaf
-scion06.martincoit.net  42   ffaa:1:5  Leaf
+scion01.martincoit.net  42   ffaa:1:1  Core     ISD Voting  147.28.184.149
+scion02.martincoit.net  42   ffaa:1:2  Core     ISD Voting  147.28.184.150
+scion04.martincoit.net  42   ffaa:1:3  Core     ISD Voting  147.28.184.146
+scion05.martincoit.net  42   ffaa:1:4  Leaf                 147.28.184.147
+scion06.martincoit.net  42   ffaa:1:5  Leaf                 147.28.184.148
 ======================= ==== ========= ======== =========== ===============
 
 *Table 1: Sample setup*
@@ -67,8 +67,7 @@ To create this environment, you need to perform the following tasks, in this ord
 
 - Task 1: Installation (:ref:`step1`)
 - Task 2: Configuration (:ref:`step2`)
-- Task 3: Making sure the environment works (:ref:`step3`)
-- Task 4: Testing (:ref:`step4`)
+- Task 3: Testing your environment (:ref:`step3`)
 
 The following sections explain the required tasks, one section per task.
 
@@ -173,7 +172,8 @@ The topology information is needed by Router and Control Service instances, and 
 
 3. Save the just-created global topology file (with the name *GlobalDeploymentTopology.topo*).
 
-4. Now you have to create a topology file per AS. **TODO**
+4. Now you have to create a topology file per AS.
+**TODO - Link to sample config files per AS**
 
 
 Step 2 - Generate All Required Certificates
@@ -299,8 +299,7 @@ You now have to start the services on each of the five ASes. Execute the followi
 
 .. code-block::
 
- screen -dmS BR /usr/local/scion/router --config /etc/scion/br.toml
-
+   screen -dmS BR /usr/local/scion/router --config /etc/scion/br.toml
    screen -dmS BorderRouter /usr/local/scion/router --config /etc/scion/br.toml
    screen -dmS Dispatcher /usr/local/scion/dispatcher --config /etc/scion/dispatcher.toml
    screen -dmS Control /usr/local/scion/control --config /etc/scion/cs.toml
@@ -308,64 +307,43 @@ You now have to start the services on each of the five ASes. Execute the followi
 
 
 
-
-
-
 .. _step3:
 
-Making Sure the Environment Works
-.................................
+Testing the Environment
+.......................
 
-Introduction
+You can now test your environment. This section shows how.
 
-Tasks
+.. code-block::
 
-1. Do this
-2. Do that
+   # /usr/local/scion/scion address
+   42-ffaa:1:1,127.0.0.1
 
-# /usr/local/scion/scion address
-42-ffaa:1:1,127.0.0.1
+   # /usr/local/scion/scion ping 42-ffaa:1:5,127.0.0.1 -c 5
+   Resolved local address:
+   127.0.0.1
+   Using path:
+   Hops: [42-ffaa:1:1 3>1 42-ffaa:1:3 4>2 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002
 
+   PING 42-ffaa:1:5,127.0.0.1:0 pld=0B scion_pkt=112B
+   120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=0 time=0.788ms
+   120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=1 time=3.502ms
+   120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=2 time=3.313ms
+   120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=3 time=3.838ms
+   120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=4 time=3.401ms
 
+   --- 42-ffaa:1:5,127.0.0.1 statistics ---
+   5 packets transmitted, 5 received, 0% packet loss, time 5000.718ms
+   rtt min/avg/max/mdev = 0.788/2.968/3.838/1.105 ms
 
-# /usr/local/scion/scion ping 42-ffaa:1:5,127.0.0.1 -c 5
-Resolved local address:
-  127.0.0.1
-Using path:
-  Hops: [42-ffaa:1:1 3>1 42-ffaa:1:3 4>2 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002
-
-PING 42-ffaa:1:5,127.0.0.1:0 pld=0B scion_pkt=112B
-120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=0 time=0.788ms
-120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=1 time=3.502ms
-120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=2 time=3.313ms
-120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=3 time=3.838ms
-120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=4 time=3.401ms
-
---- 42-ffaa:1:5,127.0.0.1 statistics ---
-5 packets transmitted, 5 received, 0% packet loss, time 5000.718ms
-rtt min/avg/max/mdev = 0.788/2.968/3.838/1.105 ms
-
-
-# /usr/local/scion/scion showpaths 42-ffaa:1:5
-Available paths to 42-ffaa:1:5
-3 Hops:
-[0] Hops: [42-ffaa:1:1 2>1 42-ffaa:1:2 3>1 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
-[1] Hops: [42-ffaa:1:1 3>1 42-ffaa:1:3 4>2 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
-4 Hops:
-[2] Hops: [42-ffaa:1:1 2>1 42-ffaa:1:2 2>2 42-ffaa:1:3 4>2 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
-[3] Hops: [42-ffaa:1:1 3>1 42-ffaa:1:3 2>2 42-ffaa:1:2 3>1 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
+   # /usr/local/scion/scion showpaths 42-ffaa:1:5
+   Available paths to 42-ffaa:1:5
+   3 Hops:
+   [0] Hops: [42-ffaa:1:1 2>1 42-ffaa:1:2 3>1 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
+   [1] Hops: [42-ffaa:1:1 3>1 42-ffaa:1:3 4>2 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
+   4 Hops:
+   [2] Hops: [42-ffaa:1:1 2>1 42-ffaa:1:2 2>2 42-ffaa:1:3 4>2 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
+   [3] Hops: [42-ffaa:1:1 3>1 42-ffaa:1:3 2>2 42-ffaa:1:2 3>1 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
 
 
 
-.. _step4:
-
-Testing
-.......
-
-
-Introduction
-
-Tasks
-
-1. Do this
-2. Do that
