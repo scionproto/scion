@@ -1162,6 +1162,10 @@ def go_deps():
     go_repository(
         name = "com_github_quic_go_quic_go",
         importpath = "github.com/quic-go/quic-go",
+        patch_args = ["-p1"],  # keep
+        patches = [
+            "@//patches/com_github_quic_go_quic_go:http3_remote_addr.patch",  # keep
+        ],
         sum = "h1:GYd1iznlKm7dpHD7pOVpUvItgMPo/jrMgDWZhMCecqw=",
         version = "v0.40.0",
     )

@@ -16,10 +16,12 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"path/filepath"
@@ -38,6 +40,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/peer"
 
 	cpconnect "github.com/scionproto/scion/bufgen/proto/control_plane/v1/control_planeconnect"
 	cs "github.com/scionproto/scion/control"
@@ -112,6 +115,12 @@ type loggingHandler struct{ next http.Handler }
 func (h loggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(r.Method)
 	fmt.Println(r.URL)
+
+	if addr, ok := r.Context().Value(http3.RemoteAddrContextKey).(net.Addr); ok {
+		log.Info("HTTP3 request", "remote", r.Context().Value(http3.RemoteAddrContextKey))
+		ctx := peer.NewContext(r.Context(), &peer.Peer{Addr: addr})
+		r = r.WithContext(ctx)
+	}
 	h.next.ServeHTTP(w, r)
 }
 
@@ -847,6 +856,12 @@ func realMain(ctx context.Context) error {
 			Connect: &connect.BeaconSenderFactory{
 				Dialer: (&squic.EarlyDialerFactory{
 					Transport: quicStack.InsecureDialer.Transport,
+					TLSConfig: func() *tls.Config {
+						cfg := quicStack.InsecureDialer.TLSConfig.Clone()
+						cfg.NextProtos = []string{"h3", "SCION"}
+						return cfg
+					}(),
+					Rewriter: dialer.Rewriter,
 				}).NewDialer,
 			},
 			Grpc: &beaconinggrpc.BeaconSenderFactory{

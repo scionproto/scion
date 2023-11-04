@@ -34,7 +34,7 @@ func (f *BeaconSenderFactory) NewSender(
 	}
 	dialer := f.Dialer(addr)
 	return &BeaconSender{
-		Addr: addr.String(),
+		Addr: "https://" + addr.SVC.BaseString(),
 		Client: &HTTPClient{
 			RoundTripper: &http3.RoundTripper{
 				Dial: dialer.DialEarly,

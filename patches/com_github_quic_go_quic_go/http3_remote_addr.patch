@@ -1,0 +1,21 @@
+diff --git a/http3/server.go b/http3/server.go
+index ac2e32a6..a4c4e327 100644
+--- a/http3/server.go
++++ b/http3/server.go
+@@ -115,6 +115,8 @@ func (k *contextKey) String() string { return "quic-go/http3 context value " + k
+ // type *http3.Server.
+ var ServerContextKey = &contextKey{"http3-server"}
+ 
++var RemoteAddrContextKey = &contextKey{"remote-addr"}
++
+ type requestError struct {
+ 	err       error
+ 	streamErr ErrCode
+@@ -597,6 +599,7 @@ func (s *Server) handleRequest(conn quic.Connection, str quic.Stream, decoder *q
+ 	ctx := str.Context()
+ 	ctx = context.WithValue(ctx, ServerContextKey, s)
+ 	ctx = context.WithValue(ctx, http.LocalAddrContextKey, conn.LocalAddr())
++	ctx = context.WithValue(ctx, RemoteAddrContextKey, conn.RemoteAddr())
+ 	req = req.WithContext(ctx)
+ 	r := newResponseWriter(str, conn, s.logger)
+ 	if req.Method == http.MethodHead {

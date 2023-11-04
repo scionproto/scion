@@ -3,6 +3,7 @@ package happy
 import (
 	"context"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/control/beaconing"
@@ -46,36 +47,57 @@ type BeaconSender struct {
 
 func (s BeaconSender) Send(ctx context.Context, b *seg.PathSegment) error {
 	abortCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	var wg sync.WaitGroup
+	wg.Add(2)
 
-	connectCh := make(chan error, 1)
-	grpcCh := make(chan error, 1)
+	errs := [2]error{}
+	successCh := make(chan struct{}, 2)
 
 	go func() {
 		defer log.HandlePanic()
+		defer wg.Done()
 		err := s.Connect.Send(abortCtx, b)
-		if abortCtx.Err() == nil {
-			log.Debug("Sent beacon via connect")
+		if err == nil {
+			successCh <- struct{}{}
+			log.Info("Sent beacon via connect")
+			cancel()
+		} else {
+			log.Info("Failed to send beacon via connect", "err", err)
 		}
-		connectCh <- err
+		errs[0] = err
 	}()
 
 	go func() {
 		defer log.HandlePanic()
-		time.Sleep(500 * time.Millisecond)
-		err := s.Grpc.Send(abortCtx, b)
-		if abortCtx.Err() == nil {
-			log.Debug("Sent beacon via gRPC")
+		defer wg.Done()
+		select {
+		case <-abortCtx.Done():
+			return
+		case <-time.After(500 * time.Millisecond):
 		}
-		grpcCh <- err
+		err := s.Grpc.Send(abortCtx, b)
+		if err == nil {
+			successCh <- struct{}{}
+			log.Info("Sent beacon via gRPC")
+			cancel()
+		} else {
+			log.Info("Failed to send beacon via gRPC", "err", err)
+		}
+		errs[1] = err
 	}()
 
-	select {
-	case err := <-connectCh:
-		return err
-	case err := <-grpcCh:
-		return err
+	wg.Wait()
+	var combinedErrs serrors.List
+	for _, err := range errs {
+		if err != nil {
+			combinedErrs = append(combinedErrs, err)
+		}
 	}
+	// Only report error if both sends were unsuccessful.
+	if len(combinedErrs) == 2 {
+		return combinedErrs.ToError()
+	}
+	return nil
 }
 
 func (s BeaconSender) Close() error {

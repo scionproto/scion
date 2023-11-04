@@ -24,44 +24,68 @@ import (
 
 	"github.com/quic-go/quic-go"
 
+	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/snet"
 )
 
+type AddressRewriter interface {
+	RedirectToQUIC(ctx context.Context, address net.Addr) (net.Addr, bool, error)
+}
+
 type EarlyDialerFactory struct {
-	Transport *quic.Transport
+	Transport  *quic.Transport
+	TLSConfig  *tls.Config
+	QUICConfig *quic.Config
+	Rewriter   AddressRewriter
 }
 
 func (f *EarlyDialerFactory) NewDialer(a net.Addr) EarlyDialer {
 	return EarlyDialer{
-		Transport: f.Transport,
-		Addr:      a,
+		Addr:       a,
+		Transport:  f.Transport,
+		TLSConfig:  f.TLSConfig,
+		QUICConfig: f.QUICConfig,
+		Rewriter:   f.Rewriter,
 	}
 }
 
 type EarlyDialer struct {
-	Transport *quic.Transport
-	Addr      net.Addr
+	Addr       net.Addr
+	Transport  *quic.Transport
+	TLSConfig  *tls.Config
+	QUICConfig *quic.Config
+	Rewriter   AddressRewriter
 }
 
-func (d *EarlyDialer) DialEarly(ctx context.Context, _ string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
-	serverName := tlsCfg.ServerName
+func (d *EarlyDialer) DialEarly(ctx context.Context, _ string, _ *tls.Config, _ *quic.Config) (quic.EarlyConnection, error) {
+	addr, _, err := d.Rewriter.RedirectToQUIC(ctx, d.Addr)
+	if err != nil {
+		return nil, serrors.WrapStr("resolving SVC address", err)
+	}
+	if _, ok := addr.(*snet.UDPAddr); !ok {
+		return nil, serrors.New("wrong address type after svc resolution",
+			"type", common.TypeOf(addr))
+	}
+
+	serverName := d.TLSConfig.ServerName
 	if serverName == "" {
-		serverName = computeServerName(d.Addr)
+		serverName = computeServerName(addr)
 	}
 
 	var session quic.EarlyConnection
 	for sleep := 2 * time.Millisecond; ctx.Err() == nil; sleep = sleep * 2 {
 		// Clone TLS config to avoid data races.
-		tlsConfig := tlsCfg.Clone()
+		tlsConfig := d.TLSConfig.Clone()
 		tlsConfig.ServerName = serverName
 		// Clone QUIC config to avoid data races, if it exists.
 		var quicConfig *quic.Config
-		if cfg != nil {
-			quicConfig = cfg.Clone()
+		if d.QUICConfig != nil {
+			quicConfig = d.QUICConfig.Clone()
 		}
 
 		var err error
-		session, err = d.Transport.DialEarly(ctx, d.Addr, tlsConfig, quicConfig)
+		session, err = d.Transport.DialEarly(ctx, addr, tlsConfig, quicConfig)
 		if err == nil {
 			break
 		}
