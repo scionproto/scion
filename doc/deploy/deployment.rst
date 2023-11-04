@@ -3,7 +3,7 @@
 Setting Up a Demo Environment
 =============================
 
-This document helps you set up a SCION demo environment, which consists of a stand-alone full-scale SCION environment distributed among five computers. The demo environment resembles one SCION Isolation Domain, with three core ASes and three non-core, leaf ASes.
+This document helps you set up a SCION demo environment, which consists of a stand-alone full-scale SCION environment distributed among five computers. The demo environment resembles one SCION Isolation Domain, with three core ASes and two non-core, leaf ASes.
 
 
 Setup
@@ -15,15 +15,15 @@ Sample SCION Setup
 
 This is the sample setup:
 
-======================= ==== ========= ======== =================
-DNS Name                ISD  AS        Purpose  Notes
-======================= ==== ========= ======== =================
+======================= ==== ========= ======== =========== ===============
+DNS Name                ISD  AS        Purpose  Notes       IP Address
+======================= ==== ========= ======== =========== ===============
 scion01.martincoit.net  42   ffaa:1:1  Core     ISD Voting
 scion02.martincoit.net  42   ffaa:1:2  Core     ISD Voting
 scion04.martincoit.net  42   ffaa:1:3  Core     ISD Voting
 scion05.martincoit.net  42   ffaa:1:4  Leaf
 scion06.martincoit.net  42   ffaa:1:5  Leaf
-======================= ==== ========= ======== =================
+======================= ==== ========= ======== =========== ===============
 
 *Table 1: Sample setup*
 
@@ -103,15 +103,15 @@ To download the software and install it on your virtual machines, execute the fo
 
 .. code-block::
 
-   Sudo -i
+   sudo -i
 
-   Cd /tmp
+   cd /tmp
 
    wget https://github.com/scionproto/scion/releases/download/v0.9.1/scion_v0.9.1_amd64_linux.tar.gz
 
-   Mkdir /usr/local/scion
+   mkdir /usr/local/scion
 
-   Cd /usr/local/scion
+   cd /usr/local/scion
 
    tar xfz /tmp/scion_v0.9.1_amd64_linux.tar.gz
 
@@ -135,11 +135,7 @@ You have to create is one "global" topology file which describes the setup of th
 
 The topology information is needed by Router and Control Service instances, and also by end-host applications. For more information on the topology files, see `<https://docs.scion.org/en/latest/manuals/common.html#topology-json>`_
 
-1. First, create a "global" topology file with the name *GlobalDeploymentTopology.topo*, by executing the following command:
-
-   .. code-block::
-
-      Cat > GlobalDeploymentTopology.topo
+1. First, create a "global" topology file with the name *GlobalDeploymentTopology.topo*.
 
 2. Fill this file with the following content:
 
