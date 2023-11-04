@@ -275,7 +275,7 @@ The files including their names are listed below. Use the added sample code snip
      socket_file_mode = "0770"
 
 
-- **Service discovery**: *sd.toml* file
+- **SCION deamon**: *sd.toml* file
 
   .. code-block::
 
