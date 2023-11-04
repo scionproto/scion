@@ -43,8 +43,10 @@ import (
 	cs "github.com/scionproto/scion/control"
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beaconing"
+	"github.com/scionproto/scion/control/beaconing/connect"
 	beaconingconnect "github.com/scionproto/scion/control/beaconing/connect"
 	beaconinggrpc "github.com/scionproto/scion/control/beaconing/grpc"
+	"github.com/scionproto/scion/control/beaconing/happy"
 	"github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/control/drkey"
 	drkeygrpc "github.com/scionproto/scion/control/drkey/grpc"
@@ -825,8 +827,15 @@ func realMain(ctx context.Context) error {
 		TrustDB:  trustDB,
 		PathDB:   pathDB,
 		RevCache: revCache,
-		BeaconSenderFactory: &beaconinggrpc.BeaconSenderFactory{
-			Dialer: dialer,
+		BeaconSenderFactory: &happy.BeaconSenderFactory{
+			Connect: &connect.BeaconSenderFactory{
+				Dialer: (&squic.EarlyDialerFactory{
+					Transport: quicStack.InsecureDialer.Transport,
+				}).NewDialer,
+			},
+			Grpc: &beaconinggrpc.BeaconSenderFactory{
+				Dialer: dialer,
+			},
 		},
 		SegmentRegister: beaconinggrpc.Registrar{Dialer: dialer},
 		BeaconStore:     beaconStore,

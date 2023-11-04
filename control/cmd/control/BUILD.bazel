@@ -16,6 +16,7 @@ go_library(
         "//control/beaconing:go_default_library",
         "//control/beaconing/connect:go_default_library",
         "//control/beaconing/grpc:go_default_library",
+        "//control/beaconing/happy:go_default_library",
         "//control/config:go_default_library",
         "//control/drkey:go_default_library",
         "//control/drkey/grpc:go_default_library",
