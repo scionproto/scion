@@ -14,6 +14,12 @@ def go_deps():
         version = "v0.3.2",
     )
     go_repository(
+        name = "com_connectrpc_connect",
+        importpath = "connectrpc.com/connect",
+        sum = "h1:HwKdOY0lGhhoHdsza+hW55aqHEC64pYpObRNoAgn70g=",
+        version = "v1.12.0",
+    )
+    go_repository(
         name = "com_github_alecthomas_template",
         importpath = "github.com/alecthomas/template",
         sum = "h1:JYp7IbQjafoB+tBA3gMyHYHrpOtNuDiK/uB5uXxq5wM=",

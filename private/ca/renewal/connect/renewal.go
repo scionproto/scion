@@ -12,7 +12,7 @@ import (
 var _ control_planeconnect.ChainRenewalServiceHandler = RenewalServer{}
 
 type RenewalServer struct {
-	grpc.RenewalServer
+	*grpc.RenewalServer
 }
 
 func (m RenewalServer) ChainRenewal(ctx context.Context, req *connect.Request[control_plane.ChainRenewalRequest]) (*connect.Response[control_plane.ChainRenewalResponse], error) {

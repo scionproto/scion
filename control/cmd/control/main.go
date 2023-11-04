@@ -30,6 +30,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/quic-go/quic-go"
+	"github.com/quic-go/quic-go/http3"
 	"github.com/spf13/cobra"
 	"go4.org/netipx"
 	"golang.org/x/sync/errgroup"
@@ -37,9 +39,11 @@ import (
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
+	cpconnect "github.com/scionproto/scion/bufgen/proto/control_plane/v1/control_planeconnect"
 	cs "github.com/scionproto/scion/control"
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beaconing"
+	beaconingconnect "github.com/scionproto/scion/control/beaconing/connect"
 	beaconinggrpc "github.com/scionproto/scion/control/beaconing/grpc"
 	"github.com/scionproto/scion/control/config"
 	"github.com/scionproto/scion/control/drkey"
@@ -47,8 +51,10 @@ import (
 	"github.com/scionproto/scion/control/ifstate"
 	api "github.com/scionproto/scion/control/mgmtapi"
 	"github.com/scionproto/scion/control/onehop"
+	segregconnect "github.com/scionproto/scion/control/segreg/connect"
 	segreggrpc "github.com/scionproto/scion/control/segreg/grpc"
 	"github.com/scionproto/scion/control/segreq"
+	segreqconnect "github.com/scionproto/scion/control/segreq/connect"
 	segreqgrpc "github.com/scionproto/scion/control/segreq/grpc"
 	cstrust "github.com/scionproto/scion/control/trust"
 	cstrustgrpc "github.com/scionproto/scion/control/trust/grpc"
@@ -65,6 +71,7 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/squic"
 	"github.com/scionproto/scion/private/app"
 	infraenv "github.com/scionproto/scion/private/app/appnet"
 	"github.com/scionproto/scion/private/app/command"
@@ -72,6 +79,7 @@ import (
 	caapi "github.com/scionproto/scion/private/ca/api"
 	caconfig "github.com/scionproto/scion/private/ca/config"
 	"github.com/scionproto/scion/private/ca/renewal"
+	renewalconnect "github.com/scionproto/scion/private/ca/renewal/connect"
 	renewalgrpc "github.com/scionproto/scion/private/ca/renewal/grpc"
 	"github.com/scionproto/scion/private/discovery"
 	"github.com/scionproto/scion/private/drkey/drkeyutil"
@@ -317,6 +325,7 @@ func realMain(ctx context.Context) error {
 		libgrpc.UnaryServerInterceptor(),
 		libgrpc.DefaultMaxConcurrentStreams(),
 	)
+	connectMux := http.NewServeMux()
 	tcpServer := grpc.NewServer(
 		libgrpc.UnaryServerInterceptor(),
 		libgrpc.DefaultMaxConcurrentStreams(),
@@ -328,11 +337,13 @@ func realMain(ctx context.Context) error {
 		IA:       topo.IA(),
 		Requests: libmetrics.NewPromCounter(cstrustmetrics.Handler.Requests),
 	}
+	// TODO needs a wrapper here...
+	connectMux.Handle(cpconnect.NewTrustMaterialServiceHandler(nil))
 	cppb.RegisterTrustMaterialServiceServer(quicServer, trustServer)
 	cppb.RegisterTrustMaterialServiceServer(tcpServer, trustServer)
 
 	// Handle beaconing.
-	cppb.RegisterSegmentCreationServiceServer(quicServer, &beaconinggrpc.SegmentCreationServer{
+	segmentCreationServer := &beaconinggrpc.SegmentCreationServer{
 		Handler: &beaconing.Handler{
 			LocalIA:        topo.IA(),
 			Inserter:       beaconStore,
@@ -340,7 +351,9 @@ func realMain(ctx context.Context) error {
 			Verifier:       verifier,
 			BeaconsHandled: libmetrics.NewPromCounter(metrics.BeaconingReceivedTotal),
 		},
-	})
+	}
+	cppb.RegisterSegmentCreationServiceServer(quicServer, segmentCreationServer)
+	connectMux.Handle(cpconnect.NewSegmentCreationServiceHandler(beaconingconnect.SegmentCreationServer{SegmentCreationServer: segmentCreationServer}))
 
 	// Handle segment lookup
 	authLookupServer := &segreqgrpc.LookupServer{
@@ -372,13 +385,15 @@ func realMain(ctx context.Context) error {
 
 	// Always register a forwarding lookup for AS internal requests.
 	cppb.RegisterSegmentLookupServiceServer(tcpServer, forwardingLookupServer)
+	connectMux.Handle(cpconnect.NewSegmentLookupServiceHandler(segreqconnect.LookupServer{LookupServer: forwardingLookupServer}))
 	if topo.Core() {
 		cppb.RegisterSegmentLookupServiceServer(quicServer, authLookupServer)
+		connectMux.Handle(cpconnect.NewSegmentLookupServiceHandler(segreqconnect.LookupServer{LookupServer: authLookupServer}))
 	}
 
 	// Handle segment registration.
 	if topo.Core() {
-		cppb.RegisterSegmentRegistrationServiceServer(quicServer, &segreggrpc.RegistrationServer{
+		registrationServer := &segreggrpc.RegistrationServer{
 			LocalIA: topo.IA(),
 			SegHandler: seghandler.Handler{
 				Verifier: &seghandler.DefaultVerifier{
@@ -390,8 +405,9 @@ func realMain(ctx context.Context) error {
 				},
 			},
 			Registrations: libmetrics.NewPromCounter(metrics.SegmentRegistrationsTotal),
-		})
-
+		}
+		cppb.RegisterSegmentRegistrationServiceServer(quicServer, registrationServer)
+		connectMux.Handle(cpconnect.NewSegmentRegistrationServiceHandler(segregconnect.RegistrationServer{RegistrationServer: registrationServer}))
 	}
 
 	signer := cs.NewSigner(topo.IA(), trustDB, globalCfg.General.ConfigDir)
@@ -512,6 +528,7 @@ func realMain(ctx context.Context) error {
 		}
 
 		cppb.RegisterChainRenewalServiceServer(quicServer, renewalServer)
+		connectMux.Handle(cpconnect.NewChainRenewalServiceHandler(renewalconnect.RenewalServer{RenewalServer: renewalServer}))
 		cppb.RegisterChainRenewalServiceServer(tcpServer, renewalServer)
 	}
 
@@ -667,14 +684,47 @@ func realMain(ctx context.Context) error {
 	promgrpc.Register(tcpServer)
 
 	var cleanup app.Cleanup
+	connectServer := http3.Server{
+		Handler: connectMux,
+	}
+
+	grpcConns := make(chan quic.Connection)
 	g.Go(func() error {
 		defer log.HandlePanic()
-		if err := quicServer.Serve(quicStack.Listener); err != nil {
-			return serrors.WrapStr("serving gRPC/QUIC API", err)
+		// TODO can be generic function, demux mux by next proto
+		listener := quicStack.Listener
+		for {
+			conn, err := listener.Accept(context.Background())
+			if err == quic.ErrServerClosed {
+				return http.ErrServerClosed
+			}
+			if err != nil {
+				return err
+			}
+			go func() {
+				defer log.HandlePanic()
+
+				if conn.ConnectionState().TLS.NegotiatedProtocol == "h3" {
+					if err := connectServer.ServeQUICConn(conn); err != nil {
+						log.Debug(err.Error())
+					}
+				} else {
+					grpcConns <- conn
+				}
+			}()
+		}
+	})
+
+	g.Go(func() error {
+		defer log.HandlePanic()
+		grpcListener := squic.NewConnListener(grpcConns)
+		if err := quicServer.Serve(grpcListener); err != nil {
+			return serrors.WrapStr("serving gRPC/TCP API", err)
 		}
 		return nil
 	})
 	cleanup.Add(func() error { quicServer.GracefulStop(); return nil })
+
 	g.Go(func() error {
 		defer log.HandlePanic()
 		if err := tcpServer.Serve(tcpStack); err != nil {

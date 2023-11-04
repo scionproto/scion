@@ -1,0 +1,23 @@
+load("//tools/lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "cppki.pb.go",
+        "drkey.pb.go",
+        "renewal.pb.go",
+        "seg.pb.go",
+        "seg_extensions.pb.go",
+        "svc_resolution.pb.go",
+    ],
+    importpath = "github.com/scionproto/scion/bufgen/proto/control_plane/v1",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/proto/control_plane/experimental:go_default_library",
+        "//pkg/proto/crypto:go_default_library",
+        "//pkg/proto/drkey:go_default_library",
+        "@org_golang_google_protobuf//reflect/protoreflect:go_default_library",
+        "@org_golang_google_protobuf//runtime/protoimpl:go_default_library",
+        "@org_golang_google_protobuf//types/known/timestamppb:go_default_library",
+    ],
+)

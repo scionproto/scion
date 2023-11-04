@@ -9,7 +9,7 @@ import (
 )
 
 type LookupServer struct {
-	grpc.LookupServer
+	*grpc.LookupServer
 }
 
 func (s LookupServer) Segments(ctx context.Context, req *connect.Request[control_plane.SegmentsRequest]) (*connect.Response[control_plane.SegmentsResponse], error) {

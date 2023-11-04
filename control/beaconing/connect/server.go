@@ -9,7 +9,7 @@ import (
 )
 
 type SegmentCreationServer struct {
-	grpc.SegmentCreationServer
+	*grpc.SegmentCreationServer
 }
 
 func (s SegmentCreationServer) Beacon(ctx context.Context, req *connect.Request[control_plane.BeaconRequest]) (*connect.Response[control_plane.BeaconResponse], error) {

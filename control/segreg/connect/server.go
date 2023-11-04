@@ -9,7 +9,7 @@ import (
 )
 
 type RegistrationServer struct {
-	grpc.RegistrationServer
+	*grpc.RegistrationServer
 }
 
 func (s RegistrationServer) SegmentsRegistration(ctx context.Context, req *connect.Request[control_plane.SegmentsRegistrationRequest]) (*connect.Response[control_plane.SegmentsRegistrationResponse], error) {
