@@ -62,6 +62,7 @@ import (
 	segreqconnect "github.com/scionproto/scion/control/segreq/connect"
 	segreqgrpc "github.com/scionproto/scion/control/segreq/grpc"
 	cstrust "github.com/scionproto/scion/control/trust"
+	cstrustconnect "github.com/scionproto/scion/control/trust/connect"
 	cstrustgrpc "github.com/scionproto/scion/control/trust/grpc"
 	cstrustmetrics "github.com/scionproto/scion/control/trust/metrics"
 	"github.com/scionproto/scion/pkg/addr"
@@ -108,7 +109,9 @@ import (
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/trust"
 	"github.com/scionproto/scion/private/trust/compat"
+	trustconnect "github.com/scionproto/scion/private/trust/connect"
 	trustgrpc "github.com/scionproto/scion/private/trust/grpc"
+	trusthappy "github.com/scionproto/scion/private/trust/happy"
 	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 )
 
@@ -305,10 +308,24 @@ func realMain(ctx context.Context) error {
 	}
 	provider := trust.FetchingProvider{
 		DB: trustDB,
-		Fetcher: trustgrpc.Fetcher{
-			IA:       topo.IA(),
-			Dialer:   dialer,
-			Requests: libmetrics.NewPromCounter(trustmetrics.RPC.Fetches),
+		Fetcher: trusthappy.Fetcher{
+			Connect: trustconnect.Fetcher{
+				IA: topo.IA(),
+				Dialer: (&squic.EarlyDialerFactory{
+					Transport: quicStack.InsecureDialer.Transport,
+					TLSConfig: func() *tls.Config {
+						cfg := quicStack.InsecureDialer.TLSConfig.Clone()
+						cfg.NextProtos = []string{"h3", "SCION"}
+						return cfg
+					}(),
+					Rewriter: dialer.Rewriter,
+				}).NewDialer,
+			},
+			Grpc: trustgrpc.Fetcher{
+				IA:       topo.IA(),
+				Dialer:   dialer,
+				Requests: libmetrics.NewPromCounter(trustmetrics.RPC.Fetches),
+			},
 		},
 		Recurser: trust.ASLocalRecurser{IA: topo.IA()},
 		// XXX(roosd): cyclic dependency on router. It is set below.
@@ -375,6 +392,7 @@ func realMain(ctx context.Context) error {
 	//connectMux.Handle(cpconnect.NewTrustMaterialServiceHandler(nil))
 	cppb.RegisterTrustMaterialServiceServer(quicServer, trustServer)
 	cppb.RegisterTrustMaterialServiceServer(tcpServer, trustServer)
+	connectMux.Handle(cpconnect.NewTrustMaterialServiceHandler(cstrustconnect.MaterialServer{MaterialServer: trustServer}))
 
 	// Handle beaconing.
 	segmentCreationServer := &beaconinggrpc.SegmentCreationServer{

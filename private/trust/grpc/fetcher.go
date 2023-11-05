@@ -77,13 +77,13 @@ func (f Fetcher) Chains(ctx context.Context, query trust.ChainQuery,
 	}
 	defer conn.Close()
 	client := cppb.NewTrustMaterialServiceClient(conn)
-	rep, err := client.Chains(ctx, chainQueryToReq(query), grpc.RetryProfile...)
+	rep, err := client.Chains(ctx, ChainQueryToReq(query), grpc.RetryProfile...)
 	if err != nil {
 		f.updateMetric(span, labels.WithResult(trustmetrics.ErrTransmit), err)
 		return nil, serrors.WrapStr("receiving chains", err)
 	}
 
-	chains, res, err := repToChains(rep.Chains)
+	chains, res, err := RepToChains(rep.Chains)
 	if err != nil {
 		f.updateMetric(span, labels.WithResult(res), err)
 		return nil, err
@@ -93,7 +93,7 @@ func (f Fetcher) Chains(ctx context.Context, query trust.ChainQuery,
 		"chains", len(chains),
 	)
 
-	if err := checkChainsMatchQuery(query, chains); err != nil {
+	if err := CheckChainsMatchQuery(query, chains); err != nil {
 		f.updateMetric(span, labels.WithResult(trustmetrics.ErrMismatch), err)
 		return nil, serrors.WrapStr("chains do not match query", err)
 	}
@@ -123,7 +123,7 @@ func (f Fetcher) TRC(ctx context.Context, id cppki.TRCID,
 	}
 	defer conn.Close()
 	client := cppb.NewTrustMaterialServiceClient(conn)
-	rep, err := client.TRC(ctx, idToReq(id), grpc.RetryProfile...)
+	rep, err := client.TRC(ctx, IDToReq(id), grpc.RetryProfile...)
 	if err != nil {
 		f.updateMetric(span, labels.WithResult(trustmetrics.ErrTransmit), err)
 		return cppki.SignedTRC{}, serrors.WrapStr("receiving TRC", err)
@@ -176,7 +176,7 @@ func addTRCSpan(ctx context.Context,
 	return span, ctx
 }
 
-func checkChainsMatchQuery(query trust.ChainQuery, chains [][]*x509.Certificate) error {
+func CheckChainsMatchQuery(query trust.ChainQuery, chains [][]*x509.Certificate) error {
 	for i, chain := range chains {
 		ia, err := cppki.ExtractIA(chain[0].Subject)
 		if err != nil {

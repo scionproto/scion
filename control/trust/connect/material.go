@@ -12,7 +12,7 @@ import (
 var _ control_planeconnect.TrustMaterialServiceHandler = MaterialServer{}
 
 type MaterialServer struct {
-	grpc.MaterialServer
+	*grpc.MaterialServer
 }
 
 func (m MaterialServer) Chains(ctx context.Context, req *connect.Request[control_plane.ChainsRequest]) (*connect.Response[control_plane.ChainsResponse], error) {

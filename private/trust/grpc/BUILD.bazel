@@ -29,14 +29,13 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
-        "export_test.go",
         "fetcher_test.go",
         "main_test.go",
         "proto_test.go",
     ],
     data = glob(["testdata/**"]),
-    embed = [":go_default_library"],
     deps = [
+        ":go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/private/xtest:go_default_library",
         "//pkg/proto/control_plane:go_default_library",
