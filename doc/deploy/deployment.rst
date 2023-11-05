@@ -1,7 +1,7 @@
 .. _deployment-guide:
 
-Setting Up a Demo Environment
-=============================
+Deployment Tutorial
+===================
 
 This document helps you set up a SCION demo configuration, which consists of a stand-alone full-scale SCION environment distributed among five computers. The demo environment resembles one SCION Isolation Domain ISD, with three core ASes and two non-core, leaf ASes.
 
