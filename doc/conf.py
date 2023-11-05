@@ -22,7 +22,9 @@ extensions = [
     'sphinx_rtd_theme',
     'sphinx.ext.extlinks',
     'sphinxcontrib.openapi',
+    'sphinx_copybutton',
 ]
+
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

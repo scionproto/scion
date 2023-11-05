@@ -51,7 +51,7 @@ Prerequisites
 
 Before you can start setting up your demo environment, you need to set up five virtual machines (VMs), one per AS in our ISD/demo environment. We recommend using Ubuntu VMs for this.
 
-- 5 VMs - **Ubuntu** 22.04.3 LTS (Jammy Jellyfish). For more information, see `Ubuntu Jammy Jellyfish <https://releases.ubuntu.com/jammy/>`_. These 5 virtual maschines resemble the ASes shown in the setup overview above - each maschine is one AS.
+- 5 VMs - **Ubuntu** 22.04.3 LTS (Jammy Jellyfish). For more information, see `Ubuntu Jammy Jellyfish <https://releases.ubuntu.com/jammy/>`_. These 5 virtual machines resemble the ASes shown in the setup overview above - each machine is one AS.
 
 .. note::
 
@@ -245,7 +245,7 @@ The files including their names are listed below. Click on the corresponding lin
 
 - **Dispatcher**: `dispatcher.toml <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/dispatcher.toml>`_
 
-- **SCION deamon**: `sd.toml <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/sd.toml>`_
+- **SCION daemon**: `sd.toml <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/sd.toml>`_
 
 
 
