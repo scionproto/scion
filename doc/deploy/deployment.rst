@@ -3,7 +3,7 @@
 Deployment Tutorial
 ===================
 
-This document helps you set up a SCION demo configuration, which consists of a stand-alone full-scale SCION environment distributed among five computers. The demo environment resembles one SCION Isolation Domain ISD, with three core ASes and two non-core, leaf ASes.
+This document helps you set up a SCION demo configuration, which consists of a stand-alone full-scale SCION environment distributed among five computers. The demo environment consists of one SCION Isolation Domain (ISD), with three core ASes and two non-core, leaf ASes.
 
 
 Setup
@@ -16,15 +16,15 @@ Sample SCION Demo Setup
 
 The sample SCION demo setup consists of one ISD with three core ASes and two non-core, leaf ASes. The following table lists some details of the sample ISD and each AS in it, such as the DNS names, the ISD- and AS numbers, the kind of AS (core or leaf) and the IP addresses.
 
-======================= ==== ========= ======== =========== ===============
-DNS Name                ISD  AS        Purpose  Notes       IP Address
-======================= ==== ========= ======== =========== ===============
-scion01.martincoit.net  42   ffaa:1:1  Core     ISD Voting  147.28.184.149
-scion02.martincoit.net  42   ffaa:1:2  Core     ISD Voting  147.28.184.150
-scion04.martincoit.net  42   ffaa:1:3  Core     ISD Voting  147.28.184.146
-scion05.martincoit.net  42   ffaa:1:4  Leaf                 147.28.184.147
-scion06.martincoit.net  42   ffaa:1:5  Leaf                 147.28.184.148
-======================= ==== ========= ======== =========== ===============
+======== ==== ========= ======== =========== ===============
+Hostname ISD  AS        Purpose  Notes       IP Address
+======== ==== ========= ======== =========== ===============
+scion01  42   ffaa:1:1  Core     Voting      147.28.184.149
+scion02  42   ffaa:1:2  Core     Non-Voting  147.28.184.150
+scion04  42   ffaa:1:3  Core     Non-Voting  147.28.184.146
+scion05  42   ffaa:1:4  Leaf                 147.28.184.147
+scion06  42   ffaa:1:5  Leaf                 147.28.184.148
+======= ==== ========= ======== =========== ===============
 
 *Table 1: Sample setup*
 
