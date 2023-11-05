@@ -7,7 +7,7 @@ config_dir = "/etc/scion"
 reconnect_to_dispatcher = true
 
 [trust_db]
-connection = "/var/lib/sd.trust.db"
+connection = "/var/lib/scion/sd.trust.db"
 
 [path_db]
-connection = "/var/lib/sd.path.db"
+connection = "/var/lib/scion/sd.path.db"
