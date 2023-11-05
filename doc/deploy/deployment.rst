@@ -21,11 +21,11 @@ The sample SCION demo setup consists of one ISD with three core ASes and two non
 ======== ==== ========= ======== =========== ===============
 Hostname ISD  AS        Purpose  Notes       IP Address
 ======== ==== ========= ======== =========== ===============
-scion01  42   ffaa:1:1  Core     Voting      147.28.184.149
-scion02  42   ffaa:1:2  Core     Non-Voting  147.28.184.150
-scion04  42   ffaa:1:3  Core     Non-Voting  147.28.184.146
-scion05  42   ffaa:1:4  Leaf                 147.28.184.147
-scion06  42   ffaa:1:5  Leaf                 147.28.184.148
+scion01  42   ffaa:1:1  Core     Voting      10.0.1.1
+scion02  42   ffaa:1:2  Core     Non-Voting  10.0.1.2
+scion03  42   ffaa:1:3  Core     Non-Voting  10.0.1.3
+scion04  42   ffaa:1:4  Leaf                 10.0.1.4
+scion05  42   ffaa:1:5  Leaf                 10.0.1.5
 ======== ==== ========= ======== =========== ===============
 
 *Table 1: Required Infrastructure*
