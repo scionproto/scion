@@ -18,15 +18,15 @@ Infrastructure
 
 The sample SCION demo setup consists of one ISD with three core ASes and two non-core, leaf ASes. The following table lists some details of the sample ISD and each AS in it, such as the DNS names, the ISD- and AS numbers, the kind of AS (core or leaf) and the IP addresses. This infrastructure could be virtual machines or bare metal.
 
-======== ==== ========= ======== =========== ===============
-Hostname ISD  AS        Purpose  Notes       IP Address
-======== ==== ========= ======== =========== ===============
-scion01  42   ffaa:1:1  Core     Voting      10.0.1.1
-scion02  42   ffaa:1:2  Core     Non-Voting  10.0.1.2
-scion03  42   ffaa:1:3  Core     Non-Voting  10.0.1.3
-scion04  42   ffaa:1:4  Leaf                 10.0.1.4
-scion05  42   ffaa:1:5  Leaf                 10.0.1.5
-======== ==== ========= ======== =========== ===============
+======== ==== ========= ======== =========== =============== ====================== ======== ====
+Hostname ISD  AS        Purpose  Notes       IP Address      OS                     Disk     RAM
+======== ==== ========= ======== =========== =============== ====================== ======== ====
+scion01  42   ffaa:1:1  Core     Voting      10.0.1.1        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
+scion02  42   ffaa:1:2  Core     Non-Voting  10.0.1.2        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
+scion03  42   ffaa:1:3  Core     Non-Voting  10.0.1.3        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
+scion04  42   ffaa:1:4  Leaf                 10.0.1.4        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
+scion05  42   ffaa:1:5  Leaf                 10.0.1.5        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
+======== ==== ========= ======== =========== =============== ====================== ======== ====
 
 *Table 1: Required Infrastructure*
 
@@ -46,10 +46,11 @@ The topology of the ISD includes the inter-AS connections to neighboring ASes, a
 
 .. _prerequisites:
 
-Prerequisites
--------------
+Infrastructure Prerequisites
+----------------------------
 
-Before you can start setting up your demo environment, you need to set up five virtual machines (VMs), one per AS in our ISD/demo environment. We recommend using Ubuntu VMs for this.
+This deployment requires five virtual machines (VMs) - one for each AS. 
+, one per AS in our ISD/demo environment. We recommend using Ubuntu VMs for this.
 
 - 5 VMs - **Ubuntu** 22.04.3 LTS (Jammy Jellyfish). For more information, see `Ubuntu Jammy Jellyfish <https://releases.ubuntu.com/jammy/>`_. These 5 virtual maschines resemble the ASes shown in the setup overview above - each maschine is one AS.
 
