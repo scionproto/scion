@@ -147,22 +147,8 @@ Configuration
 
 To configure your demo SCION environment, perform the following steps.
 
-
-Step 1 - Configure the Topology (Files)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-First, you have to configure the topology files for your demo environment.
-You have to create one "global" topology file which describes the setup of the entire ISD environment, as well as one specific AS topology file per AS in your demo ISD. The topology file of an AS specifies all the inter-AS connections to neighboring ASes, and defines the underlay IP/UDP addresses of services and routers running in this AS. This implies that the topology file will be different for each AS in your demo environment.
-
-The topology information is needed by Router and Control Service instances, and also by end-host applications. For more information on the topology files, see `<https://docs.scion.org/en/latest/manuals/common.html#topology-json>`_
-
-1. First, download a "global" topology file. This contains a concise representation of the topology drawn above. A sample topology file is available here: `TutorialDeploymentTopology.topo <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/TutorialDeploymentTopology.topo>`_  . Download the file to one the hosts of your demo environment (e.g. scion01).
-  
-.. code-block::
-   
-   cd /tmp
-   wget https://github.com/cdekater/scion/raw/ietf118-hackathon/doc/deploy/TutorialDeploymentTopology.topo
-
+Step 2 - Download AS Specific Topology Files
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 1. Now you have to create a topology file per AS. Sample topology files for each AS in our sample ISD environment are listed below. Click on the file name to download it, then copy the file to the corresponding AS.
 
@@ -183,13 +169,24 @@ The topology information is needed by Router and Control Service instances, and 
       sed -i 's/XXXX/XXXX/g' /etc/scion/topology.json
 
 
-
-Step 2 - Generate All Required Certificates
+Step 2 - Generate the Required Certificates
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For this tutorial deployment, a sample topology file has been provided. As part of this tutorial deployment, this file will be processed to generated the required crypto graphics keys.
+
+This topology file wdescribes the setup of the entire ISD environment including all 5 ASes and the associated network links between the ASes. The topology file of an AS specifies all the inter-AS connections to neighboring ASes, and defines the underlay IP/UDP addresses of services and routers running in this AS.
+
+The topology information is needed by Router and Control Service instances, and also by end-host applications. For more information on the topology files, see `<https://docs.scion.org/en/latest/manuals/common.html#topology-json>`_
+
+1. First, download the provided tutorial deployment topology file. This contains a concise representation of the topology drawn above. This topology file is available at: `TutorialDeploymentTopology.topo <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/TutorialDeploymentTopology.topo>`_  . Download the file to the scion01 VM.
+  
+.. code-block::
+   
+   wget https://github.com/cdekater/scion/raw/ietf118-hackathon/doc/deploy/TutorialDeploymentTopology.topo
 
 The next step is to generate all required certificates by using the global topology file. Proceed as follows:
 
-1. To generate all required certificates using the global topology file, execute the following command on the machine where you downloaded the global topology:
+2. To generate all required certificates using the global topology file, execute the following command on the machine where you downloaded the global topology:
 
    .. code-block::
 
@@ -197,7 +194,7 @@ The next step is to generate all required certificates by using the global topol
 
    This will generate all the required keys in the *gen/* directory for all the SCION ASes in all topology.
 
-2. Now you have to copy the just-generated keys to the respective AS routers. Proceed as follows:
+3. Now you have to copy the just-generated keys to the respective AS routers. Proceed as follows:
 
    - Create the required directories. 
 
@@ -209,14 +206,7 @@ Repeat these commands on scion01-scion05.
         mkdir -p /etc/scion/crypto/as
         mkdir -p /etc/scion/keys
 
-   - Generate the MAC secret keys
 
-Two symmetric keys *master0.key* and *master1.key* are required per AS as the forwarding secret keys. These symmetric keys are used by the AS in the data plane to verify the MACs in the hop fields of a SCION path (header).
-
-     .. code-block::
-
-        dd if=/dev/urandom bs=16 count=1 | base64 - > /etc/scion/keys/master0.key
-        dd if=/dev/urandom bs=16 count=1 | base64 - > /etc/scion/keys/master1.key
 
 
    - Copy the content of *gen/ASffaa_1_X/* to */etc/scion/* on each of the five AS routers 
@@ -237,8 +227,17 @@ Two symmetric keys *master0.key* and *master1.key* are required per AS as the fo
          scp -r  gen/ASffaa_1_X/crypto scion1:/etc/scion/
          scp -r  gen/trcs scionX:/etc/scion/certs
 
+Step 3 - Generate  Forwarding Secret Keys
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Step 3 - Create the Directories For the Support Database Files
+Two symmetric keys *master0.key* and *master1.key* are required per AS as the forwarding secret keys. These symmetric keys are used by the AS in the data plane to verify the MACs in the hop fields of a SCION path (header).
+
+     .. code-block::
+
+        dd if=/dev/urandom bs=16 count=1 | base64 - > /etc/scion/keys/master0.key
+        dd if=/dev/urandom bs=16 count=1 | base64 - > /etc/scion/keys/master1.key
+
+Step 4 - Create the Directories For the Support Database Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To create the required directories for the support database files, execute the following command. Do this once per each AS.
@@ -248,7 +247,7 @@ To create the required directories for the support database files, execute the f
    mkdir /var/lib/scion
 
 
-Step 4 - Create the Configuration Files
+Step 5 - Create the Configuration Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Next, you have to create ("copy over") a couple of configuration files in the */etc/scion/* directory of each AS.
@@ -265,7 +264,7 @@ The files including their names are listed below. Click on the corresponding lin
 
 
 
-Step 5 - Start the Services
+Step 6 - Start the Services
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 As a last step, you have to start the services on each of the five ASes. Execute the following commands on every AS:
