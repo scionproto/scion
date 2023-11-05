@@ -136,42 +136,13 @@ You have to create one "global" topology file which describes the setup of the e
 
 The topology information is needed by Router and Control Service instances, and also by end-host applications. For more information on the topology files, see `<https://docs.scion.org/en/latest/manuals/common.html#topology-json>`_
 
-1. First, create a "global" topology file with the name *GlobalDeploymentTopology.topo*.
+1. First, create a "global" topology file with the name *TutorialDeploymentTopology.topo*. A sample topology file is listed below. Click on the file name to download it, then copy the file to your demo environment.
 
-2. Fill this file with the following content:
+   - `TutorialDeploymentTopology.topo <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/TutorialDeploymentTopology.topo>`_
 
-   .. code-block::
+2. Save the just-created global topology file (with the name *TutorialDeploymentTopology.topo*).
 
-      ASes:
-        "42-ffaa:1:1":
-          core: true
-          voting: true
-          authoritative: true
-          issuing: true
-        "42-ffaa:1:2":
-          core: true
-          cert_issuer: 42-ffaa:1:1
-        "42-ffaa:1:3":
-          core: true
-          cert_issuer: 42-ffaa:1:1
-        "42-ffaa:1:4":
-          cert_issuer: 42-ffaa:1:1
-        "42-ffaa:1:5":
-          cert_issuer: 42-ffaa:1:1
-
-      links:
-        - {a: "42-ffaa:1:1#1", b: "42-ffaa:1:4#1", linkAtoB: CHILD}
-        - {a: "42-ffaa:1:1#2", b: "42-ffaa:1:2#1", linkAtoB: CORE}
-        - {a: "42-ffaa:1:1#3", b: "42-ffaa:1:3#1", linkAtoB: CORE}
-        - {a: "42-ffaa:1:2#2", b: "42-ffaa:1:3#2", linkAtoB: CORE}
-        - {a: "42-ffaa:1:2#3", b: "42-ffaa:1:5#1", linkAtoB: CHILD}
-        - {a: "42-ffaa:1:3#3", b: "42-ffaa:1:4#2", linkAtoB: CHILD}
-        - {a: "42-ffaa:1:3#4", b: "42-ffaa:1:5#2", linkAtoB: CHILD}
-
-
-3. Save the just-created global topology file (with the name *GlobalDeploymentTopology.topo*).
-
-4. Now you have to create a topology file per AS. Sample topology files for each AS in our sample ISD environment are listed below. Click on the file name to download it, then copy the file to the corresponding AS.
+3. Now you have to create a topology file per AS. Sample topology files for each AS in our sample ISD environment are listed below. Click on the file name to download it, then copy the file to the corresponding AS.
 
    - **AS 1 (ffaa:1:1)**: `topology1.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology1.json>`_
 
@@ -271,7 +242,7 @@ Testing the Environment
 
 You can now test your environment. The code block below includes some tests you could perform to check whether your environment works well.
 
-Verify that each host has a SCION address. This can be verified with the "scion address" command as shown below. 
+Verify that each host has a SCION address. This can be verified with the "scion address" command as shown below.
 
 .. code-block::
 
