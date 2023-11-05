@@ -51,7 +51,12 @@ Infrastructure Prerequisites
 
 This deployment requires five virtual machines (VMs) - one for each AS. We recommend using Ubuntu VMs for this.
 
-- 5 VMs - **Ubuntu** 22.04.3 LTS (Jammy Jellyfish). For more information, see `Ubuntu Jammy Jellyfish <https://releases.ubuntu.com/jammy/>`_. These 5 virtual machines resemble the ASes shown in the setup overview above - each machine is one AS.
+- 5 VMs - **Ubuntu** 22.04.3 LTS (Jammy Jellyfish). For more information, see `Ubuntu Jammy Jellyfish <https://releases.ubuntu.com/jammy/>`_.
+- Each VM should have at least one IP address reachable by the other VMs. (If on AWS, be sure to setup the appropriate security groups.)
+- Each VM will need internet access to download the required files (or you will need an alternate way to download the SCION binaries).
+- One VM (scion01) should have SSH access to copy generated SCION keys to the other hosts scion{02-05}.
+- Using the naming convention for each VM of scion01, scion02, scion03, scion04, and scion05 will help follow along with this tutorial.
+- The VM names scion01-scion05 can be configured in /etc/hosts.
 
 .. note::
 
@@ -69,6 +74,20 @@ To create the sample ISD environment, you need to perform the following tasks, i
 - Task 3: Testing your environment (:ref:`step3`)
 
 The following sections explain the required tasks, one section per task.
+
+.. _step0:
+
+OS Setup
+........
+
+The host file (/etc/hosts) will need to be updated with the IP addresses of 5 VMs. This will need to be updated on scion01-scion05. Replace the IP addresses with the assigned IP addresses for the VMs deployed.
+
+.. code-block::
+10.0.1.1 scion01
+10.0.1.2 scion02
+10.0.1.3 scion03
+10.0.1.4 scion04
+10.0.1.5 scion05
 
 
 .. _step1:
