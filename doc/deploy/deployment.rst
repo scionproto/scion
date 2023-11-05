@@ -49,8 +49,7 @@ The topology of the ISD includes the inter-AS connections to neighboring ASes, a
 Infrastructure Prerequisites
 ----------------------------
 
-This deployment requires five virtual machines (VMs) - one for each AS. 
-, one per AS in our ISD/demo environment. We recommend using Ubuntu VMs for this.
+This deployment requires five virtual machines (VMs) - one for each AS. We recommend using Ubuntu VMs for this.
 
 - 5 VMs - **Ubuntu** 22.04.3 LTS (Jammy Jellyfish). For more information, see `Ubuntu Jammy Jellyfish <https://releases.ubuntu.com/jammy/>`_. These 5 virtual machines resemble the ASes shown in the setup overview above - each machine is one AS.
 
