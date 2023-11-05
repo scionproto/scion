@@ -13,10 +13,10 @@ Setup
 
 This first section provides an overview of the setup and topology of the sample demo environment.
 
-Sample SCION Demo Setup
-.......................
+Infrastructure
+..............
 
-The sample SCION demo setup consists of one ISD with three core ASes and two non-core, leaf ASes. The following table lists some details of the sample ISD and each AS in it, such as the DNS names, the ISD- and AS numbers, the kind of AS (core or leaf) and the IP addresses.
+The sample SCION demo setup consists of one ISD with three core ASes and two non-core, leaf ASes. The following table lists some details of the sample ISD and each AS in it, such as the DNS names, the ISD- and AS numbers, the kind of AS (core or leaf) and the IP addresses. This infrastructure could be virtual machines or bare metal.
 
 ======== ==== ========= ======== =========== ===============
 Hostname ISD  AS        Purpose  Notes       IP Address
@@ -28,7 +28,7 @@ scion05  42   ffaa:1:4  Leaf                 147.28.184.147
 scion06  42   ffaa:1:5  Leaf                 147.28.184.148
 ======== ==== ========= ======== =========== ===============
 
-*Table 1: Sample setup*
+*Table 1: Required Infrastructure*
 
 
 Sample SCION Demo Topology
