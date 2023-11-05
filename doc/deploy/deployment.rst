@@ -270,15 +270,20 @@ As a last step, you have to start the services on each of the five ASes. Execute
 Testing the Environment
 .......................
 
-You can now test your environment. The code block below includes some PING tests you could perform to check whether your environment works well.
+You can now test your environment. The code block below includes some tests you could perform to check whether your environment works well.
 
+Verify that each host has a SCION address. This can be verified with the "scion address" command as shown below. 
 
 .. code-block::
 
-   # /usr/local/scion/scion address
+   scion01$ /usr/local/scion/scion address
    42-ffaa:1:1,127.0.0.1
 
-   # /usr/local/scion/scion ping 42-ffaa:1:5,127.0.0.1 -c 5
+Verify that each host can ping the other hosts via SCION. This can be done with the "scion ping" command. In the example below, we are pinging between scion01 (AS 42-ffaa:1:1) to scion05 (AS 42-ffaa:1:5). Very that each AS can ping every other AS.
+
+.. code-block::
+
+   scion01$ /usr/local/scion/scion ping 42-ffaa:1:5,127.0.0.1 -c 5
    Resolved local address:
    127.0.0.1
    Using path:
@@ -295,7 +300,11 @@ You can now test your environment. The code block below includes some PING tests
    5 packets transmitted, 5 received, 0% packet loss, time 5000.718ms
    rtt min/avg/max/mdev = 0.788/2.968/3.838/1.105 ms
 
-   # /usr/local/scion/scion showpaths 42-ffaa:1:5
+Verify that each host has a full table of available paths to the other ASes. This can be done with the "scion showpaths" command. In the example below, we are displaying the paths between scion01 (AS 42-ffaa:1:1) to scion05 (AS 42-ffaa:1:5). There should be multiple paths through the core ASes.
+
+.. code-block::
+
+   scion01$ /usr/local/scion/scion showpaths 42-ffaa:1:5
    Available paths to 42-ffaa:1:5
    3 Hops:
    [0] Hops: [42-ffaa:1:1 2>1 42-ffaa:1:2 3>1 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
