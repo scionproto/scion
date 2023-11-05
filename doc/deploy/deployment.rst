@@ -162,7 +162,7 @@ To configure your demo SCION environment, perform the following steps.
 Step 1 - Download AS Specific Topology Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-1. For this tutorial, we have provided the AS specific topology files - one per each AS. These files have been generated from the master AS topology file for this tutorial deployment for simplicity.
+For this tutorial, we have provided the AS specific topology files - one per each AS. These files have been generated from the master AS topology file for this tutorial deployment for simplicity.
 Now you have to create a topology file per AS. Sample topology files for each AS in our sample ISD environment are listed below. Click on the file name to download it, then copy the file to the corresponding AS.
 
    - **AS 1 (ffaa:1:1)**: `topology-42-ffaa:1:1.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology1.json>`_
@@ -193,7 +193,6 @@ Now you have to create a topology file per AS. Sample topology files for each AS
       sed -i 's/10.0.0.4/YOUR_SCION04_IP/g' /etc/scion/topology4.json
       sed -i 's/10.0.0.5/YOUR_SCION05_IP/g' /etc/scion/topology5.json
 
-.. code-block::
 
 
 
