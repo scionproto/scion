@@ -231,7 +231,7 @@ The topology information is needed by Router and Control Service instances, and 
 
         for i in {1..5}
         do
-           scp -r  gen/ASffaa_1_$i/crypto scion0Si:/etc/scion/
+           scp -r  gen/ASffaa_1_$i/crypto scion0$i:/etc/scion/
            scp -r  gen/trcs/ISD42-B1-S1.trc  scion$i:/etc/scion/certs/
         done
 
