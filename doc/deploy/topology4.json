@@ -3,17 +3,17 @@
   "isd_as": "42-ffaa:1:4",
   "mtu": 1472,
   "control_service": {
-    "cs42-ffaa_1_4-1": {
+    "cs": {
       "addr": "127.0.0.1:31000"
     }
   },
   "discovery_service": {
-    "cs42-ffaa_1_4-1": {
+    "cs": {
       "addr": "127.0.0.1:31000"
     }
   },
   "border_routers": {
-    "br42-ffaa_1_4-1": {
+    "br": {
       "internal_addr": "127.0.0.1:31002",
       "interfaces": {
         "1": {
