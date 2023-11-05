@@ -5,8 +5,8 @@ Deployment Tutorial
 
 This document helps you set up a SCION demo configuration, which consists of a stand-alone full-scale SCION environment distributed among five computers. The demo environment consists of one SCION Isolation Domain (ISD), with three core ASes and two non-core, leaf ASes.
 
-- If you want to go deep and help develop SCION, use the development environment. See
-- If you want to use SCION in a large environment, use the SCIONLab. For more information, see
+- If you want to go deep and help develop SCION, use the development environment. See https://docs.scion.org/en/latest/dev/setup.html
+- If you want to use SCION in a large environment, use the SCIONLab. For more information, see https://www.scionlab.org/
 
 Setup
 -----
