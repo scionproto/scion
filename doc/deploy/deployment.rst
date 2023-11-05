@@ -58,12 +58,6 @@ This deployment requires five virtual machines (VMs) - one for each AS. We recom
 - Using the naming convention for each VM of scion01, scion02, scion03, scion04, and scion05 will help follow along with this tutorial.
 - The VM names scion01-scion05 can be configured in /etc/hosts.
 
-.. note::
-
-   It is useful to give each VM a name that fits/suits the setup of your demo environment.
-
-
-
 Tasks to Perform
 ----------------
 
@@ -77,7 +71,7 @@ To create the sample ISD environment, you need to perform the following tasks, i
 The following sections explain the required tasks, one section per task.
 
 
-.. _step0:
+.. _step1:
 
 OS Setup
 ........
@@ -93,7 +87,7 @@ The host file (*/etc/hosts*) will need to be updated with the IP addresses of 5 
    10.0.1.5 scion05
 
 
-.. _step1:
+.. _step2:
 
 Software Selection, Download, and Installation
 ..............................................
@@ -140,7 +134,7 @@ To download the software and install it on your virtual machines, execute the fo
 As each virtual machine represents an AS in your demo environment, we will now refer to the VMs as ASes.
 
 
-.. _step2:
+.. _step3:
 
 Configuration
 .............
@@ -279,7 +273,7 @@ As a last step, you have to start the services on each of the five ASes. Execute
 
 
 
-.. _step3:
+.. _step4:
 
 Testing the Environment
 .......................
