@@ -237,23 +237,6 @@ Two symmetric keys *master0.key* and *master1.key* are required per AS as the fo
          scp -r  gen/ASffaa_1_X/crypto scion1:/etc/scion/
          scp -r  gen/trcs scionX:/etc/scion/certs
 
-   - For each AS, create the AS secret
-  
-     .. code-block::
-
-        mkdir -p /etc/scion/keys
-        
-        dd if=/dev/urandom bs=16 count=1 | base64 - > /etc/scion/keys/master0.key
-        dd if=/dev/urandom bs=16 count=1 | base64 - > /etc/scion/keys/master1.key
-
-     .. code-block::
-
-
-
-   .. note::
-
-      The command above generates two symmetric keys *master0.key* and *master1.key* per AS, and store them in the AS's */etc/scion/keys/* directory. The symmetric key is used by the AS in the date plane to verify the MACs in the hop fields of a SCION path (header).
-
 
 Step 3 - Create the Directories For the Support Database Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
