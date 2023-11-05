@@ -69,26 +69,29 @@ Tasks to Perform
 
 To create the sample ISD environment, you need to perform the following tasks, in this order:
 
-- Task 1: Installation (:ref:`step1`)
-- Task 2: Configuration (:ref:`step2`)
-- Task 3: Testing your environment (:ref:`step3`)
+- Task 1: OS setup (:ref:`step0`)
+- Task 2: Installation (:ref:`step1`)
+- Task 3: Configuration (:ref:`step2`)
+- Task 4: Testing your environment (:ref:`step3`)
 
 The following sections explain the required tasks, one section per task.
+
 
 .. _step0:
 
 OS Setup
 ........
 
-The host file (/etc/hosts) will need to be updated with the IP addresses of 5 VMs. This will need to be updated on scion01-scion05. Replace the IP addresses with the assigned IP addresses for the VMs deployed.
+The host file (*/etc/hosts*) will need to be updated with the IP addresses of 5 VMs. This will need to be updated on scion01-scion05. Replace the IP addresses with the assigned IP addresses for the VMs deployed.
 
 .. code-block::
 
-10.0.1.1 scion01
-10.0.1.2 scion02
-10.0.1.3 scion03
-10.0.1.4 scion04
-10.0.1.5 scion05
+   10.0.1.1 scion01
+   10.0.1.2 scion02
+   10.0.1.3 scion03
+   10.0.1.4 scion04
+   10.0.1.5 scion05
+
 
 .. _step1:
 
