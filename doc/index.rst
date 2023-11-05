@@ -96,7 +96,7 @@ Deployment Guide
 
 .. toctree::
    :maxdepth: 1
-   :caption: Deployment Guide
+   :caption: Deployment Tutorial
    :hidden:
 
    deploy/deployment
