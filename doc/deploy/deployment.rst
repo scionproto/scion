@@ -84,11 +84,13 @@ Set this up on scion01-scion05.
 
 .. code-block::
 
+# additions to /etc/hosts
    10.0.1.1 scion01
    10.0.1.2 scion02
    10.0.1.3 scion03
    10.0.1.4 scion04
    10.0.1.5 scion05
+
 
    - Create required directories.
 
@@ -140,8 +142,6 @@ To download the software and install it on your virtual machines, execute the fo
 
 .. code-block::
 
-   sudo -i
-
    wget https://github.com/scionproto/scion/releases/download/v0.9.1/scion_v0.9.1_amd64_linux.tar.gz
 
    mkdir /usr/local/scion
@@ -159,7 +159,7 @@ Configuration
 
 To configure your demo SCION environment, perform the following steps.
 
-Step 1 - Download AS Specific Topology Files
+Step 1 - AS Specific Topology Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For this tutorial, we have provided the AS specific topology files - one per each AS. These files have been generated from the master AS topology file for this tutorial deployment for simplicity.
@@ -175,25 +175,30 @@ Now you have to create a topology file per AS. Sample topology files for each AS
 
    - **AS 5 (ffaa:1:5)**: `topology-42-ffaa:1:5.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology5.json>`_
 
-  Replace IP addressed from this guide with the IPs of your machines:
+Download the AS specific topology files onto each host scion01 through scion05. 
+
+For example, on scion01, download the topology1.json file. On scion02, download topology2.json and repeat as such on scion03, scion04, and scion05.
 
 .. code-block::
 
-      wget https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology1.json
-      wget https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology2.json
-      wget https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology3.json
-      wget https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology4.json
-      wget https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology5.json
+      wget https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology1.json -O /etc/scion/topology.json
+
+
+Repeat the above 5 times - once for each scion host. Be sure to change topology1.json to topology2.json, etc for different hosts/AS.
+
+
+The downloaded AS topology file is configured with generic IP address (10.0.0.1-5) for the hosts scion01-05. These IP addresses will need to be changed to the VM IP specific addresses.
 
 .. code-block::
 
-      sed -i 's/10.0.0.1/YOUR_SCION01_IP/g' /etc/scion/topology1.json
-      sed -i 's/10.0.0.2/YOUR_SCION02_IP/g' /etc/scion/topology2.json
-      sed -i 's/10.0.0.3/YOUR_SCION03_IP/g' /etc/scion/topology3.json
-      sed -i 's/10.0.0.4/YOUR_SCION04_IP/g' /etc/scion/topology4.json
-      sed -i 's/10.0.0.5/YOUR_SCION05_IP/g' /etc/scion/topology5.json
+      sed -i 's/10.0.0.1/YOUR_SCION01_IP/g' /etc/scion/topology.json
+      sed -i 's/10.0.0.2/YOUR_SCION02_IP/g' /etc/scion/topology.json
+      sed -i 's/10.0.0.3/YOUR_SCION03_IP/g' /etc/scion/topology.json
+      sed -i 's/10.0.0.4/YOUR_SCION04_IP/g' /etc/scion/topology.json
+      sed -i 's/10.0.0.5/YOUR_SCION05_IP/g' /etc/scion/topology.json
 
 
+Repeat the above 5 times - once for each scion host replacing YOUR_SCIONXX_IP with the VM specific IP address.
 
 
 Step 2 - Generate the Required Certificates
