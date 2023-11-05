@@ -76,7 +76,11 @@ The following sections explain the required tasks, one section per task.
 OS Setup
 ........
 
+   - Setup the Host file 
+
 The host file (*/etc/hosts*) will need to be updated with the IP addresses of 5 VMs. This will need to be updated on scion01-scion05. Replace the IP addresses with the assigned IP addresses for the VMs deployed.
+
+Set this up on scion01-scion05.
 
 .. code-block::
 
@@ -85,6 +89,19 @@ The host file (*/etc/hosts*) will need to be updated with the IP addresses of 5 
    10.0.1.3 scion03
    10.0.1.4 scion04
    10.0.1.5 scion05
+
+   - Create required directories.
+
+These directories are required to store the certificates, keys, and database files.
+
+Repeat these commands on scion01-scion05.
+
+     .. code-block::
+
+        mkdir -p /etc/scion/certs
+        mkdir -p /etc/scion/crypto/as
+        mkdir -p /etc/scion/keys
+        mkdir -p /var/lib/scion
 
 
 .. _step2:
@@ -159,9 +176,24 @@ Now you have to create a topology file per AS. Sample topology files for each AS
 
   Replace IP addressed from this guide with the IPs of your machines: 
 
-  .. code-block::
+.. code-block::
 
-      sed -i 's/XXXX/XXXX/g' /etc/scion/topology.json
+      wget https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology1.json
+      wget https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology2.json
+      wget https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology3.json
+      wget https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology4.json
+      wget https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology5.json
+
+.. code-block::
+
+      sed -i 's/10.0.0.1/YOUR_SCION01_IP/g' /etc/scion/topology1.json
+      sed -i 's/10.0.0.2/YOUR_SCION02_IP/g' /etc/scion/topology2.json
+      sed -i 's/10.0.0.3/YOUR_SCION03_IP/g' /etc/scion/topology3.json
+      sed -i 's/10.0.0.4/YOUR_SCION04_IP/g' /etc/scion/topology4.json
+      sed -i 's/10.0.0.5/YOUR_SCION05_IP/g' /etc/scion/topology5.json
+
+.. code-block::
+
 
 
 Step 2 - Generate the Required Certificates
@@ -191,15 +223,7 @@ The next step is to generate all required certificates by using the global topol
 
 3. Now you have to copy the just-generated keys to the respective AS routers. Proceed as follows:
 
-   - Create the required directories. 
 
-Repeat these commands on scion01-scion05.
-
-     .. code-block::
-
-        mkdir -p /etc/scion/certs
-        mkdir -p /etc/scion/crypto/as
-        mkdir -p /etc/scion/keys
 
 
 
@@ -232,17 +256,8 @@ Two symmetric keys *master0.key* and *master1.key* are required per AS as the fo
         dd if=/dev/urandom bs=16 count=1 | base64 - > /etc/scion/keys/master0.key
         dd if=/dev/urandom bs=16 count=1 | base64 - > /etc/scion/keys/master1.key
 
-Step 4 - Create the Directories For the Support Database Files
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To create the required directories for the support database files, execute the following command. Do this once per each AS.
-
-.. code-block::
-
-   mkdir /var/lib/scion
-
-
-Step 5 - Create the Configuration Files
+Step 4 - Create the Configuration Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Next, you have to create ("copy over") a couple of configuration files in the */etc/scion/* directory of each AS.
@@ -266,7 +281,6 @@ As a last step, you have to start the services on each of the five ASes. Execute
 
 .. code-block::
 
-   screen -dmS BR /usr/local/scion/router --config /etc/scion/br.toml
    screen -dmS BorderRouter /usr/local/scion/router --config /etc/scion/br.toml
    screen -dmS Dispatcher /usr/local/scion/dispatcher --config /etc/scion/dispatcher.toml
    screen -dmS Control /usr/local/scion/control --config /etc/scion/cs.toml
