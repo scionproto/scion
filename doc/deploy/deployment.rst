@@ -144,17 +144,18 @@ To configure your demo SCION environment, perform the following steps.
 Step 2 - Download AS Specific Topology Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-1. Now you have to create a topology file per AS. Sample topology files for each AS in our sample ISD environment are listed below. Click on the file name to download it, then copy the file to the corresponding AS.
+1. For this tutorial, we have provided the AS specific topology files - one per each AS. These files have been generated from the master AS toplogy file for this tutorial deployment for simplicty. 
+Now you have to create a topology file per AS. Sample topology files for each AS in our sample ISD environment are listed below. Click on the file name to download it, then copy the file to the corresponding AS.
 
-   - **AS 1 (ffaa:1:1)**: `topology1.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology1.json>`_
+   - **AS 1 (ffaa:1:1)**: `topology-42-ffaa:1:1.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology-42-ffaa:1:1.json>`_
 
-   - **AS 2 (ffaa:1:2)**: `topology2.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology2.json>`_
+   - **AS 2 (ffaa:1:2)**: `topology-42-ffaa:1:2.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology-42-ffaa:1:2.json>`_
 
-   - **AS 3 (ffaa:1:3)**: `topology3.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology3.json>`_
+   - **AS 3 (ffaa:1:3)**: `topology-42-ffaa:1:3.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology-42-ffaa:1:3.json>`_
 
-   - **AS 4 (ffaa:1:4)**: `topology4.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology4.json>`_
+   - **AS 4 (ffaa:1:4)**: `topology-42-ffaa:1:4.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology-42-ffaa:1:4.json>`_
 
-   - **AS 5 (ffaa:1:5)**: `topology5.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology5.json>`_
+   - **AS 5 (ffaa:1:5)**: `topology-42-ffaa:1:5.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology-42-ffaa:1:5.json>`_
 
   Replace IP addressed from this guide with the IPs of your machines: 
 
