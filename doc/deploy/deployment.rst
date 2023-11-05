@@ -85,34 +85,41 @@ The host file (/etc/hosts) will need to be updated with the IP addresses of 5 VM
 .. code-block::
 
 10.0.1.1 scion01
+
 10.0.1.2 scion02
+
 10.0.1.3 scion03
+
 10.0.1.4 scion04
+
 10.0.1.5 scion05
+
 
 .. _step1:
 
-Installation
-............
+Software Selection, Download, and Installation
+..............................................
 
-This section guides you through the installation of the SCION software.
-Here is where you can get the software:
+This section guides you through the download and installation of the SCION software.
 
-- Install from packages (coming later in 2024).
-- Install from binaries. The latest software can be found at:
+Software Selection
+~~~~~~~~~~~~~~~~~~
 
-  - `Latest official release <https://github.com/scionproto/scion/releases/>`_
-  - `Latest nightly build <https://buildkite.com/scionproto/scion-nightly/builds/latest/>`_
+The SCION software is available as a nightly and official release TAR file. We recommend selecting an official release.
 
+- `Latest official release <https://github.com/scionproto/scion/releases/>`_
+- `Latest nightly build <https://buildkite.com/scionproto/scion-nightly/builds/latest/>`_
 
-In this example, we install software with the following release version:
-*scion_v0.9.1_amd64_linux.tar.gz*
+In this example, we install software with the following release version: *scion_v0.9.1_amd64_linux.tar.gz*
 
 Note that we have to install the software five times: Once per virtual machine we created previously. Proceed as described in the following sections.
 
+Installation from packages is under development (available 2024).
 
 Downloading and Installing the SCION Software
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+With the software selected (from above), it will need to be downloaded and installed on each of the VMs scion01-scion05. 
 
 To download the software and install it on your virtual machines, execute the following commands in your shell/terminal:
 
@@ -125,15 +132,11 @@ To download the software and install it on your virtual machines, execute the fo
 
    sudo -i
 
-   cd /tmp
-
    wget https://github.com/scionproto/scion/releases/download/v0.9.1/scion_v0.9.1_amd64_linux.tar.gz
 
    mkdir /usr/local/scion
 
-   cd /usr/local/scion
-
-   tar xfz /tmp/scion_v0.9.1_amd64_linux.tar.gz
+   tar xfz /tmp/scion_v0.9.1_amd64_linux.tar.gz -C /usr/local/scion
 
 
 As each virtual machine represents an AS in your demo environment, we will now refer to the VMs as ASes.
