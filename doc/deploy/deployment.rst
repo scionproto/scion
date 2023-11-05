@@ -204,47 +204,37 @@ Repeat the above 5 times - once for each scion host replacing YOUR_SCIONXX_IP wi
 Step 2 - Generate the Required Certificates
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For this tutorial deployment, a sample topology file has been provided. As part of this tutorial deployment, this file will be processed to generate the required crypto graphics keys.
+The various cryptographic certificates need to be generated for each of the ASes. For this tutorial, we have provided the relevant AS wide topology file which will be used to generate the required keys and certificates.
 
-This topology file describes the setup of the entire ISD environment including all 5 ASes and the associated network links between the ASes. The topology file of an AS specifies all the inter-AS connections to neighboring ASes, and defines the underlay IP/UDP addresses of services and routers running in this AS.
+This topology file describes the setup of the entire ISD environment including all 5 ASes and the associated network links between the ASes. The topology file of an AS specifies all the inter-AS connections to neighboring ASes, and defines the underlay IP/UDP addresses of services and routers running in this AS. (The AS specific topology files used above were generated from this larger AS wide topology file.)
 
 The topology information is needed by Router and Control Service instances, and also by end-host applications. For more information on the topology files, see `<https://docs.scion.org/en/latest/manuals/common.html#topology-json>`_
 
-1. First, download the provided tutorial deployment topology file. This contains a concise representation of the topology drawn above. This topology file is available at: `TutorialDeploymentTopology.topo <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/TutorialDeploymentTopology.topo>`_ . Download the file to the scion01 VM.
+1. First, download the provided AS wide tutorial deployment topology file. This contains a concise representation of the topology drawn above. This topology file is available at: `TutorialDeploymentTopology.topo <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/TutorialDeploymentTopology.topo>`_ . Download the file to the scion01 VM.
 
 .. code-block::
 
    wget https://github.com/cdekater/scion/raw/ietf118-hackathon/doc/deploy/TutorialDeploymentTopology.topo
 
-The next step is to generate all required certificates by using the global topology file. Proceed as follows:
-
-2. To generate all required certificates using the global topology file, execute the following command on the machine where you downloaded the global topology:
+2. Using the above AS wide tutorial file, the required certificates will be generated and then distributed across all the hosts. To generate all required certificates, execute the following command on the machine where you downloaded the global topology (scion01).
 
    .. code-block::
 
       /usr/local/scion/scion-pki testcrypto -t TutorialDeploymentTopology.topo
 
-   This will generate all the required keys in the *gen/* directory for all the SCION ASes in all topology.
+   This will generate all the required keys in a new *gen/* directory for all the SCION ASes.
 
-3. Now you have to copy the just-generated keys to the respective AS routers. Proceed as follows:
+3. The just-generated keys in gen/* can now be copied to the respective AS routers from scion01.
 
-   - Copy the content of *gen/ASffaa_1_X/* to */etc/scion/* on each of the five AS routers
-     On the machine where you generated the material
-   - The part *ASffaa_1_X* in the last line needs to be adapted per AS, so that it contains the correct AS number for the corresponding AS.
+   - Copy the TRC certificates and cryptographic keys to each of the five AS routers (scion01 - scion05).
 
       .. code-block::
 
-         mkdir /etc/scion
-         mkdir /etc/scion/certs
-         cp -r gen/ASffaa_1_1/ /etc/scion/
-
-      Copy from machine 1 to all other machines the respective certs
-
-      .. code-block::
-
-         scp -r scion1:/tmp/gen .
-         scp -r  gen/ASffaa_1_X/crypto scion1:/etc/scion/
-         scp -r  gen/trcs scionX:/etc/scion/certs
+      for i in {1..5}
+      do
+         scp -r  gen/ASffaa_1_$i/crypto scion01:/etc/scion/
+         scp -r  gen/trcs scion0$i:/etc/scion/certs
+      done
 
 
 Step 3 - Generate Forwarding Secret Keys
@@ -257,11 +247,13 @@ Two symmetric keys *master0.key* and *master1.key* are required per AS as the fo
         dd if=/dev/urandom bs=16 count=1 | base64 - > /etc/scion/keys/master0.key
         dd if=/dev/urandom bs=16 count=1 | base64 - > /etc/scion/keys/master1.key
 
+Repeat the above on each host scion01 - scion05.
 
-Step 4 - Create the Configuration Files
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Next, you have to create ("copy over") a couple of configuration files in the */etc/scion/* directory of each AS.
+Step 4 - Service Configuration Files
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Next, you have to download the service configuration files into the */etc/scion/* directory of each AS host scion01-scion05.
 
 The files including their names are listed below. Click on the corresponding link to download the file, then copy it into the */etc/scion/* directory of each AS.
 
@@ -275,18 +267,32 @@ The files including their names are listed below. Click on the corresponding lin
 
 
 
-Step 5 - Start the Services
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-As a last step, you have to start the services on each of the five ASes. Execute the following commands on every AS:
+Alternatively, the files can be downloaded directly onto each host with wget.
 
 .. code-block::
 
-   screen -dmS BorderRouter /usr/local/scion/router --config /etc/scion/br.toml
-   screen -dmS Dispatcher /usr/local/scion/dispatcher --config /etc/scion/dispatcher.toml
-   screen -dmS Control /usr/local/scion/control --config /etc/scion/cs.toml
-   screen -dmS Daemon /usr/local/scion/daemon --config /etc/scion/sd.toml
+      wget https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/br.toml -O /etc/scion/br.toml
+      wget https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/cs.toml -O /etc/scion/cs.toml
+      wget https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/dispatcher.toml -O /etc/scion/dispatcher.toml
+      wget https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/sd.toml -O /etc/scion/sd.toml
 
+
+These steps need to be repeated on each host scion01 - scion05. 
+
+Step 5 - Start the Services
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Start the services on each of the five ASes. Execute the following commands on every AS:
+
+.. code-block::
+
+   /usr/local/scion/router --config /etc/scion/br.toml
+   /usr/local/scion/dispatcher --config /etc/scion/dispatcher.toml
+   /usr/local/scion/control --config /etc/scion/cs.toml
+   /usr/local/scion/daemon --config /etc/scion/sd.toml
+
+
+These steps need to be repeated on each host scion01 - scion05. 
 
 
 .. _step3:
