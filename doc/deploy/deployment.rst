@@ -156,13 +156,15 @@ You have to create one "global" topology file which describes the setup of the e
 
 The topology information is needed by Router and Control Service instances, and also by end-host applications. For more information on the topology files, see `<https://docs.scion.org/en/latest/manuals/common.html#topology-json>`_
 
-1. First, create a "global" topology file with the name *TutorialDeploymentTopology.topo*. A sample topology file is listed below. Click on the file name to download it, then copy the file to your demo environment.
+1. First, download a "global" topology file. This contains a concise representation of the topology drawn above. A sample topology file is available here: `TutorialDeploymentTopology.topo <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/TutorialDeploymentTopology.topo>`_  . Download the file to one the hosts of your demo environment (e.g. scion01).
+  
+.. code-block::
+   
+   cd /tmp
+   wget https://github.com/cdekater/scion/raw/ietf118-hackathon/doc/deploy/TutorialDeploymentTopology.topo
 
-   - `TutorialDeploymentTopology.topo <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/TutorialDeploymentTopology.topo>`_
 
-2. Save the just-created global topology file (with the name *TutorialDeploymentTopology.topo*).
-
-3. Now you have to create a topology file per AS. Sample topology files for each AS in our sample ISD environment are listed below. Click on the file name to download it, then copy the file to the corresponding AS.
+1. Now you have to create a topology file per AS. Sample topology files for each AS in our sample ISD environment are listed below. Click on the file name to download it, then copy the file to the corresponding AS.
 
    - **AS 1 (ffaa:1:1)**: `topology1.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology1.json>`_
 
@@ -174,6 +176,12 @@ The topology information is needed by Router and Control Service instances, and 
 
    - **AS 5 (ffaa:1:5)**: `topology5.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology5.json>`_
 
+  Replace IP addressed from this guide with the IPs of your machines: 
+
+  .. code-block::
+
+      sed -i 's/XXXX/XXXX/g' /etc/scion/topology.json
+
 
 
 Step 2 - Generate All Required Certificates
@@ -181,15 +189,15 @@ Step 2 - Generate All Required Certificates
 
 The next step is to generate all required certificates by using the global topology file. Proceed as follows:
 
-1. To generate all required certificates using the global topology file, execute the following command:
+1. To generate all required certificates using the global topology file, execute the following command on the machine where you downloaded the global topology:
 
    .. code-block::
 
-      /usr/local/scion/scion-pki testcrypto -t GlobalDeploymentTopology.topo
+      /usr/local/scion/scion-pki testcrypto -t TutorialDeploymentTopology.topo
 
-   This will generate all the required keys in the *gen/* directory.
+   This will generate all the required keys in the *gen/* directory for all the SCION ASes in all topology.
 
-2. Now you have to distribute the just-generated keys to the AS routers. Proceed as follows:
+2. Now you have to copy the just-generated keys to the respective AS routers. Proceed as follows:
 
    - Create the required directories. 
 
@@ -210,18 +218,33 @@ Two symmetric keys *master0.key* and *master1.key* are required per AS as the fo
         dd if=/dev/urandom bs=16 count=1 | base64 - > /etc/scion/keys/master0.key
         dd if=/dev/urandom bs=16 count=1 | base64 - > /etc/scion/keys/master1.key
 
-   - Copy the *gen/* directory with its content to each of the five AS routers. **TODO**
-   - For each AS, execute the commands in the following code block. Pay attention to the following:
 
-     - All lines except for the last line are the same for each AS.
-     - The part *ASffaa_1_1* in the last line needs to be adapted per AS, so that it contains the correct AS number for the corresponding AS.
+   - Copy the content of *gen/ASffaa_1_X/* to */etc/scion/* on each of the five AS routers 
+     On the machine where you generated the material
+   - The part *ASffaa_1_X in the last line needs to be adapted per AS, so that it contains the correct AS number for the corresponding AS.
 
+      .. code-block::
+
+         mkdir /etc/scion
+         mkdir /etc/scion/certs
+         cp -r gen/ASffaa_1_1/ /etc/scion/
+
+      Copy from machine 1 to all other machine the respective certs
+
+      .. code-block::
+
+         scp -r scion1:/tmp/gen .
+         scp -r  gen/ASffaa_1_X/crypto scion1:/etc/scion/
+         scp -r  gen/trcs scionX:/etc/scion/certs
+
+   - For each AS, create the AS secret
+  
      .. code-block::
 
-        mkdir /etc/scion/certs
-        cp gen/trcs/* /etc/scion/certs
-        mkdir -p /etc/scion/crypto/as
-        cp ./gen/ASffaa_1_1/crypto/as/* /etc/scion/crypto/as/
+        mkdir -p /etc/scion/keys
+        
+        dd if=/dev/urandom bs=16 count=1 | base64 - > /etc/scion/keys/master0.key
+        dd if=/dev/urandom bs=16 count=1 | base64 - > /etc/scion/keys/master1.key
 
      .. code-block::
 
@@ -229,7 +252,7 @@ Two symmetric keys *master0.key* and *master1.key* are required per AS as the fo
 
    .. note::
 
-      The above script will distribute the SCION control-plane PKI keys/certificates to the ASes. Additionally, it will create the two symmetric keys *master0.key* and *master1.key* per AS, and store them in the AS's */etc/scion/keys/* directory. The symmetric key is used by the AS in the date plane to verify the MACs in the hop fields of a SCION path (header).
+      The command above generates two symmetric keys *master0.key* and *master1.key* per AS, and store them in the AS's */etc/scion/keys/* directory. The symmetric key is used by the AS in the date plane to verify the MACs in the hop fields of a SCION path (header).
 
 
 Step 3 - Create the Directories For the Support Database Files
