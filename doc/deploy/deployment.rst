@@ -71,7 +71,7 @@ To create the sample ISD environment, you need to perform the following tasks, i
 The following sections explain the required tasks, one section per task.
 
 
-.. _step1:
+.. _step0:
 
 OS Setup
 ........
@@ -104,7 +104,7 @@ Repeat these commands on scion01-scion05.
         mkdir -p /var/lib/scion
 
 
-.. _step2:
+.. _step1:
 
 Software Selection, Download, and Installation
 ..............................................
@@ -125,8 +125,9 @@ Note that we have to install the software five times: Once per virtual machine w
 
 Installation from packages is under development (available 2024).
 
+
 Downloading and Installing the SCION Software
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 With the software selected (from above), it will need to be downloaded and installed on each of the VMs scion01-scion05.
 
@@ -151,14 +152,14 @@ To download the software and install it on your virtual machines, execute the fo
 As each virtual machine represents an AS in your demo environment, we will now refer to the VMs as ASes.
 
 
-.. _step3:
+.. _step2:
 
 Configuration
 .............
 
 To configure your demo SCION environment, perform the following steps.
 
-Step 2 - Download AS Specific Topology Files
+Step 1 - Download AS Specific Topology Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 1. For this tutorial, we have provided the AS specific topology files - one per each AS. These files have been generated from the master AS topology file for this tutorial deployment for simplicity.
@@ -242,7 +243,7 @@ The next step is to generate all required certificates by using the global topol
          scp -r  gen/trcs scionX:/etc/scion/certs
 
 
-Step 3 - Generate  Forwarding Secret Keys
+Step 3 - Generate Forwarding Secret Keys
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Two symmetric keys *master0.key* and *master1.key* are required per AS as the forwarding secret keys. These symmetric keys are used by the AS in the data plane to verify the MACs in the hop fields of a SCION path (header).
@@ -270,7 +271,7 @@ The files including their names are listed below. Click on the corresponding lin
 
 
 
-Step 6 - Start the Services
+Step 5 - Start the Services
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 As a last step, you have to start the services on each of the five ASes. Execute the following commands on every AS:
@@ -284,7 +285,7 @@ As a last step, you have to start the services on each of the five ASes. Execute
 
 
 
-.. _step4:
+.. _step3:
 
 Testing the Environment
 .......................
