@@ -61,3 +61,32 @@ func (s BeaconSender) Send(ctx context.Context, b *seg.PathSegment) error {
 func (s BeaconSender) Close() error {
 	return s.Client.RoundTripper.Close()
 }
+
+// Registrar registers segments.
+type Registrar struct {
+	Dialer func(net.Addr, ...squic.EarlyDialerOption) squic.EarlyDialer
+}
+
+// RegisterSegment registers a segment with the remote.
+func (r Registrar) RegisterSegment(ctx context.Context, meta seg.Meta, remote net.Addr) error {
+	peer := make(chan net.Addr, 1)
+	dialer := r.Dialer(remote, squic.WithPeerChannel(peer))
+	client := control_planeconnect.NewSegmentRegistrationServiceClient(
+		libconnect.HTTPClient{
+			RoundTripper: &http3.RoundTripper{
+				Dial: dialer.DialEarly,
+			},
+		},
+		libconnect.BaseUrl(remote),
+	)
+	_, err := client.SegmentsRegistration(ctx, connect.NewRequest(&control_plane.SegmentsRegistrationRequest{
+		Segments: map[int32]*control_plane.SegmentsRegistrationRequest_Segments{
+			int32(meta.Type): {
+				Segments: []*control_plane.PathSegment{
+					seg.PathSegmentToPB(meta.Segment),
+				},
+			},
+		},
+	}))
+	return err
+}

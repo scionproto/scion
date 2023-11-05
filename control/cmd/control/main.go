@@ -883,15 +883,28 @@ func realMain(ctx context.Context) error {
 				Dialer: dialer,
 			},
 		},
-		SegmentRegister: beaconinggrpc.Registrar{Dialer: dialer},
-		BeaconStore:     beaconStore,
-		SignerGen:       signer.SignerGen,
-		Inspector:       inspector,
-		Metrics:         metrics,
-		DRKeyEngine:     drkeyEngine,
-		MACGen:          macGen,
-		NextHopper:      topo,
-		StaticInfo:      func() *beaconing.StaticInfoCfg { return staticInfo },
+		SegmentRegister: &happy.Registrar{
+			Connect: beaconingconnect.Registrar{
+				Dialer: (&squic.EarlyDialerFactory{
+					Transport: quicStack.InsecureDialer.Transport,
+					TLSConfig: func() *tls.Config {
+						cfg := quicStack.InsecureDialer.TLSConfig.Clone()
+						cfg.NextProtos = []string{"h3", "SCION"}
+						return cfg
+					}(),
+					Rewriter: dialer.Rewriter,
+				}).NewDialer,
+			},
+			Grpc: beaconinggrpc.Registrar{Dialer: dialer},
+		},
+		BeaconStore: beaconStore,
+		SignerGen:   signer.SignerGen,
+		Inspector:   inspector,
+		Metrics:     metrics,
+		DRKeyEngine: drkeyEngine,
+		MACGen:      macGen,
+		NextHopper:  topo,
+		StaticInfo:  func() *beaconing.StaticInfoCfg { return staticInfo },
 
 		OriginationInterval:       globalCfg.BS.OriginationInterval.Duration,
 		PropagationInterval:       globalCfg.BS.PropagationInterval.Duration,

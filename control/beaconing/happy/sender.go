@@ -110,3 +110,59 @@ func (s BeaconSender) Close() error {
 	}
 	return errs.ToError()
 }
+
+type Registrar struct {
+	Connect beaconing.RPC
+	Grpc    beaconing.RPC
+}
+
+func (r *Registrar) RegisterSegment(ctx context.Context, meta seg.Meta, remote net.Addr) error {
+	abortCtx, cancel := context.WithCancel(ctx)
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	errs := [2]error{}
+	go func() {
+		defer log.HandlePanic()
+		defer wg.Done()
+		err := r.Connect.RegisterSegment(abortCtx, meta, remote)
+		if err == nil {
+			log.Info("Registered segments via connect")
+			cancel()
+		} else {
+			log.Info("Failed to register segments via connect", "err", err)
+		}
+		errs[0] = err
+	}()
+
+	go func() {
+		defer log.HandlePanic()
+		defer wg.Done()
+		select {
+		case <-abortCtx.Done():
+			return
+		case <-time.After(500 * time.Millisecond):
+		}
+		err := r.Grpc.RegisterSegment(abortCtx, meta, remote)
+		if err == nil {
+			log.Info("Registered segments via gRPC")
+			cancel()
+		} else {
+			log.Info("Failed to register segments via gRPC", "err", err)
+		}
+		errs[1] = err
+	}()
+
+	wg.Wait()
+	var combinedErrs serrors.List
+	for _, err := range errs {
+		if err != nil {
+			combinedErrs = append(combinedErrs, err)
+		}
+	}
+	// Only report error if both sends were unsuccessful.
+	if len(combinedErrs) == 2 {
+		return combinedErrs.ToError()
+	}
+	return nil
+}
