@@ -52,7 +52,7 @@ Infrastructure Prerequisites
 This deployment requires five virtual machines (VMs) - one for each AS. We recommend using Ubuntu VMs for this.
 
 - 5 VMs - **Ubuntu** 22.04.3 LTS (Jammy Jellyfish). For more information, see `Ubuntu Jammy Jellyfish <https://releases.ubuntu.com/jammy/>`_.
-- Each VM should have at least one IP address reachable by the other VMs. (If on AWS, be sure to setup the appropriate security groups.)
+- Each VM should have at least one IP address reachable by the other VMs. (If on AWS, be sure to set up the appropriate security groups.)
 - Each VM will need internet access to download the required files (or you will need an alternate way to download the SCION binaries).
 - One VM (scion01) should have SSH access to copy generated SCION keys to the other hosts scion{02-05}.
 - Using the naming convention for each VM of scion01, scion02, scion03, scion04, and scion05 will help follow along with this tutorial.
@@ -76,7 +76,7 @@ The following sections explain the required tasks, one section per task.
 OS Setup
 ........
 
-   - Setup the Host file 
+   - Set up the host file
 
 The host file (*/etc/hosts*) will need to be updated with the IP addresses of 5 VMs. This will need to be updated on scion01-scion05. Replace the IP addresses with the assigned IP addresses for the VMs deployed.
 
@@ -128,7 +128,7 @@ Installation from packages is under development (available 2024).
 Downloading and Installing the SCION Software
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-With the software selected (from above), it will need to be downloaded and installed on each of the VMs scion01-scion05. 
+With the software selected (from above), it will need to be downloaded and installed on each of the VMs scion01-scion05.
 
 To download the software and install it on your virtual machines, execute the following commands in your shell/terminal:
 
@@ -161,7 +161,7 @@ To configure your demo SCION environment, perform the following steps.
 Step 2 - Download AS Specific Topology Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-1. For this tutorial, we have provided the AS specific topology files - one per each AS. These files have been generated from the master AS toplogy file for this tutorial deployment for simplicty. 
+1. For this tutorial, we have provided the AS specific topology files - one per each AS. These files have been generated from the master AS topology file for this tutorial deployment for simplicity.
 Now you have to create a topology file per AS. Sample topology files for each AS in our sample ISD environment are listed below. Click on the file name to download it, then copy the file to the corresponding AS.
 
    - **AS 1 (ffaa:1:1)**: `topology-42-ffaa:1:1.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology1.json>`_
@@ -174,7 +174,7 @@ Now you have to create a topology file per AS. Sample topology files for each AS
 
    - **AS 5 (ffaa:1:5)**: `topology-42-ffaa:1:5.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology5.json>`_
 
-  Replace IP addressed from this guide with the IPs of your machines: 
+  Replace IP addressed from this guide with the IPs of your machines:
 
 .. code-block::
 
@@ -199,16 +199,16 @@ Now you have to create a topology file per AS. Sample topology files for each AS
 Step 2 - Generate the Required Certificates
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For this tutorial deployment, a sample topology file has been provided. As part of this tutorial deployment, this file will be processed to generated the required crypto graphics keys.
+For this tutorial deployment, a sample topology file has been provided. As part of this tutorial deployment, this file will be processed to generate the required crypto graphics keys.
 
-This topology file wdescribes the setup of the entire ISD environment including all 5 ASes and the associated network links between the ASes. The topology file of an AS specifies all the inter-AS connections to neighboring ASes, and defines the underlay IP/UDP addresses of services and routers running in this AS.
+This topology file describes the setup of the entire ISD environment including all 5 ASes and the associated network links between the ASes. The topology file of an AS specifies all the inter-AS connections to neighboring ASes, and defines the underlay IP/UDP addresses of services and routers running in this AS.
 
 The topology information is needed by Router and Control Service instances, and also by end-host applications. For more information on the topology files, see `<https://docs.scion.org/en/latest/manuals/common.html#topology-json>`_
 
-1. First, download the provided tutorial deployment topology file. This contains a concise representation of the topology drawn above. This topology file is available at: `TutorialDeploymentTopology.topo <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/TutorialDeploymentTopology.topo>`_  . Download the file to the scion01 VM.
-  
+1. First, download the provided tutorial deployment topology file. This contains a concise representation of the topology drawn above. This topology file is available at: `TutorialDeploymentTopology.topo <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/TutorialDeploymentTopology.topo>`_ . Download the file to the scion01 VM.
+
 .. code-block::
-   
+
    wget https://github.com/cdekater/scion/raw/ietf118-hackathon/doc/deploy/TutorialDeploymentTopology.topo
 
 The next step is to generate all required certificates by using the global topology file. Proceed as follows:
@@ -223,14 +223,9 @@ The next step is to generate all required certificates by using the global topol
 
 3. Now you have to copy the just-generated keys to the respective AS routers. Proceed as follows:
 
-
-
-
-
-
-   - Copy the content of *gen/ASffaa_1_X/* to */etc/scion/* on each of the five AS routers 
+   - Copy the content of *gen/ASffaa_1_X/* to */etc/scion/* on each of the five AS routers
      On the machine where you generated the material
-   - The part *ASffaa_1_X in the last line needs to be adapted per AS, so that it contains the correct AS number for the corresponding AS.
+   - The part *ASffaa_1_X* in the last line needs to be adapted per AS, so that it contains the correct AS number for the corresponding AS.
 
       .. code-block::
 
@@ -238,13 +233,14 @@ The next step is to generate all required certificates by using the global topol
          mkdir /etc/scion/certs
          cp -r gen/ASffaa_1_1/ /etc/scion/
 
-      Copy from machine 1 to all other machine the respective certs
+      Copy from machine 1 to all other machines the respective certs
 
       .. code-block::
 
          scp -r scion1:/tmp/gen .
          scp -r  gen/ASffaa_1_X/crypto scion1:/etc/scion/
          scp -r  gen/trcs scionX:/etc/scion/certs
+
 
 Step 3 - Generate  Forwarding Secret Keys
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
