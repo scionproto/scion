@@ -191,6 +191,25 @@ The next step is to generate all required certificates by using the global topol
 
 2. Now you have to distribute the just-generated keys to the AS routers. Proceed as follows:
 
+   - Create the required directories. 
+
+Repeat these commands on scion01-scion05.
+
+     .. code-block::
+
+        mkdir -p /etc/scion/certs
+        mkdir -p /etc/scion/crypto/as
+        mkdir -p /etc/scion/keys
+
+   - Generate the MAC secret keys
+
+Two symmetric keys *master0.key* and *master1.key* are required per AS as the forwarding secret keys. These symmetric keys are used by the AS in the data plane to verify the MACs in the hop fields of a SCION path (header).
+
+     .. code-block::
+
+        dd if=/dev/urandom bs=16 count=1 | base64 - > /etc/scion/keys/master0.key
+        dd if=/dev/urandom bs=16 count=1 | base64 - > /etc/scion/keys/master1.key
+
    - Copy the *gen/* directory with its content to each of the five AS routers. **TODO**
    - For each AS, execute the commands in the following code block. Pay attention to the following:
 
@@ -199,13 +218,13 @@ The next step is to generate all required certificates by using the global topol
 
      .. code-block::
 
-        mkdir -p /etc/scion/keys
-        dd if=/dev/urandom bs=16 count=1 | base64 - > /etc/scion/keys/master0.key
-        dd if=/dev/urandom bs=16 count=1 | base64 - > /etc/scion/keys/master1.key
         mkdir /etc/scion/certs
         cp gen/trcs/* /etc/scion/certs
         mkdir -p /etc/scion/crypto/as
         cp ./gen/ASffaa_1_1/crypto/as/* /etc/scion/crypto/as/
+
+     .. code-block::
+
 
 
    .. note::
