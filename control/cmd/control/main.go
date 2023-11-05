@@ -93,7 +93,9 @@ import (
 	"github.com/scionproto/scion/private/mgmtapi/jwtauth"
 	segapi "github.com/scionproto/scion/private/mgmtapi/segments/api"
 	"github.com/scionproto/scion/private/periodic"
+	segfetcherconnect "github.com/scionproto/scion/private/segment/segfetcher/connect"
 	segfetchergrpc "github.com/scionproto/scion/private/segment/segfetcher/grpc"
+	segfetcherhappy "github.com/scionproto/scion/private/segment/segfetcher/happy"
 	"github.com/scionproto/scion/private/segment/seghandler"
 	"github.com/scionproto/scion/private/service"
 	"github.com/scionproto/scion/private/storage"
@@ -327,8 +329,21 @@ func realMain(ctx context.Context) error {
 		PathDB:        pathDB,
 		RevCache:      revCache,
 		QueryInterval: globalCfg.PS.QueryInterval.Duration,
-		RPC: &segfetchergrpc.Requester{
-			Dialer: dialer,
+		RPC: &segfetcherhappy.Requester{
+			Connect: &segfetcherconnect.Requester{
+				Dialer: (&squic.EarlyDialerFactory{
+					Transport: quicStack.InsecureDialer.Transport,
+					TLSConfig: func() *tls.Config {
+						cfg := quicStack.InsecureDialer.TLSConfig.Clone()
+						cfg.NextProtos = []string{"h3", "SCION"}
+						return cfg
+					}(),
+					Rewriter: dialer.Rewriter,
+				}).NewDialer,
+			},
+			Grpc: &segfetchergrpc.Requester{
+				Dialer: dialer,
+			},
 		},
 		Inspector: inspector,
 		Verifier:  verifier,

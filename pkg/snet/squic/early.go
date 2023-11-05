@@ -33,6 +33,25 @@ type AddressRewriter interface {
 	RedirectToQUIC(ctx context.Context, address net.Addr) (net.Addr, bool, error)
 }
 
+type EarlyDialerOptions struct {
+	Peer        chan net.Addr
+	DialTimeout time.Duration
+}
+
+type EarlyDialerOption func(o *EarlyDialerOptions)
+
+func WithPeerChannel(peer chan net.Addr) EarlyDialerOption {
+	return func(o *EarlyDialerOptions) {
+		o.Peer = peer
+	}
+}
+
+func WithDialTimeout(to time.Duration) EarlyDialerOption {
+	return func(o *EarlyDialerOptions) {
+		o.DialTimeout = to
+	}
+}
+
 type EarlyDialerFactory struct {
 	Transport  *quic.Transport
 	TLSConfig  *tls.Config
@@ -40,13 +59,19 @@ type EarlyDialerFactory struct {
 	Rewriter   AddressRewriter
 }
 
-func (f *EarlyDialerFactory) NewDialer(a net.Addr) EarlyDialer {
+func (f *EarlyDialerFactory) NewDialer(a net.Addr, opts ...EarlyDialerOption) EarlyDialer {
+	var o EarlyDialerOptions
+	for _, f := range opts {
+		f(&o)
+	}
 	return EarlyDialer{
-		Addr:       a,
-		Transport:  f.Transport,
-		TLSConfig:  f.TLSConfig,
-		QUICConfig: f.QUICConfig,
-		Rewriter:   f.Rewriter,
+		Addr:        a,
+		Transport:   f.Transport,
+		TLSConfig:   f.TLSConfig,
+		QUICConfig:  f.QUICConfig,
+		Rewriter:    f.Rewriter,
+		Peer:        o.Peer,
+		DialTimeout: o.DialTimeout,
 	}
 }
 
@@ -56,9 +81,18 @@ type EarlyDialer struct {
 	TLSConfig  *tls.Config
 	QUICConfig *quic.Config
 	Rewriter   AddressRewriter
+
+	Peer        chan net.Addr
+	DialTimeout time.Duration
 }
 
 func (d *EarlyDialer) DialEarly(ctx context.Context, _ string, _ *tls.Config, _ *quic.Config) (quic.EarlyConnection, error) {
+	if d.DialTimeout != 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, d.DialTimeout)
+		defer cancel()
+	}
+
 	addr, _, err := d.Rewriter.RedirectToQUIC(ctx, d.Addr)
 	if err != nil {
 		return nil, serrors.WrapStr("resolving SVC address", err)
@@ -66,6 +100,9 @@ func (d *EarlyDialer) DialEarly(ctx context.Context, _ string, _ *tls.Config, _ 
 	if _, ok := addr.(*snet.UDPAddr); !ok {
 		return nil, serrors.New("wrong address type after svc resolution",
 			"type", common.TypeOf(addr))
+	}
+	if d.Peer != nil {
+		d.Peer <- addr
 	}
 
 	serverName := d.TLSConfig.ServerName

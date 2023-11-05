@@ -3,7 +3,6 @@ package connect
 import (
 	"context"
 	"net"
-	"net/http"
 
 	"connectrpc.com/connect"
 	"github.com/quic-go/quic-go/http3"
@@ -11,13 +10,14 @@ import (
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/onehop"
 	"github.com/scionproto/scion/pkg/addr"
+	libconnect "github.com/scionproto/scion/pkg/connect"
 	control_plane "github.com/scionproto/scion/pkg/proto/control_plane"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/snet/squic"
 )
 
 type BeaconSenderFactory struct {
-	Dialer func(net.Addr) squic.EarlyDialer
+	Dialer func(net.Addr, ...squic.EarlyDialerOption) squic.EarlyDialer
 }
 
 func (f *BeaconSenderFactory) NewSender(
@@ -35,7 +35,7 @@ func (f *BeaconSenderFactory) NewSender(
 	dialer := f.Dialer(addr)
 	return &BeaconSender{
 		Addr: "https://" + addr.SVC.BaseString(),
-		Client: &HTTPClient{
+		Client: &libconnect.HTTPClient{
 			RoundTripper: &http3.RoundTripper{
 				Dial: dialer.DialEarly,
 			},
@@ -46,7 +46,7 @@ func (f *BeaconSenderFactory) NewSender(
 
 type BeaconSender struct {
 	Addr   string
-	Client *HTTPClient
+	Client *libconnect.HTTPClient
 }
 
 func (s BeaconSender) Send(ctx context.Context, b *seg.PathSegment) error {
@@ -60,12 +60,4 @@ func (s BeaconSender) Send(ctx context.Context, b *seg.PathSegment) error {
 // Close closes the BeaconSender and releases all underlying resources.
 func (s BeaconSender) Close() error {
 	return s.Client.RoundTripper.Close()
-}
-
-type HTTPClient struct {
-	RoundTripper *http3.RoundTripper
-}
-
-func (c HTTPClient) Do(req *http.Request) (*http.Response, error) {
-	return c.RoundTripper.RoundTrip(req)
 }

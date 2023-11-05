@@ -1,38 +1,31 @@
 package conect
 
 import (
-	"context"
-	"crypto/tls"
+	"fmt"
+	"net"
+	"net/http"
+	"strconv"
 
-	"github.com/quic-go/quic-go"
-	"github.com/scionproto/scion/pkg/grpc"
-	"github.com/scionproto/scion/pkg/private/common"
-	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/quic-go/quic-go/http3"
 	"github.com/scionproto/scion/pkg/snet"
-	"github.com/scionproto/scion/pkg/snet/squic"
 )
 
-type QUICDialer struct {
-	Rewriter   grpc.AddressRewriter
-	Transport  *quic.Transport
-	TLSConfig  *tls.Config
-	QUICConfig *quic.Config
+func BaseUrl(server net.Addr) string {
+	switch s := server.(type) {
+	case *snet.UDPAddr:
+		host := fmt.Sprintf("%s,%s", s.IA, s.Host.IP)
+		return "https://" + net.JoinHostPort(host, strconv.Itoa(s.Host.Port))
+	case *snet.SVCAddr:
+		return fmt.Sprintf("https://[%s,%s]", s.IA, s.SVC.BaseString())
+	default:
+		return "https://" + server.String()
+	}
 }
 
-func (d *QUICDialer) DialEarly(ctx context.Context, _ string, _ *tls.Config, _ *quic.Config) (quic.EarlyConnection, error) {
-	addr, _, err := d.Rewriter.RedirectToQUIC(ctx, addr)
-	if err != nil {
-		return nil, serrors.WrapStr("resolving SVC address", err)
-	}
-	if _, ok := addr.(*snet.UDPAddr); !ok {
-		return nil, serrors.New("wrong address type after svc resolution",
-			"type", common.TypeOf(addr))
-	}
-	dialer := squic.EarlyDialer{
-		Addr:       addr,
-		Transport:  d.Transport,
-		TLSConfig:  d.TLSConfig,
-		QUICConfig: d.QUICConfig,
-	}
-	return dialer.DialEarly(ctx, "", nil, nil)
+type HTTPClient struct {
+	RoundTripper *http3.RoundTripper
+}
+
+func (c HTTPClient) Do(req *http.Request) (*http.Response, error) {
+	return c.RoundTripper.RoundTrip(req)
 }
