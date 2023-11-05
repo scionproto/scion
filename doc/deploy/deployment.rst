@@ -83,12 +83,12 @@ OS Setup
 The host file (/etc/hosts) will need to be updated with the IP addresses of 5 VMs. This will need to be updated on scion01-scion05. Replace the IP addresses with the assigned IP addresses for the VMs deployed.
 
 .. code-block::
+
 10.0.1.1 scion01
 10.0.1.2 scion02
 10.0.1.3 scion03
 10.0.1.4 scion04
 10.0.1.5 scion05
-
 
 .. _step1:
 
