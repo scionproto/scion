@@ -168,26 +168,21 @@ Step 1 - AS Specific Topology Files
 For this tutorial, we have provided the AS specific topology files - one per each AS. These files have been generated from the master AS topology file for this tutorial deployment for simplicity.
 Now you have to create a topology file per AS. Sample topology files for each AS in our sample ISD environment are listed below. Click on the file name to download it, then copy the file to the corresponding AS.
 
-   - **AS 1 (ffaa:1:1)**: `topology-42-ffaa:1:1.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology1.json>`_
-
-   - **AS 2 (ffaa:1:2)**: `topology-42-ffaa:1:2.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology2.json>`_
-
-   - **AS 3 (ffaa:1:3)**: `topology-42-ffaa:1:3.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology3.json>`_
-
-   - **AS 4 (ffaa:1:4)**: `topology-42-ffaa:1:4.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology4.json>`_
-
-   - **AS 5 (ffaa:1:5)**: `topology-42-ffaa:1:5.json <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology5.json>`_
+   - **AS 1 (ffaa:1:1)**: :download:`topology-42-ffaa:1:1.json <topology1.json>`
+   - **AS 2 (ffaa:1:2)**: :download:`topology-42-ffaa:1:2.json <topology2.json>`
+   - **AS 3 (ffaa:1:3)**: :download:`topology-42-ffaa:1:3.json <topology3.json>`
+   - **AS 4 (ffaa:1:4)**: :download:`topology-42-ffaa:1:4.json <topology4.json>`
+   - **AS 5 (ffaa:1:5)**: :download:`topology-42-ffaa:1:5.json <topology5.json>`
 
 Download the AS specific topology files onto each host scion01 through scion05.
 
-For example, on scion01, download the topology1.json file. On scion02, download topology2.json and repeat as such on scion03, scion04, and scion05.
+Copy the download link above and use ``wget`` to download appropriate file for each host, installing it as ``/etc/scion/topology.json``.
+On scion01, download the topology1.json file. On scion02, download topology2.json and repeat as such on scion03, scion04, and scion05.
 
 .. code-block::
 
-   wget https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/topology1.json -O /etc/scion/topology.json
+   wget LINK_TO_TOPOLOGY.JSON_FILE -O /etc/scion/topology.json
 
-
-Repeat the above 5 times - once for each scion host. Be sure to change topology1.json to topology2.json, etc for different hosts/AS.
 
 The downloaded AS topology file is configured with generic IP address (10.0.0.1-5) for the hosts scion01-05. These IP addresses will need to be changed to the VM IP specific addresses.
 
@@ -212,11 +207,7 @@ This topology file describes the setup of the entire ISD environment including a
 
 The topology information is needed by Router and Control Service instances, and also by end-host applications. For more information on the topology files, see `<https://docs.scion.org/en/latest/manuals/common.html#topology-json>`_
 
-1. First, download the provided AS wide tutorial deployment topology file. This contains a concise representation of the topology drawn above. This topology file is available at: `TutorialDeploymentTopology.topo <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/TutorialDeploymentTopology.topo>`_ . Download the file to the scion01 VM.
-
-   .. code-block::
-
-      wget https://github.com/cdekater/scion/raw/ietf118-hackathon/doc/deploy/TutorialDeploymentTopology.topo
+1. First, download the provided AS wide tutorial deployment topology file. This contains a concise representation of the topology drawn above. This topology file is available at: :download:`TutorialDeploymentTopology.topo <TutorialDeploymentTopology.topo>` . Download the file to the scion01 VM.
 
 2. Using the above AS wide tutorial file, the required certificates will be generated and then distributed across all the hosts. To generate all required certificates, execute the following command on the machine where you downloaded the global topology (scion01).
 
@@ -264,24 +255,13 @@ Next, you have to download the service configuration files into the */etc/scion/
 
 The files including their names are listed below. Click on the corresponding link to download the file, then copy it into the */etc/scion/* directory of each AS.
 
-- **Border router**: `br.toml <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/br.toml>`_
-
-- **Control service**: `cs.toml <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/cs.toml>`_
-
-- **Dispatcher**: `dispatcher.toml <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/dispatcher.toml>`_
-
-- **SCION daemon**: `sd.toml <https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/sd.toml>`_
+- **Border router**: :download:`br.toml`
+- **Control service**: :download:`cs.toml`
+- **Dispatcher**: :download:`dispatcher.toml`
+- **SCION daemon**: :download:`sd.toml`
 
 
-Alternatively, the files can be downloaded directly onto each host with wget.
-
-.. code-block::
-
-   wget https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/br.toml -O /etc/scion/br.toml
-   wget https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/cs.toml -O /etc/scion/cs.toml
-   wget https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/dispatcher.toml -O /etc/scion/dispatcher.toml
-   wget https://github.com/cdekater/scion/blob/ietf118-hackathon/doc/deploy/sd.toml -O /etc/scion/sd.toml
-
+Alternatively, the files can be downloaded directly onto each host with ``wget`` into the ``/etc/scion`` directory.
 
 These steps need to be repeated on each host scion01 - scion05.
 
