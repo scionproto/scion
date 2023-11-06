@@ -105,6 +105,7 @@ func realMain() int {
 		log.Error("Error during tests", "err", err)
 		return 1
 	}
+
 	return 0
 }
 
@@ -268,9 +269,23 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 				clientResults <- err
 			}(src, dsts)
 		}
+
+		// We started everything that could be started. So the best window for perf mertics
+		// opens somewhere around now.
+		log.Info("Metrics window open.")
+		metricsBegin := time.Now().Unix()
 		errs = nil
+		end_reported := false
 		for range groups {
 			err := <-clientResults
+			if !end_reported {
+				end_reported = true
+				// The first client has finished. So the performance metrics have begun losing
+				// quality.
+				metricsEnd := time.Now().Unix()
+				// The test harness looks for this output.
+				fmt.Printf("metricsBegin: %d metricsEnd: %d\n", metricsBegin, metricsEnd)
+			}
 			if err != nil {
 				errs = append(errs, err)
 			}

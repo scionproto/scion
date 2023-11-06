@@ -61,7 +61,7 @@ class Test(base.TestTopogen):
         # having to compare instance labels with the topology data.
         logger.info("==> Starting load as-transit")
         loadtest = self.get_executable("end2end_integration")
-        loadtest[
+        retCode, stdOut, stdErr = loadtest[
             "-d",
             "-traces=false",
             "-outDir", self.artifacts,
@@ -70,18 +70,19 @@ class Test(base.TestTopogen):
             "-attempts", 1000000,
             "-parallelism", 100,
             "-subset", "noncore#core#remoteISD"
-        ].run_fg()
+        ].run_tee()
+
+        for l in stdOut.splitlines():
+            if l.startswith('metricsBegin'):
+                _, beg, _, end = l.split()
 
         logger.info('==> Collecting in/out/as-transit performance metrics...')
 
-        # The raw metrics are expressed in terms of core*seconds. We convert
-        # to machine*seconds which allows us to provide a projected packet/s;
-        # ...more intuitive than packets/core*s.
-        # We measure the rate over 5s and the test last about 20s total (and for
-        # some reason we learn of the termination with a 2-5s delay.
-        # So, we capture the rate as of 12s ago, i.e. from ~the middle.
-        # TODO: figure a reliable way to find the correct sampling time.
-        sampleTime = int(time.time())-10
+        # The raw metrics are expressed in terms of core*seconds. We convert to machine*seconds
+        # which allows us to provide a projected packet/s; ...more intuitive than packets/core*s.
+        # We measure the rate over 5s. For best results we sample the end of the middle 5s of the
+        # run.  "beg" is the start time of the real action and "end" is the end time.
+        sampleTime = (int(beg) + int(end) + 5) / 2
         promQuery = urlencode({
             'time': f'{sampleTime}',
             'query':(
@@ -130,7 +131,7 @@ class Test(base.TestTopogen):
         # the childrem and pure BR-transit traffic at BR-A1.
         logger.info("==> Starting load br-transit")
         loadtest = self.get_executable("end2end_integration")
-        loadtest[
+        retCode, stdOut, stdErr = loadtest[
             "-d",
             "-traces=false",
             "-outDir", self.artifacts,
@@ -139,19 +140,20 @@ class Test(base.TestTopogen):
             "-attempts", 1000000,
             "-parallelism", 100,
             "-subset", "noncore#noncore#remoteAS"
-        ].run_fg()
+        ].run_tee()
+
+        for l in stdOut.splitlines():
+            if l.startswith('metricsBegin'):
+                _, beg, _, end = l.split()
 
         logger.info('==> Collecting br-transit performance metrics...')
 
-        # The raw metrics are expressed in terms of core*seconds. We convert
-        # to machine*seconds which allows us to provide a projected packet/s;
-        # ...more intuitive than packets/core*s.
-        # We're interested only in br_transit traffic.
-        # We measure the rate over 5s and the test last about 20s total (and for
-        # some reason we learn of the termination with a 2-5s delay.
-        # So, we capture the rate as of 12s ago, i.e. from ~the middle.
-        # TODO: figure a reliable way to find the correct sampling time.
-        sampleTime = int(time.time())-12
+        # The raw metrics are expressed in terms of core*seconds. We convert to machine*seconds
+        # which allows us to provide a projected packet/s; ...more intuitive than packets/core*s.
+        # We're interested only in br_transit traffic. We measure the rate over 5s. For best results
+        # we sample the end of the middle 5s of the run.  "beg" is the start time of the real action
+        # and "end" is the end time.
+        sampleTime = (int(beg) + int(end) + 5) / 2
         promQuery = urlencode({
             'time': f'{sampleTime}',
             'query':(
