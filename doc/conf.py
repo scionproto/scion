@@ -25,7 +25,7 @@ extensions = [
     'sphinx_copybutton',
 ]
 
-copybutton_prompt_text = r'\$ '
+copybutton_prompt_text = r'\w*\$ '  # matches e.g. <hostname>$
 copybutton_prompt_is_regexp = True
 copybutton_only_copy_prompt_lines = True
 
