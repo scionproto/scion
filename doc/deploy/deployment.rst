@@ -223,6 +223,11 @@ The topology information is needed by Router and Control Service instances, and 
 
    This will generate all the required keys in a new *gen/* directory for all the SCION ASes.
 
+   .. note::
+
+      The step above will generate a new TRC for your ISD and must be done exactly once.  Once you deploy such TRC on your machines, further TRC updates must be sequential. If for any reason you need to reset your setup and you need to deploy a fresh new TRC generated with the script above, then you must first delete the local DB files on your hosts (in `/var/lib/scion/`). 
+
+
 3. The just-generated keys in gen/* can now be copied to the respective AS routers from scion01.
 
    - Copy the TRC certificates and cryptographic keys to each of the five AS routers (scion01 - scion05).
