@@ -283,7 +283,7 @@ func newInterfaceMetrics(
 	localIA addr.IA,
 	neighbors map[uint16]addr.IA) interfaceMetrics {
 
-	ifLabels := interfaceLabels(id, localIA, neighbors)
+	ifLabels := interfaceLabels(0, localIA, neighbors)
 	m := interfaceMetrics{}
 	for sc := minSizeClass; sc < maxSizeClass; sc++ {
 		scLabels := prometheus.Labels{"sizeclass": sc.String()}
