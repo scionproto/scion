@@ -91,12 +91,12 @@ implementation <https://github.com/scionproto/scion>`_.
 
 
 
-Deployment Guide
-^^^^^^^^^^^^^^^^
+Guides and Tutorials
+^^^^^^^^^^^^^^^^^^^^
 
 .. toctree::
    :maxdepth: 1
-   :caption: Deployment Tutorial
+   :caption: Guides and Tutorials
    :hidden:
 
    deploy/deployment

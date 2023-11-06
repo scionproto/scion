@@ -1,11 +1,9 @@
-.. _deployment-guide:
-
 Deployment Tutorial
 ===================
 
 This document helps you set up a SCION demo configuration, which consists of a stand-alone full-scale SCION environment distributed among five computers. The demo environment contains one SCION Isolation Domain (ISD), with three core ASes and two non-core, leaf ASes.
 
-- If you want to go deep and help develop SCION, use the development environment. See https://docs.scion.org/en/latest/dev/setup.html
+- If you want to go deep and help develop SCION, use the development environment. See :ref:`setting-up-the-development-environment`.
 - If you want to use SCION in a large environment, use the SCIONLab. For more information, see https://www.scionlab.org/
 
 Setup
@@ -205,7 +203,7 @@ The various cryptographic certificates need to be generated for each of the ASes
 
 This topology file describes the setup of the entire ISD environment including all 5 ASes and the associated network links between the ASes. The topology file of an AS specifies all the inter-AS connections to neighboring ASes, and defines the underlay IP/UDP addresses of services and routers running in this AS. (The AS specific topology files used above were generated from this larger AS wide topology file.)
 
-The topology information is needed by Router and Control Service instances, and also by end-host applications. For more information on the topology files, see `<https://docs.scion.org/en/latest/manuals/common.html#topology-json>`_
+The topology information is needed by Router and Control Service instances, and also by end-host applications. For more information on the topology files, see :ref:`common-conf-topo`.
 
 1. First, download the provided AS wide tutorial deployment topology file. This contains a concise representation of the topology drawn above. This topology file is available at: :download:`TutorialDeploymentTopology.topo <TutorialDeploymentTopology.topo>` . Download the file to the scion01 VM.
 
@@ -219,7 +217,7 @@ The topology information is needed by Router and Control Service instances, and 
 
    .. note::
 
-      The step above will generate a new TRC for your ISD and must be done exactly once.  Once you deploy such TRC on your machines, further TRC updates must be sequential. If for any reason you need to reset your setup and you need to deploy a fresh new TRC generated with the script above, then you must first delete the local DB files on your hosts (in `/var/lib/scion/`). 
+      The step above will generate a new TRC for your ISD and must be done exactly once.  Once you deploy such TRC on your machines, further TRC updates must be sequential. If for any reason you need to reset your setup and you need to deploy a fresh new TRC generated with the script above, then you must first delete the local DB files on your hosts (in `/var/lib/scion/`).
 
 
 3. The just-generated keys in gen/* can now be copied to the respective AS routers from scion01.
