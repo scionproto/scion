@@ -48,7 +48,7 @@ class Test(base.TestTopogen):
 
     def _run(self):
         # Give some time for the topology to start.
-        time.sleep(10)
+        self.await_connectivity()
 
         # Start as-transiting load. With the router_bm topology
 
