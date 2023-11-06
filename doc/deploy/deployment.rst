@@ -96,14 +96,17 @@ OS Setup
 - Create required directories.
 
   These directories are required to store the certificates, keys, and database files.
-  Repeat these commands on scion01-scion05.
+  Repeat these commands on scion01-scion05. We assume you'll run the SCION binaries with user `ubuntu`.
 
   .. code-block::
 
+     sudo mkdir /etc/scion
+     sudo mkdir -p /var/lib/scion
+     sudo chown -R ubuntu:ubuntu /etc/scion/
+     sudo chown -R ubuntu:ubuntu /var/lib/scion/
      mkdir -p /etc/scion/certs
      mkdir -p /etc/scion/crypto/as
      mkdir -p /etc/scion/keys
-     mkdir -p /var/lib/scion
 
 
 .. _step1:
