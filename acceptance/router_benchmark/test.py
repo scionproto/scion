@@ -41,8 +41,7 @@ class Test(base.TestTopogen):
 
     def setup(self):
         super().setup()
-        self.monitoring_dc = docker.Compose(project="monitoring",
-                                            compose_file=self.artifacts / "gen/monitoring-dc.yml")
+        self.monitoring_dc = docker.Compose(compose_file=self.artifacts / "gen/monitoring-dc.yml")
         self.monitoring_dc("up", "-d")
 
     def _run(self):
