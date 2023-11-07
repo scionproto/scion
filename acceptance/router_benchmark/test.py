@@ -18,6 +18,7 @@ import logging
 import json
 from http.client import HTTPConnection
 from urllib.parse import urlencode
+from plumbum import cli
 
 from acceptance.common import base, docker
 
@@ -32,12 +33,25 @@ logger = logging.getLogger(__name__)
 # BR-C   BR-D
 # AS-C   AS-D
 
+# Those values are valid expectations only when running in the CI environment.
+EXPECTATIONS = {
+    'in': 29000,
+    'out':19000,
+    'in_transit': 40000,
+    'out_transit': 34000,
+    'br_transit': 50000,
+}
 
 class Test(base.TestTopogen):
     """
     Tests that the performance of the router is within a satisfying (TBD) range.
     The test runs in a bespoke topology.
     """
+
+    ci = cli.Flag(
+        "ci",
+        help="Do extra checks for CI",
+    )
 
     def setup(self):
         super().setup()
@@ -122,8 +136,7 @@ class Test(base.TestTopogen):
             total = 0
             for r in rates:
                 total += r
-            avg = total / len(rates)
-            logger.info(f'Rate for type {tt}: {avg}')
+            rateMap[tt] = int(total / len(rates))
 
         # Start br-transiting load.
         # The subset noncore#noncore gives us a mix of in and out traffic at
@@ -175,13 +188,28 @@ class Test(base.TestTopogen):
         # There's only one router that has br_transit traffic.
         pld = json.loads(resp.read().decode('utf-8'))
         results = pld['data']['result']
-        theRate = 0
+        tt = 'br_transit'
+        rateMap[tt] = 0
         for result in results:
             ts, val = result['value']
             r = int(float(val))
             if r != 0:
-                theRate = r
-        logger.info(f'Rate for type br_transit: {theRate}')
+                rateMap[tt] = r
+
+        # Log and check the performance...
+        # If this is used as a CI test. Make sure that the performance is within the expected
+        # ballpark.
+        rateTooLow = []
+        for tt, exp in EXPECTATIONS.items():
+            if self.ci:
+                logger.info(f'Packets/(machine*s) for {tt}: {rateMap[tt]} expected: {exp}')
+                if rateMap[tt] < 0.8 * exp:
+                    rateTooLow.append(tt)
+            else:
+                logger.info(f'Packets/(machine*s) for {tt}: {rateMap[tt]}')
+
+        if len(rateTooLow) != 0:
+            raise RuntimeError(f'Insufficient performance for: {rateTooLow}')
 
     def teardown(self):
         self.monitoring_dc("down")

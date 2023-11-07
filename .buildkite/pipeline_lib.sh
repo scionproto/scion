@@ -11,10 +11,11 @@ gen_bazel_test_steps() {
     for test in $targets; do
         name=${test#//}
         cache=""
-        args=""
+	# Tell the test that it is being used for CI testing. That may trigger additional checks.
+        args="--test_arg=-ci"
 
         if [[ "$test" =~ "go" ]]; then
-          args="--test_arg=-test.v"
+          args="$args --test_arg=-test.v"
         fi
 
         if [ -n "${SINGLE_TEST}" ]; then
