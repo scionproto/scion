@@ -15,7 +15,7 @@ gen_bazel_test_steps() {
 	
 	# Tell the test that it is being used for CI testing. That may trigger additional checks.
 	# only one test understands this at this point and most tests reject unknown flags.
-        if [[ "$test" =~ router_benchmark ]]; then
+        if [[ "$test" =~ "router_benchmark" ]]; then
             args="--test_arg=--ci"
 
         if [[ "$test" =~ "go" ]]; then
