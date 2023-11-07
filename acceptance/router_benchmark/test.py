@@ -16,7 +16,6 @@
 
 import logging
 import json
-import time
 from http.client import HTTPConnection
 from urllib.parse import urlencode
 
@@ -72,9 +71,9 @@ class Test(base.TestTopogen):
             "-subset", "noncore#core#remoteISD"
         ].run_tee()
 
-        for l in stdOut.splitlines():
-            if l.startswith('metricsBegin'):
-                _, beg, _, end = l.split()
+        for line in stdOut.splitlines():
+            if line.startswith('metricsBegin'):
+                _, beg, _, end = line.split()
 
         logger.info('==> Collecting in/out/as-transit performance metrics...')
 
@@ -85,16 +84,17 @@ class Test(base.TestTopogen):
         sampleTime = (int(beg) + int(end) + 5) / 2
         promQuery = urlencode({
             'time': f'{sampleTime}',
-            'query':(
-            'sum by (instance, job, type) ('
-            '  rate(router_output_pkts_total{job="BR"}[5s])'
-            ')'
-            '/ on (instance, job) group_left()'
-            'sum by (instance, job) ('
-            '  1 - (rate(process_runnable_seconds_total[5s])'
-            '       / go_sched_maxprocs_threads)'
-            ')'
-        )})
+            'query': (
+                'sum by (instance, job, type) ('
+                '  rate(router_output_pkts_total{job="BR"}[5s])'
+                ')'
+                '/ on (instance, job) group_left()'
+                'sum by (instance, job) ('
+                '  1 - (rate(process_runnable_seconds_total[5s])'
+                '       / go_sched_maxprocs_threads)'
+                ')'
+            )
+        })
         conn = HTTPConnection("localhost:9090")
         conn.request('GET', f'/api/v1/query?{promQuery}')
         resp = conn.getresponse()
@@ -103,7 +103,7 @@ class Test(base.TestTopogen):
 
         pld = json.loads(resp.read().decode('utf-8'))
         results = pld['data']['result']
-        rateMap={}
+        rateMap = {}
         for result in results:
             tt = result['metric']['type']
             ts, val = result['value']
@@ -114,7 +114,7 @@ class Test(base.TestTopogen):
             # traffic type.
             # TODO: figure a more reliable way to identify the tested routers.
             r = int(float(val))
-            if r < 5000: # Not a router of interest.
+            if r < 5000:  # Not a router of interest.
                 continue
             if rateMap.get(tt) is None:
                 rateMap[tt] = []
@@ -142,9 +142,9 @@ class Test(base.TestTopogen):
             "-subset", "noncore#noncore#remoteAS"
         ].run_tee()
 
-        for l in stdOut.splitlines():
-            if l.startswith('metricsBegin'):
-                _, beg, _, end = l.split()
+        for line in stdOut.splitlines():
+            if line.startswith('metricsBegin'):
+                _, beg, _, end = line.split()
 
         logger.info('==> Collecting br-transit performance metrics...')
 
@@ -156,16 +156,17 @@ class Test(base.TestTopogen):
         sampleTime = (int(beg) + int(end) + 5) / 2
         promQuery = urlencode({
             'time': f'{sampleTime}',
-            'query':(
-            'sum by (instance, job) ('
-            '  rate(router_output_pkts_total{job="BR", type="br_transit"}[5s])'
-            ')'
-            '/ on (instance, job) group_left()'
-            'sum by (instance, job) ('
-            '  1 - (rate(process_runnable_seconds_total[5s])'
-            '       / go_sched_maxprocs_threads)'
-            ')'
-        )})
+            'query': (
+                'sum by (instance, job) ('
+                '  rate(router_output_pkts_total{job="BR", type="br_transit"}[5s])'
+                ')'
+                '/ on (instance, job) group_left()'
+                'sum by (instance, job) ('
+                '  1 - (rate(process_runnable_seconds_total[5s])'
+                '       / go_sched_maxprocs_threads)'
+                ')'
+            )
+        })
         conn = HTTPConnection("localhost:9090")
         conn.request('GET', f'/api/v1/query?{promQuery}')
         resp = conn.getresponse()

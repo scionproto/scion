@@ -1,2 +1,3 @@
 ^\./docker/_build/
 ^\./licenses/data
+^\./rules_openapi/tools/
