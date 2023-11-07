@@ -12,7 +12,7 @@ gen_bazel_test_steps() {
         name=${test#//}
         cache=""
 	# Tell the test that it is being used for CI testing. That may trigger additional checks.
-        args="--test_arg=-ci"
+        args="--test_arg=--ci"
 
         if [[ "$test" =~ "go" ]]; then
           args="$args --test_arg=-test.v"

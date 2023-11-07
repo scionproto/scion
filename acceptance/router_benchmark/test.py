@@ -36,11 +36,12 @@ logger = logging.getLogger(__name__)
 # Those values are valid expectations only when running in the CI environment.
 EXPECTATIONS = {
     'in': 29000,
-    'out':19000,
+    'out': 19000,
     'in_transit': 40000,
     'out_transit': 34000,
     'br_transit': 50000,
 }
+
 
 class Test(base.TestTopogen):
     """
