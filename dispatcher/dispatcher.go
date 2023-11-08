@@ -15,14 +15,13 @@
 package dispatcher
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"net"
 	"net/netip"
-	"syscall"
 
 	"github.com/google/gopacket"
+	"golang.org/x/net/ipv4"
+	"golang.org/x/net/ipv6"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
@@ -32,7 +31,6 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path/epic"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/private/topology"
-	"github.com/scionproto/scion/private/underlay/sockctrl"
 )
 
 const ErrUnsupportedL4 common.ErrMsg = "unsupported SCION L4 protocol"
@@ -41,11 +39,10 @@ const ErrUnsupportedL4 common.ErrMsg = "unsupported SCION L4 protocol"
 // from legacy BR to the final endhost application and to handle SCMP
 // info packets destined to this endhost.
 type Server struct {
+	conn *net.UDPConn
 	// topo keeps the topology for the local AS. It can keep multiple ASes
 	// in case we run several topologies locally, e.g., developer environment.
-	topo map[addr.AS]*topology.Loader
-	conn *net.UDPConn
-
+	topo      map[addr.AS]*topology.Loader
 	buf       []byte
 	oobuf     []byte
 	outBuffer gopacket.SerializeBuffer
@@ -60,12 +57,11 @@ type Server struct {
 	scmpLayer  slayers.SCMP
 }
 
-// NewServer creates new instance of Server. Internally, it opens the dispatcher ports
-// for both IPv4 and IPv6. Returns error if the ports can't be opened.
+// NewServer creates new instance of Server.
 func NewServer(topo map[addr.AS]*topology.Loader, conn *net.UDPConn) *Server {
 	server := Server{
 		topo:      topo,
-		conn:      setPktInfo(conn),
+		conn:      setIPPktInfo(conn),
 		buf:       make([]byte, common.SupportedMTU),
 		oobuf:     make([]byte, 1024),
 		decoded:   make([]gopacket.LayerType, 4),
@@ -98,7 +94,7 @@ func (s *Server) Serve() error {
 	for {
 		s.buf = s.buf[:cap(s.buf)]
 
-		n, _, _, previousHop, err := s.conn.ReadMsgUDPAddrPort(s.buf, s.oobuf)
+		n, nn, _, previousHop, err := s.conn.ReadMsgUDPAddrPort(s.buf, s.oobuf)
 		if err != nil {
 			log.Error("Reading message", "err", err)
 			continue
@@ -119,7 +115,7 @@ func (s *Server) Serve() error {
 		// belongs to the BR.
 		isSCMPinfo := s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeTracerouteRequest ||
 			s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeEchoRequest
-		if isSCMPinfo || validateNextHopAddr(*nextHopAddr, s.oobuf) {
+		if isSCMPinfo || s.validateNextHopAddr(*nextHopAddr, s.oobuf[:nn]) {
 			m, err := s.conn.WriteToUDPAddrPort(s.outBuffer.Bytes(), *nextHopAddr)
 			if err != nil || m != len(s.outBuffer.Bytes()) {
 				log.Error("writing packet out", "err", err)
@@ -378,6 +374,73 @@ func (s *Server) getDstSCIONUDP() (netip.AddrPort, error) {
 	}
 }
 
+type controlMessage interface {
+	Destination() net.IP
+	Parse(b []byte) error
+	String() string
+}
+
+type ipv4ControlMessage struct {
+	*ipv4.ControlMessage
+}
+
+func (m ipv4ControlMessage) Destination() net.IP {
+	return m.Dst
+}
+
+type ipv6ControlMessage struct {
+	*ipv6.ControlMessage
+}
+
+func (m ipv6ControlMessage) Destination() net.IP {
+	return m.Dst
+}
+
+// validateNextHopAddr returnS true if the underlay address on the UDP/IP wrapper
+// header corresponds to the address on the encapsulated UDP/SCION header, otherwise
+// it returns false. This implements a safeguard for traffic reflection as discussed in:
+// https://github.com/scionproto/scion/pull/4280#issuecomment-1775177351
+func (s *Server) validateNextHopAddr(addr netip.AddrPort, oobuffer []byte) bool {
+	udpAddr, ok := s.conn.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		panic(fmt.Sprintln("Connection address is not UDPAddr",
+			"conn", s.conn.LocalAddr().Network()))
+	}
+
+	var cm controlMessage
+	if udpAddr.AddrPort().Addr().Unmap().Is4() {
+		cm = ipv4ControlMessage{
+			ControlMessage: new(ipv4.ControlMessage),
+		}
+	}
+	if udpAddr.AddrPort().Addr().Unmap().Is6() {
+		cm = ipv6ControlMessage{
+			ControlMessage: new(ipv6.ControlMessage),
+		}
+	}
+
+	if err := cm.Parse(oobuffer); err != nil {
+		log.Error("Parsing message", "err", err)
+		fmt.Println("Parsing message", "err", err)
+		return false
+	}
+	fmt.Println(cm.String())
+	if !cm.Destination().IsUnspecified() {
+		pktAddr, ok := netip.AddrFromSlice(cm.Destination())
+		if !ok {
+			return false
+		}
+		if addr.Addr().Unmap().Compare(pktAddr) != 0 {
+			log.Error("UDP/IP addr destination different from UDP/SCION addr",
+				"UDP/IP:", pktAddr.String(),
+				"UDP/SCION:", addr.Addr().String())
+			return false
+		}
+		return true
+	}
+	return false
+}
+
 func ListenAndServe(topo map[addr.AS]*topology.Loader, addr *net.UDPAddr) error {
 	conn, err := net.ListenUDP(addr.Network(), addr)
 	if err != nil {
@@ -423,57 +486,25 @@ func addrPortFromBytes(addr []byte, port uint16) (netip.AddrPort, error) {
 	return netip.AddrPortFrom(a, port), nil
 }
 
-func setPktInfo(conn *net.UDPConn) *net.UDPConn {
-	err := sockctrl.SetsockoptInt(conn, syscall.IPPROTO_IP, syscall.IP_PKTINFO, 1)
-	if err != nil {
-		panic(fmt.Sprintf("cannot set IP_PKTINFO on socket: %s", err))
+func setIPPktInfo(conn *net.UDPConn) *net.UDPConn {
+	udpAddr, ok := conn.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		panic(fmt.Sprintln("Connection address is not UDPAddr",
+			"conn", conn.LocalAddr().Network()))
 	}
+
+	if udpAddr.AddrPort().Addr().Unmap().Is4() {
+		err := ipv4.NewPacketConn(conn).SetControlMessage(ipv4.FlagDst|ipv4.FlagInterface, true)
+		if err != nil {
+			panic(fmt.Sprintf("cannot set IP_PKTINFO on socket: %s", err))
+		}
+	}
+	if udpAddr.AddrPort().Addr().Unmap().Is6() {
+		err := ipv6.NewPacketConn(conn).SetControlMessage(ipv6.FlagDst|ipv6.FlagInterface, true)
+		if err != nil {
+			panic(fmt.Sprintf("cannot set IP_PKTINFO on socket: %s", err))
+		}
+	}
+
 	return conn
-}
-
-// validateNextHopAddr return true if the underlay address on the UDP/IP wrapper
-// header corresponds to the address on the encapsulated UDP/SCION header, otherwise
-// it returns false. This implements a safeguard for traffic reflection as discussed in:
-// https://github.com/scionproto/scion/pull/4280#issuecomment-1775177351
-func validateNextHopAddr(addr netip.AddrPort, oobuffer []byte) bool {
-	buf := bytes.NewBuffer(oobuffer)
-
-	msg := syscall.Cmsghdr{}
-	if err := binary.Read(buf, binary.LittleEndian, &msg); err != nil {
-		log.Error("Parsing message", "err", err)
-		return false
-	}
-	if msg.Level == syscall.IPPROTO_IP && msg.Type == syscall.IP_PKTINFO {
-		if addr.Addr().Unmap().Is4() {
-			packet_info := syscall.Inet4Pktinfo{}
-			if err := binary.Read(buf, binary.LittleEndian, &packet_info); err != nil {
-				log.Error("Parsing Inet4 PKT_INFO", "err", err)
-				return false
-			}
-			pktAddr := netip.AddrFrom4(packet_info.Addr)
-			if addr.Addr().Unmap().Compare(pktAddr) != 0 {
-				log.Error("UDP/IP addr destination different from UDP/SCION addr",
-					"UDP/IP:", pktAddr.String(),
-					"UDP/SCION:", addr.Addr().String())
-				return false
-			}
-			return true
-		}
-		if addr.Addr().Unmap().Is6() {
-			packet_info := syscall.Inet6Pktinfo{}
-			if err := binary.Read(buf, binary.LittleEndian, &packet_info); err != nil {
-				log.Error("Parsing Inet6 PKT_INFO", "err", err)
-				return false
-			}
-			pktAddr := netip.AddrFrom16(packet_info.Addr)
-			if addr.Addr().Unmap().Compare(pktAddr) != 0 {
-				log.Error("UDP/IP addr destination different from UDP/SCION addr",
-					"UDP/IP:", pktAddr.String(),
-					"UDP/SCION:", addr.Addr().String())
-				return false
-			}
-			return true
-		}
-	}
-	return false
 }
