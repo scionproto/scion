@@ -93,18 +93,18 @@ class Test(base.TestTopogen):
 
         # The raw metrics are expressed in terms of core*seconds. We convert to machine*seconds
         # which allows us to provide a projected packet/s; ...more intuitive than packets/core*s.
-        # We measure the rate over 5s. For best results we sample the end of the middle 5s of the
+        # We measure the rate over 10s. For best results we sample the end of the middle 10s of the
         # run.  "beg" is the start time of the real action and "end" is the end time.
-        sampleTime = (int(beg) + int(end) + 5) / 2
+        sampleTime = (int(beg) + int(end) + 10) / 2
         promQuery = urlencode({
             'time': f'{sampleTime}',
             'query': (
                 'sum by (instance, job, type) ('
-                '  rate(router_output_pkts_total{job="BR"}[5s])'
+                '  rate(router_output_pkts_total{job="BR"}[10s])'
                 ')'
                 '/ on (instance, job) group_left()'
                 'sum by (instance, job) ('
-                '  1 - (rate(process_runnable_seconds_total[5s])'
+                '  1 - (rate(process_runnable_seconds_total[10s])'
                 '       / go_sched_maxprocs_threads)'
                 ')'
             )
@@ -163,19 +163,19 @@ class Test(base.TestTopogen):
 
         # The raw metrics are expressed in terms of core*seconds. We convert to machine*seconds
         # which allows us to provide a projected packet/s; ...more intuitive than packets/core*s.
-        # We're interested only in br_transit traffic. We measure the rate over 5s. For best results
-        # we sample the end of the middle 5s of the run.  "beg" is the start time of the real action
+        # We're interested only in br_transit traffic. We measure the rate over 10s. For best results
+        # we sample the end of the middle 10s of the run.  "beg" is the start time of the real action
         # and "end" is the end time.
-        sampleTime = (int(beg) + int(end) + 5) / 2
+        sampleTime = (int(beg) + int(end) + 10) / 2
         promQuery = urlencode({
             'time': f'{sampleTime}',
             'query': (
                 'sum by (instance, job) ('
-                '  rate(router_output_pkts_total{job="BR", type="br_transit"}[5s])'
+                '  rate(router_output_pkts_total{job="BR", type="br_transit"}[10s])'
                 ')'
                 '/ on (instance, job) group_left()'
                 'sum by (instance, job) ('
-                '  1 - (rate(process_runnable_seconds_total[5s])'
+                '  1 - (rate(process_runnable_seconds_total[10s])'
                 '       / go_sched_maxprocs_threads)'
                 ')'
             )
