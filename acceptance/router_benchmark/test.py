@@ -163,9 +163,9 @@ class Test(base.TestTopogen):
 
         # The raw metrics are expressed in terms of core*seconds. We convert to machine*seconds
         # which allows us to provide a projected packet/s; ...more intuitive than packets/core*s.
-        # We're interested only in br_transit traffic. We measure the rate over 10s. For best results
-        # we sample the end of the middle 10s of the run.  "beg" is the start time of the real action
-        # and "end" is the end time.
+        # We're interested only in br_transit traffic. We measure the rate over 10s. For best
+        # results we sample the end of the middle 10s of the run. "beg" is the start time of the
+        # real action and "end" is the end time.
         sampleTime = (int(beg) + int(end) + 10) / 2
         promQuery = urlencode({
             'time': f'{sampleTime}',
