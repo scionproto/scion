@@ -272,7 +272,6 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 
 		// We started everything that could be started. So the best window for perf mertics
 		// opens somewhere around now.
-		log.Info("Metrics window open.")
 		metricsBegin := time.Now().Unix()
 		errs = nil
 		end_reported := false

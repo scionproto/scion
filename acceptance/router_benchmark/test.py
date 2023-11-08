@@ -63,27 +63,6 @@ class Test(base.TestTopogen):
         # Give some time for the topology to start.
         self.await_connectivity()
 
-        # Fetch and log the number of cores used by Go. This may inform performance
-        # modeling later.
-        promQuery = urlencode({
-            'query': 'avg by (job) (go_sched_maxprocs_threads{job="BR"})'
-        })
-
-        conn = HTTPConnection("localhost:9090")
-        conn.request('GET', f'/api/v1/query?{promQuery}')
-        resp = conn.getresponse()
-        if resp.status != 200:
-            raise RuntimeError(f'Unexpected response: {resp.status} {resp.reason}')
-
-        pld = json.loads(resp.read().decode('utf-8'))
-        results = pld['data']['result']
-        numCores = 0
-        for result in results:
-            _, val = result['value']
-            numCores = int(float(val))
-
-        logger.info(f'Router Cores: {numCores}')
-
         # Start as-transiting load. With the router_bm topology
 
         # The subset noncore#nonlocalcore gives us outgoing traffic at each
@@ -217,6 +196,27 @@ class Test(base.TestTopogen):
             r = int(float(val))
             if r != 0:
                 rateMap[tt] = r
+
+        # Fetch and log the number of cores used by Go. This may inform performance
+        # modeling later.
+        logger.info('==> Collecting number of cores...')
+        promQuery = urlencode({
+            'query': 'avg by (job) (go_sched_maxprocs_threads{job="BR"})'
+        })
+
+        conn = HTTPConnection("localhost:9090")
+        conn.request('GET', f'/api/v1/query?{promQuery}')
+        resp = conn.getresponse()
+        if resp.status != 200:
+            raise RuntimeError(f'Unexpected response: {resp.status} {resp.reason}')
+
+        pld = json.loads(resp.read().decode('utf-8'))
+        results = pld['data']['result']
+        numCores = 0
+        for result in results:
+            _, val = result['value']
+            numCores = int(float(val))
+        logger.info(f'Router Cores: {numCores}')
 
         # Log and check the performance...
         # If this is used as a CI test. Make sure that the performance is within the expected
