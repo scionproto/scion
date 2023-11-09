@@ -347,6 +347,10 @@ func (c *client) run() int {
 
 		// We return a "number of failures". So 0 means everything is fine.
 		ping_result := integration.RepeatUntilFail("End2End", c.blindPing)
+
+		// Stop drainPongs, so we're not stuck here for up to 10s.
+		c.conn.Close()
+
 		pong_result := <-pong_out
 		if pong_result != 0 {
 			log.Info("Never got a single pong")
@@ -591,7 +595,7 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 	return path, nil
 }
 
-func (c *client) pong(ctx context.Context, log_ok bool) error {
+func (c *client) pong(ctx context.Context, logIfOk bool) error {
 	if err := c.conn.SetReadDeadline(getDeadline(ctx)); err != nil {
 		return serrors.WrapStr("setting read deadline", err)
 	}
@@ -619,7 +623,7 @@ func (c *client) pong(ctx context.Context, log_ok bool) error {
 	if pld.Client != expected.Client || pld.Server != expected.Server || pld.Message != pong {
 		return serrors.New("unexpected contents received", "data", pld, "expected", expected)
 	}
-	if log_ok {
+	if logIfOk {
 		log.Info("Received pong", "server", p.Source)
 	}
 	return nil

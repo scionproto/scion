@@ -19,8 +19,9 @@ import json
 from http.client import HTTPConnection
 from urllib.parse import urlencode
 from plumbum import cli
+from plumbum.cmd import cat, grep, wc
 
-from acceptance.common import base, docker
+from acceptance.common import base, docker, scion
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,38 @@ class Test(base.TestTopogen):
         help="Do extra checks for CI",
     )
 
+    def setup_prepare(self):
+        super().setup_prepare()
+
+        # The expected topology for this test is well-known: see router_bm.topo
+        # This test is configured to match.
+
+        # Distribute available cores among routers (keep one free for nity-grity).
+        availCores = int((cat['/proc/cpuinfo'] | grep['processor\\s:'] | wc['-l'])())
+        childRouterCores = 1
+        farRouterCores = 1
+        centerRouterCores = 1
+
+        if availCores >= 7:
+            availCores -= (2 * childRouterCores + farRouterCores)
+            centerRouterCores = int(availCores / 2)
+            availCores -= (2 * centerRouterCores)
+            if availCores > 0:
+                # There is one left. Give it to the far router
+                farRouterCores += 1
+
+        coreCountUpdates = {
+            self.artifacts / 'gen' / 'ASff00_0_110' / 'br1-ff00_0_110-1.toml': centerRouterCores,
+            self.artifacts / 'gen' / 'ASff00_0_110' / 'br1-ff00_0_110-2.toml': centerRouterCores,
+            self.artifacts / 'gen' / 'ASff00_0_111' / 'br1-ff00_0_111-1.toml': childRouterCores,
+            self.artifacts / 'gen' / 'ASff00_0_112' / 'br1-ff00_0_112-1.toml': childRouterCores,
+            self.artifacts / 'gen' / 'ASff00_0_120' / 'br2-ff00_0_120-1.toml': farRouterCores,
+        }
+
+        # Edit all the configuration files of br services with the required core allowance.
+        for configFile, coreCnt in coreCountUpdates.items():
+            scion.update_toml({"router.num_processors": coreCnt}, [configFile])
+
     def setup(self):
         super().setup()
         self.monitoring_dc = docker.Compose(compose_file=self.artifacts / "gen/monitoring-dc.yml")
@@ -80,7 +113,7 @@ class Test(base.TestTopogen):
             "-outDir", self.artifacts,
             "-name", "router_benchmark",
             "-game", "packetflood",
-            "-attempts", 1000000,
+            "-attempts", 1500000,
             "-parallelism", 100,
             "-subset", "noncore#core#remoteISD"
         ].run_tee()
@@ -150,7 +183,7 @@ class Test(base.TestTopogen):
             "-outDir", self.artifacts,
             "-name", "router_benchmark",
             "-game", "packetflood",
-            "-attempts", 1000000,
+            "-attempts", 1500000,
             "-parallelism", 100,
             "-subset", "noncore#noncore#remoteAS"
         ].run_tee()
@@ -201,7 +234,7 @@ class Test(base.TestTopogen):
         # modeling later.
         logger.info('==> Collecting number of cores...')
         promQuery = urlencode({
-            'query': 'avg by (job) (go_sched_maxprocs_threads{job="BR"})'
+            'query': 'go_sched_maxprocs_threads{job="BR"}'
         })
 
         conn = HTTPConnection("localhost:9090")
@@ -212,11 +245,10 @@ class Test(base.TestTopogen):
 
         pld = json.loads(resp.read().decode('utf-8'))
         results = pld['data']['result']
-        numCores = 0
         for result in results:
+            instance = result['metric']['instance']
             _, val = result['value']
-            numCores = int(float(val))
-        logger.info(f'Router Cores: {numCores}')
+            logger.info(f'Router Cores for {instance}: {int(val)}')
 
         # Log and check the performance...
         # If this is used as a CI test. Make sure that the performance is within the expected

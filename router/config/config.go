@@ -71,8 +71,22 @@ func (cfg *RouterConfig) Validate() error {
 }
 
 func (cfg *RouterConfig) InitDefaults() {
+	// NumProcessors is the number of goroutines used to handle the processing queue.
+	// By default, there are as many as cores allowed by Go and other goroutines displace
+	// the packet processors sporadically.
 	if cfg.NumProcessors == 0 {
+		// Use everything (and then some :-) ).
 		cfg.NumProcessors = runtime.GOMAXPROCS(0)
+	} else {
+		// On the contrary; prevent Go from using more cores. The packet processors are still
+		// allowed to use it all. The other goroutines borrow sporadically. The goal is truly
+		// to avoid using all cores. This is typically necessary when testing multiple routers on
+		// one machine to avoid measuring the effect of them competing for CPUs.
+		realMax := runtime.GOMAXPROCS(0)
+		if cfg.NumProcessors > realMax {
+			cfg.NumProcessors = realMax
+		}
+		runtime.GOMAXPROCS(cfg.NumProcessors)
 	}
 	if cfg.NumSlowPathProcessors == 0 {
 		cfg.NumSlowPathProcessors = 1
