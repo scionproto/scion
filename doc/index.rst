@@ -88,9 +88,6 @@ implementation <https://github.com/scionproto/scion>`_.
    snet documentation should be a good starting point for using SCION as an application library.
    For this, the package documentation needs to be streamlined a bit...
 
-
-
-
 Guides and Tutorials
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -99,8 +96,9 @@ Guides and Tutorials
    :caption: Guides and Tutorials
    :hidden:
 
-   deploy/deployment
+   tutorials/deploy
 
+* :doc:`tutorials/deploy`: Follow step by step instructions and see what a running SCION network could look like.
 
 Developer Documentation
 ^^^^^^^^^^^^^^^^^^^^^^^

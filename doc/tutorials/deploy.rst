@@ -1,5 +1,5 @@
-Deployment Tutorial
-===================
+Tutorial: Freestanding Deployment
+=================================
 
 This document helps you set up a SCION demo configuration, which consists of a stand-alone full-scale SCION environment distributed among five computers. The demo environment contains one SCION Isolation Domain (ISD), with three core ASes and two non-core, leaf ASes.
 
@@ -34,7 +34,7 @@ Sample SCION Demo Topology
 
 The topology of the ISD includes the inter-AS connections to neighboring ASes, and defines the underlay IP/UDP addresses of services and routers running in this AS. This is specified in topology files - this guide later explains how to configure these files. A following graphic depicts the topology on a high level.
 
-.. figure:: SCION-deployment-guide.drawio.png
+.. figure:: deploy/SCION-deployment-guide.drawio.png
    :width: 95 %
    :figwidth: 100 %
 
@@ -166,11 +166,11 @@ Step 1 - AS Specific Topology Files
 For this tutorial, we have provided the AS specific topology files - one per each AS. These files have been generated from the master AS topology file for this tutorial deployment for simplicity.
 Now you have to create a topology file per AS. Sample topology files for each AS in our sample ISD environment are listed below. Click on the file name to download it, then copy the file to the corresponding AS.
 
-   - **AS 1 (ffaa:1:1)**: :download:`topology-42-ffaa:1:1.json <topology1.json>`
-   - **AS 2 (ffaa:1:2)**: :download:`topology-42-ffaa:1:2.json <topology2.json>`
-   - **AS 3 (ffaa:1:3)**: :download:`topology-42-ffaa:1:3.json <topology3.json>`
-   - **AS 4 (ffaa:1:4)**: :download:`topology-42-ffaa:1:4.json <topology4.json>`
-   - **AS 5 (ffaa:1:5)**: :download:`topology-42-ffaa:1:5.json <topology5.json>`
+- **AS 1 (ffaa:1:1)**: :download:`topology-42-ffaa:1:1.json <deploy/topology1.json>`
+- **AS 2 (ffaa:1:2)**: :download:`topology-42-ffaa:1:2.json <deploy/topology2.json>`
+- **AS 3 (ffaa:1:3)**: :download:`topology-42-ffaa:1:3.json <deploy/topology3.json>`
+- **AS 4 (ffaa:1:4)**: :download:`topology-42-ffaa:1:4.json <deploy/topology4.json>`
+- **AS 5 (ffaa:1:5)**: :download:`topology-42-ffaa:1:5.json <deploy/topology5.json>`
 
 Download the AS specific topology files onto each host scion01 through scion05.
 
@@ -205,7 +205,7 @@ This topology file describes the setup of the entire ISD environment including a
 
 The topology information is needed by Router and Control Service instances, and also by end-host applications. For more information on the topology files, see :ref:`common-conf-topo`.
 
-1. First, download the provided AS wide tutorial deployment topology file. This contains a concise representation of the topology drawn above. This topology file is available at: :download:`TutorialDeploymentTopology.topo <TutorialDeploymentTopology.topo>` . Download the file to the scion01 VM.
+1. First, download the provided AS wide tutorial deployment topology file. This contains a concise representation of the topology drawn above. This topology file is available at: :download:`TutorialDeploymentTopology.topo <deploy/TutorialDeploymentTopology.topo>`. Download the file to the scion01 VM.
 
 2. Using the above AS wide tutorial file, the required certificates will be generated and then distributed across all the hosts. To generate all required certificates, execute the following command on the machine where you downloaded the global topology (scion01).
 
@@ -253,11 +253,10 @@ Next, you have to download the service configuration files into the */etc/scion/
 
 The files including their names are listed below. Click on the corresponding link to download the file, then copy it into the */etc/scion/* directory of each AS.
 
-- **Border router**: :download:`br.toml`
-- **Control service**: :download:`cs.toml`
-- **Dispatcher**: :download:`dispatcher.toml`
-- **SCION daemon**: :download:`sd.toml`
-
+- **Border router**: :download:`br.toml <deploy/br.toml>`
+- **Control service**: :download:`cs.toml <deploy/cs.toml>`
+- **Dispatcher**: :download:`dispatcher.toml <deploy/dispatcher.toml>`
+- **SCION daemon**: :download:`sd.toml <deploy/sd.toml>`
 
 Alternatively, the files can be downloaded directly onto each host with ``wget`` into the ``/etc/scion`` directory.
 
@@ -326,6 +325,3 @@ Verify that each host has a full table of available paths to the other ASes. Thi
    4 Hops:
    [2] Hops: [42-ffaa:1:1 2>1 42-ffaa:1:2 2>2 42-ffaa:1:3 4>2 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
    [3] Hops: [42-ffaa:1:1 3>1 42-ffaa:1:3 2>2 42-ffaa:1:2 3>1 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
-
-
-
