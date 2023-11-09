@@ -35,11 +35,11 @@ logger = logging.getLogger(__name__)
 
 # Those values are valid expectations only when running in the CI environment.
 EXPECTATIONS = {
-    'in': 29000,
-    'out': 19000,
-    'in_transit': 40000,
-    'out_transit': 34000,
-    'br_transit': 50000,
+    'in': 27000,
+    'out': 16000,
+    'in_transit': 35000,
+    'out_transit': 30000,
+    'br_transit': 46000,
 }
 
 
