@@ -35,7 +35,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"math/rand"
 	"net"
 	"net/netip"
 	"os"
@@ -314,8 +313,8 @@ func (c *client) run() int {
 	}
 
 	var err error
-	c.conn, c.port, err = connFactory.RegisterWithFlowID(context.Background(), integration.Local.IA,
-		integration.Local.Host, addr.SvcNone, rand.Uint32())
+	c.conn, c.port, err = connFactory.Register(context.Background(), integration.Local.IA,
+		integration.Local.Host, addr.SvcNone)
 	if err != nil {
 		integration.LogFatal("Unable to listen", "err", err)
 	}
@@ -486,7 +485,7 @@ func (c *client) drainPong(n int) bool {
 	return false // Don't stop; keep consuming pongs
 }
 
-func (c *client) ping(ctx context.Context, n int, path snet.Path, log_ok bool) error {
+func (c *client) ping(ctx context.Context, n int, path snet.Path, logIfOk bool) error {
 	rawPing, err := json.Marshal(Ping{
 		Server:  remote.IA,
 		Message: ping,
@@ -531,7 +530,7 @@ func (c *client) ping(ctx context.Context, n int, path snet.Path, log_ok bool) e
 			},
 		},
 	}
-	if log_ok {
+	if logIfOk {
 		log.Info("sending ping", "attempt", n, "path", path)
 	}
 	if err := c.conn.WriteTo(pkt, remote.NextHop); err != nil {

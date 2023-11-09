@@ -143,11 +143,13 @@ type AttemptFunc func(n int) bool
 // Returns 0 on success, 1 on failure.
 func AttemptRepeatedly(name string, attempt AttemptFunc) int {
 	for attempts := 0; attempts < Attempts; attempts++ {
+		if attempts != 0 {
+			log.Info("Retrying...")
+			time.Sleep(integration.RetryTimeout)
+		}
 		if attempt(attempts) {
 			return 0
 		}
-		log.Info("Retrying...")
-		time.Sleep(integration.RetryTimeout)
 	}
 	log.Error(fmt.Sprintf("%s failed. No more attempts...", name))
 	return 1

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright 2020 Anapaya Systems
+# Copyright 2023 SCION Association
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -53,6 +53,7 @@ class Test(base.TestTopogen):
     ci = cli.Flag(
         "ci",
         help="Do extra checks for CI",
+        envname="CI"
     )
 
     def setup_prepare(self):

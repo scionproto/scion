@@ -58,17 +58,6 @@ func (s *DefaultPacketDispatcherService) Register(
 	registration *net.UDPAddr,
 	svc addr.SVC) (PacketConn, uint16, error) {
 
-	// If now flowID is specified, use the backward compatible value of 1.
-	return s.RegisterWithFlowID(ctx, ia, registration, svc, 1)
-}
-
-func (s *DefaultPacketDispatcherService) RegisterWithFlowID(
-	ctx context.Context,
-	ia addr.IA,
-	registration *net.UDPAddr,
-	svc addr.SVC,
-	flowID uint32) (PacketConn, uint16, error) {
-
 	rconn, port, err := s.Dispatcher.Register(ctx, ia, registration, svc)
 	if err != nil {
 		return nil, 0, err
@@ -77,7 +66,6 @@ func (s *DefaultPacketDispatcherService) RegisterWithFlowID(
 		Conn:        rconn,
 		SCMPHandler: s.SCMPHandler,
 		Metrics:     s.SCIONPacketConnMetrics,
-		FlowID:      flowID,
 	}, port, nil
 }
 
