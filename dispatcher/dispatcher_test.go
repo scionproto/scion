@@ -66,6 +66,11 @@ func TestValidateAddr(t *testing.T) {
 	dispIPv4Addr := xtest.MustParseUDPAddr(t, "127.0.0.1:40032")
 	clientIPv6Addr := xtest.MustParseUDPAddr(t, "[::1]:0")
 	dispIPv6Addr := xtest.MustParseUDPAddr(t, "[::1]:40032")
+	mappedDispIPv4Addr := &net.UDPAddr{
+		IP:   dispIPv4Addr.IP.To16(),
+		Port: 40032,
+	}
+	undefinedIPv6 := xtest.MustParseUDPAddr(t, "[::]:40032")
 	testCases := []testCase{
 		{
 			Name:       "valid UDP/IPv4",
@@ -298,6 +303,52 @@ func TestValidateAddr(t *testing.T) {
 				},
 			},
 			ExpectedValue: false,
+		},
+		{
+			Name:       "IPv4-mapped-IPv6 to IPv4",
+			ClientAddr: clientAddr,
+			DispAddr:   dispIPv4Addr,
+			Pkt: &snet.Packet{
+				PacketInfo: snet.PacketInfo{
+					Source: snet.SCIONAddress{
+						IA:   xtest.MustParseIA("1-ff00:0:2"),
+						Host: addr.HostIP(clientAddr.AddrPort().Addr()),
+					},
+					Destination: snet.SCIONAddress{
+						IA:   xtest.MustParseIA("1-ff00:0:1"),
+						Host: addr.HostIP(mappedDispIPv4Addr.AddrPort().Addr()),
+					},
+					Payload: snet.UDPPayload{
+						SrcPort: 20001,
+						DstPort: 40001,
+					},
+					Path: path.Empty{},
+				},
+			},
+			ExpectedValue: true,
+		},
+		{
+			Name:       "IPv4 to undefined IPv6",
+			ClientAddr: clientAddr,
+			DispAddr:   undefinedIPv6,
+			Pkt: &snet.Packet{
+				PacketInfo: snet.PacketInfo{
+					Source: snet.SCIONAddress{
+						IA:   xtest.MustParseIA("1-ff00:0:2"),
+						Host: addr.HostIP(clientAddr.AddrPort().Addr()),
+					},
+					Destination: snet.SCIONAddress{
+						IA:   xtest.MustParseIA("1-ff00:0:1"),
+						Host: addr.HostIP(dispIPv4Addr.AddrPort().Addr()),
+					},
+					Payload: snet.UDPPayload{
+						SrcPort: 20001,
+						DstPort: 40001,
+					},
+					Path: path.Empty{},
+				},
+			},
+			ExpectedValue: true,
 		},
 	}
 	for _, test := range testCases {

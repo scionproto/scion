@@ -401,19 +401,20 @@ func (m ipv6ControlMessage) Destination() net.IP {
 // it returns false. This implements a safeguard for traffic reflection as discussed in:
 // https://github.com/scionproto/scion/pull/4280#issuecomment-1775177351
 func (s *Server) validateNextHopAddr(addr netip.AddrPort, oobuffer []byte) bool {
-	udpAddr, ok := s.conn.LocalAddr().(*net.UDPAddr)
+	// take localAddr to be consistent with the setIPPktInfo(·) configuration
+	localAddr, ok := s.conn.LocalAddr().(*net.UDPAddr)
 	if !ok {
 		panic(fmt.Sprintln("Connection address is not UDPAddr",
 			"conn", s.conn.LocalAddr().Network()))
 	}
 
 	var cm controlMessage
-	if udpAddr.AddrPort().Addr().Unmap().Is4() {
+	if localAddr.AddrPort().Addr().Unmap().Is4() {
 		cm = ipv4ControlMessage{
 			ControlMessage: new(ipv4.ControlMessage),
 		}
 	}
-	if udpAddr.AddrPort().Addr().Unmap().Is6() {
+	if localAddr.AddrPort().Addr().Unmap().Is6() {
 		cm = ipv6ControlMessage{
 			ControlMessage: new(ipv6.ControlMessage),
 		}
@@ -421,16 +422,15 @@ func (s *Server) validateNextHopAddr(addr netip.AddrPort, oobuffer []byte) bool 
 
 	if err := cm.Parse(oobuffer); err != nil {
 		log.Error("Parsing message", "err", err)
-		fmt.Println("Parsing message", "err", err)
 		return false
 	}
-	fmt.Println(cm.String())
 	if !cm.Destination().IsUnspecified() {
 		pktAddr, ok := netip.AddrFromSlice(cm.Destination())
 		if !ok {
+			log.Error("Getting DST from IP_PKT info", "DST", cm.Destination())
 			return false
 		}
-		if addr.Addr().Unmap().Compare(pktAddr) != 0 {
+		if addr.Addr().Unmap().Compare(pktAddr.Unmap()) != 0 {
 			log.Error("UDP/IP addr destination different from UDP/SCION addr",
 				"UDP/IP:", pktAddr.String(),
 				"UDP/SCION:", addr.Addr().String())
@@ -438,6 +438,7 @@ func (s *Server) validateNextHopAddr(addr netip.AddrPort, oobuffer []byte) bool 
 		}
 		return true
 	}
+	log.Error("Unable to validate next hop address", "addr", addr)
 	return false
 }
 
