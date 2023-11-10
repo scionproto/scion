@@ -41,6 +41,7 @@ type Config struct {
 type RouterConfig struct {
 	ReceiveBufferSize     int `toml:"receive_buffer_size,omitempty"`
 	SendBufferSize        int `toml:"send_buffer_size,omitempty"`
+	NumCores              int `toml:"num_cores,omitempty"`
 	NumProcessors         int `toml:"num_processors,omitempty"`
 	NumSlowPathProcessors int `toml:"num_slow_processors,omitempty"`
 	BatchSize             int `toml:"batch_size,omitempty"`
@@ -60,6 +61,9 @@ func (cfg *RouterConfig) Validate() error {
 	if cfg.BatchSize < 1 {
 		return serrors.New("Provided router config is invalid. BatchSize < 1")
 	}
+	if cfg.NumCores < 0 {
+		return serrors.New("Provided router config is invalid. NumCores < 0")
+	}
 	if cfg.NumProcessors < 0 {
 		return serrors.New("Provided router config is invalid. NumProcessors < 0")
 	}
@@ -71,23 +75,28 @@ func (cfg *RouterConfig) Validate() error {
 }
 
 func (cfg *RouterConfig) InitDefaults() {
+
+	// By default we let Go use all the cores of the host.
+	if cfg.NumCores == 0 {
+		// Capture what the real value is for consistency.
+		cfg.NumCores = runtime.GOMAXPROCS(0)
+	} else {
+		// Tell Go what to do. Go will let you set it to more than the total number of CPUs on the
+		// machine, so we allow it. (This is probably not a good thing to do). The real use is to
+		// limit Go's usage. This is typically necessary when testing multiple routers on one
+		// machine to avoid measuring the effect of them competing for CPUs.
+		runtime.GOMAXPROCS(cfg.NumCores)
+	}
+
 	// NumProcessors is the number of goroutines used to handle the processing queue.
 	// By default, there are as many as cores allowed by Go and other goroutines displace
-	// the packet processors sporadically.
+	// the packet processors sporadically. It may be either good or bad to create more
+	// processors (plus the other goroutines) than there are cores... experience will tell.
 	if cfg.NumProcessors == 0 {
 		// Use everything (and then some :-) ).
-		cfg.NumProcessors = runtime.GOMAXPROCS(0)
-	} else {
-		// On the contrary; prevent Go from using more cores. The packet processors are still
-		// allowed to use it all. The other goroutines borrow sporadically. The goal is truly
-		// to avoid using all cores. This is typically necessary when testing multiple routers on
-		// one machine to avoid measuring the effect of them competing for CPUs.
-		realMax := runtime.GOMAXPROCS(0)
-		if cfg.NumProcessors > realMax {
-			cfg.NumProcessors = realMax
-		}
-		runtime.GOMAXPROCS(cfg.NumProcessors)
+		cfg.NumProcessors = cfg.NumCores
 	}
+
 	if cfg.NumSlowPathProcessors == 0 {
 		cfg.NumSlowPathProcessors = 1
 	}

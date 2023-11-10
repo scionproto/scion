@@ -62,19 +62,38 @@ class Test(base.TestTopogen):
         # The expected topology for this test is well-known: see router_bm.topo
         # This test is configured to match.
 
-        # Distribute available cores among routers (keep one free for nity-grity).
-        availCores = int((cat['/proc/cpuinfo'] | grep['processor\\s:'] | wc['-l'])())
-        childRouterCores = 1
-        farRouterCores = 1
-        centerRouterCores = 1
+        # Distribute available cores among routers. The base schema is expressed as fractions of 12.
+        # Then we scale and round.
 
-        if availCores >= 7:
-            availCores -= (2 * childRouterCores + farRouterCores)
-            centerRouterCores = int(availCores / 2)
-            availCores -= (2 * centerRouterCores)
-            if availCores > 0:
-                # There is one left. Give it to the far router
-                farRouterCores += 1
+        childRouterCores = 2  # *2
+        farRouterCores = 2  # *1
+        centerRouterCores = 3  # *2
+        availCores = int((cat['/proc/cpuinfo'] | grep['processor\\s:'] | wc['-l'])())
+
+        childRouterCores = int(childRouterCores * availCores / 12)
+        farRouterCores = int(farRouterCores * availCores / 12)
+        centerRouterCores = int(centerRouterCores * availCores / 12)
+
+        if childRouterCores < 1:
+            childRouterCores = 1
+
+        if farRouterCores < 1:
+            farRouterCores = 1
+
+        if centerRouterCores < 1:
+            centerRouterCores = 1
+
+        availCores -= (2 * childRouterCores + 2 * centerRouterCores + farRouterCores)
+
+        # The truncations can leave us with up to 4 extra cores. Give first to the center routers,
+        # if there's enough.
+        if availCores > 1:
+            availCores -= 2
+            centerRouterCores += 1
+
+        # The leftovers go to childRouterCores, even if it means allocating one extraneous core.
+        if availCores > 0:
+            childRouterCores += 1
 
         coreCountUpdates = {
             self.artifacts / 'gen' / 'ASff00_0_110' / 'br1-ff00_0_110-1.toml': centerRouterCores,
@@ -86,7 +105,7 @@ class Test(base.TestTopogen):
 
         # Edit all the configuration files of br services with the required core allowance.
         for configFile, coreCnt in coreCountUpdates.items():
-            scion.update_toml({"router.num_processors": coreCnt}, [configFile])
+            scion.update_toml({"router.num_cores": coreCnt}, [configFile])
 
     def setup(self):
         super().setup()

@@ -179,7 +179,20 @@ considers the following options.
 
       The send buffer size in bytes. 0 means use system default.
 
-   .. option:: router.num_processors = <int> (Default: GOMAXPROCS)
+   .. option:: router.num_cores = <int> (Default: ``GOMAXPROCS``)
+
+      Number of cores that the Go runtime may use. Go's runtime starts a number kernel threads
+      such that the number of runnable threads never exceeds ``GOMAXPROCS``. By default
+      ``GOMAXPROCS`` is equal to the number of cores in the host. That value can be changed via
+      the ``GOMAXPROCS`` environment variable, or programatically by the application code. This is what
+      this option does. See
+      `go runtime documentation <https://pkg.go.dev/runtime#hdr-Environment_Variables>`_
+      for more information. One reason to change this is running multiple routers on the same host.
+      In such a case, it is best to split the available cores among the router, lest Go's
+      default assumptions causes them to compete for cores and incurr futile context switching. This
+      precaution is especially useful in performance testing situations.
+
+   .. option:: router.num_processors = <int> (Default: num_cores)
 
       Number of goroutines started for SCION packets processing.
       These goroutines make the routing decision for the SCION packets by inspecting, validating and
@@ -187,12 +200,11 @@ considers the following options.
       corresponding read/write operations on the individual interface sockets.
 
       `Goroutines <https://en.wikipedia.org/wiki/Go_(programming_language)#Concurrency:_goroutines_and_channels>`_
-      are the Go pramming language's light-weight user-space concurrency primitives. Go's runtime schedules
-      goroutines on top of a fixed number of kernel threads. The number of kernel threads is controlled by
-      the ``GOMAXPROCS`` environment variable. See also the `go runtime documentation <https://pkg.go.dev/runtime#hdr-Environment_Variables>`_.
-
-      By default, the router uses ``GOMAXPROCS`` packet processor goroutines, i.e. exactly one goroutine for
-      each kernel thread created by the runtime.
+      are the Go programming language's light-weight user-space concurrency primitives. Go's runtime
+      schedules goroutines on top of a smaller number of kernel threads. The number of kernel
+      threads is controlled by the ``num_cores`` option. The default is to use as many processors as
+      there are usable cores, letting other goroutines displace them sporadically. Whether more or
+      fewer processors are preferable is to be determined experimentaly.
 
    .. option:: router.num_slow_processors = <int> (Default: 1)
 
