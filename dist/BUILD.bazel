@@ -1,6 +1,7 @@
 load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_filegroup", "pkg_files", "pkg_mkdirs", "strip_prefix")
 load("@rules_pkg//:pkg.bzl", "pkg_deb", "pkg_tar")
 load(":package_name_variables.bzl", "package_name_variables")
+load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_binary", "platform_transition_filegroup")
 
 # Variables used to prepare DEB and RPM packages
 PKG_HOMEPAGE = "https://github.com/scionproto/scion"
@@ -42,9 +43,16 @@ pkg_tar(
     ],
 )
 
+platform_transition_filegroup(
+    name = "router-arm64",
+    srcs = [":router"],
+    target_platform = "@io_bazel_rules_go//go/toolchain:linux_arm64",
+)
+
+
 pkg_deb(
     name = "router-deb",
-    data = ":router",
+    data = ":router-arm64",
     depends = [
         "adduser",
     ],
@@ -57,6 +65,7 @@ pkg_deb(
     priority = PKG_PRORITY,
     section = PKG_SECTION,
     version = "WHAAAAT",
-    package_file_name = "scion-router_{version}-{revision}_{target_cpu}.deb",
-    package_variables = ":package_name_variables",
+    package_file_name = "scion-router_v0.9.1-0_arm64.deb"
+    #package_file_name = "scion-router_{version}-{revision}_{target_cpu}.deb",
+    #package_variables = ":package_name_variables",
 )
