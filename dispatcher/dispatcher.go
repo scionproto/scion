@@ -110,11 +110,11 @@ func (s *Server) Serve() error {
 			continue
 		}
 
-		// If the incoming message is SCMP Informational message (Echo or Traceroute)
+		// If the outgoing message is SCMP Informational message (Echo or Traceroute)
 		// the dispatcher has already processed the response, and the nextHop address
 		// belongs to the BR.
-		isSCMPinfo := s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeTracerouteRequest ||
-			s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeEchoRequest
+		isSCMPinfo := s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeTracerouteReply ||
+			s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeEchoReply
 		if isSCMPinfo || s.validateNextHopAddr(*nextHopAddr, s.oobuf[:nn]) {
 			m, err := s.conn.WriteToUDPAddrPort(s.outBuffer.Bytes(), *nextHopAddr)
 			if err != nil || m != len(s.outBuffer.Bytes()) {
