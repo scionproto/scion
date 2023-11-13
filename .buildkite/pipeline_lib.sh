@@ -12,9 +12,9 @@ gen_bazel_test_steps() {
         name=${test#//}
         cache=""
         args=""
-	
+
         if [[ "$test" =~ "go" ]]; then
-          args="$args --test_arg=-test.v"
+          args="--test_arg=-test.v"
         fi
 
         if [ -n "${SINGLE_TEST}" ]; then
