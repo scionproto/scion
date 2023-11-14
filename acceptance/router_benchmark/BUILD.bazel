@@ -8,5 +8,5 @@ topogen_test(
     ],
     data = ["//tools/end2end_integration"],
     homedir = "$(rootpath //tools/end2end_integration)",
-    topo = "//topology:router_bm.topo",
+    topo = "testdata/router_bm.topo",
 )

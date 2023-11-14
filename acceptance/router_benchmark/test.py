@@ -16,12 +16,13 @@
 
 import logging
 import json
+import yaml
 from http.client import HTTPConnection
 from urllib.parse import urlencode
 from plumbum import cli
 from plumbum.cmd import cat, grep, wc
 
-from acceptance.common import base, docker, scion
+from acceptance.common import base, docker
 
 logger = logging.getLogger(__name__)
 
@@ -96,16 +97,23 @@ class Test(base.TestTopogen):
             childRouterCores += 1
 
         coreCountUpdates = {
-            self.artifacts / 'gen' / 'ASff00_0_110' / 'br1-ff00_0_110-1.toml': centerRouterCores,
-            self.artifacts / 'gen' / 'ASff00_0_110' / 'br1-ff00_0_110-2.toml': centerRouterCores,
-            self.artifacts / 'gen' / 'ASff00_0_111' / 'br1-ff00_0_111-1.toml': childRouterCores,
-            self.artifacts / 'gen' / 'ASff00_0_112' / 'br1-ff00_0_112-1.toml': childRouterCores,
-            self.artifacts / 'gen' / 'ASff00_0_120' / 'br2-ff00_0_120-1.toml': farRouterCores,
+            'br1-ff00_0_110-1': centerRouterCores,
+            'br1-ff00_0_110-2': centerRouterCores,
+            'br1-ff00_0_111-1': childRouterCores,
+            'br1-ff00_0_112-1': childRouterCores,
+            'br2-ff00_0_120-1': farRouterCores,
         }
 
-        # Edit all the configuration files of br services with the required core allowance.
-        for configFile, coreCnt in coreCountUpdates.items():
-            scion.update_toml({"router.num_cores": coreCnt}, [configFile])
+        # Edit GOMAXPROC for all routers in the docker compose file.
+        scion_dc = self.artifacts / "gen/scion-dc.yml"
+        with open(scion_dc, "r") as file:
+            dc = yaml.load(file, Loader=yaml.FullLoader)
+
+        for router, coreCnt in coreCountUpdates.items():
+            dc["services"][router]["environment"]["GOMAXPROCS"] = f"{coreCnt}"
+
+        with open(scion_dc, "w") as file:
+            yaml.dump(dc, file)
 
     def setup(self):
         super().setup()

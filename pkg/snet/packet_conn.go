@@ -128,6 +128,7 @@ func (c *SCIONPacketConn) WriteTo(pkt *Packet, ov *net.UDPAddr) error {
 	if err := pkt.Serialize(); err != nil {
 		return serrors.WrapStr("serialize SCION packet", err)
 	}
+
 	// Send message
 	n, err := c.Conn.WriteTo(pkt.Bytes, ov)
 	if err != nil {

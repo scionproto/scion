@@ -52,11 +52,8 @@ type DefaultPacketDispatcherService struct {
 	SCIONPacketConnMetrics SCIONPacketConnMetrics
 }
 
-func (s *DefaultPacketDispatcherService) Register(
-	ctx context.Context,
-	ia addr.IA,
-	registration *net.UDPAddr,
-	svc addr.SVC) (PacketConn, uint16, error) {
+func (s *DefaultPacketDispatcherService) Register(ctx context.Context, ia addr.IA,
+	registration *net.UDPAddr, svc addr.SVC) (PacketConn, uint16, error) {
 
 	rconn, port, err := s.Dispatcher.Register(ctx, ia, registration, svc)
 	if err != nil {
