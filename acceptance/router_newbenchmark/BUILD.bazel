@@ -1,0 +1,39 @@
+load("@io_bazel_rules_docker//container:container.bzl", "container_image")
+load("//acceptance/common:raw.bzl", "raw_test")
+
+exports_files([
+    "conf",
+    "test.py",
+    "pause.tar",
+])
+
+args = [
+    "--executable",
+    "brload:$(location //tools/brload)",
+    "--container-loader",
+    "posix-router:latest#$(location //acceptance/router_newbenchmark:router)",
+    "--pause_tar",
+    "$(location //acceptance/router_newbenchmark:pause.tar)",
+]
+
+data = [
+    "pause.tar",
+    ":conf",
+    ":router",
+    "//tools/brload",
+]
+
+raw_test(
+    name = "test",
+    src = "test.py",
+    args = args,
+    data = data,
+    homedir = "$(rootpath :router)",
+    # This test uses sudo and accesses /var/run/netns.
+    local = True,
+)
+
+container_image(
+    name = "router",
+    base = "//docker:posix_router",
+)
