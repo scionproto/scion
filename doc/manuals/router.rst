@@ -127,8 +127,8 @@ Environment Variables
    Specified by the GO runtime. The Go runtime starts a number kernel threads such that the number
    of non-sleeping threads never exceeds ``GOMAXPROCS``. By default ``GOMAXPROCS`` is equal to the
    number of cores in the host. That value can be changed via the ``GOMAXPROCS`` environment
-   variable (or programatically by the application code).
-   `go runtime documentation <https://pkg.go.dev/runtime#hdr-Environment_Variables>`_
+   variable (or programatically by the application code). See
+   `the go runtime documentation <https://pkg.go.dev/runtime#hdr-Environment_Variables>`_
    for more information. One reason to change this is running multiple routers on the same host.
    In such a case, it is best to split the available cores among the routers, lest Go's default
    assumptions causes them to compete for cores and incurr futile context switching. This precaution
