@@ -1,5 +1,4 @@
-// Copyright 2018 ETH Zurich
-// Copyright 2019 ETH Zurich, Anapaya Systems
+// Copyright 2023 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,18 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This is a general purpose client/server code for end2end tests. It plays
-// ping-pong with some variantions depending on command line arguments.
-//
-// One of the variants is for the client to send pings to the server
-// until it receives at least one pong from the server or a given
-// deadline was reached. The server responds to pings and the client
-// wait for a response before doing anything else.
-//
-// Another variant is for the client to send back-to-back pings to the
+// This is a client/server code for use by end2end tests. This one plays
+// a variant of ping-pong where the client to send back-to-back pings to the
 // server until the sending fails or some deadline was reached. In this case
 // the client isn't waiting for responses. The client checks at the end
-// whether at least one response has been received.
+// whether at least one response has been received. The server responds rarely.
 
 package main
 
@@ -102,7 +94,7 @@ func realMain() int {
 	validateFlags()
 
 	if traces {
-		closeTracer, err := integration.InitTracer("end2end-" + integration.Mode)
+		closeTracer, err := integration.InitTracer("end2endblast-" + integration.Mode)
 		if err != nil {
 			log.Error("Tracer initialization failed", "err", err)
 			return 1
@@ -111,7 +103,7 @@ func realMain() int {
 	}
 
 	if integration.Mode == integration.ModeServer {
-		server{}.run()
+		(&server{}).run()
 		return 0
 	}
 	c := client{}
@@ -142,9 +134,10 @@ func validateFlags() {
 }
 
 type server struct {
+	pongs uint8 // chosen to overflow.
 }
 
-func (s server) run() {
+func (s *server) run() {
 	log.Info("Starting server", "isd_as", integration.Local.IA)
 	defer log.Info("Finished server", "isd_as", integration.Local.IA)
 
@@ -158,6 +151,7 @@ func (s server) run() {
 		},
 		SCIONPacketConnMetrics: scionPacketConnMetrics,
 	}
+
 	conn, port, err := connFactory.Register(context.Background(), integration.Local.IA,
 		integration.Local.Host, addr.SvcNone)
 	if err != nil {
@@ -169,6 +163,7 @@ func (s server) run() {
 		fmt.Printf("Port=%d\n", port)
 		fmt.Printf("%s%s\n\n", libint.ReadySignal, integration.Local.IA)
 	}
+
 	log.Info("Listening", "local", fmt.Sprintf("%v:%d", integration.Local.Host, port))
 
 	// Receive ping message
@@ -179,7 +174,7 @@ func (s server) run() {
 	}
 }
 
-func (s server) handlePing(conn snet.PacketConn) error {
+func (s *server) handlePing(conn snet.PacketConn) error {
 	var p snet.Packet
 	var ov net.UDPAddr
 	if err := readFrom(conn, &p, &ov); err != nil {
@@ -233,6 +228,12 @@ func (s server) handlePing(conn snet.PacketConn) error {
 		))
 	}
 
+	// In this game, we respond to 1/256 (~0.4%) of the pings. Just enough
+	// to prove that some pings were received, but not enough to distort
+	// performance data by mixing in traffic types.
+	if s.pongs++; s.pongs != 0 {
+		return nil
+	}
 	log.Info(fmt.Sprintf("Ping received from %s, sending pong.", p.Source))
 	raw, err := json.Marshal(Pong{
 		Client:  p.Source.IA,
@@ -273,6 +274,7 @@ type client struct {
 	conn       snet.PacketConn
 	port       uint16
 	sdConn     daemon.Connector
+	path       snet.Path
 	errorPaths map[snet.PathFingerprint]struct{}
 }
 
@@ -301,36 +303,67 @@ func (c *client) run() int {
 	c.sdConn = integration.SDConn()
 	defer c.sdConn.Close()
 	c.errorPaths = make(map[snet.PathFingerprint]struct{})
-	return integration.AttemptRepeatedly("End2End", c.attemptRequest)
+	pong_out := make(chan int)
+	go func() {
+		defer log.HandlePanic()
+		totalFailed := 1
+		// Drain pongs as long as we get them. We assume that failure means
+		// there are no more pongs. We want ro receive at least one pong. The
+		// rest doesn't matter.
+		integration.RepeatUntilFail("End2EndBlast", func(n int) bool {
+			failed := c.drainPong(n)
+			if !failed {
+				totalFailed = 0
+			}
+			return failed
+		})
+		pong_out <- totalFailed
+	}()
+
+	// We return a "number of failures". So 0 means everything is fine.
+	ping_result := integration.RepeatUntilFail("End2EndBlast", c.blindPing)
+
+	// Stop drainPongs, so we're not stuck here for up to 10s.
+	c.conn.Close()
+
+	pong_result := <-pong_out
+	if pong_result != 0 {
+		log.Info("Never got a single pong")
+	}
+	return ping_result + pong_result
 }
 
-// attemptRequest sends one ping packet and expect a pong.
-// Returns true (which means "stop") *if both worked*.
-func (c *client) attemptRequest(n int) bool {
+// blindping sends one ping packet and expect no response.
+// Returns true (which means finished) *if sending failed*
+func (c *client) blindPing(n int) bool {
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout.Duration)
 	defer cancel()
 	ctx := timeoutCtx
 	span, _ := tracing.NilCtx()
 
 	if traces {
-		span, ctx = tracing.CtxWith(timeoutCtx, "attempt")
-		span.SetTag("attempt", n)
+		span, ctx = tracing.CtxWith(timeoutCtx, "blindping")
+		span.SetTag("blindping", n)
 		span.SetTag("src", integration.Local.IA)
 		span.SetTag("dst", remote.IA)
 		defer span.Finish()
 	}
-
 	logger := log.FromCtx(ctx)
 
-	path, err := c.getRemote(ctx, n)
-	if err != nil {
-		logger.Error("Could not get remote", "err", err)
-		return false
+	if c.path == nil {
+		p, err := c.getRemote(ctx, n)
+		if err != nil {
+			logger.Error("Could not get remote", "err", err)
+			return true
+		}
+		c.path = p // struct fields cannot be assigned with :=
 	}
 
+	// Default closure if traces are off.
 	withTag := func(err error) error {
 		return err
 	}
+
 	if traces {
 		span, ctx = tracing.StartSpanFromCtx(ctx, "attempt.ping")
 		defer span.Finish()
@@ -341,20 +374,35 @@ func (c *client) attemptRequest(n int) bool {
 	}
 
 	// Send ping
-	if err := c.ping(ctx, n, path, true); err != nil {
+	if err := c.ping(ctx, n, c.path, false); err != nil {
 		logger.Error("Could not send packet", "err", withTag(err))
-		return false
+		return true
 	}
-	// Receive pong
-	if err := c.pong(ctx, true); err != nil {
-		tracing.Error(span, err)
-		logger.Error("Error receiving pong", "err", withTag(err))
-		if path != nil {
-			c.errorPaths[snet.Fingerprint(path)] = struct{}{}
-		}
-		return false
+
+	return false // Don't stop. Do it again!
+}
+
+// drainPong consumes any pong message that might be received.
+func (c *client) drainPong(n int) bool {
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout.Duration)
+	defer cancel()
+	ctx := timeoutCtx
+	span, _ := tracing.NilCtx()
+
+	if traces {
+		span, ctx = tracing.CtxWith(timeoutCtx, "drainpong")
+		span.SetTag("drainpong", n)
+		span.SetTag("dst", integration.Local.IA)
+		span.SetTag("src", remote.IA)
+		defer span.Finish()
 	}
-	return true
+	if err := c.pong(ctx, false); err != nil {
+		// We should receive at least one within 10s, but this is called until pings stop
+		// coming, so there will always be one failure in the end. Therefore... do not report an
+		// error here.
+		return true // Stop. Responses don't arrive anymore (or never did).
+	}
+	return false // Don't stop; keep consuming pongs
 }
 
 func (c *client) ping(ctx context.Context, n int, path snet.Path, logIfOk bool) error {

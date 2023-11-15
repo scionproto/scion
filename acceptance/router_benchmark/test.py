@@ -140,7 +140,7 @@ class Test(base.TestTopogen):
             "-traces=false",
             "-outDir", self.artifacts,
             "-name", "router_benchmark",
-            "-game", "packetflood",
+            "-cmd", "./bin/end2endblast",
             "-attempts", 1500000,
             "-parallelism", 100,
             "-subset", "noncore#core#remoteISD"
@@ -210,7 +210,7 @@ class Test(base.TestTopogen):
             "-traces=false",
             "-outDir", self.artifacts,
             "-name", "router_benchmark",
-            "-game", "packetflood",
+            "-cmd", "./bin/end2endblast",
             "-attempts", 1500000,
             "-parallelism", 100,
             "-subset", "noncore#noncore#remoteAS"

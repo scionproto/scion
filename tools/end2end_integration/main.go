@@ -44,7 +44,6 @@ var (
 	features    string
 	epic        bool
 	traces      bool
-	game        string
 )
 
 func getCmd() (string, bool) {
@@ -76,14 +75,12 @@ func realMain() int {
 		"-timeout", timeout.String(),
 		"-local", integration.SrcAddrPattern + ":0",
 		"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
-		"-game", game,
 		fmt.Sprintf("-epic=%t", epic),
 		fmt.Sprintf("-traces=%t", traces),
 	}
 	serverArgs := []string{
 		"-mode", "server",
 		"-local", integration.DstAddrPattern + ":0",
-		"-game", game,
 		fmt.Sprintf("-traces=%t", traces),
 	}
 	if len(features) != 0 {
@@ -125,8 +122,6 @@ func addFlags() {
 		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
 	flag.BoolVar(&epic, "epic", false, "Enable EPIC.")
 	flag.BoolVar(&traces, "traces", true, "Enable Jaeger traces.")
-	flag.StringVar(&game, "game", "pingpong",
-		"The game that the clients and servers shall play (pingpong|packetflood)")
 }
 
 // runTests runs the end2end tests for all pairs. In case of an error the
@@ -303,7 +298,6 @@ func clientTemplate(progressSock string) integration.Cmd {
 			"-timeout", timeout.String(),
 			"-local", integration.SrcAddrPattern + ":0",
 			"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
-			"-game", game,
 			fmt.Sprintf("-traces=%t", traces),
 			fmt.Sprintf("-epic=%t", epic),
 		},

@@ -198,6 +198,7 @@ pkg_tar(
         "//tools/buildkite/cmd/buildkite_artifacts",
         "//tools/end2end",
         "//tools/end2end_integration",
+        "//tools/end2endblast",
         "//tools/pktgen/cmd/pktgen",
         "//tools/scion_integration",
         "//tools/udpproxy",
