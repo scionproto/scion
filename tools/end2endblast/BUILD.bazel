@@ -18,11 +18,8 @@ go_library(
         "//pkg/snet/path:go_default_library",
         "//pkg/sock/reliable:go_default_library",
         "//private/topology:go_default_library",
-        "//private/tracing:go_default_library",
         "//tools/integration:go_default_library",
         "//tools/integration/integrationlib:go_default_library",
-        "@com_github_opentracing_opentracing_go//:go_default_library",
-        "@com_github_opentracing_opentracing_go//ext:go_default_library",
     ],
 )
 

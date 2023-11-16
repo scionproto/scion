@@ -1,5 +1,6 @@
 // Copyright 2018 ETH Zurich
 // Copyright 2019 ETH Zurich, Anapaya Systems
+// Copyright 2023 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -101,14 +102,12 @@ func realMain() int {
 	}
 	validateFlags()
 
-	if traces {
-		closeTracer, err := integration.InitTracer("end2end-" + integration.Mode)
-		if err != nil {
-			log.Error("Tracer initialization failed", "err", err)
-			return 1
-		}
-		defer closeTracer()
+	closeTracer, err := integration.InitTracer("end2end-" + integration.Mode)
+	if err != nil {
+		log.Error("Tracer initialization failed", "err", err)
+		return 1
 	}
+	defer closeTracer()
 
 	if integration.Mode == integration.ModeServer {
 		server{}.run()
@@ -137,8 +136,7 @@ func validateFlags() {
 			integration.LogFatal("Invalid timeout provided", "timeout", timeout)
 		}
 	}
-	log.Info("Flags", "traces", traces, "timeout", timeout, "epic", epic,
-		"remote", remote)
+	log.Info("Flags", "timeout", timeout, "epic", epic, "remote", remote)
 }
 
 type server struct {
@@ -202,27 +200,22 @@ func (s server) handlePing(conn snet.PacketConn) error {
 		)
 	}
 
-	withTag := func(err error) error {
-		return err
+	spanCtx, err := opentracing.GlobalTracer().Extract(
+		opentracing.Binary,
+		bytes.NewReader(pld.Trace),
+	)
+	if err != nil {
+		return serrors.WrapStr("extracting trace information", err)
 	}
-	if traces {
-		spanCtx, err := opentracing.GlobalTracer().Extract(
-			opentracing.Binary,
-			bytes.NewReader(pld.Trace),
-		)
-		if err != nil {
-			return serrors.WrapStr("extracting trace information", err)
-		}
-		span, _ := opentracing.StartSpanFromContext(
-			context.Background(),
-			"handle_ping",
-			ext.RPCServerOption(spanCtx),
-		)
-		defer span.Finish()
-		withTag = func(err error) error {
-			tracing.Error(span, err)
-			return err
-		}
+	span, _ := opentracing.StartSpanFromContext(
+		context.Background(),
+		"handle_ping",
+		ext.RPCServerOption(spanCtx),
+	)
+	defer span.Finish()
+	withTag := func(err error) error {
+		tracing.Error(span, err)
+		return err
 	}
 
 	if pld.Message != ping || !pld.Server.Equal(integration.Local.IA) {
@@ -309,16 +302,12 @@ func (c *client) run() int {
 func (c *client) attemptRequest(n int) bool {
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout.Duration)
 	defer cancel()
-	ctx := timeoutCtx
-	span, _ := tracing.NilCtx()
 
-	if traces {
-		span, ctx = tracing.CtxWith(timeoutCtx, "attempt")
-		span.SetTag("attempt", n)
-		span.SetTag("src", integration.Local.IA)
-		span.SetTag("dst", remote.IA)
-		defer span.Finish()
-	}
+	span, ctx := tracing.CtxWith(timeoutCtx, "attempt")
+	span.SetTag("attempt", n)
+	span.SetTag("src", integration.Local.IA)
+	span.SetTag("dst", remote.IA)
+	defer span.Finish()
 
 	logger := log.FromCtx(ctx)
 
@@ -328,25 +317,20 @@ func (c *client) attemptRequest(n int) bool {
 		return false
 	}
 
+	span, ctx = tracing.StartSpanFromCtx(ctx, "attempt.ping")
+	defer span.Finish()
 	withTag := func(err error) error {
+		tracing.Error(span, err)
 		return err
-	}
-	if traces {
-		span, ctx = tracing.StartSpanFromCtx(ctx, "attempt.ping")
-		defer span.Finish()
-		withTag = func(err error) error {
-			tracing.Error(span, err)
-			return err
-		}
 	}
 
 	// Send ping
-	if err := c.ping(ctx, n, path, true); err != nil {
+	if err := c.ping(ctx, n, path); err != nil {
 		logger.Error("Could not send packet", "err", withTag(err))
 		return false
 	}
 	// Receive pong
-	if err := c.pong(ctx, true); err != nil {
+	if err := c.pong(ctx); err != nil {
 		tracing.Error(span, err)
 		logger.Error("Error receiving pong", "err", withTag(err))
 		if path != nil {
@@ -357,7 +341,7 @@ func (c *client) attemptRequest(n int) bool {
 	return true
 }
 
-func (c *client) ping(ctx context.Context, n int, path snet.Path, logIfOk bool) error {
+func (c *client) ping(ctx context.Context, n int, path snet.Path) error {
 	rawPing, err := json.Marshal(Ping{
 		Server:  remote.IA,
 		Message: ping,
@@ -402,9 +386,9 @@ func (c *client) ping(ctx context.Context, n int, path snet.Path, logIfOk bool) 
 			},
 		},
 	}
-	if logIfOk {
-		log.Info("sending ping", "attempt", n, "path", path)
-	}
+
+	log.Info("sending ping", "attempt", n, "path", path)
+
 	if err := c.conn.WriteTo(pkt, remote.NextHop); err != nil {
 		return err
 	}
@@ -466,7 +450,7 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 	return path, nil
 }
 
-func (c *client) pong(ctx context.Context, logIfOk bool) error {
+func (c *client) pong(ctx context.Context) error {
 	if err := c.conn.SetReadDeadline(getDeadline(ctx)); err != nil {
 		return serrors.WrapStr("setting read deadline", err)
 	}
@@ -494,9 +478,9 @@ func (c *client) pong(ctx context.Context, logIfOk bool) error {
 	if pld.Client != expected.Client || pld.Server != expected.Server || pld.Message != pong {
 		return serrors.New("unexpected contents received", "data", pld, "expected", expected)
 	}
-	if logIfOk {
-		log.Info("Received pong", "server", p.Source)
-	}
+
+	log.Info("Received pong", "server", p.Source)
+
 	return nil
 }
 

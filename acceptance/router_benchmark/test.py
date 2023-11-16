@@ -137,11 +137,11 @@ class Test(base.TestTopogen):
         loadtest = self.get_executable("end2end_integration")
         retCode, stdOut, stdErr = loadtest[
             "-d",
-            "-traces=false",
             "-outDir", self.artifacts,
             "-name", "router_benchmark",
             "-cmd", "./bin/end2endblast",
             "-attempts", 1500000,
+            "-timeout", "90s",  # Timeout is for all attempts together
             "-parallelism", 100,
             "-subset", "noncore#core#remoteISD"
         ].run_tee()
@@ -207,11 +207,11 @@ class Test(base.TestTopogen):
         loadtest = self.get_executable("end2end_integration")
         retCode, stdOut, stdErr = loadtest[
             "-d",
-            "-traces=false",
             "-outDir", self.artifacts,
             "-name", "router_benchmark",
             "-cmd", "./bin/end2endblast",
             "-attempts", 1500000,
+            "-timeout", "90s",  # Timeout is for all attempts together
             "-parallelism", 100,
             "-subset", "noncore#noncore#remoteAS"
         ].run_tee()

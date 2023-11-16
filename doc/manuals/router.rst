@@ -120,8 +120,6 @@ Environment Variables
    :Type: :ref:`duration <common-conf-duration>`
    :Default: ``5m``
 
-.. _gomaxprocs:
-
 .. envvar:: GOMAXPROCS
 
    Specified by the GO runtime. The Go runtime starts a number kernel threads such that the number
@@ -211,7 +209,7 @@ considers the following options.
       experimentaly.
 
       The number of kernel threads that go creates depends on the number of usable cores, which is
-      controlled by the environment variable ``GOMAXPROCS``. See :ref:`GOMAXPROCS <gomaxprocs>`.
+      controlled by the environment variable ``GOMAXPROCS``. See :env:`GOMAXPROCS`.
 
    .. option:: router.num_slow_processors = <int> (Default: 1)
 
