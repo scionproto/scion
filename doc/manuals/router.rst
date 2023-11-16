@@ -194,9 +194,10 @@ considers the following options.
 
       The send buffer size in bytes. 0 means use system default.
 
-   .. option:: router.num_processors = <int> (Default: num_cores)
+   .. option:: router.num_processors = <int> (Default: GOMAXPROCS)
 
       Number of goroutines started for SCION packets processing.
+
       These goroutines make the routing decision for the SCION packets by inspecting, validating and
       updating the path information in the packet header. Packets are processed asynchronously from the
       corresponding read/write operations on the individual interface sockets.
@@ -209,7 +210,7 @@ considers the following options.
       experimentaly.
 
       The number of kernel threads that go creates depends on the number of usable cores, which is
-      controlled by the environment variable ``GOMAXPROCS``. See :env:`GOMAXPROCS`.
+      controlled by the environment variable ``GOMAXPROCS``. See :envvar:`GOMAXPROCS`.
 
    .. option:: router.num_slow_processors = <int> (Default: 1)
 
