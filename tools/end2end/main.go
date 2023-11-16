@@ -76,7 +76,6 @@ var (
 	scionPacketConnMetrics = metrics.NewSCIONPacketConnMetrics()
 	scmpErrorsCounter      = scionPacketConnMetrics.SCMPErrors
 	epic                   bool
-	traces                 bool
 )
 
 func main() {
@@ -113,7 +112,6 @@ func addFlags() {
 	flag.Var(&remote, "remote", "(Mandatory for clients) address to connect to")
 	flag.Var(timeout, "timeout", "The timeout for each attempt")
 	flag.BoolVar(&epic, "epic", false, "Enable EPIC")
-	flag.BoolVar(&traces, "traces", true, "Enable Jaeger traces")
 }
 
 func validateFlags() {
@@ -131,8 +129,7 @@ func validateFlags() {
 	log.Info("Flags", "timeout", timeout, "epic", epic, "remote", remote)
 }
 
-type server struct {
-}
+type server struct{}
 
 func (s server) run() {
 	log.Info("Starting server", "isd_as", integration.Local.IA)
@@ -217,7 +214,6 @@ func (s server) handlePing(conn snet.PacketConn) error {
 			"data", pld,
 		))
 	}
-
 	log.Info(fmt.Sprintf("Ping received from %s, sending pong.", p.Source))
 	raw, err := json.Marshal(Pong{
 		Client:  p.Source.IA,
@@ -294,13 +290,11 @@ func (c *client) run() int {
 func (c *client) attemptRequest(n int) bool {
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout.Duration)
 	defer cancel()
-
 	span, ctx := tracing.CtxWith(timeoutCtx, "attempt")
 	span.SetTag("attempt", n)
 	span.SetTag("src", integration.Local.IA)
 	span.SetTag("dst", remote.IA)
 	defer span.Finish()
-
 	logger := log.FromCtx(ctx)
 
 	path, err := c.getRemote(ctx, n)
@@ -308,7 +302,6 @@ func (c *client) attemptRequest(n int) bool {
 		logger.Error("Could not get remote", "err", err)
 		return false
 	}
-
 	span, ctx = tracing.StartSpanFromCtx(ctx, "attempt.ping")
 	defer span.Finish()
 	withTag := func(err error) error {
@@ -323,7 +316,6 @@ func (c *client) attemptRequest(n int) bool {
 	}
 	// Receive pong
 	if err := c.pong(ctx); err != nil {
-		tracing.Error(span, err)
 		logger.Error("Error receiving pong", "err", withTag(err))
 		if path != nil {
 			c.errorPaths[snet.Fingerprint(path)] = struct{}{}
@@ -378,9 +370,7 @@ func (c *client) ping(ctx context.Context, n int, path snet.Path) error {
 			},
 		},
 	}
-
 	log.Info("sending ping", "attempt", n, "path", path)
-
 	if err := c.conn.WriteTo(pkt, remote.NextHop); err != nil {
 		return err
 	}
@@ -470,9 +460,7 @@ func (c *client) pong(ctx context.Context) error {
 	if pld.Client != expected.Client || pld.Server != expected.Server || pld.Message != pong {
 		return serrors.New("unexpected contents received", "data", pld, "expected", expected)
 	}
-
 	log.Info("Received pong", "server", p.Source)
-
 	return nil
 }
 
