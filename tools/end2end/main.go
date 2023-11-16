@@ -14,18 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This is a general purpose client/server code for end2end tests. It plays
-// ping-pong with some variantions depending on command line arguments.
-//
-// One of the variants is for the client to send pings to the server
-// until it receives at least one pong from the server or a given
-// deadline was reached. The server responds to pings and the client
-// wait for a response before doing anything else.
-//
-// Another variant is for the client to send back-to-back pings to the
-// server until the sending fails or some deadline was reached. In this case
-// the client isn't waiting for responses. The client checks at the end
-// whether at least one response has been received.
+// This is a general purpose client/server code for end2end tests. The client
+// sends pings to the server until it receives at least one pong from the
+// server or a given deadline is reached. The server responds to all pings and
+// the client wait for a response before doing anything else.
 
 package main
 

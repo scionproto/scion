@@ -75,9 +75,3 @@ func StartSpanFromCtx(ctx context.Context, operationName string,
 
 	return opentracing.StartSpanFromContext(ctx, operationName, opts...)
 }
-
-// Allow the construction of nil-valued spans (and context) without leaking
-// opentracing types.
-func NilCtx() (opentracing.Span, context.Context) {
-	return nil, nil
-}
