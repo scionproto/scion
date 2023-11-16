@@ -32,7 +32,7 @@ import (
 
 // BrTransit generates one packet of transit traffic over the same BR host.
 // The outcome is a packet and which interface to send it to.
-func BrTransit(mac hash.Hash) (string, []byte) {
+func BrTransit(payload string, mac hash.Hash) (string, string, []byte) {
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
@@ -119,15 +119,15 @@ func BrTransit(mac hash.Hash) (string, []byte) {
 	scionudp.DstPort = 50000
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
-	payload := []byte("actualpayloadbytes")
+	payloadBytes := []byte(payload)
 
 	// Prepare input packet
 	input := gopacket.NewSerializeBuffer()
 	if err := gopacket.SerializeLayers(input, options,
-		ethernet, ip, udp, scionL, scionudp, gopacket.Payload(payload),
+		ethernet, ip, udp, scionL, scionudp, gopacket.Payload(payloadBytes),
 	); err != nil {
 		panic(err)
 	}
 
-	return "veth_2_host", input.Bytes()
+	return "veth_2_host", "veth_3_host", input.Bytes()
 }

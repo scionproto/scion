@@ -24,6 +24,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 
 	"github.com/google/gopacket/afpacket"
@@ -34,7 +35,7 @@ import (
 	"github.com/scionproto/scion/private/keyconf"
 )
 
-type Case func(mac hash.Hash) (string, []byte)
+type Case func(payload string, mac hash.Hash) (string, string, []byte)
 
 var (
 	allCases = map[string]Case{
@@ -49,9 +50,9 @@ var (
 	handles = make(map[string]*afpacket.TPacket)
 )
 
-// InitDevices inventories the available network interfaces, picks the ones that a case may inject
+// initDevices inventories the available network interfaces, picks the ones that a case may inject
 // traffic into, and associates them with a AF Packet interface.
-func InitDevices() error {
+func initDevices() error {
 	devs, err := net.Interfaces()
 	if err != nil {
 		return serrors.WrapStr("listing network interfaces", err)
@@ -71,6 +72,12 @@ func InitDevices() error {
 	return nil
 }
 
+func closeDevices() {
+	for _, h := range handles {
+		h.Close()
+	}
+}
+
 func main() {
 	os.Exit(realMain())
 }
@@ -85,9 +92,16 @@ func realMain() int {
 	}
 	defer log.HandlePanic()
 
+	caseFunc, ok := allCases[*caseToRun]
+	if !ok {
+		log.Error("Unknown case", "case", *caseToRun)
+		flag.Usage()
+		return 1
+	}
+
 	artifactsDir, err := os.MkdirTemp("", "brload_")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
+		log.Error("Cannot create tmp dir", "err", err)
 		return 1
 	}
 	if *dir != "" {
@@ -98,13 +112,13 @@ func realMain() int {
 	}
 	hfMAC, err := loadKey(artifactsDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Loading keys failed: %v\n", err)
+		log.Error("Loading keys failed", "err", err)
 		return 1
 	}
 
-	err = InitDevices()
+	err = initDevices()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Loading devices failed: %v\n", err)
+		log.Error("Loading devices failed", "err", err)
 		return 1
 	}
 
@@ -112,25 +126,84 @@ func realMain() int {
 
 	log.Info("BRLoad acceptance tests:")
 
-	for caseName, caseFunc := range allCases {
-		caseDev, rawPkt := caseFunc(hfMAC)
+	payloadString := "actualpayloadbytes"
+	caseDevIn, caseDevOut, rawPkt := caseFunc(payloadString, hfMAC)
 
-		writePktTo, ok := handles[caseDev]
-		if !ok {
-			log.Error("device not found", "device", caseDev)
+	writePktTo, ok := handles[caseDevIn]
+	if !ok {
+		log.Error("device not found", "device", caseDevIn)
+		return 1
+	}
+
+	readPktFrom, ok := handles[caseDevOut]
+	if !ok {
+		log.Error("device not found", "device", caseDevOut)
+		return 1
+	}
+
+	// Try and pick-up one packet and return the payload. If that works, we're content
+	// that this test works.
+	listenerChan := make(chan bool)
+	go func() {
+		defer log.HandlePanic()
+
+		gotOne := false
+
+		defer func() {
+			fmt.Println("********** listener channel closing")
+			listenerChan <- gotOne
+			close(listenerChan)
+		}()
+
+		packetSource := gopacket.NewPacketSource(readPktFrom, layers.LinkTypeEthernet)
+		ch := packetSource.Packets()
+
+		for {
+			fmt.Println("***** listener listening")
+			got, ok := <-ch
+			if !ok {
+				// No more packets
+				fmt.Println("***** listener bailing")
+				return
+			}
+			if err := got.ErrorLayer(); err != nil {
+				log.Error("error decoding packet", "err", err)
+			}
+			layer := got.Layer(gopacket.LayerTypePayload)
+			if layer == nil {
+				log.Error("error fetching packet payload: no PayLoad")
+			}
+			payload, ok := layer.(gopacket.Payload)
+			if !ok {
+				log.Error("error fetching packet payload: not a PayLoad!")
+			}
+			if payload.GoString() == payloadString {
+				fmt.Println("********** listener happy")
+				gotOne = true
+			}
+			fmt.Println("********** listener done")
+			return // One is all we need.
+		}
+	}()
+
+	for i := 0; i < *numPackets; i++ {
+		if err := writePktTo.WritePacketData(rawPkt); err != nil {
+			log.Error("writing input packet", "case", *caseToRun, "error", err)
 			return 1
 		}
-		for i := 0; i < *numPackets; i++ {
-			if err := writePktTo.WritePacketData(rawPkt); err != nil {
-				log.Error("writing input packet", "case", caseName, "error", err)
-				return 1
-			}
-		}
-
-		// For now we don't read the packets coming out. There are other tests
-		// for that. At some point we might just look at how many were dropped
-		// by the interface to get an idea of how many made it that far.
 	}
+
+	// If our listener is still stuck there, unstick it.
+	closeDevices()
+	fmt.Println("********** devices closed")
+
+	outcome, ok := <-listenerChan
+	if !ok || !outcome {
+		log.Error("Never saw a valid packet being forwarded")
+		return 1
+	}
+
+	fmt.Println("********** main done")
 	return 0
 }
 
