@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -43,7 +44,7 @@ var (
 	}
 	logConsole = flag.String("log.console", "debug", "Console logging level: debug|info|error")
 	dir        = flag.String("artifacts", "", "Artifacts directory")
-	numPackets = flag.Int("num_packets", 1000, "Number of packets to send")
+	numPackets = flag.Int("num_packets", 10, "Number of packets to send")
 	caseToRun  = flag.String("case", "",
 		fmt.Sprintf("Which traffic case to evaluate %v",
 			reflect.ValueOf(allCases).MapKeys()))
@@ -135,19 +136,18 @@ func realMain() int {
 		return 1
 	}
 
-	// Try and pick-up one packet and return the payload. If that works, we're content
+	// Try and pick-up one packet and check the payload. If that works, we're content
 	// that this test works.
 	packetSource := gopacket.NewPacketSource(readPktFrom, layers.LinkTypeEthernet)
 	packetChan := packetSource.Packets()
-	listenerChan := make(chan bool)
+	listenerChan := make(chan int)
 
 	go func() {
 		defer log.HandlePanic()
-
-		gotOne := false
+		numRcv := 0
 
 		defer func() {
-			listenerChan <- gotOne
+			listenerChan <- numRcv
 			close(listenerChan)
 		}()
 
@@ -155,43 +155,51 @@ func realMain() int {
 			got, ok := <-packetChan
 			if !ok {
 				// No more packets
+				log.Info("No more Packets")
 				return
 			}
 			if err := got.ErrorLayer(); err != nil {
 				log.Error("error decoding packet", "err", err)
+				continue
 			}
 			layer := got.Layer(gopacket.LayerTypePayload)
 			if layer == nil {
 				log.Error("error fetching packet payload: no PayLoad")
+				continue
 			}
-			payload, ok := layer.(gopacket.Payload)
-			if !ok {
-				log.Error("error fetching packet payload: not a PayLoad!")
+			if string(layer.LayerContents()) == payloadString {
+				// return // One is all we need. But continue and count for now.
+				numRcv++
 			}
-			if payload.GoString() == payloadString {
-				gotOne = true
-			}
-			return // One is all we need.
 		}
 	}()
 
+	// We started everything that could be started. So the best window for perf mertics
+	// opens somewhere around now.
+	metricsBegin := time.Now().Unix()
 	for i := 0; i < *numPackets; i++ {
 		if err := writePktTo.WritePacketData(rawPkt); err != nil {
 			log.Error("writing input packet", "case", *caseToRun, "error", err)
 			return 1
 		}
 	}
+	metricsEnd := time.Now().Unix()
+	// The test harness looks for this output.
+	fmt.Printf("metricsBegin: %d metricsEnd: %d\n", metricsBegin, metricsEnd)
 
-	// If our listener is still stuck there, unstick it. Closing the devices doesn't cause the
+	time.Sleep(time.Second * time.Duration(2))
+
+	// If our listener is still stuck there, unstick it. Closing the device doesn't cause the
 	// packet channel to close (presumably a bug). Close the channel ourselves.
 	close(packetChan)
 
-	outcome, ok := <-listenerChan
-	if !ok || !outcome {
-		log.Error("Never saw a valid packet being forwarded")
+	outcome := <-listenerChan
+	if outcome == 0 {
+		log.Error("Listener never saw a valid packet being forwarded")
 		return 1
 	}
 
+	fmt.Printf("Listener results: %d\n", outcome)
 	return 0
 }
 

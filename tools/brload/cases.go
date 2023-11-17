@@ -38,21 +38,22 @@ func BrTransit(payload string, mac hash.Hash) (string, string, []byte) {
 		ComputeChecksums: true,
 	}
 
-	// Ethernet: these addresses don't matter. The interfaces are not actually created.
+	// Point-to-point. Src might not mater. Dst probably must match what test.py configured
+	// for interface 2 of the router.
 	ethernet := &layers.Ethernet{
-		SrcMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x01, 0x01},
-		DstMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x01, 0x02},
+		SrcMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef},
+		DstMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x02},
 		EthernetType: layers.EthernetTypeIPv4,
 	}
-	// These do mater. They're known neighbors of our router under test. See
-	// router_newbenchmark/topology.json.
-	// IP4: Src=192.168.2.2 Dst=192.168.2.3 NextHdr=UDP Flags=DF
+
+	// Point-to-point. This is the real IP: the underlay network.
+	// IP4: Src=192.168.2.2 Dst=192.168.2.1 NextHdr=UDP Flags=DF
 	ip := &layers.IPv4{
 		Version:  4,
 		IHL:      5,
 		TTL:      64,
 		SrcIP:    net.IP{192, 168, 2, 2},
-		DstIP:    net.IP{192, 168, 3, 3},
+		DstIP:    net.IP{192, 168, 2, 1},
 		Protocol: layers.IPProtocolUDP,
 		Flags:    layers.IPv4DontFragment,
 	}
@@ -63,14 +64,7 @@ func BrTransit(payload string, mac hash.Hash) (string, string, []byte) {
 	}
 	_ = udp.SetNetworkLayerForChecksum(ip)
 
-	// pkt0.ParsePacket(`
-	// 	SCION: NextHdr=UDP CurrInfoF=0 CurrHopF=1 SrcType=IPv4 DstType=IPv4
-	// 		ADDR: SrcIA=1-ff00:0:2 Src=192.168.2.2 DstIA=1-ff00:0:3 Dst=192.168.3.3
-	// 		IF_2: ISD=1 Hops=2 Flags=non-ConsDir
-	// 			HF_1: ConsIngress=0 ConsEgress=0
-	// 			HF_0: ConsIngress=131 ConsEgress=141
-	// 	UDP_1: Src=40111 Dst=40222
-	// `)
+	// Fully correct path.
 	sp := &scion.Decoded{
 		Base: scion.Base{
 			PathMeta: scion.MetaHdr{
@@ -86,17 +80,33 @@ func BrTransit(payload string, mac hash.Hash) (string, string, []byte) {
 				Timestamp: util.TimeToSecs(time.Now()),
 				ConsDir:   false,
 			},
+			{
+				SegID:     0x222,
+				Timestamp: util.TimeToSecs(time.Now()),
+				ConsDir:   true,
+			},
 		},
 		HopFields: []path.HopField{
-			{ConsIngress: 0, ConsEgress: 2},  // Processed here (non-consdir)
 			{ConsIngress: 22, ConsEgress: 0}, // From there (non-consdir)
+			{ConsIngress: 0, ConsEgress: 2},  // <- Processed here (non-consdir)
 			{ConsIngress: 0, ConsEgress: 3},  // Down via this
 			{ConsIngress: 33, ConsEgress: 0}, // To there
 		},
 	}
+
+	// Calculate MACs...
+	// Seg0: Hops are in non-consdir.
 	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
+	sp.HopFields[0].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[0], nil)
 
+	// Seg1: in the natural order.
+	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
+	sp.InfoFields[1].UpdateSegID(sp.HopFields[2].Mac) // tmp
+	sp.HopFields[3].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
+	sp.InfoFields[1].SegID = 0x222 // Restore to initial.
+
+	// End-to-end. Src is the originator and Dst is the final destination.
 	scionL := &slayers.SCION{
 		Version:      0,
 		TrafficClass: 0xb8,
@@ -107,10 +117,13 @@ func BrTransit(payload string, mac hash.Hash) (string, string, []byte) {
 		DstIA:        xtest.MustParseIA("1-ff00:0:3"),
 		Path:         sp,
 	}
+
+	// These aren't necessarily IP addresses. They're host addresses within the
+	// src and dst ASes.
 	if err := scionL.SetSrcAddr(addr.MustParseHost("192.168.2.2")); err != nil {
 		panic(err)
 	}
-	if err := scionL.SetDstAddr(addr.MustParseHost("182.168.3.3")); err != nil {
+	if err := scionL.SetDstAddr(addr.MustParseHost("192.168.3.3")); err != nil {
 		panic(err)
 	}
 
