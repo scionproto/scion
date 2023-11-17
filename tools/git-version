@@ -2,4 +2,4 @@
 
 # Small script to determine the git version.
 
-exec git describe --tags --dirty
+exec git describe --tags --dirty --always
