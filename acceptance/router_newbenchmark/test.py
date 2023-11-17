@@ -172,7 +172,7 @@ class RouterBMTest(base.TestBase):
         logger.info("==> Starting load br-transit")
         brload = self.get_executable("brload")
         output = exec_sudo(f"{brload.executable} -artifacts {self.artifacts} "
-                           "-case br_transit -num_packets 5000000")
+                           "-case br_transit -num_packets 10000000")
         for line in output.splitlines():
             print(line)
             if line.startswith('metricsBegin'):

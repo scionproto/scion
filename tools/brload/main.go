@@ -187,7 +187,8 @@ func realMain() int {
 	// The test harness looks for this output.
 	fmt.Printf("metricsBegin: %d metricsEnd: %d\n", metricsBegin, metricsEnd)
 
-	time.Sleep(time.Second * time.Duration(2))
+	// In short tests (<1M packets), we finish sending before the first packets arrive.
+	time.Sleep(time.Second * time.Duration(1))
 
 	// If our listener is still stuck there, unstick it. Closing the device doesn't cause the
 	// packet channel to close (presumably a bug). Close the channel ourselves.
