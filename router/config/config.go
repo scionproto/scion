@@ -1,5 +1,6 @@
 // Copyright 2016 ETH Zurich
 // Copyright 2019 ETH Zurich, Anapaya Systems
+// Copyright 2023 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -71,9 +72,15 @@ func (cfg *RouterConfig) Validate() error {
 }
 
 func (cfg *RouterConfig) InitDefaults() {
+
+	// NumProcessors is the number of goroutines used to handle the processing queue.
+	// By default, there are as many as cores allowed by Go and other goroutines displace
+	// the packet processors sporadically. It may be either good or bad to create more
+	// processors (plus the other goroutines) than there are cores... experience will tell.
 	if cfg.NumProcessors == 0 {
 		cfg.NumProcessors = runtime.GOMAXPROCS(0)
 	}
+
 	if cfg.NumSlowPathProcessors == 0 {
 		cfg.NumSlowPathProcessors = 1
 	}

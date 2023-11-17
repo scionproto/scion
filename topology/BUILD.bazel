@@ -11,5 +11,6 @@ exports_files(
         "tiny.topo",
         "tiny4.topo",
         "wide.topo",
+        "router_bm.topo",
     ],
 )

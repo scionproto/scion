@@ -12,34 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package processmetrics provides a custom collector to export process-level
-// metrics beyond what prometheus.ProcesssCollector offers.
-// This implementation is restricted to Linux. The generic implementation
-// does nothing.
-// This code works only if the delayacct kernel feature is turned on.
-// this is done by "sysctl kernel.task_delayacct=1".
+// Package processmetrics provides a custom collector to export process-level metrics beyond what
+// prometheus.ProcesssCollector offers.  This implementation is restricted to Linux. The generic
+// implementation does nothing.
 //
-// In order to make a fair run-to-run comparison of these metrics, we must
-// relate them to the actual CPU time that was *available* to the router.
-// That is, the time that the process was either running, blocked, or sleeping,
-// but not "runnable" (which in unix-ese implies *not* running).
-// A custom collector in pkg/processmetrics exposes the running and runnable
-// metrics directly from the scheduler.
-// Possibly crude example of a query that accounts for available cpu:
+// The metrics we add serve to estimate the available cpu time; that is, the amount of CPU that the
+// scheduler granted to the process, independently of whether it ran with it or slept on it. The
+// goal is to measure what the overall performance of the process would be if it was never
+// preempted. For example, this could be expressed as some_output/available_cpu_time.
+//
+// At a given time, a given thread is either running, runnable, or sleeping. When running it
+// consumes exactly one core. When runnable, it is being deprived of exactly one core (because Go
+// does not create more runnable threads than there are cores, there is no other thread of that
+// process that is receiving it.). So, for our accounting purposes, the total time that all the
+// process's threads spend "runnable" is the total core*time that the process did not receive. The
+// complement of that: the available_cpu_time is: num_cores * real_time - total_runnable_time.
+//
+// We expose only running and runnable times. Available time can be inferred more conveniently in
+// prometheus queries depending on the desired unit. For example:
+// * available_cpu_seconds_per_seconds = num_cores - rate(process_runnable_seconds_total)
+// * available_machine_seconds_per_seconds = 1 - rate(process_runnable_seconds_total)/num_cores
+//
+// Example of a query for processed_pkts per available cpu seconds:
 //
 //	rate(router_processed_pkts_total[1m])
 //	  / on (instance, job) group_left ()
-//	(1 - rate(process_runnable_seconds_total[1m]))
+//	(num_cores - rate(process_runnable_seconds_total[1m]))
 //
-// This shows processed_packets per available cpu seconds, as opposed to
-// real time.
-// Possibly crude example of a query that only looks at cpu use efficiency;
-// This shows processed_packets per consumed cpu seconds:
+// Example of a query that only looks at on-cpu efficiency;
 //
 //	rate(router_processed_pkts_total[1m])
 //	  / on (instance, job) group_left ()
 //	(rate(process_running_seconds_total[1m]))
 //
+// The effective number of cores is best obtained from the go runtime. However, no prometheus
+// collector seems to expose it yet, so we surface it here for convenience and simplicity
+// under the name go_maxprocs_threads.
 
 //go:build linux
 
@@ -48,6 +56,7 @@ package processmetrics
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"syscall"
 
@@ -58,24 +67,22 @@ import (
 )
 
 var (
-	// These two metrics allows to infer the amount of CPU time that was available, used or not,
-	// to the process:
-	// wallClock time = runningTime + runnableTime + sleepingTime.
-	// availableCPU = runningTime + sleepingTime
-	// Therefore AvailbleTime = wallClockTime - runnableTime.
-	// runningTime should be the same as uTime+sTime reported in a variety of other ways,
-	// but when doing calculations, better use the two data from the same source. So, collect them
-	// both.
 	runningTime = prometheus.NewDesc(
 		"process_running_seconds_total",
-		"Time the process spend running since it started (all threads summed).",
+		"CPU time the process used (running state) since it started (all threads summed).",
 		nil, nil,
 	)
 	runnableTime = prometheus.NewDesc(
 		"process_runnable_seconds_total",
-		"Time the process spend runnable (unscheduled) since it started (all threads summed).",
+		"CPU time the process was denied (runnable state) since it started (all threads summed).",
 		nil, nil,
 	)
+	goCores = prometheus.NewDesc(
+		"go_sched_maxprocs_threads",
+		"The current runtime.GOMAXPROCS setting. The number of cores Go code uses simultaneously",
+		nil, nil,
+	)
+
 	// This metric is introspective. It's trying to gauge if we're successful in collecting the
 	// other two at a reasonable cost.
 	tasklistUpdates = prometheus.NewDesc(
@@ -171,6 +178,11 @@ func (c *procStatCollector) Collect(ch chan<- prometheus.Metric) {
 		runnableTime,
 		prometheus.CounterValue,
 		float64(c.totalRunnable)/1000000000, // Report duration in SI
+	)
+	ch <- prometheus.MustNewConstMetric(
+		goCores,
+		prometheus.GaugeValue,
+		float64(runtime.GOMAXPROCS(-1)),
 	)
 	ch <- prometheus.MustNewConstMetric(
 		tasklistUpdates,
