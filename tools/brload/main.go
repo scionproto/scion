@@ -72,12 +72,6 @@ func initDevices() error {
 	return nil
 }
 
-func closeDevices() {
-	for _, h := range handles {
-		h.Close()
-	}
-}
-
 func main() {
 	os.Exit(realMain())
 }
@@ -143,27 +137,24 @@ func realMain() int {
 
 	// Try and pick-up one packet and return the payload. If that works, we're content
 	// that this test works.
+	packetSource := gopacket.NewPacketSource(readPktFrom, layers.LinkTypeEthernet)
+	packetChan := packetSource.Packets()
 	listenerChan := make(chan bool)
+
 	go func() {
 		defer log.HandlePanic()
 
 		gotOne := false
 
 		defer func() {
-			fmt.Println("********** listener channel closing")
 			listenerChan <- gotOne
 			close(listenerChan)
 		}()
 
-		packetSource := gopacket.NewPacketSource(readPktFrom, layers.LinkTypeEthernet)
-		ch := packetSource.Packets()
-
 		for {
-			fmt.Println("***** listener listening")
-			got, ok := <-ch
+			got, ok := <-packetChan
 			if !ok {
 				// No more packets
-				fmt.Println("***** listener bailing")
 				return
 			}
 			if err := got.ErrorLayer(); err != nil {
@@ -178,10 +169,8 @@ func realMain() int {
 				log.Error("error fetching packet payload: not a PayLoad!")
 			}
 			if payload.GoString() == payloadString {
-				fmt.Println("********** listener happy")
 				gotOne = true
 			}
-			fmt.Println("********** listener done")
 			return // One is all we need.
 		}
 	}()
@@ -193,9 +182,9 @@ func realMain() int {
 		}
 	}
 
-	// If our listener is still stuck there, unstick it.
-	closeDevices()
-	fmt.Println("********** devices closed")
+	// If our listener is still stuck there, unstick it. Closing the devices doesn't cause the
+	// packet channel to close (presumably a bug). Close the channel ourselves.
+	close(packetChan)
 
 	outcome, ok := <-listenerChan
 	if !ok || !outcome {
@@ -203,7 +192,6 @@ func realMain() int {
 		return 1
 	}
 
-	fmt.Println("********** main done")
 	return 0
 }
 
