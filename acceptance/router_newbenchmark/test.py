@@ -18,7 +18,7 @@
 import shutil
 import time
 
-from typing import List
+from typing import List, Tuple
 from plumbum import cli
 from plumbum.cmd import sudo,docker,whoami
 
@@ -51,8 +51,8 @@ def exec_sudo(command: str) -> str:
     # interactive password input.
     return sudo("-A", str.split(command))
 
-
-def create_veth(host: str, container: str, ip: str, mac: str, ns: str, neighbors: List[str]):
+def create_veth(host: str, container: str, ip: str, mac: str, ns: str,
+                neighbors: List[Tuple[str, str]]):
     exec_sudo(f"ip link add {host} mtu 8000 type veth peer name {container} mtu 8000")
     exec_sudo(f"sysctl -qw net.ipv6.conf.{host}.disable_ipv6=1")
     exec_sudo(f"ip link set {host} up")
@@ -62,8 +62,8 @@ def create_veth(host: str, container: str, ip: str, mac: str, ns: str, neighbors
     exec_sudo(f"ip netns exec {ns} ip link set {container} address {mac}")
     exec_sudo(f"ip netns exec {ns} ip addr add {ip} dev {container}")
     for n in neighbors:
-        exec_sudo(f"ip netns exec {ns} ip neigh add {n} "
-             f"lladdr f0:0d:ca:fe:be:ef nud permanent dev {container}")
+        exec_sudo(f"ip netns exec {ns} ip neigh add {n[0]} "
+             f"lladdr {n[1]} nud permanent dev {container}")
     exec_sudo(f"ip netns exec {ns} ip link set {container} up")
 
 
@@ -85,7 +85,7 @@ class RouterBMTest(base.TestBase):
     The topology (./conf/topology.json) is the following:
 
     AS2 (br2) ---+== (br1a) AS1 (br1b) ---- (br4) AS4
-                |
+                 |
     AS3 (br3) ---+
 
     Only br1 is executed and observed.
@@ -119,41 +119,49 @@ class RouterBMTest(base.TestBase):
 
         exec_docker("network create -d bridge benchmark")
 
-        pause_image = exec_docker(f"image load -q -i {self.pause_tar}").rsplit(' ', 1)[1]
-        exec_docker(f"run -d --network=benchmark --publish 9999:9090 --name pause {pause_image}")
-        ns = exec_docker("inspect pause -f '{{.NetworkSettings.SandboxKey}}'").replace("'", "")
+        # This test is useless without prometheus. Also, we need a running container to have
+        # a usable network namespace that we can configuer before the router runs. So, start
+        # prometheus now and then have the router share the same network stack.
 
-        # WTF do we need to alias the namespace to "pause" while creating the veths?
-        exec_sudo(f"ln -sfT {ns} /var/run/netns/pause")
-        self.create_veths("pause")
-        exec_sudo("rm /var/run/netns/pause")
-
-    def setup_start(self):
-        super().setup_start()
-
-        envs = ["SCION_EXPERIMENTAL_BFD_DISABLE=true"]
+        # FWIW, the alternative would be to start the router's container without the router,
+        # configure the interfaces, and then start the router. We'd still need prometheus, though,
+        # and we'd need to expose the router's metrics port to prometheus in some way. So, this is
+        # simpler.
         exec_docker(f"run -v {self.artifacts}/conf:/share/conf "
                     "-d "
-                    f"-e {' '.join(envs)} "
-                    "--network container:pause "
-                    "--name router "
-                    "bazel/acceptance/router_newbenchmark:router")
-
-        exec_docker(f"run -v {self.artifacts}/conf:/share/conf "
-                    "-d "
-                    "--network container:pause "
+                    "--network benchmark "
+                    "--publish 9999:9090 "
                     "--name prometheus "
                     "prom/prometheus:v2.47.2 "
                     "--config.file /share/conf/prometheus.yml")
 
+        ns = exec_docker("inspect prometheus -f '{{.NetworkSettings.SandboxKey}}'").replace("'", "")
+
+        # Link that namespace to where the ip commands expect it. While at it give it a simple name.
+        # Then create all the interfaces that the router will see... the test will be using the
+        # other end of the pairs to feed it with (and possibly capture) traffic.
+        exec_sudo(f"ln -sfT {ns} /var/run/netns/benchmark")
+        self.create_veths("benchmark")
+        exec_sudo("rm /var/run/netns/benchmark")
+
+        # Then the router.
+        exec_docker(f"run -v {self.artifacts}/conf:/share/conf "
+                    "-d "
+                    "-e SCION_EXPERIMENTAL_BFD_DISABLE=true -e GOMAXPROCS=6 "
+                    "--network container:prometheus "
+                    "--name router "
+                    "bazel/acceptance/router_newbenchmark:router")
+
         time.sleep(2)
+
+    def setup_start(self):
+        super().setup_start()
 
     def teardown(self):
         docker["logs", "router"].run_fg(retcode=None)
         exec_docker("rm -f prometheus")
         exec_docker("rm -f router")
-        exec_docker("rm -f pause")  # veths are deleted automatically
-        exec_docker("network rm benchmark")
+        exec_docker("network rm benchmark") # veths are deleted automatically
         exec_sudo(f"chown -R {whoami()} {self.artifacts}")
 
     # Wire virtual interfaces around the one router that we run.
@@ -162,17 +170,17 @@ class RouterBMTest(base.TestBase):
         # from router will match the expected value.
         exec_sudo(f"ip netns exec {ns} sysctl -w net.ipv4.ip_default_ttl=64")
         create_veth("veth_int_host", "veth_int", "192.168.0.1/24", "f0:0d:ca:fe:00:01", ns,
-                    ["192.168.0.2"])
-        create_veth("veth_2_host", "veth_2", "192.168.2.1/24", "f0:0d:ca:fe:00:02", ns,
-                    ["192.168.2.2"])
-        create_veth("veth_3_host", "veth_3", "192.168.3.1/24", "f0:0d:ca:fe:00:03", ns,
-                    ["192.168.3.3"])
+                    [("192.168.0.2", "f0:0d:ca:fe:00:02")])
+        create_veth("veth_2_host", "veth_2", "192.168.2.1/24", "f0:0d:ca:fe:02:01", ns,
+                    [("192.168.2.2", "f0:0d:ca:fe:02:02")])
+        create_veth("veth_3_host", "veth_3", "192.168.3.1/24", "f0:0d:ca:fe:03:01", ns,
+                    [("192.168.3.3", "f0:0d:ca:fe:03:03")])
 
     def _run(self):
         logger.info("==> Starting load br-transit")
         brload = self.get_executable("brload")
         output = exec_sudo(f"{brload.executable} -artifacts {self.artifacts} "
-                           "-case br_transit -num_packets 10000000")
+                           "-case br_transit -num_packets 10000000 -num_streams 2")
         for line in output.splitlines():
             print(line)
             if line.startswith('metricsBegin'):

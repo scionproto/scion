@@ -36,7 +36,7 @@ import (
 	"github.com/scionproto/scion/private/keyconf"
 )
 
-type Case func(payload string, mac hash.Hash) (string, string, []byte)
+type Case func(payload string, mac hash.Hash, numDistinct int) (string, string, [][]byte)
 
 var (
 	allCases = map[string]Case{
@@ -45,6 +45,7 @@ var (
 	logConsole = flag.String("log.console", "debug", "Console logging level: debug|info|error")
 	dir        = flag.String("artifacts", "", "Artifacts directory")
 	numPackets = flag.Int("num_packets", 10, "Number of packets to send")
+	numStreams = flag.Int("num_streams", 4, "Number of independent streams (flow IDs) to use")
 	caseToRun  = flag.String("case", "",
 		fmt.Sprintf("Which traffic case to evaluate %v",
 			reflect.ValueOf(allCases).MapKeys()))
@@ -122,7 +123,7 @@ func realMain() int {
 	log.Info("BRLoad acceptance tests:")
 
 	payloadString := "actualpayloadbytes"
-	caseDevIn, caseDevOut, rawPkt := caseFunc(payloadString, hfMAC)
+	caseDevIn, caseDevOut, rawPkts := caseFunc(payloadString, hfMAC, *numStreams)
 
 	writePktTo, ok := handles[caseDevIn]
 	if !ok {
@@ -178,7 +179,7 @@ func realMain() int {
 	// opens somewhere around now.
 	metricsBegin := time.Now().Unix()
 	for i := 0; i < *numPackets; i++ {
-		if err := writePktTo.WritePacketData(rawPkt); err != nil {
+		if err := writePktTo.WritePacketData(rawPkts[i%*numStreams]); err != nil {
 			log.Error("writing input packet", "case", *caseToRun, "error", err)
 			return 1
 		}
