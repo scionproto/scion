@@ -16,7 +16,7 @@
   },
   "border_routers": {
     "br1a": {
-      "internal_addr": "192.168.0.1:30042",
+      "internal_addr": "192.168.10.1:30042",
       "interfaces": {
         "2": {
           "underlay": {
@@ -39,7 +39,7 @@
       }
     },
     "br1b": {
-      "internal_addr": "192.168.0.2:30042",
+      "internal_addr": "192.168.10.2:30042",
       "interfaces": {
         "4": {
           "underlay": {

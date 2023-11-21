@@ -169,8 +169,8 @@ class RouterBMTest(base.TestBase):
         # Set default TTL for outgoing packets to the common value 64, so that packets sent
         # from router will match the expected value.
         exec_sudo(f"ip netns exec {ns} sysctl -w net.ipv4.ip_default_ttl=64")
-        create_veth("veth_int_host", "veth_int", "192.168.0.1/24", "f0:0d:ca:fe:00:01", ns,
-                    [("192.168.0.2", "f0:0d:ca:fe:00:02")])
+        create_veth("veth_int_host", "veth_int", "192.168.10.1/24", "f0:0d:ca:fe:10:01", ns,
+                    [("192.168.10.2", "f0:0d:ca:fe:10:02")])
         create_veth("veth_2_host", "veth_2", "192.168.2.1/24", "f0:0d:ca:fe:02:01", ns,
                     [("192.168.2.2", "f0:0d:ca:fe:02:02")])
         create_veth("veth_3_host", "veth_3", "192.168.3.1/24", "f0:0d:ca:fe:03:01", ns,

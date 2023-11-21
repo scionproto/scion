@@ -16,15 +16,12 @@ package main
 
 import (
 	"hash"
-	"net"
 	"time"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 
-	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/util"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
@@ -34,49 +31,23 @@ import (
 //    AS2 (br2) ---+== (br1a) AS1 (br1b) ---- (br4) AS4
 //                 |
 //    AS3 (br3) ---+
-//
-// We're only executing and monitoring br1a. All the others are a fiction (except for the knowledge
-// about them configured in br1a) from which we construct packets that get injected at one of the
-// br1a interfaces.
-//
-// In the tests cases, the various addresses used to construct packets are:
-// originIA: the ISD/AS number of the AS of the initial sender.
-// originIP: the underlay address (and so SCION host) of the initial sender.
-// srcIP: the IP address of the router interface sending to br1a.
-// srcMac: the ethernet address of the router interface sending to br1a.
-// dstIP: the IP address of the br1a interface that should receives the packet.
-// dstMac: the ethernet address of the br1a interface that should receive the packet.
-// targetIA: the ISD/AS number of the AS of the final recipient.
-// targetIP: the underlay address (and so SCION host) of the final recipient.
-//
-// To further simplify the explicit configuration that we need, the topology follows a convention
-// to assign addresses, so that an address can be inferred from a single node and interface number.
-// ISD/AS: <1 or 2>-ff00:0:<AS index>
-// interface number: <remote AS index>
-// public IP address: 192.168.<AS_1's interface number>.<local AS index>
-// internal IP address: 192.168.0.<router index>
-// MAC Address: 0xf0, 0x0d, 0xfe, 0xbe, <last two bytes of IP>
-// Internal port: 30042
-// External port: 50000
-// As a result, children ASes (like AS2) have addresses ending in N.N and interface N where N is
-// the AS number. For br1a/b, interfaces are numbered after the child on the other side, the
-// public IPS are <childAS>.1 and the internal IP ends in 0.1 or 0.2. The MAC addresses follow.
-
-// TODO: add functions that produce the right numbers from an intuitive descriptor.
+// See topo.go
 
 // oneBrTransit generates one packet of transit traffic over the same BR host.
 // The outcome is a raw packet.
 func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 
 	var (
-		originIA = xtest.MustParseIA("1-ff00:0:2")
-		originIP = "192.168.2.2"
-		srcIP    = net.IP{192, 168, 2, 2}
-		srcMAC   = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x02, 0x02}
-		dstIP    = net.IP{192, 168, 2, 1}
-		dstMAC   = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x02, 0x01}
-		targetIP = "192.168.3.3"
-		targetIA = xtest.MustParseIA("1-ff00:0:3")
+		originIA   = isdAS(2)
+		originIP   = publicIP(2, 1)
+		originHost = hostAddr(originIP)
+		srcIP      = publicIP(2, 1)
+		srcMAC     = macAddr(srcIP)
+		dstIP      = publicIP(1, 2)
+		dstMAC     = macAddr(dstIP)
+		targetIA   = isdAS(3)
+		targetIP   = publicIP(3, 1)
+		targetHost = hostAddr(targetIP)
 	)
 
 	options := gopacket.SerializeOptions{
@@ -165,10 +136,10 @@ func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 
 	// These aren't necessarily IP addresses. They're host addresses within the
 	// src and dst ASes.
-	if err := scionL.SetSrcAddr(addr.MustParseHost(originIP)); err != nil {
+	if err := scionL.SetSrcAddr(originHost); err != nil {
 		panic(err)
 	}
-	if err := scionL.SetDstAddr(addr.MustParseHost(targetIP)); err != nil {
+	if err := scionL.SetDstAddr(targetHost); err != nil {
 		panic(err)
 	}
 

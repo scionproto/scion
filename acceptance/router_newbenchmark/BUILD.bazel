@@ -9,6 +9,7 @@ go_library(
     srcs = [
         "cases.go",
         "main.go",
+        "topo.go",
     ],
     importpath = "github.com/scionproto/scion/acceptance/router_newbenchmark",
     visibility = ["//visibility:private"],
