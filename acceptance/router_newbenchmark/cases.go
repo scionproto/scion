@@ -1,4 +1,4 @@
-// Copyright 2020 Anapaya Systems
+// Copyright 2023 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -160,10 +160,14 @@ func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 	return input.Bytes()
 }
 
+// BrTransit generates numDistinct packets (each with a unique flowID) with the given payload
+// constructed to cause br_transit traffic at the br1a router.
+// numDistrinct is a small number, only to enable multiple parallel streams. Each distinct packet
+// is meant to be replayed a large number of times for performance measurement.
 func BrTransit(payload string, mac hash.Hash, numDistinct int) (string, string, [][]byte) {
 	packets := make([][]byte, numDistinct, numDistinct)
 	for i := 0; i < numDistinct; i++ {
 		packets[i] = oneBrTransit(payload, mac, uint32(i+1))
 	}
-	return "veth_2_host", "veth_3_host", packets
+	return interfaceName(1, 2), interfaceName(1, 3), packets
 }

@@ -1,4 +1,4 @@
-// Copyright 2020 Anapaya Systems
+// Copyright 2023 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,6 +36,19 @@ import (
 	"github.com/scionproto/scion/private/keyconf"
 )
 
+// Created so that multiple inputs can be accecpted
+type arrayFlags []string
+
+func (i *arrayFlags) String() string {
+	// change this, this is just can example to satisfy the interface
+	return "A repeatable string argument"
+}
+
+func (i *arrayFlags) Set(value string) error {
+	*i = append(*i, strings.TrimSpace(value))
+	return nil
+}
+
 type Case func(payload string, mac hash.Hash, numDistinct int) (string, string, [][]byte)
 
 var (
@@ -49,7 +62,9 @@ var (
 	caseToRun  = flag.String("case", "",
 		fmt.Sprintf("Which traffic case to evaluate %v",
 			reflect.ValueOf(allCases).MapKeys()))
-	handles = make(map[string]*afpacket.TPacket)
+	showIntf  = flag.Bool("show_interfaces", false, "Show interfaces needed by the test")
+	intfNames = arrayFlags{}
+	handles   = make(map[string]*afpacket.TPacket)
 )
 
 // initDevices inventories the available network interfaces, picks the ones that a case may inject
@@ -79,7 +94,14 @@ func main() {
 }
 
 func realMain() int {
+	flag.Var(&intfNames, "interface",
+		"label=host_interface; use host_interface to send traffic to the interface named label")
 	flag.Parse()
+	if *showIntf {
+		fmt.Println(ShowInterfaces())
+		return 0
+	}
+
 	logCfg := log.Config{Console: log.ConsoleConfig{Level: *logConsole}}
 	if err := log.Setup(logCfg); err != nil {
 		flag.Usage()
@@ -112,6 +134,7 @@ func realMain() int {
 		return 1
 	}
 
+	LoadInterfaceMap(intfNames)
 	err = initDevices()
 	if err != nil {
 		log.Error("Loading devices failed", "err", err)
