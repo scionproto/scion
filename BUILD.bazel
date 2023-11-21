@@ -195,7 +195,6 @@ pkg_tar(
         "//acceptance/cmd/sig_ping_acceptance",
         "//pkg/private/xtest/graphupdater",
         "//tools/braccept",
-        "//tools/brload",
         "//tools/buildkite/cmd/buildkite_artifacts",
         "//tools/end2end",
         "//tools/end2end_integration",

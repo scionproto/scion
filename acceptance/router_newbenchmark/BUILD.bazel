@@ -1,5 +1,39 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary")
 load("@io_bazel_rules_docker//container:container.bzl", "container_image")
 load("//acceptance/common:raw.bzl", "raw_test")
+load("//tools/lint:go.bzl", "go_library")
+load("//:scion.bzl", "scion_go_binary")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "cases.go",
+        "main.go",
+    ],
+    importpath = "github.com/scionproto/scion/acceptance/router_newbenchmark",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//pkg/addr:go_default_library",
+        "//pkg/log:go_default_library",
+        "//pkg/private/serrors:go_default_library",
+        "//pkg/private/util:go_default_library",
+        "//pkg/private/xtest:go_default_library",
+        "//pkg/scrypto:go_default_library",
+        "//pkg/slayers:go_default_library",
+        "//pkg/slayers/path:go_default_library",
+        "//pkg/slayers/path/scion:go_default_library",
+        "//private/keyconf:go_default_library",
+        "@com_github_google_gopacket//:go_default_library",
+        "@com_github_google_gopacket//afpacket:go_default_library",
+        "@com_github_google_gopacket//layers:go_default_library",
+    ],
+)
+
+scion_go_binary(
+    name = "brload",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)
 
 exports_files([
     "conf",
@@ -9,18 +43,15 @@ exports_files([
 
 args = [
     "--executable",
-    "brload:$(location //tools/brload)",
+    "brload:$(location //acceptance/router_newbenchmark:brload)",
     "--container-loader",
     "posix-router:latest#$(location //acceptance/router_newbenchmark:router)",
-    "--pause_tar",
-    "$(location //acceptance/router_newbenchmark:pause.tar)",
 ]
 
 data = [
-    "pause.tar",
     ":conf",
     ":router",
-    "//tools/brload",
+    ":brload",
 ]
 
 raw_test(
@@ -36,4 +67,10 @@ raw_test(
 container_image(
     name = "router",
     base = "//docker:posix_router",
+)
+
+go_binary(
+    name = "router_newbenchmark",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
 )
