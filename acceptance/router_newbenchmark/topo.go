@@ -33,67 +33,53 @@ import (
 // about them configured in br1a) from which we construct packets that get injected at one of the
 // br1a interfaces.
 //
-// To further simplify the explicit configuration that we need, the topology follows a convention
-// to assign addresses, so that an address can be derived from a minimal descriptor. AS-1 is the hub
-// of the test.
-// All IPs are V4.
-// ISD/AS: <1 or 2>-ff00:0:<AS index>
-// interface number: <remote AS index>
-// public IP address for interfaces of AS-1: 192.168.<remote AS index>.<local AS index>
-// public IP address for interfaces of others: 192.168.<local AS index>.<local AS index>
-// internal IP address: 192.168.<AS index>*10.<router index>
-// MAC Address: 0xf0, 0x0d, 0xfe, 0xbe, <last two bytes of IP>
-// Internal port: 30042
-// External port: 50000
-// As a result, children ASes (like AS2) have addresses ending in N.N and interface N where N is
-// the AS number. For br1a/b, interfaces are numbered after the child on the other side, the
-// public IPS are <childAS>.1 and the internal IP ends in 0.1 or 0.2. The MAC addresses follow.
+// To reduce maintainers headaches, the topology follows a convention to assign addresses, so that
+// an address can be derived from a minimal information:
+// * AS-1 is the hub of the test. Others are hereafter called children.
+// * All IPs are V4.
+// * ISD/AS: <1 or 2>-ff00:0:<AS index>
+// * subnets are 192.168.<child AS number> except internal subnets that are 192.168.10*<AS>.<rtr>
+// * hosts are 192.168.s.<interface number>
+// * Mac addressed (when we can choose) derive from the IP
 //
-// The invoker of this test is in charge of configuring a router with the custom topology
-// (conf/topology.json) and to setup host-side interfaces as needed, through which this test can
-// inject traffic. This test does not control the names of the host-side interfaces; they're
-// supplied by the invoker.
+// Example:
+// * AS2 has only interface number 1 with IP 192.168.2.2 and mac address f0:0d:cafe:02:02 that
+//   connects to AS 1 interface number 2.
+// * AS1's interface number 2 has IP 192.168.2.1 and mac address f0:0d:cafe:02:01.
+// * AS1's 1st router interface 0 has IP 192.168.10.1 and mac address f0:0d:cafe:10:01.
 //
-// To make the invoker's life easier, this test output what host side interfaces it may need
-// (and connected to what) when invoked with --show_interfaces. If the router runs inside a network
-// namespace, the invoker must configure veths accordingly; otherwise, find which real interfaces
-// this test should use.
+// Functions are provided to generate all addresses following that scheme.
 
-var (
-	intfMap map[string]string = map[string]string{}
-)
-
-func LoadInterfaceMap(pairs []string) {
-	for _, pair := range pairs {
-		p := strings.Split(pair, "=")
-		intfMap[p[0]] = p[1]
-	}
+// intfDesc describes an interface requirement
+type intfDesc struct {
+	ip     netip.Addr
+	peerIP netip.Addr
 }
 
-// We give abstract names to our interfaces. These names are those used when responding to
-// --show_interfaces and used to translate --interface.
+// publicIP returns the IP address that is assigned to external interface designated by the given
+// AS index and the peer AS (that is, the AS that this interface connects to).
+// Per our scheme, the subnet number is the largest of the two AS numbers and the host is always
+// the local AS. This works if there are no cycles. Else there could be subnet number collisions.
+func publicIP(localAS byte, remoteAS byte) netip.Addr {
+	if remoteAS > localAS {
+		return netip.AddrFrom4([4]byte{192, 168, remoteAS, localAS})
+	}
+	return netip.AddrFrom4([4]byte{192, 168, localAS, localAS})
+}
+
+// internalIP returns the IP address that is assigned to the internal interface of the given
+// router in the AS of the given index.
+func internalIP(AS byte, routerIndex byte) netip.Addr {
+	return netip.AddrFrom4([4]byte{192, 168, AS * 10, routerIndex})
+}
+
+// interfaceLabel returns a string label for the gievn AS and interface indices.
+// Such names are those used when responding to --show_interfaces and when translating --interface.
 func interfaceLabel(AS int, intf int) string {
 	return fmt.Sprintf("%d_%d", AS, intf)
 }
 
-func interfaceName(AS int, intf int) string {
-	return intfMap[interfaceLabel(AS, intf)]
-}
-
-// Local and remote AS are enough. One of them is the central AS (1). The subnet number is that of
-// the other AS. The host is always the local AS. If neither is 1, then we follow the lowest, but
-// it's an unexpected config
-func publicIP(localAS byte, remoteAS byte) net.IP {
-	if localAS < remoteAS {
-		return net.IP{192, 168, remoteAS, localAS}
-	}
-	return net.IP{192, 168, localAS, localAS}
-}
-
-func internalIP(AS byte, router byte) net.IP {
-	return net.IP{192, 168, AS * 10, router}
-}
-
+// isdAS returns a complete string form ISD/AS number for the given AS index.
 // All are in ISD-1, except AS 4.
 func isdAS(AS byte) addr.IA {
 	if AS == 4 {
@@ -102,31 +88,90 @@ func isdAS(AS byte) addr.IA {
 	return xtest.MustParseIA(fmt.Sprintf("1-ff00:0:%d", AS))
 }
 
-// Macs derive from IP in the most straighforward manner.
-func macAddr(ip net.IP) net.HardwareAddr {
-	return net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, ip[2], ip[3]}
+var (
+	// intfMap lists the required interfaces. That's what we use to respond to showInterfaces
+	intfMap map[string]intfDesc = map[string]intfDesc{
+		interfaceLabel(1, 0): {internalIP(1, 1), internalIP(1, 2)},
+		interfaceLabel(1, 2): {publicIP(1, 2), publicIP(2, 1)},
+		interfaceLabel(1, 3): {publicIP(1, 3), publicIP(3, 1)},
+	}
+
+	// intfNames holds the real names of our required interfaces. It is populated from the values of
+	// the --interface options.
+	intfNames map[string]string = map[string]string{}
+
+	// macAddresses keeps the mac addresses associated with each IP. It is populated from the values
+	// of the --interface options. There are more than intfMap interfaces since we need the peer
+	// addresses too. Additional IPS not from intfMap have no known mac addresses; we are free to
+	// make them up to make credible packets.
+	macAddrs map[netip.Addr]net.HardwareAddr = map[netip.Addr]net.HardwareAddr{}
+)
+
+// initInterfaces collects the names and mac addresses for the interfaces setup by the invoker
+// according to instructions given via listInterfaces().
+// This information is indexed by our own interface labels.
+func initInterfaces(pairs []string) {
+	for _, pair := range pairs {
+		p := strings.Split(pair, "=")
+		label := p[0]
+		info := strings.Split(p[1], ",")
+		addr, err := net.ParseMAC(info[1])
+		if err != nil {
+			panic(err)
+		}
+		peerAddr, err := net.ParseMAC(info[2])
+		if err != nil {
+			panic(err)
+		}
+		intfNames[label] = info[0]                 // host-side name
+		macAddrs[intfMap[label].ip] = addr         // ip->mac
+		macAddrs[intfMap[label].peerIP] = peerAddr // peerIP->peerMAC
+	}
 }
 
-// SCION Hosts addresses are (except for SVC addresses, a restating of the underlay public IP.
-func hostAddr(ip net.IP) addr.Host {
-	as4bytes := [4]uint8{ip[0], ip[1], ip[2], ip[3]}
-	return addr.HostIP(netip.AddrFrom4(as4bytes))
+// interfaceName returns the name of the host interface that this test must use in order to exchange
+// traffic with the interface designated by the given AS and interface indices.
+func interfaceName(AS int, intf int) string {
+	return intfNames[interfaceLabel(AS, intf)]
 }
 
-// Outputs a string describing the interfaces of the router under test.
-// This test needs access to interfaces that connect to them. In a container setting, it also needs
-// the container network configured accordingly, (hence the inclusion of router-side addresses.
-// The given names are only labels, the real interface names (and mac addresses associated with
-// them) shall be provided when the test is executed for real (without the --show_interfaces
-// option).
-func ShowInterfaces() string {
-	// For now, we only need:
-	// AS1 interface 0 (internal)
-	// AS1 interface 2
-	// AS1 interface 3
-	return "" +
-		interfaceLabel(1, 0) + " 24 192.168.10.1 f0:0d:ca:fe:10:01 192.168.10.2 f0:0d:ca:fe:10:02\n" +
-		interfaceLabel(1, 2) + " 24 192.168.2.1 f0:0d:ca:fe:02:01 192.168.2.2 f0:0d:ca:fe:02:02\n" +
-		interfaceLabel(1, 3) + " 24 192.168.3.1 f0:0d:ca:fe:03:01 192.168.3.3 f0:0d:ca:fe:03:03\n"
+// macAddr returns the mac address assigned to the interface that has the given IP address.
+// if that address is imposed by our environment it is listed in the macAddrs map and that is what
+// this function returns. Else, the address is made-up according to our scheme.
+func macAddr(ip netip.Addr) net.HardwareAddr {
+	// Look it up or make it up.
+	mac, ok := macAddrs[ip]
+	if ok {
+		return mac
+	}
+	as4 := ip.As4()
+	return net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, as4[2], as4[3]}
+}
 
+// hostAddr returns a the SCION Hosts addresse that corresponds to the given underlay address.
+// Except for SVC addresses (which we do not support here), this is a restating of the underlay
+// address.
+func hostAddr(ip netip.Addr) addr.Host {
+	return addr.HostIP(ip)
+}
+
+// ListInterfaces outputs a string describing the interfaces of the router under test.
+// The invoker of this test gets this when using the --show_interfaces option and is expected
+// to set up the network accordingly before executing the test without that option.
+// We do not choose interface names or mac addresses those will be provided by the invoker
+// via the --interfaces options.
+func listInterfaces() string {
+	var sb strings.Builder
+	for l, i := range intfMap {
+		sb.WriteString(l)
+		sb.WriteString(",")
+		sb.WriteString("24")
+		sb.WriteString(",")
+		sb.WriteString(i.ip.String())
+		sb.WriteString(",")
+		sb.WriteString(i.peerIP.String())
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
 }

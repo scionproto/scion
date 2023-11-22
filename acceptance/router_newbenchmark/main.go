@@ -62,9 +62,9 @@ var (
 	caseToRun  = flag.String("case", "",
 		fmt.Sprintf("Which traffic case to evaluate %v",
 			reflect.ValueOf(allCases).MapKeys()))
-	showIntf  = flag.Bool("show_interfaces", false, "Show interfaces needed by the test")
-	intfNames = arrayFlags{}
-	handles   = make(map[string]*afpacket.TPacket)
+	showIntf   = flag.Bool("show_interfaces", false, "Show interfaces needed by the test")
+	interfaces = arrayFlags{}
+	handles    = make(map[string]*afpacket.TPacket)
 )
 
 // initDevices inventories the available network interfaces, picks the ones that a case may inject
@@ -94,11 +94,14 @@ func main() {
 }
 
 func realMain() int {
-	flag.Var(&intfNames, "interface",
-		"label=host_interface; use host_interface to send traffic to the interface named label")
+	flag.Var(&interfaces, "interface",
+		`label=host_interface,mac,peer_mac where:
+    host_interface: use this to exchange traffic with interface <label>
+    mac: the mac address of interface <label>
+    peer_mac: the mac address of <host_interface>`)
 	flag.Parse()
 	if *showIntf {
-		fmt.Println(ShowInterfaces())
+		fmt.Println(listInterfaces())
 		return 0
 	}
 
@@ -134,7 +137,7 @@ func realMain() int {
 		return 1
 	}
 
-	LoadInterfaceMap(intfNames)
+	initInterfaces(interfaces)
 	err = initDevices()
 	if err != nil {
 		log.Error("Loading devices failed", "err", err)
@@ -228,6 +231,7 @@ func realMain() int {
 	return 0
 }
 
+// loadKey loads the keys that the router under test uses to sign hop fields.
 func loadKey(artifactsDir string) (hash.Hash, error) {
 	keysDir := filepath.Join(artifactsDir, "conf", "keys")
 	mk, err := keyconf.LoadMaster(keysDir)

@@ -55,8 +55,7 @@ func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 		ComputeChecksums: true,
 	}
 
-	// Point-to-point. Src might not mater. Dst probably must match what test.py configured
-	// for interface 2 of the router.
+	// Point-to-point.
 	ethernet := &layers.Ethernet{
 		SrcMAC:       srcMAC,
 		DstMAC:       dstMAC,
@@ -68,8 +67,8 @@ func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 		Version:  4,
 		IHL:      5,
 		TTL:      64,
-		SrcIP:    srcIP,
-		DstIP:    dstIP,
+		SrcIP:    srcIP.AsSlice(),
+		DstIP:    dstIP.AsSlice(),
 		Protocol: layers.IPProtocolUDP,
 		Flags:    layers.IPv4DontFragment,
 	}
@@ -133,9 +132,6 @@ func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 		DstIA:        targetIA,
 		Path:         sp,
 	}
-
-	// These aren't necessarily IP addresses. They're host addresses within the
-	// src and dst ASes.
 	if err := scionL.SetSrcAddr(originHost); err != nil {
 		panic(err)
 	}

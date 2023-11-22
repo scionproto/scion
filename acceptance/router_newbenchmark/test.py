@@ -53,24 +53,16 @@ def exec_sudo(command: str) -> str:
     return sudo("-A", str.split(command))
 
 
-# Convenience type to carry interface params.
-Intf = namedtuple("Intf", "label, prefixLen, ip, mac, peerIp, peerMac")
+# Convenience types to carry interface params.
+IntfReq = namedtuple("IntfReq", "label, prefixLen, ip, peerIp")
+Intf = namedtuple("Intf", "name, mac, peerMac")
 
-def create_interface(intf: Intf, ns: str) -> str:
-    hostIntf = f"veth_{intf.label}_host"
-    brIntf = f"veth_{intf.label}"
-    exec_sudo(f"ip link add {hostIntf} mtu 8000 type veth peer name {brIntf} mtu 8000")
-    exec_sudo(f"sysctl -qw net.ipv6.conf.{hostIntf}.disable_ipv6=1")
-    exec_sudo(f"ip link set {hostIntf} up")
-    exec_sudo(f"ip link set {brIntf} netns {ns}")
-    exec_sudo(f"ip netns exec {ns} sysctl -qw net.ipv6.conf.{brIntf}.disable_ipv6=1")
-    exec_sudo(f"ip netns exec {ns} ethtool -K  {brIntf} rx off tx off")
-    exec_sudo(f"ip netns exec {ns} ip link set {brIntf} address {intf.mac}")
-    exec_sudo(f"ip netns exec {ns} ip addr add {intf.ip}/{intf.prefixLen} dev {brIntf}")
-    exec_sudo(f"ip netns exec {ns} ip neigh add {intf.peerIp} "
-              f"lladdr {intf.peerMac} nud permanent dev {brIntf}")
-    exec_sudo(f"ip netns exec {ns} ip link set {brIntf} up")
-    return hostIntf
+# Make-up an eth mac address as unique as the given IP.
+# Assumes ips in a /16 or smaller block (i.e. The last two bytes are unique within the test).
+def mac_for_ip(ip: str) -> str:
+    ipBytes = ip.split(".")
+    return 'f0:0d:ca:fe:{:02x}:{:02x}'.format(int(ipBytes[2]), int(ipBytes[3]))
+
 
 class RouterBMTest(base.TestBase):
     """
@@ -110,6 +102,26 @@ class RouterBMTest(base.TestBase):
         envname="CI"
     )
 
+    # Accepts an IntfReq records names and mac addresses into an Intf and associates it with
+    # the request label.
+    def create_interface(self, req: IntfReq, ns: str) -> Intf:
+        hostIntf = f"veth_{req.label}_host"
+        brIntf = f"veth_{req.label}"
+        peerMac = mac_for_ip(req.peerIp)
+        mac = mac_for_ip(req.ip)
+        exec_sudo(f"ip link add {hostIntf} mtu 8000 type veth peer name {brIntf} mtu 8000")
+        exec_sudo(f"sysctl -qw net.ipv6.conf.{hostIntf}.disable_ipv6=1")
+        exec_sudo(f"ip link set {hostIntf} up")
+        exec_sudo(f"ip link set {brIntf} netns {ns}")
+        exec_sudo(f"ip netns exec {ns} sysctl -qw net.ipv6.conf.{brIntf}.disable_ipv6=1")
+        exec_sudo(f"ip netns exec {ns} ethtool -K  {brIntf} rx off tx off")
+        exec_sudo(f"ip netns exec {ns} ip link set {brIntf} address {mac}")
+        exec_sudo(f"ip netns exec {ns} ip addr add {req.ip}/{req.prefixLen} dev {brIntf}")
+        exec_sudo(f"ip netns exec {ns} ip neigh add {req.peerIp} "
+                  f"lladdr {peerMac} nud permanent dev {brIntf}")
+        exec_sudo(f"ip netns exec {ns} ip link set {brIntf} up")
+        self.intfMap[req.label] = Intf(hostIntf, mac, peerMac)
+
     def setup_prepare(self):
         super().setup_prepare()
 
@@ -147,20 +159,18 @@ class RouterBMTest(base.TestBase):
         # Run test brload test with --show_interfaces and set up the veth that it needs.
         # The router uses one end and the test uses the other end to feed it with (and possibly
         # capture) traffic.
-        # We supply the label->host-side-name mapping to brload when we start it.
-        self.intfHostMap = {}
+        # We supply the label->(host-side-name,mac,peermac) mapping to brload when we start it.
+        self.intfMap = {}
         brload = self.get_executable("brload")
         output = exec_sudo(f"{brload.executable} -artifacts {self.artifacts} "
                            "-show_interfaces")
 
         for line in output.splitlines():
-            print(line)
-            elems = line.split(" ")
-            if len(elems) < 6:
+            elems = line.split(",")
+            if len(elems) != 4:
                 continue
-            t = Intf._make(elems)
-
-            self.intfHostMap[t.label] = create_interface(t, "benchmark")
+            t = IntfReq._make(elems)
+            self.create_interface(t, "benchmark")
 
         # We don't need that symlink any more
         exec_sudo("rm /var/run/netns/benchmark")
@@ -184,8 +194,8 @@ class RouterBMTest(base.TestBase):
 
     def _run(self):
         # Build the interface mapping arg:
-        mapArgs = [f"-interface {label}={infName}" for label, infName in self.intfHostMap.items()]
-        print(mapArgs)
+        mapArgs = [f"-interface {label}={intf.name},{intf.mac},{intf.peerMac}"
+                   for label, intf in self.intfMap.items()]
 
         # At long last...
         logger.info("==> Starting load br-transit")
