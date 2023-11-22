@@ -36,11 +36,10 @@ import (
 	"github.com/scionproto/scion/private/keyconf"
 )
 
-// Created so that multiple inputs can be accecpted
+// multiple values for a string flag.
 type arrayFlags []string
 
 func (i *arrayFlags) String() string {
-	// change this, this is just can example to satisfy the interface
 	return "A repeatable string argument"
 }
 
