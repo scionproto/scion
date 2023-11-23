@@ -1,0 +1,15 @@
+[Unit]
+Description=SCION Control Service
+Documentation=https://docs.scion.org
+After=network-online.target scion-dispatcher.service
+Wants=scion-dispatcher.service
+
+[Service]
+Type=simple
+User=scion
+Group=scion
+ExecStart=/usr/bin/scion-control --config /etc/scion/%i.toml
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
