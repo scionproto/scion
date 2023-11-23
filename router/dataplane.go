@@ -964,6 +964,7 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn, cfg *RunConfig, c 
 			// 0 packets written
 			written = 0
 		}
+
 		updateOutputMetrics(metrics, pkts[:written])
 
 		for _, p := range pkts[:written] {
