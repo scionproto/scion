@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package cases
 
 import (
 	"fmt"
@@ -107,10 +107,10 @@ var (
 	macAddrs map[netip.Addr]net.HardwareAddr = map[netip.Addr]net.HardwareAddr{}
 )
 
-// initInterfaces collects the names and mac addresses for the interfaces setup by the invoker
+// InitInterfaces collects the names and mac addresses for the interfaces setup by the invoker
 // according to instructions given via listInterfaces().
 // This information is indexed by our own interface labels.
-func initInterfaces(pairs []string) {
+func InitInterfaces(pairs []string) {
 	for _, pair := range pairs {
 		p := strings.Split(pair, "=")
 		label := p[0]
@@ -160,7 +160,7 @@ func hostAddr(ip netip.Addr) addr.Host {
 // to set up the network accordingly before executing the test without that option.
 // We do not choose interface names or mac addresses those will be provided by the invoker
 // via the --interfaces options.
-func listInterfaces() string {
+func ListInterfaces() string {
 	var sb strings.Builder
 	for l, i := range intfMap {
 		sb.WriteString(l)
@@ -172,6 +172,7 @@ func listInterfaces() string {
 		sb.WriteString(i.peerIP.String())
 		sb.WriteString("\n")
 	}
+	// "our_label,24,<ip on router side>,<ip on far side>\n"
 
 	return sb.String()
 }

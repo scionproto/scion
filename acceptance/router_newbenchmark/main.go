@@ -29,6 +29,7 @@ import (
 	"github.com/google/gopacket/afpacket"
 	"github.com/google/gopacket/layers"
 
+	"github.com/scionproto/scion/acceptance/router_newbenchmark/cases"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto"
@@ -52,7 +53,7 @@ type Case func(payload string, mac hash.Hash, numDistinct int) (string, string, 
 
 var (
 	allCases = map[string]Case{
-		"br_transit": BrTransit,
+		"br_transit": cases.BrTransit,
 	}
 	logConsole = flag.String("log.console", "debug", "Console logging level: debug|info|error")
 	dir        = flag.String("artifacts", "", "Artifacts directory")
@@ -63,16 +64,18 @@ var (
 			reflect.ValueOf(allCases).MapKeys()))
 	showIntf   = flag.Bool("show_interfaces", false, "Show interfaces needed by the test")
 	interfaces = arrayFlags{}
-	handles    = make(map[string]*afpacket.TPacket)
 )
 
 // initDevices inventories the available network interfaces, picks the ones that a case may inject
-// traffic into, and associates them with a AF Packet interface.
-func initDevices() error {
+// traffic into, and associates them with a AF Packet interface. It returns the packet interfaces
+// corresponding to each network interface.
+func openDevices() (map[string]*afpacket.TPacket, error) {
 	devs, err := net.Interfaces()
 	if err != nil {
-		return serrors.WrapStr("listing network interfaces", err)
+		return nil, serrors.WrapStr("listing network interfaces", err)
 	}
+
+	handles := make(map[string]*afpacket.TPacket)
 
 	for _, dev := range devs {
 		if !strings.HasPrefix(dev.Name, "veth_") || !strings.HasSuffix(dev.Name, "_host") {
@@ -80,12 +83,12 @@ func initDevices() error {
 		}
 		handle, err := afpacket.NewTPacket(afpacket.OptInterface(dev.Name))
 		if err != nil {
-			return serrors.WrapStr("creating TPacket", err)
+			return nil, serrors.WrapStr("creating TPacket", err)
 		}
 		handles[dev.Name] = handle
 	}
 
-	return nil
+	return handles, nil
 }
 
 func main() {
@@ -100,7 +103,7 @@ func realMain() int {
     peer_mac: the mac address of <host_interface>`)
 	flag.Parse()
 	if *showIntf {
-		fmt.Println(listInterfaces())
+		fmt.Println(cases.ListInterfaces())
 		return 0
 	}
 
@@ -119,25 +122,24 @@ func realMain() int {
 		return 1
 	}
 
-	artifactsDir, err := os.MkdirTemp("", "brload_")
-	if err != nil {
-		log.Error("Cannot create tmp dir", "err", err)
-		return 1
-	}
-	if *dir != "" {
-		artifactsDir = *dir
-	}
+	artifactsDir := *dir
 	if v := os.Getenv("TEST_ARTIFACTS_DIR"); v != "" {
 		artifactsDir = v
 	}
+
+	if artifactsDir == "" {
+		log.Error("Artifacts directory not configured")
+		return 1
+	}
+
 	hfMAC, err := loadKey(artifactsDir)
 	if err != nil {
 		log.Error("Loading keys failed", "err", err)
 		return 1
 	}
 
-	initInterfaces(interfaces)
-	err = initDevices()
+	cases.InitInterfaces(interfaces)
+	handles, err := openDevices()
 	if err != nil {
 		log.Error("Loading devices failed", "err", err)
 		return 1
@@ -170,34 +172,7 @@ func realMain() int {
 
 	go func() {
 		defer log.HandlePanic()
-		numRcv := 0
-
-		defer func() {
-			listenerChan <- numRcv
-			close(listenerChan)
-		}()
-
-		for {
-			got, ok := <-packetChan
-			if !ok {
-				// No more packets
-				log.Info("No more Packets")
-				return
-			}
-			if err := got.ErrorLayer(); err != nil {
-				log.Error("error decoding packet", "err", err)
-				continue
-			}
-			layer := got.Layer(gopacket.LayerTypePayload)
-			if layer == nil {
-				log.Error("error fetching packet payload: no PayLoad")
-				continue
-			}
-			if string(layer.LayerContents()) == payloadString {
-				numRcv++
-				return
-			}
-		}
+		receivePackets(packetChan, payloadString, listenerChan)
 	}()
 
 	// We started everything that could be started. So the best window for perf mertics
@@ -213,21 +188,63 @@ func realMain() int {
 	// The test harness looks for this output.
 	fmt.Printf("metricsBegin: %d metricsEnd: %d\n", metricsBegin, metricsEnd)
 
-	// In short tests (<1M packets), we finish sending before the first packets arrive.
-	time.Sleep(time.Second * time.Duration(1))
-
-	// If our listener is still stuck there, unstick it. Closing the device doesn't cause the
-	// packet channel to close (presumably a bug). Close the channel ourselves.
-	close(packetChan)
-
-	outcome := <-listenerChan
-	if outcome == 0 {
-		log.Error("Listener never saw a valid packet being forwarded")
-		return 1
+	// Get the results from the packet listener.
+	// Give it one second as in very short tests (<1M pkts) we get here before the first packet.
+	outcome := 0
+	timeout := time.After(1 * time.Second)
+	for outcome == 0 {
+		select {
+		case outcome = <-listenerChan:
+			if outcome == 0 {
+				log.Error("Listener never saw a valid packet being forwarded")
+				return 1
+			}
+		case <-timeout:
+			// If our listener is still stuck there, unstick it. Closing the device doesn't cause the
+			// packet channel to close (presumably a bug). Close the channel ourselves.
+			// After this, the next loop is guaranteed an outcome.
+			close(packetChan)
+		}
 	}
 
 	fmt.Printf("Listener results: %d\n", outcome)
 	return 0
+}
+
+// receivePkts consume some or all (at least one if it arrives) of the packets
+// arriving on the given handle and checks that they contain the given payload.
+// The number of consumed packets is returned via the given outcome channel.
+// Currently we are content with receiving a single correct packet and we terminate after
+// that.
+func receivePackets(packetChan chan gopacket.Packet, payload string, outcome chan int) {
+	numRcv := 0
+
+	defer func() {
+		outcome <- numRcv
+		close(outcome)
+	}()
+
+	for {
+		got, ok := <-packetChan
+		if !ok {
+			// No more packets
+			log.Info("No more Packets")
+			return
+		}
+		if err := got.ErrorLayer(); err != nil {
+			log.Error("error decoding packet", "err", err)
+			continue
+		}
+		layer := got.Layer(gopacket.LayerTypePayload)
+		if layer == nil {
+			log.Error("error fetching packet payload: no PayLoad")
+			continue
+		}
+		if string(layer.LayerContents()) == payload {
+			numRcv++
+			return
+		}
+	}
 }
 
 // loadKey loads the keys that the router under test uses to sign hop fields.

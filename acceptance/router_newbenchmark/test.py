@@ -103,7 +103,7 @@ class RouterBMTest(base.TestBase):
 
     # Accepts an IntfReq records names and mac addresses into an Intf and associates it with
     # the request label.
-    def create_interface(self, req: IntfReq, ns: str) -> Intf:
+    def create_interface(self, req: IntfReq, ns: str):
         hostIntf = f"veth_{req.label}_host"
         brIntf = f"veth_{req.label}"
         peerMac = mac_for_ip(req.peerIp)
@@ -161,8 +161,7 @@ class RouterBMTest(base.TestBase):
         # We supply the label->(host-side-name,mac,peermac) mapping to brload when we start it.
         self.intfMap = {}
         brload = self.get_executable("brload")
-        output = exec_sudo(f"{brload.executable} -artifacts {self.artifacts} "
-                           "-show_interfaces")
+        output = brload("-artifacts", f"{self.artifacts}", "-show_interfaces")
 
         for line in output.splitlines():
             elems = line.split(",")
