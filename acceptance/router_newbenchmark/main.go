@@ -194,8 +194,8 @@ func realMain() int {
 				continue
 			}
 			if string(layer.LayerContents()) == payloadString {
-				// return // One is all we need. But continue and count for now.
 				numRcv++
+				return
 			}
 		}
 	}()
