@@ -959,7 +959,6 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn, cfg *RunConfig, c 
 			}
 		}
 		written, _ := conn.WriteBatch(msgs[:toWrite], 0)
-		log.Debug("Wrote packets", "count", written)
 		if written < 0 {
 			// WriteBatch returns -1 on error, we just consider this as
 			// 0 packets written
