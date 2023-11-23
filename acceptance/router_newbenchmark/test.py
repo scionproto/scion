@@ -37,7 +37,7 @@ EXPECTATIONS = {
     # 'out': 26000,
     # 'in_transit': 73000,
     # 'out_transit': 49000,
-    'br_transit': 73000,
+    'br_transit': 250000,
 }
 
 
