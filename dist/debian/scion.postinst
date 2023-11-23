@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -e
 
 # summary of how this script can be called:
@@ -13,20 +13,13 @@ set -e
 # for details, see http://www.debian.org/doc/debian-policy/ or
 # the debian-policy package
 
-# source debconf library
-. /usr/share/debconf/confmodule
-
 case "$1" in
     configure)
-        adduser --system --home /var/lib/scion -create-home --group scion
-
+        # Create system user
+        adduser --system --home /var/lib/scion --group scion
         # Create configuration directory
-        mkdir -p /etc/scion/
-        chown -R scion:scion /etc/scion/
-        ;;
-    abort-*)
-        # we get here if e.g. prerm fails
-        exit 1
+        mkdir /etc/scion/ >& /dev/null || true
+        chown scion:scion /etc/scion/
         ;;
     *)
         ;;

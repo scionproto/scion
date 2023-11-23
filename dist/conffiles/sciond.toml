@@ -1,0 +1,20 @@
+[general]
+id = "sd"
+config_dir = "/etc/scion"
+reconnect_to_dispatcher = true
+
+[path_db]
+connection = "/var/lib/scion/sd.path.db"
+
+[trust_db]
+connection = "/var/lib/scion/sd.trust.db"
+
+# [drkey_db]
+# connection = "/var/lib/scion/sd.drkey.db"
+
+[log.console]
+level = "info"
+
+# Optionally expose metrics and other local control endpoints.
+# [metrics]
+# prometheus = "127.0.0.1:30455"

@@ -1,0 +1,8 @@
+[gateway]
+traffic_policy_file = "/etc/scion/sig.json"
+
+[tunnel]
+name = "sig"
+
+[log.console]
+level = "info"

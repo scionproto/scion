@@ -1,71 +1,106 @@
-load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_filegroup", "pkg_files", "pkg_mkdirs", "strip_prefix")
-load("@rules_pkg//:pkg.bzl", "pkg_deb", "pkg_tar")
-load(":package_name_variables.bzl", "package_name_variables")
-load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_binary", "platform_transition_filegroup")
+load("@rules_pkg//pkg:pkg.bzl", "pkg_tar")
+load(":package.bzl", "scion_multiarch_pkg_deb")
 
-# Variables used to prepare DEB and RPM packages
-PKG_HOMEPAGE = "https://github.com/scionproto/scion"
-PKG_MAINTAINER = "SCION Contributors" # FIXME
-# License
-PKG_PRORITY = "optional"
-PKG_SECTION = "net"
-
-package_name_variables(
-    name = "package_name_variables",
-    revision = "1",
-)
-
-# SCION Router
-pkg_tar(
-    name = "router-bin",
-    srcs = [
-        "//router/cmd/router:router"
-    ],
-    mode = "0755",
-    package_dir = "/usr/bin",
-)
-
-pkg_tar(
-    name = "router-systemd",
-    srcs = [
-        "systemd/scion-router@.service",
-    ],
-    mode = "0644",
-    package_dir = "/lib/systemd/system",
-)
-
-pkg_tar(
-    name = "router",
-    extension = "tar.gz",
-    deps = [
-        ":router-bin",
-        ":router-systemd",
-    ],
-)
-
-platform_transition_filegroup(
-    name = "router-arm64",
-    srcs = [":router"],
-    target_platform = "@io_bazel_rules_go//go/toolchain:linux_arm64",
-)
-
-
-pkg_deb(
+scion_multiarch_pkg_deb(
     name = "router-deb",
-    data = ":router-arm64",
+    package = "scion-router",
+    executables = {
+        "//router/cmd/router:router": "/usr/bin/scion-router",
+    },
+    systemds = [ "systemd/scion-router@.service" ],
     depends = [
         "adduser",
     ],
-    description = "SCION router", #FIXME
-    homepage = PKG_HOMEPAGE,
-    maintainer = PKG_MAINTAINER,
-    package = "scion-router",
-    #postinst = "debian/scripts/scion.postinst",
-    # TODO: use debhelper library scripts to deal with user mgmt, systemd, ...
-    priority = PKG_PRORITY,
-    section = PKG_SECTION,
-    version = "WHAAAAT",
-    package_file_name = "scion-router_v0.9.1-0_arm64.deb"
-    #package_file_name = "scion-router_{version}-{revision}_{target_cpu}.deb",
-    #package_variables = ":package_name_variables",
+    description = "SCION inter-domain network architecture border router",
+    postinst = "debian/scion.postinst",
+)
+
+scion_multiarch_pkg_deb(
+    name = "control-deb",
+    package = "scion-control",
+    executables = {
+        "//control/cmd/control:control": "scion-control",
+    },
+    systemds = [ "systemd/scion-control@.service" ],
+    configs = [],
+    description = "SCION inter-domain network architecture control service",
+    depends = [
+        "adduser",
+        "scion-dispatcher",
+    ],
+    postinst = "debian/scion.postinst",
+)
+
+scion_multiarch_pkg_deb(
+    name = "dispatcher-deb",
+    package = "scion-dispatcher",
+    executables = {
+        "//dispatcher/cmd/dispatcher:dispatcher": "scion-dispatcher",
+    },
+    systemds = [ "systemd/scion-dispatcher.service" ],
+    configs = [ "conffiles/dispatcher.toml" ],
+    description = "SCION dispatcher",
+    depends = [
+        "adduser",
+    ],
+    postinst = "debian/scion.postinst",
+)
+
+scion_multiarch_pkg_deb(
+    name = "daemon-deb",
+    package = "scion-daemon",
+    executables = {
+        "//daemon/cmd/daemon:daemon": "scion-daemon",
+    },
+    systemds = [ "systemd/scion-daemon.service" ],
+    configs = [ "conffiles/sciond.toml" ],
+    description = "SCION dispatcher",
+    depends = [
+        "adduser",
+    ],
+    postinst = "debian/scion.postinst",
+)
+
+scion_multiarch_pkg_deb(
+    name = "gateway-deb",
+    package = "scion-ip-gateway",
+    executables = {
+        "//gateway/cmd/gateway:gateway": "scion-ip-gateway",
+    },
+    systemds = [ "systemd/scion-ip-gateway.service" ],
+    configs = [ "conffiles/sig.toml", "conffiles/sig.json" ],
+    description = "SCION-IP Gateway",
+    depends = [
+        "adduser",
+        "scion-dispatcher",
+        "scion-daemon",
+    ],
+    postinst = "debian/scion.postinst",
+)
+
+scion_multiarch_pkg_deb(
+    name = "tools-deb",
+    package = "scion-tools",
+    executables = {
+        "//scion/cmd/scion:scion": "scion",
+        "//scion-pki/cmd/scion-pki:scion-pki": "scion-pki",
+    },
+    description = "SCION tools",
+    depends = [
+        "adduser",
+        "scion-dispatcher",
+        "scion-daemon",
+    ],
+)
+
+filegroup(
+    name = "all-deb",
+    srcs = [
+        "router-deb",
+        "control-deb",
+        "dispatcher-deb",
+        "daemon-deb",
+        "gateway-deb",
+        "tools-deb",
+    ]
 )
