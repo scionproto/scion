@@ -113,7 +113,8 @@ stop_scion() {
     if is_docker_be; then
         ./tools/quiet ./tools/dc down
     else
-        ./tools/quiet tools/supervisor.sh shutdown
+        ./tools/quiet tools/supervisor.sh stop all # blocks until child processes are stopped
+        ./tools/quiet tools/supervisor.sh shutdown # shutdown does not block, but as children are already stopped, actual shutdown will be prompt too.
         run_teardown
     fi
 }
