@@ -161,7 +161,7 @@ func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 // numDistrinct is a small number, only to enable multiple parallel streams. Each distinct packet
 // is meant to be replayed a large number of times for performance measurement.
 func BrTransit(payload string, mac hash.Hash, numDistinct int) (string, string, [][]byte) {
-	packets := make([][]byte, numDistinct, numDistinct)
+	packets := make([][]byte, numDistinct)
 	for i := 0; i < numDistinct; i++ {
 		packets[i] = oneBrTransit(payload, mac, uint32(i+1))
 	}

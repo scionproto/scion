@@ -19,15 +19,13 @@ import shutil
 import time
 
 from collections import namedtuple
-from typing import List, Tuple
 from plumbum import cli
-from plumbum.cmd import sudo,docker,whoami
+from plumbum.cmd import sudo, docker, whoami
 
 from acceptance.common import base
 
 import logging
 import json
-import yaml
 from http.client import HTTPConnection
 from urllib.parse import urlencode
 
@@ -56,6 +54,7 @@ def exec_sudo(command: str) -> str:
 # Convenience types to carry interface params.
 IntfReq = namedtuple("IntfReq", "label, prefixLen, ip, peerIp")
 Intf = namedtuple("Intf", "name, mac, peerMac")
+
 
 # Make-up an eth mac address as unique as the given IP.
 # Assumes ips in a /16 or smaller block (i.e. The last two bytes are unique within the test).
@@ -189,7 +188,7 @@ class RouterBMTest(base.TestBase):
         docker["logs", "router"].run_fg(retcode=None)
         exec_docker("rm -f prometheus")
         exec_docker("rm -f router")
-        exec_docker("network rm benchmark") # veths are deleted automatically
+        exec_docker("network rm benchmark")  # veths are deleted automatically
         exec_sudo(f"chown -R {whoami()} {self.artifacts}")
 
     def _run(self):
