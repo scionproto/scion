@@ -177,7 +177,7 @@ class RouterBMTest(base.TestBase):
         # Now the router can start.
         exec_docker(f"run -v {self.artifacts}/conf:/share/conf "
                     "-d "
-                    "-e SCION_EXPERIMENTAL_BFD_DISABLE=true -e GOMAXPROCS=6 "
+                    "-e SCION_EXPERIMENTAL_BFD_DISABLE=true -e GOMAXPROCS=4 "
                     "--network container:prometheus "
                     "--name router "
                     "bazel/acceptance/router_newbenchmark:router")
