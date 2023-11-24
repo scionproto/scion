@@ -4,16 +4,6 @@
   ],
   "isd_as": "1-ff00:0:1",
   "mtu": 1400,
-  "control_service": {
-    "cs1-ff00_0_1-1": {
-      "addr": "172.20.0.28:30252"
-    }
-  },
-  "discovery_service": {
-    "cs1-ff00_0_1-1": {
-      "addr": "172.20.0.28:30252"
-    }
-  },
   "border_routers": {
     "br1a": {
       "internal_addr": "192.168.10.1:30042",
