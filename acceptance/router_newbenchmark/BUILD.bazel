@@ -41,11 +41,12 @@ exports_files([
 args = [
     "--executable",
     "brload:$(location //acceptance/router_newbenchmark:brload)",
+    "--container-loader=posix-router:latest#$(location //docker:posix_router)"
 ]
 
 data = [
     ":conf",
-    ":router",
+    "//docker:posix_router",
     ":brload",
 ]
 
@@ -54,12 +55,8 @@ raw_test(
     src = "test.py",
     args = args,
     data = data,
-    homedir = "$(rootpath :router)",
+    homedir = "$(rootpath //docker:posix_router)",
     # This test uses sudo and accesses /var/run/netns.
     local = True,
 )
 
-container_image(
-    name = "router",
-    base = "//docker:posix_router",
-)

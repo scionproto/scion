@@ -179,7 +179,7 @@ class RouterBMTest(base.TestBase):
                     "-e SCION_EXPERIMENTAL_BFD_DISABLE=true -e GOMAXPROCS=4 "
                     "--network container:prometheus "
                     "--name router "
-                    "bazel/acceptance/router_newbenchmark:router")
+                    "posix-router:latest")
 
         time.sleep(2)
 
