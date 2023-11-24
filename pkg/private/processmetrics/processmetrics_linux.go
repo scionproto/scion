@@ -123,7 +123,8 @@ func (c *procStatCollector) updateStat() error {
 	if err != nil {
 		return err
 	}
-	newCount := taskStat.Nlink - 2
+	//nolint:unconvert // this is required for arm64 support
+	newCount := uint64(taskStat.Nlink - 2)
 	if newCount != c.lastTaskCount {
 		c.taskListUpdates++
 		c.myProcs, err = procfs.AllThreads(c.myPid)
