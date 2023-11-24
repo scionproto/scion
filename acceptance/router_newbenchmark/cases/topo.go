@@ -74,7 +74,8 @@ func internalIP(AS byte, routerIndex byte) netip.Addr {
 }
 
 // interfaceLabel returns a string label for the gievn AS and interface indices.
-// Such names are those used when responding to --show_interfaces and when translating --interface.
+// Such names are those used when responding to the show_interfaces command and when translating
+// the --interface option.
 func interfaceLabel(AS int, intf int) string {
 	return fmt.Sprintf("%d_%d", AS, intf)
 }
@@ -156,7 +157,7 @@ func hostAddr(ip netip.Addr) addr.Host {
 }
 
 // ListInterfaces outputs a string describing the interfaces of the router under test.
-// The invoker of this test gets this when using the --show_interfaces option and is expected
+// The invoker of this test gets this when using the show_interfaces command and is expected
 // to set up the network accordingly before executing the test without that option.
 // We do not choose interface names or mac addresses those will be provided by the invoker
 // via the --interfaces options.

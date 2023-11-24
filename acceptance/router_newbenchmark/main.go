@@ -15,7 +15,7 @@
 package main
 
 import (
-	"flag"
+	"errors"
 	"fmt"
 	"hash"
 	"net"
@@ -28,6 +28,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/afpacket"
 	"github.com/google/gopacket/layers"
+	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/acceptance/router_newbenchmark/cases"
 	"github.com/scionproto/scion/pkg/log"
@@ -37,92 +38,103 @@ import (
 	"github.com/scionproto/scion/private/keyconf"
 )
 
-// multiple values for a string flag.
-type arrayFlags []string
+type Case func(payload string, mac hash.Hash, numDistinct int) (string, string, [][]byte)
 
-func (i *arrayFlags) String() string {
-	return "A repeatable string argument"
+type caseChoice string
+
+func (c *caseChoice) String() string {
+	return string(*c)
 }
 
-func (i *arrayFlags) Set(value string) error {
-	*i = append(*i, strings.TrimSpace(value))
+func (c *caseChoice) Set(v string) error {
+	_, ok := allCases[v]
+	if !ok {
+		return errors.New("No such case")
+	}
+	*c = caseChoice(v)
 	return nil
 }
 
-type Case func(payload string, mac hash.Hash, numDistinct int) (string, string, [][]byte)
+func (c *caseChoice) Type() string {
+	return "string enum"
+}
+
+func (c *caseChoice) Allowed() string {
+	return fmt.Sprintf("One of: %v", reflect.ValueOf(allCases).MapKeys())
+}
 
 var (
 	allCases = map[string]Case{
 		"br_transit": cases.BrTransit,
 	}
-	logConsole = flag.String("log.console", "debug", "Console logging level: debug|info|error")
-	dir        = flag.String("artifacts", "", "Artifacts directory")
-	numPackets = flag.Int("num_packets", 10, "Number of packets to send")
-	numStreams = flag.Int("num_streams", 4, "Number of independent streams (flow IDs) to use")
-	caseToRun  = flag.String("case", "",
-		fmt.Sprintf("Which traffic case to evaluate %v",
-			reflect.ValueOf(allCases).MapKeys()))
-	showIntf   = flag.Bool("show_interfaces", false, "Show interfaces needed by the test")
-	interfaces = arrayFlags{}
+	logConsole string
+	dir        string
+	numPackets int
+	numStreams int
+	caseToRun  caseChoice
+	interfaces []string
 )
 
-// initDevices inventories the available network interfaces, picks the ones that a case may inject
-// traffic into, and associates them with a AF Packet interface. It returns the packet interfaces
-// corresponding to each network interface.
-func openDevices() (map[string]*afpacket.TPacket, error) {
-	devs, err := net.Interfaces()
-	if err != nil {
-		return nil, serrors.WrapStr("listing network interfaces", err)
-	}
-
-	handles := make(map[string]*afpacket.TPacket)
-
-	for _, dev := range devs {
-		if !strings.HasPrefix(dev.Name, "veth_") || !strings.HasSuffix(dev.Name, "_host") {
-			continue
-		}
-		handle, err := afpacket.NewTPacket(afpacket.OptInterface(dev.Name))
-		if err != nil {
-			return nil, serrors.WrapStr("creating TPacket", err)
-		}
-		handles[dev.Name] = handle
-	}
-
-	return handles, nil
-}
-
 func main() {
-	os.Exit(realMain())
-}
-
-func realMain() int {
-	flag.Var(&interfaces, "interface",
+	rootCmd := &cobra.Command{
+		Use:   "brload",
+		Short: "Generates traffic into a specific router of a specific topology",
+	}
+	intfCmd := &cobra.Command{
+		Use:   "show_interfaces",
+		Short: "Provides a terse list of the interfaces that this test requires",
+		Run: func(cmd *cobra.Command, args []string) {
+			os.Exit(showInterfaces(cmd))
+		},
+	}
+	runCmd := &cobra.Command{
+		Use:   "run",
+		Short: "Executes the test",
+		Run: func(cmd *cobra.Command, args []string) {
+			os.Exit(run(cmd))
+		},
+	}
+	runCmd.Flags().IntVar(&numPackets, "num_packets", 10, "Number of packets to send")
+	runCmd.Flags().IntVar(&numStreams, "num_streams", 4,
+		"Number of independent streams (flowID) to use")
+	runCmd.Flags().StringVar(&logConsole, "log.console", "error",
+		"Console logging level: debug|info|error|etc.")
+	runCmd.Flags().StringVar(&dir, "artifacts", "", "Artifacts directory")
+	runCmd.Flags().Var(&caseToRun, "case", "Case to run. "+caseToRun.Type())
+	runCmd.Flags().StringArrayVar(&interfaces, "interface", []string{},
 		`label=host_interface,mac,peer_mac where:
     host_interface: use this to exchange traffic with interface <label>
     mac: the mac address of interface <label>
     peer_mac: the mac address of <host_interface>`)
-	flag.Parse()
-	if *showIntf {
-		fmt.Println(cases.ListInterfaces())
-		return 0
-	}
+	runCmd.MarkFlagRequired("case")
+	runCmd.MarkFlagRequired("interface")
 
-	logCfg := log.Config{Console: log.ConsoleConfig{Level: *logConsole}}
+	rootCmd.AddCommand(intfCmd)
+	rootCmd.AddCommand(runCmd)
+	rootCmd.CompletionOptions.HiddenDefaultCmd = true
+
+	if rootCmd.Execute() != nil {
+		os.Exit(1)
+	}
+	os.Exit(0)
+}
+
+func showInterfaces(cmd *cobra.Command) int {
+	fmt.Println(cases.ListInterfaces())
+	return 0
+}
+
+func run(cmd *cobra.Command) int {
+	logCfg := log.Config{Console: log.ConsoleConfig{Level: logConsole}}
 	if err := log.Setup(logCfg); err != nil {
-		flag.Usage()
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		return 1
 	}
 	defer log.HandlePanic()
 
-	caseFunc, ok := allCases[*caseToRun]
-	if !ok {
-		log.Error("Unknown case", "case", *caseToRun)
-		flag.Usage()
-		return 1
-	}
+	caseFunc := allCases[string(caseToRun)] // key already checked.
 
-	artifactsDir := *dir
+	artifactsDir := dir
 	if v := os.Getenv("TEST_ARTIFACTS_DIR"); v != "" {
 		artifactsDir = v
 	}
@@ -150,7 +162,7 @@ func realMain() int {
 	log.Info("BRLoad acceptance tests:")
 
 	payloadString := "actualpayloadbytes"
-	caseDevIn, caseDevOut, rawPkts := caseFunc(payloadString, hfMAC, *numStreams)
+	caseDevIn, caseDevOut, rawPkts := caseFunc(payloadString, hfMAC, numStreams)
 
 	writePktTo, ok := handles[caseDevIn]
 	if !ok {
@@ -178,9 +190,9 @@ func realMain() int {
 	// We started everything that could be started. So the best window for perf mertics
 	// opens somewhere around now.
 	metricsBegin := time.Now().Unix()
-	for i := 0; i < *numPackets; i++ {
-		if err := writePktTo.WritePacketData(rawPkts[i%*numStreams]); err != nil {
-			log.Error("writing input packet", "case", *caseToRun, "error", err)
+	for i := 0; i < numPackets; i++ {
+		if err := writePktTo.WritePacketData(rawPkts[i%numStreams]); err != nil {
+			log.Error("writing input packet", "case", string(caseToRun), "error", err)
 			return 1
 		}
 	}
@@ -200,9 +212,9 @@ func realMain() int {
 				return 1
 			}
 		case <-timeout:
-			// If our listener is still stuck there, unstick it. Closing the device doesn't cause the
-			// packet channel to close (presumably a bug). Close the channel ourselves.
-			// After this, the next loop is guaranteed an outcome.
+			// If our listener is still stuck there, unstick it. Closing the device doesn't cause
+			// the packet channel to close (presumably a bug). Close the channel ourselves. After
+			// this, the next loop is guaranteed an outcome.
 			close(packetChan)
 		}
 	}
@@ -245,6 +257,31 @@ func receivePackets(packetChan chan gopacket.Packet, payload string, outcome cha
 			return
 		}
 	}
+}
+
+// initDevices inventories the available network interfaces, picks the ones that a case may inject
+// traffic into, and associates them with a AF Packet interface. It returns the packet interfaces
+// corresponding to each network interface.
+func openDevices() (map[string]*afpacket.TPacket, error) {
+	devs, err := net.Interfaces()
+	if err != nil {
+		return nil, serrors.WrapStr("listing network interfaces", err)
+	}
+
+	handles := make(map[string]*afpacket.TPacket)
+
+	for _, dev := range devs {
+		if !strings.HasPrefix(dev.Name, "veth_") || !strings.HasSuffix(dev.Name, "_host") {
+			continue
+		}
+		handle, err := afpacket.NewTPacket(afpacket.OptInterface(dev.Name))
+		if err != nil {
+			return nil, serrors.WrapStr("creating TPacket", err)
+		}
+		handles[dev.Name] = handle
+	}
+
+	return handles, nil
 }
 
 // loadKey loads the keys that the router under test uses to sign hop fields.

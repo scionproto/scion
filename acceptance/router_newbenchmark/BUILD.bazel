@@ -11,19 +11,15 @@ go_library(
     visibility = ["//visibility:private"],
     deps = [
         "//acceptance/router_newbenchmark/cases:go_default_library",
-        "//pkg/addr:go_default_library",
         "//pkg/log:go_default_library",
         "//pkg/private/serrors:go_default_library",
-        "//pkg/private/util:go_default_library",
-        "//pkg/private/xtest:go_default_library",
         "//pkg/scrypto:go_default_library",
         "//pkg/slayers:go_default_library",
-        "//pkg/slayers/path:go_default_library",
-        "//pkg/slayers/path/scion:go_default_library",
         "//private/keyconf:go_default_library",
         "@com_github_google_gopacket//:go_default_library",
         "@com_github_google_gopacket//afpacket:go_default_library",
         "@com_github_google_gopacket//layers:go_default_library",
+        "@com_github_spf13_cobra//:go_default_library",
     ],
 )
 
@@ -41,7 +37,7 @@ exports_files([
 args = [
     "--executable",
     "brload:$(location //acceptance/router_newbenchmark:brload)",
-    "--container-loader=posix-router:latest#$(location //docker:posix_router)"
+    "--container-loader=posix-router:latest#$(location //docker:posix_router)",
 ]
 
 data = [
@@ -60,3 +56,8 @@ raw_test(
     local = True,
 )
 
+go_binary(
+    name = "router_newbenchmark",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

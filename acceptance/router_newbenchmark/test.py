@@ -161,7 +161,7 @@ class RouterBMTest(base.TestBase):
         # We supply the label->(host-side-name,mac,peermac) mapping to brload when we start it.
         self.intfMap = {}
         brload = self.get_executable("brload")
-        output = brload("-artifacts", f"{self.artifacts}", "-show_interfaces")
+        output = brload("show_interfaces")
 
         for line in output.splitlines():
             elems = line.split(",")
@@ -192,15 +192,15 @@ class RouterBMTest(base.TestBase):
 
     def _run(self):
         # Build the interface mapping arg:
-        mapArgs = [f"-interface {label}={intf.name},{intf.mac},{intf.peerMac}"
+        mapArgs = [f"--interface {label}={intf.name},{intf.mac},{intf.peerMac}"
                    for label, intf in self.intfMap.items()]
 
         # At long last...
         logger.info("==> Starting load br-transit")
         brload = self.get_executable("brload")
-        output = exec_sudo(f"{brload.executable} -artifacts {self.artifacts} "
+        output = exec_sudo(f"{brload.executable} run --artifacts {self.artifacts} "
                            f"{' '.join(mapArgs)} "
-                           "-case br_transit -num_packets 10000000 -num_streams 2")
+                           "--case br_transit --num_packets 10000000 --num_streams 2")
 
         for line in output.splitlines():
             print(line)
