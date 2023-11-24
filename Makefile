@@ -24,6 +24,11 @@ bazel:
 	tar -kxf bazel-bin/scion.tar -C bin
 	tar -kxf bazel-bin/scion-ci.tar -C bin
 
+bazel-no-ci:
+	rm -f bin/*
+	bazel build //:scion
+	tar -kxf bazel-bin/scion.tar -C bin
+
 test:
 	bazel test --config=unit_all
 
