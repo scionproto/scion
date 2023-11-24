@@ -11,17 +11,15 @@ SCION_PKG_LICENSE = "Apache 2.0"
 SCION_PKG_PRIORITY = "optional"
 SCION_PKG_SECTION = "net"
 
-SCION_PKG_PLATFORMS = {
-    "@io_bazel_rules_go//go/toolchain:linux_amd64": "amd64",
-    "@io_bazel_rules_go//go/toolchain:linux_arm64": "arm64",
-    "@io_bazel_rules_go//go/toolchain:linux_386": "i386",
-    "@io_bazel_rules_go//go/toolchain:linux_arm": "armel", # default GOARM=5, armhf would be GOARM=6; not sure how to set
-}
+SCION_PKG_PLATFORMS = [
+    "@io_bazel_rules_go//go/toolchain:linux_amd64",
+    "@io_bazel_rules_go//go/toolchain:linux_arm64",
+    "@io_bazel_rules_go//go/toolchain:linux_386",
+    "@io_bazel_rules_go//go/toolchain:linux_arm",
+]
 
-def scion_multiarch_pkg_deb(name, executables = {}, systemds = [], configs = [], **kwargs):
+def scion_pkg_deb(name, executables = {}, systemds = [], configs = [], **kwargs):
     """
-    Create a pkg_deb rule for a fixed range of supported platforms.
-
     The package content, the _data_ arg for the pkg_deb rule, is assembled from:
 
     - executables: Map Label (the executable) -> string, the basename of the executable in the package
@@ -38,6 +36,8 @@ def scion_multiarch_pkg_deb(name, executables = {}, systemds = [], configs = [],
     - version
     - conffiles
     default to SCION-specific values, but can be overridden.
+
+    - architecture is set based on the platform.
     """
 
     data = "%s_data" % name
@@ -49,31 +49,30 @@ def scion_multiarch_pkg_deb(name, executables = {}, systemds = [], configs = [],
         visibility = ["//visibility:private"],
         tags = ["manual"],
     )
-    conffiles = [ "/etc/scion/" + _basename(file) for file in configs ] # FIXME deduplicate
+    conffiles = [ "/etc/scion/" + _basename(file) for file in configs ]
+
+    kwargs.setdefault('homepage', SCION_PKG_HOMEPAGE)
+    kwargs.setdefault('maintainer', SCION_PKG_MAINTAINER)
+    kwargs.setdefault('priority', SCION_PKG_PRIORITY)
+    kwargs.setdefault('section', SCION_PKG_SECTION)
+    kwargs.setdefault('license', SCION_PKG_LICENSE)
+    kwargs.setdefault('version', SCION_PKG_VERSION)
     kwargs.setdefault('conffiles', conffiles)
-
-    pkgs = []
-    for target_platform, architecture in SCION_PKG_PLATFORMS.items():
-        pkg_arch = "%s_%s" % (name, architecture)
-        data_arch = "%s_data_%s" % (name, architecture)
-        platform_transition_filegroup(
-            name = data_arch,
-            srcs = [data],
-            target_platform = target_platform,
-            visibility = ["//visibility:private"],
-            tags = ["manual"],
-        )
-        _scion_pkg_deb(
-            name = pkg_arch,
-            data = data_arch,
-            architecture = architecture,
-            **kwargs,
-        )
-        pkgs.append(pkg_arch)
-
-    native.filegroup(
+    pkg_deb(
         name = name,
-        srcs = pkgs,
+        data = data,
+        architecture = select({
+             "@platforms//cpu:x86_64": "amd64",
+             "@platforms//cpu:x86_32": "i386",
+             "@platforms//cpu:aarch64": "arm64",
+             "@platforms//cpu:arm": "armel",
+             "@platforms//cpu:s390x": "s390x",
+             # Note: some rules_go toolchains don't (currently) seem to map (cleanly) to @platforms//cpu.
+             # "@platforms//cpu:ppc": "ppc64",
+             # "@platforms//cpu:ppc64le": "ppc64le",
+        }),
+        target_compatible_with = ["@platforms//os:linux"],
+        **kwargs,
     )
 
 def _scion_pkg_deb_data(name, executables, systemds, configs, **kwargs):
@@ -90,7 +89,6 @@ def _scion_pkg_deb_data(name, executables, systemds, configs, **kwargs):
         name = name,
         extension = "tar.gz",
         files = files,
-        # executables should be executable
         modes = {
             exec_filepath: "755" for exec_filepath in executable_files.values()
         },
@@ -98,17 +96,27 @@ def _scion_pkg_deb_data(name, executables, systemds, configs, **kwargs):
         **kwargs,
     )
 
-def _scion_pkg_deb(name, **kwargs):
-    kwargs.setdefault('homepage', SCION_PKG_HOMEPAGE)
-    kwargs.setdefault('maintainer', SCION_PKG_MAINTAINER)
-    kwargs.setdefault('priority', SCION_PKG_PRIORITY)
-    kwargs.setdefault('section', SCION_PKG_SECTION)
-    kwargs.setdefault('license', SCION_PKG_LICENSE)
-    kwargs.setdefault('version', SCION_PKG_VERSION)
-    pkg_deb(
-        name = name,
-        **kwargs
-    )
-
 def _basename(s):
   return s.split('/')[-1]
+
+def multiplatform_filegroup(name, srcs, target_platforms = SCION_PKG_PLATFORMS):
+    all_platforms = []
+    for target_platform in SCION_PKG_PLATFORMS:
+        platform_name = target_platform.split(":")[-1]
+        platform_transition_filegroup(
+            name = name + "_" + platform_name,
+            srcs = srcs,
+            target_platform = target_platform,
+        )
+        all_platforms.append(name + "_" + platform_name)
+
+    native.filegroup(
+        name = name + "_all",
+        srcs = all_platforms,
+    )
+
+    # also add the default filegroup, without platform transition
+    native.filegroup(
+        name = name,
+        srcs = srcs,
+    )
