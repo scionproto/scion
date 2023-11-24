@@ -3,6 +3,8 @@
   "timestamp_human": "1975-05-06 01:02:03.000000+0000",
   "isd_as": "1-ff00:0:311",
   "mtu": 1472,
+  "endhost_start_port": 1024,
+  "endhost_end_port": 65535,
   "attributes": [],
   "border_routers": {
     "br1-ff00:0:311-1": {

@@ -38,7 +38,7 @@ var (
 	bfd         = flag.Bool("bfd", false, "Run BFD tests instead of the common ones")
 	logConsole  = flag.String("log.console", "debug", "Console logging level: debug|info|error")
 	dir         = flag.String("artifacts", "", "Artifacts directory")
-	endHostPort = 21
+	endHostPort = 21000
 )
 
 func main() {

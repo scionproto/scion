@@ -34,9 +34,6 @@ import (
 const (
 	// EndhostPort is the underlay port that SCION binds to on non-routers.
 	EndhostPort = underlay.EndhostPort
-	// TODO(JordiSubira): Make it configurable.
-	HostPortRangeLow  = 0
-	HostPortRangeHigh = 1<<16 - 1
 )
 
 // ErrAddressNotFound indicates the address was not found.
@@ -63,10 +60,12 @@ type (
 	// there is again a sorted slice of names of the servers that provide the service.
 	// Additionally, there is a map from those names to TopoAddr structs.
 	RWTopology struct {
-		Timestamp time.Time
-		IA        addr.IA
-		IsCore    bool
-		MTU       int
+		Timestamp        time.Time
+		IA               addr.IA
+		IsCore           bool
+		MTU              int
+		EndhostStartPort uint16
+		EndhostEndPort   uint16
 
 		BR        map[string]BRInfo
 		BRNames   []string
@@ -205,6 +204,19 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 		return serrors.New("ISD-AS contains wildcard", "isd_as", t.IA)
 	}
 	t.MTU = raw.MTU
+
+	if raw.EndhostStartPort < 1 || raw.EndhostStartPort > (1<<16-1) {
+		return serrors.New("Invalid value for start port", "start port", raw.EndhostStartPort)
+	}
+	if raw.EndhostEndPort < 1 || raw.EndhostEndPort > (1<<16-1) {
+		return serrors.New("Invalid value for end port", "end port", raw.EndhostEndPort)
+	}
+	if raw.EndhostStartPort > raw.EndhostEndPort {
+		return serrors.New("Start port is bigger than end port for the SCION port range",
+			"start port", raw.EndhostStartPort, "end port", raw.EndhostEndPort)
+	}
+	t.EndhostStartPort = uint16(raw.EndhostStartPort)
+	t.EndhostEndPort = uint16(raw.EndhostEndPort)
 
 	isCore := false
 	for _, attr := range raw.Attributes {
@@ -383,10 +395,12 @@ func (t *RWTopology) Copy() *RWTopology {
 		return nil
 	}
 	return &RWTopology{
-		Timestamp: t.Timestamp,
-		IA:        t.IA,
-		MTU:       t.MTU,
-		IsCore:    t.IsCore,
+		Timestamp:        t.Timestamp,
+		IA:               t.IA,
+		MTU:              t.MTU,
+		IsCore:           t.IsCore,
+		EndhostStartPort: t.EndhostStartPort,
+		EndhostEndPort:   t.EndhostEndPort,
 
 		BR:        copyBRMap(t.BR),
 		BRNames:   append(t.BRNames[:0:0], t.BRNames...),

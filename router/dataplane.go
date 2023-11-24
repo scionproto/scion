@@ -112,6 +112,8 @@ type DataPlane struct {
 	running           bool
 	Metrics           *Metrics
 	forwardingMetrics map[uint16]forwardingMetrics
+	endhostStartPort  uint16
+	endhostEndPort    uint16
 
 	// The pool that stores all the packet buffers as described in the design document. See
 	// https://github.com/scionproto/scion/blob/master/doc/dev/design/BorderRouter.rst
@@ -202,6 +204,11 @@ func (d *DataPlane) SetKey(key []byte) error {
 		return mac
 	}
 	return nil
+}
+
+func (d *DataPlane) SetPortRange(start, end uint16) {
+	d.endhostStartPort = start
+	d.endhostEndPort = end
 }
 
 // AddInternalInterface sets the interface the data-plane will use to
@@ -1745,13 +1752,17 @@ func (d *DataPlane) resolveLocalDst(
 		return a, nil
 	case addr.HostTypeIP:
 		// Parse UPD port and rewrite underlay IP/UDP port
-		return addEndhostPort(lastLayer, dst.IP().AsSlice())
+		return d.addEndhostPort(lastLayer, dst.IP().AsSlice())
 	default:
 		panic("unexpected address type returned from DstAddr")
 	}
 }
 
-func addEndhostPort(lastLayer gopacket.DecodingLayer, dst []byte) (*net.UDPAddr, error) {
+func (d *DataPlane) addEndhostPort(
+	lastLayer gopacket.DecodingLayer,
+	dst []byte,
+) (*net.UDPAddr, error) {
+
 	// Parse UPD port and rewrite underlay IP/UDP port
 	l4Type := nextHdr(lastLayer)
 	switch l4Type {
@@ -1762,7 +1773,7 @@ func addEndhostPort(lastLayer gopacket.DecodingLayer, dst []byte) (*net.UDPAddr,
 				len(lastLayer.LayerPayload())))
 		}
 		port := binary.BigEndian.Uint16(lastLayer.LayerPayload()[2:])
-		if port < topology.HostPortRangeLow || port > topology.HostPortRangeHigh {
+		if port < d.endhostStartPort || port > d.endhostEndPort {
 			port = topology.EndhostPort
 		}
 		return &net.UDPAddr{IP: dst, Port: int(port)}, nil

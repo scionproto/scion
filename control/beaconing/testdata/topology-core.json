@@ -1,6 +1,8 @@
 {
   "isd_as": "1-ff00:0:110",
   "mtu": 1472,
+  "endhost_start_port": 1024,
+  "endhost_end_port": 65535,
   "attributes": [
       "core"
   ],

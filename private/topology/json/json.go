@@ -71,10 +71,12 @@ func (as *Attributes) UnmarshalJSON(b []byte) error {
 
 // Topology is the JSON type for the entire AS topology file.
 type Topology struct {
-	Timestamp      int64  `json:"timestamp,omitempty"`
-	TimestampHuman string `json:"timestamp_human,omitempty"`
-	IA             string `json:"isd_as"`
-	MTU            int    `json:"mtu"`
+	Timestamp        int64  `json:"timestamp,omitempty"`
+	TimestampHuman   string `json:"timestamp_human,omitempty"`
+	IA               string `json:"isd_as"`
+	MTU              int    `json:"mtu"`
+	EndhostStartPort int    `json:"endhost_start_port"`
+	EndhostEndPort   int    `json:"endhost_end_port"`
 	// Attributes specify whether this is a core AS or not.
 	Attributes          Attributes              `json:"attributes"`
 	BorderRouters       map[string]*BRInfo      `json:"border_routers,omitempty"`

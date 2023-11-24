@@ -176,6 +176,8 @@ class SubnetGenerator(object):
 
 
 class PortGenerator(object):
+    # TODO(JordiSubira): It probably makes more sense to also feed the port
+    # range for CP services, so that it is within [endhost_start_port, endhost_end_port]
     def __init__(self):
         self.iter = iter(range(31000, 35000))
         self._ports = defaultdict(lambda: next(self.iter))

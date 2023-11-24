@@ -31,6 +31,8 @@ from topology.defines import (
     DEFAULT_MTU,
     DEFAULT6_NETWORK,
     NETWORKS_FILE,
+    DEFAULT_ENDHOST_START_PORT,
+    DEFAULT_ENDHOST_END_PORT,
 )
 from topology.scion_addr import ISD_AS
 from topology.util import write_file
@@ -86,6 +88,8 @@ class ConfigGenerator(object):
         self.subnet_gen4 = SubnetGenerator(DEFAULT_NETWORK, self.args.docker)
         self.subnet_gen6 = SubnetGenerator(DEFAULT6_NETWORK, self.args.docker)
         self.default_mtu = defaults.get("mtu", DEFAULT_MTU)
+        self.endhost_start_port = defaults.get("endhost_start_port", DEFAULT_ENDHOST_START_PORT)
+        self.endhost_end_port = defaults.get("endhost_end_port", DEFAULT_ENDHOST_END_PORT)
 
     def generate_all(self):
         """
@@ -146,7 +150,8 @@ class ConfigGenerator(object):
 
     def _topo_args(self):
         return TopoGenArgs(self.args, self.topo_config, self.subnet_gen4,
-                           self.subnet_gen6, self.default_mtu)
+                           self.subnet_gen6, self.default_mtu,
+                           self.endhost_start_port, self.endhost_end_port)
 
     def _generate_supervisor(self, topo_dicts):
         args = self._supervisor_args(topo_dicts)

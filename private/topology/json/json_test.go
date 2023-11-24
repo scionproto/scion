@@ -37,11 +37,13 @@ var (
 
 func TestLoadRawFromFile(t *testing.T) {
 	referenceTopology := &jsontopo.Topology{
-		Timestamp:      168562800,
-		TimestampHuman: "May  6 00:00:00 CET 1975",
-		IA:             "6-ff00:0:362",
-		MTU:            1472,
-		Attributes:     []jsontopo.Attribute{jsontopo.AttrCore},
+		Timestamp:        168562800,
+		TimestampHuman:   "May  6 00:00:00 CET 1975",
+		IA:               "6-ff00:0:362",
+		MTU:              1472,
+		EndhostStartPort: 1024,
+		EndhostEndPort:   1<<16 - 1,
+		Attributes:       []jsontopo.Attribute{jsontopo.AttrCore},
 		BorderRouters: map[string]*jsontopo.BRInfo{
 			"borderrouter6-f00:0:362-1": {
 				InternalAddr: "10.1.0.1:0",

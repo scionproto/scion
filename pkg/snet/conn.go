@@ -47,15 +47,22 @@ type Conn struct {
 	scionConnReader
 }
 
-func newConn(base scionConnBase, conn PacketConn, replyPather ReplyPather) *Conn {
+func newConn(
+	base scionConnBase,
+	conn PacketConn,
+	replyPather ReplyPather,
+	controler Controler,
+) *Conn {
+
 	c := &Conn{
 		conn:          conn,
 		scionConnBase: base,
 	}
 	c.scionConnWriter = scionConnWriter{
-		base:   &c.scionConnBase,
-		conn:   conn,
-		buffer: make([]byte, common.SupportedMTU),
+		base:      &c.scionConnBase,
+		conn:      conn,
+		buffer:    make([]byte, common.SupportedMTU),
+		controler: controler,
 	}
 	c.scionConnReader = scionConnReader{
 		base:        &c.scionConnBase,

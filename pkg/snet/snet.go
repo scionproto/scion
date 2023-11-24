@@ -46,13 +46,9 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-var _ Network = (*SCIONNetwork)(nil)
-
-type SCIONNetworkMetrics struct {
-	// Dials records the total number of Dial calls received by the network.
-	Dials metrics.Counter
-	// Listens records the total number of Listen calls received by the network.
-	Listens metrics.Counter
+// Controler provides local-IA control-plane information
+type Controler interface {
+	PortRange() (uint16, uint16)
 }
 
 type Connector interface {
@@ -76,9 +72,19 @@ func (d *DefaultConnector) OpenUDP(addr *net.UDPAddr) (PacketConn, error) {
 	}, nil
 }
 
+var _ Network = (*SCIONNetwork)(nil)
+
+type SCIONNetworkMetrics struct {
+	// Dials records the total number of Dial calls received by the network.
+	Dials metrics.Counter
+	// Listens records the total number of Listen calls received by the network.
+	Listens metrics.Counter
+}
+
 // SCIONNetwork is the SCION networking context.
 type SCIONNetwork struct {
 	LocalIA   addr.IA
+	Controler Controler
 	Connector Connector
 	// ReplyPather is used to create reply paths when reading packets on Conn
 	// (that implements net.Conn). If unset, the default reply pather is used,
@@ -146,6 +152,5 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 	if replyPather == nil {
 		replyPather = DefaultReplyPather{}
 	}
-
-	return newConn(conn, packetConn, replyPather), nil
+	return newConn(conn, packetConn, replyPather, n.Controler), nil
 }

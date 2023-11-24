@@ -2,6 +2,8 @@
   "isd_as": "1-ff00:0:1",
   "mtu": 1472,
   "attributes": [],
+  "endhost_start_port": 1024,
+  "endhost_end_port": 65535,
   "border_routers": {
     "brA": {
       "internal_addr": "192.168.0.11:30001",

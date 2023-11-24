@@ -28,8 +28,9 @@ import (
 )
 
 type scionConnWriter struct {
-	base *scionConnBase
-	conn PacketConn
+	base      *scionConnBase
+	conn      PacketConn
+	controler Controler
 
 	mtx    sync.Mutex
 	buffer []byte
@@ -57,8 +58,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 		nextHop = a.NextHop
 		if nextHop == nil && c.base.scionNet.LocalIA.Equal(a.IA) {
 			port := a.Host.Port
-			if a.Host.Port >= topology.HostPortRangeLow &&
-				a.Host.Port <= topology.HostPortRangeHigh {
+			if !c.isWithinRange(port) {
 				port = topology.EndhostPort
 			}
 			nextHop = &net.UDPAddr{
@@ -114,4 +114,12 @@ func (c *scionConnWriter) Write(b []byte) (int, error) {
 
 func (c *scionConnWriter) SetWriteDeadline(t time.Time) error {
 	return c.conn.SetWriteDeadline(t)
+}
+
+func (c *scionConnWriter) isWithinRange(port int) bool {
+	start, end := c.controler.PortRange()
+	if port >= int(start) && port <= int(end) {
+		return true
+	}
+	return false
 }

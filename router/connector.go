@@ -179,6 +179,13 @@ func (c *Connector) SetKey(ia addr.IA, index int, key []byte) error {
 	return c.DataPlane.SetKey(key)
 }
 
+func (c *Connector) SetPortRange(start, end uint16) {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	log.Debug("Setting endhost port range", "start:", start, "end", end)
+	c.DataPlane.SetPortRange(start, end)
+}
+
 func (c *Connector) ListInternalInterfaces() ([]control.InternalInterface, error) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
