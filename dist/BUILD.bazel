@@ -1,7 +1,7 @@
 load("@rules_pkg//pkg:pkg.bzl", "pkg_tar")
-load(":package.bzl", "scion_multiarch_pkg_deb")
+load(":package.bzl", "scion_pkg_deb", "multiplatform_filegroup")
 
-scion_multiarch_pkg_deb(
+scion_pkg_deb(
     name = "router-deb",
     package = "scion-router",
     executables = {
@@ -15,7 +15,7 @@ scion_multiarch_pkg_deb(
     postinst = "debian/scion.postinst",
 )
 
-scion_multiarch_pkg_deb(
+scion_pkg_deb(
     name = "control-deb",
     package = "scion-control",
     executables = {
@@ -31,7 +31,7 @@ scion_multiarch_pkg_deb(
     postinst = "debian/scion.postinst",
 )
 
-scion_multiarch_pkg_deb(
+scion_pkg_deb(
     name = "dispatcher-deb",
     package = "scion-dispatcher",
     executables = {
@@ -46,7 +46,7 @@ scion_multiarch_pkg_deb(
     postinst = "debian/scion.postinst",
 )
 
-scion_multiarch_pkg_deb(
+scion_pkg_deb(
     name = "daemon-deb",
     package = "scion-daemon",
     executables = {
@@ -61,7 +61,7 @@ scion_multiarch_pkg_deb(
     postinst = "debian/scion.postinst",
 )
 
-scion_multiarch_pkg_deb(
+scion_pkg_deb(
     name = "gateway-deb",
     package = "scion-ip-gateway",
     executables = {
@@ -78,7 +78,7 @@ scion_multiarch_pkg_deb(
     postinst = "debian/scion.postinst",
 )
 
-scion_multiarch_pkg_deb(
+scion_pkg_deb(
     name = "tools-deb",
     package = "scion-tools",
     executables = {
@@ -93,8 +93,8 @@ scion_multiarch_pkg_deb(
     ],
 )
 
-filegroup(
-    name = "all-deb",
+multiplatform_filegroup(
+    name = "deb",
     srcs = [
         "router-deb",
         "control-deb",
