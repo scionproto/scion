@@ -41,14 +41,10 @@ EXPECTATIONS = {
 }
 
 
-def exec_docker(command: str) -> str:
-    return docker(str.split(command))
-
-
-def exec_sudo(command: str) -> str:
+def sudoA(*args: [str]) -> str:
     # -A, --askpass makes sure command is failing and does not wait for
     # interactive password input.
-    return sudo("-A", str.split(command))
+    return sudo("-A", *args)
 
 
 # Convenience types to carry interface params.
@@ -101,24 +97,43 @@ class RouterBMTest(base.TestBase):
         envname="CI"
     )
 
-    # Accepts an IntfReq records names and mac addresses into an Intf and associates it with
-    # the request label.
+    # Creates a pair of virtual interfaces, with one end in the given network namespace and the
+    # other in the host stack.
+    # Accepts an IntfReq, records names and mac addresses into an Intf, and associates it with the
+    # request label. In the isolated network, set default TTL for outgoing packets to the common
+    # value 64, so that packets sent from router will match the expected value.
     def create_interface(self, req: IntfReq, ns: str):
         hostIntf = f"veth_{req.label}_host"
         brIntf = f"veth_{req.label}"
         peerMac = mac_for_ip(req.peerIp)
         mac = mac_for_ip(req.ip)
-        exec_sudo(f"ip link add {hostIntf} mtu 8000 type veth peer name {brIntf} mtu 8000")
-        exec_sudo(f"sysctl -qw net.ipv6.conf.{hostIntf}.disable_ipv6=1")
-        exec_sudo(f"ip link set {hostIntf} up")
-        exec_sudo(f"ip link set {brIntf} netns {ns}")
-        exec_sudo(f"ip netns exec {ns} sysctl -qw net.ipv6.conf.{brIntf}.disable_ipv6=1")
-        exec_sudo(f"ip netns exec {ns} ethtool -K  {brIntf} rx off tx off")
-        exec_sudo(f"ip netns exec {ns} ip link set {brIntf} address {mac}")
-        exec_sudo(f"ip netns exec {ns} ip addr add {req.ip}/{req.prefixLen} dev {brIntf}")
-        exec_sudo(f"ip netns exec {ns} ip neigh add {req.peerIp} "
-                  f"lladdr {peerMac} nud permanent dev {brIntf}")
-        exec_sudo(f"ip netns exec {ns} ip link set {brIntf} up")
+
+        # The interfaces
+        sudoA("ip", "link", "add", f"{hostIntf}", "type", "veth", "peer", "name", f"{brIntf}")
+        sudoA("ip", "link", "set", f"{hostIntf}", "mtu", "8000")
+        sudoA("ip", "link", "set", f"{brIntf}", "mtu", "8000")
+        sudoA("sysctl", "-qw", f"net.ipv6.conf.{hostIntf}.disable_ipv6=1")
+        sudoA("ethtool", "-K", f"{brIntf}", "rx", "off", "tx", "off")
+        sudoA("ip", "link", "set", f"{brIntf}", "address", f"{mac}")
+
+        # The network namespace
+        sudoA("ip", "link", "set", f"{brIntf}", "netns", f"{ns}")
+        sudoA("ip", "netns", "exec", f"{ns}", "sysctl", "-w", f"net.ipv4.ip_default_ttl=64")
+
+        # The addresses (presumably must be done once the br interface is in the namespace).
+        sudoA("ip", "netns", "exec", f"{ns}",
+              "ip", "addr", "add", f"{req.ip}/{req.prefixLen}", "dev", f"{brIntf}")
+        sudoA("ip", "netns", "exec", f"{ns}",
+              "ip", "neigh", "add", f"{req.peerIp}", "lladdr", f"{peerMac}", "nud", "permanent",
+              "dev", f"{brIntf}")
+        sudoA("ip", "netns", "exec", f"{ns}",
+              "sysctl", "-qw", f"net.ipv6.conf.{brIntf}.disable_ipv6=1")
+
+        # Fit for duty.
+        sudoA("ip", "link", "set", f"{hostIntf}", "up")
+        sudoA("ip", "netns", "exec", f"{ns}",
+              "ip", "link", "set", f"{brIntf}", "up")
+
         self.intfMap[req.label] = Intf(hostIntf, mac, peerMac)
 
     def setup_prepare(self):
@@ -128,7 +143,7 @@ class RouterBMTest(base.TestBase):
         shutil.copytree("acceptance/router_newbenchmark/conf/", self.artifacts / "conf")
 
         # We need a custom network so can create veth interfaces of our own chosing.
-        exec_docker("network create -d bridge benchmark")
+        docker("network", "create",  "-d", "bridge", "benchmark")
 
         # This test is useless without prometheus. Also, we need a running container to have
         # a usable network namespace that we can configuer before the router runs. So, start
@@ -138,22 +153,21 @@ class RouterBMTest(base.TestBase):
         # configure the interfaces, and then start the router. We'd still need prometheus, though,
         # and we'd need to expose the router's metrics port to prometheus in some way. So, this is
         # simpler.
-        exec_docker(f"run -v {self.artifacts}/conf:/share/conf "
-                    "-d "
-                    "--network benchmark "
-                    "--publish 9999:9090 "
-                    "--name prometheus "
-                    "prom/prometheus:v2.47.2 "
-                    "--config.file /share/conf/prometheus.yml")
+        docker("run",
+               "-v", f"{self.artifacts}/conf:/share/conf",
+               "-d",
+               "--network", "benchmark",
+               "--publish", "9999:9090",
+               "--name", "prometheus",
+               "prom/prometheus:v2.47.2",
+               "--config.file", "/share/conf/prometheus.yml")
 
         # Link that namespace to where the ip commands expect it. While at it give it a simple name.
-        exec_sudo("mkdir -p /var/run/netns")
-        ns = exec_docker("inspect prometheus -f '{{.NetworkSettings.SandboxKey}}'").replace("'", "")
-        exec_sudo(f"ln -sfT {ns} /var/run/netns/benchmark")
-
-        # Set default TTL for outgoing packets to the common value 64, so that packets sent
-        # from router will match the expected value.
-        exec_sudo("ip netns exec benchmark sysctl -w net.ipv4.ip_default_ttl=64")
+        sudoA("mkdir", "-p", "/var/run/netns")
+        ns = docker("inspect",
+                    "prometheus",
+                    "-f", "'{{.NetworkSettings.SandboxKey}}'").replace("'", "").strip()
+        sudoA("ln", "-sfT", f"{ns}", "/var/run/netns/benchmark")
 
         # Run test brload test with --show_interfaces and set up the veth that it needs.
         # The router uses one end and the test uses the other end to feed it with (and possibly
@@ -171,36 +185,43 @@ class RouterBMTest(base.TestBase):
             self.create_interface(t, "benchmark")
 
         # We don't need that symlink any more
-        exec_sudo("rm /var/run/netns/benchmark")
+        sudoA("rm", "/var/run/netns/benchmark")
 
         # Now the router can start.
-        exec_docker(f"run -v {self.artifacts}/conf:/share/conf "
-                    "-d "
-                    "-e SCION_EXPERIMENTAL_BFD_DISABLE=true -e GOMAXPROCS=4 "
-                    "--network container:prometheus "
-                    "--name router "
-                    "posix-router:latest")
+        docker("run",
+               "-v", f"{self.artifacts}/conf:/share/conf",
+               "-d",
+               "-e", "SCION_EXPERIMENTAL_BFD_DISABLE=true",
+               "-e", "GOMAXPROCS=4",
+               "--network", "container:prometheus",
+               "--name", "router",
+               "posix-router:latest")
 
         time.sleep(2)
 
     def teardown(self):
         docker["logs", "router"].run_fg(retcode=None)
-        exec_docker("rm -f prometheus")
-        exec_docker("rm -f router")
-        exec_docker("network rm benchmark")  # veths are deleted automatically
-        exec_sudo(f"chown -R {whoami()} {self.artifacts}")
+        docker("rm", "-f", "prometheus")
+        docker("rm", "-f", "router")
+        docker("network", "rm", "benchmark")  # veths are deleted automatically
+        sudoA("chown", "-R", f"{whoami().strip()}", f"{self.artifacts}")
 
     def _run(self):
-        # Build the interface mapping arg:
-        mapArgs = [f"--interface {label}={intf.name},{intf.mac},{intf.peerMac}"
-                   for label, intf in self.intfMap.items()]
+        # Build the interface mapping arg
+        mapArgs = []
+        for label, intf in self.intfMap.items():
+            mapArgs.extend(["--interface", f"{label}={intf.name},{intf.mac},{intf.peerMac}"])
 
         # At long last...
         logger.info("==> Starting load br-transit")
         brload = self.get_executable("brload")
-        output = exec_sudo(f"{brload.executable} run --artifacts {self.artifacts} "
-                           f"{' '.join(mapArgs)} "
-                           "--case br_transit --num_packets 10000000 --num_streams 2")
+        output = sudoA(f"{brload.executable}",
+                       "run",
+                       "--artifacts", f"{self.artifacts}",
+                       *mapArgs,
+                       "--case", "br_transit",
+                       "--num_packets", "10000000",
+                       "--num_streams", "2")
 
         for line in output.splitlines():
             print(line)
