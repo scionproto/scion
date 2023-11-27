@@ -118,7 +118,7 @@ steps:
     - label: "E2E: default :docker: (ping)"
       command:
         - echo "--- build"
-        - make build docker-images
+        - make build-dev docker-images
         - echo "--- start topology"
         - ./scion.sh topology -d
         - ./scion.sh run
