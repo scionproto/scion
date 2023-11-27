@@ -20,7 +20,8 @@ import time
 
 from collections import namedtuple
 from plumbum import cli
-from plumbum.cmd import sudo, docker, whoami
+from plumbum.cmd import docker, whoami
+from plumbum import cmd
 
 from acceptance.common import base
 
@@ -41,10 +42,10 @@ EXPECTATIONS = {
 }
 
 
-def sudoA(*args: [str]) -> str:
+def sudo(*args: [str]) -> str:
     # -A, --askpass makes sure command is failing and does not wait for
     # interactive password input.
-    return sudo("-A", *args)
+    return cmd.sudo("-A", *args)
 
 
 # Convenience types to carry interface params.
@@ -109,30 +110,30 @@ class RouterBMTest(base.TestBase):
         mac = mac_for_ip(req.ip)
 
         # The interfaces
-        sudoA("ip", "link", "add", f"{hostIntf}", "type", "veth", "peer", "name", f"{brIntf}")
-        sudoA("ip", "link", "set", f"{hostIntf}", "mtu", "8000")
-        sudoA("ip", "link", "set", f"{brIntf}", "mtu", "8000")
-        sudoA("sysctl", "-qw", f"net.ipv6.conf.{hostIntf}.disable_ipv6=1")
-        sudoA("ethtool", "-K", f"{brIntf}", "rx", "off", "tx", "off")
-        sudoA("ip", "link", "set", f"{brIntf}", "address", f"{mac}")
+        sudo("ip", "link", "add", f"{hostIntf}", "type", "veth", "peer", "name", f"{brIntf}")
+        sudo("ip", "link", "set", f"{hostIntf}", "mtu", "8000")
+        sudo("ip", "link", "set", f"{brIntf}", "mtu", "8000")
+        sudo("sysctl", "-qw", f"net.ipv6.conf.{hostIntf}.disable_ipv6=1")
+        sudo("ethtool", "-K", f"{brIntf}", "rx", "off", "tx", "off")
+        sudo("ip", "link", "set", f"{brIntf}", "address", f"{mac}")
 
         # The network namespace
-        sudoA("ip", "link", "set", f"{brIntf}", "netns", f"{ns}")
-        sudoA("ip", "netns", "exec", f"{ns}", "sysctl", "-w", f"net.ipv4.ip_default_ttl=64")
+        sudo("ip", "link", "set", f"{brIntf}", "netns", f"{ns}")
+        sudo("ip", "netns", "exec", f"{ns}", "sysctl", "-w", "net.ipv4.ip_default_ttl=64")
 
         # The addresses (presumably must be done once the br interface is in the namespace).
-        sudoA("ip", "netns", "exec", f"{ns}",
-              "ip", "addr", "add", f"{req.ip}/{req.prefixLen}", "dev", f"{brIntf}")
-        sudoA("ip", "netns", "exec", f"{ns}",
-              "ip", "neigh", "add", f"{req.peerIp}", "lladdr", f"{peerMac}", "nud", "permanent",
-              "dev", f"{brIntf}")
-        sudoA("ip", "netns", "exec", f"{ns}",
-              "sysctl", "-qw", f"net.ipv6.conf.{brIntf}.disable_ipv6=1")
+        sudo("ip", "netns", "exec", f"{ns}",
+             "ip", "addr", "add", f"{req.ip}/{req.prefixLen}", "dev", f"{brIntf}")
+        sudo("ip", "netns", "exec", f"{ns}",
+             "ip", "neigh", "add", f"{req.peerIp}", "lladdr", f"{peerMac}", "nud", "permanent",
+             "dev", f"{brIntf}")
+        sudo("ip", "netns", "exec", f"{ns}",
+             "sysctl", "-qw", f"net.ipv6.conf.{brIntf}.disable_ipv6=1")
 
         # Fit for duty.
-        sudoA("ip", "link", "set", f"{hostIntf}", "up")
-        sudoA("ip", "netns", "exec", f"{ns}",
-              "ip", "link", "set", f"{brIntf}", "up")
+        sudo("ip", "link", "set", f"{hostIntf}", "up")
+        sudo("ip", "netns", "exec", f"{ns}",
+             "ip", "link", "set", f"{brIntf}", "up")
 
         self.intfMap[req.label] = Intf(hostIntf, mac, peerMac)
 
@@ -163,11 +164,11 @@ class RouterBMTest(base.TestBase):
                "--config.file", "/share/conf/prometheus.yml")
 
         # Link that namespace to where the ip commands expect it. While at it give it a simple name.
-        sudoA("mkdir", "-p", "/var/run/netns")
+        sudo("mkdir", "-p", "/var/run/netns")
         ns = docker("inspect",
                     "prometheus",
                     "-f", "'{{.NetworkSettings.SandboxKey}}'").replace("'", "").strip()
-        sudoA("ln", "-sfT", f"{ns}", "/var/run/netns/benchmark")
+        sudo("ln", "-sfT", f"{ns}", "/var/run/netns/benchmark")
 
         # Run test brload test with --show_interfaces and set up the veth that it needs.
         # The router uses one end and the test uses the other end to feed it with (and possibly
@@ -185,7 +186,7 @@ class RouterBMTest(base.TestBase):
             self.create_interface(t, "benchmark")
 
         # We don't need that symlink any more
-        sudoA("rm", "/var/run/netns/benchmark")
+        sudo("rm", "/var/run/netns/benchmark")
 
         # Now the router can start.
         docker("run",
@@ -204,7 +205,7 @@ class RouterBMTest(base.TestBase):
         docker("rm", "-f", "prometheus")
         docker("rm", "-f", "router")
         docker("network", "rm", "benchmark")  # veths are deleted automatically
-        sudoA("chown", "-R", f"{whoami().strip()}", f"{self.artifacts}")
+        sudo("chown", "-R", f"{whoami().strip()}", f"{self.artifacts}")
 
     def _run(self):
         # Build the interface mapping arg
@@ -215,13 +216,13 @@ class RouterBMTest(base.TestBase):
         # At long last...
         logger.info("==> Starting load br-transit")
         brload = self.get_executable("brload")
-        output = sudoA(f"{brload.executable}",
-                       "run",
-                       "--artifacts", f"{self.artifacts}",
-                       *mapArgs,
-                       "--case", "br_transit",
-                       "--num_packets", "10000000",
-                       "--num_streams", "2")
+        output = sudo(f"{brload.executable}",
+                      "run",
+                      "--artifacts", f"{self.artifacts}",
+                      *mapArgs,
+                      "--case", "br_transit",
+                      "--num_packets", "10000000",
+                      "--num_streams", "2")
 
         for line in output.splitlines():
             print(line)
