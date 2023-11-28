@@ -41,6 +41,7 @@ Active
    grpc
    BorderRouter
    router-perf-model
+   endhost-overview
 
 .. _design-docs-completed:
 
