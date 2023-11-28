@@ -234,8 +234,8 @@ class RouterBMTest(base.TestBase):
         promQuery = urlencode({
             'time': f'{sampleTime}',
             'query': (
-                f'sum by (instance, job) ('
-                '  rate(router_output_pkts_total{job="BR", type="{case}"}[10s])'
+                'sum by (instance, job) ('
+                f'  rate(router_output_pkts_total{{job="BR", type="{case}"}}[10s])'
                 ')'
                 '/ on (instance, job) group_left()'
                 'sum by (instance, job) ('
