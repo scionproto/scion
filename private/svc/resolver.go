@@ -83,7 +83,7 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.SVC) (*R
 		return nil, serrors.New("invalid local IP", "ip", r.LocalIP)
 	}
 
-	conn, err := r.Connector.OpenUDP(u)
+	conn, err := r.Connector.OpenUDP(ctx, u)
 	if err != nil {
 		ext.Error.Set(span, true)
 		return nil, serrors.Wrap(errRegistration, err)

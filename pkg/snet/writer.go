@@ -28,9 +28,10 @@ import (
 )
 
 type scionConnWriter struct {
-	base      *scionConnBase
-	conn      PacketConn
-	controler Controler
+	base             *scionConnBase
+	conn             PacketConn
+	endhostStartPort uint16
+	endhostEndPort   uint16
 
 	mtx    sync.Mutex
 	buffer []byte
@@ -117,8 +118,7 @@ func (c *scionConnWriter) SetWriteDeadline(t time.Time) error {
 }
 
 func (c *scionConnWriter) isWithinRange(port int) bool {
-	start, end := c.controler.PortRange()
-	if port >= int(start) && port <= int(end) {
+	if port >= int(c.endhostStartPort) && port <= int(c.endhostEndPort) {
 		return true
 	}
 	return false

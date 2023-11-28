@@ -15,6 +15,7 @@
 package svc_test
 
 import (
+	"context"
 	"errors"
 	"net"
 	"testing"
@@ -43,7 +44,7 @@ func TestSVCResolutionServer(t *testing.T) {
 		"Underlying service fails to set up underlying conn": {
 			Connector: func(ctrl *gomock.Controller) snet.Connector {
 				c := mock_snet.NewMockConnector(ctrl)
-				c.EXPECT().OpenUDP(gomock.Any()).Return(nil, errors.New("conn error"))
+				c.EXPECT().OpenUDP(gomock.Any(), gomock.Any()).Return(nil, errors.New("conn error"))
 				return c
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
@@ -64,7 +65,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				)
 
 				c := mock_snet.NewMockConnector(ctrl)
-				c.EXPECT().OpenUDP(gomock.Any()).Return(mockPacketConn, nil)
+				c.EXPECT().OpenUDP(gomock.Any(), gomock.Any()).Return(mockPacketConn, nil)
 				return c
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
@@ -88,7 +89,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				)
 
 				c := mock_snet.NewMockConnector(ctrl)
-				c.EXPECT().OpenUDP(gomock.Any()).Return(mockPacketConn, nil)
+				c.EXPECT().OpenUDP(gomock.Any(), gomock.Any()).Return(mockPacketConn, nil)
 				return c
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
@@ -112,7 +113,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				)
 
 				c := mock_snet.NewMockConnector(ctrl)
-				c.EXPECT().OpenUDP(gomock.Any()).Return(mockPacketConn, nil)
+				c.EXPECT().OpenUDP(gomock.Any(), gomock.Any()).Return(mockPacketConn, nil)
 				return c
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
@@ -133,7 +134,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				)
 
 				c := mock_snet.NewMockConnector(ctrl)
-				c.EXPECT().OpenUDP(gomock.Any()).Return(mockPacketConn, nil)
+				c.EXPECT().OpenUDP(gomock.Any(), gomock.Any()).Return(mockPacketConn, nil)
 				return c
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
@@ -157,7 +158,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				)
 
 				c := mock_snet.NewMockConnector(ctrl)
-				c.EXPECT().OpenUDP(gomock.Any()).Return(mockPacketConn, nil)
+				c.EXPECT().OpenUDP(gomock.Any(), gomock.Any()).Return(mockPacketConn, nil)
 				return c
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
@@ -182,7 +183,10 @@ func TestSVCResolutionServer(t *testing.T) {
 				Handler:   tc.ReqHandler(ctrl),
 			}
 
-			conn, err := connector.OpenUDP(&net.UDPAddr{IP: xtest.MustParseIP(t, "127.0.0.1")})
+			conn, err := connector.OpenUDP(
+				context.Background(),
+				&net.UDPAddr{IP: xtest.MustParseIP(t, "127.0.0.1")},
+			)
 
 			tc.ErrOpen(t, err)
 			if err != nil {

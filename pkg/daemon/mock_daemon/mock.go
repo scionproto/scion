@@ -160,6 +160,22 @@ func (mr *MockConnectorMockRecorder) Paths(arg0, arg1, arg2, arg3 interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Paths", reflect.TypeOf((*MockConnector)(nil).Paths), arg0, arg1, arg2, arg3)
 }
 
+// PortRange mocks base method.
+func (m *MockConnector) PortRange(arg0 context.Context) (uint16, uint16, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PortRange", arg0)
+	ret0, _ := ret[0].(uint16)
+	ret1, _ := ret[1].(uint16)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// PortRange indicates an expected call of PortRange.
+func (mr *MockConnectorMockRecorder) PortRange(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PortRange", reflect.TypeOf((*MockConnector)(nil).PortRange), arg0)
+}
+
 // RevNotification mocks base method.
 func (m *MockConnector) RevNotification(arg0 context.Context, arg1 *path_mgmt.RevInfo) error {
 	m.ctrl.T.Helper()

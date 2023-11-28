@@ -40,18 +40,18 @@ func (m *MockConnector) EXPECT() *MockConnectorMockRecorder {
 }
 
 // OpenUDP mocks base method.
-func (m *MockConnector) OpenUDP(arg0 *net.UDPAddr) (snet.PacketConn, error) {
+func (m *MockConnector) OpenUDP(arg0 context.Context, arg1 *net.UDPAddr) (snet.PacketConn, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "OpenUDP", arg0)
+	ret := m.ctrl.Call(m, "OpenUDP", arg0, arg1)
 	ret0, _ := ret[0].(snet.PacketConn)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // OpenUDP indicates an expected call of OpenUDP.
-func (mr *MockConnectorMockRecorder) OpenUDP(arg0 interface{}) *gomock.Call {
+func (mr *MockConnectorMockRecorder) OpenUDP(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OpenUDP", reflect.TypeOf((*MockConnector)(nil).OpenUDP), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OpenUDP", reflect.TypeOf((*MockConnector)(nil).OpenUDP), arg0, arg1)
 }
 
 // MockNetwork is a mock of Network interface.

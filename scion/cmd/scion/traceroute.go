@@ -181,6 +181,7 @@ On other errors, traceroute will exit with code 2.
 			var stats traceroute.Stats
 			var updates []traceroute.Update
 			cfg := traceroute.Config{
+				Controller:   sd,
 				Remote:       remote,
 				MTU:          path.Metadata().MTU,
 				Local:        local,

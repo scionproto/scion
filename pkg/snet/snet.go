@@ -38,7 +38,9 @@ package snet
 
 import (
 	"context"
+	"errors"
 	"net"
+	"syscall"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
@@ -46,22 +48,40 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-// Controler provides local-IA control-plane information
-type Controler interface {
-	PortRange() (uint16, uint16)
+// Controller provides local-IA control-plane information
+type Controller interface {
+	PortRange(ctx context.Context) (uint16, uint16, error)
 }
 
 type Connector interface {
-	OpenUDP(address *net.UDPAddr) (PacketConn, error)
+	OpenUDP(ctx context.Context, address *net.UDPAddr) (PacketConn, error)
 }
 
 type DefaultConnector struct {
 	SCMPHandler SCMPHandler
 	Metrics     SCIONPacketConnMetrics
+	Controller  Controller
 }
 
-func (d *DefaultConnector) OpenUDP(addr *net.UDPAddr) (PacketConn, error) {
-	pconn, err := net.ListenUDP(addr.Network(), addr)
+func (d *DefaultConnector) OpenUDP(ctx context.Context, addr *net.UDPAddr) (PacketConn, error) {
+	var pconn *net.UDPConn
+	var err error
+	start, end, err := d.Controller.PortRange(ctx)
+	if err != nil {
+		return nil, err
+	}
+	log.Debug("OpenUDP", "addr", addr)
+	if addr.Port == 0 {
+		pconn, err = listenUDPRange(addr, start, end)
+	} else {
+		// XXX(JordiSubira): We check that given port is within SCION/UDP
+		// port range for the endhost.
+		if addr.Port < int(start) || addr.Port > int(end) {
+			return nil, serrors.New("Provided port is outside the SCION/UDP range",
+				"start", start, "end", end, "port", addr.Port)
+		}
+		pconn, err = net.ListenUDP(addr.Network(), addr)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -70,6 +90,23 @@ func (d *DefaultConnector) OpenUDP(addr *net.UDPAddr) (PacketConn, error) {
 		SCMPHandler: d.SCMPHandler,
 		Metrics:     d.Metrics,
 	}, nil
+}
+
+func listenUDPRange(addr *net.UDPAddr, start, end uint16) (*net.UDPConn, error) {
+	for port := start; port < end; port++ {
+		pconn, err := net.ListenUDP(addr.Network(), &net.UDPAddr{
+			IP:   addr.IP,
+			Port: int(port),
+		})
+		if err != nil {
+			if !errors.Is(err, syscall.EADDRINUSE) {
+				return nil, err
+			}
+			continue
+		}
+		return pconn, nil
+	}
+	return nil, serrors.New("There are no UDP ports available in range", "start", start, "end", end)
 }
 
 var _ Network = (*SCIONNetwork)(nil)
@@ -83,9 +120,9 @@ type SCIONNetworkMetrics struct {
 
 // SCIONNetwork is the SCION networking context.
 type SCIONNetwork struct {
-	LocalIA   addr.IA
-	Controler Controler
-	Connector Connector
+	LocalIA    addr.IA
+	Controller Controller
+	Connector  Connector
 	// ReplyPather is used to create reply paths when reading packets on Conn
 	// (that implements net.Conn). If unset, the default reply pather is used,
 	// which parses the incoming path as a path.Path and reverses it.
@@ -132,7 +169,7 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 		return nil, serrors.New("Unknown network", "network", network)
 	}
 
-	packetConn, err := n.Connector.OpenUDP(listen)
+	packetConn, err := n.Connector.OpenUDP(ctx, listen)
 	if err != nil {
 		return nil, err
 	}
@@ -152,5 +189,9 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 	if replyPather == nil {
 		replyPather = DefaultReplyPather{}
 	}
-	return newConn(conn, packetConn, replyPather, n.Controler), nil
+	start, end, err := n.Controller.PortRange(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return newConn(conn, packetConn, replyPather, start, end), nil
 }

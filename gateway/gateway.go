@@ -299,6 +299,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 					ProbesSendErrors:       probesSendErrors,
 					SCMPErrors:             g.Metrics.SCMPErrors,
 					SCIONPacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
+					Controller:             g.Daemon,
 				},
 				PathUpdateInterval: PathUpdateInterval(ctx),
 				PathFetchTimeout:   0, // using default for now
@@ -408,7 +409,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// scionNetworkNoSCMP is the network for the QUIC server connection. Because SCMP errors
 	// will cause the server's accepts to fail, we ignore SCMP.
 	scionNetworkNoSCMP := &snet.SCIONNetwork{
-		LocalIA: localIA,
+		LocalIA:    localIA,
+		Controller: g.Daemon,
 		Connector: &snet.DefaultConnector{
 			SCMPHandler: snet.SCMPPropagationStopper{
 				Handler: snet.DefaultSCMPHandler{
@@ -417,7 +419,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 				},
 				Log: log.FromCtx(ctx).Debug,
 			},
-			Metrics: g.Metrics.SCIONPacketConnMetrics,
+			Metrics:    g.Metrics.SCIONPacketConnMetrics,
+			Controller: g.Daemon,
 		},
 		Metrics: g.Metrics.SCIONNetworkMetrics,
 	}
@@ -472,13 +475,15 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// scionNetwork is the network for all SCION connections, with the exception of the QUIC server
 	// and client connection.
 	scionNetwork := &snet.SCIONNetwork{
-		LocalIA: localIA,
+		LocalIA:    localIA,
+		Controller: g.Daemon,
 		Connector: &snet.DefaultConnector{
 			SCMPHandler: snet.DefaultSCMPHandler{
 				RevocationHandler: revocationHandler,
 				SCMPErrors:        g.Metrics.SCMPErrors,
 			},
-			Metrics: g.Metrics.SCIONPacketConnMetrics,
+			Metrics:    g.Metrics.SCIONPacketConnMetrics,
+			Controller: g.Daemon,
 		},
 		Metrics: g.Metrics.SCIONNetworkMetrics,
 	}

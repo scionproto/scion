@@ -225,6 +225,7 @@ func realMain(ctx context.Context) error {
 		SCIONNetworkMetrics:    metrics.SCIONNetworkMetrics,
 		SCIONPacketConnMetrics: metrics.SCIONPacketConnMetrics,
 		MTU:                    topo.MTU(),
+		Controller:             controller{topo: topo},
 	}
 	quicStack, err := nc.QUICStack()
 	if err != nil {
@@ -947,6 +948,15 @@ func (h *healther) GetCAHealth(ctx context.Context) (api.CAHealthStatus, bool) {
 		return h.CAHealth.GetStatus(), true
 	}
 	return api.Unavailable, false
+}
+
+type controller struct {
+	topo *topology.Loader
+}
+
+func (c controller) PortRange(_ context.Context) (uint16, uint16, error) {
+	start, end := c.topo.PortRange()
+	return start, end, nil
 }
 
 func getCAHealth(

@@ -132,9 +132,10 @@ func (s server) run() {
 			RevocationHandler: daemon.RevHandler{Connector: sdConn},
 			SCMPErrors:        scmpErrorsCounter,
 		},
-		Metrics: scionPacketConnMetrics,
+		Metrics:    scionPacketConnMetrics,
+		Controller: sdConn,
 	}
-	conn, err := connector.OpenUDP(integration.Local.Host)
+	conn, err := connector.OpenUDP(context.Background(), integration.Local.Host)
 	if err != nil {
 		integration.LogFatal("Error listening", "err", err)
 	}
@@ -251,24 +252,26 @@ func (c *client) run() int {
 	log.Info("Starting", "pair", pair)
 	defer log.Info("Finished", "pair", pair)
 	defer integration.Done(integration.Local.IA, remote.IA)
+	c.sdConn = integration.SDConn()
+	defer c.sdConn.Close()
+
 	connector := &snet.DefaultConnector{
 		SCMPHandler: snet.DefaultSCMPHandler{
-			RevocationHandler: daemon.RevHandler{Connector: integration.SDConn()},
+			RevocationHandler: daemon.RevHandler{Connector: c.sdConn},
 			SCMPErrors:        scmpErrorsCounter,
 		},
-		Metrics: scionPacketConnMetrics,
+		Metrics:    scionPacketConnMetrics,
+		Controller: c.sdConn,
 	}
 
 	var err error
-	c.conn, err = connector.OpenUDP(integration.Local.Host)
+	c.conn, err = connector.OpenUDP(context.Background(), integration.Local.Host)
 	if err != nil {
 		integration.LogFatal("Unable to listen", "err", err)
 	}
 	port := c.conn.LocalAddr().(*net.UDPAddr).Port
 	log.Info("Send on", "local",
 		fmt.Sprintf("%v,[%v]:%d", integration.Local.IA, integration.Local.Host.IP, port))
-	c.sdConn = integration.SDConn()
-	defer c.sdConn.Close()
 	c.errorPaths = make(map[snet.PathFingerprint]struct{})
 	return integration.AttemptRepeatedly("End2End", c.attemptRequest)
 }

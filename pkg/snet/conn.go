@@ -51,7 +51,8 @@ func newConn(
 	base scionConnBase,
 	conn PacketConn,
 	replyPather ReplyPather,
-	controler Controler,
+	endhostStartPort uint16,
+	endhostEndPort uint16,
 ) *Conn {
 
 	c := &Conn{
@@ -59,10 +60,11 @@ func newConn(
 		scionConnBase: base,
 	}
 	c.scionConnWriter = scionConnWriter{
-		base:      &c.scionConnBase,
-		conn:      conn,
-		buffer:    make([]byte, common.SupportedMTU),
-		controler: controler,
+		base:             &c.scionConnBase,
+		conn:             conn,
+		buffer:           make([]byte, common.SupportedMTU),
+		endhostStartPort: endhostStartPort,
+		endhostEndPort:   endhostEndPort,
 	}
 	c.scionConnReader = scionConnReader{
 		base:        &c.scionConnBase,

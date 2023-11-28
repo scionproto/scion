@@ -64,6 +64,9 @@ func NewService(name string) Service {
 type Connector interface {
 	// LocalIA requests from the daemon the local ISD-AS number.
 	LocalIA(ctx context.Context) (addr.IA, error)
+	// PortRange returns the beginning and the end of the SCION/UDP endhost port range, configured
+	// for the local IA.
+	PortRange(ctx context.Context) (uint16, uint16, error)
 	// Paths requests from the daemon a set of end to end paths between the source and destination.
 	Paths(ctx context.Context, dst, src addr.IA, f PathReqFlags) ([]snet.Path, error)
 	// ASInfo requests from the daemon information about AS ia, the zero IA can be

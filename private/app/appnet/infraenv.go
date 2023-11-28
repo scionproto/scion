@@ -79,6 +79,9 @@ type NetworkConfig struct {
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 	// MTU of the local AS
 	MTU uint16
+	// Controller is the helper class to get control-plane information for the
+	// local AS.
+	Controller snet.Controller
 }
 
 // QUICStack contains everything to run a QUIC based RPC stack.
@@ -218,6 +221,7 @@ func (nc *NetworkConfig) AddressRewriter(
 		connector = &snet.DefaultConnector{
 			SCMPHandler: nc.SCMPHandler,
 			Metrics:     nc.SCIONPacketConnMetrics,
+			Controller:  nc.Controller,
 		}
 	}
 	return &AddressRewriter{
@@ -241,8 +245,10 @@ func (nc *NetworkConfig) OpenListener(a string) (*squic.ConnListener, error) {
 			// on every subsequent call to accept.
 			SCMPHandler: ignoreSCMP{},
 			Metrics:     nc.SCIONPacketConnMetrics,
+			Controller:  nc.Controller,
 		},
-		Metrics: nc.SCIONNetworkMetrics,
+		Metrics:    nc.SCIONNetworkMetrics,
+		Controller: nc.Controller,
 	}
 	udpAddr, err := net.ResolveUDPAddr("udp", a)
 	if err != nil {
@@ -279,11 +285,13 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 	}
 
 	network := &snet.SCIONNetwork{
-		LocalIA: nc.IA,
+		LocalIA:    nc.IA,
+		Controller: nc.Controller,
 		Connector: &svc.ResolverPacketConnector{
 			Connector: &snet.DefaultConnector{
 				SCMPHandler: nc.SCMPHandler,
 				Metrics:     nc.SCIONPacketConnMetrics,
+				Controller:  nc.Controller,
 			},
 			LocalIA: nc.IA,
 			Handler: &svc.BaseHandler{
@@ -327,13 +335,15 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, error) {
 
 	serverNet := &snet.SCIONNetwork{
-		LocalIA: nc.IA,
+		LocalIA:    nc.IA,
+		Controller: nc.Controller,
 		Connector: &snet.DefaultConnector{
 			// XXX(roosd): This is essential, the server must not read SCMP
 			// errors. Otherwise, the accept loop will always return that error
 			// on every subsequent call to accept.
 			SCMPHandler: ignoreSCMP{},
 			Metrics:     nc.SCIONPacketConnMetrics,
+			Controller:  nc.Controller,
 		},
 		Metrics: nc.SCIONNetworkMetrics,
 	}
@@ -347,13 +357,15 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 	}
 
 	clientNet := &snet.SCIONNetwork{
-		LocalIA: nc.IA,
+		LocalIA:    nc.IA,
+		Controller: nc.Controller,
 		Connector: &snet.DefaultConnector{
 			SCMPHandler: snet.SCMPPropagationStopper{
 				Handler: nc.SCMPHandler,
 				Log:     log.Debug,
 			},
-			Metrics: nc.SCIONPacketConnMetrics,
+			Metrics:    nc.SCIONPacketConnMetrics,
+			Controller: nc.Controller,
 		},
 		Metrics: nc.SCIONNetworkMetrics,
 	}

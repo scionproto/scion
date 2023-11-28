@@ -105,6 +105,9 @@ type Prober struct {
 	LocalIP net.IP
 	// Metrics injected into snet.DefaultConnector.
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
+	// Controller is the helper class to get control-plane information for the
+	// local AS.
+	Controller snet.Controller
 }
 
 type options struct {
@@ -162,6 +165,7 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 	connector := &snet.DefaultConnector{
 		SCMPHandler: &scmpHandler{},
 		Metrics:     p.SCIONPacketConnMetrics,
+		Controller:  p.Controller,
 	}
 
 	// Resolve all the local IPs per path. We will open one connection
@@ -192,7 +196,7 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 		g.Go(func() error {
 			defer log.HandlePanic()
 
-			conn, err := connector.OpenUDP(&net.UDPAddr{IP: localIP.AsSlice()})
+			conn, err := connector.OpenUDP(ctx, &net.UDPAddr{IP: localIP.AsSlice()})
 			if err != nil {
 				return serrors.WrapStr("creating packet conn", err, "local", localIP)
 			}

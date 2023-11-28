@@ -49,7 +49,7 @@ func TestResolver(t *testing.T) {
 
 	t.Run("If opening up port fails, return error and no reply", func(t *testing.T) {
 		mockConnector := mock_snet.NewMockConnector(ctrl)
-		mockConnector.EXPECT().OpenUDP(gomock.Any()).
+		mockConnector.EXPECT().OpenUDP(gomock.Any(), gomock.Any()).
 			Return(nil, errors.New("no conn"))
 		resolver := &svc.Resolver{
 			LocalIA:   srcIA,
@@ -67,7 +67,7 @@ func TestResolver(t *testing.T) {
 		mockConn := mock_snet.NewMockPacketConn(ctrl)
 		mockConn.EXPECT().LocalAddr().Return(&net.UDPAddr{
 			IP: net.IP{192, 0, 2, 1}, Port: 30001})
-		mockConnector.EXPECT().OpenUDP(&net.UDPAddr{
+		mockConnector.EXPECT().OpenUDP(gomock.Any(), &net.UDPAddr{
 			IP: net.IP{192, 0, 2, 1}}).Return(mockConn, nil)
 		mockConn.EXPECT().Close().Return(nil)
 		mockRoundTripper := mock_svc.NewMockRoundTripper(ctrl)

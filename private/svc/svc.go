@@ -16,6 +16,7 @@
 package svc
 
 import (
+	"context"
 	"net"
 	"net/netip"
 
@@ -57,8 +58,12 @@ type ResolverPacketConnector struct {
 	Handler RequestHandler
 }
 
-func (c *ResolverPacketConnector) OpenUDP(u *net.UDPAddr) (snet.PacketConn, error) {
-	pconn, err := c.Connector.OpenUDP(u)
+func (c *ResolverPacketConnector) OpenUDP(
+	ctx context.Context,
+	u *net.UDPAddr,
+) (snet.PacketConn, error) {
+
+	pconn, err := c.Connector.OpenUDP(ctx, u)
 	if err != nil {
 		return nil, err
 	}
