@@ -29,7 +29,7 @@ def openapi_docs(
         args = ["build-docs", "--output", "../../../$@", "../../../$(location {})".format(src)],
         visibility = ["//visibility:private"],
         tags = ["manual"],
-        **kwargs,
+        **kwargs
     )
 
 def openapi_bundle(
@@ -116,10 +116,10 @@ def openapi_generate_go(
 
 def _target_platform_independent(func, name, **kwargs):
     kwargs_vt = {}
-    if 'visibility' in kwargs:
-        kwargs_vt['visibility'] = kwargs.pop('visibility')
-    if 'tags' in kwargs:
-        kwargs_vt['tags'] = kwargs.pop('tags')
+    if "visibility" in kwargs:
+        kwargs_vt["visibility"] = kwargs.pop("visibility")
+    if "tags" in kwargs:
+        kwargs_vt["tags"] = kwargs.pop("tags")
 
     func(
         name = name + "-platform-independent",
@@ -131,6 +131,6 @@ def _target_platform_independent(func, name, **kwargs):
     platform_transition_filegroup(
         name = name,
         srcs = [name + "-platform-independent"],
-        target_platform = "@local_config_platform//:host", # reset to default value, to allow reusing this for different target platforms
-        **kwargs_vt,
+        target_platform = "@local_config_platform//:host",  # reset to default value, to allow reusing this for different target platforms
+        **kwargs_vt
     )

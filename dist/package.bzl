@@ -49,36 +49,36 @@ def scion_pkg_deb(name, executables = {}, systemds = [], configs = [], **kwargs)
         visibility = ["//visibility:private"],
         tags = ["manual"],
     )
-    conffiles = [ "/etc/scion/" + _basename(file) for file in configs ]
+    conffiles = ["/etc/scion/" + _basename(file) for file in configs]
 
-    kwargs.setdefault('homepage', SCION_PKG_HOMEPAGE)
-    kwargs.setdefault('maintainer', SCION_PKG_MAINTAINER)
-    kwargs.setdefault('priority', SCION_PKG_PRIORITY)
-    kwargs.setdefault('section', SCION_PKG_SECTION)
-    kwargs.setdefault('license', SCION_PKG_LICENSE)
-    kwargs.setdefault('version', SCION_PKG_VERSION)
-    kwargs.setdefault('conffiles', conffiles)
+    kwargs.setdefault("homepage", SCION_PKG_HOMEPAGE)
+    kwargs.setdefault("maintainer", SCION_PKG_MAINTAINER)
+    kwargs.setdefault("priority", SCION_PKG_PRIORITY)
+    kwargs.setdefault("section", SCION_PKG_SECTION)
+    kwargs.setdefault("license", SCION_PKG_LICENSE)
+    kwargs.setdefault("version", SCION_PKG_VERSION)
+    kwargs.setdefault("conffiles", conffiles)
     pkg_deb(
         name = name,
         data = data,
         architecture = select({
-             "@platforms//cpu:x86_64": "amd64",
-             "@platforms//cpu:x86_32": "i386",
-             "@platforms//cpu:aarch64": "arm64",
-             "@platforms//cpu:arm": "armel",
-             "@platforms//cpu:s390x": "s390x",
-             # Note: some rules_go toolchains don't (currently) seem to map (cleanly) to @platforms//cpu.
-             # "@platforms//cpu:ppc": "ppc64",
-             # "@platforms//cpu:ppc64le": "ppc64le",
+            "@platforms//cpu:x86_64": "amd64",
+            "@platforms//cpu:x86_32": "i386",
+            "@platforms//cpu:aarch64": "arm64",
+            "@platforms//cpu:arm": "armel",
+            "@platforms//cpu:s390x": "s390x",
+            # Note: some rules_go toolchains don't (currently) seem to map (cleanly) to @platforms//cpu.
+            # "@platforms//cpu:ppc": "ppc64",
+            # "@platforms//cpu:ppc64le": "ppc64le",
         }),
         target_compatible_with = ["@platforms//os:linux"],
-        **kwargs,
+        **kwargs
     )
 
 def _scion_pkg_deb_data(name, executables, systemds, configs, **kwargs):
-    executable_files = { label : "/usr/bin/" + basename for label, basename in executables.items() }
-    systemd_files = { file : "/lib/systemd/system/" + _basename(file) for file in systemds }
-    config_files = { file : "/etc/scion/" + _basename(file) for file in configs }
+    executable_files = {label: "/usr/bin/" + basename for label, basename in executables.items()}
+    systemd_files = {file: "/lib/systemd/system/" + _basename(file) for file in systemds}
+    config_files = {file: "/etc/scion/" + _basename(file) for file in configs}
 
     files = {}
     files.update(executable_files)
@@ -90,14 +90,15 @@ def _scion_pkg_deb_data(name, executables, systemds, configs, **kwargs):
         extension = "tar.gz",
         files = files,
         modes = {
-            exec_filepath: "755" for exec_filepath in executable_files.values()
+            exec_filepath: "755"
+            for exec_filepath in executable_files.values()
         },
-        mode = "644", # for everything else
-        **kwargs,
+        mode = "644",  # for everything else
+        **kwargs
     )
 
 def _basename(s):
-  return s.split('/')[-1]
+    return s.split("/")[-1]
 
 def multiplatform_filegroup(name, srcs, target_platforms = SCION_PKG_PLATFORMS):
     all_platforms = []
