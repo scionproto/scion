@@ -64,7 +64,7 @@ type intfDesc struct {
 // AS index and the peer AS (that is, the AS that this interface connects to).
 // Per our scheme, the subnet number is the largest of the two AS numbers and the host is always
 // the local AS. This works if there are no cycles. Else there could be subnet number collisions.
-func publicIP(localAS byte, remoteAS byte) netip.Addr {
+func PublicIP(localAS byte, remoteAS byte) netip.Addr {
 	if remoteAS > localAS {
 		return netip.AddrFrom4([4]byte{192, 168, remoteAS, localAS})
 	}
@@ -73,31 +73,31 @@ func publicIP(localAS byte, remoteAS byte) netip.Addr {
 
 // publicIP returns the IP address that is assigned to external interface designated by the given
 // AS index and the peer AS, plus the port to go with.
-func publicIPPort(localAS byte, remoteAS byte) (netip.Addr, layers.UDPPort) {
-	return publicIP(localAS, remoteAS), layers.UDPPort(50000)
+func PublicIPPort(localAS byte, remoteAS byte) (netip.Addr, layers.UDPPort) {
+	return PublicIP(localAS, remoteAS), layers.UDPPort(50000)
 }
 
 // internalIP returns the IP address that is assigned to the internal interface of the given
 // router in the AS of the given index.
-func internalIP(AS byte, routerIndex byte) netip.Addr {
+func InternalIP(AS byte, routerIndex byte) netip.Addr {
 	return netip.AddrFrom4([4]byte{192, 168, AS * 10, routerIndex})
 }
 
 // internalIPPort returns internalIP and the UDPPort to go with.
-func internalIPPort(AS byte, routerIndex byte) (netip.Addr, layers.UDPPort) {
-	return internalIP(AS, routerIndex), layers.UDPPort(30042)
+func InternalIPPort(AS byte, routerIndex byte) (netip.Addr, layers.UDPPort) {
+	return InternalIP(AS, routerIndex), layers.UDPPort(30042)
 }
 
 // interfaceLabel returns a string label for the gievn AS and interface indices.
 // Such names are those used when responding to the show-interfaces command and when translating
 // the --interface option.
-func interfaceLabel(AS int, intf int) string {
+func InterfaceLabel(AS int, intf int) string {
 	return fmt.Sprintf("%d_%d", AS, intf)
 }
 
 // isdAS returns a complete string form ISD/AS number for the given AS index.
 // All are in ISD-1, except AS 4.
-func isdAS(AS byte) addr.IA {
+func ISDAS(AS byte) addr.IA {
 	if AS == 4 {
 		return xtest.MustParseIA(fmt.Sprintf("2-ff00:0:%d", AS))
 	}
@@ -107,9 +107,9 @@ func isdAS(AS byte) addr.IA {
 var (
 	// intfMap lists the required interfaces. That's what we use to respond to showInterfaces
 	intfMap map[string]intfDesc = map[string]intfDesc{
-		interfaceLabel(1, 0): {internalIP(1, 1), internalIP(1, 2)},
-		interfaceLabel(1, 2): {publicIP(1, 2), publicIP(2, 1)},
-		interfaceLabel(1, 3): {publicIP(1, 3), publicIP(3, 1)},
+		InterfaceLabel(1, 0): {InternalIP(1, 1), InternalIP(1, 2)},
+		InterfaceLabel(1, 2): {PublicIP(1, 2), PublicIP(2, 1)},
+		InterfaceLabel(1, 3): {PublicIP(1, 3), PublicIP(3, 1)},
 	}
 
 	// deviceNames holds the real (os-given) names of our required network interfaces. It is
@@ -149,14 +149,14 @@ func InitInterfaces(pairs []string) {
 
 // interfaceName returns the name of the host interface that this test must use in order to exchange
 // traffic with the interface designated by the given AS and interface indices.
-func deviceName(AS int, intf int) string {
-	return deviceNames[interfaceLabel(AS, intf)]
+func DeviceName(AS int, intf int) string {
+	return deviceNames[InterfaceLabel(AS, intf)]
 }
 
 // macAddr returns the mac address assigned to the interface that has the given IP address.
 // if that address is imposed by our environment it is listed in the macAddrs map and that is what
 // this function returns. Else, the address is made-up according to our scheme.
-func macAddr(ip netip.Addr) net.HardwareAddr {
+func MACAddr(ip netip.Addr) net.HardwareAddr {
 	// Look it up or make it up.
 	mac, ok := macAddrs[ip]
 	if ok {
@@ -169,7 +169,7 @@ func macAddr(ip netip.Addr) net.HardwareAddr {
 // hostAddr returns a the SCION Hosts addresse that corresponds to the given underlay address.
 // Except for SVC addresses (which we do not support here), this is a restating of the underlay
 // address.
-func hostAddr(ip netip.Addr) addr.Host {
+func HostAddr(ip netip.Addr) addr.Host {
 	return addr.HostIP(ip)
 }
 

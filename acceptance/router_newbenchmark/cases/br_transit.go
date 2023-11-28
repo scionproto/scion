@@ -38,16 +38,16 @@ import (
 func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 
 	var (
-		originIA       = isdAS(2)
-		originIP       = publicIP(2, 1)
-		originHost     = hostAddr(originIP)
-		srcIP, srcPort = publicIPPort(2, 1)
-		srcMAC         = macAddr(srcIP)
-		dstIP, dstPort = publicIPPort(1, 2)
-		dstMAC         = macAddr(dstIP)
-		targetIA       = isdAS(3)
-		targetIP       = publicIP(3, 1)
-		targetHost     = hostAddr(targetIP)
+		originIA       = ISDAS(2)
+		originIP       = PublicIP(2, 1)
+		originHost     = HostAddr(originIP)
+		srcIP, srcPort = PublicIPPort(2, 1)
+		srcMAC         = MACAddr(srcIP)
+		dstIP, dstPort = PublicIPPort(1, 2)
+		dstMAC         = MACAddr(dstIP)
+		targetIA       = ISDAS(3)
+		targetIP       = PublicIP(3, 1)
+		targetHost     = HostAddr(targetIP)
 	)
 
 	options := gopacket.SerializeOptions{
@@ -164,5 +164,5 @@ func BrTransit(payload string, mac hash.Hash, numDistinct int) (string, string, 
 	for i := 0; i < numDistinct; i++ {
 		packets[i] = oneBrTransit(payload, mac, uint32(i+1))
 	}
-	return deviceName(1, 2), deviceName(1, 3), packets
+	return DeviceName(1, 2), DeviceName(1, 3), packets
 }
