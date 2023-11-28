@@ -81,7 +81,7 @@ func main() {
 		Short: "Generates traffic into a specific router of a specific topology",
 	}
 	intfCmd := &cobra.Command{
-		Use:   "show_interfaces",
+		Use:   "show-interfaces",
 		Short: "Provides a terse list of the interfaces that this test requires",
 		Run: func(cmd *cobra.Command, args []string) {
 			os.Exit(showInterfaces(cmd))
@@ -94,13 +94,13 @@ func main() {
 			os.Exit(run(cmd))
 		},
 	}
-	runCmd.Flags().IntVar(&numPackets, "num_packets", 10, "Number of packets to send")
-	runCmd.Flags().IntVar(&numStreams, "num_streams", 4,
+	runCmd.Flags().IntVar(&numPackets, "num-packets", 10, "Number of packets to send")
+	runCmd.Flags().IntVar(&numStreams, "num-streams", 4,
 		"Number of independent streams (flowID) to use")
 	runCmd.Flags().StringVar(&logConsole, "log.console", "error",
 		"Console logging level: debug|info|error|etc.")
 	runCmd.Flags().StringVar(&dir, "artifacts", "", "Artifacts directory")
-	runCmd.Flags().Var(&caseToRun, "case", "Case to run. "+caseToRun.Type())
+	runCmd.Flags().Var(&caseToRun, "case", "Case to run. "+caseToRun.Allowed())
 	runCmd.Flags().StringArrayVar(&interfaces, "interface", []string{},
 		`label=host_interface,mac,peer_mac where:
     host_interface: use this to exchange traffic with interface <label>
@@ -184,7 +184,8 @@ func run(cmd *cobra.Command) int {
 
 	go func() {
 		defer log.HandlePanic()
-		receivePackets(packetChan, payloadString, listenerChan)
+		defer close(listenerChan)
+		listenerChan <- receivePackets(packetChan, payloadString)
 	}()
 
 	// We started everything that could be started. So the best window for perf mertics
@@ -225,23 +226,18 @@ func run(cmd *cobra.Command) int {
 
 // receivePkts consume some or all (at least one if it arrives) of the packets
 // arriving on the given handle and checks that they contain the given payload.
-// The number of consumed packets is returned via the given outcome channel.
+// The number of consumed packets is returned.
 // Currently we are content with receiving a single correct packet and we terminate after
 // that.
-func receivePackets(packetChan chan gopacket.Packet, payload string, outcome chan int) {
+func receivePackets(packetChan chan gopacket.Packet, payload string) int {
 	numRcv := 0
-
-	defer func() {
-		outcome <- numRcv
-		close(outcome)
-	}()
 
 	for {
 		got, ok := <-packetChan
 		if !ok {
 			// No more packets
 			log.Info("No more Packets")
-			return
+			return numRcv
 		}
 		if err := got.ErrorLayer(); err != nil {
 			log.Error("error decoding packet", "err", err)
@@ -253,8 +249,11 @@ func receivePackets(packetChan chan gopacket.Packet, payload string, outcome cha
 			continue
 		}
 		if string(layer.LayerContents()) == payload {
+			// To return the count of all packets received, just remove the "return" below.
+			// Return will occur once packetChan closes (which happens after a short timeout at
+			// the end of the test.
 			numRcv++
-			return
+			return numRcv
 		}
 	}
 }

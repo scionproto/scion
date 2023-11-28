@@ -74,7 +74,7 @@ func internalIP(AS byte, routerIndex byte) netip.Addr {
 }
 
 // interfaceLabel returns a string label for the gievn AS and interface indices.
-// Such names are those used when responding to the show_interfaces command and when translating
+// Such names are those used when responding to the show-interfaces command and when translating
 // the --interface option.
 func interfaceLabel(AS int, intf int) string {
 	return fmt.Sprintf("%d_%d", AS, intf)
@@ -97,21 +97,23 @@ var (
 		interfaceLabel(1, 3): {publicIP(1, 3), publicIP(3, 1)},
 	}
 
-	// intfNames holds the real names of our required interfaces. It is populated from the values of
-	// the --interface options.
-	intfNames map[string]string = map[string]string{}
+	// deviceNames holds the real (os-given) names of our required network interfaces. It is
+	// created and populated from the values of the --interface options by InitInterfaces.
+	deviceNames map[string]string
 
-	// macAddresses keeps the mac addresses associated with each IP. It is populated from the values
-	// of the --interface options. There are more than intfMap interfaces since we need the peer
-	// addresses too. Additional IPS not from intfMap have no known mac addresses; we are free to
-	// make them up to make credible packets.
-	macAddrs map[netip.Addr]net.HardwareAddr = map[netip.Addr]net.HardwareAddr{}
+	// macAddresses keeps the mac addresses associated with each IP. It is created and populated
+	// from the values of the --interface options by InitInterfaces. There can be two items for each
+	// interface since we record the neighbor's addresses too. Additional IPs not from intfMap have
+	// no known mac addresses; we are free to make them up to make credible packets.
+	macAddrs map[netip.Addr]net.HardwareAddr
 )
 
 // InitInterfaces collects the names and mac addresses for the interfaces setup by the invoker
 // according to instructions given via listInterfaces().
 // This information is indexed by our own interface labels.
 func InitInterfaces(pairs []string) {
+	deviceNames = make(map[string]string, len(pairs))
+	macAddrs = make(map[netip.Addr]net.HardwareAddr, len(pairs)*2)
 	for _, pair := range pairs {
 		p := strings.Split(pair, "=")
 		label := p[0]
@@ -124,7 +126,7 @@ func InitInterfaces(pairs []string) {
 		if err != nil {
 			panic(err)
 		}
-		intfNames[label] = info[0]                 // host-side name
+		deviceNames[label] = info[0]               // host-side name
 		macAddrs[intfMap[label].ip] = addr         // ip->mac
 		macAddrs[intfMap[label].peerIP] = peerAddr // peerIP->peerMAC
 	}
@@ -132,8 +134,8 @@ func InitInterfaces(pairs []string) {
 
 // interfaceName returns the name of the host interface that this test must use in order to exchange
 // traffic with the interface designated by the given AS and interface indices.
-func interfaceName(AS int, intf int) string {
-	return intfNames[interfaceLabel(AS, intf)]
+func deviceName(AS int, intf int) string {
+	return deviceNames[interfaceLabel(AS, intf)]
 }
 
 // macAddr returns the mac address assigned to the interface that has the given IP address.
@@ -146,7 +148,7 @@ func macAddr(ip netip.Addr) net.HardwareAddr {
 		return mac
 	}
 	as4 := ip.As4()
-	return net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, as4[2], as4[3]}
+	return net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, as4[2], as4[3]}
 }
 
 // hostAddr returns a the SCION Hosts addresse that corresponds to the given underlay address.
@@ -157,7 +159,7 @@ func hostAddr(ip netip.Addr) addr.Host {
 }
 
 // ListInterfaces outputs a string describing the interfaces of the router under test.
-// The invoker of this test gets this when using the show_interfaces command and is expected
+// The invoker of this test gets this when using the show-interfaces command and is expected
 // to set up the network accordingly before executing the test without that option.
 // We do not choose interface names or mac addresses those will be provided by the invoker
 // via the --interfaces options.

@@ -33,11 +33,11 @@ from urllib.parse import urlencode
 logger = logging.getLogger(__name__)
 
 # Those values are valid expectations only when running in the CI environment.
-EXPECTATIONS = {
-    # 'in': 53000,
-    # 'out': 26000,
-    # 'in_transit': 73000,
-    # 'out_transit': 49000,
+TEST_CASES = {
+    # 'in': 0,  # 53000,
+    # 'out': 0,  # 26000,
+    # 'in_transit': 0,  # 73000,
+    # 'out_transit': 0,  # 49000,
     'br_transit': 230000,
 }
 
@@ -110,30 +110,30 @@ class RouterBMTest(base.TestBase):
         mac = mac_for_ip(req.ip)
 
         # The interfaces
-        sudo("ip", "link", "add", f"{hostIntf}", "type", "veth", "peer", "name", f"{brIntf}")
-        sudo("ip", "link", "set", f"{hostIntf}", "mtu", "8000")
-        sudo("ip", "link", "set", f"{brIntf}", "mtu", "8000")
+        sudo("ip", "link", "add", hostIntf, "type", "veth", "peer", "name", brIntf)
+        sudo("ip", "link", "set", hostIntf, "mtu", "8000")
+        sudo("ip", "link", "set", brIntf, "mtu", "8000")
         sudo("sysctl", "-qw", f"net.ipv6.conf.{hostIntf}.disable_ipv6=1")
-        sudo("ethtool", "-K", f"{brIntf}", "rx", "off", "tx", "off")
-        sudo("ip", "link", "set", f"{brIntf}", "address", f"{mac}")
+        sudo("ethtool", "-K", brIntf, "rx", "off", "tx", "off")
+        sudo("ip", "link", "set", brIntf, "address", mac)
 
         # The network namespace
-        sudo("ip", "link", "set", f"{brIntf}", "netns", f"{ns}")
-        sudo("ip", "netns", "exec", f"{ns}", "sysctl", "-w", "net.ipv4.ip_default_ttl=64")
+        sudo("ip", "link", "set", brIntf, "netns", ns)
+        sudo("ip", "netns", "exec", ns, "sysctl", "-w", "net.ipv4.ip_default_ttl=64")
 
         # The addresses (presumably must be done once the br interface is in the namespace).
-        sudo("ip", "netns", "exec", f"{ns}",
-             "ip", "addr", "add", f"{req.ip}/{req.prefixLen}", "dev", f"{brIntf}")
-        sudo("ip", "netns", "exec", f"{ns}",
-             "ip", "neigh", "add", f"{req.peerIp}", "lladdr", f"{peerMac}", "nud", "permanent",
-             "dev", f"{brIntf}")
-        sudo("ip", "netns", "exec", f"{ns}",
+        sudo("ip", "netns", "exec", ns,
+             "ip", "addr", "add", f"{req.ip}/{req.prefixLen}", "dev", brIntf)
+        sudo("ip", "netns", "exec", ns,
+             "ip", "neigh", "add", req.peerIp, "lladdr", peerMac, "nud", "permanent",
+             "dev", brIntf)
+        sudo("ip", "netns", "exec", ns,
              "sysctl", "-qw", f"net.ipv6.conf.{brIntf}.disable_ipv6=1")
 
         # Fit for duty.
-        sudo("ip", "link", "set", f"{hostIntf}", "up")
-        sudo("ip", "netns", "exec", f"{ns}",
-             "ip", "link", "set", f"{brIntf}", "up")
+        sudo("ip", "link", "set", hostIntf, "up")
+        sudo("ip", "netns", "exec", ns,
+             "ip", "link", "set", brIntf, "up")
 
         self.intfMap[req.label] = Intf(hostIntf, mac, peerMac)
 
@@ -167,16 +167,16 @@ class RouterBMTest(base.TestBase):
         sudo("mkdir", "-p", "/var/run/netns")
         ns = docker("inspect",
                     "prometheus",
-                    "-f", "'{{.NetworkSettings.SandboxKey}}'").replace("'", "").strip()
-        sudo("ln", "-sfT", f"{ns}", "/var/run/netns/benchmark")
+                    "-f", "{{.NetworkSettings.SandboxKey}}").strip()
+        sudo("ln", "-sfT", ns, "/var/run/netns/benchmark")
 
-        # Run test brload test with --show_interfaces and set up the veth that it needs.
+        # Run test brload test with --show-interfaces and set up the veth that it needs.
         # The router uses one end and the test uses the other end to feed it with (and possibly
         # capture) traffic.
         # We supply the label->(host-side-name,mac,peermac) mapping to brload when we start it.
         self.intfMap = {}
         brload = self.get_executable("brload")
-        output = brload("show_interfaces")
+        output = brload("show-interfaces")
 
         for line in output.splitlines():
             elems = line.split(",")
@@ -205,31 +205,25 @@ class RouterBMTest(base.TestBase):
         docker("rm", "-f", "prometheus")
         docker("rm", "-f", "router")
         docker("network", "rm", "benchmark")  # veths are deleted automatically
-        sudo("chown", "-R", f"{whoami().strip()}", f"{self.artifacts}")
+        sudo("chown", "-R", whoami().strip(), self.artifacts)
 
-    def _run(self):
-        # Build the interface mapping arg
-        mapArgs = []
-        for label, intf in self.intfMap.items():
-            mapArgs.extend(["--interface", f"{label}={intf.name},{intf.mac},{intf.peerMac}"])
-
-        # At long last...
-        logger.info("==> Starting load br-transit")
+    def runTestCase(self, case: str, mapArgs: list[str]):
+        logger.info(f"==> Starting load {case}")
         brload = self.get_executable("brload")
-        output = sudo(f"{brload.executable}",
+        output = sudo(brload.executable,
                       "run",
-                      "--artifacts", f"{self.artifacts}",
+                      "--artifacts", self.artifacts,
                       *mapArgs,
-                      "--case", "br_transit",
-                      "--num_packets", "10000000",
-                      "--num_streams", "2")
+                      "--case", case,
+                      "--num-packets", "10000000",
+                      "--num-streams", "2")
 
         for line in output.splitlines():
             print(line)
             if line.startswith('metricsBegin'):
                 _, beg, _, end = line.split()
 
-        logger.info('==> Collecting br-transit performance metrics...')
+        logger.info(f"==> Collecting {case} performance metrics...")
 
         # The raw metrics are expressed in terms of core*seconds. We convert to machine*seconds
         # which allows us to provide a projected packet/s; ...more intuitive than packets/core*s.
@@ -240,8 +234,8 @@ class RouterBMTest(base.TestBase):
         promQuery = urlencode({
             'time': f'{sampleTime}',
             'query': (
-                'sum by (instance, job) ('
-                '  rate(router_output_pkts_total{job="BR", type="br_transit"}[10s])'
+                f'sum by (instance, job) ('
+                '  rate(router_output_pkts_total{job="BR", type="{case}"}[10s])'
                 ')'
                 '/ on (instance, job) group_left()'
                 'sum by (instance, job) ('
@@ -256,20 +250,17 @@ class RouterBMTest(base.TestBase):
         if resp.status != 200:
             raise RuntimeError(f'Unexpected response: {resp.status} {resp.reason}')
 
-        # There's only one router that has br_transit traffic.
+        # There's only one router, so whichever metric we get is the right one.
         pld = json.loads(resp.read().decode('utf-8'))
         results = pld['data']['result']
-        rateMap = {}
-        tt = 'br_transit'
-        rateMap[tt] = 0
         for result in results:
             ts, val = result['value']
-            r = int(float(val))
-            if r != 0:
-                rateMap[tt] = r
+            return int(float(val))
+        return 0
 
-        # Fetch and log the number of cores used by Go. This may inform performance
-        # modeling later.
+    # Fetch and log the number of cores used by Go. This may inform performance
+    # modeling later.
+    def logCoreCounts(self):
         logger.info('==> Collecting number of cores...')
         promQuery = urlencode({
             'query': 'go_sched_maxprocs_threads{job="BR"}'
@@ -288,12 +279,25 @@ class RouterBMTest(base.TestBase):
             _, val = result['value']
             logger.info(f'Router Cores for {instance}: {int(val)}')
 
+    def _run(self):
+        # Build the interface mapping arg
+        mapArgs = []
+        for label, intf in self.intfMap.items():
+            mapArgs.extend(["--interface", f"{label}={intf.name},{intf.mac},{intf.peerMac}"])
+
+        # At long last, run the tests
+        rateMap = {}
+        for testCase in TEST_CASES:
+            rateMap[testCase] = self.runTestCase(testCase, mapArgs)
+
+        self.logCoreCounts()
+
         # Log and check the performance...
         # If this is used as a CI test. Make sure that the performance is within the expected
         # ballpark.
         rateTooLow = []
-        for tt, exp in EXPECTATIONS.items():
-            if self.ci:
+        for tt, exp in TEST_CASES.items():
+            if self.ci and exp != 0:
                 logger.info(f'Packets/(machine*s) for {tt}: {rateMap[tt]} expected: {exp}')
                 if rateMap[tt] < 0.8 * exp:
                     rateTooLow.append(tt)

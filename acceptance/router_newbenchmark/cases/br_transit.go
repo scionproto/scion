@@ -165,5 +165,5 @@ func BrTransit(payload string, mac hash.Hash, numDistinct int) (string, string, 
 	for i := 0; i < numDistinct; i++ {
 		packets[i] = oneBrTransit(payload, mac, uint32(i+1))
 	}
-	return interfaceName(1, 2), interfaceName(1, 3), packets
+	return deviceName(1, 2), deviceName(1, 3), packets
 }
