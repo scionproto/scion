@@ -1,106 +1,107 @@
 load("@rules_pkg//pkg:pkg.bzl", "pkg_tar")
-load(":package.bzl", "scion_pkg_deb", "multiplatform_filegroup")
+load(":package.bzl", "multiplatform_filegroup", "scion_pkg_deb")
 
 scion_pkg_deb(
     name = "router-deb",
-    package = "scion-router",
-    executables = {
-        "//router/cmd/router:router": "/usr/bin/scion-router",
-    },
-    systemds = [ "systemd/scion-router@.service" ],
     depends = [
         "adduser",
     ],
     description = "SCION inter-domain network architecture border router",
+    executables = {
+        "//router/cmd/router:router": "/usr/bin/scion-router",
+    },
+    package = "scion-router",
     postinst = "debian/scion.postinst",
+    systemds = ["systemd/scion-router@.service"],
 )
 
 scion_pkg_deb(
     name = "control-deb",
-    package = "scion-control",
-    executables = {
-        "//control/cmd/control:control": "scion-control",
-    },
-    systemds = [ "systemd/scion-control@.service" ],
     configs = [],
-    description = "SCION inter-domain network architecture control service",
     depends = [
         "adduser",
         "scion-dispatcher",
     ],
-    postinst = "debian/scion.postinst",
+    description = "SCION inter-domain network architecture control service",
+    executables = {
+        "//control/cmd/control:control": "scion-control",
+    },
+    package = "scion-control",
+    systemds = ["systemd/scion-control@.service"],
 )
 
 scion_pkg_deb(
     name = "dispatcher-deb",
-    package = "scion-dispatcher",
-    executables = {
-        "//dispatcher/cmd/dispatcher:dispatcher": "scion-dispatcher",
-    },
-    systemds = [ "systemd/scion-dispatcher.service" ],
-    configs = [ "conffiles/dispatcher.toml" ],
-    description = "SCION dispatcher",
+    configs = ["conffiles/dispatcher.toml"],
     depends = [
         "adduser",
     ],
+    description = "SCION dispatcher",
+    executables = {
+        "//dispatcher/cmd/dispatcher:dispatcher": "scion-dispatcher",
+    },
+    package = "scion-dispatcher",
     postinst = "debian/scion.postinst",
+    systemds = ["systemd/scion-dispatcher.service"],
 )
 
 scion_pkg_deb(
     name = "daemon-deb",
-    package = "scion-daemon",
-    executables = {
-        "//daemon/cmd/daemon:daemon": "scion-daemon",
-    },
-    systemds = [ "systemd/scion-daemon.service" ],
-    configs = [ "conffiles/sciond.toml" ],
-    description = "SCION dispatcher",
+    configs = ["conffiles/sciond.toml"],
     depends = [
         "adduser",
     ],
+    description = "SCION dispatcher",
+    executables = {
+        "//daemon/cmd/daemon:daemon": "scion-daemon",
+    },
+    package = "scion-daemon",
     postinst = "debian/scion.postinst",
+    systemds = ["systemd/scion-daemon.service"],
 )
 
 scion_pkg_deb(
     name = "gateway-deb",
-    package = "scion-ip-gateway",
-    executables = {
-        "//gateway/cmd/gateway:gateway": "scion-ip-gateway",
-    },
-    systemds = [ "systemd/scion-ip-gateway.service" ],
-    configs = [ "conffiles/sig.toml", "conffiles/sig.json" ],
-    description = "SCION-IP Gateway",
+    configs = [
+        "conffiles/sig.json",
+        "conffiles/sig.toml",
+    ],
     depends = [
         "adduser",
         "scion-dispatcher",
         "scion-daemon",
     ],
-    postinst = "debian/scion.postinst",
+    description = "SCION-IP Gateway",
+    executables = {
+        "//gateway/cmd/gateway:gateway": "scion-ip-gateway",
+    },
+    package = "scion-ip-gateway",
+    systemds = ["systemd/scion-ip-gateway.service"],
 )
 
 scion_pkg_deb(
     name = "tools-deb",
-    package = "scion-tools",
-    executables = {
-        "//scion/cmd/scion:scion": "scion",
-        "//scion-pki/cmd/scion-pki:scion-pki": "scion-pki",
-    },
-    description = "SCION tools",
     depends = [
         "adduser",
         "scion-dispatcher",
         "scion-daemon",
     ],
+    description = "SCION tools",
+    executables = {
+        "//scion/cmd/scion:scion": "scion",
+        "//scion-pki/cmd/scion-pki:scion-pki": "scion-pki",
+    },
+    package = "scion-tools",
 )
 
 multiplatform_filegroup(
     name = "deb",
     srcs = [
-        "router-deb",
         "control-deb",
-        "dispatcher-deb",
         "daemon-deb",
+        "dispatcher-deb",
         "gateway-deb",
+        "router-deb",
         "tools-deb",
-    ]
+    ],
 )
