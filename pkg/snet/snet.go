@@ -93,6 +93,8 @@ func (d *DefaultConnector) OpenUDP(ctx context.Context, addr *net.UDPAddr) (Pack
 }
 
 func listenUDPRange(addr *net.UDPAddr, start, end uint16) (*net.UDPConn, error) {
+	// XXX(JordiSubira): For now, we simply iterate on the complete SCION/UDP
+	// range, taking the first unused port.
 	for port := start; port < end; port++ {
 		pconn, err := net.ListenUDP(addr.Network(), &net.UDPAddr{
 			IP:   addr.IP,
