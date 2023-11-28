@@ -103,6 +103,12 @@ class RouterBMTest(base.TestBase):
     # Accepts an IntfReq, records names and mac addresses into an Intf, and associates it with the
     # request label. In the isolated network, set default TTL for outgoing packets to the common
     # value 64, so that packets sent from router will match the expected value.
+    # We could add:
+    # sudo("ip", "addr", "add", f"{req.peerIp}/{req.prefixLen}", "dev", hostIntf)
+    # sudo("ip", "link", "set", hostIntf, "address", peerMac)
+    # But it not necessary, the ARP seeding on the other end is enough. But not setting these
+    # addresses on the host side we make it look a little weird for anyone who would look at it
+    # but we avoid the risk of colliding with actual addresses of the host.
     def create_interface(self, req: IntfReq, ns: str):
         hostIntf = f"veth_{req.label}_host"
         brIntf = f"veth_{req.label}"

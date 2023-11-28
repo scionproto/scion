@@ -38,16 +38,16 @@ import (
 func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 
 	var (
-		originIA   = isdAS(2)
-		originIP   = publicIP(2, 1)
-		originHost = hostAddr(originIP)
-		srcIP      = publicIP(2, 1)
-		srcMAC     = macAddr(srcIP)
-		dstIP      = publicIP(1, 2)
-		dstMAC     = macAddr(dstIP)
-		targetIA   = isdAS(3)
-		targetIP   = publicIP(3, 1)
-		targetHost = hostAddr(targetIP)
+		originIA       = isdAS(2)
+		originIP       = publicIP(2, 1)
+		originHost     = hostAddr(originIP)
+		srcIP, srcPort = publicIPPort(2, 1)
+		srcMAC         = macAddr(srcIP)
+		dstIP, dstPort = publicIPPort(1, 2)
+		dstMAC         = macAddr(dstIP)
+		targetIA       = isdAS(3)
+		targetIP       = publicIP(3, 1)
+		targetHost     = hostAddr(targetIP)
 	)
 
 	options := gopacket.SerializeOptions{
@@ -72,14 +72,13 @@ func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 		Protocol: layers.IPProtocolUDP,
 		Flags:    layers.IPv4DontFragment,
 	}
-	// 	UDP: Src=50000 Dst=50000
 	udp := &layers.UDP{
-		SrcPort: layers.UDPPort(50000),
-		DstPort: layers.UDPPort(50000),
+		SrcPort: srcPort,
+		DstPort: dstPort,
 	}
 	_ = udp.SetNetworkLayerForChecksum(ip)
 
-	// Fully correct path.
+	// Fully correct (hopefully) path.
 	sp := &scion.Decoded{
 		Base: scion.Base{
 			PathMeta: scion.MetaHdr{

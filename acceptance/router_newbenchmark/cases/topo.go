@@ -20,6 +20,8 @@ import (
 	"net/netip"
 	"strings"
 
+	"github.com/google/gopacket/layers"
+
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/xtest"
 )
@@ -37,10 +39,12 @@ import (
 // an address can be derived from a minimal information:
 // * AS-1 is the hub of the test. Others are hereafter called children.
 // * All IPs are V4.
+// * Interface numbers are equal to the index of AS to which they connect.
 // * ISD/AS: <1 or 2>-ff00:0:<AS index>
 // * subnets are 192.168.<child AS number> except internal subnets that are 192.168.10*<AS>.<rtr>
 // * hosts are 192.168.s.<interface number>
 // * Mac addressed (when we can choose) derive from the IP
+// * Ports are always 50000 for external interfaces and 30042 for internal interfaces.
 //
 // Example:
 // * AS2 has only interface number 1 with IP 192.168.2.2 and mac address f0:0d:cafe:02:02 that
@@ -67,10 +71,21 @@ func publicIP(localAS byte, remoteAS byte) netip.Addr {
 	return netip.AddrFrom4([4]byte{192, 168, localAS, localAS})
 }
 
+// publicIP returns the IP address that is assigned to external interface designated by the given
+// AS index and the peer AS, plus the port to go with.
+func publicIPPort(localAS byte, remoteAS byte) (netip.Addr, layers.UDPPort) {
+	return publicIP(localAS, remoteAS), layers.UDPPort(50000)
+}
+
 // internalIP returns the IP address that is assigned to the internal interface of the given
 // router in the AS of the given index.
 func internalIP(AS byte, routerIndex byte) netip.Addr {
 	return netip.AddrFrom4([4]byte{192, 168, AS * 10, routerIndex})
+}
+
+// internalIPPort returns internalIP and the UDPPort to go with.
+func internalIPPort(AS byte, routerIndex byte) (netip.Addr, layers.UDPPort) {
+	return internalIP(AS, routerIndex), layers.UDPPort(30042)
 }
 
 // interfaceLabel returns a string label for the gievn AS and interface indices.
