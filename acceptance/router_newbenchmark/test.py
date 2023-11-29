@@ -62,14 +62,9 @@ def mac_for_ip(ip: str) -> str:
 
 class RouterBMTest(base.TestBase):
     """
-    Tests that the implementation of a router has sufficient performance (in terms of packets
+    Tests that the implementation of a router has sufficient performance in terms of packets
     per available machine*second (i.e. one accumulated second of all configured CPUs available
     to execute the router code).
-
-    This test depends on an image called pause. This image is very thin, 250KB,
-    and is used to keep the network namespace open during the test. It is
-    stored locally by executing `docker save kubernetes/pause > pause.tar`. It
-    can be replaced at any time with any other image e.g. Alpine.
 
     This test runs and execute a single router. The outgoing packets are not observed, the incoming
     packets are fed directly by the test driver. The other routers in the topology are a fiction,
@@ -83,13 +78,7 @@ class RouterBMTest(base.TestBase):
 
     Only br1 is executed and observed.
 
-    Pretend traffic is injected as follows:
-
-    * from AS2 to AS3 at br1a external interface 1 to cause "br_transit" traffic.
-    * from AS2 to AS4 at br1a external interface 1 to cause "in_transit" traffic.
-    * from AS2 to AS1 at br1a external interface 1 to cause "in" traffic.
-    * from AS1 to AS2 at br1a internal interface to cause "out" traffic.
-    * from AS4 to AS2 at br1a internal interface to cause "out_transit" traffic.
+    Pretend traffic is injected by brload's. See the test cases for details.
     """
 
     ci = cli.Flag(
@@ -98,18 +87,34 @@ class RouterBMTest(base.TestBase):
         envname="CI"
     )
 
-    # Creates a pair of virtual interfaces, with one end in the given network namespace and the
-    # other in the host stack.
-    # Accepts an IntfReq, records names and mac addresses into an Intf, and associates it with the
-    # request label. In the isolated network, set default TTL for outgoing packets to the common
-    # value 64, so that packets sent from router will match the expected value.
-    # We could add:
-    # sudo("ip", "addr", "add", f"{req.peerIp}/{req.prefixLen}", "dev", hostIntf)
-    # sudo("ip", "link", "set", hostIntf, "address", peerMac)
-    # But it not necessary, the ARP seeding on the other end is enough. But not setting these
-    # addresses on the host side we make it look a little weird for anyone who would look at it
-    # but we avoid the risk of colliding with actual addresses of the host.
     def create_interface(self, req: IntfReq, ns: str):
+        """
+        Creates a pair of virtual interfaces, with one end in the given network namespace and the
+        other in the host stack.
+
+        The outcome is the pair of interfaces and a record in intfMap, which associates the given
+        label with two mac addresses. One for each end of the pair. The mac addresses are not
+        chosen by the invoker, but by this function.
+
+        In the isolated network, set default TTL for outgoing packets to the common
+        value 64, so that packets sent from router will match the expected value.
+
+        We could add:
+        sudo("ip", "addr", "add", f"{req.peerIp}/{req.prefixLen}", "dev", hostIntf)
+        sudo("ip", "link", "set", hostIntf, "address", peerMac)
+        But it not necessary, the ARP seeding on the other end is enough. But not setting these
+        addresses on the host side we make it look a little weird for anyone who would look at it
+        but we avoid the risk of colliding with actual addresses of the host.
+
+        Args:
+          IntfReq: A requested router-side network interface. It comprises:
+                   * A label by which brload indetifies that interface.
+                   * The IP address to be assigned to that interface.
+                   * The IP address of one neighbor.
+          ns: The network namespace where that interface must exist.
+
+        """
+
         hostIntf = f"veth_{req.label}_host"
         brIntf = f"veth_{req.label}"
         peerMac = mac_for_ip(req.peerIp)
@@ -153,7 +158,7 @@ class RouterBMTest(base.TestBase):
         docker("network", "create",  "-d", "bridge", "benchmark")
 
         # This test is useless without prometheus. Also, we need a running container to have
-        # a usable network namespace that we can configuer before the router runs. So, start
+        # a usable network namespace that we can configure before the router runs. So, start
         # prometheus now and then have the router share the same network stack.
 
         # FWIW, the alternative would be to start the router's container without the router,
@@ -213,17 +218,20 @@ class RouterBMTest(base.TestBase):
         docker("network", "rm", "benchmark")  # veths are deleted automatically
         sudo("chown", "-R", whoami().strip(), self.artifacts)
 
+    def execBrLoad(self, case: str, mapArgs: list[str], count: int) -> str:
+        brload = self.get_executable("brload")
+        return sudo(brload.executable,
+                    "run",
+                    "--artifacts", self.artifacts,
+                    *mapArgs,
+                    "--case", case,
+                    "--num-packets", str(count),
+                    "--num-streams", "2")
+
     def runTestCase(self, case: str, mapArgs: list[str]):
         logger.info(f"==> Starting load {case}")
-        brload = self.get_executable("brload")
-        output = sudo(brload.executable,
-                      "run",
-                      "--artifacts", self.artifacts,
-                      *mapArgs,
-                      "--case", case,
-                      "--num-packets", "10000000",
-                      "--num-streams", "2")
 
+        output = self.execBrLoad(case, mapArgs, 10000000)
         for line in output.splitlines():
             print(line)
             if line.startswith('metricsBegin'):
@@ -290,6 +298,10 @@ class RouterBMTest(base.TestBase):
         mapArgs = []
         for label, intf in self.intfMap.items():
             mapArgs.extend(["--interface", f"{label}={intf.name},{intf.mac},{intf.peerMac}"])
+
+        # Run one (10% size) test as warm-up to trigger the frequency scaling, else the first test
+        # gets much lower performance.
+        self.execBrLoad(list(TEST_CASES)[0], mapArgs, 1000000)
 
         # At long last, run the tests
         rateMap = {}
