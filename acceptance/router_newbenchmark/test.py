@@ -93,16 +93,14 @@ class RouterBMTest(base.TestBase):
         other in the host stack.
 
         The outcome is the pair of interfaces and a record in intfMap, which associates the given
-        label with two mac addresses. One for each end of the pair. The mac addresses are not
-        chosen by the invoker, but by this function.
-
-        In the isolated network, set default TTL for outgoing packets to the common
-        value 64, so that packets sent from router will match the expected value.
+        label with the network interface's host-side name and two mac addresses; one for each end
+        of the pair. The mac addresses, if they can be chosen, are not chosen by the invoker, but
+        by this function.
 
         We could add:
-        sudo("ip", "addr", "add", f"{req.peerIp}/{req.prefixLen}", "dev", hostIntf)
-        sudo("ip", "link", "set", hostIntf, "address", peerMac)
-        But it not necessary, the ARP seeding on the other end is enough. But not setting these
+          sudo("ip", "addr", "add", f"{req.peerIp}/{req.prefixLen}", "dev", hostIntf)
+          sudo("ip", "link", "set", hostIntf, "address", peerMac)
+        But it not necessary. The ARP seeding on the other end is enough. By not setting these
         addresses on the host side we make it look a little weird for anyone who would look at it
         but we avoid the risk of colliding with actual addresses of the host.
 
@@ -130,7 +128,6 @@ class RouterBMTest(base.TestBase):
 
         # The network namespace
         sudo("ip", "link", "set", brIntf, "netns", ns)
-        sudo("ip", "netns", "exec", ns, "sysctl", "-w", "net.ipv4.ip_default_ttl=64")
 
         # The addresses (presumably must be done once the br interface is in the namespace).
         sudo("ip", "netns", "exec", ns,
@@ -180,6 +177,10 @@ class RouterBMTest(base.TestBase):
                     "prometheus",
                     "-f", "{{.NetworkSettings.SandboxKey}}").strip()
         sudo("ln", "-sfT", ns, "/var/run/netns/benchmark")
+
+        # Set the default TTL for outgoing packets to the common
+        # value 64, so that packets sent from router will match the expected value.
+        sudo("ip", "netns", "exec", "benchmark", "sysctl", "-w", "net.ipv4.ip_default_ttl=64")
 
         # Run test brload test with --show-interfaces and set up the veth that it needs.
         # The router uses one end and the test uses the other end to feed it with (and possibly
