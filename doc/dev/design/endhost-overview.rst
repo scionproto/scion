@@ -2,8 +2,8 @@
 End host developments overview
 ******************************
 
-- Author(s): Matthias Frei
-- Last updated: 2023-11-28
+- Author(s): Matthias Frei, Jordi Subirà Nieto
+- Last updated: 2023-12-01
 - Status: draft
 - Discussion at: -
 
@@ -58,14 +58,20 @@ Ongoing or planned work
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 - Dispatcher removal (:issue:`4280`).
+
+  As part of this chage, BR will be updated to inspects the L4 header and to deliver packets directly to the applications underlay port for a locally configured range.
+  Otherwise, it will send packets to the fixed endhost port 30041. The endhost port range will be configured per AS independently.
+
 - Self-contained distribution of SCION-native applications.
 
-  On some platforms there is no good path to install and run the default SCION stack with the daemon and the dispatcher as a dependency for running individual SCION-native applications.
+  On some platforms, there is no good path to install and run the default SCION stack with the daemon and the dispatcher as a dependency for running individual SCION-native applications.
   This was one of the observations that led the dispatcher removal work.
-  The the daemon and the compatibility "shim" replacing the dispatcher still remain.
+  The daemon and the compatibility "shim" replacing the dispatcher still remain.
 
   The "shim" is intentionally designed to be optional; if it's not there, applications are only
   restricted to receive UDP/SCION packets, no SCMP or other L4 types.
+  Additionally, the "shim" also plays the role of backwards-compatibility component. In networks with legacy BRs, those would still send packets to the fixed port 30041. In this case,
+  the "shim" allows end applications to still receive traffic from those legacy BRs.
 
   The functionality of the daemon, however, is necessary. It might already possible to bundle the daemon into an
   application, but it is certainly tedious and not well supported.
@@ -76,7 +82,7 @@ Ongoing or planned work
 - Extend or replace ``pkg/snet`` API with higher-level library like `netsec-ethz/scion-apps/pkg/pan <https://pkg.go.dev/github.com/netsec-ethz/scion-apps/pkg/pan>`_.
 
 A compatiblity mechanism of the dispatcher removal project appears to imply that the underlay address cannot reliably be obtained for received SCION packets.
-Consequently, we need a different mechanism to obtain the underlay address. This couples the dispatcher removal to with the other listed items.
+Consequently, we need a different mechanism to obtain the underlay address. This couples the dispatcher removal with the second listed item and potentially the third one.
 
 Proposal
 ========
@@ -121,6 +127,8 @@ Proposal
    model.
    Otherwise, the known base TRC can be used to verify any TRC update sequence and ultimately the
    local AS's CP-PKI certificate.
+
+   Finally, the daemon also obtain the endhost port range for the local AS, using also a rpc call ``PortRange()``.
 
 4. The relatively low-level ``snet.Conn`` API is replaced a higher-level API based on application provided path policies.
 
