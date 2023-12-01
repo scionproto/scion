@@ -3,11 +3,11 @@ load("//tools/lint:go.bzl", "go_library")
 go_library(
     name = "go_default_library",
     srcs = [
-        "in.go",
-        "out.go",
-        "in_transit.go",
-        "out_transit.go",
         "br_transit.go",
+        "in.go",
+        "in_transit.go",
+        "out.go",
+        "out_transit.go",
         "topo.go",
     ],
     importpath = "github.com/scionproto/scion/acceptance/router_newbenchmark/cases",
