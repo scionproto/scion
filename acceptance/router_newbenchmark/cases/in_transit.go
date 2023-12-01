@@ -33,9 +33,9 @@ import (
 //    AS3 (br3) ---+
 // See topo.go
 
-// oneBrTransit generates one packet of "br_transit" traffic over the router under test.
-// The outcome is a raw packet which the test must feed to the router.
-func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
+// oneInTransit generates one packet of "in_transit" traffic over the router under test.
+// The outcome is a raw packet that the test must feed into the router.
+func oneInTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 
 	var (
 		originIA       = ISDAS(2)
@@ -45,8 +45,8 @@ func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 		srcMAC         = MACAddr(srcIP)
 		dstIP, dstPort = PublicIPPort(1, 2)
 		dstMAC         = MACAddr(dstIP)
-		targetIA       = ISDAS(3)
-		targetIP       = PublicIP(3, 1)
+		targetIA       = ISDAS(4)
+		targetIP       = PublicIP(4, 1)
 		targetHost     = HostAddr(targetIP)
 	)
 
@@ -101,10 +101,10 @@ func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 			},
 		},
 		HopFields: []path.HopField{
-			{ConsIngress: 22, ConsEgress: 0}, // From there (non-consdir)
-			{ConsIngress: 0, ConsEgress: 2},  // <- Processed here (non-consdir)
-			{ConsIngress: 0, ConsEgress: 3},  // Down via this
-			{ConsIngress: 33, ConsEgress: 0}, // To there
+			{ConsIngress: 1, ConsEgress: 0}, // From there (non-consdir)
+			{ConsIngress: 0, ConsEgress: 2}, // <- Processed here (non-consdir)
+			{ConsIngress: 0, ConsEgress: 4}, // Sideways to as4 via this
+			{ConsIngress: 1, ConsEgress: 0}, // To there
 		},
 	}
 
@@ -155,14 +155,14 @@ func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 	return input.Bytes()
 }
 
-// BrTransit generates numDistinct packets (each with a unique flowID) with the given payload
-// constructed to cause br_transit traffic at the br1a router.
+// InTransit generates numDistinct packets (each with a unique flowID) with the given payload
+// constructed to cause in_transit traffic at the br1a router.
 // numDistrinct is a small number, only to enable multiple parallel streams. Each distinct packet
 // is meant to be replayed a large number of times for performance measurement.
-func BrTransit(payload string, mac hash.Hash, numDistinct int) (string, string, [][]byte) {
+func InTransit(payload string, mac hash.Hash, numDistinct int) (string, string, [][]byte) {
 	packets := make([][]byte, numDistinct)
 	for i := 0; i < numDistinct; i++ {
-		packets[i] = oneBrTransit(payload, mac, uint32(i+1))
+		packets[i] = oneInTransit(payload, mac, uint32(i+1))
 	}
-	return DeviceName(1, 2), DeviceName(1, 3), packets
+	return DeviceName(1, 2), DeviceName(1, 0), packets
 }

@@ -65,7 +65,11 @@ func (c *caseChoice) Allowed() string {
 
 var (
 	allCases = map[string]Case{
-		"br_transit": cases.BrTransit,
+		"in":          cases.In,
+		"out":         cases.Out,
+		"in_transit":  cases.InTransit,
+		"out_transit": cases.OutTransit,
+		"br_transit":  cases.BrTransit,
 	}
 	logConsole string
 	dir        string
@@ -300,7 +304,9 @@ func loadKey(artifactsDir string) (hash.Hash, error) {
 // registerScionPorts registers the following UDP ports in gopacket such as SCION is the
 // next layer. In other words, map the following ports to expect SCION as the payload.
 func registerScionPorts() {
-	layers.RegisterUDPPortLayerType(layers.UDPPort(30041), slayers.LayerTypeSCION)
+	for i := 30041; i < 30043; i++ {
+		layers.RegisterUDPPortLayerType(layers.UDPPort(i), slayers.LayerTypeSCION)
+	}
 	for i := 30000; i < 30010; i++ {
 		layers.RegisterUDPPortLayerType(layers.UDPPort(i), slayers.LayerTypeSCION)
 	}

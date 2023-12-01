@@ -3,6 +3,10 @@ load("//tools/lint:go.bzl", "go_library")
 go_library(
     name = "go_default_library",
     srcs = [
+        "in.go",
+        "out.go",
+        "in_transit.go",
+        "out_transit.go",
         "br_transit.go",
         "topo.go",
     ],
