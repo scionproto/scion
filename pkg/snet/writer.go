@@ -87,7 +87,8 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 		PacketInfo: PacketInfo{
 			Destination: dst,
 			Source: SCIONAddress{
-				IA:   c.base.scionNet.LocalIA,
+				IA: c.base.scionNet.LocalIA,
+				// FIXME(JordiSubira): Resolve local address which reaches nextHop.
 				Host: addr.HostIP(listenHostIP),
 			},
 			Path: path,
