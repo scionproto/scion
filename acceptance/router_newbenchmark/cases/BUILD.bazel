@@ -11,7 +11,10 @@ go_library(
         "topo.go",
     ],
     importpath = "github.com/scionproto/scion/acceptance/router_newbenchmark/cases",
-    visibility = ["//acceptance/router_newbenchmark:__pkg__"],
+    visibility = [
+        "//acceptance/router_newbenchmark:__pkg__",
+        "//acceptance/router_newbenchmark:__subpackages__",
+    ],
     deps = [
         "//pkg/addr:go_default_library",
         "//pkg/private/util:go_default_library",
