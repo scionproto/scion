@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/slayers"
@@ -42,9 +41,7 @@ func oneOut(payload string, mac hash.Hash, flowId uint32) []byte {
 		originIP       = InternalIP(1, 2)
 		originHost     = HostAddr(originIP)
 		srcIP, srcPort = InternalIPPort(1, 2)
-		srcMAC         = MACAddr(srcIP)
 		dstIP, dstPort = InternalIPPort(1, 1)
-		dstMAC         = MACAddr(dstIP)
 		targetIA       = ISDAS(2)
 		targetIP       = PublicIP(2, 1)
 		targetHost     = HostAddr(targetIP)
@@ -55,28 +52,7 @@ func oneOut(payload string, mac hash.Hash, flowId uint32) []byte {
 		ComputeChecksums: true,
 	}
 
-	// Point-to-point.
-	ethernet := &layers.Ethernet{
-		SrcMAC:       srcMAC,
-		DstMAC:       dstMAC,
-		EthernetType: layers.EthernetTypeIPv4,
-	}
-
-	// Point-to-point. This is the real IP: the underlay network.
-	ip := &layers.IPv4{
-		Version:  4,
-		IHL:      5,
-		TTL:      64,
-		SrcIP:    srcIP.AsSlice(),
-		DstIP:    dstIP.AsSlice(),
-		Protocol: layers.IPProtocolUDP,
-		Flags:    layers.IPv4DontFragment,
-	}
-	udp := &layers.UDP{
-		SrcPort: srcPort,
-		DstPort: dstPort,
-	}
-	_ = udp.SetNetworkLayerForChecksum(ip)
+	ethernet, ip, udp := Underlay(srcIP, srcPort, dstIP, dstPort)
 
 	// Fully correct (hopefully) path.
 	sp := &scion.Decoded{
@@ -105,7 +81,7 @@ func oneOut(payload string, mac hash.Hash, flowId uint32) []byte {
 	// Seg0: Hops are in consdir.
 	sp.HopFields[0].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[0], nil)
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[0].Mac) // tmp
-	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[0], nil)
+	sp.HopFields[1].Mac = path.MAC(FakeMAC(2), sp.InfoFields[0], sp.HopFields[0], nil)
 	sp.InfoFields[0].SegID = 0x111 // Restore to initial.
 
 	// End-to-end. Src is the originator and Dst is the final destination.

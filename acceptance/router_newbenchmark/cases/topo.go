@@ -16,6 +16,7 @@ package cases
 
 import (
 	"fmt"
+	"hash"
 	"net"
 	"net/netip"
 	"strings"
@@ -24,6 +25,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/scrypto"
 )
 
 // Topology (see accept/router_newbenchmark/conf/topology.json)
@@ -93,6 +95,41 @@ func ISDAS(AS byte) addr.IA {
 		return xtest.MustParseIA(fmt.Sprintf("2-ff00:0:%d", AS))
 	}
 	return xtest.MustParseIA(fmt.Sprintf("1-ff00:0:%d", AS))
+}
+
+func FakeMAC(AS byte) hash.Hash {
+	macGen, err := scrypto.HFMacFactory([]byte{AS})
+	if err != nil {
+		panic(err)
+	}
+	return macGen()
+}
+
+func Underlay(srcIP netip.Addr, srcPort layers.UDPPort, dstIP netip.Addr, dstPort layers.UDPPort) (*layers.Ethernet, *layers.IPv4, *layers.UDP) {
+	// Point-to-point.
+	ethernet := &layers.Ethernet{
+		SrcMAC:       MACAddr(srcIP),
+		DstMAC:       MACAddr(dstIP),
+		EthernetType: layers.EthernetTypeIPv4,
+	}
+
+	// Point-to-point. This is the real IP: the underlay network.
+	ip := &layers.IPv4{
+		Version:  4,
+		IHL:      5,
+		TTL:      64,
+		SrcIP:    srcIP.AsSlice(),
+		DstIP:    dstIP.AsSlice(),
+		Protocol: layers.IPProtocolUDP,
+		Flags:    layers.IPv4DontFragment,
+	}
+	udp := &layers.UDP{
+		SrcPort: srcPort,
+		DstPort: dstPort,
+	}
+	_ = udp.SetNetworkLayerForChecksum(ip)
+
+	return ethernet, ip, udp
 }
 
 // interfaceLabel returns a string label for the given AS and interface indices.

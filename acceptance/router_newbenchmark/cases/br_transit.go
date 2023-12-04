@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/slayers"
@@ -42,9 +41,7 @@ func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 		originIP       = PublicIP(2, 1)
 		originHost     = HostAddr(originIP)
 		srcIP, srcPort = PublicIPPort(2, 1)
-		srcMAC         = MACAddr(srcIP)
 		dstIP, dstPort = PublicIPPort(1, 2)
-		dstMAC         = MACAddr(dstIP)
 		targetIA       = ISDAS(3)
 		targetIP       = PublicIP(3, 1)
 		targetHost     = HostAddr(targetIP)
@@ -55,28 +52,7 @@ func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 		ComputeChecksums: true,
 	}
 
-	// Point-to-point.
-	ethernet := &layers.Ethernet{
-		SrcMAC:       srcMAC,
-		DstMAC:       dstMAC,
-		EthernetType: layers.EthernetTypeIPv4,
-	}
-
-	// Point-to-point. This is the real IP: the underlay network.
-	ip := &layers.IPv4{
-		Version:  4,
-		IHL:      5,
-		TTL:      64,
-		SrcIP:    srcIP.AsSlice(),
-		DstIP:    dstIP.AsSlice(),
-		Protocol: layers.IPProtocolUDP,
-		Flags:    layers.IPv4DontFragment,
-	}
-	udp := &layers.UDP{
-		SrcPort: srcPort,
-		DstPort: dstPort,
-	}
-	_ = udp.SetNetworkLayerForChecksum(ip)
+	ethernet, ip, udp := Underlay(srcIP, srcPort, dstIP, dstPort)
 
 	// Fully correct (hopefully) path.
 	sp := &scion.Decoded{
@@ -101,10 +77,10 @@ func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 			},
 		},
 		HopFields: []path.HopField{
-			{ConsIngress: 22, ConsEgress: 0}, // From there (non-consdir)
-			{ConsIngress: 0, ConsEgress: 2},  // <- Processed here (non-consdir)
-			{ConsIngress: 0, ConsEgress: 3},  // Down via this
-			{ConsIngress: 33, ConsEgress: 0}, // To there
+			{ConsIngress: 1, ConsEgress: 0}, // From there (non-consdir)
+			{ConsIngress: 0, ConsEgress: 2}, // <- Processed here (non-consdir)
+			{ConsIngress: 0, ConsEgress: 3}, // Down via this
+			{ConsIngress: 1, ConsEgress: 0}, // To there
 		},
 	}
 
@@ -112,12 +88,12 @@ func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 	// Seg0: Hops are in non-consdir.
 	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
-	sp.HopFields[0].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[0], nil)
+	sp.HopFields[0].Mac = path.MAC(FakeMAC(2), sp.InfoFields[0], sp.HopFields[0], nil)
 
 	// Seg1: in the natural order.
 	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
 	sp.InfoFields[1].UpdateSegID(sp.HopFields[2].Mac) // tmp
-	sp.HopFields[3].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
+	sp.HopFields[3].Mac = path.MAC(FakeMAC(3), sp.InfoFields[1], sp.HopFields[2], nil)
 	sp.InfoFields[1].SegID = 0x222 // Restore to initial.
 
 	// End-to-end. Src is the originator and Dst is the final destination.
