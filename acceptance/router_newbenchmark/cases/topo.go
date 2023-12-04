@@ -86,13 +86,6 @@ func InternalIPPort(AS byte, routerIndex byte) (netip.Addr, layers.UDPPort) {
 	return InternalIP(AS, routerIndex), layers.UDPPort(30042)
 }
 
-// interfaceLabel returns a string label for the gievn AS and interface indices.
-// Such names are those used when responding to the show-interfaces command and when translating
-// the --interface option.
-func InterfaceLabel(AS int, intf int) string {
-	return fmt.Sprintf("%d_%d", AS, intf)
-}
-
 // isdAS returns a complete string form ISD/AS number for the given AS index.
 // All are in ISD-1, except AS 4.
 func ISDAS(AS byte) addr.IA {
@@ -102,12 +95,19 @@ func ISDAS(AS byte) addr.IA {
 	return xtest.MustParseIA(fmt.Sprintf("1-ff00:0:%d", AS))
 }
 
+// interfaceLabel returns a string label for the given AS and interface indices.
+// Such names are those used when responding to the show-interfaces command and when translating
+// the --interface option.
+func interfaceLabel(AS int, intf int) string {
+	return fmt.Sprintf("%d_%d", AS, intf)
+}
+
 var (
 	// intfMap lists the required interfaces. That's what we use to respond to showInterfaces
 	intfMap map[string]intfDesc = map[string]intfDesc{
-		InterfaceLabel(1, 0): {InternalIP(1, 1), InternalIP(1, 2)},
-		InterfaceLabel(1, 2): {PublicIP(1, 2), PublicIP(2, 1)},
-		InterfaceLabel(1, 3): {PublicIP(1, 3), PublicIP(3, 1)},
+		interfaceLabel(1, 0): {InternalIP(1, 1), InternalIP(1, 2)},
+		interfaceLabel(1, 2): {PublicIP(1, 2), PublicIP(2, 1)},
+		interfaceLabel(1, 3): {PublicIP(1, 3), PublicIP(3, 1)},
 	}
 
 	// deviceNames holds the real (os-given) names of our required network interfaces. It is
@@ -148,7 +148,7 @@ func InitInterfaces(pairs []string) {
 // interfaceName returns the name of the host interface that this test must use in order to exchange
 // traffic with the interface designated by the given AS and interface indices.
 func DeviceName(AS int, intf int) string {
-	return deviceNames[InterfaceLabel(AS, intf)]
+	return deviceNames[interfaceLabel(AS, intf)]
 }
 
 // macAddr returns the mac address assigned to the interface that has the given IP address.
