@@ -105,7 +105,12 @@ func FakeMAC(AS byte) hash.Hash {
 	return macGen()
 }
 
-func Underlay(srcIP netip.Addr, srcPort layers.UDPPort, dstIP netip.Addr, dstPort layers.UDPPort) (*layers.Ethernet, *layers.IPv4, *layers.UDP) {
+func Underlay(
+	srcIP netip.Addr,
+	srcPort layers.UDPPort,
+	dstIP netip.Addr,
+	dstPort layers.UDPPort) (*layers.Ethernet, *layers.IPv4, *layers.UDP) {
+
 	// Point-to-point.
 	ethernet := &layers.Ethernet{
 		SrcMAC:       MACAddr(srcIP),
