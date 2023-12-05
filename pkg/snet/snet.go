@@ -54,6 +54,11 @@ type Controller interface {
 }
 
 type Connector interface {
+	// OpenUDP returns a PacketConn which listens on the specified address.
+	// If address is nil or unspecified it listens on all available interfaces except
+	// for multicast IP addresses.
+	// If the address port is 0 a valid and free SCION/UDP port is automatically chosen. Otherwise,
+	// the specified port must be a valid SCION/UDP port.
 	OpenUDP(ctx context.Context, address *net.UDPAddr) (PacketConn, error)
 }
 
@@ -133,10 +138,10 @@ type SCIONNetwork struct {
 	Metrics SCIONNetworkMetrics
 }
 
-// Dial returns a SCION connection to remote. Nil values for listen are not
-// supported yet. Parameter network must be "udp". The returned connection's
-// Read and Write methods can be used to receive and send SCION packets.
-// Remote address requires a path and the underlay net hop to be set if the
+// Dial returns a SCION connection to remote. Parameter network must be "udp".
+// The returned connection's Read and Write methods can be used to receive
+// and send SCION packets.
+// Remote address requires a path and the underlay next hop to be set if the
 // destination is in a remote AS.
 //
 // The context is used for connection setup, it doesn't affect the returned
@@ -158,7 +163,9 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 
 // Listen opens a PacketConn. The returned connection's ReadFrom and WriteTo methods
 // can be used to receive and send SCION packets with per-packet addressing.
-// Parameter network must be "udp".
+// Parameter network must be "udp". If listen is unspecified address a suitable address
+// will be chosen independently per packet. For finer-grained control, bind to a specific
+// anycast address only.
 //
 // The context is used for connection setup, it doesn't affect the returned
 // connection.
@@ -196,4 +203,16 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 		return nil, err
 	}
 	return newConn(conn, packetConn, replyPather, start, end), nil
+}
+
+// ResolveLocal returns the local IP address used for traffic destined to dst.
+func ResolveLocal(dst net.IP) (net.IP, error) {
+	udpAddr := net.UDPAddr{IP: dst, Port: 1}
+	udpConn, err := net.DialUDP(udpAddr.Network(), nil, &udpAddr)
+	if err != nil {
+		return nil, err
+	}
+	defer udpConn.Close()
+	srcIP := udpConn.LocalAddr().(*net.UDPAddr).IP
+	return srcIP, nil
 }

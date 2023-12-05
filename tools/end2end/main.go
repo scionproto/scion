@@ -339,6 +339,16 @@ func (c *client) ping(ctx context.Context, n int, path snet.Path) error {
 	if !ok {
 		return serrors.New("invalid local host IP", "ip", integration.Local.Host.IP)
 	}
+	if localHostIP.Unmap().IsUnspecified() {
+		resolvedLocal, err := snet.ResolveLocal(remote.Host.IP)
+		if err != nil {
+			return err
+		}
+		localHostIP, ok = netip.AddrFromSlice(resolvedLocal)
+		if !ok {
+			return serrors.New("invalid resolved local addr", "ip", resolvedLocal)
+		}
+	}
 	pkt := &snet.Packet{
 		PacketInfo: snet.PacketInfo{
 			Destination: snet.SCIONAddress{

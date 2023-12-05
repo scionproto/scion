@@ -82,13 +82,26 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 		return 0, serrors.New("invalid listen host IP", "ip", c.base.listen.Host.IP)
 	}
 
+	// XXX(JordiSubira): This simulates dynamic local address selection transparent to
+	// the application, if it decides to configure an unspecified address. For finer-grained
+	// control, the application should bind to a specific address only.
+	if listenHostIP.Unmap().IsUnspecified() {
+		resolvedLocal, err := ResolveLocal(nextHop.IP)
+		if err != nil {
+			return 0, err
+		}
+		listenHostIP, ok = netip.AddrFromSlice(resolvedLocal)
+		if !ok {
+			return 0, serrors.New("invalid resolved local addr", "ip", resolvedLocal)
+		}
+	}
+
 	pkt := &Packet{
 		Bytes: Bytes(c.buffer),
 		PacketInfo: PacketInfo{
 			Destination: dst,
 			Source: SCIONAddress{
-				IA: c.base.scionNet.LocalIA,
-				// FIXME(JordiSubira): Resolve local address which reaches nextHop.
+				IA:   c.base.scionNet.LocalIA,
 				Host: addr.HostIP(listenHostIP),
 			},
 			Path: path,

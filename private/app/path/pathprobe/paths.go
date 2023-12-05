@@ -34,7 +34,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
-	"github.com/scionproto/scion/pkg/snet/addrutil"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
 )
 
@@ -286,7 +285,7 @@ func (p Prober) resolveLocalIP(target *net.UDPAddr) (net.IP, error) {
 	if target == nil {
 		return nil, serrors.New("underlay nexthop missing")
 	}
-	localIP, err := addrutil.ResolveLocal(target.IP)
+	localIP, err := snet.ResolveLocal(target.IP)
 	if err != nil {
 		return nil, serrors.WrapStr("resolving local IP", err)
 	}
