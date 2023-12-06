@@ -67,7 +67,7 @@ type intfDesc struct {
 // Per our scheme, the subnet number is the largest of the two AS numbers and the host is always
 // the local AS. This works if there are no cycles. Else there could be subnet number collisions.
 func PublicIP(localAS byte, remoteAS byte) netip.Addr {
-	subnetNr := byte(max(int(remoteAS), int(localAS)))
+	subnetNr := max(remoteAS, localAS)
 	return netip.AddrFrom4([4]byte{192, 168, subnetNr, localAS})
 }
 
