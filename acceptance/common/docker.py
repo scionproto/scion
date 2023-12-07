@@ -197,7 +197,7 @@ def assert_no_networks(writer=None):
             writer.write("Docker networking assertions are OFF\n")
         return
 
-    allowed_nets = ['bridge', 'host', 'none']
+    allowed_nets = ['bridge', 'host', 'none', 'benchmark']
     unexpected_nets = []
     for net in _get_networks():
         if net.name not in allowed_nets:

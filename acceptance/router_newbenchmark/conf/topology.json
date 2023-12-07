@@ -1,0 +1,46 @@
+{
+  "attributes": [
+    "core"
+  ],
+  "isd_as": "1-ff00:0:1",
+  "mtu": 1400,
+  "border_routers": {
+    "br1a": {
+      "internal_addr": "192.168.10.1:30042",
+      "interfaces": {
+        "2": {
+          "underlay": {
+            "public": "192.168.2.1:50000",
+            "remote": "192.168.2.2:50000"
+          },
+          "isd_as": "1-ff00:0:2",
+          "link_to": "child",
+          "mtu": 1280
+        },
+        "3": {
+          "underlay": {
+            "public": "192.168.3.1:50000",
+            "remote": "192.168.3.3:50000"
+          },
+          "isd_as": "1-ff00:0:3",
+          "link_to": "child",
+          "mtu": 1280
+        }
+      }
+    },
+    "br1b": {
+      "internal_addr": "192.168.10.2:30042",
+      "interfaces": {
+        "4": {
+          "underlay": {
+            "public": "192.168.4.1:50000",
+            "remote": "192.168.4.4:50000"
+          },
+          "isd_as": "2-ff00:0:4",
+          "link_to": "core",
+          "mtu": 1280
+        }
+      }
+    }
+  }
+}

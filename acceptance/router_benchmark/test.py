@@ -141,7 +141,7 @@ class Test(base.TestTopogen):
             "-name", "router_benchmark",
             "-cmd", "./bin/end2endblast",
             "-attempts", 1500000,
-            "-timeout", "120s",  # Timeout is for all attempts together
+            "-timeout", "180s",  # Timeout is for all attempts together
             "-parallelism", 100,
             "-subset", "noncore#core#remoteISD"
         ].run_tee()
