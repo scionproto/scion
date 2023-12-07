@@ -10,10 +10,9 @@ go_library(
         "out_transit.go",
         "topo.go",
     ],
-    importpath = "github.com/scionproto/scion/acceptance/router_newbenchmark/cases",
+    importpath = "github.com/scionproto/scion/acceptance/router_benchmark/cases",
     visibility = [
-        "//acceptance/router_newbenchmark:__pkg__",
-        "//acceptance/router_newbenchmark:__subpackages__",
+        "//acceptance/router_benchmark:__subpackages__",
     ],
     deps = [
         "//pkg/addr:go_default_library",

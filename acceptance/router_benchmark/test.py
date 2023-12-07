@@ -149,7 +149,7 @@ class RouterBMTest(base.TestBase):
         super().setup_prepare()
 
         # get the config where the router can find it.
-        shutil.copytree("acceptance/router_newbenchmark/conf/", self.artifacts / "conf")
+        shutil.copytree("acceptance/router_benchmark/conf/", self.artifacts / "conf")
 
         # We need a custom network so can create veth interfaces of our own chosing.
         docker("network", "create",  "-d", "bridge", "benchmark")

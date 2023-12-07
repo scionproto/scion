@@ -30,7 +30,7 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/spf13/cobra"
 
-	"github.com/scionproto/scion/acceptance/router_newbenchmark/cases"
+	"github.com/scionproto/scion/acceptance/router_benchmark/cases"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto"

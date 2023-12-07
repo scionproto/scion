@@ -7,14 +7,14 @@ exports_files([
 
 args = [
     "--executable",
-    "brload:$(location //acceptance/router_newbenchmark/brload:brload)",
+    "brload:$(location //acceptance/router_benchmark/brload:brload)",
     "--container-loader=posix-router:latest#$(location //docker:posix_router)",
 ]
 
 data = [
     ":conf",
     "//docker:posix_router",
-    "//acceptance/router_newbenchmark/brload:brload",
+    "//acceptance/router_benchmark/brload:brload",
 ]
 
 raw_test(
