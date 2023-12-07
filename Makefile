@@ -1,6 +1,15 @@
-.PHONY: all antlr bazel clean docker-images gazelle go.mod licenses mocks protobuf scion-topo test test-integration write_all_source_files
+.PHONY: all build build-dev antlr clean docker-images gazelle go.mod licenses mocks protobuf scion-topo test test-integration write_all_source_files
 
-build: bazel
+build-dev:
+	rm -f bin/*
+	bazel build //:scion //:scion-ci
+	tar -kxf bazel-bin/scion.tar -C bin
+	tar -kxf bazel-bin/scion-ci.tar -C bin
+
+build:
+	rm -f bin/*
+	bazel build //:scion
+	tar -kxf bazel-bin/scion.tar -C bin
 
 # all: performs the code-generation steps and then builds; the generated code
 # is git controlled, and therefore this is only necessary when changing the
@@ -8,7 +17,7 @@ build: bazel
 # Use NOTPARALLEL to force correct order.
 # Note: From GNU make 4.4, this still allows building any other targets (e.g. lint) in parallel.
 .NOTPARALLEL: all
-all: go_deps.bzl protobuf mocks gazelle build antlr write_all_source_files licenses
+all: go_deps.bzl protobuf mocks gazelle build-dev antlr write_all_source_files licenses
 
 clean:
 	bazel clean
@@ -17,12 +26,6 @@ clean:
 scrub:
 	bazel clean --expunge
 	rm -f bin/*
-
-bazel:
-	rm -f bin/*
-	bazel build //:scion //:scion-ci
-	tar -kxf bazel-bin/scion.tar -C bin
-	tar -kxf bazel-bin/scion-ci.tar -C bin
 
 test:
 	bazel test --config=unit_all
