@@ -356,6 +356,9 @@ func (s *DaemonServer) DRKeyASHost(
 	req *pb_daemon.DRKeyASHostRequest,
 ) (*pb_daemon.DRKeyASHostResponse, error) {
 
+	if s.DRKeyClient == nil {
+		return nil, serrors.New("DRKey is not available")
+	}
 	meta, err := requestToASHostMeta(req)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing protobuf ASHostReq", err)
@@ -378,6 +381,9 @@ func (s *DaemonServer) DRKeyHostAS(
 	req *pb_daemon.DRKeyHostASRequest,
 ) (*pb_daemon.DRKeyHostASResponse, error) {
 
+	if s.DRKeyClient == nil {
+		return nil, serrors.New("DRKey is not available")
+	}
 	meta, err := requestToHostASMeta(req)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing protobuf HostASReq", err)
@@ -400,6 +406,9 @@ func (s *DaemonServer) DRKeyHostHost(
 	req *pb_daemon.DRKeyHostHostRequest,
 ) (*pb_daemon.DRKeyHostHostResponse, error) {
 
+	if s.DRKeyClient == nil {
+		return nil, serrors.New("DRKey is not available")
+	}
 	meta, err := requestToHostHostMeta(req)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing protobuf HostHostReq", err)
