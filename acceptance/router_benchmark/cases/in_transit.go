@@ -26,7 +26,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 )
 
-// Topology (see accept/router_newbenchmark/conf/topology.json)
+// Topology (see accept/router_benchmark/conf/topology.json)
 //    AS2 (br2) ---+== (br1a) AS1 (br1b) ---- (br4) AS4
 //                 |
 //    AS3 (br3) ---+

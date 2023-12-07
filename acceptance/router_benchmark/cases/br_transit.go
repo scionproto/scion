@@ -26,24 +26,24 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 )
 
-// Topology (see accept/router_newbenchmark/conf/topology.json)
+// Topology (see accept/router_benchmark/conf/topology.json)
 //    AS2 (br2) ---+== (br1a) AS1 (br1b) ---- (br4) AS4
 //                 |
 //    AS3 (br3) ---+
 // See topo.go
 
-// oneOut generates one packet of outgoing traffic from AS1 at br1a. The outcome is a raw packet
-// that the test must feed into the router.
-func oneOut(payload string, mac hash.Hash, flowId uint32) []byte {
+// oneBrTransit generates one packet of "br_transit" traffic over the router under test.
+// The outcome is a raw packet which the test must feed to the router.
+func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 
 	var (
-		originIA       = ISDAS(1)
-		originIP       = InternalIP(1, 2)
+		originIA       = ISDAS(2)
+		originIP       = PublicIP(2, 1)
 		originHost     = HostAddr(originIP)
-		srcIP, srcPort = InternalIPPort(1, 2)
-		dstIP, dstPort = InternalIPPort(1, 1)
-		targetIA       = ISDAS(2)
-		targetIP       = PublicIP(2, 1)
+		srcIP, srcPort = PublicIPPort(2, 1)
+		dstIP, dstPort = PublicIPPort(1, 2)
+		targetIA       = ISDAS(3)
+		targetIP       = PublicIP(3, 1)
 		targetHost     = HostAddr(targetIP)
 	)
 
@@ -58,31 +58,43 @@ func oneOut(payload string, mac hash.Hash, flowId uint32) []byte {
 	sp := &scion.Decoded{
 		Base: scion.Base{
 			PathMeta: scion.MetaHdr{
-				CurrHF: 0,
-				SegLen: [3]uint8{2, 0, 0},
+				CurrHF: 1,
+				SegLen: [3]uint8{2, 2, 0},
 			},
-			NumINF:  1,
-			NumHops: 2,
+			NumINF:  2,
+			NumHops: 4,
 		},
 		InfoFields: []path.InfoField{
 			{
 				SegID:     0x111,
 				Timestamp: util.TimeToSecs(time.Now()),
+				ConsDir:   false,
+			},
+			{
+				SegID:     0x222,
+				Timestamp: util.TimeToSecs(time.Now()),
 				ConsDir:   true,
 			},
 		},
 		HopFields: []path.HopField{
-			{ConsIngress: 0, ConsEgress: 2}, // <- Processed here
-			{ConsIngress: 1, ConsEgress: 0}, // Going there
+			{ConsIngress: 1, ConsEgress: 0}, // From there (non-consdir)
+			{ConsIngress: 0, ConsEgress: 2}, // <- Processed here (non-consdir)
+			{ConsIngress: 0, ConsEgress: 3}, // Down via this
+			{ConsIngress: 1, ConsEgress: 0}, // To there
 		},
 	}
 
 	// Calculate MACs...
-	// Seg0: Hops are in consdir.
-	sp.HopFields[0].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[0], nil)
-	sp.InfoFields[0].UpdateSegID(sp.HopFields[0].Mac) // tmp
-	sp.HopFields[1].Mac = path.MAC(FakeMAC(2), sp.InfoFields[0], sp.HopFields[0], nil)
-	sp.InfoFields[0].SegID = 0x111 // Restore to initial.
+	// Seg0: Hops are in non-consdir.
+	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
+	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
+	sp.HopFields[0].Mac = path.MAC(FakeMAC(2), sp.InfoFields[0], sp.HopFields[0], nil)
+
+	// Seg1: in the natural order.
+	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
+	sp.InfoFields[1].UpdateSegID(sp.HopFields[2].Mac) // tmp
+	sp.HopFields[3].Mac = path.MAC(FakeMAC(3), sp.InfoFields[1], sp.HopFields[2], nil)
+	sp.InfoFields[1].SegID = 0x222 // Restore to initial.
 
 	// End-to-end. Src is the originator and Dst is the final destination.
 	scionL := &slayers.SCION{
@@ -116,18 +128,17 @@ func oneOut(payload string, mac hash.Hash, flowId uint32) []byte {
 	); err != nil {
 		panic(err)
 	}
-
 	return input.Bytes()
 }
 
-// Out generates numDistinct packets (each with a unique flowID) with the given payload
-// constructed to cause "out" traffic at the br1a router.
+// BrTransit generates numDistinct packets (each with a unique flowID) with the given payload
+// constructed to cause br_transit traffic at the br1a router.
 // numDistrinct is a small number, only to enable multiple parallel streams. Each distinct packet
 // is meant to be replayed a large number of times for performance measurement.
-func Out(payload string, mac hash.Hash, numDistinct int) (string, string, [][]byte) {
+func BrTransit(payload string, mac hash.Hash, numDistinct int) (string, string, [][]byte) {
 	packets := make([][]byte, numDistinct)
 	for i := 0; i < numDistinct; i++ {
-		packets[i] = oneOut(payload, mac, uint32(i+1))
+		packets[i] = oneBrTransit(payload, mac, uint32(i+1))
 	}
-	return DeviceName(1, 0), DeviceName(1, 2), packets
+	return DeviceName(1, 2), DeviceName(1, 3), packets
 }
