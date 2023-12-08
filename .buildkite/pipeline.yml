@@ -12,7 +12,7 @@ steps:
     plugins:
       - scionproto/metahook#v0.3.0:
           post-artifact: |
-            cat << EOF | buildkite-agent annotate --style "info"
+            cat << EOF | buildkite-agent annotate --style "info" --context "binaries"
             #### Build outputs
             - <a href="artifact://bazel-bin/scion.tar">SCION binaries</a>
             - <a href="artifact://bazel-bin/scion-ci.tar">SCION test tools and utilities</a>
@@ -36,7 +36,7 @@ steps:
     plugins:
       - scionproto/metahook#v0.3.0:
           post-artifact: |
-            cat << EOF | buildkite-agent annotate --style "info"
+            cat << EOF | buildkite-agent annotate --style "info" --context "packages"
             #### Packages :debian:
             - <a href="artifact://deb/scion-deb-amd64.tar">amd64</a>
             - <a href="artifact://deb/scion-deb-arm64.tar">arm64</a>
