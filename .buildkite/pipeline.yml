@@ -38,10 +38,10 @@ steps:
           post-artifact: |
             cat << EOF | buildkite-agent annotate --style "info" --context "packages"
             #### Packages :debian:
-            - <a href="artifact://deb/scion-deb-amd64.tar">amd64</a>
-            - <a href="artifact://deb/scion-deb-arm64.tar">arm64</a>
-            - <a href="artifact://deb/scion-deb-i386.tar">i386</a>
-            - <a href="artifact://deb/scion-deb-armel.tar">armel</a>
+            - <a href="artifact://deb/scion-deb-amd64.tar.gz">amd64</a>
+            - <a href="artifact://deb/scion-deb-arm64.tar.gz">arm64</a>
+            - <a href="artifact://deb/scion-deb-i386.tar.gz">i386</a>
+            - <a href="artifact://deb/scion-deb-armel.tar.gz">armel</a>
             EOF
     key: dist-deb
     retry: *automatic-retry
