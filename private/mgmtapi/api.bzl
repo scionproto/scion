@@ -103,13 +103,13 @@ def openapi_generate_go(
         kwargs["out_" + typ] = typ + ".bzl.gen.go"
         write_files[typ + ".gen.go"] = src
 
-    _openapi_generate_go(
+    _target_platform_independent(
+        _openapi_generate_go,
         name = name,
         **kwargs
     )
 
-    _target_platform_independent(
-        write_source_files,
+    write_source_files(
         name = "write_files",
         files = write_files,
     )
