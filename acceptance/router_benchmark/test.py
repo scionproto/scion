@@ -34,11 +34,11 @@ logger = logging.getLogger(__name__)
 
 # Those values are valid expectations only when running in the CI environment.
 TEST_CASES = {
-    'in': 270000,
-    'out': 240000,
-    'in_transit': 270000,
-    'out_transit': 240000,
-    'br_transit': 260000,
+    'in': 310000,
+    'out': 290000,
+    'in_transit': 320000,
+    'out_transit': 310000,
+    'br_transit': 330000,
 }
 
 
