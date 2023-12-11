@@ -56,7 +56,7 @@ gen_bazel_test_steps() {
         echo "          automatic:"
         echo "            - exit_status: -1 # Agent was lost"
         echo "            - exit_status: 255 # Forced agent shutdown"
-	echo "            - exit_status: 1 # Test may be flaky or it just didn't pass"
+	echo "            - exit_status: 3 # Test may be flaky or it just didn't pass"
 	echo "              limit: 2"
     done
 }
