@@ -51,6 +51,7 @@ import (
 // Controller provides local-IA control-plane information
 type Controller interface {
 	PortRange(ctx context.Context) (uint16, uint16, error)
+	Interfaces(ctx context.Context) (map[uint16]*net.UDPAddr, error)
 }
 
 type Connector interface {
@@ -75,7 +76,10 @@ func (d *DefaultConnector) OpenUDP(ctx context.Context, addr *net.UDPAddr) (Pack
 	if err != nil {
 		return nil, err
 	}
-	log.Debug("OpenUDP", "addr", addr)
+	ifAddrs, err := d.Controller.Interfaces(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if addr.Port == 0 {
 		pconn, err = listenUDPRange(addr, start, end)
 	} else {
@@ -94,6 +98,13 @@ func (d *DefaultConnector) OpenUDP(ctx context.Context, addr *net.UDPAddr) (Pack
 		Conn:        pconn,
 		SCMPHandler: d.SCMPHandler,
 		Metrics:     d.Metrics,
+		getLastHopAddr: func(id uint16) (*net.UDPAddr, error) {
+			addr, ok := ifAddrs[id]
+			if !ok {
+				return nil, serrors.New("Interface number not found", "if", id)
+			}
+			return addr, nil
+		},
 	}, nil
 }
 

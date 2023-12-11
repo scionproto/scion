@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"path/filepath"
@@ -957,6 +958,18 @@ type controller struct {
 func (c controller) PortRange(_ context.Context) (uint16, uint16, error) {
 	start, end := c.topo.PortRange()
 	return start, end, nil
+}
+
+func (c controller) Interfaces(_ context.Context) (map[uint16]*net.UDPAddr, error) {
+	ifMap := c.topo.InterfaceInfoMap()
+	ifsToUDP := make(map[uint16]*net.UDPAddr, len(ifMap))
+	for i, v := range ifMap {
+		if i > (1<<16)-1 {
+			return nil, serrors.New("Invalid interface id", "id", i)
+		}
+		ifsToUDP[uint16(i)] = v.InternalAddr
+	}
+	return ifsToUDP, nil
 }
 
 func getCAHealth(

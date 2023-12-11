@@ -13,7 +13,6 @@ import (
 	addr "github.com/scionproto/scion/pkg/addr"
 	daemon "github.com/scionproto/scion/pkg/daemon"
 	drkey "github.com/scionproto/scion/pkg/drkey"
-	common "github.com/scionproto/scion/pkg/private/common"
 	path_mgmt "github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	snet "github.com/scionproto/scion/pkg/snet"
 )
@@ -115,19 +114,19 @@ func (mr *MockConnectorMockRecorder) DRKeyGetHostHostKey(arg0, arg1 interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DRKeyGetHostHostKey", reflect.TypeOf((*MockConnector)(nil).DRKeyGetHostHostKey), arg0, arg1)
 }
 
-// IFInfo mocks base method.
-func (m *MockConnector) IFInfo(arg0 context.Context, arg1 []common.IFIDType) (map[common.IFIDType]*net.UDPAddr, error) {
+// Interfaces mocks base method.
+func (m *MockConnector) Interfaces(arg0 context.Context) (map[uint16]*net.UDPAddr, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IFInfo", arg0, arg1)
-	ret0, _ := ret[0].(map[common.IFIDType]*net.UDPAddr)
+	ret := m.ctrl.Call(m, "Interfaces", arg0)
+	ret0, _ := ret[0].(map[uint16]*net.UDPAddr)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// IFInfo indicates an expected call of IFInfo.
-func (mr *MockConnectorMockRecorder) IFInfo(arg0, arg1 interface{}) *gomock.Call {
+// Interfaces indicates an expected call of Interfaces.
+func (mr *MockConnectorMockRecorder) Interfaces(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IFInfo", reflect.TypeOf((*MockConnector)(nil).IFInfo), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Interfaces", reflect.TypeOf((*MockConnector)(nil).Interfaces), arg0)
 }
 
 // LocalIA mocks base method.

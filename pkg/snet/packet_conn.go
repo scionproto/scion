@@ -24,6 +24,11 @@ import (
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
+	"github.com/scionproto/scion/pkg/slayers/path/empty"
+	"github.com/scionproto/scion/pkg/slayers/path/epic"
+	"github.com/scionproto/scion/pkg/slayers/path/onehop"
+	"github.com/scionproto/scion/pkg/slayers/path/scion"
+	"github.com/scionproto/scion/private/topology/underlay"
 )
 
 // PacketConn gives applications easy access to writing and reading custom
@@ -114,7 +119,8 @@ type SCIONPacketConn struct {
 	// SCMP message is received.
 	SCMPHandler SCMPHandler
 	// Metrics are the metrics exported by the conn.
-	Metrics SCIONPacketConnMetrics
+	Metrics        SCIONPacketConnMetrics
+	getLastHopAddr func(id uint16) (*net.UDPAddr, error)
 }
 
 func (c *SCIONPacketConn) SetReadBuffer(bytes int) error {
@@ -185,7 +191,7 @@ func (c *SCIONPacketConn) SyscallConn() (syscall.RawConn, error) {
 
 func (c *SCIONPacketConn) readFrom(pkt *Packet, ov *net.UDPAddr) error {
 	pkt.Prepare()
-	n, lastHopNetAddr, err := c.Conn.ReadFrom(pkt.Bytes)
+	n, err := c.Conn.Read(pkt.Bytes)
 	if err != nil {
 		metrics.CounterInc(c.Metrics.UnderlayConnectionErrors)
 		return serrors.WrapStr("Reliable socket read error", err)
@@ -194,18 +200,15 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet, ov *net.UDPAddr) error {
 	metrics.CounterInc(c.Metrics.ReadPackets)
 
 	pkt.Bytes = pkt.Bytes[:n]
-	var lastHop *net.UDPAddr
-
-	var ok bool
-	lastHop, ok = lastHopNetAddr.(*net.UDPAddr)
-	if !ok {
-		return serrors.New("Invalid lastHop address Type",
-			"Actual", lastHopNetAddr)
-	}
-
 	if err := pkt.Decode(); err != nil {
 		metrics.CounterInc(c.Metrics.ParseErrors)
 		return serrors.WrapStr("decoding packet", err)
+	}
+
+	// Get ingress interface internal address
+	lastHop, err := c.lastHop(pkt)
+	if err != nil {
+		return serrors.WrapStr("extracting next hop based on packet path", err)
 	}
 
 	if ov != nil {
@@ -235,4 +238,83 @@ type SerializationOptions struct {
 	// previous offsets. If it is set to false, then the fields are left
 	// unchanged.
 	InitializePaths bool
+}
+
+func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
+	rpath, ok := p.Path.(RawPath)
+	if !ok {
+		return nil, serrors.New("Unexpected path", "type", common.TypeOf(p.Path))
+	}
+	switch rpath.PathType {
+	case empty.PathType:
+		if p.Source.Host.Type() != addr.HostTypeIP {
+			return nil, serrors.New("Unexpected source address in packet",
+				"type", p.Source.Host.Type().String())
+		}
+		var port int
+		switch p := p.PacketInfo.Payload.(type) {
+		case UDPPayload:
+			port = int(p.SrcPort)
+		case SCMPPayload:
+			port = underlay.EndhostPort
+		default:
+			// we fallback to the endhost port also for unknown payloads
+			port = underlay.EndhostPort
+		}
+		return &net.UDPAddr{
+			IP:   p.Source.Host.IP().AsSlice(),
+			Port: port,
+		}, nil
+	case onehop.PathType:
+		var path onehop.Path
+		err := path.DecodeFromBytes(rpath.Raw)
+		if err != nil {
+			return nil, err
+		}
+		ifid := path.SecondHop.ConsIngress
+		if !path.Info.ConsDir {
+			ifid = path.SecondHop.ConsEgress
+		}
+		return c.getLastHopAddr(ifid)
+	case epic.PathType:
+		var path epic.Path
+		err := path.DecodeFromBytes(rpath.Raw)
+		if err != nil {
+			return nil, err
+		}
+		infoField, err := path.ScionPath.GetCurrentInfoField()
+		if err != nil {
+			return nil, err
+		}
+		hf, err := path.ScionPath.GetCurrentHopField()
+		if err != nil {
+			return nil, err
+		}
+		ifid := hf.ConsIngress
+		if !infoField.ConsDir {
+			ifid = hf.ConsEgress
+		}
+		return c.getLastHopAddr(ifid)
+	case scion.PathType:
+		var path scion.Raw
+		err := path.DecodeFromBytes(rpath.Raw)
+		if err != nil {
+			return nil, err
+		}
+		infoField, err := path.GetCurrentInfoField()
+		if err != nil {
+			return nil, err
+		}
+		hf, err := path.GetCurrentHopField()
+		if err != nil {
+			return nil, err
+		}
+		ifid := hf.ConsIngress
+		if !infoField.ConsDir {
+			ifid = hf.ConsEgress
+		}
+		return c.getLastHopAddr(ifid)
+	default:
+		return nil, serrors.New("Unknown type", "type", rpath.PathType.String())
+	}
 }

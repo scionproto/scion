@@ -26,6 +26,7 @@ service DaemonService {
     // Return a set of paths to the requested destination.
     rpc Paths(PathsRequest) returns (PathsResponse) {}
     // Return information about an AS.
+    // TODO(JordiSubira): Add PortRange() endpoint instead of reusing AS
     rpc AS(ASRequest) returns (ASResponse) {}
     // Return the underlay addresses associated with
     // the specified interfaces.
@@ -162,7 +163,7 @@ message InterfacesRequest { }
 
 message InterfacesResponse {
     // Map from SCION interface IDs in the local AS to interface details.
-    map<uint64, Interface> interfaces = 1;
+    map<uint32, Interface> interfaces = 1;
 }
 
 message Interface {
