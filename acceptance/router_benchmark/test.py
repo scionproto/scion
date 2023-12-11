@@ -20,7 +20,7 @@ import time
 
 from collections import namedtuple
 from plumbum import cli
-from plumbum.cmd import docker, whoami
+from plumbum.cmd import docker, whoami, cat
 from plumbum import cmd
 
 from acceptance.common import base
@@ -58,6 +58,12 @@ Intf = namedtuple("Intf", "name, mac, peerMac")
 def mac_for_ip(ip: str) -> str:
     ipBytes = ip.split(".")
     return 'f0:0d:ca:fe:{:02x}:{:02x}'.format(int(ipBytes[2]), int(ipBytes[3]))
+
+
+# Dump the cpu info into the log just to inform our thoughts on performance variability.
+def log_cpu_info():
+    cpu_info = cat('/proc/cpuinfo')
+    logger.info(f"CPU INFO BEGINS\n{cpu_info}\nCPU_INFO ENDS")
 
 
 class RouterBMTest(base.TestBase):
@@ -147,6 +153,9 @@ class RouterBMTest(base.TestBase):
 
     def setup_prepare(self):
         super().setup_prepare()
+
+        # As the name inplies.
+        log_cpu_info()
 
         # get the config where the router can find it.
         shutil.copytree("acceptance/router_benchmark/conf/", self.artifacts / "conf")
