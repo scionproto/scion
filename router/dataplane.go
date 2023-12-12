@@ -1778,11 +1778,123 @@ func (d *DataPlane) addEndhostPort(
 		}
 		return &net.UDPAddr{IP: dst, Port: int(port)}, nil
 	case slayers.L4SCMP:
-		return &net.UDPAddr{IP: dst, Port: topology.EndhostPort}, nil
+		var scmpLayer slayers.SCMP
+		err := scmpLayer.DecodeFromBytes(lastLayer.LayerPayload(), gopacket.NilDecodeFeedback)
+		if err != nil {
+			return nil, serrors.WrapStr("decoding scmp layer for extracting endhost dst port", err)
+		}
+		port, err := getDstPortSCMP(&scmpLayer)
+		if err != nil {
+			return nil, serrors.WrapStr("getting dst port from SCMP message", err)
+		}
+		return &net.UDPAddr{IP: dst, Port: int(port)}, nil
 	default:
 		log.Debug(fmt.Sprintf("Port rewriting not supported for protcol number %v", l4Type))
 		return &net.UDPAddr{IP: dst, Port: topology.EndhostPort}, nil
 	}
+}
+
+func getDstPortSCMP(scmp *slayers.SCMP) (uint16, error) {
+	if scmp.TypeCode.Type() == slayers.SCMPTypeEchoRequest ||
+		scmp.TypeCode.Type() == slayers.SCMPTypeTracerouteRequest {
+		return topology.EndhostPort, nil
+	}
+	if scmp.TypeCode.Type() == slayers.SCMPTypeEchoReply {
+		var scmpEcho slayers.SCMPEcho
+		err := scmpEcho.DecodeFromBytes(scmp.Payload, gopacket.NilDecodeFeedback)
+		if err != nil {
+			return 0, err
+		}
+		return scmpEcho.Identifier, nil
+	}
+	if scmp.TypeCode.Type() == slayers.SCMPTypeTracerouteReply {
+		var scmpTraceroute slayers.SCMPTraceroute
+		err := scmpTraceroute.DecodeFromBytes(scmp.Payload, gopacket.NilDecodeFeedback)
+		if err != nil {
+			return 0, err
+		}
+		return scmpTraceroute.Identifier, nil
+	}
+
+	// Drop unknown SCMP error messages.
+	if scmp.NextLayerType() == gopacket.LayerTypePayload {
+		return 0, serrors.New("unsupported SCMP error message",
+			"type", scmp.TypeCode.Type())
+	}
+	l, err := decodeSCMP(scmp)
+	if err != nil {
+		return 0, err
+	}
+	if len(l) != 2 {
+		return 0, serrors.New("SCMP error message without payload")
+	}
+	gpkt := gopacket.NewPacket(*l[1].(*gopacket.Payload), slayers.LayerTypeSCION,
+		gopacket.DecodeOptions{
+			NoCopy: true,
+		},
+	)
+
+	// If the offending packet was UDP/SCION, use the source port to deliver.
+	if udp := gpkt.Layer(slayers.LayerTypeSCIONUDP); udp != nil {
+		port := udp.(*slayers.UDP).SrcPort
+		// XXX(roosd): We assume that the zero value means the UDP header is
+		// truncated. This flags packets of misbehaving senders as truncated, if
+		// they set the source port to 0. But there is no harm, since those
+		// packets are destined to be dropped anyway.
+		if port == 0 {
+			return 0, serrors.New("SCMP error with truncated UDP header")
+		}
+		return port, nil
+	}
+
+	// If the offending packet was SCMP/SCION, and it is an echo or traceroute,
+	// use the Identifier to deliver. In all other cases, the message is dropped.
+	if scmp := gpkt.Layer(slayers.LayerTypeSCMP); scmp != nil {
+
+		tc := scmp.(*slayers.SCMP).TypeCode
+		// SCMP Error messages in response to an SCMP error message are not allowed.
+		if !tc.InfoMsg() {
+			return 0, serrors.New("SCMP error message in response to SCMP error message",
+				"type", tc.Type())
+		}
+		// We only support echo and traceroute requests.
+		t := tc.Type()
+		if t != slayers.SCMPTypeEchoRequest && t != slayers.SCMPTypeTracerouteRequest {
+			return 0, serrors.New("unsupported SCMP info message", "type", t)
+		}
+
+		var port uint16
+		// Extract the port from the echo or traceroute ID field.
+		if echo := gpkt.Layer(slayers.LayerTypeSCMPEcho); echo != nil {
+			port = echo.(*slayers.SCMPEcho).Identifier
+		} else if tr := gpkt.Layer(slayers.LayerTypeSCMPTraceroute); tr != nil {
+			port = tr.(*slayers.SCMPTraceroute).Identifier
+		} else {
+			return 0, serrors.New("SCMP error with truncated payload")
+		}
+		return port, nil
+	}
+	return 0, serrors.New("Unknown SCION SCMP content")
+
+}
+
+// decodeSCMP decodes the SCMP payload. WARNING: Decoding is done with NoCopy set.
+func decodeSCMP(scmp *slayers.SCMP) ([]gopacket.SerializableLayer, error) {
+	gpkt := gopacket.NewPacket(scmp.Payload, scmp.NextLayerType(),
+		gopacket.DecodeOptions{NoCopy: true})
+	layers := gpkt.Layers()
+	if len(layers) == 0 || len(layers) > 2 {
+		return nil, serrors.New("invalid number of SCMP layers", "count", len(layers))
+	}
+	ret := make([]gopacket.SerializableLayer, len(layers))
+	for i, l := range layers {
+		s, ok := l.(gopacket.SerializableLayer)
+		if !ok {
+			return nil, serrors.New("invalid SCMP layer, not serializable", "index", i)
+		}
+		ret[i] = s
+	}
+	return ret, nil
 }
 
 // TODO(matzf) this function is now only used to update the OneHop-path.
