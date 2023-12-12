@@ -20,7 +20,7 @@ import time
 
 from collections import namedtuple
 from plumbum import cli
-from plumbum.cmd import docker, whoami
+from plumbum.cmd import docker, whoami, cat
 from plumbum import cmd
 
 from acceptance.common import base
@@ -34,11 +34,11 @@ logger = logging.getLogger(__name__)
 
 # Those values are valid expectations only when running in the CI environment.
 TEST_CASES = {
-    'in': 270000,
-    'out': 240000,
-    'in_transit': 270000,
-    'out_transit': 240000,
-    'br_transit': 260000,
+    'in': 290000,
+    'out': 290000,
+    'in_transit': 250000,
+    'out_transit': 250000,
+    'br_transit': 290000,
 }
 
 
@@ -58,6 +58,12 @@ Intf = namedtuple("Intf", "name, mac, peerMac")
 def mac_for_ip(ip: str) -> str:
     ipBytes = ip.split(".")
     return 'f0:0d:ca:fe:{:02x}:{:02x}'.format(int(ipBytes[2]), int(ipBytes[3]))
+
+
+# Dump the cpu info into the log just to inform our thoughts on performance variability.
+def log_cpu_info():
+    cpu_info = cat('/proc/cpuinfo')
+    logger.info(f"CPU INFO BEGINS\n{cpu_info}\nCPU_INFO ENDS")
 
 
 class RouterBMTest(base.TestBase):
@@ -148,6 +154,9 @@ class RouterBMTest(base.TestBase):
     def setup_prepare(self):
         super().setup_prepare()
 
+        # As the name inplies.
+        log_cpu_info()
+
         # get the config where the router can find it.
         shutil.copytree("acceptance/router_benchmark/conf/", self.artifacts / "conf")
 
@@ -221,13 +230,16 @@ class RouterBMTest(base.TestBase):
 
     def execBrLoad(self, case: str, mapArgs: list[str], count: int) -> str:
         brload = self.get_executable("brload")
+        # For num-streams, attempt to distribute uniformly on many possible number of cores.
+        # 840 is a multiple of 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 15, 20, 21, 24, 28, ...
+        # We can't go too far down that road; the test has to build one packet for each stream.
         return sudo(brload.executable,
                     "run",
                     "--artifacts", self.artifacts,
                     *mapArgs,
                     "--case", case,
                     "--num-packets", str(count),
-                    "--num-streams", "2")
+                    "--num-streams", "840")
 
     def runTestCase(self, case: str, mapArgs: list[str]):
         logger.info(f"==> Starting load {case}")
@@ -242,9 +254,8 @@ class RouterBMTest(base.TestBase):
 
         # The raw metrics are expressed in terms of core*seconds. We convert to machine*seconds
         # which allows us to provide a projected packet/s; ...more intuitive than packets/core*s.
-        # We're interested only in br_transit traffic. We measure the rate over 10s. For best
-        # results we sample the end of the middle 10s of the run. "beg" is the start time of the
-        # real action and "end" is the end time.
+        # We measure the rate over 10s. For best results we sample the end of the middle 10s of the
+        # run. "beg" is the start time of the real action and "end" is the end time.
         sampleTime = (int(beg) + int(end) + 10) / 2
         promQuery = urlencode({
             'time': f'{sampleTime}',
@@ -300,9 +311,9 @@ class RouterBMTest(base.TestBase):
         for label, intf in self.intfMap.items():
             mapArgs.extend(["--interface", f"{label}={intf.name},{intf.mac},{intf.peerMac}"])
 
-        # Run one (10% size) test as warm-up to trigger the frequency scaling, else the first test
+        # Run one (30% size) test as warm-up to trigger the frequency scaling, else the first test
         # gets much lower performance.
-        self.execBrLoad(list(TEST_CASES)[0], mapArgs, 1000000)
+        self.execBrLoad(list(TEST_CASES)[0], mapArgs, 3000000)
 
         # At long last, run the tests
         rateMap = {}
