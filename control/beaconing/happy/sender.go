@@ -3,12 +3,10 @@ package happy
 import (
 	"context"
 	"net"
-	"sync"
-	"time"
 
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/connect/happy"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
 )
@@ -46,58 +44,20 @@ type BeaconSender struct {
 }
 
 func (s BeaconSender) Send(ctx context.Context, b *seg.PathSegment) error {
-	abortCtx, cancel := context.WithCancel(ctx)
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	errs := [2]error{}
-	successCh := make(chan struct{}, 2)
-
-	go func() {
-		defer log.HandlePanic()
-		defer wg.Done()
-		err := s.Connect.Send(abortCtx, b)
-		if err == nil {
-			successCh <- struct{}{}
-			log.Info("Sent beacon via connect")
-			cancel()
-		} else {
-			log.Info("Failed to send beacon via connect", "err", err)
-		}
-		errs[0] = err
-	}()
-
-	go func() {
-		defer log.HandlePanic()
-		defer wg.Done()
-		select {
-		case <-abortCtx.Done():
-			return
-		case <-time.After(500 * time.Millisecond):
-		}
-		err := s.Grpc.Send(abortCtx, b)
-		if err == nil {
-			successCh <- struct{}{}
-			log.Info("Sent beacon via gRPC")
-			cancel()
-		} else {
-			log.Info("Failed to send beacon via gRPC", "err", err)
-		}
-		errs[1] = err
-	}()
-
-	wg.Wait()
-	var combinedErrs serrors.List
-	for _, err := range errs {
-		if err != nil {
-			combinedErrs = append(combinedErrs, err)
-		}
-	}
-	// Only report error if both sends were unsuccessful.
-	if len(combinedErrs) == 2 {
-		return combinedErrs.ToError()
-	}
-	return nil
+	_, err := happy.Happy(
+		ctx,
+		happy.Call1[*seg.PathSegment, struct{}]{
+			Call:   happy.NoReturn1[*seg.PathSegment](s.Connect.Send).Call,
+			Input1: b,
+			Typ:    "connect",
+		},
+		happy.Call1[*seg.PathSegment, struct{}]{
+			Call:   happy.NoReturn1[*seg.PathSegment](s.Connect.Send).Call,
+			Input1: b,
+			Typ:    "grpc",
+		},
+	)
+	return err
 }
 
 func (s BeaconSender) Close() error {
@@ -117,52 +77,20 @@ type Registrar struct {
 }
 
 func (r *Registrar) RegisterSegment(ctx context.Context, meta seg.Meta, remote net.Addr) error {
-	abortCtx, cancel := context.WithCancel(ctx)
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	errs := [2]error{}
-	go func() {
-		defer log.HandlePanic()
-		defer wg.Done()
-		err := r.Connect.RegisterSegment(abortCtx, meta, remote)
-		if err == nil {
-			log.Info("Registered segments via connect")
-			cancel()
-		} else {
-			log.Info("Failed to register segments via connect", "err", err)
-		}
-		errs[0] = err
-	}()
-
-	go func() {
-		defer log.HandlePanic()
-		defer wg.Done()
-		select {
-		case <-abortCtx.Done():
-			return
-		case <-time.After(500 * time.Millisecond):
-		}
-		err := r.Grpc.RegisterSegment(abortCtx, meta, remote)
-		if err == nil {
-			log.Info("Registered segments via gRPC")
-			cancel()
-		} else {
-			log.Info("Failed to register segments via gRPC", "err", err)
-		}
-		errs[1] = err
-	}()
-
-	wg.Wait()
-	var combinedErrs serrors.List
-	for _, err := range errs {
-		if err != nil {
-			combinedErrs = append(combinedErrs, err)
-		}
-	}
-	// Only report error if both sends were unsuccessful.
-	if len(combinedErrs) == 2 {
-		return combinedErrs.ToError()
-	}
-	return nil
+	_, err := happy.Happy(
+		ctx,
+		happy.Call2[seg.Meta, net.Addr, struct{}]{
+			Call:   happy.NoReturn2[seg.Meta, net.Addr](r.Connect.RegisterSegment).Call,
+			Input1: meta,
+			Input2: remote,
+			Typ:    "connect",
+		},
+		happy.Call2[seg.Meta, net.Addr, struct{}]{
+			Call:   happy.NoReturn2[seg.Meta, net.Addr](r.Connect.RegisterSegment).Call,
+			Input1: meta,
+			Input2: remote,
+			Typ:    "grpc",
+		},
+	)
+	return err
 }
