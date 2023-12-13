@@ -59,6 +59,8 @@ protobuf:
 	cp -r bazel-bin/pkg/proto/*/*/go_default_library_/github.com/scionproto/scion/pkg/proto/* pkg/proto
 	chmod 0644 pkg/proto/*/*.pb.go
 
+	bazel run @buf//:buf -- generate --output $(PWD) --path proto
+
 mocks:
 	tools/gomocks.py
 

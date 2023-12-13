@@ -44,7 +44,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 
-	cpconnect "github.com/scionproto/scion/bufgen/proto/control_plane/v1/control_planeconnect"
 	cs "github.com/scionproto/scion/control"
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beaconing"
@@ -75,6 +74,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
+	cpconnect "github.com/scionproto/scion/pkg/proto/control_plane/v1/control_planeconnect"
 	dpb "github.com/scionproto/scion/pkg/proto/discovery"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"

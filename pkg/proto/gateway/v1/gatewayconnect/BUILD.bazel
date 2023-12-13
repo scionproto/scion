@@ -3,7 +3,7 @@ load("//tools/lint:go.bzl", "go_library")
 go_library(
     name = "go_default_library",
     srcs = ["prefix.connect.go"],
-    importpath = "github.com/scionproto/scion/bufgen/proto/gateway/v1/gatewayconnect",
+    importpath = "github.com/scionproto/scion/pkg/proto/gateway/v1/gatewayconnect",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/proto/gateway:go_default_library",

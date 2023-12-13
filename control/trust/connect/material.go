@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
-	"github.com/scionproto/scion/bufgen/proto/control_plane/v1/control_planeconnect"
 	"github.com/scionproto/scion/control/trust/grpc"
 	"github.com/scionproto/scion/pkg/proto/control_plane"
+	"github.com/scionproto/scion/pkg/proto/control_plane/v1/control_planeconnect"
 )
 
 var _ control_planeconnect.TrustMaterialServiceHandler = MaterialServer{}

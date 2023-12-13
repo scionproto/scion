@@ -2,11 +2,11 @@ load("//tools/lint:go.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["daemon.connect.go"],
-    importpath = "github.com/scionproto/scion/bufgen/proto/daemon/v1/daemonconnect",
+    srcs = ["hidden_segment.connect.go"],
+    importpath = "github.com/scionproto/scion/pkg/proto/hidden_segment/v1/hidden_segmentconnect",
     visibility = ["//visibility:public"],
     deps = [
-        "//pkg/proto/daemon:go_default_library",
+        "//pkg/proto/hidden_segment:go_default_library",
         "@com_connectrpc_connect//:go_default_library",
     ],
 )

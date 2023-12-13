@@ -6,10 +6,10 @@ go_library(
     importpath = "github.com/scionproto/scion/private/segment/segfetcher/connect",
     visibility = ["//visibility:public"],
     deps = [
-        "//bufgen/proto/control_plane/v1/control_planeconnect:go_default_library",
         "//pkg/connect:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/proto/control_plane:go_default_library",
+        "//pkg/proto/control_plane/v1/control_planeconnect:go_default_library",
         "//pkg/segment:go_default_library",
         "//pkg/snet/squic:go_default_library",
         "//private/segment/segfetcher:go_default_library",

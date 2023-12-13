@@ -6,12 +6,12 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/quic-go/quic-go/http3"
-	"github.com/scionproto/scion/bufgen/proto/control_plane/v1/control_planeconnect"
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/onehop"
 	"github.com/scionproto/scion/pkg/addr"
 	libconnect "github.com/scionproto/scion/pkg/connect"
 	control_plane "github.com/scionproto/scion/pkg/proto/control_plane"
+	"github.com/scionproto/scion/pkg/proto/control_plane/v1/control_planeconnect"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/snet/squic"
 )

@@ -220,6 +220,14 @@ container_pull(
     tag = "10",
 )
 
+# Buf CLI to generate connect-go
+http_archive(
+    name = "buf",
+    build_file_content = "exports_files([\"buf\"])",
+    strip_prefix = "buf/bin",
+    urls = ["https://github.com/bufbuild/buf/releases/download/v1.28.1/buf-Linux-x86_64.tar.gz"],
+)
+
 # protobuf/gRPC
 http_archive(
     name = "rules_proto_grpc",
