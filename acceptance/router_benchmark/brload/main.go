@@ -15,6 +15,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"hash"
@@ -38,7 +39,7 @@ import (
 	"github.com/scionproto/scion/private/keyconf"
 )
 
-type Case func(payload string, mac hash.Hash, numDistinct int) (string, string, [][]byte)
+type Case func(payload string, mac hash.Hash) (string, string, []byte)
 
 type caseChoice string
 
@@ -74,7 +75,7 @@ var (
 	logConsole string
 	dir        string
 	numPackets int
-	numStreams int
+	numStreams uint16
 	caseToRun  caseChoice
 	interfaces []string
 )
@@ -99,7 +100,7 @@ func main() {
 		},
 	}
 	runCmd.Flags().IntVar(&numPackets, "num-packets", 10, "Number of packets to send")
-	runCmd.Flags().IntVar(&numStreams, "num-streams", 4,
+	runCmd.Flags().Uint16Var(&numStreams, "num-streams", 4,
 		"Number of independent streams (flowID) to use")
 	runCmd.Flags().StringVar(&logConsole, "log.console", "error",
 		"Console logging level: debug|info|error|etc.")
@@ -136,8 +137,6 @@ func run(cmd *cobra.Command) int {
 	}
 	defer log.HandlePanic()
 
-	caseFunc := allCases[string(caseToRun)] // key already checked.
-
 	artifactsDir := dir
 	if v := os.Getenv("TEST_ARTIFACTS_DIR"); v != "" {
 		artifactsDir = v
@@ -166,7 +165,8 @@ func run(cmd *cobra.Command) int {
 	log.Info("BRLoad acceptance tests:")
 
 	payloadString := "actualpayloadbytes"
-	caseDevIn, caseDevOut, rawPkts := caseFunc(payloadString, hfMAC, numStreams)
+	caseFunc := allCases[string(caseToRun)] // key already checked.
+	caseDevIn, caseDevOut, rawPkt := caseFunc(payloadString, hfMAC)
 
 	writePktTo, ok := handles[caseDevIn]
 	if !ok {
@@ -196,7 +196,9 @@ func run(cmd *cobra.Command) int {
 	// opens somewhere around now.
 	metricsBegin := time.Now().Unix()
 	for i := 0; i < numPackets; i++ {
-		if err := writePktTo.WritePacketData(rawPkts[i%numStreams]); err != nil {
+		// Rotate through flowIDs. We patch it directly into the SCION header of the packet.
+		updateFlowID(rawPkt, uint16(i%int(numStreams)))
+		if err := writePktTo.WritePacketData(rawPkt); err != nil {
 			log.Error("writing input packet", "case", string(caseToRun), "error", err)
 			return 1
 		}
@@ -228,6 +230,42 @@ func run(cmd *cobra.Command) int {
 	return 0
 }
 
+func updateFlowID(packet []byte, newFlowID uint16) {
+	// The SCION header starts at offset 42. The flowID is the 20 least significant bits of the
+	// first 32 bit field. To make our life simpler, we only use the last 16 bits (so no more than
+	// 64K flows). We also need to update the IP and UDP checksums. (For best performance we could
+	// avoid all endian-aware conversions but Go makes that awkward and we're not severely
+	// performance constrained here).
+	oldIPsum := binary.BigEndian.Uint16(packet[24:26])
+	oldUDPsum := binary.BigEndian.Uint16(packet[40:42])
+	oldFlowID := binary.BigEndian.Uint16(packet[44:46])
+
+	// Recompute the two affected checksums according to RFC1624. The updated UDP sum also affects
+	// the computation of the new IP sum. (xor 0xffff : WTF doesn't Go have a ~ operator?)
+	// The arithmetic is a bit weird. See the RFC.
+	newUDPsum := uint32(oldUDPsum ^ 0xffff)
+	newUDPsum += uint32(oldFlowID ^ 0xffff) // unsum the old flow ID
+	newUDPsum += uint32(newFlowID)          // sum the new one
+	for newUDPsum > 0xffff {
+		newUDPsum = (newUDPsum & 0xffff) + newUDPsum>>16
+	}
+	newUDPsum = newUDPsum ^ 0xffff
+
+	newIPsum := uint32(oldIPsum ^ 0xffff)
+	newIPsum += uint32(oldUDPsum ^ 0xffff) // unsum the old udp sum
+	newIPsum += uint32(newUDPsum)          // sum the new one
+	newIPsum += uint32(oldFlowID ^ 0xffff) // unsum the old flow id
+	newIPsum += uint32(newFlowID)          // sum the new flow id
+	for newIPsum > 0xffff {
+		newIPsum = (newIPsum & 0xffff) + newIPsum>>16
+	}
+	newIPsum = newIPsum ^ 0xffff
+
+	binary.BigEndian.PutUint16(packet[44:46], newFlowID)
+	binary.BigEndian.PutUint16(packet[40:42], uint16(newUDPsum))
+	binary.BigEndian.PutUint16(packet[24:26], uint16(newIPsum))
+}
+
 // receivePkts consume some or all (at least one if it arrives) of the packets
 // arriving on the given handle and checks that they contain the given payload.
 // The number of consumed packets is returned.
@@ -255,7 +293,7 @@ func receivePackets(packetChan chan gopacket.Packet, payload string) int {
 		if string(layer.LayerContents()) == payload {
 			// To return the count of all packets received, just remove the "return" below.
 			// Return will occur once packetChan closes (which happens after a short timeout at
-			// the end of the test.
+			// the end of the test).
 			numRcv++
 			return numRcv
 		}

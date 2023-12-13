@@ -33,8 +33,8 @@ import (
 // See topo.go
 
 // oneInTransit generates one packet of "in_transit" traffic over the router under test.
-// The outcome is a raw packet that the test must feed into the router.
-func oneInTransit(payload string, mac hash.Hash, flowId uint32) []byte {
+// The outcome is a raw packet that the test must feed into the router. The flow ID is 0.
+func InTransit(payload string, mac hash.Hash) (string, string, []byte) {
 
 	var (
 		originIA       = ISDAS(2)
@@ -100,7 +100,7 @@ func oneInTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 	scionL := &slayers.SCION{
 		Version:      0,
 		TrafficClass: 0xb8,
-		FlowID:       flowId,
+		FlowID:       0,
 		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
 		SrcIA:        originIA,
@@ -128,17 +128,5 @@ func oneInTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 	); err != nil {
 		panic(err)
 	}
-	return input.Bytes()
-}
-
-// InTransit generates numDistinct packets (each with a unique flowID) with the given payload
-// constructed to cause in_transit traffic at the br1a router.
-// numDistrinct is a small number, only to enable multiple parallel streams. Each distinct packet
-// is meant to be replayed a large number of times for performance measurement.
-func InTransit(payload string, mac hash.Hash, numDistinct int) (string, string, [][]byte) {
-	packets := make([][]byte, numDistinct)
-	for i := 0; i < numDistinct; i++ {
-		packets[i] = oneInTransit(payload, mac, uint32(i+1))
-	}
-	return DeviceName(1, 2), DeviceName(1, 0), packets
+	return DeviceName(1, 2), DeviceName(1, 0), input.Bytes()
 }

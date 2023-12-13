@@ -60,12 +60,6 @@ def mac_for_ip(ip: str) -> str:
     return 'f0:0d:ca:fe:{:02x}:{:02x}'.format(int(ipBytes[2]), int(ipBytes[3]))
 
 
-# Dump the cpu info into the log just to inform our thoughts on performance variability.
-def log_cpu_info():
-    cpu_info = cat('/proc/cpuinfo')
-    logger.info(f"CPU INFO BEGINS\n{cpu_info}\nCPU_INFO ENDS")
-
-
 class RouterBMTest(base.TestBase):
     """
     Tests that the implementation of a router has sufficient performance in terms of packets
@@ -154,9 +148,6 @@ class RouterBMTest(base.TestBase):
     def setup_prepare(self):
         super().setup_prepare()
 
-        # As the name inplies.
-        log_cpu_info()
-
         # get the config where the router can find it.
         shutil.copytree("acceptance/router_benchmark/conf/", self.artifacts / "conf")
 
@@ -217,6 +208,7 @@ class RouterBMTest(base.TestBase):
                "-e", "GOMAXPROCS=4",
                "--network", "container:prometheus",
                "--name", "router",
+               # "--cpuset-cpus", "4,5,6,7",
                "posix-router:latest")
 
         time.sleep(2)
@@ -232,8 +224,8 @@ class RouterBMTest(base.TestBase):
         brload = self.get_executable("brload")
         # For num-streams, attempt to distribute uniformly on many possible number of cores.
         # 840 is a multiple of 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 15, 20, 21, 24, 28, ...
-        # We can't go too far down that road; the test has to build one packet for each stream.
-        return sudo(brload.executable,
+        return sudo(# "taskset", "-c", "4,5",
+                    brload.executable,
                     "run",
                     "--artifacts", self.artifacts,
                     *mapArgs,

@@ -32,9 +32,9 @@ import (
 //    AS3 (br3) ---+
 // See topo.go
 
-// oneBrTransit generates one packet of "br_transit" traffic over the router under test.
-// The outcome is a raw packet which the test must feed to the router.
-func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
+// BrTransit generates one packet of "br_transit" traffic over the router under test.
+// The outcome is a raw packet which the test must feed to the router. The flowID field is 0.
+func BrTransit(payload string, mac hash.Hash) (string, string, []byte) {
 
 	var (
 		originIA       = ISDAS(2)
@@ -100,7 +100,7 @@ func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 	scionL := &slayers.SCION{
 		Version:      0,
 		TrafficClass: 0xb8,
-		FlowID:       flowId,
+		FlowID:       0,
 		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
 		SrcIA:        originIA,
@@ -128,17 +128,6 @@ func oneBrTransit(payload string, mac hash.Hash, flowId uint32) []byte {
 	); err != nil {
 		panic(err)
 	}
-	return input.Bytes()
-}
 
-// BrTransit generates numDistinct packets (each with a unique flowID) with the given payload
-// constructed to cause br_transit traffic at the br1a router.
-// numDistrinct is a small number, only to enable multiple parallel streams. Each distinct packet
-// is meant to be replayed a large number of times for performance measurement.
-func BrTransit(payload string, mac hash.Hash, numDistinct int) (string, string, [][]byte) {
-	packets := make([][]byte, numDistinct)
-	for i := 0; i < numDistinct; i++ {
-		packets[i] = oneBrTransit(payload, mac, uint32(i+1))
-	}
-	return DeviceName(1, 2), DeviceName(1, 3), packets
+	return DeviceName(1, 2), DeviceName(1, 3), input.Bytes()
 }
