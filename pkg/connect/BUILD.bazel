@@ -2,11 +2,18 @@ load("//tools/lint:go.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["dialer.go"],
+    srcs = [
+        "dialer.go",
+        "server.go",
+    ],
     importpath = "github.com/scionproto/scion/pkg/connect",
     visibility = ["//visibility:public"],
     deps = [
+        "//pkg/log:go_default_library",
         "//pkg/snet:go_default_library",
+        "//pkg/snet/squic:go_default_library",
+        "@com_github_quic_go_quic_go//:go_default_library",
         "@com_github_quic_go_quic_go//http3:go_default_library",
+        "@org_golang_google_grpc//peer:go_default_library",
     ],
 )

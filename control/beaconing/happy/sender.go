@@ -49,12 +49,12 @@ func (s BeaconSender) Send(ctx context.Context, b *seg.PathSegment) error {
 		happy.Call1[*seg.PathSegment, struct{}]{
 			Call:   happy.NoReturn1[*seg.PathSegment](s.Connect.Send).Call,
 			Input1: b,
-			Typ:    "connect",
+			Typ:    "control_plane.v1.SegmentCreationService.Beacon",
 		},
 		happy.Call1[*seg.PathSegment, struct{}]{
 			Call:   happy.NoReturn1[*seg.PathSegment](s.Connect.Send).Call,
 			Input1: b,
-			Typ:    "grpc",
+			Typ:    "control_plane.v1.SegmentCreationService.Beacon",
 		},
 	)
 	return err
@@ -83,13 +83,13 @@ func (r *Registrar) RegisterSegment(ctx context.Context, meta seg.Meta, remote n
 			Call:   happy.NoReturn2[seg.Meta, net.Addr](r.Connect.RegisterSegment).Call,
 			Input1: meta,
 			Input2: remote,
-			Typ:    "connect",
+			Typ:    "control_plane.v1.SegmentRegistrationService.SegmentsRegistration",
 		},
 		happy.Call2[seg.Meta, net.Addr, struct{}]{
 			Call:   happy.NoReturn2[seg.Meta, net.Addr](r.Connect.RegisterSegment).Call,
 			Input1: meta,
 			Input2: remote,
-			Typ:    "grpc",
+			Typ:    "control_plane.v1.SegmentRegistrationService.SegmentsRegistration",
 		},
 	)
 	return err

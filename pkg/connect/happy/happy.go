@@ -14,10 +14,17 @@ type Caller[R any] interface {
 	Type() string
 }
 
-type NoReturn1[I1 any] func(context.Context, I1) error
+type Call0[R any] struct {
+	Call func(context.Context) (R, error)
+	Typ  string
+}
 
-func (d NoReturn1[I1]) Call(ctx context.Context, i1 I1) (struct{}, error) {
-	return struct{}{}, d(ctx, i1)
+func (c Call0[R]) Invoke(ctx context.Context) (R, error) {
+	return c.Call(ctx)
+}
+
+func (c Call0[R]) Type() string {
+	return c.Typ
 }
 
 type Call1[I1 any, R any] struct {
@@ -32,6 +39,12 @@ func (c Call1[I1, R]) Invoke(ctx context.Context) (R, error) {
 
 func (c Call1[I1, R]) Type() string {
 	return c.Typ
+}
+
+type NoReturn1[I1 any] func(context.Context, I1) error
+
+func (d NoReturn1[I1]) Call(ctx context.Context, i1 I1) (struct{}, error) {
+	return struct{}{}, d(ctx, i1)
 }
 
 type Call2[I1 any, I2, R any] struct {
@@ -72,10 +85,10 @@ func Happy[R any](ctx context.Context, fast, slow Caller[R]) (R, error) {
 		rep, err := fast.Invoke(abortCtx)
 		if err == nil {
 			reps[0] = rep
-			logger.Debug("Received response via fast path", "type", fast.Type())
+			logger.Debug("Received response via connect", "type", fast.Type())
 			cancel()
 		} else {
-			logger.Debug("Failed to receive on fast path", "type", fast.Type(), "err", err)
+			logger.Debug("Failed to receive via connect", "type", fast.Type(), "err", err)
 		}
 		errs[0] = err
 	}()
@@ -91,10 +104,10 @@ func Happy[R any](ctx context.Context, fast, slow Caller[R]) (R, error) {
 		rep, err := slow.Invoke(abortCtx)
 		if err == nil {
 			reps[0] = rep
-			logger.Debug("Received response via slow path", "type", slow.Type())
+			logger.Debug("Received response via grpc", "type", slow.Type())
 			cancel()
 		} else {
-			logger.Debug("Failed to receive on slow path", "type", slow.Type(), "err", err)
+			logger.Debug("Failed to receive on grpc", "type", slow.Type(), "err", err)
 		}
 		errs[1] = err
 	}()

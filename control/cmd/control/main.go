@@ -21,10 +21,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	_ "net/http/pprof"
-	"net/netip"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -42,7 +40,6 @@ import (
 	"go4.org/netipx"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/peer"
 
 	cs "github.com/scionproto/scion/control"
 	"github.com/scionproto/scion/control/beacon"
@@ -67,6 +64,7 @@ import (
 	cstrustgrpc "github.com/scionproto/scion/control/trust/grpc"
 	cstrustmetrics "github.com/scionproto/scion/control/trust/metrics"
 	"github.com/scionproto/scion/pkg/addr"
+	libconnect "github.com/scionproto/scion/pkg/connect"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
 	libmetrics "github.com/scionproto/scion/pkg/metrics"
@@ -76,6 +74,7 @@ import (
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	cpconnect "github.com/scionproto/scion/pkg/proto/control_plane/v1/control_planeconnect"
 	dpb "github.com/scionproto/scion/pkg/proto/discovery"
+	dconnect "github.com/scionproto/scion/pkg/proto/discovery/v1/discoveryconnect"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/snet"
@@ -90,6 +89,7 @@ import (
 	renewalconnect "github.com/scionproto/scion/private/ca/renewal/connect"
 	renewalgrpc "github.com/scionproto/scion/private/ca/renewal/grpc"
 	"github.com/scionproto/scion/private/discovery"
+	discoveryconnect "github.com/scionproto/scion/private/discovery/connect"
 	"github.com/scionproto/scion/private/drkey/drkeyutil"
 	"github.com/scionproto/scion/private/keyconf"
 	cppkiapi "github.com/scionproto/scion/private/mgmtapi/cppki/api"
@@ -116,27 +116,6 @@ import (
 	trusthappy "github.com/scionproto/scion/private/trust/happy"
 	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
 )
-
-type loggingHandler struct {
-	prefix string
-	next   http.Handler
-}
-
-func (h loggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fmt.Println(h.prefix, r.Method, r.URL)
-
-	if addr, ok := r.Context().Value(http3.RemoteAddrContextKey).(net.Addr); ok {
-		log.Info("HTTP3 request", "remote", r.Context().Value(http3.RemoteAddrContextKey))
-		ctx := peer.NewContext(r.Context(), &peer.Peer{Addr: addr})
-		r = r.WithContext(ctx)
-	} else if addrPort, err := netip.ParseAddrPort(r.RemoteAddr); err == nil {
-		log.Info("HTTP request", "remote", addrPort)
-		tcpAddr := net.TCPAddrFromAddrPort(addrPort)
-		ctx := peer.NewContext(r.Context(), &peer.Peer{Addr: tcpAddr})
-		r = r.WithContext(ctx)
-	}
-	h.next.ServeHTTP(w, r)
-}
 
 var globalCfg config.Config
 
@@ -318,12 +297,8 @@ func realMain(ctx context.Context) error {
 				IA: topo.IA(),
 				Dialer: (&squic.EarlyDialerFactory{
 					Transport: quicStack.InsecureDialer.Transport,
-					TLSConfig: func() *tls.Config {
-						cfg := quicStack.InsecureDialer.TLSConfig.Clone()
-						cfg.NextProtos = []string{"h3", "SCION"}
-						return cfg
-					}(),
-					Rewriter: dialer.Rewriter,
+					TLSConfig: libconnect.AdaptTLS(quicStack.InsecureDialer.TLSConfig),
+					Rewriter:  dialer.Rewriter,
 				}).NewDialer,
 			},
 			Grpc: trustgrpc.Fetcher{
@@ -390,7 +365,6 @@ func realMain(ctx context.Context) error {
 		IA:       topo.IA(),
 		Requests: libmetrics.NewPromCounter(cstrustmetrics.Handler.Requests),
 	}
-	connectInter.Handle(cpconnect.NewTrustMaterialServiceHandler(cstrustconnect.MaterialServer{MaterialServer: trustServer}))
 	cppb.RegisterTrustMaterialServiceServer(quicServer, trustServer)
 	connectInter.Handle(cpconnect.NewTrustMaterialServiceHandler(cstrustconnect.MaterialServer{MaterialServer: trustServer}))
 	connectIntra.Handle(cpconnect.NewTrustMaterialServiceHandler(cstrustconnect.MaterialServer{MaterialServer: trustServer}))
@@ -406,11 +380,11 @@ func realMain(ctx context.Context) error {
 		},
 	}
 	cppb.RegisterSegmentCreationServiceServer(quicServer, segmentCreationServer)
-	{
-		pattern, handler := cpconnect.NewSegmentCreationServiceHandler(beaconingconnect.SegmentCreationServer{SegmentCreationServer: segmentCreationServer})
-		fmt.Println(pattern)
-		connectInter.Handle(pattern, handler)
-	}
+	connectInter.Handle(
+		cpconnect.NewSegmentCreationServiceHandler(beaconingconnect.SegmentCreationServer{
+			SegmentCreationServer: segmentCreationServer,
+		}),
+	)
 
 	// Handle segment lookup
 	authLookupServer := &segreqgrpc.LookupServer{
@@ -639,6 +613,9 @@ func realMain(ctx context.Context) error {
 		Requests:    libmetrics.NewPromCounter(metrics.DiscoveryRequestsTotal),
 	}
 	dpb.RegisterDiscoveryServiceServer(quicServer, ds)
+	connectInter.Handle(
+		dconnect.NewDiscoveryServiceHandler(discoveryconnect.Topology{Topology: ds}),
+	)
 
 	// dsHealth := health.NewServer()
 	// dsHealth.SetServingStatus("discovery", healthpb.HealthCheckResponse_SERVING)
@@ -742,7 +719,7 @@ func realMain(ctx context.Context) error {
 
 	var cleanup app.Cleanup
 	connectServer := http3.Server{
-		Handler: loggingHandler{"inter", connectInter},
+		Handler: libconnect.AttachPeer(connectInter),
 	}
 
 	grpcConns := make(chan quic.Connection)
@@ -788,7 +765,7 @@ func realMain(ctx context.Context) error {
 	cleanup.Add(func() error { quicServer.GracefulStop(); return nil })
 
 	intraServer := http.Server{
-		Handler: h2c.NewHandler(loggingHandler{"intra", connectIntra}, &http2.Server{}),
+		Handler: h2c.NewHandler(libconnect.AttachPeer(connectIntra), &http2.Server{}),
 	}
 	g.Go(func() error {
 		defer log.HandlePanic()

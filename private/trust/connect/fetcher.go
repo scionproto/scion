@@ -12,7 +12,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/proto/control_plane/v1/control_planeconnect"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
-	"github.com/scionproto/scion/pkg/snet/squic"
 	"github.com/scionproto/scion/private/trust"
 	"github.com/scionproto/scion/private/trust/grpc"
 )
@@ -20,8 +19,8 @@ import (
 type Fetcher struct {
 	// IA is the local ISD-AS.
 	IA addr.IA
-	// Dialer dials a new gRPC connection.
-	Dialer func(net.Addr, ...squic.EarlyDialerOption) squic.EarlyDialer
+	// Dialer dials a new QUIC connection.
+	Dialer libconnect.Dialer
 }
 
 // Chains fetches certificate chains over the network

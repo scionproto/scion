@@ -24,13 +24,13 @@ func (f Fetcher) Chains(ctx context.Context, query trust.ChainQuery,
 			Call:   f.Connect.Chains,
 			Input1: query,
 			Input2: server,
-			Typ:    "connect",
+			Typ:    "control_plane.v1.TrustMaterialService.Chains",
 		},
 		happy.Call2[trust.ChainQuery, net.Addr, [][]*x509.Certificate]{
 			Call:   f.Grpc.Chains,
 			Input1: query,
 			Input2: server,
-			Typ:    "grpc",
+			Typ:    "control_plane.v1.TrustMaterialService.Chains",
 		},
 	)
 }
@@ -44,13 +44,13 @@ func (f Fetcher) TRC(ctx context.Context, id cppki.TRCID,
 			Call:   f.Connect.TRC,
 			Input1: id,
 			Input2: server,
-			Typ:    "connect",
+			Typ:    "control_plane.v1.TrustMaterialService.TRC",
 		},
 		happy.Call2[cppki.TRCID, net.Addr, cppki.SignedTRC]{
 			Call:   f.Grpc.TRC,
 			Input1: id,
 			Input2: server,
-			Typ:    "grpc",
+			Typ:    "control_plane.v1.TrustMaterialService.TRC",
 		},
 	)
 }

@@ -307,8 +307,12 @@ type PrefixConsumer interface {
 
 // PrefixFetcher fetches the IP prefixes from a remote gateway.
 type PrefixFetcher interface {
-	Prefixes(ctx context.Context, gateway *net.UDPAddr) ([]*net.IPNet, error)
+	SimplePrefixFetcher
 	Close() error
+}
+
+type SimplePrefixFetcher interface {
+	Prefixes(ctx context.Context, gateway *net.UDPAddr) ([]*net.IPNet, error)
 }
 
 // PrefixFetcherFactory constructs a PrefixFetcher for a given remote gateway.

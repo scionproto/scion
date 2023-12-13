@@ -17,7 +17,7 @@ import (
 )
 
 type BeaconSenderFactory struct {
-	Dialer func(net.Addr, ...squic.EarlyDialerOption) squic.EarlyDialer
+	Dialer libconnect.Dialer
 }
 
 func (f *BeaconSenderFactory) NewSender(
@@ -64,7 +64,7 @@ func (s BeaconSender) Close() error {
 
 // Registrar registers segments.
 type Registrar struct {
-	Dialer func(net.Addr, ...squic.EarlyDialerOption) squic.EarlyDialer
+	Dialer libconnect.Dialer
 }
 
 // RegisterSegment registers a segment with the remote.

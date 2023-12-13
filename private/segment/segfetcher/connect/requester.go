@@ -33,7 +33,7 @@ import (
 
 // Requester fetches segments from a remote using gRPC.
 type Requester struct {
-	Dialer func(net.Addr, ...squic.EarlyDialerOption) squic.EarlyDialer
+	Dialer libconnect.Dialer
 }
 
 func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,

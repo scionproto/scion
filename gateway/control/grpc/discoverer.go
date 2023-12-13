@@ -54,8 +54,12 @@ func (d Discoverer) Gateways(ctx context.Context) ([]control.Gateway, error) {
 	if err != nil {
 		return nil, serrors.WrapStr("receiving gateways", err)
 	}
-	gateways := make([]control.Gateway, 0, len(rep.Gateways))
-	for _, pb := range rep.Gateways {
+	return TransformGateways(rep.Gateways)
+}
+
+func TransformGateways(response []*dpb.Gateway) ([]control.Gateway, error) {
+	gateways := make([]control.Gateway, 0, len(response))
+	for _, pb := range response {
 		ctrl, err := net.ResolveUDPAddr("udp", pb.ControlAddress)
 		if err != nil {
 			return nil, serrors.WrapStr("parsing control address", err)

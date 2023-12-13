@@ -8,7 +8,7 @@ go_library(
     deps = [
         "//control/beaconing:go_default_library",
         "//pkg/addr:go_default_library",
-        "//pkg/log:go_default_library",
+        "//pkg/connect/happy:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/segment:go_default_library",
     ],
