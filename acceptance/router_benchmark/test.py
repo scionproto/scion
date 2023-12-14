@@ -20,7 +20,7 @@ import time
 
 from collections import namedtuple
 from plumbum import cli
-from plumbum.cmd import docker, whoami
+from plumbum.cmd import docker, whoami, lscpu
 from plumbum import cmd
 
 from acceptance.common import base
@@ -86,6 +86,55 @@ class RouterBMTest(base.TestBase):
         help="Do extra checks for CI",
         envname="CI"
     )
+
+    def choose_cpus(self):
+        """Picks the cpus that the test must use.
+
+        The criteria are still simple. Collect up to 4 cpus by selecting, in that order:
+        * cpus of non-hyperthreaded cores.
+        * only one cpu of each hyperthreaded core.
+        * any remaining cpu.
+        """
+
+        allCpus = lscpu("-p=CPU,Core", "-b").splitlines()
+        cores = {} # core -> [cpus]
+        for c in allCpus:
+            if c.startswith("#"):
+                continue
+            cpu,core = tuple(c.split(","))
+            if cores.get(core) is None:
+                cores[core] = [cpu]
+            else:
+                cores[core].append(cpu)
+
+        chosen=[]
+        while len(cores) > 0 and len(chosen) < 4:
+            # A: Pick only from single cpu cores.
+            for core in list(cores.keys()):
+                if len(chosen) == 4:
+                    break
+                cpus = cores[core]
+                if len(cpus) == 1:
+                    chosen.append(cores[core][0])
+                    del cores[core]
+
+            # B: Pick one vcpu per core from the multithreaded cores.
+            for core in list(cores.keys()):
+                if len(chosen) == 4:
+                    break
+                cpus = cores[core]
+                chosen.append(cpus[0])
+                cpus.pop(0)
+                if len(cpus) == 0:
+                    del cores[core]
+
+            # Just repeat the loop. Either A or B gets something.
+            # We don't care from which core at this point.
+
+        self.router_cpus = chosen[:-1] # First choice is upfront
+        self.brload_cpus = chosen[-1]  # Last one for the blaster
+        logger.info(f"router cpus: {self.router_cpus}")
+        logger.info(f"brload cpus: {self.brload_cpus}")
 
     def create_interface(self, req: IntfReq, ns: str):
         """
@@ -200,6 +249,9 @@ class RouterBMTest(base.TestBase):
         # We don't need that symlink any more
         sudo("rm", "/var/run/netns/benchmark")
 
+        # Select cpus to run the router and brload.
+        self.choose_cpus()
+
         # Now the router can start.
         docker("run",
                "-v", f"{self.artifacts}/conf:/share/conf",
@@ -208,7 +260,7 @@ class RouterBMTest(base.TestBase):
                "-e", "GOMAXPROCS=3",
                "--network", "container:prometheus",
                "--name", "router",
-               "--cpuset-cpus", "1,2,3",
+               "--cpuset-cpus", f"{','.join(self.router_cpus)}",
                "posix-router:latest")
 
         time.sleep(2)
@@ -224,7 +276,7 @@ class RouterBMTest(base.TestBase):
         brload = self.get_executable("brload")
         # For num-streams, attempt to distribute uniformly on many possible number of cores.
         # 840 is a multiple of 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 15, 20, 21, 24, 28, ...
-        return sudo("taskset", "-c", "0",
+        return sudo("taskset", "-c", f"{','.join(self.brload_cpus)}",
                     brload.executable,
                     "run",
                     "--artifacts", self.artifacts,
@@ -283,7 +335,7 @@ class RouterBMTest(base.TestBase):
             'time': f'{sampleTime}',
             'query': (
                 'sum by (instance, job) ('
-                '  rate(router_dropped_pkts_total{{job="BR", reason=~"busy_.*"}}[10s])'
+                '  rate(router_dropped_pkts_total{job="BR", reason=~"busy_.*"}[10s])'
                 ')'
                 '/ on (instance, job) group_left()'
                 'sum by (instance, job) ('
