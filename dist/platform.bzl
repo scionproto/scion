@@ -21,7 +21,7 @@ def multiplatform_filegroup(name, srcs, target_platforms = DEFAULT_PLATFORMS, **
     native.filegroup(
         name = name + "_all",
         srcs = all_platforms,
-        **kwargs,
+        **kwargs
     )
 
     # also add the default filegroup, without platform transition, but
@@ -30,5 +30,5 @@ def multiplatform_filegroup(name, srcs, target_platforms = DEFAULT_PLATFORMS, **
         name = name,
         srcs = srcs,
         tags = ["manual"],
-        **kwargs,
+        **kwargs
     )
