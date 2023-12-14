@@ -3,6 +3,8 @@ Description=SCION Control Service
 Documentation=https://docs.scion.org
 After=network-online.target scion-dispatcher.service
 Wants=scion-dispatcher.service
+StartLimitBurst=1
+StartLimitInterval=1s
 
 [Service]
 Type=simple

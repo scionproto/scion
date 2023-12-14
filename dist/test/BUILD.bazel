@@ -1,0 +1,16 @@
+sh_test(
+    name = "deb_test",
+    srcs = ["deb_test.sh"],
+    data = [
+        "Dockerfile",
+        "//dist:deb",
+    ],
+    env = {
+        "SCION_DEB_PACKAGES": "$(locations //dist:deb)",
+        "DEBUG": "1",
+    },
+    tags = [
+        "exclusive",
+        "integration",
+    ],
+)
