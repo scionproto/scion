@@ -7,7 +7,7 @@ DEFAULT_PLATFORMS = [
     "@io_bazel_rules_go//go/toolchain:linux_arm",
 ]
 
-def multiplatform_filegroup(name, srcs, target_platforms = DEFAULT_PLATFORMS):
+def multiplatform_filegroup(name, srcs, target_platforms = DEFAULT_PLATFORMS, **kwargs):
     all_platforms = []
     for target_platform in target_platforms:
         platform_name = target_platform.split(":")[-1]
@@ -21,6 +21,7 @@ def multiplatform_filegroup(name, srcs, target_platforms = DEFAULT_PLATFORMS):
     native.filegroup(
         name = name + "_all",
         srcs = all_platforms,
+        **kwargs,
     )
 
     # also add the default filegroup, without platform transition, but
@@ -29,4 +30,5 @@ def multiplatform_filegroup(name, srcs, target_platforms = DEFAULT_PLATFORMS):
         name = name,
         srcs = srcs,
         tags = ["manual"],
+        **kwargs,
     )

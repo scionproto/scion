@@ -2,6 +2,8 @@
 Description=SCION Dispatcher
 Documentation=https://docs.scion.org
 After=network-online.target
+StartLimitBurst=1
+StartLimitInterval=1s
 
 [Service]
 Type=simple

@@ -15,7 +15,7 @@ scion_pkg_deb(
     ],
     description = "SCION inter-domain network architecture border router",
     executables = {
-        "//router/cmd/router:router": "/usr/bin/scion-router",
+        "//router/cmd/router:router": "scion-router",
     },
     package = "scion-router",
     postinst = "debian/scion.postinst",
@@ -109,6 +109,7 @@ scion_pkg_deb(
 
 multiplatform_filegroup(
     name = "deb",
+    visibility = ["//dist:__subpackages__"],
     srcs = [
         "control_deb",
         "daemon_deb",
