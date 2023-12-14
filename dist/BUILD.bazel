@@ -109,7 +109,6 @@ scion_pkg_deb(
 
 multiplatform_filegroup(
     name = "deb",
-    visibility = ["//dist:__subpackages__"],
     srcs = [
         "control_deb",
         "daemon_deb",
@@ -118,4 +117,5 @@ multiplatform_filegroup(
         "router_deb",
         "tools_deb",
     ],
+    visibility = ["//dist:__subpackages__"],
 )
