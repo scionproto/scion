@@ -97,17 +97,17 @@ class RouterBMTest(base.TestBase):
         """
 
         allCpus = lscpu("-p=CPU,Core", "-b").splitlines()
-        cores = {} # core -> [cpus]
+        cores = {}  # core -> [cpus]
         for c in allCpus:
             if c.startswith("#"):
                 continue
-            cpu,core = tuple(c.split(","))
+            cpu, core = tuple(c.split(","))
             if cores.get(core) is None:
                 cores[core] = [cpu]
             else:
                 cores[core].append(cpu)
 
-        chosen=[]
+        chosen = []
         while len(cores) > 0 and len(chosen) < 4:
             # A: Pick only from single cpu cores.
             for core in list(cores.keys()):
@@ -131,7 +131,7 @@ class RouterBMTest(base.TestBase):
             # Just repeat the loop. Either A or B gets something.
             # We don't care from which core at this point.
 
-        self.router_cpus = chosen[:-1] # First choice is upfront
+        self.router_cpus = chosen[:-1]  # First choice is upfront
         self.brload_cpus = chosen[-1]  # Last one for the blaster
         logger.info(f"router cpus: {self.router_cpus}")
         logger.info(f"brload cpus: {self.brload_cpus}")
