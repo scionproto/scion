@@ -195,9 +195,17 @@ func run(cmd *cobra.Command) int {
 	// We started everything that could be started. So the best window for perf mertics
 	// opens somewhere around now.
 	metricsBegin := time.Now().Unix()
+	// Because we're using IPV4 only, the UDP checksum is optional, so we are allowed to
+	// just set it to zero instead of recomputing it. The IP checksum does not cover the payload, so
+	// we don't need to update it.
+	binary.BigEndian.PutUint16(rawPkt[40:42], 0)
+
 	for i := 0; i < numPackets; i++ {
-		// Rotate through flowIDs. We patch it directly into the SCION header of the packet.
-		updateFlowID(rawPkt, uint16(i%int(numStreams)))
+		// Rotate through flowIDs. We patch it directly into the SCION header of the packet.  The
+		// SCION header starts at offset 42. The flowID is the 20 least significant bits of the
+		// first 32 bit field. To make our life simpler, we only use the last 16 bits (so no more
+		// than 64K flows).
+		binary.BigEndian.PutUint16(rawPkt[44:46], uint16(i%int(numStreams)))
 		if err := writePktTo.WritePacketData(rawPkt); err != nil {
 			log.Error("writing input packet", "case", string(caseToRun), "error", err)
 			return 1
@@ -228,42 +236,6 @@ func run(cmd *cobra.Command) int {
 
 	fmt.Printf("Listener results: %d\n", outcome)
 	return 0
-}
-
-func updateFlowID(packet []byte, newFlowID uint16) {
-	// The SCION header starts at offset 42. The flowID is the 20 least significant bits of the
-	// first 32 bit field. To make our life simpler, we only use the last 16 bits (so no more than
-	// 64K flows). We also need to update the IP and UDP checksums. (For best performance we could
-	// avoid all endian-aware conversions but Go makes that awkward and we're not severely
-	// performance constrained here).
-	oldIPsum := binary.BigEndian.Uint16(packet[24:26])
-	oldUDPsum := binary.BigEndian.Uint16(packet[40:42])
-	oldFlowID := binary.BigEndian.Uint16(packet[44:46])
-
-	// Recompute the two affected checksums according to RFC1624. The updated UDP sum also affects
-	// the computation of the new IP sum. (xor 0xffff : WTF doesn't Go have a ~ operator?)
-	// The arithmetic is a bit weird. See the RFC.
-	newUDPsum := uint32(oldUDPsum ^ 0xffff)
-	newUDPsum += uint32(oldFlowID ^ 0xffff) // unsum the old flow ID
-	newUDPsum += uint32(newFlowID)          // sum the new one
-	for newUDPsum > 0xffff {
-		newUDPsum = (newUDPsum & 0xffff) + newUDPsum>>16
-	}
-	newUDPsum = newUDPsum ^ 0xffff
-
-	newIPsum := uint32(oldIPsum ^ 0xffff)
-	newIPsum += uint32(oldUDPsum ^ 0xffff) // unsum the old udp sum
-	newIPsum += uint32(newUDPsum)          // sum the new one
-	newIPsum += uint32(oldFlowID ^ 0xffff) // unsum the old flow id
-	newIPsum += uint32(newFlowID)          // sum the new flow id
-	for newIPsum > 0xffff {
-		newIPsum = (newIPsum & 0xffff) + newIPsum>>16
-	}
-	newIPsum = newIPsum ^ 0xffff
-
-	binary.BigEndian.PutUint16(packet[44:46], newFlowID)
-	binary.BigEndian.PutUint16(packet[40:42], uint16(newUDPsum))
-	binary.BigEndian.PutUint16(packet[24:26], uint16(newIPsum))
 }
 
 // receivePkts consume some or all (at least one if it arrives) of the packets

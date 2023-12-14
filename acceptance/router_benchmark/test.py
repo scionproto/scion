@@ -205,10 +205,10 @@ class RouterBMTest(base.TestBase):
                "-v", f"{self.artifacts}/conf:/share/conf",
                "-d",
                "-e", "SCION_EXPERIMENTAL_BFD_DISABLE=true",
-               "-e", "GOMAXPROCS=4",
+               "-e", "GOMAXPROCS=3",
                "--network", "container:prometheus",
                "--name", "router",
-               # "--cpuset-cpus", "4,5,6,7",
+               "--cpuset-cpus", "1,2,3",
                "posix-router:latest")
 
         time.sleep(2)
@@ -224,7 +224,7 @@ class RouterBMTest(base.TestBase):
         brload = self.get_executable("brload")
         # For num-streams, attempt to distribute uniformly on many possible number of cores.
         # 840 is a multiple of 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 15, 20, 21, 24, 28, ...
-        return sudo(# "taskset", "-c", "4,5",
+        return sudo("taskset", "-c", "0",
                     brload.executable,
                     "run",
                     "--artifacts", self.artifacts,
@@ -303,7 +303,7 @@ class RouterBMTest(base.TestBase):
         for label, intf in self.intfMap.items():
             mapArgs.extend(["--interface", f"{label}={intf.name},{intf.mac},{intf.peerMac}"])
 
-        # Run one (30% size) test as warm-up to trigger the frequency scaling, else the first test
+        # Run one test (30% size) as warm-up to trigger the frequency scaling, else the first test
         # gets much lower performance.
         self.execBrLoad(list(TEST_CASES)[0], mapArgs, 3000000)
 
