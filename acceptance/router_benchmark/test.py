@@ -20,7 +20,7 @@ import time
 
 from collections import namedtuple
 from plumbum import cli
-from plumbum.cmd import docker, whoami, cat
+from plumbum.cmd import docker, whoami
 from plumbum import cmd
 
 from acceptance.common import base
@@ -283,7 +283,7 @@ class RouterBMTest(base.TestBase):
             'time': f'{sampleTime}',
             'query': (
                 'sum by (instance, job) ('
-                f'  rate(router_dropped_pkts_total{{job="BR", reason=~"busy_.*"}}[10s])'
+                '  rate(router_dropped_pkts_total{{job="BR", reason=~"busy_.*"}}[10s])'
                 ')'
                 '/ on (instance, job) group_left()'
                 'sum by (instance, job) ('
@@ -381,6 +381,7 @@ class RouterBMTest(base.TestBase):
 
         if len(notSaturated) != 0:
             raise RuntimeError(f'Insufficient saturation for: {notSaturated}')
+
 
 if __name__ == "__main__":
     base.main(RouterBMTest)
