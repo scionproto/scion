@@ -220,7 +220,7 @@ class RouterBMTest(base.TestBase):
         docker("network", "rm", "benchmark")  # veths are deleted automatically
         sudo("chown", "-R", whoami().strip(), self.artifacts)
 
-    def execBrLoad(self, case: str, mapArgs: list[str], count: int) -> str:
+    def exec_br_load(self, case: str, mapArgs: list[str], count: int) -> str:
         brload = self.get_executable("brload")
         # For num-streams, attempt to distribute uniformly on many possible number of cores.
         # 840 is a multiple of 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 15, 20, 21, 24, 28, ...
@@ -233,10 +233,10 @@ class RouterBMTest(base.TestBase):
                     "--num-packets", str(count),
                     "--num-streams", "840")
 
-    def runTestCase(self, case: str, mapArgs: list[str]):
+    def run_test_case(self, case: str, mapArgs: list[str]) -> (int, int):
         logger.info(f"==> Starting load {case}")
 
-        output = self.execBrLoad(case, mapArgs, 10000000)
+        output = self.exec_br_load(case, mapArgs, 10000000)
         for line in output.splitlines():
             print(line)
             if line.startswith('metricsBegin'):
@@ -270,15 +270,48 @@ class RouterBMTest(base.TestBase):
 
         # There's only one router, so whichever metric we get is the right one.
         pld = json.loads(resp.read().decode('utf-8'))
+        processed = 0
         results = pld['data']['result']
         for result in results:
             ts, val = result['value']
-            return int(float(val))
-        return 0
+            processed = int(float(val))
+            break
+
+        # Collect dropped packets metrics, so we can verify that the router was well saturated.
+        # If not, the metrics aren't very useful.
+        promQuery = urlencode({
+            'time': f'{sampleTime}',
+            'query': (
+                'sum by (instance, job) ('
+                f'  rate(router_dropped_pkts_total{{job="BR", reason=~"busy_.*"}}[10s])'
+                ')'
+                '/ on (instance, job) group_left()'
+                'sum by (instance, job) ('
+                '  1 - (rate(process_runnable_seconds_total[10s])'
+                '       / go_sched_maxprocs_threads)'
+                ')'
+            )
+        })
+        conn = HTTPConnection("localhost:9999")
+        conn.request('GET', f'/api/v1/query?{promQuery}')
+        resp = conn.getresponse()
+        if resp.status != 200:
+            raise RuntimeError(f'Unexpected response: {resp.status} {resp.reason}')
+
+        # There's only one router, so whichever metric we get is the right one.
+        pld = json.loads(resp.read().decode('utf-8'))
+        dropped = 0
+        results = pld['data']['result']
+        for result in results:
+            ts, val = result['value']
+            dropped = int(float(val))
+            break
+
+        return processed, dropped
 
     # Fetch and log the number of cores used by Go. This may inform performance
     # modeling later.
-    def logCoreCounts(self):
+    def log_core_counts(self):
         logger.info('==> Collecting number of cores...')
         promQuery = urlencode({
             'query': 'go_sched_maxprocs_threads{job="BR"}'
@@ -305,14 +338,17 @@ class RouterBMTest(base.TestBase):
 
         # Run one test (30% size) as warm-up to trigger the frequency scaling, else the first test
         # gets much lower performance.
-        self.execBrLoad(list(TEST_CASES)[0], mapArgs, 3000000)
+        self.exec_br_load(list(TEST_CASES)[0], mapArgs, 3000000)
 
         # At long last, run the tests
         rateMap = {}
+        droppageMap = {}
         for testCase in TEST_CASES:
-            rateMap[testCase] = self.runTestCase(testCase, mapArgs)
+            processed, dropped = self.run_test_case(testCase, mapArgs)
+            rateMap[testCase] = processed
+            droppageMap[testCase] = dropped
 
-        self.logCoreCounts()
+        self.log_core_counts()
 
         # Log and check the performance...
         # If this is used as a CI test. Make sure that the performance is within the expected
@@ -329,6 +365,22 @@ class RouterBMTest(base.TestBase):
         if len(rateTooLow) != 0:
             raise RuntimeError(f'Insufficient performance for: {rateTooLow}')
 
+        # Log and check the saturation...
+        # If this is used as a CI test. Make sure that the saturation is within the expected
+        # ballpark (we expect at least 4% packet dropped due to queue overflow).
+        notSaturated = []
+        for tt in TEST_CASES:
+            ratio = float(droppageMap[tt]) / rateMap[tt]
+            exp = float(rateMap[tt]) * 0.04
+            if self.ci:
+                logger.info(f'Droppage ratio for {tt}: {ratio:.1%} expected: {exp}')
+                if ratio < exp:
+                    notSaturated.append(tt)
+            else:
+                logger.info(f'Droppage ratio for {tt}: {ratio:.1%}')
+
+        if len(notSaturated) != 0:
+            raise RuntimeError(f'Insufficient saturation for: {notSaturated}')
 
 if __name__ == "__main__":
     base.main(RouterBMTest)
