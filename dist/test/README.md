@@ -2,7 +2,7 @@
 
 This is a minimal test for the debian packages built in dist/BUILD.bazel.
 
-### Run
+## Run
 
 There are two ways to run this test:
 
@@ -20,8 +20,7 @@ make dist-deb
 dist/test/deb_test.sh
 ```
 
-
-### Scope
+## Scope
 
 The test should determine whether
 
