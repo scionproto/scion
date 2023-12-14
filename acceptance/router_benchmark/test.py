@@ -59,7 +59,7 @@ def mac_for_ip(ip: str) -> str:
     ipBytes = ip.split(".")
     return 'f0:0d:ca:fe:{:02x}:{:02x}'.format(int(ipBytes[2]), int(ipBytes[3]))
 
-    
+
 class RouterBMTest(base.TestBase):
     """
     Tests that the implementation of a router has sufficient performance in terms of packets
@@ -373,7 +373,7 @@ class RouterBMTest(base.TestBase):
             ratio = float(droppageMap[tt]) / rateMap[tt]
             exp = 0.04
             if self.ci:
-                logger.info(f'Droppage ratio for {tt}: {ratio:.1%} expected: {exp}')
+                logger.info(f'Droppage ratio for {tt}: {ratio:.1%} expected: {exp:.1%}')
                 if ratio < exp:
                     notSaturated.append(tt)
             else:
