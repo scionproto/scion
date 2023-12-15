@@ -95,6 +95,7 @@ class RouterBMTest(base.TestBase):
         * only one cpu of each hyperthreaded core.
         * any remaining cpu.
         """
+        logger.info(f"CPUs summary BEGINS\n{cmd.lscpu("--extended")}\nCPUs summary ENDS")
 
         allCpus = lscpu("-p=CPU,Core", "-b").splitlines()
         cores = {}  # core -> [cpus]
