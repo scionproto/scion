@@ -81,62 +81,174 @@ class RouterBMTest(base.TestBase):
     Pretend traffic is injected by brload's. See the test cases for details.
     """
 
+    caches: dict[str, list[str]] = {}  # cacheID -> list[vcpuID]
+    cores: dict[str,list[str]] = {}  # coreID -> list[vcpuID]
+    router_cpus: list[str] =[]
+    brload_cpus: list[str] =[]
+
     ci = cli.Flag(
         "ci",
         help="Do extra checks for CI",
         envname="CI"
     )
 
-    def choose_cpus(self):
+    def choose_cpus_from_unshared_cache(self) -> list[str]:
         """Picks the cpus that the test must use.
 
-        The criteria are still simple. Collect up to 4 cpus by selecting, in that order:
+        This variant try to collect only cpus that do not share an L2 cache (and so, not
+        hyperthreaded either). This is not likely to succeed but on machines that can do that, it
+        is the configuration that causes the least performance variability.
+
+        Returns:
+          A list of up to 4 vcpus. All are first choice.
+        """
+
+        chosen = [cpus[0] for cpus in self.caches.values() if len(cpus) == 1]
+
+        logger.info(f"CPUs from unshared cache: best={len(chosen)}")
+        return sorted(chosen)[0:4]
+
+    def choose_cpus_from_single_cache(self) -> list[str]:
+        """Picks the cpus that the test must use.
+
+        This variant try to collect only cpus that are all in the same L2 cache but from
+        non-hyper-threaded cores (best) or different ht cores (second best).
+
+        This would be a fairly common configuration. It also provides consistent performance results
+        as the shared cache will likely be used entirely by the test and not poluted by other random
+        activities.
+
+        Returns:
+          A list of up to 4 vcpus. The ones at the head of the list are the best.
+        """
+
+        best = {cpus[0] for cpus in self.cores.values() if len(cpus) == 1}
+        chosen = {}
+        for cpus in self.caches.values():
+            chosen = set(cpus) & best
+            if len(chosen) >= 4:
+                logger.info(f"CPUs from single cache: best={len(chosen)}")
+                return sorted(chosen)[0:4]
+
+        # Not enough. Add second-best CPUs (one from each hyperthreaded core)
+        # and filter the cache sets again.
+        second_best = {cpus[0] for cpus in self.cores.values() if len(cpus) > 1}
+        acceptable = best | second_best
+        chosen = {}
+        best_top = 0
+        for cpus in self.caches.values():
+            chosen_too = set(cpus) & acceptable
+            # chosen_too may contain some or all of the best cpus.
+            best_cnt = len(chosen_too & best)
+            if best_cnt > best_top:
+                best_top = best_cnt
+                chosen = chosen_too
+
+        logger.info(f"CPUs from single cache: "
+                    "best={len(chosen & best)} "
+                    "second_best={len(chosen & second_best)}")
+
+        return (sorted(chosen & best) + sorted(chosen & second_best))[0:4]
+
+    def choose_cpus_from_best_cores(self) -> list[str]:
+        """Picks the cpus that the test must use.
+
+        This variant gives up on cache discrimination and applies only the second level criteria:
+
+        Collect up to 4 cpus by selecting, in that order:
         * cpus of non-hyperthreaded cores.
         * only one cpu of each hyperthreaded core.
         * any remaining cpu.
-        """
-        logger.info(f"CPUs summary BEGINS\n{cmd.lscpu('--extended')}\nCPUs summary ENDS")
 
-        allCpus = lscpu("-p=CPU,Core", "-b").splitlines()
-        cores = {}  # core -> [cpus]
-        for c in allCpus:
-            if c.startswith("#"):
-                continue
-            cpu, core = tuple(c.split(","))
-            if cores.get(core) is None:
-                cores[core] = [cpu]
-            else:
-                cores[core].append(cpu)
+        Returns:
+          A list of up to 4 vcpus. The ones at the head of the list are the best.
+        """
 
         chosen = []
-        while len(cores) > 0 and len(chosen) < 4:
+        cpus_by_core = list(self.cores.keys())  # do not alter our self.Cores map.
+        quality = 0
+        report = {}  # quality->count
+        while len(cpus_by_core) > 0 and len(chosen) < 4:
             # In the first iteration, A picks only first choice cpus and B supplements the harvest
             # with second choice. If we still need more all first and second choice have been
             # exhausted and subsequent iterations pick whatever's left.
 
             # A: Pick only from single cpu cores.
-            for core in list(cores.keys()):
+            for cpus in cpus_by_core[:]:
                 if len(chosen) == 4:
                     break
-                cpus = cores[core]
                 if len(cpus) == 1:
-                    chosen.append(cores[core][0])
-                    del cores[core]
+                    report[quality] += 1
+                    chosen.append(cpus[0])
+                    cpus_by_core.remove(cpus)
+            quality = min(quality + 1, 2)
 
-            # B: Pick one vcpu per core from the multithreaded cores.
-            for core in list(cores.keys()):
+            # B: Pick one vcpu per core from the ht cores.
+            for cpus in cpus_by_core:
                 if len(chosen) == 4:
                     break
-                cpus = cores[core]
+                report[quality] += 1
                 chosen.append(cpus[0])
                 cpus.pop(0)
                 if len(cpus) == 0:
-                    del cores[core]
+                    cpus_by_core.remove(cpus)
+            quality = min(quality + 1, 2)
 
-        self.router_cpus = chosen[:-1]  # First choice is upfront
-        self.brload_cpus = chosen[-1]  # Last one for the blaster
+        logger.info("CPUs from best cores: "
+                    f"best={report[0]} second_best={report[1]} other={report[2]}")
+        return chosen
+
+    def choose_cpus(self):
+        """Chooses 4 cpus and assigns 3 for the router and 1 for the blaster.
+
+        Try various policies in decreasing order of preference. We use fewer than 3 cores
+        only as a last resort
+        """
+
+        chosen = self.choose_cpus_from_unshared_cache()
+        if len(chosen) < 4:
+            chosen = self.choose_cpus_from_single_cache()
+        if len(chosen) < 4:
+            chosen = self.choose_cpus_from_best_cores()
+
+        # Make the best of what we got. All but the last cpu go to the router. Those are the
+        # best choice.
+        self.router_cpus = chosen[:-1]
+        self.brload_cpus = chosen[-1]
         logger.info(f"router cpus: {self.router_cpus}")
         logger.info(f"brload cpus: {self.brload_cpus}")
+
+    def init(self):
+        """Collects information about vcpus/cores/caches layout."""
+
+        super().init()
+
+        logger.info(f"CPUs summary BEGINS\n{cmd.lscpu('--extended')}\nCPUs summary ENDS")
+
+        all_cpus = lscpu("-p=CPU,CACHE", "-b").splitlines()
+        self.caches = {}  # cache -> [cpus]
+        for c in all_cpus:
+            if c.startswith("#"):
+                continue
+            cpu,_,l1d,l1u,l2,l3  = tuple(c.split(","))
+            if self.caches.get(l2) is None:
+                self.caches[l2] = [cpu]
+            else:
+                self.caches[l2].append(cpu)
+
+        all_cpus = lscpu("-p=CPU,Core", "-b").splitlines()
+        self.cores = {}  # core -> [cpus]
+        for c in all_cpus:
+            if c.startswith("#"):
+                continue
+            cpu, core = tuple(c.split(","))
+            if self.cores.get(core) is None:
+                self.cores[core] = [cpu]
+            else:
+                self.cores[core].append(cpu)
+
+        # Now that we have the key info, select cpus to run the router and brload.
+        self.choose_cpus()
 
     def create_interface(self, req: IntfReq, ns: str):
         """
@@ -250,9 +362,6 @@ class RouterBMTest(base.TestBase):
 
         # We don't need that symlink any more
         sudo("rm", "/var/run/netns/benchmark")
-
-        # Select cpus to run the router and brload.
-        self.choose_cpus()
 
         # Now the router can start.
         docker("run",
