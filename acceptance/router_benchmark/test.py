@@ -95,7 +95,7 @@ class RouterBMTest(base.TestBase):
         * only one cpu of each hyperthreaded core.
         * any remaining cpu.
         """
-        logger.info(f"CPUs summary BEGINS\n{cmd.lscpu("--extended")}\nCPUs summary ENDS")
+        logger.info(f"CPUs summary BEGINS\n{cmd.lscpu('--extended')}\nCPUs summary ENDS")
 
         allCpus = lscpu("-p=CPU,Core", "-b").splitlines()
         cores = {}  # core -> [cpus]
@@ -110,6 +110,10 @@ class RouterBMTest(base.TestBase):
 
         chosen = []
         while len(cores) > 0 and len(chosen) < 4:
+            # In the first iteration, A picks only first choice cpus and B supplements the harvest
+            # with second choice. If we still need more all first and second choice have been
+            # exhausted and subsequent iterations pick whatever's left.
+
             # A: Pick only from single cpu cores.
             for core in list(cores.keys()):
                 if len(chosen) == 4:
@@ -128,9 +132,6 @@ class RouterBMTest(base.TestBase):
                 cpus.pop(0)
                 if len(cpus) == 0:
                     del cores[core]
-
-            # Just repeat the loop. Either A or B gets something.
-            # We don't care from which core at this point.
 
         self.router_cpus = chosen[:-1]  # First choice is upfront
         self.brload_cpus = chosen[-1]  # Last one for the blaster
