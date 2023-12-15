@@ -12,7 +12,8 @@
 [![Release](https://img.shields.io/github/release-pre/scionproto/scion.svg)](https://github.com/scionproto/scion/releases)
 [![License](https://img.shields.io/github/license/scionproto/scion.svg?maxAge=2592000)](https://github.com/scionproto/scion/blob/master/LICENSE)
 
-Welcome to the open-source implementation of [SCION](http://www.scion-architecture.net) (Scalability, Control and Isolation On next-generation Networks), a future Internet architecture.
+Welcome to the open-source implementation of [SCION](http://www.scion-architecture.net)
+(Scalability, Control and Isolation On next-generation Networks), a future Internet architecture.
 SCION provides route control, failure isolation, and explicit trust information for end-to-end communication.
 To find out more about the project, please visit our [documentation site](https://docs.scion.org/en/latest/).
 
@@ -28,21 +29,25 @@ can be downloaded from the [latest release](https://github.com/scionproto/scion/
 
 ### Build from sources
 
-SCION can be built with `go build`. To build all binaries used in a SCION deployment (i.e. excluding the testing and development tools), run
+SCION can be built with `go build`. To build all binaries used in a SCION deployment (i.e.
+excluding the testing and development tools), run
 
-```
+```sh
 CGO_ENABLED=0 go build -o bin ./router/... ./control/... ./dispatcher/... ./daemon/... ./scion/... ./scion-pki/... ./gateway/...
 ```
 
 The default way to build SCION, however, uses Bazel.
 In particular, this allows to run all the tests, linters etc.
-Please visit our [documentation site](https://docs.scion.org/en/latest/dev/setup.html) for instructions on how to set up Bazel and the full development environment.
+Please visit our [documentation site](https://docs.scion.org/en/latest/dev/setup.html) for
+instructions on how to set up Bazel and the full development environment.
 
 ### Connecting to the SCION Network
 
-Join [SCIONLab](https://www.scionlab.org) if you're interested in playing with SCION in an operational global test deployment of SCION.
+Join [SCIONLab](https://www.scionlab.org) if you're interested in playing with SCION in an
+operational global test deployment of SCION.
 
-The [awesome-scion](https://github.com/scionproto/awesome-scion#deployments) list containes pointers to production deployments of SCION.
+The [awesome-scion](https://github.com/scionproto/awesome-scion#deployments) list containes
+pointers to production deployments of SCION.
 
 ## Contributing
 
