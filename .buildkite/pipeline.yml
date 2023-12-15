@@ -1,5 +1,5 @@
 env:
-  GOPROXY: "http://localhost:3200|https://proxy.golang.org|direct"
+    GOPROXY: "http://localhost:3200|https://proxy.golang.org|direct"
 steps:
   - label: "Build :bazel:"
     command:
@@ -22,6 +22,8 @@ steps:
         - exit_status: -1 # Agent was lost
         - exit_status: 255 # Forced agent shutdown
     timeout_in_minutes: 10
+    concurrency_group: "${BUILDKITE_PIPELINE_ID}/${BUILDKITE_BUILD_NUMBER}"
+    concurrency: 3
   - wait
   - label: "Package :debian:"
     command:
@@ -45,6 +47,8 @@ steps:
             EOF
     key: dist-deb
     retry: *automatic-retry
+    concurrency_group: "${BUILDKITE_PIPELINE_ID}/${BUILDKITE_BUILD_NUMBER}"
+    concurrency: 3
   - label: "Unit Tests :bazel:"
     command:
       - bazel test --config=race --config=unit_all
@@ -56,12 +60,16 @@ steps:
       - bazel-testlogs.tar.gz
     retry: *automatic-retry
     timeout_in_minutes: 20
+    concurrency_group: "${BUILDKITE_PIPELINE_ID}/${BUILDKITE_BUILD_NUMBER}"
+    concurrency: 3
   - label: "Lint :bash:"
     command:
       - make lint
     key: lint
     retry: *automatic-retry
     timeout_in_minutes: 20
+    concurrency_group: "${BUILDKITE_PIPELINE_ID}/${BUILDKITE_BUILD_NUMBER}"
+    concurrency: 3
   - label: "Check Generated :bash:"
     command:
       - echo "--- go_deps.bzl"
@@ -92,6 +100,8 @@ steps:
     timeout_in_minutes: 20
     key: check_generated
     retry: *automatic-retry
+    concurrency_group: "${BUILDKITE_PIPELINE_ID}/${BUILDKITE_BUILD_NUMBER}"
+    concurrency: 3
   - wait
   - group: "End to End"
     key: e2e
@@ -123,6 +133,8 @@ steps:
       timeout_in_minutes: 15
       key: e2e_integration_tests_v2
       retry: *automatic-retry
+      concurrency_group: "${BUILDKITE_PIPELINE_ID}/${BUILDKITE_BUILD_NUMBER}"
+      concurrency: 3
     - label: "E2E: failing links :man_in_business_suit_levitating:"
       command:
         - echo "--- build"
@@ -138,6 +150,8 @@ steps:
       timeout_in_minutes: 15
       key: e2e_revocation_test_v2
       retry: *automatic-retry
+      concurrency_group: "${BUILDKITE_PIPELINE_ID}/${BUILDKITE_BUILD_NUMBER}"
+      concurrency: 3
     - label: "E2E: default :docker: (ping)"
       command:
         - echo "--- build"
@@ -153,3 +167,5 @@ steps:
       timeout_in_minutes: 15
       key: docker_integration_e2e_default
       retry: *automatic-retry
+      concurrency_group: "${BUILDKITE_PIPELINE_ID}/${BUILDKITE_BUILD_NUMBER}"
+      concurrency: 3
