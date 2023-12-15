@@ -61,7 +61,7 @@ scion_pkg_deb(
     depends = [
         "adduser",
     ],
-    description = "SCION dispatcher",
+    description = "SCION daemon",
     executables = {
         "//daemon/cmd/daemon:daemon": "scion-daemon",
     },
