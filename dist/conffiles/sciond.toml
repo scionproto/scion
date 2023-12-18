@@ -10,8 +10,8 @@ connection = "/var/lib/scion/sd.path.db"
 connection = "/var/lib/scion/sd.trust.db"
 
 # Optionally enable DRKey
-# [drkey_db]
-# connection = "/var/lib/scion/sd.drkey.db"
+# [drkey_level2_db]
+# connection = "/var/lib/scion/sd.drkey_level2.db"
 
 [log.console]
 level = "info"
