@@ -6,3 +6,4 @@ python3-setuptools
 python3-wheel
 jq
 openssl
+dmidecode
