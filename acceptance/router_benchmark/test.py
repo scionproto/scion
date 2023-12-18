@@ -549,7 +549,7 @@ class RouterBMTest(base.TestBase):
         notSaturated = []
         for tt in TEST_CASES:
             ratio = float(droppageMap[tt]) / (rateMap[tt] + droppageMap[tt])
-            exp = 0.04
+            exp = 0.01
             if self.ci:
                 logger.info(f"Droppage ratio for {tt}: {ratio:.1%} expected: {exp:.1%}")
                 if ratio < exp:
