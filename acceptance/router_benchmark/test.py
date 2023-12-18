@@ -20,7 +20,7 @@ import time
 
 from collections import namedtuple
 from plumbum import cli
-from plumbum.cmd import docker, whoami, lscpu
+from plumbum.cmd import docker, whoami, lscpu, grep
 from plumbum import cmd
 
 from acceptance.common import base
@@ -417,7 +417,6 @@ class RouterBMTest(base.TestBase):
 
         output = self.exec_br_load(case, mapArgs, 10000000)
         for line in output.splitlines():
-            print(line)
             if line.startswith("metricsBegin"):
                 _, beg, _, end = line.split()
 
@@ -519,6 +518,10 @@ class RouterBMTest(base.TestBase):
         # gets much lower performance.
         self.exec_br_load(list(TEST_CASES)[0], mapArgs, 3000000)
 
+        # Record the CPU serial in an attempt at detecting live migrations.
+        logger.info("CPU serial BEFORE: "
+                    f'{(cmd.sudo["-A", "dmidecode", "-t", "processor"] | grep["ID:"])().strip()}')
+
         # At long last, run the tests
         rateMap = {}
         droppageMap = {}
@@ -526,6 +529,9 @@ class RouterBMTest(base.TestBase):
             processed, dropped = self.run_test_case(testCase, mapArgs)
             rateMap[testCase] = processed
             droppageMap[testCase] = dropped
+
+        logger.info("CPU serial AFTER: "
+                    f'{(cmd.sudo["-A", "dmidecode", "-t", "processor"] | grep["ID:"])().strip()}')
 
         self.log_core_counts()
 
