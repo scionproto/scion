@@ -17,4 +17,3 @@ sqlite3
 sudo
 tzdata
 zlib1g-dev
-dmidecode
