@@ -34,11 +34,11 @@ logger = logging.getLogger(__name__)
 
 # Those values are valid expectations only when running in the CI environment.
 TEST_CASES = {
-    'in': 290000,
-    'out': 290000,
-    'in_transit': 250000,
-    'out_transit': 250000,
-    'br_transit': 290000,
+    "in": 290000,
+    "out": 290000,
+    "in_transit": 250000,
+    "out_transit": 250000,
+    "br_transit": 290000,
 }
 
 
@@ -57,7 +57,116 @@ Intf = namedtuple("Intf", "name, mac, peerMac")
 # Assumes ips in a /16 or smaller block (i.e. The last two bytes are unique within the test).
 def mac_for_ip(ip: str) -> str:
     ipBytes = ip.split(".")
-    return 'f0:0d:ca:fe:{:02x}:{:02x}'.format(int(ipBytes[2]), int(ipBytes[3]))
+    return "f0:0d:ca:fe:{:02x}:{:02x}".format(int(ipBytes[2]), int(ipBytes[3]))
+
+
+def choose_cpus_from_unshared_cache(caches: list[int], cores: list[int]) -> list[int]:
+    """Picks the cpus that the test must use.
+
+    This variant try to collect only cpus that do not share an L2 cache (and so, not
+    hyperthreaded either). This is not likely to succeed but on machines that can do that, it
+    is the configuration that causes the least performance variability.
+
+    Returns:
+      A list of up to 4 vcpus. All are first choice.
+    """
+
+    chosen = [cpus[0] for cpus in caches.values() if len(cpus) == 1]
+
+    logger.info(f"CPUs from unshared cache: best={len(chosen)}")
+    return sorted(chosen)[0:4]
+
+
+def choose_cpus_from_single_cache(caches: list[int], cores: list[int]) -> list[int]:
+    """Picks the cpus that the test must use.
+
+    This variant try to collect only cpus that are all in the same L2 cache but from
+    non-hyper-threaded cores (best) or different ht cores (second best).
+
+    This would be a fairly common configuration. It also provides consistent performance results
+    as the shared cache will likely be used entirely by the test and not poluted by other random
+    activities.
+
+    Returns:
+      A list of up to 4 vcpus. The ones at the head of the list are the best.
+    """
+
+    best = {cpus[0] for cpus in cores.values() if len(cpus) == 1}
+    chosen = {}
+    for cpus in caches.values():
+        chosen = set(cpus) & best
+        if len(chosen) >= 4:
+            logger.info(f"CPUs from single cache: best={len(chosen)}")
+            return sorted(chosen)[0:4]
+
+    # Not enough. Add second-best CPUs (one from each hyperthreaded core)
+    # and filter the cache sets again.
+    second_best = {cpus[0] for cpus in cores.values() if len(cpus) > 1}
+    acceptable = best | second_best
+    chosen = {}
+    best_top = 0
+    for cpus in caches.values():
+        chosen_too = set(cpus) & acceptable
+        # chosen_too may contain some or all of the best cpus.
+        best_cnt = len(chosen_too & best)
+        if best_cnt > best_top:
+            best_top = best_cnt
+            chosen = chosen_too
+
+    logger.info("CPUs from single cache: "
+                f"best={len(chosen & best)} "
+                f"second_best={len(chosen & second_best)}")
+
+    return (sorted(chosen & best) + sorted(chosen & second_best))[0:4]
+
+
+def choose_cpus_from_best_cores(caches: list[int], cores: list[int]) -> list[int]:
+    """Picks the cpus that the test must use.
+
+    This variant gives up on cache discrimination and applies only the second level criteria:
+
+    Collect up to 4 cpus by selecting, in that order:
+    * cpus of non-hyperthreaded cores.
+    * only one cpu of each hyperthreaded core.
+    * any remaining cpu.
+
+    Returns:
+      A list of up to 4 vcpus. The ones at the head of the list are the best.
+    """
+
+    chosen = []
+    cpus_by_core = list(cores.keys())  # do not alter our cores map.
+    quality = 0
+    report = {}  # quality->count
+    while len(cpus_by_core) > 0 and len(chosen) < 4:
+        # In the first iteration, A picks only first choice cpus and B supplements the harvest
+        # with second choice. If we still need more all first and second choice have been
+        # exhausted and subsequent iterations pick whatever's left.
+
+        # A: Pick only from single cpu cores.
+        for cpus in cpus_by_core[:]:
+            if len(chosen) == 4:
+                break
+            if len(cpus) == 1:
+                report[quality] += 1
+                chosen.append(cpus[0])
+                cpus_by_core.remove(cpus)
+        quality = min(quality + 1, 2)
+
+        # B: Pick one vcpu per core from the ht cores.
+        for cpus in cpus_by_core:
+            if len(chosen) == 4:
+                break
+            report[quality] += 1
+            chosen.append(cpus[0])
+            cpus.pop(0)
+            if len(cpus) == 0:
+                cpus_by_core.remove(cpus)
+        quality = min(quality + 1, 2)
+
+    logger.info("CPUs from best cores: "
+                f"best={report[0]} second_best={report[1]} other={report[2]}")
+    return chosen
 
 
 class RouterBMTest(base.TestBase):
@@ -76,179 +185,86 @@ class RouterBMTest(base.TestBase):
                  |
     AS3 (br3) ---+
 
-    Only br1 is executed and observed.
+    Only br1a is executed and observed.
 
     Pretend traffic is injected by brload's. See the test cases for details.
     """
 
-    caches: dict[str, list[str]] = {}  # cacheID -> list[vcpuID]
-    cores: dict[str,list[str]] = {}  # coreID -> list[vcpuID]
-    router_cpus: list[str] =[]
-    brload_cpus: list[str] =[]
-
+    router_cpus: list[int] = [0]
+    brload_cpus: list[int] = [0]
     ci = cli.Flag(
         "ci",
         help="Do extra checks for CI",
         envname="CI"
     )
 
-    def choose_cpus_from_unshared_cache(self) -> list[str]:
-        """Picks the cpus that the test must use.
-
-        This variant try to collect only cpus that do not share an L2 cache (and so, not
-        hyperthreaded either). This is not likely to succeed but on machines that can do that, it
-        is the configuration that causes the least performance variability.
-
-        Returns:
-          A list of up to 4 vcpus. All are first choice.
-        """
-
-        chosen = [cpus[0] for cpus in self.caches.values() if len(cpus) == 1]
-
-        logger.info(f"CPUs from unshared cache: best={len(chosen)}")
-        return sorted(chosen)[0:4]
-
-    def choose_cpus_from_single_cache(self) -> list[str]:
-        """Picks the cpus that the test must use.
-
-        This variant try to collect only cpus that are all in the same L2 cache but from
-        non-hyper-threaded cores (best) or different ht cores (second best).
-
-        This would be a fairly common configuration. It also provides consistent performance results
-        as the shared cache will likely be used entirely by the test and not poluted by other random
-        activities.
-
-        Returns:
-          A list of up to 4 vcpus. The ones at the head of the list are the best.
-        """
-
-        best = {cpus[0] for cpus in self.cores.values() if len(cpus) == 1}
-        chosen = {}
-        for cpus in self.caches.values():
-            chosen = set(cpus) & best
-            if len(chosen) >= 4:
-                logger.info(f"CPUs from single cache: best={len(chosen)}")
-                return sorted(chosen)[0:4]
-
-        # Not enough. Add second-best CPUs (one from each hyperthreaded core)
-        # and filter the cache sets again.
-        second_best = {cpus[0] for cpus in self.cores.values() if len(cpus) > 1}
-        acceptable = best | second_best
-        chosen = {}
-        best_top = 0
-        for cpus in self.caches.values():
-            chosen_too = set(cpus) & acceptable
-            # chosen_too may contain some or all of the best cpus.
-            best_cnt = len(chosen_too & best)
-            if best_cnt > best_top:
-                best_top = best_cnt
-                chosen = chosen_too
-
-        logger.info(f"CPUs from single cache: "
-                    "best={len(chosen & best)} "
-                    "second_best={len(chosen & second_best)}")
-
-        return (sorted(chosen & best) + sorted(chosen & second_best))[0:4]
-
-    def choose_cpus_from_best_cores(self) -> list[str]:
-        """Picks the cpus that the test must use.
-
-        This variant gives up on cache discrimination and applies only the second level criteria:
-
-        Collect up to 4 cpus by selecting, in that order:
-        * cpus of non-hyperthreaded cores.
-        * only one cpu of each hyperthreaded core.
-        * any remaining cpu.
-
-        Returns:
-          A list of up to 4 vcpus. The ones at the head of the list are the best.
-        """
-
-        chosen = []
-        cpus_by_core = list(self.cores.keys())  # do not alter our self.Cores map.
-        quality = 0
-        report = {}  # quality->count
-        while len(cpus_by_core) > 0 and len(chosen) < 4:
-            # In the first iteration, A picks only first choice cpus and B supplements the harvest
-            # with second choice. If we still need more all first and second choice have been
-            # exhausted and subsequent iterations pick whatever's left.
-
-            # A: Pick only from single cpu cores.
-            for cpus in cpus_by_core[:]:
-                if len(chosen) == 4:
-                    break
-                if len(cpus) == 1:
-                    report[quality] += 1
-                    chosen.append(cpus[0])
-                    cpus_by_core.remove(cpus)
-            quality = min(quality + 1, 2)
-
-            # B: Pick one vcpu per core from the ht cores.
-            for cpus in cpus_by_core:
-                if len(chosen) == 4:
-                    break
-                report[quality] += 1
-                chosen.append(cpus[0])
-                cpus.pop(0)
-                if len(cpus) == 0:
-                    cpus_by_core.remove(cpus)
-            quality = min(quality + 1, 2)
-
-        logger.info("CPUs from best cores: "
-                    f"best={report[0]} second_best={report[1]} other={report[2]}")
-        return chosen
-
-    def choose_cpus(self):
-        """Chooses 4 cpus and assigns 3 for the router and 1 for the blaster.
-
-        Try various policies in decreasing order of preference. We use fewer than 3 cores
-        only as a last resort
-        """
-
-        chosen = self.choose_cpus_from_unshared_cache()
-        if len(chosen) < 4:
-            chosen = self.choose_cpus_from_single_cache()
-        if len(chosen) < 4:
-            chosen = self.choose_cpus_from_best_cores()
-
-        # Make the best of what we got. All but the last cpu go to the router. Those are the
-        # best choice.
-        self.router_cpus = chosen[:-1]
-        self.brload_cpus = chosen[-1]
-        logger.info(f"router cpus: {self.router_cpus}")
-        logger.info(f"brload cpus: {self.brload_cpus}")
-
     def init(self):
         """Collects information about vcpus/cores/caches layout."""
 
         super().init()
+        self.choose_cpus()
+
+    def choose_cpus(self):
+        """Chooses 4 cpus and assigns 3 for the router and 1 for the blaster.
+
+        Try various policies in decreasing order of preference. We use fewer than 4 cores
+        only as a last resort
+        """
 
         logger.info(f"CPUs summary BEGINS\n{cmd.lscpu('--extended')}\nCPUs summary ENDS")
 
-        all_cpus = lscpu("-p=CPU,CACHE", "-b").splitlines()
-        self.caches = {}  # cache -> [cpus]
-        for c in all_cpus:
-            if c.startswith("#"):
-                continue
-            cpu,_,l1d,l1u,l2,l3  = tuple(c.split(","))
-            if self.caches.get(l2) is None:
-                self.caches[l2] = [cpu]
-            else:
-                self.caches[l2].append(cpu)
+        caches = {}  # cache -> [vcpu]
+        cores = {}  # core -> [vcpu]
 
-        all_cpus = lscpu("-p=CPU,Core", "-b").splitlines()
-        self.cores = {}  # core -> [cpus]
-        for c in all_cpus:
-            if c.startswith("#"):
-                continue
-            cpu, core = tuple(c.split(","))
-            if self.cores.get(core) is None:
-                self.cores[core] = [cpu]
-            else:
-                self.cores[core].append(cpu)
+        all = json.loads(lscpu("-J", "--extended", "-b"))
+        all_cpus = all.get("cpus")
+        if all_cpus is None or len(all_cpus) == 0:
+            logger.warn("Un-usable output from lscpu. Defaulting to using cpu0.")
+            return
 
-        # Now that we have the key info, select cpus to run the router and brload.
-        self.choose_cpus()
+        for c in all_cpus:
+            cpu = c["cpu"]
+            core = c["core"]
+            if all_cpus is None or len(all_cpus) == 0:
+                logger.warn("Un-usable output from lscpu. Defaulting to using cpu0.")
+                return
+
+            l2 = core  # fall back to assuming one l2 per core.
+            as_str = c.get("l1d:l1i:l2:l3")
+            if as_str is not None:
+                cache_info = as_str.split(":")
+                if len(cache_info) >= 3:
+                    as_str = cache_info[2]
+                    l2 = int(as_str) if as_str.isdecimal() else 0
+
+            if caches.get(l2) is None:
+                caches[l2] = [cpu]
+            else:
+                caches[l2].append(cpu)
+
+            if cores.get(core) is None:
+                cores[core] = [cpu]
+            else:
+                cores[core].append(cpu)
+
+        chosen = choose_cpus_from_unshared_cache(caches, cores)
+        if len(chosen) < 4:
+            chosen = choose_cpus_from_single_cache(caches, cores)
+        if len(chosen) < 4:
+            chosen = choose_cpus_from_best_cores(caches, cores)
+
+        # Make the best of what we got. All but the last cpu go to the router. Those are the
+        # best choice.
+        if len(chosen) == 1:
+            # When you have lemons...
+            self.router_cpus = chosen
+            self.brload_cpus = chosen
+        else:
+            self.router_cpus = chosen[:-1]
+            self.brload_cpus = [chosen[-1]]
+
+        logger.info(f"router cpus: {self.router_cpus}")
+        logger.info(f"brload cpus: {self.brload_cpus}")
 
     def create_interface(self, req: IntfReq, ns: str):
         """
@@ -371,7 +387,7 @@ class RouterBMTest(base.TestBase):
                "-e", "GOMAXPROCS=3",
                "--network", "container:prometheus",
                "--name", "router",
-               "--cpuset-cpus", f"{','.join(self.router_cpus)}",
+               "--cpuset-cpus", f"{','.join(map(str, self.router_cpus))}",
                "posix-router:latest")
 
         time.sleep(2)
@@ -387,7 +403,7 @@ class RouterBMTest(base.TestBase):
         brload = self.get_executable("brload")
         # For num-streams, attempt to distribute uniformly on many possible number of cores.
         # 840 is a multiple of 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 15, 20, 21, 24, 28, ...
-        return sudo("taskset", "-c", f"{','.join(self.brload_cpus)}",
+        return sudo("taskset", "-c", f"{','.join(map(str, self.brload_cpus))}",
                     brload.executable,
                     "run",
                     "--artifacts", self.artifacts,
@@ -402,7 +418,7 @@ class RouterBMTest(base.TestBase):
         output = self.exec_br_load(case, mapArgs, 10000000)
         for line in output.splitlines():
             print(line)
-            if line.startswith('metricsBegin'):
+            if line.startswith("metricsBegin"):
                 _, beg, _, end = line.split()
 
         logger.info(f"==> Collecting {case} performance metrics...")
@@ -426,17 +442,17 @@ class RouterBMTest(base.TestBase):
             )
         })
         conn = HTTPConnection("localhost:9999")
-        conn.request('GET', f'/api/v1/query?{promQuery}')
+        conn.request("GET", f"/api/v1/query?{promQuery}")
         resp = conn.getresponse()
         if resp.status != 200:
-            raise RuntimeError(f'Unexpected response: {resp.status} {resp.reason}')
+            raise RuntimeError(f"Unexpected response: {resp.status} {resp.reason}")
 
         # There's only one router, so whichever metric we get is the right one.
-        pld = json.loads(resp.read().decode('utf-8'))
+        pld = json.loads(resp.read().decode("utf-8"))
         processed = 0
-        results = pld['data']['result']
+        results = pld["data"]["result"]
         for result in results:
-            ts, val = result['value']
+            ts, val = result["value"]
             processed = int(float(val))
             break
 
@@ -456,17 +472,17 @@ class RouterBMTest(base.TestBase):
             )
         })
         conn = HTTPConnection("localhost:9999")
-        conn.request('GET', f'/api/v1/query?{promQuery}')
+        conn.request("GET", f"/api/v1/query?{promQuery}")
         resp = conn.getresponse()
         if resp.status != 200:
-            raise RuntimeError(f'Unexpected response: {resp.status} {resp.reason}')
+            raise RuntimeError(f"Unexpected response: {resp.status} {resp.reason}")
 
         # There's only one router, so whichever metric we get is the right one.
-        pld = json.loads(resp.read().decode('utf-8'))
+        pld = json.loads(resp.read().decode("utf-8"))
         dropped = 0
-        results = pld['data']['result']
+        results = pld["data"]["result"]
         for result in results:
-            ts, val = result['value']
+            ts, val = result["value"]
             dropped = int(float(val))
             break
 
@@ -475,23 +491,23 @@ class RouterBMTest(base.TestBase):
     # Fetch and log the number of cores used by Go. This may inform performance
     # modeling later.
     def log_core_counts(self):
-        logger.info('==> Collecting number of cores...')
+        logger.info("==> Collecting number of cores...")
         promQuery = urlencode({
             'query': 'go_sched_maxprocs_threads{job="BR"}'
         })
 
         conn = HTTPConnection("localhost:9999")
-        conn.request('GET', f'/api/v1/query?{promQuery}')
+        conn.request("GET", f"/api/v1/query?{promQuery}")
         resp = conn.getresponse()
         if resp.status != 200:
-            raise RuntimeError(f'Unexpected response: {resp.status} {resp.reason}')
+            raise RuntimeError(f"Unexpected response: {resp.status} {resp.reason}")
 
-        pld = json.loads(resp.read().decode('utf-8'))
-        results = pld['data']['result']
+        pld = json.loads(resp.read().decode("utf-8"))
+        results = pld["data"]["result"]
         for result in results:
-            instance = result['metric']['instance']
-            _, val = result['value']
-            logger.info(f'Router Cores for {instance}: {int(val)}')
+            instance = result["metric"]["instance"]
+            _, val = result["value"]
+            logger.info(f"Router Cores for {instance}: {int(val)}")
 
     def _run(self):
         # Build the interface mapping arg
@@ -519,31 +535,31 @@ class RouterBMTest(base.TestBase):
         rateTooLow = []
         for tt, exp in TEST_CASES.items():
             if self.ci and exp != 0:
-                logger.info(f'Packets/(machine*s) for {tt}: {rateMap[tt]} expected: {exp}')
+                logger.info(f"Packets/(machine*s) for {tt}: {rateMap[tt]} expected: {exp}")
                 if rateMap[tt] < 0.8 * exp:
                     rateTooLow.append(tt)
             else:
-                logger.info(f'Packets/(machine*s) for {tt}: {rateMap[tt]}')
+                logger.info(f"Packets/(machine*s) for {tt}: {rateMap[tt]}")
 
         if len(rateTooLow) != 0:
-            raise RuntimeError(f'Insufficient performance for: {rateTooLow}')
+            raise RuntimeError(f"Insufficient performance for: {rateTooLow}")
 
         # Log and check the saturation...
         # If this is used as a CI test. Make sure that the saturation is within the expected
         # ballpark (we expect at least 4% packet dropped due to queue overflow).
         notSaturated = []
         for tt in TEST_CASES:
-            ratio = float(droppageMap[tt]) / rateMap[tt]
+            ratio = float(droppageMap[tt]) / (rateMap[tt] + droppageMap[tt])
             exp = 0.04
             if self.ci:
-                logger.info(f'Droppage ratio for {tt}: {ratio:.1%} expected: {exp:.1%}')
+                logger.info(f"Droppage ratio for {tt}: {ratio:.1%} expected: {exp:.1%}")
                 if ratio < exp:
                     notSaturated.append(tt)
             else:
-                logger.info(f'Droppage ratio for {tt}: {ratio:.1%}')
+                logger.info(f"Droppage ratio for {tt}: {ratio:.1%}")
 
         if len(notSaturated) != 0:
-            raise RuntimeError(f'Insufficient saturation for: {notSaturated}')
+            raise RuntimeError(f"Insufficient saturation for: {notSaturated}")
 
 
 if __name__ == "__main__":
