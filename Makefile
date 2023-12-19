@@ -14,7 +14,7 @@ build:
 dist-deb:
 	bazel build //dist:deb_all
 	mkdir -p deb; rm -f deb/*;
-	@ # Bazel cannot include the version in the filename.
+	@ # Bazel cannot include the version in the filename, if we want to set it automatically from the git tag.
 	@ # Extract the version from the .deb "control" manifest and expand the "__" in the filename to "_<version>_".
 	@ #   See e.g. https://en.wikipedia.org/wiki/Deb_(file_format)#Control_archive
 	@for f in `bazel cquery //dist:deb_all --output=files 2>/dev/null`; do \
