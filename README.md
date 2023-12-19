@@ -46,7 +46,7 @@ instructions on how to set up Bazel and the full development environment.
 Join [SCIONLab](https://www.scionlab.org) if you're interested in playing with SCION in an
 operational global test deployment of SCION.
 
-The [awesome-scion](https://github.com/scionproto/awesome-scion#deployments) list containes
+The [awesome-scion](https://github.com/scionproto/awesome-scion#deployments) list contains
 pointers to production deployments of SCION.
 
 ## Contributing
