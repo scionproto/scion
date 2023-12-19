@@ -7,7 +7,6 @@ sh_test(
     ],
     env = {
         "SCION_DEB_PACKAGES": "$(locations //dist:deb)",
-        "DEBUG": "1",
     },
     tags = [
         "exclusive",
