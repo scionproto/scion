@@ -18,7 +18,7 @@
 import shutil
 import time
 
-from collections import namedtuple
+from collections import defaultdict, namedtuple
 from plumbum import cli
 from plumbum.cmd import docker, whoami, lscpu
 from plumbum import cmd
@@ -92,7 +92,7 @@ def choose_cpus_from_single_cache(caches: list[int], cores: list[int]) -> list[i
     """
 
     best = {cpus[0] for cpus in cores.values() if len(cpus) == 1}
-    chosen = {}
+    chosen = set()
     for cpus in caches.values():
         chosen = set(cpus) & best
         if len(chosen) >= 4:
@@ -103,7 +103,7 @@ def choose_cpus_from_single_cache(caches: list[int], cores: list[int]) -> list[i
     # and filter the cache sets again.
     second_best = {cpus[0] for cpus in cores.values() if len(cpus) > 1}
     acceptable = best | second_best
-    chosen = {}
+    chosen = set()
     best_top = 0
     for cpus in caches.values():
         chosen_too = set(cpus) & acceptable
@@ -134,39 +134,29 @@ def choose_cpus_from_best_cores(caches: list[int], cores: list[int]) -> list[int
       A list of up to 4 vcpus. The ones at the head of the list are the best.
     """
 
-    chosen = []
-    cpus_by_core = list(cores.keys())  # do not alter our cores map.
+    cpus_by_core = list(cores.values())  # What we get is a list of cpu groups.
     quality = 0
-    report = {}  # quality->count
+    report = defaultdict(lambda: 0)  # quality->count
+
+    # Harvest the very top choice and remove it.
+    chosen = [cpus[0] for cpus in cpus_by_core if len(cpus) == 1]
+    cpus_by_core = [cpus for cpus in cpus_by_core if len(cpus) > 1]
+    report[quality] += len(chosen)
+    quality += 1
+
+    # Collect the rest, one round at a time.
     while len(cpus_by_core) > 0 and len(chosen) < 4:
-        # In the first iteration, A picks only first choice cpus and B supplements the harvest
-        # with second choice. If we still need more all first and second choice have been
-        # exhausted and subsequent iterations pick whatever's left.
-
-        # A: Pick only from single cpu cores.
-        for cpus in cpus_by_core[:]:
-            if len(chosen) == 4:
-                break
-            if len(cpus) == 1:
-                report[quality] += 1
-                chosen.append(cpus[0])
-                cpus_by_core.remove(cpus)
-        quality = min(quality + 1, 2)
-
-        # B: Pick one vcpu per core from the ht cores.
-        for cpus in cpus_by_core:
-            if len(chosen) == 4:
-                break
-            report[quality] += 1
-            chosen.append(cpus[0])
-            cpus.pop(0)
-            if len(cpus) == 0:
-                cpus_by_core.remove(cpus)
+        other = ([cpus.pop(0) for cpus in cpus_by_core])
+        cpus_by_core = [cpus for cpus in cpus_by_core if len(cpus) > 0]
+        report[quality] += len(other)
+        chosen.extend(other)
         quality = min(quality + 1, 2)
 
     logger.info("CPUs from best cores: "
                 f"best={report[0]} second_best={report[1]} other={report[2]}")
-    return chosen
+
+    # The last round can get too many, so truncate to promised length.
+    return chosen[0:4]
 
 
 class RouterBMTest(base.TestBase):
@@ -213,8 +203,8 @@ class RouterBMTest(base.TestBase):
 
         logger.info(f"CPUs summary BEGINS\n{cmd.lscpu('--extended')}\nCPUs summary ENDS")
 
-        caches = {}  # cache -> [vcpu]
-        cores = {}  # core -> [vcpu]
+        caches = defaultdict(list)  # cache -> [vcpu]
+        cores = defaultdict(list)  # core -> [vcpu]
 
         all = json.loads(lscpu("-J", "--extended", "-b"))
         all_cpus = all.get("cpus")
@@ -223,9 +213,9 @@ class RouterBMTest(base.TestBase):
             return
 
         for c in all_cpus:
-            cpu = c["cpu"]
-            core = c["core"]
-            if all_cpus is None or len(all_cpus) == 0:
+            cpu = c.get("cpu")
+            core = c.get("core")
+            if cpu is None or core is None:
                 logger.warn("Un-usable output from lscpu. Defaulting to using cpu0.")
                 return
 
@@ -237,15 +227,8 @@ class RouterBMTest(base.TestBase):
                     as_str = cache_info[2]
                     l2 = int(as_str) if as_str.isdecimal() else 0
 
-            if caches.get(l2) is None:
-                caches[l2] = [cpu]
-            else:
-                caches[l2].append(cpu)
-
-            if cores.get(core) is None:
-                cores[core] = [cpu]
-            else:
-                cores[core].append(cpu)
+            caches[l2].append(cpu)
+            cores[core].append(cpu)
 
         chosen = choose_cpus_from_unshared_cache(caches, cores)
         if len(chosen) < 4:
@@ -387,7 +370,7 @@ class RouterBMTest(base.TestBase):
                "-e", "GOMAXPROCS=3",
                "--network", "container:prometheus",
                "--name", "router",
-               "--cpuset-cpus", f"{','.join(map(str, self.router_cpus))}",
+               "--cpuset-cpus", ",".join(map(str, self.router_cpus)),
                "posix-router:latest")
 
         time.sleep(2)
@@ -403,7 +386,7 @@ class RouterBMTest(base.TestBase):
         brload = self.get_executable("brload")
         # For num-streams, attempt to distribute uniformly on many possible number of cores.
         # 840 is a multiple of 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 15, 20, 21, 24, 28, ...
-        return sudo("taskset", "-c", f"{','.join(map(str, self.brload_cpus))}",
+        return sudo("taskset", "-c", ",".join(map(str, self.brload_cpus)),
                     brload.executable,
                     "run",
                     "--artifacts", self.artifacts,
@@ -545,17 +528,21 @@ class RouterBMTest(base.TestBase):
 
         # Log and check the saturation...
         # If this is used as a CI test. Make sure that the saturation is within the expected
-        # ballpark (we expect at least 4% packet dropped due to queue overflow).
+        # ballpark: that should manifest some measurable amount of loss due to queue overflow.
         notSaturated = []
         for tt in TEST_CASES:
-            ratio = float(droppageMap[tt]) / (rateMap[tt] + droppageMap[tt])
-            exp = 0.01
-            if self.ci:
-                logger.info(f"Droppage ratio for {tt}: {ratio:.1%} expected: {exp:.1%}")
-                if ratio < exp:
-                    notSaturated.append(tt)
+            total = rateMap[tt] + droppageMap[tt]
+            if total == 0:
+                logger.info(f"Droppage ratio unavailable for {tt}")
             else:
-                logger.info(f"Droppage ratio for {tt}: {ratio:.1%}")
+                ratio = float(droppageMap[tt]) / total
+                exp = 0.01
+                if self.ci:
+                    logger.info(f"Droppage ratio for {tt}: {ratio:.1%} expected: {exp:.1%}")
+                    if ratio < exp:
+                        notSaturated.append(tt)
+                else:
+                    logger.info(f"Droppage ratio for {tt}: {ratio:.1%}")
 
         if len(notSaturated) != 0:
             raise RuntimeError(f"Insufficient saturation for: {notSaturated}")
