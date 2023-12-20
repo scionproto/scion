@@ -15,6 +15,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"hash"
@@ -38,7 +39,7 @@ import (
 	"github.com/scionproto/scion/private/keyconf"
 )
 
-type Case func(payload string, mac hash.Hash, numDistinct int) (string, string, [][]byte)
+type Case func(payload string, mac hash.Hash) (string, string, []byte)
 
 type caseChoice string
 
@@ -74,7 +75,7 @@ var (
 	logConsole string
 	dir        string
 	numPackets int
-	numStreams int
+	numStreams uint16
 	caseToRun  caseChoice
 	interfaces []string
 )
@@ -99,7 +100,7 @@ func main() {
 		},
 	}
 	runCmd.Flags().IntVar(&numPackets, "num-packets", 10, "Number of packets to send")
-	runCmd.Flags().IntVar(&numStreams, "num-streams", 4,
+	runCmd.Flags().Uint16Var(&numStreams, "num-streams", 4,
 		"Number of independent streams (flowID) to use")
 	runCmd.Flags().StringVar(&logConsole, "log.console", "error",
 		"Console logging level: debug|info|error|etc.")
@@ -136,8 +137,6 @@ func run(cmd *cobra.Command) int {
 	}
 	defer log.HandlePanic()
 
-	caseFunc := allCases[string(caseToRun)] // key already checked.
-
 	artifactsDir := dir
 	if v := os.Getenv("TEST_ARTIFACTS_DIR"); v != "" {
 		artifactsDir = v
@@ -166,7 +165,8 @@ func run(cmd *cobra.Command) int {
 	log.Info("BRLoad acceptance tests:")
 
 	payloadString := "actualpayloadbytes"
-	caseDevIn, caseDevOut, rawPkts := caseFunc(payloadString, hfMAC, numStreams)
+	caseFunc := allCases[string(caseToRun)] // key already checked.
+	caseDevIn, caseDevOut, rawPkt := caseFunc(payloadString, hfMAC)
 
 	writePktTo, ok := handles[caseDevIn]
 	if !ok {
@@ -195,8 +195,18 @@ func run(cmd *cobra.Command) int {
 	// We started everything that could be started. So the best window for perf mertics
 	// opens somewhere around now.
 	metricsBegin := time.Now().Unix()
+	// Because we're using IPV4 only, the UDP checksum is optional, so we are allowed to
+	// just set it to zero instead of recomputing it. The IP checksum does not cover the payload, so
+	// we don't need to update it.
+	binary.BigEndian.PutUint16(rawPkt[40:42], 0)
+
 	for i := 0; i < numPackets; i++ {
-		if err := writePktTo.WritePacketData(rawPkts[i%numStreams]); err != nil {
+		// Rotate through flowIDs. We patch it directly into the SCION header of the packet.  The
+		// SCION header starts at offset 42. The flowID is the 20 least significant bits of the
+		// first 32 bit field. To make our life simpler, we only use the last 16 bits (so no more
+		// than 64K flows).
+		binary.BigEndian.PutUint16(rawPkt[44:46], uint16(i%int(numStreams)))
+		if err := writePktTo.WritePacketData(rawPkt); err != nil {
 			log.Error("writing input packet", "case", string(caseToRun), "error", err)
 			return 1
 		}
@@ -255,7 +265,7 @@ func receivePackets(packetChan chan gopacket.Packet, payload string) int {
 		if string(layer.LayerContents()) == payload {
 			// To return the count of all packets received, just remove the "return" below.
 			// Return will occur once packetChan closes (which happens after a short timeout at
-			// the end of the test.
+			// the end of the test).
 			numRcv++
 			return numRcv
 		}
