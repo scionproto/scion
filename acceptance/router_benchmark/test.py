@@ -34,11 +34,11 @@ logger = logging.getLogger(__name__)
 
 # Those values are valid expectations only when running in the CI environment.
 TEST_CASES = {
-    "in": 290000,
-    "out": 290000,
-    "in_transit": 250000,
-    "out_transit": 250000,
-    "br_transit": 290000,
+    "in": 720000,
+    "out": 730000,
+    "in_transit": 700000,
+    "out_transit": 720000,
+    "br_transit": 720000,
 }
 
 
@@ -536,7 +536,7 @@ class RouterBMTest(base.TestBase):
                 logger.info(f"Droppage ratio unavailable for {tt}")
             else:
                 ratio = float(droppageMap[tt]) / total
-                exp = 0.01
+                exp = 0.03
                 if self.ci:
                     logger.info(f"Droppage ratio for {tt}: {ratio:.1%} expected: {exp:.1%}")
                     if ratio < exp:
