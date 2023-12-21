@@ -5,6 +5,7 @@ Macros for generating Go code from OpenAPI specs.
 load("//tools/lint:write_source_files.bzl", "write_source_files")
 load("//rules_openapi:defs.bzl", _openapi_generate_go = "openapi_generate_go")
 load("@npm//private/mgmtapi/tools:@redocly/cli/package_json.bzl", redocly_bin = "bin")
+load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 
 def openapi_docs(
         name,
@@ -20,12 +21,14 @@ def openapi_docs(
         out: The output HTML file.
         **kwargs: Additional arguments to pass to openapi binary.
     """
-
-    redocly_bin.openapi(
+    _target_platform_independent(
+        redocly_bin.openapi,
         name = name,
         srcs = [src],
         outs = [out],
         args = ["build-docs", "--output", "../../../$@", "../../../$(location {})".format(src)],
+        visibility = ["//visibility:private"],
+        tags = ["manual"],
         **kwargs
     )
 
@@ -59,7 +62,8 @@ def openapi_bundle(
         ],
         **kwargs
     )
-    native.genrule(
+    _target_platform_independent(
+        native.genrule,
         name = name,
         srcs = [name + "-no-header"],
         outs = [name + ".bzl.gen.yml"],
@@ -99,7 +103,8 @@ def openapi_generate_go(
         kwargs["out_" + typ] = typ + ".bzl.gen.go"
         write_files[typ + ".gen.go"] = src
 
-    _openapi_generate_go(
+    _target_platform_independent(
+        _openapi_generate_go,
         name = name,
         **kwargs
     )
@@ -107,4 +112,25 @@ def openapi_generate_go(
     write_source_files(
         name = "write_files",
         files = write_files,
+    )
+
+def _target_platform_independent(func, name, **kwargs):
+    kwargs_vt = {}
+    if "visibility" in kwargs:
+        kwargs_vt["visibility"] = kwargs.pop("visibility")
+    if "tags" in kwargs:
+        kwargs_vt["tags"] = kwargs.pop("tags")
+
+    func(
+        name = name + "-platform-independent",
+        visibility = ["//visibility:private"],
+        tags = ["manual"],
+        **kwargs
+    )
+
+    platform_transition_filegroup(
+        name = name,
+        srcs = [name + "-platform-independent"],
+        target_platform = "@local_config_platform//:host",  # reset to default value, to allow reusing this for different target platforms
+        **kwargs_vt
     )

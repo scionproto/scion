@@ -57,6 +57,7 @@ implementation <https://github.com/scionproto/scion>`_.
    :caption: Reference Manuals
    :hidden:
 
+   manuals/install
    manuals/control
    manuals/router
    manuals/gateway
@@ -70,11 +71,13 @@ implementation <https://github.com/scionproto/scion>`_.
    snet API <https://pkg.go.dev/github.com/scionproto/scion/pkg/snet>
 
 * **For operators of SCION end hosts**:
+  :doc:`manuals/install` |
   :doc:`command/scion/scion` |
   :doc:`manuals/daemon` |
   :doc:`manuals/dispatcher`
 
 * **For operators of** :term:`SCION ASes <AS>`:
+  :doc:`manuals/install` |
   :doc:`manuals/control` |
   :doc:`manuals/router` |
   :doc:`manuals/gateway` |
@@ -98,6 +101,7 @@ Developer Documentation
 
    dev/contribute
    dev/setup
+   dev/build
    dev/run
    dev/style/index
    dev/testing/index
@@ -113,6 +117,7 @@ Start with the :doc:`dev/contribute` to contribute to the open-source SCION impl
 
 * **Building and Running**:
   :doc:`dev/setup` |
+  :doc:`dev/build` |
   :doc:`dev/run` |
   :doc:`dev/dependencies` |
   :doc:`dev/testing/index`
