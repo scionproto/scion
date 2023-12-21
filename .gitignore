@@ -66,6 +66,10 @@ doc/venv/
 /bin/*
 !/bin/.keepme
 
+# Generated package files
+##########################
+/deb/
+
 # CTags
 ##########################
 tags
