@@ -23,7 +23,7 @@ Prerequisites
       git clone https://github.com/scionproto/scion
       cd scion
 
-#. Determine the go version used in the bazel setup; the ``WORKSPACE`` file
+#. Determine the go version used in the Bazel setup; the ``WORKSPACE`` file
    specifies this version in the ``go_register_toolchains`` clause.
 
    .. literalinclude:: /../WORKSPACE
@@ -70,8 +70,8 @@ Please be aware that the following instructions only result in a minimal build
 environment. Not all tests and checks can be run in this setup.
 See :doc:`setup` for instructions on how to set up Bazel and the full development environment.
 
-Prerequites
------------
+Prerequisites
+-------------
 
 #. Clone the SCION repository into your workspace.
 
@@ -80,15 +80,15 @@ Prerequites
       git clone https://github.com/scionproto/scion
       cd scion
 
-#. Install bazel: either follow the official instructions at `<https://bazel.build/install>`_, or
+#. Install Bazel: either follow the official instructions at `<https://bazel.build/install>`_, or
    run our helper script:
 
    .. code-block::
 
       tools/install_bazel
 
-#. Remove remote cache options from ``.bazelrc``; the default setup is useful to limit bazel's
-   cache size when contributing to SCION, but require a running docker container acting with the
+#. Remove remote cache options from ``.bazelrc``; the default setup is useful to limit Bazel's
+   cache size when contributing to SCION, but requires a running docker container acting as the
    "remote" cache service
 
    .. code-block::
