@@ -558,7 +558,9 @@ function scion_extn_tlv_option_dissect(tvbuf, pktinfo, root)
     else
         -- no specific dissector
         ret_len = data_len
-        tree:add(scion_extn_tlv_option_value, tlv.data)
+        if tlv.data ~= nil then
+            tree:add(scion_extn_tlv_option_value, tlv.data)
+        end
     end
 
     local type_str = scion_extn_tlv_option_types[tlv.type:uint()]
