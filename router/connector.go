@@ -85,7 +85,7 @@ func (c *Connector) AddExternalInterface(localIfID common.IFIDType, link control
 	intf := uint16(localIfID)
 	log.Debug("Adding external interface", "interface", localIfID,
 		"local_isd_as", link.Local.IA, "local_addr", link.Local.Addr,
-		"remote_isd_as", link.Remote.IA, "remote_addr", link.Remote.IA,
+		"remote_isd_as", link.Remote.IA, "remote_addr", link.Remote.Addr,
 		"owned", owned, "bfd", !link.BFD.Disable)
 
 	if !c.ia.Equal(link.Local.IA) {

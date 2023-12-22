@@ -3,6 +3,12 @@
 Setting up the Development Environment
 ======================================
 
+.. hint::
+
+   These instructions describe the setup for building and running all integration tests with bazel,
+   docker and various other tools and scripts.
+   See :doc:`build` for instructions focussing only on how to build the SCION executables.
+
 Prerequisites
 -------------
 
@@ -28,15 +34,13 @@ Prerequisites
    Please follow the instructions for
    `Install Compose Plugin <https://docs.docker.com/compose/install/linux/#install-using-the-repository>`_.
 
-Bazel
+Setup
 -----
 
-#. Clone the SCION repository into the appropriate directory inside your workspace. In the commands below,
-   replace ``${WORKSPACE}`` with the directory in which you want to set up the project:
+#. Clone the SCION repository into your workspace.
 
    .. code-block:: bash
 
-      cd ${WORKSPACE}
       git clone https://github.com/scionproto/scion
       cd scion
 
@@ -72,6 +76,10 @@ Bazel
 
       make
 
+   .. hint:: This builds tools for tests in addition to the main SCION services (e.g., `end2end`);
+      if you don't require those, you can only build the SCION services by running ``make build``.
+      See :doc:`build` for more details.
+
 #. Finally, check that tests run correctly:
 
    .. code-block:: bash
@@ -85,46 +93,6 @@ Bazel
    .. code-block:: bash
 
       make lint
-
-
-Alternative: go build
----------------------
-
-Alternatively to building with bazel, the SCION services and tools can be built
-with ``go build``.
-Please be aware that **this is not the recommended setup for development**.
-Not all checks and linters can be run in this setup. Without running all checks
-locally, it is likely that there will be frustrating cycles with the CI system
-rejecting your changes.
-
-#. Determine the go version used in the bazel setup; the ``WORKSPACE`` file
-   specifies this version in the ``go_register_toolchains`` clause.
-
-   .. literalinclude:: /../WORKSPACE
-      :start-at: go_register_toolchains(
-      :end-at: )
-      :emphasize-lines: 3
-
-   Building with newer go versions *usually* works.
-
-#. Install go. Either follow `the official instructions <https://go.dev/doc/install>`_
-   or check the `Ubuntu specific installation options on the golang wiki <https://github.com/golang/go/wiki/Ubuntu>`_.
-
-#. Decide which implementation of sqlite you want to use:
-
-   - `mattn`: A cgo implementation. It is well established but makes go
-     executables dependent on a minimum glibc version.
-   - `modernc`: A pure go implementation. It does not cause glibc version
-     issues but is less common. modernc is currently recommended due to
-     the glibc issue.
-
-#. Build SCION services and tools.
-
-   .. code-block:: bash
-
-      go build -o -tags sqlite_<impl> bin ./<service>/cmd/<service>...
-
-   where <impl> is one of `modernc` or `mattn`.
 
 
 Tips and Tricks

@@ -89,7 +89,8 @@ Cluster configuration
 
    The agent cluster is operated by the SCION Association, in the AWS account ``scion-association``.
 
-   Primary contact `matzf <https://github.com/matzf>`_, alt contact `nicorusti <https://github.com/nicorusti>`_.
+   Primary contacts `matzf <https://github.com/matzf>`_, `jiceatscion <https://github.com/jiceatscion>`_,
+   alt contact `nicorusti <https://github.com/nicorusti>`_.
 
 
 The agent cluster is based on the `buildkite AWS CloudFormation template <https://buildkite.com/docs/agent/v3/elastic-ci-aws/parameters>`_.
@@ -99,7 +100,7 @@ Excerpt of the most relevant parameters:
 
    # Instance Configuration:
    ImageId: ""               # use default machine image based on Amazon Linux 2
-   InstanceType: t3.2xlarge  # 8 vCPUs, 32GiB memory
+   InstanceType: m6i.2xlarge # 8 vCPUs, 32GiB memory
    RootVolumeSize: 100
    RootVolumeType: gp3
    BuildkiteAdditionalSudoPermissions: ALL  # allow any sudo commands in pipeline
@@ -107,7 +108,7 @@ Excerpt of the most relevant parameters:
 
    # Auto-scaling Configuration:
    MinSize: 0
-   MaxSize: 10
+   MaxSize: 6
    ScaleInIdlePeriod: 600  # shut down after 10 minutes idle
-   ScaleOutFactor: 0.5
+   ScaleOutFactor: 1.0
    OnDemandPercentage: 0   # use only spot instances

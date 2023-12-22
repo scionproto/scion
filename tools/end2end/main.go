@@ -1,5 +1,6 @@
 // Copyright 2018 ETH Zurich
 // Copyright 2019 ETH Zurich, Anapaya Systems
+// Copyright 2023 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +13,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// This is a general purpose client/server code for end2end tests. The client
+// sends pings to the server until it receives at least one pong from the
+// server or a given deadline is reached. The server responds to all pings and
+// the client wait for a response before doing anything else.
 
 package main
 
@@ -93,6 +99,7 @@ func realMain() int {
 		return 1
 	}
 	defer closeTracer()
+
 	if integration.Mode == integration.ModeServer {
 		server{}.run()
 		return 0
@@ -104,7 +111,7 @@ func realMain() int {
 func addFlags() {
 	flag.Var(&remote, "remote", "(Mandatory for clients) address to connect to")
 	flag.Var(timeout, "timeout", "The timeout for each attempt")
-	flag.BoolVar(&epic, "epic", false, "Enable EPIC.")
+	flag.BoolVar(&epic, "epic", false, "Enable EPIC")
 }
 
 func validateFlags() {
@@ -119,6 +126,7 @@ func validateFlags() {
 			integration.LogFatal("Invalid timeout provided", "timeout", timeout)
 		}
 	}
+	log.Info("Flags", "timeout", timeout, "epic", epic, "remote", remote)
 }
 
 type server struct{}
@@ -226,7 +234,7 @@ func (s server) handlePing(conn snet.PacketConn) error {
 	// reverse path
 	rpath, ok := p.Path.(snet.RawPath)
 	if !ok {
-		return serrors.New("unecpected path", "type", common.TypeOf(p.Path))
+		return serrors.New("unexpected path", "type", common.TypeOf(p.Path))
 	}
 	replypather := snet.DefaultReplyPather{}
 	replyPath, err := replypather.ReplyPath(rpath)
@@ -243,10 +251,9 @@ func (s server) handlePing(conn snet.PacketConn) error {
 }
 
 type client struct {
-	conn   snet.PacketConn
-	port   uint16
-	sdConn daemon.Connector
-
+	conn       snet.PacketConn
+	port       uint16
+	sdConn     daemon.Connector
 	errorPaths map[snet.PathFingerprint]struct{}
 }
 
@@ -278,6 +285,8 @@ func (c *client) run() int {
 	return integration.AttemptRepeatedly("End2End", c.attemptRequest)
 }
 
+// attemptRequest sends one ping packet and expect a pong.
+// Returns true (which means "stop") *if both worked*.
 func (c *client) attemptRequest(n int) bool {
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout.Duration)
 	defer cancel()
@@ -295,17 +304,19 @@ func (c *client) attemptRequest(n int) bool {
 	}
 	span, ctx = tracing.StartSpanFromCtx(ctx, "attempt.ping")
 	defer span.Finish()
+	withTag := func(err error) error {
+		tracing.Error(span, err)
+		return err
+	}
 
 	// Send ping
 	if err := c.ping(ctx, n, path); err != nil {
-		tracing.Error(span, err)
-		logger.Error("Could not send packet", "err", err)
+		logger.Error("Could not send packet", "err", withTag(err))
 		return false
 	}
 	// Receive pong
 	if err := c.pong(ctx); err != nil {
-		tracing.Error(span, err)
-		logger.Error("Error receiving pong", "err", err)
+		logger.Error("Error receiving pong", "err", withTag(err))
 		if path != nil {
 			c.errorPaths[snet.Fingerprint(path)] = struct{}{}
 		}

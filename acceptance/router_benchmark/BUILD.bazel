@@ -1,0 +1,28 @@
+load("//acceptance/common:raw.bzl", "raw_test")
+
+exports_files([
+    "conf",
+    "test.py",
+])
+
+args = [
+    "--executable",
+    "brload:$(location //acceptance/router_benchmark/brload:brload)",
+    "--container-loader=posix-router:latest#$(location //docker:posix_router)",
+]
+
+data = [
+    ":conf",
+    "//docker:posix_router",
+    "//acceptance/router_benchmark/brload:brload",
+]
+
+raw_test(
+    name = "test",
+    src = "test.py",
+    args = args,
+    data = data,
+    homedir = "$(rootpath //docker:posix_router)",
+    # This test uses sudo and accesses /var/run/netns.
+    local = True,
+)

@@ -1,0 +1,26 @@
+#!/bin/bash
+set -e
+
+# summary of how this script can be called:
+#        * <postinst> `configure' <most-recently-configured-version>
+#        * <old-postinst> `abort-upgrade' <new version>
+#        * <conflictor's-postinst> `abort-remove' `in-favour' <package>
+#          <new-version>
+#        * <postinst> `abort-remove'
+#        * <deconfigured's-postinst> `abort-deconfigure' `in-favour'
+#          <failed-install-package> <version> `removing'
+#          <conflicting-package> <version>
+# for details, see http://www.debian.org/doc/debian-policy/ or
+# the debian-policy package
+
+case "$1" in
+    configure)
+        # Create system user
+        adduser --system --home /var/lib/scion --group scion
+        # Create configuration directory
+        mkdir /etc/scion/ >& /dev/null || true
+        chown scion:scion /etc/scion/
+        ;;
+    *)
+        ;;
+esac

@@ -91,7 +91,9 @@ func (lvs labelValuesSlice) With(labelValues ...string) labelValuesSlice {
 	if len(labelValues)%2 != 0 {
 		labelValues = append(labelValues, "unknown")
 	}
-	return append(lvs, labelValues...)
+	result := make(labelValuesSlice, len(lvs))
+	copy(result, lvs)
+	return append(result, labelValues...)
 }
 
 // gauge implements Gauge, via a Prometheus GaugeVec.

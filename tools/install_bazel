@@ -16,13 +16,27 @@ dl_install() {
 }
 
 MACH="$(uname -m)"
-[ "$MACH" == "x86_64" ] || { echo "Error: bazel does not provide binaries for $MACH"; exit 1; }
+case "$MACH" in
+    "x86_64")
+        ARCH=amd64
+        BAZELISK_CKSUM=d28b588ac0916abd6bf02defb5433f6eddf7cba35ffa808eabb65a44aab226f7
+        ;;
+    "aarch64")
+        ARCH=arm64
+        BAZELISK_CKSUM=861a16ba9979613e70bd3d2f9d9ab5e3b59fe79471c5753acdc9c431ab6c9d94
+        echo "Warning: ARM64 is not officially supported."
+        echo "You may encounter problems when building and running SCION components."
+        ;;
+    *)
+        echo "Error: bazel does not provide binaries for $MACH"
+        exit 1
+        ;;
+esac
 
 mkdir -p ~/.local/bin
 
-BAZELISK_VER=v1.10.1
-BAZELISK_CKSUM=4cb534c52cdd47a6223d4596d530e7c9c785438ab3b0a49ff347e991c210b2cd
-BAZELISK_FILE="bazelisk-linux-amd64"
+BAZELISK_VER=v1.19.0
+BAZELISK_FILE="bazelisk-linux-${ARCH}"
 BAZELISK_URL=https://github.com/bazelbuild/bazelisk/releases/download/${BAZELISK_VER}/${BAZELISK_FILE}
 
 dl_install "$BAZELISK_URL" "$BAZELISK_CKSUM" ~/.local/bin/bazel

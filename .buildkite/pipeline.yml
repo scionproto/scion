@@ -12,7 +12,7 @@ steps:
     plugins:
       - scionproto/metahook#v0.3.0:
           post-artifact: |
-            cat << EOF | buildkite-agent annotate --style "info"
+            cat << EOF | buildkite-agent annotate --style "info" --context "binaries"
             #### Build outputs
             - <a href="artifact://bazel-bin/scion.tar">SCION binaries</a>
             - <a href="artifact://bazel-bin/scion-ci.tar">SCION test tools and utilities</a>
@@ -23,6 +23,28 @@ steps:
         - exit_status: 255 # Forced agent shutdown
     timeout_in_minutes: 10
   - wait
+  - label: "Package :debian:"
+    command:
+      - make dist-deb
+      - cd deb;
+      - tar -chaf scion-deb-amd64.tar.gz *_amd64.deb
+      - tar -chaf scion-deb-arm64.tar.gz *_arm64.deb
+      - tar -chaf scion-deb-i386.tar.gz *_i386.deb
+      - tar -chaf scion-deb-armel.tar.gz *_armel.deb
+    artifact_paths:
+      - "deb/*.tar.gz"
+    plugins:
+      - scionproto/metahook#v0.3.0:
+          post-artifact: |
+            cat << EOF | buildkite-agent annotate --style "info" --context "packages"
+            #### Packages :debian:
+            - <a href="artifact://deb/scion-deb-amd64.tar.gz">amd64</a>
+            - <a href="artifact://deb/scion-deb-arm64.tar.gz">arm64</a>
+            - <a href="artifact://deb/scion-deb-i386.tar.gz">i386</a>
+            - <a href="artifact://deb/scion-deb-armel.tar.gz">armel</a>
+            EOF
+    key: dist-deb
+    retry: *automatic-retry
   - label: "Unit Tests :bazel:"
     command:
       - bazel test --config=race --config=unit_all
@@ -70,6 +92,7 @@ steps:
     timeout_in_minutes: 20
     key: check_generated
     retry: *automatic-retry
+  - wait
   - group: "End to End"
     key: e2e
     steps:
@@ -118,7 +141,7 @@ steps:
     - label: "E2E: default :docker: (ping)"
       command:
         - echo "--- build"
-        - make build docker-images
+        - make build-dev docker-images
         - echo "--- start topology"
         - ./scion.sh topology -d
         - ./scion.sh run

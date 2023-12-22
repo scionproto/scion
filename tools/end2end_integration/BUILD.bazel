@@ -19,6 +19,10 @@ go_library(
 
 scion_go_binary(
     name = "end2end_integration",
+    data = [
+        "//tools/end2end",
+        "//tools/end2endblast",
+    ],
     embed = [":go_default_library"],
     visibility = ["//visibility:public"],
 )

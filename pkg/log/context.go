@@ -65,8 +65,21 @@ func WithLabels(ctx context.Context, labels ...interface{}) (context.Context, Lo
 
 func attachSpan(ctx context.Context, l Logger) Logger {
 	if span := opentracing.SpanFromContext(ctx); span != nil {
+		if optioner, ok := l.(interface{ WithOptions(...zap.Option) Logger }); ok {
+			return Span{
+				Logger: optioner.WithOptions(zap.AddCallerSkip(1)),
+				Span:   span,
+			}
+		}
+		if il, ok := l.(*logger); ok {
+			return Span{
+				Logger: &logger{logger: il.logger.WithOptions(zap.AddCallerSkip(1))},
+				Span:   span,
+			}
+		}
+		// Pessimistic fallback, we don't have access to the underlying zap logger:
 		return Span{
-			Logger: &logger{logger: l.(*logger).logger.WithOptions(zap.AddCallerSkip(1))},
+			Logger: l,
 			Span:   span,
 		}
 	}
