@@ -26,17 +26,28 @@ import (
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
+	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/segment/extensions/digest"
 	"github.com/scionproto/scion/pkg/segment/extensions/epic"
 	"github.com/scionproto/scion/pkg/slayers/path"
-	"github.com/scionproto/scion/private/trust"
 )
 
 // SignerGen generates signers and returns their expiration time.
 type SignerGen interface {
 	// Generate generates a signer it.
-	Generate(ctx context.Context) (trust.Signer, error)
+	Generate(ctx context.Context) (Signer, error)
+}
+
+type Signer interface {
+	Sign(context.Context, []byte, ...[]byte) (*cryptopb.SignedMessage, error)
+	GetExpiration() time.Time
+}
+
+type SignerGenFunc func(ctx context.Context) (Signer, error)
+
+func (f SignerGenFunc) Generate(ctx context.Context) (Signer, error) {
+	return f(ctx)
 }
 
 // Extender extends path segments.
@@ -104,14 +115,14 @@ func (s *DefaultExtender) Extend(
 	}
 	// Make sure the hop expiration time is not longer than the signer expiration time.
 	expTime := s.MaxExpTime()
-	if ts.Add(path.ExpTimeToDuration(expTime)).After(signer.Expiration) {
+	if ts.Add(path.ExpTimeToDuration(expTime)).After(signer.GetExpiration()) {
 		metrics.GaugeSet(s.SegmentExpirationDeficient, 1)
 		var err error
-		expTime, err = path.ExpTimeFromDuration(signer.Expiration.Sub(ts))
+		expTime, err = path.ExpTimeFromDuration(signer.GetExpiration().Sub(ts))
 		if err != nil {
 			return serrors.WrapStr(
 				"calculating expiry time from signer expiration time", err,
-				"signer_expiration", signer.Expiration,
+				"signer_expiration", signer.GetExpiration(),
 			)
 		}
 	} else {

@@ -25,6 +25,7 @@ go_library(
         "//pkg/private/prom:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/private/util:go_default_library",
+        "//pkg/proto/crypto:go_default_library",
         "//pkg/segment:go_default_library",
         "//pkg/segment/extensions/digest:go_default_library",
         "//pkg/segment/extensions/epic:go_default_library",
@@ -37,7 +38,6 @@ go_library(
         "//private/segment/verifier:go_default_library",
         "//private/topology:go_default_library",
         "//private/tracing:go_default_library",
-        "//private/trust:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
     ],
 )
