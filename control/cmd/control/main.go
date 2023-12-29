@@ -780,13 +780,15 @@ func realMain(ctx context.Context) error {
 		},
 		SegmentRegister: beaconinggrpc.Registrar{Dialer: dialer},
 		BeaconStore:     beaconStore,
-		SignerGen:       signer.SignerGen,
-		Inspector:       inspector,
-		Metrics:         metrics,
-		DRKeyEngine:     drkeyEngine,
-		MACGen:          macGen,
-		NextHopper:      topo,
-		StaticInfo:      func() *beaconing.StaticInfoCfg { return staticInfo },
+		SignerGen: beaconing.SignerGenFunc(func(ctx context.Context) (beaconing.Signer, error) {
+			return signer.SignerGen.Generate(ctx)
+		}),
+		Inspector:   inspector,
+		Metrics:     metrics,
+		DRKeyEngine: drkeyEngine,
+		MACGen:      macGen,
+		NextHopper:  topo,
+		StaticInfo:  func() *beaconing.StaticInfoCfg { return staticInfo },
 
 		OriginationInterval:       globalCfg.BS.OriginationInterval.Duration,
 		PropagationInterval:       globalCfg.BS.PropagationInterval.Duration,

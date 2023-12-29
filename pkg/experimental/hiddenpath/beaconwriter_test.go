@@ -356,7 +356,7 @@ type testSignerGen struct {
 	Signer trust.Signer
 }
 
-func (s testSignerGen) Generate(ctx context.Context) (trust.Signer, error) {
+func (s testSignerGen) Generate(ctx context.Context) (beaconing.Signer, error) {
 	return s.Signer, nil
 }
 

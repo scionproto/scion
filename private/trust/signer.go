@@ -135,6 +135,10 @@ func (s Signer) validate(ctx context.Context, now time.Time) error {
 	return nil
 }
 
+func (s Signer) GetExpiration() time.Time {
+	return s.Expiration
+}
+
 func (s Signer) Equal(o Signer) bool {
 	return s.IA.Equal(o.IA) &&
 		bytes.Equal(s.SubjectKeyID, o.SubjectKeyID) &&
