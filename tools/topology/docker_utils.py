@@ -77,7 +77,6 @@ class DockerUtilsGenerator(object):
         entry = {
             'image': docker_image(self.args, 'tester'),
             'container_name': 'tester_%s' % topo_id.file_fmt(),
-            'depends_on': ['scion_disp_%s' % name],
             'privileged': True,
             'entrypoint': 'sh tester.sh',
             'environment': {},
@@ -87,12 +86,20 @@ class DockerUtilsGenerator(object):
                 self.output_base + '/gen:' + cntr_base + '/gen:rw',
                 self.output_base + '/gen-certs:' + cntr_base + '/gen-certs:rw'
             ],
-            'network_mode': 'service:scion_disp_%s' % name,
         }
         net = self.args.networks[name][0]
         ipv = 'ipv4'
         if ipv not in net:
             ipv = 'ipv6'
+        ip = str(net[ipv])
+        if 'scion_disp_%s' % name in self.dc_conf['services']:
+            entry['depends_on'] = ['scion_disp_%s' % name]
+            entry.update({'network_mode': 'service:scion_disp_%s' % name})
+        else:
+            entry['networks'] = {}
+            entry['networks'][self.args.bridges[net['net']]] = {
+                '%s_address' % ipv: ip
+            }
         disp_net = self.args.networks[name][0]
         entry['environment']['SCION_LOCAL_ADDR'] = str(disp_net[ipv])
         sciond_net = self.args.networks['sd%s' % topo_id.file_fmt()][0]

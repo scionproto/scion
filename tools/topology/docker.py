@@ -207,8 +207,9 @@ class DockerGenerator(object):
                 },
             },
         }
-        keys = (list(topo.get("control_service", {})) +
-                ["tester_%s" % topo_id.file_fmt()])
+        keys = list(topo.get("control_service", {}))
+        if topo.get("test_dispatcher"):
+            keys.append("tester_%s" % topo_id.file_fmt())
         for disp_id in keys:
             entry = copy.deepcopy(base_entry)
             net_key = disp_id

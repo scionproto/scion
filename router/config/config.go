@@ -39,11 +39,13 @@ type Config struct {
 }
 
 type RouterConfig struct {
-	ReceiveBufferSize     int `toml:"receive_buffer_size,omitempty"`
-	SendBufferSize        int `toml:"send_buffer_size,omitempty"`
-	NumProcessors         int `toml:"num_processors,omitempty"`
-	NumSlowPathProcessors int `toml:"num_slow_processors,omitempty"`
-	BatchSize             int `toml:"batch_size,omitempty"`
+	ReceiveBufferSize     int  `toml:"receive_buffer_size,omitempty"`
+	SendBufferSize        int  `toml:"send_buffer_size,omitempty"`
+	NumProcessors         int  `toml:"num_processors,omitempty"`
+	NumSlowPathProcessors int  `toml:"num_slow_processors,omitempty"`
+	BatchSize             int  `toml:"batch_size,omitempty"`
+	EndhostStartPort      *int `toml:"endhost_start_port,omitempty"`
+	EndhostEndPort        *int `toml:"endhost_end_port,omitempty"`
 }
 
 func (cfg *RouterConfig) ConfigName() string {
@@ -66,7 +68,27 @@ func (cfg *RouterConfig) Validate() error {
 	if cfg.NumSlowPathProcessors < 1 {
 		return serrors.New("Provided router config is invalid. NumSlowPathProcessors < 1")
 	}
-
+	if cfg.EndhostStartPort != nil {
+		if cfg.EndhostEndPort == nil {
+			return serrors.New("Provided router config is invalid. " +
+				"EndHostEndPort is nil; EndHostStartPort isn't")
+		}
+		if *cfg.EndhostStartPort < 0 {
+			return serrors.New("Provided router config is invalid. EndHostStartPort < 0")
+		}
+		if *cfg.EndhostEndPort >= (1 << 16) {
+			return serrors.New("Provided router config is invalid. EndHostEndPort > 2**16 -1")
+		}
+		if *cfg.EndhostStartPort > *cfg.EndhostEndPort {
+			return serrors.New("Provided router config is invalid. " +
+				"EndHostStartPort > EndhostEndPort")
+		}
+	} else {
+		if cfg.EndhostEndPort != nil {
+			return serrors.New("Provided router config is invalid. " +
+				"EndHostStartPort is nil; EndHostEndPort isn't")
+		}
+	}
 	return nil
 }
 

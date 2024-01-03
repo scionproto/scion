@@ -247,6 +247,7 @@ class TopoGenerator(object):
             'attributes': attributes,
             'isd_as': str(topo_id),
             'mtu': mtu,
+            'test_dispatcher': as_conf.get('test_dispatcher', True),
             'endhost_start_port': as_conf.get('endhost_start_port', self.args.endhost_start_port),
             'endhost_end_port': as_conf.get('endhost_end_port', self.args.endhost_end_port),
         }
