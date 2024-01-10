@@ -201,11 +201,6 @@ class DockerGenerator(object):
             'networks': {},
             'user': self.user,
             'volumes': [],
-            'depends_on': {
-                'utils_chowner': {
-                    'condition': 'service_started'
-                },
-            },
         }
         keys = list(topo.get("control_service", {}))
         if topo.get("test_dispatcher"):

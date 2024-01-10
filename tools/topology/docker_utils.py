@@ -49,27 +49,11 @@ class DockerUtilsGenerator(object):
         self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
 
     def generate(self):
-        self._utils_conf()
         for topo_id in self.args.topo_dicts:
             self._test_conf(topo_id)
         if self.args.sig:
             self._sig_testing_conf()
         return self.dc_conf
-
-    # TODO(JordiSubira): Remove container if not needed
-    def _utils_conf(self):
-        entry_chown = {
-            'image': 'busybox',
-            'network_mode': 'none',
-            'volumes': [
-                '/etc/passwd:/etc/passwd:ro',
-                '/etc/group:/etc/group:ro'
-            ],
-            'command': 'echo hello'
-        }
-        for volume in self.dc_conf['volumes']:
-            entry_chown['volumes'].append('%s:/mnt/volumes/%s' % (volume, volume))
-        self.dc_conf['services']['utils_chowner'] = entry_chown
 
     def _test_conf(self, topo_id):
         cntr_base = '/share'

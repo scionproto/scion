@@ -74,11 +74,6 @@ class SIGGenerator(object):
             'dispatcher',
             'container_name':
             'scion_%sdisp_sig_%s' % (self.prefix, topo_id.file_fmt()),
-            'depends_on': {
-                'utils_chowner': {
-                    'condition': 'service_started'
-                },
-            },
             'user':
             self.user,
             'networks': {},
