@@ -42,6 +42,9 @@ type Server struct {
 	conn *net.UDPConn
 	// topo keeps the topology for the local AS. It can keep multiple ASes
 	// in case we run several topologies locally, e.g., developer environment.
+
+	// TODO(JordiSubira): This may be taken from daemon for non self-contained
+	// applications.
 	topo      map[addr.AS]*topology.Loader
 	buf       []byte
 	oobuf     []byte

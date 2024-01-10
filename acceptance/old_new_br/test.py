@@ -11,7 +11,7 @@ from acceptance.common import scion
 
 class Test(base.TestTopogen):
     """
-    Constructs a simple test topology with one core, four leaf ASes.
+    Constructs a simple test topology with one core, two leaf ASes.
     Each of them will run a different mix between BR that will replicate
     the old behaviour (i.e., they will send traffic to its own AS to the
     endhost default port) and routers with the new behaviour (i.e., they
@@ -19,7 +19,7 @@ class Test(base.TestTopogen):
     port).
 
     AS 1-ff00:0:1 is core.
-    AS 1-ff00:0:2, 1-ff00:0:3
+    AS 1-ff00:0:2, 1-ff00:0:3 are leaves.
 
     We use the shortnames AS1, AS2, etc. for the ASes above.
 

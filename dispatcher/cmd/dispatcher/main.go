@@ -57,6 +57,8 @@ func main() {
 
 func realMain(ctx context.Context) error {
 	path.StrictDecoding(false)
+	// TODO(JordiSubira): Take this from scion daemon directly as discussed in
+	// https://github.com/scionproto/scion/pull/4451
 	topos, err := globalCfg.Topologies(ctx)
 	if err != nil {
 		return err

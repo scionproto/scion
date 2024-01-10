@@ -74,6 +74,9 @@ class Test(base.TestTopogen):
             "4": "172.20.0.65",
             "5": "172.20.0.73",
         }
+        # TODO(JordiSubira): These addresses will change if the topology file is modified.
+        # In any case, after rebasing this branch this probably does not work anymore, since
+        # SVC resolution and address setup is modified.
         control_addresses = {
             "2": "172.20.0.51:30090",
             "3": "172.20.0.59:30090",

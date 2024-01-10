@@ -279,7 +279,7 @@ func (s *DaemonServer) interfaces(ctx context.Context,
 	_ *sdpb.InterfacesRequest) (*sdpb.InterfacesResponse, error) {
 
 	reply := &sdpb.InterfacesResponse{
-		Interfaces: make(map[uint32]*sdpb.Interface),
+		Interfaces: make(map[uint64]*sdpb.Interface),
 	}
 	topo := s.Topology
 	for _, ifID := range topo.InterfaceIDs() {
@@ -287,7 +287,7 @@ func (s *DaemonServer) interfaces(ctx context.Context,
 		if nextHop == nil {
 			continue
 		}
-		reply.Interfaces[uint32(ifID)] = &sdpb.Interface{
+		reply.Interfaces[uint64(ifID)] = &sdpb.Interface{
 			Address: &sdpb.Underlay{
 				Address: nextHop.String(),
 			},

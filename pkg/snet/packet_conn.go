@@ -39,6 +39,7 @@ type PacketConn interface {
 	SetReadDeadline(t time.Time) error
 	SetWriteDeadline(t time.Time) error
 	SetDeadline(t time.Time) error
+	SyscallConn() (syscall.RawConn, error)
 	LocalAddr() net.Addr
 	Close() error
 }

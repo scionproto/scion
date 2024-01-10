@@ -1,6 +1,0 @@
-[dispatcher]
-id = "disp_1-ff00_0_110"
-config_dir = "/"
-
-[log.console]
-level = "debug"

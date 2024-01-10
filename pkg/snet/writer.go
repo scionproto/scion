@@ -132,8 +132,5 @@ func (c *scionConnWriter) SetWriteDeadline(t time.Time) error {
 }
 
 func (c *scionConnWriter) isWithinRange(port int) bool {
-	if port >= int(c.endhostStartPort) && port <= int(c.endhostEndPort) {
-		return true
-	}
-	return false
+	return port >= int(c.endhostStartPort) && port <= int(c.endhostEndPort)
 }

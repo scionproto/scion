@@ -8,6 +8,7 @@ import (
 	context "context"
 	net "net"
 	reflect "reflect"
+	syscall "syscall"
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
@@ -212,6 +213,21 @@ func (m *MockPacketConn) SetWriteDeadline(arg0 time.Time) error {
 func (mr *MockPacketConnMockRecorder) SetWriteDeadline(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetWriteDeadline", reflect.TypeOf((*MockPacketConn)(nil).SetWriteDeadline), arg0)
+}
+
+// SyscallConn mocks base method.
+func (m *MockPacketConn) SyscallConn() (syscall.RawConn, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SyscallConn")
+	ret0, _ := ret[0].(syscall.RawConn)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SyscallConn indicates an expected call of SyscallConn.
+func (mr *MockPacketConnMockRecorder) SyscallConn() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyscallConn", reflect.TypeOf((*MockPacketConn)(nil).SyscallConn))
 }
 
 // WriteTo mocks base method.
