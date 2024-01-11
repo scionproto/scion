@@ -1,0 +1,121 @@
+load(":package.bzl", "scion_pkg_deb")
+load(":platform.bzl", "multiplatform_filegroup")
+load(":git_version.bzl", "git_version")
+
+git_version(
+    name = "git_version",
+    tags = ["manual"],
+    visibility = ["//visibility:private"],
+)
+
+scion_pkg_deb(
+    name = "router_deb",
+    depends = [
+        "adduser",
+    ],
+    description = "SCION inter-domain network architecture border router",
+    executables = {
+        "//router/cmd/router:router": "scion-router",
+    },
+    package = "scion-router",
+    postinst = "debian/scion.postinst",
+    systemds = ["systemd/scion-router@.service"],
+    version_file = ":git_version",
+)
+
+scion_pkg_deb(
+    name = "control_deb",
+    configs = [],
+    depends = [
+        "adduser",
+        "scion-dispatcher",
+    ],
+    description = "SCION inter-domain network architecture control service",
+    executables = {
+        "//control/cmd/control:control": "scion-control",
+    },
+    package = "scion-control",
+    systemds = ["systemd/scion-control@.service"],
+    version_file = ":git_version",
+)
+
+scion_pkg_deb(
+    name = "dispatcher_deb",
+    configs = ["conffiles/dispatcher.toml"],
+    depends = [
+        "adduser",
+    ],
+    description = "SCION dispatcher",
+    executables = {
+        "//dispatcher/cmd/dispatcher:dispatcher": "scion-dispatcher",
+    },
+    package = "scion-dispatcher",
+    postinst = "debian/scion.postinst",
+    systemds = ["systemd/scion-dispatcher.service"],
+    version_file = ":git_version",
+)
+
+scion_pkg_deb(
+    name = "daemon_deb",
+    configs = ["conffiles/sciond.toml"],
+    depends = [
+        "adduser",
+    ],
+    description = "SCION daemon",
+    executables = {
+        "//daemon/cmd/daemon:daemon": "scion-daemon",
+    },
+    package = "scion-daemon",
+    postinst = "debian/scion.postinst",
+    systemds = ["systemd/scion-daemon.service"],
+    version_file = ":git_version",
+)
+
+scion_pkg_deb(
+    name = "gateway_deb",
+    configs = [
+        "conffiles/sig.json",
+        "conffiles/sig.toml",
+    ],
+    depends = [
+        "adduser",
+        "scion-dispatcher",
+        "scion-daemon",
+    ],
+    description = "SCION-IP Gateway",
+    executables = {
+        "//gateway/cmd/gateway:gateway": "scion-ip-gateway",
+    },
+    package = "scion-ip-gateway",
+    systemds = ["systemd/scion-ip-gateway.service"],
+    version_file = ":git_version",
+)
+
+scion_pkg_deb(
+    name = "tools_deb",
+    depends = [
+        "adduser",
+        "scion-dispatcher",
+        "scion-daemon",
+    ],
+    description = "SCION tools",
+    executables = {
+        "//scion/cmd/scion:scion": "scion",
+        "//scion-pki/cmd/scion-pki:scion-pki": "scion-pki",
+    },
+    package = "scion-tools",
+    version_file = ":git_version",
+)
+
+multiplatform_filegroup(
+    name = "deb",
+    srcs = [
+        "control_deb",
+        "daemon_deb",
+        "dispatcher_deb",
+        "gateway_deb",
+        "router_deb",
+        "tools_deb",
+    ],
+    visibility = ["//dist:__subpackages__"],
+)
