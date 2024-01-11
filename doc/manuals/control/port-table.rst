@@ -1,15 +1,15 @@
 +---------------------------+----------------+--------+-----------------------------+
 |    Description            | Transport      | Port   | Application protocol        |
 +---------------------------+----------------+--------+-----------------------------+
-| Service resolution        | UDP/SCION      | 30252  | Resolution protobufs        |
+| Service resolution        | UDP/SCION      | random | Resolution protobufs        |
 +---------------------------+----------------+--------+-----------------------------+
-| Control-plane (inter-AS)  | UDP/SCION      | random | QUIC + gRPC with HTTP/2     |
+| Control-plane (inter-AS)  | UDP/SCION      | 30252  | QUIC + gRPC with HTTP/2     |
 |                           |                |        |                             |
-| Discovery API             |                |        |                             |
+| and Discovery APIs        |                |        |                             |
 +---------------------------+----------------+--------+-----------------------------+
 | Control-plane (intra-AS)  | TCP            | 30252  | gRPC with HTTP/2            |
 |                           |                |        |                             |
-| Health API                |                |        |                             |
+| and Health APIs           |                |        |                             |
 +---------------------------+----------------+--------+-----------------------------+
 | Monitoring                | TCP            | 30452  | HTTP/2                      |
 +---------------------------+----------------+--------+-----------------------------+
