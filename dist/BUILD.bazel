@@ -2,6 +2,8 @@ load(":package.bzl", "scion_pkg_deb")
 load(":platform.bzl", "multiplatform_filegroup")
 load(":git_version.bzl", "git_version")
 
+exports_files(["openwrt_pkg_makefile.tpl"], visibility = ["//visibility:public"])
+
 git_version(
     name = "git_version",
     tags = ["manual"],
@@ -118,4 +120,13 @@ multiplatform_filegroup(
         "tools_deb",
     ],
     visibility = ["//dist:__subpackages__"],
+)
+
+genrule(
+    name = "router_ipk",
+    srcs = [
+        "@openwrt_SDK//:router_ipk",
+    ],
+    outs = ["scion-router.ipk"],
+    cmd = "cp $(location @openwrt_SDK//:router_ipk) $(location scion-router.ipk)",
 )

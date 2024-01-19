@@ -90,3 +90,4 @@ def _scion_pkg_deb_data(name, executables, systemds, configs, **kwargs):
 
 def _basename(s):
     return s.split("/")[-1]
+
