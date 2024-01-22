@@ -6,9 +6,13 @@
 
 def _ipk_impl(ctx):
     pkg_name = ctx.attr.pkg
-    in_file = ctx.file.component
+    in_execs = ctx.files.executables
+    in_initds = ctx.files.initds
+    in_configs = ctx.files.configs
+    version = "1.0" # for now
+    release = "2" # for now
     out_file = ctx.actions.declare_file(
-        "bin/packages/x86_64/scion/%s_1.0-1_x86_64.ipk" % pkg_name)
+        "bin/packages/x86_64/scion/%s_%s-%s_x86_64.ipk" % (pkg_name, version, release))
     sdk_feeds_file = ctx.file._sdk_feeds_file
 
     # Generate a Makefile to describe the package
@@ -19,12 +23,16 @@ def _ipk_impl(ctx):
         output = makefile,
         substitutions = {
             "%{pkg}": pkg_name,
-            "%{component}": in_file.path,
+            "%{version}": version,
+            "%{release}": release,
+            "%{exec}": in_execs[0].path,  # Naming issue with multiple execs; only one name: pkg_name.
+            "%{initds}": " ".join([i.path for i in in_initds]),
+            "%{configs}": " ".join([c.path for c in in_configs]),
         },
-        is_executable = False,
+        is_executable = False, # from our perspective
     )
 
-    print("Input: ", in_file.path, "Output: ", out_file.path) 
+    print("Input: ", in_execs, in_initds, in_configs, "Output: ", out_file.path) 
     ctx.actions.run_shell(
         execution_requirements = {
             # Cannot realistically use a non-basel project in a sandbox.
@@ -32,14 +40,16 @@ def _ipk_impl(ctx):
             # Side effect is that mess-ups are sticky.
             "no-sandbox": "1",
         },
-        inputs = [in_file, makefile, sdk_feeds_file],
+        inputs = in_execs + in_initds + in_configs + [makefile, sdk_feeds_file],
         outputs = [out_file],
-        progress_message = "Packaging %{input} to %{output}",
+        progress_message = "Packaging %{input} to %{outputs}",
         arguments = [
             ctx.file._sdk_feeds_file.path,
             pkg_name,
             makefile.path,
             out_file.path,
+            version,
+            release,
         ],
         command = "&&".join([
             r'PATH=/bin:/sbin',
@@ -55,7 +65,7 @@ def _ipk_impl(ctx):
             r'scripts/feeds install -a -p scion',
             r'make defconfig',
             r'make package/feeds/scion/$2/compile',
-            r'cp bin/packages/x86_64/scion/${2}_1.0-1_x86_64.ipk $output_abspath',
+            r'cp bin/packages/x86_64/scion/${2}_${5}-${6}_x86_64.ipk $output_abspath',
         ]),
     )
 
@@ -76,10 +86,19 @@ ipk_pkg = rule(
             allow_single_file = True,
             executable = False,
         ),
-        "component": attr.label(
+        "executables": attr.label_list(
             mandatory = True,
-            allow_single_file = True,
-            doc = "The component (from the scion build) that is being packaged",
+            doc = "The executable files (from the scion build) that are being packaged",
+        ),
+        "initds": attr.label_list(
+            mandatory = True,
+            allow_files = True,
+            doc = "The /etc/init.d/* files that are being packaged",
+        ),
+        "configs": attr.label_list(
+            mandatory = True,
+            allow_files = True,
+            doc = "The /etc/* config files that are being packaged",
         ),
         "pkg": attr.string(
             mandatory = True,
@@ -90,4 +109,7 @@ ipk_pkg = rule(
         ),
     },
 )
+
+def _basename(s):
+    return s.split("/")[-1]
 
