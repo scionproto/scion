@@ -10,7 +10,7 @@ def _ipk_impl(ctx):
     in_initds = ctx.files.initds
     in_configs = ctx.files.configs
     version = "1.0" # for now
-    release = "3" # for now
+    release = "4" # for now
     out_file = ctx.actions.declare_file(
         "bin/packages/x86_64/scion/%s_%s-%s_x86_64.ipk" % (pkg_name, version, release))
     sdk_feeds_file = ctx.file._sdk_feeds_file

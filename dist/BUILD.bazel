@@ -5,7 +5,7 @@ load(":git_version.bzl", "git_version")
 exports_files(
     [
         "openwrt_pkg_makefile.tpl",
-        "openwrt_initds/router.initd",
+        "openwrt_initds/router",
         "openwrt_configs/router.toml",
     ],
     visibility = ["//visibility:public"],

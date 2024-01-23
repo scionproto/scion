@@ -10,7 +10,7 @@ SERVICE_WRITE_PID=1
 SERVICE_DAEMONIZE=1
 
 start() {
-        service_start /usr/bin/$APP --config /etc/scion/$APP.toml
+        service_start /usr/bin/$APP --config /etc/scion/router.toml
 }
  
 stop() {
