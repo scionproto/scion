@@ -15,8 +15,9 @@ def _ipk_impl(ctx):
         "bin/packages/x86_64/scion/%s_%s-%s_x86_64.ipk" % (pkg_name, version, release))
     sdk_feeds_file = ctx.file._sdk_feeds_file
 
-    # Generate a Makefile to describe the package
-    makefile = ctx.actions.declare_file("Makefile")
+    # Generate a Makefile to describe the package. Unfortunately, this goes into <execroot>/bin
+    # and does not get copied to <execroot> so the pathname is for documentation only. We'll copy.
+    makefile = ctx.actions.declare_file("scion/%s/Makefile" % pkg_name)
 
     ctx.actions.expand_template(
         template = ctx.file.Makefile_template,
@@ -36,9 +37,10 @@ def _ipk_impl(ctx):
     ctx.actions.run_shell(
         execution_requirements = {
             # Cannot realistically use a non-basel project in a sandbox.
-            # It would require declaring the whole tree as a input and copying it.
-            # Side effect is that mess-ups are sticky.
+            # It would require declaring the whole tree as an input, causing it to be copied.
+            # The price to pay for ditching the sandbox is that mess-ups are sticky.
             "no-sandbox": "1",
+            "no-cache": "1",
         },
         inputs = in_execs + in_initds + in_configs + [makefile, sdk_feeds_file],
         outputs = [out_file],
@@ -52,20 +54,20 @@ def _ipk_impl(ctx):
             release,
         ],
         command = "&&".join([
-            r'PATH=/bin:/sbin',
+            r'PATH=/bin:/sbin:/usr/bin:/usr/sbin',
             r'export PATH',
-            r'makefile_abspath="$(pwd)/$3"',
-            r'output_abspath="$(pwd)/$4"',
-            r'cd $(dirname $1)',
-            r'cp -f $(basename $1) feeds.conf',
-            r'echo "src-link scion $(pwd)/scion" >> feeds.conf',
-            r'mkdir -p scion/$2',
-            r'cp -f $makefile_abspath scion/$2/Makefile',
+            r'execroot_abspath="$(pwd)"',
+            r'sdk_abspath="$execroot_abspath/$(dirname $1)"',
+            r'cp -f $1 $sdk_abspath/feeds.conf',
+            r'echo "src-link scion $sdk_abspath/scion" >> $sdk_abspath/feeds.conf',
+            r'mkdir -p $sdk_abspath/scion/$2',
+            r'cp -f $execroot_abspath/$3 $sdk_abspath/scion/$2/Makefile',
+            r'cd $sdk_abspath',
             r'scripts/feeds update scion',
             r'scripts/feeds install -a -p scion',
             r'make defconfig',
-            r'make package/feeds/scion/$2/compile',
-            r'cp bin/packages/x86_64/scion/${2}_${5}-${6}_x86_64.ipk $output_abspath',
+            r'make package/feeds/scion/$2/compile EXECROOT=$execroot_abspath',
+            r'cp bin/packages/x86_64/scion/${2}_${5}-${6}_x86_64.ipk $execroot_abspath/$4',
         ]),
     )
 
