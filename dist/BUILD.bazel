@@ -6,7 +6,7 @@ exports_files(
     [
         "openwrt_pkg_makefile.tpl",
         "openwrt_initds/router.initd",
-        "openwrt_configs/router.conf",
+        "openwrt_configs/router.toml",
     ],
     visibility = ["//visibility:public"],
 )
