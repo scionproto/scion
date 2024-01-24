@@ -10,7 +10,12 @@ ipk_pkg(
     pkg = "scion-router",
     executables = ["@@//router/cmd/router:router"],
     initds = ["@@//dist:openwrt_initds/router"],
-    configs = ["@@//dist:openwrt_configs/router.toml"],
+    configsroot = "@@//dist:openwrt_configs",
+    configs = [
+        "@@//dist:openwrt_configs/router.toml",
+        "@@//dist:openwrt_configs/topology.json",
+        "@@//dist:openwrt_configs/keys/master0.key",
+        "@@//dist:openwrt_configs/keys/master1.key",
+    ],
     visibility = ["//visibility:public"],
 )
-

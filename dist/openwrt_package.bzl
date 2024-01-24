@@ -9,8 +9,9 @@ def _ipk_impl(ctx):
     in_execs = ctx.files.executables
     in_initds = ctx.files.initds
     in_configs = ctx.files.configs
+    in_configsroot = ctx.file.configsroot
     version = "1.0" # for now
-    release = "4" # for now
+    release = "6" # for now
     out_file = ctx.actions.declare_file(
         "bin/packages/x86_64/scion/%s_%s-%s_x86_64.ipk" % (pkg_name, version, release))
     sdk_feeds_file = ctx.file._sdk_feeds_file
@@ -29,6 +30,7 @@ def _ipk_impl(ctx):
             "%{exec}": in_execs[0].path,  # Naming issue with multiple execs; only one name: pkg_name.
             "%{initds}": " ".join([i.path for i in in_initds]),
             "%{configs}": " ".join([c.path for c in in_configs]),
+            "%{configsroot}": in_configsroot.path,
         },
         is_executable = False, # from our perspective
     )
@@ -101,6 +103,11 @@ ipk_pkg = rule(
             mandatory = True,
             allow_files = True,
             doc = "The /etc/* config files that are being packaged",
+        ),
+        "configsroot": attr.label(
+            mandatory = True,
+            allow_single_file = True,
+            doc = "The common root (in src tree of /etc/* config files that are being packaged",
         ),
         "pkg": attr.string(
             mandatory = True,

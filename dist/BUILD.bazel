@@ -6,7 +6,11 @@ exports_files(
     [
         "openwrt_pkg_makefile.tpl",
         "openwrt_initds/router",
-        "openwrt_configs/router.toml",
+        "openwrt_configs",
+        "openwrt_configs/router.toml",   # placeholder. random contents.
+        "openwrt_configs/topology.json", # placeholder. random contents.
+        "openwrt_configs/keys/master0.key", # placeholder. random contents.
+        "openwrt_configs/keys/master1.key", # placeholder. random contents.
     ],
     visibility = ["//visibility:public"],
 )

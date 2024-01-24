@@ -40,19 +40,27 @@ endef
 
 # Package build instructions; just copy the assets from where they already are.
 define Build/Compile
-	cp $(EXECROOT)/%{exec} $(PKG_BUILD_DIR)/execs/%{pkg}
-	$(foreach i, %{initds}, cp $(EXECROOT)/$(i) $(PKG_BUILD_DIR)/initds;)
-	$(foreach c, %{configs}, cp $(EXECROOT)/$(c) $(PKG_BUILD_DIR)/configs;)
+	cp -f $(EXECROOT)/%{exec} $(PKG_BUILD_DIR)/execs/%{pkg}
+	for i in %{initds}; do \
+		cp -f $(EXECROOT)/$$$${i} $(PKG_BUILD_DIR)/initds; \
+	done
+	ABS_BUILD_DIR="$$$$(cd $(PKG_BUILD_DIR) && pwd)"; \
+	cd $(EXECROOT)/%{configsroot} && \
+	for c in %{configs}; do \
+		cp -f --parent $$$${c##%{configsroot}/} $$$${ABS_BUILD_DIR}/configs/; \
+	done
 endef
 
 # Package install instructions; create a directory inside the package to hold our executable, and then copy the executable we built previously into the folder
 define Package/%{pkg}/install
 	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_DIR) $(1)/etc/scion
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/execs/%{pkg} $(1)/usr/bin
+	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/initds/* $(1)/etc/init.d
-	$(INSTALL_CONF) $(PKG_BUILD_DIR)/configs/* $(1)/etc/scion
+	INS_DIR="$$$$(cd $(1) && pwd)"; \
+	cd $(PKG_BUILD_DIR)/configs && \
+	find . -type d -print0 | xargs -0 -I{} $(INSTALL_DIR) $$$${INS_DIR}/etc/scion/{} && \
+	find . -type f -print0 | xargs -0 -I{} $(INSTALL_CONF) {} $$$${INS_DIR}/etc/scion/{}
 endef
 
 # This command is always the last, it uses the definitions and variables we give above in order to get the job done
