@@ -7,7 +7,7 @@ load("@@//dist:openwrt_package.bzl", "ipk_pkg")
 
 ipk_pkg(
     name = "router_ipk",
-    pkg = "scion-router",
+    pkg = "router",
     executables = ["@@//router/cmd/router:router"],
     initds = ["@@//dist:openwrt_initds/router"],
     configsroot = "@@//dist:openwrt_configs",

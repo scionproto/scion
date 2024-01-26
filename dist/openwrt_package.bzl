@@ -5,19 +5,20 @@
 # external/openwrt_SDK/.
 
 def _ipk_impl(ctx):
-    pkg_name = ctx.attr.pkg
+    pkg_name = "scion-" + ctx.attr.pkg
     in_execs = ctx.files.executables
     in_initds = ctx.files.initds
     in_configs = ctx.files.configs
     in_configsroot = ctx.file.configsroot
     version = "1.0" # for now
-    release = "8" # for now
+    release = "9" # for now
     out_file = ctx.actions.declare_file(
         "bin/packages/x86_64/scion/%s_%s-%s_x86_64.ipk" % (pkg_name, version, release))
     sdk_feeds_file = ctx.file._sdk_feeds_file
 
     # Generate a Makefile to describe the package. Unfortunately, this goes into <execroot>/bin
-    # and does not get copied to <execroot> so the pathname is for documentation only. We'll copy.
+    # and does not get copied to <execroot> (something to do with consuming it from a non-sandboxed
+    # action?) so the pathname is for documentation only. We'll copy.
     makefile = ctx.actions.declare_file("scion/%s/Makefile" % pkg_name)
 
     ctx.actions.expand_template(
@@ -27,7 +28,7 @@ def _ipk_impl(ctx):
             "%{pkg}": pkg_name,
             "%{version}": version,
             "%{release}": release,
-            "%{exec}": in_execs[0].path,  # Naming issue with multiple execs; only one name: pkg_name.
+            "%{execs}": " ".join([e.path for e in in_execs]),
             "%{initds}": " ".join([i.path for i in in_initds]),
             "%{configs}": " ".join([c.path for c in in_configs]),
             "%{configsroot}": in_configsroot.path,
@@ -35,18 +36,17 @@ def _ipk_impl(ctx):
         is_executable = False, # from our perspective
     )
 
-    print("Input: ", in_execs, in_initds, in_configs, "Output: ", out_file.path) 
     ctx.actions.run_shell(
         execution_requirements = {
-            # Cannot realistically use a non-basel project in a sandbox.
-            # It would require declaring the whole tree as an input, causing it to be copied.
-            # The price to pay for ditching the sandbox is that mess-ups are sticky.
+            # Cannot use openwrt in a sandbox. It contains broken and circular symlinks that bazel
+            # doesn't know how to copy. The price to pay for ditching the sandbox is that mess-ups
+            # are sticky. Also, it seems that we must copy the output to execroot ourselves.
             "no-sandbox": "1",
             "no-cache": "1",
         },
         inputs = in_execs + in_initds + in_configs + [makefile, sdk_feeds_file],
         outputs = [out_file],
-        progress_message = "Packaging %{input} to %{outputs}",
+        progress_message = "Packaging %{input} to %{output}",
         arguments = [
             ctx.file._sdk_feeds_file.path,
             pkg_name,
@@ -97,24 +97,21 @@ ipk_pkg = rule(
         "initds": attr.label_list(
             mandatory = True,
             allow_files = True,
-            doc = "The /etc/init.d/* files that are being packaged",
+            doc = "The /etc/init.d/* files that are being packaged (packaged with 'scion-' prefix)",
         ),
         "configs": attr.label_list(
             mandatory = True,
             allow_files = True,
-            doc = "The /etc/* config files that are being packaged",
+            doc = "The /etc/* config files that are being packaged (packaged exactly as named)",
         ),
         "configsroot": attr.label(
             mandatory = True,
             allow_single_file = True,
-            doc = "The common root (in src tree of /etc/* config files that are being packaged",
+            doc = "The common root (in src tree) of /etc/* config files that are being packaged",
         ),
         "pkg": attr.string(
             mandatory = True,
-            doc = "The base name of the resulting package",
-        ),
-        "args": attr.string_list(
-            default = [""],
+            doc = "A base name for the resulting package (e.g. 'router')",
         ),
     },
 )

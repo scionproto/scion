@@ -40,9 +40,11 @@ endef
 
 # Package build instructions; just copy the assets from where they already are.
 define Build/Compile
-	cp -f $(EXECROOT)/%{exec} $(PKG_BUILD_DIR)/execs/%{pkg}
+	for e in %{execs}; do \
+		cp -f $(EXECROOT)/$$$${e} $(PKG_BUILD_DIR)/execs/scion-$$$$(basename $$$${e}); \
+	done
 	for i in %{initds}; do \
-		cp -f $(EXECROOT)/$$$${i} $(PKG_BUILD_DIR)/initds; \
+		cp -f $(EXECROOT)/$$$${i} $(PKG_BUILD_DIR)/initds/scion-$$$$(basename $$$${i}); \
 	done
 	ABS_BUILD_DIR="$$$$(cd $(PKG_BUILD_DIR) && pwd)"; \
 	cd $(EXECROOT)/%{configsroot} && \
@@ -54,7 +56,7 @@ endef
 # Package install instructions; create a directory inside the package to hold our executable, and then copy the executable we built previously into the folder
 define Package/%{pkg}/install
 	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/execs/%{pkg} $(1)/usr/bin
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/execs/* $(1)/usr/bin
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/initds/* $(1)/etc/init.d
 	INS_DIR="$$$$(cd $(1) && pwd)"; \
