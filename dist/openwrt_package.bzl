@@ -10,10 +10,9 @@ def _ipk_impl(ctx):
     in_initds = ctx.files.initds
     in_configs = ctx.files.configs
     in_configsroot = ctx.file.configsroot
-    version = "1.0" # for now
-    release = "9" # for now
+    in_version_file = ctx.file._version_file
     out_file = ctx.actions.declare_file(
-        "bin/packages/x86_64/scion/%s_%s-%s_x86_64.ipk" % (pkg_name, version, release))
+        "bin/packages/x86_64/scion/%s__x86_64.ipk" % pkg_name)
     sdk_feeds_file = ctx.file._sdk_feeds_file
 
     # Generate a Makefile to describe the package. Unfortunately, this goes into <execroot>/bin
@@ -26,8 +25,7 @@ def _ipk_impl(ctx):
         output = makefile,
         substitutions = {
             "%{pkg}": pkg_name,
-            "%{version}": version,
-            "%{release}": release,
+            "%{version_file}": in_version_file.path,
             "%{execs}": " ".join([e.path for e in in_execs]),
             "%{initds}": " ".join([i.path for i in in_initds]),
             "%{configs}": " ".join([c.path for c in in_configs]),
@@ -44,7 +42,7 @@ def _ipk_impl(ctx):
             "no-sandbox": "1",
             "no-cache": "1",
         },
-        inputs = in_execs + in_initds + in_configs + [makefile, sdk_feeds_file],
+        inputs = in_execs + in_initds + in_configs + [in_version_file, makefile, sdk_feeds_file],
         outputs = [out_file],
         progress_message = "Packaging %{input} to %{output}",
         arguments = [
@@ -52,24 +50,26 @@ def _ipk_impl(ctx):
             pkg_name,
             makefile.path,
             out_file.path,
-            version,
-            release,
+            in_version_file.path,
         ],
         command = "&&".join([
             r'PATH=/bin:/sbin:/usr/bin:/usr/sbin',
             r'export PATH',
             r'execroot_abspath="$(pwd)"',
-            r'sdk_abspath="$execroot_abspath/$(dirname $1)"',
-            r'cp -f $1 $sdk_abspath/feeds.conf',
-            r'echo "src-link scion $sdk_abspath/scion" >> $sdk_abspath/feeds.conf',
-            r'mkdir -p $sdk_abspath/scion/$2',
-            r'cp -f $execroot_abspath/$3 $sdk_abspath/scion/$2/Makefile',
-            r'cd $sdk_abspath',
+            r'sdk_abspath="${execroot_abspath}/$(dirname ${1})"',
+            r'cp -f ${1} ${sdk_abspath}/feeds.conf',
+            r'echo "src-link scion ${sdk_abspath}/scion" >> ${sdk_abspath}/feeds.conf',
+            r'mkdir -p ${sdk_abspath}/scion/${2}',
+            r'cp -f ${execroot_abspath}/${3} ${sdk_abspath}/scion/${2}/Makefile',
+            r'IFS="-" read tag count commit dirty < ${5}',
+            r'rel=${count}${dirty+"-dirty${commit}"}',
+            r'cd ${sdk_abspath}',
             r'scripts/feeds update scion',
             r'scripts/feeds install -a -p scion',
             r'make defconfig',
-            r'make package/feeds/scion/$2/compile EXECROOT=$execroot_abspath',
-            r'cp bin/packages/x86_64/scion/${2}_${5}-${6}_x86_64.ipk $execroot_abspath/$4',
+            r'make package/feeds/scion/${2}/compile EXECROOT=${execroot_abspath}' +
+             ' PKG_VERSION="${tag}" PKG_RELEASE="${rel}"',
+            r'cp bin/packages/x86_64/scion/${2}_${tag}-${rel}_x86_64.ipk ${execroot_abspath}/${4}',
         ]),
     )
 
@@ -80,6 +80,11 @@ ipk_pkg = rule(
     executable = False,
 
     attrs = {
+        "_version_file": attr.label(
+            default = "@@//dist:git_version",            
+            allow_single_file = True,
+            executable = False,
+        ),
         "_sdk_feeds_file": attr.label(
             default = Label("@openwrt_SDK//:feeds.conf.default"),
             allow_single_file = True,
@@ -112,6 +117,14 @@ ipk_pkg = rule(
         "pkg": attr.string(
             mandatory = True,
             doc = "A base name for the resulting package (e.g. 'router')",
+        ),
+        "version": attr.string(
+            default = "1.0",
+            doc = "A version string for the package",
+        ),
+        "release": attr.string(
+            default = "1",
+            doc = "A release number string for the package",
         ),
     },
 )
