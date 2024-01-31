@@ -306,4 +306,10 @@ http_archive(
     sha256 = "df9cbce6054e6bd46fcf28e2ddd53c728ceef6cb27d1d7fc54a228f272c945b0",
     strip_prefix = "openwrt-sdk-23.05.2-x86-64_gcc-12.3.0_musl.Linux-x86_64",
     build_file = "@//dist:openwrt_BUILD.bazel",
+    patch_args = ["-p1"],
+    patches = ["@//dist:musl_toolchain/endian_h.patch"],
+)
+
+register_toolchains(
+    "//dist:amd64_musl_toolchain",
 )
