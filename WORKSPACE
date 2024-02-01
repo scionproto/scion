@@ -300,8 +300,9 @@ load("@npm//:repositories.bzl", "npm_repositories")
 
 npm_repositories()
 
+# Support cross building and packaging for openwrt_amd64 via the openwrt SDK
 http_archive(
-    name = "openwrt_SDK",
+    name = "openwrt_x86_64_SDK",
     urls = ["https://downloads.openwrt.org/releases/23.05.2/targets/x86/64/openwrt-sdk-23.05.2-x86-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz"],
     sha256 = "df9cbce6054e6bd46fcf28e2ddd53c728ceef6cb27d1d7fc54a228f272c945b0",
     strip_prefix = "openwrt-sdk-23.05.2-x86-64_gcc-12.3.0_musl.Linux-x86_64",
@@ -311,5 +312,5 @@ http_archive(
 )
 
 register_toolchains(
-    "//dist/openwrt:amd64_openwrt_toolchain",
+    "//dist/openwrt:x86_64_openwrt_toolchain",
 )

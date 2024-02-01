@@ -6,8 +6,8 @@
 # * openwrt (ipk) packaging of scion binaries built with the above.
 #
 # Turning these assets into bazel reeferencable dependencies happens in the context of the external
-# src tree openwrt_SDK, which receives its own buildfile (BUILD.external.bazel, installed there by
-# the http_archive target "openwrt_SDK" in //WORKSPACE).
+# src tree openwrt_<target>_SDK, which receives its own buildfile (BUILD.external.bazel, installed there by
+# the http_archive target "openwrt_<target>_SDK" in //WORKSPACE).
 
 # Some files that our openwrt build needs.
 exports_files(
@@ -33,7 +33,7 @@ constraint_value(
 )
 
 toolchain(
-    name = "amd64_openwrt_toolchain",
+    name = "x86_64_openwrt_toolchain",
     exec_compatible_with = [
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
@@ -43,7 +43,7 @@ toolchain(
         "@platforms//os:linux",
         ":musl_libc",
     ],
-    toolchain = "@openwrt_SDK//:k8_musl",
+    toolchain = "@openwrt_x86_64_SDK//:x86_64_musl",
     toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
 )
 

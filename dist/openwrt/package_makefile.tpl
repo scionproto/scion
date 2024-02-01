@@ -21,7 +21,7 @@ define Package/%{pkg}/description
 endef
 
 # This particular makefile gets expanded at
-# <scion>/<execroot>/external/openwrt_SDK/scion/scion-router.
+# <scion>/<execroot>/external/openwrt_<target>_SDK/scion/scion-router.
 # The %{exec} (and other) paths that we get are relative to <scion>/<execroot>.
 # So, in theory, at make time, that's just ../../../../%{exec}.
 # However theory and practice diverge in an inconvenient way. Make somehow resolves bazel symlinks.

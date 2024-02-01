@@ -5,7 +5,7 @@ load(":git_version.bzl", "git_version")
 git_version(
     name = "git_version",
     tags = ["manual"],
-    visibility = ["@openwrt_SDK//:__subpackages__"],
+    visibility = ["@openwrt_x86_64_SDK//:__subpackages__"],
 )
 
 scion_pkg_deb(
@@ -120,11 +120,11 @@ multiplatform_filegroup(
     visibility = ["//dist:__subpackages__"],
 )
 
-# ipk_packages are built as an external dependency (openwrt_BUILD.bazel has the code).
+# ipk_packages are built as an external dependency (openwrt/BUILD.external.bazel has the code).
 # We trigger the build by referencing the package to copy it back here.
 genrule(
     name = "router_ipk",
-    srcs = ["@openwrt_SDK//:router_ipk"],
+    srcs = ["@openwrt_x86_64_SDK//:router_ipk"],
     outs = ["scion-router__x86_64.ipk"],
     cmd = "cp $< $@",
 )

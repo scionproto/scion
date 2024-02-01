@@ -2,18 +2,19 @@
 # This build file is layered onto the openwrt build tree which is
 # imported as an external dependency.
 # When reading, remember that:
-# * This used in the context of external/openwrt_SDK/.
+# * This used in the context of external/openwrt_<target>_SDK/.
 # * The "command" script is *not* sandboxed.
 
 def _ipk_impl(ctx):
     pkg_name = "scion-" + ctx.attr.pkg
+    target_arch = ctx.attr.target_arch
     in_execs = ctx.files.executables
     in_initds = ctx.files.initds
     in_configs = ctx.files.configs
     in_configsroot = ctx.file.configsroot
     in_version_file = ctx.file._version_file
     out_file = ctx.actions.declare_file(
-        "bin/packages/x86_64/scion/%s__x86_64.ipk" % pkg_name)
+        "bin/packages/%s/scion/%s__%s.ipk" % (target_arch, pkg_name, target_arch))
     sdk_feeds_file = ctx.file._sdk_feeds_file
 
     # Generate a Makefile to describe the package. Unfortunately, this goes into <execroot>/bin
@@ -22,7 +23,7 @@ def _ipk_impl(ctx):
     makefile = ctx.actions.declare_file("scion/%s/Makefile" % pkg_name)
 
     ctx.actions.expand_template(
-        template = ctx.file.makefile_template,
+        template = ctx.file._makefile_template,
         output = makefile,
         substitutions = {
             "%{pkg}": pkg_name,
@@ -52,6 +53,7 @@ def _ipk_impl(ctx):
             makefile.path,
             out_file.path,
             in_version_file.path,
+            target_arch,
         ],
         command = "&&".join([
             r'PATH=/bin:/sbin:/usr/bin:/usr/sbin',
@@ -70,16 +72,24 @@ def _ipk_impl(ctx):
             r'make defconfig',
             r'make package/feeds/scion/${2}/compile EXECROOT=${execroot_abspath}' +
              ' PKG_VERSION="${tag}" PKG_RELEASE="${rel}"',
-            r'cp bin/packages/x86_64/scion/${2}_${tag}-${rel}_x86_64.ipk ${execroot_abspath}/${4}',
+            r'cp bin/packages/${6}/scion/${2}_${tag}-${rel}_${6}.ipk ${execroot_abspath}/${4}',
         ]),
     )
 
     return DefaultInfo(files = depset([out_file]))
 
+# This functions gets the Label of one file in the top of SDK tree.
+# We need such a file so we can figure the pathname for the top of the SDK file tree.
+# We happens that we actually use the feeds config file, so use that. This is computed
+# by a function because the tree depends on the target arch. Eventhough this .bzl file
+# is loaded by the BUILD file in that particular tree, we can't refer to it implicitly:
+# "// refers to the tree where this .bzl file is; not the BUILD that loads it."
+def _get_sdk_feeds_file(target_arch):
+    return Label("@@openwrt_" + target_arch + "_SDK//:feeds.conf.default")
+
 ipk_pkg = rule(
     implementation = _ipk_impl,
     executable = False,
-
     attrs = {
         "_version_file": attr.label(
             default = "@@//dist:git_version",            
@@ -87,11 +97,11 @@ ipk_pkg = rule(
             executable = False,
         ),
         "_sdk_feeds_file": attr.label(
-            default = Label("@openwrt_SDK//:feeds.conf.default"),
+            default = _get_sdk_feeds_file,
             allow_single_file = True,
             executable = False,
         ),
-        "makefile_template": attr.label(
+        "_makefile_template": attr.label(
             default = "@@//dist/openwrt:package_makefile.tpl",
             allow_single_file = True,
             executable = False,
@@ -99,6 +109,10 @@ ipk_pkg = rule(
         "executables": attr.label_list(
             mandatory = True,
             doc = "The executable files (from the scion build) that are being packaged",
+        ),
+        "target_arch": attr.string(
+            mandatory = True,
+            doc = "The target arch for which the package is being made",
         ),
         "initds": attr.label_list(
             mandatory = True,

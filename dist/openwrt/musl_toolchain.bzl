@@ -1,5 +1,8 @@
-# Verbatim from illicitonion's unreleased work:
+# Adapted from illicitonion's unreleased work:
 # https://github.com/bazel-contrib/musl-toolchain
+# Merit is his, mistakes are mine, License is Apache.
+
+load("@rules_cc//cc:defs.bzl", "cc_toolchain")
 
 load(
     "@bazel_tools//tools/build_defs/cc:action_names.bzl",
@@ -104,7 +107,7 @@ def _impl(ctx):
                     _CLIF_MATCH_ACTION_NAME,
                 ],
                 env_entries = [
-                    env_entry("STAGING_DIR", "external/openwrt_SDK/staging_dir"),
+                    env_entry("STAGING_DIR", "external/openwrt_"+ target_arch +"_SDK/staging_dir"),
                 ],
             ),
         ],
@@ -125,13 +128,6 @@ def _impl(ctx):
                 flag_groups = [
                     flag_group(
                         flags = [
-                            "-Iexternal/openwrt_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/x86_64-openwrt-linux-musl/sys-include",
-                            "-Iexternal/openwrt_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/include",
-                            "-Iexternal/openwrt_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/x86_64-openwrt-linux-musl/include",
-                            "-Iexternal/openwrt_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/lib/gcc/x86_64-openwrt-linux-musl/12.3.0/include",
-                            "-nostdinc",
-                            # "-no-canonical-prefixes",
-                            # "-fno-canonical-system-headers",
                             "-Wno-builtin-macro-redefined",
                             "-D_LARGEFILE64_SOURCE", # BW compat
                             # "-D__DATE__=\"redacted\"",
@@ -166,12 +162,12 @@ def _impl(ctx):
                 flag_groups = [
                     flag_group(
                         flags = [
-                            # "-U_FORTIFY_SOURCE",
-                            # "-D_FORTIFY_SOURCE=1",
+                            "-U_FORTIFY_SOURCE",
+                            "-D_FORTIFY_SOURCE=1",
                             # "-fstack-protector",
                             # "-Wall",
                             # "-Wunused-but-set-parameter",
-                            "-Wno-free-nonheap-object",
+                            # "-Wno-free-nonheap-object",
                             # "-fno-omit-frame-pointer",
                         ],
                     ),
@@ -342,3 +338,68 @@ musl_cc_toolchain_config = rule(
     },
     provides = [CcToolchainConfigInfo],
 )
+
+def musl_cc_toolchain(target_arch):
+
+    # We have to accept that the tools are executed from a sandbox, so we must reference everything
+    # they need here. We cannot reference everything. There are directory symlinks which bazel
+    # doesn's know how to copy; some of which circular. Fortunately, we can manage without them at
+    # the cost of duplicating some files. We have to cherry pick. We cannot use exclusions as they
+    # are applied after full traversal. We skip all lib64 and lib32 symlinks. We have to keep
+    # <target>/lib/ and <target>/sys-include. <target>/lib/ contains a circular symlink so we have
+    # to cherry-pick there too.
+    native.filegroup(
+        name = "all_toolchain_files",
+        srcs = native.glob([
+        "staging_dir/host/**",
+        "staging_dir/target*/**",
+        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/bin/**",
+        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/include/**",
+        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/info.mk",
+        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/lib/b*/**",
+        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/lib/ld*/**",
+        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/lib/*.*",
+        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/lib/g*/**",
+        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/libexec/**",
+        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/share/**",
+        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/usr/i*/**",
+        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/" + target_arch + "*/bin/**",
+        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/" + target_arch + "*/include/**",
+        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/" + target_arch + "*/lib/*.*",  # Link. Files NEEDED
+        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/" + target_arch + "*/sys-include/*", # Link. Files NEEDED.
+    ]),
+
+        visibility = ["//visibility:public"],
+    )
+
+    [
+        native.filegroup(
+            name = "musl_" + bin + "_files",
+            srcs = native.glob(["staging_dir/toolchain-" + target_arch + "_gcc-*_musl/bin/" + target_arch + "-linux-musl-" + bin]),
+        )
+        for bin in [
+            "ar",
+            "objcopy",
+            "strip",
+        ]
+    ]
+
+    native.filegroup(name = "empty")
+
+    musl_cc_toolchain_config(name = target_arch + "_musl_toolchain_config", target_arch = target_arch)
+
+    cc_toolchain(
+        name = target_arch + "_musl",
+        all_files = ":all_toolchain_files",
+        ar_files = ":musl_ar_files",
+        as_files = ":all_files",
+        compiler_files = ":all_toolchain_files",
+        coverage_files = ":all_toolchain_files",
+        dwp_files = ":empty",
+        linker_files = ":all_toolchain_files",
+        objcopy_files = ":musl_objcopy_files",
+        strip_files = ":musl_strip_files",
+        supports_param_files = 0,
+        toolchain_config = ":" + target_arch + "_musl_toolchain_config",
+        toolchain_identifier = target_arch + "-musl-toolchain",
+    )

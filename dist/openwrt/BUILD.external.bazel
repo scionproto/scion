@@ -1,11 +1,10 @@
-# This build file is layered onto the openwrt_SDK tree which is
+# This build file is layered onto the openwrt_<target>_SDK tree which is
 # imported as an external dependency. It takes care of:
 # * Wrapping SCION binaries from the SCION build, into ipk packages.
 # * Exporting the musl-gcc compiler suite as a bazel toolchain.
 
 load("@@//dist/openwrt:ipk.bzl", "ipk_pkg")
-load("@@//dist/openwrt:musl_toolchain.bzl", "musl_cc_toolchain_config")
-load("@rules_cc//cc:defs.bzl", "cc_toolchain")
+load("@@//dist/openwrt:musl_toolchain.bzl", "musl_cc_toolchain")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -13,6 +12,7 @@ package(default_visibility = ["//visibility:public"])
 ipk_pkg(
     name = "router_ipk",
     pkg = "router",
+    target_arch = "x86_64",
     executables = ["@@//router/cmd/router:router"],
     initds = ["@@//dist/openwrt:initds/router"],
     configsroot = "@@//dist/openwrt:configs",
@@ -25,74 +25,5 @@ ipk_pkg(
     visibility = ["//visibility:public"],
 )
 
-# This exports the useful portions of the buildroot to be used as a toolchain.
-#
-# Adapated from illicitonion's unreleased work: 
-# https://github.com/bazel-contrib/musl-toolchain
-# Merit is his, mistakes are mine.
-
-filegroup(
-    name = "all_toolchain_files",
-
-    # We have to accept that the tools are executed from a sandbox, so we must reference everything
-    # they need here. We cannot reference everything. There are directory symlinks which bazel
-    # doesn's know how to copy; some of which circular. Fortunately, we can manage without them at
-    # the cost of duplicating some files. We have to cherry pick. We cannot use exclusions as they
-    # are applied after full traversal. We skip all lib64 and lib32 symlinks. We have to keep
-    # <target>/lib/ and <target>/sys-include. <target>/lib/ contains a circular symlink so we have
-    # to cherry-pick there too.
-    srcs = glob([
-    	 "staging_dir/host/**",
-    	 "staging_dir/target*/**",
-    	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/bin/**",
-    	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/include/**",
-    	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/info.mk",
-         "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/lib/b*/**",
-    	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/lib/ld*/**",
-    	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/lib/*.*",
-    	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/lib/g*/**",
-    	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/libexec/**",
-    	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/share/**",
-    	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/usr/i*/**",
-    	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/x86_64*/bin/**",
-    	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/x86_64*/include/**",
-	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/x86_64*/lib/*.*",  # Link. Dupe the files. <- WE NEED THIS!
-    	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/x86_64*/sys-include/*", # Link. Dupe the files.
-    ]),
-    visibility = ["//visibility:public"],
-)
-
-[
-    filegroup(
-        name = "musl_" + bin + "_files",
-        srcs = ["staging_dir/toolchain-x86_64_gcc-12.3.0_musl/bin/x86_64-linux-musl-" + bin],
-    )
-    for bin in [
-        "ar",
-        "ld",
-        "objcopy",
-        "strip",
-        "objdump",
-    ]
-]
-
-filegroup(name = "empty")
-
-musl_cc_toolchain_config(name = "k8_musl_toolchain_config", target_arch = "x86_64")
-
-cc_toolchain(
-    name = "k8_musl",
-    all_files = ":all_toolchain_files",
-    ar_files = ":musl_ar_files",
-    as_files = ":all_files",
-    compiler_files = ":all_toolchain_files",
-    coverage_files = ":all_toolchain_files",
-    dwp_files = ":empty",
-    linker_files = ":all_toolchain_files",
-    objcopy_files = ":musl_objcopy_files",
-    strip_files = ":musl_strip_files",
-    supports_param_files = 0,
-    toolchain_config = ":k8_musl_toolchain_config",
-    toolchain_identifier = "k8-musl-toolchain",
-)
-
+# Assemble a bazel toolchain out of the openwrt sdk binaries.
+musl_cc_toolchain(target_arch = "x86_64")
