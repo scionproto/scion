@@ -1,24 +1,26 @@
-# This build file is layered onto the openwrt build tree which is
-# imported as an external dependency. It is a shell script with
-# basel hooks.
+# This build file is layered onto the openwrt_SDK tree which is
+# imported as an external dependency. It takes care of:
+# * Wrapping SCION binaries from the SCION build, into ipk packages.
+# * Exporting the musl-gcc compiler suite as a bazel toolchain.
 
-load("@@//dist:openwrt_package.bzl", "ipk_pkg")
-load("@@//dist:musl_toolchain/musl_cc_toolchain_config.bzl", "musl_cc_toolchain_config")
+load("@@//dist/openwrt:ipk.bzl", "ipk_pkg")
+load("@@//dist/openwrt:musl_toolchain.bzl", "musl_cc_toolchain_config")
 load("@rules_cc//cc:defs.bzl", "cc_toolchain")
 
 package(default_visibility = ["//visibility:public"])
 
+# Wrap scion binaries into ipk. See rule in ipk.bzl
 ipk_pkg(
     name = "router_ipk",
     pkg = "router",
     executables = ["@@//router/cmd/router:router"],
-    initds = ["@@//dist:openwrt_initds/router"],
-    configsroot = "@@//dist:openwrt_configs",
+    initds = ["@@//dist/openwrt:initds/router"],
+    configsroot = "@@//dist/openwrt:configs",
     configs = [
-        "@@//dist:openwrt_configs/router.toml",
-        "@@//dist:openwrt_configs/topology.json",
-        "@@//dist:openwrt_configs/keys/master0.key",
-        "@@//dist:openwrt_configs/keys/master1.key",
+        "@@//dist/openwrt:configs/router.toml",
+        "@@//dist/openwrt:configs/topology.json",
+        "@@//dist/openwrt:configs/keys/master0.key",
+        "@@//dist/openwrt:configs/keys/master1.key",
     ],
     visibility = ["//visibility:public"],
 )
@@ -31,30 +33,30 @@ ipk_pkg(
 
 filegroup(
     name = "all_toolchain_files",
-    # The following matches everything except lib, lib32, and lib64 symlinks because they cause
-    # cycles. Lib32 is just skipped but the lib and lib64 are partially duplicated. There's not
-    # way to get bazel to create directory symlinks inside a sandbox by matching the link alone.
-    # This cannot be done with an exclude pattern as exclusions are applied after full traversal.
+
+    # We have to accept that the tools are executed from a sandbox, so we must reference everything
+    # they need here. We cannot reference everything. There are directory symlinks which bazel
+    # doesn's know how to copy; some of which circular. Fortunately, we can manage without them at
+    # the cost of duplicating some files. We have to cherry pick. We cannot use exclusions as they
+    # are applied after full traversal. We skip all lib64 and lib32 symlinks. We have to keep
+    # <target>/lib/ and <target>/sys-include. <target>/lib/ contains a circular symlink so we have
+    # to cherry-pick there too.
     srcs = glob([
     	 "staging_dir/host/**",
     	 "staging_dir/target*/**",
     	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/bin/**",
     	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/include/**",
     	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/info.mk",
-    	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/lib/b*/**", # Everything but the lib64 link
+         "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/lib/b*/**",
     	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/lib/ld*/**",
-    	 # "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/lib/lib64/*", # Link. Dupe the files.
     	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/lib/*.*",
-    	 # "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/lib64/*", # Link. Dupe the files.
     	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/lib/g*/**",
     	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/libexec/**",
     	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/share/**",
     	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/usr/i*/**",
-    	 # "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/usr/lib/*", # Link. Dupe the files.
     	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/x86_64*/bin/**",
     	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/x86_64*/include/**",
-	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/x86_64*/lib/*.*",  # Link. Dupe the files. <- BUT WE NEED THIS!
-    	 # "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/x86_64*/lib64/*", # Link. Dupe the files.
+	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/x86_64*/lib/*.*",  # Link. Dupe the files. <- WE NEED THIS!
     	 "staging_dir/toolchain-x86_64_gcc-12.3.0_musl/x86_64*/sys-include/*", # Link. Dupe the files.
     ]),
     visibility = ["//visibility:public"],
@@ -79,7 +81,7 @@ filegroup(name = "empty")
 musl_cc_toolchain_config(name = "k8_musl_toolchain_config", target_arch = "x86_64")
 
 cc_toolchain(
-    name = "amd64_musl_toolchain",
+    name = "k8_musl",
     all_files = ":all_toolchain_files",
     ar_files = ":musl_ar_files",
     as_files = ":all_files",

@@ -2,19 +2,6 @@ load(":package.bzl", "scion_pkg_deb")
 load(":platform.bzl", "multiplatform_filegroup")
 load(":git_version.bzl", "git_version")
 
-exports_files(
-    [
-        "openwrt_pkg_makefile.tpl",
-        "openwrt_initds/router",
-        "openwrt_configs",
-        "openwrt_configs/router.toml",  # placeholder. minimal contents.
-        "openwrt_configs/topology.json",  # placeholder. minimal contents.
-        "openwrt_configs/keys/master0.key",  # placeholder. random contents.
-        "openwrt_configs/keys/master1.key",  # placeholder. random contents.
-    ],
-    visibility = ["//visibility:public"],
-)
-
 git_version(
     name = "git_version",
     tags = ["manual"],
@@ -140,35 +127,4 @@ genrule(
     srcs = ["@openwrt_SDK//:router_ipk"],
     outs = ["scion-router__x86_64.ipk"],
     cmd = "cp $< $@",
-)
-
-# Plumb the musl toolchain of the openwrt SDK as a toolchain we can use here to build SCION
-# components
-constraint_value(
-    name = "musl_clib",
-    constraint_setting = "@bazel_tools//tools/cpp:cc_compiler",
-)
-
-toolchain(
-    name = "amd64_musl_toolchain",
-    exec_compatible_with = [
-        "@platforms//cpu:x86_64",
-        "@platforms//os:linux",
-    ],
-    target_compatible_with = [
-        "@platforms//cpu:x86_64",
-        "@platforms//os:linux",
-        ":musl_clib",
-    ],
-    toolchain = "@openwrt_SDK//:amd64_musl_toolchain",
-    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
-)
-
-platform(
-    name = "openwrt_amd64",
-    constraint_values = [
-        "@platforms//cpu:x86_64",
-        "@platforms//os:linux",
-        ":musl_clib",
-    ],
 )

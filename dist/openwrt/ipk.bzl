@@ -1,8 +1,9 @@
 
 # This build file is layered onto the openwrt build tree which is
-# imported as an external dependency. It is a shell script with
-# basel hooks. So, remember that it used in the context of
-# external/openwrt_SDK/.
+# imported as an external dependency.
+# When reading, remember that:
+# * This used in the context of external/openwrt_SDK/.
+# * The "command" script is *not* sandboxed.
 
 def _ipk_impl(ctx):
     pkg_name = "scion-" + ctx.attr.pkg
@@ -21,7 +22,7 @@ def _ipk_impl(ctx):
     makefile = ctx.actions.declare_file("scion/%s/Makefile" % pkg_name)
 
     ctx.actions.expand_template(
-        template = ctx.file.Makefile_template,
+        template = ctx.file.makefile_template,
         output = makefile,
         substitutions = {
             "%{pkg}": pkg_name,
@@ -62,7 +63,7 @@ def _ipk_impl(ctx):
             r'mkdir -p ${sdk_abspath}/scion/${2}',
             r'cp -f ${execroot_abspath}/${3} ${sdk_abspath}/scion/${2}/Makefile',
             r'IFS="-" read tag count commit dirty < ${5}',
-            r'rel=${count}${dirty+"-dirty${commit}"}',
+            r'rel=${count}${dirty+"-dirty$(date +%s)"}',
             r'cd ${sdk_abspath}',
             r'scripts/feeds update scion',
             r'scripts/feeds install -a -p scion',
@@ -90,8 +91,8 @@ ipk_pkg = rule(
             allow_single_file = True,
             executable = False,
         ),
-        "Makefile_template": attr.label(
-            default = "@@//dist:openwrt_pkg_makefile.tpl",
+        "makefile_template": attr.label(
+            default = "@@//dist/openwrt:package_makefile.tpl",
             allow_single_file = True,
             executable = False,
         ),
