@@ -21,6 +21,9 @@ exports_files(
         "configs/topology.json",  # placeholder. minimal contents.
         "configs/keys/master0.key",  # placeholder. random contents.
         "configs/keys/master1.key",  # placeholder. random contents.
+        "initds/gateway",
+        "configs/sig.toml",  # placeholder. minimal contents.
+        "configs/sig.json",  # placeholder. minimal contents.
     ],
     visibility = ["//visibility:public"],
 )

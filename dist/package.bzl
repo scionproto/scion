@@ -99,7 +99,7 @@ def scion_pkg_ipk(name, target_arch, package, **kwargs):
     imported by way of an http_archive directive in //WORKSPACE.
     """
     tag, count, commit, dirty = STABLE_GIT_VERSION.split("-")
-    version = (tag + "-" + count + "-" + dirty) if dirty else (tag + "-" + count) 
+    version = (tag + "-" + count + "-" + dirty) if dirty else (tag + "-" + count)
     native.genrule(
         name = name,
         srcs = ["@openwrt_" + target_arch + "_SDK//:" + name],

@@ -126,3 +126,17 @@ scion_pkg_ipk(
     package = "scion-router",
     target_arch = "x86_64",
 )
+
+scion_pkg_ipk(
+    name = "gateway_ipk",
+    package = "scion-gateway",
+    target_arch = "x86_64",
+)
+
+filegroup(
+    name = "openwrt",
+    srcs = [
+        "router_ipk",
+        "gateway_ipk",
+    ]
+)

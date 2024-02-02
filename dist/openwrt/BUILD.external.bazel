@@ -25,5 +25,19 @@ ipk_pkg(
     visibility = ["//visibility:public"],
 )
 
+ipk_pkg(
+    name = "gateway_ipk",
+    pkg = "gateway",
+    target_arch = "x86_64",
+    executables = ["@@//gateway/cmd/gateway:gateway"],
+    initds = ["@@//dist/openwrt:initds/gateway"],
+    configsroot = "@@//dist/openwrt:configs",
+    configs = [
+        "@@//dist/openwrt:configs/sig.toml",
+        "@@//dist/openwrt:configs/sig.json",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 # Assemble a bazel toolchain out of the openwrt sdk binaries.
 musl_cc_toolchain(target_arch = "x86_64")
