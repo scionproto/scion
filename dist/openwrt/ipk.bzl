@@ -1,3 +1,4 @@
+load("//:versioning.bzl", "STABLE_GIT_VERSION")
 
 # This build file is layered onto the openwrt build tree which is
 # imported as an external dependency.
@@ -12,10 +13,14 @@ def _ipk_impl(ctx):
     in_initds = ctx.files.initds
     in_configs = ctx.files.configs
     in_configsroot = ctx.file.configsroot
-    in_version_file = ctx.file._version_file
-    out_file = ctx.actions.declare_file(
-        "bin/packages/%s/scion/%s__%s.ipk" % (target_arch, pkg_name, target_arch))
     sdk_feeds_file = ctx.file._sdk_feeds_file
+
+    tag, count, commit, dirty = STABLE_GIT_VERSION.split("-")
+    fileversion = (tag + "-" + count + "-dirty") if dirty else (tag + "-" + count)
+
+    out_file = ctx.actions.declare_file(
+        "bin/packages/%s/scion/%s_%s_%s.ipk" % (
+            target_arch, pkg_name, fileversion, target_arch))
 
     # Generate a Makefile to describe the package. Unfortunately, this goes into <execroot>/bin
     # and does not get copied to <execroot> (something to do with consuming it from a non-sandboxed
@@ -27,7 +32,6 @@ def _ipk_impl(ctx):
         output = makefile,
         substitutions = {
             "%{pkg}": pkg_name,
-            "%{version_file}": in_version_file.path,
             "%{execs}": " ".join([e.path for e in in_execs]),
             "%{initds}": " ".join([i.path for i in in_initds]),
             "%{configs}": " ".join([c.path for c in in_configs]),
@@ -44,7 +48,7 @@ def _ipk_impl(ctx):
             "no-sandbox": "1",
             "no-cache": "1",
         },
-        inputs = in_execs + in_initds + in_configs + [in_version_file, makefile, sdk_feeds_file],
+        inputs = in_execs + in_initds + in_configs + [makefile, sdk_feeds_file],
         outputs = [out_file],
         progress_message = "Packaging %{input} to %{output}",
         arguments = [
@@ -52,7 +56,9 @@ def _ipk_impl(ctx):
             pkg_name,
             makefile.path,
             out_file.path,
-            in_version_file.path,
+            tag,
+            count,
+            dirty,
             target_arch,
         ],
         command = "&&".join([
@@ -64,15 +70,14 @@ def _ipk_impl(ctx):
             r'echo "src-link scion ${sdk_abspath}/scion" >> ${sdk_abspath}/feeds.conf',
             r'mkdir -p ${sdk_abspath}/scion/${2}',
             r'cp -f ${execroot_abspath}/${3} ${sdk_abspath}/scion/${2}/Makefile',
-            r'IFS="-" read tag count commit dirty < ${5}',
-            r'rel=${count}${dirty+"-dirty$(date +%s)"}',
             r'cd ${sdk_abspath}',
             r'scripts/feeds update scion',
             r'scripts/feeds install -a -p scion',
             r'make defconfig',
+            r'pkgrel=${6}${7+"-dirty$(date +%s)"}',
             r'make package/feeds/scion/${2}/compile EXECROOT=${execroot_abspath}' +
-             ' PKG_VERSION="${tag}" PKG_RELEASE="${rel}"',
-            r'cp bin/packages/${6}/scion/${2}_${tag}-${rel}_${6}.ipk ${execroot_abspath}/${4}',
+             ' PKG_VERSION="${5}" PKG_RELEASE="${pkgrel}"',
+            r'cp bin/packages/${8}/scion/${2}_${5}-${pkgrel}_${8}.ipk ${execroot_abspath}/${4}',
         ]),
     )
 

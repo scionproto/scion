@@ -35,3 +35,6 @@ test:lint --test_tag_filters=lint --test_summary=terse --noshow_progress --exper
 
 # run quietly, only display errors
 common:quiet --ui_event_filters=-warning,-info,-debug,-stdout,-stderr --noshow_progress
+
+# Initialize versioning.bzl properly the first time we do something. See bazel-build-env.
+run --workspace_status_command=./tools/bazel-build-env
