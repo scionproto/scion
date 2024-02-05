@@ -6,9 +6,20 @@ load("//:versioning.bzl", "STABLE_GIT_VERSION")
 # * This used in the context of external/openwrt_<target>_SDK/.
 # * The "command" script is *not* sandboxed.
 
+# All this replicates the standard openwrt recipe to add and build a new package (one which
+# code is already compiled). Two hacks in-there:
+#
+# * Because the openwrt src tree is full of dangling or circular symlinks, we can't run the
+#   packaging setps in a sandbox (bazel can't clone the tree); we have to do it in-place.
+# * Because we aren't sandboxed and the Makefiles aren't re-entrant, we can't build more than one
+#   package at a time. To achieve that we serialize the packaging of each component by arbitrarily
+#   depending on the previous one. For this to work, we have to declare the deps as inputs
+#   eventhough we don't use them.
+
 def _ipk_impl(ctx):
     pkg_name = "scion-" + ctx.attr.pkg
     target_arch = ctx.attr.target_arch
+    in_deps = ctx.files.deps # Artificial dep, for serialization.
     in_execs = ctx.files.executables
     in_initds = ctx.files.initds
     in_configs = ctx.files.configs
@@ -48,7 +59,7 @@ def _ipk_impl(ctx):
             "no-sandbox": "1",
             "no-cache": "1",
         },
-        inputs = in_execs + in_initds + in_configs + [makefile, sdk_feeds_file],
+        inputs = in_execs + in_initds + in_configs + [makefile, sdk_feeds_file] + in_deps,
         outputs = [out_file],
         progress_message = "Packaging %{input} to %{output}",
         arguments = [
@@ -64,6 +75,7 @@ def _ipk_impl(ctx):
         command = "&&".join([
             r'PATH=/bin:/sbin:/usr/bin:/usr/sbin',
             r'export PATH',
+            r'echo "Doing ${2} at $(date)" >> /tmp/ipk.trace',
             r'execroot_abspath="$(pwd)"',
             r'sdk_abspath="${execroot_abspath}/$(dirname ${1})"',
             r'cp -f ${1} ${sdk_abspath}/feeds.conf',
@@ -78,6 +90,7 @@ def _ipk_impl(ctx):
             r'make package/feeds/scion/${2}/compile EXECROOT=${execroot_abspath}' +
              ' PKG_VERSION="${5}" PKG_RELEASE="${pkgrel}"',
             r'cp bin/packages/${8}/scion/${2}_${5}-${pkgrel}_${8}.ipk ${execroot_abspath}/${4}',
+            r'echo "Done $2 at $(date)" >> /tmp/ipk.trace',
         ]),
     )
 
@@ -96,8 +109,9 @@ ipk_pkg = rule(
     implementation = _ipk_impl,
     executable = False,
     attrs = {
+        "deps": attr.label_list(), # Packages built in sequence. Each depend on the previous one.
         "_version_file": attr.label(
-            default = "@@//dist:git_version",            
+            default = "@@//dist:git_version",
             allow_single_file = True,
             executable = False,
         ),

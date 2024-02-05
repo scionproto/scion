@@ -37,6 +37,7 @@ ipk_pkg(
         "@@//dist/openwrt:configs/sig.json",
     ],
     visibility = ["//visibility:public"],
+    deps = ["router_ipk"], # Force sequential build; openwrt make isn't reentrant.
 )
 
 # Assemble a bazel toolchain out of the openwrt sdk binaries.
