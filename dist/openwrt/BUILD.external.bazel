@@ -40,5 +40,19 @@ ipk_pkg(
     deps = ["router_ipk"], # Force sequential build; openwrt make isn't reentrant.
 )
 
+ipk_pkg(
+    name = "control_ipk",
+    pkg = "control",
+    target_arch = "x86_64",
+    executables = ["@@//control/cmd/control:control"],
+    initds = ["@@//dist/openwrt:initds/control"],
+    configsroot = "@@//dist/openwrt:configs",
+    configs = [
+        "@@//dist/openwrt:configs/control.toml",
+    ],
+    visibility = ["//visibility:public"],
+    deps = ["gateway_ipk"], # Force sequential build; openwrt make isn't reentrant.
+)
+
 # Assemble a bazel toolchain out of the openwrt sdk binaries.
 musl_cc_toolchain(target_arch = "x86_64")

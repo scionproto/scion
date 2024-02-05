@@ -12,18 +12,27 @@
 # Some files that our openwrt build needs.
 exports_files(
     [
+        # Gear to drive the make-based openwrt package build process.
         "BUILD.external.bazel",
         "endian_h.patch",
         "package_makefile.tpl",
+
+        # init.d start/stop files.
         "initds/router",
-        "configs",  # Directory itself is used to identify the root of all confs.
-        "configs/router.toml",  # placeholder. minimal contents.
-        "configs/topology.json",  # placeholder. minimal contents.
-        "configs/keys/master0.key",  # placeholder. random contents.
-        "configs/keys/master1.key",  # placeholder. random contents.
         "initds/gateway",
-        "configs/sig.toml",  # placeholder. minimal contents.
-        "configs/sig.json",  # placeholder. minimal contents.
+        "initds/control",
+
+         # Directory itself. Indicates the common root of config files.
+        "configs",
+
+        # Configuration placeholders. Minimal viable content. Needs to be updated post-install.
+        "configs/router.toml",
+        "configs/topology.json",
+        "configs/keys/master0.key",
+        "configs/keys/master1.key",
+        "configs/sig.toml",
+        "configs/sig.json",
+        "configs/control.toml",
     ],
     visibility = ["//visibility:public"],
 )

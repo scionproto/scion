@@ -133,10 +133,17 @@ scion_pkg_ipk(
     target_arch = "x86_64",
 )
 
+scion_pkg_ipk(
+    name = "control_ipk",
+    package = "scion-control",
+    target_arch = "x86_64",
+)
+
 filegroup(
     name = "openwrt",
     srcs = [
         "router_ipk",
         "gateway_ipk",
+        "control_ipk",
     ]
 )

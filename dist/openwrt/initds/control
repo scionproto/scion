@@ -5,12 +5,12 @@
 
 START=99
 STOP=0
-APP=scion-gateway
+APP=scion-control
 SERVICE_WRITE_PID=1
 SERVICE_DAEMONIZE=1
 
 start() {
-        service_start /usr/bin/$APP --config /etc/scion/sig.toml
+        service_start /usr/bin/$APP --config /etc/scion/control.toml
 }
 
 stop() {
