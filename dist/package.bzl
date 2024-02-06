@@ -1,5 +1,5 @@
 load("@rules_pkg//pkg:pkg.bzl", "pkg_deb", "pkg_tar")
-load("//:versioning.bzl", "STABLE_GIT_VERSION")
+load("//:versioning.bzl", "STRIPPED_GIT_VERSION")
 
 SCION_PKG_HOMEPAGE = "https://github.com/scionproto/scion"
 SCION_PKG_MAINTAINER = "SCION Contributors"
@@ -98,7 +98,7 @@ def scion_pkg_ipk(name, target_arch, package, **kwargs):
     For the build of the package to be possible, the openwrt_<target_arch>_SDK tree must be
     imported by way of an http_archive directive in //WORKSPACE.
     """
-    tag, count, commit, dirty = STABLE_GIT_VERSION.split("-")
+    tag, count, commit, dirty = STRIPPED_GIT_VERSION.split("-")
     version = (tag + "-" + count + "-" + dirty) if dirty else (tag + "-" + count)
     native.genrule(
         name = name,

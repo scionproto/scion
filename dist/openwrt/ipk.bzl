@@ -1,4 +1,4 @@
-load("//:versioning.bzl", "STABLE_GIT_VERSION")
+load("//:versioning.bzl", "STRIPPED_GIT_VERSION")
 
 # This build file is layered onto the openwrt build tree which is
 # imported as an external dependency.
@@ -26,7 +26,7 @@ def _ipk_impl(ctx):
     in_configsroot = ctx.file.configsroot
     sdk_feeds_file = ctx.file._sdk_feeds_file
 
-    tag, count, commit, dirty = STABLE_GIT_VERSION.split("-")
+    tag, count, commit, dirty = STRIPPED_GIT_VERSION.split("-")
     fileversion = (tag + "-" + count + "-dirty") if dirty else (tag + "-" + count)
 
     out_file = ctx.actions.declare_file(
@@ -108,11 +108,6 @@ ipk_pkg = rule(
     executable = False,
     attrs = {
         "deps": attr.label_list(), # Packages built in sequence. Each depend on the previous one.
-        "_version_file": attr.label(
-            default = "@@//dist:git_version",
-            allow_single_file = True,
-            executable = False,
-        ),
         "_sdk_feeds_file": attr.label(
             default = _get_sdk_feeds_file,
             allow_single_file = True,
