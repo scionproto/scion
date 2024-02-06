@@ -3,8 +3,8 @@ include $(TOPDIR)/rules.mk
 # Name, version and release number
 # The name and version of your package are used to define the variable to point to the build directory of your package: $(PKG_BUILD_DIR)
 PKG_NAME:=%{pkg}
-PKG_VERSION?="unknown"
-PKG_RELEASE?="unknown"
+PKG_VERSION?=unknown
+PKG_RELEASE?=unknown
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -56,9 +56,9 @@ endef
 # Package install instructions; create a directory inside the package to hold our executable, and then copy the executable we built previously into the folder
 define Package/%{pkg}/install
 	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/execs/* $(1)/usr/bin
+	if [ -n "$$$$(ls -A $(PKG_BUILD_DIR)/execs)" ]; then $(INSTALL_BIN) $(PKG_BUILD_DIR)/execs/* $(1)/usr/bin; fi
 	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/initds/* $(1)/etc/init.d
+	if [ -n "$$$$(ls -A $(PKG_BUILD_DIR)/initds)" ]; then $(INSTALL_BIN) $(PKG_BUILD_DIR)/initds/* $(1)/etc/init.d; fi
 	INS_DIR="$$$$(cd $(1) && pwd)"; \
 	cd $(PKG_BUILD_DIR)/configs && \
 	find . -type d -print0 | xargs -0 -I{} $(INSTALL_DIR) $$$${INS_DIR}/etc/scion/{} && \

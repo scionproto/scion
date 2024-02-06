@@ -21,8 +21,10 @@ exports_files(
         "initds/router",
         "initds/gateway",
         "initds/control",
+        "initds/daemon",
+        "initds/dispatcher",
 
-         # Directory itself. Indicates the common root of config files.
+        # Directory itself. Indicates the common root of config files.
         "configs",
 
         # Configuration placeholders. Minimal viable content. Needs to be updated post-install.
@@ -30,9 +32,11 @@ exports_files(
         "configs/topology.json",
         "configs/keys/master0.key",
         "configs/keys/master1.key",
-        "configs/sig.toml",
-        "configs/sig.json",
+        "configs/gateway.toml",
+        "configs/gateway.json",
         "configs/control.toml",
+        "configs/daemon.toml",
+        "configs/dispatcher.toml",
     ],
     visibility = ["//visibility:public"],
 )

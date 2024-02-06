@@ -33,8 +33,8 @@ ipk_pkg(
     initds = ["@@//dist/openwrt:initds/gateway"],
     configsroot = "@@//dist/openwrt:configs",
     configs = [
-        "@@//dist/openwrt:configs/sig.toml",
-        "@@//dist/openwrt:configs/sig.json",
+        "@@//dist/openwrt:configs/gateway.toml",
+        "@@//dist/openwrt:configs/gateway.json",
     ],
     visibility = ["//visibility:public"],
     deps = ["router_ipk"], # Force sequential build; openwrt make isn't reentrant.
@@ -47,11 +47,45 @@ ipk_pkg(
     executables = ["@@//control/cmd/control:control"],
     initds = ["@@//dist/openwrt:initds/control"],
     configsroot = "@@//dist/openwrt:configs",
-    configs = [
-        "@@//dist/openwrt:configs/control.toml",
-    ],
+    configs = ["@@//dist/openwrt:configs/control.toml"],
     visibility = ["//visibility:public"],
     deps = ["gateway_ipk"], # Force sequential build; openwrt make isn't reentrant.
+)
+
+ipk_pkg(
+    name = "dispatcher_ipk",
+    pkg = "dispatcher",
+    target_arch = "x86_64",
+    executables = ["@@//dispatcher/cmd/dispatcher:dispatcher"],
+    initds = ["@@//dist/openwrt:initds/dispatcher"],
+    configsroot = "@@//dist/openwrt:configs",
+    configs = ["@@//dist/openwrt:configs/dispatcher.toml"],
+    visibility = ["//visibility:public"],
+    deps = ["control_ipk"], # Force sequential build; openwrt make isn't reentrant.
+)
+
+ipk_pkg(
+    name = "daemon_ipk",
+    pkg = "daemon",
+    target_arch = "x86_64",
+    executables = ["@@//daemon/cmd/daemon:daemon"],
+    initds = ["@@//dist/openwrt:initds/daemon"],
+    configsroot = "@@//dist/openwrt:configs",
+    configs = ["@@//dist/openwrt:configs/daemon.toml"],
+    visibility = ["//visibility:public"],
+    deps = ["dispatcher_ipk"], # Force sequential build; openwrt make isn't reentrant.
+)
+
+ipk_pkg(
+    name = "tools_ipk",
+    pkg = "tools",
+    target_arch = "x86_64",
+    executables = ["@@//scion/cmd/scion:scion", "@@//scion-pki/cmd/scion-pki:scion-pki"],
+    initds = [],
+    configsroot = "@@//dist/openwrt:configs",
+    configs = [],
+    visibility = ["//visibility:public"],
+    deps = ["daemon_ipk"], # Force sequential build; openwrt make isn't reentrant.
 )
 
 # Assemble a bazel toolchain out of the openwrt sdk binaries.

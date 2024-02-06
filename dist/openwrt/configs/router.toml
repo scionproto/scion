@@ -5,9 +5,6 @@
 id = "br1-ff00_0_110-1"
 config_dir = "/etc/scion/"
 
-[metrics]
-prometheus = "192.168.1.1:30442"
-
 [features]
 
 [api]
@@ -15,3 +12,7 @@ addr = "192.168.1.1:31142"
 
 [log.console]
 level = "info"
+
+# Optionally expose metrics and other local inspection endpoints.
+# [metrics]
+# prometheus = "127.0.0.1:30442"

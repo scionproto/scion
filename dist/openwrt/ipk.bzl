@@ -75,7 +75,6 @@ def _ipk_impl(ctx):
         command = "&&".join([
             r'PATH=/bin:/sbin:/usr/bin:/usr/sbin',
             r'export PATH',
-            r'echo "Doing ${2} at $(date)" >> /tmp/ipk.trace',
             r'execroot_abspath="$(pwd)"',
             r'sdk_abspath="${execroot_abspath}/$(dirname ${1})"',
             r'cp -f ${1} ${sdk_abspath}/feeds.conf',
@@ -90,7 +89,6 @@ def _ipk_impl(ctx):
             r'make package/feeds/scion/${2}/compile EXECROOT=${execroot_abspath}' +
              ' PKG_VERSION="${5}" PKG_RELEASE="${pkgrel}"',
             r'cp bin/packages/${8}/scion/${2}_${5}-${pkgrel}_${8}.ipk ${execroot_abspath}/${4}',
-            r'echo "Done $2 at $(date)" >> /tmp/ipk.trace',
         ]),
     )
 
