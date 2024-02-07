@@ -47,7 +47,11 @@ ipk_pkg(
     executables = ["@@//control/cmd/control:control"],
     initds = ["@@//dist/openwrt:initds/control"],
     configsroot = "@@//dist/openwrt:configs",
-    configs = ["@@//dist/openwrt:configs/control.toml"],
+    configs = [
+    	    "@@//dist/openwrt:configs/control.toml",
+	    "@@//dist/openwrt:configs/crypto/as/README",
+	    "@@//dist/openwrt:configs/certs/README",
+    ],
     visibility = ["//visibility:public"],
     deps = ["gateway_ipk"], # Force sequential build; openwrt make isn't reentrant.
 )

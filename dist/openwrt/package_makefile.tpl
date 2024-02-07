@@ -65,5 +65,12 @@ define Package/%{pkg}/install
 	find . -type f -print0 | xargs -0 -I{} $(INSTALL_CONF) {} $$$${INS_DIR}/etc/scion/{}
 endef
 
+# What needs to happen between installation and first time use.
+define Package/%{pkg}/postinst
+       #! /bin/bash
+       mkdir -p /var/lib/scion
+       return 0
+endef
+
 # This command is always the last, it uses the definitions and variables we give above in order to get the job done
 $(eval $(call BuildPackage,%{pkg}))

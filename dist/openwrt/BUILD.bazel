@@ -35,6 +35,8 @@ exports_files(
         "configs/gateway.toml",
         "configs/gateway.json",
         "configs/control.toml",
+        "configs/certs/README",
+        "configs/crypto/as/README",
         "configs/daemon.toml",
         "configs/dispatcher.toml",
     ],
