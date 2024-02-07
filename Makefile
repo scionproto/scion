@@ -26,6 +26,9 @@ dist-deb:
 		fi \
 	done
 
+dist-openwrt:
+	bazel build //dist:openwrt_all --incompatible_enable_cc_toolchain_resolution
+
 # all: performs the code-generation steps and then builds; the generated code
 # is git controlled, and therefore this is only necessary when changing the
 # sources for the code generation.

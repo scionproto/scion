@@ -72,4 +72,5 @@ platform(
         "@platforms//os:linux",
         ":musl_libc",
     ],
+    visibility = ["//dist:__subpackages__"],
 )

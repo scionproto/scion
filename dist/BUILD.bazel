@@ -1,6 +1,8 @@
 load(":package.bzl", "scion_pkg_deb")
 load(":package.bzl", "scion_pkg_ipk")
 load(":platform.bzl", "multiplatform_filegroup")
+load(":platform.bzl", "DEFAULT_DEB_PLATFORMS")
+load(":platform.bzl", "DEFAULT_OPENWRT_PLATFORMS")
 load(":git_version.bzl", "git_version")
 
 git_version(
@@ -118,6 +120,7 @@ multiplatform_filegroup(
         "router_deb",
         "tools_deb",
     ],
+    target_platforms = DEFAULT_DEB_PLATFORMS,
     visibility = ["//dist:__subpackages__"],
 )
 
@@ -157,7 +160,7 @@ scion_pkg_ipk(
     target_arch = "x86_64",
 )
 
-filegroup(
+multiplatform_filegroup(
     name = "openwrt",
     srcs = [
         "control_ipk",
@@ -167,4 +170,6 @@ filegroup(
         "router_ipk",
         "tools_ipk",
     ],
+    target_platforms = DEFAULT_OPENWRT_PLATFORMS,
+    visibility = ["//dist:__subpackages__"],
 )
