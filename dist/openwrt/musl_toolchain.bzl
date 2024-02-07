@@ -128,11 +128,13 @@ def _impl(ctx):
                 flag_groups = [
                     flag_group(
                         flags = [
+                            # "-no-canonical-prefixes", # != from usual opwnwrt flags
+                            # "-fno-canonical-system-headers", #  != from usual opwnwrt flags
                             "-Wno-builtin-macro-redefined",
-                            "-D_LARGEFILE64_SOURCE", # BW compat
-                            # "-D__DATE__=\"redacted\"",
-                            # "-D__TIMESTAMP__=\"redacted\"",
-                            # "-D__TIME__=\"redacted\"",
+                            "-D_LARGEFILE64_SOURCE", #  != from usual opwnwrt flags. Go needs.
+                            "-D__DATE__=\"redacted\"",
+                            "-D__TIMESTAMP__=\"redacted\"",
+                            "-D__TIME__=\"redacted\"",
                         ],
                     ),
                 ],
@@ -164,11 +166,11 @@ def _impl(ctx):
                         flags = [
                             "-U_FORTIFY_SOURCE",
                             "-D_FORTIFY_SOURCE=1",
-                            # "-fstack-protector",
-                            # "-Wall",
-                            # "-Wunused-but-set-parameter",
-                            # "-Wno-free-nonheap-object",
-                            # "-fno-omit-frame-pointer",
+                            "-fstack-protector",
+                            "-Wall",
+                            "-Wunused-but-set-parameter",
+                            "-Wno-free-nonheap-object",
+                            "-fno-omit-frame-pointer",
                         ],
                     ),
                 ],
@@ -208,8 +210,8 @@ def _impl(ctx):
                             "-g0",
                             "-O2",
                             "-DNDEBUG",
-                            "-ffunction-sections",
-                            "-fdata-sections",
+                            # "-ffunction-sections", # != from openwrt (not useful, not recommended)
+                            # "-fdata-sections", # != from openwrt (not useful, not recommended)
                         ],
                     ),
                 ],
