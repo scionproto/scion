@@ -8,7 +8,22 @@ load("@@//dist/openwrt:musl_toolchain.bzl", "musl_cc_toolchain")
 
 package(default_visibility = ["//visibility:public"])
 
-# Wrap scion binaries into ipk. See rule in ipk.bzl
+# Wrap scion binaries and configs into ipk. See rule in ipk.bzl
+ipk_pkg(
+    name = "common_ipk",
+    pkg = "common",
+    target_arch = "x86_64",
+    executables = [],
+    initds = [],
+    configsroot = "@@//dist/openwrt:configs",
+    configs = [
+        "@@//dist/openwrt:configs/topology.json",
+        "@@//dist/openwrt:configs/keys/master0.key",
+        "@@//dist/openwrt:configs/keys/master1.key",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 ipk_pkg(
     name = "router_ipk",
     pkg = "router",
@@ -18,11 +33,9 @@ ipk_pkg(
     configsroot = "@@//dist/openwrt:configs",
     configs = [
         "@@//dist/openwrt:configs/router.toml",
-        "@@//dist/openwrt:configs/topology.json",
-        "@@//dist/openwrt:configs/keys/master0.key",
-        "@@//dist/openwrt:configs/keys/master1.key",
     ],
     visibility = ["//visibility:public"],
+    deps = ["common_ipk"], # Force sequential build; openwrt make isn't reentrant.
 )
 
 ipk_pkg(

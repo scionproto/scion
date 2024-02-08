@@ -21,11 +21,11 @@ define Package/%{pkg}/description
 endef
 
 # This particular makefile gets expanded at
-# <scion>/<execroot>/external/openwrt_<target>_SDK/scion/scion-router.
+# <scion>/<execroot>/external/openwrt_<target>_SDK/scion/scion-<component>.
 # The %{exec} (and other) paths that we get are relative to <scion>/<execroot>.
 # So, in theory, at make time, that's just ../../../../%{exec}.
 # However theory and practice diverge in an inconvenient way. Make somehow resolves bazel symlinks.
-# As a result, when this make file is used, the current dir is <scion>/external/scion/scion_router.
+# As a result, when this make file is used, the current dir is <scion>/external/scion/scion-<component>.
 # The execroot context has been lost, and with it our link to our %{exec} file. To work around that,
 # we get the execroot absolute path from the command line. Defaulting to the theoretical value.
 EXECROOT?="../../../.."
@@ -63,13 +63,6 @@ define Package/%{pkg}/install
 	cd $(PKG_BUILD_DIR)/configs && \
 	find . -type d -print0 | xargs -0 -I{} $(INSTALL_DIR) $$$${INS_DIR}/etc/scion/{} && \
 	find . -type f -print0 | xargs -0 -I{} $(INSTALL_CONF) {} $$$${INS_DIR}/etc/scion/{}
-endef
-
-# What needs to happen between installation and first time use.
-define Package/%{pkg}/postinst
-       #! /bin/bash
-       mkdir -p /var/lib/scion
-       return 0
 endef
 
 # This command is always the last, it uses the definitions and variables we give above in order to get the job done

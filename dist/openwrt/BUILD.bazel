@@ -28,10 +28,10 @@ exports_files(
         "configs",
 
         # Configuration placeholders. Minimal viable content. Needs to be updated post-install.
-        "configs/router.toml",
         "configs/topology.json",
         "configs/keys/master0.key",
         "configs/keys/master1.key",
+        "configs/router.toml",
         "configs/gateway.toml",
         "configs/gateway.json",
         "configs/control.toml",

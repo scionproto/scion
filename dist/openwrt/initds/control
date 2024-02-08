@@ -9,10 +9,28 @@ APP=scion-control
 SERVICE_WRITE_PID=1
 SERVICE_DAEMONIZE=1
 
+# Openwrt has decided that /var/lib would be just as volatile as /var/run
+# (to spare the life of cheap flash sorage) so we have to stash our stuff
+# somewhere before we take a break.
+persist_dbs() {
+    mkdir -p /usr/lib/$APP
+    mkdir -p /var/lib/$APP
+    cp -a /var/lib/$APP /usr/lib
+}
+
+#...and restore it when we're back.
+load_dbs() {
+    mkdir -p /var/lib/$APP
+    mkdir -p /usr/lib/$APP
+    cp -a /var/lib/$APP /usr/lib
+}
+
 start() {
-        service_start /usr/bin/$APP --config /etc/scion/control.toml
+    load_dbs
+    service_start /usr/bin/$APP --config /etc/scion/control.toml
 }
 
 stop() {
-        service_stop /usr/bin/$APP
+    service_stop /usr/bin/$APP
+    persist_dbs
 }

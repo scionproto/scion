@@ -125,6 +125,12 @@ multiplatform_filegroup(
 )
 
 scion_pkg_ipk(
+    name = "common_ipk",
+    package = "scion-common",
+    target_arch = "x86_64",
+)
+
+scion_pkg_ipk(
     name = "router_ipk",
     package = "scion-router",
     target_arch = "x86_64",
@@ -163,11 +169,12 @@ scion_pkg_ipk(
 multiplatform_filegroup(
     name = "openwrt",
     srcs = [
-        "control_ipk",
-        "daemon_ipk",
-        "dispatcher_ipk",
-        "gateway_ipk",
+        "common_ipk",
         "router_ipk",
+        "gateway_ipk",
+        "control_ipk",
+        "dispatcher_ipk",
+        "daemon_ipk",
         "tools_ipk",
     ],
     target_platforms = DEFAULT_OPENWRT_PLATFORMS,
