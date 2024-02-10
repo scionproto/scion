@@ -73,7 +73,7 @@ def _impl(ctx):
                 flag_groups = [
                     flag_group(
                         flags = [
-                            "-lstdc++",
+                            # "-lstdc++", # Not by default. Adds possibly useless dependency.
                             "-Wl,-z,relro,-z,now",
                             "-no-canonical-prefixes",
                             "-pass-exit-codes",
@@ -408,10 +408,15 @@ def musl_cc_toolchain(target_arch):
         visibility = ["//visibility:public"],
     )
 
+    # For some tools we only need a small subset of files copied to the sandbox...
     [
         native.filegroup(
             name = "musl_" + bin + "_files",
-            srcs = native.glob(["staging_dir/toolchain-" + target_arch + "_gcc-*_musl/bin/" + target_arch + "-linux-musl-" + bin]),
+            srcs = native.glob([
+                "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/bin/" + target_arch + "-openwrt-linux-musl-" + bin,
+                "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/bin/." + target_arch + "-openwrt-linux-musl-" + bin + ".bin",
+                "staging_dir/host/**",
+            ]),
         )
         for bin in [
             "ar",
@@ -428,7 +433,7 @@ def musl_cc_toolchain(target_arch):
         name = target_arch + "_musl",
         all_files = ":all_toolchain_files",
         ar_files = ":musl_ar_files",
-        as_files = ":all_files",
+        as_files = ":all_toolchain_files",
         compiler_files = ":all_toolchain_files",
         coverage_files = ":all_toolchain_files",
         dwp_files = ":empty",

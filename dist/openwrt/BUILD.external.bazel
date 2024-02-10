@@ -98,5 +98,16 @@ ipk_pkg(
     deps = ["daemon_ipk"], # Force sequential build; openwrt make isn't reentrant.
 )
 
+ipk_pkg(
+    name = "coremark_ipk",
+    pkg = "coremark",
+    executables = ["@@//tools/coremark:coremark"],
+    initds = [],
+    configsroot = "@@//dist/openwrt:configs",
+    configs = [],
+    visibility = ["//visibility:public"],
+    deps = ["tools_ipk"], # Force sequential build; openwrt make isn't reentrant.
+)
+
 # Assemble a bazel toolchain out of the openwrt sdk binaries.
 musl_cc_toolchain(target_arch = "x86_64")

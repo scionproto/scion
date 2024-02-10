@@ -159,6 +159,11 @@ scion_pkg_ipk(
     package = "scion-tools",
 )
 
+scion_pkg_ipk(
+    name = "coremark_ipk",
+    package = "scion-coremark",
+)
+
 multiplatform_filegroup(
     name = "openwrt",
     srcs = [
@@ -169,6 +174,7 @@ multiplatform_filegroup(
         "gateway_ipk",
         "router_ipk",
         "tools_ipk",
+        "coremark_ipk",
     ],
     target_platforms = DEFAULT_OPENWRT_PLATFORMS,
     visibility = ["//dist:__subpackages__"],
