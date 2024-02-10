@@ -101,9 +101,9 @@ def _ipk_impl(ctx):
 # is loaded by the BUILD file in that particular tree, we can't refer to it implicitly:
 # "// refers to the tree where this .bzl file is; not the BUILD that loads it."
 def _get_sdk_feeds_file(target_arch):
-    return Label("@@openwrt_" + target_arch + "_SDK//:feeds.conf.default")
+    return Label("@openwrt_" + target_arch + "_SDK//:feeds.conf.default")
 
-ipk_pkg = rule(
+_ipk_pkg = rule(
     implementation = _ipk_impl,
     executable = False,
     attrs = {
@@ -159,3 +159,8 @@ ipk_pkg = rule(
 def _basename(s):
     return s.split("/")[-1]
 
+def ipk_pkg(name, **kwargs):
+    target_arch = select({
+        "@platforms//cpu:x86_64": "x86_64",
+    })
+    _ipk_pkg(name = name, target_arch = target_arch, **kwargs)

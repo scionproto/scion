@@ -12,7 +12,6 @@ package(default_visibility = ["//visibility:public"])
 ipk_pkg(
     name = "common_ipk",
     pkg = "common",
-    target_arch = "x86_64",
     executables = [],
     initds = [],
     configsroot = "@@//dist/openwrt:configs",
@@ -27,7 +26,6 @@ ipk_pkg(
 ipk_pkg(
     name = "router_ipk",
     pkg = "router",
-    target_arch = "x86_64",
     executables = ["@@//router/cmd/router:router"],
     initds = ["@@//dist/openwrt:initds/router"],
     configsroot = "@@//dist/openwrt:configs",
@@ -41,7 +39,6 @@ ipk_pkg(
 ipk_pkg(
     name = "gateway_ipk",
     pkg = "gateway",
-    target_arch = "x86_64",
     executables = ["@@//gateway/cmd/gateway:gateway"],
     initds = ["@@//dist/openwrt:initds/gateway"],
     configsroot = "@@//dist/openwrt:configs",
@@ -56,7 +53,6 @@ ipk_pkg(
 ipk_pkg(
     name = "control_ipk",
     pkg = "control",
-    target_arch = "x86_64",
     executables = ["@@//control/cmd/control:control"],
     initds = ["@@//dist/openwrt:initds/control"],
     configsroot = "@@//dist/openwrt:configs",
@@ -72,7 +68,6 @@ ipk_pkg(
 ipk_pkg(
     name = "dispatcher_ipk",
     pkg = "dispatcher",
-    target_arch = "x86_64",
     executables = ["@@//dispatcher/cmd/dispatcher:dispatcher"],
     initds = ["@@//dist/openwrt:initds/dispatcher"],
     configsroot = "@@//dist/openwrt:configs",
@@ -84,7 +79,6 @@ ipk_pkg(
 ipk_pkg(
     name = "daemon_ipk",
     pkg = "daemon",
-    target_arch = "x86_64",
     executables = ["@@//daemon/cmd/daemon:daemon"],
     initds = ["@@//dist/openwrt:initds/daemon"],
     configsroot = "@@//dist/openwrt:configs",
@@ -96,7 +90,6 @@ ipk_pkg(
 ipk_pkg(
     name = "tools_ipk",
     pkg = "tools",
-    target_arch = "x86_64",
     executables = ["@@//scion/cmd/scion:scion", "@@//scion-pki/cmd/scion-pki:scion-pki"],
     initds = [],
     configsroot = "@@//dist/openwrt:configs",

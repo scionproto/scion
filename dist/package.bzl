@@ -89,7 +89,37 @@ def _scion_pkg_deb_data(name, executables, systemds, configs, **kwargs):
         **kwargs
     )
 
-def scion_pkg_ipk(name, target_arch, package, **kwargs):
+# As stupefying as it may seem, neither genrule nor aspect.file_copy() support
+# configurable output and input. Yet, nothing fundamentally prevents it. See:
+def _impl_copy_file(ctx):
+    in_file = ctx.file.src
+    out_file = ctx.actions.declare_file(ctx.attr.out)
+    ctx.actions.run_shell(
+        inputs = [in_file],
+        outputs = [out_file],
+        progress_message = "Copying %{input} to %{output}",
+        arguments = [
+            in_file.path,
+            out_file.path,
+        ],
+        command = "cp -f $1 $2",
+    )
+    return DefaultInfo(files = depset([out_file]))
+
+copy_file = rule(
+    implementation = _impl_copy_file,
+    attrs = {
+        "src": attr.label(
+            mandatory = True,
+            allow_single_file = True,
+        ),
+        "out": attr.string(
+            mandatory = True,
+        ),
+    },
+)
+
+def scion_pkg_ipk(name, package, **kwargs):
     """
     The package labeled @openwrt_<target_arch>_SDK//:<name> is built and copied to
     <package>__<target_arch>.ipk.
@@ -97,14 +127,22 @@ def scion_pkg_ipk(name, target_arch, package, **kwargs):
     @openwrt_<target_arch>_SDK is an external dependency. Their build file is BUILD.external.bazel.
     For the build of the package to be possible, the openwrt_<target_arch>_SDK tree must be
     imported by way of an http_archive directive in //WORKSPACE.
+
+    target_arch is the specific target cpu as understood by the openwrt toolchain. It is mapped
+    from the cpu as is understood by bazel plaform (as in --platforms=[...]) for which we build.
     """
     tag, count, commit, dirty = STRIPPED_GIT_VERSION.split("-")
     version = (tag + "-" + count + "-" + dirty) if dirty else (tag + "-" + count)
-    native.genrule(
+    copy_file(
         name = name,
-        srcs = ["@openwrt_" + target_arch + "_SDK//:" + name],
-        outs = [package + "_" + version + "_" + target_arch + ".ipk"],
-        cmd = "cp -f $< $@",
+        # The final target and file names cannot be evaluated before action time. So we have to pass
+        # the entire unresolved select expression. There may be ways around this, but just as ugly.
+        src = select({
+            "@platforms//cpu:x86_64": "@openwrt_x86_64_SDK//:" + name,
+        }),
+        out = select ({
+            "@platforms//cpu:x86_64": package + "_" + version + "_x86_64.ipk",
+        }),
         **kwargs,
     )
 

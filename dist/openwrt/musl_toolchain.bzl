@@ -307,6 +307,39 @@ def _impl(ctx):
         ],
     )
 
+    toolchain_include_directories_feature = feature(
+        name = "toolchain_include_directories",
+        enabled = True,
+        flag_sets = [
+            flag_set(
+                actions = [
+                    _ASSEMBLE_ACTION_NAME,
+                    _PREPROCESS_ASSEMBLE_ACTION_NAME,
+                    _LINKSTAMP_COMPILE_ACTION_NAME,
+                    _C_COMPILE_ACTION_NAME,
+                    _CPP_COMPILE_ACTION_NAME,
+                    _CPP_HEADER_PARSING_ACTION_NAME,
+                    _CPP_MODULE_COMPILE_ACTION_NAME,
+                    _CPP_MODULE_CODEGEN_ACTION_NAME,
+                    _LTO_BACKEND_ACTION_NAME,
+                    _CLIF_MATCH_ACTION_NAME,
+                ],
+                flag_groups = [
+                    flag_group(
+                        flags = [
+                            "-isystem",
+                            "external/openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/include",
+                            "-isystem",
+                            "external/openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/usr/include",
+                            "-isystem",
+                            "external/openwrt_x86_64_SDK/staging_dir/toolchain-x86_64_gcc-12.3.0_musl/x86_64/include",
+                        ],
+                    ),
+                ],
+            ),
+        ],
+    )
+
     return cc_common.create_cc_toolchain_config_info(
         ctx = ctx,
         toolchain_identifier = target_cpu + "-musl-toolchain",
@@ -330,6 +363,7 @@ def _impl(ctx):
             user_compile_flags_feature,
             sysroot_feature,
             unfiltered_compile_flags_feature,
+            toolchain_include_directories_feature,
         ],
     )
 
