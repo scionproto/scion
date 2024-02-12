@@ -163,4 +163,10 @@ def ipk_pkg(name, **kwargs):
     target_arch = select({
         "@platforms//cpu:x86_64": "x86_64",
     })
-    _ipk_pkg(name = name, target_arch = target_arch, **kwargs)
+    # _ipk_pkg can only package stuff built for musl_libc. Make sure we don't inadvertantly
+    # try to package stuff built for the local platform (for example) and get obscure error
+    # messages; or worse, apparent success.
+    _ipk_pkg(name = name,
+             target_arch = target_arch,
+             target_compatible_with = ["@@//dist/openwrt:musl_libc"],
+             **kwargs)

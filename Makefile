@@ -29,7 +29,7 @@ dist-deb:
 # For some reason the platform_transition mechanism doesn't forward the target_platform
 # properly to the rest of the build. So, make it explicit.
 dist-openwrt:
-	bazel build //dist:openwrt_all --platforms=//dist/openwrt:openwrt_amd64
+	bazel build //dist:openwrt_all
 
 # all: performs the code-generation steps and then builds; the generated code
 # is git controlled, and therefore this is only necessary when changing the

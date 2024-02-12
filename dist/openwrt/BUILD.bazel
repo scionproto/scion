@@ -48,6 +48,7 @@ exports_files(
 constraint_value(
     name = "musl_libc",
     constraint_setting = "@bazel_tools//tools/cpp:cc_compiler",
+    visibility = ["//visibility:public"],
 )
 
 toolchain(
