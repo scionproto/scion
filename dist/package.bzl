@@ -131,7 +131,8 @@ def scion_pkg_ipk(name, package, **kwargs):
     target_arch is the specific target cpu as understood by the openwrt toolchain. It is mapped
     from the cpu as is understood by bazel plaform (as in --platforms=[...]) for which we build.
     """
-    tag, count, commit, dirty = STRIPPED_GIT_VERSION.split("-")
+    tag, count, commit = STRIPPED_GIT_VERSION.split("-", 2)
+    dirty = "dirty" if commit.contains("-") else ""
     version = (tag + "-" + count + "-" + dirty) if dirty else (tag + "-" + count)
     copy_file(
         name = name,
