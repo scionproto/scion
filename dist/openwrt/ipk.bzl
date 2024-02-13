@@ -19,7 +19,7 @@ load("//:versioning.bzl", "STRIPPED_GIT_VERSION")
 def _ipk_impl(ctx):
     pkg_name = "scion-" + ctx.attr.pkg
     target_arch = ctx.attr.target_arch
-    in_deps = ctx.files.deps # Artificial dep, for serialization.
+    in_deps = ctx.files.deps  # Artificial dep, for serialization.
     in_execs = ctx.files.executables
     in_initds = ctx.files.initds
     in_configs = ctx.files.configs
@@ -31,7 +31,12 @@ def _ipk_impl(ctx):
 
     out_file = ctx.actions.declare_file(
         "bin/packages/%s/scion/%s_%s_%s.ipk" % (
-            target_arch, pkg_name, fileversion, target_arch))
+            target_arch,
+            pkg_name,
+            fileversion,
+            target_arch,
+        ),
+    )
 
     # Generate a Makefile to describe the package. Unfortunately, this goes into <execroot>/bin
     # and does not get copied to <execroot> (something to do with consuming it from a non-sandboxed
@@ -48,7 +53,7 @@ def _ipk_impl(ctx):
             "%{configs}": " ".join([c.path for c in in_configs]),
             "%{configsroot}": in_configsroot.path,
         },
-        is_executable = False, # from our perspective
+        is_executable = False,  # from our perspective
     )
 
     ctx.actions.run_shell(
@@ -73,22 +78,22 @@ def _ipk_impl(ctx):
             target_arch,
         ],
         command = "&&".join([
-            r'PATH=/bin:/sbin:/usr/bin:/usr/sbin',
-            r'export PATH',
+            r"PATH=/bin:/sbin:/usr/bin:/usr/sbin",
+            r"export PATH",
             r'execroot_abspath="$(pwd)"',
             r'sdk_abspath="${execroot_abspath}/$(dirname ${1})"',
-            r'cp -f ${1} ${sdk_abspath}/feeds.conf',
+            r"cp -f ${1} ${sdk_abspath}/feeds.conf",
             r'echo "src-link scion ${sdk_abspath}/scion" >> ${sdk_abspath}/feeds.conf',
-            r'mkdir -p ${sdk_abspath}/scion/${2}',
-            r'cp -f ${execroot_abspath}/${3} ${sdk_abspath}/scion/${2}/Makefile',
-            r'cd ${sdk_abspath}',
-            r'scripts/feeds update scion',
-            r'scripts/feeds install -a -p scion',
-            r'make defconfig',
+            r"mkdir -p ${sdk_abspath}/scion/${2}",
+            r"cp -f ${execroot_abspath}/${3} ${sdk_abspath}/scion/${2}/Makefile",
+            r"cd ${sdk_abspath}",
+            r"scripts/feeds update scion",
+            r"scripts/feeds install -a -p scion",
+            r"make defconfig",
             r'pkgrel=${6}${7+"-dirty$(date +%s)"}',
-            r'make package/feeds/scion/${2}/compile EXECROOT=${execroot_abspath}' +
-             ' PKG_VERSION="${5}" PKG_RELEASE="${pkgrel}"',
-            r'cp bin/packages/${8}/scion/${2}_${5}-${pkgrel}_${8}.ipk ${execroot_abspath}/${4}',
+            r"make package/feeds/scion/${2}/compile EXECROOT=${execroot_abspath}" +
+            ' PKG_VERSION="${5}" PKG_RELEASE="${pkgrel}"',
+            r"cp bin/packages/${8}/scion/${2}_${5}-${pkgrel}_${8}.ipk ${execroot_abspath}/${4}",
         ]),
     )
 
@@ -107,7 +112,7 @@ _ipk_pkg = rule(
     implementation = _ipk_impl,
     executable = False,
     attrs = {
-        "deps": attr.label_list(), # Packages built in sequence. Each depend on the previous one.
+        "deps": attr.label_list(),  # Packages built in sequence. Each depend on the previous one.
         "_sdk_feeds_file": attr.label(
             default = _get_sdk_feeds_file,
             allow_single_file = True,
@@ -163,10 +168,13 @@ def ipk_pkg(name, **kwargs):
     target_arch = select({
         "@platforms//cpu:x86_64": "x86_64",
     })
+
     # _ipk_pkg can only package stuff built for musl_libc. Make sure we don't inadvertantly
     # try to package stuff built for the local platform (for example) and get obscure error
     # messages; or worse, apparent success.
-    _ipk_pkg(name = name,
-             target_arch = target_arch,
-             target_compatible_with = ["@@//dist/openwrt:musl_libc"],
-             **kwargs)
+    _ipk_pkg(
+        name = name,
+        target_arch = target_arch,
+        target_compatible_with = ["@@//dist/openwrt:musl_libc"],
+        **kwargs
+    )

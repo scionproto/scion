@@ -140,12 +140,11 @@ def scion_pkg_ipk(name, package, **kwargs):
         src = select({
             "@platforms//cpu:x86_64": "@openwrt_x86_64_SDK//:" + name,
         }),
-        out = select ({
+        out = select({
             "@platforms//cpu:x86_64": package + "_" + version + "_x86_64.ipk",
         }),
-        **kwargs,
+        **kwargs
     )
 
 def _basename(s):
     return s.split("/")[-1]
-

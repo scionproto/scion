@@ -11,102 +11,105 @@ package(default_visibility = ["//visibility:public"])
 # Wrap scion binaries and configs into ipk. See rule in ipk.bzl
 ipk_pkg(
     name = "common_ipk",
-    pkg = "common",
-    executables = [],
-    initds = [],
-    configsroot = "@@//dist/openwrt:configs",
     configs = [
-        "@@//dist/openwrt:configs/topology.json",
         "@@//dist/openwrt:configs/keys/master0.key",
         "@@//dist/openwrt:configs/keys/master1.key",
+        "@@//dist/openwrt:configs/topology.json",
     ],
+    configsroot = "@@//dist/openwrt:configs",
+    executables = [],
+    initds = [],
+    pkg = "common",
     visibility = ["//visibility:public"],
 )
 
 ipk_pkg(
     name = "router_ipk",
-    pkg = "router",
-    executables = ["@@//router/cmd/router:router"],
-    initds = ["@@//dist/openwrt:initds/router"],
-    configsroot = "@@//dist/openwrt:configs",
     configs = [
         "@@//dist/openwrt:configs/router.toml",
     ],
+    configsroot = "@@//dist/openwrt:configs",
+    executables = ["@@//router/cmd/router:router"],
+    initds = ["@@//dist/openwrt:initds/router"],
+    pkg = "router",
     visibility = ["//visibility:public"],
-    deps = ["common_ipk"], # Force sequential build; openwrt make isn't reentrant.
+    deps = ["common_ipk"],  # Force sequential build; openwrt make isn't reentrant.
 )
 
 ipk_pkg(
     name = "gateway_ipk",
-    pkg = "gateway",
+    configs = [
+        "@@//dist/openwrt:configs/gateway.json",
+        "@@//dist/openwrt:configs/gateway.toml",
+    ],
+    configsroot = "@@//dist/openwrt:configs",
     executables = ["@@//gateway/cmd/gateway:gateway"],
     initds = ["@@//dist/openwrt:initds/gateway"],
-    configsroot = "@@//dist/openwrt:configs",
-    configs = [
-        "@@//dist/openwrt:configs/gateway.toml",
-        "@@//dist/openwrt:configs/gateway.json",
-    ],
+    pkg = "gateway",
     visibility = ["//visibility:public"],
-    deps = ["router_ipk"], # Force sequential build; openwrt make isn't reentrant.
+    deps = ["router_ipk"],  # Force sequential build; openwrt make isn't reentrant.
 )
 
 ipk_pkg(
     name = "control_ipk",
-    pkg = "control",
+    configs = [
+        "@@//dist/openwrt:configs/certs/README",
+        "@@//dist/openwrt:configs/control.toml",
+        "@@//dist/openwrt:configs/crypto/as/README",
+    ],
+    configsroot = "@@//dist/openwrt:configs",
     executables = ["@@//control/cmd/control:control"],
     initds = ["@@//dist/openwrt:initds/control"],
-    configsroot = "@@//dist/openwrt:configs",
-    configs = [
-    	    "@@//dist/openwrt:configs/control.toml",
-	    "@@//dist/openwrt:configs/crypto/as/README",
-	    "@@//dist/openwrt:configs/certs/README",
-    ],
+    pkg = "control",
     visibility = ["//visibility:public"],
-    deps = ["gateway_ipk"], # Force sequential build; openwrt make isn't reentrant.
+    deps = ["gateway_ipk"],  # Force sequential build; openwrt make isn't reentrant.
 )
 
 ipk_pkg(
     name = "dispatcher_ipk",
-    pkg = "dispatcher",
+    configs = ["@@//dist/openwrt:configs/dispatcher.toml"],
+    configsroot = "@@//dist/openwrt:configs",
     executables = ["@@//dispatcher/cmd/dispatcher:dispatcher"],
     initds = ["@@//dist/openwrt:initds/dispatcher"],
-    configsroot = "@@//dist/openwrt:configs",
-    configs = ["@@//dist/openwrt:configs/dispatcher.toml"],
+    pkg = "dispatcher",
     visibility = ["//visibility:public"],
-    deps = ["control_ipk"], # Force sequential build; openwrt make isn't reentrant.
+    deps = ["control_ipk"],  # Force sequential build; openwrt make isn't reentrant.
 )
 
 ipk_pkg(
     name = "daemon_ipk",
-    pkg = "daemon",
+    configs = ["@@//dist/openwrt:configs/daemon.toml"],
+    configsroot = "@@//dist/openwrt:configs",
     executables = ["@@//daemon/cmd/daemon:daemon"],
     initds = ["@@//dist/openwrt:initds/daemon"],
-    configsroot = "@@//dist/openwrt:configs",
-    configs = ["@@//dist/openwrt:configs/daemon.toml"],
+    pkg = "daemon",
     visibility = ["//visibility:public"],
-    deps = ["dispatcher_ipk"], # Force sequential build; openwrt make isn't reentrant.
+    deps = ["dispatcher_ipk"],  # Force sequential build; openwrt make isn't reentrant.
 )
 
 ipk_pkg(
     name = "tools_ipk",
-    pkg = "tools",
-    executables = ["@@//scion/cmd/scion:scion", "@@//scion-pki/cmd/scion-pki:scion-pki"],
-    initds = [],
-    configsroot = "@@//dist/openwrt:configs",
     configs = [],
+    configsroot = "@@//dist/openwrt:configs",
+    executables = [
+        "@@//scion/cmd/scion:scion",
+        "@@//scion-pki/cmd/scion-pki:scion-pki",
+    ],
+    initds = [],
+    pkg = "tools",
     visibility = ["//visibility:public"],
-    deps = ["daemon_ipk"], # Force sequential build; openwrt make isn't reentrant.
+    deps = ["daemon_ipk"],  # Force sequential build; openwrt make isn't reentrant.
 )
 
 ipk_pkg(
     name = "coremark_ipk",
-    pkg = "coremark",
+    configs = [],
+    configsroot = "@@//dist/openwrt:configs",
     executables = ["@@//tools/coremark:coremark"],
     initds = [],
-    configsroot = "@@//dist/openwrt:configs",
-    configs = [],
+    pkg = "coremark",
     visibility = ["//visibility:public"],
-    deps = ["tools_ipk"], # Force sequential build; openwrt make isn't reentrant.
+    deps = ["tools_ipk"],  # Force sequential build; openwrt make isn't reentrant.
 )
 
 # Assemble a bazel toolchain out of the openwrt sdk binaries.

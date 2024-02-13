@@ -3,7 +3,6 @@
 # Merit is his, mistakes are mine, License is Apache.
 
 load("@rules_cc//cc:defs.bzl", "cc_toolchain")
-
 load(
     "@bazel_tools//tools/build_defs/cc:action_names.bzl",
     _ASSEMBLE_ACTION_NAME = "ASSEMBLE_ACTION_NAME",
@@ -24,14 +23,14 @@ load(
 load(
     "@bazel_tools//tools/cpp:cc_toolchain_config_lib.bzl",
     "action_config",
+    "env_entry",
+    "env_set",
     "feature",
     "flag_group",
     "flag_set",
     "tool",
     "tool_path",
     "with_feature_set",
-    "env_set",
-    "env_entry",
 )
 
 all_link_actions = [
@@ -107,7 +106,7 @@ def _impl(ctx):
                     _CLIF_MATCH_ACTION_NAME,
                 ],
                 env_entries = [
-                    env_entry("STAGING_DIR", "external/openwrt_"+ target_arch +"_SDK/staging_dir"),
+                    env_entry("STAGING_DIR", "external/openwrt_" + target_arch + "_SDK/staging_dir"),
                 ],
             ),
         ],
@@ -131,7 +130,7 @@ def _impl(ctx):
                             # "-no-canonical-prefixes", # != from usual opwnwrt flags
                             # "-fno-canonical-system-headers", #  != from usual opwnwrt flags
                             "-Wno-builtin-macro-redefined",
-                            "-D_LARGEFILE64_SOURCE", #  != from usual opwnwrt flags. Go needs.
+                            "-D_LARGEFILE64_SOURCE",  #  != from usual opwnwrt flags. Go needs.
                             "-D__DATE__=\"redacted\"",
                             "-D__TIMESTAMP__=\"redacted\"",
                             "-D__TIME__=\"redacted\"",
@@ -376,7 +375,6 @@ musl_cc_toolchain_config = rule(
 )
 
 def musl_cc_toolchain(target_arch):
-
     # We have to accept that the tools are executed from a sandbox, so we must reference everything
     # they need here. We cannot reference everything. There are directory symlinks which bazel
     # doesn's know how to copy; some of which circular. Fortunately, we can manage without them at
@@ -387,24 +385,23 @@ def musl_cc_toolchain(target_arch):
     native.filegroup(
         name = "all_toolchain_files",
         srcs = native.glob([
-        "staging_dir/host/**",
-        "staging_dir/target*/**",
-        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/bin/**",
-        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/include/**",
-        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/info.mk",
-        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/lib/b*/**",
-        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/lib/ld*/**",
-        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/lib/*.*",
-        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/lib/g*/**",
-        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/libexec/**",
-        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/share/**",
-        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/usr/i*/**",
-        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/" + target_arch + "*/bin/**",
-        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/" + target_arch + "*/include/**",
-        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/" + target_arch + "*/lib/*.*",  # Link. Files NEEDED
-        "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/" + target_arch + "*/sys-include/*", # Link. Files NEEDED.
-    ]),
-
+            "staging_dir/host/**",
+            "staging_dir/target*/**",
+            "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/bin/**",
+            "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/include/**",
+            "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/info.mk",
+            "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/lib/b*/**",
+            "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/lib/ld*/**",
+            "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/lib/*.*",
+            "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/lib/g*/**",
+            "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/libexec/**",
+            "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/share/**",
+            "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/usr/i*/**",
+            "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/" + target_arch + "*/bin/**",
+            "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/" + target_arch + "*/include/**",
+            "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/" + target_arch + "*/lib/*.*",  # Link. Files NEEDED
+            "staging_dir/toolchain-" + target_arch + "_gcc-*_musl/" + target_arch + "*/sys-include/*",  # Link. Files NEEDED.
+        ]),
         visibility = ["//visibility:public"],
     )
 
