@@ -41,7 +41,7 @@ endef
 # Package build instructions; just copy the assets from where they already are.
 define Build/Compile
 	for e in %{execs}; do \
-		cp -f $(EXECROOT)/$$$${e} $(PKG_BUILD_DIR)/execs/scion-$$$$(basename $$$${e}); \
+		cp -f $(EXECROOT)/$$$${e} $(PKG_BUILD_DIR)/execs/scion-$$$$(basename $$$${e} .gunzip); \
 	done
 	for i in %{initds}; do \
 		cp -f $(EXECROOT)/$$$${i} $(PKG_BUILD_DIR)/initds/scion-$$$$(basename $$$${i}); \
