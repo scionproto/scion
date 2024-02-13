@@ -1,10 +1,10 @@
 Tutorial: Freestanding Deployment
 =================================
 
-This document helps you set up a SCION demo configuration, which consists of a stand-alone full-scale SCION environment distributed among five computers. The demo environment contains one SCION Isolation Domain (ISD), with three core ASes and two non-core, leaf ASes.
+This document helps you set up a SCION demo configuration, which consists of a stand-alone full-scale SCION environment distributed among five computers. The demo environment contains one SCION Isolation Domain (:term:`ISD`), with three core :term:`ASes <AS>` and two non-core, leaf ASes.
 
 - If you want to go deep and help develop SCION, use the development environment. See :ref:`setting-up-the-development-environment`.
-- If you want to use SCION in a large environment, use the SCIONLab. For more information, see https://www.scionlab.org/
+- If you want to experiment with SCION in a larger environment, use SCIONLab. For more information, see https://www.scionlab.org/.
 
 Setup
 -----
@@ -81,7 +81,7 @@ OS Setup
 
   Set this up on scion01-scion05.
 
-  .. code-block::
+  .. code-block:: sh
 
      # additions to /etc/hosts
      10.0.1.1 scion01
@@ -91,63 +91,23 @@ OS Setup
      10.0.1.5 scion05
 
 
-- Create required directories.
-
-  These directories are required to store the certificates, keys, and database files.
-  Repeat these commands on scion01-scion05. We assume you'll run the SCION binaries with user `ubuntu`.
-
-  .. code-block::
-
-     sudo mkdir /etc/scion
-     sudo mkdir -p /var/lib/scion
-     sudo chown -R ubuntu:ubuntu /etc/scion/
-     sudo chown -R ubuntu:ubuntu /var/lib/scion/
-     mkdir -p /etc/scion/certs
-     mkdir -p /etc/scion/crypto/as
-     mkdir -p /etc/scion/keys
-
-
 .. _step1:
 
-Software Selection, Download, and Installation
-..............................................
-
-This section guides you through the download and installation of the SCION software.
-
-Software Selection
-~~~~~~~~~~~~~~~~~~
-
-The SCION software is available as a nightly and official release TAR file. We recommend selecting an official release.
-
-- `Latest official release <https://github.com/scionproto/scion/releases/>`_
-- `Latest nightly build <https://buildkite.com/scionproto/scion-nightly/builds/latest/>`_
-
-In this example, we install software with the following release version: *scion_v0.9.1_amd64_linux.tar.gz*
-
-Note that we have to install the software five times: Once per virtual machine we created previously. Proceed as described in the following sections.
-
-Installation from packages is under development (available 2024).
+Software Download and Installation
+..................................
 
 
-Downloading and Installing the SCION Software
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The SCION software can be installed from :ref:`Debian packages <install-debian-packages>`, downloaded from our `latest release <https://github.com/scionproto/scion/releases/>`_.
+Note that we have to install the software five times, on each of the VMs scion01-scion05.
+Execute the following commands on each VM:
 
-With the software selected (from above), it will need to be downloaded and installed on each of the VMs scion01-scion05.
+.. code-block:: sh
 
-To download the software and install it on your virtual machines, execute the following commands in your shell/terminal:
+   cd /tmp/
+   wget https://github.com/scionproto/scion/releases/download/v0.10.0/scion_v0.10.0_deb_amd64.tar.gz
+   tar xfz scion_v0.10.0_deb_amd64.tar.gz
 
-.. note::
-
-   These steps are the same for each virtual machine. So you have to repeat these steps five times, once per virtual machine.
-
-
-.. code-block::
-
-   wget https://github.com/scionproto/scion/releases/download/v0.9.1/scion_v0.9.1_amd64_linux.tar.gz
-
-   mkdir /usr/local/scion
-
-   tar xfz /tmp/scion_v0.9.1_amd64_linux.tar.gz -C /usr/local/scion
+   sudo apt install ./scion*.deb
 
 
 As each virtual machine represents an AS in your demo environment, we will now refer to the VMs as ASes.
@@ -160,31 +120,30 @@ Configuration
 
 To configure your demo SCION environment, perform the following steps.
 
-Step 1 - AS Specific Topology Files
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 1 - AS Topology Files
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For this tutorial, we have provided the AS specific topology files - one per each AS. These files have been generated from the master AS topology file for this tutorial deployment for simplicity.
-Now you have to create a topology file per AS. Sample topology files for each AS in our sample ISD environment are listed below. Click on the file name to download it, then copy the file to the corresponding AS.
+For this tutorial, we have provided the AS :ref:`topology files <common-conf-topo>` - one per each AS. These files represent each AS's local view of the global network topology described above.
 
-- **AS 1 (ffaa:1:1)**: :download:`topology-42-ffaa:1:1.json <deploy/topology1.json>`
-- **AS 2 (ffaa:1:2)**: :download:`topology-42-ffaa:1:2.json <deploy/topology2.json>`
-- **AS 3 (ffaa:1:3)**: :download:`topology-42-ffaa:1:3.json <deploy/topology3.json>`
-- **AS 4 (ffaa:1:4)**: :download:`topology-42-ffaa:1:4.json <deploy/topology4.json>`
-- **AS 5 (ffaa:1:5)**: :download:`topology-42-ffaa:1:5.json <deploy/topology5.json>`
+- **AS 1 (42-ffaa:1:1)**: :download:`topology1.json <deploy/topology1.json>`
+- **AS 2 (42-ffaa:1:2)**: :download:`topology2.json <deploy/topology2.json>`
+- **AS 3 (42-ffaa:1:3)**: :download:`topology3.json <deploy/topology3.json>`
+- **AS 4 (42-ffaa:1:4)**: :download:`topology4.json <deploy/topology4.json>`
+- **AS 5 (42-ffaa:1:5)**: :download:`topology5.json <deploy/topology5.json>`
 
-Download the AS specific topology files onto each host scion01 through scion05.
+Download the AS topology files onto each host scion01 through scion05.
 
 Copy the download link above and use ``wget`` to download appropriate file for each host, installing it as ``/etc/scion/topology.json``.
 On scion01, download the topology1.json file. On scion02, download topology2.json and repeat as such on scion03, scion04, and scion05.
 
-.. code-block::
+.. code-block:: sh
 
    wget LINK_TO_TOPOLOGY.JSON_FILE -O /etc/scion/topology.json
 
 
-The downloaded AS topology file is configured with generic IP address (10.0.0.1-5) for the hosts scion01-05. These IP addresses will need to be changed to the VM IP specific addresses.
+The downloaded AS topology file is configured with generic IP address (10.0.0.1-5) as placeholder for the hosts scion01-05. These IP addresses will need to be changed to the VM IP specific addresses.
 
-.. code-block::
+.. code-block:: sh
 
    sed -i 's/10.0.0.1/YOUR_SCION01_IP/g' /etc/scion/topology.json
    sed -i 's/10.0.0.2/YOUR_SCION02_IP/g' /etc/scion/topology.json
@@ -192,56 +151,125 @@ The downloaded AS topology file is configured with generic IP address (10.0.0.1-
    sed -i 's/10.0.0.4/YOUR_SCION04_IP/g' /etc/scion/topology.json
    sed -i 's/10.0.0.5/YOUR_SCION05_IP/g' /etc/scion/topology.json
 
-
-Repeat the above 5 times - once for each scion host replacing YOUR_SCIONXX_IP with the VM specific IP address.
+Replace ``YOUR_SCIONXX_IP`` with the VM specific IP address and apply on each scion host.
 
 
 Step 2 - Generate the Required Certificates
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The various cryptographic certificates need to be generated for each of the ASes. For this tutorial, we have provided the relevant AS wide topology file which will be used to generate the required keys and certificates.
+The various cryptographic certificates need to be generated for each of the ASes.
+This requires first setting up the :term:`TRC` for this ISD, and then issuing AS-certificates from the :term:`CAs <CA>`.
 
-This topology file describes the setup of the entire ISD environment including all 5 ASes and the associated network links between the ASes. The topology file of an AS specifies all the inter-AS connections to neighboring ASes, and defines the underlay IP/UDP addresses of services and routers running in this AS. (The AS specific topology files used above were generated from this larger AS wide topology file.)
+For the sake of simplicity in this tutorial, we create all the keys and certificates centrally, and distribute the crypto material to the individual ASes.
+In practice, the private keys of ASes are of course never revealed to other entities; the TRC would be created in a :ref:`trc-ceremony` involving representatives of all core ASes. The creation of the AS-certificates would involve a certificate-signing request to the CA.
 
-The topology information is needed by Router and Control Service instances, and also by end-host applications. For more information on the topology files, see :ref:`common-conf-topo`.
+.. admonition:: Challenge
 
-1. First, download the provided AS wide tutorial deployment topology file. This contains a concise representation of the topology drawn above. This topology file is available at: :download:`TutorialDeploymentTopology.topo <deploy/TutorialDeploymentTopology.topo>`. Download the file to the scion01 VM.
+   Instead of following the steps below, act out the full TRC creation ceremony and the creation of AS certificates via certificate signing requests.
+   Refer to the documentation on the :ref:`trc-ceremony`, :ref:`ca-cert` and :ref:`ca-ops-as-certs`.
 
-2. Using the above AS wide tutorial file, the required certificates will be generated and then distributed across all the hosts. To generate all required certificates, execute the following command on the machine where you downloaded the global topology (scion01).
 
-   .. code-block::
 
-      /usr/local/scion/scion-pki testcrypto -t TutorialDeploymentTopology.topo
+#. To generate all required certificates, execute the following script on any machine where ``scion-pki`` is installed (e.g. scion01).
 
-   This will generate all the required keys in a new *gen/* directory for all the SCION ASes.
+   .. code-block:: bash
+
+      #!/bin/bash
+
+      set -euo pipefail
+
+      mkdir /tmp/tutorial-scion-certs && cd /tmp/tutorial-scion-certs
+      mkdir AS{1..5}
+
+      # Create voting and root keys and (self-signed) certificates for core ASes
+      pushd AS1
+      scion-pki certificate create --profile=sensitive-voting <(echo '{"isd_as": "42-ffaa:1:1", "common_name": "42-ffaa:1:1 sensitive voting cert"}') sensitive-voting.pem sensitive-voting.key
+      scion-pki certificate create --profile=regular-voting <(echo '{"isd_as": "42-ffaa:1:1", "common_name": "42-ffaa:1:1 regular voting cert"}') regular-voting.pem regular-voting.key
+      scion-pki certificate create --profile=cp-root <(echo '{"isd_as": "42-ffaa:1:1", "common_name": "42-ffaa:1:1 cp root cert"}') cp-root.pem cp-root.key
+      popd
+
+      pushd AS2
+      scion-pki certificate create --profile=cp-root <(echo '{"isd_as": "42-ffaa:1:2", "common_name": "42-ffaa:1:2 cp root cert"}') cp-root.pem cp-root.key
+      popd
+
+      pushd AS3
+      scion-pki certificate create --profile=sensitive-voting <(echo '{"isd_as": "42-ffaa:1:3", "common_name": "42-ffaa:1:3 sensitive voting cert"}') sensitive-voting.pem sensitive-voting.key
+      scion-pki certificate create --profile=regular-voting <(echo '{"isd_as": "42-ffaa:1:3", "common_name": "42-ffaa:1:3 regular voting cert"}') regular-voting.pem regular-voting.key
+      popd
+
+      # Create the TRC
+      mkdir tmp
+      echo '
+      isd = 42
+      description = "Demo ISD 42"
+      serial_version = 1
+      base_version = 1
+      voting_quorum = 2
+
+      core_ases = ["ffaa:1:1", "ffaa:1:2", "ffaa:1:3"]
+      authoritative_ases = ["ffaa:1:1", "ffaa:1:2", "ffaa:1:3"]
+      cert_files = ["AS1/sensitive-voting.pem", "AS1/regular-voting.pem", "AS1/cp-root.pem", "AS2/cp-root.pem", "AS3/sensitive-voting.pem", "AS3/regular-voting.pem"]
+
+      [validity]
+      not_before = '$(date +%s)'
+      validity = "365d"' \
+      > trc-B1-S1-pld.tmpl
+
+      scion-pki trc payload --out=tmp/ISD42-B1-S1.pld.der --template trc-B1-S1-pld.tmpl
+      rm trc-B1-S1-pld.tmpl
+
+      # Sign and bundle the TRC
+      scion-pki trc sign tmp/ISD42-B1-S1.pld.der AS1/sensitive-voting.{pem,key} --out tmp/ISD42-B1-S1.AS1-sensitive.trc
+      scion-pki trc sign tmp/ISD42-B1-S1.pld.der AS1/regular-voting.{pem,key} --out tmp/ISD42-B1-S1.AS1-regular.trc
+      scion-pki trc sign tmp/ISD42-B1-S1.pld.der AS3/sensitive-voting.{pem,key} --out tmp/ISD42-B1-S1.AS3-sensitive.trc
+      scion-pki trc sign tmp/ISD42-B1-S1.pld.der AS3/regular-voting.{pem,key} --out tmp/ISD42-B1-S1.AS3-regular.trc
+
+      scion-pki trc combine tmp/ISD42-B1-S1.AS{1,3}-{sensitive,regular}.trc --payload tmp/ISD42-B1-S1.pld.der --out ISD42-B1-S1.trc
+      rm tmp -r
+
+      # Create CA key and certificate for issuing ASes
+      pushd AS1
+      scion-pki certificate create --profile=cp-ca <(echo '{"isd_as": "42-ffaa:1:1", "common_name": "42-ffaa:1:1 CA cert"}') cp-ca.pem cp-ca.key --ca cp-root.pem --ca-key cp-root.key
+      popd
+      pushd AS2
+      scion-pki certificate create --profile=cp-ca <(echo '{"isd_as": "42-ffaa:1:2", "common_name": "42-ffaa:1:2 CA cert"}') cp-ca.pem cp-ca.key --ca cp-root.pem --ca-key cp-root.key
+      popd
+
+      # Create AS key and certificate chains
+      scion-pki certificate create --profile=cp-as <(echo '{"isd_as": "42-ffaa:1:1", "common_name": "42-ffaa:1:1 AS cert"}') AS1/cp-as.pem AS1/cp-as.key --ca AS1/cp-ca.pem --ca-key AS1/cp-ca.key --bundle
+      scion-pki certificate create --profile=cp-as <(echo '{"isd_as": "42-ffaa:1:2", "common_name": "42-ffaa:1:2 AS cert"}') AS2/cp-as.pem AS2/cp-as.key --ca AS2/cp-ca.pem --ca-key AS2/cp-ca.key --bundle
+      scion-pki certificate create --profile=cp-as <(echo '{"isd_as": "42-ffaa:1:3", "common_name": "42-ffaa:1:3 AS cert"}') AS3/cp-as.pem AS3/cp-as.key --ca AS1/cp-ca.pem --ca-key AS1/cp-ca.key --bundle
+      scion-pki certificate create --profile=cp-as <(echo '{"isd_as": "42-ffaa:1:4", "common_name": "42-ffaa:1:4 AS cert"}') AS4/cp-as.pem AS4/cp-as.key --ca AS1/cp-ca.pem --ca-key AS1/cp-ca.key --bundle
+      scion-pki certificate create --profile=cp-as <(echo '{"isd_as": "42-ffaa:1:5", "common_name": "42-ffaa:1:5 AS cert"}') AS5/cp-as.pem AS5/cp-as.key --ca AS2/cp-ca.pem --ca-key AS2/cp-ca.key --bundle
+
 
    .. note::
 
-      The step above will generate a new TRC for your ISD and must be done exactly once.  Once you deploy such TRC on your machines, further TRC updates must be sequential. If for any reason you need to reset your setup and you need to deploy a fresh new TRC generated with the script above, then you must first delete the local DB files on your hosts (in `/var/lib/scion/`).
+      The script above will generate a new TRC for your ISD and must be done exactly once. Once you deploy such TRC on your machines, further TRC updates must be sequential. If for any reason you need to reset your setup and you need to deploy a fresh new TRC generated with the script above, then you must first delete the local DB files on your hosts (in `/var/lib/scion/`).
 
 
-3. The just-generated keys in gen/* can now be copied to the respective AS routers from scion01.
+#. The just-generated crypto material in can now be copied to the respective AS VMs.
 
-   - Copy the TRC certificates and cryptographic keys to each of the five AS routers (scion01 - scion05).
+  .. code-block:: bash
 
-     .. code-block::
-
-        for i in {1..5}
-        do
-           scp -r  gen/ASffaa_1_$i/crypto scion0$i:/etc/scion/
-           scp -r  gen/trcs/ISD42-B1-S1.trc  scion0$i:/etc/scion/certs/
-        done
+     cd /tmp/tutorial-scion-certs
+     for i in {1..5}
+     do
+        ssh scion0$i 'mkdir -p /etc/scion/{crypto,certs}'
+        scp ASS$i/* scion0$i:/etc/scion/crypto/
+        scp ISD42-B1-S1.trc scion0$i:/etc/scion/certs/
+     done
 
 
 Step 3 - Generate Forwarding Secret Keys
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Two symmetric keys *master0.key* and *master1.key* are required per AS as the forwarding secret keys. These symmetric keys are used by the AS in the data plane to verify the MACs in the hop fields of a SCION path (header).
+Two symmetric keys *master0.key* and *master1.key* are required per AS as the forwarding :ref:`secret keys <router-conf-keys>`. These symmetric keys are used by the AS in the data plane to verify the MACs in the hop fields of a SCION path (header).
 
-.. code-block::
+.. code-block:: bash
 
-   dd if=/dev/urandom bs=16 count=1 | base64 - > /etc/scion/keys/master0.key
-   dd if=/dev/urandom bs=16 count=1 | base64 - > /etc/scion/keys/master1.key
+   head -c 16 /dev/urandom | base64 - > /etc/scion/keys/master0.key
+   head -c 16 /dev/urandom | base64 - > /etc/scion/keys/master1.key
 
 Repeat the above on each host scion01 - scion05.
 
@@ -249,31 +277,32 @@ Repeat the above on each host scion01 - scion05.
 Step 4 - Service Configuration Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Next, you have to download the service configuration files into the */etc/scion/* directory of each AS host scion01-scion05.
+Next, you have to download the service configuration file for the router and control service into the ``/etc/scion/`` directory of each AS host scion01-scion05.
+Refer to the :ref:`router-conf-toml` and :ref:`control-conf-toml` manuals for details.
+We use default settings for most of the available options, so that the same configuration file can be used in all of the VMs.
 
-The files including their names are listed below. Click on the corresponding link to download the file, then copy it into the */etc/scion/* directory of each AS.
+Download the files, then copy it into the ``/etc/scion/`` directory of each host scion01 - scion05.
 
 - **Border router**: :download:`br.toml <deploy/br.toml>`
 - **Control service**: :download:`cs.toml <deploy/cs.toml>`
-- **Dispatcher**: :download:`dispatcher.toml <deploy/dispatcher.toml>`
-- **SCION daemon**: :download:`sd.toml <deploy/sd.toml>`
-
-Alternatively, the files can be downloaded directly onto each host with ``wget`` into the ``/etc/scion`` directory.
-
-These steps need to be repeated on each host scion01 - scion05.
 
 Step 5 - Start the Services
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Start the services on each of the five ASes. Execute the following commands on every AS:
+Start the SCION services on each of the five ASes.
+Specifically, we start the :doc:`/manuals/router`, :doc:`/manuals/control`, :doc:`/manuals/daemon`
+and :doc:`/manuals/dispatcher` processes, by starting their systemd units. The dispatcher starts
+automatically as dependency of the control service and daemon.
 
-.. code-block::
+Execute the following commands on every AS:
 
-   /usr/local/scion/router --config /etc/scion/br.toml
-   /usr/local/scion/dispatcher --config /etc/scion/dispatcher.toml
-   /usr/local/scion/control --config /etc/scion/cs.toml
-   /usr/local/scion/daemon --config /etc/scion/sd.toml
+.. code-block:: sh
 
+   sudo systemctl start scion-router@br.service
+   sudo systemctl start scion-control@cs.service
+   sudo systemctl start scion-daemon.service
+   # Check that all services are active
+   systemctl status scion-*.service
 
 These steps need to be repeated on each host scion01 - scion05.
 
@@ -285,43 +314,65 @@ Testing the Environment
 
 You can now test your environment. The code block below includes some tests you could perform to check whether your environment works well.
 
-Verify that each host has a SCION address. This can be verified with the "scion address" command as shown below.
+- Verify that each host has a SCION address. This can be verified with the :ref:`scion address <scion_address>` command as shown below.
 
-.. code-block::
+   .. code-block:: none
 
-   scion01$ /usr/local/scion/scion address
-   42-ffaa:1:1,127.0.0.1
+      scion01$ scion address
+      42-ffaa:1:1,127.0.0.1
 
-Verify that each host can ping the other hosts via SCION. This can be done with the "scion ping" command. In the example below, we are pinging between scion01 (AS 42-ffaa:1:1) to scion05 (AS 42-ffaa:1:5). Very that each AS can ping every other AS.
+- Verify that each host can ping the other hosts via SCION. This can be done with the :ref:`scion ping <scion_ping>` command. In the example below, we are pinging between scion01 (AS 42-ffaa:1:1) to scion05 (AS 42-ffaa:1:5). Very that each AS can ping every other AS.
 
-.. code-block::
+   .. code-block:: none
 
-   scion01$ /usr/local/scion/scion ping 42-ffaa:1:5,127.0.0.1 -c 5
-   Resolved local address:
-   127.0.0.1
-   Using path:
-   Hops: [42-ffaa:1:1 3>1 42-ffaa:1:3 4>2 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002
+      scion01$ scion ping 42-ffaa:1:5,127.0.0.1 -c 5
+      Resolved local address:
+      127.0.0.1
+      Using path:
+      Hops: [42-ffaa:1:1 3>1 42-ffaa:1:3 4>2 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002
 
-   PING 42-ffaa:1:5,127.0.0.1:0 pld=0B scion_pkt=112B
-   120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=0 time=0.788ms
-   120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=1 time=3.502ms
-   120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=2 time=3.313ms
-   120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=3 time=3.838ms
-   120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=4 time=3.401ms
+      PING 42-ffaa:1:5,127.0.0.1:0 pld=0B scion_pkt=112B
+      120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=0 time=0.788ms
+      120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=1 time=3.502ms
+      120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=2 time=3.313ms
+      120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=3 time=3.838ms
+      120 bytes from 42-ffaa:1:5,127.0.0.1: scmp_seq=4 time=3.401ms
 
-   --- 42-ffaa:1:5,127.0.0.1 statistics ---
-   5 packets transmitted, 5 received, 0% packet loss, time 5000.718ms
-   rtt min/avg/max/mdev = 0.788/2.968/3.838/1.105 ms
+      --- 42-ffaa:1:5,127.0.0.1 statistics ---
+      5 packets transmitted, 5 received, 0% packet loss, time 5000.718ms
+      rtt min/avg/max/mdev = 0.788/2.968/3.838/1.105 ms
 
-Verify that each host has a full table of available paths to the other ASes. This can be done with the "scion showpaths" command. In the example below, we are displaying the paths between scion01 (AS 42-ffaa:1:1) to scion05 (AS 42-ffaa:1:5). There should be multiple paths through the core ASes.
+- Verify that each host has a full table of available paths to the other ASes. This can be done with the :ref:`scion showpaths <scion_showpaths>` command. In the example below, we are displaying the paths between scion01 (AS 42-ffaa:1:1) to scion05 (AS 42-ffaa:1:5). There should be multiple paths through the core ASes.
 
-.. code-block::
+   .. code-block:: none
 
-   scion01$ /usr/local/scion/scion showpaths 42-ffaa:1:5
-   Available paths to 42-ffaa:1:5
-   3 Hops:
-   [0] Hops: [42-ffaa:1:1 2>1 42-ffaa:1:2 3>1 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
-   [1] Hops: [42-ffaa:1:1 3>1 42-ffaa:1:3 4>2 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
-   4 Hops:
-   [2] Hops: [42-ffaa:1:1 2>1 42-ffaa:1:2 2>2 42-ffaa:1:3 4>2 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
-   [3] Hops: [42-ffaa:1:1 3>1 42-ffaa:1:3 2>2 42-ffaa:1:2 3>1 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
+      scion01$ scion showpaths 42-ffaa:1:5
+      Available paths to 42-ffaa:1:5
+      3 Hops:
+      [0] Hops: [42-ffaa:1:1 2>1 42-ffaa:1:2 3>1 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
+      [1] Hops: [42-ffaa:1:1 3>1 42-ffaa:1:3 4>2 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
+      4 Hops:
+      [2] Hops: [42-ffaa:1:1 2>1 42-ffaa:1:2 2>2 42-ffaa:1:3 4>2 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
+      [3] Hops: [42-ffaa:1:1 3>1 42-ffaa:1:3 2>2 42-ffaa:1:2 3>1 42-ffaa:1:5] MTU: 1472 NextHop: 127.0.0.1:31002 Status: alive LocalIP: 127.0.0.1
+
+
+Conclusion
+----------
+
+Congratulations, you now have a working SCION configuration, which consists of a stand-alone complete SCION environment distributed among five computers. This environment contains one SCION Isolation Domain (ISD), with three core ASes and two non-core, leaf ASes. Being a demo, this configuration has some limitations:
+
+- The certificates are only good for three days unless explicitly renewed using :ref:`scion-pki certificate renew <scion-pki_certificate_renew>`.
+- Each AS contains a single host running all the SCION services. In a typical deployment, these services would run a separate hosts and include multiple border routers.
+- This environment does not include a :doc:`SCION-IP gateway </manuals/gateway>`.
+
+
+.. seealso::
+
+   :doc:`/overview`
+      Introduction to the SCION architecture and core concepts.
+
+   :doc:`/dev/setup`
+      If you would like to learn more and help develop SCION, consider :doc:`setting up the development environment </dev/setup>`.
+
+   `SCIONLab <https://www.scionlab.org/>`_
+      If you would like to experiment with SCION in a larger deployment, consider joining `SCIONLab <https://www.scionlab.org/>`_.
