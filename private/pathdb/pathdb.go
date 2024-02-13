@@ -57,6 +57,8 @@ type ReadWrite interface {
 	// DeleteExpired deletes all paths segments that are expired, using now as a reference.
 	// Returns the number of deleted segments.
 	DeleteExpired(ctx context.Context, now time.Time) (int, error)
+	// DeleteSegment deletes the segment with the given partialID.
+	DeleteSegment(ctx context.Context, partialID string) error
 	// InsertNextQuery inserts or updates the timestamp nextQuery for the given
 	// src-dst pair and policy. Returns true if an insert/update happened or
 	// false if the stored timestamp is already newer.

@@ -68,6 +68,29 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+    delete:
+      tags:
+        - segment
+      summary: Delete the SCION path segment
+      description: Delete the SCION path segment from the service.
+      operationId: delete-segment
+      parameters:
+        - in: path
+          name: segment-id
+          required: true
+          schema:
+            $ref: '#/components/schemas/SegmentID'
+          style: simple
+          explode: false
+      responses:
+        '204':
+          description: SCION path segment deleted
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /segments/{segment-id}/blob:
     get:
       tags:

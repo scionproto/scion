@@ -35,6 +35,7 @@ import (
 
 type SegmentStore interface {
 	Get(context.Context, *query.Params) (query.Results, error)
+	DeleteSegment(ctx context.Context, partialID string) error
 }
 
 type Server struct {
@@ -171,6 +172,27 @@ func (s *Server) GetSegment(w http.ResponseWriter, r *http.Request, segmentID Se
 		})
 		return
 	}
+}
+
+func (s *Server) DeleteSegment(w http.ResponseWriter, r *http.Request, segmentId SegmentID) {
+	if segmentId == "" {
+		Error(w, Problem{
+			Status: http.StatusBadRequest,
+			Title:  "segment ID is required",
+			Type:   api.StringRef(api.BadRequest),
+		})
+		return
+	}
+	if err := s.Segments.DeleteSegment(r.Context(), segmentId); err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to delete segment",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // GetSegmentBlob gets a segment (specified by its ID) as a pem encoded blob.

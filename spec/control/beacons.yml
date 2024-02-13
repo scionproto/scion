@@ -111,6 +111,28 @@ paths:
                 $ref: "#/components/schemas/BeaconGetResponseJson"
         "400":
           $ref: "../common/base.yml#/components/responses/BadRequest"
+    delete:
+      tags:
+      - beacon
+      summary: Delete the SCION beacon
+      description: Delete the SCION beacon with the given segment ID.
+      operationId: delete-beacon
+      parameters:
+      - in: path
+        name: segment-id
+        description: The segment ID of the beacon segment.
+          If the input value is shorter than a segment ID, but matches the prefix of
+          the segment ID of exactly one beacon, then this beacon is deleted.
+        required: true
+        schema:
+          $ref: "../segments/spec.yml#/components/schemas/SegmentID"
+        style: simple
+        explode: false
+      responses:
+        "204":
+          description: Beacon deleted successfully.
+        "400":
+          $ref: "../common/base.yml#/components/responses/BadRequest"
   /beacons/{segment-id}/blob:
     get:
       tags:

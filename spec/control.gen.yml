@@ -84,6 +84,29 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+    delete:
+      tags:
+        - segment
+      summary: Delete the SCION path segment
+      description: Delete the SCION path segment from the service.
+      operationId: delete-segment
+      parameters:
+        - in: path
+          name: segment-id
+          required: true
+          schema:
+            $ref: '#/components/schemas/SegmentID'
+          style: simple
+          explode: false
+      responses:
+        '204':
+          description: SCION path segment deleted
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /segments/{segment-id}/blob:
     get:
       tags:
@@ -551,6 +574,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BeaconGetResponseJson'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    delete:
+      tags:
+        - beacon
+      summary: Delete the SCION beacon
+      description: Delete the SCION beacon with the given segment ID.
+      operationId: delete-beacon
+      parameters:
+        - in: path
+          name: segment-id
+          description: The segment ID of the beacon segment. If the input value is shorter than a segment ID, but matches the prefix of the segment ID of exactly one beacon, then this beacon is deleted.
+          required: true
+          schema:
+            $ref: '#/components/schemas/SegmentID'
+          style: simple
+          explode: false
+      responses:
+        '204':
+          description: Beacon deleted successfully.
         '400':
           $ref: '#/components/responses/BadRequest'
   /beacons/{segment-id}/blob:

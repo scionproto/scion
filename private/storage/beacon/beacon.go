@@ -65,4 +65,6 @@ type Beacon struct {
 type BeaconAPI interface {
 	// GetBeacons returns all beacons matching the parameters specified.
 	GetBeacons(context.Context, *QueryParams) ([]Beacon, error)
+	// DeleteBeacon removes all beacons that have the prefix of the specified segment ID.
+	DeleteBeacon(ctx context.Context, partialID string) error
 }

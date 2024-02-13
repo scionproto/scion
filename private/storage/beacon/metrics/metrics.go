@@ -127,6 +127,15 @@ func (d *db) GetBeacons(
 	return ret, err
 }
 
+func (d *db) DeleteBeacon(ctx context.Context, partialID string) error {
+	var err error
+	d.metrics.Observe(ctx, "delete_beacon", func(ctx context.Context) (string, error) {
+		err = d.db.DeleteBeacon(ctx, partialID)
+		return dblib.ErrToMetricLabel(err), err
+	})
+	return err
+}
+
 func (d *db) Close() error {
 	return d.db.Close()
 }
