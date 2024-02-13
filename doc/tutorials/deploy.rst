@@ -1,7 +1,7 @@
 Tutorial: Freestanding Deployment
 =================================
 
-This document helps you set up a SCION demo configuration, which consists of a stand-alone full-scale SCION environment distributed among five computers. The demo environment contains one SCION Isolation Domain (:term:`ISD`), with three core :term:`ASes <AS>` and two non-core, leaf ASes.
+This document helps you set up a SCION demo configuration, which consists of a stand-alone complete SCION environment distributed among five computers. The demo environment contains one SCION Isolation Domain (:term:`ISD`), with three core :term:`ASes <AS>` and two non-core, leaf ASes.
 
 - If you want to go deep and help develop SCION, use the development environment. See :ref:`setting-up-the-development-environment`.
 - If you want to experiment with SCION in a larger environment, use SCIONLab. For more information, see https://www.scionlab.org/.
@@ -16,15 +16,15 @@ Infrastructure
 
 The sample SCION demo setup consists of one ISD with three core ASes and two non-core, leaf ASes. The following table lists some details of the sample ISD and each AS in it, such as the DNS names, the ISD- and AS numbers, the kind of AS (core or leaf) and the IP addresses. This infrastructure could be virtual machines or bare metal.
 
-======== ==== ========= ======== =========== =============== ====================== ======== ====
-Hostname ISD  AS        Purpose  Notes       IP Address      OS                     Disk     RAM
-======== ==== ========= ======== =========== =============== ====================== ======== ====
-scion01  42   ffaa:1:1  Core     Voting      10.0.1.1        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
-scion02  42   ffaa:1:2  Core     Non-Voting  10.0.1.2        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
-scion03  42   ffaa:1:3  Core     Non-Voting  10.0.1.3        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
-scion04  42   ffaa:1:4  Leaf                 10.0.1.4        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
-scion05  42   ffaa:1:5  Leaf                 10.0.1.5        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
-======== ==== ========= ======== =========== =============== ====================== ======== ====
+======== ==== ========= ======== =============== =============== ====================== ======== ====
+Hostname ISD  AS        Purpose  Notes           IP Address      OS                     Disk     RAM
+======== ==== ========= ======== =============== =============== ====================== ======== ====
+scion01  42   ffaa:1:1  Core     Voting, CA      10.0.1.1        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
+scion02  42   ffaa:1:2  Core     Non-Voting, CA  10.0.1.2        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
+scion03  42   ffaa:1:3  Core     Voting          10.0.1.3        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
+scion04  42   ffaa:1:4  Leaf                     10.0.1.4        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
+scion05  42   ffaa:1:5  Leaf                     10.0.1.5        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
+======== ==== ========= ======== =============== =============== ====================== ======== ====
 
 *Table 1: Required Infrastructure*
 
