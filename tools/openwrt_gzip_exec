@@ -3,5 +3,5 @@
 # If you change the length of this file, be sure to update the tail arguments.
 tmpfile=/tmp/$(basename $0)_$$
 (sleep 3; rm $tmpfile)&
-tail -n+8 $0 | gzip -d > $tmpfile && chmod 755 $tmpfile && exec -a $0 $tmpfile
+tail -n+8 $0 | gzip -d > $tmpfile && chmod 755 $tmpfile && exec -a $0 $tmpfile $@
 exit 1
