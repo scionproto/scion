@@ -26,7 +26,7 @@ def _ipk_impl(ctx):
     in_configsroot = ctx.file.configsroot
     sdk_feeds_file = ctx.file._sdk_feeds_file
     tag, count, commit = STRIPPED_GIT_VERSION.split("-", 2)
-    dirty = "dirty" if commit.contains("-") else ""
+    dirty = "dirty" if "-" in commit else ""
     fileversion = (tag + "-" + count + "-dirty") if dirty else (tag + "-" + count)
 
     out_file = ctx.actions.declare_file(

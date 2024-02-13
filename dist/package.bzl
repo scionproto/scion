@@ -132,7 +132,7 @@ def scion_pkg_ipk(name, package, **kwargs):
     from the cpu as is understood by bazel plaform (as in --platforms=[...]) for which we build.
     """
     tag, count, commit = STRIPPED_GIT_VERSION.split("-", 2)
-    dirty = "dirty" if commit.contains("-") else ""
+    dirty = "dirty" if "-" in commit else ""
     version = (tag + "-" + count + "-" + dirty) if dirty else (tag + "-" + count)
     copy_file(
         name = name,
