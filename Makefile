@@ -26,8 +26,6 @@ dist-deb:
 		fi \
 	done
 
-# For some reason the platform_transition mechanism doesn't forward the target_platform
-# properly to the rest of the build. So, make it explicit.
 dist-openwrt:
 	bazel build //dist:openwrt_all
 
