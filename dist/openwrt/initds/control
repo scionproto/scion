@@ -8,7 +8,6 @@ STOP=0
 APP=scion-control
 SERVICE_WRITE_PID=1
 SERVICE_DAEMONIZE=1
-USE_PROCD=1
 
 # Openwrt has decided that /var/lib would be just as volatile as /var/run
 # (to spare the life of cheap flash sorage) so we have to stash our stuff
