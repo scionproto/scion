@@ -28,6 +28,10 @@ dist-deb:
 
 dist-openwrt:
 	bazel build //dist:openwrt_all
+	mkdir -p openwrt; rm -rf openwrt/*
+	@ for f in `bazel cquery //dist:openwrt_all --output=files 2>/dev/null`; do \
+		cp -v "$$f" openwrt; \
+	done
 
 # all: performs the code-generation steps and then builds; the generated code
 # is git controlled, and therefore this is only necessary when changing the
