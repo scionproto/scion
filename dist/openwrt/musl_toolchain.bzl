@@ -1,6 +1,7 @@
 # Adapted from illicitonion's unreleased work:
 # https://github.com/bazel-contrib/musl-toolchain
-# Merit is his, mistakes are mine, License is Apache.
+# Merit is his, mistakes are ours, License is
+# in LICENSE.musl_toolchain.
 
 load("@rules_cc//cc:defs.bzl", "cc_toolchain")
 load(
