@@ -13,3 +13,18 @@ sh_test(
         "integration",
     ],
 )
+
+sh_test(
+    name = "openwrt_test",
+    srcs = ["openwrt_test.sh"],
+    data = [
+        "//dist:openwrt_all",
+    ],
+    env = {
+        "SCION_OPENWRT_PACKAGES": "$(locations //dist:openwrt_all)",
+    },
+    tags = [
+        "exclusive",
+        "integration",
+    ],
+)
