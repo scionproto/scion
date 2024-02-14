@@ -7,16 +7,18 @@ def scion_go_binary(name, visibility, *args, **kwargs):
         "github.com/scionproto/scion/private/env.StartupVersion": "{STABLE_GIT_VERSION}",
     })
 
-    go_binary(x_defs = x_defs,
-              name = name,
-              visibility = visibility,
-              *args,
-              **kwargs)
+    go_binary(
+        x_defs = x_defs,
+        name = name,
+        visibility = visibility,
+        *args,
+        **kwargs
+    )
 
     native.genrule(
         name = name + "_compressed",
         srcs = [name, "//tools:openwrt_gzip_exec"],
         outs = [name + ".gunzip"],
         cmd = "(cat $(location //tools:openwrt_gzip_exec) && gzip < $(location " + name + ")) > $@",
-        visibility = visibility
+        visibility = visibility,
     )
