@@ -120,9 +120,11 @@ paths:
       parameters:
       - in: path
         name: segment-id
-        description: The segment ID of the beacon segment.
-          If the input value is shorter than a segment ID, but matches the prefix of
-          the segment ID of exactly one beacon, then this beacon is deleted.
+        description: >
+          The segment ID of the beacon segment. If the input value is shorter
+          than a segment ID, it is considered a prefix and all matching beacons
+          are deleted. This is useful for deleting beacons based on their
+          logging ID, which is the 12 byte prefix of the actual segment ID.
         required: true
         schema:
           $ref: "../segments/spec.yml#/components/schemas/SegmentID"
@@ -133,6 +135,8 @@ paths:
           description: Beacon deleted successfully.
         "400":
           $ref: "../common/base.yml#/components/responses/BadRequest"
+        "500":
+          $ref: "../common/base.yml#/components/responses/Internal"
   /beacons/{segment-id}/blob:
     get:
       tags:

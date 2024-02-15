@@ -88,11 +88,13 @@ paths:
       tags:
         - segment
       summary: Delete the SCION path segment
-      description: Delete the SCION path segment from the service.
+      description: Delete the SCION path segment with the given segment ID.
       operationId: delete-segment
       parameters:
         - in: path
           name: segment-id
+          description: |
+            The segment ID of the path segment. If the input value is shorter than a segment ID, it is considered a prefix and all matching path segments are deleted. This is useful for deleting path segments based on their logging ID, which is the 12 byte prefix of the actual segment ID.
           required: true
           schema:
             $ref: '#/components/schemas/SegmentID'
@@ -103,6 +105,12 @@ paths:
           description: SCION path segment deleted
         '400':
           description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          description: Internal Server Error
           content:
             application/problem+json:
               schema:
@@ -585,7 +593,8 @@ paths:
       parameters:
         - in: path
           name: segment-id
-          description: The segment ID of the beacon segment. If the input value is shorter than a segment ID, but matches the prefix of the segment ID of exactly one beacon, then this beacon is deleted.
+          description: |
+            The segment ID of the beacon segment. If the input value is shorter than a segment ID, it is considered a prefix and all matching beacons are deleted. This is useful for deleting beacons based on their logging ID, which is the 12 byte prefix of the actual segment ID.
           required: true
           schema:
             $ref: '#/components/schemas/SegmentID'
@@ -596,6 +605,8 @@ paths:
           description: Beacon deleted successfully.
         '400':
           $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/Internal'
   /beacons/{segment-id}/blob:
     get:
       tags:
@@ -1033,6 +1044,12 @@ components:
   responses:
     BadRequest:
       description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StandardError'
+    Internal:
+      description: Internal Server Error
       content:
         application/json:
           schema:

@@ -1185,6 +1185,7 @@ type DeleteSegmentResponse struct {
 	Body                      []byte
 	HTTPResponse              *http.Response
 	ApplicationproblemJSON400 *Problem
+	ApplicationproblemJSON500 *Problem
 }
 
 // Status returns HTTPResponse.Status
@@ -1713,6 +1714,13 @@ func ParseDeleteSegmentResponse(rsp *http.Response) (*DeleteSegmentResponse, err
 			return nil, err
 		}
 		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON500 = &dest
 
 	}
 

@@ -242,13 +242,11 @@ func (e *executor) GetBeacons(
 }
 
 func (e *executor) DeleteBeacon(ctx context.Context, partialID string) error {
-	e.Lock()
-	defer e.Unlock()
-	_, err := e.db.ExecContext(ctx, "DELETE FROM Beacons WHERE hex(SegID) LIKE ?", partialID+"%")
-	if err != nil {
-		return db.NewWriteError("delete beacon", err)
-	}
-	return nil
+	_, err := e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
+		delStmt := `DELETE FROM Beacons WHERE hex(SegID) LIKE ?`
+		return tx.ExecContext(ctx, delStmt, partialID+"%")
+	})
+	return err
 }
 
 func (e *executor) buildQuery(params *storagebeacon.QueryParams) (string, []interface{}) {

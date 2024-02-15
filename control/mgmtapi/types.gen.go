@@ -252,6 +252,9 @@ type Validity struct {
 // BadRequest defines model for BadRequest.
 type BadRequest = StandardError
 
+// Internal defines model for Internal.
+type Internal = StandardError
+
 // GetBeaconsParams defines parameters for GetBeacons.
 type GetBeaconsParams struct {
 	// StartIsdAs Start ISD-AS of beacons. The address can include wildcards (0) both for the ISD and AS identifier.
