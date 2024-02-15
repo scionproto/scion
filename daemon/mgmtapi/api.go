@@ -68,6 +68,10 @@ func (s *Server) GetSegment(w http.ResponseWriter, r *http.Request, id SegmentID
 	s.SegmentsServer.GetSegment(w, r, id)
 }
 
+func (s *Server) DeleteSegment(w http.ResponseWriter, r *http.Request, id SegmentID) {
+	s.SegmentsServer.DeleteSegment(w, r, id)
+}
+
 func (s *Server) GetSegmentBlob(w http.ResponseWriter, r *http.Request, id SegmentID) {
 	s.SegmentsServer.GetSegmentBlob(w, r, id)
 }

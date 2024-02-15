@@ -69,6 +69,40 @@ paths:
             application/problem+json:
               schema:
                 $ref:  "../common/base.yml#/components/schemas/Problem"
+    delete:
+      tags:
+      - segment
+      summary: Delete the SCION path segment
+      description: Delete the SCION path segment with the given segment ID.
+      operationId: delete-segment
+      parameters:
+      - in: path
+        name: segment-id
+        description: >
+          The segment ID of the path segment. If the input value is shorter than
+          a segment ID, it is considered a prefix and all matching path segments
+          are deleted. This is useful for deleting path segments based on their
+          logging ID, which is the 12 byte prefix of the actual segment ID.
+        required: true
+        schema:
+          $ref: "#/components/schemas/SegmentID"
+        style: simple
+        explode: false
+      responses:
+        "204":
+          description: SCION path segment deleted
+        "400":
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref:  "../common/base.yml#/components/schemas/Problem"
+        "500":
+          description: Internal Server Error
+          content:
+            application/problem+json:
+              schema:
+                $ref:  "../common/base.yml#/components/schemas/Problem"
   /segments/{segment-id}/blob:
     get:
       tags:

@@ -241,6 +241,14 @@ func (e *executor) GetBeacons(
 	return res, nil
 }
 
+func (e *executor) DeleteBeacon(ctx context.Context, partialID string) error {
+	_, err := e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
+		delStmt := `DELETE FROM Beacons WHERE hex(SegID) LIKE ?`
+		return tx.ExecContext(ctx, delStmt, partialID+"%")
+	})
+	return err
+}
+
 func (e *executor) buildQuery(params *storagebeacon.QueryParams) (string, []interface{}) {
 	var args []interface{}
 	query := "SELECT DISTINCT RowID, LastUpdated, Usage, Beacon, InIntfID FROM Beacons"
