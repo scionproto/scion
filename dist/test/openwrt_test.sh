@@ -54,8 +54,8 @@ docker exec -i openwrt-x86_64 /bin/ash <<'EOF'
 
     # Start with the easy stuff. Install and run coremark.
     opkg install scion-coremark_*_${arch}.ipk
-    #    /usr/bin/scion-coremark > /tmp/coremark.out
-    #	 cat /tmp/coremark.out
+    /usr/bin/scion-coremark > /tmp/coremark.out
+    cat /tmp/coremark.out
 
     # Now the real stuff...
 
