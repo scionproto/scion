@@ -70,7 +70,7 @@ ASes:
     "1-ff00:0:1": {core: true, voting: true, issuing: true, authoritative: true}
     "1-ff00:0:a": {cert_issuer: "1-ff00:0:1"}
 INNER_EOF
-    scion-scion-pki testcrypto --topo /tmp/testcrypto_topo
+    scion-pki testcrypto --topo /tmp/testcrypto_topo
     cp -r gen/ASff00_0_a/* /etc/scion/
     cp gen/ISD1/trcs/* /etc/scion/certs/
     cd /openwrt
@@ -93,7 +93,7 @@ INNER_EOF
     pgrep scion-daemon
 
     # ...and now we can test the scion tool by inspecting our local SCION address.
-    scion-scion address
+    scion address
 
     # Check that scion-gateway can install and start
     opkg install scion-gateway_*_${arch}.ipk

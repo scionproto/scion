@@ -25,7 +25,7 @@ endef
 # The %{exec} (and other) paths that we get are relative to <scion>/<execroot>.
 # So, in theory, at make time, that's just ../../../../%{exec}.
 # However theory and practice diverge in an inconvenient way. Make somehow resolves bazel symlinks.
-# As a result, when this make file is used, the current dir is <scion>/external/scion/scion-<component>.
+# As a result, when this make file is used, the current dir is <scion>/external/openwrt_<target>_SDK/scion/scion-<component>.
 # The execroot context has been lost, and with it our link to our %{exec} file. To work around that,
 # we get the execroot absolute path from the command line. Defaulting to the theoretical value.
 EXECROOT?="../../../.."
@@ -39,12 +39,18 @@ define Build/Prepare
 endef
 
 # Package build instructions; just copy the assets from where they already are.
+# For files that go into a shared directory, such as /usr/bin/ or /etc/init.d, make sure
+# that they are prefixed with "scion-". Remove any redundant scion-scion as needed.
 define Build/Compile
 	for e in %{execs}; do \
-		cp -f $(EXECROOT)/$$$${e} $(PKG_BUILD_DIR)/execs/scion-$$$$(basename $$$${e} .gunzip); \
+	      	bname="scion-$$$$(basename $$$${e} .gunzip)"; \
+		sname=$$$${bname/scion-scion/scion}; \
+		cp -f $(EXECROOT)/$$$${e} $(PKG_BUILD_DIR)/execs/$$$${sname}; \
 	done
 	for i in %{initds}; do \
-		cp -f $(EXECROOT)/$$$${i} $(PKG_BUILD_DIR)/initds/scion-$$$$(basename $$$${i}); \
+	      	bname="scion-$$$$(basename $$$${i})"; \
+		sname=$$$${bname/scion-scion/scion}; \
+		cp -f $(EXECROOT)/$$$${i} $(PKG_BUILD_DIR)/initds/$$$${sname}; \
 	done
 	ABS_BUILD_DIR="$$$$(cd $(PKG_BUILD_DIR) && pwd)"; \
 	cd $(EXECROOT)/%{configsroot} && \
