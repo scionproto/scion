@@ -1,24 +1,24 @@
 [general]
-id = "cs1-ff00_0_110-1"
+id = "cs-1"
 config_dir = "/etc/scion"
 reconnect_to_dispatcher = true
 
 [trust_db]
-connection = "/var/lib/scion-control/cs1-ff00_0_110-1.trust.db"
+connection = "/var/lib/scion-control/cs-1.trust.db"
 
 [beacon_db]
-connection = "/var/lib/scion-control/cs1-ff00_0_110-1.beacon.db"
+connection = "/var/lib/scion-control/cs-1.beacon.db"
 
 [path_db]
-connection = "/var/lib/scion-control/cs1-ff00_0_110-1.path.db"
+connection = "/var/lib/scion-control/cs-1.path.db"
 
 # [tracing]
 # enabled = true
 # debug = true
-# agent = "172.17.0.1:6831"
+# agent = "127.0.0.1:6831"
 
 [api]
-addr = "192.168.1.1:31152"
+addr = "127.0.0.1:30152"
 
 [features]
 

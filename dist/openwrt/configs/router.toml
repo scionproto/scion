@@ -2,13 +2,13 @@
 # after installation.
 
 [general]
-id = "br1-ff00_0_110-1"
+id = "br-1"
 config_dir = "/etc/scion/"
 
 [features]
 
 [api]
-addr = "192.168.1.1:31142"
+addr = "127.0.0.1:30142"
 
 [log.console]
 level = "info"

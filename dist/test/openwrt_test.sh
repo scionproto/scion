@@ -19,8 +19,8 @@ DEBUG=${DEBUG:-0}
 set +x
 
 function cleanup {
-    docker container rm -f openwrt-x86_64 || true
-    docker image rm --no-prune openwrt-x86_64 || true
+    docker container rm -f openwrt-x86_64 >/dev/null 2>&1 || true
+    docker image rm --no-prune openwrt-x86_64 >/dev/null 2>&1 || true
 }
 cleanup
 
@@ -52,103 +52,55 @@ docker exec -i openwrt-x86_64 /bin/ash <<'EOF'
     	ls /openwrt/scion-${c}_*_${arch}.ipk > /dev/null
     done
 
-    # Install the common package. It's just basic config files.
-    opkg install scion-common_*_${arch}.ipk
-
-    # Continue with the easy stuff. Run coremark.
+    # Start with the easy stuff. Install and run coremark.
     opkg install scion-coremark_*_${arch}.ipk
     #    /usr/bin/scion-coremark > /tmp/coremark.out
     #	 cat /tmp/coremark.out
 
     # Now the real stuff...
 
-    # router
-    opkg install scion-router_*_${arch}.ipk
-    cat > /etc/scion/router.toml <<INNER_EOF
-        [general]
-        id = "br-1"
-        config_dir = "/etc/scion"
-INNER_EOF
-    cat > /etc/scion/topology.json <<INNER_EOF
-        {
-            "isd_as": "1-ff00:0:a",
-            "mtu": 1472,
-            "border_routers": {
-                "br-1": {
-                    "internal_addr": "127.0.0.1:30001"
-                }
-            },
-            "control_service": {
-                "cs-1": {
-                    "addr": "127.0.0.1:31002"
-                }
-            }
-        }
-INNER_EOF
-    # mkdir -p /etc/scion/keys (dummy keys come with the install)
-    # echo -n 0123456789abcdef | base64 | tee /etc/scion/keys/master{0,1}.key
-    service scion-router enable
-    service scion-router start
-    sleep 1
-    pgrep scion-router >/dev/null 2>&1
+    # Install the common package. It's just basic config files.
+    opkg install scion-common_*_${arch}.ipk
 
-    # dispatcher
-    opkg install scion-dispatcher_*_${arch}.ipk
-    service scion-dispatcher enable
-    service scion-dispatcher start
-    sleep 1
-    pgrep 'scion-dispatcher' >/dev/null 2>&1
-
-    # tools
-    # Install first so we can directly use them to generate some testcrypto
-    # This has a depency on the daemon package
+    # Install the tools and generate the testcrypto certs.
     opkg install scion-tools_*_${arch}.ipk
-    opkg install scion-daemon_*_${arch}.ipk
     cd /tmp
-    scion-scion-pki testcrypto --topo <(cat << INNER_EOF
+    cat > testcrypto_topo << INNER_EOF
 ASes:
     "1-ff00:0:1": {core: true, voting: true, issuing: true, authoritative: true}
     "1-ff00:0:a": {cert_issuer: "1-ff00:0:1"}
 INNER_EOF
-    )
+    scion-scion-pki testcrypto --topo /tmp/testcrypto_topo
     cp -r gen/ASff00_0_a/* /etc/scion/
     cp gen/ISD1/trcs/* /etc/scion/certs/
     cd /openwrt
-    # ... (to be continued)
 
-    # control
+    # Install and start some of the services.
+    opkg install scion-dispatcher_*_${arch}.ipk
+    opkg install scion-router_*_${arch}.ipk
     opkg install scion-control*_${arch}.ipk
-    cat > /etc/scion/control.toml << INNER_EOF
-        general.id = "cs-1"
-        general.config_dir = "/etc/scion"
-        trust_db.connection = "/var/lib/scion/cs-1.trust.db"
-        beacon_db.connection = "/var/lib/scion/cs-1.beacon.db"
-        path_db.connection = "/var/lib/scion/cs-1.path.db"
-INNER_EOF
+    opkg install scion-daemon_*_${arch}.ipk
+    service scion-dispatcher enable
+    service scion-router enable
     service scion-control enable
-    service scion-control start
-    sleep 1
-    pgrep 'scion-control' >/dev/null 2>&1
-    service scion-control stop
+    service scion-daemon enable
 
-    # daemon
-    # service scion-daemon enable
-    # service scion-daemon start
-    # sleep 3
-    # For some reason, this one is already running... TBFO
-    pgrep 'scion-daemon' >/dev/null 2>&1
+    # Give them some time to start and some time to crash
+    sleep 3
+    pgrep scion-dispatcher
+    pgrep scion-router
+    pgrep scion-control
+    pgrep scion-daemon
 
-    # (continuing) ... tools 
-    # now with the daemon running, we can test `scion` e.g. to inspect our local SCION address
+    # ...and now we can test the scion tool by inspecting our local SCION address.
     scion-scion address
 
-    # scion-gateway
+    # Check that scion-gateway can install and start
     opkg install scion-gateway_*_${arch}.ipk
     service scion-gateway enable
-    service scion-gateway start
-    sleep 1
+    sleep 3
     # Note: this starts even if the default sig.json is not a valid configuration
-    pgrep 'scion-gateway' >/dev/null 2>&1
+    pgrep scion-gateway
 
     # Note: the gateway will only create a tunnel device once a session with a
     # neighbor is up. This is too complicated to arrange in this test.
