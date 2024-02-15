@@ -2,6 +2,8 @@
 Installation
 ************
 
+.. _install-debian-packages:
+
 Debian packages
 ===============
 
