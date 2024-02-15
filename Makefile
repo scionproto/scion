@@ -1,4 +1,10 @@
-.PHONY: all build build-dev dist-deb antlr clean docker-images gazelle go.mod licenses mocks protobuf scion-topo test test-integration write_all_source_files
+.PHONY: all build build-dev dist-deb antlr clean docker-images gazelle go.mod licenses mocks protobuf scion-topo test test-integration write_all_source_files update_version
+
+# Update_version causes versioning.bzl to get updated. Any bazel build or bazel_run will do.
+# It needs to be done explicitly only for artefacts that need to carry the most up-to-date version.
+# The version can be wrong only for the very first call to bazel build/run after a commit.
+update_version:
+	bazel build mgmtapi_bundle_doc
 
 build-dev:
 	rm -f bin/*
@@ -11,7 +17,7 @@ build:
 	bazel build //:scion
 	tar -kxf bazel-bin/scion.tar -C bin
 
-dist-deb:
+dist-deb: update_version
 	bazel build //dist:deb_all
 	mkdir -p deb; rm -rf deb/*
 	@ # Bazel cannot include the version in the filename, if we want to set it automatically from the git tag.
@@ -26,7 +32,7 @@ dist-deb:
 		fi \
 	done
 
-dist-openwrt:
+dist-openwrt: update_version
 	bazel build //dist:openwrt_all
 	mkdir -p openwrt; rm -rf openwrt/*
 	@ for f in `bazel cquery //dist:openwrt_all --output=files 2>/dev/null`; do \
