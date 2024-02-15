@@ -2,6 +2,6 @@
 
 # If you change the length of this file, be sure to update the tail arguments.
 tmpfile=/tmp/$(basename $0)_$$
-(tail -n+8 $0 | gzip -d > $tmpfile && chmod 755 $tmpfile && exec -a $0 $tmpfile $@) &
-pid=$!; sleep 3; rm $tmpfile; kill -0 $pid >/dev/null 2>&1 || wait $pid
+( sh -c "sleep 3 && rm $tmpfile"& )&  # The inner subshell becomes orphaned so it is reaped by init.
+tail -n+8 $0 | gzip -d > $tmpfile && chmod 755 $tmpfile && exec -a $0 $tmpfile $@
 exit $?
