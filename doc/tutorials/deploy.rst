@@ -19,11 +19,11 @@ The sample SCION demo setup consists of one ISD with three core ASes and two non
 ======== ==== ========= ======== =============== =============== ====================== ======== ====
 Hostname ISD  AS        Purpose  Notes           IP Address      OS                     Disk     RAM
 ======== ==== ========= ======== =============== =============== ====================== ======== ====
-scion01  42   ffaa:1:1  Core     Voting, CA      10.0.1.1        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
-scion02  42   ffaa:1:2  Core     Non-Voting, CA  10.0.1.2        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
-scion03  42   ffaa:1:3  Core     Voting          10.0.1.3        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
-scion04  42   ffaa:1:4  Leaf                     10.0.1.4        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
-scion05  42   ffaa:1:5  Leaf                     10.0.1.5        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
+scion01  42   ffaa:1:1  Core     Voting, CA      10.0.0.1        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
+scion02  42   ffaa:1:2  Core     Non-Voting, CA  10.0.0.2        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
+scion03  42   ffaa:1:3  Core     Voting          10.0.0.3        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
+scion04  42   ffaa:1:4  Leaf                     10.0.0.4        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
+scion05  42   ffaa:1:5  Leaf                     10.0.0.5        **Ubuntu** 22.04.3 LTS 4 GB     1 GB
 ======== ==== ========= ======== =============== =============== ====================== ======== ====
 
 *Table 1: Required Infrastructure*
