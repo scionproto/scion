@@ -1,11 +1,5 @@
 .PHONY: all build build-dev dist-deb antlr clean docker-images gazelle go.mod licenses mocks protobuf scion-topo test test-integration write_all_source_files update_version
 
-# Update_version causes versioning.bzl to get updated. Any bazel build or bazel_run will do.
-# It needs to be done explicitly only for artefacts that need to carry the most up-to-date version.
-# The version can be wrong only for the very first call to bazel build/run after a commit.
-update_version:
-	bazel build mgmtapi_bundle_doc
-
 build-dev:
 	rm -f bin/*
 	bazel build //:scion //:scion-ci
@@ -38,6 +32,12 @@ dist-openwrt: update_version
 	@ for f in `bazel cquery //dist:openwrt_all --output=files 2>/dev/null`; do \
 		cp -v "$$f" openwrt; \
 	done
+
+# Update_version causes versioning.bzl to get updated. Any bazel build or bazel_run will do.
+# It needs to be done explicitly only for artefacts that need to carry the most up-to-date version.
+# The version can be wrong only for the very first call to bazel build/run after a commit.
+update_version:
+	bazel build mgmtapi_bundle_doc
 
 # all: performs the code-generation steps and then builds; the generated code
 # is git controlled, and therefore this is only necessary when changing the
