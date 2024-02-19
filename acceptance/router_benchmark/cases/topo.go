@@ -19,6 +19,7 @@ import (
 	"hash"
 	"net"
 	"net/netip"
+	"strconv"
 	"strings"
 
 	"github.com/google/gopacket/layers"
@@ -56,10 +57,16 @@ import (
 //
 // Functions are provided to generate all addresses following that scheme.
 
-// intfDesc describes an interface requirement
+// intfDesc describes an interface requirement.
+// The "exclusive" attribuet is a directive to the test harness. It means that this connexion must
+// have an exclusive pair of physical interfaces. The test harness may assign multiple non-exclusive
+// address pairs to the same pair of physical interfaces.
+// Purpose: Each test case uses only one of the external interface so they can all share the same
+// physical link, which simplifies the physical infrastructure of real devices tests.
 type intfDesc struct {
-	ip     netip.Addr
-	peerIP netip.Addr
+	ip        netip.Addr
+	peerIP    netip.Addr
+	exclusive bool
 }
 
 // publicIP returns the IP address that is assigned to external interface designated by the given
@@ -147,9 +154,9 @@ func interfaceLabel(AS int, intf int) string {
 var (
 	// intfMap lists the required interfaces. That's what we use to respond to showInterfaces
 	intfMap map[string]intfDesc = map[string]intfDesc{
-		interfaceLabel(1, 0): {InternalIP(1, 1), InternalIP(1, 2)},
-		interfaceLabel(1, 2): {PublicIP(1, 2), PublicIP(2, 1)},
-		interfaceLabel(1, 3): {PublicIP(1, 3), PublicIP(3, 1)},
+		interfaceLabel(1, 0): {InternalIP(1, 1), InternalIP(1, 2), true},
+		interfaceLabel(1, 2): {PublicIP(1, 2), PublicIP(2, 1), false},
+		interfaceLabel(1, 3): {PublicIP(1, 3), PublicIP(3, 1), false},
 	}
 
 	// deviceNames holds the real (os-given) names of our required network interfaces. It is
@@ -228,6 +235,8 @@ func ListInterfaces() string {
 		sb.WriteString(i.ip.String())
 		sb.WriteString(",")
 		sb.WriteString(i.peerIP.String())
+		sb.WriteString(",")
+		sb.WriteString(strconv.FormatBool(i.exclusive))
 		sb.WriteString("\n")
 	}
 	// "our_label,24,<ip on router side>,<ip on far side>\n"
