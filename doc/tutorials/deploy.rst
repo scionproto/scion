@@ -255,8 +255,8 @@ In practice, the private keys of ASes are of course never revealed to other enti
      cd /tmp/tutorial-scion-certs
      for i in {1..5}
      do
-        ssh scion0$i 'mkdir -p /etc/scion/{crypto,certs}'
-        scp ASS$i/* scion0$i:/etc/scion/crypto/
+        ssh scion0$i 'mkdir -p /etc/scion/{crypto/as,certs}'
+        scp AS$i/cp-as.{key,pem} scion0$i:/etc/scion/crypto/as/
         scp ISD42-B1-S1.trc scion0$i:/etc/scion/certs/
      done
 
