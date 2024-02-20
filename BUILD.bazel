@@ -181,7 +181,6 @@ pkg_tar(
         "//router/cmd/router",
         "//scion-pki/cmd/scion-pki",
         "//scion/cmd/scion",
-        "//tools/coremark",
         "//tools/pathdb_dump",
     ],
     mode = "0755",

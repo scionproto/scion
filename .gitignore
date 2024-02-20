@@ -39,6 +39,7 @@ __pycache__
 .installstamp
 *.d
 compile_commands.json
+versioning.bzl
 
 # Environment files
 #########################
@@ -70,6 +71,7 @@ doc/venv/
 ##########################
 /deb/
 /openwrt/
+/openwrt-testing/
 
 # CTags
 ##########################

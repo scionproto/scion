@@ -174,12 +174,20 @@ multiplatform_filegroup(
     srcs = [
         "common_ipk",
         "control_ipk",
-        "coremark_ipk",
         "daemon_ipk",
         "dispatcher_ipk",
         "gateway_ipk",
         "router_ipk",
         "tools_ipk",
+    ],
+    target_platforms = DEFAULT_OPENWRT_PLATFORMS,
+    visibility = ["//dist:__subpackages__"],
+)
+
+multiplatform_filegroup(
+    name = "openwrt_testing",
+    srcs = [
+        "coremark_ipk",
     ],
     target_platforms = DEFAULT_OPENWRT_PLATFORMS,
     visibility = ["//dist:__subpackages__"],
