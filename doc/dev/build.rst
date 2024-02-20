@@ -117,6 +117,24 @@ Build
       make                                # or, ...
       bazel build //:scion //:scion-ci
 
+* **Build packages for debian (all target architectures)**
+
+  .. code-block:: sh
+
+     make dist-deb                        # or, ...
+     bazel build //dist:deb_all
+
+* **Build packages for openwrt (x86_64 only, currently)**
+
+  .. code-block:: sh
+
+     make dist-openwrt                        # or, ...
+     bazel build //dist:openwrt_all
+
+  .. Attention:: If using bazel, be aware that the rules involved depend on `versioning.bzl`; a file
+     that is not generated until bazel has run at least once. Executing `build $anything_else` once
+     is enough to generate that file. The make goal takes care of that automatically.
+
 Options
 -------
 
