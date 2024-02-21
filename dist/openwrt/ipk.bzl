@@ -89,7 +89,7 @@ def _ipk_impl(ctx):
             r"cd ${sdk_abspath}",
             r"scripts/feeds update scion",
             r"scripts/feeds install -a -p scion",
-            r"make IB=1 defconfig", # IB=1 bypasses various unnecessary prerequisites
+            r"make IB=1 defconfig",  # IB=1 bypasses various unnecessary prerequisites
             r'pkgrel=${6}${7+"-dirty$(date +%s)"}',
             r"make package/feeds/scion/${2}/compile EXECROOT=${execroot_abspath}" +
             ' PKG_VERSION="${5}" PKG_RELEASE="${pkgrel}"',
