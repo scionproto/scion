@@ -354,6 +354,7 @@ func (h SCMPHandler) reverseSCION(pkt *respool.Packet) error {
 	if pkt.SCION.Path, err = pkt.SCION.Path.Reverse(); err != nil {
 		return serrors.WrapStr("reversing path", err)
 	}
+	pkt.SCION.PathType = pkt.SCION.Path.Type()
 	return nil
 }
 
