@@ -26,25 +26,19 @@ dist-deb: update_version
 		fi \
 	done
 
-dist-openwrt: update_version
+dist-openwrt:
 	bazel build //dist:openwrt_all
 	mkdir -p openwrt; rm -rf openwrt/*
 	@ for f in `bazel cquery //dist:openwrt_all --output=files 2>/dev/null`; do \
 		cp -v "$$f" openwrt; \
 	done
 
-dist-openwrt-testing: update_version
+dist-openwrt-testing:
 	bazel build //dist:openwrt_testing_all
 	mkdir -p openwrt-testing; rm -rf openwrt-testing/*
 	@ for f in `bazel cquery //dist:openwrt_testing_all --output=files 2>/dev/null`; do \
 		cp -v "$$f" openwrt-testing; \
 	done
-
-# Update_version causes versioning.bzl to get updated. Any bazel build or bazel_run will do.
-# It needs to be done explicitly only for artefacts that need to carry the most up-to-date version.
-# The version can be wrong only for the very first call to bazel build/run after a commit.
-update_version:
-	bazel build mgmtapi_bundle_doc
 
 # all: performs the code-generation steps and then builds; the generated code
 # is git controlled, and therefore this is only necessary when changing the

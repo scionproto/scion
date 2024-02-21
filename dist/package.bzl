@@ -1,5 +1,5 @@
 load("@rules_pkg//pkg:pkg.bzl", "pkg_deb", "pkg_tar")
-load("//:versioning.bzl", "STRIPPED_GIT_VERSION")
+load("@@//:versioning.bzl", "STRIPPED_GIT_VERSION")
 
 SCION_PKG_HOMEPAGE = "https://github.com/scionproto/scion"
 SCION_PKG_MAINTAINER = "SCION Contributors"

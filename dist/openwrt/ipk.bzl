@@ -1,4 +1,4 @@
-load("//:versioning.bzl", "STRIPPED_GIT_VERSION")
+load("@@//:versioning.bzl", "STRIPPED_GIT_VERSION")
 
 # This build file is layered onto the openwrt build tree which is
 # imported as an external dependency.
