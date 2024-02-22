@@ -92,6 +92,9 @@ type ClientInterface interface {
 	// GetBeacons request
 	GetBeacons(ctx context.Context, params *GetBeaconsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeleteBeacon request
+	DeleteBeacon(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetBeacon request
 	GetBeacon(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -130,6 +133,9 @@ type ClientInterface interface {
 	// GetSegments request
 	GetSegments(ctx context.Context, params *GetSegmentsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeleteSegment request
+	DeleteSegment(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetSegment request
 	GetSegment(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -157,6 +163,18 @@ type ClientInterface interface {
 
 func (c *Client) GetBeacons(ctx context.Context, params *GetBeaconsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetBeaconsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteBeacon(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteBeaconRequest(c.Server, segmentId)
 	if err != nil {
 		return nil, err
 	}
@@ -313,6 +331,18 @@ func (c *Client) SetLogLevel(ctx context.Context, body SetLogLevelJSONRequestBod
 
 func (c *Client) GetSegments(ctx context.Context, params *GetSegmentsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetSegmentsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteSegment(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteSegmentRequest(c.Server, segmentId)
 	if err != nil {
 		return nil, err
 	}
@@ -557,6 +587,40 @@ func NewGetBeaconsRequest(server string, params *GetBeaconsParams) (*http.Reques
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteBeaconRequest generates requests for DeleteBeacon
+func NewDeleteBeaconRequest(server string, segmentId SegmentID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "segment-id", runtime.ParamLocationPath, segmentId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/beacons/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1021,6 +1085,40 @@ func NewGetSegmentsRequest(server string, params *GetSegmentsParams) (*http.Requ
 	return req, nil
 }
 
+// NewDeleteSegmentRequest generates requests for DeleteSegment
+func NewDeleteSegmentRequest(server string, segmentId SegmentID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "segment-id", runtime.ParamLocationPath, segmentId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/segments/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetSegmentRequest generates requests for GetSegment
 func NewGetSegmentRequest(server string, segmentId SegmentID) (*http.Request, error) {
 	var err error
@@ -1377,6 +1475,9 @@ type ClientWithResponsesInterface interface {
 	// GetBeaconsWithResponse request
 	GetBeaconsWithResponse(ctx context.Context, params *GetBeaconsParams, reqEditors ...RequestEditorFn) (*GetBeaconsResponse, error)
 
+	// DeleteBeaconWithResponse request
+	DeleteBeaconWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*DeleteBeaconResponse, error)
+
 	// GetBeaconWithResponse request
 	GetBeaconWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetBeaconResponse, error)
 
@@ -1414,6 +1515,9 @@ type ClientWithResponsesInterface interface {
 
 	// GetSegmentsWithResponse request
 	GetSegmentsWithResponse(ctx context.Context, params *GetSegmentsParams, reqEditors ...RequestEditorFn) (*GetSegmentsResponse, error)
+
+	// DeleteSegmentWithResponse request
+	DeleteSegmentWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*DeleteSegmentResponse, error)
 
 	// GetSegmentWithResponse request
 	GetSegmentWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetSegmentResponse, error)
@@ -1459,6 +1563,29 @@ func (r GetBeaconsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetBeaconsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteBeaconResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *BadRequest
+	JSON500      *Internal
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteBeaconResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteBeaconResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1737,6 +1864,29 @@ func (r GetSegmentsResponse) StatusCode() int {
 	return 0
 }
 
+type DeleteSegmentResponse struct {
+	Body                      []byte
+	HTTPResponse              *http.Response
+	ApplicationproblemJSON400 *Problem
+	ApplicationproblemJSON500 *Problem
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteSegmentResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteSegmentResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetSegmentResponse struct {
 	Body                      []byte
 	HTTPResponse              *http.Response
@@ -1927,6 +2077,15 @@ func (c *ClientWithResponses) GetBeaconsWithResponse(ctx context.Context, params
 	return ParseGetBeaconsResponse(rsp)
 }
 
+// DeleteBeaconWithResponse request returning *DeleteBeaconResponse
+func (c *ClientWithResponses) DeleteBeaconWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*DeleteBeaconResponse, error) {
+	rsp, err := c.DeleteBeacon(ctx, segmentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteBeaconResponse(rsp)
+}
+
 // GetBeaconWithResponse request returning *GetBeaconResponse
 func (c *ClientWithResponses) GetBeaconWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetBeaconResponse, error) {
 	rsp, err := c.GetBeacon(ctx, segmentId, reqEditors...)
@@ -2043,6 +2202,15 @@ func (c *ClientWithResponses) GetSegmentsWithResponse(ctx context.Context, param
 	return ParseGetSegmentsResponse(rsp)
 }
 
+// DeleteSegmentWithResponse request returning *DeleteSegmentResponse
+func (c *ClientWithResponses) DeleteSegmentWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*DeleteSegmentResponse, error) {
+	rsp, err := c.DeleteSegment(ctx, segmentId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteSegmentResponse(rsp)
+}
+
 // GetSegmentWithResponse request returning *GetSegmentResponse
 func (c *ClientWithResponses) GetSegmentWithResponse(ctx context.Context, segmentId SegmentID, reqEditors ...RequestEditorFn) (*GetSegmentResponse, error) {
 	rsp, err := c.GetSegment(ctx, segmentId, reqEditors...)
@@ -2144,6 +2312,39 @@ func ParseGetBeaconsResponse(rsp *http.Response) (*GetBeaconsResponse, error) {
 			return nil, err
 		}
 		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteBeaconResponse parses an HTTP response from a DeleteBeaconWithResponse call
+func ParseDeleteBeaconResponse(rsp *http.Response) (*DeleteBeaconResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteBeaconResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest Internal
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
 
 	}
 
@@ -2512,6 +2713,39 @@ func ParseGetSegmentsResponse(rsp *http.Response) (*GetSegmentsResponse, error) 
 			return nil, err
 		}
 		response.ApplicationproblemJSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteSegmentResponse parses an HTTP response from a DeleteSegmentWithResponse call
+func ParseDeleteSegmentResponse(rsp *http.Response) (*DeleteSegmentResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteSegmentResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON500 = &dest
 
 	}
 

@@ -44,6 +44,7 @@ import (
 
 type BeaconStore interface {
 	GetBeacons(context.Context, *beaconstorage.QueryParams) ([]beaconstorage.Beacon, error)
+	DeleteBeacon(ctx context.Context, idPrefix string) error
 }
 
 type Healther interface {
@@ -378,6 +379,27 @@ func (s *Server) GetBeacon(w http.ResponseWriter, r *http.Request, segmentId Seg
 	}
 }
 
+func (s *Server) DeleteBeacon(w http.ResponseWriter, r *http.Request, segmentId SegmentID) {
+	if segmentId == "" {
+		ErrorResponse(w, Problem{
+			Status: http.StatusBadRequest,
+			Title:  "segment ID is required",
+			Type:   api.StringRef(api.BadRequest),
+		})
+		return
+	}
+	if err := s.Beacons.DeleteBeacon(r.Context(), segmentId); err != nil {
+		ErrorResponse(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to delete beacon",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *Server) GetBeaconBlob(w http.ResponseWriter, r *http.Request, segmentId SegmentID) {
 	w.Header().Set("Content-Type", "application/x-pem-file")
 
@@ -469,6 +491,10 @@ func (s *Server) GetSegments(w http.ResponseWriter,
 
 func (s *Server) GetSegment(w http.ResponseWriter, r *http.Request, id SegmentID) {
 	s.SegmentsServer.GetSegment(w, r, id)
+}
+
+func (s *Server) DeleteSegment(w http.ResponseWriter, r *http.Request, id SegmentID) {
+	s.SegmentsServer.DeleteSegment(w, r, id)
 }
 
 func (s *Server) GetSegmentBlob(w http.ResponseWriter, r *http.Request, id SegmentID) {

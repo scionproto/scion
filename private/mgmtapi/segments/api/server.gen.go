@@ -16,6 +16,9 @@ type ServerInterface interface {
 	// List the SCION path segments
 	// (GET /segments)
 	GetSegments(w http.ResponseWriter, r *http.Request, params GetSegmentsParams)
+	// Delete the SCION path segment
+	// (DELETE /segments/{segment-id})
+	DeleteSegment(w http.ResponseWriter, r *http.Request, segmentId SegmentID)
 	// Get the SCION path segment description
 	// (GET /segments/{segment-id})
 	GetSegment(w http.ResponseWriter, r *http.Request, segmentId SegmentID)
@@ -31,6 +34,12 @@ type Unimplemented struct{}
 // List the SCION path segments
 // (GET /segments)
 func (_ Unimplemented) GetSegments(w http.ResponseWriter, r *http.Request, params GetSegmentsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Delete the SCION path segment
+// (DELETE /segments/{segment-id})
+func (_ Unimplemented) DeleteSegment(w http.ResponseWriter, r *http.Request, segmentId SegmentID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -82,6 +91,32 @@ func (siw *ServerInterfaceWrapper) GetSegments(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSegments(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// DeleteSegment operation middleware
+func (siw *ServerInterfaceWrapper) DeleteSegment(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "segment-id" -------------
+	var segmentId SegmentID
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "segment-id", runtime.ParamLocationPath, chi.URLParam(r, "segment-id"), &segmentId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "segment-id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteSegment(w, r, segmentId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -258,6 +293,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/segments", wrapper.GetSegments)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/segments/{segment-id}", wrapper.DeleteSegment)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/segments/{segment-id}", wrapper.GetSegment)

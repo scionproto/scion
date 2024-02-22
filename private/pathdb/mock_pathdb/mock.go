@@ -70,6 +70,20 @@ func (mr *MockDBMockRecorder) DeleteExpired(arg0, arg1 interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteExpired", reflect.TypeOf((*MockDB)(nil).DeleteExpired), arg0, arg1)
 }
 
+// DeleteSegment mocks base method.
+func (m *MockDB) DeleteSegment(arg0 context.Context, arg1 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteSegment", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteSegment indicates an expected call of DeleteSegment.
+func (mr *MockDBMockRecorder) DeleteSegment(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteSegment", reflect.TypeOf((*MockDB)(nil).DeleteSegment), arg0, arg1)
+}
+
 // Get mocks base method.
 func (m *MockDB) Get(arg0 context.Context, arg1 *query.Params) (query.Results, error) {
 	m.ctrl.T.Helper()
@@ -212,6 +226,20 @@ func (mr *MockTransactionMockRecorder) DeleteExpired(arg0, arg1 interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteExpired", reflect.TypeOf((*MockTransaction)(nil).DeleteExpired), arg0, arg1)
 }
 
+// DeleteSegment mocks base method.
+func (m *MockTransaction) DeleteSegment(arg0 context.Context, arg1 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteSegment", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteSegment indicates an expected call of DeleteSegment.
+func (mr *MockTransactionMockRecorder) DeleteSegment(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteSegment", reflect.TypeOf((*MockTransaction)(nil).DeleteSegment), arg0, arg1)
+}
+
 // Get mocks base method.
 func (m *MockTransaction) Get(arg0 context.Context, arg1 *query.Params) (query.Results, error) {
 	m.ctrl.T.Helper()
@@ -352,6 +380,20 @@ func (m *MockReadWrite) DeleteExpired(arg0 context.Context, arg1 time.Time) (int
 func (mr *MockReadWriteMockRecorder) DeleteExpired(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteExpired", reflect.TypeOf((*MockReadWrite)(nil).DeleteExpired), arg0, arg1)
+}
+
+// DeleteSegment mocks base method.
+func (m *MockReadWrite) DeleteSegment(arg0 context.Context, arg1 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteSegment", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteSegment indicates an expected call of DeleteSegment.
+func (mr *MockReadWriteMockRecorder) DeleteSegment(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteSegment", reflect.TypeOf((*MockReadWrite)(nil).DeleteSegment), arg0, arg1)
 }
 
 // Get mocks base method.

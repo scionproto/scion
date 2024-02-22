@@ -23,12 +23,22 @@ service IPPrefixesService {
     rpc Prefixes(PrefixesRequest) returns (PrefixesResponse) {}
 }
 
-message PrefixesRequest {}
+message PrefixesRequest {
+    // Etag is the hash of the prefix set currently used by the requester.
+    // This value must not be calculated by the client. Instead it should
+    // be copied from the previous response. If there was no previous response
+    // set this field to empty string.
+    string etag = 1;
+}
 
 message PrefixesResponse {
     // Prefixes are the prefixes that are reachable via the Gateway that
-    // responds.
+    // responds. If the etag in the request is the same as the etag in
+    // the response this field must be empty.
     repeated Prefix prefixes = 1;
+    // Etag is the hash of the returned prefix set. The servers that don't
+    // support etags must return an empty string in this field.
+    string etag = 2;
 }
 
 message Prefix {
