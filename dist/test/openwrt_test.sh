@@ -5,7 +5,7 @@ set -euo pipefail
 set -x
 if [ -n ${SCION_OPENWRT_PACKAGES+x} ]; then
     # Invocation from bazel:
-    # SCION_DEB_PACKAGES is a space-separated list of filenames of (symlinks to) .deb packages.
+    # SCION_OPENWRT_PACKAGES is a space-separated list of filenames of (symlinks to) .ipk packages.
     # Below we mount this stuff into a docker container, which won't work with symlinks.
     # Copy everything into a tmp directory.
     tmpdir="${TEST_TMPDIR?}"
