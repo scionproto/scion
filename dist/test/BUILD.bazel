@@ -22,8 +22,7 @@ sh_test(
         "//dist:openwrt_testing_all",
     ],
     env = {
-        "SCION_OPENWRT_PACKAGES":
-        "$(locations //dist:openwrt_all) $(locations //dist:openwrt_testing_all)",
+        "SCION_OPENWRT_PACKAGES": "$(locations //dist:openwrt_all) $(locations //dist:openwrt_testing_all)",
     },
     tags = [
         "exclusive",

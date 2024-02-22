@@ -1,4 +1,4 @@
-.PHONY: all build build-dev dist-deb antlr clean docker-images gazelle go.mod licenses mocks protobuf scion-topo test test-integration write_all_source_files update_version
+.PHONY: all build build-dev dist-deb antlr clean docker-images gazelle go.mod licenses mocks protobuf scion-topo test test-integration write_all_source_files
 
 build-dev:
 	rm -f bin/*
@@ -11,7 +11,7 @@ build:
 	bazel build //:scion
 	tar -kxf bazel-bin/scion.tar -C bin
 
-dist-deb: update_version
+dist-deb:
 	bazel build //dist:deb_all
 	mkdir -p deb; rm -rf deb/*
 	@ # Bazel cannot include the version in the filename, if we want to set it automatically from the git tag.
