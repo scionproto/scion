@@ -1,4 +1,4 @@
-#!/bin/ash
+#!/bin/sh
 
 # If you change the length of this file, be sure to update the tail arguments.
 tmpfile=/tmp/$(basename $0)_$$

@@ -2,7 +2,7 @@ load("@rules_python//python:defs.bzl", "py_binary")
 load("@com_github_scionproto_scion_python_deps//:requirements.bzl", "requirement")
 
 exports_files([
-    "openwrt_gzip_exec",
+    "gzip_exec_interp",
 ])
 
 sh_binary(

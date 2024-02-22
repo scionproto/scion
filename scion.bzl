@@ -17,8 +17,8 @@ def scion_go_binary(name, visibility, *args, **kwargs):
 
     native.genrule(
         name = name + "_compressed",
-        srcs = [name, "//tools:openwrt_gzip_exec"],
+        srcs = [name, "//tools:gzip_exec_interp"],
         outs = [name + ".gunzip"],
-        cmd = "(cat $(location //tools:openwrt_gzip_exec) && gzip < $(location " + name + ")) > $@",
+        cmd = "(cat $(location //tools:gzip_exec_interp) && gzip < $(location " + name + ")) > $@",
         visibility = visibility,
     )
