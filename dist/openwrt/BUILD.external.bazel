@@ -97,13 +97,13 @@ ipk_pkg(
 ipk_pkg(
     name = "testconfig_ipk",
     configs = [
-        "@@//dist/openwrt:test_configs/keys/master0.key",
-        "@@//dist/openwrt:test_configs/keys/master1.key",
-        "@@//dist/openwrt:test_configs/topology.json",
         "@@//dist/openwrt:test_configs/certs/README",
         "@@//dist/openwrt:test_configs/control.toml",
         "@@//dist/openwrt:test_configs/crypto/as/README",
+        "@@//dist/openwrt:test_configs/keys/master0.key",
+        "@@//dist/openwrt:test_configs/keys/master1.key",
         "@@//dist/openwrt:test_configs/router.toml",
+        "@@//dist/openwrt:test_configs/topology.json",
     ],
     configsroot = "@@//dist/openwrt:test_configs",
     executables = [],
