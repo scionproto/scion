@@ -11,11 +11,11 @@ SERVICE_DAEMONIZE=1
 
 init_conf() {
     if [ -f "/etc/scion/gateway.toml" ]; then
-	rm -f /etc/scion/gateway.toml.default
-	rm -f /etc/scion/gateway.json.default
+        rm -f /etc/scion/gateway.toml.default
+        rm -f /etc/scion/gateway.json.default
     else
-	mv /etc/scion/gateway.toml.default /etc/scion/gateway.toml
-	mv /etc/scion/gateway.json.default /etc/scion/gateway.json
+        mv /etc/scion/gateway.toml.default /etc/scion/gateway.toml
+        mv /etc/scion/gateway.json.default /etc/scion/gateway.json
     fi
     # Note that this service will not start unless the local certs
     # have been generated. There are no defaults for that.

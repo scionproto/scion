@@ -12,20 +12,20 @@ SERVICE_DAEMONIZE=1
 init_conf() {
     # These defaults exist only if the testconfig package was installed.
     if [ -f "/etc/scion/control.toml" ]; then
-	rm -f /etc/scion/control.toml.default
+        rm -f /etc/scion/control.toml.default
     elif [ -f "/etc/scion/control.toml.default" ]; then
-	mv /etc/scion/control.toml.default /etc/scion/control.toml
+        mv /etc/scion/control.toml.default /etc/scion/control.toml
     fi
     if [ -f "/etc/scion/topology.json" ]; then
-	rm -f /etc/scion/topology.json.default
+        rm -f /etc/scion/topology.json.default
     elif [ -f "/etc/scion/topology.json.default" ]; then
-	mv /etc/scion/topology.json.default /etc/scion/topology.json
+        mv /etc/scion/topology.json.default /etc/scion/topology.json
     fi
     if [ -f "/etc/scion/keys/master0.key" ]; then
-	rm -f /etc/scion/keys/*.key.default
+        rm -f /etc/scion/keys/*.key.default
     elif [ -f "/etc/scion/keys/master0.key.default" ]; then
-	mv /etc/scion/keys/master0.key.default /etc/scion/keys/master0.key
-	mv /etc/scion/keys/master1.key.default /etc/scion/keys/master1.key
+        mv /etc/scion/keys/master0.key.default /etc/scion/keys/master0.key
+        mv /etc/scion/keys/master1.key.default /etc/scion/keys/master1.key
     fi
 }
 
