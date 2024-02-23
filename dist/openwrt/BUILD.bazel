@@ -23,22 +23,19 @@ exports_files(
         "initds/control",
         "initds/daemon",
         "initds/dispatcher",
+        "initds/persistdbs",
 
         # Directory itself. Indicates the common root of config files.
-        "configs",
+        "test_configs",
 
-        # Configuration placeholders. Minimal viable content. Needs to be updated post-install.
-        "configs/topology.json",
-        "configs/keys/master0.key",
-        "configs/keys/master1.key",
-        "configs/router.toml",
-        "configs/gateway.toml",
-        "configs/gateway.json",
-        "configs/control.toml",
-        "configs/certs/README",
-        "configs/crypto/as/README",
-        "configs/daemon.toml",
-        "configs/dispatcher.toml",
+        # Minimal configuration for testing.
+        "test_configs/topology.json",
+        "test_configs/keys/master0.key",
+        "test_configs/keys/master1.key",
+        "test_configs/router.toml",
+        "test_configs/control.toml",
+        "test_configs/certs/README",
+        "test_configs/crypto/as/README",
     ],
     visibility = ["//visibility:public"],
 )

@@ -68,7 +68,7 @@ define Package/%{pkg}/install
 	INS_DIR="$$$$(cd $(1) && pwd)"; \
 	cd $(PKG_BUILD_DIR)/configs && \
 	find . -type d -print0 | xargs -0 -I{} $(INSTALL_DIR) $$$${INS_DIR}/etc/scion/{} && \
-	find . -type f -print0 | xargs -0 -I{} $(INSTALL_CONF) {} $$$${INS_DIR}/etc/scion/{}
+	find . -type f -print0 | xargs -0 -I{} $(INSTALL_CONF) {} $$$${INS_DIR}/etc/scion/{}.default
 endef
 
 # This command is always the last, it uses the definitions and variables we give above in order to get the job done

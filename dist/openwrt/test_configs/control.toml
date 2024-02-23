@@ -4,13 +4,13 @@ config_dir = "/etc/scion"
 reconnect_to_dispatcher = true
 
 [trust_db]
-connection = "/var/lib/scion-control/cs-1.trust.db"
+connection = "/var/lib/scion/cs-1.trust.db"
 
 [beacon_db]
-connection = "/var/lib/scion-control/cs-1.beacon.db"
+connection = "/var/lib/scion/cs-1.beacon.db"
 
 [path_db]
-connection = "/var/lib/scion-control/cs-1.path.db"
+connection = "/var/lib/scion/cs-1.path.db"
 
 # [tracing]
 # enabled = true

@@ -47,8 +47,8 @@ docker exec -i openwrt-x86_64 /bin/ash <<'EOF'
     # Everythign we need is in /openwrt.
     cd /openwrt
 
-    # check that the deb files are all here (avoid cryptic error from apt-get)
-    for c in router control dispatcher daemon gateway tools common coremark; do
+    # check that the pki files are all here (avoid cryptic error from opk)
+    for c in persistdbs testconfig router control dispatcher daemon gateway tools coremark; do
     	ls /openwrt/scion-${c}_*_${arch}.ipk > /dev/null
     done
 
@@ -59,8 +59,10 @@ docker exec -i openwrt-x86_64 /bin/ash <<'EOF'
 
     # Now the real stuff...
 
-    # Install the common package. It's just basic config files.
-    opkg install scion-common_*_${arch}.ipk
+    # Install the persistdbs and testconfig packages. It's just basic config
+    # files.
+    opkg install scion-persistdbs_*_${arch}.ipk
+    opkg install scion-testconfig_*_${arch}.ipk
 
     # Install the tools and generate the testcrypto certs.
     opkg install scion-tools_*_${arch}.ipk
@@ -100,7 +102,7 @@ INNER_EOF
     service scion-gateway enable
     sleep 3
     # Note: this starts even if the default sig.json is not a valid configuration
-    pgrep scion-gateway
+    pgrep scion-gateway || /usr/bin/scion-gateway --config=/etc/scion/gateway.toml
 
     # Note: the gateway will only create a tunnel device once a session with a
     # neighbor is up. This is too complicated to arrange in this test.

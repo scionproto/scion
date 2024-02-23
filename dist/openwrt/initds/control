@@ -9,28 +9,36 @@ APP=scion-control
 SERVICE_WRITE_PID=1
 SERVICE_DAEMONIZE=1
 
-# Openwrt has decided that /var/lib would be just as volatile as /var/run
-# (to spare the life of cheap flash sorage) so we have to stash our stuff
-# somewhere before we take a break.
-persist_dbs() {
-    mkdir -p /usr/lib/$APP
-    mkdir -p /var/lib/$APP
-    cp -a /var/lib/$APP /usr/lib
-}
-
-#...and restore it when we're back.
-load_dbs() {
-    mkdir -p /var/lib/$APP
-    mkdir -p /usr/lib/$APP
-    cp -a /var/lib/$APP /usr/lib
+init_conf() {
+    if [ -f "/etc/scion/control.toml" ]; then
+	rm -f /etc/scion/control.toml.default
+    else
+	mv /etc/scion/control.toml.default /etc/scion/control.toml
+    fi
+    if [ -f "/etc/scion/topology.json" ]; then
+	rm -f /etc/scion/topology.json.default
+    else
+	# This default exists only if the testconfig package was installed.
+	if [ -f "/etc/scion/topology.json.default" ]; then
+	    mv /etc/scion/topology.json.default /etc/scion/topology.json
+	fi
+    fi
+    if [ -f "/etc/scion/keys/master0.key" ]; then
+	rm -f /etc/scion/keys/*.key.default
+    else
+	# These defaults exist only if the testconfig package was installed.
+	if [ -f "/etc/scion/keys/master0.key.default" ]; then
+	    mv /etc/scion/keys/master0.key.default /etc/scion/keys/master0.key
+	    mv /etc/scion/keys/master1.key.default /etc/scion/keys/master1.key
+	fi
+    fi
 }
 
 start() {
-    load_dbs
+    init_conf
     service_start /usr/bin/$APP --config /etc/scion/control.toml
 }
 
 stop() {
     service_stop /usr/bin/$APP
-    persist_dbs
 }

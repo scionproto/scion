@@ -9,10 +9,19 @@ APP=scion-dispatcher
 SERVICE_WRITE_PID=1
 SERVICE_DAEMONIZE=1
 
+init_conf() {
+    if [ -f "/etc/scion/dispatcher.toml" ]; then
+	rm -f /etc/scion/dispatcher.toml.default
+    else
+	mv /etc/scion/dispatcher.toml.default /etc/scion/dispatcher.toml
+    fi
+}
+
 start() {
-        service_start /usr/bin/$APP --config /etc/scion/dispatcher.toml
+    init_conf
+    service_start /usr/bin/$APP --config /etc/scion/dispatcher.toml
 }
 
 stop() {
-        service_stop /usr/bin/$APP
+    service_stop /usr/bin/$APP
 }

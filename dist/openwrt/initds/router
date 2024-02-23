@@ -9,7 +9,33 @@ APP=scion-router
 SERVICE_WRITE_PID=1
 SERVICE_DAEMONIZE=1
 
+init_conf() {
+    if [ -f "/etc/scion/router.toml" ]; then
+	rm -f /etc/scion/router.toml.default
+    else
+	mv /etc/scion/router.toml.default /etc/scion/router.toml
+    fi
+    if [ -f "/etc/scion/topology.json" ]; then
+	rm -f /etc/scion/topology.json.default
+    else
+	# This default exists only if the testconfig package was installed.
+	if [ -f "/etc/scion/topology.json.default" ]; then
+	    mv /etc/scion/topology.json.default /etc/scion/topology.json
+	fi
+    fi
+    if [ -f "/etc/scion/keys/master0.key" ]; then
+	rm -f /etc/scion/keys/*.key.default
+    else
+	# These defaults exist only if the testconfig package was installed.
+	if [ -f "/etc/scion/keys/master0.key.default" ]; then
+	    mv /etc/scion/keys/master0.key.default /etc/scion/keys/master0.key
+	    mv /etc/scion/keys/master1.key.default /etc/scion/keys/master1.key
+	fi
+    fi
+}
+
 start() {
+    init_conf
     service_start /usr/bin/$APP --config /etc/scion/router.toml
 }
 
