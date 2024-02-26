@@ -58,7 +58,7 @@ import (
 // Functions are provided to generate all addresses following that scheme.
 
 // intfDesc describes an interface requirement.
-// The "exclusive" attribuet is a directive to the test harness. It means that this connexion must
+// The "exclusive" attribute is a directive to the test harness. It means that this connection must
 // have an exclusive pair of physical interfaces. The test harness may assign multiple non-exclusive
 // address pairs to the same pair of physical interfaces.
 // Purpose: Each test case uses only one of the external interface so they can all share the same
