@@ -49,7 +49,7 @@ def sudo(*args: [str]) -> str:
 
 
 # Convenience types to carry interface params.
-IntfReq = namedtuple("IntfReq", "label, prefixLen, ip, peerIp")
+IntfReq = namedtuple("IntfReq", "label, prefixLen, ip, peerIp, exclusive")
 Intf = namedtuple("Intf", "name, mac, peerMac")
 
 
@@ -182,6 +182,8 @@ class RouterBMTest(base.TestBase):
 
     router_cpus: list[int] = [0]
     brload_cpus: list[int] = [0]
+    intfMap: dict[str, Intf] = {}
+
     ci = cli.Flag(
         "ci",
         help="Do extra checks for CI",
@@ -268,28 +270,39 @@ class RouterBMTest(base.TestBase):
 
         Args:
           IntfReq: A requested router-side network interface. It comprises:
-                   * A label by which brload indetifies that interface.
+                   * A label by which brload identifies that interface.
                    * The IP address to be assigned to that interface.
                    * The IP address of one neighbor.
           ns: The network namespace where that interface must exist.
 
         """
 
-        hostIntf = f"veth_{req.label}_host"
-        brIntf = f"veth_{req.label}"
-        peerMac = mac_for_ip(req.peerIp)
-        mac = mac_for_ip(req.ip)
+        physlabel = req.label if req.exclusive == "true" else "mx"
+        hostIntf = f"veth_{physlabel}_host"
+        brIntf = f"veth_{physlabel}"
 
         # The interfaces
-        sudo("ip", "link", "add", hostIntf, "type", "veth", "peer", "name", brIntf)
-        sudo("ip", "link", "set", hostIntf, "mtu", "8000")
-        sudo("ip", "link", "set", brIntf, "mtu", "8000")
-        sudo("sysctl", "-qw", f"net.ipv6.conf.{hostIntf}.disable_ipv6=1")
-        sudo("ethtool", "-K", brIntf, "rx", "off", "tx", "off")
-        sudo("ip", "link", "set", brIntf, "address", mac)
+        # We do multiplex most requested br interfaces onto one physical interface pairs, so, we
+        # must check that we haven't already created the physical pair.
+        for i in self.intfMap.values():
+            if i.name == hostIntf:
+                peerMac = i.peerMac
+                mac = i.mac
+                break
+        else:
+            peerMac = mac_for_ip(req.peerIp)
+            mac = mac_for_ip(req.ip)
+            sudo("ip", "link", "add", hostIntf, "type", "veth", "peer", "name", brIntf)
+            sudo("ip", "link", "set", hostIntf, "mtu", "8000")
+            sudo("ip", "link", "set", brIntf, "mtu", "8000")
+            sudo("sysctl", "-qw", f"net.ipv6.conf.{hostIntf}.disable_ipv6=1")
+            sudo("ethtool", "-K", brIntf, "rx", "off", "tx", "off")
+            sudo("ip", "link", "set", brIntf, "address", mac)
 
-        # The network namespace
-        sudo("ip", "link", "set", brIntf, "netns", ns)
+            # The network namespace
+            sudo("ip", "link", "set", brIntf, "netns", ns)
+            sudo("ip", "netns", "exec", ns,
+                 "sysctl", "-qw", f"net.ipv6.conf.{brIntf}.disable_ipv6=1")
 
         # The addresses (presumably must be done once the br interface is in the namespace).
         sudo("ip", "netns", "exec", ns,
@@ -297,8 +310,6 @@ class RouterBMTest(base.TestBase):
         sudo("ip", "netns", "exec", ns,
              "ip", "neigh", "add", req.peerIp, "lladdr", peerMac, "nud", "permanent",
              "dev", brIntf)
-        sudo("ip", "netns", "exec", ns,
-             "sysctl", "-qw", f"net.ipv6.conf.{brIntf}.disable_ipv6=1")
 
         # Fit for duty.
         sudo("ip", "link", "set", hostIntf, "up")
@@ -348,13 +359,12 @@ class RouterBMTest(base.TestBase):
         # The router uses one end and the test uses the other end to feed it with (and possibly
         # capture) traffic.
         # We supply the label->(host-side-name,mac,peermac) mapping to brload when we start it.
-        self.intfMap = {}
         brload = self.get_executable("brload")
         output = brload("show-interfaces")
 
         for line in output.splitlines():
             elems = line.split(",")
-            if len(elems) != 4:
+            if len(elems) != 5:
                 continue
             t = IntfReq._make(elems)
             self.create_interface(t, "benchmark")
