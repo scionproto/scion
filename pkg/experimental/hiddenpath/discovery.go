@@ -63,8 +63,8 @@ func (r RegistrationResolver) Resolve(ctx context.Context, ia addr.IA) (net.Addr
 }
 
 // CSResolver resolves the address of a Control Service
-// server in an IA. This is needed to get the needed
-// certificates from the Register to verify the segments.
+// server in an IA. This is necessary to get the needed
+// certificates from the Registry to verify the segments.
 type CSResolver struct {
 	Router   snet.Router
 	Rewriter grpc.AddressRewriter

@@ -737,10 +737,10 @@ func (r *renewer) requestRemote(
 	}
 
 	sn := &snet.SCIONNetwork{
-		LocalIA:    local.IA,
-		Controller: r.Daemon,
+		LocalIA:        local.IA,
+		CPInfoProvider: r.Daemon,
 		Connector: &snet.DefaultConnector{
-			Controller: r.Daemon,
+			CPInfoProvider: r.Daemon,
 			SCMPHandler: snet.SCMPPropagationStopper{
 				Handler: snet.DefaultSCMPHandler{
 					RevocationHandler: daemon.RevHandler{Connector: r.Daemon},

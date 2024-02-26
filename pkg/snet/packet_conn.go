@@ -209,7 +209,7 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet, ov *net.UDPAddr) error {
 	// Get ingress interface internal address
 	lastHop, err := c.lastHop(pkt)
 	if err != nil {
-		return serrors.WrapStr("extracting next hop based on packet path", err)
+		return serrors.WrapStr("extracting last hop based on packet path", err)
 	}
 
 	if ov != nil {

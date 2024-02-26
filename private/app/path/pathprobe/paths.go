@@ -104,9 +104,9 @@ type Prober struct {
 	LocalIP net.IP
 	// Metrics injected into snet.DefaultConnector.
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
-	// Controller is the helper class to get control-plane information for the
+	// CPInfoProvider is the helper class to get control-plane information for the
 	// local AS.
-	Controller snet.Controller
+	CPInfoProvider snet.CPInfoProvider
 }
 
 type options struct {
@@ -162,9 +162,9 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 
 	// Instantiate connector
 	connector := &snet.DefaultConnector{
-		SCMPHandler: &scmpHandler{},
-		Metrics:     p.SCIONPacketConnMetrics,
-		Controller:  p.Controller,
+		SCMPHandler:    &scmpHandler{},
+		Metrics:        p.SCIONPacketConnMetrics,
+		CPInfoProvider: p.CPInfoProvider,
 	}
 
 	// Resolve all the local IPs per path. We will open one connection

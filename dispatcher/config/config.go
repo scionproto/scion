@@ -17,14 +17,14 @@
 package config
 
 import (
-	"context"
 	"fmt"
 	"io"
+	"net/netip"
+	"strings"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/config"
 	"github.com/scionproto/scion/private/env"
 	api "github.com/scionproto/scion/private/mgmtapi"
@@ -39,41 +39,6 @@ type Config struct {
 	Metrics    env.Metrics  `toml:"metrics,omitempty"`
 	API        api.Config   `toml:"api,omitempty"`
 	Dispatcher Dispatcher   `toml:"dispatcher,omitempty"`
-}
-
-// Dispatcher contains the dispatcher specific config.
-type Dispatcher struct {
-	config.NoDefaulter
-	// ID is the SCION element ID. This is used to choose the relevant
-	// portion of the topology file for some services.
-	ID string `toml:"id,omitempty"`
-	// Topologies contain a list of topology files to be loaded.
-	//
-	// When supporting regular endhost, this value can be omitted.
-	// When supporting infrastructure nodes, the list must contain the
-	// topologies for their respective ASes. Normally, in a developer/testing
-	// environment this list may contain multiple ASes.
-	Topologies []string `toml:"topologies,omitempty"`
-	// UnderlayPort is the native port opened by the dispatcher (default 30041)
-	UnderlayPort int `toml:"underlay_port,omitempty"`
-}
-
-func (cfg *Dispatcher) Validate() error {
-	if cfg.UnderlayPort == 0 {
-		cfg.UnderlayPort = topology.EndhostPort
-	}
-	if cfg.ID == "" {
-		return serrors.New("id must be set")
-	}
-	return nil
-}
-
-func (cfg *Dispatcher) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
-	config.WriteString(dst, fmt.Sprintf(dispSample, idSample))
-}
-
-func (cfg *Dispatcher) ConfigName() string {
-	return "dispatcher"
 }
 
 func (cfg *Config) InitDefaults() {
@@ -110,18 +75,61 @@ func (cfg *Config) ConfigName() string {
 	return "dispatcher_config"
 }
 
-func (cfg *Config) Topologies(ctx context.Context) (map[addr.AS]*topology.Loader, error) {
-	topologies := make(map[addr.AS]*topology.Loader)
-	for _, path := range cfg.Dispatcher.Topologies {
-		topo, err := topology.NewLoader(topology.LoaderCfg{
-			File:   path,
-			Reload: app.SIGHUPChannel(ctx),
-		})
-		if err != nil {
-			log.Error("loading topologies", "err", err)
-			continue
-		}
-		topologies[topo.IA().AS()] = topo
+// Dispatcher contains the dispatcher specific config.
+type Dispatcher struct {
+	config.NoDefaulter
+	// ID is the SCION element ID of the shim dispatcher.
+	ID                     string            `toml:"id,omitempty"`
+	ServiceAddresses       map[string]string `toml:"service_addresses,omitempty"`
+	ParsedServiceAddresses map[addr.Addr]netip.AddrPort
+	// UnderlayPort is the native port opened by the dispatcher (default 30041)
+	UnderlayPort int `toml:"underlay_port,omitempty"`
+}
+
+func (cfg *Dispatcher) Validate() error {
+	if cfg.UnderlayPort == 0 {
+		cfg.UnderlayPort = topology.EndhostPort
 	}
-	return topologies, nil
+	if cfg.ID == "" {
+		return serrors.New("id must be set")
+	}
+
+	// Process ServiceAddresses
+	cfg.ParsedServiceAddresses = make(map[addr.Addr]netip.AddrPort, len(cfg.ServiceAddresses))
+	for iaSvc, addr := range cfg.ServiceAddresses {
+		parsedIASvc, err := parseIASvc(iaSvc)
+		if err != nil {
+			return serrors.WrapStr("parsing IA,SVC", err)
+		}
+		parsedAddr, err := netip.ParseAddrPort(addr)
+		if err != nil {
+			return serrors.WrapStr("parsing address", err)
+		}
+		cfg.ParsedServiceAddresses[parsedIASvc] = parsedAddr
+	}
+	return nil
+}
+
+func (cfg *Dispatcher) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, fmt.Sprintf(dispSample, idSample))
+}
+
+func (cfg *Dispatcher) ConfigName() string {
+	return "dispatcher"
+}
+
+func parseIASvc(str string) (addr.Addr, error) {
+	words := strings.Split(str, ",")
+	if len(words) != 2 {
+		return addr.Addr{}, serrors.New("Host addr doesn't match format \"ia, svc\"", "input", str)
+	}
+	ia, err := addr.ParseIA(words[0])
+	if err != nil {
+		return addr.Addr{}, serrors.WrapStr("parsing IA in Host addr", err)
+	}
+	svc, err := addr.ParseSVC(words[1])
+	if err != nil {
+		return addr.Addr{}, serrors.WrapStr("parsing SVC in Host addr", err)
+	}
+	return addr.Addr{IA: ia, Host: addr.HostSVC(svc)}, nil
 }

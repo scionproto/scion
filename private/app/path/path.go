@@ -144,7 +144,7 @@ func filterUnhealthy(
 		LocalIA:                cfg.LocalIA,
 		LocalIP:                cfg.LocalIP,
 		SCIONPacketConnMetrics: cfg.SCIONPacketConnMetrics,
-		Controller:             sd,
+		CPInfoProvider:         sd,
 	}.GetStatuses(subCtx, nonEmptyPaths, pathprobe.WithEPIC(epic))
 	if err != nil {
 		return nil, serrors.WrapStr("probing paths", err)

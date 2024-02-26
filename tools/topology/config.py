@@ -96,9 +96,9 @@ class ConfigGenerator(object):
         Generate all needed files.
         """
         self._ensure_uniq_ases()
-        topo_dicts, self.all_networks, topo_paths = self._generate_topology()
+        topo_dicts, self.all_networks = self._generate_topology()
         self.networks = remove_v4_nets(self.all_networks)
-        self._generate_with_topo(topo_dicts, topo_paths)
+        self._generate_with_topo(topo_dicts)
         self._write_networks_conf(self.networks, NETWORKS_FILE)
         self._write_sciond_conf(self.networks, SCIOND_ADDRESSES_FILE)
 
@@ -111,8 +111,8 @@ class ConfigGenerator(object):
                 sys.exit(1)
             seen.add(ia.as_str())
 
-    def _generate_with_topo(self, topo_dicts, topo_paths):
-        self._generate_go(topo_dicts, topo_paths)
+    def _generate_with_topo(self, topo_dicts):
+        self._generate_go(topo_dicts)
         if self.args.docker:
             self._generate_docker(topo_dicts)
         else:
@@ -128,13 +128,13 @@ class ConfigGenerator(object):
     def _cert_args(self):
         return CertGenArgs(self.args, self.topo_config)
 
-    def _generate_go(self, topo_dicts, topo_paths):
+    def _generate_go(self, topo_dicts):
         args = self._go_args(topo_dicts)
         go_gen = GoGenerator(args)
         go_gen.generate_br()
         go_gen.generate_sciond()
         go_gen.generate_control_service()
-        go_gen.generate_disp(topo_paths)
+        go_gen.generate_disp()
 
     def _go_args(self, topo_dicts):
         return GoGenArgs(self.args, self.topo_config, topo_dicts, self.networks)

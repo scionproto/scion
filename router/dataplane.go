@@ -1787,6 +1787,10 @@ func (d *DataPlane) addEndhostPort(
 		if err != nil {
 			return nil, serrors.WrapStr("getting dst port from SCMP message", err)
 		}
+		// if the SCMP dst port is outside the range, we send it to the EndhostPort
+		if port < d.endhostStartPort || port > d.endhostEndPort {
+			port = topology.EndhostPort
+		}
 		return &net.UDPAddr{IP: dst, Port: int(port)}, nil
 	default:
 		log.Debug(fmt.Sprintf("Port rewriting not supported for protcol number %v", l4Type))
@@ -1875,7 +1879,6 @@ func getDstPortSCMP(scmp *slayers.SCMP) (uint16, error) {
 		return port, nil
 	}
 	return 0, serrors.New("Unknown SCION SCMP content")
-
 }
 
 // decodeSCMP decodes the SCMP payload. WARNING: Decoding is done with NoCopy set.

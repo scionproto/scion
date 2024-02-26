@@ -48,8 +48,8 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-// Controller provides local-IA control-plane information
-type Controller interface {
+// CPInfoProvider provides local-IA control-plane information
+type CPInfoProvider interface {
 	PortRange(ctx context.Context) (uint16, uint16, error)
 	Interfaces(ctx context.Context) (map[uint16]*net.UDPAddr, error)
 }
@@ -64,19 +64,19 @@ type Connector interface {
 }
 
 type DefaultConnector struct {
-	SCMPHandler SCMPHandler
-	Metrics     SCIONPacketConnMetrics
-	Controller  Controller
+	SCMPHandler    SCMPHandler
+	Metrics        SCIONPacketConnMetrics
+	CPInfoProvider CPInfoProvider
 }
 
 func (d *DefaultConnector) OpenUDP(ctx context.Context, addr *net.UDPAddr) (PacketConn, error) {
 	var pconn *net.UDPConn
 	var err error
-	start, end, err := d.Controller.PortRange(ctx)
+	start, end, err := d.CPInfoProvider.PortRange(ctx)
 	if err != nil {
 		return nil, err
 	}
-	ifAddrs, err := d.Controller.Interfaces(ctx)
+	ifAddrs, err := d.CPInfoProvider.Interfaces(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -138,9 +138,9 @@ type SCIONNetworkMetrics struct {
 
 // SCIONNetwork is the SCION networking context.
 type SCIONNetwork struct {
-	LocalIA    addr.IA
-	Controller Controller
-	Connector  Connector
+	LocalIA        addr.IA
+	CPInfoProvider CPInfoProvider
+	Connector      Connector
 	// ReplyPather is used to create reply paths when reading packets on Conn
 	// (that implements net.Conn). If unset, the default reply pather is used,
 	// which parses the incoming path as a path.Path and reverses it.
@@ -172,7 +172,7 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 	return conn, nil
 }
 
-// Listen opens a PacketConn. The returned connection's ReadFrom and WriteTo methods
+// Listen opens a Conn. The returned connection's ReadFrom and WriteTo methods
 // can be used to receive and send SCION packets with per-packet addressing.
 // Parameter network must be "udp". If listen is unspecified address a suitable address
 // will be chosen independently per packet. For finer-grained control, bind to a specific
@@ -209,7 +209,7 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 	if replyPather == nil {
 		replyPather = DefaultReplyPather{}
 	}
-	start, end, err := n.Controller.PortRange(ctx)
+	start, end, err := n.CPInfoProvider.PortRange(ctx)
 	if err != nil {
 		return nil, err
 	}

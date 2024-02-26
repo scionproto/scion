@@ -55,14 +55,14 @@ type Stats struct {
 
 // Config configures the traceroute run.
 type Config struct {
-	Local       *snet.UDPAddr
-	Controller  snet.Controller
-	MTU         uint16
-	PathEntry   snet.Path
-	PayloadSize uint
-	Remote      *snet.UDPAddr
-	Timeout     time.Duration
-	EPIC        bool
+	Local          *snet.UDPAddr
+	CPInfoProvider snet.CPInfoProvider
+	MTU            uint16
+	PathEntry      snet.Path
+	PayloadSize    uint
+	Remote         *snet.UDPAddr
+	Timeout        time.Duration
+	EPIC           bool
 
 	// ProbesPerHop indicates how many probes should be done per hop.
 	ProbesPerHop int
@@ -100,8 +100,8 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 	}
 	replies := make(chan reply, 10)
 	connector := &snet.DefaultConnector{
-		SCMPHandler: scmpHandler{replies: replies},
-		Controller:  cfg.Controller,
+		SCMPHandler:    scmpHandler{replies: replies},
+		CPInfoProvider: cfg.CPInfoProvider,
 	}
 	conn, err := connector.OpenUDP(ctx, cfg.Local.Host)
 	if err != nil {

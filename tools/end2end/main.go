@@ -132,8 +132,8 @@ func (s server) run() {
 			RevocationHandler: daemon.RevHandler{Connector: sdConn},
 			SCMPErrors:        scmpErrorsCounter,
 		},
-		Metrics:    scionPacketConnMetrics,
-		Controller: sdConn,
+		Metrics:        scionPacketConnMetrics,
+		CPInfoProvider: sdConn,
 	}
 	conn, err := connector.OpenUDP(context.Background(), integration.Local.Host)
 	if err != nil {
@@ -260,8 +260,8 @@ func (c *client) run() int {
 			RevocationHandler: daemon.RevHandler{Connector: c.sdConn},
 			SCMPErrors:        scmpErrorsCounter,
 		},
-		Metrics:    scionPacketConnMetrics,
-		Controller: c.sdConn,
+		Metrics:        scionPacketConnMetrics,
+		CPInfoProvider: c.sdConn,
 	}
 
 	var err error

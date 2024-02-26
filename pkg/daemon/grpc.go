@@ -83,7 +83,6 @@ func (c grpcConn) PortRange(ctx context.Context) (uint16, uint16, error) {
 }
 
 func (c grpcConn) Interfaces(ctx context.Context) (map[uint16]*net.UDPAddr, error) {
-
 	client := sdpb.NewDaemonServiceClient(c.conn)
 	response, err := client.Interfaces(ctx, &sdpb.InterfacesRequest{})
 	if err != nil {

@@ -75,9 +75,9 @@ type Config struct {
 	Local  *snet.UDPAddr
 	Remote *snet.UDPAddr
 
-	// Controller is the helper class to get control-plane information for the
+	// CPInfoProvider is the helper class to get control-plane information for the
 	// local AS.
-	Controler snet.Controller
+	CPInfoProvider snet.CPInfoProvider
 
 	// Attempts is the number of pings to send.
 	Attempts uint16
@@ -108,7 +108,7 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		SCMPHandler: scmpHandler{
 			replies: replies,
 		},
-		Controller: cfg.Controler,
+		CPInfoProvider: cfg.CPInfoProvider,
 	}
 	conn, err := svc.OpenUDP(ctx, cfg.Local.Host)
 	if err != nil {

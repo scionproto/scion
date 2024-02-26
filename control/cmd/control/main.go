@@ -226,7 +226,7 @@ func realMain(ctx context.Context) error {
 		SCIONNetworkMetrics:    metrics.SCIONNetworkMetrics,
 		SCIONPacketConnMetrics: metrics.SCIONPacketConnMetrics,
 		MTU:                    topo.MTU(),
-		Controller:             controller{topo: topo},
+		CPInfoProvider:         cpInfoProvider{topo: topo},
 	}
 	quicStack, err := nc.QUICStack()
 	if err != nil {
@@ -576,6 +576,8 @@ func realMain(ctx context.Context) error {
 		FetcherConfig:    fetcherCfg,
 		IntraASTCPServer: tcpServer,
 	}
+
+	// (TODO)JordiSubira: Revisit after rebasing and move out to separate PR if applicable.
 	// (XXX)JordiSubira: We should revisit how we want to handle HP service,
 	// right now it only seems to be used within the CS. So perhaps we should treat
 	// it as a part of the CS (same as BS, CertServ, DRKey, etc). For the moment, we
@@ -951,16 +953,16 @@ func (h *healther) GetCAHealth(ctx context.Context) (api.CAHealthStatus, bool) {
 	return api.Unavailable, false
 }
 
-type controller struct {
+type cpInfoProvider struct {
 	topo *topology.Loader
 }
 
-func (c controller) PortRange(_ context.Context) (uint16, uint16, error) {
+func (c cpInfoProvider) PortRange(_ context.Context) (uint16, uint16, error) {
 	start, end := c.topo.PortRange()
 	return start, end, nil
 }
 
-func (c controller) Interfaces(_ context.Context) (map[uint16]*net.UDPAddr, error) {
+func (c cpInfoProvider) Interfaces(_ context.Context) (map[uint16]*net.UDPAddr, error) {
 	ifMap := c.topo.InterfaceInfoMap()
 	ifsToUDP := make(map[uint16]*net.UDPAddr, len(ifMap))
 	for i, v := range ifMap {

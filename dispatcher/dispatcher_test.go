@@ -16,6 +16,7 @@ package dispatcher
 
 import (
 	"net"
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,7 +26,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/path"
-	"github.com/scionproto/scion/private/topology"
 )
 
 type testCase struct {
@@ -37,12 +37,11 @@ type testCase struct {
 }
 
 func testRunTestCase(t *testing.T, tc testCase) {
-
 	serverConn, err := net.ListenUDP(tc.DispAddr.Network(), tc.DispAddr)
 	require.NoError(t, err)
 	defer serverConn.Close()
 	setIPPktInfo(serverConn)
-	emptyTopo := make(map[addr.AS]*topology.Loader)
+	emptyTopo := make(map[addr.Addr]netip.AddrPort)
 	server := NewServer(emptyTopo, serverConn)
 
 	clientConn, err := net.DialUDP("udp", tc.ClientAddr, tc.DispAddr)
@@ -56,9 +55,11 @@ func testRunTestCase(t *testing.T, tc testCase) {
 	oobuf := make([]byte, 1024)
 	n, nn, _, nextHop, err := server.conn.ReadMsgUDPAddrPort(buf, oobuf)
 	require.NoError(t, err)
-	dstAddr, err := server.processMsgNextHop(buf[:n], nextHop)
+	underlayAddr := server.parseUnderlayAddr(oobuf[:nn])
+	require.NotNil(t, underlayAddr)
+	_, dstAddr, err := server.processMsgNextHop(buf[:n], *underlayAddr, nextHop)
 	assert.NoError(t, err)
-	assert.Equal(t, tc.ExpectedValue, server.validateNextHopAddr(*dstAddr, oobuf[:nn]))
+	assert.Equal(t, tc.ExpectedValue, dstAddr != nil)
 }
 
 func TestValidateAddr(t *testing.T) {
@@ -70,7 +71,6 @@ func TestValidateAddr(t *testing.T) {
 		IP:   dispIPv4Addr.IP.To16(),
 		Port: 40032,
 	}
-	undefinedIPv6 := xtest.MustParseUDPAddr(t, "[::]:40032")
 	testCases := []testCase{
 		{
 			Name:       "valid UDP/IPv4",
@@ -317,29 +317,6 @@ func TestValidateAddr(t *testing.T) {
 					Destination: snet.SCIONAddress{
 						IA:   xtest.MustParseIA("1-ff00:0:1"),
 						Host: addr.HostIP(mappedDispIPv4Addr.AddrPort().Addr()),
-					},
-					Payload: snet.UDPPayload{
-						SrcPort: 20001,
-						DstPort: 40001,
-					},
-					Path: path.Empty{},
-				},
-			},
-			ExpectedValue: true,
-		},
-		{
-			Name:       "IPv4 to undefined IPv6",
-			ClientAddr: clientAddr,
-			DispAddr:   undefinedIPv6,
-			Pkt: &snet.Packet{
-				PacketInfo: snet.PacketInfo{
-					Source: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:2"),
-						Host: addr.HostIP(clientAddr.AddrPort().Addr()),
-					},
-					Destination: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:1"),
-						Host: addr.HostIP(dispIPv4Addr.AddrPort().Addr()),
 					},
 					Payload: snet.UDPPayload{
 						SrcPort: 20001,

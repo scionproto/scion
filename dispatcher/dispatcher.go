@@ -30,7 +30,6 @@ import (
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path/epic"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
-	"github.com/scionproto/scion/private/topology"
 )
 
 const ErrUnsupportedL4 common.ErrMsg = "unsupported SCION L4 protocol"
@@ -45,13 +44,14 @@ type Server struct {
 
 	// TODO(JordiSubira): This may be taken from daemon for non self-contained
 	// applications.
-	topo      map[addr.AS]*topology.Loader
-	buf       []byte
-	oobuf     []byte
-	outBuffer gopacket.SerializeBuffer
-	decoded   []gopacket.LayerType
-	parser    *gopacket.DecodingLayerParser
-	options   gopacket.SerializeOptions
+	ServiceAddresses map[addr.Addr]netip.AddrPort
+	buf              []byte
+	oobuf            []byte
+	outBuffer        gopacket.SerializeBuffer
+	decoded          []gopacket.LayerType
+	parser           *gopacket.DecodingLayerParser
+	cmParser         controlMessageParser
+	options          gopacket.SerializeOptions
 
 	scionLayer slayers.SCION
 	hbh        slayers.HopByHopExtnSkipper
@@ -61,14 +61,13 @@ type Server struct {
 }
 
 // NewServer creates new instance of Server.
-func NewServer(topo map[addr.AS]*topology.Loader, conn *net.UDPConn) *Server {
+func NewServer(svcAddrs map[addr.Addr]netip.AddrPort, conn *net.UDPConn) *Server {
 	server := Server{
-		topo:      topo,
-		conn:      setIPPktInfo(conn),
-		buf:       make([]byte, common.SupportedMTU),
-		oobuf:     make([]byte, 1024),
-		decoded:   make([]gopacket.LayerType, 4),
-		outBuffer: gopacket.NewSerializeBuffer(),
+		ServiceAddresses: svcAddrs,
+		buf:              make([]byte, common.SupportedMTU),
+		oobuf:            make([]byte, 1024),
+		decoded:          make([]gopacket.LayerType, 4),
+		outBuffer:        gopacket.NewSerializeBuffer(),
 		options: gopacket.SerializeOptions{
 			ComputeChecksums: true,
 			FixLengths:       true,
@@ -84,6 +83,7 @@ func NewServer(topo map[addr.AS]*topology.Loader, conn *net.UDPConn) *Server {
 	)
 	parser.IgnoreUnsupported = true
 	server.parser = parser
+	server.conn, server.cmParser = setIPPktInfo(conn)
 	server.scionLayer.RecyclePaths()
 	server.udpLayer.SetNetworkLayerForChecksum(&server.scionLayer)
 	server.scmpLayer.SetNetworkLayerForChecksum(&server.scionLayer)
@@ -95,132 +95,156 @@ func NewServer(topo map[addr.AS]*topology.Loader, conn *net.UDPConn) *Server {
 // The function blocks and returns if there's an error or when Close has been called.
 func (s *Server) Serve() error {
 	for {
-		s.buf = s.buf[:cap(s.buf)]
-
-		n, nn, _, previousHop, err := s.conn.ReadMsgUDPAddrPort(s.buf, s.oobuf)
+		n, nn, _, prevHop, err := s.conn.ReadMsgUDPAddrPort(s.buf, s.oobuf)
 		if err != nil {
 			log.Error("Reading message", "err", err)
 			continue
 		}
 
-		nextHopAddr, err := s.processMsgNextHop(s.buf[:n], previousHop)
-		if err != nil {
-			return err
-		}
-		if nextHopAddr == nil {
-			// some error parsing the address from the incoming packet;
+		underlay := s.parseUnderlayAddr(s.oobuf[:nn])
+		if underlay == nil {
+			// some error parsing the CM info from the incoming packet;
 			// we discard the packet and keep serving.
 			continue
 		}
 
-		// If the outgoing message is SCMP Informational message (Echo or Traceroute)
-		// the dispatcher has already processed the response, and the nextHop address
-		// belongs to the BR.
-		isSCMPinfo := s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeTracerouteReply ||
-			s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeEchoReply
-		if isSCMPinfo || s.validateNextHopAddr(*nextHopAddr, s.oobuf[:nn]) {
-			m, err := s.conn.WriteToUDPAddrPort(s.outBuffer.Bytes(), *nextHopAddr)
-			if err != nil || m != len(s.outBuffer.Bytes()) {
-				log.Error("writing packet out", "err", err)
-			}
+		outBuf, nextHopAddr, err := s.processMsgNextHop(s.buf[:n], *underlay, prevHop)
+		if err != nil {
+			return err
+		}
+		if nextHopAddr == nil {
+			// some error processing the incoming packet;
+			// we discard the packet and keep serving.
+			continue
+		}
+
+		m, err := s.conn.WriteToUDPAddrPort(outBuf, *nextHopAddr)
+		if err != nil {
+			log.Error("writing packet out", "err", err)
+			continue
+		}
+		if m != len(outBuf) {
+			log.Error("writing packet out", "message len", len(outBuf), "written bytes", n)
 		}
 	}
 }
 
-// processMsgNextHop processes the message arriving to the shim dispatcher and serializes
-// the outbound packet into buf. The intended nextHop address, either the end application,
-// or the next BR (for SCMP informational response) is returned. It returns a non-nil error
-// for non-recoverable errors, only. If the incoming packet couldn't be processed due to a
-// recoverable error, the returned address will be nil. The caller must check both values
-// consistently.
-func (s *Server) processMsgNextHop(buf []byte, prevHop netip.AddrPort) (*netip.AddrPort, error) {
+// processMsgNextHop processes the message arriving to the shim dispatcher and returns
+// a byte array corresponding to the packet that has to be forwarded.
+// The input byte array *buf* is the raw incoming packet; the *underlay* address MUST NOT
+// be nil and corresponds to the IP address in the encapsulation UDP/IP header; *prevHop*
+// address is the address from the previous SCION hop in the local network.
+// The intended nextHop address, either the end application or the next BR (for SCMP
+// informational response), is returned.
+// It returns a non-nil error for non-recoverable errors, only.
+// If the incoming packet couldn't be processed due to a recoverable error or due to
+// incorrect address validation the returned buffer and address will be nil.
+// The caller must check both values consistently.
+func (s *Server) processMsgNextHop(
+	buf []byte,
+	underlay netip.Addr,
+	prevHop netip.AddrPort,
+) ([]byte, *netip.AddrPort, error) {
+
 	err := s.parser.DecodeLayers(buf, &s.decoded)
 	if err != nil {
 		log.Error("Decoding layers", "err", err)
-		return nil, nil
+		return nil, nil, nil
 	}
 	if len(s.decoded) < 2 {
 		log.Error("Unexpected decode packet", "layers decoded", len(s.decoded))
-		return nil, nil
+		return nil, nil, nil
 	}
 	err = s.outBuffer.Clear()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	// Packet handling
+
+	// Retrieve DST UDP/SCION addr and compare to underlay address if it applies,
+	// i.e., all cases expect SCMPInfo request messages, which are to be replied
+	// by the shim dispatcher itself.
 	var dstAddrPort netip.AddrPort
 	switch s.decoded[len(s.decoded)-1] {
 	case slayers.LayerTypeSCMP:
 		// send response to BR
 		if s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeTracerouteRequest ||
 			s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeEchoRequest {
-			err = s.reverseSCMPInfo()
-			if err != nil {
-				log.Error("Reversing SCMP information", "err", err)
-				return nil, nil
-			}
 			dstAddrPort = prevHop
 		} else { // relay to end application
 			dstAddrPort, err = s.getDstSCMP()
 			if err != nil {
 				log.Error("Getting destination for SCMP message", "err", err)
-				return nil, nil
+				return nil, nil, nil
 			}
+			if dstAddrPort.Addr().Unmap().Compare(underlay.Unmap()) != 0 {
+				log.Error("UDP/IP addr destination different from UDP/SCION addr",
+					"UDP/IP:", underlay.Unmap().String(),
+					"UDP/SCION:", dstAddrPort.Addr().Unmap().String())
+				return nil, nil, nil
+			}
+		}
+	case slayers.LayerTypeSCIONUDP:
+		dstAddrPort, err = s.getDstSCIONUDP()
+		if err != nil {
+			log.Error("Getting destination for SCION/UDP message", "err", err)
+			return nil, nil, nil
+		}
+		if dstAddrPort.Addr().Unmap().Compare(underlay.Unmap()) != 0 {
+			log.Error("UDP/IP addr destination different from UDP/SCION addr",
+				"UDP/IP:", underlay.Unmap().String(),
+				"UDP/SCION:", dstAddrPort.Addr().Unmap().String())
+			return nil, nil, nil
+		}
+	}
+
+	var outBuf []byte
+	// generate SCMPInfo response
+	if s.decoded[len(s.decoded)-1] == slayers.LayerTypeSCMP &&
+		(s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeTracerouteRequest ||
+			s.scmpLayer.TypeCode.Type() == slayers.SCMPTypeEchoRequest) {
+		err = s.replyToSCMPInfoRequest()
+		if err != nil {
+			log.Error("Reversing SCMP information", "err", err)
+			return nil, nil, nil
 		}
 		payload := gopacket.Payload(s.scmpLayer.Payload)
 		err = payload.SerializeTo(s.outBuffer, s.options)
 		if err != nil {
 			log.Error("Serializing payload", "err", err)
-			return nil, nil
+			return nil, nil, nil
 		}
 		s.outBuffer.PushLayer(payload.LayerType())
 
 		err = s.scmpLayer.SerializeTo(s.outBuffer, s.options)
 		if err != nil {
 			log.Error("Serializing SCMP header", "err", err)
-			return nil, nil
+			return nil, nil, nil
 		}
 		s.outBuffer.PushLayer(s.scmpLayer.LayerType())
-	case slayers.LayerTypeSCIONUDP:
-		dstAddrPort, err = s.getDstSCIONUDP()
-		if err != nil {
-			log.Error("Getting destination for SCION/UDP message", "err", err)
-			return nil, nil
-		}
-		payload := gopacket.Payload(s.udpLayer.Payload)
-		err = payload.SerializeTo(s.outBuffer, s.options)
-		if err != nil {
-			log.Error("Serializing payload", "err", err)
-			return nil, nil
-		}
-		s.outBuffer.PushLayer(payload.LayerType())
 
-		err = s.udpLayer.SerializeTo(s.outBuffer, s.options)
-		if err != nil {
-			log.Error("Serializing udp header", "err", err)
-			return nil, nil
+		if s.decoded[len(s.decoded)-2] == slayers.LayerTypeEndToEndExtn {
+			err = s.e2e.SerializeTo(s.outBuffer, s.options)
+			if err != nil {
+				log.Error("Serializing e2e extension", "err", err)
+				return nil, nil, nil
+			}
+			s.outBuffer.PushLayer(s.e2e.LayerType())
 		}
-		s.outBuffer.PushLayer(s.udpLayer.LayerType())
-	}
-	if s.decoded[len(s.decoded)-2] == slayers.LayerTypeEndToEndExtn {
-		err = s.e2e.SerializeTo(s.outBuffer, s.options)
+		err = s.scionLayer.SerializeTo(s.outBuffer, s.options)
 		if err != nil {
-			log.Error("Serializing e2e extension", "err", err)
-			return nil, nil
+			log.Error("Serializing SCION header", "err", err)
+			return nil, nil, nil
 		}
-		s.outBuffer.PushLayer(s.e2e.LayerType())
+		s.outBuffer.PushLayer(s.scionLayer.LayerType())
+		outBuf = s.outBuffer.Bytes()
+	} else { //forward incoming byte array
+		outBuf = buf
 	}
-	err = s.scionLayer.SerializeTo(s.outBuffer, s.options)
-	if err != nil {
-		log.Error("Serializing SCION header", "err", err)
-		return nil, nil
-	}
-	s.outBuffer.PushLayer(s.scionLayer.LayerType())
 
-	return &dstAddrPort, nil
+	return outBuf, &dstAddrPort, nil
 }
 
-func (s *Server) reverseSCMPInfo() error {
+func (s *Server) replyToSCMPInfoRequest() error {
 	// Translate request to a reply.
 	switch s.scmpLayer.NextLayerType() {
 	case slayers.LayerTypeSCMPEcho:
@@ -360,16 +384,13 @@ func (s *Server) getDstSCIONUDP() (netip.AddrPort, error) {
 	}
 	switch host.Type() {
 	case addr.HostTypeSVC:
-		topo, ok := s.topo[s.scionLayer.DstIA.AS()]
+		hostAddr := addr.Addr{IA: s.scionLayer.DstIA, Host: host}
+		addrPort, ok := s.ServiceAddresses[hostAddr]
 		if !ok {
 			return netip.AddrPort{}, serrors.New("SVC destination not found",
-				"IA", s.scionLayer.DstIA)
+				"Host", hostAddr)
 		}
-		udpAddr, err := topo.GetUnderlay(host.SVC())
-		if err != nil {
-			return netip.AddrPort{}, err
-		}
-		return netip.AddrPortFrom(udpAddr.AddrPort().Addr(), udpAddr.AddrPort().Port()), nil
+		return addrPort, nil
 	case addr.HostTypeIP:
 		return addrPortFromBytes(s.scionLayer.RawDstAddr, s.udpLayer.DstPort)
 	default:
@@ -377,7 +398,7 @@ func (s *Server) getDstSCIONUDP() (netip.AddrPort, error) {
 	}
 }
 
-type controlMessage interface {
+type controlMessageParser interface {
 	Destination() net.IP
 	Parse(b []byte) error
 	String() string
@@ -399,68 +420,38 @@ func (m ipv6ControlMessage) Destination() net.IP {
 	return m.Dst
 }
 
-// validateNextHopAddr returnS true if the underlay address on the UDP/IP wrapper
-// header corresponds to the address on the encapsulated UDP/SCION header, otherwise
-// it returns false. This implements a safeguard for traffic reflection as discussed in:
+// parseUnderlayAddr returns the underlay destination address on the UDP/IP wrapper.
+// It returns nil, if the control message information is not present or cannot be parsed.
+// This is useful for checking that this address corresponds to the address of the encapsulated
+// UDP/SCION header. This refers to the safeguard for traffic reflection as discussed in:
 // https://github.com/scionproto/scion/pull/4280#issuecomment-1775177351
-func (s *Server) validateNextHopAddr(addr netip.AddrPort, oobuffer []byte) bool {
-	// take localAddr to be consistent with the setIPPktInfo(·) configuration
-	localAddr, ok := s.conn.LocalAddr().(*net.UDPAddr)
-	if !ok {
-		panic(fmt.Sprintln("Connection address is not UDPAddr",
-			"conn", s.conn.LocalAddr().Network()))
+func (s *Server) parseUnderlayAddr(oobuffer []byte) *netip.Addr {
+	if err := s.cmParser.Parse(oobuffer); err != nil {
+		log.Error("Parsing Control Message Information", "err", err)
+		return nil
 	}
-
-	var cm controlMessage
-	if localAddr.AddrPort().Addr().Unmap().Is4() {
-		cm = ipv4ControlMessage{
-			ControlMessage: new(ipv4.ControlMessage),
-		}
-	}
-	if localAddr.AddrPort().Addr().Unmap().Is6() {
-		cm = ipv6ControlMessage{
-			ControlMessage: new(ipv6.ControlMessage),
-		}
-	}
-
-	if err := cm.Parse(oobuffer); err != nil {
-		log.Error("Parsing message", "err", err)
-		return false
-	}
-	if !cm.Destination().IsUnspecified() {
-		pktAddr, ok := netip.AddrFromSlice(cm.Destination())
+	if !s.cmParser.Destination().IsUnspecified() {
+		pktAddr, ok := netip.AddrFromSlice(s.cmParser.Destination())
 		if !ok {
-			log.Error("Getting DST from IP_PKT info", "DST", cm.Destination())
-			return false
+			log.Error("Getting DST from IP_PKTINFO", "DST", s.cmParser.Destination())
+			return nil
 		}
-		if addr.Addr().Unmap().Compare(pktAddr.Unmap()) != 0 {
-			log.Error("UDP/IP addr destination different from UDP/SCION addr",
-				"UDP/IP:", pktAddr.String(),
-				"UDP/SCION:", addr.Addr().String())
-			return false
-		}
-		return true
+		return &pktAddr
 	}
-	log.Error("Unable to validate next hop address", "addr", addr)
-	return false
+	log.Error("Destination in IP_PKTINFO is unspecified")
+	return nil
 }
 
-func ListenAndServe(topo map[addr.AS]*topology.Loader, addr *net.UDPAddr) error {
+func ListenAndServe(svcAddrs map[addr.Addr]netip.AddrPort, addr *net.UDPAddr) error {
 	conn, err := net.ListenUDP(addr.Network(), addr)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 	log.Debug(fmt.Sprintf("local address: %s", conn.LocalAddr()))
-	dispServer := NewServer(topo, conn)
+	dispServer := NewServer(svcAddrs, conn)
 
-	errChan := make(chan error)
-	go func() {
-		defer log.HandlePanic()
-		errChan <- dispServer.Serve()
-	}()
-
-	return <-errChan
+	return dispServer.Serve()
 }
 
 // decodeSCMP decodes the SCMP payload. WARNING: Decoding is done with NoCopy set.
@@ -490,25 +481,38 @@ func addrPortFromBytes(addr []byte, port uint16) (netip.AddrPort, error) {
 	return netip.AddrPortFrom(a, port), nil
 }
 
-func setIPPktInfo(conn *net.UDPConn) *net.UDPConn {
+// setIPPktInfo sets the IP_PKTINFO.DST flag to the underlay socket. The IPv4 part
+// covers the case for IPv4-only hosts. For hosts supporting dual stack, the IPv6
+// part handles both 6 and 4 (with mapped addresses).
+// The argument conn must not be nil. The returned conn will have the flag set,
+// and the returned controlMessageParser can be used as a facilitator to
+// parse the OOB after reading on the conn.
+func setIPPktInfo(conn *net.UDPConn) (*net.UDPConn, controlMessageParser) {
 	udpAddr, ok := conn.LocalAddr().(*net.UDPAddr)
 	if !ok {
 		panic(fmt.Sprintln("Connection address is not UDPAddr",
 			"conn", conn.LocalAddr().Network()))
 	}
 
+	var cm controlMessageParser
 	if udpAddr.AddrPort().Addr().Unmap().Is4() {
-		err := ipv4.NewPacketConn(conn).SetControlMessage(ipv4.FlagDst|ipv4.FlagInterface, true)
+		err := ipv4.NewPacketConn(conn).SetControlMessage(ipv4.FlagDst, true)
 		if err != nil {
 			panic(fmt.Sprintf("cannot set IP_PKTINFO on socket: %s", err))
+		}
+		cm = ipv4ControlMessage{
+			ControlMessage: new(ipv4.ControlMessage),
 		}
 	}
 	if udpAddr.AddrPort().Addr().Unmap().Is6() {
-		err := ipv6.NewPacketConn(conn).SetControlMessage(ipv6.FlagDst|ipv6.FlagInterface, true)
+		err := ipv6.NewPacketConn(conn).SetControlMessage(ipv6.FlagDst, true)
 		if err != nil {
 			panic(fmt.Sprintf("cannot set IP_PKTINFO on socket: %s", err))
 		}
+		cm = ipv6ControlMessage{
+			ControlMessage: new(ipv6.ControlMessage),
+		}
 	}
 
-	return conn
+	return conn, cm
 }

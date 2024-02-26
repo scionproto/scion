@@ -180,14 +180,14 @@ On other errors, traceroute will exit with code 2.
 			var stats traceroute.Stats
 			var updates []traceroute.Update
 			cfg := traceroute.Config{
-				Controller:   sd,
-				Remote:       remote,
-				MTU:          path.Metadata().MTU,
-				Local:        local,
-				PathEntry:    path,
-				Timeout:      flags.timeout,
-				ProbesPerHop: 3,
-				ErrHandler:   func(err error) { fmt.Fprintf(os.Stderr, "ERROR: %s\n", err) },
+				CPInfoProvider: sd,
+				Remote:         remote,
+				MTU:            path.Metadata().MTU,
+				Local:          local,
+				PathEntry:      path,
+				Timeout:        flags.timeout,
+				ProbesPerHop:   3,
+				ErrHandler:     func(err error) { fmt.Fprintf(os.Stderr, "ERROR: %s\n", err) },
 				UpdateHandler: func(u traceroute.Update) {
 					updates = append(updates, u)
 					printf("%d %s %s\n", u.Index, fmtRemote(u.Remote, u.Interface),

@@ -39,12 +39,13 @@ class Test(base.TestTopogen):
 
         br_as_2_file = self.artifacts / "gen" / "ASff00_0_2" \
             / ("%s.toml" % br_as_2_id)
-        scion.update_toml({"router.endhost_start_port": 0}, [br_as_2_file])
-        scion.update_toml({"router.endhost_end_port": 0}, [br_as_2_file])
+        scion.update_toml({"router.endhost_start_port": 0,
+                          "router.endhost_end_port": 0},
+                          [br_as_2_file])
 
     def setup_start(self):
         super().setup_start()
-        time.sleep(10)  # Give applications time to download configurations
+        time.sleep(10)  # TODO(JordiSubira): Replace with self.await_connectivity() after rebasing
 
     def _run(self):
         ping_test = self.get_executable("end2end_integration")

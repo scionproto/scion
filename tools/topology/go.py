@@ -35,9 +35,6 @@ from topology.common import (
     SD_API_PORT,
     SD_CONFIG_NAME,
 )
-from topology.defines import (
-    TOPO_FILE,
-)
 
 from topology.net import socket_address_str, NetworkDescription, IPNetwork
 
@@ -173,14 +170,14 @@ class GoGenerator(object):
         }
         return raw_entry
 
-    def generate_disp(self, topo_paths):
+    def generate_disp(self):
         if self.args.docker:
             self._gen_disp_docker()
         else:
             elem_dir = os.path.join(self.args.output_dir, "dispatcher")
             config_file_path = os.path.join(elem_dir, DISP_CONFIG_NAME)
             write_file(config_file_path, toml.dumps(self._build_disp_conf(
-                "dispatcher", topo_paths)))
+                "dispatcher")))
 
     def _gen_disp_docker(self):
         for topo_id, topo in self.args.topo_dicts.items():
@@ -190,15 +187,15 @@ class GoGenerator(object):
                 ['tester_%s' % topo_id.file_fmt()]
             for k in elem_ids:
                 disp_id = 'disp_%s' % k
-                disp_conf = self._build_disp_conf(disp_id, base, topo_id)
+                disp_conf = self._build_disp_conf(disp_id, topo_id)
                 write_file(os.path.join(base, '%s.toml' % disp_id), toml.dumps(disp_conf))
 
-    def _build_disp_conf(self, name, topo_paths, topo_id=None):
+    def _build_disp_conf(self, name, topo_id=None):
         prometheus_addr = prom_addr_dispatcher(self.args.docker, topo_id,
                                                self.args.networks, DISP_PROM_PORT, name)
         api_addr = prom_addr_dispatcher(self.args.docker, topo_id,
                                         self.args.networks, DISP_PROM_PORT+700, name)
-        conf_topos = [os.path.join('/share/conf', TOPO_FILE)] if self.args.docker else topo_paths
+        srv_addresses = self._build_srv_addresses(self.args.docker, name, topo_id)
         tomlDict = {
             'dispatcher': {
                 'id': name,
@@ -212,9 +209,26 @@ class GoGenerator(object):
                 'addr': api_addr,
             },
         }
-        if len(conf_topos) > 0:
-            tomlDict['dispatcher']['topologies'] = conf_topos
+        if len(srv_addresses) > 1:
+            tomlDict["dispatcher"]["service_addresses"] = srv_addresses
         return tomlDict
+
+    def _build_srv_addresses(self, docker, name, topo_id):
+        srv_addresses = dict()
+        if docker:
+            if name.startswith("disp_cs"):
+                topo = self.args.topo_dicts.get(topo_id)
+                cs_addresses = list(topo.get("control_service", {}).values())
+                srv_addresses[str(topo_id)+",CS"] = cs_addresses[0]["addr"]
+                ds_addresses = list(topo.get("discovery_service", {}).values())
+                srv_addresses[str(topo_id)+",DS"] = ds_addresses[0]["addr"]
+        else:
+            for topo_id, topo in self.args.topo_dicts.items():
+                cs_addresses = list(topo.get("control_service", {}).values())
+                srv_addresses[str(topo_id)+",CS"] = cs_addresses[0]["addr"]
+                ds_addresses = list(topo.get("discovery_service", {}).values())
+                srv_addresses[str(topo_id)+",DS"] = ds_addresses[0]["addr"]
+        return srv_addresses
 
     def _tracing_entry(self):
         docker_ip = docker_host(self.args.docker)

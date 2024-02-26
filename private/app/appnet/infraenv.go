@@ -79,9 +79,9 @@ type NetworkConfig struct {
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 	// MTU of the local AS
 	MTU uint16
-	// Controller is the helper class to get control-plane information for the
+	// CPInfoProvider is the helper class to get control-plane information for the
 	// local AS.
-	Controller snet.Controller
+	CPInfoProvider snet.CPInfoProvider
 }
 
 // QUICStack contains everything to run a QUIC based RPC stack.
@@ -219,9 +219,9 @@ func (nc *NetworkConfig) AddressRewriter(
 
 	if connector == nil {
 		connector = &snet.DefaultConnector{
-			SCMPHandler: nc.SCMPHandler,
-			Metrics:     nc.SCIONPacketConnMetrics,
-			Controller:  nc.Controller,
+			SCMPHandler:    nc.SCMPHandler,
+			Metrics:        nc.SCIONPacketConnMetrics,
+			CPInfoProvider: nc.CPInfoProvider,
 		}
 	}
 	return &AddressRewriter{
@@ -243,12 +243,12 @@ func (nc *NetworkConfig) OpenListener(a string) (*squic.ConnListener, error) {
 			// XXX(roosd): This is essential, the server must not read SCMP
 			// errors. Otherwise, the accept loop will always return that error
 			// on every subsequent call to accept.
-			SCMPHandler: ignoreSCMP{},
-			Metrics:     nc.SCIONPacketConnMetrics,
-			Controller:  nc.Controller,
+			SCMPHandler:    ignoreSCMP{},
+			Metrics:        nc.SCIONPacketConnMetrics,
+			CPInfoProvider: nc.CPInfoProvider,
 		},
-		Metrics:    nc.SCIONNetworkMetrics,
-		Controller: nc.Controller,
+		Metrics:        nc.SCIONNetworkMetrics,
+		CPInfoProvider: nc.CPInfoProvider,
 	}
 	udpAddr, err := net.ResolveUDPAddr("udp", a)
 	if err != nil {
@@ -285,13 +285,13 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 	}
 
 	network := &snet.SCIONNetwork{
-		LocalIA:    nc.IA,
-		Controller: nc.Controller,
+		LocalIA:        nc.IA,
+		CPInfoProvider: nc.CPInfoProvider,
 		Connector: &svc.ResolverPacketConnector{
 			Connector: &snet.DefaultConnector{
-				SCMPHandler: nc.SCMPHandler,
-				Metrics:     nc.SCIONPacketConnMetrics,
-				Controller:  nc.Controller,
+				SCMPHandler:    nc.SCMPHandler,
+				Metrics:        nc.SCIONPacketConnMetrics,
+				CPInfoProvider: nc.CPInfoProvider,
 			},
 			LocalIA: nc.IA,
 			Handler: &svc.BaseHandler{
@@ -335,15 +335,15 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, error) {
 
 	serverNet := &snet.SCIONNetwork{
-		LocalIA:    nc.IA,
-		Controller: nc.Controller,
+		LocalIA:        nc.IA,
+		CPInfoProvider: nc.CPInfoProvider,
 		Connector: &snet.DefaultConnector{
 			// XXX(roosd): This is essential, the server must not read SCMP
 			// errors. Otherwise, the accept loop will always return that error
 			// on every subsequent call to accept.
-			SCMPHandler: ignoreSCMP{},
-			Metrics:     nc.SCIONPacketConnMetrics,
-			Controller:  nc.Controller,
+			SCMPHandler:    ignoreSCMP{},
+			Metrics:        nc.SCIONPacketConnMetrics,
+			CPInfoProvider: nc.CPInfoProvider,
 		},
 		Metrics: nc.SCIONNetworkMetrics,
 	}
@@ -357,15 +357,17 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 	}
 
 	clientNet := &snet.SCIONNetwork{
-		LocalIA:    nc.IA,
-		Controller: nc.Controller,
+		LocalIA:        nc.IA,
+		CPInfoProvider: nc.CPInfoProvider,
 		Connector: &snet.DefaultConnector{
+			// Discard all SCMP propagation, to avoid read errors on the QUIC
+			// client.
 			SCMPHandler: snet.SCMPPropagationStopper{
 				Handler: nc.SCMPHandler,
 				Log:     log.Debug,
 			},
-			Metrics:    nc.SCIONPacketConnMetrics,
-			Controller: nc.Controller,
+			Metrics:        nc.SCIONPacketConnMetrics,
+			CPInfoProvider: nc.CPInfoProvider,
 		},
 		Metrics: nc.SCIONNetworkMetrics,
 	}

@@ -25,6 +25,7 @@ import (
 	"net"
 	"net/http"
 	_ "net/http/pprof"
+	"net/netip"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
@@ -40,7 +41,6 @@ import (
 	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/launcher"
 	"github.com/scionproto/scion/private/service"
-	"github.com/scionproto/scion/private/topology"
 )
 
 var globalCfg config.Config
@@ -57,26 +57,13 @@ func main() {
 
 func realMain(ctx context.Context) error {
 	path.StrictDecoding(false)
-	// TODO(JordiSubira): Take this from scion daemon directly as discussed in
-	// https://github.com/scionproto/scion/pull/4451
-	topos, err := globalCfg.Topologies(ctx)
-	if err != nil {
-		return err
-	}
 
 	var cleanup app.Cleanup
 	g, errCtx := errgroup.WithContext(ctx)
-	for _, topo := range topos {
-		t := topo
-		g.Go(func() error {
-			defer log.HandlePanic()
-			return t.Run(errCtx)
-		})
-	}
 	g.Go(func() error {
 		defer log.HandlePanic()
 		return RunDispatcher(
-			topos,
+			globalCfg.Dispatcher.ParsedServiceAddresses,
 			globalCfg.Dispatcher.UnderlayPort,
 		)
 	})
@@ -142,13 +129,13 @@ func realMain(ctx context.Context) error {
 	}
 }
 
-func RunDispatcher(topo map[addr.AS]*topology.Loader, underlayPort int) error {
+func RunDispatcher(svcAddrs map[addr.Addr]netip.AddrPort, underlayPort int) error {
 	localAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf(":%d", underlayPort))
 	if err != nil {
 		return err
 	}
 	log.Debug("Dispatcher starting", "localAddr", localAddr)
-	return dispatcher.ListenAndServe(topo, localAddr)
+	return dispatcher.ListenAndServe(svcAddrs, localAddr)
 }
 
 func requiredIPs() ([]net.IP, error) {
