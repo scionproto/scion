@@ -44,16 +44,16 @@ import (
 // * All IPs are V4.
 // * Interface numbers are equal to the index of AS to which they connect.
 // * ISD/AS: <1 or 2>-ff00:0:<AS index>
-// * subnets are 192.168.<child AS number> except internal subnets that are 192.168.10*<AS>.<rtr>
-// * hosts are 192.168.s.<interface number>
+// * subnets are 10.123.<child AS number> except internal subnets that are 10.123.10*<AS>.<rtr>
+// * hosts are 10.123.s.<interface number>
 // * Mac addressed (when we can choose) derive from the IP
 // * Ports are always 50000 for external interfaces and 30042 for internal interfaces.
 //
 // Example:
-// * AS2 has only interface number 1 with IP 192.168.2.2 and mac address f0:0d:cafe:02:02 that
+// * AS2 has only interface number 1 with IP 10.123.2.2 and mac address f0:0d:cafe:02:02 that
 //   connects to AS 1 interface number 2.
-// * AS1's interface number 2 has IP 192.168.2.1 and mac address f0:0d:cafe:02:01.
-// * AS1's 1st router interface 0 has IP 192.168.10.1 and mac address f0:0d:cafe:10:01.
+// * AS1's interface number 2 has IP 10.123.2.1 and mac address f0:0d:cafe:02:01.
+// * AS1's 1st router interface 0 has IP 10.123.10.1 and mac address f0:0d:cafe:10:01.
 //
 // Functions are provided to generate all addresses following that scheme.
 
@@ -75,7 +75,7 @@ type intfDesc struct {
 // the local AS. This works if there are no cycles. Else there could be subnet number collisions.
 func PublicIP(localAS byte, remoteAS byte) netip.Addr {
 	subnetNr := max(remoteAS, localAS)
-	return netip.AddrFrom4([4]byte{192, 168, subnetNr, localAS})
+	return netip.AddrFrom4([4]byte{10, 123, subnetNr, localAS})
 }
 
 // publicIP returns the IP address that is assigned to external interface designated by the given
@@ -87,7 +87,7 @@ func PublicIPPort(localAS byte, remoteAS byte) (netip.Addr, layers.UDPPort) {
 // internalIP returns the IP address that is assigned to the internal interface of the given
 // router in the AS of the given index.
 func InternalIP(AS byte, routerIndex byte) netip.Addr {
-	return netip.AddrFrom4([4]byte{192, 168, AS * 10, routerIndex})
+	return netip.AddrFrom4([4]byte{10, 123, AS * 10, routerIndex})
 }
 
 // internalIPPort returns internalIP and the UDPPort to go with.
