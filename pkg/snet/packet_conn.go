@@ -163,9 +163,11 @@ func (c *SCIONPacketConn) SetWriteDeadline(d time.Time) error {
 func (c *SCIONPacketConn) ReadFrom(pkt *Packet, ov *net.UDPAddr) error {
 	for {
 		// Read until we get an error or a data packet
-		if err := c.readFrom(pkt, ov); err != nil {
+		remoteAddr, err := c.readFrom(pkt)
+		if err != nil {
 			return err
 		}
+		*ov = *remoteAddr
 		if scmp, ok := pkt.Payload.(SCMPPayload); ok {
 			if c.SCMPHandler == nil {
 				metrics.CounterInc(c.Metrics.SCMPErrors)
@@ -190,12 +192,12 @@ func (c *SCIONPacketConn) SyscallConn() (syscall.RawConn, error) {
 	return c.Conn.SyscallConn()
 }
 
-func (c *SCIONPacketConn) readFrom(pkt *Packet, ov *net.UDPAddr) error {
+func (c *SCIONPacketConn) readFrom(pkt *Packet) (*net.UDPAddr, error) {
 	pkt.Prepare()
-	n, err := c.Conn.Read(pkt.Bytes)
+	n, remoteAddr, err := c.Conn.ReadFrom(pkt.Bytes)
 	if err != nil {
 		metrics.CounterInc(c.Metrics.UnderlayConnectionErrors)
-		return serrors.WrapStr("Reliable socket read error", err)
+		return nil, serrors.WrapStr("Reliable socket read error", err)
 	}
 	metrics.CounterAdd(c.Metrics.ReadBytes, float64(n))
 	metrics.CounterInc(c.Metrics.ReadPackets)
@@ -203,19 +205,19 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet, ov *net.UDPAddr) error {
 	pkt.Bytes = pkt.Bytes[:n]
 	if err := pkt.Decode(); err != nil {
 		metrics.CounterInc(c.Metrics.ParseErrors)
-		return serrors.WrapStr("decoding packet", err)
+		return nil, serrors.WrapStr("decoding packet", err)
 	}
 
-	// Get ingress interface internal address
-	lastHop, err := c.lastHop(pkt)
-	if err != nil {
-		return serrors.WrapStr("extracting last hop based on packet path", err)
+	udpRemoteAddr := remoteAddr.(*net.UDPAddr)
+	lastHop := udpRemoteAddr
+	if c.isShimDispatcher(udpRemoteAddr) {
+		// If packet comes from shim get ingress interface internal address
+		lastHop, err = c.lastHop(pkt)
+		if err != nil {
+			return nil, serrors.WrapStr("extracting last hop based on packet path", err)
+		}
 	}
-
-	if ov != nil {
-		*ov = *lastHop
-	}
-	return nil
+	return lastHop, nil
 }
 
 func (c *SCIONPacketConn) SetReadDeadline(d time.Time) error {
@@ -226,19 +228,18 @@ func (c *SCIONPacketConn) LocalAddr() net.Addr {
 	return c.Conn.LocalAddr()
 }
 
-type SerializationOptions struct {
-	// If ComputeChecksums is true, the checksums in sent Packets are
-	// recomputed. Otherwise, the checksum value is left intact.
-	ComputeChecksums bool
-	// If FixLengths is true, any lengths in sent Packets are recomputed
-	// to match the data contained in payloads/inner layers. This currently
-	// concerns extension headers and the L4 header.
-	FixLengths bool
-	// If InitializePaths is set to true, then forwarding paths are reset to
-	// their starting InfoField/HopField during serialization, irrespective of
-	// previous offsets. If it is set to false, then the fields are left
-	// unchanged.
-	InitializePaths bool
+// isShimDispatcher checks that udpAddr corresponds to the address where the
+// shim is/should listen on. The shim only sends forwards packets whose underlay
+// IP (i.e., the address on the UDP/IP header) corresponds to the SCION Destination
+// address (i.e., the address on the UDP/SCION header). Therefore, the underlay address
+// for the application using SCIONPacketConn will be the same as the underlay from where
+// the shim dispatcher forwards the packets.
+func (c *SCIONPacketConn) isShimDispatcher(udpAddr *net.UDPAddr) bool {
+	localAddr := c.LocalAddr().(*net.UDPAddr)
+	if udpAddr.IP.Equal(localAddr.IP) && udpAddr.Port == underlay.EndhostPort {
+		return true
+	}
+	return false
 }
 
 func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
@@ -318,4 +319,19 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 	default:
 		return nil, serrors.New("Unknown type", "type", rpath.PathType.String())
 	}
+}
+
+type SerializationOptions struct {
+	// If ComputeChecksums is true, the checksums in sent Packets are
+	// recomputed. Otherwise, the checksum value is left intact.
+	ComputeChecksums bool
+	// If FixLengths is true, any lengths in sent Packets are recomputed
+	// to match the data contained in payloads/inner layers. This currently
+	// concerns extension headers and the L4 header.
+	FixLengths bool
+	// If InitializePaths is set to true, then forwarding paths are reset to
+	// their starting InfoField/HopField during serialization, irrespective of
+	// previous offsets. If it is set to false, then the fields are left
+	// unchanged.
+	InitializePaths bool
 }

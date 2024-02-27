@@ -721,7 +721,7 @@ func (r *renewer) requestRemote(
 	if localIP == nil {
 		// Resolve local IP based on underlay next hop
 		if nexthop != nil {
-			if localIP, err = snet.ResolveLocal(nexthop.IP); err != nil {
+			if localIP, err = addrutil.ResolveLocal(nexthop.IP); err != nil {
 				return nil, serrors.WrapStr("resolving local address", err)
 			}
 		} else {
@@ -750,7 +750,7 @@ func (r *renewer) requestRemote(
 		},
 	}
 
-	conn, err := sn.Listen(ctx, "udp", local.Host, addr.SvcNone)
+	conn, err := sn.Listen(ctx, "udp", local.Host)
 	if err != nil {
 		return nil, serrors.WrapStr("dialing", err)
 	}

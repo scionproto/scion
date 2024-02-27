@@ -37,6 +37,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/addrutil"
 	"github.com/scionproto/scion/pkg/snet/metrics"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/private/tracing"
@@ -340,7 +341,7 @@ func (c *client) ping(ctx context.Context, n int, path snet.Path) error {
 		return serrors.New("invalid local host IP", "ip", integration.Local.Host.IP)
 	}
 	if localHostIP.Unmap().IsUnspecified() {
-		resolvedLocal, err := snet.ResolveLocal(remote.Host.IP)
+		resolvedLocal, err := addrutil.ResolveLocal(remote.Host.IP)
 		if err != nil {
 			return err
 		}

@@ -56,8 +56,7 @@ type CPInfoProvider interface {
 
 type Connector interface {
 	// OpenUDP returns a PacketConn which listens on the specified address.
-	// If address is nil or unspecified it listens on all available interfaces except
-	// for multicast IP addresses.
+	// Nil or unspecified addresses are not supported.
 	// If the address port is 0 a valid and free SCION/UDP port is automatically chosen. Otherwise,
 	// the specified port must be a valid SCION/UDP port.
 	OpenUDP(ctx context.Context, address *net.UDPAddr) (PacketConn, error)
@@ -72,6 +71,9 @@ type DefaultConnector struct {
 func (d *DefaultConnector) OpenUDP(ctx context.Context, addr *net.UDPAddr) (PacketConn, error) {
 	var pconn *net.UDPConn
 	var err error
+	if addr == nil || addr.IP.IsUnspecified() {
+		return nil, serrors.New("Nil or unspecified address is not permitted")
+	}
 	start, end, err := d.CPInfoProvider.PortRange(ctx)
 	if err != nil {
 		return nil, err
@@ -158,13 +160,13 @@ type SCIONNetwork struct {
 // The context is used for connection setup, it doesn't affect the returned
 // connection.
 func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDPAddr,
-	remote *UDPAddr, svc addr.SVC) (*Conn, error) {
+	remote *UDPAddr) (*Conn, error) {
 
 	metrics.CounterInc(n.Metrics.Dials)
 	if remote == nil {
 		return nil, serrors.New("Unable to dial to nil remote")
 	}
-	conn, err := n.Listen(ctx, network, listen, svc)
+	conn, err := n.Listen(ctx, network, listen)
 	if err != nil {
 		return nil, err
 	}
@@ -180,8 +182,7 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 //
 // The context is used for connection setup, it doesn't affect the returned
 // connection.
-func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.UDPAddr,
-	svc addr.SVC) (*Conn, error) {
+func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.UDPAddr) (*Conn, error) {
 
 	metrics.CounterInc(n.Metrics.Listens)
 
@@ -198,7 +199,6 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 
 	conn := scionConnBase{
 		scionNet: n,
-		svc:      svc,
 		listen: &UDPAddr{
 			IA:   n.LocalIA,
 			Host: packetConn.LocalAddr().(*net.UDPAddr),
@@ -214,16 +214,4 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 		return nil, err
 	}
 	return newConn(conn, packetConn, replyPather, start, end), nil
-}
-
-// ResolveLocal returns the local IP address used for traffic destined to dst.
-func ResolveLocal(dst net.IP) (net.IP, error) {
-	udpAddr := net.UDPAddr{IP: dst, Port: 1}
-	udpConn, err := net.DialUDP(udpAddr.Network(), nil, &udpAddr)
-	if err != nil {
-		return nil, err
-	}
-	defer udpConn.Close()
-	srcIP := udpConn.LocalAddr().(*net.UDPAddr).IP
-	return srcIP, nil
 }

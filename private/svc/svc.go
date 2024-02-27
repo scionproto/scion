@@ -56,6 +56,7 @@ type ResolverPacketConnector struct {
 	LocalIA addr.IA
 	// Handler handles packets for SVC destinations.
 	Handler RequestHandler
+	SVC     addr.SVC
 }
 
 func (c *ResolverPacketConnector) OpenUDP(
@@ -78,6 +79,7 @@ func (c *ResolverPacketConnector) OpenUDP(
 			Host: addr.HostIP(ip),
 		},
 		Handler: c.Handler,
+		SVC:     c.SVC,
 	}, nil
 }
 
@@ -90,6 +92,7 @@ type ResolverPacketConn struct {
 	Source snet.SCIONAddress
 	// Handler handles packets for SVC destinations.
 	Handler RequestHandler
+	SVC     addr.SVC
 }
 
 func (c *ResolverPacketConn) ReadFrom(pkt *snet.Packet, ov *net.UDPAddr) error {
@@ -108,6 +111,11 @@ func (c *ResolverPacketConn) ReadFrom(pkt *snet.Packet, ov *net.UDPAddr) error {
 		// Multicasts do not trigger SVC resolution logic
 		if svc.IsMulticast() {
 			return nil
+		}
+
+		// Check whether dst SVC matcher configured SVC
+		if c.SVC != addr.SvcWildcard && c.SVC != svc {
+			return serrors.WrapStr("SVC destination doesn't match SVC handler", ErrHandler)
 		}
 
 		// XXX(scrye): This might block, causing the read to wait for the

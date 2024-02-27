@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/addrutil"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/command"
@@ -193,7 +194,7 @@ func resolveLocal(dst *snet.UDPAddr) (netip.Addr, error) {
 	if dst.NextHop != nil {
 		target = dst.NextHop.IP
 	}
-	resolvedIP, err := snet.ResolveLocal(target)
+	resolvedIP, err := addrutil.ResolveLocal(target)
 	if err != nil {
 		return netip.Addr{}, serrors.WrapStr("resolving local address", err)
 	}

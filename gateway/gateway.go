@@ -99,7 +99,7 @@ type PacketConnFactory struct {
 func (pcf PacketConnFactory) New() (net.PacketConn, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	conn, err := pcf.Network.Listen(ctx, "udp", pcf.Addr, addr.SvcNone)
+	conn, err := pcf.Network.Listen(ctx, "udp", pcf.Addr)
 	if err != nil {
 		return nil, serrors.WrapStr("creating packet conn", err)
 	}
@@ -431,7 +431,6 @@ func (g *Gateway) Run(ctx context.Context) error {
 		context.TODO(),
 		"udp",
 		&net.UDPAddr{IP: g.ControlClientIP},
-		addr.SvcNone,
 	)
 	if err != nil {
 		return serrors.WrapStr("unable to initialize client QUIC connection", err)
@@ -530,7 +529,6 @@ func (g *Gateway) Run(ctx context.Context) error {
 		context.TODO(),
 		"udp",
 		g.ControlServerAddr,
-		addr.SvcNone,
 	)
 	if err != nil {
 		return serrors.WrapStr("unable to initialize server QUIC connection", err)
@@ -575,7 +573,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// received from the session monitors of the remote gateway.
 	// *********************************************************************************
 
-	probeConn, err := scionNetwork.Listen(context.TODO(), "udp", g.ProbeServerAddr, addr.SvcNone)
+	probeConn, err := scionNetwork.Listen(context.TODO(), "udp", g.ProbeServerAddr)
 	if err != nil {
 		return serrors.WrapStr("creating server probe conn", err)
 	}
@@ -773,7 +771,6 @@ func StartIngress(ctx context.Context, scionNetwork *snet.SCIONNetwork, dataAddr
 		context.TODO(),
 		"udp",
 		dataAddr,
-		addr.SvcNone,
 	)
 	if err != nil {
 		return serrors.WrapStr("creating ingress conn", err)

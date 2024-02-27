@@ -113,5 +113,17 @@ func DefaultLocalIP(ctx context.Context, sdConn daemon.Connector) (net.IP, error
 	if err != nil {
 		return nil, err
 	}
-	return snet.ResolveLocal(csAddr.IP)
+	return ResolveLocal(csAddr.IP)
+}
+
+// ResolveLocal returns the local IP address used for traffic destined to dst.
+func ResolveLocal(dst net.IP) (net.IP, error) {
+	udpAddr := net.UDPAddr{IP: dst, Port: 1}
+	udpConn, err := net.DialUDP(udpAddr.Network(), nil, &udpAddr)
+	if err != nil {
+		return nil, err
+	}
+	defer udpConn.Close()
+	srcIP := udpConn.LocalAddr().(*net.UDPAddr).IP
+	return srcIP, nil
 }

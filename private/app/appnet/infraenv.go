@@ -254,7 +254,7 @@ func (nc *NetworkConfig) OpenListener(a string) (*squic.ConnListener, error) {
 	if err != nil {
 		return nil, serrors.WrapStr("parsing server QUIC address", err)
 	}
-	server, err := scionNet.Listen(context.Background(), "udp", udpAddr, addr.SvcNone)
+	server, err := scionNet.Listen(context.Background(), "udp", udpAddr)
 	if err != nil {
 		return nil, serrors.WrapStr("creating server connection", err)
 	}
@@ -297,11 +297,12 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 			Handler: &svc.BaseHandler{
 				Message: svcResolutionReply,
 			},
+			SVC: addr.SvcWildcard,
 		},
 		Metrics: nc.SCIONNetworkMetrics,
 	}
 
-	conn, err := network.Listen(context.Background(), "udp", nc.Public, addr.SvcWildcard)
+	conn, err := network.Listen(context.Background(), "udp", nc.Public)
 	if err != nil {
 		return nil, serrors.WrapStr("listening on SCION", err, "addr", conn.LocalAddr())
 	}
@@ -351,7 +352,7 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 	if err != nil {
 		return nil, nil, serrors.WrapStr("parsing server QUIC address", err)
 	}
-	server, err := serverNet.Listen(context.Background(), "udp", serverAddr, addr.SvcNone)
+	server, err := serverNet.Listen(context.Background(), "udp", serverAddr)
 	if err != nil {
 		return nil, nil, serrors.WrapStr("creating server connection", err)
 	}
@@ -375,7 +376,7 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 		IP:   serverAddr.IP,
 		Zone: serverAddr.Zone,
 	}
-	client, err := clientNet.Listen(context.Background(), "udp", clientAddr, addr.SvcNone)
+	client, err := clientNet.Listen(context.Background(), "udp", clientAddr)
 	if err != nil {
 		return nil, nil, serrors.WrapStr("creating client connection", err)
 	}

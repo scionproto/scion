@@ -79,33 +79,33 @@ func (m *MockNetwork) EXPECT() *MockNetworkMockRecorder {
 }
 
 // Dial mocks base method.
-func (m *MockNetwork) Dial(arg0 context.Context, arg1 string, arg2 *net.UDPAddr, arg3 *snet.UDPAddr, arg4 addr.SVC) (*snet.Conn, error) {
+func (m *MockNetwork) Dial(arg0 context.Context, arg1 string, arg2 *net.UDPAddr, arg3 *snet.UDPAddr) (*snet.Conn, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Dial", arg0, arg1, arg2, arg3, arg4)
+	ret := m.ctrl.Call(m, "Dial", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*snet.Conn)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Dial indicates an expected call of Dial.
-func (mr *MockNetworkMockRecorder) Dial(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+func (mr *MockNetworkMockRecorder) Dial(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Dial", reflect.TypeOf((*MockNetwork)(nil).Dial), arg0, arg1, arg2, arg3, arg4)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Dial", reflect.TypeOf((*MockNetwork)(nil).Dial), arg0, arg1, arg2, arg3)
 }
 
 // Listen mocks base method.
-func (m *MockNetwork) Listen(arg0 context.Context, arg1 string, arg2 *net.UDPAddr, arg3 addr.SVC) (*snet.Conn, error) {
+func (m *MockNetwork) Listen(arg0 context.Context, arg1 string, arg2 *net.UDPAddr) (*snet.Conn, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Listen", arg0, arg1, arg2, arg3)
+	ret := m.ctrl.Call(m, "Listen", arg0, arg1, arg2)
 	ret0, _ := ret[0].(*snet.Conn)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Listen indicates an expected call of Listen.
-func (mr *MockNetworkMockRecorder) Listen(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+func (mr *MockNetworkMockRecorder) Listen(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Listen", reflect.TypeOf((*MockNetwork)(nil).Listen), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Listen", reflect.TypeOf((*MockNetwork)(nil).Listen), arg0, arg1, arg2)
 }
 
 // MockPacketConn is a mock of PacketConn interface.

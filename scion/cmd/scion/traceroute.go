@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/addrutil"
 	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/flag"
 	"github.com/scionproto/scion/private/app/path"
@@ -151,7 +152,7 @@ On other errors, traceroute will exit with code 2.
 				if remote.NextHop != nil {
 					target = remote.NextHop.IP
 				}
-				if localIP, err = snet.ResolveLocal(target); err != nil {
+				if localIP, err = addrutil.ResolveLocal(target); err != nil {
 					return serrors.WrapStr("resolving local address", err)
 				}
 				printf("Resolved local address:\n  %s\n", localIP)
