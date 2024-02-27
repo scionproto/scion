@@ -25,12 +25,16 @@ steps:
   - wait
   - label: "Package :debian:"
     command:
+      - make git-version
       - make dist-deb
       - cd deb;
       - tar -chaf scion-deb-amd64.tar.gz *_amd64.deb
       - tar -chaf scion-deb-arm64.tar.gz *_arm64.deb
       - tar -chaf scion-deb-i386.tar.gz *_i386.deb
       - tar -chaf scion-deb-armel.tar.gz *_armel.deb
+      - make dist-openwrt BFLAGS="--file_name_version=$(cat bazel/bin/dist/git-version)"
+      - cd openwrt
+      - tar -chaf scion-openwrt-x86_64.tar.gz *_x86_64.ipk
     artifact_paths:
       - "deb/*.tar.gz"
     plugins:

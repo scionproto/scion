@@ -1,16 +1,16 @@
-load("@@//:versioning.bzl", "STRIPPED_GIT_VERSION")
-
 # This build file is layered onto the openwrt build tree which is
 # imported as an external dependency.
 # When reading, remember that:
 # * This used in the context of external/openwrt_<target>_SDK/.
 # * The "command" script is *not* sandboxed.
 
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
+
 # All this replicates the standard openwrt recipe to add and build a new package (one which
 # code is already compiled). Two hacks in-there:
 #
 # * Because the openwrt src tree is full of dangling or circular symlinks, we can't run the
-#   packaging setps in a sandbox (bazel can't clone the tree); we have to do it in-place.
+#   packaging steps in a sandbox (bazel can't clone the tree); we have to do it in-place.
 # * Because we aren't sandboxed and the Makefiles aren't re-entrant, we can't build more than one
 #   package at a time. To achieve that we serialize the packaging of each component by arbitrarily
 #   depending on the previous one. For this to work, we have to declare the deps as inputs
@@ -25,15 +25,18 @@ def _ipk_impl(ctx):
     in_configs = ctx.files.configs
     in_configsroot = ctx.file.configsroot
     sdk_feeds_file = ctx.file._sdk_feeds_file
-    tag, count, commit = STRIPPED_GIT_VERSION.split("-", 2)
-    dirty = "dirty" if "-" in commit else ""
-    fileversion = (tag + "-" + count + "-dirty") if dirty else (tag + "-" + count)
+    version_file = ctx.file.version_file
+    file_name_version_str = ctx.attr.file_name_version[BuildSettingInfo].value
+
+    # Figure the version string for the file name.
+    tag, count, commit, dirty = (file_name_version_str.split("-") + ["", "", ""])[:4]
+    vers_name = (tag + "-" + count + "-dirty") if dirty else ((tag + "-" + count) if count else tag)
 
     out_file = ctx.actions.declare_file(
         "bin/packages/%s/scion/%s_%s_%s.ipk" % (
             target_arch,
             pkg_name,
-            fileversion,
+            vers_name,
             target_arch,
         ),
     )
@@ -64,18 +67,16 @@ def _ipk_impl(ctx):
             "no-sandbox": "1",
             "no-cache": "1",
         },
-        inputs = in_execs + in_initds + in_configs + [makefile, sdk_feeds_file] + in_deps,
+        inputs = in_execs + in_initds + in_configs + [makefile, sdk_feeds_file, version_file] + in_deps,
         outputs = [out_file],
         progress_message = "Packaging %{input} to %{output}",
         arguments = [
-            ctx.file._sdk_feeds_file.path,
-            pkg_name,
-            makefile.path,
-            out_file.path,
-            tag,
-            count,
-            dirty,
-            target_arch,
+            sdk_feeds_file.path,  # 1
+            pkg_name,  # 2
+            makefile.path,  # 3
+            out_file.path,  # 4
+            version_file.path,  # 5
+            target_arch,  # 6
         ],
         command = "&&".join([
             r"PATH=/bin:/sbin:/usr/bin:/usr/sbin",
@@ -90,10 +91,11 @@ def _ipk_impl(ctx):
             r"scripts/feeds update scion",
             r"scripts/feeds install -a -p scion",
             r"make IB=1 defconfig",  # IB=1 bypasses various unnecessary prerequisites
-            r'pkgrel=${6}${7+"-dirty$(date +%s)"}',
+            r"IFS='-' read tag count commit dirty < ${execroot_abspath}/$5",
+            r'pkgrel=${count}${dirty+"-dirty$(date +%s)"}',
             r"make package/feeds/scion/${2}/compile EXECROOT=${execroot_abspath}" +
-            ' PKG_VERSION="${5}" PKG_RELEASE="${pkgrel}"',
-            r"cp bin/packages/${8}/scion/${2}_${5}-${pkgrel}_${8}.ipk ${execroot_abspath}/${4}",
+             ' PKG_VERSION="${tag}" PKG_RELEASE="${pkgrel}"',
+            r"cp bin/packages/${6}/scion/${2}_${tag}-${pkgrel}_${6}.ipk ${execroot_abspath}/${4}",
         ]),
     )
 
@@ -150,13 +152,14 @@ _ipk_pkg = rule(
             mandatory = True,
             doc = "A base name for the resulting package (e.g. 'router')",
         ),
-        "version": attr.string(
-            default = "1.0",
-            doc = "A version string for the package",
+        "file_name_version": attr.label(
+            mandatory = True,
+            doc = "The version string for the package file name",
         ),
-        "release": attr.string(
-            default = "1",
-            doc = "A release number string for the package",
+        "version_file": attr.label(
+            mandatory = True,
+            allow_single_file = True,
+            doc = "A file containing the version string for the package manifest",
         ),
     },
 )
@@ -176,5 +179,7 @@ def ipk_pkg(name, **kwargs):
         name = name,
         target_arch = target_arch,
         target_compatible_with = ["@@//dist/openwrt:musl_libc"],
+        file_name_version = "@@//:file_name_version",
+        version_file = "@@//dist:git_version",
         **kwargs
     )

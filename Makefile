@@ -1,4 +1,4 @@
-.PHONY: all build build-dev dist-deb antlr clean docker-images gazelle go.mod licenses mocks protobuf scion-topo test test-integration write_all_source_files
+.PHONY: all build build-dev dist-deb antlr clean docker-images gazelle go.mod licenses mocks protobuf scion-topo test test-integration write_all_source_files git-version
 
 build-dev:
 	rm -f bin/*
@@ -12,33 +12,29 @@ build:
 	tar -kxf bazel-bin/scion.tar -C bin
 
 dist-deb:
-	bazel build //dist:deb_all
+	bazel build //dist:deb_all $(BFLAGS)
 	mkdir -p deb; rm -rf deb/*
-	@ # Bazel cannot include the version in the filename, if we want to set it automatically from the git tag.
-	@ # Extract the version from the .deb "control" manifest and expand the "__" in the filename to "_<version>_".
-	@ #   See e.g. https://en.wikipedia.org/wiki/Deb_(file_format)#Control_archive
-	@for f in `bazel cquery //dist:deb_all --output=files 2>/dev/null`; do \
-		if [ -f "$$f" ]; then \
-			bf=`basename $$f`; \
-			v="$$(ar p $$f control.tar.gz | tar -xz --to-stdout ./control | sed -n 's/Version: //p')"; \
-			bfv=$${bf%%__*}_$${v}_$${bf#*__}; \
-			cp -v "$$f" deb/$$bfv; \
-		fi \
-	done
+	@ # These artefacts have unique names but varied locations. Link them somewhere convenient.
+	@ mkdir -p deb
+	@ cd deb ; ln -sfv ../bazel-out/*/bin/dist/*.deb .
 
 dist-openwrt:
-	bazel build //dist:openwrt_all
-	mkdir -p openwrt; rm -rf openwrt/*
-	@ for f in `bazel cquery //dist:openwrt_all --output=files 2>/dev/null`; do \
-		cp -v "$$f" openwrt; \
-	done
+	bazel build //dist:openwrt_all $(BFLAGS)
+	@ # These artefacts have unique names but varied locations. Link them somewhere convenient.
+	@ mkdir -p openwrt
+	@ cd openwrt ; ln -sfv ../bazel-out/*/bin/dist/*.ipk .
 
 dist-openwrt-testing:
-	bazel build //dist:openwrt_testing_all
-	mkdir -p openwrt-testing; rm -rf openwrt-testing/*
-	@ for f in `bazel cquery //dist:openwrt_testing_all --output=files 2>/dev/null`; do \
-		cp -v "$$f" openwrt-testing; \
-	done
+	bazel build //dist:openwrt_testing_all $(BFLAGS)
+	@ # These artefacts have unique names but varied locations. Link them somewhere convenient.
+	@ mkdir -p openwrt
+	@ cd openwrt ; ln -sfv ../bazel-out/*/bin/dist/*.ipk .
+
+# Git-version, the data file. Not the tool. (We remove the leading 'v').
+# This is helpful to invoke make with the proper file_name_version string:
+# $(cat bazel-bin/dist/git-version)
+git-version:
+	bazel build //dist:git_version
 
 # all: performs the code-generation steps and then builds; the generated code
 # is git controlled, and therefore this is only necessary when changing the
@@ -55,6 +51,7 @@ clean:
 scrub:
 	bazel clean --expunge
 	rm -f bin/*
+	rm -f openwrt/*
 
 test:
 	bazel test --config=unit_all

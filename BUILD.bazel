@@ -1,4 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@bazel_gazelle//:def.bzl", "gazelle")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@io_bazel_rules_go//go:def.bzl", "nogo")
@@ -154,6 +155,17 @@ flake8_lint_config(
     visibility = [
         "//visibility:public",
     ],
+)
+
+# Optional version string to produce versioned file names. End deliverables, such as installable
+# packages will have a name derived from that string.
+# The flag is to be used when producing publishable assets (so, typically by the CI build).
+# The rest of the time the assets will have an unversioned name. The version tags embedded
+# in binaries and package manifests are always set. Regardless of this flag.
+string_flag(
+    name = "file_name_version",
+    build_setting_default = "dev",
+    visibility = ["//visibility:public"],
 )
 
 # Add a build flag to enable bundling the management API documentation with the
