@@ -26,11 +26,7 @@ def _ipk_impl(ctx):
     in_configsroot = ctx.file.configsroot
     sdk_feeds_file = ctx.file._sdk_feeds_file
     version_file = ctx.file.version_file
-    file_name_version_str = ctx.attr.file_name_version[BuildSettingInfo].value
-
-    # Figure the version string for the file name.
-    tag, count, commit, dirty = (file_name_version_str.split("-") + ["", "", ""])[:4]
-    vers_name = (tag + "-" + count + "-dirty") if dirty else ((tag + "-" + count) if count else tag)
+    vers_name = ctx.attr.file_name_version[BuildSettingInfo].value
 
     out_file = ctx.actions.declare_file(
         "bin/packages/%s/scion/%s_%s_%s.ipk" % (
