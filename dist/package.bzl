@@ -27,7 +27,7 @@ name_elems = rule(
         "architecture": attr.string(
             doc = "Placeholder for our file name architecture string.",
         ),
-    }
+    },
 )
 
 def scion_pkg_deb(name, executables = {}, systemds = [], configs = [], **kwargs):
@@ -95,7 +95,7 @@ def scion_pkg_deb(name, executables = {}, systemds = [], configs = [], **kwargs)
         name = name,
         data = data,
         target_compatible_with = ["@platforms//os:linux"],
-        package_file_name ="{package}_{file_name_version}_{architecture}.deb",
+        package_file_name = "{package}_{file_name_version}_{architecture}.deb",
         package_variables = ":package_file_naming_" + name,
         **kwargs
     )
@@ -152,7 +152,6 @@ copy_file = rule(
     },
 )
 
-
 # A copy file implmentation that derives its output from its
 # (configuable) input. This is used to bring files made by an external dependency build
 # into the local build.
@@ -178,9 +177,9 @@ _copy_in = rule(
         "src": attr.label(
             mandatory = True,
             allow_single_file = True,
-            doc = "The label of the file to copy in."
+            doc = "The label of the file to copy in.",
         ),
-    }
+    },
 )
 
 def scion_pkg_ipk(name, package, **kwargs):
@@ -203,7 +202,6 @@ def scion_pkg_ipk(name, package, **kwargs):
         src = select({
             "@platforms//cpu:x86_64": "@openwrt_x86_64_SDK//:" + name,
         }),
-
         **kwargs
     )
 

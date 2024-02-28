@@ -94,7 +94,7 @@ def _ipk_impl(ctx):
             r"IFS='-' read tag count commit dirty < ${execroot_abspath}/$5",
             r'pkgrel=${count}${dirty+"-dirty$(date +%s)"}',
             r"make package/feeds/scion/${2}/compile EXECROOT=${execroot_abspath}" +
-             ' PKG_VERSION="${tag}" PKG_RELEASE="${pkgrel}"',
+            ' PKG_VERSION="${tag}" PKG_RELEASE="${pkgrel}"',
             r"cp bin/packages/${6}/scion/${2}_${tag}-${pkgrel}_${6}.ipk ${execroot_abspath}/${4}",
         ]),
     )
