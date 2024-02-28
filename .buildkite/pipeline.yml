@@ -25,18 +25,14 @@ steps:
   - wait
   - label: "Package :debian:"
     command:
-      - make git-version
-      - make dist-deb
-      - cd deb;
+      - make dist-deb BFLAGS="--file_name_version=$(tools/git-version)"
+      - cd dist;
       - tar -chaf scion-deb-amd64.tar.gz *_amd64.deb
       - tar -chaf scion-deb-arm64.tar.gz *_arm64.deb
       - tar -chaf scion-deb-i386.tar.gz *_i386.deb
       - tar -chaf scion-deb-armel.tar.gz *_armel.deb
-      - make dist-openwrt BFLAGS="--file_name_version=$(cat bazel/bin/dist/git-version)"
-      - cd openwrt
-      - tar -chaf scion-openwrt-x86_64.tar.gz *_x86_64.ipk
     artifact_paths:
-      - "deb/*.tar.gz"
+      - "dist/*.tar.gz"
     plugins:
       - scionproto/metahook#v0.3.0:
           post-artifact: |
@@ -48,6 +44,22 @@ steps:
             - <a href="artifact://deb/scion-deb-armel.tar.gz">armel</a>
             EOF
     key: dist-deb
+    retry: *automatic-retry
+  - label: "Package :openwrt:"
+    command:
+      - make dist-openwrt BFLAGS="--file_name_version=$(tools/git-version)"
+      - cd dist;
+      - tar -chaf scion-openwrt-x86_64.tar.gz *_x86_64.ipk
+    artifact_paths:
+      - "dist/*.tar.gz"
+    plugins:
+      - scionproto/metahook#v0.3.0:
+          post-artifact: |
+            cat << EOF | buildkite-agent annotate --style "info" --context "packages"
+            #### Packages :openwrt:
+            - <a href="artifact://deb/scion-openwrt-x86_64.tar.gz">x86_64</a>
+            EOF
+    key: dist-openwrt
     retry: *automatic-retry
   - label: "Unit Tests :bazel:"
     command:

@@ -11,30 +11,25 @@ build:
 	bazel build //:scion
 	tar -kxf bazel-bin/scion.tar -C bin
 
+# BFLAGS is optional. It may contain additional command line flags for CI builds. Currently this is:
+# "--file_name_version=$(tools/git-version)" to include the git version in the artifacts names.
 dist-deb:
 	bazel build //dist:deb_all $(BFLAGS)
-	mkdir -p deb; rm -rf deb/*
 	@ # These artefacts have unique names but varied locations. Link them somewhere convenient.
-	@ mkdir -p deb
-	@ cd deb ; ln -sfv ../bazel-out/*/bin/dist/*.deb .
+	@ mkdir -p dist
+	@ cd dist ; ln -sfv ../bazel-out/*/bin/dist/*.deb .
 
 dist-openwrt:
 	bazel build //dist:openwrt_all $(BFLAGS)
 	@ # These artefacts have unique names but varied locations. Link them somewhere convenient.
-	@ mkdir -p openwrt
-	@ cd openwrt ; ln -sfv ../bazel-out/*/bin/dist/*.ipk .
+	@ mkdir -p dist
+	@ cd dist ; ln -sfv ../bazel-out/*/bin/dist/*.ipk .
 
 dist-openwrt-testing:
 	bazel build //dist:openwrt_testing_all $(BFLAGS)
 	@ # These artefacts have unique names but varied locations. Link them somewhere convenient.
-	@ mkdir -p openwrt
-	@ cd openwrt ; ln -sfv ../bazel-out/*/bin/dist/*.ipk .
-
-# Git-version, the data file. Not the tool. (We remove the leading 'v').
-# This is helpful to invoke make with the proper file_name_version string:
-# $(cat bazel-bin/dist/git-version)
-git-version:
-	bazel build //dist:git_version
+	@ mkdir -p dist
+	@ cd dist ; ln -sfv ../bazel-out/*/bin/dist/*.ipk .
 
 # all: performs the code-generation steps and then builds; the generated code
 # is git controlled, and therefore this is only necessary when changing the
@@ -51,7 +46,7 @@ clean:
 scrub:
 	bazel clean --expunge
 	rm -f bin/*
-	rm -f openwrt/*
+	rm -f dist/*
 
 test:
 	bazel test --config=unit_all
