@@ -26,13 +26,13 @@ steps:
   - label: "Package :debian:"
     command:
       - make dist-deb BFLAGS="--file_name_version=$(tools/git-version)"
-      - cd dist;
-      - tar -chaf scion-deb-amd64.tar.gz *_amd64.deb
-      - tar -chaf scion-deb-arm64.tar.gz *_arm64.deb
-      - tar -chaf scion-deb-i386.tar.gz *_i386.deb
-      - tar -chaf scion-deb-armel.tar.gz *_armel.deb
+      - cd installables;
+      - tar -chaf scion-deb-amd64.tar.gz *_$(tools/git-version)_amd64.deb
+      - tar -chaf scion-deb-arm64.tar.gz *_$(tools/git-version)_arm64.deb
+      - tar -chaf scion-deb-i386.tar.gz *_$(tools/git-version)_i386.deb
+      - tar -chaf scion-deb-armel.tar.gz *_$(tools/git-version)_armel.deb
     artifact_paths:
-      - "dist/*.tar.gz"
+      - "installables/*.tar.gz"
     plugins:
       - scionproto/metahook#v0.3.0:
           post-artifact: |
@@ -48,10 +48,10 @@ steps:
   - label: "Package :openwrt:"
     command:
       - make dist-openwrt BFLAGS="--file_name_version=$(tools/git-version)"
-      - cd dist;
-      - tar -chaf scion-openwrt-x86_64.tar.gz *_x86_64.ipk
+      - cd installables;
+      - tar -chaf scion-openwrt-x86_64.tar.gz *_$(tools/git-version)_x86_64.ipk
     artifact_paths:
-      - "dist/*.tar.gz"
+      - "installables/*.tar.gz"
     plugins:
       - scionproto/metahook#v0.3.0:
           post-artifact: |
