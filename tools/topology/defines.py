@@ -33,8 +33,7 @@ PROM_FILE = "prometheus.yml"
 #: Default SCION router UDP port.
 SCION_ROUTER_PORT = 50000
 
-DEFAULT_ENDHOST_START_PORT = 1024
-DEFAULT_ENDHOST_END_PORT = (1 << 16) - 1
+DEFAULT_ENDHOST_PORT_RANGE = "1024-65535"
 
 #: Default MTU - assumes overlay is ipv4+udp
 DEFAULT_MTU = 1500 - 20 - 8

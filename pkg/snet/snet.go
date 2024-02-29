@@ -126,7 +126,7 @@ func listenUDPRange(addr *net.UDPAddr, start, end uint16) (*net.UDPConn, error) 
 		}
 		return pconn, nil
 	}
-	return nil, serrors.New("There are no UDP ports available in range", "start", start, "end", end)
+	return nil, serrors.WrapStr("binding to port range", syscall.EADDRINUSE)
 }
 
 var _ Network = (*SCIONNetwork)(nil)
@@ -182,7 +182,11 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 //
 // The context is used for connection setup, it doesn't affect the returned
 // connection.
-func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.UDPAddr) (*Conn, error) {
+func (n *SCIONNetwork) Listen(
+	ctx context.Context,
+	network string,
+	listen *net.UDPAddr,
+) (*Conn, error) {
 
 	metrics.CounterInc(n.Metrics.Listens)
 

@@ -22,6 +22,8 @@ import (
 	"net"
 	"os"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -205,18 +207,10 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 	}
 	t.MTU = raw.MTU
 
-	if raw.EndhostStartPort < 1 || raw.EndhostStartPort > (1<<16-1) {
-		return serrors.New("Invalid value for start port", "start port", raw.EndhostStartPort)
+	t.EndhostStartPort, t.EndhostEndPort, err = validatePortRange(raw.EndhostPortRange)
+	if err != nil {
+		return err
 	}
-	if raw.EndhostEndPort < 1 || raw.EndhostEndPort > (1<<16-1) {
-		return serrors.New("Invalid value for end port", "end port", raw.EndhostEndPort)
-	}
-	if raw.EndhostStartPort > raw.EndhostEndPort {
-		return serrors.New("Start port is bigger than end port for the SCION port range",
-			"start port", raw.EndhostStartPort, "end port", raw.EndhostEndPort)
-	}
-	t.EndhostStartPort = uint16(raw.EndhostStartPort)
-	t.EndhostEndPort = uint16(raw.EndhostEndPort)
 
 	isCore := false
 	for _, attr := range raw.Attributes {
@@ -227,6 +221,30 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 	}
 	t.IsCore = isCore
 	return nil
+}
+
+func validatePortRange(portRange string) (uint16, uint16, error) {
+	ports := strings.Split(portRange, "-")
+	if len(ports) != 2 {
+		return 0, 0, serrors.New("invalid format: expected startPort-endPort", "got", portRange)
+	}
+	startPort, errStart := strconv.Atoi(ports[0])
+	endPort, errEnd := strconv.Atoi(ports[1])
+	if errStart != nil || errEnd != nil {
+		return 0, 0, serrors.New("invalid port numbers", "got", portRange)
+	}
+
+	if startPort < 1 || startPort > (1<<16-1) {
+		return 0, 0, serrors.New("Invalid value for start port", "start port", startPort)
+	}
+	if endPort < 1 || endPort > (1<<16-1) {
+		return 0, 0, serrors.New("Invalid value for end port", "end port", endPort)
+	}
+	if startPort > endPort {
+		return 0, 0, serrors.New("Start port is bigger than end port for the SCION port range",
+			"start port", startPort, "end port", endPort)
+	}
+	return uint16(startPort), uint16(endPort), nil
 }
 
 func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
