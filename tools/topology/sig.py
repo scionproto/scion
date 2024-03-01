@@ -71,8 +71,6 @@ class SIGGenerator(object):
         entry = {
             'image':
             'dispatcher',
-            'container_name':
-            'scion_%sdisp_sig_%s' % (self.prefix, topo_id.file_fmt()),
             'user':
             self.user,
             'networks': {},

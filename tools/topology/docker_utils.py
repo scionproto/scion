@@ -76,9 +76,9 @@ class DockerUtilsGenerator(object):
         if ipv not in net:
             ipv = 'ipv6'
         ip = str(net[ipv])
-        if 'scion_disp_%s' % name in self.dc_conf['services']:
-            entry['depends_on'] = ['scion_disp_%s' % name]
-            entry.update({'network_mode': 'service:scion_disp_%s' % name})
+        if 'disp_%s' % name in self.dc_conf['services']:
+            entry['depends_on'] = ['disp_%s' % name]
+            entry.update({'network_mode': 'service:disp_%s' % name})
         else:
             entry['networks'] = {}
             entry['networks'][self.args.bridges[net['net']]] = {

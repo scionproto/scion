@@ -213,14 +213,13 @@ class DockerGenerator(object):
             entry['networks'][self.bridges[net['net']]] = {
                 '%s_address' % ipv: ip
             }
-            entry['container_name'] = '%sdisp_%s' % (self.prefix, disp_id)
             conf = '%s:/share/conf:rw' % base
             entry['volumes'].append(conf)
             entry['command'] = [
                 '--config', '/share/conf/disp_%s.toml' % disp_id
             ]
 
-            self.dc_conf['services']['scion_disp_%s' % disp_id] = entry
+            self.dc_conf['services']['disp_%s' % disp_id] = entry
 
     def _sciond_conf(self, topo_id, base):
         name = sciond_name(topo_id)
