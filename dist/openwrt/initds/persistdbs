@@ -10,7 +10,7 @@ SERVICE_WRITE_PID=1
 SERVICE_DAEMONIZE=1
 
 # Openwrt has decided that /var/lib would be just as volatile as /var/run
-# (to spare the life of cheap flash sorage) so we have to stash our stuff
+# (to spare the life of cheap flash storage) so we have to stash our stuff
 # somewhere before we take a break and restore it when we're back.
 # TODO: make the backup/restore transactional
 

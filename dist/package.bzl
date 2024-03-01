@@ -152,9 +152,8 @@ copy_file = rule(
     },
 )
 
-# A copy file implmentation that derives its output from its
-# (configuable) input. This is used to bring files made by an external dependency build
-# into the local build.
+# A copy file implmentation that derives its output from its (configuable) input. This is used to
+# bring files made by an external dependency build into the local build.
 def _copy_in_impl(ctx):
     src_path = ctx.file.src.path
     dst_name = ctx.file.src.basename
@@ -182,10 +181,10 @@ _copy_in = rule(
     },
 )
 
-def scion_pkg_ipk(name, package, **kwargs):
+def scion_pkg_ipk(name, **kwargs):
     """
     The package labeled @openwrt_<target_arch>_SDK//:<name> is built and copied to
-    <package>__<target_arch>.ipk.
+    ./<basename of src file>.
 
     @openwrt_<target_arch>_SDK is an external dependency. Their build file is BUILD.external.bazel.
     For the build of the package to be possible, the openwrt_<target_arch>_SDK tree must be

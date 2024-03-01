@@ -12,16 +12,13 @@ SERVICE_DAEMONIZE=1
 init_conf() {
     if [ -f "/etc/scion/daemon.toml" ]; then
         rm -f /etc/scion/daemon.toml.default
-    else
+    elif [ -f "/etc/scion/daemon.toml.default" ]; then
         mv /etc/scion/daemon.toml.default /etc/scion/daemon.toml
     fi
     if [ -f "/etc/scion/topology.json" ]; then
         rm -f /etc/scion/topology.json.default
-    else
-        # The default exists only if the testconfigs package was installed.
-        if [ -f "/etc/scion/topology.json.default" ]; then
-            mv /etc/scion/topology.json.default /etc/scion/topology.json
-        fi
+    elif [ -f "/etc/scion/topology.json.default" ]; then
+        mv /etc/scion/topology.json.default /etc/scion/topology.json
     fi
 }
 

@@ -1,9 +1,24 @@
 load(":package.bzl", "scion_pkg_deb")
 load(":package.bzl", "scion_pkg_ipk")
 load(":platform.bzl", "multiplatform_filegroup")
-load(":platform.bzl", "DEFAULT_DEB_PLATFORMS")
-load(":platform.bzl", "DEFAULT_OPENWRT_PLATFORMS")
 load(":git_version.bzl", "git_version")
+
+
+DEB_PLATFORMS = [
+    "@io_bazel_rules_go//go/toolchain:linux_amd64",
+    "@io_bazel_rules_go//go/toolchain:linux_arm64",
+    "@io_bazel_rules_go//go/toolchain:linux_386",
+    "@io_bazel_rules_go//go/toolchain:linux_arm",
+]
+
+# TODO(jice@scion.org):
+# For now only a single openwrt platform can be in this list. If we allow several, they get
+# built in parallel, which breaks on non-reentrant openwrt makefiles. For a single platform
+# things work because we force the packages to be build serialy by making them depend on
+# each other.
+OPENWRT_PLATFORMS = [
+    "@//dist/openwrt:openwrt_amd64",
+]
 
 # Some files that the openwrt build consumes directly.
 exports_files(
@@ -134,53 +149,44 @@ multiplatform_filegroup(
         "router_deb",
         "tools_deb",
     ],
-    target_platforms = DEFAULT_DEB_PLATFORMS,
+    target_platforms = DEB_PLATFORMS,
     visibility = ["//dist:__subpackages__"],
 )
 
 scion_pkg_ipk(
     name = "persistdbs_ipk",
-    package = "scion-persistdbs",
 )
 
 scion_pkg_ipk(
     name = "router_ipk",
-    package = "scion-router",
 )
 
 scion_pkg_ipk(
     name = "gateway_ipk",
-    package = "scion-gateway",
 )
 
 scion_pkg_ipk(
     name = "control_ipk",
-    package = "scion-control",
 )
 
 scion_pkg_ipk(
     name = "dispatcher_ipk",
-    package = "scion-dispatcher",
 )
 
 scion_pkg_ipk(
     name = "daemon_ipk",
-    package = "scion-daemon",
 )
 
 scion_pkg_ipk(
     name = "tools_ipk",
-    package = "scion-tools",
 )
 
 scion_pkg_ipk(
     name = "coremark_ipk",
-    package = "scion-coremark",
 )
 
 scion_pkg_ipk(
     name = "testconfig_ipk",
-    package = "scion-testconfig",
 )
 
 # multiplatform_filegroup creates two targets: <name> and <name>_all.
@@ -199,7 +205,7 @@ multiplatform_filegroup(
         "router_ipk",
         "tools_ipk",
     ],
-    target_platforms = DEFAULT_OPENWRT_PLATFORMS,
+    target_platforms = OPENWRT_PLATFORMS,
     visibility = ["//dist:__subpackages__"],
 )
 
@@ -209,6 +215,6 @@ multiplatform_filegroup(
         "coremark_ipk",
         "testconfig_ipk",
     ],
-    target_platforms = DEFAULT_OPENWRT_PLATFORMS,
+    target_platforms = OPENWRT_PLATFORMS,
     visibility = ["//dist:__subpackages__"],
 )

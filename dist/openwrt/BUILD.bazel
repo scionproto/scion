@@ -34,8 +34,6 @@ exports_files(
         "test_configs/keys/master1.key",
         "test_configs/router.toml",
         "test_configs/control.toml",
-        "test_configs/certs/README",
-        "test_configs/crypto/as/README",
     ],
     visibility = ["//visibility:public"],
 )

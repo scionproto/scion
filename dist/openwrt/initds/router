@@ -10,7 +10,6 @@ SERVICE_WRITE_PID=1
 SERVICE_DAEMONIZE=1
 
 init_conf() {
-    # These defaults exist only if the testconfig package was installed.
     if [ -f "/etc/scion/router.toml" ]; then
         rm -f /etc/scion/router.toml.default
     elif [ -f "/etc/scion/router.toml.default" ]; then

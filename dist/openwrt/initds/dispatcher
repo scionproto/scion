@@ -12,7 +12,7 @@ SERVICE_DAEMONIZE=1
 init_conf() {
     if [ -f "/etc/scion/dispatcher.toml" ]; then
         rm -f /etc/scion/dispatcher.toml.default
-    else
+    elif [ -f "/etc/scion/dispatcher.toml.default" ]; then
         mv /etc/scion/dispatcher.toml.default /etc/scion/dispatcher.toml
     fi
 }

@@ -160,9 +160,6 @@ _ipk_pkg = rule(
     },
 )
 
-def _basename(s):
-    return s.split("/")[-1]
-
 def ipk_pkg(name, **kwargs):
     target_arch = select({
         "@platforms//cpu:x86_64": "x86_64",

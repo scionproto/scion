@@ -10,7 +10,8 @@ SERVICE_WRITE_PID=1
 SERVICE_DAEMONIZE=1
 
 init_conf() {
-    # These defaults exist only if the testconfig package was installed.
+    mkdir -p /etc/scion/certs
+    mkdir -p /etc/scion/crypto/as
     if [ -f "/etc/scion/control.toml" ]; then
         rm -f /etc/scion/control.toml.default
     elif [ -f "/etc/scion/control.toml.default" ]; then

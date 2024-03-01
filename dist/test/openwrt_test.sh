@@ -24,13 +24,9 @@ function cleanup {
 }
 cleanup
 
-if [ "$DEBUG" == 0 ]; then  # if DEBUG: keep container debian-systemd running after test
+if [ "$DEBUG" == 0 ]; then  # if DEBUG: keep container openwrt-x86_64 running after test
     trap cleanup EXIT
 fi
-
-# Note: specify absolute path to Dockerfile because docker will not follow bazel's symlinks.
-# Luckily we don't need anything else in this directory.
-# docker build -t debian-systemd -f $(realpath dist/test/Dockerfile) dist/test
 
 # Start container as-is.
 docker run -d --rm --name openwrt-x86_64 -t \
@@ -48,7 +44,7 @@ docker exec -i openwrt-x86_64 /bin/ash <<'EOF'
     cd /openwrt
 
     # check that the pki files are all here (avoid cryptic error from opk)
-    for c in persistdbs testconfig router control dispatcher daemon gateway tools coremark; do
+    for c in persistdbs testconfig router control dispatcher daemon ip-gateway tools coremark; do
     	ls /openwrt/scion-${c}_*_${arch}.ipk > /dev/null
     done
 
@@ -97,8 +93,8 @@ INNER_EOF
     # ...and now we can test the scion tool by inspecting our local SCION address.
     scion address
 
-    # Check that scion-gateway can install and start
-    opkg install scion-gateway_*_${arch}.ipk
+    # Check that scion-ip-gateway can install and start
+    opkg install scion-ip-gateway_*_${arch}.ipk
     service scion-gateway enable
     sleep 3
     # Note: this starts even if the default sig.json is not a valid configuration
