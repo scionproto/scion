@@ -23,45 +23,32 @@ steps:
         - exit_status: 255 # Forced agent shutdown
     timeout_in_minutes: 10
   - wait
-  - label: "Package :debian:"
+  - label: "Package :debian: :openwrt:"
     command:
       - version="$(tools/git-version)"
       - make dist-deb BFLAGS="--file_name_version=${version}"
+      - make dist-openwrt BFLAGS="--file_name_version=${version}"
       - cd installables;
       - tar -chaf scion-deb-amd64.tar.gz *_${version}_amd64.deb
       - tar -chaf scion-deb-arm64.tar.gz *_${version}_arm64.deb
       - tar -chaf scion-deb-i386.tar.gz *_${version}_i386.deb
       - tar -chaf scion-deb-armel.tar.gz *_${version}_armel.deb
+      - tar -chaf scion-openwrt-x86_64.tar.gz *_${version}_x86_64.ipk
     artifact_paths:
-      - "installables/scion-deb-*.tar.gz"
+      - "installables/scion-*.tar.gz"
     plugins:
       - scionproto/metahook#v0.3.0:
           post-artifact: |
-            cat << EOF | buildkite-agent annotate --style "info" --context "packages-deb"
+            cat << EOF | buildkite-agent annotate --style "info" --context "packages"
             #### Packages :debian:
             - <a href="artifact://installables/scion-deb-amd64.tar.gz">amd64</a>
             - <a href="artifact://installables/scion-deb-arm64.tar.gz">arm64</a>
             - <a href="artifact://installables/scion-deb-i386.tar.gz">i386</a>
             - <a href="artifact://installables/scion-deb-armel.tar.gz">armel</a>
-            EOF
-    key: dist-deb
-    retry: *automatic-retry
-  - label: "Package :openwrt:"
-    command:
-      - version="$(tools/git-version)"
-      - make dist-openwrt BFLAGS="--file_name_version=${version}"
-      - cd installables;
-      - tar -chaf scion-openwrt-x86_64.tar.gz *_${version}_x86_64.ipk
-    artifact_paths:
-      - "installables/scion-openwrt-*.tar.gz"
-    plugins:
-      - scionproto/metahook#v0.3.0:
-          post-artifact: |
-            cat << EOF | buildkite-agent annotate --style "info" --context "packages-openwrt"
             #### Packages :openwrt:
             - <a href="artifact://installables/scion-openwrt-x86_64.tar.gz">x86_64</a>
             EOF
-    key: dist-openwrt
+    key: dist
     retry: *automatic-retry
   - label: "Unit Tests :bazel:"
     command:
