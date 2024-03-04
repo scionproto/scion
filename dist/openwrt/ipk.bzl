@@ -53,8 +53,8 @@ def _ipk_impl(ctx):
             "%{initds}": " ".join([i.path for i in in_initds]),
             "%{configs}": " ".join([c.path for c in in_configs]),
             "%{configsroot}": in_configsroot.path,
-            "%{overrides}": " ".join([c.path for c in in_configs]),
-            "%{overridesroot}": in_configsroot.path,
+            "%{overrides}": " ".join([c.path for c in in_overrides]),
+            "%{overridesroot}": in_overridesroot.path,
         },
         is_executable = False,  # from our perspective
     )
