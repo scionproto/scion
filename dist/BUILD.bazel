@@ -3,7 +3,6 @@ load(":package.bzl", "scion_pkg_ipk")
 load(":platform.bzl", "multiplatform_filegroup")
 load(":git_version.bzl", "git_version")
 
-
 DEB_PLATFORMS = [
     "@io_bazel_rules_go//go/toolchain:linux_amd64",
     "@io_bazel_rules_go//go/toolchain:linux_arm64",
