@@ -24,6 +24,8 @@ def _ipk_impl(ctx):
     in_initds = ctx.files.initds
     in_configs = ctx.files.configs
     in_configsroot = ctx.file.configsroot
+    in_overrides = ctx.files.overrides
+    in_overridesroot = ctx.file.overridesroot
     sdk_feeds_file = ctx.file._sdk_feeds_file
     version_file = ctx.file.version_file
     vers_name = ctx.attr.file_name_version[BuildSettingInfo].value
@@ -51,6 +53,8 @@ def _ipk_impl(ctx):
             "%{initds}": " ".join([i.path for i in in_initds]),
             "%{configs}": " ".join([c.path for c in in_configs]),
             "%{configsroot}": in_configsroot.path,
+            "%{overrides}": " ".join([c.path for c in in_configs]),
+            "%{overridesroot}": in_configsroot.path,
         },
         is_executable = False,  # from our perspective
     )
@@ -63,7 +67,7 @@ def _ipk_impl(ctx):
             "no-sandbox": "1",
             "no-cache": "1",
         },
-        inputs = in_execs + in_initds + in_configs + [makefile, sdk_feeds_file, version_file] + in_deps,
+        inputs = in_execs + in_initds + in_configs + in_overrides + in_deps + [makefile, sdk_feeds_file, version_file],
         outputs = [out_file],
         progress_message = "Packaging %{input} to %{output}",
         arguments = [
@@ -122,7 +126,7 @@ _ipk_pkg = rule(
             executable = False,
         ),
         "executables": attr.label_list(
-            mandatory = True,
+            default = [],
             doc = "The executable files (from the scion build) that are being packaged",
         ),
         "target_arch": attr.string(
@@ -130,17 +134,27 @@ _ipk_pkg = rule(
             doc = "The target arch for which the package is being made",
         ),
         "initds": attr.label_list(
-            mandatory = True,
+            default = [],
             allow_files = True,
             doc = "The /etc/init.d/* files that are being packaged (packaged with 'scion-' prefix)",
         ),
         "configs": attr.label_list(
-            mandatory = True,
+            default = [],
             allow_files = True,
             doc = "The /etc/* config files that are being packaged (packaged exactly as named)",
         ),
         "configsroot": attr.label(
-            mandatory = True,
+            default = "@@//dist:conffiles",
+            allow_single_file = True,
+            doc = "The common root (in src tree) of /etc/* config files that are being packaged",
+        ),
+        "overrides": attr.label_list(
+            default = [],
+            allow_files = True,
+            doc = "The /etc/* config files that are being packaged (packaged exactly as named)",
+        ),
+        "overridesroot": attr.label(
+            default = "@@//dist/openwrt:test_configs",
             allow_single_file = True,
             doc = "The common root (in src tree) of /etc/* config files that are being packaged",
         ),

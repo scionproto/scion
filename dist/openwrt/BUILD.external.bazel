@@ -12,9 +12,6 @@ package(default_visibility = ["//visibility:public"])
 
 ipk_pkg(
     name = "persistdbs_ipk",
-    configs = [],
-    configsroot = "@@//dist:conffiles",
-    executables = [],
     initds = ["@@//dist/openwrt:initds/persistdbs"],
     pkg = "persistdbs",
     visibility = ["//visibility:public"],
@@ -22,8 +19,6 @@ ipk_pkg(
 
 ipk_pkg(
     name = "router_ipk",
-    configs = [],
-    configsroot = "@@//dist:conffiles",
     executables = ["@@//router/cmd/router:router_compressed"],
     initds = ["@@//dist/openwrt:initds/router"],
     pkg = "router",
@@ -47,8 +42,6 @@ ipk_pkg(
 
 ipk_pkg(
     name = "control_ipk",
-    configs = [],
-    configsroot = "@@//dist:conffiles",
     executables = ["@@//control/cmd/control:control_compressed"],
     initds = ["@@//dist/openwrt:initds/control"],
     pkg = "control",
@@ -80,13 +73,10 @@ ipk_pkg(
 
 ipk_pkg(
     name = "tools_ipk",
-    configs = [],
-    configsroot = "@@//dist:conffiles",
     executables = [
         "@@//scion/cmd/scion:scion_compressed",
         "@@//scion-pki/cmd/scion-pki:scion-pki_compressed",
     ],
-    initds = [],
     pkg = "tools",
     visibility = ["//visibility:public"],
     deps = ["daemon_ipk"],  # Force sequential build; openwrt make isn't reentrant.
@@ -96,16 +86,14 @@ ipk_pkg(
 # to facilitate regression tests.
 ipk_pkg(
     name = "testconfig_ipk",
-    configs = [
+    overrides = [
         "@@//dist/openwrt:test_configs/control.toml",
         "@@//dist/openwrt:test_configs/keys/master0.key",
         "@@//dist/openwrt:test_configs/keys/master1.key",
         "@@//dist/openwrt:test_configs/router.toml",
         "@@//dist/openwrt:test_configs/topology.json",
     ],
-    configsroot = "@@//dist/openwrt:test_configs",
-    executables = [],
-    initds = [],
+    overridesroot = "@@//dist/openwrt:test_configs",
     pkg = "testconfig",
     visibility = ["//visibility:public"],
     deps = ["tools_ipk"],  # Force sequential build; openwrt make isn't reentrant.
@@ -113,10 +101,7 @@ ipk_pkg(
 
 ipk_pkg(
     name = "coremark_ipk",
-    configs = [],
-    configsroot = "@@//dist/openwrt:test_configs",
     executables = ["@@//tools/coremark:coremark"],  # No _compressed; it's small, not Go.
-    initds = [],
     pkg = "coremark",
     visibility = ["//visibility:public"],
     deps = ["testconfig_ipk"],  # Force sequential build; openwrt make isn't reentrant.

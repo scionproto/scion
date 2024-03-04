@@ -36,6 +36,7 @@ define Build/Prepare
 	mkdir -p $(PKG_BUILD_DIR)/execs
 	mkdir -p $(PKG_BUILD_DIR)/initds
 	mkdir -p $(PKG_BUILD_DIR)/configs
+	mkdir -p $(PKG_BUILD_DIR)/overrides
 endef
 
 # Package build instructions; just copy the assets from where they already are.
@@ -56,6 +57,10 @@ define Build/Compile
 	cd $(EXECROOT)/%{configsroot} && \
 	for c in %{configs}; do \
 		cp -f --parent $$$${c##%{configsroot}/} $$$${ABS_BUILD_DIR}/configs/; \
+	done && \
+	cd $(EXECROOT)/%{overridesroot} && \
+	for c in %{overrides}; do \
+		cp -f --parent $$$${c##%{overridesroot}/} $$$${ABS_BUILD_DIR}/overrides/; \
 	done
 endef
 
@@ -68,7 +73,10 @@ define Package/%{pkg}/install
 	INS_DIR="$$$$(cd $(1) && pwd)"; \
 	cd $(PKG_BUILD_DIR)/configs && \
 	find . -type d -print0 | xargs -0 -I{} $(INSTALL_DIR) $$$${INS_DIR}/etc/scion/{} && \
-	find . -type f -print0 | xargs -0 -I{} $(INSTALL_CONF) {} $$$${INS_DIR}/etc/scion/{}.default
+	find . -type f -print0 | xargs -0 -I{} $(INSTALL_CONF) {} $$$${INS_DIR}/etc/scion/{}.default && \
+	cd $(PKG_BUILD_DIR)/overrides && \
+	find . -type d -print0 | xargs -0 -I{} $(INSTALL_DIR) $$$${INS_DIR}/etc/scion/{} && \
+	find . -type f -print0 | xargs -0 -I{} $(INSTALL_CONF) {} $$$${INS_DIR}/etc/scion/{}
 endef
 
 # This command is always the last, it uses the definitions and variables we give above in order to get the job done
