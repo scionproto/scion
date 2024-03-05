@@ -1,13 +1,6 @@
 load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 
-DEFAULT_PLATFORMS = [
-    "@io_bazel_rules_go//go/toolchain:linux_amd64",
-    "@io_bazel_rules_go//go/toolchain:linux_arm64",
-    "@io_bazel_rules_go//go/toolchain:linux_386",
-    "@io_bazel_rules_go//go/toolchain:linux_arm",
-]
-
-def multiplatform_filegroup(name, srcs, target_platforms = DEFAULT_PLATFORMS, **kwargs):
+def multiplatform_filegroup(name, srcs, target_platforms, **kwargs):
     all_platforms = []
     for target_platform in target_platforms:
         platform_name = target_platform.split(":")[-1]

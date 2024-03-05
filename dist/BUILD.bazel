@@ -1,11 +1,42 @@
 load(":package.bzl", "scion_pkg_deb")
+load(":package.bzl", "scion_pkg_ipk")
 load(":platform.bzl", "multiplatform_filegroup")
 load(":git_version.bzl", "git_version")
+
+DEB_PLATFORMS = [
+    "@io_bazel_rules_go//go/toolchain:linux_amd64",
+    "@io_bazel_rules_go//go/toolchain:linux_arm64",
+    "@io_bazel_rules_go//go/toolchain:linux_386",
+    "@io_bazel_rules_go//go/toolchain:linux_arm",
+]
+
+# TODO(jice@scion.org):
+# For now only a single openwrt platform can be in this list. If we allow several, they get
+# built in parallel, which breaks on non-reentrant openwrt makefiles. For a single platform
+# things work because we force the packages to be build serialy by making them depend on
+# each other.
+OPENWRT_PLATFORMS = [
+    "@//dist/openwrt:openwrt_amd64",
+]
+
+# Some files that the openwrt build consumes directly.
+exports_files(
+    [
+        "conffiles/gateway.toml",
+        "conffiles/gateway.json",
+        "conffiles/daemon.toml",
+        "conffiles/dispatcher.toml",
+
+        # Directory itself. Indicates the common root of config files.
+        "conffiles",
+    ],
+    visibility = ["//visibility:public"],
+)
 
 git_version(
     name = "git_version",
     tags = ["manual"],
-    visibility = ["//visibility:private"],
+    visibility = ["@openwrt_x86_64_SDK//:__subpackages__"],
 )
 
 scion_pkg_deb(
@@ -57,7 +88,7 @@ scion_pkg_deb(
 
 scion_pkg_deb(
     name = "daemon_deb",
-    configs = ["conffiles/sciond.toml"],
+    configs = ["conffiles/daemon.toml"],
     depends = [
         "adduser",
     ],
@@ -74,8 +105,8 @@ scion_pkg_deb(
 scion_pkg_deb(
     name = "gateway_deb",
     configs = [
-        "conffiles/sig.json",
-        "conffiles/sig.toml",
+        "conffiles/gateway.json",
+        "conffiles/gateway.toml",
     ],
     depends = [
         "adduser",
@@ -117,5 +148,72 @@ multiplatform_filegroup(
         "router_deb",
         "tools_deb",
     ],
+    target_platforms = DEB_PLATFORMS,
+    visibility = ["//dist:__subpackages__"],
+)
+
+scion_pkg_ipk(
+    name = "persistdbs_ipk",
+)
+
+scion_pkg_ipk(
+    name = "router_ipk",
+)
+
+scion_pkg_ipk(
+    name = "gateway_ipk",
+)
+
+scion_pkg_ipk(
+    name = "control_ipk",
+)
+
+scion_pkg_ipk(
+    name = "dispatcher_ipk",
+)
+
+scion_pkg_ipk(
+    name = "daemon_ipk",
+)
+
+scion_pkg_ipk(
+    name = "tools_ipk",
+)
+
+scion_pkg_ipk(
+    name = "coremark_ipk",
+)
+
+scion_pkg_ipk(
+    name = "testconfig_ipk",
+)
+
+# multiplatform_filegroup creates two targets: <name> and <name>_all.
+# <name> means "local platform".
+# So "build //dist/openwrt" means "make me ipk packages for the local platform only. It wont work,
+# unles you happen to be building on an openwrt system (really?).
+# What you really want is "build //dist/openwrt_all".
+multiplatform_filegroup(
+    name = "openwrt",
+    srcs = [
+        "control_ipk",
+        "daemon_ipk",
+        "dispatcher_ipk",
+        "gateway_ipk",
+        "persistdbs_ipk",
+        "router_ipk",
+        "tools_ipk",
+    ],
+    target_platforms = OPENWRT_PLATFORMS,
+    visibility = ["//dist:__subpackages__"],
+)
+
+multiplatform_filegroup(
+    name = "openwrt_testing",
+    srcs = [
+        "coremark_ipk",
+        "testconfig_ipk",
+    ],
+    target_platforms = OPENWRT_PLATFORMS,
     visibility = ["//dist:__subpackages__"],
 )

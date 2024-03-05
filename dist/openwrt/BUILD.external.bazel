@@ -1,0 +1,111 @@
+# This build file is layered onto the openwrt_<target>_SDK tree which is
+# imported as an external dependency. It takes care of:
+# * Wrapping SCION binaries from the SCION build, into ipk packages.
+# * Exporting the musl-gcc compiler suite as a bazel toolchain.
+
+load("@@//dist/openwrt:ipk.bzl", "ipk_pkg")
+load("@@//dist/openwrt:musl_toolchain.bzl", "musl_cc_toolchain")
+
+package(default_visibility = ["//visibility:public"])
+
+# Wrap scion binaries and configs into ipk. See rule in ipk.bzl
+
+ipk_pkg(
+    name = "persistdbs_ipk",
+    initds = ["@@//dist/openwrt:initds/persistdbs"],
+    pkg = "persistdbs",
+    visibility = ["//visibility:public"],
+)
+
+ipk_pkg(
+    name = "router_ipk",
+    executables = ["@@//router/cmd/router:router_compressed"],
+    initds = ["@@//dist/openwrt:initds/router"],
+    pkg = "router",
+    visibility = ["//visibility:public"],
+    deps = ["persistdbs_ipk"],  # Force sequential build; openwrt make isn't reentrant.
+)
+
+ipk_pkg(
+    name = "gateway_ipk",
+    configs = [
+        "@@//dist:conffiles/gateway.json",
+        "@@//dist:conffiles/gateway.toml",
+    ],
+    configsroot = "@@//dist:conffiles",
+    executables = ["@@//gateway/cmd/gateway:gateway_compressed"],
+    initds = ["@@//dist/openwrt:initds/gateway"],
+    pkg = "ip-gateway",  # traditional name
+    visibility = ["//visibility:public"],
+    deps = ["router_ipk"],  # Force sequential build; openwrt make isn't reentrant.
+)
+
+ipk_pkg(
+    name = "control_ipk",
+    executables = ["@@//control/cmd/control:control_compressed"],
+    initds = ["@@//dist/openwrt:initds/control"],
+    pkg = "control",
+    visibility = ["//visibility:public"],
+    deps = ["gateway_ipk"],  # Force sequential build; openwrt make isn't reentrant.
+)
+
+ipk_pkg(
+    name = "dispatcher_ipk",
+    configs = ["@@//dist:conffiles/dispatcher.toml"],
+    configsroot = "@@//dist:conffiles",
+    executables = ["@@//dispatcher/cmd/dispatcher:dispatcher_compressed"],
+    initds = ["@@//dist/openwrt:initds/dispatcher"],
+    pkg = "dispatcher",
+    visibility = ["//visibility:public"],
+    deps = ["control_ipk"],  # Force sequential build; openwrt make isn't reentrant.
+)
+
+ipk_pkg(
+    name = "daemon_ipk",
+    configs = ["@@//dist:conffiles/daemon.toml"],
+    configsroot = "@@//dist:conffiles",
+    executables = ["@@//daemon/cmd/daemon:daemon_compressed"],
+    initds = ["@@//dist/openwrt:initds/daemon"],
+    pkg = "daemon",
+    visibility = ["//visibility:public"],
+    deps = ["dispatcher_ipk"],  # Force sequential build; openwrt make isn't reentrant.
+)
+
+ipk_pkg(
+    name = "tools_ipk",
+    executables = [
+        "@@//scion/cmd/scion:scion_compressed",
+        "@@//scion-pki/cmd/scion-pki:scion-pki_compressed",
+    ],
+    pkg = "tools",
+    visibility = ["//visibility:public"],
+    deps = ["daemon_ipk"],  # Force sequential build; openwrt make isn't reentrant.
+)
+
+# These two package are not normally distributed. They are only installed
+# to facilitate regression tests.
+ipk_pkg(
+    name = "testconfig_ipk",
+    overrides = [
+        "@@//dist/openwrt:test_configs/control.toml",
+        "@@//dist/openwrt:test_configs/keys/master0.key",
+        "@@//dist/openwrt:test_configs/keys/master1.key",
+        "@@//dist/openwrt:test_configs/router.toml",
+        "@@//dist/openwrt:test_configs/topology.json",
+    ],
+    overridesroot = "@@//dist/openwrt:test_configs",
+    pkg = "testconfig",
+    visibility = ["//visibility:public"],
+    deps = ["tools_ipk"],  # Force sequential build; openwrt make isn't reentrant.
+)
+
+ipk_pkg(
+    name = "coremark_ipk",
+    executables = ["@@//tools/coremark:coremark"],  # No _compressed; it's small, not Go.
+    pkg = "coremark",
+    visibility = ["//visibility:public"],
+    deps = ["testconfig_ipk"],  # Force sequential build; openwrt make isn't reentrant.
+)
+
+# Assemble a bazel toolchain out of the openwrt sdk binaries.
+musl_cc_toolchain(target_arch = "x86_64")

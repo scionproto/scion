@@ -1,0 +1,18 @@
+# This is a dummy config. It must be edited/replaced
+# after installation.
+
+[general]
+id = "br-1"
+config_dir = "/etc/scion/"
+
+[features]
+
+[api]
+addr = "127.0.0.1:30142"
+
+[log.console]
+level = "info"
+
+# Optionally expose metrics and other local inspection endpoints.
+# [metrics]
+# prometheus = "127.0.0.1:30442"
