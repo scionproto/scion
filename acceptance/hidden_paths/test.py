@@ -43,6 +43,12 @@ class Test(base.TestTopogen):
       Expect no connectivity:
         AS3 <-> AS4 (Group ff00:0:2-3 to group ff00:0:2-4)
     """
+    _ases = {
+        "2": "1-ff00:0:2",
+        "3": "1-ff00:0:3",
+        "4": "1-ff00:0:4",
+        "5": "1-ff00:0:5",
+    }
 
     http_server_port = 9099
 
@@ -107,17 +113,10 @@ class Test(base.TestTopogen):
 
         super().setup_start()
 
-        self._ases = {
-            "2": "1-ff00:0:2",
-            "3": "1-ff00:0:3",
-            "4": "1-ff00:0:4",
-            "5": "1-ff00:0:5",
-        }
-
-    def _run(self):
         self.await_connectivity()
         self._server.shutdown()  # by now configuration must have been downloaded everywhere
 
+    def _run(self):
         # Group 3
         self._showpaths_bidirectional("2", "3")
         self._showpaths_bidirectional("2", "5")
