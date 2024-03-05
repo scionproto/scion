@@ -31,7 +31,7 @@ scion_app_images(
     src = "//router/cmd/router",
     cmd = [
         "--config",
-        "/share/conf/br.toml",
+        "/etc/scion/router.toml",
     ],
     entrypoint = ["/app/router"],
 )
@@ -41,7 +41,7 @@ scion_app_images(
     src = "//control/cmd/control",
     cmd = [
         "--config",
-        "/share/conf/cs.toml",
+        "/etc/scion/cs.toml",
     ],
     entrypoint = ["/app/control"],
 )
@@ -51,7 +51,7 @@ scion_app_images(
     src = "//dispatcher/cmd/dispatcher",
     cmd = [
         "--config",
-        "/share/conf/disp.toml",
+        "/etc/scion/disp.toml",
     ],
     entrypoint = ["/app/dispatcher"],
 )
@@ -61,7 +61,7 @@ scion_app_images(
     src = "//daemon/cmd/daemon",
     cmd = [
         "--config",
-        "/share/conf/sd.toml",
+        "/etc/scion/sd.toml",
     ],
     entrypoint = ["/app/daemon"],
 )
@@ -73,7 +73,7 @@ scion_app_images(
     caps_binary = "/app/gateway",
     cmd = [
         "--config",
-        "/share/conf/sig.toml",
+        "/etc/scion/sig.toml",
     ],
     entrypoint = ["/app/gateway"],
 )

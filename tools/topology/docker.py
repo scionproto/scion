@@ -148,7 +148,7 @@ class DockerGenerator(object):
                 'networks': {},
                 'user': self.user,
                 'volumes':
-                ['%s:/share/conf:ro' % base],
+                ['%s:/etc/scion:ro' % base],
                 'environment': {
                     'SCION_EXPERIMENTAL_BFD_DETECT_MULT':
                     '${SCION_EXPERIMENTAL_BFD_DETECT_MULT:-}',
@@ -157,7 +157,7 @@ class DockerGenerator(object):
                     'SCION_EXPERIMENTAL_BFD_REQUIRED_MIN_RX':
                     '${SCION_EXPERIMENTAL_BFD_REQUIRED_MIN_RX:-}',
                 },
-                'command': ['--config', '/share/conf/%s.toml' % k]
+                'command': ['--config', '/etc/scion/%s.toml' % k]
             }
             # add data networks:
             net_keys = [k, k + '_internal']
@@ -183,11 +183,10 @@ class DockerGenerator(object):
                 self.user,
                 'volumes': [
                     self._cache_vol(),
-                    self._certs_vol(),
-                    '%s:/share/conf:ro' % base,
+                    '%s:/etc/scion:ro' % base,
                     self._disp_vol(k),
                 ],
-                'command': ['--config', '/share/conf/%s.toml' % k]
+                'command': ['--config', '/etc/scion/%s.toml' % k]
             }
             self.dc_conf['services'][k] = entry
 
@@ -219,10 +218,10 @@ class DockerGenerator(object):
                 '%s_address' % ipv: ip
             }
             entry['volumes'].append(self._disp_vol(disp_id))
-            conf = '%s:/share/conf:rw' % base
+            conf = '%s:/etc/scion:rw' % base
             entry['volumes'].append(conf)
             entry['command'] = [
-                '--config', '/share/conf/disp_%s.toml' % disp_id
+                '--config', '/etc/scion/disp_%s.toml' % disp_id
             ]
 
             self.dc_conf['services']['disp_%s' % disp_id] = entry
@@ -247,15 +246,14 @@ class DockerGenerator(object):
             'volumes': [
                 self._disp_vol(disp_id),
                 self._cache_vol(),
-                self._certs_vol(),
-                '%s:/share/conf:ro' % base
+                '%s:/etc/scion:ro' % base
             ],
             'networks': {
                 self.bridges[net['net']]: {
                     '%s_address' % ipv: ip
                 }
             },
-            'command': ['--config', '/share/conf/sd.toml'],
+            'command': ['--config', '/etc/scion/sd.toml'],
         }
         self.dc_conf['services'][name] = entry
 
@@ -264,6 +262,3 @@ class DockerGenerator(object):
 
     def _cache_vol(self):
         return self.output_base + '/gen-cache:/share/cache:rw'
-
-    def _certs_vol(self):
-        return self.output_base + '/gen-certs:/share/crypto:rw'

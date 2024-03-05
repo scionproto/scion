@@ -19,7 +19,7 @@ const generalSample = `
 id = "%s"
 
 # Directory for loading AS information, certs, keys, path policy, topology.
-config_dir = "/share/conf"
+config_dir = "/etc/scion"
 
 # Enable the snetproxy reconnecter. (default false)
 reconnect_to_dispatcher = false
