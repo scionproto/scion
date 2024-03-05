@@ -2,6 +2,7 @@
 
 # Copyright 2020 Anapaya Systems
 
+import time
 import http.server
 import threading
 
@@ -125,14 +126,11 @@ class Test(base.TestTopogen):
         self._server = server
 
         super().setup_start()
-        time.sleep(10)  # Give applications time to download configurations
+        time.sleep(10)  # TODO(JordiSubira): Rebase this with PR 4477
 
         server.shutdown()
 
     def _run(self):
-        self.await_connectivity()
-        self._server.shutdown()  # by now configuration must have been downloaded everywhere
-
         # Group 3
         self._showpaths_bidirectional("2", "3")
         self._showpaths_bidirectional("2", "5")
