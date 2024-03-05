@@ -289,7 +289,7 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 		CPInfoProvider: nc.CPInfoProvider,
 		Connector: &svc.ResolverPacketConnector{
 			Connector: &snet.DefaultConnector{
-				SCMPHandler:    nc.SCMPHandler,
+				SCMPHandler:    ignoreSCMP{},
 				Metrics:        nc.SCIONPacketConnMetrics,
 				CPInfoProvider: nc.CPInfoProvider,
 			},
