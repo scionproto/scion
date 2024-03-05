@@ -75,6 +75,7 @@ func CheckTestBSConfig(t *testing.T, cfg *BSConfig) {
 	assert.Equal(t, DefaultOriginationInterval, cfg.OriginationInterval.Duration)
 	assert.Equal(t, DefaultPropagationInterval, cfg.PropagationInterval.Duration)
 	assert.Equal(t, DefaultRegistrationInterval, cfg.RegistrationInterval.Duration)
+	assert.False(t, cfg.EPIC)
 	CheckTestPolicies(t, &cfg.Policies)
 }
 
