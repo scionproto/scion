@@ -14,6 +14,9 @@ build --workspace_status_command=./tools/bazel-build-env
 build --java_runtime_version=remotejdk_11
 # disable legacy_create_init for py_binary, py_test etc. This may eventually become the default.
 build --incompatible_default_to_explicit_init_py
+# Enable resolution of cc toolchain by go toolchain
+build --incompatible_enable_cc_toolchain_resolution
+build --flag_alias=file_name_version=//:file_name_version
 
 # include one of "--define gotags=sqlite_mattn" or "--define gotags=sqlite_modernc"
 # cannot be in common, because query chokes on it.

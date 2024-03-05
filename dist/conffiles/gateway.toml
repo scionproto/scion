@@ -1,5 +1,5 @@
 [gateway]
-traffic_policy_file = "/etc/scion/sig.json"
+traffic_policy_file = "/etc/scion/gateway.json"
 
 [tunnel]
 name = "sig"

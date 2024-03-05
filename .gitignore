@@ -68,7 +68,7 @@ doc/venv/
 
 # Generated package files
 ##########################
-/deb/
+/installables/
 
 # CTags
 ##########################

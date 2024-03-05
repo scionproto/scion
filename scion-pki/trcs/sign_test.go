@@ -111,7 +111,7 @@ func TestSign(t *testing.T) {
 }
 
 func TestOpensslCompatible(t *testing.T) {
-	if !strings.HasSuffix(os.Getenv("TEST_TARGET"), "go_integration_test") && false {
+	if !strings.HasSuffix(os.Getenv("TEST_TARGET"), "go_integration_test") {
 		t.Skip("This test only runs as integration test")
 	}
 

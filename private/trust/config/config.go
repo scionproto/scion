@@ -70,7 +70,7 @@ func (cfg *Cache) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 # Disable caching.
 disable = false
 
-# Maximum chache expiration.
+# Maximum cache expiration.
 expiration = "1m"
 `)
 }

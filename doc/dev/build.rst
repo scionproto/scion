@@ -117,6 +117,20 @@ Build
       make                                # or, ...
       bazel build //:scion //:scion-ci
 
+* **Build packages for debian (all target architectures)**
+
+  .. code-block:: sh
+
+     make dist-deb                        # or, ...
+     bazel build //dist:deb_all
+
+* **Build packages for openwrt (x86_64 only, currently)**
+
+  .. code-block:: sh
+
+     make dist-openwrt                        # or, ...
+     bazel build //dist:openwrt_all
+
 Options
 -------
 

@@ -10,7 +10,7 @@ StartLimitInterval=1s
 Type=simple
 User=scion
 Group=scion
-ExecStart=/usr/bin/scion-daemon --config /etc/scion/sciond.toml
+ExecStart=/usr/bin/scion-daemon --config /etc/scion/daemon.toml
 Restart=on-failure
 
 [Install]

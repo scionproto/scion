@@ -11,7 +11,7 @@ Type=simple
 User=scion
 Group=scion
 AmbientCapabilities=cap_net_admin
-ExecStart=/usr/bin/scion-ip-gateway --config /etc/scion/sig.toml
+ExecStart=/usr/bin/scion-ip-gateway --config /etc/scion/gateway.toml
 Restart=on-failure
 
 [Install]

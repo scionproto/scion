@@ -1,0 +1,27 @@
+#!/bin/sh /etc/rc.common
+# "new(er)" style init script
+# Look at /lib/functions/service.sh on a running system for explanations of what other SERVICE_
+# options you can use, and when you might want them.
+
+START=99
+STOP=0
+APP=scion-daemon
+SERVICE_WRITE_PID=1
+SERVICE_DAEMONIZE=1
+
+init_conf() {
+    if [ -f "/etc/scion/daemon.toml" ]; then
+        rm -f /etc/scion/daemon.toml.default
+    elif [ -f "/etc/scion/daemon.toml.default" ]; then
+        mv /etc/scion/daemon.toml.default /etc/scion/daemon.toml
+    fi
+}
+
+start() {
+    init_conf
+    service_start /usr/bin/$APP --config /etc/scion/daemon.toml
+}
+
+stop() {
+    service_stop /usr/bin/$APP
+}
