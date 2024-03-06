@@ -1082,16 +1082,10 @@ def go_deps():
         version = "v2.1.1-0.20180815053127-5633e0862627+incompatible",
     )
     go_repository(
-        name = "com_github_pelletier_go_toml",
-        importpath = "github.com/pelletier/go-toml",
-        sum = "h1:4yBQzkHv+7BHq2PQUZF3Mx0IYxG7LsP222s7Agd3ve8=",
-        version = "v1.9.5",
-    )
-    go_repository(
         name = "com_github_pelletier_go_toml_v2",
         importpath = "github.com/pelletier/go-toml/v2",
-        sum = "h1:uH2qQXheeefCCkuBBSLi7jCiSmj3VRh2+Goq2N7Xxu0=",
-        version = "v2.0.9",
+        sum = "h1:LWAJwfNvjQZCFIDKWYQaM62NcYeYViCmWIwmOStowAI=",
+        version = "v2.1.1",
     )
     go_repository(
         name = "com_github_perimeterx_marshmallow",

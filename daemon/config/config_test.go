@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/pelletier/go-toml"
+	"github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/pkg/daemon"
@@ -34,7 +34,7 @@ func TestConfigSample(t *testing.T) {
 	cfg.Sample(&sample, nil, nil)
 
 	InitTestConfig(&cfg)
-	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).Strict(true).Decode(&cfg)
+	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).DisallowUnknownFields().Decode(&cfg)
 	assert.NoError(t, err)
 	CheckTestConfig(t, &cfg, idSample)
 }
