@@ -82,8 +82,8 @@ ipk_pkg(
     deps = ["daemon_ipk"],  # Force sequential build; openwrt make isn't reentrant.
 )
 
-# These two package are not normally distributed. They are only installed
-# to facilitate regression tests.
+# These three package are not normally distributed. They are only installed
+# to facilitate regression tests and benchmarks.
 ipk_pkg(
     name = "testconfig_ipk",
     overrides = [
@@ -100,11 +100,25 @@ ipk_pkg(
 )
 
 ipk_pkg(
+    name = "bmconfig_ipk",
+    overrides = [
+        "@@//acceptance/router_benchmark:conf/keys/master0.key",
+        "@@//acceptance/router_benchmark:conf/keys/master1.key",
+        "@@//acceptance/router_benchmark:conf/router.toml",
+        "@@//acceptance/router_benchmark:conf/topology.json",
+    ],
+    overridesroot = "@@//acceptance/router_benchmark:conf",
+    pkg = "bmconfig",
+    visibility = ["//visibility:public"],
+    deps = ["testconfig_ipk"],  # Force sequential build; openwrt make isn't reentrant.
+)
+
+ipk_pkg(
     name = "coremark_ipk",
     executables = ["@@//tools/coremark:coremark"],  # No _compressed; it's small, not Go.
     pkg = "coremark",
     visibility = ["//visibility:public"],
-    deps = ["testconfig_ipk"],  # Force sequential build; openwrt make isn't reentrant.
+    deps = ["bmconfig_ipk"],  # Force sequential build; openwrt make isn't reentrant.
 )
 
 # Assemble a bazel toolchain out of the openwrt sdk binaries.

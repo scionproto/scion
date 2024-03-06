@@ -19,11 +19,9 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"net"
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/google/gopacket"
@@ -153,8 +151,8 @@ func run(cmd *cobra.Command) int {
 		return 1
 	}
 
-	cases.InitInterfaces(interfaces)
-	handles, err := openDevices()
+	interfaceNames := cases.InitInterfaces(interfaces)
+	handles, err := openDevices(interfaceNames)
 	if err != nil {
 		log.Error("Loading devices failed", "err", err)
 		return 1
@@ -272,26 +270,17 @@ func receivePackets(packetChan chan gopacket.Packet, payload string) int {
 	}
 }
 
-// initDevices inventories the available network interfaces, picks the ones that a case may inject
-// traffic into, and associates them with a AF Packet interface. It returns the packet interfaces
-// corresponding to each network interface.
-func openDevices() (map[string]*afpacket.TPacket, error) {
-	devs, err := net.Interfaces()
-	if err != nil {
-		return nil, serrors.WrapStr("listing network interfaces", err)
-	}
-
+// initDevices associates each network interfaces into which a case may inject traffic with a AF
+// Packet interface. It returns the packet interfaces corresponding to each network interface.
+func openDevices(interfaceNames []string) (map[string]*afpacket.TPacket, error) {
 	handles := make(map[string]*afpacket.TPacket)
 
-	for _, dev := range devs {
-		if !strings.HasPrefix(dev.Name, "veth_") || !strings.HasSuffix(dev.Name, "_host") {
-			continue
-		}
-		handle, err := afpacket.NewTPacket(afpacket.OptInterface(dev.Name))
+	for _, intf := range interfaceNames {
+		handle, err := afpacket.NewTPacket(afpacket.OptInterface(intf))
 		if err != nil {
 			return nil, serrors.WrapStr("creating TPacket", err)
 		}
-		handles[dev.Name] = handle
+		handles[intf] = handle
 	}
 
 	return handles, nil

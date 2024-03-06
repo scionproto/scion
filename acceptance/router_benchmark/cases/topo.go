@@ -170,10 +170,14 @@ var (
 	macAddrs map[netip.Addr]net.HardwareAddr
 )
 
-// InitInterfaces collects the names and mac addresses for the interfaces setup by the invoker
-// according to instructions given via listInterfaces().
+// InitInterfaces collects the names (OS device name) and mac addresses for the interfaces setup by
+// the invoker according to instructions given via listInterfaces().
 // This information is indexed by our own interface labels.
-func InitInterfaces(pairs []string) {
+//
+// Returns a list of unique device names that any label maps to. (i.e. devices that at least one
+// test will need to open.
+func InitInterfaces(pairs []string) []string {
+	asSet := make(map[string]struct{}, len(pairs))
 	deviceNames = make(map[string]string, len(pairs))
 	macAddrs = make(map[netip.Addr]net.HardwareAddr, len(pairs)*2)
 	for _, pair := range pairs {
@@ -191,7 +195,13 @@ func InitInterfaces(pairs []string) {
 		deviceNames[label] = info[0]               // host-side name
 		macAddrs[intfMap[label].ip] = addr         // ip->mac
 		macAddrs[intfMap[label].peerIP] = peerAddr // peerIP->peerMAC
+		asSet[info[0]] = struct{}{}
 	}
+	deduped := make([]string, 0, len(asSet))
+	for n, _ := range asSet {
+		deduped = append(deduped, n)
+	}
+	return deduped
 }
 
 // interfaceName returns the name of the host interface that this test must use in order to exchange

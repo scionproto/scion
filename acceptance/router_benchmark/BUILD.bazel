@@ -1,9 +1,16 @@
 load("//acceptance/common:raw.bzl", "raw_test")
 
-exports_files([
-    "conf",
-    "test.py",
-])
+exports_files(
+    [
+        "conf",
+        "test.py",
+        "conf/router.toml",
+        "conf/topology.json",
+        "conf/keys/master0.key",
+        "conf/keys/master1.key",
+    ],
+    visibility = ["//visibility:public"],
+)
 
 args = [
     "--executable",
