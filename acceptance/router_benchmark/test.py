@@ -336,13 +336,13 @@ class RouterBMTest(base.TestBase):
         # and we'd need to expose the router's metrics port to prometheus in some way. So, this is
         # simpler.
         docker("run",
-               "-v", f"{self.artifacts}/conf:/share/conf",
+               "-v", f"{self.artifacts}/conf:/etc/scion",
                "-d",
                "--network", "benchmark",
                "--publish", "9999:9090",
                "--name", "prometheus",
                "prom/prometheus:v2.47.2",
-               "--config.file", "/share/conf/prometheus.yml")
+               "--config.file", "/etc/scion/prometheus.yml")
 
         # Link that namespace to where the ip commands expect it. While at it give it a simple name.
         sudo("mkdir", "-p", "/var/run/netns")
@@ -374,7 +374,7 @@ class RouterBMTest(base.TestBase):
 
         # Now the router can start.
         docker("run",
-               "-v", f"{self.artifacts}/conf:/share/conf",
+               "-v", f"{self.artifacts}/conf:/etc/scion",
                "-d",
                "-e", "SCION_EXPERIMENTAL_BFD_DISABLE=true",
                "-e", "GOMAXPROCS=3",

@@ -78,7 +78,7 @@ func CheckTest(t *testing.T, general *env.General, metrics *env.Metrics,
 
 func CheckTestGeneral(t *testing.T, cfg *env.General, id string) {
 	assert.Equal(t, id, cfg.ID)
-	assert.Equal(t, "/share/conf", cfg.ConfigDir)
+	assert.Equal(t, "/etc/scion", cfg.ConfigDir)
 	assert.Equal(t, filepath.Join(cfg.ConfigDir, env.TopologyFile), cfg.Topology())
 	assert.False(t, cfg.ReconnectToDispatcher)
 }

@@ -98,7 +98,7 @@ class RouterTest(base.TestBase):
         if self.bfd:
             envs = []
 
-        exec_docker("run -v %s/conf:/share/conf -d %s --network container:%s \
+        exec_docker("run -v %s/conf:/etc/scion -d %s --network container:%s \
                     --name router %s" % (self.artifacts, " ".join(envs),
                     "pause", "bazel/acceptance/router_multi:router"))
 

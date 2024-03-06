@@ -32,7 +32,6 @@ SCION_SERVICE_NAMES = (
     "border_routers",
 )
 
-BR_CONFIG_NAME = 'br.toml'
 BS_CONFIG_NAME = 'bs.toml'
 CS_CONFIG_NAME = 'cs.toml'
 PS_CONFIG_NAME = 'ps.toml'

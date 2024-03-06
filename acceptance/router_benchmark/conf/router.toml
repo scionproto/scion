@@ -1,6 +1,6 @@
 [general]
 id = "br1a"
-config_dir = "/share/conf"
+config_dir = "/etc/scion"
 
 [metrics]
 prometheus = "10.123.10.1:30442"

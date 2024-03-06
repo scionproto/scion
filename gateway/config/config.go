@@ -29,7 +29,7 @@ import (
 const (
 	// FIXME(lukedirtwalker): cleanup traffic policy and use "session.policy"
 	// instead.
-	DefaultSessionPoliciesFile = "/share/conf/traffic.policy"
+	DefaultSessionPoliciesFile = "/etc/scion/traffic.policy"
 )
 
 // Defaults.

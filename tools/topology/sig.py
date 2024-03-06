@@ -81,11 +81,11 @@ class SIGGenerator(object):
             'networks': {},
             'volumes': [
                 self._disp_vol(topo_id),
-                '%s:/share/conf:rw' % base,
+                '%s:/etc/scion:rw' % base,
             ],
             'command':
             ['--config',
-             '/share/conf/disp_sig_%s.toml' % topo_id.file_fmt()],
+             '/etc/scion/disp_sig_%s.toml' % topo_id.file_fmt()],
         }
 
         net = self.args.networks['sig%s' % topo_id.file_fmt()][0]
@@ -129,11 +129,11 @@ class SIGGenerator(object):
             'volumes': [
                 self._disp_vol(topo_id),
                 '/dev/net/tun:/dev/net/tun',
-                '%s:/share/conf' % base,
+                '%s:/etc/scion' % base,
             ],
             'network_mode':
             'service:%s' % disp_id,
-            'command': ['--config', '/share/conf/sig.toml'],
+            'command': ['--config', '/etc/scion/sig.toml'],
         }
 
     def _sig_json(self, topo_id):
@@ -166,7 +166,7 @@ class SIGGenerator(object):
         sig_conf = {
             'gateway': {
                 'id': name,
-                'traffic_policy_file': 'conf/sig.json',
+                'traffic_policy_file': '/etc/scion/sig.json',
                 'ctrl_addr': str(net[ipv]),
             },
             'sciond_connection': {

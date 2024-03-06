@@ -68,7 +68,6 @@ class GoGenerator(object):
         self.args = args
         self.log_dir = '/share/logs' if args.docker else 'logs'
         self.db_dir = '/share/cache' if args.docker else 'gen-cache'
-        self.certs_dir = '/share/crypto' if args.docker else 'gen-certs'
         self.log_level = 'debug'
 
     def generate_br(self):
@@ -79,7 +78,7 @@ class GoGenerator(object):
                 write_file(os.path.join(base, "%s.toml" % k), toml.dumps(br_conf))
 
     def _build_br_conf(self, topo_id, ia, base, name, v):
-        config_dir = '/share/conf' if self.args.docker else base
+        config_dir = '/etc/scion' if self.args.docker else base
         raw_entry = {
             'general': {
                 'id': name,
@@ -109,7 +108,7 @@ class GoGenerator(object):
                                toml.dumps(bs_conf))
 
     def _build_control_service_conf(self, topo_id, ia, base, name, infra_elem, ca):
-        config_dir = '/share/conf' if self.args.docker else base
+        config_dir = '/etc/scion' if self.args.docker else base
         raw_entry = {
             'general': {
                 'id': name,
@@ -143,7 +142,7 @@ class GoGenerator(object):
 
     def _build_sciond_conf(self, topo_id, ia, base):
         name = sciond_name(topo_id)
-        config_dir = '/share/conf' if self.args.docker else base
+        config_dir = '/etc/scion' if self.args.docker else base
         ip = sciond_ip(self.args.docker, topo_id, self.args.networks)
         raw_entry = {
             'general': {
