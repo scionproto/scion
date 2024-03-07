@@ -40,6 +40,7 @@ type Connector struct {
 
 	ReceiveBufferSize int
 	SendBufferSize    int
+	BfdDisabled       bool
 }
 
 var errMultiIA = serrors.New("different IA not allowed")
@@ -212,4 +213,11 @@ func (c *Connector) ListSiblingInterfaces() ([]control.SiblingInterface, error) 
 		siblingInterfaceList = append(siblingInterfaceList, siblingInterface)
 	}
 	return siblingInterfaceList, nil
+}
+
+func (c *Connector) BFDConfig(ifaceBFD control.BFD) control.BFD {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	ifaceBFD.Disable = ifaceBFD.Disable || c.BfdDisabled
+	return ifaceBFD
 }

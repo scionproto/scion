@@ -56,17 +56,6 @@ Options
 Environment Variables
 ---------------------
 
-.. envvar:: SCION_EXPERIMENTAL_BFD_DISABLE
-
-   Disable :term:`BFD`, unconditionally consider the connection alive.
-
-   Applies to BFD sessions to all sibling routers (other routers in the same AS).
-   Can be overridden for specific inter-AS BFD sessions with :option:`bfd.disable <topology-json disable>`
-   in an interface entry in the ``topology.json`` configuration.
-
-   :Type: bool (``0``/``f``/``F``/``FALSE``/``false``/``False``,  ``1``/``t``/``T``/``TRUE``/``true``/``True``)
-   :Default: ``false``
-
 .. envvar:: SCION_EXPERIMENTAL_BFD_DETECT_MULT
 
    Set the :term:`BFD` detection time multiplier.
@@ -221,6 +210,15 @@ considers the following options.
 
       The batch size used by the receiver and forwarder to
       read or write from / to the network socket.
+
+   .. option:: router.bfd_disabled = <bool> (Default: false)
+
+      Whether the :term:`BFD` feature is disabled globally. If disabled, the router unconditionally considers any
+      connection alive.
+
+      Applies to BFD sessions to all neighboring routers, including sibling routers (other routers in the same AS).
+      If enabled globally, :term:`BFD` can be disabled for specific inter-AS BFD sessions with
+      :option:`bfd.disable <topology-json disable>` in an interface entry in the ``topology.json`` configuration.
 
 .. _router-conf-topo:
 

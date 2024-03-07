@@ -5,5 +5,8 @@
 [features]
   experimental_scmp_authentication = true
 
+[router]
+  bfd_disabled = true
+
 [log.console]
   level = "debug"

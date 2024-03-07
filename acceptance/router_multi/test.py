@@ -94,13 +94,15 @@ class RouterTest(base.TestBase):
     def setup_start(self):
         super().setup_start()
 
-        envs = ["-e SCION_EXPERIMENTAL_BFD_DISABLE=true"]
         if self.bfd:
-            envs = []
-
-        exec_docker("run -v %s/conf:/etc/scion -d %s --network container:%s \
-                    --name router %s" % (self.artifacts, " ".join(envs),
-                    "pause", "bazel/acceptance/router_multi:router"))
+            exec_docker(f"run -v {self.artifacts}/conf:/etc/scion -d "
+                        "--network container:pause --name router "
+                        "bazel/acceptance/router_multi:router")
+        else:
+            exec_docker(f"run -v {self.artifacts}/conf:/etc/scion -d "
+                        "--network container:pause --name router "
+                        "bazel/acceptance/router_multi:router "
+                        "--config /etc/scion/router_nobfd.toml")
 
         time.sleep(1)
 

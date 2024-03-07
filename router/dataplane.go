@@ -90,10 +90,6 @@ type BatchConn interface {
 // DataPlane contains a SCION Border Router's forwarding logic. It reads packets
 // from multiple sockets, performs routing, and sends them to their destinations
 // (after updating the path, if that is needed).
-//
-// XXX(lukedirtwalker): this is still in development and not feature complete.
-// Currently, only the following features are supported:
-//   - initializing connections; MUST be done prior to calling Run
 type DataPlane struct {
 	interfaces        map[uint16]BatchConn
 	external          map[uint16]BatchConn

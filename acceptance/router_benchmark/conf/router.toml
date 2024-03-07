@@ -7,6 +7,9 @@ prometheus = "10.123.10.1:30442"
 
 [features]
 
+[router]
+bfd_disabled = true
+
 [api]
 addr = "10.123.10.1:31142"
 

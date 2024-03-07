@@ -40,11 +40,12 @@ type Config struct {
 }
 
 type RouterConfig struct {
-	ReceiveBufferSize     int `toml:"receive_buffer_size,omitempty"`
-	SendBufferSize        int `toml:"send_buffer_size,omitempty"`
-	NumProcessors         int `toml:"num_processors,omitempty"`
-	NumSlowPathProcessors int `toml:"num_slow_processors,omitempty"`
-	BatchSize             int `toml:"batch_size,omitempty"`
+	ReceiveBufferSize     int  `toml:"receive_buffer_size,omitempty"`
+	SendBufferSize        int  `toml:"send_buffer_size,omitempty"`
+	NumProcessors         int  `toml:"num_processors,omitempty"`
+	NumSlowPathProcessors int  `toml:"num_slow_processors,omitempty"`
+	BatchSize             int  `toml:"batch_size,omitempty"`
+	BfdDisabled           bool `toml:"bfd_disabled,omitempty"`
 }
 
 func (cfg *RouterConfig) ConfigName() string {

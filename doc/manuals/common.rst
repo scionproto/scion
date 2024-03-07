@@ -287,7 +287,7 @@ of the individual fields below.
 
             Disable BFD, unconditionally consider the connection alive.
 
-            Takes precedence over :envvar:`SCION_EXPERIMENTAL_BFD_DISABLE`.
+            If true, takes precedence over :option:`router.bfd_disabled <router-conf-toml router.bfd_disabled>`.
 
          .. option:: detect_mult = <uint8>, default 3
 

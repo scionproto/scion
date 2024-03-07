@@ -376,7 +376,6 @@ class RouterBMTest(base.TestBase):
         docker("run",
                "-v", f"{self.artifacts}/conf:/etc/scion",
                "-d",
-               "-e", "SCION_EXPERIMENTAL_BFD_DISABLE=true",
                "-e", "GOMAXPROCS=3",
                "--network", "container:prometheus",
                "--name", "router",

@@ -24,19 +24,19 @@ import (
 )
 
 const (
-	envDisable = "SCION_EXPERIMENTAL_BFD_DISABLE"
-	envMult    = "SCION_EXPERIMENTAL_BFD_DETECT_MULT"
-	envMinTx   = "SCION_EXPERIMENTAL_BFD_DESIRED_MIN_TX"
-	envMinRx   = "SCION_EXPERIMENTAL_BFD_REQUIRED_MIN_RX"
+	envMult  = "SCION_EXPERIMENTAL_BFD_DETECT_MULT"
+	envMinTx = "SCION_EXPERIMENTAL_BFD_DESIRED_MIN_TX"
+	envMinRx = "SCION_EXPERIMENTAL_BFD_REQUIRED_MIN_RX"
 )
 
 // BFD is the configuration for the BFD sessions.
 type BFD topology.BFD
 
 // XXX(sgmonroy) note that env values only affect defaults, which in turn are only used
-// if there were no BFD related settings in the topology.
+// if there were no BFD related settings in the topology and can also be updated from the
+// dataplane's configuration.
 func WithDefaults(cfg BFD) BFD {
-	// If default is disable, BFD is globally disabled.
+	// For BFDDisable the default is OR'ed onto the given setting.
 	if BFDDefaults.Disable {
 		cfg.Disable = true
 	}
@@ -57,20 +57,12 @@ var (
 		DetectMult:            3,
 		DesiredMinTxInterval:  200 * time.Millisecond,
 		RequiredMinRxInterval: 200 * time.Millisecond,
-		// Disable indicates if BFD is disabled globally.
+		// Disable indicates if BFD is disabled globally. This can be overriden from an env var.
 		Disable: false,
 	}
 )
 
 func init() {
-	if val := os.Getenv(envDisable); val != "" {
-		if disabled, err := strconv.ParseBool(val); err == nil {
-			BFDDefaults.Disable = disabled
-			fmt.Fprintf(os.Stderr, "%s=%v\n", envDisable, disabled)
-		} else {
-			fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", envDisable, err)
-		}
-	}
 	if val := os.Getenv(envMult); val != "" {
 		if p, err := strconv.ParseUint(val, 10, 8); err == nil {
 			BFDDefaults.DetectMult = uint8(p)
