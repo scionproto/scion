@@ -198,7 +198,7 @@ func InitInterfaces(pairs []string) []string {
 		asSet[info[0]] = struct{}{}
 	}
 	deduped := make([]string, 0, len(asSet))
-	for n, _ := range asSet {
+	for n := range asSet {
 		deduped = append(deduped, n)
 	}
 	return deduped
