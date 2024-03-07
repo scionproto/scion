@@ -129,7 +129,7 @@ type (
 
 	// BFD is the configuration for a BFD session
 	// Disable can be set from multiple sources: the code initializing a link, the dataplane's
-	// global configuration, and an environment variable. BFD is disabled if any one of these is
+	// global configuration, and a hard-coded default. BFD is disabled if any one of these is
 	// True.
 	BFD struct {
 		Disable               bool

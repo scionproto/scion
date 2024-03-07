@@ -57,7 +57,7 @@ var (
 		DetectMult:            3,
 		DesiredMinTxInterval:  200 * time.Millisecond,
 		RequiredMinRxInterval: 200 * time.Millisecond,
-		// Disable indicates if BFD is disabled globally. This can be overriden from an env var.
+		// Disable indicates if BFD is disabled globally.
 		Disable: false,
 	}
 )
