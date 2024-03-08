@@ -23,8 +23,10 @@ import (
 	"strings"
 
 	"github.com/google/gopacket/layers"
-
+	"github.com/mdlayher/arp"
+	"github.com/mdlayher/ethernet"
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto"
 )
@@ -183,19 +185,58 @@ func InitInterfaces(pairs []string) []string {
 	for _, pair := range pairs {
 		p := strings.Split(pair, "=")
 		label := p[0]
-		info := strings.Split(p[1], ",")
-		addr, err := net.ParseMAC(info[1])
+		name := p[1]
+		deviceNames[label] = name // host-side name (brload's side)
+		asSet[name] = struct{}{}
+		subjectIP := intfMap[label].ip
+		peerIP := intfMap[label].peerIP
+
+		// Now find the MAC addresses, so we don't have to be told.
+		device, err := net.InterfaceByName(name)
 		if err != nil {
 			panic(err)
 		}
-		peerAddr, err := net.ParseMAC(info[2])
+
+		// The local MAC is readily available.
+		peerMAC := device.HardwareAddr
+
+		// The subject's MAC needs to be arp'ed.
+		arpClient, err := arp.Dial(device)
 		if err != nil {
 			panic(err)
 		}
-		deviceNames[label] = info[0]               // host-side name
-		macAddrs[intfMap[label].ip] = addr         // ip->mac
-		macAddrs[intfMap[label].peerIP] = peerAddr // peerIP->peerMAC
-		asSet[info[0]] = struct{}{}
+		subjectMAC, err := arpClient.Resolve(subjectIP)
+		if err != nil {
+			panic(err)
+		}
+
+		// Done.
+		macAddrs[subjectIP] = subjectMAC // ip->mac (side of router under test)
+		macAddrs[peerIP] = peerMAC       // peerIP->peerMAC (side mocked by brload)
+
+		// Respond to arp requests so there's no need to add a static arp entry on the router
+		// side. We can't assign our address to the interface, so the kernel won't do that for us.
+		go func() {
+			defer log.HandlePanic()
+			// We only respond to the subject, so the reply is always the same.
+			reply := arp.Packet{
+				HardwareType:       1,
+				ProtocolType:       uint16(ethernet.EtherTypeIPv4),
+				HardwareAddrLength: 6,
+				IPLength:           4,
+				Operation:          arp.OperationReply,
+				SenderHardwareAddr: peerMAC, // peer is us.
+				SenderIP:           peerIP,  // peer is us
+				TargetHardwareAddr: subjectMAC,
+				TargetIP:           subjectIP,
+			}
+			for {
+				p, _, err := arpClient.Read()
+				if err == nil && p.SenderIP == subjectIP {
+					arpClient.WriteTo(&reply, subjectMAC)
+				}
+			}
+		}()
 	}
 	deduped := make([]string, 0, len(asSet))
 	for n := range asSet {

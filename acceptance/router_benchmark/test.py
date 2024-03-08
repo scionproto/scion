@@ -22,6 +22,7 @@ from collections import defaultdict, namedtuple
 from plumbum import cli
 from plumbum.cmd import docker, whoami, lscpu
 from plumbum import cmd
+from random import randint
 
 from acceptance.common import base
 
@@ -252,21 +253,27 @@ class RouterBMTest(base.TestBase):
         logger.info(f"brload cpus: {self.brload_cpus}")
 
     def create_interface(self, req: IntfReq, ns: str):
-        """
-        Creates a pair of virtual interfaces, with one end in the given network namespace and the
+        """Creates a pair of virtual interfaces, with one end in the given network namespace and the
         other in the host stack.
 
         The outcome is the pair of interfaces and a record in intfMap, which associates the given
         label with the network interface's host-side name and two mac addresses; one for each end
         of the pair. The mac addresses, if they can be chosen, are not chosen by the invoker, but
-        by this function.
+        by this function. When we can choose, we follow a convention to facilitate debugging.
+        Otherwise the values don't matter. brload has no expectations.
 
-        We could add:
+        We do not:
           sudo("ip", "addr", "add", f"{req.peerIp}/{req.prefixLen}", "dev", hostIntf)
-          sudo("ip", "link", "set", hostIntf, "address", peerMac)
-        But it not necessary. The ARP seeding on the other end is enough. By not setting these
-        addresses on the host side we make it look a little weird for anyone who would look at it
-        but we avoid the risk of colliding with actual addresses of the host.
+
+        It causes trouble: if an IP is assigned, the kernel responds with "unbound port" icmp
+        messages to the router traffic, which breaks the bound UDP connections that the router uses
+        for external interfaces.
+
+        We do not:
+          sudo("ip", "netns", "exec", ns, "ip", "neigh", "add", req.peerIp,
+               "lladdr", peerMac, "nud", "permanent", "dev", brIntf)
+
+        This isn't need because brload now responds to arp requests.
 
         Args:
           IntfReq: A requested router-side network interface. It comprises:
@@ -294,9 +301,16 @@ class RouterBMTest(base.TestBase):
             mac = mac_for_ip(req.ip)
             sudo("ip", "link", "add", hostIntf, "type", "veth", "peer", "name", brIntf)
             sudo("ip", "link", "set", hostIntf, "mtu", "8000")
-            sudo("ip", "link", "set", brIntf, "mtu", "8000")
+            sudo("ip", "link", "set", hostIntf, "address", peerMac)
+
+            # Do not assign the host addresses but create one link-local addr.
+            # Brload needs some src IP to send arp requests.
+            sudo("ip", "addr", "add", f"169.254.{randint(0, 255)}.{randint(0, 255)}/16",
+                 "dev", hostIntf, "scope", "link")
+
             sudo("sysctl", "-qw", f"net.ipv6.conf.{hostIntf}.disable_ipv6=1")
             sudo("ethtool", "-K", brIntf, "rx", "off", "tx", "off")
+            sudo("ip", "link", "set", brIntf, "mtu", "8000")
             sudo("ip", "link", "set", brIntf, "address", mac)
 
             # The network namespace
@@ -304,17 +318,13 @@ class RouterBMTest(base.TestBase):
             sudo("ip", "netns", "exec", ns,
                  "sysctl", "-qw", f"net.ipv6.conf.{brIntf}.disable_ipv6=1")
 
-        # The addresses (presumably must be done once the br interface is in the namespace).
+        # Add the router side IP addresses (even if we're multiplexing on an existing interface).
         sudo("ip", "netns", "exec", ns,
              "ip", "addr", "add", f"{req.ip}/{req.prefixLen}", "dev", brIntf)
-        sudo("ip", "netns", "exec", ns,
-             "ip", "neigh", "add", req.peerIp, "lladdr", peerMac, "nud", "permanent",
-             "dev", brIntf)
 
         # Fit for duty.
         sudo("ip", "link", "set", hostIntf, "up")
-        sudo("ip", "netns", "exec", ns,
-             "ip", "link", "set", brIntf, "up")
+        sudo("ip", "netns", "exec", ns, "ip", "link", "set", brIntf, "up")
 
         self.intfMap[req.label] = Intf(hostIntf, mac, peerMac)
 
@@ -504,7 +514,7 @@ class RouterBMTest(base.TestBase):
         # Build the interface mapping arg
         mapArgs = []
         for label, intf in self.intfMap.items():
-            mapArgs.extend(["--interface", f"{label}={intf.name},{intf.mac},{intf.peerMac}"])
+            mapArgs.extend(["--interface", f"{label}={intf.name}"])
 
         # Run one test (30% size) as warm-up to trigger the frequency scaling, else the first test
         # gets much lower performance.

@@ -105,10 +105,8 @@ func main() {
 	runCmd.Flags().StringVar(&dir, "artifacts", "", "Artifacts directory")
 	runCmd.Flags().Var(&caseToRun, "case", "Case to run. "+caseToRun.Allowed())
 	runCmd.Flags().StringArrayVar(&interfaces, "interface", []string{},
-		`label=host_interface,mac,peer_mac where:
-    host_interface: use this to exchange traffic with interface <label>
-    mac: the mac address of interface <label>
-    peer_mac: the mac address of <host_interface>`)
+		`label=host_interface where <host_interface> is the host device that matches the <label>
+ requirement from --show-interfaces.`)
 	runCmd.MarkFlagRequired("case")
 	runCmd.MarkFlagRequired("interface")
 
