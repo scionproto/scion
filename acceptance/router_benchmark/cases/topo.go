@@ -25,6 +25,7 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/mdlayher/arp"
 	"github.com/mdlayher/ethernet"
+
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/xtest"
@@ -233,7 +234,7 @@ func InitInterfaces(pairs []string) []string {
 			for {
 				p, _, err := arpClient.Read()
 				if err == nil && p.SenderIP == subjectIP {
-					arpClient.WriteTo(&reply, subjectMAC)
+					_ = arpClient.WriteTo(&reply, subjectMAC)
 				}
 			}
 		}()
