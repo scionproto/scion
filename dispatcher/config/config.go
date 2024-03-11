@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"net/netip"
-	"strings"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
@@ -79,9 +78,8 @@ func (cfg *Config) ConfigName() string {
 type Dispatcher struct {
 	config.NoDefaulter
 	// ID is the SCION element ID of the shim dispatcher.
-	ID                     string            `toml:"id,omitempty"`
-	ServiceAddresses       map[string]string `toml:"service_addresses,omitempty"`
-	ParsedServiceAddresses map[addr.Addr]netip.AddrPort
+	ID               string                       `toml:"id,omitempty"`
+	ServiceAddresses map[addr.Addr]netip.AddrPort `toml:"service_addresses,omitempty"`
 	// UnderlayPort is the native port opened by the dispatcher (default 30041)
 	UnderlayPort int `toml:"underlay_port,omitempty"`
 }
@@ -95,17 +93,10 @@ func (cfg *Dispatcher) Validate() error {
 	}
 
 	// Process ServiceAddresses
-	cfg.ParsedServiceAddresses = make(map[addr.Addr]netip.AddrPort, len(cfg.ServiceAddresses))
-	for iaSvc, addr := range cfg.ServiceAddresses {
-		parsedIASvc, err := parseIASvc(iaSvc)
-		if err != nil {
-			return serrors.WrapStr("parsing IA,SVC", err)
+	for iaSVC := range cfg.ServiceAddresses {
+		if iaSVC.Host.Type() != addr.HostTypeSVC {
+			return serrors.New("Parsed address must be SVC", "type", iaSVC.Host.Type().String())
 		}
-		parsedAddr, err := netip.ParseAddrPort(addr)
-		if err != nil {
-			return serrors.WrapStr("parsing address", err)
-		}
-		cfg.ParsedServiceAddresses[parsedIASvc] = parsedAddr
 	}
 	return nil
 }
@@ -116,20 +107,4 @@ func (cfg *Dispatcher) Sample(dst io.Writer, path config.Path, ctx config.CtxMap
 
 func (cfg *Dispatcher) ConfigName() string {
 	return "dispatcher"
-}
-
-func parseIASvc(str string) (addr.Addr, error) {
-	words := strings.Split(str, ",")
-	if len(words) != 2 {
-		return addr.Addr{}, serrors.New("Host addr doesn't match format \"ia, svc\"", "input", str)
-	}
-	ia, err := addr.ParseIA(words[0])
-	if err != nil {
-		return addr.Addr{}, serrors.WrapStr("parsing IA in Host addr", err)
-	}
-	svc, err := addr.ParseSVC(words[1])
-	if err != nil {
-		return addr.Addr{}, serrors.WrapStr("parsing SVC in Host addr", err)
-	}
-	return addr.Addr{IA: ia, Host: addr.HostSVC(svc)}, nil
 }

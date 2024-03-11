@@ -51,5 +51,5 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 	logtest.CheckTestLogging(t, &cfg.Logging, id)
 	assert.Equal(t, id, cfg.Dispatcher.ID)
 	assert.Equal(t, topology.EndhostPort, cfg.Dispatcher.UnderlayPort)
-	assert.Len(t, cfg.Dispatcher.ParsedServiceAddresses, 0)
+	assert.Len(t, cfg.Dispatcher.ServiceAddresses, 0)
 }

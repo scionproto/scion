@@ -63,7 +63,7 @@ func realMain(ctx context.Context) error {
 	g.Go(func() error {
 		defer log.HandlePanic()
 		return RunDispatcher(
-			globalCfg.Dispatcher.ParsedServiceAddresses,
+			globalCfg.Dispatcher.ServiceAddresses,
 			globalCfg.Dispatcher.UnderlayPort,
 		)
 	})
