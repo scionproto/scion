@@ -183,7 +183,6 @@ class DockerGenerator(object):
                 self.user,
                 'volumes': [
                     self._cache_vol(),
-                    self._certs_vol(),
                     '%s:/etc/scion:ro' % base,
                 ],
                 'command': ['--config', '/etc/scion/%s.toml' % k]

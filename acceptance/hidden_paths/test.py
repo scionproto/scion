@@ -2,7 +2,6 @@
 
 # Copyright 2020 Anapaya Systems
 
-import time
 import http.server
 import threading
 
@@ -52,19 +51,6 @@ class Test(base.TestTopogen):
     }
 
     http_server_port = 9099
-
-    _testers = {
-        "2": "tester_1-ff00_0_2",
-        "3": "tester_1-ff00_0_3",
-        "4": "tester_1-ff00_0_4",
-        "5": "tester_1-ff00_0_5",
-     }
-    _ases = {
-        "2": "1-ff00:0:2",
-        "3": "1-ff00:0:3",
-        "4": "1-ff00:0:4",
-        "5": "1-ff00:0:5",
-    }
 
     def setup_prepare(self):
         super().setup_prepare()
@@ -131,9 +117,10 @@ class Test(base.TestTopogen):
         server_thread.start()
         self._server = server
 
+        super().setup_start()
+
         self.await_connectivity()
         self._server.shutdown()  # by now configuration must have been downloaded everywhere
-
 
     def _run(self):
         # Group 3
