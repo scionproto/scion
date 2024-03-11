@@ -186,7 +186,8 @@ func InitInterfaces(pairs []string) []string {
 	for _, pair := range pairs {
 		p := strings.Split(pair, "=")
 		label := p[0]
-		name := p[1]
+		info := strings.Split(p[1], ",")
+		name := info[0]
 		deviceNames[label] = name // host-side name (brload's side)
 		asSet[name] = struct{}{}
 		subjectIP := intfMap[label].ip
@@ -198,8 +199,16 @@ func InitInterfaces(pairs []string) []string {
 			panic(err)
 		}
 
-		// The local MAC is readily available.
+		// PeerMac (our side): By default we use the real one, but we can be told to use another.
+		// (If the link is virtual ethernet, using the real mac address causes serious performance
+		// issues, the cause of which has yet to be found).
 		peerMAC := device.HardwareAddr
+		if len(info) > 1 {
+			peerMAC, err = net.ParseMAC(info[1])
+			if err != nil {
+				panic(err)
+			}
+		}
 
 		// The subject's MAC needs to be arp'ed.
 		arpClient, err := arp.Dial(device)
@@ -262,7 +271,7 @@ func MACAddr(ip netip.Addr) net.HardwareAddr {
 		return mac
 	}
 	as4 := ip.As4()
-	return net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, as4[2], as4[3]}
+	return net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, as4[2], as4[3]}
 }
 
 // hostAddr returns a the SCION Hosts addresse that corresponds to the given underlay address.

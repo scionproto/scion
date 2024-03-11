@@ -275,6 +275,16 @@ class RouterBMTest(base.TestBase):
 
         This isn't need because brload now responds to arp requests.
 
+        We do not:
+          sudo("ip", "link", "set", hostIntf, "address", peerMac)
+
+        If we do that, the interface address matches the dst addr in router->brload packets. This
+        might seem desirable, even necessary, but is neither: since we're using veth pairs, the
+        packets arrive regardless of address. However, if the address matches the one assigned then
+        the kernel processes the packets in some way and the overall performance is reduced by 50%!
+        When dealing with real NICs, brload uses the real mac addr. In this test, we tell it what to
+        use.
+
         Args:
           IntfReq: A requested router-side network interface. It comprises:
                    * A label by which brload identifies that interface.
@@ -288,8 +298,7 @@ class RouterBMTest(base.TestBase):
         hostIntf = f"veth_{physlabel}_host"
         brIntf = f"veth_{physlabel}"
 
-        # The interfaces
-        # We do multiplex most requested br interfaces onto one physical interface pairs, so, we
+        # We do multiplex most requested router interfaces onto one physical interface pairs, so, we
         # must check that we haven't already created the physical pair.
         for i in self.intfMap.values():
             if i.name == hostIntf:
@@ -301,7 +310,7 @@ class RouterBMTest(base.TestBase):
             mac = mac_for_ip(req.ip)
             sudo("ip", "link", "add", hostIntf, "type", "veth", "peer", "name", brIntf)
             sudo("ip", "link", "set", hostIntf, "mtu", "8000")
-            sudo("ip", "link", "set", hostIntf, "address", peerMac)
+            sudo("ip", "link", "set", hostIntf, "arp", "off")  # Make sure the real addr isn't used
 
             # Do not assign the host addresses but create one link-local addr.
             # Brload needs some src IP to send arp requests.
@@ -326,6 +335,7 @@ class RouterBMTest(base.TestBase):
         sudo("ip", "link", "set", hostIntf, "up")
         sudo("ip", "netns", "exec", ns, "ip", "link", "set", brIntf, "up")
 
+        # Ship it.
         self.intfMap[req.label] = Intf(hostIntf, mac, peerMac)
 
     def setup_prepare(self):
@@ -514,7 +524,7 @@ class RouterBMTest(base.TestBase):
         # Build the interface mapping arg
         mapArgs = []
         for label, intf in self.intfMap.items():
-            mapArgs.extend(["--interface", f"{label}={intf.name}"])
+            mapArgs.extend(["--interface", f"{label}={intf.name},{intf.peerMac}"])
 
         # Run one test (30% size) as warm-up to trigger the frequency scaling, else the first test
         # gets much lower performance.

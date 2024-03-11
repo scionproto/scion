@@ -105,8 +105,9 @@ func main() {
 	runCmd.Flags().StringVar(&dir, "artifacts", "", "Artifacts directory")
 	runCmd.Flags().Var(&caseToRun, "case", "Case to run. "+caseToRun.Allowed())
 	runCmd.Flags().StringArrayVar(&interfaces, "interface", []string{},
-		`label=host_interface where <host_interface> is the host device that matches the <label>
- requirement from --show-interfaces.`)
+		`label=<host_interface>[,<MACaddr>] where <host_interface> is the host device that matches
+ the <label> requirement from --show-interfaces and <MACaddr> is the local address to assume for it.
+ <MACaddr> defaults to the real address assigned to the device`)
 	runCmd.MarkFlagRequired("case")
 	runCmd.MarkFlagRequired("interface")
 
