@@ -49,8 +49,8 @@ func (s *Decoded) DecodeFromBytes(data []byte) error {
 	// We must check the validity of NumHops. It is possible to fit more than 64 hops in
 	// the length of a scion header. Yet a path of more than 64 hops cannot be followed to
 	// the end because CurrHF is only 6 bits long.
-	if s.NumHops > 64 {
-		return serrors.New("NumHops > 64")
+	if s.NumHops > MaxHops {
+		return serrors.New("NumHops too large", "NumHops", s.NumHops, "Maximum", MaxHops)
 	}
 
 	offset := MetaLen
