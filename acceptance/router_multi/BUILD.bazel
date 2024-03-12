@@ -1,4 +1,3 @@
-load("@io_bazel_rules_docker//container:container.bzl", "container_image")
 load("//acceptance/common:raw.bzl", "raw_test")
 
 exports_files([
@@ -11,7 +10,7 @@ args = [
     "--executable",
     "braccept:$(location //tools/braccept)",
     "--container-loader",
-    "posix-router:latest#$(location //acceptance/router_multi:router)",
+    "router:latest#$(location //docker:router)",
     "--pause_tar",
     "$(location //acceptance/router_multi:pause.tar)",
 ]
@@ -43,9 +42,4 @@ raw_test(
     homedir = "$(rootpath :router)",
     # This test uses sudo and accesses /var/run/netns.
     local = True,
-)
-
-container_image(
-    name = "router",
-    base = "//docker:posix_router",
 )

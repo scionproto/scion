@@ -1,19 +1,9 @@
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
-load("@io_bazel_rules_docker//container:container.bzl", "container_image", "container_layer")
-load("@debian_buster_amd64//debs:deb_packages.bzl", packages = "debian_buster_amd64")
-load(":caps.bzl", "container_image_setcap")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
 
 # Defines a common base image for all app images.
 def scion_app_base():
-    # Debian packages to install.
-    debs = [
-        packages["libc6"],
-        # we need setcap so that we can add network capabilities to apps
-        packages["libcap2"],
-        packages["libcap2-bin"],
-    ]
-
-    container_layer(
+    pkg_tar(
         name = "share_dirs_layer",
         empty_dirs = [
             "/share/cache",
@@ -30,15 +20,14 @@ def scion_app_base():
     # shell commands into the container. We need to change that behavior
     # and once we do that we should only use the prod thin image without
     # shell.
-    container_image(
+    oci_image(
         name = "app_base",
-        base = "@debug_debian10//image",
+        base = "@distroless_base_debian10",
         env = env,
-        debs = debs,
         tars = [
             "//licenses:licenses",
+            ":share_dirs_layer",
         ],
-        layers = [":share_dirs_layer"],
         visibility = ["//visibility:public"],
     )
 
@@ -51,21 +40,28 @@ def scion_app_base():
 #   entrypoint - a list of strings that add up to the command line
 #   cmd - string or list of strings of commands to execute in the image.
 #   caps - capabilities to set on the binary
-def scion_app_images(name, src, entrypoint, appdir = "/app", workdir = "/share", cmd = None, caps = None, caps_binary = None):
+#
+# Load the image with
+#   bazel run //path:name.docker
+def scion_app_image(name, src, entrypoint, appdir = "/app", workdir = "/share", cmd = None, caps = None, caps_binary = None):
     pkg_tar(
         name = "%s_docker_files" % name,
         srcs = [src],
         package_dir = appdir,
         mode = "0755",
     )
-    container_image_setcap(
+    oci_image(
         name = name,
-        repository = "scion",
         base = "//docker:app_base",
         tars = [":%s_docker_files" % name],
         workdir = workdir,
-        cmd = cmd,
         entrypoint = entrypoint,
-        caps_binary = caps_binary,
-        caps = caps,
+        cmd = cmd,
+        visibility = ["//visibility:public"],
+    )
+    oci_tarball(
+        name = name + ".docker",
+        format = "docker",
+        image = name,
+        repo_tags = ["scion/" + name + ":latest"],
     )

@@ -1,5 +1,4 @@
 load("//tools/lint:go.bzl", "go_library")
-load("@io_bazel_rules_docker//go:image.bzl", "go_image")
 
 go_library(
     name = "go_default_library",
@@ -12,8 +11,8 @@ go_library(
     ],
 )
 
-go_image(
-    name = "udpproxy",
-    embed = [":go_default_library"],
-    visibility = ["//visibility:public"],
-)
+#go_image(
+    # name = "udpproxy",
+    # embed = [":go_default_library"],
+    # visibility = ["//visibility:public"],
+# )

@@ -4,7 +4,7 @@ steps:
   - label: "Build :bazel:"
     command:
       - bazel build --verbose_failures --announce_rc //:scion //:scion-ci
-      - bazel run --verbose_failures //docker:prod //docker:test
+      - bazel build --verbose_failures //docker:prod //docker:test
     key: build
     artifact_paths:
       - "bazel-bin/scion.tar"

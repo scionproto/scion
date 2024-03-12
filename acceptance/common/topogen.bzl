@@ -23,7 +23,7 @@ def topogen_test(
     test. Additionally, It creates <name>_setup, <name>_run and <name>_teardown
     targets that allow to run the test in stages.
 
-    Args:
+    Args:cc
         name: name of the test
         src: the source code of the test
         topo: the topology (.topo) file to use for the test
@@ -121,8 +121,8 @@ def container_loaders(tester, gateway):
         "daemon:latest": "//docker:daemon",
         "dispatcher:latest": "//docker:dispatcher",
         "tester:latest": tester,
-        "posix-router:latest": "//docker:posix_router",
+        "router:latest": "//docker:router",
     }
     if gateway:
-        images["posix-gateway:latest"] = "//docker:posix_gateway"
+        images["gateway:latest"] = "//docker:gateway"
     return images

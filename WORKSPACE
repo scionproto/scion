@@ -103,10 +103,10 @@ python_register_toolchains(
     python_version = "3.10",
 )
 
-load("@python3_10//:defs.bzl", "interpreter")
+load("@python3_10//:defs.bzl", python_interpreter="interpreter")
 load("//tools/env/pip3:deps.bzl", "python_deps")
 
-python_deps(interpreter)
+python_deps(python_interpreter)
 
 load("@com_github_scionproto_scion_python_deps//:requirements.bzl", install_python_deps = "install_deps")
 
@@ -139,86 +139,67 @@ load("@rules_antlr//antlr:repositories.bzl", "rules_antlr_dependencies")
 
 rules_antlr_dependencies("4.9.3")
 
+# Rules for container image building
 http_archive(
-    name = "io_bazel_rules_docker",
-    sha256 = "b1e80761a8a8243d03ebca8845e9cc1ba6c82ce7c5179ce2b295cd36f7e394bf",
-    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.25.0/rules_docker-v0.25.0.tar.gz"],
+    name = "rules_oci",
+    sha256 = "4a276e9566c03491649eef63f27c2816cc222f41ccdebd97d2c5159e84917c3b",
+    strip_prefix = "rules_oci-1.7.4",
+    url = "https://github.com/bazel-contrib/rules_oci/releases/download/v1.7.4/rules_oci-v1.7.4.tar.gz",
 )
 
-load("@io_bazel_rules_docker//repositories:repositories.bzl", container_repositories = "repositories")
+load("@rules_oci//oci:dependencies.bzl", "rules_oci_dependencies")
 
-container_repositories()
+rules_oci_dependencies()
 
-load("@io_bazel_rules_docker//repositories:deps.bzl", container_deps = "deps")
+load("@rules_oci//oci:repositories.bzl", "LATEST_CRANE_VERSION", "oci_register_toolchains")
 
-container_deps()
-
-load("@io_bazel_rules_docker//go:image.bzl", _go_image_repos = "repositories")
-
-_go_image_repos()
-
-http_archive(
-    name = "rules_deb_packages",
-    sha256 = "674ce7b66c345aaa9ab898608618a0a0db857cbed8e8d0794ca46e375fd5ff76",
-    urls = ["https://github.com/petermylemans/rules_deb_packages/releases/download/v0.4.0/rules_deb_packages.tar.gz"],
+oci_register_toolchains(
+    name = "oci",
+    crane_version = LATEST_CRANE_VERSION,
 )
 
-load("@rules_deb_packages//:repositories.bzl", "deb_packages_dependencies")
+load("@rules_oci//oci:pull.bzl", "oci_pull")
 
-deb_packages_dependencies()
-
-load("@rules_deb_packages//:deb_packages.bzl", "deb_packages")
-
-deb_packages(
-    name = "debian_buster_amd64",
-    arch = "amd64",
-    packages = {
-        "libc6": "pool/main/g/glibc/libc6_2.28-10_amd64.deb",
-        "libcap2": "pool/main/libc/libcap2/libcap2_2.25-2_amd64.deb",
-        "libcap2-bin": "pool/main/libc/libcap2/libcap2-bin_2.25-2_amd64.deb",
-    },
-    packages_sha256 = {
-        "libc6": "6f703e27185f594f8633159d00180ea1df12d84f152261b6e88af75667195a79",
-        "libcap2": "8f93459c99e9143dfb458353336c5171276860896fd3e10060a515cd3ea3987b",
-        "libcap2-bin": "3c8c5b1410447356125fd8f5af36d0c28853b97c072037af4a1250421008b781",
-    },
-    sources = [
-        "http://deb.debian.org/debian buster main",
-        "http://deb.debian.org/debian buster-updates main",
-        "http://deb.debian.org/debian-security buster/updates main",
-    ],
-    timestamp = "20210812T060609Z",
-    urls = [
-        "http://deb.debian.org/debian/$(package_path)",
-        "http://deb.debian.org/debian-security/$(package_path)",
-        "https://snapshot.debian.org/archive/debian/$(timestamp)/$(package_path)",  # Needed in case of supersed archive no more available on the mirrors
-        "https://snapshot.debian.org/archive/debian-security/$(timestamp)/$(package_path)",  # Needed in case of supersed archive no more available on the mirrors
-    ],
-)
-
-load("@io_bazel_rules_docker//container:container.bzl", "container_pull")
-
-container_pull(
-    name = "static_debian10",
-    digest = "sha256:4433370ec2b3b97b338674b4de5ffaef8ce5a38d1c9c0cb82403304b8718cde9",
-    registry = "gcr.io",
-    repository = "distroless/static-debian10",
-)
-
-container_pull(
-    name = "debug_debian10",
+oci_pull(
+    name = "distroless_base_debian10",
     digest = "sha256:72d496b69d121960b98ac7078cbacd7678f1941844b90b5e1cac337b91309d9d",
     registry = "gcr.io",
     repository = "distroless/base-debian10",
 )
 
-container_pull(
+oci_pull(
     name = "debian10",
     digest = "sha256:60cb30babcd1740309903c37d3d408407d190cf73015aeddec9086ef3f393a5d",
     registry = "index.docker.io",
     repository = "library/debian",
-    tag = "10",
 )
+
+http_archive(
+    name = "rules_multirun",
+    sha256 = "65401fca5163fda99d7f7613a389d79412ccba8749e8aeb9168b857970beb7af",
+    url = "https://github.com/keith/rules_multirun/releases/download/0.8.1/rules_multirun.0.8.1.tar.gz",
+)
+
+http_archive(
+    name = "rules_debian_packages",
+    sha256 = "0ae3b332f9d894e57693ce900769d2bd1b693e1f5ea1d9cdd82fa4479c93bcc8",
+    strip_prefix = "rules_debian_packages-0.2.0",
+    url = "https://github.com/betaboon/rules_debian_packages/releases/download/v0.2.0/rules_debian_packages-v0.2.0.tar.gz",
+)
+load("@rules_debian_packages//debian_packages:repositories.bzl", "rules_debian_packages_dependencies")
+rules_debian_packages_dependencies(python_interpreter_target = python_interpreter)
+
+load("@rules_debian_packages//debian_packages:defs.bzl", "debian_packages_repository")
+
+debian_packages_repository(
+    name = "tester_debian10_packages",
+    default_arch = "amd64",
+    default_distro = "debian10",
+    lock_file = "//docker:tester_packages.lock",
+)
+
+load("@tester_debian10_packages//:packages.bzl", tester_debian_packages_install_deps = "install_deps")
+tester_debian_packages_install_deps()
 
 # protobuf/gRPC
 http_archive(
@@ -264,7 +245,7 @@ http_file(
 
 load("//tools/lint/python:deps.bzl", "python_lint_deps")
 
-python_lint_deps(interpreter)
+python_lint_deps(python_interpreter)
 
 load("@com_github_scionproto_scion_python_lint_deps//:requirements.bzl", install_python_lint_deps = "install_deps")
 
