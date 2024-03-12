@@ -620,6 +620,43 @@ func TestProcessPkt(t *testing.T) {
 			egressInterface: 0,
 			assertFunc:      assert.NoError,
 		},
+		"inbound_longpath": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(fakeExternalInterfaces,
+					nil, mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops, nil,
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, dpath := prepBaseMsg(now)
+				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
+				dst := addr.MustParseHost("10.0.100.100")
+				_ = spkt.SetDstAddr(dst)
+				dpath.HopFields = []path.HopField{
+					{ConsIngress: 41, ConsEgress: 40},
+					{ConsIngress: 31, ConsEgress: 30},
+					{ConsIngress: 1, ConsEgress: 0},
+				}
+
+				// Everything is the same a in the inbound test, except that we tossed in
+				// 64 extra hops and two extra segments.
+				dpath.Base.PathMeta.CurrHF = 2
+				dpath.Base.PathMeta.SegLen = [3]uint8{24, 24, 17}
+				dpath.Base.NumINF = 3
+				dpath.Base.NumHops = 65
+
+				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
+				ret := toMsg(t, spkt, dpath)
+				if afterProcessing {
+					ret.Addr = &net.UDPAddr{IP: dst.IP().AsSlice(), Port: topology.EndhostPort}
+					ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
+				}
+				return ret
+			},
+			srcInterface:    1,
+			egressInterface: 0,
+			assertFunc:      assert.Error,
+		},
 		"outbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
