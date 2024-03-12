@@ -24,6 +24,7 @@ import (
 	timestamppb "github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/opentracing/opentracing-go"
 	"golang.org/x/sync/singleflight"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	drkey_daemon "github.com/scionproto/scion/daemon/drkey"
 	"github.com/scionproto/scion/daemon/fetcher"
@@ -243,21 +244,15 @@ func (s *DaemonServer) as(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASRes
 	if reqIA.Equal(s.IA) {
 		mtu = uint32(s.MTU)
 	}
-	var startPort, endPort uint16
-	if reqIA.Equal(s.IA) {
-		startPort, endPort = s.Topology.PortRange()
-	}
 	core, err := s.ASInspector.HasAttributes(ctx, reqIA, trust.Core)
 	if err != nil {
 		log.FromCtx(ctx).Error("Inspecting ISD-AS", "err", err, "isd_as", reqIA)
 		return nil, serrors.WrapStr("inspecting ISD-AS", err, "isd_as", reqIA)
 	}
 	reply := &sdpb.ASResponse{
-		IsdAs:            uint64(reqIA),
-		Core:             core,
-		Mtu:              mtu,
-		EndhostStartPort: uint32(startPort),
-		EndhostEndPort:   uint32(endPort),
+		IsdAs: uint64(reqIA),
+		Core:  core,
+		Mtu:   mtu,
 	}
 	return reply, nil
 }
@@ -356,6 +351,19 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 		}
 	}
 	return &sdpb.NotifyInterfaceDownResponse{}, nil
+}
+
+// AS serves the AS request.
+func (s *DaemonServer) PortRange(
+	_ context.Context,
+	_ *emptypb.Empty,
+) (*sdpb.PortRangeResponse, error) {
+
+	startPort, endPort := s.Topology.PortRange()
+	return &sdpb.PortRangeResponse{
+		EndhostStartPort: uint32(startPort),
+		EndhostEndPort:   uint32(endPort),
+	}, nil
 }
 
 func (s *DaemonServer) DRKeyASHost(

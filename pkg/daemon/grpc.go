@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -75,11 +76,12 @@ func (c grpcConn) LocalIA(ctx context.Context) (addr.IA, error) {
 }
 
 func (c grpcConn) PortRange(ctx context.Context) (uint16, uint16, error) {
-	asInfo, err := c.ASInfo(ctx, 0)
+	client := sdpb.NewDaemonServiceClient(c.conn)
+	response, err := client.PortRange(ctx, &emptypb.Empty{})
 	if err != nil {
 		return 0, 0, err
 	}
-	return asInfo.EndhostStartPort, asInfo.EndhostEndPort, nil
+	return uint16(response.EndhostStartPort), uint16(response.EndhostEndPort), nil
 }
 
 func (c grpcConn) Interfaces(ctx context.Context) (map[uint16]*net.UDPAddr, error) {
@@ -130,10 +132,8 @@ func (c grpcConn) ASInfo(ctx context.Context, ia addr.IA) (ASInfo, error) {
 	}
 	c.metrics.incAS(nil)
 	return ASInfo{
-		IA:               addr.IA(response.IsdAs),
-		MTU:              uint16(response.Mtu),
-		EndhostStartPort: uint16(response.EndhostStartPort),
-		EndhostEndPort:   uint16(response.EndhostEndPort),
+		IA:  addr.IA(response.IsdAs),
+		MTU: uint16(response.Mtu),
 	}, nil
 }
 

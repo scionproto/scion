@@ -20,13 +20,13 @@ package proto.daemon.v1;
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
+import "google/protobuf/empty.proto";
 import "proto/drkey/v1/drkey.proto";
 
 service DaemonService {
     // Return a set of paths to the requested destination.
     rpc Paths(PathsRequest) returns (PathsResponse) {}
     // Return information about an AS.
-    // TODO(JordiSubira): Add PortRange() endpoint instead of reusing AS
     rpc AS(ASRequest) returns (ASResponse) {}
     // Return the underlay addresses associated with
     // the specified interfaces.
@@ -36,6 +36,8 @@ service DaemonService {
     rpc Services(ServicesRequest) returns (ServicesResponse) {}
     // Inform the SCION Daemon of a revocation.
     rpc NotifyInterfaceDown(NotifyInterfaceDownRequest) returns (NotifyInterfaceDownResponse) {}
+    // Returns the endhost portRange defined in the local AS.
+    rpc PortRange(google.protobuf.Empty) returns (PortRangeResponse) {}
     // DRKeyASHost returns a key that matches the request.
     rpc DRKeyASHost (DRKeyASHostRequest) returns (DRKeyASHostResponse) {}
     // DRKeyHostAS returns a key that matches the request.
@@ -154,10 +156,6 @@ message ASResponse {
     bool core = 2;
     // The maximum transmission unit (MTU) in the local AS.
     uint32 mtu = 3;
-    // The lowest port in the SCION/UDP endhost port range.
-    uint32 endhost_start_port = 4;
-    // The highest port in the SCION/UDP endhost port range.
-    uint32 endhost_end_port = 5;
 }
 
 message InterfacesRequest { }
@@ -204,6 +202,13 @@ message NotifyInterfaceDownRequest {
 }
 
 message NotifyInterfaceDownResponse {};
+
+message PortRangeResponse {
+    // The lowest port in the SCION/UDP endhost port range.
+    uint32 endhost_start_port = 1;
+    // The highest port in the SCION/UDP endhost port range.
+    uint32 endhost_end_port = 2;
+}
 
 message DRKeyHostASRequest{
     // Point in time where requested key is valid.
