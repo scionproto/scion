@@ -87,6 +87,18 @@ var emptyDecodedTestPath = &scion.Decoded{
 	HopFields:  []path.HopField{},
 }
 
+var overlongPath = &scion.Decoded{
+	Base: scion.Base{
+		PathMeta: scion.MetaHdr{
+			CurrINF: 0,
+			CurrHF:  0,
+			SegLen:  [3]uint8{24, 24, 17},
+		},
+		NumINF:  3,
+		NumHops: 65,
+	},
+}
+
 var rawPath = []byte("\x00\x00\x20\x80\x00\x00\x01\x11\x00\x00\x01\x00\x01\x00\x02\x22\x00\x00" +
 	"\x01\x00\x00\x3f\x00\x01\x00\x00\x01\x02\x03\x04\x05\x06\x00\x3f\x00\x03\x00\x02\x01\x02\x03" +
 	"\x04\x05\x06\x00\x3f\x00\x00\x00\x02\x01\x02\x03\x04\x05\x06\x00\x3f\x00\x01\x00\x00\x01\x02" +
@@ -165,6 +177,13 @@ func TestDecodedSerializeDecode(t *testing.T) {
 	s := &scion.Decoded{}
 	assert.NoError(t, s.DecodeFromBytes(b))
 	assert.Equal(t, decodedTestPath, s)
+}
+
+func TestOverlongSerliazeDecode(t *testing.T) {
+	b := make([]byte, overlongPath.Len())
+	assert.NoError(t, overlongPath.SerializeTo(b)) // permitted, if only to enable this test.
+	s := &scion.Decoded{}
+	assert.Error(t, s.DecodeFromBytes(b)) // invalid raw packet.
 }
 
 func TestDecodedReverse(t *testing.T) {

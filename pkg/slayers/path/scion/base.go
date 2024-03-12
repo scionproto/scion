@@ -66,13 +66,6 @@ func (s *Base) DecodeFromBytes(data []byte) error {
 		}
 		s.NumHops += int(s.PathMeta.SegLen[i])
 	}
-	// We must check the validity of NumHops. It is possible to fit more than 64 hops in
-	// the length of a scion header. Yet a path of more than 64 hops cannot be followed to
-	// the end because CurrHF is only 6 bits long.
-	if s.NumHops > 64 {
-		return serrors.New(
-			fmt.Sprintf("NumHops > 64"))
-	}
 	return nil
 }
 

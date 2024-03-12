@@ -51,19 +51,6 @@ var emptyRawTestPath = &scion.Raw{
 	Raw: make([]byte, scion.MetaLen),
 }
 
-var overlongPath = &scion.Raw{
-	Base: scion.Base{
-		PathMeta: scion.MetaHdr{
-			CurrINF: 0,
-			CurrHF:  0,
-			SegLen:  [3]uint8{24, 24, 17},
-		},
-		NumINF:  3,
-		NumHops: 65,
-	},
-	Raw: rawPath,
-}
-
 func TestRawSerialize(t *testing.T) {
 	b := make([]byte, rawTestPath.Len())
 	assert.NoError(t, rawTestPath.SerializeTo(b))
@@ -82,13 +69,6 @@ func TestRawSerliazeDecode(t *testing.T) {
 	s := &scion.Raw{}
 	assert.NoError(t, s.DecodeFromBytes(b))
 	assert.Equal(t, rawTestPath, s)
-}
-
-func TestOverlongSerliazeDecode(t *testing.T) {
-	b := make([]byte, overlongPath.Len())
-	assert.NoError(t, overlongPath.SerializeTo(b)) // permitted, if only to enable this test.
-	s := &scion.Raw{}
-	assert.Error(t, s.DecodeFromBytes(b)) // invalid raw packet.
 }
 
 func TestRawReverse(t *testing.T) {

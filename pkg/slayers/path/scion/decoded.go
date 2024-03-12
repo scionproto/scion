@@ -46,6 +46,13 @@ func (s *Decoded) DecodeFromBytes(data []byte) error {
 		return serrors.New("DecodedPath raw too short", "expected", minLen, "actual", len(data))
 	}
 
+	// We must check the validity of NumHops. It is possible to fit more than 64 hops in
+	// the length of a scion header. Yet a path of more than 64 hops cannot be followed to
+	// the end because CurrHF is only 6 bits long.
+	if s.NumHops > 64 {
+		return serrors.New("NumHops > 64")
+	}
+
 	offset := MetaLen
 	s.InfoFields = make([]path.InfoField, s.NumINF)
 	for i := 0; i < s.NumINF; i++ {
