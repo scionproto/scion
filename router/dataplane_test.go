@@ -34,6 +34,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	libepic "github.com/scionproto/scion/pkg/experimental/epic"
+	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto"
@@ -642,6 +643,11 @@ func TestProcessPkt(t *testing.T) {
 				// 64 extra hops and two extra segments.
 				dpath.Base.PathMeta.CurrHF = 2
 				dpath.Base.PathMeta.SegLen = [3]uint8{24, 24, 17}
+				dpath.InfoFields = append(
+					dpath.InfoFields,
+					path.InfoField{SegID: 0x112, ConsDir: true, Timestamp: util.TimeToSecs(now)},
+					path.InfoField{SegID: 0x113, ConsDir: true, Timestamp: util.TimeToSecs(now)},
+				)
 				dpath.Base.NumINF = 3
 				dpath.Base.NumHops = 65
 
@@ -655,7 +661,17 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    1,
 			egressInterface: 0,
-			assertFunc:      assert.Error,
+			assertFunc: func(t assert.TestingT, err error, _ ...interface{}) bool {
+				if !assert.Error(t, err) {
+					return false
+				}
+				expected := serrors.New("NumHops too large",
+					"NumHops", 65, "Maximum", scion.MaxHops).Error()
+				if !assert.Equal(t, expected, err.Error()) {
+					return false
+				}
+				return true
+			},
 		},
 		"outbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {

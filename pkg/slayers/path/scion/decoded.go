@@ -19,13 +19,6 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path"
 )
 
-const (
-	// MaxINFs is the maximum number of info fields in a SCION path.
-	MaxINFs = 3
-	// MaxHops is the maximum number of hop fields in a SCION path.
-	MaxHops = 64
-)
-
 // Decoded implements the SCION (data-plane) path type. Decoded is intended to be used in
 // non-performance critical code paths, where the convenience of having a fully parsed path trumps
 // the loss of performance.
@@ -44,13 +37,6 @@ func (s *Decoded) DecodeFromBytes(data []byte) error {
 	}
 	if minLen := s.Len(); len(data) < minLen {
 		return serrors.New("DecodedPath raw too short", "expected", minLen, "actual", len(data))
-	}
-
-	// We must check the validity of NumHops. It is possible to fit more than 64 hops in
-	// the length of a scion header. Yet a path of more than 64 hops cannot be followed to
-	// the end because CurrHF is only 6 bits long.
-	if s.NumHops > MaxHops {
-		return serrors.New("NumHops too large", "NumHops", s.NumHops, "Maximum", MaxHops)
 	}
 
 	offset := MetaLen
