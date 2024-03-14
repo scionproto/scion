@@ -40,7 +40,6 @@ type Connector struct {
 
 	ReceiveBufferSize int
 	SendBufferSize    int
-	BfdDisabled       bool
 }
 
 var errMultiIA = serrors.New("different IA not allowed")
@@ -120,14 +119,8 @@ func (c *Connector) AddExternalInterface(localIfID common.IFIDType, link control
 			NeighborIA:        link.Remote.IA,
 			State:             control.InterfaceDown,
 		}
-		if !link.BFD.Disable {
-			err := c.DataPlane.AddNextHopBFD(intf, link.Local.Addr, link.Remote.Addr,
-				link.BFD, link.Instance)
-			if err != nil {
-				return serrors.WrapStr("adding next hop BFD", err, "if_id", localIfID)
-			}
-		}
-		return c.DataPlane.AddNextHop(intf, link.Remote.Addr)
+		return c.DataPlane.AddNextHop(intf, link.Local.Addr, link.Remote.Addr,
+			link.BFD, link.Instance)
 	}
 
 	connection, err := conn.New(link.Local.Addr, link.Remote.Addr,
@@ -135,14 +128,8 @@ func (c *Connector) AddExternalInterface(localIfID common.IFIDType, link control
 	if err != nil {
 		return err
 	}
-	if !link.BFD.Disable {
-		err := c.DataPlane.AddExternalInterfaceBFD(intf, connection, link.Local,
-			link.Remote, link.BFD)
-		if err != nil {
-			return serrors.WrapStr("adding external BFD", err, "if_id", localIfID)
-		}
-	}
-	return c.DataPlane.AddExternalInterface(intf, connection)
+
+	return c.DataPlane.AddExternalInterface(intf, connection, link.Local, link.Remote, link.BFD)
 }
 
 // AddSvc adds the service address for the given ISD-AS.

@@ -107,6 +107,7 @@ type DataPlane struct {
 	running           bool
 	Metrics           *Metrics
 	forwardingMetrics map[uint16]interfaceMetrics
+	BfdDisabled       bool
 
 	ExperimentalSCMPAuthentication bool
 
@@ -230,9 +231,17 @@ func (d *DataPlane) AddInternalInterface(conn BatchConn, ip net.IP) error {
 // AddExternalInterface adds the inter AS connection for the given interface ID.
 // If a connection for the given ID is already set this method will return an
 // error. This can only be called on a not yet running dataplane.
-func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn) error {
+func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
+	src, dst control.LinkEnd, cfg control.BFD) error {
+
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
+
+	err := d.addExternalInterfaceBFD(ifID, conn, src, dst, cfg)
+	if err != nil {
+		return serrors.WrapStr("adding external BFD", err, "if_id", ifID)
+	}
+
 	if d.running {
 		return modifyExisting
 	}
@@ -308,11 +317,14 @@ func (d *DataPlane) AddRemotePeer(local, remote uint16) error {
 }
 
 // AddExternalInterfaceBFD adds the inter AS connection BFD session.
-func (d *DataPlane) AddExternalInterfaceBFD(ifID uint16, conn BatchConn,
+func (d *DataPlane) addExternalInterfaceBFD(ifID uint16, conn BatchConn,
 	src, dst control.LinkEnd, cfg control.BFD) error {
 
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
+	// The router can have bfd globally disabled. That trumps any link config.
+	if d.BfdDisabled || cfg.Disable {
+		return nil
+	}
+
 	if d.running {
 		return modifyExisting
 	}
@@ -354,9 +366,6 @@ func (d *DataPlane) getInterfaceState(interfaceID uint16) control.InterfaceState
 func (d *DataPlane) addBFDController(ifID uint16, s *bfdSend, cfg control.BFD,
 	metrics bfd.Metrics) error {
 
-	if cfg.Disable {
-		return errBFDDisabled
-	}
 	if d.bfdSessions == nil {
 		d.bfdSessions = make(map[uint16]bfdSession)
 	}
@@ -422,13 +431,20 @@ func (d *DataPlane) DelSvc(svc addr.SVC, a *net.UDPAddr) error {
 // AddNextHop sets the next hop address for the given interface ID. If the
 // interface ID already has an address associated this operation fails. This can
 // only be called on a not yet running dataplane.
-func (d *DataPlane) AddNextHop(ifID uint16, a *net.UDPAddr) error {
+func (d *DataPlane) AddNextHop(ifID uint16, src, dst *net.UDPAddr, cfg control.BFD,
+	sibling string) error {
+
+	err := d.addNextHopBFD(ifID, src, dst, cfg, sibling)
+	if err != nil {
+		return serrors.WrapStr("adding next hop BFD", err, "if_id", ifID)
+	}
+
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.running {
 		return modifyExisting
 	}
-	if a == nil {
+	if dst == nil {
 		return emptyValue
 	}
 	if _, exists := d.internalNextHops[ifID]; exists {
@@ -437,15 +453,20 @@ func (d *DataPlane) AddNextHop(ifID uint16, a *net.UDPAddr) error {
 	if d.internalNextHops == nil {
 		d.internalNextHops = make(map[uint16]*net.UDPAddr)
 	}
-	d.internalNextHops[ifID] = a
+	d.internalNextHops[ifID] = dst
 	return nil
 }
 
 // AddNextHopBFD adds the BFD session for the next hop address.
 // If the remote ifID belongs to an existing address, the existing
 // BFD session will be re-used.
-func (d *DataPlane) AddNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg control.BFD,
+func (d *DataPlane) addNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg control.BFD,
 	sibling string) error {
+
+	// The router can have bfd globally disabled. That trumps any link config.
+	if d.BfdDisabled || cfg.Disable {
+		return nil
+	}
 
 	d.mtx.Lock()
 	defer d.mtx.Unlock()

@@ -37,7 +37,6 @@ type Dataplane interface {
 	AddSvc(ia addr.IA, svc addr.SVC, ip net.IP) error
 	DelSvc(ia addr.IA, svc addr.SVC, ip net.IP) error
 	SetKey(ia addr.IA, index int, key []byte) error
-	BFDConfig(BFD) BFD
 }
 
 // LinkInfo contains the information about a link between an internal and
@@ -184,10 +183,9 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 				IFID: iface.RemoteIFID,
 			},
 			Instance: iface.BRName,
-			// The dataplane can modify some of the iface BFD config from its global config.
-			BFD:    dp.BFDConfig(WithDefaults(BFD(iface.BFD))),
-			LinkTo: iface.LinkType,
-			MTU:    iface.MTU,
+			BFD:      WithDefaults(BFD(iface.BFD)),
+			LinkTo:   iface.LinkType,
+			MTU:      iface.MTU,
 		}
 
 		_, owned := cfg.BR.IFs[ifid]
@@ -200,8 +198,7 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 			linkInfo.Local.Addr = snet.CopyUDPAddr(cfg.BR.InternalAddr)
 			linkInfo.Remote.Addr = snet.CopyUDPAddr(iface.InternalAddr)
 			// For internal BFD always use the default configuration.
-			// The dataplane can modify some of it from its global config.
-			linkInfo.BFD = dp.BFDConfig(BFDDefaults)
+			linkInfo.BFD = BFDDefaults
 		}
 
 		if err := dp.AddExternalInterface(ifid, linkInfo, owned); err != nil {

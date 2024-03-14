@@ -109,36 +109,45 @@ func TestDataPlaneSetKey(t *testing.T) {
 }
 
 func TestDataPlaneAddExternalInterface(t *testing.T) {
+	l := control.LinkEnd{
+		IA:   xtest.MustParseIA("1-ff00:0:1"),
+		Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.100")},
+	}
+	r := control.LinkEnd{
+		IA:   xtest.MustParseIA("1-ff00:0:3"),
+		Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.200")},
+	}
+	nobfd := control.BFD{Disable: true}
 	t.Run("fails after serve", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
 		d := &router.DataPlane{}
 		d.FakeStart()
-		assert.Error(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl)))
+		assert.Error(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
 	})
 	t.Run("setting nil value is not allowed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
 		d := &router.DataPlane{}
-		assert.Error(t, d.AddExternalInterface(42, nil))
+		assert.Error(t, d.AddExternalInterface(42, nil, l, r, nobfd))
 	})
 	t.Run("normal add works", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
 		d := &router.DataPlane{}
-		assert.NoError(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl)))
-		assert.NoError(t, d.AddExternalInterface(45, mock_router.NewMockBatchConn(ctrl)))
+		assert.NoError(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
+		assert.NoError(t, d.AddExternalInterface(45, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
 	})
 	t.Run("overwrite fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
 		d := &router.DataPlane{}
-		assert.NoError(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl)))
-		assert.Error(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl)))
+		assert.NoError(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
+		assert.Error(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
 	})
 }
 
@@ -165,24 +174,28 @@ func TestDataPlaneAddSVC(t *testing.T) {
 }
 
 func TestDataPlaneAddNextHop(t *testing.T) {
+	l := &net.UDPAddr{}
+	r := &net.UDPAddr{}
+	nobfd := control.BFD{Disable: true}
+
 	t.Run("fails after serve", func(t *testing.T) {
 		d := &router.DataPlane{}
 		d.FakeStart()
-		assert.Error(t, d.AddNextHop(45, &net.UDPAddr{}))
+		assert.Error(t, d.AddNextHop(45, l, r, nobfd, ""))
 	})
 	t.Run("setting nil value is not allowed", func(t *testing.T) {
 		d := &router.DataPlane{}
-		assert.Error(t, d.AddNextHop(45, nil))
+		assert.Error(t, d.AddNextHop(45, nil, r, nobfd, ""))
 	})
 	t.Run("normal add works", func(t *testing.T) {
 		d := &router.DataPlane{}
-		assert.NoError(t, d.AddNextHop(45, &net.UDPAddr{}))
-		assert.NoError(t, d.AddNextHop(43, &net.UDPAddr{}))
+		assert.NoError(t, d.AddNextHop(45, l, r, nobfd, ""))
+		assert.NoError(t, d.AddNextHop(43, l, r, nobfd, ""))
 	})
 	t.Run("overwrite fails", func(t *testing.T) {
 		d := &router.DataPlane{}
-		assert.NoError(t, d.AddNextHop(45, &net.UDPAddr{}))
-		assert.Error(t, d.AddNextHop(45, &net.UDPAddr{}))
+		assert.NoError(t, d.AddNextHop(45, l, r, nobfd, ""))
+		assert.Error(t, d.AddNextHop(45, l, r, nobfd, ""))
 	})
 }
 
@@ -256,8 +269,17 @@ func TestDataPlaneRun(t *testing.T) {
 				).Times(1)
 				mExternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+				l := control.LinkEnd{
+					IA:   xtest.MustParseIA("1-ff00:0:1"),
+					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.100")},
+				}
+				r := control.LinkEnd{
+					IA:   xtest.MustParseIA("1-ff00:0:3"),
+					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.200")},
+				}
+				nobfd := control.BFD{Disable: true}
 
-				_ = ret.AddExternalInterface(1, mExternal)
+				_ = ret.AddExternalInterface(1, mExternal, l, r, nobfd)
 
 				_ = ret.SetIA(local)
 				_ = ret.SetKey(key)
@@ -339,8 +361,7 @@ func TestDataPlaneRun(t *testing.T) {
 				_ = ret.AddInternalInterface(mInternal, net.IP{})
 				for remote, ifIDs := range routers {
 					for _, ifID := range ifIDs {
-						_ = ret.AddNextHop(ifID, remote.(*net.UDPAddr))
-						_ = ret.AddNextHopBFD(ifID, local, remote.(*net.UDPAddr), bfd(), "")
+						_ = ret.AddNextHop(ifID, local, remote.(*net.UDPAddr), bfd(), "")
 					}
 				}
 				return ret
@@ -393,8 +414,7 @@ func TestDataPlaneRun(t *testing.T) {
 
 				_ = ret.SetKey([]byte("randomkeyformacs"))
 				_ = ret.AddInternalInterface(mInternal, net.IP{})
-				_ = ret.AddNextHop(3, localAddr)
-				_ = ret.AddNextHopBFD(3, localAddr, remoteAddr, bfd(), "")
+				_ = ret.addNextHop(3, localAddr, remoteAddr, bfd(), "")
 
 				return ret
 			},
@@ -447,8 +467,7 @@ func TestDataPlaneRun(t *testing.T) {
 				}
 				_ = ret.SetKey([]byte("randomkeyformacs"))
 				_ = ret.AddInternalInterface(mInternal, net.IP{})
-				_ = ret.AddExternalInterface(ifID, mExternal)
-				_ = ret.AddExternalInterfaceBFD(ifID, mExternal, local, remote, bfd())
+				_ = ret.AddExternalInterface(ifID, mExternal, local, remote, bfd())
 
 				return ret
 			},
@@ -527,8 +546,7 @@ func TestDataPlaneRun(t *testing.T) {
 				}
 				_ = ret.SetKey([]byte("randomkeyformacs"))
 				_ = ret.AddInternalInterface(mInternal, net.IP{})
-				_ = ret.AddExternalInterface(1, mExternal)
-				_ = ret.AddExternalInterfaceBFD(1, mExternal, local, remote, bfd())
+				_ = ret.AddExternalInterface(1, mExternal, local, remote, bfd())
 
 				return ret
 			},

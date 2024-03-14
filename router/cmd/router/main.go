@@ -60,10 +60,10 @@ func realMain(ctx context.Context) error {
 		DataPlane: router.DataPlane{
 			Metrics:                        metrics,
 			ExperimentalSCMPAuthentication: globalCfg.Features.ExperimentalSCMPAuthentication,
+			BfdDisabled:                    globalCfg.Router.BfdDisabled,
 		},
 		ReceiveBufferSize: globalCfg.Router.ReceiveBufferSize,
 		SendBufferSize:    globalCfg.Router.SendBufferSize,
-		BfdDisabled:       globalCfg.Router.BfdDisabled,
 	}
 	iaCtx := &control.IACtx{
 		Config: controlConfig,

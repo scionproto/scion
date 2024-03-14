@@ -33,13 +33,8 @@ const (
 type BFD topology.BFD
 
 // XXX(sgmonroy) note that env values only affect defaults, which in turn are only used
-// if there were no BFD related settings in the topology and can also be updated from the
-// dataplane's configuration.
+// if there were no BFD related settings in the topology.
 func WithDefaults(cfg BFD) BFD {
-	// For BFDDisable the default is OR'ed onto the given setting.
-	if BFDDefaults.Disable {
-		cfg.Disable = true
-	}
 	if cfg.DetectMult == 0 {
 		cfg.DetectMult = BFDDefaults.DetectMult
 	}
@@ -57,8 +52,6 @@ var (
 		DetectMult:            3,
 		DesiredMinTxInterval:  200 * time.Millisecond,
 		RequiredMinRxInterval: 200 * time.Millisecond,
-		// Disable indicates if BFD is disabled globally.
-		Disable: false,
 	}
 )
 
