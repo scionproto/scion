@@ -30,7 +30,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/topology"
 )
 
@@ -47,9 +46,8 @@ func TestPSTopoReload(t *testing.T) {
 		t.Skip("This test only runs as bazel unit test")
 	}
 
-	// BUG(matzf): teardown is not called when setup fails. Rewrite with T.Cleanup and T.Tempdir
 	s := setupTest(t)
-	defer s.teardownTest(t)
+	defer s.collectLogs(t)
 
 	// first load the topo files to memory for comparison.
 	origTopo, err := topology.RWTopologyFromJSONFile("../topo_common/topology.json")
@@ -84,15 +82,13 @@ func TestPSTopoReload(t *testing.T) {
 }
 
 type testState struct {
-	extraEnv     []string
-	extraCleanup []func()
+	extraEnv []string
 }
 
 func setupTest(t *testing.T) testState {
-	tmpDir, clean := xtest.MustTempDir("", "topo_cs_reload")
+	tmpDir := t.TempDir()
 	s := testState{
-		extraEnv:     []string{"TOPO_CS_RELOAD_CONFIG_DIR=" + tmpDir},
-		extraCleanup: []func(){clean},
+		extraEnv: []string{"TOPO_CS_RELOAD_CONFIG_DIR=" + tmpDir},
 	}
 	scionPKI, err := bazel.Runfile(*scionPKILocation)
 	require.NoError(t, err)
@@ -105,9 +101,18 @@ func setupTest(t *testing.T) testState {
 	// first load the docker images from bazel into the docker deamon, the
 	// tars are in the same folder as this test runs in bazel.
 	s.mustExec(t, "docker", "image", "load", "-i", "dispatcher.tar/tarball.tar")
+	t.Cleanup(func() {
+		s.mustExec(t, "docker", "image", "rm", "bazel/acceptance/topo_cs_reload:dispatcher")
+	})
 	s.mustExec(t, "docker", "image", "load", "-i", "control.tar/tarball.tar")
+	t.Cleanup(func() {
+		s.mustExec(t, "docker", "image", "rm", "bazel/acceptance/topo_cs_reload:control")
+	})
 	// now start the docker containers
 	s.mustExec(t, "docker", "compose", "-f", "docker-compose.yml", "up", "-d")
+	t.Cleanup(func() {
+		s.mustExec(t, "docker", "compose", "-f", "docker-compose.yml", "down", "-v")
+	})
 	// wait a bit to make sure the containers are ready.
 	time.Sleep(time.Second / 2)
 	t.Log("Test setup done")
@@ -115,9 +120,7 @@ func setupTest(t *testing.T) testState {
 	return s
 }
 
-func (s testState) teardownTest(t *testing.T) {
-	defer s.mustExec(t, "docker", "compose", "-f", "docker-compose.yml", "down", "-v")
-
+func (s testState) collectLogs(t *testing.T) {
 	outdir, exists := os.LookupEnv("TEST_UNDECLARED_OUTPUTS_DIR")
 	require.True(t, exists, "TEST_UNDECLARED_OUTPUTS_DIR must be defined")
 	require.NoError(t, os.MkdirAll(fmt.Sprintf("%s/logs", outdir), os.ModePerm|os.ModeDir))
@@ -139,7 +142,6 @@ func (s testState) teardownTest(t *testing.T) {
 			t.Logf("Failed to read log for service %s: %v\n", service, err)
 		}
 	}
-	s.Cleanup()
 }
 
 func (s testState) loadTopo(t *testing.T, name string) {
@@ -159,12 +161,6 @@ func (s testState) mustExec(t *testing.T, name string, arg ...string) {
 	output, err := cmd.CombinedOutput()
 	t.Logf("%s %v\n%s\n", name, arg, string(output))
 	require.NoError(t, err, "Failed to run %s %v: %v\n%s", name, arg, err, string(output))
-}
-
-func (s testState) Cleanup() {
-	for _, c := range s.extraCleanup {
-		c()
-	}
 }
 
 func checkTopology(t *testing.T, expectedTopo *topology.RWTopology) {
