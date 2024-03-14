@@ -104,8 +104,8 @@ func setupTest(t *testing.T) testState {
 	s.mustExec(t, "tar", "-xf", "crypto.tar", "-C", tmpDir)
 	// first load the docker images from bazel into the docker deamon, the
 	// tars are in the same folder as this test runs in bazel.
-	s.mustExec(t, "docker", "image", "load", "-i", "dispatcher.tar")
-	s.mustExec(t, "docker", "image", "load", "-i", "control.tar")
+	s.mustExec(t, "docker", "image", "load", "-i", "dispatcher.tar/tarball.tar")
+	s.mustExec(t, "docker", "image", "load", "-i", "control.tar/tarball.tar")
 	// now start the docker containers
 	s.mustExec(t, "docker", "compose", "-f", "docker-compose.yml", "up", "-d")
 	// wait a bit to make sure the containers are ready.

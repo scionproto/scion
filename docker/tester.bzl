@@ -62,8 +62,14 @@ def scion_tester_image():
         visibility = ["//visibility:public"],
     )
     oci_tarball(
-        name = "tester.docker",
+        name = "tester.load",
         format = "docker",
         image = "tester",
         repo_tags = ["scion/tester:latest"],
+    )
+    # see comment on scion_app.bzl
+    native.filegroup(
+        name = "tester.tar",
+        srcs = ["tester.load"],
+        visibility = ["//visibility:public"],
     )

@@ -133,15 +133,19 @@ class TestBase(ABC):
         print("artifacts dir: %s" % self.artifacts)
 
     def _setup_container_loaders(self):
-        for tag, script in self.container_loaders:
-            o = local[script]()
-            idx = o.index("as ")
-            if idx < 0:
-                logger.error("extracting tag from loader script %s" % tag)
-                continue
-            bazel_tag = o[idx+len("as "):].strip()
-            logger.info("docker tag %s %s" % (bazel_tag, tag))
-            cmd.docker("tag", bazel_tag, tag)
+
+        for _, tar in self.container_loaders:
+            o = cmd.docker("load", "--input", tar)
+            print(o)
+
+            # needle = "Loaded image: "
+            # idx = o.index(needle)
+            # if idx < 0:
+            #     logger.error("extracting tag from load output %s" % tag)
+            #     continue
+            # loaded_tag = o[idx+len(needle):].strip()
+            #logger.info("docker tag %s %s" % (loaded_tag, tag))
+            #cmd.docker("tag", loaded_tag, tag)
 
     def get_executable(self, name: str):
         """Resolve the executable by name.

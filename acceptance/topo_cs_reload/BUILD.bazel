@@ -1,5 +1,6 @@
 load("//tools/lint:go.bzl", "go_test")
-load("@rules_oci//oci:defs.bzl", "oci_image")
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
 
 go_test(
     name = "go_default_test",
@@ -36,36 +37,66 @@ go_test(
     ],
 )
 
-# oci_image(
-#     name = "dispatcher",
-#     base = "//docker:dispatcher",
-#     cmd = [
-#         "--config",
-#         "/disp.toml",
-#     ],
-#     entrypoint = ["/app/dispatcher"],
-#     files = ["testdata/disp.toml"],
-# )
+# dispatcher container
+oci_tarball(
+    name = "dispatcher.tar",
+    format = "docker",
+    image = ":dispatcher_image",
+    repo_tags = ["bazel/" + package_name() + ":dispatcher"],
+)
 
-# oci_image(
-#     name = "control",
-#     base = "//docker:control",
-#     cmd = [
-#         "--config",
-#         "/cs.toml",
-#     ],
-#     entrypoint = ["/app/control"],
-#     files = [
-#         "testdata/cs.toml",
-#         "testdata/tls.key",
-#         "testdata/tls.pem",
-#         "testdata/topology_reload.json",
-#         ":invalid_changed_ip",
-#         ":invalid_changed_port",
-#         "//acceptance/topo_common:invalid_reloads",
-#         "//acceptance/topo_common:topology",
-#     ],
-# )
+oci_image(
+    name = "dispatcher_image",
+    base = "//docker:dispatcher",
+    entrypoint = ["/app/dispatcher"],
+    cmd = [
+        "--config",
+        "/disp.toml",
+    ],
+    tars = [
+        ":dispatcher_data",
+    ],
+)
+
+pkg_tar(
+    name = "dispatcher_data",
+    srcs = ["testdata/disp.toml"],
+)
+
+# control container
+oci_tarball(
+    name = "control.tar",
+    format = "docker",
+    image = ":control_image",
+    repo_tags = ["bazel/" + package_name() + ":control"],
+)
+
+oci_image(
+    name = "control_image",
+    base = "//docker:control",
+    entrypoint = ["/app/control"],
+    cmd = [
+        "--config",
+        "/cs.toml",
+    ],
+    tars = [
+        ":control_data",
+    ]
+)
+
+pkg_tar(
+    name = "control_data",
+    srcs = [
+         "testdata/cs.toml",
+         "testdata/tls.key",
+         "testdata/tls.pem",
+         "testdata/topology_reload.json",
+         ":invalid_changed_ip",
+         ":invalid_changed_port",
+         "//acceptance/topo_common:invalid_reloads",
+         "//acceptance/topo_common:topology",
+    ],
+)
 
 genrule(
     name = "invalid_changed_ip",

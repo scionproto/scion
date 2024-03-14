@@ -41,8 +41,10 @@ def scion_app_base():
 #   cmd - string or list of strings of commands to execute in the image.
 #   caps - capabilities to set on the binary
 #
-# Load the image with
-#   bazel run //path:name.docker
+# Target {name}.tar is the docker image tarball.
+#
+# Load the image into docker with
+#   bazel run //path:name.load
 def scion_app_image(name, src, entrypoint, appdir = "/app", workdir = "/share", cmd = None, caps = None, caps_binary = None):
     pkg_tar(
         name = "%s_docker_files" % name,
@@ -59,9 +61,20 @@ def scion_app_image(name, src, entrypoint, appdir = "/app", workdir = "/share", 
         cmd = cmd,
         visibility = ["//visibility:public"],
     )
+    ### XXX(matzf):
+    # This oci_tarball rule does two things: with `bazel build` it  _builds_ the tarball, and with `bazel run` it _loads_ it into docker.
+    # Weirdly, "$(location //path/name.load)" expands to the shell script to _load_ the tarball but only the actual tarball file is symlinked into the test directories.
+    # I don't know if I deeply messed up, or bazel is just going of the rails here.
+    # As a workaround, pack the whole thing in a filegroup which only keeps the tarball. ugh
     oci_tarball(
-        name = name + ".docker",
+        name = name + ".load",
         format = "docker",
         image = name,
         repo_tags = ["scion/" + name + ":latest"],
+        visibility = ["//visibility:public"],
+    )
+    native.filegroup(
+        name = name + ".tar",
+        srcs = [ name + ".load" ],
+        visibility = ["//visibility:public"],
     )

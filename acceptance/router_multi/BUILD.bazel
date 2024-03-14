@@ -10,7 +10,7 @@ args = [
     "--executable",
     "braccept:$(location //tools/braccept)",
     "--container-loader",
-    "router:latest#$(location //docker:router)",
+    "scion/router:latest#$(location //docker:router.tar)",
     "--pause_tar",
     "$(location //acceptance/router_multi:pause.tar)",
 ]
@@ -18,7 +18,7 @@ args = [
 data = [
     "pause.tar",
     ":conf",
-    ":router",
+    "//docker:router.tar",
     "//tools/braccept",
 ]
 
@@ -29,7 +29,7 @@ raw_test(
         "--bfd",
     ],
     data = data,
-    homedir = "$(rootpath :router)",
+    homedir = "$(rootpath :conf)",
     # This test uses sudo and accesses /var/run/netns.
     local = True,
 )
@@ -39,7 +39,7 @@ raw_test(
     src = "test.py",
     args = args,
     data = data,
-    homedir = "$(rootpath :router)",
+    homedir = "$(rootpath :conf)",
     # This test uses sudo and accesses /var/run/netns.
     local = True,
 )

@@ -16,7 +16,7 @@ def topogen_test(
         deps = [],
         data = [],
         homedir = "",
-        tester = "//docker:tester"):
+        tester = "//docker:tester.tar"):
     """Creates a test based on a topology file.
 
     It creates a target specified by the 'name' argument that runs the entire
@@ -117,12 +117,12 @@ def topogen_test(
 
 def container_loaders(tester, gateway):
     images = {
-        "control:latest": "//docker:control",
-        "daemon:latest": "//docker:daemon",
-        "dispatcher:latest": "//docker:dispatcher",
-        "tester:latest": tester,
-        "router:latest": "//docker:router",
+        "scion/control:latest": "//docker:control.tar",
+        "scion/daemon:latest": "//docker:daemon.tar",
+        "scion/dispatcher:latest": "//docker:dispatcher.tar",
+        "scion/tester:latest": tester,
+        "scion/router:latest": "//docker:router.tar",
     }
     if gateway:
-        images["gateway:latest"] = "//docker:gateway"
+        images["scion/gateway:latest"] = "//docker:gateway.tar"
     return images

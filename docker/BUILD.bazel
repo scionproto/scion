@@ -5,18 +5,18 @@ load(":tester.bzl", "scion_tester_image")
 filegroup(
     name = "prod",
     srcs = [
-        ":router.docker",
-        ":control.docker",
-        ":dispatcher.docker",
-        ":daemon.docker",
-        ":gateway.docker",
+        ":router.tar",
+        ":control.tar",
+        ":dispatcher.tar",
+        ":daemon.tar",
+        ":gateway.tar",
     ]
 )
 
 filegroup(
     name = "test",
     srcs = [
-        ":tester.docker",
+        ":tester.tar",
     ]
 )
 

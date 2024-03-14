@@ -100,7 +100,7 @@ class RouterTest(base.TestBase):
 
         exec_docker("run -v %s/conf:/etc/scion -d %s --network container:%s \
                     --name router %s" % (self.artifacts, " ".join(envs),
-                    "pause", "bazel/acceptance/router_multi:router"))
+                    "pause", "scion/router:latest"))
 
         time.sleep(1)
 
