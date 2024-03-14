@@ -73,8 +73,8 @@ class TestBase(ABC):
     def _set_executables(self, executables):
         self.executables = {name: executable for (name, executable) in executables}
 
-    container_loaders = cli.SwitchAttr("container-loader", ContainerLoader, list=True,
-                                       help="Container loader, format tag#path")
+    container_loaders = cli.SwitchAttr("container-loader", cli.ExistingFile, list=True,
+                                       help="Container tar files")
 
     artifacts = cli.SwitchAttr("artifacts-dir",
                                LocalPath,
@@ -134,18 +134,9 @@ class TestBase(ABC):
 
     def _setup_container_loaders(self):
 
-        for _, tar in self.container_loaders:
+        for tar in self.container_loaders:
             o = cmd.docker("load", "--input", tar)
-            print(o)
 
-            # needle = "Loaded image: "
-            # idx = o.index(needle)
-            # if idx < 0:
-            #     logger.error("extracting tag from load output %s" % tag)
-            #     continue
-            # loaded_tag = o[idx+len(needle):].strip()
-            #logger.info("docker tag %s %s" % (loaded_tag, tag))
-            #cmd.docker("tag", loaded_tag, tag)
 
     def get_executable(self, name: str):
         """Resolve the executable by name.

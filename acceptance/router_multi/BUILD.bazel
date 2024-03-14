@@ -10,7 +10,7 @@ args = [
     "--executable",
     "braccept:$(location //tools/braccept)",
     "--container-loader",
-    "scion/router:latest#$(location //docker:router.tar)",
+    "$(location //docker:router.tar)",
     "--pause_tar",
     "$(location //acceptance/router_multi:pause.tar)",
 ]

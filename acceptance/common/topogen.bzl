@@ -67,8 +67,8 @@ def topogen_test(
     loaders = container_loaders(tester, gateway)
     for tag in loaders:
         loader = loaders[tag]
-        common_data = common_data + ["%s" % loader]
-        common_args = common_args + ["--container-loader=%s#$(location %s)" % (tag, loader)]
+        common_data = common_data + [loader]
+        common_args = common_args + ["--container-loader=$(location %s)" % loader]
 
     py_binary(
         name = "%s_setup" % name,
