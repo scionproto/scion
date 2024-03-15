@@ -237,25 +237,24 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
-	err := d.addExternalInterfaceBFD(ifID, conn, src, dst, cfg)
-	if err != nil {
-		return serrors.WrapStr("adding external BFD", err, "if_id", ifID)
-	}
-
 	if d.running {
 		return modifyExisting
 	}
-	if conn == nil {
+	if conn == nil || src.Addr == nil || dst.Addr == nil {
 		return emptyValue
 	}
-	if _, exists := d.external[ifID]; exists {
-		return serrors.WithCtx(alreadySet, "ifID", ifID)
+	err := d.addExternalInterfaceBFD(ifID, conn, src, dst, cfg)
+	if err != nil {
+		return serrors.WrapStr("adding external BFD", err, "if_id", ifID)
 	}
 	if d.external == nil {
 		d.external = make(map[uint16]BatchConn)
 	}
 	if d.interfaces == nil {
 		d.interfaces = make(map[uint16]BatchConn)
+	}
+	if _, exists := d.external[ifID]; exists {
+		return serrors.WithCtx(alreadySet, "ifID", ifID)
 	}
 	d.interfaces[ifID] = conn
 	d.external[ifID] = conn
@@ -323,13 +322,6 @@ func (d *DataPlane) addExternalInterfaceBFD(ifID uint16, conn BatchConn,
 	// The router can have bfd globally disabled. That trumps any link config.
 	if d.BfdDisabled || cfg.Disable {
 		return nil
-	}
-
-	if d.running {
-		return modifyExisting
-	}
-	if conn == nil {
-		return emptyValue
 	}
 	var m bfd.Metrics
 	if d.Metrics != nil {
@@ -434,24 +426,24 @@ func (d *DataPlane) DelSvc(svc addr.SVC, a *net.UDPAddr) error {
 func (d *DataPlane) AddNextHop(ifID uint16, src, dst *net.UDPAddr, cfg control.BFD,
 	sibling string) error {
 
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+
+	if d.running {
+		return modifyExisting
+	}
+	if dst == nil || src == nil {
+		return emptyValue
+	}
 	err := d.addNextHopBFD(ifID, src, dst, cfg, sibling)
 	if err != nil {
 		return serrors.WrapStr("adding next hop BFD", err, "if_id", ifID)
 	}
-
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-	if d.running {
-		return modifyExisting
-	}
-	if dst == nil {
-		return emptyValue
+	if d.internalNextHops == nil {
+		d.internalNextHops = make(map[uint16]*net.UDPAddr)
 	}
 	if _, exists := d.internalNextHops[ifID]; exists {
 		return serrors.WithCtx(alreadySet, "ifID", ifID)
-	}
-	if d.internalNextHops == nil {
-		d.internalNextHops = make(map[uint16]*net.UDPAddr)
 	}
 	d.internalNextHops[ifID] = dst
 	return nil
@@ -467,17 +459,6 @@ func (d *DataPlane) addNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg contro
 	if d.BfdDisabled || cfg.Disable {
 		return nil
 	}
-
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-	if d.running {
-		return modifyExisting
-	}
-
-	if dst == nil {
-		return emptyValue
-	}
-
 	for k, v := range d.internalNextHops {
 		if v.String() == dst.String() {
 			if c, ok := d.bfdSessions[k]; ok {

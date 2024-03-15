@@ -126,12 +126,28 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 		d.FakeStart()
 		assert.Error(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
 	})
-	t.Run("setting nil value is not allowed", func(t *testing.T) {
+	t.Run("setting nil conn is not allowed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
 		d := &router.DataPlane{}
 		assert.Error(t, d.AddExternalInterface(42, nil, l, r, nobfd))
+	})
+	t.Run("setting blank src is not allowed", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		d := &router.DataPlane{}
+		assert.Error(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl),
+			control.LinkEnd{}, r, nobfd))
+	})
+	t.Run("setting blank dst is not allowed", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		d := &router.DataPlane{}
+		assert.Error(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl),
+			l, control.LinkEnd{}, nobfd))
 	})
 	t.Run("normal add works", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -183,7 +199,11 @@ func TestDataPlaneAddNextHop(t *testing.T) {
 		d.FakeStart()
 		assert.Error(t, d.AddNextHop(45, l, r, nobfd, ""))
 	})
-	t.Run("setting nil value is not allowed", func(t *testing.T) {
+	t.Run("setting nil dst is not allowed", func(t *testing.T) {
+		d := &router.DataPlane{}
+		assert.Error(t, d.AddNextHop(45, l, nil, nobfd, ""))
+	})
+	t.Run("setting nil src is not allowed", func(t *testing.T) {
 		d := &router.DataPlane{}
 		assert.Error(t, d.AddNextHop(45, nil, r, nobfd, ""))
 	})
@@ -414,7 +434,7 @@ func TestDataPlaneRun(t *testing.T) {
 
 				_ = ret.SetKey([]byte("randomkeyformacs"))
 				_ = ret.AddInternalInterface(mInternal, net.IP{})
-				_ = ret.addNextHop(3, localAddr, remoteAddr, bfd(), "")
+				_ = ret.AddNextHop(3, localAddr, remoteAddr, bfd(), "")
 
 				return ret
 			},
