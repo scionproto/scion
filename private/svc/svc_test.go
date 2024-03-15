@@ -53,7 +53,7 @@ func TestSVCResolutionServer(t *testing.T) {
 			},
 			ErrOpen: assert.Error,
 		},
-		"If handler fails, caller sees error": {
+		"If handler fails, caller doesn't see an error": {
 			Connector: func(ctrl *gomock.Controller) snet.Connector {
 				mockPacketConn := mock_snet.NewMockPacketConn(ctrl)
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
@@ -76,9 +76,9 @@ func TestSVCResolutionServer(t *testing.T) {
 			},
 			SVC:         addr.SvcCS,
 			ErrOpen:     assert.NoError,
-			ErrConnRead: assert.Error,
+			ErrConnRead: assert.NoError,
 		},
-		"Handler fails with error cause by SVC mismatch": {
+		"SVC mismatch doesn't cause an error": {
 			Connector: func(ctrl *gomock.Controller) snet.Connector {
 				mockPacketConn := mock_snet.NewMockPacketConn(ctrl)
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
@@ -101,7 +101,7 @@ func TestSVCResolutionServer(t *testing.T) {
 			},
 			SVC:         addr.SvcDS,
 			ErrOpen:     assert.NoError,
-			ErrConnRead: assert.Error,
+			ErrConnRead: assert.NoError,
 		},
 		"If handler returns forward, caller sees data": {
 			Connector: func(ctrl *gomock.Controller) snet.Connector {

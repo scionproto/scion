@@ -232,7 +232,6 @@ func realMain(ctx context.Context) error {
 	if err != nil {
 		return serrors.WrapStr("initializing QUIC stack", err)
 	}
-	defer quicStack.RedirectCloser()
 	tcpStack, err := nc.TCPStack()
 	if err != nil {
 		return serrors.WrapStr("initializing TCP stack", err)

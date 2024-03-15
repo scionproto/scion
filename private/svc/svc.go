@@ -21,6 +21,7 @@ import (
 	"net/netip"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
@@ -113,9 +114,9 @@ func (c *ResolverPacketConn) ReadFrom(pkt *snet.Packet, ov *net.UDPAddr) error {
 			return nil
 		}
 
-		// Check whether dst SVC matcher configured SVC
 		if c.SVC != addr.SvcWildcard && c.SVC != svc {
-			return serrors.WrapStr("SVC destination doesn't match SVC handler", ErrHandler)
+			log.Debug("Error handling SVC request")
+			return nil
 		}
 
 		// XXX(scrye): This might block, causing the read to wait for the
@@ -130,7 +131,10 @@ func (c *ResolverPacketConn) ReadFrom(pkt *snet.Packet, ov *net.UDPAddr) error {
 		}
 		switch result, err := c.Handler.Handle(r); result {
 		case Error:
-			return serrors.Wrap(ErrHandler, err)
+			// We do not propagate error to caller, to avoid the connection fails,
+			// e.g., within QUIC layer.
+			log.Error("Error handling SVC request", "err", err)
+			return nil
 		case Forward:
 			return nil
 		default:

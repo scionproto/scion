@@ -25,8 +25,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"errors"
-	"fmt"
 	"math/big"
 	"net"
 	"time"
@@ -62,6 +60,9 @@ type NetworkConfig struct {
 	// Public is the Internet-reachable address in the case where the service
 	// is behind NAT.
 	Public *net.UDPAddr
+	// TODO(JordiSubira): Unless we want to allow opening two separates sockets,
+	// one for svcResolution and another for the CS backend itself, we can remove
+	// this together with the quic.Address configuration option.
 	// QUIC contains configuration details for QUIC servers. If the listening
 	// address is the empty string, then no QUIC socket is opened.
 	QUIC QUIC
@@ -89,7 +90,6 @@ type QUICStack struct {
 	Listener       *squic.ConnListener
 	InsecureDialer *squic.ConnDialer
 	Dialer         *squic.ConnDialer
-	RedirectCloser func()
 }
 
 func (nc *NetworkConfig) TCPStack() (net.Listener, error) {
@@ -124,18 +124,6 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 		return nil, serrors.WrapStr("listening QUIC/SCION", err)
 	}
 
-	serverAddr, ok := server.LocalAddr().(*snet.UDPAddr)
-	if !ok {
-		return nil, serrors.New("unexpected server address type",
-			"type", fmt.Sprintf("%T", server.LocalAddr()),
-		)
-	}
-
-	cancel, err := nc.initSvcRedirect(serverAddr.Host.String())
-	if err != nil {
-		return nil, serrors.WrapStr("starting service redirection", err)
-	}
-
 	insecureClientTLSConfig := &tls.Config{
 		InsecureSkipVerify: true,
 		NextProtos:         []string{"SCION"},
@@ -161,7 +149,6 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 			Transport: clientTransport,
 			TLSConfig: clientTLSConfig,
 		},
-		RedirectCloser: cancel,
 	}, nil
 }
 
@@ -269,26 +256,25 @@ func (nc *NetworkConfig) OpenListener(a string) (*squic.ConnListener, error) {
 	return squic.NewConnListener(listener), nil
 }
 
-// initSvcRedirect creates the main control-plane UDP socket. SVC anycasts will be
-// delivered to this socket, which replies to SVC resolution requests. The
-// address will be included as the QUIC address in SVC resolution replies.
-func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
+func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, error) {
 	reply := &svc.Reply{
 		Transports: map[svc.Transport]string{
-			svc.QUIC: quicAddress,
+			svc.QUIC: nc.Public.String(),
 		},
 	}
 
 	svcResolutionReply, err := reply.Marshal()
 	if err != nil {
-		return nil, serrors.WrapStr("building SVC resolution reply", err)
+		return nil, nil, serrors.WrapStr("building SVC resolution reply", err)
 	}
-
-	network := &snet.SCIONNetwork{
+	serverNet := &snet.SCIONNetwork{
 		LocalIA:        nc.IA,
 		CPInfoProvider: nc.CPInfoProvider,
 		Connector: &svc.ResolverPacketConnector{
 			Connector: &snet.DefaultConnector{
+				// XXX(roosd): This is essential, the server must not read SCMP
+				// errors. Otherwise, the accept loop will always return that error
+				// on every subsequent call to accept.
 				SCMPHandler:    ignoreSCMP{},
 				Metrics:        nc.SCIONPacketConnMetrics,
 				CPInfoProvider: nc.CPInfoProvider,
@@ -302,57 +288,7 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 		Metrics: nc.SCIONNetworkMetrics,
 	}
 
-	conn, err := network.Listen(context.Background(), "udp", nc.Public)
-	if err != nil {
-		return nil, serrors.WrapStr("listening on SCION", err, "addr", conn.LocalAddr())
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		defer log.HandlePanic()
-		buf := make([]byte, 1500)
-		done := ctx.Done()
-		for {
-			select {
-			case <-done:
-				return
-			default:
-				// All the resolution logic is "hidden" in the
-				// svc.ResolverPacketDispatcher. Here, we just need to Read to
-				// drive this. Ignore errors from reading, just keep going.
-				_, err := conn.Read(buf)
-				if errors.Is(err, svc.ErrHandler) {
-					log.Debug("Error handling SVC request", "err", err)
-				} else if errors.Is(err, net.ErrClosed) {
-					log.Error("SVC resolution socket was closed", "err", err)
-					return
-				}
-			}
-		}
-	}()
-	return cancel, nil
-}
-
-func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, error) {
-
-	serverNet := &snet.SCIONNetwork{
-		LocalIA:        nc.IA,
-		CPInfoProvider: nc.CPInfoProvider,
-		Connector: &snet.DefaultConnector{
-			// XXX(roosd): This is essential, the server must not read SCMP
-			// errors. Otherwise, the accept loop will always return that error
-			// on every subsequent call to accept.
-			SCMPHandler:    ignoreSCMP{},
-			Metrics:        nc.SCIONPacketConnMetrics,
-			CPInfoProvider: nc.CPInfoProvider,
-		},
-		Metrics: nc.SCIONNetworkMetrics,
-	}
-	serverAddr, err := net.ResolveUDPAddr("udp", nc.QUIC.Address)
-	if err != nil {
-		return nil, nil, serrors.WrapStr("parsing server QUIC address", err)
-	}
-	server, err := serverNet.Listen(context.Background(), "udp", serverAddr)
+	server, err := serverNet.Listen(context.Background(), "udp", nc.Public)
 	if err != nil {
 		return nil, nil, serrors.WrapStr("creating server connection", err)
 	}
@@ -373,8 +309,8 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 		Metrics: nc.SCIONNetworkMetrics,
 	}
 	clientAddr := &net.UDPAddr{
-		IP:   serverAddr.IP,
-		Zone: serverAddr.Zone,
+		IP:   nc.Public.IP,
+		Zone: nc.Public.Zone,
 	}
 	client, err := clientNet.Listen(context.Background(), "udp", clientAddr)
 	if err != nil {
