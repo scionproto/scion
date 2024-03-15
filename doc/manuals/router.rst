@@ -56,36 +56,6 @@ Options
 Environment Variables
 ---------------------
 
-.. envvar:: SCION_EXPERIMENTAL_BFD_DETECT_MULT
-
-   Set the :term:`BFD` detection time multiplier.
-
-   Same applicability as above; can be overridden for specific inter-AS BFD sessions with
-   :option:`bfd.detect_mult <topology-json detect_mult>`.
-
-   :Type: unsigned integer
-   :Default: ``3``
-
-.. envvar:: SCION_EXPERIMENTAL_BFD_DESIRED_MIN_TX
-
-   Defines the frequence at which this router should send :term:`BFD` control messages.
-
-   Same applicability as above; can be overridden for specific inter-AS BFD sessions with
-   :option:`bfd.desired_min_tx_interval <topology-json desired_min_tx_interval>`.
-
-   :Type: :ref:`duration <common-conf-duration>`
-   :Default: ``200ms``
-
-.. envvar:: SCION_EXPERIMENTAL_BFD_REQUIRED_MIN_RX
-
-   Defines an frequence at which this router should send :term:`BFD` control messages.
-
-   Same applicability as above; can be overridden for specific inter-AS BFD sessions with
-   :option:`bfd.required_min_rx_interval <topology-json required_min_rx_interval>`.
-
-   :Type: :ref:`duration <common-conf-duration>`
-   :Default: ``200ms``
-
 .. object:: SCION_TESTING_DRKEY_EPOCH_DURATION
 
    For **testing only**.
@@ -211,14 +181,47 @@ considers the following options.
       The batch size used by the receiver and forwarder to
       read or write from / to the network socket.
 
-   .. option:: router.bfd_disabled = <bool> (Default: false)
+   .. object:: bfd
+   
+      .. option:: disabled = <bool> (Default: false)
 
-      Whether the :term:`BFD` feature is disabled globally. If disabled, the router unconditionally considers any
-      connection alive.
+         Whether the :term:`BFD` feature is disabled globally. If disabled, the router
+	 unconditionally considers any connection alive.
 
-      Applies to BFD sessions to all neighboring routers, including sibling routers (other routers in the same AS).
-      If enabled globally, :term:`BFD` can be disabled for specific inter-AS BFD sessions with
-      :option:`bfd.disable <topology-json disable>` in an interface entry in the ``topology.json`` configuration.
+         Applies to BFD sessions to all neighboring routers, including sibling routers (other
+	 routers in the same AS). When not globally disabled, :term:`BFD` can be disabled for
+	 specific inter-AS BFD sessions with :option:`bfd.disable <topology-json disable>`.
+
+      .. option:: detect_mult = <uint8>, default 3
+
+         Set the :term:`BFD` detection time multiplier.
+
+         After ``detect_mult`` consecutively missing control packets, the BFD session is
+         considered "down" and is reset.
+
+         Can be overridden for specific inter-AS BFD sessions with
+         :option:`bfd.detect_mult <topology-json detect_mult>`.
+
+      .. option:: desired_min_tx_interval = <duration>, default 200ms
+
+         Defines the frequency at which this router should send :term:`BFD` control messages.
+         The effective interval is the result of negotiating with the remote router during
+         session establishment;
+         the value will be ``max(desired_min_tx_interval, remote.required_min_rx_interval)``.
+
+         Can be overridden for specific inter-AS BFD sessions with
+         :option:`bfd.desired_min_tx_interval <topology-json desired_min_tx_interval>`.
+
+      .. option:: required_min_rx_interval = <duration>, default 200ms
+
+         Defines an upper bound for the frequency at which this router wants to receive
+	 :term:`BFD` control messages.
+         The effective interval at which the remote router will send control messages is the
+         result of negotiating with the remote router during session establishment;
+         the value will be ``max(remote.desired_min_tx_interval, required_min_rx_interval)``
+
+	 Can be overridden for specific inter-AS BFD sessions with
+	 :option:`bfd.required_min_rx_interval <topology-json required_min_rx_interval>`.
 
 .. _router-conf-topo:
 

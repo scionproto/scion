@@ -287,14 +287,14 @@ of the individual fields below.
 
             Disable BFD, unconditionally consider the connection alive.
 
-            If true, takes precedence over :option:`router.bfd_disabled <router-conf-toml router.bfd_disabled>`.
+            If true, takes precedence over :option:`router.bfd.disabled <router-conf-toml disabled>`.
 
          .. option:: detect_mult = <uint8>, default 3
 
             After ``detect_mult`` consecutively missing control packets, the BFD session is
             considered "down" and is reset.
 
-            Takes precedence over :envvar:`SCION_EXPERIMENTAL_BFD_DETECT_MULT`.
+            Takes precedence over :option:`router.bfd.disabled <router-conf-toml detect_mult>`.
 
          .. option:: desired_min_tx_interval = <duration>, default 200ms
 
@@ -304,7 +304,7 @@ of the individual fields below.
             session establishment;
             the value will be ``max(desired_min_tx_interval, remote.required_min_rx_interval)``.
 
-            Takes precedence over :envvar:`SCION_EXPERIMENTAL_BFD_DESIRED_MIN_TX`.
+            Takes precedence over :option:`router.bfd.disired_min_tx_interval <router-conf-toml desired_min_tx_interval>`.
 
          .. option:: required_min_rx_interval = <duration>, default 200ms
 
@@ -314,7 +314,7 @@ of the individual fields below.
             result of negotiating with the remote router during session establishment;
             the value will be ``max(remote.desired_min_tx_interval, required_min_rx_interval)``.
 
-            Takes precedence over :envvar:`SCION_EXPERIMENTAL_BFD_REQUIRED_MIN_RX`.
+            Takes precedence over :option:`router.bfd.required_min_rx_interval <router-conf-toml required_min_rx_interval>`.
 
 .. option:: control_service
 
