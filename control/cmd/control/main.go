@@ -572,24 +572,16 @@ func realMain(ctx context.Context) error {
 	healthpb.RegisterHealthServer(tcpServer, dsHealth)
 
 	hpCfg := cs.HiddenPathConfigurator{
-		LocalIA:          topo.IA(),
-		Verifier:         verifier,
-		Signer:           signer,
-		PathDB:           pathDB,
-		Dialer:           dialer,
-		FetcherConfig:    fetcherCfg,
-		IntraASTCPServer: tcpServer,
+		LocalIA:           topo.IA(),
+		Verifier:          verifier,
+		Signer:            signer,
+		PathDB:            pathDB,
+		Dialer:            dialer,
+		FetcherConfig:     fetcherCfg,
+		IntraASTCPServer:  tcpServer,
+		InterASQUICServer: quicServer,
 	}
-
-	// (TODO)JordiSubira: Revisit after rebasing and move out to separate PR if applicable.
-	// (XXX)JordiSubira: We should revisit how we want to handle HP service,
-	// right now it only seems to be used within the CS. So perhaps we should treat
-	// it as a part of the CS (same as BS, CertServ, DRKey, etc). For the moment, we
-	// create a different grpc.Server endpoint that will be located behind a different
-	// quic socket using the IP:port in the topology.json file. This is required
-	// because the client side, uses the DS to discover the address of the remote
-	// HP server, thus it should use whatever is written in the topology file.
-	hpInterASServer, hpWriterCfg, err := hpCfg.Setup(globalCfg.PS.HiddenPathsCfg)
+	hpWriterCfg, err := hpCfg.Setup(globalCfg.PS.HiddenPathsCfg)
 	if err != nil {
 		return err
 	}
@@ -691,29 +683,6 @@ func realMain(ctx context.Context) error {
 		return nil
 	})
 	cleanup.Add(func() error { tcpServer.GracefulStop(); return nil })
-	if hpInterASServer != nil {
-		a, err := topo.HiddenSegmentRegistrationAddresses()
-		if err != nil {
-			return err
-		}
-		if len(a) == 0 {
-			return serrors.New("Hidden Path registration address expected and not found")
-		}
-		// XXX(JordiSubira): Just take the first address, we only use topology.json with
-		// information for one unique AS.
-		hpListener, err := nc.OpenListener(a[0].String())
-		if err != nil {
-			return serrors.WrapStr("opening listener for Hidden Path", err)
-		}
-		g.Go(func() error {
-			defer log.HandlePanic()
-			if err := hpInterASServer.Serve(hpListener); err != nil {
-				return serrors.WrapStr("serving Hidden Path API", err)
-			}
-			return nil
-		})
-		cleanup.Add(func() error { hpInterASServer.GracefulStop(); return nil })
-	}
 
 	if globalCfg.API.Addr != "" {
 		r := chi.NewRouter()

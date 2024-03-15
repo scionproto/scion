@@ -31,34 +31,31 @@ import (
 
 // HiddenPathConfigurator can be used to configure the hidden path servers.
 type HiddenPathConfigurator struct {
-	LocalIA          addr.IA
-	Verifier         infra.Verifier
-	Signer           hpgrpc.Signer
-	PathDB           pathdb.DB
-	Rewriter         libgrpc.AddressRewriter
-	Dialer           libgrpc.Dialer
-	FetcherConfig    segreq.FetcherConfig
-	IntraASTCPServer *grpc.Server
+	LocalIA           addr.IA
+	Verifier          infra.Verifier
+	Signer            hpgrpc.Signer
+	PathDB            pathdb.DB
+	Dialer            libgrpc.Dialer
+	FetcherConfig     segreq.FetcherConfig
+	IntraASTCPServer  *grpc.Server
+	InterASQUICServer *grpc.Server
 }
 
 // Setup sets up the hidden paths servers using the configuration at the given
 // location. An empty location will not enable any hidden path behavior. It
 // returns the configuration for the hidden segment writer. The return value can
 // be nil if this AS isn't a writer.
-func (c HiddenPathConfigurator) Setup(
-	location string,
-) (*grpc.Server, *HiddenPathRegistrationCfg, error) {
-
+func (c HiddenPathConfigurator) Setup(location string) (*HiddenPathRegistrationCfg, error) {
 	if location == "" {
-		return nil, nil, nil
+		return nil, nil
 	}
 	groups, regPolicy, err := hiddenpath.LoadConfiguration(location)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	roles := groups.Roles(c.LocalIA)
 	if roles.None() {
-		return nil, nil, nil
+		return nil, nil
 	}
 	log.Info("Starting hidden path forward server")
 	hspb.RegisterHiddenSegmentLookupServiceServer(c.IntraASTCPServer, &hpgrpc.SegmentServer{
@@ -70,33 +67,26 @@ func (c HiddenPathConfigurator) Setup(
 				Dialer: c.Dialer,
 				Signer: c.Signer,
 			},
-			HPResolver: hiddenpath.LookupResolver{
+			Resolver: hiddenpath.LookupResolver{
 				Router: segreq.NewRouter(c.FetcherConfig),
 				Discoverer: &hpgrpc.Discoverer{
 					Dialer: c.Dialer,
 				},
-			},
-			CSResolver: hiddenpath.CSResolver{
-				Router:   segreq.NewRouter(c.FetcherConfig),
-				Rewriter: c.Rewriter,
 			},
 			Verifier: hiddenpath.VerifierAdapter{
 				Verifier: c.Verifier,
 			},
 		},
 	})
-	var interASServer *grpc.Server
 	if roles.Registry {
-		interASServer = grpc.NewServer(
-			libgrpc.UnaryServerInterceptor(),
-		)
 		log.Info("Starting hidden path authoritative and registration server")
-		hspb.RegisterAuthoritativeHiddenSegmentLookupServiceServer(interASServer,
+		hspb.RegisterAuthoritativeHiddenSegmentLookupServiceServer(c.InterASQUICServer,
 			&hpgrpc.AuthoritativeSegmentServer{
 				Lookup:   c.localAuthServer(groups),
 				Verifier: c.Verifier,
-			})
-		hspb.RegisterHiddenSegmentRegistrationServiceServer(interASServer,
+			},
+		)
+		hspb.RegisterHiddenSegmentRegistrationServiceServer(c.InterASQUICServer,
 			&hpgrpc.RegistrationServer{
 				Registry: hiddenpath.RegistryServer{
 					Groups: groups,
@@ -113,22 +103,21 @@ func (c HiddenPathConfigurator) Setup(
 		)
 	}
 	if !roles.Writer {
-		return interASServer, nil, nil
+		return nil, nil
 	}
 	log.Info("Using hidden path beacon writer")
-	return interASServer,
-		&HiddenPathRegistrationCfg{
-			Policy: regPolicy,
-			Router: segreq.NewRouter(c.FetcherConfig),
-			Discoverer: &hpgrpc.Discoverer{
-				Dialer: c.Dialer,
-			},
-			RPC: &hpgrpc.Registerer{
-				Dialer:              c.Dialer,
-				RegularRegistration: beaconinggrpc.Registrar{Dialer: c.Dialer},
-				Signer:              c.Signer,
-			},
-		}, nil
+	return &HiddenPathRegistrationCfg{
+		Policy: regPolicy,
+		Router: segreq.NewRouter(c.FetcherConfig),
+		Discoverer: &hpgrpc.Discoverer{
+			Dialer: c.Dialer,
+		},
+		RPC: &hpgrpc.Registerer{
+			Dialer:              c.Dialer,
+			RegularRegistration: beaconinggrpc.Registrar{Dialer: c.Dialer},
+			Signer:              c.Signer,
+		},
+	}, nil
 }
 
 func (c HiddenPathConfigurator) localAuthServer(groups hiddenpath.Groups) hiddenpath.Lookuper {

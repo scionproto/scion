@@ -115,13 +115,12 @@ func TestForwardServerSegments(t *testing.T) {
 				AnyTimes()
 
 			server := hiddenpath.ForwardServer{
-				Groups:     tc.groups(),
-				RPC:        tc.rpc(ctrl),
-				LocalAuth:  tc.lookuper(ctrl),
-				LocalIA:    local,
-				Verifier:   tc.verifier(ctrl),
-				HPResolver: resolver,
-				CSResolver: resolver,
+				Groups:    tc.groups(),
+				RPC:       tc.rpc(ctrl),
+				LocalAuth: tc.lookuper(ctrl),
+				LocalIA:   local,
+				Verifier:  tc.verifier(ctrl),
+				Resolver:  resolver,
 			}
 			got, err := server.Segments(context.Background(), tc.request)
 			tc.assertErr(t, err)
