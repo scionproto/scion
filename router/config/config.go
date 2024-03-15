@@ -20,12 +20,15 @@ package config
 import (
 	"io"
 	"runtime"
+	"time"
 
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/private/config"
 	"github.com/scionproto/scion/private/env"
 	api "github.com/scionproto/scion/private/mgmtapi"
+	"github.com/scionproto/scion/private/topology/json"
 )
 
 const idSample = "router-1"
@@ -40,12 +43,12 @@ type Config struct {
 }
 
 type RouterConfig struct {
-	ReceiveBufferSize     int  `toml:"receive_buffer_size,omitempty"`
-	SendBufferSize        int  `toml:"send_buffer_size,omitempty"`
-	NumProcessors         int  `toml:"num_processors,omitempty"`
-	NumSlowPathProcessors int  `toml:"num_slow_processors,omitempty"`
-	BatchSize             int  `toml:"batch_size,omitempty"`
-	BfdDisabled           bool `toml:"bfd_disabled,omitempty"`
+	ReceiveBufferSize     int      `toml:"receive_buffer_size,omitempty"`
+	SendBufferSize        int      `toml:"send_buffer_size,omitempty"`
+	NumProcessors         int      `toml:"num_processors,omitempty"`
+	NumSlowPathProcessors int      `toml:"num_slow_processors,omitempty"`
+	BatchSize             int      `toml:"batch_size,omitempty"`
+	Bfd                   json.BFD `toml:"bfd,omitempty"`
 }
 
 func (cfg *RouterConfig) ConfigName() string {
@@ -100,6 +103,15 @@ func (cfg *RouterConfig) InitDefaults() {
 	}
 	if cfg.BatchSize == 0 {
 		cfg.BatchSize = 256
+	}
+	if cfg.Bfd.DetectMult == 0 {
+		cfg.Bfd.DetectMult = 3
+	}
+	if cfg.Bfd.DesiredMinTxInterval.Duration == 0 {
+		cfg.Bfd.DesiredMinTxInterval = util.DurWrap{Duration: 200 * time.Millisecond}
+	}
+	if cfg.Bfd.RequiredMinRxInterval.Duration == 0 {
+		cfg.Bfd.RequiredMinRxInterval = util.DurWrap{Duration: 200 * time.Millisecond}
 	}
 }
 

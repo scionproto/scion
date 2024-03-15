@@ -40,6 +40,7 @@ type Connector struct {
 
 	ReceiveBufferSize int
 	SendBufferSize    int
+	BfdConfig         control.BFD
 }
 
 var errMultiIA = serrors.New("different IA not allowed")
@@ -86,7 +87,8 @@ func (c *Connector) AddExternalInterface(localIfID common.IFIDType, link control
 	log.Debug("Adding external interface", "interface", localIfID,
 		"local_isd_as", link.Local.IA, "local_addr", link.Local.Addr,
 		"remote_isd_as", link.Remote.IA, "remote_addr", link.Remote.Addr,
-		"owned", owned, "bfd", !link.BFD.Disable)
+		"owned", owned, "bfd", !link.BFD.Disable,
+		"dataplane_bfd_enabled", !c.BfdConfig.Disable)
 
 	if !c.ia.Equal(link.Local.IA) {
 		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", link.Local.IA)
@@ -98,6 +100,7 @@ func (c *Connector) AddExternalInterface(localIfID common.IFIDType, link control
 		return serrors.WrapStr("adding neighboring IA", err, "if_id", localIfID)
 	}
 
+	link.BFD = c.applyBFDdefaults(link.BFD)
 	if owned {
 		if len(c.externalInterfaces) == 0 {
 			c.externalInterfaces = make(map[uint16]control.ExternalInterface)
@@ -200,4 +203,22 @@ func (c *Connector) ListSiblingInterfaces() ([]control.SiblingInterface, error) 
 		siblingInterfaceList = append(siblingInterfaceList, siblingInterface)
 	}
 	return siblingInterfaceList, nil
+}
+
+// Apply the global BFD settings if required. Link-specific settings, if configured, prevail over
+// the global defaults.  Special case for BfdDisable, which can't be undefined: the link-specific
+// setting prevails if it is true. (ie. bfd is disabled as soon as either the link or the global
+// setting says so).
+func (c *Connector) applyBFDdefaults(cfg control.BFD) control.BFD {
+	cfg.Disable = cfg.Disable || c.BfdConfig.Disable
+	if cfg.DetectMult == 0 {
+		cfg.DetectMult = c.BfdConfig.DetectMult
+	}
+	if cfg.DesiredMinTxInterval == 0 {
+		cfg.DesiredMinTxInterval = c.BfdConfig.DesiredMinTxInterval
+	}
+	if cfg.RequiredMinRxInterval == 0 {
+		cfg.RequiredMinRxInterval = c.BfdConfig.RequiredMinRxInterval
+	}
+	return cfg
 }
