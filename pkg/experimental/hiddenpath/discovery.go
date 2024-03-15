@@ -19,7 +19,6 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/path"
@@ -60,32 +59,6 @@ func (r RegistrationResolver) Resolve(ctx context.Context, ia addr.IA) (net.Addr
 		}
 		return s.Registration[0], nil
 	})
-}
-
-// CSResolver resolves the address of a Control Service
-// server in an IA. This is necessary to get the needed
-// certificates from the Registry to verify the segments.
-type CSResolver struct {
-	Router   snet.Router
-	Rewriter grpc.AddressRewriter
-}
-
-// Resolve resolves the CS server in the remote IA.
-func (r CSResolver) Resolve(ctx context.Context, ia addr.IA) (net.Addr, error) {
-	// TODO(JordiSubira): Put path failover mechanism in-place
-	path, err := r.Router.Route(ctx, ia)
-	if err != nil {
-		return nil, serrors.WrapStr("looking up path", err)
-	}
-	if path == nil {
-		return nil, serrors.WrapStr("no path found to remote", err)
-	}
-	return &snet.SVCAddr{
-		IA:      ia,
-		NextHop: path.UnderlayNextHop(),
-		Path:    path.Dataplane(),
-		SVC:     addr.SvcCS,
-	}, nil
 }
 
 // LookupResolver resolves the address of a hidden segment lookup
