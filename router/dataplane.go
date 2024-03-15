@@ -130,7 +130,6 @@ var (
 	unsupportedPathTypeNextHeader = errors.New("unsupported combination")
 	noBFDSessionFound             = errors.New("no BFD sessions was found")
 	noBFDSessionConfigured        = errors.New("no BFD sessions have been configured")
-	errBFDDisabled                = errors.New("BFD is disabled")
 	errPeeringEmptySeg0           = errors.New("zero-length segment[0] in peering path")
 	errPeeringEmptySeg1           = errors.New("zero-length segment[1] in peering path")
 	errPeeringNonemptySeg2        = errors.New("non-zero-length segment[2] in peering path")

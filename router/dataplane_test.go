@@ -154,16 +154,20 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 		defer ctrl.Finish()
 
 		d := &router.DataPlane{}
-		assert.NoError(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
-		assert.NoError(t, d.AddExternalInterface(45, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
+		assert.NoError(t,
+			d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
+		assert.NoError(t,
+			d.AddExternalInterface(45, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
 	})
 	t.Run("overwrite fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
 		d := &router.DataPlane{}
-		assert.NoError(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
-		assert.Error(t, d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
+		assert.NoError(t,
+			d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
+		assert.Error(t,
+			d.AddExternalInterface(42, mock_router.NewMockBatchConn(ctrl), l, r, nobfd))
 	})
 }
 
