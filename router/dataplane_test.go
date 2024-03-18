@@ -666,8 +666,8 @@ func TestProcessPkt(t *testing.T) {
 					return false
 				}
 				expected := serrors.New("NumHops too large",
-					"NumHops", 65, "Maximum", scion.MaxHops).Error()
-				return assert.Equal(t, expected, err.Error())
+					"NumHops", 65, "Maximum", scion.MaxHops)
+				return assert.Equal(t, expected.Error(), err.Error())
 			},
 		},
 		"outbound": {

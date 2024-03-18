@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 )
@@ -88,7 +89,9 @@ func TestOverlongSerializeDecode(t *testing.T) {
 	b := make([]byte, overlongPath.Len())
 	assert.NoError(t, overlongPath.SerializeTo(b)) // permitted, if only to enable this test.
 	s := &scion.Raw{}
-	assert.Error(t, s.DecodeFromBytes(b)) // invalid raw packet.
+	expected := serrors.New("NumHops too large", "NumHops", 65, "Maximum", scion.MaxHops)
+	err := s.DecodeFromBytes(b)
+	assert.Equal(t, expected.Error(), err.Error())
 }
 
 func TestRawReverse(t *testing.T) {
