@@ -53,7 +53,7 @@ from seedemu.layers.Scion import LinkType as ScLinkType
 # Initialize
 emu = Emulator()
 base = ScionBase()
-routing = ScionRouting()t
+routing = ScionRouting()
 scion_isd = ScionIsd()
 scion = Scion()
 
@@ -100,21 +100,32 @@ emu.compile(Docker(), './output')
         code += "\n\n"
         return code
 
+
+
+
     def _create_AS(self):
         code = "# Ases \n"
         for As in self.args.topo_dicts:
+
             as_num = As.AS().split(':')[2]
             isd_num = As.ISD()[3]
             is_core = True if (self.args.topo_dicts[As]["attributes"] and self.args.topo_dicts[As]["attributes"][0] == 'core') else False
+            # create basic As config
             code += f"""
 # AS-{as_num}
 as{as_num} = base.createAutonomousSystem({as_num})
 scion_isd().addIsdAs({isd_num},{as_num},is_core={is_core})
-"""     
+"""         
+            # set cert Issuer if not core AS
             if not is_core:
                 issuer_isd_num = self.args.topo_dicts[As]["cert_issuer"].split(':')[-1]
-                code += f"scion_isd.setCertIssuer(({isd_num},{as_num}),issuer={issuer_isd_num})"
+                code += f"scion_isd.setCertIssuer(({isd_num},{as_num}),issuer={issuer_isd_num})\n"
 
+            # create internal network
+            code += f"as{as_num}.createNetwork('net0')\n"
+            # create control Service
+            code += f"as{as_num}.createControlService('cs_1').joinNetwork('net0')\n"
+            # create border router
 
         code += "\n\n"
         return code
