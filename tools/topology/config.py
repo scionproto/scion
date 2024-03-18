@@ -38,6 +38,7 @@ from topology.util import write_file
 from topology.cert import CertGenArgs, CertGenerator
 from topology.common import ArgsBase
 from topology.docker import DockerGenArgs, DockerGenerator
+from topology.seed import SeedGenArgs, SeedGenerator
 from topology.go import GoGenArgs, GoGenerator
 from topology.net import (
     NetworkDescription,
@@ -119,6 +120,8 @@ class ConfigGenerator(object):
 
     def _generate_with_topo(self, topo_dicts):
         self._generate_go(topo_dicts)
+        if self.args.seed:
+            self._generate_seed(topo_dicts)
         if self.args.docker:
             self._generate_docker(topo_dicts)
         else:
@@ -168,6 +171,14 @@ class ConfigGenerator(object):
 
     def _docker_args(self, topo_dicts):
         return DockerGenArgs(self.args, topo_dicts, self.all_networks)
+
+    def _generate_seed(self, topo_dicts):
+        args = self._seed_args(topo_dicts)
+        seed_gen = SeedGenerator(args)
+        seed_gen.generate()
+    
+    def _seed_args(self, topo_dicts):
+        return SeedGenArgs(self.args, topo_dicts, self.all_networks)
 
     def _generate_monitoring_conf(self, topo_dicts):
         args = self._monitoring_args(topo_dicts)
