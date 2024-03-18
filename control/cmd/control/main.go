@@ -102,7 +102,7 @@ var globalCfg config.Config
 func main() {
 	application := launcher.Application{
 		TOMLConfig: &globalCfg,
-		ShortName:  "SCION Control Service HAHAHAA",
+		ShortName:  "SCION Control Service",
 		// TODO(scrye): Deprecated additional sampler, remove once Anapaya/scion#5000 is in.
 		Samplers: []func(command.Pather) *cobra.Command{newSamplePolicy},
 		Main:     realMain,
