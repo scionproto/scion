@@ -102,11 +102,11 @@ func setupTest(t *testing.T) testState {
 	// tars are in the same folder as this test runs in bazel.
 	s.mustExec(t, "docker", "image", "load", "-i", "dispatcher.tar/tarball.tar")
 	t.Cleanup(func() {
-		s.mustExec(t, "docker", "image", "rm", "bazel/acceptance/topo_cs_reload:dispatcher")
+		s.mustExec(t, "docker", "image", "rm", "scion/acceptance/topo_cs_reload:dispatcher")
 	})
 	s.mustExec(t, "docker", "image", "load", "-i", "control.tar/tarball.tar")
 	t.Cleanup(func() {
-		s.mustExec(t, "docker", "image", "rm", "bazel/acceptance/topo_cs_reload:control")
+		s.mustExec(t, "docker", "image", "rm", "scion/acceptance/topo_cs_reload:control")
 	})
 	// now start the docker containers
 	s.mustExec(t, "docker", "compose", "-f", "docker-compose.yml", "up", "-d")

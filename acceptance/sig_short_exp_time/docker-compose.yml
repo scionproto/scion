@@ -22,7 +22,7 @@ services:
       "-local_y", "242.254.200.3:50000",
       "-remote_y", "242.254.200.2:30041",
       ]
-    image: bazel/tools/udpproxy:udpproxy
+    image: scion/tools/udpproxy:latest
     networks:
       bridge1:
         ipv4_address: 242.254.100.3
@@ -35,7 +35,7 @@ services:
       "-local_y", "242.254.200.4:50000",
       "-remote_y", "242.254.200.2:30041",
       ]
-    image: bazel/tools/udpproxy:udpproxy
+    image: scion/tools/udpproxy:latest
     networks:
       bridge1:
         ipv4_address: 242.254.100.4

@@ -29,7 +29,7 @@ oci_tarball(
     name = "dispatcher.tar",
     format = "docker",
     image = ":dispatcher_image",
-    repo_tags = ["bazel/" + package_name() + ":dispatcher"],
+    repo_tags = ["scion/" + package_name() + ":dispatcher"],
 )
 
 oci_image(
@@ -55,7 +55,7 @@ oci_tarball(
     name = "daemon.tar",
     format = "docker",
     image = ":daemon_image",
-    repo_tags = ["bazel/" + package_name() + ":daemon"],
+    repo_tags = ["scion/" + package_name() + ":daemon"],
 )
 
 oci_image(

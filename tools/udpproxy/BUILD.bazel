@@ -24,7 +24,7 @@ oci_tarball(
     name = "udpproxy.tar",
     format = "docker",
     image = ":udpproxy_image",
-    repo_tags = ["bazel/" + package_name() + ":udpproxy"],
+    repo_tags = [ "scion/tools/udpproxy:latest" ],
     visibility = ["//visibility:public"],
 )
 
