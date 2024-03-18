@@ -1,4 +1,4 @@
-x# Copyright 2024 ETH Zürich, Lorin Urbantat
+# Copyright 2024 ETH Zürich, Lorin Urbantat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -106,13 +106,17 @@ emu.compile(Docker(), './output')
             as_num = As.AS().split(':')[2]
             isd_num = As.ISD()[3]
             is_core = True if (self.args.topo_dicts[As]["attributes"] and self.args.topo_dicts[As]["attributes"][0] == 'core') else False
-            print(is_core)
             code += f"""
 # AS-{as_num}
 as{as_num} = base.createAutonomousSystem({as_num})
 scion_isd().addIsdAs({isd_num},{as_num},is_core={is_core})
-"""
+"""     
+            if not is_core:
+                issuer_isd_num = self.args.topo_dicts[As]["cert_issuer"].split(':')[-1]
+                code += f"scion_isd.setCertIssuer(({isd_num},{as_num}),issuer={issuer_isd_num})"
 
+
+        code += "\n\n"
         return code
 
     def _create_links(self):
