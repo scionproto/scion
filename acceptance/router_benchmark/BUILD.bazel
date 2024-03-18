@@ -8,7 +8,7 @@ exports_files([
 args = [
     "--executable",
     "brload:$(location //acceptance/router_benchmark/brload:brload)",
-    "--container-loader=$(location //docker:router.tar)",
+    "--docker=image=$(location //docker:router.tar)",
 ]
 
 data = [

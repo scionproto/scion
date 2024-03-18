@@ -64,11 +64,20 @@ def topogen_test(
         "//tools:await_connectivity",
         topo,
     ]
-    loaders = container_loaders(tester, gateway)
-    for tag in loaders:
-        loader = loaders[tag]
-        common_data = common_data + [loader]
-        common_args = common_args + ["--container-loader=$(location %s)" % loader]
+    docker_images = [
+        "//docker:control.tar",
+        "//docker:daemon.tar",
+        "//docker:dispatcher.tar",
+        "//docker:router.tar",
+    ]
+    if tester:
+        docker_images += [ tester ]
+    if gateway:
+        docker_images += [ "//docker:gateway.tar" ]
+
+    for tar in docker_images:
+        common_data = common_data + [tar]
+        common_args = common_args + ["--docker-image=$(location %s)" % tar]
 
     py_binary(
         name = "%s_setup" % name,
@@ -114,15 +123,3 @@ def topogen_test(
             "HOME": homedir,
         },
     )
-
-def container_loaders(tester, gateway):
-    images = {
-        "scion/control:latest": "//docker:control.tar",
-        "scion/daemon:latest": "//docker:daemon.tar",
-        "scion/dispatcher:latest": "//docker:dispatcher.tar",
-        "scion/tester:latest": tester,
-        "scion/router:latest": "//docker:router.tar",
-    }
-    if gateway:
-        images["scion/gateway:latest"] = "//docker:gateway.tar"
-    return images

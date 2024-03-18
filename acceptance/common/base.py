@@ -73,8 +73,8 @@ class TestBase(ABC):
     def _set_executables(self, executables):
         self.executables = {name: executable for (name, executable) in executables}
 
-    container_loaders = cli.SwitchAttr("container-loader", cli.ExistingFile, list=True,
-                                       help="Container tar files")
+    docker_images = cli.SwitchAttr("docker-image", cli.ExistingFile, list=True,
+                                   help="Docker image tar files")
 
     artifacts = cli.SwitchAttr("artifacts-dir",
                                LocalPath,
@@ -117,7 +117,7 @@ class TestBase(ABC):
         """
         docker.assert_no_networks()
         self._setup_artifacts()
-        self._setup_container_loaders()
+        self._setup_docker_images()
         # Define where coredumps will be stored.
         print(
             cmd.docker("run", "--rm", "--privileged", "alpine", "sysctl", "-w",
@@ -132,11 +132,10 @@ class TestBase(ABC):
         cmd.mkdir(self.artifacts)
         print("artifacts dir: %s" % self.artifacts)
 
-    def _setup_container_loaders(self):
-
-        for tar in self.container_loaders:
+    def _setup_docker_images(self):
+        for tar in self.docker_images:
             o = cmd.docker("load", "--input", tar)
-
+            print(o.strip())
 
     def get_executable(self, name: str):
         """Resolve the executable by name.

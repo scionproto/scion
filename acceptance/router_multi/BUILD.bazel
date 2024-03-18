@@ -9,7 +9,7 @@ exports_files([
 args = [
     "--executable",
     "braccept:$(location //tools/braccept)",
-    "--container-loader",
+    "--docker-image",
     "$(location //docker:router.tar)",
     "--pause_tar",
     "$(location //acceptance/router_multi:pause.tar)",

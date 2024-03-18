@@ -32,7 +32,7 @@ following switches:
   environment variable `TEST_UNDECLARED_OUTPUTS_DIR`
 - `--executable <name>:<path>`; specifies path for an executable used in the test.
   This can be used to run executables that are built by bazel.
-- `--container-loader <path>`; load the specified container images tars.
+- `--docker-image <path>`; load the specified container images tars.
   This can be used to load images that are built by bazel.
 - `--topo <path>`; path to the .topo file for topogen tests
 - `--setup-params <args>`; additional parameters for topogen.
