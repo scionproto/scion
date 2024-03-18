@@ -49,6 +49,8 @@ def add_arguments(parser):
                         to be built manually e.g. when running acceptance tests)')
     parser.add_argument('--features', help='Feature flags to enable, a comma separated list\
                         e.g. foo,bar enables foo and bar feature.')
+    parser.add_argument('-s','--seed',action='store_true',help='Generate a seed file for the topology')
+
     return parser
 
 
