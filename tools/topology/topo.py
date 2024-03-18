@@ -238,8 +238,10 @@ class TopoGenerator(object):
         for attr in ['core']:
             if as_conf.get(attr, False):
                 attributes.append(attr)
+        cert_issuer = as_conf.get('cert_issuer', None)
         self.topo_dicts[topo_id] = {
             'attributes': attributes,
+            'cert_issuer': cert_issuer,
             'isd_as': str(topo_id),
             'mtu': mtu,
         }
