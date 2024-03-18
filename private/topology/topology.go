@@ -22,6 +22,8 @@ import (
 	"net"
 	"os"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -31,8 +33,10 @@ import (
 	"github.com/scionproto/scion/private/topology/underlay"
 )
 
-// EndhostPort is the underlay port that the dispatcher binds to on non-routers.
-const EndhostPort = underlay.EndhostPort
+const (
+	// EndhostPort is the underlay port that SCION binds to on non-routers.
+	EndhostPort = underlay.EndhostPort
+)
 
 // ErrAddressNotFound indicates the address was not found.
 var ErrAddressNotFound = serrors.New("address not found")
@@ -58,10 +62,12 @@ type (
 	// there is again a sorted slice of names of the servers that provide the service.
 	// Additionally, there is a map from those names to TopoAddr structs.
 	RWTopology struct {
-		Timestamp time.Time
-		IA        addr.IA
-		IsCore    bool
-		MTU       int
+		Timestamp        time.Time
+		IA               addr.IA
+		IsCore           bool
+		MTU              int
+		EndhostStartPort uint16
+		EndhostEndPort   uint16
 
 		BR        map[string]BRInfo
 		BRNames   []string
@@ -201,6 +207,11 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 	}
 	t.MTU = raw.MTU
 
+	t.EndhostStartPort, t.EndhostEndPort, err = validatePortRange(raw.EndhostPortRange)
+	if err != nil {
+		return err
+	}
+
 	isCore := false
 	for _, attr := range raw.Attributes {
 		if attr == jsontopo.AttrCore {
@@ -210,6 +221,30 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 	}
 	t.IsCore = isCore
 	return nil
+}
+
+func validatePortRange(portRange string) (uint16, uint16, error) {
+	ports := strings.Split(portRange, "-")
+	if len(ports) != 2 {
+		return 0, 0, serrors.New("invalid format: expected startPort-endPort", "got", portRange)
+	}
+	startPort, errStart := strconv.Atoi(ports[0])
+	endPort, errEnd := strconv.Atoi(ports[1])
+	if errStart != nil || errEnd != nil {
+		return 0, 0, serrors.New("invalid port numbers", "got", portRange)
+	}
+
+	if startPort < 1 || startPort > (1<<16-1) {
+		return 0, 0, serrors.New("Invalid value for start port", "start port", startPort)
+	}
+	if endPort < 1 || endPort > (1<<16-1) {
+		return 0, 0, serrors.New("Invalid value for end port", "end port", endPort)
+	}
+	if startPort > endPort {
+		return 0, 0, serrors.New("Start port is bigger than end port for the SCION port range",
+			"start port", startPort, "end port", endPort)
+	}
+	return uint16(startPort), uint16(endPort), nil
 }
 
 func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
@@ -378,10 +413,12 @@ func (t *RWTopology) Copy() *RWTopology {
 		return nil
 	}
 	return &RWTopology{
-		Timestamp: t.Timestamp,
-		IA:        t.IA,
-		MTU:       t.MTU,
-		IsCore:    t.IsCore,
+		Timestamp:        t.Timestamp,
+		IA:               t.IA,
+		MTU:              t.MTU,
+		IsCore:           t.IsCore,
+		EndhostStartPort: t.EndhostStartPort,
+		EndhostEndPort:   t.EndhostEndPort,
 
 		BR:        copyBRMap(t.BR),
 		BRNames:   append(t.BRNames[:0:0], t.BRNames...),

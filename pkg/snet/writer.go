@@ -24,12 +24,14 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/private/topology/underlay"
+	"github.com/scionproto/scion/private/topology"
 )
 
 type scionConnWriter struct {
-	base *scionConnBase
-	conn PacketConn
+	base             *scionConnBase
+	conn             PacketConn
+	endhostStartPort uint16
+	endhostEndPort   uint16
 
 	mtx    sync.Mutex
 	buffer []byte
@@ -56,9 +58,13 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 		port, path = a.Host.Port, a.Path
 		nextHop = a.NextHop
 		if nextHop == nil && c.base.scionNet.LocalIA.Equal(a.IA) {
+			port := a.Host.Port
+			if !c.isWithinRange(port) {
+				port = topology.EndhostPort
+			}
 			nextHop = &net.UDPAddr{
 				IP:   a.Host.IP,
-				Port: underlay.EndhostPort,
+				Port: port,
 				Zone: a.Host.Zone,
 			}
 
@@ -109,4 +115,8 @@ func (c *scionConnWriter) Write(b []byte) (int, error) {
 
 func (c *scionConnWriter) SetWriteDeadline(t time.Time) error {
 	return c.conn.SetWriteDeadline(t)
+}
+
+func (c *scionConnWriter) isWithinRange(port int) bool {
+	return port >= int(c.endhostStartPort) && port <= int(c.endhostEndPort)
 }

@@ -320,7 +320,7 @@ func clientTemplate(progressSock string) integration.Cmd {
 // remote[ISD/AS] is specified, h2:h2 and h1:h1. Not all combinations yield something useful...
 // caveat emptor.
 func getPairs() ([]integration.IAPair, error) {
-	pairs := integration.IAPairs(integration.DispAddr)
+	pairs := integration.IAPairs(integration.CSAddr)
 	if subset == "all" {
 		return pairs, nil
 	}

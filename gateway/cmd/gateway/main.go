@@ -34,7 +34,6 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/launcher"
 	"github.com/scionproto/scion/private/service"
@@ -145,7 +144,6 @@ func realMain(ctx context.Context) error {
 		ProbeClientIP:            controlAddress.IP,
 		DataServerAddr:           dataAddress,
 		DataClientIP:             dataAddress.IP,
-		Dispatcher:               reliable.NewDispatcher(""),
 		Daemon:                   daemon,
 		RouteSourceIPv4:          globalCfg.Tunnel.SrcIPv4,
 		RouteSourceIPv6:          globalCfg.Tunnel.SrcIPv6,

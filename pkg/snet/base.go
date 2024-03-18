@@ -17,17 +17,12 @@ package snet
 
 import (
 	"net"
-
-	"github.com/scionproto/scion/pkg/addr"
 )
 
 type scionConnBase struct {
 	// Local and remote SCION addresses (IA, L3, L4)
 	listen *UDPAddr
 	remote *UDPAddr
-
-	// svc address
-	svc addr.SVC
 
 	// Reference to SCION networking context
 	scionNet *SCIONNetwork
@@ -39,8 +34,4 @@ func (c *scionConnBase) LocalAddr() net.Addr {
 
 func (c *scionConnBase) RemoteAddr() net.Addr {
 	return c.remote
-}
-
-func (c *scionConnBase) SVC() addr.SVC {
-	return c.svc
 }

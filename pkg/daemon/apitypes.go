@@ -33,8 +33,10 @@ type PathReqFlags struct {
 
 // ASInfo provides information about the local AS.
 type ASInfo struct {
-	IA  addr.IA
-	MTU uint16
+	IA               addr.IA
+	MTU              uint16
+	EndhostStartPort uint16
+	EndhostEndPort   uint16
 }
 
 type Querier struct {

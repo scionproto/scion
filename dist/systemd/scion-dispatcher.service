@@ -9,7 +9,6 @@ StartLimitInterval=1s
 Type=simple
 User=scion
 Group=scion
-ExecStartPre=/bin/rm -rf /run/shm/dispatcher/
 ExecStart=/usr/bin/scion-dispatcher --config /etc/scion/dispatcher.toml
 LimitNOFILE=4096
 Restart=on-failure

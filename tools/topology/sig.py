@@ -71,16 +71,10 @@ class SIGGenerator(object):
         entry = {
             'image':
             'dispatcher',
-            'depends_on': {
-                'utils_chowner': {
-                    'condition': 'service_started'
-                },
-            },
             'user':
             self.user,
             'networks': {},
             'volumes': [
-                self._disp_vol(topo_id),
                 '%s:/etc/scion:rw' % base,
             ],
             'command':
@@ -97,8 +91,6 @@ class SIGGenerator(object):
         }
         self.dc_conf['services']['disp_sig_%s' %
                                  topo_id.file_fmt()] = entry
-        vol_name = 'vol_disp_sig_%s' % topo_id.file_fmt()
-        self.dc_conf['volumes'][vol_name] = None
 
     def _sig_dc_conf(self, topo_id, base):
         setup_name = 'sig_setup_%s' % topo_id.file_fmt()
@@ -127,7 +119,6 @@ class SIGGenerator(object):
             # but on the RHEL machines in in CI it simply doesn't. Needs to be investigated & fixed.
             #  'user': self.user,
             'volumes': [
-                self._disp_vol(topo_id),
                 '/dev/net/tun:/dev/net/tun',
                 '%s:/etc/scion' % base,
             ],
@@ -188,6 +179,3 @@ class SIGGenerator(object):
         path = os.path.join(topo_id.base_dir(self.args.output_dir),
                             SIG_CONFIG_NAME)
         write_file(path, toml.dumps(sig_conf))
-
-    def _disp_vol(self, topo_id):
-        return 'vol_disp_sig_%s:/run/shm/dispatcher:rw' % topo_id.file_fmt()

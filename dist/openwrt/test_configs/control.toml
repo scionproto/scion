@@ -1,7 +1,6 @@
 [general]
 id = "cs-1"
 config_dir = "/etc/scion"
-reconnect_to_dispatcher = true
 
 [trust_db]
 connection = "/var/lib/scion/cs-1.trust.db"

@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/private/ringbuf"
 )
 
@@ -90,9 +89,6 @@ func (d *IngressServer) read(ctx context.Context) error {
 			read, src, err := d.Conn.ReadFrom(frame.raw)
 			if err != nil {
 				logger.Error("IngressServer: Unable to read from external ingress", "err", err)
-				if reliable.IsDispatcherError(err) {
-					return serrors.WrapStr("problems speaking to dispatcher", err)
-				}
 				increaseCounterMetric(d.Metrics.ReceiveExternalError, 1)
 				frame.Release()
 				continue

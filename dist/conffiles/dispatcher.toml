@@ -1,9 +1,13 @@
 [dispatcher]
 id = "dispatcher"
-socket_file_mode = "0777"
 
 [log.console]
 level = "info"
+
+# If infra SVCs need to run with old br
+# [dispatcher.service_addresses]
+# "1-ff00:0:110,CS" = "172.20.0.20:30252"
+# "1-ff00:0:110,DS" = "172.20.0.20:30252"
 
 # Optionally expose metrics and other local inspection endpoints.
 # [metrics]

@@ -34,8 +34,8 @@ type Dataplane interface {
 	CreateIACtx(ia addr.IA) error
 	AddInternalInterface(ia addr.IA, local net.UDPAddr) error
 	AddExternalInterface(localIfID common.IFIDType, info LinkInfo, owned bool) error
-	AddSvc(ia addr.IA, svc addr.SVC, ip net.IP) error
-	DelSvc(ia addr.IA, svc addr.SVC, ip net.IP) error
+	AddSvc(ia addr.IA, svc addr.SVC, a *net.UDPAddr) error
+	DelSvc(ia addr.IA, svc addr.SVC, a *net.UDPAddr) error
 	SetKey(ia addr.IA, index int, key []byte) error
 }
 
@@ -125,6 +125,7 @@ func ConfigDataplane(dp Dataplane, cfg *Config) error {
 			return err
 		}
 	}
+
 	// Add internal interfaces
 	if cfg.BR != nil {
 		if cfg.BR.InternalAddr != nil {
@@ -220,7 +221,7 @@ func confServices(dp Dataplane, cfg *Config) error {
 		return nil
 	}
 	for _, svc := range svcTypes {
-		addrs, err := cfg.Topo.UnderlayMulticast(svc)
+		addrs, err := cfg.Topo.Multicast(svc)
 		if err != nil {
 			// XXX assumption is that any error means there are no addresses for the SVC type
 			continue
@@ -230,7 +231,7 @@ func confServices(dp Dataplane, cfg *Config) error {
 			return addrs[i].IP.String() < addrs[j].IP.String()
 		})
 		for _, a := range addrs {
-			if err := dp.AddSvc(cfg.IA, svc, a.IP); err != nil {
+			if err := dp.AddSvc(cfg.IA, svc, a); err != nil {
 				return err
 			}
 		}

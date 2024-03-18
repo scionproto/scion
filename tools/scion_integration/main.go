@@ -110,7 +110,7 @@ func realMain() int {
 		}
 		log.Info(fmt.Sprintf("Run scion %s tests:", tc.Name))
 		in := integration.NewBinaryIntegration(tc.Name, integration.WrapperCmd, tc.Args, nil)
-		pairs := tc.Pairs(integration.DispAddr)
+		pairs := tc.Pairs(integration.CSAddr)
 		err := integration.RunUnaryTests(in, pairs, integration.DefaultRunTimeout, tc.OutputCheck)
 		if err != nil {
 			log.Error(fmt.Sprintf("Error during scion %s tests", tc.Name), "err", err)

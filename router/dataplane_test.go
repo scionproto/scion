@@ -51,7 +51,13 @@ import (
 	"github.com/scionproto/scion/router/mock_router"
 )
 
-var metrics = router.GetMetrics()
+var (
+	metrics          = router.GetMetrics()
+	srcUDPPort       = 50001
+	dstUDPPort       = 50002
+	EndhostStartPort = 1024
+	endhostEndPort   = 1<<16 - 1
+)
 
 func TestDataPlaneAddInternalInterface(t *testing.T) {
 	internalIP := net.ParseIP("198.51.100.1")
@@ -596,7 +602,8 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil,
+					uint16(EndhostStartPort), uint16(endhostEndPort), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -612,7 +619,7 @@ func TestProcessPkt(t *testing.T) {
 				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
 				ret := toMsg(t, spkt, dpath)
 				if afterProcessing {
-					ret.Addr = &net.UDPAddr{IP: dst.IP().AsSlice(), Port: topology.EndhostPort}
+					ret.Addr = &net.UDPAddr{IP: dst.IP().AsSlice(), Port: dstUDPPort}
 					ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
 				}
 				return ret
@@ -681,7 +688,8 @@ func TestProcessPkt(t *testing.T) {
 					},
 					nil,
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil,
+					uint16(EndhostStartPort), uint16(endhostEndPort), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -720,7 +728,8 @@ func TestProcessPkt(t *testing.T) {
 					},
 					nil,
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil,
+					uint16(EndhostStartPort), uint16(endhostEndPort), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -757,7 +766,8 @@ func TestProcessPkt(t *testing.T) {
 						1: topology.Child,
 					}, nil,
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil,
+					uint16(EndhostStartPort), uint16(endhostEndPort), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -796,7 +806,8 @@ func TestProcessPkt(t *testing.T) {
 					},
 					nil,
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil,
+					uint16(EndhostStartPort), uint16(endhostEndPort), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				// Story: the packet just left segment 0 which ends at
@@ -870,7 +881,8 @@ func TestProcessPkt(t *testing.T) {
 					},
 					nil,
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil,
+					uint16(EndhostStartPort), uint16(endhostEndPort), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				// Story: the packet lands on the last (peering) hop of
@@ -952,7 +964,8 @@ func TestProcessPkt(t *testing.T) {
 					},
 					nil,
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil,
+					uint16(EndhostStartPort), uint16(endhostEndPort), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				// Story: the packet just left hop 1 (the first hop
@@ -1030,7 +1043,8 @@ func TestProcessPkt(t *testing.T) {
 					},
 					nil,
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil,
+					uint16(EndhostStartPort), uint16(endhostEndPort), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				// Story: the packet lands on the second (non-peering) hop of
@@ -1121,7 +1135,8 @@ func TestProcessPkt(t *testing.T) {
 					mock_router.NewMockBatchConn(ctrl),
 					map[uint16]*net.UDPAddr{
 						uint16(3): {IP: net.ParseIP("10.0.200.200").To4(), Port: 30043},
-					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil,
+					uint16(EndhostStartPort), uint16(endhostEndPort), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -1155,7 +1170,8 @@ func TestProcessPkt(t *testing.T) {
 					mock_router.NewMockBatchConn(ctrl),
 					map[uint16]*net.UDPAddr{
 						uint16(3): {IP: net.ParseIP("10.0.200.200").To4(), Port: 30043},
-					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil,
+					uint16(EndhostStartPort), uint16(endhostEndPort), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg(now)
@@ -1207,11 +1223,12 @@ func TestProcessPkt(t *testing.T) {
 						addr.SvcCS: {
 							&net.UDPAddr{
 								IP:   net.ParseIP("10.0.200.200").To4(),
-								Port: topology.EndhostPort,
+								Port: dstUDPPort,
 							},
 						},
 					},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil,
+					uint16(EndhostStartPort), uint16(endhostEndPort), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -1227,7 +1244,7 @@ func TestProcessPkt(t *testing.T) {
 				ret := toMsg(t, spkt, dpath)
 				if afterProcessing {
 					ret.Addr = &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4(),
-						Port: topology.EndhostPort}
+						Port: dstUDPPort}
 					ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
 				}
 				return ret
@@ -1245,13 +1262,13 @@ func TestProcessPkt(t *testing.T) {
 					map[addr.SVC][]*net.UDPAddr{
 						addr.SvcCS: {&net.UDPAddr{
 							IP:   net.ParseIP("172.0.2.10"),
-							Port: topology.EndhostPort,
+							Port: dstUDPPort,
 						}},
 					},
 					xtest.MustParseIA("1-ff00:0:110"),
 					map[uint16]addr.IA{
 						uint16(1): xtest.MustParseIA("1-ff00:0:111"),
-					}, key)
+					}, uint16(EndhostStartPort), uint16(endhostEndPort), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg(now)
@@ -1290,7 +1307,7 @@ func TestProcessPkt(t *testing.T) {
 				ret := toMsg(t, spkt, dpath)
 				ret.Addr = &net.UDPAddr{
 					IP:   net.ParseIP("172.0.2.10"),
-					Port: topology.EndhostPort,
+					Port: dstUDPPort,
 				}
 				ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
 				return ret
@@ -1308,7 +1325,7 @@ func TestProcessPkt(t *testing.T) {
 					xtest.MustParseIA("1-ff00:0:110"),
 					map[uint16]addr.IA{
 						uint16(1): xtest.MustParseIA("1-ff00:0:111"),
-					}, key)
+					}, uint16(EndhostStartPort), uint16(endhostEndPort), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg(now)
@@ -1350,10 +1367,11 @@ func TestProcessPkt(t *testing.T) {
 					map[addr.SVC][]*net.UDPAddr{
 						addr.SvcCS: {&net.UDPAddr{
 							IP:   net.ParseIP("172.0.2.10"),
-							Port: topology.EndhostPort,
+							Port: dstUDPPort,
 						}},
 					},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil,
+					uint16(EndhostStartPort), uint16(endhostEndPort), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg(now)
@@ -1411,7 +1429,7 @@ func TestProcessPkt(t *testing.T) {
 					xtest.MustParseIA("1-ff00:0:110"),
 					map[uint16]addr.IA{
 						uint16(2): xtest.MustParseIA("1-ff00:0:111"),
-					}, key)
+					}, uint16(EndhostStartPort), uint16(endhostEndPort), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg(now)
@@ -1451,7 +1469,8 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil,
+					uint16(EndhostStartPort), uint16(endhostEndPort), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, epicpath, dpath := prepEpicMsg(t,
@@ -1469,7 +1488,8 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil,
+					uint16(EndhostStartPort), uint16(endhostEndPort), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, epicpath, dpath := prepEpicMsg(t,
@@ -1488,7 +1508,8 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil,
+					uint16(EndhostStartPort), uint16(endhostEndPort), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, epicpath, dpath := prepEpicMsg(t,
@@ -1509,7 +1530,8 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					xtest.MustParseIA("1-ff00:0:110"), nil,
+					uint16(EndhostStartPort), uint16(endhostEndPort), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, epicpath, dpath := prepEpicMsg(t,
@@ -1556,9 +1578,13 @@ func toMsg(t *testing.T, spkt *slayers.SCION, dpath path.Path) *ipv4.Message {
 	ret := &ipv4.Message{}
 	spkt.Path = dpath
 	buffer := gopacket.NewSerializeBuffer()
+	scionudpLayer := &slayers.UDP{}
+	scionudpLayer.SrcPort = uint16(srcUDPPort)
+	scionudpLayer.DstPort = uint16(dstUDPPort)
+	scionudpLayer.SetNetworkLayerForChecksum(spkt)
 	payload := []byte("actualpayloadbytes")
 	err := gopacket.SerializeLayers(buffer, gopacket.SerializeOptions{FixLengths: true},
-		spkt, gopacket.Payload(payload))
+		spkt, scionudpLayer, gopacket.Payload(payload))
 	require.NoError(t, err)
 	raw := buffer.Bytes()
 	ret.Buffers = make([][]byte, 1)
@@ -1579,7 +1605,7 @@ func prepBaseMsg(now time.Time) (*slayers.SCION, *scion.Decoded) {
 		DstIA:        xtest.MustParseIA("4-ff00:0:411"),
 		SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
 		Path:         &scion.Raw{},
-		PayloadLen:   18,
+		PayloadLen:   26, // scionudpLayer + len("actualpayloadbytes")
 	}
 
 	dpath := &scion.Decoded{
@@ -1657,7 +1683,7 @@ func toIP(t *testing.T, spkt *slayers.SCION, path path.Path, afterProcessing boo
 	require.NoError(t, spkt.SetDstAddr(dst))
 	ret := toMsg(t, spkt, path)
 	if afterProcessing {
-		ret.Addr = &net.UDPAddr{IP: dst.IP().AsSlice(), Port: topology.EndhostPort}
+		ret.Addr = &net.UDPAddr{IP: dst.IP().AsSlice(), Port: dstUDPPort}
 		ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
 	}
 	return ret

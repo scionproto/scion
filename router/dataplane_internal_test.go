@@ -42,7 +42,11 @@ import (
 	"github.com/scionproto/scion/router/mock_router"
 )
 
-var testKey = []byte("testkey_xxxxxxxx")
+var (
+	testKey          = []byte("testkey_xxxxxxxx")
+	EndhostStartPort = 1024
+	endhostEndPort   = 1<<16 - 1
+)
 
 // TestReceiver sets up a mocked batchConn, starts the receiver that reads from
 // this batchConn and forwards it to the processing routines channels. We verify
@@ -440,8 +444,9 @@ func TestSlowPathProcessing(t *testing.T) {
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"),
-					nil, testKey)
+					xtest.MustParseIA("1-ff00:0:110"), nil,
+					uint16(EndhostStartPort), uint16(endhostEndPort),
+					testKey)
 			},
 			mockMsg: func() []byte {
 				spkt := prepBaseMsg(t, payload, 0)
@@ -465,7 +470,9 @@ func TestSlowPathProcessing(t *testing.T) {
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), nil, testKey)
+					xtest.MustParseIA("1-ff00:0:110"), nil,
+					uint16(EndhostStartPort), uint16(endhostEndPort),
+					testKey)
 			},
 			mockMsg: func() []byte {
 				spkt := prepBaseMsg(t, payload, 0)
@@ -489,7 +496,9 @@ func TestSlowPathProcessing(t *testing.T) {
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), nil, testKey)
+					xtest.MustParseIA("1-ff00:0:110"), nil,
+					uint16(EndhostStartPort), uint16(endhostEndPort),
+					testKey)
 			},
 			mockMsg: func() []byte {
 				spkt := prepBaseMsg(t, payload, 0)

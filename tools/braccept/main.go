@@ -18,23 +18,27 @@ import (
 	"flag"
 	"fmt"
 	"hash"
+	"net"
 	"os"
 	"path/filepath"
 
 	"github.com/google/gopacket/layers"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/private/keyconf"
+	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/tools/braccept/cases"
 	"github.com/scionproto/scion/tools/braccept/runner"
 )
 
 var (
-	bfd        = flag.Bool("bfd", false, "Run BFD tests instead of the common ones")
-	logConsole = flag.String("log.console", "debug", "Console logging level: debug|info|error")
-	dir        = flag.String("artifacts", "", "Artifacts directory")
+	bfd         = flag.Bool("bfd", false, "Run BFD tests instead of the common ones")
+	logConsole  = flag.String("log.console", "debug", "Console logging level: debug|info|error")
+	dir         = flag.String("artifacts", "", "Artifacts directory")
+	endHostPort = 21000
 )
 
 func main() {
@@ -68,6 +72,12 @@ func realMain() int {
 		return 1
 	}
 
+	csAddr, err := loadCSPort(artifactsDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Loading topo failed: %v\n", err)
+		return 1
+	}
+
 	rc, err := runner.NewRunConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Loading devices failed: %v\n", err)
@@ -80,12 +90,12 @@ func realMain() int {
 
 	multi := []runner.Case{
 		cases.ParentToChild(artifactsDir, hfMAC),
-		cases.ParentToInternalHost(artifactsDir, hfMAC),
-		cases.ParentToInternalHostMultiSegment(artifactsDir, hfMAC),
+		cases.ParentToInternalHost(artifactsDir, hfMAC, endHostPort),
+		cases.ParentToInternalHostMultiSegment(artifactsDir, hfMAC, endHostPort),
 		cases.ChildToParent(artifactsDir, hfMAC),
 		cases.ChildToChildXover(artifactsDir, hfMAC),
-		cases.ChildToInternalHost(artifactsDir, hfMAC),
-		cases.ChildToInternalHostShortcut(artifactsDir, hfMAC),
+		cases.ChildToInternalHost(artifactsDir, hfMAC, endHostPort),
+		cases.ChildToInternalHostShortcut(artifactsDir, hfMAC, endHostPort),
 		cases.ChildToInternalParent(artifactsDir, hfMAC),
 		cases.InternalHostToChild(artifactsDir, hfMAC),
 		cases.InternalParentToChild(artifactsDir, hfMAC),
@@ -123,9 +133,9 @@ func realMain() int {
 		cases.SCMPInvalidSrcIAChildToParent(artifactsDir, hfMAC),
 		cases.SCMPInvalidDstIAChildToParent(artifactsDir, hfMAC),
 		cases.NoSCMPReplyForSCMPError(artifactsDir, hfMAC),
-		cases.IncomingOneHop(artifactsDir, hfMAC),
+		cases.IncomingOneHop(artifactsDir, hfMAC, endHostPort),
 		cases.OutgoingOneHop(artifactsDir, hfMAC),
-		cases.SVC(artifactsDir, hfMAC),
+		cases.SVC(artifactsDir, hfMAC, csAddr.Port),
 		cases.JumboPacket(artifactsDir, hfMAC),
 		cases.ChildToPeer(artifactsDir, hfMAC),
 		cases.PeerToChild(artifactsDir, hfMAC),
@@ -163,10 +173,23 @@ func loadKey(artifactsDir string) (hash.Hash, error) {
 	return macGen(), nil
 }
 
+func loadCSPort(artifactsDir string) (*net.UDPAddr, error) {
+	topoPath := filepath.Join(artifactsDir, "conf", "topology.json")
+	topo, err := topology.FromJSONFile(topoPath)
+	if err != nil {
+		return nil, err
+	}
+	csAddr := topo.PublicAddress(addr.SvcCS, "csA")
+	if csAddr == nil {
+		return topo.Anycast(addr.SvcCS)
+	}
+	return csAddr, nil
+}
+
 // registerScionPorts registers the following UDP ports in gopacket such as SCION is the
 // next layer. In other words, map the following ports to expect SCION as the payload.
 func registerScionPorts() {
-	layers.RegisterUDPPortLayerType(layers.UDPPort(30041), slayers.LayerTypeSCION)
+	layers.RegisterUDPPortLayerType(layers.UDPPort(53), slayers.LayerTypeSCION)
 	for i := 30000; i < 30010; i++ {
 		layers.RegisterUDPPortLayerType(layers.UDPPort(i), slayers.LayerTypeSCION)
 	}

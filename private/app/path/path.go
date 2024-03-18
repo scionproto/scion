@@ -143,9 +143,8 @@ func filterUnhealthy(
 		DstIA:                  remote,
 		LocalIA:                cfg.LocalIA,
 		LocalIP:                cfg.LocalIP,
-		ID:                     uint16(rand.Uint32()),
 		SCIONPacketConnMetrics: cfg.SCIONPacketConnMetrics,
-		Dispatcher:             cfg.Dispatcher,
+		CPInfoProvider:         sd,
 	}.GetStatuses(subCtx, nonEmptyPaths, pathprobe.WithEPIC(epic))
 	if err != nil {
 		return nil, serrors.WrapStr("probing paths", err)
@@ -305,9 +304,8 @@ func (cs ColorScheme) Path(path snet.Path) string {
 }
 
 type ProbeConfig struct {
-	LocalIA    addr.IA
-	LocalIP    net.IP
-	Dispatcher string
+	LocalIA addr.IA
+	LocalIP net.IP
 
 	// Metrics injected into Prober.
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics

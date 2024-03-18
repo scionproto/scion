@@ -33,7 +33,7 @@ import (
 )
 
 // SVC tests resolution of SVC addresses.
-func SVC(artifactsDir string, mac hash.Hash) runner.Case {
+func SVC(artifactsDir string, mac hash.Hash, svcResolverPort int) runner.Case {
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
@@ -103,7 +103,7 @@ func SVC(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 	scionudp := &slayers.UDP{}
 	scionudp.SrcPort = 2345
-	scionudp.DstPort = 53
+	scionudp.DstPort = uint16(svcResolverPort)
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")
@@ -125,8 +125,7 @@ func SVC(artifactsDir string, mac hash.Hash) runner.Case {
 	ip.SrcIP = net.IP{192, 168, 0, 11}
 	// CS address from the topology file.
 	ip.DstIP = net.IP{192, 168, 0, 71}
-	// 	UDP: Src=30001 Dst=30041
-	udp.SrcPort, udp.DstPort = 30001, 30041
+	udp.SrcPort, udp.DstPort = 30001, layers.UDPPort(svcResolverPort)
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 
 	if err := gopacket.SerializeLayers(want, options,

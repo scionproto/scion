@@ -18,8 +18,6 @@ go_library(
         "//pkg/snet:go_default_library",
         "//pkg/snet/path:go_default_library",
         "//pkg/snet/squic:go_default_library",
-        "//pkg/sock/reliable:go_default_library",
-        "//pkg/sock/reliable/reconnect:go_default_library",
         "//private/env:go_default_library",
         "//private/svc:go_default_library",
         "//private/trust:go_default_library",

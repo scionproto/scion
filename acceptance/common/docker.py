@@ -61,8 +61,9 @@ class Compose(object):
         for svc in self("config", "--services").splitlines():
             # Collect logs.
             dst_f = out_p / "%s.log" % svc
+            print(svc)
             with open(dst_f, "w") as log_file:
-                cmd.docker.run(args=("logs", svc), stdout=log_file,
+                cmd.docker.run(args=("logs", "scion-"+svc+"-1"), stdout=log_file,
                                stderr=subprocess.STDOUT, retcode=None)
             # Collect coredupms.
             coredump_f = out_p / "%s.coredump" % svc

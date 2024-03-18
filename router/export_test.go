@@ -47,6 +47,8 @@ func NewDP(
 	svc map[addr.SVC][]*net.UDPAddr,
 	local addr.IA,
 	neighbors map[uint16]addr.IA,
+	endhostStartPort uint16,
+	endhostEndPort uint16,
 	key []byte) *DataPlane {
 
 	dp := &DataPlane{
@@ -55,6 +57,8 @@ func NewDP(
 		linkTypes:        linkTypes,
 		neighborIAs:      neighbors,
 		internalNextHops: internalNextHops,
+		endhostStartPort: endhostStartPort,
+		endhostEndPort:   endhostEndPort,
 		svc:              &services{m: svc},
 		internal:         internal,
 		internalIP:       netip.MustParseAddr("198.51.100.1"),

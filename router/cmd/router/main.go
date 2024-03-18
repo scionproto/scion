@@ -71,6 +71,14 @@ func realMain(ctx context.Context) error {
 	if err := iaCtx.Configure(); err != nil {
 		return serrors.WrapStr("configuring dataplane", err)
 	}
+	startPort, endPort := controlConfig.Topo.PortRange()
+	if globalCfg.Router.EndhostStartPort != nil &&
+		globalCfg.Router.EndhostEndPort != nil {
+		startPort = uint16(*globalCfg.Router.EndhostStartPort)
+		endPort = uint16(*globalCfg.Router.EndhostEndPort)
+	}
+	dp.DataPlane.SetPortRange(startPort, endPort)
+	log.Debug("Endhost port range configuration", "startPort", startPort, "endPort", endPort)
 	statusPages := service.StatusPages{
 		"info":      service.NewInfoStatusPage(),
 		"config":    service.NewConfigStatusPage(globalCfg),
