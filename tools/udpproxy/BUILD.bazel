@@ -1,4 +1,7 @@
 load("//tools/lint:go.bzl", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_binary")
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
 
 go_library(
     name = "go_default_library",
@@ -11,8 +14,28 @@ go_library(
     ],
 )
 
-#go_image(
-    # name = "udpproxy",
-    # embed = [":go_default_library"],
-    # visibility = ["//visibility:public"],
-# )
+go_binary(
+    name = "udpproxy",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)
+
+oci_tarball(
+    name = "udpproxy.tar",
+    format = "docker",
+    image = ":udpproxy_image",
+    repo_tags = ["bazel/" + package_name() + ":udpproxy"],
+    visibility = ["//visibility:public"],
+)
+
+oci_image(
+    name = "udpproxy_image",
+    base = "@distroless_base_debian10",
+    entrypoint = [ "/udpproxy" ],
+    tars = [ ":udpproxy_data" ]
+)
+
+pkg_tar(
+    name = "udpproxy_data",
+    srcs = [ ":udpproxy" ]
+)
