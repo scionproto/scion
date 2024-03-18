@@ -85,7 +85,6 @@ go_deps()
 
 gazelle_dependencies()
 
-# XXX Needs to be before rules_docker
 # Python rules
 http_archive(
     name = "rules_python",
