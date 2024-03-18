@@ -14,38 +14,3 @@ sh_test(
         "manual",  # skip this test, it's broken #3935
     ],
 )
-
-# container_image(
-#     name = "udpproxy",
-#     base = "//tools/udpproxy",
-# )
-
-# container_image(
-#     name = "sig1",
-#     base = "//docker:posix_gateway",
-#     cmd = [
-#         "--config",
-#         "/sig.toml",
-#     ],
-#     entrypoint = ["/app/gateway"],
-#     files = [
-#         "testdata/1-ff00_0_110/sig/cfg.json",
-#         "testdata/1-ff00_0_110/sig/fake_sciond.json",
-#         "testdata/1-ff00_0_110/sig/sig.toml",
-#     ],
-# )
-
-# container_image(
-#     name = "sig2",
-#     base = "//docker:posix_gateway",
-#     cmd = [
-#         "--config",
-#         "/sig.toml",
-#     ],
-#     entrypoint = ["/app/gateway"],
-#     files = [
-#         "testdata/1-ff00_0_111/sig/cfg.json",
-#         "testdata/1-ff00_0_111/sig/fake_sciond.json",
-#         "testdata/1-ff00_0_111/sig/sig.toml",
-#     ],
-# )
