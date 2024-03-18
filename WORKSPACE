@@ -103,7 +103,7 @@ python_register_toolchains(
     python_version = "3.10",
 )
 
-load("@python3_10//:defs.bzl", python_interpreter="interpreter")
+load("@python3_10//:defs.bzl", python_interpreter = "interpreter")
 load("//tools/env/pip3:deps.bzl", "python_deps")
 
 python_deps(python_interpreter)
@@ -186,7 +186,9 @@ http_archive(
     strip_prefix = "rules_debian_packages-0.2.0",
     url = "https://github.com/betaboon/rules_debian_packages/releases/download/v0.2.0/rules_debian_packages-v0.2.0.tar.gz",
 )
+
 load("@rules_debian_packages//debian_packages:repositories.bzl", "rules_debian_packages_dependencies")
+
 rules_debian_packages_dependencies(python_interpreter_target = python_interpreter)
 
 load("@rules_debian_packages//debian_packages:defs.bzl", "debian_packages_repository")
@@ -199,6 +201,7 @@ debian_packages_repository(
 )
 
 load("@tester_debian10_packages//:packages.bzl", tester_debian_packages_install_deps = "install_deps")
+
 tester_debian_packages_install_deps()
 
 # protobuf/gRPC

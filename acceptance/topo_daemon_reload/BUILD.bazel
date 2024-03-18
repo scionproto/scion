@@ -35,11 +35,11 @@ oci_tarball(
 oci_image(
     name = "dispatcher_image",
     base = "//docker:dispatcher",
-    entrypoint = ["/app/dispatcher"],
     cmd = [
         "--config",
         "/disp.toml",
     ],
+    entrypoint = ["/app/dispatcher"],
     tars = [
         ":dispatcher_data",
     ],
@@ -61,14 +61,14 @@ oci_tarball(
 oci_image(
     name = "daemon_image",
     base = "//docker:daemon",
-    entrypoint = ["/app/daemon"],
     cmd = [
         "--config",
         "/sd.toml",
     ],
+    entrypoint = ["/app/daemon"],
     tars = [
         ":daemon_data",
-    ]
+    ],
 )
 
 pkg_tar(

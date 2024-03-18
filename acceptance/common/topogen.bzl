@@ -71,9 +71,9 @@ def topogen_test(
         "//docker:router.tar",
     ]
     if tester:
-        docker_images += [ tester ]
+        docker_images += [tester]
     if gateway:
-        docker_images += [ "//docker:gateway.tar" ]
+        docker_images += ["//docker:gateway.tar"]
 
     for tar in docker_images:
         common_data = common_data + [tar]

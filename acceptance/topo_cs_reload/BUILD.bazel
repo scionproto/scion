@@ -48,11 +48,11 @@ oci_tarball(
 oci_image(
     name = "dispatcher_image",
     base = "//docker:dispatcher",
-    entrypoint = ["/app/dispatcher"],
     cmd = [
         "--config",
         "/disp.toml",
     ],
+    entrypoint = ["/app/dispatcher"],
     tars = [
         ":dispatcher_data",
     ],
@@ -74,27 +74,27 @@ oci_tarball(
 oci_image(
     name = "control_image",
     base = "//docker:control",
-    entrypoint = ["/app/control"],
     cmd = [
         "--config",
         "/cs.toml",
     ],
+    entrypoint = ["/app/control"],
     tars = [
         ":control_data",
-    ]
+    ],
 )
 
 pkg_tar(
     name = "control_data",
     srcs = [
-         "testdata/cs.toml",
-         "testdata/tls.key",
-         "testdata/tls.pem",
-         "testdata/topology_reload.json",
-         ":invalid_changed_ip",
-         ":invalid_changed_port",
-         "//acceptance/topo_common:invalid_reloads",
-         "//acceptance/topo_common:topology",
+        "testdata/cs.toml",
+        "testdata/tls.key",
+        "testdata/tls.pem",
+        "testdata/topology_reload.json",
+        ":invalid_changed_ip",
+        ":invalid_changed_port",
+        "//acceptance/topo_common:invalid_reloads",
+        "//acceptance/topo_common:topology",
     ],
 )
 

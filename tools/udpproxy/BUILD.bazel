@@ -24,18 +24,18 @@ oci_tarball(
     name = "udpproxy.tar",
     format = "docker",
     image = ":udpproxy_image",
-    repo_tags = [ "scion/tools/udpproxy:latest" ],
+    repo_tags = ["scion/tools/udpproxy:latest"],
     visibility = ["//visibility:public"],
 )
 
 oci_image(
     name = "udpproxy_image",
     base = "@distroless_base_debian10",
-    entrypoint = [ "/udpproxy" ],
-    tars = [ ":udpproxy_data" ]
+    entrypoint = ["/udpproxy"],
+    tars = [":udpproxy_data"],
 )
 
 pkg_tar(
     name = "udpproxy_data",
-    srcs = [ ":udpproxy" ]
+    srcs = [":udpproxy"],
 )

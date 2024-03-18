@@ -5,19 +5,19 @@ load(":tester.bzl", "scion_tester_image")
 filegroup(
     name = "prod",
     srcs = [
-        ":router.tar",
         ":control.tar",
-        ":dispatcher.tar",
         ":daemon.tar",
+        ":dispatcher.tar",
         ":gateway.tar",
-    ]
+        ":router.tar",
+    ],
 )
 
 filegroup(
     name = "test",
     srcs = [
         ":tester.tar",
-    ]
+    ],
 )
 
 scion_app_base()

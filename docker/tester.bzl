@@ -16,7 +16,7 @@ def scion_tester_image():
             debian_package_layer("telnet"),
             debian_package_layer("tshark"),
             debian_package_layer("wget"),
-        ]
+        ],
     )
 
     pkg_tar(
@@ -52,7 +52,7 @@ def scion_tester_image():
             "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/share/bin",
         },
         workdir = "/share",
-        cmd = [ "tail", "-f", "/dev/null", ],
+        cmd = ["tail", "-f", "/dev/null"],
         tars = [
             ":tester_layer_packages",
             ":tester_layer_share",
@@ -67,6 +67,7 @@ def scion_tester_image():
         image = "tester",
         repo_tags = ["scion/tester:latest"],
     )
+
     # see comment on scion_app.bzl
     native.filegroup(
         name = "tester.tar",

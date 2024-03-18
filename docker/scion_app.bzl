@@ -61,6 +61,7 @@ def scion_app_image(name, src, entrypoint, appdir = "/app", workdir = "/share", 
         cmd = cmd,
         visibility = ["//visibility:public"],
     )
+
     ### XXX(matzf):
     # This oci_tarball rule does two things: with `bazel build` it  _builds_ the tarball, and with `bazel run` it _loads_ it into docker.
     # Weirdly, "$(location //path/name.load)" expands to the shell script to _load_ the tarball but only the actual tarball file is symlinked into the test directories.
@@ -75,6 +76,6 @@ def scion_app_image(name, src, entrypoint, appdir = "/app", workdir = "/share", 
     )
     native.filegroup(
         name = name + ".tar",
-        srcs = [ name + ".load" ],
+        srcs = [name + ".load"],
         visibility = ["//visibility:public"],
     )
