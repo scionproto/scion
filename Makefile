@@ -42,7 +42,7 @@ all: go_deps.bzl protobuf mocks gazelle build-dev antlr write_all_source_files l
 clean:
 	bazel clean
 	rm -f bin/*
-	docker image ls --filter reference='scion/*' --format '{{.ID}}' | xargs --no-run-if-empty docker image rm
+	docker image ls --filter reference='scion/*' --filter reference='scion/*/*' -q | xargs --no-run-if-empty docker image rm
 
 scrub:
 	bazel clean --expunge
