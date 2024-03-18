@@ -1,5 +1,6 @@
-load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("@tester_debian10_packages//:packages.bzl", "debian_package_layer")
 
 def scion_tester_image():
@@ -69,8 +70,9 @@ def scion_tester_image():
     )
 
     # see comment on scion_app.bzl
-    native.filegroup(
-        name = "tester.tar",
-        srcs = ["tester.load"],
+    copy_file(
+        name = "tester.tarball",
+        src = "tester.load",
+        out = "tester.tar",
         visibility = ["//visibility:public"],
     )

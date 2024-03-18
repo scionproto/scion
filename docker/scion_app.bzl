@@ -1,5 +1,6 @@
-load("@rules_pkg//:pkg.bzl", "pkg_tar")
+load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
 
 # Defines a common base image for all app images.
 def scion_app_base():
@@ -41,7 +42,8 @@ def scion_app_base():
 #   cmd - string or list of strings of commands to execute in the image.
 #   caps - capabilities to set on the binary
 #
-# Target {name}.tar is the docker image tarball.
+# Target {name}.tarball is the docker image .tar.
+# Target {name}.load is the runnable target to load this image into docker.
 #
 # Load the image into docker with
 #   bazel run //path:name.load
@@ -65,17 +67,20 @@ def scion_app_image(name, src, entrypoint, appdir = "/app", workdir = "/share", 
     ### XXX(matzf):
     # This oci_tarball rule does two things: with `bazel build` it  _builds_ the tarball, and with `bazel run` it _loads_ it into docker.
     # Weirdly, "$(location //path/name.load)" expands to the shell script to _load_ the tarball but only the actual tarball file is symlinked into the test directories.
-    # I don't know if I deeply messed up, or bazel is just going of the rails here.
-    # As a workaround, pack the whole thing in a filegroup which only keeps the tarball. ugh
+    # This seems quite messed up and useless.
+    # One workaround is to wrap it in a filegroup; this only leaves the desired .tar file.
+    # The filegroups leaves the filename quite ugly though "{name}.load/tarball.tar",
+    # and so, instead, we copy it.
+    copy_file(
+        name = name + ".tarball",
+        src = name + ".load",
+        out = name + ".tar",
+        visibility = ["//visibility:public"],
+    )
     oci_tarball(
         name = name + ".load",
         format = "docker",
         image = name,
         repo_tags = ["scion/" + name + ":latest"],
-        visibility = ["//visibility:public"],
-    )
-    native.filegroup(
-        name = name + ".tar",
-        srcs = [name + ".load"],
         visibility = ["//visibility:public"],
     )

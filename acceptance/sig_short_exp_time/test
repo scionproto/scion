@@ -53,9 +53,9 @@ run_test() {(set -e
     cp -RL acceptance/sig_short_exp_time/* "$tmpdir"
 
     # Register with the docker daemon the docker images bazel created
-    docker image load -i tools/udpproxy/udpproxy.tar/tarball.tar
-    docker image load -i docker/dispatcher.load/tarball.tar
-    docker image load -i docker/gateway.load/tarball.tar
+    docker image load -i tools/udpproxy/udpproxy.tar
+    docker image load -i docker/dispatcher.tar
+    docker image load -i docker/gateway.tar
 
     pushd $tmpdir
     docker compose up -d dispatcher1 dispatcher2 sig1 sig2 patha pathb

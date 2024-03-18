@@ -16,7 +16,7 @@ def topogen_test(
         deps = [],
         data = [],
         homedir = "",
-        tester = "//docker:tester.tar"):
+        tester = "//docker:tester.tarball"):
     """Creates a test based on a topology file.
 
     It creates a target specified by the 'name' argument that runs the entire
@@ -65,15 +65,15 @@ def topogen_test(
         topo,
     ]
     docker_images = [
-        "//docker:control.tar",
-        "//docker:daemon.tar",
-        "//docker:dispatcher.tar",
-        "//docker:router.tar",
+        "//docker:control.tarball",
+        "//docker:daemon.tarball",
+        "//docker:dispatcher.tarball",
+        "//docker:router.tarball",
     ]
     if tester:
         docker_images += [tester]
     if gateway:
-        docker_images += ["//docker:gateway.tar"]
+        docker_images += ["//docker:gateway.tarball"]
 
     for tar in docker_images:
         common_data = common_data + [tar]

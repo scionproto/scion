@@ -174,12 +174,6 @@ oci_pull(
 )
 
 http_archive(
-    name = "rules_multirun",
-    sha256 = "65401fca5163fda99d7f7613a389d79412ccba8749e8aeb9168b857970beb7af",
-    url = "https://github.com/keith/rules_multirun/releases/download/0.8.1/rules_multirun.0.8.1.tar.gz",
-)
-
-http_archive(
     name = "rules_debian_packages",
     sha256 = "0ae3b332f9d894e57693ce900769d2bd1b693e1f5ea1d9cdd82fa4479c93bcc8",
     strip_prefix = "rules_debian_packages-0.2.0",

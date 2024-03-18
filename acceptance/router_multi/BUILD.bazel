@@ -10,7 +10,7 @@ args = [
     "--executable",
     "braccept:$(location //tools/braccept)",
     "--docker-image",
-    "$(location //docker:router.tar)",
+    "$(location //docker:router.tarball)",
     "--pause_tar",
     "$(location //acceptance/router_multi:pause.tar)",
 ]
@@ -18,7 +18,7 @@ args = [
 data = [
     "pause.tar",
     ":conf",
-    "//docker:router.tar",
+    "//docker:router.tarball",
     "//tools/braccept",
 ]
 

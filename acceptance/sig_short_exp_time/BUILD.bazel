@@ -4,9 +4,9 @@ sh_test(
     srcs = ["test"],
     data = [
         "docker-compose.yml",
-        "//docker:dispatcher.tar",
-        "//docker:gateway.tar",
-        "//tools/udpproxy:udpproxy.tar",
+        "//docker:dispatcher.tarball",
+        "//docker:gateway.tarball",
+        "//tools/udpproxy:udpproxy.tarball",
     ] + glob(["testdata/**"]),
     tags = [
         "exclusive",
