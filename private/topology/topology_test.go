@@ -244,31 +244,34 @@ func TestIFInfoMap(t *testing.T) {
 func TestIFInfoMapDeprecatedPublicBind(t *testing.T) {
 	c := MustLoadTopo(t, "testdata/deprecated-public-bind.json")
 	ifm := IfInfoMap{
+		// local: bind IP, public port
 		1: IFInfo{
 			ID:           1,
 			BRName:       "br1-ff00:0:311-1",
 			InternalAddr: netip.MustParseAddrPort("10.1.0.1:0"),
-			Local:        netip.MustParseAddrPort("10.0.0.1:44997"), // bind IP, public port
+			Local:        netip.MustParseAddrPort("10.0.0.1:44997"),
 			Remote:       netip.MustParseAddrPort("192.0.2.2:44998"),
 			IA:           xtest.MustParseIA("1-ff00:0:312"),
 			LinkType:     Parent,
 			MTU:          1472,
 		},
+		// local: bind IP, public port
 		3: IFInfo{
 			ID:           3,
 			BRName:       "br1-ff00:0:311-1",
 			InternalAddr: netip.MustParseAddrPort("10.1.0.1:0"),
-			Local:        netip.MustParseAddrPort("[2001:db8:a0b:12f0::8]:44997"), // bind IP, public port
+			Local:        netip.MustParseAddrPort("[2001:db8:a0b:12f0::8]:44997"),
 			Remote:       netip.MustParseAddrPort("[2001:db8:a0b:12f0::2]:44998"),
 			IA:           xtest.MustParseIA("1-ff00:0:314"),
 			LinkType:     Child,
 			MTU:          4430,
 		},
+		// local: public, no bind
 		8: IFInfo{
 			ID:           8,
 			BRName:       "br1-ff00:0:311-1",
 			InternalAddr: netip.MustParseAddrPort("10.1.0.1:0"),
-			Local:        netip.MustParseAddrPort("192.0.2.2:44997"), // public, no bind
+			Local:        netip.MustParseAddrPort("192.0.2.2:44997"),
 			Remote:       netip.MustParseAddrPort("192.0.2.3:44998"),
 			IA:           xtest.MustParseIA("1-ff00:0:313"),
 			LinkType:     Peer,

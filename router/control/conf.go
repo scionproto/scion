@@ -32,7 +32,7 @@ import (
 // by this controller.
 type Dataplane interface {
 	CreateIACtx(ia addr.IA) error
-	AddInternalInterface(ia addr.IA, local net.UDPAddr) error
+	AddInternalInterface(ia addr.IA, local netip.AddrPort) error
 	AddExternalInterface(localIfID common.IFIDType, info LinkInfo, owned bool) error
 	AddSvc(ia addr.IA, svc addr.SVC, ip net.IP) error
 	DelSvc(ia addr.IA, svc addr.SVC, ip net.IP) error
@@ -128,7 +128,7 @@ func ConfigDataplane(dp Dataplane, cfg *Config) error {
 	// Add internal interfaces
 	if cfg.BR != nil {
 		if cfg.BR.InternalAddr != (netip.AddrPort{}) {
-			if err := dp.AddInternalInterface(cfg.IA, *net.UDPAddrFromAddrPort(cfg.BR.InternalAddr)); err != nil {
+			if err := dp.AddInternalInterface(cfg.IA, cfg.BR.InternalAddr); err != nil {
 				return err
 			}
 		}

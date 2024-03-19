@@ -16,6 +16,7 @@ package router
 
 import (
 	"net"
+	"net/netip"
 	"sync"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -57,23 +58,24 @@ func (c *Connector) CreateIACtx(ia addr.IA) error {
 }
 
 // AddInternalInterface adds the internal interface.
-func (c *Connector) AddInternalInterface(ia addr.IA, local net.UDPAddr) error {
+func (c *Connector) AddInternalInterface(ia addr.IA, local netip.AddrPort) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	log.Debug("Adding internal interface", "isd_as", ia, "local", local)
 	if !c.ia.Equal(ia) {
 		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
 	}
-	connection, err := conn.New(&local, nil,
+	localU := net.UDPAddrFromAddrPort(local)
+	connection, err := conn.New(localU, nil,
 		&conn.Config{ReceiveBufferSize: c.ReceiveBufferSize, SendBufferSize: c.SendBufferSize})
 	if err != nil {
 		return err
 	}
 	c.internalInterfaces = append(c.internalInterfaces, control.InternalInterface{
 		IA:   ia,
-		Addr: &local,
+		Addr: localU,
 	})
-	return c.DataPlane.AddInternalInterface(connection, local.IP)
+	return c.DataPlane.AddInternalInterface(connection, local.Addr())
 }
 
 // AddExternalInterface adds a link between the local and remote address.

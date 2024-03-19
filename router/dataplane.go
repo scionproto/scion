@@ -206,7 +206,7 @@ func (d *DataPlane) SetKey(key []byte) error {
 // send/receive traffic in the local AS. This can only be called once; future
 // calls will return an error. This can only be called on a not yet running
 // dataplane.
-func (d *DataPlane) AddInternalInterface(conn BatchConn, ip net.IP) error {
+func (d *DataPlane) AddInternalInterface(conn BatchConn, ip netip.Addr) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.running {
@@ -223,11 +223,7 @@ func (d *DataPlane) AddInternalInterface(conn BatchConn, ip net.IP) error {
 	}
 	d.interfaces[0] = conn
 	d.internal = conn
-	var ok bool
-	d.internalIP, ok = netip.AddrFromSlice(ip)
-	if !ok {
-		return serrors.New("invalid ip", "ip", ip)
-	}
+	d.internalIP = ip
 	return nil
 }
 
