@@ -131,7 +131,7 @@ var (
 	noSVCBackend                  = errors.New("cannot find internal IP for the SVC")
 	unsupportedPathType           = errors.New("unsupported path type")
 	unsupportedPathTypeNextHeader = errors.New("unsupported combination")
-	noBFDSessionFound             = errors.New("no BFD sessions was found")
+	noBFDSessionFound             = errors.New("no BFD session was found")
 	noBFDSessionConfigured        = errors.New("no BFD sessions have been configured")
 	errBFDDisabled                = errors.New("BFD is disabled")
 	errPeeringEmptySeg0           = errors.New("zero-length segment[0] in peering path")

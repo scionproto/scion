@@ -48,9 +48,8 @@ func TestLoadRawFromFile(t *testing.T) {
 				Interfaces: map[common.IFIDType]*jsontopo.BRInterface{
 					91: {
 						Underlay: jsontopo.Underlay{
-							Public: "192.0.2.1:4997",
+							Local:  "192.0.2.1:4997",
 							Remote: "192.0.2.2:4998",
-							Bind:   "10.0.0.1",
 						},
 						IA:     "6-ff00:0:363",
 						LinkTo: "CORE",
@@ -68,9 +67,8 @@ func TestLoadRawFromFile(t *testing.T) {
 				Interfaces: map[common.IFIDType]*jsontopo.BRInterface{
 					32: {
 						Underlay: jsontopo.Underlay{
-							Public: "[2001:db8:a0b:12f0::1]:4997",
+							Local:  "[2001:db8:a0b:12f0::1]:4997",
 							Remote: "[2001:db8:a0b:12f0::2]:4998",
-							Bind:   "2001:db8:a0b:12f0::8",
 						},
 						IA:     "6-ff00:0:364",
 						LinkTo: "CHILD",

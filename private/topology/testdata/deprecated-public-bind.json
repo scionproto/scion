@@ -1,0 +1,42 @@
+{
+  "isd_as": "1-ff00:0:311",
+  "mtu": 1472,
+  "attributes": [],
+  "border_routers": {
+    "br1-ff00:0:311-1": {
+      "internal_addr": "10.1.0.1:0",
+      "interfaces": {
+        "1": {
+          "underlay": {
+            "public": "192.0.2.1:44997",
+            "remote": "192.0.2.2:44998",
+            "bind": "10.0.0.1"
+          },
+          "isd_as": "1-ff00:0:312",
+          "link_to": "PARENT",
+          "mtu": 1472
+        },
+        "3": {
+          "underlay": {
+            "public": "[2001:db8:a0b:12f0::1]:44997",
+            "remote": "[2001:db8:a0b:12f0::2]:44998",
+            "bind": "2001:db8:a0b:12f0::8"
+          },
+          "isd_as": "1-ff00:0:314",
+          "link_to": "CHILD",
+          "mtu": 4430
+        },
+        "8": {
+          "underlay": {
+            "public": "192.0.2.2:44997",
+            "remote": "192.0.2.3:44998"
+          },
+          "isd_as": "1-ff00:0:313",
+          "link_to": "PEER",
+          "mtu": 1480
+        }
+      }
+    }
+  }
+}
+

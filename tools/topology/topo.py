@@ -294,12 +294,12 @@ class TopoGenerator(object):
     def _gen_br_entry(self, local, l_ifid, remote, r_ifid, remote_type, attrs,
                       local_br, remote_br, addr_type):
         link_addr_type = addr_type_from_underlay(attrs.get('underlay', DEFAULT_UNDERLAY))
-        public_addr, remote_addr = self._reg_link_addrs(local_br, remote_br, l_ifid,
-                                                        r_ifid, link_addr_type)
+        local_addr, remote_addr = self._reg_link_addrs(local_br, remote_br, l_ifid,
+                                                       r_ifid, link_addr_type)
 
         intl_addr = self._reg_addr(local, local_br + "_internal", addr_type)
 
-        intf = self._gen_br_intf(remote, r_ifid, public_addr, remote_addr, attrs, remote_type)
+        intf = self._gen_br_intf(remote, r_ifid, local_addr, remote_addr, attrs, remote_type)
 
         if self.topo_dicts[local]["border_routers"].get(local_br) is None:
             intl_port = 30042
@@ -316,11 +316,11 @@ class TopoGenerator(object):
             # There is already a BR entry, add interface
             self.topo_dicts[local]["border_routers"][local_br]['interfaces'][l_ifid] = intf
 
-    def _gen_br_intf(self, remote, r_ifid, public_addr, remote_addr, attrs, remote_type):
+    def _gen_br_intf(self, remote, r_ifid, local_addr, remote_addr, attrs, remote_type):
         link_to = remote_type.name.lower()
         intf = {
             'underlay': {
-                'public': join_host_port(public_addr.ip, SCION_ROUTER_PORT),
+                'local': join_host_port(local_addr.ip, SCION_ROUTER_PORT),
                 'remote': join_host_port(remote_addr.ip, SCION_ROUTER_PORT),
             },
             'isd_as': str(remote),
