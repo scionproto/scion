@@ -40,6 +40,7 @@ oci_image(
     base = "@distroless_base_debian10",
     entrypoint = ["/udpproxy"],
     tars = [":udpproxy_data"],
+    labels = "//docker:labels",
 )
 
 pkg_tar(

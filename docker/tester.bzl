@@ -60,6 +60,7 @@ def scion_tester_image():
             ":tester_layer_tools_integration",
             ":tester_layer_bin",
         ],
+        labels = ":labels",
         visibility = ["//visibility:public"],
     )
     oci_tarball(

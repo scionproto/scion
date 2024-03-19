@@ -29,6 +29,7 @@ def scion_app_base():
             "//licenses:licenses",
             ":share_dirs_layer",
         ],
+        labels = ":labels",
         visibility = ["//visibility:public"],
     )
 
