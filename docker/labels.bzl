@@ -12,10 +12,11 @@ def scion_labels():
         name = "labels",
         out = "labels.txt",
         stamp_substitutions = {
-        "MAYBE_VERSION": "org.scion.version=v{{STABLE_GIT_VERSION}}\n"},
+            "MAYBE_VERSION": "org.scion.version=v{{STABLE_GIT_VERSION}}\n",
+        },
         substitutions = {"MAYBE_VERSION": ""},
         template = "labels_tmpl",
-        visibility = [ "//visibility:public" ],
+        visibility = ["//visibility:public"],
     )
 
     write_file(
@@ -25,6 +26,6 @@ def scion_labels():
             "org.scion=_",
             "MAYBE_VERSION",
         ],
-        visibility = [ "//visibility:private" ],
+        visibility = ["//visibility:private"],
         tags = ["manual"],
     )
