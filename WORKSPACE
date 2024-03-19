@@ -177,7 +177,7 @@ http_archive(
     name = "rules_debian_packages",
     sha256 = "0ae3b332f9d894e57693ce900769d2bd1b693e1f5ea1d9cdd82fa4479c93bcc8",
     strip_prefix = "rules_debian_packages-0.2.0",
-    url = "https://github.com/betaboon/rules_debian_packages/releases/download/v0.2.0/rules_debian_packages-v0.2.0.tar.gz",
+    url = "https://github.com/bazel-contrib/rules_debian_packages/releases/download/v0.2.0/rules_debian_packages-v0.2.0.tar.gz",
 )
 
 load("@rules_debian_packages//debian_packages:repositories.bzl", "rules_debian_packages_dependencies")
