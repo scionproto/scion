@@ -265,18 +265,22 @@ of the individual fields below.
             The IP or hostname can be ommitted; in this case the router will just bind to a wildcard
             address.
 
-         .. option:: public = <ip|hostname>:<port>, **deprecated**
+         .. option:: public = <ip|hostname>:<port>, deprecated
 
             The IP/UDP address of this router interface.
 
-            Deprecated:
+            .. admonition:: Deprecated
+               :class: caution
+
                Replaced by :option:`underlay.local <topology-json local>`.
 
-         .. option:: bind = <ip>, **deprecated**
+         .. option:: bind = <ip>, deprecated
 
             IP address of this router interface. Overrides IP of :option:`underlay.public <topology-json public>`.
 
-            Deprecated:
+            .. admonition:: Deprecated
+               :class: caution
+
                Replaced by :option:`underlay.local <topology-json local>`.
 
       .. option:: bfd, optional
