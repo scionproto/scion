@@ -21,6 +21,7 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/gopacket/layers"
 	"github.com/mdlayher/arp"
@@ -215,6 +216,10 @@ func InitInterfaces(pairs []string) []string {
 		if err != nil {
 			panic(err)
 		}
+		err = arpClient.SetReadDeadline(time.Now().Add(5 * time.Second))
+		if err != nil {
+			panic(err)
+		}
 		subjectMAC, err := arpClient.Resolve(subjectIP)
 		if err != nil {
 			panic(err)
@@ -226,6 +231,10 @@ func InitInterfaces(pairs []string) []string {
 
 		// Respond to arp requests so there's no need to add a static arp entry on the router
 		// side. We can't assign our address to the interface, so the kernel won't do that for us.
+		err = arpClient.SetReadDeadline(time.Time{})
+		if err != nil {
+			panic(err)
+		}
 		go func() {
 			defer log.HandlePanic()
 			// We only respond to the subject, so the reply is always the same.

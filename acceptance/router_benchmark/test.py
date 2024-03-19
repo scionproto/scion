@@ -60,14 +60,16 @@ def mac_for_ip(ip: str) -> str:
     ipBytes = ip.split(".")
     return "f0:0d:ca:fe:{:02x}:{:02x}".format(int(ipBytes[2]), int(ipBytes[3]))
 
+
 # Do not use this for anything besides this test :-)
-def bcast_for_ip(ip:str, preflen:int) -> str:
+def bcast_for_ip(ip: str, preflen: int) -> str:
     addrbytes = [int(s) for s in ip.split(".")]
     numaddr = int.from_bytes(addrbytes, byteorder="big", signed=False)
     mask = 0xffffffff >> preflen
     numbcast = numaddr | mask
     bcastbytes = numbcast.to_bytes(length=4, byteorder="big", signed=False)
     return ".".join([str(b) for b in bcastbytes])
+
 
 def choose_cpus_from_unshared_cache(caches: list[int], cores: list[int]) -> list[int]:
     """Picks the cpus that the test must use.
