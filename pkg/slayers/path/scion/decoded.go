@@ -19,13 +19,6 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path"
 )
 
-const (
-	// MaxINFs is the maximum number of info fields in a SCION path.
-	MaxINFs = 3
-	// MaxHops is the maximum number of hop fields in a SCION path.
-	MaxHops = 64
-)
-
 // Decoded implements the SCION (data-plane) path type. Decoded is intended to be used in
 // non-performance critical code paths, where the convenience of having a fully parsed path trumps
 // the loss of performance.

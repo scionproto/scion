@@ -42,6 +42,7 @@ all: go_deps.bzl protobuf mocks gazelle build-dev antlr write_all_source_files l
 clean:
 	bazel clean
 	rm -f bin/*
+	docker image ls --filter label=org.scion -q | xargs --no-run-if-empty docker image rm
 
 scrub:
 	bazel clean --expunge
@@ -63,10 +64,10 @@ go_deps.bzl: go.mod
 	@sed -e '/def go_deps/,$${/^$$/d}' -i go_deps.bzl
 
 docker-images:
-	@echo "Build perapp images"
-	bazel run //docker:prod
-	@echo "Build scion tester"
-	bazel run //docker:test
+	@echo "Build images"
+	bazel build //docker:prod //docker:test
+	@echo "Load images"
+	@bazel cquery '//docker:prod union //docker:test' --output=files 2>/dev/null | xargs -I{} docker load --input {}
 
 scion-topo:
 	bazel build //:scion-topo

@@ -97,13 +97,12 @@ class RouterTest(base.TestBase):
         if self.bfd:
             exec_docker(f"run -v {self.artifacts}/conf:/etc/scion -d "
                         "--network container:pause --name router "
-                        "bazel/acceptance/router_multi:router")
+                        "scion/router:latest")
         else:
             exec_docker(f"run -v {self.artifacts}/conf:/etc/scion -d "
                         "--network container:pause --name router "
-                        "bazel/acceptance/router_multi:router "
+                        "scion/router:latest "
                         "--config /etc/scion/router_nobfd.toml")
-
         time.sleep(1)
 
     def _run(self):

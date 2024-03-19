@@ -142,7 +142,7 @@ class DockerGenerator(object):
 
     def _br_conf(self, topo_id, topo, base):
         for k, _ in topo.get("border_routers", {}).items():
-            image = docker_image(self.args, 'posix-router')
+            image = docker_image(self.args, 'router')
             entry = {
                 'image': image,
                 'networks': {},
