@@ -16,14 +16,14 @@ def topogen_test(
         deps = [],
         data = [],
         homedir = "",
-        tester = "//docker:tester"):
+        tester = "//docker:tester.tarball"):
     """Creates a test based on a topology file.
 
     It creates a target specified by the 'name' argument that runs the entire
     test. Additionally, It creates <name>_setup, <name>_run and <name>_teardown
     targets that allow to run the test in stages.
 
-    Args:
+    Args:cc
         name: name of the test
         src: the source code of the test
         topo: the topology (.topo) file to use for the test
@@ -64,11 +64,20 @@ def topogen_test(
         "//tools:await_connectivity",
         topo,
     ]
-    loaders = container_loaders(tester, gateway)
-    for tag in loaders:
-        loader = loaders[tag]
-        common_data = common_data + ["%s" % loader]
-        common_args = common_args + ["--container-loader=%s#$(location %s)" % (tag, loader)]
+    docker_images = [
+        "//docker:control.tarball",
+        "//docker:daemon.tarball",
+        "//docker:dispatcher.tarball",
+        "//docker:router.tarball",
+    ]
+    if tester:
+        docker_images += [tester]
+    if gateway:
+        docker_images += ["//docker:gateway.tarball"]
+
+    for tar in docker_images:
+        common_data = common_data + [tar]
+        common_args = common_args + ["--docker-image=$(location %s)" % tar]
 
     py_binary(
         name = "%s_setup" % name,
@@ -114,15 +123,3 @@ def topogen_test(
             "HOME": homedir,
         },
     )
-
-def container_loaders(tester, gateway):
-    images = {
-        "control:latest": "//docker:control",
-        "daemon:latest": "//docker:daemon",
-        "dispatcher:latest": "//docker:dispatcher",
-        "tester:latest": tester,
-        "posix-router:latest": "//docker:posix_router",
-    }
-    if gateway:
-        images["posix-gateway:latest"] = "//docker:posix_gateway"
-    return images

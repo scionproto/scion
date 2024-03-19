@@ -23,6 +23,7 @@ from topology.util import write_file
 from topology.common import (
     ArgsBase,
     json_default,
+    docker_image,
     sciond_name,
     SD_API_PORT,
     SIG_CONFIG_NAME,
@@ -69,8 +70,7 @@ class SIGGenerator(object):
     def _dispatcher_conf(self, topo_id, base):
         # Create dispatcher config
         entry = {
-            'image':
-            'dispatcher',
+            'image': docker_image(self.args, 'dispatcher'),
             'depends_on': {
                 'utils_chowner': {
                     'condition': 'service_started'
@@ -104,15 +104,14 @@ class SIGGenerator(object):
         setup_name = 'sig_setup_%s' % topo_id.file_fmt()
         disp_id = 'disp_sig_%s' % topo_id.file_fmt()
         self.dc_conf['services'][setup_name] = {
-            'image': 'tester:latest',
+            'image': docker_image(self.args, 'tester'),
             'depends_on': [disp_id],
             'entrypoint': './sig_setup.sh',
             'privileged': True,
             'network_mode': 'service:%s' % disp_id,
         }
         self.dc_conf['services']['sig_%s' % topo_id.file_fmt()] = {
-            'image':
-            'posix-gateway:latest',
+            'image': docker_image(self.args, 'gateway'),
             'depends_on': [
                 disp_id,
                 sciond_name(topo_id),
@@ -122,10 +121,6 @@ class SIGGenerator(object):
                 'SCION_EXPERIMENTAL_GATEWAY_PATH_UPDATE_INTERVAL': '1s',
             },
             'cap_add': ['NET_ADMIN'],
-            # XXX(matzf): running as root; it _should_ work running as unprivileged user. The
-            # gateway is a setcap binary and that should suffice. It does work on Ubuntu,
-            # but on the RHEL machines in in CI it simply doesn't. Needs to be investigated & fixed.
-            #  'user': self.user,
             'volumes': [
                 self._disp_vol(topo_id),
                 '/dev/net/tun:/dev/net/tun',

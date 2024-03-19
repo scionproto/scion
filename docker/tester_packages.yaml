@@ -1,0 +1,22 @@
+- distros: ["debian10"]
+  archs: ["amd64", "arm64"]
+  packages:
+    - bridge-utils
+    - iperf3
+    - iptables
+    - netcat-openbsd
+    - openssh-server
+    - openssh-client
+    - procps
+    - telnet
+    - tshark
+    - wget
+  exclude_packages:
+    # generally excluded from distroless
+    - debconf
+    - debconf-2.0
+    - dpkg
+    - install-info
+    - debianutils
+    - media-types
+    - mime-support

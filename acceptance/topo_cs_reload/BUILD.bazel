@@ -1,5 +1,6 @@
 load("//tools/lint:go.bzl", "go_test")
-load("@io_bazel_rules_docker//container:container.bzl", "container_image")
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
 
 go_test(
     name = "go_default_test",
@@ -28,7 +29,6 @@ go_test(
         "integration",
     ],
     deps = [
-        "//pkg/private/xtest:go_default_library",
         "//private/topology:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
@@ -36,26 +36,56 @@ go_test(
     ],
 )
 
-container_image(
-    name = "dispatcher",
+# dispatcher container
+oci_tarball(
+    name = "dispatcher.tar",
+    format = "docker",
+    image = ":dispatcher_image",
+    repo_tags = ["scion/" + package_name() + ":dispatcher"],
+)
+
+oci_image(
+    name = "dispatcher_image",
     base = "//docker:dispatcher",
     cmd = [
         "--config",
         "/disp.toml",
     ],
     entrypoint = ["/app/dispatcher"],
-    files = ["testdata/disp.toml"],
+    tars = [
+        ":dispatcher_data",
+    ],
 )
 
-container_image(
-    name = "control",
+pkg_tar(
+    name = "dispatcher_data",
+    srcs = ["testdata/disp.toml"],
+)
+
+# control container
+oci_tarball(
+    name = "control.tar",
+    format = "docker",
+    image = ":control_image",
+    repo_tags = ["scion/" + package_name() + ":control"],
+)
+
+oci_image(
+    name = "control_image",
     base = "//docker:control",
     cmd = [
         "--config",
         "/cs.toml",
     ],
     entrypoint = ["/app/control"],
-    files = [
+    tars = [
+        ":control_data",
+    ],
+)
+
+pkg_tar(
+    name = "control_data",
+    srcs = [
         "testdata/cs.toml",
         "testdata/tls.key",
         "testdata/tls.pem",

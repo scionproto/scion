@@ -381,7 +381,7 @@ class RouterBMTest(base.TestBase):
                "--network", "container:prometheus",
                "--name", "router",
                "--cpuset-cpus", ",".join(map(str, self.router_cpus)),
-               "posix-router:latest")
+               "scion/router:latest")
 
         time.sleep(2)
 
