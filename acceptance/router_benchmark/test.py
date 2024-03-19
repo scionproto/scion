@@ -60,6 +60,14 @@ def mac_for_ip(ip: str) -> str:
     ipBytes = ip.split(".")
     return "f0:0d:ca:fe:{:02x}:{:02x}".format(int(ipBytes[2]), int(ipBytes[3]))
 
+# Do not use this for anything besides this test :-)
+def bcast_for_ip(ip:str, preflen:int) -> str:
+    addrbytes = [int(s) for s in ip.split(".")]
+    numaddr = int.from_bytes(addrbytes, byteorder="big", signed=False)
+    mask = 0xffffffff >> preflen
+    numbcast = numaddr | mask
+    bcastbytes = numbcast.to_bytes(length=4, byteorder="big", signed=False)
+    return ".".join([str(b) for b in bcastbytes])
 
 def choose_cpus_from_unshared_cache(caches: list[int], cores: list[int]) -> list[int]:
     """Picks the cpus that the test must use.
@@ -315,6 +323,7 @@ class RouterBMTest(base.TestBase):
             # Do not assign the host addresses but create one link-local addr.
             # Brload needs some src IP to send arp requests.
             sudo("ip", "addr", "add", f"169.254.{randint(0, 255)}.{randint(0, 255)}/16",
+                 "broadcast", "169.254.255.255",
                  "dev", hostIntf, "scope", "link")
 
             sudo("sysctl", "-qw", f"net.ipv6.conf.{hostIntf}.disable_ipv6=1")
@@ -329,7 +338,8 @@ class RouterBMTest(base.TestBase):
 
         # Add the router side IP addresses (even if we're multiplexing on an existing interface).
         sudo("ip", "netns", "exec", ns,
-             "ip", "addr", "add", f"{req.ip}/{req.prefixLen}", "dev", brIntf)
+             "ip", "addr", "add", f"{req.ip}/{req.prefixLen}", "broadcast",
+             bcast_for_ip(req.ip, int(req.prefixLen)), "dev", brIntf)
 
         # Fit for duty.
         sudo("ip", "link", "set", hostIntf, "up")
