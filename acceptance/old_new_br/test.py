@@ -2,11 +2,8 @@
 
 # Copyright 2023 ETH Zurich
 
-import time
-
 from acceptance.common import base
 from acceptance.common import scion
-# from plumbum import local
 
 
 class Test(base.TestTopogen):
@@ -45,7 +42,7 @@ class Test(base.TestTopogen):
 
     def setup_start(self):
         super().setup_start()
-        time.sleep(10)  # TODO(JordiSubira): Replace with self.await_connectivity() after rebasing
+        self.await_connectivity()
 
     def _run(self):
         ping_test = self.get_executable("end2end_integration")
