@@ -75,7 +75,7 @@ emu.addLayer(scion)
 emu.render()
 
 # Compilation
-emu.compile(Docker(), './output')
+emu.compile(Docker(internetMapEnabled=True), './output')
 """
 
         write_file(os.path.join(self.args.output_dir, SEED_CONF), self.out_file)
@@ -114,7 +114,7 @@ emu.compile(Docker(), './output')
             code += f"""
 # AS-{as_num}
 as{as_num} = base.createAutonomousSystem({as_num})
-scion_isd().addIsdAs({isd_num},{as_num},is_core={is_core})
+scion_isd.addIsdAs({isd_num},{as_num},is_core={is_core})
 """         
             # set cert Issuer if not core AS
             if not is_core:
@@ -125,8 +125,12 @@ scion_isd().addIsdAs({isd_num},{as_num},is_core={is_core})
             code += f"as{as_num}.createNetwork('net0')\n"
             # create control Service
             code += f"as{as_num}.createControlService('cs_1').joinNetwork('net0')\n"
-            # create border router
-
+            # create routers
+            border_routers = self.args.topo_dicts[As]["border_routers"]
+            for router in border_routers:
+                br_name = "br" + router.split('-')[2]
+                code += f"as_{as_num}_{br_name}.createRouter('{br_name}').joinNetwork('net0')\n"
+            
         code += "\n\n"
         return code
 
