@@ -329,7 +329,6 @@ class RouterBMTest(base.TestBase):
                  "dev", hostIntf, "scope", "link")
 
             sudo("sysctl", "-qw", f"net.ipv6.conf.{hostIntf}.disable_ipv6=1")
-            sudo("sysctl", "-qw", f"net.ipv4.conf.{hostIntf}.rp_filter=0")
             sudo("ethtool", "-K", brIntf, "rx", "off", "tx", "off")
             sudo("ip", "link", "set", brIntf, "mtu", "8000")
             sudo("ip", "link", "set", brIntf, "address", mac)
@@ -338,6 +337,8 @@ class RouterBMTest(base.TestBase):
             sudo("ip", "link", "set", brIntf, "netns", ns)
             sudo("ip", "netns", "exec", ns,
                  "sysctl", "-qw", f"net.ipv6.conf.{brIntf}.disable_ipv6=1")
+            sudo("ip", "netns", "exec", ns,
+                 "sysctl", "-qw", f"net.ipv4.conf.all.rp_filter=0")
             sudo("ip", "netns", "exec", ns,
                  "sysctl", "-qw", f"net.ipv4.conf.{brIntf}.rp_filter=0")
 
