@@ -16,6 +16,7 @@ package topology_test
 
 import (
 	"net"
+	"net/netip"
 	"testing"
 	"time"
 
@@ -203,14 +204,18 @@ func TestRouterValidatorValidate(t *testing.T) {
 		"self immutable": {
 			loadOld: defaultTopo,
 			loadNew: topoWithModification(t, func(topo *topology.RWTopology) {
-				topo.BR[id].InternalAddr.Port = 42
+				brInfo := topo.BR[id]
+				brInfo.InternalAddr = netip.AddrPortFrom(brInfo.InternalAddr.Addr(), 42)
+				topo.BR[id] = brInfo
 			}),
 			assertErr: assert.Error,
 		},
 		"other mutable": {
 			loadOld: defaultTopo,
 			loadNew: topoWithModification(t, func(topo *topology.RWTopology) {
-				topo.BR[other].InternalAddr.Port = 42
+				brInfo := topo.BR[other]
+				brInfo.InternalAddr = netip.AddrPortFrom(brInfo.InternalAddr.Addr(), 42)
+				topo.BR[other] = brInfo
 			}),
 			assertErr: assert.NoError,
 		},

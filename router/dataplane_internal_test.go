@@ -76,7 +76,7 @@ func TestReceiver(t *testing.T) {
 		},
 	).Times(1)
 
-	_ = dp.AddInternalInterface(mInternal, net.IP{})
+	_ = dp.AddInternalInterface(mInternal, netip.Addr{})
 
 	runConfig := &RunConfig{
 		NumProcessors: 1,
@@ -168,7 +168,7 @@ func TestForwarder(t *testing.T) {
 
 				return len(ms), nil
 			}).AnyTimes()
-		_ = ret.AddInternalInterface(mInternal, net.IP{})
+		_ = ret.AddInternalInterface(mInternal, netip.Addr{})
 		return ret
 	}
 	dp := prepareDP(ctrl)

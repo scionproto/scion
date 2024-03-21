@@ -127,7 +127,7 @@ var (
 	noSVCBackend                  = errors.New("cannot find internal IP for the SVC")
 	unsupportedPathType           = errors.New("unsupported path type")
 	unsupportedPathTypeNextHeader = errors.New("unsupported combination")
-	noBFDSessionFound             = errors.New("no BFD sessions was found")
+	noBFDSessionFound             = errors.New("no BFD session was found")
 	noBFDSessionConfigured        = errors.New("no BFD sessions have been configured")
 	errPeeringEmptySeg0           = errors.New("zero-length segment[0] in peering path")
 	errPeeringEmptySeg1           = errors.New("zero-length segment[1] in peering path")
@@ -201,7 +201,7 @@ func (d *DataPlane) SetKey(key []byte) error {
 // send/receive traffic in the local AS. This can only be called once; future
 // calls will return an error. This can only be called on a not yet running
 // dataplane.
-func (d *DataPlane) AddInternalInterface(conn BatchConn, ip net.IP) error {
+func (d *DataPlane) AddInternalInterface(conn BatchConn, ip netip.Addr) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.running {
@@ -218,11 +218,7 @@ func (d *DataPlane) AddInternalInterface(conn BatchConn, ip net.IP) error {
 	}
 	d.interfaces[0] = conn
 	d.internal = conn
-	var ok bool
-	d.internalIP, ok = netip.AddrFromSlice(ip)
-	if !ok {
-		return serrors.New("invalid ip", "ip", ip)
-	}
+	d.internalIP = ip
 	return nil
 }
 

@@ -17,6 +17,7 @@ package control
 import (
 	"crypto/sha256"
 	"net"
+	"net/netip"
 	"sort"
 
 	"golang.org/x/crypto/pbkdf2"
@@ -24,7 +25,6 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/topology"
 )
 
@@ -32,7 +32,7 @@ import (
 // by this controller.
 type Dataplane interface {
 	CreateIACtx(ia addr.IA) error
-	AddInternalInterface(ia addr.IA, local net.UDPAddr) error
+	AddInternalInterface(ia addr.IA, local netip.AddrPort) error
 	AddExternalInterface(localIfID common.IFIDType, info LinkInfo, owned bool) error
 	AddSvc(ia addr.IA, svc addr.SVC, ip net.IP) error
 	DelSvc(ia addr.IA, svc addr.SVC, ip net.IP) error
@@ -130,8 +130,8 @@ func ConfigDataplane(dp Dataplane, cfg *Config) error {
 	}
 	// Add internal interfaces
 	if cfg.BR != nil {
-		if cfg.BR.InternalAddr != nil {
-			if err := dp.AddInternalInterface(cfg.IA, *cfg.BR.InternalAddr); err != nil {
+		if cfg.BR.InternalAddr != (netip.AddrPort{}) {
+			if err := dp.AddInternalInterface(cfg.IA, cfg.BR.InternalAddr); err != nil {
 				return err
 			}
 		}
@@ -177,12 +177,12 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 		linkInfo := LinkInfo{
 			Local: LinkEnd{
 				IA:   cfg.IA,
-				Addr: snet.CopyUDPAddr(iface.Local),
+				Addr: net.UDPAddrFromAddrPort(iface.Local),
 				IFID: iface.ID,
 			},
 			Remote: LinkEnd{
 				IA:   iface.IA,
-				Addr: snet.CopyUDPAddr(iface.Remote),
+				Addr: net.UDPAddrFromAddrPort(iface.Remote),
 				IFID: iface.RemoteIFID,
 			},
 			Instance: iface.BRName,
@@ -198,8 +198,8 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 			// When setting up external interfaces that belong to other routers in the AS, they
 			// are basically IP/UDP tunnels between the two border routers, and as such is
 			// configured in the data plane.
-			linkInfo.Local.Addr = snet.CopyUDPAddr(cfg.BR.InternalAddr)
-			linkInfo.Remote.Addr = snet.CopyUDPAddr(iface.InternalAddr)
+			linkInfo.Local.Addr = net.UDPAddrFromAddrPort(cfg.BR.InternalAddr)
+			linkInfo.Remote.Addr = net.UDPAddrFromAddrPort(iface.InternalAddr)
 			// For internal BFD always use the default configuration.
 			linkInfo.BFD = BFD{}
 		}
