@@ -182,15 +182,15 @@ considers the following options.
       read or write from / to the network socket.
 
    .. object:: bfd
-   
+
       .. option:: disabled = <bool> (Default: false)
 
          Whether the :term:`BFD` feature is disabled globally. If disabled, the router
-	 unconditionally considers any connection alive.
+         unconditionally considers any connection alive.
 
          Applies to BFD sessions to all neighboring routers, including sibling routers (other
-	 routers in the same AS). When not globally disabled, :term:`BFD` can be disabled for
-	 specific inter-AS BFD sessions with :option:`bfd.disable <topology-json disable>`.
+         routers in the same AS). When not globally disabled, :term:`BFD` can be disabled for
+         specific inter-AS BFD sessions with :option:`bfd.disable <topology-json disable>`.
 
       .. option:: detect_mult = <uint8>, default 3
 
@@ -215,13 +215,13 @@ considers the following options.
       .. option:: required_min_rx_interval = <duration>, default 200ms
 
          Defines an upper bound for the frequency at which this router wants to receive
-	 :term:`BFD` control messages.
+         :term:`BFD` control messages.
          The effective interval at which the remote router will send control messages is the
          result of negotiating with the remote router during session establishment;
          the value will be ``max(remote.desired_min_tx_interval, required_min_rx_interval)``
 
-	 Can be overridden for specific inter-AS BFD sessions with
-	 :option:`bfd.required_min_rx_interval <topology-json required_min_rx_interval>`.
+         Can be overridden for specific inter-AS BFD sessions with
+         :option:`bfd.required_min_rx_interval <topology-json required_min_rx_interval>`.
 
 .. _router-conf-topo:
 
