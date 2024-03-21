@@ -54,7 +54,7 @@ import (
 var metrics = router.GetMetrics()
 
 func TestDataPlaneAddInternalInterface(t *testing.T) {
-	internalIP := net.ParseIP("198.51.100.1")
+	internalIP := netip.MustParseAddr("198.51.100.1")
 	t.Run("fails after serve", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -68,7 +68,7 @@ func TestDataPlaneAddInternalInterface(t *testing.T) {
 		defer ctrl.Finish()
 
 		d := &router.DataPlane{}
-		assert.Error(t, d.AddInternalInterface(nil, nil))
+		assert.Error(t, d.AddInternalInterface(nil, netip.Addr{}))
 	})
 	t.Run("single set works", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -223,7 +223,7 @@ func TestDataPlaneRun(t *testing.T) {
 						}
 						return len(ms), nil
 					}).AnyTimes()
-				_ = ret.AddInternalInterface(mInternal, net.IP{})
+				_ = ret.AddInternalInterface(mInternal, netip.Addr{})
 
 				mExternal := mock_router.NewMockBatchConn(ctrl)
 				mExternal.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
@@ -337,7 +337,7 @@ func TestDataPlaneRun(t *testing.T) {
 
 				local := &net.UDPAddr{IP: net.ParseIP("10.0.200.100").To4()}
 				_ = ret.SetKey([]byte("randomkeyformacs"))
-				_ = ret.AddInternalInterface(mInternal, net.IP{})
+				_ = ret.AddInternalInterface(mInternal, netip.Addr{})
 				for remote, ifIDs := range routers {
 					for _, ifID := range ifIDs {
 						_ = ret.AddNextHop(ifID, remote.(*net.UDPAddr))
@@ -393,7 +393,7 @@ func TestDataPlaneRun(t *testing.T) {
 				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
 				_ = ret.SetKey([]byte("randomkeyformacs"))
-				_ = ret.AddInternalInterface(mInternal, net.IP{})
+				_ = ret.AddInternalInterface(mInternal, netip.Addr{})
 				_ = ret.AddNextHop(3, localAddr)
 				_ = ret.AddNextHopBFD(3, localAddr, remoteAddr, bfd(), "")
 
@@ -447,7 +447,7 @@ func TestDataPlaneRun(t *testing.T) {
 					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.200")},
 				}
 				_ = ret.SetKey([]byte("randomkeyformacs"))
-				_ = ret.AddInternalInterface(mInternal, net.IP{})
+				_ = ret.AddInternalInterface(mInternal, netip.Addr{})
 				_ = ret.AddExternalInterface(ifID, mExternal)
 				_ = ret.AddExternalInterfaceBFD(ifID, mExternal, local, remote, bfd())
 
@@ -527,7 +527,7 @@ func TestDataPlaneRun(t *testing.T) {
 					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.200")},
 				}
 				_ = ret.SetKey([]byte("randomkeyformacs"))
-				_ = ret.AddInternalInterface(mInternal, net.IP{})
+				_ = ret.AddInternalInterface(mInternal, netip.Addr{})
 				_ = ret.AddExternalInterface(1, mExternal)
 				_ = ret.AddExternalInterfaceBFD(1, mExternal, local, remote, bfd())
 

@@ -117,9 +117,10 @@ type BRInterface struct {
 
 // Underlay is the underlay information for a BR interface.
 type Underlay struct {
-	Public string `json:"public,omitempty"`
-	Remote string `json:"remote,omitempty"`
-	Bind   string `json:"bind,omitempty"`
+	Local            string `json:"local,omitempty"`
+	DeprecatedBind   string `json:"bind,omitempty"`   // superseded by "local", for backwards compat
+	DeprecatedPublic string `json:"public,omitempty"` // superseded by "local", for backwards compat
+	Remote           string `json:"remote,omitempty"`
 }
 
 // BFD configuration.

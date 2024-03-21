@@ -10,9 +10,8 @@
       "interfaces": {
         "1": {
           "underlay": {
-            "public": "192.0.2.1:44997",
-            "remote": "192.0.2.2:44998",
-            "bind": "10.0.0.1"
+            "local": "192.0.2.1:44997",
+            "remote": "192.0.2.2:44998"
           },
           "isd_as": "1-ff00:0:312",
           "link_to": "PARENT",
@@ -25,9 +24,8 @@
         },
         "3": {
           "underlay": {
-            "public": "[2001:db8:a0b:12f0::1]:44997",
-            "remote": "[2001:db8:a0b:12f0::2]:44998",
-            "bind": "2001:db8:a0b:12f0::8"
+            "local": "[2001:db8:a0b:12f0::1]:44997",
+            "remote": "[2001:db8:a0b:12f0::2]:44998"
           },
           "isd_as": "1-ff00:0:314",
           "link_to": "CHILD",
@@ -35,9 +33,8 @@
         },
         "8": {
           "underlay": {
-            "public": "192.0.2.2:44997",
-            "remote": "192.0.2.3:44998",
-            "bind": "10.0.0.2"
+            "local": ":44997",
+            "remote": "192.0.2.3:44998"
           },
           "isd_as": "1-ff00:0:313",
           "link_to": "PEER",
@@ -50,9 +47,8 @@
       "interfaces": {
         "11": {
           "underlay": {
-            "public": "[2001:db8:a0b:12f0::1%some-public-zone]:44897",
-            "remote": "[2001:db8:a0b:12f0::2%some-remote-zone]:44898",
-            "bind": "2001:db8:a0b:12f0::8%some-bind-zone"
+            "local": "[2001:db8:a0b:12f0::1%some-local-zone]:44897",
+            "remote": "[2001:db8:a0b:12f0::2%some-remote-zone]:44898"
           },
           "isd_as": "1-ff00:0:314",
           "link_to": "CHILD",
