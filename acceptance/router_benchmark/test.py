@@ -330,7 +330,7 @@ class RouterBMTest(base.TestBase):
             sudo("ip", "netns", "exec", ns,
                  "sysctl", "-qw", f"net.ipv6.conf.{brIntf}.disable_ipv6=1")
             sudo("ip", "netns", "exec", ns,
-                 "sysctl", "-qw", f"net.ipv4.conf.all.rp_filter=0")
+                 "sysctl", "-qw", "net.ipv4.conf.all.rp_filter=0")
             sudo("ip", "netns", "exec", ns,
                  "sysctl", "-qw", f"net.ipv4.conf.{brIntf}.rp_filter=0")
 
