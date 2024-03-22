@@ -102,8 +102,8 @@ ipk_pkg(
 ipk_pkg(
     name = "bmtools_ipk",
     executables = [
-        "@@//tools/bwm:bwm"
-        "@@//tools/coremark:coremark"
+        "@@//tools/mbw:mbw",
+        "@@//tools/coremark:coremark",
     ],  # No _compressed; these are tiny, not Go.
     overrides = [
         "@@//acceptance/router_benchmark:conf/keys/master0.key",
@@ -112,16 +112,9 @@ ipk_pkg(
         "@@//acceptance/router_benchmark:conf/topology.json",
     ],
     overridesroot = "@@//acceptance/router_benchmark:conf",
-    pkg = "bmconfig",
+    pkg = "bmtools",
     visibility = ["//visibility:public"],
     deps = ["testconfig_ipk"],  # Force sequential build; openwrt make isn't reentrant.
-)
-
-ipk_pkg(
-    name = "coremark_ipk",
-    pkg = "coremark",
-    visibility = ["//visibility:public"],
-    deps = ["bmconfig_ipk"],  # Force sequential build; openwrt make isn't reentrant.
 )
 
 # Assemble a bazel toolchain out of the openwrt sdk binaries.
