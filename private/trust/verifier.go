@@ -106,7 +106,7 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 		IA:           ia,
 		SubjectKeyID: keyID.SubjectKeyId,
 		Validity:     v.BoundValidity,
-		// The date is only filled in for backwards compatiblity with servers of
+		// The date is only filled in for backwards compatibility with servers of
 		// the gRPC API without the Validity field. Instead of time.Now() we use
 		// the end of the validity period to ensure that the certificate is
 		// valid at the end of the period.
