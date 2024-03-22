@@ -1,0 +1,8 @@
+This version of mbw is unmodified from the original. It exists here to simplify
+its packaging in the context of the SCION build process. To that end, a
+BUILD.bazel file was added. It is offered, of course, under the same GPL3.0
+license that mbw comes with.
+
+The rest of the SCION code does not depend on mbw. The SCION build packages
+mbw for the same platforms that the SCION code supports for the convenience
+of users.

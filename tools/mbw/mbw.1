@@ -1,0 +1,55 @@
+.TH mbw 1 "Apr 26, 2006" "memory bandwidth benchmark"
+
+.SH NAME
+mbw \- Memory BandWidth benchmark
+
+.SH SYNOPSIS
+.B mbw
+.RI [options]\ arraysize_in_MiB
+.br
+
+.SH DESCRIPTION
+.B mbw
+determines available memory bandwidth by copying large arrays of data in memory.
+
+.SH OPTIONS
+.B
+.IP -q
+Quiet; suppress informational messages.
+.B
+.IP -a
+Suppress printing the average of each test.
+.B
+.IP "\-n <number>"
+Select number of loops per test
+.B
+.IP "\-t <number>"
+Select tests to be run. If no -t parameters are given the default is to run all tests. -t0: memcpy() test, -t1: dumb (b[i]=a[i] style) test, -t2: memcpy() with arbitrary block size
+.B
+.IP "\-b <bytes>"
+Block size in bytes for -t2.
+.B
+.IP -h 
+Show quick help.
+
+.SH USAGE
+.B mbw
+will allocate two
+.B arraysize
+arrays in memory and copy one to the other.
+Reported 'bandwidth' is the amount of data copied over the time this operation took.
+
+Obviously
+.B mbw
+needs twice
+.B arraysize
+MiBytes (1024*1024 bytes) of physical memory \- you'd better switch off swap or
+otherwise make sure no paging occurs. Needless to say that it should not be run
+on a busy system.
+
+.SH TODO
+Multiple thread support.
+Better configurability, including using getopt() for parsing arguments.
+
+.SH AUTHOR
+andras.horvath@gmail.com

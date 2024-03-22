@@ -1,0 +1,9 @@
+cc_binary(
+    name = "mbw",
+    srcs = ["mbw.c"],
+    copts = [
+        "-O2",
+        "-Wall",
+    ],
+    visibility = ["//visibility:public"],
+)

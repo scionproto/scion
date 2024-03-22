@@ -251,7 +251,7 @@ func InitInterfaces(pairs []string) []string {
 			}
 			for {
 				p, _, err := arpClient.Read()
-				if err == nil && p.SenderIP == subjectIP {
+				if err == nil && p.SenderIP == subjectIP && p.TargetIP == peerIP {
 					_ = arpClient.WriteTo(&reply, subjectMAC)
 				}
 			}
