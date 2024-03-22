@@ -16,8 +16,7 @@ package grpc
 
 import (
 	"crypto/x509"
-
-	"github.com/golang/protobuf/ptypes"
+	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -28,14 +27,31 @@ import (
 )
 
 func requestToChainQuery(req *cppb.ChainsRequest) (trust.ChainQuery, error) {
-	date, err := ptypes.Timestamp(req.Date)
-	if err != nil {
-		return trust.ChainQuery{}, err
+	var date time.Time
+	if req.Date != nil {
+		if err := req.Date.CheckValid(); err != nil {
+			return trust.ChainQuery{}, serrors.WrapStr("validating date", err)
+		}
+		date = req.Date.AsTime()
 	}
+
+	var validity cppki.Validity
+	if req.Validity != nil {
+		if err := req.Validity.NotBefore.CheckValid(); err != nil {
+			return trust.ChainQuery{}, serrors.WrapStr("validating not_before", err)
+		}
+		if err := req.Validity.NotAfter.CheckValid(); err != nil {
+			return trust.ChainQuery{}, serrors.WrapStr("validating not_after", err)
+		}
+		validity.NotBefore = req.Validity.NotBefore.AsTime()
+		validity.NotAfter = req.Validity.NotAfter.AsTime()
+	}
+
 	return trust.ChainQuery{
 		IA:           addr.IA(req.IsdAs),
 		SubjectKeyID: req.SubjectKeyId,
 		Date:         date,
+		Validity:     validity,
 	}, nil
 }
 

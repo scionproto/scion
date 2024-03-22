@@ -48,6 +48,9 @@ type Verifier struct {
 	BoundIA addr.IA
 	// BoundServer binds a remote server to ask for missing crypto material.
 	BoundServer net.Addr
+	// BoundValidity binds the verifier to only use certificates that are valid
+	// at the specified time.
+	BoundValidity cppki.Validity
 	// Engine provides verified certificate chains.
 	Engine Provider
 
@@ -102,7 +105,12 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 	query := ChainQuery{
 		IA:           ia,
 		SubjectKeyID: keyID.SubjectKeyId,
-		Date:         time.Now(),
+		Validity:     v.BoundValidity,
+		// The date is only filled in for backwards compatiblity with servers of
+		// the gRPC API without the Validity field. Instead of time.Now() we use
+		// the end of the validity period to ensure that the certificate is
+		// valid at the end of the period.
+		Date: v.BoundValidity.NotAfter,
 	}
 	chains, err := v.getChains(ctx, query)
 	if err != nil {

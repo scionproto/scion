@@ -33,8 +33,12 @@ type ChainQuery struct {
 	// SubjectKeyID identifies the subject key that the AS certificate must
 	// authenticate.
 	SubjectKeyID []byte
-	// Date is the time when the chain must be valid.
+	// Date is the time when the chain must be valid. If both Date and Validity
+	// are set, Validity takes precedence.
 	Date time.Time
+	// Validity is the validity period of the chain. If both Date and Validity
+	// are set, Validity takes precedence.
+	Validity cppki.Validity
 }
 
 // MarshalJSON marshals the chain query for well formated log output.

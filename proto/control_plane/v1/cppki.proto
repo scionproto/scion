@@ -35,6 +35,17 @@ message ChainsRequest {
     // Point in time that must be covered by the AS certificate's validity
     // period. In seconds since UNIX epoch.
     google.protobuf.Timestamp date = 3;
+    // The validity period that must be covered by the AS certificate. This can
+    // be alternatively used to the date field. If both are set, the validity
+    // takes precedence.
+    Validity validity = 4;
+}
+
+message Validity {
+    // NotBefore time of the certificate. In seconds since UNIX epoch.
+    google.protobuf.Timestamp not_before = 1;
+    // NotAfter time of the certificate. In seconds since UNIX epoch.
+    google.protobuf.Timestamp not_after = 2;
 }
 
 message ChainsResponse {
