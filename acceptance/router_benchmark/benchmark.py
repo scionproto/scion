@@ -185,7 +185,8 @@ class RouterBM:
         brload = local["./bin/brload"]
         output = brload("show-interfaces")
 
-        for line in output.splitlines():
+        lines = sorted(output.splitlines())
+        for line in lines:
             print(f"Requested by brload: {line}")
             elems = line.split(",")
             if len(elems) != 5:
@@ -381,7 +382,14 @@ class RouterBM:
         multiplexed = []
         reqs = []
         intfIndex = 0
-        for line in output.splitlines():
+
+        # We sort the requests from brload because the interface that is picked for each can depends
+        # on the order in which we process them and we need to be consistent from run to run so
+        # the instructions we give the user actually work.
+        # (assuming brload's code doesn't change in-between).
+
+        lines = sorted(output.splitlines())
+        for line in lines:
             elems = line.split(",")
             if len(elems) != 5:
                 continue
@@ -403,29 +411,48 @@ class RouterBM:
             else:
                 multiplexed.append(f"{a} (must reach: #{i})")
 
-        print(f"""\
-INSTRUCTIONS:
+        print(f"""
+INSTRUCTIONS: 
+
 1 - Configure your subject router according to accept/router_benchmark/conf/router.toml")
-    If using openwrt, an easy way to do that is to install the bmconfig.ipk package.
-2 - Configure the following interfaces on your router (mechanism depends on your router
+    If using openwrt, an easy way to do that is to install the bmtools.ipk package.
+
+    Optional: bmtools includes two microbenchmarks: scion-coremark and scion-mbw. Run those
+    and make a note of the results: (scion-coremark; scion-mbw -q -t0 200).
+
+2 - Configure the following interfaces on your router (The procedure depends on your router
     UI):
     - One physical interface with addresses: {", ".join(multiplexed)}
-{'\n'.join(['    - One physical interface with address :' + s for s in exclusives])}
+{'\n'.join(['    - One physical interface with address: ' + s for s in exclusives])}
+
     IMPORTANT: if you're using a partitioned network (eg. multiple switches or no switches),
-    the "must reach" annotation matters. The number is the order in which the corresponding host
+    the "must reach" annotation matters. The 'h' number is the order in which the corresponding host
     interface must be given on the command line in step 7.
+
 3 - Connect the corresponding ports into your test switch (best if dedicated for the test).
+
 4 - Restart the scion-router service.
+
 5 - Pick the same number of physical interfaces on the system where you are running this
     script. Make sure that these interface aren't used for anything else and have no assigned
-    IP addresses. Make a note of their names and if using a partitioned network, of the associated
-    number from step 2.
+    IP addresses. Make a note of their names and, if using a partitioned network, associate each
+    with one of the numbers from step 2.
+
 6 - Connect the corresponding ports into your test switch. If using a partitioned network, make
-    sure that port is reachable by corresponding subject router port.
+    sure that port is reachable by the corresponding subject router port.
+
 7 - Execute this script with arguments: --run <interfaces>, where <interfaces> is the list
     of names you collected in step 5. If using a partitioned network, make sure to supply them
     in the order indicated in step 2.
-8 - Wait...
+    
+    Coming soon: if you want the report to include a performance index, add the following
+    arguments: "--coremark=<coremark>", "--mbw=<mbw>", where <coremark> and <mbw> are the results
+    you optionally collected in step 1.
+
+    Coming soon, but still later: an agent that executes the microbenchmarks for you.
+
+8 - Be patient...
+
 9 - Read the report.
 """)
 
