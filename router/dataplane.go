@@ -2031,7 +2031,7 @@ func (d *DataPlane) addEndhostPort(
 		err := scmpLayer.DecodeFromBytes(lastLayer.LayerPayload(), gopacket.NilDecodeFeedback)
 		if err != nil {
 			// TODO(JordiSubira): Treat this as a parameter problem.
-			return nil, serrors.WrapStr("decoding scmp layer for extracting endhost dst port", err)
+			return nil, serrors.WrapStr("decoding SCMP layer for extracting endhost dst port", err)
 		}
 		port, err := getDstPortSCMP(&scmpLayer)
 		if err != nil {

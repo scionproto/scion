@@ -176,9 +176,8 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 
 // Listen opens a Conn. The returned connection's ReadFrom and WriteTo methods
 // can be used to receive and send SCION packets with per-packet addressing.
-// Parameter network must be "udp". If listen is unspecified address a suitable address
-// will be chosen independently per packet. For finer-grained control, bind to a specific
-// anycast address only.
+// Parameter network must be "udp".
+// Nil or unspecified addresses are not supported.
 //
 // The context is used for connection setup, it doesn't affect the returned
 // connection.

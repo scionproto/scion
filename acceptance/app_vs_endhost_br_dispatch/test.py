@@ -10,10 +10,10 @@ class Test(base.TestTopogen):
     """
     Constructs a simple test topology with one core, two leaf ASes.
     Each of them will run a different mix between BR that will replicate
-    the old behaviour (i.e., they will send traffic to its own AS to the
-    endhost default port) and routers with the new behaviour (i.e., they
-    will rewrite the underlay UDP/IP destination port with the UDP/SCION
-    port).
+    the legacy endhost-port-dispatch behaviour (i.e., they will send
+    traffic to its own AS to the endhost default port) and
+    application-port-dispatch routers (i.e., they will rewrite the underlay
+    UDP/IP destination port with the UDP/SCION port).
 
     AS 1-ff00:0:1 is core.
     AS 1-ff00:0:2, 1-ff00:0:3 are leaves.
@@ -22,7 +22,7 @@ class Test(base.TestTopogen):
 
     AS1 contains a BR with the port rewriting configuration to the default
     range. It also includes a shim dispatcher.
-    AS2 contains a BR with a configuration that reassembles the old
+    AS2 contains a BR with a configuration that imitates the old
     behaviour, i.e., sending all traffic to default endhost port 30041.
     It also includes a shim dispatcher.
     AS3 contains a BR with the port rewriting configuration to the default

@@ -238,7 +238,7 @@ func realMain(ctx context.Context) error {
 	}
 	dialer := &libgrpc.QUICDialer{
 		Rewriter: &onehop.AddressRewriter{
-			Rewriter: nc.AddressRewriter(nil),
+			Rewriter: nc.AddressRewriter(),
 			MAC:      macGen(),
 		},
 		Dialer: quicStack.InsecureDialer,
@@ -632,7 +632,7 @@ func realMain(ctx context.Context) error {
 
 		drkeyFetcher := drkeygrpc.Fetcher{
 			Dialer: &libgrpc.QUICDialer{
-				Rewriter: nc.AddressRewriter(nil),
+				Rewriter: nc.AddressRewriter(),
 				Dialer:   quicStack.Dialer,
 			},
 			Router:     segreq.NewRouter(fetcherCfg),

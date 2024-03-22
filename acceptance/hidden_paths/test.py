@@ -101,7 +101,6 @@ class Test(base.TestTopogen):
                 "hidden_segment_registration_service.%s.addr" % control_id:
                     control_service_addr,
             }
-            topology_file = as_dir_path / "topology.json"
             scion.update_json(topology_update, [topology_file])
 
     def setup_start(self):

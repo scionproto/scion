@@ -226,18 +226,17 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 func validatePortRange(portRange string) (uint16, uint16, error) {
 	ports := strings.Split(portRange, "-")
 	if len(ports) != 2 {
-		return 0, 0, serrors.New("invalid format: expected startPort-endPort", "got", portRange)
+		return 0, 0, serrors.New("Invalid format: expected startPort-endPort", "got", portRange)
 	}
-	startPort, errStart := strconv.Atoi(ports[0])
-	endPort, errEnd := strconv.Atoi(ports[1])
+	startPort, errStart := strconv.ParseUint(ports[0], 10, 16)
+	endPort, errEnd := strconv.ParseUint(ports[1], 10, 16)
 	if errStart != nil || errEnd != nil {
-		return 0, 0, serrors.New("invalid port numbers", "got", portRange)
+		return 0, 0, serrors.New("Invalid port numbers", "got", portRange)
 	}
-
-	if startPort < 1 || startPort > (1<<16-1) {
+	if startPort < 1 {
 		return 0, 0, serrors.New("Invalid value for start port", "start port", startPort)
 	}
-	if endPort < 1 || endPort > (1<<16-1) {
+	if endPort < 1 {
 		return 0, 0, serrors.New("Invalid value for end port", "end port", endPort)
 	}
 	if startPort > endPort {

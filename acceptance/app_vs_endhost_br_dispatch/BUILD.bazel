@@ -5,5 +5,5 @@ topogen_test(
     src = "test.py",
     args = ["--executable=end2end_integration:$(location //tools/end2end_integration)"],
     data = ["//tools/end2end_integration"],
-    topo = "//acceptance/old_new_br/testdata:topology.topo",
+    topo = "//acceptance/app_vs_endhost_br_dispatch/testdata:topology.topo",
 )

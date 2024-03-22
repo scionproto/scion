@@ -164,6 +164,9 @@ type connUDPBase struct {
 func (cc *connUDPBase) initConnUDP(network string, laddr, raddr *net.UDPAddr, cfg *Config) error {
 	var c *net.UDPConn
 	var err error
+	if laddr == nil {
+		return serrors.New("listen address must be specified")
+	}
 	if raddr == nil {
 		if c, err = net.ListenUDP(network, laddr); err != nil {
 			return serrors.WrapStr("Error listening on socket", err,
@@ -245,7 +248,7 @@ func (cc *connUDPBase) initConnUDP(network string, laddr, raddr *net.UDPAddr, cf
 	}
 
 	cc.conn = c
-	cc.Listen = c.LocalAddr().(*net.UDPAddr)
+	cc.Listen = laddr
 	cc.Remote = raddr
 	return nil
 }

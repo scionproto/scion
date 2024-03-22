@@ -201,59 +201,21 @@ func GenerateTLSConfig() (*tls.Config, error) {
 //
 // The connector is used to open sockets for SVC resolution requests.
 // If the connector is nil, the default connection factory is used.
-func (nc *NetworkConfig) AddressRewriter(
-	connector snet.Connector) *AddressRewriter {
-
-	if connector == nil {
-		connector = &snet.DefaultConnector{
-			SCMPHandler:    nc.SCMPHandler,
-			Metrics:        nc.SCIONPacketConnMetrics,
-			CPInfoProvider: nc.CPInfoProvider,
-		}
-	}
+func (nc *NetworkConfig) AddressRewriter() *AddressRewriter {
 	return &AddressRewriter{
 		Router:    &snet.BaseRouter{Querier: IntraASPathQuerier{IA: nc.IA, MTU: nc.MTU}},
 		SVCRouter: nc.SVCResolver,
 		Resolver: &svc.Resolver{
-			LocalIA:   nc.IA,
-			Connector: connector,
-			LocalIP:   nc.Public.IP,
+			LocalIA: nc.IA,
+			Connector: &snet.DefaultConnector{
+				SCMPHandler:    nc.SCMPHandler,
+				Metrics:        nc.SCIONPacketConnMetrics,
+				CPInfoProvider: nc.CPInfoProvider,
+			},
+			LocalIP: nc.Public.IP,
 		},
 		SVCResolutionFraction: 1.337,
 	}
-}
-
-func (nc *NetworkConfig) OpenListener(a string) (*squic.ConnListener, error) {
-	scionNet := &snet.SCIONNetwork{
-		LocalIA: nc.IA,
-		Connector: &snet.DefaultConnector{
-			// XXX(roosd): This is essential, the server must not read SCMP
-			// errors. Otherwise, the accept loop will always return that error
-			// on every subsequent call to accept.
-			SCMPHandler:    ignoreSCMP{},
-			Metrics:        nc.SCIONPacketConnMetrics,
-			CPInfoProvider: nc.CPInfoProvider,
-		},
-		Metrics:        nc.SCIONNetworkMetrics,
-		CPInfoProvider: nc.CPInfoProvider,
-	}
-	udpAddr, err := net.ResolveUDPAddr("udp", a)
-	if err != nil {
-		return nil, serrors.WrapStr("parsing server QUIC address", err)
-	}
-	server, err := scionNet.Listen(context.Background(), "udp", udpAddr)
-	if err != nil {
-		return nil, serrors.WrapStr("creating server connection", err)
-	}
-	serverTLSConfig, err := GenerateTLSConfig()
-	if err != nil {
-		return nil, err
-	}
-	listener, err := quic.Listen(server, serverTLSConfig, nil)
-	if err != nil {
-		return nil, err
-	}
-	return squic.NewConnListener(listener), nil
 }
 
 func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, error) {
