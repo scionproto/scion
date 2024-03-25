@@ -24,6 +24,7 @@ exports_files(
         "initds/daemon",
         "initds/dispatcher",
         "initds/persistdbs",
+        "initds/bmtools",
 
         # Directory itself. Indicates the common root of config files.
         "test_configs",

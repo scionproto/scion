@@ -1,4 +1,5 @@
 load("//acceptance/common:raw.bzl", "raw_test")
+load("@com_github_scionproto_scion_python_deps//:requirements.bzl", "requirement")
 
 exports_files(
     [

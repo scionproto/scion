@@ -105,6 +105,7 @@ ipk_pkg(
         "@@//tools/mbw:mbw",
         "@@//tools/coremark:coremark",
     ],  # No _compressed; these are tiny, not Go.
+    initds = ["@@//dist/openwrt:initds/bmtools"],
     overrides = [
         "@@//acceptance/router_benchmark:conf/keys/master0.key",
         "@@//acceptance/router_benchmark:conf/keys/master1.key",

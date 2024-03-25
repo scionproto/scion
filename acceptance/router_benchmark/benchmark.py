@@ -23,16 +23,18 @@ import shutil
 import signal
 import sys
 import time
+import ssl
 
 from collections import defaultdict, namedtuple
 from http.client import HTTPConnection
+from http.client import HTTPSConnection
 from plumbum import cli
 from plumbum import cmd
 from plumbum import local
 from plumbum.cmd import docker, whoami, lscpu
 from random import randint
 from urllib.parse import urlencode
-
+from urllib.request import urlopen
 
 TEST_CASES = [
     "in",
@@ -42,6 +44,8 @@ TEST_CASES = [
     "br_transit",
 ]
 
+# TODO(jiceatscion): get it from brload
+BM_PACKET_LEN = 154
 
 def sudo(*args: [str]) -> str:
     # -A, --askpass makes sure command is failing and does not wait for
@@ -80,8 +84,8 @@ class RouterBM:
     intfMap: dict[str, str] = {}
     availInterfaces: list[str] = []
     mxInterface: str = None
-    promIntf: str = None
     toFlush: list[str] = []
+    scrapeAddr: str = None
 
     def __init__(self):
         """Collect the givens."""
@@ -124,14 +128,15 @@ class RouterBM:
         exclusive = req.exclusive == "true"
         hostIntf = self.host_interface(exclusive)
 
-        # We do not configure a host interface in any of the router's subnet, but we need prometheus
-        # to have a means of connecting to the router's internal interface. We pick one address of
-        # the router's subnet that's not otherwise used (DO NOT use "PeerIP"). Premotheus runs in
-        # the host network. All attempts at using a bridge have so far failed.
+        # We need a means of connecting to the router's internal interface (from prometheus and
+        # to scrape the horsepower microbenchmark results. We pick one address of
+        # the router's subnet that's not otherwise used. This must NOT be "PeerIP".
+        # brload requires the internal interface to be "exclusive", that's our clue.
         if exclusive:
             net = ipaddress.ip_network(f"{req.ip}/{req.prefixLen}", strict=False)
-            addr = next(net.hosts()) + 126
-            sudo("ip", "addr", "add", f"{addr}/{req.prefixLen}",
+            hostAddr = next(net.hosts()) + 126
+            self.scrapeAddr = req.ip
+            sudo("ip", "addr", "add", f"{hostAddr}/{req.prefixLen}",
                  "broadcast", str(net.broadcast_address), "dev", hostIntf)
             self.toFlush.append(hostIntf)
 
@@ -324,9 +329,31 @@ class RouterBM:
             _, val = result["value"]
             print(f"Router Cores for {instance}: {int(val)}")
 
+    def horsepower(self) -> tuple[int]:
+        resp = urlopen(f"https://{self.scrapeAddr}/horsepower.txt",
+                       context=ssl._create_unverified_context())
+        if resp.status != 200:
+            return 0,0
+        try:
+            hp = json.loads(resp.read().decode("ascii"))
+        except JSONDecodeError:
+            return 0, 0
+
+        return round(hp["coremark"]), round(hp["mbw"])
+
+    def perfIndex(rate: int, coremark:int, mbw: int) -> float:
+        return 1.0 / (coremark * (1.0/rate - BM_PACKET_LEN / (mbw * 1024 * 1024)))
+
     def run(self):
         print("Benchmarking...")
-        
+
+        # Collect the horsepower microbenchmark numbers if we can:
+        coremark, mbw = self.horsepower()
+        coremarkstr = str(coremark or "Unavailable")
+        mbwstr = str(mbw or "Unavailable")
+        print(f"Coremark: {coremarkstr}")
+        print(f"Memory bandwidth: {mbw} MiB/s")
+
         # Build the interface mapping arg (here, we do not override the brload side mac address)
         mapArgs = []
         for label, intf in self.intfMap.items():
@@ -335,7 +362,7 @@ class RouterBM:
         # Run one test (30% size) as warm-up to trigger any frequency scaling, else the first test
         # can get much lower performance.
         print("Warmup")
-        self.exec_br_load(list(TEST_CASES)[0], mapArgs, 3000000)
+        self.exec_br_load(TEST_CASES[0], mapArgs, 3000000)
 
         # At long last, run the tests
         rateMap = {}
@@ -349,11 +376,14 @@ class RouterBM:
         self.log_core_counts()
 
         # Output the performance...
-        # If this is used as a CI test. Make sure that the performance is within the expected
-        # ballpark.
-        rateTooLow = []
         for tt in TEST_CASES:
             print(f"Packets/(machine*s) for {tt}: {rateMap[tt]}")
+
+        if coremark != 0 and mbw != 0:
+            for tt in TEST_CASES:
+                # TODO(jiceatscion): The perf index assumes that line speed isn't the bottleneck.
+                # It almost never is, but ideally we'd need to run iperf3 to verify.
+                print(f"Perf index for {tt}: {self.perfIndex(rateMap[tt], coremark, mbw)}")
 
         # Check the saturation...
         # Make sure that the saturation is within the expeected ballpark: that should manifest as
@@ -415,10 +445,12 @@ class RouterBM:
 INSTRUCTIONS: 
 
 1 - Configure your subject router according to accept/router_benchmark/conf/router.toml")
-    If using openwrt, an easy way to do that is to install the bmtools.ipk package.
+    If using openwrt, an easy way to do that is to install the bmtools.ipk package. In addition,
+    bmtools includes two microbenchmarks: scion-coremark and scion-mbw. Those will run
+    automatically and the results will be used to improve the benchmark report.
 
-    Optional: bmtools includes two microbenchmarks: scion-coremark and scion-mbw. Run those
-    and make a note of the results: (scion-coremark; scion-mbw -q -t0 200).
+    Optinal: If you did not install bmtools.ipk, install and run those microbenchmark and make a
+    note of the results: (scion-coremark; scion-mbw -q -t0 200).
 
 2 - Configure the following interfaces on your router (The procedure depends on your router
     UI):
@@ -445,11 +477,9 @@ INSTRUCTIONS:
     of names you collected in step 5. If using a partitioned network, make sure to supply them
     in the order indicated in step 2.
     
-    Coming soon: if you want the report to include a performance index, add the following
-    arguments: "--coremark=<coremark>", "--mbw=<mbw>", where <coremark> and <mbw> are the results
-    you optionally collected in step 1.
-
-    Coming soon, but still later: an agent that executes the microbenchmarks for you.
+    Coming soon: if you want the report to include a performance index and have run coremark and mbw
+    manually, add the following arguments: "--coremark=<coremark>", "--mbw=<mbw>", where <coremark>
+    and <mbw> are the results you optionally collected in step 1.
 
 8 - Be patient...
 

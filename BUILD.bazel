@@ -186,7 +186,7 @@ config_setting(
 pkg_tar(
     name = "scion",
     srcs = [
-        "//acceptance/benchmark.py",
+        "//acceptance/router_benchmark/brload",
         "//control/cmd/control",
         "//daemon/cmd/daemon",
         "//dispatcher/cmd/dispatcher",

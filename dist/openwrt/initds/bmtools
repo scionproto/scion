@@ -1,0 +1,41 @@
+#!/bin/sh /etc/rc.common
+# "new(er)" style init script
+# Look at /lib/functions/service.sh on a running system for explanations of what other SERVICE_
+# options you can use, and when you might want them.
+
+# This is a run-once script. It executes a couple of trivial benchmarks and publishes the results
+# to an easy to scrape url.
+
+START=99
+STOP=0
+APP=scion-control
+SERVICE_WRITE_PID=1
+SERVICE_DAEMONIZE=1
+
+start() {
+    u=$$
+    # coremark
+    /usr/bin/scion-coremark > /tmp/coremark.$u.out
+    if grep -q "Correct operation validated" /tmp/coremark.$u.out; then
+	coremark=$(grep -s "CoreMark [0-9.]* :" /tmp/coremark.$u.out | awk '{ print $4 }' 2>/dev/null) 
+    fi
+    if [ -z "$coremark" ]; then
+	coremark=0
+    fi
+    rm /tmp/coremark.$u.out
+
+    # mbw
+    /usr/bin/scion-mbw -q -t0 200 -n 5 > /tmp/mbw.$u.out
+    mbw=$(grep -s "AVG" /tmp/mbw.$u.out | awk '{ print $9 }' 2>/dev/null) 
+    if [ -z "$mbw" ]; then
+	mbw=0
+    fi
+    rm /tmp/mbw.$u.out
+    
+    # Publish
+    echo "{\"coremark\": $coremark, \"mbw\": $mbw}" > /www/horsepower.txt
+}
+
+stop() {
+    true
+}
