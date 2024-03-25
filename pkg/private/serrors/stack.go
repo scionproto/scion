@@ -191,7 +191,7 @@ func callers() *stack {
 	const depth = 32
 	var pcs [depth]uintptr
 	n := runtime.Callers(3, pcs[:])
-	var st stack = pcs[0:n]
+	var st stack = pcs[0 : n-1] // skip bottom runtime.goexit at bottom of each stack
 	return &st
 }
 
