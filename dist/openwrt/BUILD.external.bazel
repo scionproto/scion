@@ -102,7 +102,7 @@ ipk_pkg(
 ipk_pkg(
     name = "bmtools_ipk",
     executables = [
-        "@@//tools/mbw:mbw",
+        "@@//tools/mmbm:mmbm",
         "@@//tools/coremark:coremark",
     ],  # No _compressed; these are tiny, not Go.
     initds = ["@@//dist/openwrt:initds/bmtools"],

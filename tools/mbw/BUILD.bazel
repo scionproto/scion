@@ -1,6 +1,0 @@
-cc_binary(
-    name = "mbw",
-    srcs = ["mbw.c"],
-    features = [ "opt" ],
-    visibility = ["//visibility:public"],
-)

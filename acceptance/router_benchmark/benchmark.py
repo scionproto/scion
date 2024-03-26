@@ -235,7 +235,10 @@ class RouterBM:
         print(f"==> Starting load {case}")
 
         output = self.exec_br_load(case, mapArgs, 10000000)
+        beg = "0"
+        end = "0"
         for line in output.splitlines():
+            print(f"brload said: {line}")
             if line.startswith("metricsBegin"):
                 _, beg, _, end = line.split()
 
@@ -336,23 +339,24 @@ class RouterBM:
             return 0,0
         try:
             hp = json.loads(resp.read().decode("ascii"))
-        except JSONDecodeError:
+        except json.JSONDecodeError:
             return 0, 0
 
-        return round(hp["coremark"]), round(hp["mbw"])
+        return round(hp["coremark"]), round(hp["mmbm"])
 
-    def perfIndex(rate: int, coremark:int, mbw: int) -> float:
-        return 1.0 / (coremark * (1.0/rate - BM_PACKET_LEN / (mbw * 1024 * 1024)))
+    def perfIndex(self, rate: int, coremark:int, mmbm: int) -> float:
+        # mmbm is in mebiBytes/s
+        return 1.0 / (coremark * (1.0/rate - BM_PACKET_LEN / (mmbm * 1024 * 1024)))
 
     def run(self):
         print("Benchmarking...")
 
         # Collect the horsepower microbenchmark numbers if we can:
-        coremark, mbw = self.horsepower()
+        coremark, mmbm = self.horsepower()
         coremarkstr = str(coremark or "Unavailable")
-        mbwstr = str(mbw or "Unavailable")
+        mmbmstr = str(mmbm or "Unavailable")
         print(f"Coremark: {coremarkstr}")
-        print(f"Memory bandwidth: {mbw} MiB/s")
+        print(f"Memory bandwidth: {mmbm} MiB/s")
 
         # Build the interface mapping arg (here, we do not override the brload side mac address)
         mapArgs = []
@@ -379,11 +383,11 @@ class RouterBM:
         for tt in TEST_CASES:
             print(f"Packets/(machine*s) for {tt}: {rateMap[tt]}")
 
-        if coremark != 0 and mbw != 0:
+        if coremark != 0 and mmbm != 0:
             for tt in TEST_CASES:
                 # TODO(jiceatscion): The perf index assumes that line speed isn't the bottleneck.
                 # It almost never is, but ideally we'd need to run iperf3 to verify.
-                print(f"Perf index for {tt}: {self.perfIndex(rateMap[tt], coremark, mbw)}")
+                print(f"Perf index for {tt}: {self.perfIndex(rateMap[tt], coremark, mmbm)}")
 
         # Check the saturation...
         # Make sure that the saturation is within the expeected ballpark: that should manifest as
@@ -446,11 +450,11 @@ INSTRUCTIONS:
 
 1 - Configure your subject router according to accept/router_benchmark/conf/router.toml")
     If using openwrt, an easy way to do that is to install the bmtools.ipk package. In addition,
-    bmtools includes two microbenchmarks: scion-coremark and scion-mbw. Those will run
+    bmtools includes two microbenchmarks: scion-coremark and scion-mmbm. Those will run
     automatically and the results will be used to improve the benchmark report.
 
     Optinal: If you did not install bmtools.ipk, install and run those microbenchmark and make a
-    note of the results: (scion-coremark; scion-mbw -q -t0 200).
+    note of the results: (scion-coremark; scion-mmbm).
 
 2 - Configure the following interfaces on your router (The procedure depends on your router
     UI):
@@ -477,9 +481,9 @@ INSTRUCTIONS:
     of names you collected in step 5. If using a partitioned network, make sure to supply them
     in the order indicated in step 2.
     
-    Coming soon: if you want the report to include a performance index and have run coremark and mbw
-    manually, add the following arguments: "--coremark=<coremark>", "--mbw=<mbw>", where <coremark>
-    and <mbw> are the results you optionally collected in step 1.
+    Coming soon: if you want the report to include a performance index and have run coremark and
+    mmbm manually, add the following arguments: "--coremark=<coremark>", "--mmbm=<mmbm>", where
+    <coremark> and <mmbm> are the results you optionally collected in step 1.
 
 8 - Be patient...
 
@@ -501,7 +505,6 @@ if __name__ == "__main__":
     sys.argv.remove("--run")
     signal.signal(signal.SIGINT, signal_handler)
     try:
-        print(f"interfaces: {sys.argv[1:]}")
         bm.setup(sys.argv[1:])
         bm.run()
     finally:

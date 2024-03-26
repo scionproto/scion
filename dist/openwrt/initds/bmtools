@@ -24,16 +24,14 @@ start() {
     fi
     rm /tmp/coremark.$u.out
 
-    # mbw
-    /usr/bin/scion-mbw -q -t0 200 -n 5 > /tmp/mbw.$u.out
-    mbw=$(grep -s "AVG" /tmp/mbw.$u.out | awk '{ print $9 }' 2>/dev/null) 
-    if [ -z "$mbw" ]; then
-	mbw=0
+    # mmbm
+    mmbm=$(/usr/bin/scion-mmbm 2>/dev/null)
+    if [ -z "$mmbm" ]; then
+	mmbm="\"mmbm\": 0"
     fi
-    rm /tmp/mbw.$u.out
     
     # Publish
-    echo "{\"coremark\": $coremark, \"mbw\": $mbw}" > /www/horsepower.txt
+    echo "{\"coremark\": $coremark, $mmbm}" > /www/horsepower.txt
 }
 
 stop() {

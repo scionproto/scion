@@ -438,6 +438,8 @@ class RouterBMTest(base.TestBase):
         logger.info(f"==> Starting load {case}")
 
         output = self.exec_br_load(case, mapArgs, 10000000)
+        beg = "0"
+        end = "0"
         for line in output.splitlines():
             if line.startswith("metricsBegin"):
                 _, beg, _, end = line.split()
