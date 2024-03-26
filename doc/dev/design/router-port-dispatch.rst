@@ -220,10 +220,9 @@ The roadmap would look like the following:
 - Prepare:
    - Reduce the range of IDs used for SCMP echo and traceroute requests, so that it matches the range of ports assigned by the legacy dispatcher (32768-65535).
 
-   - Add support for dispatched/forwarded port ranges to the topology.json configuration.
-     This first implementation step only ensures that this entry can be parsed from the configuration.
+- Add support for dispatched/forwarded port ranges to the topology.json configuration.
 
-     Update: this can be skipped, as the topology.json parsing is lenient about unkown keys by default.
+  As the topology.json parsing is lenient about unkown keys by default, tue updated topology.json file can still be consumed by "legacy" applications.
 
 - Change SCION applications to use native ``net.UDPConn`` instead of ``reliable.Conn``.
 
