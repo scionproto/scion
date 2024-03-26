@@ -80,7 +80,7 @@ For SCMP :ref:`Echo Replies <echo-reply>` and :ref:`Traceroute Replies <tracerou
 SCMP Daemon
 ^^^^^^^^^^^
 
-The remaining functionality of the dispatcher, namely responding to SCMP echo requests, is implemented to a new, very simple "SCMP daemon".
+The remaining functionality of the dispatcher, namely responding to SCMP echo requests, is implemented in a new, very simple "SCMP daemon".
 This daemon opens UDP/IP port 30041, where it receives and replies to SCMP Echo requests.
 On this port, it will also receive any packet where an appropriate destination port could not be determined (e.g. SCMP error messages for malformed packages).
 These events are only logged and counted, but otherwise no appropriate action is possible.
@@ -178,9 +178,10 @@ The configured ``max`` value may be lower than ``min`` to specify an empty port 
 If nothing is configured, the port range initially defaults to an empty range.
 The recommended port range is:
 - ``min``: ``31000``
-- ``max``: ``39999``
+- ``max``: ``32767``
 
-As later step, this range will be adopted as the default.
+This range is just below the port range that is assigned by the old dispatcher (32768-65535), ensuring that UDP traffic from legacy end hosts will be unaffected by the port dispatching in the router.
+On legacy hosts, SCMP echo and error requests currently use random IDs, and thus have a low chance (~2.5%) to pick an ID in the range that is port dispatched by the router. As a preparatory change, the range of IDs can reduced, so that there is no intersection.
 
 Rationale
 ---------
@@ -216,8 +217,13 @@ Implementation
 
 The roadmap would look like the following:
 
-- Add support for dispatched/forwarded port ranges to the topology.json configuration.
-  This first implementation step only ensures that this entry can be parsed from the configuration.
+- Prepare:
+   - Reduce the range of IDs used for SCMP echo and traceroute requests, so that it matches the range of ports assigned by the legacy dispatcher (32768-65535).
+
+   - Add support for dispatched/forwarded port ranges to the topology.json configuration.
+     This first implementation step only ensures that this entry can be parsed from the configuration.
+
+     Update: this can be skipped, as the topology.json parsing is lenient about unkown keys by default.
 
 - Change SCION applications to use native ``net.UDPConn`` instead of ``reliable.Conn``.
 
