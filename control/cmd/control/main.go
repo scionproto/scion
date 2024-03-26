@@ -226,7 +226,7 @@ func realMain(ctx context.Context) error {
 		SCIONNetworkMetrics:    metrics.SCIONNetworkMetrics,
 		SCIONPacketConnMetrics: metrics.SCIONPacketConnMetrics,
 		MTU:                    topo.MTU(),
-		CPInfoProvider:         cpInfoProvider{topo: topo},
+		Topology:               cpInfoProvider{topo: topo},
 	}
 	quicStack, err := nc.QUICStack()
 	if err != nil {
@@ -929,6 +929,10 @@ func (h *healther) GetCAHealth(ctx context.Context) (api.CAHealthStatus, bool) {
 
 type cpInfoProvider struct {
 	topo *topology.Loader
+}
+
+func (c cpInfoProvider) LocalIA(_ context.Context) (addr.IA, error) {
+	return c.topo.IA(), nil
 }
 
 func (c cpInfoProvider) PortRange(_ context.Context) (uint16, uint16, error) {

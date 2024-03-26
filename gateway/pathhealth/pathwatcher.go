@@ -41,9 +41,9 @@ const (
 type DefaultPathWatcherFactory struct {
 	// LocalIA is the ID of the local AS.
 	LocalIA addr.IA
-	// CPInfoProvider is the helper class to get control-plane information for the
+	// Topology is the helper class to get control-plane information for the
 	// local AS.
-	CPInfoProvider snet.CPInfoProvider
+	Topology snet.Topology
 	// LocalIP is the IP address of the local host.
 	LocalIP netip.Addr
 	// RevocationHandler is the revocation handler.
@@ -88,8 +88,8 @@ func (f *DefaultPathWatcherFactory) New(
 			},
 			pkts: pktChan,
 		},
-		Metrics:        f.SCIONPacketConnMetrics,
-		CPInfoProvider: f.CPInfoProvider,
+		Metrics:  f.SCIONPacketConnMetrics,
+		Topology: f.Topology,
 	}).OpenUDP(ctx, &net.UDPAddr{IP: f.LocalIP.AsSlice()})
 	if err != nil {
 		return nil, serrors.WrapStr("creating connection for probing", err)

@@ -57,7 +57,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 		dst = SCIONAddress{IA: a.IA, Host: addr.HostIP(hostIP)}
 		port, path = a.Host.Port, a.Path
 		nextHop = a.NextHop
-		if nextHop == nil && c.base.scionNet.LocalIA.Equal(a.IA) {
+		if nextHop == nil && c.base.listen.IA.Equal(a.IA) {
 			port := a.Host.Port
 			if !c.isWithinRange(port) {
 				port = topology.EndhostPort
@@ -87,7 +87,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 		PacketInfo: PacketInfo{
 			Destination: dst,
 			Source: SCIONAddress{
-				IA:   c.base.scionNet.LocalIA,
+				IA:   c.base.listen.IA,
 				Host: addr.HostIP(listenHostIP),
 			},
 			Path: path,

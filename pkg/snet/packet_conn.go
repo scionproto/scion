@@ -120,8 +120,8 @@ type SCIONPacketConn struct {
 	// SCMP message is received.
 	SCMPHandler SCMPHandler
 	// Metrics are the metrics exported by the conn.
-	Metrics        SCIONPacketConnMetrics
-	getLastHopAddr func(id uint16) (*net.UDPAddr, error)
+	Metrics      SCIONPacketConnMetrics
+	interfaceMap interfaceMap
 }
 
 func (c *SCIONPacketConn) SetReadBuffer(bytes int) error {
@@ -277,7 +277,7 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 		if !path.Info.ConsDir {
 			ifid = path.SecondHop.ConsEgress
 		}
-		return c.getLastHopAddr(ifid)
+		return c.interfaceMap.get(ifid)
 	case epic.PathType:
 		var path epic.Path
 		err := path.DecodeFromBytes(rpath.Raw)
@@ -296,7 +296,7 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 		if !infoField.ConsDir {
 			ifid = hf.ConsEgress
 		}
-		return c.getLastHopAddr(ifid)
+		return c.interfaceMap.get(ifid)
 	case scion.PathType:
 		var path scion.Raw
 		err := path.DecodeFromBytes(rpath.Raw)
@@ -315,7 +315,7 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 		if !infoField.ConsDir {
 			ifid = hf.ConsEgress
 		}
-		return c.getLastHopAddr(ifid)
+		return c.interfaceMap.get(ifid)
 	default:
 		return nil, serrors.New("Unknown type", "type", rpath.PathType.String())
 	}
@@ -334,4 +334,14 @@ type SerializationOptions struct {
 	// previous offsets. If it is set to false, then the fields are left
 	// unchanged.
 	InitializePaths bool
+}
+
+type interfaceMap map[uint16]*net.UDPAddr
+
+func (m interfaceMap) get(id uint16) (*net.UDPAddr, error) {
+	addr, ok := m[id]
+	if !ok {
+		return nil, serrors.New("Interface number not found", "if", id)
+	}
+	return addr, nil
 }

@@ -48,8 +48,9 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-// CPInfoProvider provides local-IA control-plane information
-type CPInfoProvider interface {
+// Topology provides local-IA topology information
+type Topology interface {
+	LocalIA(ctx context.Context) (addr.IA, error)
 	PortRange(ctx context.Context) (uint16, uint16, error)
 	Interfaces(ctx context.Context) (map[uint16]*net.UDPAddr, error)
 }
@@ -63,9 +64,9 @@ type Connector interface {
 }
 
 type DefaultConnector struct {
-	SCMPHandler    SCMPHandler
-	Metrics        SCIONPacketConnMetrics
-	CPInfoProvider CPInfoProvider
+	SCMPHandler SCMPHandler
+	Metrics     SCIONPacketConnMetrics
+	Topology    Topology
 }
 
 func (d *DefaultConnector) OpenUDP(ctx context.Context, addr *net.UDPAddr) (PacketConn, error) {
@@ -74,11 +75,11 @@ func (d *DefaultConnector) OpenUDP(ctx context.Context, addr *net.UDPAddr) (Pack
 	if addr == nil || addr.IP.IsUnspecified() {
 		return nil, serrors.New("Nil or unspecified address is not permitted")
 	}
-	start, end, err := d.CPInfoProvider.PortRange(ctx)
+	start, end, err := d.Topology.PortRange(ctx)
 	if err != nil {
 		return nil, err
 	}
-	ifAddrs, err := d.CPInfoProvider.Interfaces(ctx)
+	ifAddrs, err := d.Topology.Interfaces(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -97,16 +98,10 @@ func (d *DefaultConnector) OpenUDP(ctx context.Context, addr *net.UDPAddr) (Pack
 		return nil, err
 	}
 	return &SCIONPacketConn{
-		Conn:        pconn,
-		SCMPHandler: d.SCMPHandler,
-		Metrics:     d.Metrics,
-		getLastHopAddr: func(id uint16) (*net.UDPAddr, error) {
-			addr, ok := ifAddrs[id]
-			if !ok {
-				return nil, serrors.New("Interface number not found", "if", id)
-			}
-			return addr, nil
-		},
+		Conn:         pconn,
+		SCMPHandler:  d.SCMPHandler,
+		Metrics:      d.Metrics,
+		interfaceMap: ifAddrs,
 	}, nil
 }
 
@@ -140,9 +135,8 @@ type SCIONNetworkMetrics struct {
 
 // SCIONNetwork is the SCION networking context.
 type SCIONNetwork struct {
-	LocalIA        addr.IA
-	CPInfoProvider CPInfoProvider
-	Connector      Connector
+	Topology  Topology
+	Connector Connector
 	// ReplyPather is used to create reply paths when reading packets on Conn
 	// (that implements net.Conn). If unset, the default reply pather is used,
 	// which parses the incoming path as a path.Path and reverses it.
@@ -200,10 +194,14 @@ func (n *SCIONNetwork) Listen(
 
 	log.FromCtx(ctx).Debug("UDP socket openned on", "addr", packetConn.LocalAddr())
 
+	localIA, err := n.Topology.LocalIA(ctx)
+	if err != nil {
+		return nil, err
+	}
 	conn := scionConnBase{
 		scionNet: n,
 		listen: &UDPAddr{
-			IA:   n.LocalIA,
+			IA:   localIA,
 			Host: packetConn.LocalAddr().(*net.UDPAddr),
 		},
 	}
@@ -212,7 +210,7 @@ func (n *SCIONNetwork) Listen(
 	if replyPather == nil {
 		replyPather = DefaultReplyPather{}
 	}
-	start, end, err := n.CPInfoProvider.PortRange(ctx)
+	start, end, err := n.Topology.PortRange(ctx)
 	if err != nil {
 		return nil, err
 	}

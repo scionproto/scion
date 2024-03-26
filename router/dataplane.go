@@ -2018,8 +2018,8 @@ func (d *DataPlane) addEndhostPort(
 	case slayers.L4UDP:
 		if len(lastLayer.LayerPayload()) < 8 {
 			// TODO(JordiSubira): Treat this as a parameter problem
-			return nil, serrors.New(fmt.Sprintf("SCION/UDP header len too small: %d",
-				len(lastLayer.LayerPayload())))
+			return nil, serrors.New("SCION/UDP header len too small", "legth",
+				len(lastLayer.LayerPayload()))
 		}
 		port := binary.BigEndian.Uint16(lastLayer.LayerPayload()[2:])
 		if port < d.endhostStartPort || port > d.endhostEndPort {

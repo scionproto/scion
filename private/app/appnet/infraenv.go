@@ -80,9 +80,9 @@ type NetworkConfig struct {
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 	// MTU of the local AS
 	MTU uint16
-	// CPInfoProvider is the helper class to get control-plane information for the
+	// Topology is the helper class to get control-plane information for the
 	// local AS.
-	CPInfoProvider snet.CPInfoProvider
+	Topology snet.Topology
 }
 
 // QUICStack contains everything to run a QUIC based RPC stack.
@@ -208,9 +208,9 @@ func (nc *NetworkConfig) AddressRewriter() *AddressRewriter {
 		Resolver: &svc.Resolver{
 			LocalIA: nc.IA,
 			Connector: &snet.DefaultConnector{
-				SCMPHandler:    nc.SCMPHandler,
-				Metrics:        nc.SCIONPacketConnMetrics,
-				CPInfoProvider: nc.CPInfoProvider,
+				SCMPHandler: nc.SCMPHandler,
+				Metrics:     nc.SCIONPacketConnMetrics,
+				Topology:    nc.Topology,
 			},
 			LocalIP: nc.Public.IP,
 		},
@@ -230,16 +230,15 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 		return nil, nil, serrors.WrapStr("building SVC resolution reply", err)
 	}
 	serverNet := &snet.SCIONNetwork{
-		LocalIA:        nc.IA,
-		CPInfoProvider: nc.CPInfoProvider,
+		Topology: nc.Topology,
 		Connector: &svc.ResolverPacketConnector{
 			Connector: &snet.DefaultConnector{
 				// XXX(roosd): This is essential, the server must not read SCMP
 				// errors. Otherwise, the accept loop will always return that error
 				// on every subsequent call to accept.
-				SCMPHandler:    ignoreSCMP{},
-				Metrics:        nc.SCIONPacketConnMetrics,
-				CPInfoProvider: nc.CPInfoProvider,
+				SCMPHandler: ignoreSCMP{},
+				Metrics:     nc.SCIONPacketConnMetrics,
+				Topology:    nc.Topology,
 			},
 			LocalIA: nc.IA,
 			Handler: &svc.BaseHandler{
@@ -256,8 +255,7 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 	}
 
 	clientNet := &snet.SCIONNetwork{
-		LocalIA:        nc.IA,
-		CPInfoProvider: nc.CPInfoProvider,
+		Topology: nc.Topology,
 		Connector: &snet.DefaultConnector{
 			// Discard all SCMP propagation, to avoid read errors on the QUIC
 			// client.
@@ -265,8 +263,8 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 				Handler: nc.SCMPHandler,
 				Log:     log.Debug,
 			},
-			Metrics:        nc.SCIONPacketConnMetrics,
-			CPInfoProvider: nc.CPInfoProvider,
+			Metrics:  nc.SCIONPacketConnMetrics,
+			Topology: nc.Topology,
 		},
 		Metrics: nc.SCIONNetworkMetrics,
 	}
