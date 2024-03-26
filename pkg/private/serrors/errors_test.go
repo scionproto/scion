@@ -229,6 +229,16 @@ func TestEncoding(t *testing.T) {
 			},
 			goldenFileBase: "testdata/error-list",
 		},
+		"goroutine stacktrace": {
+			err: func() error {
+				errs := make(chan error)
+				go func() {
+					errs <- serrors.New("msg")
+				}()
+				return <-errs
+			}(),
+			goldenFileBase: "testdata/goroutine",
+		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
@@ -393,10 +403,8 @@ func sanitizeLog(log []byte) []byte {
 		{`[^\s"]*pkg/private/serrors_test.Test`, "pkg/private/serrors/go_default_test_test.Test"},
 		// serrors package
 		{`[^\s"]*/pkg/private/serrors`, "pkg/private/serrors"},
-		// go sdk
-		{`[^\s"]*/src/testing`, "src/testing"},
-		// go runtime
-		{`[^\s"]*/src/runtime`, "src/runtime"},
+		// go sdk: strip file name and line number to reduce churn
+		{`[^\s"]*/src/testing[\w/.]*:\d*`, "gosdk"},
 	} {
 		re := regexp.MustCompile(replacer.pattern)
 		log = re.ReplaceAll(log, []byte(replacer.replace))
