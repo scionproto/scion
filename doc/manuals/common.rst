@@ -292,20 +292,16 @@ of the individual fields below.
          instance with :option:`general.id <router-conf-toml general.id>` matching
          :option:`<router-id> <topology-json <router-id>>`.
 
-         .. option:: disable = <bool>, default false
+         .. option:: disable = <bool>, default :option:`router.bfd.disabled <router-conf-toml disabled>`
 
             Disable BFD, unconditionally consider the connection alive.
 
-            If true, takes precedence over :option:`router.bfd.disabled <router-conf-toml disabled>`.
-
-         .. option:: detect_mult = <uint8>, default 3
+         .. option:: detect_mult = <uint8>, default :option:`router.bfd.disabled <router-conf-toml detect_mult>`
 
             After ``detect_mult`` consecutively missing control packets, the BFD session is
             considered "down" and is reset.
 
-            Takes precedence over :option:`router.bfd.disabled <router-conf-toml detect_mult>`.
-
-         .. option:: desired_min_tx_interval = <duration>, default 200ms
+         .. option:: desired_min_tx_interval = <duration>, default :option:`router.bfd.disired_min_tx_interval <router-conf-toml desired_min_tx_interval>`.
 
             Defines the frequency at which this router should send BFD control messages for this
             inter-domain link.
@@ -313,17 +309,13 @@ of the individual fields below.
             session establishment;
             the value will be ``max(desired_min_tx_interval, remote.required_min_rx_interval)``.
 
-            Takes precedence over :option:`router.bfd.disired_min_tx_interval <router-conf-toml desired_min_tx_interval>`.
-
-         .. option:: required_min_rx_interval = <duration>, default 200ms
+         .. option:: required_min_rx_interval = <duration>, default :option:`router.bfd.required_min_rx_interval <router-conf-toml required_min_rx_interval>`
 
             Defines an upper bound for the frequency at which this router wants to receive BFD
             control messages for this inter-domain link.
             The effective interval at which the remote router will send control messages is the
             result of negotiating with the remote router during session establishment;
             the value will be ``max(remote.desired_min_tx_interval, required_min_rx_interval)``.
-
-            Takes precedence over :option:`router.bfd.required_min_rx_interval <router-conf-toml required_min_rx_interval>`.
 
 .. option:: control_service
 
