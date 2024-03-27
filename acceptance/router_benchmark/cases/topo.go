@@ -280,6 +280,9 @@ func MACAddr(ip netip.Addr) net.HardwareAddr {
 		return mac
 	}
 	as4 := ip.As4()
+
+	// This component makes no assumption regarding how the topology is used. We have to support all
+	// hosts that the topology describes, even fictional ones, should a test case refer to it.
 	return net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, as4[2], as4[3]}
 }
 

@@ -118,7 +118,8 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 		IA:   xtest.MustParseIA("1-ff00:0:3"),
 		Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.200")},
 	}
-	nobfd := control.BFD{Disable: true}
+	disable := true
+	nobfd := control.BFD{Disable: &disable}
 	t.Run("fails after serve", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -197,7 +198,8 @@ func TestDataPlaneAddSVC(t *testing.T) {
 func TestDataPlaneAddNextHop(t *testing.T) {
 	l := &net.UDPAddr{}
 	r := &net.UDPAddr{}
-	nobfd := control.BFD{Disable: true}
+	disable := true
+	nobfd := control.BFD{Disable: &disable}
 
 	t.Run("fails after serve", func(t *testing.T) {
 		d := &router.DataPlane{}
@@ -302,7 +304,8 @@ func TestDataPlaneRun(t *testing.T) {
 					IA:   xtest.MustParseIA("1-ff00:0:3"),
 					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.200")},
 				}
-				nobfd := control.BFD{Disable: true}
+				disable := true
+				nobfd := control.BFD{Disable: &disable}
 
 				_ = ret.AddExternalInterface(1, mExternal, l, r, nobfd)
 
@@ -1715,7 +1718,9 @@ func computeFullMAC(t *testing.T, key []byte, info path.InfoField, hf path.HopFi
 }
 
 func bfd() control.BFD {
+	no := false
 	return control.BFD{
+		Disable:               &no,
 		DetectMult:            3,
 		DesiredMinTxInterval:  1 * time.Millisecond,
 		RequiredMinRxInterval: 25 * time.Millisecond,

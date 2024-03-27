@@ -313,7 +313,7 @@ func (d *DataPlane) AddRemotePeer(local, remote uint16) error {
 func (d *DataPlane) addExternalInterfaceBFD(ifID uint16, conn BatchConn,
 	src, dst control.LinkEnd, cfg control.BFD) error {
 
-	if cfg.Disable {
+	if *cfg.Disable {
 		return nil
 	}
 	var m bfd.Metrics
@@ -448,7 +448,7 @@ func (d *DataPlane) AddNextHop(ifID uint16, src, dst *net.UDPAddr, cfg control.B
 func (d *DataPlane) addNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg control.BFD,
 	sibling string) error {
 
-	if cfg.Disable {
+	if *cfg.Disable {
 		return nil
 	}
 	for k, v := range d.internalNextHops {

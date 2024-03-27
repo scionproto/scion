@@ -15,7 +15,6 @@ go_library(
         "//private/config:go_default_library",
         "//private/env:go_default_library",
         "//private/mgmtapi:go_default_library",
-        "//private/topology/json:go_default_library",
     ],
 )
 

@@ -126,10 +126,10 @@ type (
 
 	// BFD is the configuration for a BFD session
 	// Disable can be set from two sources: the topology configuration for the link (here), and
-	// the dataplane's bfd global configuration. BFD is disabled if either of these is
-	// True.
+	// the dataplane's bfd global configuration. This is actually a pointer to boolean. nil
+	// means unspecified.
 	BFD struct {
-		Disable               bool
+		Disable               *bool
 		DetectMult            uint8
 		DesiredMinTxInterval  time.Duration
 		RequiredMinRxInterval time.Duration

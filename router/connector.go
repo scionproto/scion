@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/underlay/conn"
+	"github.com/scionproto/scion/router/config"
 	"github.com/scionproto/scion/router/control"
 )
 
@@ -41,7 +42,7 @@ type Connector struct {
 
 	ReceiveBufferSize int
 	SendBufferSize    int
-	BfdConfig         control.BFD
+	BFD               config.BFD
 }
 
 var errMultiIA = serrors.New("different IA not allowed")
@@ -89,8 +90,10 @@ func (c *Connector) AddExternalInterface(localIfID common.IFIDType, link control
 	log.Debug("Adding external interface", "interface", localIfID,
 		"local_isd_as", link.Local.IA, "local_addr", link.Local.Addr,
 		"remote_isd_as", link.Remote.IA, "remote_addr", link.Remote.Addr,
-		"owned", owned, "bfd", !link.BFD.Disable,
-		"dataplane_bfd_enabled", !c.BfdConfig.Disable)
+		"owned", owned,
+		"link_bfd_configured", link.BFD.Disable != nil,
+		"link_bfd_enabled", link.BFD.Disable == nil || !*link.BFD.Disable,
+		"dataplane_bfd_enabled", !c.BFD.Disable)
 
 	if !c.ia.Equal(link.Local.IA) {
 		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", link.Local.IA)
@@ -102,7 +105,7 @@ func (c *Connector) AddExternalInterface(localIfID common.IFIDType, link control
 		return serrors.WrapStr("adding neighboring IA", err, "if_id", localIfID)
 	}
 
-	link.BFD = c.applyBFDdefaults(link.BFD)
+	link.BFD = c.applyBFDDefaults(link.BFD)
 	if owned {
 		if len(c.externalInterfaces) == 0 {
 			c.externalInterfaces = make(map[uint16]control.ExternalInterface)
@@ -208,19 +211,21 @@ func (c *Connector) ListSiblingInterfaces() ([]control.SiblingInterface, error) 
 }
 
 // Apply the global BFD settings if required. Link-specific settings, if configured, prevail over
-// the global defaults.  Special case for BfdDisable, which can't be undefined: the link-specific
-// setting prevails if it is true. (ie. bfd is disabled as soon as either the link or the global
-// setting says so).
-func (c *Connector) applyBFDdefaults(cfg control.BFD) control.BFD {
-	cfg.Disable = cfg.Disable || c.BfdConfig.Disable
+// the global defaults. (cfg.Disable isn't a boolean, it is a pointer to boolean so we can have an
+// unspecified state - nil). After calling applyDefaults cfg.Disable is never nil.
+func (c *Connector) applyBFDDefaults(cfg control.BFD) control.BFD {
+	if cfg.Disable == nil {
+		disable := c.BFD.Disable
+		cfg.Disable = &disable
+	}
 	if cfg.DetectMult == 0 {
-		cfg.DetectMult = c.BfdConfig.DetectMult
+		cfg.DetectMult = c.BFD.DetectMult
 	}
 	if cfg.DesiredMinTxInterval == 0 {
-		cfg.DesiredMinTxInterval = c.BfdConfig.DesiredMinTxInterval
+		cfg.DesiredMinTxInterval = c.BFD.DesiredMinTxInterval.Duration
 	}
 	if cfg.RequiredMinRxInterval == 0 {
-		cfg.RequiredMinRxInterval = c.BfdConfig.RequiredMinRxInterval
+		cfg.RequiredMinRxInterval = c.BFD.RequiredMinRxInterval.Duration
 	}
 	return cfg
 }
