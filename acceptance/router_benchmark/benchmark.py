@@ -47,14 +47,15 @@ TEST_CASES = [
 # TODO(jiceatscion): get it from brload
 BM_PACKET_LEN = 154
 
+# Convenience types to carry interface params.
+IntfReq = namedtuple("IntfReq", "label, prefixLen, ip, peerIp, exclusive")
+
+
 def sudo(*args: [str]) -> str:
     # -A, --askpass makes sure command is failing and does not wait for
     # interactive password input.
     return cmd.sudo("-A", *args)
 
-
-# Convenience types to carry interface params.
-IntfReq = namedtuple("IntfReq", "label, prefixLen, ip, peerIp, exclusive")
 
 class RouterBM:
     """Evaluates the performance of an external router running the SCION reference implementation.
@@ -238,7 +239,6 @@ class RouterBM:
         beg = "0"
         end = "0"
         for line in output.splitlines():
-            print(f"brload said: {line}")
             if line.startswith("metricsBegin"):
                 _, beg, _, end = line.split()
 
@@ -312,7 +312,7 @@ class RouterBM:
 
     # Fetch and log the number of cores used by Go. This may inform performance
     # modeling later.
-    def log_core_counts(self):
+    def core_count(self) -> int:
         print("==> Collecting number of cores...")
         promQuery = urlencode({
             'query': 'go_sched_maxprocs_threads{job="BR"}'
@@ -327,10 +327,15 @@ class RouterBM:
 
         pld = json.loads(resp.read().decode("utf-8"))
         results = pld["data"]["result"]
-        for result in results:
-            instance = result["metric"]["instance"]
-            _, val = result["value"]
-            print(f"Router Cores for {instance}: {int(val)}")
+        if len(results) > 1:
+            print(f"FAILED: Found more than one subject router in results: {results}")
+            exit(1)
+
+        result = results[0]
+        instance = result["metric"]["instance"]
+        _, val = result["value"]
+        print(f"Router Cores for {instance}: {int(val)}")
+        return int(val)
 
     def horsepower(self) -> tuple[int]:
         resp = urlopen(f"https://{self.scrapeAddr}/horsepower.txt",
@@ -346,7 +351,7 @@ class RouterBM:
 
     def perfIndex(self, rate: int, coremark:int, mmbm: int) -> float:
         # mmbm is in mebiBytes/s
-        return 1.0 / (coremark * (1.0/rate - BM_PACKET_LEN / (mmbm * 1024 * 1024)))
+        return 1.0 / (coremark_sum * (1.0/rate - BM_PACKET_LEN / (mmbm * 1024 * 1024)))
 
     def run(self):
         print("Benchmarking...")
@@ -356,7 +361,7 @@ class RouterBM:
         coremarkstr = str(coremark or "Unavailable")
         mmbmstr = str(mmbm or "Unavailable")
         print(f"Coremark: {coremarkstr}")
-        print(f"Memory bandwidth: {mmbm} MiB/s")
+        print(f"Memory bandwidth (MiB/s): {mmbmstr}")
 
         # Build the interface mapping arg (here, we do not override the brload side mac address)
         mapArgs = []
@@ -377,7 +382,7 @@ class RouterBM:
             rateMap[testCase] = processed
             droppageMap[testCase] = dropped
 
-        self.log_core_counts()
+        cores = self.core_count()
 
         # Output the performance...
         for tt in TEST_CASES:

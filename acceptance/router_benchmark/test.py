@@ -44,16 +44,18 @@ TEST_CASES = {
     "br_transit": 720000,
 }
 
+# TODO(jiceatscion): get it from brload
+BM_PACKET_LEN = 154
+
+# Convenience types to carry interface params.
+IntfReq = namedtuple("IntfReq", "label, prefixLen, ip, peerIp, exclusive")
+Intf = namedtuple("Intf", "name, mac, peerMac")
+
 
 def sudo(*args: [str]) -> str:
     # -A, --askpass makes sure command is failing and does not wait for
     # interactive password input.
     return cmd.sudo("-A", *args)
-
-
-# Convenience types to carry interface params.
-IntfReq = namedtuple("IntfReq", "label, prefixLen, ip, peerIp, exclusive")
-Intf = namedtuple("Intf", "name, mac, peerMac")
 
 
 # Make-up an eth mac address as unique as the given IP.
@@ -513,7 +515,7 @@ class RouterBMTest(base.TestBase):
 
     # Fetch and log the number of cores used by Go. This may inform performance
     # modeling later.
-    def log_core_counts(self):
+    def core_count(self) -> int:
         logger.info("==> Collecting number of cores...")
         promQuery = urlencode({
             'query': 'go_sched_maxprocs_threads{job="BR"}'
@@ -527,12 +529,53 @@ class RouterBMTest(base.TestBase):
 
         pld = json.loads(resp.read().decode("utf-8"))
         results = pld["data"]["result"]
-        for result in results:
-            instance = result["metric"]["instance"]
-            _, val = result["value"]
-            logger.info(f"Router Cores for {instance}: {int(val)}")
+        if len(results) > 1:
+            raise RuntimeError(f"FAILED: Found more than one subject router in results: {results}")
+
+        result = results[0]
+        instance = result["metric"]["instance"]
+        _, val = result["value"]
+        logger.info(f"Router Cores for {instance}: {int(val)}")
+        return int(val)
+
+    def horsepower(self) -> tuple[int]:
+        coremark = 0
+        mmbm = 0
+        try:
+            coremark_exe = self.get_executable("coremark")
+            output = coremark_exe()
+            line = output.splitlines()[-1]
+            if line.startswith("CoreMark "):
+                elems = line.split(" ")
+                if len(elems) >= 4:
+                    coremark = float(elems[3])
+        except Exception as e:
+            print(e)
+
+        try:
+            mmbm_exe = self.get_executable("mmbm")
+            output = mmbm_exe()
+            line = output.splitlines()[-1]
+            if line.startswith("\"mmbm\": "):
+                elems = line.split(" ")
+                if len(elems) >= 2:
+                    mmbm = float(elems[1])
+        except Exception as e:
+            print(e)
+
+        return round(coremark), round(mmbm)
+
+    def perfIndex(self, rate: int, coremark:int, mmbm: int) -> float:
+        # mmbm is in mebiBytes/s
+        return 1.0 / (coremark * (1.0/rate - BM_PACKET_LEN / (mmbm * 1024 * 1024)))
 
     def _run(self):
+        coremark, mmbm = self.horsepower()
+        coremarkstr = str(coremark or "Unavailable")
+        mmbmstr = str(mmbm or "Unavailable")
+        logger.info(f"Coremark: {coremarkstr}")
+        logger.info(f"Memory bandwidth (MiB/s): {mmbmstr}")
+
         # Build the interface mapping arg
         mapArgs = []
         for label, intf in self.intfMap.items():
@@ -550,7 +593,13 @@ class RouterBMTest(base.TestBase):
             rateMap[testCase] = processed
             droppageMap[testCase] = dropped
 
-        self.log_core_counts()
+        cores = self.core_count()
+
+        if coremark != 0 and mmbm != 0:
+            for tt in TEST_CASES:
+                # TODO(jiceatscion): The perf index assumes that line speed isn't the bottleneck.
+                # It almost never is, but ideally we'd need to run iperf3 to verify.
+                logger.info(f"Perf index for {tt}: {self.perfIndex(rateMap[tt], coremark, mmbm)}")
 
         # Log and check the performance...
         # If this is used as a CI test. Make sure that the performance is within the expected

@@ -16,6 +16,10 @@ exports_files(
 args = [
     "--executable",
     "brload:$(location //acceptance/router_benchmark/brload:brload)",
+    "--executable",
+    "coremark:$(location //tools/coremark:coremark)",
+    "--executable",
+    "mmbm:$(location //tools/mmbm:mmbm)",
     "--docker-image=$(location //docker:router.tarball)",
 ]
 
@@ -23,6 +27,8 @@ data = [
     ":conf",
     "//docker:router.tarball",
     "//acceptance/router_benchmark/brload:brload",
+    "//tools/coremark:coremark",
+    "//tools/mmbm:mmbm",
 ]
 
 raw_test(
