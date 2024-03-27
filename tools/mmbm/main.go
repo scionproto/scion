@@ -58,7 +58,10 @@ func main() {
 	testing.Init()
 	flag.VisitAll(func(f *flag.Flag) {
 		if f.Name == "test.benchtime" {
-			f.Value.Set("2s") // More than enough, but 1s can be too short.
+			err := f.Value.Set("2s") // More than enough, but 1s can be too short.
+			if err != nil {
+				panic(err)
+			}
 		}
 	})
 
