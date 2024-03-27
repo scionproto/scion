@@ -29,7 +29,6 @@ import (
 	libmetrics "github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/util"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
 	"github.com/scionproto/scion/pkg/scrypto"
@@ -106,11 +105,6 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 		IA:           ia,
 		SubjectKeyID: keyID.SubjectKeyId,
 		Validity:     v.BoundValidity,
-		// The date is only filled in for backwards compatibility with servers of
-		// the gRPC API without the Validity field. Instead of time.Now() we use
-		// the end of the validity period to ensure that the certificate is
-		// valid at the end of the period.
-		Date: v.BoundValidity.NotAfter,
 	}
 	chains, err := v.getChains(ctx, query)
 	if err != nil {
@@ -118,7 +112,7 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 		return nil, serrors.WrapStr("getting chains", err,
 			"query.isd_as", query.IA,
 			"query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID),
-			"query.date", util.TimeToCompact(query.Date),
+			"query.validity", query.Validity.String(),
 		)
 	}
 	for _, c := range chains {
@@ -132,7 +126,7 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 	return nil, serrors.New("no chain in database can verify signature",
 		"query.isd_as", query.IA,
 		"query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID),
-		"query.date", util.TimeToCompact(query.Date),
+		"query.validity", query.Validity.String(),
 	)
 }
 

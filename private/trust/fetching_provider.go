@@ -80,13 +80,11 @@ func (p FetchingProvider) GetChains(ctx context.Context, query ChainQuery,
 	span.SetTag("query.isd_as", query.IA)
 	span.SetTag("query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID))
 	span.SetTag("query.validity", query.Validity.String())
-	span.SetTag("query.date", query.Date.Format(time.RFC3339))
 
 	logger := log.FromCtx(ctx)
 	logger.Debug("Getting chains",
 		"isd_as", query.IA,
 		"validity", query.Validity.String(),
-		"date", query.Date.Format(time.RFC3339),
 		"subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID))
 
 	if query.IA.IsWildcard() {

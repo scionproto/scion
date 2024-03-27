@@ -139,22 +139,6 @@ func run(t *testing.T, db TestableDB, cfg Config) {
 			assert.Error(t, err)
 			assert.Empty(t, chain)
 		})
-		t.Run("Get chain with date", func(t *testing.T) {
-			chains, err := db.Chains(ctx, trust.ChainQuery{
-				IA:   xtest.MustParseIA("1-ff00:0:110"),
-				Date: xtest.MustParseTime(t, "2020-06-24T14:00:00Z"),
-			})
-			assert.NoError(t, err)
-			assert.Equal(t, bern1Chain, chains[0])
-		})
-		t.Run("Get chain with expired date", func(t *testing.T) {
-			chains, err := db.Chains(ctx, trust.ChainQuery{
-				IA:   xtest.MustParseIA("1-ff00:0:110"),
-				Date: xtest.MustParseTime(t, "2020-06-23T14:00:00Z"),
-			})
-			assert.NoError(t, err)
-			assert.Empty(t, chains)
-		})
 		t.Run("Get chain with covered validity", func(t *testing.T) {
 			chains, err := db.Chains(ctx, trust.ChainQuery{
 				IA: xtest.MustParseIA("1-ff00:0:110"),
@@ -176,20 +160,6 @@ func run(t *testing.T, db TestableDB, cfg Config) {
 			})
 			assert.NoError(t, err)
 			assert.Empty(t, chains)
-		})
-		t.Run("Get chain with validity trumping date", func(t *testing.T) {
-			chains, err := db.Chains(ctx, trust.ChainQuery{
-				IA: xtest.MustParseIA("1-ff00:0:110"),
-				// Date is before the validity period, but the validity period
-				// is covered.
-				Date: xtest.MustParseTime(t, "2020-06-23T14:00:00Z"),
-				Validity: cppki.Validity{
-					NotBefore: xtest.MustParseTime(t, "2020-06-24T12:00:00Z"),
-					NotAfter:  xtest.MustParseTime(t, "2020-06-27T12:00:00Z"),
-				},
-			})
-			assert.NoError(t, err)
-			assert.Equal(t, bern1Chain, chains[0])
 		})
 	})
 }

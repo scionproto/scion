@@ -162,10 +162,6 @@ func (e *executor) Chains(ctx context.Context,
 		args = append(args, query.Validity.NotAfter.UTC())
 		filters = append(filters, fmt.Sprintf("not_before<=$%d AND not_after>=$%d",
 			len(args)-1, len(args)))
-	} else if !query.Date.IsZero() {
-		args = append(args, query.Date.UTC())
-		filters = append(filters, fmt.Sprintf("not_before<=$%d AND not_after>=$%d",
-			len(args), len(args)))
 	}
 	if query.IA.ISD() != 0 {
 		args = append(args, query.IA.ISD())

@@ -32,20 +32,12 @@ message ChainsRequest {
     uint64 isd_as = 1;
     // SubjectKeyID in the AS certificate.
     bytes subject_key_id = 2;
-    // Point in time that must be covered by the AS certificate's validity
-    // period. In seconds since UNIX epoch.
-    google.protobuf.Timestamp date = 3;
-    // The validity period that must be covered by the AS certificate. This can
-    // be alternatively used to the date field. If both are set, the validity
-    // takes precedence.
-    Validity validity = 4;
-}
-
-message Validity {
-    // NotBefore time of the certificate. In seconds since UNIX epoch.
-    google.protobuf.Timestamp not_before = 1;
-    // NotAfter time of the certificate. In seconds since UNIX epoch.
-    google.protobuf.Timestamp not_after = 2;
+    // Point in time at which the AS certificate must still be valid. In seconds
+    // since UNIX epoch.
+    google.protobuf.Timestamp at_least_valid_until = 3;
+    // Point in time at which the AS certificate must be or must have been
+    // valid. In seconds since UNIX epoch.
+    google.protobuf.Timestamp at_least_valid_since = 4;
 }
 
 message ChainsResponse {
