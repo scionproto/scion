@@ -153,5 +153,5 @@ lint-doc: lint-doc-mdlint
 
 lint-doc-mdlint:
 	$(info ==> $@)
-	@FILES=$$(find -type f -iname '*.md' -not -path "./private/mgmtapi/tools/node_modules/*" -not -path "./.github/**/*" | grep -vf tools/md/skipped); \
-		docker run --rm -v ${PWD}:/data -v ${PWD}/tools/md/mdlintstyle.rb:/style.rb $$(docker build -q tools/md) $${FILES} -s /style.rb
+	@if [ -t 1 ]; then tty=true; else tty=false; fi; \
+		tools/quiet docker run --tty=$$tty --rm -v ${PWD}:/workdir davidanson/markdownlint-cli2:v0.12.1
