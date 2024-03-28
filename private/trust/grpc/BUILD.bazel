@@ -15,7 +15,6 @@ go_library(
         "//pkg/metrics:go_default_library",
         "//pkg/private/prom:go_default_library",
         "//pkg/private/serrors:go_default_library",
-        "//pkg/private/util:go_default_library",
         "//pkg/proto/control_plane:go_default_library",
         "//pkg/scrypto/cppki:go_default_library",
         "//private/tracing:go_default_library",

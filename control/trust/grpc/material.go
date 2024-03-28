@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/prom"
-	"github.com/scionproto/scion/pkg/private/util"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/tracing"
@@ -125,7 +124,7 @@ func setChainsTags(span opentracing.Span, query trust.ChainQuery) {
 	if span != nil {
 		span.SetTag("query.isd_as", query.IA)
 		span.SetTag("query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID))
-		span.SetTag("query.date", util.TimeToCompact(query.Date))
+		span.SetTag("query.validity", query.Validity.String())
 	}
 }
 

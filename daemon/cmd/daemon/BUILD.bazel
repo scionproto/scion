@@ -29,6 +29,7 @@ go_library(
         "//pkg/private/serrors:go_default_library",
         "//pkg/proto/crypto:go_default_library",
         "//pkg/proto/daemon:go_default_library",
+        "//pkg/scrypto/cppki:go_default_library",
         "//pkg/scrypto/signed:go_default_library",
         "//private/app:go_default_library",
         "//private/app/launcher:go_default_library",

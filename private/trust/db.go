@@ -19,7 +19,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
@@ -33,20 +32,22 @@ type ChainQuery struct {
 	// SubjectKeyID identifies the subject key that the AS certificate must
 	// authenticate.
 	SubjectKeyID []byte
-	// Date is the time when the chain must be valid.
-	Date time.Time
+	// Validity is the validity period of the chain. A certificate c fulfills
+	// the validity requirement if c.not_before <= Validity.not_before and
+	// c.not_after >= Validity.not_after.
+	Validity cppki.Validity
 }
 
 // MarshalJSON marshals the chain query for well formated log output.
 func (q ChainQuery) MarshalJSON() ([]byte, error) {
 	j := struct {
-		IA           addr.IA   `json:"isd_as"`
-		SubjectKeyID string    `json:"subject_key_id"`
-		Date         time.Time `json:"date"`
+		IA           addr.IA        `json:"isd_as"`
+		SubjectKeyID string         `json:"subject_key_id"`
+		Validity     cppki.Validity `json:"validity"`
 	}{
 		IA:           q.IA,
 		SubjectKeyID: fmt.Sprintf("%x", q.SubjectKeyID),
-		Date:         q.Date,
+		Validity:     q.Validity,
 	}
 	return json.Marshal(j)
 

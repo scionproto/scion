@@ -59,7 +59,10 @@ func TestFetcherChains(t *testing.T) {
 			Query: trust.ChainQuery{
 				IA:           ia110,
 				SubjectKeyID: chain110[0].SubjectKeyId,
-				Date:         queryDate,
+				Validity: cppki.Validity{
+					NotBefore: queryDate,
+					NotAfter:  queryDate,
+				},
 			},
 			Assertion: assert.Error,
 		},
@@ -77,7 +80,10 @@ func TestFetcherChains(t *testing.T) {
 			Query: trust.ChainQuery{
 				IA:           ia110,
 				SubjectKeyID: chain110[0].SubjectKeyId,
-				Date:         queryDate,
+				Validity: cppki.Validity{
+					NotBefore: queryDate,
+					NotAfter:  queryDate,
+				},
 			},
 			Assertion: assert.Error,
 		},
@@ -98,7 +104,10 @@ func TestFetcherChains(t *testing.T) {
 			Query: trust.ChainQuery{
 				IA:           ia110,
 				SubjectKeyID: chain110[0].SubjectKeyId,
-				Date:         queryDate,
+				Validity: cppki.Validity{
+					NotBefore: queryDate,
+					NotAfter:  queryDate,
+				},
 			},
 			Assertion: assert.Error,
 		},
@@ -119,7 +128,10 @@ func TestFetcherChains(t *testing.T) {
 			Query: trust.ChainQuery{
 				IA:           ia110,
 				SubjectKeyID: chain110[0].SubjectKeyId,
-				Date:         chain110[0].NotBefore.Add(-time.Hour),
+				Validity: cppki.Validity{
+					NotBefore: chain110[0].NotBefore.Add(-time.Hour),
+					NotAfter:  chain110[0].NotBefore.Add(-time.Hour),
+				},
 			},
 			Assertion: assert.Error,
 		},
@@ -140,7 +152,10 @@ func TestFetcherChains(t *testing.T) {
 			Query: trust.ChainQuery{
 				IA:           ia110,
 				SubjectKeyID: chain110[0].SubjectKeyId,
-				Date:         queryDate,
+				Validity: cppki.Validity{
+					NotBefore: queryDate,
+					NotAfter:  queryDate,
+				},
 			},
 			Assertion: assert.NoError,
 			Expected:  [][]*x509.Certificate{chain110},

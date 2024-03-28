@@ -29,7 +29,6 @@ import (
 	libmetrics "github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/util"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
 	"github.com/scionproto/scion/pkg/scrypto"
@@ -48,6 +47,9 @@ type Verifier struct {
 	BoundIA addr.IA
 	// BoundServer binds a remote server to ask for missing crypto material.
 	BoundServer net.Addr
+	// BoundValidity binds the verifier to only use certificates that are valid
+	// at the specified time.
+	BoundValidity cppki.Validity
 	// Engine provides verified certificate chains.
 	Engine Provider
 
@@ -102,7 +104,7 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 	query := ChainQuery{
 		IA:           ia,
 		SubjectKeyID: keyID.SubjectKeyId,
-		Date:         time.Now(),
+		Validity:     v.BoundValidity,
 	}
 	chains, err := v.getChains(ctx, query)
 	if err != nil {
@@ -110,7 +112,7 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 		return nil, serrors.WrapStr("getting chains", err,
 			"query.isd_as", query.IA,
 			"query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID),
-			"query.date", util.TimeToCompact(query.Date),
+			"query.validity", query.Validity.String(),
 		)
 	}
 	for _, c := range chains {
@@ -124,7 +126,7 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 	return nil, serrors.New("no chain in database can verify signature",
 		"query.isd_as", query.IA,
 		"query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID),
-		"query.date", util.TimeToCompact(query.Date),
+		"query.validity", query.Validity.String(),
 	)
 }
 

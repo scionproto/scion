@@ -46,7 +46,13 @@ func (s *Server) GetCertificates(
 ) {
 
 	w.Header().Set("Content-Type", "application/json")
-	q := trust.ChainQuery{Date: time.Now()}
+	now := time.Now()
+	q := trust.ChainQuery{
+		Validity: cppki.Validity{
+			NotBefore: now,
+			NotAfter:  now,
+		},
+	}
 	var errs serrors.List
 	if params.IsdAs != nil {
 		if ia, err := addr.ParseIA(*params.IsdAs); err == nil {
@@ -56,10 +62,13 @@ func (s *Server) GetCertificates(
 		}
 	}
 	if params.ValidAt != nil {
-		q.Date = *params.ValidAt
+		q.Validity = cppki.Validity{
+			NotBefore: *params.ValidAt,
+			NotAfter:  *params.ValidAt,
+		}
 	}
 	if params.All != nil && *params.All {
-		q.Date = time.Time{}
+		q.Validity = cppki.Validity{}
 	}
 	if err := errs.ToError(); err != nil {
 		Error(w, Problem{

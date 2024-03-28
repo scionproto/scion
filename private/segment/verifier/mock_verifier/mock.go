@@ -12,6 +12,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/pkg/addr"
 	crypto "github.com/scionproto/scion/pkg/proto/crypto"
+	cppki "github.com/scionproto/scion/pkg/scrypto/cppki"
 	signed "github.com/scionproto/scion/pkg/scrypto/signed"
 	verifier "github.com/scionproto/scion/private/segment/verifier"
 )
@@ -85,4 +86,18 @@ func (m *MockVerifier) WithServer(arg0 net.Addr) verifier.Verifier {
 func (mr *MockVerifierMockRecorder) WithServer(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithServer", reflect.TypeOf((*MockVerifier)(nil).WithServer), arg0)
+}
+
+// WithValidity mocks base method.
+func (m *MockVerifier) WithValidity(arg0 cppki.Validity) verifier.Verifier {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WithValidity", arg0)
+	ret0, _ := ret[0].(verifier.Verifier)
+	return ret0
+}
+
+// WithValidity indicates an expected call of WithValidity.
+func (mr *MockVerifierMockRecorder) WithValidity(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithValidity", reflect.TypeOf((*MockVerifier)(nil).WithValidity), arg0)
 }

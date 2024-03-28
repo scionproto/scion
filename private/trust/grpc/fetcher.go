@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/util"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/tracing"
@@ -65,7 +64,7 @@ func (f Fetcher) Chains(ctx context.Context, query trust.ChainQuery,
 	logger := log.FromCtx(ctx)
 	logger.Debug("Fetch certificate chain from remote",
 		"isd_as", query.IA,
-		"date", util.TimeToCompact(query.Date),
+		"validity", query.Validity.String(),
 		"subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID),
 		"server", server,
 	)
@@ -159,7 +158,7 @@ func addChainsSpan(ctx context.Context,
 	tracing.Component(span, "trust")
 	span.SetTag("query.isd_as", query.IA)
 	span.SetTag("query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID))
-	span.SetTag("query.date", util.TimeToCompact(query.Date))
+	span.SetTag("query.validity", query.Validity.String())
 	span.SetTag("msgr.stack", "grpc")
 	return span, ctx
 }
@@ -190,9 +189,13 @@ func checkChainsMatchQuery(query trust.ChainQuery, chains [][]*x509.Certificate)
 			return serrors.New("SubjectKeyID mismatch", "index", i)
 		}
 		validity := cppki.Validity{NotBefore: chain[0].NotBefore, NotAfter: chain[0].NotAfter}
-		if !validity.Contains(query.Date) {
-			return serrors.New("queried date not covered",
-				"index", i, "date", util.TimeToCompact(query.Date), "validity", validity)
+		if !query.Validity.IsZero() && !validity.Covers(query.Validity) {
+			return serrors.New(
+				"queried validity not covered",
+				"index", i,
+				"validity", query.Validity.String(),
+				"chain_validity", validity.String(),
+			)
 		}
 	}
 	return nil
