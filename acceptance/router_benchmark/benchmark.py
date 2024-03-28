@@ -349,9 +349,9 @@ class RouterBM:
 
         return round(hp["coremark"]), round(hp["mmbm"])
 
-    def perfIndex(self, rate: int, coremark:int, mmbm: int) -> float:
+    def perfIndex(self, rate: int, numcores: int, coremark: int, mmbm: int) -> float:
         # mmbm is in mebiBytes/s
-        return 1.0 / (coremark_sum * (1.0/rate - BM_PACKET_LEN / (mmbm * 1024 * 1024)))
+        return 1.0 / (coremark_sum * numcores * (1.0/rate - BM_PACKET_LEN / (mmbm * 1024 * 1024)))
 
     def run(self):
         print("Benchmarking...")
@@ -392,7 +392,7 @@ class RouterBM:
             for tt in TEST_CASES:
                 # TODO(jiceatscion): The perf index assumes that line speed isn't the bottleneck.
                 # It almost never is, but ideally we'd need to run iperf3 to verify.
-                print(f"Perf index for {tt}: {self.perfIndex(rateMap[tt], coremark, mmbm)}")
+                print(f"Perf index for {tt}: {self.perfIndex(rateMap[tt], cores, coremark, mmbm)}")
 
         # Check the saturation...
         # Make sure that the saturation is within the expeected ballpark: that should manifest as
