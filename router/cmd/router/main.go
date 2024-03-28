@@ -63,6 +63,7 @@ func realMain(ctx context.Context) error {
 		},
 		ReceiveBufferSize: globalCfg.Router.ReceiveBufferSize,
 		SendBufferSize:    globalCfg.Router.SendBufferSize,
+		BFD:               globalCfg.Router.BFD,
 	}
 	iaCtx := &control.IACtx{
 		Config: controlConfig,

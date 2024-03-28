@@ -21,6 +21,10 @@ html latex latexpdf linkcheck help:
 autobuild:
 	sphinx-autobuild "$(SOURCEDIR)" "$(BUILDDIR)" $(filter-out --keep-going,$(SPHINXOPTS))
 
+.PHONY: clean
+clean:
+	rm -rf _build
+
 # Generate commandline docs by building the tools and running their `gendocus` subcommand
 .PHONY: command-gendocs
 command-gendocs:

@@ -188,6 +188,10 @@ scion_pkg_ipk(
     name = "testconfig_ipk",
 )
 
+scion_pkg_ipk(
+    name = "bmconfig_ipk",
+)
+
 # multiplatform_filegroup creates two targets: <name> and <name>_all.
 # <name> means "local platform".
 # So "build //dist/openwrt" means "make me ipk packages for the local platform only. It wont work,
@@ -211,6 +215,7 @@ multiplatform_filegroup(
 multiplatform_filegroup(
     name = "openwrt_testing",
     srcs = [
+        "bmconfig_ipk",
         "coremark_ipk",
         "testconfig_ipk",
     ],

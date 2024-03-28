@@ -292,20 +292,22 @@ of the individual fields below.
          instance with :option:`general.id <router-conf-toml general.id>` matching
          :option:`<router-id> <topology-json <router-id>>`.
 
-         .. option:: disable = <bool>, default false
+         .. option:: disable = <bool>, default router.bfd.disable
+
+            See :option:`router.bfd.disabled <router-conf-toml disabled>`.
 
             Disable BFD, unconditionally consider the connection alive.
 
-            Takes precedence over :envvar:`SCION_EXPERIMENTAL_BFD_DISABLE`.
+         .. option:: detect_mult = <uint8>, default router.bfd.detect_mult
 
-         .. option:: detect_mult = <uint8>, default 3
+            See :option:`router.bfd.detect_mult <router-conf-toml detect_mult>`.
 
             After ``detect_mult`` consecutively missing control packets, the BFD session is
             considered "down" and is reset.
 
-            Takes precedence over :envvar:`SCION_EXPERIMENTAL_BFD_DETECT_MULT`.
+         .. option:: desired_min_tx_interval = <duration>, default router.bfd.desired_min_tx_interval
 
-         .. option:: desired_min_tx_interval = <duration>, default 200ms
+            See :option:`router.bfd.disired_min_tx_interval <router-conf-toml desired_min_tx_interval>`.
 
             Defines the frequency at which this router should send BFD control messages for this
             inter-domain link.
@@ -313,17 +315,14 @@ of the individual fields below.
             session establishment;
             the value will be ``max(desired_min_tx_interval, remote.required_min_rx_interval)``.
 
-            Takes precedence over :envvar:`SCION_EXPERIMENTAL_BFD_DESIRED_MIN_TX`.
-
-         .. option:: required_min_rx_interval = <duration>, default 200ms
+         .. option:: required_min_rx_interval = <duration>, default router.bfd.required_min_rx_interval
+            See :option:`router.bfd.required_min_rx_interval <router-conf-toml required_min_rx_interval>`.
 
             Defines an upper bound for the frequency at which this router wants to receive BFD
             control messages for this inter-domain link.
             The effective interval at which the remote router will send control messages is the
             result of negotiating with the remote router during session establishment;
             the value will be ``max(remote.desired_min_tx_interval, required_min_rx_interval)``.
-
-            Takes precedence over :envvar:`SCION_EXPERIMENTAL_BFD_REQUIRED_MIN_RX`.
 
 .. option:: control_service
 
