@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"hash"
 	"math/rand"
 	"net"
 	"os"
@@ -30,8 +31,10 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/path"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/private/app/path/pathprobe"
 	"github.com/scionproto/scion/private/path/pathpol"
@@ -79,6 +82,28 @@ func Choose(
 ) (snet.Path, error) {
 
 	o := applyOption(opts)
+
+	if o.ohCfg != nil {
+		// Only one-hop paths are requested.
+		p, err := path.NewOneHop(o.ohCfg.Egress, time.Now(), 63, o.ohCfg.Mac)
+		if err != nil {
+			return nil, err
+		}
+
+		return path.Path{
+			Src:           o.ohCfg.Source,
+			Dst:           o.ohCfg.Destination,
+			DataplanePath: p,
+			NextHop:       o.ohCfg.NextHop,
+			Meta: snet.PathMetadata{
+				Interfaces: []snet.PathInterface{
+					{ID: common.IFIDType(o.ohCfg.Egress), IA: o.ohCfg.Source},
+					{ID: 0, IA: o.ohCfg.Destination},
+				},
+			},
+		}, nil
+	}
+
 	paths, err := fetchPaths(ctx, conn, remote, o.refresh, o.seq)
 	if err != nil {
 		return nil, serrors.WrapStr("fetching paths", err)
@@ -313,6 +338,14 @@ type ProbeConfig struct {
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 }
 
+type OneHopConfig struct {
+	Source      addr.IA
+	Destination addr.IA
+	Egress      uint16
+	Mac         hash.Hash
+	NextHop     *net.UDPAddr
+}
+
 type options struct {
 	interactive bool
 	refresh     bool
@@ -320,6 +353,7 @@ type options struct {
 	colorScheme ColorScheme
 	probeCfg    *ProbeConfig
 	epic        bool
+	ohCfg       *OneHopConfig
 }
 
 type Option func(o *options)
@@ -365,5 +399,11 @@ func WithProbing(cfg *ProbeConfig) Option {
 func WithEPIC(epic bool) Option {
 	return func(o *options) {
 		o.epic = epic
+	}
+}
+
+func WithOneHopConfig(cfg *OneHopConfig) Option {
+	return func(o *options) {
+		o.ohCfg = cfg
 	}
 }
