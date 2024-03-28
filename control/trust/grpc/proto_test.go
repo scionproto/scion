@@ -35,6 +35,7 @@ func TestReqToChainQuery(t *testing.T) {
 	validUntil, err := ptypes.TimestampProto(now)
 	require.NoError(t, err)
 	validSince, err := ptypes.TimestampProto(now.Add(-time.Hour))
+	require.NoError(t, err)
 
 	req := &cppb.ChainsRequest{
 		IsdAs:             uint64(xtest.MustParseIA("1-ff00:0:110")),
