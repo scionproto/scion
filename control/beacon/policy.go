@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/private/xtest/ptr"
 )
 
 // PolicyType is the policy type.
@@ -253,8 +254,7 @@ func (f *Filter) InitDefaults() {
 		f.MaxHopsLength = DefaultMaxHopsLength
 	}
 	if f.AllowIsdLoop == nil {
-		t := true
-		f.AllowIsdLoop = &t
+		f.AllowIsdLoop = ptr.To(true)
 	}
 }
 

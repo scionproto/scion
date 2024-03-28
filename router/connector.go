@@ -210,15 +210,13 @@ func (c *Connector) ListSiblingInterfaces() ([]control.SiblingInterface, error) 
 	return siblingInterfaceList, nil
 }
 
-// Apply the global BFD settings if required. Link-specific settings, if configured, prevail over
-// the global defaults. (cfg.Disable isn't a boolean, it is a pointer to boolean so we can have an
-// unspecified state - nil). After calling applyDefaults cfg.Disable is never nil.
+// applyBFDDefaults updates the given cfg object with the global default BFD settings.
+// Link-specific settings, if configured, remain unchanged.  IMPORTANT: cfg.Disable isn't a boolean
+// but a pointer to boolean, allowing a simple representation of the unconfigured state: nil. This
+// means that using a cfg object that hasn't been processed by this function may lead to a NPE.
+// In particular, "control.BFD{}" is invalid.
 func (c *Connector) applyBFDDefaults(cfg control.BFD) control.BFD {
 
-	// TODO(jiceatscion): cfg.disable can stay nil until this function has been called. While it is
-	// a bug to use cfg before the defaults have been applied, detecting it by crashing might not be
-	// the best. In addition, it makes something like BFD{} an invalid object while the expectation
-	// that is just an all-default value is ligitimate.
 	if cfg.Disable == nil {
 		disable := c.BFD.Disable
 		cfg.Disable = &disable

@@ -27,6 +27,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/private/xtest/ptr"
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/router/control"
 	"github.com/scionproto/scion/router/control/mock_api"
@@ -149,7 +150,6 @@ func TestAPI(t *testing.T) {
 }
 
 func createExternalIntfs(t *testing.T) []control.ExternalInterface {
-	no := false
 	return []control.ExternalInterface{
 		{
 			InterfaceID: 1,
@@ -165,7 +165,7 @@ func createExternalIntfs(t *testing.T) []control.ExternalInterface {
 				Instance: "br1-ff00_0_110-1",
 				LinkTo:   topology.Core,
 				BFD: control.BFD{
-					Disable:               &no,
+					Disable:               ptr.To(false),
 					DetectMult:            3,
 					DesiredMinTxInterval:  200 * time.Millisecond,
 					RequiredMinRxInterval: 300 * time.Millisecond,
@@ -188,7 +188,7 @@ func createExternalIntfs(t *testing.T) []control.ExternalInterface {
 				Instance: "br1-ff00_0_110-1",
 				LinkTo:   topology.Child,
 				BFD: control.BFD{
-					Disable:               &no,
+					Disable:               ptr.To(false),
 					DetectMult:            3,
 					DesiredMinTxInterval:  200 * time.Millisecond,
 					RequiredMinRxInterval: 200 * time.Millisecond,
@@ -211,7 +211,7 @@ func createExternalIntfs(t *testing.T) []control.ExternalInterface {
 				Instance: "br1-ff00_0_111-1",
 				LinkTo:   topology.Child,
 				BFD: control.BFD{
-					Disable:               &no,
+					Disable:               ptr.To(false),
 					DetectMult:            3,
 					DesiredMinTxInterval:  150 * time.Millisecond,
 					RequiredMinRxInterval: 150 * time.Millisecond,
@@ -234,7 +234,7 @@ func createExternalIntfs(t *testing.T) []control.ExternalInterface {
 				Instance: "br1-ff00_0_112-1",
 				LinkTo:   topology.Child,
 				BFD: control.BFD{
-					Disable:               &no,
+					Disable:               ptr.To(false),
 					DetectMult:            3,
 					DesiredMinTxInterval:  150 * time.Millisecond,
 					RequiredMinRxInterval: 150 * time.Millisecond,

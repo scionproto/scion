@@ -283,7 +283,7 @@ func MACAddr(ip netip.Addr) net.HardwareAddr {
 
 	// This component makes no assumption regarding how the topology is used. We have to support all
 	// hosts that the topology describes, even fictional ones, should a test case refer to it.
-	return net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, as4[2], as4[3]}
+	return net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, as4[2], as4[3]}
 }
 
 // hostAddr returns a the SCION Hosts addresse that corresponds to the given underlay address.

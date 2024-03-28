@@ -37,6 +37,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/private/xtest/ptr"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
@@ -118,8 +119,7 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 		IA:   xtest.MustParseIA("1-ff00:0:3"),
 		Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.200")},
 	}
-	disable := true
-	nobfd := control.BFD{Disable: &disable}
+	nobfd := control.BFD{Disable: ptr.To(true)}
 	t.Run("fails after serve", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -198,8 +198,7 @@ func TestDataPlaneAddSVC(t *testing.T) {
 func TestDataPlaneAddNextHop(t *testing.T) {
 	l := &net.UDPAddr{}
 	r := &net.UDPAddr{}
-	disable := true
-	nobfd := control.BFD{Disable: &disable}
+	nobfd := control.BFD{Disable: ptr.To(true)}
 
 	t.Run("fails after serve", func(t *testing.T) {
 		d := &router.DataPlane{}
@@ -304,8 +303,7 @@ func TestDataPlaneRun(t *testing.T) {
 					IA:   xtest.MustParseIA("1-ff00:0:3"),
 					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.200")},
 				}
-				disable := true
-				nobfd := control.BFD{Disable: &disable}
+				nobfd := control.BFD{Disable: ptr.To(true)}
 
 				_ = ret.AddExternalInterface(1, mExternal, l, r, nobfd)
 
@@ -1718,9 +1716,8 @@ func computeFullMAC(t *testing.T, key []byte, info path.InfoField, hf path.HopFi
 }
 
 func bfd() control.BFD {
-	no := false
 	return control.BFD{
-		Disable:               &no,
+		Disable:               ptr.To(false),
 		DetectMult:            3,
 		DesiredMinTxInterval:  1 * time.Millisecond,
 		RequiredMinRxInterval: 25 * time.Millisecond,
