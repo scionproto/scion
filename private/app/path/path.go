@@ -143,7 +143,7 @@ func filterUnhealthy(
 		DstIA:                  remote,
 		LocalIA:                cfg.LocalIA,
 		LocalIP:                cfg.LocalIP,
-		ID:                     uint16(rand.Uint32()),
+		ID:                     snet.RandomSCMPIdentifer(),
 		SCIONPacketConnMetrics: cfg.SCIONPacketConnMetrics,
 		Dispatcher:             cfg.Dispatcher,
 	}.GetStatuses(subCtx, nonEmptyPaths, pathprobe.WithEPIC(epic))
