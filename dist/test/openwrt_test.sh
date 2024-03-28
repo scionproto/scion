@@ -44,14 +44,18 @@ docker exec -i openwrt-x86_64 /bin/ash <<'EOF'
     cd /openwrt
 
     # check that the pki files are all here (avoid cryptic error from opk)
-    for c in persistdbs testconfig router control dispatcher daemon ip-gateway tools coremark; do
+    for c in persistdbs testconfig router control dispatcher daemon ip-gateway tools bmtools; do
     	ls /openwrt/scion-${c}_*_${arch}.ipk > /dev/null
     done
 
     # Start with the easy stuff. Install and run coremark.
-    opkg install scion-coremark_*_${arch}.ipk
+    opkg install scion-bmtools_*_${arch}.ipk
     /usr/bin/scion-coremark > /tmp/coremark.out
     cat /tmp/coremark.out
+
+    # Uninstall bmtooling. It contains benchmark-only configs that can get in
+    # the way.
+    opkg remove scion-bmtools
 
     # Now the real stuff...
 

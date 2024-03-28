@@ -22,11 +22,14 @@ from collections import defaultdict, namedtuple
 from plumbum import cli
 from plumbum.cmd import docker, whoami, lscpu
 from plumbum import cmd
+from random import randint
 
 from acceptance.common import base
 
 import logging
 import json
+import ipaddress
+
 from http.client import HTTPConnection
 from urllib.parse import urlencode
 
@@ -41,16 +44,18 @@ TEST_CASES = {
     "br_transit": 720000,
 }
 
+# TODO(jiceatscion): get it from brload
+BM_PACKET_LEN = 154
+
+# Convenience types to carry interface params.
+IntfReq = namedtuple("IntfReq", "label, prefixLen, ip, peerIp, exclusive")
+Intf = namedtuple("Intf", "name, mac, peerMac")
+
 
 def sudo(*args: [str]) -> str:
     # -A, --askpass makes sure command is failing and does not wait for
     # interactive password input.
     return cmd.sudo("-A", *args)
-
-
-# Convenience types to carry interface params.
-IntfReq = namedtuple("IntfReq", "label, prefixLen, ip, peerIp, exclusive")
-Intf = namedtuple("Intf", "name, mac, peerMac")
 
 
 # Make-up an eth mac address as unique as the given IP.
@@ -252,21 +257,37 @@ class RouterBMTest(base.TestBase):
         logger.info(f"brload cpus: {self.brload_cpus}")
 
     def create_interface(self, req: IntfReq, ns: str):
-        """
-        Creates a pair of virtual interfaces, with one end in the given network namespace and the
+        """Creates a pair of virtual interfaces, with one end in the given network namespace and the
         other in the host stack.
 
         The outcome is the pair of interfaces and a record in intfMap, which associates the given
         label with the network interface's host-side name and two mac addresses; one for each end
         of the pair. The mac addresses, if they can be chosen, are not chosen by the invoker, but
-        by this function.
+        by this function. When we can choose, we follow a convention to facilitate debugging.
+        Otherwise the values don't matter. brload has no expectations.
 
-        We could add:
+        We do not:
           sudo("ip", "addr", "add", f"{req.peerIp}/{req.prefixLen}", "dev", hostIntf)
+
+        It causes trouble: if an IP is assigned, the kernel responds with "unbound port" icmp
+        messages to the router traffic, which breaks the bound UDP connections that the router uses
+        for external interfaces.
+
+        We do not:
+          sudo("ip", "netns", "exec", ns, "ip", "neigh", "add", req.peerIp,
+               "lladdr", peerMac, "nud", "permanent", "dev", brIntf)
+
+        This isn't need because brload now responds to arp requests.
+
+        We do not:
           sudo("ip", "link", "set", hostIntf, "address", peerMac)
-        But it not necessary. The ARP seeding on the other end is enough. By not setting these
-        addresses on the host side we make it look a little weird for anyone who would look at it
-        but we avoid the risk of colliding with actual addresses of the host.
+
+        If we do that, the interface address matches the dst addr in router->brload packets. This
+        might seem desirable, even necessary, but is neither: since we're using veth pairs, the
+        packets arrive regardless of address. However, if the address matches the one assigned then
+        the kernel processes the packets in some way and the overall performance is reduced by 50%!
+        When dealing with real NICs, brload uses the real mac addr. In this test, we tell it what to
+        use.
 
         Args:
           IntfReq: A requested router-side network interface. It comprises:
@@ -281,8 +302,7 @@ class RouterBMTest(base.TestBase):
         hostIntf = f"veth_{physlabel}_host"
         brIntf = f"veth_{physlabel}"
 
-        # The interfaces
-        # We do multiplex most requested br interfaces onto one physical interface pairs, so, we
+        # We do multiplex most requested router interfaces onto one physical interface pairs, so, we
         # must check that we haven't already created the physical pair.
         for i in self.intfMap.values():
             if i.name == hostIntf:
@@ -294,28 +314,40 @@ class RouterBMTest(base.TestBase):
             mac = mac_for_ip(req.ip)
             sudo("ip", "link", "add", hostIntf, "type", "veth", "peer", "name", brIntf)
             sudo("ip", "link", "set", hostIntf, "mtu", "8000")
-            sudo("ip", "link", "set", brIntf, "mtu", "8000")
+            sudo("ip", "link", "set", hostIntf, "arp", "off")  # Make sure the real addr isn't used
+
+            # Do not assign the host addresses but create one link-local addr.
+            # Brload needs some src IP to send arp requests.
+            sudo("ip", "addr", "add", f"169.254.{randint(0, 255)}.{randint(0, 255)}/16",
+                 "broadcast", "169.254.255.255",
+                 "dev", hostIntf, "scope", "link")
+
             sudo("sysctl", "-qw", f"net.ipv6.conf.{hostIntf}.disable_ipv6=1")
             sudo("ethtool", "-K", brIntf, "rx", "off", "tx", "off")
+            sudo("ip", "link", "set", brIntf, "mtu", "8000")
             sudo("ip", "link", "set", brIntf, "address", mac)
 
             # The network namespace
             sudo("ip", "link", "set", brIntf, "netns", ns)
             sudo("ip", "netns", "exec", ns,
                  "sysctl", "-qw", f"net.ipv6.conf.{brIntf}.disable_ipv6=1")
+            sudo("ip", "netns", "exec", ns,
+                 "sysctl", "-qw", "net.ipv4.conf.all.rp_filter=0")
+            sudo("ip", "netns", "exec", ns,
+                 "sysctl", "-qw", f"net.ipv4.conf.{brIntf}.rp_filter=0")
 
-        # The addresses (presumably must be done once the br interface is in the namespace).
+        # Add the router side IP addresses (even if we're multiplexing on an existing interface).
         sudo("ip", "netns", "exec", ns,
-             "ip", "addr", "add", f"{req.ip}/{req.prefixLen}", "dev", brIntf)
-        sudo("ip", "netns", "exec", ns,
-             "ip", "neigh", "add", req.peerIp, "lladdr", peerMac, "nud", "permanent",
+             "ip", "addr", "add", f"{req.ip}/{req.prefixLen}",
+             "broadcast",
+             ipaddress.ip_network(f"{req.ip}/{req.prefixLen}", strict=False).broadcast_address,
              "dev", brIntf)
 
         # Fit for duty.
         sudo("ip", "link", "set", hostIntf, "up")
-        sudo("ip", "netns", "exec", ns,
-             "ip", "link", "set", brIntf, "up")
+        sudo("ip", "netns", "exec", ns, "ip", "link", "set", brIntf, "up")
 
+        # Ship it.
         self.intfMap[req.label] = Intf(hostIntf, mac, peerMac)
 
     def setup_prepare(self):
@@ -376,7 +408,6 @@ class RouterBMTest(base.TestBase):
         docker("run",
                "-v", f"{self.artifacts}/conf:/etc/scion",
                "-d",
-               "-e", "SCION_EXPERIMENTAL_BFD_DISABLE=true",
                "-e", "GOMAXPROCS=3",
                "--network", "container:prometheus",
                "--name", "router",
@@ -409,6 +440,8 @@ class RouterBMTest(base.TestBase):
         logger.info(f"==> Starting load {case}")
 
         output = self.exec_br_load(case, mapArgs, 10000000)
+        beg = "0"
+        end = "0"
         for line in output.splitlines():
             if line.startswith("metricsBegin"):
                 _, beg, _, end = line.split()
@@ -482,7 +515,7 @@ class RouterBMTest(base.TestBase):
 
     # Fetch and log the number of cores used by Go. This may inform performance
     # modeling later.
-    def log_core_counts(self):
+    def core_count(self) -> int:
         logger.info("==> Collecting number of cores...")
         promQuery = urlencode({
             'query': 'go_sched_maxprocs_threads{job="BR"}'
@@ -496,16 +529,62 @@ class RouterBMTest(base.TestBase):
 
         pld = json.loads(resp.read().decode("utf-8"))
         results = pld["data"]["result"]
-        for result in results:
-            instance = result["metric"]["instance"]
-            _, val = result["value"]
-            logger.info(f"Router Cores for {instance}: {int(val)}")
+        if len(results) > 1:
+            raise RuntimeError(f"FAILED: Found more than one subject router in results: {results}")
+
+        result = results[0]
+        instance = result["metric"]["instance"]
+        _, val = result["value"]
+        logger.info(f"Router Cores for {instance}: {int(val)}")
+        return int(val)
+
+    def horsepower(self) -> tuple[int]:
+        coremark = 0
+        mmbm = 0
+        try:
+            coremarkExe = self.get_executable("coremark")
+            output = sudo("taskset", "-c", self.router_cpus[0], coremarkExe.executable)
+            line = output.splitlines()[-1]
+            if line.startswith("CoreMark "):
+                elems = line.split(" ")
+                if len(elems) >= 4:
+                    coremark = float(elems[3])
+        except Exception as e:
+            print(e)
+
+        try:
+            mmbmExe = self.get_executable("mmbm")
+            output = mmbmExe()
+            line = output.splitlines()[-1]
+            if line.startswith("\"mmbm\": "):
+                elems = line.split(" ")
+                if len(elems) >= 2:
+                    mmbm = float(elems[1])
+        except Exception as e:
+            print(e)
+
+        cpuInfo = cmd.cat("/proc/cpuinfo")
+        coremarkOut = sudo("taskset", "-c", self.router_cpus[0], coremarkExe.executable)
+        logger.info(f"FYI cpu_info:\n{cpuInfo}")
+        logger.info(f"FYI coremark:\n{coremarkOut}")
+
+        return round(coremark), round(mmbm)
+
+    def perfIndex(self, rate: int, numcores: int, coremark: int, mmbm: int) -> float:
+        # mmbm is in mebiBytes/s
+        return 1.0 / (coremark * numcores * (1.0/rate - BM_PACKET_LEN / (mmbm * 1024 * 1024)))
 
     def _run(self):
+        coremark, mmbm = self.horsepower()
+        coremarkstr = str(coremark or "Unavailable")
+        mmbmstr = str(mmbm or "Unavailable")
+        logger.info(f"Coremark: {coremarkstr}")
+        logger.info(f"Memory bandwidth (MiB/s): {mmbmstr}")
+
         # Build the interface mapping arg
         mapArgs = []
         for label, intf in self.intfMap.items():
-            mapArgs.extend(["--interface", f"{label}={intf.name},{intf.mac},{intf.peerMac}"])
+            mapArgs.extend(["--interface", f"{label}={intf.name},{intf.peerMac}"])
 
         # Run one test (30% size) as warm-up to trigger the frequency scaling, else the first test
         # gets much lower performance.
@@ -519,7 +598,14 @@ class RouterBMTest(base.TestBase):
             rateMap[testCase] = processed
             droppageMap[testCase] = dropped
 
-        self.log_core_counts()
+        cores = self.core_count()
+
+        if coremark != 0 and mmbm != 0:
+            for tt in TEST_CASES:
+                # TODO(jiceatscion): The perf index assumes that line speed isn't the bottleneck.
+                # It almost never is, but ideally we'd need to run iperf3 to verify.
+                logger.info(
+                    f"Perf index for {tt}: {self.perfIndex(rateMap[tt], cores, coremark, mmbm)}")
 
         # Log and check the performance...
         # If this is used as a CI test. Make sure that the performance is within the expected

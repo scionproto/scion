@@ -39,6 +39,9 @@ type Dataplane interface {
 	SetKey(ia addr.IA, index int, key []byte) error
 }
 
+// BFD is the configuration for the BFD sessions.
+type BFD topology.BFD
+
 // LinkInfo contains the information about a link between an internal and
 // external router.
 type LinkInfo struct {
@@ -183,7 +186,7 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 				IFID: iface.RemoteIFID,
 			},
 			Instance: iface.BRName,
-			BFD:      WithDefaults(BFD(iface.BFD)),
+			BFD:      BFD(iface.BFD),
 			LinkTo:   iface.LinkType,
 			MTU:      iface.MTU,
 		}
@@ -197,9 +200,8 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 			// configured in the data plane.
 			linkInfo.Local.Addr = net.UDPAddrFromAddrPort(cfg.BR.InternalAddr)
 			linkInfo.Remote.Addr = net.UDPAddrFromAddrPort(iface.InternalAddr)
-			// For internal BFD always use the default configuration, which can be modified with
-			// the env variables.
-			linkInfo.BFD = BFDDefaults
+			// For internal BFD always use the default configuration.
+			linkInfo.BFD = BFD{}
 		}
 
 		if err := dp.AddExternalInterface(ifid, linkInfo, owned); err != nil {

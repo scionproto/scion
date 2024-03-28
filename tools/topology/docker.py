@@ -147,16 +147,7 @@ class DockerGenerator(object):
                 'image': image,
                 'networks': {},
                 'user': self.user,
-                'volumes':
-                ['%s:/etc/scion:ro' % base],
-                'environment': {
-                    'SCION_EXPERIMENTAL_BFD_DETECT_MULT':
-                    '${SCION_EXPERIMENTAL_BFD_DETECT_MULT:-}',
-                    'SCION_EXPERIMENTAL_BFD_DESIRED_MIN_TX':
-                    '${SCION_EXPERIMENTAL_BFD_DESIRED_MIN_TX:-}',
-                    'SCION_EXPERIMENTAL_BFD_REQUIRED_MIN_RX':
-                    '${SCION_EXPERIMENTAL_BFD_REQUIRED_MIN_RX:-}',
-                },
+                'volumes': ['%s:/etc/scion:ro' % base],
                 'command': ['--config', '/etc/scion/%s.toml' % k]
             }
             # add data networks:

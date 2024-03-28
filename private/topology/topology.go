@@ -125,6 +125,9 @@ type (
 	}
 
 	// BFD is the configuration for a BFD session
+	// Disable can be set from two sources: the topology configuration for the link (here), and
+	// the dataplane's bfd global configuration. BFD is disabled if either of these is
+	// True.
 	BFD struct {
 		Disable               bool
 		DetectMult            uint8
