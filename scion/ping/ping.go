@@ -18,7 +18,6 @@ package ping
 import (
 	"context"
 	"encoding/binary"
-	"math/rand"
 	"net"
 	"sync"
 	"time"
@@ -103,13 +102,13 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		return Stats{}, serrors.New("interval below millisecond")
 	}
 
-	id := rand.Uint64()
 	replies := make(chan reply, 10)
 
+	id := snet.RandomSCMPIdentifer()
 	svc := snet.DefaultPacketDispatcherService{
 		Dispatcher: cfg.Dispatcher,
 		SCMPHandler: scmpHandler{
-			id:      uint16(id),
+			id:      id,
 			replies: replies,
 		},
 	}
@@ -148,7 +147,7 @@ type pinger struct {
 	timeout  time.Duration
 	pldSize  int
 
-	id      uint64
+	id      uint16
 	conn    snet.PacketConn
 	local   *snet.UDPAddr
 	replies <-chan reply
@@ -224,7 +223,7 @@ func (p *pinger) send(remote *snet.UDPAddr) error {
 
 	binary.BigEndian.PutUint64(p.pld, uint64(time.Now().UnixNano()))
 	pkt, err := pack(p.local, remote, snet.SCMPEchoRequest{
-		Identifier: uint16(p.id),
+		Identifier: p.id,
 		SeqNumber:  uint16(sequence),
 		Payload:    p.pld,
 	})
