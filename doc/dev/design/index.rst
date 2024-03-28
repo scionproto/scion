@@ -40,6 +40,7 @@ Active
    uri
    grpc
    BorderRouter
+   endhost-overview
 
 .. _design-docs-completed:
 
