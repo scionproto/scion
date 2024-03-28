@@ -20,8 +20,8 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/ptr"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/xtest/ptr"
 )
 
 // PolicyType is the policy type.

@@ -292,18 +292,21 @@ of the individual fields below.
          instance with :option:`general.id <router-conf-toml general.id>` matching
          :option:`<router-id> <topology-json <router-id>>`.
 
-         .. option:: disable = <bool>, default the router.bfd.disable.
+         .. option:: disable = <bool>, default router.bfd.disable
+
             See :option:`router.bfd.disabled <router-conf-toml disabled>`.
 
             Disable BFD, unconditionally consider the connection alive.
 
          .. option:: detect_mult = <uint8>, default router.bfd.detect_mult
+
             See :option:`router.bfd.detect_mult <router-conf-toml detect_mult>`.
 
             After ``detect_mult`` consecutively missing control packets, the BFD session is
             considered "down" and is reset.
 
-         .. option:: desired_min_tx_interval = <duration>, default router.bfd.disired_min_tx_interval
+         .. option:: desired_min_tx_interval = <duration>, default router.bfd.desired_min_tx_interval
+
             See :option:`router.bfd.disired_min_tx_interval <router-conf-toml desired_min_tx_interval>`.
 
             Defines the frequency at which this router should send BFD control messages for this

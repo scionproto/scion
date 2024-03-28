@@ -25,9 +25,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/private/ptr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/xtest"
-	"github.com/scionproto/scion/pkg/private/xtest/ptr"
 	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/router/control"
 	"github.com/scionproto/scion/router/control/mock_api"
