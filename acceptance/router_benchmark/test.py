@@ -542,8 +542,8 @@ class RouterBMTest(base.TestBase):
         coremark = 0
         mmbm = 0
         try:
-            coremark_exe = self.get_executable("coremark")
-            output = coremark_exe()
+            coremarkExe = self.get_executable("coremark")
+            output = sudo("taskset", "-c", self.router_cpus[0], coremarkExe.executable)
             line = output.splitlines()[-1]
             if line.startswith("CoreMark "):
                 elems = line.split(" ")
@@ -553,8 +553,8 @@ class RouterBMTest(base.TestBase):
             print(e)
 
         try:
-            mmbm_exe = self.get_executable("mmbm")
-            output = mmbm_exe()
+            mmbmExe = self.get_executable("mmbm")
+            output = mmbmExe()
             line = output.splitlines()[-1]
             if line.startswith("\"mmbm\": "):
                 elems = line.split(" ")
@@ -562,6 +562,11 @@ class RouterBMTest(base.TestBase):
                     mmbm = float(elems[1])
         except Exception as e:
             print(e)
+
+        cpuInfo = cmd.cat("/proc/cpuinfo")
+        coremarkOut = sudo("taskset", "-c", self.router_cpus[0], coremarkExe.executable)
+        logger.info(f"FYI cpu_info:\n{cpuInfo}")
+        logger.info(f"FYI coremark:\n{coremarkOut}")
 
         return round(coremark), round(mmbm)
 
