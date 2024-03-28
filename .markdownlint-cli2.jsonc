@@ -1,0 +1,27 @@
+{
+    "globs": ["**/*.md"],
+    "ignores": [
+        "**/venv/**",
+        "**/_build/**",
+        "**/node_modules/**",
+        "licenses/data/**",
+        "tools/coremark/LICENSE.md"
+    ],
+    "config": {
+        "default": true,
+        "MD007": {
+            "indent": 4
+        },
+        "MD013": {
+            "line_length": 100,
+            "code_blocks": false,
+            "tables": false
+        },
+        "MD024": {
+            "siblings_only": true
+        }
+    },
+    "outputFormatters": [
+        [ "markdownlint-cli2-formatter-pretty", { "appendLink": true } ]
+    ]
+}

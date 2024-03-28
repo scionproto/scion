@@ -1,0 +1,11 @@
+{
+    "extends": "../.markdownlint-cli2.jsonc",
+    "config": {
+        "MD033": {
+            "allowed_elements": [
+                "a",
+                "sub"
+            ]
+        }
+    }
+}

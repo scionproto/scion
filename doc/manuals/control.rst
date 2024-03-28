@@ -252,7 +252,7 @@ considers the following options.
          - use the `netsys-lab/scion-ca <https://github.com/netsys-lab/scion-ca>`_ SCION CA
            based on `smallstep's step-ca <https://github.com/smallstep/certificates>`_,
          - ask SCION vendors for proprietary CA implementations and offerings,
-         - plug in your own CA service implementing the :file-ref:`spec/ca.gen.yaml` API.
+         - plug in your own CA service implementing the :file-ref:`spec/ca.gen.yml` API.
 
       .. option:: ca.service.address = <string>
 
