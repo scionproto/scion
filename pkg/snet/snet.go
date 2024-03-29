@@ -73,7 +73,7 @@ func (d *DefaultConnector) OpenUDP(ctx context.Context, addr *net.UDPAddr) (Pack
 	var pconn *net.UDPConn
 	var err error
 	if addr == nil || addr.IP.IsUnspecified() {
-		return nil, serrors.New("Nil or unspecified address is not permitted")
+		return nil, serrors.New("nil or unspecified address is not permitted")
 	}
 	start, end, err := d.Topology.PortRange(ctx)
 	if err != nil {
@@ -89,7 +89,7 @@ func (d *DefaultConnector) OpenUDP(ctx context.Context, addr *net.UDPAddr) (Pack
 		// XXX(JordiSubira): We check that given port is within SCION/UDP
 		// port range for the endhost.
 		if addr.Port < int(start) || addr.Port > int(end) {
-			return nil, serrors.New("Provided port is outside the SCION/UDP range",
+			return nil, serrors.New("provided port is outside the SCION/UDP range",
 				"start", start, "end", end, "port", addr.Port)
 		}
 		pconn, err = net.ListenUDP(addr.Network(), addr)
@@ -113,13 +113,13 @@ func listenUDPRange(addr *net.UDPAddr, start, end uint16) (*net.UDPConn, error) 
 			IP:   addr.IP,
 			Port: int(port),
 		})
-		if err != nil {
-			if !errors.Is(err, syscall.EADDRINUSE) {
-				return nil, err
-			}
+		if err == nil {
+			return pconn, nil
+		}
+		if errors.Is(err, syscall.EADDRINUSE) {
 			continue
 		}
-		return pconn, nil
+		return nil, err
 	}
 	return nil, serrors.WrapStr("binding to port range", syscall.EADDRINUSE)
 }

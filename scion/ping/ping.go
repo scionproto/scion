@@ -104,11 +104,12 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 	}
 
 	replies := make(chan reply, 10)
+	scmpHandler := &scmpHandler{
+		replies: replies,
+	}
 	svc := snet.DefaultConnector{
-		SCMPHandler: scmpHandler{
-			replies: replies,
-		},
-		Topology: cfg.Topology,
+		SCMPHandler: scmpHandler,
+		Topology:    cfg.Topology,
 	}
 	conn, err := svc.OpenUDP(ctx, cfg.Local.Host)
 	if err != nil {
@@ -117,6 +118,11 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 
 	local := cfg.Local.Copy()
 	local.Host = conn.LocalAddr().(*net.UDPAddr)
+
+	// we set the identifier on the handler to the same value as
+	// the udp port
+	id := local.Host.Port
+	scmpHandler.SetId(id)
 
 	// we need to have at least 8 bytes to store the request time in the
 	// payload.
@@ -129,7 +135,7 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		timeout:       cfg.Timeout,
 		pldSize:       cfg.PayloadSize,
 		pld:           make([]byte, cfg.PayloadSize),
-		id:            uint64(local.Host.Port),
+		id:            uint64(id),
 		conn:          conn,
 		local:         local,
 		replies:       replies,
@@ -302,6 +308,7 @@ type reply struct {
 }
 
 type scmpHandler struct {
+	id      uint16
 	replies chan<- reply
 }
 
@@ -315,6 +322,10 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 		Error:    err,
 	}
 	return nil
+}
+
+func (h *scmpHandler) SetId(id int) {
+	h.id = uint16(id)
 }
 
 func (h scmpHandler) handle(pkt *snet.Packet) (snet.SCMPEchoReply, error) {
@@ -335,5 +346,9 @@ func (h scmpHandler) handle(pkt *snet.Packet) (snet.SCMPEchoReply, error) {
 		)
 	}
 	r := pkt.Payload.(snet.SCMPEchoReply)
+	if r.Identifier != h.id {
+		return snet.SCMPEchoReply{}, serrors.New("wrong SCMP ID",
+			"expected", h.id, "actual", r.Identifier)
+	}
 	return r, nil
 }

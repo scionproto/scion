@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/pkg/log/logtest"
 	"github.com/scionproto/scion/private/env/envtest"
 	apitest "github.com/scionproto/scion/private/mgmtapi/mgmtapitest"
-	"github.com/scionproto/scion/private/topology"
 )
 
 func TestConfigSample(t *testing.T) {
@@ -50,6 +49,6 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 	envtest.CheckTest(t, nil, &cfg.Metrics, nil, nil, id)
 	logtest.CheckTestLogging(t, &cfg.Logging, id)
 	assert.Equal(t, id, cfg.Dispatcher.ID)
-	assert.Equal(t, topology.EndhostPort, cfg.Dispatcher.UnderlayPort)
-	assert.Len(t, cfg.Dispatcher.ServiceAddresses, 0)
+	assert.True(t, cfg.Dispatcher.UnderlayAddr.IsValid())
+	assert.Len(t, cfg.Dispatcher.ServiceAddresses, 6)
 }

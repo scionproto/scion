@@ -45,6 +45,7 @@ const (
 // built-in SVC address resolution capabilities. Every packet received with a
 // destination SVC address is intercepted inside the socket, and sent to an SVC
 // resolution handler which responds back to the client.
+// It responds to SVC_Wildcard, i.e., any SVC request.
 //
 // Redirected packets are not returned by the connection, so they cannot be
 // seen via ReadFrom. After redirecting a packet, the connection attempts to
@@ -57,7 +58,6 @@ type ResolverPacketConnector struct {
 	LocalIA addr.IA
 	// Handler handles packets for SVC destinations.
 	Handler RequestHandler
-	SVC     addr.SVC
 }
 
 func (c *ResolverPacketConnector) OpenUDP(
@@ -80,7 +80,6 @@ func (c *ResolverPacketConnector) OpenUDP(
 			Host: addr.HostIP(ip),
 		},
 		Handler: c.Handler,
-		SVC:     c.SVC,
 	}, nil
 }
 
@@ -93,7 +92,6 @@ type ResolverPacketConn struct {
 	Source snet.SCIONAddress
 	// Handler handles packets for SVC destinations.
 	Handler RequestHandler
-	SVC     addr.SVC
 }
 
 func (c *ResolverPacketConn) ReadFrom(pkt *snet.Packet, ov *net.UDPAddr) error {
@@ -101,24 +99,6 @@ func (c *ResolverPacketConn) ReadFrom(pkt *snet.Packet, ov *net.UDPAddr) error {
 		if err := c.PacketConn.ReadFrom(pkt, ov); err != nil {
 			return err
 		}
-
-		// XXX(scrye): destination address is guaranteed to not be nil
-		if pkt.Destination.Host.Type() != addr.HostTypeSVC {
-			// Normal packet, return to caller because data is already parsed and ready
-			return nil
-		}
-		svc := pkt.Destination.Host.SVC()
-
-		// Multicasts do not trigger SVC resolution logic
-		if svc.IsMulticast() {
-			return nil
-		}
-
-		if c.SVC != addr.SvcWildcard && c.SVC != svc {
-			log.Debug("Error handling SVC request")
-			return nil
-		}
-
 		// XXX(scrye): This might block, causing the read to wait for the
 		// write to go through. The solution would be to run the logic in a
 		// goroutine, but because UDP writes rarely block, the current
@@ -134,7 +114,6 @@ func (c *ResolverPacketConn) ReadFrom(pkt *snet.Packet, ov *net.UDPAddr) error {
 			// We do not propagate error to caller, to avoid the connection fails,
 			// e.g., within QUIC layer.
 			log.Error("Error handling SVC request", "err", err)
-			return nil
 		case Forward:
 			return nil
 		default:
@@ -173,6 +152,15 @@ type BaseHandler struct {
 }
 
 func (h *BaseHandler) Handle(request *Request) (Result, error) {
+	// XXX(scrye): destination address is guaranteed to not be nil
+	if request.Packet.Destination.Host.Type() != addr.HostTypeSVC {
+		// Normal packet, return to caller because data is already parsed and ready
+		return Forward, nil
+	}
+	// Multicasts do not trigger SVC resolution logic
+	if request.Packet.Destination.Host.SVC().IsMulticast() {
+		return Forward, nil
+	}
 	path, err := h.reversePath(request.Packet.Path)
 	if err != nil {
 		return Error, err

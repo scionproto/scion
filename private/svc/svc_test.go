@@ -38,7 +38,6 @@ func TestSVCResolutionServer(t *testing.T) {
 	testCases := map[string]struct {
 		Connector   func(ctrl *gomock.Controller) snet.Connector
 		ReqHandler  func(ctrl *gomock.Controller) svc.RequestHandler
-		SVC         addr.SVC
 		ErrOpen     assert.ErrorAssertionFunc
 		ErrConnRead assert.ErrorAssertionFunc
 	}{
@@ -56,10 +55,24 @@ func TestSVCResolutionServer(t *testing.T) {
 		"If handler fails, caller doesn't see an error": {
 			Connector: func(ctrl *gomock.Controller) snet.Connector {
 				mockPacketConn := mock_snet.NewMockPacketConn(ctrl)
-				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
+				firstCall := mockPacketConn.EXPECT().ReadFrom(
+					gomock.Any(),
+					gomock.Any(),
+				).DoAndReturn(
 					func(pkt *snet.Packet, ov *net.UDPAddr) error {
 						pkt.Destination = snet.SCIONAddress{
 							Host: addr.HostSVC(addr.SvcCS),
+						}
+						return nil
+					},
+				)
+				mockPacketConn.EXPECT().ReadFrom(
+					gomock.Any(),
+					gomock.Any(),
+				).After(firstCall).DoAndReturn(
+					func(pkt *snet.Packet, ov *net.UDPAddr) error {
+						pkt.Destination = snet.SCIONAddress{
+							Host: addr.MustParseHost("127.0.0.1"),
 						}
 						return nil
 					},
@@ -71,35 +84,10 @@ func TestSVCResolutionServer(t *testing.T) {
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
 				h := mock_svc.NewMockRequestHandler(ctrl)
-				h.EXPECT().Handle(gomock.Any()).Return(svc.Error, errors.New("err")).AnyTimes()
+				firstCall := h.EXPECT().Handle(gomock.Any()).Return(svc.Error, errors.New("err"))
+				h.EXPECT().Handle(gomock.Any()).After(firstCall).Return(svc.Forward, nil)
 				return h
 			},
-			SVC:         addr.SvcCS,
-			ErrOpen:     assert.NoError,
-			ErrConnRead: assert.NoError,
-		},
-		"SVC mismatch doesn't cause an error": {
-			Connector: func(ctrl *gomock.Controller) snet.Connector {
-				mockPacketConn := mock_snet.NewMockPacketConn(ctrl)
-				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(pkt *snet.Packet, ov *net.UDPAddr) error {
-						pkt.Destination = snet.SCIONAddress{
-							Host: addr.HostSVC(addr.SvcCS),
-						}
-						return nil
-					},
-				)
-
-				c := mock_snet.NewMockConnector(ctrl)
-				c.EXPECT().OpenUDP(gomock.Any(), gomock.Any()).Return(mockPacketConn, nil)
-				return c
-			},
-			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
-				h := mock_svc.NewMockRequestHandler(ctrl)
-				h.EXPECT().Handle(gomock.Any()).Return(svc.Error, errors.New("err")).AnyTimes()
-				return h
-			},
-			SVC:         addr.SvcDS,
 			ErrOpen:     assert.NoError,
 			ErrConnRead: assert.NoError,
 		},
@@ -109,7 +97,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, ov *net.UDPAddr) error {
 						pkt.Destination = snet.SCIONAddress{
-							Host: addr.HostSVC(addr.SvcCS),
+							Host: addr.MustParseHost("127.0.0.1"),
 						}
 						return nil
 					},
@@ -121,14 +109,13 @@ func TestSVCResolutionServer(t *testing.T) {
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
 				h := mock_svc.NewMockRequestHandler(ctrl)
-				h.EXPECT().Handle(gomock.Any()).Return(svc.Forward, nil).AnyTimes()
+				h.EXPECT().Handle(gomock.Any()).Return(svc.Forward, nil)
 				return h
 			},
-			SVC:         addr.SvcCS,
 			ErrOpen:     assert.NoError,
 			ErrConnRead: assert.NoError,
 		},
-		"Handler returns forward with SVCWildcard": {
+		"handled first, keep reading forwards following packet to caller": {
 			Connector: func(ctrl *gomock.Controller) snet.Connector {
 				mockPacketConn := mock_snet.NewMockPacketConn(ctrl)
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
@@ -138,7 +125,7 @@ func TestSVCResolutionServer(t *testing.T) {
 						}
 						return nil
 					},
-				)
+				).AnyTimes()
 
 				c := mock_snet.NewMockConnector(ctrl)
 				c.EXPECT().OpenUDP(gomock.Any(), gomock.Any()).Return(mockPacketConn, nil)
@@ -146,38 +133,14 @@ func TestSVCResolutionServer(t *testing.T) {
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
 				h := mock_svc.NewMockRequestHandler(ctrl)
-				h.EXPECT().Handle(gomock.Any()).Return(svc.Forward, nil).AnyTimes()
-				return h
-			},
-			SVC:         addr.SvcWildcard,
-			ErrOpen:     assert.NoError,
-			ErrConnRead: assert.NoError,
-		},
-		"return from conn with no error next internal read yields data": {
-			Connector: func(ctrl *gomock.Controller) snet.Connector {
-				mockPacketConn := mock_snet.NewMockPacketConn(ctrl)
-				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(pkt *snet.Packet, ov *net.UDPAddr) error {
-						pkt.Destination = snet.SCIONAddress{
-							Host: addr.MustParseHost("192.168.0.1"),
-						}
-						return nil
-					},
-				)
-
-				c := mock_snet.NewMockConnector(ctrl)
-				c.EXPECT().OpenUDP(gomock.Any(), gomock.Any()).Return(mockPacketConn, nil)
-				return c
-			},
-			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
-				h := mock_svc.NewMockRequestHandler(ctrl)
-				h.EXPECT().Handle(gomock.Any()).Return(svc.Handled, nil).AnyTimes()
+				firstCall := h.EXPECT().Handle(gomock.Any()).Return(svc.Handled, nil)
+				h.EXPECT().Handle(gomock.Any()).After(firstCall).Return(svc.Forward, nil)
 				return h
 			},
 			ErrOpen:     assert.NoError,
 			ErrConnRead: assert.NoError,
 		},
-		"return from socket with error if next internal read fails": {
+		"Return from socket with error if next internal read fails": {
 			Connector: func(ctrl *gomock.Controller) snet.Connector {
 				mockPacketConn := mock_snet.NewMockPacketConn(ctrl)
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
@@ -191,9 +154,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				return c
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
-				h := mock_svc.NewMockRequestHandler(ctrl)
-				h.EXPECT().Handle(gomock.Any()).Return(svc.Handled, nil).AnyTimes()
-				return h
+				return mock_svc.NewMockRequestHandler(ctrl)
 			},
 			ErrOpen:     assert.NoError,
 			ErrConnRead: assert.Error,
@@ -216,10 +177,9 @@ func TestSVCResolutionServer(t *testing.T) {
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
 				h := mock_svc.NewMockRequestHandler(ctrl)
-				h.EXPECT().Handle(gomock.Any()).Return(svc.Handled, nil).AnyTimes()
+				h.EXPECT().Handle(gomock.Any()).Return(svc.Forward, nil)
 				return h
 			},
-			SVC:         addr.SvcWildcard,
 			ErrOpen:     assert.NoError,
 			ErrConnRead: assert.NoError,
 		},
@@ -235,7 +195,6 @@ func TestSVCResolutionServer(t *testing.T) {
 			connector := &svc.ResolverPacketConnector{
 				Connector: tc.Connector(ctrl),
 				Handler:   tc.ReqHandler(ctrl),
-				SVC:       tc.SVC,
 			}
 
 			conn, err := connector.OpenUDP(
@@ -269,6 +228,9 @@ func TestDefaultHandler(t *testing.T) {
 		"path cannot be reversed": {
 			InputPacket: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
+					Destination: snet.SCIONAddress{
+						Host: addr.HostSVC(addr.SvcCS),
+					},
 					Path: path.SCION{
 						Raw: []byte{0x00, 0x01, 0x02, 0x03},
 					},
@@ -280,6 +242,9 @@ func TestDefaultHandler(t *testing.T) {
 		"empty UDP payload, success": {
 			InputPacket: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
+					Destination: snet.SCIONAddress{
+						Host: addr.HostSVC(addr.SvcCS),
+					},
 					Payload: snet.UDPPayload{},
 					Path:    snet.RawPath{},
 				},
@@ -297,6 +262,9 @@ func TestDefaultHandler(t *testing.T) {
 		"UDP payload with ports": {
 			InputPacket: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
+					Destination: snet.SCIONAddress{
+						Host: addr.HostSVC(addr.SvcCS),
+					},
 					Payload: snet.UDPPayload{SrcPort: 42, DstPort: 73},
 					Path:    snet.RawPath{},
 				},
@@ -314,6 +282,9 @@ func TestDefaultHandler(t *testing.T) {
 			ReplyPayload: []byte{1, 2, 3, 4},
 			InputPacket: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
+					Destination: snet.SCIONAddress{
+						Host: addr.HostSVC(addr.SvcCS),
+					},
 					Payload: snet.UDPPayload{},
 					Path:    snet.RawPath{},
 				},
@@ -331,6 +302,9 @@ func TestDefaultHandler(t *testing.T) {
 			ReplySource: snet.SCIONAddress{Host: addr.MustParseHost("192.168.0.1")},
 			InputPacket: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
+					Destination: snet.SCIONAddress{
+						Host: addr.HostSVC(addr.SvcCS),
+					},
 					Payload: snet.UDPPayload{},
 					Path:    snet.RawPath{},
 				},
@@ -381,6 +355,9 @@ func TestDefaultHandler(t *testing.T) {
 		conn := mock_snet.NewMockPacketConn(ctrl)
 		packet := &snet.Packet{
 			PacketInfo: snet.PacketInfo{
+				Destination: snet.SCIONAddress{
+					Host: addr.HostSVC(addr.SvcCS),
+				},
 				Payload: snet.UDPPayload{},
 				Path:    snet.RawPath{},
 			},

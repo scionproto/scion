@@ -15,7 +15,6 @@ go_library(
         "//private/config:go_default_library",
         "//private/env:go_default_library",
         "//private/mgmtapi:go_default_library",
-        "//private/topology:go_default_library",
     ],
 )
 
@@ -27,7 +26,6 @@ go_test(
         "//pkg/log/logtest:go_default_library",
         "//private/env/envtest:go_default_library",
         "//private/mgmtapi/mgmtapitest:go_default_library",
-        "//private/topology:go_default_library",
         "@com_github_pelletier_go_toml_v2//:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
     ],

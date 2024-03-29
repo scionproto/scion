@@ -36,6 +36,8 @@ from topology.common import (
     SD_CONFIG_NAME,
 )
 
+from topology.defines import DEFAULT_DISP_UNDERLAY_ADDR
+
 from topology.net import socket_address_str, NetworkDescription, IPNetwork
 
 from topology.monitoring import (
@@ -198,6 +200,7 @@ class GoGenerator(object):
         tomlDict = {
             'dispatcher': {
                 'id': name,
+                'underlay_addr': DEFAULT_DISP_UNDERLAY_ADDR,
             },
             'log': self._log_entry(name),
             'metrics': {

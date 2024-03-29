@@ -197,7 +197,7 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet) (*net.UDPAddr, error) {
 	n, remoteAddr, err := c.Conn.ReadFrom(pkt.Bytes)
 	if err != nil {
 		metrics.CounterInc(c.Metrics.UnderlayConnectionErrors)
-		return nil, serrors.WrapStr("Reliable socket read error", err)
+		return nil, serrors.WrapStr("reading underlay connection", err)
 	}
 	metrics.CounterAdd(c.Metrics.ReadBytes, float64(n))
 	metrics.CounterInc(c.Metrics.ReadPackets)
@@ -229,7 +229,7 @@ func (c *SCIONPacketConn) LocalAddr() net.Addr {
 }
 
 // isShimDispatcher checks that udpAddr corresponds to the address where the
-// shim is/should listen on. The shim only sends forwards packets whose underlay
+// shim is/should listen on. The shim only forwards packets whose underlay
 // IP (i.e., the address on the UDP/IP header) corresponds to the SCION Destination
 // address (i.e., the address on the UDP/SCION header). Therefore, the underlay address
 // for the application using SCIONPacketConn will be the same as the underlay from where
@@ -245,32 +245,29 @@ func (c *SCIONPacketConn) isShimDispatcher(udpAddr *net.UDPAddr) bool {
 func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 	rpath, ok := p.Path.(RawPath)
 	if !ok {
-		return nil, serrors.New("Unexpected path", "type", common.TypeOf(p.Path))
+		return nil, serrors.New("path type not supported", "type", common.TypeOf(p.Path))
 	}
 	switch rpath.PathType {
 	case empty.PathType:
 		if p.Source.Host.Type() != addr.HostTypeIP {
-			return nil, serrors.New("Unexpected source address in packet",
+			return nil, serrors.New("unexpected source address in packet",
 				"type", p.Source.Host.Type().String())
 		}
-		var port int
-		switch p := p.PacketInfo.Payload.(type) {
-		case UDPPayload:
-			port = int(p.SrcPort)
-		case SCMPPayload:
-			port = underlay.EndhostPort
-		default:
-			// we fallback to the endhost port also for unknown payloads
-			port = underlay.EndhostPort
-		}
 		return &net.UDPAddr{
-			IP:   p.Source.Host.IP().AsSlice(),
-			Port: port,
+			IP: p.Source.Host.IP().AsSlice(),
+			Port: func() int {
+				switch p := p.PacketInfo.Payload.(type) {
+				case UDPPayload:
+					return int(p.SrcPort)
+				default:
+					// Use endhost port for SCMP and unknown payloads.
+					return underlay.EndhostPort
+				}
+			}(),
 		}, nil
 	case onehop.PathType:
 		var path onehop.Path
-		err := path.DecodeFromBytes(rpath.Raw)
-		if err != nil {
+		if err := path.DecodeFromBytes(rpath.Raw); err != nil {
 			return nil, err
 		}
 		ifid := path.SecondHop.ConsIngress
@@ -280,8 +277,7 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 		return c.interfaceMap.get(ifid)
 	case epic.PathType:
 		var path epic.Path
-		err := path.DecodeFromBytes(rpath.Raw)
-		if err != nil {
+		if err := path.DecodeFromBytes(rpath.Raw); err != nil {
 			return nil, err
 		}
 		infoField, err := path.ScionPath.GetCurrentInfoField()
@@ -299,8 +295,7 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 		return c.interfaceMap.get(ifid)
 	case scion.PathType:
 		var path scion.Raw
-		err := path.DecodeFromBytes(rpath.Raw)
-		if err != nil {
+		if err := path.DecodeFromBytes(rpath.Raw); err != nil {
 			return nil, err
 		}
 		infoField, err := path.GetCurrentInfoField()
@@ -317,7 +312,7 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 		}
 		return c.interfaceMap.get(ifid)
 	default:
-		return nil, serrors.New("Unknown type", "type", rpath.PathType.String())
+		return nil, serrors.New("unknown path type", "type", rpath.PathType.String())
 	}
 }
 
@@ -341,7 +336,7 @@ type interfaceMap map[uint16]*net.UDPAddr
 func (m interfaceMap) get(id uint16) (*net.UDPAddr, error) {
 	addr, ok := m[id]
 	if !ok {
-		return nil, serrors.New("Interface number not found", "if", id)
+		return nil, serrors.New("interface number not found", "interface", id)
 	}
 	return addr, nil
 }

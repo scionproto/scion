@@ -44,9 +44,6 @@ import (
 
 // QUIC contains the QUIC configuration for control-plane speakers.
 type QUIC struct {
-	// Address is the UDP address to start the QUIC server on.
-	Address string
-
 	GetCertificate       func(*tls.ClientHelloInfo) (*tls.Certificate, error)
 	GetClientCertificate func(*tls.CertificateRequestInfo) (*tls.Certificate, error)
 	TLSVerifier          *trust.TLSCryptoVerifier
@@ -60,11 +57,7 @@ type NetworkConfig struct {
 	// Public is the Internet-reachable address in the case where the service
 	// is behind NAT.
 	Public *net.UDPAddr
-	// TODO(JordiSubira): Unless we want to allow opening two separates sockets,
-	// one for svcResolution and another for the CS backend itself, we can remove
-	// this together with the quic.Address configuration option.
-	// QUIC contains configuration details for QUIC servers. If the listening
-	// address is the empty string, then no QUIC socket is opened.
+	// QUIC contains configuration details for QUIC servers.
 	QUIC QUIC
 	// SVCResolver is used to discover the underlay addresses of intra-AS SVC
 	// servers.
@@ -101,9 +94,6 @@ func (nc *NetworkConfig) TCPStack() (net.Listener, error) {
 }
 
 func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
-	if nc.QUIC.Address == "" {
-		nc.QUIC.Address = net.JoinHostPort(nc.Public.IP.String(), "0")
-	}
 
 	client, server, err := nc.initQUICSockets()
 	if err != nil {
@@ -244,7 +234,6 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 			Handler: &svc.BaseHandler{
 				Message: svcResolutionReply,
 			},
-			SVC: addr.SvcWildcard,
 		},
 		Metrics: nc.SCIONNetworkMetrics,
 	}

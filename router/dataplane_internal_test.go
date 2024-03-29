@@ -43,9 +43,7 @@ import (
 )
 
 var (
-	testKey          = []byte("testkey_xxxxxxxx")
-	EndhostStartPort = 1024
-	endhostEndPort   = 1<<16 - 1
+	testKey = []byte("testkey_xxxxxxxx")
 )
 
 // TestReceiver sets up a mocked batchConn, starts the receiver that reads from
@@ -444,9 +442,7 @@ func TestSlowPathProcessing(t *testing.T) {
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), nil,
-					uint16(EndhostStartPort), uint16(endhostEndPort),
-					testKey)
+					xtest.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
 				spkt := prepBaseMsg(t, payload, 0)
@@ -470,9 +466,7 @@ func TestSlowPathProcessing(t *testing.T) {
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), nil,
-					uint16(EndhostStartPort), uint16(endhostEndPort),
-					testKey)
+					xtest.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
 				spkt := prepBaseMsg(t, payload, 0)
@@ -496,9 +490,7 @@ func TestSlowPathProcessing(t *testing.T) {
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), nil,
-					uint16(EndhostStartPort), uint16(endhostEndPort),
-					testKey)
+					xtest.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
 				spkt := prepBaseMsg(t, payload, 0)

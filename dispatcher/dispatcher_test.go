@@ -44,7 +44,11 @@ func testRunTestCase(t *testing.T, tc testCase) {
 	emptyTopo := make(map[addr.Addr]netip.AddrPort)
 	server := NewServer(emptyTopo, serverConn)
 
-	clientConn, err := net.DialUDP("udp", net.UDPAddrFromAddrPort(tc.ClientAddrPort), net.UDPAddrFromAddrPort(tc.DispAddrPort))
+	clientConn, err := net.DialUDP(
+		"udp",
+		net.UDPAddrFromAddrPort(tc.ClientAddrPort),
+		net.UDPAddrFromAddrPort(tc.DispAddrPort),
+	)
 	require.NoError(t, err)
 	defer clientConn.Close()
 	require.NoError(t, tc.Pkt.Serialize())

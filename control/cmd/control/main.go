@@ -206,10 +206,6 @@ func realMain(ctx context.Context) error {
 		IA:     topo.IA(),
 		Public: topo.ControlServiceAddress(globalCfg.General.ID),
 		QUIC: infraenv.QUIC{
-			// Address: the QUIC/SCION address of this service. If not
-			// configured, QUICStack() uses the same IP and port as
-			// for the public address.
-			Address:     globalCfg.QUIC.Address,
 			TLSVerifier: trust.NewTLSCryptoVerifier(trustDB),
 			GetCertificate: cs.NewTLSCertificateLoader(
 				topo.IA(), x509.ExtKeyUsageServerAuth, trustDB, globalCfg.General.ConfigDir,

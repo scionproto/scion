@@ -92,7 +92,6 @@ func (h DefaultSCMPHandler) Handle(pkt *Packet) error {
 		return nil
 	}
 }
-
 func (h *DefaultSCMPHandler) handleSCMPRev(typeCode slayers.SCMPTypeCode,
 	revInfo *path_mgmt.RevInfo) error {
 

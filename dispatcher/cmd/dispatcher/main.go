@@ -21,7 +21,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -64,7 +63,7 @@ func realMain(ctx context.Context) error {
 		defer log.HandlePanic()
 		return RunDispatcher(
 			globalCfg.Dispatcher.ServiceAddresses,
-			globalCfg.Dispatcher.UnderlayPort,
+			globalCfg.Dispatcher.UnderlayAddr,
 		)
 	})
 
@@ -129,13 +128,9 @@ func realMain(ctx context.Context) error {
 	}
 }
 
-func RunDispatcher(svcAddrs map[addr.Addr]netip.AddrPort, underlayPort int) error {
-	localAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf(":%d", underlayPort))
-	if err != nil {
-		return err
-	}
-	log.Debug("Dispatcher starting", "localAddr", localAddr)
-	return dispatcher.ListenAndServe(svcAddrs, localAddr)
+func RunDispatcher(svcAddrs map[addr.Addr]netip.AddrPort, underlayAddr netip.AddrPort) error {
+	log.Debug("Dispatcher starting", "localAddr", underlayAddr)
+	return dispatcher.ListenAndServe(svcAddrs, net.UDPAddrFromAddrPort(underlayAddr))
 }
 
 func requiredIPs() ([]net.IP, error) {

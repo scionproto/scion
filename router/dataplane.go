@@ -2044,12 +2044,15 @@ func (d *DataPlane) addEndhostPort(
 		}
 		return &net.UDPAddr{IP: dst, Port: int(port)}, nil
 	default:
-		log.Debug(fmt.Sprintf("Port rewriting not supported for protcol number %v", l4Type))
+		log.Debug("msg", "protocol", l4Type)
 		return &net.UDPAddr{IP: dst, Port: topology.EndhostPort}, nil
 	}
 }
 
 func getDstPortSCMP(scmp *slayers.SCMP) (uint16, error) {
+	// XXX(JordiSubira): This implementation is far too slow for the dataplane.
+	// We should reimplement this with fewer helpers and memory allocations, since
+	// our solely goal is to parse the L4 port or identifier in the offending packets.
 	if scmp.TypeCode.Type() == slayers.SCMPTypeEchoRequest ||
 		scmp.TypeCode.Type() == slayers.SCMPTypeTracerouteRequest {
 		return topology.EndhostPort, nil

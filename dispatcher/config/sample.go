@@ -21,6 +21,19 @@ const dispSample = `
 # ID of the Dispatcher. (required)
 id = "%s"
 
-# The native port opened by the dispatcher. (default 30041)
-underlay_port = 30041
+# The underlay UDP address opened by the dispatcher. (required)
+underlay_addr = "[::]:30041"
+
+# ServiceAddresses is the map of IA,SVC -> underlay UDP/IP address.
+# The map should be configured provided that the shim dispatcher runs colocated to such
+# mapped services, e.g., the shim dispatcher runs on the same host,
+# where the CS for the local IA runs. 
+# For other use cases it can be ignored.
+[dispatcher.service_addresses]
+"1-ff00:0:110,CS" = "[fd00:f00d:cafe::7f00:14]:31000"
+"1-ff00:0:110,DS" = "[fd00:f00d:cafe::7f00:14]:31000"
+"1-ff00:0:120,CS" = "127.0.0.68:31008"
+"1-ff00:0:120,DS" = "127.0.0.68:31008"
+"1-ff00:0:130,CS" = "[fd00:f00d:cafe::7f00:2b]:31016"
+"1-ff00:0:130,DS" = "[fd00:f00d:cafe::7f00:2b]:31016"
 `

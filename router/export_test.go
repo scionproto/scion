@@ -25,6 +25,11 @@ import (
 	"github.com/scionproto/scion/private/topology"
 )
 
+var (
+	endhostStartPort = 1024
+	endhostEndPort   = 1<<16 - 1
+)
+
 var metrics = NewMetrics()
 
 func GetMetrics() *Metrics {
@@ -47,8 +52,6 @@ func NewDP(
 	svc map[addr.SVC][]*net.UDPAddr,
 	local addr.IA,
 	neighbors map[uint16]addr.IA,
-	endhostStartPort uint16,
-	endhostEndPort uint16,
 	key []byte) *DataPlane {
 
 	dp := &DataPlane{
@@ -57,8 +60,8 @@ func NewDP(
 		linkTypes:        linkTypes,
 		neighborIAs:      neighbors,
 		internalNextHops: internalNextHops,
-		endhostStartPort: endhostStartPort,
-		endhostEndPort:   endhostEndPort,
+		endhostStartPort: uint16(endhostStartPort),
+		endhostEndPort:   uint16(endhostEndPort),
 		svc:              &services{m: svc},
 		internal:         internal,
 		internalIP:       netip.MustParseAddr("198.51.100.1"),

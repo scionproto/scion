@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/private/config"
 	"github.com/scionproto/scion/private/env"
 	api "github.com/scionproto/scion/private/mgmtapi"
-	"github.com/scionproto/scion/private/topology"
 )
 
 var _ config.Config = (*Config)(nil)
@@ -78,15 +77,19 @@ func (cfg *Config) ConfigName() string {
 type Dispatcher struct {
 	config.NoDefaulter
 	// ID is the SCION element ID of the shim dispatcher.
-	ID               string                       `toml:"id,omitempty"`
+	ID string `toml:"id,omitempty"`
+	// ServiceAddresses is the map of IA,SVC -> underlay UDP/IP address.
+	// The map should be configured provided that the shim dispatcher runs colocated to such
+	// mapped services, e.g., the shim dispatcher runs on the same host,
+	//  where the CS for the local IA runs.
 	ServiceAddresses map[addr.Addr]netip.AddrPort `toml:"service_addresses,omitempty"`
-	// UnderlayPort is the native port opened by the dispatcher (default 30041)
-	UnderlayPort int `toml:"underlay_port,omitempty"`
+	// UnderlayAddr is the UDP address where the shim dispatcher listens on (default [::]:30041)
+	UnderlayAddr netip.AddrPort `toml:"underlay_addr,omitempty"`
 }
 
 func (cfg *Dispatcher) Validate() error {
-	if cfg.UnderlayPort == 0 {
-		cfg.UnderlayPort = topology.EndhostPort
+	if !cfg.UnderlayAddr.IsValid() {
+		return serrors.New("underlay_addr is not set or it is incorrect")
 	}
 	if cfg.ID == "" {
 		return serrors.New("id must be set")

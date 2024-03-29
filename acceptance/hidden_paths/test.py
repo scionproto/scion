@@ -92,6 +92,7 @@ class Test(base.TestTopogen):
             # even though some don't need the registration service.
             as_dir_path = self.artifacts / "gen" / ("ASff00_0_%s" % as_number)
 
+            # The hidden_segment services are behind the same server as the control_service.
             topology_file = as_dir_path / "topology.json"
             control_service_addr = scion.load_from_json(
                 'control_service.%s.addr' % control_id, [topology_file])

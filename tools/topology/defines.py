@@ -34,6 +34,7 @@ PROM_FILE = "prometheus.yml"
 SCION_ROUTER_PORT = 50000
 
 DEFAULT_ENDHOST_PORT_RANGE = "1024-65535"
+DEFAULT_DISP_UNDERLAY_ADDR = "[::]:30041"
 
 #: Default MTU - assumes overlay is ipv4+udp
 DEFAULT_MTU = 1500 - 20 - 8

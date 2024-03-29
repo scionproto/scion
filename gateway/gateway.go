@@ -411,6 +411,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 	scionNetworkNoSCMP := &snet.SCIONNetwork{
 		Topology: g.Daemon,
 		Connector: &snet.DefaultConnector{
+			// Discard all SCMP propagation, to avoid accept/read errors on the
+			// QUIC server/client.
 			SCMPHandler: snet.SCMPPropagationStopper{
 				Handler: snet.DefaultSCMPHandler{
 					RevocationHandler: revocationHandler,

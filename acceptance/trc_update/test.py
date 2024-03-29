@@ -84,7 +84,7 @@ class Test(base.TestTopogen):
 
         for cs in cs_services:
             self.dc.start_container(cs)
-        time.sleep(20)
+        time.sleep(5)
 
         logger.info('==> Check connectivity')
         end2end("-d", "-outDir", artifacts)
