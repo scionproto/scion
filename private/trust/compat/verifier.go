@@ -18,6 +18,7 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	infra "github.com/scionproto/scion/private/segment/verifier"
 	"github.com/scionproto/scion/private/trust"
 )
@@ -34,5 +35,10 @@ func (v Verifier) WithIA(ia addr.IA) infra.Verifier {
 
 func (v Verifier) WithServer(server net.Addr) infra.Verifier {
 	v.BoundServer = server
+	return v
+}
+
+func (v Verifier) WithValidity(validity cppki.Validity) infra.Verifier {
+	v.BoundValidity = validity
 	return v
 }

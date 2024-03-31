@@ -314,6 +314,17 @@ func MustParseUDPAddrs(t *testing.T, entries ...string) []*net.UDPAddr {
 	return result
 }
 
+// MustParseTime parses s and returns the corresponding time.Time object. It
+// fails the test if s is not a valid time string.
+func MustParseTime(t *testing.T, s string) time.Time {
+	t.Helper()
+	res, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res
+}
+
 // AssertReadReturnsBetween will call t.Fatalf if the first read from the
 // channel doesn't happen between x and y.
 func AssertReadReturnsBetween(t testing.TB, ch <-chan struct{}, x, y time.Duration) {

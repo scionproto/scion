@@ -15,6 +15,7 @@
 package cppki
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -45,4 +46,17 @@ func (v Validity) Validate() error {
 		return ErrInvalidValidityPeriod
 	}
 	return nil
+}
+
+// IsZero indicates whether the validity period is zero.
+func (v Validity) IsZero() bool {
+	return v.NotBefore.IsZero() && v.NotAfter.IsZero()
+}
+
+func (v Validity) String() string {
+	return fmt.Sprintf(
+		"not_before=%s, not_after=%s",
+		v.NotBefore.Format(time.RFC3339),
+		v.NotAfter.Format(time.RFC3339),
+	)
 }

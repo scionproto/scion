@@ -32,20 +32,33 @@ import (
 
 func TestReqToChainQuery(t *testing.T) {
 	now := time.Now().UTC()
-	date, err := ptypes.TimestampProto(now)
+	validUntil, err := ptypes.TimestampProto(now)
+	require.NoError(t, err)
+	validSince, err := ptypes.TimestampProto(now.Add(-time.Hour))
 	require.NoError(t, err)
 
 	req := &cppb.ChainsRequest{
-		IsdAs:        uint64(xtest.MustParseIA("1-ff00:0:110")),
-		SubjectKeyId: []byte("tank"),
-		Date:         date,
+		IsdAs:             uint64(xtest.MustParseIA("1-ff00:0:110")),
+		SubjectKeyId:      []byte("tank"),
+		AtLeastValidSince: validSince,
+		AtLeastValidUntil: validUntil,
 	}
 
 	query, err := trustgrpc.RequestToChainQuery(req)
 	require.NoError(t, err)
 	assert.Equal(t, addr.IA(req.IsdAs), query.IA)
 	assert.Equal(t, req.SubjectKeyId, query.SubjectKeyID)
-	assert.Equal(t, now, query.Date)
+	assert.Equal(t, now.Add(-time.Hour), query.Validity.NotBefore)
+	assert.Equal(t, now, query.Validity.NotAfter)
+
+	// Test with request from legacy client, i.e., AtLeastValidSince is nil.
+	req.AtLeastValidSince = nil
+	query, err = trustgrpc.RequestToChainQuery(req)
+	require.NoError(t, err)
+	assert.Equal(t, addr.IA(req.IsdAs), query.IA)
+	assert.Equal(t, req.SubjectKeyId, query.SubjectKeyID)
+	assert.Equal(t, now, query.Validity.NotBefore)
+	assert.Equal(t, now, query.Validity.NotAfter)
 }
 
 func TestReqToTRCQuery(t *testing.T) {
