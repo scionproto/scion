@@ -77,13 +77,6 @@ type Topology interface {
 	// XXX(scrye): Return value is a shallow copy.
 	IFInfoMap() IfInfoMap
 
-	// BRNames returns the names of all BRs in the topology.
-	//
-	// FIXME(scrye): Remove this, callers shouldn't care about names.
-	//
-	// XXX(scrye): Return value is a shallow copy.
-	BRNames() []string
-
 	// SVCNames returns the names of all servers in the topology for the specified service.
 	//
 	// FIXME(scrye): Remove this, callers shouldn't care about names.
@@ -161,7 +154,7 @@ func (t *topologyS) UnderlayNextHop(ifid common.IFIDType) (*net.UDPAddr, bool) {
 	if !ok {
 		return nil, false
 	}
-	return copyUDPAddr(ifInfo.InternalAddr), true
+	return net.UDPAddrFromAddrPort(ifInfo.InternalAddr), true
 }
 
 func (t *topologyS) MakeHostInfos(st ServiceType) ([]*net.UDPAddr, error) {
@@ -341,10 +334,6 @@ func toServiceType(svc addr.SVC) (ServiceType, error) {
 
 func (t *topologyS) IFInfoMap() IfInfoMap {
 	return t.Topology.IFInfoMap
-}
-
-func (t *topologyS) BRNames() []string {
-	return t.Topology.BRNames
 }
 
 func (t *topologyS) SVCNames(svc addr.SVC) ServiceNames {

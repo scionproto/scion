@@ -17,7 +17,6 @@ package pathhealth
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -257,7 +256,7 @@ func (w *remoteWatcher) updatePaths(ctx context.Context) {
 
 func (w *remoteWatcher) selectID() (uint16, bool) {
 	for i := 0; i < 100; i++ {
-		id := uint16(rand.Uint32())
+		id := snet.RandomSCMPIdentifer()
 		if _, ok := w.pathWatchersByID[id]; !ok {
 			return id, true
 		}

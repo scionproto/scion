@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2024 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package topology
+package ptr
 
-import "github.com/scionproto/scion/pkg/private/serrors"
-
-var (
-	errUnderlayAddrNotFound = serrors.New("underlay address not found")
-)
+// To generates a pointer to a variable containing the given value.
+// In Go, addressible constant is an oxymoron, so the expression "&true", for example, is invalid.
+// This function makes that less annoying.
+func To[T any](v T) *T {
+	return &v
+}

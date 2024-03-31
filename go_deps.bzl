@@ -674,6 +674,12 @@ def go_deps():
         version = "v1.0.0",
     )
     go_repository(
+        name = "com_github_josharian_native",
+        importpath = "github.com/josharian/native",
+        sum = "h1:Ts/E8zCSEsG17dUqv7joXJFybuMLjQfWE04tsBODTxk=",
+        version = "v1.0.0",
+    )
+    go_repository(
         name = "com_github_jpillora_backoff",
         importpath = "github.com/jpillora/backoff",
         sum = "h1:uvFg412JmmHBHw7iwprIxkPMI+sGQ4kzOWsMeHnm2EA=",
@@ -912,6 +918,30 @@ def go_deps():
         importpath = "github.com/matttproud/golang_protobuf_extensions",
         sum = "h1:4hp9jkHxhMHkqkrB3Ix0jegS5sx/RkqARlsWZ6pIwiU=",
         version = "v1.0.1",
+    )
+    go_repository(
+        name = "com_github_mdlayher_arp",
+        importpath = "github.com/mdlayher/arp",
+        sum = "h1:ql8x//rJsHMjS+qqEag8n3i4azw1QneKh5PieH9UEbY=",
+        version = "v0.0.0-20220512170110-6706a2966875",
+    )
+    go_repository(
+        name = "com_github_mdlayher_ethernet",
+        importpath = "github.com/mdlayher/ethernet",
+        sum = "h1:2oDp6OOhLxQ9JBoUuysVz9UZ9uI6oLUbvAZu0x8o+vE=",
+        version = "v0.0.0-20220221185849-529eae5b6118",
+    )
+    go_repository(
+        name = "com_github_mdlayher_packet",
+        importpath = "github.com/mdlayher/packet",
+        sum = "h1:InhZJbdShQYt6XV2GPj5XHxChzOfhJJOMbvnGAmOfQ8=",
+        version = "v1.0.0",
+    )
+    go_repository(
+        name = "com_github_mdlayher_socket",
+        importpath = "github.com/mdlayher/socket",
+        sum = "h1:F2aaOwb53VsBE+ebRS9bLd7yPOfYUMC8lOODdCBDY6w=",
+        version = "v0.2.1",
     )
     go_repository(
         name = "com_github_microcosm_cc_bluemonday",

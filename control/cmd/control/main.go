@@ -19,7 +19,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"path/filepath"
@@ -31,7 +30,6 @@ import (
 	"github.com/go-chi/cors"
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/spf13/cobra"
-	"go4.org/netipx"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -843,19 +841,11 @@ func createBeaconStore(
 func adaptInterfaceMap(in map[common.IFIDType]topology.IFInfo) map[uint16]ifstate.InterfaceInfo {
 	converted := make(map[uint16]ifstate.InterfaceInfo, len(in))
 	for id, info := range in {
-		addr, ok := netipx.FromStdAddr(
-			info.InternalAddr.IP,
-			info.InternalAddr.Port,
-			info.InternalAddr.Zone,
-		)
-		if !ok {
-			panic(fmt.Sprintf("failed to adapt the topology format. Input %s", info.InternalAddr))
-		}
 		converted[uint16(id)] = ifstate.InterfaceInfo{
 			ID:           uint16(info.ID),
 			IA:           info.IA,
 			LinkType:     info.LinkType,
-			InternalAddr: addr,
+			InternalAddr: info.InternalAddr,
 			RemoteID:     uint16(info.RemoteIFID),
 			MTU:          uint16(info.MTU),
 		}

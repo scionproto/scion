@@ -19,11 +19,9 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"net"
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/google/gopacket"
@@ -107,10 +105,9 @@ func main() {
 	runCmd.Flags().StringVar(&dir, "artifacts", "", "Artifacts directory")
 	runCmd.Flags().Var(&caseToRun, "case", "Case to run. "+caseToRun.Allowed())
 	runCmd.Flags().StringArrayVar(&interfaces, "interface", []string{},
-		`label=host_interface,mac,peer_mac where:
-    host_interface: use this to exchange traffic with interface <label>
-    mac: the mac address of interface <label>
-    peer_mac: the mac address of <host_interface>`)
+		`label=<host_interface>[,<MACaddr>] where <host_interface> is the host device that matches
+ the <label> requirement from --show-interfaces and <MACaddr> is the local address to assume for it.
+ <MACaddr> defaults to the real address assigned to the device`)
 	runCmd.MarkFlagRequired("case")
 	runCmd.MarkFlagRequired("interface")
 
@@ -153,8 +150,8 @@ func run(cmd *cobra.Command) int {
 		return 1
 	}
 
-	cases.InitInterfaces(interfaces)
-	handles, err := openDevices()
+	interfaceNames := cases.InitInterfaces(interfaces)
+	handles, err := openDevices(interfaceNames)
 	if err != nil {
 		log.Error("Loading devices failed", "err", err)
 		return 1
@@ -272,26 +269,17 @@ func receivePackets(packetChan chan gopacket.Packet, payload string) int {
 	}
 }
 
-// initDevices inventories the available network interfaces, picks the ones that a case may inject
-// traffic into, and associates them with a AF Packet interface. It returns the packet interfaces
-// corresponding to each network interface.
-func openDevices() (map[string]*afpacket.TPacket, error) {
-	devs, err := net.Interfaces()
-	if err != nil {
-		return nil, serrors.WrapStr("listing network interfaces", err)
-	}
-
+// initDevices associates each network interfaces into which a case may inject traffic with a AF
+// Packet interface. It returns the packet interfaces corresponding to each network interface.
+func openDevices(interfaceNames []string) (map[string]*afpacket.TPacket, error) {
 	handles := make(map[string]*afpacket.TPacket)
 
-	for _, dev := range devs {
-		if !strings.HasPrefix(dev.Name, "veth_") || !strings.HasSuffix(dev.Name, "_host") {
-			continue
-		}
-		handle, err := afpacket.NewTPacket(afpacket.OptInterface(dev.Name))
+	for _, intf := range interfaceNames {
+		handle, err := afpacket.NewTPacket(afpacket.OptInterface(intf))
 		if err != nil {
 			return nil, serrors.WrapStr("creating TPacket", err)
 		}
-		handles[dev.Name] = handle
+		handles[intf] = handle
 	}
 
 	return handles, nil
