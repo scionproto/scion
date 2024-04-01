@@ -205,7 +205,12 @@ scion_isd.addIsdAs({isd_num},{as_num},is_core={is_core})
             as1 = link[1]
             as2 = link[2]
             link_type = link[3]
+            # convert link types to seed format
             if link_type == "child":
                 link_type = "Transit"
+            elif link_type == "core":
+                link_type = "Core"
+            elif link_type == "peer":
+                link_type = "Peer"
             code += f"scion.addXcLink(({isd1}, {as1}), ({isd1}, {as2}), ScLinkType.{link_type})\n"
         return code 
