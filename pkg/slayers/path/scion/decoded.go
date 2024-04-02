@@ -89,7 +89,7 @@ func (s *Decoded) Reverse() (path.Path, error) {
 		return nil, serrors.New("empty decoded path is invalid and cannot be reversed")
 	}
 	// Reverse order of InfoFields and SegLens
-	if 1 < s.NumINF {
+	if s.NumINF > 1 {
 		s.InfoFields[0], s.InfoFields[s.NumINF-1] = s.InfoFields[s.NumINF-1], s.InfoFields[0]
 		s.PathMeta.SegLen[0], s.PathMeta.SegLen[s.NumINF-1] = s.PathMeta.SegLen[s.NumINF-1], s.PathMeta.SegLen[0]
 	}
