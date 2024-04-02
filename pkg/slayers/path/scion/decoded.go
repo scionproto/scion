@@ -90,9 +90,9 @@ func (s *Decoded) Reverse() (path.Path, error) {
 	}
 	// Reverse order of InfoFields and SegLens
 	if s.NumINF > 1 {
-		lastIdx := s.NumINF - 1
-		s.InfoFields[0], s.InfoFields[lastIdx] = s.InfoFields[lastIdx], s.InfoFields[0]
-		s.PathMeta.SegLen[0], s.PathMeta.SegLen[lastIdx] = s.PathMeta.SegLen[lastIdx], s.PathMeta.SegLen[0]
+		last := s.NumINF - 1
+		s.InfoFields[0], s.InfoFields[last] = s.InfoFields[last], s.InfoFields[0]
+		s.PathMeta.SegLen[0], s.PathMeta.SegLen[last] = s.PathMeta.SegLen[last], s.PathMeta.SegLen[0]
 	}
 	// Reverse cons dir flags
 	for i := 0; i < s.NumINF; i++ {
