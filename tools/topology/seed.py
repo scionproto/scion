@@ -38,6 +38,8 @@ class SeedGenArgs(ArgsTopoDicts):
         super().__init__(args, topo_dicts)
         self.networks = networks
 
+
+# copyright @lschulz -- https://github.com/Bruol/seed-emulator/blob/master/examples/scion/S05-scion-internet/scion-internet.py
 class CrossConnectNetAssigner:
     def __init__(self):
         self.subnet_iter = IPv4Network("10.3.0.0/16").subnets(new_prefix=29)
@@ -76,6 +78,9 @@ scion = Scion()
 
     def generate(self):
     
+        # Seed does not support IPv6 thus throw error if IPv6 is used
+        self.check_IPv6()
+        
         self.out_file += self._create_ISD()
 
         self.out_file += self._create_AS()
@@ -120,8 +125,11 @@ emu.compile(Docker(internetMapEnabled=True), './{self.args.output_dir}/seed-comp
         return code
 
 
-
-
+    def check_IPv6(self):
+        for network in self.args.networks:
+            if network._version == 6:
+                raise Exception("Seed does not support IPv6. Please use IPv4 only.")
+           
     def _create_AS(self):
 
         xc_nets = CrossConnectNetAssigner()
