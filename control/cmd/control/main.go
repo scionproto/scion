@@ -941,7 +941,7 @@ func (c cpInfoProvider) Interfaces(_ context.Context) (map[uint16]*net.UDPAddr, 
 	ifsToUDP := make(map[uint16]*net.UDPAddr, len(ifMap))
 	for i, v := range ifMap {
 		if i > (1<<16)-1 {
-			return nil, serrors.New("Invalid interface id", "id", i)
+			return nil, serrors.New("invalid interface id", "id", i)
 		}
 		ifsToUDP[uint16(i)] = v.InternalAddr
 	}

@@ -71,22 +71,22 @@ func (cfg *RouterConfig) Validate() error {
 	}
 	if cfg.EndhostStartPort != nil {
 		if cfg.EndhostEndPort == nil {
-			return serrors.New("Provided router config is invalid. " +
+			return serrors.New("provided router config is invalid. " +
 				"EndHostEndPort is nil; EndHostStartPort isn't")
 		}
 		if *cfg.EndhostStartPort < 0 {
-			return serrors.New("Provided router config is invalid. EndHostStartPort < 0")
+			return serrors.New("provided router config is invalid. EndHostStartPort < 0")
 		}
 		if *cfg.EndhostEndPort >= (1 << 16) {
-			return serrors.New("Provided router config is invalid. EndHostEndPort > 2**16 -1")
+			return serrors.New("provided router config is invalid. EndHostEndPort > 2**16 -1")
 		}
 		if *cfg.EndhostStartPort > *cfg.EndhostEndPort {
-			return serrors.New("Provided router config is invalid. " +
+			return serrors.New("provided router config is invalid. " +
 				"EndHostStartPort > EndhostEndPort")
 		}
 	} else {
 		if cfg.EndhostEndPort != nil {
-			return serrors.New("Provided router config is invalid. " +
+			return serrors.New("provided router config is invalid. " +
 				"EndHostStartPort is nil; EndHostEndPort isn't")
 		}
 	}

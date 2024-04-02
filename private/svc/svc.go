@@ -71,7 +71,7 @@ func (c *ResolverPacketConnector) OpenUDP(
 	}
 	ip, ok := netip.AddrFromSlice(u.IP)
 	if !ok {
-		return nil, serrors.New("Error extracting IP addr", "UDP addr", u.String())
+		return nil, serrors.New("error extracting IP addr", "UDP addr", u.String())
 	}
 	return &ResolverPacketConn{
 		PacketConn: pconn,

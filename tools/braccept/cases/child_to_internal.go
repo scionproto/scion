@@ -36,9 +36,8 @@ import (
 func ChildToInternalHost(
 	artifactsDir string,
 	mac hash.Hash,
-	endHostPort int,
 ) runner.Case {
-
+	const endhostPort = 21000
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
@@ -111,7 +110,7 @@ func ChildToInternalHost(
 
 	scionudp := &slayers.UDP{}
 	scionudp.SrcPort = 2345
-	scionudp.DstPort = uint16(endHostPort)
+	scionudp.DstPort = uint16(endhostPort)
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")
@@ -156,9 +155,8 @@ func ChildToInternalHost(
 func ChildToInternalHostShortcut(
 	artifactsDir string,
 	mac hash.Hash,
-	endHostPort int,
 ) runner.Case {
-
+	const endhostPort = 21000
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
@@ -222,7 +220,7 @@ func ChildToInternalHostShortcut(
 
 	scionudp := &slayers.UDP{}
 	scionudp.SrcPort = 2345
-	scionudp.DstPort = uint16(endHostPort)
+	scionudp.DstPort = uint16(endhostPort)
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")
@@ -243,7 +241,7 @@ func ChildToInternalHostShortcut(
 	// IP4: Src=192.168.0.11 Dst=192.168.0.51 Checksum=0
 	ip.SrcIP = net.IP{192, 168, 0, 11}
 	ip.DstIP = net.IP{192, 168, 0, 51}
-	udp.SrcPort, udp.DstPort = 30001, layers.UDPPort(endHostPort)
+	udp.SrcPort, udp.DstPort = 30001, layers.UDPPort(endhostPort)
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 
 	if err := gopacket.SerializeLayers(want, options,

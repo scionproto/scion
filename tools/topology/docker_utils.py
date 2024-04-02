@@ -60,7 +60,6 @@ class DockerUtilsGenerator(object):
         name = 'tester_%s' % topo_id.file_fmt()
         entry = {
             'image': docker_image(self.args, 'tester'),
-            'container_name': 'tester_%s' % topo_id.file_fmt(),
             'privileged': True,
             'entrypoint': 'sh tester.sh',
             'environment': {},

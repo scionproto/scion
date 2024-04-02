@@ -394,7 +394,7 @@ func (s *Server) getDstSCIONUDP() (netip.AddrPort, error) {
 	case addr.HostTypeIP:
 		return addrPortFromBytes(s.scionLayer.RawDstAddr, s.udpLayer.DstPort)
 	default:
-		return netip.AddrPort{}, serrors.New("Invalid host type", "type", host.Type().String())
+		return netip.AddrPort{}, serrors.New("invalid host type", "type", host.Type().String())
 	}
 }
 
@@ -476,7 +476,7 @@ func decodeSCMP(scmp *slayers.SCMP) ([]gopacket.SerializableLayer, error) {
 func addrPortFromBytes(addr []byte, port uint16) (netip.AddrPort, error) {
 	a, ok := netip.AddrFromSlice(addr)
 	if !ok {
-		return netip.AddrPort{}, serrors.New("Unexpected raw address byte slice format")
+		return netip.AddrPort{}, serrors.New("unexpected raw address byte slice format")
 	}
 	return netip.AddrPortFrom(a, port), nil
 }

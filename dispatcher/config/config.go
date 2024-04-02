@@ -98,7 +98,7 @@ func (cfg *Dispatcher) Validate() error {
 	// Process ServiceAddresses
 	for iaSVC := range cfg.ServiceAddresses {
 		if iaSVC.Host.Type() != addr.HostTypeSVC {
-			return serrors.New("Parsed address must be SVC", "type", iaSVC.Host.Type().String())
+			return serrors.New("parsed address must be SVC", "type", iaSVC.Host.Type().String())
 		}
 	}
 	return nil

@@ -352,7 +352,7 @@ func (c *client) ping(ctx context.Context, n int, path snet.Path) error {
 	if !ok {
 		return serrors.New("invalid local host IP", "ip", integration.Local.Host.IP)
 	}
-	if localHostIP.Unmap().IsUnspecified() {
+	if localHostIP.IsUnspecified() {
 		resolvedLocal, err := addrutil.ResolveLocal(remote.Host.IP)
 		if err != nil {
 			return err

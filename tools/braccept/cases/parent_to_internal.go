@@ -36,9 +36,8 @@ import (
 func ParentToInternalHost(
 	artifactsDir string,
 	mac hash.Hash,
-	endhostPort int,
 ) runner.Case {
-
+	const endhostPort = 21000
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
@@ -148,9 +147,8 @@ func ParentToInternalHost(
 func ParentToInternalHostMultiSegment(
 	artifactsDir string,
 	mac hash.Hash,
-	endHostPort int,
 ) runner.Case {
-
+	const endhostPort = 21000
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
@@ -225,7 +223,7 @@ func ParentToInternalHostMultiSegment(
 
 	scionudp := &slayers.UDP{}
 	scionudp.SrcPort = 2354
-	scionudp.DstPort = uint16(endHostPort)
+	scionudp.DstPort = uint16(endhostPort)
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")
@@ -244,7 +242,7 @@ func ParentToInternalHostMultiSegment(
 	ethernet.DstMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef}
 	ip.SrcIP = net.IP{192, 168, 0, 11}
 	ip.DstIP = net.IP{192, 168, 0, 51}
-	udp.SrcPort, udp.DstPort = 30001, layers.UDPPort(endHostPort)
+	udp.SrcPort, udp.DstPort = 30001, layers.UDPPort(endhostPort)
 
 	if err := gopacket.SerializeLayers(want, options,
 		ethernet, ip, udp, scionL, scionudp, gopacket.Payload(payload),

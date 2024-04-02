@@ -2132,7 +2132,7 @@ func getDstPortSCMP(scmp *slayers.SCMP) (uint16, error) {
 		}
 		return port, nil
 	}
-	return 0, serrors.New("Unknown SCION SCMP content")
+	return 0, serrors.New("unknown SCION SCMP content")
 }
 
 // decodeSCMP decodes the SCMP payload. WARNING: Decoding is done with NoCopy set.
