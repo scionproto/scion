@@ -157,29 +157,19 @@ The port range is configured in the ``topology.json`` file in the following form
 
   .. code-block:: yaml
 
-     underlay: {
-       dispatched_ports: {
-         "default": {
-            "min": <port>,
-            "max": <port>
-         },
-         "<ip-subnet>": { # any number of subnet-specific port-range configurations (in CIDR-notation)
-            "min": <port>,
-            "max": <port>
-         },
+     "underlay": {
+       "dispatched_ports": {
+         "min": <port>,
+         "max": <port>
+       }
      }
-
-For a given destination IP address, the configuration entry with longest matching prefix is
-considered, or if no match is found the entry "default" is used.
 
 The ``min``, ``max`` fields define the range of ports ``[min, max]`` (inclusive).
 The configured ``max`` value may be lower than ``min`` to specify an empty port range.
 
 If nothing is configured, the port range initially defaults to an empty range.
-The recommended port range is:
-- ``min``: ``31000``
-- ``max``: ``32767``
 
+The recommended port range is ``31000-32767``.
 This range is just below the port range that is assigned by the old dispatcher (32768-65535), ensuring that UDP traffic from legacy end hosts will be unaffected by the port dispatching in the router.
 On legacy hosts, SCMP echo and error requests currently use random IDs, and thus have a low chance (~2.5%) to pick an ID in the range that is port dispatched by the router. As a preparatory change, the range of IDs can reduced, so that there is no intersection.
 
