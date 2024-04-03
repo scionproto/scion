@@ -196,6 +196,7 @@ func InitInterfaces(pairs []string) []string {
 
 		// Now find the MAC addresses, so we don't have to be told.
 		device, err := net.InterfaceByName(name)
+
 		if err != nil {
 			panic(err)
 		}
@@ -251,7 +252,7 @@ func InitInterfaces(pairs []string) []string {
 			}
 			for {
 				p, _, err := arpClient.Read()
-				if err == nil && p.SenderIP == subjectIP && p.TargetIP == peerIP {
+				if err == nil && p.SenderIP == subjectIP {
 					_ = arpClient.WriteTo(&reply, subjectMAC)
 				}
 			}
@@ -280,7 +281,10 @@ func MACAddr(ip netip.Addr) net.HardwareAddr {
 		return mac
 	}
 	as4 := ip.As4()
-	return net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, as4[2], as4[3]}
+
+	// This component makes no assumption regarding how the topology is used. We have to support all
+	// hosts that the topology describes, even fictional ones, should a test case refer to it.
+	return net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, as4[2], as4[3]}
 }
 
 // hostAddr returns a the SCION Hosts addresse that corresponds to the given underlay address.

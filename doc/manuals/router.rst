@@ -173,8 +173,8 @@ considers the following options.
 
    .. option:: router.num_slow_processors = <int> (Default: 1)
 
-      Number of goroutines started for the slow-path processing which includes all SCMP traffic and traceroutes.
-      A minimum of 1 slow-path processor is required.
+      Number of goroutines started for the slow-path processing which includes all SCMP traffic and
+      traceroutes. A minimum of 1 slow-path processor is required.
 
    .. option:: router.batch_size = <int> (Default: 256)
 
@@ -185,12 +185,13 @@ considers the following options.
 
       .. option:: disabled = <bool> (Default: false)
 
-         Whether the :term:`BFD` feature is disabled globally. If disabled, the router
-         unconditionally considers any connection alive.
+         Set whether the :term:`BFD` feature is disabled by default.
 
-         Applies to BFD sessions to all neighboring routers, including sibling routers (other
-         routers in the same AS). When not globally disabled, :term:`BFD` can be disabled for
-         specific inter-AS BFD sessions with :option:`bfd.disable <topology-json disable>`.
+         This setting applies to BFD sessions to all neighboring routers, including sibling routers
+         (other routers in the same AS).
+
+         Can be overridden for specific inter-AS BFD
+         sessions with :option:`bfd.disable <topology-json disable>`.
 
       .. option:: detect_mult = <uint8>, default 3
 

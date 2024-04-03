@@ -8,7 +8,9 @@ go_library(
     deps = [
         "//pkg/log:go_default_library",
         "//pkg/private/serrors:go_default_library",
+        "//pkg/scrypto/cppki:go_default_library",
         "//pkg/segment:go_default_library",
+        "//pkg/slayers/path:go_default_library",
         "//private/segment/verifier:go_default_library",
     ],
 )

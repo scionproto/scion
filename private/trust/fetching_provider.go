@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/tracing"
@@ -80,20 +79,16 @@ func (p FetchingProvider) GetChains(ctx context.Context, query ChainQuery,
 	opentracingext.Component.Set(span, "trust")
 	span.SetTag("query.isd_as", query.IA)
 	span.SetTag("query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID))
-	span.SetTag("query.date", util.TimeToCompact(query.Date))
+	span.SetTag("query.validity", query.Validity.String())
 
 	logger := log.FromCtx(ctx)
 	logger.Debug("Getting chains",
 		"isd_as", query.IA,
-		"date", util.TimeToCompact(query.Date),
+		"validity", query.Validity.String(),
 		"subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID))
 
 	if query.IA.IsWildcard() {
 		return nil, serrors.New("ISD-AS must not contain a wildcard", "isd_as", query.IA)
-	}
-	if query.Date.IsZero() {
-		query.Date = time.Now()
-		logger.Debug("Set date for chain request with zero time")
 	}
 
 	chains, err := p.DB.Chains(ctx, query)

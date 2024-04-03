@@ -99,7 +99,7 @@ func (s *Server) GetInterfaces(w http.ResponseWriter, r *http.Request) {
 			Bfd: BFD{
 				DesiredMinimumTxInterval: intf.Link.BFD.DesiredMinTxInterval.String(),
 				DetectionMultiplier:      int(intf.Link.BFD.DetectMult),
-				Enabled:                  !intf.Link.BFD.Disable,
+				Enabled:                  !*(intf.Link.BFD.Disable),
 				RequiredMinimumReceive:   intf.Link.BFD.RequiredMinRxInterval.String(),
 			},
 			InterfaceId:       int(intf.InterfaceID),

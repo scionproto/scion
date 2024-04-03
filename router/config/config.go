@@ -43,12 +43,21 @@ type Config struct {
 }
 
 type RouterConfig struct {
-	ReceiveBufferSize     int      `toml:"receive_buffer_size,omitempty"`
-	SendBufferSize        int      `toml:"send_buffer_size,omitempty"`
-	NumProcessors         int      `toml:"num_processors,omitempty"`
-	NumSlowPathProcessors int      `toml:"num_slow_processors,omitempty"`
-	BatchSize             int      `toml:"batch_size,omitempty"`
-	Bfd                   json.BFD `toml:"bfd,omitempty"`
+	ReceiveBufferSize     int `toml:"receive_buffer_size,omitempty"`
+	SendBufferSize        int `toml:"send_buffer_size,omitempty"`
+	NumProcessors         int `toml:"num_processors,omitempty"`
+	NumSlowPathProcessors int `toml:"num_slow_processors,omitempty"`
+	BatchSize             int `toml:"batch_size,omitempty"`
+	BFD                   BFD `toml:"bfd,omitempty"`
+}
+
+// BFD configuration. Unfortunately cannot be shared with topology.BFD
+// as one is toml and the other json. Eventhough the semantics are identical.
+type BFD struct {
+	Disable               bool         `toml:"disable,omitempty"`
+	DetectMult            uint8        `toml:"detect_mult,omitempty"`
+	DesiredMinTxInterval  util.DurWrap `toml:"desired_min_tx_interval,omitempty"`
+	RequiredMinRxInterval util.DurWrap `toml:"required_min_rx_interval,omitempty"`
 }
 
 func (cfg *RouterConfig) ConfigName() string {
@@ -104,14 +113,16 @@ func (cfg *RouterConfig) InitDefaults() {
 	if cfg.BatchSize == 0 {
 		cfg.BatchSize = 256
 	}
-	if cfg.Bfd.DetectMult == 0 {
-		cfg.Bfd.DetectMult = 3
+
+	if cfg.BFD.DetectMult == 0 {
+		cfg.BFD.DetectMult = 3
 	}
-	if cfg.Bfd.DesiredMinTxInterval.Duration == 0 {
-		cfg.Bfd.DesiredMinTxInterval = util.DurWrap{Duration: 200 * time.Millisecond}
+	if cfg.BFD.DesiredMinTxInterval.Duration == 0 {
+		cfg.BFD.DesiredMinTxInterval = util.DurWrap{Duration: 200 * time.Millisecond}
 	}
-	if cfg.Bfd.RequiredMinRxInterval.Duration == 0 {
-		cfg.Bfd.RequiredMinRxInterval = util.DurWrap{Duration: 200 * time.Millisecond}
+	if cfg.BFD.RequiredMinRxInterval.Duration == 0 {
+		cfg.BFD.RequiredMinRxInterval = util.DurWrap{Duration: 200 * time.Millisecond}
+
 	}
 }
 

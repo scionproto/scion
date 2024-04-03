@@ -125,7 +125,7 @@ type Underlay struct {
 
 // BFD configuration.
 type BFD struct {
-	Disable               bool         `json:"disable,omitempty"`
+	Disable               *bool        `json:"disable,omitempty"`
 	DetectMult            uint8        `json:"detect_mult,omitempty"`
 	DesiredMinTxInterval  util.DurWrap `json:"desired_min_tx_interval,omitempty"`
 	RequiredMinRxInterval util.DurWrap `json:"required_min_rx_interval,omitempty"`
