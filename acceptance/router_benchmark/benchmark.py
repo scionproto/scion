@@ -44,8 +44,11 @@ TEST_CASES = [
     "br_transit",
 ]
 
-# TODO(jiceatscion): get it from brload
-BM_PACKET_LEN = 154
+# A magic coefficient used in calculating the performance index.
+M_CONSTANT = 18500
+
+# TODO(jiceatscion): get it from or give it to brload?
+BM_PACKET_LEN = 172
 
 # Convenience types to carry interface params.
 IntfReq = namedtuple("IntfReq", "label, prefixLen, ip, peerIp, exclusive")
@@ -349,9 +352,9 @@ class RouterBM:
 
         return round(hp["coremark"]), round(hp["mmbm"])
 
-    def perfIndex(self, rate: int, numcores: int, coremark: int, mmbm: int) -> float:
-        # mmbm is in mebiBytes/s
-        return 1.0 / (coremark_sum * numcores * (1.0/rate - BM_PACKET_LEN / (mmbm * 1024 * 1024)))
+    def perf_index(self, rate: int, coremark: int, mmbm: int) -> float:
+        # mmbm is in mebiBytes/s, rate is in pkt/s
+        return rate * (1.0 / coremark + M_CONSTANT * BM_PACKET_LEN / (mmbm * 1024 * 1024))
 
     def run(self):
         print("Benchmarking...")
@@ -392,7 +395,11 @@ class RouterBM:
             for tt in TEST_CASES:
                 # TODO(jiceatscion): The perf index assumes that line speed isn't the bottleneck.
                 # It almost never is, but ideally we'd need to run iperf3 to verify.
-                print(f"Perf index for {tt}: {self.perfIndex(rateMap[tt], cores, coremark, mmbm)}")
+                if cores == 3:
+                    print(f"Perf index for {tt}: "
+                          f"{self.perf_index(rateMap[tt], coremark, mmbm): .1f}")
+                else:
+                    priint(f"Perf index for {tt}: undefined for {cores} cores")
 
         # Check the saturation...
         # Make sure that the saturation is within the expeected ballpark: that should manifest as
@@ -406,11 +413,13 @@ class RouterBM:
                 ratio = float(droppageMap[tt]) / total
                 exp = 0.03
                 print(f"Droppage ratio for {tt}: {ratio:.1%} preferred: {exp:.1%}")
+
                 if ratio < exp:
                     notSaturated.append(tt)
 
         if len(notSaturated) != 0:
             print(f"WARNING: Insufficient saturation for: {notSaturated}")
+
         print("Benchmarked")
 
     def instructions(self):

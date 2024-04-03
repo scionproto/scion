@@ -44,6 +44,9 @@ TEST_CASES = {
     "br_transit": 720000,
 }
 
+# A magic coefficient used in calculating the performance index.
+M_CONSTANT = 18500
+
 # TODO(jiceatscion): get it from brload
 BM_PACKET_LEN = 154
 
@@ -208,8 +211,6 @@ class RouterBMTest(base.TestBase):
         only as a last resort
         """
 
-        logger.info(f"CPUs summary BEGINS\n{cmd.lscpu('--extended')}\nCPUs summary ENDS")
-
         caches = defaultdict(list)  # cache -> [vcpu]
         cores = defaultdict(list)  # core -> [vcpu]
 
@@ -251,7 +252,7 @@ class RouterBMTest(base.TestBase):
             self.brload_cpus = chosen
         else:
             self.router_cpus = chosen[:-1]
-            self.brload_cpus = [chosen[-1]]
+            self.brload_cpus = chosen[-1:]
 
         logger.info(f"router cpus: {self.router_cpus}")
         logger.info(f"brload cpus: {self.brload_cpus}")
@@ -408,7 +409,7 @@ class RouterBMTest(base.TestBase):
         docker("run",
                "-v", f"{self.artifacts}/conf:/etc/scion",
                "-d",
-               "-e", "GOMAXPROCS=3",
+               "-e", f"GOMAXPROCS={len(self.router_cpus)}",
                "--network", "container:prometheus",
                "--name", "router",
                "--cpuset-cpus", ",".join(map(str, self.router_cpus)),
@@ -564,15 +565,11 @@ class RouterBMTest(base.TestBase):
             print(e)
 
         cpuInfo = cmd.cat("/proc/cpuinfo")
-        coremarkOut = sudo("taskset", "-c", self.router_cpus[0], coremarkExe.executable)
-        logger.info(f"FYI cpu_info:\n{cpuInfo}")
-        logger.info(f"FYI coremark:\n{coremarkOut}")
-
         return round(coremark), round(mmbm)
 
-    def perfIndex(self, rate: int, numcores: int, coremark: int, mmbm: int) -> float:
-        # mmbm is in mebiBytes/s
-        return 1.0 / (coremark * numcores * (1.0/rate - BM_PACKET_LEN / (mmbm * 1024 * 1024)))
+    def perf_index(self, rate: int, coremark: int, mmbm: int) -> float:
+        # mmbm is in mebiBytes/s, rate is in pkt/s
+        return rate * (1.0 / coremark + M_CONSTANT * BM_PACKET_LEN / (mmbm * 1024 * 1024))
 
     def _run(self):
         coremark, mmbm = self.horsepower()
@@ -604,8 +601,11 @@ class RouterBMTest(base.TestBase):
             for tt in TEST_CASES:
                 # TODO(jiceatscion): The perf index assumes that line speed isn't the bottleneck.
                 # It almost never is, but ideally we'd need to run iperf3 to verify.
-                logger.info(
-                    f"Perf index for {tt}: {self.perfIndex(rateMap[tt], cores, coremark, mmbm)}")
+                if cores == 3:
+                    logger.info(
+                        f"Perf index for {tt}: {self.perf_index(rateMap[tt], coremark, mmbm):.1f}")
+                else:
+                    logger.info(f"Perf index for {tt}: undefined for {cores} cores")
 
         # Log and check the performance...
         # If this is used as a CI test. Make sure that the performance is within the expected
