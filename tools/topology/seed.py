@@ -42,8 +42,8 @@ class SeedGenArgs(ArgsTopoDicts):
 # copyright @lschulz -- https://github.com/Bruol/seed-emulator/blob/master/examples/scion/S05-scion-internet/scion-internet.py
 # class to generate IP addresses for cross connect links
 class CrossConnectNetAssigner:
-    def __init__(self):
-        self.subnet_iter = IPv4Network("10.3.0.0/16").subnets(new_prefix=29)
+    def __init__(self,parentNet):
+        self.subnet_iter = IPv4Network(parentNet).subnets(new_prefix=29)
         self.xc_nets = {}
 
     def next_addr(self, net):
@@ -63,6 +63,7 @@ class SeedGenerator(object):
     _internetMapEnabled : bool=True
     _SeedCompiler : str="Docker"
     _skipIPv6Check : bool=False
+    _parentNetwork : str = "10.3.0.0/16"
 
     def __init__(self, args):
         """
@@ -84,6 +85,9 @@ class SeedGenerator(object):
             self._SeedCompiler = "Graphviz"
         if "SeedSkipIPv6Check" in self._args.features:
             self._skipIPv6Check = True
+        if self._args.network:
+            self._parentNetwork = self._args.network
+        
         
         
 
@@ -371,7 +375,7 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
         """
         Generate IP addresses for cross connect links
         """
-        self._xc_nets = CrossConnectNetAssigner()
+        self._xc_nets = CrossConnectNetAssigner(self._parentNetwork)
 
         for i in range(0,len(self._links)):
             link = self._links[i]
@@ -389,12 +393,7 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
         """
         Generate code for creating ASes
         """
-
-        xc_nets = CrossConnectNetAssigner()
-
-        # keep track of links
-        links = []
-        
+                
         code = "# Ases \n"
 
         for As in self._topo_file["ASes"]:
