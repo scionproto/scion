@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/private/config"
 	"github.com/scionproto/scion/private/env"
 	api "github.com/scionproto/scion/private/mgmtapi"
-	"github.com/scionproto/scion/private/topology/json"
 )
 
 const idSample = "router-1"
@@ -113,7 +112,6 @@ func (cfg *RouterConfig) InitDefaults() {
 	if cfg.BatchSize == 0 {
 		cfg.BatchSize = 256
 	}
-
 	if cfg.BFD.DetectMult == 0 {
 		cfg.BFD.DetectMult = 3
 	}
@@ -122,7 +120,6 @@ func (cfg *RouterConfig) InitDefaults() {
 	}
 	if cfg.BFD.RequiredMinRxInterval.Duration == 0 {
 		cfg.BFD.RequiredMinRxInterval = util.DurWrap{Duration: 200 * time.Millisecond}
-
 	}
 }
 

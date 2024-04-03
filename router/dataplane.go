@@ -314,7 +314,6 @@ func (d *DataPlane) addExternalInterfaceBFD(ifID uint16, conn BatchConn,
 	src, dst control.LinkEnd, cfg control.BFD) error {
 
 	if *cfg.Disable {
-
 		return nil
 	}
 	var m bfd.Metrics

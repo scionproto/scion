@@ -90,7 +90,6 @@ func (c *Connector) AddExternalInterface(localIfID common.IFIDType, link control
 	log.Debug("Adding external interface", "interface", localIfID,
 		"local_isd_as", link.Local.IA, "local_addr", link.Local.Addr,
 		"remote_isd_as", link.Remote.IA, "remote_addr", link.Remote.Addr,
-
 		"owned", owned,
 		"link_bfd_configured", link.BFD.Disable != nil,
 		"link_bfd_enabled", link.BFD.Disable == nil || !*link.BFD.Disable,
@@ -107,7 +106,6 @@ func (c *Connector) AddExternalInterface(localIfID common.IFIDType, link control
 	}
 
 	link.BFD = c.applyBFDDefaults(link.BFD)
-
 	if owned {
 		if len(c.externalInterfaces) == 0 {
 			c.externalInterfaces = make(map[uint16]control.ExternalInterface)
@@ -231,7 +229,6 @@ func (c *Connector) applyBFDDefaults(cfg control.BFD) control.BFD {
 	}
 	if cfg.RequiredMinRxInterval == 0 {
 		cfg.RequiredMinRxInterval = c.BFD.RequiredMinRxInterval.Duration
-
 	}
 	return cfg
 }

@@ -196,7 +196,6 @@ func InitInterfaces(pairs []string) []string {
 
 		// Now find the MAC addresses, so we don't have to be told.
 		device, err := net.InterfaceByName(name)
-
 		if err != nil {
 			panic(err)
 		}
