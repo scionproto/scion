@@ -157,10 +157,6 @@ func (h *BaseHandler) Handle(request *Request) (Result, error) {
 		// Normal packet, return to caller because data is already parsed and ready
 		return Forward, nil
 	}
-	// Multicasts do not trigger SVC resolution logic
-	if request.Packet.Destination.Host.SVC().IsMulticast() {
-		return Forward, nil
-	}
 	path, err := h.reversePath(request.Packet.Path)
 	if err != nil {
 		return Error, err

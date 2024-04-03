@@ -244,12 +244,14 @@ class TopoGenerator(object):
             'attributes': attributes,
             'isd_as': str(topo_id),
             'mtu': mtu,
-            # XXX(JordiSubira): This key is used internally later on, to decide whether to create 
-            # a dispatcher container collocated with the tester container.
+            # XXX(JordiSubira): This key is used internally later on, to decide
+            # whether to create a dispatcher container collocated with the tester
+            # container.
             #
-            # Correcter/nicer would be to pass the ConfigGenerator.topo_config  via the DockerGenArgs
-            # to DockerGenerator and check the test_dispatcher flag for the individual AS in 
-            # DockerGenerator.generate before the call to self._gen_topo
+            # Correcter/nicer would be to pass the ConfigGenerator.topo_config
+            # via the DockerGenArgs to DockerGenerator and check the test_dispatcher
+            # flag for the individual AS in DockerGenerator.generate before the call
+            # to self._gen_topo
             'test_dispatcher': as_conf.get('test_dispatcher', True),
             'endhost_port_range': as_conf.get('endhost_port_range', self.args.endhost_port_range),
         }

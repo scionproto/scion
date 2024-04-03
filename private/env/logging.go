@@ -17,7 +17,6 @@ package env
 import (
 	"fmt"
 	"os"
-	"runtime"
 
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -32,18 +31,10 @@ var (
 // LogAppStarted should be called by applications as soon as logging is
 // initialized.
 func LogAppStarted(svcType, elemID string) error {
-	// XXX(JordiSubira): Right now RunsInDocker() only is Linux-compatible.
-	// If we are going to run apps in docker also in macOS (and potentially in Windows)
-	// we should make the method compatible.
-	inDocker := false
-	if runtime.GOOS == "linux" {
-		var err error
-		inDocker, err = RunsInDocker()
-		if err != nil {
-			return serrors.WrapStr("Unable to determine if running in docker", err)
-		}
+	inDocker, err := RunsInDocker()
+	if err != nil {
+		return serrors.WrapStr("Unable to determine if running in docker", err)
 	}
-
 	info := fmt.Sprintf("=====================> Service started %s %s\n"+
 		"%s  %s\n  %s\n  %s\n  %s\n",
 		svcType,

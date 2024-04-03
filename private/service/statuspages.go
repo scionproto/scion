@@ -20,7 +20,6 @@ import (
 	"html/template"
 	"net/http"
 	"os"
-	"runtime"
 	"sort"
 	"strings"
 
@@ -147,16 +146,9 @@ func NewConfigStatusPage(config interface{}) StatusPage {
 func NewInfoStatusPage() StatusPage {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		info := env.VersionInfo()
-		// XXX(JordiSubira): Right now RunsInDocker() only is Linux-compatible.
-		// If we are going to run apps in docker also in macOS (and potentially in Windows)
-		// we should make the method compatible.
-		inDocker := false
-		if runtime.GOOS == "linux" {
-			var err error
-			inDocker, err = env.RunsInDocker()
-			if err != nil {
-				info += fmt.Sprintf("  In docker:     %v\n", inDocker)
-			}
+		inDocker, err := env.RunsInDocker()
+		if err == nil {
+			info += fmt.Sprintf("  In docker:     %v\n", inDocker)
 		}
 		info += fmt.Sprintf("  pid:           %d\n", os.Getpid())
 		info += fmt.Sprintf("  euid/egid:     %d %d\n", os.Geteuid(), os.Getegid())
