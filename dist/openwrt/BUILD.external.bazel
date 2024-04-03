@@ -114,7 +114,6 @@ ipk_pkg(
     ],
     overridesroot = "@@//acceptance/router_benchmark:conf",
     pkg = "bmtools",
-
     visibility = ["//visibility:public"],
     deps = ["bmconfig_ipk"],  # Force sequential build; openwrt make isn't reentrant.
 )

@@ -564,7 +564,6 @@ class RouterBMTest(base.TestBase):
         except Exception as e:
             print(e)
 
-        cpuInfo = cmd.cat("/proc/cpuinfo")
         return round(coremark), round(mmbm)
 
     def perf_index(self, rate: int, coremark: int, mmbm: int) -> float:
