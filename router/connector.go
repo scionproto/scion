@@ -39,6 +39,8 @@ type Connector struct {
 
 	ReceiveBufferSize int
 	SendBufferSize    int
+	EndhostStartPort  *int
+	EndhostEndPort    *int
 }
 
 var errMultiIA = serrors.New("different IA not allowed")
@@ -211,4 +213,17 @@ func (c *Connector) ListSiblingInterfaces() ([]control.SiblingInterface, error) 
 		siblingInterfaceList = append(siblingInterfaceList, siblingInterface)
 	}
 	return siblingInterfaceList, nil
+}
+
+func (c *Connector) SetPortRange(start, end uint16) {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	if c.EndhostStartPort != nil {
+		start = uint16(*c.EndhostStartPort)
+	}
+	if c.EndhostEndPort != nil {
+		end = uint16(*c.EndhostEndPort)
+	}
+	log.Debug("Endhost port range configuration", "startPort", start, "endPort", end)
+	c.DataPlane.SetPortRange(start, end)
 }

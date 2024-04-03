@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	jsontopo "github.com/scionproto/scion/private/topology/json"
@@ -224,6 +225,10 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 }
 
 func validatePortRange(portRange string) (uint16, uint16, error) {
+	if portRange == "" || portRange == "-" {
+		log.Debug("Empty port range defined")
+		return 0, 0, nil
+	}
 	ports := strings.Split(portRange, "-")
 	if len(ports) != 2 {
 		return 0, 0, serrors.New("invalid format: expected startPort-endPort", "got", portRange)

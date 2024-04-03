@@ -37,6 +37,7 @@ type Dataplane interface {
 	AddSvc(ia addr.IA, svc addr.SVC, a *net.UDPAddr) error
 	DelSvc(ia addr.IA, svc addr.SVC, a *net.UDPAddr) error
 	SetKey(ia addr.IA, index int, key []byte) error
+	SetPortRange(start, end uint16)
 }
 
 // LinkInfo contains the information about a link between an internal and
@@ -142,6 +143,8 @@ func ConfigDataplane(dp Dataplane, cfg *Config) error {
 	if err := confServices(dp, cfg); err != nil {
 		return err
 	}
+	// Set Endhost port range
+	dp.SetPortRange(cfg.Topo.PortRange())
 	return nil
 }
 
