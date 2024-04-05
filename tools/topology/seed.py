@@ -197,8 +197,9 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
         as_int_lat = as_dict['latency'] if 'latency' in as_dict else 0
         as_int_drop = as_dict['drop'] if 'drop' in as_dict else 0
         as_int_mtu = as_dict['mtu'] if 'mtu' in as_dict else None
+        as_note = as_dict['note'] if 'note' in as_dict else None
 
-        return as_num, isd_num, is_core, cert_issuer, as_int_bw, as_int_lat, as_int_drop, as_int_mtu
+        return as_num, isd_num, is_core, cert_issuer, as_int_bw, as_int_lat, as_int_drop, as_int_mtu, as_note
 
     def _read_link_properties(self, link):
         """
@@ -398,10 +399,12 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
 
         for As in self._topo_file["ASes"]:
             
-            (as_num, isd_num, is_core, cert_issuer, as_int_bw, as_int_lat, as_int_drop, as_int_mtu) = self._parse_AS_properties(As)
+            (as_num, isd_num, is_core, cert_issuer, as_int_bw, as_int_lat, as_int_drop, as_int_mtu, as_note) = self._parse_AS_properties(As)
 
             code += f"\n# AS-{as_num}\n"
             code += f"as{as_num} = base.createAutonomousSystem({as_num})\n"
+            if as_note:
+                code += f"as{as_num}.setNote('{as_note}')\n"
             code += f"scion_isd.addIsdAs({isd_num},{as_num},is_core={is_core})\n"
             if cert_issuer:
                 code += f"scion_isd.setCertIssuer(({isd_num},{as_num}),issuer={cert_issuer})\n"
