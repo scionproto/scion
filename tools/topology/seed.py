@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Mapping
+from typing import Mapping, Set, Tuple, Optional, Dict, List, Union
 import os
 import subprocess
 from ipaddress import IPv4Network
@@ -53,13 +53,13 @@ class CrossConnectNetAssigner:
             self.xc_nets[net] = hosts
         return "{}/29".format(next(self.xc_nets[net]))
 
-class SeedGenerator(object):
+class SeedGenerator(SeedGenArgs):
     # define class variables
-    _topo_file : dict
+    _topo_file : Dict[str,Union[Dict[str, Dict[str, Union[bool, int, str]]], List[Dict[str, Union[str, int]]]]] # dictionary containing the topo file parsed as yaml
     _args : SeedGenArgs
     _out_file : str
-    _links : list
-    _br : dict
+    _links : List[Dict[str, Union[Tuple[str, str, str], str, int]]] # list of parsed links
+    _br : Dict[str, List[str]]
     _internetMapEnabled : bool=True
     _SeedCompiler : str="Docker"
     _skipIPv6Check : bool=False
@@ -79,6 +79,9 @@ class SeedGenerator(object):
             self._topo_file = yaml.load(f, Loader=yaml.SafeLoader)
 
     def _parseFeatures(self):
+        """
+        parse cli feature flags and set class flags
+        """
         if "SeedInternetMapDisable" in self._args.features:
             self._internetMapEnabled = False
         if "SeedCompilerGraphviz" in self._args.features:
@@ -88,9 +91,6 @@ class SeedGenerator(object):
         if self._args.network:
             self._parentNetwork = self._args.network
         
-        
-        
-
     def generate(self):
         """
         generate function called by ./config.py to generate seed file
@@ -148,7 +148,7 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
         print("\n\nRunning Seed Generation\n\n")
         subprocess.run(["python", self._args.output_dir + "/" + SEED_CONF])
     
-    def _isd_Set(self):
+    def _isd_Set(self) -> Set[str]:
         """
         Generate a set of ISDs from the topo file
         """
@@ -159,7 +159,7 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
             isds.add(isd)
         return isds
 
-    def _create_ISD(self):
+    def _create_ISD(self) -> str:
         """
         Generate code for creating ISDs
         """
@@ -181,7 +181,7 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
             if network._version == 6:
                 raise Exception("Seed does not support IPv6. Please use IPv4 only. If you want to try anyway use the feature flag SeedSkipIPv6Check.")
 
-    def _parse_AS_properties(self, As):
+    def _parse_AS_properties(self, As : str) -> Tuple[str,str,bool,Optional[str],int,int,int,Optional[int],Optional[str]]:
         """
         Read AS properties from topo file
         """
@@ -201,7 +201,7 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
 
         return as_num, isd_num, is_core, cert_issuer, as_int_bw, as_int_lat, as_int_drop, as_int_mtu, as_note
 
-    def _read_link_properties(self, link):
+    def _read_link_properties(self, link : Dict[str, Union[str, Optional[int], int]]) -> Tuple[str,str,str,Optional[int],int,int,int]:
         """
         Read link properties from topo file
         """
@@ -231,7 +231,7 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
         
         return a, b, link_type, mtu, bandwidth, latency, drop
 
-    def _convert_link_type(self, link_type):
+    def _convert_link_type(self, link_type : str) -> str:
         """
         Convert link type from topo file to seed format
         """
@@ -244,7 +244,7 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
         else:
             raise Exception(f"Link type {link_type} not supported by Seed")
 
-    def _parse_link_party(self, party):
+    def _parse_link_party(self, party : str) -> Tuple[str,str,str]:
         """
         Parse link party from topo file
         """
@@ -258,7 +258,7 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
             as_num = as_num.split('#')[0]
         return isd_num, as_num, br_if
 
-    def _parse_links(self):
+    def _parse_links(self) -> List[Dict[str, Union[Tuple[str, str, str], str, int]]]:
         """
         Parse links from topo file
         """
@@ -281,7 +281,7 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
             links.append(data)
         return links
 
-    def _parse_interface(self, br_if, i, ia, a_b):
+    def _parse_interface(self, br_if : str, i : int , ia : str, a_b : str):
         """
         :param br_if: bridge interface identifier (format A#1 or 1)
         :param i: link index
@@ -390,7 +390,7 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
             self._links[i]['a_addr'] = a_addr
             self._links[i]['b_addr'] = b_addr
 
-    def _create_AS(self):
+    def _create_AS(self) -> str:
         """
         Generate code for creating ASes
         """
@@ -455,7 +455,7 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
 
         return code
 
-    def _create_Routing(self):
+    def _create_Routing(self) -> str:
         """
         Generate code for creating routing
         """
