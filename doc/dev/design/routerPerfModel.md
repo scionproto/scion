@@ -4,16 +4,16 @@
 
 For any hardware platform, given:
 
-* l: the router benchmark packet length (in bytes)
+* L: the router benchmark packet length (in bytes)
 * coremark: The coremark benchmark result on the platform (dimensionless)
 * C: The memmove benchmark result of the platform expressed (in bytes/s)
 * rate: The benchmark result of the router on the platform, using three cores (in pkts/s)
 * M: an experimentally determined constant of value 18500
 * I: a dimensionless number reflecting the router code's performance
 
-At least for l = 172, the following relationship is true:
+At least for L = 172, the following relationship is true:
 
-* I ~= (1 / coremark + (M * l / C)) * rate
+* I ~= (1 / coremark + (M * L / C)) * rate
 
 ## Introduction
 
@@ -28,7 +28,7 @@ the following data points:
 	* Observed throughput: 41487
 
 * A lenovo laptop running the CI benchmark:
-	* 3 i7 cores 4GHz
+	* 10 i7 cores 4GHz
 	* Coremark (per core) 29902
 	* memmove benchmark 16218 MiB/s (129 Gib/s)
 	* line rate 1.4M pkts/s (veth)
@@ -41,7 +41,10 @@ the following data points:
 	* line rate unobserved (veth, assumed similar to laptop)
 	* Observed throuhgput: 736797 pkts/s
 
-Important: all benchmarks have been run with only 3 cores assigned to the router.
+Important: all benchmarks have been run with only 3 cores assigned to the router. The cores are
+chosen by the benchmarking program to be of the same type (i.e. no mix of performance and
+energy-efficient cores). Hyperthreading is not used.
+
 See "The problem with the influence of core count".
 
 ## Where might the time go
@@ -54,35 +57,35 @@ Variables:
 * let e = empty packet size (34)
 * let m = max packet size (1520)
 * let po = packet overhead time in seconds
-* let l = the length of a given packet [bytes]
-* let x(l) = packet-length dependent xmit time [s]
-* let t(l) = total packet transmission time for l [s]
+* let L = the length of a given packet [bytes]
+* let x(L) = packet-length dependent xmit time [s]
+* let t(L) = total packet transmission time for L [s]
 * let R = nominal wire rate in decoded [bit/s]
 * let X = line slowness [seconds/byte]
-* let bm(l) = total benchmark packet processing time (including transmission and pkt overhead) [s]
+* let bm(L) = total benchmark packet processing time (including transmission and pkt overhead) [s]
 * let ro = router overhead [time added by processing one packet in the router] [s]
-* let p(l) = packet-length dependent router processing time for l [s]
-* let r(l) = total processing time in router for l [s]
+* let p(L) = packet-length dependent router processing time for L [s]
+* let r(L) = total processing time in router for L [s]
 * let C = nominal copy rate in [bit/s]
 * let Y = copy slowness [seconds/byte]
 
 Transmission:
 
-* assume x(l) = X*l [X is s/byte]
-* assume t(l) = po + x(l)
+* assume x(L) = X*l [X is s/byte]
+* assume t(L) = po + x(L)
 * assume X = 8/R
 * po is unknown
 
 Router:
 
-* assume p(l) = Y*l [Y is s/byte]
-* assume r(l) = ro + p(l)
+* assume p(L) = Y*l [Y is s/byte]
+* assume r(L) = ro + p(L)
 * assume Y = 8/C [assuming that length-dependent processing time is ~copying the packet]
 * ro is unknown
 
 Aggregate:
 
-* assume bm(l) = MAX(r(l), t(l))
+* assume bm(L) = MAX(r(L), t(L))
 
 ## What can be inferred from observations
 
@@ -97,7 +100,7 @@ Observed:
 
 Therefore:
 
-* po = t(l) - x(l) = t(m) - x(m) = 1/70K - X*m = 1/70K - 1520 * 8 / 1G = 0.000002126 s
+* po = t(L) - x(L) = t(m) - x(m) = 1/70K - X*m = 1/70K - 1520 * 8 / 1G = 0.000002126 s
 * t(b) = po + x(b) = po + X*b = 0.000002126 + 172 * 8 / 1G = 0.000003502 s
 * bm(b) = 0.000024 s
 
@@ -121,7 +124,7 @@ Observed:
 
 Therefore:
 
-* po = t(l) - x(l) = t(m) - x(m) = 1/1.4M - X*m = 1/1.4M - 1520 * 8 / 17G
+* po = t(L) - x(L) = t(m) - x(m) = 1/1.4M - X*m = 1/1.4M - 1520 * 8 / 17G
   ~= 0 (expected since we neglected po to derive R)
 * t(b) = po + x(b) = 0 + X*b = 172 * 8 / 17G = 0.00000008 s
 * bm(b) = 0.000001631
@@ -147,9 +150,9 @@ only the case where the wire is faster than the router.
 
 Variables:
 
-* let pbm(l) = predicted benchmark processing time for length l
-* let pt(l) = predicted total transmission time for length l
-* let pp(l) = predicted lenght-dependent processing time for l
+* let pbm(L) = predicted benchmark processing time for length L
+* let pt(L) = predicted total transmission time for length L
+* let pp(L) = predicted lenght-dependent processing time for L
 * let pro = predicted router per-packet overhead
 * let N = The number of cores devote to packet processing.
 * let I = The router's code performance index; a measure of the code's efficiency.
@@ -212,11 +215,11 @@ constant 1).
 From our assumptions, (and single I simplification) we have:
 
 * pro = 1 / (I * coremark)
-* pp(l) = 8 * l / (I * C)
-* pbm(l) = pro + pp(l)
-  = 1 / (I * coremark) + 8 * l / (I * C)
-  = (1 / I) * (1 / coremark) + (8 * l / C))
-* I = (1 / coremark + (8 * l / C)) / pbm(l)
+* pp(L) = 8 * L / (I * C)
+* pbm(L) = pro + pp(L)
+  = 1 / (I * coremark) + 8 * L / (I * C)
+  = (1 / I) * (1 / coremark) + (8 * L / C))
+* I = (1 / coremark + (8 * L / C)) / pbm(L)
 
 Since we ran the same router on both benchmarking platform, we should be able to infer the same
 I from the benchmark result and hadrware characteristics. (or, at least, close).
@@ -227,7 +230,7 @@ code on any other platform with known C and coremark.
 
 ## Inferred router performance index
 
-The performance index has to be such that pbm(l) is equal to bm(l) as observed in at least two experiments.
+The performance index has to be such that pbm(L) is equal to bm(L) as observed in at least two experiments.
 Note that only one type of forwarding is looked at - br_transit. Routers might have
 different performance indices for different packet types (although only small variations are expected).
 
@@ -235,9 +238,9 @@ different performance indices for different packet types (although only small va
 
 * coremark = 2972
 * C = 9.8Gb/s
-* l = 172
-* pbm(l) = 1s/43469
-* I = (1 / coremark + (8 * l / C)) / pbm(l)
+* L = 172
+* pbm(L) = 1s/43469
+* I = (1 / coremark + (8 * L / C)) / pbm(L)
   = (1 / 2972 + (8 * 172 / 9.8G)) * 43469
   ~= 14.6
 
@@ -245,9 +248,9 @@ different performance indices for different packet types (although only small va
 
 * coremark = 29902
 * C = 129Gb/s
-* l = 172
-* pbm(l) = 1s/530468
-* I = (1 / coremark + (8 * l / C)) / pbm(l)
+* L = 172
+* pbm(L) = 1s/530468
+* I = (1 / coremark + (8 * L / C)) / pbm(L)
   = (1 / 29882 + (8 * 172 / 129G)) * 530468
   ~= 17.75
 
@@ -262,14 +265,14 @@ for a given throughput):
 
 So, the I and pbm relationship becomes:
 
-I = (1 / coremark + (M * 8 * l / C)) / pbm(l)
+I = (1 / coremark + (M * 8 * L / C)) / pbm(L)
 or
-pbm(l) = (1 / coremark + (M * 8 * l / C)) / I
+pbm(L) = (1 / coremark + (M * 8 * L / C)) / I
 
 To slightly improve readability of what follows, let:
 
-* rate1 = 1/pbm(l) for APU2
-* rate2 = 1/pbm(l) for laptop
+* rate1 = 1/pbm(L) for APU2
+* rate2 = 1/pbm(L) for laptop
 * coremark1 = coremark of APU2
 * coremark2 = coremark of laptop
 * C1 = memcpy speed of APU2
@@ -277,11 +280,11 @@ To slightly improve readability of what follows, let:
 
 To have a common performance index between the APU2 and laptop platforms, we need:
 
-* (1/coremark1 + (M * 8 * l / C1)) / pbm1 = (1/coremark2 + (M * 8 * l / C2)) / pbm2
-* 1/(coremark1 * pbm1) + M * 8 * l /(C1 * pbm1) = 1/(coremark2 * pbm2) + M * 8 * l /(C2 * pbm2)
-* 1/(coremark1 * pbm1) - 1/(coremark2 * pbm2) =  M * 8 * l / (C2 * pbm2) - M * 8 * l / (C1 * pbm1)
-* 1/(coremark1 * pbm1) - 1/(coremark2 * pbm2) = M * 8 * l * ( 1 / (C2 * pbm2) - 1 / (C1 * pbm1) )
-* M = (1/(coremark1 * pbm1) - 1/(coremark2 * pbm2)) / ( 8 * l * ( 1 / (C2 * pbm2) - 1 / (C1 * pbm1)
+* (1/coremark1 + (M * 8 * L / C1)) / pbm1 = (1/coremark2 + (M * 8 * L / C2)) / pbm2
+* 1/(coremark1 * pbm1) + M * 8 * L /(C1 * pbm1) = 1/(coremark2 * pbm2) + M * 8 * L /(C2 * pbm2)
+* 1/(coremark1 * pbm1) - 1/(coremark2 * pbm2) =  M * 8 * L / (C2 * pbm2) - M * 8 * L / (C1 * pbm1)
+* 1/(coremark1 * pbm1) - 1/(coremark2 * pbm2) = M * 8 * L * ( 1 / (C2 * pbm2) - 1 / (C1 * pbm1) )
+* M = (1/(coremark1 * pbm1) - 1/(coremark2 * pbm2)) / ( 8 * L * ( 1 / (C2 * pbm2) - 1 / (C1 * pbm1)
 * M = (rate1/coremark1 - rate2/coremark2) / (8*172*(rate2/C2 - rate1/C1))
 * M ~= 6996
 
@@ -325,7 +328,7 @@ the following predictions:
 
 APU2 predicted throughput, using Laptop's index:
 
-* pbm = 1 / (122.42 * coremark) + M * 8 * l / C
+* pbm = 1 / (122.42 * coremark) + M * 8 * L / C
       = 1 / (122 * 2972) + 18500 * 8 * 172 / 9.8G
 	  = .00002405
 * throughput = 41580
@@ -333,7 +336,7 @@ APU2 predicted throughput, using Laptop's index:
 
 Laptop predicted throughput, using APU2's index:
 
-* pbm = 1 / (127 * coremark) + M * 8 * l / C
+* pbm = 1 / (127 * coremark) + M * 8 * L / C
       = 1 / (127 * 29866 * 3) + 18500 8 * 172 / 128G
       = 0.000001817
 * throughput = 550357
