@@ -4,7 +4,7 @@ SCION: a next-generation inter-domain routing architecture
 SCION (Scalability, Control, and Isolation On Next-generation networks) is a
 secure and reliable inter-domain routing protocol, designed to provide route
 control, failure isolation, and explicit trust information for end-to-end
-communication.
+communication. 
 
 .. (Comment)
    This documentation is structured into sections with different purposes/audiences

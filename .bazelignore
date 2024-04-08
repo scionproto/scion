@@ -1,5 +1,6 @@
 bin
 doc/_build
+doc/venv
 docker/_build
 private/mgmtapi/tools/node_modules
 tools/lint/logctxcheck/testdata/src

@@ -96,7 +96,7 @@ antlr:
 write_all_source_files:
 	bazel run //:write_all_source_files
 
-.PHONY: lint lint-bazel lint-bazel-buildifier lint-doc lint-doc-mdlint lint-go lint-go-bazel lint-go-gazelle lint-go-golangci lint-go-semgrep lint-openapi lint-openapi-spectral lint-protobuf lint-protobuf-buf
+.PHONY: lint lint-bazel lint-bazel-buildifier lint-doc lint-doc-mdlint lint-doc-sphinx lint-go lint-go-bazel lint-go-gazelle lint-go-golangci lint-go-semgrep lint-openapi lint-openapi-spectral lint-protobuf lint-protobuf-buf
 
 # Enable --keep-going if all goals specified on the command line match the pattern "lint%"
 ifeq ($(filter-out lint%, $(MAKECMDGOALS)), )
@@ -113,7 +113,7 @@ lint-go-gazelle:
 
 lint-go-bazel:
 	$(info ==> $@)
-	@tools/quiet bazel test --config lint
+	@tools/quiet bazel test --config lint //...
 
 GO_BUILD_TAGS_ARG=$(shell bazel build --ui_event_filters=-stdout,-stderr --announce_rc --noshow_progress :dummy_setting 2>&1 | grep "'build' options" | sed -n "s/^.*--define gotags=\(\S*\).*/--build-tags \1/p" )
 
@@ -149,9 +149,13 @@ lint-openapi-spectral:
 	$(info ==> $@)
 	@tools/quiet bazel run --config=quiet //:spectral -- lint --ruleset ${PWD}/spec/.spectral.yml ${PWD}/spec/*.gen.yml
 
-lint-doc: lint-doc-mdlint
+lint-doc: lint-doc-mdlint lint-doc-sphinx
 
 lint-doc-mdlint:
 	$(info ==> $@)
 	@if [ -t 1 ]; then tty=true; else tty=false; fi; \
 		tools/quiet docker run --tty=$$tty --rm -v ${PWD}:/workdir davidanson/markdownlint-cli2:v0.12.1
+
+lint-doc-sphinx:
+	$(info ==> $@)
+	@tools/quiet bazel test --config=lint //doc:sphinx_lint_test
