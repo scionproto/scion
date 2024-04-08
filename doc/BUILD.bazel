@@ -1,0 +1,21 @@
+load("@rules_python//python:pip.bzl", "compile_pip_requirements")
+load("@com_github_scionproto_scion_python_doc_deps//:requirements.bzl", "entry_point")
+load(":lint.bzl", "sphinx_lint_test")
+
+compile_pip_requirements(
+    name = "requirements",
+    requirements_in = ":requirements.in",
+    requirements_txt = ":requirements.txt",
+)
+
+alias(
+    name = "sphinx-lint",
+    actual = entry_point("sphinx-lint"),
+)
+
+sphinx_lint_test(
+    name = "sphinx_lint_test",
+    args = ["--enable", "all", "--disable", "line-too-long"],
+    srcs = glob(['**/*.rst', '**/*.md']),
+    tags = ["lint"],
+)
