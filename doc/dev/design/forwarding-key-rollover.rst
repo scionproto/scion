@@ -220,7 +220,7 @@ Implementing the router
 
 When the router receives a path for processing, it must verify the HF. The first
 step in this process is computing the MAC verification key. To compute the key,
-first the `ExpirationTime` must be computed:
+first the ``ExpirationTime`` must be computed:
 
 .. code-block:: text
 

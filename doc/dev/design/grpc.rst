@@ -71,7 +71,7 @@ By default, gRPC uses the following combination:
 - Resolver: DNS resolver that resolves host names to IP addresses.
 - Balancer: Pick first balancer, that always picks the first address out of the
   list that was provided by the resolver.
-- Dialer: `net.Dialer` with `tcp` from stdlib.
+- Dialer: ``net.Dialer`` with ``tcp`` from stdlib.
 
 Teaching an old dog new tricks |grpc|
 =====================================
