@@ -15,23 +15,20 @@
 # limitations under the License.
 
 
+import ipaddress
+import json
+import logging
 import shutil
 import time
 
+from acceptance.common import base
+from benchmarklib import RouterBM
 from collections import defaultdict, namedtuple
 from plumbum import cli
-from plumbum.cmd import docker, whoami, lscpu
 from plumbum import cmd
+from plumbum.cmd import docker, whoami, lscpu
+from plumbum.machines import LocalCommand
 from random import randint
-
-from acceptance.common import base
-
-import logging
-import json
-import ipaddress
-
-from http.client import HTTPConnection
-from urllib.parse import urlencode
 
 logger = logging.getLogger(__name__)
 
@@ -44,15 +41,8 @@ TEST_CASES = {
     "br_transit": 720000,
 }
 
-# A magic coefficient used in calculating the performance index.
-M_CONSTANT = 18500
-
-# TODO(jiceatscion): get it from brload
-BM_PACKET_LEN = 154
-
-# Convenience types to carry interface params.
+# Convenience types to carry interface request params.
 IntfReq = namedtuple("IntfReq", "label, prefixLen, ip, peerIp, exclusive")
-Intf = namedtuple("Intf", "name, mac, peerMac")
 
 
 def sudo(*args: [str]) -> str:
@@ -167,7 +157,7 @@ def choose_cpus_from_best_cores(caches: list[int], cores: list[int]) -> list[int
     return chosen[0:4]
 
 
-class RouterBMTest(base.TestBase):
+class RouterBMTest(base.TestBase, RouterBM):
     """
     Tests that the implementation of a router has sufficient performance in terms of packets
     per available machine*second (i.e. one accumulated second of all configured CPUs available
@@ -188,9 +178,14 @@ class RouterBMTest(base.TestBase):
     Pretend traffic is injected by brload's. See the test cases for details.
     """
 
-    router_cpus: list[int] = [0]
-    brload_cpus: list[int] = [0]
+    # Used by the RouterBM mixin:
+    coremark: int = 0
+    mmbm: int = 0
     intfMap: dict[str, Intf] = {}
+    brload: LocalCommand = None
+    brloadCpus: list[int] = [0]
+    routerCpus: list[int] = [0]
+    promAddress: str = "localhost:9999"
 
     ci = cli.Flag(
         "ci",
@@ -202,6 +197,7 @@ class RouterBMTest(base.TestBase):
         """Collects information about vcpus/cores/caches layout."""
 
         super().init()
+        brload = self.get_executable("brload")
         self.choose_cpus()
 
     def choose_cpus(self):
@@ -248,14 +244,14 @@ class RouterBMTest(base.TestBase):
         # best choice.
         if len(chosen) == 1:
             # When you have lemons...
-            self.router_cpus = chosen
-            self.brload_cpus = chosen
+            self.routerCpus = chosen
+            self.brloadCpus = chosen
         else:
-            self.router_cpus = chosen[:-1]
-            self.brload_cpus = chosen[-1:]
+            self.routerCpus = chosen[:-1]
+            self.brloadCpus = chosen[-1:]
 
-        logger.info(f"router cpus: {self.router_cpus}")
-        logger.info(f"brload cpus: {self.brload_cpus}")
+        logger.info(f"router cpus: {self.routerCpus}")
+        logger.info(f"brload cpus: {self.brloadCpus}")
 
     def create_interface(self, req: IntfReq, ns: str):
         """Creates a pair of virtual interfaces, with one end in the given network namespace and the
@@ -351,6 +347,29 @@ class RouterBMTest(base.TestBase):
         # Ship it.
         self.intfMap[req.label] = Intf(hostIntf, mac, peerMac)
 
+    def fetch_horsepower(self):
+        try:
+            coremarkExe = self.get_executable("coremark")
+            output = sudo("taskset", "-c", self.router_cpus[0], coremarkExe.executable)
+            line = output.splitlines()[-1]
+            if line.startswith("CoreMark "):
+                elems = line.split(" ")
+                if len(elems) >= 4:
+                    self.coremark = round(float(elems[3]))
+        except Exception as e:
+            logger.info(e)
+
+        try:
+            mmbmExe = self.get_executable("mmbm")
+            output = sudo("taskset", "-c", self.router_cpus[0], mmbmExe.executable)
+            line = output.splitlines()[-1]
+            if line.startswith("\"mmbm\": "):
+                elems = line.split(" ")
+                if len(elems) >= 2:
+                    self.mmbm = round(float(elems[1]))
+        except Exception as e:
+            logger.info(e)
+
     def setup_prepare(self):
         super().setup_prepare()
 
@@ -392,8 +411,7 @@ class RouterBMTest(base.TestBase):
         # The router uses one end and the test uses the other end to feed it with (and possibly
         # capture) traffic.
         # We supply the label->(host-side-name,mac,peermac) mapping to brload when we start it.
-        brload = self.get_executable("brload")
-        output = brload("show-interfaces")
+        output = self.brload("show-interfaces")
 
         for line in output.splitlines():
             elems = line.split(",")
@@ -417,6 +435,10 @@ class RouterBMTest(base.TestBase):
 
         time.sleep(2)
 
+        # Collect the horsepower microbenchmark numbers if we can.
+        # They'll be used to produce a performance index.
+        fetch_horsepower()
+
     def teardown(self):
         docker["logs", "router"].run_fg(retcode=None)
         docker("rm", "-f", "prometheus")
@@ -424,224 +446,17 @@ class RouterBMTest(base.TestBase):
         docker("network", "rm", "benchmark")  # veths are deleted automatically
         sudo("chown", "-R", whoami().strip(), self.artifacts)
 
-    def exec_br_load(self, case: str, mapArgs: list[str], count: int) -> str:
-        brload = self.get_executable("brload")
-        # For num-streams, attempt to distribute uniformly on many possible number of cores.
-        # 840 is a multiple of 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 15, 20, 21, 24, 28, ...
-        return sudo("taskset", "-c", ",".join(map(str, self.brload_cpus)),
-                    brload.executable,
-                    "run",
-                    "--artifacts", self.artifacts,
-                    *mapArgs,
-                    "--case", case,
-                    "--num-packets", str(count),
-                    "--num-streams", "840")
-
-    def run_test_case(self, case: str, mapArgs: list[str]) -> (int, int):
-        logger.info(f"==> Starting load {case}")
-
-        output = self.exec_br_load(case, mapArgs, 10000000)
-        beg = "0"
-        end = "0"
-        for line in output.splitlines():
-            if line.startswith("metricsBegin"):
-                _, beg, _, end = line.split()
-
-        logger.info(f"==> Collecting {case} performance metrics...")
-
-        # The raw metrics are expressed in terms of core*seconds. We convert to machine*seconds
-        # which allows us to provide a projected packet/s; ...more intuitive than packets/core*s.
-        # We measure the rate over 10s. For best results we sample the end of the middle 10s of the
-        # run. "beg" is the start time of the real action and "end" is the end time.
-        sampleTime = (int(beg) + int(end) + 10) / 2
-        promQuery = urlencode({
-            'time': f'{sampleTime}',
-            'query': (
-                'sum by (instance, job) ('
-                f'  rate(router_output_pkts_total{{job="BR", type="{case}"}}[10s])'
-                ')'
-                '/ on (instance, job) group_left()'
-                'sum by (instance, job) ('
-                '  1 - (rate(process_runnable_seconds_total[10s])'
-                '       / go_sched_maxprocs_threads)'
-                ')'
-            )
-        })
-        conn = HTTPConnection("localhost:9999")
-        conn.request("GET", f"/api/v1/query?{promQuery}")
-        resp = conn.getresponse()
-        if resp.status != 200:
-            raise RuntimeError(f"Unexpected response: {resp.status} {resp.reason}")
-
-        # There's only one router, so whichever metric we get is the right one.
-        pld = json.loads(resp.read().decode("utf-8"))
-        processed = 0
-        results = pld["data"]["result"]
-        for result in results:
-            ts, val = result["value"]
-            processed = int(float(val))
-            break
-
-        # Collect dropped packets metrics, so we can verify that the router was well saturated.
-        # If not, the metrics aren't very useful.
-        promQuery = urlencode({
-            'time': f'{sampleTime}',
-            'query': (
-                'sum by (instance, job) ('
-                '  rate(router_dropped_pkts_total{job="BR", reason=~"busy_.*"}[10s])'
-                ')'
-                '/ on (instance, job) group_left()'
-                'sum by (instance, job) ('
-                '  1 - (rate(process_runnable_seconds_total[10s])'
-                '       / go_sched_maxprocs_threads)'
-                ')'
-            )
-        })
-        conn = HTTPConnection("localhost:9999")
-        conn.request("GET", f"/api/v1/query?{promQuery}")
-        resp = conn.getresponse()
-        if resp.status != 200:
-            raise RuntimeError(f"Unexpected response: {resp.status} {resp.reason}")
-
-        # There's only one router, so whichever metric we get is the right one.
-        pld = json.loads(resp.read().decode("utf-8"))
-        dropped = 0
-        results = pld["data"]["result"]
-        for result in results:
-            ts, val = result["value"]
-            dropped = int(float(val))
-            break
-
-        return processed, dropped
-
-    # Fetch and log the number of cores used by Go. This may inform performance
-    # modeling later.
-    def core_count(self) -> int:
-        logger.info("==> Collecting number of cores...")
-        promQuery = urlencode({
-            'query': 'go_sched_maxprocs_threads{job="BR"}'
-        })
-
-        conn = HTTPConnection("localhost:9999")
-        conn.request("GET", f"/api/v1/query?{promQuery}")
-        resp = conn.getresponse()
-        if resp.status != 200:
-            raise RuntimeError(f"Unexpected response: {resp.status} {resp.reason}")
-
-        pld = json.loads(resp.read().decode("utf-8"))
-        results = pld["data"]["result"]
-        if len(results) > 1:
-            raise RuntimeError(f"FAILED: Found more than one subject router in results: {results}")
-
-        result = results[0]
-        instance = result["metric"]["instance"]
-        _, val = result["value"]
-        logger.info(f"Router Cores for {instance}: {int(val)}")
-        return int(val)
-
-    def horsepower(self) -> tuple[int]:
-        coremark = 0
-        mmbm = 0
-        try:
-            coremarkExe = self.get_executable("coremark")
-            output = sudo("taskset", "-c", self.router_cpus[0], coremarkExe.executable)
-            line = output.splitlines()[-1]
-            if line.startswith("CoreMark "):
-                elems = line.split(" ")
-                if len(elems) >= 4:
-                    coremark = float(elems[3])
-        except Exception as e:
-            print(e)
-
-        try:
-            mmbmExe = self.get_executable("mmbm")
-            output = mmbmExe()
-            line = output.splitlines()[-1]
-            if line.startswith("\"mmbm\": "):
-                elems = line.split(" ")
-                if len(elems) >= 2:
-                    mmbm = float(elems[1])
-        except Exception as e:
-            print(e)
-
-        return round(coremark), round(mmbm)
-
-    def perf_index(self, rate: int, coremark: int, mmbm: int) -> float:
-        # mmbm is in mebiBytes/s, rate is in pkt/s
-        return rate * (1.0 / coremark + M_CONSTANT * BM_PACKET_LEN / (mmbm * 1024 * 1024))
-
     def _run(self):
-        coremark, mmbm = self.horsepower()
-        coremarkstr = str(coremark or "Unavailable")
-        mmbmstr = str(mmbm or "Unavailable")
-        logger.info(f"Coremark: {coremarkstr}")
-        logger.info(f"Memory bandwidth (MiB/s): {mmbmstr}")
+        results = self.run_bm(test_cases.keys())
+        if self.ci:
+            results.CI_check(TEST_CASES)
 
-        # Build the interface mapping arg
-        mapArgs = []
-        for label, intf in self.intfMap.items():
-            mapArgs.extend(["--interface", f"{label}={intf.name},{intf.peerMac}"])
+        # Output results as json for easier post-processing
+        logger.info(results.as_json())
 
-        # Run one test (30% size) as warm-up to trigger the frequency scaling, else the first test
-        # gets much lower performance.
-        self.exec_br_load(list(TEST_CASES)[0], mapArgs, 3000000)
-
-        # At long last, run the tests
-        rateMap = {}
-        droppageMap = {}
-        for testCase in TEST_CASES:
-            processed, dropped = self.run_test_case(testCase, mapArgs)
-            rateMap[testCase] = processed
-            droppageMap[testCase] = dropped
-
-        cores = self.core_count()
-
-        if coremark != 0 and mmbm != 0:
-            for tt in TEST_CASES:
-                # TODO(jiceatscion): The perf index assumes that line speed isn't the bottleneck.
-                # It almost never is, but ideally we'd need to run iperf3 to verify.
-                if cores == 3:
-                    logger.info(
-                        f"Perf index for {tt}: {self.perf_index(rateMap[tt], coremark, mmbm):.1f}")
-                else:
-                    logger.info(f"Perf index for {tt}: undefined for {cores} cores")
-
-        # Log and check the performance...
-        # If this is used as a CI test. Make sure that the performance is within the expected
-        # ballpark.
-        rateTooLow = []
-        for tt, exp in TEST_CASES.items():
-            if self.ci and exp != 0:
-                logger.info(f"Packets/(machine*s) for {tt}: {rateMap[tt]} expected: {exp}")
-                if rateMap[tt] < 0.8 * exp:
-                    rateTooLow.append(tt)
-            else:
-                logger.info(f"Packets/(machine*s) for {tt}: {rateMap[tt]}")
-
-        if len(rateTooLow) != 0:
-            raise RuntimeError(f"Insufficient performance for: {rateTooLow}")
-
-        # Log and check the saturation...
-        # If this is used as a CI test. Make sure that the saturation is within the expected
-        # ballpark: that should manifest some measurable amount of loss due to queue overflow.
-        notSaturated = []
-        for tt in TEST_CASES:
-            total = rateMap[tt] + droppageMap[tt]
-            if total == 0:
-                logger.info(f"Droppage ratio unavailable for {tt}")
-            else:
-                ratio = float(droppageMap[tt]) / total
-                exp = 0.03
-                if self.ci:
-                    logger.info(f"Droppage ratio for {tt}: {ratio:.1%} expected: {exp:.1%}")
-                    if ratio < exp:
-                        notSaturated.append(tt)
-                else:
-                    logger.info(f"Droppage ratio for {tt}: {ratio:.1%}")
-
-        if len(notSaturated) != 0:
-            raise RuntimeError(f"Insufficient saturation for: {notSaturated}")
-
+        if self.ci:
+            if results.failed:
+                raise RuntimeError(f"CI check failed")
 
 if __name__ == "__main__":
     base.main(RouterBMTest)

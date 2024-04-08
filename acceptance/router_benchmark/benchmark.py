@@ -19,37 +19,29 @@ import ipaddress
 import json
 import logging
 import os
-import shutil
-import signal
 import ssl
-import sys
 import time
 import traceback
 
+from benchmarklib import Intf, RouterBM
 from collections import namedtuple
-from http.client import HTTPConnection
-from http.client import HTTPSConnection
 from plumbum import cli
 from plumbum import cmd
 from plumbum import local
 from plumbum.cmd import docker
+from plumbum.machines import LocalCommand
 from random import randint
-from urllib.parse import urlencode
 from urllib.request import urlopen
+
+logger = logging.getLogger(__name__)
 
 TEST_CASES = [
     "in",
-    "out",
-    "in_transit",
-    "out_transit",
-    "br_transit",
+#     "out",
+#     "in_transit",
+#     "out_transit",
+#     "br_transit",
 ]
-
-# A magic coefficient used in calculating the performance index.
-M_CONSTANT = 18500
-
-# TODO(jiceatscion): get it from or give it to brload?
-BM_PACKET_LEN = 172
 
 # Convenience types to carry interface params.
 IntfReq = namedtuple("IntfReq", "label, prefixLen, ip, peerIp, exclusive")
@@ -60,78 +52,8 @@ def sudo(*args: [str]) -> str:
     # interactive password input.
     return cmd.sudo("-A", *args)
 
-class Results:
-    """Stores and format benchmark results.
-    """
 
-    cores: int = 0
-    coremark: int = 0
-    mmbm: int = 0
-    cases: list[dict] = []
-    failed: list[dict] = []
-    checked: bool = False
-
-    def __init__(self, cores: int, coremark: int, mmbm: int):
-        self.cores = cores
-        self.coremark = coremark
-        self.mmbm = mmbm
-
-    def perf_index(self, rate: int) -> float:
-        # TODO(jiceatscion): The perf index assumes that line speed isn't the bottleneck.
-        # It almost never is, but ideally we'd need to run iperf3 to verify.
-        # mmbm is in mebiBytes/s, rate is in pkt/s
-        return rate * (1.0 / self.coremark + M_CONSTANT * BM_PACKET_LEN / (self.mmbm * 1024 * 1024))
-
-    def add_case(self, name: str, rate: int, droppage: int):
-        dropRatio = round(float(droppage) / (rate + droppage), 2)
-        saturated = dropRatio > 0.03
-        perf = 0.0
-        if self.cores == 3 and self.coremark and self.mmbm:
-            perf = round(self.perf_index(rate), 1)
-        self.cases.append({"case": name,
-                           "perf": perf, "rate": rate, "drop": dropRatio, "full": saturated})
-
-    def CI_check(expectations: dict[str, int]):
-        self.checked = true
-        for tc in self.cases:
-            want = expectations.get(tc["case"])
-            if want is not None:
-                slow = tc.rate < want
-                unsaturated = not tc.saturated
-                if slow or unsaturated:
-                    failed.append({"case": tc["case"],
-                                   "expected": want, "slow": slow, "unsaturated": unsaturated})
-
-    def as_json(self) -> str:
-        return json.dumps({
-            "cores": self.cores,
-            "coremark": self.coremark,
-            "mmbm": self.mmbm,
-            "cases": self.cases,
-            "checked": self.checked,
-            "failed": self.failed,
-        }, indent=4)
-
-    def as_report(self) -> str:
-        res = (f"Benchmark Results\n\ncores: {self.cores}\n"
-               f"coremark: {self.coremark or 'N/A'}\nmmbm: {self.mmbm or 'N/A'}\n")
-        for tc in self.cases:
-            perfIndexStr =  str(tc['perf'] or "N/A")
-            res += (f"{tc['case']}: perf_index={perfIndexStr}"
-                    f" rate={tc['rate']} droppage={tc['drop']:.1%} saturated={tc['full']}\n")
-        res += "CI pass/fail: "
-        if not self.checked:
-            res += "N/A\n"
-            return res
-        res += "FAILED\n" if self.failed else "PASS\n"
-        if not self.failed:
-            return res
-        for failure in self.failed:
-            res += (f"{failure['case']} expected={failure['expected']}"
-                    f" slow={failure['slow']} unsaturated={failure['unsaturated']}")
-        return res
-
-class RouterBM(cli.Application):
+class RouterBMTool(cli.Application, RouterBM):
     """Evaluates the performance of an external router running the SCION reference implementation.
 
     The performance is reported in terms of packets per available machine*second (i.e. one
@@ -156,20 +78,29 @@ class RouterBM(cli.Application):
 
     """
 
-    intfMap: dict[str, str] = {}
     availInterfaces: list[str] = []
     mxInterface: str = None
     toFlush: list[str] = []
     scrapeAddr: str = None
-    artifacts = f"{os.getcwd()}/acceptance/router_benchmark"
-    coremark = cli.SwitchAttr(["c", "coremark"], int, default = 0,
-                              help = "The coremark score of the subject machine.")
-    mmbm = cli.SwitchAttr(["m", "mmbm"], int, default = 0,
-                          help = "The mmbm score of the subject machine.")
+
+    logLevel = cli.SwitchAttr(["l", "loglevel"], str, default = 'warning',
+                              help = "Logging level")
+
     doit = cli.Flag(["r", "run"],
                     help = "Run the benchmark, as opposed to seeing the instructions.")
     json = cli.Flag(["j", "json"],
                     help = "Output the report in json format.")
+
+    # Used by the RouterBM mixin:
+    coremark = cli.SwitchAttr(["c", "coremark"], int, default = 0,
+                              help = "The coremark score of the subject machine.")
+    mmbm = cli.SwitchAttr(["m", "mmbm"], int, default = 0,
+                          help = "The mmbm score of the subject machine.")
+    intfMap: dict[str, Intf] = {}
+    brload: LocalCommand = local["./bin/brload"]
+    brloadCpus: list[int] = []
+    artifacts = f"{os.getcwd()}/acceptance/router_benchmark"
+    promAddress: str = "localhost:9090"
 
     def host_interface(self, excl: bool):
         """Returns the next host interface that we should use for a brload links.
@@ -179,12 +110,12 @@ class RouterBM(cli.Application):
         """
         if excl:
             return self.availInterfaces.pop()
-        
+
         if self.mxInterface is None:
             self.mxInterface = self.availInterfaces.pop()
 
         return self.mxInterface
-    
+
     def config_interface(self, req: IntfReq):
         """Configure an interfaces according to brload's requirements.
 
@@ -220,12 +151,12 @@ class RouterBM(cli.Application):
                  "broadcast", str(net.broadcast_address), "dev", hostIntf)
             self.toFlush.append(hostIntf)
 
-        print(f"=> Configuring interface {hostIntf} for: {req}...", file=sys.stderr)
+        logger.debug(f"=> Configuring interface {hostIntf} for: {req}...")
 
         # We do multiplex most requested router interfaces onto one physical interface, so, we
         # must check that we haven't already configured the physical one.
-        for name in self.intfMap.values():
-            if name == hostIntf:
+        for i in self.intfMap.values():
+            if i.name == hostIntf:
                 break
         else:
             # TODO: instructions/warning regarding inability to enable jumbo frames.
@@ -243,21 +174,36 @@ class RouterBM(cli.Application):
         # Fit for duty.
         sudo("ip", "link", "set", hostIntf, "up")
 
-        # Ship it.
-        self.intfMap[req.label] = hostIntf
+        # Ship it. Leave mac addresses alone. In this standalone test we use the real one.
+        self.intfMap[req.label] = Intf(hostIntf, None, None)
+
+    def fetch_horsepower(self) -> tuple[int]:
+        try:
+            url = f"https://{self.scrapeAddr}/horsepower.txt"
+            resp = urlopen(url, context=ssl._create_unverified_context())
+            hp = json.loads(resp.read().decode("ascii"))
+        except Exception as e:
+            logger.warn(f"Fetching coremark and mmbm from {url}... {e}")
+            return
+
+        if self.coremark == 0:
+            self.coremark = round(hp["coremark"])
+
+        if self.mmbm == 0:
+            self.mmbm = round(hp["mmbm"])
 
     def setup(self, availInterfaces: list[str]):
-        print("Preparing...", file=sys.stderr)
+        logger.info("Preparing...")
 
         # Check that the given interfaces are safe to use. We will wreck their config.
         for intf in availInterfaces:
             output = sudo("ip", "addr", "show", "dev", intf)
             if len(output.splitlines()) > 2:
-                print(f"""\
+                logger.error(f"""\
                 Interface {intf} appears to be in some kind of use. Cowardly refusing to modify it.
                 If you have a network manager, tell it to disable or ignore that interface.
                 Else, how about \"sudo ip addr flush dev {intf}\"?
-                """, file=sys.stderr)
+                """)
                 raise RuntimeError("Interface in use")
 
         # Looks safe.
@@ -265,22 +211,21 @@ class RouterBM(cli.Application):
 
         # Run test brload test with --show-interfaces and set up the interfaces as it says.
         # We supply the label->host-side-name mapping to brload when we start it.
-        print("==> Configuring host interfaces...", file=sys.stderr)
+        logger.debug("==> Configuring host interfaces...")
 
-        brload = local["./bin/brload"]
-        output = brload("show-interfaces")
+        output = self.brload("show-interfaces")
 
         lines = sorted(output.splitlines())
         for line in lines:
             elems = line.split(",")
             if len(elems) != 5:
                 continue
-            print(f"Requested by brload: {line}", file=sys.stderr)
+            logger.debug(f"Requested by brload: {line}")
             t = IntfReq._make(elems)
             self.config_interface(t)
 
         # Start an instance of prometheus configured to scrape the router.
-        print("==> Starting prometheus...", file=sys.stderr)
+        logger.debug("==> Starting prometheus...")
         docker("run",
                "-v", f"{self.artifacts}/conf:/etc/scion",
                "-d",
@@ -290,7 +235,12 @@ class RouterBM(cli.Application):
                "--config.file", "/etc/scion/prometheus.yml")
 
         time.sleep(2)
-        print("Prepared", file=sys.stderr)
+
+        # Collect the horsepower microbenchmark numbers if we can.
+        # They'll be used to produce a performance index.
+        self.fetch_horsepower()
+
+        logger.info("Prepared")
 
     def cleanup(self, retcode: int):
         docker("rm", "-f", "prometheus_bm")
@@ -298,174 +248,8 @@ class RouterBM(cli.Application):
             sudo("ip", "addr", "flush", "dev", intf)
         return retcode
 
-    def exec_br_load(self, case: str, mapArgs: list[str], count: int) -> str:
-        brload = local["./bin/brload"]
-        # For num-streams, attempt to distribute uniformly on many possible number of cores.
-        # 840 is a multiple of 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 15, 20, 21, 24, 28, ...
-        return sudo(brload.executable,
-                    "run",
-                    "--artifacts", self.artifacts,
-                    *mapArgs,
-                    "--case", case,
-                    "--num-packets", str(count),
-                    "--num-streams", "840")
-
-    def run_test_case(self, case: str, mapArgs: list[str]) -> (int, int):
-        print(f"==> Starting load {case}", file=sys.stderr)
-
-        output = self.exec_br_load(case, mapArgs, 10000000)
-        beg = "0"
-        end = "0"
-        for line in output.splitlines():
-            if line.startswith("metricsBegin"):
-                _, beg, _, end = line.split()
-
-        print(f"==> Collecting {case} performance metrics...", file=sys.stderr)
-
-        # The raw metrics are expressed in terms of core*seconds. We convert to machine*seconds
-        # which allows us to provide a projected packet/s; ...more intuitive than packets/core*s.
-        # We measure the rate over 10s. For best results we sample the end of the middle 10s of the
-        # run. "beg" is the start time of the real action and "end" is the end time.
-        sampleTime = (int(beg) + int(end) + 10) / 2
-        promQuery = urlencode({
-            'time': f'{sampleTime}',
-            'query': (
-                'sum by (instance, job) ('
-                f'  rate(router_output_pkts_total{{job="BR", type="{case}"}}[10s])'
-                ')'
-                '/ on (instance, job) group_left()'
-                'sum by (instance, job) ('
-                '  1 - (rate(process_runnable_seconds_total[10s])'
-                '       / go_sched_maxprocs_threads)'
-                ')'
-            )
-        })
-        conn = HTTPConnection("localhost:9090")
-        conn.request("GET", f"/api/v1/query?{promQuery}")
-        resp = conn.getresponse()
-        if resp.status != 200:
-            raise RuntimeError(f"Unexpected response: {resp.status} {resp.reason}")
-
-        # There's only one router, so whichever metric we get is the right one.
-        pld = json.loads(resp.read().decode("utf-8"))
-        processed = 0
-        results = pld["data"]["result"]
-        for result in results:
-            ts, val = result["value"]
-            processed = int(float(val))
-            break
-
-        # Collect dropped packets metrics, so we can verify that the router was well saturated.
-        # If not, the metrics aren't very useful.
-        promQuery = urlencode({
-            'time': f'{sampleTime}',
-            'query': (
-                'sum by (instance, job) ('
-                '  rate(router_dropped_pkts_total{job="BR", reason=~"busy_.*"}[10s])'
-                ')'
-                '/ on (instance, job) group_left()'
-                'sum by (instance, job) ('
-                '  1 - (rate(process_runnable_seconds_total[10s])'
-                '       / go_sched_maxprocs_threads)'
-                ')'
-            )
-        })
-        conn = HTTPConnection("localhost:9090")
-        conn.request("GET", f"/api/v1/query?{promQuery}")
-        resp = conn.getresponse()
-        if resp.status != 200:
-            raise RuntimeError(f"Unexpected response: {resp.status} {resp.reason}")
-
-        # There's only one router, so whichever metric we get is the right one.
-        pld = json.loads(resp.read().decode("utf-8"))
-        dropped = 0
-        results = pld["data"]["result"]
-        for result in results:
-            ts, val = result["value"]
-            dropped = int(float(val))
-            break
-
-        return processed, dropped
-
-    # Fetch and log the number of cores used by Go. This may inform performance
-    # modeling later.
-    def core_count(self) -> int:
-        print("==> Collecting number of cores...", file=sys.stderr)
-        promQuery = urlencode({
-            'query': 'go_sched_maxprocs_threads{job="BR"}'
-        })
-
-        conn = HTTPConnection("localhost:9090")
-        conn.request("GET", f"/api/v1/query?{promQuery}")
-        resp = conn.getresponse()
-        if resp.status != 200:
-            raise RuntimeError(f"FAILED: Unexpected response: {resp.status} {resp.reason}")
-
-        pld = json.loads(resp.read().decode("utf-8"))
-        results = pld["data"]["result"]
-        if not results:
-            raise RuntimeError("FAILED: Got no results when querying the core count")
-        if len(results) > 1:
-            raise RuntimeError(f"FAILED: Found more than one subject router in results: {results}")
-
-        result = results[0]
-        _, val = result["value"]
-        return int(val)
-
-    def fetch_horsepower(self) -> tuple[int]:
-        try:
-            url = f"https://{self.scrapeAddr}/horsepower.txt"
-            resp = urlopen(url, context=ssl._create_unverified_context())
-            hp = json.loads(resp.read().decode("ascii"))
-        except Exception as e:
-            print(f"Fetching coremark and mmbm from {url}... {e}", file=sys.stderr)
-            return
-
-        if self.coremark == 0:
-            self.coremark = round(hp["coremark"])
-
-        if self.mmbm == 0:
-            self.mmbm = round(hp["mmbm"])
-
-    def run_bm(self):
-        print("Benchmarking...", file=sys.stderr)
-
-        # Collect the horsepower microbenchmark numbers if we can:
-        self.fetch_horsepower()
-
-        # Build the interface mapping arg (here, we do not override the brload side mac address)
-        mapArgs = []
-        for label, intf in self.intfMap.items():
-            mapArgs.extend(["--interface", f"{label}={intf}"])
-
-        # Run one test (30% size) as warm-up to trigger any frequency scaling, else the first test
-        # can get much lower performance.
-        print("Warmup", file=sys.stderr)
-        self.exec_br_load(TEST_CASES[0], mapArgs, 3000000)
-
-        # Fetch the core count once. It doesn't change while the router is running.
-        # We can't get it until the router has done some work, but the warmup is enough.
-        cores = self.core_count()
-
-        # At long last, run the tests.
-        results = Results(cores, self.coremark, self.mmbm)
-        for testCase in TEST_CASES:
-            print(f"Case: {testCase}", file=sys.stderr)
-            rate, droppage = self.run_test_case(testCase, mapArgs)
-            results.add_case(testCase, rate, droppage)
-
-        # No CI_check. We have no particular expectations here.
-        # Output the performance in human-friendly form...
-        if self.json:
-            print(results.as_json())
-        else:
-            print(results.as_report())
-
-        print("Benchmarked", file=sys.stderr)
-
     def instructions(self):
-        brload = local["./bin/brload"]
-        output = brload("show-interfaces")
+        output = self.brload("show-interfaces")
 
         exclusives = []
         multiplexed = []
@@ -550,20 +334,27 @@ INSTRUCTIONS:
     def main(self, *interfaces: str):
         status = 1
         try:
+            logging.basicConfig(level=self.logLevel.upper())
             if not self.doit:
                 self.instructions()
                 status = 0
             else:
                 self.setup(list(interfaces))
-                self.run_bm()
+                results = self.run_bm(TEST_CASES)
+                # No CI_check. We have no particular expectations here.
+                # Output the performance in human-friendly form by default...
+                if self.json:
+                    print(results.as_json())
+                else:
+                    print(results.as_report())
                 status = 0
         except KeyboardInterrupt:
-            print("Bailing out...", file=sys.stderr)
-        except Exception as e:
-            traceback.print_exc(file=sys.stderr)
+            logger.info("Bailing out...")
+        except Exception:
+            logger.error(traceback.format_exc())
         except SystemExit:
             pass
         return status
 
 if __name__ == "__main__":
-    RouterBM()
+    RouterBMTool()
