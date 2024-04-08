@@ -17,14 +17,14 @@ SCION Internet effortlessly.
 From within an AS, all an end user needs to do is to install a package.
 
 In particular, the package contains a bootstrapper daemon that retrieves
-hints from the local network using `zero conf` services, downloads the
+hints from the local network using *zero conf* services, downloads the
 required SCION configuration files from a local discovery server, and starts
 the SCION Daemon (SD).
 
 Terminology
 -----------
 
-A **hint** is a piece of information returned by a `zero conf` service deployed
+A **hint** is a piece of information returned by a *zero conf* service deployed
 in the local network.
 Depending on the discovery mechanism, a hint can be either sufficient to contact
 a discovery server (e.g., providing its IP address) or can be used to query the local
@@ -33,7 +33,7 @@ network further (e.g., a DNS PTR response).
 A **discovery** **server** is a server that exposes the endpoints required
 by the bootstrapper (more in the `Discovery Server`_ section).
 
-A **discoverer** is a client of a `zero conf` service. It communicates with the service
+A **discoverer** is a client of a *zero conf* service. It communicates with the service
 and provides hints to the bootstrapper.
 
 Design

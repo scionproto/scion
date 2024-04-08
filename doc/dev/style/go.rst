@@ -7,7 +7,7 @@ Unless specified otherwise below, stick to golang's
 
 Generally the code should be formatted with ``gofmt`` (checked by CI).
 
-Lines must be at most 100 characters long (checked by CI via `lll`).
+Lines must be at most 100 characters long (checked by CI via ``lll``).
 
 Naming
 ------
@@ -138,10 +138,10 @@ In cases where performance is a concern, consider applying the labels outside of
 the performance-critical section.
 
 .. note::
-   Some packages have `metrics` packages that define labels and initialize
+   Some packages have ``metrics`` packages that define labels and initialize
    metrics (see the ``go/cs/beacon/metrics`` package for an example). While this
    is also ok, the recommended way is to define labels in the package itself and
-   initialize metrics in `main`.
+   initialize metrics in ``main``.
 
 Best Practices
 ^^^^^^^^^^^^^^
@@ -152,4 +152,4 @@ Best Practices
 #. Use values that can be searched with regex. E.g. prepend ``err_`` for every error result.
 #. ``snake_case`` label names and values.
 #. Put shared label names and values into ``go/lib/prom``.
-#. Always initialize ``CounterVec`` to avoid hidden metrics `link <https://prometheus.io/docs/practices/instrumentation/#avoid-missing-metrics)>`.
+#. Always initialize ``CounterVec`` to avoid hidden metrics `link <https://prometheus.io/docs/practices/instrumentation/#avoid-missing-metrics)>`_.

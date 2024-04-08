@@ -279,12 +279,12 @@ the CP-PKI infrastructure.
 
 The Level 1 key request message contains the ``validTime`` that specifies for what time the requested
 key must be valid (it implicitly specifies the epoch for which the key will be valid)
-and the ``protocol_id``. 
+and the ``protocol_id``.
 The Level 1 key response includes the symmetric key along with the epoch
 for which this key will be valid.
 
 The ``protocol_id`` is either set to ``GENERIC = 0`` to request Lvl1 keys that will be derived according to
-the `generic-protocol` hierarchy or to the protocol number for the `protocol-specific` derivation.
+the ``generic-protocol`` hierarchy or to the protocol number for the ``protocol-specific`` derivation.
 
 Level 0/2/3 key establishment
 -----------------------------
@@ -307,8 +307,8 @@ information (depending on the key type).
 The server responds with the symmetric key and the epoch.
 
 The ``protocol_id`` in Lvl2/3 requests is always set to the final protocol identifier.
-The key service will choose between the `protocol-specific` derivation, if it exists, or
-the `generic-protocol` derivation, otherwise.
+The key service will choose between the ``protocol-specific`` derivation, if it exists, or
+the ``generic-protocol`` derivation, otherwise.
 
 Spreading Level 1 key requests
 ==============================

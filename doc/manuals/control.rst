@@ -262,7 +262,7 @@ considers the following options.
 
       .. option:: ca.service.shared_secret = <string>
 
-	      Path to the PEM-encoded shared secret that is used to create JWT tokens.
+         Path to the PEM-encoded shared secret that is used to create JWT tokens.
 
          The shared secret file is re-read from disk at 5 second intervals.
 

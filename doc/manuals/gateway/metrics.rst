@@ -227,7 +227,7 @@ Session is healthy
 
 **Description**: Healthiness flag to a remote AS per session ID. The
 session is ephemeral so it is recommended to use after aggregating
-per `remote_isd_as` and `policy_id`.
+per ``remote_isd_as`` and ``policy_id``.
 
 **Labels**: ``remote_isd_as``, ``policy_id``, ``session_id``
 
