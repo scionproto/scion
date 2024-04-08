@@ -107,11 +107,11 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 	scmpHandler := &scmpHandler{
 		replies: replies,
 	}
-	svc := snet.DefaultConnector{
+	sn := &snet.SCIONNetwork{
 		SCMPHandler: scmpHandler,
 		Topology:    cfg.Topology,
 	}
-	conn, err := svc.OpenUDP(ctx, cfg.Local.Host)
+	conn, err := sn.OpenRaw(ctx, cfg.Local.Host)
 	if err != nil {
 		return Stats{}, err
 	}

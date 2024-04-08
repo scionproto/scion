@@ -197,10 +197,11 @@ func (nc *NetworkConfig) AddressRewriter() *AddressRewriter {
 		SVCRouter: nc.SVCResolver,
 		Resolver: &svc.Resolver{
 			LocalIA: nc.IA,
-			Connector: &snet.DefaultConnector{
-				SCMPHandler: nc.SCMPHandler,
-				Metrics:     nc.SCIONPacketConnMetrics,
-				Topology:    nc.Topology,
+			Network: &snet.SCIONNetwork{
+				Topology:          nc.Topology,
+				SCMPHandler:       nc.SCMPHandler,
+				Metrics:           nc.SCIONNetworkMetrics,
+				PacketConnMetrics: nc.SCIONPacketConnMetrics,
 			},
 			LocalIP: nc.Public.IP,
 		},
@@ -219,43 +220,37 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 	if err != nil {
 		return nil, nil, serrors.WrapStr("building SVC resolution reply", err)
 	}
+
 	serverNet := &snet.SCIONNetwork{
 		Topology: nc.Topology,
-		Connector: &svc.ResolverPacketConnector{
-			Connector: &snet.DefaultConnector{
-				// XXX(roosd): This is essential, the server must not read SCMP
-				// errors. Otherwise, the accept loop will always return that error
-				// on every subsequent call to accept.
-				SCMPHandler: ignoreSCMP{},
-				Metrics:     nc.SCIONPacketConnMetrics,
-				Topology:    nc.Topology,
-			},
-			LocalIA: nc.IA,
-			Handler: &svc.BaseHandler{
-				Message: svcResolutionReply,
-			},
-		},
-		Metrics: nc.SCIONNetworkMetrics,
+		// XXX(roosd): This is essential, the server must not read SCMP
+		// errors. Otherwise, the accept loop will always return that error
+		// on every subsequent call to accept.
+		SCMPHandler:       ignoreSCMP{},
+		PacketConnMetrics: nc.SCIONPacketConnMetrics,
 	}
-
-	server, err := serverNet.Listen(context.Background(), "udp", nc.Public)
+	pconn, err := serverNet.OpenRaw(context.Background(), nc.Public)
+	if err != nil {
+		return nil, nil, serrors.WrapStr("creating server raw PacketConn", err)
+	}
+	resolvedPacketConn := &svc.ResolverPacketConn{
+		PacketConn: pconn,
+		Source: snet.SCIONAddress{
+			IA:   nc.IA,
+			Host: addr.HostIP(nc.Public.AddrPort().Addr()),
+		},
+		Handler: &svc.BaseHandler{
+			Message: svcResolutionReply,
+		},
+	}
+	server, err := snet.NewCookedConn(resolvedPacketConn, nc.Topology, nil, nil)
 	if err != nil {
 		return nil, nil, serrors.WrapStr("creating server connection", err)
 	}
 
 	clientNet := &snet.SCIONNetwork{
 		Topology: nc.Topology,
-		Connector: &snet.DefaultConnector{
-			// Discard all SCMP propagation, to avoid read errors on the QUIC
-			// client.
-			SCMPHandler: snet.SCMPPropagationStopper{
-				Handler: nc.SCMPHandler,
-				Log:     log.Debug,
-			},
-			Metrics:  nc.SCIONPacketConnMetrics,
-			Topology: nc.Topology,
-		},
-		Metrics: nc.SCIONNetworkMetrics,
+		Metrics:  nc.SCIONNetworkMetrics,
 	}
 	clientAddr := &net.UDPAddr{
 		IP:   nc.Public.IP,

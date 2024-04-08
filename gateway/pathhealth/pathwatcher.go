@@ -80,7 +80,7 @@ func (f *DefaultPathWatcherFactory) New(
 		}
 		return create(remote)
 	}
-	nc, err := (&snet.DefaultConnector{
+	conn, err := (&snet.SCIONNetwork{
 		SCMPHandler: scmpHandler{
 			wrappedHandler: snet.DefaultSCMPHandler{
 				RevocationHandler: f.RevocationHandler,
@@ -88,17 +88,17 @@ func (f *DefaultPathWatcherFactory) New(
 			},
 			pkts: pktChan,
 		},
-		Metrics:  f.SCIONPacketConnMetrics,
-		Topology: f.Topology,
-	}).OpenUDP(ctx, &net.UDPAddr{IP: f.LocalIP.AsSlice()})
+		PacketConnMetrics: f.SCIONPacketConnMetrics,
+		Topology:          f.Topology,
+	}).OpenRaw(ctx, &net.UDPAddr{IP: f.LocalIP.AsSlice()})
 	if err != nil {
 		return nil, serrors.WrapStr("creating connection for probing", err)
 	}
 	return &pathWatcher{
 		remote:        remote,
 		probeInterval: f.ProbeInterval,
-		conn:          nc,
-		id:            uint16(nc.LocalAddr().(*net.UDPAddr).Port),
+		conn:          conn,
+		id:            uint16(conn.LocalAddr().(*net.UDPAddr).Port),
 		localAddr: snet.SCIONAddress{
 			IA:   f.LocalIA,
 			Host: addr.HostIP(f.LocalIP),

@@ -99,11 +99,11 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		return Stats{}, serrors.New("empty path is not allowed for traceroute")
 	}
 	replies := make(chan reply, 10)
-	connector := &snet.DefaultConnector{
+	sn := &snet.SCIONNetwork{
 		SCMPHandler: scmpHandler{replies: replies},
 		Topology:    cfg.Topology,
 	}
-	conn, err := connector.OpenUDP(ctx, cfg.Local.Host)
+	conn, err := sn.OpenRaw(ctx, cfg.Local.Host)
 	if err != nil {
 		return Stats{}, err
 	}

@@ -42,37 +42,49 @@ var _ net.PacketConn = (*Conn)(nil)
 
 type Conn struct {
 	conn PacketConn
-	scionConnBase
 	scionConnWriter
 	scionConnReader
+
+	// Local and remote SCION addresses (IA, L3, L4)
+	local  *UDPAddr
+	remote *UDPAddr
 }
 
 func newConn(
-	base scionConnBase,
 	conn PacketConn,
 	replyPather ReplyPather,
 	endhostStartPort uint16,
 	endhostEndPort uint16,
+	local, remote *UDPAddr,
 ) *Conn {
 
 	c := &Conn{
-		conn:          conn,
-		scionConnBase: base,
+		conn:   conn,
+		local:  local,
+		remote: remote,
 	}
 	c.scionConnWriter = scionConnWriter{
-		base:             &c.scionConnBase,
 		conn:             conn,
 		buffer:           make([]byte, common.SupportedMTU),
+		local:            local,
+		remote:           remote,
 		endhostStartPort: endhostStartPort,
 		endhostEndPort:   endhostEndPort,
 	}
 	c.scionConnReader = scionConnReader{
-		base:        &c.scionConnBase,
 		conn:        conn,
 		buffer:      make([]byte, common.SupportedMTU),
 		replyPather: replyPather,
 	}
 	return c
+}
+
+func (c *Conn) LocalAddr() net.Addr {
+	return c.local
+}
+
+func (c *Conn) RemoteAddr() net.Addr {
+	return c.remote
 }
 
 func (c *Conn) SetDeadline(t time.Time) error {

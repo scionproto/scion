@@ -55,31 +55,46 @@ type Topology interface {
 	Interfaces(ctx context.Context) (map[uint16]*net.UDPAddr, error)
 }
 
-type Connector interface {
-	// OpenUDP returns a PacketConn which listens on the specified address.
-	// Nil or unspecified addresses are not supported.
-	// If the address port is 0 a valid and free SCION/UDP port is automatically chosen. Otherwise,
-	// the specified port must be a valid SCION/UDP port.
-	OpenUDP(ctx context.Context, address *net.UDPAddr) (PacketConn, error)
+var _ Network = (*SCIONNetwork)(nil)
+
+type SCIONNetworkMetrics struct {
+	// Dials records the total number of Dial calls received by the network.
+	Dials metrics.Counter
+	// Listens records the total number of Listen calls received by the network.
+	Listens metrics.Counter
 }
 
-type DefaultConnector struct {
-	SCMPHandler SCMPHandler
-	Metrics     SCIONPacketConnMetrics
-	Topology    Topology
+// SCIONNetwork is the SCION networking context.
+type SCIONNetwork struct {
+	// Topology provides local AS information, needed to handle sockets and
+	// traffic.
+	Topology Topology
+	// ReplyPather is used to create reply paths when reading packets on Conn
+	// (that implements net.Conn). If unset, the default reply pather is used,
+	// which parses the incoming path as a path.Path and reverses it.
+	ReplyPather ReplyPather
+	// Metrics holds the metrics emitted by the network.
+	Metrics SCIONNetworkMetrics
+	// SCMPHandler describes the network behaviour upon receiving SCMP traffic.
+	SCMPHandler       SCMPHandler
+	PacketConnMetrics SCIONPacketConnMetrics
 }
 
-func (d *DefaultConnector) OpenUDP(ctx context.Context, addr *net.UDPAddr) (PacketConn, error) {
+// OpenRaw returns a PacketConn which listens on the specified address.
+// Nil or unspecified addresses are not supported.
+// If the address port is 0 a valid and free SCION/UDP port is automatically chosen.
+// Otherwise, the specified port must be a valid SCION/UDP port.
+func (n *SCIONNetwork) OpenRaw(ctx context.Context, addr *net.UDPAddr) (PacketConn, error) {
 	var pconn *net.UDPConn
 	var err error
 	if addr == nil || addr.IP.IsUnspecified() {
 		return nil, serrors.New("nil or unspecified address is not permitted")
 	}
-	start, end, err := d.Topology.PortRange(ctx)
+	start, end, err := n.Topology.PortRange(ctx)
 	if err != nil {
 		return nil, err
 	}
-	ifAddrs, err := d.Topology.Interfaces(ctx)
+	ifAddrs, err := n.Topology.Interfaces(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -99,50 +114,10 @@ func (d *DefaultConnector) OpenUDP(ctx context.Context, addr *net.UDPAddr) (Pack
 	}
 	return &SCIONPacketConn{
 		Conn:         pconn,
-		SCMPHandler:  d.SCMPHandler,
-		Metrics:      d.Metrics,
+		SCMPHandler:  n.SCMPHandler,
+		Metrics:      n.PacketConnMetrics,
 		interfaceMap: ifAddrs,
 	}, nil
-}
-
-func listenUDPRange(addr *net.UDPAddr, start, end uint16) (*net.UDPConn, error) {
-	// XXX(JordiSubira): For now, we simply iterate on the complete SCION/UDP
-	// range, taking the first unused port.
-	for port := start; port < end; port++ {
-		pconn, err := net.ListenUDP(addr.Network(), &net.UDPAddr{
-			IP:   addr.IP,
-			Port: int(port),
-		})
-		if err == nil {
-			return pconn, nil
-		}
-		if errors.Is(err, syscall.EADDRINUSE) {
-			continue
-		}
-		return nil, err
-	}
-	return nil, serrors.WrapStr("binding to port range", syscall.EADDRINUSE)
-}
-
-var _ Network = (*SCIONNetwork)(nil)
-
-type SCIONNetworkMetrics struct {
-	// Dials records the total number of Dial calls received by the network.
-	Dials metrics.Counter
-	// Listens records the total number of Listen calls received by the network.
-	Listens metrics.Counter
-}
-
-// SCIONNetwork is the SCION networking context.
-type SCIONNetwork struct {
-	Topology  Topology
-	Connector Connector
-	// ReplyPather is used to create reply paths when reading packets on Conn
-	// (that implements net.Conn). If unset, the default reply pather is used,
-	// which parses the incoming path as a path.Path and reverses it.
-	ReplyPather ReplyPather
-	// Metrics holds the metrics emitted by the network.
-	Metrics SCIONNetworkMetrics
 }
 
 // Dial returns a SCION connection to remote. Parameter network must be "udp".
@@ -182,37 +157,60 @@ func (n *SCIONNetwork) Listen(
 ) (*Conn, error) {
 
 	metrics.CounterInc(n.Metrics.Listens)
-
 	if network != "udp" {
 		return nil, serrors.New("Unknown network", "network", network)
 	}
-
-	packetConn, err := n.Connector.OpenUDP(ctx, listen)
+	packetConn, err := n.OpenRaw(ctx, listen)
 	if err != nil {
 		return nil, err
 	}
-
 	log.FromCtx(ctx).Debug("UDP socket openned on", "addr", packetConn.LocalAddr())
+	return NewCookedConn(packetConn, n.Topology, n.ReplyPather, nil)
+}
 
-	localIA, err := n.Topology.LocalIA(ctx)
+// NewCookedConn returns a "cooked" Conn. The Conn object can be used to
+// send/receive SCION traffic with the usual methods.
+// It takes as arguments a non-nil PacketConn and a non-nil Topology parameter.
+// If replyPather is nil it will use a default ReplyPather.
+func NewCookedConn(
+	pconn PacketConn,
+	topo Topology,
+	replyPather ReplyPather,
+	remote *UDPAddr,
+) (*Conn, error) {
+	localIA, err := topo.LocalIA(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	conn := scionConnBase{
-		scionNet: n,
-		listen: &UDPAddr{
-			IA:   localIA,
-			Host: packetConn.LocalAddr().(*net.UDPAddr),
-		},
+	local := &UDPAddr{
+		IA:   localIA,
+		Host: pconn.LocalAddr().(*net.UDPAddr),
 	}
-
-	replyPather := n.ReplyPather
 	if replyPather == nil {
 		replyPather = DefaultReplyPather{}
 	}
-	start, end, err := n.Topology.PortRange(ctx)
+	start, end, err := topo.PortRange(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	return newConn(conn, packetConn, replyPather, start, end), nil
+	return newConn(pconn, replyPather, start, end, local, remote), nil
+}
+
+func listenUDPRange(addr *net.UDPAddr, start, end uint16) (*net.UDPConn, error) {
+	// XXX(JordiSubira): For now, we simply iterate on the complete SCION/UDP
+	// range, taking the first unused port.
+	for port := start; port < end; port++ {
+		pconn, err := net.ListenUDP(addr.Network(), &net.UDPAddr{
+			IP:   addr.IP,
+			Port: int(port),
+		})
+		if err == nil {
+			return pconn, nil
+		}
+		if errors.Is(err, syscall.EADDRINUSE) {
+			continue
+		}
+		return nil, err
+	}
+	return nil, serrors.WrapStr("binding to port range", syscall.EADDRINUSE)
 }

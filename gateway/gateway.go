@@ -410,20 +410,17 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// will cause the server's accepts to fail, we ignore SCMP.
 	scionNetworkNoSCMP := &snet.SCIONNetwork{
 		Topology: g.Daemon,
-		Connector: &snet.DefaultConnector{
-			// Discard all SCMP propagation, to avoid accept/read errors on the
-			// QUIC server/client.
-			SCMPHandler: snet.SCMPPropagationStopper{
-				Handler: snet.DefaultSCMPHandler{
-					RevocationHandler: revocationHandler,
-					SCMPErrors:        g.Metrics.SCMPErrors,
-				},
-				Log: log.FromCtx(ctx).Debug,
+		// Discard all SCMP propagation, to avoid accept/read errors on the
+		// QUIC server/client.
+		SCMPHandler: snet.SCMPPropagationStopper{
+			Handler: snet.DefaultSCMPHandler{
+				RevocationHandler: revocationHandler,
+				SCMPErrors:        g.Metrics.SCMPErrors,
 			},
-			Metrics:  g.Metrics.SCIONPacketConnMetrics,
-			Topology: g.Daemon,
+			Log: log.FromCtx(ctx).Debug,
 		},
-		Metrics: g.Metrics.SCIONNetworkMetrics,
+		PacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
+		Metrics:           g.Metrics.SCIONNetworkMetrics,
 	}
 
 	// Initialize the UDP/SCION QUIC conn for outgoing Gateway Discovery RPCs and outgoing Prefix
@@ -476,15 +473,12 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// and client connection.
 	scionNetwork := &snet.SCIONNetwork{
 		Topology: g.Daemon,
-		Connector: &snet.DefaultConnector{
-			SCMPHandler: snet.DefaultSCMPHandler{
-				RevocationHandler: revocationHandler,
-				SCMPErrors:        g.Metrics.SCMPErrors,
-			},
-			Metrics:  g.Metrics.SCIONPacketConnMetrics,
-			Topology: g.Daemon,
+		SCMPHandler: snet.DefaultSCMPHandler{
+			RevocationHandler: revocationHandler,
+			SCMPErrors:        g.Metrics.SCMPErrors,
 		},
-		Metrics: g.Metrics.SCIONNetworkMetrics,
+		PacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
+		Metrics:           g.Metrics.SCIONNetworkMetrics,
 	}
 	remoteMonitor := &control.RemoteMonitor{
 		IAs:                   remoteIAsChannel,
@@ -508,8 +502,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 					Resolver: &svc.Resolver{
 						LocalIA: localIA,
 						// Reuse the network with SCMP error support.
-						Connector: scionNetwork.Connector,
-						LocalIP:   g.ServiceDiscoveryClientIP,
+						Network: scionNetwork,
+						LocalIP: g.ServiceDiscoveryClientIP,
 					},
 					SVCResolutionFraction: 1.337,
 				},

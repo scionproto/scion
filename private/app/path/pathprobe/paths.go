@@ -161,11 +161,11 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 		statuses[key] = status
 	}
 
-	// Instantiate connector
-	connector := &snet.DefaultConnector{
-		SCMPHandler: &scmpHandler{},
-		Metrics:     p.SCIONPacketConnMetrics,
-		Topology:    p.Topology,
+	// Instantiate network
+	sn := &snet.SCIONNetwork{
+		SCMPHandler:       &scmpHandler{},
+		PacketConnMetrics: p.SCIONPacketConnMetrics,
+		Topology:          p.Topology,
 	}
 
 	// Resolve all the local IPs per path. We will open one connection
@@ -196,7 +196,7 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 		g.Go(func() error {
 			defer log.HandlePanic()
 
-			conn, err := connector.OpenUDP(ctx, &net.UDPAddr{IP: localIP.AsSlice()})
+			conn, err := sn.OpenRaw(ctx, &net.UDPAddr{IP: localIP.AsSlice()})
 			if err != nil {
 				return serrors.WrapStr("creating packet conn", err, "local", localIP)
 			}

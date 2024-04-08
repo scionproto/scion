@@ -16,9 +16,7 @@
 package svc
 
 import (
-	"context"
 	"net"
-	"net/netip"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
@@ -40,48 +38,6 @@ const (
 	// Forward means that the packet should be forwarded to the application.
 	Forward
 )
-
-// ResolverPacketConnector is a Connector service that returns sockets with
-// built-in SVC address resolution capabilities. Every packet received with a
-// destination SVC address is intercepted inside the socket, and sent to an SVC
-// resolution handler which responds back to the client.
-// It responds to SVC_Wildcard, i.e., any SVC request.
-//
-// Redirected packets are not returned by the connection, so they cannot be
-// seen via ReadFrom. After redirecting a packet, the connection attempts to
-// read another packet before returning, until a non SVC packet is received or
-// an error occurs.
-type ResolverPacketConnector struct {
-	// Connector opens a PacketConn to receive and send packets.
-	Connector snet.Connector
-	// LocalIA contains the address from which packets should be sent.
-	LocalIA addr.IA
-	// Handler handles packets for SVC destinations.
-	Handler RequestHandler
-}
-
-func (c *ResolverPacketConnector) OpenUDP(
-	ctx context.Context,
-	u *net.UDPAddr,
-) (snet.PacketConn, error) {
-
-	pconn, err := c.Connector.OpenUDP(ctx, u)
-	if err != nil {
-		return nil, err
-	}
-	ip, ok := netip.AddrFromSlice(u.IP)
-	if !ok {
-		return nil, serrors.New("error extracting IP addr", "UDP addr", u.String())
-	}
-	return &ResolverPacketConn{
-		PacketConn: pconn,
-		Source: snet.SCIONAddress{
-			IA:   c.LocalIA,
-			Host: addr.HostIP(ip),
-		},
-		Handler: c.Handler,
-	}, nil
-}
 
 // ResolverPacketConn redirects SVC destination packets to SVC resolution
 // handler logic.

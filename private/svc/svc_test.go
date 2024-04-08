@@ -36,15 +36,15 @@ import (
 
 func TestSVCResolutionServer(t *testing.T) {
 	testCases := map[string]struct {
-		Connector   func(ctrl *gomock.Controller) snet.Connector
+		Network     func(ctrl *gomock.Controller) snet.Network
 		ReqHandler  func(ctrl *gomock.Controller) svc.RequestHandler
 		ErrOpen     assert.ErrorAssertionFunc
 		ErrConnRead assert.ErrorAssertionFunc
 	}{
 		"Underlying service fails to set up underlying conn": {
-			Connector: func(ctrl *gomock.Controller) snet.Connector {
-				c := mock_snet.NewMockConnector(ctrl)
-				c.EXPECT().OpenUDP(gomock.Any(), gomock.Any()).Return(nil, errors.New("conn error"))
+			Network: func(ctrl *gomock.Controller) snet.Network {
+				c := mock_snet.NewMockNetwork(ctrl)
+				c.EXPECT().OpenRaw(gomock.Any(), gomock.Any()).Return(nil, errors.New("conn error"))
 				return c
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
@@ -53,7 +53,7 @@ func TestSVCResolutionServer(t *testing.T) {
 			ErrOpen: assert.Error,
 		},
 		"If handler fails, caller doesn't see an error": {
-			Connector: func(ctrl *gomock.Controller) snet.Connector {
+			Network: func(ctrl *gomock.Controller) snet.Network {
 				mockPacketConn := mock_snet.NewMockPacketConn(ctrl)
 				firstCall := mockPacketConn.EXPECT().ReadFrom(
 					gomock.Any(),
@@ -78,8 +78,8 @@ func TestSVCResolutionServer(t *testing.T) {
 					},
 				)
 
-				c := mock_snet.NewMockConnector(ctrl)
-				c.EXPECT().OpenUDP(gomock.Any(), gomock.Any()).Return(mockPacketConn, nil)
+				c := mock_snet.NewMockNetwork(ctrl)
+				c.EXPECT().OpenRaw(gomock.Any(), gomock.Any()).Return(mockPacketConn, nil)
 				return c
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
@@ -92,7 +92,7 @@ func TestSVCResolutionServer(t *testing.T) {
 			ErrConnRead: assert.NoError,
 		},
 		"If handler returns forward, caller sees data": {
-			Connector: func(ctrl *gomock.Controller) snet.Connector {
+			Network: func(ctrl *gomock.Controller) snet.Network {
 				mockPacketConn := mock_snet.NewMockPacketConn(ctrl)
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, ov *net.UDPAddr) error {
@@ -103,8 +103,8 @@ func TestSVCResolutionServer(t *testing.T) {
 					},
 				)
 
-				c := mock_snet.NewMockConnector(ctrl)
-				c.EXPECT().OpenUDP(gomock.Any(), gomock.Any()).Return(mockPacketConn, nil)
+				c := mock_snet.NewMockNetwork(ctrl)
+				c.EXPECT().OpenRaw(gomock.Any(), gomock.Any()).Return(mockPacketConn, nil)
 				return c
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
@@ -116,7 +116,7 @@ func TestSVCResolutionServer(t *testing.T) {
 			ErrConnRead: assert.NoError,
 		},
 		"handled first, keep reading forwards following packet to caller": {
-			Connector: func(ctrl *gomock.Controller) snet.Connector {
+			Network: func(ctrl *gomock.Controller) snet.Network {
 				mockPacketConn := mock_snet.NewMockPacketConn(ctrl)
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, ov *net.UDPAddr) error {
@@ -127,8 +127,8 @@ func TestSVCResolutionServer(t *testing.T) {
 					},
 				).AnyTimes()
 
-				c := mock_snet.NewMockConnector(ctrl)
-				c.EXPECT().OpenUDP(gomock.Any(), gomock.Any()).Return(mockPacketConn, nil)
+				c := mock_snet.NewMockNetwork(ctrl)
+				c.EXPECT().OpenRaw(gomock.Any(), gomock.Any()).Return(mockPacketConn, nil)
 				return c
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
@@ -141,7 +141,7 @@ func TestSVCResolutionServer(t *testing.T) {
 			ErrConnRead: assert.NoError,
 		},
 		"Return from socket with error if next internal read fails": {
-			Connector: func(ctrl *gomock.Controller) snet.Connector {
+			Network: func(ctrl *gomock.Controller) snet.Network {
 				mockPacketConn := mock_snet.NewMockPacketConn(ctrl)
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, ov *net.UDPAddr) error {
@@ -149,8 +149,8 @@ func TestSVCResolutionServer(t *testing.T) {
 					},
 				)
 
-				c := mock_snet.NewMockConnector(ctrl)
-				c.EXPECT().OpenUDP(gomock.Any(), gomock.Any()).Return(mockPacketConn, nil)
+				c := mock_snet.NewMockNetwork(ctrl)
+				c.EXPECT().OpenRaw(gomock.Any(), gomock.Any()).Return(mockPacketConn, nil)
 				return c
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
@@ -160,7 +160,7 @@ func TestSVCResolutionServer(t *testing.T) {
 			ErrConnRead: assert.Error,
 		},
 		"Multicast SVC packets get delivered to caller": {
-			Connector: func(ctrl *gomock.Controller) snet.Connector {
+			Network: func(ctrl *gomock.Controller) snet.Network {
 				mockPacketConn := mock_snet.NewMockPacketConn(ctrl)
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, ov *net.UDPAddr) error {
@@ -171,8 +171,8 @@ func TestSVCResolutionServer(t *testing.T) {
 					},
 				)
 
-				c := mock_snet.NewMockConnector(ctrl)
-				c.EXPECT().OpenUDP(gomock.Any(), gomock.Any()).Return(mockPacketConn, nil)
+				c := mock_snet.NewMockNetwork(ctrl)
+				c.EXPECT().OpenRaw(gomock.Any(), gomock.Any()).Return(mockPacketConn, nil)
 				return c
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
@@ -192,24 +192,24 @@ func TestSVCResolutionServer(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			connector := &svc.ResolverPacketConnector{
-				Connector: tc.Connector(ctrl),
-				Handler:   tc.ReqHandler(ctrl),
-			}
-
-			conn, err := connector.OpenUDP(
+			pconn, err := tc.Network(ctrl).OpenRaw(
 				context.Background(),
 				&net.UDPAddr{IP: xtest.MustParseIP(t, "127.0.0.1")},
 			)
-
 			tc.ErrOpen(t, err)
 			if err != nil {
-				assert.Nil(t, conn)
+				assert.Nil(t, pconn)
 				return
 			} else {
-				assert.NotNil(t, conn)
+				assert.NotNil(t, pconn)
 			}
-			err = conn.ReadFrom(&snet.Packet{}, &net.UDPAddr{})
+
+			resolvedPacketConn := &svc.ResolverPacketConn{
+				PacketConn: pconn,
+				Handler:    tc.ReqHandler(ctrl),
+			}
+
+			err = resolvedPacketConn.ReadFrom(&snet.Packet{}, &net.UDPAddr{})
 			tc.ErrConnRead(t, err)
 		})
 	}

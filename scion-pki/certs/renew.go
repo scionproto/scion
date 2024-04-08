@@ -738,14 +738,11 @@ func (r *renewer) requestRemote(
 
 	sn := &snet.SCIONNetwork{
 		Topology: r.Daemon,
-		Connector: &snet.DefaultConnector{
-			Topology: r.Daemon,
-			SCMPHandler: snet.SCMPPropagationStopper{
-				Handler: snet.DefaultSCMPHandler{
-					RevocationHandler: daemon.RevHandler{Connector: r.Daemon},
-				},
-				Log: log.FromCtx(ctx).Debug,
+		SCMPHandler: snet.SCMPPropagationStopper{
+			Handler: snet.DefaultSCMPHandler{
+				RevocationHandler: daemon.RevHandler{Connector: r.Daemon},
 			},
+			Log: log.FromCtx(ctx).Debug,
 		},
 	}
 
@@ -762,9 +759,9 @@ func (r *renewer) requestRemote(
 			},
 			SVCRouter: svcRouter{Connector: r.Daemon},
 			Resolver: &svc.Resolver{
-				LocalIA:   local.IA,
-				Connector: sn.Connector,
-				LocalIP:   local.Host.IP,
+				LocalIA: local.IA,
+				Network: sn,
+				LocalIP: local.Host.IP,
 			},
 			SVCResolutionFraction: 1,
 		},

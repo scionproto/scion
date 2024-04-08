@@ -136,15 +136,15 @@ func (s server) run() {
 
 	sdConn := integration.SDConn()
 	defer sdConn.Close()
-	connector := &snet.DefaultConnector{
+	sn := &snet.SCIONNetwork{
 		SCMPHandler: snet.DefaultSCMPHandler{
 			RevocationHandler: daemon.RevHandler{Connector: sdConn},
 			SCMPErrors:        scmpErrorsCounter,
 		},
-		Metrics:  scionPacketConnMetrics,
-		Topology: sdConn,
+		PacketConnMetrics: scionPacketConnMetrics,
+		Topology:          sdConn,
 	}
-	conn, err := connector.OpenUDP(context.Background(), integration.Local.Host)
+	conn, err := sn.OpenRaw(context.Background(), integration.Local.Host)
 	if err != nil {
 		integration.LogFatal("Error listening", "err", err)
 	}
@@ -264,17 +264,17 @@ func (c *client) run() int {
 	c.sdConn = integration.SDConn()
 	defer c.sdConn.Close()
 
-	connector := &snet.DefaultConnector{
+	sn := &snet.SCIONNetwork{
 		SCMPHandler: snet.DefaultSCMPHandler{
 			RevocationHandler: daemon.RevHandler{Connector: c.sdConn},
 			SCMPErrors:        scmpErrorsCounter,
 		},
-		Metrics:  scionPacketConnMetrics,
-		Topology: c.sdConn,
+		PacketConnMetrics: scionPacketConnMetrics,
+		Topology:          c.sdConn,
 	}
 
 	var err error
-	c.conn, err = connector.OpenUDP(context.Background(), integration.Local.Host)
+	c.conn, err = sn.OpenRaw(context.Background(), integration.Local.Host)
 	if err != nil {
 		integration.LogFatal("Unable to listen", "err", err)
 	}

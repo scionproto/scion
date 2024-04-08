@@ -32,9 +32,7 @@ type ReplyPather interface {
 
 type scionConnReader struct {
 	replyPather ReplyPather
-
-	base *scionConnBase
-	conn PacketConn
+	conn        PacketConn
 
 	mtx    sync.Mutex
 	buffer []byte
@@ -61,9 +59,6 @@ func (c *scionConnReader) Read(b []byte) (int, error) {
 // read returns the number of bytes read, the address that sent the bytes and
 // an error (if one occurred).
 func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
-	if c.base.scionNet == nil {
-		return 0, nil, serrors.New("SCION network not initialized")
-	}
 
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
