@@ -18,7 +18,6 @@
 // The go implementation of memcpy/memmove isn't necessarily the highest performing, but it is close
 // to that of glibc's and it has the advantages of being independent from any given libc
 // implementation. musl_libc's implementation, for example performs much worse.
-
 package main
 
 import (

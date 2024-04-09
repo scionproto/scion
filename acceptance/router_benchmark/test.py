@@ -26,7 +26,7 @@ from benchmarklib import Intf, RouterBM
 from collections import defaultdict, namedtuple
 from plumbum import cli
 from plumbum import cmd
-from plumbum.cmd import docker, whoami, lscpu
+from plumbum.cmd import docker, whoami, lscpu, taskset
 from plumbum.machines import LocalCommand
 from random import randint
 
@@ -178,13 +178,14 @@ class RouterBMTest(base.TestBase, RouterBM):
     Pretend traffic is injected by brload's. See the test cases for details.
     """
 
+    router_cpus: list[int] = [0]
+
     # Used by the RouterBM mixin:
     coremark: int = 0
     mmbm: int = 0
     intf_map: dict[str, Intf] = {}
     brload: LocalCommand = None
     brload_cpus: list[int] = [0]
-    router_cpus: list[int] = [0]
     prom_address: str = "localhost:9999"
 
     ci = cli.Flag(
@@ -350,7 +351,7 @@ class RouterBMTest(base.TestBase, RouterBM):
     def fetch_horsepower(self):
         try:
             coremark_exe = self.get_executable("coremark")
-            output = sudo("taskset", "-c", self.router_cpus[0], coremark_exe.executable)
+            output = taskset("-c", self.router_cpus[0], coremark_exe.executable)
             line = output.splitlines()[-1]
             if line.startswith("CoreMark "):
                 elems = line.split(" ")
@@ -361,7 +362,7 @@ class RouterBMTest(base.TestBase, RouterBM):
 
         try:
             mmbm_exe = self.get_executable("mmbm")
-            output = sudo("taskset", "-c", self.router_cpus[0], mmbm_exe.executable)
+            output = taskset("-c", self.router_cpus[0], mmbm_exe.executable)
             line = output.splitlines()[-1]
             if line.startswith("\"mmbm\": "):
                 elems = line.split(" ")
@@ -448,6 +449,10 @@ class RouterBMTest(base.TestBase, RouterBM):
 
     def _run(self):
         results = self.run_bm(list(TEST_CASES.keys()))
+        if results.cores != len(self.router_cpus):
+            raise RuntimeError("Wrong number of cores used by the router; "
+                               f"planned: {len(self.router_cpus)}), observed: {results.cores}")
+
         if self.ci:
             results.CI_check(TEST_CASES)
 

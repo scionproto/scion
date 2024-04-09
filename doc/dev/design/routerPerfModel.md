@@ -1,5 +1,9 @@
 # Router benchmark observations and predictive model
 
+* Author(s): Jean-Christophe Hugly
+* Last updated: 2024-04-09
+* Discussion at: `#4408 <https://github.com/scionproto/scion/issues/4408>`_
+
 ## TL;DR
 
 For any hardware platform, given:

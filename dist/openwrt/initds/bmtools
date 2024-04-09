@@ -17,21 +17,21 @@ start() {
     # coremark
     /usr/bin/scion-coremark > /tmp/coremark.$u.out
     if grep -q "Correct operation validated" /tmp/coremark.$u.out; then
-	coremark=$(grep -s "CoreMark [0-9.]* :" /tmp/coremark.$u.out | awk '{ print $4 }' 2>/dev/null) 
+        coremark=$(grep -s "CoreMark [0-9.]* :" /tmp/coremark.$u.out | awk '{ print $4 }' 2>/dev/null) 
     fi
     if [ -z "$coremark" ]; then
-	coremark=0
+        coremark=0
     fi
     rm /tmp/coremark.$u.out
 
     # mmbm
     mmbm=$(/usr/bin/scion-mmbm 2>/dev/null)
     if [ -z "$mmbm" ]; then
-	mmbm="\"mmbm\": 0"
+        mmbm="\"mmbm\": 0"
     fi
     
     # Publish
-    echo "{\"coremark\": $coremark, $mmbm}" > /www/horsepower.txt
+    echo "{\"coremark\": $coremark, $mmbm}" > /www/horsepower.json
 }
 
 stop() {

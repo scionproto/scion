@@ -186,7 +186,6 @@ config_setting(
 pkg_tar(
     name = "scion",
     srcs = [
-        "//acceptance/router_benchmark/brload",
         "//control/cmd/control",
         "//daemon/cmd/daemon",
         "//dispatcher/cmd/dispatcher",
@@ -206,6 +205,7 @@ pkg_tar(
     name = "scion-ci",
     srcs = [
         "//acceptance/cmd/sig_ping_acceptance",
+        "//acceptance/router_benchmark/brload",
         "//pkg/private/xtest/graphupdater",
         "//tools/braccept",
         "//tools/buildkite/cmd/buildkite_artifacts",

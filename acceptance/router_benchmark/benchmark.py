@@ -179,7 +179,7 @@ class RouterBMTool(cli.Application, RouterBM):
 
     def fetch_horsepower(self) -> tuple[int]:
         try:
-            url = f"https://{self.scrape_addr}/horsepower.txt"
+            url = f"https://{self.scrape_addr}/horsepower.json"
             resp = urlopen(url, context=ssl._create_unverified_context())
             hp = json.loads(resp.read().decode("ascii"))
         except Exception as e:
