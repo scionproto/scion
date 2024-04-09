@@ -22,7 +22,7 @@ import shutil
 import time
 
 from acceptance.common import base
-from benchmarklib import RouterBM
+from benchmarklib import Intf, RouterBM
 from collections import defaultdict, namedtuple
 from plumbum import cli
 from plumbum import cmd
@@ -42,7 +42,7 @@ TEST_CASES = {
 }
 
 # Convenience types to carry interface request params.
-IntfReq = namedtuple("IntfReq", "label, prefixLen, ip, peerIp, exclusive")
+IntfReq = namedtuple("IntfReq", "label, prefix_len, ip, peer_ip, exclusive")
 
 
 def sudo(*args: [str]) -> str:
@@ -181,11 +181,11 @@ class RouterBMTest(base.TestBase, RouterBM):
     # Used by the RouterBM mixin:
     coremark: int = 0
     mmbm: int = 0
-    intfMap: dict[str, Intf] = {}
+    intf_map: dict[str, Intf] = {}
     brload: LocalCommand = None
-    brloadCpus: list[int] = [0]
-    routerCpus: list[int] = [0]
-    promAddress: str = "localhost:9999"
+    brload_cpus: list[int] = [0]
+    router_cpus: list[int] = [0]
+    prom_address: str = "localhost:9999"
 
     ci = cli.Flag(
         "ci",
@@ -197,7 +197,7 @@ class RouterBMTest(base.TestBase, RouterBM):
         """Collects information about vcpus/cores/caches layout."""
 
         super().init()
-        brload = self.get_executable("brload")
+        self.brload = self.get_executable("brload")
         self.choose_cpus()
 
     def choose_cpus(self):
@@ -244,40 +244,40 @@ class RouterBMTest(base.TestBase, RouterBM):
         # best choice.
         if len(chosen) == 1:
             # When you have lemons...
-            self.routerCpus = chosen
-            self.brloadCpus = chosen
+            self.router_cpus = chosen
+            self.brload_cpus = chosen
         else:
-            self.routerCpus = chosen[:-1]
-            self.brloadCpus = chosen[-1:]
+            self.router_cpus = chosen[:-1]
+            self.brload_cpus = chosen[-1:]
 
-        logger.info(f"router cpus: {self.routerCpus}")
-        logger.info(f"brload cpus: {self.brloadCpus}")
+        logger.info(f"router cpus: {self.router_cpus}")
+        logger.info(f"brload cpus: {self.brload_cpus}")
 
     def create_interface(self, req: IntfReq, ns: str):
         """Creates a pair of virtual interfaces, with one end in the given network namespace and the
         other in the host stack.
 
-        The outcome is the pair of interfaces and a record in intfMap, which associates the given
+        The outcome is the pair of interfaces and a record in intf_map, which associates the given
         label with the network interface's host-side name and two mac addresses; one for each end
         of the pair. The mac addresses, if they can be chosen, are not chosen by the invoker, but
         by this function. When we can choose, we follow a convention to facilitate debugging.
         Otherwise the values don't matter. brload has no expectations.
 
         We do not:
-          sudo("ip", "addr", "add", f"{req.peerIp}/{req.prefixLen}", "dev", hostIntf)
+          sudo("ip", "addr", "add", f"{req.peer_ip}/{req.prefix_len}", "dev", hostIntf)
 
         It causes trouble: if an IP is assigned, the kernel responds with "unbound port" icmp
         messages to the router traffic, which breaks the bound UDP connections that the router uses
         for external interfaces.
 
         We do not:
-          sudo("ip", "netns", "exec", ns, "ip", "neigh", "add", req.peerIp,
-               "lladdr", peerMac, "nud", "permanent", "dev", brIntf)
+          sudo("ip", "netns", "exec", ns, "ip", "neigh", "add", req.peer_ip,
+               "lladdr", peer_mac, "nud", "permanent", "dev", brIntf)
 
         This isn't need because brload now responds to arp requests.
 
         We do not:
-          sudo("ip", "link", "set", hostIntf, "address", peerMac)
+          sudo("ip", "link", "set", hostIntf, "address", peer_mac)
 
         If we do that, the interface address matches the dst addr in router->brload packets. This
         might seem desirable, even necessary, but is neither: since we're using veth pairs, the
@@ -287,70 +287,70 @@ class RouterBMTest(base.TestBase, RouterBM):
         use.
 
         Args:
-          IntfReq: A requested router-side network interface. It comprises:
-                   * A label by which brload identifies that interface.
-                   * The IP address to be assigned to that interface.
-                   * The IP address of one neighbor.
+          req: A requested router-side network interface. It comprises:
+            * A label by which brload identifies that interface.
+            * The IP address to be assigned to that interface.
+            * The IP address of one neighbor.
           ns: The network namespace where that interface must exist.
 
         """
 
-        physlabel = req.label if req.exclusive == "true" else "mx"
-        hostIntf = f"veth_{physlabel}_host"
-        brIntf = f"veth_{physlabel}"
+        phys_label = req.label if req.exclusive == "true" else "mx"
+        host_intf = f"veth_{phys_label}_host"
+        br_intf = f"veth_{phys_label}"
 
         # We do multiplex most requested router interfaces onto one physical interface pairs, so, we
         # must check that we haven't already created the physical pair.
-        for i in self.intfMap.values():
-            if i.name == hostIntf:
-                peerMac = i.peerMac
+        for i in self.intf_map.values():
+            if i.name == host_intf:
+                peer_mac = i.peer_mac
                 mac = i.mac
                 break
         else:
-            peerMac = mac_for_ip(req.peerIp)
+            peer_mac = mac_for_ip(req.peer_ip)
             mac = mac_for_ip(req.ip)
-            sudo("ip", "link", "add", hostIntf, "type", "veth", "peer", "name", brIntf)
-            sudo("ip", "link", "set", hostIntf, "mtu", "8000")
-            sudo("ip", "link", "set", hostIntf, "arp", "off")  # Make sure the real addr isn't used
+            sudo("ip", "link", "add", host_intf, "type", "veth", "peer", "name", br_intf)
+            sudo("ip", "link", "set", host_intf, "mtu", "8000")
+            sudo("ip", "link", "set", host_intf, "arp", "off")  # Make sure the real addr isn't used
 
             # Do not assign the host addresses but create one link-local addr.
             # Brload needs some src IP to send arp requests.
             sudo("ip", "addr", "add", f"169.254.{randint(0, 255)}.{randint(0, 255)}/16",
                  "broadcast", "169.254.255.255",
-                 "dev", hostIntf, "scope", "link")
+                 "dev", host_intf, "scope", "link")
 
-            sudo("sysctl", "-qw", f"net.ipv6.conf.{hostIntf}.disable_ipv6=1")
-            sudo("ethtool", "-K", brIntf, "rx", "off", "tx", "off")
-            sudo("ip", "link", "set", brIntf, "mtu", "8000")
-            sudo("ip", "link", "set", brIntf, "address", mac)
+            sudo("sysctl", "-qw", f"net.ipv6.conf.{host_intf}.disable_ipv6=1")
+            sudo("ethtool", "-K", br_intf, "rx", "off", "tx", "off")
+            sudo("ip", "link", "set", br_intf, "mtu", "8000")
+            sudo("ip", "link", "set", br_intf, "address", mac)
 
             # The network namespace
-            sudo("ip", "link", "set", brIntf, "netns", ns)
+            sudo("ip", "link", "set", br_intf, "netns", ns)
             sudo("ip", "netns", "exec", ns,
-                 "sysctl", "-qw", f"net.ipv6.conf.{brIntf}.disable_ipv6=1")
+                 "sysctl", "-qw", f"net.ipv6.conf.{br_intf}.disable_ipv6=1")
             sudo("ip", "netns", "exec", ns,
                  "sysctl", "-qw", "net.ipv4.conf.all.rp_filter=0")
             sudo("ip", "netns", "exec", ns,
-                 "sysctl", "-qw", f"net.ipv4.conf.{brIntf}.rp_filter=0")
+                 "sysctl", "-qw", f"net.ipv4.conf.{br_intf}.rp_filter=0")
 
         # Add the router side IP addresses (even if we're multiplexing on an existing interface).
         sudo("ip", "netns", "exec", ns,
-             "ip", "addr", "add", f"{req.ip}/{req.prefixLen}",
+             "ip", "addr", "add", f"{req.ip}/{req.prefix_len}",
              "broadcast",
-             ipaddress.ip_network(f"{req.ip}/{req.prefixLen}", strict=False).broadcast_address,
-             "dev", brIntf)
+             ipaddress.ip_network(f"{req.ip}/{req.prefix_len}", strict=False).broadcast_address,
+             "dev", br_intf)
 
         # Fit for duty.
-        sudo("ip", "link", "set", hostIntf, "up")
-        sudo("ip", "netns", "exec", ns, "ip", "link", "set", brIntf, "up")
+        sudo("ip", "link", "set", host_intf, "up")
+        sudo("ip", "netns", "exec", ns, "ip", "link", "set", br_intf, "up")
 
         # Ship it.
-        self.intfMap[req.label] = Intf(hostIntf, mac, peerMac)
+        self.intf_map[req.label] = Intf(host_intf, mac, peer_mac)
 
     def fetch_horsepower(self):
         try:
-            coremarkExe = self.get_executable("coremark")
-            output = sudo("taskset", "-c", self.router_cpus[0], coremarkExe.executable)
+            coremark_exe = self.get_executable("coremark")
+            output = sudo("taskset", "-c", self.router_cpus[0], coremark_exe.executable)
             line = output.splitlines()[-1]
             if line.startswith("CoreMark "):
                 elems = line.split(" ")
@@ -360,8 +360,8 @@ class RouterBMTest(base.TestBase, RouterBM):
             logger.info(e)
 
         try:
-            mmbmExe = self.get_executable("mmbm")
-            output = sudo("taskset", "-c", self.router_cpus[0], mmbmExe.executable)
+            mmbm_exe = self.get_executable("mmbm")
+            output = sudo("taskset", "-c", self.router_cpus[0], mmbm_exe.executable)
             line = output.splitlines()[-1]
             if line.startswith("\"mmbm\": "):
                 elems = line.split(" ")
@@ -437,7 +437,7 @@ class RouterBMTest(base.TestBase, RouterBM):
 
         # Collect the horsepower microbenchmark numbers if we can.
         # They'll be used to produce a performance index.
-        fetch_horsepower()
+        self.fetch_horsepower()
 
     def teardown(self):
         docker["logs", "router"].run_fg(retcode=None)
@@ -447,7 +447,7 @@ class RouterBMTest(base.TestBase, RouterBM):
         sudo("chown", "-R", whoami().strip(), self.artifacts)
 
     def _run(self):
-        results = self.run_bm(test_cases.keys())
+        results = self.run_bm(list(TEST_CASES.keys()))
         if self.ci:
             results.CI_check(TEST_CASES)
 
@@ -456,7 +456,8 @@ class RouterBMTest(base.TestBase, RouterBM):
 
         if self.ci:
             if results.failed:
-                raise RuntimeError(f"CI check failed")
+                raise RuntimeError("CI check failed")
+
 
 if __name__ == "__main__":
     base.main(RouterBMTest)

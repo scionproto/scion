@@ -37,14 +37,14 @@ logger = logging.getLogger(__name__)
 
 TEST_CASES = [
     "in",
-#     "out",
-#     "in_transit",
-#     "out_transit",
-#     "br_transit",
+    "out",
+    "in_transit",
+    "out_transit",
+    "br_transit",
 ]
 
 # Convenience types to carry interface params.
-IntfReq = namedtuple("IntfReq", "label, prefixLen, ip, peerIp, exclusive")
+IntfReq = namedtuple("IntfReq", "label, prefix_len, ip, peer_ip, exclusive")
 
 
 def sudo(*args: [str]) -> str:
@@ -78,12 +78,12 @@ class RouterBMTool(cli.Application, RouterBM):
 
     """
 
-    availInterfaces: list[str] = []
-    mxInterface: str = None
-    toFlush: list[str] = []
-    scrapeAddr: str = None
+    avail_interfaces: list[str] = []
+    mx_interface: str = None
+    to_flush: list[str] = []
+    scrape_addr: str = None
 
-    logLevel = cli.SwitchAttr(["l", "loglevel"], str, default = 'warning',
+    log_level = cli.SwitchAttr(["l", "loglevel"], str, default = 'warning',
                               help = "Logging level")
 
     doit = cli.Flag(["r", "run"],
@@ -96,11 +96,11 @@ class RouterBMTool(cli.Application, RouterBM):
                               help = "The coremark score of the subject machine.")
     mmbm = cli.SwitchAttr(["m", "mmbm"], int, default = 0,
                           help = "The mmbm score of the subject machine.")
-    intfMap: dict[str, Intf] = {}
+    intf_map: dict[str, Intf] = {}
     brload: LocalCommand = local["./bin/brload"]
-    brloadCpus: list[int] = []
+    brload_cpus: list[int] = []
     artifacts = f"{os.getcwd()}/acceptance/router_benchmark"
-    promAddress: str = "localhost:9090"
+    prom_address: str = "localhost:9090"
 
     def host_interface(self, excl: bool):
         """Returns the next host interface that we should use for a brload links.
@@ -109,12 +109,12 @@ class RouterBMTool(cli.Application, RouterBM):
         Else, we pick one the first time it's needed and keep it for reuse.
         """
         if excl:
-            return self.availInterfaces.pop()
+            return self.avail_interfaces.pop()
 
-        if self.mxInterface is None:
-            self.mxInterface = self.availInterfaces.pop()
+        if self.mx_interface is None:
+            self.mx_interface = self.avail_interfaces.pop()
 
-        return self.mxInterface
+        return self.mx_interface
 
     def config_interface(self, req: IntfReq):
         """Configure an interfaces according to brload's requirements.
@@ -123,67 +123,67 @@ class RouterBMTool(cli.Application, RouterBM):
         supplied by the user.
 
         We probably do not:
-          sudo("ip", "addr", "add", f"{req.peerIp}/{req.prefixLen}", "dev", hostIntf)
+          sudo("ip", "addr", "add", f"{req.peer_ip}/{req.prefix_len}", "dev", host_intf)
 
         It causes trouble: if an IP is assigned, the kernel responds with "unbound port" icmp
         messages to the router traffic, which breaks the bound UDP connections that the router uses
         for external interfaces.
 
         Args:
-          IntfReq: A requested router-side network interface. It comprises:
-                   * A label by which brload identifies that interface.
-                   * The IP address to be assigned to that interface.
-                   * The IP address of one neighbor.
+          req: A requested router-side network interface. It comprises:
+            * A label by which brload identifies that interface.
+            * The IP address to be assigned to that interface.
+            * The IP address of one neighbor.
 
         """
         exclusive = req.exclusive == "true"
-        hostIntf = self.host_interface(exclusive)
+        host_intf = self.host_interface(exclusive)
 
         # We need a means of connecting to the router's internal interface (from prometheus and
         # to scrape the horsepower microbenchmark results. We pick one address of
         # the router's subnet that's not otherwise used. This must NOT be "PeerIP".
         # brload requires the internal interface to be "exclusive", that's our clue.
         if exclusive:
-            net = ipaddress.ip_network(f"{req.ip}/{req.prefixLen}", strict=False)
+            net = ipaddress.ip_network(f"{req.ip}/{req.prefix_len}", strict=False)
             hostAddr = next(net.hosts()) + 126
-            self.scrapeAddr = req.ip
-            sudo("ip", "addr", "add", f"{hostAddr}/{req.prefixLen}",
-                 "broadcast", str(net.broadcast_address), "dev", hostIntf)
-            self.toFlush.append(hostIntf)
+            self.scrape_addr = req.ip
+            sudo("ip", "addr", "add", f"{hostAddr}/{req.prefix_len}",
+                 "broadcast", str(net.broadcast_address), "dev", host_intf)
+            self.to_flush.append(host_intf)
 
-        logger.debug(f"=> Configuring interface {hostIntf} for: {req}...")
+        logger.debug(f"=> Configuring interface {host_intf} for: {req}...")
 
         # We do multiplex most requested router interfaces onto one physical interface, so, we
         # must check that we haven't already configured the physical one.
-        for i in self.intfMap.values():
-            if i.name == hostIntf:
+        for i in self.intf_map.values():
+            if i.name == host_intf:
                 break
         else:
             # TODO: instructions/warning regarding inability to enable jumbo frames.
-            # sudo("ip", "link", "set", hostIntf, "mtu", "8000")
+            # sudo("ip", "link", "set", host_intf, "mtu", "8000")
 
             # Do not assign the host addresses but create one link-local addr.
             # Brload needs some src IP to send arp requests. (This requires rp_filter
             # to be off on the router side, else, brload's arp requests are discarded).
             sudo("ip", "addr", "add", f"169.254.{randint(0, 255)}.{randint(0, 255)}/16",
                  "broadcast", "169.254.255.255",
-                 "dev", hostIntf, "scope", "link")
-            sudo("sysctl", "-qw", f"net.ipv6.conf.{hostIntf}.disable_ipv6=1")
-            self.toFlush.append(hostIntf)
+                 "dev", host_intf, "scope", "link")
+            sudo("sysctl", "-qw", f"net.ipv6.conf.{host_intf}.disable_ipv6=1")
+            self.to_flush.append(host_intf)
 
         # Fit for duty.
-        sudo("ip", "link", "set", hostIntf, "up")
+        sudo("ip", "link", "set", host_intf, "up")
 
         # Ship it. Leave mac addresses alone. In this standalone test we use the real one.
-        self.intfMap[req.label] = Intf(hostIntf, None, None)
+        self.intf_map[req.label] = Intf(host_intf, None, None)
 
     def fetch_horsepower(self) -> tuple[int]:
         try:
-            url = f"https://{self.scrapeAddr}/horsepower.txt"
+            url = f"https://{self.scrape_addr}/horsepower.txt"
             resp = urlopen(url, context=ssl._create_unverified_context())
             hp = json.loads(resp.read().decode("ascii"))
         except Exception as e:
-            logger.warn(f"Fetching coremark and mmbm from {url}... {e}")
+            logger.warning(f"Fetching coremark and mmbm from {url}... {e}")
             return
 
         if self.coremark == 0:
@@ -192,11 +192,11 @@ class RouterBMTool(cli.Application, RouterBM):
         if self.mmbm == 0:
             self.mmbm = round(hp["mmbm"])
 
-    def setup(self, availInterfaces: list[str]):
+    def setup(self, avail_interfaces: list[str]):
         logger.info("Preparing...")
 
         # Check that the given interfaces are safe to use. We will wreck their config.
-        for intf in availInterfaces:
+        for intf in avail_interfaces:
             output = sudo("ip", "addr", "show", "dev", intf)
             if len(output.splitlines()) > 2:
                 logger.error(f"""\
@@ -207,7 +207,7 @@ class RouterBMTool(cli.Application, RouterBM):
                 raise RuntimeError("Interface in use")
 
         # Looks safe.
-        self.availInterfaces = availInterfaces
+        self.avail_interfaces = avail_interfaces
 
         # Run test brload test with --show-interfaces and set up the interfaces as it says.
         # We supply the label->host-side-name mapping to brload when we start it.
@@ -244,7 +244,7 @@ class RouterBMTool(cli.Application, RouterBM):
 
     def cleanup(self, retcode: int):
         docker("rm", "-f", "prometheus_bm")
-        for intf in self.toFlush:
+        for intf in self.to_flush:
             sudo("ip", "addr", "flush", "dev", intf)
         return retcode
 
@@ -254,7 +254,7 @@ class RouterBMTool(cli.Application, RouterBM):
         exclusives = []
         multiplexed = []
         reqs = []
-        intfIndex = 0
+        intf_index = 0
 
         # We sort the requests from brload because the interface that is picked for each can depends
         # on the order in which we process them and we need to be consistent from run to run so
@@ -268,8 +268,8 @@ class RouterBMTool(cli.Application, RouterBM):
                 continue
             req = IntfReq._make(elems)
             reqs.append(req)
-            self.availInterfaces.append(str(intfIndex))  # Use numbers as placeholders
-            intfIndex += 1
+            self.avail_interfaces.append(str(intf_index))  # Use numbers as placeholders
+            intf_index += 1
 
         # TODO: Because of multiplexing, there are fewer real interfaces than labels requested
         # by brload. So, not all placeholders get used (fine) and it happens that the low indices
@@ -277,7 +277,7 @@ class RouterBMTool(cli.Application, RouterBM):
         # (and no 0), which is acceptable but fortuitous.
         for req in reqs:
             e = req.exclusive == "true"
-            a = f"{req.ip}/{req.prefixLen}"
+            a = f"{req.ip}/{req.prefix_len}"
             i = self.host_interface(e)
             if e:
                 exclusives.append(f"{a} (must reach: #{i})")
@@ -334,7 +334,7 @@ INSTRUCTIONS:
     def main(self, *interfaces: str):
         status = 1
         try:
-            logging.basicConfig(level=self.logLevel.upper())
+            logging.basicConfig(level=self.log_level.upper())
             if not self.doit:
                 self.instructions()
                 status = 0

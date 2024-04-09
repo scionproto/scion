@@ -30,6 +30,8 @@ from urllib.parse import urlencode
 logger = logging.getLogger(__name__)
 
 # A magic coefficient used in calculating the performance index.
+# TODO(jchugly): tune this constant. Running the mbm benchmark on a correct core has revealed
+# it to be incorrect.
 M_CONSTANT = 18500
 
 # TODO(jiceatscion): get it from or give it to brload?
@@ -37,9 +39,9 @@ BM_PACKET_LEN = 172
 
 # Intf: description of an interface configured for brload's use. Depending on context
 # mac and peermac may be unused. "mac" is the MAC address configured on the side of the subject
-# router. "peerMac" is the MAC address that brload should use when simulating the peer router.
-# If peerMac is unset, we'll let brload use the true MAC address on its side, which is the default.
-Intf = namedtuple("Intf", "name, mac, peerMac")
+# router. "peer_mac" is the MAC address that brload should use when simulating the peer router.
+# If peer_mac is unset, we'll let brload use the true MAC address on its side, which is the default.
+Intf = namedtuple("Intf", "name, mac, peer_mac")
 
 
 class Results:
@@ -138,36 +140,36 @@ class RouterBM():
     This class is a Mixin that borrows the following attributes from the host class:
     * coremark: the coremark benchmark results.
     * mmbm: the mmbm benchmark results.
-    * intfMap: the map "label->actual_interface" map to be passed to brload.
+    * intf_map: the map "label->actual_interface" map to be passed to brload.
     * brload: "localCmd" wraper for the brload executable (plumbum.machines.LocalCommand)
-    * brloadCpus: [int] cpus where it is acceptable to run brload ([] means any)
+    * brload_cpus: [int] cpus where it is acceptable to run brload ([] means any)
     * artifacts: the data directory (passed to docker).
-    * promAddress: the address of the prometheus API a string in the form "host:port"
+    * prom_address: the address of the prometheus API a string in the form "host:port"
     """
 
-    def exec_br_load(self, case: str, mapArgs: list[str], count: int) -> str:
+    def exec_br_load(self, case: str, map_args: list[str], count: int) -> str:
         # For num-streams, attempt to distribute uniformly on many possible number of cores.
         # 840 is a multiple of 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 15, 20, 21, 24, 28, ...
-        brloadArgs = [
+        brload_args = [
             self.brload.executable,
             "run",
             "--artifacts", self.artifacts,
-            *mapArgs,
+            *map_args,
             "--case", case,
             "--num-packets", str(count),
             "--num-streams", "840",
         ]
-        if self.brloadCpus:
-            brloadArgs = [
-                "taskset", "-c", ",".join(map(str, self.brloadCpus)),
-            ] + brloadArgs
+        if self.brload_cpus:
+            brload_args = [
+                "taskset", "-c", ",".join(map(str, self.brload_cpus)),
+            ] + brload_args
 
-        return cmd.sudo("-A", *brloadArgs)
+        return cmd.sudo("-A", *brload_args)
 
-    def run_test_case(self, case: str, mapArgs: list[str]) -> (int, int):
+    def run_test_case(self, case: str, map_args: list[str]) -> (int, int):
         logger.debug(f"==> Starting load {case}")
 
-        output = self.exec_br_load(case, mapArgs, 1000000)
+        output = self.exec_br_load(case, map_args, 10000000)
         beg = "0"
         end = "0"
         for line in output.splitlines():
@@ -181,7 +183,7 @@ class RouterBM():
         # We measure the rate over 10s. For best results we sample the end of the middle 10s of the
         # run. "beg" is the start time of the real action and "end" is the end time.
         sampleTime = (int(beg) + int(end) + 10) / 2
-        promQuery = urlencode({
+        prom_query = urlencode({
             'time': f'{sampleTime}',
             'query': (
                 'sum by (instance, job) ('
@@ -194,8 +196,8 @@ class RouterBM():
                 ')'
             )
         })
-        conn = HTTPConnection(self.promAddress)
-        conn.request("GET", f"/api/v1/query?{promQuery}")
+        conn = HTTPConnection(self.prom_address)
+        conn.request("GET", f"/api/v1/query?{prom_query}")
         resp = conn.getresponse()
         if resp.status != 200:
             raise RuntimeError(f"Unexpected response: {resp.status} {resp.reason}")
@@ -211,7 +213,7 @@ class RouterBM():
 
         # Collect dropped packets metrics, so we can verify that the router was well saturated.
         # If not, the metrics aren't very useful.
-        promQuery = urlencode({
+        prom_query = urlencode({
             'time': f'{sampleTime}',
             'query': (
                 'sum by (instance, job) ('
@@ -224,8 +226,8 @@ class RouterBM():
                 ')'
             )
         })
-        conn = HTTPConnection(self.promAddress)
-        conn.request("GET", f"/api/v1/query?{promQuery}")
+        conn = HTTPConnection(self.prom_address)
+        conn.request("GET", f"/api/v1/query?{prom_query}")
         resp = conn.getresponse()
         if resp.status != 200:
             raise RuntimeError(f"Unexpected response: {resp.status} {resp.reason}")
@@ -245,12 +247,12 @@ class RouterBM():
     # modeling later.
     def core_count(self) -> int:
         logger.debug("==> Collecting number of cores...")
-        promQuery = urlencode({
+        prom_query = urlencode({
             'query': 'go_sched_maxprocs_threads{job="BR"}'
         })
 
-        conn = HTTPConnection(self.promAddress)
-        conn.request("GET", f"/api/v1/query?{promQuery}")
+        conn = HTTPConnection(self.prom_address)
+        conn.request("GET", f"/api/v1/query?{prom_query}")
         resp = conn.getresponse()
         if resp.status != 200:
             raise RuntimeError(f"FAILED: Unexpected response: {resp.status} {resp.reason}")
@@ -270,17 +272,17 @@ class RouterBM():
         logger.info("Benchmarking...")
 
         # Build the interface mapping arg (here, we do not override the brload side mac address)
-        mapArgs = []
-        for label, intf in self.intfMap.items():
-            if intf.peerMac is not None:
-                mapArgs.extend(["--interface", f"{label}={intf.name},{intf.peerMac}"])
+        map_args = []
+        for label, intf in self.intf_map.items():
+            if intf.peer_mac is not None:
+                map_args.extend(["--interface", f"{label}={intf.name},{intf.peer_mac}"])
             else:
-                mapArgs.extend(["--interface", f"{label}={intf.name}"])
+                map_args.extend(["--interface", f"{label}={intf.name}"])
 
         # Run one test (30% size) as warm-up to trigger any frequency scaling, else the first test
         # can get much lower performance.
         logger.debug("Warmup")
-        self.exec_br_load(test_cases[0], mapArgs, 1000000)
+        self.exec_br_load(test_cases[0], map_args, 3000000)
 
         # Fetch the core count once. It doesn't change while the router is running.
         # We can't get it until the router has done some work, but the warmup is enough.
@@ -288,10 +290,10 @@ class RouterBM():
 
         # At long last, run the tests.
         results = Results(cores, self.coremark, self.mmbm)
-        for testCase in test_cases:
-            logger.info(f"Case: {testCase}")
-            rate, droppage = self.run_test_case(testCase, mapArgs)
-            results.add_case(testCase, rate, droppage)
+        for test_case in test_cases:
+            logger.info(f"Case: {test_case}")
+            rate, droppage = self.run_test_case(test_case, map_args)
+            results.add_case(test_case, rate, droppage)
 
         return results
         logger.info("Benchmarked")
