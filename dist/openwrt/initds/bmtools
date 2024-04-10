@@ -9,8 +9,6 @@
 START=99
 STOP=0
 APP=scion-control
-SERVICE_WRITE_PID=1
-SERVICE_DAEMONIZE=1
 
 start() {
     u=$$
