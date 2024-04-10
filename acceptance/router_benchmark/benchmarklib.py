@@ -30,9 +30,8 @@ from urllib.parse import urlencode
 logger = logging.getLogger(__name__)
 
 # A magic coefficient used in calculating the performance index.
-# TODO(jchugly): tune this constant. Running the mbm benchmark on a correct core has revealed
-# it to be incorrect.
-M_CONSTANT = 18500
+# TODO(jchugly): That particular tweak isn't used for now. So, it is set to 1.
+M_CONSTANT = 1
 
 # TODO(jiceatscion): get it from or give it to brload?
 BM_PACKET_LEN = 172
