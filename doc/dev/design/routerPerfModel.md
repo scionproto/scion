@@ -1,7 +1,7 @@
 # Router benchmark observations and predictive model
 
 * Author(s): Jean-Christophe Hugly
-* Last updated: 2024-04-09
+* Last updated: 2024-04-10
 * Discussion at: [#4408](https://github.com/scionproto/scion/issues/4408)
 
 ## TL;DR
@@ -27,26 +27,26 @@ the following data points:
 * An APU2 running openwrt:
 
     * 4 amd cores 1GHz
-    * Coremark (per core) 2972
-    * memmove benchmark 1235 MiB/s (9.8 Gib/s)
+    * Coremark (per core) 2821
+    * memmove benchmark 1232 MiB/s (9.8 Gib/s)
     * line rate 70K pkts/s
-    * Observed throughput: 41487
+    * Observed throughput: 44070
 
 * A lenovo laptop running the CI benchmark:
 
     * 10 i7 cores 4GHz
-    * Coremark (per core) 29902
-    * memmove benchmark 16218 MiB/s (129 Gib/s)
+    * Coremark (per core) 29793
+    * memmove benchmark 7207 MiB/s (58 Gib/s)
     * line rate 1.4M pkts/s (veth)
     * Observed throuhgput: 613180 pkts/s
 
 * Our CI system running the CI benchmark:
 
     * 4 xeon cores 3.5 GHz
-    * Coremark (per core) 28690
-    * memmove benchmark 23007 MiB/s (184 Gib/s)
+    * Coremark (per core) 28707
+    * memmove benchmark 9155 MiB/s (73 Gib/s)
     * line rate unobserved (veth, assumed similar to laptop)
-    * Observed throuhgput: 736797 pkts/s
+    * Observed throuhgput: 729967 pkts/s
 
 Important: all benchmarks have been run with only 3 cores assigned to the router. The cores are
 chosen by the benchmarking program to be of the same type (i.e. no mix of performance and
@@ -101,7 +101,7 @@ Aggregate:
 Observed:
 
 * `$t(m) = 1s/70K$` (106 Mbyte/s, iperf3 with fast machine/nic - assuming full packets)
-* `$bm(b) = 1s/41487$` (benchmark run)
+* `$bm(b) = 1s/44070$` (benchmark run)
 * `$R = 1Gb/s$` (nominal NIC rate)
 * `$C = 9.8Gb/s$` (mmbm - Go memcpy 8k blocks)
 
@@ -118,14 +118,14 @@ Therefore:
 
 * `$r(b) = bm(b)$`
 * `$ro = r(b) - p(b)$`
-* `$ro = bm(b) - Y \times b = 1s / 41487 - 8 \times 172 / 9.9G = .00002396 s$`
+* `$ro = bm(b) - Y \times b = 1s / 44070 - 8 \times 172 / 9.9G = .00002396 s$`
 
 ### Laptop local test
 
 Observed:
 
 * `$t(m) = 1s/1.4M$` (iperf3 on non-loopback ethernet interface)
-* `$bm(b) = 1s/613180$` (benchmark run)
+* `$bm(b) = 1s/569718$` (benchmark run)
 * `$R = 17Gb/s$` (same iperf3 run as t(m). Assuming po is neglictible)
 * `$C = 128Gb/s$` (mmbm - Go memcpy 8k blocks)
 
@@ -143,7 +143,7 @@ Therefore:
 
 * `$r(b) = bm(b)$`
 * `$ro = r(b) - p(b)$`
-* `$ro = bm(b) - Y \times b = 1s/613180 - 8 \times 172 / 128G = .000001075 s$`
+* `$ro = bm(b) - Y \times b = 1s/569718 - 8 \times 172 / 128G = .000001075 s$`
 
 ### Assumption of less-than-line-rate
 
@@ -243,114 +243,39 @@ different performance indices for different packet types (although only small va
 
 ### APU2
 
-* `$coremark = 2972$`
+* `$coremark = 2821$`
 * `$C = 9.8Gb/s$`
 * `$L = 172$`
-* `$pbm(L) = 1s/43469$`
+* `$pbm(L) = 1s/44070$`
 * `$I = (1 / coremark + (8 \times L / C)) / pbm(L)$`
-  `$= (1 / 2972 + (8 \times 172 / 9.8G)) \times 43469$`
-  `$~= 14.6$`
+  `$= (1 / 2821 + (8 \times 172 / 9.8G)) \times 44070$`
+  `$~= 15.6$`
 
 ### Laptop
 
-* `$coremark = 29902$`
-* `$C = 129Gb/s$`
+* `$coremark = 29793$`
+* `$C = 58Gb/s$`
 * `$L = 172$`
 * `$pbm(L) = 1s/530468$`
 * `$I = (1 / coremark + (8 \times L / C)) / pbm(L)$`
-  `$= (1 / 29882 + (8 \times 172 / 129G)) \times 530468$`
-  `$~= 17.75$`
+  `$= (1 / 29793 + (8 \times 172 / 58G)) \times 530468$`
+  `$~= 17.81$`
 
-~18% appart...Not great
+### CI system
 
-### Refining the model
+* `$coremark = 28707$`
+* `$C = 73Gb/s$`
+* `$L = 172$`
+* `$pbm(L) = 1s/729967$`
+* `$I = (1 / coremark + (8 \times L / C)) / pbm(L)$`
+  `$= (1 / 28707 + (8 \times 172 / 73G)) \times 729967$`
+  `$~= 25.81$`
 
-So, what if the single performance index is too simple? That is, what
-if the performance of memcopy has more influence? To find out, we injected a coeficient
-M for the memcpy impact (The more memcpy matters the higher the performance index
-for a given throughput):
+...Rather bad
 
-So, the I and pbm relationship becomes:
+There is something influencing the performance that the model is not accounting for.
+The CI system has a coremark similar to that of the laptop but much faster memory copy.
+So memory copy may have a greater influence than the model is accouting for. We seem to
+be unwittingly attributing some of the memory performance to the router's implementation.
 
-$I = (1 / coremark + (M \times 8 \times L / C)) / pbm(L)$
-or
-$pbm(L) = (1 / coremark + (M \times 8 \times L / C)) / I$
-
-To slightly improve readability of what follows, let:
-
-* `$rate1 = 1/pbm(L)$` for APU2
-* `$rate2 = 1/pbm(L)$` for laptop
-* `$coremark1 = coremark$` of APU2
-* `$coremark2 = coremark$` of laptop
-* `$C1 = C$` of APU2
-* `$C2 = C$` of laptop
-
-To have a common performance index between the APU2 and laptop platforms, we need:
-
-* `$(1/coremark1 + (M \times 8 \times L / C1)) / pbm1$`
-  `$= (1/coremark2 + (M \times 8 \times L / C2)) / pbm2$`
-* `$1/(coremark1 \times pbm1) + M \times 8 \times L /(C1 \times pbm1)$`
-  `$= 1/(coremark2 \times pbm2) + M \times 8 \times L /(C2 \times pbm2)$`
-* `$1/(coremark1 \times pbm1) - 1/(coremark2 \times pbm2)$`
-  `$=  M \times 8 \times L / (C2 \times pbm2) - M \times 8 \times L / (C1 \times pbm1)$`
-* `$1/(coremark1 \times pbm1) - 1/(coremark2 \times pbm2)$`
-  `$= M \times 8 \times L \times ( 1 / (C2 \times pbm2) - 1 / (C1 \times pbm1) )$`
-* `$M = (1/(coremark1 \times pbm1) - 1/(coremark2 \times pbm2)) /$`
-  `$( 8 \times L \times ( 1 / (C2 \times pbm2) - 1 / (C1 \times pbm1)$`
-* `$M = (rate1/coremark1 - rate2/coremark2) /$`
-  `$(8 \times 172 \times (rate2/C2 - rate1/C1))$`
-* `$M ~= 6996$`
-
-With that M value and new I, for our two platforms we have:
-
-* APU2: `$I = 57.32$`
-* Laptop: `$I = 57.32$`
-
-Sanity check passed.
-
-### Thrid platform
-
-Since we fit M exactly to the data we had, we need to confront it with the observed data from
-a third platform. Using M and the CI system's data, we find:
-
-* `$I = 64.23$`
-
-~= 11% appart. That's better than before introducing M, but not entirely satisfactory.
-
-### Shameless fudging
-
-Since the model is necessarily an appromxiation, we should try and improve that approximation
-rather than trying to match existing data samples exactly. To that end, we can find a value of M
-that doesn't yeild a equal I for any pair of platforms but minimizes the differences instead.
-
-A value `$M = 18500$` yields the following I values:
-
-* APU2: `$I = 127.54$`
-* Laptop: `$I = 122.42$`
-* CI system: `$I = 127.62$`
-
-So, at most 4% appart. We shall be content with that for now and can only whish that
-data from a fourth platform isn't going to dispell that magic completely.
-
-The method used to find that number is left to the reader's imagination.
-
-## Predictive quality of the index
-
-Applying the index measured on one platform to the other, we get
-the following predictions:
-
-APU2 predicted throughput, using Laptop's index:
-
-* `$pbm = 1 / (122.42 \times coremark) + M \times 8 \times L / C$`
-      `$= 1 / (122 \times 2972) + 18500 \times 8 \times 172 / 9.8G$`
-      `$= .00002405$`
-* `$throughput = 41580$`
-* underestimated by ~4%
-
-Laptop predicted throughput, using APU2's index:
-
-* `$pbm = 1 / (127 \times coremark) + M \times 8 \times L / C$`
-      `$= 1 / (127 \times 29866 \times 3) + 18500 8 \times 172 / 128G$`
-      `$= 0.000001817$`
-* `$throughput = 550357$`
-* overestimated by ~4%
+That's as close as I am able to get at the moment.
