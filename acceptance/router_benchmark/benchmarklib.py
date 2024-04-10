@@ -75,7 +75,7 @@ class Results:
         self.cases.append({"case": name,
                            "perf": perf, "rate": rate, "drop": dropRatio, "full": saturated})
 
-    def CI_check(expectations: dict[str, int]):
+    def CI_check(self, expectations: dict[str, int]):
         self.checked = true
         for tc in self.cases:
             want = expectations.get(tc["case"])
