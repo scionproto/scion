@@ -17,7 +17,7 @@ For any hardware platform, given:
 
 At least for L = 172, the following relationship is true:
 
-* $I ~= (1 / coremark + (M \times L / C)) \times rate$
+* `$I ~= (1 / coremark + (M \times L / C)) \times rate$`
 
 ## Introduction
 
@@ -78,21 +78,21 @@ Variables:
 
 Transmission:
 
-* assume $x(L) = X \times L$ [X is s/byte]
-* assume $t(L) = po + x(L)$
-* assume $X = 8/R$
+* assume `$x(L) = X \times L$` [X is s/byte]
+* assume `$t(L) = po + x(L)$`
+* assume `$X = 8/R$`
 * po is unknown
 
 Router:
 
-* assume $p(L) = Y \times L$ [Y is s/byte]
-* assume $r(L) = ro + p(L)$
-* assume $Y = 8/C$ [that is, the length-dependent processing time is ~copying the packet]
+* assume `$p(L) = Y \times L$` [Y is s/byte]
+* assume `$r(L) = ro + p(L)$`
+* assume `$Y = 8/C$` [that is, the length-dependent processing time is ~copying the packet]
 * ro is unknown
 
 Aggregate:
 
-* assume $bm(L) = MAX(r(L), t(L))$
+* assume `$bm(L) = MAX(r(L), t(L))$`
 
 ## What can be inferred from observations
 
@@ -100,50 +100,50 @@ Aggregate:
 
 Observed:
 
-* $t(m) = 1s/70K$ (106 Mbyte/s, iperf3 with fast machine/nic - assuming full packets)
-* $bm(b) = 1s/41487$ (benchmark run)
-* $R = 1Gb/s$ (nominal NIC rate)
-* $C = 9.8Gb/s$ (mmbm - Go memcpy 8k blocks)
+* `$t(m) = 1s/70K$` (106 Mbyte/s, iperf3 with fast machine/nic - assuming full packets)
+* `$bm(b) = 1s/41487$` (benchmark run)
+* `$R = 1Gb/s$` (nominal NIC rate)
+* `$C = 9.8Gb/s$` (mmbm - Go memcpy 8k blocks)
 
 Therefore:
 
-* $po = t(L) - x(L) = t(m) - x(m) = 1/70K - X \times m = 1/70K - 1520 \times 8 / 1G = 0.000002126 s$
-* $t(b) = po + x(b) = po + X \times b = 0.000002126 + 172 \times 8 / 1G = 0.000003502 s$
-* $bm(b) = 0.000024 s$
+* `$po = t(L) - x(L) = t(m) - x(m) = 1/70K - X \times m = 1/70K - 1520 \times 8 / 1G = 0.000002126 s$`
+* `$t(b) = po + x(b) = po + X \times b = 0.000002126 + 172 \times 8 / 1G = 0.000003502 s$`
+* `$bm(b) = 0.000024 s$`
 
 Since bm(b) > t(b), we can conclude that the router isn't processing at line speed, so bm(b) = r(b).
 That is bm(b) reflects the router's code performance.
 
 Therefore:
 
-* $r(b) = bm(b)$
-* $ro = r(b) - p(b)$
-* $ro = bm(b) - Y \times b = 1s / 41487 - 8 \times 172 / 9.9G = .00002396 s$
+* `$r(b) = bm(b)$`
+* `$ro = r(b) - p(b)$`
+* `$ro = bm(b) - Y \times b = 1s / 41487 - 8 \times 172 / 9.9G = .00002396 s$`
 
 ### Laptop local test
 
 Observed:
 
-* $t(m) = 1s/1.4M$ (iperf3 on non-loopback ethernet interface)
-* $bm(b) = 1s/613180$ (benchmark run)
-* $R = 17Gb/s$ (same iperf3 run as t(m). Assuming po is neglictible)
-* $C = 128Gb/s$ (mmbm - Go memcpy 8k blocks)
+* `$t(m) = 1s/1.4M$` (iperf3 on non-loopback ethernet interface)
+* `$bm(b) = 1s/613180$` (benchmark run)
+* `$R = 17Gb/s$` (same iperf3 run as t(m). Assuming po is neglictible)
+* `$C = 128Gb/s$` (mmbm - Go memcpy 8k blocks)
 
 Therefore:
 
-* $po = t(L) - x(L) = t(m) - x(m) = 1/1.4M - X \times m = 1/1.4M - 1520 \times 8 / 17G$
-  $~= 0$ (expected since we neglected po to derive R)
-* $t(b) = po + x(b) = 0 + X \times b = 172 \times 8 / 17G = 0.00000008 s$
-* $bm(b) = 0.000001631$
+* `$po = t(L) - x(L) = t(m) - x(m) = 1/1.4M - X \times m = 1/1.4M - 1520 \times 8 / 17G$`
+  `$~= 0$` (expected since we neglected po to derive R)
+* `$t(b) = po + x(b) = 0 + X \times b = 172 \times 8 / 17G = 0.00000008 s$`
+* `$bm(b) = 0.000001631$`
 
 Since bm(b) > t(b) we can conclude that the router isn't processing at line speed, so bm(b) = r(b).
 That is bm(b) reflects the router's code performance.
 
 Therefore:
 
-* $r(b) = bm(b)$
-* $ro = r(b) - p(b)$
-* $ro = bm(b) - Y \times b = 1s/613180 - 8 \times 172 / 128G = .000001075 s$
+* `$r(b) = bm(b)$`
+* `$ro = r(b) - p(b)$`
+* `$ro = bm(b) - Y \times b = 1s/613180 - 8 \times 172 / 128G = .000001075 s$`
 
 ### Assumption of less-than-line-rate
 
@@ -221,12 +221,12 @@ constant 1).
 
 From our assumptions, (and single I simplification) we have:
 
-* $pro = 1 / (I \times coremark)$
-* $pp(L) = 8 \times L / (I \times C)$
-* $pbm(L) = pro + pp(L)$
-  $= 1 / (I \times coremark) + 8 \times L / (I \times C)$
-  $= (1 / I) \times (1 / coremark) + (8 \times L / C))$
-* $I = (1 / coremark + (8 \times L / C)) / pbm(L)$
+* `$pro = 1 / (I \times coremark)$`
+* `$pp(L) = 8 \times L / (I \times C)$`
+* `$pbm(L) = pro + pp(L)$`
+  `$= 1 / (I \times coremark) + 8 \times L / (I \times C)$`
+  `$= (1 / I) \times (1 / coremark) + (8 \times L / C))$`
+* `$I = (1 / coremark + (8 \times L / C)) / pbm(L)$`
 
 Since we ran the same router on both benchmarking platform, we should be able to infer the same
 I from the benchmark result and hadrware characteristics. (or, at least, close).
@@ -243,23 +243,23 @@ different performance indices for different packet types (although only small va
 
 ### APU2
 
-* $coremark = 2972$
-* $C = 9.8Gb/s$
-* $L = 172$
-* $pbm(L) = 1s/43469$
-* $I = (1 / coremark + (8 \times L / C)) / pbm(L)$
-  $= (1 / 2972 + (8 \times 172 / 9.8G)) \times 43469$
-  $~= 14.6$
+* `$coremark = 2972$`
+* `$C = 9.8Gb/s$`
+* `$L = 172$`
+* `$pbm(L) = 1s/43469$`
+* `$I = (1 / coremark + (8 \times L / C)) / pbm(L)$`
+  `$= (1 / 2972 + (8 \times 172 / 9.8G)) \times 43469$`
+  `$~= 14.6$`
 
 ### Laptop
 
-* $coremark = 29902$
-* $C = 129Gb/s$
-* $L = 172$
-* $pbm(L) = 1s/530468$
-* $I = (1 / coremark + (8 \times L / C)) / pbm(L)$
-  $= (1 / 29882 + (8 \times 172 / 129G)) \times 530468$
-  $~= 17.75$
+* `$coremark = 29902$`
+* `$C = 129Gb/s$`
+* `$L = 172$`
+* `$pbm(L) = 1s/530468$`
+* `$I = (1 / coremark + (8 \times L / C)) / pbm(L)$`
+  `$= (1 / 29882 + (8 \times 172 / 129G)) \times 530468$`
+  `$~= 17.75$`
 
 ~18% appart...Not great
 
@@ -278,33 +278,33 @@ $pbm(L) = (1 / coremark + (M \times 8 \times L / C)) / I$
 
 To slightly improve readability of what follows, let:
 
-* $rate1 = 1/pbm(L)$ for APU2
-* $rate2 = 1/pbm(L)$ for laptop
-* $coremark1 = coremark$ of APU2
-* $coremark2 = coremark$ of laptop
-* $C1 = C$ of APU2
-* $C2 = C$ of laptop
+* `$rate1 = 1/pbm(L)$` for APU2
+* `$rate2 = 1/pbm(L)$` for laptop
+* `$coremark1 = coremark$` of APU2
+* `$coremark2 = coremark$` of laptop
+* `$C1 = C$` of APU2
+* `$C2 = C$` of laptop
 
 To have a common performance index between the APU2 and laptop platforms, we need:
 
-* $(1/coremark1 + (M \times 8 \times L / C1)) / pbm1$
-  $= (1/coremark2 + (M \times 8 \times L / C2)) / pbm2$
-* $1/(coremark1 \times pbm1) + M \times 8 \times L /(C1 \times pbm1)$
-  $= 1/(coremark2 \times pbm2) + M \times 8 \times L /(C2 \times pbm2)$
-* $1/(coremark1 \times pbm1) - 1/(coremark2 \times pbm2)$
-  $=  M \times 8 \times L / (C2 \times pbm2) - M \times 8 \times L / (C1 \times pbm1)$
-* $1/(coremark1 \times pbm1) - 1/(coremark2 \times pbm2)$
-  $= M \times 8 \times L \times ( 1 / (C2 \times pbm2) - 1 / (C1 \times pbm1) )$
-* $M = (1/(coremark1 \times pbm1) - 1/(coremark2 \times pbm2)) /$
-  $( 8 \times L \times ( 1 / (C2 \times pbm2) - 1 / (C1 \times pbm1)$
-* $M = (rate1/coremark1 - rate2/coremark2) /$
-  $(8 \times 172 \times (rate2/C2 - rate1/C1))$
-* $M ~= 6996$
+* `$(1/coremark1 + (M \times 8 \times L / C1)) / pbm1$`
+  `$= (1/coremark2 + (M \times 8 \times L / C2)) / pbm2$`
+* `$1/(coremark1 \times pbm1) + M \times 8 \times L /(C1 \times pbm1)$`
+  `$= 1/(coremark2 \times pbm2) + M \times 8 \times L /(C2 \times pbm2)$`
+* `$1/(coremark1 \times pbm1) - 1/(coremark2 \times pbm2)$`
+  `$=  M \times 8 \times L / (C2 \times pbm2) - M \times 8 \times L / (C1 \times pbm1)$`
+* `$1/(coremark1 \times pbm1) - 1/(coremark2 \times pbm2)$`
+  `$= M \times 8 \times L \times ( 1 / (C2 \times pbm2) - 1 / (C1 \times pbm1) )$`
+* `$M = (1/(coremark1 \times pbm1) - 1/(coremark2 \times pbm2)) /$`
+  `$( 8 \times L \times ( 1 / (C2 \times pbm2) - 1 / (C1 \times pbm1)$`
+* `$M = (rate1/coremark1 - rate2/coremark2) /$`
+  `$(8 \times 172 \times (rate2/C2 - rate1/C1))$`
+* `$M ~= 6996$`
 
 With that M value and new I, for our two platforms we have:
 
-* APU2: $I = 57.32$
-* Laptop: $I = 57.32$
+* APU2: `$I = 57.32$`
+* Laptop: `$I = 57.32$`
 
 Sanity check passed.
 
@@ -313,7 +313,7 @@ Sanity check passed.
 Since we fit M exactly to the data we had, we need to confront it with the observed data from
 a third platform. Using M and the CI system's data, we find:
 
-* $I = 64.23$
+* `$I = 64.23$`
 
 ~= 11% appart. That's better than before introducing M, but not entirely satisfactory.
 
@@ -323,11 +323,11 @@ Since the model is necessarily an appromxiation, we should try and improve that 
 rather than trying to match existing data samples exactly. To that end, we can find a value of M
 that doesn't yeild a equal I for any pair of platforms but minimizes the differences instead.
 
-A value $M = 18500$ yields the following I values:
+A value `$M = 18500$` yields the following I values:
 
-* APU2: $I = 127.54$
-* Laptop: $I = 122.42$
-* CI system: $I = 127.62$
+* APU2: `$I = 127.54$`
+* Laptop: `$I = 122.42$`
+* CI system: `$I = 127.62$`
 
 So, at most 4% appart. We shall be content with that for now and can only whish that
 data from a fourth platform isn't going to dispell that magic completely.
@@ -341,16 +341,16 @@ the following predictions:
 
 APU2 predicted throughput, using Laptop's index:
 
-* $pbm = 1 / (122.42 \times coremark) + M \times 8 \times L / C$
-      $= 1 / (122 \times 2972) + 18500 \times 8 \times 172 / 9.8G$
-      $= .00002405$
-* throughput = 41580
+* `$pbm = 1 / (122.42 \times coremark) + M \times 8 \times L / C$`
+      `$= 1 / (122 \times 2972) + 18500 \times 8 \times 172 / 9.8G$`
+      `$= .00002405$`
+* `$throughput = 41580$`
 * underestimated by ~4%
 
 Laptop predicted throughput, using APU2's index:
 
-* $pbm = 1 / (127 \times coremark) + M \times 8 \times L / C$
-      $= 1 / (127 \times 29866 \times 3) + 18500 8 \times 172 / 128G$
-      $= 0.000001817$
-* $throughput = 550357$
+* `$pbm = 1 / (127 \times coremark) + M \times 8 \times L / C$`
+      `$= 1 / (127 \times 29866 \times 3) + 18500 8 \times 172 / 128G$`
+      `$= 0.000001817$`
+* `$throughput = 550357$`
 * overestimated by ~4%
