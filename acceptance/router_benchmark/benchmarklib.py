@@ -76,7 +76,7 @@ class Results:
                            "perf": perf, "rate": rate, "drop": dropRatio, "full": saturated})
 
     def CI_check(self, expectations: dict[str, int]):
-        self.checked = true
+        self.checked = True
         for tc in self.cases:
             want = expectations.get(tc["case"])
             if want is not None:
