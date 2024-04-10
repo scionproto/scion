@@ -81,7 +81,7 @@ class Results:
             want = expectations.get(tc["case"])
             if want is not None:
                 slow = tc["rate"] < want
-                unsaturated = not tc["saturated"]
+                unsaturated = not tc["full"]
                 if slow or unsaturated:
                     failed.append({"case": tc["case"],
                                    "expected": want, "slow": slow, "unsaturated": unsaturated})
