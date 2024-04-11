@@ -65,14 +65,15 @@ class Results:
         # mmbm is in mebiBytes/s, rate is in pkt/s
         return rate * (1.0 / self.coremark + M_CONSTANT * BM_PACKET_LEN / (self.mmbm * 1024 * 1024))
 
-    def add_case(self, name: str, rate: int, droppage: int):
+    def add_case(self, name: str, rate: int, droppage: int, raw_rate: int):
         dropRatio = round(float(droppage) / (rate + droppage), 2)
         saturated = dropRatio > 0.03
         perf = 0.0
         if self.cores == 3 and self.coremark and self.mmbm:
             perf = round(self.perf_index(rate), 1)
         self.cases.append({"case": name,
-                           "perf": perf, "rate": rate, "drop": dropRatio, "full": saturated})
+                           "perf": perf, "rate": rate, "drop": dropRatio, "full": saturated,
+                           "raw": raw_rate})
 
     def CI_check(self, expectations: dict[str, int]):
         self.checked = True
@@ -210,6 +211,32 @@ class RouterBM():
             processed = int(float(val))
             break
 
+        # EXPERIMENTAL read the raw packets per second (per the wall-clock time) i.e. the number of
+        # machine*seconds per second is 1; do not attempt to subtract a possible preempted time.
+        prom_query = urlencode({
+            'time': f'{sampleTime}',
+            'query': (
+                'sum by (instance, job) ('
+                f'  rate(router_output_pkts_total{{job="BR", type="{case}"}}[10s])'
+                ')'
+            )
+        })
+        conn = HTTPConnection(self.prom_address)
+        conn.request("GET", f"/api/v1/query?{prom_query}")
+        resp = conn.getresponse()
+        if resp.status != 200:
+            raise RuntimeError(f"Unexpected response: {resp.status} {resp.reason}")
+
+        # There's only one router, so whichever metric we get is the right one.
+        pld = json.loads(resp.read().decode("utf-8"))
+        processed_raw = 0
+        results = pld["data"]["result"]
+        for result in results:
+            ts, val = result["value"]
+            processed_raw = int(float(val))
+            break
+        # EXPERIMENTAL END
+
         # Collect dropped packets metrics, so we can verify that the router was well saturated.
         # If not, the metrics aren't very useful.
         prom_query = urlencode({
@@ -240,7 +267,7 @@ class RouterBM():
             dropped = int(float(val))
             break
 
-        return processed, dropped
+        return processed, dropped, processed_raw
 
     # Fetch and log the number of cores used by Go. This may inform performance
     # modeling later.
@@ -291,8 +318,8 @@ class RouterBM():
         results = Results(cores, self.coremark, self.mmbm)
         for test_case in test_cases:
             logger.info(f"Case: {test_case}")
-            rate, droppage = self.run_test_case(test_case, map_args)
-            results.add_case(test_case, rate, droppage)
+            rate, droppage, raw_rate = self.run_test_case(test_case, map_args)
+            results.add_case(test_case, rate, droppage, raw_rate)
 
         return results
         logger.info("Benchmarked")
