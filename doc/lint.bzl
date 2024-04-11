@@ -18,7 +18,7 @@ def _sphinx_lint_test_impl(ctx):
     deps = ctx.attr._sphinx_lint_cli.default_runfiles.files.to_list()
 
     runfiles = ctx.runfiles(
-        files = ctx.files.srcs + deps
+        files = ctx.files.srcs + deps,
     )
     return [
         DefaultInfo(
@@ -35,7 +35,7 @@ sphinx_lint_test = rule(
             cfg = "host",
             default = "//doc:sphinx-lint",
             executable = True,
-        )
+        ),
     },
     test = True,
 )
