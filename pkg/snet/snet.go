@@ -101,10 +101,14 @@ func (n *SCIONNetwork) OpenRaw(ctx context.Context, addr *net.UDPAddr) (PacketCo
 	if addr.Port == 0 {
 		pconn, err = listenUDPRange(addr, start, end)
 	} else {
-		// XXX(JordiSubira): We check that given port is within SCION/UDP
-		// port range for the endhost.
 		if addr.Port < int(start) || addr.Port > int(end) {
-			return nil, serrors.New("provided port is outside the SCION/UDP range",
+			// XXX(JordiSubira): We allow listening UDP/SCION outside the endhost range,
+			// however, in this setup the shim dispacher is needed to receive packets, i.e.,
+			// BRs send packet to fix port 30041 (where the shim should be listening on) and
+			// the shim forwards it to underlay UDP/IP port (where we bind the UDP/SCION
+			// socket).
+			log.Info("Provided port is outside the SCION/UDP range, "+
+				"it will only receive packets if shim dispatcher is configured",
 				"start", start, "end", end, "port", addr.Port)
 		}
 		pconn, err = net.ListenUDP(addr.Network(), addr)

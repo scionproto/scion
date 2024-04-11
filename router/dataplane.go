@@ -1998,6 +1998,11 @@ func (d *DataPlane) resolveLocalDst(
 		if !ok {
 			return nil, noSVCBackend
 		}
+		// if SVC address is outside the configured port range we send to the fix
+		// port.
+		if uint16(a.Port) < d.endhostStartPort || uint16(a.Port) > d.endhostEndPort {
+			a.Port = topology.EndhostPort
+		}
 		return a, nil
 	case addr.HostTypeIP:
 		// Parse UPD port and rewrite underlay IP/UDP port
