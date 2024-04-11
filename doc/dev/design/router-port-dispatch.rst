@@ -128,50 +128,96 @@ Processing rule
    This does not affect the performance of the high-speed core routers that need to forward huge volumes of data.
 
 
+Compatibility
+^^^^^^^^^^^^^
+
+This change "only" affects the intra-AS forwarding, that is, there is no requirement to coordinate this update between different domains.
+
+Within each AS, we still need to be able to migrate to this new underlay without disrupting the network and without a synchronized update of all the hosts and routers of the AS.
+For this, we add two mechanisms:
+
+- the "shim dispatcher"; a simple, stateless UDP packet forwarder running on the updated end hosts, listening on UDP port 30041.
+  It inspects the L4 header and forwards all SCION packets to corresponding underlay port on the local host, following the processing rules for the router outlined above.
+
+  The shim dispatcher allows to update individual hosts before updating all of the routers.
+  The applications can receive the packets on individual UDP underlay ports and don't need to be aware of whether a packet was forwarded with the local dispatcher or was received directly (from the ingress router or an AS-local source host).
+
+- *conditionally* use the underlay UDP/IP destination port determined with the rules above only for specific *port ranges*.
+  These port ranges are AS specific and are included in the topology configuration that end hosts and routers receive.
+
+  As long as there there are no legacy devices/applications using ports in this range, we can update routers without disrupting any old hosts.
+  In this port range, we can operate *new* devices/applications *without* support from the shim dispatcher.
+
+  The processing rule above is extended:
+
+  2. If the underlay UDP/IP destination port determined above is within the port range specified in the topology configuration,
+     the packet is sent to that destination port.
+
+     Otherwise, the packet is sent to the default end-host port 30041.
+
+  The port range is configured in the ``topology.json`` file in the following format:
+
+    .. code-block:: yaml
+
+       "underlay": {
+         "dispatched_ports": "<min>-<max>"
+       }
+
+  The ``min``, ``max`` values define the range of ports ``[min, max]`` (inclusive).
+  The value ``"-"`` explicitly represents an empty range.
+  The value ``"all"`` represents the full range (``1-65535``).
+  If nothing is configured, the port range defaults to an empty range.
+
+  Applications pick ephemeral ports from this range when opening a socket.
+
+
+Update procedure
+""""""""""""""""
+
+With these mechanisms, the update procedure for an individual AS is:
+
+1. Pick a range for ``dispatched_ports``, and ensure that *no* existing applications are using ports in this range.
+
+   The recommended initial port range for the transition is ``31000-32767``.
+   This range is just below the range of ephemeral ports that is assigned by the old dispatcher (32768-65535), ensuring that UDP traffic from legacy end hosts will be unaffected by the port dispatching in the router.
+   On legacy hosts, SCMP echo and error requests currently use random IDs, and thus have a low chance (~2.5%) to pick an ID in the range that is port dispatched by the router. As a preparatory change, the range of IDs can reduced, so that there is no intersection.
+
+2. Update devices, **in any order**, without requiring synchronisation:
+
+   a. Update routers individually and enable ``dispatched_ports`` in their ``topology.json``.
+
+   b. Update hosts individually; replace the dispatcher with the shim-dispatcher, rebuild all
+      applications based on the updated libraries, and enable ``dispatched_ports`` in their ``topology.json``.
+
+3. Once all (or at least a significant portion of the) routers have been updated, new applications/devices can use ports in the range ``dispatched_ports`` without the shim dispatcher.
+
+   Depending on the types and number of end hosts in the AS and the time it takes for updates to be picked up, this state is may occur for anything from a few minutes to months, until ...
+
+4. Once all hosts have been updated, the ``dispatched_ports`` range can be extended to the entire port range.
+   The shim dispatchers can be disabled.
+
+.. Note:: If an AS operator controls all devices in the AS and/or does not plan to allow operating
+   new applications/devices without the shim dispatcher, they can pick the empty range in step 1.,
+   and state 3. is skipped.
+
+
 Long term vision compatibility
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If our long term vision materializes and we'd have SCION support directly built-in to the operating system's network stack, then this workaround becomes obsolete.
+Conversely, if our long term vision materializes and we'd have SCION support directly built-in to the operating system's network stack, then this workaround becomes obsolete.
 In an optimistic scenario, where there are millions of end hosts running SCION-enabled applications, we can not expect that all devices and applications will updated to the same level of SCION support within a useful time frame.
 Therefore, it will be necessary to be able to gradually phase out the use of this workaround, keeping it around for all the future legacy applications.
-For this we propose to *conditionally* use the underlay UDP/IP destination port determined with the rules above only for specific *port ranges*.
-These port ranges are AS specific and are included in the topology configuration that end hosts and routers receive.
 
-Applications pick an appropriate local port when opening a socket.
-For servers listening on "well known ports", a (AS-local) flag day is still required at the point in time where these ports are removed from the special port range.
+.. Note:: In the future, we'd perhaps use a different port, or no longer use UDP/IP but directly IP as the underlay.
 
+The compatibility mechanisms introduced for the update can be reused for this "reverse" transition:
 
-The processing rule above is extended:
-
-2. If the underlay UDP/IP destination port determined above is within the port range specified in the topology configuration,
-   the packet is sent to that destination port.
-
-   Otherwise, the packet is sent to the default end-host port 30041.
-
-   .. Note:: In the future, we'd perhaps use a different port, or no longer use UDP/IP but directly IP as the underlay.
+- enable shim dispatcher for services outside of intended ``dispatched_port`` range
+- shrink ``dispatched_ports`` range and configure this on routers and hosts
+- on individual hosts: enable OS network stack support and update applications, disable shim dispatcher
 
 .. Note:: This should not be considered a promise to never break compatibility for end hosts again.
 
-
-The port range is configured in the ``topology.json`` file in the following format:
-
-  .. code-block:: yaml
-
-     "underlay": {
-       "dispatched_ports": {
-         "min": <port>,
-         "max": <port>
-       }
-     }
-
-The ``min``, ``max`` fields define the range of ports ``[min, max]`` (inclusive).
-The configured ``max`` value may be lower than ``min`` to specify an empty port range.
-
-If nothing is configured, the port range initially defaults to an empty range.
-
-The recommended port range is ``31000-32767``.
-This range is just below the port range that is assigned by the old dispatcher (32768-65535), ensuring that UDP traffic from legacy end hosts will be unaffected by the port dispatching in the router.
-On legacy hosts, SCMP echo and error requests currently use random IDs, and thus have a low chance (~2.5%) to pick an ID in the range that is port dispatched by the router. As a preparatory change, the range of IDs can reduced, so that there is no intersection.
 
 Rationale
 ---------
@@ -231,3 +277,10 @@ The roadmap would look like the following:
      Remove the packet dispatching/forwarding functionality from "dispatcher".
      Only SCMP echo responder remains in dispatcher. Rename to "SCMP Daemon" (scmpd).
    - set suitable default for port range in ``dispatched_ports`` topology configuration
+
+
+Compatibility and Update Procedure
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For operators,
+
