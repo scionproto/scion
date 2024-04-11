@@ -26,30 +26,46 @@ import (
 	"testing"
 )
 
-// Spread the load over many buffers to defeat caching.
-const nbuf = 4096
+// Use a pretend working set that ressembles that of a realistic router
+// In this case, we use the reference implementation default, which is
+// 3 * 256 packets per interface. The router benchmark has only 3 interfaces
+// involved. So, we're looking at 256 * 9 packets.
+const nbuf = 256 * 9
 
-// Copy by batches of typical jumbo frame
-const cpsz = 8192
+// Assume a very common packet size; not a jumbo frame.
+const cpsz = 1024
 
 type oneFrame [cpsz]uint8
 
-var buf1 [nbuf]oneFrame
-var buf2 [nbuf]oneFrame
+var buf [nbuf]oneFrame
 
-// Just in case Go would take advantage of the initial zero value
-func writeBuf1() {
+// Very cheap pseudorandom generator (don't use for anything in serious need
+// of randomness.
+const some_prime = 2297
+
+var last int = 0
+
+func random_frame() int {
+	last = (last + some_prime) % nbuf
+	return last
+}
+
+// Just in case Go would take advantage of the initial zero value, somehow.
+// This also allocates the memory pages.
+func writeBuf() {
 	for i := 0; i < nbuf; i++ {
 		for j := 0; j < cpsz; j++ {
-			buf1[i][j] = uint8(j % 256)
+			buf[i][j] = uint8(j % 256)
 		}
 	}
 }
 
+// Copy from a random frame to another random one. This will mostly defeat
+// caching and prefetching, but not strictly always. Pretty much like in
+// a real scenario.
 func BenchmarkCopy(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		n := i % nbuf
-		buf1[n] = buf2[n]
+		buf[random_frame()] = buf[random_frame()]
 	}
 }
 
@@ -64,7 +80,7 @@ func main() {
 		}
 	})
 
-	writeBuf1()
+	writeBuf()
 
 	res := testing.Benchmark(BenchmarkCopy)
 	bytes := uint64(res.N) * cpsz
