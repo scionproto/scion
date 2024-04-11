@@ -258,7 +258,7 @@ The roadmap would look like the following:
 
 - Add support for dispatched/forwarded port ranges to the topology.json configuration.
 
-  As the topology.json parsing is lenient about unkown keys by default, the updated topology.json file can still be consumed by "legacy" applications.
+  As the topology.json parsing is lenient about unknown keys by default, the updated topology.json file can still be consumed by "legacy" applications.
 
 - Change SCION applications to use native ``net.UDPConn`` instead of ``reliable.Conn``.
 
@@ -277,10 +277,3 @@ The roadmap would look like the following:
      Remove the packet dispatching/forwarding functionality from "dispatcher".
      Only SCMP echo responder remains in dispatcher. Rename to "SCMP Daemon" (scmpd).
    - set suitable default for port range in ``dispatched_ports`` topology configuration
-
-
-Compatibility and Update Procedure
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-For operators,
-
