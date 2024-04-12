@@ -229,6 +229,10 @@ func validatePortRange(portRange string) (uint16, uint16, error) {
 		log.Debug("Empty port range defined")
 		return 0, 0, nil
 	}
+	if portRange == "all" || portRange == "ALL" {
+		log.Debug("\"all\" port range defined")
+		return uint16(1), uint16(65535), nil
+	}
 	ports := strings.Split(portRange, "-")
 	if len(ports) != 2 {
 		return 0, 0, serrors.New("invalid format: expected startPort-endPort", "got", portRange)
