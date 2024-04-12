@@ -18,6 +18,11 @@
 // The go implementation of memcpy/memmove isn't necessarily the highest performing, but it is close
 // to that of glibc's and it has the advantages of being independent from any given libc
 // implementation. musl_libc's implementation, for example performs much worse.
+//
+// TODO(jiceatscion): For now, the whole benchmark is restricted to measuring
+// and predicting an ideal 100% in-cache performance. In the future, we will
+// extend the model to multiple caching circumstances and execute this benchmark with
+// different cache size targets.
 package main
 
 import (
@@ -28,25 +33,27 @@ import (
 
 // Use a pretend working set that ressembles that of a realistic router
 // In this case, we use the reference implementation default, which is
-// a total of 13.5 * 256 per interface + 3. So
+// a total of 13.5 * 256 per interface + 3. So, with 3 interfaces in use:
 const nbuf = 3459
 
 // For the purpose of performance extrapolation we try to not disadvantage
 // hardwares with small caches. So the benchmark has to use a packet size
-// that makes the working set fit in 1.2M. That is less than 363 bytes. Round
-// it down to a common 64 byte cache line multiple: 320
-// TODO(jiceatscion): So, for now, the whole benchmark is restricted to measuring
-// and predicting an ideal 100% in-cache performance. In the future, we will
-// extend the model to multiple caching circumstances and execute this benchmark with
-// different cache size targets.
-const frameSize = 320
+// that makes the working set fit in 1.2M. However the allocated buffers are 9k
+// in size. They just have a long tail that never gets into the cache.
+// We mimick that and access only the begining of the buffers to keep the
+// working set below cache size. That is less than 363 bytes. We round to cache line: 320.
+const bufSize = 9 * 1024
+const cpSize = 320
 
-type oneFrame [frameSize]uint8
+type oneFrame struct {
+	data [cpSize]uint8
+	tail [bufSize - cpSize]uint8
+}
 
 var buf [nbuf]oneFrame
 
 // Very cheap pseudorandom generator (don't use for anything in serious need
-// of randomness.
+// of randomness).
 const some_prime = 2297
 
 var last int = 0
@@ -60,18 +67,18 @@ func random_frame() int {
 // This also allocates the memory pages.
 func writeBuf() {
 	for i := 0; i < nbuf; i++ {
-		for j := 0; j < frameSize; j++ {
-			buf[i][j] = uint8(j % 256)
+		for j := 0; j < cpSize; j++ {
+			buf[i].data[j] = uint8(j % 256)
 		}
 	}
 }
 
 // Copy from a random frame to another random one. This will mostly defeat
-// caching and prefetching, but not strictly always. Pretty much like in
-// a real scenario.
+// prefetching as the useful portions of the frames are actually far appart.
+// The same is happening inside the router.
 func BenchmarkCopy(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		buf[random_frame()] = buf[random_frame()]
+		buf[random_frame()].data = buf[random_frame()].data
 	}
 }
 
@@ -79,7 +86,7 @@ func main() {
 	testing.Init()
 	flag.VisitAll(func(f *flag.Flag) {
 		if f.Name == "test.benchtime" {
-			err := f.Value.Set("2s") // More than enough, but 1s can be too short.
+			err := f.Value.Set("5s") // below that random outliers show-up.
 			if err != nil {
 				panic(err)
 			}
@@ -89,7 +96,7 @@ func main() {
 	writeBuf()
 
 	res := testing.Benchmark(BenchmarkCopy)
-	bytes := uint64(res.N) * frameSize
+	bytes := uint64(res.N) * cpSize
 	megaBytes := float64(bytes) / (1024 * 1024)
 
 	fmt.Printf("\"mmbm\": %.2f\n", megaBytes/res.T.Seconds())
