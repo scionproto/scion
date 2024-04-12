@@ -35,8 +35,8 @@ type ACL struct {
 
 // NewACL creates a new entry and checks for the presence of a default action
 func NewACL(entries ...*ACLEntry) (*ACL, error) {
-	if len(entries) == 0 || !entries[len(entries)-1].Rule.matchesAll() {
-		return nil, ErrNoDefault
+	if err := validateACL(entries); err != nil {
+		return nil, err
 	}
 	return &ACL{Entries: entries}, nil
 }
@@ -61,7 +61,10 @@ func (a *ACL) MarshalJSON() ([]byte, error) {
 }
 
 func (a *ACL) UnmarshalJSON(b []byte) error {
-	return json.Unmarshal(b, &a.Entries)
+	if err := json.Unmarshal(b, &a.Entries); err != nil {
+		return err
+	}
+	return validateACL(a.Entries)
 }
 
 func (a *ACL) MarshalYAML() (interface{}, error) {
@@ -69,7 +72,10 @@ func (a *ACL) MarshalYAML() (interface{}, error) {
 }
 
 func (a *ACL) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	return unmarshal(&a.Entries)
+	if err := unmarshal(&a.Entries); err != nil {
+		return err
+	}
+	return validateACL(a.Entries)
 }
 
 func (a *ACL) evalPath(pm *snet.PathMetadata) ACLAction {
@@ -88,6 +94,13 @@ func (a *ACL) evalInterface(iface snet.PathInterface, ingress bool) ACLAction {
 		}
 	}
 	panic("Default ACL action missing")
+}
+
+func validateACL(entries []*ACLEntry) error {
+	if len(entries) == 0 || !entries[len(entries)-1].Rule.matchesAll() {
+		return ErrNoDefault
+	}
+	return nil
 }
 
 type ACLEntry struct {
