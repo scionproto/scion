@@ -176,10 +176,11 @@ class SubnetGenerator(object):
 
 
 class PortGenerator(object):
-    # TODO(JordiSubira): It probably makes more sense to also feed the port
-    # range for CP services, so that it is within dispatched_ports
+    # XXX(JordiSubira): We keep this in the default range. If the configured ranged,
+    # doesn't include the 31000-32767 range, the services will be able to operate
+    # with the shim dispatcher.
     def __init__(self):
-        self.iter = iter(range(31000, 35000))
+        self.iter = iter(range(31000, 32767))
         self._ports = defaultdict(lambda: next(self.iter))
 
     def register(self, id_: str) -> int:
