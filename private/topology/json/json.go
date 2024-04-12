@@ -75,7 +75,7 @@ type Topology struct {
 	TimestampHuman   string `json:"timestamp_human,omitempty"`
 	IA               string `json:"isd_as"`
 	MTU              int    `json:"mtu"`
-	EndhostPortRange string `json:"endhost_port_range"`
+	EndhostPortRange string `json:"dispatched_ports"`
 	// Attributes specify whether this is a core AS or not.
 	Attributes          Attributes              `json:"attributes"`
 	BorderRouters       map[string]*BRInfo      `json:"border_routers,omitempty"`

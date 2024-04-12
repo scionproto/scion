@@ -1,7 +1,7 @@
 {
   "isd_as": "1-ff00:0:111",
   "mtu": 1472,
-  "endhost_port_range": "1024-65535",
+  "dispatched_ports": "1024-65535",
   "attributes": [],
   "border_routers": {
     "br1-ff00_0_111-1": {

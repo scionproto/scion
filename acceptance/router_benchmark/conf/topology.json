@@ -4,7 +4,7 @@
   ],
   "isd_as": "1-ff00:0:1",
   "mtu": 1400,
-  "endhost_port_range": "1024-65535",
+  "dispatched_ports": "1024-65535",
   "border_routers": {
     "br1a": {
       "internal_addr": "10.123.10.1:30042",
