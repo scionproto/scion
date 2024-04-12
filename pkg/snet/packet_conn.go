@@ -212,8 +212,9 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet) (*net.UDPAddr, error) {
 	udpRemoteAddr := remoteAddr.(*net.UDPAddr)
 	lastHop := udpRemoteAddr
 	if c.isShimDispatcher(udpRemoteAddr) {
-		// XXX(JordiSubira): As stated in `SCIONPacketConn.isShimDispatcher()`, we consider *localhost:30041*
-		// as a shim address. However, if in an alternative setup we find an actual endhost behind
+		// XXX(JordiSubira): As stated in `SCIONPacketConn.isShimDispatcher()`, we consider
+		// *localhost:30041* as a shim address.
+		// However, if in an alternative setup we find an actual endhost behind
 		// *localhost:30041* `SCIONPacketConn.lastHop()` should yield the right next hop address.
 		lastHop, err = c.lastHop(pkt)
 		if err != nil {

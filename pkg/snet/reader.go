@@ -93,7 +93,8 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 		panic("unexpected error converting local address IP")
 	}
 	// XXX(JordiSubira): We explicitly forbid nil or unspecified address in the current constructor
-	// for Conn. If this were ever to change, we would always fall into the following if statement, then
+	// for Conn.
+	// If this were ever to change, we would always fall into the following if statement, then
 	// we would like to replace this logic (e.g., using IP_PKTINFO, with its caveats).
 	if localAddr != pkt.Destination.Host.IP() {
 		return 0, nil, serrors.New("packet is destined to a different host",
