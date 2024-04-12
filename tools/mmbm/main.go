@@ -28,14 +28,20 @@ import (
 
 // Use a pretend working set that ressembles that of a realistic router
 // In this case, we use the reference implementation default, which is
-// 3 * 256 packets per interface. The router benchmark has only 3 interfaces
-// involved. So, we're looking at 256 * 9 packets.
-const nbuf = 256 * 9
+// a total of 13.5 * 256 per interface + 3. So
+const nbuf = 3459
 
-// Assume a very common packet size; not a jumbo frame.
-const cpsz = 1024
+// For the purpose of performance extrapolation we try to not disadvantage
+// hardwares with small caches. So the benchmark has to use a packet size
+// that makes the working set fit in 1.2M. That is less than 363 bytes. Round
+// it down to a common 64 byte cache line multiple: 320
+// TODO(jiceatscion): So, for now, the whole benchmark is restricted to measuring
+// and predicting an ideal 100% in-cache performance. In the future, we will
+// extend the model to multiple caching circumstances and execute this benchmark with
+// different cache size targets.
+const frameSize = 320
 
-type oneFrame [cpsz]uint8
+type oneFrame [frameSize]uint8
 
 var buf [nbuf]oneFrame
 
@@ -54,7 +60,7 @@ func random_frame() int {
 // This also allocates the memory pages.
 func writeBuf() {
 	for i := 0; i < nbuf; i++ {
-		for j := 0; j < cpsz; j++ {
+		for j := 0; j < frameSize; j++ {
 			buf[i][j] = uint8(j % 256)
 		}
 	}
@@ -83,7 +89,7 @@ func main() {
 	writeBuf()
 
 	res := testing.Benchmark(BenchmarkCopy)
-	bytes := uint64(res.N) * cpsz
+	bytes := uint64(res.N) * frameSize
 	megaBytes := float64(bytes) / (1024 * 1024)
 
 	fmt.Printf("\"mmbm\": %.2f\n", megaBytes/res.T.Seconds())
