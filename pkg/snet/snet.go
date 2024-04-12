@@ -175,6 +175,7 @@ func (n *SCIONNetwork) Listen(
 // NewCookedConn returns a "cooked" Conn. The Conn object can be used to
 // send/receive SCION traffic with the usual methods.
 // It takes as arguments a non-nil PacketConn and a non-nil Topology parameter.
+// Nil or unspecified addresses for the PacketConn object are not supported.
 // If replyPather is nil it will use a default ReplyPather.
 func NewCookedConn(
 	pconn PacketConn,
@@ -189,6 +190,9 @@ func NewCookedConn(
 	local := &UDPAddr{
 		IA:   localIA,
 		Host: pconn.LocalAddr().(*net.UDPAddr),
+	}
+	if local.Host == nil || local.Host.IP.IsUnspecified() {
+		return nil, serrors.New("nil or unspecified address is not for the raw connection")
 	}
 	if replyPather == nil {
 		replyPather = DefaultReplyPather{}

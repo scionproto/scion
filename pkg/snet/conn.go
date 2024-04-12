@@ -75,6 +75,7 @@ func newConn(
 		conn:        conn,
 		buffer:      make([]byte, common.SupportedMTU),
 		replyPather: replyPather,
+		local:       local,
 	}
 	return c
 }
