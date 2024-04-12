@@ -61,7 +61,7 @@ func (c *scionConnReader) Read(b []byte) (int, error) {
 // read returns the number of bytes read, the address that sent the bytes and
 // an error (if one occurred).
 func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
-
+	// TODO(JordiSubira): Add UTs for this
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 

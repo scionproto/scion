@@ -205,6 +205,8 @@ func NewCookedConn(
 }
 
 func listenUDPRange(addr *net.UDPAddr, start, end uint16) (*net.UDPConn, error) {
+	// TODO(JordiSubira): Limit further the range to only include ephemeral subrange
+
 	// XXX(JordiSubira): For now, we simply iterate on the complete SCION/UDP
 	// range, taking the first unused port.
 	for port := start; port < end; port++ {
