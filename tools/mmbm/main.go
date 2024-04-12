@@ -40,7 +40,7 @@ const nbuf = 3459
 // hardwares with small caches. So the benchmark has to use a packet size
 // that makes the working set fit in 1.2M. However the allocated buffers are 9k
 // in size. They just have a long tail that never gets into the cache.
-// We mimick that and access only the begining of the buffers to keep the
+// We mimick that and access only the beginning of the buffers to keep the
 // working set below cache size. That is less than 363 bytes. We round to cache line: 320.
 const bufSize = 9 * 1024
 const cpSize = 320
@@ -69,12 +69,13 @@ func writeBuf() {
 	for i := 0; i < nbuf; i++ {
 		for j := 0; j < cpSize; j++ {
 			buf[i].data[j] = uint8(j % 256)
+			buf[i].tail[0] = 0
 		}
 	}
 }
 
 // Copy from a random frame to another random one. This will mostly defeat
-// prefetching as the useful portions of the frames are actually far appart.
+// prefetching as the useful portions of the frames are actually far apart.
 // The same is happening inside the router.
 func BenchmarkCopy(b *testing.B) {
 	for i := 0; i < b.N; i++ {
