@@ -60,6 +60,38 @@ func TestNewACL(t *testing.T) {
 	}
 }
 
+func TestUnmarshalJSON(t *testing.T) {
+	tests := map[string]struct {
+		Input       []byte
+		ExpectedErr error
+	}{
+		"No entry": {
+			Input:       []byte{},
+			ExpectedErr: ErrNoDefault,
+		},
+		"No default entry": {
+			Input:       []byte(`"+ 42"`),
+			ExpectedErr: ErrNoDefault,
+		},
+		"Entry without rule": {
+			Input: []byte(`["+"]`),
+		},
+		"Entry with hop predicates": {
+			Input: []byte(`["+ 42", "-"]`),
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			var acl ACL
+			err := acl.UnmarshalJSON(test.Input)
+			assert.ErrorIs(t, err, test.ExpectedErr)
+			if test.ExpectedErr == nil {
+				assert.NotNil(t, acl)
+			}
+		})
+	}
+}
+
 func TestACLEntryLoadFromString(t *testing.T) {
 	tests := map[string]struct {
 		String         string

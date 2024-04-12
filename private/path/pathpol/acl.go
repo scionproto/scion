@@ -61,7 +61,11 @@ func (a *ACL) MarshalJSON() ([]byte, error) {
 }
 
 func (a *ACL) UnmarshalJSON(b []byte) error {
-	return json.Unmarshal(b, &a.Entries)
+	err := json.Unmarshal(b, &a.Entries)
+	if len(a.Entries) == 0 || !a.Entries[len(a.Entries)-1].Rule.matchesAll() {
+		return ErrNoDefault
+	}
+	return err
 }
 
 func (a *ACL) MarshalYAML() (interface{}, error) {
@@ -69,7 +73,11 @@ func (a *ACL) MarshalYAML() (interface{}, error) {
 }
 
 func (a *ACL) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	return unmarshal(&a.Entries)
+	err := unmarshal(&a.Entries)
+	if len(a.Entries) == 0 || !a.Entries[len(a.Entries)-1].Rule.matchesAll() {
+		return ErrNoDefault
+	}
+	return err
 }
 
 func (a *ACL) evalPath(pm *snet.PathMetadata) ACLAction {
