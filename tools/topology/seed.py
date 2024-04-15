@@ -64,6 +64,8 @@ class SeedGenerator(SeedGenArgs):
     _SeedCompiler : str="Docker"
     _skipIPv6Check : bool=False
     _parentNetwork : str = "10.3.0.0/16"
+    _brProperties : Dict[str, Dict[str, Dict]] # dict containing maping from ISD_AS to list of border router properties
+
 
     def __init__(self, args):
         """
@@ -119,6 +121,8 @@ scion = Scion()
 
         # build appropriate link data structure
         self._links = self._parse_links()
+
+        self._brProperties = self._parse_borderRouterProperties()
 
         self._parse_borderRouter_interfaces()
         
@@ -193,7 +197,7 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
         
         is_core = as_dict['core'] if 'core' in as_dict else False
         cert_issuer = as_dict['cert_issuer'].split(':')[2] if 'cert_issuer' in as_dict else None
-        as_int_bw = as_dict['bandwidth'] if 'bandwidth' in as_dict else 0
+        as_int_bw = as_dict['bw'] if 'bw' in as_dict else 0
         as_int_lat = as_dict['latency'] if 'latency' in as_dict else 0
         as_int_drop = as_dict['drop'] if 'drop' in as_dict else 0
         as_int_mtu = as_dict['mtu'] if 'mtu' in as_dict else None
@@ -214,8 +218,8 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
         else:
             mtu = None
 
-        if "bandwidth" in link:
-            bandwidth = link['bandwidth']
+        if "bw" in link:
+            bandwidth = link['bw']
         else:
             bandwidth = 0 # seed ignores value 0 
 
@@ -300,11 +304,35 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
             last_id = "" if not self._br[ia] else self._br[ia][-1]
             new_id = "A"+last_id
             self._br[ia].append(new_id)
-            # also update link data structure with new ID
+            # also update link and brProperties data structure with new ID
             isd = ia.split('_')[0]
             as_num = ia.split('_')[1]
             self._links[i][a_b] = (isd,as_num,new_id+"#"+br_if)
+            if ia in self._brProperties:
+                if br_if in self._brProperties[ia]:
+                    self._brProperties[ia][new_id+"#"+br_if] = self._brProperties[ia][br_if]
+                    del self._brProperties[ia][br_if]
+
             
+    def _parse_borderRouterProperties(self) -> Dict[str, Dict[str, Dict]]:
+        """
+        parse BorderRouter properties from topo file
+        """
+
+        brProperties = {}
+
+        if "borderRouterProperties" not in self._topo_file:
+            return brProperties
+    
+        for br in self._topo_file["borderRouterProperties"]:
+            (isd, as_num, br_if) = self._parse_link_party(br)
+            if f"{isd}_{as_num}" not in brProperties:
+                brProperties[f"{isd}_{as_num}"] = {}
+            brProperties[f"{isd}_{as_num}"][br_if] = self._topo_file["borderRouterProperties"][br]
+            
+        return brProperties
+
+
     def _parse_borderRouter_interfaces(self):
         """
         generate bridge_names from links
@@ -346,7 +374,7 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
             self._br[ia] = br_names
                 
         
-        # replace border router interface names with border router names
+        # replace border router interface names with border router names in links
         for i in range(0,len(self._links)):
             link = self._links[i]
             a_br = link['a'][2]
@@ -371,7 +399,22 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
             
             self._links[i]['a'] = (a_isd, a_as, a_br)
             self._links[i]['b'] = (b_isd, b_as, b_br)
+        
+        # replace border router interface names with border router names in brProperties
 
+        new_brProperties = {}
+
+        for ia in self._brProperties:
+            new_brProperties[ia] = {}
+            for br_if in self._brProperties[ia]:
+                br_id = br_if.split('#')[0]
+                for br in self._br[ia]:
+                    if br_id in br:
+                        br_name = br[br_id]
+                        new_brProperties[ia][br_name] = self._brProperties[ia][br_if]
+
+        self._brProperties = new_brProperties                          
+                
     def _generate_addresses(self):
         """
         Generate IP addresses for cross connect links
@@ -418,7 +461,20 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
             # iterate through border routers
             for br in self._br[f"{isd_num}_{as_num}"]:
                 br_name = next(iter(br.values()))
-                code += f"as_{as_num}_{br_name} = as{as_num}.createRouter('{br_name}').joinNetwork('net0')\n"           
+                code += f"as_{as_num}_{br_name} = as{as_num}.createRouter('{br_name}').joinNetwork('net0')\n"
+
+                # set border router properties
+                if f"{isd_num}_{as_num}" in self._brProperties and br_name in self._brProperties[f"{isd_num}_{as_num}"]:
+                    br_props = self._brProperties[f"{isd_num}_{as_num}"][br_name]
+
+                    if "geo" in br_props:
+                        lat = br_props['geo']['latitude']
+                        lon = br_props['geo']['longitude']
+                        addr = br_props['geo']['address']
+                        code += f"as_{as_num}_{br_name}.setGeo(Lat={lat}, Long={lon}, Address=\"\"\"{addr}\"\"\")\n"
+                    if "note" in br_props:
+                        code += f"as_{as_num}_{br_name}.setNote('{br_props['note']}')\n"
+
                 # create crosslinks for each border router
                 for link in self._links:
                     # check if link is connected to this AS
