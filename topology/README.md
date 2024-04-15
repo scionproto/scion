@@ -6,6 +6,7 @@ Brief description of sections in .topo files
 
 - [ASes Section](#ases-section)
 - [Links Section](#links-section)
+- [borderRouterProperties Section](#border-router-properties-section)
 - [Examples](#examples-section)
 
 ## ASes Section
