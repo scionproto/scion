@@ -79,6 +79,14 @@ func TestUnmarshalJSON(t *testing.T) {
 		"Entry with hop predicates": {
 			Input: `["+ 42", "-"]`,
 		},
+		"Extra entries (first)": {
+			Input:       `["-", "+ 27"]`,
+			ExpectedErr: ErrExtraEntries,
+		},
+		"Extra entries (in the middle)": {
+			Input:       `["+ 42", "-", "+ 27", "- 30"]`,
+			ExpectedErr: ErrExtraEntries,
+		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {

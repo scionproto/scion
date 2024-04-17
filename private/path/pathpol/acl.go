@@ -27,6 +27,8 @@ import (
 var (
 	// ErrNoDefault indicates that there is no default acl entry.
 	ErrNoDefault = errors.New("ACL does not have a default")
+	// ErrExtraEntries indicates that there extra entries after the default entry.
+	ErrExtraEntries = errors.New("ACL has unused extra entries after a default entry")
 )
 
 type ACL struct {
@@ -97,9 +99,26 @@ func (a *ACL) evalInterface(iface snet.PathInterface, ingress bool) ACLAction {
 }
 
 func validateACL(entries []*ACLEntry) error {
-	if len(entries) == 0 || !entries[len(entries)-1].Rule.matchesAll() {
+	if len(entries) == 0 {
 		return ErrNoDefault
 	}
+
+	foundAt := -1
+	for i, e := range entries {
+		if e.Rule.matchesAll() {
+			foundAt = i
+			break
+		}
+	}
+
+	if foundAt < 0 {
+		return ErrNoDefault
+	}
+
+	if foundAt != len(entries)-1 {
+		return ErrExtraEntries
+	}
+
 	return nil
 }
 
