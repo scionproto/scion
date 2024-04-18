@@ -2,7 +2,11 @@ load("//tools/lint:go.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["conn.go"],
+    srcs = [
+        "conn.go",
+        "flags.go",
+        "flags_linux.go",
+    ],
     importpath = "github.com/scionproto/scion/private/underlay/conn",
     visibility = ["//visibility:public"],
     deps = select({
