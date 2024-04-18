@@ -19,24 +19,33 @@
 // to that of glibc's and it has the advantages of being independent from any given libc
 // implementation. musl_libc's implementation, for example performs much worse.
 //
-// TODO(jiceatscion): For now, the whole benchmark is restricted to measuring
-// and predicting an ideal 100% in-cache performance. In the future, we will
-// extend the model to multiple caching circumstances and execute this benchmark with
-// different cache size targets.
+// The copy speed is strongly influenced by caching effects, tlb effects, and the size of
+// the blocks being copied. This benchmark outputs several observations.
+// mmbm_page: MB/s copy rate for a 4096 bytes block is copied, assuming no TLB nor cache misses.
+// mmbm_short: MB/s copy rate for a 172 bytes block is copied, assuming no TLB nor cache misses.
+// mmbm_tlbmiss: The cost (in microsecond) of a TLB miss.
+// mmbm_cachemiss: The cost (in microsecond) of a cache miss.
+// mmbm: The average MB/s copy rate assuming a certain rate of TLB misses (can be used for a
+//
+//	limited performance predictor).
 package main
 
 import (
 	"flag"
 	"fmt"
+	"math"
 	"testing"
 	"unsafe"
 )
 
-// The arena that we play with. We do not necessarily use it all in a given test case.
+// The arena that we play with.
 const allBufs = 8192
 const bufSize = 4096
+const cycleStep = 3 // Must not divide allBuffs, must not be 1.
 
-type block struct {
+// Block is a packet buffer representation arranged to make it easy to copy 1, 172 or 4k bytes.
+// It is exported to prevent go from optimizing fields out.
+type Block struct {
 	packet struct {
 		oneByte uint8
 		theRest [171]uint8
@@ -44,21 +53,22 @@ type block struct {
 	tail [bufSize - 172]uint8
 }
 
-var buf [allBufs]block
+var buf [allBufs]Block
 
-// We arrange to cycle through all the blocks from two sets (much like a steady state
-// saturated router would need to). We go backward in an attempt to defeat a prefetch algorithm.
-// we go 2 by 2 in order to avoid reusing a page (in case buffers are not aligned).
+// We arrange to cycle through all the blocks (much like a steady state saturated router would need
+// to). Treat the buffers as a ring, with source and destination on opposite sides. Adjacent buffers
+// are used as far appart in time as possible (cycleStep != 1). No buffer is left unused (cycleStep
+// not a divisor).
 var last int = 0
 
 func nextPair(max int) (int, int) {
-	last = (last + max - 2) % max
-	return last, (last + max/2) % max // the second one is on the opposite side of the ring.
+	last = (last + max - cycleStep) % max
+	return last, (last + max/2) % max
 }
 
-// Just in case Go would take advantage of the initial zero value, somehow.
-// This also allocates the memory pages and get everything we do not touch
-// out of the cache (and some or all of what we touch in it).
+// writeBuf: prevents go from taking possible advantage of the buffers being all zero.
+// This also allocates the memory pages and get everything we do not touch  out of the cache (and
+// some or all of what we touch in it).
 func writeBuf(numBufs int, cpSize int) {
 	for i := 0; i < numBufs; i++ {
 		buf[i].packet.oneByte = uint8(0)
@@ -71,46 +81,62 @@ func writeBuf(numBufs int, cpSize int) {
 	}
 }
 
-// Copy from a block to another
-func benchmarkCopy(b *testing.B, numBufs int, copySize int) {
-	if copySize == 1 {
-		for i := 0; i < b.N; i++ {
-			dst, src := nextPair(numBufs)
-			buf[dst].packet.oneByte = buf[src].packet.oneByte
-		}
-		return
+// benchmarkCopyByte copies one byte from a block to another
+func benchmarkCopyByte(b *testing.B, numBufs int, copySize int) {
+	for i := 0; i < b.N; i++ {
+		dst, src := nextPair(numBufs)
+		buf[dst].packet.oneByte = buf[src].packet.oneByte
 	}
-	if copySize == 172 {
-		for i := 0; i < b.N; i++ {
-			dst, src := nextPair(numBufs)
-			buf[dst].packet = buf[src].packet
-		}
-		return
-	}
-	if copySize == 4096 {
-		for i := 0; i < b.N; i++ {
-			dst, src := nextPair(numBufs)
-			buf[dst] = buf[src]
-		}
-		return
-	}
-	panic("Size not supported")
+	return
 }
 
-func tc(name string, numBufs int, packetSize int) (float64, float64) {
-	var res testing.BenchmarkResult
-	writeBuf(numBufs, packetSize)
-	res = testing.Benchmark(func(b *testing.B) {
-		benchmarkCopy(b, numBufs, packetSize)
-	})
+// benchmarkCopyPacket copies a short packet from a block to another
+func benchmarkCopyPacket(b *testing.B, numBufs int, copySize int) {
+	for i := 0; i < b.N; i++ {
+		dst, src := nextPair(numBufs)
+		buf[dst].packet = buf[src].packet
+	}
+	return
+}
 
-	bytes := uint64(res.N) * uint64(packetSize)
+// benchmarkCopyBlock copies a short packet from a block to another
+func benchmarkCopyBlock(b *testing.B, numBufs int, copySize int) {
+	for i := 0; i < b.N; i++ {
+		dst, src := nextPair(numBufs)
+		buf[dst] = buf[src]
+	}
+	return
+}
+
+// tc benchmarks one type of copy or another depending on the requested copySize and
+// using a working set of numBuf blocks. It returns a number of mebi bytes per second and
+// a number of million packets per second.
+func tc(name string, numBufs int, copySize int) (float64, float64) {
+	var res testing.BenchmarkResult
+	writeBuf(numBufs, copySize)
+	switch copySize {
+	case 1:
+		res = testing.Benchmark(func(b *testing.B) {
+			benchmarkCopyByte(b, numBufs, copySize)
+		})
+	case 172:
+		res = testing.Benchmark(func(b *testing.B) {
+			benchmarkCopyPacket(b, numBufs, copySize)
+		})
+	case 4096:
+		res = testing.Benchmark(func(b *testing.B) {
+			benchmarkCopyBlock(b, numBufs, copySize)
+		})
+	default:
+		panic("Size not supported")
+	}
+	bytes := uint64(res.N) * uint64(copySize)
 	megaBytes := float64(bytes) / (1024 * 1024)
 
 	mbps := megaBytes / res.T.Seconds()
 	mpps := float64(res.N) / float64(res.T.Microseconds())
 
-	// fmt.Printf("%s (%d, %d): %.2f MB/s %.2f Mpacket/s\n", name, numBufs, packetSize, mbps, mpps)
+	// fmt.Printf("%s (%d, %d): %.2f MB/s %.2f Mpacket/s\n", name, numBufs, copySize, mbps, mpps)
 
 	return mbps, mpps
 }
@@ -135,24 +161,15 @@ func main() {
 	if uintptr(unsafe.Pointer(&buf))&0xFFF != 0 {
 		// If not aligned, each 4k copy touches 4 pages
 		touchPerBlock = 4.0
-		fmt.Printf("TouchPerBlock: %v\n", touchPerBlock)
-	}
-
-	touchPerSmallPkt := 2.0
-	if uintptr(unsafe.Pointer(&buf))&0xFFF > (4096 - 172) {
-		// If a small packet straddles a page boundary we touch 4 pages
-		// per copy.
-		touchPerSmallPkt = 4.0
-		fmt.Printf("TouchPerSmallPkt: %v\n", touchPerSmallPkt)
 	}
 
 	// We use various working set sizes and packet sizes to evaluate the costs of L2 TLB and L2
 	// cache misses:
-	// * L2 TLB size assumed between 1024 (APU2) and 2048 (laptop, CI).
+	// * L2 TLB size assumed between 512 (APU2) and 2048 (laptop, CI).
 	//   Observed behavior is that performance degrades continuously as the working set size goes
-	//   from 1/4 * the TLB size to infinity (as if the replacement policy was purely random). So, we
-	//   ensure zero TLB miss only if using 256 pages or less. There also is no specific threshold
-	//   for the working set. This is true of Intel and AMD.
+	//   from 1/4 * the TLB size to infinity (as if the replacement policy was purely random). So,
+	//   we ensure zero TLB miss only if using 128 pages or less. There also is no specific
+	//   threshold for the working set. This is true of Intel and AMD.
 	// * L2 Cache size assumed between 2M (laptop, APU2) and 4M (CI). That is 32K to 64K lines.
 	//   Observed behaviour is that performance degrades continuously from 2/3 * the cache
 	//   size to infinity for Intel, and from 1/2 * the cache size to 1 * the cache size for AMD.
@@ -180,19 +197,50 @@ func main() {
 	tlbMissTimeUs := (1.0/ohTmMpps - overheadTimeUs) / 2
 	cacheMissTimeUs := (1.0/allMpps - 1.0/ohCpMpps - touchPerBlock*tlbMissTimeUs) / 128
 
-	fmt.Printf("mmbm_page\": %.2f\n", 1000000.0/mbCopyTimeUs)
-	fmt.Printf("mmbm_short\": %.2f\n", 1000000.0/mbShortCopyTimeUs)
-	fmt.Printf("mmbm_tlbmiss\": %.4f\n", tlbMissTimeUs)
-	fmt.Printf("mmbm_cachemiss\": %.4f\n", cacheMissTimeUs)
+	fmt.Printf("\"mmbm_page\": %.2f,\n", 1000000.0/mbCopyTimeUs)
+	fmt.Printf("\"mmbm_short\": %.2f,\n", 1000000.0/mbShortCopyTimeUs)
+	fmt.Printf("\"mmbm_tlbmiss\": %.4f,\n", tlbMissTimeUs)
+	fmt.Printf("\"mmbm_cachemiss\": %.4f,\n", cacheMissTimeUs)
 
-	// Output a simplified measure that may be usable in place of the initial mmbm score.
-	// The router as configured during the benchmark run: 3549 buffers, 172 bytes packets.
-	// Does not fit in TLB but fits in cache. So if we make a prediction of copy performance based
-	// that, it would be applicable to any router with a similar working set... better than nothing.
-	// The number of TLB miss is a function of the number of times the working set exceeds the TLB.
-	// In the cases we know, the TLB is 1024. For a working set of W pages, the probability of TLB
-	// miss is (1 - 1024/N). Since we benchmark only small packets, the working set is one page per
-	// buffer so 3549.
-	smallPktTimeUs := 1.0/ohScMpps + touchPerSmallPkt*(1-1024/3549)*tlbMissTimeUs
-	fmt.Printf("mmbm\": %.2f\n", 172*1000000.0/(1024*1024.0*smallPktTimeUs))
+	// Directly observe the aggregate copy speed of small packets (per our 172 bytes measurement)
+	// for a router with a working set similar to the reference impl (that is 3549 buffers). Note
+	// that on APU2 this is much worse than any of the predictions. It may well be that the APU2 TLB
+	// is actually 1024 as claimed but that the performance is low for another yet to be determined
+	// reason.
+	observedSmallCopyRate, _ := tc("small_packets", 3549, 172)
+
+	// While we're at it, use this to guess the TLB size.
+	// Each copy incurs the base overhead, the short copy time, and 2 * the TLB miss average. No
+	// cache miss. The TLB miss average is a TLB miss time multiplied by the miss probability:
+	// roughly (1 - S/W) where W is the working set and S the TLB size. We predict 2 * miss rate
+	// because the probability that a small packet straddles a page boundary is small.
+	pMiss512TLB := 1.0 - 512.0/3549.0
+	pMiss1kTLB := 1.0 - 1024.0/3549.0
+	pMiss2kTLB := 1.0 - 2048.0/3549.0
+
+	smallPktTimeUs := 1.0/ohScMpps + 2.0*pMiss512TLB*tlbMissTimeUs
+	predictedMmbm512 := 172 * 1000000.0 / (1024 * 1024.0 * smallPktTimeUs)
+
+	smallPktTimeUs = 1.0/ohScMpps + 2.0*pMiss1kTLB*tlbMissTimeUs
+	predictedMmbm1k := 172 * 1000000.0 / (1024 * 1024.0 * smallPktTimeUs)
+
+	smallPktTimeUs = 1.0/ohScMpps + 2.0*pMiss2kTLB*tlbMissTimeUs
+	predictedMmbm2k := 172 * 1000000.0 / (1024 * 1024.0 * smallPktTimeUs)
+
+	tlb_sz := 512
+	closest := math.Abs(predictedMmbm512 - observedSmallCopyRate)
+
+	if math.Abs(predictedMmbm1k-observedSmallCopyRate) < closest {
+		tlb_sz = 1024
+		closest = math.Abs(predictedMmbm1k - observedSmallCopyRate)
+	}
+	if math.Abs(predictedMmbm2k-observedSmallCopyRate) < closest {
+		tlb_sz = 2048
+	}
+	fmt.Printf("\"mmbm_tlbsize\": %d\n", tlb_sz)
+
+	// Output the observed mmbm rate. This can be used for a simplistic predictor at the expanse
+	// of being too tied to our specific router implementation, but it'll have to do until we can
+	// devise more sophisticated predictors using the other data that we output.
+	fmt.Printf("\"mmbm\": %.2f\n", observedSmallCopyRate)
 }

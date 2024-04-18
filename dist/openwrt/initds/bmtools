@@ -29,7 +29,10 @@ start() {
     fi
     
     # Publish
-    echo "{\"coremark\": $coremark, $mmbm}" > /www/horsepower.json
+    echo "{" > /www/horsepower.json
+    echo "\"coremark\": $coremark," >> /www/horsepower.json
+    echo "$mmbm" >> /www/horsepower.json
+    echo "}" >> /www/horsepower.json
 }
 
 stop() {
