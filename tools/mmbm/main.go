@@ -180,23 +180,19 @@ func main() {
 	tlbMissTimeUs := (1.0/ohTmMpps - overheadTimeUs) / 2
 	cacheMissTimeUs := (1.0/allMpps - 1.0/ohCpMpps - touchPerBlock*tlbMissTimeUs) / 128
 
-	fmt.Printf("mmbm\": %.4f\n", 1000000.0/mbCopyTimeUs)
-	fmt.Printf("mmbm_short\": %.4f\n", 1000000.0/mbShortCopyTimeUs)
+	fmt.Printf("mmbm_page\": %.2f\n", 1000000.0/mbCopyTimeUs)
+	fmt.Printf("mmbm_short\": %.2f\n", 1000000.0/mbShortCopyTimeUs)
 	fmt.Printf("mmbm_tlbmiss\": %.4f\n", tlbMissTimeUs)
 	fmt.Printf("mmbm_cachemiss\": %.4f\n", cacheMissTimeUs)
 
-	// For shits and giggles, two predictions...
-
-	// Router as configured during the benchmark run: 3549 buffers, 172 bytes packets.
-	// Does not fit in TLB. Fits in cache. Number of TLB miss is a function of the number of times
-	// the working set exceeds the TLB. In the cases we know, the TLB is 1024. For a working set of
-	// N, the probability of TLB miss is (1 - 1024/N).
-	//
-	// routerPacketTimeUs := 1.0/ohMpps + 1.0/ohScMpps + touchPerSmallPkt*(1-1024/3549)*tlbMissTimeUs
-	// fmt.Printf("Predicted router: %.2f MB/s %.2f Mpacket/s\n",
-	//	172*1000000.0/(1024*1024.0*routerPacketTimeUs), 1.0/routerPacketTimeUs)
-	tc("router", 3549, 172)
-
-	// The same if we had far fewer buffers to churn through.
-	tc("routerfast", 256, 172)
+	// Output a simplified measure that may be usable in place of the initial mmbm score.
+	// The router as configured during the benchmark run: 3549 buffers, 172 bytes packets.
+	// Does not fit in TLB but fits in cache. So if we make a prediction of copy performance based
+	// that, it would be applicable to any router with a similar working set... better than nothing.
+	// The number of TLB miss is a function of the number of times the working set exceeds the TLB.
+	// In the cases we know, the TLB is 1024. For a working set of W pages, the probability of TLB
+	// miss is (1 - 1024/N). Since we benchmark only small packets, the working set is one page per
+	// buffer so 3549.
+	smallPktTimeUs := 1.0/ohScMpps + touchPerSmallPkt*(1-1024/3549)*tlbMissTimeUs
+	fmt.Printf("mmbm\": %.2f\n", 172*1000000.0/(1024*1024.0*smallPktTimeUs))
 }
