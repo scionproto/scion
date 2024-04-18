@@ -90,10 +90,6 @@ type BatchConn interface {
 // DataPlane contains a SCION Border Router's forwarding logic. It reads packets
 // from multiple sockets, performs routing, and sends them to their destinations
 // (after updating the path, if that is needed).
-//
-// XXX(lukedirtwalker): this is still in development and not feature complete.
-// Currently, only the following features are supported:
-//   - initializing connections; MUST be done prior to calling Run
 type DataPlane struct {
 	interfaces        map[uint16]BatchConn
 	external          map[uint16]BatchConn
@@ -131,9 +127,8 @@ var (
 	noSVCBackend                  = errors.New("cannot find internal IP for the SVC")
 	unsupportedPathType           = errors.New("unsupported path type")
 	unsupportedPathTypeNextHeader = errors.New("unsupported combination")
-	noBFDSessionFound             = errors.New("no BFD sessions was found")
+	noBFDSessionFound             = errors.New("no BFD session was found")
 	noBFDSessionConfigured        = errors.New("no BFD sessions have been configured")
-	errBFDDisabled                = errors.New("BFD is disabled")
 	errPeeringEmptySeg0           = errors.New("zero-length segment[0] in peering path")
 	errPeeringEmptySeg1           = errors.New("zero-length segment[1] in peering path")
 	errPeeringNonemptySeg2        = errors.New("non-zero-length segment[2] in peering path")
@@ -206,7 +201,7 @@ func (d *DataPlane) SetKey(key []byte) error {
 // send/receive traffic in the local AS. This can only be called once; future
 // calls will return an error. This can only be called on a not yet running
 // dataplane.
-func (d *DataPlane) AddInternalInterface(conn BatchConn, ip net.IP) error {
+func (d *DataPlane) AddInternalInterface(conn BatchConn, ip netip.Addr) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.running {
@@ -223,34 +218,37 @@ func (d *DataPlane) AddInternalInterface(conn BatchConn, ip net.IP) error {
 	}
 	d.interfaces[0] = conn
 	d.internal = conn
-	var ok bool
-	d.internalIP, ok = netip.AddrFromSlice(ip)
-	if !ok {
-		return serrors.New("invalid ip", "ip", ip)
-	}
+	d.internalIP = ip
 	return nil
 }
 
 // AddExternalInterface adds the inter AS connection for the given interface ID.
 // If a connection for the given ID is already set this method will return an
 // error. This can only be called on a not yet running dataplane.
-func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn) error {
+func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
+	src, dst control.LinkEnd, cfg control.BFD) error {
+
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
+
 	if d.running {
 		return modifyExisting
 	}
-	if conn == nil {
+	if conn == nil || src.Addr == nil || dst.Addr == nil {
 		return emptyValue
 	}
-	if _, exists := d.external[ifID]; exists {
-		return serrors.WithCtx(alreadySet, "ifID", ifID)
+	err := d.addExternalInterfaceBFD(ifID, conn, src, dst, cfg)
+	if err != nil {
+		return serrors.WrapStr("adding external BFD", err, "if_id", ifID)
 	}
 	if d.external == nil {
 		d.external = make(map[uint16]BatchConn)
 	}
 	if d.interfaces == nil {
 		d.interfaces = make(map[uint16]BatchConn)
+	}
+	if _, exists := d.external[ifID]; exists {
+		return serrors.WithCtx(alreadySet, "ifID", ifID)
 	}
 	d.interfaces[ifID] = conn
 	d.external[ifID] = conn
@@ -312,16 +310,11 @@ func (d *DataPlane) AddRemotePeer(local, remote uint16) error {
 }
 
 // AddExternalInterfaceBFD adds the inter AS connection BFD session.
-func (d *DataPlane) AddExternalInterfaceBFD(ifID uint16, conn BatchConn,
+func (d *DataPlane) addExternalInterfaceBFD(ifID uint16, conn BatchConn,
 	src, dst control.LinkEnd, cfg control.BFD) error {
 
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-	if d.running {
-		return modifyExisting
-	}
-	if conn == nil {
-		return emptyValue
+	if *cfg.Disable {
+		return nil
 	}
 	var m bfd.Metrics
 	if d.Metrics != nil {
@@ -358,9 +351,6 @@ func (d *DataPlane) getInterfaceState(interfaceID uint16) control.InterfaceState
 func (d *DataPlane) addBFDController(ifID uint16, s *bfdSend, cfg control.BFD,
 	metrics bfd.Metrics) error {
 
-	if cfg.Disable {
-		return errBFDDisabled
-	}
 	if d.bfdSessions == nil {
 		d.bfdSessions = make(map[uint16]bfdSession)
 	}
@@ -426,41 +416,41 @@ func (d *DataPlane) DelSvc(svc addr.SVC, a *net.UDPAddr) error {
 // AddNextHop sets the next hop address for the given interface ID. If the
 // interface ID already has an address associated this operation fails. This can
 // only be called on a not yet running dataplane.
-func (d *DataPlane) AddNextHop(ifID uint16, a *net.UDPAddr) error {
+func (d *DataPlane) AddNextHop(ifID uint16, src, dst *net.UDPAddr, cfg control.BFD,
+	sibling string) error {
+
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
+
 	if d.running {
 		return modifyExisting
 	}
-	if a == nil {
+	if dst == nil || src == nil {
 		return emptyValue
 	}
-	if _, exists := d.internalNextHops[ifID]; exists {
-		return serrors.WithCtx(alreadySet, "ifID", ifID)
+	err := d.addNextHopBFD(ifID, src, dst, cfg, sibling)
+	if err != nil {
+		return serrors.WrapStr("adding next hop BFD", err, "if_id", ifID)
 	}
 	if d.internalNextHops == nil {
 		d.internalNextHops = make(map[uint16]*net.UDPAddr)
 	}
-	d.internalNextHops[ifID] = a
+	if _, exists := d.internalNextHops[ifID]; exists {
+		return serrors.WithCtx(alreadySet, "ifID", ifID)
+	}
+	d.internalNextHops[ifID] = dst
 	return nil
 }
 
 // AddNextHopBFD adds the BFD session for the next hop address.
 // If the remote ifID belongs to an existing address, the existing
 // BFD session will be re-used.
-func (d *DataPlane) AddNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg control.BFD,
+func (d *DataPlane) addNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg control.BFD,
 	sibling string) error {
 
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-	if d.running {
-		return modifyExisting
+	if *cfg.Disable {
+		return nil
 	}
-
-	if dst == nil {
-		return emptyValue
-	}
-
 	for k, v := range d.internalNextHops {
 		if v.String() == dst.String() {
 			if c, ok := d.bfdSessions[k]; ok {

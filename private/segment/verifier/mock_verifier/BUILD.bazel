@@ -17,6 +17,7 @@ go_library(
     deps = [
         "//pkg/addr:go_default_library",
         "//pkg/proto/crypto:go_default_library",
+        "//pkg/scrypto/cppki:go_default_library",
         "//pkg/scrypto/signed:go_default_library",
         "//private/segment/verifier:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",

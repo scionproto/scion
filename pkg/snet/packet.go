@@ -15,6 +15,8 @@
 package snet
 
 import (
+	"math/rand"
+
 	"github.com/google/gopacket"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -190,6 +192,30 @@ func (SCMPInternalConnectivityDown) Code() slayers.SCMPCode { return 0 }
 
 func (m SCMPInternalConnectivityDown) length() int {
 	return 28 + len(m.Payload)
+}
+
+const (
+	// SCMPIdentifierStart and SCMPIdentiferEnd define the range for Identifiers
+	// that should be used for SCMPEchoRequest and SCMPTracerouteRequest,
+	// in preparation for a dispatcher-less snet.
+	// This range corresponds to the port range used for SCION/UDP by the
+	// dispatcher. Using the same range for Identifiers in SCMP requests will
+	// allow a router to dispatch SCMP requests based on the Identifier,
+	// without risk of interfering with unaware endpoints.
+	//
+	// WARNING: transitional, this will be removed in the dispatcher-less snet.
+	SCMPIdentifierStart = 32768
+	SCMPIdentifierEnd   = 65535
+)
+
+// RandomSCMPIdentifier returns a random SCMP identifier in the range
+// [SCMPIdentifierStart, SCMPIdentifierEnd].
+//
+// WARNING: This is a transitional helper function, which will be removed
+// in the dispatcher-less snet; then, the underlay port must be used as identifier.
+func RandomSCMPIdentifer() uint16 {
+	id := SCMPIdentifierStart + rand.Int31n(SCMPIdentifierEnd-SCMPIdentifierStart+1)
+	return uint16(id)
 }
 
 // SCMPEchoRequest is the SCMP echo request payload.

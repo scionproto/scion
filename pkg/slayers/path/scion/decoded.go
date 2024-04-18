@@ -19,13 +19,6 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/path"
 )
 
-const (
-	// MaxINFs is the maximum number of info fields in a SCION path.
-	MaxINFs = 3
-	// MaxHops is the maximum number of hop fields in a SCION path.
-	MaxHops = 64
-)
-
 // Decoded implements the SCION (data-plane) path type. Decoded is intended to be used in
 // non-performance critical code paths, where the convenience of having a fully parsed path trumps
 // the loss of performance.
@@ -96,9 +89,10 @@ func (s *Decoded) Reverse() (path.Path, error) {
 		return nil, serrors.New("empty decoded path is invalid and cannot be reversed")
 	}
 	// Reverse order of InfoFields and SegLens
-	for i, j := 0, s.NumINF-1; i < j; i, j = i+1, j-1 {
-		s.InfoFields[i], s.InfoFields[j] = s.InfoFields[j], s.InfoFields[i]
-		s.PathMeta.SegLen[i], s.PathMeta.SegLen[j] = s.PathMeta.SegLen[j], s.PathMeta.SegLen[i]
+	if s.NumINF > 1 {
+		l := s.NumINF - 1
+		s.InfoFields[0], s.InfoFields[l] = s.InfoFields[l], s.InfoFields[0]
+		s.PathMeta.SegLen[0], s.PathMeta.SegLen[l] = s.PathMeta.SegLen[l], s.PathMeta.SegLen[0]
 	}
 	// Reverse cons dir flags
 	for i := 0; i < s.NumINF; i++ {

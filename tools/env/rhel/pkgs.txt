@@ -1,3 +1,4 @@
+gawk
 ethtool
 gcc
 g++

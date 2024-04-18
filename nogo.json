@@ -8,7 +8,6 @@
     "composites": {
         "exclude_files": {
             "gazelle/language/go/resolve.go": "",
-            "/io_bazel_rules_docker/": "",
             "/com_github_bazelbuild_buildtools/": "",
             "/com_github_grpc_ecosystem_grpc_opentracing/go/otgrpc/": "",
             "/com_github_vishvananda_netlink/": "",
@@ -156,7 +155,6 @@
             "gazelle/language/proto/gen/gen_known_imports": "",
             "gazelle/cmd/gazelle/gazelle": "",
             "/com_github_bazelbuild_buildtools": "",
-            "/io_bazel_rules_docker/": "",
             "/com_github_oncilla_ineffassign/": ""
         }
     },

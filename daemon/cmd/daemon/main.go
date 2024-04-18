@@ -48,6 +48,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
+	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/launcher"
@@ -365,6 +366,10 @@ func (v acceptAllVerifier) WithServer(net.Addr) infra.Verifier {
 }
 
 func (v acceptAllVerifier) WithIA(addr.IA) infra.Verifier {
+	return v
+}
+
+func (v acceptAllVerifier) WithValidity(cppki.Validity) infra.Verifier {
 	return v
 }
 

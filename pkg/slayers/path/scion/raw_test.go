@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 )
@@ -51,6 +52,19 @@ var emptyRawTestPath = &scion.Raw{
 	Raw: make([]byte, scion.MetaLen),
 }
 
+var overlongPath = &scion.Raw{
+	Base: scion.Base{
+		PathMeta: scion.MetaHdr{
+			CurrINF: 0,
+			CurrHF:  0,
+			SegLen:  [3]uint8{24, 24, 17},
+		},
+		NumINF:  3,
+		NumHops: 65,
+	},
+	Raw: rawPath,
+}
+
 func TestRawSerialize(t *testing.T) {
 	b := make([]byte, rawTestPath.Len())
 	assert.NoError(t, rawTestPath.SerializeTo(b))
@@ -63,12 +77,21 @@ func TestRawDecodeFromBytes(t *testing.T) {
 	assert.Equal(t, rawTestPath, s)
 }
 
-func TestRawSerliazeDecode(t *testing.T) {
+func TestRawSerializeDecode(t *testing.T) {
 	b := make([]byte, rawTestPath.Len())
 	assert.NoError(t, rawTestPath.SerializeTo(b))
 	s := &scion.Raw{}
 	assert.NoError(t, s.DecodeFromBytes(b))
 	assert.Equal(t, rawTestPath, s)
+}
+
+func TestOverlongSerializeDecode(t *testing.T) {
+	b := make([]byte, overlongPath.Len())
+	assert.NoError(t, overlongPath.SerializeTo(b)) // permitted, if only to enable this test.
+	s := &scion.Raw{}
+	expected := serrors.New("NumHops too large", "NumHops", 65, "Maximum", scion.MaxHops)
+	err := s.DecodeFromBytes(b)
+	assert.Equal(t, expected.Error(), err.Error())
 }
 
 func TestRawReverse(t *testing.T) {

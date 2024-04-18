@@ -1,10 +1,10 @@
 [gateway]
 id = "sig1-ff00_0_111"
-traffic_policy_file = "/cfg.json"
+traffic_policy_file = "/etc/scion/cfg.json"
 ctrl_addr = "242.254.200.2"
 
 [sciond_connection]
-fake_data = "/fake_sciond.json"
+fake_data = "/etc/scion/fake_sciond.json"
 
 [log.console]
 level = "debug"
