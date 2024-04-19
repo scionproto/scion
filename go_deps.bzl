@@ -1088,16 +1088,10 @@ def go_deps():
         version = "v0.4.0",
     )
     go_repository(
-        name = "com_github_quic_go_qtls_go1_20",
-        importpath = "github.com/quic-go/qtls-go1-20",
-        sum = "h1:D33340mCNDAIKBqXuAvexTNMUByrYmFYVfKfDN5nfFs=",
-        version = "v0.4.1",
-    )
-    go_repository(
         name = "com_github_quic_go_quic_go",
         importpath = "github.com/quic-go/quic-go",
-        sum = "h1:GYd1iznlKm7dpHD7pOVpUvItgMPo/jrMgDWZhMCecqw=",
-        version = "v0.40.0",
+        sum = "h1:uSfdap0eveIl8KXnipv9K7nlwZ5IqLlYOpJ58u5utpM=",
+        version = "v0.42.0",
     )
     go_repository(
         name = "com_github_ravenox_go_jsoncommentstrip",
@@ -1620,8 +1614,8 @@ def go_deps():
     go_repository(
         name = "org_golang_x_time",
         importpath = "golang.org/x/time",
-        sum = "h1:rg5rLMjNzMS1RkNLzCG38eapWhnYLFYXDXj2gOlr8j4=",
-        version = "v0.3.0",
+        sum = "h1:o7cqy6amK/52YcAKIPlM3a+Fpj35zvRj2TP+e1xFSfk=",
+        version = "v0.5.0",
     )
     go_repository(
         name = "org_golang_x_tools",
@@ -1728,8 +1722,8 @@ def go_deps():
     go_repository(
         name = "org_uber_go_mock",
         importpath = "go.uber.org/mock",
-        sum = "h1:3mUxI1No2/60yUYax92Pt8eNOEecx2D3lcXZh2NEZJo=",
-        version = "v0.3.0",
+        sum = "h1:VcM4ZOtdbR4f6VXfiOpwpVJDL6lCReaZ6mw31wqh7KU=",
+        version = "v0.4.0",
     )
     go_repository(
         name = "org_uber_go_multierr",
