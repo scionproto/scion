@@ -1,7 +1,7 @@
 # Router benchmark observations and predictive model
 
 * Author(s): Jean-Christophe Hugly
-* Last updated: 2024-04-10
+* Last updated: 2024-04-19
 * Discussion at: [#4408](https://github.com/scionproto/scion/issues/4408)
 
 ## TL;DR
@@ -275,7 +275,51 @@ different performance indices for different packet types (although only small va
 
 There is something influencing the performance that the model is not accounting for.
 The CI system has a coremark similar to that of the laptop but much faster memory copy.
-So memory copy may have a greater influence than the model is accouting for. We seem to
-be unwittingly attributing some of the memory performance to the router's implementation.
+So memory copy may have a greater influence than the model is accouting for.
 
-That's as close as I am able to get at the moment.
+### The influence of caches and TLBs
+
+Efforts to improve the precision of the mmbm benchmark showed that trying to model
+the behavior of caches and TLBs is extremely challenging. For example:
+
+* The cache and TLB benefits do not disappear as the working set exceeds the cache/TLB
+  size. Nor are those benefits remain fully realized while the working set remains within
+  cache. The precise behavior varies by CPU model.
+* Page table walks polute the cache for some CPU models, but others have a hidden
+  cache exclusiveley for page table entries.
+* Copying many 1 byte packets within a 128 pages arena takes consistently more time
+  than within an 8192 pages arena in at least one CPU model. The reason for this remains
+  a mystery.
+
+Multiway associative caches, combined with mostly secret replacement policies and
+undocumented caches make it extremely challenging to predict how a given workload
+(even a synthetic one) will perform on a given CPU. So far, this has not been achieved.
+
+By relying on simple macroscopic metric and by tuning empirical parameters, we may
+be able to approximate a cross-hardware router performance index. To that end we need to
+find or tune two additional parameters M and N such that:
+
+`$I = (1 / coremark + M * (8 \times L / C) + N) / pbm(L)$`
+
+M represents the proportion in wich memory performance and arithmetic performance
+contribute to throughput. Such a ratio needs to exist for a translatable performance index.
+
+N represents a fixed hardware-dependent per-packet cost that, judging by the above results
+the model has failed to anticipate. We could speculate that this cost is related to interacting
+with network interfaces. If that is the case, a measure of it needs to be incorporated in our
+suite of microbenchmarks.
+
+Given a known N for three different systems, we could probably infer M. However, N is a
+property of each platform. It has to be measured.
+
+### Application to router improvement
+
+Some of the lessons learned during the benchmarking effort:
+
+* The router performance is probably dominated by TLB misses.
+* The router keeps 9K buffers, which makes 3/4 of all buffers missaligned. That extra 1k is paid with a extra TLB
+  miss.
+* Small packets are dispersed over large buffers. Each small packet requires at least one page access.
+* At steady state, all buffers are eventually occupied, therefore we cycle through the whole set. Since
+  that set is much larger than the cache, we loose all temporal locality: all packets get evicted from
+  the cache, possibly more than once, during processing.
