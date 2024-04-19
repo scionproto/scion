@@ -9,7 +9,8 @@
 * Discussion at: [#3653](https://github.com/scionproto/scion/issues/3653), [#3794](https://github.com/scionproto/scion/issues/3794)
 
 ---
-⚠️  **NOTE** ⚠️<br/>
+⚠️  **NOTE** ⚠️
+
 Outdated contents! This document is kept for historical purpose.
 
 ---
@@ -91,7 +92,7 @@ next AS after AS<sub>i</sub> in the path of the reservation.
 
 1. The *COS* store is queried to admit the segment reservation.
 1. The store decides the admission for the reservation (how much bandwidth). It uses the
-   _traffic_matrix_ from the configuration package.
+   *traffic_matrix* from the configuration package.
 1. The store saves an intermediate reservation entry in the DB.
 1. If this AS is the last one in the path, the *COS* store saves the reservation as final
    and notifies the previous AS in the path with a reservation response.
@@ -105,7 +106,7 @@ ASes. Whenever that configuration changes, the service should be notified.
 1. The service triggers the creation of a new segment reservation at boot time and whenever
    the segment reservation configuration file changes.
 1. The service reads the configuration file and creates a segment reservation request per each entry.
-    * The path used in the request must be obtained using the _path predicate_ in the configuration.
+    * The path used in the request must be obtained using the *path predicate* in the configuration.
 1. The store in the *COS* saves the intermediate request and sends the request to the next AS
    in the path.
 1. If there is a timeout, this store will send a cleanup request to the next AS in the path.

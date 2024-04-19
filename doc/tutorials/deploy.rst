@@ -247,7 +247,7 @@ In practice, the private keys of ASes are of course never revealed to other enti
 
    .. note::
 
-      The script above will generate a new TRC for your ISD and must be done exactly once. Once you deploy such TRC on your machines, further TRC updates must be sequential. If for any reason you need to reset your setup and you need to deploy a fresh new TRC generated with the script above, then you must first delete the local DB files on your hosts (in `/var/lib/scion/`).
+      The script above will generate a new TRC for your ISD and must be done exactly once. Once you deploy such TRC on your machines, further TRC updates must be sequential. If for any reason you need to reset your setup and you need to deploy a fresh new TRC generated with the script above, then you must first delete the local DB files on your hosts (in ``/var/lib/scion/``).
 
 
 #. The just-generated crypto material in can now be copied to the respective AS VMs.

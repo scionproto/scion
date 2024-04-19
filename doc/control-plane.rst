@@ -271,7 +271,7 @@ path-lookup on behalf of applications. This SCION daemon also caches path-segmen
 Path-Segment Combination
 ========================
 
-The last step of the path-resolution process is to combine the available up-, core- and down-
+The last step of the path-resolution process is to combine the available up, core and down
 path segments to end-to-end forwarding paths.
 This path-segment combination process is done by each endpoint separately.
 Typically, end hosts run the :doc:`SCION daemon <manuals/daemon>` which centralizes the

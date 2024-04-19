@@ -1,0 +1,58 @@
+load("@rules_python//python:pip.bzl", "compile_pip_requirements")
+load("@com_github_scionproto_scion_python_doc_deps//:requirements.bzl", "all_requirements", "entry_point", "requirement")
+load("@rules_python//python/entry_points:py_console_script_binary.bzl", "py_console_script_binary")
+load(":lint.bzl", "sphinx_lint_test")
+
+# This BUILD file helps to manage requirements for the sphinx build tools.
+# It assists in building the documentation locally, for developers that already
+# have the bazel setup, as an alternative to manually installing the dependencies from ./requirements.txt.
+#
+# Build the documentation with the accompanying ./Makefile.
+#
+# Note that for builds on the readthedocs infrastructure, this Makefile or bazel is not used!
+# See ../.readthedocs.yaml
+
+compile_pip_requirements(
+    name = "requirements",
+    requirements_in = ":requirements.in",
+    requirements_txt = ":requirements.txt",
+)
+
+# sphinx-build:
+# Needs more than "entry_point" because for the extensions, we need to include more dependencies than the default requirements of the package.
+# Run with all packages from requirements.txt so we don't have to explicitly repeat the required modules.
+py_console_script_binary(
+    name = "sphinx-build",
+    pkg = requirement("sphinx"),  # note: "requirement" is just a shorthand for the :pkg label referencing the py_library
+    script = "sphinx-build",
+    deps = [r for r in all_requirements if r != requirement("sphinx")],  # macro adds "pkg" to deps, filter it out to avoid duplicate value in attribute
+)
+
+# sphinx-autobuild: just like above
+py_console_script_binary(
+    name = "sphinx-autobuild",
+    pkg = requirement("sphinx-autobuild"),
+    script = "sphinx-autobuild",
+    deps = [r for r in all_requirements if r != requirement("sphinx-autobuild")],
+)
+
+# sphinx-lint
+alias(
+    name = "sphinx-lint",
+    actual = entry_point("sphinx-lint"),
+)
+
+sphinx_lint_test(
+    name = "sphinx_lint_test",
+    srcs = glob([
+        "**/*.rst",
+        "**/*.md",
+    ]),
+    args = [
+        "--enable",
+        "all",
+        "--disable",
+        "line-too-long",
+    ],
+    tags = ["lint"],
+)
