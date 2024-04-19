@@ -29,9 +29,14 @@ from urllib.parse import urlencode
 
 logger = logging.getLogger(__name__)
 
-# A magic coefficient used in calculating the performance index.
-# TODO(jchugly): That particular tweak isn't used for now. So, it is set to 1.
-M_CONSTANT = 1
+# TODO(jchugly): this is still a work in progress. There are two unknowns in the model.
+# M_COEF: the proportion by which memory performance contributes to throughput compared to
+# arithmetic performance. NIC_CONSTANT: the fixed cost of the kernel interacting with the hardware
+# to retrieve a frame. That one is hardware dependent and must be found by a third benchmark, so
+# it is not theoretically a constant, but keeping it here to not forget. Until then, our performance
+# index isn't really valid cross-hardware.
+M_COEF = 1
+NIC_CONSTANT = 0
 
 # TODO(jiceatscion): get it from or give it to brload?
 BM_PACKET_LEN = 172
@@ -63,17 +68,18 @@ class Results:
         # TODO(jiceatscion): The perf index assumes that line speed isn't the bottleneck.
         # It almost never is, but ideally we'd need to run iperf3 to verify.
         # mmbm is in mebiBytes/s, rate is in pkt/s
-        return rate * (1.0 / self.coremark + M_CONSTANT * BM_PACKET_LEN / (self.mmbm * 1024 * 1024))
+        return rate * (1.0 / self.coremark +
+                       M_COEF * BM_PACKET_LEN / (self.mmbm * 1024 * 1024) +
+                       NIC_CONSTANT)
 
-    def add_case(self, name: str, rate: int, droppage: int, raw_rate: int):
+    def add_case(self, name: str, rate: int, droppage: int):
         dropRatio = round(float(droppage) / (rate + droppage), 2)
         saturated = dropRatio > 0.03
         perf = 0.0
         if self.cores == 3 and self.coremark and self.mmbm:
             perf = round(self.perf_index(rate), 1)
         self.cases.append({"case": name,
-                           "perf": perf, "rate": rate, "drop": dropRatio, "full": saturated,
-                           "raw": raw_rate})
+                           "perf": perf, "rate": rate, "drop": dropRatio, "full": saturated})
 
     def CI_check(self, expectations: dict[str, int]):
         self.checked = True
@@ -211,32 +217,6 @@ class RouterBM():
             processed = int(float(val))
             break
 
-        # EXPERIMENTAL read the raw packets per second (per the wall-clock time) i.e. the number of
-        # machine*seconds per second is 1; do not attempt to subtract a possible preempted time.
-        prom_query = urlencode({
-            'time': f'{sampleTime}',
-            'query': (
-                'sum by (instance, job) ('
-                f'  rate(router_output_pkts_total{{job="BR", type="{case}"}}[10s])'
-                ')'
-            )
-        })
-        conn = HTTPConnection(self.prom_address)
-        conn.request("GET", f"/api/v1/query?{prom_query}")
-        resp = conn.getresponse()
-        if resp.status != 200:
-            raise RuntimeError(f"Unexpected response: {resp.status} {resp.reason}")
-
-        # There's only one router, so whichever metric we get is the right one.
-        pld = json.loads(resp.read().decode("utf-8"))
-        processed_raw = 0
-        results = pld["data"]["result"]
-        for result in results:
-            ts, val = result["value"]
-            processed_raw = int(float(val))
-            break
-        # EXPERIMENTAL END
-
         # Collect dropped packets metrics, so we can verify that the router was well saturated.
         # If not, the metrics aren't very useful.
         prom_query = urlencode({
@@ -267,7 +247,7 @@ class RouterBM():
             dropped = int(float(val))
             break
 
-        return processed, dropped, processed_raw
+        return processed, dropped
 
     # Fetch and log the number of cores used by Go. This may inform performance
     # modeling later.
@@ -318,8 +298,8 @@ class RouterBM():
         results = Results(cores, self.coremark, self.mmbm)
         for test_case in test_cases:
             logger.info(f"Case: {test_case}")
-            rate, droppage, raw_rate = self.run_test_case(test_case, map_args)
-            results.add_case(test_case, rate, droppage, raw_rate)
+            rate, droppage = self.run_test_case(test_case, map_args)
+            results.add_case(test_case, rate, droppage)
 
         return results
         logger.info("Benchmarked")

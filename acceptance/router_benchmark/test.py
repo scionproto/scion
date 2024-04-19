@@ -363,11 +363,12 @@ class RouterBMTest(base.TestBase, RouterBM):
         try:
             mmbm_exe = self.get_executable("mmbm")
             output = taskset("-c", self.router_cpus[0], mmbm_exe.executable)
-            line = output.splitlines()[-1]
-            if line.startswith("\"mmbm\": "):
-                elems = line.split(" ")
-                if len(elems) >= 2:
-                    self.mmbm = round(float(elems[1]))
+            for line in output.splitlines():
+                if line.startswith("\"mmbm\": "):
+                    elems = line.strip(",").split(" ")
+                    if len(elems) >= 2:
+                        self.mmbm = round(float(elems[1]))
+                    break
         except Exception as e:
             logger.info(e)
 
