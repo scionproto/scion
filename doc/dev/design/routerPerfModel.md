@@ -106,7 +106,8 @@ Observed:
 
 Therefore:
 
-* `$po = t(L) - x(L) = t(m) - x(m) = 1/70K - X \times m = 1/70K - 1520 \times 8 / 1G = 0.000002126 s$`
+* `$po = t(L) - x(L) = t(m) - x(m) = 1/70K - X \times m = 1/70K - 1520 \times 8 / 1G$`
+  `$= 0.000002126 s$`
 * `$t(b) = po + x(b) = po + X \times b = 0.000002126 + 172 \times 8 / 1G = 0.000003502 s$`
 * `$bm(b) = 0.000024 s$`
 
