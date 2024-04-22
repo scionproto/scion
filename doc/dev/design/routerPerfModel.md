@@ -12,7 +12,7 @@ For any hardware platform, given:
 * coremark: The coremark benchmark result on the platform (dimensionless)
 * C: The memmove benchmark result of the platform expressed (in bytes/s)
 * rate: The benchmark result of the router on the platform, using three cores (in pkts/s)
-* M: an experimentally determined constant of value 18500
+* M: an experimentally determined constant of value 400
 * I: a dimensionless number reflecting the router code's performance
 
 At least for L = 172, the following relationship is true:
