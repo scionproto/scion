@@ -1,7 +1,7 @@
 # Router benchmark observations and predictive model
 
 * Author(s): Jean-Christophe Hugly
-* Last updated: 2024-04-19
+* Last updated: 2024-04-22
 * Discussion at: [#4408](https://github.com/scionproto/scion/issues/4408)
 
 ## TL;DR
@@ -94,7 +94,7 @@ Aggregate:
 
 * assume `$bm(L) = MAX(r(L), t(L))$`
 
-## What can be inferred from observations
+## What can be inferred from observations (NUMBERS TO BE UPDATED)
 
 ### APU2
 
@@ -103,7 +103,7 @@ Observed:
 * `$t(m) = 1s/70K$` (106 Mbyte/s, iperf3 with fast machine/nic - assuming full packets)
 * `$bm(b) = 1s/44070$` (benchmark run)
 * `$R = 1Gb/s$` (nominal NIC rate)
-* `$C = 9.8Gb/s$` (mmbm - Go memcpy 8k blocks)
+* `$C = 9.8Gb/s$` (mmbm - Go memmove small packets)
 
 Therefore:
 
@@ -127,7 +127,7 @@ Observed:
 * `$t(m) = 1s/1.4M$` (iperf3 on non-loopback ethernet interface)
 * `$bm(b) = 1s/569718$` (benchmark run)
 * `$R = 17Gb/s$` (same iperf3 run as t(m). Assuming po is neglictible)
-* `$C = 128Gb/s$` (mmbm - Go memcpy 8k blocks)
+* `$C = 128Gb/s$` (mmbm - Go memmove small packets)
 
 Therefore:
 
@@ -235,6 +235,48 @@ If so, that's our platform independent performance index. That is, given a bench
 with known C and coremark, we can find this number and use it to predict the performance of the same
 code on any other platform with known C and coremark.
 
+### The influence of caches and TLBs
+
+Efforts to improve the precision of the mmbm benchmark (which attempts to measure `$C$`
+showed that trying to model the behavior of caches and TLBs is extremely challenging.
+For example:
+
+* The cache and TLB benefits do not disappear as the working set exceeds the cache/TLB
+  size. Nor are those benefits fully realized while the working set remains within the
+  cache size. The precise behavior varies by CPU model.
+* Page table walks polute the cache for some CPU models, but others have a hidden
+  cache exclusiveley for page table entries.
+* Copying many 1 byte packets within a 128 pages arena takes consistently more time
+  than within an 8192 pages arena in at least one CPU model. The reason for this remains
+  a mystery.
+
+Multiway associative caches, combined with mostly secret replacement policies, undocumented
+caches, and intractable activity by the OS and the Go runtime make it extremely challenging
+to predict how a given workload (even a synthetic one) will perform on a given CPU. So far,
+this has not been achieved.
+
+As a distant second best, the mmbm benchmark only measures the copy speed in a handful of
+cases. For the purpose of modeling we use one case that is modeled after what the reference
+router does under benchmark. It is expected to cause non-temporal TLB access but a 100% hit
+rate on the L2 data cache, but that is not reflected reliably in the router's benchmark results.
+
+By relying on these simple macroscopic metric and by tuning empirical parameters, we may
+be able to better approximate a cross-hardware router performance index. To that end we need to
+find or tune two additional parameters M and N such that:
+
+`$I = (1 / coremark + M * (8 \times L / C) + N) / pbm(L)$`
+
+M represents the proportion in wich memory performance and arithmetic performance
+contribute to throughput. Such a ratio needs to exist for a translatable performance index.
+
+N represents a fixed hardware-dependent per-packet cost that, judging by the above results
+the model has failed to anticipate. We could speculate that this cost is related to interacting
+with network interfaces. If that is the case, a measure of it needs to be incorporated in our
+suite of microbenchmarks.
+
+Given a known N for three different systems, we could probably infer M. However, N is a
+property of each platform. It has to be measured.
+
 ## Inferred router performance index
 
 The performance index has to be such that pbm(L) is equal to bm(L) as observed in at least two experiments.
@@ -277,48 +319,13 @@ There is something influencing the performance that the model is not accounting 
 The CI system has a coremark similar to that of the laptop but much faster memory copy.
 So memory copy may have a greater influence than the model is accouting for.
 
-### The influence of caches and TLBs
-
-Efforts to improve the precision of the mmbm benchmark showed that trying to model
-the behavior of caches and TLBs is extremely challenging. For example:
-
-* The cache and TLB benefits do not disappear as the working set exceeds the cache/TLB
-  size. Nor are those benefits remain fully realized while the working set remains within
-  cache. The precise behavior varies by CPU model.
-* Page table walks polute the cache for some CPU models, but others have a hidden
-  cache exclusiveley for page table entries.
-* Copying many 1 byte packets within a 128 pages arena takes consistently more time
-  than within an 8192 pages arena in at least one CPU model. The reason for this remains
-  a mystery.
-
-Multiway associative caches, combined with mostly secret replacement policies and
-undocumented caches make it extremely challenging to predict how a given workload
-(even a synthetic one) will perform on a given CPU. So far, this has not been achieved.
-
-By relying on simple macroscopic metric and by tuning empirical parameters, we may
-be able to approximate a cross-hardware router performance index. To that end we need to
-find or tune two additional parameters M and N such that:
-
-`$I = (1 / coremark + M * (8 \times L / C) + N) / pbm(L)$`
-
-M represents the proportion in wich memory performance and arithmetic performance
-contribute to throughput. Such a ratio needs to exist for a translatable performance index.
-
-N represents a fixed hardware-dependent per-packet cost that, judging by the above results
-the model has failed to anticipate. We could speculate that this cost is related to interacting
-with network interfaces. If that is the case, a measure of it needs to be incorporated in our
-suite of microbenchmarks.
-
-Given a known N for three different systems, we could probably infer M. However, N is a
-property of each platform. It has to be measured.
-
 ### Application to router improvement
 
 Some of the lessons learned during the benchmarking effort:
 
 * The router performance is probably dominated by TLB misses.
-* The router keeps 9K buffers, which makes 3/4 of all buffers missaligned. That extra 1k is paid with a extra TLB
-  miss.
+* The router keeps 9K buffers, which makes 3/4 of all buffers missaligned. That extra 1k is paid with
+  an extra TLB miss.
 * Small packets are dispersed over large buffers. Each small packet requires at least one page access.
 * At steady state, all buffers are eventually occupied, therefore we cycle through the whole set. Since
   that set is much larger than the cache, we loose all temporal locality: all packets get evicted from
