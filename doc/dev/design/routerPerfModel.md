@@ -93,7 +93,7 @@ Aggregate:
 
 * assume `$bm(L) = MAX(r(L), t(L))$`
 
-## What can be inferred from observations (NUMBERS TO BE UPDATED)
+## What can be inferred from observations
 
 ### APU2
 
