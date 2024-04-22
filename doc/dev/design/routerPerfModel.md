@@ -25,28 +25,27 @@ The benchmark was ran on three configurations, the br_transit test case produced
 the following data points:
 
 * An APU2 running openwrt:
-
     * 4 amd cores 1GHz
-    * Coremark (per core) 2821
-    * memmove benchmark 1232 MiB/s (9.8 Gib/s)
+    * Coremark (per core) 3044
+    * memmove benchmark 248 MiB/s (1.9 Gib/s)
     * line rate 70K pkts/s
-    * Observed throughput: 44070
+    * Observed throughput: 45377
 
 * A lenovo laptop running the CI benchmark:
 
     * 10 i7 cores 4GHz
-    * Coremark (per core) 29793
-    * memmove benchmark 7207 MiB/s (58 Gib/s)
+    * Coremark (per core) 29861
+    * memmove benchmark 3928 MiB/s (31 Gib/s)
     * line rate 1.4M pkts/s (veth)
-    * Observed throuhgput: 613180 pkts/s
+    * Observed throuhgput: 639764 pkts/s
 
 * Our CI system running the CI benchmark:
 
     * 4 xeon cores 3.5 GHz
-    * Coremark (per core) 28707
-    * memmove benchmark 9155 MiB/s (73 Gib/s)
+    * Coremark (per core) 28659
+    * memmove benchmark 8102 MiB/s (64 Gib/s)
     * line rate unobserved (veth, assumed similar to laptop)
-    * Observed throuhgput: 729967 pkts/s
+    * Observed throuhgput: 736357 pkts/s
 
 Important: all benchmarks have been run with only 3 cores assigned to the router. The cores are
 chosen by the benchmarking program to be of the same type (i.e. no mix of performance and
@@ -101,9 +100,9 @@ Aggregate:
 Observed:
 
 * `$t(m) = 1s/70K$` (106 Mbyte/s, iperf3 with fast machine/nic - assuming full packets)
-* `$bm(b) = 1s/44070$` (benchmark run)
+* `$bm(b) = 1s/45377$` (benchmark run)
 * `$R = 1Gb/s$` (nominal NIC rate)
-* `$C = 9.8Gb/s$` (mmbm - Go memmove small packets)
+* `$C = 1.9Gb/s$` (mmbm - Go memmove small packets)
 
 Therefore:
 
@@ -118,23 +117,23 @@ Therefore:
 
 * `$r(b) = bm(b)$`
 * `$ro = r(b) - p(b)$`
-* `$ro = bm(b) - Y \times b = 1s / 44070 - 8 \times 172 / 9.9G = .00002396 s$`
+* `$ro = bm(b) - Y \times b = 1s / 45377 - 8 \times 172 / 1.9G = 0.00002131 s$`
 
 ### Laptop local test
 
 Observed:
 
 * `$t(m) = 1s/1.4M$` (iperf3 on non-loopback ethernet interface)
-* `$bm(b) = 1s/569718$` (benchmark run)
+* `$bm(b) = 1s/639764$` (benchmark run)
 * `$R = 17Gb/s$` (same iperf3 run as t(m). Assuming po is neglictible)
-* `$C = 128Gb/s$` (mmbm - Go memmove small packets)
+* `$C = 31Gb/s$` (mmbm - Go memmove small packets)
 
 Therefore:
 
 * `$po = t(L) - x(L) = t(m) - x(m) = 1/1.4M - X \times m = 1/1.4M - 1520 \times 8 / 17G$`
   `$~= 0$` (expected since we neglected po to derive R)
 * `$t(b) = po + x(b) = 0 + X \times b = 172 \times 8 / 17G = 0.00000008 s$`
-* `$bm(b) = 0.000001631$`
+* `$bm(b) = 0.000001563$`
 
 Since bm(b) > t(b) we can conclude that the router isn't processing at line speed, so bm(b) = r(b).
 That is bm(b) reflects the router's code performance.
@@ -143,7 +142,7 @@ Therefore:
 
 * `$r(b) = bm(b)$`
 * `$ro = r(b) - p(b)$`
-* `$ro = bm(b) - Y \times b = 1s/569718 - 8 \times 172 / 128G = .000001075 s$`
+* `$ro = bm(b) - Y \times b = 1s/639764 - 8 \times 172 / 31G = 0.000001519 s$`
 
 ### Assumption of less-than-line-rate
 
@@ -283,41 +282,46 @@ The performance index has to be such that pbm(L) is equal to bm(L) as observed i
 Note that only one type of forwarding is looked at - br_transit. Routers might have
 different performance indices for different packet types (although only small variations are expected).
 
+If we ignore M and N for now, (i.e. M = 1, N = 0), we have the following:
+
 ### APU2
 
-* `$coremark = 2821$`
-* `$C = 9.8Gb/s$`
+* `$coremark = 3044$`
+* `$C = 1.9Gb/s$`
 * `$L = 172$`
-* `$pbm(L) = 1s/44070$`
+* `$pbm(L) = 1s/45377$`
 * `$I = (1 / coremark + (8 \times L / C)) / pbm(L)$`
-  `$= (1 / 2821 + (8 \times 172 / 9.8G)) \times 44070$`
-  `$~= 15.6$`
+  `$= (1 / 3044 + (8 \times 172 / 1.9G)) \times 45377$`
+  `$~= 14.93$`
 
 ### Laptop
 
-* `$coremark = 29793$`
-* `$C = 58Gb/s$`
+* `$coremark = 29851$`
+* `$C = 31Gb/s$`
 * `$L = 172$`
-* `$pbm(L) = 1s/530468$`
+* `$pbm(L) = 1s/639764$`
 * `$I = (1 / coremark + (8 \times L / C)) / pbm(L)$`
-  `$= (1 / 29793 + (8 \times 172 / 58G)) \times 530468$`
-  `$~= 17.81$`
+  `$= (1 / 29851 + (8 \times 172 / 31G)) \times 639864$`
+  `$~= 21.46$`
 
 ### CI system
 
-* `$coremark = 28707$`
-* `$C = 73Gb/s$`
+* `$coremark = 28659$`
+* `$C = 64Gb/s$`
 * `$L = 172$`
-* `$pbm(L) = 1s/729967$`
+* `$pbm(L) = 1s/736357$`
 * `$I = (1 / coremark + (8 \times L / C)) / pbm(L)$`
-  `$= (1 / 28707 + (8 \times 172 / 73G)) \times 729967$`
-  `$~= 25.81$`
+  `$= (1 / 28659 + (8 \times 172 / 64G)) \times 736357$`
+  `$~= 25.7$`
 
-...Rather bad
+...Not close.
 
-There is something influencing the performance that the model is not accounting for.
 The CI system has a coremark similar to that of the laptop but much faster memory copy.
-So memory copy may have a greater influence than the model is accouting for.
+So memory copy may have a greater influence than coremark. In other words, the hypothetical M
+value (see the previous section) is much greater than 1. For example, assuming N=0, a value of
+400 for M yields performance indices of 28, 33 and 32 for APU2, the laptop, and the CI system,
+respectively. So, tuning is at least possible. This is purely speculative, though. We do not
+know if N can be neglected.
 
 ### Application to router improvement
 

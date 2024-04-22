@@ -34,8 +34,10 @@ logger = logging.getLogger(__name__)
 # arithmetic performance. NIC_CONSTANT: the fixed cost of the kernel interacting with the hardware
 # to retrieve a frame. That one is hardware dependent and must be found by a third benchmark, so
 # it is not theoretically a constant, but keeping it here to not forget. Until then, our performance
-# index isn't really valid cross-hardware.
-M_COEF = 1
+# index isn't really valid cross-hardware. M_COEF=400 gives roughly consistent results with the
+# hardware we have. So, using that until we know more.
+
+M_COEF = 400
 NIC_CONSTANT = 0
 
 # TODO(jiceatscion): get it from or give it to brload?
