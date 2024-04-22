@@ -4,7 +4,6 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 import subprocess
-from recommonmark.transform import AutoStructify
 
 # -- Project information -----------------------------------------------------
 
