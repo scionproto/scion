@@ -40,7 +40,7 @@ Active
    uri
    grpc
    BorderRouter
-   routerPerfModel
+   router-perf-model
 
 .. _design-docs-completed:
 
