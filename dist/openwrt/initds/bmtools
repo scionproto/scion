@@ -33,6 +33,11 @@ start() {
     echo "\"coremark\": $coremark," >> /www/horsepower.json
     echo "$mmbm" >> /www/horsepower.json
     echo "}" >> /www/horsepower.json
+
+    # Replace the scion-router initd script with a slightly modified one...
+    # (We need GOMAXPROCS set to a specific value)
+    cp -f /etc/scion/router-initd.default /etc/init.d/scion-router
+    chmod 755 /etc/init.d/scion-router
 }
 
 stop() {

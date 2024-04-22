@@ -99,6 +99,10 @@ ipk_pkg(
     deps = ["tools_ipk"],  # Force sequential build; openwrt make isn't reentrant.
 )
 
+# A note about the strange config file: scion-router-initd: This is a modified
+# version of the the scion-router initd file that will be copied over the normal
+# one by the scion-bmtools initd script. This is so we do not need to create a
+# separate init override mechanism just for the unique case.
 ipk_pkg(
     name = "bmtools_ipk",
     executables = [
@@ -106,6 +110,8 @@ ipk_pkg(
         "@@//tools/coremark:coremark",
     ],  # No _compressed; these are tiny, not Go.
     initds = ["@@//dist/openwrt:initds/bmtools"],
+    configs = ["@@//dist/openwrt:test_configs/router-initd"],
+    configsroot = "@@//dist/openwrt:test_configs",
     overrides = [
         "@@//acceptance/router_benchmark:conf/keys/master0.key",
         "@@//acceptance/router_benchmark:conf/keys/master1.key",
