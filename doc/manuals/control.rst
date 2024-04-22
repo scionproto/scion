@@ -369,7 +369,7 @@ considers the following options.
          # Example
 
          [drkey.delegation]
-         scmp: ["203.0.113.17", "198.51.100.249"]
+         scmp = ["203.0.113.17", "198.51.100.249"]
 
    .. option:: drkey.prefetch_entries = <number> (Default: 10000)
 

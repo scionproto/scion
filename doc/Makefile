@@ -11,8 +11,8 @@
 SPHINX_BUILD	 ?= bazel run //doc:sphinx-build --
 SPHINX_AUTOBUILD ?= bazel run //doc:sphinx-autobuild --
 SPHINXOPTS    ?= -W --keep-going # treat warnings as errors, but process all files when an error occurs
-SOURCEDIR     = $(realpath .)
-BUILDDIR      = $(realpath _build)
+SOURCEDIR     = $(abspath .)
+BUILDDIR      = $(abspath ./_build)
 
 # Build docs with Sphinx using the "make mode" option.
 # Explicitly list the main build targets so they auto-complete in shells.
