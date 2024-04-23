@@ -143,7 +143,7 @@ below.
 
 Seventh, ask the *voting representatives* which voters from the predecessor TRC
 should take part in the voting process. The value will be used to fill the
-``{{.Votes}}`` variable below. Votes contains a sequence of indices of the voting 
+``{{.Votes}}`` variable below. Votes contains a sequence of indices of the voting
 certificates in the predecessor TRC. To find the indices, you can use the ``scion-pki
 trcs human`` command.
 

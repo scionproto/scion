@@ -170,7 +170,7 @@ func TestOpensslCompatible(t *testing.T) {
 			require.NoError(t, err)
 
 			cmd := exec.Command(
-				"docker", "run", "-v", outDir+":"+outDir, "emberstack/openssl",
+				"docker", "run", "--rm", "-v", outDir+":"+outDir, "emberstack/openssl",
 				"openssl",
 				"cms",
 				"-verify",

@@ -126,7 +126,7 @@ Here is an example of a good commit message:
 
    Fixes #3766
 
-- Starts with`<subsystem:>`
+- Starts with ``<subsystem:>``
 - Uses lowercase letters for subject line
 - There is always a reference number to an issue
 

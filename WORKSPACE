@@ -111,6 +111,14 @@ load("@com_github_scionproto_scion_python_deps//:requirements.bzl", install_pyth
 
 install_python_deps()
 
+load("//doc:deps.bzl", "python_doc_deps")
+
+python_doc_deps(python_interpreter)
+
+load("@com_github_scionproto_scion_python_doc_deps//:requirements.bzl", install_python_doc_deps = "install_deps")
+
+install_python_doc_deps()
+
 http_archive(
     name = "rules_pkg",
     sha256 = "8f9ee2dc10c1ae514ee599a8b42ed99fa262b757058f65ad3c384289ff70c4b8",
