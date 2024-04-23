@@ -17,14 +17,12 @@
 # Benchmarking code that is common to the CI benchmark test and the stand-alone
 # benchmark program.
 
-import sys
 import json
 import logging
 
 from collections import namedtuple
 from http.client import HTTPConnection
 from plumbum import cmd
-from plumbum import local
 from urllib.parse import urlencode
 
 logger = logging.getLogger(__name__)
@@ -91,8 +89,8 @@ class Results:
                 slow = tc["rate"] < want
                 unsaturated = not tc["full"]
                 if slow or unsaturated:
-                    failed.append({"case": tc["case"],
-                                   "expected": want, "slow": slow, "unsaturated": unsaturated})
+                    self.failed.append({"case": tc["case"],
+                                        "expected": want, "slow": slow, "unsaturated": unsaturated})
 
     def as_json(self) -> str:
         return json.dumps({
@@ -121,6 +119,7 @@ class Results:
             res += (f"{failure['case']} expected={failure['expected']}"
                     f" slow={failure['slow']} unsaturated={failure['unsaturated']}")
         return res
+
 
 class RouterBM():
     """Evaluates the performance of an external router running the SCION reference implementation.
