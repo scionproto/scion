@@ -16,7 +16,7 @@ In order to accomplish the tool's instructions one will need to:
 * configure two of the subject router's interfaces.
 * connect these interfaces to two interfaces of the host where :program:`benchmark.py` is going to run.
 
-If the subject router is an :term:`X86_64` platform running :term:`Openwrt`, then one should install the package
+If the subject router is an *X86_64* platform running *Openwrt*, then one should install the package
 scion-bmtools, which will not only configure :program:`scion-router` for benchmarking, but will also run
 the coremark and mmbm microbenchmarks and make their results available for pickup by
 :program:`benchmark.py`.
