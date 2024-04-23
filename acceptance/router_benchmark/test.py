@@ -178,6 +178,11 @@ class RouterBMTest(base.TestBase, RouterBM):
     Pretend traffic is injected by brload's. See the test cases for details.
     """
 
+    # TODO(jiceatscion): We construct intf_map during setup and we use it later, during
+    # _run(). As a result, running setup, run, at teardown separately is not possible for
+    # this test. May be it would be possible to reconstruct the map without actually setup the
+    # interfaces, assuming brload isn't being changed in-between.
+
     router_cpus: list[int] = [0]
 
     # Used by the RouterBM mixin:
