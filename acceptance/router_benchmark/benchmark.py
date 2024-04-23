@@ -83,19 +83,18 @@ class RouterBMTool(cli.Application, RouterBM):
     to_flush: list[str] = []
     scrape_addr: str = None
 
-    log_level = cli.SwitchAttr(["l", "loglevel"], str, default = 'warning',
-                              help = "Logging level")
+    log_level = cli.SwitchAttr(["l", "loglevel"], str, default='warning', help="Logging level")
 
     doit = cli.Flag(["r", "run"],
-                    help = "Run the benchmark, as opposed to seeing the instructions.")
+                    help="Run the benchmark, as opposed to seeing the instructions.")
     json = cli.Flag(["j", "json"],
-                    help = "Output the report in json format.")
+                    help="Output the report in json format.")
 
     # Used by the RouterBM mixin:
-    coremark = cli.SwitchAttr(["c", "coremark"], int, default = 0,
-                              help = "The coremark score of the subject machine.")
-    mmbm = cli.SwitchAttr(["m", "mmbm"], int, default = 0,
-                          help = "The mmbm score of the subject machine.")
+    coremark = cli.SwitchAttr(["c", "coremark"], int, default=0,
+                              help="The coremark score of the subject machine.")
+    mmbm = cli.SwitchAttr(["m", "mmbm"], int, default=0,
+                          help="The mmbm score of the subject machine.")
     intf_map: dict[str, Intf] = {}
     brload: LocalCommand = local["./bin/brload"]
     brload_cpus: list[int] = []
@@ -283,9 +282,9 @@ class RouterBMTool(cli.Application, RouterBM):
                 exclusives.append(f"{a} (must reach: #{i})")
             else:
                 multiplexed.append(f"{a} (must reach: #{i})")
-
+        nl = "\n"
         print(f"""
-INSTRUCTIONS: 
+INSTRUCTIONS:
 
 1 - Configure your subject router according to accept/router_benchmark/conf/router.toml")
     If using openwrt, an easy way to do that is to install the bmtools.ipk package. In addition,
@@ -298,7 +297,7 @@ INSTRUCTIONS:
 2 - Configure the following interfaces on your router (The procedure depends on your router
     UI):
     - One physical interface with addresses: {", ".join(multiplexed)}
-{'\n'.join(['    - One physical interface with address: ' + s for s in exclusives])}
+{nl.join(['    - One physical interface with address: ' + s for s in exclusives])}
 
     IMPORTANT: if you're using a partitioned network (eg. multiple switches or no switches),
     the "must reach" annotation matters. The 'h' number is the order in which the corresponding host
@@ -319,7 +318,7 @@ INSTRUCTIONS:
 7 - Execute this script with arguments: --run <interfaces>, where <interfaces> is the list
     of names you collected in step 5. If using a partitioned network, make sure to supply them
     in the order indicated in step 2.
-    
+
     If coremak and mmbm values are available, the report will include a performance index.
 
     If coremark and mmbm are not available from the test subject, you may supply them on the command
@@ -355,6 +354,7 @@ INSTRUCTIONS:
         except SystemExit:
             pass
         return status
+
 
 if __name__ == "__main__":
     RouterBMTool()
