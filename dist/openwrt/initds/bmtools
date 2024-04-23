@@ -15,7 +15,7 @@ start() {
     # coremark
     /usr/bin/scion-coremark > /tmp/coremark.$u.out
     if grep -q "Correct operation validated" /tmp/coremark.$u.out; then
-        coremark=$(grep -s "CoreMark [0-9.]* :" /tmp/coremark.$u.out | awk '{ print $4 }' 2>/dev/null) 
+        coremark=$(grep -s "CoreMark [0-9.]* :" /tmp/coremark.$u.out | awk '{ print $4 }' 2>/dev/null)
     fi
     if [ -z "$coremark" ]; then
         coremark=0
@@ -27,12 +27,14 @@ start() {
     if [ -z "$mmbm" ]; then
         mmbm="\"mmbm\": 0"
     fi
-    
+
     # Publish
-    echo "{" > /www/horsepower.json
-    echo "\"coremark\": $coremark," >> /www/horsepower.json
-    echo "$mmbm" >> /www/horsepower.json
-    echo "}" >> /www/horsepower.json
+    cat <<EOF > /www/horsepower.json
+{
+"coremark": ${coremark},
+${mmbm}
+}
+EOF
 
     # Replace the scion-router initd script with a slightly modified one...
     # (We need GOMAXPROCS set to a specific value)
