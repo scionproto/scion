@@ -1,4 +1,5 @@
 load("//acceptance/common:raw.bzl", "raw_test")
+load("//tools/lint:py.bzl", "py_binary", "py_library")
 load("@com_github_scionproto_scion_python_deps//:requirements.bzl", "requirement")
 
 exports_files(
@@ -39,4 +40,22 @@ raw_test(
     homedir = "$(rootpath //docker:router.tarball)",
     # This test uses sudo and accesses /var/run/netns.
     local = True,
+    deps = ["benchmarklib"],
+)
+
+py_library(
+    name = "benchmarklib",
+    srcs = ["benchmarklib.py"],
+)
+
+# To ensure that the linter runs over this. Cannot actually be run with
+# bazel run; it is meant to be executed from the command line.
+py_binary(
+    name = "benchmark",
+    srcs = ["benchmark.py"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "benchmarklib",
+        requirement("plumbum"),
+    ],
 )
