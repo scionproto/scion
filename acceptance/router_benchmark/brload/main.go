@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -37,7 +38,7 @@ import (
 	"github.com/scionproto/scion/private/keyconf"
 )
 
-type Case func(payload string, mac hash.Hash) (string, string, []byte)
+type Case func(payload []byte, mac hash.Hash) (string, string, []byte)
 
 type caseChoice string
 
@@ -73,6 +74,7 @@ var (
 	logConsole string
 	dir        string
 	numPackets int
+	packetSize int
 	numStreams uint16
 	caseToRun  caseChoice
 	interfaces []string
@@ -98,6 +100,7 @@ func main() {
 		},
 	}
 	runCmd.Flags().IntVar(&numPackets, "num-packets", 10, "Number of packets to send")
+	runCmd.Flags().IntVar(&packetSize, "packet-size", 172, "Total size of each packet sent")
 	runCmd.Flags().Uint16Var(&numStreams, "num-streams", 4,
 		"Number of independent streams (flowID) to use")
 	runCmd.Flags().StringVar(&logConsole, "log.console", "error",
@@ -160,10 +163,14 @@ func run(cmd *cobra.Command) int {
 	registerScionPorts()
 
 	log.Info("BRLoad acceptance tests:")
-
-	payloadString := "actualpayloadbytes"
+	if packetSize < 154 {
+		packetSize = 154
+	}
+	payloadSize := packetSize - 154
+	payload := make([]byte, payloadSize, payloadSize)
+	copy(payload[:], []byte("actualpayloadbytes"))
 	caseFunc := allCases[string(caseToRun)] // key already checked.
-	caseDevIn, caseDevOut, rawPkt := caseFunc(payloadString, hfMAC)
+	caseDevIn, caseDevOut, rawPkt := caseFunc(payload, hfMAC)
 
 	writePktTo, ok := handles[caseDevIn]
 	if !ok {
@@ -186,7 +193,7 @@ func run(cmd *cobra.Command) int {
 	go func() {
 		defer log.HandlePanic()
 		defer close(listenerChan)
-		listenerChan <- receivePackets(packetChan, payloadString)
+		listenerChan <- receivePackets(packetChan, payload)
 	}()
 
 	// We started everything that could be started. So the best window for perf mertics
@@ -240,7 +247,7 @@ func run(cmd *cobra.Command) int {
 // The number of consumed packets is returned.
 // Currently we are content with receiving a single correct packet and we terminate after
 // that.
-func receivePackets(packetChan chan gopacket.Packet, payload string) int {
+func receivePackets(packetChan chan gopacket.Packet, payload []byte) int {
 	numRcv := 0
 
 	for {
@@ -259,7 +266,11 @@ func receivePackets(packetChan chan gopacket.Packet, payload string) int {
 			log.Error("error fetching packet payload: no PayLoad")
 			continue
 		}
-		if string(layer.LayerContents()) == payload {
+		checkLen := len(payload)
+		if checkLen > 20 {
+			checkLen = 20
+		}
+		if bytes.HasPrefix(layer.LayerContents(), payload[:checkLen]) {
 			// To return the count of all packets received, just remove the "return" below.
 			// Return will occur once packetChan closes (which happens after a short timeout at
 			// the end of the test).

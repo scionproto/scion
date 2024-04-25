@@ -34,7 +34,7 @@ import (
 
 // BrTransit generates one packet of "br_transit" traffic over the router under test.
 // The outcome is a raw packet which the test must feed to the router. The flowID field is 0.
-func BrTransit(payload string, mac hash.Hash) (string, string, []byte) {
+func BrTransit(payload []byte, mac hash.Hash) (string, string, []byte) {
 
 	var (
 		originIA       = ISDAS(2)
@@ -119,12 +119,10 @@ func BrTransit(payload string, mac hash.Hash) (string, string, []byte) {
 	scionudp.DstPort = 50000
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
-	payloadBytes := []byte(payload)
-
 	// Prepare input packet
 	input := gopacket.NewSerializeBuffer()
 	if err := gopacket.SerializeLayers(input, options,
-		ethernet, ip, udp, scionL, scionudp, gopacket.Payload(payloadBytes),
+		ethernet, ip, udp, scionL, scionudp, gopacket.Payload(payload),
 	); err != nil {
 		panic(err)
 	}

@@ -34,7 +34,7 @@ import (
 
 // oneInTransit generates one packet of "in_transit" traffic over the router under test.
 // The outcome is a raw packet that the test must feed into the router. The flow ID is 0.
-func InTransit(payload string, mac hash.Hash) (string, string, []byte) {
+func InTransit(payload []byte, mac hash.Hash) (string, string, []byte) {
 
 	var (
 		originIA       = ISDAS(2)
@@ -119,12 +119,10 @@ func InTransit(payload string, mac hash.Hash) (string, string, []byte) {
 	scionudp.DstPort = 50000
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
-	payloadBytes := []byte(payload)
-
 	// Prepare input packet
 	input := gopacket.NewSerializeBuffer()
 	if err := gopacket.SerializeLayers(input, options,
-		ethernet, ip, udp, scionL, scionudp, gopacket.Payload(payloadBytes),
+		ethernet, ip, udp, scionL, scionudp, gopacket.Payload(payload),
 	); err != nil {
 		panic(err)
 	}

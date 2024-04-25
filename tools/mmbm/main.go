@@ -39,11 +39,14 @@ import (
 const allBufs = 8192
 const cycleStep = 5 // Must not divide any working set size, must not be 1.
 
-// Block is a packet buffer representation arranged to make it easy to copy 1, 172 or bufSize
+// Block is a packet buffer representation arranged to make it easy to copy 1, 172 or 4096
 // bytes. It is exported to make sure go cannot optimize fields out.
 type Block struct {
-	packet [172]uint8
-	tail   [4096 - 172]uint8
+	page struct {
+		packet [172]uint8
+		tail   [4096 - 172]uint8
+	}
+	missalign [64]uint8
 }
 
 var buf [allBufs]Block
@@ -64,10 +67,10 @@ func nextPair(max int) (int, int) {
 func writeBuf(numBufs int, cpSize int) {
 	for i := 0; i < numBufs; i++ {
 		for j := 0; j < 172; j++ {
-			buf[i].packet[j] = uint8(j % 256)
+			buf[i].page.packet[j] = uint8(j % 256)
 		}
 		for j := 172; j < cpSize; j++ {
-			buf[i].tail[j-172] = uint8(j % 256)
+			buf[i].page.tail[j-172] = uint8(j % 256)
 		}
 	}
 }
@@ -76,7 +79,7 @@ func writeBuf(numBufs int, cpSize int) {
 func benchmarkCopyByte(N int, numBufs int) {
 	for i := N; i > 0; i-- {
 		dst, src := nextPair(numBufs)
-		buf[dst].packet[0] = buf[src].packet[0]
+		buf[dst].page.packet[0] = buf[src].page.packet[0]
 	}
 }
 
@@ -84,7 +87,7 @@ func benchmarkCopyByte(N int, numBufs int) {
 func benchmarkCopyPacket(N int, numBufs int) {
 	for i := N; i > 0; i-- {
 		dst, src := nextPair(numBufs)
-		buf[dst].packet = buf[src].packet
+		buf[dst].page.packet = buf[src].page.packet
 	}
 }
 
@@ -92,7 +95,7 @@ func benchmarkCopyPacket(N int, numBufs int) {
 func benchmarkCopyBlock(N int, numBufs int) {
 	for i := N; i > 0; i-- {
 		dst, src := nextPair(numBufs)
-		buf[dst] = buf[src]
+		buf[dst].page = buf[src].page
 	}
 }
 
@@ -161,7 +164,7 @@ func main() {
 	largeCacheMiss, _ := tc("largeCacheMiss", 1024, 4096)
 
 	// Per packet, 4k copy, Cache misses, and TLB misses
-	largeAllMiss, _ := tc("largeAllMiss", 8192, 4096)
+	largeAllMiss, _ := tc("largeAllMiss", 3071, 4096)
 
 	// All the results here. Best avoid printfs before. It tickles the gc.
 
