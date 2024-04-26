@@ -164,7 +164,7 @@ class ConfigGenerator(object):
         args = self._seed_args(topo_dicts)
         seed_gen = SeedGenerator(args)
         seed_gen.generate()
-    
+
     def _seed_args(self, topo_dicts):
         return SeedGenArgs(self.args, topo_dicts, self.all_networks)
 
