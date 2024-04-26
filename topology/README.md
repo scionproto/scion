@@ -16,18 +16,18 @@ You can specify different attributes like Core, MTU, certificate issuer and numb
 of services among other things.
 
 **Supported attributes:**
+
 - "core" -- boolean, whether the AS is a core AS
 - "voting" -- boolean
 - "authoritative" -- boolean
 - "issuing" -- boolean, whether the AS is an issuing AS
-- "underlay" -- default is UDP/IPv4, can be set to UDP/IPv6, seed does not support IPv6 underlay for now
+- "underlay" -- default is UDP/IPv4, can be set to UDP/IPv6, seed does not support IPv6 underlay
 - "cert_issuer" -- string, the issuer TRC this attribute is necessary if AS is not core
 - "MTU" -- integer, the internal MTU of the AS used by seed emulator
 - "latency" -- integer, the internal latency in ms of the AS used by seed emulator
 - "bw" -- integer, the internal bandwidth in bit/s of the AS used by seed emulator
 - "drop" -- float, the internal drop rate (% in range(0.0,1.0)) of the AS used by seed emulator
 - "note" -- string, a note for the AS seed emulator will include this in the beacons
-
 
 ## Links Section
 
@@ -56,11 +56,12 @@ In the example above, two links are defined resulting in:
 - BR 1-ff00:0:130 with a single interface
 
 **Supported attributes:**
+
 - "a" -- string, necessary, see above
 - "b" -- string, necessary, see above
 - "linkAtoB" -- string, necessary, the type of link, can be CORE, PEER, CHILD
 - "mtu" -- integer, the MTU of the link
-- "underlay" -- default is UDP/IPv4, can be set to UDP/IPv6, seed does not support IPv6 underlay for now
+- "underlay" -- default is UDP/IPv4, can be set to UDP/IPv6, seed doesn't support IPv6
 - "bw" -- integer, the bandwidth in bit/s of the link used by seed emulator
 - "latency" -- integer, the latency in ms of the link used by seed emulator
 - "drop" -- float, the drop rate (% in range(0.0,1.0)) of the link used by seed emulator
@@ -70,7 +71,7 @@ In the example above, two links are defined resulting in:
 The **opitonal** 'borderRouterProperties' section describes properties of BRs such as Geolocation.
 Entries in the 'borderRouterProperties' section are optional. This means not every BR defined in the links section must appear in the 'borderRouterProperties' section.
 
-To specify a border router one can use the same string identifiers used in the link section as a key. 
+To specify a border router one can use the same string identifiers used in the link section as a key.
 Though watch out as one border router can have several scion interfaces but there can only be one property section for each border router.
 
 Consider the following example from the *default.topo* file for clarification. In the 'links' section these 6 scion interfaces were specified:
@@ -78,7 +79,7 @@ Consider the following example from the *default.topo* file for clarification. I
 ```yaml
 "1-ff00:0:120-A#6"
 "1-ff00:0:120-A#1"
-"1-ff00:0:120-B#2"  
+"1-ff00:0:120-B#2"
 "1-ff00:0:120-B#3"
 "1-ff00:0:120-B#4"
 "1-ff00:0:120#5"
@@ -99,7 +100,7 @@ Notice though how the 6 scion interfaces are connected to only 3 BorderRouters. 
         longitude: 2.2945
         address: "Eiffel Tower\n7th arrondissement\nParis\nFrance"
     note: "This is an arbitrary string"
-"1-ff00:0:120-B#2": 
+"1-ff00:0:120-B#2":
     geo:
         latitude: 48.858222
         longitude: 2.2945
@@ -110,13 +111,14 @@ Notice though how the 6 scion interfaces are connected to only 3 BorderRouters. 
 Notice that instead of *"1-ff00:0:120-B#2"* we could have also specified any other interface attached to the same BorderRouter like *"1-ff00:0:120-B#3"*
 
 **Supported attributes:**
+
 - "geo" -- the geolocation of the Border Router. geo has three arguments latitude, longitude and address. This will be added to the staticInfoConfig.json by the seed emulator if set
-- "note" -- a string that can contain any string. This will be added as a note to the Border Router Node by the seed emulator 
+- "note" -- a string that can contain any string. This will be added as a note to the Border Router Node by the seed emulator
 
 ## Examples
 
 This is a list of examples:
- 
+
 - [tiny.topo](tiny.topo): A simple topology with 3 ASes and 2 links.
 - [tiny4.topo](tiny4.topo): same topology as tiny.topo but using IPv4.
 - [wide.topo](wide.topo)
