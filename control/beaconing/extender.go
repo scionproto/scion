@@ -27,26 +27,28 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
+	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/segment/extensions/digest"
 	"github.com/scionproto/scion/pkg/segment/extensions/epic"
 	"github.com/scionproto/scion/pkg/slayers/path"
+	"github.com/scionproto/scion/private/trust"
 )
 
 // SignerGen generates signers and returns their expiration time.
 type SignerGen interface {
 	// Generate generates a signer it.
-	Generate(ctx context.Context) (Signer, error)
+	Generate(ctx context.Context) ([]Signer, error)
 }
 
 type Signer interface {
 	Sign(context.Context, []byte, ...[]byte) (*cryptopb.SignedMessage, error)
-	GetExpiration() time.Time
+	Validity() cppki.Validity
 }
 
-type SignerGenFunc func(ctx context.Context) (Signer, error)
+type SignerGenFunc func(ctx context.Context) ([]Signer, error)
 
-func (f SignerGenFunc) Generate(ctx context.Context) (Signer, error) {
+func (f SignerGenFunc) Generate(ctx context.Context) ([]Signer, error) {
 	return f(ctx)
 }
 
@@ -109,20 +111,29 @@ func (s *DefaultExtender) Extend(
 	}
 	ts := pseg.Info.Timestamp
 
-	signer, err := s.SignerGen.Generate(ctx)
+	signers, err := s.SignerGen.Generate(ctx)
 	if err != nil {
 		return serrors.WrapStr("getting signer", err)
 	}
+	now := time.Now()
+	signer, err := trust.LastExpiring(signers, cppki.Validity{
+		NotBefore: pseg.Info.Timestamp,
+		NotAfter:  now,
+	})
+	if err != nil {
+		return serrors.WrapStr("selecting signer", err)
+	}
 	// Make sure the hop expiration time is not longer than the signer expiration time.
 	expTime := s.MaxExpTime()
-	if ts.Add(path.ExpTimeToDuration(expTime)).After(signer.GetExpiration()) {
+	signerExp := signer.Validity().NotAfter
+	if ts.Add(path.ExpTimeToDuration(expTime)).After(signerExp) {
 		metrics.GaugeSet(s.SegmentExpirationDeficient, 1)
 		var err error
-		expTime, err = path.ExpTimeFromDuration(signer.GetExpiration().Sub(ts))
+		expTime, err = path.ExpTimeFromDuration(signerExp.Sub(ts))
 		if err != nil {
 			return serrors.WrapStr(
 				"calculating expiry time from signer expiration time", err,
-				"signer_expiration", signer.GetExpiration(),
+				"signer_expiration", signerExp,
 			)
 		}
 	} else {

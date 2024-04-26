@@ -778,8 +778,19 @@ func realMain(ctx context.Context) error {
 		},
 		SegmentRegister: beaconinggrpc.Registrar{Dialer: dialer},
 		BeaconStore:     beaconStore,
-		SignerGen: beaconing.SignerGenFunc(func(ctx context.Context) (beaconing.Signer, error) {
-			return signer.SignerGen.Generate(ctx)
+		SignerGen: beaconing.SignerGenFunc(func(ctx context.Context) ([]beaconing.Signer, error) {
+			signers, err := signer.SignerGen.Generate(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if len(signers) == 0 {
+				return nil, nil
+			}
+			r := make([]beaconing.Signer, 0, len(signers))
+			for _, s := range signers {
+				r = append(r, s)
+			}
+			return r, nil
 		}),
 		Inspector:   inspector,
 		Metrics:     metrics,
@@ -880,7 +891,18 @@ type healther struct {
 }
 
 func (h *healther) GetSignerHealth(ctx context.Context) api.SignerHealthData {
-	signer, err := h.Signer.SignerGen.Generate(ctx)
+	signers, err := h.Signer.SignerGen.Generate(ctx)
+	if err != nil {
+		return api.SignerHealthData{
+			SignerMissing:       true,
+			SignerMissingDetail: err.Error(),
+		}
+	}
+	now := time.Now()
+	signer, err := trust.LastExpiring(signers, cppki.Validity{
+		NotBefore: now,
+		NotAfter:  now,
+	})
 	if err != nil {
 		return api.SignerHealthData{
 			SignerMissing:       true,

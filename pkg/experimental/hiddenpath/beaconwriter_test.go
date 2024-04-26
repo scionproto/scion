@@ -356,8 +356,8 @@ type testSignerGen struct {
 	Signer trust.Signer
 }
 
-func (s testSignerGen) Generate(ctx context.Context) (beaconing.Signer, error) {
-	return s.Signer, nil
+func (s testSignerGen) Generate(ctx context.Context) ([]beaconing.Signer, error) {
+	return []beaconing.Signer{s.Signer}, nil
 }
 
 func interfaceInfos(topo topology.Topology) map[uint16]ifstate.InterfaceInfo {

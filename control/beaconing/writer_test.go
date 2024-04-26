@@ -99,7 +99,7 @@ func TestRegistrarRun(t *testing.T) {
 					Extender: &beaconing.DefaultExtender{
 						IA:         topo.IA(),
 						MTU:        topo.MTU(),
-						SignerGen:  testSignerGen{Signer: testSigner(t, priv, topo.IA())},
+						SignerGen:  testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
 						Intfs:      intfs,
 						MAC:        macFactory,
 						MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
@@ -185,7 +185,7 @@ func TestRegistrarRun(t *testing.T) {
 					Extender: &beaconing.DefaultExtender{
 						IA:         topo.IA(),
 						MTU:        topo.MTU(),
-						SignerGen:  testSignerGen{Signer: testSigner(t, priv, topo.IA())},
+						SignerGen:  testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
 						Intfs:      intfs,
 						MAC:        macFactory,
 						MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
@@ -284,7 +284,7 @@ func TestRegistrarRun(t *testing.T) {
 				Extender: &beaconing.DefaultExtender{
 					IA:         topo.IA(),
 					MTU:        topo.MTU(),
-					SignerGen:  testSignerGen{Signer: testSigner(t, priv, topo.IA())},
+					SignerGen:  testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
 					Intfs:      intfs,
 					MAC:        macFactory,
 					MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
@@ -346,11 +346,15 @@ func testSigner(t *testing.T, priv crypto.Signer, ia addr.IA) trust.Signer {
 }
 
 type testSignerGen struct {
-	Signer trust.Signer
+	Signers []trust.Signer
 }
 
-func (s testSignerGen) Generate(ctx context.Context) (beaconing.Signer, error) {
-	return s.Signer, nil
+func (s testSignerGen) Generate(ctx context.Context) ([]beaconing.Signer, error) {
+	var signers []beaconing.Signer
+	for _, s := range s.Signers {
+		signers = append(signers, s)
+	}
+	return signers, nil
 }
 
 var macFactory = func() hash.Hash {

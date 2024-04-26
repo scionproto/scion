@@ -38,6 +38,7 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/topology"
+	"github.com/scionproto/scion/private/trust"
 )
 
 const (
@@ -69,7 +70,7 @@ func TestOriginatorRun(t *testing.T) {
 			Extender: &beaconing.DefaultExtender{
 				IA:         topo.IA(),
 				MTU:        topo.MTU(),
-				SignerGen:  testSignerGen{Signer: signer},
+				SignerGen:  testSignerGen{Signers: []trust.Signer{signer}},
 				Intfs:      intfs,
 				MAC:        macFactory,
 				MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
@@ -130,7 +131,7 @@ func TestOriginatorRun(t *testing.T) {
 			Extender: &beaconing.DefaultExtender{
 				IA:         topo.IA(),
 				MTU:        topo.MTU(),
-				SignerGen:  testSignerGen{Signer: signer},
+				SignerGen:  testSignerGen{Signers: []trust.Signer{signer}},
 				Intfs:      intfs,
 				MAC:        macFactory,
 				MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },

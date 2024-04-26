@@ -40,6 +40,7 @@ import (
 	segapi "github.com/scionproto/scion/private/mgmtapi/segments/api"
 	"github.com/scionproto/scion/private/storage"
 	beaconstorage "github.com/scionproto/scion/private/storage/beacon"
+	"github.com/scionproto/scion/private/trust"
 )
 
 type BeaconStore interface {
@@ -623,12 +624,26 @@ func (s *Server) SetLogLevel(w http.ResponseWriter, r *http.Request) {
 // GetSigner generates the singer response content.
 func (s *Server) GetSigner(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	p, err := s.Signer.SignerGen.Generate(r.Context())
+	signers, err := s.Signer.SignerGen.Generate(r.Context())
 	if err != nil {
 		ErrorResponse(w, Problem{
 			Detail: api.StringRef(err.Error()),
 			Status: http.StatusInternalServerError,
 			Title:  "Unable to get signer",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	now := time.Now()
+	p, err := trust.LastExpiring(signers, cppki.Validity{
+		NotBefore: now,
+		NotAfter:  now,
+	})
+	if err != nil {
+		ErrorResponse(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "No signer currently valid",
 			Type:   api.StringRef(api.InternalError),
 		})
 		return
@@ -667,12 +682,26 @@ func (s *Server) GetSigner(w http.ResponseWriter, r *http.Request) {
 
 // GetSignerChain generates a certificate chain blob response encoded as PEM.
 func (s *Server) GetSignerChain(w http.ResponseWriter, r *http.Request) {
-	p, err := s.Signer.SignerGen.Generate(r.Context())
+	signers, err := s.Signer.SignerGen.Generate(r.Context())
 	if err != nil {
 		ErrorResponse(w, Problem{
 			Detail: api.StringRef(err.Error()),
 			Status: http.StatusInternalServerError,
 			Title:  "unable to get signer",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	now := time.Now()
+	p, err := trust.LastExpiring(signers, cppki.Validity{
+		NotBefore: now,
+		NotAfter:  now,
+	})
+	if err != nil {
+		ErrorResponse(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "No signer currently valid",
 			Type:   api.StringRef(api.InternalError),
 		})
 		return
