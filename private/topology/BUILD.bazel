@@ -4,7 +4,6 @@ go_library(
     name = "go_default_library",
     srcs = [
         "doc.go",
-        "error.go",
         "interface.go",
         "linktype.go",
         "raw.go",
@@ -47,7 +46,6 @@ go_test(
         "//pkg/private/xtest:go_default_library",
         "//private/topology/json:go_default_library",
         "//private/topology/mock_topology:go_default_library",
-        "//private/topology/underlay:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",

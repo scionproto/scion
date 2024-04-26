@@ -16,8 +16,7 @@
 package topology
 
 var (
-	RawAddrToTopoAddr   = rawAddrToTopoAddr
-	RawBRIntfTopoBRAddr = rawBRIntfTopoBRAddr
+	RawBRIntfLocalAddr = rawBRIntfLocalAddr
 )
 
 // SetFile allows to change the file for testing. This is helpful because we

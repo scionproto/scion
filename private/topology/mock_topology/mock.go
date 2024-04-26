@@ -67,20 +67,6 @@ func (mr *MockTopologyMockRecorder) BR(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BR", reflect.TypeOf((*MockTopology)(nil).BR), arg0)
 }
 
-// BRNames mocks base method.
-func (m *MockTopology) BRNames() []string {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BRNames")
-	ret0, _ := ret[0].([]string)
-	return ret0
-}
-
-// BRNames indicates an expected call of BRNames.
-func (mr *MockTopologyMockRecorder) BRNames() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BRNames", reflect.TypeOf((*MockTopology)(nil).BRNames))
-}
-
 // Core mocks base method.
 func (m *MockTopology) Core() bool {
 	m.ctrl.T.Helper()

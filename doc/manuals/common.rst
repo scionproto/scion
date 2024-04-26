@@ -118,7 +118,7 @@ of the individual fields below.
       "mtu": <int>,
       "border_routers": {
          <router-id>: {
-            "internal_addr": <ip:port>,
+            "internal_addr": <ip|hostname>:<port>,
             "interfaces": {
                # ... interfaces definitions ... (see below)
             }
@@ -127,13 +127,13 @@ of the individual fields below.
       },
       "control_service": {
          <cs-id>: {
-            "addr": <ip:port>
+            "addr": <ip|hostname>:<port>
          }
          # ...
       },
       "discovery_service": {
          <ds-id>: {
-            "addr": <ip:port>
+            "addr": <ip|hostname>:<port>
          }
          # ...
       },
@@ -148,9 +148,8 @@ of the individual fields below.
       "link_to": <"parent"|"child"|"peer"|"core">,
       "mtu": <int>,
       "underlay": {
-         "public": <ip:port>,
-         "bind": <ip>,
-         "remote": <ip:port>,
+         "local": "<ip|hostname>:<port>", # or just ":<port>"
+         "remote": "<ip|hostname:port>",
       },
       "bfd": {              # optional
          "disable": <bool>,
@@ -189,7 +188,7 @@ of the individual fields below.
       Identifier for a border router instance.
       Matches the :option:`general.id <router-conf-toml general.id>` of a router instance.
 
-   .. option:: internal_addr = <ip:port>, required
+   .. option:: internal_addr = <ip|hostname:port>, required
 
       UDP address on which the router receives SCION packets from
       sibling routers and end hosts in this AS.
@@ -250,29 +249,39 @@ of the individual fields below.
          :option:`<router-id> <topology-json <router-id>>`.
 
 
-         The :option:`underlay.public <topology-json public>` is the address of this side of the link,
+         The :option:`underlay.local <topology-json local>` is the address of this side of the link,
          while :option:`underlay.remote <topology-json remote>` is the address of the remote side of the link.
 
          In the configuration for the corresponding interface in the neighbor AS, these
          addresses are exactly swapped.
 
-         .. option:: public = <ip:port>, required
+         .. option:: remote = <ip|hostname>:<port>, required
+
+            The IP/UDP address of the corresponding router interface in the neighbor AS.
+
+         .. option:: local = [<ip|hostname>]:<port>, required
+
+            The IP/UDP address of this router interface.
+            The IP or hostname can be ommitted; in this case the router will just bind to a wildcard
+            address.
+
+         .. option:: public = <ip|hostname>:<port>, deprecated
 
             The IP/UDP address of this router interface.
 
-         .. option:: bind = <ip>, optional
+            .. admonition:: Deprecated
+               :class: caution
 
-            IP address to which the router should :manpage:`bind(2)`.
+               Replaced by :option:`underlay.local <topology-json local>`.
 
-            This can optionally override the the IP in :option:`public <topology-json public>`,
-            for the case that router instance is running in a container, a VM, or generally any kind
-            of NAT.
-            If NAT occurs, :option:`public <topology-json public>` is the address of
-            the interface as seen by the neighbor router, while bind is the local address.
+         .. option:: bind = <ip>, deprecated
 
-         .. option:: remote = <ip:port>, required
+            IP address of this router interface. Overrides IP of :option:`underlay.public <topology-json public>`.
 
-            The IP/UDP address of the corresponding router interface in the neighbor AS.
+            .. admonition:: Deprecated
+               :class: caution
+
+               Replaced by :option:`underlay.local <topology-json local>`.
 
       .. option:: bfd, optional
 
@@ -283,20 +292,22 @@ of the individual fields below.
          instance with :option:`general.id <router-conf-toml general.id>` matching
          :option:`<router-id> <topology-json <router-id>>`.
 
-         .. option:: disable = <bool>, default false
+         .. option:: disable = <bool>, default router.bfd.disable
+
+            See :option:`router.bfd.disabled <router-conf-toml disabled>`.
 
             Disable BFD, unconditionally consider the connection alive.
 
-            Takes precedence over :envvar:`SCION_EXPERIMENTAL_BFD_DISABLE`.
+         .. option:: detect_mult = <uint8>, default router.bfd.detect_mult
 
-         .. option:: detect_mult = <uint8>, default 3
+            See :option:`router.bfd.detect_mult <router-conf-toml detect_mult>`.
 
             After ``detect_mult`` consecutively missing control packets, the BFD session is
             considered "down" and is reset.
 
-            Takes precedence over :envvar:`SCION_EXPERIMENTAL_BFD_DETECT_MULT`.
+         .. option:: desired_min_tx_interval = <duration>, default router.bfd.desired_min_tx_interval
 
-         .. option:: desired_min_tx_interval = <duration>, default 200ms
+            See :option:`router.bfd.disired_min_tx_interval <router-conf-toml desired_min_tx_interval>`.
 
             Defines the frequency at which this router should send BFD control messages for this
             inter-domain link.
@@ -304,17 +315,14 @@ of the individual fields below.
             session establishment;
             the value will be ``max(desired_min_tx_interval, remote.required_min_rx_interval)``.
 
-            Takes precedence over :envvar:`SCION_EXPERIMENTAL_BFD_DESIRED_MIN_TX`.
-
-         .. option:: required_min_rx_interval = <duration>, default 200ms
+         .. option:: required_min_rx_interval = <duration>, default router.bfd.required_min_rx_interval
+            See :option:`router.bfd.required_min_rx_interval <router-conf-toml required_min_rx_interval>`.
 
             Defines an upper bound for the frequency at which this router wants to receive BFD
             control messages for this inter-domain link.
             The effective interval at which the remote router will send control messages is the
             result of negotiating with the remote router during session establishment;
             the value will be ``max(remote.desired_min_tx_interval, required_min_rx_interval)``.
-
-            Takes precedence over :envvar:`SCION_EXPERIMENTAL_BFD_REQUIRED_MIN_RX`.
 
 .. option:: control_service
 
@@ -323,7 +331,7 @@ of the individual fields below.
       Identifier for a control service instance.
       Matches the :option:`general.id <control-conf-toml general.id>` of a control service instance.
 
-   .. option:: addr = <ip:port>, required
+   .. option:: addr = <ip|hostname>:<port>, required
 
       The address of the control service. This is *both* a UDP and TCP address;
 
@@ -342,7 +350,7 @@ of the individual fields below.
          The implementation of the discovery service is part of the control service.
          This usually points to a control service instance.
 
-   .. option:: addr = <ip:port>, required
+   .. option:: addr = <ip|hostname>:<port>, required
 
       See ``control_service.addr``, above.
 

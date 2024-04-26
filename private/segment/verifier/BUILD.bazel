@@ -7,6 +7,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/addr:go_default_library",
+        "//pkg/scrypto/cppki:go_default_library",
         "//pkg/segment:go_default_library",
     ],
 )

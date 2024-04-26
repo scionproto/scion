@@ -86,7 +86,7 @@ class Test(base.TestTopogen):
         with open(scion_dc, "r") as file:
             dc = yaml.load(file, Loader=yaml.FullLoader)
         dc["services"]["tc_setup"] = {
-            "image": "tester:latest",
+            "image": "scion/tester:latest",
             "cap_add": ["NET_ADMIN"],
             "volumes": [{
                 "type": "bind",

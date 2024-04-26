@@ -3,9 +3,10 @@ common --show_timestamps --enable_platform_specific_config
 
 # connect to buchgr/bazel-remote cache
 # These flags can unfortunately not be specified for `common`, as they are not accepted by all subcommands (help, version, dump)
-build --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092
-query --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092
-fetch --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092
+# The --experimental_remote_downloader_local_fallback is used as workaround for issue with rules_oci (https://github.com/bazel-contrib/rules_oci/issues/275).
+build --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092 --experimental_remote_downloader_local_fallback=true
+query --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092 --experimental_remote_downloader_local_fallback=true
+fetch --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092 --experimental_remote_downloader_local_fallback=true
 
 ### options for build, test, run, clean, etc.
 # expose git version (etc) to bazel

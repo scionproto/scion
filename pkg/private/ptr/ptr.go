@@ -1,4 +1,4 @@
-// Copyright 2020 Anapaya Systems
+// Copyright 2024 SCION Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build tools
+package ptr
 
-package enum
-
-import (
-	// rules_docker uses this project as a dependency. We import it explicitly
-	// to overwrite it and force the use of goproxy.
-	// See: https://github.com/bazelbuild/rules_docker/blob/master/repositories/go_repositories.bzl
-	_ "github.com/google/go-containerregistry/cmd/registry"
-)
+// To generates a pointer to a variable containing the given value.
+// In Go, addressible constant is an oxymoron, so the expression "&true", for example, is invalid.
+// This function makes that less annoying.
+func To[T any](v T) *T {
+	return &v
+}

@@ -44,6 +44,7 @@ go_test(
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
+        "//pkg/private/ptr:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/private/xtest:go_default_library",
         "//private/topology:go_default_library",

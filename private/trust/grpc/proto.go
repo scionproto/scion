@@ -28,9 +28,10 @@ import (
 
 func chainQueryToReq(query trust.ChainQuery) *cppb.ChainsRequest {
 	return &cppb.ChainsRequest{
-		IsdAs:        uint64(query.IA),
-		SubjectKeyId: query.SubjectKeyID,
-		Date:         &timestamppb.Timestamp{Seconds: query.Date.UTC().Unix()},
+		IsdAs:             uint64(query.IA),
+		SubjectKeyId:      query.SubjectKeyID,
+		AtLeastValidSince: &timestamppb.Timestamp{Seconds: query.Validity.NotBefore.UTC().Unix()},
+		AtLeastValidUntil: &timestamppb.Timestamp{Seconds: query.Validity.NotAfter.UTC().Unix()},
 	}
 }
 

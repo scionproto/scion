@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"math/rand"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -356,7 +355,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 			DstIA:      dst,
 			LocalIA:    localIA,
 			LocalIP:    cfg.Local,
-			ID:         uint16(rand.Uint32()),
+			ID:         snet.RandomSCMPIdentifer(),
 			Dispatcher: cfg.Dispatcher,
 		}.GetStatuses(ctx, p, pathprobe.WithEPIC(cfg.Epic))
 		if err != nil {

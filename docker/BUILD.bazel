@@ -1,33 +1,32 @@
-load("@io_bazel_rules_docker//container:container.bzl", "container_bundle")
-load(":scion_app.bzl", "scion_app_base", "scion_app_images")
-load(":tester.bzl", "build_tester_image")
+load("@rules_debian_packages//debian_packages:defs.bzl", "debian_packages_lockfile")
+load(":scion_app.bzl", "scion_app_base", "scion_app_image")
+load(":tester.bzl", "scion_tester_image")
+load(":labels.bzl", "scion_labels")
 
-container_bundle(
+filegroup(
     name = "prod",
-    images = {
-        "control:latest": ":control",
-        "daemon:latest": ":daemon",
-        "dispatcher:latest": ":dispatcher",
-        "posix-gateway:latest": ":posix_gateway",
-        "posix-router:latest": "posix_router",
-    },
-    visibility = ["//visibility:public"],
+    srcs = [
+        ":control.tar",
+        ":daemon.tar",
+        ":dispatcher.tar",
+        ":gateway.tar",
+        ":router.tar",
+    ],
 )
 
-container_bundle(
+filegroup(
     name = "test",
-    images = {
-        "tester:latest": ":tester",
-    },
-    visibility = ["//visibility:public"],
+    srcs = [
+        ":tester.tar",
+    ],
 )
+
+scion_labels()
 
 scion_app_base()
 
-build_tester_image()
-
-scion_app_images(
-    name = "posix_router",
+scion_app_image(
+    name = "router",
     src = "//router/cmd/router",
     cmd = [
         "--config",
@@ -36,7 +35,7 @@ scion_app_images(
     entrypoint = ["/app/router"],
 )
 
-scion_app_images(
+scion_app_image(
     name = "control",
     src = "//control/cmd/control",
     cmd = [
@@ -46,7 +45,7 @@ scion_app_images(
     entrypoint = ["/app/control"],
 )
 
-scion_app_images(
+scion_app_image(
     name = "dispatcher",
     src = "//dispatcher/cmd/dispatcher",
     cmd = [
@@ -56,7 +55,7 @@ scion_app_images(
     entrypoint = ["/app/dispatcher"],
 )
 
-scion_app_images(
+scion_app_image(
     name = "daemon",
     src = "//daemon/cmd/daemon",
     cmd = [
@@ -66,8 +65,8 @@ scion_app_images(
     entrypoint = ["/app/daemon"],
 )
 
-scion_app_images(
-    name = "posix_gateway",
+scion_app_image(
+    name = "gateway",
     src = "//gateway/cmd/gateway",
     caps = "cap_net_admin+ei",
     caps_binary = "/app/gateway",
@@ -78,8 +77,20 @@ scion_app_images(
     entrypoint = ["/app/gateway"],
 )
 
-filegroup(
-    name = "tester_files",
-    srcs = glob(["files/*"]),
-    visibility = ["//visibility:public"],
+### Tester image with more tools for scripting in integration tests
+# This is a debian image with additional packages installed. The
+# packages are added to the image as layers created with
+# rules_debian_packages.
+#
+# Generate lockfile with:
+# bazel run //docker:tester_debian_packages.generate
+# Update snapshots with:
+# bazel run //docker:tester_debian_packages.update
+debian_packages_lockfile(
+    name = "tester_debian10_packages",
+    lock_file = "tester_packages.lock",
+    packages_file = "tester_packages.yaml",
+    snapshots_file = "tester_snapshots.yaml",
 )
+
+scion_tester_image()

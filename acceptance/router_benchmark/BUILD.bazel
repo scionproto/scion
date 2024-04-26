@@ -1,19 +1,26 @@
 load("//acceptance/common:raw.bzl", "raw_test")
 
-exports_files([
-    "conf",
-    "test.py",
-])
+exports_files(
+    [
+        "conf",
+        "test.py",
+        "conf/router.toml",
+        "conf/topology.json",
+        "conf/keys/master0.key",
+        "conf/keys/master1.key",
+    ],
+    visibility = ["//visibility:public"],
+)
 
 args = [
     "--executable",
     "brload:$(location //acceptance/router_benchmark/brload:brload)",
-    "--container-loader=posix-router:latest#$(location //docker:posix_router)",
+    "--docker-image=$(location //docker:router.tarball)",
 ]
 
 data = [
     ":conf",
-    "//docker:posix_router",
+    "//docker:router.tarball",
     "//acceptance/router_benchmark/brload:brload",
 ]
 
@@ -22,7 +29,7 @@ raw_test(
     src = "test.py",
     args = args,
     data = data,
-    homedir = "$(rootpath //docker:posix_router)",
+    homedir = "$(rootpath //docker:router.tarball)",
     # This test uses sudo and accesses /var/run/netns.
     local = True,
 )

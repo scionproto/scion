@@ -1,0 +1,12 @@
+[general]
+  id = "brA"
+  config_dir = "/etc/scion"
+
+[features]
+  experimental_scmp_authentication = true
+
+[router.bfd]
+  disable = true
+
+[log.console]
+  level = "debug"

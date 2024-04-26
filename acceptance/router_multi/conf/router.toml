@@ -5,6 +5,5 @@
 [features]
   experimental_scmp_authentication = true
 
-[log]
-  [log.console]
-    level = "debug"
+[log.console]
+  level = "debug"

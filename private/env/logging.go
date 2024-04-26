@@ -19,7 +19,6 @@ import (
 	"os"
 
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
 // Startup* variables are set during link time.
@@ -31,16 +30,11 @@ var (
 // LogAppStarted should be called by applications as soon as logging is
 // initialized.
 func LogAppStarted(svcType, elemID string) error {
-	inDocker, err := RunsInDocker()
-	if err != nil {
-		return serrors.WrapStr("Unable to determine if running in docker", err)
-	}
 	info := fmt.Sprintf("=====================> Service started %s %s\n"+
-		"%s  %s\n  %s\n  %s\n  %s\n",
+		"%s\n  %s\n  %s\n  %s\n",
 		svcType,
 		elemID,
 		VersionInfo(),
-		fmt.Sprintf("In docker:     %v", inDocker),
 		fmt.Sprintf("pid:           %d", os.Getpid()),
 		fmt.Sprintf("euid/egid:     %d %d", os.Geteuid(), os.Getegid()),
 		fmt.Sprintf("cmd line:      %q", os.Args),

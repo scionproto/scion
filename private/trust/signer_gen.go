@@ -105,10 +105,14 @@ func (s *SignerGen) bestForKey(ctx context.Context, key crypto.Signer,
 	if err != nil {
 		return nil, err
 	}
+	now := time.Now()
 	chains, err := s.DB.Chains(ctx, ChainQuery{
 		IA:           s.IA,
 		SubjectKeyID: skid,
-		Date:         time.Now(),
+		Validity: cppki.Validity{
+			NotBefore: now,
+			NotAfter:  now,
+		},
 	})
 	if err != nil {
 		// TODO	metrics.Signer.Generate(l.WithResult(metrics.ErrDB)).Inc()
