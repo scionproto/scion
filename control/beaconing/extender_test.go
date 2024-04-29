@@ -101,7 +101,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 			}
 			ext := &beaconing.DefaultExtender{
 				IA:        topo.IA(),
-				SignerGen: testSignerGen{Signer: testSigner(t, priv, topo.IA())},
+				SignerGen: testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
 				MAC: func() hash.Hash {
 					mac, err := scrypto.InitMac(make([]byte, 16))
 					require.NoError(t, err)
@@ -174,7 +174,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 		require.NoError(t, err)
 		ext := &beaconing.DefaultExtender{
 			IA:        topo.IA(),
-			SignerGen: testSignerGen{Signer: testSigner(t, priv, topo.IA())},
+			SignerGen: testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
 			MAC: func() hash.Hash {
 				mac, err := scrypto.InitMac(make([]byte, 16))
 				require.NoError(t, err)
@@ -202,11 +202,11 @@ func TestDefaultExtenderExtend(t *testing.T) {
 		}{
 			"signer expires before max expiration time": {
 				SignerGen: testSignerGen{
-					Signer: func() trust.Signer {
+					Signers: []trust.Signer{func() trust.Signer {
 						s := testSigner(t, priv, topo.IA())
 						s.Expiration = ts.Add(path.MaxTTL / 2)
 						return s
-					}(),
+					}()},
 				},
 				ExpTime:      127,
 				MaxExpTime:   func() uint8 { return 255 },
@@ -214,11 +214,11 @@ func TestDefaultExtenderExtend(t *testing.T) {
 			},
 			"signer expires after max expiration time": {
 				SignerGen: testSignerGen{
-					Signer: func() trust.Signer {
+					Signers: []trust.Signer{func() trust.Signer {
 						s := testSigner(t, priv, topo.IA())
 						s.Expiration = ts.Add(path.MaxTTL)
 						return s
-					}(),
+					}()},
 				},
 				ExpTime:      254,
 				MaxExpTime:   func() uint8 { return 254 },
@@ -226,11 +226,11 @@ func TestDefaultExtenderExtend(t *testing.T) {
 			},
 			"minimum signer expiration time": {
 				SignerGen: testSignerGen{
-					Signer: func() trust.Signer {
+					Signers: []trust.Signer{func() trust.Signer {
 						s := testSigner(t, priv, topo.IA())
 						s.Expiration = ts.Add(path.MaxTTL / 256)
 						return s
-					}(),
+					}()},
 				},
 				ExpTime:      0,
 				MaxExpTime:   func() uint8 { return 10 },
@@ -238,22 +238,22 @@ func TestDefaultExtenderExtend(t *testing.T) {
 			},
 			"signer expiration time too small": {
 				SignerGen: testSignerGen{
-					Signer: func() trust.Signer {
+					Signers: []trust.Signer{func() trust.Signer {
 						s := testSigner(t, priv, topo.IA())
 						s.Expiration = ts.Add(path.MaxTTL / 257)
 						return s
-					}(),
+					}()},
 				},
 				MaxExpTime:   func() uint8 { return 10 },
 				ErrAssertion: assert.Error,
 			},
 			"signer expiration time too large uses MaxExpTime": {
 				SignerGen: testSignerGen{
-					Signer: func() trust.Signer {
+					Signers: []trust.Signer{func() trust.Signer {
 						s := testSigner(t, priv, topo.IA())
 						s.Expiration = ts.Add(2 * path.MaxTTL)
 						return s
-					}(),
+					}()},
 				},
 				ExpTime:      157,
 				MaxExpTime:   func() uint8 { return 157 },
@@ -338,8 +338,10 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				defer mctrl.Finish()
 				intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 				ext := &beaconing.DefaultExtender{
-					IA:        topo.IA(),
-					SignerGen: testSignerGen{Signer: testSigner(t, priv, topo.IA())},
+					IA: topo.IA(),
+					SignerGen: testSignerGen{
+						Signers: []trust.Signer{testSigner(t, priv, topo.IA())},
+					},
 					MAC: func() hash.Hash {
 						mac, err := scrypto.InitMac(make([]byte, 16))
 						require.NoError(t, err)
