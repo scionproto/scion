@@ -695,7 +695,7 @@ func (s *Server) GetSignerChain(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	now := time.Now()
+	now := s.now()
 	p, err := trust.LastExpiring(signers, cppki.Validity{
 		NotBefore: now,
 		NotAfter:  now,
