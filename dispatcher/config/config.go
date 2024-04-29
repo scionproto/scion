@@ -78,6 +78,9 @@ type Dispatcher struct {
 	config.NoDefaulter
 	// ID is the SCION element ID of the shim dispatcher.
 	ID string `toml:"id,omitempty"`
+	// IsDispatcher is the flag indicating whether the shim acts as dispatcher for packets arriving
+	// to the fix endhost port. Otherwise, it will only reply to SCMPInfo packets.
+	IsDispatcher bool `toml:"is_dispatcher,omitempty"`
 	// ServiceAddresses is the map of IA,SVC -> underlay UDP/IP address.
 	// The map should be configured provided that the shim dispatcher runs colocated to such
 	// mapped services, e.g., the shim dispatcher runs on the same host,

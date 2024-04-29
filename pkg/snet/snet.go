@@ -236,5 +236,6 @@ func listenUDPRange(addr *net.UDPAddr, start, end uint16) (*net.UDPConn, error) 
 		}
 		return nil, err
 	}
-	return nil, serrors.WrapStr("binding to port range", syscall.EADDRINUSE, "port_range start", restrictedStart, "port_range end", end)
+	return nil, serrors.WrapStr("binding to port range", syscall.EADDRINUSE,
+		"start", restrictedStart, "end", end)
 }

@@ -30,6 +30,7 @@ import (
 
 type testCase struct {
 	Name           string
+	IsDispatcher   bool
 	ClientAddrPort netip.AddrPort
 	DispAddrPort   netip.AddrPort
 	Pkt            *snet.Packet
@@ -42,7 +43,7 @@ func testRunTestCase(t *testing.T, tc testCase) {
 	defer serverConn.Close()
 	setIPPktInfo(serverConn)
 	emptyTopo := make(map[addr.Addr]netip.AddrPort)
-	server := NewServer(emptyTopo, serverConn)
+	server := NewServer(tc.IsDispatcher, emptyTopo, serverConn)
 
 	clientConn, err := net.DialUDP(
 		"udp",
@@ -59,8 +60,11 @@ func testRunTestCase(t *testing.T, tc testCase) {
 	oobuf := make([]byte, 1024)
 	n, nn, _, nextHop, err := server.conn.ReadMsgUDPAddrPort(buf, oobuf)
 	require.NoError(t, err)
-	underlayAddr := server.parseUnderlayAddr(oobuf[:nn])
-	require.NotNil(t, underlayAddr)
+	var underlayAddr netip.Addr
+	if tc.IsDispatcher {
+		underlayAddr = server.parseUnderlayAddr(oobuf[:nn])
+		require.NotNil(t, underlayAddr)
+	}
 	_, dstAddr, err := server.processMsgNextHop(buf[:n], underlayAddr, nextHop)
 	assert.NoError(t, err)
 	assert.Equal(t, tc.ExpectedValue, dstAddr.IsValid())
@@ -83,6 +87,7 @@ func TestValidateAddr(t *testing.T) {
 	testCases := []testCase{
 		{
 			Name:           "valid UDP/IPv4",
+			IsDispatcher:   true,
 			ClientAddrPort: clientAddrPort,
 			DispAddrPort:   dispIPv4AddrPort,
 			Pkt: &snet.Packet{
@@ -106,6 +111,7 @@ func TestValidateAddr(t *testing.T) {
 		},
 		{
 			Name:           "invalid UDP/IPv4",
+			IsDispatcher:   true,
 			ClientAddrPort: clientAddrPort,
 			DispAddrPort:   dispIPv4AddrPort,
 			Pkt: &snet.Packet{
@@ -129,6 +135,7 @@ func TestValidateAddr(t *testing.T) {
 		},
 		{
 			Name:           "valid SCMP/IPv4",
+			IsDispatcher:   true,
 			ClientAddrPort: clientAddrPort,
 			DispAddrPort:   dispIPv4AddrPort,
 			Pkt: &snet.Packet{
@@ -164,6 +171,7 @@ func TestValidateAddr(t *testing.T) {
 		},
 		{
 			Name:           "invalid SCMP/IPv4",
+			IsDispatcher:   true,
 			ClientAddrPort: clientAddrPort,
 			DispAddrPort:   dispIPv4AddrPort,
 			Pkt: &snet.Packet{
@@ -199,6 +207,7 @@ func TestValidateAddr(t *testing.T) {
 		},
 		{
 			Name:           "valid UDP/IPv6",
+			IsDispatcher:   true,
 			ClientAddrPort: clientIPv6AddrPort,
 			DispAddrPort:   dispIPv6AddrPort,
 			Pkt: &snet.Packet{
@@ -222,6 +231,7 @@ func TestValidateAddr(t *testing.T) {
 		},
 		{
 			Name:           "invalid UDP/IPv6",
+			IsDispatcher:   true,
 			ClientAddrPort: clientIPv6AddrPort,
 			DispAddrPort:   dispIPv6AddrPort,
 			Pkt: &snet.Packet{
@@ -245,6 +255,7 @@ func TestValidateAddr(t *testing.T) {
 		},
 		{
 			Name:           "valid SCMP/IPv6",
+			IsDispatcher:   true,
 			ClientAddrPort: clientIPv6AddrPort,
 			DispAddrPort:   dispIPv6AddrPort,
 			Pkt: &snet.Packet{
@@ -280,6 +291,7 @@ func TestValidateAddr(t *testing.T) {
 		},
 		{
 			Name:           "invalid SCMP/IPv6",
+			IsDispatcher:   true,
 			ClientAddrPort: clientIPv6AddrPort,
 			DispAddrPort:   dispIPv6AddrPort,
 			Pkt: &snet.Packet{
@@ -315,6 +327,7 @@ func TestValidateAddr(t *testing.T) {
 		},
 		{
 			Name:           "IPv4-mapped-IPv6 to IPv4",
+			IsDispatcher:   true,
 			ClientAddrPort: clientAddrPort,
 			DispAddrPort:   dispIPv4AddrPort,
 			Pkt: &snet.Packet{
@@ -335,6 +348,30 @@ func TestValidateAddr(t *testing.T) {
 				},
 			},
 			ExpectedValue: true,
+		},
+		{
+			Name:           "isn't dispatcher",
+			IsDispatcher:   false,
+			ClientAddrPort: clientAddrPort,
+			DispAddrPort:   dispIPv4AddrPort,
+			Pkt: &snet.Packet{
+				PacketInfo: snet.PacketInfo{
+					Source: snet.SCIONAddress{
+						IA:   xtest.MustParseIA("1-ff00:0:2"),
+						Host: clientHost,
+					},
+					Destination: snet.SCIONAddress{
+						IA:   xtest.MustParseIA("1-ff00:0:1"),
+						Host: dispIPv4Host,
+					},
+					Payload: snet.UDPPayload{
+						SrcPort: 20001,
+						DstPort: 40001,
+					},
+					Path: path.Empty{},
+				},
+			},
+			ExpectedValue: false,
 		},
 	}
 	for _, test := range testCases {

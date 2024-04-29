@@ -200,6 +200,7 @@ class GoGenerator(object):
         tomlDict = {
             'dispatcher': {
                 'id': name,
+                'is_dispatcher': True,
                 'underlay_addr': DEFAULT_DISP_UNDERLAY_ADDR,
             },
             'log': self._log_entry(name),

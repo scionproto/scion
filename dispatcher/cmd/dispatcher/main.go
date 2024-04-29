@@ -62,6 +62,7 @@ func realMain(ctx context.Context) error {
 	g.Go(func() error {
 		defer log.HandlePanic()
 		return RunDispatcher(
+			globalCfg.Dispatcher.IsDispatcher,
 			globalCfg.Dispatcher.ServiceAddresses,
 			globalCfg.Dispatcher.UnderlayAddr,
 		)
@@ -128,9 +129,14 @@ func realMain(ctx context.Context) error {
 	}
 }
 
-func RunDispatcher(svcAddrs map[addr.Addr]netip.AddrPort, underlayAddr netip.AddrPort) error {
-	log.Debug("Dispatcher starting", "localAddr", underlayAddr)
-	return dispatcher.ListenAndServe(svcAddrs, net.UDPAddrFromAddrPort(underlayAddr))
+func RunDispatcher(
+	isDispatcher bool,
+	svcAddrs map[addr.Addr]netip.AddrPort,
+	underlayAddr netip.AddrPort,
+) error {
+
+	log.Debug("Dispatcher starting", "localAddr", underlayAddr, "dispatcher feature", isDispatcher)
+	return dispatcher.ListenAndServe(isDispatcher, svcAddrs, net.UDPAddrFromAddrPort(underlayAddr))
 }
 
 func requiredIPs() ([]net.IP, error) {

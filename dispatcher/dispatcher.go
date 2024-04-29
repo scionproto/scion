@@ -38,7 +38,10 @@ const ErrUnsupportedL4 common.ErrMsg = "unsupported SCION L4 protocol"
 // from legacy BR to the final endhost application and to handle SCMP
 // info packets destined to this endhost.
 type Server struct {
-	conn *net.UDPConn
+	// isDispatcher indicates whether the shim acts as SCION packet
+	// dispatcher
+	isDispatcher bool
+	conn         *net.UDPConn
 	// topo keeps the topology for the local AS. It can keep multiple ASes
 	// in case we run several topologies locally, e.g., developer environment.
 
@@ -61,8 +64,13 @@ type Server struct {
 }
 
 // NewServer creates new instance of Server.
-func NewServer(svcAddrs map[addr.Addr]netip.AddrPort, conn *net.UDPConn) *Server {
+func NewServer(
+	isDispatcher bool,
+	svcAddrs map[addr.Addr]netip.AddrPort,
+	conn *net.UDPConn,
+) *Server {
 	server := Server{
+		isDispatcher:     isDispatcher,
 		ServiceAddresses: svcAddrs,
 		buf:              make([]byte, common.SupportedMTU),
 		oobuf:            make([]byte, 1024),
@@ -83,7 +91,12 @@ func NewServer(svcAddrs map[addr.Addr]netip.AddrPort, conn *net.UDPConn) *Server
 	)
 	parser.IgnoreUnsupported = true
 	server.parser = parser
-	server.conn, server.cmParser = setIPPktInfo(conn)
+	// if the dispatcher feature is enabled, we enable IP_PKTINFO; see
+	// description of setIPPktInfo for more information.
+	server.conn = conn
+	if isDispatcher {
+		server.conn, server.cmParser = setIPPktInfo(conn)
+	}
 	server.scionLayer.RecyclePaths()
 	server.udpLayer.SetNetworkLayerForChecksum(&server.scionLayer)
 	server.scmpLayer.SetNetworkLayerForChecksum(&server.scionLayer)
@@ -101,11 +114,14 @@ func (s *Server) Serve() error {
 			continue
 		}
 
-		underlay := s.parseUnderlayAddr(s.oobuf[:nn])
-		if !underlay.IsValid() {
-			// some error parsing the CM info from the incoming packet;
-			// we discard the packet and keep serving.
-			continue
+		var underlay netip.Addr
+		if s.isDispatcher {
+			underlay = s.parseUnderlayAddr(s.oobuf[:nn])
+			if !underlay.IsValid() {
+				// some error parsing the CM info from the incoming packet;
+				// we discard the packet and keep serving.
+				continue
+			}
 		}
 
 		outBuf, nextHopAddr, err := s.processMsgNextHop(s.buf[:n], underlay, prevHop)
@@ -160,10 +176,25 @@ func (s *Server) processMsgNextHop(
 		return nil, netip.AddrPort{}, err
 	}
 
+	// If the dispatcher feature flag is disabled we only process SCMPInfo packets
+	if !s.isDispatcher {
+		if s.decoded[len(s.decoded)-1] != slayers.LayerTypeSCMP {
+			log.Debug("Dispatcher feature is disabled, shim discards non-SCMPInfo packets",
+				"received", s.decoded[len(s.decoded)-1])
+			return nil, netip.AddrPort{}, nil
+		}
+		if s.scmpLayer.TypeCode.Type() != slayers.SCMPTypeTracerouteRequest &&
+			s.scmpLayer.TypeCode.Type() != slayers.SCMPTypeEchoRequest {
+			log.Debug("Dispatcher feature is disabled, shim discards non-SCMPInfo packets",
+				"received", s.scmpLayer.TypeCode.Type())
+			return nil, netip.AddrPort{}, nil
+		}
+	}
+
+	var dstAddrPort netip.AddrPort
 	// Retrieve DST UDP/SCION addr and compare to underlay address if it applies,
 	// i.e., all cases expect SCMPInfo request messages, which are to be replied
 	// by the shim dispatcher itself.
-	var dstAddrPort netip.AddrPort
 	switch s.decoded[len(s.decoded)-1] {
 	case slayers.LayerTypeSCMP:
 		// send response to BR
@@ -442,14 +473,19 @@ func (s *Server) parseUnderlayAddr(oobuffer []byte) netip.Addr {
 	return netip.Addr{}
 }
 
-func ListenAndServe(svcAddrs map[addr.Addr]netip.AddrPort, addr *net.UDPAddr) error {
+func ListenAndServe(
+	isDispatcher bool,
+	svcAddrs map[addr.Addr]netip.AddrPort,
+	addr *net.UDPAddr,
+) error {
+
 	conn, err := net.ListenUDP(addr.Network(), addr)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 	log.Debug(fmt.Sprintf("local address: %s", conn.LocalAddr()))
-	dispServer := NewServer(svcAddrs, conn)
+	dispServer := NewServer(isDispatcher, svcAddrs, conn)
 
 	return dispServer.Serve()
 }
