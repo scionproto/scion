@@ -52,10 +52,13 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["api_test.go"],
+    srcs = [
+        "api_test.go",
+        "export_test.go",
+    ],
     data = glob(["testdata/**"]),
+    embed = [":go_default_library"],
     deps = [
-        ":go_default_library",
         "//control/beacon:go_default_library",
         "//control/mgmtapi/mock_mgmtapi:go_default_library",
         "//control/trust:go_default_library",
