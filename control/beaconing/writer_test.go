@@ -97,9 +97,11 @@ func TestRegistrarRun(t *testing.T) {
 			r := beaconing.WriteScheduler{
 				Writer: &beaconing.LocalWriter{
 					Extender: &beaconing.DefaultExtender{
-						IA:         topo.IA(),
-						MTU:        topo.MTU(),
-						SignerGen:  testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
+						IA:  topo.IA(),
+						MTU: topo.MTU(),
+						SignerGen: testSignerGen{
+							Signers: []trust.Signer{testSigner(t, priv, topo.IA())},
+						},
 						Intfs:      intfs,
 						MAC:        macFactory,
 						MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
@@ -183,9 +185,11 @@ func TestRegistrarRun(t *testing.T) {
 			r := beaconing.WriteScheduler{
 				Writer: &beaconing.RemoteWriter{
 					Extender: &beaconing.DefaultExtender{
-						IA:         topo.IA(),
-						MTU:        topo.MTU(),
-						SignerGen:  testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
+						IA:  topo.IA(),
+						MTU: topo.MTU(),
+						SignerGen: testSignerGen{
+							Signers: []trust.Signer{testSigner(t, priv, topo.IA())},
+						},
 						Intfs:      intfs,
 						MAC:        macFactory,
 						MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
@@ -282,9 +286,11 @@ func TestRegistrarRun(t *testing.T) {
 		r := beaconing.WriteScheduler{
 			Writer: &beaconing.RemoteWriter{
 				Extender: &beaconing.DefaultExtender{
-					IA:         topo.IA(),
-					MTU:        topo.MTU(),
-					SignerGen:  testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
+					IA:  topo.IA(),
+					MTU: topo.MTU(),
+					SignerGen: testSignerGen{
+						Signers: []trust.Signer{testSigner(t, priv, topo.IA())},
+					},
 					Intfs:      intfs,
 					MAC:        macFactory,
 					MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },

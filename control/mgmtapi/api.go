@@ -91,6 +91,9 @@ type Server struct {
 	Topology       http.HandlerFunc
 	TrustDB        storage.TrustDB
 	Healther       Healther
+
+	// nowProvider can be set during tests to control the current time.
+	nowProvider func() time.Time
 }
 
 // UnpackBeaconUsages extracts the Usage's bits as snake case string constants for the API.
@@ -634,7 +637,7 @@ func (s *Server) GetSigner(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	now := time.Now()
+	now := s.now()
 	p, err := trust.LastExpiring(signers, cppki.Validity{
 		NotBefore: now,
 		NotAfter:  now,
@@ -701,7 +704,7 @@ func (s *Server) GetSignerChain(w http.ResponseWriter, r *http.Request) {
 		ErrorResponse(w, Problem{
 			Detail: api.StringRef(err.Error()),
 			Status: http.StatusInternalServerError,
-			Title:  "No signer currently valid",
+			Title:  "no signer currently valid",
 			Type:   api.StringRef(api.InternalError),
 		})
 		return
@@ -832,6 +835,13 @@ func (s *Server) GetHealth(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+}
+
+func (s *Server) now() time.Time {
+	if s.nowProvider != nil {
+		return s.nowProvider()
+	}
+	return time.Now()
 }
 
 // Error creates an detailed error response.

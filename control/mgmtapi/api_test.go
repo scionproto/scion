@@ -287,8 +287,12 @@ func TestAPI(t *testing.T) {
 						SignerGen: g,
 					},
 				}
+				notBefore := time.Unix(1611051121, 0).UTC()
+				notAfter := time.Unix(1611061121, 0).UTC()
+				now := notBefore.Add(time.Minute)
+				s.SetNowProvider(func() time.Time { return now })
 				g.EXPECT().Generate(gomock.Any()).AnyTimes().Return(
-					trust.Signer{
+					[]trust.Signer{{
 						IA:        xtest.MustParseIA("1-ff00:0:110"),
 						Algorithm: signed.ECDSAWithSHA512,
 						Subject: pkix.Name{
@@ -301,13 +305,13 @@ func TestAPI(t *testing.T) {
 							Serial: 42,
 							Base:   1,
 						},
-						Expiration: time.Unix(1611061121, 0).UTC(),
+						Expiration: notAfter,
 						ChainValidity: cppki.Validity{
-							NotBefore: time.Unix(1611051121, 0).UTC(),
-							NotAfter:  time.Unix(1611061121, 0).UTC(),
+							NotBefore: notBefore,
+							NotAfter:  notAfter,
 						},
 						InGrace: true,
-					}, nil,
+					}}, nil,
 				)
 				return api.Handler(s)
 			},
@@ -323,7 +327,7 @@ func TestAPI(t *testing.T) {
 					},
 				}
 				g.EXPECT().Generate(gomock.Any()).AnyTimes().Return(
-					trust.Signer{}, serrors.New("internal"),
+					nil, serrors.New("internal"),
 				)
 				return api.Handler(s)
 			},
@@ -340,9 +344,14 @@ func TestAPI(t *testing.T) {
 				}
 				validCert, _ := cppki.ReadPEMCerts(filepath.Join("testdata", "signer-chain.crt"))
 				g.EXPECT().Generate(gomock.Any()).AnyTimes().Return(
-					trust.Signer{
-						Chain: validCert,
-					}, nil,
+					[]trust.Signer{{
+						Chain:      validCert,
+						Expiration: time.Now().Add(time.Hour),
+						ChainValidity: cppki.Validity{
+							NotBefore: time.Now(),
+							NotAfter:  time.Now().Add(time.Hour),
+						},
+					}}, nil,
 				)
 				return api.Handler(s)
 			},
@@ -358,7 +367,7 @@ func TestAPI(t *testing.T) {
 					},
 				}
 				g.EXPECT().Generate(gomock.Any()).AnyTimes().Return(
-					trust.Signer{}, nil,
+					[]trust.Signer{{}}, nil,
 				)
 				return api.Handler(s)
 			},

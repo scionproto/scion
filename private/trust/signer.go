@@ -156,7 +156,9 @@ func (s Signer) Equal(o Signer) bool {
 
 // LastExpiring returns the Signer with the latest expiration time that covers
 // the given validity. If no signer is found an error is returned.
-func LastExpiring[T interface{ Validity() cppki.Validity }](signers []T, validity cppki.Validity) (T, error) {
+func LastExpiring[T interface{ Validity() cppki.Validity }](
+	signers []T, validity cppki.Validity,
+) (T, error) {
 	// First find candidates that cover the given period.
 	var candidates []T
 	for _, s := range signers {

@@ -47,21 +47,30 @@ func TestChachingSignerGen(t *testing.T) {
 				gen := mock_trust.NewMockSignerGen(mctrl)
 				gen.EXPECT().Generate(gomock.Any()).Return(
 					[]trust.Signer{{
-						ChainValidity: cppki.Validity{NotBefore: exp.Add(-10 * time.Minute), NotAfter: exp},
-						Expiration:    exp,
+						ChainValidity: cppki.Validity{
+							NotBefore: exp.Add(-10 * time.Minute),
+							NotAfter:  exp,
+						},
+						Expiration: exp,
 					}}, nil,
 				)
 				return gen
 			},
 			FirstErr: assert.NoError,
 			FirstSigner: []trust.Signer{{
-				ChainValidity: cppki.Validity{NotBefore: exp.Add(-10 * time.Minute), NotAfter: exp},
-				Expiration:    exp,
+				ChainValidity: cppki.Validity{
+					NotBefore: exp.Add(-10 * time.Minute),
+					NotAfter:  exp,
+				},
+				Expiration: exp,
 			}},
 			SecondErr: assert.NoError,
 			SecondSigner: []trust.Signer{{
-				ChainValidity: cppki.Validity{NotBefore: exp.Add(-10 * time.Minute), NotAfter: exp},
-				Expiration:    exp,
+				ChainValidity: cppki.Validity{
+					NotBefore: exp.Add(-10 * time.Minute),
+					NotAfter:  exp,
+				},
+				Expiration: exp,
 			}},
 		},
 		"valid, regenerate after interval": {
@@ -70,27 +79,39 @@ func TestChachingSignerGen(t *testing.T) {
 				gen := mock_trust.NewMockSignerGen(mctrl)
 				gen.EXPECT().Generate(gomock.Any()).Return(
 					[]trust.Signer{{
-						ChainValidity: cppki.Validity{NotBefore: exp.Add(-10 * time.Minute), NotAfter: exp},
-						Expiration:    exp,
+						ChainValidity: cppki.Validity{
+							NotBefore: exp.Add(-10 * time.Minute),
+							NotAfter:  exp,
+						},
+						Expiration: exp,
 					}}, nil,
 				)
 				gen.EXPECT().Generate(gomock.Any()).Return(
 					[]trust.Signer{{
-						ChainValidity: cppki.Validity{NotBefore: exp.Add(-10 * time.Minute), NotAfter: exp},
-						Expiration:    otherExp,
+						ChainValidity: cppki.Validity{
+							NotBefore: exp.Add(-10 * time.Minute),
+							NotAfter:  exp,
+						},
+						Expiration: otherExp,
 					}}, nil,
 				)
 				return gen
 			},
 			FirstErr: assert.NoError,
 			FirstSigner: []trust.Signer{{
-				ChainValidity: cppki.Validity{NotBefore: exp.Add(-10 * time.Minute), NotAfter: exp},
-				Expiration:    exp,
+				ChainValidity: cppki.Validity{
+					NotBefore: exp.Add(-10 * time.Minute),
+					NotAfter:  exp,
+				},
+				Expiration: exp,
 			}},
 			SecondErr: assert.NoError,
 			SecondSigner: []trust.Signer{{
-				ChainValidity: cppki.Validity{NotBefore: exp.Add(-10 * time.Minute), NotAfter: exp},
-				Expiration:    otherExp,
+				ChainValidity: cppki.Validity{
+					NotBefore: exp.Add(-10 * time.Minute),
+					NotAfter:  exp,
+				},
+				Expiration: otherExp,
 			}},
 		},
 		"first fails, second cached": {
@@ -116,8 +137,11 @@ func TestChachingSignerGen(t *testing.T) {
 				)
 				gen.EXPECT().Generate(gomock.Any()).Return(
 					[]trust.Signer{{
-						ChainValidity: cppki.Validity{NotBefore: exp.Add(-10 * time.Minute), NotAfter: exp},
-						Expiration:    exp,
+						ChainValidity: cppki.Validity{
+							NotBefore: exp.Add(-10 * time.Minute),
+							NotAfter:  exp,
+						},
+						Expiration: exp,
 					}}, nil,
 				)
 				return gen
@@ -126,8 +150,11 @@ func TestChachingSignerGen(t *testing.T) {
 			FirstSigner: nil,
 			SecondErr:   assert.NoError,
 			SecondSigner: []trust.Signer{{
-				ChainValidity: cppki.Validity{NotBefore: exp.Add(-10 * time.Minute), NotAfter: exp},
-				Expiration:    exp,
+				ChainValidity: cppki.Validity{
+					NotBefore: exp.Add(-10 * time.Minute),
+					NotAfter:  exp,
+				},
+				Expiration: exp,
 			}},
 		},
 		"second fails, serve cached": {
@@ -136,8 +163,11 @@ func TestChachingSignerGen(t *testing.T) {
 				gen := mock_trust.NewMockSignerGen(mctrl)
 				gen.EXPECT().Generate(gomock.Any()).Return(
 					[]trust.Signer{{
-						ChainValidity: cppki.Validity{NotBefore: exp.Add(-10 * time.Minute), NotAfter: exp},
-						Expiration:    exp,
+						ChainValidity: cppki.Validity{
+							NotBefore: exp.Add(-10 * time.Minute),
+							NotAfter:  exp,
+						},
+						Expiration: exp,
 					}}, nil,
 				)
 				gen.EXPECT().Generate(gomock.Any()).Return(
@@ -147,13 +177,19 @@ func TestChachingSignerGen(t *testing.T) {
 			},
 			FirstErr: assert.NoError,
 			FirstSigner: []trust.Signer{{
-				ChainValidity: cppki.Validity{NotBefore: exp.Add(-10 * time.Minute), NotAfter: exp},
-				Expiration:    exp,
+				ChainValidity: cppki.Validity{
+					NotBefore: exp.Add(-10 * time.Minute),
+					NotAfter:  exp,
+				},
+				Expiration: exp,
 			}},
 			SecondErr: assert.NoError,
 			SecondSigner: []trust.Signer{{
-				ChainValidity: cppki.Validity{NotBefore: exp.Add(-10 * time.Minute), NotAfter: exp},
-				Expiration:    exp,
+				ChainValidity: cppki.Validity{
+					NotBefore: exp.Add(-10 * time.Minute),
+					NotAfter:  exp,
+				},
+				Expiration: exp,
 			}},
 		},
 	}

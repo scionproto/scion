@@ -338,8 +338,10 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				defer mctrl.Finish()
 				intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})
 				ext := &beaconing.DefaultExtender{
-					IA:        topo.IA(),
-					SignerGen: testSignerGen{Signers: []trust.Signer{testSigner(t, priv, topo.IA())}},
+					IA: topo.IA(),
+					SignerGen: testSignerGen{
+						Signers: []trust.Signer{testSigner(t, priv, topo.IA())},
+					},
 					MAC: func() hash.Hash {
 						mac, err := scrypto.InitMac(make([]byte, 16))
 						require.NoError(t, err)
