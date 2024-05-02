@@ -258,7 +258,9 @@ func receivePackets(packetChan chan gopacket.Packet, payload []byte) int {
 			return numRcv
 		}
 		if err := got.ErrorLayer(); err != nil {
-			log.Error("error decoding packet", "err", err)
+			// This isn't an error. There is all sort of traffic that we might not know about
+			// and not be able to read.
+			// log.Error("error decoding packet", "err", err)
 			continue
 		}
 		layer := got.Layer(gopacket.LayerTypePayload)

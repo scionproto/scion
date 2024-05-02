@@ -316,7 +316,7 @@ class RouterBMTest(base.TestBase, RouterBM):
             peer_mac = mac_for_ip(req.peer_ip)
             mac = mac_for_ip(req.ip)
             sudo("ip", "link", "add", host_intf, "type", "veth", "peer", "name", br_intf)
-            sudo("ip", "link", "set", host_intf, "mtu", "8000")
+            sudo("ip", "link", "set", host_intf, "mtu", "9000")
             sudo("ip", "link", "set", host_intf, "arp", "off")  # Make sure the real addr isn't used
 
             # Do not assign the host addresses but create one link-local addr.
@@ -327,7 +327,7 @@ class RouterBMTest(base.TestBase, RouterBM):
 
             sudo("sysctl", "-qw", f"net.ipv6.conf.{host_intf}.disable_ipv6=1")
             sudo("ethtool", "-K", br_intf, "rx", "off", "tx", "off")
-            sudo("ip", "link", "set", br_intf, "mtu", "8000")
+            sudo("ip", "link", "set", br_intf, "mtu", "9000")
             sudo("ip", "link", "set", br_intf, "address", mac)
 
             # The network namespace

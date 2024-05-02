@@ -38,8 +38,7 @@ logger = logging.getLogger(__name__)
 M_COEF = 400
 NIC_CONSTANT = 0
 
-# TODO(jiceatscion): get it from or give it to brload?
-BM_PACKET_LEN = 172
+BM_PACKET_LEN = 2048
 
 # Intf: description of an interface configured for brload's use. Depending on context
 # mac and peermac may be unused. "mac" is the MAC address configured on the side of the subject
@@ -163,8 +162,9 @@ class RouterBM():
             "--artifacts", self.artifacts,
             *map_args,
             "--case", case,
-            "--num-packets", str(count),
+            "--num-packets", f"{count}",
             "--num-streams", "840",
+            "--packet-size", f"{BM_PACKET_LEN}",
         ]
         if self.brload_cpus:
             brload_args = [
@@ -176,7 +176,7 @@ class RouterBM():
     def run_test_case(self, case: str, map_args: list[str]) -> (int, int):
         logger.debug(f"==> Starting load {case}")
 
-        output = self.exec_br_load(case, map_args, 10000000)
+        output = self.exec_br_load(case, map_args, 20000000)
         beg = "0"
         end = "0"
         for line in output.splitlines():
@@ -289,7 +289,7 @@ class RouterBM():
         # Run one test (30% size) as warm-up to trigger any frequency scaling, else the first test
         # can get much lower performance.
         logger.debug("Warmup")
-        self.exec_br_load(test_cases[0], map_args, 3000000)
+        self.exec_br_load(test_cases[0], map_args, 6000000)
 
         # Fetch the core count once. It doesn't change while the router is running.
         # We can't get it until the router has done some work, but the warmup is enough.
@@ -300,7 +300,7 @@ class RouterBM():
         for test_case in test_cases:
             logger.info(f"Case: {test_case}")
             rate, droppage = self.run_test_case(test_case, map_args)
-            results.add_case(test_case, rate, droppage)
+            results.add_case(test_case, rate or 1, droppage)
 
         return results
         logger.info("Benchmarked")
