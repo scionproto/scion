@@ -83,30 +83,25 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 		return 0, nil, serrors.WrapStr("creating reply path", err)
 	}
 
-	if c.local.IA != pkt.Destination.IA {
-		return 0, nil, serrors.New("packet is destined to a different IA",
-			"local IA", c.local.IA,
-			"pkt.Destination.IA", pkt.Destination.IA)
-	}
-	localAddr, ok := netip.AddrFromSlice(c.local.Host.IP)
-	if !ok {
-		panic("unexpected error converting local address IP")
-	}
-	// XXX(JordiSubira): We explicitly forbid nil or unspecified address in the current constructor
-	// for Conn.
-	// If this were ever to change, we would always fall into the following if statement, then
-	// we would like to replace this logic (e.g., using IP_PKTINFO, with its caveats).
-	if localAddr != pkt.Destination.Host.IP() {
-		return 0, nil, serrors.New("packet is destined to a different host",
-			"local address", localAddr,
-			"pkt.Destination.Host", pkt.Source.Host.IP())
-	}
-
 	udp, ok := pkt.Payload.(UDPPayload)
 	if !ok {
 		return 0, nil, serrors.New("unexpected payload", "type", common.TypeOf(pkt.Payload))
 	}
-	n := copy(b, udp.Payload)
+
+	// XXX(JordiSubira): We explicitly forbid nil or unspecified address in the current constructor
+	// for Conn.
+	// If this were ever to change, we would always fall into the following if statement, then
+	// we would like to replace this logic (e.g., using IP_PKTINFO, with its caveats).
+	pktAddrPort := netip.AddrPortFrom(pkt.Destination.Host.IP(), udp.DstPort)
+	if c.local.IA != pkt.Destination.IA ||
+		c.local.Host.AddrPort() != pktAddrPort {
+		return 0, nil, serrors.New("packet is destined to a different host",
+			"local ia", c.local.IA,
+			"local host", c.local.Host,
+			"pkt destination IA", pkt.Destination.IA,
+			"pkt destination host", pktAddrPort,
+		)
+	}
 
 	// Extract remote address.
 	// Copy the address data to prevent races. See
@@ -120,6 +115,7 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 		Path:    replyPath,
 		NextHop: CopyUDPAddr(&lastHop),
 	}
+	n := copy(b, udp.Payload)
 	return n, remote, nil
 }
 
