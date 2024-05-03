@@ -95,6 +95,8 @@ class RouterBMTool(cli.Application, RouterBM):
                               help="The coremark score of the subject machine.")
     mmbm = cli.SwitchAttr(["m", "mmbm"], int, default=0,
                           help="The mmbm score of the subject machine.")
+    packet_size = cli.SwitchAttr(["s", "size"], int, default=172,
+                                 help="Test packet size (includes all headers - floored at 154).")
     intf_map: dict[str, Intf] = {}
     brload: LocalCommand = local["./bin/brload"]
     brload_cpus: list[int] = []

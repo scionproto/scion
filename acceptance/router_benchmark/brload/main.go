@@ -71,13 +71,13 @@ var (
 		"out_transit": cases.OutTransit,
 		"br_transit":  cases.BrTransit,
 	}
-	logConsole string
-	dir        string
-	numPackets int
-	packetSize int
-	numStreams uint16
-	caseToRun  caseChoice
-	interfaces []string
+	logConsole   string
+	dir          string
+	testDuration time.Duration
+	packetSize   int
+	numStreams   uint16
+	caseToRun    caseChoice
+	interfaces   []string
 )
 
 func main() {
@@ -99,7 +99,7 @@ func main() {
 			os.Exit(run(cmd))
 		},
 	}
-	runCmd.Flags().IntVar(&numPackets, "num-packets", 10, "Number of packets to send")
+	runCmd.Flags().DurationVar(&testDuration, "duration", time.Second*15, "Test duration")
 	runCmd.Flags().IntVar(&packetSize, "packet-size", 172, "Total size of each packet sent")
 	runCmd.Flags().Uint16Var(&numStreams, "num-streams", 4,
 		"Number of independent streams (flowID) to use")
@@ -167,7 +167,7 @@ func run(cmd *cobra.Command) int {
 		packetSize = 154
 	}
 	payloadSize := packetSize - 154
-	payload := make([]byte, payloadSize, payloadSize)
+	payload := make([]byte, payloadSize)
 	copy(payload[:], []byte("actualpayloadbytes"))
 	caseFunc := allCases[string(caseToRun)] // key already checked.
 	caseDevIn, caseDevOut, rawPkt := caseFunc(payload, hfMAC)
@@ -199,24 +199,30 @@ func run(cmd *cobra.Command) int {
 	// We started everything that could be started. So the best window for perf mertics
 	// opens somewhere around now.
 	metricsBegin := time.Now().Unix()
+	metricsEnd := metricsBegin + int64(testDuration.Seconds())
+
 	// Because we're using IPV4 only, the UDP checksum is optional, so we are allowed to
 	// just set it to zero instead of recomputing it. The IP checksum does not cover the payload, so
 	// we don't need to update it.
 	binary.BigEndian.PutUint16(rawPkt[40:42], 0)
 
-	for i := 0; i < numPackets; i++ {
-		// Rotate through flowIDs. We patch it directly into the SCION header of the packet.  The
-		// SCION header starts at offset 42. The flowID is the 20 least significant bits of the
-		// first 32 bit field. To make our life simpler, we only use the last 16 bits (so no more
-		// than 64K flows).
-		binary.BigEndian.PutUint16(rawPkt[44:46], uint16(i%int(numStreams)))
-		if err := writePktTo.WritePacketData(rawPkt); err != nil {
-			log.Error("writing input packet", "case", string(caseToRun), "error", err)
-			return 1
+	for time.Now().Unix() < metricsEnd {
+		// Check the time only once every 10000 packets
+		for i := 0; i < 10000; i++ {
+			// Rotate through flowIDs. We patch it directly into the SCION header of the packet. The
+			// SCION header starts at offset 42. The flowID is the 20 least significant bits of the
+			// first 32 bit field. To make our life simpler, we only use the last 16 bits (so no
+			// more than 64K flows).
+			binary.BigEndian.PutUint16(rawPkt[44:46], uint16(i%int(numStreams)))
+			if err := writePktTo.WritePacketData(rawPkt); err != nil {
+				log.Error("writing input packet", "case", string(caseToRun), "error", err)
+				return 1
+			}
 		}
 	}
-	metricsEnd := time.Now().Unix()
-	// The test harness looks for this output.
+
+	// The test harness looks for this output. [metricsBegin, metricsEnd] needs to be fully
+	// contained in the period when we were actually transmitting, but can be a bit smaller.
 	fmt.Printf("metricsBegin: %d metricsEnd: %d\n", metricsBegin, metricsEnd)
 
 	// Get the results from the packet listener.

@@ -32,6 +32,9 @@ from random import randint
 
 logger = logging.getLogger(__name__)
 
+# Default packet length for CI testing
+BM_PACKET_SIZE = 172
+
 # Those values are valid expectations only when running in the CI environment.
 TEST_CASES = {
     "in": 720000,
@@ -188,6 +191,7 @@ class RouterBMTest(base.TestBase, RouterBM):
     # Used by the RouterBM mixin:
     coremark: int = 0
     mmbm: int = 0
+    packet_size: int = BM_PACKET_SIZE
     intf_map: dict[str, Intf] = {}
     brload: LocalCommand = None
     brload_cpus: list[int] = [0]
