@@ -64,7 +64,7 @@ func realMain(ctx context.Context) error {
 		return RunDispatcher(
 			globalCfg.Dispatcher.IsDispatcher,
 			globalCfg.Dispatcher.ServiceAddresses,
-			globalCfg.Dispatcher.UnderlayAddr,
+			*globalCfg.Dispatcher.UnderlayAddr,
 		)
 	})
 

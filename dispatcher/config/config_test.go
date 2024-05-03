@@ -42,6 +42,7 @@ func InitTestConfig(cfg *Config) {
 	apitest.InitConfig(&cfg.API)
 	envtest.InitTest(nil, &cfg.Metrics, nil, nil)
 	logtest.InitTestLogging(&cfg.Logging)
+	cfg.Dispatcher.InitDefaults()
 }
 
 func CheckTestConfig(t *testing.T, cfg *Config, id string) {

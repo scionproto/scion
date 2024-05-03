@@ -34,7 +34,6 @@ PROM_FILE = "prometheus.yml"
 SCION_ROUTER_PORT = 50000
 
 DEFAULT_DISPATCHED_PORTS = "31000-32767"
-DEFAULT_DISP_UNDERLAY_ADDR = "[::]:30041"
 
 #: Default MTU - assumes overlay is ipv4+udp
 DEFAULT_MTU = 1500 - 20 - 8
