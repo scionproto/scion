@@ -40,6 +40,7 @@ import (
 	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/launcher"
 	"github.com/scionproto/scion/private/service"
+	"github.com/scionproto/scion/private/topology/underlay"
 )
 
 var globalCfg config.Config
@@ -64,7 +65,10 @@ func realMain(ctx context.Context) error {
 		return RunDispatcher(
 			globalCfg.Dispatcher.IsDispatcher,
 			globalCfg.Dispatcher.ServiceAddresses,
-			*globalCfg.Dispatcher.UnderlayAddr,
+			netip.AddrPortFrom(
+				*globalCfg.Dispatcher.UnderlayAddr,
+				underlay.EndhostPort,
+			),
 		)
 	})
 

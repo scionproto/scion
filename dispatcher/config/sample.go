@@ -21,8 +21,8 @@ const dispSample = `
 # ID of the Dispatcher. (required)
 id = "%s"
 
-# The underlay UDP address opened by the dispatcher. (default [::]:30041)
-# underlay_addr = "[::]:30041"
+# The underlay UDP address opened by the dispatcher. (default ::)
+# underlay_addr = "::"
 
 # ServiceAddresses is the map of IA,SVC -> underlay UDP/IP address.
 # The map should be configured provided that the shim dispatcher runs colocated to such

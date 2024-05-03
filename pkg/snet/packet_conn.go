@@ -16,7 +16,6 @@ package snet
 
 import (
 	"net"
-	"net/netip"
 	"syscall"
 	"time"
 
@@ -213,9 +212,9 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet) (*net.UDPAddr, error) {
 	lastHop := udpRemoteAddr
 	if c.isShimDispatcher(udpRemoteAddr) {
 		// XXX(JordiSubira): As stated in `SCIONPacketConn.isShimDispatcher()`, we consider
-		// *localhost:30041* as a shim address.
+		// *loopback:30041* as a shim address.
 		// However, if in an alternative setup we find an actual endhost behind
-		// *localhost:30041* `SCIONPacketConn.lastHop()` should yield the right next hop address.
+		// *loopback:30041* `SCIONPacketConn.lastHop()` should yield the right next hop address.
 		lastHop, err = c.lastHop(pkt)
 		if err != nil {
 			return nil, serrors.WrapStr("extracting last hop based on packet path", err)
@@ -239,16 +238,16 @@ func (c *SCIONPacketConn) LocalAddr() net.Addr {
 // for the application using SCIONPacketConn will be the same as the underlay from where
 // the shim dispatcher forwards the packets.
 //
-// A special case is the developer setup we use a unique shim dispatcher instance
+// A special case is the developer setup: we use a single shim dispatcher instance
 // listening on *[::]* serving all services (sometimes from multiple ASes).
-// In IPv4 context, the OS will pick *localhost* as the source IP when reflecting the packet
+// In IPv4 context, the OS will pick *loopback* as the source IP when reflecting the packet
 // from the shim dispatcher to the destination endhost. Thus, we check here if the packet
-// comes from *localhost:30041*.
+// comes from *loopback:30041*.
 func (c *SCIONPacketConn) isShimDispatcher(udpAddr *net.UDPAddr) bool {
 	localAddr := c.LocalAddr().(*net.UDPAddr)
-	if (udpAddr.IP.Equal(localAddr.IP) ||
-		udpAddr.AddrPort().Addr().Compare(netip.MustParseAddr("127.0.0.1")) == 0) &&
-		udpAddr.Port == underlay.EndhostPort {
+	if udpAddr.IP.Equal(localAddr.IP) ||
+		udpAddr.IP.IsLoopback() &&
+			udpAddr.Port == underlay.EndhostPort {
 		return true
 	}
 	return false

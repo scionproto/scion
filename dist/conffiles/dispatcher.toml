@@ -1,6 +1,5 @@
 [dispatcher]
 id = "dispatcher"
-underlay_addr = "[::]:30041"
 
 [log.console]
 level = "info"
