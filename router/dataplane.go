@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"hash/fnv"
 	"math/big"
 	"net"
 	"net/netip"
@@ -598,16 +597,10 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 	procQs []chan packet) {
 
 	log.Debug("Run receiver for", "interface", ifID)
-	randomValue := make([]byte, 16)
-	if _, err := rand.Read(randomValue); err != nil {
-		panic("Error while generating random value")
-	}
 
 	msgs := underlayconn.NewReadMessages(cfg.BatchSize)
 	numReusable := 0                     // unused buffers from previous loop
 	metrics := d.forwardingMetrics[ifID] // If receiver exists, fw metrics exist too.
-	flowIDBuffer := make([]byte, 3)
-	hasher := fnv.New32a()
 
 	enqueueForProcessing := func(pkt ipv4.Message) {
 		srcAddr := pkt.Addr.(*net.UDPAddr)
@@ -616,8 +609,7 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 		metrics[sc].InputPacketsTotal.Inc()
 		metrics[sc].InputBytesTotal.Add(float64(size))
 
-		procID, err := computeProcID(pkt.Buffers[0],
-			cfg.NumProcessors, randomValue, flowIDBuffer, hasher)
+		procID, err := computeProcID(pkt.Buffers[0], cfg.NumProcessors, ifID)
 		if err != nil {
 			log.Debug("Error while computing procID", "err", err)
 			d.returnPacketToPool(pkt.Buffers[0])
@@ -658,9 +650,13 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 	}
 }
 
-func computeProcID(data []byte, numProcRoutines int, randomValue []byte,
-	flowIDBuffer []byte, hasher hash.Hash32) (uint32, error) {
+// The hasher API is very expensive. Make our own cheap version.
+const (
+	prime32  = 16777619
+	offset32 = 2166136261
+)
 
+func computeProcID(data []byte, numProcRoutines int, base uint16) (uint32, error) {
 	if len(data) < slayers.CmnHdrLen {
 		return 0, errShortPacket
 	}
@@ -670,14 +666,30 @@ func computeProcID(data []byte, numProcRoutines int, randomValue []byte,
 	if len(data) < slayers.CmnHdrLen+addrHdrLen {
 		return 0, errShortPacket
 	}
-	copy(flowIDBuffer[0:3], data[1:4])
-	flowIDBuffer[0] &= 0xF // the left 4 bits don't belong to the flowID
 
-	hasher.Reset()
-	hasher.Write(randomValue)
-	hasher.Write(flowIDBuffer[:])
-	hasher.Write(data[slayers.CmnHdrLen : slayers.CmnHdrLen+addrHdrLen])
-	return hasher.Sum32() % uint32(numProcRoutines), nil
+	var s uint32 = offset32
+
+	// Inject the base number (i.e. ifID)
+	s ^= uint32(base & 0xff)
+	s *= prime32
+	s ^= uint32(base >> 8)
+	s *= prime32
+
+	// inject the flowID
+	s ^= uint32(data[1] & 0xF) // The left 4 bits aren't part of the flowID.
+	s *= prime32
+	for _, c := range data[2:3] {
+		s ^= uint32(c)
+		s *= prime32
+	}
+
+	// Inject the src/dst addresses
+	for _, c := range data[slayers.CmnHdrLen : slayers.CmnHdrLen+addrHdrLen] {
+		s ^= uint32(c)
+		s *= prime32
+	}
+
+	return s % uint32(numProcRoutines), nil
 }
 
 func (d *DataPlane) returnPacketToPool(pkt []byte) {

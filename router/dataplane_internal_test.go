@@ -213,7 +213,8 @@ func TestForwarder(t *testing.T) {
 }
 
 func TestComputeProcId(t *testing.T) {
-	randomValue := []byte{1, 2, 3, 4}
+	randomValue := uint16(1234)
+	randomValueBytes := []byte{byte(randomValue & 0xff), byte(randomValue >> 8)}
 	numProcs := 10000
 
 	// this function returns the procID by using the slayers.SCION serialization
@@ -224,7 +225,7 @@ func TestComputeProcId(t *testing.T) {
 		flowBuf[0] &= 0xF
 		tmpBuffer := make([]byte, 100)
 		hasher := fnv.New32a()
-		hasher.Write(randomValue)
+		hasher.Write(randomValueBytes)
 		hasher.Write(flowBuf[1:4])
 		if err := s.SerializeAddrHdr(tmpBuffer); err != nil {
 			panic(err)
@@ -236,8 +237,6 @@ func TestComputeProcId(t *testing.T) {
 	// this helper returns the procID by using the extraction
 	// from dataplane.computeProcID()
 	computeProcIDHelper := func(payload []byte, s *slayers.SCION) (uint32, error) {
-		flowIdBuffer := make([]byte, 3)
-		hasher := fnv.New32a()
 		buffer := gopacket.NewSerializeBuffer()
 		err := gopacket.SerializeLayers(buffer,
 			gopacket.SerializeOptions{FixLengths: true},
@@ -245,7 +244,7 @@ func TestComputeProcId(t *testing.T) {
 		require.NoError(t, err)
 		raw := buffer.Bytes()
 
-		return computeProcID(raw, numProcs, randomValue, flowIdBuffer, hasher)
+		return computeProcID(raw, numProcs, randomValue)
 	}
 	type ret struct {
 		payload []byte
@@ -405,9 +404,8 @@ func TestComputeProcIdErrorCases(t *testing.T) {
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			randomValue := []byte{1, 2, 3, 4}
-			flowIdBuffer := make([]byte, 3)
-			_, actualErr := computeProcID(tc.data, 10000, randomValue, flowIdBuffer, fnv.New32a())
+			randomValue := uint16(1234)
+			_, actualErr := computeProcID(tc.data, 10000, randomValue)
 			if tc.expectedError != nil {
 				assert.Equal(t, tc.expectedError.Error(), actualErr.Error())
 			} else {
