@@ -250,7 +250,14 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 
 	clientNet := &snet.SCIONNetwork{
 		Topology: nc.Topology,
-		Metrics:  nc.SCIONNetworkMetrics,
+		// Discard all SCMP propagation, to avoid read errors on the QUIC
+		// client.
+		SCMPHandler: snet.SCMPPropagationStopper{
+			Handler: nc.SCMPHandler,
+			Log:     log.Debug,
+		},
+		Metrics:           nc.SCIONNetworkMetrics,
+		PacketConnMetrics: nc.SCIONPacketConnMetrics,
 	}
 	clientAddr := &net.UDPAddr{
 		IP:   nc.Public.IP,
