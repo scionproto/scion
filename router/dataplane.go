@@ -678,7 +678,7 @@ func computeProcID(data []byte, numProcRoutines int, base uint16) (uint32, error
 	// inject the flowID
 	s ^= uint32(data[1] & 0xF) // The left 4 bits aren't part of the flowID.
 	s *= prime32
-	for _, c := range data[2:3] {
+	for _, c := range data[2:4] {
 		s ^= uint32(c)
 		s *= prime32
 	}
