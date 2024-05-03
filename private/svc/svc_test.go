@@ -84,14 +84,13 @@ func TestSVCResolutionServer(t *testing.T) {
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
 				h := mock_svc.NewMockRequestHandler(ctrl)
-				firstCall := h.EXPECT().Handle(gomock.Any()).Return(svc.Error, errors.New("err"))
-				h.EXPECT().Handle(gomock.Any()).After(firstCall).Return(svc.Forward, nil)
+				h.EXPECT().Handle(gomock.Any()).Return(svc.Error, errors.New("err"))
 				return h
 			},
 			ErrOpen:     assert.NoError,
 			ErrConnRead: assert.NoError,
 		},
-		"If handler returns forward, caller sees data": {
+		"If non-SVC addr, caller receives request": {
 			Network: func(ctrl *gomock.Controller) snet.Network {
 				mockPacketConn := mock_snet.NewMockPacketConn(ctrl)
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
@@ -108,9 +107,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				return c
 			},
 			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
-				h := mock_svc.NewMockRequestHandler(ctrl)
-				h.EXPECT().Handle(gomock.Any()).Return(svc.Forward, nil)
-				return h
+				return mock_svc.NewMockRequestHandler(ctrl)
 			},
 			ErrOpen:     assert.NoError,
 			ErrConnRead: assert.NoError,
@@ -158,30 +155,6 @@ func TestSVCResolutionServer(t *testing.T) {
 			},
 			ErrOpen:     assert.NoError,
 			ErrConnRead: assert.Error,
-		},
-		"Multicast SVC packets get delivered to caller": {
-			Network: func(ctrl *gomock.Controller) snet.Network {
-				mockPacketConn := mock_snet.NewMockPacketConn(ctrl)
-				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(pkt *snet.Packet, ov *net.UDPAddr) error {
-						pkt.Destination = snet.SCIONAddress{
-							Host: addr.HostSVC(addr.SvcCS.Multicast()),
-						}
-						return nil
-					},
-				)
-
-				c := mock_snet.NewMockNetwork(ctrl)
-				c.EXPECT().OpenRaw(gomock.Any(), gomock.Any()).Return(mockPacketConn, nil)
-				return c
-			},
-			ReqHandler: func(ctrl *gomock.Controller) svc.RequestHandler {
-				h := mock_svc.NewMockRequestHandler(ctrl)
-				h.EXPECT().Handle(gomock.Any()).Return(svc.Forward, nil)
-				return h
-			},
-			ErrOpen:     assert.NoError,
-			ErrConnRead: assert.NoError,
 		},
 	}
 	for name, tc := range testCases {

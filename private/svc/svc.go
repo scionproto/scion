@@ -55,6 +55,11 @@ func (c *ResolverPacketConn) ReadFrom(pkt *snet.Packet, ov *net.UDPAddr) error {
 		if err := c.PacketConn.ReadFrom(pkt, ov); err != nil {
 			return err
 		}
+		// XXX(scrye): destination address is guaranteed to not be nil
+		if pkt.Destination.Host.Type() != addr.HostTypeSVC {
+			// Normal packet, return to caller because data is already parsed and ready
+			return nil
+		}
 		// XXX(scrye): This might block, causing the read to wait for the
 		// write to go through. The solution would be to run the logic in a
 		// goroutine, but because UDP writes rarely block, the current
@@ -108,11 +113,6 @@ type BaseHandler struct {
 }
 
 func (h *BaseHandler) Handle(request *Request) (Result, error) {
-	// XXX(scrye): destination address is guaranteed to not be nil
-	if request.Packet.Destination.Host.Type() != addr.HostTypeSVC {
-		// Normal packet, return to caller because data is already parsed and ready
-		return Forward, nil
-	}
 	path, err := h.reversePath(request.Packet.Path)
 	if err != nil {
 		return Error, err
