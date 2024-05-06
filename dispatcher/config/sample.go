@@ -21,7 +21,7 @@ const dispSample = `
 # ID of the Dispatcher. (required)
 id = "%s"
 
-# The underlay UDP address opened by the dispatcher. (default ::)
+# The underlay IP address opened by the dispatcher. (default ::)
 # underlay_addr = "::"
 
 # ServiceAddresses is the map of IA,SVC -> underlay UDP/IP address.
