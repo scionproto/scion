@@ -66,7 +66,7 @@ func realMain(ctx context.Context) error {
 			globalCfg.Dispatcher.IsDispatcher,
 			globalCfg.Dispatcher.ServiceAddresses,
 			netip.AddrPortFrom(
-				*globalCfg.Dispatcher.UnderlayAddr,
+				globalCfg.Dispatcher.UnderlayAddr,
 				underlay.EndhostPort,
 			),
 		)

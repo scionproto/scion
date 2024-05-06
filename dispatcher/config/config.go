@@ -86,16 +86,12 @@ type Dispatcher struct {
 	//  where the CS for the local IA runs.
 	ServiceAddresses map[addr.Addr]netip.AddrPort `toml:"service_addresses,omitempty"`
 	// UnderlayAddr is the IP address where the shim dispatcher listens on (default ::).
-	UnderlayAddr *netip.Addr `toml:"underlay_addr,omitempty"`
+	UnderlayAddr netip.Addr `toml:"underlay_addr,omitempty"`
 }
 
 func (cfg *Dispatcher) InitDefaults() {
-	if cfg.UnderlayAddr == nil {
-		addr, err := netip.ParseAddr("::")
-		if err != nil {
-			panic(err)
-		}
-		cfg.UnderlayAddr = &addr
+	if cfg.UnderlayAddr == (netip.Addr{}) {
+		cfg.UnderlayAddr = netip.IPv6Unspecified()
 	}
 }
 
