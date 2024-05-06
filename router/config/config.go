@@ -40,13 +40,17 @@ type Config struct {
 }
 
 type RouterConfig struct {
-	ReceiveBufferSize     int  `toml:"receive_buffer_size,omitempty"`
-	SendBufferSize        int  `toml:"send_buffer_size,omitempty"`
-	NumProcessors         int  `toml:"num_processors,omitempty"`
-	NumSlowPathProcessors int  `toml:"num_slow_processors,omitempty"`
-	BatchSize             int  `toml:"batch_size,omitempty"`
-	EndhostStartPort      *int `toml:"endhost_start_port,omitempty"`
-	EndhostEndPort        *int `toml:"endhost_end_port,omitempty"`
+	ReceiveBufferSize     int `toml:"receive_buffer_size,omitempty"`
+	SendBufferSize        int `toml:"send_buffer_size,omitempty"`
+	NumProcessors         int `toml:"num_processors,omitempty"`
+	NumSlowPathProcessors int `toml:"num_slow_processors,omitempty"`
+	BatchSize             int `toml:"batch_size,omitempty"`
+	// TODO: These two values were introduced to override the port range for
+	// configured router in the context of acceptance tests. However, this
+	// introduces two sources for the port configuration. We should remove this
+	// and adapt the acceptance tests.
+	EndhostStartPort *int `toml:"endhost_start_port,omitempty"`
+	EndhostEndPort   *int `toml:"endhost_end_port,omitempty"`
 }
 
 func (cfg *RouterConfig) ConfigName() string {

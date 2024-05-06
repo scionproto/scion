@@ -62,7 +62,7 @@ func NewService(name string) Service {
 // either an error occurs, or the method successfully returns.
 type Connector interface {
 	// LocalIA requests from the daemon the local ISD-AS number.
-	// TODO: Caching this value to avoid contacting the CS, since this never changes.
+	// TODO: Caching this value to avoid contacting the daemon, since this never changes.
 	LocalIA(ctx context.Context) (addr.IA, error)
 	// PortRange returns the beginning and the end of the SCION/UDP endhost port range, configured
 	// for the local IA.

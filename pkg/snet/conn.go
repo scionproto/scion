@@ -16,11 +16,13 @@
 package snet
 
 import (
+	"context"
 	"net"
 	"time"
 
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
+	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers"
 )
 
@@ -50,34 +52,57 @@ type Conn struct {
 	remote *UDPAddr
 }
 
-func newConn(
-	conn PacketConn,
+// NewCookedConn returns a "cooked" Conn. The Conn object can be used to
+// send/receive SCION traffic with the usual methods.
+// It takes as arguments a non-nil PacketConn and a non-nil Topology parameter.
+// Nil or unspecified addresses for the PacketConn object are not supported.
+// If replyPather is nil it will use a default ReplyPather.
+// This is an advanced API, that allows fine-tunning of the Conn underlay functionality.
+// The general methods for obtaining a Conn object are still SCIONNetwork.Listen and
+// SCIONNetwork.Dial.
+func NewCookedConn(
+	pconn PacketConn,
+	topo Topology,
 	replyPather ReplyPather,
-	endhostStartPort uint16,
-	endhostEndPort uint16,
-	local, remote *UDPAddr,
-) *Conn {
-
-	c := &Conn{
-		conn:   conn,
+	remote *UDPAddr,
+) (*Conn, error) {
+	localIA, err := topo.LocalIA(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	local := &UDPAddr{
+		IA:   localIA,
+		Host: pconn.LocalAddr().(*net.UDPAddr),
+	}
+	if local.Host == nil || local.Host.IP.IsUnspecified() {
+		return nil, serrors.New("nil or unspecified address is not for the raw connection")
+	}
+	if replyPather == nil {
+		replyPather = DefaultReplyPather{}
+	}
+	start, end, err := topo.PortRange(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	return &Conn{
+		conn:   pconn,
 		local:  local,
 		remote: remote,
-	}
-	c.scionConnWriter = scionConnWriter{
-		conn:             conn,
-		buffer:           make([]byte, common.SupportedMTU),
-		local:            local,
-		remote:           remote,
-		endhostStartPort: endhostStartPort,
-		endhostEndPort:   endhostEndPort,
-	}
-	c.scionConnReader = scionConnReader{
-		conn:        conn,
-		buffer:      make([]byte, common.SupportedMTU),
-		replyPather: replyPather,
-		local:       local,
-	}
-	return c
+		scionConnWriter: scionConnWriter{
+			conn:             pconn,
+			buffer:           make([]byte, common.SupportedMTU),
+			local:            local,
+			remote:           remote,
+			endhostStartPort: start,
+			endhostEndPort:   end,
+		},
+		scionConnReader: scionConnReader{
+			conn:        pconn,
+			buffer:      make([]byte, common.SupportedMTU),
+			replyPather: replyPather,
+			local:       local,
+		},
+	}, nil
 }
 
 func (c *Conn) LocalAddr() net.Addr {

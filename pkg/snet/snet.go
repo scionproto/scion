@@ -172,38 +172,6 @@ func (n *SCIONNetwork) Listen(
 	return NewCookedConn(packetConn, n.Topology, n.ReplyPather, nil)
 }
 
-// NewCookedConn returns a "cooked" Conn. The Conn object can be used to
-// send/receive SCION traffic with the usual methods.
-// It takes as arguments a non-nil PacketConn and a non-nil Topology parameter.
-// Nil or unspecified addresses for the PacketConn object are not supported.
-// If replyPather is nil it will use a default ReplyPather.
-func NewCookedConn(
-	pconn PacketConn,
-	topo Topology,
-	replyPather ReplyPather,
-	remote *UDPAddr,
-) (*Conn, error) {
-	localIA, err := topo.LocalIA(context.Background())
-	if err != nil {
-		return nil, err
-	}
-	local := &UDPAddr{
-		IA:   localIA,
-		Host: pconn.LocalAddr().(*net.UDPAddr),
-	}
-	if local.Host == nil || local.Host.IP.IsUnspecified() {
-		return nil, serrors.New("nil or unspecified address is not for the raw connection")
-	}
-	if replyPather == nil {
-		replyPather = DefaultReplyPather{}
-	}
-	start, end, err := topo.PortRange(context.Background())
-	if err != nil {
-		return nil, err
-	}
-	return newConn(pconn, replyPather, start, end, local, remote), nil
-}
-
 func listenUDPRange(addr *net.UDPAddr, start, end uint16) (*net.UDPConn, error) {
 	// XXX(JordiSubira): For now, we iterate on the complete SCION/UDP
 	// range, in decreasing order, taking the first unused port.
@@ -219,6 +187,8 @@ func listenUDPRange(addr *net.UDPAddr, start, end uint16) (*net.UDPConn, error) 
 	// The default range for the dispatched ports is 31000-32767.
 	// By configuration other port ranges may be defined and restricting to the default
 	// range for applications may cause problems.
+	//
+	// TODO: Replace this implementation with pseudorandom port checking.
 	restrictedStart := start
 	if start < 1024 {
 		restrictedStart = 1024
