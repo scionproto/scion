@@ -56,16 +56,15 @@ type Conn struct {
 // send/receive SCION traffic with the usual methods.
 // It takes as arguments a non-nil PacketConn and a non-nil Topology parameter.
 // Nil or unspecified addresses for the PacketConn object are not supported.
-// If replyPather is nil it will use a default ReplyPather.
 // This is an advanced API, that allows fine-tunning of the Conn underlay functionality.
 // The general methods for obtaining a Conn object are still SCIONNetwork.Listen and
 // SCIONNetwork.Dial.
 func NewCookedConn(
 	pconn PacketConn,
 	topo Topology,
-	replyPather ReplyPather,
-	remote *UDPAddr,
+	options ...ConnOption,
 ) (*Conn, error) {
+	o := apply(options)
 	localIA, err := topo.LocalIA(context.Background())
 	if err != nil {
 		return nil, err
@@ -77,9 +76,6 @@ func NewCookedConn(
 	if local.Host == nil || local.Host.IP.IsUnspecified() {
 		return nil, serrors.New("nil or unspecified address is not for the raw connection")
 	}
-	if replyPather == nil {
-		replyPather = DefaultReplyPather{}
-	}
 	start, end, err := topo.PortRange(context.Background())
 	if err != nil {
 		return nil, err
@@ -87,19 +83,19 @@ func NewCookedConn(
 	return &Conn{
 		conn:   pconn,
 		local:  local,
-		remote: remote,
+		remote: o.remote,
 		scionConnWriter: scionConnWriter{
 			conn:             pconn,
 			buffer:           make([]byte, common.SupportedMTU),
 			local:            local,
-			remote:           remote,
+			remote:           o.remote,
 			endhostStartPort: start,
 			endhostEndPort:   end,
 		},
 		scionConnReader: scionConnReader{
 			conn:        pconn,
 			buffer:      make([]byte, common.SupportedMTU),
-			replyPather: replyPather,
+			replyPather: o.replyPather,
 			local:       local,
 		},
 	}, nil
@@ -125,4 +121,35 @@ func (c *Conn) SetDeadline(t time.Time) error {
 
 func (c *Conn) Close() error {
 	return c.conn.Close()
+}
+
+type ConnOption func(o *options)
+
+func WithReplyPather(replyPather ReplyPather) ConnOption {
+	return func(o *options) {
+		if replyPather != nil {
+			o.replyPather = replyPather
+		}
+	}
+}
+
+func WithRemote(addr *UDPAddr) ConnOption {
+	return func(o *options) {
+		o.remote = addr
+	}
+}
+
+type options struct {
+	replyPather ReplyPather
+	remote      *UDPAddr
+}
+
+func apply(opts []ConnOption) options {
+	o := options{
+		replyPather: DefaultReplyPather{},
+	}
+	for _, option := range opts {
+		option(&o)
+	}
+	return o
 }

@@ -243,7 +243,7 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 			Message: svcResolutionReply,
 		},
 	}
-	server, err := snet.NewCookedConn(resolvedPacketConn, nc.Topology, nil, nil)
+	server, err := snet.NewCookedConn(resolvedPacketConn, nc.Topology)
 	if err != nil {
 		return nil, nil, serrors.WrapStr("creating server connection", err)
 	}
