@@ -63,12 +63,12 @@ type (
 	// there is again a sorted slice of names of the servers that provide the service.
 	// Additionally, there is a map from those names to TopoAddr structs.
 	RWTopology struct {
-		Timestamp        time.Time
-		IA               addr.IA
-		IsCore           bool
-		MTU              int
-		EndhostStartPort uint16
-		EndhostEndPort   uint16
+		Timestamp           time.Time
+		IA                  addr.IA
+		IsCore              bool
+		MTU                 int
+		DispatchedPortStart uint16
+		DispatchedPortEnd   uint16
 
 		BR        map[string]BRInfo
 		BRNames   []string
@@ -208,7 +208,7 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 	}
 	t.MTU = raw.MTU
 
-	t.EndhostStartPort, t.EndhostEndPort, err = validatePortRange(raw.EndhostPortRange)
+	t.DispatchedPortStart, t.DispatchedPortEnd, err = validatePortRange(raw.EndhostPortRange)
 	if err != nil {
 		return err
 	}
@@ -421,12 +421,12 @@ func (t *RWTopology) Copy() *RWTopology {
 		return nil
 	}
 	return &RWTopology{
-		Timestamp:        t.Timestamp,
-		IA:               t.IA,
-		MTU:              t.MTU,
-		IsCore:           t.IsCore,
-		EndhostStartPort: t.EndhostStartPort,
-		EndhostEndPort:   t.EndhostEndPort,
+		Timestamp:           t.Timestamp,
+		IA:                  t.IA,
+		MTU:                 t.MTU,
+		IsCore:              t.IsCore,
+		DispatchedPortStart: t.DispatchedPortStart,
+		DispatchedPortEnd:   t.DispatchedPortEnd,
 
 		BR:        copyBRMap(t.BR),
 		BRNames:   append(t.BRNames[:0:0], t.BRNames...),

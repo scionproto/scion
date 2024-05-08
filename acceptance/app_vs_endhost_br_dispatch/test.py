@@ -36,8 +36,8 @@ class Test(base.TestTopogen):
 
         br_as_2_file = self.artifacts / "gen" / "ASff00_0_2" \
             / ("%s.toml" % br_as_2_id)
-        scion.update_toml({"router.endhost_start_port": 0,
-                          "router.endhost_end_port": 0},
+        scion.update_toml({"router.dispatched_port_start": 0,
+                          "router.dispatched_port_end": 0},
                           [br_as_2_file])
 
     def setup_start(self):

@@ -353,7 +353,7 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 	return &sdpb.NotifyInterfaceDownResponse{}, nil
 }
 
-// AS serves the AS request.
+// PortRange returns the port range for the dispatched ports.
 func (s *DaemonServer) PortRange(
 	_ context.Context,
 	_ *emptypb.Empty,
@@ -361,8 +361,8 @@ func (s *DaemonServer) PortRange(
 
 	startPort, endPort := s.Topology.PortRange()
 	return &sdpb.PortRangeResponse{
-		EndhostStartPort: uint32(startPort),
-		EndhostEndPort:   uint32(endPort),
+		DispatchedPortStart: uint32(startPort),
+		DispatchedPortEnd:   uint32(endPort),
 	}, nil
 }
 

@@ -62,7 +62,7 @@ func realMain(ctx context.Context) error {
 	g, errCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		defer log.HandlePanic()
-		return RunDispatcher(
+		return runDispatcher(
 			globalCfg.Dispatcher.IsDispatcher,
 			globalCfg.Dispatcher.ServiceAddresses,
 			netip.AddrPortFrom(
@@ -133,7 +133,7 @@ func realMain(ctx context.Context) error {
 	}
 }
 
-func RunDispatcher(
+func runDispatcher(
 	isDispatcher bool,
 	svcAddrs map[addr.Addr]netip.AddrPort,
 	underlayAddr netip.AddrPort,

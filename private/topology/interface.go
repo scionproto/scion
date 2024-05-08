@@ -160,7 +160,7 @@ func (t *topologyS) InterfaceIDs() []common.IFIDType {
 }
 
 func (t *topologyS) PortRange() (uint16, uint16) {
-	return t.Topology.EndhostStartPort, t.Topology.EndhostEndPort
+	return t.Topology.DispatchedPortStart, t.Topology.DispatchedPortEnd
 }
 
 func (t *topologyS) UnderlayNextHop(ifid common.IFIDType) (*net.UDPAddr, bool) {

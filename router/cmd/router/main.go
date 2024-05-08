@@ -62,10 +62,10 @@ func realMain(ctx context.Context) error {
 			Metrics:                        metrics,
 			ExperimentalSCMPAuthentication: globalCfg.Features.ExperimentalSCMPAuthentication,
 		},
-		ReceiveBufferSize: globalCfg.Router.ReceiveBufferSize,
-		SendBufferSize:    globalCfg.Router.SendBufferSize,
-		EndhostStartPort:  globalCfg.Router.EndhostStartPort,
-		EndhostEndPort:    globalCfg.Router.EndhostEndPort,
+		ReceiveBufferSize:   globalCfg.Router.ReceiveBufferSize,
+		SendBufferSize:      globalCfg.Router.SendBufferSize,
+		DispatchedPortStart: globalCfg.Router.DispatchedPortStart,
+		DispatchedPortEnd:   globalCfg.Router.DispatchedPortEnd,
 	}
 	iaCtx := &control.IACtx{
 		Config: controlConfig,

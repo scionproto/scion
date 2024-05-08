@@ -96,24 +96,24 @@ type BatchConn interface {
 // Currently, only the following features are supported:
 //   - initializing connections; MUST be done prior to calling Run
 type DataPlane struct {
-	interfaces        map[uint16]BatchConn
-	external          map[uint16]BatchConn
-	linkTypes         map[uint16]topology.LinkType
-	neighborIAs       map[uint16]addr.IA
-	peerInterfaces    map[uint16]uint16
-	internal          BatchConn
-	internalIP        netip.Addr
-	internalNextHops  map[uint16]*net.UDPAddr
-	svc               *services
-	macFactory        func() hash.Hash
-	bfdSessions       map[uint16]bfdSession
-	localIA           addr.IA
-	mtx               sync.Mutex
-	running           bool
-	Metrics           *Metrics
-	forwardingMetrics map[uint16]interfaceMetrics
-	endhostStartPort  uint16
-	endhostEndPort    uint16
+	interfaces          map[uint16]BatchConn
+	external            map[uint16]BatchConn
+	linkTypes           map[uint16]topology.LinkType
+	neighborIAs         map[uint16]addr.IA
+	peerInterfaces      map[uint16]uint16
+	internal            BatchConn
+	internalIP          netip.Addr
+	internalNextHops    map[uint16]*net.UDPAddr
+	svc                 *services
+	macFactory          func() hash.Hash
+	bfdSessions         map[uint16]bfdSession
+	localIA             addr.IA
+	mtx                 sync.Mutex
+	running             bool
+	Metrics             *Metrics
+	forwardingMetrics   map[uint16]interfaceMetrics
+	dispatchedPortStart uint16
+	dispatchedPortEnd   uint16
 
 	ExperimentalSCMPAuthentication bool
 
@@ -206,8 +206,8 @@ func (d *DataPlane) SetKey(key []byte) error {
 }
 
 func (d *DataPlane) SetPortRange(start, end uint16) {
-	d.endhostStartPort = start
-	d.endhostEndPort = end
+	d.dispatchedPortStart = start
+	d.dispatchedPortEnd = end
 }
 
 // AddInternalInterface sets the interface the data-plane will use to
@@ -2000,7 +2000,7 @@ func (d *DataPlane) resolveLocalDst(
 		}
 		// if SVC address is outside the configured port range we send to the fix
 		// port.
-		if uint16(a.Port) < d.endhostStartPort || uint16(a.Port) > d.endhostEndPort {
+		if uint16(a.Port) < d.dispatchedPortStart || uint16(a.Port) > d.dispatchedPortEnd {
 			a.Port = topology.EndhostPort
 		}
 		return a, nil
@@ -2027,7 +2027,7 @@ func (d *DataPlane) addEndhostPort(
 				len(lastLayer.LayerPayload()))
 		}
 		port := binary.BigEndian.Uint16(lastLayer.LayerPayload()[2:])
-		if port < d.endhostStartPort || port > d.endhostEndPort {
+		if port < d.dispatchedPortStart || port > d.dispatchedPortEnd {
 			port = topology.EndhostPort
 		}
 		return &net.UDPAddr{IP: dst, Port: int(port)}, nil
@@ -2044,7 +2044,7 @@ func (d *DataPlane) addEndhostPort(
 			return nil, serrors.WrapStr("getting dst port from SCMP message", err)
 		}
 		// if the SCMP dst port is outside the range, we send it to the EndhostPort
-		if port < d.endhostStartPort || port > d.endhostEndPort {
+		if port < d.dispatchedPortStart || port > d.dispatchedPortEnd {
 			port = topology.EndhostPort
 		}
 		return &net.UDPAddr{IP: dst, Port: int(port)}, nil
@@ -2057,7 +2057,7 @@ func (d *DataPlane) addEndhostPort(
 func getDstPortSCMP(scmp *slayers.SCMP) (uint16, error) {
 	// XXX(JordiSubira): This implementation is far too slow for the dataplane.
 	// We should reimplement this with fewer helpers and memory allocations, since
-	// our solely goal is to parse the L4 port or identifier in the offending packets.
+	// our sole goal is to parse the L4 port or identifier in the offending packets.
 	if scmp.TypeCode.Type() == slayers.SCMPTypeEchoRequest ||
 		scmp.TypeCode.Type() == slayers.SCMPTypeTracerouteRequest {
 		return topology.EndhostPort, nil

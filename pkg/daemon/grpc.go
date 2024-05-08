@@ -81,7 +81,7 @@ func (c grpcConn) PortRange(ctx context.Context) (uint16, uint16, error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	return uint16(response.EndhostStartPort), uint16(response.EndhostEndPort), nil
+	return uint16(response.DispatchedPortStart), uint16(response.DispatchedPortEnd), nil
 }
 
 func (c grpcConn) Interfaces(ctx context.Context) (map[uint16]*net.UDPAddr, error) {

@@ -91,8 +91,6 @@ func NewServer(
 	)
 	parser.IgnoreUnsupported = true
 	server.parser = parser
-	// if the dispatcher feature is enabled, we enable IP_PKTINFO; see
-	// description of setIPPktInfo for more information.
 	server.conn = conn
 	if isDispatcher {
 		server.conn, server.cmParser = setIPPktInfo(conn)
@@ -145,17 +143,18 @@ func (s *Server) Serve() error {
 	}
 }
 
-// processMsgNextHop processes the message arriving to the shim dispatcher and returns
-// a byte array corresponding to the packet that has to be forwarded.
-// The input byte array *buf* is the raw incoming packet; the *underlay* address MUST NOT
-// be nil and corresponds to the IP address in the encapsulation UDP/IP header; *prevHop*
-// address is the address from the previous SCION hop in the local network.
-// The intended nextHop address, either the end application or the next BR (for SCMP
-// informational response), is returned.
-// It returns a non-nil error for non-recoverable errors, only.
-// If the incoming packet couldn't be processed due to a recoverable error or due to
-// incorrect address validation the returned buffer and address will be nil.
-// The caller must check both values consistently.
+// processMsgNextHop processes the message arriving at the shim dispatcher and returns
+// a byte array corresponding to the packet that needs to be forwarded.
+// The input byte array `buf` is the raw incoming packet;
+// `underlay` corresponds to the IP address on the outer UDP/IP header;
+// `prevHop` is the address from the previous SCION hop in the local network.
+// The intended nextHop address, i.e., either the end application
+// or the next BR (for SCMP informational response), is returned.
+// It returns a non-nil error for non-recoverable errors only.
+// If the incoming packet couldn't be processed due to a recoverable error or
+// incorrect address validation, the returned buffer will be nil and the address
+// will be empty.
+// The caller must consistently check both values.
 func (s *Server) processMsgNextHop(
 	buf []byte,
 	underlay netip.Addr,
@@ -168,7 +167,7 @@ func (s *Server) processMsgNextHop(
 		return nil, netip.AddrPort{}, nil
 	}
 	if len(s.decoded) < 2 {
-		log.Error("Unexpected decode packet", "layers decoded", len(s.decoded))
+		log.Error("Unexpected packet", "layers decoded", len(s.decoded))
 		return nil, netip.AddrPort{}, nil
 	}
 	err = s.outBuffer.Clear()
@@ -176,7 +175,7 @@ func (s *Server) processMsgNextHop(
 		return nil, netip.AddrPort{}, err
 	}
 
-	// If the dispatcher feature flag is disabled we only process SCMPInfo packets
+	// If the dispatcher feature flag is disabled we only process SCMPInfo packets.
 	if !s.isDispatcher {
 		if s.decoded[len(s.decoded)-1] != slayers.LayerTypeSCMP {
 			log.Debug("Dispatcher feature is disabled, shim discards non-SCMPInfo packets",
@@ -451,9 +450,10 @@ func (m ipv6ControlMessage) Destination() net.IP {
 	return m.Dst
 }
 
-// parseUnderlayAddr returns the underlay destination address on the UDP/IP wrapper.
-// It returns nil, if the control message information is not present or cannot be parsed.
-// This is useful for checking that this address corresponds to the address of the encapsulated
+// parseUnderlayAddr returns the underlay destination address on the outer UDP/IP wrapper.
+// It returns an empty address, if the control message information is not present
+// or it cannot be parsed.
+// This is useful for checking that this address corresponds to the address of the inner
 // UDP/SCION header. This refers to the safeguard for traffic reflection as discussed in:
 // https://github.com/scionproto/scion/pull/4280#issuecomment-1775177351
 func (s *Server) parseUnderlayAddr(oobuffer []byte) netip.Addr {

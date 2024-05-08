@@ -204,10 +204,10 @@ message NotifyInterfaceDownRequest {
 message NotifyInterfaceDownResponse {};
 
 message PortRangeResponse {
-    // The lowest port in the SCION/UDP endhost port range.
-    uint32 endhost_start_port = 1;
-    // The highest port in the SCION/UDP endhost port range.
-    uint32 endhost_end_port = 2;
+    // The lowest port in the SCION/UDP dispatched port range.
+    uint32 dispatched_port_start = 1;
+    // The highest port in the SCION/UDP dispatched port range.
+    uint32 dispatched_port_end = 2;
 }
 
 message DRKeyHostASRequest{

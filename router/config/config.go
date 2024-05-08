@@ -49,8 +49,8 @@ type RouterConfig struct {
 	// configured router in the context of acceptance tests. However, this
 	// introduces two sources for the port configuration. We should remove this
 	// and adapt the acceptance tests.
-	EndhostStartPort *int `toml:"endhost_start_port,omitempty"`
-	EndhostEndPort   *int `toml:"endhost_end_port,omitempty"`
+	DispatchedPortStart *int `toml:"dispatched_port_start,omitempty"`
+	DispatchedPortEnd   *int `toml:"dispatched_port_end,omitempty"`
 }
 
 func (cfg *RouterConfig) ConfigName() string {
@@ -73,23 +73,23 @@ func (cfg *RouterConfig) Validate() error {
 	if cfg.NumSlowPathProcessors < 1 {
 		return serrors.New("Provided router config is invalid. NumSlowPathProcessors < 1")
 	}
-	if cfg.EndhostStartPort != nil {
-		if cfg.EndhostEndPort == nil {
+	if cfg.DispatchedPortStart != nil {
+		if cfg.DispatchedPortEnd == nil {
 			return serrors.New("provided router config is invalid. " +
 				"EndHostEndPort is nil; EndHostStartPort isn't")
 		}
-		if *cfg.EndhostStartPort < 0 {
+		if *cfg.DispatchedPortStart < 0 {
 			return serrors.New("provided router config is invalid. EndHostStartPort < 0")
 		}
-		if *cfg.EndhostEndPort >= (1 << 16) {
+		if *cfg.DispatchedPortEnd >= (1 << 16) {
 			return serrors.New("provided router config is invalid. EndHostEndPort > 2**16 -1")
 		}
-		if *cfg.EndhostStartPort > *cfg.EndhostEndPort {
+		if *cfg.DispatchedPortStart > *cfg.DispatchedPortEnd {
 			return serrors.New("provided router config is invalid. " +
-				"EndHostStartPort > EndhostEndPort")
+				"EndHostStartPort > DispatchedPortEnd")
 		}
 	} else {
-		if cfg.EndhostEndPort != nil {
+		if cfg.DispatchedPortEnd != nil {
 			return serrors.New("provided router config is invalid. " +
 				"EndHostStartPort is nil; EndHostEndPort isn't")
 		}

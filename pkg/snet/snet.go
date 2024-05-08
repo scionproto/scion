@@ -88,7 +88,7 @@ func (n *SCIONNetwork) OpenRaw(ctx context.Context, addr *net.UDPAddr) (PacketCo
 	var pconn *net.UDPConn
 	var err error
 	if addr == nil || addr.IP.IsUnspecified() {
-		return nil, serrors.New("nil or unspecified address is not permitted")
+		return nil, serrors.New("nil or unspecified address is not supported")
 	}
 	start, end, err := n.Topology.PortRange(ctx)
 	if err != nil {

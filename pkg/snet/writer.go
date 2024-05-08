@@ -28,11 +28,11 @@ import (
 )
 
 type scionConnWriter struct {
-	conn             PacketConn
-	local            *UDPAddr
-	remote           *UDPAddr
-	endhostStartPort uint16
-	endhostEndPort   uint16
+	conn                PacketConn
+	local               *UDPAddr
+	remote              *UDPAddr
+	dispatchedPortStart uint16
+	dispatchedPortEnd   uint16
 
 	mtx    sync.Mutex
 	buffer []byte
@@ -119,5 +119,5 @@ func (c *scionConnWriter) SetWriteDeadline(t time.Time) error {
 }
 
 func (c *scionConnWriter) isWithinRange(port int) bool {
-	return port >= int(c.endhostStartPort) && port <= int(c.endhostEndPort)
+	return port >= int(c.dispatchedPortStart) && port <= int(c.dispatchedPortEnd)
 }

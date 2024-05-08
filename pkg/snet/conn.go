@@ -74,7 +74,7 @@ func NewCookedConn(
 		Host: pconn.LocalAddr().(*net.UDPAddr),
 	}
 	if local.Host == nil || local.Host.IP.IsUnspecified() {
-		return nil, serrors.New("nil or unspecified address is not for the raw connection")
+		return nil, serrors.New("nil or unspecified address is not supported.")
 	}
 	start, end, err := topo.PortRange(context.Background())
 	if err != nil {
@@ -85,12 +85,12 @@ func NewCookedConn(
 		local:  local,
 		remote: o.remote,
 		scionConnWriter: scionConnWriter{
-			conn:             pconn,
-			buffer:           make([]byte, common.SupportedMTU),
-			local:            local,
-			remote:           o.remote,
-			endhostStartPort: start,
-			endhostEndPort:   end,
+			conn:                pconn,
+			buffer:              make([]byte, common.SupportedMTU),
+			local:               local,
+			remote:              o.remote,
+			dispatchedPortStart: start,
+			dispatchedPortEnd:   end,
 		},
 		scionConnReader: scionConnReader{
 			conn:        pconn,
@@ -123,8 +123,12 @@ func (c *Conn) Close() error {
 	return c.conn.Close()
 }
 
+// ConnOption is a functional option type for configuring a Conn.
 type ConnOption func(o *options)
 
+// WithReplyPather sets the reply pather for the connection.
+// The reply pather is responsible for determining the path to send replies to.
+// If the provided replyPather is not nil, it will be set as the reply pather for the connection.
 func WithReplyPather(replyPather ReplyPather) ConnOption {
 	return func(o *options) {
 		if replyPather != nil {
@@ -133,6 +137,7 @@ func WithReplyPather(replyPather ReplyPather) ConnOption {
 	}
 }
 
+// WithRemote sets the remote address for the connection.
 func WithRemote(addr *UDPAddr) ConnOption {
 	return func(o *options) {
 		o.remote = addr
