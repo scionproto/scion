@@ -96,10 +96,10 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 	if c.local.IA != pkt.Destination.IA ||
 		c.local.Host.AddrPort() != pktAddrPort {
 		return 0, nil, serrors.New("packet is destined to a different host",
-			"local ia", c.local.IA,
-			"local host", c.local.Host,
-			"pkt destination IA", pkt.Destination.IA,
-			"pkt destination host", pktAddrPort,
+			"local_isd_as", c.local.IA,
+			"local_host", c.local.Host,
+			"pkt_destination_isd_as", pkt.Destination.IA,
+			"pkt_destination_host", pktAddrPort,
 		)
 	}
 
