@@ -54,7 +54,8 @@ as an extension to the discover/bootstrapping service.
 Proposal
 ========
 [A precise statement of the proposed change.]
-Extend the border router (BR) with functionality to detect and report NATed addresses back to a client endhost.
+
+Proposed change: Extend the border router (BR) to detect NATed addresses/ports and report them back to a client endhost.
 
 Ideally the solution would listen on the same port that would also be used for normal traffic forwarding.
 Alternatively, it may be feasible (depending on how sensitive the NAT is) to use a different (fixed) port to
@@ -68,10 +69,10 @@ The implementation on the protocol level could be done in several ways:
     -  Advantages: STUN is a well known and mature protocol. There are STUN libraries available in many programming languages.
        It should be easy to implement this.
 
-2. Extend SCMP with a new INFO message
+2.  Extend SCMP with a new INFO message
 
-   - Advantages: One less dependency on an external library and protocol
-   - Disadvantages: More standardization effort? How do we solve authentication?
+    -  Advantages: One less dependency on an external library and protocol
+    -  Disadvantages: More standardization effort? How do we solve authentication?
 
 3.  Extend SCMP with a new ERROR message: "invalid source address for first hop pkt", similar to error 33.
     The router can verify that for first hop packets, the IP src address/port matches the SCION src address/port.
@@ -79,36 +80,40 @@ The implementation on the protocol level could be done in several ways:
     to change the payload so it contains the IP header of the offending packet (and the IP header should contain the
     NATed IP/port).
 
-   - Advantages: One less dependency on an external library and protocol
-   - Disadvantages: Conceptually a bit of a hack. More standardization effort? How do we solve authentication?
+    -  Advantages: One less dependency on an external library and protocol
+    -  Disadvantages: Conceptually a bit of a hack. More standardization effort? How do we solve authentication?
 
 
 Rationale
 =========
 [A discussion of alternate approaches and the trade-offs, advantages, and disadvantages of the specified approach.]
 
-The two main reasons for having the border router work as a STUN server are:
+The main reasons for integrating the functionality with the BR are:
 
 -  Reliability: The border router is almost guaranteed to see the correct IP/port on the NAT, especially when using the
    same port for STUN traffic and routing traffic. All other approaches rely on the leniency of the NAT to use the same
    port even if the STUN server and border router have different ports or even IPs.
--  Time for provision: changing the border routers should be much easier and faster than getting router vendors or NAT
+-  Time to rollout: changing the border routers should be much easier and faster than getting router vendors or NAT
    vendors to implement SCION compatibility or to get rid of NATs completely in home networks.
+   A short time until rollout seems important because people are already running into this problem.
 
 Alternatives:
 
 -  The SRC address/port is updated by the border router to reflect what the border router sees as source address.
    Problem:
-   - Complicates cryptographically protecting the header if the header must be modifiable by border routers
-   - A spoofed IP causes the border router to route traffic to an unsuspecting target
+   -  Complicates cryptographically protecting the header if the header must be modifiable by border routers
+   -  A spoofed IP causes the border router to route traffic to an unsuspecting target
 -  The SRC address/port is updated by the NAT. This is similar to having the border router update tSRC IP/port.
    - Complicates cryptographically protecting the header if the header must be modifiable by border routers
 -  Use STUN servers. This is a possibility, but adds setup complexity and may not work in all cases. Every subnet
    of an AS that has a border router must also have a STUN server. Moreover, if the STUN server uses a different IP
    (or port) than the border router, then the NAT may decide to use a different port when connecting to it, i.e. the
-   STUN server may not see the same IP/port tuple on the NAT that the border router sees
--  Remove all NATs and use IPv6 instead. This is technically possible but unlikely to happen anytime soon.
+   STUN server may not see the same IP/port tuple on the NAT that the border router sees. Disadvantages:
 
+   -  This approach may be be problematic with sensitive NATs.
+   -  We need to somehow standardize the STUN IP/port and/or communicate it to endhosts, e.g. via the topo file or
+      its successor.
+-  Remove all NATs and use IPv6 instead. This is technically possible but unlikely to happen anytime soon.
 
 Compatibility
 =============
@@ -116,7 +121,8 @@ Compatibility
 
 Breaking changes
 ----------------
-There should not be any breaking changes.
+
+This change should not break anything.
 
 Transition
 ----------
@@ -133,3 +139,5 @@ NAT or fail if there is one.
 Implementation
 ==============
 [A description of the steps in the implementation, which components need to be changed and in which order.]
+
+TODO
