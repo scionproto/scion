@@ -23,32 +23,6 @@ go_test(
     ],
 )
 
-# dispatcher container
-oci_tarball(
-    name = "dispatcher.tar",
-    format = "docker",
-    image = ":dispatcher_image",
-    repo_tags = ["scion/" + package_name() + ":dispatcher"],
-)
-
-oci_image(
-    name = "dispatcher_image",
-    base = "//docker:dispatcher",
-    cmd = [
-        "--config",
-        "/disp.toml",
-    ],
-    entrypoint = ["/app/dispatcher"],
-    tars = [
-        ":dispatcher_data",
-    ],
-)
-
-pkg_tar(
-    name = "dispatcher_data",
-    srcs = ["testdata/disp.toml"],
-)
-
 # daemon container
 oci_tarball(
     name = "daemon.tar",

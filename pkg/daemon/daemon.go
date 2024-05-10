@@ -18,7 +18,7 @@ package daemon
 
 import (
 	"context"
-	"net"
+	"net/netip"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon/internal/metrics"
@@ -68,7 +68,7 @@ type Connector interface {
 	// for the local IA.
 	PortRange(ctx context.Context) (uint16, uint16, error)
 	// Interfaces returns the map of interface identifiers to the underlay internal address.
-	Interfaces(ctx context.Context) (map[uint16]*net.UDPAddr, error)
+	Interfaces(ctx context.Context) (map[uint16]netip.AddrPort, error)
 	// Paths requests from the daemon a set of end to end paths between the source and destination.
 	Paths(ctx context.Context, dst, src addr.IA, f PathReqFlags) ([]snet.Path, error)
 	// ASInfo requests from the daemon information about AS ia, the zero IA can be

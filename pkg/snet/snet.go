@@ -40,6 +40,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/netip"
 	"syscall"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -52,7 +53,7 @@ import (
 type Topology interface {
 	LocalIA(ctx context.Context) (addr.IA, error)
 	PortRange(ctx context.Context) (uint16, uint16, error)
-	Interfaces(ctx context.Context) (map[uint16]*net.UDPAddr, error)
+	Interfaces(ctx context.Context) (map[uint16]netip.AddrPort, error)
 }
 
 var _ Network = (*SCIONNetwork)(nil)

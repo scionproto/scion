@@ -17,6 +17,7 @@ package daemon
 import (
 	"context"
 	"net"
+	"net/netip"
 	"time"
 
 	"google.golang.org/grpc"
@@ -84,16 +85,16 @@ func (c grpcConn) PortRange(ctx context.Context) (uint16, uint16, error) {
 	return uint16(response.DispatchedPortStart), uint16(response.DispatchedPortEnd), nil
 }
 
-func (c grpcConn) Interfaces(ctx context.Context) (map[uint16]*net.UDPAddr, error) {
+func (c grpcConn) Interfaces(ctx context.Context) (map[uint16]netip.AddrPort, error) {
 	client := sdpb.NewDaemonServiceClient(c.conn)
 	response, err := client.Interfaces(ctx, &sdpb.InterfacesRequest{})
 	if err != nil {
 		c.metrics.incInterface(err)
 		return nil, err
 	}
-	result := make(map[uint16]*net.UDPAddr)
+	result := make(map[uint16]netip.AddrPort, len(response.Interfaces))
 	for ifID, intf := range response.Interfaces {
-		a, err := net.ResolveUDPAddr("udp", intf.Address.Address)
+		a, err := netip.ParseAddrPort(intf.Address.Address)
 		if err != nil {
 			c.metrics.incInterface(err)
 			return nil, serrors.WrapStr("parsing reply", err, "raw_uri", intf.Address.Address)

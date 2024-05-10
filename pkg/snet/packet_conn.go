@@ -16,6 +16,7 @@ package snet
 
 import (
 	"net"
+	"net/netip"
 	"syscall"
 	"time"
 
@@ -342,12 +343,15 @@ type SerializationOptions struct {
 	InitializePaths bool
 }
 
-type interfaceMap map[uint16]*net.UDPAddr
+type interfaceMap map[uint16]netip.AddrPort
 
 func (m interfaceMap) get(id uint16) (*net.UDPAddr, error) {
-	addr, ok := m[id]
+	addrPort, ok := m[id]
 	if !ok {
 		return nil, serrors.New("interface number not found", "interface", id)
 	}
-	return addr, nil
+	return &net.UDPAddr{
+		IP:   addrPort.Addr().AsSlice(),
+		Port: int(addrPort.Port()),
+	}, nil
 }

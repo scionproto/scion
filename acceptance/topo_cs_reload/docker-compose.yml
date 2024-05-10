@@ -7,22 +7,8 @@ networks:
       config:
       - subnet: 242.253.100.0/24
 services:
-<<<<<<< HEAD
-  topo_cs_reload_dispatcher:
-    image: scion/acceptance/topo_cs_reload:dispatcher
-    networks:
-      bridge1:
-        ipv4_address: 242.253.100.2
-    volumes:
-    - vol_topo_cs_reload_disp:/run/shm/dispatcher:rw
   topo_cs_reload_control_srv:
     image: scion/acceptance/topo_cs_reload:control
-    depends_on:
-      - topo_cs_reload_dispatcher
-=======
-  topo_cs_reload_control_srv:
-    image: bazel/acceptance/topo_cs_reload:control
->>>>>>> 6b820ef10 (change last-mile router port forwarding)
     volumes:
     - "${TOPO_CS_RELOAD_CONFIG_DIR}/certs:/certs:ro"
     - "${TOPO_CS_RELOAD_CONFIG_DIR}/keys:/keys:ro"

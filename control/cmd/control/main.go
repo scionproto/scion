@@ -19,9 +19,9 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"errors"
-	"net"
 	"net/http"
 	_ "net/http/pprof"
+	"net/netip"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -948,9 +948,9 @@ func (c cpInfoProvider) PortRange(_ context.Context) (uint16, uint16, error) {
 	return start, end, nil
 }
 
-func (c cpInfoProvider) Interfaces(_ context.Context) (map[uint16]*net.UDPAddr, error) {
+func (c cpInfoProvider) Interfaces(_ context.Context) (map[uint16]netip.AddrPort, error) {
 	ifMap := c.topo.InterfaceInfoMap()
-	ifsToUDP := make(map[uint16]*net.UDPAddr, len(ifMap))
+	ifsToUDP := make(map[uint16]netip.AddrPort, len(ifMap))
 	for i, v := range ifMap {
 		if i > (1<<16)-1 {
 			return nil, serrors.New("invalid interface id", "id", i)

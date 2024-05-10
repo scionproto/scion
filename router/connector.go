@@ -39,9 +39,9 @@ type Connector struct {
 	externalInterfaces map[uint16]control.ExternalInterface
 	siblingInterfaces  map[uint16]control.SiblingInterface
 
-	ReceiveBufferSize int
-	SendBufferSize    int
-	BFD               config.BFD
+	ReceiveBufferSize   int
+	SendBufferSize      int
+	BFD                 config.BFD
 	DispatchedPortStart *int
 	DispatchedPortEnd   *int
 }
@@ -232,6 +232,8 @@ func (c *Connector) applyBFDDefaults(cfg control.BFD) control.BFD {
 		cfg.RequiredMinRxInterval = c.BFD.RequiredMinRxInterval.Duration
 	}
 	return cfg
+}
+
 func (c *Connector) SetPortRange(start, end uint16) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
