@@ -63,7 +63,7 @@ func realMain(ctx context.Context) error {
 	g.Go(func() error {
 		defer log.HandlePanic()
 		return runDispatcher(
-			globalCfg.Dispatcher.IsDispatcher,
+			globalCfg.Dispatcher.LocalUDPForwarding,
 			globalCfg.Dispatcher.ServiceAddresses,
 			netip.AddrPortFrom(
 				globalCfg.Dispatcher.UnderlayAddr,

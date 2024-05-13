@@ -198,7 +198,7 @@ class GoGenerator(object):
         tomlDict = {
             'dispatcher': {
                 'id': name,
-                'is_dispatcher': True,
+                'local_udp_forwarding': True,
             },
             'log': self._log_entry(name),
             'metrics': {
