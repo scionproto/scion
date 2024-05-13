@@ -63,7 +63,7 @@ services:
     cap_add:
     - NET_ADMIN
     container_name: sig1
-    image: bazel/acceptance/sig_short_exp_time:sig1
+    image: scion/gateway:latest
     networks:
       bridge1:
         ipv4_address: 242.254.100.2
@@ -76,7 +76,7 @@ services:
     cap_add:
     - NET_ADMIN
     container_name: sig2
-    image: bazel/acceptance/sig_short_exp_time:sig2
+    image: scion/gateway:latest
     networks:
       bridge2:
         ipv4_address: 242.254.200.2
