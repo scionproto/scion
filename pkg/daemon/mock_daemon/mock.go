@@ -6,7 +6,7 @@ package mock_daemon
 
 import (
 	context "context"
-	net "net"
+	netip "net/netip"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -115,10 +115,10 @@ func (mr *MockConnectorMockRecorder) DRKeyGetHostHostKey(arg0, arg1 interface{})
 }
 
 // Interfaces mocks base method.
-func (m *MockConnector) Interfaces(arg0 context.Context) (map[uint16]*net.UDPAddr, error) {
+func (m *MockConnector) Interfaces(arg0 context.Context) (map[uint16]netip.AddrPort, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Interfaces", arg0)
-	ret0, _ := ret[0].(map[uint16]*net.UDPAddr)
+	ret0, _ := ret[0].(map[uint16]netip.AddrPort)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
