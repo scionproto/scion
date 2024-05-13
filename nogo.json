@@ -2,18 +2,20 @@
     "assign": {
         "exclude_files": {
             "gazelle/walk/walk.go": "",
+            "/org_modernc_libc": "",
             "/org_modernc_sqlite": ""
         }
     },
     "composites": {
         "exclude_files": {
-            "gazelle/language/go/resolve.go": "",
             "/com_github_bazelbuild_buildtools/": "",
             "/com_github_grpc_ecosystem_grpc_opentracing/go/otgrpc/": "",
             "/com_github_vishvananda_netlink/": "",
-            "/org_golang_x_tools/internal": "",
             "/org_golang_google_protobuf": "",
-            "/org_golang_x_tools/go/analysis/internal/checker": ""
+            "/org_golang_x_text": "",
+            "/org_golang_x_tools/go/analysis/internal/checker": "",
+            "/org_golang_x_tools/internal": "",
+            "gazelle/language/go/resolve.go": ""
         }
     },
     "copylocks": {
@@ -108,6 +110,7 @@
     "stdmethods": {
         "exclude_files": {
             "/com_github_uber_jaeger_client_go": "",
+            "org_golang_x_exp": "",
             "/org_modernc_sqlite": "",
             "/org_modernc_mathutil": ""
         }
