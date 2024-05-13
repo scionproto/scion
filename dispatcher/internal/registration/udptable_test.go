@@ -126,7 +126,7 @@ func TestUDPPortTableInsert(t *testing.T) {
 					_, lookupOk := table.Lookup(address)
 					SoMsg("err", err, ShouldBeNil)
 					SoMsg("address content", retAddress, ShouldResemble, address)
-					SoMsg("address not same object", retAddress, ShouldNotEqual, address)
+					SoMsg("address not same object", retAddress, ShouldNotPointTo, address)
 					SoMsg("lookup ok", lookupOk, ShouldBeTrue)
 				})
 			Convey("Inserting an IPv4 address with a 0 port returns an allocated port",
@@ -146,7 +146,7 @@ func TestUDPPortTableInsert(t *testing.T) {
 					_, lookupOk := table.Lookup(address)
 					SoMsg("err", err, ShouldBeNil)
 					SoMsg("address content", retAddress, ShouldResemble, address)
-					SoMsg("address not same object", retAddress, ShouldNotEqual, address)
+					SoMsg("address not same object", retAddress, ShouldNotPointTo, address)
 					SoMsg("lookup ok", lookupOk, ShouldBeTrue)
 				})
 			Convey("Inserting an IPv6 address with a 0 port returns an allocated port",

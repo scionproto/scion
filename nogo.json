@@ -164,7 +164,8 @@
     "reflectvaluecompare": {
         "exclude_files": {
             "in_gopkg_yaml_v2": "",
-            "com_github_smartystreets_assertions": ""
+            "com_github_smartystreets_assertions": "",
+            "/com_github_smarty_assertions": ""
         }
     },
     "shadow": {
