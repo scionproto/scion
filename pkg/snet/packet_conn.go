@@ -350,8 +350,5 @@ func (m interfaceMap) get(id uint16) (*net.UDPAddr, error) {
 	if !ok {
 		return nil, serrors.New("interface number not found", "interface", id)
 	}
-	return &net.UDPAddr{
-		IP:   addrPort.Addr().AsSlice(),
-		Port: int(addrPort.Port()),
-	}, nil
+	return net.UDPAddrFromAddrPort(addrPort), nil
 }
