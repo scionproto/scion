@@ -8,7 +8,7 @@ NAT IP/port discovery
 
 Abstract
 ========
-SCION packet headers contain a SRC address to which packets should be returned. This address needs to be publicly
+SCION packet headers contain a SRC address to which packets should be returned. This address needs to be
 visible/reachable by the first-hop border router. This address may not be easy to discover if the sender is separated
 from the receiver by a NAT.
 
@@ -21,14 +21,15 @@ Background
 [Introduction of the topic, description of the problem being solved.]
 
 After a client endhost sends a request to a server over SCION, in order to return a packet response to the client,
-the border router in the client's AS uses the SRC address from the SCION header and the port of the UDP payload to reach
-the client. The SRC address and port are set by the client.
-If the client is behind a NAT or similar, the SRC address/port must be the address/port of the NAT as seen by
-the border router. The problem we are trying to solve is putting the correct SRC address/port into the SCION packet.
+the border router in the client's AS uses the SRC address from the received SCION header and the port of the UDP payload
+to reach the client. This SRC address and port are set by the client.
+If the client is behind a NAT or similar, this SRC address/port (now DST address) must be the address/port at the NAT as
+seen by the border router. The problem we are trying to solve is putting the correct SRC address/port into outbound
+SCION packets.
 
 There are many solutions to deal with NATs. In our case, if we assume that packet headers may (at some point) need
-to be signed, we need a solution that allows a client to inject the correct SRC IP into a packet.
-"Correct" meaning the address + port that is visible by the first hop border router so that it can return answer packets
+to be signed, we need a solution that allows a client to inject the correct SRC IP and port into a packet.
+"Correct" meaning the IP and port that is visible by the first hop border router so that it can return answer packets
 from a remote host to the sender.
 
 The basic idea is that the client endhost sends a packet to a destination (let's call it "detector") outside of the
@@ -37,17 +38,17 @@ One example of this approach is the `STUN protocol <https://en.wikipedia.org/wik
 
 One complication is that the local AS of the sender may be split into different subnets and that border routers
 are not all in the same subnet.
-Another complication is that some NATs may change their external port if a client endhosts connects to a new
+Another complication is that some NATs may change their port mapping port if a client endhosts connects to a new
 remote IP or port or uses a different local port.
 
 Therefore, it is desirable for the detector not only be in the same AS and same subnet as the BR, but ideally on the
 same server, listening on the same port.
-Similarly, it is desirable for the client to use the same local port for connection to the detector and for the
-actual data connection to the border router.
+Similarly, it is desirable for the client to use the same local port when connecting to the detector and for actual data
+packets to the border router.
 
-Separately, we need specify a way how the client endhost can discover the "detector", i.e. its IP address and port.
-In case the detector shares and IP and possibly even port (or uses a fixed port) then this discovery is straight
-forward.
+Separately, we need to specify a way how the client endhost can discover the "detector", i.e. its IP address and port.
+In case the detector shares and IP and possibly even port (or uses a fixed port) with the border router, this
+discovery is straight forward.
 If the port is flexible or the detector runs on a different IP then we need to find a different solution, probably
 as an extension to the discover/bootstrapping service.
 
@@ -59,7 +60,7 @@ Proposed change: Extend the border router (BR) to detect NATed addresses/ports a
 
 Ideally the solution would listen on the same port that would also be used for normal traffic forwarding.
 Alternatively, it may be feasible (depending on how sensitive the NAT is) to use a different (fixed) port to
-accept request for reporting addresses.
+accept requests for reporting addresses.
 
 The implementation on the protocol level could be done in several ways:
 
@@ -81,8 +82,8 @@ The implementation on the protocol level could be done in several ways:
     NATed IP/port).
 
     -  Advantages: One less dependency on an external library and protocol
-    -  Disadvantages: Conceptually a bit of a hack. More standardization effort? How do we solve authentication?
-
+    -  Disadvantages: Conceptually a bit of a hack. The BR would need to check every outbound packet as part of the fast
+       path. More standardization effort? How do we solve authentication?
 
 Rationale
 =========
@@ -93,27 +94,29 @@ The main reasons for integrating the functionality with the BR are:
 -  Reliability: The border router is almost guaranteed to see the correct IP/port on the NAT, especially when using the
    same port for STUN traffic and routing traffic. All other approaches rely on the leniency of the NAT to use the same
    port even if the STUN server and border router have different ports or even IPs.
--  Time to rollout: changing the border routers should be much easier and faster than getting router vendors or NAT
-   vendors to implement SCION compatibility or to get rid of NATs completely in home networks.
+-  Time to rollout: changing the border routers should be much easier and faster than getting NAT vendors to implement
+   SCION compatibility or to get rid of NATs completely in home networks.
    A short time until rollout seems important because people are already running into this problem.
 
 Alternatives:
 
 -  The SRC address/port is updated by the border router to reflect what the border router sees as source address.
    Problem:
-   -  Complicates cryptographically protecting the header if the header must be modifiable by border routers
-   -  A spoofed IP causes the border router to route traffic to an unsuspecting target
--  The SRC address/port is updated by the NAT. This is similar to having the border router update tSRC IP/port.
-   - Complicates cryptographically protecting the header if the header must be modifiable by border routers
--  Use STUN servers. This is a possibility, but adds setup complexity and may not work in all cases. Every subnet
-   of an AS that has a border router must also have a STUN server. Moreover, if the STUN server uses a different IP
-   (or port) than the border router, then the NAT may decide to use a different port when connecting to it, i.e. the
-   STUN server may not see the same IP/port tuple on the NAT that the border router sees. Disadvantages:
+
+   -  Complicates cryptographically protecting the header if the header must be modifiable by border routers,
+      e.g. for `SPAO <https://docs.scion.org/en/latest/protocols/authenticator-option.html>`_.
+-  The SRC address/port is updated by the NAT. This is similar to having the border router update SRC IP/port.
+   - Complicates cryptographically protecting the header if the header must be modifiable by NATs.
+-  Use separate STUN servers. This is a possibility, but adds setup complexity and may not work in all cases. Every
+   subnet of an AS that has a border router must also have a STUN server. Moreover, if the STUN server uses a different
+   IP (or port) than the border router, then the NAT may decide to use a different port mapping when connecting to it,
+   i.e. the STUN server may not see the same IP/port tuple on the NAT that the border router sees. Disadvantages:
 
    -  This approach may be be problematic with sensitive NATs.
-   -  We need to somehow standardize the STUN IP/port and/or communicate it to endhosts, e.g. via the topo file or
-      its successor.
--  Remove all NATs and use IPv6 instead. This is technically possible but unlikely to happen anytime soon.
+   -  We need to somehow standardize the STUN IP/port and/or communicate it to endhosts, e.g. via the topology.json file
+      or its successor.
+-  Remove all NATs and use IPv6 instead. This is technically possible but unlikely to happen anytime soon, especially
+   because scarcity of IPv4 addresses is not the only reason why NATs are deployed.
 
 Compatibility
 =============
@@ -127,14 +130,16 @@ This change should not break anything.
 Transition
 ----------
 
-- An "old" client without expectation on STUN support on the router would simply not use this feature. No problem here.
+- An "old" client without expectation on STUN support on the router would simply not use this feature.
+  No additional problem here.
 - A "new" client sending a STUN request to an "old" border router should simply fail because the router should simply
   drop a packet that it cannot process.
-  The client should then time out and report that the external NAT address cloud not be established.
+  The client should then time out and report that the external NAT address could not be established. Instead of timing
+  out it could also optimistically assume that no NAT is involved. -> TBD
 
 **TODO** How can we avoid this failure in cases where there is no NAT? Can we get the BR version or CS version?
 If they are outdated then the client can try without NAT resolution which may simply work if there is not
-NAT or fail if there is one.
+NAT or fail if there is one. Or the client could optimistically assume that no NAT is present.
 
 Implementation
 ==============
