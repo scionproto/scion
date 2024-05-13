@@ -600,7 +600,7 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 
 	// Each receiver (therefore each input interface) has a unique random seed for the procID hash
 	// function.
-	hashSeed := uint32(fnv1aOffset32)
+	hashSeed := fnv1aOffset32
 	randomBytes := make([]byte, 4)
 	if _, err := rand.Read(randomBytes); err != nil {
 		panic("Error while generating random value")
@@ -672,7 +672,7 @@ func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, e
 		return 0, errShortPacket
 	}
 
-	var s uint32 = hashSeed
+	s := hashSeed
 
 	// inject the flowID
 	s = hashFNV1a(s, data[1]&0xF) // The left 4 bits aren't part of the flowID.

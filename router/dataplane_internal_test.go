@@ -213,13 +213,12 @@ func TestForwarder(t *testing.T) {
 }
 
 func TestComputeProcId(t *testing.T) {
-	randomValue := uint32(1234)
-	randomValueBytes := []byte{byte(randomValue & 0xff), byte(randomValue >> 8), 0, 0}
+	randomValueBytes := []byte{1, 2, 3, 4}
 	numProcs := 10000
 
 	// ComputeProcID expects the per-receiver random number to be pre-hashed into the seed that we
 	// pass.
-	hashSeed := uint32(fnv1aOffset32)
+	hashSeed := fnv1aOffset32
 	for _, c := range randomValueBytes {
 		hashSeed = hashFNV1a(hashSeed, c)
 	}

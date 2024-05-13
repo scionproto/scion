@@ -16,7 +16,7 @@ package router
 
 // fnv1aOffset32 is an initial offset that can be used as initial state when calling
 // hashFNV1a.
-const fnv1aOffset32 = 2166136261
+const fnv1aOffset32 uint32 = 2166136261
 
 // hashFNV1a returns a hash value for the given initial state combined with the given byte.
 // To get a hash for a sequence of bytes, invoke for each byte, passing the returned value
