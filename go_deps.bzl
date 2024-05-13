@@ -196,8 +196,8 @@ def go_deps():
     go_repository(
         name = "com_github_cncf_xds_go",
         importpath = "github.com/cncf/xds/go",
-        sum = "h1:DBmgJDC9dTfkVyGgipamEh2BpGYxScCH1TOF1LL1cXc=",
-        version = "v0.0.0-20240318125728-8a4994d93e50",
+        sum = "h1:jQCWAUqqlij9Pgj2i/PB79y4KOPYVyFYdROxgaCwdTQ=",
+        version = "v0.0.0-20231128003011-0fa0005c9caa",
     )
     go_repository(
         name = "com_github_coreos_go_semver",
@@ -1414,8 +1414,8 @@ def go_deps():
     go_repository(
         name = "com_google_cloud_go_compute",
         importpath = "cloud.google.com/go/compute",
-        sum = "h1:ZRpHJedLtTpKgr3RV1Fx23NuaAEN1Zfx9hw1u4aJdjU=",
-        version = "v1.25.1",
+        sum = "h1:phWcR2eWzRJaL/kOiJwfFsPs4BaKq1j6vnpZrc1YlVg=",
+        version = "v1.24.0",
     )
     go_repository(
         name = "com_google_cloud_go_compute_metadata",
@@ -1552,8 +1552,8 @@ def go_deps():
     go_repository(
         name = "org_golang_google_genproto_googleapis_api",
         importpath = "google.golang.org/genproto/googleapis/api",
-        sum = "h1:RFiFrvy37/mpSpdySBDrUdipW/dHwsRwh3J3+A9VgT4=",
-        version = "v0.0.0-20240318140521-94a12d6c2237",
+        sum = "h1:jFNzHPIeuzhdRwVhbZdiym9q0ory/xY3sA+v2wPg8I0=",
+        version = "v0.0.0-20240227224415-6ceb2ff114de",
     )
     go_repository(
         name = "org_golang_google_genproto_googleapis_rpc",
@@ -1584,8 +1584,8 @@ def go_deps():
     go_repository(
         name = "org_golang_google_grpc_examples",
         importpath = "google.golang.org/grpc/examples",
-        sum = "h1:KVVvsYOwJCO2K3UxWW+jqCD6NBEk9fqb7TzFMGECi6g=",
-        version = "v0.0.0-20240509214311-59954c801658",
+        sum = "h1:crPucDOfTtZF6lBfOiv4ex+5g+TFoNjyiSrSDJUpYPc=",
+        version = "v0.0.0-20240321213419-eb5828bae753",
     )
     go_repository(
         name = "org_golang_google_protobuf",
