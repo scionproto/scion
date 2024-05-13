@@ -137,15 +137,18 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 	remote *UDPAddr) (*Conn, error) {
 
 	metrics.CounterInc(n.Metrics.Dials)
+	if network != "udp" {
+		return nil, serrors.New("Unknown network", "network", network)
+	}
 	if remote == nil {
 		return nil, serrors.New("Unable to dial to nil remote")
 	}
-	conn, err := n.Listen(ctx, network, listen)
+	packetConn, err := n.OpenRaw(ctx, listen)
 	if err != nil {
 		return nil, err
 	}
-	conn.remote = remote.Copy()
-	return conn, nil
+	log.FromCtx(ctx).Debug("UDP socket openned on", "addr", packetConn.LocalAddr(), "to", remote)
+	return NewCookedConn(packetConn, n.Topology, WithReplyPather(n.ReplyPather), WithRemote(remote))
 }
 
 // Listen opens a Conn. The returned connection's ReadFrom and WriteTo methods
