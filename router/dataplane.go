@@ -598,6 +598,17 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 
 	log.Debug("Run receiver for", "interface", ifID)
 
+	// Each receiver (therefore each input interface) has a unique random seed for the procID hash
+	// function.
+	hashSeed := uint32(fnv1aOffset32)
+	randomBytes := make([]byte, 4)
+	if _, err := rand.Read(randomBytes); err != nil {
+		panic("Error while generating random value")
+	}
+	for _, c := range randomBytes {
+		hashSeed = hashFNV1a(hashSeed, c)
+	}
+
 	msgs := underlayconn.NewReadMessages(cfg.BatchSize)
 	numReusable := 0                     // unused buffers from previous loop
 	metrics := d.forwardingMetrics[ifID] // If receiver exists, fw metrics exist too.
@@ -609,7 +620,7 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 		metrics[sc].InputPacketsTotal.Inc()
 		metrics[sc].InputBytesTotal.Add(float64(size))
 
-		procID, err := computeProcID(pkt.Buffers[0], cfg.NumProcessors, ifID)
+		procID, err := computeProcID(pkt.Buffers[0], cfg.NumProcessors, hashSeed)
 		if err != nil {
 			log.Debug("Error while computing procID", "err", err)
 			d.returnPacketToPool(pkt.Buffers[0])
@@ -650,13 +661,7 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 	}
 }
 
-// The hasher API is very expensive. Make our own cheap version.
-const (
-	prime32  = 16777619
-	offset32 = 2166136261
-)
-
-func computeProcID(data []byte, numProcRoutines int, base uint16) (uint32, error) {
+func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, error) {
 	if len(data) < slayers.CmnHdrLen {
 		return 0, errShortPacket
 	}
@@ -667,26 +672,17 @@ func computeProcID(data []byte, numProcRoutines int, base uint16) (uint32, error
 		return 0, errShortPacket
 	}
 
-	var s uint32 = offset32
-
-	// Inject the base number (i.e. ifID)
-	s ^= uint32(base & 0xff)
-	s *= prime32
-	s ^= uint32(base >> 8)
-	s *= prime32
+	var s uint32 = hashSeed
 
 	// inject the flowID
-	s ^= uint32(data[1] & 0xF) // The left 4 bits aren't part of the flowID.
-	s *= prime32
+	s = hashFNV1a(s, data[1]&0xF) // The left 4 bits aren't part of the flowID.
 	for _, c := range data[2:4] {
-		s ^= uint32(c)
-		s *= prime32
+		s = hashFNV1a(s, c)
 	}
 
 	// Inject the src/dst addresses
 	for _, c := range data[slayers.CmnHdrLen : slayers.CmnHdrLen+addrHdrLen] {
-		s ^= uint32(c)
-		s *= prime32
+		s = hashFNV1a(s, c)
 	}
 
 	return s % uint32(numProcRoutines), nil

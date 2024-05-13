@@ -213,12 +213,19 @@ func TestForwarder(t *testing.T) {
 }
 
 func TestComputeProcId(t *testing.T) {
-	randomValue := uint16(1234)
-	randomValueBytes := []byte{byte(randomValue & 0xff), byte(randomValue >> 8)}
+	randomValue := uint32(1234)
+	randomValueBytes := []byte{byte(randomValue & 0xff), byte(randomValue >> 8), 0, 0}
 	numProcs := 10000
 
-	// this function returns the procID by using the slayers.SCION serialization
-	// implementation
+	// ComputeProcID expects the per-receiver random number to be pre-hashed into the seed that we
+	// pass.
+	hashSeed := uint32(fnv1aOffset32)
+	for _, c := range randomValueBytes {
+		hashSeed = hashFNV1a(hashSeed, c)
+	}
+
+	// this function returns the procID as we expect it by using the  slayers.SCION serialization
+	// implementation.
 	referenceHash := func(s *slayers.SCION) uint32 {
 		flowBuf := make([]byte, 4)
 		binary.BigEndian.PutUint32(flowBuf, s.FlowID)
@@ -234,8 +241,8 @@ func TestComputeProcId(t *testing.T) {
 		return hasher.Sum32() % uint32(numProcs)
 	}
 
-	// this helper returns the procID by using the extraction
-	// from dataplane.computeProcID()
+	// this helper returns the procID as the router actually makes it by using the extraction
+	// from dataplane.computeProcID() along with hashFNV1a() for the seed.
 	computeProcIDHelper := func(payload []byte, s *slayers.SCION) (uint32, error) {
 		buffer := gopacket.NewSerializeBuffer()
 		err := gopacket.SerializeLayers(buffer,
@@ -244,7 +251,7 @@ func TestComputeProcId(t *testing.T) {
 		require.NoError(t, err)
 		raw := buffer.Bytes()
 
-		return computeProcID(raw, numProcs, randomValue)
+		return computeProcID(raw, numProcs, hashSeed)
 	}
 	type ret struct {
 		payload []byte
@@ -404,7 +411,7 @@ func TestComputeProcIdErrorCases(t *testing.T) {
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			randomValue := uint16(1234)
+			randomValue := uint32(1234) // not a proper hash seed, but hash result is irrelevant.
 			_, actualErr := computeProcID(tc.data, 10000, randomValue)
 			if tc.expectedError != nil {
 				assert.Equal(t, tc.expectedError.Error(), actualErr.Error())
