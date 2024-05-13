@@ -17,6 +17,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
+	github.com/hashicorp/golang-lru/arc/v2 v2.0.7
 	github.com/iancoleman/strcase v0.3.0
 	github.com/lestrrat-go/jwx v1.2.29
 	github.com/mattn/go-isatty v0.0.20
@@ -49,7 +50,7 @@ require (
 	golang.org/x/sync v0.7.0
 	golang.org/x/tools v0.21.0
 	google.golang.org/grpc v1.63.2
-	google.golang.org/grpc/examples v0.0.0-20240509214311-59954c801658
+	google.golang.org/grpc/examples v0.0.0-20240321213419-eb5828bae753
 	google.golang.org/protobuf v1.34.1
 	gopkg.in/yaml.v2 v2.4.0
 	modernc.org/sqlite v1.29.9
@@ -74,7 +75,6 @@ require (
 	github.com/google/pprof v0.0.0-20240509144519-723abb6459b7 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gopherjs/gopherjs v1.17.2 // indirect
-	github.com/hashicorp/golang-lru/arc/v2 v2.0.7
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
