@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/topology"
 )
@@ -47,13 +46,11 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 		path    DataplanePath
 		nextHop *net.UDPAddr
 	)
-	log.Debug("Writing to remote", "remote", raddr)
 
 	switch a := raddr.(type) {
 	case nil:
 		return 0, serrors.New("Missing remote address")
 	case *UDPAddr:
-		log.Debug("Writing to UDPAddr", "addr", a)
 		hostIP, ok := netip.AddrFromSlice(a.Host.IP)
 		if !ok {
 			return 0, serrors.New("invalid destination host IP", "ip", a.Host.IP)
