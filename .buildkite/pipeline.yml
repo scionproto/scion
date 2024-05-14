@@ -25,7 +25,7 @@ steps:
   - wait
   - label: "Package :debian: :openwrt:"
     command:
-      - version="$(tools/git-version)"
+      - version=${SCION_VERSION:-$(tools/git-version)}
       - make dist-deb BFLAGS="--file_name_version=${version}"
       - make dist-openwrt BFLAGS="--file_name_version=${version}"
       - cd installables;
