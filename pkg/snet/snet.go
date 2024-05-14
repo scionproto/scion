@@ -135,6 +135,9 @@ func (n *SCIONNetwork) OpenRaw(ctx context.Context, addr *net.UDPAddr) (PacketCo
 // connection.
 func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDPAddr,
 	remote *UDPAddr) (*Conn, error) {
+	// XXX(JordiSubira): Currently Dial does not check that received packets are
+	// originated from the expected remote address. This should be adapted to
+	// check that the remote packets are originated from the expected remote address.
 
 	metrics.CounterInc(n.Metrics.Dials)
 	if network != "udp" {
