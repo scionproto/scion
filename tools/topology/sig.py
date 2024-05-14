@@ -70,8 +70,7 @@ class SIGGenerator(object):
     def _dispatcher_conf(self, topo_id, base):
         # Create dispatcher config
         entry = {
-            'image':
-            'dispatcher',
+            'image': docker_image(self.args, 'dispatcher'),
             'user':
             self.user,
             'networks': {},
