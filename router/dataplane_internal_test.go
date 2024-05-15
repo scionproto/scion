@@ -183,13 +183,13 @@ func TestForwarder(t *testing.T) {
 	dp.initMetrics()
 	go dp.runForwarder(0, dp.internal, runConfig, fwCh[0])
 
-	dstAddr := &net.UDPAddr{IP: net.IP{10, 0, 200, 200}}
+	dstAddr := net.UDPAddr{IP: net.IP{10, 0, 200, 200}}
 	for i := 0; i < 255; i++ {
 		pkt := <-dp.packetPool
 		assert.NotEqual(t, initialPoolSize, len(dp.packetPool))
 		pkt[0] = byte(i)
 		if i == 100 {
-			dstAddr = nil
+			dstAddr = net.UDPAddr{}
 		}
 		select {
 		case fwCh[0] <- packet{
@@ -430,7 +430,9 @@ func TestSlowPathProcessing(t *testing.T) {
 	// * The ingress interface has to exist. This fake map is good for the test cases we have.
 	// * InternalNextHops may not be nil. Empty is ok for all the test cases we have.
 	fakeExternalInterfaces := map[uint16]BatchConn{1: nil}
-	fakeInternalNextHops := map[uint16]*net.UDPAddr{}
+	fakeInternalNextHops := map[uint16]netip.AddrPort{}
+	fakeServices := map[addr.SVC][]netip.AddrPort{}
+
 	testCases := map[string]struct {
 		mockMsg                 func() []byte
 		prepareDP               func(*gomock.Controller) *DataPlane
@@ -443,7 +445,7 @@ func TestSlowPathProcessing(t *testing.T) {
 				return NewDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
-					map[addr.SVC][]*net.UDPAddr{},
+					fakeServices,
 					xtest.MustParseIA("1-ff00:0:110"),
 					nil, testKey)
 			},
@@ -468,7 +470,7 @@ func TestSlowPathProcessing(t *testing.T) {
 				return NewDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
-					map[addr.SVC][]*net.UDPAddr{},
+					fakeServices,
 					xtest.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
@@ -492,7 +494,7 @@ func TestSlowPathProcessing(t *testing.T) {
 				return NewDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
-					map[addr.SVC][]*net.UDPAddr{},
+					fakeServices,
 					xtest.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
@@ -531,7 +533,7 @@ func TestSlowPathProcessing(t *testing.T) {
 			result, err = slowPathProcessor.processPacket(slowPacket{
 				packet: packet{
 					srcAddr:   srcAddr,
-					dstAddr:   result.OutAddr,
+					dstAddr:   *net.UDPAddrFromAddrPort(result.OutAddr),
 					ingress:   tc.srcInterface,
 					rawPacket: rawPacket,
 				},

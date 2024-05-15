@@ -43,8 +43,8 @@ func NewDP(
 	external map[uint16]BatchConn,
 	linkTypes map[uint16]topology.LinkType,
 	internal BatchConn,
-	internalNextHops map[uint16]*net.UDPAddr,
-	svc map[addr.SVC][]*net.UDPAddr,
+	internalNextHops map[uint16]netip.AddrPort,
+	svc map[addr.SVC][]netip.AddrPort,
 	local addr.IA,
 	neighbors map[uint16]addr.IA,
 	key []byte) *DataPlane {
@@ -84,6 +84,6 @@ func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message) (ProcessResult, err
 	return ProcessResult{processResult: result}, err
 }
 
-func ExtractServices(s *services) map[addr.SVC][]*net.UDPAddr {
+func ExtractServices(s *services) map[addr.SVC][]netip.AddrPort {
 	return s.m
 }

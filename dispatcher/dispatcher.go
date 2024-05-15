@@ -17,6 +17,7 @@ package dispatcher
 import (
 	"context"
 	"net"
+	"net/netip"
 	"time"
 
 	"github.com/scionproto/scion/dispatcher/internal/registration"
@@ -210,14 +211,16 @@ func openConn(network, address string) (net.PacketConn, error) {
 	if err != nil {
 		return nil, serrors.WrapStr("unable to construct UDP addr", err)
 	}
-	if network == "udp4" && listeningAddress.IP == nil {
-		listeningAddress.IP = net.IPv4zero
-	}
-	if network == "udp6" && listeningAddress.IP == nil {
-		listeningAddress.IP = net.IPv6zero
+	listenTo := listeningAddress.AddrPort()
+	if !listenTo.IsValid() {
+		if network == "udp4" {
+			listenTo = netip.AddrPortFrom(netip.IPv4Unspecified(), listenTo.Port())
+		} else if network == "udp6" {
+			listenTo = netip.AddrPortFrom(netip.IPv6Unspecified(), listenTo.Port())
+		}
 	}
 
-	c, err := conn.New(listeningAddress, nil, &conn.Config{
+	c, err := conn.New(listenTo, netip.AddrPort{}, &conn.Config{
 		SendBufferSize:    SendBufferSize,
 		ReceiveBufferSize: ReceiveBufferSize,
 	})
@@ -262,7 +265,9 @@ func (o *underlayConnWrapper) WriteTo(p []byte, a net.Addr) (int, error) {
 	if !ok {
 		return 0, serrors.New("address is not UDP", "addr", a)
 	}
-	return o.Conn.WriteTo(p, udpAddr)
+	// POSSIBLY EXPENSIVE CONVERSION, but no point in updating more dispatcher code at this
+	// time.
+	return o.Conn.WriteTo(p, udpAddr.AddrPort())
 }
 
 func (o *underlayConnWrapper) Close() error {
@@ -270,7 +275,7 @@ func (o *underlayConnWrapper) Close() error {
 }
 
 func (o *underlayConnWrapper) LocalAddr() net.Addr {
-	return o.Conn.LocalAddr()
+	return net.UDPAddrFromAddrPort(o.Conn.LocalAddr())
 }
 
 func (o *underlayConnWrapper) SetDeadline(t time.Time) error {

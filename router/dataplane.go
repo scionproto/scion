@@ -16,7 +16,6 @@
 package router
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
@@ -81,7 +80,7 @@ type bfdSession interface {
 // BatchConn is a connection that supports batch reads and writes.
 type BatchConn interface {
 	ReadBatch(underlayconn.Messages) (int, error)
-	WriteTo([]byte, *net.UDPAddr) (int, error)
+	WriteTo([]byte, netip.AddrPort) (int, error)
 	WriteBatch(msgs underlayconn.Messages, flags int) (int, error)
 	Close() error
 }
@@ -97,7 +96,7 @@ type DataPlane struct {
 	peerInterfaces    map[uint16]uint16
 	internal          BatchConn
 	internalIP        netip.Addr
-	internalNextHops  map[uint16]*net.UDPAddr
+	internalNextHops  map[uint16]netip.AddrPort
 	svc               *services
 	macFactory        func() hash.Hash
 	bfdSessions       map[uint16]bfdSession
@@ -233,7 +232,7 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
 	if d.running {
 		return modifyExisting
 	}
-	if conn == nil || src.Addr == nil || dst.Addr == nil {
+	if !(conn != nil && src.Addr.IsValid() && dst.Addr.IsValid()) {
 		return emptyValue
 	}
 	err := d.addExternalInterfaceBFD(ifID, conn, src, dst, cfg)
@@ -375,10 +374,10 @@ func (d *DataPlane) addBFDController(ifID uint16, s *bfdSend, cfg control.BFD,
 // AddSvc adds the address for the given service. This can be called multiple
 // times for the same service, with the address added to the list of addresses
 // that provide the service.
-func (d *DataPlane) AddSvc(svc addr.SVC, a *net.UDPAddr) error {
+func (d *DataPlane) AddSvc(svc addr.SVC, a netip.AddrPort) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	if a == nil {
+	if !a.IsValid() {
 		return emptyValue
 	}
 	if d.svc == nil {
@@ -394,10 +393,10 @@ func (d *DataPlane) AddSvc(svc addr.SVC, a *net.UDPAddr) error {
 }
 
 // DelSvc deletes the address for the given service.
-func (d *DataPlane) DelSvc(svc addr.SVC, a *net.UDPAddr) error {
+func (d *DataPlane) DelSvc(svc addr.SVC, a netip.AddrPort) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	if a == nil {
+	if !a.IsValid() {
 		return emptyValue
 	}
 	if d.svc == nil {
@@ -415,7 +414,7 @@ func (d *DataPlane) DelSvc(svc addr.SVC, a *net.UDPAddr) error {
 // AddNextHop sets the next hop address for the given interface ID. If the
 // interface ID already has an address associated this operation fails. This can
 // only be called on a not yet running dataplane.
-func (d *DataPlane) AddNextHop(ifID uint16, src, dst *net.UDPAddr, cfg control.BFD,
+func (d *DataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control.BFD,
 	sibling string) error {
 
 	d.mtx.Lock()
@@ -424,7 +423,7 @@ func (d *DataPlane) AddNextHop(ifID uint16, src, dst *net.UDPAddr, cfg control.B
 	if d.running {
 		return modifyExisting
 	}
-	if dst == nil || src == nil {
+	if !(dst.IsValid() && src.IsValid()) {
 		return emptyValue
 	}
 	err := d.addNextHopBFD(ifID, src, dst, cfg, sibling)
@@ -432,7 +431,7 @@ func (d *DataPlane) AddNextHop(ifID uint16, src, dst *net.UDPAddr, cfg control.B
 		return serrors.WrapStr("adding next hop BFD", err, "if_id", ifID)
 	}
 	if d.internalNextHops == nil {
-		d.internalNextHops = make(map[uint16]*net.UDPAddr)
+		d.internalNextHops = make(map[uint16]netip.AddrPort)
 	}
 	if _, exists := d.internalNextHops[ifID]; exists {
 		return serrors.WithCtx(alreadySet, "ifID", ifID)
@@ -444,7 +443,7 @@ func (d *DataPlane) AddNextHop(ifID uint16, src, dst *net.UDPAddr, cfg control.B
 // AddNextHopBFD adds the BFD session for the next hop address.
 // If the remote ifID belongs to an existing address, the existing
 // BFD session will be re-used.
-func (d *DataPlane) addNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg control.BFD,
+func (d *DataPlane) addNextHopBFD(ifID uint16, src, dst netip.AddrPort, cfg control.BFD,
 	sibling string) error {
 
 	if *cfg.Disable {
@@ -577,7 +576,7 @@ type packet struct {
 	srcAddr *net.UDPAddr
 	// The address to where we are forwarding the packet.
 	// Will be set by the processing routine
-	dstAddr *net.UDPAddr
+	dstAddr net.UDPAddr
 	// The ingress on which this packet arrived. This is
 	// set by the receiver.
 	ingress uint16
@@ -737,7 +736,27 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 			continue
 		}
 		p.rawPacket = result.OutPkt
-		p.dstAddr = result.OutAddr
+
+		// We recycle the backing array to avoid giving work to the GC. So we must create
+		// the slice and backing array on first use. Ensure space for ipv6. Reslice as needed.
+		// The tmp arrays/slices from outIp.ASxx()[:] are local, not from heap; unless the
+		// compiler is so dumb its hopeless to optimize anything.
+		// TODO(jiceatscion): move this to a helper function.
+		outIp := result.OutAddr.Addr()
+		p.dstAddr.Zone = outIp.Zone()
+		if p.dstAddr.IP == nil {
+			p.dstAddr.IP = make([]byte, 16)
+		}
+		if outIp.Is4() {
+			outIpBytes := outIp.As4()        // Must store explicitly in order to copy
+			p.dstAddr.IP = p.dstAddr.IP[0:4] // Update slice len
+			copy(p.dstAddr.IP[:], outIpBytes[:])
+		} else {
+			outIpBytes := outIp.As16()
+			p.dstAddr.IP = p.dstAddr.IP[0:16]
+			copy(p.dstAddr.IP[:], outIpBytes[:])
+		}
+		p.dstAddr.Port = int(result.OutAddr.Port())
 		p.trafficType = result.TrafficType
 		select {
 		case fwCh <- p:
@@ -768,7 +787,7 @@ func (d *DataPlane) runSlowPathProcessor(id int, q <-chan slowPacket,
 			d.returnPacketToPool(p.packet.rawPacket)
 			continue
 		}
-		p.packet.dstAddr = res.OutAddr
+		p.dstAddr = *net.UDPAddrFromAddrPort(res.OutAddr)
 		p.packet.rawPacket = res.OutPkt
 
 		fwCh, ok := fwQs[res.EgressID]
@@ -841,7 +860,7 @@ func (p *slowPathPacketProcessor) reset() {
 // zero value.
 type processResult struct {
 	EgressID        uint16
-	OutAddr         *net.UDPAddr
+	OutAddr         netip.AddrPort
 	OutPkt          []byte
 	SlowPathRequest slowPathRequest
 	TrafficType     trafficType
@@ -949,11 +968,15 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn, cfg *RunConfig, c 
 		toWrite += readUpTo(c, cfg.BatchSize-toWrite, toWrite == 0, pkts[toWrite:])
 
 		// Turn the packets into underlay messages that WriteBatch can send.
-		for i, p := range pkts[:toWrite] {
-			msgs[i].Buffers[0] = p.rawPacket
+		// DO NOT use range over the ring. The fields of packet aren't that big but there's no point
+		// in making a temporary copy. More crucially, we want each message to reference the
+		// destination address, packet.dstAddr, not a copy (and surely not a local variable!). So,
+		// a local copy of each item we traverse is thoroughly useless.
+		for i := 0; i < toWrite; i++ {
+			msgs[i].Buffers[0] = pkts[i].rawPacket
 			msgs[i].Addr = nil
-			if p.dstAddr != nil {
-				msgs[i].Addr = p.dstAddr
+			if pkts[i].dstAddr.IP != nil {
+				msgs[i].Addr = &(pkts[i].dstAddr)
 			}
 		}
 		written, _ := conn.WriteBatch(msgs[:toWrite], 0)
@@ -1120,7 +1143,9 @@ func (p *scionPacketProcessor) processIntraBFD(data []byte) error {
 
 	ifID := uint16(0)
 	for k, v := range p.d.internalNextHops {
-		if bytes.Equal(v.IP, p.srcAddr.IP) && v.Port == p.srcAddr.Port {
+		// POSSIBLY EXPENSIVE CONVERSION
+		src := p.srcAddr.AddrPort()
+		if src == v {
 			ifID = k
 			break
 		}
@@ -1287,7 +1312,11 @@ func (p *slowPathPacketProcessor) packSCMP(
 		copy(p.rawPkt, rawSCMP)
 	}
 
-	return processResult{OutPkt: p.rawPkt, EgressID: p.ingressID, OutAddr: p.srcAddr}, err
+	return processResult{
+		OutPkt:   p.rawPkt,
+		EgressID: p.ingressID,
+		OutAddr:  p.srcAddr.AddrPort(), // POSSIBLY EXPENSIVE
+	}, err
 }
 
 func (p *scionPacketProcessor) parsePath() (processResult, error) {
@@ -1436,8 +1465,13 @@ func (p *scionPacketProcessor) validateTransitUnderlaySrc() (processResult, erro
 		return processResult{}, nil
 	}
 	pktIngressID := p.ingressInterface()
-	expectedSrc, ok := p.d.internalNextHops[pktIngressID]
-	if !ok || !expectedSrc.IP.Equal(p.srcAddr.IP) {
+	expectedSrc, okE := p.d.internalNextHops[pktIngressID]
+	if !okE {
+		// Drop
+		return processResult{}, invalidSrcAddrForTransit
+	}
+	src, okS := netip.AddrFromSlice(p.srcAddr.IP)
+	if !(okS && expectedSrc.Addr() == src) {
 		// Drop
 		return processResult{}, invalidSrcAddrForTransit
 	}
@@ -1569,20 +1603,20 @@ func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
 	return processResult{}, nil
 }
 
-func (p *scionPacketProcessor) resolveInbound() (*net.UDPAddr, processResult, error) {
+func (p *scionPacketProcessor) resolveInbound() (netip.AddrPort, processResult, error) {
 	a, err := p.d.resolveLocalDst(p.scionLayer)
-	switch {
-	case errors.Is(err, noSVCBackend):
+
+	if err == noSVCBackend {
 		log.Debug("SCMP: no SVC backend")
 		slowPathRequest := slowPathRequest{
 			scmpType: slayers.SCMPTypeDestinationUnreachable,
 			code:     slayers.SCMPCodeNoRoute,
 			cause:    err,
 		}
-		return nil, processResult{SlowPathRequest: slowPathRequest}, slowPathRequired
-	default:
-		return a, processResult{}, nil
+		return netip.AddrPort{}, processResult{SlowPathRequest: slowPathRequest}, slowPathRequired
 	}
+
+	return a, processResult{}, err
 }
 
 func (p *scionPacketProcessor) processEgress() error {
@@ -1973,11 +2007,11 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 	return processResult{OutAddr: a, OutPkt: p.rawPkt}, nil
 }
 
-func (d *DataPlane) resolveLocalDst(s slayers.SCION) (*net.UDPAddr, error) {
+func (d *DataPlane) resolveLocalDst(s slayers.SCION) (netip.AddrPort, error) {
 	dst, err := s.DstAddr()
 	if err != nil {
 		// TODO parameter problem.
-		return nil, err
+		return netip.AddrPort{}, err
 	}
 	switch dst.Type() {
 	case addr.HostTypeSVC:
@@ -1985,18 +2019,14 @@ func (d *DataPlane) resolveLocalDst(s slayers.SCION) (*net.UDPAddr, error) {
 		// information, because we only register base addresses in the map.
 		a, ok := d.svc.Any(dst.SVC().Base())
 		if !ok {
-			return nil, noSVCBackend
+			return netip.AddrPort{}, noSVCBackend
 		}
 		return a, nil
 	case addr.HostTypeIP:
-		return addEndhostPort(dst.IP().AsSlice()), nil
+		return netip.AddrPortFrom(dst.IP(), topology.EndhostPort), nil
 	default:
 		panic("unexpected address type returned from DstAddr")
 	}
-}
-
-func addEndhostPort(dst net.IP) *net.UDPAddr {
-	return &net.UDPAddr{IP: dst, Port: topology.EndhostPort}
 }
 
 // TODO(matzf) this function is now only used to update the OneHop-path.
@@ -2019,7 +2049,7 @@ func updateSCIONLayer(rawPkt []byte, s slayers.SCION, buffer gopacket.SerializeB
 
 type bfdSend struct {
 	conn             BatchConn
-	srcAddr, dstAddr *net.UDPAddr
+	srcAddr, dstAddr netip.AddrPort
 	scn              *slayers.SCION
 	ohp              *onehop.Path
 	mac              hash.Hash
@@ -2028,7 +2058,7 @@ type bfdSend struct {
 }
 
 // newBFDSend creates and initializes a BFD Sender
-func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr *net.UDPAddr,
+func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr netip.AddrPort,
 	ifID uint16, mac hash.Hash) (*bfdSend, error) {
 
 	scn := &slayers.SCION{
@@ -2040,14 +2070,8 @@ func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr *net.UDPA
 		DstIA:        dstIA,
 	}
 
-	srcAddrIP, ok := netip.AddrFromSlice(srcAddr.IP)
-	if !ok {
-		return nil, serrors.New("invalid source IP", "ip", srcAddr.IP)
-	}
-	dstAddrIP, ok := netip.AddrFromSlice(dstAddr.IP)
-	if !ok {
-		return nil, serrors.New("invalid destination IP", "ip", dstAddr.IP)
-	}
+	srcAddrIP := srcAddr.Addr()
+	dstAddrIP := dstAddr.Addr()
 	if err := scn.SetSrcAddr(addr.HostIP(srcAddrIP)); err != nil {
 		panic(err) // Must work
 	}
