@@ -96,7 +96,7 @@ type DefaultSCMPHandler struct {
 	// handler is not called.
 	RevocationHandler RevocationHandler
 	// SCMPErrors reports the total number of SCMP Errors encountered.
-	SCMPErrors metrics.Counter
+	SCMPErrors metrics.SimpleCounter
 }
 
 func (h DefaultSCMPHandler) Handle(pkt *Packet) error {

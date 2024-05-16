@@ -85,21 +85,21 @@ type SCIONAddress = addr.Addr
 
 type SCIONPacketConnMetrics struct {
 	// Closes records the total number of Close calls on the connection.
-	Closes metrics.Counter
+	Closes metrics.SimpleCounter
 	// ReadBytes records the total number of bytes read on the connection.
-	ReadBytes metrics.Counter
+	ReadBytes metrics.SimpleCounter
 	// WriteBytes records the total number of bytes written on the connection.
-	WriteBytes metrics.Counter
+	WriteBytes metrics.SimpleCounter
 	// ReadPackets records the total number of packets read on the connection.
-	ReadPackets metrics.Counter
+	ReadPackets metrics.SimpleCounter
 	// WritePackets records the total number of packets written on the connection.
-	WritePackets metrics.Counter
+	WritePackets metrics.SimpleCounter
 	// ParseErrors records the total number of parse errors encountered.
-	ParseErrors metrics.Counter
+	ParseErrors metrics.SimpleCounter
 	// SCMPErrors records the total number of SCMP Errors encountered.
-	SCMPErrors metrics.Counter
+	SCMPErrors metrics.SimpleCounter
 	// DispatcherErrors records the number of dispatcher errors encountered.
-	DispatcherErrors metrics.Counter
+	DispatcherErrors metrics.SimpleCounter
 }
 
 // SCIONPacketConn gives applications full control over the content of valid SCION

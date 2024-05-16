@@ -68,7 +68,7 @@ type DefaultPathWatcherFactory struct {
 	// remote.
 	ProbesSendErrors func(remote addr.IA) metrics.Counter
 
-	SCMPErrors             metrics.Counter
+	SCMPErrors             metrics.SimpleCounter
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 }
 

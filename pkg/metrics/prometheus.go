@@ -27,6 +27,10 @@ func NewPromGauge(gv *prometheus.GaugeVec) Gauge {
 	return newGauge(gv)
 }
 
+func NewGauge(g prometheus.Gauge) SimpleGauge {
+	return &simpleGauge{g: g}
+}
+
 // NewPromCounter wraps a prometheus counter vector as a counter.
 // Returns nil if cv is nil.
 func NewPromCounter(cv *prometheus.CounterVec) Counter {
@@ -36,6 +40,10 @@ func NewPromCounter(cv *prometheus.CounterVec) Counter {
 	return newCounter(cv)
 }
 
+func NewCounter(c prometheus.Counter) SimpleCounter {
+	return &simpleCounter{c: c}
+}
+
 // NewPromHistogram wraps a prometheus histogram vector as a histogram.
 // Returns nil if hv is nil.
 func NewPromHistogram(hv *prometheus.HistogramVec) Histogram {
@@ -43,6 +51,10 @@ func NewPromHistogram(hv *prometheus.HistogramVec) Histogram {
 		return nil
 	}
 	return newHistogram(hv)
+}
+
+func NewHistogram(o prometheus.Observer) SimpleHistogram {
+	return &simpleHistogram{o: o}
 }
 
 // NewPromCounterFrom creates a wrapped prometheus counter.
@@ -96,6 +108,18 @@ func (lvs labelValuesSlice) With(labelValues ...string) labelValuesSlice {
 	return append(result, labelValues...)
 }
 
+type simpleGauge struct {
+	g prometheus.Gauge
+}
+
+func (g *simpleGauge) Set(value float64) {
+	g.g.Set(value)
+}
+
+func (g *simpleGauge) Add(delta float64) {
+	g.g.Add(delta)
+}
+
 // gauge implements Gauge, via a Prometheus GaugeVec.
 type gauge struct {
 	gv  *prometheus.GaugeVec
@@ -125,6 +149,14 @@ func newGauge(gv *prometheus.GaugeVec) *gauge {
 	return &gauge{
 		gv: gv,
 	}
+}
+
+type simpleCounter struct {
+	c prometheus.Counter
+}
+
+func (c *simpleCounter) Add(delta float64) {
+	c.c.Add(delta)
 }
 
 // counter implements Counter, via a Prometheus CounterVec.
@@ -159,6 +191,14 @@ func (c *counter) With(labelValues ...string) Counter {
 // Add implements Counter.
 func (c *counter) Add(delta float64) {
 	c.cv.With(makeLabels(c.lvs...)).Add(delta)
+}
+
+type simpleHistogram struct {
+	o prometheus.Observer
+}
+
+func (h *simpleHistogram) Observe(value float64) {
+	h.o.Observe(value)
 }
 
 // histogram implements Histogram via a Prometheus HistogramVec. The difference

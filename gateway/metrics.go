@@ -304,7 +304,7 @@ type Metrics struct {
 
 	// Scion Network Metrics
 	SCIONNetworkMetrics    snet.SCIONNetworkMetrics
-	SCMPErrors             metrics.Counter
+	SCMPErrors             metrics.SimpleCounter
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 }
 

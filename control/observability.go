@@ -82,7 +82,7 @@ type Metrics struct {
 	TrustTRCFileWritesTotal                *prometheus.CounterVec
 	SCIONNetworkMetrics                    snet.SCIONNetworkMetrics
 	SCIONPacketConnMetrics                 snet.SCIONPacketConnMetrics
-	SCMPErrors                             metrics.Counter
+	SCMPErrors                             metrics.SimpleCounter
 	TopoLoader                             topology.LoaderMetrics
 	DRKeySecretValueQueriesTotal           *prometheus.CounterVec
 	DRKeyLevel1QueriesTotal                *prometheus.CounterVec

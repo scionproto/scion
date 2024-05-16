@@ -53,14 +53,22 @@ import (
 // Counter describes a metric that accumulates values monotonically.
 // An example of a counter is the number of received HTTP requests.
 type Counter interface {
+	SimpleCounter
 	With(labelValues ...string) Counter
+}
+
+type SimpleCounter interface {
 	Add(delta float64)
 }
 
 // Gauge describes a metric that takes specific values over time.
 // An example of a gauge is the current depth of a job queue.
 type Gauge interface {
+	SimpleGauge
 	With(labelValues ...string) Gauge
+}
+
+type SimpleGauge interface {
 	Set(value float64)
 	Add(delta float64)
 }
@@ -70,13 +78,17 @@ type Gauge interface {
 // typically expressed as quantiles or buckets. An example of a histogram is
 // HTTP request latencies.
 type Histogram interface {
+	SimpleHistogram
 	With(labelValues ...string) Histogram
+}
+
+type SimpleHistogram interface {
 	Observe(value float64)
 }
 
 // CounterAdd increases the passed in counter by the amount specified.
 // This is a no-op if c is nil.
-func CounterAdd(c Counter, delta float64) {
+func CounterAdd(c SimpleCounter, delta float64) {
 	if c != nil {
 		c.Add(delta)
 	}
@@ -84,7 +96,7 @@ func CounterAdd(c Counter, delta float64) {
 
 // CounterInc increases the passed in counter by 1.
 // This is a no-op if c is nil.
-func CounterInc(c Counter) {
+func CounterInc(c SimpleCounter) {
 	CounterAdd(c, 1)
 }
 
@@ -98,7 +110,7 @@ func CounterWith(c Counter, labelValues ...string) Counter {
 
 // GaugeSet sets the passed in gauge to the value specified.
 // This is a no-op if g is nil.
-func GaugeSet(g Gauge, value float64) {
+func GaugeSet(g SimpleGauge, value float64) {
 	if g != nil {
 		g.Set(value)
 	}
@@ -106,7 +118,7 @@ func GaugeSet(g Gauge, value float64) {
 
 // GaugeSetTimestamp sets the passed gauge to the specified time stamp.
 // This is a no-op if g is nil.
-func GaugeSetTimestamp(g Gauge, ts time.Time) {
+func GaugeSetTimestamp(g SimpleGauge, ts time.Time) {
 	if g != nil {
 		g.Set(Timestamp(ts))
 	}
@@ -114,13 +126,13 @@ func GaugeSetTimestamp(g Gauge, ts time.Time) {
 
 // GaugeSetCurrentTime sets the passed gauge to the current time.
 // This is a no-op if g is nil.
-func GaugeSetCurrentTime(g Gauge) {
+func GaugeSetCurrentTime(g SimpleGauge) {
 	GaugeSetTimestamp(g, time.Now())
 }
 
 // GaugeAdd increases the passed in gauge by the amount specified.
 // This is a no-op if g is nil.
-func GaugeAdd(g Gauge, delta float64) {
+func GaugeAdd(g SimpleGauge, delta float64) {
 	if g != nil {
 		g.Add(delta)
 	}
@@ -128,7 +140,7 @@ func GaugeAdd(g Gauge, delta float64) {
 
 // GaugeInc increases the passed in gauge by 1.
 // This is a no-op if g is nil.
-func GaugeInc(g Gauge) {
+func GaugeInc(g SimpleGauge) {
 	GaugeAdd(g, 1)
 }
 
@@ -142,7 +154,7 @@ func GaugeWith(g Gauge, labelValues ...string) Gauge {
 
 // HistogramObserve adds an observation to the histogram.
 // This is a no-op if h is nil.
-func HistogramObserve(h Histogram, value float64) {
+func HistogramObserve(h SimpleHistogram, value float64) {
 	if h != nil {
 		h.Observe(value)
 	}

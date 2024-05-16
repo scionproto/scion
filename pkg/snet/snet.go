@@ -56,9 +56,9 @@ var _ Network = (*SCIONNetwork)(nil)
 
 type SCIONNetworkMetrics struct {
 	// Dials records the total number of Dial calls received by the network.
-	Dials metrics.Counter
+	Dials metrics.SimpleCounter
 	// Listens records the total number of Listen calls received by the network.
-	Listens metrics.Counter
+	Listens metrics.SimpleCounter
 }
 
 // SCIONNetwork is the SCION networking context.
