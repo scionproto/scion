@@ -180,7 +180,7 @@ func (t *RenewalResponse_CertificateChain) MergeCertificateChain(v CertificateCh
 		return err
 	}
 
-	merged, err := runtime.JsonMerge(t.union, b)
+	merged, err := runtime.JSONMerge(t.union, b)
 	t.union = merged
 	return err
 }
@@ -206,7 +206,7 @@ func (t *RenewalResponse_CertificateChain) MergeCertificateChainPKCS7(v Certific
 		return err
 	}
 
-	merged, err := runtime.JsonMerge(t.union, b)
+	merged, err := runtime.JSONMerge(t.union, b)
 	t.union = merged
 	return err
 }

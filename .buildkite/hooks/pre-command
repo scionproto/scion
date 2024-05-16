@@ -30,10 +30,12 @@ rm -f $HOME/.bazelrc
 # --nostamp is required for better caching (only on non-release jobs).
 if [ "$BUILDKITE_PIPELINE_SLUG" == "scion" ]; then
     echo "build --nostamp" > $HOME/.bazelrc
-    # Shorten the git version to omit commit information, improving cache reuse.
-    # The format of git-version is "<tag>-<number-of-commits-since-the-tag>-<commit-short-hash>"
-    # This will be shortened to "<tag>-modified-ci"
-    export GIT_VERSION=$(tools/git-version | sed 's/-.*/-modified-ci/')
+    if [ -z ${SCION_VERSION+x} ]; then
+        # Shorten the git version to omit commit information, improving cache reuse.
+        # The format of git-version is "<tag>-<number-of-commits-since-the-tag>-<commit-short-hash>"
+        # This will be shortened to "<tag>-modified-ci"
+        export SCION_VERSION=$(tools/git-version | sed 's/-.*/-modified-ci/')
+    fi
 else
     echo "build --stamp" > $HOME/.bazelrc
 fi

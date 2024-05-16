@@ -92,10 +92,11 @@ def _ipk_impl(ctx):
             r"scripts/feeds install -a -p scion",
             r"make IB=1 defconfig",  # IB=1 bypasses various unnecessary prerequisites
             r"IFS='-' read tag count commit dirty < ${execroot_abspath}/$5",
+            r"pkgver=${tag}",
             r'pkgrel=${count}${dirty:+".dirty$(date +%s)"}',
             r"make package/feeds/scion/${2}/compile EXECROOT=${execroot_abspath}" +
-            ' PKG_VERSION="${tag}" PKG_RELEASE="${pkgrel}"',
-            r"cp bin/packages/${6}/scion/${2}_${tag}-${pkgrel}_${6}.ipk ${execroot_abspath}/${4}",
+            ' PKG_VERSION="${pkgver}" PKG_RELEASE="${pkgrel}"',
+            r"cp bin/packages/${6}/scion/${2}_${pkgver}${pkgrel:+-}${pkgrel}_${6}.ipk ${execroot_abspath}/${4}",
         ]),
     )
 
