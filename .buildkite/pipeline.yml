@@ -12,8 +12,8 @@ steps:
     plugins:
       - scionproto/metahook#v0.3.0:
           pre-artifact: |
-            gzip bazel-bin/scion.tar > scion_${SCION_VERSION}_amd64_linux.tar.gz
-            gzip bazel-bin/scion-ci.tar > scion-ci_${SCION_VERSION}_amd64_linux.tar.gz
+            gzip --to-stdout bazel-bin/scion.tar > scion_${SCION_VERSION}_amd64_linux.tar.gz
+            gzip --to-stdout bazel-bin/scion-ci.tar > scion-ci_${SCION_VERSION}_amd64_linux.tar.gz
           post-artifact: |
             cat << EOF | buildkite-agent annotate --style "info" --context "binaries"
             #### Build outputs
