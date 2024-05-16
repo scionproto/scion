@@ -583,6 +583,8 @@ type packet struct {
 	// The type of traffic. This is used for metrics at the forwarding stage, but is most
 	// economically determined at the processing stage. So transport it here.
 	trafficType trafficType
+	// Backing store for the destAddr.IP slice:
+	dstIpBytes [16]byte
 	// The goods
 	rawPacket []byte
 }
@@ -590,6 +592,35 @@ type packet struct {
 type slowPacket struct {
 	packet
 	slowPathRequest slowPathRequest
+}
+
+// updateDestAddr() updates a packet's destination address to refer to the given
+// newDst.
+// We handle dstAddr so we don't make the GC work. The issue is the IP address slice
+// that's in dstAddr. The packet, along with its address and IP slice, gets copied from a channel
+// into a local variable. Then after we modify it, all gets copied to the some other channel and
+// eventually it gets copied back to the pool. If we replace the destAddr.IP at any point,
+// the old backing array behind the destAddr.IP slice ends-up on the garbage pile. To prevent that,
+// we store the IP in a separate array and update it in-place. That way we can also set IP
+// slice to nil when we have to.
+func (p *packet) updateDestAddr(newDst netip.AddrPort) {
+	p.dstAddr.Port = int(newDst.Port())
+	newIp := newDst.Addr()
+	p.dstAddr.Zone = newIp.Zone()
+	if newIp.Is4() {
+		outIpBytes := newIp.As4()        // Must store explicitly in order to copy
+		p.dstAddr.IP = p.dstIpBytes[0:4] // Update slice
+		copy(p.dstAddr.IP, outIpBytes[:])
+	} else if newIp.Is6() {
+		outIpBytes := newIp.As16()
+		p.dstAddr.IP = p.dstIpBytes[0:16]
+		copy(p.dstAddr.IP, outIpBytes[:])
+	} else {
+		// That's a zero address. We translate in to a nil IP. That's how UDPAddr represents it.
+		// Nothing gets discarded as the the IP's backing array is separate (and a slice is a
+		// struct, not a pointer, despite what nil looks like).
+		p.dstAddr.IP = nil
+	}
 }
 
 func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
@@ -737,26 +768,8 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 		}
 		p.rawPacket = result.OutPkt
 
-		// We recycle the backing array to avoid giving work to the GC. So we must create
-		// the slice and backing array on first use. Ensure space for ipv6. Reslice as needed.
-		// The tmp arrays/slices from outIp.ASxx()[:] are local, not from heap; unless the
-		// compiler is so dumb its hopeless to optimize anything.
-		// TODO(jiceatscion): move this to a helper function.
-		outIp := result.OutAddr.Addr()
-		p.dstAddr.Zone = outIp.Zone()
-		if p.dstAddr.IP == nil {
-			p.dstAddr.IP = make([]byte, 16)
-		}
-		if outIp.Is4() {
-			outIpBytes := outIp.As4()        // Must store explicitly in order to copy
-			p.dstAddr.IP = p.dstAddr.IP[0:4] // Update slice len
-			copy(p.dstAddr.IP[:], outIpBytes[:])
-		} else {
-			outIpBytes := outIp.As16()
-			p.dstAddr.IP = p.dstAddr.IP[0:16]
-			copy(p.dstAddr.IP[:], outIpBytes[:])
-		}
-		p.dstAddr.Port = int(result.OutAddr.Port())
+		p.updateDestAddr(result.OutAddr)
+
 		p.trafficType = result.TrafficType
 		select {
 		case fwCh <- p:
@@ -764,7 +777,6 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 			d.returnPacketToPool(p.rawPacket)
 			metrics.DroppedPacketsBusyForwarder.Inc()
 		}
-
 	}
 }
 
@@ -787,7 +799,7 @@ func (d *DataPlane) runSlowPathProcessor(id int, q <-chan slowPacket,
 			d.returnPacketToPool(p.packet.rawPacket)
 			continue
 		}
-		p.dstAddr = *net.UDPAddrFromAddrPort(res.OutAddr)
+		p.updateDestAddr(res.OutAddr)
 		p.packet.rawPacket = res.OutPkt
 
 		fwCh, ok := fwQs[res.EgressID]
@@ -975,7 +987,7 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn, cfg *RunConfig, c 
 		for i := 0; i < toWrite; i++ {
 			msgs[i].Buffers[0] = pkts[i].rawPacket
 			msgs[i].Addr = nil
-			if pkts[i].dstAddr.IP != nil {
+			if !(pkts[i].dstAddr.IP == nil || pkts[i].dstAddr.IP.IsUnspecified()) {
 				msgs[i].Addr = &(pkts[i].dstAddr)
 			}
 		}

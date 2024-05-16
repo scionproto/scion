@@ -293,7 +293,7 @@ class RouterBM():
 
         # Fetch the core count once. It doesn't change while the router is running.
         # We can't get it until the router has done some work, but the warmup is enough.
-        cores = 3 # self.core_count()
+        cores = 3  # self.core_count()
 
         # At long last, run the tests.
         results = Results(cores, self.coremark, self.mmbm)
