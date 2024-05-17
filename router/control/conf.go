@@ -31,7 +31,7 @@ import (
 // by this controller.
 type Dataplane interface {
 	CreateIACtx(ia addr.IA) error
-	AddInternalInterface(ia addr.IA, local netip.AddrPort) error
+	AddInternalInterface(ia addr.IA, local *netip.AddrPort) error
 	AddExternalInterface(localIfID common.IFIDType, info LinkInfo, owned bool) error
 	AddSvc(ia addr.IA, svc addr.SVC, ip netip.Addr) error
 	DelSvc(ia addr.IA, svc addr.SVC, ip netip.Addr) error
@@ -55,7 +55,7 @@ type LinkInfo struct {
 // LinkEnd represents one end of a link.
 type LinkEnd struct {
 	IA   addr.IA
-	Addr netip.AddrPort
+	Addr *netip.AddrPort
 	IFID common.IFIDType
 }
 
@@ -68,7 +68,7 @@ type ObservableDataplane interface {
 // InternalInterface represents the internal interface of a router.
 type InternalInterface struct {
 	IA   addr.IA
-	Addr netip.AddrPort
+	Addr *netip.AddrPort
 }
 
 // ExternalInterface represents an external interface of a router.
@@ -130,7 +130,7 @@ func ConfigDataplane(dp Dataplane, cfg *Config) error {
 	// Add internal interfaces
 	if cfg.BR != nil {
 		if cfg.BR.InternalAddr != (netip.AddrPort{}) {
-			if err := dp.AddInternalInterface(cfg.IA, cfg.BR.InternalAddr); err != nil {
+			if err := dp.AddInternalInterface(cfg.IA, &cfg.BR.InternalAddr); err != nil {
 				return err
 			}
 		}
@@ -176,12 +176,12 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 		linkInfo := LinkInfo{
 			Local: LinkEnd{
 				IA:   cfg.IA,
-				Addr: iface.Local,
+				Addr: &iface.Local,
 				IFID: iface.ID,
 			},
 			Remote: LinkEnd{
 				IA:   iface.IA,
-				Addr: iface.Remote,
+				Addr: &iface.Remote,
 				IFID: iface.RemoteIFID,
 			},
 			Instance: iface.BRName,
@@ -197,8 +197,8 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 			// When setting up external interfaces that belong to other routers in the AS, they
 			// are basically IP/UDP tunnels between the two border routers, and as such is
 			// configured in the data plane.
-			linkInfo.Local.Addr = cfg.BR.InternalAddr
-			linkInfo.Remote.Addr = iface.InternalAddr
+			linkInfo.Local.Addr = &cfg.BR.InternalAddr
+			linkInfo.Remote.Addr = &iface.InternalAddr
 			// For internal BFD always use the default configuration.
 			linkInfo.BFD = BFD{}
 		}

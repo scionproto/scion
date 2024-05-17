@@ -45,10 +45,10 @@ type Conn interface {
 	ReadFrom([]byte) (int, *net.UDPAddr, error)
 	ReadBatch(Messages) (int, error)
 	Write([]byte) (int, error)
-	WriteTo([]byte, netip.AddrPort) (int, error)
+	WriteTo([]byte, *netip.AddrPort) (int, error)
 	WriteBatch(Messages, int) (int, error)
-	LocalAddr() netip.AddrPort
-	RemoteAddr() netip.AddrPort
+	LocalAddr() *netip.AddrPort
+	RemoteAddr() *netip.AddrPort
 	SetReadDeadline(time.Time) error
 	SetWriteDeadline(time.Time) error
 	SetDeadline(time.Time) error
@@ -68,12 +68,12 @@ type Config struct {
 // New opens a new underlay socket on the specified addresses.
 //
 // The config can be used to customize socket behavior.
-func New(listen, remote netip.AddrPort, cfg *Config) (Conn, error) {
+func New(listen, remote *netip.AddrPort, cfg *Config) (Conn, error) {
 	a := listen
-	if remote.IsValid() {
+	if remote != nil {
 		a = remote
 	}
-	if !a.IsValid() {
+	if a == nil {
 		panic("either listen or remote must be set")
 	}
 	if a.Addr().Is4() {
@@ -87,7 +87,7 @@ type connUDPIPv4 struct {
 	pconn *ipv4.PacketConn
 }
 
-func newConnUDPIPv4(listen, remote netip.AddrPort, cfg *Config) (*connUDPIPv4, error) {
+func newConnUDPIPv4(listen, remote *netip.AddrPort, cfg *Config) (*connUDPIPv4, error) {
 	cc := &connUDPIPv4{}
 	if err := cc.initConnUDP("udp4", listen, remote, cfg); err != nil {
 		return nil, err
@@ -125,7 +125,7 @@ type connUDPIPv6 struct {
 	pconn *ipv6.PacketConn
 }
 
-func newConnUDPIPv6(listen, remote netip.AddrPort, cfg *Config) (*connUDPIPv6, error) {
+func newConnUDPIPv6(listen, remote *netip.AddrPort, cfg *Config) (*connUDPIPv6, error) {
 	cc := &connUDPIPv6{}
 	if err := cc.initConnUDP("udp6", listen, remote, cfg); err != nil {
 		return nil, err
@@ -160,30 +160,30 @@ func (c *connUDPIPv6) SetDeadline(t time.Time) error {
 
 type connUDPBase struct {
 	conn   *net.UDPConn
-	Listen netip.AddrPort
-	Remote netip.AddrPort
+	Listen *netip.AddrPort
+	Remote *netip.AddrPort
 	closed bool
 }
 
-func (cc *connUDPBase) initConnUDP(network string, laddr, raddr netip.AddrPort, cfg *Config) error {
+func (cc *connUDPBase) initConnUDP(network string, laddr, raddr *netip.AddrPort, cfg *Config) error {
 	var c *net.UDPConn
 	var err error
-	if !laddr.IsValid() {
+	if laddr == nil {
 		return serrors.New("listen address must be specified")
 	}
-	if !raddr.IsValid() {
-		if c, err = net.ListenUDP(network, net.UDPAddrFromAddrPort(laddr)); err != nil {
+	if raddr == nil {
+		if c, err = net.ListenUDP(network, net.UDPAddrFromAddrPort(*laddr)); err != nil {
 			return serrors.WrapStr("Error listening on socket", err,
 				"network", network, "listen", laddr)
 		}
 	} else {
 		if c, err = net.DialUDP(
 			network,
-			net.UDPAddrFromAddrPort(laddr),
-			net.UDPAddrFromAddrPort(raddr),
+			net.UDPAddrFromAddrPort(*laddr),
+			net.UDPAddrFromAddrPort(*raddr),
 		); err != nil {
 			return serrors.WrapStr("Error setting up connection", err,
-				"network", network, "listen", laddr, "remote", raddr)
+				"network", network, "listen", *laddr, "remote", *raddr)
 		}
 	}
 
@@ -269,20 +269,19 @@ func (c *connUDPBase) Write(b []byte) (int, error) {
 	return c.conn.Write(b)
 }
 
-func (c *connUDPBase) WriteTo(b []byte, dst netip.AddrPort) (int, error) {
+func (c *connUDPBase) WriteTo(b []byte, dst *netip.AddrPort) (int, error) {
 	if c.Remote.IsValid() {
 		return c.conn.Write(b)
 	}
-	// POSSIBLY EXPENSIVE CONVERSION: temp net.UDPAddr might be allocated from heap.
-	// We can only hope that gets optimized out.
-	return c.conn.WriteTo(b, net.UDPAddrFromAddrPort(dst))
+	// POSSIBLY EXPENSIVE CONVERSION: temp net.UDPAddr is allocated from heap.
+	return c.conn.WriteTo(b, net.UDPAddrFromAddrPort(*dst))
 }
 
-func (c *connUDPBase) LocalAddr() netip.AddrPort {
+func (c *connUDPBase) LocalAddr() *netip.AddrPort {
 	return c.Listen
 }
 
-func (c *connUDPBase) RemoteAddr() netip.AddrPort {
+func (c *connUDPBase) RemoteAddr() *netip.AddrPort {
 	return c.Remote
 }
 

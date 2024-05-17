@@ -220,7 +220,7 @@ func openConn(network, address string) (net.PacketConn, error) {
 		}
 	}
 
-	c, err := conn.New(listenTo, netip.AddrPort{}, &conn.Config{
+	c, err := conn.New(&listenTo, nil, &conn.Config{
 		SendBufferSize:    SendBufferSize,
 		ReceiveBufferSize: ReceiveBufferSize,
 	})
@@ -265,9 +265,10 @@ func (o *underlayConnWrapper) WriteTo(p []byte, a net.Addr) (int, error) {
 	if !ok {
 		return 0, serrors.New("address is not UDP", "addr", a)
 	}
+	asAddrPort := udpAddr.AddrPort()
 	// POSSIBLY EXPENSIVE CONVERSION, but no point in updating more dispatcher code at this
 	// time.
-	return o.Conn.WriteTo(p, udpAddr.AddrPort())
+	return o.Conn.WriteTo(p, &asAddrPort)
 }
 
 func (o *underlayConnWrapper) Close() error {
@@ -275,7 +276,7 @@ func (o *underlayConnWrapper) Close() error {
 }
 
 func (o *underlayConnWrapper) LocalAddr() net.Addr {
-	return net.UDPAddrFromAddrPort(o.Conn.LocalAddr())
+	return net.UDPAddrFromAddrPort(*o.Conn.LocalAddr())
 }
 
 func (o *underlayConnWrapper) SetDeadline(t time.Time) error {
