@@ -7,7 +7,7 @@ Brief description of sections in .topo files
 - [ASes Section](#ases-section)
 - [Links Section](#links-section)
 - [borderRouterProperties Section](#border-router-properties-section)
-- [Examples](#examples-section)
+- [Examples](#examples)
 
 ## ASes Section
 
@@ -22,12 +22,14 @@ of services among other things.
 - "authoritative" -- boolean
 - "issuing" -- boolean, whether the AS is an issuing AS
 - "underlay" -- default is UDP/IPv4, can be set to UDP/IPv6, seed does not support IPv6 underlay
-- "cert_issuer" -- string, the issuer TRC this attribute is necessary if AS is not core
-- "MTU" -- integer, the internal MTU of the AS used by seed emulator
+- "cert_issuer" -- string, the issuer IA of the CA. This attribute is necessary if AS is not core
+- "MTU" -- integer, the internal MTU of the AS *
 - "latency" -- integer, the internal latency in ms of the AS used by seed emulator
 - "bw" -- integer, the internal bandwidth in bit/s of the AS used by seed emulator
 - "drop" -- float, the internal drop rate (% in range(0.0,1.0)) of the AS used by seed emulator
 - "note" -- string, a note for the AS seed emulator will include this in the beacons
+
+Fields marked with * are used by the seed emulator for setting link properties.
 
 ## Links Section
 
@@ -57,22 +59,23 @@ In the example above, two links are defined resulting in:
 
 **Supported attributes:**
 
-- "a" -- string, necessary, see above
-- "b" -- string, necessary, see above
-- "linkAtoB" -- string, necessary, the type of link, can be CORE, PEER, CHILD
-- "mtu" -- integer, the MTU of the link
+- "a" -- string, mandatory, see above
+- "b" -- string, mandatory, see above
+- "linkAtoB" -- string, mandatory, the type of link, can be CORE, PEER, CHILD
+- "mtu" -- integer, the MTU of the link *
 - "underlay" -- default is UDP/IPv4, can be set to UDP/IPv6, seed doesn't support IPv6
-- "bw" -- integer, the bandwidth in bit/s of the link used by seed emulator
-- "latency" -- integer, the latency in ms of the link used by seed emulator
-- "drop" -- float, the drop rate (% in range(0.0,1.0)) of the link used by seed emulator
+- "bw" -- integer, the bandwidth in bit/s of the link *
+- "latency" -- integer, the latency in ms of the link *
+- "drop" -- float, the drop rate (% in range(0.0,1.0)) of the link *
+
+Fields marked with * are used by the seed emulator for setting link properties.
 
 ## Border Router Properties Section
 
-The **opitonal** 'borderRouterProperties' section describes properties of BRs such as Geolocation.
+The **optional** 'borderRouterProperties' section describes properties of BRs such as Geolocation.
 Entries in the 'borderRouterProperties' section are optional. This means not every BR defined in the links section must appear in the 'borderRouterProperties' section.
 
-To specify a border router one can use the same string identifiers used in the link section as a key.
-Though watch out as one border router can have several scion interfaces but there can only be one property section for each border router.
+The same string identifiers as in the link section specify the key for a border router. Though watch out as one border router can have several SCION interfaces but there can only be one property section for each border router.
 
 Consider the following example from the *default.topo* file for clarification. In the 'links' section these 6 scion interfaces were specified:
 
@@ -85,7 +88,7 @@ Consider the following example from the *default.topo* file for clarification. I
 "1-ff00:0:120#5"
 ```
 
-Notice though how the 6 scion interfaces are connected to only 3 BorderRouters. Now in the 'borderRotuerProperties' section we can specify properties for each one of the three BorderRouters like this:
+Notice though how the 6 scion interfaces are connected to only 3 BorderRouters. Now in the 'borderRouterProperties' section we can specify properties for each one of the three BorderRouters like this:
 
 ```yaml
 "1-ff00:0:120#5":
