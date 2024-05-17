@@ -364,7 +364,7 @@ func TestDataPlaneRun(t *testing.T) {
 				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
 				mInternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(data []byte, _ netip.AddrPort) (int, error) {
+					func(data []byte, _ *netip.AddrPort) (int, error) {
 						pkt := gopacket.NewPacket(data,
 							slayers.LayerTypeSCION, gopacket.Default)
 						if b := pkt.Layer(layers.LayerTypeBFD); b != nil {
@@ -400,7 +400,7 @@ func TestDataPlaneRun(t *testing.T) {
 				remoteAddr := xtest.MustParseAddrPort("10.0.200.200:0")
 				mInternal := mock_router.NewMockBatchConn(ctrl)
 				mInternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(data []byte, _ netip.AddrPort) (int, error) {
+					func(data []byte, _ *netip.AddrPort) (int, error) {
 						pkt := gopacket.NewPacket(data,
 							slayers.LayerTypeSCION, gopacket.Default)
 
@@ -454,7 +454,7 @@ func TestDataPlaneRun(t *testing.T) {
 				mExternal := mock_router.NewMockBatchConn(ctrl)
 				mExternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(data []byte, _ netip.AddrPort) (int, error) {
+					func(data []byte, _ *netip.AddrPort) (int, error) {
 						pkt := gopacket.NewPacket(data,
 							slayers.LayerTypeSCION, gopacket.Default)
 
@@ -542,7 +542,7 @@ func TestDataPlaneRun(t *testing.T) {
 				mExternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
 				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(data []byte, _ netip.AddrPort) (int, error) {
+					func(data []byte, _ *netip.AddrPort) (int, error) {
 						pkt := gopacket.NewPacket(data,
 							slayers.LayerTypeSCION, gopacket.Default)
 
