@@ -1,4 +1,4 @@
---- # Tiny Topology
+--- # Tiny Topology with border router properties
 ASes:
   "1-ff00:0:110":
     core: true

@@ -68,7 +68,7 @@ class SeedGenerator(SeedGenArgs):
     _SeedCompiler: str = "Docker"
     _skipIPv6Check: bool = False
     _parentNetwork: str = "10.3.0.0/16"
-    _brProperties: Dict[str, Dict[str, Dict]]  # dict containing maping from ISD_AS to list of border router properties
+    _brProperties: Dict[str, Dict[str, Dict]]  # dict containing mapping from ISD_AS to list of border router properties
 
     def __init__(self, args):
         """
@@ -265,7 +265,7 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
             as_num = as_num.split('#')[0]
         return isd_num, as_num, br_if
 
-    def _parse_links(self) -> Dict:
+    def _parse_links(self) -> List[Dict[str, Union[Tuple[str, str, str], str, int]]]:
         """
         Parse links from topo file
         """
@@ -352,12 +352,8 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
         for i in range(0, len(self._links)):
             link = self._links[i]
 
-            a_br = link['a'][2]
-            b_br = link['b'][2]
-            a_as = link['a'][1]
-            a_isd = link['a'][0]
-            b_as = link['b'][1]
-            b_isd = link['b'][0]
+            a_isd, a_as, a_br = link['a']
+            b_isd, b_as, b_br = link['b']
 
             a_ia = f"{a_isd}_{a_as}"
             b_ia = f"{b_isd}_{b_as}"
@@ -377,13 +373,10 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
         # replace border router interface names with border router names in links
         for i in range(0, len(self._links)):
             link = self._links[i]
-            a_br = link['a'][2]
-            b_br = link['b'][2]
-            a_as = link['a'][1]
-            a_isd = link['a'][0]
-            b_as = link['b'][1]
-            b_isd = link['b'][0]
 
+            a_isd, a_as, a_br = link['a']
+            b_isd, b_as, b_br = link['b']
+            
             a_br_id = a_br.split('#')[0]
             b_br_id = b_br.split('#')[0]
 
@@ -402,18 +395,18 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
 
         # replace border router interface names with border router names in brProperties
 
-        new_brProperties = {}
+        new_br_properties = {}
 
         for ia in self._brProperties:
-            new_brProperties[ia] = {}
+            new_br_properties[ia] = {}
             for br_if in self._brProperties[ia]:
                 br_id = br_if.split('#')[0]
                 for br in self._br[ia]:
                     if br_id in br:
                         br_name = br[br_id]
-                        new_brProperties[ia][br_name] = self._brProperties[ia][br_if]
+                        new_br_properties[ia][br_name] = self._brProperties[ia][br_if]
 
-        self._brProperties = new_brProperties
+        self._brProperties = new_br_properties
 
     def _generate_addresses(self):
         """
