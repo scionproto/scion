@@ -270,7 +270,7 @@ func (c *connUDPBase) Write(b []byte) (int, error) {
 }
 
 func (c *connUDPBase) WriteTo(b []byte, dst *netip.AddrPort) (int, error) {
-	if c.Remote.IsValid() {
+	if c.Remote != nil {
 		return c.conn.Write(b)
 	}
 	// POSSIBLY EXPENSIVE CONVERSION: temp net.UDPAddr is allocated from heap.
