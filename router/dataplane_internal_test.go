@@ -42,7 +42,9 @@ import (
 	"github.com/scionproto/scion/router/mock_router"
 )
 
-var testKey = []byte("testkey_xxxxxxxx")
+var (
+	testKey = []byte("testkey_xxxxxxxx")
+)
 
 // TestReceiver sets up a mocked batchConn, starts the receiver that reads from
 // this batchConn and forwards it to the processing routines channels. We verify
@@ -444,8 +446,7 @@ func TestSlowPathProcessing(t *testing.T) {
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					map[addr.SVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"),
-					nil, testKey)
+					xtest.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
 				spkt := prepBaseMsg(t, payload, 0)

@@ -176,8 +176,11 @@ class SubnetGenerator(object):
 
 
 class PortGenerator(object):
+    # XXX(JordiSubira): We keep this in the default range. If the configured range,
+    # doesn't include the 31000-32767 range, the services will be able to operate
+    # with the shim dispatcher.
     def __init__(self):
-        self.iter = iter(range(31000, 35000))
+        self.iter = iter(range(31000, 32767))
         self._ports = defaultdict(lambda: next(self.iter))
 
     def register(self, id_: str) -> int:

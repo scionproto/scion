@@ -100,10 +100,6 @@ func setupTest(t *testing.T) testState {
 	s.mustExec(t, "tar", "-xf", "crypto.tar", "-C", tmpDir)
 	// first load the docker images from bazel into the docker deamon, the
 	// tars are in the same folder as this test runs in bazel.
-	s.mustExec(t, "docker", "image", "load", "-i", "dispatcher.tar/tarball.tar")
-	t.Cleanup(func() {
-		s.mustExec(t, "docker", "image", "rm", "scion/acceptance/topo_cs_reload:dispatcher")
-	})
 	s.mustExec(t, "docker", "image", "load", "-i", "control.tar/tarball.tar")
 	t.Cleanup(func() {
 		s.mustExec(t, "docker", "image", "rm", "scion/acceptance/topo_cs_reload:control")
@@ -126,7 +122,6 @@ func (s testState) collectLogs(t *testing.T) {
 	require.NoError(t, os.MkdirAll(fmt.Sprintf("%s/logs", outdir), os.ModePerm|os.ModeDir))
 	// collect logs
 	for service, file := range map[string]string{
-		"topo_cs_reload_dispatcher":  "disp.log",
 		"topo_cs_reload_control_srv": "control.log",
 	} {
 		cmd := exec.Command("docker", "compose",

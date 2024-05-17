@@ -33,8 +33,7 @@ func TestSCION(t *testing.T) {
 			Input: `
 				{
 					"general": {
-						"default_isd_as": "1-ff00:0:1",
-						"dispatcher_socket": "/var/run/dispatcher/"
+						"default_isd_as": "1-ff00:0:1"
 					},
 					"ases": {
 						"1-ff00:0:1": {
@@ -50,8 +49,7 @@ func TestSCION(t *testing.T) {
 			Input: `
 				{
 					"general": {
-						"default_isd_as": "1-ff00:0:1",
-						"dispatcher_socket": "/var/run/dispatcher/"
+						"default_isd_as": "1-ff00:0:1"
 					},
 					"ases": {
 						"invalid-ia": {
@@ -67,8 +65,7 @@ func TestSCION(t *testing.T) {
 			Input: `
 				{
 					"general": {
-						"default_isd_as": "1-0",
-						"dispatcher_socket": "/var/run/dispatcher/"
+						"default_isd_as": "1-0"
 					},
 					"ases": {
 						"1-ff00:0:1": {
@@ -84,8 +81,7 @@ func TestSCION(t *testing.T) {
 			Input: `
 				{
 					"general": {
-						"default_isd_as": "1-ff00:0:1",
-						"dispatcher_socket": "/var/run/dispatcher/"
+						"default_isd_as": "1-ff00:0:1"
 					},
 					"ases": {
 						"1-ff00:0:1": {
@@ -123,8 +119,7 @@ func TestGeneral(t *testing.T) {
 		"valid": {
 			Input: `
 				{
-					"default_isd_as": "1-ff00:0:1",
-					"dispatcher_socket": "/var/run/dispatcher/"
+					"default_isd_as": "1-ff00:0:1"
 				}
 			`,
 			parseError:      assert.NoError,
@@ -133,8 +128,7 @@ func TestGeneral(t *testing.T) {
 		"parse error": {
 			Input: `
 				{
-					"default_isd_as": "invalid",
-					"dispatcher_socket": "/var/run/dispatcher/"
+					"default_isd_as": "invalid"
 				}
 			`,
 			parseError:      assert.Error,
@@ -143,8 +137,7 @@ func TestGeneral(t *testing.T) {
 		"validation error": {
 			Input: `
 				{
-					"default_isd_as": "1-0",
-					"dispatcher_socket": "/var/run/dispatcher/"
+					"default_isd_as": "1-0"
 				}
 			`,
 			parseError:      assert.NoError,
