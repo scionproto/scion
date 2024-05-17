@@ -576,7 +576,7 @@ type packet struct {
 	srcAddr *net.UDPAddr
 	// The address to where we are forwarding the packet.
 	// Will be set by the processing routine
-	dstAddr net.UDPAddr
+	dstAddr *net.UDPAddr
 	// The ingress on which this packet arrived. This is
 	// set by the receiver.
 	ingress uint16
@@ -603,7 +603,7 @@ type slowPacket struct {
 // the old backing array behind the destAddr.IP slice ends-up on the garbage pile. To prevent that,
 // we store the IP in a separate array and update it in-place. That way we can also set IP
 // slice to nil when we have to.
-func (p *packet) updateDestAddr(newDst netip.AddrPort) {
+func (p *packet) updateDestAddr(newDst *netip.AddrPort) {
 	p.dstAddr.Port = int(newDst.Port())
 	newIp := newDst.Addr()
 	p.dstAddr.Zone = newIp.Zone()
@@ -661,6 +661,7 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 			rawPacket: pkt.Buffers[0][:pkt.N],
 			ingress:   ifID,
 			srcAddr:   srcAddr,
+			dstAddr:   &net.UDPAddr{}, // Updated in-place and recycled. Must be allocated once.
 		}
 		select {
 		case procQs[procID] <- outPkt:
@@ -768,7 +769,7 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 		}
 		p.rawPacket = result.OutPkt
 
-		p.updateDestAddr(result.OutAddr)
+		p.updateDestAddr(&result.OutAddr)
 
 		p.trafficType = result.TrafficType
 		select {
@@ -799,7 +800,7 @@ func (d *DataPlane) runSlowPathProcessor(id int, q <-chan slowPacket,
 			d.returnPacketToPool(p.packet.rawPacket)
 			continue
 		}
-		p.updateDestAddr(res.OutAddr)
+		p.updateDestAddr(&res.OutAddr)
 		p.packet.rawPacket = res.OutPkt
 
 		fwCh, ok := fwQs[res.EgressID]
@@ -987,8 +988,8 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn, cfg *RunConfig, c 
 		for i := 0; i < toWrite; i++ {
 			msgs[i].Buffers[0] = pkts[i].rawPacket
 			msgs[i].Addr = nil
-			if !(pkts[i].dstAddr.IP == nil || pkts[i].dstAddr.IP.IsUnspecified()) {
-				msgs[i].Addr = &(pkts[i].dstAddr)
+			if pkts[i].dstAddr.IP != nil {
+				msgs[i].Addr = pkts[i].dstAddr
 			}
 		}
 		written, _ := conn.WriteBatch(msgs[:toWrite], 0)
@@ -1327,7 +1328,7 @@ func (p *slowPathPacketProcessor) packSCMP(
 	return processResult{
 		OutPkt:   p.rawPkt,
 		EgressID: p.ingressID,
-		OutAddr:  p.srcAddr.AddrPort(), // POSSIBLY EXPENSIVE
+		OutAddr:  p.srcAddr.AddrPort(), // POSSIBLY EXPENSIVE, but on the slow path, so... later
 	}, err
 }
 

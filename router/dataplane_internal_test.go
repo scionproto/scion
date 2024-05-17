@@ -183,13 +183,13 @@ func TestForwarder(t *testing.T) {
 	dp.initMetrics()
 	go dp.runForwarder(0, dp.internal, runConfig, fwCh[0])
 
-	dstAddr := net.UDPAddr{IP: net.IP{10, 0, 200, 200}}
+	dstAddr := &net.UDPAddr{IP: net.IP{10, 0, 200, 200}}
 	for i := 0; i < 255; i++ {
 		pkt := <-dp.packetPool
 		assert.NotEqual(t, initialPoolSize, len(dp.packetPool))
 		pkt[0] = byte(i)
 		if i == 100 {
-			dstAddr = net.UDPAddr{}
+			dstAddr = &net.UDPAddr{}
 		}
 		select {
 		case fwCh[0] <- packet{
@@ -533,7 +533,7 @@ func TestSlowPathProcessing(t *testing.T) {
 			result, err = slowPathProcessor.processPacket(slowPacket{
 				packet: packet{
 					srcAddr:   srcAddr,
-					dstAddr:   *net.UDPAddrFromAddrPort(result.OutAddr),
+					dstAddr:   net.UDPAddrFromAddrPort(result.OutAddr),
 					ingress:   tc.srcInterface,
 					rawPacket: rawPacket,
 				},
