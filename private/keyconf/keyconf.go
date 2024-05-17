@@ -39,6 +39,10 @@ const (
 	ErrUnknown common.ErrMsg = "Unknown algorithm"
 )
 
+func LoadKey(file string) ([]byte, error) {
+	return loadKey(file, RawKey)
+}
+
 // loadKey decodes a base64 encoded key stored in file and returns the raw bytes.
 func loadKey(file string, algo string) ([]byte, error) {
 	b, err := os.ReadFile(file)

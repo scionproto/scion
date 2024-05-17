@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
@@ -37,6 +38,7 @@ import (
 	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/flag"
 	"github.com/scionproto/scion/private/app/path"
+	"github.com/scionproto/scion/private/keyconf"
 	"github.com/scionproto/scion/private/path/pathpol"
 	"github.com/scionproto/scion/private/tracing"
 	"github.com/scionproto/scion/scion/ping"
@@ -71,22 +73,25 @@ type PingUpdate struct {
 func newPing(pather CommandPather) *cobra.Command {
 	var envFlags flag.SCIONEnvironment
 	var flags struct {
-		count       uint16
-		features    []string
-		interactive bool
-		interval    time.Duration
-		logLevel    string
-		maxMTU      bool
-		noColor     bool
-		refresh     bool
-		healthyOnly bool
-		sequence    string
-		size        uint
-		pktSize     uint
-		timeout     time.Duration
-		tracer      string
-		epic        bool
-		format      string
+		count         uint16
+		features      []string
+		interactive   bool
+		interval      time.Duration
+		logLevel      string
+		maxMTU        bool
+		noColor       bool
+		refresh       bool
+		healthyOnly   bool
+		sequence      string
+		size          uint
+		pktSize       uint
+		timeout       time.Duration
+		tracer        string
+		epic          bool
+		format        string
+		egress        uint16
+		nextHop       flag.UDPAddr
+		forwardingKey string
 	}
 
 	var cmd = &cobra.Command{
@@ -164,6 +169,32 @@ On other errors, ping will exit with code 2.
 				path.WithSequence(flags.sequence),
 				path.WithColorScheme(path.DefaultColorScheme(flags.noColor)),
 				path.WithEPIC(flags.epic),
+			}
+			if flags.egress != 0 || flags.nextHop.IP != nil || flags.forwardingKey != "" {
+				if flags.egress == 0 {
+					return serrors.New("egress must be set")
+				}
+				if flags.nextHop.IP == nil {
+					return serrors.New("next hop must be set")
+				}
+				if flags.forwardingKey == "" {
+					return serrors.New("forwarding key must be set")
+				}
+				forwardingKey, err := keyconf.LoadKey(flags.forwardingKey)
+				if err != nil {
+					return serrors.WrapStr("loading forwarding key", err)
+				}
+				mac, err := scrypto.HFMacFactory(forwardingKey)
+				if err != nil {
+					return err
+				}
+				opts = append(opts, path.WithOneHopConfig(&path.OneHopConfig{
+					Source:      info.IA,
+					Destination: remote.IA,
+					Egress:      flags.egress,
+					NextHop:     (*net.UDPAddr)(&flags.nextHop),
+					Mac:         mac(),
+				}))
 			}
 			if flags.healthyOnly {
 				opts = append(opts, path.WithProbing(&path.ProbeConfig{
@@ -363,6 +394,11 @@ SCMP echo header and payload are equal to the MTU of the path. This flag overrid
 	cmd.Flags().BoolVar(&flags.epic, "epic", false, "Enable EPIC for path probing.")
 	cmd.Flags().StringVar(&flags.format, "format", "human",
 		"Specify the output format (human|json|yaml)")
+	cmd.Flags().Uint16Var(&flags.egress, "onehop.egress", 0, "Egress interface for one-hop path")
+	cmd.Flags().Var(&flags.nextHop, "onehop.next-hop", "NextHop for one-hop path")
+	cmd.Flags().StringVar(&flags.forwardingKey, "onehop.forwarding-key", "",
+		"Forwarding key for one-hop path",
+	)
 	return cmd
 }
 
