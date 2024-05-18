@@ -216,14 +216,14 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
         as_note = as_dict['note'] if 'note' in as_dict else None
 
         res = (as_num,
-            isd_num,
-             is_core,
-              cert_issuer,
+               isd_num,
+               is_core,
+               cert_issuer,
                as_int_bw,
-                as_int_lat,
-                 as_int_drop,
-                  as_int_mtu,
-                   as_note)
+               as_int_lat,
+               as_int_drop,
+               as_int_mtu,
+               as_note)
 
         return res
 
