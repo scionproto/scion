@@ -492,8 +492,8 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
             for br in self._br[f"{isd_num}_{as_num}"]:
                 br_name = next(iter(br.values()))
                 code += (f"as_{as_num}_{br_name} = as{as_num}"
-                        f".createRouter('{br_name}')"
-                        f".joinNetwork('net0')\n")
+                         f".createRouter('{br_name}')"
+                         f".joinNetwork('net0')\n")
 
                 # set border router properties
                 if f"{isd_num}_{as_num}" in self._brProperties \
