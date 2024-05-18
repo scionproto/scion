@@ -1,5 +1,5 @@
 load("@rules_python//python:defs.bzl", "py_binary")
-load("@com_github_scionproto_scion_python_lint_deps//:requirements.bzl", "requirement")
+load("@com_github_scionproto_scion_python_lint_deps//:requirements.bzl", "entry_point", "requirement")
 load("@rules_python//python:pip.bzl", "compile_pip_requirements")
 
 compile_pip_requirements(
@@ -8,10 +8,8 @@ compile_pip_requirements(
     requirements_txt = ":requirements.txt",
 )
 
-py_binary(
+alias(
     name = "flake8",
-    srcs = ["flakelint.py"],
-    main = "flakelint.py",
+    actual = entry_point("flake8"),
     visibility = ["//visibility:public"],
-    deps = [requirement("flake8")],
 )

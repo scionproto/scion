@@ -76,7 +76,7 @@ Setup
 
       make
 
-   .. hint:: This builds tools for tests in addition to the main SCION services (e.g., `end2end`);
+   .. hint:: This builds tools for tests in addition to the main SCION services (e.g., ``end2end``);
       if you don't require those, you can only build the SCION services by running ``make build``.
       See :doc:`build` for more details.
 

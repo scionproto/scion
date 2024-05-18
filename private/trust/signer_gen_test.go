@@ -15,6 +15,7 @@
 package trust_test
 
 import (
+	"bytes"
 	"context"
 	"crypto"
 	"crypto/ecdsa"
@@ -37,20 +38,42 @@ import (
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
+	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/private/trust"
 	"github.com/scionproto/scion/private/trust/internal/metrics"
 	"github.com/scionproto/scion/private/trust/mock_trust"
+	"github.com/scionproto/scion/scion-pki/certs"
 )
 
 func TestSignerGenGenerate(t *testing.T) {
 	dir := genCrypto(t)
 
+	// create a new certificate for AS 110:
+	var buf bytes.Buffer
+	cmd := certs.Cmd(command.StringPather(""))
+	cmd.SetArgs([]string{
+		"create",
+		"--ca", filepath.Join(dir, "ISD1/ASff00_0_110/crypto/ca/ISD1-ASff00_0_110.ca.crt"),
+		"--ca-key", filepath.Join(dir, "ISD1/ASff00_0_110/crypto/ca/cp-ca.key"),
+		"--bundle",
+		filepath.Join(dir, "ISD1/ASff00_0_110/crypto/as/cp-as.tmpl"),
+		filepath.Join(dir, "certs/ISD1-ASff00_0_110-2.pem"),
+		filepath.Join(dir, "ISD1/ASff00_0_110/crypto/as/cp-as-2.key"),
+	})
+	cmd.SetOutput(&buf)
+	err := cmd.Execute()
+	require.NoError(t, err, buf.String())
+
 	getChain := func(t *testing.T) []*x509.Certificate {
 		return xtest.LoadChain(t, filepath.Join(dir, "certs/ISD1-ASff00_0_110.pem"))
+	}
+	getChain2 := func(t *testing.T) []*x509.Certificate {
+		return xtest.LoadChain(t, filepath.Join(dir, "certs/ISD1-ASff00_0_110-2.pem"))
 	}
 
 	trc := xtest.LoadTRC(t, filepath.Join(dir, "ISD1/trcs/ISD1-B1-S1.trc"))
 	key := loadKey(t, filepath.Join(dir, "ISD1/ASff00_0_110/crypto/as/cp-as.key"))
+	key2 := loadKey(t, filepath.Join(dir, "ISD1/ASff00_0_110/crypto/as/cp-as-2.key"))
 	chain := getChain(t)
 
 	now := time.Now()
@@ -63,11 +86,13 @@ func TestSignerGenGenerate(t *testing.T) {
 	shorter[0].NotAfter = shorter[0].NotAfter.Add(-time.Hour)
 	shorter[0].SubjectKeyId = []byte("shorter")
 
+	chain2 := getChain2(t)
+
 	testCases := map[string]struct {
 		keyRing    func(mctrcl *gomock.Controller) trust.KeyRing
 		db         func(mctrcl *gomock.Controller) trust.DB
 		assertFunc assert.ErrorAssertionFunc
-		expected   trust.Signer
+		expected   []trust.Signer
 	}{
 		"valid": {
 			keyRing: func(mctrl *gomock.Controller) trust.KeyRing {
@@ -92,7 +117,7 @@ func TestSignerGenGenerate(t *testing.T) {
 				return db
 			},
 			assertFunc: assert.NoError,
-			expected: trust.Signer{
+			expected: []trust.Signer{{
 				PrivateKey: key,
 				Algorithm:  signed.ECDSAWithSHA256,
 				IA:         xtest.MustParseIA("1-ff00:0:110"),
@@ -108,6 +133,74 @@ func TestSignerGenGenerate(t *testing.T) {
 				ChainValidity: cppki.Validity{
 					NotBefore: chain[0].NotBefore,
 					NotAfter:  chain[0].NotAfter,
+				},
+			}},
+		},
+		"multiple valid": {
+			keyRing: func(mctrl *gomock.Controller) trust.KeyRing {
+				ring := mock_trust.NewMockKeyRing(mctrl)
+				ring.EXPECT().PrivateKeys(gomock.Any()).Return(
+					[]crypto.Signer{key, key2}, nil,
+				)
+				return ring
+			},
+			db: func(mctrl *gomock.Controller) trust.DB {
+				cert := chain[0]
+				db := mock_trust.NewMockDB(mctrl)
+				matcher := chainQueryMatcher{
+					ia:   xtest.MustParseIA("1-ff00:0:110"),
+					skid: cert.SubjectKeyId,
+				}
+				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).
+					Return(trc, nil)
+				db.EXPECT().Chains(ctxMatcher{}, matcher).Return(
+					[][]*x509.Certificate{chain}, nil,
+				)
+				db.EXPECT().Chains(ctxMatcher{}, chainQueryMatcher{
+					ia:   xtest.MustParseIA("1-ff00:0:110"),
+					skid: chain2[0].SubjectKeyId,
+				}).Return(
+					[][]*x509.Certificate{chain2}, nil,
+				)
+				return db
+			},
+			assertFunc: assert.NoError,
+			expected: []trust.Signer{
+				{
+					PrivateKey: key,
+					Algorithm:  signed.ECDSAWithSHA256,
+					IA:         xtest.MustParseIA("1-ff00:0:110"),
+					TRCID: cppki.TRCID{
+						ISD:    1,
+						Base:   1,
+						Serial: 1,
+					},
+					Subject:      chain[0].Subject,
+					Chain:        chain,
+					SubjectKeyID: chain[0].SubjectKeyId,
+					Expiration:   chain[0].NotAfter,
+					ChainValidity: cppki.Validity{
+						NotBefore: chain[0].NotBefore,
+						NotAfter:  chain[0].NotAfter,
+					},
+				},
+				{
+					PrivateKey: key2,
+					Algorithm:  signed.ECDSAWithSHA256,
+					IA:         xtest.MustParseIA("1-ff00:0:110"),
+					TRCID: cppki.TRCID{
+						ISD:    1,
+						Base:   1,
+						Serial: 1,
+					},
+					Subject:      chain2[0].Subject,
+					Chain:        chain2,
+					SubjectKeyID: chain2[0].SubjectKeyId,
+					Expiration:   chain2[0].NotAfter,
+					ChainValidity: cppki.Validity{
+						NotBefore: chain2[0].NotBefore,
+						NotAfter:  chain2[0].NotAfter,
+					},
 				},
 			},
 		},
@@ -135,7 +228,7 @@ func TestSignerGenGenerate(t *testing.T) {
 				return db
 			},
 			assertFunc: assert.NoError,
-			expected: trust.Signer{
+			expected: []trust.Signer{{
 				PrivateKey: key,
 				Algorithm:  signed.ECDSAWithSHA256,
 				IA:         xtest.MustParseIA("1-ff00:0:110"),
@@ -152,7 +245,7 @@ func TestSignerGenGenerate(t *testing.T) {
 					NotBefore: chain[0].NotBefore,
 					NotAfter:  chain[0].NotAfter.Add(time.Hour),
 				},
-			},
+			}},
 		},
 		"select best from grace": {
 			keyRing: func(mctrl *gomock.Controller) trust.KeyRing {
@@ -192,7 +285,7 @@ func TestSignerGenGenerate(t *testing.T) {
 				return db
 			},
 			assertFunc: assert.NoError,
-			expected: trust.Signer{
+			expected: []trust.Signer{{
 				PrivateKey: key,
 				Algorithm:  signed.ECDSAWithSHA256,
 				IA:         xtest.MustParseIA("1-ff00:0:110"),
@@ -210,7 +303,7 @@ func TestSignerGenGenerate(t *testing.T) {
 					NotAfter:  chain[0].NotAfter.Add(time.Hour),
 				},
 				InGrace: true,
-			},
+			}},
 		},
 		"no keys": {
 			keyRing: func(mctrl *gomock.Controller) trust.KeyRing {
@@ -336,9 +429,9 @@ func TestSignerGenGenerate(t *testing.T) {
 					DB:      tc.db(mctrl),
 					KeyRing: tc.keyRing(mctrl),
 				}
-				signer, err := gen.Generate(context.Background())
+				signers, err := gen.Generate(context.Background())
 				tc.assertFunc(t, err)
-				assert.Equal(t, tc.expected, signer)
+				assert.Equal(t, tc.expected, signers)
 			})
 		}
 	})
@@ -367,7 +460,7 @@ func TestSignerGenGenerate(t *testing.T) {
 trustengine_generated_signers_total{result="err_db"} 2
 trustengine_generated_signers_total{result="err_key"} 1
 trustengine_generated_signers_total{result="err_not_found"} 3
-trustengine_generated_signers_total{result="ok_success"} 4
+trustengine_generated_signers_total{result="ok_success"} 5
 `, s, s)
 		err = testutil.CollectAndCompare(metrics.Signer.Signers, strings.NewReader(want))
 		require.NoError(t, err)

@@ -20,10 +20,10 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"hash"
-	"hash/fnv"
 	"math/big"
 	"net"
 	"net/netip"
@@ -91,22 +91,24 @@ type BatchConn interface {
 // from multiple sockets, performs routing, and sends them to their destinations
 // (after updating the path, if that is needed).
 type DataPlane struct {
-	interfaces        map[uint16]BatchConn
-	external          map[uint16]BatchConn
-	linkTypes         map[uint16]topology.LinkType
-	neighborIAs       map[uint16]addr.IA
-	peerInterfaces    map[uint16]uint16
-	internal          BatchConn
-	internalIP        netip.Addr
-	internalNextHops  map[uint16]*net.UDPAddr
-	svc               *services
-	macFactory        func() hash.Hash
-	bfdSessions       map[uint16]bfdSession
-	localIA           addr.IA
-	mtx               sync.Mutex
-	running           bool
-	Metrics           *Metrics
-	forwardingMetrics map[uint16]interfaceMetrics
+	interfaces          map[uint16]BatchConn
+	external            map[uint16]BatchConn
+	linkTypes           map[uint16]topology.LinkType
+	neighborIAs         map[uint16]addr.IA
+	peerInterfaces      map[uint16]uint16
+	internal            BatchConn
+	internalIP          netip.Addr
+	internalNextHops    map[uint16]*net.UDPAddr
+	svc                 *services
+	macFactory          func() hash.Hash
+	bfdSessions         map[uint16]bfdSession
+	localIA             addr.IA
+	mtx                 sync.Mutex
+	running             bool
+	Metrics             *Metrics
+	forwardingMetrics   map[uint16]interfaceMetrics
+	dispatchedPortStart uint16
+	dispatchedPortEnd   uint16
 
 	ExperimentalSCMPAuthentication bool
 
@@ -195,6 +197,11 @@ func (d *DataPlane) SetKey(key []byte) error {
 		return mac
 	}
 	return nil
+}
+
+func (d *DataPlane) SetPortRange(start, end uint16) {
+	d.dispatchedPortStart = start
+	d.dispatchedPortEnd = end
 }
 
 // AddInternalInterface sets the interface the data-plane will use to
@@ -598,16 +605,21 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 	procQs []chan packet) {
 
 	log.Debug("Run receiver for", "interface", ifID)
-	randomValue := make([]byte, 16)
-	if _, err := rand.Read(randomValue); err != nil {
+
+	// Each receiver (therefore each input interface) has a unique random seed for the procID hash
+	// function.
+	hashSeed := fnv1aOffset32
+	randomBytes := make([]byte, 4)
+	if _, err := rand.Read(randomBytes); err != nil {
 		panic("Error while generating random value")
+	}
+	for _, c := range randomBytes {
+		hashSeed = hashFNV1a(hashSeed, c)
 	}
 
 	msgs := underlayconn.NewReadMessages(cfg.BatchSize)
 	numReusable := 0                     // unused buffers from previous loop
 	metrics := d.forwardingMetrics[ifID] // If receiver exists, fw metrics exist too.
-	flowIDBuffer := make([]byte, 3)
-	hasher := fnv.New32a()
 
 	enqueueForProcessing := func(pkt ipv4.Message) {
 		srcAddr := pkt.Addr.(*net.UDPAddr)
@@ -616,8 +628,7 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 		metrics[sc].InputPacketsTotal.Inc()
 		metrics[sc].InputBytesTotal.Add(float64(size))
 
-		procID, err := computeProcID(pkt.Buffers[0],
-			cfg.NumProcessors, randomValue, flowIDBuffer, hasher)
+		procID, err := computeProcID(pkt.Buffers[0], cfg.NumProcessors, hashSeed)
 		if err != nil {
 			log.Debug("Error while computing procID", "err", err)
 			d.returnPacketToPool(pkt.Buffers[0])
@@ -658,9 +669,7 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 	}
 }
 
-func computeProcID(data []byte, numProcRoutines int, randomValue []byte,
-	flowIDBuffer []byte, hasher hash.Hash32) (uint32, error) {
-
+func computeProcID(data []byte, numProcRoutines int, hashSeed uint32) (uint32, error) {
 	if len(data) < slayers.CmnHdrLen {
 		return 0, errShortPacket
 	}
@@ -670,14 +679,21 @@ func computeProcID(data []byte, numProcRoutines int, randomValue []byte,
 	if len(data) < slayers.CmnHdrLen+addrHdrLen {
 		return 0, errShortPacket
 	}
-	copy(flowIDBuffer[0:3], data[1:4])
-	flowIDBuffer[0] &= 0xF // the left 4 bits don't belong to the flowID
 
-	hasher.Reset()
-	hasher.Write(randomValue)
-	hasher.Write(flowIDBuffer[:])
-	hasher.Write(data[slayers.CmnHdrLen : slayers.CmnHdrLen+addrHdrLen])
-	return hasher.Sum32() % uint32(numProcRoutines), nil
+	s := hashSeed
+
+	// inject the flowID
+	s = hashFNV1a(s, data[1]&0xF) // The left 4 bits aren't part of the flowID.
+	for _, c := range data[2:4] {
+		s = hashFNV1a(s, c)
+	}
+
+	// Inject the src/dst addresses
+	for _, c := range data[slayers.CmnHdrLen : slayers.CmnHdrLen+addrHdrLen] {
+		s = hashFNV1a(s, c)
+	}
+
+	return s % uint32(numProcRoutines), nil
 }
 
 func (d *DataPlane) returnPacketToPool(pkt []byte) {
@@ -1440,7 +1456,10 @@ func (p *scionPacketProcessor) validateEgressID() (processResult, error) {
 	pktEgressID := p.egressInterface()
 	_, ih := p.d.internalNextHops[pktEgressID]
 	_, eh := p.d.external[pktEgressID]
-	if !ih && !eh {
+	// egress interface must be a known interface
+	// packet coming from internal interface, must go to an external interface
+	// packet coming from external interface can go to either internal or external interface
+	if !ih && !eh || (p.ingressID == 0) && !eh {
 		errCode := slayers.SCMPCodeUnknownHopFieldEgress
 		if !p.infoField.ConsDir {
 			errCode = slayers.SCMPCodeUnknownHopFieldIngress
@@ -1559,7 +1578,7 @@ func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
 }
 
 func (p *scionPacketProcessor) resolveInbound() (*net.UDPAddr, processResult, error) {
-	a, err := p.d.resolveLocalDst(p.scionLayer)
+	a, err := p.d.resolveLocalDst(p.scionLayer, p.lastLayer)
 	switch {
 	case errors.Is(err, noSVCBackend):
 		log.Debug("SCMP: no SVC backend")
@@ -1955,14 +1974,18 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 	if err := updateSCIONLayer(p.rawPkt, s, p.buffer); err != nil {
 		return processResult{}, err
 	}
-	a, err := p.d.resolveLocalDst(s)
+	a, err := p.d.resolveLocalDst(s, p.lastLayer)
 	if err != nil {
 		return processResult{}, err
 	}
 	return processResult{OutAddr: a, OutPkt: p.rawPkt}, nil
 }
 
-func (d *DataPlane) resolveLocalDst(s slayers.SCION) (*net.UDPAddr, error) {
+func (d *DataPlane) resolveLocalDst(
+	s slayers.SCION,
+	lastLayer gopacket.DecodingLayer,
+) (*net.UDPAddr, error) {
+
 	dst, err := s.DstAddr()
 	if err != nil {
 		// TODO parameter problem.
@@ -1976,16 +1999,165 @@ func (d *DataPlane) resolveLocalDst(s slayers.SCION) (*net.UDPAddr, error) {
 		if !ok {
 			return nil, noSVCBackend
 		}
+		// if SVC address is outside the configured port range we send to the fix
+		// port.
+		if uint16(a.Port) < d.dispatchedPortStart || uint16(a.Port) > d.dispatchedPortEnd {
+			a.Port = topology.EndhostPort
+		}
 		return a, nil
 	case addr.HostTypeIP:
-		return addEndhostPort(dst.IP().AsSlice()), nil
+		// Parse UPD port and rewrite underlay IP/UDP port
+		return d.addEndhostPort(lastLayer, dst.IP().AsSlice())
 	default:
 		panic("unexpected address type returned from DstAddr")
 	}
 }
 
-func addEndhostPort(dst net.IP) *net.UDPAddr {
-	return &net.UDPAddr{IP: dst, Port: topology.EndhostPort}
+func (d *DataPlane) addEndhostPort(
+	lastLayer gopacket.DecodingLayer,
+	dst []byte,
+) (*net.UDPAddr, error) {
+
+	// Parse UPD port and rewrite underlay IP/UDP port
+	l4Type := nextHdr(lastLayer)
+	switch l4Type {
+	case slayers.L4UDP:
+		if len(lastLayer.LayerPayload()) < 8 {
+			// TODO(JordiSubira): Treat this as a parameter problem
+			return nil, serrors.New("SCION/UDP header len too small", "legth",
+				len(lastLayer.LayerPayload()))
+		}
+		port := binary.BigEndian.Uint16(lastLayer.LayerPayload()[2:])
+		if port < d.dispatchedPortStart || port > d.dispatchedPortEnd {
+			port = topology.EndhostPort
+		}
+		return &net.UDPAddr{IP: dst, Port: int(port)}, nil
+	case slayers.L4SCMP:
+		var scmpLayer slayers.SCMP
+		err := scmpLayer.DecodeFromBytes(lastLayer.LayerPayload(), gopacket.NilDecodeFeedback)
+		if err != nil {
+			// TODO(JordiSubira): Treat this as a parameter problem.
+			return nil, serrors.WrapStr("decoding SCMP layer for extracting endhost dst port", err)
+		}
+		port, err := getDstPortSCMP(&scmpLayer)
+		if err != nil {
+			// TODO(JordiSubira): Treat this as a parameter problem.
+			return nil, serrors.WrapStr("getting dst port from SCMP message", err)
+		}
+		// if the SCMP dst port is outside the range, we send it to the EndhostPort
+		if port < d.dispatchedPortStart || port > d.dispatchedPortEnd {
+			port = topology.EndhostPort
+		}
+		return &net.UDPAddr{IP: dst, Port: int(port)}, nil
+	default:
+		log.Debug("msg", "protocol", l4Type)
+		return &net.UDPAddr{IP: dst, Port: topology.EndhostPort}, nil
+	}
+}
+
+func getDstPortSCMP(scmp *slayers.SCMP) (uint16, error) {
+	// XXX(JordiSubira): This implementation is far too slow for the dataplane.
+	// We should reimplement this with fewer helpers and memory allocations, since
+	// our sole goal is to parse the L4 port or identifier in the offending packets.
+	if scmp.TypeCode.Type() == slayers.SCMPTypeEchoRequest ||
+		scmp.TypeCode.Type() == slayers.SCMPTypeTracerouteRequest {
+		return topology.EndhostPort, nil
+	}
+	if scmp.TypeCode.Type() == slayers.SCMPTypeEchoReply {
+		var scmpEcho slayers.SCMPEcho
+		err := scmpEcho.DecodeFromBytes(scmp.Payload, gopacket.NilDecodeFeedback)
+		if err != nil {
+			return 0, err
+		}
+		return scmpEcho.Identifier, nil
+	}
+	if scmp.TypeCode.Type() == slayers.SCMPTypeTracerouteReply {
+		var scmpTraceroute slayers.SCMPTraceroute
+		err := scmpTraceroute.DecodeFromBytes(scmp.Payload, gopacket.NilDecodeFeedback)
+		if err != nil {
+			return 0, err
+		}
+		return scmpTraceroute.Identifier, nil
+	}
+
+	// Drop unknown SCMP error messages.
+	if scmp.NextLayerType() == gopacket.LayerTypePayload {
+		return 0, serrors.New("unsupported SCMP error message",
+			"type", scmp.TypeCode.Type())
+	}
+	l, err := decodeSCMP(scmp)
+	if err != nil {
+		return 0, err
+	}
+	if len(l) != 2 {
+		return 0, serrors.New("SCMP error message without payload")
+	}
+	gpkt := gopacket.NewPacket(*l[1].(*gopacket.Payload), slayers.LayerTypeSCION,
+		gopacket.DecodeOptions{
+			NoCopy: true,
+		},
+	)
+
+	// If the offending packet was UDP/SCION, use the source port to deliver.
+	if udp := gpkt.Layer(slayers.LayerTypeSCIONUDP); udp != nil {
+		port := udp.(*slayers.UDP).SrcPort
+		// XXX(roosd): We assume that the zero value means the UDP header is
+		// truncated. This flags packets of misbehaving senders as truncated, if
+		// they set the source port to 0. But there is no harm, since those
+		// packets are destined to be dropped anyway.
+		if port == 0 {
+			return 0, serrors.New("SCMP error with truncated UDP header")
+		}
+		return port, nil
+	}
+
+	// If the offending packet was SCMP/SCION, and it is an echo or traceroute,
+	// use the Identifier to deliver. In all other cases, the message is dropped.
+	if scmp := gpkt.Layer(slayers.LayerTypeSCMP); scmp != nil {
+
+		tc := scmp.(*slayers.SCMP).TypeCode
+		// SCMP Error messages in response to an SCMP error message are not allowed.
+		if !tc.InfoMsg() {
+			return 0, serrors.New("SCMP error message in response to SCMP error message",
+				"type", tc.Type())
+		}
+		// We only support echo and traceroute requests.
+		t := tc.Type()
+		if t != slayers.SCMPTypeEchoRequest && t != slayers.SCMPTypeTracerouteRequest {
+			return 0, serrors.New("unsupported SCMP info message", "type", t)
+		}
+
+		var port uint16
+		// Extract the port from the echo or traceroute ID field.
+		if echo := gpkt.Layer(slayers.LayerTypeSCMPEcho); echo != nil {
+			port = echo.(*slayers.SCMPEcho).Identifier
+		} else if tr := gpkt.Layer(slayers.LayerTypeSCMPTraceroute); tr != nil {
+			port = tr.(*slayers.SCMPTraceroute).Identifier
+		} else {
+			return 0, serrors.New("SCMP error with truncated payload")
+		}
+		return port, nil
+	}
+	return 0, serrors.New("unknown SCION SCMP content")
+}
+
+// decodeSCMP decodes the SCMP payload. WARNING: Decoding is done with NoCopy set.
+func decodeSCMP(scmp *slayers.SCMP) ([]gopacket.SerializableLayer, error) {
+	gpkt := gopacket.NewPacket(scmp.Payload, scmp.NextLayerType(),
+		gopacket.DecodeOptions{NoCopy: true})
+	layers := gpkt.Layers()
+	if len(layers) == 0 || len(layers) > 2 {
+		return nil, serrors.New("invalid number of SCMP layers", "count", len(layers))
+	}
+	ret := make([]gopacket.SerializableLayer, len(layers))
+	for i, l := range layers {
+		s, ok := l.(gopacket.SerializableLayer)
+		if !ok {
+			return nil, serrors.New("invalid SCMP layer, not serializable", "index", i)
+		}
+		ret[i] = s
+	}
+	return ret, nil
 }
 
 // TODO(matzf) this function is now only used to update the OneHop-path.

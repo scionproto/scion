@@ -148,6 +148,13 @@ func (l *Loader) InterfaceIDs() []uint16 {
 	return ids
 }
 
+func (l *Loader) PortRange() (uint16, uint16) {
+	l.mtx.Lock()
+	defer l.mtx.Unlock()
+
+	return l.topo.PortRange()
+}
+
 func (l *Loader) ControlServiceAddresses() []*net.UDPAddr {
 	l.mtx.Lock()
 	defer l.mtx.Unlock()

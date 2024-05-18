@@ -65,3 +65,4 @@ Advanced
    crypto
    hiddenpaths
    Integration/Acceptence Tests (README) <https://github.com/scionproto/scion/blob/master/acceptance/README.md>
+   benchmarking

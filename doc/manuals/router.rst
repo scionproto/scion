@@ -192,7 +192,7 @@ considers the following options.
 
          Can be overridden for specific inter-AS BFD
          sessions with :option:`bfd.disable <topology-json disable>`.
- 
+
       .. option:: detect_mult = <uint8>, default 3
 
          Set the :term:`BFD` detection time multiplier.

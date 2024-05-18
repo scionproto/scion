@@ -68,17 +68,13 @@ func TestSDTopoReload(t *testing.T) {
 func setupTest(t *testing.T) {
 	// first load the docker images from bazel into the docker deamon, the
 	// tars are in the same folder as this test runs in bazel.
-	mustExec(t, "docker", "image", "load", "-i", "dispatcher.tar/tarball.tar")
-	t.Cleanup(func() {
-		mustExec(t, "docker", "image", "rm", "scion/acceptance/topo_daemon_reload:dispatcher")
-	})
 	mustExec(t, "docker", "image", "load", "-i", "daemon.tar/tarball.tar")
 	t.Cleanup(func() {
 		mustExec(t, "docker", "image", "rm", "scion/acceptance/topo_daemon_reload:daemon")
 	})
 	// now start the docker containers
 	mustExec(t, "docker", "compose", "-f", "docker-compose.yml",
-		"up", "-d", "topo_daemon_reload_dispatcher", "topo_daemon_reload_daemon")
+		"up", "-d", "topo_daemon_reload_daemon")
 	t.Cleanup(func() { mustExec(t, "docker", "compose", "-f", "docker-compose.yml", "down", "-v") })
 	// wait a bit to make sure the containers are ready.
 	time.Sleep(time.Second / 2)
@@ -92,8 +88,7 @@ func collectLogs(t *testing.T) {
 	require.NoError(t, os.MkdirAll(fmt.Sprintf("%s/logs", outdir), os.ModePerm|os.ModeDir))
 	// collect logs
 	for service, file := range map[string]string{
-		"topo_daemon_reload_dispatcher": "disp.log",
-		"topo_daemon_reload_daemon":     "daemon.log",
+		"topo_daemon_reload_daemon": "daemon.log",
 	} {
 		cmd := exec.Command("docker", "compose",
 			"-f", "docker-compose.yml", "logs", "--no-color",

@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build go1.9 && linux
-// +build go1.9,linux
+//go:build go1.9
+// +build go1.9
 
 // Package conn implements underlay sockets.
 package conn
@@ -95,7 +95,7 @@ func newConnUDPIPv4(listen, remote *net.UDPAddr, cfg *Config) (*connUDPIPv4, err
 // ReadBatch reads up to len(msgs) packets, and stores them in msgs.
 // It returns the number of packets read, and an error if any.
 func (c *connUDPIPv4) ReadBatch(msgs Messages) (int, error) {
-	n, err := c.pconn.ReadBatch(msgs, syscall.MSG_WAITFORONE)
+	n, err := c.pconn.ReadBatch(msgs, syscallMSG_WAITFORONE)
 	return n, err
 }
 
@@ -133,7 +133,7 @@ func newConnUDPIPv6(listen, remote *net.UDPAddr, cfg *Config) (*connUDPIPv6, err
 // ReadBatch reads up to len(msgs) packets, and stores them in msgs.
 // It returns the number of packets read, and an error if any.
 func (c *connUDPIPv6) ReadBatch(msgs Messages) (int, error) {
-	n, err := c.pconn.ReadBatch(msgs, syscall.MSG_WAITFORONE)
+	n, err := c.pconn.ReadBatch(msgs, syscallMSG_WAITFORONE)
 	return n, err
 }
 

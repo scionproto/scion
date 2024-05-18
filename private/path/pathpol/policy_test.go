@@ -586,16 +586,17 @@ func TestFilterOpt(t *testing.T) {
 }
 
 func TestPolicyJsonConversion(t *testing.T) {
+	acl, err := NewACL(
+		&ACLEntry{Action: Allow, Rule: mustHopPredicate(t, "42-0#0")},
+		denyEntry,
+	)
+	require.NoError(t, err)
+
 	policy := NewPolicy("", nil, nil, []Option{
 		{
 			Policy: &ExtPolicy{
 				Policy: &Policy{
-					ACL: &ACL{
-						Entries: []*ACLEntry{
-							{Action: Allow, Rule: mustHopPredicate(t, "0-0#0")},
-							denyEntry,
-						},
-					},
+					ACL: acl,
 					LocalISDAS: &LocalISDAS{
 						AllowedIAs: []addr.IA{
 							xtest.MustParseIA("64-123"),
