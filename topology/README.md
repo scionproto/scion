@@ -73,15 +73,15 @@ Fields marked with * are used by the seed emulator for setting link properties.
 ## Border Router Properties Section
 
 The **optional** 'borderRouterProperties' section describes properties of BRs such as Geolocation.
-Entries in the 'borderRouterProperties' section are optional. 
-This means not every BR defined in the links section must appear in the 
+Entries in the 'borderRouterProperties' section are optional.
+This means not every BR defined in the links section must appear in the
 'borderRouterProperties' section.
 
-The same string identifiers as in the link section specify the key for a border router. 
-Though watch out as one border router can have several 
+The same string identifiers as in the link section specify the key for a border router.
+Though watch out as one border router can have several
 SCION interfaces but there can only be one property section for each border router.
 
-Consider the following example from the *default.topo* file for clarification. 
+Consider the following example from the *default.topo* file for clarification.
 In the 'links' section these 6 scion interfaces were specified:
 
 ```yaml
@@ -93,8 +93,8 @@ In the 'links' section these 6 scion interfaces were specified:
 "1-ff00:0:120#5"
 ```
 
-Notice though how the 6 scion interfaces are connected to only 3 BorderRouters. 
-Now in the 'borderRouterProperties' section we can specify properties for each one 
+Notice though how the 6 scion interfaces are connected to only 3 BorderRouters.
+Now in the 'borderRouterProperties' section we can specify properties for each one
 of the three BorderRouters like this:
 
 ```yaml
@@ -118,16 +118,16 @@ of the three BorderRouters like this:
     note: "This is an arbitrary string"
 ```
 
-Notice that instead of *"1-ff00:0:120-B#2"* 
-we could have also specified any other interface attached 
+Notice that instead of *"1-ff00:0:120-B#2"*
+we could have also specified any other interface attached
 to the same BorderRouter like *"1-ff00:0:120-B#3"*
 
 **Supported attributes:**
 
-- "geo" -- the geolocation of the Border Router. 
-geo has three arguments latitude, longitude and address. 
+- "geo" -- the geolocation of the Border Router.
+geo has three arguments latitude, longitude and address.
 This will be added to the staticInfoConfig.json by the seed emulator if set
-- "note" -- a string that can contain any string. 
+- "note" -- a string that can contain any string.
 This will be added as a note to the Border Router Node by the seed emulator
 
 ## Examples
@@ -141,8 +141,8 @@ This is a list of examples:
 - [default-no-peers.topo](default-no-peers.topo)
 - [peering-test.topo](peering-test.topo): example with one peering link
 - [peering-test-multi.topo](peering-test-multi.topo): example with multiple peering links
-- [tiny_borderRouterProperties.topo](tiny_borderRouterProperties.topo): 
+- [tiny_borderRouterProperties.topo](tiny_borderRouterProperties.topo):
 tiny.topo example file with an example of 'borderRouterProperties' Section
-- [tiny4_link_properties.topo](tiny4_link_properties.topo): 
-tiny4.topo example file with an example of how to specify link properties for intra AS network 
+- [tiny4_link_properties.topo](tiny4_link_properties.topo):
+tiny4.topo example file with an example of how to specify link properties for intra AS network
 and inter AS links
