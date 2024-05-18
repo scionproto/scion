@@ -57,10 +57,9 @@ func init() {
 
 // Resolver performs SVC address resolution.
 type Resolver struct {
+	Network snet.Network
 	// LocalIA is the local AS.
 	LocalIA addr.IA
-	// ConnFactory is used to open ports for SVC resolution messages.
-	ConnFactory snet.PacketDispatcherService
 	// LocalIP is the default L3 address for connections originating from this process.
 	LocalIP net.IP
 	// RoundTripper performs the request/reply exchange for SVC resolutions. If
@@ -84,7 +83,7 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.SVC) (*R
 		return nil, serrors.New("invalid local IP", "ip", r.LocalIP)
 	}
 
-	conn, port, err := r.ConnFactory.Register(ctx, r.LocalIA, u, addr.SvcNone)
+	conn, err := r.Network.OpenRaw(ctx, u)
 	if err != nil {
 		ext.Error.Set(span, true)
 		return nil, serrors.Wrap(errRegistration, err)
@@ -108,7 +107,7 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.SVC) (*R
 			},
 			Path: p.Dataplane(),
 			Payload: snet.UDPPayload{
-				SrcPort: port,
+				SrcPort: uint16(conn.LocalAddr().(*net.UDPAddr).Port),
 				Payload: requestPayload,
 			},
 		},

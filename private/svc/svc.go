@@ -16,11 +16,10 @@
 package svc
 
 import (
-	"context"
 	"net"
-	"net/netip"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
@@ -40,102 +39,42 @@ const (
 	Forward
 )
 
-// NewResolverPacketDispatcher creates a dispatcher service that returns
-// sockets with built-in SVC address resolution capabilities.
-//
-// RequestHandler results during connection read operations are handled in the
-// following way:
-//   - on error result, the error is sent back to the reader
-//   - on forwarding result, the packet is sent back to the app for processing.
-//   - on handled result, the packet is discarded after processing, and a new
-//     read is attempted from the connection, and the entire decision process
-//     repeats.
-func NewResolverPacketDispatcher(d snet.PacketDispatcherService,
-	h RequestHandler) *ResolverPacketDispatcher {
-
-	return &ResolverPacketDispatcher{dispService: d, handler: h}
-}
-
-var _ snet.PacketDispatcherService = (*ResolverPacketDispatcher)(nil)
-
-// ResolverPacketDispatcher is a dispatcher service that returns sockets with
-// built-in SVC address resolution capabilities. Every packet received with a
-// destination SVC address is intercepted inside the socket, and sent to an SVC
-// resolution handler which responds back to the client.
-//
-// Redirected packets are not returned by the connection, so they cannot be
-// seen via ReadFrom. After redirecting a packet, the connection attempts to
-// read another packet before returning, until a non SVC packet is received or
-// an error occurs.
-type ResolverPacketDispatcher struct {
-	dispService snet.PacketDispatcherService
-	handler     RequestHandler
-}
-
-func (d *ResolverPacketDispatcher) Register(ctx context.Context, ia addr.IA,
-	registration *net.UDPAddr, svc addr.SVC) (snet.PacketConn, uint16, error) {
-
-	registrationIP, ok := netip.AddrFromSlice(registration.IP)
-	if !ok {
-		return nil, 0, serrors.New("invalid registration IP", "ip", registration.IP)
-	}
-	c, port, err := d.dispService.Register(ctx, ia, registration, svc)
-	if err != nil {
-		return nil, 0, err
-	}
-	packetConn := &resolverPacketConn{
-		PacketConn: c,
-		source: snet.SCIONAddress{
-			IA:   ia,
-			Host: addr.HostIP(registrationIP),
-		},
-		handler: d.handler,
-	}
-	return packetConn, port, err
-}
-
-// resolverPacketConn redirects SVC destination packets to SVC resolution
+// ResolverPacketConn redirects SVC destination packets to SVC resolution
 // handler logic.
-type resolverPacketConn struct {
+type ResolverPacketConn struct {
 	// PacketConn is the conn to receive and send packets.
 	snet.PacketConn
-	// source contains the address from which packets should be sent.
-	source snet.SCIONAddress
-	// handler handles packets for SVC destinations.
-	handler RequestHandler
+	// Source contains the address from which packets should be sent.
+	Source snet.SCIONAddress
+	// Handler handles packets for SVC destinations.
+	Handler RequestHandler
 }
 
-func (c *resolverPacketConn) ReadFrom(pkt *snet.Packet, ov *net.UDPAddr) error {
+func (c *ResolverPacketConn) ReadFrom(pkt *snet.Packet, ov *net.UDPAddr) error {
 	for {
 		if err := c.PacketConn.ReadFrom(pkt, ov); err != nil {
 			return err
 		}
-
 		// XXX(scrye): destination address is guaranteed to not be nil
 		if pkt.Destination.Host.Type() != addr.HostTypeSVC {
 			// Normal packet, return to caller because data is already parsed and ready
 			return nil
 		}
-		svc := pkt.Destination.Host.SVC()
-
-		// Multicasts do not trigger SVC resolution logic
-		if svc.IsMulticast() {
-			return nil
-		}
-
 		// XXX(scrye): This might block, causing the read to wait for the
 		// write to go through. The solution would be to run the logic in a
 		// goroutine, but because UDP writes rarely block, the current
 		// solution should be good enough for now.
 		r := &Request{
 			Conn:     c.PacketConn,
-			Source:   c.source,
+			Source:   c.Source,
 			Packet:   pkt,
 			Underlay: ov,
 		}
-		switch result, err := c.handler.Handle(r); result {
+		switch result, err := c.Handler.Handle(r); result {
 		case Error:
-			return serrors.Wrap(ErrHandler, err)
+			// We do not propagate error to caller, to avoid the connection fails,
+			// e.g., within QUIC layer.
+			log.Error("Error handling SVC request", "err", err)
 		case Forward:
 			return nil
 		default:

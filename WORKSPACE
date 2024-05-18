@@ -57,7 +57,7 @@ load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_depe
 
 go_register_toolchains(
     nogo = "@//:nogo",
-    version = "1.21.3",
+    version = "1.21.10",
 )
 
 # Gazelle
@@ -110,6 +110,14 @@ python_deps(python_interpreter)
 load("@com_github_scionproto_scion_python_deps//:requirements.bzl", install_python_deps = "install_deps")
 
 install_python_deps()
+
+load("//doc:deps.bzl", "python_doc_deps")
+
+python_doc_deps(python_interpreter)
+
+load("@com_github_scionproto_scion_python_doc_deps//:requirements.bzl", install_python_doc_deps = "install_deps")
+
+install_python_doc_deps()
 
 http_archive(
     name = "rules_pkg",

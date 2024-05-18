@@ -36,7 +36,6 @@ import (
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 )
 
 // StatusName defines the different states a path can be in.
@@ -104,13 +103,11 @@ type Prober struct {
 	// an appropriate local IP endpoint depending on the path that should be probed. Note, LocalIP
 	// should not be set, unless you know what you are doing.
 	LocalIP net.IP
-	// ID is the SCMP traceroute ID used by the Prober.
-	ID uint16
-	// Dispatcher is the path to the dispatcher socket. Leaving this empty uses
-	// the default dispatcher socket value.
-	Dispatcher string
-	// Metrics injected into snet.DefaultPacketDispatcherService.
+	// Metrics injected into snet.DefaultConnector.
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
+	// Topology is the helper class to get control-plane information for the
+	// local AS.
+	Topology snet.Topology
 }
 
 type options struct {
@@ -164,11 +161,11 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 		statuses[key] = status
 	}
 
-	// Instantiate dispatcher service
-	disp := &snet.DefaultPacketDispatcherService{
-		Dispatcher:             reliable.NewDispatcher(p.Dispatcher),
-		SCMPHandler:            &scmpHandler{},
-		SCIONPacketConnMetrics: p.SCIONPacketConnMetrics,
+	// Instantiate network
+	sn := &snet.SCIONNetwork{
+		SCMPHandler:       &scmpHandler{},
+		PacketConnMetrics: p.SCIONPacketConnMetrics,
+		Topology:          p.Topology,
 	}
 
 	// Resolve all the local IPs per path. We will open one connection
@@ -199,8 +196,7 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 		g.Go(func() error {
 			defer log.HandlePanic()
 
-			conn, _, err := disp.Register(ctx, p.LocalIA,
-				&net.UDPAddr{IP: localIP.AsSlice()}, addr.SvcNone)
+			conn, err := sn.OpenRaw(ctx, &net.UDPAddr{IP: localIP.AsSlice()})
 			if err != nil {
 				return serrors.WrapStr("creating packet conn", err, "local", localIP)
 			}
@@ -246,7 +242,7 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 						},
 						Path: alertPath,
 						Payload: snet.SCMPTracerouteRequest{
-							Identifier: p.ID,
+							Identifier: uint16(conn.LocalAddr().(*net.UDPAddr).Port),
 							Sequence:   uint16(atomic.AddInt32(&seq, 1)),
 						},
 					},

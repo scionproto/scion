@@ -102,7 +102,7 @@ meaningful level of security:
 
 ### Example
 
-![](fig/EPIC/path-type-filtering-small.png).
+![path type filtering figure](fig/EPIC/path-type-filtering-small.png).
 
 Here, AS 6 is the AS protected by the hidden path (blue lines). The
 hidden path terminates at AS 6 (represented by black dot), so AS 6
@@ -182,8 +182,7 @@ not apply any filtering for traffic from interface 2 to interface 1.
 
 There are two main applications for EPIC-HP:
 
-<a id="HighlySecureHiddenPaths"></a>
-### Highly Secure Hidden Paths
+### <a id="HighlySecureHiddenPaths"></a> Highly Secure Hidden Paths
 
 The last and penultimate ASes on the hidden path only allow EPIC-HP
 traffic on the interface pairs that affect the hidden path.
@@ -203,8 +202,7 @@ packets towards hosts in other ASes, but that those hosts can not
 send a response back if they do not have the necessary
 authenticators.
 
-<a id="DOSSecureHiddenPaths"></a>
-### DoS-Secure Hidden Paths
+### <a id="DOSSecureHiddenPaths"></a> DoS-Secure Hidden Paths
 
 The last and penultimate ASes on the hidden path allow EPIC-HP and
 other path types simultaneously, but prioritize traffic using the
@@ -222,9 +220,9 @@ authenticators to send back EPIC-HP traffic.
 
 ## References
 
-<a id="1">[1]</a>
-M. Legner, T. Klenze, M. Wyss, C. Sprenger, A. Perrig. (2020) <br>
-EPIC: Every Packet Is Checked in the Data Plane of a Path-Aware Internet <br>
+[^1]
+M. Legner, T. Klenze, M. Wyss, C. Sprenger, A. Perrig. (2020)\
+EPIC: Every Packet Is Checked in the Data Plane of a Path-Aware Internet\
 Proceedings of the USENIX Security Symposium
 [[Link]](https://netsec.ethz.ch/publications/papers/Legner_Usenix2020_EPIC.pdf)
 
@@ -233,7 +231,7 @@ Design Document for the Hidden Path Infrastructure
 [[Link]](/hidden-paths)
 
 <a id="3">[3]</a>
-T. Lee, C. Pappas, A. Perrig, V. Gligor, and Y. Hu. (2017) <br>
-The Case for In-Network Replay Suppression <br>
+T. Lee, C. Pappas, A. Perrig, V. Gligor, and Y. Hu. (2017)\
+The Case for In-Network Replay Suppression\
 Proceedings of the ACM Asia Conference on Computer and Communications Security
 [[Link]](https://netsec.ethz.ch/publications/papers/replay2017.pdf)

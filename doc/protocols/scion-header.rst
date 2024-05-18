@@ -146,7 +146,7 @@ CurrHF
     calculations below).
 Seg{0,1,2}Len
     The number of hop fields in a given segment. :math:`Seg_iLen > 0` implies
-    the existence of info field `i`.
+    the existence of info field :math:`i`.
 
 Path Offset Calculations
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -277,7 +277,7 @@ To that end, MACs are calculated over the relevant fields of a hop field and
 additionally (conceptually) chained to other hop fields in the path segment. In
 the following, we specify the computation of a hop field MAC.
 
-We write the `i`-th  hop field in a path segment (in construction direction) as
+We write the :math:`i`-th  hop field in a path segment (in construction direction) as
 
 .. math::
     HF_i = \langle  Flags_i || ExpTime_i || InIF_i || EgIF_i || \sigma_i \rangle
@@ -340,7 +340,7 @@ Path Calculation
 **Initialization**
 
 The paths must be initialized correctly for the border routers to verify the hop
-fields in the data plane. `SegID` is an updatable field and is initialized based
+fields in the data plane. :math:`SegID` is an updatable field and is initialized based
 on the location of sender in relation to path construction.
 
 
@@ -348,50 +348,50 @@ on the location of sender in relation to path construction.
 Initialization cases:
 
 - The non-peering path segment is traversed in construction direction. It starts
-  at the `i`-th AS of the full segment discovered in beaconing:
+  at the :math:`i`-th AS of the full segment discovered in beaconing:
 
   :math:`SegID := \beta_{i}`
 
 - The peering path segment is traversed in construction direction. It starts at
-  the `i`-th AS of the full segment discovered in beaconing:
+  the :math:`i`-th AS of the full segment discovered in beaconing:
 
   :math:`SegID := \beta_{i+1}`
 
 - The path segment is traversed against construction direction. The full segment
-  discovered in beaconing has `n` hops:
+  discovered in beaconing has :math:`n` hops:
 
   :math:`SegID := \beta_{n}`
 
 **AS Traversal Operations**
 
 Each AS on the path verifies the hop fields with the help of the current value
-in `SegID`. The operations differ based on the location of the AS on the path.
-Each AS has to set the `SegID` correctly for the next AS to verify its hop
+in :math:`SegID`. The operations differ based on the location of the AS on the path.
+Each AS has to set the :math:`SegID` correctly for the next AS to verify its hop
 field.
 
-Each operation is described form the perspective of AS `i`.
+Each operation is described form the perspective of AS :math:`i`.
 
 Against construction direction (up, i.e., ConsDir == 0):
-   #. `SegID` contains :math:`\beta_{i+1}` at this point.
+   #. :math:`SegID` contains :math:`\beta_{i+1}` at this point.
    #. Compute :math:`\beta'_{i} := SegID \oplus \sigma_i[:2]`
-   #. At the ingress router update `SegID`:
+   #. At the ingress router update :math:`SegID`:
 
       :math:`SegID := \beta'_{i}`
-   #. `SegID` now contains :math:`\beta'_{i}`
+   #. :math:`SegID` now contains :math:`\beta'_{i}`
    #. Compute :math:`\sigma_i` with the formula above by replacing
       :math:`\beta_{i}` with :math:`SegID`.
    #. Check that the MAC in the hop field matches :math:`\sigma_{i}`. If the
       MAC matches it follows that :math:`\beta'_{i} == \beta_{i}`.
 
 In construction direction (down, i.e., ConsDir == 1):
-   #. `SegID` contains :math:`\beta_{i}` at this point.
+   #. :math:`SegID` contains :math:`\beta_{i}` at this point.
    #. Compute :math:`\sigma'_i` with the formula above by replacing
-      :math:`\beta_{i}` with `SegID`.
+      :math:`\beta_{i}` with :math:`SegID`.
    #. Check that the MAC in the hop field matches :math:`\sigma'_{i}`.
-   #. At the egress router update `SegID` for the next hop:
+   #. At the egress router update :math:`SegID` for the next hop:
 
       :math:`SegID := SegID \oplus \sigma_i[:2]`
-   #. `SegID` now contains :math:`\beta_{i+1}`.
+   #. :math:`SegID` now contains :math:`\beta_{i+1}`.
 
 An example of how processing is done in up and down direction is shown in the
 illustration below:
@@ -406,18 +406,18 @@ the first hop of the segment. Against construction direction (up), the peering
 AS is the last hop of the segment.
 
 Against construction direction (up):
-   #. `SegID` contains :math:`\beta_{i+1}` at this point.
+   #. :math:`SegID` contains :math:`\beta_{i+1}` at this point.
    #. Compute :math:`{\sigma^P_i}'` with the formula above by replacing
-      :math:`\beta_{i+1}` with `SegID`.
+      :math:`\beta_{i+1}` with :math:`SegID`.
    #. Check that the MAC in the hop field matches :math:`{\sigma^P_i}'`.
-   #. Do not update `SegID` as it already contains :math:`\beta_{i+1}`.
+   #. Do not update :math:`SegID` as it already contains :math:`\beta_{i+1}`.
 
 In construction direction (down):
-   #. `SegID` contains :math:`\beta_{i+1}` at this point.
+   #. :math:`SegID` contains :math:`\beta_{i+1}` at this point.
    #. Compute :math:`{\sigma^P_i}'` with the formula above by replacing
-      :math:`\beta_{i+1}` with `SegID`.
+      :math:`\beta_{i+1}` with :math:`SegID`.
    #. Check that the MAC in the hop field matches :math:`{\sigma^P_i}'`.
-   #. Do not update `SegID` as it already contains :math:`\beta_{i+1}`.
+   #. Do not update :math:`SegID` as it already contains :math:`\beta_{i+1}`.
 
 .. _path-type-empty:
 

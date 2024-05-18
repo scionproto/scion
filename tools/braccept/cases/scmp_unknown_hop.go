@@ -347,3 +347,155 @@ func SCMPUnknownHopEgress(artifactsDir string, mac hash.Hash) runner.Case {
 		NormalizePacket: scmpNormalizePacket,
 	}
 }
+
+// SCMPUnknownHopWrongRouter tests a packet from an AS local host sent to the wrong egress
+// router. This packet must not be forwarded by the router.
+func SCMPUnknownHopWrongRouter(artifactsDir string, mac hash.Hash) runner.Case {
+	options := gopacket.SerializeOptions{
+		FixLengths:       true,
+		ComputeChecksums: true,
+	}
+
+	ethernet := &layers.Ethernet{
+		SrcMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef},
+		DstMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x1},
+		EthernetType: layers.EthernetTypeIPv4,
+	}
+	ip := &layers.IPv4{
+		Version:  4,
+		IHL:      5,
+		TTL:      64,
+		SrcIP:    net.IP{192, 168, 0, 51},
+		DstIP:    net.IP{192, 168, 0, 11},
+		Protocol: layers.IPProtocolUDP,
+		Flags:    layers.IPv4DontFragment,
+	}
+	udp := &layers.UDP{
+		SrcPort: layers.UDPPort(30041),
+		DstPort: layers.UDPPort(30001),
+	}
+	_ = udp.SetNetworkLayerForChecksum(ip)
+
+	// (valid) path to ff00:0:8 via interface 181; this interface is configured on brC
+	// but we're sending it to brA.
+	sp := &scion.Decoded{
+		Base: scion.Base{
+			PathMeta: scion.MetaHdr{
+				CurrHF: 0,
+				SegLen: [3]uint8{2, 0, 0},
+			},
+			NumINF:  1,
+			NumHops: 2,
+		},
+		InfoFields: []path.InfoField{
+			{
+				SegID:     0x111,
+				ConsDir:   true,
+				Timestamp: util.TimeToSecs(time.Now()),
+			},
+		},
+		HopFields: []path.HopField{
+			{ConsIngress: 0, ConsEgress: 181},
+			{ConsIngress: 811, ConsEgress: 0},
+		},
+	}
+	sp.HopFields[0].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[0], nil)
+
+	scionL := &slayers.SCION{
+		Version:      0,
+		TrafficClass: 0xb8,
+		FlowID:       0xdead,
+		NextHdr:      slayers.L4UDP,
+		PathType:     scion.PathType,
+		SrcIA:        xtest.MustParseIA("1-ff00:0:1"),
+		DstIA:        xtest.MustParseIA("1-ff00:0:8"),
+		Path:         sp,
+	}
+	srcA := addr.MustParseHost("192.168.0.51")
+	if err := scionL.SetSrcAddr(srcA); err != nil {
+		panic(err)
+	}
+	if err := scionL.SetDstAddr(addr.MustParseHost("174.16.8.1")); err != nil {
+		panic(err)
+	}
+
+	scionudp := &slayers.UDP{}
+	scionudp.SrcPort = 40111
+	scionudp.DstPort = 40222
+	scionudp.SetNetworkLayerForChecksum(scionL)
+
+	payload := []byte("actualpayloadbytes")
+
+	// Prepare input packet
+	input := gopacket.NewSerializeBuffer()
+	if err := gopacket.SerializeLayers(input, options,
+		ethernet, ip, udp, scionL, scionudp, gopacket.Payload(payload),
+	); err != nil {
+		panic(err)
+	}
+
+	// Pointer to current hop field
+	pointer := slayers.CmnHdrLen + scionL.AddrHdrLen() +
+		scion.MetaLen + path.InfoLen*sp.NumINF + path.HopLen*int(sp.PathMeta.CurrHF)
+
+	// Prepare quoted packet that is part of the SCMP error message.
+	quoted := gopacket.NewSerializeBuffer()
+	if err := gopacket.SerializeLayers(quoted, options,
+		scionL, scionudp, gopacket.Payload(payload),
+	); err != nil {
+		panic(err)
+	}
+	quote := quoted.Bytes()
+
+	// Prepare want packet
+	want := gopacket.NewSerializeBuffer()
+	ethernet.SrcMAC, ethernet.DstMAC = ethernet.DstMAC, ethernet.SrcMAC
+	ip.SrcIP, ip.DstIP = ip.DstIP, ip.SrcIP
+	udp.SrcPort, udp.DstPort = udp.DstPort, udp.SrcPort
+
+	scionL.DstIA = scionL.SrcIA
+	scionL.SrcIA = xtest.MustParseIA("1-ff00:0:1")
+	if err := scionL.SetDstAddr(srcA); err != nil {
+		panic(err)
+	}
+	intlA := addr.MustParseHost("192.168.0.11")
+	if err := scionL.SetSrcAddr(intlA); err != nil {
+		panic(err)
+	}
+
+	_, err := sp.Reverse()
+	if err != nil {
+		panic(err)
+	}
+
+	scionL.NextHdr = slayers.End2EndClass
+	e2e := normalizedSCMPPacketAuthEndToEndExtn()
+	e2e.NextHdr = slayers.L4SCMP
+	scmpH := &slayers.SCMP{
+		TypeCode: slayers.CreateSCMPTypeCode(
+			slayers.SCMPTypeParameterProblem,
+			slayers.SCMPCodeUnknownHopFieldEgress,
+		),
+	}
+
+	scmpH.SetNetworkLayerForChecksum(scionL)
+	scmpP := &slayers.SCMPParameterProblem{
+		Pointer: uint16(pointer),
+	}
+
+	if err := gopacket.SerializeLayers(want, options,
+		ethernet, ip, udp, scionL, e2e, scmpH, scmpP, gopacket.Payload(quote),
+	); err != nil {
+		panic(err)
+	}
+
+	return runner.Case{
+		Name:            "SCMPUnknownHopWrongRouter",
+		WriteTo:         "veth_int_host",
+		ReadFrom:        "veth_int_host",
+		Input:           input.Bytes(),
+		Want:            want.Bytes(),
+		StoreDir:        filepath.Join(artifactsDir, "SCMPUnknownHopWrongRouter"),
+		NormalizePacket: scmpNormalizePacket,
+	}
+}

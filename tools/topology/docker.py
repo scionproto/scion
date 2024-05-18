@@ -175,7 +175,6 @@ class DockerGenerator(object):
                 'volumes': [
                     self._cache_vol(),
                     '%s:/etc/scion:ro' % base,
-                    self._disp_vol(k),
                 ],
                 'command': ['--config', '/etc/scion/%s.toml' % k]
             }
@@ -189,14 +188,10 @@ class DockerGenerator(object):
             'networks': {},
             'user': self.user,
             'volumes': [],
-            'depends_on': {
-                'utils_chowner': {
-                    'condition': 'service_started'
-                },
-            },
         }
-        keys = (list(topo.get("control_service", {})) +
-                ["tester_%s" % topo_id.file_fmt()])
+        keys = list(topo.get("control_service", {}))
+        if topo.get("test_dispatcher"):
+            keys.append("tester_%s" % topo_id.file_fmt())
         for disp_id in keys:
             entry = copy.deepcopy(base_entry)
             net_key = disp_id
@@ -208,7 +203,6 @@ class DockerGenerator(object):
             entry['networks'][self.bridges[net['net']]] = {
                 '%s_address' % ipv: ip
             }
-            entry['volumes'].append(self._disp_vol(disp_id))
             conf = '%s:/etc/scion:rw' % base
             entry['volumes'].append(conf)
             entry['command'] = [
@@ -216,8 +210,6 @@ class DockerGenerator(object):
             ]
 
             self.dc_conf['services']['disp_%s' % disp_id] = entry
-            self.dc_conf['volumes'][self._disp_vol(disp_id).split(':')
-                                    [0]] = None
 
     def _sciond_conf(self, topo_id, base):
         name = sciond_name(topo_id)
@@ -235,7 +227,6 @@ class DockerGenerator(object):
             'user':
             self.user,
             'volumes': [
-                self._disp_vol(disp_id),
                 self._cache_vol(),
                 '%s:/etc/scion:ro' % base
             ],
@@ -247,9 +238,6 @@ class DockerGenerator(object):
             'command': ['--config', '/etc/scion/sd.toml'],
         }
         self.dc_conf['services'][name] = entry
-
-    def _disp_vol(self, disp_id):
-        return 'vol_disp_%s:/run/shm/dispatcher:rw' % disp_id
 
     def _cache_vol(self):
         return self.output_base + '/gen-cache:/share/cache:rw'

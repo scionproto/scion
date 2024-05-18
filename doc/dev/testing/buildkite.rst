@@ -44,7 +44,7 @@ Agents
 Machine Image
 -------------
 
-We use the default machine image of the *Elastic CI Stack for AWS* release `v6.7.1 <https://github.com/buildkite/elastic-ci-stack-for-aws/releases/tag/v6.7.1>`.
+We use the default machine image of the *Elastic CI Stack for AWS* release `v6.7.1 <https://github.com/buildkite/elastic-ci-stack-for-aws/releases/tag/v6.7.1>`_.
 `What's on each machine <https://buildkite.com/docs/agent/v3/elastic-ci-aws#before-you-start-whats-on-each-machine>`_:
 
 - Amazon Linux 2023
