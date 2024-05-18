@@ -40,7 +40,8 @@ class SeedGenArgs(ArgsTopoDicts):
         self.networks = networks
 
 
-# copyright @lschulz -- https://github.com/Bruol/seed-emulator/blob/master/examples/scion/S05-scion-internet/scion-internet.py
+# copyright 
+# @lschulz -- seed-emulator/examples/scion/S05-scion-internet/scion-internet.py
 # class to generate IP addresses for cross connect links
 
 
@@ -59,7 +60,10 @@ class CrossConnectNetAssigner:
 
 class SeedGenerator(SeedGenArgs):
     # define class variables
-    _topo_file: Dict[str, Union[Dict[str, Dict[str, Union[bool, int, str]]], List[Dict[str, Union[str, int]]]]]  # dictionary containing the topo file parsed as yaml
+    # dictionary containing the topo file parsed as yaml
+    _topo_file: \
+        Dict[str, \
+            Union[Dict[str, Dict[str, Union[bool, int, str]]], List[Dict[str, Union[str, int]]]]]
     _args: SeedGenArgs
     _out_file: str
     _links: List[Dict[str, Union[Tuple[str, str, str], str, int]]]  # list of parsed links
@@ -68,7 +72,8 @@ class SeedGenerator(SeedGenArgs):
     _SeedCompiler: str = "Docker"
     _skipIPv6Check: bool = False
     _parentNetwork: str = "10.3.0.0/16"
-    _brProperties: Dict[str, Dict[str, Dict]]  # dict containing mapping from ISD_AS to list of border router properties
+    # dict containing mapping from ISD_AS to list of border router properties
+    _brProperties: Dict[str, Dict[str, Dict]]  
 
     def __init__(self, args):
         """
@@ -147,7 +152,8 @@ emu.addLayer(scion)
 emu.render()
 
 # Compilation
-emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}), './{self._args.output_dir}/seed-compiled')
+emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}), \
+'./{self._args.output_dir}/seed-compiled')
 """
         # write seed file
         write_file(os.path.join(self._args.output_dir, SEED_CONF), self._out_file)
@@ -186,9 +192,12 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
         """
         for network in self._args.networks:
             if network._version == 6:
-                raise Exception("Seed does not support IPv6. Please use IPv4 only. If you want to try anyway use the feature flag SeedSkipIPv6Check.")
+                raise Exception((
+                    "Seed does not support IPv6. Please use IPv4 only. "
+                    "If you want to try anyway use the feature flag SeedSkipIPv6Check."))
 
-    def _parse_AS_properties(self, As: str) -> Tuple[str, str, bool, Optional[str], int, int, int, Optional[int], Optional[str]]:
+    def _parse_AS_properties(self, As: str)\
+            -> Tuple[str, str, bool, Optional[str], int, int, int, Optional[int], Optional[str]]:
         """
         Read AS properties from topo file
         """
@@ -206,9 +215,20 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
         as_int_mtu = as_dict['mtu'] if 'mtu' in as_dict else None
         as_note = as_dict['note'] if 'note' in as_dict else None
 
-        return as_num, isd_num, is_core, cert_issuer, as_int_bw, as_int_lat, as_int_drop, as_int_mtu, as_note
+        res = (as_num,
+                isd_num, 
+                is_core, 
+                cert_issuer, 
+                as_int_bw,
+                as_int_lat, 
+                as_int_drop, 
+                as_int_mtu, 
+                as_note)
 
-    def _read_link_properties(self, link: Dict[str, Union[str, Optional[int], int]]) -> Tuple[str, str, str, Optional[int], int, int, int]:
+        return res
+
+    def _read_link_properties(self, link: Dict[str, Union[str, Optional[int], int]]) \
+                                        -> Tuple[str, str, str, Optional[int], int, int, int]:
         """
         Read link properties from topo file
         """
@@ -341,7 +361,8 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
 
         self._br = {}
 
-        # initialize borderRouter datastructure by creating an empty list of BorderRouters for each AS
+        # initialize borderRouter datastructure 
+        # by creating an empty list of BorderRouters for each AS
         for As in self._topo_file["ASes"]:
             isd_num = As.split('-')[0]
             as_num = As.split(':')[2]
@@ -376,7 +397,7 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
 
             a_isd, a_as, a_br = link['a']
             b_isd, b_as, b_br = link['b']
-            
+
             a_br_id = a_br.split('#')[0]
             b_br_id = b_br.split('#')[0]
 
@@ -435,7 +456,15 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
 
         for As in self._topo_file["ASes"]:
 
-            (as_num, isd_num, is_core, cert_issuer, as_int_bw, as_int_lat, as_int_drop, as_int_mtu, as_note) = self._parse_AS_properties(As)
+            (as_num, 
+            isd_num, 
+            is_core,
+            cert_issuer, 
+            as_int_bw, 
+            as_int_lat, 
+            as_int_drop, 
+            as_int_mtu, 
+            as_note) = self._parse_AS_properties(As)
 
             code += f"\n# AS-{as_num}\n"
             code += f"as{as_num} = base.createAutonomousSystem({as_num})\n"
@@ -444,27 +473,39 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
             code += f"scion_isd.addIsdAs({isd_num},{as_num},is_core={is_core})\n"
             if cert_issuer:
                 code += f"scion_isd.setCertIssuer(({isd_num},{as_num}),issuer={cert_issuer})\n"
-            if as_int_mtu:  # default value 0 for latency, bandwidth, packetDrop will not set these values
-                code += f"as{as_num}.createNetwork('net0').setDefaultLinkProperties(latency={as_int_lat}, bandwidth={as_int_bw}, packetDrop={as_int_drop}).setMtu({as_int_mtu})\n"
+            if as_int_mtu: #default value 0 for latency, bandwidth, packetDrop will be ignored
+                code += (f"as{as_num}.createNetwork('net0')"
+                            f".setDefaultLinkProperties("
+                                f"latency={as_int_lat},"
+                                f"bandwidth={as_int_bw},"
+                                f"packetDrop={as_int_drop}).setMtu({as_int_mtu})\n")
             else:
-                code += f"as{as_num}.createNetwork('net0').setDefaultLinkProperties(latency={as_int_lat}, bandwidth={as_int_bw}, packetDrop={as_int_drop})\n"
+                code += (f"as{as_num}.createNetwork('net0')"
+                            f".setDefaultLinkProperties("
+                                f"latency={as_int_lat}, "
+                                f"bandwidth={as_int_bw}, "
+                                f"packetDrop={as_int_drop})\n")
 
             code += f"as{as_num}.createControlService('cs_1').joinNetwork('net0')\n"
 
             # iterate through border routers
             for br in self._br[f"{isd_num}_{as_num}"]:
                 br_name = next(iter(br.values()))
-                code += f"as_{as_num}_{br_name} = as{as_num}.createRouter('{br_name}').joinNetwork('net0')\n"
+                code += (f"as_{as_num}_{br_name} = as{as_num}"
+                    f".createRouter('{br_name}')"
+                    f".joinNetwork('net0')\n")
 
                 # set border router properties
-                if f"{isd_num}_{as_num}" in self._brProperties and br_name in self._brProperties[f"{isd_num}_{as_num}"]:
+                if f"{isd_num}_{as_num}" in self._brProperties \
+                    and br_name in self._brProperties[f"{isd_num}_{as_num}"]:
                     br_props = self._brProperties[f"{isd_num}_{as_num}"][br_name]
 
                     if "geo" in br_props:
                         lat = br_props['geo']['latitude']
                         lon = br_props['geo']['longitude']
                         addr = br_props['geo']['address']
-                        code += f"as_{as_num}_{br_name}.setGeo(Lat={lat}, Long={lon}, Address=\"\"\"{addr}\"\"\")\n"
+                        code += (f"as_{as_num}_{br_name}"
+                                 f".setGeo(Lat={lat}, Long={lon}, Address=\"\"\"{addr}\"\"\")\n")
                     if "note" in br_props:
                         code += f"as_{as_num}_{br_name}.setNote('{br_props['note']}')\n"
 
@@ -484,13 +525,15 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
                             mtu = link['mtu']
                             # generate code
                             if mtu:
-                                code += f"""
-as_{as_num}_{br_name}.crossConnect({b_as},'{b_br}','{a_addr}',latency={latency},bandwidth={bandwidth},packetDrop={packetDrop},MTU={mtu})\n
-"""
+                                code += (f"as_{as_num}_{br_name}"
+                                         f".crossConnect({b_as},'{b_br}','{a_addr}',"
+                                         f"latency={latency},bandwidth={bandwidth},"
+                                         f"packetDrop={packetDrop},MTU={mtu})\n")
                             else:
-                                code += f"""
-as_{as_num}_{br_name}.crossConnect({b_as},'{b_br}','{a_addr}',latency={latency},bandwidth={bandwidth},packetDrop={packetDrop})\n
-"""
+                                code += (f"as_{as_num}_{br_name}"
+                                         f".crossConnect({b_as},'{b_br}','{a_addr}',"
+                                         f"latency={latency},bandwidth={bandwidth},"
+                                         f"packetDrop={packetDrop})\n")
 
                     if link['b'][0] == isd_num and link['b'][1] == as_num:
                         if link['b'][2] == br_name:
@@ -502,14 +545,15 @@ as_{as_num}_{br_name}.crossConnect({b_as},'{b_br}','{a_addr}',latency={latency},
                             packetDrop = link['drop']
                             mtu = link['mtu']
                             if mtu:
-                                code += f"""
-as_{as_num}_{br_name}.crossConnect({a_as},'{a_br}','{b_addr}',latency={latency},bandwidth={bandwidth},packetDrop={packetDrop},MTU={mtu})\n
-"""
+                                code += (f"as_{as_num}_{br_name}"
+                                         f".crossConnect({a_as},'{a_br}','{b_addr}',"
+                                         f"latency={latency},bandwidth={bandwidth},"
+                                         f"packetDrop={packetDrop},MTU={mtu})\n")
                             else:
-                                code += f"""
-as_{as_num}_{br_name}.crossConnect({a_as},'{a_br}','{b_addr}',latency={latency},bandwidth={bandwidth},packetDrop={packetDrop})\n
-"""
-
+                                code += (f"as_{as_num}_{br_name}"
+                                         f".crossConnect({a_as},'{a_br}','{b_addr}',"
+                                         f"latency={latency},bandwidth={bandwidth},"
+                                         f"packetDrop={packetDrop})\n")
         return code
 
     def _create_Routing(self) -> str:
@@ -525,8 +569,6 @@ as_{as_num}_{br_name}.crossConnect({a_as},'{a_br}','{b_addr}',latency={latency},
             a_router = link['a'][2]
             b_router = link['b'][2]
 
-            code += f"""
-scion.addXcLink(({a[0]},{a[1]}),({b[0]},{b[1]}),{link_type},a_router='{a_router}',b_router='{b_router}')\n
-"""
-
+            code += (f"scion.addXcLink(({a[0]},{a[1]}),({b[0]},{b[1]}),"
+                     f"{link_type},a_router='{a_router}',b_router='{b_router}')\n")
         return code
