@@ -63,7 +63,7 @@ class SeedGenerator(SeedGenArgs):
     # dictionary containing the topo file parsed as yaml
     _topo_file: \
         Dict[str,
-        Union[Dict[str, Dict[str, Union[bool, int, str]]], List[Dict[str, Union[str, int]]]]]
+             Union[Dict[str, Dict[str, Union[bool, int, str]]], List[Dict[str, Union[str, int]]]]]
     _args: SeedGenArgs
     _out_file: str
     _links: List[Dict[str, Union[Tuple[str, str, str], str, int]]]  # list of parsed links
@@ -216,14 +216,14 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
         as_note = as_dict['note'] if 'note' in as_dict else None
 
         res = (as_num,
-            isd_num,
-            is_core,
-            cert_issuer,
-            as_int_bw,
-            as_int_lat,
-            as_int_drop,
-            as_int_mtu,
-            as_note)
+                    isd_num,
+                    is_core,
+                    cert_issuer,
+                    as_int_bw,
+                    as_int_lat,
+                    as_int_drop,
+                    as_int_mtu,
+                    as_note)
 
         return res
 
@@ -475,16 +475,16 @@ emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}),
                 code += f"scion_isd.setCertIssuer(({isd_num},{as_num}),issuer={cert_issuer})\n"
             if as_int_mtu:  # default value 0 for latency, bandwidth, packetDrop will be ignored
                 code += (f"as{as_num}.createNetwork('net0')"
-                        f".setDefaultLinkProperties("
-                        f"latency={as_int_lat},"
-                        f"bandwidth={as_int_bw},"
-                        f"packetDrop={as_int_drop}).setMtu({as_int_mtu})\n")
+                         f".setDefaultLinkProperties("
+                         f"latency={as_int_lat},"
+                         f"bandwidth={as_int_bw},"
+                         f"packetDrop={as_int_drop}).setMtu({as_int_mtu})\n")
             else:
                 code += (f"as{as_num}.createNetwork('net0')"
-                        f".setDefaultLinkProperties("
-                        f"latency={as_int_lat}, "
-                        f"bandwidth={as_int_bw}, "
-                        f"packetDrop={as_int_drop})\n")
+                         f".setDefaultLinkProperties("
+                         f"latency={as_int_lat}, "
+                         f"bandwidth={as_int_bw}, "
+                         f"packetDrop={as_int_drop})\n")
 
             code += f"as{as_num}.createControlService('cs_1').joinNetwork('net0')\n"
 
