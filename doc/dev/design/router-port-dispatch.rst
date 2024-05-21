@@ -196,6 +196,11 @@ With these mechanisms, the update procedure for an individual AS is:
 4. Once all hosts have been updated, the ``dispatched_ports`` range can be extended to the entire port range.
    The shim dispatchers can be disabled.
 
+.. Note:: Server applications listening on well-known ports keep using the same ports throughout the
+   process. As stated in 1., these ports should not be part of the initial ``dispatched_ports``
+   range. When the server is updated (2.b), it needs to make use of the shim dispatcher until
+   the port range is extended to the well-known ports, in step 4.
+
 .. Note:: If an AS operator controls all devices in the AS and/or does not plan to allow operating
    new applications/devices without the shim dispatcher, they can pick the empty range in step 1.,
    and state 3. is skipped.
