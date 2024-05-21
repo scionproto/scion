@@ -286,9 +286,17 @@ func TestDataPlaneRun(t *testing.T) {
 							spkt.Path = dpath
 							payload := bytes.Repeat([]byte("actualpayloadbytes"), i)
 							buffer := gopacket.NewSerializeBuffer()
+
+							// IMPORTANT: We don't actually include a SCION/UDP Header.
+							// However, prepBaseMsg does pretend that there's a SCIONUDP Header.
+							// Remove that. Since the removal of the dispatcher, the router snoops
+							// into L4 and would mistake our payload for a broken SCION/UDP header.
+							spkt.NextHdr = slayers.L4None
+
 							err := gopacket.SerializeLayers(buffer,
 								gopacket.SerializeOptions{FixLengths: true},
 								spkt, gopacket.Payload(payload))
+
 							require.NoError(t, err)
 							raw := buffer.Bytes()
 							copy(m[i].Buffers[0], raw)
@@ -1251,7 +1259,7 @@ func TestProcessPkt(t *testing.T) {
 						addr.SvcCS: {
 							netip.AddrPortFrom(
 								netip.MustParseAddr("10.0.200.200"),
-								topology.EndhostPort,
+								uint16(dstUDPPort),
 							),
 						},
 					},
@@ -1290,7 +1298,7 @@ func TestProcessPkt(t *testing.T) {
 						addr.SvcCS: {
 							netip.AddrPortFrom(
 								netip.MustParseAddr("172.0.2.10"),
-								topology.EndhostPort,
+								uint16(dstUDPPort),
 							),
 						},
 					},
@@ -1336,7 +1344,7 @@ func TestProcessPkt(t *testing.T) {
 				ret := toMsg(t, spkt, dpath)
 				ret.Addr = &net.UDPAddr{
 					IP:   net.ParseIP("172.0.2.10").To4(), // Else we get a v4mapped address.
-					Port: topology.EndhostPort,
+					Port: dstUDPPort,
 				}
 				ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
 				return ret
@@ -1397,7 +1405,7 @@ func TestProcessPkt(t *testing.T) {
 						addr.SvcCS: {
 							netip.AddrPortFrom(
 								netip.MustParseAddr("172.0.2.10"),
-								topology.EndhostPort,
+								uint16(dstUDPPort),
 							),
 						},
 					},
