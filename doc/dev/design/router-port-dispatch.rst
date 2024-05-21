@@ -150,7 +150,7 @@ For this, we add two mechanisms:
 
   The processing rule above is extended:
 
-  2. If the underlay UDP/IP destination port determined above is within the port range specified in the topology configuration,
+  2. If the underlay UDP/IP destination port determined above, i.e. in processing rule 1, is within the port range specified in the topology configuration,
      the packet is sent to that destination port.
 
      Otherwise, the packet is sent to the default end-host port 30041.
@@ -205,17 +205,19 @@ Long term vision compatibility
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Conversely, if our long term vision materializes and we'd have SCION support directly built-in to the operating system's network stack, then this workaround becomes obsolete.
-In an optimistic scenario, where there are millions of end hosts running SCION-enabled applications, we can not expect that all devices and applications will updated to the same level of SCION support within a useful time frame.
+In an optimistic scenario, where there are millions of end hosts running SCION-enabled applications, we can not expect that all devices and applications will be updated to the same level of SCION support within a useful time frame.
 Therefore, it will be necessary to be able to gradually phase out the use of this workaround, keeping it around for all the future legacy applications.
 
 .. Note:: In the future, we'd perhaps use a different port, or no longer use UDP/IP but directly IP as the underlay.
 
 The compatibility mechanisms introduced for the update can be reused for this "reverse" transition:
 
-- enable shim dispatcher for services outside of intended ``dispatched_port`` range
+- enable shim dispatcher for services outside of intended ``dispatched_port`` range.
 - shrink ``dispatched_ports`` range and configure this on routers and hosts
 - on individual hosts: enable OS network stack support and update applications, disable shim dispatcher
 
+.. Note:: It's not quite clear how we can practically coordinate that all relevant hosts have (re-)enabled the shim dispatcher.
+   This idea will need more work.
 .. Note:: This should not be considered a promise to never break compatibility for end hosts again.
 
 
@@ -276,4 +278,4 @@ The roadmap would look like the following:
    - remove support for old UDP underlay with default port 30041.
      Remove the packet dispatching/forwarding functionality from "dispatcher".
      Only SCMP echo responder remains in dispatcher. Rename to "SCMP Daemon" (scmpd).
-   - set suitable default for port range in ``dispatched_ports`` topology configuration
+   - set suitable default for port range in ``dispatched_ports`` topology configuration.
