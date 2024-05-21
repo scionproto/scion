@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/private/topology"
 	"github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router/config"
 	"github.com/scionproto/scion/router/control"
@@ -144,7 +145,7 @@ func (c *Connector) AddSvc(ia addr.IA, svc addr.SVC, ip netip.Addr) error {
 
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	log.Debug("Adding service", "isd_as", ia, "svc", svc, "address", a)
+	log.Debug("Adding service", "isd_as", ia, "svc", svc, "address", ip)
 	if !c.ia.Equal(ia) {
 		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
 	}
@@ -155,7 +156,7 @@ func (c *Connector) AddSvc(ia addr.IA, svc addr.SVC, ip netip.Addr) error {
 func (c *Connector) DelSvc(ia addr.IA, svc addr.SVC, ip netip.Addr) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	log.Debug("Deleting service", "isd_as", ia, "svc", svc, "address", a)
+	log.Debug("Deleting service", "isd_as", ia, "svc", svc, "address", ip)
 	if !c.ia.Equal(ia) {
 		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
 	}

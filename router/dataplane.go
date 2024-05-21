@@ -90,24 +90,24 @@ type BatchConn interface {
 // from multiple sockets, performs routing, and sends them to their destinations
 // (after updating the path, if that is needed).
 type DataPlane struct {
-	interfaces        map[uint16]BatchConn
-	external          map[uint16]BatchConn
-	linkTypes         map[uint16]topology.LinkType
-	neighborIAs       map[uint16]addr.IA
-	peerInterfaces    map[uint16]uint16
-	internal          BatchConn
-	internalIP        netip.Addr
-	internalNextHops  map[uint16]*netip.AddrPort
-	svc               *services
-	macFactory        func() hash.Hash
-	bfdSessions       map[uint16]bfdSession
-	localIA           addr.IA
-	mtx               sync.Mutex
-	running           bool
-	Metrics           *Metrics
-	forwardingMetrics map[uint16]interfaceMetrics
-	dispatchedPortStart uint16
-	dispatchedPortEnd   uint16
+	interfaces                     map[uint16]BatchConn
+	external                       map[uint16]BatchConn
+	linkTypes                      map[uint16]topology.LinkType
+	neighborIAs                    map[uint16]addr.IA
+	peerInterfaces                 map[uint16]uint16
+	internal                       BatchConn
+	internalIP                     netip.Addr
+	internalNextHops               map[uint16]*netip.AddrPort
+	svc                            *services
+	macFactory                     func() hash.Hash
+	bfdSessions                    map[uint16]bfdSession
+	localIA                        addr.IA
+	mtx                            sync.Mutex
+	running                        bool
+	Metrics                        *Metrics
+	forwardingMetrics              map[uint16]interfaceMetrics
+	dispatchedPortStart            uint16
+	dispatchedPortEnd              uint16
 	ExperimentalSCMPAuthentication bool
 
 	// The pool that stores all the packet buffers as described in the design document. See
@@ -1624,7 +1624,7 @@ func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
 }
 
 func (p *scionPacketProcessor) resolveInbound() (processResult, error) {
-	r, err := p.d.resolveLocalDst(p.scionLayer)
+	r, err := p.d.resolveLocalDst(p.scionLayer, p.lastLayer)
 
 	if err == noSVCBackend {
 
@@ -2034,7 +2034,11 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 	return r, nil
 }
 
-func (d *DataPlane) resolveLocalDst(s slayers.SCION, lastLayer gopacket.DecodingLayer) (processResult, error) {
+func (d *DataPlane) resolveLocalDst(
+	s slayers.SCION,
+	lastLayer gopacket.DecodingLayer,
+) (processResult, error) {
+
 	dst, err := s.DstAddr()
 	if err != nil {
 		// TODO parameter problem.
@@ -2050,13 +2054,13 @@ func (d *DataPlane) resolveLocalDst(s slayers.SCION, lastLayer gopacket.Decoding
 		}
 		// if SVC address is outside the configured port range we send to the fix
 		// port.
-		if uint16(a.Port) < d.dispatchedPortStart || uint16(a.Port) > d.dispatchedPortEnd {
-			a.Port = topology.EndhostPort
+		if uint16(a.Port()) < d.dispatchedPortStart || uint16(a.Port()) > d.dispatchedPortEnd {
+			return processResult{OutAddr: netip.AddrPortFrom(a.Addr(), topology.EndhostPort)}, nil
 		}
-		return a, nil
+		return processResult{OutAddr: a}, nil
 	case addr.HostTypeIP:
 		// Parse UPD port and rewrite underlay IP/UDP port
-		return d.addEndhostPort(lastLayer, dst.IP().AsSlice())
+		return d.addEndhostPort(lastLayer, dst.IP())
 	default:
 		panic("unexpected address type returned from DstAddr")
 	}
@@ -2064,8 +2068,8 @@ func (d *DataPlane) resolveLocalDst(s slayers.SCION, lastLayer gopacket.Decoding
 
 func (d *DataPlane) addEndhostPort(
 	lastLayer gopacket.DecodingLayer,
-	dst []byte,
-) (*net.UDPAddr, error) {
+	dst netip.Addr,
+) (processResult, error) {
 
 	// Parse UPD port and rewrite underlay IP/UDP port
 	l4Type := nextHdr(lastLayer)
@@ -2073,34 +2077,35 @@ func (d *DataPlane) addEndhostPort(
 	case slayers.L4UDP:
 		if len(lastLayer.LayerPayload()) < 8 {
 			// TODO(JordiSubira): Treat this as a parameter problem
-			return nil, serrors.New("SCION/UDP header len too small", "legth",
+			return processResult{}, serrors.New("SCION/UDP header len too small", "length",
 				len(lastLayer.LayerPayload()))
 		}
 		port := binary.BigEndian.Uint16(lastLayer.LayerPayload()[2:])
 		if port < d.dispatchedPortStart || port > d.dispatchedPortEnd {
 			port = topology.EndhostPort
 		}
-		return &net.UDPAddr{IP: dst, Port: int(port)}, nil
+		return processResult{OutAddr: netip.AddrPortFrom(dst, port)}, nil
 	case slayers.L4SCMP:
 		var scmpLayer slayers.SCMP
 		err := scmpLayer.DecodeFromBytes(lastLayer.LayerPayload(), gopacket.NilDecodeFeedback)
 		if err != nil {
 			// TODO(JordiSubira): Treat this as a parameter problem.
-			return nil, serrors.WrapStr("decoding SCMP layer for extracting endhost dst port", err)
+			return processResult{}, serrors.WrapStr(
+				"decoding SCMP layer for extracting endhost dst port", err)
 		}
 		port, err := getDstPortSCMP(&scmpLayer)
 		if err != nil {
 			// TODO(JordiSubira): Treat this as a parameter problem.
-			return nil, serrors.WrapStr("getting dst port from SCMP message", err)
+			return processResult{}, serrors.WrapStr("getting dst port from SCMP message", err)
 		}
 		// if the SCMP dst port is outside the range, we send it to the EndhostPort
 		if port < d.dispatchedPortStart || port > d.dispatchedPortEnd {
 			port = topology.EndhostPort
 		}
-		return &net.UDPAddr{IP: dst, Port: int(port)}, nil
+		return processResult{OutAddr: netip.AddrPortFrom(dst, port)}, nil
 	default:
 		log.Debug("msg", "protocol", l4Type)
-		return &net.UDPAddr{IP: dst, Port: topology.EndhostPort}, nil
+		return processResult{OutAddr: netip.AddrPortFrom(dst, topology.EndhostPort)}, nil
 	}
 }
 

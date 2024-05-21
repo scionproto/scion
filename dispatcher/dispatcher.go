@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"time"
 
 	"github.com/google/gopacket"
 	"golang.org/x/net/ipv4"
