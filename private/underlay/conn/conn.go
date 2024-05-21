@@ -165,7 +165,11 @@ type connUDPBase struct {
 	closed bool
 }
 
-func (cc *connUDPBase) initConnUDP(network string, laddr, raddr *netip.AddrPort, cfg *Config) error {
+func (cc *connUDPBase) initConnUDP(
+	network string,
+	laddr, raddr *netip.AddrPort,
+	cfg *Config) error {
+
 	var c *net.UDPConn
 	var err error
 	if laddr == nil {
