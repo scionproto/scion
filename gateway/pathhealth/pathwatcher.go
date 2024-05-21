@@ -16,9 +16,7 @@ package pathhealth
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/netip"
 	"sync"
@@ -39,22 +37,17 @@ const (
 	defaultProbeInterval = 500 * time.Millisecond
 )
 
-// ProbeConnFactory is used to construct net.PacketConn objects for sending and
-// receiving probes.
-type ProbeConnFactory interface {
-	New(context.Context) (net.PacketConn, error)
-}
-
 // DefaultPathWatcherFactory creates PathWatchers.
 type DefaultPathWatcherFactory struct {
 	// LocalIA is the ID of the local AS.
 	LocalIA addr.IA
+	// Topology is the helper class to get control-plane information for the
+	// local AS.
+	Topology snet.Topology
 	// LocalIP is the IP address of the local host.
 	LocalIP netip.Addr
 	// RevocationHandler is the revocation handler.
 	RevocationHandler snet.RevocationHandler
-	// ConnFactory is used to create probe connections.
-	ConnFactory ProbeConnFactory
 	// Probeinterval defines the interval at which probes are sent. If it is not
 	// set a default is used.
 	ProbeInterval time.Duration
@@ -66,8 +59,7 @@ type DefaultPathWatcherFactory struct {
 	ProbesReceived func(remote addr.IA) metrics.Counter
 	// ProbesSendErrors keeps track of how many time sending probes failed per
 	// remote.
-	ProbesSendErrors func(remote addr.IA) metrics.Counter
-
+	ProbesSendErrors       func(remote addr.IA) metrics.Counter
 	SCMPErrors             metrics.Counter
 	SCIONPacketConnMetrics snet.SCIONPacketConnMetrics
 }
@@ -77,13 +69,8 @@ func (f *DefaultPathWatcherFactory) New(
 	ctx context.Context,
 	remote addr.IA,
 	path snet.Path,
-	id uint16,
 ) (PathWatcher, error) {
 
-	nc, err := f.ConnFactory.New(ctx)
-	if err != nil {
-		return nil, serrors.WrapStr("creating connection for probing", err)
-	}
 	pktChan := make(chan traceroutePkt, 10)
 	createCounter := func(
 		create func(addr.IA) metrics.Counter, remote addr.IA,
@@ -93,21 +80,25 @@ func (f *DefaultPathWatcherFactory) New(
 		}
 		return create(remote)
 	}
+	conn, err := (&snet.SCIONNetwork{
+		SCMPHandler: scmpHandler{
+			wrappedHandler: snet.DefaultSCMPHandler{
+				RevocationHandler: f.RevocationHandler,
+				SCMPErrors:        f.SCMPErrors,
+			},
+			pkts: pktChan,
+		},
+		PacketConnMetrics: f.SCIONPacketConnMetrics,
+		Topology:          f.Topology,
+	}).OpenRaw(ctx, &net.UDPAddr{IP: f.LocalIP.AsSlice()})
+	if err != nil {
+		return nil, serrors.WrapStr("creating connection for probing", err)
+	}
 	return &pathWatcher{
 		remote:        remote,
 		probeInterval: f.ProbeInterval,
-		conn: &snet.SCIONPacketConn{
-			Conn: nc,
-			SCMPHandler: scmpHandler{
-				wrappedHandler: snet.DefaultSCMPHandler{
-					RevocationHandler: f.RevocationHandler,
-					SCMPErrors:        f.SCMPErrors,
-				},
-				pkts: pktChan,
-			},
-			Metrics: f.SCIONPacketConnMetrics,
-		},
-		id: id,
+		conn:          conn,
+		id:            uint16(conn.LocalAddr().(*net.UDPAddr).Port),
 		localAddr: snet.SCIONAddress{
 			IA:   f.LocalIA,
 			Host: addr.HostIP(f.LocalIP),
@@ -244,11 +235,6 @@ func (w *pathWatcher) drainConn(ctx context.Context) {
 		// This avoids logging errors for closing connections.
 		if ctx.Err() != nil {
 			return
-		}
-		if errors.Is(err, io.EOF) {
-			// dispatcher is currently down so back off.
-			time.Sleep(500 * time.Millisecond)
-			continue
 		}
 		if err != nil {
 			if _, ok := err.(*snet.OpError); ok {

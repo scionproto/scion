@@ -19,6 +19,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"hash"
@@ -105,7 +106,8 @@ type DataPlane struct {
 	running           bool
 	Metrics           *Metrics
 	forwardingMetrics map[uint16]interfaceMetrics
-
+	dispatchedPortStart uint16
+	dispatchedPortEnd   uint16
 	ExperimentalSCMPAuthentication bool
 
 	// The pool that stores all the packet buffers as described in the design document. See
@@ -193,6 +195,11 @@ func (d *DataPlane) SetKey(key []byte) error {
 		return mac
 	}
 	return nil
+}
+
+func (d *DataPlane) SetPortRange(start, end uint16) {
+	d.dispatchedPortStart = start
+	d.dispatchedPortEnd = end
 }
 
 // AddInternalInterface sets the interface the data-plane will use to
@@ -1620,6 +1627,7 @@ func (p *scionPacketProcessor) resolveInbound() (processResult, error) {
 	r, err := p.d.resolveLocalDst(p.scionLayer)
 
 	if err == noSVCBackend {
+
 		log.Debug("SCMP: no SVC backend")
 		slowPathRequest := slowPathRequest{
 			scmpType: slayers.SCMPTypeDestinationUnreachable,
@@ -2016,7 +2024,7 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 	if err := updateSCIONLayer(p.rawPkt, s, p.buffer); err != nil {
 		return processResult{}, err
 	}
-	r, err := p.d.resolveLocalDst(s)
+	r, err := p.d.resolveLocalDst(s, p.lastLayer)
 	if err != nil {
 		return processResult{}, err
 	}
@@ -2026,7 +2034,7 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 	return r, nil
 }
 
-func (d *DataPlane) resolveLocalDst(s slayers.SCION) (processResult, error) {
+func (d *DataPlane) resolveLocalDst(s slayers.SCION, lastLayer gopacket.DecodingLayer) (processResult, error) {
 	dst, err := s.DstAddr()
 	if err != nil {
 		// TODO parameter problem.
@@ -2040,12 +2048,165 @@ func (d *DataPlane) resolveLocalDst(s slayers.SCION) (processResult, error) {
 		if !ok {
 			return processResult{}, noSVCBackend
 		}
-		return processResult{OutAddr: a}, nil
+		// if SVC address is outside the configured port range we send to the fix
+		// port.
+		if uint16(a.Port) < d.dispatchedPortStart || uint16(a.Port) > d.dispatchedPortEnd {
+			a.Port = topology.EndhostPort
+		}
+		return a, nil
 	case addr.HostTypeIP:
-		return processResult{OutAddr: netip.AddrPortFrom(dst.IP(), topology.EndhostPort)}, nil
+		// Parse UPD port and rewrite underlay IP/UDP port
+		return d.addEndhostPort(lastLayer, dst.IP().AsSlice())
 	default:
 		panic("unexpected address type returned from DstAddr")
 	}
+}
+
+func (d *DataPlane) addEndhostPort(
+	lastLayer gopacket.DecodingLayer,
+	dst []byte,
+) (*net.UDPAddr, error) {
+
+	// Parse UPD port and rewrite underlay IP/UDP port
+	l4Type := nextHdr(lastLayer)
+	switch l4Type {
+	case slayers.L4UDP:
+		if len(lastLayer.LayerPayload()) < 8 {
+			// TODO(JordiSubira): Treat this as a parameter problem
+			return nil, serrors.New("SCION/UDP header len too small", "legth",
+				len(lastLayer.LayerPayload()))
+		}
+		port := binary.BigEndian.Uint16(lastLayer.LayerPayload()[2:])
+		if port < d.dispatchedPortStart || port > d.dispatchedPortEnd {
+			port = topology.EndhostPort
+		}
+		return &net.UDPAddr{IP: dst, Port: int(port)}, nil
+	case slayers.L4SCMP:
+		var scmpLayer slayers.SCMP
+		err := scmpLayer.DecodeFromBytes(lastLayer.LayerPayload(), gopacket.NilDecodeFeedback)
+		if err != nil {
+			// TODO(JordiSubira): Treat this as a parameter problem.
+			return nil, serrors.WrapStr("decoding SCMP layer for extracting endhost dst port", err)
+		}
+		port, err := getDstPortSCMP(&scmpLayer)
+		if err != nil {
+			// TODO(JordiSubira): Treat this as a parameter problem.
+			return nil, serrors.WrapStr("getting dst port from SCMP message", err)
+		}
+		// if the SCMP dst port is outside the range, we send it to the EndhostPort
+		if port < d.dispatchedPortStart || port > d.dispatchedPortEnd {
+			port = topology.EndhostPort
+		}
+		return &net.UDPAddr{IP: dst, Port: int(port)}, nil
+	default:
+		log.Debug("msg", "protocol", l4Type)
+		return &net.UDPAddr{IP: dst, Port: topology.EndhostPort}, nil
+	}
+}
+
+func getDstPortSCMP(scmp *slayers.SCMP) (uint16, error) {
+	// XXX(JordiSubira): This implementation is far too slow for the dataplane.
+	// We should reimplement this with fewer helpers and memory allocations, since
+	// our sole goal is to parse the L4 port or identifier in the offending packets.
+	if scmp.TypeCode.Type() == slayers.SCMPTypeEchoRequest ||
+		scmp.TypeCode.Type() == slayers.SCMPTypeTracerouteRequest {
+		return topology.EndhostPort, nil
+	}
+	if scmp.TypeCode.Type() == slayers.SCMPTypeEchoReply {
+		var scmpEcho slayers.SCMPEcho
+		err := scmpEcho.DecodeFromBytes(scmp.Payload, gopacket.NilDecodeFeedback)
+		if err != nil {
+			return 0, err
+		}
+		return scmpEcho.Identifier, nil
+	}
+	if scmp.TypeCode.Type() == slayers.SCMPTypeTracerouteReply {
+		var scmpTraceroute slayers.SCMPTraceroute
+		err := scmpTraceroute.DecodeFromBytes(scmp.Payload, gopacket.NilDecodeFeedback)
+		if err != nil {
+			return 0, err
+		}
+		return scmpTraceroute.Identifier, nil
+	}
+
+	// Drop unknown SCMP error messages.
+	if scmp.NextLayerType() == gopacket.LayerTypePayload {
+		return 0, serrors.New("unsupported SCMP error message",
+			"type", scmp.TypeCode.Type())
+	}
+	l, err := decodeSCMP(scmp)
+	if err != nil {
+		return 0, err
+	}
+	if len(l) != 2 {
+		return 0, serrors.New("SCMP error message without payload")
+	}
+	gpkt := gopacket.NewPacket(*l[1].(*gopacket.Payload), slayers.LayerTypeSCION,
+		gopacket.DecodeOptions{
+			NoCopy: true,
+		},
+	)
+
+	// If the offending packet was UDP/SCION, use the source port to deliver.
+	if udp := gpkt.Layer(slayers.LayerTypeSCIONUDP); udp != nil {
+		port := udp.(*slayers.UDP).SrcPort
+		// XXX(roosd): We assume that the zero value means the UDP header is
+		// truncated. This flags packets of misbehaving senders as truncated, if
+		// they set the source port to 0. But there is no harm, since those
+		// packets are destined to be dropped anyway.
+		if port == 0 {
+			return 0, serrors.New("SCMP error with truncated UDP header")
+		}
+		return port, nil
+	}
+
+	// If the offending packet was SCMP/SCION, and it is an echo or traceroute,
+	// use the Identifier to deliver. In all other cases, the message is dropped.
+	if scmp := gpkt.Layer(slayers.LayerTypeSCMP); scmp != nil {
+
+		tc := scmp.(*slayers.SCMP).TypeCode
+		// SCMP Error messages in response to an SCMP error message are not allowed.
+		if !tc.InfoMsg() {
+			return 0, serrors.New("SCMP error message in response to SCMP error message",
+				"type", tc.Type())
+		}
+		// We only support echo and traceroute requests.
+		t := tc.Type()
+		if t != slayers.SCMPTypeEchoRequest && t != slayers.SCMPTypeTracerouteRequest {
+			return 0, serrors.New("unsupported SCMP info message", "type", t)
+		}
+
+		var port uint16
+		// Extract the port from the echo or traceroute ID field.
+		if echo := gpkt.Layer(slayers.LayerTypeSCMPEcho); echo != nil {
+			port = echo.(*slayers.SCMPEcho).Identifier
+		} else if tr := gpkt.Layer(slayers.LayerTypeSCMPTraceroute); tr != nil {
+			port = tr.(*slayers.SCMPTraceroute).Identifier
+		} else {
+			return 0, serrors.New("SCMP error with truncated payload")
+		}
+		return port, nil
+	}
+	return 0, serrors.New("unknown SCION SCMP content")
+}
+
+// decodeSCMP decodes the SCMP payload. WARNING: Decoding is done with NoCopy set.
+func decodeSCMP(scmp *slayers.SCMP) ([]gopacket.SerializableLayer, error) {
+	gpkt := gopacket.NewPacket(scmp.Payload, scmp.NextLayerType(),
+		gopacket.DecodeOptions{NoCopy: true})
+	layers := gpkt.Layers()
+	if len(layers) == 0 || len(layers) > 2 {
+		return nil, serrors.New("invalid number of SCMP layers", "count", len(layers))
+	}
+	ret := make([]gopacket.SerializableLayer, len(layers))
+	for i, l := range layers {
+		s, ok := l.(gopacket.SerializableLayer)
+		if !ok {
+			return nil, serrors.New("invalid SCMP layer, not serializable", "index", i)
+		}
+		ret[i] = s
+	}
+	return ret, nil
 }
 
 // TODO(matzf) this function is now only used to update the OneHop-path.

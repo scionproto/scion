@@ -24,9 +24,6 @@ cmd_topology() {
 
     echo "Create topology, configuration, and execution files."
     tools/topogen.py "$@"
-    if is_docker_be; then
-        ./tools/quiet ./tools/dc run utils_chowner
-    fi
 }
 
 cmd_topodot() {
@@ -90,22 +87,10 @@ cmd_mstart() {
 
 run_setup() {
     tools/set_ipv6_addr.py -a
-    # Ensure base dir for dispatcher socket exists; on ubuntu this symbolic link to /dev/shm always exists.
-    if [ ! -d /run/shm/ ]; then
-      sudo ln -s /dev/shm /run/shm;
-    fi
-     # Create dispatcher dir or change owner
-    local disp_dir="/run/shm/dispatcher"
-    [ -d "$disp_dir" ] || mkdir "$disp_dir"
-    [ $(stat -c "%U" "$disp_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $disp_dir - [sudo] password for %p: " chown $LOGNAME: "$disp_dir"; }
 }
 
 run_teardown() {
     tools/set_ipv6_addr.py -d
-    local disp_dir="/run/shm/dispatcher"
-    if [ -e "$disp_dir" ]; then
-      find "$disp_dir" -xdev -mindepth 1 -print0 | xargs -r0 rm -v
-    fi
 }
 
 stop_scion() {

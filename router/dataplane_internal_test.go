@@ -42,7 +42,9 @@ import (
 	"github.com/scionproto/scion/router/mock_router"
 )
 
-var testKey = []byte("testkey_xxxxxxxx")
+var (
+	testKey = []byte("testkey_xxxxxxxx")
+)
 
 // TestReceiver sets up a mocked batchConn, starts the receiver that reads from
 // this batchConn and forwards it to the processing routines channels. We verify

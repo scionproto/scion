@@ -25,6 +25,11 @@ import (
 	"github.com/scionproto/scion/private/topology"
 )
 
+var (
+	dispatchedPortStart = 1024
+	dispatchedPortEnd   = 1<<16 - 1
+)
+
 var metrics = NewMetrics()
 
 func GetMetrics() *Metrics {
@@ -50,15 +55,17 @@ func NewDP(
 	key []byte) *DataPlane {
 
 	dp := &DataPlane{
-		localIA:          local,
-		external:         external,
-		linkTypes:        linkTypes,
-		neighborIAs:      neighbors,
-		internalNextHops: internalNextHops,
-		svc:              &services{m: svc},
-		internal:         internal,
-		internalIP:       netip.MustParseAddr("198.51.100.1"),
-		Metrics:          metrics,
+		localIA:             local,
+		external:            external,
+		linkTypes:           linkTypes,
+		neighborIAs:         neighbors,
+		internalNextHops:    internalNextHops,
+		dispatchedPortStart: uint16(dispatchedPortStart),
+		dispatchedPortEnd:   uint16(dispatchedPortEnd),
+		svc:                 &services{m: svc},
+		internal:            internal,
+		internalIP:          netip.MustParseAddr("198.51.100.1"),
+		Metrics:             metrics,
 	}
 	if err := dp.SetKey(key); err != nil {
 		panic(err)
