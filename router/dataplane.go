@@ -2054,7 +2054,7 @@ func (d *DataPlane) resolveLocalDst(
 		}
 		// if SVC address is outside the configured port range we send to the fix
 		// port.
-		if uint16(a.Port()) < d.dispatchedPortStart || uint16(a.Port()) > d.dispatchedPortEnd {
+		if a.Port() < d.dispatchedPortStart || a.Port() > d.dispatchedPortEnd {
 			return processResult{OutAddr: netip.AddrPortFrom(a.Addr(), topology.EndhostPort)}, nil
 		}
 		return processResult{OutAddr: a}, nil
