@@ -878,6 +878,11 @@ func (p *slowPathPacketProcessor) reset() {
 // processResults carries what could be determined while processing
 // a packet. In most cases of error, all fields are left to their
 // zero value.
+//
+// TODO(jiceatscion): The pervasive use of processResult is costly: in its current form it is a
+// fairly large structure that gets copied over and over. Alternatively, passing it by reference
+// could mean creating a steady stream of garbage for the collector to deal with. May be,
+// accumulating processing results in the packet structure would have none of these issues.
 type processResult struct {
 	EgressID        uint16
 	OutAddr         netip.AddrPort
@@ -1162,9 +1167,9 @@ func (p *scionPacketProcessor) processIntraBFD(data []byte) error {
 	}
 
 	ifID := uint16(0)
+	// POSSIBLY EXPENSIVE CONVERSION
+	src := p.srcAddr.AddrPort()
 	for k, v := range p.d.internalNextHops {
-		// POSSIBLY EXPENSIVE CONVERSION
-		src := p.srcAddr.AddrPort()
 		if src == *v {
 			ifID = k
 			break

@@ -33,8 +33,8 @@ type Dataplane interface {
 	CreateIACtx(ia addr.IA) error
 	AddInternalInterface(ia addr.IA, local *netip.AddrPort) error
 	AddExternalInterface(localIfID common.IFIDType, info LinkInfo, owned bool) error
-	AddSvc(ia addr.IA, svc addr.SVC, ip netip.Addr) error
-	DelSvc(ia addr.IA, svc addr.SVC, ip netip.Addr) error
+	AddSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error
+	DelSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error
 	SetKey(ia addr.IA, index int, key []byte) error
 	SetPortRange(start, end uint16)
 }
@@ -235,8 +235,7 @@ func confServices(dp Dataplane, cfg *Config) error {
 			return addrs[i].IP.String() < addrs[j].IP.String()
 		})
 		for _, a := range addrs {
-			netipAddr, _ := netip.AddrFromSlice(a.IP)
-			if err := dp.AddSvc(cfg.IA, svc, netipAddr); err != nil {
+			if err := dp.AddSvc(cfg.IA, svc, a.AddrPort()); err != nil {
 				return err
 			}
 		}
