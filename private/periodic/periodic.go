@@ -21,8 +21,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/metrics"
-	legacymetrics "github.com/scionproto/scion/private/periodic/internal/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 )
 
 // A Task that has to be periodically executed.
@@ -46,8 +45,12 @@ const (
 
 // Metrics contains the relevant metrics for a periodic task.
 type Metrics struct {
-	// Events tracks the amount of occurrences of Events defined above.
-	Events func(string) metrics.Counter
+	// StopEvents tracks the amount of stop events.
+	StopEvents metrics.Counter
+	// StopEvents tracks the amount of kill events.
+	KillEvents metrics.Counter
+	// TriggerEvents tracks the amount of trigger events.
+	TriggerEvents metrics.Counter
 	// Period is a Gauge describing the current Period.
 	Period metrics.Gauge
 	// Runtime tracks how long the task has been running.
@@ -66,10 +69,6 @@ func (m *Metrics) setPeriod(d time.Duration) {
 
 func (m *Metrics) setRuntime(d time.Duration) {
 	metrics.GaugeAdd(m.Runtime, float64(d)/1e9)
-}
-
-func (m *Metrics) event(s string) {
-	metrics.CounterAdd(m.Events(s), 1)
 }
 
 // Func implements the Task interface.
@@ -110,13 +109,7 @@ type Runner struct {
 //
 // Deprecated: Start exists for compatibility reasons, use StartWithMetrics instead.
 func Start(task Task, period, timeout time.Duration) *Runner {
-	genMetric := legacymetrics.NewMetric(task.Name())
-	metric := Metrics{
-		Events:    genMetric.Events,
-		Period:    genMetric.Period,
-		Runtime:   genMetric.Runtime,
-		StartTime: genMetric.Timestamp,
-	}
+	metric := newLegacyMetrics(task.Name())
 	return StartWithMetrics(task, &metric, period, timeout)
 }
 
@@ -153,7 +146,7 @@ func (r *Runner) Stop() {
 	r.ticker.Stop()
 	close(r.stop)
 	<-r.loopFinished
-	r.metric.event(EventStop)
+	metrics.CounterInc(r.metric.StopEvents)
 }
 
 // Kill is like stop but it also cancels the context of the current running method.
@@ -165,7 +158,7 @@ func (r *Runner) Kill() {
 	close(r.stop)
 	r.cancelF()
 	<-r.loopFinished
-	r.metric.event(EventKill)
+	metrics.CounterInc(r.metric.KillEvents)
 }
 
 // TriggerRun triggers the periodic task to run now.
@@ -181,7 +174,7 @@ func (r *Runner) TriggerRun() {
 	case <-r.stop:
 	case r.trigger <- struct{}{}:
 	}
-	r.metric.event(EventTrigger)
+	metrics.CounterInc(r.metric.TriggerEvents)
 }
 
 func (r *Runner) runLoop() {
