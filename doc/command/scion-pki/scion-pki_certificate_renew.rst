@@ -120,7 +120,6 @@ Options
                                --ca is mutually exclusive with --remote
       --common-name string     The common name that replaces the common name in the subject template
       --curve string           The elliptic curve to use (P-256|P-384|P-521) (default "P-256")
-      --dispatcher string      Path to the dispatcher socket (default "/run/shm/dispatcher/default.sock")
       --expires-in string      Remaining time threshold for renewal
       --features strings       enable development features ()
       --force                  Force overwritting existing files
