@@ -90,24 +90,25 @@ type BatchConn interface {
 // from multiple sockets, performs routing, and sends them to their destinations
 // (after updating the path, if that is needed).
 type DataPlane struct {
-	interfaces                     map[uint16]BatchConn
-	external                       map[uint16]BatchConn
-	linkTypes                      map[uint16]topology.LinkType
-	neighborIAs                    map[uint16]addr.IA
-	peerInterfaces                 map[uint16]uint16
-	internal                       BatchConn
-	internalIP                     netip.Addr
-	internalNextHops               map[uint16]*netip.AddrPort
-	svc                            *services
-	macFactory                     func() hash.Hash
-	bfdSessions                    map[uint16]bfdSession
-	localIA                        addr.IA
-	mtx                            sync.Mutex
-	running                        bool
-	Metrics                        *Metrics
-	forwardingMetrics              map[uint16]interfaceMetrics
-	dispatchedPortStart            uint16
-	dispatchedPortEnd              uint16
+	interfaces          map[uint16]BatchConn
+	external            map[uint16]BatchConn
+	linkTypes           map[uint16]topology.LinkType
+	neighborIAs         map[uint16]addr.IA
+	peerInterfaces      map[uint16]uint16
+	internal            BatchConn
+	internalIP          netip.Addr
+	internalNextHops    map[uint16]*netip.AddrPort
+	svc                 *services
+	macFactory          func() hash.Hash
+	bfdSessions         map[uint16]bfdSession
+	localIA             addr.IA
+	mtx                 sync.Mutex
+	running             bool
+	Metrics             *Metrics
+	forwardingMetrics   map[uint16]interfaceMetrics
+	dispatchedPortStart uint16
+	dispatchedPortEnd   uint16
+
 	ExperimentalSCMPAuthentication bool
 
 	// The pool that stores all the packet buffers as described in the design document. See
@@ -590,8 +591,6 @@ type packet struct {
 	// The type of traffic. This is used for metrics at the forwarding stage, but is most
 	// economically determined at the processing stage. So transport it here.
 	trafficType trafficType
-	// Backing store for the destAddr.IP slice:
-	dstIpBytes [16]byte
 	// The goods
 	rawPacket []byte
 }
@@ -599,35 +598,6 @@ type packet struct {
 type slowPacket struct {
 	packet
 	slowPathRequest slowPathRequest
-}
-
-// updateDestAddr() updates a packet's destination address to refer to the given
-// newDst.
-// We handle dstAddr so we don't make the GC work. The issue is the IP address slice
-// that's in dstAddr. The packet, along with its address and IP slice, gets copied from a channel
-// into a local variable. Then after we modify it, all gets copied to the some other channel and
-// eventually it gets copied back to the pool. If we replace the destAddr.IP at any point,
-// the old backing array behind the destAddr.IP slice ends-up on the garbage pile. To prevent that,
-// we store the IP in a separate array and update it in-place. That way we can also set IP
-// slice to nil when we have to.
-func (p *packet) updateDestAddr(newDst *netip.AddrPort) {
-	p.dstAddr.Port = int(newDst.Port())
-	newIp := newDst.Addr()
-	p.dstAddr.Zone = newIp.Zone()
-	if newIp.Is4() {
-		outIpBytes := newIp.As4()        // Must store explicitly in order to copy
-		p.dstAddr.IP = p.dstIpBytes[0:4] // Update slice
-		copy(p.dstAddr.IP, outIpBytes[:])
-	} else if newIp.Is6() {
-		outIpBytes := newIp.As16()
-		p.dstAddr.IP = p.dstIpBytes[0:16]
-		copy(p.dstAddr.IP, outIpBytes[:])
-	} else {
-		// That's a zero address. We translate in to a nil IP. That's how UDPAddr represents it.
-		// Nothing gets discarded as the the IP's backing array is separate (and a slice is a
-		// struct, not a pointer, despite what nil looks like).
-		p.dstAddr.IP = nil
-	}
 }
 
 func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
@@ -664,11 +634,11 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 			metrics[sc].DroppedPacketsInvalid.Inc()
 			return
 		}
+
 		outPkt := packet{
 			rawPacket: pkt.Buffers[0][:pkt.N],
 			ingress:   ifID,
 			srcAddr:   srcAddr,
-			dstAddr:   &net.UDPAddr{}, // Updated in-place and recycled. Must be allocated once.
 		}
 		select {
 		case procQs[procID] <- outPkt:
@@ -679,7 +649,9 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 	}
 
 	for d.running {
-		// collect packets
+		// collect packets.
+
+		// Give a new buffer to the msgs elements that have been used in the previous loop.
 		for i := 0; i < cfg.BatchSize-numReusable; i++ {
 			p := <-d.packetPool
 			msgs[i].Buffers[0] = p
@@ -695,7 +667,6 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 		for _, pkt := range msgs[:numPkts] {
 			enqueueForProcessing(pkt)
 		}
-
 	}
 }
 
@@ -776,7 +747,7 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 		}
 		p.rawPacket = result.OutPkt
 
-		p.updateDestAddr(&result.OutAddr)
+		p.dstAddr = net.UDPAddrFromAddrPort(result.OutAddr) // Allocated from HEAP !
 
 		p.trafficType = result.TrafficType
 		select {
@@ -807,7 +778,7 @@ func (d *DataPlane) runSlowPathProcessor(id int, q <-chan slowPacket,
 			d.returnPacketToPool(p.packet.rawPacket)
 			continue
 		}
-		p.updateDestAddr(&res.OutAddr)
+		p.dstAddr = net.UDPAddrFromAddrPort(res.OutAddr) // Allocated from HEAP !
 		p.packet.rawPacket = res.OutPkt
 
 		fwCh, ok := fwQs[res.EgressID]
