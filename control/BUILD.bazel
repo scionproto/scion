@@ -28,6 +28,7 @@ go_library(
         "//pkg/grpc:go_default_library",
         "//pkg/log:go_default_library",
         "//pkg/metrics:go_default_library",
+        "//pkg/metrics/v2:go_default_library",
         "//pkg/private/ctrl/path_mgmt:go_default_library",
         "//pkg/private/prom:go_default_library",
         "//pkg/private/serrors:go_default_library",

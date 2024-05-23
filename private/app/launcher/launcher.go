@@ -32,7 +32,6 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/private/app"
@@ -174,7 +173,7 @@ func (a *Application) executeCommand(ctx context.Context, shortName string) erro
 	}
 	a.TOMLConfig.InitDefaults()
 
-	logEntriesTotal := metrics.NewPromCounterFrom(
+	logEntriesTotal := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "lib_log_emitted_entries_total",
 			Help: "Total number of log entries emitted.",
@@ -182,9 +181,9 @@ func (a *Application) executeCommand(ctx context.Context, shortName string) erro
 		[]string{"level"},
 	)
 	opt := log.WithEntriesCounter(log.EntriesCounter{
-		Debug: logEntriesTotal.With("level", "debug"),
-		Info:  logEntriesTotal.With("level", "info"),
-		Error: logEntriesTotal.With("level", "error"),
+		Debug: logEntriesTotal.With(prometheus.Labels{"level": "debug"}),
+		Info:  logEntriesTotal.With(prometheus.Labels{"level": "info"}),
+		Error: logEntriesTotal.With(prometheus.Labels{"level": "error"}),
 	})
 
 	if err := log.Setup(a.getLogging(), opt); err != nil {
