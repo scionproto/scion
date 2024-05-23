@@ -41,6 +41,7 @@ Active
    grpc
    BorderRouter
    router-perf-model
+   router-port-dispatch
 
 .. _design-docs-completed:
 
