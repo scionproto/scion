@@ -51,7 +51,7 @@ Setup
 
       ./tools/install_bazel
 
-   and make sure that ``~/bin`` is on your ``PATH``.
+   and make sure that ``~/.local/bin`` is on your ``PATH``.
 
    You can also manually install ``bazelisk`` and create an alias so that
    ``bazel`` will resolve to the ``bazelisk`` command.
