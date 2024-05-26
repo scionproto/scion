@@ -70,6 +70,8 @@ func addFlags() error {
 	if err != nil {
 		return serrors.WrapStr("reading scion environment", err)
 	}
+	// TODO(JordiSubira): Make this flag optional and consider the same case as Unspecified
+	// if it isn't explicitly set.
 	flag.Var(&Local, "local", "(Mandatory) address to listen on")
 	flag.StringVar(&Mode, "mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
 	flag.StringVar(&Progress, "progress", "", "Socket to write progress to")

@@ -19,15 +19,14 @@ package config
 import (
 	"fmt"
 	"io"
+	"net/netip"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/util"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/private/config"
 	"github.com/scionproto/scion/private/env"
 	api "github.com/scionproto/scion/private/mgmtapi"
-	"github.com/scionproto/scion/private/topology"
 )
 
 var _ config.Config = (*Config)(nil)
@@ -38,46 +37,6 @@ type Config struct {
 	Metrics    env.Metrics  `toml:"metrics,omitempty"`
 	API        api.Config   `toml:"api,omitempty"`
 	Dispatcher Dispatcher   `toml:"dispatcher,omitempty"`
-}
-
-// Dispatcher contains the dispatcher specific config.
-type Dispatcher struct {
-	config.NoDefaulter
-	// ID of the Dispatcher (required)
-	ID string `toml:"id,omitempty"`
-	// ApplicationSocket is the local API socket (default /run/shm/dispatcher/default.sock)
-	ApplicationSocket string `toml:"application_socket,omitempty"`
-	// Socket file permissions when created; read from octal. (default 0770)
-	SocketFileMode util.FileMode `toml:"socket_file_mode,omitempty"`
-	// UnderlayPort is the native port opened by the dispatcher (default 30041)
-	UnderlayPort int `toml:"underlay_port,omitempty"`
-	// DeleteSocket specifies whether the dispatcher should delete the
-	// socket file prior to attempting to create a new one.
-	DeleteSocket bool `toml:"delete_socket,omitempty"`
-}
-
-func (cfg *Dispatcher) Validate() error {
-	if cfg.ApplicationSocket == "" {
-		cfg.ApplicationSocket = reliable.DefaultDispPath
-	}
-	if cfg.SocketFileMode == 0 {
-		cfg.SocketFileMode = reliable.DefaultDispSocketFileMode
-	}
-	if cfg.UnderlayPort == 0 {
-		cfg.UnderlayPort = topology.EndhostPort
-	}
-	if cfg.ID == "" {
-		return serrors.New("id must be set")
-	}
-	return nil
-}
-
-func (cfg *Dispatcher) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
-	config.WriteString(dst, fmt.Sprintf(dispSample, idSample))
-}
-
-func (cfg *Dispatcher) ConfigName() string {
-	return "dispatcher"
 }
 
 func (cfg *Config) InitDefaults() {
@@ -112,4 +71,51 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 
 func (cfg *Config) ConfigName() string {
 	return "dispatcher_config"
+}
+
+// Dispatcher contains the dispatcher specific config.
+type Dispatcher struct {
+	// ID is the SCION element ID of the shim dispatcher.
+	ID string `toml:"id,omitempty"`
+	// LocalUDPForwarding specifies whether UDP forwarding is enabled for the dispatcher.
+	// Otherwise, it will only reply to SCMPInfo packets.
+	LocalUDPForwarding bool `toml:"local_udp_forwarding,omitempty"`
+	// ServiceAddresses is the map of IA,SVC -> underlay UDP/IP address.
+	// The map should be configured provided that the shim dispatcher runs colocated to such
+	// mapped services, e.g., the shim dispatcher runs on the same host,
+	//  where the CS for the local IA runs.
+	ServiceAddresses map[addr.Addr]netip.AddrPort `toml:"service_addresses,omitempty"`
+	// UnderlayAddr is the IP address where the shim dispatcher listens on (default ::).
+	UnderlayAddr netip.Addr `toml:"underlay_addr,omitempty"`
+}
+
+func (cfg *Dispatcher) InitDefaults() {
+	if cfg.UnderlayAddr == (netip.Addr{}) {
+		cfg.UnderlayAddr = netip.IPv6Unspecified()
+	}
+}
+
+func (cfg *Dispatcher) Validate() error {
+	if !cfg.UnderlayAddr.IsValid() {
+		return serrors.New("underlay_addr is not set or it is incorrect")
+	}
+	if cfg.ID == "" {
+		return serrors.New("id must be set")
+	}
+
+	// Process ServiceAddresses
+	for iaSVC := range cfg.ServiceAddresses {
+		if iaSVC.Host.Type() != addr.HostTypeSVC {
+			return serrors.New("parsed address must be SVC", "type", iaSVC.Host.Type().String())
+		}
+	}
+	return nil
+}
+
+func (cfg *Dispatcher) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, fmt.Sprintf(dispSample, idSample))
+}
+
+func (cfg *Dispatcher) ConfigName() string {
+	return "dispatcher"
 }

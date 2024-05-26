@@ -1,0 +1,15 @@
+load("//tools/lint:go.bzl", "go_library")
+load("//:scion.bzl", "scion_go_binary")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "github.com/scionproto/scion/tools/mmbm",
+    visibility = ["//visibility:private"],
+)
+
+scion_go_binary(
+    name = "mmbm",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

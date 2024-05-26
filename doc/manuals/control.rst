@@ -252,7 +252,7 @@ considers the following options.
          - use the `netsys-lab/scion-ca <https://github.com/netsys-lab/scion-ca>`_ SCION CA
            based on `smallstep's step-ca <https://github.com/smallstep/certificates>`_,
          - ask SCION vendors for proprietary CA implementations and offerings,
-         - plug in your own CA service implementing the :file-ref:`spec/ca.gen.yaml` API.
+         - plug in your own CA service implementing the :file-ref:`spec/ca.gen.yml` API.
 
       .. option:: ca.service.address = <string>
 
@@ -262,7 +262,7 @@ considers the following options.
 
       .. option:: ca.service.shared_secret = <string>
 
-	      Path to the PEM-encoded shared secret that is used to create JWT tokens.
+         Path to the PEM-encoded shared secret that is used to create JWT tokens.
 
          The shared secret file is re-read from disk at 5 second intervals.
 
@@ -369,7 +369,7 @@ considers the following options.
          # Example
 
          [drkey.delegation]
-         scmp: ["203.0.113.17", "198.51.100.249"]
+         scmp = ["203.0.113.17", "198.51.100.249"]
 
    .. option:: drkey.prefetch_entries = <number> (Default: 10000)
 

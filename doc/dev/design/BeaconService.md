@@ -4,7 +4,8 @@
 * Status: **outdated**
 
 ---
-⚠️  **NOTE** ⚠️<br/>
+⚠️  **NOTE** ⚠️
+
 Outdated contents! This document is kept for historical purpose.
 
 ---

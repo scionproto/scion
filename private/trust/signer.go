@@ -52,8 +52,11 @@ type Signer struct {
 
 // Sign signs the message with the associated data and returns a SignedMessage protobuf payload. The
 // associated data is not included in the header or body of the signed message.
-func (s Signer) Sign(ctx context.Context, msg []byte,
-	associatedData ...[]byte) (*cryptopb.SignedMessage, error) {
+func (s Signer) Sign(
+	ctx context.Context,
+	msg []byte,
+	associatedData ...[]byte,
+) (*cryptopb.SignedMessage, error) {
 
 	l := metrics.SignerLabels{}
 	now := time.Now()
@@ -135,8 +138,11 @@ func (s Signer) validate(ctx context.Context, now time.Time) error {
 	return nil
 }
 
-func (s Signer) GetExpiration() time.Time {
-	return s.Expiration
+func (s Signer) Validity() cppki.Validity {
+	return cppki.Validity{
+		NotBefore: s.ChainValidity.NotBefore,
+		NotAfter:  s.Expiration,
+	}
 }
 
 func (s Signer) Equal(o Signer) bool {
@@ -146,6 +152,32 @@ func (s Signer) Equal(o Signer) bool {
 		s.TRCID == o.TRCID &&
 		s.ChainValidity == o.ChainValidity &&
 		s.InGrace == o.InGrace
+}
+
+// LastExpiring returns the Signer with the latest expiration time that covers
+// the given validity. If no signer is found an error is returned.
+func LastExpiring[T interface{ Validity() cppki.Validity }](
+	signers []T, validity cppki.Validity,
+) (T, error) {
+	// First find candidates that cover the given period.
+	var candidates []T
+	for _, s := range signers {
+		if s.Validity().Covers(validity) {
+			candidates = append(candidates, s)
+		}
+	}
+	if len(candidates) == 0 {
+		var zero T
+		return zero, serrors.New("no signer covers the given validity")
+	}
+
+	latest := candidates[0]
+	for _, s := range candidates[1:] {
+		if s.Validity().NotAfter.After(latest.Validity().NotAfter) {
+			latest = s
+		}
+	}
+	return latest, nil
 }
 
 func associatedDataLen(associatedData ...[]byte) int {

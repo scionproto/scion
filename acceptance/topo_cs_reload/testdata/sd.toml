@@ -1,5 +1,4 @@
 [general]
-reconnect_to_dispatcher = true
 config_dir = "/"
 id = "sd1-ff00_0_110"
 

@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "connector.go",
         "dataplane.go",
+        "fnv1aCheap.go",
         "metrics.go",
         "svc.go",
     ],

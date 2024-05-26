@@ -61,6 +61,7 @@ INNER_EOF
         {
             "isd_as": "1-ff00:0:a",
             "mtu": 1472,
+            "dispatched_ports": "1024-65535",
             "border_routers": {
                 "br-1": {
                     "internal_addr": "127.0.0.1:30001"

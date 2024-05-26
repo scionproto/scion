@@ -40,6 +40,7 @@ import (
 	"github.com/scionproto/scion/private/env"
 	"github.com/scionproto/scion/private/service"
 	"github.com/scionproto/scion/private/topology"
+	"github.com/scionproto/scion/private/trust"
 )
 
 // InitTracer initializes the global tracer.
@@ -348,9 +349,18 @@ func RegisterHTTPEndpoints(
 func signerStatusPage(signer cstrust.RenewingSigner) service.StatusPage {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		s, err := signer.SignerGen.Generate(r.Context())
+		signers, err := signer.SignerGen.Generate(r.Context())
 		if err != nil {
 			http.Error(w, "Unable to get signer", http.StatusInternalServerError)
+			return
+		}
+		now := time.Now()
+		s, err := trust.LastExpiring(signers, cppki.Validity{
+			NotBefore: now,
+			NotAfter:  now,
+		})
+		if err != nil {
+			http.Error(w, "No currently valid signer", http.StatusInternalServerError)
 			return
 		}
 

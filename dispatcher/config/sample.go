@@ -21,15 +21,19 @@ const dispSample = `
 # ID of the Dispatcher. (required)
 id = "%s"
 
-# The local API socket. (default /run/shm/dispatcher/default.sock)
-application_socket = "/run/shm/dispatcher/default.sock"
+# The underlay IP address opened by the dispatcher. (default ::)
+# underlay_addr = "::"
 
-# File permissions of the ApplicationSocket socket file, in octal. (default "0770")
-socket_file_mode = "0770"
-
-# The native port opened by the dispatcher. (default 30041)
-underlay_port = 30041
-
-# Remove the socket file (if it exists) on start. (default false)
-delete_socket = false
+# ServiceAddresses is the map of IA,SVC -> underlay UDP/IP address.
+# The map should be configured provided that the shim dispatcher runs colocated to such
+# mapped services, e.g., the shim dispatcher runs on the same host,
+# where the CS for the local IA runs. 
+# For other use cases it can be ignored.
+[dispatcher.service_addresses]
+"1-ff00:0:110,CS" = "[fd00:f00d:cafe::7f00:14]:31000"
+"1-ff00:0:110,DS" = "[fd00:f00d:cafe::7f00:14]:31000"
+"1-ff00:0:120,CS" = "127.0.0.68:31008"
+"1-ff00:0:120,DS" = "127.0.0.68:31008"
+"1-ff00:0:130,CS" = "[fd00:f00d:cafe::7f00:2b]:31016"
+"1-ff00:0:130,DS" = "[fd00:f00d:cafe::7f00:2b]:31016"
 `

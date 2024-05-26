@@ -51,7 +51,7 @@ Setup
 
       ./tools/install_bazel
 
-   and make sure that ``~/bin`` is on your ``PATH``.
+   and make sure that ``~/.local/bin`` is on your ``PATH``.
 
    You can also manually install ``bazelisk`` and create an alias so that
    ``bazel`` will resolve to the ``bazelisk`` command.
@@ -76,7 +76,7 @@ Setup
 
       make
 
-   .. hint:: This builds tools for tests in addition to the main SCION services (e.g., `end2end`);
+   .. hint:: This builds tools for tests in addition to the main SCION services (e.g., ``end2end``);
       if you don't require those, you can only build the SCION services by running ``make build``.
       See :doc:`build` for more details.
 

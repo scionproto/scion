@@ -189,7 +189,7 @@ scion_pkg_ipk(
 )
 
 scion_pkg_ipk(
-    name = "bmconfig_ipk",
+    name = "bmtools_ipk",
 )
 
 # multiplatform_filegroup creates two targets: <name> and <name>_all.
@@ -215,8 +215,7 @@ multiplatform_filegroup(
 multiplatform_filegroup(
     name = "openwrt_testing",
     srcs = [
-        "bmconfig_ipk",
-        "coremark_ipk",
+        "bmtools_ipk",
         "testconfig_ipk",
     ],
     target_platforms = OPENWRT_PLATFORMS,

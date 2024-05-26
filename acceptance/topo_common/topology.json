@@ -1,6 +1,7 @@
 {
   "isd_as": "1-ff00:0:110",
   "mtu": 1400,
+  "dispatched_ports": "1024-65535",
   "attributes": [
     "core"
   ],

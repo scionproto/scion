@@ -105,7 +105,7 @@ Version
 -------
 
 The ``version`` field is always ``v3`` in SCION; this is required because
-`extensions` are mandatory.
+``extensions`` are mandatory.
 
 **Deprecation warning**: note that the X.509 ``version`` field has different
 semantics compared to the old SCION JSON format for certificates (where version
@@ -247,14 +247,14 @@ The string representation MUST follow the canonical formatting defined in `ISD
 and AS numbering
 <https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering>`_.
 
-The canonical string representation of the *ISD-AS number* uses a `-`-separator
+The canonical string representation of the *ISD-AS number* uses a ``-``-separator
 between the ISD and AS numbers.
 
 The ISD numbers are formatted as decimal.
 
 The canonical string formatting of AS numbers in the BGP AS range (
 :math:`0 - 2^{32}-1`) is the decimal form.
-For larger AS numbers, it uses a 16-bit `:`-separated lower-case hex encoding
+For larger AS numbers, it uses a 16-bit ``:``-separated lower-case hex encoding
 with leading 0's omitted: 1:0:0 to ffff:ffff:ffff.
 
 For example, AS ``ff00:0:110`` in ISD ``1`` is formatted as ``1-ff00:0:110``.
