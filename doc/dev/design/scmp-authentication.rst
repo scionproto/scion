@@ -13,7 +13,7 @@ SCMP Authentication
 
 Abstract
 ========
-SCMP error messages can potentially be abused by an attacker to signal spurious network errors, attempting to degrade or deny a victim's use of a service or network path.
+:doc:`SCMP </protocols/scmp>` error messages can potentially be abused by an attacker to signal spurious network errors, attempting to degrade or deny a victim's use of a service or network path.
 Employ cryptographic validation to check authenticity and authorization of the sender of an SCMP message.
 
 Background
@@ -33,6 +33,11 @@ To address this, we use :doc:`/cryptography/drkey` and the :doc:`/protocols/auth
 Proposal
 ========
 
+As noted in the :doc:`/protocols/scmp`, support for the SCMP protocol is optional for SCION nodes.
+This proposal *mandates* authentication for most SCMP messages.
+Should this proposal be adopted, it extends the SCMP specification, and terms MUST/MUST NOT/MAY used below will apply to all SCION nodes with an SCMP implementations.
+In other words, SCION nodes either need to implement the additional processing rules for SCMP messages described in this document, or remove SCMP support altogether.
+
 .. _scmp-spao:
 
 SCMP with SCION Packet Authenticator Option
@@ -44,7 +49,7 @@ The MAC is transported in the :ref:`authenticator-option` End-to-End extension h
 The Authenticator MAC algorithm is AES-CMAC (identifier :code:`0`).
 
 SCMP error messages MUST always be authenticated.
-SCMP informational messages CAN optionally be authenticated; a response message
+SCMP informational messages MAY optionally be authenticated; a response message
 MUST be authenticated if and only if the corresponding request message was
 authenticated.
 
@@ -85,11 +90,11 @@ The processing rules for SCMP messages are extended with the following points:
       authentication MUST never send SCMP error messages and MUST NOT reply to
       authenticated SCMP informational request messages.
 
--  When an SCMP message is received, the receiver SHOULD check the
+-  When an SCMP message is received, the receiver MUST check the
    authentication header.
 
    - SCMP error messages without or with an invalid authentication header and
-     SCMP informational messages with an invalid authentication header SHOULD
+     SCMP informational messages with an invalid authentication header MUST
      be silently dropped.
 
    - The receiver checks that the :ref:`DRKey identified by the SPI <spao-spi-drkey>`
