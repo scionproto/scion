@@ -42,6 +42,7 @@ Active
    BorderRouter
    router-perf-model
    router-port-dispatch
+   scmp-authentication
 
 .. _design-docs-completed:
 
