@@ -492,26 +492,26 @@ as{as_num}.createControlService('cs_1').joinNetwork('net0')
                 cert_issuer = ""
 
             if as_int_mtu:  # default value 0 for latency, bandwidth, packetDrop will be ignored
-                set_link_properties =  (f"as{as_num}.createNetwork('net0')"
-                                        f".setDefaultLinkProperties("
-                                        f"latency={as_int_lat},"
-                                        f"bandwidth={as_int_bw},"
-                                        f"packetDrop={as_int_drop}).setMtu({as_int_mtu})\n")
+                set_link_properties = (f"as{as_num}.createNetwork('net0')"
+                                       f".setDefaultLinkProperties("
+                                       f"latency={as_int_lat},"
+                                       f"bandwidth={as_int_bw},"
+                                       f"packetDrop={as_int_drop}).setMtu({as_int_mtu})\n")
             else:
-                set_link_properties =  (f"as{as_num}.createNetwork('net0')"
-                                        f".setDefaultLinkProperties("
-                                        f"latency={as_int_lat}, "
-                                        f"bandwidth={as_int_bw}, "
-                                        f"packetDrop={as_int_drop})\n")
-            
+                set_link_properties = (f"as{as_num}.createNetwork('net0')"
+                                       f".setDefaultLinkProperties("
+                                       f"latency={as_int_lat}, "
+                                       f"bandwidth={as_int_bw}, "
+                                       f"packetDrop={as_int_drop})\n")
+
             border_routers = ""
 
             # iterate through border routers
             for br in self._br[f"{isd_num}_{as_num}"]:
                 br_name = next(iter(br.values()))
                 border_routers += (f"as_{as_num}_{br_name} = as{as_num}"
-                         f".createRouter('{br_name}')"
-                         f".joinNetwork('net0')\n")
+                                   f".createRouter('{br_name}')"
+                                   f".joinNetwork('net0')\n")
 
                 # set border router properties
                 if f"{isd_num}_{as_num}" in self._brProperties \
@@ -523,7 +523,7 @@ as{as_num}.createControlService('cs_1').joinNetwork('net0')
                         lon = br_props['geo']['longitude']
                         addr = br_props['geo']['address']
                         border_routers += (f"as_{as_num}_{br_name}"
-                                 f".setGeo(Lat={lat}, Long={lon}, Address=\"\"\"{addr}\"\"\")\n")
+                                           f".setGeo(Lat={lat}, Long={lon}, Address=\"\"\"{addr}\"\"\")\n")
                     if "note" in br_props:
                         border_routers += f"as_{as_num}_{br_name}.setNote('{br_props['note']}')\n"
 
@@ -544,14 +544,14 @@ as{as_num}.createControlService('cs_1').joinNetwork('net0')
                             # generate code
                             if mtu:
                                 border_routers += (f"as_{as_num}_{br_name}"
-                                         f".crossConnect({b_as},'{b_br}','{a_addr}',"
-                                         f"latency={latency},bandwidth={bandwidth},"
-                                         f"packetDrop={packetDrop},MTU={mtu})\n")
+                                                   f".crossConnect({b_as},'{b_br}','{a_addr}',"
+                                                   f"latency={latency},bandwidth={bandwidth},"
+                                                   f"packetDrop={packetDrop},MTU={mtu})\n")
                             else:
                                 border_routers += (f"as_{as_num}_{br_name}"
-                                         f".crossConnect({b_as},'{b_br}','{a_addr}',"
-                                         f"latency={latency},bandwidth={bandwidth},"
-                                         f"packetDrop={packetDrop})\n")
+                                                   f".crossConnect({b_as},'{b_br}','{a_addr}',"
+                                                   f"latency={latency},bandwidth={bandwidth},"
+                                                   f"packetDrop={packetDrop})\n")
 
                     if link['b'][0] == isd_num and link['b'][1] == as_num:
                         if link['b'][2] == br_name:
@@ -564,23 +564,23 @@ as{as_num}.createControlService('cs_1').joinNetwork('net0')
                             mtu = link['mtu']
                             if mtu:
                                 border_routers += (f"as_{as_num}_{br_name}"
-                                         f".crossConnect({a_as},'{a_br}','{b_addr}',"
-                                         f"latency={latency},bandwidth={bandwidth},"
-                                         f"packetDrop={packetDrop},MTU={mtu})\n")
+                                                   f".crossConnect({a_as},'{a_br}','{b_addr}',"
+                                                   f"latency={latency},bandwidth={bandwidth},"
+                                                   f"packetDrop={packetDrop},MTU={mtu})\n")
                             else:
                                 border_routers += (f"as_{as_num}_{br_name}"
-                                         f".crossConnect({a_as},'{a_br}','{b_addr}',"
-                                         f"latency={latency},bandwidth={bandwidth},"
-                                         f"packetDrop={packetDrop})\n")
+                                                   f".crossConnect({a_as},'{a_br}','{b_addr}',"
+                                                   f"latency={latency},bandwidth={bandwidth},"
+                                                   f"packetDrop={packetDrop})\n")
 
             code += AS_template.format(as_num=as_num,
-                                        isd_num=isd_num,
-                                        is_core=is_core,
-                                        cert_issuer=cert_issuer,
-                                        set_note=set_note,
-                                        set_link_properties=set_link_properties,
-                                        border_routers=border_routers).replace("\n\n", "\n")
-        
+                isd_num=isd_num,
+                    is_core=is_core,
+                        cert_issuer=cert_issuer,
+                            set_note=set_note,
+                                set_link_properties=set_link_properties,
+                                       border_routers=border_routers).replace("\n\n", "\n")
+
         return code
 
     def _create_Routing(self) -> str:
