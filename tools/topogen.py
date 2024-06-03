@@ -37,7 +37,7 @@ def add_arguments(parser):
     parser.add_argument('-d', '--docker', action='store_true',
                         help='Create a docker compose configuration')
     parser.add_argument('-n', '--network',
-                        help='Network to create subnets in (E.g. "127.0.0.0/8"')
+                        help='Network to create subnets in (E.g. "127.0.0.0/8")')
     parser.add_argument('-o', '--output-dir', default=GEN_PATH,
                         help='Output directory')
     parser.add_argument('--random-ifids', action='store_true',
@@ -49,8 +49,11 @@ def add_arguments(parser):
     parser.add_argument('--sig', action='store_true',
                         help='Generate a SIG per AS (only available with -d, the SIG image needs\
                         to be built manually e.g. when running acceptance tests)')
+    parser.add_argument('-s','--seed',action='store_true',help='Generate a seed file for the topology')
     parser.add_argument('--features', help='Feature flags to enable, a comma separated list\
-                        e.g. foo,bar enables foo and bar feature.')
+                        e.g. foo,bar enables foo and bar feature.\n \
+                        Available features: SeedInternetMapDisable, SeedCompilerGraphviz, SeedSkipIPv6Check ')
+
     return parser
 
 
