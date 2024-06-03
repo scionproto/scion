@@ -523,7 +523,8 @@ as{as_num}.createControlService('cs_1').joinNetwork('net0')
                         lon = br_props['geo']['longitude']
                         addr = br_props['geo']['address']
                         border_routers += (f"as_{as_num}_{br_name}"
-                                           f".setGeo(Lat={lat}, Long={lon}, Address=\"\"\"{addr}\"\"\")\n")
+                                           f".setGeo(Lat={lat}, "
+                                           f"Long={lon}, Address=\"\"\"{addr}\"\"\")\n")
                     if "note" in br_props:
                         border_routers += f"as_{as_num}_{br_name}.setNote('{br_props['note']}')\n"
 
