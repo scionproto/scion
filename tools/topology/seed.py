@@ -574,11 +574,11 @@ as{as_num}.createControlService('cs_1').joinNetwork('net0')
                                                    f"packetDrop={packetDrop})\n")
 
             code += AS_template.format(as_num=as_num,
-                isd_num=isd_num,
-                    is_core=is_core,
-                        cert_issuer=cert_issuer,
-                            set_note=set_note,
-                                set_link_properties=set_link_properties,
+                                       isd_num=isd_num,
+                                       is_core=is_core,
+                                       cert_issuer=cert_issuer,
+                                       set_note=set_note,
+                                       set_link_properties=set_link_properties,
                                        border_routers=border_routers).replace("\n\n", "\n")
 
         return code
