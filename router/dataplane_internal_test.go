@@ -189,17 +189,19 @@ func TestForwarder(t *testing.T) {
 	for i := 0; i < 255; i++ {
 		pkt := <-dp.packetPool
 		assert.NotEqual(t, initialPoolSize, len(dp.packetPool))
-		pkt[0] = byte(i)
+		pkt.rawPacket = pkt.packetBytes[:] // TODO(jiceatscion): it'd be better done at pool init.
+		rp := pkt.rawPacket
+		rp[0] = byte(i)
 		if i == 100 {
 			dstAddr = &net.UDPAddr{}
 		}
+		pkt.srcAddr = nil
+		pkt.dstAddr = dstAddr
+		pkt.ingress = 0
+		pkt.rawPacket = pkt.rawPacket[:1]
+
 		select {
-		case fwCh[0] <- packet{
-			srcAddr:   nil,
-			dstAddr:   dstAddr,
-			ingress:   0,
-			rawPacket: pkt[:1],
-		}:
+		case fwCh[0] <- pkt:
 		case <-done:
 		}
 
@@ -523,29 +525,27 @@ func TestSlowPathProcessing(t *testing.T) {
 			dp := tc.prepareDP(ctrl)
 			dp.initMetrics()
 
-			rawPacket := tc.mockMsg()
-			var srcAddr *net.UDPAddr
+			pkt := packet{
+				ingress: tc.srcInterface,
+				srcAddr: &net.UDPAddr{}, // This may *never* be nil.
+				dstAddr: &net.UDPAddr{}, // The receiver would normally allocate it.
+			}
+			rp := tc.mockMsg()
+			pkt.rawPacket = pkt.packetBytes[:len(rp)]
+			copy(pkt.rawPacket, rp)
 
 			processor := newPacketProcessor(dp)
-			result, err := processor.processPkt(rawPacket, srcAddr, tc.srcInterface)
+			err := processor.processPkt(&pkt)
 			assert.ErrorIs(t, err, SlowPathRequired)
 
-			assert.Equal(t, tc.expectedSlowPathRequest, result.SlowPathRequest)
+			assert.Equal(t, tc.expectedSlowPathRequest, pkt.slowPathRequest)
 			slowPathProcessor := newSlowPathProcessor(dp)
-			result, err = slowPathProcessor.processPacket(slowPacket{
-				packet: packet{
-					srcAddr:   srcAddr,
-					dstAddr:   net.UDPAddrFromAddrPort(result.OutAddr),
-					ingress:   tc.srcInterface,
-					rawPacket: rawPacket,
-				},
-				slowPathRequest: result.SlowPathRequest,
-			})
+			err = slowPathProcessor.processPacket(&pkt)
 			assert.NoError(t, err)
 
-			// here we parse the result.OutPkt to verify that it contains the correct SCMP
+			// here we parse the outgoing packet to verify that it contains the correct SCMP
 			// header and typecodes.
-			packet := gopacket.NewPacket(result.OutPkt, slayers.LayerTypeSCION, gopacket.Default)
+			packet := gopacket.NewPacket(pkt.rawPacket, slayers.LayerTypeSCION, gopacket.Default)
 			scmp := packet.Layer(slayers.LayerTypeSCMP).(*slayers.SCMP)
 			expectedTypeCode := slayers.CreateSCMPTypeCode(tc.expectedSlowPathRequest.scmpType,
 				tc.expectedSlowPathRequest.code)

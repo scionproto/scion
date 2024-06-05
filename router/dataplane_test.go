@@ -1589,20 +1589,15 @@ func TestProcessPkt(t *testing.T) {
 			t.Parallel()
 			dp := tc.prepareDP(ctrl)
 			input, want := tc.mockMsg(false), tc.mockMsg(true)
-			result, err := dp.ProcessPkt(tc.srcInterface, input)
+			pkt := router.NewPacket(input, tc.srcInterface)
+			err := dp.ProcessPkt(pkt)
 			tc.assertFunc(t, err)
 			if err != nil {
 				return
 			}
-			outPkt := &ipv4.Message{
-				Buffers: [][]byte{result.OutPkt},
-				Addr:    net.UDPAddrFromAddrPort(result.OutAddr),
-			}
-			if !result.OutAddr.IsValid() {
-				outPkt.Addr = nil
-			}
-			assert.Equal(t, want, outPkt)
-			assert.Equal(t, tc.egressInterface, result.EgressID)
+			out := pkt.ToIpv4Msg()
+			assert.Equal(t, want, out)
+			assert.Equal(t, tc.egressInterface, pkt.GetEgress())
 		})
 	}
 }

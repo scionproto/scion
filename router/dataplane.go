@@ -663,7 +663,6 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 	metrics := d.forwardingMetrics[ifID] // If receiver exists, fw metrics exist too.
 
 	enqueueForProcessing := func(msg ipv4.Message, pkt *packet) {
-		srcAddr := msg.Addr.(*net.UDPAddr)
 		size := msg.N
 		sc := classOfSize(size)
 		metrics[sc].InputPacketsTotal.Inc()
@@ -677,10 +676,10 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 			return
 		}
 
-		pkt.disp = DISCARD // ... until proven otherwise.
-		pkt.rawPacket = pkt.packetBytes[:size]
+		pkt.disp = DISCARD                   // ... until proven otherwise.
+		pkt.rawPacket = pkt.rawPacket[:size] // Adjust size in case readBatch does not.
 		pkt.ingress = ifID
-		pkt.srcAddr = srcAddr
+		pkt.srcAddr = msg.Addr.(*net.UDPAddr)
 		select {
 		case procQs[procID] <- pkt:
 		default:
@@ -694,8 +693,21 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 
 		// Give a new buffer to the msgs elements that have been used in the previous loop.
 		for i := 0; i < cfg.BatchSize-numReusable; i++ {
-			packets[i] = <-d.packetPool
-			msgs[i].Buffers[0] = packets[i].packetBytes[:]
+			p := <-d.packetPool
+			// This is the only code that knows where the bytes are to be stored. May be we should
+			// move this to the pool initialization so it can be changed safely.
+			p.rawPacket = p.packetBytes[:]
+			// Likewise for dstAddr: it could be allocated when initializing the pool.
+			if p.dstAddr == nil {
+				p.dstAddr = &net.UDPAddr{IP: make(net.IP, net.IPv6len)}
+			}
+			// Always reset dst to the zero-length address. That's what we use to tell it has been
+			// set, which is a common case. TODO(jiceatscion): it could be more efficient to
+			// store the address separately (so it gets recycled), and still use a nil ptr
+			// when we want to clear the address.
+			p.dstAddr.IP = p.dstAddr.IP[0:0]
+			packets[i] = p
+			msgs[i].Buffers[0] = p.rawPacket
 		}
 
 		// read batch
@@ -752,7 +764,7 @@ func (d *DataPlane) runProcessor(id int, q <-chan *packet,
 		if !ok {
 			continue
 		}
-		err := processor.processPkt(p, p.srcAddr, p.ingress)
+		err := processor.processPkt(p)
 
 		sc := classOfSize(len(p.rawPacket))
 		metrics := d.forwardingMetrics[p.ingress][sc]
@@ -870,6 +882,7 @@ type slowPathPacketProcessor struct {
 
 func (p *slowPathPacketProcessor) reset() {
 	if err := p.buffer.Clear(); err != nil {
+		// TODO(jiceatscion): ...and we don't care?
 		log.Debug("Error while clearing buffer", "err", err)
 	}
 	p.path = nil
@@ -880,6 +893,7 @@ func (p *slowPathPacketProcessor) reset() {
 func (p *slowPathPacketProcessor) processPacket(pkt *packet) error {
 	var err error
 	p.reset()
+	p.pkt = pkt
 
 	p.lastLayer, err = decodeLayers(pkt.rawPacket, &p.scionLayer, &p.hbhLayer, &p.e2eLayer)
 	if err != nil {
@@ -982,7 +996,7 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn, cfg *RunConfig, c 
 		for i := 0; i < toWrite; i++ {
 			msgs[i].Buffers[0] = pkts[i].rawPacket
 			msgs[i].Addr = nil
-			if pkts[i].dstAddr.IP != nil {
+			if len(pkts[i].dstAddr.IP) != 0 {
 				msgs[i].Addr = pkts[i].dstAddr
 			}
 		}
@@ -1062,6 +1076,7 @@ func (p *scionPacketProcessor) reset() error {
 	p.effectiveXover = false
 	p.peering = false
 	if err := p.buffer.Clear(); err != nil {
+		// TODO(jiceatscion): ...we care here but not in slow-path?
 		return serrors.WrapStr("Failed to clear buffer", err)
 	}
 	p.mac.Reset()
@@ -1073,8 +1088,7 @@ func (p *scionPacketProcessor) reset() error {
 	return nil
 }
 
-func (p *scionPacketProcessor) processPkt(pkt *packet,
-	srcAddr *net.UDPAddr, ingressID uint16) error {
+func (p *scionPacketProcessor) processPkt(pkt *packet) error {
 
 	if err := p.reset(); err != nil {
 		return err
@@ -1313,8 +1327,8 @@ func (p *slowPathPacketProcessor) packSCMP(
 
 	rawSCMP, err := p.prepareSCMP(typ, code, scmpP, cause)
 	if rawSCMP != nil {
-		p.pkt.rawPkt = p.pkt.rawPkt[:len(rawSCMP)]
-		copy(p.rawPkt, rawSCMP)
+		p.pkt.rawPacket = p.pkt.rawPacket[:len(rawSCMP)]
+		copy(p.pkt.rawPacket, rawSCMP)
 	}
 
 	p.pkt.egress = p.pkt.ingress
@@ -1396,7 +1410,7 @@ func (p *scionPacketProcessor) validateIngressID() error {
 	}
 	if p.pkt.ingress != 0 && p.pkt.ingress != hdrIngressID {
 		log.Debug("SCMP: ingress interface invalid", "pkt_ingress",
-			pktIngressID, "router_ingress", p.pkt.ingress)
+			hdrIngressID, "router_ingress", p.pkt.ingress)
 		p.pkt.slowPathRequest = slowPathRequest{
 			scmpType: slayers.SCMPTypeParameterProblem,
 			code:     errCode,
@@ -1477,7 +1491,7 @@ func (p *scionPacketProcessor) validateTransitUnderlaySrc() error {
 		// Drop
 		return invalidSrcAddrForTransit
 	}
-	src, okS := netip.AddrFromSlice(p.srcAddr.IP)
+	src, okS := netip.AddrFromSlice(p.pkt.srcAddr.IP)
 	if !(okS && expectedSrc.Addr() == src) {
 		// Drop
 		return invalidSrcAddrForTransit
@@ -1615,7 +1629,7 @@ func (p *scionPacketProcessor) verifyCurrentMAC() error {
 }
 
 func (p *scionPacketProcessor) resolveInbound() error {
-	r, err := p.d.resolveLocalDst(p.pkt.dstAddr, p.scionLayer, p.lastLayer)
+	err := p.d.resolveLocalDst(p.pkt.dstAddr, p.scionLayer, p.lastLayer)
 
 	if err == noSVCBackend {
 
@@ -2021,7 +2035,7 @@ func (p *scionPacketProcessor) processOHP() error {
 	ohp.SecondHop.Mac = path.MAC(p.mac, ohp.Info, ohp.SecondHop,
 		p.macInputBuffer[:path.MACBufferSize])
 
-	if err := updateSCIONLayer(p.rawPkt, s, p.buffer); err != nil {
+	if err := updateSCIONLayer(p.pkt.rawPacket, s, p.buffer); err != nil {
 		return err
 	}
 	err := p.d.resolveLocalDst(p.pkt.dstAddr, s, p.lastLayer)
@@ -2055,13 +2069,15 @@ func (d *DataPlane) resolveLocalDst(
 		// if SVC address is outside the configured port range we send to the fix
 		// port.
 		if a.Port() < d.dispatchedPortStart || a.Port() > d.dispatchedPortEnd {
-			updateNetAddrFromAddrAndPort(resolvedDst, a.Addr(), topology.EndHostPort)
+			updateNetAddrFromAddrAndPort(resolvedDst, a.Addr(), topology.EndhostPort)
 		} else {
-			updateNetAddrFromAddrPort(resolvedDst, a)
+			updateNetAddrFromAddrPort(resolvedDst, &a)
 		}
 		return nil
 	case addr.HostTypeIP:
 		// Parse UPD port and rewrite underlay IP/UDP port
+		// TODO(jiceatscion): IP() is returned by value. The compiler may or may not elide the
+		// intermediate copy. May be there's some way to avoid it for sure.
 		return d.addEndhostPort(resolvedDst, lastLayer, dst.IP())
 	default:
 		panic("unexpected address type returned from DstAddr")
@@ -2076,7 +2092,7 @@ func (d *DataPlane) addEndhostPort(
 
 	// Parse UPD port and rewrite underlay IP/UDP port
 	l4Type := nextHdr(lastLayer)
-	port := topology.EndhostPort
+	port := uint16(topology.EndhostPort)
 
 	switch l4Type {
 	case slayers.L4UDP:
@@ -2108,7 +2124,7 @@ func (d *DataPlane) addEndhostPort(
 	default:
 		log.Debug("msg", "protocol", l4Type)
 	}
-	updateNetAddrFromAddrAndPort(dst, port)
+	updateNetAddrFromAddrAndPort(resolvedDst, dst, port)
 	return nil
 }
 
@@ -2447,7 +2463,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		default:
 			hdrLen += 8
 		}
-		quote = p.rawPkt
+		quote = p.pkt.rawPacket
 		maxQuoteLen := slayers.MaxSCMPPacketLen - hdrLen
 		if len(quote) > maxQuoteLen {
 			quote = quote[:maxQuoteLen]
@@ -2685,8 +2701,8 @@ func updateNetAddrFromAddrAndPort(netAddr *net.UDPAddr, addr netip.Addr, port ui
 	} else {
 		// That's a zero address. We translate in to something resembling a nil IP.
 		// Nothing gets discarded as we keep the slice (and its reference to the backing array).
-		// Do that end, we cannot make it nil. We have to make its length zero.
-		p.dstAddr.IP = netAddr.IP[0:0]
+		// To that end, we cannot make it nil. We have to make its length zero.
+		netAddr.IP = netAddr.IP[0:0]
 	}
 }
 
