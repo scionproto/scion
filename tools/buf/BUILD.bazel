@@ -1,0 +1,27 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary")
+load("//tools/lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "github.com/scionproto/scion/tools/buf",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//private/app/xbazel:go_default_library",
+        "//private/must:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "buf",
+    data = [
+        "@buf",
+        "@com_connectrpc_connect//cmd/protoc-gen-connect-go",
+    ],
+    embed = [":go_default_library"],
+    env = {
+        "PATH_BUF": "$(location @buf//:buf)",
+        "PATH_CONNECT": "$(location @com_connectrpc_connect//cmd/protoc-gen-connect-go)",
+    },
+    visibility = ["//visibility:public"],
+)
