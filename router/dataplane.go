@@ -116,7 +116,7 @@ type packet struct {
 	trafficType trafficType
 	// Additional metadata in case the packet is put on the slow path.
 	slowPathRequest slowPathRequest
-	// The usefull part of the raw packet at a point in time (i.e. a slice of the buffer).
+	// The useful part of the raw packet at a point in time (i.e. a slice of the buffer).
 	// TODO(jiceatscion): experiment if there is an advantage in storing the packet length
 	// instead, and use a slice only where the API expects one. Using a slice is more compatible
 	// with the old code, so a smaller change.

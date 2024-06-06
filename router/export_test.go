@@ -19,9 +19,10 @@ import (
 	"net"
 	"net/netip"
 
+	"golang.org/x/net/ipv4"
+
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/private/topology"
-	"golang.org/x/net/ipv4"
 )
 
 var (
