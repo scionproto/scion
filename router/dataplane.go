@@ -770,9 +770,11 @@ func (d *DataPlane) runProcessor(id int, q <-chan *packet,
 		metrics := d.forwardingMetrics[p.ingress][sc]
 		metrics.ProcessedPackets.Inc()
 
-		switch {
-		case err == nil:
-		case errors.Is(err, slowPathRequired):
+		switch p.disp {
+		case FORWARD:
+			// Normal processing proceeds.
+		case SLOWPATH:
+			// Not an error, processing continues.
 			select {
 			case slowQ <- p:
 			default:
@@ -780,13 +782,15 @@ func (d *DataPlane) runProcessor(id int, q <-chan *packet,
 				d.returnPacketToPool(p)
 			}
 			continue
-		default:
-			log.Debug("Error processing packet", "err", err)
-			metrics.DroppedPacketsInvalid.Inc()
+		case DISCARD: // Packets that don't need more processing (e.g. BFD), plus all errors.
+			if err != nil {
+				log.Debug("Error processing packet", "err", err)
+				metrics.DroppedPacketsInvalid.Inc()
+			}
 			d.returnPacketToPool(p)
 			continue
-		}
-		if p.disp == DISCARD { // e.g. BFD case no message is forwarded
+		default: // Newly added dispositions need to be handled.
+			log.Debug("Error processing packet", "disp", p.disp)
 			d.returnPacketToPool(p)
 			continue
 		}
@@ -1207,8 +1211,7 @@ func (p *scionPacketProcessor) processEPIC() error {
 	}
 
 	// Process The packet disposition has alredy been set to FORWARD by process().
-	// We are in a position of vetoing. If we do so we reset the disposition (although
-	// currently all errors lead to discarding except slowPathRequired so it is just defensive).
+	// We are in a position of vetoing. If we do so we reset the disposition.
 
 	if isPenultimate || isLast {
 		firstInfo, err := p.path.GetInfoField(0)
@@ -1397,7 +1400,7 @@ func (p *scionPacketProcessor) validateHopExpiry() error {
 		pointer:  p.currentHopPointer(),
 		cause:    expiredHop,
 	}
-	p.pkt.disp = SLOWPATH // TODO(jiceatscion): redundant?
+	p.pkt.disp = SLOWPATH
 	return slowPathRequired
 }
 
@@ -1458,7 +1461,7 @@ func (p *scionPacketProcessor) invalidSrcIA() error {
 		pointer:  uint16(slayers.CmnHdrLen + addr.IABytes),
 		cause:    invalidSrcIA,
 	}
-	p.pkt.disp = SLOWPATH // TODO(jiceatscion): redundant?
+	p.pkt.disp = SLOWPATH
 	return slowPathRequired
 }
 
@@ -1471,7 +1474,7 @@ func (p *scionPacketProcessor) invalidDstIA() error {
 		pointer:  uint16(slayers.CmnHdrLen),
 		cause:    invalidDstIA,
 	}
-	p.pkt.disp = SLOWPATH // TODO(jiceatscion): redundant?
+	p.pkt.disp = SLOWPATH
 	return slowPathRequired
 }
 
@@ -1518,7 +1521,7 @@ func (p *scionPacketProcessor) validateEgressID() error {
 			pointer:  p.currentHopPointer(),
 			cause:    cannotRoute,
 		}
-		p.pkt.disp = SLOWPATH // TODO(jiceatscion): redundant?
+		p.pkt.disp = SLOWPATH
 		return slowPathRequired
 	}
 
@@ -1550,7 +1553,7 @@ func (p *scionPacketProcessor) validateEgressID() error {
 				pointer:  p.currentHopPointer(),
 				cause:    cannotRoute,
 			}
-			p.pkt.disp = SLOWPATH // TODO(jiceatscion): redundant?
+			p.pkt.disp = SLOWPATH
 			return slowPathRequired
 		}
 	}
@@ -1575,7 +1578,7 @@ func (p *scionPacketProcessor) validateEgressID() error {
 			pointer:  p.currentInfoPointer(),
 			cause:    cannotRoute,
 		}
-		p.pkt.disp = SLOWPATH // TODO(jiceatscion): redundant?
+		p.pkt.disp = SLOWPATH
 		return slowPathRequired
 	}
 }
@@ -1618,7 +1621,7 @@ func (p *scionPacketProcessor) verifyCurrentMAC() error {
 			pointer:  p.currentHopPointer(),
 			cause:    macVerificationFailed,
 		}
-		p.pkt.disp = SLOWPATH // TODO(jiceatscion): redundant?
+		p.pkt.disp = SLOWPATH
 		return slowPathRequired
 	}
 	// Add the full MAC to the SCION packet processor,
@@ -1639,7 +1642,7 @@ func (p *scionPacketProcessor) resolveInbound() error {
 			code:     slayers.SCMPCodeNoRoute,
 			cause:    err,
 		}
-		p.pkt.disp = SLOWPATH // TODO(jiceatscion): redundant?
+		p.pkt.disp = SLOWPATH
 		return slowPathRequired
 	}
 
@@ -1734,7 +1737,7 @@ func (p *scionPacketProcessor) validateEgressUp() error {
 					cause:       errBFDSessionDown,
 				}
 			}
-			p.pkt.disp = SLOWPATH // TODO(jiceatscion): redundant?
+			p.pkt.disp = SLOWPATH
 			return slowPathRequired
 		}
 	}
@@ -1757,7 +1760,7 @@ func (p *scionPacketProcessor) handleIngressRouterAlert() error {
 		typ:         slowPathRouterAlert,
 		interfaceId: p.pkt.ingress,
 	}
-	p.pkt.disp = SLOWPATH // TODO(jiceatscion): redundant?
+	p.pkt.disp = SLOWPATH
 	return slowPathRequired
 }
 
@@ -1785,7 +1788,7 @@ func (p *scionPacketProcessor) handleEgressRouterAlert() error {
 		typ:         slowPathRouterAlert,
 		interfaceId: egressID,
 	}
-	p.pkt.disp = SLOWPATH // TODO(jiceatscion): redundant?
+	p.pkt.disp = SLOWPATH
 	return slowPathRequired
 }
 
@@ -1839,7 +1842,7 @@ func (p *scionPacketProcessor) validatePktLen() error {
 		pointer:  0,
 		cause:    badPacketSize,
 	}
-	p.pkt.disp = SLOWPATH // TODO(jiceatscion): redundant?
+	p.pkt.disp = SLOWPATH
 	return slowPathRequired
 }
 
@@ -1959,7 +1962,7 @@ func (p *scionPacketProcessor) process() error {
 		pointer:  p.currentHopPointer(),
 		cause:    cannotRoute,
 	}
-	p.pkt.disp = SLOWPATH // TODO(jiceatscion): redundant?
+	p.pkt.disp = SLOWPATH
 	return slowPathRequired
 }
 
