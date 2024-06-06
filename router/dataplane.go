@@ -32,7 +32,6 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/prometheus/client_golang/prometheus"
-	"golang.org/x/net/ipv4"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
@@ -125,6 +124,27 @@ type packet struct {
 	// TODO(jiceatscion): experiment if there is an advantage with allocating the bytes separately
 	// (so the buffers can be page-aligned, for example)
 	packetBytes [bufSize]byte
+}
+
+// NewPacket returns a blank packet structure, correctly initialized.
+func newPacket() *packet {
+	p := &packet{}
+	p.rawPacket = p.packetBytes[:]
+	p.dstAddr = &net.UDPAddr{IP: make(net.IP, net.IPv6len)}
+	return p
+}
+
+// reset() makes the packet ready to receive a new underlay message. This only resets the fields
+// that must be reset before any use and those that it is economical to initialize:
+// * Necessary: restore packet buffer to full length (before passing to readBatch).
+// * Economical: clearing dstAddr (otherwise it would need to be cleared in many code paths).
+// * Economical: setting disp to DISCARD (for the same reason).
+// A cleared dstAddr is represented with a zero-length IP so we keep reusing the IP storage bytes.
+// Alternatively we could have a permanent storage for dstAddr and set the ptr to nil ptr as will.
+func (p *packet) reset() {
+	p.rawPacket = p.rawPacket[:cap(p.rawPacket)]
+	p.dstAddr.IP = p.dstAddr.IP[0:0]
+	p.disp = DISCARD
 }
 
 // DataPlane contains a SCION Border Router's forwarding logic. It reads packets
@@ -612,7 +632,7 @@ func (d *DataPlane) initPacketPool(cfg *RunConfig, processorQueueSize int) {
 	log.Debug("Initialize packet pool of size", "poolSize", poolSize)
 	d.packetPool = make(chan *packet, poolSize)
 	for i := 0; i < poolSize; i++ {
-		d.packetPool <- &packet{}
+		d.packetPool <- newPacket()
 	}
 }
 
@@ -662,13 +682,12 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 	numReusable := 0                     // unused buffers from previous loop
 	metrics := d.forwardingMetrics[ifID] // If receiver exists, fw metrics exist too.
 
-	enqueueForProcessing := func(msg ipv4.Message, pkt *packet) {
-		size := msg.N
+	enqueueForProcessing := func(size int, srcAddr *net.UDPAddr, pkt *packet) {
 		sc := classOfSize(size)
 		metrics[sc].InputPacketsTotal.Inc()
 		metrics[sc].InputBytesTotal.Add(float64(size))
 
-		procID, err := computeProcID(msg.Buffers[0], cfg.NumProcessors, hashSeed)
+		procID, err := computeProcID(pkt.rawPacket, cfg.NumProcessors, hashSeed)
 		if err != nil {
 			log.Debug("Error while computing procID", "err", err)
 			d.returnPacketToPool(pkt)
@@ -676,10 +695,9 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 			return
 		}
 
-		pkt.disp = DISCARD                   // ... until proven otherwise.
-		pkt.rawPacket = pkt.rawPacket[:size] // Adjust size in case readBatch does not.
+		pkt.rawPacket = pkt.rawPacket[:size] // Update size; readBatch does not.
 		pkt.ingress = ifID
-		pkt.srcAddr = msg.Addr.(*net.UDPAddr)
+		pkt.srcAddr = srcAddr
 		select {
 		case procQs[procID] <- pkt:
 		default:
@@ -694,23 +712,12 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 		// Give a new buffer to the msgs elements that have been used in the previous loop.
 		for i := 0; i < cfg.BatchSize-numReusable; i++ {
 			p := <-d.packetPool
-			// This is the only code that knows where the bytes are to be stored. May be we should
-			// move this to the pool initialization so it can be changed safely.
-			p.rawPacket = p.packetBytes[:]
-			// Likewise for dstAddr: it could be allocated when initializing the pool.
-			if p.dstAddr == nil {
-				p.dstAddr = &net.UDPAddr{IP: make(net.IP, net.IPv6len)}
-			}
-			// Always reset dst to the zero-length address. That's what we use to tell it has been
-			// set, which is a common case. TODO(jiceatscion): it could be more efficient to
-			// store the address separately (so it gets recycled), and still use a nil ptr
-			// when we want to clear the address.
-			p.dstAddr.IP = p.dstAddr.IP[0:0]
+			p.reset()
 			packets[i] = p
 			msgs[i].Buffers[0] = p.rawPacket
 		}
 
-		// read batch
+		// Fill the packets
 		numPkts, err := conn.ReadBatch(msgs)
 		numReusable = len(msgs) - numPkts
 		if err != nil {
@@ -718,7 +725,7 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 			continue
 		}
 		for i, msg := range msgs[:numPkts] {
-			enqueueForProcessing(msg, packets[i])
+			enqueueForProcessing(msg.N, msg.Addr.(*net.UDPAddr), packets[i])
 		}
 	}
 }
