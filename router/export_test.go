@@ -49,15 +49,15 @@ func NewPacket(msg *ipv4.Message, ifId uint16) *Packet {
 	// Pretend this is coming from the receiver.
 	p := Packet{
 		packet: packet{
-			dstAddr: &net.UDPAddr{IP: make(net.IP, 0, net.IPv6len)},
-			ingress: ifId,
+			dstAddr:   &net.UDPAddr{IP: make(net.IP, 0, net.IPv6len)},
+			rawPacket: make([]byte, msg.N),
+			ingress:   ifId,
 		},
 	}
 	// nil happens *only* in test cases.
 	if msg.Addr != nil {
 		p.srcAddr = msg.Addr.(*net.UDPAddr)
 	}
-	p.rawPacket = p.packetBytes[:msg.N]
 	copy(p.rawPacket, msg.Buffers[0])
 	return &p
 }

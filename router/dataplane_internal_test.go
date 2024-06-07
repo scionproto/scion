@@ -188,14 +188,14 @@ func TestForwarder(t *testing.T) {
 	dstAddr := &net.UDPAddr{IP: net.IP{10, 0, 200, 200}}
 	for i := 0; i < 255; i++ {
 		pkt := <-dp.packetPool
+		pkt.reset()
 		assert.NotEqual(t, initialPoolSize, len(dp.packetPool))
-		pkt.rawPacket = pkt.packetBytes[:] // TODO(jiceatscion): it'd be better done at pool init.
 		rp := pkt.rawPacket
 		rp[0] = byte(i)
 		if i == 100 {
 			dstAddr = &net.UDPAddr{}
 		}
-		pkt.srcAddr = nil
+		pkt.srcAddr = &net.UDPAddr{} // Receiver always sets this.
 		pkt.dstAddr = dstAddr
 		pkt.ingress = 0
 		pkt.rawPacket = pkt.rawPacket[:1]
@@ -525,20 +525,20 @@ func TestSlowPathProcessing(t *testing.T) {
 			dp := tc.prepareDP(ctrl)
 			dp.initMetrics()
 
-			pkt := packet{
-				ingress: tc.srcInterface,
-				srcAddr: &net.UDPAddr{}, // This may *never* be nil.
-				dstAddr: &net.UDPAddr{}, // The receiver would normally allocate it.
-			}
 			rp := tc.mockMsg()
-			pkt.rawPacket = pkt.packetBytes[:len(rp)]
+			pkt := packet{}
+			pkt.init(&[bufSize]byte{})
+			pkt.reset()
+			pkt.ingress = tc.srcInterface
+			pkt.srcAddr = &net.UDPAddr{} // The receiver always sets this.
+			pkt.rawPacket = pkt.rawPacket[:len(rp)]
 			copy(pkt.rawPacket, rp)
 
 			processor := newPacketProcessor(dp)
 			err := processor.processPkt(&pkt)
 			assert.ErrorIs(t, err, SlowPathRequired)
 
-			assert.Equal(t, tc.expectedSlowPathRequest, pkt.slowPathRequest)
+			assert.Equal(t, tc.expectedSlowPathRequest, *pkt.slowPathRequest)
 			slowPathProcessor := newSlowPathProcessor(dp)
 			err = slowPathProcessor.processPacket(&pkt)
 			assert.NoError(t, err)
