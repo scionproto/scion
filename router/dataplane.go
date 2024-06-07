@@ -85,7 +85,7 @@ type BatchConn interface {
 	Close() error
 }
 
-type PacketDisp int
+type PacketDisp uint8
 
 const (
 	DISCARD PacketDisp = iota // Zero value, default.
@@ -95,17 +95,22 @@ const (
 
 // packet aggregates buffers and ancillary metadata related to one packet.
 // That is everything we need to pass-around while processing a packet. The motivation is to save on
-// copy AND garbage collection.
+// copy (pass everything via one reference) AND garbage collection (reuse everything).
+// The buffer and some lesser used objects are allocated in a separate location (but still reused)
+// to keep the packet structures tightly packed (might not matter, though).
 type packet struct {
-	// Disposition of the packet. Set by processing routine.
-	disp PacketDisp
+	// The useful part of the raw packet at a point in time (i.e. a slice of the full buffer).
+	// TODO(jiceatscion): would it be beneficial to store the length instead, like readBatch does?
+	rawPacket []byte
 	// The source address. Will be set by the receiver from smsg.Addr. We could update it in-place,
 	// but the IP address bytes in it are allocated by readbatch, so if we copy into a recyclable
-	// location, it's the original we throw away. No gain.
+	// location, it's the original we throw away. No gain (may be a tiny bit?).
 	srcAddr *net.UDPAddr
 	// The address to where we are forwarding the packet.
-	// Will be set by the processing routine; it is updated in-place so, recycled.
+	// Will be set by the processing routine; it is updated in-place.
 	dstAddr *net.UDPAddr
+	// Additional metadata in case the packet is put on the slow path. Updated in-place.
+	slowPathRequest *slowPathRequest
 	// The ingress on which this packet arrived. This is set by the receiver.
 	ingress uint16
 	// The egress on which this packet must leave. This is set by the processing routine.
@@ -113,24 +118,15 @@ type packet struct {
 	// The type of traffic. This is used for metrics at the forwarding stage, but is most
 	// economically determined at the processing stage. So transport it here.
 	trafficType trafficType
-	// Additional metadata in case the packet is put on the slow path.
-	slowPathRequest slowPathRequest
-	// The useful part of the raw packet at a point in time (i.e. a slice of the buffer).
-	// TODO(jiceatscion): experiment if there is an advantage in storing the packet length
-	// instead, and use a slice only where the API expects one. Using a slice is more compatible
-	// with the old code, so a smaller change.
-	rawPacket []byte
-	// The actual storage of the packet bytes.
-	// TODO(jiceatscion): experiment if there is an advantage with allocating the bytes separately
-	// (so the buffers can be page-aligned, for example)
-	packetBytes [bufSize]byte
+	// Disposition of the packet. Set by processing routine.
+	disp PacketDisp
 }
 
-// NewPacket returns a blank packet structure, correctly initialized.
-func newPacket() *packet {
-	p := &packet{}
-	p.rawPacket = p.packetBytes[:]
+// initPacket configures the given blank packet (and returns it, for convenience).
+func (p *packet) init(buffer *[bufSize]byte) *packet {
+	p.rawPacket = buffer[:]
 	p.dstAddr = &net.UDPAddr{IP: make(net.IP, net.IPv6len)}
+	p.slowPathRequest = &slowPathRequest{}
 	return p
 }
 
@@ -631,8 +627,10 @@ func (d *DataPlane) initPacketPool(cfg *RunConfig, processorQueueSize int) {
 
 	log.Debug("Initialize packet pool of size", "poolSize", poolSize)
 	d.packetPool = make(chan *packet, poolSize)
+	pktBuffers := make([][bufSize]byte, poolSize)
+	pktStructs := make([]packet, poolSize)
 	for i := 0; i < poolSize; i++ {
-		d.packetPool <- newPacket()
+		d.packetPool <- pktStructs[i].init(&pktBuffers[i])
 	}
 }
 
@@ -931,7 +929,7 @@ func (p *slowPathPacketProcessor) processPacket(pkt *packet) error {
 		//unsupported path type
 		return serrors.New("Path type not supported for slow-path", "type", pathType)
 	}
-	s := &pkt.slowPathRequest
+	s := pkt.slowPathRequest
 	switch s.typ {
 	case slowPathSCMP: //SCMP
 		var layer gopacket.SerializableLayer
@@ -1401,7 +1399,7 @@ func (p *scionPacketProcessor) validateHopExpiry() error {
 	}
 	log.Debug("SCMP: expired hop", "cons_dir", p.infoField.ConsDir, "if_id", p.pkt.ingress,
 		"curr_inf", p.path.PathMeta.CurrINF, "curr_hf", p.path.PathMeta.CurrHF)
-	p.pkt.slowPathRequest = slowPathRequest{
+	*p.pkt.slowPathRequest = slowPathRequest{
 		scmpType: slayers.SCMPTypeParameterProblem,
 		code:     slayers.SCMPCodePathExpired,
 		pointer:  p.currentHopPointer(),
@@ -1421,7 +1419,7 @@ func (p *scionPacketProcessor) validateIngressID() error {
 	if p.pkt.ingress != 0 && p.pkt.ingress != hdrIngressID {
 		log.Debug("SCMP: ingress interface invalid", "pkt_ingress",
 			hdrIngressID, "router_ingress", p.pkt.ingress)
-		p.pkt.slowPathRequest = slowPathRequest{
+		*p.pkt.slowPathRequest = slowPathRequest{
 			scmpType: slayers.SCMPTypeParameterProblem,
 			code:     errCode,
 			pointer:  p.currentHopPointer(),
@@ -1462,7 +1460,7 @@ func (p *scionPacketProcessor) validateSrcDstIA() error {
 // invalidSrcIA is a helper to return an SCMP error for an invalid SrcIA.
 func (p *scionPacketProcessor) invalidSrcIA() error {
 	log.Debug("SCMP: invalid source IA")
-	p.pkt.slowPathRequest = slowPathRequest{
+	*p.pkt.slowPathRequest = slowPathRequest{
 		scmpType: slayers.SCMPTypeParameterProblem,
 		code:     slayers.SCMPCodeInvalidSourceAddress,
 		pointer:  uint16(slayers.CmnHdrLen + addr.IABytes),
@@ -1475,7 +1473,7 @@ func (p *scionPacketProcessor) invalidSrcIA() error {
 // invalidDstIA is a helper to return an SCMP error for an invalid DstIA.
 func (p *scionPacketProcessor) invalidDstIA() error {
 	log.Debug("SCMP: invalid destination IA")
-	p.pkt.slowPathRequest = slowPathRequest{
+	*p.pkt.slowPathRequest = slowPathRequest{
 		scmpType: slayers.SCMPTypeParameterProblem,
 		code:     slayers.SCMPCodeInvalidDestinationAddress,
 		pointer:  uint16(slayers.CmnHdrLen),
@@ -1522,7 +1520,7 @@ func (p *scionPacketProcessor) validateEgressID() error {
 			errCode = slayers.SCMPCodeUnknownHopFieldIngress
 		}
 		log.Debug("SCMP: cannot route")
-		p.pkt.slowPathRequest = slowPathRequest{
+		*p.pkt.slowPathRequest = slowPathRequest{
 			scmpType: slayers.SCMPTypeParameterProblem,
 			code:     errCode,
 			pointer:  p.currentHopPointer(),
@@ -1554,7 +1552,7 @@ func (p *scionPacketProcessor) validateEgressID() error {
 		default: // malicious
 			log.Debug("SCMP: cannot route", "ingress_id", p.pkt.ingress,
 				"ingress_type", ingress, "egress_id", pktEgressID, "egress_type", egress)
-			p.pkt.slowPathRequest = slowPathRequest{
+			*p.pkt.slowPathRequest = slowPathRequest{
 				scmpType: slayers.SCMPTypeParameterProblem,
 				code:     slayers.SCMPCodeInvalidPath, // XXX(matzf) new code InvalidHop?,
 				pointer:  p.currentHopPointer(),
@@ -1579,7 +1577,7 @@ func (p *scionPacketProcessor) validateEgressID() error {
 	default:
 		log.Debug("SCMP: cannot route", "ingress_id", p.pkt.ingress, "ingress_type", ingress,
 			"egress_id", pktEgressID, "egress_type", egress)
-		p.pkt.slowPathRequest = slowPathRequest{
+		*p.pkt.slowPathRequest = slowPathRequest{
 			scmpType: slayers.SCMPTypeParameterProblem,
 			code:     slayers.SCMPCodeInvalidSegmentChange,
 			pointer:  p.currentInfoPointer(),
@@ -1622,7 +1620,7 @@ func (p *scionPacketProcessor) verifyCurrentMAC() error {
 			"cons_dir", p.infoField.ConsDir,
 			"if_id", p.pkt.ingress, "curr_inf", p.path.PathMeta.CurrINF,
 			"curr_hf", p.path.PathMeta.CurrHF, "seg_id", p.infoField.SegID)
-		p.pkt.slowPathRequest = slowPathRequest{
+		*p.pkt.slowPathRequest = slowPathRequest{
 			scmpType: slayers.SCMPTypeParameterProblem,
 			code:     slayers.SCMPCodeInvalidHopFieldMAC,
 			pointer:  p.currentHopPointer(),
@@ -1644,7 +1642,7 @@ func (p *scionPacketProcessor) resolveInbound() error {
 	if err == noSVCBackend {
 
 		log.Debug("SCMP: no SVC backend")
-		p.pkt.slowPathRequest = slowPathRequest{
+		*p.pkt.slowPathRequest = slowPathRequest{
 			scmpType: slayers.SCMPTypeDestinationUnreachable,
 			code:     slayers.SCMPCodeNoRoute,
 			cause:    err,
@@ -1727,7 +1725,7 @@ func (p *scionPacketProcessor) validateEgressUp() error {
 		if !v.IsUp() {
 			log.Debug("SCMP: bfd session down")
 			if _, external := p.d.external[egressID]; !external {
-				p.pkt.slowPathRequest = slowPathRequest{
+				*p.pkt.slowPathRequest = slowPathRequest{
 					scmpType:  slayers.SCMPTypeInternalConnectivityDown,
 					code:      0,
 					ia:        p.d.localIA,
@@ -1736,7 +1734,7 @@ func (p *scionPacketProcessor) validateEgressUp() error {
 					cause:     errBFDSessionDown,
 				}
 			} else {
-				p.pkt.slowPathRequest = slowPathRequest{
+				*p.pkt.slowPathRequest = slowPathRequest{
 					scmpType:    slayers.SCMPTypeExternalInterfaceDown,
 					code:        0,
 					ia:          p.d.localIA,
@@ -1763,7 +1761,7 @@ func (p *scionPacketProcessor) handleIngressRouterAlert() error {
 	if err := p.path.SetHopField(p.hopField, int(p.path.PathMeta.CurrHF)); err != nil {
 		return serrors.WrapStr("update hop field", err)
 	}
-	p.pkt.slowPathRequest = slowPathRequest{
+	*p.pkt.slowPathRequest = slowPathRequest{
 		typ:         slowPathRouterAlert,
 		interfaceId: p.pkt.ingress,
 	}
@@ -1791,7 +1789,7 @@ func (p *scionPacketProcessor) handleEgressRouterAlert() error {
 	if err := p.path.SetHopField(p.hopField, int(p.path.PathMeta.CurrHF)); err != nil {
 		return serrors.WrapStr("update hop field", err)
 	}
-	p.pkt.slowPathRequest = slowPathRequest{
+	*p.pkt.slowPathRequest = slowPathRequest{
 		typ:         slowPathRouterAlert,
 		interfaceId: egressID,
 	}
@@ -1843,7 +1841,7 @@ func (p *scionPacketProcessor) validatePktLen() error {
 	}
 	log.Debug("SCMP: bad packet size", "header", p.scionLayer.PayloadLen,
 		"actual", len(p.scionLayer.Payload))
-	p.pkt.slowPathRequest = slowPathRequest{
+	*p.pkt.slowPathRequest = slowPathRequest{
 		scmpType: slayers.SCMPTypeParameterProblem,
 		code:     slayers.SCMPCodeInvalidPacketSize,
 		pointer:  0,
@@ -1963,7 +1961,7 @@ func (p *scionPacketProcessor) process() error {
 		errCode = slayers.SCMPCodeUnknownHopFieldIngress
 	}
 	log.Debug("SCMP: cannot route")
-	p.pkt.slowPathRequest = slowPathRequest{
+	*p.pkt.slowPathRequest = slowPathRequest{
 		scmpType: slayers.SCMPTypeParameterProblem,
 		code:     errCode,
 		pointer:  p.currentHopPointer(),
