@@ -250,16 +250,3 @@ func (cfg *Tracing) NewTracer(id string) (opentracing.Tracer, io.Closer, error) 
 		jaegercfg.Extractor(opentracing.Binary, bp),
 		jaegercfg.Injector(opentracing.Binary, bp))
 }
-
-// QUIC contains configuration for control-plane speakers.
-type QUIC struct {
-	Address string `toml:"address,omitempty"`
-}
-
-func (cfg *QUIC) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
-	config.WriteString(dst, quicSample)
-}
-
-func (cfg *QUIC) ConfigName() string {
-	return "quic"
-}

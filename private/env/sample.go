@@ -51,9 +51,3 @@ debug = false
 # (default: localhost:6831)
 agent = "localhost:6831"
 `
-
-const quicSample = `
-# The address to start a QUIC server on (ip:port). If not set, a QUIC server on
-# the public IP and a high port is started. (default "")
-address = ""
-`
