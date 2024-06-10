@@ -34,16 +34,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// Package metrics contains interfaces for generic metrics primitives, to facilitate
-// mocking metrics in unit tests.
+// Package metrics contains interfaces for generic metrics primitives, to
+// facilitate mocking metrics in unit tests.
 //
-// Most packages will want to use the types in this package, leaving the choice of
-// metric implementation (e.g., Prometheus) to the application main function.
+// Most packages will want to use the types in this package, leaving the choice
+// of metric implementation (e.g., Prometheus) to the application main function.
 //
-// The types are taken from the metrics interfaces in the go-kit/kit project
-// (see https://github.com/go-kit/kit). See https://godoc.org/github.com/go-kit/kit/metrics
-// for more information about the reasoning behind the types, and examples of how they can
-// be used. See this source file for the full license attribution.
+// The types closely follow the Prometheus Go client library interfaces, for
+// easy plugging of Prometheus metrics.
 package metrics
 
 import (
@@ -96,8 +94,14 @@ func GaugeSet(g Gauge, value float64) {
 // GaugeSetTimestamp sets the passed gauge to the specified time stamp.
 // This is a no-op if g is nil.
 func GaugeSetTimestamp(g Gauge, ts time.Time) {
+	timestamp := func(ts time.Time) float64 {
+		if ts.IsZero() {
+			return 0
+		}
+		return float64(ts.UnixNano()) / 1e9
+	}
 	if g != nil {
-		g.Set(Timestamp(ts))
+		g.Set(timestamp(ts))
 	}
 }
 

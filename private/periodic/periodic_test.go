@@ -38,11 +38,10 @@ func (tf taskFunc) Name() string {
 }
 
 func TestPeriodicExecution(t *testing.T) {
-	events := metrics.NewTestCounter()
 	m := periodic.Metrics{
-		StopEvents:    events.With("event_type", periodic.EventStop),
-		KillEvents:    events.With("event_type", periodic.EventKill),
-		TriggerEvents: events.With("event_type", periodic.EventTrigger),
+		StopEvents:    metrics.NewTestCounter(),
+		KillEvents:    metrics.NewTestCounter(),
+		TriggerEvents: metrics.NewTestCounter(),
 		// Without additional metrics
 	}
 
@@ -84,11 +83,10 @@ func TestPeriodicExecution(t *testing.T) {
 }
 
 func TestKillExitsLongRunningFunc(t *testing.T) {
-	events := metrics.NewTestCounter()
 	m := periodic.Metrics{
-		StopEvents:    events.With("event_type", periodic.EventStop),
-		KillEvents:    events.With("event_type", periodic.EventKill),
-		TriggerEvents: events.With("event_type", periodic.EventTrigger),
+		StopEvents:    metrics.NewTestCounter(),
+		KillEvents:    metrics.NewTestCounter(),
+		TriggerEvents: metrics.NewTestCounter(),
 		// Without additional metrics
 	}
 	done, errChan := make(chan struct{}), make(chan error, 1)
@@ -121,11 +119,10 @@ func TestKillExitsLongRunningFunc(t *testing.T) {
 }
 
 func TestTaskDoesNotRunAfterKill(t *testing.T) {
-	events := metrics.NewTestCounter()
 	m := periodic.Metrics{
-		StopEvents:    events.With("event_type", periodic.EventStop),
-		KillEvents:    events.With("event_type", periodic.EventKill),
-		TriggerEvents: events.With("event_type", periodic.EventTrigger),
+		StopEvents:    metrics.NewTestCounter(),
+		KillEvents:    metrics.NewTestCounter(),
+		TriggerEvents: metrics.NewTestCounter(),
 		// With additional metrics
 		Period:    metrics.NewTestGauge(),
 		Runtime:   metrics.NewTestGauge(),
@@ -175,11 +172,10 @@ func TestTaskDoesNotRunAfterKill(t *testing.T) {
 }
 
 func TestTriggerNow(t *testing.T) {
-	events := metrics.NewTestCounter()
 	m := periodic.Metrics{
-		StopEvents:    events.With("event_type", periodic.EventStop),
-		KillEvents:    events.With("event_type", periodic.EventKill),
-		TriggerEvents: events.With("event_type", periodic.EventTrigger),
+		StopEvents:    metrics.NewTestCounter(),
+		KillEvents:    metrics.NewTestCounter(),
+		TriggerEvents: metrics.NewTestCounter(),
 		// With additional metrics
 		Period:    metrics.NewTestGauge(),
 		Runtime:   metrics.NewTestGauge(),

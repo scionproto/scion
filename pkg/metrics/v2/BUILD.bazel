@@ -4,7 +4,6 @@ go_library(
     name = "go_default_library",
     srcs = [
         "fakes.go",
-        "helper.go",
         "metrics.go",
     ],
     importpath = "github.com/scionproto/scion/pkg/metrics/v2",
