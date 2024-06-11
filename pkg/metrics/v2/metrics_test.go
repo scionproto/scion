@@ -45,5 +45,7 @@ func ExampleCounter_implementation() {
 		}),
 	}
 	giant.MagicBeansEaten.Add(4)
+	giant.RedPillsEaten.Add(2)
+	giant.BluePillsEaten.Add(1)
 	// LITERALINCLUDE ExampleCounter_Implementation END
 }
