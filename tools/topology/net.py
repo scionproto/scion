@@ -37,11 +37,7 @@ from typing import Mapping, Union
 import yaml
 
 # SCION
-from topology.defines import DEFAULT6_NETWORK_ADDR
-
-DEFAULT_NETWORK = "127.0.0.0/8"
-DEFAULT_PRIV_NETWORK = "192.168.0.0/16"
-DEFAULT_SCN_DC_NETWORK = "172.20.0.0/20"
+from topology.defines import DEFAULT_NETWORK, DEFAULT_SCN_DC_NETWORK, DEFAULT6_NETWORK_ADDR
 
 IPAddress = Union[IPv4Address, IPv6Address]
 IPNetwork = Union[IPv4Network, IPv6Network]
