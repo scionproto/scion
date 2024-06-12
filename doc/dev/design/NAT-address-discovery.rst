@@ -134,6 +134,18 @@ Breaking changes
 
 This change should not break anything.
 
+However, there are some points that may need more discussion:
+
+- Return paths: the proposal requires packets that come from a server to arrive through the same BR that was used for an
+  outgoing request. This currently seems to be the default behavior of servers, but it is not a behavior required
+  by the current standard.
+
+- Dispatcherless port range: What if the the port mapping at the NAT doesn't result in a L4 port that is within the
+  `"dispatched_ports" range <https://docs.scion.org/en/latest/dev/design/router-port-dispatch.html>`_ ?
+  The last-hop BR would then choose the fixed end-host data port (default 30041) as the underlay UDP/IP destination port
+  and NAT mapping would fail. Contrary to point (1.) this problem would at least be detectable by the endhost before
+  based on the proposed NAT IP/port discovery mechanism.
+
 Transition
 ----------
 
