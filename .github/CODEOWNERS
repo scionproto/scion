@@ -11,7 +11,6 @@
 # - Either Dominik (oncilla) or Lukas (lukedirtwalker) should be involved for
 #   changes that could impact the compatibility between this implementation and
 #   their proprietary system.
-# - Matthias (matzf) would like to be involved for changes to the router
 antlr/** @oncilla @lukedirtwalker
 control/trust/** @oncilla
 gateway/dataplane/encoder.go @oncilla @lukedirtwalker
@@ -21,6 +20,5 @@ pkg/slayers/** @scionproto/scion-core-team
 pkg/snet/** @scionproto/scion-core-team
 private/trust/** @oncilla
 proto/** @oncilla @lukedirtwalker
-router/dataplane.go @matzf
 scion-pki/** @oncilla
 tools/braccept/cases/** @scionproto/scion-core-team
