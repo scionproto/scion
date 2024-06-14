@@ -40,6 +40,11 @@ DEFAULT_MTU = 1500 - 20 - 8
 #: IPv6 min value
 SCION_MIN_MTU = 1280
 
+# Default IPv4 network
+DEFAULT_NETWORK = "127.0.0.0/8"
+DEFAULT_PRIV_NETWORK = "192.168.0.0/16"
+DEFAULT_SCN_DC_NETWORK = "172.20.0.0/20"
+
 # Default IPv6 network, our equivalent to 127.0.0.0/8
 # https://en.wikipedia.org/wiki/Unique_local_address#Definition
 DEFAULT6_MASK = "/104"
