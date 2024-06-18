@@ -34,7 +34,7 @@ import (
 
 // oneInTransit generates one packet of "in_transit" traffic over the router under test.
 // The outcome is a raw packet that the test must feed into the router. The flow ID is 0.
-func InTransit(payload []byte, mac hash.Hash) (string, string, []byte) {
+func InTransit(packetSize int, mac hash.Hash) (string, string, []byte, []byte) {
 
 	var (
 		originIA       = ISDAS(2)
@@ -119,12 +119,27 @@ func InTransit(payload []byte, mac hash.Hash) (string, string, []byte) {
 	scionudp.DstPort = 50000
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
-	// Prepare input packet
+	// Prepare input packet. First with a 1 byte payload to find the hdr size.
 	input := gopacket.NewSerializeBuffer()
+	if err := gopacket.SerializeLayers(input, options,
+		ethernet, ip, udp, scionL, scionudp, gopacket.Payload([]byte{0}),
+	); err != nil {
+		panic(err)
+	}
+	hdrLen := len(input.Bytes()) - 1
+
+	// Now rebuilt it with the properly sized payload
+	payloadLen := packetSize - hdrLen
+	if payloadLen < 0 {
+		payloadLen = 0
+	}
+	payload := make([]byte, payloadLen)
+	copy(payload[:], []byte("actualpayloadbytes"))
 	if err := gopacket.SerializeLayers(input, options,
 		ethernet, ip, udp, scionL, scionudp, gopacket.Payload(payload),
 	); err != nil {
 		panic(err)
 	}
-	return DeviceName(1, 2), DeviceName(1, 0), input.Bytes()
+
+	return DeviceName(1, 2), DeviceName(1, 0), payload, input.Bytes()
 }

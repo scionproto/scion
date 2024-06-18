@@ -40,14 +40,13 @@ const allBufs = 8192
 const cycleStep = 5 // Must not divide any working set size, must not be 1.
 
 // Block is a packet buffer representation arranged to make it easy to copy 1, 172 or 4096
-// bytes. It is exported to make sure go cannot optimize fields out. Missalign is exported
-// so lint doesn't complain.
+// bytes. It is exported to make sure go cannot optimize fields out.
 type Block struct {
 	page struct {
 		packet [172]uint8
 		tail   [4096 - 172]uint8
 	}
-	Missalign [64]uint8
+	missalign [64]uint8 //nolint:unused
 }
 
 var buf [allBufs]Block
@@ -92,7 +91,7 @@ func benchmarkCopyPacket(N int, numBufs int) {
 	}
 }
 
-// benchmarkCopyBlock copies a short packet from a block to another
+// benchmarkCopyBlock copies a large packet from a block to another
 func benchmarkCopyBlock(N int, numBufs int) {
 	for i := N; i > 0; i-- {
 		dst, src := nextPair(numBufs)

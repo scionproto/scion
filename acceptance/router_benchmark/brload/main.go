@@ -38,7 +38,7 @@ import (
 	"github.com/scionproto/scion/private/keyconf"
 )
 
-type Case func(payload []byte, mac hash.Hash) (string, string, []byte)
+type Case func(packetSize int, mac hash.Hash) (string, string, []byte, []byte)
 
 type caseChoice string
 
@@ -163,14 +163,8 @@ func run(cmd *cobra.Command) int {
 	registerScionPorts()
 
 	log.Info("BRLoad acceptance tests:")
-	if packetSize < 154 {
-		packetSize = 154
-	}
-	payloadSize := packetSize - 154
-	payload := make([]byte, payloadSize)
-	copy(payload[:], []byte("actualpayloadbytes"))
 	caseFunc := allCases[string(caseToRun)] // key already checked.
-	caseDevIn, caseDevOut, rawPkt := caseFunc(payload, hfMAC)
+	caseDevIn, caseDevOut, payload, rawPkt := caseFunc(packetSize, hfMAC)
 
 	writePktTo, ok := handles[caseDevIn]
 	if !ok {
@@ -196,30 +190,34 @@ func run(cmd *cobra.Command) int {
 		listenerChan <- receivePackets(packetChan, payload)
 	}()
 
-	// We started everything that could be started. So the best window for perf mertics
-	// opens somewhere around now.
-	metricsBegin := time.Now().Unix()
-	metricsEnd := metricsBegin + int64(testDuration.Seconds())
-
 	// Because we're using IPV4 only, the UDP checksum is optional, so we are allowed to
 	// just set it to zero instead of recomputing it. The IP checksum does not cover the payload, so
 	// we don't need to update it.
 	binary.BigEndian.PutUint16(rawPkt[40:42], 0)
 
-	for time.Now().Unix() < metricsEnd {
+	// We started everything that could be started. So the best window for perf mertics
+	// opens somewhere around now.
+	begin := time.Now()
+	metricsBegin := begin.Unix()
+
+	numPkt := 0
+	for time.Since(begin) < testDuration {
 		// Check the time only once every 10000 packets
 		for i := 0; i < 10000; i++ {
 			// Rotate through flowIDs. We patch it directly into the SCION header of the packet. The
 			// SCION header starts at offset 42. The flowID is the 20 least significant bits of the
 			// first 32 bit field. To make our life simpler, we only use the last 16 bits (so no
 			// more than 64K flows).
-			binary.BigEndian.PutUint16(rawPkt[44:46], uint16(i%int(numStreams)))
+			binary.BigEndian.PutUint16(rawPkt[44:46], uint16(numPkt%int(numStreams)))
+			numPkt++
 			if err := writePktTo.WritePacketData(rawPkt); err != nil {
 				log.Error("writing input packet", "case", string(caseToRun), "error", err)
 				return 1
 			}
 		}
 	}
+
+	metricsEnd := time.Now().Unix()
 
 	// The test harness looks for this output. [metricsBegin, metricsEnd] needs to be fully
 	// contained in the period when we were actually transmitting, but can be a bit smaller.
@@ -271,14 +269,19 @@ func receivePackets(packetChan chan gopacket.Packet, payload []byte) int {
 		}
 		layer := got.Layer(gopacket.LayerTypePayload)
 		if layer == nil {
-			log.Error("error fetching packet payload: no PayLoad")
+			// Don't treat this as an error. This could be random traffic we don't know about.
 			continue
 		}
 		checkLen := len(payload)
+		if checkLen != len(layer.LayerContents()) {
+			// Still not one of ours.
+			continue
+		}
 		if checkLen > 20 {
 			checkLen = 20
 		}
 		if bytes.HasPrefix(layer.LayerContents(), payload[:checkLen]) {
+			// That's ours.
 			// To return the count of all packets received, just remove the "return" below.
 			// Return will occur once packetChan closes (which happens after a short timeout at
 			// the end of the test).
