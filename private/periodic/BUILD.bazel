@@ -2,14 +2,18 @@ load("//tools/lint:go.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = ["periodic.go"],
+    srcs = [
+        "legacy_metrics.go",
+        "periodic.go",
+    ],
     importpath = "github.com/scionproto/scion/private/periodic",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/log:go_default_library",
-        "//pkg/metrics:go_default_library",
-        "//private/periodic/internal/metrics:go_default_library",
+        "//pkg/metrics/v2:go_default_library",
+        "@com_github_iancoleman_strcase//:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus:go_default_library",
     ],
 )
 
@@ -18,7 +22,7 @@ go_test(
     srcs = ["periodic_test.go"],
     deps = [
         ":go_default_library",
-        "//pkg/metrics:go_default_library",
+        "//pkg/metrics/v2:go_default_library",
         "//pkg/private/xtest:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
     ],
