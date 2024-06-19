@@ -134,12 +134,14 @@ func (p *packet) init(buffer *[bufSize]byte) *packet {
 // that must be reset before any use and those that it is economical to initialize:
 // * Necessary: restore packet buffer to full length (before passing to readBatch).
 // * Economical: clearing dstAddr (otherwise it would need to be cleared in many code paths).
+// * Economical: clearing egress ID (otherwise it would need to be cleared in many code paths).
 // * Economical: setting disp to DISCARD (for the same reason).
 // A cleared dstAddr is represented with a zero-length IP so we keep reusing the IP storage bytes.
 // Alternatively we could have a permanent storage for dstAddr and set the ptr to nil ptr as will.
 func (p *packet) reset() {
 	p.rawPacket = p.rawPacket[:cap(p.rawPacket)]
 	p.dstAddr.IP = p.dstAddr.IP[0:0]
+	p.egress = 0
 	p.disp = DISCARD
 }
 
@@ -929,6 +931,7 @@ func (p *slowPathPacketProcessor) processPacket(pkt *packet) error {
 		//unsupported path type
 		return serrors.New("Path type not supported for slow-path", "type", pathType)
 	}
+
 	s := pkt.slowPathRequest
 	switch s.typ {
 	case slowPathSCMP: //SCMP
@@ -1339,6 +1342,9 @@ func (p *slowPathPacketProcessor) packSCMP(
 		copy(p.pkt.rawPacket, rawSCMP)
 	}
 
+	// We're about to send a packet that has little to do with the one we received.
+	// The original traffic type, if one had been set, no-longer applies.
+	p.pkt.trafficType = ttOther
 	p.pkt.egress = p.pkt.ingress
 	updateNetAddrFromNetAddr(p.pkt.dstAddr, p.pkt.srcAddr)
 	return err
