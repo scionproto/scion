@@ -85,7 +85,7 @@ type BatchConn interface {
 	Close() error
 }
 
-type PacketDisp uint8
+type PacketDisp int
 
 const (
 	DISCARD PacketDisp = iota // Zero value, default.
