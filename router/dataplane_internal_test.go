@@ -535,12 +535,12 @@ func TestSlowPathProcessing(t *testing.T) {
 			copy(pkt.rawPacket, rp)
 
 			processor := newPacketProcessor(dp)
-			err := processor.processPkt(&pkt)
-			assert.ErrorIs(t, err, SlowPathRequired)
+			disp := processor.processPkt(&pkt)
+			assert.Equal(t, disp, SLOWPATH)
 
 			assert.Equal(t, tc.expectedSlowPathRequest, *pkt.slowPathRequest)
 			slowPathProcessor := newSlowPathProcessor(dp)
-			err = slowPathProcessor.processPacket(&pkt)
+			err := slowPathProcessor.processPacket(&pkt)
 			assert.NoError(t, err)
 
 			// here we parse the outgoing packet to verify that it contains the correct SCMP

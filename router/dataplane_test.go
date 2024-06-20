@@ -35,7 +35,6 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	libepic "github.com/scionproto/scion/pkg/experimental/epic"
 	"github.com/scionproto/scion/pkg/private/ptr"
-	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto"
@@ -619,6 +618,18 @@ func TestDataPlaneRun(t *testing.T) {
 	}
 }
 
+// Returns true if we expect no output packet.
+// That includes the processing of BFD packets.
+func discarded(t *testing.T, disp router.PacketDisp) {
+	require.Equal(t, disp, router.DISCARD)
+}
+
+// Returns trues if we expect an output packet.
+// That includes slowpath processing.
+func notDiscarded(t *testing.T, disp router.PacketDisp) {
+	require.NotEqual(t, disp, router.DISCARD)
+}
+
 func TestProcessPkt(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -641,7 +652,7 @@ func TestProcessPkt(t *testing.T) {
 		prepareDP       func(*gomock.Controller) *router.DataPlane
 		srcInterface    uint16
 		egressInterface uint16
-		assertFunc      assert.ErrorAssertionFunc
+		assertFunc      func(*testing.T, router.PacketDisp)
 	}{
 		"inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -671,7 +682,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    1,
 			egressInterface: 0,
-			assertFunc:      assert.NoError,
+			assertFunc:      notDiscarded,
 		},
 		"inbound_longpath": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -713,14 +724,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    1,
 			egressInterface: 0,
-			assertFunc: func(t assert.TestingT, err error, _ ...interface{}) bool {
-				if !assert.Error(t, err) {
-					return false
-				}
-				expected := serrors.New("NumHops too large",
-					"NumHops", 65, "Maximum", scion.MaxHops)
-				return assert.Equal(t, expected.Error(), err.Error())
-			},
+			assertFunc:      discarded,
 		},
 		"outbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -757,7 +761,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    0,
 			egressInterface: 1,
-			assertFunc:      assert.NoError,
+			assertFunc:      notDiscarded,
 		},
 		"brtransit": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -795,7 +799,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    1,
 			egressInterface: 2,
-			assertFunc:      assert.NoError,
+			assertFunc:      notDiscarded,
 		},
 		"brtransit non consdir": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -833,7 +837,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    1,
 			egressInterface: 2,
-			assertFunc:      assert.NoError,
+			assertFunc:      notDiscarded,
 		},
 		"brtransit peering consdir": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -907,7 +911,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    1, // from peering link
 			egressInterface: 2,
-			assertFunc:      assert.NoError,
+			assertFunc:      notDiscarded,
 		},
 		"brtransit peering non consdir": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -987,7 +991,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    2, // from child link
 			egressInterface: 1,
-			assertFunc:      assert.NoError,
+			assertFunc:      notDiscarded,
 		},
 		"peering consdir downstream": {
 			// Similar to previous test case but looking at what
@@ -1067,7 +1071,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    1,
 			egressInterface: 2,
-			assertFunc:      assert.NoError,
+			assertFunc:      notDiscarded,
 		},
 		"peering non consdir upstream": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -1156,7 +1160,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    2, // from child link
 			egressInterface: 1,
-			assertFunc:      assert.NoError,
+			assertFunc:      notDiscarded,
 		},
 		"astransit direct": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -1192,7 +1196,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    1,
 			egressInterface: 0, // Internal forward to the egress router
-			assertFunc:      assert.NoError,
+			assertFunc:      notDiscarded,
 		},
 		"astransit xover": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -1248,7 +1252,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    51, // == consEgress, bc non-consdir
 			egressInterface: 0,  // Cross-over. The egress happens in the next segment.
-			assertFunc:      assert.NoError,
+			assertFunc:      notDiscarded,
 		},
 		"svc": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -1286,7 +1290,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    1,
 			egressInterface: 0,
-			assertFunc:      assert.NoError,
+			assertFunc:      notDiscarded,
 		},
 		"onehop inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -1351,7 +1355,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    1,
 			egressInterface: 0,
-			assertFunc:      assert.NoError,
+			assertFunc:      notDiscarded,
 		},
 		"onehop inbound invalid src": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -1390,7 +1394,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    2,
 			egressInterface: 21,
-			assertFunc:      assert.Error,
+			assertFunc:      discarded,
 		},
 		"reversed onehop outbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -1453,7 +1457,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    0,
 			egressInterface: 1,
-			assertFunc:      assert.NoError,
+			assertFunc:      notDiscarded,
 		},
 		"onehop outbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -1500,7 +1504,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    0,
 			egressInterface: 2,
-			assertFunc:      assert.NoError,
+			assertFunc:      notDiscarded,
 		},
 		"epic inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -1518,7 +1522,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    1,
 			egressInterface: 0,
-			assertFunc:      assert.NoError,
+			assertFunc:      notDiscarded,
 		},
 		"epic malformed path": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -1537,7 +1541,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    1,
 			egressInterface: 0,
-			assertFunc:      assert.Error,
+			assertFunc:      discarded,
 		},
 		"epic invalid timestamp": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -1558,7 +1562,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    1,
 			egressInterface: 0,
-			assertFunc:      assert.Error,
+			assertFunc:      discarded,
 		},
 		"epic invalid LHVF": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -1579,7 +1583,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			srcInterface:    1,
 			egressInterface: 0,
-			assertFunc:      assert.Error,
+			assertFunc:      discarded,
 		},
 	}
 
@@ -1590,9 +1594,9 @@ func TestProcessPkt(t *testing.T) {
 			dp := tc.prepareDP(ctrl)
 			input, want := tc.mockMsg(false), tc.mockMsg(true)
 			pkt := router.NewPacket(input, tc.srcInterface)
-			err := dp.ProcessPkt(pkt)
-			tc.assertFunc(t, err)
-			if err != nil {
+			disp := dp.ProcessPkt(pkt)
+			tc.assertFunc(t, disp)
+			if disp == router.DISCARD {
 				return
 			}
 			out := pkt.ToIpv4Msg()

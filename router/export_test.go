@@ -120,11 +120,11 @@ func (d *DataPlane) FakeStart() {
 	d.running = true
 }
 
-func (d *DataPlane) ProcessPkt(pkt *Packet) error {
+func (d *DataPlane) ProcessPkt(pkt *Packet) PacketDisp {
 
 	p := newPacketProcessor(d)
-	err := p.processPkt(&(pkt.packet))
-	return err
+	disp := p.processPkt(&(pkt.packet))
+	return disp
 }
 
 func ExtractServices(s *services) map[addr.SVC][]netip.AddrPort {
