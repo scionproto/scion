@@ -20,6 +20,7 @@ import json
 import logging
 import shutil
 import time
+import os
 
 from acceptance.common import base
 from benchmarklib import Intf, RouterBM
@@ -34,6 +35,9 @@ logger = logging.getLogger(__name__)
 
 # Default packet length for CI testing
 BM_PACKET_SIZE = 172
+
+# Router profiling ON or OFF?
+PROFILING = False
 
 # Those values are valid expectations only when running in the CI environment.
 TEST_CASES = {
@@ -357,6 +361,10 @@ class RouterBMTest(base.TestBase, RouterBM):
         # Ship it.
         self.intf_map[req.label] = Intf(host_intf, mac, peer_mac)
 
+        # If that's an exclusive interface pair, we can use it to profile the router:
+        if req.exclusive == "true":
+            self.profiling_addr = req.ip
+
     def fetch_horsepower(self):
         try:
             coremark_exe = self.get_executable("coremark")
@@ -431,9 +439,6 @@ class RouterBMTest(base.TestBase, RouterBM):
             t = IntfReq._make(elems)
             self.create_interface(t, "benchmark")
 
-        # We don't need that symlink any more
-        sudo("rm", "/var/run/netns/benchmark")
-
         # Now the router can start.
         docker("run",
                "-v", f"{self.artifacts}/conf:/etc/scion",
@@ -449,6 +454,21 @@ class RouterBMTest(base.TestBase, RouterBM):
         # Collect the horsepower microbenchmark numbers if we can.
         # They'll be used to produce a performance index.
         self.fetch_horsepower()
+
+        # Optionally profile the router
+        if PROFILING:
+            docker("run",
+                   "--rm",
+                   "-d",
+                   "-u", os.getuid(),
+                   "-v", f"{self.artifacts}:/out",
+                   "--network", "container:prometheus",
+                   "curlimages/curl",
+                   f"{self.profiling_addr}:30442/debug/pprof/profile?seconds=70",
+                   "-o", "/out/cpu.pprof")
+
+        # We don't need that symlink any more
+        sudo("rm", "/var/run/netns/benchmark")
 
     def teardown(self):
         docker["logs", "router"].run_fg(retcode=None)
