@@ -106,27 +106,6 @@ func In(packetSize int, mac hash.Hash) (string, string, []byte, []byte) {
 	scionudp.DstPort = 50000
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
-	// Prepare input packet. First with a 1 byte payload to find the hdr size.
-	input := gopacket.NewSerializeBuffer()
-	if err := gopacket.SerializeLayers(input, options,
-		ethernet, ip, udp, scionL, scionudp, gopacket.Payload([]byte{0}),
-	); err != nil {
-		panic(err)
-	}
-	hdrLen := len(input.Bytes()) - 1
-
-	// Now rebuilt it with the properly sized payload
-	payloadLen := packetSize - hdrLen
-	if payloadLen < 0 {
-		payloadLen = 0
-	}
-	payload := make([]byte, payloadLen)
-	copy(payload[:], []byte("actualpayloadbytes"))
-	if err := gopacket.SerializeLayers(input, options,
-		ethernet, ip, udp, scionL, scionudp, gopacket.Payload(payload),
-	); err != nil {
-		panic(err)
-	}
-
-	return DeviceName(1, 2), DeviceName(1, 0), payload, input.Bytes()
+	payload, packet := mkPacket(packetSize, options, ethernet, ip, udp, scionL, scionudp)
+	return DeviceName(1, 2), DeviceName(1, 0), payload, packet
 }

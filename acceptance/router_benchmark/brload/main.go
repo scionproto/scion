@@ -272,15 +272,7 @@ func receivePackets(packetChan chan gopacket.Packet, payload []byte) int {
 			// Don't treat this as an error. This could be random traffic we don't know about.
 			continue
 		}
-		checkLen := len(payload)
-		if checkLen != len(layer.LayerContents()) {
-			// Still not one of ours.
-			continue
-		}
-		if checkLen > 20 {
-			checkLen = 20
-		}
-		if bytes.HasPrefix(layer.LayerContents(), payload[:checkLen]) {
+		if bytes.Equal(layer.LayerContents(), payload) {
 			// That's ours.
 			// To return the count of all packets received, just remove the "return" below.
 			// Return will occur once packetChan closes (which happens after a short timeout at

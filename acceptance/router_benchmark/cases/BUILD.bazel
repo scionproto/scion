@@ -9,6 +9,7 @@ go_library(
         "out.go",
         "out_transit.go",
         "topo.go",
+        "helpers.go",
     ],
     importpath = "github.com/scionproto/scion/acceptance/router_benchmark/cases",
     visibility = [
