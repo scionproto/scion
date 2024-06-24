@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -37,7 +38,7 @@ import (
 	"github.com/scionproto/scion/private/keyconf"
 )
 
-type Case func(payload string, mac hash.Hash) (string, string, []byte)
+type Case func(packetSize int, mac hash.Hash) (string, string, []byte, []byte)
 
 type caseChoice string
 
@@ -70,12 +71,13 @@ var (
 		"out_transit": cases.OutTransit,
 		"br_transit":  cases.BrTransit,
 	}
-	logConsole string
-	dir        string
-	numPackets int
-	numStreams uint16
-	caseToRun  caseChoice
-	interfaces []string
+	logConsole   string
+	dir          string
+	testDuration time.Duration
+	packetSize   int
+	numStreams   uint16
+	caseToRun    caseChoice
+	interfaces   []string
 )
 
 func main() {
@@ -97,7 +99,8 @@ func main() {
 			os.Exit(run(cmd))
 		},
 	}
-	runCmd.Flags().IntVar(&numPackets, "num-packets", 10, "Number of packets to send")
+	runCmd.Flags().DurationVar(&testDuration, "duration", time.Second*15, "Test duration")
+	runCmd.Flags().IntVar(&packetSize, "packet-size", 172, "Total size of each packet sent")
 	runCmd.Flags().Uint16Var(&numStreams, "num-streams", 4,
 		"Number of independent streams (flowID) to use")
 	runCmd.Flags().StringVar(&logConsole, "log.console", "error",
@@ -160,10 +163,8 @@ func run(cmd *cobra.Command) int {
 	registerScionPorts()
 
 	log.Info("BRLoad acceptance tests:")
-
-	payloadString := "actualpayloadbytes"
 	caseFunc := allCases[string(caseToRun)] // key already checked.
-	caseDevIn, caseDevOut, rawPkt := caseFunc(payloadString, hfMAC)
+	caseDevIn, caseDevOut, payload, rawPkt := caseFunc(packetSize, hfMAC)
 
 	writePktTo, ok := handles[caseDevIn]
 	if !ok {
@@ -186,7 +187,7 @@ func run(cmd *cobra.Command) int {
 	go func() {
 		defer log.HandlePanic()
 		defer close(listenerChan)
-		listenerChan <- receivePackets(packetChan, payloadString)
+		listenerChan <- receivePackets(packetChan, payload)
 	}()
 
 	// Because we're using IPV4 only, the UDP checksum is optional, so we are allowed to
@@ -210,22 +211,29 @@ func run(cmd *cobra.Command) int {
 	// opens somewhere around now.
 	metricsBegin := time.Now().Unix()
 
-	for i := 0; i < numPackets; i += batchSize {
-		// Rotate through flowIDs. We patch it directly into the SCION header of the packet.  The
-		// SCION header starts at offset 42. The flowID is the 20 least significant bits of the
-		// first 32 bit field. To make our life simpler, we only use the last 16 bits (so no more
-		// than 64K flows).
-		for j := 0; j < batchSize; j++ {
-			binary.BigEndian.PutUint16(allPkts[j][44:46], uint16((i+j)%int(numStreams)))
-		}
-		if _, err := sender.sendAll(); err != nil {
-			log.Error("writing input packet", "case", string(caseToRun), "error", err)
-			return 1
+	numPkt := 0
+	for time.Since(begin) < testDuration {
+    // we break every 1000 batches to check the time 
+    for i := 0; i < 1000; i++ {
+      // Rotate through flowIDs. We patch it directly into the SCION header of the packet. The
+			// SCION header starts at offset 42. The flowID is the 20 least significant bits of the
+			// first 32 bit field. To make our life simpler, we only use the last 16 bits (so no
+			// more than 64K flows).
+		  for j := 0; j < batchSize; j++ {
+			  binary.BigEndian.PutUint16(allPkts[j][44:46], uint16(numPkt%int(numStreams)))
+        numPkt++
+		  }
+		  if _, err := sender.sendAll(); err != nil {
+			  log.Error("writing input packet", "case", string(caseToRun), "error", err)
+			  return 1
+      }
 		}
 	}
 
 	metricsEnd := time.Now().Unix()
-	// The test harness looks for this output.
+
+	// The test harness looks for this output. [metricsBegin, metricsEnd] needs to be fully
+	// contained in the period when we were actually transmitting, but can be a bit smaller.
 	fmt.Printf("metricsBegin: %d metricsEnd: %d\n", metricsBegin, metricsEnd)
 
 	// Get the results from the packet listener.
@@ -256,7 +264,7 @@ func run(cmd *cobra.Command) int {
 // The number of consumed packets is returned.
 // Currently we are content with receiving a single correct packet and we terminate after
 // that.
-func receivePackets(packetChan chan gopacket.Packet, payload string) int {
+func receivePackets(packetChan chan gopacket.Packet, payload []byte) int {
 	numRcv := 0
 
 	for {
@@ -267,15 +275,18 @@ func receivePackets(packetChan chan gopacket.Packet, payload string) int {
 			return numRcv
 		}
 		if err := got.ErrorLayer(); err != nil {
-			log.Error("error decoding packet", "err", err)
+			// This isn't an error. There is all sort of traffic that we might not know about
+			// and not be able to read.
+			// log.Error("error decoding packet", "err", err)
 			continue
 		}
 		layer := got.Layer(gopacket.LayerTypePayload)
 		if layer == nil {
-			log.Error("error fetching packet payload: no PayLoad")
+			// Don't treat this as an error. This could be random traffic we don't know about.
 			continue
 		}
-		if string(layer.LayerContents()) == payload {
+		if bytes.Equal(layer.LayerContents(), payload) {
+			// That's ours.
 			// To return the count of all packets received, just remove the "return" below.
 			// Return will occur once packetChan closes (which happens after a short timeout at
 			// the end of the test).

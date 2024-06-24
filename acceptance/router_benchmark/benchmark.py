@@ -95,6 +95,8 @@ class RouterBMTool(cli.Application, RouterBM):
                               help="The coremark score of the subject machine.")
     mmbm = cli.SwitchAttr(["m", "mmbm"], int, default=0,
                           help="The mmbm score of the subject machine.")
+    packet_size = cli.SwitchAttr(["s", "size"], int, default=172,
+                                 help="Test packet size (includes all headers - floored at 154).")
     intf_map: dict[str, Intf] = {}
     brload: LocalCommand = local["./bin/brload"]
     brload_cpus: list[int] = []
@@ -158,8 +160,7 @@ class RouterBMTool(cli.Application, RouterBM):
             if i.name == host_intf:
                 break
         else:
-            # TODO: instructions/warning regarding inability to enable jumbo frames.
-            # sudo("ip", "link", "set", host_intf, "mtu", "8000")
+            sudo("ip", "link", "set", host_intf, "mtu", "9000")
 
             # Do not assign the host addresses but create one link-local addr.
             # Brload needs some src IP to send arp requests. (This requires rp_filter
@@ -291,16 +292,16 @@ INSTRUCTIONS:
     bmtools includes two microbenchmarks: scion-coremark and scion-mmbm. Those will run
     automatically and the results will be used to improve the benchmark report.
 
-    Optinal: If you did not install bmtools.ipk, install and run those microbenchmark and make a
+    Optional: If you did not install bmtools.ipk, install and run those microbenchmarks and make a
     note of the results: (scion-coremark; scion-mmbm).
 
 2 - Configure the following interfaces on your router (The procedure depends on your router
-    UI):
+    UI) - All interfaces should have the mtu set to 9000:
     - One physical interface with addresses: {", ".join(multiplexed)}
 {nl.join(['    - One physical interface with address: ' + s for s in exclusives])}
 
     IMPORTANT: if you're using a partitioned network (eg. multiple switches or no switches),
-    the "must reach" annotation matters. The 'h' number is the order in which the corresponding host
+    the "must reach" annotation matters. The '#' number is the order in which the corresponding host
     interface must be given on the command line in step 7.
 
 3 - Connect the corresponding ports into your test switch (best if dedicated for the test).
