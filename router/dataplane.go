@@ -16,7 +16,6 @@
 package router
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
@@ -82,7 +81,7 @@ type bfdSession interface {
 // BatchConn is a connection that supports batch reads and writes.
 type BatchConn interface {
 	ReadBatch(underlayconn.Messages) (int, error)
-	WriteTo([]byte, *net.UDPAddr) (int, error)
+	WriteTo([]byte, *netip.AddrPort) (int, error)
 	WriteBatch(msgs underlayconn.Messages, flags int) (int, error)
 	Close() error
 }
@@ -98,7 +97,7 @@ type DataPlane struct {
 	peerInterfaces      map[uint16]uint16
 	internal            BatchConn
 	internalIP          netip.Addr
-	internalNextHops    map[uint16]*net.UDPAddr
+	internalNextHops    map[uint16]*netip.AddrPort
 	svc                 *services
 	macFactory          func() hash.Hash
 	bfdSessions         map[uint16]bfdSession
@@ -383,10 +382,10 @@ func (d *DataPlane) addBFDController(ifID uint16, s *bfdSend, cfg control.BFD,
 // AddSvc adds the address for the given service. This can be called multiple
 // times for the same service, with the address added to the list of addresses
 // that provide the service.
-func (d *DataPlane) AddSvc(svc addr.SVC, a *net.UDPAddr) error {
+func (d *DataPlane) AddSvc(svc addr.SVC, a netip.AddrPort) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	if a == nil {
+	if !a.IsValid() {
 		return emptyValue
 	}
 	if d.svc == nil {
@@ -402,10 +401,10 @@ func (d *DataPlane) AddSvc(svc addr.SVC, a *net.UDPAddr) error {
 }
 
 // DelSvc deletes the address for the given service.
-func (d *DataPlane) DelSvc(svc addr.SVC, a *net.UDPAddr) error {
+func (d *DataPlane) DelSvc(svc addr.SVC, a netip.AddrPort) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	if a == nil {
+	if !a.IsValid() {
 		return emptyValue
 	}
 	if d.svc == nil {
@@ -423,7 +422,7 @@ func (d *DataPlane) DelSvc(svc addr.SVC, a *net.UDPAddr) error {
 // AddNextHop sets the next hop address for the given interface ID. If the
 // interface ID already has an address associated this operation fails. This can
 // only be called on a not yet running dataplane.
-func (d *DataPlane) AddNextHop(ifID uint16, src, dst *net.UDPAddr, cfg control.BFD,
+func (d *DataPlane) AddNextHop(ifID uint16, src, dst *netip.AddrPort, cfg control.BFD,
 	sibling string) error {
 
 	d.mtx.Lock()
@@ -440,7 +439,7 @@ func (d *DataPlane) AddNextHop(ifID uint16, src, dst *net.UDPAddr, cfg control.B
 		return serrors.WrapStr("adding next hop BFD", err, "if_id", ifID)
 	}
 	if d.internalNextHops == nil {
-		d.internalNextHops = make(map[uint16]*net.UDPAddr)
+		d.internalNextHops = make(map[uint16]*netip.AddrPort)
 	}
 	if _, exists := d.internalNextHops[ifID]; exists {
 		return serrors.WithCtx(alreadySet, "ifID", ifID)
@@ -452,7 +451,7 @@ func (d *DataPlane) AddNextHop(ifID uint16, src, dst *net.UDPAddr, cfg control.B
 // AddNextHopBFD adds the BFD session for the next hop address.
 // If the remote ifID belongs to an existing address, the existing
 // BFD session will be re-used.
-func (d *DataPlane) addNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg control.BFD,
+func (d *DataPlane) addNextHopBFD(ifID uint16, src, dst *netip.AddrPort, cfg control.BFD,
 	sibling string) error {
 
 	if *cfg.Disable {
@@ -635,6 +634,7 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 			metrics[sc].DroppedPacketsInvalid.Inc()
 			return
 		}
+
 		outPkt := packet{
 			rawPacket: pkt.Buffers[0][:pkt.N],
 			ingress:   ifID,
@@ -649,7 +649,9 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 	}
 
 	for d.running {
-		// collect packets
+		// collect packets.
+
+		// Give a new buffer to the msgs elements that have been used in the previous loop.
 		for i := 0; i < cfg.BatchSize-numReusable; i++ {
 			p := <-d.packetPool
 			msgs[i].Buffers[0] = p
@@ -665,7 +667,6 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 		for _, pkt := range msgs[:numPkts] {
 			enqueueForProcessing(pkt)
 		}
-
 	}
 }
 
@@ -745,7 +746,9 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 			continue
 		}
 		p.rawPacket = result.OutPkt
-		p.dstAddr = result.OutAddr
+
+		p.dstAddr = net.UDPAddrFromAddrPort(result.OutAddr) // Allocated from HEAP !
+
 		p.trafficType = result.TrafficType
 		select {
 		case fwCh <- p:
@@ -753,7 +756,6 @@ func (d *DataPlane) runProcessor(id int, q <-chan packet,
 			d.returnPacketToPool(p.rawPacket)
 			metrics.DroppedPacketsBusyForwarder.Inc()
 		}
-
 	}
 }
 
@@ -776,7 +778,7 @@ func (d *DataPlane) runSlowPathProcessor(id int, q <-chan slowPacket,
 			d.returnPacketToPool(p.packet.rawPacket)
 			continue
 		}
-		p.packet.dstAddr = res.OutAddr
+		p.dstAddr = net.UDPAddrFromAddrPort(res.OutAddr) // Allocated from HEAP !
 		p.packet.rawPacket = res.OutPkt
 
 		fwCh, ok := fwQs[res.EgressID]
@@ -847,9 +849,14 @@ func (p *slowPathPacketProcessor) reset() {
 // processResults carries what could be determined while processing
 // a packet. In most cases of error, all fields are left to their
 // zero value.
+//
+// TODO(jiceatscion): The pervasive use of processResult is costly: in its current form it is a
+// fairly large structure that gets copied over and over. Alternatively, passing it by reference
+// could mean creating a steady stream of garbage for the collector to deal with. May be,
+// accumulating processing results in the packet structure would have none of these issues.
 type processResult struct {
 	EgressID        uint16
-	OutAddr         *net.UDPAddr
+	OutAddr         netip.AddrPort
 	OutPkt          []byte
 	SlowPathRequest slowPathRequest
 	TrafficType     trafficType
@@ -957,11 +964,15 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn, cfg *RunConfig, c 
 		toWrite += readUpTo(c, cfg.BatchSize-toWrite, toWrite == 0, pkts[toWrite:])
 
 		// Turn the packets into underlay messages that WriteBatch can send.
-		for i, p := range pkts[:toWrite] {
-			msgs[i].Buffers[0] = p.rawPacket
+		// DO NOT use range over the ring. The fields of packet aren't that big but there's no point
+		// in making a temporary copy. More crucially, we want each message to reference the
+		// destination address, packet.dstAddr, not a copy (and surely not a local variable!). So,
+		// a local copy of each item we traverse is thoroughly useless.
+		for i := 0; i < toWrite; i++ {
+			msgs[i].Buffers[0] = pkts[i].rawPacket
 			msgs[i].Addr = nil
-			if p.dstAddr != nil {
-				msgs[i].Addr = p.dstAddr
+			if pkts[i].dstAddr.IP != nil {
+				msgs[i].Addr = pkts[i].dstAddr
 			}
 		}
 		written, _ := conn.WriteBatch(msgs[:toWrite], 0)
@@ -1127,8 +1138,10 @@ func (p *scionPacketProcessor) processIntraBFD(data []byte) error {
 	}
 
 	ifID := uint16(0)
+	// POSSIBLY EXPENSIVE CONVERSION
+	src := p.srcAddr.AddrPort()
 	for k, v := range p.d.internalNextHops {
-		if bytes.Equal(v.IP, p.srcAddr.IP) && v.Port == p.srcAddr.Port {
+		if src == *v {
 			ifID = k
 			break
 		}
@@ -1295,7 +1308,11 @@ func (p *slowPathPacketProcessor) packSCMP(
 		copy(p.rawPkt, rawSCMP)
 	}
 
-	return processResult{OutPkt: p.rawPkt, EgressID: p.ingressID, OutAddr: p.srcAddr}, err
+	return processResult{
+		OutPkt:   p.rawPkt,
+		EgressID: p.ingressID,
+		OutAddr:  p.srcAddr.AddrPort(), // POSSIBLY EXPENSIVE, but on the slow path, so... later
+	}, err
 }
 
 func (p *scionPacketProcessor) parsePath() (processResult, error) {
@@ -1444,8 +1461,13 @@ func (p *scionPacketProcessor) validateTransitUnderlaySrc() (processResult, erro
 		return processResult{}, nil
 	}
 	pktIngressID := p.ingressInterface()
-	expectedSrc, ok := p.d.internalNextHops[pktIngressID]
-	if !ok || !expectedSrc.IP.Equal(p.srcAddr.IP) {
+	expectedSrc, okE := p.d.internalNextHops[pktIngressID]
+	if !okE {
+		// Drop
+		return processResult{}, invalidSrcAddrForTransit
+	}
+	src, okS := netip.AddrFromSlice(p.srcAddr.IP)
+	if !(okS && expectedSrc.Addr() == src) {
 		// Drop
 		return processResult{}, invalidSrcAddrForTransit
 	}
@@ -1577,20 +1599,21 @@ func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
 	return processResult{}, nil
 }
 
-func (p *scionPacketProcessor) resolveInbound() (*net.UDPAddr, processResult, error) {
-	a, err := p.d.resolveLocalDst(p.scionLayer, p.lastLayer)
-	switch {
-	case errors.Is(err, noSVCBackend):
+func (p *scionPacketProcessor) resolveInbound() (processResult, error) {
+	r, err := p.d.resolveLocalDst(p.scionLayer, p.lastLayer)
+
+	if err == noSVCBackend {
+
 		log.Debug("SCMP: no SVC backend")
 		slowPathRequest := slowPathRequest{
 			scmpType: slayers.SCMPTypeDestinationUnreachable,
 			code:     slayers.SCMPCodeNoRoute,
 			cause:    err,
 		}
-		return nil, processResult{SlowPathRequest: slowPathRequest}, slowPathRequired
-	default:
-		return a, processResult{}, nil
+		return processResult{SlowPathRequest: slowPathRequest}, slowPathRequired
 	}
+
+	return r, err
 }
 
 func (p *scionPacketProcessor) processEgress() error {
@@ -1822,11 +1845,14 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	}
 	// Inbound: pkt destined to the local IA.
 	if p.scionLayer.DstIA == p.d.localIA {
-		a, r, err := p.resolveInbound()
+		r, err := p.resolveInbound()
 		if err != nil {
 			return r, err
 		}
-		return processResult{OutAddr: a, OutPkt: p.rawPkt, TrafficType: ttIn}, nil
+		// resolveInbound took care of OutAddr. We do the rest.
+		r.OutPkt = p.rawPkt
+		r.TrafficType = ttIn
+		return r, nil
 	}
 
 	// Outbound: pkt leaving the local IA. This Could be:
@@ -1884,7 +1910,7 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	}
 	// ASTransit in: pkt leaving this AS through another BR.
 	if a, ok := p.d.internalNextHops[egressID]; ok {
-		return processResult{OutAddr: a, OutPkt: p.rawPkt, TrafficType: ttInTransit}, nil
+		return processResult{OutAddr: *a, OutPkt: p.rawPkt, TrafficType: ttInTransit}, nil
 	}
 	errCode := slayers.SCMPCodeUnknownHopFieldEgress
 	if !p.infoField.ConsDir {
@@ -1974,22 +2000,25 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 	if err := updateSCIONLayer(p.rawPkt, s, p.buffer); err != nil {
 		return processResult{}, err
 	}
-	a, err := p.d.resolveLocalDst(s, p.lastLayer)
+	r, err := p.d.resolveLocalDst(s, p.lastLayer)
 	if err != nil {
 		return processResult{}, err
 	}
-	return processResult{OutAddr: a, OutPkt: p.rawPkt}, nil
+
+	// resolveLocalDst took care of OutAddr. We do the rest.
+	r.OutPkt = p.rawPkt
+	return r, nil
 }
 
 func (d *DataPlane) resolveLocalDst(
 	s slayers.SCION,
 	lastLayer gopacket.DecodingLayer,
-) (*net.UDPAddr, error) {
+) (processResult, error) {
 
 	dst, err := s.DstAddr()
 	if err != nil {
 		// TODO parameter problem.
-		return nil, err
+		return processResult{}, err
 	}
 	switch dst.Type() {
 	case addr.HostTypeSVC:
@@ -1997,17 +2026,17 @@ func (d *DataPlane) resolveLocalDst(
 		// information, because we only register base addresses in the map.
 		a, ok := d.svc.Any(dst.SVC().Base())
 		if !ok {
-			return nil, noSVCBackend
+			return processResult{}, noSVCBackend
 		}
 		// if SVC address is outside the configured port range we send to the fix
 		// port.
-		if uint16(a.Port) < d.dispatchedPortStart || uint16(a.Port) > d.dispatchedPortEnd {
-			a.Port = topology.EndhostPort
+		if a.Port() < d.dispatchedPortStart || a.Port() > d.dispatchedPortEnd {
+			return processResult{OutAddr: netip.AddrPortFrom(a.Addr(), topology.EndhostPort)}, nil
 		}
-		return a, nil
+		return processResult{OutAddr: a}, nil
 	case addr.HostTypeIP:
 		// Parse UPD port and rewrite underlay IP/UDP port
-		return d.addEndhostPort(lastLayer, dst.IP().AsSlice())
+		return d.addEndhostPort(lastLayer, dst.IP())
 	default:
 		panic("unexpected address type returned from DstAddr")
 	}
@@ -2015,8 +2044,8 @@ func (d *DataPlane) resolveLocalDst(
 
 func (d *DataPlane) addEndhostPort(
 	lastLayer gopacket.DecodingLayer,
-	dst []byte,
-) (*net.UDPAddr, error) {
+	dst netip.Addr,
+) (processResult, error) {
 
 	// Parse UPD port and rewrite underlay IP/UDP port
 	l4Type := nextHdr(lastLayer)
@@ -2024,34 +2053,35 @@ func (d *DataPlane) addEndhostPort(
 	case slayers.L4UDP:
 		if len(lastLayer.LayerPayload()) < 8 {
 			// TODO(JordiSubira): Treat this as a parameter problem
-			return nil, serrors.New("SCION/UDP header len too small", "legth",
+			return processResult{}, serrors.New("SCION/UDP header len too small", "length",
 				len(lastLayer.LayerPayload()))
 		}
 		port := binary.BigEndian.Uint16(lastLayer.LayerPayload()[2:])
 		if port < d.dispatchedPortStart || port > d.dispatchedPortEnd {
 			port = topology.EndhostPort
 		}
-		return &net.UDPAddr{IP: dst, Port: int(port)}, nil
+		return processResult{OutAddr: netip.AddrPortFrom(dst, port)}, nil
 	case slayers.L4SCMP:
 		var scmpLayer slayers.SCMP
 		err := scmpLayer.DecodeFromBytes(lastLayer.LayerPayload(), gopacket.NilDecodeFeedback)
 		if err != nil {
 			// TODO(JordiSubira): Treat this as a parameter problem.
-			return nil, serrors.WrapStr("decoding SCMP layer for extracting endhost dst port", err)
+			return processResult{}, serrors.WrapStr(
+				"decoding SCMP layer for extracting endhost dst port", err)
 		}
 		port, err := getDstPortSCMP(&scmpLayer)
 		if err != nil {
 			// TODO(JordiSubira): Treat this as a parameter problem.
-			return nil, serrors.WrapStr("getting dst port from SCMP message", err)
+			return processResult{}, serrors.WrapStr("getting dst port from SCMP message", err)
 		}
 		// if the SCMP dst port is outside the range, we send it to the EndhostPort
 		if port < d.dispatchedPortStart || port > d.dispatchedPortEnd {
 			port = topology.EndhostPort
 		}
-		return &net.UDPAddr{IP: dst, Port: int(port)}, nil
+		return processResult{OutAddr: netip.AddrPortFrom(dst, port)}, nil
 	default:
 		log.Debug("msg", "protocol", l4Type)
-		return &net.UDPAddr{IP: dst, Port: topology.EndhostPort}, nil
+		return processResult{OutAddr: netip.AddrPortFrom(dst, topology.EndhostPort)}, nil
 	}
 }
 
@@ -2180,7 +2210,7 @@ func updateSCIONLayer(rawPkt []byte, s slayers.SCION, buffer gopacket.SerializeB
 
 type bfdSend struct {
 	conn             BatchConn
-	srcAddr, dstAddr *net.UDPAddr
+	srcAddr, dstAddr *netip.AddrPort
 	scn              *slayers.SCION
 	ohp              *onehop.Path
 	mac              hash.Hash
@@ -2189,7 +2219,7 @@ type bfdSend struct {
 }
 
 // newBFDSend creates and initializes a BFD Sender
-func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr *net.UDPAddr,
+func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr *netip.AddrPort,
 	ifID uint16, mac hash.Hash) (*bfdSend, error) {
 
 	scn := &slayers.SCION{
@@ -2201,14 +2231,15 @@ func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr *net.UDPA
 		DstIA:        dstIA,
 	}
 
-	srcAddrIP, ok := netip.AddrFromSlice(srcAddr.IP)
-	if !ok {
-		return nil, serrors.New("invalid source IP", "ip", srcAddr.IP)
+	if !srcAddr.IsValid() {
+		return nil, serrors.New("invalid source IP", "ip", srcAddr)
 	}
-	dstAddrIP, ok := netip.AddrFromSlice(dstAddr.IP)
-	if !ok {
-		return nil, serrors.New("invalid destination IP", "ip", dstAddr.IP)
+	if !dstAddr.IsValid() {
+		return nil, serrors.New("invalid source IP", "ip", srcAddr)
 	}
+
+	srcAddrIP := srcAddr.Addr()
+	dstAddrIP := dstAddr.Addr()
 	if err := scn.SetSrcAddr(addr.HostIP(srcAddrIP)); err != nil {
 		panic(err) // Must work
 	}

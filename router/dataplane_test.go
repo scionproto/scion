@@ -117,11 +117,11 @@ func TestDataPlaneSetKey(t *testing.T) {
 func TestDataPlaneAddExternalInterface(t *testing.T) {
 	l := control.LinkEnd{
 		IA:   xtest.MustParseIA("1-ff00:0:1"),
-		Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.100")},
+		Addr: xtest.MustParseAddrPort("10.0.0.100:0"),
 	}
 	r := control.LinkEnd{
 		IA:   xtest.MustParseIA("1-ff00:0:3"),
-		Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.200")},
+		Addr: xtest.MustParseAddrPort("10.0.0.200:0"),
 	}
 	nobfd := control.BFD{Disable: ptr.To(true)}
 	t.Run("fails after serve", func(t *testing.T) {
@@ -181,51 +181,52 @@ func TestDataPlaneAddSVC(t *testing.T) {
 	t.Run("succeeds after serve", func(t *testing.T) {
 		d := &router.DataPlane{}
 		d.FakeStart()
-		assert.NoError(t, d.AddSvc(addr.SvcCS, &net.UDPAddr{}))
+		assert.NoError(t, d.AddSvc(addr.SvcCS, netip.AddrPortFrom(netip.IPv4Unspecified(), 0)))
 	})
-	t.Run("adding nil value is not allowed", func(t *testing.T) {
+	t.Run("adding empty value is not allowed", func(t *testing.T) {
 		d := &router.DataPlane{}
-		assert.Error(t, d.AddSvc(addr.SvcCS, nil))
+		assert.Error(t, d.AddSvc(addr.SvcCS, netip.AddrPort{}))
 	})
 	t.Run("normal set works", func(t *testing.T) {
 		d := &router.DataPlane{}
-		assert.NoError(t, d.AddSvc(addr.SvcCS, &net.UDPAddr{}))
-		assert.NoError(t, d.AddSvc(addr.SvcDS, &net.UDPAddr{}))
+		assert.NoError(t, d.AddSvc(addr.SvcCS, netip.AddrPortFrom(netip.IPv4Unspecified(), 0)))
+		assert.NoError(t, d.AddSvc(addr.SvcDS, netip.AddrPortFrom(netip.IPv4Unspecified(), 0)))
 	})
 	t.Run("set multiple times works", func(t *testing.T) {
 		d := &router.DataPlane{}
-		assert.NoError(t, d.AddSvc(addr.SvcCS, &net.UDPAddr{}))
-		assert.NoError(t, d.AddSvc(addr.SvcCS, &net.UDPAddr{}))
+		assert.NoError(t, d.AddSvc(addr.SvcCS, netip.AddrPortFrom(netip.IPv4Unspecified(), 0)))
+		assert.NoError(t, d.AddSvc(addr.SvcCS, netip.AddrPortFrom(netip.IPv4Unspecified(), 0)))
 	})
 }
 
 func TestDataPlaneAddNextHop(t *testing.T) {
-	l := &net.UDPAddr{}
-	r := &net.UDPAddr{}
+	l := netip.AddrPortFrom(netip.IPv4Unspecified(), 0)
+	r := netip.AddrPortFrom(netip.IPv4Unspecified(), 0)
+
 	nobfd := control.BFD{Disable: ptr.To(true)}
 
 	t.Run("fails after serve", func(t *testing.T) {
 		d := &router.DataPlane{}
 		d.FakeStart()
-		assert.Error(t, d.AddNextHop(45, l, r, nobfd, ""))
+		assert.Error(t, d.AddNextHop(45, &l, &r, nobfd, ""))
 	})
 	t.Run("setting nil dst is not allowed", func(t *testing.T) {
 		d := &router.DataPlane{}
-		assert.Error(t, d.AddNextHop(45, l, nil, nobfd, ""))
+		assert.Error(t, d.AddNextHop(45, &l, nil, nobfd, ""))
 	})
 	t.Run("setting nil src is not allowed", func(t *testing.T) {
 		d := &router.DataPlane{}
-		assert.Error(t, d.AddNextHop(45, nil, r, nobfd, ""))
+		assert.Error(t, d.AddNextHop(45, nil, &r, nobfd, ""))
 	})
 	t.Run("normal add works", func(t *testing.T) {
 		d := &router.DataPlane{}
-		assert.NoError(t, d.AddNextHop(45, l, r, nobfd, ""))
-		assert.NoError(t, d.AddNextHop(43, l, r, nobfd, ""))
+		assert.NoError(t, d.AddNextHop(45, &l, &r, nobfd, ""))
+		assert.NoError(t, d.AddNextHop(43, &l, &r, nobfd, ""))
 	})
 	t.Run("overwrite fails", func(t *testing.T) {
 		d := &router.DataPlane{}
-		assert.NoError(t, d.AddNextHop(45, l, r, nobfd, ""))
-		assert.Error(t, d.AddNextHop(45, l, r, nobfd, ""))
+		assert.NoError(t, d.AddNextHop(45, &l, &r, nobfd, ""))
+		assert.Error(t, d.AddNextHop(45, &l, &r, nobfd, ""))
 	})
 }
 
@@ -285,9 +286,17 @@ func TestDataPlaneRun(t *testing.T) {
 							spkt.Path = dpath
 							payload := bytes.Repeat([]byte("actualpayloadbytes"), i)
 							buffer := gopacket.NewSerializeBuffer()
+
+							// IMPORTANT: We don't actually include a SCION/UDP Header.
+							// However, prepBaseMsg does pretend that there's a SCIONUDP Header.
+							// Remove that. Since the removal of the dispatcher, the router snoops
+							// into L4 and would mistake our payload for a broken SCION/UDP header.
+							spkt.NextHdr = slayers.L4None
+
 							err := gopacket.SerializeLayers(buffer,
 								gopacket.SerializeOptions{FixLengths: true},
 								spkt, gopacket.Payload(payload))
+
 							require.NoError(t, err)
 							raw := buffer.Bytes()
 							copy(m[i].Buffers[0], raw)
@@ -301,11 +310,11 @@ func TestDataPlaneRun(t *testing.T) {
 				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
 				l := control.LinkEnd{
 					IA:   xtest.MustParseIA("1-ff00:0:1"),
-					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.100")},
+					Addr: xtest.MustParseAddrPort("10.0.0.100:0"),
 				}
 				r := control.LinkEnd{
 					IA:   xtest.MustParseIA("1-ff00:0:3"),
-					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.200")},
+					Addr: xtest.MustParseAddrPort("10.0.0.200:0"),
 				}
 				nobfd := control.BFD{Disable: ptr.To(true)}
 
@@ -320,7 +329,7 @@ func TestDataPlaneRun(t *testing.T) {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
 				ret := &router.DataPlane{Metrics: metrics}
 
-				postInternalBFD := func(id layers.BFDDiscriminator, src *net.UDPAddr) []byte {
+				postInternalBFD := func(id layers.BFDDiscriminator, src *netip.AddrPort) []byte {
 					scn := &slayers.SCION{
 						NextHdr:  slayers.L4BFD,
 						PathType: empty.PathType,
@@ -333,8 +342,7 @@ func TestDataPlaneRun(t *testing.T) {
 						YourDiscriminator: 0,
 					}
 
-					srcIP, _ := netip.AddrFromSlice(src.IP)
-					_ = scn.SetSrcAddr(addr.HostIP(srcIP))
+					_ = scn.SetSrcAddr(addr.HostIP(src.Addr()))
 					buffer := gopacket.NewSerializeBuffer()
 					_ = gopacket.SerializeLayers(buffer,
 						gopacket.SerializeOptions{FixLengths: true}, scn, bfdL)
@@ -343,9 +351,9 @@ func TestDataPlaneRun(t *testing.T) {
 
 				mtx := sync.Mutex{}
 				expectRemoteDiscriminators := map[layers.BFDDiscriminator]struct{}{}
-				routers := map[net.Addr][]uint16{
-					&net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4()}: {2, 3},
-					&net.UDPAddr{IP: net.ParseIP("10.0.200.201").To4()}: {4},
+				routers := map[*netip.AddrPort][]uint16{
+					xtest.MustParseAddrPort("10.0.200.200:0"): {2, 3},
+					xtest.MustParseAddrPort("10.0.200.201:0"): {4},
 				}
 
 				mInternal := mock_router.NewMockBatchConn(ctrl)
@@ -354,7 +362,7 @@ func TestDataPlaneRun(t *testing.T) {
 						i := 0
 						for k := range routers { // post a BFD from each neighbor router
 							disc := layers.BFDDiscriminator(i)
-							raw := postInternalBFD(disc, k.(*net.UDPAddr))
+							raw := postInternalBFD(disc, k)
 							copy(m[i].Buffers[0], raw)
 							m[i].Addr = &net.UDPAddr{IP: net.IP{10, 0, 200, 200}}
 							m[i].Buffers[0] = m[i].Buffers[0][:len(raw)]
@@ -368,7 +376,7 @@ func TestDataPlaneRun(t *testing.T) {
 				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
 				mInternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(data []byte, _ net.Addr) (int, error) {
+					func(data []byte, _ *netip.AddrPort) (int, error) {
 						pkt := gopacket.NewPacket(data,
 							slayers.LayerTypeSCION, gopacket.Default)
 						if b := pkt.Layer(layers.LayerTypeBFD); b != nil {
@@ -386,12 +394,12 @@ func TestDataPlaneRun(t *testing.T) {
 					}).MinTimes(1)
 				mInternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
 
-				local := &net.UDPAddr{IP: net.ParseIP("10.0.200.100").To4()}
+				local := xtest.MustParseAddrPort("10.0.200.100:0")
 				_ = ret.SetKey([]byte("randomkeyformacs"))
 				_ = ret.AddInternalInterface(mInternal, netip.Addr{})
 				for remote, ifIDs := range routers {
 					for _, ifID := range ifIDs {
-						_ = ret.AddNextHop(ifID, local, remote.(*net.UDPAddr), bfd(), "")
+						_ = ret.AddNextHop(ifID, local, remote, bfd(), "")
 					}
 				}
 				return ret
@@ -400,11 +408,11 @@ func TestDataPlaneRun(t *testing.T) {
 		"bfd sender internal": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
 				ret := &router.DataPlane{Metrics: metrics}
-				localAddr := &net.UDPAddr{IP: net.ParseIP("10.0.200.100").To4()}
-				remoteAddr := &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4()}
+				localAddr := xtest.MustParseAddrPort("10.0.200.100:0")
+				remoteAddr := xtest.MustParseAddrPort("10.0.200.200:0")
 				mInternal := mock_router.NewMockBatchConn(ctrl)
 				mInternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(data []byte, _ net.Addr) (int, error) {
+					func(data []byte, _ *netip.AddrPort) (int, error) {
 						pkt := gopacket.NewPacket(data,
 							slayers.LayerTypeSCION, gopacket.Default)
 
@@ -418,7 +426,7 @@ func TestDataPlaneRun(t *testing.T) {
 							if err != nil {
 								return 1, nil
 							}
-							if !bytes.Equal(a.IP().AsSlice(), localAddr.IP) {
+							if a.IP() != localAddr.Addr() {
 								return 1, nil
 							}
 
@@ -426,7 +434,7 @@ func TestDataPlaneRun(t *testing.T) {
 							if err != nil {
 								return 1, nil
 							}
-							if !bytes.Equal(b.IP().AsSlice(), remoteAddr.IP) {
+							if b.IP() != remoteAddr.Addr() {
 								return 1, nil
 							}
 
@@ -458,7 +466,7 @@ func TestDataPlaneRun(t *testing.T) {
 				mExternal := mock_router.NewMockBatchConn(ctrl)
 				mExternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(data []byte, _ net.Addr) (int, error) {
+					func(data []byte, _ *netip.AddrPort) (int, error) {
 						pkt := gopacket.NewPacket(data,
 							slayers.LayerTypeSCION, gopacket.Default)
 
@@ -488,11 +496,11 @@ func TestDataPlaneRun(t *testing.T) {
 
 				local := control.LinkEnd{
 					IA:   xtest.MustParseIA("1-ff00:0:1"),
-					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.100")},
+					Addr: xtest.MustParseAddrPort("10.0.0.100:0"),
 				}
 				remote := control.LinkEnd{
 					IA:   xtest.MustParseIA("1-ff00:0:3"),
-					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.200")},
+					Addr: xtest.MustParseAddrPort("10.0.0.200:0"),
 				}
 				_ = ret.SetKey([]byte("randomkeyformacs"))
 				_ = ret.AddInternalInterface(mInternal, netip.Addr{})
@@ -546,7 +554,7 @@ func TestDataPlaneRun(t *testing.T) {
 				mExternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
 				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(data []byte, _ net.Addr) (int, error) {
+					func(data []byte, _ *netip.AddrPort) (int, error) {
 						pkt := gopacket.NewPacket(data,
 							slayers.LayerTypeSCION, gopacket.Default)
 
@@ -566,11 +574,11 @@ func TestDataPlaneRun(t *testing.T) {
 
 				local := control.LinkEnd{
 					IA:   xtest.MustParseIA("1-ff00:0:1"),
-					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.100")},
+					Addr: xtest.MustParseAddrPort("10.0.0.100:0"),
 				}
 				remote := control.LinkEnd{
 					IA:   xtest.MustParseIA("1-ff00:0:3"),
-					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.200")},
+					Addr: xtest.MustParseAddrPort("10.0.0.200:0"),
 				}
 				_ = ret.SetKey([]byte("randomkeyformacs"))
 				_ = ret.AddInternalInterface(mInternal, netip.Addr{})
@@ -626,7 +634,7 @@ func TestProcessPkt(t *testing.T) {
 	//   Others need a custom one.
 	// * InternalNextHops may not be nil. Empty is ok (sufficient unless testing AS transit).
 	fakeExternalInterfaces := map[uint16]router.BatchConn{1: nil, 2: nil, 3: nil}
-	fakeInternalNextHops := map[uint16]*net.UDPAddr{}
+	fakeInternalNextHops := map[uint16]*netip.AddrPort{}
 
 	testCases := map[string]struct {
 		mockMsg         func(bool) *ipv4.Message
@@ -1163,8 +1171,8 @@ func TestProcessPkt(t *testing.T) {
 						3: topology.Core,
 					},
 					mock_router.NewMockBatchConn(ctrl),
-					map[uint16]*net.UDPAddr{
-						uint16(3): {IP: net.ParseIP("10.0.200.200").To4(), Port: 30043},
+					map[uint16]*netip.AddrPort{
+						uint16(3): xtest.MustParseAddrPort("10.0.200.200:30043"),
 					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
@@ -1197,8 +1205,8 @@ func TestProcessPkt(t *testing.T) {
 						3:  topology.Core,
 					},
 					mock_router.NewMockBatchConn(ctrl),
-					map[uint16]*net.UDPAddr{
-						uint16(3): {IP: net.ParseIP("10.0.200.200").To4(), Port: 30043},
+					map[uint16]*netip.AddrPort{
+						uint16(3): xtest.MustParseAddrPort("10.0.200.200:30043"),
 					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
@@ -1247,12 +1255,12 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
-					map[addr.SVC][]*net.UDPAddr{
+					map[addr.SVC][]netip.AddrPort{
 						addr.SvcCS: {
-							&net.UDPAddr{
-								IP:   net.ParseIP("10.0.200.200").To4(),
-								Port: dstUDPPort,
-							},
+							netip.AddrPortFrom(
+								netip.MustParseAddr("10.0.200.200"),
+								uint16(dstUDPPort),
+							),
 						},
 					},
 					xtest.MustParseIA("1-ff00:0:110"), nil, key)
@@ -1286,11 +1294,13 @@ func TestProcessPkt(t *testing.T) {
 					fakeExternalInterfaces,
 					nil,
 					mock_router.NewMockBatchConn(ctrl), nil,
-					map[addr.SVC][]*net.UDPAddr{
-						addr.SvcCS: {&net.UDPAddr{
-							IP:   net.ParseIP("172.0.2.10"),
-							Port: dstUDPPort,
-						}},
+					map[addr.SVC][]netip.AddrPort{
+						addr.SvcCS: {
+							netip.AddrPortFrom(
+								netip.MustParseAddr("172.0.2.10"),
+								uint16(dstUDPPort),
+							),
+						},
 					},
 					xtest.MustParseIA("1-ff00:0:110"),
 					map[uint16]addr.IA{
@@ -1333,7 +1343,7 @@ func TestProcessPkt(t *testing.T) {
 
 				ret := toMsg(t, spkt, dpath)
 				ret.Addr = &net.UDPAddr{
-					IP:   net.ParseIP("172.0.2.10"),
+					IP:   net.ParseIP("172.0.2.10").To4(), // Else we get a v4mapped address.
 					Port: dstUDPPort,
 				}
 				ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
@@ -1391,11 +1401,13 @@ func TestProcessPkt(t *testing.T) {
 					nil,
 					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
-					map[addr.SVC][]*net.UDPAddr{
-						addr.SvcCS: {&net.UDPAddr{
-							IP:   net.ParseIP("172.0.2.10"),
-							Port: dstUDPPort,
-						}},
+					map[addr.SVC][]netip.AddrPort{
+						addr.SvcCS: {
+							netip.AddrPortFrom(
+								netip.MustParseAddr("172.0.2.10"),
+								uint16(dstUDPPort),
+							),
+						},
 					},
 					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
@@ -1584,9 +1596,9 @@ func TestProcessPkt(t *testing.T) {
 			}
 			outPkt := &ipv4.Message{
 				Buffers: [][]byte{result.OutPkt},
-				Addr:    result.OutAddr,
+				Addr:    net.UDPAddrFromAddrPort(result.OutAddr),
 			}
-			if result.OutAddr == nil {
+			if !result.OutAddr.IsValid() {
 				outPkt.Addr = nil
 			}
 			assert.Equal(t, want, outPkt)

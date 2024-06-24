@@ -529,7 +529,6 @@ func setIPPktInfo(conn *net.UDPConn) (*net.UDPConn, controlMessageParser) {
 		panic(fmt.Sprintln("Connection address is not UDPAddr",
 			"conn", conn.LocalAddr().Network()))
 	}
-
 	var cm controlMessageParser
 	if udpAddr.AddrPort().Addr().Unmap().Is4() {
 		err := ipv4.NewPacketConn(conn).SetControlMessage(ipv4.FlagDst, true)
