@@ -18,9 +18,16 @@ import (
 	"github.com/google/gopacket"
 )
 
-func headerLength(options gopacket.SerializeOptions, layers ...gopacket.SerializableLayer) int {
+// We make the assumption os protocol sanity: the length and checksum fields are of fixed size
+// and so do not affect the packet size.
+var hdrOptions = gopacket.SerializeOptions{
+	FixLengths:       false,
+	ComputeChecksums: false,
+}
+
+func headerLength(layers ...gopacket.SerializableLayer) int {
 	sb := gopacket.NewSerializeBuffer()
-	if err := gopacket.SerializeLayers(sb, options, layers...); err != nil {
+	if err := gopacket.SerializeLayers(sb, hdrOptions, layers...); err != nil {
 		panic(err)
 	}
 	return len(sb.Bytes())
@@ -35,17 +42,21 @@ func mkPayload(payloadLen int) []byte {
 	return gopacket.Payload(payload)
 }
 
+var pktOptions = gopacket.SerializeOptions{
+	FixLengths:       true,
+	ComputeChecksums: true,
+}
+
 func mkPacket(
 	packetSize int,
-	options gopacket.SerializeOptions,
 	layers ...gopacket.SerializableLayer,
 ) ([]byte, []byte) {
 
 	// We want to make a packet of a specific length, header included.
-	hdrLen := headerLength(options, layers...)
+	hdrLen := headerLength(layers...)
 	sb := gopacket.NewSerializeBuffer()
 	payload := mkPayload(packetSize - hdrLen)
-	err := gopacket.SerializeLayers(sb, options, append(layers, gopacket.Payload(payload))...)
+	err := gopacket.SerializeLayers(sb, pktOptions, append(layers, gopacket.Payload(payload))...)
 	if err != nil {
 		panic(err)
 	}

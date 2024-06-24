@@ -18,8 +18,6 @@ import (
 	"hash"
 	"time"
 
-	"github.com/google/gopacket"
-
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
@@ -46,11 +44,6 @@ func InTransit(packetSize int, mac hash.Hash) (string, string, []byte, []byte) {
 		targetIP       = PublicIP(4, 1)
 		targetHost     = HostAddr(targetIP)
 	)
-
-	options := gopacket.SerializeOptions{
-		FixLengths:       true,
-		ComputeChecksums: true,
-	}
 
 	ethernet, ip, udp := Underlay(srcIP, srcPort, dstIP, dstPort)
 
@@ -119,6 +112,6 @@ func InTransit(packetSize int, mac hash.Hash) (string, string, []byte, []byte) {
 	scionudp.DstPort = 50000
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
-	payload, packet := mkPacket(packetSize, options, ethernet, ip, udp, scionL, scionudp)
+	payload, packet := mkPacket(packetSize, ethernet, ip, udp, scionL, scionudp)
 	return DeviceName(1, 2), DeviceName(1, 0), payload, packet
 }
