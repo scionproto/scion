@@ -22,12 +22,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/private/topology/underlay"
 )
 
@@ -74,9 +72,12 @@ func (s State) String() string {
 
 // Config configures the ping run.
 type Config struct {
-	Dispatcher reliable.Dispatcher
-	Local      *snet.UDPAddr
-	Remote     *snet.UDPAddr
+	Local  *snet.UDPAddr
+	Remote *snet.UDPAddr
+
+	// Topology is the helper class to get control-plane information for the
+	// local AS.
+	Topology snet.Topology
 
 	// Attempts is the number of pings to send.
 	Attempts uint16
@@ -103,22 +104,25 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 	}
 
 	replies := make(chan reply, 10)
-
-	id := snet.RandomSCMPIdentifer()
-	svc := snet.DefaultPacketDispatcherService{
-		Dispatcher: cfg.Dispatcher,
-		SCMPHandler: scmpHandler{
-			id:      id,
-			replies: replies,
-		},
+	scmpHandler := &scmpHandler{
+		replies: replies,
 	}
-	conn, port, err := svc.Register(ctx, cfg.Local.IA, cfg.Local.Host, addr.SvcNone)
+	sn := &snet.SCIONNetwork{
+		SCMPHandler: scmpHandler,
+		Topology:    cfg.Topology,
+	}
+	conn, err := sn.OpenRaw(ctx, cfg.Local.Host)
 	if err != nil {
 		return Stats{}, err
 	}
 
 	local := cfg.Local.Copy()
-	local.Host.Port = int(port)
+	local.Host = conn.LocalAddr().(*net.UDPAddr)
+
+	// we set the identifier on the handler to the same value as
+	// the udp port
+	id := local.Host.Port
+	scmpHandler.SetId(id)
 
 	// we need to have at least 8 bytes to store the request time in the
 	// payload.
@@ -131,7 +135,7 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		timeout:       cfg.Timeout,
 		pldSize:       cfg.PayloadSize,
 		pld:           make([]byte, cfg.PayloadSize),
-		id:            id,
+		id:            uint16(id),
 		conn:          conn,
 		local:         local,
 		replies:       replies,
@@ -318,6 +322,10 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 		Error:    err,
 	}
 	return nil
+}
+
+func (h *scmpHandler) SetId(id int) {
+	h.id = uint16(id)
 }
 
 func (h scmpHandler) handle(pkt *snet.Packet) (snet.SCMPEchoReply, error) {

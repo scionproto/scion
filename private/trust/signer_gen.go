@@ -48,50 +48,49 @@ type SignerGen struct {
 // certificate chains that authenticate the corresponding public key. The
 // returned signer uses the private key which is backed by the certificate chain
 // with the highest expiration time.
-func (s SignerGen) Generate(ctx context.Context) (Signer, error) {
+func (s SignerGen) Generate(ctx context.Context) ([]Signer, error) {
 	l := metrics.SignerLabels{}
 	keys, err := s.KeyRing.PrivateKeys(ctx)
 	if err != nil {
 		metrics.Signer.Generate(l.WithResult(metrics.ErrKey)).Inc()
-		return Signer{}, err
+		return nil, err
 	}
 	if len(keys) == 0 {
 		metrics.Signer.Generate(l.WithResult(metrics.ErrKey)).Inc()
-		return Signer{}, serrors.New("no private key found")
+		return nil, serrors.New("no private key found")
 	}
 
 	trcs, res, err := activeTRCs(ctx, s.DB, s.IA.ISD())
 	if err != nil {
 		metrics.Signer.Generate(l.WithResult(res)).Inc()
-		return Signer{}, serrors.WrapStr("loading TRC", err)
+		return nil, serrors.WrapStr("loading TRC", err)
 	}
 
-	// Search the private key that has a certificate that expires the latest.
-	var best *Signer
+	var bests []Signer
 	for _, key := range keys {
 		signer, err := s.bestForKey(ctx, key, trcs)
 		if err != nil {
 			metrics.Signer.Generate(l.WithResult(metrics.ErrDB)).Inc()
-			return Signer{}, err
+			return nil, err
 		}
 		if signer == nil {
 			continue
 		}
-		if best != nil && signer.Expiration.Before(best.Expiration) {
-			continue
-		}
-		best = signer
+		bests = append(bests, *signer)
 	}
-	if best == nil {
+	if len(bests) == 0 {
 		metrics.Signer.Generate(l.WithResult(metrics.ErrNotFound)).Inc()
-		return Signer{}, serrors.New("no certificate found", "num_private_keys", len(keys))
+		return nil, serrors.New("no certificate found", "num_private_keys", len(keys))
 	}
 	metrics.Signer.Generate(l.WithResult(metrics.Success)).Inc()
-	return *best, nil
+	return bests, nil
 }
 
-func (s *SignerGen) bestForKey(ctx context.Context, key crypto.Signer,
-	trcs []cppki.SignedTRC) (*Signer, error) {
+func (s *SignerGen) bestForKey(
+	ctx context.Context,
+	key crypto.Signer,
+	trcs []cppki.SignedTRC,
+) (*Signer, error) {
 	// FIXME(roosd): We currently take the sha1 sum of the public key.
 	// The final implementation needs to be smarter than that, but this
 	// requires a proper design that also considers certificate renewal.
@@ -137,7 +136,13 @@ func (s *SignerGen) bestForKey(ctx context.Context, key crypto.Signer,
 	}
 	expiry := min(chain[0].NotAfter, trcs[0].TRC.Validity.NotAfter)
 	if inGrace {
-		expiry = min(chain[0].NotAfter, trcs[0].TRC.GracePeriodEnd())
+		// In the grace period the expiry is the minimum of the chain expiry,
+		// the grace period defined in the new TRC, and the expiry of the
+		// previous TRC.
+		expiry = min(
+			min(chain[0].NotAfter, trcs[0].TRC.GracePeriodEnd()),
+			trcs[1].TRC.Validity.NotAfter,
+		)
 	}
 	return &Signer{
 		PrivateKey:   key,

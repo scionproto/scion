@@ -2,18 +2,20 @@
     "assign": {
         "exclude_files": {
             "gazelle/walk/walk.go": "",
+            "/org_modernc_libc": "",
             "/org_modernc_sqlite": ""
         }
     },
     "composites": {
         "exclude_files": {
-            "gazelle/language/go/resolve.go": "",
             "/com_github_bazelbuild_buildtools/": "",
             "/com_github_grpc_ecosystem_grpc_opentracing/go/otgrpc/": "",
             "/com_github_vishvananda_netlink/": "",
-            "/org_golang_x_tools/internal": "",
             "/org_golang_google_protobuf": "",
-            "/org_golang_x_tools/go/analysis/internal/checker": ""
+            "/org_golang_x_text": "",
+            "/org_golang_x_tools/go/analysis/internal/checker": "",
+            "/org_golang_x_tools/internal": "",
+            "gazelle/language/go/resolve.go": ""
         }
     },
     "copylocks": {
@@ -44,7 +46,8 @@
             "/in_gopkg_yaml_v2/decode.go": "https://github.com/go-yaml/yaml/pull/492",
             "/com_github_mattn_go_sqlite3": "",
             "/com_github_cloudflare_sidh": "",
-            "/com_github_vishvananda_netlink": ""
+            "/com_github_vishvananda_netlink": "",
+            "/com_github_spf13_pflag": ""
         }
     },
     "printf": {
@@ -96,7 +99,12 @@
         },
         "exclude_files": {
             "/com_github_mattn_go_sqlite3/": "",
-            "/com_github_google_gopacket/afpacket/": ""
+            "/com_github_google_gopacket/afpacket/": "",
+            "/org_modernc_memory/": "",
+            "/org_golang_x_sys/": "",
+            "org_modernc_libc": "",
+            "org_modernc_sqlite": "",
+            "com_github_mailru_easyjson": ""
         }
     },
     "shift": {
@@ -108,6 +116,7 @@
     "stdmethods": {
         "exclude_files": {
             "/com_github_uber_jaeger_client_go": "",
+            "org_golang_x_exp": "",
             "/org_modernc_sqlite": "",
             "/org_modernc_mathutil": ""
         }
@@ -161,7 +170,8 @@
     "reflectvaluecompare": {
         "exclude_files": {
             "in_gopkg_yaml_v2": "",
-            "com_github_smartystreets_assertions": ""
+            "com_github_smartystreets_assertions": "",
+            "/com_github_smarty_assertions": ""
         }
     },
     "shadow": {

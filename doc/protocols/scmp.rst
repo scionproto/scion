@@ -16,9 +16,13 @@ Introduction
 The SCION Control Message Protocol (SCMP) is analogous to the Internet Control
 Message Protocol (ICMP). It provides functionality for network diagnostics, such
 as ping and traceroute, and error messages that signal packet processing or
-network-layer problems. SCMP is an integral part of SCION, and as such, all
-messages and behavior required by this specification MUST be fully implemented
-by every SCION node.
+network-layer problems.
+SCMP is a helpful tool for network diagnostics and, in the case of
+:ref:`External Interface Down <external-interface-down>` and
+:ref:`Internal Connectivity Down <internal-connectivity-down>` messages, an optimization for end
+hosts to detect network failures more rapidly and fail-over to different paths.
+However, SCION nodes should not strictly rely on the availability of SCMP, as this protocol may not
+be supported by all devices and/or may be subject to rate limiting.
 
 General Format
 ==============
@@ -116,46 +120,6 @@ entire SCMP message, starting with the SCMP message type field, and prepended
 with a "pseudo-header" consisting of the SCION address header and the layer-4
 protocol type as defined in :ref:`pseudo-header-upper-layer-checksum`.
 
-.. _scmp-authentication:
-
-Authentication
---------------
-SCMP messages can be authenticated with a MAC based on a symmetric key
-established with the :ref:`DRKey infrastructure <drkey>`.
-The MAC is transported in the :ref:`authenticator-option` End-to-End extension
-header.
-
-The Authenticator MAC algorithm is AES-CMAC (identifier :code:`0`).
-
-SCMP error messages MUST always be authenticated.
-SCMP informational messages CAN optionally be authenticated; a response message
-MUST be authenticated if and only if the corresponding request message was
-authenticated.
-
-All DRKey keys used here are derived with :ref:`protocol identifier <drkey-protocol-identifiers>` :code:`SCMP`, decimal :code:`1`.
-
-SCMP messages from (and to) routers are authenticated with :ref:`AS-host keys <drkey-as-host>`.
-SCMP response messages from a router in AS :math:`D` to a node :math:`H_s` in
-AS :math:`S` are authenticated with the DRKey :math:`K_{D,S:H_s}`.
-SCMP requests (specifically, :ref:`traceroute-request`) processed by a router
-are authenticated with the same key.
-
-SCMP messages between two end-hosts are authenticated with :ref:`host-host keys <drkey-host-host>`.
-An SCMP response message from a node :math:`H_d` in AS :math:`D` to a node
-:math:`H_s` in AS :math:`S` is authenticated with the key
-:math:`K_{D:H_d,S:H_s}`.
-SCMP requests and data packets from :math:`H_s` to :math:`H_d` are
-authenticated with this same key.
-
-For packets addressed to a router directly (specifically for
-:ref:`echo-request` and :ref:`echo-reply`) it is treated like an end-host and
-the corresponding host-host keys are used.
-
-.. note::
-   Recall that :ref:`traceroute-request`\s are *not* addressed to the router.
-   Instead, the router processes the request if its router alert flag is set.
-
-
 Processing Rules
 ----------------
 
@@ -187,44 +151,6 @@ Implementations MUST respect the following rules when processing SCMP messages:
 
    #. A packet whose source address does not uniquely identify a single node.
       E.g., an IPv4 or IPv6 multicast address.
-
-#. Every SCMP error message MUST be authenticated.
-
-   Every SCMP informational reply message MUST be authenticated if and only if
-   the corresponding request was authenticated.
-
-   .. note::
-      Consequentially, an implementation without support for SCMP
-      authentication MUST never send SCMP error messages and MUST NOT reply to
-      authenticated SCMP informational request messages.
-
-#. When an SCMP message is received, the receiver SHOULD check the
-   authentication header.
-
-   - SCMP error messages without or with an invalid authentication header and
-     SCMP informational messages with an invalid authentication header SHOULD
-     be silently dropped.
-
-     .. note::
-        As SCMP authentication is a new addition, there will be a transition period
-        during which receivers may accept SCMP error messages without authentication.
-
-   - The receiver checks that the :ref:`DRKey identified by the SPI <spao-spi-drkey>`
-     is appropriate for the SCMP message type and code, as described above in
-     the :ref:`section Authentication <scmp-authentication>`.
-
-   - The receiver derives or fetches the relevant key for validation of the MAC.
-
-   - Before checking the authentication, and in particular before fetching a
-     key, the receiver SHOULD check whether the quoted message was possibly
-     recently sent via/to the originator of the error message.
-
-   - The receiver MUST limit the traffic to the control service to fetch keys
-     for verifying the authentication of an SCMP message.
-     At most one packet SHOULD be sent to fetch the key for a received SCMP
-     message. If this fails or is not possible (e.g. because there is no
-     existing TCP session to the control service), the message SHOULD be
-     silently dropped.
 
 
 SCMP Error Messages
@@ -327,7 +253,7 @@ Packet Too Big
 | MTU          | The Maximum Transmission Unit of the next-hop link.           |
 +--------------+---------------------------------------------------------------+
 
-A **Packet Too Big** message MUST be originated by a router in response to a
+A **Packet Too Big** message SHOULD be originated by a router in response to a
 packet that cannot be forwarded because the packet is larger than the MTU of the
 outgoing link. The MTU value is set to the maximum size a SCION packet can have
 to still fit on the next-hop link, as the sender has no knowledge of the
@@ -457,7 +383,7 @@ External Interface Down
 | Interface ID | The interface ID of the external link with connectivity issue.|
 +--------------+---------------------------------------------------------------+
 
-A **External Interface Down** message MUST be originated by a router in response
+A **External Interface Down** message SHOULD be originated by a router in response
 to a packet that cannot be forwarded because the link to an external AS broken.
 The ISD and AS identifier are set to the ISD-AS of the originating router.
 The interface ID identifies the link of the originating AS that is down.
@@ -509,7 +435,7 @@ Internal Connectivity Down
 | Egress ID    | The interface ID of the egress link.                          |
 +--------------+---------------------------------------------------------------+
 
-A **Internal Connectivity Down** message MUST be originated by a router in
+A **Internal Connectivity Down** message SHOULD be originated by a router in
 response to a packet that cannot be forwarded inside the AS because because the
 connectivity between the ingress and egress routers is broken. The ISD and AS
 identifier are set to the ISD-AS of the originating router. The ingress
@@ -554,7 +480,7 @@ Echo Request
 | Data         | Variable length of arbitrary data                             |
 +--------------+---------------------------------------------------------------+
 
-Every node MUST implement a SCMP Echo responder function that receives Echo
+Every node SHOULD implement a SCMP Echo responder function that receives Echo
 Requests and originates corresponding Echo replies.
 
 .. _echo-reply:
@@ -588,7 +514,7 @@ Echo Reply
 | Data         | The data of the Echo Request                                  |
 +--------------+---------------------------------------------------------------+
 
-Every node MUST implement a SCMP Echo responder function that receives Echo
+Every node SHOULD implement a SCMP Echo responder function that receives Echo
 Requests and originates corresponding Echo replies.
 
 The data received in the SCMP Echo Request message MUST be returned entirely and
@@ -682,7 +608,7 @@ Traceroute Reply
 
 The border router is alerted of the Traceroute Request message through the
 ConsIngress or ConsEgress Router Alert flag in the hop field. When such a packet
-is received, the border router **MUST** reply with a Traceroute Reply message.
+is received, the border router SHOULD reply with a Traceroute Reply message.
 
 The identifier is set to the value of the Traceroute Request message. The ISD
 and AS identifiers are set to the ISD-AS of the originating border router.

@@ -16,8 +16,24 @@ set -euo pipefail
 echo "~~~ Increase receive network buffer size"
 sudo sysctl -w net.core.rmem_max=1048576
 
-echo "~~~ Setting up bazel environment"
 
+# Export SCION_VERSION as environment variable, unless it's set from outside (e.g. as variable for this build)
+# Note that this precommand hook runs even in "step zero" of the pipeline, where we `buildkite-agent upload'.
+# With this, the SCION_VERSION can be interpolated by the agent throughout the pipeline yaml.
+if [ -z ${SCION_VERSION+x} ]; then
+    echo "~~~ Export SCION_VERSION"
+    if [ "$BUILDKITE_PIPELINE_SLUG" == "scion" ]; then
+        # Shorten the git version to omit commit information, improving cache reuse.
+        # The format of git-version is "<tag>-<number-of-commits-since-the-tag>-<commit-short-hash>"
+        # This will be shortened to "<tag>-modified-ci"
+        export SCION_VERSION=$(tools/git-version | sed 's/-.*/-modified-ci/')
+    else
+        export SCION_VERSION=$(tools/git-version)
+    fi
+    echo SCION_VERSION=${SCION_VERSION}
+fi
+
+echo "~~~ Setting up bazel environment"
 if [ -z ${BAZEL_REMOTE_S3_ACCESS_KEY_ID+x} ]; then
     echo "S3 env not set, not starting bazel remote proxy"
     exit 0
@@ -30,10 +46,6 @@ rm -f $HOME/.bazelrc
 # --nostamp is required for better caching (only on non-release jobs).
 if [ "$BUILDKITE_PIPELINE_SLUG" == "scion" ]; then
     echo "build --nostamp" > $HOME/.bazelrc
-    # Shorten the git version to omit commit information, improving cache reuse.
-    # The format of git-version is "<tag>-<number-of-commits-since-the-tag>-<commit-short-hash>"
-    # This will be shortened to "<tag>-modified-ci"
-    export GIT_VERSION=$(tools/git-version | sed 's/-.*/-modified-ci/')
 else
     echo "build --stamp" > $HOME/.bazelrc
 fi

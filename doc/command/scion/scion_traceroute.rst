@@ -79,7 +79,6 @@ Options
 
 ::
 
-      --dispatcher string      Path to the dispatcher socket (default "/run/shm/dispatcher/default.sock")
       --epic                   Enable EPIC.
       --format string          Specify the output format (human|json|yaml) (default "human")
   -h, --help                   help for traceroute

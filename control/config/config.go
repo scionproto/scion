@@ -56,7 +56,6 @@ type Config struct {
 	Metrics     env.Metrics        `toml:"metrics,omitempty"`
 	API         api.Config         `toml:"api,omitempty"`
 	Tracing     env.Tracing        `toml:"tracing,omitempty"`
-	QUIC        env.QUIC           `toml:"quic,omitempty"`
 	BeaconDB    storage.DBConfig   `toml:"beacon_db,omitempty"`
 	TrustDB     storage.DBConfig   `toml:"trust_db,omitempty"`
 	PathDB      storage.DBConfig   `toml:"path_db,omitempty"`
@@ -115,7 +114,6 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.Metrics,
 		&cfg.API,
 		&cfg.Tracing,
-		&cfg.QUIC,
 		config.OverrideName(
 			config.FormatData(
 				&cfg.BeaconDB,

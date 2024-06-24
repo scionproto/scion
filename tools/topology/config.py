@@ -31,6 +31,7 @@ from topology.defines import (
     DEFAULT_MTU,
     DEFAULT6_NETWORK,
     NETWORKS_FILE,
+    DEFAULT_DISPATCHED_PORTS,
 )
 from topology.scion_addr import ISD_AS
 from topology.util import write_file
@@ -75,16 +76,19 @@ class ConfigGenerator(object):
             logging.critical("Cannot use sig without docker!")
             sys.exit(1)
         self.default_mtu = None
-        self._read_defaults(self.args.network)
+        self._read_defaults()
 
-    def _read_defaults(self, network):
+    def _read_defaults(self):
         """
         Configure default network.
         """
         defaults = self.topo_config.get("defaults", {})
-        self.subnet_gen4 = SubnetGenerator(DEFAULT_NETWORK, self.args.docker)
-        self.subnet_gen6 = SubnetGenerator(DEFAULT6_NETWORK, self.args.docker)
+        self.subnet_gen4 = SubnetGenerator(self.args.network, self.args.docker) \
+            if self.args.network else SubnetGenerator(DEFAULT_NETWORK, self.args.docker)
+        self.subnet_gen6 = SubnetGenerator(self.args.network_v6, self.args.docker) \
+            if self.args.network_v6 else SubnetGenerator(DEFAULT6_NETWORK, self.args.docker)
         self.default_mtu = defaults.get("mtu", DEFAULT_MTU)
+        self.dispatched_ports = defaults.get("dispatched_ports", DEFAULT_DISPATCHED_PORTS)
 
     def generate_all(self):
         """
@@ -139,7 +143,8 @@ class ConfigGenerator(object):
 
     def _topo_args(self):
         return TopoGenArgs(self.args, self.topo_config, self.subnet_gen4,
-                           self.subnet_gen6, self.default_mtu)
+                           self.subnet_gen6, self.default_mtu,
+                           self.dispatched_ports)
 
     def _generate_supervisor(self, topo_dicts):
         args = self._supervisor_args(topo_dicts)

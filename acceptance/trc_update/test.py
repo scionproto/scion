@@ -46,6 +46,7 @@ class Test(base.TestTopogen):
       6. Restart control servers and check connectivity again.
     """
 
+    # TODO: Replace timers with the await_connectivity tool where appropriate.
     def _run(self):
         # Give some time for the topology to start.
         time.sleep(10)

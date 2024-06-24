@@ -48,6 +48,12 @@ type RouterConfig struct {
 	NumSlowPathProcessors int `toml:"num_slow_processors,omitempty"`
 	BatchSize             int `toml:"batch_size,omitempty"`
 	BFD                   BFD `toml:"bfd,omitempty"`
+	// TODO: These two values were introduced to override the port range for
+	// configured router in the context of acceptance tests. However, this
+	// introduces two sources for the port configuration. We should remove this
+	// and adapt the acceptance tests.
+	DispatchedPortStart *int `toml:"dispatched_port_start,omitempty"`
+	DispatchedPortEnd   *int `toml:"dispatched_port_end,omitempty"`
 }
 
 // BFD configuration. Unfortunately cannot be shared with topology.BFD
@@ -79,7 +85,27 @@ func (cfg *RouterConfig) Validate() error {
 	if cfg.NumSlowPathProcessors < 1 {
 		return serrors.New("Provided router config is invalid. NumSlowPathProcessors < 1")
 	}
-
+	if cfg.DispatchedPortStart != nil {
+		if cfg.DispatchedPortEnd == nil {
+			return serrors.New("provided router config is invalid. " +
+				"EndHostEndPort is nil; EndHostStartPort isn't")
+		}
+		if *cfg.DispatchedPortStart < 0 {
+			return serrors.New("provided router config is invalid. EndHostStartPort < 0")
+		}
+		if *cfg.DispatchedPortEnd >= (1 << 16) {
+			return serrors.New("provided router config is invalid. EndHostEndPort > 2**16 -1")
+		}
+		if *cfg.DispatchedPortStart > *cfg.DispatchedPortEnd {
+			return serrors.New("provided router config is invalid. " +
+				"EndHostStartPort > DispatchedPortEnd")
+		}
+	} else {
+		if cfg.DispatchedPortEnd != nil {
+			return serrors.New("provided router config is invalid. " +
+				"EndHostStartPort is nil; EndHostEndPort isn't")
+		}
+	}
 	return nil
 }
 

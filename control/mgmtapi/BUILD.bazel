@@ -42,6 +42,7 @@ go_library(
         "//private/mgmtapi/segments/api:go_default_library",
         "//private/storage:go_default_library",
         "//private/storage/beacon:go_default_library",
+        "//private/trust:go_default_library",
         "@com_github_getkin_kin_openapi//openapi3:go_default_library",  # keep
         "@com_github_go_chi_chi_v5//:go_default_library",  # keep
         "@com_github_oapi_codegen_runtime//:go_default_library",  # keep
@@ -51,10 +52,13 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["api_test.go"],
+    srcs = [
+        "api_test.go",
+        "export_test.go",
+    ],
     data = glob(["testdata/**"]),
+    embed = [":go_default_library"],
     deps = [
-        ":go_default_library",
         "//control/beacon:go_default_library",
         "//control/mgmtapi/mock_mgmtapi:go_default_library",
         "//control/trust:go_default_library",

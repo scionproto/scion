@@ -35,6 +35,7 @@ go_test(
         "//control/trust/mock_trust:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/private/xtest:go_default_library",
+        "//pkg/scrypto/cppki:go_default_library",
         "//private/app/command:go_default_library",
         "//private/trust:go_default_library",
         "//private/trust/mock_trust:go_default_library",

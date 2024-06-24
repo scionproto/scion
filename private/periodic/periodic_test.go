@@ -22,7 +22,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/pkg/metrics"
+	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/periodic"
 )
@@ -38,11 +38,10 @@ func (tf taskFunc) Name() string {
 }
 
 func TestPeriodicExecution(t *testing.T) {
-	events := metrics.NewTestCounter()
 	m := periodic.Metrics{
-		Events: func(s string) metrics.Counter {
-			return events.With("event_type", s)
-		},
+		StopEvents:    metrics.NewTestCounter(),
+		KillEvents:    metrics.NewTestCounter(),
+		TriggerEvents: metrics.NewTestCounter(),
 		// Without additional metrics
 	}
 
@@ -78,17 +77,16 @@ func TestPeriodicExecution(t *testing.T) {
 	err := runWithTimeout(r.Stop, 2*time.Second)
 	assert.NoError(t, err, "r.Stop() action timed out")
 	// Check that  metrics work as expected
-	assert.Equal(t, float64(1), metrics.CounterValue(m.Events(periodic.EventStop)))
-	assert.Equal(t, float64(0), metrics.CounterValue(m.Events(periodic.EventKill)))
-	assert.Equal(t, float64(0), metrics.CounterValue(m.Events(periodic.EventTrigger)))
+	assert.Equal(t, float64(1), metrics.CounterValue(m.StopEvents))
+	assert.Equal(t, float64(0), metrics.CounterValue(m.KillEvents))
+	assert.Equal(t, float64(0), metrics.CounterValue(m.TriggerEvents))
 }
 
 func TestKillExitsLongRunningFunc(t *testing.T) {
-	events := metrics.NewTestCounter()
 	m := periodic.Metrics{
-		Events: func(s string) metrics.Counter {
-			return events.With("event_type", s)
-		},
+		StopEvents:    metrics.NewTestCounter(),
+		KillEvents:    metrics.NewTestCounter(),
+		TriggerEvents: metrics.NewTestCounter(),
 		// Without additional metrics
 	}
 	done, errChan := make(chan struct{}), make(chan error, 1)
@@ -115,17 +113,16 @@ func TestKillExitsLongRunningFunc(t *testing.T) {
 		t.Fatalf("time out while waiting on err")
 	}
 	// Check that  metrics work as expected
-	assert.Equal(t, float64(0), metrics.CounterValue(m.Events(periodic.EventStop)))
-	assert.Equal(t, float64(1), metrics.CounterValue(m.Events(periodic.EventKill)))
-	assert.Equal(t, float64(0), metrics.CounterValue(m.Events(periodic.EventTrigger)))
+	assert.Equal(t, float64(0), metrics.CounterValue(m.StopEvents))
+	assert.Equal(t, float64(1), metrics.CounterValue(m.KillEvents))
+	assert.Equal(t, float64(0), metrics.CounterValue(m.TriggerEvents))
 }
 
 func TestTaskDoesNotRunAfterKill(t *testing.T) {
-	events := metrics.NewTestCounter()
 	m := periodic.Metrics{
-		Events: func(s string) metrics.Counter {
-			return events.With("event_type", s)
-		},
+		StopEvents:    metrics.NewTestCounter(),
+		KillEvents:    metrics.NewTestCounter(),
+		TriggerEvents: metrics.NewTestCounter(),
 		// With additional metrics
 		Period:    metrics.NewTestGauge(),
 		Runtime:   metrics.NewTestGauge(),
@@ -156,9 +153,9 @@ func TestTaskDoesNotRunAfterKill(t *testing.T) {
 	xtest.AssertReadReturnsBefore(t, done, time.Second)
 	assert.Equal(t, len(cnt), 0, "No other run within a period")
 	// Check that  metrics work as expected
-	assert.Equal(t, float64(0), metrics.CounterValue(m.Events(periodic.EventStop)))
-	assert.Equal(t, float64(1), metrics.CounterValue(m.Events(periodic.EventKill)))
-	assert.Equal(t, float64(0), metrics.CounterValue(m.Events(periodic.EventTrigger)))
+	assert.Equal(t, float64(0), metrics.CounterValue(m.StopEvents))
+	assert.Equal(t, float64(1), metrics.CounterValue(m.KillEvents))
+	assert.Equal(t, float64(0), metrics.CounterValue(m.TriggerEvents))
 
 	assert.Equal(t, p.Seconds(), metrics.GaugeValue(m.Period))
 
@@ -175,11 +172,10 @@ func TestTaskDoesNotRunAfterKill(t *testing.T) {
 }
 
 func TestTriggerNow(t *testing.T) {
-	events := metrics.NewTestCounter()
 	m := periodic.Metrics{
-		Events: func(s string) metrics.Counter {
-			return events.With("event_type", s)
-		},
+		StopEvents:    metrics.NewTestCounter(),
+		KillEvents:    metrics.NewTestCounter(),
+		TriggerEvents: metrics.NewTestCounter(),
 		// With additional metrics
 		Period:    metrics.NewTestGauge(),
 		Runtime:   metrics.NewTestGauge(),
@@ -213,13 +209,9 @@ func TestTriggerNow(t *testing.T) {
 	xtest.AssertReadReturnsBefore(t, done, time.Second)
 	assert.GreaterOrEqual(t, len(cnt), want-1, "Must run %v times within short time", want-1)
 	// Check that  metrics work as expected
-	assert.Equal(t, float64(0), metrics.CounterValue(m.Events(periodic.EventStop)))
-	assert.Equal(t, float64(0), metrics.CounterValue(m.Events(periodic.EventKill)))
-	assert.Equal(
-		t,
-		float64(want),
-		metrics.CounterValue(m.Events(periodic.EventTrigger)),
-	)
+	assert.Equal(t, float64(0), metrics.CounterValue(m.StopEvents))
+	assert.Equal(t, float64(0), metrics.CounterValue(m.KillEvents))
+	assert.Equal(t, float64(want), metrics.CounterValue(m.TriggerEvents))
 
 	assert.Equal(t, p.Seconds(), metrics.GaugeValue(m.Period))
 

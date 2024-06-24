@@ -37,11 +37,7 @@ from typing import Mapping, Union
 import yaml
 
 # SCION
-from topology.defines import DEFAULT6_NETWORK_ADDR
-
-DEFAULT_NETWORK = "127.0.0.0/8"
-DEFAULT_PRIV_NETWORK = "192.168.0.0/16"
-DEFAULT_SCN_DC_NETWORK = "172.20.0.0/20"
+from topology.defines import DEFAULT_NETWORK, DEFAULT_SCN_DC_NETWORK, DEFAULT6_NETWORK_ADDR
 
 IPAddress = Union[IPv4Address, IPv6Address]
 IPNetwork = Union[IPv4Network, IPv6Network]
@@ -176,8 +172,11 @@ class SubnetGenerator(object):
 
 
 class PortGenerator(object):
+    # XXX(JordiSubira): We keep this in the default range. If the configured range,
+    # doesn't include the 31000-32767 range, the services will be able to operate
+    # with the shim dispatcher.
     def __init__(self):
-        self.iter = iter(range(31000, 35000))
+        self.iter = iter(range(31000, 32767))
         self._ports = defaultdict(lambda: next(self.iter))
 
     def register(self, id_: str) -> int:

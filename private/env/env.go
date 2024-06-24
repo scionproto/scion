@@ -79,9 +79,6 @@ type General struct {
 	ID string `toml:"id,omitempty"`
 	// ConfigDir for loading extra files (currently, only topology.json and staticInfoConfig.json)
 	ConfigDir string `toml:"config_dir,omitempty"`
-	// ReconnectToDispatcher can be set to true to enable transparent dispatcher
-	// reconnects.
-	ReconnectToDispatcher bool `toml:"reconnect_to_dispatcher,omitempty"`
 }
 
 // InitDefaults sets the default value for Topology if not already set.
@@ -252,17 +249,4 @@ func (cfg *Tracing) NewTracer(id string) (opentracing.Tracer, io.Closer, error) 
 	return traceConfig.NewTracer(
 		jaegercfg.Extractor(opentracing.Binary, bp),
 		jaegercfg.Injector(opentracing.Binary, bp))
-}
-
-// QUIC contains configuration for control-plane speakers.
-type QUIC struct {
-	Address string `toml:"address,omitempty"`
-}
-
-func (cfg *QUIC) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
-	config.WriteString(dst, quicSample)
-}
-
-func (cfg *QUIC) ConfigName() string {
-	return "quic"
 }

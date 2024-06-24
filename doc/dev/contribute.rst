@@ -93,11 +93,11 @@ implementation projects.
 
 The current members of the TC Implementation are:
 
+* Jean-Christophe Hugly (|span-github| `@jiceatscion <https://github.com/jiceatscion>`_, |span-slack| @Jean-Christophe Hugly)
 * Dominik Roos (|span-github| `@oncilla <https://github.com/oncilla>`_, |span-slack| @roosd)
 * François Wirz (|span-github| `@FR4NK-W <https://github.com/FR4NK-W>`_, |span-slack| @frank)
 * Lukas Vogel (|span-github| `@lukedirtwalker <https://github.com/lukedirtwalker>`_, |span-slack| @luke)
 * Marc Frei (|span-github| `@marcfrei <https://github.com/marcfrei>`_, |span-slack| @marcfrei)
-* Matthias Frei (|span-github| `@matzf <https://github.com/matzf>`_, |span-slack| @matzf)
 
 
 .. rubric:: Responsibilities and Tasks
