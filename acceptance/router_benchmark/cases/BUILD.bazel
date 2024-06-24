@@ -4,12 +4,12 @@ go_library(
     name = "go_default_library",
     srcs = [
         "br_transit.go",
+        "helpers.go",
         "in.go",
         "in_transit.go",
         "out.go",
         "out_transit.go",
         "topo.go",
-        "helpers.go",
     ],
     importpath = "github.com/scionproto/scion/acceptance/router_benchmark/cases",
     visibility = [
