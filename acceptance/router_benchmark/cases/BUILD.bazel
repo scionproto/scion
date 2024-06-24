@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "br_transit.go",
+        "helpers.go",
         "in.go",
         "in_transit.go",
         "out.go",

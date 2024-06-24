@@ -33,13 +33,11 @@ logger = logging.getLogger(__name__)
 # to retrieve a frame. That one is hardware dependent and must be found by a third benchmark, so
 # it is not theoretically a constant, but keeping it here to not forget. Until then, our performance
 # index isn't really valid cross-hardware. M_COEF=400 gives roughly consistent results with the
-# hardware we have. So, using that until we know more.
+# hardware we have. So, using that until we know more. NIC_CONSTANT seems to be around
+# 1 microsecond. Using that, provisionally.
 
 M_COEF = 400
-NIC_CONSTANT = 0
-
-# TODO(jiceatscion): get it from or give it to brload?
-BM_PACKET_LEN = 172
+NIC_CONSTANT = 1.0/1000000
 
 # Intf: description of an interface configured for brload's use. Depending on context
 # mac and peermac may be unused. "mac" is the MAC address configured on the side of the subject
@@ -55,31 +53,36 @@ class Results:
     cores: int = 0
     coremark: int = 0
     mmbm: int = 0
+    packet_size: int = 0
     cases: list[dict] = []
     failed: list[dict] = []
     checked: bool = False
 
-    def __init__(self, cores: int, coremark: int, mmbm: int):
+    def __init__(self, cores: int, coremark: int, mmbm: int, packet_size: int):
         self.cores = cores
         self.coremark = coremark
         self.mmbm = mmbm
+        self.packet_size = packet_size
 
     def perf_index(self, rate: int) -> float:
         # TODO(jiceatscion): The perf index assumes that line speed isn't the bottleneck.
         # It almost never is, but ideally we'd need to run iperf3 to verify.
         # mmbm is in mebiBytes/s, rate is in pkt/s
         return rate * (1.0 / self.coremark +
-                       M_COEF * BM_PACKET_LEN / (self.mmbm * 1024 * 1024) +
+                       M_COEF * self.packet_size / (self.mmbm * 1024 * 1024) +
                        NIC_CONSTANT)
 
-    def add_case(self, name: str, rate: int, droppage: int):
+    def add_case(self, name: str, rate: int, droppage: int, raw_rate: int):
         dropRatio = round(float(droppage) / (rate + droppage), 2)
         saturated = dropRatio > 0.03
         perf = 0.0
         if self.cores == 3 and self.coremark and self.mmbm:
             perf = round(self.perf_index(rate), 1)
         self.cases.append({"case": name,
-                           "perf": perf, "rate": rate, "drop": dropRatio, "full": saturated})
+                           "perf": perf, "rate": rate, "drop": dropRatio,
+                           "bit_rate": rate * self.packet_size * 8,
+                           "raw_pkt_rate": raw_rate,
+                           "full": saturated})
 
     def CI_check(self, expectations: dict[str, int]):
         self.checked = True
@@ -147,6 +150,7 @@ class RouterBM():
     This class is a Mixin that borrows the following attributes from the host class:
     * coremark: the coremark benchmark results.
     * mmbm: the mmbm benchmark results.
+    * packet_size: the packet_size to use in the test cases.
     * intf_map: the map "label->actual_interface" map to be passed to brload.
     * brload: "localCmd" wraper for the brload executable (plumbum.machines.LocalCommand)
     * brload_cpus: [int] cpus where it is acceptable to run brload ([] means any)
@@ -154,7 +158,7 @@ class RouterBM():
     * prom_address: the address of the prometheus API a string in the form "host:port"
     """
 
-    def exec_br_load(self, case: str, map_args: list[str], count: int) -> str:
+    def exec_br_load(self, case: str, map_args: list[str], duration: int) -> str:
         # For num-streams, attempt to distribute uniformly on many possible number of cores.
         # 840 is a multiple of 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 15, 20, 21, 24, 28, ...
         brload_args = [
@@ -163,8 +167,9 @@ class RouterBM():
             "--artifacts", self.artifacts,
             *map_args,
             "--case", case,
-            "--num-packets", str(count),
+            "--duration", f"{duration}s",
             "--num-streams", "840",
+            "--packet-size", f"{self.packet_size}",
         ]
         if self.brload_cpus:
             brload_args = [
@@ -176,20 +181,20 @@ class RouterBM():
     def run_test_case(self, case: str, map_args: list[str]) -> (int, int):
         logger.debug(f"==> Starting load {case}")
 
-        output = self.exec_br_load(case, map_args, 10000000)
-        beg = "0"
+        # We transmit for 13 seconds and then ignore the first 3.
+        output = self.exec_br_load(case, map_args, 13)
         end = "0"
         for line in output.splitlines():
             if line.startswith("metricsBegin"):
-                _, beg, _, end = line.split()
+                end = line.split()[3]  # "... metricsEnd: <end>"
 
         logger.debug(f"==> Collecting {case} performance metrics...")
 
         # The raw metrics are expressed in terms of core*seconds. We convert to machine*seconds
         # which allows us to provide a projected packet/s; ...more intuitive than packets/core*s.
-        # We measure the rate over 10s. For best results we sample the end of the middle 10s of the
-        # run. "beg" is the start time of the real action and "end" is the end time.
-        sampleTime = (int(beg) + int(end) + 10) / 2
+        # We measure the rate over 10s. For best results we only look at the last 10 seconds.
+        # "end" reports a time when the transmission was still going on at maximum rate.
+        sampleTime = int(end)
         prom_query = urlencode({
             'time': f'{sampleTime}',
             'query': (
@@ -216,6 +221,31 @@ class RouterBM():
         for result in results:
             ts, val = result["value"]
             processed = int(float(val))
+            break
+
+        # Collect the raw packet rate too. Just so we can discover if the cpu-availability
+        # correction is bad.
+        prom_query = urlencode({
+            'time': f'{sampleTime}',
+            'query': (
+                'sum by (instance, job) ('
+                f'  rate(router_output_pkts_total{{job="BR", type="{case}"}}[10s])'
+                ')'
+            )
+        })
+        conn = HTTPConnection(self.prom_address)
+        conn.request("GET", f"/api/v1/query?{prom_query}")
+        resp = conn.getresponse()
+        if resp.status != 200:
+            raise RuntimeError(f"Unexpected response: {resp.status} {resp.reason}")
+
+        # There's only one router, so whichever metric we get is the right one.
+        pld = json.loads(resp.read().decode("utf-8"))
+        raw = 0
+        results = pld["data"]["result"]
+        for result in results:
+            ts, val = result["value"]
+            raw = int(float(val))
             break
 
         # Collect dropped packets metrics, so we can verify that the router was well saturated.
@@ -248,7 +278,7 @@ class RouterBM():
             dropped = int(float(val))
             break
 
-        return processed, dropped
+        return processed, dropped, raw
 
     # Fetch and log the number of cores used by Go. This may inform performance
     # modeling later.
@@ -289,18 +319,18 @@ class RouterBM():
         # Run one test (30% size) as warm-up to trigger any frequency scaling, else the first test
         # can get much lower performance.
         logger.debug("Warmup")
-        self.exec_br_load(test_cases[0], map_args, 3000000)
+        self.exec_br_load(test_cases[0], map_args, 5)
 
         # Fetch the core count once. It doesn't change while the router is running.
         # We can't get it until the router has done some work, but the warmup is enough.
         cores = self.core_count()
 
         # At long last, run the tests.
-        results = Results(cores, self.coremark, self.mmbm)
+        results = Results(cores, self.coremark, self.mmbm, self.packet_size)
         for test_case in test_cases:
             logger.info(f"Case: {test_case}")
-            rate, droppage = self.run_test_case(test_case, map_args)
-            results.add_case(test_case, rate, droppage)
+            rate, droppage, raw = self.run_test_case(test_case, map_args)
+            results.add_case(test_case, rate or 1, droppage, raw)
 
         return results
         logger.info("Benchmarked")
