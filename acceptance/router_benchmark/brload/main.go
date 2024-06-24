@@ -209,24 +209,25 @@ func run(cmd *cobra.Command) int {
 
 	// We started everything that could be started. So the best window for perf mertics
 	// opens somewhere around now.
-	metricsBegin := time.Now().Unix()
+	begin := time.Now()
+	metricsBegin := begin.Unix()
 
 	numPkt := 0
 	for time.Since(begin) < testDuration {
-    // we break every 1000 batches to check the time 
-    for i := 0; i < 1000; i++ {
-      // Rotate through flowIDs. We patch it directly into the SCION header of the packet. The
+		// we break every 1000 batches to check the time
+		for i := 0; i < 1000; i++ {
+			// Rotate through flowIDs. We patch it directly into the SCION header of the packet. The
 			// SCION header starts at offset 42. The flowID is the 20 least significant bits of the
 			// first 32 bit field. To make our life simpler, we only use the last 16 bits (so no
 			// more than 64K flows).
-		  for j := 0; j < batchSize; j++ {
-			  binary.BigEndian.PutUint16(allPkts[j][44:46], uint16(numPkt%int(numStreams)))
-        numPkt++
-		  }
-		  if _, err := sender.sendAll(); err != nil {
-			  log.Error("writing input packet", "case", string(caseToRun), "error", err)
-			  return 1
-      }
+			for j := 0; j < batchSize; j++ {
+				binary.BigEndian.PutUint16(allPkts[j][44:46], uint16(numPkt%int(numStreams)))
+				numPkt++
+			}
+			if _, err := sender.sendAll(); err != nil {
+				log.Error("writing input packet", "case", string(caseToRun), "error", err)
+				return 1
+			}
 		}
 	}
 
