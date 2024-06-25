@@ -16,7 +16,7 @@ package router
 
 import (
 	mrand "math/rand"
-	"net"
+	"net/netip"
 	"sync"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -24,14 +24,14 @@ import (
 
 type services struct {
 	mtx sync.Mutex
-	m   map[addr.SVC][]*net.UDPAddr
+	m   map[addr.SVC][]netip.AddrPort
 }
 
 func newServices() *services {
-	return &services{m: make(map[addr.SVC][]*net.UDPAddr)}
+	return &services{m: make(map[addr.SVC][]netip.AddrPort)}
 }
 
-func (s *services) AddSvc(svc addr.SVC, a *net.UDPAddr) {
+func (s *services) AddSvc(svc addr.SVC, a netip.AddrPort) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -42,7 +42,7 @@ func (s *services) AddSvc(svc addr.SVC, a *net.UDPAddr) {
 	s.m[svc] = append(addrs, a)
 }
 
-func (s *services) DelSvc(svc addr.SVC, a *net.UDPAddr) {
+func (s *services) DelSvc(svc addr.SVC, a netip.AddrPort) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -52,24 +52,24 @@ func (s *services) DelSvc(svc addr.SVC, a *net.UDPAddr) {
 		return
 	}
 	addrs[index] = addrs[len(addrs)-1]
-	addrs[len(addrs)-1] = nil
+	addrs[len(addrs)-1] = netip.AddrPort{}
 	s.m[svc] = addrs[:len(addrs)-1]
 }
 
-func (s *services) Any(svc addr.SVC) (*net.UDPAddr, bool) {
+func (s *services) Any(svc addr.SVC) (netip.AddrPort, bool) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
 	addrs := s.m[svc]
 	if len(addrs) == 0 {
-		return nil, false
+		return netip.AddrPort{}, false
 	}
 	return addrs[mrand.Intn(len(addrs))], true
 }
 
-func (s *services) index(a *net.UDPAddr, addrs []*net.UDPAddr) (int, bool) {
+func (s *services) index(a netip.AddrPort, addrs []netip.AddrPort) (int, bool) {
 	for i, o := range addrs {
-		if a.IP.Equal(o.IP) && a.Port == o.Port {
+		if a.Addr() == o.Addr() && a.Port() == o.Port() {
 			return i, true
 		}
 	}
