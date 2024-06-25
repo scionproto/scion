@@ -91,6 +91,7 @@ const (
 	DISCARD PacketDisp = iota // Zero value, default.
 	FORWARD
 	SLOWPATH
+	DONE
 )
 
 // packet aggregates buffers and ancillary metadata related to one packet.
@@ -778,7 +779,7 @@ func (d *DataPlane) runProcessor(id int, q <-chan *packet,
 		case FORWARD:
 			// Normal processing proceeds.
 		case SLOWPATH:
-			// Not an error, processing continues.
+			// Not an error, processing continues on the slow path.
 			select {
 			case slowQ <- p:
 			default:
@@ -786,7 +787,10 @@ func (d *DataPlane) runProcessor(id int, q <-chan *packet,
 				d.returnPacketToPool(p)
 			}
 			continue
-		case DISCARD: // Packets that don't need more processing (e.g. BFD), plus all errors.
+		case DONE: // Packets that don't need more processing (e.g. BFD)
+			d.returnPacketToPool(p)
+			continue
+		case DISCARD: // Everything else
 			metrics.DroppedPacketsInvalid.Inc()
 			d.returnPacketToPool(p)
 			continue
@@ -887,8 +891,9 @@ type slowPathPacketProcessor struct {
 
 func (p *slowPathPacketProcessor) reset() {
 	if err := p.buffer.Clear(); err != nil {
-		// TODO(jiceatscion): ...and we don't care?
-		log.Debug("Error while clearing buffer", "err", err)
+		// The serializeBuffer returned by NewSerializeBuffer isn't actually capable of failing to
+		// clear, so planning on doing something about it is pointless (and what might that be?).
+		panic(fmt.Sprintf("Error while clearing buffer: %v", err))
 	}
 	p.path = nil
 	p.hbhLayer = slayers.HopByHopExtnSkipper{}
@@ -1082,8 +1087,9 @@ func (p *scionPacketProcessor) reset() error {
 	p.effectiveXover = false
 	p.peering = false
 	if err := p.buffer.Clear(); err != nil {
-		// TODO(jiceatscion): ...we care here but not in slow-path?
-		return serrors.WrapStr("Failed to clear buffer", err)
+		// The serializeBuffer returned by NewSerializeBuffer isn't actually capable of failing to
+		// clear, so planning on doing something about it is pointless (and what might that be?).
+		panic(fmt.Sprintf("Error while clearing buffer: %v", err))
 	}
 	p.mac.Reset()
 	p.cachedMac = nil
