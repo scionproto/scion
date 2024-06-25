@@ -38,13 +38,8 @@ import (
 type Messages []ipv4.Message
 
 // Conn describes the API for an underlay socket
-// ReadFrom is the only remaining conn method that depends on net.UDPAddr. Since it is only used
-// by the soon-to-be-deprecated dispatcher, leaving it alone for now. Else we'd end-up
-// adding one conversion in ReadBatch and the opposite in the dispatcher. All for nothing.
 type Conn interface {
-	ReadFrom([]byte) (int, *net.UDPAddr, error)
 	ReadBatch(Messages) (int, error)
-	Write([]byte) (int, error)
 	WriteTo([]byte, *netip.AddrPort) (int, error)
 	WriteBatch(Messages, int) (int, error)
 	LocalAddr() *netip.AddrPort
@@ -265,10 +260,6 @@ func (cc *connUDPBase) initConnUDP(
 	return nil
 }
 
-func (c *connUDPBase) ReadFrom(b []byte) (int, *net.UDPAddr, error) {
-	return c.conn.ReadFromUDP(b)
-}
-
 func (c *connUDPBase) Write(b []byte) (int, error) {
 	return c.conn.Write(b)
 }
@@ -277,8 +268,7 @@ func (c *connUDPBase) WriteTo(b []byte, dst *netip.AddrPort) (int, error) {
 	if c.Remote != nil {
 		return c.conn.Write(b)
 	}
-	// POSSIBLY EXPENSIVE CONVERSION: temp net.UDPAddr is allocated from heap.
-	return c.conn.WriteTo(b, net.UDPAddrFromAddrPort(*dst))
+	return c.conn.WriteToUDPAddrPort(b, *dst)
 }
 
 func (c *connUDPBase) LocalAddr() *netip.AddrPort {

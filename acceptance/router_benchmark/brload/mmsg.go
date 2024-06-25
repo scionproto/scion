@@ -50,8 +50,7 @@ func (sender *mpktSender) setPkts(ps [][]byte) {
 	sender.msgs = make([]mmsgHdr, numP)
 	sender.iovecs = make([]unix.Iovec, numP)
 
-	for i := 0; i < numP; i++ {
-		p := ps[i] // p = one packet
+	for i, p := range ps {
 		if len(p) > 0 {
 			sender.iovecs[i].Base = (*byte)(unsafe.Pointer(&p[0]))
 			sender.iovecs[i].SetLen(len(p))
