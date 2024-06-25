@@ -58,7 +58,6 @@ func (sender *mpktSender) setPkts(ps [][]byte) {
 		sender.msgs[i].hdr.Iov = &sender.iovecs[i]
 		sender.msgs[i].hdr.Iovlen = 1
 	}
-
 }
 
 func (sender *mpktSender) sendAll() (int, error) {
