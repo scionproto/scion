@@ -18,8 +18,6 @@ import (
 	"hash"
 	"time"
 
-	"github.com/google/gopacket"
-
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
@@ -34,7 +32,7 @@ import (
 
 // oneOut generates one packet of outgoing traffic from AS1 at br1a. The outcome is a raw packet
 // that the test must feed into the router. The flow ID is 0.
-func Out(payload string, mac hash.Hash) (string, string, []byte) {
+func Out(packetSize int, mac hash.Hash) (string, string, []byte, []byte) {
 
 	var (
 		originIA       = ISDAS(1)
@@ -46,11 +44,6 @@ func Out(payload string, mac hash.Hash) (string, string, []byte) {
 		targetIP       = PublicIP(2, 1)
 		targetHost     = HostAddr(targetIP)
 	)
-
-	options := gopacket.SerializeOptions{
-		FixLengths:       true,
-		ComputeChecksums: true,
-	}
 
 	ethernet, ip, udp := Underlay(srcIP, srcPort, dstIP, dstPort)
 
@@ -107,15 +100,6 @@ func Out(payload string, mac hash.Hash) (string, string, []byte) {
 	scionudp.DstPort = 50000
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
-	payloadBytes := []byte(payload)
-
-	// Prepare input packet
-	input := gopacket.NewSerializeBuffer()
-	if err := gopacket.SerializeLayers(input, options,
-		ethernet, ip, udp, scionL, scionudp, gopacket.Payload(payloadBytes),
-	); err != nil {
-		panic(err)
-	}
-
-	return DeviceName(1, 0), DeviceName(1, 2), input.Bytes()
+	payload, packet := mkPacket(packetSize, ethernet, ip, udp, scionL, scionudp)
+	return DeviceName(1, 0), DeviceName(1, 2), payload, packet
 }

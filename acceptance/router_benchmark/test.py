@@ -20,6 +20,7 @@ import json
 import logging
 import shutil
 import time
+import os
 
 from acceptance.common import base
 from benchmarklib import Intf, RouterBM
@@ -31,6 +32,12 @@ from plumbum.machines import LocalCommand
 from random import randint
 
 logger = logging.getLogger(__name__)
+
+# Default packet length for CI testing
+BM_PACKET_SIZE = 172
+
+# Router profiling ON or OFF?
+PROFILING = False
 
 # Those values are valid expectations only when running in the CI environment.
 TEST_CASES = {
@@ -188,6 +195,7 @@ class RouterBMTest(base.TestBase, RouterBM):
     # Used by the RouterBM mixin:
     coremark: int = 0
     mmbm: int = 0
+    packet_size: int = BM_PACKET_SIZE
     intf_map: dict[str, Intf] = {}
     brload: LocalCommand = None
     brload_cpus: list[int] = [0]
@@ -316,7 +324,7 @@ class RouterBMTest(base.TestBase, RouterBM):
             peer_mac = mac_for_ip(req.peer_ip)
             mac = mac_for_ip(req.ip)
             sudo("ip", "link", "add", host_intf, "type", "veth", "peer", "name", br_intf)
-            sudo("ip", "link", "set", host_intf, "mtu", "8000")
+            sudo("ip", "link", "set", host_intf, "mtu", "9000")
             sudo("ip", "link", "set", host_intf, "arp", "off")  # Make sure the real addr isn't used
 
             # Do not assign the host addresses but create one link-local addr.
@@ -327,7 +335,7 @@ class RouterBMTest(base.TestBase, RouterBM):
 
             sudo("sysctl", "-qw", f"net.ipv6.conf.{host_intf}.disable_ipv6=1")
             sudo("ethtool", "-K", br_intf, "rx", "off", "tx", "off")
-            sudo("ip", "link", "set", br_intf, "mtu", "8000")
+            sudo("ip", "link", "set", br_intf, "mtu", "9000")
             sudo("ip", "link", "set", br_intf, "address", mac)
 
             # The network namespace
@@ -352,6 +360,10 @@ class RouterBMTest(base.TestBase, RouterBM):
 
         # Ship it.
         self.intf_map[req.label] = Intf(host_intf, mac, peer_mac)
+
+        # If that's an exclusive interface pair, we can use it to profile the router:
+        if req.exclusive == "true":
+            self.profiling_addr = req.ip
 
     def fetch_horsepower(self):
         try:
@@ -427,9 +439,6 @@ class RouterBMTest(base.TestBase, RouterBM):
             t = IntfReq._make(elems)
             self.create_interface(t, "benchmark")
 
-        # We don't need that symlink any more
-        sudo("rm", "/var/run/netns/benchmark")
-
         # Now the router can start.
         docker("run",
                "-v", f"{self.artifacts}/conf:/etc/scion",
@@ -445,6 +454,21 @@ class RouterBMTest(base.TestBase, RouterBM):
         # Collect the horsepower microbenchmark numbers if we can.
         # They'll be used to produce a performance index.
         self.fetch_horsepower()
+
+        # Optionally profile the router
+        if PROFILING:
+            docker("run",
+                   "--rm",
+                   "-d",
+                   "-u", os.getuid(),
+                   "-v", f"{self.artifacts}:/out",
+                   "--network", "container:prometheus",
+                   "curlimages/curl",
+                   f"{self.profiling_addr}:30442/debug/pprof/profile?seconds=70",
+                   "-o", "/out/cpu.pprof")
+
+        # We don't need that symlink any more
+        sudo("rm", "/var/run/netns/benchmark")
 
     def teardown(self):
         docker["logs", "router"].run_fg(retcode=None)
