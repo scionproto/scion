@@ -19,7 +19,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/antlr/antlr4/runtime/Go/antlr"
+	"github.com/antlr4-go/antlr/v4"
 	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/antlr/traffic_class"

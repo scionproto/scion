@@ -3,86 +3,106 @@
 package sequence // Sequence
 import (
 	"fmt"
-	"reflect"
 	"strconv"
+	"sync"
 
-	"github.com/antlr/antlr4/runtime/Go/antlr"
+	"github.com/antlr4-go/antlr/v4"
 )
 
 // Suppress unused import errors
 var _ = fmt.Printf
-var _ = reflect.Copy
 var _ = strconv.Itoa
-
-var parserATN = []uint16{
-	3, 24715, 42794, 33075, 47597, 16764, 15335, 30598, 22884, 3, 16, 73, 4,
-	2, 9, 2, 4, 3, 9, 3, 4, 4, 9, 4, 4, 5, 9, 5, 4, 6, 9, 6, 4, 7, 9, 7, 3,
-	2, 3, 2, 3, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 5, 3, 24, 10, 3, 3,
-	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 7, 3, 37,
-	10, 3, 12, 3, 14, 3, 40, 11, 3, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3,
-	4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 5, 4, 58, 10,
-	4, 3, 5, 3, 5, 5, 5, 62, 10, 5, 3, 6, 3, 6, 3, 6, 5, 6, 67, 10, 6, 3, 7,
-	3, 7, 5, 7, 71, 10, 7, 3, 7, 2, 3, 4, 8, 2, 4, 6, 8, 10, 12, 2, 2, 2, 79,
-	2, 14, 3, 2, 2, 2, 4, 23, 3, 2, 2, 2, 6, 57, 3, 2, 2, 2, 8, 61, 3, 2, 2,
-	2, 10, 66, 3, 2, 2, 2, 12, 70, 3, 2, 2, 2, 14, 15, 5, 4, 3, 2, 15, 16,
-	7, 2, 2, 3, 16, 3, 3, 2, 2, 2, 17, 18, 8, 3, 1, 2, 18, 19, 7, 15, 2, 2,
-	19, 20, 5, 4, 3, 2, 20, 21, 7, 16, 2, 2, 21, 24, 3, 2, 2, 2, 22, 24, 5,
-	6, 4, 2, 23, 17, 3, 2, 2, 2, 23, 22, 3, 2, 2, 2, 24, 38, 3, 2, 2, 2, 25,
-	26, 12, 6, 2, 2, 26, 27, 7, 14, 2, 2, 27, 37, 5, 4, 3, 7, 28, 29, 12, 5,
-	2, 2, 29, 37, 5, 4, 3, 6, 30, 31, 12, 9, 2, 2, 31, 37, 7, 11, 2, 2, 32,
-	33, 12, 8, 2, 2, 33, 37, 7, 12, 2, 2, 34, 35, 12, 7, 2, 2, 35, 37, 7, 13,
-	2, 2, 36, 25, 3, 2, 2, 2, 36, 28, 3, 2, 2, 2, 36, 30, 3, 2, 2, 2, 36, 32,
-	3, 2, 2, 2, 36, 34, 3, 2, 2, 2, 37, 40, 3, 2, 2, 2, 38, 36, 3, 2, 2, 2,
-	38, 39, 3, 2, 2, 2, 39, 5, 3, 2, 2, 2, 40, 38, 3, 2, 2, 2, 41, 58, 5, 8,
-	5, 2, 42, 43, 5, 8, 5, 2, 43, 44, 5, 10, 6, 2, 44, 58, 3, 2, 2, 2, 45,
-	46, 5, 8, 5, 2, 46, 47, 5, 10, 6, 2, 47, 48, 7, 9, 2, 2, 48, 49, 5, 12,
-	7, 2, 49, 58, 3, 2, 2, 2, 50, 51, 5, 8, 5, 2, 51, 52, 5, 10, 6, 2, 52,
-	53, 7, 9, 2, 2, 53, 54, 5, 12, 7, 2, 54, 55, 7, 10, 2, 2, 55, 56, 5, 12,
-	7, 2, 56, 58, 3, 2, 2, 2, 57, 41, 3, 2, 2, 2, 57, 42, 3, 2, 2, 2, 57, 45,
-	3, 2, 2, 2, 57, 50, 3, 2, 2, 2, 58, 7, 3, 2, 2, 2, 59, 62, 7, 4, 2, 2,
-	60, 62, 7, 5, 2, 2, 61, 59, 3, 2, 2, 2, 61, 60, 3, 2, 2, 2, 62, 9, 3, 2,
-	2, 2, 63, 67, 7, 6, 2, 2, 64, 67, 7, 7, 2, 2, 65, 67, 7, 8, 2, 2, 66, 63,
-	3, 2, 2, 2, 66, 64, 3, 2, 2, 2, 66, 65, 3, 2, 2, 2, 67, 11, 3, 2, 2, 2,
-	68, 71, 7, 4, 2, 2, 69, 71, 7, 5, 2, 2, 70, 68, 3, 2, 2, 2, 70, 69, 3,
-	2, 2, 2, 71, 13, 3, 2, 2, 2, 9, 23, 36, 38, 57, 61, 66, 70,
-}
-var literalNames = []string{
-	"", "", "'0'", "", "", "", "", "'#'", "','", "'?'", "'+'", "'*'", "'|'",
-	"'('", "')'",
-}
-var symbolicNames = []string{
-	"", "WHITESPACE", "ZERO", "NUM", "WILDCARDAS", "LEGACYAS", "AS", "HASH",
-	"COMMA", "QUESTIONMARK", "PLUS", "ASTERISK", "OR", "LPAR", "RPAR",
-}
-
-var ruleNames = []string{
-	"start", "sequence", "onehop", "isd", "as", "iface",
-}
+var _ = sync.Once{}
 
 type SequenceParser struct {
 	*antlr.BaseParser
 }
 
-// NewSequenceParser produces a new parser instance for the optional input antlr.TokenStream.
-//
-// The *SequenceParser instance produced may be reused by calling the SetInputStream method.
-// The initial parser configuration is expensive to construct, and the object is not thread-safe;
-// however, if used within a Golang sync.Pool, the construction cost amortizes well and the
-// objects can be used in a thread-safe manner.
-func NewSequenceParser(input antlr.TokenStream) *SequenceParser {
-	this := new(SequenceParser)
-	deserializer := antlr.NewATNDeserializer(nil)
-	deserializedATN := deserializer.DeserializeFromUInt16(parserATN)
-	decisionToDFA := make([]*antlr.DFA, len(deserializedATN.DecisionToState))
-	for index, ds := range deserializedATN.DecisionToState {
-		decisionToDFA[index] = antlr.NewDFA(ds, index)
-	}
-	this.BaseParser = antlr.NewBaseParser(input)
+var SequenceParserStaticData struct {
+	once                   sync.Once
+	serializedATN          []int32
+	LiteralNames           []string
+	SymbolicNames          []string
+	RuleNames              []string
+	PredictionContextCache *antlr.PredictionContextCache
+	atn                    *antlr.ATN
+	decisionToDFA          []*antlr.DFA
+}
 
-	this.Interpreter = antlr.NewParserATNSimulator(this, deserializedATN, decisionToDFA, antlr.NewPredictionContextCache())
-	this.RuleNames = ruleNames
-	this.LiteralNames = literalNames
-	this.SymbolicNames = symbolicNames
+func sequenceParserInit() {
+	staticData := &SequenceParserStaticData
+	staticData.LiteralNames = []string{
+		"", "", "'0'", "", "", "", "", "'#'", "','", "'?'", "'+'", "'*'", "'|'",
+		"'('", "')'",
+	}
+	staticData.SymbolicNames = []string{
+		"", "WHITESPACE", "ZERO", "NUM", "WILDCARDAS", "LEGACYAS", "AS", "HASH",
+		"COMMA", "QUESTIONMARK", "PLUS", "ASTERISK", "OR", "LPAR", "RPAR",
+	}
+	staticData.RuleNames = []string{
+		"start", "sequence", "onehop", "isd", "as", "iface",
+	}
+	staticData.PredictionContextCache = antlr.NewPredictionContextCache()
+	staticData.serializedATN = []int32{
+		4, 1, 14, 71, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
+		4, 2, 5, 7, 5, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3,
+		1, 22, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 5, 1, 35, 8, 1, 10, 1, 12, 1, 38, 9, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1,
+		2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 3,
+		2, 56, 8, 2, 1, 3, 1, 3, 3, 3, 60, 8, 3, 1, 4, 1, 4, 1, 4, 3, 4, 65, 8,
+		4, 1, 5, 1, 5, 3, 5, 69, 8, 5, 1, 5, 0, 1, 2, 6, 0, 2, 4, 6, 8, 10, 0,
+		0, 77, 0, 12, 1, 0, 0, 0, 2, 21, 1, 0, 0, 0, 4, 55, 1, 0, 0, 0, 6, 59,
+		1, 0, 0, 0, 8, 64, 1, 0, 0, 0, 10, 68, 1, 0, 0, 0, 12, 13, 3, 2, 1, 0,
+		13, 14, 5, 0, 0, 1, 14, 1, 1, 0, 0, 0, 15, 16, 6, 1, -1, 0, 16, 17, 5,
+		13, 0, 0, 17, 18, 3, 2, 1, 0, 18, 19, 5, 14, 0, 0, 19, 22, 1, 0, 0, 0,
+		20, 22, 3, 4, 2, 0, 21, 15, 1, 0, 0, 0, 21, 20, 1, 0, 0, 0, 22, 36, 1,
+		0, 0, 0, 23, 24, 10, 4, 0, 0, 24, 25, 5, 12, 0, 0, 25, 35, 3, 2, 1, 5,
+		26, 27, 10, 3, 0, 0, 27, 35, 3, 2, 1, 4, 28, 29, 10, 7, 0, 0, 29, 35, 5,
+		9, 0, 0, 30, 31, 10, 6, 0, 0, 31, 35, 5, 10, 0, 0, 32, 33, 10, 5, 0, 0,
+		33, 35, 5, 11, 0, 0, 34, 23, 1, 0, 0, 0, 34, 26, 1, 0, 0, 0, 34, 28, 1,
+		0, 0, 0, 34, 30, 1, 0, 0, 0, 34, 32, 1, 0, 0, 0, 35, 38, 1, 0, 0, 0, 36,
+		34, 1, 0, 0, 0, 36, 37, 1, 0, 0, 0, 37, 3, 1, 0, 0, 0, 38, 36, 1, 0, 0,
+		0, 39, 56, 3, 6, 3, 0, 40, 41, 3, 6, 3, 0, 41, 42, 3, 8, 4, 0, 42, 56,
+		1, 0, 0, 0, 43, 44, 3, 6, 3, 0, 44, 45, 3, 8, 4, 0, 45, 46, 5, 7, 0, 0,
+		46, 47, 3, 10, 5, 0, 47, 56, 1, 0, 0, 0, 48, 49, 3, 6, 3, 0, 49, 50, 3,
+		8, 4, 0, 50, 51, 5, 7, 0, 0, 51, 52, 3, 10, 5, 0, 52, 53, 5, 8, 0, 0, 53,
+		54, 3, 10, 5, 0, 54, 56, 1, 0, 0, 0, 55, 39, 1, 0, 0, 0, 55, 40, 1, 0,
+		0, 0, 55, 43, 1, 0, 0, 0, 55, 48, 1, 0, 0, 0, 56, 5, 1, 0, 0, 0, 57, 60,
+		5, 2, 0, 0, 58, 60, 5, 3, 0, 0, 59, 57, 1, 0, 0, 0, 59, 58, 1, 0, 0, 0,
+		60, 7, 1, 0, 0, 0, 61, 65, 5, 4, 0, 0, 62, 65, 5, 5, 0, 0, 63, 65, 5, 6,
+		0, 0, 64, 61, 1, 0, 0, 0, 64, 62, 1, 0, 0, 0, 64, 63, 1, 0, 0, 0, 65, 9,
+		1, 0, 0, 0, 66, 69, 5, 2, 0, 0, 67, 69, 5, 3, 0, 0, 68, 66, 1, 0, 0, 0,
+		68, 67, 1, 0, 0, 0, 69, 11, 1, 0, 0, 0, 7, 21, 34, 36, 55, 59, 64, 68,
+	}
+	deserializer := antlr.NewATNDeserializer(nil)
+	staticData.atn = deserializer.Deserialize(staticData.serializedATN)
+	atn := staticData.atn
+	staticData.decisionToDFA = make([]*antlr.DFA, len(atn.DecisionToState))
+	decisionToDFA := staticData.decisionToDFA
+	for index, state := range atn.DecisionToState {
+		decisionToDFA[index] = antlr.NewDFA(state, index)
+	}
+}
+
+// SequenceParserInit initializes any static state used to implement SequenceParser. By default the
+// static state used to implement the parser is lazily initialized during the first call to
+// NewSequenceParser(). You can call this function if you wish to initialize the static state ahead
+// of time.
+func SequenceParserInit() {
+	staticData := &SequenceParserStaticData
+	staticData.once.Do(sequenceParserInit)
+}
+
+// NewSequenceParser produces a new parser instance for the optional input antlr.TokenStream.
+func NewSequenceParser(input antlr.TokenStream) *SequenceParser {
+	SequenceParserInit()
+	this := new(SequenceParser)
+	this.BaseParser = antlr.NewBaseParser(input)
+	staticData := &SequenceParserStaticData
+	this.Interpreter = antlr.NewParserATNSimulator(this, staticData.atn, staticData.decisionToDFA, staticData.PredictionContextCache)
+	this.RuleNames = staticData.RuleNames
+	this.LiteralNames = staticData.LiteralNames
+	this.SymbolicNames = staticData.SymbolicNames
 	this.GrammarFileName = "Sequence.g4"
 
 	return this
@@ -124,20 +144,29 @@ type IStartContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	Sequence() ISequenceContext
+	EOF() antlr.TerminalNode
+
 	// IsStartContext differentiates from other interfaces.
 	IsStartContext()
 }
 
 type StartContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyStartContext() *StartContext {
 	var p = new(StartContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SequenceParserRULE_start
 	return p
+}
+
+func InitEmptyStartContext(p *StartContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SequenceParserRULE_start
 }
 
 func (*StartContext) IsStartContext() {}
@@ -145,7 +174,7 @@ func (*StartContext) IsStartContext() {}
 func NewStartContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *StartContext {
 	var p = new(StartContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SequenceParserRULE_start
@@ -156,7 +185,13 @@ func NewStartContext(parser antlr.Parser, parent antlr.ParserRuleContext, invoki
 func (s *StartContext) GetParser() antlr.Parser { return s.parser }
 
 func (s *StartContext) Sequence() ISequenceContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ISequenceContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ISequenceContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -189,29 +224,9 @@ func (s *StartContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (p *SequenceParser) Start() (localctx IStartContext) {
-	this := p
-	_ = this
-
+func (p *SequenceParser) Start_() (localctx IStartContext) {
 	localctx = NewStartContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 0, SequenceParserRULE_start)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(12)
@@ -220,9 +235,23 @@ func (p *SequenceParser) Start() (localctx IStartContext) {
 	{
 		p.SetState(13)
 		p.Match(SequenceParserEOF)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // ISequenceContext is an interface to support dynamic dispatch.
@@ -231,21 +260,25 @@ type ISequenceContext interface {
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
-
 	// IsSequenceContext differentiates from other interfaces.
 	IsSequenceContext()
 }
 
 type SequenceContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptySequenceContext() *SequenceContext {
 	var p = new(SequenceContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SequenceParserRULE_sequence
 	return p
+}
+
+func InitEmptySequenceContext(p *SequenceContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SequenceParserRULE_sequence
 }
 
 func (*SequenceContext) IsSequenceContext() {}
@@ -253,7 +286,7 @@ func (*SequenceContext) IsSequenceContext() {}
 func NewSequenceContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *SequenceContext {
 	var p = new(SequenceContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SequenceParserRULE_sequence
@@ -263,8 +296,8 @@ func NewSequenceContext(parser antlr.Parser, parent antlr.ParserRuleContext, inv
 
 func (s *SequenceContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *SequenceContext) CopyFrom(ctx *SequenceContext) {
-	s.BaseParserRuleContext.CopyFrom(ctx.BaseParserRuleContext)
+func (s *SequenceContext) CopyAll(ctx *SequenceContext) {
+	s.CopyFrom(&ctx.BaseParserRuleContext)
 }
 
 func (s *SequenceContext) GetRuleContext() antlr.RuleContext {
@@ -276,15 +309,15 @@ func (s *SequenceContext) ToStringTree(ruleNames []string, recog antlr.Recognize
 }
 
 type OrContext struct {
-	*SequenceContext
+	SequenceContext
 }
 
 func NewOrContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *OrContext {
 	var p = new(OrContext)
 
-	p.SequenceContext = NewEmptySequenceContext()
+	InitEmptySequenceContext(&p.SequenceContext)
 	p.parser = parser
-	p.CopyFrom(ctx.(*SequenceContext))
+	p.CopyAll(ctx.(*SequenceContext))
 
 	return p
 }
@@ -294,12 +327,20 @@ func (s *OrContext) GetRuleContext() antlr.RuleContext {
 }
 
 func (s *OrContext) AllSequence() []ISequenceContext {
-	var ts = s.GetTypedRuleContexts(reflect.TypeOf((*ISequenceContext)(nil)).Elem())
-	var tst = make([]ISequenceContext, len(ts))
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(ISequenceContext); ok {
+			len++
+		}
+	}
 
-	for i, t := range ts {
-		if t != nil {
+	tst := make([]ISequenceContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(ISequenceContext); ok {
 			tst[i] = t.(ISequenceContext)
+			i++
 		}
 	}
 
@@ -307,7 +348,17 @@ func (s *OrContext) AllSequence() []ISequenceContext {
 }
 
 func (s *OrContext) Sequence(i int) ISequenceContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ISequenceContext)(nil)).Elem(), i)
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ISequenceContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -333,15 +384,15 @@ func (s *OrContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 type ConcatenationContext struct {
-	*SequenceContext
+	SequenceContext
 }
 
 func NewConcatenationContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *ConcatenationContext {
 	var p = new(ConcatenationContext)
 
-	p.SequenceContext = NewEmptySequenceContext()
+	InitEmptySequenceContext(&p.SequenceContext)
 	p.parser = parser
-	p.CopyFrom(ctx.(*SequenceContext))
+	p.CopyAll(ctx.(*SequenceContext))
 
 	return p
 }
@@ -351,12 +402,20 @@ func (s *ConcatenationContext) GetRuleContext() antlr.RuleContext {
 }
 
 func (s *ConcatenationContext) AllSequence() []ISequenceContext {
-	var ts = s.GetTypedRuleContexts(reflect.TypeOf((*ISequenceContext)(nil)).Elem())
-	var tst = make([]ISequenceContext, len(ts))
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(ISequenceContext); ok {
+			len++
+		}
+	}
 
-	for i, t := range ts {
-		if t != nil {
+	tst := make([]ISequenceContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(ISequenceContext); ok {
 			tst[i] = t.(ISequenceContext)
+			i++
 		}
 	}
 
@@ -364,7 +423,17 @@ func (s *ConcatenationContext) AllSequence() []ISequenceContext {
 }
 
 func (s *ConcatenationContext) Sequence(i int) ISequenceContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ISequenceContext)(nil)).Elem(), i)
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ISequenceContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -386,15 +455,15 @@ func (s *ConcatenationContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 type QuestionMarkContext struct {
-	*SequenceContext
+	SequenceContext
 }
 
 func NewQuestionMarkContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *QuestionMarkContext {
 	var p = new(QuestionMarkContext)
 
-	p.SequenceContext = NewEmptySequenceContext()
+	InitEmptySequenceContext(&p.SequenceContext)
 	p.parser = parser
-	p.CopyFrom(ctx.(*SequenceContext))
+	p.CopyAll(ctx.(*SequenceContext))
 
 	return p
 }
@@ -404,7 +473,13 @@ func (s *QuestionMarkContext) GetRuleContext() antlr.RuleContext {
 }
 
 func (s *QuestionMarkContext) Sequence() ISequenceContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ISequenceContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ISequenceContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -430,15 +505,15 @@ func (s *QuestionMarkContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 type HopContext struct {
-	*SequenceContext
+	SequenceContext
 }
 
 func NewHopContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *HopContext {
 	var p = new(HopContext)
 
-	p.SequenceContext = NewEmptySequenceContext()
+	InitEmptySequenceContext(&p.SequenceContext)
 	p.parser = parser
-	p.CopyFrom(ctx.(*SequenceContext))
+	p.CopyAll(ctx.(*SequenceContext))
 
 	return p
 }
@@ -448,7 +523,13 @@ func (s *HopContext) GetRuleContext() antlr.RuleContext {
 }
 
 func (s *HopContext) Onehop() IOnehopContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IOnehopContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IOnehopContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -470,15 +551,15 @@ func (s *HopContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 type PlusContext struct {
-	*SequenceContext
+	SequenceContext
 }
 
 func NewPlusContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *PlusContext {
 	var p = new(PlusContext)
 
-	p.SequenceContext = NewEmptySequenceContext()
+	InitEmptySequenceContext(&p.SequenceContext)
 	p.parser = parser
-	p.CopyFrom(ctx.(*SequenceContext))
+	p.CopyAll(ctx.(*SequenceContext))
 
 	return p
 }
@@ -488,7 +569,13 @@ func (s *PlusContext) GetRuleContext() antlr.RuleContext {
 }
 
 func (s *PlusContext) Sequence() ISequenceContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ISequenceContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ISequenceContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -514,15 +601,15 @@ func (s *PlusContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 type AsteriskContext struct {
-	*SequenceContext
+	SequenceContext
 }
 
 func NewAsteriskContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *AsteriskContext {
 	var p = new(AsteriskContext)
 
-	p.SequenceContext = NewEmptySequenceContext()
+	InitEmptySequenceContext(&p.SequenceContext)
 	p.parser = parser
-	p.CopyFrom(ctx.(*SequenceContext))
+	p.CopyAll(ctx.(*SequenceContext))
 
 	return p
 }
@@ -532,7 +619,13 @@ func (s *AsteriskContext) GetRuleContext() antlr.RuleContext {
 }
 
 func (s *AsteriskContext) Sequence() ISequenceContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ISequenceContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ISequenceContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -558,15 +651,15 @@ func (s *AsteriskContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 type ParenthesesContext struct {
-	*SequenceContext
+	SequenceContext
 }
 
 func NewParenthesesContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *ParenthesesContext {
 	var p = new(ParenthesesContext)
 
-	p.SequenceContext = NewEmptySequenceContext()
+	InitEmptySequenceContext(&p.SequenceContext)
 	p.parser = parser
-	p.CopyFrom(ctx.(*SequenceContext))
+	p.CopyAll(ctx.(*SequenceContext))
 
 	return p
 }
@@ -580,7 +673,13 @@ func (s *ParenthesesContext) LPAR() antlr.TerminalNode {
 }
 
 func (s *ParenthesesContext) Sequence() ISequenceContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ISequenceContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ISequenceContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -610,38 +709,22 @@ func (p *SequenceParser) Sequence() (localctx ISequenceContext) {
 }
 
 func (p *SequenceParser) sequence(_p int) (localctx ISequenceContext) {
-	this := p
-	_ = this
-
 	var _parentctx antlr.ParserRuleContext = p.GetParserRuleContext()
+
 	_parentState := p.GetState()
 	localctx = NewSequenceContext(p, p.GetParserRuleContext(), _parentState)
 	var _prevctx ISequenceContext = localctx
 	var _ antlr.ParserRuleContext = _prevctx // TODO: To prevent unused variable warning.
 	_startState := 2
 	p.EnterRecursionRule(localctx, 2, SequenceParserRULE_sequence, _p)
-
-	defer func() {
-		p.UnrollRecursionContexts(_parentctx)
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	var _alt int
 
 	p.EnterOuterAlt(localctx, 1)
 	p.SetState(21)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 
 	switch p.GetTokenStream().LA(1) {
 	case SequenceParserLPAR:
@@ -652,6 +735,10 @@ func (p *SequenceParser) sequence(_p int) (localctx ISequenceContext) {
 		{
 			p.SetState(16)
 			p.Match(SequenceParserLPAR)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(17)
@@ -660,6 +747,10 @@ func (p *SequenceParser) sequence(_p int) (localctx ISequenceContext) {
 		{
 			p.SetState(18)
 			p.Match(SequenceParserRPAR)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 	case SequenceParserZERO, SequenceParserNUM:
@@ -672,13 +763,19 @@ func (p *SequenceParser) sequence(_p int) (localctx ISequenceContext) {
 		}
 
 	default:
-		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		goto errorExit
 	}
 	p.GetParserRuleContext().SetStop(p.GetTokenStream().LT(-1))
 	p.SetState(36)
 	p.GetErrorHandler().Sync(p)
-	_alt = p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 2, p.GetParserRuleContext())
-
+	if p.HasError() {
+		goto errorExit
+	}
+	_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 2, p.GetParserRuleContext())
+	if p.HasError() {
+		goto errorExit
+	}
 	for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
 		if _alt == 1 {
 			if p.GetParseListeners() != nil {
@@ -687,18 +784,27 @@ func (p *SequenceParser) sequence(_p int) (localctx ISequenceContext) {
 			_prevctx = localctx
 			p.SetState(34)
 			p.GetErrorHandler().Sync(p)
-			switch p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 1, p.GetParserRuleContext()) {
+			if p.HasError() {
+				goto errorExit
+			}
+
+			switch p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 1, p.GetParserRuleContext()) {
 			case 1:
 				localctx = NewOrContext(p, NewSequenceContext(p, _parentctx, _parentState))
 				p.PushNewRecursionContext(localctx, _startState, SequenceParserRULE_sequence)
 				p.SetState(23)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 4)) {
-					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 4)", ""))
+					p.SetError(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 4)", ""))
+					goto errorExit
 				}
 				{
 					p.SetState(24)
 					p.Match(SequenceParserOR)
+					if p.HasError() {
+						// Recognition error - abort rule
+						goto errorExit
+					}
 				}
 				{
 					p.SetState(25)
@@ -711,7 +817,8 @@ func (p *SequenceParser) sequence(_p int) (localctx ISequenceContext) {
 				p.SetState(26)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 3)) {
-					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 3)", ""))
+					p.SetError(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 3)", ""))
+					goto errorExit
 				}
 				{
 					p.SetState(27)
@@ -724,11 +831,16 @@ func (p *SequenceParser) sequence(_p int) (localctx ISequenceContext) {
 				p.SetState(28)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 7)) {
-					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 7)", ""))
+					p.SetError(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 7)", ""))
+					goto errorExit
 				}
 				{
 					p.SetState(29)
 					p.Match(SequenceParserQUESTIONMARK)
+					if p.HasError() {
+						// Recognition error - abort rule
+						goto errorExit
+					}
 				}
 
 			case 4:
@@ -737,11 +849,16 @@ func (p *SequenceParser) sequence(_p int) (localctx ISequenceContext) {
 				p.SetState(30)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 6)) {
-					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 6)", ""))
+					p.SetError(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 6)", ""))
+					goto errorExit
 				}
 				{
 					p.SetState(31)
 					p.Match(SequenceParserPLUS)
+					if p.HasError() {
+						// Recognition error - abort rule
+						goto errorExit
+					}
 				}
 
 			case 5:
@@ -750,22 +867,45 @@ func (p *SequenceParser) sequence(_p int) (localctx ISequenceContext) {
 				p.SetState(32)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 5)) {
-					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 5)", ""))
+					p.SetError(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 5)", ""))
+					goto errorExit
 				}
 				{
 					p.SetState(33)
 					p.Match(SequenceParserASTERISK)
+					if p.HasError() {
+						// Recognition error - abort rule
+						goto errorExit
+					}
 				}
 
+			case antlr.ATNInvalidAltNumber:
+				goto errorExit
 			}
 
 		}
 		p.SetState(38)
 		p.GetErrorHandler().Sync(p)
-		_alt = p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 2, p.GetParserRuleContext())
+		if p.HasError() {
+			goto errorExit
+		}
+		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 2, p.GetParserRuleContext())
+		if p.HasError() {
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.UnrollRecursionContexts(_parentctx)
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IOnehopContext is an interface to support dynamic dispatch.
@@ -774,21 +914,25 @@ type IOnehopContext interface {
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
-
 	// IsOnehopContext differentiates from other interfaces.
 	IsOnehopContext()
 }
 
 type OnehopContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyOnehopContext() *OnehopContext {
 	var p = new(OnehopContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SequenceParserRULE_onehop
 	return p
+}
+
+func InitEmptyOnehopContext(p *OnehopContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SequenceParserRULE_onehop
 }
 
 func (*OnehopContext) IsOnehopContext() {}
@@ -796,7 +940,7 @@ func (*OnehopContext) IsOnehopContext() {}
 func NewOnehopContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *OnehopContext {
 	var p = new(OnehopContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SequenceParserRULE_onehop
@@ -806,8 +950,8 @@ func NewOnehopContext(parser antlr.Parser, parent antlr.ParserRuleContext, invok
 
 func (s *OnehopContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *OnehopContext) CopyFrom(ctx *OnehopContext) {
-	s.BaseParserRuleContext.CopyFrom(ctx.BaseParserRuleContext)
+func (s *OnehopContext) CopyAll(ctx *OnehopContext) {
+	s.CopyFrom(&ctx.BaseParserRuleContext)
 }
 
 func (s *OnehopContext) GetRuleContext() antlr.RuleContext {
@@ -819,15 +963,15 @@ func (s *OnehopContext) ToStringTree(ruleNames []string, recog antlr.Recognizer)
 }
 
 type ISDASHopContext struct {
-	*OnehopContext
+	OnehopContext
 }
 
 func NewISDASHopContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *ISDASHopContext {
 	var p = new(ISDASHopContext)
 
-	p.OnehopContext = NewEmptyOnehopContext()
+	InitEmptyOnehopContext(&p.OnehopContext)
 	p.parser = parser
-	p.CopyFrom(ctx.(*OnehopContext))
+	p.CopyAll(ctx.(*OnehopContext))
 
 	return p
 }
@@ -837,7 +981,13 @@ func (s *ISDASHopContext) GetRuleContext() antlr.RuleContext {
 }
 
 func (s *ISDASHopContext) Isd() IIsdContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IIsdContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IIsdContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -847,7 +997,13 @@ func (s *ISDASHopContext) Isd() IIsdContext {
 }
 
 func (s *ISDASHopContext) As() IAsContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IAsContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IAsContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -869,15 +1025,15 @@ func (s *ISDASHopContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 type ISDASIFIFHopContext struct {
-	*OnehopContext
+	OnehopContext
 }
 
 func NewISDASIFIFHopContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *ISDASIFIFHopContext {
 	var p = new(ISDASIFIFHopContext)
 
-	p.OnehopContext = NewEmptyOnehopContext()
+	InitEmptyOnehopContext(&p.OnehopContext)
 	p.parser = parser
-	p.CopyFrom(ctx.(*OnehopContext))
+	p.CopyAll(ctx.(*OnehopContext))
 
 	return p
 }
@@ -887,7 +1043,13 @@ func (s *ISDASIFIFHopContext) GetRuleContext() antlr.RuleContext {
 }
 
 func (s *ISDASIFIFHopContext) Isd() IIsdContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IIsdContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IIsdContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -897,7 +1059,13 @@ func (s *ISDASIFIFHopContext) Isd() IIsdContext {
 }
 
 func (s *ISDASIFIFHopContext) As() IAsContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IAsContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IAsContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -911,12 +1079,20 @@ func (s *ISDASIFIFHopContext) HASH() antlr.TerminalNode {
 }
 
 func (s *ISDASIFIFHopContext) AllIface() []IIfaceContext {
-	var ts = s.GetTypedRuleContexts(reflect.TypeOf((*IIfaceContext)(nil)).Elem())
-	var tst = make([]IIfaceContext, len(ts))
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(IIfaceContext); ok {
+			len++
+		}
+	}
 
-	for i, t := range ts {
-		if t != nil {
+	tst := make([]IIfaceContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(IIfaceContext); ok {
 			tst[i] = t.(IIfaceContext)
+			i++
 		}
 	}
 
@@ -924,7 +1100,17 @@ func (s *ISDASIFIFHopContext) AllIface() []IIfaceContext {
 }
 
 func (s *ISDASIFIFHopContext) Iface(i int) IIfaceContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IIfaceContext)(nil)).Elem(), i)
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IIfaceContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -950,15 +1136,15 @@ func (s *ISDASIFIFHopContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 type ISDHopContext struct {
-	*OnehopContext
+	OnehopContext
 }
 
 func NewISDHopContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *ISDHopContext {
 	var p = new(ISDHopContext)
 
-	p.OnehopContext = NewEmptyOnehopContext()
+	InitEmptyOnehopContext(&p.OnehopContext)
 	p.parser = parser
-	p.CopyFrom(ctx.(*OnehopContext))
+	p.CopyAll(ctx.(*OnehopContext))
 
 	return p
 }
@@ -968,7 +1154,13 @@ func (s *ISDHopContext) GetRuleContext() antlr.RuleContext {
 }
 
 func (s *ISDHopContext) Isd() IIsdContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IIsdContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IIsdContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -990,15 +1182,15 @@ func (s *ISDHopContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 type ISDASIFHopContext struct {
-	*OnehopContext
+	OnehopContext
 }
 
 func NewISDASIFHopContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *ISDASIFHopContext {
 	var p = new(ISDASIFHopContext)
 
-	p.OnehopContext = NewEmptyOnehopContext()
+	InitEmptyOnehopContext(&p.OnehopContext)
 	p.parser = parser
-	p.CopyFrom(ctx.(*OnehopContext))
+	p.CopyAll(ctx.(*OnehopContext))
 
 	return p
 }
@@ -1008,7 +1200,13 @@ func (s *ISDASIFHopContext) GetRuleContext() antlr.RuleContext {
 }
 
 func (s *ISDASIFHopContext) Isd() IIsdContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IIsdContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IIsdContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1018,7 +1216,13 @@ func (s *ISDASIFHopContext) Isd() IIsdContext {
 }
 
 func (s *ISDASIFHopContext) As() IAsContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IAsContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IAsContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1032,7 +1236,13 @@ func (s *ISDASIFHopContext) HASH() antlr.TerminalNode {
 }
 
 func (s *ISDASIFHopContext) Iface() IIfaceContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IIfaceContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IIfaceContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1054,31 +1264,15 @@ func (s *ISDASIFHopContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *SequenceParser) Onehop() (localctx IOnehopContext) {
-	this := p
-	_ = this
-
 	localctx = NewOnehopContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 4, SequenceParserRULE_onehop)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.SetState(55)
 	p.GetErrorHandler().Sync(p)
-	switch p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 3, p.GetParserRuleContext()) {
+	if p.HasError() {
+		goto errorExit
+	}
+
+	switch p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 3, p.GetParserRuleContext()) {
 	case 1:
 		localctx = NewISDHopContext(p, localctx)
 		p.EnterOuterAlt(localctx, 1)
@@ -1113,6 +1307,10 @@ func (p *SequenceParser) Onehop() (localctx IOnehopContext) {
 		{
 			p.SetState(45)
 			p.Match(SequenceParserHASH)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(46)
@@ -1133,6 +1331,10 @@ func (p *SequenceParser) Onehop() (localctx IOnehopContext) {
 		{
 			p.SetState(50)
 			p.Match(SequenceParserHASH)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(51)
@@ -1141,15 +1343,31 @@ func (p *SequenceParser) Onehop() (localctx IOnehopContext) {
 		{
 			p.SetState(52)
 			p.Match(SequenceParserCOMMA)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(53)
 			p.Iface()
 		}
 
+	case antlr.ATNInvalidAltNumber:
+		goto errorExit
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IIsdContext is an interface to support dynamic dispatch.
@@ -1158,21 +1376,25 @@ type IIsdContext interface {
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
-
 	// IsIsdContext differentiates from other interfaces.
 	IsIsdContext()
 }
 
 type IsdContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyIsdContext() *IsdContext {
 	var p = new(IsdContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SequenceParserRULE_isd
 	return p
+}
+
+func InitEmptyIsdContext(p *IsdContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SequenceParserRULE_isd
 }
 
 func (*IsdContext) IsIsdContext() {}
@@ -1180,7 +1402,7 @@ func (*IsdContext) IsIsdContext() {}
 func NewIsdContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *IsdContext {
 	var p = new(IsdContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SequenceParserRULE_isd
@@ -1190,8 +1412,8 @@ func NewIsdContext(parser antlr.Parser, parent antlr.ParserRuleContext, invoking
 
 func (s *IsdContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *IsdContext) CopyFrom(ctx *IsdContext) {
-	s.BaseParserRuleContext.CopyFrom(ctx.BaseParserRuleContext)
+func (s *IsdContext) CopyAll(ctx *IsdContext) {
+	s.CopyFrom(&ctx.BaseParserRuleContext)
 }
 
 func (s *IsdContext) GetRuleContext() antlr.RuleContext {
@@ -1203,15 +1425,15 @@ func (s *IsdContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) st
 }
 
 type WildcardISDContext struct {
-	*IsdContext
+	IsdContext
 }
 
 func NewWildcardISDContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *WildcardISDContext {
 	var p = new(WildcardISDContext)
 
-	p.IsdContext = NewEmptyIsdContext()
+	InitEmptyIsdContext(&p.IsdContext)
 	p.parser = parser
-	p.CopyFrom(ctx.(*IsdContext))
+	p.CopyAll(ctx.(*IsdContext))
 
 	return p
 }
@@ -1237,15 +1459,15 @@ func (s *WildcardISDContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 type ISDContext struct {
-	*IsdContext
+	IsdContext
 }
 
 func NewISDContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *ISDContext {
 	var p = new(ISDContext)
 
-	p.IsdContext = NewEmptyIsdContext()
+	InitEmptyIsdContext(&p.IsdContext)
 	p.parser = parser
-	p.CopyFrom(ctx.(*IsdContext))
+	p.CopyAll(ctx.(*IsdContext))
 
 	return p
 }
@@ -1271,30 +1493,13 @@ func (s *ISDContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *SequenceParser) Isd() (localctx IIsdContext) {
-	this := p
-	_ = this
-
 	localctx = NewIsdContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 6, SequenceParserRULE_isd)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.SetState(59)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 
 	switch p.GetTokenStream().LA(1) {
 	case SequenceParserZERO:
@@ -1303,6 +1508,10 @@ func (p *SequenceParser) Isd() (localctx IIsdContext) {
 		{
 			p.SetState(57)
 			p.Match(SequenceParserZERO)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 	case SequenceParserNUM:
@@ -1311,13 +1520,28 @@ func (p *SequenceParser) Isd() (localctx IIsdContext) {
 		{
 			p.SetState(58)
 			p.Match(SequenceParserNUM)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 	default:
-		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		goto errorExit
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IAsContext is an interface to support dynamic dispatch.
@@ -1326,21 +1550,25 @@ type IAsContext interface {
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
-
 	// IsAsContext differentiates from other interfaces.
 	IsAsContext()
 }
 
 type AsContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyAsContext() *AsContext {
 	var p = new(AsContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SequenceParserRULE_as
 	return p
+}
+
+func InitEmptyAsContext(p *AsContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SequenceParserRULE_as
 }
 
 func (*AsContext) IsAsContext() {}
@@ -1348,7 +1576,7 @@ func (*AsContext) IsAsContext() {}
 func NewAsContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *AsContext {
 	var p = new(AsContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SequenceParserRULE_as
@@ -1358,8 +1586,8 @@ func NewAsContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingS
 
 func (s *AsContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *AsContext) CopyFrom(ctx *AsContext) {
-	s.BaseParserRuleContext.CopyFrom(ctx.BaseParserRuleContext)
+func (s *AsContext) CopyAll(ctx *AsContext) {
+	s.CopyFrom(&ctx.BaseParserRuleContext)
 }
 
 func (s *AsContext) GetRuleContext() antlr.RuleContext {
@@ -1371,15 +1599,15 @@ func (s *AsContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) str
 }
 
 type ASContext struct {
-	*AsContext
+	AsContext
 }
 
 func NewASContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *ASContext {
 	var p = new(ASContext)
 
-	p.AsContext = NewEmptyAsContext()
+	InitEmptyAsContext(&p.AsContext)
 	p.parser = parser
-	p.CopyFrom(ctx.(*AsContext))
+	p.CopyAll(ctx.(*AsContext))
 
 	return p
 }
@@ -1405,15 +1633,15 @@ func (s *ASContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 type LegacyASContext struct {
-	*AsContext
+	AsContext
 }
 
 func NewLegacyASContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *LegacyASContext {
 	var p = new(LegacyASContext)
 
-	p.AsContext = NewEmptyAsContext()
+	InitEmptyAsContext(&p.AsContext)
 	p.parser = parser
-	p.CopyFrom(ctx.(*AsContext))
+	p.CopyAll(ctx.(*AsContext))
 
 	return p
 }
@@ -1439,15 +1667,15 @@ func (s *LegacyASContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 type WildcardASContext struct {
-	*AsContext
+	AsContext
 }
 
 func NewWildcardASContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *WildcardASContext {
 	var p = new(WildcardASContext)
 
-	p.AsContext = NewEmptyAsContext()
+	InitEmptyAsContext(&p.AsContext)
 	p.parser = parser
-	p.CopyFrom(ctx.(*AsContext))
+	p.CopyAll(ctx.(*AsContext))
 
 	return p
 }
@@ -1473,30 +1701,13 @@ func (s *WildcardASContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *SequenceParser) As() (localctx IAsContext) {
-	this := p
-	_ = this
-
 	localctx = NewAsContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 8, SequenceParserRULE_as)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.SetState(64)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 
 	switch p.GetTokenStream().LA(1) {
 	case SequenceParserWILDCARDAS:
@@ -1505,6 +1716,10 @@ func (p *SequenceParser) As() (localctx IAsContext) {
 		{
 			p.SetState(61)
 			p.Match(SequenceParserWILDCARDAS)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 	case SequenceParserLEGACYAS:
@@ -1513,6 +1728,10 @@ func (p *SequenceParser) As() (localctx IAsContext) {
 		{
 			p.SetState(62)
 			p.Match(SequenceParserLEGACYAS)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 	case SequenceParserAS:
@@ -1521,13 +1740,28 @@ func (p *SequenceParser) As() (localctx IAsContext) {
 		{
 			p.SetState(63)
 			p.Match(SequenceParserAS)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 	default:
-		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		goto errorExit
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IIfaceContext is an interface to support dynamic dispatch.
@@ -1536,21 +1770,25 @@ type IIfaceContext interface {
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
-
 	// IsIfaceContext differentiates from other interfaces.
 	IsIfaceContext()
 }
 
 type IfaceContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyIfaceContext() *IfaceContext {
 	var p = new(IfaceContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = SequenceParserRULE_iface
 	return p
+}
+
+func InitEmptyIfaceContext(p *IfaceContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = SequenceParserRULE_iface
 }
 
 func (*IfaceContext) IsIfaceContext() {}
@@ -1558,7 +1796,7 @@ func (*IfaceContext) IsIfaceContext() {}
 func NewIfaceContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *IfaceContext {
 	var p = new(IfaceContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = SequenceParserRULE_iface
@@ -1568,8 +1806,8 @@ func NewIfaceContext(parser antlr.Parser, parent antlr.ParserRuleContext, invoki
 
 func (s *IfaceContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *IfaceContext) CopyFrom(ctx *IfaceContext) {
-	s.BaseParserRuleContext.CopyFrom(ctx.BaseParserRuleContext)
+func (s *IfaceContext) CopyAll(ctx *IfaceContext) {
+	s.CopyFrom(&ctx.BaseParserRuleContext)
 }
 
 func (s *IfaceContext) GetRuleContext() antlr.RuleContext {
@@ -1581,15 +1819,15 @@ func (s *IfaceContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) 
 }
 
 type IFaceContext struct {
-	*IfaceContext
+	IfaceContext
 }
 
 func NewIFaceContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *IFaceContext {
 	var p = new(IFaceContext)
 
-	p.IfaceContext = NewEmptyIfaceContext()
+	InitEmptyIfaceContext(&p.IfaceContext)
 	p.parser = parser
-	p.CopyFrom(ctx.(*IfaceContext))
+	p.CopyAll(ctx.(*IfaceContext))
 
 	return p
 }
@@ -1615,15 +1853,15 @@ func (s *IFaceContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 type WildcardIFaceContext struct {
-	*IfaceContext
+	IfaceContext
 }
 
 func NewWildcardIFaceContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *WildcardIFaceContext {
 	var p = new(WildcardIFaceContext)
 
-	p.IfaceContext = NewEmptyIfaceContext()
+	InitEmptyIfaceContext(&p.IfaceContext)
 	p.parser = parser
-	p.CopyFrom(ctx.(*IfaceContext))
+	p.CopyAll(ctx.(*IfaceContext))
 
 	return p
 }
@@ -1649,30 +1887,13 @@ func (s *WildcardIFaceContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *SequenceParser) Iface() (localctx IIfaceContext) {
-	this := p
-	_ = this
-
 	localctx = NewIfaceContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 10, SequenceParserRULE_iface)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.SetState(68)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 
 	switch p.GetTokenStream().LA(1) {
 	case SequenceParserZERO:
@@ -1681,6 +1902,10 @@ func (p *SequenceParser) Iface() (localctx IIfaceContext) {
 		{
 			p.SetState(66)
 			p.Match(SequenceParserZERO)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 	case SequenceParserNUM:
@@ -1689,13 +1914,28 @@ func (p *SequenceParser) Iface() (localctx IIfaceContext) {
 		{
 			p.SetState(67)
 			p.Match(SequenceParserNUM)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 	default:
-		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		goto errorExit
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 func (p *SequenceParser) Sempred(localctx antlr.RuleContext, ruleIndex, predIndex int) bool {
@@ -1713,9 +1953,6 @@ func (p *SequenceParser) Sempred(localctx antlr.RuleContext, ruleIndex, predInde
 }
 
 func (p *SequenceParser) Sequence_Sempred(localctx antlr.RuleContext, predIndex int) bool {
-	this := p
-	_ = this
-
 	switch predIndex {
 	case 0:
 		return p.Precpred(p.GetParserRuleContext(), 4)

@@ -57,7 +57,7 @@ load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_depe
 
 go_register_toolchains(
     nogo = "@//:nogo",
-    version = "1.21.10",
+    version = "1.22.4",
 )
 
 # Gazelle
@@ -137,14 +137,14 @@ http_archive(
     name = "rules_antlr",
     # XXX(roosd): This hash is not guaranteed to be stable by GitHub.
     # See: https://github.blog/changelog/2023-01-30-git-archive-checksums-may-change
-    sha256 = "8d7c457cc266965bdcf7e85aa349d2f851b772a55877354d9ae92ada7a62c857",
-    strip_prefix = "rules_antlr-0.6.0",
-    urls = ["https://github.com/bacek/rules_antlr/archive/refs/tags/0.6.0.tar.gz"],
+    sha256 = "a9b2f98aae1fb26e9608be1e975587e6271a3287e424ced28cbc77f32190ec41",
+    strip_prefix = "rules_antlr-0.6.1",
+    urls = ["https://github.com/bacek/rules_antlr/archive/refs/tags/0.6.1.tar.gz"],
 )
 
 load("@rules_antlr//antlr:repositories.bzl", "rules_antlr_dependencies")
 
-rules_antlr_dependencies("4.9.3")
+rules_antlr_dependencies("4.13.1")
 
 # Rules for container image building
 http_archive(
