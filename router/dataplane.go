@@ -1294,6 +1294,14 @@ func (p *scionPacketProcessor) parsePath() (processResult, error) {
 		// TODO(lukedirtwalker) parameter problem invalid path?
 		return processResult{}, err
 	}
+	// All segments without the Peering flag need to consist of at least two HFs.
+	// (https://github.com/scionproto/scion/issues/4524)
+	if !p.infoField.Peer && p.path.PathMeta.SegLen[p.path.PathMeta.CurrINF] < 2 {
+		return processResult{}, malformedPath
+	}
+	if !p.path.CurrINFMatchesCurrHF() {
+		return processResult{}, malformedPath
+	}
 	return processResult{}, nil
 }
 
