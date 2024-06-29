@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/control/trust/metrics"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/trust"
 )
 
@@ -32,45 +33,57 @@ type CachingSignerGen struct {
 	SignerGen SignerGen
 	Interval  time.Duration
 
-	mtx     sync.Mutex
-	lastGen time.Time
-	cached  trust.Signer
-	ok      bool
+	mtx        sync.Mutex
+	lastGen    time.Time
+	cached     []trust.Signer
+	cachedLast trust.Signer
+	ok         bool
 }
 
 // Generate generates a signer using the SignerGen or returns the cached signer.
 // An error is only returned if the previous signer is empty, and no signer can
 // be generated.
-func (s *CachingSignerGen) Generate(ctx context.Context) (trust.Signer, error) {
+func (s *CachingSignerGen) Generate(ctx context.Context) ([]trust.Signer, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
 	now := time.Now()
 	if now.Sub(s.lastGen) < s.Interval {
 		if !s.ok {
-			return trust.Signer{}, serrors.New("no signer cached, reload interval has not passed")
+			return nil, serrors.New("no signer cached, reload interval has not passed")
 		}
 		return s.cached, nil
 	}
 	s.lastGen = now
-	signer, err := s.SignerGen.Generate(ctx)
+	signers, err := s.SignerGen.Generate(ctx)
 	if err != nil {
 		if !s.ok {
-			return trust.Signer{}, err
+			return nil, err
 		}
 		log.FromCtx(ctx).Info("Failed to generate new signer, using previous signer", "err", err)
 		return s.cached, nil
 	}
-	if !s.cached.Equal(signer) {
+
+	latestExpiring, err := trust.LastExpiring(signers, cppki.Validity{
+		NotBefore: now,
+		NotAfter:  now,
+	})
+	if err != nil {
+		if !s.ok {
+			return nil, err
+		}
+		log.FromCtx(ctx).Info("Failed to select new signer, using previous signer", "err", err)
+	}
+	if !s.cachedLast.Equal(latestExpiring) {
 		log.FromCtx(ctx).Info("Generated new signer",
-			"subject_key_id", fmt.Sprintf("%x", signer.SubjectKeyID),
-			"expiration", signer.Expiration,
+			"subject_key_id", fmt.Sprintf("%x", latestExpiring.SubjectKeyID),
+			"expiration", latestExpiring.Expiration,
 		)
 	}
 
-	s.cached, s.ok = signer, true
+	s.cached, s.cachedLast, s.ok = signers, latestExpiring, true
 
 	metrics.Signer.LastGeneratedAS().SetToCurrentTime()
-	metrics.Signer.ExpirationAS().Set(metrics.Timestamp(signer.Expiration))
+	metrics.Signer.ExpirationAS().Set(metrics.Timestamp(latestExpiring.Expiration))
 	return s.cached, nil
 }

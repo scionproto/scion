@@ -87,7 +87,6 @@ Options
 ::
 
   -c, --count uint16           total number of packets to send
-      --dispatcher string      Path to the dispatcher socket (default "/run/shm/dispatcher/default.sock")
       --epic                   Enable EPIC for path probing.
       --format string          Specify the output format (human|json|yaml) (default "human")
       --healthy-only           only use healthy paths

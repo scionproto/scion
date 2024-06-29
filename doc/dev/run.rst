@@ -212,9 +212,11 @@ The basic usage is ``./scion.sh <subcommand> <options>``. The main subcommands a
 end2end_integration
 ===================
 
-:program:bin/end2end_integration is a basic functional test.
+:program:`bin/end2end_integration` is a basic functional test.
 
 The basic usage is ``./end2end_integration <options>``.
+
+.. program:: end2end_integration
 
 .. option:: -d
 

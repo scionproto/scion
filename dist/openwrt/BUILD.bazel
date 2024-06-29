@@ -24,6 +24,7 @@ exports_files(
         "initds/daemon",
         "initds/dispatcher",
         "initds/persistdbs",
+        "initds/bmtools",
 
         # Directory itself. Indicates the common root of config files.
         "test_configs",
@@ -34,6 +35,9 @@ exports_files(
         "test_configs/keys/master1.key",
         "test_configs/router.toml",
         "test_configs/control.toml",
+
+        # Special case initd file for benchmarking
+        "test_configs/router-initd",
     ],
     visibility = ["//visibility:public"],
 )

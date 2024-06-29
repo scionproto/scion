@@ -28,6 +28,7 @@ import (
 	cstrust "github.com/scionproto/scion/control/trust"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/metrics"
+	metrics2 "github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto"
@@ -40,6 +41,7 @@ import (
 	"github.com/scionproto/scion/private/env"
 	"github.com/scionproto/scion/private/service"
 	"github.com/scionproto/scion/private/topology"
+	"github.com/scionproto/scion/private/trust"
 )
 
 // InitTracer initializes the global tracer.
@@ -81,7 +83,7 @@ type Metrics struct {
 	TrustTRCFileWritesTotal                *prometheus.CounterVec
 	SCIONNetworkMetrics                    snet.SCIONNetworkMetrics
 	SCIONPacketConnMetrics                 snet.SCIONPacketConnMetrics
-	SCMPErrors                             metrics.Counter
+	SCMPErrors                             metrics2.Counter
 	TopoLoader                             topology.LoaderMetrics
 	DRKeySecretValueQueriesTotal           *prometheus.CounterVec
 	DRKeyLevel1QueriesTotal                *prometheus.CounterVec
@@ -348,9 +350,18 @@ func RegisterHTTPEndpoints(
 func signerStatusPage(signer cstrust.RenewingSigner) service.StatusPage {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		s, err := signer.SignerGen.Generate(r.Context())
+		signers, err := signer.SignerGen.Generate(r.Context())
 		if err != nil {
 			http.Error(w, "Unable to get signer", http.StatusInternalServerError)
+			return
+		}
+		now := time.Now()
+		s, err := trust.LastExpiring(signers, cppki.Validity{
+			NotBefore: now,
+			NotAfter:  now,
+		})
+		if err != nil {
+			http.Error(w, "No currently valid signer", http.StatusInternalServerError)
 			return
 		}
 

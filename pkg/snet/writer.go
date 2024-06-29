@@ -24,12 +24,15 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/private/topology/underlay"
+	"github.com/scionproto/scion/private/topology"
 )
 
 type scionConnWriter struct {
-	base *scionConnBase
-	conn PacketConn
+	conn                PacketConn
+	local               *UDPAddr
+	remote              *UDPAddr
+	dispatchedPortStart uint16
+	dispatchedPortEnd   uint16
 
 	mtx    sync.Mutex
 	buffer []byte
@@ -55,10 +58,14 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 		dst = SCIONAddress{IA: a.IA, Host: addr.HostIP(hostIP)}
 		port, path = a.Host.Port, a.Path
 		nextHop = a.NextHop
-		if nextHop == nil && c.base.scionNet.LocalIA.Equal(a.IA) {
+		if nextHop == nil && c.local.IA.Equal(a.IA) {
+			port := a.Host.Port
+			if !c.isWithinRange(port) {
+				port = topology.EndhostPort
+			}
 			nextHop = &net.UDPAddr{
 				IP:   a.Host.IP,
-				Port: underlay.EndhostPort,
+				Port: port,
 				Zone: a.Host.Zone,
 			}
 
@@ -71,9 +78,9 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 			"addr", fmt.Sprintf("%v(%T)", a, a))
 	}
 
-	listenHostIP, ok := netip.AddrFromSlice(c.base.listen.Host.IP)
+	listenHostIP, ok := netip.AddrFromSlice(c.local.Host.IP)
 	if !ok {
-		return 0, serrors.New("invalid listen host IP", "ip", c.base.listen.Host.IP)
+		return 0, serrors.New("invalid listen host IP", "ip", c.local.Host.IP)
 	}
 
 	pkt := &Packet{
@@ -81,12 +88,12 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 		PacketInfo: PacketInfo{
 			Destination: dst,
 			Source: SCIONAddress{
-				IA:   c.base.scionNet.LocalIA,
+				IA:   c.local.IA,
 				Host: addr.HostIP(listenHostIP),
 			},
 			Path: path,
 			Payload: UDPPayload{
-				SrcPort: uint16(c.base.listen.Host.Port),
+				SrcPort: uint16(c.local.Host.Port),
 				DstPort: uint16(port),
 				Payload: b,
 			},
@@ -104,9 +111,13 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 // Write sends b through a connection with fixed remote address. If the remote
 // address for the connection is unknown, Write returns an error.
 func (c *scionConnWriter) Write(b []byte) (int, error) {
-	return c.WriteTo(b, c.base.remote)
+	return c.WriteTo(b, c.remote)
 }
 
 func (c *scionConnWriter) SetWriteDeadline(t time.Time) error {
 	return c.conn.SetWriteDeadline(t)
+}
+
+func (c *scionConnWriter) isWithinRange(port int) bool {
+	return port >= int(c.dispatchedPortStart) && port <= int(c.dispatchedPortEnd)
 }

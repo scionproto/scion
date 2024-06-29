@@ -1,5 +1,6 @@
 {
+    "detail": "no signer covers the given validity",
     "status": 500,
-    "title": "no certificates available",
+    "title": "no signer currently valid",
     "type": "/problems/internal-error"
 }

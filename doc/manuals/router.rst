@@ -137,7 +137,7 @@ considers the following options.
 
    .. option:: features.experimental_scmp_authentication = <bool> (Default: false)
 
-      Enable the :ref:`DRKey-based authentication of SCMPs <scmp-authentication>` in the
+      Enable the :doc:`DRKey-based authentication of SCMPs </dev/design/scmp-authentication>` in the
       router, which is **experimental** and currently **incomplete**.
 
       When enabled, the router inserts the :ref:`authenticator-option` for SCMP messages.
@@ -192,7 +192,7 @@ considers the following options.
 
          Can be overridden for specific inter-AS BFD
          sessions with :option:`bfd.disable <topology-json disable>`.
- 
+
       .. option:: detect_mult = <uint8>, default 3
 
          Set the :term:`BFD` detection time multiplier.

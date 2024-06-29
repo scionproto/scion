@@ -9,3 +9,5 @@ lint:
     - COMMENT_ENUM_VALUE
     - COMMENT_FIELD
     - COMMENT_RPC
+  rpc_allow_google_protobuf_empty_requests: true
+  rpc_allow_google_protobuf_empty_responses: true

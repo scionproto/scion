@@ -15,10 +15,12 @@
 package pathpol
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/common"
@@ -56,6 +58,48 @@ func TestNewACL(t *testing.T) {
 			if test.ExpectedErr == nil {
 				assert.NotNil(t, acl)
 			}
+		})
+	}
+}
+
+func TestUnmarshal(t *testing.T) {
+	tests := map[string]struct {
+		Input       string
+		ExpectedErr error
+	}{
+		"No entry": {
+			Input:       `[]`,
+			ExpectedErr: ErrNoDefault,
+		},
+		"No default entry": {
+			Input:       `["+ 42"]`,
+			ExpectedErr: ErrNoDefault,
+		},
+		"Entry without rule": {
+			Input: `["+"]`,
+		},
+		"Entry with hop predicates": {
+			Input: `["+ 42", "-"]`,
+		},
+		"Extra entries (first)": {
+			Input:       `["-", "+ 27"]`,
+			ExpectedErr: ErrExtraEntries,
+		},
+		"Extra entries (in the middle)": {
+			Input:       `["+ 42", "-", "+ 27", "- 30"]`,
+			ExpectedErr: ErrExtraEntries,
+		},
+	}
+	for name, test := range tests {
+		t.Run("json: "+name, func(t *testing.T) {
+			var acl ACL
+			err := json.Unmarshal([]byte(test.Input), &acl)
+			assert.ErrorIs(t, err, test.ExpectedErr)
+		})
+		t.Run("yaml: "+name, func(t *testing.T) {
+			var acl ACL
+			err := yaml.Unmarshal([]byte(test.Input), &acl)
+			assert.ErrorIs(t, err, test.ExpectedErr)
 		})
 	}
 }

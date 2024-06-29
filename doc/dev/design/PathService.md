@@ -4,7 +4,8 @@
 * Status: **outdated**
 
 ---
-⚠️  **NOTE** ⚠️<br/>
+⚠️  **NOTE** ⚠️
+
 Outdated contents! This document is kept for historical purpose.
 
 ---
@@ -15,11 +16,11 @@ The path service is implemented as part of the control server.
 
 We use the messenger to register request handlers. The following requests are handled:
 
-* __Path Registration:__ A handler for the path-registration request, only in core ASes.
-* __Path Requests:__ Two different types of `SegReq` are handled by separate handlers:
+* **Path Registration:** A handler for the path-registration request, only in core ASes.
+* **Path Requests:** Two different types of `SegReq` are handled by separate handlers:
     * local requests, coming over TCP.
     * requests from other path servers, over SCION/QUIC, only in core ASes.
-* __Path Revocation:__ A handler for the path-revocation message
+* **Path Revocation:** A handler for the path-revocation message
 
 ## Deletion of Expired Path Segments and Revocations
 

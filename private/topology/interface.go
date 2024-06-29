@@ -40,6 +40,9 @@ type Topology interface {
 	Core() bool
 	// InterfaceIDs returns all interface IDS from the local AS.
 	InterfaceIDs() []common.IFIDType
+	// PortRange returns the first and last ports of the port range (both included),
+	// in which endhost listen for SCION/UDP application using the UDP/IP underlay.
+	PortRange() (uint16, uint16)
 
 	// PublicAddress gets the public address of a server with the requested type and name, and nil
 	// if no such server exists.
@@ -147,6 +150,10 @@ func (t *topologyS) InterfaceIDs() []common.IFIDType {
 		intfs = append(intfs, ifid)
 	}
 	return intfs
+}
+
+func (t *topologyS) PortRange() (uint16, uint16) {
+	return t.Topology.DispatchedPortStart, t.Topology.DispatchedPortEnd
 }
 
 func (t *topologyS) UnderlayNextHop(ifid common.IFIDType) (*net.UDPAddr, bool) {

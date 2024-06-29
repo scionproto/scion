@@ -44,7 +44,7 @@ Agents
 Machine Image
 -------------
 
-We use the default machine image of the *Elastic CI Stack for AWS* release `v6.7.1 <https://github.com/buildkite/elastic-ci-stack-for-aws/releases/tag/v6.7.1>`.
+We use the default machine image of the *Elastic CI Stack for AWS* release `v6.7.1 <https://github.com/buildkite/elastic-ci-stack-for-aws/releases/tag/v6.7.1>`_.
 `What's on each machine <https://buildkite.com/docs/agent/v3/elastic-ci-aws#before-you-start-whats-on-each-machine>`_:
 
 - Amazon Linux 2023
@@ -89,7 +89,7 @@ Cluster configuration
 
    The agent cluster is operated by the SCION Association, in the AWS account ``scion-association``.
 
-   Primary contacts `matzf <https://github.com/matzf>`_, `jiceatscion <https://github.com/jiceatscion>`_,
+   Primary contact `jiceatscion <https://github.com/jiceatscion>`_,
    alt contact `nicorusti <https://github.com/nicorusti>`_.
 
 
