@@ -3,7 +3,7 @@ NAT IP/port discovery
 *******
 
 - Author(s): Marc Frei, Tilmann Zäschke
-- Last updated: 2024-06-12
+- Last updated: 2024-07-01
 - Discussion at: :issue:`4517`
 
 Abstract
@@ -19,8 +19,6 @@ the border router itself detect the NATed IP/port and report it to the client (t
 
 Background
 ==========
-[Introduction of the topic, description of the problem being solved.]
-
 Scenario: A client sends a packet to a server, containing the clients (assumed) address/port as SRC address. The server
 receives the packet and uses the SRC address/port as DST in the response packet. Back in the destination AS, the border
 router (BR) uses the DST address/port from the response packet to forward it to the client.
@@ -56,8 +54,6 @@ as an extension to the bootstrapping service.
 
 Proposal
 ========
-[A precise statement of the proposed change.]
-
 Proposed change: Extend the border router to detect NATed addresses/ports and report them back to a client endhost.
 
 Ideally the solution would listen on the same port that would also be used for normal traffic forwarding.
@@ -94,8 +90,6 @@ The implementation on the protocol level could be done in several ways:
 
 Rationale
 =========
-[A discussion of alternate approaches and the trade-offs, advantages, and disadvantages of the specified approach.]
-
 The main reasons for integrating the functionality with the BR are:
 
 -  Reliability: The border router is almost guaranteed to see the correct IP/port on the NAT, especially when using the
@@ -132,7 +126,6 @@ Alternatives:
 
 Compatibility
 =============
-[A discussion of breaking changes and how this change can be deployed.]
 
 Breaking changes
 ----------------
