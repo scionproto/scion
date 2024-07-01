@@ -52,6 +52,8 @@ discovery is straight forward.
 If the port is flexible or the detector runs on a different IP then we need to find a different solution, probably
 as an extension to the bootstrapping service.
 
+.. _proposal-label:
+
 Proposal
 ========
 Proposed change: Extend the border router to detect NATed addresses/ports and report them back to a client endhost.
@@ -162,4 +164,6 @@ Implementation
 ==============
 [A description of the steps in the implementation, which components need to be changed and in which order.]
 
-TODO
+TBD when decision for one of the proposed implementation variants in
+`Proposals <https://github.com/tzaeschke/scion/blob/NAT-address-discovery/doc/dev/design/NAT-address-discovery.rst#proposal>`_
+has been made.
