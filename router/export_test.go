@@ -45,6 +45,10 @@ type Packet struct {
 	packet
 }
 
+type Disposition disposition
+
+const PDiscard = Disposition(pDiscard)
+
 func NewPacket(msg *ipv4.Message, ifId uint16) *Packet {
 	// Pretend this is coming from the receiver.
 	p := Packet{
@@ -120,11 +124,11 @@ func (d *DataPlane) FakeStart() {
 	d.running = true
 }
 
-func (d *DataPlane) ProcessPkt(pkt *Packet) PacketDisp {
+func (d *DataPlane) ProcessPkt(pkt *Packet) Disposition {
 
 	p := newPacketProcessor(d)
 	disp := p.processPkt(&(pkt.packet))
-	return disp
+	return Disposition(disp)
 }
 
 func ExtractServices(s *services) map[addr.SVC][]netip.AddrPort {

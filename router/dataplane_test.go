@@ -620,14 +620,14 @@ func TestDataPlaneRun(t *testing.T) {
 
 // Returns true if we expect no output packet.
 // That includes the processing of BFD packets.
-func discarded(t *testing.T, disp router.PacketDisp) {
-	require.Equal(t, disp, router.DISCARD)
+func discarded(t *testing.T, disp router.Disposition) {
+	require.Equal(t, disp, router.PDiscard)
 }
 
 // Returns trues if we expect an output packet.
 // That includes slowpath processing.
-func notDiscarded(t *testing.T, disp router.PacketDisp) {
-	require.NotEqual(t, disp, router.DISCARD)
+func notDiscarded(t *testing.T, disp router.Disposition) {
+	require.NotEqual(t, disp, router.PDiscard)
 }
 
 func TestProcessPkt(t *testing.T) {
@@ -652,7 +652,7 @@ func TestProcessPkt(t *testing.T) {
 		prepareDP       func(*gomock.Controller) *router.DataPlane
 		srcInterface    uint16
 		egressInterface uint16
-		assertFunc      func(*testing.T, router.PacketDisp)
+		assertFunc      func(*testing.T, router.Disposition)
 	}{
 		"inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
@@ -1596,7 +1596,7 @@ func TestProcessPkt(t *testing.T) {
 			pkt := router.NewPacket(input, tc.srcInterface)
 			disp := dp.ProcessPkt(pkt)
 			tc.assertFunc(t, disp)
-			if disp == router.DISCARD {
+			if disp == router.PDiscard {
 				return
 			}
 			out := pkt.ToIpv4Msg()

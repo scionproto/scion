@@ -17,6 +17,7 @@ package router
 import (
 	mrand "math/rand"
 	"net/netip"
+	"slices"
 	"sync"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -36,7 +37,7 @@ func (s *services) AddSvc(svc addr.SVC, a netip.AddrPort) {
 	defer s.mtx.Unlock()
 
 	addrs := s.m[svc]
-	if _, ok := s.index(a, addrs); ok {
+	if slices.Contains(addrs, a) {
 		return
 	}
 	s.m[svc] = append(addrs, a)
@@ -47,8 +48,8 @@ func (s *services) DelSvc(svc addr.SVC, a netip.AddrPort) {
 	defer s.mtx.Unlock()
 
 	addrs := s.m[svc]
-	index, ok := s.index(a, addrs)
-	if !ok {
+	index := slices.Index(addrs, a)
+	if index == -1 {
 		return
 	}
 	addrs[index] = addrs[len(addrs)-1]
@@ -65,13 +66,4 @@ func (s *services) Any(svc addr.SVC) (netip.AddrPort, bool) {
 		return netip.AddrPort{}, false
 	}
 	return addrs[mrand.Intn(len(addrs))], true
-}
-
-func (s *services) index(a netip.AddrPort, addrs []netip.AddrPort) (int, bool) {
-	for i, o := range addrs {
-		if a.Addr() == o.Addr() && a.Port() == o.Port() {
-			return i, true
-		}
-	}
-	return -1, false
 }

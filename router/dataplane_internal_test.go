@@ -189,16 +189,17 @@ func TestForwarder(t *testing.T) {
 	for i := 0; i < 255; i++ {
 		pkt := <-dp.packetPool
 		pkt.reset()
-		assert.NotEqual(t, initialPoolSize, len(dp.packetPool))
 		rp := pkt.rawPacket
 		rp[0] = byte(i)
-		if i == 100 {
-			dstAddr = &net.UDPAddr{}
+		if i < 100 {
+			pkt.dstAddr.IP = pkt.dstAddr.IP[:4]
+			copy(pkt.dstAddr.IP, dstAddr.IP)
 		}
 		pkt.srcAddr = &net.UDPAddr{} // Receiver always sets this.
-		pkt.dstAddr = dstAddr
 		pkt.ingress = 0
 		pkt.rawPacket = pkt.rawPacket[:1]
+
+		assert.NotEqual(t, initialPoolSize, len(dp.packetPool))
 
 		select {
 		case fwCh[0] <- pkt:
@@ -465,7 +466,6 @@ func TestSlowPathProcessing(t *testing.T) {
 				typ:      slowPathSCMP,
 				scmpType: slayers.SCMPTypeDestinationUnreachable,
 				code:     slayers.SCMPCodeNoRoute,
-				cause:    noSVCBackend,
 			},
 			expectedLayerType: slayers.LayerTypeSCMPDestinationUnreachable,
 		},
@@ -489,7 +489,6 @@ func TestSlowPathProcessing(t *testing.T) {
 				typ:      slowPathSCMP,
 				scmpType: slayers.SCMPTypeDestinationUnreachable,
 				code:     slayers.SCMPCodeNoRoute,
-				cause:    noSVCBackend,
 			},
 			expectedLayerType: slayers.LayerTypeSCMPDestinationUnreachable,
 		},
@@ -512,7 +511,6 @@ func TestSlowPathProcessing(t *testing.T) {
 				typ:      slowPathSCMP,
 				scmpType: slayers.SCMPTypeParameterProblem,
 				code:     slayers.SCMPCodeInvalidDestinationAddress,
-				cause:    invalidDstIA,
 				pointer:  0xc,
 			},
 			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
@@ -536,9 +534,9 @@ func TestSlowPathProcessing(t *testing.T) {
 
 			processor := newPacketProcessor(dp)
 			disp := processor.processPkt(&pkt)
-			assert.Equal(t, disp, SLOWPATH)
+			assert.Equal(t, disp, pSlowPath)
 
-			assert.Equal(t, tc.expectedSlowPathRequest, *pkt.slowPathRequest)
+			assert.Equal(t, tc.expectedSlowPathRequest, pkt.slowPathRequest)
 			slowPathProcessor := newSlowPathProcessor(dp)
 			err := slowPathProcessor.processPacket(&pkt)
 			assert.NoError(t, err)
