@@ -33,10 +33,17 @@ PROM_FILE = "prometheus.yml"
 #: Default SCION router UDP port.
 SCION_ROUTER_PORT = 50000
 
+DEFAULT_DISPATCHED_PORTS = "31000-32767"
+
 #: Default MTU - assumes overlay is ipv4+udp
 DEFAULT_MTU = 1500 - 20 - 8
 #: IPv6 min value
 SCION_MIN_MTU = 1280
+
+# Default IPv4 network
+DEFAULT_NETWORK = "127.0.0.0/8"
+DEFAULT_PRIV_NETWORK = "192.168.0.0/16"
+DEFAULT_SCN_DC_NETWORK = "172.20.0.0/20"
 
 # Default IPv6 network, our equivalent to 127.0.0.0/8
 # https://en.wikipedia.org/wiki/Unique_local_address#Definition

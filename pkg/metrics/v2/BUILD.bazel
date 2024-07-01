@@ -1,0 +1,24 @@
+load("//tools/lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "fakes.go",
+        "metrics.go",
+    ],
+    importpath = "github.com/scionproto/scion/pkg/metrics/v2",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "fakes_test.go",
+        "metrics_test.go",
+    ],
+    deps = [
+        ":go_default_library",
+        "@com_github_prometheus_client_golang//prometheus:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+    ],
+)

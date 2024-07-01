@@ -13,31 +13,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build linux || darwin
+// +build linux darwin
+
 package main
 
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
-	"os"
+	"net/netip"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/scionproto/scion/dispatcher"
 	"github.com/scionproto/scion/dispatcher/config"
 	api "github.com/scionproto/scion/dispatcher/mgmtapi"
-	"github.com/scionproto/scion/dispatcher/network"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/launcher"
 	"github.com/scionproto/scion/private/service"
+	"github.com/scionproto/scion/private/topology/underlay"
 )
 
 var globalCfg config.Config
@@ -53,21 +56,19 @@ func main() {
 }
 
 func realMain(ctx context.Context) error {
-	if err := util.CreateParentDirs(globalCfg.Dispatcher.ApplicationSocket); err != nil {
-		return serrors.WrapStr("creating directory tree for socket", err)
-	}
-
 	path.StrictDecoding(false)
 
 	var cleanup app.Cleanup
 	g, errCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		defer log.HandlePanic()
-		return RunDispatcher(
-			globalCfg.Dispatcher.DeleteSocket,
-			globalCfg.Dispatcher.ApplicationSocket,
-			os.FileMode(globalCfg.Dispatcher.SocketFileMode),
-			globalCfg.Dispatcher.UnderlayPort,
+		return runDispatcher(
+			globalCfg.Dispatcher.LocalUDPForwarding,
+			globalCfg.Dispatcher.ServiceAddresses,
+			netip.AddrPortFrom(
+				globalCfg.Dispatcher.UnderlayAddr,
+				underlay.EndhostPort,
+			),
 		)
 	})
 
@@ -116,12 +117,6 @@ func realMain(ctx context.Context) error {
 		return globalCfg.Metrics.ServePrometheus(errCtx)
 	})
 
-	defer func() {
-		if err := deleteSocket(globalCfg.Dispatcher.ApplicationSocket); err != nil {
-			log.Error("deleting socket", "err", err)
-		}
-	}()
-
 	g.Go(func() error {
 		defer log.HandlePanic()
 		<-errCtx.Done()
@@ -138,32 +133,14 @@ func realMain(ctx context.Context) error {
 	}
 }
 
-func RunDispatcher(deleteSocketFlag bool, applicationSocket string, socketFileMode os.FileMode,
-	underlayPort int) error {
+func runDispatcher(
+	isDispatcher bool,
+	svcAddrs map[addr.Addr]netip.AddrPort,
+	underlayAddr netip.AddrPort,
+) error {
 
-	if deleteSocketFlag {
-		if err := deleteSocket(globalCfg.Dispatcher.ApplicationSocket); err != nil {
-			return err
-		}
-	}
-	dispatcher := &network.Dispatcher{
-		UnderlaySocket:    fmt.Sprintf(":%d", underlayPort),
-		ApplicationSocket: applicationSocket,
-		SocketFileMode:    socketFileMode,
-	}
-	log.Debug("Dispatcher starting", "appSocket", applicationSocket, "underlayPort", underlayPort)
-	return dispatcher.ListenAndServe()
-}
-
-func deleteSocket(socket string) error {
-	if _, err := os.Stat(socket); err != nil {
-		// File does not exist, or we can't read it, nothing to delete
-		return nil
-	}
-	if err := os.Remove(socket); err != nil {
-		return err
-	}
-	return nil
+	log.Debug("Dispatcher starting", "localAddr", underlayAddr, "dispatcher feature", isDispatcher)
+	return dispatcher.ListenAndServe(isDispatcher, svcAddrs, net.UDPAddrFromAddrPort(underlayAddr))
 }
 
 func requiredIPs() ([]net.IP, error) {

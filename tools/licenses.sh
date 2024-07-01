@@ -39,3 +39,5 @@ rm -rf $DSTDIR/python3_10_x86_64-unknown-linux-gnu/
 rm -rf $DSTDIR/aspect_bazel_lib/
 rm -rf $DSTDIR/aspect_rules_js/
 rm -rf $DSTDIR/npm__*/
+find $DSTDIR/ -name "*.go" -type f -delete
+find $DSTDIR/ -path "*/testdata/*" -type f -delete

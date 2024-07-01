@@ -89,7 +89,7 @@ Cluster configuration
 
    The agent cluster is operated by the SCION Association, in the AWS account ``scion-association``.
 
-   Primary contacts `matzf <https://github.com/matzf>`_, `jiceatscion <https://github.com/jiceatscion>`_,
+   Primary contact `jiceatscion <https://github.com/jiceatscion>`_,
    alt contact `nicorusti <https://github.com/nicorusti>`_.
 
 

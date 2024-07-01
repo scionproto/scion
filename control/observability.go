@@ -28,6 +28,7 @@ import (
 	cstrust "github.com/scionproto/scion/control/trust"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/metrics"
+	metrics2 "github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto"
@@ -82,7 +83,7 @@ type Metrics struct {
 	TrustTRCFileWritesTotal                *prometheus.CounterVec
 	SCIONNetworkMetrics                    snet.SCIONNetworkMetrics
 	SCIONPacketConnMetrics                 snet.SCIONPacketConnMetrics
-	SCMPErrors                             metrics.Counter
+	SCMPErrors                             metrics2.Counter
 	TopoLoader                             topology.LoaderMetrics
 	DRKeySecretValueQueriesTotal           *prometheus.CounterVec
 	DRKeyLevel1QueriesTotal                *prometheus.CounterVec

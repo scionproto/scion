@@ -45,7 +45,6 @@ import (
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
 	"github.com/scionproto/scion/pkg/snet/squic"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/private/app"
 	infraenv "github.com/scionproto/scion/private/app/appnet"
 	"github.com/scionproto/scion/private/app/command"
@@ -264,11 +263,9 @@ The template is expressed in JSON. A valid example::
 				return err
 			}
 			daemonAddr := envFlags.Daemon()
-			dispatcher := envFlags.Dispatcher()
 			localIP := net.IP(envFlags.Local().AsSlice())
 			log.Debug("Resolved SCION environment flags",
 				"daemon", daemonAddr,
-				"dispatcher", dispatcher,
 				"local", localIP,
 			)
 
@@ -420,12 +417,11 @@ The template is expressed in JSON. A valid example::
 			}
 
 			r := renewer{
-				LocalIA:   info.IA,
-				LocalIP:   localIP,
-				Daemon:    sd,
-				Disatcher: dispatcher,
-				Timeout:   flags.timeout,
-				StdErr:    cmd.ErrOrStderr(),
+				LocalIA: info.IA,
+				LocalIP: localIP,
+				Daemon:  sd,
+				Timeout: flags.timeout,
+				StdErr:  cmd.ErrOrStderr(),
 				PathOptions: func() []path.Option {
 					pathOpts := []path.Option{
 						path.WithInteractive(flags.interactive),
@@ -435,9 +431,8 @@ The template is expressed in JSON. A valid example::
 					}
 					if !flags.noProbe {
 						pathOpts = append(pathOpts, path.WithProbing(&path.ProbeConfig{
-							LocalIA:    info.IA,
-							LocalIP:    localIP,
-							Dispatcher: dispatcher,
+							LocalIA: info.IA,
+							LocalIP: localIP,
 						}))
 					}
 					return pathOpts
@@ -742,19 +737,16 @@ func (r *renewer) requestRemote(
 	}
 
 	sn := &snet.SCIONNetwork{
-		LocalIA: local.IA,
-		Dispatcher: &snet.DefaultPacketDispatcherService{
-			Dispatcher: reliable.NewDispatcher(r.Disatcher),
-			SCMPHandler: snet.SCMPPropagationStopper{
-				Handler: snet.DefaultSCMPHandler{
-					RevocationHandler: daemon.RevHandler{Connector: r.Daemon},
-				},
-				Log: log.FromCtx(ctx).Debug,
+		Topology: r.Daemon,
+		SCMPHandler: snet.SCMPPropagationStopper{
+			Handler: snet.DefaultSCMPHandler{
+				RevocationHandler: daemon.RevHandler{Connector: r.Daemon},
 			},
+			Log: log.FromCtx(ctx).Debug,
 		},
 	}
 
-	conn, err := sn.Listen(ctx, "udp", local.Host, addr.SvcNone)
+	conn, err := sn.Listen(ctx, "udp", local.Host)
 	if err != nil {
 		return nil, serrors.WrapStr("dialing", err)
 	}
@@ -767,9 +759,9 @@ func (r *renewer) requestRemote(
 			},
 			SVCRouter: svcRouter{Connector: r.Daemon},
 			Resolver: &svc.Resolver{
-				LocalIA:     local.IA,
-				ConnFactory: sn.Dispatcher,
-				LocalIP:     local.Host.IP,
+				LocalIA: local.IA,
+				Network: sn,
+				LocalIP: local.Host.IP,
 			},
 			SVCResolutionFraction: 1,
 		},
