@@ -94,7 +94,7 @@ func NewDP(
 	external map[uint16]BatchConn,
 	linkTypes map[uint16]topology.LinkType,
 	internal BatchConn,
-	internalNextHops map[uint16]*netip.AddrPort,
+	internalNextHops map[uint16]netip.AddrPort,
 	svc map[addr.SVC][]netip.AddrPort,
 	local addr.IA,
 	neighbors map[uint16]addr.IA,

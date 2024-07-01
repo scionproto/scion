@@ -60,14 +60,14 @@ func (c *Connector) CreateIACtx(ia addr.IA) error {
 }
 
 // AddInternalInterface adds the internal interface.
-func (c *Connector) AddInternalInterface(ia addr.IA, local *netip.AddrPort) error {
+func (c *Connector) AddInternalInterface(ia addr.IA, local netip.AddrPort) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	log.Debug("Adding internal interface", "isd_as", ia, "local", local)
 	if !c.ia.Equal(ia) {
 		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
 	}
-	connection, err := conn.New(local, nil,
+	connection, err := conn.New(local, netip.AddrPort{},
 		&conn.Config{ReceiveBufferSize: c.ReceiveBufferSize, SendBufferSize: c.SendBufferSize})
 	if err != nil {
 		return err
@@ -120,7 +120,7 @@ func (c *Connector) AddExternalInterface(localIfID common.IFIDType, link control
 		}
 		c.siblingInterfaces[intf] = control.SiblingInterface{
 			InterfaceID:       intf,
-			InternalInterface: *link.Remote.Addr,
+			InternalInterface: link.Remote.Addr,
 			Relationship:      link.LinkTo,
 			MTU:               link.MTU,
 			NeighborIA:        link.Remote.IA,

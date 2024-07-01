@@ -302,13 +302,6 @@ func MustParseUDPAddr(t *testing.T, s string) *net.UDPAddr {
 	return a
 }
 
-// MustParseAddrPort parses s and returns the corresponding netip.AddrPort object.
-// It fails the test if s is not a valid UDP address string.
-func MustParseAddrPort(s string) *netip.AddrPort {
-	a := netip.MustParseAddrPort(s)
-	return &a
-}
-
 // MustParseUDPAddrs parses the UPD address entries and returns a list
 // containing the parsed net.UDPAddr objects.
 func MustParseUDPAddrs(t *testing.T, entries ...string) []*net.UDPAddr {

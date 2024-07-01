@@ -80,7 +80,7 @@ type bfdSession interface {
 // BatchConn is a connection that supports batch reads and writes.
 type BatchConn interface {
 	ReadBatch(underlayconn.Messages) (int, error)
-	WriteTo([]byte, *netip.AddrPort) (int, error)
+	WriteTo([]byte, netip.AddrPort) (int, error)
 	WriteBatch(msgs underlayconn.Messages, flags int) (int, error)
 	Close() error
 }
@@ -158,7 +158,7 @@ type DataPlane struct {
 	peerInterfaces      map[uint16]uint16
 	internal            BatchConn
 	internalIP          netip.Addr
-	internalNextHops    map[uint16]*netip.AddrPort
+	internalNextHops    map[uint16]netip.AddrPort
 	svc                 *services
 	macFactory          func() hash.Hash
 	bfdSessions         map[uint16]bfdSession
@@ -307,7 +307,7 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
 	if d.running {
 		return modifyExisting
 	}
-	if conn == nil || src.Addr == nil || dst.Addr == nil {
+	if conn == nil || !src.Addr.IsValid() || !dst.Addr.IsValid() {
 		return emptyValue
 	}
 	err := d.addExternalInterfaceBFD(ifID, conn, src, dst, cfg)
@@ -489,7 +489,7 @@ func (d *DataPlane) DelSvc(svc addr.SVC, a netip.AddrPort) error {
 // AddNextHop sets the next hop address for the given interface ID. If the
 // interface ID already has an address associated this operation fails. This can
 // only be called on a not yet running dataplane.
-func (d *DataPlane) AddNextHop(ifID uint16, src, dst *netip.AddrPort, cfg control.BFD,
+func (d *DataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control.BFD,
 	sibling string) error {
 
 	d.mtx.Lock()
@@ -498,7 +498,7 @@ func (d *DataPlane) AddNextHop(ifID uint16, src, dst *netip.AddrPort, cfg contro
 	if d.running {
 		return modifyExisting
 	}
-	if dst == nil || src == nil {
+	if !dst.IsValid() || !src.IsValid() {
 		return emptyValue
 	}
 	err := d.addNextHopBFD(ifID, src, dst, cfg, sibling)
@@ -506,7 +506,7 @@ func (d *DataPlane) AddNextHop(ifID uint16, src, dst *netip.AddrPort, cfg contro
 		return serrors.WrapStr("adding next hop BFD", err, "if_id", ifID)
 	}
 	if d.internalNextHops == nil {
-		d.internalNextHops = make(map[uint16]*netip.AddrPort)
+		d.internalNextHops = make(map[uint16]netip.AddrPort)
 	}
 	if _, exists := d.internalNextHops[ifID]; exists {
 		return serrors.WithCtx(alreadySet, "ifID", ifID)
@@ -518,7 +518,7 @@ func (d *DataPlane) AddNextHop(ifID uint16, src, dst *netip.AddrPort, cfg contro
 // AddNextHopBFD adds the BFD session for the next hop address.
 // If the remote ifID belongs to an existing address, the existing
 // BFD session will be re-used.
-func (d *DataPlane) addNextHopBFD(ifID uint16, src, dst *netip.AddrPort, cfg control.BFD,
+func (d *DataPlane) addNextHopBFD(ifID uint16, src, dst netip.AddrPort, cfg control.BFD,
 	sibling string) error {
 
 	if *cfg.Disable {
@@ -1169,7 +1169,7 @@ func (p *scionPacketProcessor) processIntraBFD(data []byte) disposition {
 	ifID := uint16(0)
 	src := p.pkt.srcAddr.AddrPort() // POSSIBLY EXPENSIVE CONVERSION
 	for k, v := range p.d.internalNextHops {
-		if src == *v {
+		if src == v {
 			ifID = k
 			break
 		}
@@ -2036,7 +2036,7 @@ func (d *DataPlane) resolveLocalDst(
 		if a.Port() < d.dispatchedPortStart || a.Port() > d.dispatchedPortEnd {
 			updateNetAddrFromAddrAndPort(resolvedDst, a.Addr(), topology.EndhostPort)
 		} else {
-			updateNetAddrFromAddrPort(resolvedDst, &a)
+			updateNetAddrFromAddrPort(resolvedDst, a)
 		}
 		return nil
 	case addr.HostTypeIP:
@@ -2218,7 +2218,7 @@ func updateSCIONLayer(rawPkt []byte, s slayers.SCION, buffer gopacket.SerializeB
 
 type bfdSend struct {
 	conn             BatchConn
-	srcAddr, dstAddr *netip.AddrPort
+	srcAddr, dstAddr netip.AddrPort
 	scn              *slayers.SCION
 	ohp              *onehop.Path
 	mac              hash.Hash
@@ -2227,7 +2227,7 @@ type bfdSend struct {
 }
 
 // newBFDSend creates and initializes a BFD Sender
-func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr *netip.AddrPort,
+func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr netip.AddrPort,
 	ifID uint16, mac hash.Hash) (*bfdSend, error) {
 
 	scn := &slayers.SCION{
@@ -2638,7 +2638,7 @@ func (d *DataPlane) initMetrics() {
 // given netip.AddrPort. newDst.Addr() returns the IP by value. The compiler may or
 // may not inline the call and optimize out the copy. It is doubtful that manually inlining
 // increases the chances that the copy get elided. TODO(jiceatscion): experiment.
-func updateNetAddrFromAddrPort(netAddr *net.UDPAddr, newDst *netip.AddrPort) {
+func updateNetAddrFromAddrPort(netAddr *net.UDPAddr, newDst netip.AddrPort) {
 	updateNetAddrFromAddrAndPort(netAddr, newDst.Addr(), newDst.Port())
 }
 
@@ -2650,8 +2650,7 @@ func updateNetAddrFromAddrPort(netAddr *net.UDPAddr, newDst *netip.AddrPort) {
 // into a local variable. Then after we modify it, all gets copied to the some other channel and
 // eventually it gets copied back to the pool. If we replace the destAddr.IP at any point,
 // the old backing array behind the destAddr.IP slice ends-up on the garbage pile. To prevent that,
-// we store the IP in a separate array and update it in-place. That way we can also set IP
-// slice to nil when we have to.
+// we update the IP address in-place (we make the length 0 to represent the 0 address).
 func updateNetAddrFromAddrAndPort(netAddr *net.UDPAddr, addr netip.Addr, port uint16) {
 	netAddr.Port = int(port)
 	netAddr.Zone = addr.Zone()
