@@ -1,6 +1,6 @@
-*******
+*********************
 NAT IP/port discovery
-*******
+*********************
 
 - Author(s): Marc Frei, Tilmann Zäschke
 - Last updated: 2024-07-01
@@ -51,8 +51,6 @@ In case the detector shares and IP and possibly even port (or uses a fixed port)
 discovery is straight forward.
 If the port is flexible or the detector runs on a different IP then we need to find a different solution, probably
 as an extension to the bootstrapping service.
-
-.. _proposal-label:
 
 Proposal
 ========
@@ -164,6 +162,4 @@ Implementation
 ==============
 [A description of the steps in the implementation, which components need to be changed and in which order.]
 
-TBD when decision for one of the proposed implementation variants in
-`Proposals <https://github.com/tzaeschke/scion/blob/NAT-address-discovery/doc/dev/design/NAT-address-discovery.rst#proposal>`_
-has been made.
+TBD when decision for one of the proposed implementation variants has been made.
