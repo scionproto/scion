@@ -106,8 +106,8 @@ Execute the following commands on each VM:
 .. code-block:: sh
 
    cd /tmp/
-   wget https://github.com/scionproto/scion/releases/download/v0.10.0/scion_v0.10.0_deb_amd64.tar.gz
-   tar xfz scion_v0.10.0_deb_amd64.tar.gz
+   wget https://github.com/scionproto/scion/releases/download/v0.11.0/scion_v0.11.0_deb_amd64.tar.gz
+   tar xfz scion_v0.11.0_deb_amd64.tar.gz
 
    sudo apt install ./scion*.deb
 
@@ -142,19 +142,8 @@ On scion01, download the topology1.json file. On scion02, download topology2.jso
 
    wget LINK_TO_TOPOLOGY.JSON_FILE -O /etc/scion/topology.json
 
-
-The downloaded AS topology file is configured with generic IP address (10.0.0.1-5) as placeholder for the hosts scion01-05. These IP addresses will need to be changed to the VM IP specific addresses.
-
-.. code-block:: sh
-
-   sed -i 's/10.0.0.1/YOUR_SCION01_IP/g' /etc/scion/topology.json
-   sed -i 's/10.0.0.2/YOUR_SCION02_IP/g' /etc/scion/topology.json
-   sed -i 's/10.0.0.3/YOUR_SCION03_IP/g' /etc/scion/topology.json
-   sed -i 's/10.0.0.4/YOUR_SCION04_IP/g' /etc/scion/topology.json
-   sed -i 's/10.0.0.5/YOUR_SCION05_IP/g' /etc/scion/topology.json
-
-Replace ``YOUR_SCIONXX_IP`` with the VM specific IP address and apply on each scion host.
-
+The AS topology files reference the hosts scion01-05 by host name.
+Ensure that you have set up the ``/etc/hosts`` file (:ref:`see above <step0>`) or replace the hostnames with IP addresses.
 
 Step 2 - Generate the Required Certificates
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
