@@ -1,7 +1,9 @@
 module github.com/scionproto/scion
 
+go 1.22.4
+
 require (
-	github.com/antlr/antlr4/runtime/Go/antlr v0.0.0-20220209173558-ad29539cd2e9
+	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/bazelbuild/rules_go v0.47.1
 	github.com/buildkite/go-buildkite/v2 v2.9.0
 	github.com/dchest/cmac v1.0.0
@@ -130,5 +132,3 @@ require (
 	modernc.org/strutil v1.2.0 // indirect
 	modernc.org/token v1.1.0 // indirect
 )
-
-go 1.21.10
