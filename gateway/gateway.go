@@ -505,7 +505,6 @@ func (g *Gateway) Run(ctx context.Context) error {
 						Network: scionNetwork,
 						LocalIP: g.ServiceDiscoveryClientIP,
 					},
-					SVCResolutionFraction: 1.337,
 				},
 			},
 		},
