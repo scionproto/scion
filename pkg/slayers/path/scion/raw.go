@@ -172,3 +172,9 @@ func (s *Raw) IsPenultimateHop() bool {
 func (s *Raw) IsLastHop() bool {
 	return int(s.PathMeta.CurrHF) == (s.NumHops - 1)
 }
+
+// CurrINFMatchesCurrHF returns whether the the path's current hopfield
+// is in the path's current segment.
+func (s *Raw) CurrINFMatchesCurrHF() bool {
+	return s.PathMeta.CurrINF == s.infIndexForHF(s.PathMeta.CurrHF)
+}
