@@ -520,7 +520,7 @@ func TestSlowPathProcessing(t *testing.T) {
 				return NewDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
-					map[addr.SVC][]*net.UDPAddr{},
+					fakeServices,
 					xtest.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
@@ -535,7 +535,6 @@ func TestSlowPathProcessing(t *testing.T) {
 				typ:      slowPathSCMP,
 				scmpType: slayers.SCMPTypeParameterProblem,
 				code:     slayers.SCMPCodeInvalidDestinationAddress,
-				cause:    invalidDstAddr,
 			},
 			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
 		},

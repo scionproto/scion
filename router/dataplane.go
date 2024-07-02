@@ -1626,26 +1626,26 @@ func (p *scionPacketProcessor) verifyCurrentMAC() disposition {
 func (p *scionPacketProcessor) resolveInbound() disposition {
 	err := p.d.resolveLocalDst(p.pkt.dstAddr, p.scionLayer, p.lastLayer)
 
-  switch err {
-    case nil:
-      return pForward
-    case noSVCBackend:
-  		log.Debug("SCMP response", "cause", err)
-  	  p.pkt.slowPathRequest = slowPathRequest{
-			  scmpType: slayers.SCMPTypeDestinationUnreachable,
-			  code:     slayers.SCMPCodeNoRoute,
-		  }
-      return pSlowPath
-    case invalidDstAddr:
-	  	log.Debug("SCMP response", "cause", err)
-		  p.pkt.slowPathRequest = slowPathRequest{
-			  scmpType: slayers.SCMPTypeParameterProblem,
-			  code:     slayers.SCMPCodeInvalidDestinationAddress,
-		  }
-		  return pSlowPath
-	  default:
-      return errorDiscard("error", err)
-  }
+	switch err {
+	case nil:
+		return pForward
+	case noSVCBackend:
+		log.Debug("SCMP response", "cause", err)
+		p.pkt.slowPathRequest = slowPathRequest{
+			scmpType: slayers.SCMPTypeDestinationUnreachable,
+			code:     slayers.SCMPCodeNoRoute,
+		}
+		return pSlowPath
+	case invalidDstAddr:
+		log.Debug("SCMP response", "cause", err)
+		p.pkt.slowPathRequest = slowPathRequest{
+			scmpType: slayers.SCMPTypeParameterProblem,
+			code:     slayers.SCMPCodeInvalidDestinationAddress,
+		}
+		return pSlowPath
+	default:
+		return errorDiscard("error", err)
+	}
 }
 
 func (p *scionPacketProcessor) processEgress() disposition {
@@ -2029,7 +2029,7 @@ func (d *DataPlane) resolveLocalDst(
 
 	dst, err := s.DstAddr()
 	if err != nil {
-    return invalidDstAddr
+		return invalidDstAddr
 	}
 	switch dst.Type() {
 	case addr.HostTypeSVC:
