@@ -2,7 +2,7 @@ workspace(
     name = "com_github_scionproto_scion",
 )
 
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 # linter rules
 http_archive(
@@ -205,6 +205,11 @@ load("@tester_debian10_packages//:packages.bzl", tester_debian_packages_install_
 
 tester_debian_packages_install_deps()
 
+# Buf CLI to generate connect-go
+load("//tools/buf:deps.bzl", "buf_dependencies")
+
+buf_dependencies()
+
 # protobuf/gRPC
 http_archive(
     name = "rules_proto_grpc",
@@ -234,16 +239,6 @@ http_archive(
     strip_prefix = "buildtools-6.3.3",
     urls = [
         "https://github.com/bazelbuild/buildtools/archive/refs/tags/6.3.3.tar.gz",
-    ],
-)
-
-http_file(
-    name = "buf_bin",
-    downloaded_file_path = "buf",
-    executable = True,
-    sha256 = "5faf15ed0a3cd4bd0919ba5fcb95334c1fd2ba32770df289d615138fa188d36a",
-    urls = [
-        "https://github.com/bufbuild/buf/releases/download/v0.20.5/buf-Linux-x86_64",
     ],
 )
 

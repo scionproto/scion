@@ -1,8 +1,7 @@
-build:
-  roots:
-    - .
-  excludes:
-    - anapaya/protobuf
+version: v1
+breaking:
+  use:
+    - FILE
 lint:
   use:
     - DEFAULT

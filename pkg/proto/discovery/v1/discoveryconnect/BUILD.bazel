@@ -1,0 +1,12 @@
+load("//tools/lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["discovery.connect.go"],
+    importpath = "github.com/scionproto/scion/pkg/proto/discovery/v1/discoveryconnect",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/proto/discovery:go_default_library",
+        "@com_connectrpc_connect//:go_default_library",
+    ],
+)
