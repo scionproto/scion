@@ -205,7 +205,6 @@ func (nc *NetworkConfig) AddressRewriter() *AddressRewriter {
 			},
 			LocalIP: nc.Public.IP,
 		},
-		SVCResolutionFraction: 1.337,
 	}
 }
 
