@@ -18,7 +18,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
@@ -35,14 +34,9 @@ type RevocationHandler interface {
 
 // SCMPHandler customizes the way snet connections deal with SCMP.
 type SCMPHandler interface {
-	// Handle processes the packet as an SCMP packet. If packet is not SCMP, it
-	// returns an error.
-	//
-	// If the handler returns an error value, snet will propagate the error
-	// back to the caller. If the return value is nil, snet will reattempt to
-	// read a data packet from the underlying connection.
-	//
-	// Handlers that wish to ignore SCMP can just return nil.
+	// Handle processes the packet as an SCMP packet. If packet is not SCMP or otherwise
+	// malformed, it returns an error.
+	// Errors may be counted in metrics, but otherwise ignored.
 	//
 	// If the handler mutates the packet, the changes are seen by snet
 	// connection method callers.
@@ -58,6 +52,9 @@ type DefaultSCMPHandler struct {
 	RevocationHandler RevocationHandler
 	// SCMPErrors reports the total number of SCMP Errors encountered.
 	SCMPErrors metrics.Counter
+	// Log is an optional function that is used to log SCMP messages
+	// TODO log...
+	Log func(msg string, ctx ...any)
 }
 
 func (h DefaultSCMPHandler) Handle(pkt *Packet) error {
@@ -72,7 +69,7 @@ func (h DefaultSCMPHandler) Handle(pkt *Packet) error {
 	switch scmp.Type() {
 	case slayers.SCMPTypeExternalInterfaceDown:
 		msg := pkt.Payload.(SCMPExternalInterfaceDown)
-		return h.handleSCMPRev(typeCode, &path_mgmt.RevInfo{
+		return h.handleSCMPRev(&path_mgmt.RevInfo{
 			IfID:         common.IFIDType(msg.Interface),
 			RawIsdas:     msg.IA,
 			RawTimestamp: util.TimeToSecs(time.Now()),
@@ -80,47 +77,31 @@ func (h DefaultSCMPHandler) Handle(pkt *Packet) error {
 		})
 	case slayers.SCMPTypeInternalConnectivityDown:
 		msg := pkt.Payload.(SCMPInternalConnectivityDown)
-		return h.handleSCMPRev(typeCode, &path_mgmt.RevInfo{
+		return h.handleSCMPRev(&path_mgmt.RevInfo{
 			IfID:         common.IFIDType(msg.Egress),
 			RawIsdas:     msg.IA,
 			RawTimestamp: util.TimeToSecs(time.Now()),
 			RawTTL:       10,
 		})
+
 	default:
-		// Only handle connectivity down for now
-		log.Debug("Ignoring scmp packet", "scmp", typeCode, "src", pkt.Source)
+		h.log("Ignoring SCMP packet", "scmp", typeCode, "src", pkt.Source)
 		return nil
 	}
 }
-func (h *DefaultSCMPHandler) handleSCMPRev(typeCode slayers.SCMPTypeCode,
-	revInfo *path_mgmt.RevInfo) error {
+
+func (h DefaultSCMPHandler) log(msg string, ctx ...any) {
+	if h.Log == nil {
+		return
+	}
+	h.Log(msg, ctx)
+}
+
+// TODO: matzf replace RevocationHandler interface with something that does not rely on ancient RevInfo struct
+func (h *DefaultSCMPHandler) handleSCMPRev(revInfo *path_mgmt.RevInfo) error {
 
 	if h.RevocationHandler != nil {
-		err := h.RevocationHandler.Revoke(context.TODO(), revInfo)
-		if err != nil {
-			log.Info("Notifying revocation handler failed", "err", err)
-		}
-	}
-	return &OpError{typeCode: typeCode, revInfo: revInfo}
-}
-
-// SCMPPropagationStopper wraps an SCMP handler and stops propagation of the
-// SCMP errors up the stack. This can be necessary if the client code aborts on
-// unexpected errors. This is a temporary solution until we address
-// https://github.com/scionproto/scion/issues/4389.
-//
-// EXPERIMENTAL: This handler is experimental and may be removed in the future.
-type SCMPPropagationStopper struct {
-	// Handler is the wrapped handler.
-	Handler SCMPHandler
-	// Log is an optional function that is called when the wrapped handler
-	// returns an error and propagation is stopped.
-	Log func(msg string, ctx ...any)
-}
-
-func (h SCMPPropagationStopper) Handle(pkt *Packet) error {
-	if err := h.Handler.Handle(pkt); err != nil && h.Log != nil {
-		h.Log("Stopped SCMP error propagation", "err", err)
+		return h.RevocationHandler.Revoke(context.TODO(), revInfo)
 	}
 	return nil
 }

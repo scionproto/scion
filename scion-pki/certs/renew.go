@@ -738,15 +738,12 @@ func (r *renewer) requestRemote(
 
 	sn := &snet.SCIONNetwork{
 		Topology: r.Daemon,
-		SCMPHandler: snet.SCMPPropagationStopper{
-			Handler: snet.DefaultSCMPHandler{
-				RevocationHandler: daemon.RevHandler{Connector: r.Daemon},
-			},
-			Log: log.FromCtx(ctx).Debug,
-		},
 	}
 
-	conn, err := sn.Listen(ctx, "udp", local.Host)
+	scmpHandler := snet.DefaultSCMPHandler{
+		RevocationHandler: daemon.RevHandler{Connector: r.Daemon},
+	}
+	conn, err := sn.Listen(ctx, "udp", local.Host, snet.WithSCMPHandler(scmpHandler))
 	if err != nil {
 		return nil, serrors.WrapStr("dialing", err)
 	}
@@ -761,6 +758,7 @@ func (r *renewer) requestRemote(
 			Resolver: &svc.Resolver{
 				LocalIA: local.IA,
 				Network: sn,
+				// XXX  scmp handler lost here
 				LocalIP: local.Host.IP,
 			},
 		},

@@ -28,12 +28,6 @@
 // used to send a message to a chosen destination.
 //
 // Multiple networking contexts can share the same SCIOND.
-//
-// Write calls never return SCMP errors directly. If a write call caused an
-// SCMP message to be received by the Conn, it can be inspected by calling
-// Read. In this case, the error value is non-nil and can be type asserted to
-// *OpError. Method SCMP() can be called on the error to extract the SCMP
-// header.
 package snet
 
 import (
@@ -41,6 +35,7 @@ import (
 	"errors"
 	"net"
 	"net/netip"
+	"slices"
 	"syscall"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -70,14 +65,10 @@ type SCIONNetwork struct {
 	// Topology provides local AS information, needed to handle sockets and
 	// traffic.
 	Topology Topology
-	// ReplyPather is used to create reply paths when reading packets on Conn
-	// (that implements net.Conn). If unset, the default reply pather is used,
-	// which parses the incoming path as a path.Path and reverses it.
-	ReplyPather ReplyPather
-	// Metrics holds the metrics emitted by the network.
-	Metrics SCIONNetworkMetrics
-	// SCMPHandler describes the network behaviour upon receiving SCMP traffic.
-	SCMPHandler       SCMPHandler
+
+	// XXX: SCMPHandler / Reverser
+
+	Metrics           SCIONNetworkMetrics
 	PacketConnMetrics SCIONPacketConnMetrics
 }
 
@@ -119,7 +110,6 @@ func (n *SCIONNetwork) OpenRaw(ctx context.Context, addr *net.UDPAddr) (PacketCo
 	}
 	return &SCIONPacketConn{
 		Conn:         pconn,
-		SCMPHandler:  n.SCMPHandler,
 		Metrics:      n.PacketConnMetrics,
 		interfaceMap: ifAddrs,
 	}, nil
@@ -133,8 +123,13 @@ func (n *SCIONNetwork) OpenRaw(ctx context.Context, addr *net.UDPAddr) (PacketCo
 //
 // The context is used for connection setup, it doesn't affect the returned
 // connection.
-func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDPAddr,
-	remote *UDPAddr) (*Conn, error) {
+func (n *SCIONNetwork) Dial(
+	ctx context.Context,
+	network string,
+	listen *net.UDPAddr,
+	remote *UDPAddr,
+	options ...ConnOption,
+) (*Conn, error) {
 	// XXX(JordiSubira): Currently Dial does not check that received packets are
 	// originated from the expected remote address. This should be adapted to
 	// check that the remote packets are originated from the expected remote address.
@@ -151,7 +146,8 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 		return nil, err
 	}
 	log.FromCtx(ctx).Debug("UDP socket opened on", "addr", packetConn.LocalAddr(), "to", remote)
-	return NewCookedConn(packetConn, n.Topology, WithReplyPather(n.ReplyPather), WithRemote(remote))
+	options = append(slices.Clone(options), WithRemote(remote))
+	return NewCookedConn(packetConn, n.Topology, options...)
 }
 
 // Listen opens a Conn. The returned connection's ReadFrom and WriteTo methods
@@ -165,6 +161,7 @@ func (n *SCIONNetwork) Listen(
 	ctx context.Context,
 	network string,
 	listen *net.UDPAddr,
+	options ...ConnOption,
 ) (*Conn, error) {
 
 	metrics.CounterInc(n.Metrics.Listens)
@@ -176,7 +173,7 @@ func (n *SCIONNetwork) Listen(
 		return nil, err
 	}
 	log.FromCtx(ctx).Debug("UDP socket openned on", "addr", packetConn.LocalAddr())
-	return NewCookedConn(packetConn, n.Topology, WithReplyPather(n.ReplyPather))
+	return NewCookedConn(packetConn, n.Topology, options...)
 }
 
 func listenUDPRange(addr *net.UDPAddr, start, end uint16) (*net.UDPConn, error) {

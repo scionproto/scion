@@ -83,13 +83,6 @@ func (f *DefaultPathWatcherFactory) New(
 		return create(remote)
 	}
 	conn, err := (&snet.SCIONNetwork{
-		SCMPHandler: scmpHandler{
-			wrappedHandler: snet.DefaultSCMPHandler{
-				RevocationHandler: f.RevocationHandler,
-				SCMPErrors:        f.SCMPErrors,
-			},
-			pkts: pktChan,
-		},
 		PacketConnMetrics: f.SCIONPacketConnMetrics,
 		Topology:          f.Topology,
 	}).OpenRaw(ctx, &net.UDPAddr{IP: f.LocalIP.AsSlice()})
@@ -104,6 +97,13 @@ func (f *DefaultPathWatcherFactory) New(
 		localAddr: snet.SCIONAddress{
 			IA:   f.LocalIA,
 			Host: addr.HostIP(f.LocalIP),
+		},
+		scmpHandler: scmpHandler{
+			wrappedHandler: snet.DefaultSCMPHandler{
+				RevocationHandler: f.RevocationHandler,
+				SCMPErrors:        f.SCMPErrors,
+			},
+			pkts: pktChan,
 		},
 		pktChan:          pktChan,
 		probesSent:       createCounter(f.ProbesSent, remote),
@@ -122,6 +122,8 @@ type pathWatcher struct {
 	// conn is the packet conn used to send probes on. The pathwatcher takes
 	// ownership and will close it on termination.
 	conn snet.PacketConn
+	// scmpHandler is handles SCMPs received on conn and inserts traceroute packets into pktChan
+	scmpHandler snet.SCMPHandler
 	// id is used as SCMP traceroute ID. Since each pathwatcher should have it's
 	// own high port this value can be random.
 	id uint16
@@ -239,12 +241,13 @@ func (w *pathWatcher) drainConn(ctx context.Context) {
 			return
 		}
 		if err != nil {
-			if _, ok := err.(*snet.OpError); ok {
-				// ignore SCMP errors they are already dealt with in the SCMP
-				// handler.
-				continue
-			}
 			logger.Info("Unexpected error when reading probe reply", "err", err)
+		}
+		if _, ok := pkt.Payload.(snet.SCMPPayload); !ok {
+			continue
+		}
+		if err := w.scmpHandler.Handle(&pkt); err == nil {
+			logger.Info("Unexpected error when handling SCMP packet", "err", err)
 		}
 	}
 }

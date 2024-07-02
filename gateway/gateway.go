@@ -94,12 +94,13 @@ func (dpf DataplaneSessionFactory) New(id uint8, policyID int,
 type PacketConnFactory struct {
 	Network *snet.SCIONNetwork
 	Addr    *net.UDPAddr
+	Options []snet.ConnOption
 }
 
 func (pcf PacketConnFactory) New() (net.PacketConn, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	conn, err := pcf.Network.Listen(ctx, "udp", pcf.Addr)
+	conn, err := pcf.Network.Listen(ctx, "udp", pcf.Addr, pcf.Options...)
 	if err != nil {
 		return nil, serrors.WrapStr("creating packet conn", err)
 	}
@@ -406,29 +407,24 @@ func (g *Gateway) Run(ctx context.Context) error {
 		return serrors.WrapStr("unable to generate TLS config", err)
 	}
 
-	// scionNetworkNoSCMP is the network for the QUIC server connection. Because SCMP errors
-	// will cause the server's accepts to fail, we ignore SCMP.
-	scionNetworkNoSCMP := &snet.SCIONNetwork{
-		Topology: g.Daemon,
-		// Discard all SCMP propagation, to avoid accept/read errors on the
-		// QUIC server/client.
-		SCMPHandler: snet.SCMPPropagationStopper{
-			Handler: snet.DefaultSCMPHandler{
-				RevocationHandler: revocationHandler,
-				SCMPErrors:        g.Metrics.SCMPErrors,
-			},
-			Log: log.FromCtx(ctx).Debug,
-		},
+	scionNetwork := &snet.SCIONNetwork{
+		Topology:          g.Daemon,
 		PacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
 		Metrics:           g.Metrics.SCIONNetworkMetrics,
+	}
+	scmpHandler := snet.DefaultSCMPHandler{
+		RevocationHandler: revocationHandler,
+		SCMPErrors:        g.Metrics.SCMPErrors,
+		Log:               log.FromCtx(ctx).Debug,
 	}
 
 	// Initialize the UDP/SCION QUIC conn for outgoing Gateway Discovery RPCs and outgoing Prefix
 	// Fetching. Open up a random high port for this.
-	clientConn, err := scionNetworkNoSCMP.Listen(
+	clientConn, err := scionNetwork.Listen(
 		context.TODO(),
 		"udp",
 		&net.UDPAddr{IP: g.ControlClientIP},
+		snet.WithSCMPHandler(scmpHandler),
 	)
 	if err != nil {
 		return serrors.WrapStr("unable to initialize client QUIC connection", err)
@@ -469,17 +465,6 @@ func (g *Gateway) Run(ctx context.Context) error {
 		}
 	}
 
-	// scionNetwork is the network for all SCION connections, with the exception of the QUIC server
-	// and client connection.
-	scionNetwork := &snet.SCIONNetwork{
-		Topology: g.Daemon,
-		SCMPHandler: snet.DefaultSCMPHandler{
-			RevocationHandler: revocationHandler,
-			SCMPErrors:        g.Metrics.SCMPErrors,
-		},
-		PacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
-		Metrics:           g.Metrics.SCIONNetworkMetrics,
-	}
 	remoteMonitor := &control.RemoteMonitor{
 		IAs:                   remoteIAsChannel,
 		RemotesMonitored:      rmMetric,
@@ -518,10 +503,11 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}()
 	logger.Debug("Remote monitor started.")
 
-	serverConn, err := scionNetworkNoSCMP.Listen(
+	serverConn, err := scionNetwork.Listen(
 		context.TODO(),
 		"udp",
 		g.ControlServerAddr,
+		snet.WithSCMPHandler(scmpHandler),
 	)
 	if err != nil {
 		return serrors.WrapStr("unable to initialize server QUIC connection", err)
@@ -569,7 +555,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// received from the session monitors of the remote gateway.
 	// *********************************************************************************
 
-	probeConn, err := scionNetwork.Listen(context.TODO(), "udp", g.ProbeServerAddr)
+	probeConn, err := scionNetwork.Listen(context.TODO(), "udp", g.ProbeServerAddr,
+		snet.WithSCMPHandler(scmpHandler))
 	if err != nil {
 		return serrors.WrapStr("creating server probe conn", err)
 	}
@@ -584,8 +571,16 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}()
 
 	// Start dataplane ingress
-	if err := StartIngress(ctx, scionNetwork, g.DataServerAddr, deviceManager,
-		g.Metrics); err != nil {
+	dataplaneServerConn, err := scionNetwork.Listen(
+		context.TODO(),
+		"udp",
+		g.DataServerAddr,
+		snet.WithSCMPHandler(scmpHandler),
+	)
+	if err != nil {
+		return serrors.WrapStr("creating ingress conn", err)
+	}
+	if err := StartIngress(ctx, dataplaneServerConn, deviceManager, g.Metrics); err != nil {
 
 		return err
 	}
@@ -628,12 +623,14 @@ func (g *Gateway) Run(ctx context.Context) error {
 			ProbeConnFactory: PacketConnFactory{
 				Network: scionNetwork,
 				Addr:    &net.UDPAddr{IP: g.ProbeClientIP},
+				Options: []snet.ConnOption{snet.WithSCMPHandler(scmpHandler)},
 			},
 			DeviceManager: deviceManager,
 			DataplaneSessionFactory: DataplaneSessionFactory{
 				PacketConnFactory: PacketConnFactory{
 					Network: scionNetwork,
 					Addr:    &net.UDPAddr{IP: g.DataClientIP},
+					Options: []snet.ConnOption{snet.WithSCMPHandler(scmpHandler)},
 				},
 				Metrics: CreateSessionMetrics(g.Metrics),
 			},
@@ -759,18 +756,10 @@ func CreateIngressMetrics(m *Metrics) dataplane.IngressMetrics {
 	}
 }
 
-func StartIngress(ctx context.Context, scionNetwork *snet.SCIONNetwork, dataAddr *net.UDPAddr,
+func StartIngress(ctx context.Context, dataplaneServerConn *snet.Conn,
 	deviceManager control.DeviceManager, metrics *Metrics) error {
 
 	logger := log.FromCtx(ctx)
-	dataplaneServerConn, err := scionNetwork.Listen(
-		context.TODO(),
-		"udp",
-		dataAddr,
-	)
-	if err != nil {
-		return serrors.WrapStr("creating ingress conn", err)
-	}
 	ingressMetrics := CreateIngressMetrics(metrics)
 	ingressServer := &dataplane.IngressServer{
 		Conn:          dataplaneServerConn,

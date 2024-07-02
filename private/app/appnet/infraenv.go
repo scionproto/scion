@@ -199,7 +199,6 @@ func (nc *NetworkConfig) AddressRewriter() *AddressRewriter {
 			LocalIA: nc.IA,
 			Network: &snet.SCIONNetwork{
 				Topology:          nc.Topology,
-				SCMPHandler:       nc.SCMPHandler,
 				Metrics:           nc.SCIONNetworkMetrics,
 				PacketConnMetrics: nc.SCIONPacketConnMetrics,
 			},
@@ -221,11 +220,8 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 	}
 
 	serverNet := &snet.SCIONNetwork{
-		Topology: nc.Topology,
-		// XXX(roosd): This is essential, the server must not read SCMP
-		// errors. Otherwise, the accept loop will always return that error
-		// on every subsequent call to accept.
-		SCMPHandler:       ignoreSCMP{},
+		Topology:          nc.Topology,
+		Metrics:           nc.SCIONNetworkMetrics,
 		PacketConnMetrics: nc.SCIONPacketConnMetrics,
 	}
 	pconn, err := serverNet.OpenRaw(context.Background(), nc.Public)
@@ -248,13 +244,7 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 	}
 
 	clientNet := &snet.SCIONNetwork{
-		Topology: nc.Topology,
-		// Discard all SCMP propagation, to avoid read errors on the QUIC
-		// client.
-		SCMPHandler: snet.SCMPPropagationStopper{
-			Handler: nc.SCMPHandler,
-			Log:     log.Debug,
-		},
+		Topology:          nc.Topology,
 		Metrics:           nc.SCIONNetworkMetrics,
 		PacketConnMetrics: nc.SCIONPacketConnMetrics,
 	}
@@ -299,15 +289,4 @@ func NewRouter(localIA addr.IA, sd env.Daemon) (snet.Router, error) {
 		}
 	}
 	return router, nil
-}
-
-// ignoreSCMP ignores all received SCMP packets.
-//
-// XXX(roosd): This is needed such that the QUIC server does not shut down when
-// receiving a SCMP error. DO NOT REMOVE!
-type ignoreSCMP struct{}
-
-func (ignoreSCMP) Handle(pkt *snet.Packet) error {
-	// Always reattempt reads from the socket.
-	return nil
 }

@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path/empty"
 	"github.com/scionproto/scion/pkg/slayers/path/epic"
 	"github.com/scionproto/scion/pkg/slayers/path/onehop"
@@ -73,22 +72,6 @@ func (b *Bytes) Prepare() {
 	*b = (*b)[:cap(*b)]
 }
 
-type L4Header interface {
-	closed()
-}
-
-type UDPL4 struct {
-	slayers.UDP
-}
-
-func (UDPL4) closed() {}
-
-type SCMPExternalInterfaceDownL4 struct {
-	slayers.SCMPExternalInterfaceDown
-}
-
-func (SCMPExternalInterfaceDownL4) closed() {}
-
 // SCIONAddress is the fully-specified address of a host.
 type SCIONAddress = addr.Addr
 
@@ -116,10 +99,6 @@ type SCIONPacketConnMetrics struct {
 type SCIONPacketConn struct {
 	// Conn is the connection to send/receive serialized packets on.
 	Conn *net.UDPConn
-	// SCMPHandler is invoked for packets that contain an SCMP L4. If the
-	// handler is nil, errors are returned back to applications every time an
-	// SCMP message is received.
-	SCMPHandler SCMPHandler
 	// Metrics are the metrics exported by the conn.
 	Metrics      SCIONPacketConnMetrics
 	interfaceMap interfaceMap
@@ -162,31 +141,12 @@ func (c *SCIONPacketConn) SetWriteDeadline(d time.Time) error {
 }
 
 func (c *SCIONPacketConn) ReadFrom(pkt *Packet, ov *net.UDPAddr) error {
-	for {
-		// Read until we get an error or a data packet
-		remoteAddr, err := c.readFrom(pkt)
-		if err != nil {
-			return err
-		}
-		*ov = *remoteAddr
-		if scmp, ok := pkt.Payload.(SCMPPayload); ok {
-			if c.SCMPHandler == nil {
-				metrics.CounterInc(c.Metrics.SCMPErrors)
-				return serrors.New("scmp packet received, but no handler found",
-					"type_code", slayers.CreateSCMPTypeCode(scmp.Type(), scmp.Code()),
-					"src", pkt.Source)
-			}
-			if err := c.SCMPHandler.Handle(pkt); err != nil {
-				// Return error intact s.t. applications can handle custom
-				// error types returned by SCMP handlers.
-				return err
-			}
-			continue
-		}
-		// non-SCMP L4s are assumed to be data and get passed back to the
-		// app.
-		return nil
+	remoteAddr, err := c.readFrom(pkt)
+	if err != nil {
+		return err
 	}
+	*ov = *remoteAddr
+	return nil
 }
 
 func (c *SCIONPacketConn) SyscallConn() (syscall.RawConn, error) {
@@ -326,21 +286,6 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 	default:
 		return nil, serrors.New("unknown path type", "type", rpath.PathType.String())
 	}
-}
-
-type SerializationOptions struct {
-	// If ComputeChecksums is true, the checksums in sent Packets are
-	// recomputed. Otherwise, the checksum value is left intact.
-	ComputeChecksums bool
-	// If FixLengths is true, any lengths in sent Packets are recomputed
-	// to match the data contained in payloads/inner layers. This currently
-	// concerns extension headers and the L4 header.
-	FixLengths bool
-	// If InitializePaths is set to true, then forwarding paths are reset to
-	// their starting InfoField/HopField during serialization, irrespective of
-	// previous offsets. If it is set to false, then the fields are left
-	// unchanged.
-	InitializePaths bool
 }
 
 type interfaceMap map[uint16]netip.AddrPort
