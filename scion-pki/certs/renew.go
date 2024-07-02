@@ -763,7 +763,6 @@ func (r *renewer) requestRemote(
 				Network: sn,
 				LocalIP: local.Host.IP,
 			},
-			SVCResolutionFraction: 1,
 		},
 		Dialer: squic.ConnDialer{
 			Transport: &quic.Transport{Conn: conn},
