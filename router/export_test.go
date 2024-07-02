@@ -19,8 +19,6 @@ import (
 	"net"
 	"net/netip"
 
-	"golang.org/x/net/ipv4"
-
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/private/topology"
 )
@@ -47,45 +45,24 @@ type Disposition disposition
 
 const PDiscard = Disposition(pDiscard)
 
-func NewPacket(msg *ipv4.Message, ifId uint16) *Packet {
-	// Pretend this is coming from the receiver.
+func NewPacket(raw []byte, src, dst *net.UDPAddr, ingress, egress uint16) *Packet {
 	p := Packet{
 		packet: packet{
 			dstAddr:   &net.UDPAddr{IP: make(net.IP, 0, net.IPv6len)},
-			rawPacket: make([]byte, msg.N),
-			ingress:   ifId,
+			srcAddr:   &net.UDPAddr{IP: make(net.IP, 0, net.IPv6len)},
+			rawPacket: make([]byte, len(raw)),
+			ingress:   ingress,
+			egress:    egress,
 		},
 	}
-	// nil happens *only* in test cases.
-	if msg.Addr != nil {
-		p.srcAddr = msg.Addr.(*net.UDPAddr)
+	if src != nil {
+		p.srcAddr = src
 	}
-	copy(p.rawPacket, msg.Buffers[0])
+	if dst != nil {
+		p.dstAddr = dst
+	}
+	copy(p.rawPacket, raw)
 	return &p
-}
-
-func (p *Packet) GetDestAddr() *net.UDPAddr {
-	return p.packet.dstAddr
-}
-
-func (p *Packet) GetEgress() uint16 {
-	return p.packet.egress
-}
-
-// Returns an ipv4Msg laid out like the forwarder would before calling writeBatch.
-func (p *Packet) ToIpv4Msg() *ipv4.Message {
-	msg := ipv4.Message{
-		Buffers: [][]byte{p.rawPacket},
-	}
-	// processPkt never sets dstAddr to nil as that would cause the object to hit the garbage pile.
-	// It makes its IP zero-lengthed. However, when translating to ipv4Msg we do translate that to
-	// nil. Match this behaviour as the test expects ipv4Msgs that look exactly like those output by
-	// the forwarder.
-	msg.Addr = nil
-	if len(p.dstAddr.IP) != 0 {
-		msg.Addr = p.dstAddr
-	}
-	return &msg
 }
 
 func NewDP(
@@ -126,6 +103,8 @@ func (d *DataPlane) ProcessPkt(pkt *Packet) Disposition {
 
 	p := newPacketProcessor(d)
 	disp := p.processPkt(&(pkt.packet))
+	// Erase trafficType; we don't set it in the expected results.
+	pkt.trafficType = ttOther
 	return Disposition(disp)
 }
 
