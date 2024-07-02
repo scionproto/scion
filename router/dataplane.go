@@ -188,6 +188,7 @@ var (
 	invalidSrcIA                  = errors.New("invalid source ISD-AS")
 	invalidDstIA                  = errors.New("invalid destination ISD-AS")
 	invalidSrcAddrForTransit      = errors.New("invalid source address for transit pkt")
+	invalidDstAddr                = errors.New("invalid destination address")
 	cannotRoute                   = errors.New("cannot route, dropping pkt")
 	emptyValue                    = errors.New("empty value")
 	malformedPath                 = errors.New("malformed path content")
@@ -1625,20 +1626,26 @@ func (p *scionPacketProcessor) verifyCurrentMAC() disposition {
 func (p *scionPacketProcessor) resolveInbound() disposition {
 	err := p.d.resolveLocalDst(p.pkt.dstAddr, p.scionLayer, p.lastLayer)
 
-	if err == noSVCBackend {
-
-		log.Debug("SCMP response", "cause", noSVCBackend)
-		p.pkt.slowPathRequest = slowPathRequest{
-			scmpType: slayers.SCMPTypeDestinationUnreachable,
-			code:     slayers.SCMPCodeNoRoute,
-		}
-		return pSlowPath
-	}
-
-	if err == nil {
-		return pForward
-	}
-	return errorDiscard("error", err)
+  switch err {
+    case nil:
+      return pForward
+    case noSVCBackend:
+  		log.Debug("SCMP response", "cause", err)
+  	  p.pkt.slowPathRequest = slowPathRequest{
+			  scmpType: slayers.SCMPTypeDestinationUnreachable,
+			  code:     slayers.SCMPCodeNoRoute,
+		  }
+      return pSlowPath
+    case invalidDstAddr:
+	  	log.Debug("SCMP response", "cause", err)
+		  p.pkt.slowPathRequest = slowPathRequest{
+			  scmpType: slayers.SCMPTypeParameterProblem,
+			  code:     slayers.SCMPCodeInvalidDestinationAddress,
+		  }
+		  return pSlowPath
+	  default:
+      return errorDiscard("error", err)
+  }
 }
 
 func (p *scionPacketProcessor) processEgress() disposition {
@@ -2022,8 +2029,7 @@ func (d *DataPlane) resolveLocalDst(
 
 	dst, err := s.DstAddr()
 	if err != nil {
-		// TODO parameter problem.
-		return err
+    return invalidDstAddr
 	}
 	switch dst.Type() {
 	case addr.HostTypeSVC:

@@ -61,14 +61,14 @@ type AddressRewriter struct {
 func (r *AddressRewriter) RedirectToQUIC(
 	ctx context.Context,
 	address net.Addr,
-) (net.Addr, bool, error) {
+) (net.Addr, error) {
 	a, ok := address.(*Addr)
 	if !ok {
 		return r.Rewriter.RedirectToQUIC(ctx, address)
 	}
 	path, err := r.getPath(a.Egress)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 	svc := &snet.SVCAddr{
 		IA:      a.IA,
