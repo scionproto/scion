@@ -38,8 +38,6 @@ func GetMetrics() *Metrics {
 
 var NewServices = newServices
 
-var SlowPathRequired error = slowPathRequired
-
 // Export the Packet struct so dataplane test can call ProcessPkt
 type Packet struct {
 	packet
