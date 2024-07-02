@@ -262,7 +262,7 @@ class RouterBMTest(base.TestBase, RouterBM):
             self.brload_cpus = chosen
         else:
             self.router_cpus = chosen[:-1]
-            # self.brload_cpus = chosen[-1:]
+            self.brload_cpus = chosen[-1:]
 
         logger.info(f"router cpus: {self.router_cpus}")
         logger.info(f"brload cpus: {self.brload_cpus}")
