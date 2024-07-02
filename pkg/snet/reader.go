@@ -131,13 +131,11 @@ func (c *scionConnReader) readPacketUDP(pkt *Packet, lastHop *net.UDPAddr) error
 			return nil
 		case SCMPPayload:
 			if c.scmpHandler == nil {
-				// TODO metrics
-				//	metrics.CounterInc(c.Metrics.SCMPErrors)
 				continue
 			}
 			err := c.scmpHandler.Handle(pkt)
 			if err != nil {
-				//	metrics.CounterInc(c.Metrics.SCMPErrors)
+				return err
 			}
 			continue
 		default:

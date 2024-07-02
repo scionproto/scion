@@ -16,7 +16,6 @@ package pathhealth
 
 import (
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
 )
 
@@ -33,7 +32,7 @@ type scmpHandler struct {
 
 func (h scmpHandler) Handle(pkt *snet.Packet) error {
 	if pkt.Payload == nil {
-		return serrors.New("no payload found")
+		return nil
 	}
 	tr, ok := pkt.Payload.(snet.SCMPTracerouteReply)
 	if !ok {

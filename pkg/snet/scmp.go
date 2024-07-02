@@ -21,7 +21,6 @@ import (
 	"github.com/scionproto/scion/pkg/metrics/v2"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
-	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/slayers"
 )
@@ -32,25 +31,27 @@ type RevocationHandler interface {
 	Revoke(ctx context.Context, revInfo *path_mgmt.RevInfo) error
 }
 
-// SCMPHandler customizes the way snet connections deal with SCMP.
+// SCMPHandler customizes the way snet.Conn deals with SCMP messages during Read/ReadFrom.
 type SCMPHandler interface {
-	// Handle processes the packet as an SCMP packet. If packet is not SCMP or otherwise
-	// malformed, it returns an error.
-	// Errors may be counted in metrics, but otherwise ignored.
+	// Handle processes the packet as an SCMP packet.
 	//
-	// If the handler mutates the packet, the changes are seen by snet
-	// connection method callers.
+	// If the handler returns an error, snet.Conn.Read/ReadFrom will
+	// abort and propagate the error back to the caller.
+	// A packet that is not an SCMP or that is otherwise invalid or unexpected
+	// should be ignored without error.
 	Handle(pkt *Packet) error
 }
 
 // DefaultSCMPHandler handles SCMP messages received from the network. If a
 // revocation handler is configured, it is informed of any received interface
 // down messages.
+// It never returns an error "in line", so snet.Conn.Read/ReadFrom will not be
+// aware of SCMP errors. Use the RevocationHandler to react to path failures.
 type DefaultSCMPHandler struct {
 	// RevocationHandler manages revocations received via SCMP. If nil, the
 	// handler is not called.
 	RevocationHandler RevocationHandler
-	// SCMPErrors reports the total number of SCMP Errors encountered.
+	// SCMPErrors reports the total number of SCMP Error messages encountered.
 	SCMPErrors metrics.Counter
 	// Log is an optional function that is used to log SCMP messages
 	// TODO log...
@@ -60,7 +61,7 @@ type DefaultSCMPHandler struct {
 func (h DefaultSCMPHandler) Handle(pkt *Packet) error {
 	scmp, ok := pkt.Payload.(SCMPPayload)
 	if !ok {
-		return serrors.New("scmp handler invoked with non-scmp packet", "pkt", pkt)
+		return nil
 	}
 	typeCode := slayers.CreateSCMPTypeCode(scmp.Type(), scmp.Code())
 	if !typeCode.InfoMsg() {
@@ -69,7 +70,7 @@ func (h DefaultSCMPHandler) Handle(pkt *Packet) error {
 	switch scmp.Type() {
 	case slayers.SCMPTypeExternalInterfaceDown:
 		msg := pkt.Payload.(SCMPExternalInterfaceDown)
-		return h.handleSCMPRev(&path_mgmt.RevInfo{
+		h.handleSCMPRev(&path_mgmt.RevInfo{
 			IfID:         common.IFIDType(msg.Interface),
 			RawIsdas:     msg.IA,
 			RawTimestamp: util.TimeToSecs(time.Now()),
@@ -77,17 +78,16 @@ func (h DefaultSCMPHandler) Handle(pkt *Packet) error {
 		})
 	case slayers.SCMPTypeInternalConnectivityDown:
 		msg := pkt.Payload.(SCMPInternalConnectivityDown)
-		return h.handleSCMPRev(&path_mgmt.RevInfo{
+		h.handleSCMPRev(&path_mgmt.RevInfo{
 			IfID:         common.IFIDType(msg.Egress),
 			RawIsdas:     msg.IA,
 			RawTimestamp: util.TimeToSecs(time.Now()),
 			RawTTL:       10,
 		})
-
 	default:
 		h.log("Ignoring SCMP packet", "scmp", typeCode, "src", pkt.Source)
-		return nil
 	}
+	return nil
 }
 
 func (h DefaultSCMPHandler) log(msg string, ctx ...any) {
