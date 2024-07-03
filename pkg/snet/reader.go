@@ -71,8 +71,7 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 		Bytes: Bytes(c.buffer),
 	}
 	var lastHop net.UDPAddr
-	err := c.readPacketUDP(&pkt, &lastHop)
-	if err != nil {
+	if err := c.readPacketUDP(&pkt, &lastHop); err != nil {
 		return 0, nil, err
 	}
 
@@ -117,12 +116,11 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 	return n, remote, nil
 }
 
-// readPacketUDP repeatedly reads a packet until a UDP datagram is found.
+// readPacketUDP repeatedly reads a packet until a UDP datagram is found or an error occurs.
 // If an SCMP Handler is configured, it will be called on SCMP messages.
 func (c *scionConnReader) readPacketUDP(pkt *Packet, lastHop *net.UDPAddr) error {
 	for {
-		err := c.conn.ReadFrom(pkt, lastHop)
-		if err != nil {
+		if err := c.conn.ReadFrom(pkt, lastHop); err != nil {
 			return err
 		}
 
@@ -133,11 +131,9 @@ func (c *scionConnReader) readPacketUDP(pkt *Packet, lastHop *net.UDPAddr) error
 			if c.scmpHandler == nil {
 				continue
 			}
-			err := c.scmpHandler.Handle(pkt)
-			if err != nil {
+			if err := c.scmpHandler.Handle(pkt); err != nil {
 				return err
 			}
-			continue
 		default:
 			continue
 		}

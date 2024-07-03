@@ -740,6 +740,7 @@ func (r *renewer) requestRemote(
 		Topology: r.Daemon,
 		SCMPHandler: snet.DefaultSCMPHandler{
 			RevocationHandler: daemon.RevHandler{Connector: r.Daemon},
+			Log:               log.FromCtx(ctx).Debug,
 		},
 	}
 
