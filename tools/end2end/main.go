@@ -133,15 +133,14 @@ func (s server) run() {
 	sdConn := integration.SDConn()
 	defer sdConn.Close()
 	sn := &snet.SCIONNetwork{
+		SCMPHandler: snet.DefaultSCMPHandler{
+			RevocationHandler: daemon.RevHandler{Connector: sdConn},
+			SCMPErrors:        scmpErrorsCounter,
+		},
 		PacketConnMetrics: scionPacketConnMetrics,
 		Topology:          sdConn,
 	}
-	scmpHandler := snet.DefaultSCMPHandler{
-		RevocationHandler: daemon.RevHandler{Connector: sdConn},
-		SCMPErrors:        scmpErrorsCounter,
-	}
-	conn, err := sn.Listen(context.Background(), "udp", integration.Local.Host,
-		snet.WithSCMPHandler(scmpHandler))
+	conn, err := sn.Listen(context.Background(), "udp", integration.Local.Host)
 	if err != nil {
 		integration.LogFatal("Error listening", "err", err)
 	}
@@ -233,6 +232,10 @@ func (c *client) run() int {
 	c.sdConn = integration.SDConn()
 	defer c.sdConn.Close()
 	c.network = &snet.SCIONNetwork{
+		SCMPHandler: snet.DefaultSCMPHandler{
+			RevocationHandler: daemon.RevHandler{Connector: c.sdConn},
+			SCMPErrors:        scmpErrorsCounter,
+		},
 		PacketConnMetrics: scionPacketConnMetrics,
 		Topology:          c.sdConn,
 	}
@@ -296,12 +299,7 @@ func (c *client) ping(ctx context.Context, n int, path snet.Path) (func(), error
 		return nil, serrors.WrapStr("packing ping", err)
 	}
 	log.FromCtx(ctx).Info("Dialing", "remote", remote)
-	scmpHandler := snet.DefaultSCMPHandler{
-		RevocationHandler: daemon.RevHandler{Connector: c.sdConn},
-		SCMPErrors:        scmpErrorsCounter,
-	}
-	c.conn, err = c.network.Dial(ctx, "udp", integration.Local.Host, &remote,
-		snet.WithSCMPHandler(scmpHandler))
+	c.conn, err = c.network.Dial(ctx, "udp", integration.Local.Host, &remote)
 	if err != nil {
 		return nil, serrors.WrapStr("dialing conn", err)
 	}

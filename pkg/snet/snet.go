@@ -35,7 +35,6 @@ import (
 	"errors"
 	"net"
 	"net/netip"
-	"slices"
 	"syscall"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -66,7 +65,10 @@ type SCIONNetwork struct {
 	// traffic.
 	Topology Topology
 
-	// XXX: SCMPHandler / Reverser
+	// SCMPHandler is the SCMPHandler used by default for Conns opened with Dial/Listen.
+	SCMPHandler SCMPHandler
+	// ReplyPather is the ReplyPather used by default for Conns opened with Dial/Listen.
+	ReplyPather ReplyPather
 
 	Metrics           SCIONNetworkMetrics
 	PacketConnMetrics SCIONPacketConnMetrics
@@ -146,8 +148,15 @@ func (n *SCIONNetwork) Dial(
 		return nil, err
 	}
 	log.FromCtx(ctx).Debug("UDP socket opened on", "addr", packetConn.LocalAddr(), "to", remote)
-	options = append(slices.Clone(options), WithRemote(remote))
-	return NewCookedConn(packetConn, n.Topology, options...)
+	return NewCookedConn(
+		packetConn,
+		n.Topology,
+		append([]ConnOption{
+			WithSCMPHandler(n.SCMPHandler),
+			WithReplyPather(n.ReplyPather),
+			WithRemote(remote),
+		}, options...)...,
+	)
 }
 
 // Listen opens a Conn. The returned connection's ReadFrom and WriteTo methods
@@ -173,7 +182,14 @@ func (n *SCIONNetwork) Listen(
 		return nil, err
 	}
 	log.FromCtx(ctx).Debug("UDP socket openned on", "addr", packetConn.LocalAddr())
-	return NewCookedConn(packetConn, n.Topology, options...)
+	return NewCookedConn(
+		packetConn,
+		n.Topology,
+		append([]ConnOption{
+			WithSCMPHandler(n.SCMPHandler),
+			WithReplyPather(n.ReplyPather),
+		}, options...)...,
+	)
 }
 
 func listenUDPRange(addr *net.UDPAddr, start, end uint16) (*net.UDPConn, error) {

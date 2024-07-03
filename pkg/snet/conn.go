@@ -116,23 +116,21 @@ func (c *Conn) Close() error {
 }
 
 // ConnOption is a functional option type for configuring a Conn.
-type ConnOption func(o *options)
+type ConnOption func(o *connOptions)
 
 // WithReplyPather sets the reply pather for the connection.
 // The reply pather is responsible for determining the path to send replies to.
 // If this option is not provided, DefaultReplyPather is used.
 func WithReplyPather(replyPather ReplyPather) ConnOption {
-	return func(o *options) {
+	return func(o *connOptions) {
 		o.replyPather = replyPather
 	}
 }
 
 // WithSCMPHandler sets the SCMP handler for the connection.
 // The SCMP handler is a callback to react to SCMP messages, specifically to error messages.
-// If this option is not provided, no SCMP handler is used (equivalent to
-// DefaultSCMPHandler with an empty RevocationHandler).
 func WithSCMPHandler(scmpHandler SCMPHandler) ConnOption {
-	return func(o *options) {
+	return func(o *connOptions) {
 		o.scmpHandler = scmpHandler
 	}
 }
@@ -140,24 +138,24 @@ func WithSCMPHandler(scmpHandler SCMPHandler) ConnOption {
 // WithRemote sets the remote address for the connection.
 // This only applies to NewCookedConn, but not Dial/Listen.
 func WithRemote(addr *UDPAddr) ConnOption {
-	return func(o *options) {
+	return func(o *connOptions) {
 		o.remote = addr
 	}
 }
 
-type options struct {
+type connOptions struct {
 	replyPather ReplyPather
 	scmpHandler SCMPHandler
 	remote      *UDPAddr
 }
 
-func apply(opts []ConnOption) options {
-	o := options{
-		replyPather: DefaultReplyPather{},
-		scmpHandler: nil,
-	}
+func apply(opts []ConnOption) connOptions {
+	o := connOptions{}
 	for _, option := range opts {
 		option(&o)
+	}
+	if o.replyPather == nil {
+		o.replyPather = DefaultReplyPather{}
 	}
 	return o
 }

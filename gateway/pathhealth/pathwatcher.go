@@ -119,7 +119,7 @@ type pathWatcher struct {
 	// conn is the packet conn used to send probes on. The pathwatcher takes
 	// ownership and will close it on termination.
 	conn snet.PacketConn
-	// Handler for non-traceroute SCMP packets received on conn
+	// scmpHandler handles non-traceroute SCMP packets received on conn
 	scmpHandler snet.SCMPHandler
 	// id is used as SCMP traceroute ID. Since each pathwatcher should have it's
 	// own high port this value can be random.
