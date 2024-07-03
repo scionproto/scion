@@ -28,6 +28,7 @@ import (
 	"net/netip"
 	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -101,7 +102,7 @@ const (
 // tightly packed (might not matter, though).
 // Golang gives precious little guarantees about alignment and padding.
 // The safest is to do it ourselves (assuming go doesn't add absurd constraints). Everything until
-// and including slowpathRequest is 8-byte aligned. Slowpath request is deliberately 16 bytes long
+// and including slowpathRequest is 8-byte aligned. SlowPathRequest is deliberately 16 bytes long
 // trafficType is 4 bytes long (likely cheaper to access than a single byte anyway). Adding ingress
 // and egress, that's 64 bytes; one cache line. Go shouldn't want to add any padding.
 type packet struct {
@@ -126,24 +127,37 @@ type packet struct {
 	egress uint16
 }
 
+// Keep this 16 bytes long. See comment for packet,
+type slowPathRequest struct {
+	// The parameters. Only those used for that particular code and
+	// type will be valid.
+
+	pointer     uint16
+	interfaceId uint16
+	ingressId   uint16
+	egressId    uint16
+	typ         slowPathType
+	scmpType    slayers.SCMPType
+	code        slayers.SCMPCode
+	_           [5]byte
+}
+
 // initPacket configures the given blank packet (and returns it, for convenience).
 func (p *packet) init(buffer *[bufSize]byte) *packet {
 	p.rawPacket = buffer[:]
 	p.dstAddr = &net.UDPAddr{IP: make(net.IP, net.IPv6len)}
-	p.slowPathRequest = slowPathRequest{}
 	return p
 }
 
-// reset() makes the packet ready to receive a new underlay message. This only resets the fields
-// that must be reset before any use and those that it is economical to initialize:
-// * Necessary: restore packet buffer to full length (before passing to readBatch).
-// * Economical: clearing dstAddr (otherwise it would need to be cleared in many code paths).
-// * Economical: clearing egress ID (otherwise it would need to be cleared in many code paths).
+// reset() makes the packet ready to receive a new underlay message.
 // A cleared dstAddr is represented with a zero-length IP so we keep reusing the IP storage bytes.
-// Alternatively we could have a permanent storage for dstAddr and set the ptr to nil ptr as will.
 func (p *packet) reset() {
 	p.rawPacket = p.rawPacket[:cap(p.rawPacket)]
 	p.dstAddr.IP = p.dstAddr.IP[0:0]
+	p.srcAddr = nil
+	p.slowPathRequest = slowPathRequest{}
+	p.trafficType = 0
+	p.ingress = 0
 	p.egress = 0
 }
 
@@ -619,6 +633,10 @@ func (d *DataPlane) initPacketPool(cfg *RunConfig, processorQueueSize int) {
 		(cfg.NumProcessors+cfg.NumSlowPathProcessors)*(processorQueueSize+1) +
 		len(d.interfaces)*(2*cfg.BatchSize)
 
+	// Make sure that the packet structure has the size we expect.
+	if unsafe.Sizeof(packet{}) != 64 {
+		panic("The type packet struct is incorrectly defined")
+	}
 	log.Debug("Initialize packet pool of size", "poolSize", poolSize)
 	d.packetPool = make(chan *packet, poolSize)
 	pktBuffers := make([][bufSize]byte, poolSize)
@@ -1290,23 +1308,6 @@ const (
 	slowPathSCMP slowPathType = iota
 	slowPathRouterAlert
 )
-
-// Golang gives precious little guarantees about alignment (and so padding) that it uses.
-// Best to round-up the size to something predictable (given non-absurd Go added constraints)
-// We make this struct 16 bytes long.
-type slowPathRequest struct {
-	// The parameters. Only those used for that particular code and
-	// type will be valid.
-
-	pointer     uint16
-	interfaceId uint16
-	ingressId   uint16
-	egressId    uint16
-	typ         slowPathType
-	scmpType    slayers.SCMPType
-	code        slayers.SCMPCode
-	_           [5]byte
-}
 
 func (p *slowPathPacketProcessor) packSCMP(
 	typ slayers.SCMPType,

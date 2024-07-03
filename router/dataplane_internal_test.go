@@ -189,15 +189,14 @@ func TestForwarder(t *testing.T) {
 	for i := 0; i < 255; i++ {
 		pkt := <-dp.packetPool
 		pkt.reset()
-		rp := pkt.rawPacket
-		rp[0] = byte(i)
+		pkt.rawPacket = pkt.rawPacket[:1]
+		pkt.rawPacket[0] = byte(i)
 		if i < 100 {
 			pkt.dstAddr.IP = pkt.dstAddr.IP[:4]
 			copy(pkt.dstAddr.IP, dstAddr.IP)
 		}
 		pkt.srcAddr = &net.UDPAddr{} // Receiver always sets this.
 		pkt.ingress = 0
-		pkt.rawPacket = pkt.rawPacket[:1]
 
 		assert.NotEqual(t, initialPoolSize, len(dp.packetPool))
 
