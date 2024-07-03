@@ -40,6 +40,8 @@ type PacketConn interface {
 	SetWriteDeadline(t time.Time) error
 	SetDeadline(t time.Time) error
 	SyscallConn() (syscall.RawConn, error)
+	SetReadBuffer(int) error
+	SetWriteBuffer(int) error
 	LocalAddr() net.Addr
 	Close() error
 }
@@ -104,10 +106,6 @@ type SCIONPacketConn struct {
 	interfaceMap interfaceMap
 }
 
-func (c *SCIONPacketConn) SetReadBuffer(bytes int) error {
-	return c.Conn.SetReadBuffer(bytes)
-}
-
 func (c *SCIONPacketConn) SetDeadline(d time.Time) error {
 	return c.Conn.SetDeadline(d)
 }
@@ -151,6 +149,10 @@ func (c *SCIONPacketConn) ReadFrom(pkt *Packet, ov *net.UDPAddr) error {
 
 func (c *SCIONPacketConn) SyscallConn() (syscall.RawConn, error) {
 	return c.Conn.SyscallConn()
+}
+
+func (c *SCIONPacketConn) SetReadBuffer(n int) error {
+	return c.Conn.SetReadBuffer(n)
 }
 
 func (c *SCIONPacketConn) readFrom(pkt *Packet) (*net.UDPAddr, error) {

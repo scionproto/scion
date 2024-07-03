@@ -101,6 +101,16 @@ func (c *Conn) SyscallConn() (syscall.RawConn, error) {
 	return c.conn.SyscallConn()
 }
 
+func (c *Conn) SetReadBuffer(n int) error {
+	c.conn.SetReadBuffer(n)
+	return nil
+}
+
+func (c *Conn) SetWriteBuffer(n int) error {
+	c.conn.SetWriteBuffer(n)
+	return nil
+}
+
 func (c *Conn) SetDeadline(t time.Time) error {
 	if err := c.scionConnReader.SetReadDeadline(t); err != nil {
 		return err
