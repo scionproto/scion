@@ -152,13 +152,13 @@ func (p *packet) init(buffer *[bufSize]byte) *packet {
 // reset() makes the packet ready to receive a new underlay message.
 // A cleared dstAddr is represented with a zero-length IP so we keep reusing the IP storage bytes.
 func (p *packet) reset() {
-	p.rawPacket = p.rawPacket[:cap(p.rawPacket)]
-	p.dstAddr.IP = p.dstAddr.IP[0:0]
-	p.srcAddr = nil
-	p.slowPathRequest = slowPathRequest{}
-	p.trafficType = 0
-	p.ingress = 0
-	p.egress = 0
+	p.dstAddr.IP = p.dstAddr.IP[0:0] // We're keeping the object, just blank it.
+	*p = packet{
+		rawPacket: p.rawPacket[:cap(p.rawPacket)], // keep the slice and so the backing array.
+		dstAddr:   p.dstAddr,                      // keep the dstAddr and so the IP slice and bytes
+	}
+	// Everything else is reset to zero value.
+
 }
 
 // DataPlane contains a SCION Border Router's forwarding logic. It reads packets
