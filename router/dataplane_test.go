@@ -1206,8 +1206,9 @@ func TestProcessPkt(t *testing.T) {
 				dpath := &scion.Decoded{
 					Base: scion.Base{
 						PathMeta: scion.MetaHdr{
-							CurrHF: 2,
-							SegLen: [3]uint8{2, 2, 0},
+							CurrINF: 0,
+							CurrHF:  1,
+							SegLen:  [3]uint8{2, 2, 0},
 						},
 						NumINF:  2,
 						NumHops: 4,
@@ -1219,20 +1220,23 @@ func TestProcessPkt(t *testing.T) {
 						{SegID: 0x222, ConsDir: false, Timestamp: util.TimeToSecs(now)},
 					},
 					HopFields: []path.HopField{
-						{ConsIngress: 0, ConsEgress: 1},  // IA 110
 						{ConsIngress: 31, ConsEgress: 0}, // Src
-						{ConsIngress: 0, ConsEgress: 51}, // Dst
+						{ConsIngress: 0, ConsEgress: 51}, // IA 110
 						{ConsIngress: 3, ConsEgress: 0},  // IA 110
+						{ConsIngress: 0, ConsEgress: 1},  // Dst
 					},
 				}
-				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
-				dpath.HopFields[3].Mac = computeMAC(t, key, dpath.InfoFields[1], dpath.HopFields[3])
+				dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[1])
+				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[1], dpath.HopFields[2])
 
 				if !afterProcessing {
-					dpath.InfoFields[0].UpdateSegID(dpath.HopFields[2].Mac)
+					dpath.InfoFields[0].UpdateSegID(dpath.HopFields[1].Mac)
 					return toMsg(t, spkt, dpath)
 				}
-				require.NoError(t, dpath.IncPath())
+
+				dpath.PathMeta.CurrHF++
+				dpath.PathMeta.CurrINF++
+
 				ret := toMsg(t, spkt, dpath)
 				ret.Addr = &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4(), Port: 30043}
 				ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
