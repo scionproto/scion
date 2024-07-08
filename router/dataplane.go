@@ -142,6 +142,10 @@ type slowPathRequest struct {
 	_           [5]byte
 }
 
+// Make sure that the packet structure has the size we expect.
+const _ uintptr = 64 - unsafe.Sizeof(packet{}) // assert 64 >= sizeof(packet)
+const _ uintptr = unsafe.Sizeof(packet{}) - 64 // assert sizeof(packet) >= 64
+
 // initPacket configures the given blank packet (and returns it, for convenience).
 func (p *packet) init(buffer *[bufSize]byte) *packet {
 	p.rawPacket = buffer[:]
@@ -633,10 +637,6 @@ func (d *DataPlane) initPacketPool(cfg *RunConfig, processorQueueSize int) {
 		(cfg.NumProcessors+cfg.NumSlowPathProcessors)*(processorQueueSize+1) +
 		len(d.interfaces)*(2*cfg.BatchSize)
 
-	// Make sure that the packet structure has the size we expect.
-	if unsafe.Sizeof(packet{}) != 64 {
-		panic("The type packet struct is incorrectly defined")
-	}
 	log.Debug("Initialize packet pool of size", "poolSize", poolSize)
 	d.packetPool = make(chan *packet, poolSize)
 	pktBuffers := make([][bufSize]byte, poolSize)
