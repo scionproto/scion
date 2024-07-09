@@ -67,7 +67,7 @@ func TestVerify(t *testing.T) {
 
 				p.EXPECT().GetChains(ctxMatcher{},
 					chainQueryMatcher{
-						ia:   xtest.MustParseIA("1-ff00:0:110"),
+						ia:   addr.MustParseIA("1-ff00:0:110"),
 						skid: []byte("subject-key-id"),
 					},
 					trust.OptionsMatcher{},
@@ -89,7 +89,7 @@ func TestVerify(t *testing.T) {
 
 				p.EXPECT().GetChains(ctxMatcher{},
 					chainQueryMatcher{
-						ia:   xtest.MustParseIA("1-ff00:0:110"),
+						ia:   addr.MustParseIA("1-ff00:0:110"),
 						skid: []byte("subject-key-id"),
 					},
 					opts,
@@ -108,7 +108,7 @@ func TestVerify(t *testing.T) {
 		"invalid boundIA missmatch": {
 			provider:   func(mctrl *gomock.Controller) trust.Provider { return nil },
 			sign:       sign,
-			boundIA:    xtest.MustParseIA("1-ff00:0:210"),
+			boundIA:    addr.MustParseIA("1-ff00:0:210"),
 			assertFunc: assert.Error,
 		},
 		"invalid provider nil": {
@@ -166,7 +166,7 @@ func TestVerify(t *testing.T) {
 
 				p.EXPECT().GetChains(ctxMatcher{},
 					chainQueryMatcher{
-						ia:   xtest.MustParseIA("1-ff00:0:110"),
+						ia:   addr.MustParseIA("1-ff00:0:110"),
 						skid: []byte("subject-key-id"),
 					},
 					trust.OptionsMatcher{},

@@ -27,20 +27,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	cryptopb "github.com/scionproto/scion/pkg/proto/crypto"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	"github.com/scionproto/scion/pkg/slayers/path"
 )
 
 var (
-	as110 = xtest.MustParseIA("1-ff00:0:110")
-	as111 = xtest.MustParseIA("1-ff00:0:111")
-	as112 = xtest.MustParseIA("1-ff00:0:112")
-	as113 = xtest.MustParseIA("1-ff00:0:113")
-	as211 = xtest.MustParseIA("2-ff00:0:211")
-	as311 = xtest.MustParseIA("3-ff00:0:311")
+	as110 = addr.MustParseIA("1-ff00:0:110")
+	as111 = addr.MustParseIA("1-ff00:0:111")
+	as112 = addr.MustParseIA("1-ff00:0:112")
+	as113 = addr.MustParseIA("1-ff00:0:113")
+	as211 = addr.MustParseIA("2-ff00:0:211")
+	as311 = addr.MustParseIA("3-ff00:0:311")
 )
 
 func TestPathSegmentAddASEntry(t *testing.T) {

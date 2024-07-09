@@ -25,11 +25,11 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath/grpc"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath/mock_hiddenpath"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	hspb "github.com/scionproto/scion/pkg/proto/hidden_segment"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	seg "github.com/scionproto/scion/pkg/segment"
@@ -55,7 +55,7 @@ func TestSegmentServerHiddenSegments(t *testing.T) {
 				ret := mock_hiddenpath.NewMockLookuper(ctrl)
 				ret.EXPECT().Segments(gomock.Any(), hiddenpath.SegmentRequest{
 					GroupIDs: mustParseGroupIDs(t, "ff00:0:22-1", "ff00:0:42-5"),
-					DstIA:    xtest.MustParseIA("1-ff00:0:110"),
+					DstIA:    addr.MustParseIA("1-ff00:0:110"),
 				}).Return(nil, serrors.New("error")).Times(1)
 				return ret
 			},
@@ -72,7 +72,7 @@ func TestSegmentServerHiddenSegments(t *testing.T) {
 				ret := mock_hiddenpath.NewMockLookuper(ctrl)
 				ret.EXPECT().Segments(gomock.Any(), hiddenpath.SegmentRequest{
 					GroupIDs: mustParseGroupIDs(t, "ff00:0:22-1", "ff00:0:42-5"),
-					DstIA:    xtest.MustParseIA("1-ff00:0:110"),
+					DstIA:    addr.MustParseIA("1-ff00:0:110"),
 				}).Return(segsMeta, nil).Times(1)
 				return ret
 			},
@@ -150,7 +150,7 @@ func TestAuthoritativeSegmentServerAuthoritativeHiddenSegments(t *testing.T) {
 		"verification error": {
 			createCtx: func(t *testing.T) context.Context {
 				return peer.NewContext(context.Background(), &peer.Peer{Addr: &snet.UDPAddr{
-					IA: xtest.MustParseIA("1-ff00:0:14"),
+					IA: addr.MustParseIA("1-ff00:0:14"),
 				}})
 			},
 			lookuper: func(ctrl *gomock.Controller) hiddenpath.Lookuper {
@@ -159,7 +159,7 @@ func TestAuthoritativeSegmentServerAuthoritativeHiddenSegments(t *testing.T) {
 			verifier: func(ctrl *gomock.Controller) infra.Verifier {
 				v := mock_infra.NewMockVerifier(ctrl)
 				v.EXPECT().WithServer(gomock.Any()).Return(v)
-				v.EXPECT().WithIA(xtest.MustParseIA("1-ff00:0:14")).Return(v)
+				v.EXPECT().WithIA(addr.MustParseIA("1-ff00:0:14")).Return(v)
 				v.EXPECT().Verify(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(nil, serrors.New("verification error"))
 				return v
@@ -171,15 +171,15 @@ func TestAuthoritativeSegmentServerAuthoritativeHiddenSegments(t *testing.T) {
 		"lookuper error": {
 			createCtx: func(t *testing.T) context.Context {
 				return peer.NewContext(context.Background(), &peer.Peer{Addr: &snet.UDPAddr{
-					IA: xtest.MustParseIA("1-ff00:0:14"),
+					IA: addr.MustParseIA("1-ff00:0:14"),
 				}})
 			},
 			lookuper: func(ctrl *gomock.Controller) hiddenpath.Lookuper {
 				lookuper := mock_hiddenpath.NewMockLookuper(ctrl)
 				lookuper.EXPECT().Segments(gomock.Any(), hiddenpath.SegmentRequest{
 					GroupIDs: mustParseGroupIDs(t, "ff00:0:22-1", "ff00:0:42-5"),
-					DstIA:    xtest.MustParseIA("1-ff00:0:110"),
-					Peer:     xtest.MustParseIA("1-ff00:0:14"),
+					DstIA:    addr.MustParseIA("1-ff00:0:110"),
+					Peer:     addr.MustParseIA("1-ff00:0:14"),
 				}).Return(nil, serrors.New("test error"))
 				return lookuper
 			},
@@ -190,7 +190,7 @@ func TestAuthoritativeSegmentServerAuthoritativeHiddenSegments(t *testing.T) {
 				})
 				v := mock_infra.NewMockVerifier(ctrl)
 				v.EXPECT().WithServer(gomock.Any()).Return(v)
-				v.EXPECT().WithIA(xtest.MustParseIA("1-ff00:0:14")).Return(v)
+				v.EXPECT().WithIA(addr.MustParseIA("1-ff00:0:14")).Return(v)
 				v.EXPECT().Verify(gomock.Any(), gomock.Any(), gomock.Any()).Return(&signed.Message{
 					Body: body,
 				}, nil)
@@ -203,15 +203,15 @@ func TestAuthoritativeSegmentServerAuthoritativeHiddenSegments(t *testing.T) {
 		"valid": {
 			createCtx: func(t *testing.T) context.Context {
 				return peer.NewContext(context.Background(), &peer.Peer{Addr: &snet.UDPAddr{
-					IA: xtest.MustParseIA("1-ff00:0:14"),
+					IA: addr.MustParseIA("1-ff00:0:14"),
 				}})
 			},
 			lookuper: func(ctrl *gomock.Controller) hiddenpath.Lookuper {
 				lookuper := mock_hiddenpath.NewMockLookuper(ctrl)
 				lookuper.EXPECT().Segments(gomock.Any(), hiddenpath.SegmentRequest{
 					GroupIDs: mustParseGroupIDs(t, "ff00:0:22-1", "ff00:0:42-5"),
-					DstIA:    xtest.MustParseIA("1-ff00:0:110"),
-					Peer:     xtest.MustParseIA("1-ff00:0:14"),
+					DstIA:    addr.MustParseIA("1-ff00:0:110"),
+					Peer:     addr.MustParseIA("1-ff00:0:14"),
 				}).Return(segsMeta, nil)
 				return lookuper
 			},
@@ -222,7 +222,7 @@ func TestAuthoritativeSegmentServerAuthoritativeHiddenSegments(t *testing.T) {
 				})
 				v := mock_infra.NewMockVerifier(ctrl)
 				v.EXPECT().WithServer(gomock.Any()).Return(v)
-				v.EXPECT().WithIA(xtest.MustParseIA("1-ff00:0:14")).Return(v)
+				v.EXPECT().WithIA(addr.MustParseIA("1-ff00:0:14")).Return(v)
 				v.EXPECT().Verify(gomock.Any(), gomock.Any(), gomock.Any()).Return(&signed.Message{
 					Body: body,
 				}, nil)
@@ -256,7 +256,7 @@ func TestAuthoritativeSegmentServerAuthoritativeHiddenSegments(t *testing.T) {
 }
 
 func mustIA(s string) uint64 {
-	return uint64(xtest.MustParseIA(s))
+	return uint64(addr.MustParseIA(s))
 }
 
 func mustParseGroupIDs(t *testing.T, ids ...string) []hiddenpath.GroupID {

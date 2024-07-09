@@ -56,6 +56,7 @@ go_test(
         "//gateway/control:go_default_library",
         "//gateway/control/mock_control:go_default_library",
         "//gateway/pktcls:go_default_library",
+        "//pkg/addr:go_default_library",
         "//pkg/private/mocks/io/mock_io:go_default_library",
         "//pkg/private/mocks/net/mock_net:go_default_library",
         "//pkg/private/serrors:go_default_library",

@@ -22,8 +22,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 )
 
@@ -33,7 +33,7 @@ const (
 )
 
 var (
-	srcIA = xtest.MustParseIA("1-ff00:0:111")
+	srcIA = addr.MustParseIA("1-ff00:0:111")
 )
 
 type TestableDB interface {

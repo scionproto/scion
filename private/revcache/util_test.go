@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt/proto"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/revcache"
@@ -36,8 +35,8 @@ import (
 )
 
 var (
-	ia110  = xtest.MustParseIA("1-ff00:0:110")
-	ia211  = xtest.MustParseIA("2-ff00:0:211")
+	ia110  = addr.MustParseIA("1-ff00:0:110")
+	ia211  = addr.MustParseIA("2-ff00:0:211")
 	ifid10 = uint16(10)
 	ifid11 = uint16(11)
 
@@ -116,7 +115,7 @@ func TestNoRevokedHopIntf(t *testing.T) {
 			sRev := defaultRevInfo(ia211, graph.If_210_X_211_A, now)
 			revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).Return(
 				revcache.Revocations{
-					revcache.Key{IA: xtest.MustParseIA("2-ff00:0:211"),
+					revcache.Key{IA: addr.MustParseIA("2-ff00:0:211"),
 						IfId: common.IFIDType(graph.If_210_X_211_A)}: sRev,
 				}, nil,
 			)

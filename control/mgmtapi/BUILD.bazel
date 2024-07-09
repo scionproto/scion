@@ -63,6 +63,7 @@ go_test(
         "//control/mgmtapi/mock_mgmtapi:go_default_library",
         "//control/trust:go_default_library",
         "//control/trust/mock_trust:go_default_library",
+        "//pkg/addr:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/private/xtest:go_default_library",
         "//pkg/scrypto/cppki:go_default_library",

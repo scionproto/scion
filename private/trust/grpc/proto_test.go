@@ -23,6 +23,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
@@ -33,7 +34,7 @@ import (
 
 func TestChainQueryToReq(t *testing.T) {
 	query := trust.ChainQuery{
-		IA: xtest.MustParseIA("1-ff00:0:110"),
+		IA: addr.MustParseIA("1-ff00:0:110"),
 		Validity: cppki.Validity{
 			NotBefore: time.Now().UTC().Truncate(time.Second),
 			NotAfter:  time.Now().UTC().Truncate(time.Second),

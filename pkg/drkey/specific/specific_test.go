@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/drkey/specific"
 	"github.com/scionproto/scion/pkg/private/xtest"
@@ -32,8 +33,8 @@ var (
 	update  = xtest.UpdateGoldenFiles()
 	protoId = drkey.SCMP
 	epoch   = drkey.NewEpoch(0, 1)
-	srcIA   = xtest.MustParseIA("1-ff00:0:111")
-	dstIA   = xtest.MustParseIA("1-ff00:0:112")
+	srcIA   = addr.MustParseIA("1-ff00:0:111")
+	dstIA   = addr.MustParseIA("1-ff00:0:112")
 	srcHost = "127.0.0.2"
 	dstHost = "127.0.0.1"
 )
@@ -204,7 +205,7 @@ func TestDeriveLevel1(t *testing.T) {
 
 	deriver := &specific.Deriver{}
 
-	dstIA := xtest.MustParseIA("1-ff00:0:112")
+	dstIA := addr.MustParseIA("1-ff00:0:112")
 
 	level1Target := drkey.Key{0xa8, 0x23, 0xf5, 0xb9, 0x56, 0xde,
 		0x7c, 0xc, 0xbc, 0x5a, 0x69, 0x42, 0xf5, 0xb6, 0xfc, 0x10}

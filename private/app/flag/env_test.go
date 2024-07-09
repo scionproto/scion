@@ -26,7 +26,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/app/env"
 	"github.com/scionproto/scion/private/app/flag"
 )
@@ -39,10 +38,10 @@ func TestSCIONEnvironment(t *testing.T) {
 		t.Cleanup(func() { os.Remove(fName) })
 		e := env.SCION{
 			General: env.General{
-				DefaultIA: xtest.MustParseIA("1-ff00:0:110"),
+				DefaultIA: addr.MustParseIA("1-ff00:0:110"),
 			},
 			ASes: map[addr.IA]env.AS{
-				xtest.MustParseIA("1-ff00:0:110"): {
+				addr.MustParseIA("1-ff00:0:110"): {
 					DaemonAddress: "scion_file:1234",
 				},
 			},

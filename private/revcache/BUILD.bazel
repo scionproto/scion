@@ -29,7 +29,6 @@ go_test(
         "//pkg/private/ctrl/path_mgmt/proto:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/private/util:go_default_library",
-        "//pkg/private/xtest:go_default_library",
         "//pkg/private/xtest/graph:go_default_library",
         "//pkg/segment:go_default_library",
         "//private/revcache/mock_revcache:go_default_library",

@@ -515,8 +515,8 @@ func prepPacket(t testing.TB, c slayers.L4ProtocolType) *slayers.SCION {
 		PathType:     scion.PathType,
 		DstAddrType:  slayers.T16Ip,
 		SrcAddrType:  slayers.T4Ip,
-		DstIA:        xtest.MustParseIA("1-ff00:0:111"),
-		SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
+		DstIA:        addr.MustParseIA("1-ff00:0:111"),
+		SrcIA:        addr.MustParseIA("2-ff00:0:222"),
 		Path:         &scion.Raw{},
 	}
 	require.NoError(t, spkt.SetDstAddr(ip6Addr))
@@ -543,8 +543,8 @@ func TestSCIONComputeChecksum(t *testing.T) {
 		"IPv4/IPv4": {
 			Header: func(t *testing.T) *slayers.SCION {
 				s := &slayers.SCION{
-					SrcIA: xtest.MustParseIA("1-ff00:0:110"),
-					DstIA: xtest.MustParseIA("1-ff00:0:112"),
+					SrcIA: addr.MustParseIA("1-ff00:0:110"),
+					DstIA: addr.MustParseIA("1-ff00:0:112"),
 				}
 				err := s.SetSrcAddr(addr.MustParseHost("174.16.4.1"))
 				require.NoError(t, err)
@@ -559,8 +559,8 @@ func TestSCIONComputeChecksum(t *testing.T) {
 		"IPv4/IPv4 odd length": {
 			Header: func(t *testing.T) *slayers.SCION {
 				s := &slayers.SCION{
-					SrcIA: xtest.MustParseIA("1-ff00:0:110"),
-					DstIA: xtest.MustParseIA("1-ff00:0:112"),
+					SrcIA: addr.MustParseIA("1-ff00:0:110"),
+					DstIA: addr.MustParseIA("1-ff00:0:112"),
 				}
 				err := s.SetSrcAddr(addr.MustParseHost("174.16.4.1"))
 				require.NoError(t, err)
@@ -575,8 +575,8 @@ func TestSCIONComputeChecksum(t *testing.T) {
 		"IPv4/IPv6": {
 			Header: func(t *testing.T) *slayers.SCION {
 				s := &slayers.SCION{
-					SrcIA: xtest.MustParseIA("1-ff00:0:110"),
-					DstIA: xtest.MustParseIA("1-ff00:0:112"),
+					SrcIA: addr.MustParseIA("1-ff00:0:110"),
+					DstIA: addr.MustParseIA("1-ff00:0:112"),
 				}
 				err := s.SetSrcAddr(addr.MustParseHost("174.16.4.1"))
 				require.NoError(t, err)
@@ -591,8 +591,8 @@ func TestSCIONComputeChecksum(t *testing.T) {
 		"IPv4/SVC": {
 			Header: func(t *testing.T) *slayers.SCION {
 				s := &slayers.SCION{
-					SrcIA: xtest.MustParseIA("1-ff00:0:110"),
-					DstIA: xtest.MustParseIA("1-ff00:0:112"),
+					SrcIA: addr.MustParseIA("1-ff00:0:110"),
+					DstIA: addr.MustParseIA("1-ff00:0:112"),
 				}
 				err := s.SetSrcAddr(addr.MustParseHost("174.16.4.1"))
 				require.NoError(t, err)
