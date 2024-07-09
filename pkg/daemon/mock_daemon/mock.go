@@ -13,7 +13,6 @@ import (
 	addr "github.com/scionproto/scion/pkg/addr"
 	daemon "github.com/scionproto/scion/pkg/daemon"
 	drkey "github.com/scionproto/scion/pkg/drkey"
-	path_mgmt "github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	snet "github.com/scionproto/scion/pkg/snet"
 )
 
@@ -176,17 +175,17 @@ func (mr *MockConnectorMockRecorder) PortRange(arg0 interface{}) *gomock.Call {
 }
 
 // RevNotification mocks base method.
-func (m *MockConnector) RevNotification(arg0 context.Context, arg1 *path_mgmt.RevInfo) error {
+func (m *MockConnector) RevNotification(arg0 context.Context, arg1 addr.IA, arg2 uint64) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RevNotification", arg0, arg1)
+	ret := m.ctrl.Call(m, "RevNotification", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // RevNotification indicates an expected call of RevNotification.
-func (mr *MockConnectorMockRecorder) RevNotification(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockConnectorMockRecorder) RevNotification(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevNotification", reflect.TypeOf((*MockConnector)(nil).RevNotification), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevNotification", reflect.TypeOf((*MockConnector)(nil).RevNotification), arg0, arg1, arg2)
 }
 
 // SVCInfo mocks base method.

@@ -249,7 +249,7 @@ func (w *pathWatcher) drainConn(ctx context.Context) {
 			}
 		case snet.SCMPPayload:
 			if w.scmpHandler != nil {
-				w.scmpHandler.Handle(&pkt)
+				_ = w.scmpHandler.Handle(&pkt)
 			}
 		}
 	}

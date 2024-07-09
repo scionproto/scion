@@ -13,7 +13,6 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/pkg/addr"
-	path_mgmt "github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	snet "github.com/scionproto/scion/pkg/snet"
 )
 
@@ -41,33 +40,43 @@ func (m *MockNetwork) EXPECT() *MockNetworkMockRecorder {
 }
 
 // Dial mocks base method.
-func (m *MockNetwork) Dial(arg0 context.Context, arg1 string, arg2 *net.UDPAddr, arg3 *snet.UDPAddr) (*snet.Conn, error) {
+func (m *MockNetwork) Dial(arg0 context.Context, arg1 string, arg2 *net.UDPAddr, arg3 *snet.UDPAddr, arg4 ...snet.ConnOption) (*snet.Conn, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Dial", arg0, arg1, arg2, arg3)
+	varargs := []interface{}{arg0, arg1, arg2, arg3}
+	for _, a := range arg4 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Dial", varargs...)
 	ret0, _ := ret[0].(*snet.Conn)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Dial indicates an expected call of Dial.
-func (mr *MockNetworkMockRecorder) Dial(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+func (mr *MockNetworkMockRecorder) Dial(arg0, arg1, arg2, arg3 interface{}, arg4 ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Dial", reflect.TypeOf((*MockNetwork)(nil).Dial), arg0, arg1, arg2, arg3)
+	varargs := append([]interface{}{arg0, arg1, arg2, arg3}, arg4...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Dial", reflect.TypeOf((*MockNetwork)(nil).Dial), varargs...)
 }
 
 // Listen mocks base method.
-func (m *MockNetwork) Listen(arg0 context.Context, arg1 string, arg2 *net.UDPAddr) (*snet.Conn, error) {
+func (m *MockNetwork) Listen(arg0 context.Context, arg1 string, arg2 *net.UDPAddr, arg3 ...snet.ConnOption) (*snet.Conn, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Listen", arg0, arg1, arg2)
+	varargs := []interface{}{arg0, arg1, arg2}
+	for _, a := range arg3 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Listen", varargs...)
 	ret0, _ := ret[0].(*snet.Conn)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Listen indicates an expected call of Listen.
-func (mr *MockNetworkMockRecorder) Listen(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockNetworkMockRecorder) Listen(arg0, arg1, arg2 interface{}, arg3 ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Listen", reflect.TypeOf((*MockNetwork)(nil).Listen), arg0, arg1, arg2)
+	varargs := append([]interface{}{arg0, arg1, arg2}, arg3...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Listen", reflect.TypeOf((*MockNetwork)(nil).Listen), varargs...)
 }
 
 // OpenRaw mocks base method.
@@ -164,6 +173,20 @@ func (mr *MockPacketConnMockRecorder) SetDeadline(arg0 interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDeadline", reflect.TypeOf((*MockPacketConn)(nil).SetDeadline), arg0)
 }
 
+// SetReadBuffer mocks base method.
+func (m *MockPacketConn) SetReadBuffer(arg0 int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetReadBuffer", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetReadBuffer indicates an expected call of SetReadBuffer.
+func (mr *MockPacketConnMockRecorder) SetReadBuffer(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetReadBuffer", reflect.TypeOf((*MockPacketConn)(nil).SetReadBuffer), arg0)
+}
+
 // SetReadDeadline mocks base method.
 func (m *MockPacketConn) SetReadDeadline(arg0 time.Time) error {
 	m.ctrl.T.Helper()
@@ -176,6 +199,20 @@ func (m *MockPacketConn) SetReadDeadline(arg0 time.Time) error {
 func (mr *MockPacketConnMockRecorder) SetReadDeadline(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetReadDeadline", reflect.TypeOf((*MockPacketConn)(nil).SetReadDeadline), arg0)
+}
+
+// SetWriteBuffer mocks base method.
+func (m *MockPacketConn) SetWriteBuffer(arg0 int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetWriteBuffer", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetWriteBuffer indicates an expected call of SetWriteBuffer.
+func (mr *MockPacketConnMockRecorder) SetWriteBuffer(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetWriteBuffer", reflect.TypeOf((*MockPacketConn)(nil).SetWriteBuffer), arg0)
 }
 
 // SetWriteDeadline mocks base method.
@@ -429,15 +466,15 @@ func (m *MockRevocationHandler) EXPECT() *MockRevocationHandlerMockRecorder {
 }
 
 // Revoke mocks base method.
-func (m *MockRevocationHandler) Revoke(arg0 context.Context, arg1 *path_mgmt.RevInfo) error {
+func (m *MockRevocationHandler) Revoke(arg0 addr.IA, arg1, arg2 uint64) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Revoke", arg0, arg1)
+	ret := m.ctrl.Call(m, "Revoke", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Revoke indicates an expected call of Revoke.
-func (mr *MockRevocationHandlerMockRecorder) Revoke(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockRevocationHandlerMockRecorder) Revoke(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Revoke", reflect.TypeOf((*MockRevocationHandler)(nil).Revoke), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Revoke", reflect.TypeOf((*MockRevocationHandler)(nil).Revoke), arg0, arg1, arg2)
 }

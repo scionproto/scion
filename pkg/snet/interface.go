@@ -22,6 +22,8 @@ import (
 
 type Network interface {
 	OpenRaw(ctx context.Context, addr *net.UDPAddr) (PacketConn, error)
-	Listen(ctx context.Context, network string, listen *net.UDPAddr, options ...ConnOption) (*Conn, error)
-	Dial(ctx context.Context, network string, listen *net.UDPAddr, remote *UDPAddr, options ...ConnOption) (*Conn, error)
+	Listen(ctx context.Context, network string, listen *net.UDPAddr,
+		options ...ConnOption) (*Conn, error)
+	Dial(ctx context.Context, network string, listen *net.UDPAddr, remote *UDPAddr,
+		options ...ConnOption) (*Conn, error)
 }

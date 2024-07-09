@@ -18,9 +18,10 @@ import (
 	"context"
 	"math/rand"
 	"net"
+	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/topology"
@@ -55,8 +56,20 @@ type RevHandler struct {
 	Connector Connector
 }
 
-func (h RevHandler) Revoke(ctx context.Context, revInfo *path_mgmt.RevInfo) error {
-	return h.Connector.RevNotification(ctx, revInfo)
+func (h RevHandler) Revoke(ia addr.IA, ingress, egress uint64) error {
+	go func() {
+		defer log.HandlePanic()
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		// Note that this ignores the ingress interface.
+		// internal/external connectivity down messages are thus treated the same.
+		// Need to extend the beacon protocol to distinguish this.
+		err := h.Connector.RevNotification(ctx, ia, egress)
+		if err != nil {
+			log.Debug("Error asynchronously notifying daemon of revocation", "err", err)
+		}
+	}()
+	return nil
 }
 
 // TopoQuerier can be used to get topology information from the SCION Daemon.
