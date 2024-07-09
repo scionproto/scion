@@ -1902,7 +1902,7 @@ func (p *scionPacketProcessor) process() disposition {
 	}
 
 	// Assign egress interface to the packet early. ICMP responses, if we make any, will need this.
-	// Even if the egress interface is not valid, it can be usefull in SCMP reporting.
+	// Even if the egress interface is not valid, it can be useful in SCMP reporting.
 	egressID := p.egressInterface()
 	p.pkt.egress = egressID
 
