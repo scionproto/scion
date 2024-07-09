@@ -18,8 +18,9 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/scionproto/scion/pkg/addr"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/scionproto/scion/pkg/addr"
 )
 
 func TestRemoteISDASEval(t *testing.T) {
