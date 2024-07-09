@@ -42,7 +42,7 @@ func TestRegistrationResolverResolve(t *testing.T) {
 		"router error": {
 			router: func(ctrl *gomock.Controller) snet.Router {
 				router := mock_snet.NewMockRouter(ctrl)
-				router.EXPECT().Route(gomock.Any(), xtest.MustParseIA("1-ff00:0:110")).
+				router.EXPECT().Route(gomock.Any(), addr.MustParseIA("1-ff00:0:110")).
 					Return(nil, serrors.New("test"))
 				return router
 			},
@@ -55,7 +55,7 @@ func TestRegistrationResolverResolve(t *testing.T) {
 		"no paths found": {
 			router: func(ctrl *gomock.Controller) snet.Router {
 				router := mock_snet.NewMockRouter(ctrl)
-				router.EXPECT().Route(gomock.Any(), xtest.MustParseIA("1-ff00:0:110")).
+				router.EXPECT().Route(gomock.Any(), addr.MustParseIA("1-ff00:0:110")).
 					Return(nil, nil)
 				return router
 			},
@@ -72,14 +72,14 @@ func TestRegistrationResolverResolve(t *testing.T) {
 				path.EXPECT().Dataplane().Return(snetpath.SCION{Raw: []byte("path")}).AnyTimes()
 				path.EXPECT().UnderlayNextHop().AnyTimes().Return(
 					xtest.MustParseUDPAddr(t, "10.1.0.1:404"))
-				router.EXPECT().Route(gomock.Any(), xtest.MustParseIA("1-ff00:0:110")).
+				router.EXPECT().Route(gomock.Any(), addr.MustParseIA("1-ff00:0:110")).
 					Return(path, nil)
 				return router
 			},
 			discoverer: func(ctrl *gomock.Controller) hiddenpath.Discoverer {
 				d := mock_hiddenpath.NewMockDiscoverer(ctrl)
 				d.EXPECT().Discover(gomock.Any(), addrMatcher{svc: &snet.SVCAddr{
-					IA:      xtest.MustParseIA("1-ff00:0:110"),
+					IA:      addr.MustParseIA("1-ff00:0:110"),
 					NextHop: xtest.MustParseUDPAddr(t, "10.1.0.1:404"),
 					Path:    snetpath.SCION{Raw: []byte("path")},
 					SVC:     addr.SvcDS,
@@ -96,14 +96,14 @@ func TestRegistrationResolverResolve(t *testing.T) {
 				path.EXPECT().Dataplane().Return(snetpath.SCION{Raw: []byte("path")}).AnyTimes()
 				path.EXPECT().UnderlayNextHop().AnyTimes().Return(
 					xtest.MustParseUDPAddr(t, "10.1.0.1:404"))
-				router.EXPECT().Route(gomock.Any(), xtest.MustParseIA("1-ff00:0:110")).
+				router.EXPECT().Route(gomock.Any(), addr.MustParseIA("1-ff00:0:110")).
 					Return(path, nil)
 				return router
 			},
 			discoverer: func(ctrl *gomock.Controller) hiddenpath.Discoverer {
 				d := mock_hiddenpath.NewMockDiscoverer(ctrl)
 				d.EXPECT().Discover(gomock.Any(), addrMatcher{svc: &snet.SVCAddr{
-					IA:      xtest.MustParseIA("1-ff00:0:110"),
+					IA:      addr.MustParseIA("1-ff00:0:110"),
 					NextHop: xtest.MustParseUDPAddr(t, "10.1.0.1:404"),
 					Path:    snetpath.SCION{Raw: []byte("path")},
 					SVC:     addr.SvcDS,
@@ -120,14 +120,14 @@ func TestRegistrationResolverResolve(t *testing.T) {
 				path.EXPECT().Dataplane().Return(snetpath.SCION{Raw: []byte("path")}).AnyTimes()
 				path.EXPECT().UnderlayNextHop().AnyTimes().Return(
 					xtest.MustParseUDPAddr(t, "10.1.0.1:404"))
-				router.EXPECT().Route(gomock.Any(), xtest.MustParseIA("1-ff00:0:110")).
+				router.EXPECT().Route(gomock.Any(), addr.MustParseIA("1-ff00:0:110")).
 					Return(path, nil)
 				return router
 			},
 			discoverer: func(ctrl *gomock.Controller) hiddenpath.Discoverer {
 				d := mock_hiddenpath.NewMockDiscoverer(ctrl)
 				d.EXPECT().Discover(gomock.Any(), addrMatcher{svc: &snet.SVCAddr{
-					IA:      xtest.MustParseIA("1-ff00:0:110"),
+					IA:      addr.MustParseIA("1-ff00:0:110"),
 					NextHop: xtest.MustParseUDPAddr(t, "10.1.0.1:404"),
 					Path:    snetpath.SCION{Raw: []byte("path")},
 					SVC:     addr.SvcDS,
@@ -140,7 +140,7 @@ func TestRegistrationResolverResolve(t *testing.T) {
 			},
 			assertErr: assert.NoError,
 			want: &snet.UDPAddr{
-				IA:      xtest.MustParseIA("1-ff00:0:110"),
+				IA:      addr.MustParseIA("1-ff00:0:110"),
 				Host:    xtest.MustParseUDPAddr(t, "10.1.0.5:42"),
 				NextHop: xtest.MustParseUDPAddr(t, "10.1.0.1:404"),
 				Path:    snetpath.SCION{Raw: []byte("path")},
@@ -159,7 +159,7 @@ func TestRegistrationResolverResolve(t *testing.T) {
 				Router:     tc.router(ctrl),
 				Discoverer: tc.discoverer(ctrl),
 			}
-			got, err := r.Resolve(context.Background(), xtest.MustParseIA("1-ff00:0:110"))
+			got, err := r.Resolve(context.Background(), addr.MustParseIA("1-ff00:0:110"))
 			tc.assertErr(t, err)
 			assert.Equal(t, tc.want, got)
 

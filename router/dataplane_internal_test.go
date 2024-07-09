@@ -33,7 +33,6 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
@@ -450,13 +449,13 @@ func TestSlowPathProcessing(t *testing.T) {
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
-					xtest.MustParseIA("1-ff00:0:110"),
+					addr.MustParseIA("1-ff00:0:110"),
 					nil, testKey)
 			},
 			mockMsg: func() []byte {
 				spkt := prepBaseMsg(t, payload, 0)
 				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
-				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
+				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
 				ret := toMsg(t, spkt)
 				return ret
 			},
@@ -474,12 +473,12 @@ func TestSlowPathProcessing(t *testing.T) {
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
-					xtest.MustParseIA("1-ff00:0:110"), nil, testKey)
+					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
 				spkt := prepBaseMsg(t, payload, 0)
 				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
-				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
+				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
 				ret := toMsg(t, spkt)
 				return ret
 			},
@@ -497,11 +496,11 @@ func TestSlowPathProcessing(t *testing.T) {
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
-					xtest.MustParseIA("1-ff00:0:110"), nil, testKey)
+					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
 				spkt := prepBaseMsg(t, payload, 0)
-				spkt.DstIA = xtest.MustParseIA("1-ff00:0:f1")
+				spkt.DstIA = addr.MustParseIA("1-ff00:0:f1")
 				ret := toMsg(t, spkt)
 				return ret
 			},
@@ -520,7 +519,7 @@ func TestSlowPathProcessing(t *testing.T) {
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops,
 					fakeServices,
-					xtest.MustParseIA("1-ff00:0:110"), nil, testKey)
+					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
 			},
 			mockMsg: func() []byte {
 				spkt := prepBaseMsg(t, payload, 0)
@@ -611,8 +610,8 @@ func prepBaseMsg(t *testing.T, payload []byte, flowId uint32) *slayers.SCION {
 		FlowID:       flowId,
 		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
-		DstIA:        xtest.MustParseIA("1-ff00:0:110"),
-		SrcIA:        xtest.MustParseIA("1-ff00:0:111"),
+		DstIA:        addr.MustParseIA("1-ff00:0:110"),
+		SrcIA:        addr.MustParseIA("1-ff00:0:111"),
 		Path:         &scion.Raw{},
 		PayloadLen:   18,
 	}

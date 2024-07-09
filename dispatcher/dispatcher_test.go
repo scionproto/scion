@@ -23,7 +23,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/path"
 )
@@ -93,11 +92,11 @@ func TestValidateAddr(t *testing.T) {
 			Pkt: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Source: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:2"),
+						IA:   addr.MustParseIA("1-ff00:0:2"),
 						Host: clientHost,
 					},
 					Destination: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:1"),
+						IA:   addr.MustParseIA("1-ff00:0:1"),
 						Host: dispIPv4Host,
 					},
 					Payload: snet.UDPPayload{
@@ -117,11 +116,11 @@ func TestValidateAddr(t *testing.T) {
 			Pkt: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Source: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:2"),
+						IA:   addr.MustParseIA("1-ff00:0:2"),
 						Host: clientHost,
 					},
 					Destination: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:1"),
+						IA:   addr.MustParseIA("1-ff00:0:1"),
 						Host: addr.MustParseHost("127.0.0.2"),
 					},
 					Payload: snet.UDPPayload{
@@ -141,22 +140,22 @@ func TestValidateAddr(t *testing.T) {
 			Pkt: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Source: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:2"),
+						IA:   addr.MustParseIA("1-ff00:0:2"),
 						Host: clientHost,
 					},
 					Destination: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:1"),
+						IA:   addr.MustParseIA("1-ff00:0:1"),
 						Host: dispIPv4Host,
 					},
 					Payload: snet.SCMPDestinationUnreachable{
 						Payload: MustPack(snet.Packet{
 							PacketInfo: snet.PacketInfo{
 								Source: snet.SCIONAddress{
-									IA:   xtest.MustParseIA("1-ff00:0:2"),
+									IA:   addr.MustParseIA("1-ff00:0:2"),
 									Host: dispIPv4Host,
 								},
 								Destination: snet.SCIONAddress{
-									IA:   xtest.MustParseIA("1-ff00:0:1"),
+									IA:   addr.MustParseIA("1-ff00:0:1"),
 									Host: clientHost,
 								},
 								Payload: snet.SCMPEchoRequest{Identifier: 0xdead},
@@ -177,22 +176,22 @@ func TestValidateAddr(t *testing.T) {
 			Pkt: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Source: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:2"),
+						IA:   addr.MustParseIA("1-ff00:0:2"),
 						Host: clientHost,
 					},
 					Destination: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:1"),
+						IA:   addr.MustParseIA("1-ff00:0:1"),
 						Host: addr.MustParseHost("127.0.0.2"),
 					},
 					Payload: snet.SCMPDestinationUnreachable{
 						Payload: MustPack(snet.Packet{
 							PacketInfo: snet.PacketInfo{
 								Source: snet.SCIONAddress{
-									IA:   xtest.MustParseIA("1-ff00:0:2"),
+									IA:   addr.MustParseIA("1-ff00:0:2"),
 									Host: dispIPv4Host,
 								},
 								Destination: snet.SCIONAddress{
-									IA:   xtest.MustParseIA("1-ff00:0:1"),
+									IA:   addr.MustParseIA("1-ff00:0:1"),
 									Host: clientHost,
 								},
 								Payload: snet.SCMPEchoRequest{Identifier: 0xdead},
@@ -213,11 +212,11 @@ func TestValidateAddr(t *testing.T) {
 			Pkt: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Source: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:2"),
+						IA:   addr.MustParseIA("1-ff00:0:2"),
 						Host: clientIPv6Host,
 					},
 					Destination: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:1"),
+						IA:   addr.MustParseIA("1-ff00:0:1"),
 						Host: dispIPv6Host,
 					},
 					Payload: snet.UDPPayload{
@@ -237,11 +236,11 @@ func TestValidateAddr(t *testing.T) {
 			Pkt: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Source: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:2"),
+						IA:   addr.MustParseIA("1-ff00:0:2"),
 						Host: clientHost,
 					},
 					Destination: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:1"),
+						IA:   addr.MustParseIA("1-ff00:0:1"),
 						Host: addr.MustParseHost("::2"),
 					},
 					Payload: snet.UDPPayload{
@@ -261,22 +260,22 @@ func TestValidateAddr(t *testing.T) {
 			Pkt: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Source: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:2"),
+						IA:   addr.MustParseIA("1-ff00:0:2"),
 						Host: clientIPv6Host,
 					},
 					Destination: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:1"),
+						IA:   addr.MustParseIA("1-ff00:0:1"),
 						Host: dispIPv6Host,
 					},
 					Payload: snet.SCMPDestinationUnreachable{
 						Payload: MustPack(snet.Packet{
 							PacketInfo: snet.PacketInfo{
 								Source: snet.SCIONAddress{
-									IA:   xtest.MustParseIA("1-ff00:0:2"),
+									IA:   addr.MustParseIA("1-ff00:0:2"),
 									Host: dispIPv6Host,
 								},
 								Destination: snet.SCIONAddress{
-									IA:   xtest.MustParseIA("1-ff00:0:1"),
+									IA:   addr.MustParseIA("1-ff00:0:1"),
 									Host: clientIPv6Host,
 								},
 								Payload: snet.SCMPEchoRequest{Identifier: 0xdead},
@@ -297,22 +296,22 @@ func TestValidateAddr(t *testing.T) {
 			Pkt: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Source: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:2"),
+						IA:   addr.MustParseIA("1-ff00:0:2"),
 						Host: clientIPv6Host,
 					},
 					Destination: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:1"),
+						IA:   addr.MustParseIA("1-ff00:0:1"),
 						Host: addr.MustParseHost("::2"),
 					},
 					Payload: snet.SCMPDestinationUnreachable{
 						Payload: MustPack(snet.Packet{
 							PacketInfo: snet.PacketInfo{
 								Source: snet.SCIONAddress{
-									IA:   xtest.MustParseIA("1-ff00:0:2"),
+									IA:   addr.MustParseIA("1-ff00:0:2"),
 									Host: dispIPv6Host,
 								},
 								Destination: snet.SCIONAddress{
-									IA:   xtest.MustParseIA("1-ff00:0:1"),
+									IA:   addr.MustParseIA("1-ff00:0:1"),
 									Host: clientIPv6Host,
 								},
 								Payload: snet.SCMPEchoRequest{Identifier: 0xdead},
@@ -333,11 +332,11 @@ func TestValidateAddr(t *testing.T) {
 			Pkt: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Source: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:2"),
+						IA:   addr.MustParseIA("1-ff00:0:2"),
 						Host: clientHost,
 					},
 					Destination: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:1"),
+						IA:   addr.MustParseIA("1-ff00:0:1"),
 						Host: addr.HostIP(netip.AddrFrom16(dispIPv4Addr.As16())),
 					},
 					Payload: snet.UDPPayload{
@@ -357,11 +356,11 @@ func TestValidateAddr(t *testing.T) {
 			Pkt: &snet.Packet{
 				PacketInfo: snet.PacketInfo{
 					Source: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:2"),
+						IA:   addr.MustParseIA("1-ff00:0:2"),
 						Host: clientHost,
 					},
 					Destination: snet.SCIONAddress{
-						IA:   xtest.MustParseIA("1-ff00:0:1"),
+						IA:   addr.MustParseIA("1-ff00:0:1"),
 						Host: dispIPv4Host,
 					},
 					Payload: snet.UDPPayload{

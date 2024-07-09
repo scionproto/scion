@@ -25,8 +25,8 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/segment/segfetcher"
 	"github.com/scionproto/scion/private/segment/segfetcher/mock_segfetcher"
@@ -39,18 +39,18 @@ const (
 )
 
 var (
-	isd1 = xtest.MustParseIA("1-0")
-	isd2 = xtest.MustParseIA("2-0")
+	isd1 = addr.MustParseIA("1-0")
+	isd2 = addr.MustParseIA("2-0")
 
-	core_110 = xtest.MustParseIA("1-ff00:0:110")
-	core_120 = xtest.MustParseIA("1-ff00:0:120")
-	core_130 = xtest.MustParseIA("1-ff00:0:130")
-	core_210 = xtest.MustParseIA("2-ff00:0:210")
+	core_110 = addr.MustParseIA("1-ff00:0:110")
+	core_120 = addr.MustParseIA("1-ff00:0:120")
+	core_130 = addr.MustParseIA("1-ff00:0:130")
+	core_210 = addr.MustParseIA("2-ff00:0:210")
 
-	non_core_111 = xtest.MustParseIA("1-ff00:0:111")
-	non_core_112 = xtest.MustParseIA("1-ff00:0:112")
-	non_core_211 = xtest.MustParseIA("2-ff00:0:211")
-	non_core_212 = xtest.MustParseIA("2-ff00:0:212")
+	non_core_111 = addr.MustParseIA("1-ff00:0:111")
+	non_core_112 = addr.MustParseIA("1-ff00:0:112")
+	non_core_211 = addr.MustParseIA("2-ff00:0:211")
+	non_core_212 = addr.MustParseIA("2-ff00:0:212")
 
 	req_111_1   = segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1}
 	req_1_111   = segfetcher.Request{SegType: Down, Src: isd1, Dst: non_core_111}

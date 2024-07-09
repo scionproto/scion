@@ -19,7 +19,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/segment/segfetcher"
 )
@@ -39,14 +39,14 @@ func TestRevocationsString(t *testing.T) {
 		},
 		"one element": {
 			Input: map[snet.PathInterface]struct{}{
-				{IA: xtest.MustParseIA("1-ff00:0:1"), ID: 1}: {},
+				{IA: addr.MustParseIA("1-ff00:0:1"), ID: 1}: {},
 			},
 			Output: "[1-ff00:0:1#1]",
 		},
 		"two elements": {
 			Input: map[snet.PathInterface]struct{}{
-				{IA: xtest.MustParseIA("1-ff00:0:1"), ID: 1}: {},
-				{IA: xtest.MustParseIA("1-ff00:0:2"), ID: 2}: {},
+				{IA: addr.MustParseIA("1-ff00:0:1"), ID: 1}: {},
+				{IA: addr.MustParseIA("1-ff00:0:2"), ID: 2}: {},
 			},
 			Output: "[1-ff00:0:1#1 1-ff00:0:2#2]",
 		},

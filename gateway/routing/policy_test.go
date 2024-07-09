@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/gateway/routing"
-	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/addr"
 )
 
 func TestPolicyCopy(t *testing.T) {
@@ -40,7 +40,7 @@ func TestPolicyCopy(t *testing.T) {
 		},
 		"change rule custom": {
 			action: func(p *routing.Policy) {
-				p.Rules[0].To = routing.SingleIAMatcher{IA: xtest.MustParseIA("1-ff00:0:113")}
+				p.Rules[0].To = routing.SingleIAMatcher{IA: addr.MustParseIA("1-ff00:0:113")}
 			},
 			policy: &routing.Policy{
 				Rules: []routing.Rule{
@@ -191,7 +191,7 @@ func TestNetworkMatch(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			ia := xtest.MustParseIA("1-ff00:0:110")
+			ia := addr.MustParseIA("1-ff00:0:110")
 			iaMatcher := routing.NewIAMatcher(t, "1-ff00:0:110")
 			for i, r := range tc.policy.Rules {
 				tc.policy.Rules[i] = routing.Rule{

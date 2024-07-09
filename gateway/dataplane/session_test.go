@@ -26,8 +26,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/mocks/net/mock_net"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/mock_snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
@@ -177,7 +177,7 @@ func createMockPath(ctrl *gomock.Controller, mtu uint16) snet.Path {
 		MTU: mtu,
 	}
 	path := mock_snet.NewMockPath(ctrl)
-	path.EXPECT().Destination().Return(xtest.MustParseIA("1-ff00:0:300")).AnyTimes()
+	path.EXPECT().Destination().Return(addr.MustParseIA("1-ff00:0:300")).AnyTimes()
 	path.EXPECT().Metadata().Return(meta).AnyTimes()
 	path.EXPECT().Dataplane().Return(snetpath.SCION{Raw: []byte{}}).AnyTimes()
 	path.EXPECT().UnderlayNextHop().Return(nil).AnyTimes()

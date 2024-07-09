@@ -37,6 +37,7 @@ go_test(
     deps = [
         ":go_default_library",
         "//gateway/control/grpc/mock_grpc:go_default_library",
+        "//pkg/addr:go_default_library",
         "//pkg/private/mocks/net/mock_net:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/private/xtest:go_default_library",

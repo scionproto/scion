@@ -20,8 +20,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/addr"
 	libmetrics "github.com/scionproto/scion/pkg/metrics"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/storage"
 	"github.com/scionproto/scion/private/storage/beacon"
 	"github.com/scionproto/scion/private/storage/beacon/dbtest"
@@ -29,7 +29,7 @@ import (
 	"github.com/scionproto/scion/private/storage/beacon/sqlite"
 )
 
-var testIA = xtest.MustParseIA("1-ff00:0:333")
+var testIA = addr.MustParseIA("1-ff00:0:333")
 
 type TestBackend struct {
 	storage.BeaconDB

@@ -147,7 +147,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 				rpc := mock_hiddenpath.NewMockRegister(ctrl)
 				rpc.EXPECT().RegisterSegment(gomock.Any(), gomock.Any(),
 					addrMatcher{udp: &snet.UDPAddr{
-						IA:   xtest.MustParseIA("1-ff00:0:114"),
+						IA:   addr.MustParseIA("1-ff00:0:114"),
 						Host: xtest.MustParseUDPAddr(t, "10.1.0.1:404"),
 					}}).Times(2).DoAndReturn(
 					func(_ context.Context, reg hiddenpath.SegmentRegistration, _ net.Addr) error {
@@ -163,19 +163,19 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 						mustParseGroupID(t, "ff00:0:140-2"): {
 							ID: mustParseGroupID(t, "ff00:0:140-2"),
 							Registries: map[addr.IA]struct{}{
-								xtest.MustParseIA("1-ff00:0:114"): {},
+								addr.MustParseIA("1-ff00:0:114"): {},
 							},
-							Writers: map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:111"): {}},
+							Writers: map[addr.IA]struct{}{addr.MustParseIA("1-ff00:0:111"): {}},
 						},
 					},
 				},
 			},
 			resolver: func(ctrl *gomock.Controller) hiddenpath.AddressResolver {
 				resolver := mock_hiddenpath.NewMockAddressResolver(ctrl)
-				resolver.EXPECT().Resolve(gomock.Any(), xtest.MustParseIA("1-ff00:0:114")).
+				resolver.EXPECT().Resolve(gomock.Any(), addr.MustParseIA("1-ff00:0:114")).
 					Times(2).Return(
 					&snet.UDPAddr{
-						IA:   xtest.MustParseIA("1-ff00:0:114"),
+						IA:   addr.MustParseIA("1-ff00:0:114"),
 						Host: xtest.MustParseUDPAddr(t, "10.1.0.1:404"),
 					}, nil)
 				return resolver
@@ -288,7 +288,7 @@ func sortedIntfs(intfs *ifstate.Interfaces, linkType topology.LinkType) []uint16
 func matchSVCCS(ia string) gomock.Matcher {
 	return addrMatcher{
 		svc: &snet.SVCAddr{
-			IA:  xtest.MustParseIA(ia),
+			IA:  addr.MustParseIA(ia),
 			SVC: addr.SvcCS,
 		},
 	}

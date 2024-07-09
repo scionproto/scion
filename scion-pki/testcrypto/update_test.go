@@ -53,13 +53,13 @@ func TestUpdateExtend(t *testing.T) {
 	require.NoError(t, err)
 
 	allASes := []addr.IA{
-		xtest.MustParseIA("1-ff00:0:110"),
-		xtest.MustParseIA("1-ff00:0:120"),
-		xtest.MustParseIA("1-ff00:0:130"),
-		xtest.MustParseIA("1-ff00:0:111"),
-		xtest.MustParseIA("1-ff00:0:131"),
-		xtest.MustParseIA("2-ff00:0:210"),
-		xtest.MustParseIA("2-ff00:0:220"),
+		addr.MustParseIA("1-ff00:0:110"),
+		addr.MustParseIA("1-ff00:0:120"),
+		addr.MustParseIA("1-ff00:0:130"),
+		addr.MustParseIA("1-ff00:0:111"),
+		addr.MustParseIA("1-ff00:0:131"),
+		addr.MustParseIA("2-ff00:0:210"),
+		addr.MustParseIA("2-ff00:0:220"),
 	}
 
 	loadTRC := func(t *testing.T, isd addr.ISD, s uint64) cppki.SignedTRC {
@@ -127,13 +127,13 @@ func TestUpdateReSign(t *testing.T) {
 	require.NoError(t, err)
 
 	allASes := []addr.IA{
-		xtest.MustParseIA("1-ff00:0:110"),
-		xtest.MustParseIA("1-ff00:0:120"),
-		xtest.MustParseIA("1-ff00:0:130"),
-		xtest.MustParseIA("1-ff00:0:111"),
-		xtest.MustParseIA("1-ff00:0:131"),
-		xtest.MustParseIA("2-ff00:0:210"),
-		xtest.MustParseIA("2-ff00:0:220"),
+		addr.MustParseIA("1-ff00:0:110"),
+		addr.MustParseIA("1-ff00:0:120"),
+		addr.MustParseIA("1-ff00:0:130"),
+		addr.MustParseIA("1-ff00:0:111"),
+		addr.MustParseIA("1-ff00:0:131"),
+		addr.MustParseIA("2-ff00:0:210"),
+		addr.MustParseIA("2-ff00:0:220"),
 	}
 
 	loadTRC := func(t *testing.T, isd addr.ISD, s uint64) cppki.SignedTRC {
@@ -197,13 +197,13 @@ func TestUpdateReGen(t *testing.T) {
 	require.NoError(t, err)
 
 	allASes := []addr.IA{
-		xtest.MustParseIA("1-ff00:0:110"),
-		xtest.MustParseIA("1-ff00:0:120"),
-		xtest.MustParseIA("1-ff00:0:130"),
-		xtest.MustParseIA("1-ff00:0:111"),
-		xtest.MustParseIA("1-ff00:0:131"),
-		xtest.MustParseIA("2-ff00:0:210"),
-		xtest.MustParseIA("2-ff00:0:220"),
+		addr.MustParseIA("1-ff00:0:110"),
+		addr.MustParseIA("1-ff00:0:120"),
+		addr.MustParseIA("1-ff00:0:130"),
+		addr.MustParseIA("1-ff00:0:111"),
+		addr.MustParseIA("1-ff00:0:131"),
+		addr.MustParseIA("2-ff00:0:210"),
+		addr.MustParseIA("2-ff00:0:220"),
 	}
 
 	loadTRC := func(t *testing.T, isd addr.ISD, s uint64) cppki.SignedTRC {

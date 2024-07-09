@@ -26,8 +26,8 @@ import (
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/beaconing/mock_beaconing"
 	"github.com/scionproto/scion/control/ifstate"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/snet"
@@ -37,7 +37,7 @@ import (
 )
 
 var (
-	localIA = xtest.MustParseIA("1-ff00:0:110")
+	localIA = addr.MustParseIA("1-ff00:0:110")
 	localIF = graph.If_110_X_120_A
 )
 
@@ -158,7 +158,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 					}),
 					InIfId: localIF,
 				}
-				b.Segment.ASEntries[b.Segment.MaxIdx()].Local = xtest.MustParseIA("1-ff00:0:111")
+				b.Segment.ASEntries[b.Segment.MaxIdx()].Local = addr.MustParseIA("1-ff00:0:111")
 				return b
 
 			},
@@ -187,7 +187,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 					}),
 					InIfId: localIF,
 				}
-				b.Segment.ASEntries[b.Segment.MaxIdx()].Next = xtest.MustParseIA("1-ff00:0:111")
+				b.Segment.ASEntries[b.Segment.MaxIdx()].Next = addr.MustParseIA("1-ff00:0:111")
 				return b
 			},
 			Peer: func() *snet.UDPAddr {

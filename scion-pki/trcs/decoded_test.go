@@ -21,7 +21,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto"
 )
 
@@ -41,10 +40,16 @@ func TestDecode(t *testing.T) {
 			assert.False(t, signed.TRC.NoTrustReset)
 			assert.Empty(t, signed.TRC.Votes)
 			assert.Equal(t, 2, signed.TRC.Quorum)
-			assert.ElementsMatch(t, xtest.MustParseASes("ff00:0:110,ff00:0:111"),
-				signed.TRC.CoreASes)
-			assert.ElementsMatch(t, xtest.MustParseASes("ff00:0:110,ff00:0:111"),
-				signed.TRC.AuthoritativeASes)
+			expectedCoreASes := []addr.AS{
+				addr.MustParseAS("ff00:0:110"),
+				addr.MustParseAS("ff00:0:111"),
+			}
+			assert.ElementsMatch(t, expectedCoreASes, signed.TRC.CoreASes)
+			expectedAuthoritativeASes := []addr.AS{
+				addr.MustParseAS("ff00:0:110"),
+				addr.MustParseAS("ff00:0:111"),
+			}
+			assert.ElementsMatch(t, expectedAuthoritativeASes, signed.TRC.AuthoritativeASes)
 			assert.Equal(t, "Test ISD", signed.TRC.Description)
 			assert.Len(t, signed.TRC.Certificates, 9)
 			assert.Len(t, signed.SignerInfos, 6)

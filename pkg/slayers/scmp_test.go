@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
 )
 
@@ -79,8 +78,8 @@ func TestSCMPDecodeFromBytes(t *testing.T) {
 func TestSCMPSerializeTo(t *testing.T) {
 	// scion header over which the pseudo checksum header is calculated.
 	scnL := &slayers.SCION{
-		SrcIA: xtest.MustParseIA("1-ff00:0:1"),
-		DstIA: xtest.MustParseIA("1-ff00:0:4"),
+		SrcIA: addr.MustParseIA("1-ff00:0:1"),
+		DstIA: addr.MustParseIA("1-ff00:0:4"),
 	}
 	err := scnL.SetDstAddr(addr.MustParseHost("174.16.4.1"))
 	require.NoError(t, err)
@@ -272,7 +271,7 @@ func TestSCMP(t *testing.T) {
 						},
 						Payload: bytes.Repeat([]byte{0xff}, 15),
 					},
-					IA:      xtest.MustParseIA("1-ff00:0:111"),
+					IA:      addr.MustParseIA("1-ff00:0:111"),
 					Ingress: 5,
 					Egress:  15,
 				},
@@ -314,7 +313,7 @@ func TestSCMP(t *testing.T) {
 						},
 						Payload: bytes.Repeat([]byte{0xff}, 15),
 					},
-					IA:   xtest.MustParseIA("1-ff00:0:111"),
+					IA:   addr.MustParseIA("1-ff00:0:111"),
 					IfID: uint64(5),
 				},
 				gopacket.Payload(bytes.Repeat([]byte{0xff}, 15)),
@@ -424,7 +423,7 @@ func TestSCMP(t *testing.T) {
 					},
 					Identifier: 42,
 					Sequence:   9,
-					IA:         xtest.MustParseIA("1-ff00:0:111"),
+					IA:         addr.MustParseIA("1-ff00:0:111"),
 					Interface:  5,
 				},
 				gopacket.Payload(bytes.Repeat([]byte{0xff}, 15)),
@@ -470,7 +469,7 @@ func TestSCMP(t *testing.T) {
 					},
 					Identifier: 42,
 					Sequence:   9,
-					IA:         xtest.MustParseIA("1-ff00:0:111"),
+					IA:         addr.MustParseIA("1-ff00:0:111"),
 					Interface:  5,
 				},
 				gopacket.Payload(bytes.Repeat([]byte{0xff}, 15)),
@@ -510,8 +509,8 @@ func TestSCMP(t *testing.T) {
 
 			t.Run("serialize", func(t *testing.T) {
 				scnL := &slayers.SCION{
-					SrcIA: xtest.MustParseIA("1-ff00:0:1"),
-					DstIA: xtest.MustParseIA("1-ff00:0:4"),
+					SrcIA: addr.MustParseIA("1-ff00:0:1"),
+					DstIA: addr.MustParseIA("1-ff00:0:4"),
 				}
 				err := scnL.SetDstAddr(addr.MustParseHost("174.16.4.1"))
 				assert.NoError(t, err)

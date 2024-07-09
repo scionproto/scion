@@ -42,18 +42,18 @@ func (i isdInfo) any() []addr.IA {
 
 var attributes = isdInfo{
 	authoritatives: []addr.IA{
-		xtest.MustParseIA("1-ff00:0:110"),
-		xtest.MustParseIA("1-ff00:0:130"),
-		xtest.MustParseIA("1-ff00:0:111"),
+		addr.MustParseIA("1-ff00:0:110"),
+		addr.MustParseIA("1-ff00:0:130"),
+		addr.MustParseIA("1-ff00:0:111"),
 	},
 	cores: []addr.IA{
-		xtest.MustParseIA("1-ff00:0:110"),
-		xtest.MustParseIA("1-ff00:0:120"),
-		xtest.MustParseIA("1-ff00:0:130"),
+		addr.MustParseIA("1-ff00:0:110"),
+		addr.MustParseIA("1-ff00:0:120"),
+		addr.MustParseIA("1-ff00:0:130"),
 	},
 	rootCAs: []addr.IA{
-		xtest.MustParseIA("1-ff00:0:110"),
-		xtest.MustParseIA("1-ff00:0:111"),
+		addr.MustParseIA("1-ff00:0:110"),
+		addr.MustParseIA("1-ff00:0:111"),
 	},
 }
 
@@ -167,7 +167,7 @@ func TestDBInspectorHasAttributes(t *testing.T) {
 		},
 		"valid non-primary": {
 			db:        trcDB(trc1),
-			query:     hasAttrQuery{IA: xtest.MustParseIA("1-ff00:0:112"), Attrs: trust.Any},
+			query:     hasAttrQuery{IA: addr.MustParseIA("1-ff00:0:112"), Attrs: trust.Any},
 			expected:  false,
 			assertErr: assert.NoError,
 		},
@@ -178,7 +178,7 @@ func TestDBInspectorHasAttributes(t *testing.T) {
 		},
 		"trc not found": {
 			db:        trcDB(trc1),
-			query:     hasAttrQuery{IA: xtest.MustParseIA("2-ff00:0:210"), Attrs: trust.Any},
+			query:     hasAttrQuery{IA: addr.MustParseIA("2-ff00:0:210"), Attrs: trust.Any},
 			assertErr: assert.Error,
 		},
 	}

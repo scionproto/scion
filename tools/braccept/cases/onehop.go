@@ -26,7 +26,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/util"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/onehop"
@@ -79,8 +78,8 @@ func IncomingOneHop(
 		FlowID:       0xdead,
 		NextHdr:      slayers.L4UDP,
 		PathType:     onehop.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:1"),
+		SrcIA:        addr.MustParseIA("1-ff00:0:3"),
+		DstIA:        addr.MustParseIA("1-ff00:0:1"),
 		Path:         ohp,
 	}
 	if err := scionL.SetSrcAddr(addr.MustParseHost("172.16.4.1")); err != nil {
@@ -174,8 +173,8 @@ func OutgoingOneHop(artifactsDir string, mac hash.Hash) runner.Case {
 		FlowID:       0xdead,
 		NextHdr:      slayers.L4UDP,
 		PathType:     onehop.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:1"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
+		SrcIA:        addr.MustParseIA("1-ff00:0:1"),
+		DstIA:        addr.MustParseIA("1-ff00:0:4"),
 		Path:         ohp,
 	}
 	if err := scionL.SetSrcAddr(addr.MustParseHost("192.168.0.71")); err != nil {

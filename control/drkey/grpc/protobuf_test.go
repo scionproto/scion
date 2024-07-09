@@ -23,6 +23,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/scionproto/scion/control/drkey/grpc"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest"
@@ -31,8 +32,8 @@ import (
 )
 
 var (
-	dstIA   = xtest.MustParseIA("1-ff00:0:110")
-	srcIA   = xtest.MustParseIA("1-ff00:0:111")
+	dstIA   = addr.MustParseIA("1-ff00:0:110")
+	srcIA   = addr.MustParseIA("1-ff00:0:111")
 	k       = xtest.MustParseHexString("c584cad32613547c64823c756651b6f5") // just a key
 	strAddr = "127.0.0.1"
 )

@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/gateway/control"
 	"github.com/scionproto/scion/gateway/control/mock_control"
 	"github.com/scionproto/scion/gateway/pktcls"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/xtest"
 )
 
@@ -157,7 +158,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				{
 					ID:             23,
 					PolicyID:       0,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     control.DefaultPerfPolicy,
 					PathPolicy:     control.DefaultPathPolicy,
@@ -169,7 +170,7 @@ func TestBuildRoutingChains(t *testing.T) {
 			},
 			Chains: []*control.RoutingChain{
 				{
-					RemoteIA:        xtest.MustParseIA("1-ff00:0:110"),
+					RemoteIA:        addr.MustParseIA("1-ff00:0:110"),
 					Prefixes:        xtest.MustParseCIDRs(t, "10.99.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{{ID: 1, Matcher: pktcls.CondTrue}},
 				},
@@ -183,7 +184,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				{
 					ID:             23,
 					PolicyID:       0,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     control.DefaultPerfPolicy,
 					PathPolicy:     control.DefaultPathPolicy,
@@ -195,7 +196,7 @@ func TestBuildRoutingChains(t *testing.T) {
 			},
 			Chains: []*control.RoutingChain{
 				{
-					RemoteIA:        xtest.MustParseIA("1-ff00:0:110"),
+					RemoteIA:        addr.MustParseIA("1-ff00:0:110"),
 					Prefixes:        xtest.MustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{{ID: 1, Matcher: pktcls.CondTrue}},
 				},
@@ -209,7 +210,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				{
 					ID:             21,
 					PolicyID:       0,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: &pktcls.CondIPv4{Predicate: &pktcls.IPv4MatchDSCP{DSCP: 42}},
 					PerfPolicy:     control.DefaultPerfPolicy,
 					PathPolicy:     control.DefaultPathPolicy,
@@ -221,7 +222,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				{
 					ID:             23,
 					PolicyID:       0,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     control.DefaultPerfPolicy,
 					PathPolicy:     control.DefaultPathPolicy,
@@ -233,7 +234,7 @@ func TestBuildRoutingChains(t *testing.T) {
 			},
 			Chains: []*control.RoutingChain{
 				{
-					RemoteIA: xtest.MustParseIA("1-ff00:0:110"),
+					RemoteIA: addr.MustParseIA("1-ff00:0:110"),
 					Prefixes: xtest.MustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{
 						{
@@ -254,7 +255,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				{
 					ID:             100,
 					PolicyID:       1,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: &pktcls.CondIPv4{Predicate: &pktcls.IPv4MatchDSCP{DSCP: 1}},
 					PerfPolicy:     control.DefaultPerfPolicy,
 					PathPolicy:     control.DefaultPathPolicy, // via R1 and R1
@@ -267,7 +268,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				{
 					ID:             101,
 					PolicyID:       1,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: &pktcls.CondIPv4{Predicate: &pktcls.IPv4MatchDSCP{DSCP: 1}},
 					PerfPolicy:     control.DefaultPerfPolicy,
 					PathPolicy:     control.DefaultPathPolicy, // via R1 and R2
@@ -280,7 +281,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				{
 					ID:             102,
 					PolicyID:       0,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     control.DefaultPerfPolicy,
 					PathPolicy:     control.DefaultPathPolicy, // via (R1 or R2) and R1
@@ -293,7 +294,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				{
 					ID:             103,
 					PolicyID:       0,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     control.DefaultPerfPolicy,
 					PathPolicy:     control.DefaultPathPolicy, // via (R1 or R2) and R2
@@ -306,7 +307,7 @@ func TestBuildRoutingChains(t *testing.T) {
 			},
 			Chains: []*control.RoutingChain{
 				{
-					RemoteIA: xtest.MustParseIA("1-ff00:0:110"),
+					RemoteIA: addr.MustParseIA("1-ff00:0:110"),
 					Prefixes: xtest.MustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{
 						{
@@ -317,7 +318,7 @@ func TestBuildRoutingChains(t *testing.T) {
 					},
 				},
 				{
-					RemoteIA: xtest.MustParseIA("1-ff00:0:110"),
+					RemoteIA: addr.MustParseIA("1-ff00:0:110"),
 					Prefixes: xtest.MustParseCIDRs(t, "10.1.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{
 						{
@@ -328,7 +329,7 @@ func TestBuildRoutingChains(t *testing.T) {
 					},
 				},
 				{
-					RemoteIA: xtest.MustParseIA("1-ff00:0:110"),
+					RemoteIA: addr.MustParseIA("1-ff00:0:110"),
 					Prefixes: xtest.MustParseCIDRs(t, "10.2.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{
 						{
@@ -353,7 +354,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				{
 					ID:             100,
 					PolicyID:       1,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: &pktcls.CondIPv4{Predicate: &pktcls.IPv4MatchDSCP{DSCP: 1}},
 					PerfPolicy:     control.DefaultPerfPolicy,
 					PathPolicy:     control.DefaultPathPolicy, // via R1 and R1
@@ -366,7 +367,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				{
 					ID:             101,
 					PolicyID:       1,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: &pktcls.CondIPv4{Predicate: &pktcls.IPv4MatchDSCP{DSCP: 1}},
 					PerfPolicy:     control.DefaultPerfPolicy,
 					PathPolicy:     control.DefaultPathPolicy, // via R1 and R2
@@ -379,7 +380,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				{
 					ID:             102,
 					PolicyID:       0,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: &pktcls.CondIPv4{Predicate: &pktcls.IPv4MatchDSCP{DSCP: 1}},
 					PerfPolicy:     control.DefaultPerfPolicy,
 					PathPolicy:     control.DefaultPathPolicy, // via Any and R1
@@ -392,7 +393,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				{
 					ID:             103,
 					PolicyID:       0,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: &pktcls.CondIPv4{Predicate: &pktcls.IPv4MatchDSCP{DSCP: 1}},
 					PerfPolicy:     control.DefaultPerfPolicy,
 					PathPolicy:     control.DefaultPathPolicy, // via Any and R2
@@ -405,7 +406,7 @@ func TestBuildRoutingChains(t *testing.T) {
 			},
 			Chains: []*control.RoutingChain{
 				{
-					RemoteIA: xtest.MustParseIA("1-ff00:0:110"),
+					RemoteIA: addr.MustParseIA("1-ff00:0:110"),
 					Prefixes: xtest.MustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{
 						{
@@ -415,7 +416,7 @@ func TestBuildRoutingChains(t *testing.T) {
 					},
 				},
 				{
-					RemoteIA: xtest.MustParseIA("1-ff00:0:110"),
+					RemoteIA: addr.MustParseIA("1-ff00:0:110"),
 					Prefixes: xtest.MustParseCIDRs(t, "10.1.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{
 						{
@@ -425,7 +426,7 @@ func TestBuildRoutingChains(t *testing.T) {
 					},
 				},
 				{
-					RemoteIA: xtest.MustParseIA("1-ff00:0:110"),
+					RemoteIA: addr.MustParseIA("1-ff00:0:110"),
 					Prefixes: xtest.MustParseCIDRs(t, "10.2.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{
 						{
@@ -446,7 +447,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				{
 					ID:             100,
 					PolicyID:       0,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     control.DefaultPerfPolicy,
 					PathPolicy:     control.DefaultPathPolicy, // via R1 and R2
@@ -458,7 +459,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				{
 					ID:             101,
 					PolicyID:       0,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     control.DefaultPerfPolicy,
 					PathPolicy:     control.DefaultPathPolicy, // via R1
@@ -470,7 +471,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				{
 					ID:             102,
 					PolicyID:       0,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     control.DefaultPerfPolicy,
 					PathPolicy:     control.DefaultPathPolicy, // via R2
@@ -482,12 +483,12 @@ func TestBuildRoutingChains(t *testing.T) {
 			},
 			Chains: []*control.RoutingChain{
 				{
-					RemoteIA:        xtest.MustParseIA("1-ff00:0:110"),
+					RemoteIA:        addr.MustParseIA("1-ff00:0:110"),
 					Prefixes:        xtest.MustParseCIDRs(t, "10.1.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{{ID: 1, Matcher: pktcls.CondTrue}},
 				},
 				{
-					RemoteIA:        xtest.MustParseIA("1-ff00:0:110"),
+					RemoteIA:        addr.MustParseIA("1-ff00:0:110"),
 					Prefixes:        xtest.MustParseCIDRs(t, "10.2.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{{ID: 2, Matcher: pktcls.CondTrue}},
 				},
@@ -502,7 +503,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				{
 					ID:             23,
 					PolicyID:       0,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     control.DefaultPerfPolicy,
 					PathPolicy:     control.DefaultPathPolicy,
@@ -514,7 +515,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				{
 					ID:             42,
 					PolicyID:       0,
-					IA:             xtest.MustParseIA("1-ff00:0:111"),
+					IA:             addr.MustParseIA("1-ff00:0:111"),
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     control.DefaultPerfPolicy,
 					PathPolicy:     control.DefaultPathPolicy,
@@ -526,12 +527,12 @@ func TestBuildRoutingChains(t *testing.T) {
 			},
 			Chains: []*control.RoutingChain{
 				{
-					RemoteIA:        xtest.MustParseIA("1-ff00:0:110"),
+					RemoteIA:        addr.MustParseIA("1-ff00:0:110"),
 					Prefixes:        xtest.MustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{{ID: 1, Matcher: pktcls.CondTrue}},
 				},
 				{
-					RemoteIA:        xtest.MustParseIA("1-ff00:0:111"),
+					RemoteIA:        addr.MustParseIA("1-ff00:0:111"),
 					Prefixes:        xtest.MustParseCIDRs(t, "10.13.0.0/16", "10.14.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{{ID: 2, Matcher: pktcls.CondTrue}},
 				},

@@ -54,6 +54,16 @@ func ParseISD(s string) (ISD, error) {
 	return ISD(isd), nil
 }
 
+// MustParseISD parses s and returns the corresponding addr.ISD object. It panics
+// if s is not valid ISD representation.
+func MustParseISD(s string) ISD {
+	isd, err := ParseISD(s)
+	if err != nil {
+		panic(err)
+	}
+	return isd
+}
+
 func (isd ISD) String() string {
 	return strconv.FormatUint(uint64(isd), 10)
 }
@@ -68,6 +78,16 @@ type AS uint64
 // space) or ipv6-style hex (in the case of SCION-only AS numbers) string.
 func ParseAS(as string) (AS, error) {
 	return parseAS(as, ":")
+}
+
+// MustParseAS parses s and returns the corresponding addr.AS object. It panics
+// if s is not valid AS representation.
+func MustParseAS(s string) AS {
+	as, err := ParseAS(s)
+	if err != nil {
+		panic(err)
+	}
+	return as
 }
 
 func parseAS(as string, sep string) (AS, error) {
@@ -171,6 +191,16 @@ func ParseIA(ia string) (IA, error) {
 		return 0, err
 	}
 	return MustIAFrom(isd, as), nil
+}
+
+// MustParseIA parses s and returns the corresponding addr.IA object. It
+// panics if s is not a valid ISD-AS representation.
+func MustParseIA(s string) IA {
+	ia, err := ParseIA(s)
+	if err != nil {
+		panic(err)
+	}
+	return ia
 }
 
 func (ia IA) ISD() ISD {
