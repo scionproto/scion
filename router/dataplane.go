@@ -70,6 +70,10 @@ const (
 	// e2eAuthHdrLen is the length in bytes of added information when a SCMP packet
 	// needs to be authenticated: 16B (e2e.option.Len()) + 16B (CMAC_tag.Len()).
 	e2eAuthHdrLen = 32
+
+	// Needed to compute required padding
+	ptrSize = unsafe.Sizeof(&struct{ int }{})
+	is32bit = 1 - (ptrSize-4)/4
 )
 
 type bfdSession interface {
@@ -100,11 +104,11 @@ const (
 // copy (pass everything via one reference) AND garbage collection (reuse everything).
 // The buffer is allocated in a separate location (but still reused) to keep the packet structures
 // tightly packed (might not matter, though).
-// Golang gives precious little guarantees about alignment and padding.
-// The safest is to do it ourselves (assuming go doesn't add absurd constraints). Everything until
-// and including slowpathRequest is 8-byte aligned. SlowPathRequest is deliberately 16 bytes long
-// trafficType is 4 bytes long (likely cheaper to access than a single byte anyway). Adding ingress
-// and egress, that's 64 bytes; one cache line. Go shouldn't want to add any padding.
+// Golang gives precious little guarantees about alignment and padding. We do it ourselves in such
+// a way that Go has no sane reason to add any padding. Everything is 8 byte aligned (on 64 bit
+// arch) until Slowpath request which is 6 bytes long. The rest is in decreasing order of size and
+// size-aligned. We want to fit neatly into cache lines, so we need to fit in 64 bytes. The padding
+// required to occupy exactly 64 bytes depends on the architecture.
 type packet struct {
 	// The useful part of the raw packet at a point in time (i.e. a slice of the full buffer).
 	// TODO(jiceatscion): would it be beneficial to store the length instead, like readBatch does?
@@ -118,28 +122,26 @@ type packet struct {
 	dstAddr *net.UDPAddr
 	// Additional metadata in case the packet is put on the slow path. Updated in-place.
 	slowPathRequest slowPathRequest
-	// The type of traffic. This is used for metrics at the forwarding stage, but is most
-	// economically determined at the processing stage. So store it here.
-	trafficType trafficType
 	// The ingress on which this packet arrived. This is set by the receiver.
 	ingress uint16
 	// The egress on which this packet must leave. This is set by the processing routine.
 	egress uint16
+	// The type of traffic. This is used for metrics at the forwarding stage, but is most
+	// economically determined at the processing stage. So store it here. It's 2 bytes long.
+	trafficType trafficType
+	// Pad to 64 bytes. For 64bit arch, add 12 bytes. For 32bit arch, add 32 bytes.
+	// TODO(jiceatscion): see if packing two packets per cache line instead is good or bad for 32bit
+	// machines.
+	_ [12 + is32bit*20]byte
 }
 
-// Keep this 16 bytes long. See comment for packet,
+// Keep this 6 bytes long. See comment for packet.
 type slowPathRequest struct {
-	// The parameters. Only those used for that particular code and
-	// type will be valid.
-
-	pointer     uint16
-	interfaceId uint16
-	ingressId   uint16
-	egressId    uint16
-	typ         slowPathType
-	scmpType    slayers.SCMPType
-	code        slayers.SCMPCode
-	_           [5]byte
+	pointer  uint16
+	typ      slowPathType
+	scmpType slayers.SCMPType
+	code     slayers.SCMPCode
+	_        uint8
 }
 
 // Make sure that the packet structure has the size we expect.
@@ -954,15 +956,17 @@ func (p *slowPathPacketProcessor) processPacket(pkt *packet) error {
 			layer = &slayers.SCMPDestinationUnreachable{}
 		case slayers.SCMPTypeExternalInterfaceDown:
 			layer = &slayers.SCMPExternalInterfaceDown{IA: p.d.localIA,
-				IfID: uint64(s.interfaceId)}
+				IfID: uint64(p.pkt.egress)}
 		case slayers.SCMPTypeInternalConnectivityDown:
 			layer = &slayers.SCMPInternalConnectivityDown{IA: p.d.localIA,
-				Ingress: uint64(s.ingressId), Egress: uint64(s.egressId)}
+				Ingress: uint64(p.pkt.ingress), Egress: uint64(p.pkt.egress)}
 		}
 		return p.packSCMP(s.scmpType, s.code, layer, true)
 
-	case slowPathRouterAlert: //Traceroute
-		return p.handleSCMPTraceRouteRequest(s.interfaceId)
+	case slowPathRouterAlertIngress: //Traceroute
+		return p.handleSCMPTraceRouteRequest(p.pkt.ingress)
+	case slowPathRouterAlertEgress: //Traceroute
+		return p.handleSCMPTraceRouteRequest(p.pkt.egress)
 	default:
 		panic("Unsupported slow-path type")
 	}
@@ -1306,7 +1310,8 @@ type slowPathType uint8
 
 const (
 	slowPathSCMP slowPathType = iota
-	slowPathRouterAlert
+	slowPathRouterAlertIngress
+	slowPathRouterAlertEgress
 )
 
 func (p *slowPathPacketProcessor) packSCMP(
@@ -1501,10 +1506,11 @@ func (p *scionPacketProcessor) validateTransitUnderlaySrc() disposition {
 	return pForward
 }
 
+// Validates the egress interface referenced by the current hop.
 func (p *scionPacketProcessor) validateEgressID() disposition {
-	pktEgressID := p.egressInterface()
-	_, ih := p.d.internalNextHops[pktEgressID]
-	_, eh := p.d.external[pktEgressID]
+	egressID := p.pkt.egress
+	_, ih := p.d.internalNextHops[egressID]
+	_, eh := p.d.external[egressID]
 	// egress interface must be a known interface
 	// packet coming from internal interface, must go to an external interface
 	// packet coming from external interface can go to either internal or external interface
@@ -1522,7 +1528,7 @@ func (p *scionPacketProcessor) validateEgressID() disposition {
 		return pSlowPath
 	}
 
-	ingress, egress := p.d.linkTypes[p.pkt.ingress], p.d.linkTypes[pktEgressID]
+	ingressLT, egressLT := p.d.linkTypes[p.pkt.ingress], p.d.linkTypes[egressID]
 	if !p.effectiveXover {
 		// Check that the interface pair is valid within a single segment.
 		// No check required if the packet is received from an internal interface.
@@ -1531,20 +1537,20 @@ func (p *scionPacketProcessor) validateEgressID() disposition {
 		switch {
 		case p.pkt.ingress == 0:
 			return pForward
-		case ingress == topology.Core && egress == topology.Core:
+		case ingressLT == topology.Core && egressLT == topology.Core:
 			return pForward
-		case ingress == topology.Child && egress == topology.Parent:
+		case ingressLT == topology.Child && egressLT == topology.Parent:
 			return pForward
-		case ingress == topology.Parent && egress == topology.Child:
+		case ingressLT == topology.Parent && egressLT == topology.Child:
 			return pForward
-		case ingress == topology.Child && egress == topology.Peer:
+		case ingressLT == topology.Child && egressLT == topology.Peer:
 			return pForward
-		case ingress == topology.Peer && egress == topology.Child:
+		case ingressLT == topology.Peer && egressLT == topology.Child:
 			return pForward
 		default: // malicious
 			log.Debug("SCMP response", "cause", cannotRoute,
-				"ingress_id", p.pkt.ingress, "ingress_type", ingress,
-				"egress_id", pktEgressID, "egress_type", egress)
+				"ingress_id", p.pkt.ingress, "ingress_type", ingressLT,
+				"egress_id", egressID, "egress_type", egressLT)
 			p.pkt.slowPathRequest = slowPathRequest{
 				scmpType: slayers.SCMPTypeParameterProblem,
 				code:     slayers.SCMPCodeInvalidPath, // XXX(matzf) new code InvalidHop?,
@@ -1553,22 +1559,23 @@ func (p *scionPacketProcessor) validateEgressID() disposition {
 			return pSlowPath
 		}
 	}
+
 	// Check that the interface pair is valid on a segment switch.
 	// Having a segment change received from the internal interface is never valid.
 	// We should never see a peering link traversal either. If that happens
 	// treat it as a routing error (not sure if that can happen without an internal
 	// error, though).
 	switch {
-	case ingress == topology.Core && egress == topology.Child:
+	case ingressLT == topology.Core && egressLT == topology.Child:
 		return pForward
-	case ingress == topology.Child && egress == topology.Core:
+	case ingressLT == topology.Child && egressLT == topology.Core:
 		return pForward
-	case ingress == topology.Child && egress == topology.Child:
+	case ingressLT == topology.Child && egressLT == topology.Child:
 		return pForward
 	default:
 		log.Debug("SCMP response", "cause", cannotRoute,
-			"ingress_id", p.pkt.ingress, "ingress_type", ingress,
-			"egress_id", pktEgressID, "egress_type", egress)
+			"ingress_id", p.pkt.ingress, "ingress_type", ingressLT,
+			"egress_id", egressID, "egress_type", egressLT)
 		p.pkt.slowPathRequest = slowPathRequest{
 			scmpType: slayers.SCMPTypeParameterProblem,
 			code:     slayers.SCMPCodeInvalidSegmentChange,
@@ -1715,22 +1722,19 @@ func (p *scionPacketProcessor) egressInterface() uint16 {
 }
 
 func (p *scionPacketProcessor) validateEgressUp() disposition {
-	egressID := p.egressInterface()
+	egressID := p.pkt.egress
 	if v, ok := p.d.bfdSessions[egressID]; ok {
 		if !v.IsUp() {
 			log.Debug("SCMP response", "cause", errBFDSessionDown)
-			if _, external := p.d.external[egressID]; !external {
+			if _, external := p.d.external[p.pkt.egress]; !external {
 				p.pkt.slowPathRequest = slowPathRequest{
-					scmpType:  slayers.SCMPTypeInternalConnectivityDown,
-					code:      0,
-					ingressId: p.pkt.ingress,
-					egressId:  egressID,
+					scmpType: slayers.SCMPTypeInternalConnectivityDown,
+					code:     0,
 				}
 			} else {
 				p.pkt.slowPathRequest = slowPathRequest{
-					scmpType:    slayers.SCMPTypeExternalInterfaceDown,
-					code:        0,
-					interfaceId: egressID,
+					scmpType: slayers.SCMPTypeExternalInterfaceDown,
+					code:     0,
 				}
 			}
 			return pSlowPath
@@ -1752,8 +1756,7 @@ func (p *scionPacketProcessor) handleIngressRouterAlert() disposition {
 		return errorDiscard("error", err)
 	}
 	p.pkt.slowPathRequest = slowPathRequest{
-		typ:         slowPathRouterAlert,
-		interfaceId: p.pkt.ingress,
+		typ: slowPathRouterAlertIngress,
 	}
 	return pSlowPath
 }
@@ -1770,8 +1773,7 @@ func (p *scionPacketProcessor) handleEgressRouterAlert() disposition {
 	if !*alert {
 		return pForward
 	}
-	egressID := p.egressInterface()
-	if _, ok := p.d.external[egressID]; !ok {
+	if _, ok := p.d.external[p.pkt.egress]; !ok {
 		return pForward
 	}
 	*alert = false
@@ -1779,8 +1781,7 @@ func (p *scionPacketProcessor) handleEgressRouterAlert() disposition {
 		return errorDiscard("error", err)
 	}
 	p.pkt.slowPathRequest = slowPathRequest{
-		typ:         slowPathRouterAlert,
-		interfaceId: egressID,
+		typ: slowPathRouterAlertEgress,
 	}
 	return pSlowPath
 }
@@ -1899,9 +1900,16 @@ func (p *scionPacketProcessor) process() disposition {
 			return disp
 		}
 	}
+
+	// Assign egress interface to the packet early. ICMP responses, if we make any, will need this.
+	// Even if the egress interface is not valid, it can be usefull in SCMP reporting.
+	egressID := p.egressInterface()
+	p.pkt.egress = egressID
+
 	if disp := p.validateEgressID(); disp != pForward {
 		return disp
 	}
+
 	// handle egress router alert before we check if it's up because we want to
 	// send the reply anyway, so that trace route can pinpoint the exact link
 	// that failed.
@@ -1911,7 +1919,7 @@ func (p *scionPacketProcessor) process() disposition {
 	if disp := p.validateEgressUp(); disp != pForward {
 		return disp
 	}
-	egressID := p.egressInterface()
+
 	if _, ok := p.d.external[egressID]; ok {
 		// Not ASTransit in
 		if disp := p.processEgress(); disp != pForward {
@@ -1930,15 +1938,18 @@ func (p *scionPacketProcessor) process() disposition {
 			tt = ttBrTransit
 		}
 		p.pkt.trafficType = tt
-		p.pkt.egress = egressID
 		return pForward
 	}
+
 	// ASTransit in: pkt leaving this AS through another BR.
 	if a, ok := p.d.internalNextHops[egressID]; ok {
 		p.pkt.trafficType = ttInTransit
 		updateNetAddrFromAddrPort(p.pkt.dstAddr, a)
+		// The packet must go to the other router via the internal interface.
+		p.pkt.egress = 0
 		return pForward
 	}
+
 	errCode := slayers.SCMPCodeUnknownHopFieldEgress
 	if !p.infoField.ConsDir {
 		errCode = slayers.SCMPCodeUnknownHopFieldIngress
