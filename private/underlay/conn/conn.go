@@ -21,6 +21,7 @@ package conn
 
 import (
 	"net"
+	"net/netip"
 	"syscall"
 	"time"
 
@@ -38,13 +39,11 @@ type Messages []ipv4.Message
 
 // Conn describes the API for an underlay socket
 type Conn interface {
-	ReadFrom([]byte) (int, *net.UDPAddr, error)
 	ReadBatch(Messages) (int, error)
-	Write([]byte) (int, error)
-	WriteTo([]byte, *net.UDPAddr) (int, error)
+	WriteTo([]byte, netip.AddrPort) (int, error)
 	WriteBatch(Messages, int) (int, error)
-	LocalAddr() *net.UDPAddr
-	RemoteAddr() *net.UDPAddr
+	LocalAddr() netip.AddrPort
+	RemoteAddr() netip.AddrPort
 	SetReadDeadline(time.Time) error
 	SetWriteDeadline(time.Time) error
 	SetDeadline(time.Time) error
@@ -64,15 +63,15 @@ type Config struct {
 // New opens a new underlay socket on the specified addresses.
 //
 // The config can be used to customize socket behavior.
-func New(listen, remote *net.UDPAddr, cfg *Config) (Conn, error) {
+func New(listen, remote netip.AddrPort, cfg *Config) (Conn, error) {
 	a := listen
-	if remote != nil {
+	if remote.IsValid() {
 		a = remote
 	}
-	if listen == nil && remote == nil {
+	if !a.IsValid() {
 		panic("either listen or remote must be set")
 	}
-	if a.IP.To4() != nil {
+	if a.Addr().Is4() {
 		return newConnUDPIPv4(listen, remote, cfg)
 	}
 	return newConnUDPIPv6(listen, remote, cfg)
@@ -83,7 +82,7 @@ type connUDPIPv4 struct {
 	pconn *ipv4.PacketConn
 }
 
-func newConnUDPIPv4(listen, remote *net.UDPAddr, cfg *Config) (*connUDPIPv4, error) {
+func newConnUDPIPv4(listen, remote netip.AddrPort, cfg *Config) (*connUDPIPv4, error) {
 	cc := &connUDPIPv4{}
 	if err := cc.initConnUDP("udp4", listen, remote, cfg); err != nil {
 		return nil, err
@@ -121,7 +120,7 @@ type connUDPIPv6 struct {
 	pconn *ipv6.PacketConn
 }
 
-func newConnUDPIPv6(listen, remote *net.UDPAddr, cfg *Config) (*connUDPIPv6, error) {
+func newConnUDPIPv6(listen, remote netip.AddrPort, cfg *Config) (*connUDPIPv6, error) {
 	cc := &connUDPIPv6{}
 	if err := cc.initConnUDP("udp6", listen, remote, cfg); err != nil {
 		return nil, err
@@ -156,24 +155,32 @@ func (c *connUDPIPv6) SetDeadline(t time.Time) error {
 
 type connUDPBase struct {
 	conn   *net.UDPConn
-	Listen *net.UDPAddr
-	Remote *net.UDPAddr
+	Listen netip.AddrPort
+	Remote netip.AddrPort
 	closed bool
 }
 
-func (cc *connUDPBase) initConnUDP(network string, laddr, raddr *net.UDPAddr, cfg *Config) error {
+func (cc *connUDPBase) initConnUDP(
+	network string,
+	laddr, raddr netip.AddrPort,
+	cfg *Config) error {
+
 	var c *net.UDPConn
 	var err error
-	if laddr == nil {
+	if !laddr.IsValid() {
 		return serrors.New("listen address must be specified")
 	}
-	if raddr == nil {
-		if c, err = net.ListenUDP(network, laddr); err != nil {
+	if !raddr.IsValid() {
+		if c, err = net.ListenUDP(network, net.UDPAddrFromAddrPort(laddr)); err != nil {
 			return serrors.WrapStr("Error listening on socket", err,
 				"network", network, "listen", laddr)
 		}
 	} else {
-		if c, err = net.DialUDP(network, laddr, raddr); err != nil {
+		if c, err = net.DialUDP(
+			network,
+			net.UDPAddrFromAddrPort(laddr),
+			net.UDPAddrFromAddrPort(raddr),
+		); err != nil {
 			return serrors.WrapStr("Error setting up connection", err,
 				"network", network, "listen", laddr, "remote", raddr)
 		}
@@ -253,26 +260,22 @@ func (cc *connUDPBase) initConnUDP(network string, laddr, raddr *net.UDPAddr, cf
 	return nil
 }
 
-func (c *connUDPBase) ReadFrom(b []byte) (int, *net.UDPAddr, error) {
-	return c.conn.ReadFromUDP(b)
-}
-
 func (c *connUDPBase) Write(b []byte) (int, error) {
 	return c.conn.Write(b)
 }
 
-func (c *connUDPBase) WriteTo(b []byte, dst *net.UDPAddr) (int, error) {
-	if c.Remote != nil {
+func (c *connUDPBase) WriteTo(b []byte, dst netip.AddrPort) (int, error) {
+	if c.Remote.IsValid() {
 		return c.conn.Write(b)
 	}
-	return c.conn.WriteTo(b, dst)
+	return c.conn.WriteToUDPAddrPort(b, dst)
 }
 
-func (c *connUDPBase) LocalAddr() *net.UDPAddr {
+func (c *connUDPBase) LocalAddr() netip.AddrPort {
 	return c.Listen
 }
 
-func (c *connUDPBase) RemoteAddr() *net.UDPAddr {
+func (c *connUDPBase) RemoteAddr() netip.AddrPort {
 	return c.Remote
 }
 

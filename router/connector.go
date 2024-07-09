@@ -15,7 +15,6 @@
 package router
 
 import (
-	"net"
 	"net/netip"
 	"sync"
 
@@ -68,15 +67,14 @@ func (c *Connector) AddInternalInterface(ia addr.IA, local netip.AddrPort) error
 	if !c.ia.Equal(ia) {
 		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
 	}
-	localU := net.UDPAddrFromAddrPort(local)
-	connection, err := conn.New(localU, nil,
+	connection, err := conn.New(local, netip.AddrPort{},
 		&conn.Config{ReceiveBufferSize: c.ReceiveBufferSize, SendBufferSize: c.SendBufferSize})
 	if err != nil {
 		return err
 	}
 	c.internalInterfaces = append(c.internalInterfaces, control.InternalInterface{
 		IA:   ia,
-		Addr: localU,
+		Addr: local,
 	})
 	return c.DataPlane.AddInternalInterface(connection, local.Addr())
 }
@@ -142,23 +140,24 @@ func (c *Connector) AddExternalInterface(localIfID common.IFIDType, link control
 }
 
 // AddSvc adds the service address for the given ISD-AS.
-func (c *Connector) AddSvc(ia addr.IA, svc addr.SVC, a *net.UDPAddr) error {
+func (c *Connector) AddSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error {
+
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	log.Debug("Adding service", "isd_as", ia, "svc", svc, "address", a)
 	if !c.ia.Equal(ia) {
-		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
+		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", a)
 	}
 	return c.DataPlane.AddSvc(svc, a)
 }
 
 // DelSvc deletes the service entry for the given ISD-AS and IP pair.
-func (c *Connector) DelSvc(ia addr.IA, svc addr.SVC, a *net.UDPAddr) error {
+func (c *Connector) DelSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	log.Debug("Deleting service", "isd_as", ia, "svc", svc, "address", a)
 	if !c.ia.Equal(ia) {
-		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
+		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", a)
 	}
 	return c.DataPlane.DelSvc(svc, a)
 }

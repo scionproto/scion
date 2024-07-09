@@ -171,7 +171,8 @@ func NewMetrics() *Metrics {
 // two routers. If the router being observed is the one receiving the packet from the outside, then
 // the type is inTransit; else it is outTransit. brTransit means that traffic is crossing only the
 // observed router. Non-scion traffic or somehow malformed traffic has type Other.
-type trafficType uint8
+// Do not change this type's length without checking the effect it has on router.packet
+type trafficType uint16
 
 const (
 	ttOther trafficType = iota
