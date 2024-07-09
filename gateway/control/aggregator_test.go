@@ -34,8 +34,8 @@ const (
 )
 
 var (
-	ia1      = xtest.MustParseIA("1-ff00:0:110")
-	ia2      = xtest.MustParseIA("1-ff00:0:111")
+	ia1      = addr.MustParseIA("1-ff00:0:110")
+	ia2      = addr.MustParseIA("1-ff00:0:111")
 	gateway1 = control.Gateway{Control: &net.UDPAddr{IP: []byte{1, 2, 3, 4}, Port: 12345}}
 	gateway2 = control.Gateway{Control: &net.UDPAddr{IP: []byte{5, 6, 7, 8}, Port: 54321}}
 	gateway3 = control.Gateway{Control: &net.UDPAddr{IP: []byte{10, 11, 12, 13}, Port: 23456}}

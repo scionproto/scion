@@ -37,7 +37,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/ptr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
@@ -116,11 +115,11 @@ func TestDataPlaneSetKey(t *testing.T) {
 
 func TestDataPlaneAddExternalInterface(t *testing.T) {
 	l := control.LinkEnd{
-		IA:   xtest.MustParseIA("1-ff00:0:1"),
+		IA:   addr.MustParseIA("1-ff00:0:1"),
 		Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.100")},
 	}
 	r := control.LinkEnd{
-		IA:   xtest.MustParseIA("1-ff00:0:3"),
+		IA:   addr.MustParseIA("1-ff00:0:3"),
 		Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.200")},
 	}
 	nobfd := control.BFD{Disable: ptr.To(true)}
@@ -241,7 +240,7 @@ func TestDataPlaneRun(t *testing.T) {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
 				ret := &router.DataPlane{Metrics: metrics}
 				key := []byte("testkey_xxxxxxxx")
-				local := xtest.MustParseIA("1-ff00:0:110")
+				local := addr.MustParseIA("1-ff00:0:110")
 
 				totalCount := 10
 				mInternal := mock_router.NewMockBatchConn(ctrl)
@@ -300,11 +299,11 @@ func TestDataPlaneRun(t *testing.T) {
 				mExternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
 				l := control.LinkEnd{
-					IA:   xtest.MustParseIA("1-ff00:0:1"),
+					IA:   addr.MustParseIA("1-ff00:0:1"),
 					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.100")},
 				}
 				r := control.LinkEnd{
-					IA:   xtest.MustParseIA("1-ff00:0:3"),
+					IA:   addr.MustParseIA("1-ff00:0:3"),
 					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.200")},
 				}
 				nobfd := control.BFD{Disable: ptr.To(true)}
@@ -487,11 +486,11 @@ func TestDataPlaneRun(t *testing.T) {
 				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
 
 				local := control.LinkEnd{
-					IA:   xtest.MustParseIA("1-ff00:0:1"),
+					IA:   addr.MustParseIA("1-ff00:0:1"),
 					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.100")},
 				}
 				remote := control.LinkEnd{
-					IA:   xtest.MustParseIA("1-ff00:0:3"),
+					IA:   addr.MustParseIA("1-ff00:0:3"),
 					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.200")},
 				}
 				_ = ret.SetKey([]byte("randomkeyformacs"))
@@ -565,11 +564,11 @@ func TestDataPlaneRun(t *testing.T) {
 				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
 
 				local := control.LinkEnd{
-					IA:   xtest.MustParseIA("1-ff00:0:1"),
+					IA:   addr.MustParseIA("1-ff00:0:1"),
 					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.100")},
 				}
 				remote := control.LinkEnd{
-					IA:   xtest.MustParseIA("1-ff00:0:3"),
+					IA:   addr.MustParseIA("1-ff00:0:3"),
 					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.200")},
 				}
 				_ = ret.SetKey([]byte("randomkeyformacs"))
@@ -640,11 +639,11 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
-				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
+				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
 				dst := addr.MustParseHost("10.0.100.100")
 				_ = spkt.SetDstAddr(dst)
 				dpath.HopFields = []path.HopField{
@@ -670,11 +669,11 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
-				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
+				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
 				dst := addr.MustParseHost("10.0.100.100")
 				_ = spkt.SetDstAddr(dst)
 				dpath.HopFields = []path.HopField{
@@ -725,11 +724,11 @@ func TestProcessPkt(t *testing.T) {
 					},
 					nil,
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
-				spkt.SrcIA = xtest.MustParseIA("1-ff00:0:110")
+				spkt.SrcIA = addr.MustParseIA("1-ff00:0:110")
 				dpath.HopFields = []path.HopField{
 					{ConsIngress: 0, ConsEgress: 1},
 					{ConsIngress: 31, ConsEgress: 30},
@@ -764,7 +763,7 @@ func TestProcessPkt(t *testing.T) {
 					},
 					nil,
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -801,7 +800,7 @@ func TestProcessPkt(t *testing.T) {
 						1: topology.Child,
 					}, nil,
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -840,7 +839,7 @@ func TestProcessPkt(t *testing.T) {
 					},
 					nil,
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				// Story: the packet just left segment 0 which ends at
@@ -914,7 +913,7 @@ func TestProcessPkt(t *testing.T) {
 					},
 					nil,
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				// Story: the packet lands on the last (peering) hop of
@@ -996,7 +995,7 @@ func TestProcessPkt(t *testing.T) {
 					},
 					nil,
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				// Story: the packet just left hop 1 (the first hop
@@ -1074,7 +1073,7 @@ func TestProcessPkt(t *testing.T) {
 					},
 					nil,
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				// Story: the packet lands on the second (non-peering) hop of
@@ -1165,7 +1164,7 @@ func TestProcessPkt(t *testing.T) {
 					mock_router.NewMockBatchConn(ctrl),
 					map[uint16]*net.UDPAddr{
 						uint16(3): {IP: net.ParseIP("10.0.200.200").To4(), Port: 30043},
-					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					}, nil, addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -1199,7 +1198,7 @@ func TestProcessPkt(t *testing.T) {
 					mock_router.NewMockBatchConn(ctrl),
 					map[uint16]*net.UDPAddr{
 						uint16(3): {IP: net.ParseIP("10.0.200.200").To4(), Port: 30043},
-					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					}, nil, addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg(now)
@@ -1255,12 +1254,12 @@ func TestProcessPkt(t *testing.T) {
 							},
 						},
 					},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
 				_ = spkt.SetDstAddr(addr.MustParseHost("CS"))
-				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
+				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
 				dpath.HopFields = []path.HopField{
 					{ConsIngress: 41, ConsEgress: 40},
 					{ConsIngress: 31, ConsEgress: 30},
@@ -1292,16 +1291,16 @@ func TestProcessPkt(t *testing.T) {
 							Port: dstUDPPort,
 						}},
 					},
-					xtest.MustParseIA("1-ff00:0:110"),
+					addr.MustParseIA("1-ff00:0:110"),
 					map[uint16]addr.IA{
-						uint16(1): xtest.MustParseIA("1-ff00:0:111"),
+						uint16(1): addr.MustParseIA("1-ff00:0:111"),
 					}, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg(now)
 				spkt.PathType = onehop.PathType
-				spkt.SrcIA = xtest.MustParseIA("1-ff00:0:111")
-				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
+				spkt.SrcIA = addr.MustParseIA("1-ff00:0:111")
+				spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
 				err := spkt.SetDstAddr(addr.HostSVC(addr.SvcCS.Multicast()))
 				require.NoError(t, err)
 				dpath := &onehop.Path{
@@ -1349,16 +1348,16 @@ func TestProcessPkt(t *testing.T) {
 					fakeExternalInterfaces,
 					nil, nil,
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"),
+					addr.MustParseIA("1-ff00:0:110"),
 					map[uint16]addr.IA{
-						uint16(1): xtest.MustParseIA("1-ff00:0:111"),
+						uint16(1): addr.MustParseIA("1-ff00:0:111"),
 					}, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg(now)
 				spkt.PathType = onehop.PathType
-				spkt.SrcIA = xtest.MustParseIA("1-ff00:0:110") // sneaky
-				spkt.DstIA = xtest.MustParseIA("1-ff00:0:111")
+				spkt.SrcIA = addr.MustParseIA("1-ff00:0:110") // sneaky
+				spkt.DstIA = addr.MustParseIA("1-ff00:0:111")
 				err := spkt.SetDstAddr(addr.HostSVC(addr.SvcCS.Multicast()))
 				require.NoError(t, err)
 				dpath := &onehop.Path{
@@ -1397,12 +1396,12 @@ func TestProcessPkt(t *testing.T) {
 							Port: dstUDPPort,
 						}},
 					},
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg(now)
 				spkt.PathType = scion.PathType
-				spkt.SrcIA = xtest.MustParseIA("1-ff00:0:110")
+				spkt.SrcIA = addr.MustParseIA("1-ff00:0:110")
 				err := spkt.SetDstAddr(addr.HostSVC(addr.SvcCS.Multicast()))
 				require.NoError(t, err)
 				dpath := &onehop.Path{
@@ -1452,16 +1451,16 @@ func TestProcessPkt(t *testing.T) {
 					nil,
 					mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"),
+					addr.MustParseIA("1-ff00:0:110"),
 					map[uint16]addr.IA{
-						uint16(2): xtest.MustParseIA("1-ff00:0:111"),
+						uint16(2): addr.MustParseIA("1-ff00:0:111"),
 					}, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg(now)
 				spkt.PathType = onehop.PathType
-				spkt.SrcIA = xtest.MustParseIA("1-ff00:0:110")
-				spkt.DstIA = xtest.MustParseIA("1-ff00:0:111")
+				spkt.SrcIA = addr.MustParseIA("1-ff00:0:110")
+				spkt.DstIA = addr.MustParseIA("1-ff00:0:111")
 				err := spkt.SetDstAddr(addr.HostSVC(addr.SvcCS.Multicast()))
 				require.NoError(t, err)
 				dpath := &onehop.Path{
@@ -1495,7 +1494,7 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, epicpath, dpath := prepEpicMsg(t,
@@ -1513,7 +1512,7 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, epicpath, dpath := prepEpicMsg(t,
@@ -1532,7 +1531,7 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, epicpath, dpath := prepEpicMsg(t,
@@ -1553,7 +1552,7 @@ func TestProcessPkt(t *testing.T) {
 				return router.NewDP(fakeExternalInterfaces,
 					nil, mock_router.NewMockBatchConn(ctrl),
 					fakeInternalNextHops, nil,
-					xtest.MustParseIA("1-ff00:0:110"), nil, key)
+					addr.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, epicpath, dpath := prepEpicMsg(t,
@@ -1624,8 +1623,8 @@ func prepBaseMsg(now time.Time) (*slayers.SCION, *scion.Decoded) {
 		FlowID:       0xdead,
 		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
-		DstIA:        xtest.MustParseIA("4-ff00:0:411"),
-		SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
+		DstIA:        addr.MustParseIA("4-ff00:0:411"),
+		SrcIA:        addr.MustParseIA("2-ff00:0:222"),
 		Path:         &scion.Raw{},
 		PayloadLen:   26, // scionudpLayer + len("actualpayloadbytes")
 	}
@@ -1654,7 +1653,7 @@ func prepEpicMsg(t *testing.T, afterProcessing bool, key []byte,
 	spkt, dpath := prepBaseMsg(now)
 	spkt.PathType = epic.PathType
 
-	spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
+	spkt.DstIA = addr.MustParseIA("1-ff00:0:110")
 	dpath.HopFields = []path.HopField{
 		{ConsIngress: 41, ConsEgress: 40},
 		{ConsIngress: 31, ConsEgress: 30},

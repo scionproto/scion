@@ -23,8 +23,8 @@ import (
 
 	cs_drkey "github.com/scionproto/scion/control/drkey"
 	"github.com/scionproto/scion/control/drkey/mock_drkey"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/periodic"
 )
 
@@ -39,7 +39,7 @@ func TestPrefetcherRun(t *testing.T) {
 
 	prefetcher := cs_drkey.Prefetcher{
 		Engine:      mock_engine,
-		LocalIA:     xtest.MustParseIA("1-ff00:0:110"),
+		LocalIA:     addr.MustParseIA("1-ff00:0:110"),
 		KeyDuration: time.Hour,
 	}
 
@@ -47,7 +47,7 @@ func TestPrefetcherRun(t *testing.T) {
 
 	cachedKeys := []cs_drkey.Level1PrefetchInfo{
 		{
-			IA:    xtest.MustParseIA("1-ff00:0:112"),
+			IA:    addr.MustParseIA("1-ff00:0:112"),
 			Proto: drkey.SCMP,
 		},
 	}
@@ -55,7 +55,7 @@ func TestPrefetcherRun(t *testing.T) {
 		firstCached).Times(1).Return(cachedKeys)
 
 	cachedKeys = append(cachedKeys, cs_drkey.Level1PrefetchInfo{
-		IA:    xtest.MustParseIA("1-ff00:0:111"),
+		IA:    addr.MustParseIA("1-ff00:0:111"),
 		Proto: drkey.SCMP,
 	})
 	mock_engine.EXPECT().GetLevel1PrefetchInfo().After(

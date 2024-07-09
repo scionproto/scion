@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	cs "github.com/scionproto/scion/control"
-	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/private/storage/trust/sqlite"
 	"github.com/scionproto/scion/scion-pki/testcrypto"
@@ -36,7 +36,7 @@ func TestNewSigner(t *testing.T) {
 	require.NoError(t, err)
 
 	signer := cs.NewSigner(
-		xtest.MustParseIA("1-ff00:0:110"),
+		addr.MustParseIA("1-ff00:0:110"),
 		db,
 		filepath.Join(dir, "/ISD1/ASff00_0_110"),
 	)

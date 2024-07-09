@@ -25,7 +25,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/mock_snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
@@ -35,7 +34,7 @@ import (
 )
 
 func TestRedirectQUIC(t *testing.T) {
-	dummyIA := xtest.MustParseIA("1-ff00:0:2")
+	dummyIA := addr.MustParseIA("1-ff00:0:2")
 	testCases := map[string]struct {
 		input     net.Addr
 		wantAddr  net.Addr
@@ -118,7 +117,7 @@ func TestBuildFullAddress(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
-		remoteIA := xtest.MustParseIA("1-ff00:0:2")
+		remoteIA := addr.MustParseIA("1-ff00:0:2")
 		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
 		aw := infraenv.AddressRewriter{
 			Router:    router,
@@ -134,7 +133,7 @@ func TestBuildFullAddress(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
-		remoteIA := xtest.MustParseIA("1-ff00:0:2")
+		remoteIA := addr.MustParseIA("1-ff00:0:2")
 		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
 		aw := infraenv.AddressRewriter{
 			Router:    router,
@@ -155,7 +154,7 @@ func TestBuildFullAddress(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
-		remoteIA := xtest.MustParseIA("1-ff00:0:2")
+		remoteIA := addr.MustParseIA("1-ff00:0:2")
 		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
 		aw := infraenv.AddressRewriter{
 			Router:    router,
@@ -185,7 +184,7 @@ func TestBuildFullAddress(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
-		localIA := xtest.MustParseIA("1-ff00:0:1")
+		localIA := addr.MustParseIA("1-ff00:0:1")
 		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
 		aw := infraenv.AddressRewriter{
 			Router:    router,
@@ -221,7 +220,7 @@ func TestBuildFullAddress(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
-		localIA := xtest.MustParseIA("1-ff00:0:1")
+		localIA := addr.MustParseIA("1-ff00:0:1")
 		svcRouter := mock_infraenv.NewMockSVCResolver(ctrl)
 		aw := infraenv.AddressRewriter{
 			Router:    router,

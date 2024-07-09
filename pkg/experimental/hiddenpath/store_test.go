@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/slayers/path"
@@ -37,7 +36,7 @@ import (
 
 func TestStorerGet(t *testing.T) {
 	want, dbresult := createSegs(t)
-	groupID := hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:111"), Suffix: 42}
+	groupID := hiddenpath.GroupID{OwnerAS: addr.MustParseAS("ff00:0:111"), Suffix: 42}
 	testCases := map[string]struct {
 		inputGroups []hiddenpath.GroupID
 		inputIA     addr.IA
@@ -49,11 +48,11 @@ func TestStorerGet(t *testing.T) {
 			inputGroups: []hiddenpath.GroupID{
 				groupID,
 			},
-			inputIA: xtest.MustParseIA("1-ff00:0:110"),
+			inputIA: addr.MustParseIA("1-ff00:0:110"),
 			db: func(c *gomock.Controller) pathdb.DB {
 				ret := mock_pathdb.NewMockDB(c)
 				ret.EXPECT().Get(gomock.Any(), &query.Params{
-					EndsAt: []addr.IA{xtest.MustParseIA("1-ff00:0:110")},
+					EndsAt: []addr.IA{addr.MustParseIA("1-ff00:0:110")},
 					HPGroupIDs: []uint64{
 						groupID.ToUint64(),
 					},
@@ -68,11 +67,11 @@ func TestStorerGet(t *testing.T) {
 			inputGroups: []hiddenpath.GroupID{
 				groupID,
 			},
-			inputIA: xtest.MustParseIA("1-ff00:0:110"),
+			inputIA: addr.MustParseIA("1-ff00:0:110"),
 			db: func(c *gomock.Controller) pathdb.DB {
 				ret := mock_pathdb.NewMockDB(c)
 				ret.EXPECT().Get(gomock.Any(), &query.Params{
-					EndsAt: []addr.IA{xtest.MustParseIA("1-ff00:0:110")},
+					EndsAt: []addr.IA{addr.MustParseIA("1-ff00:0:110")},
 					HPGroupIDs: []uint64{
 						groupID.ToUint64(),
 					},
@@ -111,7 +110,7 @@ func TestStorerPut(t *testing.T) {
 	}{
 		"valid": {
 			inputGroup: hiddenpath.GroupID{
-				OwnerAS: xtest.MustParseAS("ff00:0:111"), Suffix: 42,
+				OwnerAS: addr.MustParseAS("ff00:0:111"), Suffix: 42,
 			},
 			inputSegs: want,
 			db: func(c *gomock.Controller) pathdb.DB {
@@ -124,7 +123,7 @@ func TestStorerPut(t *testing.T) {
 		},
 		"db error": {
 			inputGroup: hiddenpath.GroupID{
-				OwnerAS: xtest.MustParseAS("ff00:0:111"), Suffix: 42,
+				OwnerAS: addr.MustParseAS("ff00:0:111"), Suffix: 42,
 			},
 			inputSegs: want,
 			db: func(c *gomock.Controller) pathdb.DB {
@@ -156,7 +155,7 @@ func TestStorerPut(t *testing.T) {
 func createSegs(t *testing.T) ([]*seg.Meta, query.Results) {
 	t.Helper()
 	asEntry := seg.ASEntry{
-		Local: xtest.MustParseIA("1-ff00:0:110"),
+		Local: addr.MustParseIA("1-ff00:0:110"),
 		HopEntry: seg.HopEntry{
 			HopField: seg.HopField{MAC: [path.MacLen]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11}},
 		},

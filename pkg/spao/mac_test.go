@@ -24,8 +24,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/empty"
@@ -36,8 +36,8 @@ import (
 )
 
 func TestComputeAuthMac(t *testing.T) {
-	srcIA := xtest.MustParseIA("1-ff00:0:111")
-	dstIA := xtest.MustParseIA("1-ff00:0:112")
+	srcIA := addr.MustParseIA("1-ff00:0:111")
+	dstIA := addr.MustParseIA("1-ff00:0:112")
 	authKey := drkey.Key{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7}
 	ts := uint32(0x030201)
 	fooPayload := []byte("some payload")

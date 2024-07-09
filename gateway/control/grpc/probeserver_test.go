@@ -26,9 +26,9 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/gateway/control/grpc"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/mocks/net/mock_net"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	gpb "github.com/scionproto/scion/pkg/proto/gateway"
 	"github.com/scionproto/scion/pkg/snet"
 )
@@ -37,7 +37,7 @@ func TestControlDispatcher(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	src := &snet.UDPAddr{IA: xtest.MustParseIA("1-ff00:0:110")}
+	src := &snet.UDPAddr{IA: addr.MustParseIA("1-ff00:0:110")}
 
 	requests := make([][]byte, 3)
 	for i := range requests {

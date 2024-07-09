@@ -21,7 +21,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/mock_snet"
 )
@@ -30,39 +29,46 @@ func TestLocalISDASEval(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	pp := NewPathProvider(ctrl)
-	paths212 := pp.GetPaths(xtest.MustParseIA("2-ff00:0:212"), xtest.MustParseIA("2-ff00:0:220"))
-	paths220 := pp.GetPaths(xtest.MustParseIA("2-ff00:0:220"), xtest.MustParseIA("2-ff00:0:212"))
+	paths212 := pp.GetPaths(addr.MustParseIA("2-ff00:0:212"), addr.MustParseIA("2-ff00:0:220"))
+	paths220 := pp.GetPaths(addr.MustParseIA("2-ff00:0:220"), addr.MustParseIA("2-ff00:0:212"))
 	inPaths := append(paths212, paths220...)
 	localPath := mock_snet.NewMockPath(ctrl)
-	localPath.EXPECT().Source().Return(xtest.MustParseIA("2-ff00:0:220"))
-	localPath.EXPECT().Destination().Return(xtest.MustParseIA("2-ff00:0:220"))
+	localPath.EXPECT().Source().Return(addr.MustParseIA("2-ff00:0:220"))
+	localPath.EXPECT().Destination().Return(addr.MustParseIA("2-ff00:0:220"))
 	tests := map[string]struct {
 		AllowedIAs []addr.IA
 		ExpPathNum int
 		Paths      []snet.Path
 	}{
 		"first isdas": {
-			AllowedIAs: xtest.MustParseIAs("2-ff00:0:212"),
+			AllowedIAs: []addr.IA{addr.MustParseIA("2-ff00:0:212")},
 			ExpPathNum: 6,
 			Paths:      inPaths,
 		},
 		"second isdas": {
-			AllowedIAs: xtest.MustParseIAs("2-ff00:0:220"),
+			AllowedIAs: []addr.IA{addr.MustParseIA("2-ff00:0:220")},
 			ExpPathNum: 6,
 			Paths:      inPaths,
 		},
 		"both isdases": {
-			AllowedIAs: xtest.MustParseIAs("2-ff00:0:212,2-ff00:0:220"),
+			AllowedIAs: []addr.IA{
+				addr.MustParseIA("2-ff00:0:212"),
+				addr.MustParseIA("2-ff00:0:220"),
+			},
 			ExpPathNum: 12,
 			Paths:      inPaths,
 		},
 		"extra isdas": {
-			AllowedIAs: xtest.MustParseIAs("2-ff00:0:212,2-ff00:0:220,1-ff00:0:220"),
+			AllowedIAs: []addr.IA{
+				addr.MustParseIA("2-ff00:0:212"),
+				addr.MustParseIA("2-ff00:0:220"),
+				addr.MustParseIA("1-ff00:0:220"),
+			},
 			ExpPathNum: 12,
 			Paths:      inPaths,
 		},
 		"local paths are not counted": {
-			AllowedIAs: xtest.MustParseIAs("2-ff00:0:220"),
+			AllowedIAs: []addr.IA{addr.MustParseIA("2-ff00:0:220")},
 			ExpPathNum: 6,
 			Paths:      append(inPaths, localPath),
 		},

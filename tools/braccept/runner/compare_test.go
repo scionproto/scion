@@ -23,7 +23,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/util"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
@@ -89,8 +88,8 @@ func prepareSCION(t *testing.T, diff string) gopacket.Packet {
 		FlowID:       0xdead,
 		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:3"),
+		SrcIA:        addr.MustParseIA("1-ff00:0:4"),
+		DstIA:        addr.MustParseIA("1-ff00:0:3"),
 		Path:         sp,
 	}
 	if err := scionL.SetSrcAddr(addr.MustParseHost(diff)); err != nil {

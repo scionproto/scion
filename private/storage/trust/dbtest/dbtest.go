@@ -141,7 +141,7 @@ func run(t *testing.T, db TestableDB, cfg Config) {
 		})
 		t.Run("Get chain with covered validity", func(t *testing.T) {
 			chains, err := db.Chains(ctx, trust.ChainQuery{
-				IA: xtest.MustParseIA("1-ff00:0:110"),
+				IA: addr.MustParseIA("1-ff00:0:110"),
 				Validity: cppki.Validity{
 					NotBefore: xtest.MustParseTime(t, "2020-06-24T14:00:00Z"),
 					NotAfter:  xtest.MustParseTime(t, "2020-06-27T00:00:00Z"),
@@ -152,7 +152,7 @@ func run(t *testing.T, db TestableDB, cfg Config) {
 		})
 		t.Run("Get chain with not covered validity", func(t *testing.T) {
 			chains, err := db.Chains(ctx, trust.ChainQuery{
-				IA: xtest.MustParseIA("1-ff00:0:110"),
+				IA: addr.MustParseIA("1-ff00:0:110"),
 				Validity: cppki.Validity{
 					NotBefore: xtest.MustParseTime(t, "2020-06-24T14:00:00Z"),
 					NotAfter:  xtest.MustParseTime(t, "2020-06-27T14:00:00Z"),

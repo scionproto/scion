@@ -43,7 +43,6 @@ go_test(
     deps = [
         "//pkg/addr:go_default_library",
         "//pkg/private/serrors:go_default_library",
-        "//pkg/private/xtest:go_default_library",
         "//pkg/proto/control_plane:go_default_library",
         "//pkg/proto/crypto:go_default_library",
         "//pkg/scrypto/signed:go_default_library",

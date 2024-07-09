@@ -23,7 +23,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	libepic "github.com/scionproto/scion/pkg/experimental/epic"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path/epic"
 )
@@ -381,7 +380,7 @@ func TestCoreFromPktCounter(t *testing.T) {
 func createScionCmnAddrHdr(t *testing.T) *slayers.SCION {
 	t.Helper()
 	spkt := &slayers.SCION{
-		SrcIA:      xtest.MustParseIA("2-ff00:0:222"),
+		SrcIA:      addr.MustParseIA("2-ff00:0:222"),
 		PayloadLen: 120,
 	}
 	_ = spkt.SetSrcAddr(addr.MustParseHost("10.0.0.100"))

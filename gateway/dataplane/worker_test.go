@@ -21,7 +21,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/ringbuf"
 )
@@ -67,7 +67,7 @@ func SendFrame(t *testing.T, w *worker, data []byte) {
 
 func TestParsing(t *testing.T) {
 	addr := &snet.UDPAddr{
-		IA: xtest.MustParseIA("1-ff00:0:300"),
+		IA: addr.MustParseIA("1-ff00:0:300"),
 		Host: &net.UDPAddr{
 			IP:   net.IP{192, 168, 1, 1},
 			Port: 80,

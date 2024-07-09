@@ -25,7 +25,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/util"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
@@ -136,8 +135,8 @@ func ChildToPeer(artifactsDir string, mac hash.Hash) runner.Case {
 		FlowID:       0xdead,
 		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:5"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:2"),
+		SrcIA:        addr.MustParseIA("1-ff00:0:5"),
+		DstIA:        addr.MustParseIA("1-ff00:0:2"),
 		Path:         sp,
 	}
 	if err := scionL.SetSrcAddr(addr.MustParseHost("172.16.5.1")); err != nil {

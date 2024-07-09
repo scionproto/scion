@@ -24,7 +24,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
-	"github.com/scionproto/scion/pkg/private/xtest"
 )
 
 func TestRegistrationPolicyUnmarshalYAML(t *testing.T) {
@@ -41,31 +40,31 @@ func TestRegistrationPolicyUnmarshalYAML(t *testing.T) {
 					Groups: map[hiddenpath.GroupID]*hiddenpath.Group{
 						mustParseGroupID(t, "ff00:0:110-69b5"): {
 							ID:    mustParseGroupID(t, "ff00:0:110-69b5"),
-							Owner: xtest.MustParseIA("1-ff00:0:110"),
+							Owner: addr.MustParseIA("1-ff00:0:110"),
 							Writers: map[addr.IA]struct{}{
-								xtest.MustParseIA("1-ff00:0:111"): {},
-								xtest.MustParseIA("1-ff00:0:112"): {},
+								addr.MustParseIA("1-ff00:0:111"): {},
+								addr.MustParseIA("1-ff00:0:112"): {},
 							},
 							Readers: map[addr.IA]struct{}{
-								xtest.MustParseIA("1-ff00:0:114"): {},
+								addr.MustParseIA("1-ff00:0:114"): {},
 							},
 							Registries: map[addr.IA]struct{}{
-								xtest.MustParseIA("1-ff00:0:111"): {},
-								xtest.MustParseIA("1-ff00:0:113"): {},
+								addr.MustParseIA("1-ff00:0:111"): {},
+								addr.MustParseIA("1-ff00:0:113"): {},
 							},
 						},
 						mustParseGroupID(t, "ff00:0:222-abcd"): {
 							ID:    mustParseGroupID(t, "ff00:0:222-abcd"),
-							Owner: xtest.MustParseIA("1-ff00:0:222"),
+							Owner: addr.MustParseIA("1-ff00:0:222"),
 							Writers: map[addr.IA]struct{}{
-								xtest.MustParseIA("1-ff00:0:111"): {},
-								xtest.MustParseIA("1-ff00:0:112"): {},
+								addr.MustParseIA("1-ff00:0:111"): {},
+								addr.MustParseIA("1-ff00:0:112"): {},
 							},
 							Readers: map[addr.IA]struct{}{
-								xtest.MustParseIA("1-ff00:0:114"): {},
+								addr.MustParseIA("1-ff00:0:114"): {},
 							},
 							Registries: map[addr.IA]struct{}{
-								xtest.MustParseIA("1-ff00:0:115"): {},
+								addr.MustParseIA("1-ff00:0:115"): {},
 							},
 						},
 					},

@@ -30,6 +30,7 @@ go_test(
     deps = [
         "//gateway/control:go_default_library",
         "//gateway/control/mock_control:go_default_library",
+        "//pkg/addr:go_default_library",
         "//pkg/log:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/private/xtest:go_default_library",

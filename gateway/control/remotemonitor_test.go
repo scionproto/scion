@@ -30,8 +30,8 @@ import (
 )
 
 func TestRemoteMonitor(t *testing.T) {
-	ia1 := xtest.MustParseIA("1-ff00:0:110")
-	ia2 := xtest.MustParseIA("1-ff00:0:111")
+	ia1 := addr.MustParseIA("1-ff00:0:110")
+	ia2 := addr.MustParseIA("1-ff00:0:111")
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
