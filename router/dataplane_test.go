@@ -1218,7 +1218,7 @@ func TestProcessPkt(t *testing.T) {
 					dpath.InfoFields[0].UpdateSegID(dpath.HopFields[1].Mac)
 				}
 
-        dpath.PathMeta.CurrHF++
+				dpath.PathMeta.CurrHF++
 				dpath.PathMeta.CurrINF++
 
 				return router.NewPacket(toBytes(t, spkt, dpath), nil, dstAddr, ingress, egress)
