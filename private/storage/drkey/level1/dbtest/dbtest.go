@@ -21,8 +21,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/drkey/drkeytest"
 )
@@ -33,8 +33,8 @@ const (
 )
 
 var (
-	srcIA = xtest.MustParseIA("1-ff00:0:111")
-	dstIA = xtest.MustParseIA("1-ff00:0:112")
+	srcIA = addr.MustParseIA("1-ff00:0:111")
+	dstIA = addr.MustParseIA("1-ff00:0:112")
 )
 
 type TestableDB interface {

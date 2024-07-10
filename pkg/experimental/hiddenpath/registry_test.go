@@ -25,14 +25,13 @@ import (
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath/mock_hiddenpath"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/snet"
 )
 
 func TestRegistryRegister(t *testing.T) {
-	localIA := xtest.MustParseIA("1-ff00:0:114")
-	writer := xtest.MustParseIA("2-ff00:0:221")
+	localIA := addr.MustParseIA("1-ff00:0:114")
+	writer := addr.MustParseIA("2-ff00:0:221")
 	groups := map[hiddenpath.GroupID]*hiddenpath.Group{
 		mustParseGroupID(t, "ff00:0:4-5"): {
 			Writers:    map[addr.IA]struct{}{writer: {}},

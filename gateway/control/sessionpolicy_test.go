@@ -97,7 +97,7 @@ func TestLegacySessionPolicyAdapterParse(t *testing.T) {
 			Expected: control.SessionPolicies{
 				control.SessionPolicy{
 					ID:             0,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     control.DefaultPerfPolicy,
 					PathPolicy:     control.DefaultPathPolicy,
@@ -189,19 +189,19 @@ func TestSessionPoliciesRemoteIAs(t *testing.T) {
 		},
 		"single entry": {
 			Policies: control.SessionPolicies{
-				control.SessionPolicy{IA: xtest.MustParseIA("1-ff00:0:110")},
+				control.SessionPolicy{IA: addr.MustParseIA("1-ff00:0:110")},
 			},
-			Expected: []addr.IA{xtest.MustParseIA("1-ff00:0:110")},
+			Expected: []addr.IA{addr.MustParseIA("1-ff00:0:110")},
 		},
 		"multiple entries with duplicates": {
 			Policies: control.SessionPolicies{
-				control.SessionPolicy{IA: xtest.MustParseIA("1-ff00:0:110")},
-				control.SessionPolicy{IA: xtest.MustParseIA("1-ff00:0:110")},
-				control.SessionPolicy{IA: xtest.MustParseIA("1-ff00:0:111")},
+				control.SessionPolicy{IA: addr.MustParseIA("1-ff00:0:110")},
+				control.SessionPolicy{IA: addr.MustParseIA("1-ff00:0:110")},
+				control.SessionPolicy{IA: addr.MustParseIA("1-ff00:0:111")},
 			},
 			Expected: []addr.IA{
-				xtest.MustParseIA("1-ff00:0:110"),
-				xtest.MustParseIA("1-ff00:0:111"),
+				addr.MustParseIA("1-ff00:0:110"),
+				addr.MustParseIA("1-ff00:0:111"),
 			},
 		},
 	}

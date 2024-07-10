@@ -52,7 +52,6 @@ go_test(
         "//pkg/private/common:go_default_library",
         "//pkg/private/ctrl/path_mgmt:go_default_library",
         "//pkg/private/serrors:go_default_library",
-        "//pkg/private/xtest:go_default_library",
         "//pkg/private/xtest/graph:go_default_library",
         "//pkg/private/xtest/matchers:go_default_library",
         "//pkg/segment:go_default_library",

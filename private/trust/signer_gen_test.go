@@ -34,6 +34,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
@@ -106,7 +107,7 @@ func TestSignerGenGenerate(t *testing.T) {
 				cert := chain[0]
 				db := mock_trust.NewMockDB(mctrl)
 				matcher := chainQueryMatcher{
-					ia:   xtest.MustParseIA("1-ff00:0:110"),
+					ia:   addr.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
 				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).
@@ -120,7 +121,7 @@ func TestSignerGenGenerate(t *testing.T) {
 			expected: []trust.Signer{{
 				PrivateKey: key,
 				Algorithm:  signed.ECDSAWithSHA256,
-				IA:         xtest.MustParseIA("1-ff00:0:110"),
+				IA:         addr.MustParseIA("1-ff00:0:110"),
 				TRCID: cppki.TRCID{
 					ISD:    1,
 					Base:   1,
@@ -148,7 +149,7 @@ func TestSignerGenGenerate(t *testing.T) {
 				cert := chain[0]
 				db := mock_trust.NewMockDB(mctrl)
 				matcher := chainQueryMatcher{
-					ia:   xtest.MustParseIA("1-ff00:0:110"),
+					ia:   addr.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
 				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).
@@ -157,7 +158,7 @@ func TestSignerGenGenerate(t *testing.T) {
 					[][]*x509.Certificate{chain}, nil,
 				)
 				db.EXPECT().Chains(ctxMatcher{}, chainQueryMatcher{
-					ia:   xtest.MustParseIA("1-ff00:0:110"),
+					ia:   addr.MustParseIA("1-ff00:0:110"),
 					skid: chain2[0].SubjectKeyId,
 				}).Return(
 					[][]*x509.Certificate{chain2}, nil,
@@ -169,7 +170,7 @@ func TestSignerGenGenerate(t *testing.T) {
 				{
 					PrivateKey: key,
 					Algorithm:  signed.ECDSAWithSHA256,
-					IA:         xtest.MustParseIA("1-ff00:0:110"),
+					IA:         addr.MustParseIA("1-ff00:0:110"),
 					TRCID: cppki.TRCID{
 						ISD:    1,
 						Base:   1,
@@ -187,7 +188,7 @@ func TestSignerGenGenerate(t *testing.T) {
 				{
 					PrivateKey: key2,
 					Algorithm:  signed.ECDSAWithSHA256,
-					IA:         xtest.MustParseIA("1-ff00:0:110"),
+					IA:         addr.MustParseIA("1-ff00:0:110"),
 					TRCID: cppki.TRCID{
 						ISD:    1,
 						Base:   1,
@@ -216,7 +217,7 @@ func TestSignerGenGenerate(t *testing.T) {
 				cert := chain[0]
 				db := mock_trust.NewMockDB(mctrl)
 				matcher := chainQueryMatcher{
-					ia:   xtest.MustParseIA("1-ff00:0:110"),
+					ia:   addr.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
 
@@ -231,7 +232,7 @@ func TestSignerGenGenerate(t *testing.T) {
 			expected: []trust.Signer{{
 				PrivateKey: key,
 				Algorithm:  signed.ECDSAWithSHA256,
-				IA:         xtest.MustParseIA("1-ff00:0:110"),
+				IA:         addr.MustParseIA("1-ff00:0:110"),
 				TRCID: cppki.TRCID{
 					ISD:    1,
 					Base:   1,
@@ -259,7 +260,7 @@ func TestSignerGenGenerate(t *testing.T) {
 				cert := chain[0]
 				db := mock_trust.NewMockDB(mctrl)
 				matcher := chainQueryMatcher{
-					ia:   xtest.MustParseIA("1-ff00:0:110"),
+					ia:   addr.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
 
@@ -288,7 +289,7 @@ func TestSignerGenGenerate(t *testing.T) {
 			expected: []trust.Signer{{
 				PrivateKey: key,
 				Algorithm:  signed.ECDSAWithSHA256,
-				IA:         xtest.MustParseIA("1-ff00:0:110"),
+				IA:         addr.MustParseIA("1-ff00:0:110"),
 				TRCID: cppki.TRCID{
 					ISD:    1,
 					Base:   1,
@@ -349,7 +350,7 @@ func TestSignerGenGenerate(t *testing.T) {
 				db := mock_trust.NewMockDB(mctrl)
 				cert := chain[0]
 				matcher := chainQueryMatcher{
-					ia:   xtest.MustParseIA("1-ff00:0:110"),
+					ia:   addr.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
 				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(trc, nil)
@@ -402,7 +403,7 @@ func TestSignerGenGenerate(t *testing.T) {
 				db := mock_trust.NewMockDB(mctrl)
 				cert := chain[0]
 				matcher := chainQueryMatcher{
-					ia:   xtest.MustParseIA("1-ff00:0:110"),
+					ia:   addr.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
 				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(trc, nil)
@@ -425,7 +426,7 @@ func TestSignerGenGenerate(t *testing.T) {
 				defer mctrl.Finish()
 
 				gen := trust.SignerGen{
-					IA:      xtest.MustParseIA("1-ff00:0:110"),
+					IA:      addr.MustParseIA("1-ff00:0:110"),
 					DB:      tc.db(mctrl),
 					KeyRing: tc.keyRing(mctrl),
 				}
@@ -447,7 +448,7 @@ func TestSignerGenGenerate(t *testing.T) {
 			[][]*x509.Certificate{chain}, nil,
 		)
 		_, err := trust.SignerGen{
-			IA:      xtest.MustParseIA("1-ff00:0:110"),
+			IA:      addr.MustParseIA("1-ff00:0:110"),
 			DB:      db,
 			KeyRing: ring,
 		}.Generate(context.Background())

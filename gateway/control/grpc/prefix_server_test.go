@@ -27,14 +27,15 @@ import (
 
 	"github.com/scionproto/scion/gateway/control/grpc"
 	"github.com/scionproto/scion/gateway/control/grpc/mock_grpc"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	gpb "github.com/scionproto/scion/pkg/proto/gateway"
 	"github.com/scionproto/scion/pkg/snet"
 )
 
 func TestIPPrefixServerPrefixes(t *testing.T) {
-	local := xtest.MustParseIA("1-ff00:0:110")
-	remote := xtest.MustParseIA("1-ff00:0:111")
+	local := addr.MustParseIA("1-ff00:0:110")
+	remote := addr.MustParseIA("1-ff00:0:111")
 
 	testCases := map[string]struct {
 		Advertiser   func(t *testing.T, ctrl *gomock.Controller) grpc.Advertiser

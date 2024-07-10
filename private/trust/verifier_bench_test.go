@@ -28,7 +28,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	"github.com/scionproto/scion/private/storage/trust/sqlite"
@@ -145,7 +145,7 @@ func loadTrustSigner(b *testing.B, dir string, db trust.DB) trust.Signer {
 			NotAfter:  chain[0].NotAfter,
 		},
 		Expiration:   chain[0].NotAfter,
-		IA:           xtest.MustParseIA("1-ff00:0:110"),
+		IA:           addr.MustParseIA("1-ff00:0:110"),
 		SubjectKeyID: chain[0].SubjectKeyId,
 		TRCID: cppki.TRCID{
 			ISD:    1,

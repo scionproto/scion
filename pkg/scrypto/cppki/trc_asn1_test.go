@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 )
 
@@ -43,12 +43,15 @@ func TestDecodeEncodedTRC(t *testing.T) {
 			NotBefore: regularCrt.NotBefore.Add(time.Hour),
 			NotAfter:  regularCrt.NotAfter.Add(-time.Hour),
 		},
-		GracePeriod:       10 * time.Hour,
-		NoTrustReset:      false,
-		Votes:             []int{1, 2, 4},
-		Quorum:            1,
-		CoreASes:          xtest.MustParseASes("ff00:0:110,ff00:0:120"),
-		AuthoritativeASes: xtest.MustParseASes("ff00:0:110"),
+		GracePeriod:  10 * time.Hour,
+		NoTrustReset: false,
+		Votes:        []int{1, 2, 4},
+		Quorum:       1,
+		CoreASes: []addr.AS{
+			addr.MustParseAS("ff00:0:110"),
+			addr.MustParseAS("ff00:0:120"),
+		},
+		AuthoritativeASes: []addr.AS{addr.MustParseAS("ff00:0:110")},
 		Description:       "This is a testing ISD",
 		Certificates: []*x509.Certificate{
 			loadCert(t, "./testdata/sensitive-voting.crt"),

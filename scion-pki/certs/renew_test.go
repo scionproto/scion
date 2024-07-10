@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/scrypto"
@@ -111,7 +112,7 @@ func TestExtractChain(t *testing.T) {
 	caSigner := trust.Signer{
 		PrivateKey:   key,
 		Algorithm:    signed.ECDSAWithSHA256,
-		IA:           xtest.MustParseIA("1-ff00:0:110"),
+		IA:           addr.MustParseIA("1-ff00:0:110"),
 		SubjectKeyID: caChain[0].SubjectKeyId,
 		Expiration:   time.Now().Add(20 * time.Hour),
 		Chain:        caChain,

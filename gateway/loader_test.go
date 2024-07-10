@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/gateway/control/mock_control"
 	"github.com/scionproto/scion/gateway/mock_gateway"
 	"github.com/scionproto/scion/gateway/routing"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/xtest"
 )
@@ -137,7 +138,7 @@ func TestLoaderRun(t *testing.T) {
 			stopCh := make(chan struct{})
 
 			publisher := mock_gateway.NewMockPublisher(ctrl)
-			sessPols := control.SessionPolicies{{IA: xtest.MustParseIA("1-ff00:0:110")}}
+			sessPols := control.SessionPolicies{{IA: addr.MustParseIA("1-ff00:0:110")}}
 			publisher.EXPECT().Publish(sessPols, &defaultPol).Do(
 				func(control.SessionPolicies, *routing.Policy) { close(stopCh) })
 			parser := mock_control.NewMockSessionPolicyParser(ctrl)
@@ -198,7 +199,7 @@ func TestLoaderRun(t *testing.T) {
 		"load default routing policy": func(t *testing.T, ctrl *gomock.Controller) {
 			stopCh := make(chan struct{})
 			publisher := mock_gateway.NewMockPublisher(ctrl)
-			sessPols := control.SessionPolicies{{IA: xtest.MustParseIA("1-ff00:0:110")}}
+			sessPols := control.SessionPolicies{{IA: addr.MustParseIA("1-ff00:0:110")}}
 			defaultRP := &routing.Policy{DefaultAction: routing.Reject}
 			publisher.EXPECT().Publish(sessPols, defaultRP).Do(
 				func(control.SessionPolicies, *routing.Policy) { close(stopCh) })

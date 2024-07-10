@@ -25,7 +25,6 @@ import (
 
 	trustgrpc "github.com/scionproto/scion/control/trust/grpc"
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 )
@@ -38,7 +37,7 @@ func TestReqToChainQuery(t *testing.T) {
 	require.NoError(t, err)
 
 	req := &cppb.ChainsRequest{
-		IsdAs:             uint64(xtest.MustParseIA("1-ff00:0:110")),
+		IsdAs:             uint64(addr.MustParseIA("1-ff00:0:110")),
 		SubjectKeyId:      []byte("tank"),
 		AtLeastValidSince: validSince,
 		AtLeastValidUntil: validUntil,

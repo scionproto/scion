@@ -21,7 +21,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/slayers"
 )
 
@@ -39,7 +39,7 @@ func TestSCMPExternalInterfaceDownDecodeFromBytes(t *testing.T) {
 				0x0, 0x0, 0x0, 0x5,
 			}, bytes.Repeat([]byte{0xff}, 10)...),
 			decoded: &slayers.SCMPExternalInterfaceDown{
-				IA:   xtest.MustParseIA("1-ff00:0:111"),
+				IA:   addr.MustParseIA("1-ff00:0:111"),
 				IfID: uint64(5),
 			},
 			assertFunc: assert.NoError,
@@ -82,7 +82,7 @@ func TestSCMPExternalInterfaceDownSerializeTo(t *testing.T) {
 				0x0, 0x0, 0x0, 0x5,
 			}, bytes.Repeat([]byte{0xff}, 10)...),
 			decoded: &slayers.SCMPExternalInterfaceDown{
-				IA:   xtest.MustParseIA("1-ff00:0:111"),
+				IA:   addr.MustParseIA("1-ff00:0:111"),
 				IfID: uint64(5),
 			},
 			assertFunc: assert.NoError,
@@ -125,7 +125,7 @@ func TestSCMPInternalConnectivityDownDecodeFromBytes(t *testing.T) {
 				0x0, 0x0, 0x0, 0xf,
 			}, bytes.Repeat([]byte{0xff}, 10)...),
 			decoded: &slayers.SCMPInternalConnectivityDown{
-				IA:      xtest.MustParseIA("1-ff00:0:111"),
+				IA:      addr.MustParseIA("1-ff00:0:111"),
 				Ingress: 5,
 				Egress:  15,
 			},
@@ -171,7 +171,7 @@ func TestSCMPInternalConnectivityDownSerializeTo(t *testing.T) {
 				0x0, 0x0, 0x0, 0xf,
 			}, bytes.Repeat([]byte{0xff}, 10)...),
 			decoded: &slayers.SCMPInternalConnectivityDown{
-				IA:      xtest.MustParseIA("1-ff00:0:111"),
+				IA:      addr.MustParseIA("1-ff00:0:111"),
 				Ingress: 5,
 				Egress:  15,
 			},
@@ -364,7 +364,7 @@ func TestSCMPTracerouteDecodeFromBytes(t *testing.T) {
 			decoded: &slayers.SCMPTraceroute{
 				Identifier: 42,
 				Sequence:   9,
-				IA:         xtest.MustParseIA("1-ff00:0:111"),
+				IA:         addr.MustParseIA("1-ff00:0:111"),
 				Interface:  5,
 			},
 			assertFunc: assert.NoError,
@@ -410,7 +410,7 @@ func TestSCMPTracerouteSerializeTo(t *testing.T) {
 			decoded: &slayers.SCMPTraceroute{
 				Identifier: 42,
 				Sequence:   9,
-				IA:         xtest.MustParseIA("1-ff00:0:111"),
+				IA:         addr.MustParseIA("1-ff00:0:111"),
 				Interface:  5,
 			},
 			assertFunc: assert.NoError,

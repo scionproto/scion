@@ -25,12 +25,11 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath/mock_hiddenpath"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	seg "github.com/scionproto/scion/pkg/segment"
 )
 
 func TestForwardServerSegments(t *testing.T) {
-	local := xtest.MustParseIA("1-ff00:0:110")
+	local := addr.MustParseIA("1-ff00:0:110")
 	testCases := map[string]struct {
 		request   hiddenpath.SegmentRequest
 		groups    func() map[hiddenpath.GroupID]*hiddenpath.Group
@@ -44,20 +43,20 @@ func TestForwardServerSegments(t *testing.T) {
 		"valid": {
 			request: hiddenpath.SegmentRequest{
 				GroupIDs: []hiddenpath.GroupID{
-					{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-					{OwnerAS: xtest.MustParseAS("ff00:0:111")},
-					{OwnerAS: xtest.MustParseAS("ff00:0:112")},
+					{OwnerAS: addr.MustParseAS("ff00:0:110")},
+					{OwnerAS: addr.MustParseAS("ff00:0:111")},
+					{OwnerAS: addr.MustParseAS("ff00:0:112")},
 				},
-				DstIA: xtest.MustParseIA("2-ff00:0:22"),
+				DstIA: addr.MustParseIA("2-ff00:0:22"),
 			},
 			rpc: func(c *gomock.Controller) hiddenpath.RPC {
 				ret := mock_hiddenpath.NewMockRPC(c)
 				ret.EXPECT().HiddenSegments(gomock.Any(), hiddenpath.SegmentRequest{
 					GroupIDs: []hiddenpath.GroupID{
-						{OwnerAS: xtest.MustParseAS("ff00:0:111")},
-						{OwnerAS: xtest.MustParseAS("ff00:0:112")},
+						{OwnerAS: addr.MustParseAS("ff00:0:111")},
+						{OwnerAS: addr.MustParseAS("ff00:0:112")},
 					},
-					DstIA: xtest.MustParseIA("2-ff00:0:22"),
+					DstIA: addr.MustParseIA("2-ff00:0:22"),
 				},
 					gomock.Any()).Return([]*seg.Meta{{Type: seg.TypeDown}}, nil).
 					Times(1)
@@ -67,10 +66,10 @@ func TestForwardServerSegments(t *testing.T) {
 				ret := mock_hiddenpath.NewMockLookuper(c)
 				ret.EXPECT().Segments(gomock.Any(), hiddenpath.SegmentRequest{
 					GroupIDs: []hiddenpath.GroupID{
-						{OwnerAS: xtest.MustParseAS("ff00:0:110")},
+						{OwnerAS: addr.MustParseAS("ff00:0:110")},
 					},
-					DstIA: xtest.MustParseIA("2-ff00:0:22"),
-					Peer:  xtest.MustParseIA("1-ff00:0:110"),
+					DstIA: addr.MustParseIA("2-ff00:0:22"),
+					Peer:  addr.MustParseIA("1-ff00:0:110"),
 				}).
 					Return([]*seg.Meta{{Type: seg.TypeDown}}, nil).
 					Times(1)
@@ -84,17 +83,17 @@ func TestForwardServerSegments(t *testing.T) {
 			},
 			groups: func() map[hiddenpath.GroupID]*hiddenpath.Group {
 				return map[hiddenpath.GroupID]*hiddenpath.Group{
-					{OwnerAS: xtest.MustParseAS("ff00:0:110")}: {
-						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-						Registries: map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:110"): {}},
+					{OwnerAS: addr.MustParseAS("ff00:0:110")}: {
+						ID:         hiddenpath.GroupID{OwnerAS: addr.MustParseAS("ff00:0:110")},
+						Registries: map[addr.IA]struct{}{addr.MustParseIA("1-ff00:0:110"): {}},
 					},
-					{OwnerAS: xtest.MustParseAS("ff00:0:111")}: {
-						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:111")},
-						Registries: map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:111"): {}},
+					{OwnerAS: addr.MustParseAS("ff00:0:111")}: {
+						ID:         hiddenpath.GroupID{OwnerAS: addr.MustParseAS("ff00:0:111")},
+						Registries: map[addr.IA]struct{}{addr.MustParseIA("1-ff00:0:111"): {}},
 					},
-					{OwnerAS: xtest.MustParseAS("ff00:0:112")}: {
-						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:112")},
-						Registries: map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:111"): {}},
+					{OwnerAS: addr.MustParseAS("ff00:0:112")}: {
+						ID:         hiddenpath.GroupID{OwnerAS: addr.MustParseAS("ff00:0:112")},
+						Registries: map[addr.IA]struct{}{addr.MustParseIA("1-ff00:0:111"): {}},
 					},
 				}
 			},

@@ -25,7 +25,6 @@ import (
 
 	"github.com/scionproto/scion/control/segreq"
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/trust/mock_trust"
 )
 
@@ -37,13 +36,13 @@ func TestCoreChecker(t *testing.T) {
 		ExpectedCore     bool
 	}{
 		"Wildcard": {
-			IA:               xtest.MustParseIA("1-0"),
+			IA:               addr.MustParseIA("1-0"),
 			PrepareInspector: func(i *mock_trust.MockInspector) {},
 			ErrorAssertion:   require.NoError,
 			ExpectedCore:     true,
 		},
 		"InspectorError": {
-			IA: xtest.MustParseIA("1-ff00:0:110"),
+			IA: addr.MustParseIA("1-ff00:0:110"),
 			PrepareInspector: func(i *mock_trust.MockInspector) {
 				i.EXPECT().HasAttributes(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(false, errors.New("test error"))
@@ -52,7 +51,7 @@ func TestCoreChecker(t *testing.T) {
 			ExpectedCore:   false,
 		},
 		"Core": {
-			IA: xtest.MustParseIA("1-ff00:0:110"),
+			IA: addr.MustParseIA("1-ff00:0:110"),
 			PrepareInspector: func(i *mock_trust.MockInspector) {
 				i.EXPECT().HasAttributes(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(true, nil)
@@ -61,7 +60,7 @@ func TestCoreChecker(t *testing.T) {
 			ExpectedCore:   true,
 		},
 		"Non-Core": {
-			IA: xtest.MustParseIA("1-ff00:0:110"),
+			IA: addr.MustParseIA("1-ff00:0:110"),
 			PrepareInspector: func(i *mock_trust.MockInspector) {
 				i.EXPECT().HasAttributes(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(false, nil)

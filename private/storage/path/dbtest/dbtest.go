@@ -28,7 +28,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/common"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/slayers/path"
@@ -418,8 +417,8 @@ func testGetWithHPGroupIDs(t *testing.T, pathDB pathdb.ReadWrite) {
 func testNextQuery(t *testing.T, pathDB pathdb.ReadWrite) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
-	src := xtest.MustParseIA("1-ff00:0:111")
-	dst := xtest.MustParseIA("1-ff00:0:133")
+	src := addr.MustParseIA("1-ff00:0:111")
+	dst := addr.MustParseIA("1-ff00:0:133")
 	oldT := time.Now().Add(-10 * time.Second)
 	updated, err := pathDB.InsertNextQuery(ctx, src, dst, oldT)
 	require.NoError(t, err)
@@ -441,15 +440,15 @@ func testNextQuery(t *testing.T, pathDB pathdb.ReadWrite) {
 	require.NoError(t, err)
 	assert.Equal(t, newT.Unix(), dbT.Unix(), "Should return updated time")
 	// other dst
-	dbT, err = pathDB.GetNextQuery(ctx, src, xtest.MustParseIA("1-ff00:0:122"))
+	dbT, err = pathDB.GetNextQuery(ctx, src, addr.MustParseIA("1-ff00:0:122"))
 	require.NoError(t, err)
 	assert.Zero(t, dbT)
-	dbT, err = pathDB.GetNextQuery(ctx, xtest.MustParseIA("1-ff00:0:122"), dst)
+	dbT, err = pathDB.GetNextQuery(ctx, addr.MustParseIA("1-ff00:0:122"), dst)
 	require.NoError(t, err)
 	assert.Zero(t, dbT)
 	ctx, cancelF = context.WithDeadline(context.Background(), time.Now().Add(-3*time.Second))
 	defer cancelF()
-	_, err = pathDB.GetNextQuery(ctx, src, xtest.MustParseIA("1-ff00:0:122"))
+	_, err = pathDB.GetNextQuery(ctx, src, addr.MustParseIA("1-ff00:0:122"))
 	assert.Error(t, err)
 }
 

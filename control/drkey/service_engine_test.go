@@ -25,6 +25,7 @@ import (
 
 	cs_drkey "github.com/scionproto/scion/control/drkey"
 	"github.com/scionproto/scion/control/drkey/mock_drkey"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
@@ -35,8 +36,8 @@ import (
 
 var (
 	masterKey = xtest.MustParseHexString("305554050357005ae398259bcdae7468")
-	srcIA     = xtest.MustParseIA("1-ff00:0:112")
-	dstIA     = xtest.MustParseIA("1-ff00:0:111")
+	srcIA     = addr.MustParseIA("1-ff00:0:112")
+	dstIA     = addr.MustParseIA("1-ff00:0:111")
 	srcHost   = "10.1.1.12"
 )
 
@@ -253,7 +254,7 @@ func TestGetLevel1Key(t *testing.T) {
 	// Requesting local key should not update the cache
 	locallvl1Meta := drkey.Level1Meta{
 		SrcIA:    dstIA,
-		DstIA:    xtest.MustParseIA("1-ff00:0:111"),
+		DstIA:    addr.MustParseIA("1-ff00:0:111"),
 		ProtoId:  drkey.Generic,
 		Validity: util.SecsToTime(1).UTC(),
 	}

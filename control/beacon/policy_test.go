@@ -21,18 +21,17 @@ import (
 
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	seg "github.com/scionproto/scion/pkg/segment"
 )
 
 var (
-	ia110 = xtest.MustParseIA("1-ff00:0:110")
-	ia111 = xtest.MustParseIA("1-ff00:0:111")
-	ia112 = xtest.MustParseIA("1-ff00:0:112")
-	ia113 = xtest.MustParseIA("1-ff00:0:113")
-	ia210 = xtest.MustParseIA("2-ff00:0:210")
-	ia310 = xtest.MustParseIA("3-ff00:0:310")
-	ia311 = xtest.MustParseIA("3-ff00:0:311")
+	ia110 = addr.MustParseIA("1-ff00:0:110")
+	ia111 = addr.MustParseIA("1-ff00:0:111")
+	ia112 = addr.MustParseIA("1-ff00:0:112")
+	ia113 = addr.MustParseIA("1-ff00:0:113")
+	ia210 = addr.MustParseIA("2-ff00:0:210")
+	ia310 = addr.MustParseIA("3-ff00:0:310")
+	ia311 = addr.MustParseIA("3-ff00:0:311")
 
 	false_val = false
 	true_val  = true

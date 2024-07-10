@@ -29,7 +29,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto"
 )
 
@@ -103,9 +102,9 @@ func InternalIPPort(AS byte, routerIndex byte) (netip.Addr, layers.UDPPort) {
 // All are in ISD-1, except AS 4.
 func ISDAS(AS byte) addr.IA {
 	if AS == 4 {
-		return xtest.MustParseIA(fmt.Sprintf("2-ff00:0:%d", AS))
+		return addr.MustParseIA(fmt.Sprintf("2-ff00:0:%d", AS))
 	}
-	return xtest.MustParseIA(fmt.Sprintf("1-ff00:0:%d", AS))
+	return addr.MustParseIA(fmt.Sprintf("1-ff00:0:%d", AS))
 }
 
 func FakeMAC(AS byte) hash.Hash {

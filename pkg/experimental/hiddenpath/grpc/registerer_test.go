@@ -26,6 +26,7 @@ import (
 
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/beaconing/mock_beaconing"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	hpgrpc "github.com/scionproto/scion/pkg/experimental/hiddenpath/grpc"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath/grpc/mock_grpc"
@@ -122,7 +123,7 @@ func TestRegistererRegisterSegment(t *testing.T) {
 func createSeg(t *testing.T) seg.Meta {
 	t.Helper()
 	asEntry := seg.ASEntry{
-		Local: xtest.MustParseIA("1-ff00:0:110"),
+		Local: addr.MustParseIA("1-ff00:0:110"),
 		HopEntry: seg.HopEntry{
 			HopField: seg.HopField{MAC: [path.MacLen]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11}},
 		},

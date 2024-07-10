@@ -30,7 +30,6 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
@@ -73,7 +72,7 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 				NotAfter:  time.Now().Add(time.Hour),
 			},
 			Expiration:   time.Now().Add(time.Hour - time.Minute),
-			IA:           xtest.MustParseIA("1-ff00:0:111"),
+			IA:           addr.MustParseIA("1-ff00:0:111"),
 			SubjectKeyID: chain[0].SubjectKeyId,
 			Chain:        chain,
 		},
@@ -105,7 +104,7 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 			CMSSigner: func(ctrl *gomock.Controller) grpc.CMSSigner {
 				return mock_grpc.NewMockCMSSigner(ctrl)
 			},
-			IA:        xtest.MustParseIA("1-ff00:0:110"),
+			IA:        addr.MustParseIA("1-ff00:0:110"),
 			Assertion: assert.Error,
 			Code:      codes.InvalidArgument,
 			Metric:    "err_parse",
@@ -123,7 +122,7 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 			CMSSigner: func(ctrl *gomock.Controller) grpc.CMSSigner {
 				return mock_grpc.NewMockCMSSigner(ctrl)
 			},
-			IA:        xtest.MustParseIA("2-ff00:0:112"),
+			IA:        addr.MustParseIA("2-ff00:0:112"),
 			Assertion: assert.Error,
 			Code:      codes.PermissionDenied,
 			Metric:    "err_notfound",
@@ -146,7 +145,7 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 			CMSSigner: func(ctrl *gomock.Controller) grpc.CMSSigner {
 				return mock_grpc.NewMockCMSSigner(ctrl)
 			},
-			IA:        xtest.MustParseIA("1-ff00:0:110"),
+			IA:        addr.MustParseIA("1-ff00:0:110"),
 			Assertion: assert.Error,
 			Code:      codes.InvalidArgument,
 			Metric:    "err_verify",
@@ -171,7 +170,7 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 			CMSSigner: func(ctrl *gomock.Controller) grpc.CMSSigner {
 				return mock_grpc.NewMockCMSSigner(ctrl)
 			},
-			IA:        xtest.MustParseIA("1-ff00:0:110"),
+			IA:        addr.MustParseIA("1-ff00:0:110"),
 			Assertion: assert.Error,
 			Code:      codes.Unavailable,
 			Metric:    "err_internal",
@@ -196,7 +195,7 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 				signer.EXPECT().SignCMS(gomock.Any(), gomock.Any())
 				return signer
 			},
-			IA:        xtest.MustParseIA("1-ff00:0:110"),
+			IA:        addr.MustParseIA("1-ff00:0:110"),
 			Assertion: assert.NoError,
 			Code:      codes.OK,
 			Metric:    "ok_success",

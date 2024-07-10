@@ -23,22 +23,21 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/trust"
 	"github.com/scionproto/scion/private/trust/mock_trust"
 )
 
 var (
-	core110 = xtest.MustParseIA("1-ff00:0:110")
-	core120 = xtest.MustParseIA("1-ff00:0:120")
-	core130 = xtest.MustParseIA("1-ff00:0:130")
-	core210 = xtest.MustParseIA("2-ff00:0:210")
+	core110 = addr.MustParseIA("1-ff00:0:110")
+	core120 = addr.MustParseIA("1-ff00:0:120")
+	core130 = addr.MustParseIA("1-ff00:0:130")
+	core210 = addr.MustParseIA("2-ff00:0:210")
 
-	nonCore111 = xtest.MustParseIA("1-ff00:0:111")
-	nonCore112 = xtest.MustParseIA("1-ff00:0:112")
-	nonCore211 = xtest.MustParseIA("2-ff00:0:211")
-	nonCore212 = xtest.MustParseIA("2-ff00:0:212")
+	nonCore111 = addr.MustParseIA("1-ff00:0:111")
+	nonCore112 = addr.MustParseIA("1-ff00:0:112")
+	nonCore211 = addr.MustParseIA("2-ff00:0:211")
+	nonCore212 = addr.MustParseIA("2-ff00:0:212")
 
 	cores = map[addr.IA]struct{}{
 		core110: {},

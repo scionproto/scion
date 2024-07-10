@@ -29,13 +29,12 @@ import (
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt/proto"
 	"github.com/scionproto/scion/pkg/private/util"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/revcache"
 )
 
 var (
-	ia110  = xtest.MustParseIA("1-ff00:0:110")
-	ia120  = xtest.MustParseIA("1-ff00:0:120")
+	ia110  = addr.MustParseIA("1-ff00:0:110")
+	ia120  = addr.MustParseIA("1-ff00:0:120")
 	ifId15 = common.IFIDType(15)
 	ifId19 = common.IFIDType(19)
 

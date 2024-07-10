@@ -20,7 +20,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/snet"
 )
 
@@ -45,21 +45,21 @@ func TestUDPAddrString(t *testing.T) {
 		},
 		"ipv4": {
 			input: &snet.UDPAddr{
-				IA:   xtest.MustParseIA("1-ff00:0:320"),
+				IA:   addr.MustParseIA("1-ff00:0:320"),
 				Host: &net.UDPAddr{IP: net.IPv4(1, 2, 3, 4), Port: 10000},
 			},
 			want: "1-ff00:0:320,1.2.3.4:10000",
 		},
 		"ipv6": {
 			input: &snet.UDPAddr{
-				IA:   xtest.MustParseIA("1-ff00:0:320"),
+				IA:   addr.MustParseIA("1-ff00:0:320"),
 				Host: &net.UDPAddr{IP: net.ParseIP("2001::1"), Port: 20000},
 			},
 			want: "1-ff00:0:320,[2001::1]:20000",
 		},
 		"ipv6-zone": {
 			input: &snet.UDPAddr{
-				IA:   xtest.MustParseIA("1-ff00:0:320"),
+				IA:   addr.MustParseIA("1-ff00:0:320"),
 				Host: &net.UDPAddr{IP: net.ParseIP("2001::1"), Port: 20000, Zone: "some-zone"},
 			},
 			want: "1-ff00:0:320,[2001::1%some-zone]:20000",
@@ -103,7 +103,7 @@ func TestUDPAddrSet(t *testing.T) {
 			Input: "1-ff00:0:1,192.168.1.1:80",
 			Error: assert.NoError,
 			Want: &snet.UDPAddr{
-				IA: xtest.MustParseIA("1-ff00:0:1"),
+				IA: addr.MustParseIA("1-ff00:0:1"),
 				Host: &net.UDPAddr{
 					IP:   net.ParseIP("192.168.1.1"),
 					Port: 80,
@@ -114,7 +114,7 @@ func TestUDPAddrSet(t *testing.T) {
 			Input: "1-ff00:0:1,[dead::beef%some-zone]:80",
 			Error: assert.NoError,
 			Want: &snet.UDPAddr{
-				IA: xtest.MustParseIA("1-ff00:0:1"),
+				IA: addr.MustParseIA("1-ff00:0:1"),
 				Host: &net.UDPAddr{
 					IP:   net.ParseIP("dead::beef"),
 					Port: 80,

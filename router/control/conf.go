@@ -16,7 +16,6 @@ package control
 
 import (
 	"crypto/sha256"
-	"net"
 	"net/netip"
 	"sort"
 
@@ -34,8 +33,8 @@ type Dataplane interface {
 	CreateIACtx(ia addr.IA) error
 	AddInternalInterface(ia addr.IA, local netip.AddrPort) error
 	AddExternalInterface(localIfID common.IFIDType, info LinkInfo, owned bool) error
-	AddSvc(ia addr.IA, svc addr.SVC, a *net.UDPAddr) error
-	DelSvc(ia addr.IA, svc addr.SVC, a *net.UDPAddr) error
+	AddSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error
+	DelSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error
 	SetKey(ia addr.IA, index int, key []byte) error
 	SetPortRange(start, end uint16)
 }
@@ -57,7 +56,7 @@ type LinkInfo struct {
 // LinkEnd represents one end of a link.
 type LinkEnd struct {
 	IA   addr.IA
-	Addr *net.UDPAddr
+	Addr netip.AddrPort
 	IFID common.IFIDType
 }
 
@@ -70,7 +69,7 @@ type ObservableDataplane interface {
 // InternalInterface represents the internal interface of a router.
 type InternalInterface struct {
 	IA   addr.IA
-	Addr *net.UDPAddr
+	Addr netip.AddrPort
 }
 
 // ExternalInterface represents an external interface of a router.
@@ -89,7 +88,7 @@ type SiblingInterface struct {
 	InterfaceID uint16
 	// InternalInterfaces is the local address (internal interface)
 	// of the sibling router that owns this interface.
-	InternalInterface *net.UDPAddr
+	InternalInterface netip.AddrPort
 	// Relationship describes the type of inter-AS links.
 	Relationship topology.LinkType
 	// MTU is the maximum Transmission Unit for SCION packets.
@@ -181,12 +180,12 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 		linkInfo := LinkInfo{
 			Local: LinkEnd{
 				IA:   cfg.IA,
-				Addr: net.UDPAddrFromAddrPort(iface.Local),
+				Addr: iface.Local,
 				IFID: iface.ID,
 			},
 			Remote: LinkEnd{
 				IA:   iface.IA,
-				Addr: net.UDPAddrFromAddrPort(iface.Remote),
+				Addr: iface.Remote,
 				IFID: iface.RemoteIFID,
 			},
 			Instance: iface.BRName,
@@ -202,8 +201,8 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 			// When setting up external interfaces that belong to other routers in the AS, they
 			// are basically IP/UDP tunnels between the two border routers, and as such is
 			// configured in the data plane.
-			linkInfo.Local.Addr = net.UDPAddrFromAddrPort(cfg.BR.InternalAddr)
-			linkInfo.Remote.Addr = net.UDPAddrFromAddrPort(iface.InternalAddr)
+			linkInfo.Local.Addr = cfg.BR.InternalAddr
+			linkInfo.Remote.Addr = iface.InternalAddr
 			// For internal BFD always use the default configuration.
 			linkInfo.BFD = BFD{}
 		}
@@ -236,7 +235,7 @@ func confServices(dp Dataplane, cfg *Config) error {
 			return addrs[i].IP.String() < addrs[j].IP.String()
 		})
 		for _, a := range addrs {
-			if err := dp.AddSvc(cfg.IA, svc, a); err != nil {
+			if err := dp.AddSvc(cfg.IA, svc, a.AddrPort()); err != nil {
 				return err
 			}
 		}

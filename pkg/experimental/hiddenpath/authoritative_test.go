@@ -25,12 +25,11 @@ import (
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath/mock_hiddenpath"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	seg "github.com/scionproto/scion/pkg/segment"
 )
 
 func TestAuthoritativeServerSegments(t *testing.T) {
-	local := xtest.MustParseIA("1-ff00:0:14")
+	local := addr.MustParseIA("1-ff00:0:14")
 	testCases := map[string]struct {
 		request   hiddenpath.SegmentRequest
 		local     addr.IA
@@ -42,17 +41,17 @@ func TestAuthoritativeServerSegments(t *testing.T) {
 		"no groups in request": {
 			request: hiddenpath.SegmentRequest{
 				GroupIDs: nil,
-				DstIA:    xtest.MustParseIA("2-ff00:0:22"),
-				Peer:     xtest.MustParseIA("1-ff00:0:13"),
+				DstIA:    addr.MustParseIA("2-ff00:0:22"),
+				Peer:     addr.MustParseIA("1-ff00:0:13"),
 			},
 			db: func(ctrl *gomock.Controller) hiddenpath.Store {
 				return nil
 			},
 			groups: func() map[hiddenpath.GroupID]*hiddenpath.Group {
 				return map[hiddenpath.GroupID]*hiddenpath.Group{
-					{OwnerAS: xtest.MustParseAS("ff00:0:110")}: {
-						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-						Readers:    map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
+					{OwnerAS: addr.MustParseAS("ff00:0:110")}: {
+						ID:         hiddenpath.GroupID{OwnerAS: addr.MustParseAS("ff00:0:110")},
+						Readers:    map[addr.IA]struct{}{addr.MustParseIA("1-ff00:0:13"): {}},
 						Registries: map[addr.IA]struct{}{local: {}},
 					},
 				}
@@ -63,20 +62,20 @@ func TestAuthoritativeServerSegments(t *testing.T) {
 		"unknown group in request": {
 			request: hiddenpath.SegmentRequest{
 				GroupIDs: []hiddenpath.GroupID{
-					{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-					{OwnerAS: xtest.MustParseAS("ff00:0:404")},
+					{OwnerAS: addr.MustParseAS("ff00:0:110")},
+					{OwnerAS: addr.MustParseAS("ff00:0:404")},
 				},
-				DstIA: xtest.MustParseIA("2-ff00:0:22"),
-				Peer:  xtest.MustParseIA("1-ff00:0:13"),
+				DstIA: addr.MustParseIA("2-ff00:0:22"),
+				Peer:  addr.MustParseIA("1-ff00:0:13"),
 			},
 			db: func(ctrl *gomock.Controller) hiddenpath.Store {
 				return nil
 			},
 			groups: func() map[hiddenpath.GroupID]*hiddenpath.Group {
 				return map[hiddenpath.GroupID]*hiddenpath.Group{
-					{OwnerAS: xtest.MustParseAS("ff00:0:110")}: {
-						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-						Readers:    map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
+					{OwnerAS: addr.MustParseAS("ff00:0:110")}: {
+						ID:         hiddenpath.GroupID{OwnerAS: addr.MustParseAS("ff00:0:110")},
+						Readers:    map[addr.IA]struct{}{addr.MustParseIA("1-ff00:0:13"): {}},
 						Registries: map[addr.IA]struct{}{local: {}},
 					},
 				}
@@ -87,25 +86,25 @@ func TestAuthoritativeServerSegments(t *testing.T) {
 		"not reader in group": {
 			request: hiddenpath.SegmentRequest{
 				GroupIDs: []hiddenpath.GroupID{
-					{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-					{OwnerAS: xtest.MustParseAS("ff00:0:111")},
+					{OwnerAS: addr.MustParseAS("ff00:0:110")},
+					{OwnerAS: addr.MustParseAS("ff00:0:111")},
 				},
-				DstIA: xtest.MustParseIA("2-ff00:0:22"),
-				Peer:  xtest.MustParseIA("1-ff00:0:13"),
+				DstIA: addr.MustParseIA("2-ff00:0:22"),
+				Peer:  addr.MustParseIA("1-ff00:0:13"),
 			},
 			db: func(ctrl *gomock.Controller) hiddenpath.Store {
 				return nil
 			},
 			groups: func() map[hiddenpath.GroupID]*hiddenpath.Group {
 				return map[hiddenpath.GroupID]*hiddenpath.Group{
-					{OwnerAS: xtest.MustParseAS("ff00:0:110")}: {
-						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-						Readers:    map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
+					{OwnerAS: addr.MustParseAS("ff00:0:110")}: {
+						ID:         hiddenpath.GroupID{OwnerAS: addr.MustParseAS("ff00:0:110")},
+						Readers:    map[addr.IA]struct{}{addr.MustParseIA("1-ff00:0:13"): {}},
 						Registries: map[addr.IA]struct{}{local: {}},
 					},
-					{OwnerAS: xtest.MustParseAS("ff00:0:111")}: {
-						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:111")},
-						Readers:    map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:25"): {}},
+					{OwnerAS: addr.MustParseAS("ff00:0:111")}: {
+						ID:         hiddenpath.GroupID{OwnerAS: addr.MustParseAS("ff00:0:111")},
+						Readers:    map[addr.IA]struct{}{addr.MustParseIA("1-ff00:0:25"): {}},
 						Registries: map[addr.IA]struct{}{local: {}},
 					},
 				}
@@ -116,26 +115,26 @@ func TestAuthoritativeServerSegments(t *testing.T) {
 		"non authoritative for group": {
 			request: hiddenpath.SegmentRequest{
 				GroupIDs: []hiddenpath.GroupID{
-					{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-					{OwnerAS: xtest.MustParseAS("ff00:0:111")},
+					{OwnerAS: addr.MustParseAS("ff00:0:110")},
+					{OwnerAS: addr.MustParseAS("ff00:0:111")},
 				},
-				DstIA: xtest.MustParseIA("2-ff00:0:22"),
-				Peer:  xtest.MustParseIA("1-ff00:0:13"),
+				DstIA: addr.MustParseIA("2-ff00:0:22"),
+				Peer:  addr.MustParseIA("1-ff00:0:13"),
 			},
 			db: func(ctrl *gomock.Controller) hiddenpath.Store {
 				return nil
 			},
 			groups: func() map[hiddenpath.GroupID]*hiddenpath.Group {
 				return map[hiddenpath.GroupID]*hiddenpath.Group{
-					{OwnerAS: xtest.MustParseAS("ff00:0:110")}: {
-						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-						Readers:    map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
+					{OwnerAS: addr.MustParseAS("ff00:0:110")}: {
+						ID:         hiddenpath.GroupID{OwnerAS: addr.MustParseAS("ff00:0:110")},
+						Readers:    map[addr.IA]struct{}{addr.MustParseIA("1-ff00:0:13"): {}},
 						Registries: map[addr.IA]struct{}{local: {}},
 					},
-					{OwnerAS: xtest.MustParseAS("ff00:0:111")}: {
-						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:111")},
-						Readers:    map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
-						Registries: map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:404"): {}},
+					{OwnerAS: addr.MustParseAS("ff00:0:111")}: {
+						ID:         hiddenpath.GroupID{OwnerAS: addr.MustParseAS("ff00:0:111")},
+						Readers:    map[addr.IA]struct{}{addr.MustParseIA("1-ff00:0:13"): {}},
+						Registries: map[addr.IA]struct{}{addr.MustParseIA("1-ff00:0:404"): {}},
 					},
 				}
 			},
@@ -145,31 +144,31 @@ func TestAuthoritativeServerSegments(t *testing.T) {
 		"db error": {
 			request: hiddenpath.SegmentRequest{
 				GroupIDs: []hiddenpath.GroupID{
-					{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-					{OwnerAS: xtest.MustParseAS("ff00:0:111")},
+					{OwnerAS: addr.MustParseAS("ff00:0:110")},
+					{OwnerAS: addr.MustParseAS("ff00:0:111")},
 				},
-				DstIA: xtest.MustParseIA("2-ff00:0:22"),
-				Peer:  xtest.MustParseIA("1-ff00:0:13"),
+				DstIA: addr.MustParseIA("2-ff00:0:22"),
+				Peer:  addr.MustParseIA("1-ff00:0:13"),
 			},
 			db: func(ctrl *gomock.Controller) hiddenpath.Store {
 				db := mock_hiddenpath.NewMockStore(ctrl)
-				db.EXPECT().Get(gomock.Any(), xtest.MustParseIA("2-ff00:0:22"),
+				db.EXPECT().Get(gomock.Any(), addr.MustParseIA("2-ff00:0:22"),
 					[]hiddenpath.GroupID{
-						{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-						{OwnerAS: xtest.MustParseAS("ff00:0:111")},
+						{OwnerAS: addr.MustParseAS("ff00:0:110")},
+						{OwnerAS: addr.MustParseAS("ff00:0:111")},
 					}).Return(nil, serrors.New("test error"))
 				return db
 			},
 			groups: func() map[hiddenpath.GroupID]*hiddenpath.Group {
 				return map[hiddenpath.GroupID]*hiddenpath.Group{
-					{OwnerAS: xtest.MustParseAS("ff00:0:110")}: {
-						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-						Readers:    map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
+					{OwnerAS: addr.MustParseAS("ff00:0:110")}: {
+						ID:         hiddenpath.GroupID{OwnerAS: addr.MustParseAS("ff00:0:110")},
+						Readers:    map[addr.IA]struct{}{addr.MustParseIA("1-ff00:0:13"): {}},
 						Registries: map[addr.IA]struct{}{local: {}},
 					},
-					{OwnerAS: xtest.MustParseAS("ff00:0:111")}: {
-						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:111")},
-						Readers:    map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
+					{OwnerAS: addr.MustParseAS("ff00:0:111")}: {
+						ID:         hiddenpath.GroupID{OwnerAS: addr.MustParseAS("ff00:0:111")},
+						Readers:    map[addr.IA]struct{}{addr.MustParseIA("1-ff00:0:13"): {}},
 						Registries: map[addr.IA]struct{}{local: {}},
 					},
 				}
@@ -180,31 +179,31 @@ func TestAuthoritativeServerSegments(t *testing.T) {
 		"valid": {
 			request: hiddenpath.SegmentRequest{
 				GroupIDs: []hiddenpath.GroupID{
-					{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-					{OwnerAS: xtest.MustParseAS("ff00:0:111")},
+					{OwnerAS: addr.MustParseAS("ff00:0:110")},
+					{OwnerAS: addr.MustParseAS("ff00:0:111")},
 				},
-				DstIA: xtest.MustParseIA("2-ff00:0:22"),
-				Peer:  xtest.MustParseIA("1-ff00:0:13"),
+				DstIA: addr.MustParseIA("2-ff00:0:22"),
+				Peer:  addr.MustParseIA("1-ff00:0:13"),
 			},
 			db: func(ctrl *gomock.Controller) hiddenpath.Store {
 				db := mock_hiddenpath.NewMockStore(ctrl)
-				db.EXPECT().Get(gomock.Any(), xtest.MustParseIA("2-ff00:0:22"),
+				db.EXPECT().Get(gomock.Any(), addr.MustParseIA("2-ff00:0:22"),
 					[]hiddenpath.GroupID{
-						{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-						{OwnerAS: xtest.MustParseAS("ff00:0:111")},
+						{OwnerAS: addr.MustParseAS("ff00:0:110")},
+						{OwnerAS: addr.MustParseAS("ff00:0:111")},
 					}).Return([]*seg.Meta{{Type: seg.TypeDown}}, nil)
 				return db
 			},
 			groups: func() map[hiddenpath.GroupID]*hiddenpath.Group {
 				return map[hiddenpath.GroupID]*hiddenpath.Group{
-					{OwnerAS: xtest.MustParseAS("ff00:0:110")}: {
-						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:110")},
-						Readers:    map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
+					{OwnerAS: addr.MustParseAS("ff00:0:110")}: {
+						ID:         hiddenpath.GroupID{OwnerAS: addr.MustParseAS("ff00:0:110")},
+						Readers:    map[addr.IA]struct{}{addr.MustParseIA("1-ff00:0:13"): {}},
 						Registries: map[addr.IA]struct{}{local: {}},
 					},
-					{OwnerAS: xtest.MustParseAS("ff00:0:111")}: {
-						ID:         hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:111")},
-						Readers:    map[addr.IA]struct{}{xtest.MustParseIA("1-ff00:0:13"): {}},
+					{OwnerAS: addr.MustParseAS("ff00:0:111")}: {
+						ID:         hiddenpath.GroupID{OwnerAS: addr.MustParseAS("ff00:0:111")},
+						Readers:    map[addr.IA]struct{}{addr.MustParseIA("1-ff00:0:13"): {}},
 						Registries: map[addr.IA]struct{}{local: {}},
 					},
 				}
