@@ -32,22 +32,22 @@ func TestNewHopPredicate(t *testing.T) {
 	}{
 		"ISD wildcard": {
 			In:    "0",
-			HP:    &HopPredicate{ISD: 0, AS: 0, IfIDs: []common.IFIDType{0}},
+			HP:    &HopPredicate{ISD: 0, AS: 0, IfIds: []common.IFIDType{0}},
 			Valid: true,
 		},
 		"AS, IF wildcard omitted": {
 			In:    "1",
-			HP:    &HopPredicate{ISD: 1, AS: 0, IfIDs: []common.IFIDType{0}},
+			HP:    &HopPredicate{ISD: 1, AS: 0, IfIds: []common.IFIDType{0}},
 			Valid: true,
 		},
 		"IF wildcard omitted": {
 			In:    "1-0",
-			HP:    &HopPredicate{ISD: 1, AS: 0, IfIDs: []common.IFIDType{0}},
+			HP:    &HopPredicate{ISD: 1, AS: 0, IfIds: []common.IFIDType{0}},
 			Valid: true,
 		},
 		"basic wildcard": {
 			In:    "1-0#0",
-			HP:    &HopPredicate{ISD: 1, AS: 0, IfIDs: []common.IFIDType{0}},
+			HP:    &HopPredicate{ISD: 1, AS: 0, IfIds: []common.IFIDType{0}},
 			Valid: true,
 		},
 		"AS wildcard, interface set": {
@@ -56,30 +56,30 @@ func TestNewHopPredicate(t *testing.T) {
 		},
 		"ISD wildcard, AS set": {
 			In:    "0-1#0",
-			HP:    &HopPredicate{ISD: 0, AS: 1, IfIDs: []common.IFIDType{0}},
+			HP:    &HopPredicate{ISD: 0, AS: 1, IfIds: []common.IFIDType{0}},
 			Valid: true,
 		},
 		"ISD wildcard, AS set, interface set": {
 			In:    "0-1#2",
-			HP:    &HopPredicate{ISD: 0, AS: 1, IfIDs: []common.IFIDType{2}},
+			HP:    &HopPredicate{ISD: 0, AS: 1, IfIds: []common.IFIDType{2}},
 			Valid: true,
 		},
 		"ISD wildcard, AS set and interface omitted": {
 			In:    "0-1",
-			HP:    &HopPredicate{ISD: 0, AS: 1, IfIDs: []common.IFIDType{0}},
+			HP:    &HopPredicate{ISD: 0, AS: 1, IfIds: []common.IFIDType{0}},
 			Valid: true,
 		},
 		"IF wildcard omitted, AS set": {
 			In:    "1-2",
-			HP:    &HopPredicate{ISD: 1, AS: 2, IfIDs: []common.IFIDType{0}},
+			HP:    &HopPredicate{ISD: 1, AS: 2, IfIds: []common.IFIDType{0}},
 			Valid: true,
 		},
-		"two IfIDs": {
+		"two IfIds": {
 			In:    "1-2#3,4",
-			HP:    &HopPredicate{ISD: 1, AS: 2, IfIDs: []common.IFIDType{3, 4}},
+			HP:    &HopPredicate{ISD: 1, AS: 2, IfIds: []common.IFIDType{3, 4}},
 			Valid: true,
 		},
-		"three IfIDs": {
+		"three IfIds": {
 			In:    "1-2#3,4,5",
 			Valid: false,
 		},
@@ -140,13 +140,13 @@ func TestJsonConversion(t *testing.T) {
 		HP   *HopPredicate
 	}{
 		"Normal predicate": {
-			HP: &HopPredicate{ISD: 1, AS: 2, IfIDs: []common.IFIDType{1, 2}},
+			HP: &HopPredicate{ISD: 1, AS: 2, IfIds: []common.IFIDType{1, 2}},
 		},
 		"wildcard predicate": {
-			HP: &HopPredicate{ISD: 1, AS: 2, IfIDs: []common.IFIDType{0}},
+			HP: &HopPredicate{ISD: 1, AS: 2, IfIds: []common.IFIDType{0}},
 		},
-		"only ifids": {
-			HP: &HopPredicate{IfIDs: []common.IFIDType{0}},
+		"only ifIds": {
+			HP: &HopPredicate{IfIds: []common.IFIDType{0}},
 		},
 	}
 	for name, test := range tests {

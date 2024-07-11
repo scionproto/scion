@@ -318,7 +318,7 @@ func (d *DataPlane) AddInternalInterface(conn BatchConn, ip netip.Addr) error {
 // AddExternalInterface adds the inter AS connection for the given interface ID.
 // If a connection for the given ID is already set this method will return an
 // error. This can only be called on a not yet running dataplane.
-func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
+func (d *DataPlane) AddExternalInterface(ifId uint16, conn BatchConn,
 	src, dst control.LinkEnd, cfg control.BFD) error {
 
 	d.mtx.Lock()
@@ -330,9 +330,9 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
 	if conn == nil || !src.Addr.IsValid() || !dst.Addr.IsValid() {
 		return emptyValue
 	}
-	err := d.addExternalInterfaceBFD(ifID, conn, src, dst, cfg)
+	err := d.addExternalInterfaceBFD(ifId, conn, src, dst, cfg)
 	if err != nil {
-		return serrors.WrapStr("adding external BFD", err, "if_id", ifID)
+		return serrors.WrapStr("adding external BFD", err, "if_id", ifId)
 	}
 	if d.external == nil {
 		d.external = make(map[uint16]BatchConn)
@@ -340,18 +340,18 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
 	if d.interfaces == nil {
 		d.interfaces = make(map[uint16]BatchConn)
 	}
-	if _, exists := d.external[ifID]; exists {
-		return serrors.WithCtx(alreadySet, "ifID", ifID)
+	if _, exists := d.external[ifId]; exists {
+		return serrors.WithCtx(alreadySet, "ifId", ifId)
 	}
-	d.interfaces[ifID] = conn
-	d.external[ifID] = conn
+	d.interfaces[ifId] = conn
+	d.external[ifId] = conn
 	return nil
 }
 
 // AddNeighborIA adds the neighboring IA for a given interface ID. If an IA for
 // the given ID is already set, this method will return an error. This can only
 // be called on a yet running dataplane.
-func (d *DataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
+func (d *DataPlane) AddNeighborIA(ifId uint16, remote addr.IA) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.running {
@@ -360,27 +360,27 @@ func (d *DataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
 	if remote.IsZero() {
 		return emptyValue
 	}
-	if _, exists := d.neighborIAs[ifID]; exists {
-		return serrors.WithCtx(alreadySet, "ifID", ifID)
+	if _, exists := d.neighborIAs[ifId]; exists {
+		return serrors.WithCtx(alreadySet, "ifId", ifId)
 	}
 	if d.neighborIAs == nil {
 		d.neighborIAs = make(map[uint16]addr.IA)
 	}
-	d.neighborIAs[ifID] = remote
+	d.neighborIAs[ifId] = remote
 	return nil
 }
 
 // AddLinkType adds the link type for a given interface ID. If a link type for
 // the given ID is already set, this method will return an error. This can only
 // be called on a not yet running dataplane.
-func (d *DataPlane) AddLinkType(ifID uint16, linkTo topology.LinkType) error {
-	if _, exists := d.linkTypes[ifID]; exists {
-		return serrors.WithCtx(alreadySet, "ifID", ifID)
+func (d *DataPlane) AddLinkType(ifId uint16, linkTo topology.LinkType) error {
+	if _, exists := d.linkTypes[ifId]; exists {
+		return serrors.WithCtx(alreadySet, "ifId", ifId)
 	}
 	if d.linkTypes == nil {
 		d.linkTypes = make(map[uint16]topology.LinkType)
 	}
-	d.linkTypes[ifID] = linkTo
+	d.linkTypes[ifId] = linkTo
 	return nil
 }
 
@@ -403,7 +403,7 @@ func (d *DataPlane) AddRemotePeer(local, remote uint16) error {
 }
 
 // AddExternalInterfaceBFD adds the inter AS connection BFD session.
-func (d *DataPlane) addExternalInterfaceBFD(ifID uint16, conn BatchConn,
+func (d *DataPlane) addExternalInterfaceBFD(ifId uint16, conn BatchConn,
 	src, dst control.LinkEnd, cfg control.BFD) error {
 
 	if *cfg.Disable {
@@ -412,7 +412,7 @@ func (d *DataPlane) addExternalInterfaceBFD(ifID uint16, conn BatchConn,
 	var m bfd.Metrics
 	if d.Metrics != nil {
 		labels := prometheus.Labels{
-			"interface":       fmt.Sprint(ifID),
+			"interface":       fmt.Sprint(ifId),
 			"isd_as":          d.localIA.String(),
 			"neighbor_isd_as": dst.IA.String(),
 		}
@@ -423,11 +423,11 @@ func (d *DataPlane) addExternalInterfaceBFD(ifID uint16, conn BatchConn,
 			PacketsReceived: d.Metrics.BFDPacketsReceived.With(labels),
 		}
 	}
-	s, err := newBFDSend(conn, src.IA, dst.IA, src.Addr, dst.Addr, ifID, d.macFactory())
+	s, err := newBFDSend(conn, src.IA, dst.IA, src.Addr, dst.Addr, ifId, d.macFactory())
 	if err != nil {
 		return err
 	}
-	return d.addBFDController(ifID, s, cfg, m)
+	return d.addBFDController(ifId, s, cfg, m)
 }
 
 // getInterfaceState checks if there is a bfd session for the input interfaceID and
@@ -441,7 +441,7 @@ func (d *DataPlane) getInterfaceState(interfaceID uint16) control.InterfaceState
 	return control.InterfaceUp
 }
 
-func (d *DataPlane) addBFDController(ifID uint16, s *bfdSend, cfg control.BFD,
+func (d *DataPlane) addBFDController(ifId uint16, s *bfdSend, cfg control.BFD,
 	metrics bfd.Metrics) error {
 
 	if d.bfdSessions == nil {
@@ -454,7 +454,7 @@ func (d *DataPlane) addBFDController(ifID uint16, s *bfdSend, cfg control.BFD,
 		return err
 	}
 	disc := layers.BFDDiscriminator(uint32(discInt.Uint64()) + 1)
-	d.bfdSessions[ifID] = &bfd.Session{
+	d.bfdSessions[ifId] = &bfd.Session{
 		Sender:                s,
 		DetectMult:            layers.BFDDetectMultiplier(cfg.DetectMult),
 		DesiredMinTxInterval:  cfg.DesiredMinTxInterval,
@@ -509,7 +509,7 @@ func (d *DataPlane) DelSvc(svc addr.SVC, a netip.AddrPort) error {
 // AddNextHop sets the next hop address for the given interface ID. If the
 // interface ID already has an address associated this operation fails. This can
 // only be called on a not yet running dataplane.
-func (d *DataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control.BFD,
+func (d *DataPlane) AddNextHop(ifId uint16, src, dst netip.AddrPort, cfg control.BFD,
 	sibling string) error {
 
 	d.mtx.Lock()
@@ -521,24 +521,24 @@ func (d *DataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control
 	if !dst.IsValid() || !src.IsValid() {
 		return emptyValue
 	}
-	err := d.addNextHopBFD(ifID, src, dst, cfg, sibling)
+	err := d.addNextHopBFD(ifId, src, dst, cfg, sibling)
 	if err != nil {
-		return serrors.WrapStr("adding next hop BFD", err, "if_id", ifID)
+		return serrors.WrapStr("adding next hop BFD", err, "if_id", ifId)
 	}
 	if d.internalNextHops == nil {
 		d.internalNextHops = make(map[uint16]netip.AddrPort)
 	}
-	if _, exists := d.internalNextHops[ifID]; exists {
-		return serrors.WithCtx(alreadySet, "ifID", ifID)
+	if _, exists := d.internalNextHops[ifId]; exists {
+		return serrors.WithCtx(alreadySet, "ifId", ifId)
 	}
-	d.internalNextHops[ifID] = dst
+	d.internalNextHops[ifId] = dst
 	return nil
 }
 
 // AddNextHopBFD adds the BFD session for the next hop address.
-// If the remote ifID belongs to an existing address, the existing
+// If the remote ifId belongs to an existing address, the existing
 // BFD session will be re-used.
-func (d *DataPlane) addNextHopBFD(ifID uint16, src, dst netip.AddrPort, cfg control.BFD,
+func (d *DataPlane) addNextHopBFD(ifId uint16, src, dst netip.AddrPort, cfg control.BFD,
 	sibling string) error {
 
 	if *cfg.Disable {
@@ -547,7 +547,7 @@ func (d *DataPlane) addNextHopBFD(ifID uint16, src, dst netip.AddrPort, cfg cont
 	for k, v := range d.internalNextHops {
 		if v.String() == dst.String() {
 			if c, ok := d.bfdSessions[k]; ok {
-				d.bfdSessions[ifID] = c
+				d.bfdSessions[ifId] = c
 				return nil
 			}
 		}
@@ -567,7 +567,7 @@ func (d *DataPlane) addNextHopBFD(ifID uint16, src, dst netip.AddrPort, cfg cont
 	if err != nil {
 		return err
 	}
-	return d.addBFDController(ifID, s, cfg, m)
+	return d.addBFDController(ifId, s, cfg, m)
 }
 
 func max(a int, b int) int {
@@ -595,15 +595,15 @@ func (d *DataPlane) Run(ctx context.Context, cfg *RunConfig) error {
 	d.initPacketPool(cfg, processorQueueSize)
 	procQs, fwQs, slowQs := initQueues(cfg, d.interfaces, processorQueueSize)
 
-	for ifID, conn := range d.interfaces {
-		go func(ifID uint16, conn BatchConn) {
+	for ifId, conn := range d.interfaces {
+		go func(ifId uint16, conn BatchConn) {
 			defer log.HandlePanic()
-			d.runReceiver(ifID, conn, cfg, procQs)
-		}(ifID, conn)
-		go func(ifID uint16, conn BatchConn) {
+			d.runReceiver(ifId, conn, cfg, procQs)
+		}(ifId, conn)
+		go func(ifId uint16, conn BatchConn) {
 			defer log.HandlePanic()
-			d.runForwarder(ifID, conn, cfg, fwQs[ifID])
-		}(ifID, conn)
+			d.runForwarder(ifId, conn, cfg, fwQs[ifId])
+		}(ifId, conn)
 	}
 	for i := 0; i < cfg.NumProcessors; i++ {
 		go func(i int) {
@@ -619,10 +619,10 @@ func (d *DataPlane) Run(ctx context.Context, cfg *RunConfig) error {
 	}
 
 	for k, v := range d.bfdSessions {
-		go func(ifID uint16, c bfdSession) {
+		go func(ifId uint16, c bfdSession) {
 			defer log.HandlePanic()
 			if err := c.Run(ctx); err != nil && err != bfd.AlreadyRunning {
-				log.Error("BFD session failed to start", "ifID", ifID, "err", err)
+				log.Error("BFD session failed to start", "ifId", ifId, "err", err)
 			}
 		}(k, v)
 	}
@@ -661,16 +661,16 @@ func initQueues(cfg *RunConfig, interfaces map[uint16]BatchConn,
 		slowQs[i] = make(chan *packet, processorQueueSize)
 	}
 	fwQs := make(map[uint16]chan *packet)
-	for ifID := range interfaces {
-		fwQs[ifID] = make(chan *packet, cfg.BatchSize)
+	for ifId := range interfaces {
+		fwQs[ifId] = make(chan *packet, cfg.BatchSize)
 	}
 	return procQs, fwQs, slowQs
 }
 
-func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
+func (d *DataPlane) runReceiver(ifId uint16, conn BatchConn, cfg *RunConfig,
 	procQs []chan *packet) {
 
-	log.Debug("Run receiver for", "interface", ifID)
+	log.Debug("Run receiver for", "interface", ifId)
 
 	// Each receiver (therefore each input interface) has a unique random seed for the procID hash
 	// function.
@@ -692,7 +692,7 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 	packets := make([]*packet, cfg.BatchSize)
 
 	numReusable := 0                     // unused buffers from previous loop
-	metrics := d.forwardingMetrics[ifID] // If receiver exists, fw metrics exist too.
+	metrics := d.forwardingMetrics[ifId] // If receiver exists, fw metrics exist too.
 
 	enqueueForProcessing := func(size int, srcAddr *net.UDPAddr, pkt *packet) {
 		sc := classOfSize(size)
@@ -708,7 +708,7 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 		}
 
 		pkt.rawPacket = pkt.rawPacket[:size] // Update size; readBatch does not.
-		pkt.ingress = ifID
+		pkt.ingress = ifId
 		pkt.srcAddr = srcAddr
 		select {
 		case procQs[procID] <- pkt:
@@ -733,7 +733,7 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 		numPkts, err := conn.ReadBatch(msgs)
 		numReusable = len(msgs) - numPkts
 		if err != nil {
-			log.Debug("Error while reading batch", "interfaceID", ifID, "err", err)
+			log.Debug("Error while reading batch", "interfaceID", ifId, "err", err)
 			continue
 		}
 		for i, msg := range msgs[:numPkts] {
@@ -956,7 +956,7 @@ func (p *slowPathPacketProcessor) processPacket(pkt *packet) error {
 			layer = &slayers.SCMPDestinationUnreachable{}
 		case slayers.SCMPTypeExternalInterfaceDown:
 			layer = &slayers.SCMPExternalInterfaceDown{IA: p.d.localIA,
-				IfID: uint64(p.pkt.egress)}
+				IfId: uint64(p.pkt.egress)}
 		case slayers.SCMPTypeInternalConnectivityDown:
 			layer = &slayers.SCMPInternalConnectivityDown{IA: p.d.localIA,
 				Ingress: uint64(p.pkt.ingress), Egress: uint64(p.pkt.egress)}
@@ -995,9 +995,9 @@ func updateOutputMetrics(metrics interfaceMetrics, packets []*packet) {
 	}
 }
 
-func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn, cfg *RunConfig, c <-chan *packet) {
+func (d *DataPlane) runForwarder(ifId uint16, conn BatchConn, cfg *RunConfig, c <-chan *packet) {
 
-	log.Debug("Initialize forwarder for", "interface", ifID)
+	log.Debug("Initialize forwarder for", "interface", ifId)
 
 	// We use this somewhat like a ring buffer.
 	pkts := make([]*packet, cfg.BatchSize)
@@ -1009,7 +1009,7 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn, cfg *RunConfig, c 
 		msgs[i].Buffers = make([][]byte, 1)
 	}
 
-	metrics := d.forwardingMetrics[ifID]
+	metrics := d.forwardingMetrics[ifId]
 
 	toWrite := 0
 	for d.running {
@@ -1188,16 +1188,16 @@ func (p *scionPacketProcessor) processIntraBFD(data []byte) disposition {
 		return errorDiscard("error", err)
 	}
 
-	ifID := uint16(0)
+	ifId := uint16(0)
 	src := p.pkt.srcAddr.AddrPort() // POSSIBLY EXPENSIVE CONVERSION
 	for k, v := range p.d.internalNextHops {
 		if src == v {
-			ifID = k
+			ifId = k
 			break
 		}
 	}
 
-	if v, ok := p.d.bfdSessions[ifID]; ok {
+	if v, ok := p.d.bfdSessions[ifId]; ok {
 		v.ReceiveMessage(bfd)
 		return pDiscard // All's fine. That packet's journey ends here.
 	}
@@ -1597,7 +1597,7 @@ func (p *scionPacketProcessor) validateEgressID() disposition {
 }
 
 func (p *scionPacketProcessor) updateNonConsDirIngressSegID() disposition {
-	// against construction dir the ingress router updates the SegID, ifID == 0
+	// against construction dir the ingress router updates the SegID, ifId == 0
 	// means this comes from this AS itself, so nothing has to be done.
 	// For packets destined to peer links this shouldn't be updated.
 	if !p.infoField.ConsDir && p.pkt.ingress != 0 && !p.peering {
@@ -2259,7 +2259,7 @@ type bfdSend struct {
 
 // newBFDSend creates and initializes a BFD Sender
 func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr netip.AddrPort,
-	ifID uint16, mac hash.Hash) (*bfdSend, error) {
+	ifId uint16, mac hash.Hash) (*bfdSend, error) {
 
 	scn := &slayers.SCION{
 		Version:      0,
@@ -2287,7 +2287,7 @@ func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr netip.Add
 	}
 
 	var ohp *onehop.Path
-	if ifID == 0 {
+	if ifId == 0 {
 		scn.PathType = empty.PathType
 		scn.Path = &empty.Path{}
 	} else {
@@ -2297,7 +2297,7 @@ func newBFDSend(conn BatchConn, srcIA, dstIA addr.IA, srcAddr, dstAddr netip.Add
 				// Timestamp set in Send
 			},
 			FirstHop: path.HopField{
-				ConsEgress: ifID,
+				ConsEgress: ifId,
 				ExpTime:    hopFieldDefaultExpTime,
 			},
 		}

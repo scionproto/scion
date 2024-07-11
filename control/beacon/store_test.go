@@ -274,8 +274,8 @@ func testBeacon(g *graph.Graph, desc ...uint16) beacon.Beacon {
 	}
 }
 
-func testSegment(g *graph.Graph, ifids []uint16) *seg.PathSegment {
-	pseg := g.Beacon(ifids)
+func testSegment(g *graph.Graph, ifIds []uint16) *seg.PathSegment {
+	pseg := g.Beacon(ifIds)
 	pseg.ASEntries = pseg.ASEntries[:len(pseg.ASEntries)-1]
 	return pseg
 }

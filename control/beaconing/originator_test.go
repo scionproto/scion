@@ -61,7 +61,7 @@ func TestOriginatorRun(t *testing.T) {
 		}
 		return false
 	}
-	t.Run("run originates ifid packets on all active interfaces", func(t *testing.T) {
+	t.Run("run originates ifId packets on all active interfaces", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		intfs := ifstate.NewInterfaces(interfaceInfos(topo), ifstate.Config{})

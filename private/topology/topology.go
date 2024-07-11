@@ -269,15 +269,15 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 			InternalAddr: intAddr,
 			IFs:          make(map[common.IFIDType]*IFInfo),
 		}
-		for ifid, rawIntf := range rawBr.Interfaces {
+		for ifId, rawIntf := range rawBr.Interfaces {
 			var err error
-			// Check that ifid is unique
-			if _, ok := t.IFInfoMap[ifid]; ok {
-				return serrors.New("IFID already exists", "ID", ifid)
+			// Check that ifId is unique
+			if _, ok := t.IFInfoMap[ifId]; ok {
+				return serrors.New("IFID already exists", "ID", ifId)
 			}
-			brInfo.IFIDs = append(brInfo.IFIDs, ifid)
+			brInfo.IFIDs = append(brInfo.IFIDs, ifId)
 			ifinfo := IFInfo{
-				ID:           ifid,
+				ID:           ifId,
 				BRName:       name,
 				InternalAddr: intAddr,
 				MTU:          rawIntf.MTU,
@@ -305,8 +305,8 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 			// These fields are only necessary for the border router.
 			// Parsing should not fail if all fields are empty.
 			if rawIntf.Underlay == (jsontopo.Underlay{}) {
-				brInfo.IFs[ifid] = &ifinfo
-				t.IFInfoMap[ifid] = ifinfo
+				brInfo.IFs[ifId] = &ifinfo
+				t.IFInfoMap[ifId] = ifinfo
 				continue
 			}
 			if ifinfo.Local, err = rawBRIntfLocalAddr(&rawIntf.Underlay); err != nil {
@@ -317,8 +317,8 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 				return serrors.WrapStr("unable to extract "+
 					"underlay external data-plane remote address", err)
 			}
-			brInfo.IFs[ifid] = &ifinfo
-			t.IFInfoMap[ifid] = ifinfo
+			brInfo.IFs[ifId] = &ifinfo
+			t.IFInfoMap[ifId] = ifinfo
 		}
 		sort.Slice(brInfo.IFIDs, func(i, j int) bool {
 			return brInfo.IFIDs[i] < brInfo.IFIDs[j]

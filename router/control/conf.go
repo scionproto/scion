@@ -32,7 +32,7 @@ import (
 type Dataplane interface {
 	CreateIACtx(ia addr.IA) error
 	AddInternalInterface(ia addr.IA, local netip.AddrPort) error
-	AddExternalInterface(localIfID common.IFIDType, info LinkInfo, owned bool) error
+	AddExternalInterface(localIfId common.IFIDType, info LinkInfo, owned bool) error
 	AddSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error
 	DelSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error
 	SetKey(ia addr.IA, index int, key []byte) error
@@ -163,20 +163,20 @@ func DeriveHFMacKey(k []byte) []byte {
 }
 
 func confExternalInterfaces(dp Dataplane, cfg *Config) error {
-	// Sort out keys/ifids to get deterministic order for unit testing
+	// Sort out keys/ifIds to get deterministic order for unit testing
 	infoMap := cfg.Topo.IFInfoMap()
 	if len(infoMap) == 0 {
 		// nothing to do
 		return nil
 	}
-	ifids := []common.IFIDType{}
+	ifIds := []common.IFIDType{}
 	for k := range infoMap {
-		ifids = append(ifids, k)
+		ifIds = append(ifIds, k)
 	}
-	sort.Slice(ifids, func(i, j int) bool { return ifids[i] < ifids[j] })
+	sort.Slice(ifIds, func(i, j int) bool { return ifIds[i] < ifIds[j] })
 	// External interfaces
-	for _, ifid := range ifids {
-		iface := infoMap[ifid]
+	for _, ifId := range ifIds {
+		iface := infoMap[ifId]
 		linkInfo := LinkInfo{
 			Local: LinkEnd{
 				IA:   cfg.IA,
@@ -194,7 +194,7 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 			MTU:      iface.MTU,
 		}
 
-		_, owned := cfg.BR.IFs[ifid]
+		_, owned := cfg.BR.IFs[ifId]
 		if !owned {
 			// XXX The current implementation effectively uses IP/UDP tunnels to create
 			// the SCION network as an overlay, with forwarding to local hosts being a special case.
@@ -207,7 +207,7 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 			linkInfo.BFD = BFD{}
 		}
 
-		if err := dp.AddExternalInterface(ifid, linkInfo, owned); err != nil {
+		if err := dp.AddExternalInterface(ifId, linkInfo, owned); err != nil {
 			return err
 		}
 	}

@@ -47,7 +47,7 @@ func (ee RevTimeError) Error() string {
 }
 
 type RevInfo struct {
-	IfID     common.IFIDType
+	IfId     common.IFIDType
 	RawIsdas addr.IA
 	// LinkType of revocation
 	LinkType proto.LinkType
@@ -92,7 +92,7 @@ func (r *RevInfo) Active() error {
 }
 
 func (r *RevInfo) String() string {
-	return fmt.Sprintf("IA: %s IfID: %d Link type: %s Timestamp: %s TTL: %s", r.IA(), r.IfID,
+	return fmt.Sprintf("IA: %s IfId: %d Link type: %s Timestamp: %s TTL: %s", r.IA(), r.IfId,
 		r.LinkType, util.TimeToCompact(r.Timestamp()), r.TTL())
 }
 
@@ -117,7 +117,7 @@ func (r *RevInfo) Equal(other *RevInfo) bool {
 
 // SameIntf returns true if r and other both apply to the same interface.
 func (r *RevInfo) SameIntf(other *RevInfo) bool {
-	return r.IfID == other.IfID &&
+	return r.IfId == other.IfId &&
 		r.RawIsdas == other.RawIsdas &&
 		r.LinkType == other.LinkType
 }

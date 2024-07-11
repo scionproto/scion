@@ -56,7 +56,7 @@ func (s SegmentCreationServer) Beacon(ctx context.Context,
 		logger.Debug("peer must be *snet.UDPAddr", "actual", fmt.Sprintf("%T", gPeer))
 		return nil, serrors.New("peer must be *snet.UDPAddr", "actual", fmt.Sprintf("%T", gPeer))
 	}
-	ingress, err := extractIngressIfID(peer.Path)
+	ingress, err := extractIngressIfId(peer.Path)
 	if err != nil {
 		logger.Debug("Failed to extract ingress interface", "peer", peer, "err", err)
 		return nil, status.Error(codes.InvalidArgument, "failed to extract ingress interface")
@@ -79,8 +79,8 @@ func (s SegmentCreationServer) Beacon(ctx context.Context,
 
 }
 
-// extractIngressIfID extracts the ingress interface ID from a path.
-func extractIngressIfID(path snet.DataplanePath) (uint16, error) {
+// extractIngressIfId extracts the ingress interface ID from a path.
+func extractIngressIfId(path snet.DataplanePath) (uint16, error) {
 	invertedPath, ok := path.(snet.RawReplyPath)
 	if !ok {
 		return 0, serrors.New("unexpected path", "type", common.TypeOf(path))

@@ -37,17 +37,17 @@ import (
 var (
 	ia110  = addr.MustParseIA("1-ff00:0:110")
 	ia211  = addr.MustParseIA("2-ff00:0:211")
-	ifid10 = uint16(10)
-	ifid11 = uint16(11)
+	ifId10 = uint16(10)
+	ifId11 = uint16(11)
 
 	timeout = time.Second
 )
 
 func TestFilterNew(t *testing.T) {
 	now := time.Now()
-	sr10 := defaultRevInfo(ia110, ifid10, now)
-	sr11 := defaultRevInfo(ia110, ifid11, now)
-	sr11Old := defaultRevInfo(ia110, ifid11, now.Add(-10*time.Second))
+	sr10 := defaultRevInfo(ia110, ifId10, now)
+	sr11 := defaultRevInfo(ia110, ifId11, now)
+	sr11Old := defaultRevInfo(ia110, ifId11, now.Add(-10*time.Second))
 	Convey("TestFilterNew", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -63,7 +63,7 @@ func TestFilterNew(t *testing.T) {
 		})
 		Convey("Given a cache with an old revocation", func() {
 			revCache.EXPECT().Get(gomock.Any(), gomock.Any()).Return(revcache.Revocations{
-				revcache.Key{IA: ia110, IfId: common.IFIDType(ifid11)}: sr11Old,
+				revcache.Key{IA: ia110, IfId: common.IFIDType(ifId11)}: sr11Old,
 			}, nil)
 			rMap, err := revcache.RevocationToMap([]*path_mgmt.RevInfo{sr10, sr11})
 			expectedMap := copy(rMap)
@@ -74,11 +74,11 @@ func TestFilterNew(t *testing.T) {
 		})
 		Convey("Given a cache with a newer revocation", func() {
 			revCache.EXPECT().Get(gomock.Any(), gomock.Any()).Return(revcache.Revocations{
-				revcache.Key{IA: ia110, IfId: common.IFIDType(ifid11)}: sr11,
+				revcache.Key{IA: ia110, IfId: common.IFIDType(ifId11)}: sr11,
 			}, nil)
 			rMap, err := revcache.RevocationToMap([]*path_mgmt.RevInfo{sr10, sr11Old})
 			expectedMap := copy(rMap)
-			delete(expectedMap, revcache.Key{IA: ia110, IfId: common.IFIDType(ifid11)})
+			delete(expectedMap, revcache.Key{IA: ia110, IfId: common.IFIDType(ifId11)})
 			SoMsg("No error expected", err, ShouldBeNil)
 			err = rMap.FilterNew(context.Background(), revCache)
 			SoMsg("No error expected", err, ShouldBeNil)
@@ -168,7 +168,7 @@ func copy(revs revcache.Revocations) revcache.Revocations {
 
 func defaultRevInfo(ia addr.IA, ifId uint16, ts time.Time) *path_mgmt.RevInfo {
 	return &path_mgmt.RevInfo{
-		IfID:         common.IFIDType(ifId),
+		IfId:         common.IFIDType(ifId),
 		RawIsdas:     ia,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(ts),

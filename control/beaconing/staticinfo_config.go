@@ -228,15 +228,15 @@ func (cfg StaticInfoCfg) generateLatency(ifType map[common.IFIDType]topology.Lin
 		Intra: make(map[common.IFIDType]time.Duration),
 		Inter: make(map[common.IFIDType]time.Duration),
 	}
-	for ifid, v := range cfg.Latency[egress].Intra {
-		if includeIntraInfo(ifType, ifid, ingress, egress) {
-			l.Intra[ifid] = v.Duration
+	for ifId, v := range cfg.Latency[egress].Intra {
+		if includeIntraInfo(ifType, ifId, ingress, egress) {
+			l.Intra[ifId] = v.Duration
 		}
 	}
-	for ifid, v := range cfg.Latency {
-		t := ifType[ifid]
-		if ifid == egress || t == topology.Peer {
-			l.Inter[ifid] = v.Inter.Duration
+	for ifId, v := range cfg.Latency {
+		t := ifType[ifId]
+		if ifId == egress || t == topology.Peer {
+			l.Inter[ifId] = v.Inter.Duration
 		}
 	}
 	return l
@@ -251,15 +251,15 @@ func (cfg StaticInfoCfg) generateBandwidth(ifType map[common.IFIDType]topology.L
 		Intra: make(map[common.IFIDType]uint64),
 		Inter: make(map[common.IFIDType]uint64),
 	}
-	for ifid, v := range cfg.Bandwidth[egress].Intra {
-		if includeIntraInfo(ifType, ifid, ingress, egress) {
-			bw.Intra[ifid] = v
+	for ifId, v := range cfg.Bandwidth[egress].Intra {
+		if includeIntraInfo(ifType, ifId, ingress, egress) {
+			bw.Intra[ifId] = v
 		}
 	}
-	for ifid, v := range cfg.Bandwidth {
-		t := ifType[ifid]
-		if ifid == egress || t == topology.Peer {
-			bw.Inter[ifid] = v.Inter
+	for ifId, v := range cfg.Bandwidth {
+		t := ifType[ifId]
+		if ifId == egress || t == topology.Peer {
+			bw.Inter[ifId] = v.Inter
 		}
 	}
 	return bw
@@ -271,10 +271,10 @@ func (cfg StaticInfoCfg) generateLinkType(ifType map[common.IFIDType]topology.Li
 	egress common.IFIDType) staticinfo.LinkTypeInfo {
 
 	lt := make(staticinfo.LinkTypeInfo)
-	for ifid, intfLT := range cfg.LinkType {
-		t := ifType[ifid]
-		if ifid == egress || t == topology.Peer {
-			lt[ifid] = staticinfo.LinkType(intfLT)
+	for ifId, intfLT := range cfg.LinkType {
+		t := ifType[ifId]
+		if ifId == egress || t == topology.Peer {
+			lt[ifId] = staticinfo.LinkType(intfLT)
 		}
 	}
 	return lt
@@ -286,9 +286,9 @@ func (cfg StaticInfoCfg) generateInternalHops(ifType map[common.IFIDType]topolog
 	ingress, egress common.IFIDType) staticinfo.InternalHopsInfo {
 
 	ihi := make(staticinfo.InternalHopsInfo)
-	for ifid, v := range cfg.Hops[egress].Intra {
-		if includeIntraInfo(ifType, ifid, ingress, egress) {
-			ihi[ifid] = v
+	for ifId, v := range cfg.Hops[egress].Intra {
+		if includeIntraInfo(ifType, ifId, ingress, egress) {
+			ihi[ifId] = v
 		}
 	}
 	return ihi
@@ -300,10 +300,10 @@ func (cfg StaticInfoCfg) generateGeo(ifType map[common.IFIDType]topology.LinkTyp
 	ingress, egress common.IFIDType) staticinfo.GeoInfo {
 
 	gi := staticinfo.GeoInfo{}
-	for ifid, loc := range cfg.Geo {
-		t := ifType[ifid]
-		if ifid == egress || ifid == ingress || t == topology.Peer {
-			gi[ifid] = staticinfo.GeoCoordinates{
+	for ifId, loc := range cfg.Geo {
+		t := ifType[ifId]
+		if ifId == egress || ifId == ingress || t == topology.Peer {
+			gi[ifId] = staticinfo.GeoCoordinates{
 				Longitude: loc.Longitude,
 				Latitude:  loc.Latitude,
 				Address:   loc.Address,
@@ -314,7 +314,7 @@ func (cfg StaticInfoCfg) generateGeo(ifType map[common.IFIDType]topology.LinkTyp
 }
 
 // includeIntraInfo determines if the intra-AS metadata info for the interface
-// pair (ifid, egress) should be included in this beacon:
+// pair (ifId, egress) should be included in this beacon:
 // Include information between the egress interface and
 // - ingress interface
 // - sibling child interfaces,
@@ -322,7 +322,7 @@ func (cfg StaticInfoCfg) generateGeo(ifType map[common.IFIDType]topology.LinkTyp
 // - peer interfaces
 // For core/sibling child interfaces, we can skip some entries to avoid
 // redundancy: by consistently only including latency to interfaces with
-// ifid > egress, we ensure that for each cross-over, the latency from
+// ifId > egress, we ensure that for each cross-over, the latency from
 // this AS Entry's egress interface to the other AS Entry's egress
 // interface will be available in exactly one of the two AS Entries.
 // Note that the choice of < or > is arbitrary.  At least each separate
@@ -330,17 +330,17 @@ func (cfg StaticInfoCfg) generateGeo(ifType map[common.IFIDType]topology.LinkTyp
 // information all the time), otherwise information for cross-overs may
 // be missing.
 func includeIntraInfo(ifType map[common.IFIDType]topology.LinkType,
-	ifid, ingress, egress common.IFIDType) bool {
+	ifId, ingress, egress common.IFIDType) bool {
 
 	isCoreIngress := (ifType[ingress] == topology.Core || ingress == 0)
 	isCoreEgress := (ifType[egress] == topology.Core || egress == 0)
 	isCoreSeg := isCoreIngress && isCoreEgress
 	if isCoreSeg {
-		return ifid == ingress
+		return ifId == ingress
 	}
-	t := ifType[ifid]
-	return ifid == ingress ||
-		t == topology.Child && ifid > egress ||
+	t := ifType[ifId]
+	return ifId == ingress ||
+		t == topology.Child && ifId > egress ||
 		t == topology.Core ||
 		t == topology.Peer
 }
@@ -348,8 +348,8 @@ func includeIntraInfo(ifType map[common.IFIDType]topology.LinkType,
 func interfaceTypeTable(intfs *ifstate.Interfaces) map[common.IFIDType]topology.LinkType {
 	ifMap := intfs.All()
 	ifTypes := make(map[common.IFIDType]topology.LinkType, len(ifMap))
-	for ifID, ifInfo := range ifMap {
-		ifTypes[common.IFIDType(ifID)] = ifInfo.TopoInfo().LinkType
+	for ifId, ifInfo := range ifMap {
+		ifTypes[common.IFIDType(ifId)] = ifInfo.TopoInfo().LinkType
 	}
 	return ifTypes
 }

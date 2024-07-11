@@ -94,7 +94,7 @@ func TestPathDB(t *testing.T, db TestablePathDB) {
 		testWrapper(testGetAll))
 	t.Run("Get should return all path segments starting or ending at",
 		testWrapper(testGetStartsAtEndsAt))
-	t.Run("Get should return all path segment with given ifIDs",
+	t.Run("Get should return all path segment with given ifIds",
 		testWrapper(testGetWithIntfs))
 	t.Run("Get should return all path segment with given HPGroupIDs",
 		testWrapper(testGetWithHPGroupIDs))
@@ -134,7 +134,7 @@ func TestPathDB(t *testing.T, db TestablePathDB) {
 			txTestWrapper(testGetAll))
 		t.Run("Get should return all path segments starting or ending at",
 			txTestWrapper(testGetStartsAtEndsAt))
-		t.Run("Get should return all path segment with given ifIDs",
+		t.Run("Get should return all path segment with given ifIds",
 			txTestWrapper(testGetWithIntfs))
 		t.Run("Get should return all path segment with given HPGroupIDs",
 			txTestWrapper(testGetWithHPGroupIDs))
@@ -384,8 +384,8 @@ func testGetWithIntfs(t *testing.T, pathDB pathdb.ReadWrite) {
 	require.Equal(t, stat, pathdb.InsertStats{Inserted: 1})
 	params := &query.Params{
 		Intfs: []*query.IntfSpec{
-			{IA: ia330, IfID: 5},
-			{IA: ia332, IfID: 2},
+			{IA: ia330, IfId: 5},
+			{IA: ia332, IfId: 2},
 		},
 	}
 	// Call
@@ -603,7 +603,7 @@ func checkInterface(t *testing.T, ctx context.Context, ia addr.IA, ifId uint16,
 		Intfs: []*query.IntfSpec{
 			{
 				IA:   ia,
-				IfID: common.IFIDType(ifId),
+				IfId: common.IFIDType(ifId),
 			},
 		},
 	})

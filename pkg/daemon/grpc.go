@@ -93,13 +93,13 @@ func (c grpcConn) Interfaces(ctx context.Context) (map[uint16]netip.AddrPort, er
 		return nil, err
 	}
 	result := make(map[uint16]netip.AddrPort, len(response.Interfaces))
-	for ifID, intf := range response.Interfaces {
+	for ifId, intf := range response.Interfaces {
 		a, err := netip.ParseAddrPort(intf.Address.Address)
 		if err != nil {
 			c.metrics.incInterface(err)
 			return nil, serrors.WrapStr("parsing reply", err, "raw_uri", intf.Address.Address)
 		}
-		result[uint16(ifID)] = a
+		result[uint16(ifId)] = a
 	}
 	c.metrics.incInterface(nil)
 	return result, nil
@@ -168,7 +168,7 @@ func (c grpcConn) SVCInfo(
 func (c grpcConn) RevNotification(ctx context.Context, revInfo *path_mgmt.RevInfo) error {
 	client := sdpb.NewDaemonServiceClient(c.conn)
 	_, err := client.NotifyInterfaceDown(ctx, &sdpb.NotifyInterfaceDownRequest{
-		Id:    uint64(revInfo.IfID),
+		Id:    uint64(revInfo.IfId),
 		IsdAs: uint64(revInfo.RawIsdas),
 	})
 	c.metrics.incIfDown(err)

@@ -282,11 +282,11 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 		if err := path.DecodeFromBytes(rpath.Raw); err != nil {
 			return nil, err
 		}
-		ifid := path.SecondHop.ConsIngress
+		ifId := path.SecondHop.ConsIngress
 		if !path.Info.ConsDir {
-			ifid = path.SecondHop.ConsEgress
+			ifId = path.SecondHop.ConsEgress
 		}
-		return c.interfaceMap.get(ifid)
+		return c.interfaceMap.get(ifId)
 	case epic.PathType:
 		var path epic.Path
 		if err := path.DecodeFromBytes(rpath.Raw); err != nil {
@@ -300,11 +300,11 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 		if err != nil {
 			return nil, err
 		}
-		ifid := hf.ConsIngress
+		ifId := hf.ConsIngress
 		if !infoField.ConsDir {
-			ifid = hf.ConsEgress
+			ifId = hf.ConsEgress
 		}
-		return c.interfaceMap.get(ifid)
+		return c.interfaceMap.get(ifId)
 	case scion.PathType:
 		var path scion.Raw
 		if err := path.DecodeFromBytes(rpath.Raw); err != nil {
@@ -318,11 +318,11 @@ func (c *SCIONPacketConn) lastHop(p *Packet) (*net.UDPAddr, error) {
 		if err != nil {
 			return nil, err
 		}
-		ifid := hf.ConsIngress
+		ifId := hf.ConsIngress
 		if !infoField.ConsDir {
-			ifid = hf.ConsEgress
+			ifId = hf.ConsEgress
 		}
-		return c.interfaceMap.get(ifid)
+		return c.interfaceMap.get(ifId)
 	default:
 		return nil, serrors.New("unknown path type", "type", rpath.PathType.String())
 	}

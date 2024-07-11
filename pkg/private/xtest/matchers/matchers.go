@@ -81,7 +81,7 @@ func (m *QueryParams) Matches(x interface{}) bool {
 	sort.Slice(query.Intfs, func(i, j int) bool {
 		return (query.Intfs[i].IA < query.Intfs[j].IA) ||
 			(query.Intfs[i].IA == query.Intfs[j].IA &&
-				query.Intfs[i].IfID < query.Intfs[j].IfID)
+				query.Intfs[i].IfId < query.Intfs[j].IfId)
 	})
 	sort.Slice(query.StartsAt, func(i, j int) bool {
 		return query.StartsAt[i] < query.StartsAt[j]

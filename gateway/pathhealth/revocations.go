@@ -41,7 +41,7 @@ func (s *MemoryRevocationStore) AddRevocation(ctx context.Context, rev *path_mgm
 	if rev == nil {
 		return
 	}
-	iface := snet.PathInterface{IA: rev.RawIsdas, ID: rev.IfID}
+	iface := snet.PathInterface{IA: rev.RawIsdas, ID: rev.IfId}
 	if _, ok := s.revs[iface]; !ok {
 		logger.Debug("Revocation added", "isd_as", iface.IA, "intf", iface.ID)
 	}
@@ -60,7 +60,7 @@ func (s *MemoryRevocationStore) Cleanup(ctx context.Context) {
 	now := time.Now()
 	for k, rev := range s.revs {
 		if rev.Expiration().Before(now) {
-			logger.Debug("Revocation expired", "isd_as", rev.RawIsdas, "intf", rev.IfID)
+			logger.Debug("Revocation expired", "isd_as", rev.RawIsdas, "intf", rev.IfId)
 			delete(s.revs, k)
 		}
 	}

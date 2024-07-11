@@ -44,12 +44,12 @@ func TestTypeOf(t *testing.T) {
 func TestIFIDTypeUnmarshalJSON(t *testing.T) {
 	t.Run("Simple Value", func(t *testing.T) {
 		type exampleStruct struct {
-			IfID common.IFIDType `json:"if_id"`
+			IfId common.IFIDType `json:"if_id"`
 		}
 		j := `{"if_id": 5}`
 		var f exampleStruct
 		require.NoError(t, json.Unmarshal([]byte(j), &f))
-		assert.Equal(t, exampleStruct{IfID: 5}, f)
+		assert.Equal(t, exampleStruct{IfId: 5}, f)
 	})
 	t.Run("Map keys", func(t *testing.T) {
 		type exampleStruct struct {

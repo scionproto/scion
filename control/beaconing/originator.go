@@ -156,7 +156,7 @@ type beaconOriginator struct {
 	summary   *summary
 }
 
-// originateBeacon originates a beacon on the given ifid.
+// originateBeacon originates a beacon on the given ifId.
 func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 	labels := originatorLabels{intf: o.intf}
 	topoInfo := o.intf.TopoInfo()
@@ -213,7 +213,7 @@ func (o *beaconOriginator) createBeacon(ctx context.Context) (*seg.PathSegment, 
 
 func (o *beaconOriginator) onSuccess(intf *ifstate.Interface) {
 	intf.Originate(o.Tick.Now())
-	o.summary.AddIfid(o.intf.TopoInfo().ID)
+	o.summary.AddIfId(o.intf.TopoInfo().ID)
 	o.summary.Inc()
 }
 

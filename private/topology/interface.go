@@ -59,7 +59,7 @@ type Topology interface {
 	UnderlayMulticast(svc addr.SVC) ([]*net.UDPAddr, error)
 	// UnderlayNextHop returns the internal underlay address of the router
 	// containing the interface ID.
-	UnderlayNextHop(ifID common.IFIDType) (*net.UDPAddr, bool)
+	UnderlayNextHop(ifId common.IFIDType) (*net.UDPAddr, bool)
 
 	// MakeHostInfos returns the underlay addresses of all services for the specified service type.
 	MakeHostInfos(st ServiceType) ([]*net.UDPAddr, error)
@@ -146,8 +146,8 @@ func (t *topologyS) MTU() uint16 {
 
 func (t *topologyS) InterfaceIDs() []common.IFIDType {
 	intfs := make([]common.IFIDType, 0, len(t.Topology.IFInfoMap))
-	for ifid := range t.Topology.IFInfoMap {
-		intfs = append(intfs, ifid)
+	for ifId := range t.Topology.IFInfoMap {
+		intfs = append(intfs, ifId)
 	}
 	return intfs
 }
@@ -156,8 +156,8 @@ func (t *topologyS) PortRange() (uint16, uint16) {
 	return t.Topology.DispatchedPortStart, t.Topology.DispatchedPortEnd
 }
 
-func (t *topologyS) UnderlayNextHop(ifid common.IFIDType) (*net.UDPAddr, bool) {
-	ifInfo, ok := t.Topology.IFInfoMap[ifid]
+func (t *topologyS) UnderlayNextHop(ifId common.IFIDType) (*net.UDPAddr, bool) {
+	ifInfo, ok := t.Topology.IFInfoMap[ifId]
 	if !ok {
 		return nil, false
 	}

@@ -54,8 +54,8 @@ func newShowpaths(pather CommandPather) *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		Example: fmt.Sprintf(`  %[1]s showpaths 1-ff00:0:110 --extended
   %[1]s showpaths 1-ff00:0:110 --local 127.0.0.55 --json
-  %[1]s showpaths 1-ff00:0:111 --sequence="0-0#2 0*" # outgoing IfID=2
-  %[1]s showpaths 1-ff00:0:111 --sequence="0* 0-0#41" # incoming IfID=41 at dstIA
+  %[1]s showpaths 1-ff00:0:111 --sequence="0-0#2 0*" # outgoing IfId=2
+  %[1]s showpaths 1-ff00:0:111 --sequence="0* 0-0#41" # incoming IfId=41 at dstIA
   %[1]s showpaths 1-ff00:0:111 --sequence="0* 1-ff00:0:112 0*" # 1-ff00:0:112 on the path
   %[1]s showpaths 1-ff00:0:110 --no-probe`, pather.CommandPath()),
 		Long: fmt.Sprintf(`'showpaths' lists available paths between the local and the specified

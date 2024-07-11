@@ -92,7 +92,7 @@ type Revocations map[Key]*path_mgmt.RevInfo
 func RevocationToMap(revs []*path_mgmt.RevInfo) (Revocations, error) {
 	res := make(Revocations)
 	for _, rev := range revs {
-		res[Key{IA: rev.IA(), IfId: rev.IfID}] = rev
+		res[Key{IA: rev.IA(), IfId: rev.IfId}] = rev
 	}
 	return res, nil
 }

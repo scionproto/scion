@@ -129,11 +129,11 @@ func (l *Loader) Core() bool {
 	return l.topo.Core()
 }
 
-func (l *Loader) UnderlayNextHop(ifID uint16) *net.UDPAddr {
+func (l *Loader) UnderlayNextHop(ifId uint16) *net.UDPAddr {
 	l.mtx.Lock()
 	defer l.mtx.Unlock()
 
-	addr, _ := l.topo.UnderlayNextHop(common.IFIDType(ifID))
+	addr, _ := l.topo.UnderlayNextHop(common.IFIDType(ifId))
 	return addr
 }
 

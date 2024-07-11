@@ -314,7 +314,7 @@ func TestSCMP(t *testing.T) {
 						Payload: bytes.Repeat([]byte{0xff}, 15),
 					},
 					IA:   addr.MustParseIA("1-ff00:0:111"),
-					IfID: uint64(5),
+					IfId: uint64(5),
 				},
 				gopacket.Payload(bytes.Repeat([]byte{0xff}, 15)),
 			},

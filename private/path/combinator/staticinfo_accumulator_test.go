@@ -228,11 +228,11 @@ func checkNotes(t *testing.T, g *graph.Graph, path []snet.PathInterface, notes [
 }
 
 func concatBeaconASEntries(g *graph.Graph,
-	upIfIDs, coreIfIDs, downIfIDs []uint16) []seg.ASEntry {
+	upIfIds, coreIfIds, downIfIds []uint16) []seg.ASEntry {
 
 	r := []seg.ASEntry{}
-	for _, ifids := range [][]uint16{upIfIDs, coreIfIDs, downIfIDs} {
-		seg := g.BeaconWithStaticInfo(ifids)
+	for _, ifIds := range [][]uint16{upIfIds, coreIfIds, downIfIds} {
+		seg := g.BeaconWithStaticInfo(ifIds)
 		if seg != nil {
 			r = append(r, seg.ASEntries...)
 		}

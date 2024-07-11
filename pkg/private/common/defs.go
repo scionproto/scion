@@ -38,22 +38,22 @@ const (
 // Use the appropriate type depending on the path type.
 type IFIDType uint64
 
-func (ifid IFIDType) String() string {
-	return strconv.FormatUint(uint64(ifid), 10)
+func (ifId IFIDType) String() string {
+	return strconv.FormatUint(uint64(ifId), 10)
 }
 
-// UnmarshalJSON unmarshals the JSON data into the IfID.
-func (ifid *IFIDType) UnmarshalJSON(data []byte) error {
-	return ifid.UnmarshalText(data)
+// UnmarshalJSON unmarshals the JSON data into the IfId.
+func (ifId *IFIDType) UnmarshalJSON(data []byte) error {
+	return ifId.UnmarshalText(data)
 }
 
-// UnmarshalText unmarshals the text into the IfID.
-func (ifid *IFIDType) UnmarshalText(text []byte) error {
+// UnmarshalText unmarshals the text into the IfId.
+func (ifId *IFIDType) UnmarshalText(text []byte) error {
 	i, err := strconv.ParseUint(strings.ReplaceAll(string(text), "\"", ""), 10, 64)
 	if err != nil {
 		return err
 	}
-	*ifid = IFIDType(i)
+	*ifId = IFIDType(i)
 	return nil
 }
 

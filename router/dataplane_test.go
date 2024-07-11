@@ -395,9 +395,9 @@ func TestDataPlaneRun(t *testing.T) {
 				local := netip.MustParseAddrPort("10.0.200.100:0")
 				_ = ret.SetKey([]byte("randomkeyformacs"))
 				_ = ret.AddInternalInterface(mInternal, netip.Addr{})
-				for remote, ifIDs := range routers {
-					for _, ifID := range ifIDs {
-						_ = ret.AddNextHop(ifID, local, remote, bfd(), "")
+				for remote, ifIds := range routers {
+					for _, ifId := range ifIds {
+						_ = ret.AddNextHop(ifId, local, remote, bfd(), "")
 					}
 				}
 				return ret
@@ -457,7 +457,7 @@ func TestDataPlaneRun(t *testing.T) {
 		"bfd sender external": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
 				ret := &router.DataPlane{Metrics: metrics}
-				ifID := uint16(1)
+				ifId := uint16(1)
 				mInternal := mock_router.NewMockBatchConn(ctrl)
 				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
@@ -482,7 +482,7 @@ func TestDataPlaneRun(t *testing.T) {
 							if !ok {
 								return 1, nil
 							}
-							if v.FirstHop.ConsEgress != ifID {
+							if v.FirstHop.ConsEgress != ifId {
 								return 1, nil
 							}
 						}
@@ -502,7 +502,7 @@ func TestDataPlaneRun(t *testing.T) {
 				}
 				_ = ret.SetKey([]byte("randomkeyformacs"))
 				_ = ret.AddInternalInterface(mInternal, netip.Addr{})
-				_ = ret.AddExternalInterface(ifID, mExternal, local, remote, bfd())
+				_ = ret.AddExternalInterface(ifId, mExternal, local, remote, bfd())
 				return ret
 			},
 		},
@@ -510,12 +510,12 @@ func TestDataPlaneRun(t *testing.T) {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
 				ret := &router.DataPlane{Metrics: metrics}
 
-				postExternalBFD := func(id layers.BFDDiscriminator, fromIfID uint16) []byte {
+				postExternalBFD := func(id layers.BFDDiscriminator, fromIfId uint16) []byte {
 					scn := &slayers.SCION{
 						NextHdr:  slayers.L4BFD,
 						PathType: onehop.PathType,
 						Path: &onehop.Path{
-							FirstHop: path.HopField{ConsEgress: fromIfID},
+							FirstHop: path.HopField{ConsEgress: fromIfId},
 						},
 					}
 					bfdL := &layers.BFD{

@@ -32,12 +32,12 @@ import (
 // ID.
 func sortedIntfs(intfs *ifstate.Interfaces, linkType topology.LinkType) []uint16 {
 	var result []uint16
-	for ifid, intf := range intfs.All() {
+	for ifId, intf := range intfs.All() {
 		topoInfo := intf.TopoInfo()
 		if topoInfo.LinkType != linkType {
 			continue
 		}
-		result = append(result, ifid)
+		result = append(result, ifId)
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
 	return result
@@ -63,10 +63,10 @@ func (s *summary) AddSrc(ia addr.IA) {
 	s.srcs[ia] = struct{}{}
 }
 
-func (s *summary) AddIfid(ifid uint16) {
+func (s *summary) AddIfId(ifId uint16) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.ifIds[ifid] = struct{}{}
+	s.ifIds[ifId] = struct{}{}
 }
 
 func (s *summary) Inc() {

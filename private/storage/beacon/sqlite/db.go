@@ -140,15 +140,15 @@ func (e *executor) CandidateBeacons(
 	beacons := make([]beacon.Beacon, 0, setSize)
 	for rows.Next() {
 		var rawBeacon sql.RawBytes
-		var inIntfID common.IFIDType
-		if err = rows.Scan(&rawBeacon, &inIntfID); err != nil {
+		var inIfId common.IFIDType
+		if err = rows.Scan(&rawBeacon, &inIfId); err != nil {
 			return nil, db.NewReadError(beacon.ErrReadingRows, err)
 		}
 		s, err := beacon.UnpackBeacon(rawBeacon)
 		if err != nil {
 			return nil, db.NewDataError(beacon.ErrParse, err)
 		}
-		beacons = append(beacons, beacon.Beacon{Segment: s, InIfId: uint16(inIntfID)})
+		beacons = append(beacons, beacon.Beacon{Segment: s, InIfId: uint16(inIfId)})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -217,8 +217,8 @@ func (e *executor) GetBeacons(
 		var lastUpdated int64
 		var usage int
 		var rawBeacon sql.RawBytes
-		var InIntfID uint16
-		err = rows.Scan(&RowID, &lastUpdated, &usage, &rawBeacon, &InIntfID)
+		var InIfId uint16
+		err = rows.Scan(&RowID, &lastUpdated, &usage, &rawBeacon, &InIfId)
 		if err != nil {
 			return nil, serrors.WrapStr("reading row", err)
 		}
@@ -229,7 +229,7 @@ func (e *executor) GetBeacons(
 		res = append(res, storagebeacon.Beacon{
 			Beacon: beacon.Beacon{
 				Segment: seg,
-				InIfId:  InIntfID,
+				InIfId:  InIfId,
 			},
 			Usage:       beacon.Usage(usage),
 			LastUpdated: time.Unix(0, lastUpdated),

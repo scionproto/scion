@@ -177,7 +177,7 @@ func testGetAll(t *testing.T, revCache TestableRevCache) {
 		iInfo := revs[i]
 		jInfo := revs[j]
 		return iInfo.IA() < jInfo.IA() ||
-			(iInfo.IA() == jInfo.IA() && iInfo.IfID < jInfo.IfID)
+			(iInfo.IA() == jInfo.IA() && iInfo.IfId < jInfo.IfId)
 	})
 	SoMsg("All revocations should have been returned", revs, ShouldResemble, expectedRevs)
 }
@@ -187,7 +187,7 @@ func testGetAllExpired(t *testing.T, revCache TestableRevCache) {
 	defer cancelF()
 	// insert expired rev
 	revNew := &path_mgmt.RevInfo{
-		IfID:         ifId15,
+		IfId:         ifId15,
 		RawIsdas:     ia110,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(-2 * time.Second)),
@@ -204,7 +204,7 @@ func testGetAllExpired(t *testing.T, revCache TestableRevCache) {
 
 func testInsertExpired(t *testing.T, revCache TestableRevCache) {
 	r := &path_mgmt.RevInfo{
-		IfID:         ifId15,
+		IfId:         ifId15,
 		RawIsdas:     ia110,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(-15 * time.Second)),
@@ -224,7 +224,7 @@ func testInsertNewer(t *testing.T, revCache TestableRevCache) {
 	_, err := revCache.Insert(ctx, rev)
 	require.NoError(t, err)
 	revNew := &path_mgmt.RevInfo{
-		IfID:         ifId15,
+		IfId:         ifId15,
 		RawIsdas:     ia110,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(10 * time.Second)),
@@ -245,7 +245,7 @@ func testGetExpired(t *testing.T, revCache TestableRevCache) {
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
 	revNew := &path_mgmt.RevInfo{
-		IfID:         ifId15,
+		IfId:         ifId15,
 		RawIsdas:     ia110,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(-2 * time.Second)),
@@ -261,7 +261,7 @@ func testGetMuliKeysExpired(t *testing.T, revCache TestableRevCache) {
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
 	revNew := &path_mgmt.RevInfo{
-		IfID:         ifId15,
+		IfId:         ifId15,
 		RawIsdas:     ia110,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(-2 * time.Second)),
@@ -294,7 +294,7 @@ func testDeleteExpired(t *testing.T, revCache TestableRevCache) {
 	SoMsg("DeleteExpired should not error", err, ShouldBeNil)
 	SoMsg("DeleteExpired should delete 0 if entry is not expired", del, ShouldEqual, 0)
 	revNew := &path_mgmt.RevInfo{
-		IfID:         ifId15,
+		IfId:         ifId15,
 		RawIsdas:     ia110,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(-2 * time.Second)),
@@ -311,7 +311,7 @@ func testDeleteExpired(t *testing.T, revCache TestableRevCache) {
 
 func defaultRevInfo(ia addr.IA, ifId common.IFIDType) *path_mgmt.RevInfo {
 	return &path_mgmt.RevInfo{
-		IfID:         ifId,
+		IfId:         ifId,
 		RawIsdas:     ia,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now()),

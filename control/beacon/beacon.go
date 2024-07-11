@@ -39,11 +39,11 @@ func (b Beacon) Diversity(other Beacon) int {
 	}
 	var diff int
 	for _, asEntry := range b.Segment.ASEntries {
-		ia, ifid := link(asEntry)
+		ia, ifId := link(asEntry)
 		var found bool
 		for _, otherEntry := range other.Segment.ASEntries {
-			oia, oifid := link(otherEntry)
-			if ia.Equal(oia) && ifid == oifid {
+			oia, oifId := link(otherEntry)
+			if ia.Equal(oia) && ifId == oifId {
 				found = true
 				break
 			}

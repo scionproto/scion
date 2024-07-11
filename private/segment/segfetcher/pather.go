@@ -196,7 +196,7 @@ func (p *Pather) translatePath(comb combinator.Path) (snet.Path, error) {
 	nextHop := p.NextHopper.UnderlayNextHop(uint16(comb.Metadata.Interfaces[0].ID))
 	if nextHop == nil {
 		return nil, serrors.New("Unable to find first-hop BR for path",
-			"ifid", comb.Metadata.Interfaces[0].ID)
+			"ifId", comb.Metadata.Interfaces[0].ID)
 	}
 	return path.Path{
 		Src:           comb.Metadata.Interfaces[0].IA,

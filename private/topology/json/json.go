@@ -139,8 +139,8 @@ func (i ServerInfo) String() string {
 func (i BRInfo) String() string {
 	var s []string
 	s = append(s, fmt.Sprintf("Loc addrs:\n  %s\nInterfaces:", i.InternalAddr))
-	for ifid, intf := range i.Interfaces {
-		s = append(s, fmt.Sprintf("%d: %+v", ifid, intf))
+	for ifId, intf := range i.Interfaces {
+		s = append(s, fmt.Sprintf("%d: %+v", ifId, intf))
 	}
 	return strings.Join(s, "\n")
 }
