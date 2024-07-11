@@ -4,6 +4,7 @@
         "@stoplight/spectral-cli": "^6.11.1"
     },
     "pnpm": {
+        "onlyBuiltDependencies": [],
         "packageExtensions": {
             "styled-components@5.3.11": {
                 "dependencies": {
