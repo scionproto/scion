@@ -1185,8 +1185,9 @@ func TestProcessPkt(t *testing.T) {
 				dpath := &scion.Decoded{
 					Base: scion.Base{
 						PathMeta: scion.MetaHdr{
-							CurrHF: 2,
-							SegLen: [3]uint8{2, 2, 0},
+							CurrINF: 0,
+							CurrHF:  1,
+							SegLen:  [3]uint8{2, 2, 0},
 						},
 						NumINF:  2,
 						NumHops: 4,
@@ -1198,24 +1199,26 @@ func TestProcessPkt(t *testing.T) {
 						{SegID: 0x222, ConsDir: false, Timestamp: util.TimeToSecs(now)},
 					},
 					HopFields: []path.HopField{
-						{ConsIngress: 0, ConsEgress: 1},  // IA 110
 						{ConsIngress: 31, ConsEgress: 0}, // Src
-						{ConsIngress: 0, ConsEgress: 51}, // Dst
+						{ConsIngress: 0, ConsEgress: 51}, // IA 110
 						{ConsIngress: 3, ConsEgress: 0},  // IA 110
+						{ConsIngress: 0, ConsEgress: 1},  // Dst
 					},
 				}
-				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
-				dpath.HopFields[3].Mac = computeMAC(t, key, dpath.InfoFields[1], dpath.HopFields[3])
+				dpath.HopFields[1].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[1])
+				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[1], dpath.HopFields[2])
 
 				var dstAddr *net.UDPAddr
 				ingress := uint16(51) // == consEgress, bc non-consdir
 				egress := uint16(0)   // Cross-over. The egress happens in the next segment.
 				if afterProcessing {
-					require.NoError(t, dpath.IncPath())
+					dpath.PathMeta.CurrHF++
+					dpath.PathMeta.CurrINF++
 					dstAddr = &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4(), Port: 30043}
 				} else {
-					dpath.InfoFields[0].UpdateSegID(dpath.HopFields[2].Mac)
+					dpath.InfoFields[0].UpdateSegID(dpath.HopFields[1].Mac)
 				}
+
 				return router.NewPacket(toBytes(t, spkt, dpath), nil, dstAddr, ingress, egress)
 			},
 			assertFunc: notDiscarded,

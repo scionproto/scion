@@ -1359,6 +1359,17 @@ func (p *scionPacketProcessor) parsePath() disposition {
 		// TODO(lukedirtwalker) parameter problem invalid path?
 		return errorDiscard("error", err)
 	}
+	// Segments without the Peering flag must consist of at least two HFs:
+	// https://github.com/scionproto/scion/issues/4524
+	hasSingletonSegment := p.path.PathMeta.SegLen[0] == 1 ||
+		p.path.PathMeta.SegLen[1] == 1 ||
+		p.path.PathMeta.SegLen[2] == 1
+	if !p.infoField.Peer && hasSingletonSegment {
+		return errorDiscard("error", malformedPath)
+	}
+	if !p.path.CurrINFMatchesCurrHF() {
+		return errorDiscard("error", malformedPath)
+	}
 	return pForward
 }
 
