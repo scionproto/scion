@@ -277,8 +277,8 @@ load("@aspect_rules_js//npm:repositories.bzl", "npm_translate_lock")
 
 npm_translate_lock(
     name = "npm",
-    pnpm_version = "9.4.0",
     pnpm_lock = "@com_github_scionproto_scion//private/mgmtapi/tools:pnpm-lock.yaml",
+    pnpm_version = "9.4.0",
     verify_node_modules_ignored = "@com_github_scionproto_scion//:.bazelignore",
 )
 
