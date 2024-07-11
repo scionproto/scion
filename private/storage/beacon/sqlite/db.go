@@ -140,7 +140,7 @@ func (e *executor) CandidateBeacons(
 	beacons := make([]beacon.Beacon, 0, setSize)
 	for rows.Next() {
 		var rawBeacon sql.RawBytes
-		var inIfId common.IFIDType
+		var inIfId common.IfIdType
 		if err = rows.Scan(&rawBeacon, &inIfId); err != nil {
 			return nil, db.NewReadError(beacon.ErrReadingRows, err)
 		}

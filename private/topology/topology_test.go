@@ -58,10 +58,10 @@ func TestBRs(t *testing.T) {
 
 	brs := map[string]BRInfo{
 		"br1-ff00:0:311-1": {
-			IFIDs: []common.IFIDType{1, 3, 8},
+			IFIDs: []common.IfIdType{1, 3, 8},
 		},
 		"br1-ff00:0:311-2": {
-			IFIDs: []common.IFIDType{11},
+			IFIDs: []common.IfIdType{11},
 		},
 	}
 
@@ -312,10 +312,10 @@ func TestBRsCoreAS(t *testing.T) {
 	c := MustLoadTopo(t, "testdata/core.json")
 	brCases := []struct {
 		name       string
-		interfaces []common.IFIDType
+		interfaces []common.IfIdType
 	}{
-		{name: "borderrouter6-ff00:0:362-1", interfaces: []common.IFIDType{91}},
-		{name: "borderrouter6-ff00:0:362-9", interfaces: []common.IFIDType{32}},
+		{name: "borderrouter6-ff00:0:362-1", interfaces: []common.IfIdType{91}},
+		{name: "borderrouter6-ff00:0:362-9", interfaces: []common.IfIdType{32}},
 	}
 	for _, test := range brCases {
 		t.Run(test.name, func(t *testing.T) {

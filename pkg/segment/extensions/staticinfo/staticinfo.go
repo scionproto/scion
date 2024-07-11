@@ -39,20 +39,20 @@ type Extension struct {
 // LatencyInfo is the internal repesentation of `latency` in the
 // StaticInfoExtension.
 type LatencyInfo struct {
-	Intra map[common.IFIDType]time.Duration
-	Inter map[common.IFIDType]time.Duration
+	Intra map[common.IfIdType]time.Duration
+	Inter map[common.IfIdType]time.Duration
 }
 
 // BandwidthInfo is the internal repesentation of `bandwidth` in the
 // StaticInfoExtension.
 type BandwidthInfo struct {
-	Intra map[common.IFIDType]uint64
-	Inter map[common.IFIDType]uint64
+	Intra map[common.IfIdType]uint64
+	Inter map[common.IfIdType]uint64
 }
 
 // GeoInfo is the internal repesentation of `geo` in the
 // StaticInfoExtension.
-type GeoInfo map[common.IFIDType]GeoCoordinates
+type GeoInfo map[common.IfIdType]GeoCoordinates
 
 // GeoCoordinates is the internal repesentation of the GeoCoordinates in the
 // StaticInfoExtension.
@@ -76,11 +76,11 @@ const (
 
 // LinkTypeInfo is the internal representation of `link_type` in the
 // StaticInfoExtension.
-type LinkTypeInfo map[common.IFIDType]LinkType
+type LinkTypeInfo map[common.IfIdType]LinkType
 
 // InternalHopsInfo is the internal representation of `internal_hops` in the
 // StaticInfoExtension.
-type InternalHopsInfo map[common.IFIDType]uint32
+type InternalHopsInfo map[common.IfIdType]uint32
 
 // FromPB creates the staticinfo Extension from the protobuf representation.
 func FromPB(pb *cppb.StaticInfoExtension) *Extension {
@@ -101,13 +101,13 @@ func latencyInfoFromPB(pb *cppb.LatencyInfo) LatencyInfo {
 	if pb == nil || len(pb.Intra) == 0 && len(pb.Inter) == 0 {
 		return LatencyInfo{}
 	}
-	intra := make(map[common.IFIDType]time.Duration, len(pb.Intra))
+	intra := make(map[common.IfIdType]time.Duration, len(pb.Intra))
 	for ifId, v := range pb.Intra {
-		intra[common.IFIDType(ifId)] = time.Duration(v) * time.Microsecond
+		intra[common.IfIdType(ifId)] = time.Duration(v) * time.Microsecond
 	}
-	inter := make(map[common.IFIDType]time.Duration, len(pb.Inter))
+	inter := make(map[common.IfIdType]time.Duration, len(pb.Inter))
 	for ifId, v := range pb.Inter {
-		inter[common.IFIDType(ifId)] = time.Duration(v) * time.Microsecond
+		inter[common.IfIdType(ifId)] = time.Duration(v) * time.Microsecond
 	}
 	return LatencyInfo{
 		Intra: intra,
@@ -119,13 +119,13 @@ func bandwidthInfoFromPB(pb *cppb.BandwidthInfo) BandwidthInfo {
 	if pb == nil || len(pb.Intra) == 0 && len(pb.Inter) == 0 {
 		return BandwidthInfo{}
 	}
-	intra := make(map[common.IFIDType]uint64, len(pb.Intra))
+	intra := make(map[common.IfIdType]uint64, len(pb.Intra))
 	for ifId, v := range pb.Intra {
-		intra[common.IFIDType(ifId)] = v
+		intra[common.IfIdType(ifId)] = v
 	}
-	inter := make(map[common.IFIDType]uint64, len(pb.Inter))
+	inter := make(map[common.IfIdType]uint64, len(pb.Inter))
 	for ifId, v := range pb.Inter {
-		inter[common.IFIDType(ifId)] = v
+		inter[common.IfIdType(ifId)] = v
 	}
 	return BandwidthInfo{
 		Intra: intra,
@@ -139,7 +139,7 @@ func geoInfoFromPB(pb map[uint64]*cppb.GeoCoordinates) GeoInfo {
 	}
 	gi := make(GeoInfo, len(pb))
 	for ifId, v := range pb {
-		gi[common.IFIDType(ifId)] = GeoCoordinates{
+		gi[common.IfIdType(ifId)] = GeoCoordinates{
 			Latitude:  v.Latitude,
 			Longitude: v.Longitude,
 			Address:   v.Address,
@@ -167,7 +167,7 @@ func linkTypeInfoFromPB(pb map[uint64]cppb.LinkType) LinkTypeInfo {
 		default:
 			continue
 		}
-		lti[common.IFIDType(ifId)] = v
+		lti[common.IfIdType(ifId)] = v
 	}
 	return lti
 }
@@ -178,7 +178,7 @@ func internalHopsInfoFromPB(pb map[uint64]uint32) InternalHopsInfo {
 	}
 	ihi := make(InternalHopsInfo, len(pb))
 	for ifId, v := range pb {
-		ihi[common.IFIDType(ifId)] = v
+		ihi[common.IfIdType(ifId)] = v
 	}
 	return ihi
 }

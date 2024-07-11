@@ -88,10 +88,10 @@ func RelevantRevInfos(ctx context.Context, revCache RevCache,
 func addRevKeys(segs []*seg.PathSegment, keys KeySet, hopOnly bool) {
 	addIntfs := func(ia addr.IA, ingress, egress uint16) {
 		if ingress != 0 {
-			keys[*NewKey(ia, common.IFIDType(ingress))] = struct{}{}
+			keys[*NewKey(ia, common.IfIdType(ingress))] = struct{}{}
 		}
 		if egress != 0 {
-			keys[*NewKey(ia, common.IFIDType(egress))] = struct{}{}
+			keys[*NewKey(ia, common.IfIdType(egress))] = struct{}{}
 		}
 	}
 	for _, s := range segs {

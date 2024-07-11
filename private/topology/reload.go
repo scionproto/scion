@@ -133,7 +133,7 @@ func (l *Loader) UnderlayNextHop(ifId uint16) *net.UDPAddr {
 	l.mtx.Lock()
 	defer l.mtx.Unlock()
 
-	addr, _ := l.topo.UnderlayNextHop(common.IFIDType(ifId))
+	addr, _ := l.topo.UnderlayNextHop(common.IfIdType(ifId))
 	return addr
 }
 
@@ -182,7 +182,7 @@ func (l *Loader) Gateways() ([]GatewayInfo, error) {
 	return l.topo.Gateways()
 }
 
-func (l *Loader) InterfaceInfoMap() map[common.IFIDType]IFInfo {
+func (l *Loader) InterfaceInfoMap() map[common.IfIdType]IFInfo {
 	l.mtx.Lock()
 	defer l.mtx.Unlock()
 

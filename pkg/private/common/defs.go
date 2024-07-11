@@ -32,28 +32,28 @@ const (
 	TimeFmtSecs  = "2006-01-02 15:04:05-0700"
 )
 
-// IFIDType is the type for interface IDs.
+// IfIdType is the type for interface IDs.
 //
 // Deprecated: with version 2 of the SCION header, there is no interface ID type anymore.
 // Use the appropriate type depending on the path type.
-type IFIDType uint64
+type IfIdType uint64
 
-func (ifId IFIDType) String() string {
+func (ifId IfIdType) String() string {
 	return strconv.FormatUint(uint64(ifId), 10)
 }
 
 // UnmarshalJSON unmarshals the JSON data into the IfId.
-func (ifId *IFIDType) UnmarshalJSON(data []byte) error {
+func (ifId *IfIdType) UnmarshalJSON(data []byte) error {
 	return ifId.UnmarshalText(data)
 }
 
 // UnmarshalText unmarshals the text into the IfId.
-func (ifId *IFIDType) UnmarshalText(text []byte) error {
+func (ifId *IfIdType) UnmarshalText(text []byte) error {
 	i, err := strconv.ParseUint(strings.ReplaceAll(string(text), "\"", ""), 10, 64)
 	if err != nil {
 		return err
 	}
-	*ifId = IFIDType(i)
+	*ifId = IfIdType(i)
 	return nil
 }
 

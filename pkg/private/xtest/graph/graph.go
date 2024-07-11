@@ -603,55 +603,55 @@ func generateStaticInfo(g *Graph, ia addr.IA, inIF, outIF uint16) *staticinfo.Ex
 
 	latency := staticinfo.LatencyInfo{}
 	if outIF != 0 {
-		latency.Intra = make(map[common.IFIDType]time.Duration)
-		latency.Inter = make(map[common.IFIDType]time.Duration)
+		latency.Intra = make(map[common.IfIdType]time.Duration)
+		latency.Inter = make(map[common.IfIdType]time.Duration)
 		for ifId := range as.IFIDs {
 			if ifId != outIF {
 				// Note: the test graph does not distinguish between parent/child or
 				// core interfaces.
 				// Otherwise, we could skip the parent interfaces and half of the
 				// sibling interfaces here.
-				latency.Intra[common.IFIDType(ifId)] = g.Latency(ifId, outIF)
+				latency.Intra[common.IfIdType(ifId)] = g.Latency(ifId, outIF)
 			}
 			if ifId == outIF || g.isPeer[ifId] {
-				latency.Inter[common.IFIDType(ifId)] = g.Latency(ifId, g.links[ifId])
+				latency.Inter[common.IfIdType(ifId)] = g.Latency(ifId, g.links[ifId])
 			}
 		}
 	}
 
 	bandwidth := staticinfo.BandwidthInfo{}
 	if outIF != 0 {
-		bandwidth.Intra = make(map[common.IFIDType]uint64)
-		bandwidth.Inter = make(map[common.IFIDType]uint64)
+		bandwidth.Intra = make(map[common.IfIdType]uint64)
+		bandwidth.Inter = make(map[common.IfIdType]uint64)
 		for ifId := range as.IFIDs {
 			if ifId != outIF {
-				bandwidth.Intra[common.IFIDType(ifId)] = g.Bandwidth(ifId, outIF)
+				bandwidth.Intra[common.IfIdType(ifId)] = g.Bandwidth(ifId, outIF)
 			}
 			if ifId == outIF || g.isPeer[ifId] {
-				bandwidth.Inter[common.IFIDType(ifId)] = g.Bandwidth(ifId, g.links[ifId])
+				bandwidth.Inter[common.IfIdType(ifId)] = g.Bandwidth(ifId, g.links[ifId])
 			}
 		}
 	}
 
 	geo := make(staticinfo.GeoInfo)
 	for ifId := range as.IFIDs {
-		geo[common.IFIDType(ifId)] = g.GeoCoordinates(ifId)
+		geo[common.IfIdType(ifId)] = g.GeoCoordinates(ifId)
 	}
 
 	linkType := make(staticinfo.LinkTypeInfo)
 	for ifId := range as.IFIDs {
-		linkType[common.IFIDType(ifId)] = g.LinkType(ifId, g.links[ifId])
+		linkType[common.IfIdType(ifId)] = g.LinkType(ifId, g.links[ifId])
 	}
 
 	var internalHops staticinfo.InternalHopsInfo
 	if outIF != 0 {
-		internalHops = make(map[common.IFIDType]uint32)
+		internalHops = make(map[common.IfIdType]uint32)
 		if inIF != 0 {
-			internalHops[common.IFIDType(inIF)] = g.InternalHops(inIF, outIF)
+			internalHops[common.IfIdType(inIF)] = g.InternalHops(inIF, outIF)
 		}
 		for ifId := range as.IFIDs {
 			if ifId != outIF && ifId != inIF {
-				internalHops[common.IFIDType(ifId)] = g.InternalHops(ifId, outIF)
+				internalHops[common.IfIdType(ifId)] = g.InternalHops(ifId, outIF)
 			}
 		}
 	}

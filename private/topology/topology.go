@@ -95,25 +95,25 @@ type (
 		// InternalAddr is the local data-plane address.
 		InternalAddr netip.AddrPort
 		// IFIDs is a sorted list of the interface IDs.
-		IFIDs []common.IFIDType
+		IFIDs []common.IfIdType
 		// IFs is a map of interface IDs.
-		IFs map[common.IFIDType]*IFInfo
+		IFs map[common.IfIdType]*IFInfo
 	}
 
 	// IfInfoMap maps interface ids to the interface information.
-	IfInfoMap map[common.IFIDType]IFInfo
+	IfInfoMap map[common.IfIdType]IFInfo
 
 	// IFInfo describes a border router link to another AS, including the internal data-plane
 	// address applications should send traffic to and information about the link itself and the
 	// remote side of it.
 	IFInfo struct {
 		// ID is the interface ID. It is unique per AS.
-		ID           common.IFIDType
+		ID           common.IfIdType
 		BRName       string
 		InternalAddr netip.AddrPort
 		Local        netip.AddrPort
 		Remote       netip.AddrPort
-		RemoteIFID   common.IFIDType
+		RemoteIFID   common.IfIdType
 		IA           addr.IA
 		LinkType     LinkType
 		MTU          int
@@ -267,7 +267,7 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 		brInfo := BRInfo{
 			Name:         name,
 			InternalAddr: intAddr,
-			IFs:          make(map[common.IFIDType]*IFInfo),
+			IFs:          make(map[common.IfIdType]*IFInfo),
 		}
 		for ifId, rawIntf := range rawBr.Interfaces {
 			var err error
@@ -472,11 +472,11 @@ func (i *BRInfo) copy() *BRInfo {
 	}
 }
 
-func copyIFsMap(m map[common.IFIDType]*IFInfo) map[common.IFIDType]*IFInfo {
+func copyIFsMap(m map[common.IfIdType]*IFInfo) map[common.IfIdType]*IFInfo {
 	if m == nil {
 		return nil
 	}
-	newM := make(map[common.IFIDType]*IFInfo)
+	newM := make(map[common.IfIdType]*IFInfo)
 	for k, v := range m {
 		newM[k] = v.copy()
 	}

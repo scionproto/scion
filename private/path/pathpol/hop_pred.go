@@ -32,11 +32,11 @@ import (
 type HopPredicate struct {
 	ISD   addr.ISD
 	AS    addr.AS
-	IfIds []common.IFIDType
+	IfIds []common.IfIdType
 }
 
 func NewHopPredicate() *HopPredicate {
-	return &HopPredicate{IfIds: make([]common.IFIDType, 1)}
+	return &HopPredicate{IfIds: make([]common.IfIdType, 1)}
 }
 
 func HopPredicateFromString(str string) (*HopPredicate, error) {
@@ -44,7 +44,7 @@ func HopPredicateFromString(str string) (*HopPredicate, error) {
 	if err = validateHopPredStr(str); err != nil {
 		return &HopPredicate{}, err
 	}
-	var ifIds = make([]common.IFIDType, 1)
+	var ifIds = make([]common.IfIdType, 1)
 	// Parse ISD
 	dashParts := strings.Split(str, "-")
 	isd, err := addr.ParseISD(dashParts[0])
@@ -136,12 +136,12 @@ func (hp *HopPredicate) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-func parseIfId(str string) (common.IFIDType, error) {
+func parseIfId(str string) (common.IfIdType, error) {
 	ifId, err := strconv.ParseUint(str, 10, 64)
 	if err != nil {
 		return 0, err
 	}
-	return common.IFIDType(ifId), nil
+	return common.IfIdType(ifId), nil
 }
 
 // validateHopPredStr checks if str has the correct amount of delimiters

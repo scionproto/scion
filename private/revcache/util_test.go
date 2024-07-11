@@ -63,7 +63,7 @@ func TestFilterNew(t *testing.T) {
 		})
 		Convey("Given a cache with an old revocation", func() {
 			revCache.EXPECT().Get(gomock.Any(), gomock.Any()).Return(revcache.Revocations{
-				revcache.Key{IA: ia110, IfId: common.IFIDType(ifId11)}: sr11Old,
+				revcache.Key{IA: ia110, IfId: common.IfIdType(ifId11)}: sr11Old,
 			}, nil)
 			rMap, err := revcache.RevocationToMap([]*path_mgmt.RevInfo{sr10, sr11})
 			expectedMap := copy(rMap)
@@ -74,11 +74,11 @@ func TestFilterNew(t *testing.T) {
 		})
 		Convey("Given a cache with a newer revocation", func() {
 			revCache.EXPECT().Get(gomock.Any(), gomock.Any()).Return(revcache.Revocations{
-				revcache.Key{IA: ia110, IfId: common.IFIDType(ifId11)}: sr11,
+				revcache.Key{IA: ia110, IfId: common.IfIdType(ifId11)}: sr11,
 			}, nil)
 			rMap, err := revcache.RevocationToMap([]*path_mgmt.RevInfo{sr10, sr11Old})
 			expectedMap := copy(rMap)
-			delete(expectedMap, revcache.Key{IA: ia110, IfId: common.IFIDType(ifId11)})
+			delete(expectedMap, revcache.Key{IA: ia110, IfId: common.IfIdType(ifId11)})
 			SoMsg("No error expected", err, ShouldBeNil)
 			err = rMap.FilterNew(context.Background(), revCache)
 			SoMsg("No error expected", err, ShouldBeNil)
@@ -116,7 +116,7 @@ func TestNoRevokedHopIntf(t *testing.T) {
 			revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).Return(
 				revcache.Revocations{
 					revcache.Key{IA: addr.MustParseIA("2-ff00:0:211"),
-						IfId: common.IFIDType(graph.If_210_X_211_A)}: sRev,
+						IfId: common.IfIdType(graph.If_210_X_211_A)}: sRev,
 				}, nil,
 			)
 			noR, err := revcache.NoRevokedHopIntf(ctx, revCache, seg210_222_1)
@@ -168,7 +168,7 @@ func copy(revs revcache.Revocations) revcache.Revocations {
 
 func defaultRevInfo(ia addr.IA, ifId uint16, ts time.Time) *path_mgmt.RevInfo {
 	return &path_mgmt.RevInfo{
-		IfId:         common.IFIDType(ifId),
+		IfId:         common.IfIdType(ifId),
 		RawIsdas:     ia,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(ts),

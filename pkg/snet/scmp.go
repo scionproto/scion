@@ -73,7 +73,7 @@ func (h DefaultSCMPHandler) Handle(pkt *Packet) error {
 	case slayers.SCMPTypeExternalInterfaceDown:
 		msg := pkt.Payload.(SCMPExternalInterfaceDown)
 		return h.handleSCMPRev(typeCode, &path_mgmt.RevInfo{
-			IfId:         common.IFIDType(msg.Interface),
+			IfId:         common.IfIdType(msg.Interface),
 			RawIsdas:     msg.IA,
 			RawTimestamp: util.TimeToSecs(time.Now()),
 			RawTTL:       10,
@@ -81,7 +81,7 @@ func (h DefaultSCMPHandler) Handle(pkt *Packet) error {
 	case slayers.SCMPTypeInternalConnectivityDown:
 		msg := pkt.Payload.(SCMPInternalConnectivityDown)
 		return h.handleSCMPRev(typeCode, &path_mgmt.RevInfo{
-			IfId:         common.IFIDType(msg.Egress),
+			IfId:         common.IfIdType(msg.Egress),
 			RawIsdas:     msg.IA,
 			RawTimestamp: util.TimeToSecs(time.Now()),
 			RawTTL:       10,

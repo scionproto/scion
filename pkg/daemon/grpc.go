@@ -260,7 +260,7 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 	interfaces := make([]snet.PathInterface, len(p.Interfaces))
 	for i, pi := range p.Interfaces {
 		interfaces[i] = snet.PathInterface{
-			ID: common.IFIDType(pi.Id),
+			ID: common.IfIdType(pi.Id),
 			IA: addr.IA(pi.IsdAs),
 		}
 	}

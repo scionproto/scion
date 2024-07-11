@@ -47,7 +47,7 @@ func (ee RevTimeError) Error() string {
 }
 
 type RevInfo struct {
-	IfId     common.IFIDType
+	IfId     common.IfIdType
 	RawIsdas addr.IA
 	// LinkType of revocation
 	LinkType proto.LinkType
