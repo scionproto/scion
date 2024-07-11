@@ -1212,14 +1212,12 @@ func TestProcessPkt(t *testing.T) {
 				ingress := uint16(51) // == consEgress, bc non-consdir
 				egress := uint16(0)   // Cross-over. The egress happens in the next segment.
 				if afterProcessing {
-					require.NoError(t, dpath.IncPath())
+					dpath.PathMeta.CurrHF++
+					dpath.PathMeta.CurrINF++
 					dstAddr = &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4(), Port: 30043}
 				} else {
 					dpath.InfoFields[0].UpdateSegID(dpath.HopFields[1].Mac)
 				}
-
-				dpath.PathMeta.CurrHF++
-				dpath.PathMeta.CurrINF++
 
 				return router.NewPacket(toBytes(t, spkt, dpath), nil, dstAddr, ingress, egress)
 			},
