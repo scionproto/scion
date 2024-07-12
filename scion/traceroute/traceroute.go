@@ -55,12 +55,14 @@ type Stats struct {
 
 // Config configures the traceroute run.
 type Config struct {
-	Local       *snet.UDPAddr
+	Local   addr.Addr
+	Remote  addr.Addr
+	NextHop *net.UDPAddr
+
 	Topology    snet.Topology
 	MTU         uint16
 	PathEntry   snet.Path
 	PayloadSize uint
-	Remote      *snet.UDPAddr
 	Timeout     time.Duration
 	EPIC        bool
 
@@ -78,17 +80,18 @@ type tracerouter struct {
 	probesPerHop  int
 	timeout       time.Duration
 	conn          snet.PacketConn
-	local         *snet.UDPAddr
-	remote        *snet.UDPAddr
+	local         addr.Addr
+	remote        addr.Addr
 	errHandler    func(error)
 	updateHandler func(Update)
 
 	replies <-chan reply
 
-	path  snet.Path
-	epic  bool
-	id    uint16
-	index int
+	path    snet.Path
+	nextHop *net.UDPAddr
+	epic    bool
+	id      uint16
+	index   int
 
 	stats Stats
 }
@@ -103,12 +106,20 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		SCMPHandler: scmpHandler{replies: replies},
 		Topology:    cfg.Topology,
 	}
-	conn, err := sn.OpenRaw(ctx, cfg.Local.Host)
+
+	// We need to manufacture a netip.UDPAddr as we're constrained by the sn API.
+	netUdpAddr := net.UDPAddrFromAddrPort(netip.AddrPortFrom(cfg.Local.Host.IP(), 0))
+	conn, err := sn.OpenRaw(ctx, netUdpAddr)
 	if err != nil {
 		return Stats{}, err
 	}
-	local := cfg.Local.Copy()
-	local.Host = conn.LocalAddr().(*net.UDPAddr)
+	// Get our real local address.
+	asNetipAddr, ok := netip.AddrFromSlice(conn.LocalAddr().(*net.UDPAddr).IP)
+	if !ok {
+		panic("Invalid Local IP address")
+	}
+	local := cfg.Local
+	local.Host = addr.HostIP(asNetipAddr)
 	t := tracerouter{
 		probesPerHop:  cfg.ProbesPerHop,
 		timeout:       cfg.Timeout,
@@ -120,6 +131,7 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		updateHandler: cfg.UpdateHandler,
 		id:            uint16(conn.LocalAddr().(*net.UDPAddr).Port),
 		path:          cfg.PathEntry,
+		nextHop:       cfg.NextHop,
 		epic:          cfg.EPIC,
 	}
 	return t.Traceroute(ctx)
@@ -225,32 +237,18 @@ func (t *tracerouter) probeHop(ctx context.Context, hfIdx uint8, egress bool) (U
 	}
 	t.index++
 
-	remoteHostIP, ok := netip.AddrFromSlice(t.remote.Host.IP)
-	if !ok {
-		return Update{}, serrors.New("invalid remote host IP", "ip", t.remote.Host.IP)
-	}
-	localHostIP, ok := netip.AddrFromSlice(t.local.Host.IP)
-	if !ok {
-		return Update{}, serrors.New("invalid local host IP", "ip", t.local.Host.IP)
-	}
 	pkt := &snet.Packet{
 		PacketInfo: snet.PacketInfo{
-			Destination: snet.SCIONAddress{
-				IA:   t.remote.IA,
-				Host: addr.HostIP(remoteHostIP),
-			},
-			Source: snet.SCIONAddress{
-				IA:   t.local.IA,
-				Host: addr.HostIP(localHostIP),
-			},
-			Path:    alertPath,
-			Payload: snet.SCMPTracerouteRequest{Identifier: t.id},
+			Destination: t.remote,
+			Source:      t.local,
+			Path:        alertPath,
+			Payload:     snet.SCMPTracerouteRequest{Identifier: t.id},
 		},
 	}
 	for i := 0; i < t.probesPerHop; i++ {
 		sendTs := time.Now()
 		t.stats.Sent++
-		if err := t.conn.WriteTo(pkt, t.remote.NextHop); err != nil {
+		if err := t.conn.WriteTo(pkt, t.nextHop); err != nil {
 			return u, serrors.WrapStr("writing", err)
 		}
 		select {
