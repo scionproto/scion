@@ -16,9 +16,12 @@ package control
 
 import (
 	"context"
+	"time"
 
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
-	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/private/revcache"
 )
 
@@ -28,13 +31,13 @@ type RevocationHandler struct {
 	RevCache revcache.RevCache
 }
 
-func (h RevocationHandler) Revoke(ctx context.Context, revInfo *path_mgmt.RevInfo) error {
-	if _, err := h.RevCache.Insert(ctx, revInfo); err != nil {
-		return serrors.WrapStr("inserting revocation", err,
-			"isd_as", revInfo.IA(),
-			"interface_id", revInfo.IfID,
-			"expiration", revInfo.Expiration(),
-		)
+func (h RevocationHandler) Revoke(ia addr.IA, ingress, egress uint64) error {
+	revInfo := &path_mgmt.RevInfo{
+		IfID:         common.IFIDType(egress),
+		RawIsdas:     ia,
+		RawTimestamp: util.TimeToSecs(time.Now()),
+		RawTTL:       10,
 	}
+	_, _ = h.RevCache.Insert(context.TODO(), revInfo)
 	return nil
 }

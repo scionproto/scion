@@ -18,29 +18,16 @@ package snet
 import (
 	"context"
 	"net"
+	"syscall"
 	"time"
 
 	"github.com/scionproto/scion/pkg/private/common"
-	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/slayers"
 )
-
-type OpError struct {
-	typeCode slayers.SCMPTypeCode
-	revInfo  *path_mgmt.RevInfo
-}
-
-func (e *OpError) RevInfo() *path_mgmt.RevInfo {
-	return e.revInfo
-}
-
-func (e *OpError) Error() string {
-	return e.typeCode.String()
-}
 
 var _ net.Conn = (*Conn)(nil)
 var _ net.PacketConn = (*Conn)(nil)
+var _ syscall.Conn = (*Conn)(nil)
 
 type Conn struct {
 	conn PacketConn
@@ -96,6 +83,7 @@ func NewCookedConn(
 			conn:        pconn,
 			buffer:      make([]byte, common.SupportedMTU),
 			replyPather: o.replyPather,
+			scmpHandler: o.scmpHandler,
 			local:       local,
 		},
 	}, nil
@@ -107,6 +95,18 @@ func (c *Conn) LocalAddr() net.Addr {
 
 func (c *Conn) RemoteAddr() net.Addr {
 	return c.remote
+}
+
+func (c *Conn) SyscallConn() (syscall.RawConn, error) {
+	return c.conn.SyscallConn()
+}
+
+func (c *Conn) SetReadBuffer(n int) error {
+	return c.conn.SetReadBuffer(n)
+}
+
+func (c *Conn) SetWriteBuffer(n int) error {
+	return c.conn.SetWriteBuffer(n)
 }
 
 func (c *Conn) SetDeadline(t time.Time) error {
@@ -124,37 +124,46 @@ func (c *Conn) Close() error {
 }
 
 // ConnOption is a functional option type for configuring a Conn.
-type ConnOption func(o *options)
+type ConnOption func(o *connOptions)
 
 // WithReplyPather sets the reply pather for the connection.
 // The reply pather is responsible for determining the path to send replies to.
-// If the provided replyPather is not nil, it will be set as the reply pather for the connection.
+// If this option is not provided, DefaultReplyPather is used.
 func WithReplyPather(replyPather ReplyPather) ConnOption {
-	return func(o *options) {
-		if replyPather != nil {
-			o.replyPather = replyPather
-		}
+	return func(o *connOptions) {
+		o.replyPather = replyPather
+	}
+}
+
+// WithSCMPHandler sets the SCMP handler for the connection.
+// The SCMP handler is a callback to react to SCMP messages, specifically to error messages.
+func WithSCMPHandler(scmpHandler SCMPHandler) ConnOption {
+	return func(o *connOptions) {
+		o.scmpHandler = scmpHandler
 	}
 }
 
 // WithRemote sets the remote address for the connection.
+// This only applies to NewCookedConn, but not Dial/Listen.
 func WithRemote(addr *UDPAddr) ConnOption {
-	return func(o *options) {
+	return func(o *connOptions) {
 		o.remote = addr
 	}
 }
 
-type options struct {
+type connOptions struct {
 	replyPather ReplyPather
+	scmpHandler SCMPHandler
 	remote      *UDPAddr
 }
 
-func apply(opts []ConnOption) options {
-	o := options{
-		replyPather: DefaultReplyPather{},
-	}
+func apply(opts []ConnOption) connOptions {
+	o := connOptions{}
 	for _, option := range opts {
 		option(&o)
+	}
+	if o.replyPather == nil {
+		o.replyPather = DefaultReplyPather{}
 	}
 	return o
 }

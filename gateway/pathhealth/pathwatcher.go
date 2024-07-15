@@ -83,13 +83,6 @@ func (f *DefaultPathWatcherFactory) New(
 		return create(remote)
 	}
 	conn, err := (&snet.SCIONNetwork{
-		SCMPHandler: scmpHandler{
-			wrappedHandler: snet.DefaultSCMPHandler{
-				RevocationHandler: f.RevocationHandler,
-				SCMPErrors:        f.SCMPErrors,
-			},
-			pkts: pktChan,
-		},
 		PacketConnMetrics: f.SCIONPacketConnMetrics,
 		Topology:          f.Topology,
 	}).OpenRaw(ctx, &net.UDPAddr{IP: f.LocalIP.AsSlice()})
@@ -104,6 +97,10 @@ func (f *DefaultPathWatcherFactory) New(
 		localAddr: snet.SCIONAddress{
 			IA:   f.LocalIA,
 			Host: addr.HostIP(f.LocalIP),
+		},
+		scmpHandler: snet.DefaultSCMPHandler{
+			RevocationHandler: f.RevocationHandler,
+			SCMPErrors:        f.SCMPErrors,
 		},
 		pktChan:          pktChan,
 		probesSent:       createCounter(f.ProbesSent, remote),
@@ -122,6 +119,8 @@ type pathWatcher struct {
 	// conn is the packet conn used to send probes on. The pathwatcher takes
 	// ownership and will close it on termination.
 	conn snet.PacketConn
+	// scmpHandler handles non-traceroute SCMP packets received on conn
+	scmpHandler snet.SCMPHandler
 	// id is used as SCMP traceroute ID. Since each pathwatcher should have it's
 	// own high port this value can be random.
 	id uint16
@@ -129,7 +128,7 @@ type pathWatcher struct {
 	localAddr snet.SCIONAddress
 	// pktChan is the channel which provides the incoming packets on the
 	// connection.
-	pktChan <-chan traceroutePkt
+	pktChan chan traceroutePkt
 
 	probesSent       metrics.Counter
 	probesReceived   metrics.Counter
@@ -239,12 +238,19 @@ func (w *pathWatcher) drainConn(ctx context.Context) {
 			return
 		}
 		if err != nil {
-			if _, ok := err.(*snet.OpError); ok {
-				// ignore SCMP errors they are already dealt with in the SCMP
-				// handler.
-				continue
-			}
 			logger.Info("Unexpected error when reading probe reply", "err", err)
+		}
+		switch pld := pkt.Payload.(type) {
+		case snet.SCMPTracerouteReply:
+			w.pktChan <- traceroutePkt{
+				Remote:     pkt.Source.IA,
+				Identifier: pld.Identifier,
+				Sequence:   pld.Sequence,
+			}
+		case snet.SCMPPayload:
+			if w.scmpHandler != nil {
+				_ = w.scmpHandler.Handle(&pkt)
+			}
 		}
 	}
 }

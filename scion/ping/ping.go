@@ -103,13 +103,8 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		return Stats{}, serrors.New("interval below millisecond")
 	}
 
-	replies := make(chan reply, 10)
-	scmpHandler := &scmpHandler{
-		replies: replies,
-	}
 	sn := &snet.SCIONNetwork{
-		SCMPHandler: scmpHandler,
-		Topology:    cfg.Topology,
+		Topology: cfg.Topology,
 	}
 	conn, err := sn.OpenRaw(ctx, cfg.Local.Host)
 	if err != nil {
@@ -122,7 +117,6 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 	// we set the identifier on the handler to the same value as
 	// the udp port
 	id := local.Host.Port
-	scmpHandler.SetId(id)
 
 	// we need to have at least 8 bytes to store the request time in the
 	// payload.
@@ -138,7 +132,7 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		id:            uint16(id),
 		conn:          conn,
 		local:         local,
-		replies:       replies,
+		replies:       make(chan reply, 10),
 		errHandler:    cfg.ErrHandler,
 		updateHandler: cfg.UpdateHandler,
 	}
@@ -154,7 +148,7 @@ type pinger struct {
 	id      uint16
 	conn    snet.PacketConn
 	local   *snet.UDPAddr
-	replies <-chan reply
+	replies chan reply
 
 	// Handlers
 	errHandler    func(error)
@@ -281,19 +275,27 @@ func (p *pinger) receive(reply reply) {
 
 func (p *pinger) drain(ctx context.Context) {
 	var last time.Time
+	var pkt snet.Packet
+	var ov net.UDPAddr
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		default:
-			var pkt snet.Packet
-			var ov net.UDPAddr
 			if err := p.conn.ReadFrom(&pkt, &ov); err != nil && p.errHandler != nil {
 				// Rate limit the error reports.
 				if now := time.Now(); now.Sub(last) > 500*time.Millisecond {
 					p.errHandler(serrors.WrapStr("reading packet", err))
 					last = now
 				}
+			}
+			echo, err := toSCMPEchoReply(p.id, &pkt)
+			p.replies <- reply{
+				Received: time.Now(),
+				Source:   pkt.Source,
+				Size:     len(pkt.Bytes),
+				Reply:    echo,
+				Error:    err,
 			}
 		}
 	}
@@ -307,48 +309,23 @@ type reply struct {
 	Error    error
 }
 
-type scmpHandler struct {
-	id      uint16
-	replies chan<- reply
-}
-
-func (h scmpHandler) Handle(pkt *snet.Packet) error {
-	echo, err := h.handle(pkt)
-	h.replies <- reply{
-		Received: time.Now(),
-		Source:   pkt.Source,
-		Size:     len(pkt.Bytes),
-		Reply:    echo,
-		Error:    err,
-	}
-	return nil
-}
-
-func (h *scmpHandler) SetId(id int) {
-	h.id = uint16(id)
-}
-
-func (h scmpHandler) handle(pkt *snet.Packet) (snet.SCMPEchoReply, error) {
-	if pkt.Payload == nil {
-		return snet.SCMPEchoReply{}, serrors.New("no v2 payload found")
-	}
-	switch s := pkt.Payload.(type) {
+func toSCMPEchoReply(expectedId uint16, pkt *snet.Packet) (snet.SCMPEchoReply, error) {
+	switch r := pkt.Payload.(type) {
 	case snet.SCMPEchoReply:
+		if r.Identifier != expectedId {
+			return snet.SCMPEchoReply{}, serrors.New("wrong SCMP ID",
+				"expected", expectedId, "actual", r.Identifier)
+		}
+		return r, nil
 	case snet.SCMPExternalInterfaceDown:
 		return snet.SCMPEchoReply{}, serrors.New("external interface is down",
-			"isd_as", s.IA, "interface", s.Interface)
+			"isd_as", r.IA, "interface", r.Interface)
 	case snet.SCMPInternalConnectivityDown:
 		return snet.SCMPEchoReply{}, serrors.New("internal connectivity is down",
-			"isd_as", s.IA, "ingress", s.Ingress, "egress", s.Egress)
+			"isd_as", r.IA, "ingress", r.Ingress, "egress", r.Egress)
 	default:
 		return snet.SCMPEchoReply{}, serrors.New("not SCMPEchoReply",
 			"type", common.TypeOf(pkt.Payload),
 		)
 	}
-	r := pkt.Payload.(snet.SCMPEchoReply)
-	if r.Identifier != h.id {
-		return snet.SCMPEchoReply{}, serrors.New("wrong SCMP ID",
-			"expected", h.id, "actual", r.Identifier)
-	}
-	return r, nil
 }

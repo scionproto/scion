@@ -406,18 +406,12 @@ func (g *Gateway) Run(ctx context.Context) error {
 		return serrors.WrapStr("unable to generate TLS config", err)
 	}
 
-	// scionNetworkNoSCMP is the network for the QUIC server connection. Because SCMP errors
-	// will cause the server's accepts to fail, we ignore SCMP.
-	scionNetworkNoSCMP := &snet.SCIONNetwork{
+	scionNetwork := &snet.SCIONNetwork{
 		Topology: g.Daemon,
-		// Discard all SCMP propagation, to avoid accept/read errors on the
-		// QUIC server/client.
-		SCMPHandler: snet.SCMPPropagationStopper{
-			Handler: snet.DefaultSCMPHandler{
-				RevocationHandler: revocationHandler,
-				SCMPErrors:        g.Metrics.SCMPErrors,
-			},
-			Log: log.FromCtx(ctx).Debug,
+		SCMPHandler: snet.DefaultSCMPHandler{
+			RevocationHandler: revocationHandler,
+			SCMPErrors:        g.Metrics.SCMPErrors,
+			Log:               log.FromCtx(ctx).Debug,
 		},
 		PacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
 		Metrics:           g.Metrics.SCIONNetworkMetrics,
@@ -425,7 +419,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 	// Initialize the UDP/SCION QUIC conn for outgoing Gateway Discovery RPCs and outgoing Prefix
 	// Fetching. Open up a random high port for this.
-	clientConn, err := scionNetworkNoSCMP.Listen(
+	clientConn, err := scionNetwork.Listen(
 		context.TODO(),
 		"udp",
 		&net.UDPAddr{IP: g.ControlClientIP},
@@ -469,17 +463,6 @@ func (g *Gateway) Run(ctx context.Context) error {
 		}
 	}
 
-	// scionNetwork is the network for all SCION connections, with the exception of the QUIC server
-	// and client connection.
-	scionNetwork := &snet.SCIONNetwork{
-		Topology: g.Daemon,
-		SCMPHandler: snet.DefaultSCMPHandler{
-			RevocationHandler: revocationHandler,
-			SCMPErrors:        g.Metrics.SCMPErrors,
-		},
-		PacketConnMetrics: g.Metrics.SCIONPacketConnMetrics,
-		Metrics:           g.Metrics.SCIONNetworkMetrics,
-	}
 	remoteMonitor := &control.RemoteMonitor{
 		IAs:                   remoteIAsChannel,
 		RemotesMonitored:      rmMetric,
@@ -518,7 +501,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}()
 	logger.Debug("Remote monitor started.")
 
-	serverConn, err := scionNetworkNoSCMP.Listen(
+	serverConn, err := scionNetwork.Listen(
 		context.TODO(),
 		"udp",
 		g.ControlServerAddr,

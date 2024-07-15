@@ -163,7 +163,6 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 
 	// Instantiate network
 	sn := &snet.SCIONNetwork{
-		SCMPHandler:       &scmpHandler{},
 		PacketConnMetrics: p.SCIONPacketConnMetrics,
 		Topology:          p.Topology,
 	}
@@ -255,18 +254,27 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
 			// Wait for the replies.
 			var pkt snet.Packet
 			var ov net.UDPAddr
-			for range paths {
+			statusKnown := make(map[string]struct{})
+			for len(statusKnown) < len(paths) {
 				if err := conn.ReadFrom(&pkt, &ov); err != nil {
-					var r reply
-					if errors.As(err, &r) {
-						addStatus(r.PathKey, r.Status)
-						continue
-					}
 					// If the deadline is exceeded, all remaining paths have timed out.
 					if errors.Is(err, os.ErrDeadlineExceeded) {
 						break
 					}
 					return serrors.WrapStr("waiting for probe reply", err, "local", localIP)
+				}
+
+				r, err := handleSCMP(&pkt)
+				if err != nil {
+					continue
+				}
+				// Ignore any further update after status is set successfully
+				if _, done := statusKnown[r.PathKey]; done {
+					continue
+				}
+				addStatus(r.PathKey, r.Status)
+				if r.Status.Status != StatusUnknown {
+					statusKnown[r.PathKey] = struct{}{}
 				}
 			}
 			return nil
@@ -298,42 +306,36 @@ type reply struct {
 	PathKey string
 }
 
-func (r reply) Error() string {
-	return fmt.Sprint(r.Status)
-}
-
-type scmpHandler struct{}
-
-func (h *scmpHandler) Handle(pkt *snet.Packet) error {
+func handleSCMP(pkt *snet.Packet) (reply, error) {
 	path, ok := pkt.Path.(snet.RawPath)
 	if !ok {
-		return serrors.New("not an snet.RawPath")
+		return reply{}, serrors.New("not an snet.RawPath")
 	}
 	replyPath, err := snet.DefaultReplyPather{}.ReplyPath(path)
 	if err != nil {
-		return serrors.WrapStr("creating reply path", err)
+		return reply{}, serrors.WrapStr("creating reply path", err)
 	}
 	rawReplyPath, ok := replyPath.(snet.RawReplyPath)
 	if !ok {
-		return serrors.New("not an snet.RawReplyPath", "type", common.TypeOf(replyPath))
+		return reply{}, serrors.New("not an snet.RawReplyPath", "type", common.TypeOf(replyPath))
 	}
 	scionReplyPath := snetpath.SCION{
 		Raw: make([]byte, rawReplyPath.Path.Len()),
 	}
 	if err := rawReplyPath.Path.SerializeTo(scionReplyPath.Raw); err != nil {
-		return serrors.WrapStr("serialization failed", err)
+		return reply{}, serrors.WrapStr("serialization failed", err)
 	}
-	status, err := h.toStatus(pkt)
+	status, err := scmpToStatus(pkt)
 	if err != nil {
-		return err
+		return reply{}, err
 	}
 	return reply{
 		Status:  status,
 		PathKey: PathKey(snetpath.Path{DataplanePath: scionReplyPath}),
-	}
+	}, nil
 }
 
-func (h *scmpHandler) toStatus(pkt *snet.Packet) (Status, error) {
+func scmpToStatus(pkt *snet.Packet) (Status, error) {
 	if pkt.Payload == nil {
 		return Status{}, serrors.New("no payload found")
 	}

@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/pkg/daemon/internal/metrics"
 	"github.com/scionproto/scion/pkg/drkey"
 	libmetrics "github.com/scionproto/scion/pkg/metrics"
-	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
 )
@@ -81,7 +80,7 @@ type Connector interface {
 	// of URIs of the service in the local AS.
 	SVCInfo(ctx context.Context, svcTypes []addr.SVC) (map[addr.SVC][]string, error)
 	// RevNotification sends a RevocationInfo message to the daemon.
-	RevNotification(ctx context.Context, revInfo *path_mgmt.RevInfo) error
+	RevNotification(ctx context.Context, ia addr.IA, ifID uint64) error
 	// DRKeyGetASHostKey requests a AS-Host Key from the daemon.
 	DRKeyGetASHostKey(ctx context.Context, meta drkey.ASHostMeta) (drkey.ASHostKey, error)
 	// DRKeyGetHostASKey requests a Host-AS Key from the daemon.

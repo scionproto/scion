@@ -32,9 +32,11 @@ type ReplyPather interface {
 }
 
 type scionConnReader struct {
+	conn  PacketConn
+	local *UDPAddr
+
 	replyPather ReplyPather
-	conn        PacketConn
-	local       *UDPAddr
+	scmpHandler SCMPHandler
 
 	mtx    sync.Mutex
 	buffer []byte
@@ -69,11 +71,11 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 		Bytes: Bytes(c.buffer),
 	}
 	var lastHop net.UDPAddr
-	err := c.conn.ReadFrom(&pkt, &lastHop)
-	if err != nil {
+	if err := c.readPacketUDP(&pkt, &lastHop); err != nil {
 		return 0, nil, err
 	}
 
+	udp := pkt.Payload.(UDPPayload)
 	rpath, ok := pkt.Path.(RawPath)
 	if !ok {
 		return 0, nil, serrors.New("unexpected path", "type", common.TypeOf(pkt.Path))
@@ -81,11 +83,6 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 	replyPath, err := c.replyPather.ReplyPath(rpath)
 	if err != nil {
 		return 0, nil, serrors.WrapStr("creating reply path", err)
-	}
-
-	udp, ok := pkt.Payload.(UDPPayload)
-	if !ok {
-		return 0, nil, serrors.New("unexpected payload", "type", common.TypeOf(pkt.Payload))
 	}
 
 	// XXX(JordiSubira): We explicitly forbid nil or unspecified address in the current constructor
@@ -117,6 +114,30 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 	}
 	n := copy(b, udp.Payload)
 	return n, remote, nil
+}
+
+// readPacketUDP repeatedly reads a packet until a UDP datagram is found or an error occurs.
+// If an SCMP Handler is configured, it will be called on SCMP messages.
+func (c *scionConnReader) readPacketUDP(pkt *Packet, lastHop *net.UDPAddr) error {
+	for {
+		if err := c.conn.ReadFrom(pkt, lastHop); err != nil {
+			return err
+		}
+
+		switch pkt.Payload.(type) {
+		case UDPPayload:
+			return nil
+		case SCMPPayload:
+			if c.scmpHandler == nil {
+				continue
+			}
+			if err := c.scmpHandler.Handle(pkt); err != nil {
+				return err
+			}
+		default:
+			continue
+		}
+	}
 }
 
 func (c *scionConnReader) SetReadDeadline(t time.Time) error {

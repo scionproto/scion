@@ -16,33 +16,10 @@ package pathhealth
 
 import (
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/snet"
 )
 
 type traceroutePkt struct {
 	Remote     addr.IA
 	Identifier uint16
 	Sequence   uint16
-}
-
-type scmpHandler struct {
-	wrappedHandler snet.SCMPHandler
-	pkts           chan<- traceroutePkt
-}
-
-func (h scmpHandler) Handle(pkt *snet.Packet) error {
-	if pkt.Payload == nil {
-		return serrors.New("no payload found")
-	}
-	tr, ok := pkt.Payload.(snet.SCMPTracerouteReply)
-	if !ok {
-		return h.wrappedHandler.Handle(pkt)
-	}
-	h.pkts <- traceroutePkt{
-		Remote:     pkt.Source.IA,
-		Identifier: tr.Identifier,
-		Sequence:   tr.Sequence,
-	}
-	return nil
 }

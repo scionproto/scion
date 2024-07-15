@@ -25,10 +25,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
-	"net"
 	"os"
 	"time"
 
@@ -164,7 +162,7 @@ func (s server) run() {
 
 func (s server) handlePing(conn *snet.Conn) error {
 	rawPld := make([]byte, common.MaxMTU)
-	n, clientAddr, err := readFrom(conn, rawPld)
+	n, clientAddr, err := conn.ReadFrom(rawPld)
 	if err != nil {
 		return serrors.WrapStr("reading packet", err)
 	}
@@ -380,7 +378,7 @@ func (c *client) pong(ctx context.Context) error {
 		return serrors.WrapStr("setting read deadline", err)
 	}
 	rawPld := make([]byte, common.MaxMTU)
-	n, serverAddr, err := readFrom(c.conn, rawPld)
+	n, serverAddr, err := c.conn.ReadFrom(rawPld)
 	if err != nil {
 		return serrors.WrapStr("reading packet", err)
 	}
@@ -408,17 +406,4 @@ func getDeadline(ctx context.Context) time.Time {
 		integration.LogFatal("No deadline in context")
 	}
 	return dl
-}
-
-func readFrom(conn *snet.Conn, pld []byte) (int, net.Addr, error) {
-	n, remoteAddr, err := conn.ReadFrom(pld)
-	// Attach more context to error
-	var opErr *snet.OpError
-	if !(errors.As(err, &opErr) && opErr.RevInfo() != nil) {
-		return n, remoteAddr, err
-	}
-	return n, remoteAddr, serrors.WithCtx(err,
-		"isd_as", opErr.RevInfo().IA(),
-		"interface", opErr.RevInfo().IfID,
-	)
 }

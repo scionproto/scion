@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/pkg/drkey"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/private/common"
-	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
 	dkpb "github.com/scionproto/scion/pkg/proto/drkey"
@@ -165,11 +164,11 @@ func (c grpcConn) SVCInfo(
 	return result, nil
 }
 
-func (c grpcConn) RevNotification(ctx context.Context, revInfo *path_mgmt.RevInfo) error {
+func (c grpcConn) RevNotification(ctx context.Context, ia addr.IA, ifID uint64) error {
 	client := sdpb.NewDaemonServiceClient(c.conn)
 	_, err := client.NotifyInterfaceDown(ctx, &sdpb.NotifyInterfaceDownRequest{
-		Id:    uint64(revInfo.IfID),
-		IsdAs: uint64(revInfo.RawIsdas),
+		Id:    ifID,
+		IsdAs: uint64(ia),
 	})
 	c.metrics.incIfDown(err)
 	return err

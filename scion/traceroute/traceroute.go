@@ -83,7 +83,7 @@ type tracerouter struct {
 	errHandler    func(error)
 	updateHandler func(Update)
 
-	replies <-chan reply
+	replies chan reply
 
 	path  snet.Path
 	epic  bool
@@ -98,10 +98,8 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 	if _, isEmpty := cfg.PathEntry.Dataplane().(path.Empty); isEmpty {
 		return Stats{}, serrors.New("empty path is not allowed for traceroute")
 	}
-	replies := make(chan reply, 10)
 	sn := &snet.SCIONNetwork{
-		SCMPHandler: scmpHandler{replies: replies},
-		Topology:    cfg.Topology,
+		Topology: cfg.Topology,
 	}
 	conn, err := sn.OpenRaw(ctx, cfg.Local.Host)
 	if err != nil {
@@ -115,7 +113,7 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		conn:          conn,
 		local:         local,
 		remote:        cfg.Remote,
-		replies:       replies,
+		replies:       make(chan reply, 10),
 		errHandler:    cfg.ErrHandler,
 		updateHandler: cfg.UpdateHandler,
 		id:            uint16(conn.LocalAddr().(*net.UDPAddr).Port),
@@ -299,6 +297,14 @@ func (t tracerouter) drain(ctx context.Context) {
 					last = now
 				}
 			}
+			tr, err := toSCMPTracerouteReply(t.id, &pkt)
+			t.replies <- reply{
+				Received: time.Now(),
+				Reply:    tr,
+				Remote:   pkt.Source,
+				Error:    err,
+			}
+
 		}
 	}
 }
@@ -310,30 +316,23 @@ type reply struct {
 	Error    error
 }
 
-type scmpHandler struct {
-	replies chan<- reply
-}
-
-func (h scmpHandler) Handle(pkt *snet.Packet) error {
-	r, err := h.handle(pkt)
-
-	h.replies <- reply{
-		Received: time.Now(),
-		Reply:    r,
-		Remote:   pkt.Source,
-		Error:    err,
+func toSCMPTracerouteReply(expectedId uint16, pkt *snet.Packet) (snet.SCMPTracerouteReply, error) {
+	switch r := pkt.Payload.(type) {
+	case snet.SCMPTracerouteReply:
+		if r.Identifier != expectedId {
+			return snet.SCMPTracerouteReply{}, serrors.New("wrong SCMP ID",
+				"expected", expectedId, "actual", r.Identifier)
+		}
+		return r, nil
+	case snet.SCMPExternalInterfaceDown:
+		return snet.SCMPTracerouteReply{}, serrors.New("external interface is down",
+			"isd_as", r.IA, "interface", r.Interface)
+	case snet.SCMPInternalConnectivityDown:
+		return snet.SCMPTracerouteReply{}, serrors.New("internal connectivity is down",
+			"isd_as", r.IA, "ingress", r.Ingress, "egress", r.Egress)
+	default:
+		return snet.SCMPTracerouteReply{}, serrors.New("not SCMPEchoReply",
+			"type", common.TypeOf(pkt.Payload),
+		)
 	}
-	return nil
-}
-
-func (h scmpHandler) handle(pkt *snet.Packet) (snet.SCMPTracerouteReply, error) {
-	if pkt.Payload == nil {
-		return snet.SCMPTracerouteReply{}, serrors.New("no payload found")
-	}
-	r, ok := pkt.Payload.(snet.SCMPTracerouteReply)
-	if !ok {
-		return snet.SCMPTracerouteReply{}, serrors.New("not SCMPTracerouteReply",
-			"type", common.TypeOf(pkt.Payload))
-	}
-	return r, nil
 }
