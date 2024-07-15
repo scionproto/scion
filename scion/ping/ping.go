@@ -122,8 +122,8 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		return Stats{}, err
 	}
 
-	// Get our real local address and the port nuber we got.
-	// We use the port as identifier on the hendler.
+	// Get our real local address and the port number we got.
+	// We use the port as identifier on the handler.
 	asNetipAddr, ok := netip.AddrFromSlice(conn.LocalAddr().(*net.UDPAddr).IP)
 	if !ok {
 		panic("Invalid Local IP address")
