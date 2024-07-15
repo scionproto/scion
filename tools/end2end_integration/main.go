@@ -73,13 +73,13 @@ func realMain() int {
 		"-log.console", "debug",
 		"-attempts", strconv.Itoa(attempts),
 		"-timeout", timeout.String(),
-		"-local", integration.SrcAddrPattern + ":0",
-		"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
+		"-local", "[" + integration.SrcAddrPattern + "]:0",
+		"-remote", "[" + integration.DstAddrPattern + "]:" + integration.ServerPortReplace,
 		fmt.Sprintf("-epic=%t", epic),
 	}
 	serverArgs := []string{
 		"-mode", "server",
-		"-local", integration.DstAddrPattern + ":0",
+		"-local", "[" + integration.DstAddrPattern + "]:0",
 	}
 	if len(features) != 0 {
 		clientArgs = append(clientArgs, "--features", features)
@@ -293,8 +293,8 @@ func clientTemplate(progressSock string) integration.Cmd {
 			"-log.console", "debug",
 			"-attempts", strconv.Itoa(attempts),
 			"-timeout", timeout.String(),
-			"-local", integration.SrcAddrPattern + ":0",
-			"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
+			"-local", "[" + integration.SrcAddrPattern + "]:0",
+			"-remote", "[" + integration.DstAddrPattern + "]:" + integration.ServerPortReplace,
 			fmt.Sprintf("-epic=%t", epic),
 		},
 	}
