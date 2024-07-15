@@ -150,7 +150,7 @@ func MalformedPathSingletonSegment(artifactsDir string, mac hash.Hash) runner.Ca
 	}
 }
 
-// MalformedPathSingletonSegment tests an invalid combination of CurrHF and CurrINF
+// MalformedPathCurrHFNotInCurrINF tests an invalid combination of CurrHF and CurrINF
 func MalformedPathCurrHFNotInCurrINF(artifactsDir string, mac hash.Hash) runner.Case {
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
