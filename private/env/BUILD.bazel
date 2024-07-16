@@ -19,6 +19,7 @@ go_library(
         "//pkg/scrypto:go_default_library",
         "//private/config:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus:go_default_library",
         "@com_github_prometheus_client_golang//prometheus/promhttp:go_default_library",
         "@com_github_uber_jaeger_client_go//:go_default_library",
         "@com_github_uber_jaeger_client_go//config:go_default_library",
