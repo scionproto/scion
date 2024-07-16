@@ -10,7 +10,7 @@ folders=$(grep \
             --exclude-dir=bazel-\* \
             "xtest.UpdateGoldenFiles()" . | xargs dirname  | sort  | uniq )
 
-GO_BUILD_TAGS_ARG=$(bazel build --ui_event_filters=-stdout,-stderr --announce_rc --noshow_progress :dummy_setting 2>&1 | grep "'build' options" | sed -n "s/^.*--define gotags=\(\S*\).*/-tags \1/p")
+GO_BUILD_TAGS_ARG=$(bazel info --ui_event_filters=-stdout,-stderr --announce_rc --noshow_progress 2>&1 | grep "'build' options" | sed -n "s/^.*--define gotags=\(\S*\).*/-tags \1/p")
 
 echo $folders -update | xargs go test ${GO_BUILD_TAGS_ARG}
 echo $folders -count=1 | xargs go test ${GO_BUILD_TAGS_ARG}
