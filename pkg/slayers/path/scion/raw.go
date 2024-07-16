@@ -50,7 +50,10 @@ func (s *Raw) SerializeTo(b []byte) error {
 		return serrors.New("buffer too small", "expected", minLen, "actual", len(b))
 	}
 	// XXX(roosd): This modifies the underlying buffer. Consider writing to data
-	// directly. XXX(jiceatscion): Do we not want to update s.Raw anyway?
+	// directly.
+	// TODO(matzf, jiceatscion): it is not clear whether updating pathmeta in s.Raw is desirable
+	// or not. It migh be best to make that question moot by not keeping the path meta header as
+	// raw bytes at all. However that's a viral change.
 	if err := s.PathMeta.SerializeTo(s.Raw); err != nil {
 		return err
 	}
