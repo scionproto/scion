@@ -50,8 +50,8 @@ func (s *Raw) SerializeTo(b []byte) error {
 		return serrors.New("buffer too small", "expected", minLen, "actual", len(b))
 	}
 	// XXX(roosd): This modifies the underlying buffer. Consider writing to data
-	// directly.
-	if err := s.PathMeta.SerializeTo(s.Raw[:MetaLen]); err != nil {
+	// directly. XXX(jiceatscion): Do we not want to update s.Raw anyway?
+	if err := s.PathMeta.SerializeTo(s.Raw); err != nil {
 		return err
 	}
 	copy(b, s.Raw)
@@ -82,7 +82,7 @@ func (s *Raw) Reverse() (path.Path, error) {
 // ToDecoded transforms a scion.Raw to a scion.Decoded.
 func (s *Raw) ToDecoded() (*Decoded, error) {
 	// Serialize PathMeta to ensure potential changes are reflected Raw.
-	if err := s.PathMeta.SerializeTo(s.Raw[:MetaLen]); err != nil {
+	if err := s.PathMeta.SerializeTo(s.Raw); err != nil {
 		return nil, err
 	}
 	decoded := &Decoded{}
@@ -97,7 +97,7 @@ func (s *Raw) IncPath() error {
 	if err := s.Base.IncPath(); err != nil {
 		return err
 	}
-	return s.PathMeta.SerializeTo(s.Raw[:MetaLen])
+	return s.PathMeta.SerializeTo(s.Raw)
 }
 
 // GetInfoField returns the InfoField at a given index.
