@@ -216,6 +216,7 @@ var (
 	noSVCBackend                  = errors.New("cannot find internal IP for the SVC")
 	unsupportedPathType           = errors.New("unsupported path type")
 	unsupportedPathTypeNextHeader = errors.New("unsupported combination")
+	unsupportedV4MappedV6Address  = errors.New("unsupported v4mapped IP v6 address")
 	noBFDSessionFound             = errors.New("no BFD session was found")
 	noBFDSessionConfigured        = errors.New("no BFD sessions have been configured")
 	errPeeringEmptySeg0           = errors.New("zero-length segment[0] in peering path")
@@ -1655,7 +1656,7 @@ func (p *scionPacketProcessor) resolveInbound() disposition {
 			code:     slayers.SCMPCodeNoRoute,
 		}
 		return pSlowPath
-	case invalidDstAddr:
+	case invalidDstAddr, unsupportedV4MappedV6Address:
 		log.Debug("SCMP response", "cause", err)
 		p.pkt.slowPathRequest = slowPathRequest{
 			scmpType: slayers.SCMPTypeParameterProblem,
@@ -1849,6 +1850,29 @@ func (p *scionPacketProcessor) validatePktLen() disposition {
 	return pSlowPath
 }
 
+func (p *scionPacketProcessor) validateSrcHost() disposition {
+	// We pay for this check only on the first hop.
+	if p.scionLayer.SrcIA != p.d.localIA {
+		return pForward
+	}
+	// TODO(jiceatscion): That is the second time we parse the src address
+	// we might want to cache it.
+	src, err := p.scionLayer.SrcAddr()
+	if err == nil && src.IP().Is4In6() {
+		err = unsupportedV4MappedV6Address
+	}
+	if err == nil {
+		return pForward
+	}
+
+	log.Debug("SCMP response", "cause", err)
+	p.pkt.slowPathRequest = slowPathRequest{
+		scmpType: slayers.SCMPTypeParameterProblem,
+		code:     slayers.SCMPCodeInvalidSourceAddress,
+	}
+	return pSlowPath
+}
+
 func (p *scionPacketProcessor) process() disposition {
 	if disp := p.parsePath(); disp != pForward {
 		return disp
@@ -1869,6 +1893,9 @@ func (p *scionPacketProcessor) process() disposition {
 		return disp
 	}
 	if disp := p.validateSrcDstIA(); disp != pForward {
+		return disp
+	}
+	if disp := p.validateSrcHost(); disp != pForward {
 		return disp
 	}
 	if disp := p.updateNonConsDirIngressSegID(); disp != pForward {
@@ -2072,8 +2099,11 @@ func (d *DataPlane) resolveLocalDst(
 		return nil
 	case addr.HostTypeIP:
 		// Parse UPD port and rewrite underlay IP/UDP port
-		// TODO(jiceatscion): IP() is returned by value. The compiler may or may not elide the
-		// intermediate copy. May be there's some way to avoid it for sure.
+		// TODO(jiceatscion): IP() is returned by value. The cost of copies adds up.
+		dstIP := dst.IP()
+		if dstIP.Is4In6() {
+			return unsupportedV4MappedV6Address
+		}
 		return d.addEndhostPort(resolvedDst, lastLayer, dst.IP())
 	default:
 		panic("unexpected address type returned from DstAddr")

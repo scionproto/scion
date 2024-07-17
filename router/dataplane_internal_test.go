@@ -536,6 +536,57 @@ func TestSlowPathProcessing(t *testing.T) {
 			},
 			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
 		},
+		"invalid dest v4mapped": {
+			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
+				return NewDP(fakeExternalInterfaces,
+					nil, mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops,
+					fakeServices,
+					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
+			},
+			mockMsg: func() []byte {
+				spkt := prepBaseMsg(t, payload, 0)
+				spkt.DstAddrType = slayers.T16Ip
+				spkt.RawDstAddr = []byte{
+					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 10, 0, 200, 200,
+				}
+				ret := toMsg(t, spkt)
+				return ret
+			},
+			srcInterface: 1,
+			expectedSlowPathRequest: slowPathRequest{
+				typ:      slowPathSCMP,
+				scmpType: slayers.SCMPTypeParameterProblem,
+				code:     slayers.SCMPCodeInvalidDestinationAddress,
+			},
+			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
+		},
+		"invalid src v4mapped": {
+			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
+				return NewDP(fakeExternalInterfaces,
+					nil, mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops,
+					fakeServices,
+					addr.MustParseIA("1-ff00:0:111"), nil, testKey)
+			},
+			mockMsg: func() []byte {
+				spkt := prepBaseMsgHop0Out(t, payload, 0)
+				_ = spkt.SetDstAddr(addr.HostIP(netip.AddrFrom4([4]byte{10, 0, 200, 200})))
+				spkt.SrcAddrType = slayers.T16Ip
+				spkt.RawSrcAddr = []byte{
+					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 10, 0, 200, 100,
+				}
+				ret := toMsg(t, spkt)
+				return ret
+			},
+			srcInterface: 0,
+			expectedSlowPathRequest: slowPathRequest{
+				typ:      slowPathSCMP,
+				scmpType: slayers.SCMPTypeParameterProblem,
+				code:     slayers.SCMPCodeInvalidSourceAddress,
+			},
+			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
+		},
 	}
 	for name, tc := range testCases {
 		name, tc := name, tc
@@ -555,7 +606,7 @@ func TestSlowPathProcessing(t *testing.T) {
 
 			processor := newPacketProcessor(dp)
 			disp := processor.processPkt(&pkt)
-			assert.Equal(t, disp, pSlowPath)
+			assert.Equal(t, pSlowPath, disp)
 
 			assert.Equal(t, tc.expectedSlowPathRequest, pkt.slowPathRequest)
 			slowPathProcessor := newSlowPathProcessor(dp)
@@ -603,6 +654,7 @@ func serializedBaseMsg(t *testing.T, payload []byte, flowId uint32) []byte {
 	return buffer.Bytes()
 }
 
+// Prepares a message that is arriving at its last hop, incoming through interface 1.
 func prepBaseMsg(t *testing.T, payload []byte, flowId uint32) *slayers.SCION {
 	spkt := &slayers.SCION{
 		Version:      0,
@@ -633,6 +685,44 @@ func prepBaseMsg(t *testing.T, payload []byte, flowId uint32) *slayers.SCION {
 			{ConsIngress: 41, ConsEgress: 40},
 			{ConsIngress: 31, ConsEgress: 30},
 			{ConsIngress: 1, ConsEgress: 0},
+		},
+	}
+	dpath.HopFields[2].Mac = computeMAC(t, testKey, dpath.InfoFields[0], dpath.HopFields[2])
+	spkt.Path = dpath
+	return spkt
+}
+
+// Prepares a message that is at its first hop and outgoing via interface 1.
+func prepBaseMsgHop0Out(t *testing.T, payload []byte, flowId uint32) *slayers.SCION {
+	spkt := &slayers.SCION{
+		Version:      0,
+		TrafficClass: 0xb8,
+		FlowID:       flowId,
+		NextHdr:      slayers.L4UDP,
+		PathType:     scion.PathType,
+		DstIA:        addr.MustParseIA("1-ff00:0:110"),
+		SrcIA:        addr.MustParseIA("1-ff00:0:111"),
+		Path:         &scion.Raw{},
+		PayloadLen:   18,
+	}
+
+	dpath := &scion.Decoded{
+		Base: scion.Base{
+			PathMeta: scion.MetaHdr{
+				CurrHF: 0,
+				SegLen: [3]uint8{3, 0, 0},
+			},
+			NumINF:  1,
+			NumHops: 3,
+		},
+		InfoFields: []path.InfoField{
+			{SegID: 0x111, ConsDir: true, Timestamp: util.TimeToSecs(time.Now())},
+		},
+
+		HopFields: []path.HopField{
+			{ConsIngress: 0, ConsEgress: 1},
+			{ConsIngress: 41, ConsEgress: 40},
+			{ConsIngress: 31, ConsEgress: 30},
 		},
 	}
 	dpath.HopFields[2].Mac = computeMAC(t, testKey, dpath.InfoFields[0], dpath.HopFields[2])
