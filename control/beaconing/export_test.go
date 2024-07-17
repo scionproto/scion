@@ -20,7 +20,7 @@ import (
 	"github.com/scionproto/scion/private/topology"
 )
 
-func (cfg StaticInfoCfg) TestGenerate(ifType map[common.IfIdType]topology.LinkType,
-	ingress, egress common.IfIdType) *staticinfo.Extension {
+func (cfg StaticInfoCfg) TestGenerate(ifType map[common.IfIDType]topology.LinkType,
+	ingress, egress common.IfIDType) *staticinfo.Extension {
 	return cfg.generate(ifType, ingress, egress)
 }

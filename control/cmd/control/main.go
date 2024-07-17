@@ -844,7 +844,7 @@ func createBeaconStore(
 	return store, *policies.Prop.Filter.AllowIsdLoop, err
 }
 
-func adaptInterfaceMap(in map[common.IfIdType]topology.IFInfo) map[uint16]ifstate.InterfaceInfo {
+func adaptInterfaceMap(in map[common.IfIDType]topology.IFInfo) map[uint16]ifstate.InterfaceInfo {
 	converted := make(map[uint16]ifstate.InterfaceInfo, len(in))
 	for id, info := range in {
 		converted[uint16(id)] = ifstate.InterfaceInfo{

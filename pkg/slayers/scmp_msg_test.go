@@ -40,7 +40,7 @@ func TestSCMPExternalInterfaceDownDecodeFromBytes(t *testing.T) {
 			}, bytes.Repeat([]byte{0xff}, 10)...),
 			decoded: &slayers.SCMPExternalInterfaceDown{
 				IA:   addr.MustParseIA("1-ff00:0:111"),
-				IfId: uint64(5),
+				IfID: uint64(5),
 			},
 			assertFunc: assert.NoError,
 		},
@@ -83,7 +83,7 @@ func TestSCMPExternalInterfaceDownSerializeTo(t *testing.T) {
 			}, bytes.Repeat([]byte{0xff}, 10)...),
 			decoded: &slayers.SCMPExternalInterfaceDown{
 				IA:   addr.MustParseIA("1-ff00:0:111"),
-				IfId: uint64(5),
+				IfID: uint64(5),
 			},
 			assertFunc: assert.NoError,
 		},

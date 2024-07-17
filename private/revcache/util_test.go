@@ -60,7 +60,7 @@ func TestNoRevokedHopIntf(t *testing.T) {
 		revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).Return(
 			revcache.Revocations{
 				revcache.Key{IA: addr.MustParseIA("2-ff00:0:211"),
-					IfId: common.IFIDType(graph.If_210_X_211_A)}: sRev,
+					IfID: common.IFIDType(graph.If_210_X_211_A)}: sRev,
 			}, nil,
 		)
 		noR, err := revcache.NoRevokedHopIntf(ctx, revCache, seg210_222_1)
@@ -77,9 +77,9 @@ func TestNoRevokedHopIntf(t *testing.T) {
 	})
 }
 
-func defaultRevInfo(ia addr.IA, ifId uint16, ts time.Time) *path_mgmt.RevInfo {
+func defaultRevInfo(ia addr.IA, ifID uint16, ts time.Time) *path_mgmt.RevInfo {
 	return &path_mgmt.RevInfo{
-		IfId:         common.IfIdType(ifId),
+		IfID:         common.IfIDType(ifID),
 		RawIsdas:     ia,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(ts),

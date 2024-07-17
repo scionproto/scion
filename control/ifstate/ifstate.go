@@ -86,12 +86,12 @@ func (intfs *Interfaces) Update(ifInfomap map[uint16]InterfaceInfo) {
 	intfs.mu.Lock()
 	defer intfs.mu.Unlock()
 	m := make(map[uint16]*Interface, len(intfs.intfs))
-	for ifId, info := range ifInfomap {
-		if intf, ok := intfs.intfs[ifId]; ok {
+	for ifID, info := range ifInfomap {
+		if intf, ok := intfs.intfs[ifID]; ok {
 			intf.updateTopoInfo(info)
-			m[ifId] = intf
+			m[ifID] = intf
 		} else {
-			m[ifId] = &Interface{
+			m[ifID] = &Interface{
 				topoInfo: info,
 				cfg:      intfs.cfg,
 			}
@@ -128,17 +128,17 @@ func (intfs *Interfaces) All() map[uint16]*Interface {
 	intfs.mu.RLock()
 	defer intfs.mu.RUnlock()
 	res := make(map[uint16]*Interface, len(intfs.intfs))
-	for ifId, intf := range intfs.intfs {
-		res[ifId] = intf
+	for ifID, intf := range intfs.intfs {
+		res[ifID] = intf
 	}
 	return res
 }
 
 // Get returns the interface for the specified id, or nil if not present.
-func (intfs *Interfaces) Get(ifId uint16) *Interface {
+func (intfs *Interfaces) Get(ifID uint16) *Interface {
 	intfs.mu.RLock()
 	defer intfs.mu.RUnlock()
-	return intfs.intfs[ifId]
+	return intfs.intfs[ifID]
 }
 
 // Interface keeps track of the interface state.

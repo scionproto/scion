@@ -41,7 +41,7 @@ const scmpRawInterfaceLen = 8
 type SCMPExternalInterfaceDown struct {
 	BaseLayer
 	IA   addr.IA
-	IfId uint64
+	IfID uint64
 }
 
 // LayerType returns LayerTypeSCMPExternalInterfaceDown.
@@ -66,7 +66,7 @@ func (i *SCMPExternalInterfaceDown) DecodeFromBytes(data []byte,
 	offset := 0
 	i.IA = addr.IA(binary.BigEndian.Uint64(data[offset:]))
 	offset += addr.IABytes
-	i.IfId = binary.BigEndian.Uint64(data[offset : offset+scmpRawInterfaceLen])
+	i.IfID = binary.BigEndian.Uint64(data[offset : offset+scmpRawInterfaceLen])
 	offset += scmpRawInterfaceLen
 	i.BaseLayer = BaseLayer{
 		Contents: data[:offset],
@@ -87,7 +87,7 @@ func (i *SCMPExternalInterfaceDown) SerializeTo(b gopacket.SerializeBuffer,
 	offset := 0
 	binary.BigEndian.PutUint64(buf[offset:], uint64(i.IA))
 	offset += addr.IABytes
-	binary.BigEndian.PutUint64(buf[offset:offset+scmpRawInterfaceLen], i.IfId)
+	binary.BigEndian.PutUint64(buf[offset:offset+scmpRawInterfaceLen], i.IfID)
 	return nil
 }
 

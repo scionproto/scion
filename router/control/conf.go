@@ -32,7 +32,7 @@ import (
 type Dataplane interface {
 	CreateIACtx(ia addr.IA) error
 	AddInternalInterface(ia addr.IA, local netip.AddrPort) error
-	AddExternalInterface(localIfId common.IfIdType, info LinkInfo, owned bool) error
+	AddExternalInterface(localIfID common.IfIDType, info LinkInfo, owned bool) error
 	AddSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error
 	DelSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error
 	SetKey(ia addr.IA, index int, key []byte) error
@@ -57,7 +57,7 @@ type LinkInfo struct {
 type LinkEnd struct {
 	IA   addr.IA
 	Addr netip.AddrPort
-	IFID common.IfIdType
+	IFID common.IfIDType
 }
 
 type ObservableDataplane interface {
@@ -163,20 +163,20 @@ func DeriveHFMacKey(k []byte) []byte {
 }
 
 func confExternalInterfaces(dp Dataplane, cfg *Config) error {
-	// Sort out keys/ifIds to get deterministic order for unit testing
+	// Sort out keys/ifIDs to get deterministic order for unit testing
 	infoMap := cfg.Topo.IFInfoMap()
 	if len(infoMap) == 0 {
 		// nothing to do
 		return nil
 	}
-	ifIds := []common.IfIdType{}
+	ifIDs := []common.IfIDType{}
 	for k := range infoMap {
-		ifIds = append(ifIds, k)
+		ifIDs = append(ifIDs, k)
 	}
-	sort.Slice(ifIds, func(i, j int) bool { return ifIds[i] < ifIds[j] })
+	sort.Slice(ifIDs, func(i, j int) bool { return ifIDs[i] < ifIDs[j] })
 	// External interfaces
-	for _, ifId := range ifIds {
-		iface := infoMap[ifId]
+	for _, ifID := range ifIDs {
+		iface := infoMap[ifID]
 		linkInfo := LinkInfo{
 			Local: LinkEnd{
 				IA:   cfg.IA,
@@ -194,7 +194,7 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 			MTU:      iface.MTU,
 		}
 
-		_, owned := cfg.BR.IFs[ifId]
+		_, owned := cfg.BR.IFs[ifID]
 		if !owned {
 			// XXX The current implementation effectively uses IP/UDP tunnels to create
 			// the SCION network as an overlay, with forwarding to local hosts being a special case.
@@ -207,7 +207,7 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 			linkInfo.BFD = BFD{}
 		}
 
-		if err := dp.AddExternalInterface(ifId, linkInfo, owned); err != nil {
+		if err := dp.AddExternalInterface(ifID, linkInfo, owned); err != nil {
 			return err
 		}
 	}

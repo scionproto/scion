@@ -95,25 +95,25 @@ type (
 		// InternalAddr is the local data-plane address.
 		InternalAddr netip.AddrPort
 		// IFIDs is a sorted list of the interface IDs.
-		IFIDs []common.IfIdType
+		IFIDs []common.IfIDType
 		// IFs is a map of interface IDs.
-		IFs map[common.IfIdType]*IFInfo
+		IFs map[common.IfIDType]*IFInfo
 	}
 
 	// IfInfoMap maps interface ids to the interface information.
-	IfInfoMap map[common.IfIdType]IFInfo
+	IfInfoMap map[common.IfIDType]IFInfo
 
 	// IFInfo describes a border router link to another AS, including the internal data-plane
 	// address applications should send traffic to and information about the link itself and the
 	// remote side of it.
 	IFInfo struct {
 		// ID is the interface ID. It is unique per AS.
-		ID           common.IfIdType
+		ID           common.IfIDType
 		BRName       string
 		InternalAddr netip.AddrPort
 		Local        netip.AddrPort
 		Remote       netip.AddrPort
-		RemoteIFID   common.IfIdType
+		RemoteIFID   common.IfIDType
 		IA           addr.IA
 		LinkType     LinkType
 		MTU          int
@@ -267,17 +267,17 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 		brInfo := BRInfo{
 			Name:         name,
 			InternalAddr: intAddr,
-			IFs:          make(map[common.IfIdType]*IFInfo),
+			IFs:          make(map[common.IfIDType]*IFInfo),
 		}
-		for ifId, rawIntf := range rawBr.Interfaces {
+		for ifID, rawIntf := range rawBr.Interfaces {
 			var err error
-			// Check that ifId is unique
-			if _, ok := t.IFInfoMap[ifId]; ok {
-				return serrors.New("IFID already exists", "ID", ifId)
+			// Check that ifID is unique
+			if _, ok := t.IFInfoMap[ifID]; ok {
+				return serrors.New("IFID already exists", "ID", ifID)
 			}
-			brInfo.IFIDs = append(brInfo.IFIDs, ifId)
+			brInfo.IFIDs = append(brInfo.IFIDs, ifID)
 			ifinfo := IFInfo{
-				ID:           ifId,
+				ID:           ifID,
 				BRName:       name,
 				InternalAddr: intAddr,
 				MTU:          rawIntf.MTU,
@@ -305,8 +305,8 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 			// These fields are only necessary for the border router.
 			// Parsing should not fail if all fields are empty.
 			if rawIntf.Underlay == (jsontopo.Underlay{}) {
-				brInfo.IFs[ifId] = &ifinfo
-				t.IFInfoMap[ifId] = ifinfo
+				brInfo.IFs[ifID] = &ifinfo
+				t.IFInfoMap[ifID] = ifinfo
 				continue
 			}
 			if ifinfo.Local, err = rawBRIntfLocalAddr(&rawIntf.Underlay); err != nil {
@@ -317,8 +317,8 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 				return serrors.WrapStr("unable to extract "+
 					"underlay external data-plane remote address", err)
 			}
-			brInfo.IFs[ifId] = &ifinfo
-			t.IFInfoMap[ifId] = ifinfo
+			brInfo.IFs[ifID] = &ifinfo
+			t.IFInfoMap[ifID] = ifinfo
 		}
 		sort.Slice(brInfo.IFIDs, func(i, j int) bool {
 			return brInfo.IFIDs[i] < brInfo.IFIDs[j]
@@ -472,11 +472,11 @@ func (i *BRInfo) copy() *BRInfo {
 	}
 }
 
-func copyIFsMap(m map[common.IfIdType]*IFInfo) map[common.IfIdType]*IFInfo {
+func copyIFsMap(m map[common.IfIDType]*IFInfo) map[common.IfIDType]*IFInfo {
 	if m == nil {
 		return nil
 	}
-	newM := make(map[common.IfIdType]*IFInfo)
+	newM := make(map[common.IfIDType]*IFInfo)
 	for k, v := range m {
 		newM[k] = v.copy()
 	}

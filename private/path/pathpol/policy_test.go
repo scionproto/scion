@@ -642,13 +642,13 @@ func NewPathProvider(ctrl *gomock.Controller) PathProvider {
 func (p PathProvider) GetPaths(src, dst addr.IA) []snet.Path {
 	result := []snet.Path{}
 	paths := p.g.GetPaths(src.String(), dst.String())
-	for _, ifIds := range paths {
-		pathIntfs := make([]snet.PathInterface, 0, len(ifIds))
-		for _, ifId := range ifIds {
-			ia := p.g.GetParent(ifId)
+	for _, ifIDs := range paths {
+		pathIntfs := make([]snet.PathInterface, 0, len(ifIDs))
+		for _, ifID := range ifIDs {
+			ia := p.g.GetParent(ifID)
 			pathIntfs = append(pathIntfs, snet.PathInterface{
 				IA: ia,
-				ID: common.IfIdType(ifId),
+				ID: common.IfIDType(ifID),
 			})
 		}
 		var srcIA, dstIA addr.IA

@@ -46,7 +46,7 @@ func TestLoadRawFromFile(t *testing.T) {
 		BorderRouters: map[string]*jsontopo.BRInfo{
 			"borderrouter6-f00:0:362-1": {
 				InternalAddr: "10.1.0.1:0",
-				Interfaces: map[common.IfIdType]*jsontopo.BRInterface{
+				Interfaces: map[common.IfIDType]*jsontopo.BRInterface{
 					91: {
 						Underlay: jsontopo.Underlay{
 							Local:  "192.0.2.1:4997",
@@ -65,7 +65,7 @@ func TestLoadRawFromFile(t *testing.T) {
 			},
 			"borderrouter6-f00:0:362-9": {
 				InternalAddr: "[2001:db8:a0b:12f0::2]:0",
-				Interfaces: map[common.IfIdType]*jsontopo.BRInterface{
+				Interfaces: map[common.IfIDType]*jsontopo.BRInterface{
 					32: {
 						Underlay: jsontopo.Underlay{
 							Local:  "[2001:db8:a0b:12f0::1]:4997",

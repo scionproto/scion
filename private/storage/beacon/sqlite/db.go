@@ -140,15 +140,15 @@ func (e *executor) CandidateBeacons(
 	beacons := make([]beacon.Beacon, 0, setSize)
 	for rows.Next() {
 		var rawBeacon sql.RawBytes
-		var inIfId common.IfIdType
-		if err = rows.Scan(&rawBeacon, &inIfId); err != nil {
+		var inIfID common.IfIDType
+		if err = rows.Scan(&rawBeacon, &inIfID); err != nil {
 			return nil, db.NewReadError(beacon.ErrReadingRows, err)
 		}
 		s, err := beacon.UnpackBeacon(rawBeacon)
 		if err != nil {
 			return nil, db.NewDataError(beacon.ErrParse, err)
 		}
-		beacons = append(beacons, beacon.Beacon{Segment: s, InIfId: uint16(inIfId)})
+		beacons = append(beacons, beacon.Beacon{Segment: s, InIfID: uint16(inIfID)})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -217,8 +217,8 @@ func (e *executor) GetBeacons(
 		var lastUpdated int64
 		var usage int
 		var rawBeacon sql.RawBytes
-		var InIfId uint16
-		err = rows.Scan(&RowID, &lastUpdated, &usage, &rawBeacon, &InIfId)
+		var InIfID uint16
+		err = rows.Scan(&RowID, &lastUpdated, &usage, &rawBeacon, &InIfID)
 		if err != nil {
 			return nil, serrors.WrapStr("reading row", err)
 		}
@@ -229,7 +229,7 @@ func (e *executor) GetBeacons(
 		res = append(res, storagebeacon.Beacon{
 			Beacon: beacon.Beacon{
 				Segment: seg,
-				InIfId:  InIfId,
+				InIfID:  InIfID,
 			},
 			Usage:       beacon.Usage(usage),
 			LastUpdated: time.Unix(0, lastUpdated),
@@ -360,7 +360,7 @@ func (e *executor) updateExistingBeacon(
 	inst := `UPDATE Beacons SET FullID=?, InIntfID=?, HopsLength=?, InfoTime=?,
 			ExpirationTime=?, LastUpdated=?, Usage=?, Beacon=?
 			WHERE RowID=?`
-	_, err = e.db.ExecContext(ctx, inst, fullID, b.InIfId, len(b.Segment.ASEntries), infoTime,
+	_, err = e.db.ExecContext(ctx, inst, fullID, b.InIfID, len(b.Segment.ASEntries), infoTime,
 		expTime, lastUpdated, usage, packedSeg, rowID)
 	if err != nil {
 		return db.NewWriteError("update segment", err)
@@ -393,7 +393,7 @@ func insertNewBeacon(
 		ExpirationTime, LastUpdated, Usage, Beacon)
 	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err = tx.ExecContext(ctx, inst, segID, fullID, start.ISD(), start.AS(), b.InIfId,
+	_, err = tx.ExecContext(ctx, inst, segID, fullID, start.ISD(), start.AS(), b.InIfID,
 		len(b.Segment.ASEntries), infoTime, expTime, lastUpdated, usage, packed)
 	if err != nil {
 		return db.NewWriteError("insert beacon", err)

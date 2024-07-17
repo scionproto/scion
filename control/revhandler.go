@@ -32,7 +32,7 @@ func (h RevocationHandler) Revoke(ctx context.Context, revInfo *path_mgmt.RevInf
 	if _, err := h.RevCache.Insert(ctx, revInfo); err != nil {
 		return serrors.WrapStr("inserting revocation", err,
 			"isd_as", revInfo.IA(),
-			"interface_id", revInfo.IfId,
+			"interface_id", revInfo.IfID,
 			"expiration", revInfo.Expiration(),
 		)
 	}

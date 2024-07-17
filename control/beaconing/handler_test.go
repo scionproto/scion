@@ -51,7 +51,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 		g := graph.NewDefaultGraph(mctrl)
 		return beacon.Beacon{
 			Segment: testSegment(g, []uint16{graph.If_220_X_120_B, graph.If_120_A_110_X}),
-			InIfId:  localIF,
+			InIfID:  localIF,
 		}
 	}()
 
@@ -104,7 +104,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 					Segment: testSegment(g, []uint16{
 						graph.If_220_X_120_B, graph.If_120_A_110_X,
 					}),
-					InIfId: 12,
+					InIfID: 12,
 				}
 			},
 			Peer: func() *snet.UDPAddr {
@@ -130,7 +130,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 					Segment: testSegment(g, []uint16{
 						graph.If_220_X_120_B, graph.If_120_A_110_X,
 					}),
-					InIfId: 42,
+					InIfID: 42,
 				}
 			},
 			Peer: func() *snet.UDPAddr {
@@ -156,7 +156,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 					Segment: testSegment(g, []uint16{
 						graph.If_220_X_120_B, graph.If_120_A_110_X,
 					}),
-					InIfId: localIF,
+					InIfID: localIF,
 				}
 				b.Segment.ASEntries[b.Segment.MaxIdx()].Local = addr.MustParseIA("1-ff00:0:111")
 				return b
@@ -185,7 +185,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 					Segment: testSegment(g, []uint16{
 						graph.If_220_X_120_B, graph.If_120_A_110_X,
 					}),
-					InIfId: localIF,
+					InIfID: localIF,
 				}
 				b.Segment.ASEntries[b.Segment.MaxIdx()].Next = addr.MustParseIA("1-ff00:0:111")
 				return b
@@ -276,8 +276,8 @@ func TestHandlerHandleBeacon(t *testing.T) {
 	}
 }
 
-func testSegment(g *graph.Graph, ifIds []uint16) *seg.PathSegment {
-	pseg := g.Beacon(ifIds)
+func testSegment(g *graph.Graph, ifIDs []uint16) *seg.PathSegment {
+	pseg := g.Beacon(ifIDs)
 	pseg.ASEntries = pseg.ASEntries[:len(pseg.ASEntries)-1]
 	return pseg
 }

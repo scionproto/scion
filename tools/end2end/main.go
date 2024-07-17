@@ -419,6 +419,6 @@ func readFrom(conn *snet.Conn, pld []byte) (int, net.Addr, error) {
 	}
 	return n, remoteAddr, serrors.WithCtx(err,
 		"isd_as", opErr.RevInfo().IA(),
-		"interface", opErr.RevInfo().IfId,
+		"interface", opErr.RevInfo().IfID,
 	)
 }

@@ -37,10 +37,10 @@ type RegistrationPolicy map[uint64]InterfacePolicy
 
 // Validate validates the registration policy.
 func (p RegistrationPolicy) Validate() error {
-	for ifId, p := range p {
+	for ifID, p := range p {
 		for id, group := range p.Groups {
 			if err := group.Validate(); err != nil {
-				return serrors.WrapStr("validating group", err, "group_id", id, "interface", ifId)
+				return serrors.WrapStr("validating group", err, "group_id", id, "interface", ifID)
 			}
 		}
 	}
@@ -51,15 +51,15 @@ func (p RegistrationPolicy) Validate() error {
 func (p RegistrationPolicy) MarshalYAML() (interface{}, error) {
 	collectedGroups := make(Groups)
 	policies := make(map[uint64][]string, len(p))
-	for ifId, ip := range p {
+	for ifID, ip := range p {
 		for id, group := range ip.Groups {
 			collectedGroups[id] = group
-			policies[ifId] = append(policies[ifId], id.String())
+			policies[ifID] = append(policies[ifID], id.String())
 		}
 		if ip.Public {
-			policies[ifId] = append(policies[ifId], "public")
+			policies[ifID] = append(policies[ifID], "public")
 		}
-		sort.Strings(policies[ifId])
+		sort.Strings(policies[ifID])
 	}
 	return &registrationPolicyInfo{
 		Groups:   marshalGroups(collectedGroups),
@@ -81,8 +81,8 @@ func (p RegistrationPolicy) UnmarshalYAML(unmarshal func(interface{}) error) err
 	if err != nil {
 		return err
 	}
-	for ifId, pol := range parsed {
-		p[ifId] = pol
+	for ifID, pol := range parsed {
+		p[ifID] = pol
 	}
 	return nil
 }
@@ -127,7 +127,7 @@ type registrationPolicyInfo struct {
 
 func parsePolicies(groups Groups, rawPolicies map[uint64][]string) (RegistrationPolicy, error) {
 	result := make(RegistrationPolicy)
-	for ifId, groupIDs := range rawPolicies {
+	for ifID, groupIDs := range rawPolicies {
 		pol := InterfacePolicy{
 			Groups: make(map[GroupID]*Group),
 		}
@@ -146,7 +146,7 @@ func parsePolicies(groups Groups, rawPolicies map[uint64][]string) (Registration
 			}
 			pol.Groups[id] = group
 		}
-		result[ifId] = pol
+		result[ifID] = pol
 	}
 	return result, nil
 }

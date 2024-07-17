@@ -483,7 +483,7 @@ func (e *executor) buildQuery(params *query.Params) (string, []interface{}) {
 		subQ := []string{}
 		for _, spec := range params.Intfs {
 			subQ = append(subQ, "(i.IsdID=? AND i.AsID=? AND i.IntfID=?)")
-			args = append(args, spec.IA.ISD(), spec.IA.AS(), spec.IfId)
+			args = append(args, spec.IA.ISD(), spec.IA.AS(), spec.IfID)
 		}
 		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
 	}

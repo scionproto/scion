@@ -85,17 +85,17 @@ func collectLatency(p pathInfo) []time.Duration {
 		}
 		egIF := snet.PathInterface{
 			IA: asEntry.Local,
-			ID: common.IfIdType(asEntry.HopEntry.HopField.ConsEgress),
+			ID: common.IfIDType(asEntry.HopEntry.HopField.ConsEgress),
 		}
 		latency := staticInfo.Latency
 		// Egress to sibling child, core or peer interfaces
-		for ifId, v := range latency.Intra {
-			otherIF := snet.PathInterface{IA: asEntry.Local, ID: ifId}
+		for ifID, v := range latency.Intra {
+			otherIF := snet.PathInterface{IA: asEntry.Local, ID: ifID}
 			addHopLatency(hopLatencies, egIF, otherIF, v)
 		}
 		// Local peer to remote peer interface
-		for ifId, v := range latency.Inter {
-			localIF := snet.PathInterface{IA: asEntry.Local, ID: ifId}
+		for ifID, v := range latency.Inter {
+			localIF := snet.PathInterface{IA: asEntry.Local, ID: ifID}
 			addHopLatency(hopLatencies, localIF, p.RemoteIF[localIF], v)
 		}
 	}
@@ -140,17 +140,17 @@ func collectBandwidth(p pathInfo) []uint64 {
 		}
 		egIF := snet.PathInterface{
 			IA: asEntry.Local,
-			ID: common.IfIdType(asEntry.HopEntry.HopField.ConsEgress),
+			ID: common.IfIDType(asEntry.HopEntry.HopField.ConsEgress),
 		}
 		bandwidth := staticInfo.Bandwidth
 		// Egress to other local interfaces
-		for ifId, v := range bandwidth.Intra {
-			otherIF := snet.PathInterface{IA: asEntry.Local, ID: ifId}
+		for ifID, v := range bandwidth.Intra {
+			otherIF := snet.PathInterface{IA: asEntry.Local, ID: ifID}
 			addHopBandwidth(hopBandwidths, egIF, otherIF, v)
 		}
 		// Local peer to remote peer interface
-		for ifId, v := range bandwidth.Inter {
-			localIF := snet.PathInterface{IA: asEntry.Local, ID: ifId}
+		for ifID, v := range bandwidth.Inter {
+			localIF := snet.PathInterface{IA: asEntry.Local, ID: ifID}
 			addHopBandwidth(hopBandwidths, localIF, p.RemoteIF[localIF], v)
 		}
 	}
@@ -187,8 +187,8 @@ func collectGeo(p pathInfo) []snet.GeoCoordinates {
 		if staticInfo == nil {
 			continue
 		}
-		for ifId, v := range staticInfo.Geo {
-			iface := snet.PathInterface{IA: asEntry.Local, ID: ifId}
+		for ifID, v := range staticInfo.Geo {
+			iface := snet.PathInterface{IA: asEntry.Local, ID: ifID}
 			ifaceGeos[iface] = snet.GeoCoordinates{
 				Longitude: v.Longitude,
 				Latitude:  v.Latitude,
@@ -213,9 +213,9 @@ func collectLinkType(p pathInfo) []snet.LinkType {
 		if staticInfo == nil {
 			continue
 		}
-		for ifId, rawLinkType := range staticInfo.LinkType {
+		for ifID, rawLinkType := range staticInfo.LinkType {
 			linkType := convertLinkType(rawLinkType)
-			localIF := snet.PathInterface{IA: asEntry.Local, ID: ifId}
+			localIF := snet.PathInterface{IA: asEntry.Local, ID: ifID}
 			hop := makeHopKey(localIF, p.RemoteIF[localIF])
 			if prevLinkType, duplicate := hopLinkTypes[hop]; duplicate {
 				// Handle conflicts by using LinkTypeUnset
@@ -265,11 +265,11 @@ func collectInternalHops(p pathInfo) []uint32 {
 		}
 		egIF := snet.PathInterface{
 			IA: asEntry.Local,
-			ID: common.IfIdType(asEntry.HopEntry.HopField.ConsEgress),
+			ID: common.IfIDType(asEntry.HopEntry.HopField.ConsEgress),
 		}
 		internalHops := staticInfo.InternalHops
-		for ifId, v := range internalHops {
-			otherIF := snet.PathInterface{IA: asEntry.Local, ID: ifId}
+		for ifID, v := range internalHops {
+			otherIF := snet.PathInterface{IA: asEntry.Local, ID: ifID}
 			addHopInternalHops(hopInternalHops, egIF, otherIF, v)
 		}
 	}

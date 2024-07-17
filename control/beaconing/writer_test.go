@@ -316,7 +316,7 @@ func TestRegistrarRun(t *testing.T) {
 			func(_, _ interface{}) (<-chan beacon.Beacon, error) {
 				res := make(chan beacon.Beacon, 1)
 				b := testBeacon(g, []uint16{graph.If_120_X_111_B})
-				b.InIfId = 10
+				b.InIfID = 10
 				res <- b
 				close(res)
 				return res, nil
@@ -331,7 +331,7 @@ func testBeacon(g *graph.Graph, desc []uint16) beacon.Beacon {
 	bseg.ASEntries = bseg.ASEntries[:len(bseg.ASEntries)-1]
 
 	return beacon.Beacon{
-		InIfId:  asEntry.HopEntry.HopField.ConsIngress,
+		InIfID:  asEntry.HopEntry.HopField.ConsIngress,
 		Segment: bseg,
 	}
 }
@@ -377,7 +377,7 @@ type topoWrap struct {
 }
 
 func (w topoWrap) UnderlayNextHop(id uint16) *net.UDPAddr {
-	a, _ := w.Topo.UnderlayNextHop(common.IfIdType(id))
+	a, _ := w.Topo.UnderlayNextHop(common.IfIDType(id))
 	return a
 }
 

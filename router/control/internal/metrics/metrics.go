@@ -65,9 +65,9 @@ func (l IntfLabels) Values() []string {
 	return []string{l.Intf, l.NeighIA}
 }
 
-func IntfToLabel(ifId common.IfIdType) string {
-	if ifId == 0 {
+func IntfToLabel(ifID common.IfIDType) string {
+	if ifID == 0 {
 		return "loc"
 	}
-	return ifId.String()
+	return ifID.String()
 }

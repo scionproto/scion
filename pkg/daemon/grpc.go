@@ -93,13 +93,13 @@ func (c grpcConn) Interfaces(ctx context.Context) (map[uint16]netip.AddrPort, er
 		return nil, err
 	}
 	result := make(map[uint16]netip.AddrPort, len(response.Interfaces))
-	for ifId, intf := range response.Interfaces {
+	for ifID, intf := range response.Interfaces {
 		a, err := netip.ParseAddrPort(intf.Address.Address)
 		if err != nil {
 			c.metrics.incInterface(err)
 			return nil, serrors.WrapStr("parsing reply", err, "raw_uri", intf.Address.Address)
 		}
-		result[uint16(ifId)] = a
+		result[uint16(ifID)] = a
 	}
 	c.metrics.incInterface(nil)
 	return result, nil
@@ -168,7 +168,7 @@ func (c grpcConn) SVCInfo(
 func (c grpcConn) RevNotification(ctx context.Context, revInfo *path_mgmt.RevInfo) error {
 	client := sdpb.NewDaemonServiceClient(c.conn)
 	_, err := client.NotifyInterfaceDown(ctx, &sdpb.NotifyInterfaceDownRequest{
-		Id:    uint64(revInfo.IfId),
+		Id:    uint64(revInfo.IfID),
 		IsdAs: uint64(revInfo.RawIsdas),
 	})
 	c.metrics.incIfDown(err)
@@ -260,7 +260,7 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 	interfaces := make([]snet.PathInterface, len(p.Interfaces))
 	for i, pi := range p.Interfaces {
 		interfaces[i] = snet.PathInterface{
-			ID: common.IfIdType(pi.Id),
+			ID: common.IfIDType(pi.Id),
 			IA: addr.IA(pi.IsdAs),
 		}
 	}

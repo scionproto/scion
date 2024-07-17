@@ -261,7 +261,7 @@ func fmtRemote(remote snet.SCIONAddress, intf uint64) string {
 	if remote == (snet.SCIONAddress{}) {
 		return "??"
 	}
-	return fmt.Sprintf("%s IfId=%d", remote, intf)
+	return fmt.Sprintf("%s IfID=%d", remote, intf)
 }
 
 func getHopInfo(u traceroute.Update, hop Hop) HopInfo {

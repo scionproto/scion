@@ -277,12 +277,12 @@ func (s *DaemonServer) interfaces(ctx context.Context,
 		Interfaces: make(map[uint64]*sdpb.Interface),
 	}
 	topo := s.Topology
-	for _, ifId := range topo.InterfaceIDs() {
-		nextHop := topo.UnderlayNextHop(ifId)
+	for _, ifID := range topo.InterfaceIDs() {
+		nextHop := topo.UnderlayNextHop(ifID)
 		if nextHop == nil {
 			continue
 		}
-		reply.Interfaces[uint64(ifId)] = &sdpb.Interface{
+		reply.Interfaces[uint64(ifID)] = &sdpb.Interface{
 			Address: &sdpb.Underlay{
 				Address: nextHop.String(),
 			},
@@ -337,7 +337,7 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 
 	revInfo := &path_mgmt.RevInfo{
 		RawIsdas:     addr.IA(req.IsdAs),
-		IfId:         common.IfIdType(req.Id),
+		IfID:         common.IfIDType(req.Id),
 		LinkType:     proto.LinkType_core,
 		RawTTL:       10,
 		RawTimestamp: util.TimeToSecs(time.Now()),

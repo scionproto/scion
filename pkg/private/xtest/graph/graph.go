@@ -89,7 +89,7 @@ func NewFromDescription(ctrl *gomock.Controller, desc *Description) *Graph {
 		graph.Add(node)
 	}
 	for _, edge := range desc.Edges {
-		graph.AddLink(edge.Xia, edge.XifId, edge.Yia, edge.YifId, edge.Peer)
+		graph.AddLink(edge.Xia, edge.XifID, edge.Yia, edge.YifID, edge.Peer)
 	}
 	return graph
 }
@@ -152,29 +152,29 @@ func (g *Graph) AddLink(xIA string, xIFID uint16,
 	g.ases[y].IFIDs[yIFID] = struct{}{}
 }
 
-// RemoveLink deletes the edge containing ifId from the graph.
-func (g *Graph) RemoveLink(ifId uint16) {
+// RemoveLink deletes the edge containing ifID from the graph.
+func (g *Graph) RemoveLink(ifID uint16) {
 	g.lock.Lock()
 	defer g.lock.Unlock()
-	ia := g.parents[ifId]
-	neighborIFID := g.links[ifId]
+	ia := g.parents[ifID]
+	neighborIFID := g.links[ifID]
 	neighborIA := g.parents[neighborIFID]
 
-	delete(g.links, ifId)
+	delete(g.links, ifID)
 	delete(g.links, neighborIFID)
-	delete(g.isPeer, ifId)
+	delete(g.isPeer, ifID)
 	delete(g.isPeer, neighborIFID)
-	delete(g.parents, ifId)
+	delete(g.parents, ifID)
 	delete(g.parents, neighborIFID)
-	g.ases[ia].Delete(ifId)
+	g.ases[ia].Delete(ifID)
 	g.ases[neighborIA].Delete(neighborIFID)
 }
 
-// GetParent returns the parent AS of ifId.
-func (g *Graph) GetParent(ifId uint16) addr.IA {
+// GetParent returns the parent AS of ifID.
+func (g *Graph) GetParent(ifID uint16) addr.IA {
 	g.lock.Lock()
 	defer g.lock.Unlock()
-	return g.parents[ifId]
+	return g.parents[ifID]
 }
 
 // GetPaths returns all the minimum-length paths. If xIA = yIA, a 1-length
@@ -215,15 +215,15 @@ func (g *Graph) GetPaths(xIA string, yIA string) [][]uint16 {
 		}
 
 		// Explore neighboring ASes, if not visited yet.
-		for ifId := range g.ases[curSolution.CurrentIA].IFIDs {
-			nextIFID := g.links[ifId]
+		for ifID := range g.ases[curSolution.CurrentIA].IFIDs {
+			nextIFID := g.links[ifID]
 			nextIA := g.parents[nextIFID]
 			if curSolution.Visited(nextIA) {
 				continue
 			}
 			// Copy to avoid mutating the trails of other explorations.
 			nextTrail := curSolution.Copy()
-			nextTrail.Add(ifId, nextIFID, nextIA)
+			nextTrail.Add(ifID, nextIFID, nextIA)
 			nextTrail.CurrentIA = nextIA
 			queue = append(queue, nextTrail)
 		}
@@ -231,35 +231,35 @@ func (g *Graph) GetPaths(xIA string, yIA string) [][]uint16 {
 	return solution
 }
 
-// Beacon constructs path segments across a series of egress ifIds. The parent
+// Beacon constructs path segments across a series of egress ifIDs. The parent
 // AS of the first IFID is the origin of the beacon, and the beacon propagates
 // down to the parent AS of the remote counterpart of the last IFID. The
 // constructed segment includes peering links. The hop fields in the returned
 // segment do not contain valid MACs.
-func (g *Graph) Beacon(ifIds []uint16) *seg.PathSegment {
-	return g.beacon(ifIds, false)
+func (g *Graph) Beacon(ifIDs []uint16) *seg.PathSegment {
+	return g.beacon(ifIDs, false)
 }
 
-func (g *Graph) BeaconWithStaticInfo(ifIds []uint16) *seg.PathSegment {
-	return g.beacon(ifIds, true)
+func (g *Graph) BeaconWithStaticInfo(ifIDs []uint16) *seg.PathSegment {
+	return g.beacon(ifIDs, true)
 }
 
-// beacon constructs path segments across a series of egress ifIds. The parent
+// beacon constructs path segments across a series of egress ifIDs. The parent
 // AS of the first IFID is the origin of the beacon, and the beacon propagates
 // down to the parent AS of the remote counterpart of the last IFID. The
 // constructed segment includes peering links. The hop fields in the returned
 // segment do not contain valid MACs.
-func (g *Graph) beacon(ifIds []uint16, addStaticInfo bool) *seg.PathSegment {
+func (g *Graph) beacon(ifIDs []uint16, addStaticInfo bool) *seg.PathSegment {
 	var inIF, outIF, remoteOutIF uint16
 	var currIA, outIA addr.IA
 
 	var segment *seg.PathSegment
-	if len(ifIds) == 0 {
+	if len(ifIDs) == 0 {
 		return segment
 	}
 
-	if _, ok := g.parents[ifIds[0]]; !ok {
-		panic(fmt.Sprintf("%d unknown ifId", ifIds[0]))
+	if _, ok := g.parents[ifIDs[0]]; !ok {
+		panic(fmt.Sprintf("%d unknown ifID", ifIDs[0]))
 	}
 
 	segment, err := seg.CreateSegment(time.Now(), uint16(rand.Int()))
@@ -267,17 +267,17 @@ func (g *Graph) beacon(ifIds []uint16, addStaticInfo bool) *seg.PathSegment {
 		panic(err)
 	}
 
-	currIA = g.parents[ifIds[0]]
-	for i := 0; i <= len(ifIds); i++ {
+	currIA = g.parents[ifIDs[0]]
+	for i := 0; i <= len(ifIDs); i++ {
 		switch {
-		case i < len(ifIds):
+		case i < len(ifIDs):
 			var ok bool
-			outIF = ifIds[i]
+			outIF = ifIDs[i]
 			if remoteOutIF, ok = g.links[outIF]; !ok {
-				panic(fmt.Sprintf("%d unknown ifId", outIF))
+				panic(fmt.Sprintf("%d unknown ifID", outIF))
 			}
 			outIA = g.parents[remoteOutIF]
-		case i == len(ifIds):
+		case i == len(ifIDs):
 			outIF = 0
 			remoteOutIF = 0
 			outIA = 0
@@ -302,13 +302,13 @@ func (g *Graph) beacon(ifIds []uint16, addStaticInfo bool) *seg.PathSegment {
 		as := g.ases[currIA]
 
 		// use int to avoid implementing sort.Interface
-		var ifIds []int
+		var ifIDs []int
 		for peeringLocalIF := range as.IFIDs {
-			ifIds = append(ifIds, int(peeringLocalIF))
+			ifIDs = append(ifIDs, int(peeringLocalIF))
 		}
-		sort.Ints(ifIds)
+		sort.Ints(ifIDs)
 
-		for _, intIFID := range ifIds {
+		for _, intIFID := range ifIDs {
 			peeringLocalIF := uint16(intIFID)
 			if g.isPeer[peeringLocalIF] {
 				peeringRemoteIF := g.links[peeringLocalIF]
@@ -337,10 +337,10 @@ func (g *Graph) beacon(ifIds []uint16, addStaticInfo bool) *seg.PathSegment {
 	return segment
 }
 
-// DeleteInterface removes ifId from the graph without deleting its remote
+// DeleteInterface removes ifID from the graph without deleting its remote
 // counterpart. This is useful for testing IFID misconfigurations.
-func (g *Graph) DeleteInterface(ifId uint16) {
-	delete(g.links, ifId)
+func (g *Graph) DeleteInterface(ifID uint16) {
+	delete(g.links, ifID)
 }
 
 // Latency returns an arbitrary test latency value between two interfaces. The
@@ -373,15 +373,15 @@ func (g *Graph) Bandwidth(a, b uint16) uint64 {
 }
 
 // GeoCoordinates returns an arbitrary test GeoCoordinate for the interface
-func (g *Graph) GeoCoordinates(ifId uint16) staticinfo.GeoCoordinates {
-	ia, ok := g.parents[ifId]
+func (g *Graph) GeoCoordinates(ifID uint16) staticinfo.GeoCoordinates {
+	ia, ok := g.parents[ifID]
 	if !ok {
 		panic("unknown interface")
 	}
 	return staticinfo.GeoCoordinates{
-		Latitude:  float32(ifId),
-		Longitude: float32(ifId),
-		Address:   fmt.Sprintf("Location %s#%d", ia, ifId),
+		Latitude:  float32(ifID),
+		Longitude: float32(ifID),
+		Address:   fmt.Sprintf("Location %s#%d", ia, ifID),
 	}
 }
 
@@ -502,12 +502,12 @@ type AS struct {
 	IFIDs map[uint16]struct{}
 }
 
-// Delete removes ifId from as.
-func (as *AS) Delete(ifId uint16) {
-	if _, ok := as.IFIDs[ifId]; !ok {
-		panic("ifId not found")
+// Delete removes ifID from as.
+func (as *AS) Delete(ifID uint16) {
+	if _, ok := as.IFIDs[ifID]; !ok {
+		panic("ifID not found")
 	}
-	delete(as.IFIDs, ifId)
+	delete(as.IFIDs, ifID)
 }
 
 // solution tracks the state of a candidate solution for the graph
@@ -575,9 +575,9 @@ type Description struct {
 // EdgeDesc is used in Descriptions to describe the links between ASes.
 type EdgeDesc struct {
 	Xia   string
-	XifId uint16
+	XifID uint16
 	Yia   string
-	YifId uint16
+	YifID uint16
 	Peer  bool
 }
 
@@ -590,7 +590,7 @@ func NewDefaultGraph(ctrl *gomock.Controller) *Graph {
 // It then uses that interface to generate characteristic StaticInfo for said interface,
 // such that testcases can be written by looking only at the interfaces
 // that send/receive beacons across the path.
-// Characteristic StaticInfo is generated by simply taking the ifId of the interface and
+// Characteristic StaticInfo is generated by simply taking the ifID of the interface and
 // converting it to a format that fits the kind of StaticInfo that is being stored
 // (e.g. typecast to uint16 for Latency). With this method, the StaticInfo for every
 // interface has a unique value.
@@ -603,55 +603,55 @@ func generateStaticInfo(g *Graph, ia addr.IA, inIF, outIF uint16) *staticinfo.Ex
 
 	latency := staticinfo.LatencyInfo{}
 	if outIF != 0 {
-		latency.Intra = make(map[common.IfIdType]time.Duration)
-		latency.Inter = make(map[common.IfIdType]time.Duration)
-		for ifId := range as.IFIDs {
-			if ifId != outIF {
+		latency.Intra = make(map[common.IfIDType]time.Duration)
+		latency.Inter = make(map[common.IfIDType]time.Duration)
+		for ifID := range as.IFIDs {
+			if ifID != outIF {
 				// Note: the test graph does not distinguish between parent/child or
 				// core interfaces.
 				// Otherwise, we could skip the parent interfaces and half of the
 				// sibling interfaces here.
-				latency.Intra[common.IfIdType(ifId)] = g.Latency(ifId, outIF)
+				latency.Intra[common.IfIDType(ifID)] = g.Latency(ifID, outIF)
 			}
-			if ifId == outIF || g.isPeer[ifId] {
-				latency.Inter[common.IfIdType(ifId)] = g.Latency(ifId, g.links[ifId])
+			if ifID == outIF || g.isPeer[ifID] {
+				latency.Inter[common.IfIDType(ifID)] = g.Latency(ifID, g.links[ifID])
 			}
 		}
 	}
 
 	bandwidth := staticinfo.BandwidthInfo{}
 	if outIF != 0 {
-		bandwidth.Intra = make(map[common.IfIdType]uint64)
-		bandwidth.Inter = make(map[common.IfIdType]uint64)
-		for ifId := range as.IFIDs {
-			if ifId != outIF {
-				bandwidth.Intra[common.IfIdType(ifId)] = g.Bandwidth(ifId, outIF)
+		bandwidth.Intra = make(map[common.IfIDType]uint64)
+		bandwidth.Inter = make(map[common.IfIDType]uint64)
+		for ifID := range as.IFIDs {
+			if ifID != outIF {
+				bandwidth.Intra[common.IfIDType(ifID)] = g.Bandwidth(ifID, outIF)
 			}
-			if ifId == outIF || g.isPeer[ifId] {
-				bandwidth.Inter[common.IfIdType(ifId)] = g.Bandwidth(ifId, g.links[ifId])
+			if ifID == outIF || g.isPeer[ifID] {
+				bandwidth.Inter[common.IfIDType(ifID)] = g.Bandwidth(ifID, g.links[ifID])
 			}
 		}
 	}
 
 	geo := make(staticinfo.GeoInfo)
-	for ifId := range as.IFIDs {
-		geo[common.IfIdType(ifId)] = g.GeoCoordinates(ifId)
+	for ifID := range as.IFIDs {
+		geo[common.IfIDType(ifID)] = g.GeoCoordinates(ifID)
 	}
 
 	linkType := make(staticinfo.LinkTypeInfo)
-	for ifId := range as.IFIDs {
-		linkType[common.IfIdType(ifId)] = g.LinkType(ifId, g.links[ifId])
+	for ifID := range as.IFIDs {
+		linkType[common.IfIDType(ifID)] = g.LinkType(ifID, g.links[ifID])
 	}
 
 	var internalHops staticinfo.InternalHopsInfo
 	if outIF != 0 {
-		internalHops = make(map[common.IfIdType]uint32)
+		internalHops = make(map[common.IfIDType]uint32)
 		if inIF != 0 {
-			internalHops[common.IfIdType(inIF)] = g.InternalHops(inIF, outIF)
+			internalHops[common.IfIDType(inIF)] = g.InternalHops(inIF, outIF)
 		}
-		for ifId := range as.IFIDs {
-			if ifId != outIF && ifId != inIF {
-				internalHops[common.IfIdType(ifId)] = g.InternalHops(ifId, outIF)
+		for ifID := range as.IFIDs {
+			if ifID != outIF && ifID != inIF {
+				internalHops[common.IfIDType(ifID)] = g.InternalHops(ifID, outIF)
 			}
 		}
 	}

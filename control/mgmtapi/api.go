@@ -213,7 +213,7 @@ func (s *Server) GetBeacons(w http.ResponseWriter, r *http.Request, params GetBe
 		}
 		rep = append(rep, &Beacon{
 			Usages:           usage,
-			IngressInterface: int(result.Beacon.InIfId),
+			IngressInterface: int(result.Beacon.InIfID),
 			Id:               segapi.SegID(s),
 			LastUpdated:      result.LastUpdated,
 			Timestamp:        s.Info.Timestamp.UTC(),
@@ -362,7 +362,7 @@ func (s *Server) GetBeacon(w http.ResponseWriter, r *http.Request, segmentId Seg
 	res := map[string]Beacon{
 		"beacon": {
 			Usages:           usage,
-			IngressInterface: int(results[0].Beacon.InIfId),
+			IngressInterface: int(results[0].Beacon.InIfID),
 			Id:               segapi.SegID(seg),
 			LastUpdated:      results[0].LastUpdated,
 			Timestamp:        seg.Info.Timestamp.UTC(),

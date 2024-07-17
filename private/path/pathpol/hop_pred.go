@@ -32,11 +32,11 @@ import (
 type HopPredicate struct {
 	ISD   addr.ISD
 	AS    addr.AS
-	IfIds []common.IfIdType
+	IfIDs []common.IfIDType
 }
 
 func NewHopPredicate() *HopPredicate {
-	return &HopPredicate{IfIds: make([]common.IfIdType, 1)}
+	return &HopPredicate{IfIDs: make([]common.IfIDType, 1)}
 }
 
 func HopPredicateFromString(str string) (*HopPredicate, error) {
@@ -44,7 +44,7 @@ func HopPredicateFromString(str string) (*HopPredicate, error) {
 	if err = validateHopPredStr(str); err != nil {
 		return &HopPredicate{}, err
 	}
-	var ifIds = make([]common.IfIdType, 1)
+	var ifIDs = make([]common.IfIDType, 1)
 	// Parse ISD
 	dashParts := strings.Split(str, "-")
 	isd, err := addr.ParseISD(dashParts[0])
@@ -52,7 +52,7 @@ func HopPredicateFromString(str string) (*HopPredicate, error) {
 		return &HopPredicate{}, serrors.WrapStr("Failed to parse ISD", err, "value", str)
 	}
 	if len(dashParts) == 1 {
-		return &HopPredicate{ISD: isd, IfIds: ifIds}, nil
+		return &HopPredicate{ISD: isd, IfIDs: ifIDs}, nil
 	}
 	// Parse AS if present
 	hashParts := strings.Split(dashParts[1], "#")
@@ -61,26 +61,26 @@ func HopPredicateFromString(str string) (*HopPredicate, error) {
 		return &HopPredicate{}, serrors.WrapStr("Failed to parse AS", err, "value", str)
 	}
 	if len(hashParts) == 1 {
-		return &HopPredicate{ISD: isd, AS: as, IfIds: ifIds}, nil
+		return &HopPredicate{ISD: isd, AS: as, IfIDs: ifIDs}, nil
 	}
-	// Parse IfIds if present
+	// Parse IfIDs if present
 	commaParts := strings.Split(hashParts[1], ",")
-	if ifIds[0], err = parseIfId(commaParts[0]); err != nil {
-		return &HopPredicate{}, serrors.WrapStr("Failed to parse ifIds", err, "value", str)
+	if ifIDs[0], err = parseIfID(commaParts[0]); err != nil {
+		return &HopPredicate{}, serrors.WrapStr("Failed to parse ifIDs", err, "value", str)
 	}
 	if len(commaParts) == 2 {
-		ifId, err := parseIfId(commaParts[1])
+		ifID, err := parseIfID(commaParts[1])
 		if err != nil {
-			return &HopPredicate{}, serrors.WrapStr("Failed to parse ifIds", err, "value", str)
+			return &HopPredicate{}, serrors.WrapStr("Failed to parse ifIDs", err, "value", str)
 		}
-		ifIds = append(ifIds, ifId)
+		ifIDs = append(ifIDs, ifID)
 	}
-	// IfId cannot be set when the AS is a wildcard
-	if as == 0 && (ifIds[0] != 0 || (len(ifIds) > 1 && ifIds[1] != 0)) {
-		return &HopPredicate{}, serrors.New("Failed to parse hop predicate, IfIds must be 0",
+	// IfID cannot be set when the AS is a wildcard
+	if as == 0 && (ifIDs[0] != 0 || (len(ifIDs) > 1 && ifIDs[1] != 0)) {
+		return &HopPredicate{}, serrors.New("Failed to parse hop predicate, IfIDs must be 0",
 			"value", str)
 	}
-	return &HopPredicate{ISD: isd, AS: as, IfIds: ifIds}, nil
+	return &HopPredicate{ISD: isd, AS: as, IfIDs: ifIDs}, nil
 }
 
 // pathIFMatch takes a PathInterface and a bool indicating if the ingress
@@ -96,10 +96,10 @@ func (hp *HopPredicate) pathIFMatch(pi snet.PathInterface, in bool) bool {
 	// the IF index is set to 1 if
 	// - there are two IFIDs and
 	// - the ingress interface should not be matched
-	if len(hp.IfIds) == 2 && !in {
+	if len(hp.IfIDs) == 2 && !in {
 		ifInd = 1
 	}
-	if hp.IfIds[ifInd] != 0 && hp.IfIds[ifInd] != pi.ID {
+	if hp.IfIDs[ifInd] != 0 && hp.IfIDs[ifInd] != pi.ID {
 		return false
 	}
 	return true
@@ -115,8 +115,8 @@ func (hp *HopPredicate) matchesAll() bool {
 
 func (hp HopPredicate) String() string {
 	var s []string
-	for _, ifId := range hp.IfIds {
-		s = append(s, ifId.String())
+	for _, ifID := range hp.IfIDs {
+		s = append(s, ifID.String())
 	}
 	return fmt.Sprintf("%d-%s#%s", hp.ISD, hp.AS, strings.Join(s, ","))
 }
@@ -136,12 +136,12 @@ func (hp *HopPredicate) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-func parseIfId(str string) (common.IfIdType, error) {
-	ifId, err := strconv.ParseUint(str, 10, 64)
+func parseIfID(str string) (common.IfIDType, error) {
+	ifID, err := strconv.ParseUint(str, 10, 64)
 	if err != nil {
 		return 0, err
 	}
-	return common.IfIdType(ifId), nil
+	return common.IfIDType(ifID), nil
 }
 
 // validateHopPredStr checks if str has the correct amount of delimiters

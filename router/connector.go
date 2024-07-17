@@ -80,13 +80,13 @@ func (c *Connector) AddInternalInterface(ia addr.IA, local netip.AddrPort) error
 }
 
 // AddExternalInterface adds a link between the local and remote address.
-func (c *Connector) AddExternalInterface(localIfId common.IfIdType, link control.LinkInfo,
+func (c *Connector) AddExternalInterface(localIfID common.IfIDType, link control.LinkInfo,
 	owned bool) error {
 
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	intf := uint16(localIfId)
-	log.Debug("Adding external interface", "interface", localIfId,
+	intf := uint16(localIfID)
+	log.Debug("Adding external interface", "interface", localIfID,
 		"local_isd_as", link.Local.IA, "local_addr", link.Local.Addr,
 		"remote_isd_as", link.Remote.IA, "remote_addr", link.Remote.Addr,
 		"owned", owned,
@@ -98,10 +98,10 @@ func (c *Connector) AddExternalInterface(localIfId common.IfIdType, link control
 		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", link.Local.IA)
 	}
 	if err := c.DataPlane.AddLinkType(intf, link.LinkTo); err != nil {
-		return serrors.WrapStr("adding link type", err, "if_id", localIfId)
+		return serrors.WrapStr("adding link type", err, "if_id", localIfID)
 	}
 	if err := c.DataPlane.AddNeighborIA(intf, link.Remote.IA); err != nil {
-		return serrors.WrapStr("adding neighboring IA", err, "if_id", localIfId)
+		return serrors.WrapStr("adding neighboring IA", err, "if_id", localIfID)
 	}
 
 	link.BFD = c.applyBFDDefaults(link.BFD)

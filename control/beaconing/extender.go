@@ -252,7 +252,7 @@ func (s *DefaultExtender) createHopEntry(
 func (s *DefaultExtender) createPeerEntry(ingress, egress uint16, expTime uint8, ts time.Time,
 	beta uint16) (seg.PeerEntry, []byte, error) {
 
-	remoteInIA, remoteInIfId, remoteInMTU, err := s.remoteInfo(ingress)
+	remoteInIA, remoteInIfID, remoteInMTU, err := s.remoteInfo(ingress)
 	if err != nil {
 		return seg.PeerEntry{}, nil, serrors.WrapStr("checking remote ingress interface", err,
 			"ingress_interface", ingress)
@@ -261,7 +261,7 @@ func (s *DefaultExtender) createPeerEntry(ingress, egress uint16, expTime uint8,
 	return seg.PeerEntry{
 		PeerMTU:       int(remoteInMTU),
 		Peer:          remoteInIA,
-		PeerInterface: remoteInIfId,
+		PeerInterface: remoteInIfID,
 		HopField: seg.HopField{
 			ConsIngress: hopF.ConsIngress,
 			ConsEgress:  hopF.ConsEgress,
@@ -271,11 +271,11 @@ func (s *DefaultExtender) createPeerEntry(ingress, egress uint16, expTime uint8,
 	}, epicMac, nil
 }
 
-func (s *DefaultExtender) remoteIA(ifId uint16) (addr.IA, error) {
-	if ifId == 0 {
+func (s *DefaultExtender) remoteIA(ifID uint16) (addr.IA, error) {
+	if ifID == 0 {
 		return 0, nil
 	}
-	intf := s.Intfs.Get(ifId)
+	intf := s.Intfs.Get(ifID)
 	if intf == nil {
 		return 0, serrors.New("interface not found")
 	}
@@ -286,11 +286,11 @@ func (s *DefaultExtender) remoteIA(ifId uint16) (addr.IA, error) {
 	return topoInfo.IA, nil
 }
 
-func (s *DefaultExtender) remoteMTU(ifId uint16) (uint16, error) {
-	if ifId == 0 {
+func (s *DefaultExtender) remoteMTU(ifID uint16) (uint16, error) {
+	if ifID == 0 {
 		return 0, nil
 	}
-	intf := s.Intfs.Get(ifId)
+	intf := s.Intfs.Get(ifID)
 	if intf == nil {
 		return 0, serrors.New("interface not found")
 	}
@@ -298,13 +298,13 @@ func (s *DefaultExtender) remoteMTU(ifId uint16) (uint16, error) {
 	return topoInfo.MTU, nil
 }
 
-func (s *DefaultExtender) remoteInfo(ifId uint16) (
+func (s *DefaultExtender) remoteInfo(ifID uint16) (
 	addr.IA, uint16, uint16, error) {
 
-	if ifId == 0 {
+	if ifID == 0 {
 		return 0, 0, 0, nil
 	}
-	intf := s.Intfs.Get(ifId)
+	intf := s.Intfs.Get(ifID)
 	if intf == nil {
 		return 0, 0, 0, serrors.New("interface not found")
 	}

@@ -140,11 +140,11 @@ func (o *Originator) needBeacon(active []*ifstate.Interface) []*ifstate.Interfac
 
 func (o *Originator) logSummary(logger log.Logger, s *summary) {
 	if o.Tick.Passed() {
-		logger.Debug("Originated beacons", "egress_interfaces", s.IfIds())
+		logger.Debug("Originated beacons", "egress_interfaces", s.IfIDs())
 		return
 	}
 	if s.count > 0 {
-		logger.Debug("Originated beacons on stale interfaces", "egress_interfaces", s.IfIds())
+		logger.Debug("Originated beacons on stale interfaces", "egress_interfaces", s.IfIDs())
 	}
 }
 
@@ -156,7 +156,7 @@ type beaconOriginator struct {
 	summary   *summary
 }
 
-// originateBeacon originates a beacon on the given ifId.
+// originateBeacon originates a beacon on the given ifID.
 func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 	labels := originatorLabels{intf: o.intf}
 	topoInfo := o.intf.TopoInfo()
@@ -213,7 +213,7 @@ func (o *beaconOriginator) createBeacon(ctx context.Context) (*seg.PathSegment, 
 
 func (o *beaconOriginator) onSuccess(intf *ifstate.Interface) {
 	intf.Originate(o.Tick.Now())
-	o.summary.AddIfId(o.intf.TopoInfo().ID)
+	o.summary.AddIfID(o.intf.TopoInfo().ID)
 	o.summary.Inc()
 }
 

@@ -41,29 +41,29 @@ func TestTypeOf(t *testing.T) {
 	}
 }
 
-func TestIfIdTypeUnmarshalJSON(t *testing.T) {
+func TestIfIDTypeUnmarshalJSON(t *testing.T) {
 	t.Run("Simple Value", func(t *testing.T) {
 		type exampleStruct struct {
-			IfId common.IfIdType `json:"if_id"`
+			IfID common.IfIDType `json:"if_id"`
 		}
 		j := `{"if_id": 5}`
 		var f exampleStruct
 		require.NoError(t, json.Unmarshal([]byte(j), &f))
-		assert.Equal(t, exampleStruct{IfId: 5}, f)
+		assert.Equal(t, exampleStruct{IfID: 5}, f)
 	})
 	t.Run("Map keys", func(t *testing.T) {
 		type exampleStruct struct {
-			IfMap map[common.IfIdType]string `json:"if_map"`
+			IfMap map[common.IfIDType]string `json:"if_map"`
 		}
 		j := `{"if_map": {"5": "foo"}}`
 		var f exampleStruct
 		require.NoError(t, json.Unmarshal([]byte(j), &f))
-		assert.Equal(t, exampleStruct{IfMap: map[common.IfIdType]string{5: "foo"}}, f)
+		assert.Equal(t, exampleStruct{IfMap: map[common.IfIDType]string{5: "foo"}}, f)
 	})
 }
 
-func TestIfIdTypeUnmarshalText(t *testing.T) {
-	var id common.IfIdType
+func TestIfIDTypeUnmarshalText(t *testing.T) {
+	var id common.IfIDType
 	assert.NoError(t, id.UnmarshalText([]byte("1")))
-	assert.Equal(t, common.IfIdType(1), id)
+	assert.Equal(t, common.IfIDType(1), id)
 }

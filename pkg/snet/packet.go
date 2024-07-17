@@ -145,7 +145,7 @@ func (m SCMPExternalInterfaceDown) toLayers(scn *slayers.SCION) []gopacket.Seria
 	return toLayers(m, scn,
 		&slayers.SCMPExternalInterfaceDown{
 			IA:   m.IA,
-			IfId: m.Interface,
+			IfID: m.Interface,
 		},
 		m.Payload,
 	)
@@ -472,7 +472,7 @@ func (p *Packet) Decode() error {
 			}
 			p.Payload = SCMPExternalInterfaceDown{
 				IA:        v.IA,
-				Interface: v.IfId,
+				Interface: v.IfID,
 				Payload:   v.Payload,
 			}
 		case slayers.SCMPTypeInternalConnectivityDown:

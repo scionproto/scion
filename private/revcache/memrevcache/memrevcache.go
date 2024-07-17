@@ -84,7 +84,7 @@ func (c *memRevCache) Insert(_ context.Context, rev *path_mgmt.RevInfo) (bool, e
 	if ttl <= 0 {
 		return false, nil
 	}
-	k := revcache.NewKey(rev.IA(), rev.IfId)
+	k := revcache.NewKey(rev.IA(), rev.IfID)
 	key := k.String()
 	val, ok := c.get(key)
 	if !ok {

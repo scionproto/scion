@@ -83,7 +83,7 @@ func TestSCIONSCMP(t *testing.T) {
 				},
 				&slayers.SCMPExternalInterfaceDown{
 					IA:   addr.MustParseIA("1-ff00:0:111"),
-					IfId: uint64(5),
+					IfID: uint64(5),
 				},
 				gopacket.Payload(bytes.Repeat([]byte{0xff}, 18)),
 			},

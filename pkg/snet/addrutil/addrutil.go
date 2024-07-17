@@ -83,10 +83,10 @@ func (p Pather) GetPath(svc addr.SVC, ps *seg.PathSegment) (*snet.SVCAddr, error
 	if err != nil {
 		return nil, serrors.WrapStr("serializing path", err)
 	}
-	ifId := dec.HopFields[0].ConsIngress
-	nextHop := p.NextHopper.UnderlayNextHop(ifId)
+	ifID := dec.HopFields[0].ConsIngress
+	nextHop := p.NextHopper.UnderlayNextHop(ifID)
 	if nextHop == nil {
-		return nil, serrors.New("first-hop border router not found", "intf_id", ifId)
+		return nil, serrors.New("first-hop border router not found", "intf_id", ifID)
 	}
 	return &snet.SVCAddr{
 		IA:      ps.FirstIA(),
