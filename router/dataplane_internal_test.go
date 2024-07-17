@@ -71,7 +71,7 @@ func TestReceiver(t *testing.T) {
 	).Times(2)
 	mInternal.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
 		func(m underlayconn.Messages) (int, error) {
-			dp.running = false
+			dp.setStopping()
 			done <- true
 			return 0, nil
 		},
@@ -86,7 +86,7 @@ func TestReceiver(t *testing.T) {
 	dp.initPacketPool(runConfig, 64)
 	procCh, _, _ := initQueues(runConfig, dp.interfaces, 64)
 	initialPoolSize := len(dp.packetPool)
-	dp.running = true
+	dp.setRunning()
 	dp.initMetrics()
 	go func() {
 		dp.runReceiver(0, dp.internal, runConfig, procCh)
@@ -109,7 +109,7 @@ func TestReceiver(t *testing.T) {
 			// make sure that the processing routine received exactly 20 messages
 			if i != 20 {
 				t.Fail()
-				dp.running = false
+				dp.setStopping()
 			}
 		}
 	}
@@ -160,7 +160,7 @@ func TestForwarder(t *testing.T) {
 					}
 				}
 				if totalCount == 255 {
-					ret.running = false
+					ret.setStopping()
 					done <- struct{}{}
 				}
 				if len(ms) == 0 {
@@ -180,7 +180,7 @@ func TestForwarder(t *testing.T) {
 	dp.initPacketPool(runConfig, 64)
 	_, fwCh, _ := initQueues(runConfig, dp.interfaces, 64)
 	initialPoolSize := len(dp.packetPool)
-	dp.running = true
+	dp.setRunning()
 	dp.initMetrics()
 	go dp.runForwarder(0, dp.internal, runConfig, fwCh[0])
 
@@ -211,7 +211,7 @@ func TestForwarder(t *testing.T) {
 		assert.Equal(t, initialPoolSize, len(dp.packetPool))
 	case <-time.After(100 * time.Millisecond):
 		t.Fail()
-		dp.running = false
+		dp.setStopping()
 	}
 }
 
