@@ -11,6 +11,7 @@ go_library(
         "doc.go",
         "internal_to_child.go",
         "jumbo.go",
+        "malformed_path.go",
         "onehop.go",
         "parent_to_child.go",
         "parent_to_internal.go",

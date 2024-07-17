@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"strings"
 	"syscall"
@@ -84,7 +85,7 @@ On other errors, traceroute will exit with code 2.
 
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			remote, err := snet.ParseUDPAddr(args[0])
+			remote, err := addr.ParseAddr(args[0])
 			if err != nil {
 				return serrors.WrapStr("parsing remote", err)
 			}
@@ -139,18 +140,19 @@ On other errors, traceroute will exit with code 2.
 			if err != nil {
 				return err
 			}
-			remote.NextHop = path.UnderlayNextHop()
-			if remote.NextHop == nil {
-				remote.NextHop = &net.UDPAddr{
-					IP:   remote.Host.IP,
+			nextHop := path.UnderlayNextHop()
+			if nextHop == nil {
+				nextHop = &net.UDPAddr{
+					IP:   remote.Host.IP().AsSlice(),
 					Port: topology.EndhostPort,
+					Zone: remote.Host.IP().Zone(),
 				}
 			}
 
 			if localIP == nil {
-				target := remote.Host.IP
-				if remote.NextHop != nil {
-					target = remote.NextHop.IP
+				target := remote.Host.IP().AsSlice()
+				if nextHop != nil {
+					target = nextHop.IP
 				}
 				if localIP, err = addrutil.ResolveLocal(target); err != nil {
 					return serrors.WrapStr("resolving local address", err)
@@ -173,9 +175,13 @@ On other errors, traceroute will exit with code 2.
 			}
 
 			span.SetTag("src.host", localIP)
-			local := &snet.UDPAddr{
+			asNetipAddr, ok := netip.AddrFromSlice(localIP)
+			if !ok {
+				panic("Invalid Local IP address")
+			}
+			local := addr.Addr{
 				IA:   info.IA,
-				Host: &net.UDPAddr{IP: localIP},
+				Host: addr.HostIP(asNetipAddr),
 			}
 			ctx = app.WithSignal(traceCtx, os.Interrupt, syscall.SIGTERM)
 			var stats traceroute.Stats
@@ -183,6 +189,7 @@ On other errors, traceroute will exit with code 2.
 			cfg := traceroute.Config{
 				Topology:     sd,
 				Remote:       remote,
+				NextHop:      nextHop,
 				MTU:          path.Metadata().MTU,
 				Local:        local,
 				PathEntry:    path,

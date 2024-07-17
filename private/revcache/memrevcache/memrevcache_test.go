@@ -19,8 +19,6 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
-
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/private/revcache"
 	"github.com/scionproto/scion/private/revcache/revcachetest"
@@ -54,7 +52,5 @@ func (c *testRevCache) Prepare(t *testing.T, _ context.Context) {
 }
 
 func TestRevCacheSuite(t *testing.T) {
-	Convey("RevCache Suite", t, func() {
-		revcachetest.TestRevCache(t, &testRevCache{memRevCache: New()})
-	})
+	revcachetest.TestRevCache(t, &testRevCache{memRevCache: New()})
 }

@@ -15,8 +15,6 @@
 package ping
 
 import (
-	"net/netip"
-
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
@@ -25,8 +23,8 @@ import (
 
 // Size computes the full SCION packet size for an address pair with a given
 // payload size.
-func Size(local, remote *snet.UDPAddr, pldSize int) (int, error) {
-	pkt, err := pack(local, remote, snet.SCMPEchoRequest{Payload: make([]byte, pldSize)})
+func Size(local, remote addr.Addr, dPath snet.DataplanePath, pldSize int) (int, error) {
+	pkt, err := pack(local, remote, dPath, snet.SCMPEchoRequest{Payload: make([]byte, pldSize)})
 	if err != nil {
 		return 0, err
 	}
@@ -36,31 +34,21 @@ func Size(local, remote *snet.UDPAddr, pldSize int) (int, error) {
 	return len(pkt.Bytes), nil
 }
 
-func pack(local, remote *snet.UDPAddr, req snet.SCMPEchoRequest) (*snet.Packet, error) {
-	_, isEmpty := remote.Path.(path.Empty)
+func pack(
+	local, remote addr.Addr,
+	dPath snet.DataplanePath,
+	req snet.SCMPEchoRequest,
+) (*snet.Packet, error) {
+	_, isEmpty := dPath.(path.Empty)
 	if isEmpty && !local.IA.Equal(remote.IA) {
 		return nil, serrors.New("no path for remote ISD-AS", "local", local.IA, "remote", remote.IA)
 	}
-	remoteHostIP, ok := netip.AddrFromSlice(remote.Host.IP)
-	if !ok {
-		return nil, serrors.New("invalid remote host IP", "ip", remote.Host.IP)
-	}
-	localHostIP, ok := netip.AddrFromSlice(local.Host.IP)
-	if !ok {
-		return nil, serrors.New("invalid local host IP", "ip", local.Host.IP)
-	}
 	pkt := &snet.Packet{
 		PacketInfo: snet.PacketInfo{
-			Destination: snet.SCIONAddress{
-				IA:   remote.IA,
-				Host: addr.HostIP(remoteHostIP),
-			},
-			Source: snet.SCIONAddress{
-				IA:   local.IA,
-				Host: addr.HostIP(localHostIP),
-			},
-			Path:    remote.Path,
-			Payload: req,
+			Destination: remote,
+			Source:      local,
+			Path:        dPath,
+			Payload:     req,
 		},
 	}
 	return pkt, nil

@@ -32,8 +32,8 @@ type Key struct {
 }
 
 // NewKey creates a new key for the revocation cache.
-func NewKey(ia addr.IA, ifId common.IfIdType) *Key {
-	return &Key{
+func NewKey(ia addr.IA, ifId common.IfIdType) Key {
+	return Key{
 		IA:   ia,
 		IfId: ifId,
 	}
@@ -48,7 +48,7 @@ type KeySet map[Key]struct{}
 
 // SingleKey is a convenience function to return a KeySet with a single key.
 func SingleKey(ia addr.IA, ifId common.IfIdType) KeySet {
-	return KeySet{*NewKey(ia, ifId): {}}
+	return KeySet{Key{IA: ia, IfId: ifId}: {}}
 }
 
 // RevOrErr is either a revocation or an error.
@@ -86,48 +86,3 @@ type RevCache interface {
 
 // Revocations is the map of revocations.
 type Revocations map[Key]*path_mgmt.RevInfo
-
-// RevocationToMap converts a slice of revocations to a revocation map. If extracting the info field
-// fails from a revocation, nil and the error is returned.
-func RevocationToMap(revs []*path_mgmt.RevInfo) (Revocations, error) {
-	res := make(Revocations)
-	for _, rev := range revs {
-		res[Key{IA: rev.IA(), IfId: rev.IfId}] = rev
-	}
-	return res, nil
-}
-
-// Keys returns the set of keys in this revocation map.
-func (r Revocations) Keys() KeySet {
-	keys := make(KeySet, len(r))
-	for key := range r {
-		keys[key] = struct{}{}
-	}
-	return keys
-}
-
-// ToSlice extracts the values from this revocation map.
-func (r Revocations) ToSlice() []*path_mgmt.RevInfo {
-	res := make([]*path_mgmt.RevInfo, 0, len(r))
-	for _, rev := range r {
-		res = append(res, rev)
-	}
-	return res
-}
-
-// FilterNew drops all revocations in r that are already in the revCache.
-func (r Revocations) FilterNew(ctx context.Context, revCache RevCache) error {
-	inCache, err := revCache.Get(ctx, r.Keys())
-	if err != nil {
-		return err
-	}
-	for key, rev := range r {
-		existingRev, exists := inCache[key]
-		if exists {
-			if !newerInfo(existingRev, rev) {
-				delete(r, key)
-			}
-		}
-	}
-	return nil
-}
