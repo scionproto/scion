@@ -51,7 +51,10 @@ func (s *Raw) SerializeTo(b []byte) error {
 	}
 	// XXX(roosd): This modifies the underlying buffer. Consider writing to data
 	// directly.
-	if err := s.PathMeta.SerializeTo(s.Raw[:MetaLen]); err != nil {
+	// TODO(matzf, jiceatscion): it is not clear whether updating pathmeta in s.Raw is desirable
+	// or not. It migh be best to make that question moot by not keeping the path meta header as
+	// raw bytes at all. However that's a viral change.
+	if err := s.PathMeta.SerializeTo(s.Raw); err != nil {
 		return err
 	}
 	copy(b, s.Raw)
@@ -82,7 +85,7 @@ func (s *Raw) Reverse() (path.Path, error) {
 // ToDecoded transforms a scion.Raw to a scion.Decoded.
 func (s *Raw) ToDecoded() (*Decoded, error) {
 	// Serialize PathMeta to ensure potential changes are reflected Raw.
-	if err := s.PathMeta.SerializeTo(s.Raw[:MetaLen]); err != nil {
+	if err := s.PathMeta.SerializeTo(s.Raw); err != nil {
 		return nil, err
 	}
 	decoded := &Decoded{}
@@ -97,7 +100,7 @@ func (s *Raw) IncPath() error {
 	if err := s.Base.IncPath(); err != nil {
 		return err
 	}
-	return s.PathMeta.SerializeTo(s.Raw[:MetaLen])
+	return s.PathMeta.SerializeTo(s.Raw)
 }
 
 // GetInfoField returns the InfoField at a given index.
