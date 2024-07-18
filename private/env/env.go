@@ -34,6 +34,7 @@ import (
 	"time"
 
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	jaeger "github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
@@ -61,6 +62,10 @@ const (
 	// ShutdownGraceInterval is the time applications wait after issuing a
 	// clean shutdown signal, before forcerfully tearing down the application.
 	ShutdownGraceInterval = 5 * time.Second
+
+	// HandlerTimeout is the time after which the http handler gives up on a request and
+	// returns an error instead.
+	HandlerTimeout = time.Minute
 )
 
 var sighupC chan os.Signal
@@ -185,7 +190,14 @@ func (cfg *Metrics) ServePrometheus(ctx context.Context) error {
 	if cfg.Prometheus == "" {
 		return nil
 	}
-	http.Handle("/metrics", promhttp.Handler())
+	handler := promhttp.InstrumentMetricHandler(
+		prometheus.DefaultRegisterer,
+		promhttp.HandlerFor(
+			prometheus.DefaultGatherer,
+			promhttp.HandlerOpts{Timeout: HandlerTimeout},
+		),
+	)
+	http.Handle("/metrics", handler)
 	log.Info("Exporting prometheus metrics", "addr", cfg.Prometheus)
 
 	server := &http.Server{Addr: cfg.Prometheus}

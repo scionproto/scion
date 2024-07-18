@@ -27,6 +27,7 @@ import (
 	"net"
 	"net/netip"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -184,7 +185,7 @@ type DataPlane struct {
 	bfdSessions         map[uint16]bfdSession
 	localIA             addr.IA
 	mtx                 sync.Mutex
-	running             bool
+	running             atomic.Bool
 	Metrics             *Metrics
 	forwardingMetrics   map[uint16]interfaceMetrics
 	dispatchedPortStart uint16
@@ -245,11 +246,39 @@ type drkeyProvider interface {
 	) (drkey.ASHostKey, error)
 }
 
+// setRunning() Configures the running state of the data plane to true. setRunning() is called once
+// the dataplane is finished initializing and is ready to process packets.
+func (d *DataPlane) setRunning() {
+	d.running.Store(true)
+}
+
+// setStopping() Configures the running state of the data plane to false. This should not be called
+// during the dataplane initialization. Calling this before initialization starts has no effect.
+func (d *DataPlane) setStopping() {
+	d.running.Store(false)
+}
+
+// IsRunning() Indicates the running state of the data plane. If true, the dataplane is initialized
+// and ready to process or already processing packets. In this case some configuration changes are
+// not permitted. If false, the data plane is not ready to process packets yet, or is shutting
+// down.
+func (d *DataPlane) IsRunning() bool {
+	return d.running.Load()
+}
+
+// Shutdown() causes the dataplane to stop accepting packets and then terminate. Note that
+// in that case the router is committed to shutting down. There is no mechanism to restart it.
+func (d *DataPlane) Shutdown() {
+	d.mtx.Lock() // make sure we're nor racing with initialization.
+	defer d.mtx.Unlock()
+	d.setStopping()
+}
+
 // SetIA sets the local IA for the dataplane.
 func (d *DataPlane) SetIA(ia addr.IA) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	if d.running {
+	if d.IsRunning() {
 		return modifyExisting
 	}
 	if ia.IsZero() {
@@ -267,7 +296,7 @@ func (d *DataPlane) SetIA(ia addr.IA) error {
 func (d *DataPlane) SetKey(key []byte) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	if d.running {
+	if d.IsRunning() {
 		return modifyExisting
 	}
 	if len(key) == 0 {
@@ -299,7 +328,7 @@ func (d *DataPlane) SetPortRange(start, end uint16) {
 func (d *DataPlane) AddInternalInterface(conn BatchConn, ip netip.Addr) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	if d.running {
+	if d.IsRunning() {
 		return modifyExisting
 	}
 	if conn == nil {
@@ -326,7 +355,7 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
-	if d.running {
+	if d.IsRunning() {
 		return modifyExisting
 	}
 	if conn == nil || !src.Addr.IsValid() || !dst.Addr.IsValid() {
@@ -356,7 +385,7 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
 func (d *DataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	if d.running {
+	if d.IsRunning() {
 		return modifyExisting
 	}
 	if remote.IsZero() {
@@ -517,7 +546,7 @@ func (d *DataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
-	if d.running {
+	if d.IsRunning() {
 		return modifyExisting
 	}
 	if !dst.IsValid() || !src.IsValid() {
@@ -587,7 +616,7 @@ type RunConfig struct {
 
 func (d *DataPlane) Run(ctx context.Context, cfg *RunConfig) error {
 	d.mtx.Lock()
-	d.running = true
+	d.setRunning()
 	d.initMetrics()
 
 	processorQueueSize := max(
@@ -720,7 +749,7 @@ func (d *DataPlane) runReceiver(ifID uint16, conn BatchConn, cfg *RunConfig,
 		}
 	}
 
-	for d.running {
+	for d.IsRunning() {
 		// collect packets.
 
 		// Give a new buffer to the msgs elements that have been used in the previous loop.
@@ -780,7 +809,7 @@ func (d *DataPlane) runProcessor(id int, q <-chan *packet,
 
 	log.Debug("Initialize processor with", "id", id)
 	processor := newPacketProcessor(d)
-	for d.running {
+	for d.IsRunning() {
 		p, ok := <-q
 		if !ok {
 			continue
@@ -837,7 +866,7 @@ func (d *DataPlane) runSlowPathProcessor(id int, q <-chan *packet,
 
 	log.Debug("Initialize slow-path processor with", "id", id)
 	processor := newSlowPathProcessor(d)
-	for d.running {
+	for d.IsRunning() {
 		p, ok := <-q
 		if !ok {
 			continue
@@ -1014,7 +1043,7 @@ func (d *DataPlane) runForwarder(ifID uint16, conn BatchConn, cfg *RunConfig, c 
 	metrics := d.forwardingMetrics[ifID]
 
 	toWrite := 0
-	for d.running {
+	for d.IsRunning() {
 		toWrite += readUpTo(c, cfg.BatchSize-toWrite, toWrite == 0, pkts[toWrite:])
 
 		// Turn the packets into underlay messages that WriteBatch can send.

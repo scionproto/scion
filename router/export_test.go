@@ -96,7 +96,7 @@ func NewDP(
 }
 
 func (d *DataPlane) FakeStart() {
-	d.running = true
+	d.setRunning()
 }
 
 func (d *DataPlane) ProcessPkt(pkt *Packet) Disposition {

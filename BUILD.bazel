@@ -63,16 +63,6 @@ config_setting(
     },
 )
 
-# This is a dummy target so Make can "blaze build --announce_rc <something>
-# Where something truly does nothing that we may care about.
-
-config_setting(
-    name = "dummy_setting",
-    define_values = {
-        "whatever": "whatever",
-    },
-)
-
 gazelle(
     name = "gazelle",
     build_tags = select({
