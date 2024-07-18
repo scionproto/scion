@@ -725,7 +725,7 @@ func prepBaseMsgHop0Out(t *testing.T, payload []byte, flowId uint32) *slayers.SC
 			{ConsIngress: 31, ConsEgress: 30},
 		},
 	}
-	dpath.HopFields[2].Mac = computeMAC(t, testKey, dpath.InfoFields[0], dpath.HopFields[2])
+	dpath.HopFields[0].Mac = computeMAC(t, testKey, dpath.InfoFields[0], dpath.HopFields[0])
 	spkt.Path = dpath
 	return spkt
 }

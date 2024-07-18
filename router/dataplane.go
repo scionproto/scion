@@ -2104,7 +2104,7 @@ func (d *DataPlane) resolveLocalDst(
 		if dstIP.Is4In6() {
 			return unsupportedV4MappedV6Address
 		}
-		return d.addEndhostPort(resolvedDst, lastLayer, dst.IP())
+		return d.addEndhostPort(resolvedDst, lastLayer, dstIP)
 	default:
 		panic("unexpected address type returned from DstAddr")
 	}
@@ -2446,18 +2446,13 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	scionL.Path = revPath
 	scionL.DstIA = p.scionLayer.SrcIA
 	scionL.SrcIA = p.d.localIA
-	srcA, err := p.scionLayer.SrcAddr()
-	if err != nil {
-		return nil, serrors.Wrap(cannotRoute, err, "details", "extracting src addr")
-	}
-	if err := scionL.SetDstAddr(srcA); err != nil {
-		return nil, serrors.Wrap(cannotRoute, err, "details", "setting dest addr")
-	}
+	scionL.DstAddrType = p.scionLayer.SrcAddrType
+	scionL.RawDstAddr = p.scionLayer.RawSrcAddr
+	scionL.NextHdr = slayers.L4SCMP
+
 	if err := scionL.SetSrcAddr(addr.HostIP(p.d.internalIP)); err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "setting src addr")
 	}
-	scionL.NextHdr = slayers.L4SCMP
-
 	typeCode := slayers.CreateSCMPTypeCode(typ, code)
 	scmpH := slayers.SCMP{TypeCode: typeCode}
 	scmpH.SetNetworkLayerForChecksum(&scionL)
@@ -2516,8 +2511,11 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		scionL.NextHdr = slayers.End2EndClass
 
 		now := time.Now()
-		// srcA == scionL.DstAddr
-		key, err := p.drkeyProvider.GetASHostKey(now, scionL.DstIA, srcA)
+		dstA, err := scionL.DstAddr()
+		if err != nil {
+			return nil, serrors.Wrap(cannotRoute, err, "details", "parsing destination address")
+		}
+		key, err := p.drkeyProvider.GetASHostKey(now, scionL.DstIA, dstA)
 		if err != nil {
 			return nil, serrors.Wrap(cannotRoute, err, "details", "retrieving DRKey")
 		}
