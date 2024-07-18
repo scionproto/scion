@@ -2132,7 +2132,9 @@ func (d *DataPlane) resolveLocalDst(
 		if dstIP.Is4In6() {
 			return unsupportedV4MappedV6Address
 		}
-		if dstIP.IsUnspecified() { // IsInvalid() not possible, we initialized it from wire bits.
+		// Zero IP addresses (per IsUnspecified()) are not supported. Zero valued netip.Addr objects
+		// (per IsInvalid()) cannot happen here as dstIP is initialized from packet header data.
+		if dstIP.IsUnspecified() {
 			return unsupportedUnspecifiedAddress
 		}
 		return d.addEndhostPort(resolvedDst, lastLayer, dstIP)
