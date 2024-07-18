@@ -140,7 +140,7 @@ local function scion_proto_filter(tvbuf, pktinfo, root)
     local path_type = tvbuf(8, 1):uint()
     local rsv = tvbuf(10, 2):uint()
     if version == 0 and path_type < 5 and rsv == 0 then
-	pktinfo.conversation = scion_proto
+       pktinfo.conversation = scion_proto
        return true
     end
     return false
