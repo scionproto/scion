@@ -561,6 +561,29 @@ func TestSlowPathProcessing(t *testing.T) {
 			},
 			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
 		},
+		"invalid dest unspecified": {
+			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
+				return NewDP(fakeExternalInterfaces,
+					nil, mock_router.NewMockBatchConn(ctrl),
+					fakeInternalNextHops,
+					fakeServices,
+					addr.MustParseIA("1-ff00:0:110"), nil, testKey)
+			},
+			mockMsg: func() []byte {
+				spkt := prepBaseMsg(t, payload, 0)
+				spkt.DstAddrType = slayers.T4Ip
+				spkt.RawDstAddr = []byte{0, 0, 0, 0}
+				ret := toMsg(t, spkt)
+				return ret
+			},
+			srcInterface: 1,
+			expectedSlowPathRequest: slowPathRequest{
+				typ:      slowPathSCMP,
+				scmpType: slayers.SCMPTypeParameterProblem,
+				code:     slayers.SCMPCodeInvalidDestinationAddress,
+			},
+			expectedLayerType: slayers.LayerTypeSCMPParameterProblem,
+		},
 		"invalid src v4mapped": {
 			prepareDP: func(ctrl *gomock.Controller) *DataPlane {
 				return NewDP(fakeExternalInterfaces,

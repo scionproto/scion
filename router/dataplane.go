@@ -217,6 +217,7 @@ var (
 	unsupportedPathType           = errors.New("unsupported path type")
 	unsupportedPathTypeNextHeader = errors.New("unsupported combination")
 	unsupportedV4MappedV6Address  = errors.New("unsupported v4mapped IP v6 address")
+	unsupportedUnspecifiedAddress = errors.New("unsupported unspecified address")
 	noBFDSessionFound             = errors.New("no BFD session was found")
 	noBFDSessionConfigured        = errors.New("no BFD sessions have been configured")
 	errPeeringEmptySeg0           = errors.New("zero-length segment[0] in peering path")
@@ -1656,7 +1657,7 @@ func (p *scionPacketProcessor) resolveInbound() disposition {
 			code:     slayers.SCMPCodeNoRoute,
 		}
 		return pSlowPath
-	case invalidDstAddr, unsupportedV4MappedV6Address:
+	case invalidDstAddr, unsupportedV4MappedV6Address, unsupportedUnspecifiedAddress:
 		log.Debug("SCMP response", "cause", err)
 		p.pkt.slowPathRequest = slowPathRequest{
 			scmpType: slayers.SCMPTypeParameterProblem,
@@ -1855,8 +1856,6 @@ func (p *scionPacketProcessor) validateSrcHost() disposition {
 	if p.scionLayer.SrcIA != p.d.localIA {
 		return pForward
 	}
-	// TODO(jiceatscion): That is the second time we parse the src address
-	// we might want to cache it.
 	src, err := p.scionLayer.SrcAddr()
 	if err == nil && src.IP().Is4In6() {
 		err = unsupportedV4MappedV6Address
@@ -2103,6 +2102,9 @@ func (d *DataPlane) resolveLocalDst(
 		dstIP := dst.IP()
 		if dstIP.Is4In6() {
 			return unsupportedV4MappedV6Address
+		}
+		if dstIP.IsUnspecified() { // IsInvalid() not possible, we initialized it from wire bits.
+			return unsupportedUnspecifiedAddress
 		}
 		return d.addEndhostPort(resolvedDst, lastLayer, dstIP)
 	default:
