@@ -217,6 +217,8 @@ var (
 	noSVCBackend                  = errors.New("cannot find internal IP for the SVC")
 	unsupportedPathType           = errors.New("unsupported path type")
 	unsupportedPathTypeNextHeader = errors.New("unsupported combination")
+	unsupportedV4MappedV6Address  = errors.New("unsupported v4mapped IP v6 address")
+	unsupportedUnspecifiedAddress = errors.New("unsupported unspecified address")
 	noBFDSessionFound             = errors.New("no BFD session was found")
 	noBFDSessionConfigured        = errors.New("no BFD sessions have been configured")
 	errPeeringEmptySeg0           = errors.New("zero-length segment[0] in peering path")
@@ -1684,7 +1686,7 @@ func (p *scionPacketProcessor) resolveInbound() disposition {
 			code:     slayers.SCMPCodeNoRoute,
 		}
 		return pSlowPath
-	case invalidDstAddr:
+	case invalidDstAddr, unsupportedV4MappedV6Address, unsupportedUnspecifiedAddress:
 		log.Debug("SCMP response", "cause", err)
 		p.pkt.slowPathRequest = slowPathRequest{
 			scmpType: slayers.SCMPTypeParameterProblem,
@@ -1878,6 +1880,27 @@ func (p *scionPacketProcessor) validatePktLen() disposition {
 	return pSlowPath
 }
 
+func (p *scionPacketProcessor) validateSrcHost() disposition {
+	// We pay for this check only on the first hop.
+	if p.scionLayer.SrcIA != p.d.localIA {
+		return pForward
+	}
+	src, err := p.scionLayer.SrcAddr()
+	if err == nil && src.IP().Is4In6() {
+		err = unsupportedV4MappedV6Address
+	}
+	if err == nil {
+		return pForward
+	}
+
+	log.Debug("SCMP response", "cause", err)
+	p.pkt.slowPathRequest = slowPathRequest{
+		scmpType: slayers.SCMPTypeParameterProblem,
+		code:     slayers.SCMPCodeInvalidSourceAddress,
+	}
+	return pSlowPath
+}
+
 func (p *scionPacketProcessor) process() disposition {
 	if disp := p.parsePath(); disp != pForward {
 		return disp
@@ -1898,6 +1921,9 @@ func (p *scionPacketProcessor) process() disposition {
 		return disp
 	}
 	if disp := p.validateSrcDstIA(); disp != pForward {
+		return disp
+	}
+	if disp := p.validateSrcHost(); disp != pForward {
 		return disp
 	}
 	if disp := p.updateNonConsDirIngressSegID(); disp != pForward {
@@ -2101,9 +2127,15 @@ func (d *DataPlane) resolveLocalDst(
 		return nil
 	case addr.HostTypeIP:
 		// Parse UPD port and rewrite underlay IP/UDP port
-		// TODO(jiceatscion): IP() is returned by value. The compiler may or may not elide the
-		// intermediate copy. May be there's some way to avoid it for sure.
-		return d.addEndhostPort(resolvedDst, lastLayer, dst.IP())
+		// TODO(jiceatscion): IP() is returned by value. The cost of copies adds up.
+		dstIP := dst.IP()
+		if dstIP.Is4In6() {
+			return unsupportedV4MappedV6Address
+		}
+		if dstIP.IsUnspecified() { // IsInvalid() not possible, we initialized it from wire bits.
+			return unsupportedUnspecifiedAddress
+		}
+		return d.addEndhostPort(resolvedDst, lastLayer, dstIP)
 	default:
 		panic("unexpected address type returned from DstAddr")
 	}
@@ -2445,18 +2477,13 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	scionL.Path = revPath
 	scionL.DstIA = p.scionLayer.SrcIA
 	scionL.SrcIA = p.d.localIA
-	srcA, err := p.scionLayer.SrcAddr()
-	if err != nil {
-		return nil, serrors.Wrap(cannotRoute, err, "details", "extracting src addr")
-	}
-	if err := scionL.SetDstAddr(srcA); err != nil {
-		return nil, serrors.Wrap(cannotRoute, err, "details", "setting dest addr")
-	}
+	scionL.DstAddrType = p.scionLayer.SrcAddrType
+	scionL.RawDstAddr = p.scionLayer.RawSrcAddr
+	scionL.NextHdr = slayers.L4SCMP
+
 	if err := scionL.SetSrcAddr(addr.HostIP(p.d.internalIP)); err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "setting src addr")
 	}
-	scionL.NextHdr = slayers.L4SCMP
-
 	typeCode := slayers.CreateSCMPTypeCode(typ, code)
 	scmpH := slayers.SCMP{TypeCode: typeCode}
 	scmpH.SetNetworkLayerForChecksum(&scionL)
@@ -2515,8 +2542,11 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		scionL.NextHdr = slayers.End2EndClass
 
 		now := time.Now()
-		// srcA == scionL.DstAddr
-		key, err := p.drkeyProvider.GetASHostKey(now, scionL.DstIA, srcA)
+		dstA, err := scionL.DstAddr()
+		if err != nil {
+			return nil, serrors.Wrap(cannotRoute, err, "details", "parsing destination address")
+		}
+		key, err := p.drkeyProvider.GetASHostKey(now, scionL.DstIA, dstA)
 		if err != nil {
 			return nil, serrors.Wrap(cannotRoute, err, "details", "retrieving DRKey")
 		}
