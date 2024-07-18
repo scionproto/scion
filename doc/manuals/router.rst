@@ -183,7 +183,7 @@ considers the following options.
 
    .. object:: bfd
 
-      .. option:: disabled = <bool> (Default: false)
+      .. option:: disable = <bool> (Default: false)
 
          Set whether the :term:`BFD` feature is disabled by default.
 
