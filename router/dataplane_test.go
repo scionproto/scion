@@ -273,6 +273,7 @@ func TestDataPlaneRun(t *testing.T) {
 						for i := 0; i < totalCount; i++ {
 							spkt, dpath := prepBaseMsg(time.Now())
 							spkt.DstIA = local
+							spkt.RawDstAddr = []byte{192, 168, 1, 1}
 							dpath.HopFields = []path.HopField{
 								{ConsIngress: 41, ConsEgress: 40},
 								{ConsIngress: 31, ConsEgress: 30},
