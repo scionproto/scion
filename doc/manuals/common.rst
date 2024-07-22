@@ -294,7 +294,7 @@ of the individual fields below.
 
          .. option:: disable = <bool>, default router.bfd.disable
 
-            See :option:`router.bfd.disabled <router-conf-toml disabled>`.
+            See :option:`router.bfd.disable <router-conf-toml disable>`.
 
             Disable BFD, unconditionally consider the connection alive.
 
