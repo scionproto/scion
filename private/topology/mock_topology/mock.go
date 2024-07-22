@@ -124,18 +124,18 @@ func (mr *MockTopologyMockRecorder) IFInfoMap() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IFInfoMap", reflect.TypeOf((*MockTopology)(nil).IFInfoMap))
 }
 
-// InterfaceIDs mocks base method.
-func (m *MockTopology) InterfaceIDs() []common.IfIDType {
+// IfIDs mocks base method.
+func (m *MockTopology) IfIDs() []common.IfIDType {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InterfaceIDs")
+	ret := m.ctrl.Call(m, "IfIDs")
 	ret0, _ := ret[0].([]common.IfIDType)
 	return ret0
 }
 
-// InterfaceIDs indicates an expected call of InterfaceIDs.
-func (mr *MockTopologyMockRecorder) InterfaceIDs() *gomock.Call {
+// IfIDs indicates an expected call of IfIDs.
+func (mr *MockTopologyMockRecorder) IfIDs() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InterfaceIDs", reflect.TypeOf((*MockTopology)(nil).InterfaceIDs))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IfIDs", reflect.TypeOf((*MockTopology)(nil).IfIDs))
 }
 
 // MTU mocks base method.
