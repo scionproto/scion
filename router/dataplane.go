@@ -464,9 +464,9 @@ func (d *DataPlane) addExternalInterfaceBFD(ifID uint16, conn BatchConn,
 // getInterfaceState checks if there is a bfd session for the input interfaceID and
 // returns InterfaceUp if the relevant bfdsession state is up, or if there is no BFD
 // session. Otherwise, it returns InterfaceDown.
-func (d *DataPlane) getInterfaceState(interfaceID uint16) control.InterfaceState {
+func (d *DataPlane) getInterfaceState(ifID uint16) control.InterfaceState {
 	bfdSessions := d.bfdSessions
-	if bfdSession, ok := bfdSessions[interfaceID]; ok && !bfdSession.IsUp() {
+	if bfdSession, ok := bfdSessions[ifID]; ok && !bfdSession.IsUp() {
 		return control.InterfaceDown
 	}
 	return control.InterfaceUp
@@ -1835,7 +1835,7 @@ func (p *scionPacketProcessor) egressRouterAlertFlag() *bool {
 	return &p.hopField.EgressRouterAlert
 }
 
-func (p *slowPathPacketProcessor) handleSCMPTraceRouteRequest(interfaceID uint16) error {
+func (p *slowPathPacketProcessor) handleSCMPTraceRouteRequest(ifID uint16) error {
 
 	if p.lastLayer.NextLayerType() != slayers.LayerTypeSCMP {
 		log.Debug("Packet with router alert, but not SCMP")
@@ -1861,7 +1861,7 @@ func (p *slowPathPacketProcessor) handleSCMPTraceRouteRequest(interfaceID uint16
 		Identifier: scmpP.Identifier,
 		Sequence:   scmpP.Sequence,
 		IA:         p.d.localIA,
-		Interface:  uint64(interfaceID),
+		Interface:  uint64(ifID),
 	}
 	return p.packSCMP(slayers.SCMPTypeTracerouteReply, 0, &scmpP, false)
 }

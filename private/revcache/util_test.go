@@ -35,7 +35,7 @@ import (
 )
 
 var (
-	ia211 = addr.MustParseIA("2-ff00:0:211")
+	ia211   = addr.MustParseIA("2-ff00:0:211")
 	timeout = time.Second
 )
 
@@ -60,7 +60,7 @@ func TestNoRevokedHopIntf(t *testing.T) {
 		revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).Return(
 			revcache.Revocations{
 				revcache.Key{IA: addr.MustParseIA("2-ff00:0:211"),
-					IfID: common.IFIDType(graph.If_210_X_211_A)}: sRev,
+					IfID: common.IfIDType(graph.If_210_X_211_A)}: sRev,
 			}, nil,
 		)
 		noR, err := revcache.NoRevokedHopIntf(ctx, revCache, seg210_222_1)

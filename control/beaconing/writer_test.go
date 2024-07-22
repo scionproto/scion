@@ -390,7 +390,7 @@ func interfaceInfos(topo topology.Topology) map[uint16]ifstate.InterfaceInfo {
 			IA:           info.IA,
 			LinkType:     info.LinkType,
 			InternalAddr: netip.MustParseAddrPort(info.InternalAddr.String()),
-			RemoteID:     uint16(info.RemoteIFID),
+			RemoteID:     uint16(info.RemoteIfID),
 			MTU:          uint16(info.MTU),
 		}
 	}

@@ -852,7 +852,7 @@ func adaptInterfaceMap(in map[common.IfIDType]topology.IFInfo) map[uint16]ifstat
 			IA:           info.IA,
 			LinkType:     info.LinkType,
 			InternalAddr: info.InternalAddr,
-			RemoteID:     uint16(info.RemoteIFID),
+			RemoteID:     uint16(info.RemoteIfID),
 			MTU:          uint16(info.MTU),
 		}
 	}

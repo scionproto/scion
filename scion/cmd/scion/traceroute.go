@@ -266,14 +266,14 @@ func fmtRemote(remote snet.SCIONAddress, intf uint64) string {
 
 func getHopInfo(u traceroute.Update, hop Hop) HopInfo {
 	if u.Remote == (snet.SCIONAddress{}) {
-		return HopInfo{IA: hop.IA, InterfaceID: uint16(hop.ID)}
+		return HopInfo{IA: hop.IA, InterfaceID: uint16(hop.ID)} // nolint - name from published API
 	}
 	RTTs := make([]durationMillis, 0, len(u.RTTs))
 	for _, rtt := range u.RTTs {
 		RTTs = append(RTTs, durationMillis(rtt))
 	}
 	return HopInfo{
-		InterfaceID:    uint16(u.Interface),
+		InterfaceID:    uint16(u.Interface), // nolint - name from published protobuf
 		IP:             u.Remote.Host.IP().String(),
 		IA:             u.Remote.IA,
 		RoundTripTimes: RTTs,

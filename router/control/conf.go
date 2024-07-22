@@ -57,7 +57,7 @@ type LinkInfo struct {
 type LinkEnd struct {
 	IA   addr.IA
 	Addr netip.AddrPort
-	IFID common.IfIDType
+	IfID common.IfIDType
 }
 
 type ObservableDataplane interface {
@@ -75,7 +75,7 @@ type InternalInterface struct {
 // ExternalInterface represents an external interface of a router.
 type ExternalInterface struct {
 	// InterfaceID is the identifier of the external interface.
-	InterfaceID uint16
+	IfID uint16
 	// Link is the information associated with this link.
 	Link LinkInfo
 	// State indicates the interface state.
@@ -85,7 +85,7 @@ type ExternalInterface struct {
 // SiblingInterface represents a sibling interface of a router.
 type SiblingInterface struct {
 	// InterfaceID is the identifier of the external interface.
-	InterfaceID uint16
+	IfID uint16
 	// InternalInterfaces is the local address (internal interface)
 	// of the sibling router that owns this interface.
 	InternalInterface netip.AddrPort
@@ -181,12 +181,12 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 			Local: LinkEnd{
 				IA:   cfg.IA,
 				Addr: iface.Local,
-				IFID: iface.ID,
+				IfID: iface.ID,
 			},
 			Remote: LinkEnd{
 				IA:   iface.IA,
 				Addr: iface.Remote,
-				IFID: iface.RemoteIFID,
+				IfID: iface.RemoteIfID,
 			},
 			Instance: iface.BRName,
 			BFD:      BFD(iface.BFD),

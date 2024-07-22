@@ -39,7 +39,7 @@ type Topology interface {
 	// Core returns whether the local AS is core.
 	Core() bool
 	// InterfaceIDs returns all interface IDS from the local AS.
-	InterfaceIDs() []common.IfIDType
+	IfIDs() []common.IfIDType
 	// PortRange returns the first and last ports of the port range (both included),
 	// in which endhost listen for SCION/UDP application using the UDP/IP underlay.
 	PortRange() (uint16, uint16)
@@ -144,7 +144,7 @@ func (t *topologyS) MTU() uint16 {
 	return uint16(t.Topology.MTU)
 }
 
-func (t *topologyS) InterfaceIDs() []common.IfIDType {
+func (t *topologyS) IfIDs() []common.IfIDType {
 	intfs := make([]common.IfIDType, 0, len(t.Topology.IFInfoMap))
 	for ifID := range t.Topology.IFInfoMap {
 		intfs = append(intfs, ifID)

@@ -50,7 +50,7 @@ type vertexInfo map[vertex]edgeMap
 // dmg is a Directed Multigraph.
 //
 // Vertices are either ASes (identified by their ISD-AS number) or peering
-// links (identified by the the ISD-AS numbers of the peers, and the IFIDs on
+// links (identified by the the ISD-AS numbers of the peers, and the IfIDs on
 // the peering link).
 type dmg struct {
 	Adjacencies map[vertex]vertexInfo
@@ -259,25 +259,25 @@ func (s *inputSegment) IsDownSeg() bool {
 type vertex struct {
 	IA       addr.IA
 	UpIA     addr.IA
-	UpIFID   common.IfIDType
+	UpIfID   common.IfIDType
 	DownIA   addr.IA
-	DownIFID common.IfIDType
+	DownIfID common.IfIDType
 }
 
 func vertexFromIA(ia addr.IA) vertex {
 	return vertex{IA: ia}
 }
 
-func vertexFromPeering(upIA addr.IA, upIFID common.IfIDType,
-	downIA addr.IA, downIFID common.IfIDType) vertex {
+func vertexFromPeering(upIA addr.IA, upIfID common.IfIDType,
+	downIA addr.IA, downIfID common.IfIDType) vertex {
 
-	return vertex{UpIA: upIA, UpIFID: upIFID, DownIA: downIA, DownIFID: downIFID}
+	return vertex{UpIA: upIA, UpIfID: upIfID, DownIA: downIA, DownIfID: downIfID}
 }
 
 // Reverse returns a new vertex that contains the peering information in
 // reverse. AS vertices remain unchanged.
 func (v vertex) Reverse() vertex {
-	return vertex{IA: v.IA, UpIA: v.DownIA, UpIFID: v.DownIFID, DownIA: v.UpIA, DownIFID: v.UpIFID}
+	return vertex{IA: v.IA, UpIA: v.DownIA, UpIfID: v.DownIfID, DownIA: v.UpIA, DownIfID: v.UpIfID}
 }
 
 // edgeMap is used to keep the set of edges going from one vertex to another.

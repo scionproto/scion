@@ -113,7 +113,7 @@ type BRInterface struct {
 	LinkTo     string          `json:"link_to"`
 	MTU        int             `json:"mtu"`
 	BFD        *BFD            `json:"bfd,omitempty"`
-	RemoteIFID common.IfIDType `json:"remote_interface_id,omitempty"`
+	RemoteIfID common.IfIDType `json:"remote_interface_id,omitempty"`
 }
 
 // Underlay is the underlay information for a BR interface.

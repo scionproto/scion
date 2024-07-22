@@ -58,17 +58,17 @@ func TestBRs(t *testing.T) {
 
 	brs := map[string]BRInfo{
 		"br1-ff00:0:311-1": {
-			IFIDs: []common.IfIDType{1, 3, 8},
+			IfIDs: []common.IfIDType{1, 3, 8},
 		},
 		"br1-ff00:0:311-2": {
-			IFIDs: []common.IfIDType{11},
+			IfIDs: []common.IfIDType{11},
 		},
 	}
 
 	for name, info := range brs {
 		t.Run("checking BR details for "+name, func(t *testing.T) {
-			for _, i := range info.IFIDs {
-				assert.Contains(t, c.BR[name].IFIDs, i)
+			for _, i := range info.IfIDs {
+				assert.Contains(t, c.BR[name].IfIDs, i)
 			}
 		})
 	}
@@ -321,7 +321,7 @@ func TestBRsCoreAS(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			assert.Contains(t, c.BR, test.name)
 			for _, intf := range test.interfaces {
-				assert.Contains(t, c.BR[test.name].IFIDs, intf)
+				assert.Contains(t, c.BR[test.name].IfIDs, intf)
 			}
 		})
 	}

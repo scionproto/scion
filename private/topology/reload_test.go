@@ -42,7 +42,7 @@ func TestLoader(t *testing.T) {
 		assert.Equal(t, addr.MustParseIA("1-ff00:0:311"), l.IA())
 		assert.Equal(t, uint16(1472), l.MTU())
 		assert.Equal(t, false, l.Core())
-		assert.ElementsMatch(t, []uint16{1, 3, 8, 11}, l.InterfaceIDs())
+		assert.ElementsMatch(t, []uint16{1, 3, 8, 11}, l.IfIDs())
 		assert.ElementsMatch(t,
 			xtest.MustParseUDPAddrs(t,
 				"127.0.0.67:30073",

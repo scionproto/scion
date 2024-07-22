@@ -137,12 +137,12 @@ func (l *Loader) UnderlayNextHop(ifID uint16) *net.UDPAddr {
 	return addr
 }
 
-func (l *Loader) InterfaceIDs() []uint16 {
+func (l *Loader) IfIDs() []uint16 {
 	l.mtx.Lock()
 	defer l.mtx.Unlock()
 
 	var ids []uint16
-	for _, id := range l.topo.InterfaceIDs() {
+	for _, id := range l.topo.IfIDs() {
 		ids = append(ids, uint16(id))
 	}
 	return ids

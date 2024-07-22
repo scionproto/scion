@@ -242,8 +242,8 @@ func humanInternalHops(p *snet.PathMetadata) string {
 		if numHops == 0 {
 			continue
 		}
-		interfaceIdx := 2*i + 1
-		ia := p.Interfaces[interfaceIdx].IA
+		interfaceIndex := 2*i + 1
+		ia := p.Interfaces[interfaceIndex].IA
 		internalHops = append(internalHops, fmt.Sprintf("%s: %d", ia, numHops))
 	}
 	if len(internalHops) == 0 {
@@ -260,11 +260,11 @@ func humanNotes(p *snet.PathMetadata) string {
 		if note == "" {
 			continue
 		}
-		interfaceIdx := 0
+		interfaceIndex := 0
 		if i > 0 {
-			interfaceIdx = 2*i - 1
+			interfaceIndex = 2*i - 1
 		}
-		ia := p.Interfaces[interfaceIdx].IA
+		ia := p.Interfaces[interfaceIndex].IA
 		notes = append(notes, fmt.Sprintf("%s: \"%s\"", ia, sanitizeString(note)))
 	}
 	if len(notes) == 0 {

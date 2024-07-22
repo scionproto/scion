@@ -53,7 +53,7 @@ type (
 	//
 	// The second section concerns the Border routers.
 	// The BR map points from border router names to BRInfo structs, which in turn
-	// are lists of IFID type slices, thus defines the IFIDs that belong to a
+	// are lists of IfID type slices, thus defines the IfIDs that belong to a
 	// particular border router. The IFInfoMap points from interface IDs to IFInfo structs.
 	//
 	// The third section in RWTopology concerns the SCION-specific services in the topology.
@@ -94,8 +94,8 @@ type (
 		Name string
 		// InternalAddr is the local data-plane address.
 		InternalAddr netip.AddrPort
-		// IFIDs is a sorted list of the interface IDs.
-		IFIDs []common.IfIDType
+		// IfIDs is a sorted list of the interface IDs.
+		IfIDs []common.IfIDType
 		// IFs is a map of interface IDs.
 		IFs map[common.IfIDType]*IFInfo
 	}
@@ -113,7 +113,7 @@ type (
 		InternalAddr netip.AddrPort
 		Local        netip.AddrPort
 		Remote       netip.AddrPort
-		RemoteIFID   common.IfIDType
+		RemoteIfID   common.IfIDType
 		IA           addr.IA
 		LinkType     LinkType
 		MTU          int
@@ -273,9 +273,9 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 			var err error
 			// Check that ifID is unique
 			if _, ok := t.IFInfoMap[ifID]; ok {
-				return serrors.New("IFID already exists", "ID", ifID)
+				return serrors.New("IfID already exists", "ID", ifID)
 			}
-			brInfo.IFIDs = append(brInfo.IFIDs, ifID)
+			brInfo.IfIDs = append(brInfo.IfIDs, ifID)
 			ifinfo := IFInfo{
 				ID:           ifID,
 				BRName:       name,
@@ -287,7 +287,7 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 			}
 			ifinfo.LinkType = LinkTypeFromString(rawIntf.LinkTo)
 			if ifinfo.LinkType == Peer {
-				ifinfo.RemoteIFID = rawIntf.RemoteIFID
+				ifinfo.RemoteIfID = rawIntf.RemoteIfID
 			}
 
 			if err = ifinfo.CheckLinks(t.IsCore, name); err != nil {
@@ -320,8 +320,8 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 			brInfo.IFs[ifID] = &ifinfo
 			t.IFInfoMap[ifID] = ifinfo
 		}
-		sort.Slice(brInfo.IFIDs, func(i, j int) bool {
-			return brInfo.IFIDs[i] < brInfo.IFIDs[j]
+		sort.Slice(brInfo.IfIDs, func(i, j int) bool {
+			return brInfo.IfIDs[i] < brInfo.IfIDs[j]
 		})
 		t.BR[name] = brInfo
 	}
@@ -467,7 +467,7 @@ func (i *BRInfo) copy() *BRInfo {
 	return &BRInfo{
 		Name:         i.Name,
 		InternalAddr: i.InternalAddr,
-		IFIDs:        append(i.IFIDs[:0:0], i.IFIDs...),
+		IfIDs:        append(i.IfIDs[:0:0], i.IfIDs...),
 		IFs:          copyIFsMap(i.IFs),
 	}
 }

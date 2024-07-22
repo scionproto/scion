@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	testTrcsDir = "testdata/overthenetwork/"
+	testTRCsDir = "testdata/overthenetwork/"
 )
 
 type DB struct {
@@ -96,55 +96,55 @@ func TestInsertTRCWithFSPersistence(t *testing.T) {
 	testDB.Prepare(t, ctx)
 
 	t.Run("insert TRC not present in neither DB nor FS", func(t *testing.T) {
-		SignedTRC, persistedTrcPath := getTRC(t, "ISD1-B1-S1.trc", testDB.Dir)
+		SignedTRC, persistedTRCPath := getTRC(t, "ISD1-B1-S1.trc", testDB.Dir)
 		in, err := testDB.InsertTRC(ctx, SignedTRC)
 		require.NoError(t, err)
 		require.True(t, in)
 
-		persistedTRC := xtest.LoadTRC(t, persistedTrcPath)
+		persistedTRC := xtest.LoadTRC(t, persistedTRCPath)
 		require.Equal(t, SignedTRC, persistedTRC)
 	})
 
 	t.Run("insert TRC already present in DB and FS", func(t *testing.T) {
-		SignedTRC, persistedTrcPath := getTRC(t, "ISD1-B1-S1.trc", testDB.Dir)
-		mtimeBeforeInsert := getModTime(t, persistedTrcPath)
+		SignedTRC, persistedTRCPath := getTRC(t, "ISD1-B1-S1.trc", testDB.Dir)
+		mtimeBeforeInsert := getModTime(t, persistedTRCPath)
 
-		persistedTRC := xtest.LoadTRC(t, persistedTrcPath)
+		persistedTRC := xtest.LoadTRC(t, persistedTRCPath)
 		require.Equal(t, SignedTRC, persistedTRC)
 
 		in, err := testDB.InsertTRC(ctx, SignedTRC)
 		require.NoError(t, err)
 		require.False(t, in)
 
-		mtimeAfterInsert := getModTime(t, persistedTrcPath)
+		mtimeAfterInsert := getModTime(t, persistedTRCPath)
 		require.Equal(t, mtimeBeforeInsert, mtimeAfterInsert)
 
-		persistedTRC = xtest.LoadTRC(t, persistedTrcPath)
+		persistedTRC = xtest.LoadTRC(t, persistedTRCPath)
 		require.Equal(t, SignedTRC, persistedTRC)
 	})
 
 	t.Run("insert TRC not present in DB but present on FS", func(t *testing.T) {
-		SignedTRC, persistedTrcPath := getTRC(t, "ISD2-B1-S1.trc", testDB.Dir)
-		require.NoError(t, os.WriteFile(persistedTrcPath, SignedTRC.Raw, 0644))
-		mtimeBeforeInsert := getModTime(t, persistedTrcPath)
+		SignedTRC, persistedTRCPath := getTRC(t, "ISD2-B1-S1.trc", testDB.Dir)
+		require.NoError(t, os.WriteFile(persistedTRCPath, SignedTRC.Raw, 0644))
+		mtimeBeforeInsert := getModTime(t, persistedTRCPath)
 
 		in, err := testDB.InsertTRC(ctx, SignedTRC)
 		require.NoError(t, err)
 		require.True(t, in)
 
-		mtimeAfterInsert := getModTime(t, persistedTrcPath)
+		mtimeAfterInsert := getModTime(t, persistedTRCPath)
 		require.Equal(t, mtimeBeforeInsert, mtimeAfterInsert)
 	})
 
 	t.Run("insert TRC that is already present in DB but not on FS", func(t *testing.T) {
-		SignedTRC, persistedTrcPath := getTRC(t, "ISD1-B1-S1.trc", testDB.Dir)
-		err := os.Remove(persistedTrcPath)
+		SignedTRC, persistedTRCPath := getTRC(t, "ISD1-B1-S1.trc", testDB.Dir)
+		err := os.Remove(persistedTRCPath)
 		require.NoError(t, err)
 		in, err := testDB.InsertTRC(ctx, SignedTRC)
 		require.NoError(t, err)
 		require.False(t, in)
 
-		persistedTRC := xtest.LoadTRC(t, persistedTrcPath)
+		persistedTRC := xtest.LoadTRC(t, persistedTRCPath)
 		require.Equal(t, SignedTRC, persistedTRC)
 	})
 
@@ -164,8 +164,8 @@ func getModTime(t *testing.T, file string) int64 {
 }
 
 func getTRC(t *testing.T, trcName, persistDir string) (cppki.SignedTRC, string) {
-	testTrcPath := filepath.Join(testTrcsDir, trcName)
-	trc := xtest.LoadTRC(t, testTrcPath)
-	persistedTrcPath := filepath.Join(persistDir, trcName)
-	return trc, persistedTrcPath
+	testTRCPath := filepath.Join(testTRCsDir, trcName)
+	trc := xtest.LoadTRC(t, testTRCPath)
+	persistedTRCPath := filepath.Join(persistDir, trcName)
+	return trc, persistedTRCPath
 }

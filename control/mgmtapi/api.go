@@ -586,22 +586,26 @@ func (s *Server) GetCa(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetTrcs gets the trcs specified by it's params.
-func (s *Server) GetTrcs(w http.ResponseWriter, r *http.Request, params GetTrcsParams) {
-	cppkiParams := cppkiapi.GetTrcsParams{
+func (s *Server) GetTrcs(
+	w http.ResponseWriter,
+	r *http.Request,
+	params GetTrcsParams, // nolint - name from published API
+) {
+	cppkiParams := cppkiapi.GetTrcsParams{ // nolint - name from published API
 		Isd: params.Isd,
 		All: params.All,
 	}
-	s.CPPKIServer.GetTrcs(w, r, cppkiParams)
+	s.CPPKIServer.GetTrcs(w, r, cppkiParams) // nolint - name from published API
 }
 
 // GetTrc gets the trc specified by it's isd base and serial.
 func (s *Server) GetTrc(w http.ResponseWriter, r *http.Request, isd int, base int, serial int) {
-	s.CPPKIServer.GetTrc(w, r, isd, base, serial)
+	s.CPPKIServer.GetTrc(w, r, isd, base, serial) // nolint - name from published API
 }
 
 // GetTrcBlob gets the trc encoded pem blob.
 func (s *Server) GetTrcBlob(w http.ResponseWriter, r *http.Request, isd int, base int, serial int) {
-	s.CPPKIServer.GetTrcBlob(w, r, isd, base, serial)
+	s.CPPKIServer.GetTrcBlob(w, r, isd, base, serial) // nolint - name from published API
 }
 
 // GetConfig is an indirection to the http handler.
@@ -663,12 +667,12 @@ func (s *Server) GetSigner(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 		Expiration: p.Expiration,
-		TrcId: TRCID{
+		TrcId: TRCID{ // nolint - name from published API
 			BaseNumber:   int(p.TRCID.Base),
 			Isd:          int(p.TRCID.ISD),
 			SerialNumber: int(p.TRCID.Serial),
 		},
-		TrcInGracePeriod: p.InGrace,
+		TrcInGracePeriod: p.InGrace, // nolint - name from published API
 	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "    ")
