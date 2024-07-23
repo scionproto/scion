@@ -1172,7 +1172,7 @@ end
 -- SCION packet on UDP/IP overlay.
 -- Two options are available. Identify SCION traffic by port number, or heuristically, by
 -- looking for clues in the header. The heuristic is not extremely robust. It may mistake
--- non-SCION packet for scion packets. If you know precisely which ports carry SCION
+-- non-SCION packet for SCION packets. If you know precisely which ports carry SCION
 -- traffic (which is made difficult by the removal of the dispatcher), you may prefer to
 -- identify them by port. Keep the unwanted option commented out.
 
