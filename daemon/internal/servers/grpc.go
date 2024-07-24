@@ -47,7 +47,7 @@ import (
 )
 
 type Topology interface {
-	InterfaceIDs() []uint16
+	IfIDs() []uint16
 	UnderlayNextHop(uint16) *net.UDPAddr
 	ControlServiceAddresses() []*net.UDPAddr
 	PortRange() (uint16, uint16)
@@ -277,7 +277,7 @@ func (s *DaemonServer) interfaces(ctx context.Context,
 		Interfaces: make(map[uint64]*sdpb.Interface),
 	}
 	topo := s.Topology
-	for _, ifID := range topo.InterfaceIDs() {
+	for _, ifID := range topo.IfIDs() {
 		nextHop := topo.UnderlayNextHop(ifID)
 		if nextHop == nil {
 			continue
@@ -337,7 +337,7 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 
 	revInfo := &path_mgmt.RevInfo{
 		RawIsdas:     addr.IA(req.IsdAs),
-		IfID:         common.IFIDType(req.Id),
+		IfID:         common.IfIDType(req.Id),
 		LinkType:     proto.LinkType_core,
 		RawTTL:       10,
 		RawTimestamp: util.TimeToSecs(time.Now()),

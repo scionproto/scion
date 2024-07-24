@@ -53,7 +53,7 @@ type (
 	//
 	// The second section concerns the Border routers.
 	// The BR map points from border router names to BRInfo structs, which in turn
-	// are lists of IFID type slices, thus defines the IFIDs that belong to a
+	// are lists of IfID type slices, thus defines the IfIDs that belong to a
 	// particular border router. The IFInfoMap points from interface IDs to IFInfo structs.
 	//
 	// The third section in RWTopology concerns the SCION-specific services in the topology.
@@ -94,26 +94,26 @@ type (
 		Name string
 		// InternalAddr is the local data-plane address.
 		InternalAddr netip.AddrPort
-		// IFIDs is a sorted list of the interface IDs.
-		IFIDs []common.IFIDType
+		// IfIDs is a sorted list of the interface IDs.
+		IfIDs []common.IfIDType
 		// IFs is a map of interface IDs.
-		IFs map[common.IFIDType]*IFInfo
+		IFs map[common.IfIDType]*IFInfo
 	}
 
 	// IfInfoMap maps interface ids to the interface information.
-	IfInfoMap map[common.IFIDType]IFInfo
+	IfInfoMap map[common.IfIDType]IFInfo
 
 	// IFInfo describes a border router link to another AS, including the internal data-plane
 	// address applications should send traffic to and information about the link itself and the
 	// remote side of it.
 	IFInfo struct {
 		// ID is the interface ID. It is unique per AS.
-		ID           common.IFIDType
+		ID           common.IfIDType
 		BRName       string
 		InternalAddr netip.AddrPort
 		Local        netip.AddrPort
 		Remote       netip.AddrPort
-		RemoteIFID   common.IFIDType
+		RemoteIfID   common.IfIDType
 		IA           addr.IA
 		LinkType     LinkType
 		MTU          int
@@ -267,17 +267,17 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 		brInfo := BRInfo{
 			Name:         name,
 			InternalAddr: intAddr,
-			IFs:          make(map[common.IFIDType]*IFInfo),
+			IFs:          make(map[common.IfIDType]*IFInfo),
 		}
-		for ifid, rawIntf := range rawBr.Interfaces {
+		for ifID, rawIntf := range rawBr.Interfaces {
 			var err error
-			// Check that ifid is unique
-			if _, ok := t.IFInfoMap[ifid]; ok {
-				return serrors.New("IFID already exists", "ID", ifid)
+			// Check that ifID is unique
+			if _, ok := t.IFInfoMap[ifID]; ok {
+				return serrors.New("IfID already exists", "ID", ifID)
 			}
-			brInfo.IFIDs = append(brInfo.IFIDs, ifid)
+			brInfo.IfIDs = append(brInfo.IfIDs, ifID)
 			ifinfo := IFInfo{
-				ID:           ifid,
+				ID:           ifID,
 				BRName:       name,
 				InternalAddr: intAddr,
 				MTU:          rawIntf.MTU,
@@ -287,7 +287,7 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 			}
 			ifinfo.LinkType = LinkTypeFromString(rawIntf.LinkTo)
 			if ifinfo.LinkType == Peer {
-				ifinfo.RemoteIFID = rawIntf.RemoteIFID
+				ifinfo.RemoteIfID = rawIntf.RemoteIfID
 			}
 
 			if err = ifinfo.CheckLinks(t.IsCore, name); err != nil {
@@ -305,8 +305,8 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 			// These fields are only necessary for the border router.
 			// Parsing should not fail if all fields are empty.
 			if rawIntf.Underlay == (jsontopo.Underlay{}) {
-				brInfo.IFs[ifid] = &ifinfo
-				t.IFInfoMap[ifid] = ifinfo
+				brInfo.IFs[ifID] = &ifinfo
+				t.IFInfoMap[ifID] = ifinfo
 				continue
 			}
 			if ifinfo.Local, err = rawBRIntfLocalAddr(&rawIntf.Underlay); err != nil {
@@ -317,11 +317,11 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 				return serrors.WrapStr("unable to extract "+
 					"underlay external data-plane remote address", err)
 			}
-			brInfo.IFs[ifid] = &ifinfo
-			t.IFInfoMap[ifid] = ifinfo
+			brInfo.IFs[ifID] = &ifinfo
+			t.IFInfoMap[ifID] = ifinfo
 		}
-		sort.Slice(brInfo.IFIDs, func(i, j int) bool {
-			return brInfo.IFIDs[i] < brInfo.IFIDs[j]
+		sort.Slice(brInfo.IfIDs, func(i, j int) bool {
+			return brInfo.IfIDs[i] < brInfo.IfIDs[j]
 		})
 		t.BR[name] = brInfo
 	}
@@ -467,16 +467,16 @@ func (i *BRInfo) copy() *BRInfo {
 	return &BRInfo{
 		Name:         i.Name,
 		InternalAddr: i.InternalAddr,
-		IFIDs:        append(i.IFIDs[:0:0], i.IFIDs...),
+		IfIDs:        append(i.IfIDs[:0:0], i.IfIDs...),
 		IFs:          copyIFsMap(i.IFs),
 	}
 }
 
-func copyIFsMap(m map[common.IFIDType]*IFInfo) map[common.IFIDType]*IFInfo {
+func copyIFsMap(m map[common.IfIDType]*IFInfo) map[common.IfIDType]*IFInfo {
 	if m == nil {
 		return nil
 	}
-	newM := make(map[common.IFIDType]*IFInfo)
+	newM := make(map[common.IfIDType]*IFInfo)
 	for k, v := range m {
 		newM[k] = v.copy()
 	}

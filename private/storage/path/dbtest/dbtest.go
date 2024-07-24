@@ -596,21 +596,21 @@ func checkInterfacesPresent(t *testing.T, ctx context.Context,
 	}
 }
 
-func checkInterface(t *testing.T, ctx context.Context, ia addr.IA, ifId uint16,
+func checkInterface(t *testing.T, ctx context.Context, ia addr.IA, ifID uint16,
 	pathDB pathdb.ReadWrite, present bool) {
 
 	r, err := pathDB.Get(ctx, &query.Params{
 		Intfs: []*query.IntfSpec{
 			{
 				IA:   ia,
-				IfID: common.IFIDType(ifId),
+				IfID: common.IfIDType(ifID),
 			},
 		},
 	})
 	require.NoError(t, err)
 	if present {
-		assert.Equal(t, 1, len(r), fmt.Sprintf("Interface should be present: %v#%d", ia, ifId))
+		assert.Equal(t, 1, len(r), fmt.Sprintf("Interface should be present: %v#%d", ia, ifID))
 	} else {
-		assert.Zero(t, len(r), (fmt.Sprintf("Interface should not be present: %v#%d", ia, ifId)))
+		assert.Zero(t, len(r), (fmt.Sprintf("Interface should not be present: %v#%d", ia, ifID)))
 	}
 }

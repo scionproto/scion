@@ -298,13 +298,13 @@ func (s *DefaultExtender) remoteMTU(ifID uint16) (uint16, error) {
 	return topoInfo.MTU, nil
 }
 
-func (s *DefaultExtender) remoteInfo(ifid uint16) (
+func (s *DefaultExtender) remoteInfo(ifID uint16) (
 	addr.IA, uint16, uint16, error) {
 
-	if ifid == 0 {
+	if ifID == 0 {
 		return 0, 0, 0, nil
 	}
-	intf := s.Intfs.Get(ifid)
+	intf := s.Intfs.Get(ifID)
 	if intf == nil {
 		return 0, 0, 0, serrors.New("interface not found")
 	}

@@ -113,7 +113,7 @@ func TestACLEntryLoadFromString(t *testing.T) {
 			String: "+ 0",
 			ACLEntry: ACLEntry{
 				Action: Allow,
-				Rule:   &HopPredicate{IfIDs: []common.IFIDType{0}},
+				Rule:   &HopPredicate{IfIDs: []common.IfIDType{0}},
 			},
 			ErrorAssertion: assert.NoError,
 		},
@@ -121,7 +121,7 @@ func TestACLEntryLoadFromString(t *testing.T) {
 			String: "+ 1-2#3",
 			ACLEntry: ACLEntry{
 				Action: Allow,
-				Rule:   &HopPredicate{ISD: 1, AS: 2, IfIDs: []common.IFIDType{3}},
+				Rule:   &HopPredicate{ISD: 1, AS: 2, IfIDs: []common.IfIDType{3}},
 			},
 			ErrorAssertion: assert.NoError,
 		},
@@ -134,7 +134,7 @@ func TestACLEntryLoadFromString(t *testing.T) {
 			String: "- 0",
 			ACLEntry: ACLEntry{
 				Action: Deny,
-				Rule:   &HopPredicate{IfIDs: []common.IFIDType{0}},
+				Rule:   &HopPredicate{IfIDs: []common.IfIDType{0}},
 			},
 			ErrorAssertion: assert.NoError,
 		},
@@ -161,7 +161,7 @@ func TestACLEntryLoadFromString(t *testing.T) {
 
 func TestACLEntryString(t *testing.T) {
 	aclEntryString := "+ 0-0#0"
-	aclEntry := &ACLEntry{Action: true, Rule: &HopPredicate{IfIDs: []common.IFIDType{0}}}
+	aclEntry := &ACLEntry{Action: true, Rule: &HopPredicate{IfIDs: []common.IfIDType{0}}}
 	assert.Equal(t, aclEntryString, aclEntry.String())
 }
 

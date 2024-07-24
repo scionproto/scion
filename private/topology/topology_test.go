@@ -58,17 +58,17 @@ func TestBRs(t *testing.T) {
 
 	brs := map[string]BRInfo{
 		"br1-ff00:0:311-1": {
-			IFIDs: []common.IFIDType{1, 3, 8},
+			IfIDs: []common.IfIDType{1, 3, 8},
 		},
 		"br1-ff00:0:311-2": {
-			IFIDs: []common.IFIDType{11},
+			IfIDs: []common.IfIDType{11},
 		},
 	}
 
 	for name, info := range brs {
 		t.Run("checking BR details for "+name, func(t *testing.T) {
-			for _, i := range info.IFIDs {
-				assert.Contains(t, c.BR[name].IFIDs, i)
+			for _, i := range info.IfIDs {
+				assert.Contains(t, c.BR[name].IfIDs, i)
 			}
 		})
 	}
@@ -312,16 +312,16 @@ func TestBRsCoreAS(t *testing.T) {
 	c := MustLoadTopo(t, "testdata/core.json")
 	brCases := []struct {
 		name       string
-		interfaces []common.IFIDType
+		interfaces []common.IfIDType
 	}{
-		{name: "borderrouter6-ff00:0:362-1", interfaces: []common.IFIDType{91}},
-		{name: "borderrouter6-ff00:0:362-9", interfaces: []common.IFIDType{32}},
+		{name: "borderrouter6-ff00:0:362-1", interfaces: []common.IfIDType{91}},
+		{name: "borderrouter6-ff00:0:362-9", interfaces: []common.IfIDType{32}},
 	}
 	for _, test := range brCases {
 		t.Run(test.name, func(t *testing.T) {
 			assert.Contains(t, c.BR, test.name)
 			for _, intf := range test.interfaces {
-				assert.Contains(t, c.BR[test.name].IFIDs, intf)
+				assert.Contains(t, c.BR[test.name].IfIDs, intf)
 			}
 		})
 	}

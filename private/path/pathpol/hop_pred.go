@@ -32,11 +32,11 @@ import (
 type HopPredicate struct {
 	ISD   addr.ISD
 	AS    addr.AS
-	IfIDs []common.IFIDType
+	IfIDs []common.IfIDType
 }
 
 func NewHopPredicate() *HopPredicate {
-	return &HopPredicate{IfIDs: make([]common.IFIDType, 1)}
+	return &HopPredicate{IfIDs: make([]common.IfIDType, 1)}
 }
 
 func HopPredicateFromString(str string) (*HopPredicate, error) {
@@ -44,7 +44,7 @@ func HopPredicateFromString(str string) (*HopPredicate, error) {
 	if err = validateHopPredStr(str); err != nil {
 		return &HopPredicate{}, err
 	}
-	var ifIDs = make([]common.IFIDType, 1)
+	var ifIDs = make([]common.IfIDType, 1)
 	// Parse ISD
 	dashParts := strings.Split(str, "-")
 	isd, err := addr.ParseISD(dashParts[0])
@@ -66,12 +66,12 @@ func HopPredicateFromString(str string) (*HopPredicate, error) {
 	// Parse IfIDs if present
 	commaParts := strings.Split(hashParts[1], ",")
 	if ifIDs[0], err = parseIfID(commaParts[0]); err != nil {
-		return &HopPredicate{}, serrors.WrapStr("Failed to parse ifids", err, "value", str)
+		return &HopPredicate{}, serrors.WrapStr("Failed to parse ifIDs", err, "value", str)
 	}
 	if len(commaParts) == 2 {
 		ifID, err := parseIfID(commaParts[1])
 		if err != nil {
-			return &HopPredicate{}, serrors.WrapStr("Failed to parse ifids", err, "value", str)
+			return &HopPredicate{}, serrors.WrapStr("Failed to parse ifIDs", err, "value", str)
 		}
 		ifIDs = append(ifIDs, ifID)
 	}
@@ -115,8 +115,8 @@ func (hp *HopPredicate) matchesAll() bool {
 
 func (hp HopPredicate) String() string {
 	var s []string
-	for _, ifid := range hp.IfIDs {
-		s = append(s, ifid.String())
+	for _, ifID := range hp.IfIDs {
+		s = append(s, ifID.String())
 	}
 	return fmt.Sprintf("%d-%s#%s", hp.ISD, hp.AS, strings.Join(s, ","))
 }
@@ -136,12 +136,12 @@ func (hp *HopPredicate) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-func parseIfID(str string) (common.IFIDType, error) {
-	ifid, err := strconv.ParseUint(str, 10, 64)
+func parseIfID(str string) (common.IfIDType, error) {
+	ifID, err := strconv.ParseUint(str, 10, 64)
 	if err != nil {
 		return 0, err
 	}
-	return common.IFIDType(ifid), nil
+	return common.IfIDType(ifID), nil
 }
 
 // validateHopPredStr checks if str has the correct amount of delimiters

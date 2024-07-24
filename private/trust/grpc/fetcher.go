@@ -128,7 +128,7 @@ func (f Fetcher) TRC(ctx context.Context, id cppki.TRCID,
 		return cppki.SignedTRC{}, serrors.WrapStr("receiving TRC", err)
 	}
 
-	trc, err := cppki.DecodeSignedTRC(rep.Trc)
+	trc, err := cppki.DecodeSignedTRC(rep.Trc) // nolint - name from protobuf
 	if err != nil {
 		f.updateMetric(span, labels.WithResult(trustmetrics.ErrParse), err)
 		return cppki.SignedTRC{}, serrors.WrapStr("parse TRC reply", err)

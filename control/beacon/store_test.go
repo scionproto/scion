@@ -269,13 +269,13 @@ func testBeacon(g *graph.Graph, desc ...uint16) beacon.Beacon {
 	pseg := testSegment(g, desc)
 	asEntry := pseg.ASEntries[pseg.MaxIdx()]
 	return beacon.Beacon{
-		InIfId:  asEntry.HopEntry.HopField.ConsIngress,
+		InIfID:  asEntry.HopEntry.HopField.ConsIngress,
 		Segment: pseg,
 	}
 }
 
-func testSegment(g *graph.Graph, ifids []uint16) *seg.PathSegment {
-	pseg := g.Beacon(ifids)
+func testSegment(g *graph.Graph, ifIDs []uint16) *seg.PathSegment {
+	pseg := g.Beacon(ifIDs)
 	pseg.ASEntries = pseg.ASEntries[:len(pseg.ASEntries)-1]
 	return pseg
 }

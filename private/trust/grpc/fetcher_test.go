@@ -210,7 +210,10 @@ func TestFetcherTRC(t *testing.T) {
 			Server: func(mctrl *gomock.Controller) *mock_cp.MockTrustMaterialServiceServer {
 				srv := mock_cp.NewMockTrustMaterialServiceServer(mctrl)
 				srv.EXPECT().TRC(gomock.Any(), gomock.Any()).Return(
-					&cppb.TRCResponse{Trc: []byte("garbage")}, nil,
+					&cppb.TRCResponse{
+						Trc: []byte("garbage"), // nolint - name from published protobuf
+					},
+					nil,
 				)
 				return srv
 			},
@@ -224,7 +227,7 @@ func TestFetcherTRC(t *testing.T) {
 
 				srv := mock_cp.NewMockTrustMaterialServiceServer(mctrl)
 				srv.EXPECT().TRC(gomock.Any(), gomock.Any()).Return(
-					&cppb.TRCResponse{Trc: rawBase}, nil,
+					&cppb.TRCResponse{Trc: rawBase}, nil, // nolint - name from published protobuf
 				)
 				return srv
 			},
@@ -235,7 +238,10 @@ func TestFetcherTRC(t *testing.T) {
 			Server: func(mctrl *gomock.Controller) *mock_cp.MockTrustMaterialServiceServer {
 				srv := mock_cp.NewMockTrustMaterialServiceServer(mctrl)
 				srv.EXPECT().TRC(gomock.Any(), gomock.Any()).Return(
-					&cppb.TRCResponse{Trc: updated.Raw}, nil,
+					&cppb.TRCResponse{
+						Trc: updated.Raw, // nolint - name from published protobuf
+					},
+					nil,
 				)
 				return srv
 			},

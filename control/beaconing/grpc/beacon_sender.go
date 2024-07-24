@@ -39,12 +39,12 @@ type BeaconSenderFactory struct {
 func (f *BeaconSenderFactory) NewSender(
 	ctx context.Context,
 	dstIA addr.IA,
-	egIfId uint16,
+	egIfID uint16,
 	nextHop *net.UDPAddr,
 ) (beaconing.Sender, error) {
 	addr := &onehop.Addr{
 		IA:      dstIA,
-		Egress:  egIfId,
+		Egress:  egIfID,
 		SVC:     addr.SvcCS,
 		NextHop: nextHop,
 	}
