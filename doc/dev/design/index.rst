@@ -8,7 +8,8 @@ See section :ref:`change-proposal-process` for the overview on the overall
 contribution process.
 
 - **Creation**:
-  Design documents are created from the template :file-ref:`doc/dev/design/TEMPLATE.rst`.
+  Design documents are created from the template :file-ref:`doc/dev/design/TEMPLATE.rst`. While the design is still being discussed, it is linked in the
+  section :ref:`design-docs-wip`
 
   Once discussion on a change proposal converges and a design document is
   approved, it is inserted to section :ref:`design-docs-active`.
@@ -29,6 +30,13 @@ contribution process.
   If the implementation has changed so much that a design document is no longer
   a useful reference for the current system, it moves to section :ref:`design-docs-outdated`.
 
+
+.. _design-docs-wip:
+
+WIP
+===
+.. toctree::
+   :maxdepth: 1
 
 .. _design-docs-active:
 
