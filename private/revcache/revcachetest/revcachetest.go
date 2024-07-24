@@ -34,8 +34,8 @@ import (
 var (
 	ia110  = addr.MustParseIA("1-ff00:0:110")
 	ia120  = addr.MustParseIA("1-ff00:0:120")
-	ifId15 = common.IFIDType(15)
-	ifId19 = common.IFIDType(19)
+	ifID15 = common.IfIDType(15)
+	ifID19 = common.IfIDType(19)
 
 	TimeOut = 5 * time.Second
 )
@@ -78,13 +78,13 @@ func TestRevCache(t *testing.T, revCache TestableRevCache) {
 }
 
 func testInsertGet(t *testing.T, revCache TestableRevCache) {
-	rev := defaultRevInfo(ia110, ifId15)
+	rev := defaultRevInfo(ia110, ifID15)
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
 	inserted, err := revCache.Insert(ctx, rev)
 	assert.True(t, inserted, "Insert should return true for a new entry")
 	assert.NoError(t, err, "Insert a new entry should not err")
-	key1 := revcache.NewKey(ia110, ifId15)
+	key1 := revcache.NewKey(ia110, ifID15)
 	revs, err := revCache.Get(ctx, revcache.KeySet{key1: {}})
 	assert.NoError(t, err, "Get should not err for existing entry")
 	assert.NotEmpty(t, revs, "Get should return existing entry")
@@ -92,16 +92,16 @@ func testInsertGet(t *testing.T, revCache TestableRevCache) {
 	inserted, err = revCache.Insert(ctx, rev)
 	assert.False(t, inserted, "Insert should return false for already existing entry")
 	assert.NoError(t, err, "Insert should not err")
-	revs, err = revCache.Get(ctx, revcache.SingleKey(ia110, ifId19))
+	revs, err = revCache.Get(ctx, revcache.SingleKey(ia110, ifID19))
 	assert.NoError(t, err, "Get should not err")
 	assert.Empty(t, revs, "Get should return empty result for not present value")
 }
 
 func testGetMultikey(t *testing.T, revCache TestableRevCache) {
-	rev1 := defaultRevInfo(ia110, ifId15)
-	rev2 := defaultRevInfo(ia110, ifId19)
-	rev3 := defaultRevInfo(ia120, ifId15)
-	rev4 := defaultRevInfo(ia120, common.IFIDType(10))
+	rev1 := defaultRevInfo(ia110, ifID15)
+	rev2 := defaultRevInfo(ia110, ifID19)
+	rev3 := defaultRevInfo(ia120, ifID15)
+	rev4 := defaultRevInfo(ia120, common.IfIDType(10))
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
 
@@ -119,16 +119,16 @@ func testGetMultikey(t *testing.T, revCache TestableRevCache) {
 	_, err = revCache.Insert(ctx, rev4)
 	require.NoError(t, err)
 
-	key1 := revcache.NewKey(ia110, ifId15)
+	key1 := revcache.NewKey(ia110, ifID15)
 	revs, err = revCache.Get(ctx, revcache.KeySet{key1: {}})
 	assert.NoError(t, err, "Get should not err")
 	assert.Equal(t, len(revs), 1, "Should contain one rev")
 	assert.Equal(t, revcache.Revocations{key1: rev1}, revs,
 		"Get should return revs for the given keys")
 
-	key2 := revcache.NewKey(ia110, ifId19)
-	key3 := revcache.NewKey(ia120, ifId15)
-	key4 := revcache.NewKey(ia120, ifId19) // not the key of sr4
+	key2 := revcache.NewKey(ia110, ifID19)
+	key3 := revcache.NewKey(ia120, ifID15)
+	key4 := revcache.NewKey(ia120, ifID19) // not the key of sr4
 	searchKeys := revcache.KeySet{key1: {}, key2: {}, key3: {}, key4: {}}
 	revs, err = revCache.Get(ctx, searchKeys)
 	assert.NoError(t, err, "Get should not err")
@@ -149,10 +149,10 @@ func testGetAll(t *testing.T, revCache TestableRevCache) {
 	assert.False(t, more, "No more entries expected")
 
 	// Insert some stuff and query again
-	rev1 := defaultRevInfo(ia110, ifId15)
-	rev2 := defaultRevInfo(ia110, ifId19)
-	rev3 := defaultRevInfo(ia120, ifId15)
-	rev4 := defaultRevInfo(ia120, common.IFIDType(20))
+	rev1 := defaultRevInfo(ia110, ifID15)
+	rev2 := defaultRevInfo(ia110, ifID19)
+	rev3 := defaultRevInfo(ia120, ifID15)
+	rev4 := defaultRevInfo(ia120, common.IfIDType(20))
 	_, err = revCache.Insert(ctx, rev1)
 	require.NoError(t, err)
 	_, err = revCache.Insert(ctx, rev2)
@@ -187,7 +187,7 @@ func testGetAllExpired(t *testing.T, revCache TestableRevCache) {
 	defer cancelF()
 	// insert expired rev
 	revNew := &path_mgmt.RevInfo{
-		IfID:         ifId15,
+		IfID:         ifID15,
 		RawIsdas:     ia110,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(-2 * time.Second)),
@@ -204,7 +204,7 @@ func testGetAllExpired(t *testing.T, revCache TestableRevCache) {
 
 func testInsertExpired(t *testing.T, revCache TestableRevCache) {
 	r := &path_mgmt.RevInfo{
-		IfID:         ifId15,
+		IfID:         ifID15,
 		RawIsdas:     ia110,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(-15 * time.Second)),
@@ -218,13 +218,13 @@ func testInsertExpired(t *testing.T, revCache TestableRevCache) {
 }
 
 func testInsertNewer(t *testing.T, revCache TestableRevCache) {
-	rev := defaultRevInfo(ia110, ifId15)
+	rev := defaultRevInfo(ia110, ifID15)
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
 	_, err := revCache.Insert(ctx, rev)
 	require.NoError(t, err)
 	revNew := &path_mgmt.RevInfo{
-		IfID:         ifId15,
+		IfID:         ifID15,
 		RawIsdas:     ia110,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(10 * time.Second)),
@@ -234,7 +234,7 @@ func testInsertNewer(t *testing.T, revCache TestableRevCache) {
 	inserted, err := revCache.Insert(ctx, revNew)
 	assert.True(t, inserted, "Insert should return true for a new entry")
 	assert.NoError(t, err, "Insert a new entry should not err")
-	key1 := revcache.NewKey(ia110, ifId15)
+	key1 := revcache.NewKey(ia110, ifID15)
 	revs, err := revCache.Get(ctx, revcache.KeySet{key1: {}})
 	assert.NoError(t, err, "Get should not err for existing entry")
 	assert.NotEmpty(t, revs, "Get should return non empty map for inserted value")
@@ -245,14 +245,14 @@ func testGetExpired(t *testing.T, revCache TestableRevCache) {
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
 	revNew := &path_mgmt.RevInfo{
-		IfID:         ifId15,
+		IfID:         ifID15,
 		RawIsdas:     ia110,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(-2 * time.Second)),
 		RawTTL:       1,
 	}
 	revCache.InsertExpired(t, ctx, revNew)
-	revs, err := revCache.Get(ctx, revcache.SingleKey(ia110, ifId15))
+	revs, err := revCache.Get(ctx, revcache.SingleKey(ia110, ifID15))
 	assert.Empty(t, revs, "Expired entry should not be returned")
 	assert.NoError(t, err, "Should not error for expired entry")
 }
@@ -261,19 +261,19 @@ func testGetMuliKeysExpired(t *testing.T, revCache TestableRevCache) {
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
 	revNew := &path_mgmt.RevInfo{
-		IfID:         ifId15,
+		IfID:         ifID15,
 		RawIsdas:     ia110,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(-2 * time.Second)),
 		RawTTL:       1,
 	}
 	revCache.InsertExpired(t, ctx, revNew)
-	rev110_19 := defaultRevInfo(ia110, ifId19)
+	rev110_19 := defaultRevInfo(ia110, ifID19)
 	_, err := revCache.Insert(ctx, rev110_19)
 	assert.NoError(t, err)
-	validKey := revcache.NewKey(ia110, ifId19)
+	validKey := revcache.NewKey(ia110, ifID19)
 	srCache, err := revCache.Get(ctx, revcache.KeySet{
-		revcache.NewKey(ia110, ifId15): {},
+		revcache.NewKey(ia110, ifID15): {},
 		validKey:                       {},
 	})
 	assert.NoError(t, err, "Should not error for expired entry")
@@ -287,14 +287,14 @@ func testDeleteExpired(t *testing.T, revCache TestableRevCache) {
 	del, err := revCache.DeleteExpired(ctx)
 	assert.NoError(t, err, "DeleteExpired on empty should not error")
 	assert.EqualValues(t, 0, del, "DeleteExpired on empty should delete 0")
-	rev110_19 := defaultRevInfo(ia110, ifId19)
+	rev110_19 := defaultRevInfo(ia110, ifID19)
 	_, err = revCache.Insert(ctx, rev110_19)
 	assert.NoError(t, err)
 	del, err = revCache.DeleteExpired(ctx)
 	assert.NoError(t, err, "DeleteExpired should not error")
 	assert.EqualValues(t, 0, del, "DeleteExpired should delete 0 if entry is not expired")
 	revNew := &path_mgmt.RevInfo{
-		IfID:         ifId15,
+		IfID:         ifID15,
 		RawIsdas:     ia110,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(-2 * time.Second)),
@@ -309,9 +309,9 @@ func testDeleteExpired(t *testing.T, revCache TestableRevCache) {
 	assert.EqualValues(t, 0, del, "DeleteExpired should delete 0 if entry is not expired")
 }
 
-func defaultRevInfo(ia addr.IA, ifId common.IFIDType) *path_mgmt.RevInfo {
+func defaultRevInfo(ia addr.IA, ifID common.IfIDType) *path_mgmt.RevInfo {
 	return &path_mgmt.RevInfo{
-		IfID:         ifId,
+		IfID:         ifID,
 		RawIsdas:     ia,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now()),

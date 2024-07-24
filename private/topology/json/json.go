@@ -94,7 +94,7 @@ type ServerInfo struct {
 // BRInfo contains Border Router specific information.
 type BRInfo struct {
 	InternalAddr string                           `json:"internal_addr"`
-	Interfaces   map[common.IFIDType]*BRInterface `json:"interfaces"`
+	Interfaces   map[common.IfIDType]*BRInterface `json:"interfaces"`
 }
 
 // GatewayInfo contains SCION gateway information.
@@ -113,7 +113,7 @@ type BRInterface struct {
 	LinkTo     string          `json:"link_to"`
 	MTU        int             `json:"mtu"`
 	BFD        *BFD            `json:"bfd,omitempty"`
-	RemoteIFID common.IFIDType `json:"remote_interface_id,omitempty"`
+	RemoteIfID common.IfIDType `json:"remote_interface_id,omitempty"`
 }
 
 // Underlay is the underlay information for a BR interface.
@@ -139,8 +139,8 @@ func (i ServerInfo) String() string {
 func (i BRInfo) String() string {
 	var s []string
 	s = append(s, fmt.Sprintf("Loc addrs:\n  %s\nInterfaces:", i.InternalAddr))
-	for ifid, intf := range i.Interfaces {
-		s = append(s, fmt.Sprintf("%d: %+v", ifid, intf))
+	for ifID, intf := range i.Interfaces {
+		s = append(s, fmt.Sprintf("%d: %+v", ifID, intf))
 	}
 	return strings.Join(s, "\n")
 }

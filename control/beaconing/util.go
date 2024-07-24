@@ -32,12 +32,12 @@ import (
 // ID.
 func sortedIntfs(intfs *ifstate.Interfaces, linkType topology.LinkType) []uint16 {
 	var result []uint16
-	for ifid, intf := range intfs.All() {
+	for ifID, intf := range intfs.All() {
 		topoInfo := intf.TopoInfo()
 		if topoInfo.LinkType != linkType {
 			continue
 		}
-		result = append(result, ifid)
+		result = append(result, ifID)
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
 	return result
@@ -46,14 +46,14 @@ func sortedIntfs(intfs *ifstate.Interfaces, linkType topology.LinkType) []uint16
 type summary struct {
 	mu    sync.Mutex
 	srcs  map[addr.IA]struct{}
-	ifIds map[uint16]struct{}
+	ifIDs map[uint16]struct{}
 	count int
 }
 
 func newSummary() *summary {
 	return &summary{
 		srcs:  make(map[addr.IA]struct{}),
-		ifIds: make(map[uint16]struct{}),
+		ifIDs: make(map[uint16]struct{}),
 	}
 }
 
@@ -63,10 +63,10 @@ func (s *summary) AddSrc(ia addr.IA) {
 	s.srcs[ia] = struct{}{}
 }
 
-func (s *summary) AddIfid(ifid uint16) {
+func (s *summary) AddIfID(ifID uint16) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.ifIds[ifid] = struct{}{}
+	s.ifIDs[ifID] = struct{}{}
 }
 
 func (s *summary) Inc() {
@@ -75,12 +75,12 @@ func (s *summary) Inc() {
 	s.count++
 }
 
-func (s *summary) IfIds() []uint16 {
+func (s *summary) IfIDs() []uint16 {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	list := make([]uint16, 0, len(s.ifIds))
-	for ifId := range s.ifIds {
-		list = append(list, ifId)
+	list := make([]uint16, 0, len(s.ifIDs))
+	for ifID := range s.ifIDs {
+		list = append(list, ifID)
 	}
 	sort.Slice(list, func(i, j int) bool { return list[i] < list[j] })
 	return list

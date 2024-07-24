@@ -411,11 +411,11 @@ func TestResolverWithRevocations(t *testing.T) {
 			ExpectRevcache: func(t *testing.T, revCache *mock_revcache.MockRevCache) {
 				key111_120 := revcache.Key{
 					IA:   non_core_111,
-					IfId: common.IFIDType(graph.If_111_B_120_X),
+					IfID: common.IfIDType(graph.If_111_B_120_X),
 				}
 				key111_130 := revcache.Key{
 					IA:   non_core_111,
-					IfId: common.IFIDType(graph.If_111_A_130_B),
+					IfID: common.IfIDType(graph.If_111_A_130_B),
 				}
 				revoke(t, revCache, key111_120)
 				revoke(t, revCache, key111_130)
@@ -446,7 +446,7 @@ func TestResolverWithRevocations(t *testing.T) {
 				db.EXPECT().Get(gomock.Any(), gomock.Any()).Times(2)
 			},
 			ExpectRevcache: func(t *testing.T, revCache *mock_revcache.MockRevCache) {
-				key110 := revcache.Key{IA: core_110, IfId: common.IFIDType(graph.If_110_X_130_A)}
+				key110 := revcache.Key{IA: core_110, IfID: common.IfIDType(graph.If_110_X_130_A)}
 				ksMatcher := keySetContains{keys: []revcache.Key{key110}}
 				rev := &path_mgmt.RevInfo{}
 				revCache.EXPECT().Get(gomock.Any(), ksMatcher).Return(revcache.Revocations{

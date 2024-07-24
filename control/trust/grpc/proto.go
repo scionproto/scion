@@ -86,6 +86,6 @@ func chainsToResponse(chains [][]*x509.Certificate) *cppb.ChainsResponse {
 
 func trcToResponse(trc cppki.SignedTRC) *cppb.TRCResponse {
 	return &cppb.TRCResponse{
-		Trc: trc.Raw,
+		Trc: trc.Raw, // nolint - name from protobuf
 	}
 }

@@ -227,7 +227,12 @@ func (s *Server) GetCertificateBlob(w http.ResponseWriter, r *http.Request, chai
 	_, _ = w.Write(buf.Bytes())
 }
 
-func (s *Server) GetTrcs(w http.ResponseWriter, r *http.Request, params GetTrcsParams) {
+func (s *Server) GetTrcs(
+	w http.ResponseWriter,
+	r *http.Request,
+	params GetTrcsParams, // nolint - name from published API
+) {
+
 	db := s.TrustDB
 	q := truststorage.TRCsQuery{Latest: !(params.All != nil && *params.All)}
 	if params.Isd != nil {
@@ -279,7 +284,7 @@ func (s *Server) GetTrcs(w http.ResponseWriter, r *http.Request, params GetTrcsP
 
 }
 
-// GetTrc gets the trc specified by it's isd bas and serial.
+// GetTrc gets the trc specified by it's isd base and serial.
 func (s *Server) GetTrc(w http.ResponseWriter, r *http.Request, isd int, base int, serial int) {
 	db := s.TrustDB
 	trc, err := db.SignedTRC(r.Context(), cppki.TRCID{

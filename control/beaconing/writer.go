@@ -165,10 +165,10 @@ func (r *RemoteWriter) Write(
 	var expected int
 	var wg sync.WaitGroup
 	for _, b := range segments {
-		if r.Intfs.Get(b.InIfId) == nil {
+		if r.Intfs.Get(b.InIfID) == nil {
 			continue
 		}
-		err := r.Extender.Extend(ctx, b.Segment, b.InIfId, 0, peers)
+		err := r.Extender.Extend(ctx, b.Segment, b.InIfID, 0, peers)
 		if err != nil {
 			logger.Error("Unable to terminate beacon", "beacon", b, "err", err)
 			metrics.CounterInc(r.InternalErrors)
@@ -223,10 +223,10 @@ func (r *LocalWriter) Write(
 	beacons := make(map[string]beacon.Beacon)
 	var toRegister []*seg.Meta
 	for _, b := range segments {
-		if r.Intfs.Get(b.InIfId) == nil {
+		if r.Intfs.Get(b.InIfID) == nil {
 			continue
 		}
-		err := r.Extender.Extend(ctx, b.Segment, b.InIfId, 0, peers)
+		err := r.Extender.Extend(ctx, b.Segment, b.InIfID, 0, peers)
 		if err != nil {
 			logger.Error("Unable to terminate beacon", "beacon", b, "err", err)
 			metrics.CounterInc(r.InternalErrors)
@@ -266,7 +266,7 @@ func (r *LocalWriter) updateMetricsFromStat(s seghandler.SegStats, b map[string]
 	for _, id := range s.InsertedSegs {
 		metrics.CounterInc(metrics.CounterWith(r.Registered, writerLabels{
 			StartIA: b[id].Segment.FirstIA(),
-			Ingress: b[id].InIfId,
+			Ingress: b[id].InIfID,
 			SegType: r.Type.String(),
 			Result:  "ok_new",
 		}.Expand()...))
@@ -274,7 +274,7 @@ func (r *LocalWriter) updateMetricsFromStat(s seghandler.SegStats, b map[string]
 	for _, id := range s.UpdatedSegs {
 		metrics.CounterInc(metrics.CounterWith(r.Registered, writerLabels{
 			StartIA: b[id].Segment.FirstIA(),
-			Ingress: b[id].InIfId,
+			Ingress: b[id].InIfID,
 			SegType: r.Type.String(),
 			Result:  "ok_updated",
 		}.Expand()...))
@@ -315,7 +315,7 @@ func (r *remoteWriter) startSendSegReg(ctx context.Context, bseg beacon.Beacon,
 
 		labels := writerLabels{
 			StartIA: bseg.Segment.FirstIA(),
-			Ingress: bseg.InIfId,
+			Ingress: bseg.InIfID,
 			SegType: r.writer.Type.String(),
 		}
 
