@@ -8,7 +8,7 @@ See section :ref:`change-proposal-process` for the overview on the overall
 contribution process.
 
 - **Creation**:
-  Design documents are created from the template :file-ref:`doc/dev/design/TEMPLATE.rst`. While the design is still being discussed, it is linked in the WIP
+  Design documents are created from the template :file-ref:`doc/dev/design/TEMPLATE.rst`. While the design is still being discussed, it is linked in the
   section :ref:`design-docs-wip`
 
   Once discussion on a change proposal converges and a design document is
