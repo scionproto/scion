@@ -58,7 +58,7 @@ type Path struct {
 
 // Hop represents an hop on the path.
 type Hop struct {
-	IfID common.IfIDType `json:"ifID"`
+	IfID common.IfIDType `json:"interface"`
 	IA   addr.IA         `json:"isd_as"`
 }
 
