@@ -68,7 +68,7 @@ func (s SegmentCreationServer) Beacon(ctx context.Context,
 	}
 	b := beacon.Beacon{
 		Segment: ps,
-		InIfId:  ingress,
+		InIfID:  ingress,
 	}
 	if err := s.Handler.HandleBeacon(ctx, b, peer); err != nil {
 		logger.Debug("Failed to handle beacon", "peer", peer, "err", err)

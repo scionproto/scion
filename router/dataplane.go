@@ -464,9 +464,9 @@ func (d *DataPlane) addExternalInterfaceBFD(ifID uint16, conn BatchConn,
 // getInterfaceState checks if there is a bfd session for the input interfaceID and
 // returns InterfaceUp if the relevant bfdsession state is up, or if there is no BFD
 // session. Otherwise, it returns InterfaceDown.
-func (d *DataPlane) getInterfaceState(interfaceID uint16) control.InterfaceState {
+func (d *DataPlane) getInterfaceState(ifID uint16) control.InterfaceState {
 	bfdSessions := d.bfdSessions
-	if bfdSession, ok := bfdSessions[interfaceID]; ok && !bfdSession.IsUp() {
+	if bfdSession, ok := bfdSessions[ifID]; ok && !bfdSession.IsUp() {
 		return control.InterfaceDown
 	}
 	return control.InterfaceUp
@@ -1835,7 +1835,7 @@ func (p *scionPacketProcessor) egressRouterAlertFlag() *bool {
 	return &p.hopField.EgressRouterAlert
 }
 
-func (p *slowPathPacketProcessor) handleSCMPTraceRouteRequest(interfaceID uint16) error {
+func (p *slowPathPacketProcessor) handleSCMPTraceRouteRequest(ifID uint16) error {
 
 	if p.lastLayer.NextLayerType() != slayers.LayerTypeSCMP {
 		log.Debug("Packet with router alert, but not SCMP")
@@ -1861,7 +1861,7 @@ func (p *slowPathPacketProcessor) handleSCMPTraceRouteRequest(interfaceID uint16
 		Identifier: scmpP.Identifier,
 		Sequence:   scmpP.Sequence,
 		IA:         p.d.localIA,
-		Interface:  uint64(interfaceID),
+		Interface:  uint64(ifID),
 	}
 	return p.packSCMP(slayers.SCMPTypeTracerouteReply, 0, &scmpP, false)
 }
@@ -2709,11 +2709,11 @@ func nextHdr(layer gopacket.DecodingLayer) slayers.L4ProtocolType {
 func (d *DataPlane) initMetrics() {
 	d.forwardingMetrics = make(map[uint16]interfaceMetrics)
 	d.forwardingMetrics[0] = newInterfaceMetrics(d.Metrics, 0, d.localIA, d.neighborIAs)
-	for id := range d.external {
-		if _, notOwned := d.internalNextHops[id]; notOwned {
+	for ifID := range d.external {
+		if _, notOwned := d.internalNextHops[ifID]; notOwned {
 			continue
 		}
-		d.forwardingMetrics[id] = newInterfaceMetrics(d.Metrics, id, d.localIA, d.neighborIAs)
+		d.forwardingMetrics[ifID] = newInterfaceMetrics(d.Metrics, ifID, d.localIA, d.neighborIAs)
 	}
 
 	// Start our custom /proc/pid/stat collector to export iowait time and (in the future) other

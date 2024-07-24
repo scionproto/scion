@@ -150,5 +150,5 @@ func TestChainsToRep(t *testing.T) {
 func TestTRCToRep(t *testing.T) {
 	trc := cppki.SignedTRC{Raw: []byte("you can trust me, for sure!")}
 	rep := trustgrpc.TRCToResponse(trc)
-	assert.Equal(t, trc.Raw, rep.Trc)
+	assert.Equal(t, trc.Raw, rep.Trc) // nolint - name from published protobuf
 }

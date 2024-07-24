@@ -46,10 +46,10 @@ func NoRevokedHopIntf(ctx context.Context, revCache RevCache,
 func addRevKeys(segs []*seg.PathSegment, keys KeySet, hopOnly bool) {
 	addIntfs := func(ia addr.IA, ingress, egress uint16) {
 		if ingress != 0 {
-			keys[Key{IA: ia, IfId: common.IFIDType(ingress)}] = struct{}{}
+			keys[Key{IA: ia, IfID: common.IfIDType(ingress)}] = struct{}{}
 		}
 		if egress != 0 {
-			keys[Key{IA: ia, IfId: common.IFIDType(egress)}] = struct{}{}
+			keys[Key{IA: ia, IfID: common.IfIDType(egress)}] = struct{}{}
 		}
 	}
 	for _, s := range segs {

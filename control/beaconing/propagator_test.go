@@ -95,13 +95,13 @@ func TestPropagatorRunNonCore(t *testing.T) {
 	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), gomock.Any(),
 		gomock.Any()).Times(1).DoAndReturn(
 
-		func(_ context.Context, _ addr.IA, egIfId uint16,
+		func(_ context.Context, _ addr.IA, egIfID uint16,
 			nextHop *net.UDPAddr) (beaconing.Sender, error) {
 
 			sender := mock_beaconing.NewMockSender(mctrl)
 			sender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(3).DoAndReturn(
 				func(_ context.Context, b *seg.PathSegment) error {
-					validateSend(t, b, egIfId, nextHop, pub, topo)
+					validateSend(t, b, egIfID, nextHop, pub, topo)
 					return nil
 				},
 			)
@@ -168,13 +168,13 @@ func TestPropagatorRunCore(t *testing.T) {
 
 	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), uint16(1121),
 		gomock.Any()).DoAndReturn(
-		func(_ context.Context, _ addr.IA, egIfId uint16,
+		func(_ context.Context, _ addr.IA, egIfID uint16,
 			nextHop *net.UDPAddr) (beaconing.Sender, error) {
 
 			sender := mock_beaconing.NewMockSender(mctrl)
 			sender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(2).DoAndReturn(
 				func(_ context.Context, b *seg.PathSegment) error {
-					validateSend(t, b, egIfId, nextHop, pub, topo)
+					validateSend(t, b, egIfID, nextHop, pub, topo)
 					return nil
 				},
 			)
@@ -184,13 +184,13 @@ func TestPropagatorRunCore(t *testing.T) {
 	)
 	senderFactory.EXPECT().NewSender(gomock.Any(), gomock.Any(), uint16(1113),
 		gomock.Any()).DoAndReturn(
-		func(_ context.Context, _ addr.IA, egIfId uint16,
+		func(_ context.Context, _ addr.IA, egIfID uint16,
 			nextHop *net.UDPAddr) (beaconing.Sender, error) {
 
 			sender := mock_beaconing.NewMockSender(mctrl)
 			sender.EXPECT().Send(gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
 				func(_ context.Context, b *seg.PathSegment) error {
-					validateSend(t, b, egIfId, nextHop, pub, topo)
+					validateSend(t, b, egIfID, nextHop, pub, topo)
 					return nil
 				},
 			)
@@ -280,7 +280,7 @@ func TestPropagatorFastRecovery(t *testing.T) {
 func validateSend(
 	t *testing.T,
 	b *seg.PathSegment,
-	egIfId uint16,
+	egIfID uint16,
 	nextHop *net.UDPAddr,
 	pub crypto.PublicKey,
 	topo topology.Topology,
@@ -292,8 +292,8 @@ func validateSend(
 	// Extract the hop field from the current AS entry to compare.
 	hopF := b.ASEntries[b.MaxIdx()].HopEntry.HopField
 	// Check the interface matches.
-	assert.Equal(t, hopF.ConsEgress, egIfId)
+	assert.Equal(t, hopF.ConsEgress, egIfID)
 	// Check that the beacon is sent to the correct border router.
-	br := net.UDPAddrFromAddrPort(interfaceInfos(topo)[egIfId].InternalAddr)
+	br := net.UDPAddrFromAddrPort(interfaceInfos(topo)[egIfID].InternalAddr)
 	assert.Equal(t, br, nextHop)
 }

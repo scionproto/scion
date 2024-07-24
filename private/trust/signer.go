@@ -67,8 +67,8 @@ func (s Signer) Sign(
 
 	id := &cppb.VerificationKeyID{
 		IsdAs:        uint64(s.IA),
-		TrcBase:      uint64(s.TRCID.Base),
-		TrcSerial:    uint64(s.TRCID.Serial),
+		TrcBase:      uint64(s.TRCID.Base),   // nolint - name from published protobuf
+		TrcSerial:    uint64(s.TRCID.Serial), // nolint - name from published protobuf
 		SubjectKeyId: s.SubjectKeyID,
 	}
 	rawID, err := proto.Marshal(id)

@@ -231,7 +231,7 @@ func testBeacon(g *graph.Graph, desc []uint16) beacon.Beacon {
 	bseg.ASEntries = bseg.ASEntries[:len(bseg.ASEntries)-1]
 
 	return beacon.Beacon{
-		InIfId:  asEntry.HopEntry.HopField.ConsIngress,
+		InIfID:  asEntry.HopEntry.HopField.ConsIngress,
 		Segment: bseg,
 	}
 }
@@ -274,12 +274,12 @@ func (v segVerifier) Verify(_ context.Context, signedMsg *cryptopb.SignedMessage
 // ID.
 func sortedIntfs(intfs *ifstate.Interfaces, linkType topology.LinkType) []uint16 {
 	var result []uint16
-	for ifid, intf := range intfs.All() {
+	for ifID, intf := range intfs.All() {
 		topoInfo := intf.TopoInfo()
 		if topoInfo.LinkType != linkType {
 			continue
 		}
-		result = append(result, ifid)
+		result = append(result, ifID)
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
 	return result
@@ -348,7 +348,7 @@ type topoWrap struct {
 }
 
 func (w topoWrap) UnderlayNextHop(id uint16) *net.UDPAddr {
-	a, _ := w.Topo.UnderlayNextHop(common.IFIDType(id))
+	a, _ := w.Topo.UnderlayNextHop(common.IfIDType(id))
 	return a
 }
 
@@ -369,7 +369,7 @@ func interfaceInfos(topo topology.Topology) map[uint16]ifstate.InterfaceInfo {
 			IA:           info.IA,
 			LinkType:     info.LinkType,
 			InternalAddr: netip.MustParseAddrPort(info.InternalAddr.String()),
-			RemoteID:     uint16(info.RemoteIFID),
+			RemoteID:     uint16(info.RemoteIfID),
 			MTU:          uint16(info.MTU),
 		}
 	}

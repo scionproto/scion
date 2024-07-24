@@ -3,6 +3,7 @@ linters:
   disable-all: true
   enable:
     # Default linters.
+    - forbidigo
     - errcheck
     - gosimple
     - govet
@@ -19,6 +20,15 @@ linters:
     - misspell
     - goheader
 linters-settings:
+  # ...
+  forbidigo:
+    forbid:
+    - p: "([iI][fF][iI]d)|([iI]F[iI][dD])|([iI][fF]i[dD])"
+      msg: "spell interface ID as ifID / IfID"
+    - p: "(?i)interfaceID"  # case insensitive
+      msg: "spell interface ID as ifID / IfID"
+    - p: "Trc"
+      msg: "spell trust root certificate as trc / TRC"
   lll:
     line-length: 100
     tab-width: 4

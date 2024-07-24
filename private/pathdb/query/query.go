@@ -26,7 +26,7 @@ import (
 
 type IntfSpec struct {
 	IA   addr.IA
-	IfID common.IFIDType
+	IfID common.IfIDType
 }
 
 type Params struct {

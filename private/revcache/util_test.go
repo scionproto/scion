@@ -35,14 +35,12 @@ import (
 )
 
 var (
-	ia211 = addr.MustParseIA("2-ff00:0:211")
-
+	ia211   = addr.MustParseIA("2-ff00:0:211")
 	timeout = time.Second
 )
 
 func TestNoRevokedHopIntf(t *testing.T) {
 	now := time.Now()
-
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
@@ -62,7 +60,7 @@ func TestNoRevokedHopIntf(t *testing.T) {
 		revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).Return(
 			revcache.Revocations{
 				revcache.Key{IA: addr.MustParseIA("2-ff00:0:211"),
-					IfId: common.IFIDType(graph.If_210_X_211_A)}: sRev,
+					IfID: common.IfIDType(graph.If_210_X_211_A)}: sRev,
 			}, nil,
 		)
 		noR, err := revcache.NoRevokedHopIntf(ctx, revCache, seg210_222_1)
@@ -79,9 +77,9 @@ func TestNoRevokedHopIntf(t *testing.T) {
 	})
 }
 
-func defaultRevInfo(ia addr.IA, ifId uint16, ts time.Time) *path_mgmt.RevInfo {
+func defaultRevInfo(ia addr.IA, ifID uint16, ts time.Time) *path_mgmt.RevInfo {
 	return &path_mgmt.RevInfo{
-		IfID:         common.IFIDType(ifId),
+		IfID:         common.IfIDType(ifID),
 		RawIsdas:     ia,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(ts),

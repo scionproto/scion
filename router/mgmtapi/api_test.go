@@ -154,7 +154,7 @@ func TestAPI(t *testing.T) {
 func createExternalIntfs(t *testing.T) []control.ExternalInterface {
 	return []control.ExternalInterface{
 		{
-			InterfaceID: 1,
+			IfID: 1,
 			Link: control.LinkInfo{
 				Local: control.LinkEnd{
 					IA:   addr.MustParseIA("1-ff00:0:110"),
@@ -177,7 +177,7 @@ func createExternalIntfs(t *testing.T) []control.ExternalInterface {
 			State: control.InterfaceUp,
 		},
 		{
-			InterfaceID: 2,
+			IfID: 2,
 			Link: control.LinkInfo{
 				Local: control.LinkEnd{
 					IA:   addr.MustParseIA("1-ff00:0:110"),
@@ -200,7 +200,7 @@ func createExternalIntfs(t *testing.T) []control.ExternalInterface {
 			State: control.InterfaceUp,
 		},
 		{
-			InterfaceID: 5,
+			IfID: 5,
 			Link: control.LinkInfo{
 				Local: control.LinkEnd{
 					IA:   addr.MustParseIA("1-ff00:0:111"),
@@ -223,7 +223,7 @@ func createExternalIntfs(t *testing.T) []control.ExternalInterface {
 			State: control.InterfaceUp,
 		},
 		{
-			InterfaceID: 6,
+			IfID: 6,
 			Link: control.LinkInfo{
 				Local: control.LinkEnd{
 					IA:   addr.MustParseIA("1-ff00:0:112"),
@@ -264,7 +264,7 @@ func createInternalIntfs(t *testing.T) []control.InternalInterface {
 func createSiblingIntfs(t *testing.T) []control.SiblingInterface {
 	return []control.SiblingInterface{
 		{
-			InterfaceID:       5,
+			IfID:              5,
 			InternalInterface: netip.MustParseAddrPort("172.20.0.20:30042"),
 			Relationship:      topology.Parent,
 			MTU:               1280,
