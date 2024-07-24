@@ -137,10 +137,10 @@ scion_proto.experts = {
 -- SCION traffic from. So, there's no choice.
 local function scion_proto_filter(tvbuf, pktinfo, root)
     local version_valid = (bit.rshift(tvbuf(0,1):uint(), 4) == 0)
-    local next_hdr_valid = (hdrTypes[tvbuf(4, 1):uint()] != nil)
+    local next_hdr_valid = (hdrTypes[tvbuf(4, 1):uint()] ~= nil)
     local path_type_valid = (tvbuf(8, 1):uint() < 5)
-    local addr_type_dst_valid = (addrTypes[bit.rshift(tvbuf(9, 1):uint(), 4)] != nil)
-    local addr_type_src_valid = (addrTypes[bit.band(tvbuf(9, 1):uint(), 0xf)] != nil)
+    local addr_type_dst_valid = (addrTypes[bit.rshift(tvbuf(9, 1):uint(), 4)] ~= nil)
+    local addr_type_src_valid = (addrTypes[bit.band(tvbuf(9, 1):uint(), 0xf)] ~= nil)
     local rsv_valid = (tvbuf(10, 2):uint() == 0)
     
     if version_valid and next_hdr_valid and path_type_valid and addr_type_dst_valid and addr_type_src_valid and rsv_valid then
