@@ -15,10 +15,10 @@
 
 package common
 
+import (
+	"github.com/scionproto/scion/pkg/private/serrors"
+)
+
 // ErrMsg should be used for error string constants. The constant can then be
 // used for Is checking in the calling code.
-type ErrMsg string
-
-func (e ErrMsg) Error() string {
-	return string(e)
-}
+type ErrMsg = serrors.ErrMsg
