@@ -65,21 +65,51 @@ contained on the drive.
 For each certificate, the *ceremony administrator* displays the validity period
 and checks that they cover the previously agreed upon TRC validity.
 
-.. literalinclude:: trc_ceremony.sh
-   :start-after: LITERALINCLUDE display_validity START
-   :end-before: LITERALINCLUDE display_validity END
+.. tab-set::
+   :sync-group: tool
+
+   .. tab-item:: scion-pki
+      :sync: scion-pki
+
+      .. literalinclude:: trc_ceremony.sh
+         :start-after: LITERALINCLUDE display_validity_scion-pki START
+         :end-before: LITERALINCLUDE display_validity_scion-pki END
+
+   .. tab-item:: openssl
+      :sync: openssl
+
+      .. literalinclude:: trc_ceremony.sh
+         :start-after: LITERALINCLUDE display_validity START
+         :end-before: LITERALINCLUDE display_validity END
 
 Further, checks that the signature algorithms are correct:
 
-.. literalinclude:: trc_ceremony.sh
-   :start-after: LITERALINCLUDE display_signature_algo START
-   :end-before: LITERALINCLUDE display_signature_algo END
+.. tab-set::
+   :sync-group: tool
+
+   .. tab-item:: scion-pki
+      :sync: scion-pki
+
+      .. literalinclude:: trc_ceremony.sh
+         :start-after: LITERALINCLUDE display_signature_algo_scion-pki START
+         :end-before: LITERALINCLUDE display_signature_algo_scion-pki END
+
+   .. tab-item:: openssl
+      :sync: openssl
+
+      .. literalinclude:: trc_ceremony.sh
+         :start-after: LITERALINCLUDE display_signature_algo START
+         :end-before: LITERALINCLUDE display_signature_algo END
 
 And finally, checks that the certificates are of valid type:
 
-.. literalinclude:: trc_ceremony.sh
-   :start-after: LITERALINCLUDE validate_certificate_type START
-   :end-before: LITERALINCLUDE validate_certificate_type END
+.. tab-set::
+
+   .. tab-item:: scion-pki
+
+      .. literalinclude:: trc_ceremony.sh
+         :start-after: LITERALINCLUDE validate_certificate_type START
+         :end-before: LITERALINCLUDE validate_certificate_type END
 
 If the results of these checks are as expected, the *ceremony administrator*
 computes the SHA256 sum for each certificate:
@@ -123,10 +153,9 @@ update. The value will be used to fill in the ``{{.VotingQuorum}}`` variable
 below.
 
 Last, ask the *voting representatives* for the validity period of the new TRC.
-The value will be used to fill in the ``{{.NotBefore}}`` and ``{{.Validity}}``
-variable below. The ``{{.NotBefore}}`` variable is represented as a UNIX
-timestamp (seconds since Epoch January 1st, 1970 UTC, e.g. ``1593000000``
-equals June 24th, 2020 UTC at noon).
+The value will be used to fill in the ``{{.NotBefore}}`` and ``{{.NotAfter}}``
+variable below. The ``{{.NotBefore}}`` and ``{{.NotAfter}}`` variable are
+represented as a `RFC3339 <https://www.rfc-editor.org/rfc/rfc3339>`__ timestamp.
 
 To highlight variable types, we include some examples. The format must include
 the part after the ``=`` sign exactly as it is written (i.e., with the exact
@@ -137,6 +166,9 @@ same quoting, parentheses, etc.).
    :end-before: LITERALINCLUDE payload_conf_sample END
 
 .. note::
+
+   Previous versions of ``scion-pki`` used UNIX timestamps for ``NotBefore`` and
+   and a time duration string for ``Validity``.
 
    The UNIX timestamp can be displayed in human readable form using the ``date``
    command::
@@ -160,9 +192,15 @@ correct.
 
 Once the data has been verified, compute the DER encoding of the TRC data:
 
-.. literalinclude:: trc_ceremony.sh
-   :start-after: LITERALINCLUDE create_payload START
-   :end-before: LITERALINCLUDE create_payload END
+.. tab-set::
+   :sync-group: tool
+
+   .. tab-item:: scion-pki
+      :sync: scion-pki
+
+      .. literalinclude:: trc_ceremony.sh
+         :start-after: LITERALINCLUDE create_payload START
+         :end-before: LITERALINCLUDE create_payload END
 
 Compute the SHA256 sum of the TRC payload file using:
 
@@ -192,10 +230,24 @@ have cast their votes and copied the signatures onto the *USB flash drive*.
 As part of this phase, the *voting representatives* inspect the TRC payload.
 Display the TRC payload using:
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE display_payload START
-   :end-before: LITERALINCLUDE display_payload END
-   :dedent: 4
+.. tab-set::
+   :sync-group: tool
+
+   .. tab-item:: scion-pki
+      :sync: scion-pki
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE display_payload_scion_pki START
+         :end-before: LITERALINCLUDE display_payload_scion_pki END
+         :dedent: 4
+
+   .. tab-item:: openssl
+      :sync: openssl
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE display_payload START
+         :end-before: LITERALINCLUDE display_payload END
+         :dedent: 4
 
 Walk the *voting representatives* through the output and describe the meaning
 and implications of each part.
@@ -221,20 +273,35 @@ should be available at the following locations on the *USB flash drive*:
 
 To assemble the final TRC in a file, run the following command:
 
-.. literalinclude:: trc_ceremony.sh
-   :start-after: LITERALINCLUDE combine_payload START
-   :end-before: LITERALINCLUDE combine_payload END
+.. tab-set::
+   :sync-group: tool
+
+   .. tab-item:: scion-pki
+      :sync: scion-pki
+
+      .. literalinclude:: trc_ceremony.sh
+         :start-after: LITERALINCLUDE combine_payload START
+         :end-before: LITERALINCLUDE combine_payload END
 
 To check that the resulting TRC is correct, run:
 
-.. literalinclude:: trc_ceremony.sh
-   :start-after: LITERALINCLUDE verify_payload START
-   :end-before: LITERALINCLUDE verify_payload END
+.. tab-set::
+   :sync-group: tool
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE verify_trc START
-   :end-before: LITERALINCLUDE verify_trc END
-   :dedent: 4
+   .. tab-item:: scion-pki
+      :sync: scion-pki
+
+      .. literalinclude:: trc_ceremony.sh
+         :start-after: LITERALINCLUDE verify_payload START
+         :end-before: LITERALINCLUDE verify_payload END
+
+   .. tab-item:: openssl
+      :sync: openssl
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE verify_trc START
+         :end-before: LITERALINCLUDE verify_trc END
+         :dedent: 4
 
 Copy the signed TRC to the *USB flash drive* in the root directory. Disconnect
 the *USB flash drive*.
@@ -255,10 +322,24 @@ confirm that verification has finished successfully. If any verification fails,
 Furthermore, the *voting representatives* inspect that all signatures are present.
 Display the signed TRC with this command:
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE display_signatures START
-   :end-before: LITERALINCLUDE display_signatures END
-   :dedent: 4
+.. tab-set::
+   :sync-group: tool
+
+   .. tab-item:: scion-pki
+      :sync: scion-pki
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE display_signatures_scion_pki START
+         :end-before: LITERALINCLUDE display_signatures_scion_pki END
+         :dedent: 4
+
+   .. tab-item:: openssl
+      :sync: openssl
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE display_signatures START
+         :end-before: LITERALINCLUDE display_signatures END
+         :dedent: 4
 
 Walk the *voting representatives* through the output and describe the meaning
 and implications of each part.
@@ -298,7 +379,7 @@ put in the current working directory.
 .. important::
 
    It is required that the machine used to execute the commands has openssl
-   version 1.1.1d or higher installed.
+   version 3.0.14 or higher installed.
 
 Phase 1 - Exchange of Certificates
 ----------------------------------
@@ -406,17 +487,45 @@ one using the *regular voting certificate* and one using the *sensitive voting c
 
 Before signing, check that the TRC payload is sound:
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE display_payload START
-   :end-before: LITERALINCLUDE display_payload END
-   :dedent: 4
+.. tab-set::
+   :sync-group: tool
+
+   .. tab-item:: scion-pki
+      :sync: scion-pki
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE display_payload_scion_pki START
+         :end-before: LITERALINCLUDE display_payload_scion_pki END
+         :dedent: 4
+
+   .. tab-item:: openssl
+      :sync: openssl
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE display_payload START
+         :end-before: LITERALINCLUDE display_payload END
+         :dedent: 4
 
 To compute the signatures, run:
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE sign_payload START
-   :end-before: LITERALINCLUDE sign_payload END
-   :dedent: 4
+.. tab-set::
+   :sync-group: tool
+
+   .. tab-item:: scion-pki
+      :sync: scion-pki
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE sign_payload_scion_pki START
+         :end-before: LITERALINCLUDE sign_payload_scion_pki END
+         :dedent: 4
+
+   .. tab-item:: openssl
+      :sync: openssl
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE sign_payload START
+         :end-before: LITERALINCLUDE sign_payload END
+         :dedent: 4
 
 .. Warning::
 
@@ -425,10 +534,24 @@ To compute the signatures, run:
 
 To sanity check that the signatures were created correctly, run:
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE check_signed_payload START
-   :end-before: LITERALINCLUDE check_signed_payload END
-   :dedent: 4
+.. tab-set::
+   :sync-group: tool
+
+   .. tab-item:: scion-pki
+      :sync: scion-pki
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE check_signed_payload_scion_pki START
+         :end-before: LITERALINCLUDE check_signed_payload_scion_pki END
+         :dedent: 4
+
+   .. tab-item:: openssl
+      :sync: openssl
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE check_signed_payload START
+         :end-before: LITERALINCLUDE check_signed_payload END
+         :dedent: 4
 
 
 Connect the *USB flash drive* to the *device*, and copy ``$TRCID.regular.trc`` and
@@ -459,25 +582,52 @@ If the sum differs, then **Phase 3** and **Phase 4** need to be repeated.
 Next, check that all the fields are consistent with earlier choices. To print the fields
 that are present in the TRC, run:
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE verify_trc START
-   :end-before: LITERALINCLUDE verify_trc END
-   :dedent: 4
+.. tab-set::
+   :sync-group: tool
+
+   .. tab-item:: scion-pki
+      :sync: scion-pki
+
+      .. literalinclude:: trc_ceremony.sh
+         :start-after: LITERALINCLUDE verify_payload START
+         :end-before: LITERALINCLUDE verify_payload END
+
+   .. tab-item:: openssl
+      :sync: openssl
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE verify_trc START
+         :end-before: LITERALINCLUDE verify_trc END
+         :dedent: 4
+
+      .. note::
+
+         The ``-no_check_time`` flag is needed when the validity time of the TRC is in
+         the future.
 
 If there is a mismatch between any of the fields and the desired policy, then
 **Phase 3** and **Phase 4** need to be repeated.
 
-.. note::
-
-   The ``-no_check_time`` flag is needed when the validity time of the TRC is in
-   the future.
-
 As a final check, run:
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE display_signatures START
-   :end-before: LITERALINCLUDE display_signatures END
-   :dedent: 4
+.. tab-set::
+   :sync-group: tool
+
+   .. tab-item:: scion-pki
+      :sync: scion-pki
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE display_signatures_scion_pki START
+         :end-before: LITERALINCLUDE display_signatures_scion_pki END
+         :dedent: 4
+
+   .. tab-item:: openssl
+      :sync: openssl
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE display_signatures START
+         :end-before: LITERALINCLUDE display_signatures END
+         :dedent: 4
 
 and check that the signature information of each signature is present; there should
 be 2 signatures for each *voting representative*. If a signature is missing, then

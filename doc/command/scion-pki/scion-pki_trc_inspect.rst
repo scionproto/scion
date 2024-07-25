@@ -11,7 +11,7 @@ Synopsis
 ~~~~~~~~
 
 
-'human' outputs the TRC contents in a human readable form.
+'inspect' outputs the TRC contents in a inspect readable form.
 
 The input file can either be a TRC payload, or a signed TRC.
 The output can either be in yaml, or json.
@@ -29,8 +29,8 @@ Examples
 
 ::
 
-    scion-pki trc human ISD1-B1-S1.pld.der
-    scion-pki trc human ISD1-B1-S1.trc
+    scion-pki trc inspect ISD1-B1-S1.pld.der
+    scion-pki trc inspect ISD1-B1-S1.trc
 
 Options
 ~~~~~~~
