@@ -111,18 +111,21 @@ func TestWithCtx(t *testing.T) {
 }
 
 func TestWrap(t *testing.T) {
+	// Note that serrors.Wrap(msg, cause,...) cannot use a generic error as the wrapper message.
+	// Instead, use its replacement and use an ErrMsg.
+	// it has to extract the error message.
 	t.Run("Is", func(t *testing.T) {
 		err := serrors.New("simple err")
-		msg := serrors.New("msg err")
-		wrappedErr := serrors.Wrap(msg, err, "someCtx", "someValue")
+		msg := serrors.ErrMsg("msg err")
+		wrappedErr := serrors.FromMsg(msg, err, nil, "someCtx", "someValue")
 		assert.ErrorIs(t, wrappedErr, err)
 		assert.ErrorIs(t, wrappedErr, msg)
 		assert.ErrorIs(t, wrappedErr, wrappedErr)
 	})
 	t.Run("As", func(t *testing.T) {
 		err := &testErrType{msg: "test err"}
-		msg := serrors.New("msg err")
-		wrappedErr := serrors.Wrap(msg, err, "someCtx", "someValue")
+		msg := serrors.ErrMsg("msg err")
+		wrappedErr := serrors.FromMsg(msg, err, nil, "someCtx", "someValue")
 		var errAs *testErrType
 		require.True(t, errors.As(wrappedErr, &errAs))
 		assert.Equal(t, err, errAs)
@@ -210,8 +213,11 @@ func TestEncoding(t *testing.T) {
 			goldenFileBase: "testdata/wrapped-with-string",
 		},
 		"wrapped error": {
-			err: serrors.Wrap(
-				serrors.New("msg error"),
+			// Wrap is deprecated and it is not possible to encapsulate a generic error as the
+			// main error of a basicError. Replacement is FromMsg(ErrMsg, ...)
+
+			err: serrors.FromMsg(
+				serrors.ErrMsg("msg error"),
 				serrors.New("msg cause"),
 				"k0", "v0",
 				"k1", 1,
@@ -219,7 +225,10 @@ func TestEncoding(t *testing.T) {
 			goldenFileBase: "testdata/wrapped-error",
 		},
 		"error with context": {
-			err:            serrors.WithCtx(serrors.New("simple err"), "someCtx", "someValue"),
+			// WithCtx is deprecated. The equivalent is to set err as the cause of a new
+			// error. The printed result isn't exactly the same.
+			err: serrors.FromStr(
+				"with context", serrors.New("simple err"), "someCtx", "someValue"),
 			goldenFileBase: "testdata/error-with-context",
 		},
 		"error list": {
@@ -353,13 +362,15 @@ func ExampleNew() {
 }
 
 func ExampleWithCtx() {
+	// It is not possible to build a basicError on top of a basicError.
+	// WithCtx turns that into an error with a cause.
 	// ErrBadL4 is an error defined at package scope.
 	var ErrBadL4 = serrors.New("Unsupported L4 protocol")
 	addedCtx := serrors.WithCtx(ErrBadL4, "type", "SCTP")
 
 	fmt.Println(addedCtx)
 	// Output:
-	// Unsupported L4 protocol {type=SCTP}
+	// error {type=SCTP}: Unsupported L4 protocol
 }
 
 func ExampleWrapStr() {
@@ -376,10 +387,12 @@ func ExampleWrapStr() {
 }
 
 func ExampleWrap() {
+	// Wrap, nor any constructor can make this work if both error and cause are generic
+	// errors. The wrapper error must be a plain error message, not a full basicError.
 	// ErrNoSpace is an error defined at package scope.
 	var ErrNoSpace = serrors.New("no space")
 	// ErrDB is an error defined at package scope.
-	var ErrDB = serrors.New("db")
+	var ErrDB = serrors.ErrMsg("db")
 	wrapped := serrors.Wrap(ErrDB, ErrNoSpace, "ctx", 1)
 
 	// Now we can identify specific errors:

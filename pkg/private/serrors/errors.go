@@ -33,14 +33,21 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// ErrMsg is a custom error type used instead of strings in many places. Keeping it for
+// compatibility. There are basicError constructors for both string and ErrMsg.
 type ErrMsg string
 
+// Error() implements the Go error interface.
 func (e ErrMsg) Error() string {
 	return string(e)
 }
 
+// basicError is an implementation of error that encapsulates various pieces of information besides
+// a message. The msg field is *not* any kind of error, it is a string error. This is because
+// encapsulating two errors makes the Is() method semantics ambiguous. A generic error can be used
+// as a cause. There are constructors from generic error; they encapsulate it as a string error.
 type basicError struct {
-	msg    error
+	msg    ErrMsg
 	fields map[string]interface{}
 	cause  error
 	stack  *stack
@@ -62,13 +69,7 @@ func (e basicError) Error() string {
 // MarshalLogObject implements zapcore.ObjectMarshaler to have a nicer log
 // representation.
 func (e basicError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	if marshaler, ok := e.msg.(zapcore.ObjectMarshaler); ok {
-		if err := enc.AddObject("msg", marshaler); err != nil {
-			return err
-		}
-	} else {
-		enc.AddString("msg", e.msg.Error())
-	}
+	enc.AddString("msg", e.msg.Error())
 	if e.cause != nil {
 		if m, ok := e.cause.(zapcore.ObjectMarshaler); ok {
 			if err := enc.AddObject("cause", m); err != nil {
@@ -95,13 +96,8 @@ func (e basicError) Is(err error) bool {
 	switch other := err.(type) {
 	case basicError:
 		return e.msg == other.msg
-		// This is sick. We cannot have the same provision for *basicError: we have unit test
-		// that verify that different newed errors are never equal, even if their content is
-		// identical.
 	default:
-		// e is the result of FromErrXYZ(err). By definition we call that equal. We do not
-		// recurse though, so it's not very robust. Also notice that if err is a basicError
-		// OBJECT it's the rule above that applies. So all of that is by-design inconsistent.
+		// e is the result of FromMsg(err). By definition we call that equal.
 		return e.msg == err
 	}
 }
@@ -145,95 +141,71 @@ func IsTemporary(err error) bool {
 	return errors.As(err, &t) && t.Temporary()
 }
 
-// FromErrCtx() returns an error that associates the given error with the given context.
-// The returned error implements Is and Is(err) returns true. The given err argument may be any
-// kind of error, including a basicError. No attempt is made at merging the contexts.
-func FromErrCtx(err error, errCtx ...interface{}) error {
-	return basicError{
-		msg:    err,
-		fields: errCtxToFields(errCtx),
-	}
-}
-
-// FromErrCtxWithStack() returns an error that associates the given error with the given context,
-// plus a stack dump.
-// The returned error implements Is and Is(err) returns true. The given err argument may be any
-// kind of error, including a basicError. No attempt is made at merging the contexts. err is not
-// assumed to already contain a stack dump.
-func FromErrCtxWithStack(err error, errCtx ...interface{}) error {
-	return basicError{
-		msg:    err,
-		fields: errCtxToFields(errCtx),
-		stack:  callers(),
-	}
-}
-
-// FromErrCauseCtx() returns an error that associates the given error, with the given cause (an
-// underlying error) and the given context. The returned error implements Is and Is(msg) and
-// Is(cause) both return true. The given errors may be of any kind, including basicError. No attempt
-// is made at merging them or the given context. The error will carry no stack dump.
-func FromErrCauseCtx(msg, cause error, errCtx ...interface{}) error {
-	return basicError{
+// FromErrCauseStackOpt() returns an error that associates the given message, with the given cause
+// (an underlying error) unless nil, and the given context. A stack dump is added if requested and
+// apropriate. The returned error implements Is. Is(msg) returns true. Is(cause) returns
+// true if cause is not nil. Most other constructors call this one.
+func FromMsgCauseStackOpt(msg ErrMsg, cause error, addStack bool, errCtx ...interface{}) error {
+	r := basicError{
 		msg:    msg,
-		cause:  cause,
 		fields: errCtxToFields(errCtx),
 	}
-}
+	if cause != nil {
+		// in the odd case where we have two causes. Assume the new one is the one that matters.
+		r.cause = cause
+	}
+	if !addStack {
+		return r
+	}
 
-// FromErrCauseCtxWithStack() returns an error that associates the given error, with the given
-// cause (an underlying error) and the given context, plus a stack dump. The returned error
-// implements Is and Is(msg) and Is(cause) both return true. The given errors may be of any kind,
-// including basicError. No attempt is made at merging them or the given context. Nor is it assumed
-// it may contain a stack dump. If cause is a basicError, it is addumed to contain a stack dump
-// so a new one is not created.
-func FromErrCauseCtxWithStack(msg, cause error, errCtx ...interface{}) error {
 	var (
 		existingVal basicError
 		existingPtr *basicError
-		st          *stack
 	)
 
-	// We attach a stacktrace if there is no basic error already. Note that if the innermost
+	// We attach a stacktrace if there is no basic error cause already. Note that if the innermost
 	// basicError was without a stack trace, then there'll never be one. That's to avoid looking
 	// for it in every level or every constructor. TB revisisted if necessary.
-	if !errors.As(cause, &existingVal) && !errors.As(cause, &existingPtr) {
-		st = callers()
+	if r.cause == nil || !errors.As(cause, &existingVal) && !errors.As(cause, &existingPtr) {
+		r.stack = callers()
 	}
-	return basicError{
-		msg:    msg,
-		cause:  cause,
-		fields: errCtxToFields(errCtx),
-		stack:  st,
-	}
+	return r
 }
 
-// FromMsgCtx() is a convenience method equivalent to
-// FromErrCtx(ErrMsg(msg), ...)
-func FromMsgCtx(msg string, errCtx ...interface{}) error {
-	return FromErrCtx(ErrMsg(msg), errCtx...)
+// FromMsg() returns an error that associates the given message, with the given cause
+// (an underlying error) unless nil, and the given context.
+// The returned error implements Is. Is(msg) returns true. Is(cause) returns true if cause is not
+// nil.
+func FromMsg(msg ErrMsg, cause error, errCtx ...interface{}) error {
+	return FromMsgCauseStackOpt(msg, cause, false, errCtx...)
 }
 
-// FromMsgCtxWithStack() is a convenience method equivalent to
-// FromErrCtxWithStack(ErrMsg(msg), ...)
-func FromMsgCtxWithStack(msg string, errCtx ...interface{}) error {
-	return FromErrCtxWithStack(ErrMsg(msg), errCtx...)
+// FromMsgWithStack() returns an error that associates the given message, with the given cause
+// (an underlying error) unless nil, and the given context. A stack dump is added if apropriate. The
+// returned error implements Is. Is(msg) returns true. Is(cause) returns true if cause is not nil.
+func FromMsgWithStack(msg ErrMsg, cause error, errCtx ...interface{}) error {
+	return FromMsgCauseStackOpt(msg, cause, true, errCtx...)
 }
 
-// FromMsgCauseCtx() is a convenience method equivalent to
-// FromErrCauseCtx(ErrMsg(msg), ...)
-func FromMsgCauseCtx(msg string, cause error, errCtx ...interface{}) error {
-	return FromErrCauseCtx(ErrMsg(msg), cause, errCtx...)
+// FromStr() returns an error that associates the given message, with the given cause
+// (an underlying error) unless nil, and the given context.
+// The returned error implements Is and Is(cause) returns true if cause is not nil.
+func FromStr(msg string, cause error, errCtx ...interface{}) error {
+	return FromMsgCauseStackOpt(ErrMsg(msg), cause, false, errCtx...)
 }
 
-// FromMsgCauseCtxWithStack() is a convenience method equivalent to
-// FromErrCauseCtxWithStack(ErrMsg(msg),...)
-func FromMsgCauseCtxWithStack(msg string, cause error, errCtx ...interface{}) error {
-	return FromErrCauseCtxWithStack(ErrMsg(msg), cause, errCtx...)
+// FromStrWithStack() returns an error that associates the given message, with the given cause
+// (an underlying error) unless nil, and the given context. A stack dump is added if apropriate. The
+// returned error implements Is and Is(cause) returns true if cause is not nil.
+func FromStrWithStack(msg string, cause error, errCtx ...interface{}) error {
+	return FromMsgCauseStackOpt(ErrMsg(msg), cause, true, errCtx...)
 }
 
 // New() creates a new error with the given message and context, with a stack dump.
-// It is equivalent to FromMsgCtxWithStack() but returns by reference as is expected of "New()".
-// Avoid using this in performance-critical code: it is expensive AND allocates from heap.
+// It is equivalent to FromMsgWithStack() but returns by reference as is expected of "New()".
+// Avoid using this in performance-critical code: it is the most expensive variant. It doesn't
+// work well for incremental error construction as it can only be encapsulated as a cause.
+// As a result, to make sentinel errors, ErrMsg should be preferred.
 func New(msg string, errCtx ...interface{}) error {
 	return &basicError{
 		msg:    ErrMsg(msg),
@@ -242,22 +214,24 @@ func New(msg string, errCtx ...interface{}) error {
 	}
 }
 
-// WithCtx() is deprecated. It is replaced with FromErrCtx().
-// Note that if given a basicError, this function used to attempt the merger of the given context
-// and that of err. That almost never happened even when intended and almost nothing cared, so that
-// feature is gone.
+// WithCtx() is deprecated. It should never have existed. If you want context added to a generic
+// error, you must make it the cause, using one of the FromX() consructors. This shim
+// does that for you, supplying a default message prefix. Historically, this function did not add
+// a stack dump. It still doesn't.
 func WithCtx(err error, errCtx ...interface{}) error {
-	return FromErrCtx(err, errCtx...)
+	return FromMsgCauseStackOpt(ErrMsg("error"), err, false, errCtx...)
 }
 
-// Wrap is deprecated. It is replaced by FromErrCauseCtx().
-func Wrap(msg, cause error, errCtx ...interface{}) error {
-	return FromErrCauseCtx(msg, cause, errCtx...)
+// Wrap() is deprecated. Use FromMsg(). This shim downgrades the given error to
+// a plain string error before use. Is(err) will return false. Code relying on Is(err) == true
+// must be adjusted. Historically, this function did not add a stack dump. It still doesn't.
+func Wrap(err, cause error, errCtx ...interface{}) error {
+	return FromMsgCauseStackOpt(ErrMsg(err.Error()), cause, false, errCtx...)
 }
 
-// WrapStr() is deprecated. It is replaced by FromMsgCauseCtxWithStack()
+// WrapStr() is deprecated. Use FromStrWithStack()
 func WrapStr(msg string, cause error, errCtx ...interface{}) error {
-	return FromErrCauseCtxWithStack(ErrMsg(msg), cause, errCtx...)
+	return FromMsgCauseStackOpt(ErrMsg(msg), cause, true, errCtx...)
 }
 
 // List is a slice of errors.

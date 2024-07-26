@@ -108,7 +108,10 @@ func (trc *TRC) Validate() error {
 		return serrors.WithCtx(ErrInvalidTRCVersion, "expected", 1, "actual", trc.Version)
 	}
 	if err := trc.ID.Validate(); err != nil {
-		return serrors.Wrap(ErrInvalidID, err)
+		// The wrapper can never be equal (per Is()) to the error argument; only
+		// to the cause, unless the error argument is an ErrMsg. So we must work around.
+		// WithCtx will make ErrInvalidID the cause of a new error.
+		return serrors.WithCtx(ErrInvalidID, "reason", err)
 	}
 	if err := trc.Validity.Validate(); err != nil {
 		return err
