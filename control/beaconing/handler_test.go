@@ -26,8 +26,8 @@ import (
 	"github.com/scionproto/scion/control/beaconing"
 	"github.com/scionproto/scion/control/beaconing/mock_beaconing"
 	"github.com/scionproto/scion/control/ifstate"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/snet"
@@ -37,7 +37,7 @@ import (
 )
 
 var (
-	localIA = xtest.MustParseIA("1-ff00:0:110")
+	localIA = addr.MustParseIA("1-ff00:0:110")
 	localIF = graph.If_110_X_120_A
 )
 
@@ -51,7 +51,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 		g := graph.NewDefaultGraph(mctrl)
 		return beacon.Beacon{
 			Segment: testSegment(g, []uint16{graph.If_220_X_120_B, graph.If_120_A_110_X}),
-			InIfId:  localIF,
+			InIfID:  localIF,
 		}
 	}()
 
@@ -104,7 +104,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 					Segment: testSegment(g, []uint16{
 						graph.If_220_X_120_B, graph.If_120_A_110_X,
 					}),
-					InIfId: 12,
+					InIfID: 12,
 				}
 			},
 			Peer: func() *snet.UDPAddr {
@@ -130,7 +130,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 					Segment: testSegment(g, []uint16{
 						graph.If_220_X_120_B, graph.If_120_A_110_X,
 					}),
-					InIfId: 42,
+					InIfID: 42,
 				}
 			},
 			Peer: func() *snet.UDPAddr {
@@ -156,9 +156,9 @@ func TestHandlerHandleBeacon(t *testing.T) {
 					Segment: testSegment(g, []uint16{
 						graph.If_220_X_120_B, graph.If_120_A_110_X,
 					}),
-					InIfId: localIF,
+					InIfID: localIF,
 				}
-				b.Segment.ASEntries[b.Segment.MaxIdx()].Local = xtest.MustParseIA("1-ff00:0:111")
+				b.Segment.ASEntries[b.Segment.MaxIdx()].Local = addr.MustParseIA("1-ff00:0:111")
 				return b
 
 			},
@@ -185,9 +185,9 @@ func TestHandlerHandleBeacon(t *testing.T) {
 					Segment: testSegment(g, []uint16{
 						graph.If_220_X_120_B, graph.If_120_A_110_X,
 					}),
-					InIfId: localIF,
+					InIfID: localIF,
 				}
-				b.Segment.ASEntries[b.Segment.MaxIdx()].Next = xtest.MustParseIA("1-ff00:0:111")
+				b.Segment.ASEntries[b.Segment.MaxIdx()].Next = addr.MustParseIA("1-ff00:0:111")
 				return b
 			},
 			Peer: func() *snet.UDPAddr {
@@ -276,8 +276,8 @@ func TestHandlerHandleBeacon(t *testing.T) {
 	}
 }
 
-func testSegment(g *graph.Graph, ifids []uint16) *seg.PathSegment {
-	pseg := g.Beacon(ifids)
+func testSegment(g *graph.Graph, ifIDs []uint16) *seg.PathSegment {
+	pseg := g.Beacon(ifIDs)
 	pseg.ASEntries = pseg.ASEntries[:len(pseg.ASEntries)-1]
 	return pseg
 }

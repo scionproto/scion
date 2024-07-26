@@ -40,8 +40,8 @@ func TestResolver(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	srcIA := xtest.MustParseIA("1-ff00:0:1")
-	dstIA := xtest.MustParseIA("1-ff00:0:2")
+	srcIA := addr.MustParseIA("1-ff00:0:1")
+	dstIA := addr.MustParseIA("1-ff00:0:2")
 	mockPath := mock_snet.NewMockPath(ctrl)
 	mockPath.EXPECT().Dataplane().Return(path.SCION{}).AnyTimes()
 	mockPath.EXPECT().UnderlayNextHop().Return(nil).AnyTimes()

@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/control/beacon"
 	"github.com/scionproto/scion/control/beacon/mock_beacon"
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
 )
@@ -165,7 +164,7 @@ func testCoreStoreSelection(t *testing.T,
 	// Ensure remote out if is set in last AS entry.
 	stub := graph.If_210_X_220_X
 
-	ia120 := xtest.MustParseIA("1-ff00:0:120")
+	ia120 := addr.MustParseIA("1-ff00:0:120")
 	beacons120 := []beacon.Beacon{
 		testBeacon(g, graph.If_120_A_110_X, graph.If_110_X_210_X, stub),
 		testBeacon(g, graph.If_120_B_220_X, graph.If_220_X_210_X, stub),
@@ -177,7 +176,7 @@ func testCoreStoreSelection(t *testing.T,
 		testBeacon(g, graph.If_120_A_110_X, graph.If_110_X_210_X, stub),
 	}
 
-	ia130 := xtest.MustParseIA("1-ff00:0:130")
+	ia130 := addr.MustParseIA("1-ff00:0:130")
 	beacons130 := []beacon.Beacon{
 		testBeacon(g, graph.If_130_A_110_X, graph.If_110_X_210_X, stub),
 		testBeacon(g, graph.If_130_B_120_A, graph.If_120_A_110_X, graph.If_110_X_210_X, stub),
@@ -270,13 +269,13 @@ func testBeacon(g *graph.Graph, desc ...uint16) beacon.Beacon {
 	pseg := testSegment(g, desc)
 	asEntry := pseg.ASEntries[pseg.MaxIdx()]
 	return beacon.Beacon{
-		InIfId:  asEntry.HopEntry.HopField.ConsIngress,
+		InIfID:  asEntry.HopEntry.HopField.ConsIngress,
 		Segment: pseg,
 	}
 }
 
-func testSegment(g *graph.Graph, ifids []uint16) *seg.PathSegment {
-	pseg := g.Beacon(ifids)
+func testSegment(g *graph.Graph, ifIDs []uint16) *seg.PathSegment {
+	pseg := g.Beacon(ifIDs)
 	pseg.ASEntries = pseg.ASEntries[:len(pseg.ASEntries)-1]
 	return pseg
 }

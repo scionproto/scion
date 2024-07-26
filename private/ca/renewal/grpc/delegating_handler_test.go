@@ -33,9 +33,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/metrics"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
@@ -56,7 +56,7 @@ func TestDelegatingHandler(t *testing.T) {
 			NotAfter:  time.Now().Add(time.Hour),
 		},
 		Expiration:   time.Now().Add(time.Hour - time.Minute),
-		IA:           xtest.MustParseIA("1-ff00:0:111"),
+		IA:           addr.MustParseIA("1-ff00:0:111"),
 		SubjectKeyID: chain[0].SubjectKeyId,
 		Chain:        chain,
 	}

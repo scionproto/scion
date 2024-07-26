@@ -37,8 +37,8 @@ import (
 )
 
 var (
-	ia111    = xtest.MustParseIA("1-ff00:0:111")
-	ia112    = xtest.MustParseIA("1-ff00:0:112")
+	ia111    = addr.MustParseIA("1-ff00:0:111")
+	ia112    = addr.MustParseIA("1-ff00:0:112")
 	tcpHost1 = netip.MustParseAddrPort("127.0.0.1:12345")
 	tcpHost2 = netip.MustParseAddrPort("127.0.0.2:12345")
 )

@@ -33,7 +33,7 @@ func TestInterfacesUpdate(t *testing.T) {
 		// The topo info should come from the updated map.
 		assert.Equal(t, uint16(1401), intfs.Get(1).TopoInfo().MTU)
 		assert.Equal(t, uint16(1402), intfs.Get(2).TopoInfo().MTU)
-		// The remote ifid should be kept
+		// The remote ifID should be kept
 		assert.EqualValues(t, 11, intfs.Get(1).TopoInfo().RemoteID)
 		assert.EqualValues(t, 22, intfs.Get(2).TopoInfo().RemoteID)
 	})

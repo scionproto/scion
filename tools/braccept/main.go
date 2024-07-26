@@ -124,6 +124,8 @@ func realMain() int {
 		cases.SCMPInvalidSrcIAChildToParent(artifactsDir, hfMAC),
 		cases.SCMPInvalidDstIAChildToParent(artifactsDir, hfMAC),
 		cases.NoSCMPReplyForSCMPError(artifactsDir, hfMAC),
+		cases.MalformedPathSingletonSegment(artifactsDir, hfMAC),
+		cases.MalformedPathCurrHFNotInCurrINF(artifactsDir, hfMAC),
 		cases.IncomingOneHop(artifactsDir, hfMAC),
 		cases.OutgoingOneHop(artifactsDir, hfMAC),
 		cases.SVC(artifactsDir, hfMAC),

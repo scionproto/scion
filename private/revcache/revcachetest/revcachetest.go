@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -29,15 +28,14 @@ import (
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt/proto"
 	"github.com/scionproto/scion/pkg/private/util"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/private/revcache"
 )
 
 var (
-	ia110  = xtest.MustParseIA("1-ff00:0:110")
-	ia120  = xtest.MustParseIA("1-ff00:0:120")
-	ifId15 = common.IFIDType(15)
-	ifId19 = common.IFIDType(19)
+	ia110  = addr.MustParseIA("1-ff00:0:110")
+	ia120  = addr.MustParseIA("1-ff00:0:120")
+	ifID15 = common.IfIDType(15)
+	ifID19 = common.IfIDType(19)
 
 	TimeOut = 5 * time.Second
 )
@@ -58,57 +56,59 @@ type TestableRevCache interface {
 // setup should return a RevCache in a clean state, i.e. no entries in the cache.
 // cleanup can be used to release any resources that have been allocated during setup.
 func TestRevCache(t *testing.T, revCache TestableRevCache) {
-	testWrapper := func(test func(*testing.T, TestableRevCache)) func() {
-		return func() {
+	subtest := func(name string, test func(*testing.T, TestableRevCache)) {
+		t.Helper()
+		t.Run(name, func(t *testing.T) {
 			prepareCtx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 			defer cancelF()
 			revCache.Prepare(t, prepareCtx)
 			test(t, revCache)
-		}
+		})
 	}
-	Convey("InsertGet", testWrapper(testInsertGet))
-	Convey("GetMultikey", testWrapper(testGetMultikey))
-	Convey("GetAll", testWrapper(testGetAll))
-	Convey("GetAllExpired", testWrapper(testGetAllExpired))
-	Convey("InsertExpired", testWrapper(testInsertExpired))
-	Convey("InsertNewer", testWrapper(testInsertNewer))
-	Convey("GetExpired", testWrapper(testGetExpired))
-	Convey("GetMultikeyExpired", testWrapper(testGetMuliKeysExpired))
-	Convey("DeleteExpired", testWrapper(testDeleteExpired))
+
+	subtest("InsertGet", testInsertGet)
+	subtest("GetMultikey", testGetMultikey)
+	subtest("GetAll", testGetAll)
+	subtest("GetAllExpired", testGetAllExpired)
+	subtest("InsertExpired", testInsertExpired)
+	subtest("InsertNewer", testInsertNewer)
+	subtest("GetExpired", testGetExpired)
+	subtest("GetMultikeyExpired", testGetMuliKeysExpired)
+	subtest("DeleteExpired", testDeleteExpired)
 }
 
 func testInsertGet(t *testing.T, revCache TestableRevCache) {
-	rev := defaultRevInfo(ia110, ifId15)
+	rev := defaultRevInfo(ia110, ifID15)
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
 	inserted, err := revCache.Insert(ctx, rev)
-	SoMsg("Insert should return true for a new entry", inserted, ShouldBeTrue)
-	SoMsg("Insert a new entry should not err", err, ShouldBeNil)
-	key1 := *revcache.NewKey(ia110, ifId15)
+	assert.True(t, inserted, "Insert should return true for a new entry")
+	assert.NoError(t, err, "Insert a new entry should not err")
+	key1 := revcache.NewKey(ia110, ifID15)
 	revs, err := revCache.Get(ctx, revcache.KeySet{key1: {}})
-	SoMsg("Get should not err for existing entry", err, ShouldBeNil)
-	SoMsg("Get should return existing entry", revs, ShouldNotBeEmpty)
-	SoMsg("Get should return previously inserted value", revs[key1], ShouldResemble, rev)
+	assert.NoError(t, err, "Get should not err for existing entry")
+	assert.NotEmpty(t, revs, "Get should return existing entry")
+	assert.Equal(t, rev, revs[key1], "Get should return previously inserted value")
 	inserted, err = revCache.Insert(ctx, rev)
-	SoMsg("Insert should return false for already existing entry", inserted, ShouldBeFalse)
-	SoMsg("Insert should not err", err, ShouldBeNil)
-	revs, err = revCache.Get(ctx, revcache.SingleKey(ia110, ifId19))
-	SoMsg("Get should not err", err, ShouldBeNil)
-	SoMsg("Get should return empty result for not present value", revs, ShouldBeEmpty)
+	assert.False(t, inserted, "Insert should return false for already existing entry")
+	assert.NoError(t, err, "Insert should not err")
+	revs, err = revCache.Get(ctx, revcache.SingleKey(ia110, ifID19))
+	assert.NoError(t, err, "Get should not err")
+	assert.Empty(t, revs, "Get should return empty result for not present value")
 }
 
 func testGetMultikey(t *testing.T, revCache TestableRevCache) {
-	rev1 := defaultRevInfo(ia110, ifId15)
-	rev2 := defaultRevInfo(ia110, ifId19)
-	rev3 := defaultRevInfo(ia120, ifId15)
-	rev4 := defaultRevInfo(ia120, common.IFIDType(10))
+	rev1 := defaultRevInfo(ia110, ifID15)
+	rev2 := defaultRevInfo(ia110, ifID19)
+	rev3 := defaultRevInfo(ia120, ifID15)
+	rev4 := defaultRevInfo(ia120, common.IfIDType(10))
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
 
 	// First test the empty cache
 	revs, err := revCache.Get(ctx, revcache.KeySet{})
-	SoMsg("Get should not err", err, ShouldBeNil)
-	SoMsg("Should return no revs", revs, ShouldBeEmpty)
+	assert.NoError(t, err, "Get should not err")
+	assert.Empty(t, revs, "Should return no revs")
 
 	_, err = revCache.Insert(ctx, rev1)
 	require.NoError(t, err)
@@ -119,24 +119,23 @@ func testGetMultikey(t *testing.T, revCache TestableRevCache) {
 	_, err = revCache.Insert(ctx, rev4)
 	require.NoError(t, err)
 
-	key1 := *revcache.NewKey(ia110, ifId15)
+	key1 := revcache.NewKey(ia110, ifID15)
 	revs, err = revCache.Get(ctx, revcache.KeySet{key1: {}})
-	SoMsg("Get should not err", err, ShouldBeNil)
-	SoMsg("Should contain one rev", 1, ShouldEqual, len(revs))
-	SoMsg("Get should return revs for the given keys", revs, ShouldResemble,
-		revcache.Revocations{key1: rev1})
+	assert.NoError(t, err, "Get should not err")
+	assert.Equal(t, len(revs), 1, "Should contain one rev")
+	assert.Equal(t, revcache.Revocations{key1: rev1}, revs,
+		"Get should return revs for the given keys")
 
-	key2 := *revcache.NewKey(ia110, ifId19)
-	key3 := *revcache.NewKey(ia120, ifId15)
-	key4 := *revcache.NewKey(ia120, ifId19) // not the key of sr4
+	key2 := revcache.NewKey(ia110, ifID19)
+	key3 := revcache.NewKey(ia120, ifID15)
+	key4 := revcache.NewKey(ia120, ifID19) // not the key of sr4
 	searchKeys := revcache.KeySet{key1: {}, key2: {}, key3: {}, key4: {}}
 	revs, err = revCache.Get(ctx, searchKeys)
-	SoMsg("Get should not err", err, ShouldBeNil)
+	assert.NoError(t, err, "Get should not err")
 	expectedResult := revcache.Revocations{
 		key1: rev1, key2: rev2, key3: rev3,
 	}
-	SoMsg("Get should return the requested revocations", revs, ShouldResemble,
-		expectedResult)
+	assert.Equal(t, expectedResult, revs, "Get should return the requested revocations")
 }
 
 func testGetAll(t *testing.T, revCache TestableRevCache) {
@@ -144,16 +143,16 @@ func testGetAll(t *testing.T, revCache TestableRevCache) {
 	defer cancelF()
 	// Empty cache should return an empty chan
 	resChan, err := revCache.GetAll(ctx)
-	SoMsg("No error expected", err, ShouldBeNil)
+	assert.NoError(t, err)
 	res, more := <-resChan
-	SoMsg("No result expected", res, ShouldResemble, revcache.RevOrErr{})
-	SoMsg("No more entries expected", more, ShouldBeFalse)
+	assert.Equal(t, revcache.RevOrErr{}, res, "No result expected")
+	assert.False(t, more, "No more entries expected")
 
 	// Insert some stuff and query again
-	rev1 := defaultRevInfo(ia110, ifId15)
-	rev2 := defaultRevInfo(ia110, ifId19)
-	rev3 := defaultRevInfo(ia120, ifId15)
-	rev4 := defaultRevInfo(ia120, common.IFIDType(20))
+	rev1 := defaultRevInfo(ia110, ifID15)
+	rev2 := defaultRevInfo(ia110, ifID19)
+	rev3 := defaultRevInfo(ia120, ifID15)
+	rev4 := defaultRevInfo(ia120, common.IfIDType(20))
 	_, err = revCache.Insert(ctx, rev1)
 	require.NoError(t, err)
 	_, err = revCache.Insert(ctx, rev2)
@@ -166,11 +165,11 @@ func testGetAll(t *testing.T, revCache TestableRevCache) {
 	expectedRevs := []*path_mgmt.RevInfo{rev1, rev2, rev3, rev4}
 
 	resChan, err = revCache.GetAll(ctx)
-	SoMsg("No error expected", err, ShouldBeNil)
+	assert.NoError(t, err)
 	revs := make([]*path_mgmt.RevInfo, 0, len(expectedRevs))
 	for res := range resChan {
-		SoMsg("No error expected", res.Err, ShouldBeNil)
-		SoMsg("Revocation expected", res.Rev, ShouldNotBeNil)
+		assert.NoError(t, res.Err)
+		assert.NotNil(t, res.Rev, "Revocation expected")
 		revs = append(revs, res.Rev)
 	}
 	// we don't care about the order, so sort here to make sure the comparison always works.
@@ -180,7 +179,7 @@ func testGetAll(t *testing.T, revCache TestableRevCache) {
 		return iInfo.IA() < jInfo.IA() ||
 			(iInfo.IA() == jInfo.IA() && iInfo.IfID < jInfo.IfID)
 	})
-	SoMsg("All revocations should have been returned", revs, ShouldResemble, expectedRevs)
+	assert.Equal(t, expectedRevs, revs, "All revocations should have been returned")
 }
 
 func testGetAllExpired(t *testing.T, revCache TestableRevCache) {
@@ -188,7 +187,7 @@ func testGetAllExpired(t *testing.T, revCache TestableRevCache) {
 	defer cancelF()
 	// insert expired rev
 	revNew := &path_mgmt.RevInfo{
-		IfID:         ifId15,
+		IfID:         ifID15,
 		RawIsdas:     ia110,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(-2 * time.Second)),
@@ -197,15 +196,15 @@ func testGetAllExpired(t *testing.T, revCache TestableRevCache) {
 	revCache.InsertExpired(t, ctx, revNew)
 	// Now test that we don't get the expired rev
 	resChan, err := revCache.GetAll(ctx)
-	SoMsg("No error expected", err, ShouldBeNil)
+	assert.NoError(t, err)
 	res, more := <-resChan
-	SoMsg("No result expected", res, ShouldResemble, revcache.RevOrErr{})
-	SoMsg("No more entries expected", more, ShouldBeFalse)
+	assert.Equal(t, revcache.RevOrErr{}, res, "No result expected")
+	assert.False(t, more, "No more entries expected")
 }
 
 func testInsertExpired(t *testing.T, revCache TestableRevCache) {
 	r := &path_mgmt.RevInfo{
-		IfID:         ifId15,
+		IfID:         ifID15,
 		RawIsdas:     ia110,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(-15 * time.Second)),
@@ -214,18 +213,18 @@ func testInsertExpired(t *testing.T, revCache TestableRevCache) {
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
 	inserted, err := revCache.Insert(ctx, r)
-	SoMsg("Insert should return false for expired rev", inserted, ShouldBeFalse)
-	SoMsg("Insert should not err", err, ShouldBeNil)
+	assert.False(t, inserted, "Insert should return false for expired rev")
+	assert.NoError(t, err, "Insert should not err")
 }
 
 func testInsertNewer(t *testing.T, revCache TestableRevCache) {
-	rev := defaultRevInfo(ia110, ifId15)
+	rev := defaultRevInfo(ia110, ifID15)
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
 	_, err := revCache.Insert(ctx, rev)
 	require.NoError(t, err)
 	revNew := &path_mgmt.RevInfo{
-		IfID:         ifId15,
+		IfID:         ifID15,
 		RawIsdas:     ia110,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(10 * time.Second)),
@@ -233,69 +232,69 @@ func testInsertNewer(t *testing.T, revCache TestableRevCache) {
 	}
 	require.NoError(t, err)
 	inserted, err := revCache.Insert(ctx, revNew)
-	SoMsg("Insert should return true for a new entry", inserted, ShouldBeTrue)
-	SoMsg("Insert a new entry should not err", err, ShouldBeNil)
-	key1 := *revcache.NewKey(ia110, ifId15)
+	assert.True(t, inserted, "Insert should return true for a new entry")
+	assert.NoError(t, err, "Insert a new entry should not err")
+	key1 := revcache.NewKey(ia110, ifID15)
 	revs, err := revCache.Get(ctx, revcache.KeySet{key1: {}})
-	SoMsg("Get should not err for existing entry", err, ShouldBeNil)
-	SoMsg("Get should return non empty map for inserted value", revs, ShouldNotBeEmpty)
-	SoMsg("Get should return previously inserted value", revs[key1], ShouldResemble, revNew)
+	assert.NoError(t, err, "Get should not err for existing entry")
+	assert.NotEmpty(t, revs, "Get should return non empty map for inserted value")
+	assert.Equal(t, revNew, revs[key1], "Get should return previously inserted value")
 }
 
 func testGetExpired(t *testing.T, revCache TestableRevCache) {
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
 	revNew := &path_mgmt.RevInfo{
-		IfID:         ifId15,
+		IfID:         ifID15,
 		RawIsdas:     ia110,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(-2 * time.Second)),
 		RawTTL:       1,
 	}
 	revCache.InsertExpired(t, ctx, revNew)
-	revs, err := revCache.Get(ctx, revcache.SingleKey(ia110, ifId15))
-	SoMsg("Expired entry should not be returned", revs, ShouldBeEmpty)
-	SoMsg("Should not error for expired entry", err, ShouldBeNil)
+	revs, err := revCache.Get(ctx, revcache.SingleKey(ia110, ifID15))
+	assert.Empty(t, revs, "Expired entry should not be returned")
+	assert.NoError(t, err, "Should not error for expired entry")
 }
 
 func testGetMuliKeysExpired(t *testing.T, revCache TestableRevCache) {
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
 	revNew := &path_mgmt.RevInfo{
-		IfID:         ifId15,
+		IfID:         ifID15,
 		RawIsdas:     ia110,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(-2 * time.Second)),
 		RawTTL:       1,
 	}
 	revCache.InsertExpired(t, ctx, revNew)
-	rev110_19 := defaultRevInfo(ia110, ifId19)
+	rev110_19 := defaultRevInfo(ia110, ifID19)
 	_, err := revCache.Insert(ctx, rev110_19)
 	assert.NoError(t, err)
-	validKey := *revcache.NewKey(ia110, ifId19)
+	validKey := revcache.NewKey(ia110, ifID19)
 	srCache, err := revCache.Get(ctx, revcache.KeySet{
-		*revcache.NewKey(ia110, ifId15): {},
-		validKey:                        {},
+		revcache.NewKey(ia110, ifID15): {},
+		validKey:                       {},
 	})
-	SoMsg("Should not error for expired entry", err, ShouldBeNil)
-	SoMsg("Expired entry should not be returned", srCache, ShouldResemble,
-		revcache.Revocations{validKey: rev110_19})
+	assert.NoError(t, err, "Should not error for expired entry")
+	assert.Equal(t, revcache.Revocations{validKey: rev110_19}, srCache,
+		"Expired entry should not be returned")
 }
 
 func testDeleteExpired(t *testing.T, revCache TestableRevCache) {
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
 	del, err := revCache.DeleteExpired(ctx)
-	SoMsg("DeleteExpired on empty should not error", err, ShouldBeNil)
-	SoMsg("DeleteExpired on empty should delete 0", del, ShouldEqual, 0)
-	rev110_19 := defaultRevInfo(ia110, ifId19)
+	assert.NoError(t, err, "DeleteExpired on empty should not error")
+	assert.EqualValues(t, 0, del, "DeleteExpired on empty should delete 0")
+	rev110_19 := defaultRevInfo(ia110, ifID19)
 	_, err = revCache.Insert(ctx, rev110_19)
 	assert.NoError(t, err)
 	del, err = revCache.DeleteExpired(ctx)
-	SoMsg("DeleteExpired should not error", err, ShouldBeNil)
-	SoMsg("DeleteExpired should delete 0 if entry is not expired", del, ShouldEqual, 0)
+	assert.NoError(t, err, "DeleteExpired should not error")
+	assert.EqualValues(t, 0, del, "DeleteExpired should delete 0 if entry is not expired")
 	revNew := &path_mgmt.RevInfo{
-		IfID:         ifId15,
+		IfID:         ifID15,
 		RawIsdas:     ia110,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(-2 * time.Second)),
@@ -303,16 +302,16 @@ func testDeleteExpired(t *testing.T, revCache TestableRevCache) {
 	}
 	revCache.InsertExpired(t, ctx, revNew)
 	del, err = revCache.DeleteExpired(ctx)
-	SoMsg("DeleteExpired should not error", err, ShouldBeNil)
-	SoMsg("DeleteExpired should delete 1 if entry is expired", del, ShouldEqual, 1)
+	assert.NoError(t, err, "DeleteExpired should not error")
+	assert.EqualValues(t, 1, del, "DeleteExpired should delete 1 if entry is expired")
 	del, err = revCache.DeleteExpired(ctx)
-	SoMsg("DeleteExpired should not error", err, ShouldBeNil)
-	SoMsg("DeleteExpired should delete 0 if entry is not expired", del, ShouldEqual, 0)
+	assert.NoError(t, err, "DeleteExpired should not error")
+	assert.EqualValues(t, 0, del, "DeleteExpired should delete 0 if entry is not expired")
 }
 
-func defaultRevInfo(ia addr.IA, ifId common.IFIDType) *path_mgmt.RevInfo {
+func defaultRevInfo(ia addr.IA, ifID common.IfIDType) *path_mgmt.RevInfo {
 	return &path_mgmt.RevInfo{
-		IfID:         ifId,
+		IfID:         ifID,
 		RawIsdas:     ia,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now()),

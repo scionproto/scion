@@ -29,7 +29,7 @@ func (r AddressRewriter) BuildFullAddress(ctx context.Context,
 }
 
 func (r AddressRewriter) ResolveSVC(ctx context.Context, p snet.Path,
-	s addr.SVC) (snet.Path, *net.UDPAddr, bool, error) {
+	s addr.SVC) (snet.Path, *net.UDPAddr, error) {
 	return r.resolveSVC(ctx, p, s)
 }
 

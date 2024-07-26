@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"net/netip"
 	"os"
 	"syscall"
 	"time"
@@ -27,6 +28,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -107,7 +109,7 @@ On other errors, ping will exit with code 2.
 %s`, app.SequenceHelp),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			remote, err := snet.ParseUDPAddr(args[0])
+			remote, err := addr.ParseAddr(args[0])
 			if err != nil {
 				return serrors.WrapStr("parsing remote", err)
 			}
@@ -168,11 +170,13 @@ On other errors, ping will exit with code 2.
 					LocalIP: localIP,
 				}))
 			}
+
 			path, err := path.Choose(traceCtx, sd, remote.IA, opts...)
 			if err != nil {
 				return err
 			}
-
+			nextHop := path.UnderlayNextHop()
+			dPath := path.Dataplane()
 			// If the EPIC flag is set, use the EPIC-HP path type
 			if flags.epic {
 				switch s := path.Dataplane().(type) {
@@ -181,22 +185,19 @@ On other errors, ping will exit with code 2.
 					if err != nil {
 						return err
 					}
-					remote.Path = epicPath
+					dPath = epicPath
 				case snetpath.Empty:
-					remote.Path = s
+					dPath = s
 				default:
 					return serrors.New("unsupported path type")
 				}
-			} else {
-				remote.Path = path.Dataplane()
 			}
-			remote.NextHop = path.UnderlayNextHop()
 
 			// Resolve local IP based on underlay next hop
 			if localIP == nil {
-				target := remote.Host.IP
-				if remote.NextHop != nil {
-					target = remote.NextHop.IP
+				target := remote.Host.IP().AsSlice()
+				if nextHop != nil {
+					target = nextHop.IP
 				}
 				if localIP, err = addrutil.ResolveLocal(target); err != nil {
 					return serrors.WrapStr("resolving local address", err)
@@ -206,14 +207,18 @@ On other errors, ping will exit with code 2.
 			}
 			printf("Using path:\n  %s\n\n", path)
 			span.SetTag("src.host", localIP)
-			local := &snet.UDPAddr{
+			asNetipAddr, ok := netip.AddrFromSlice(localIP)
+			if !ok {
+				panic("Invalid Local IP address")
+			}
+			local := addr.Addr{
 				IA:   info.IA,
-				Host: &net.UDPAddr{IP: localIP},
+				Host: addr.HostIP(asNetipAddr),
 			}
 			pldSize := int(flags.size)
 
 			if cmd.Flags().Changed("packet-size") {
-				overhead, err := ping.Size(local, remote, 0)
+				overhead, err := ping.Size(local, remote, dPath, 0)
 				if err != nil {
 					return err
 				}
@@ -226,12 +231,12 @@ On other errors, ping will exit with code 2.
 			}
 			if flags.maxMTU {
 				mtu := int(path.Metadata().MTU)
-				pldSize, err = calcMaxPldSize(local, remote, mtu)
+				pldSize, err = calcMaxPldSize(local, remote, dPath, mtu)
 				if err != nil {
 					return err
 				}
 			}
-			pktSize, err := ping.Size(local, remote, pldSize)
+			pktSize, err := ping.Size(local, remote, dPath, pldSize)
 			if err != nil {
 				return err
 			}
@@ -255,7 +260,7 @@ On other errors, ping will exit with code 2.
 					Hops:        getHops(path),
 					Sequence:    seq,
 					LocalIP:     localIP,
-					NextHop:     path.UnderlayNextHop().String(),
+					NextHop:     nextHop.String(),
 				},
 				PayloadSize: pldSize,
 			}
@@ -267,6 +272,8 @@ On other errors, ping will exit with code 2.
 				Timeout:     flags.timeout,
 				Local:       local,
 				Remote:      remote,
+				Path:        dPath,
+				NextHop:     nextHop,
 				PayloadSize: pldSize,
 				ErrHandler: func(err error) {
 					fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
@@ -362,8 +369,8 @@ SCMP echo header and payload are equal to the MTU of the path. This flag overrid
 	return cmd
 }
 
-func calcMaxPldSize(local, remote *snet.UDPAddr, mtu int) (int, error) {
-	overhead, err := ping.Size(local, remote, 0)
+func calcMaxPldSize(local, remote addr.Addr, dPath snet.DataplanePath, mtu int) (int, error) {
+	overhead, err := ping.Size(local, remote, dPath, 0)
 	if err != nil {
 		return 0, err
 	}

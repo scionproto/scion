@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
@@ -223,7 +224,7 @@ func testChain(t *testing.T, db trust.DB, cfg Config) {
 	t.Run("Chain", func(t *testing.T) {
 		t.Run("Non existing chain", func(t *testing.T) {
 			chains, err := db.Chains(ctx, trust.ChainQuery{
-				IA:           xtest.MustParseIA("1-ff00:0:111"),
+				IA:           addr.MustParseIA("1-ff00:0:111"),
 				SubjectKeyID: []byte("non-existing"),
 				Validity: cppki.Validity{
 					NotBefore: time.Now(),
@@ -235,7 +236,7 @@ func testChain(t *testing.T, db trust.DB, cfg Config) {
 		})
 		t.Run("Existing chain no overlap", func(t *testing.T) {
 			chains, err := db.Chains(ctx, trust.ChainQuery{
-				IA:           xtest.MustParseIA("1-ff00:0:110"),
+				IA:           addr.MustParseIA("1-ff00:0:110"),
 				SubjectKeyID: bern1Chain[0].SubjectKeyId,
 				Validity: cppki.Validity{
 					NotBefore: time.Date(2020, 6, 25, 14, 0, 0, 0, time.UTC),
@@ -250,7 +251,7 @@ func testChain(t *testing.T, db trust.DB, cfg Config) {
 			_, err = db.InsertChain(ctx, bern2Chain)
 			require.NoError(t, err)
 			chains, err := db.Chains(ctx, trust.ChainQuery{
-				IA:           xtest.MustParseIA("1-ff00:0:110"),
+				IA:           addr.MustParseIA("1-ff00:0:110"),
 				SubjectKeyID: bern1Chain[0].SubjectKeyId,
 				Validity: cppki.Validity{
 					NotBefore: time.Date(2020, 6, 27, 12, 0, 1, 0, time.UTC),
@@ -260,7 +261,7 @@ func testChain(t *testing.T, db trust.DB, cfg Config) {
 			assert.NoError(t, err)
 			assert.Empty(t, chains)
 			chains, err = db.Chains(ctx, trust.ChainQuery{
-				IA:           xtest.MustParseIA("1-ff00:0:110"),
+				IA:           addr.MustParseIA("1-ff00:0:110"),
 				SubjectKeyID: bern1Chain[0].SubjectKeyId,
 				Validity: cppki.Validity{
 					NotBefore: time.Date(2020, 6, 24, 11, 59, 59, 0, time.UTC),
@@ -287,7 +288,7 @@ func testChain(t *testing.T, db trust.DB, cfg Config) {
 		})
 		t.Run("certificate chain for a given ISD-AS", func(t *testing.T) {
 			chains, err := db.Chains(ctx, trust.ChainQuery{
-				IA: xtest.MustParseIA("1-ff00:0:110"),
+				IA: addr.MustParseIA("1-ff00:0:110"),
 			})
 			assert.NoError(t, err)
 			assert.Equal(t, [][]*x509.Certificate{bern1Chain, bern2Chain}, chains)
@@ -296,7 +297,7 @@ func testChain(t *testing.T, db trust.DB, cfg Config) {
 			_, err := db.InsertChain(ctx, bern2Chain)
 			require.NoError(t, err)
 			chains, err := db.Chains(ctx, trust.ChainQuery{
-				IA:           xtest.MustParseIA("1-ff00:0:110"),
+				IA:           addr.MustParseIA("1-ff00:0:110"),
 				SubjectKeyID: bern1Chain[0].SubjectKeyId,
 				Validity: cppki.Validity{
 					NotBefore: time.Date(2020, 6, 26, 13, 0, 0, 0, time.UTC),
@@ -306,7 +307,7 @@ func testChain(t *testing.T, db trust.DB, cfg Config) {
 			assert.NoError(t, err)
 			assert.Equal(t, [][]*x509.Certificate{bern1Chain}, chains)
 			chains, err = db.Chains(ctx, trust.ChainQuery{
-				IA:           xtest.MustParseIA("1-ff00:0:110"),
+				IA:           addr.MustParseIA("1-ff00:0:110"),
 				SubjectKeyID: bern2Chain[0].SubjectKeyId,
 				Validity: cppki.Validity{
 					NotBefore: time.Date(2020, 6, 26, 13, 0, 0, 0, time.UTC),
@@ -320,7 +321,7 @@ func testChain(t *testing.T, db trust.DB, cfg Config) {
 			_, err := db.InsertChain(ctx, bern3Chain)
 			require.NoError(t, err)
 			chains, err := db.Chains(ctx, trust.ChainQuery{
-				IA:           xtest.MustParseIA("1-ff00:0:110"),
+				IA:           addr.MustParseIA("1-ff00:0:110"),
 				SubjectKeyID: bern3Chain[0].SubjectKeyId,
 				Validity: cppki.Validity{
 					NotBefore: time.Date(2020, 6, 28, 13, 0, 0, 0, time.UTC),

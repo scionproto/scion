@@ -23,13 +23,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 )
 
 var (
-	a110 = xtest.MustParseAS("ff00:0:110")
-	a120 = xtest.MustParseAS("ff00:0:120")
+	a110 = addr.MustParseAS("ff00:0:110")
+	a120 = addr.MustParseAS("ff00:0:120")
 )
 
 func TestTRCValidateInvariant(t *testing.T) {
@@ -340,7 +339,7 @@ func TestTRCValidateUpdate(t *testing.T) {
 				// Remove root
 				succ.TRC.Certificates = succ.TRC.Certificates[:9]
 
-				succ.TRC.CoreASes = append(succ.TRC.CoreASes, xtest.MustParseAS("ff00:0:119"))
+				succ.TRC.CoreASes = append(succ.TRC.CoreASes, addr.MustParseAS("ff00:0:119"))
 				succ.TRC.AuthoritativeASes = succ.TRC.CoreASes
 
 				return &pred.TRC, &succ.TRC
@@ -466,7 +465,7 @@ func TestTRCValidateUpdate(t *testing.T) {
 			TRCs: func(t *testing.T) (*cppki.TRC, *cppki.TRC) {
 				pred := loadTRC(t, "./testdata/ISD1-B1-S1.trc")
 				succ := loadTRC(t, "./testdata/ISD1-B1-S2.trc")
-				succ.TRC.CoreASes = append(succ.TRC.CoreASes, xtest.MustParseAS("ff00:0:119"))
+				succ.TRC.CoreASes = append(succ.TRC.CoreASes, addr.MustParseAS("ff00:0:119"))
 				return &pred.TRC, &succ.TRC
 			},
 			Update: func(t *testing.T) cppki.Update {
@@ -493,7 +492,7 @@ func TestTRCValidateUpdate(t *testing.T) {
 				pred := loadTRC(t, "./testdata/ISD1-B1-S1.trc")
 				succ := loadTRC(t, "./testdata/ISD1-B1-S2.trc")
 				succ.TRC.AuthoritativeASes = append(succ.TRC.AuthoritativeASes,
-					xtest.MustParseAS("ff00:0:119"))
+					addr.MustParseAS("ff00:0:119"))
 				return &pred.TRC, &succ.TRC
 			},
 			Update: func(t *testing.T) cppki.Update {

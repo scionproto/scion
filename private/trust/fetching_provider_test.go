@@ -44,7 +44,7 @@ func TestFetchingProviderGetChains(t *testing.T) {
 
 	now := time.Now()
 	query := trust.ChainQuery{
-		IA:           xtest.MustParseIA("1-ff00:0:110"),
+		IA:           addr.MustParseIA("1-ff00:0:110"),
 		Validity:     cppki.Validity{NotBefore: now, NotAfter: now},
 		SubjectKeyID: valid[0].SubjectKeyId,
 	}
@@ -73,7 +73,7 @@ func TestFetchingProviderGetChains(t *testing.T) {
 				return mock_trust.NewMockFetcher(ctrl)
 			},
 			Query: trust.ChainQuery{
-				IA:           xtest.MustParseIA("1-0"),
+				IA:           addr.MustParseIA("1-0"),
 				Validity:     query.Validity,
 				SubjectKeyID: query.SubjectKeyID,
 			},

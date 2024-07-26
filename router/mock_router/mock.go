@@ -5,7 +5,7 @@
 package mock_router
 
 import (
-	net "net"
+	netip "net/netip"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -80,7 +80,7 @@ func (mr *MockBatchConnMockRecorder) WriteBatch(arg0, arg1 interface{}) *gomock.
 }
 
 // WriteTo mocks base method.
-func (m *MockBatchConn) WriteTo(arg0 []byte, arg1 *net.UDPAddr) (int, error) {
+func (m *MockBatchConn) WriteTo(arg0 []byte, arg1 netip.AddrPort) (int, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "WriteTo", arg0, arg1)
 	ret0, _ := ret[0].(int)

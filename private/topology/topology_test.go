@@ -26,7 +26,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/common"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	jsontopo "github.com/scionproto/scion/private/topology/json"
 )
 
@@ -59,17 +58,17 @@ func TestBRs(t *testing.T) {
 
 	brs := map[string]BRInfo{
 		"br1-ff00:0:311-1": {
-			IFIDs: []common.IFIDType{1, 3, 8},
+			IfIDs: []common.IfIDType{1, 3, 8},
 		},
 		"br1-ff00:0:311-2": {
-			IFIDs: []common.IFIDType{11},
+			IfIDs: []common.IfIDType{11},
 		},
 	}
 
 	for name, info := range brs {
 		t.Run("checking BR details for "+name, func(t *testing.T) {
-			for _, i := range info.IFIDs {
-				assert.Contains(t, c.BR[name].IFIDs, i)
+			for _, i := range info.IfIDs {
+				assert.Contains(t, c.BR[name].IfIDs, i)
 			}
 		})
 	}
@@ -198,7 +197,7 @@ func TestIFInfoMap(t *testing.T) {
 			InternalAddr: netip.MustParseAddrPort("10.1.0.1:0"),
 			Local:        netip.MustParseAddrPort("192.0.2.1:44997"),
 			Remote:       netip.MustParseAddrPort("192.0.2.2:44998"),
-			IA:           xtest.MustParseIA("1-ff00:0:312"),
+			IA:           addr.MustParseIA("1-ff00:0:312"),
 			LinkType:     Parent,
 			MTU:          1472,
 			BFD: BFD{
@@ -213,7 +212,7 @@ func TestIFInfoMap(t *testing.T) {
 			InternalAddr: netip.MustParseAddrPort("10.1.0.1:0"),
 			Local:        netip.MustParseAddrPort("[2001:db8:a0b:12f0::1]:44997"),
 			Remote:       netip.MustParseAddrPort("[2001:db8:a0b:12f0::2]:44998"),
-			IA:           xtest.MustParseIA("1-ff00:0:314"),
+			IA:           addr.MustParseIA("1-ff00:0:314"),
 			LinkType:     Child,
 			MTU:          4430,
 		},
@@ -223,7 +222,7 @@ func TestIFInfoMap(t *testing.T) {
 			InternalAddr: netip.MustParseAddrPort("10.1.0.1:0"),
 			Local:        netip.AddrPortFrom(netip.Addr{}, 44997),
 			Remote:       netip.MustParseAddrPort("192.0.2.3:44998"),
-			IA:           xtest.MustParseIA("1-ff00:0:313"),
+			IA:           addr.MustParseIA("1-ff00:0:313"),
 			LinkType:     Peer,
 			MTU:          1480,
 		},
@@ -233,7 +232,7 @@ func TestIFInfoMap(t *testing.T) {
 			InternalAddr: netip.MustParseAddrPort(`[2001:db8:a0b:12f0::1%some-internal-zone]:0`),
 			Local:        netip.MustParseAddrPort(`[2001:db8:a0b:12f0::1%some-local-zone]:44897`),
 			Remote:       netip.MustParseAddrPort(`[2001:db8:a0b:12f0::2%some-remote-zone]:44898`),
-			IA:           xtest.MustParseIA("1-ff00:0:314"),
+			IA:           addr.MustParseIA("1-ff00:0:314"),
 			LinkType:     Child,
 			MTU:          4430,
 		},
@@ -251,7 +250,7 @@ func TestIFInfoMapDeprecatedPublicBind(t *testing.T) {
 			InternalAddr: netip.MustParseAddrPort("10.1.0.1:0"),
 			Local:        netip.MustParseAddrPort("10.0.0.1:44997"),
 			Remote:       netip.MustParseAddrPort("192.0.2.2:44998"),
-			IA:           xtest.MustParseIA("1-ff00:0:312"),
+			IA:           addr.MustParseIA("1-ff00:0:312"),
 			LinkType:     Parent,
 			MTU:          1472,
 		},
@@ -262,7 +261,7 @@ func TestIFInfoMapDeprecatedPublicBind(t *testing.T) {
 			InternalAddr: netip.MustParseAddrPort("10.1.0.1:0"),
 			Local:        netip.MustParseAddrPort("[2001:db8:a0b:12f0::8]:44997"),
 			Remote:       netip.MustParseAddrPort("[2001:db8:a0b:12f0::2]:44998"),
-			IA:           xtest.MustParseIA("1-ff00:0:314"),
+			IA:           addr.MustParseIA("1-ff00:0:314"),
 			LinkType:     Child,
 			MTU:          4430,
 		},
@@ -273,7 +272,7 @@ func TestIFInfoMapDeprecatedPublicBind(t *testing.T) {
 			InternalAddr: netip.MustParseAddrPort("10.1.0.1:0"),
 			Local:        netip.MustParseAddrPort("192.0.2.2:44997"),
 			Remote:       netip.MustParseAddrPort("192.0.2.3:44998"),
-			IA:           xtest.MustParseIA("1-ff00:0:313"),
+			IA:           addr.MustParseIA("1-ff00:0:313"),
 			LinkType:     Peer,
 			MTU:          1480,
 		},
@@ -291,7 +290,7 @@ func TestIFInfoMapCoreAS(t *testing.T) {
 			InternalAddr: netip.MustParseAddrPort("10.1.0.1:0"),
 			Local:        netip.MustParseAddrPort("192.0.2.1:4997"),
 			Remote:       netip.MustParseAddrPort("192.0.2.2:4998"),
-			IA:           xtest.MustParseIA("6-ff00:0:363"),
+			IA:           addr.MustParseIA("6-ff00:0:363"),
 			LinkType:     Core,
 			MTU:          1472,
 		},
@@ -301,7 +300,7 @@ func TestIFInfoMapCoreAS(t *testing.T) {
 			InternalAddr: netip.MustParseAddrPort("[2001:db8:a0b:12f0::2]:0"),
 			Local:        netip.MustParseAddrPort("[2001:db8:a0b:12f0::1]:4997"),
 			Remote:       netip.MustParseAddrPort("[2001:db8:a0b:12f0::2]:4998"),
-			IA:           xtest.MustParseIA("6-ff00:0:364"),
+			IA:           addr.MustParseIA("6-ff00:0:364"),
 			LinkType:     Child,
 			MTU:          4430,
 		},
@@ -313,16 +312,16 @@ func TestBRsCoreAS(t *testing.T) {
 	c := MustLoadTopo(t, "testdata/core.json")
 	brCases := []struct {
 		name       string
-		interfaces []common.IFIDType
+		interfaces []common.IfIDType
 	}{
-		{name: "borderrouter6-ff00:0:362-1", interfaces: []common.IFIDType{91}},
-		{name: "borderrouter6-ff00:0:362-9", interfaces: []common.IFIDType{32}},
+		{name: "borderrouter6-ff00:0:362-1", interfaces: []common.IfIDType{91}},
+		{name: "borderrouter6-ff00:0:362-9", interfaces: []common.IfIDType{32}},
 	}
 	for _, test := range brCases {
 		t.Run(test.name, func(t *testing.T) {
 			assert.Contains(t, c.BR, test.name)
 			for _, intf := range test.interfaces {
-				assert.Contains(t, c.BR[test.name].IFIDs, intf)
+				assert.Contains(t, c.BR[test.name].IfIDs, intf)
 			}
 		})
 	}

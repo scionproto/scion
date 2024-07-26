@@ -50,7 +50,7 @@ type vertexInfo map[vertex]edgeMap
 // dmg is a Directed Multigraph.
 //
 // Vertices are either ASes (identified by their ISD-AS number) or peering
-// links (identified by the the ISD-AS numbers of the peers, and the IFIDs on
+// links (identified by the the ISD-AS numbers of the peers, and the IfIDs on
 // the peering link).
 type dmg struct {
 	Adjacencies map[vertex]vertexInfo
@@ -146,8 +146,8 @@ func (g *dmg) traverseSegment(segment *inputSegment) {
 		}
 
 		for peerEntryIdx, peer := range asEntries[asEntryIndex].PeerEntries {
-			ingress := common.IFIDType(peer.HopField.ConsIngress)
-			remote := common.IFIDType(peer.PeerInterface)
+			ingress := common.IfIDType(peer.HopField.ConsIngress)
+			remote := common.IfIDType(peer.PeerInterface)
 			tuples = append(tuples, Tuple{
 				Src:  vertexFromIA(pinnedIA),
 				Dst:  vertexFromPeering(currentIA, ingress, peer.Peer, remote),
@@ -259,25 +259,25 @@ func (s *inputSegment) IsDownSeg() bool {
 type vertex struct {
 	IA       addr.IA
 	UpIA     addr.IA
-	UpIFID   common.IFIDType
+	UpIfID   common.IfIDType
 	DownIA   addr.IA
-	DownIFID common.IFIDType
+	DownIfID common.IfIDType
 }
 
 func vertexFromIA(ia addr.IA) vertex {
 	return vertex{IA: ia}
 }
 
-func vertexFromPeering(upIA addr.IA, upIFID common.IFIDType,
-	downIA addr.IA, downIFID common.IFIDType) vertex {
+func vertexFromPeering(upIA addr.IA, upIfID common.IfIDType,
+	downIA addr.IA, downIfID common.IfIDType) vertex {
 
-	return vertex{UpIA: upIA, UpIFID: upIFID, DownIA: downIA, DownIFID: downIFID}
+	return vertex{UpIA: upIA, UpIfID: upIfID, DownIA: downIA, DownIfID: downIfID}
 }
 
 // Reverse returns a new vertex that contains the peering information in
 // reverse. AS vertices remain unchanged.
 func (v vertex) Reverse() vertex {
-	return vertex{IA: v.IA, UpIA: v.DownIA, UpIFID: v.DownIFID, DownIA: v.UpIA, DownIFID: v.UpIFID}
+	return vertex{IA: v.IA, UpIA: v.DownIA, UpIfID: v.DownIfID, DownIA: v.UpIA, DownIfID: v.UpIfID}
 }
 
 // edgeMap is used to keep the set of edges going from one vertex to another.
@@ -365,14 +365,14 @@ func (solution *pathSolution) Path() Path {
 			if hopField.ConsEgress != 0 {
 				intfs = append(intfs, snet.PathInterface{
 					IA: asEntry.Local,
-					ID: common.IFIDType(hopField.ConsEgress),
+					ID: common.IfIDType(hopField.ConsEgress),
 				})
 			}
 			// In a non-peer shortcut the AS is not traversed completely.
 			if hopField.ConsIngress != 0 && (!isShortcut || isPeer) {
 				intfs = append(intfs, snet.PathInterface{
 					IA: asEntry.Local,
-					ID: common.IFIDType(hopField.ConsIngress),
+					ID: common.IfIDType(hopField.ConsIngress),
 				})
 			}
 			hops = append(hops, hopField)

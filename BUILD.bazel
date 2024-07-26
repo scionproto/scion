@@ -63,16 +63,6 @@ config_setting(
     },
 )
 
-# This is a dummy target so Make can "blaze build --announce_rc <something>
-# Where something truly does nothing that we may care about.
-
-config_setting(
-    name = "dummy_setting",
-    define_values = {
-        "whatever": "whatever",
-    },
-)
-
 gazelle(
     name = "gazelle",
     build_tags = select({
@@ -211,7 +201,6 @@ pkg_tar(
         "//tools/buildkite/cmd/buildkite_artifacts",
         "//tools/end2end",
         "//tools/end2end_integration",
-        "//tools/end2endblast",
         "//tools/pktgen/cmd/pktgen",
         "//tools/scion_integration",
         "//tools/udpproxy",

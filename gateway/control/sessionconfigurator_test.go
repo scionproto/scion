@@ -95,7 +95,7 @@ func TestSessionConfigurator(t *testing.T) {
 
 		routingUpdate := control.RemoteGateways{
 			Gateways: map[addr.IA][]control.RemoteGateway{
-				xtest.MustParseIA("1-ff00:0:110"): {
+				addr.MustParseIA("1-ff00:0:110"): {
 					{
 						Gateway: control.Gateway{
 							Probe: mustParseUDPAddr(t, "10.0.1.1:25"),
@@ -113,7 +113,7 @@ func TestSessionConfigurator(t *testing.T) {
 		}
 		sessionPolicies := control.SessionPolicies{
 			{
-				IA:             xtest.MustParseIA("1-ff00:0:110"),
+				IA:             addr.MustParseIA("1-ff00:0:110"),
 				ID:             42,
 				TrafficMatcher: pktcls.CondTrue,
 				PerfPolicy:     dummyPerfPolicy{},
@@ -126,7 +126,7 @@ func TestSessionConfigurator(t *testing.T) {
 			{
 				ID:             0,
 				PolicyID:       42,
-				IA:             xtest.MustParseIA("1-ff00:0:110"),
+				IA:             addr.MustParseIA("1-ff00:0:110"),
 				TrafficMatcher: pktcls.CondTrue,
 				PerfPolicy:     dummyPerfPolicy{},
 				PathPolicy:     control.DefaultPathPolicy,
@@ -139,7 +139,7 @@ func TestSessionConfigurator(t *testing.T) {
 			{
 				ID:             1,
 				PolicyID:       42,
-				IA:             xtest.MustParseIA("1-ff00:0:110"),
+				IA:             addr.MustParseIA("1-ff00:0:110"),
 				TrafficMatcher: pktcls.CondTrue,
 				PerfPolicy:     dummyPerfPolicy{},
 				PathPolicy:     control.DefaultPathPolicy,
@@ -208,7 +208,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 			SessionPolicies: nil,
 			RoutingUpdate: control.RemoteGateways{
 				Gateways: map[addr.IA][]control.RemoteGateway{
-					xtest.MustParseIA("1-ff00:0:110"): {
+					addr.MustParseIA("1-ff00:0:110"): {
 						{
 							Gateway: control.Gateway{
 								Probe: mustParseUDPAddr(t, "10.0.1.1:25"),
@@ -229,7 +229,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 		"empty dynamic": {
 			SessionPolicies: control.SessionPolicies{
 				{
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					ID:             42,
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     dummyPerfPolicy{},
@@ -243,7 +243,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 		"simple": {
 			SessionPolicies: control.SessionPolicies{
 				{
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					ID:             42,
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     dummyPerfPolicy{},
@@ -254,7 +254,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 			},
 			RoutingUpdate: control.RemoteGateways{
 				Gateways: map[addr.IA][]control.RemoteGateway{
-					xtest.MustParseIA("1-ff00:0:110"): {
+					addr.MustParseIA("1-ff00:0:110"): {
 						{
 							Gateway: control.Gateway{
 								Probe: mustParseUDPAddr(t, "10.0.1.1:25"),
@@ -274,7 +274,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 				{
 					ID:             0,
 					PolicyID:       42,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy:     control.DefaultPathPolicy,
@@ -287,7 +287,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 				{
 					ID:             1,
 					PolicyID:       42,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy:     control.DefaultPathPolicy,
@@ -302,7 +302,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 		"complex": {
 			SessionPolicies: control.SessionPolicies{
 				{
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					ID:             1,
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     dummyPerfPolicy{},
@@ -311,7 +311,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					Prefixes:       []*net.IPNet{xtest.MustParseCIDR(t, "10.1.0.0/24")},
 				},
 				{
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					ID:             2,
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     dummyPerfPolicy{},
@@ -320,7 +320,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					Prefixes:       []*net.IPNet{xtest.MustParseCIDR(t, "10.1.0.0/24")},
 				},
 				{
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					ID:             3,
 					TrafficMatcher: pktcls.CondFalse,
 					PerfPolicy:     dummyPerfPolicy{},
@@ -329,7 +329,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					Prefixes:       []*net.IPNet{xtest.MustParseCIDR(t, "10.1.0.0/24")},
 				},
 				{
-					IA:             xtest.MustParseIA("1-ff00:0:111"),
+					IA:             addr.MustParseIA("1-ff00:0:111"),
 					ID:             1,
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     dummyPerfPolicy{},
@@ -341,7 +341,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 			RoutingUpdate: control.RemoteGateways{
 				Gateways: map[addr.IA][]control.RemoteGateway{
 
-					xtest.MustParseIA("1-ff00:0:110"): {
+					addr.MustParseIA("1-ff00:0:110"): {
 						{
 							Gateway: control.Gateway{
 								Probe:      mustParseUDPAddr(t, "10.0.1.1:25"),
@@ -357,7 +357,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 							Prefixes: xtest.MustParseCIDRs(t, "10.13.0.0/24", "10.37.0.0/24"),
 						},
 					},
-					xtest.MustParseIA("1-ff00:0:111"): {
+					addr.MustParseIA("1-ff00:0:111"): {
 						{
 							Gateway: control.Gateway{
 								Probe:      mustParseUDPAddr(t, "10.6.20.1:404"),
@@ -372,10 +372,10 @@ func TestBuildSessionConfigs(t *testing.T) {
 				{
 					ID:             0,
 					PolicyID:       1,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     dummyPerfPolicy{},
-					PathPolicy: gatewayPolicy(xtest.MustParseIA("1-ff00:0:110"),
+					PathPolicy: gatewayPolicy(addr.MustParseIA("1-ff00:0:110"),
 						[]uint64{40, 4}),
 					PathCount: control.DefaultPathCount,
 					Prefixes: xtest.MustParseCIDRs(t,
@@ -388,10 +388,10 @@ func TestBuildSessionConfigs(t *testing.T) {
 				{
 					ID:             1,
 					PolicyID:       1,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     dummyPerfPolicy{},
-					PathPolicy: gatewayPolicy(xtest.MustParseIA("1-ff00:0:110"),
+					PathPolicy: gatewayPolicy(addr.MustParseIA("1-ff00:0:110"),
 						[]uint64{13, 37}),
 					PathCount: control.DefaultPathCount,
 					Prefixes: xtest.MustParseCIDRs(t,
@@ -404,12 +404,12 @@ func TestBuildSessionConfigs(t *testing.T) {
 				{
 					ID:             2,
 					PolicyID:       2,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy: control.ConjunctionPathPol{
 						Pol1: &pathpol.Policy{Name: "pol2"},
-						Pol2: gatewayPolicy(xtest.MustParseIA("1-ff00:0:110"),
+						Pol2: gatewayPolicy(addr.MustParseIA("1-ff00:0:110"),
 							[]uint64{40, 4}),
 					},
 					PathCount: control.DefaultPathCount,
@@ -423,12 +423,12 @@ func TestBuildSessionConfigs(t *testing.T) {
 				{
 					ID:             3,
 					PolicyID:       2,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy: control.ConjunctionPathPol{
 						Pol1: &pathpol.Policy{Name: "pol2"},
-						Pol2: gatewayPolicy(xtest.MustParseIA("1-ff00:0:110"), []uint64{13, 37}),
+						Pol2: gatewayPolicy(addr.MustParseIA("1-ff00:0:110"), []uint64{13, 37}),
 					},
 					PathCount: control.DefaultPathCount,
 					Prefixes: xtest.MustParseCIDRs(t,
@@ -441,12 +441,12 @@ func TestBuildSessionConfigs(t *testing.T) {
 				{
 					ID:             4,
 					PolicyID:       3,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondFalse,
 					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy: control.ConjunctionPathPol{
 						Pol1: &pathpol.Policy{Name: "pol2"},
-						Pol2: gatewayPolicy(xtest.MustParseIA("1-ff00:0:110"), []uint64{40, 4}),
+						Pol2: gatewayPolicy(addr.MustParseIA("1-ff00:0:110"), []uint64{40, 4}),
 					},
 					PathCount: control.DefaultPathCount,
 					Prefixes: xtest.MustParseCIDRs(t,
@@ -459,12 +459,12 @@ func TestBuildSessionConfigs(t *testing.T) {
 				{
 					ID:             5,
 					PolicyID:       3,
-					IA:             xtest.MustParseIA("1-ff00:0:110"),
+					IA:             addr.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondFalse,
 					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy: control.ConjunctionPathPol{
 						Pol1: &pathpol.Policy{Name: "pol2"},
-						Pol2: gatewayPolicy(xtest.MustParseIA("1-ff00:0:110"), []uint64{13, 37}),
+						Pol2: gatewayPolicy(addr.MustParseIA("1-ff00:0:110"), []uint64{13, 37}),
 					},
 					PathCount: control.DefaultPathCount,
 					Prefixes: xtest.MustParseCIDRs(t,
@@ -477,10 +477,10 @@ func TestBuildSessionConfigs(t *testing.T) {
 				{
 					ID:             6,
 					PolicyID:       1,
-					IA:             xtest.MustParseIA("1-ff00:0:111"),
+					IA:             addr.MustParseIA("1-ff00:0:111"),
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     dummyPerfPolicy{},
-					PathPolicy:     gatewayPolicy(xtest.MustParseIA("1-ff00:0:111"), []uint64{1}),
+					PathPolicy:     gatewayPolicy(addr.MustParseIA("1-ff00:0:111"), []uint64{1}),
 					PathCount:      control.DefaultPathCount,
 					Prefixes:       xtest.MustParseCIDRs(t, "10.25.0.0/24", "10.21.0.0/24"),
 					Gateway: control.Gateway{
@@ -522,8 +522,8 @@ func TestConjuctionPolicy(t *testing.T) {
 				path.Path{
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("1-ff00:0:112"), ID: 2},
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 1},
+							{IA: addr.MustParseIA("1-ff00:0:112"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 1},
 						},
 					},
 				},
@@ -533,8 +533,8 @@ func TestConjuctionPolicy(t *testing.T) {
 				path.Path{
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("1-ff00:0:112"), ID: 2},
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 1},
+							{IA: addr.MustParseIA("1-ff00:0:112"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 1},
 						},
 					},
 				},
@@ -547,8 +547,8 @@ func TestConjuctionPolicy(t *testing.T) {
 				path.Path{
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("1-ff00:0:112"), ID: 2},
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 1},
+							{IA: addr.MustParseIA("1-ff00:0:112"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 1},
 						},
 					},
 				},
@@ -558,8 +558,8 @@ func TestConjuctionPolicy(t *testing.T) {
 				path.Path{
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("1-ff00:0:112"), ID: 2},
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 1},
+							{IA: addr.MustParseIA("1-ff00:0:112"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 1},
 						},
 					},
 				},
@@ -572,8 +572,8 @@ func TestConjuctionPolicy(t *testing.T) {
 				path.Path{
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("1-ff00:0:112"), ID: 2},
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 1},
+							{IA: addr.MustParseIA("1-ff00:0:112"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 1},
 						},
 					},
 				},
@@ -582,8 +582,8 @@ func TestConjuctionPolicy(t *testing.T) {
 				path.Path{
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("1-ff00:0:112"), ID: 2},
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 1},
+							{IA: addr.MustParseIA("1-ff00:0:112"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 1},
 						},
 					},
 				},
@@ -597,24 +597,24 @@ func TestConjuctionPolicy(t *testing.T) {
 				path.Path{
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("2-ff00:0:210"), ID: 2},
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 1},
+							{IA: addr.MustParseIA("2-ff00:0:210"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 1},
 						},
 					},
 				},
 				path.Path{
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("2-ff00:0:210"), ID: 2},
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 2},
+							{IA: addr.MustParseIA("2-ff00:0:210"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 2},
 						},
 					},
 				},
 				path.Path{
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("3-ff00:0:310"), ID: 1},
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 1},
+							{IA: addr.MustParseIA("3-ff00:0:310"), ID: 1},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 1},
 						},
 					},
 				},
@@ -623,8 +623,8 @@ func TestConjuctionPolicy(t *testing.T) {
 				path.Path{
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("2-ff00:0:210"), ID: 2},
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 1},
+							{IA: addr.MustParseIA("2-ff00:0:210"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 1},
 						},
 					},
 				},
@@ -633,16 +633,16 @@ func TestConjuctionPolicy(t *testing.T) {
 				path.Path{
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("2-ff00:0:210"), ID: 2},
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 2},
+							{IA: addr.MustParseIA("2-ff00:0:210"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 2},
 						},
 					},
 				},
 				path.Path{
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("3-ff00:0:310"), ID: 1},
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 1},
+							{IA: addr.MustParseIA("3-ff00:0:310"), ID: 1},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 1},
 						},
 					},
 				},
@@ -679,13 +679,13 @@ func TestNewPathPolForEnteringAS(t *testing.T) {
 	}{
 		"empty interfaces": {
 			Interfaces: []uint64{},
-			IA:         xtest.MustParseIA("1-ff00:0:110"),
+			IA:         addr.MustParseIA("1-ff00:0:110"),
 			AcceptedPaths: []snet.Path{
 				path.Path{
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("1-ff00:0:112"), ID: 2},
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 1},
+							{IA: addr.MustParseIA("1-ff00:0:112"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 1},
 						},
 					},
 				},
@@ -693,13 +693,13 @@ func TestNewPathPolForEnteringAS(t *testing.T) {
 		},
 		"single interface": {
 			Interfaces: []uint64{1},
-			IA:         xtest.MustParseIA("1-ff00:0:110"),
+			IA:         addr.MustParseIA("1-ff00:0:110"),
 			AcceptedPaths: []snet.Path{
 				path.Path{
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("1-ff00:0:112"), ID: 2},
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 1},
+							{IA: addr.MustParseIA("1-ff00:0:112"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 1},
 						},
 					},
 				},
@@ -708,17 +708,17 @@ func TestNewPathPolForEnteringAS(t *testing.T) {
 				path.Path{
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 1},
-							{IA: xtest.MustParseIA("1-ff00:0:112"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 1},
+							{IA: addr.MustParseIA("1-ff00:0:112"), ID: 2},
 						},
 					},
 				},
 				path.Path{
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("1-ff00:0:111"), ID: 25},
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 1},
-							{IA: xtest.MustParseIA("1-ff00:0:112"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:111"), ID: 25},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 1},
+							{IA: addr.MustParseIA("1-ff00:0:112"), ID: 2},
 						},
 					},
 				},
@@ -726,8 +726,8 @@ func TestNewPathPolForEnteringAS(t *testing.T) {
 
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("1-ff00:0:112"), ID: 2},
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:112"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 2},
 						},
 					},
 				},
@@ -735,21 +735,21 @@ func TestNewPathPolForEnteringAS(t *testing.T) {
 		},
 		"multi interface": {
 			Interfaces: []uint64{1, 2, 3, 4},
-			IA:         xtest.MustParseIA("1-ff00:0:110"),
+			IA:         addr.MustParseIA("1-ff00:0:110"),
 			AcceptedPaths: []snet.Path{
 				path.Path{
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("1-ff00:0:112"), ID: 2},
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 1},
+							{IA: addr.MustParseIA("1-ff00:0:112"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 1},
 						},
 					},
 				},
 				path.Path{
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("1-ff00:0:112"), ID: 2},
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:112"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 2},
 						},
 					},
 				},
@@ -758,17 +758,17 @@ func TestNewPathPolForEnteringAS(t *testing.T) {
 				path.Path{
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 1},
-							{IA: xtest.MustParseIA("1-ff00:0:112"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 1},
+							{IA: addr.MustParseIA("1-ff00:0:112"), ID: 2},
 						},
 					},
 				},
 				path.Path{
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{
-							{IA: xtest.MustParseIA("1-ff00:0:111"), ID: 25},
-							{IA: xtest.MustParseIA("1-ff00:0:110"), ID: 1},
-							{IA: xtest.MustParseIA("1-ff00:0:112"), ID: 2},
+							{IA: addr.MustParseIA("1-ff00:0:111"), ID: 25},
+							{IA: addr.MustParseIA("1-ff00:0:110"), ID: 1},
+							{IA: addr.MustParseIA("1-ff00:0:112"), ID: 2},
 						},
 					},
 				},

@@ -20,7 +20,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/tools/integration"
 )
 
@@ -42,10 +41,10 @@ func TestLoadASList(t *testing.T) {
 			File:  "testdata/aslist_valid.yml",
 			Error: assert.NoError,
 			Expected: &integration.ASList{
-				Core: []addr.IA{xtest.MustParseIA("1-ff00:0:110")},
+				Core: []addr.IA{addr.MustParseIA("1-ff00:0:110")},
 				NonCore: []addr.IA{
-					xtest.MustParseIA("1-ff00:0:111"),
-					xtest.MustParseIA("1-ff00:0:112"),
+					addr.MustParseIA("1-ff00:0:111"),
+					addr.MustParseIA("1-ff00:0:112"),
 				},
 			},
 		},

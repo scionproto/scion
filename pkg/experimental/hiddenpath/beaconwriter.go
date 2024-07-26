@@ -80,17 +80,17 @@ func (w *BeaconWriter) Write(ctx context.Context, segments []beacon.Beacon,
 	var wg sync.WaitGroup
 
 	for _, b := range segments {
-		if w.Intfs.Get(b.InIfId) == nil {
-			logger.Error("Received beacon for non-existing interface", "interface", b.InIfId)
+		if w.Intfs.Get(b.InIfID) == nil {
+			logger.Error("Received beacon for non-existing interface", "interface", b.InIfID)
 			metrics.CounterInc(w.InternalErrors)
 			continue
 		}
-		regPolicy, ok := w.RegistrationPolicy[uint64(b.InIfId)]
+		regPolicy, ok := w.RegistrationPolicy[uint64(b.InIfID)]
 		if !ok {
-			logger.Info("no HP nor public registration policy for beacon", "interface", b.InIfId)
+			logger.Info("no HP nor public registration policy for beacon", "interface", b.InIfID)
 			continue
 		}
-		err := w.Extender.Extend(ctx, b.Segment, b.InIfId, 0, peers)
+		err := w.Extender.Extend(ctx, b.Segment, b.InIfID, 0, peers)
 		if err != nil {
 			logger.Error("Unable to terminate beacon", "beacon", b, "err", err)
 			metrics.CounterInc(w.InternalErrors)
@@ -161,7 +161,7 @@ func (w *remoteWriter) run(ctx context.Context, bseg beacon.Beacon) {
 
 	labels := writerLabels{
 		StartIA: bseg.Segment.FirstIA(),
-		Ingress: bseg.InIfId,
+		Ingress: bseg.InIfID,
 		SegType: w.segTypeString(),
 	}
 

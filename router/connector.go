@@ -15,7 +15,6 @@
 package router
 
 import (
-	"net"
 	"net/netip"
 	"sync"
 
@@ -68,21 +67,20 @@ func (c *Connector) AddInternalInterface(ia addr.IA, local netip.AddrPort) error
 	if !c.ia.Equal(ia) {
 		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
 	}
-	localU := net.UDPAddrFromAddrPort(local)
-	connection, err := conn.New(localU, nil,
+	connection, err := conn.New(local, netip.AddrPort{},
 		&conn.Config{ReceiveBufferSize: c.ReceiveBufferSize, SendBufferSize: c.SendBufferSize})
 	if err != nil {
 		return err
 	}
 	c.internalInterfaces = append(c.internalInterfaces, control.InternalInterface{
 		IA:   ia,
-		Addr: localU,
+		Addr: local,
 	})
 	return c.DataPlane.AddInternalInterface(connection, local.Addr())
 }
 
 // AddExternalInterface adds a link between the local and remote address.
-func (c *Connector) AddExternalInterface(localIfID common.IFIDType, link control.LinkInfo,
+func (c *Connector) AddExternalInterface(localIfID common.IfIDType, link control.LinkInfo,
 	owned bool) error {
 
 	c.mtx.Lock()
@@ -112,16 +110,16 @@ func (c *Connector) AddExternalInterface(localIfID common.IFIDType, link control
 			c.externalInterfaces = make(map[uint16]control.ExternalInterface)
 		}
 		c.externalInterfaces[intf] = control.ExternalInterface{
-			InterfaceID: intf,
-			Link:        link,
-			State:       control.InterfaceDown,
+			IfID:  intf,
+			Link:  link,
+			State: control.InterfaceDown,
 		}
 	} else {
 		if len(c.siblingInterfaces) == 0 {
 			c.siblingInterfaces = make(map[uint16]control.SiblingInterface)
 		}
 		c.siblingInterfaces[intf] = control.SiblingInterface{
-			InterfaceID:       intf,
+			IfID:              intf,
 			InternalInterface: link.Remote.Addr,
 			Relationship:      link.LinkTo,
 			MTU:               link.MTU,
@@ -142,23 +140,24 @@ func (c *Connector) AddExternalInterface(localIfID common.IFIDType, link control
 }
 
 // AddSvc adds the service address for the given ISD-AS.
-func (c *Connector) AddSvc(ia addr.IA, svc addr.SVC, a *net.UDPAddr) error {
+func (c *Connector) AddSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error {
+
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	log.Debug("Adding service", "isd_as", ia, "svc", svc, "address", a)
 	if !c.ia.Equal(ia) {
-		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
+		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", a)
 	}
 	return c.DataPlane.AddSvc(svc, a)
 }
 
 // DelSvc deletes the service entry for the given ISD-AS and IP pair.
-func (c *Connector) DelSvc(ia addr.IA, svc addr.SVC, a *net.UDPAddr) error {
+func (c *Connector) DelSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	log.Debug("Deleting service", "isd_as", ia, "svc", svc, "address", a)
 	if !c.ia.Equal(ia) {
-		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
+		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", a)
 	}
 	return c.DataPlane.DelSvc(svc, a)
 }
@@ -193,7 +192,7 @@ func (c *Connector) ListExternalInterfaces() ([]control.ExternalInterface, error
 
 	externalInterfaceList := make([]control.ExternalInterface, 0, len(c.externalInterfaces))
 	for _, externalInterface := range c.externalInterfaces {
-		externalInterface.State = c.DataPlane.getInterfaceState(externalInterface.InterfaceID)
+		externalInterface.State = c.DataPlane.getInterfaceState(externalInterface.IfID)
 		externalInterfaceList = append(externalInterfaceList, externalInterface)
 	}
 	return externalInterfaceList, nil
@@ -205,7 +204,7 @@ func (c *Connector) ListSiblingInterfaces() ([]control.SiblingInterface, error) 
 
 	siblingInterfaceList := make([]control.SiblingInterface, 0, len(c.siblingInterfaces))
 	for _, siblingInterface := range c.siblingInterfaces {
-		siblingInterface.State = c.DataPlane.getInterfaceState(siblingInterface.InterfaceID)
+		siblingInterface.State = c.DataPlane.getInterfaceState(siblingInterface.IfID)
 		siblingInterfaceList = append(siblingInterfaceList, siblingInterface)
 	}
 	return siblingInterfaceList, nil

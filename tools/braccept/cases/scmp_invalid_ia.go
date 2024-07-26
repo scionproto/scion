@@ -25,7 +25,6 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/util"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
@@ -96,8 +95,8 @@ func SCMPInvalidSrcIAInternalHostToChild(artifactsDir string, mac hash.Hash) run
 		FlowID:       0xdead,
 		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:2"), // != local IA, invalid Src IA
-		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
+		SrcIA:        addr.MustParseIA("1-ff00:0:2"), // != local IA, invalid Src IA
+		DstIA:        addr.MustParseIA("1-ff00:0:4"),
 		Path:         sp,
 	}
 	srcA := addr.MustParseHost("192.168.0.51")
@@ -133,7 +132,7 @@ func SCMPInvalidSrcIAInternalHostToChild(artifactsDir string, mac hash.Hash) run
 	udp.SrcPort, udp.DstPort = udp.DstPort, udp.SrcPort
 
 	scionL.DstIA = scionL.SrcIA // This is bogus, correct is local IA.
-	scionL.SrcIA = xtest.MustParseIA("1-ff00:0:1")
+	scionL.SrcIA = addr.MustParseIA("1-ff00:0:1")
 	if err := scionL.SetDstAddr(srcA); err != nil {
 		panic(err)
 	}
@@ -243,8 +242,8 @@ func SCMPInvalidDstIAInternalHostToChild(artifactsDir string, mac hash.Hash) run
 		FlowID:       0xdead,
 		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:1"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:1"), // == local IA, invalid Dst IA
+		SrcIA:        addr.MustParseIA("1-ff00:0:1"),
+		DstIA:        addr.MustParseIA("1-ff00:0:1"), // == local IA, invalid Dst IA
 		Path:         sp,
 	}
 	srcA := addr.MustParseHost("192.168.0.51")
@@ -280,7 +279,7 @@ func SCMPInvalidDstIAInternalHostToChild(artifactsDir string, mac hash.Hash) run
 	udp.SrcPort, udp.DstPort = udp.DstPort, udp.SrcPort
 
 	scionL.DstIA = scionL.SrcIA
-	scionL.SrcIA = xtest.MustParseIA("1-ff00:0:1")
+	scionL.SrcIA = addr.MustParseIA("1-ff00:0:1")
 	if err := scionL.SetDstAddr(srcA); err != nil {
 		panic(err)
 	}
@@ -394,8 +393,8 @@ func SCMPInvalidSrcIAChildToParent(artifactsDir string, mac hash.Hash) runner.Ca
 		FlowID:       0xdead,
 		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:1"), // == local IA, invalid Src IA
-		DstIA:        xtest.MustParseIA("1-ff00:0:3"),
+		SrcIA:        addr.MustParseIA("1-ff00:0:1"), // == local IA, invalid Src IA
+		DstIA:        addr.MustParseIA("1-ff00:0:3"),
 		Path:         sp,
 	}
 	srcA := addr.MustParseHost("172.16.4.1")
@@ -431,7 +430,7 @@ func SCMPInvalidSrcIAChildToParent(artifactsDir string, mac hash.Hash) runner.Ca
 	udp.SrcPort, udp.DstPort = udp.DstPort, udp.SrcPort
 
 	scionL.DstIA = scionL.SrcIA // This is bogus, but we don't know the correct IA.
-	scionL.SrcIA = xtest.MustParseIA("1-ff00:0:1")
+	scionL.SrcIA = addr.MustParseIA("1-ff00:0:1")
 	if err := scionL.SetDstAddr(srcA); err != nil {
 		panic(err)
 	}
@@ -550,8 +549,8 @@ func SCMPInvalidDstIAChildToParent(artifactsDir string, mac hash.Hash) runner.Ca
 		FlowID:       0xdead,
 		NextHdr:      slayers.L4UDP,
 		PathType:     scion.PathType,
-		SrcIA:        xtest.MustParseIA("1-ff00:0:9"),
-		DstIA:        xtest.MustParseIA("1-ff00:0:1"), // == local IA, invalid Dst IA
+		SrcIA:        addr.MustParseIA("1-ff00:0:9"),
+		DstIA:        addr.MustParseIA("1-ff00:0:1"), // == local IA, invalid Dst IA
 		Path:         sp,
 	}
 	srcA := addr.MustParseHost("172.16.4.1")
@@ -587,7 +586,7 @@ func SCMPInvalidDstIAChildToParent(artifactsDir string, mac hash.Hash) runner.Ca
 	udp.SrcPort, udp.DstPort = udp.DstPort, udp.SrcPort
 
 	scionL.DstIA = scionL.SrcIA
-	scionL.SrcIA = xtest.MustParseIA("1-ff00:0:1")
+	scionL.SrcIA = addr.MustParseIA("1-ff00:0:1")
 	if err := scionL.SetDstAddr(srcA); err != nil {
 		panic(err)
 	}

@@ -19,7 +19,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/pkg/private/xtest"
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/path"
 	apppath "github.com/scionproto/scion/private/app/path"
@@ -34,7 +34,7 @@ func TestFilter(t *testing.T) {
 		"valid": {
 			input: []snet.Path{
 				path.Path{
-					Dst: xtest.MustParseIA("1-ff00:0:112"),
+					Dst: addr.MustParseIA("1-ff00:0:112"),
 					Meta: snet.PathMetadata{
 						Interfaces: []snet.PathInterface{{ID: 1}},
 					},

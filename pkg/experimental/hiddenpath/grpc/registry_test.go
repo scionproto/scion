@@ -25,11 +25,11 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath"
 	hpgrpc "github.com/scionproto/scion/pkg/experimental/hiddenpath/grpc"
 	"github.com/scionproto/scion/pkg/experimental/hiddenpath/mock_hiddenpath"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	"github.com/scionproto/scion/pkg/proto/control_plane"
 	hspb "github.com/scionproto/scion/pkg/proto/hidden_segment"
@@ -78,7 +78,7 @@ func TestRegistrationServerHiddenSegmentRegistration(t *testing.T) {
 		},
 		"invalid segment": {
 			ctx: peer.NewContext(context.Background(), &peer.Peer{Addr: &snet.UDPAddr{
-				IA: xtest.MustParseIA("1-ff00:0:110"),
+				IA: addr.MustParseIA("1-ff00:0:110"),
 			}}),
 			registry: func(ctrl *gomock.Controller) hiddenpath.Registry {
 				return mock_hiddenpath.NewMockRegistry(ctrl)
@@ -93,7 +93,7 @@ func TestRegistrationServerHiddenSegmentRegistration(t *testing.T) {
 				})
 				v := mock_infra.NewMockVerifier(ctrl)
 				v.EXPECT().WithServer(gomock.Any()).Return(v)
-				v.EXPECT().WithIA(xtest.MustParseIA("1-ff00:0:110")).Return(v)
+				v.EXPECT().WithIA(addr.MustParseIA("1-ff00:0:110")).Return(v)
 				v.EXPECT().Verify(gomock.Any(), gomock.Any(), gomock.Any()).Return(&signed.Message{
 					Body: body,
 				}, nil)
@@ -104,7 +104,7 @@ func TestRegistrationServerHiddenSegmentRegistration(t *testing.T) {
 		},
 		"signature verification error": {
 			ctx: peer.NewContext(context.Background(), &peer.Peer{Addr: &snet.UDPAddr{
-				IA: xtest.MustParseIA("1-ff00:0:110"),
+				IA: addr.MustParseIA("1-ff00:0:110"),
 			}}),
 			registry: func(ctrl *gomock.Controller) hiddenpath.Registry {
 				return mock_hiddenpath.NewMockRegistry(ctrl)
@@ -122,7 +122,7 @@ func TestRegistrationServerHiddenSegmentRegistration(t *testing.T) {
 				})
 				v := mock_infra.NewMockVerifier(ctrl)
 				v.EXPECT().WithServer(gomock.Any()).Return(v)
-				v.EXPECT().WithIA(xtest.MustParseIA("1-ff00:0:110")).Return(v)
+				v.EXPECT().WithIA(addr.MustParseIA("1-ff00:0:110")).Return(v)
 				v.EXPECT().Verify(gomock.Any(), gomock.Any(), gomock.Any()).Return(&signed.Message{
 					Body: body,
 				}, serrors.New("verification failed"))
@@ -133,7 +133,7 @@ func TestRegistrationServerHiddenSegmentRegistration(t *testing.T) {
 		},
 		"invalid body": {
 			ctx: peer.NewContext(context.Background(), &peer.Peer{Addr: &snet.UDPAddr{
-				IA: xtest.MustParseIA("1-ff00:0:110"),
+				IA: addr.MustParseIA("1-ff00:0:110"),
 			}}),
 			registry: func(ctrl *gomock.Controller) hiddenpath.Registry {
 				return mock_hiddenpath.NewMockRegistry(ctrl)
@@ -142,7 +142,7 @@ func TestRegistrationServerHiddenSegmentRegistration(t *testing.T) {
 				body := []byte("garbage")
 				v := mock_infra.NewMockVerifier(ctrl)
 				v.EXPECT().WithServer(gomock.Any()).Return(v)
-				v.EXPECT().WithIA(xtest.MustParseIA("1-ff00:0:110")).Return(v)
+				v.EXPECT().WithIA(addr.MustParseIA("1-ff00:0:110")).Return(v)
 				v.EXPECT().Verify(gomock.Any(), gomock.Any(), gomock.Any()).Return(&signed.Message{
 					Body: body,
 				}, nil)
@@ -153,7 +153,7 @@ func TestRegistrationServerHiddenSegmentRegistration(t *testing.T) {
 		},
 		"registry error": {
 			ctx: peer.NewContext(context.Background(), &peer.Peer{Addr: &snet.UDPAddr{
-				IA: xtest.MustParseIA("1-ff00:0:110"),
+				IA: addr.MustParseIA("1-ff00:0:110"),
 			}}),
 			registry: func(ctrl *gomock.Controller) hiddenpath.Registry {
 				registry := mock_hiddenpath.NewMockRegistry(ctrl)
@@ -174,7 +174,7 @@ func TestRegistrationServerHiddenSegmentRegistration(t *testing.T) {
 				})
 				v := mock_infra.NewMockVerifier(ctrl)
 				v.EXPECT().WithServer(gomock.Any()).Return(v)
-				v.EXPECT().WithIA(xtest.MustParseIA("1-ff00:0:110")).Return(v)
+				v.EXPECT().WithIA(addr.MustParseIA("1-ff00:0:110")).Return(v)
 				v.EXPECT().Verify(gomock.Any(), gomock.Any(), gomock.Any()).Return(&signed.Message{
 					Body: body,
 				}, nil)
@@ -185,7 +185,7 @@ func TestRegistrationServerHiddenSegmentRegistration(t *testing.T) {
 		},
 		"valid": {
 			ctx: peer.NewContext(context.Background(), &peer.Peer{Addr: &snet.UDPAddr{
-				IA: xtest.MustParseIA("1-ff00:0:110"),
+				IA: addr.MustParseIA("1-ff00:0:110"),
 			}}),
 			registry: func(ctrl *gomock.Controller) hiddenpath.Registry {
 				registry := mock_hiddenpath.NewMockRegistry(ctrl)
@@ -205,7 +205,7 @@ func TestRegistrationServerHiddenSegmentRegistration(t *testing.T) {
 				})
 				v := mock_infra.NewMockVerifier(ctrl)
 				v.EXPECT().WithServer(gomock.Any()).Return(v)
-				v.EXPECT().WithIA(xtest.MustParseIA("1-ff00:0:110")).Return(v)
+				v.EXPECT().WithIA(addr.MustParseIA("1-ff00:0:110")).Return(v)
 				v.EXPECT().Verify(gomock.Any(), gomock.Any(), gomock.Any()).Return(&signed.Message{
 					Body: body,
 				}, nil)

@@ -94,8 +94,8 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 		return nil, serrors.New("nil engine that provides cert chains")
 	}
 	id := cppki.TRCID{ISD: ia.ISD(),
-		Base:   scrypto.Version(keyID.TrcBase),
-		Serial: scrypto.Version(keyID.TrcSerial),
+		Base:   scrypto.Version(keyID.TrcBase),   // nolint - name from published protobuf
+		Serial: scrypto.Version(keyID.TrcSerial), // nolint - name from published protobuf
 	}
 	if err := v.notifyTRC(ctx, id); err != nil {
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrInternal)).Inc()
