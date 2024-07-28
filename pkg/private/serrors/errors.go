@@ -33,8 +33,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// ErrMsg is a custom error type used instead of strings in many places. Keeping it for
-// compatibility. There are basicError constructors for both string and ErrMsg.
+// ErrMsg is a custom error type used instead of strings in many places. It is a good type to use
+// for sentinel errors. There are basicError constructors for both string and error.
 type ErrMsg string
 
 // Error() implements the Go error interface.
@@ -153,10 +153,10 @@ func IsTemporary(err error) bool {
 
 // FromErrStackOpt() returns an error that associates the given error, with the given cause
 // (an underlying error) unless nil, and the given context. A stack dump is added if requested and
-// apropriate. The returned error implements Is. Is(err) returns true. Is(cause) returns
-// true if cause is not nil. Any stack dump attached to err (if err is a basicError) is
-// subsequently ignored. The result of err.Error() will be part of the result of Error().
-// Most other constructors call this one.
+// cause isn't a basicError. The returned error implements Is. Is(err) returns true. Is(cause)
+// returns true. Any stack dump attached to err (if err is a basicError) is subsequently ignored.
+// The result of err.Error() will be part of the result of Error(). Most other constructors call
+// this one.
 func FromErrStackOpt(err error, cause error, addStack bool, errCtx ...interface{}) error {
 	r := basicError{
 		msg:    err,
@@ -193,22 +193,22 @@ func FromErr(err, cause error, errCtx ...interface{}) error {
 }
 
 // FromMsgWithStack() returns an error that associates the given error, with the given cause
-// (an underlying error) unless nil, and the given context. A stack dump is added if apropriate. The
-// returned error implements Is. Is(err) returns true. Is(cause) returns true if cause is not nil.
+// (an underlying error) unless nil, and the given context. A stack dump is added if cause isn't
+// a basicError. The returned error implements Is. Is(err) returns true. Is(cause) returns true.
 func FromMsgWithStack(err, cause error, errCtx ...interface{}) error {
 	return FromErrStackOpt(err, cause, true, errCtx...)
 }
 
 // FromStr() returns an error that associates the given message, with the given cause
 // (an underlying error) unless nil, and the given context.
-// The returned error implements Is and Is(cause) returns true if cause is not nil.
+// The returned error implements Is and Is(cause) returns true.
 func FromStr(msg string, cause error, errCtx ...interface{}) error {
 	return FromErrStackOpt(ErrMsg(msg), cause, false, errCtx...)
 }
 
 // FromStrWithStack() returns an error that associates the given message, with the given cause
-// (an underlying error) unless nil, and the given context. A stack dump is added if apropriate. The
-// returned error implements Is and Is(cause) returns true if cause is not nil.
+// (an underlying error) unless nil, and the given context. A stack dump is added if cause isn't a
+// basicError. The returned error implements Is and Is(cause) returns true.
 func FromStrWithStack(msg string, cause error, errCtx ...interface{}) error {
 	return FromErrStackOpt(ErrMsg(msg), cause, true, errCtx...)
 }
