@@ -154,14 +154,16 @@ func IsTemporary(err error) bool {
 // FromErrStackOpt() returns an error that associates the given error, with the given cause
 // (an underlying error) unless nil, and the given context. A stack dump is added if requested and
 // apropriate. The returned error implements Is. Is(err) returns true. Is(cause) returns
-// true if cause is not nil. Most other constructors call this one.
+// true if cause is not nil. Any stack dump attached to err (if err is a basicError) is
+// subsequently ignored. The result of err.Error() will be part of the result of Error().
+// Most other constructors call this one.
 func FromErrStackOpt(err error, cause error, addStack bool, errCtx ...interface{}) error {
 	r := basicError{
 		msg:    err,
 		fields: errCtxToFields(errCtx),
 	}
 	if cause != nil {
-		// in the odd case where we have two causes. Assume the new one is the one that matters.
+		// In the odd case where err already has a causes, the new one takes precedence.
 		r.cause = cause
 	}
 	if !addStack {
@@ -225,7 +227,7 @@ func New(msg string, errCtx ...interface{}) error {
 }
 
 // WithCtx() is deprecated. It should never have existed. Use FromErr() or FromStr() to create
-// a new error with the original as the cause. Tthis shim does it for you for the time being.
+// a new error with the original as the cause. This shim does it for you for the time being.
 // WithCtx used to attempt the merger of the given error into the newly created one with
 // semantically incorrect results. That feature is gone and the results differ only slightly in the
 // formated string output. WithCtx still doesn't add a stack.
@@ -233,12 +235,14 @@ func WithCtx(err error, errCtx ...interface{}) error {
 	return FromErrStackOpt(ErrMsg("error"), err, false, errCtx...)
 }
 
-// Wrap() is deprecated. It is replaced by FromErr(). This is just a transitional alias.
+// Wrap() is deprecated. Use FromErr() instead. This shim has almost the same result.
+// As before, no stack dump is added. From now on, any trace that might be attached to err
+// will be ignored by the Error() method.
 func Wrap(err, cause error, errCtx ...interface{}) error {
 	return FromErrStackOpt(err, cause, false, errCtx...)
 }
 
-// WrapStr() is deprecated. Use FromStrWithStack()
+// WrapStr() is deprecated. Use FromStrWithStack() instead.
 func WrapStr(msg string, cause error, errCtx ...interface{}) error {
 	return FromErrStackOpt(ErrMsg(msg), cause, true, errCtx...)
 }

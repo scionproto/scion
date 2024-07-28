@@ -113,7 +113,7 @@ func TestWithCtx(t *testing.T) {
 func TestWrap(t *testing.T) {
 	t.Run("Is", func(t *testing.T) {
 		err := serrors.New("simple err")
-		msg := serrors.ErrMsg("msg err")
+		msg := serrors.New("msg err")
 		wrappedErr := serrors.Wrap(msg, err, "someCtx", "someValue")
 		assert.ErrorIs(t, wrappedErr, err)
 		assert.ErrorIs(t, wrappedErr, msg)
@@ -121,7 +121,7 @@ func TestWrap(t *testing.T) {
 	})
 	t.Run("As", func(t *testing.T) {
 		err := &testErrType{msg: "test err"}
-		msg := serrors.ErrMsg("msg err")
+		msg := serrors.New("msg err")
 		wrappedErr := serrors.Wrap(msg, err, "someCtx", "someValue")
 		var errAs *testErrType
 		require.True(t, errors.As(wrappedErr, &errAs))
@@ -356,7 +356,7 @@ func ExampleNew() {
 }
 
 func ExampleWithCtx() {
-	// It is not possible to build a basicError on top of a basicError.
+	// It is not possible to augment the context of a basicError.
 	// WithCtx turns that into an error with a cause.
 	// ErrBadL4 is an error defined at package scope.
 	var ErrBadL4 = serrors.New("Unsupported L4 protocol")
@@ -381,6 +381,7 @@ func ExampleWrapStr() {
 }
 
 func ExampleWrap() {
+	// ErrNoSpace is an error defined at package scope.
 	var ErrNoSpace = serrors.New("no space")
 	// ErrDB is an error defined at package scope.
 	var ErrDB = serrors.New("db")
