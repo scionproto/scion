@@ -216,7 +216,7 @@ func FromStrWithStack(msg string, cause error, errCtx ...interface{}) error {
 // New() creates a new error with the given message and context, with a stack dump.
 // It is equivalent to FromMsgWithStack() but returns by reference as is expected of "New()".
 // Avoid using this in performance-critical code: it is the most expensive variant. If used to
-// construct other errors, such as with FromErr(), the embeded stack trace and context serve no
+// construct other errors, such as with FromErr(), the embedded stack trace and context serve no
 // purpose. Therefore to make sentinel errors, ErrMsg should be preferred.
 func New(msg string, errCtx ...interface{}) error {
 	return &basicError{
@@ -311,17 +311,6 @@ func errCtxToFields(errCtx []interface{}) map[string]interface{} {
 	fields := make(map[string]interface{}, len(errCtx)/2)
 	for i := 0; i < len(errCtx)-1; i += 2 {
 		fields[fmt.Sprint(errCtx[i])] = errCtx[i+1]
-	}
-	return fields
-}
-
-func combineFields(a, b map[string]interface{}) map[string]interface{} {
-	fields := make(map[string]interface{}, len(a)+len(b))
-	for k, v := range a {
-		fields[k] = v
-	}
-	for k, v := range b {
-		fields[k] = v
 	}
 	return fields
 }
