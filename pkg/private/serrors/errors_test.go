@@ -211,7 +211,7 @@ func TestEncoding(t *testing.T) {
 		},
 		"wrapped error": {
 			err: serrors.Wrap(
-				serrors.ErrMsg("msg error"),
+				serrors.New("msg error"),
 				serrors.New("msg cause"),
 				"k0", "v0",
 				"k1", 1,
@@ -381,12 +381,9 @@ func ExampleWrapStr() {
 }
 
 func ExampleWrap() {
-	// Wrap, nor any constructor can make this work if both error and cause are generic
-	// errors. The wrapper error must be a plain error message, not a full basicError.
-	// ErrNoSpace is an error defined at package scope.
 	var ErrNoSpace = serrors.New("no space")
 	// ErrDB is an error defined at package scope.
-	var ErrDB = serrors.ErrMsg("db")
+	var ErrDB = serrors.New("db")
 	wrapped := serrors.Wrap(ErrDB, ErrNoSpace, "ctx", 1)
 
 	// Now we can identify specific errors:
