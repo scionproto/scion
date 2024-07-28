@@ -111,13 +111,10 @@ func TestWithCtx(t *testing.T) {
 }
 
 func TestWrap(t *testing.T) {
-	// Note that serrors.Wrap(msg, cause,...) cannot use a generic error as the wrapper message.
-	// Instead, use its replacement and use an ErrMsg.
-	// it has to extract the error message.
 	t.Run("Is", func(t *testing.T) {
 		err := serrors.New("simple err")
 		msg := serrors.ErrMsg("msg err")
-		wrappedErr := serrors.FromMsg(msg, err, nil, "someCtx", "someValue")
+		wrappedErr := serrors.Wrap(msg, err, "someCtx", "someValue")
 		assert.ErrorIs(t, wrappedErr, err)
 		assert.ErrorIs(t, wrappedErr, msg)
 		assert.ErrorIs(t, wrappedErr, wrappedErr)
@@ -125,7 +122,7 @@ func TestWrap(t *testing.T) {
 	t.Run("As", func(t *testing.T) {
 		err := &testErrType{msg: "test err"}
 		msg := serrors.ErrMsg("msg err")
-		wrappedErr := serrors.FromMsg(msg, err, nil, "someCtx", "someValue")
+		wrappedErr := serrors.Wrap(msg, err, "someCtx", "someValue")
 		var errAs *testErrType
 		require.True(t, errors.As(wrappedErr, &errAs))
 		assert.Equal(t, err, errAs)
@@ -213,10 +210,7 @@ func TestEncoding(t *testing.T) {
 			goldenFileBase: "testdata/wrapped-with-string",
 		},
 		"wrapped error": {
-			// Wrap is deprecated and it is not possible to encapsulate a generic error as the
-			// main error of a basicError. Replacement is FromMsg(ErrMsg, ...)
-
-			err: serrors.FromMsg(
+			err: serrors.Wrap(
 				serrors.ErrMsg("msg error"),
 				serrors.New("msg cause"),
 				"k0", "v0",
@@ -225,10 +219,10 @@ func TestEncoding(t *testing.T) {
 			goldenFileBase: "testdata/wrapped-error",
 		},
 		"error with context": {
-			// WithCtx is deprecated. The equivalent is to set err as the cause of a new
-			// error. The printed result isn't exactly the same.
-			err: serrors.FromStr(
-				"with context", serrors.New("simple err"), "someCtx", "someValue"),
+			// WithCtx is deprecated. The shim does it the new way: sets err as the cause of a new
+			// error. The string output isn't exactly the same. Which almost nothing ever notices...
+			// except this test.
+			err:            serrors.WithCtx(serrors.New("simple err"), "someCtx", "someValue"),
 			goldenFileBase: "testdata/error-with-context",
 		},
 		"error list": {
