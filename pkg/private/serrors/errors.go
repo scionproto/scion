@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -99,6 +100,12 @@ func (e basicError) Is(err error) bool {
 	case basicError:
 		// When error's underlying value isn't a pointer error.Is() calls us because basicError
 		// isn't comparable. This check is loose but about the only real use case is E.Is(E).
+		// We still need to make sure we don't panic if the two msg fields are non-comparable.
+		// (That's unlikely given how basicError is used, but entirely feasible).
+		if e.msg != nil && other.msg != nil && !(reflect.TypeOf(e.msg).Comparable() &&
+			reflect.TypeOf(other.msg).Comparable()) {
+			return false
+		}
 		return e.msg == other.msg
 
 		// No special case if the underlying value is a basicError pointer. For identical pointers,
