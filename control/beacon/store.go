@@ -27,6 +27,30 @@ type usager interface {
 	Usage(beacon Beacon) Usage
 }
 
+type storeOptions struct {
+	chainChecker ChainProvider
+}
+
+func applyStoreOptions(opts []StoreOption) storeOptions {
+	var o storeOptions
+	for _, f := range opts {
+		f(&o)
+	}
+	return o
+}
+
+type StoreOption func(o *storeOptions)
+
+// WithCheckChain ensures that only beacons for which all the required
+// certificate chains are available. This can be paired with a chain provider
+// that only returns locally available chains to ensure that beacons are
+// verifiable with cryptographic material available in the local trust store.
+func WithCheckChain(p ChainProvider) StoreOption {
+	return func(o *storeOptions) {
+		o.chainChecker = p
+	}
+}
+
 // Store provides abstracted access to the beacon database in a non-core AS.
 // The store helps inserting beacons and revocations, and selects the best beacons
 // for given purposes based on the configured policies. It should not be used in a
@@ -37,15 +61,16 @@ type Store struct {
 }
 
 // NewBeaconStore creates a new beacon store for a non-core AS.
-func NewBeaconStore(policies Policies, db DB) (*Store, error) {
+func NewBeaconStore(policies Policies, db DB, opts ...StoreOption) (*Store, error) {
 	policies.InitDefaults()
 	if err := policies.Validate(); err != nil {
 		return nil, err
 	}
+	o := applyStoreOptions(opts)
 	s := &Store{
 		baseStore: baseStore{
 			db:   db,
-			algo: baseAlgo{},
+			algo: selectAlgo(o),
 		},
 		policies: policies,
 	}
@@ -81,7 +106,7 @@ func (s *Store) getBeacons(ctx context.Context, policy *Policy) ([]Beacon, error
 	if err != nil {
 		return nil, err
 	}
-	return s.algo.SelectBeacons(beacons, policy.BestSetSize), nil
+	return s.algo.SelectBeacons(ctx, beacons, policy.BestSetSize), nil
 }
 
 // MaxExpTime returns the segment maximum expiration time for the given policy.
@@ -107,15 +132,16 @@ type CoreStore struct {
 }
 
 // NewCoreBeaconStore creates a new beacon store for a non-core AS.
-func NewCoreBeaconStore(policies CorePolicies, db DB) (*CoreStore, error) {
+func NewCoreBeaconStore(policies CorePolicies, db DB, opts ...StoreOption) (*CoreStore, error) {
 	policies.InitDefaults()
 	if err := policies.Validate(); err != nil {
 		return nil, err
 	}
+	o := applyStoreOptions(opts)
 	s := &CoreStore{
 		baseStore: baseStore{
 			db:   db,
-			algo: baseAlgo{},
+			algo: selectAlgo(o),
 		},
 		policies: policies,
 	}
@@ -155,7 +181,7 @@ func (s *CoreStore) getBeacons(ctx context.Context, policy *Policy) ([]Beacon, e
 			log.FromCtx(ctx).Error("Error getting candidate beacons", "src", src, "err", err)
 			continue
 		}
-		selBeacons := s.algo.SelectBeacons(candidateBeacons, policy.BestSetSize)
+		selBeacons := s.algo.SelectBeacons(ctx, candidateBeacons, policy.BestSetSize)
 		beacons = append(beacons, selBeacons...)
 	}
 	return beacons, nil
@@ -201,4 +227,11 @@ func (s *baseStore) InsertBeacon(ctx context.Context, beacon Beacon) (InsertStat
 // policies after the update are removed.
 func (s *baseStore) UpdatePolicy(ctx context.Context, policy Policy) error {
 	return serrors.New("policy update not supported")
+}
+
+func selectAlgo(o storeOptions) selectionAlgorithm {
+	if o.chainChecker != nil {
+		return newChainsAvailableAlgo(o.chainChecker)
+	}
+	return baseAlgo{}
 }

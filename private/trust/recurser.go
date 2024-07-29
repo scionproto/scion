@@ -74,3 +74,9 @@ func (r LocalOnlyRecurser) AllowRecursion(peer net.Addr) error {
 	}
 	return nil
 }
+
+type NeverRecurser struct{}
+
+func (r NeverRecurser) AllowRecursion(peer net.Addr) error {
+	return serrors.New("recursion never allowed")
+}
