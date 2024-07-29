@@ -93,7 +93,10 @@ func (v chainChecker) Verify(ctx context.Context, signedMsg *cryptopb.SignedMess
 	return nil, nil
 }
 
-func (v chainChecker) getChains(ctx context.Context, q trust.ChainQuery) ([][]*x509.Certificate, error) {
+func (v chainChecker) getChains(
+	ctx context.Context,
+	q trust.ChainQuery,
+) ([][]*x509.Certificate, error) {
 	key := fmt.Sprintf("chain-%s-%x", q.IA, q.SubjectKeyID)
 
 	cachedChains, ok := v.getChainsCached(key)
