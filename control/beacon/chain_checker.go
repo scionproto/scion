@@ -85,7 +85,7 @@ func (v chainChecker) Verify(ctx context.Context, signedMsg *cryptopb.SignedMess
 		SubjectKeyID: keyID.SubjectKeyId,
 		Validity:     v.BoundValidity,
 	}
-	if err := v.getChains(ctx, query); err != nil {
+	if err := v.checkChains(ctx, query); err != nil {
 		return nil, serrors.WrapStr("getting chains", err,
 			"query.isd_as", query.IA,
 			"query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID),
@@ -95,7 +95,7 @@ func (v chainChecker) Verify(ctx context.Context, signedMsg *cryptopb.SignedMess
 	return nil, nil
 }
 
-func (v chainChecker) getChains(ctx context.Context, q trust.ChainQuery) error {
+func (v chainChecker) checkChains(ctx context.Context, q trust.ChainQuery) error {
 	key := fmt.Sprintf("chain-%s-%x", q.IA, q.SubjectKeyID)
 
 	cachedChains, ok := v.getChainsCached(key)
