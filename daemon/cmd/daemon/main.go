@@ -159,10 +159,13 @@ func realMain(ctx context.Context) error {
 		CacheHits:          metrics.NewPromCounter(trustmetrics.CacheHitsTotal),
 		MaxCacheExpiration: globalCfg.TrustEngine.Cache.Expiration.Duration,
 	}
-	trcLoader := periodic.Start(periodic.Func{
+	trcLoader := trust.TRCLoader{
+		Dir: filepath.Join(globalCfg.General.ConfigDir, "certs"),
+		DB:  trustDB,
+	}
+	trcLoaderTask := periodic.Start(periodic.Func{
 		Task: func(ctx context.Context) {
-			trcDirs := filepath.Join(globalCfg.General.ConfigDir, "certs")
-			res, err := trust.LoadTRCs(ctx, trcDirs, trustDB)
+			res, err := trcLoader.Load(ctx)
 			if err != nil {
 				log.SafeInfo(log.FromCtx(ctx), "TRC loading failed", "err", err)
 			}
@@ -172,7 +175,7 @@ func realMain(ctx context.Context) error {
 		},
 		TaskName: "daemon_trc_loader",
 	}, 10*time.Second, 10*time.Second)
-	defer trcLoader.Stop()
+	defer trcLoaderTask.Stop()
 
 	var drkeyClientEngine *sd_drkey.ClientEngine
 	if globalCfg.DRKeyLevel2DB.Connection != "" {
