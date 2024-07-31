@@ -18,7 +18,6 @@ import (
 	"context"
 	"crypto/x509"
 	"fmt"
-	"math/rand"
 	"net"
 	"time"
 
@@ -38,7 +37,10 @@ type ChainProvider interface {
 	GetChains(context.Context, trust.ChainQuery, ...trust.Option) ([][]*x509.Certificate, error)
 }
 
-const defaultCacheExpiration = 10 * time.Minute
+const (
+	defaultCacheHitExpiration  = 10 * time.Minute
+	defaultCacheMissExpiration = 30 * time.Second
+)
 
 var _ infra.Verifier = (chainChecker{})
 
@@ -83,7 +85,7 @@ func (v chainChecker) Verify(ctx context.Context, signedMsg *cryptopb.SignedMess
 		SubjectKeyID: keyID.SubjectKeyId,
 		Validity:     v.BoundValidity,
 	}
-	if _, err := v.getChains(ctx, query); err != nil {
+	if err := v.getChains(ctx, query); err != nil {
 		return nil, serrors.WrapStr("getting chains", err,
 			"query.isd_as", query.IA,
 			"query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID),
@@ -93,22 +95,49 @@ func (v chainChecker) Verify(ctx context.Context, signedMsg *cryptopb.SignedMess
 	return nil, nil
 }
 
-func (v chainChecker) getChains(ctx context.Context, q trust.ChainQuery) ([][]*x509.Certificate, error) {
+func (v chainChecker) getChains(ctx context.Context, q trust.ChainQuery) error {
 	key := fmt.Sprintf("chain-%s-%x", q.IA, q.SubjectKeyID)
 
 	cachedChains, ok := v.getChainsCached(key)
 	if ok {
-		return cachedChains, nil
+		if len(cachedChains) == 0 {
+			return serrors.New("cached certificate chains are empty")
+		}
+
+		var validChains int
+		for _, chain := range cachedChains {
+			if len(chain) == 0 {
+				continue // This should never happen.
+			}
+			chainValidity := cppki.Validity{
+				NotBefore: chain[0].NotBefore,
+				NotAfter:  chain[0].NotAfter,
+			}
+			if v.BoundValidity != (cppki.Validity{}) && !chainValidity.Covers(v.BoundValidity) {
+				continue
+			}
+			validChains++
+		}
+		if validChains == 0 {
+			// Remove the invalid chains from the cache. This is a rare case if
+			// we have previously cached chains, but they have now expired.
+			// After the cache is cleared here, we will attempt to fetch and
+			// cache the empty result, thus, not hitting this code path again.
+			v.Cache.Delete(key)
+			return serrors.New("chached certificate chains do not cover required validity")
+		}
+		return nil
 	}
 
 	chains, err := v.Engine.GetChains(ctx, q)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if len(chains) != 0 {
-		v.cacheChains(key, chains, v.cacheExpiration(chains))
+	v.cacheChains(key, chains, v.cacheExpiration(chains))
+	if len(chains) == 0 {
+		return serrors.New("no certificate chains found")
 	}
-	return chains, nil
+	return nil
 }
 
 func (v chainChecker) getChainsCached(key string) ([][]*x509.Certificate, bool) {
@@ -124,15 +153,12 @@ func (v chainChecker) cacheChains(key string, chain [][]*x509.Certificate, d tim
 }
 
 func (v chainChecker) cacheExpiration(chains [][]*x509.Certificate) time.Duration {
-	dur := defaultCacheExpiration
-	validity := time.Duration(rand.Int63n(int64(dur-(dur/2))) + int64(dur/2))
-	expiration := time.Now().Add(validity)
-	for _, chain := range chains {
-		if notAfter := chain[0].NotAfter; notAfter.Before(expiration) {
-			expiration = notAfter
-		}
+	// In case of a miss, we cache the result for a short time. This allows us to
+	// learn about new chains more quickly.
+	if len(chains) == 0 {
+		return defaultCacheMissExpiration
 	}
-	return time.Until(expiration)
+	return defaultCacheHitExpiration
 }
 
 func (v chainChecker) WithServer(server net.Addr) infra.Verifier { return v }

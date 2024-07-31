@@ -78,17 +78,17 @@ func (baseAlgo) selectMostDiverse(beacons []Beacon, best Beacon) (Beacon, int) {
 }
 
 type chainsAvailableAlgo struct {
-	verifier chainChecker
-	errCache *cache.Cache
+	verifier     chainChecker
+	logThrottled *cache.Cache
 }
 
 func newChainsAvailableAlgo(engine ChainProvider) chainsAvailableAlgo {
 	return chainsAvailableAlgo{
 		verifier: chainChecker{
 			Engine: engine,
-			Cache:  cache.New(defaultCacheExpiration, defaultCacheExpiration),
+			Cache:  cache.New(defaultCacheHitExpiration, defaultCacheHitExpiration),
 		},
-		errCache: cache.New(defaultCacheExpiration, defaultCacheExpiration),
+		logThrottled: cache.New(defaultCacheHitExpiration, defaultCacheHitExpiration),
 	}
 }
 
@@ -106,12 +106,12 @@ func (a chainsAvailableAlgo) SelectBeacons(
 		}
 
 		id := b.Segment.GetLoggingID()
-		if _, ok := a.errCache.Get(id); !ok {
+		if _, ok := a.logThrottled.Get(id); !ok {
 			log.FromCtx(ctx).Info("Ignoring beacon due to missing crypto material",
 				"id", id,
 				"err", err,
 			)
-			a.errCache.Set(id, struct{}{}, cache.DefaultExpiration)
+			a.logThrottled.Set(id, struct{}{}, cache.DefaultExpiration)
 		}
 	}
 	return baseAlgo{}.SelectBeacons(ctx, withChain, resultSize)
