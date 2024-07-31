@@ -31,24 +31,31 @@ type storeOptions struct {
 	chainChecker ChainProvider
 }
 
+type StoreOption interface {
+	apply(o *storeOptions)
+}
+
+type chainCheckerOption struct{ ChainProvider }
+
+func (c chainCheckerOption) apply(o *storeOptions) {
+	o.chainChecker = c.ChainProvider
+}
+
+// WithCheckChain ensures that only beacons for which all the required
+// certificate chains are available are returned. This can be paired with a
+// chain provider that only returns locally available chains to ensure that
+// beacons are verifiable with cryptographic material available in the local
+// trust store.
+func WithCheckChain(p ChainProvider) StoreOption {
+	return chainCheckerOption{p}
+}
+
 func applyStoreOptions(opts []StoreOption) storeOptions {
 	var o storeOptions
 	for _, f := range opts {
-		f(&o)
+		f.apply(&o)
 	}
 	return o
-}
-
-type StoreOption func(o *storeOptions)
-
-// WithCheckChain ensures that only beacons for which all the required
-// certificate chains are available. This can be paired with a chain provider
-// that only returns locally available chains to ensure that beacons are
-// verifiable with cryptographic material available in the local trust store.
-func WithCheckChain(p ChainProvider) StoreOption {
-	return func(o *storeOptions) {
-		o.chainChecker = p
-	}
 }
 
 // Store provides abstracted access to the beacon database in a non-core AS.
