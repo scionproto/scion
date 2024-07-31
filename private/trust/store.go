@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -111,9 +112,17 @@ func LoadChains(ctx context.Context, dir string, db DB) (LoadResult, error) {
 }
 
 // LoadTRCs loads all *.trc located in a directory in the database. This
-// function exits on the first encountered error. TRCs with a not before time
-// in the future are ignored.
+// function exits on the first encountered error. TRCs with a not before time in
+// the future are ignored.
+//
+// This function is not recommended for repeated use as it will read all TRC
+// files in a directory on every invocation. Consider using a TRCLoader if you
+// want to monitor a directory for new TRCs.
 func LoadTRCs(ctx context.Context, dir string, db DB) (LoadResult, error) {
+	return loadTRCs(ctx, dir, db, nil)
+}
+
+func loadTRCs(ctx context.Context, dir string, db DB, ignoreFiles map[string]struct{}) (LoadResult, error) {
 	if _, err := os.Stat(dir); err != nil {
 		return LoadResult{}, serrors.WithCtx(err, "dir", dir)
 	}
@@ -126,6 +135,10 @@ func LoadTRCs(ctx context.Context, dir string, db DB) (LoadResult, error) {
 	res := LoadResult{Ignored: map[string]error{}}
 	// TODO(roosd): should probably be a transaction.
 	for _, f := range files {
+		// ignore as per request of the caller
+		if _, ok := ignoreFiles[f]; ok {
+			continue
+		}
 		raw, err := os.ReadFile(f)
 		if err != nil {
 			return res, serrors.WithCtx(err, "file", f)
@@ -153,4 +166,30 @@ func LoadTRCs(ctx context.Context, dir string, db DB) (LoadResult, error) {
 		res.Loaded = append(res.Loaded, f)
 	}
 	return res, nil
+}
+
+// TRCLoader loads TRCs from a directory and stores them in the database. It
+// reminds files that it has already loaded and does not load them again.
+type TRCLoader struct {
+	Dir string
+	DB  DB
+
+	seen map[string]struct{}
+	mtx  sync.Mutex
+}
+
+// Load loads all TRCs from the directory into database. Files that have been
+// loaded by a previous Load invocation are silently ignored.
+func (l *TRCLoader) Load(ctx context.Context) (LoadResult, error) {
+	l.mtx.Lock()
+	defer l.mtx.Unlock()
+	if l.seen == nil {
+		l.seen = make(map[string]struct{})
+	}
+
+	result, err := loadTRCs(ctx, l.Dir, l.DB, l.seen)
+	for _, f := range result.Loaded {
+		l.seen[f] = struct{}{}
+	}
+	return result, err
 }
