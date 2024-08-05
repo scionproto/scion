@@ -38,7 +38,7 @@ import (
 // for sentinel errors. There are basicError constructors for both string and error.
 type ErrMsg string
 
-// Error() implements the Go error interface.
+// Error implements the Go error interface.
 func (e ErrMsg) Error() string {
 	return string(e)
 }
@@ -158,11 +158,11 @@ func IsTemporary(err error) bool {
 	return errors.As(err, &t) && t.Temporary()
 }
 
-// FromErrStackOpt() returns an error that associates the given error, with the given cause
+// FromErrStackOpt returns an error that associates the given error, with the given cause
 // (an underlying error) unless nil, and the given context. A stack dump is added if requested and
 // cause isn't a basicError. The returned error implements Is. Is(err) returns true. Is(cause)
 // returns true. Any stack dump attached to err (if err is a basicError) is subsequently ignored.
-// The result of err.Error() will be part of the result of Error(). Most other constructors call
+// The result of err.Error will be part of the result of Error. Most other constructors call
 // this one.
 func FromErrStackOpt(err error, cause error, addStack bool, errCtx ...interface{}) error {
 	r := basicError{
@@ -191,7 +191,7 @@ func FromErrStackOpt(err error, cause error, addStack bool, errCtx ...interface{
 	return r
 }
 
-// FromMsg() returns an error that associates the given error, with the given cause
+// FromMsg returns an error that associates the given error, with the given cause
 // (an underlying error) unless nil, and the given context.
 // The returned error implements Is. Is(err) returns true. Is(cause) returns true if cause is not
 // nil.
@@ -199,28 +199,28 @@ func FromErr(err, cause error, errCtx ...interface{}) error {
 	return FromErrStackOpt(err, cause, false, errCtx...)
 }
 
-// FromMsgWithStack() returns an error that associates the given error, with the given cause
+// FromMsgWithStack returns an error that associates the given error, with the given cause
 // (an underlying error) unless nil, and the given context. A stack dump is added if cause isn't
 // a basicError. The returned error implements Is. Is(err) returns true. Is(cause) returns true.
 func FromMsgWithStack(err, cause error, errCtx ...interface{}) error {
 	return FromErrStackOpt(err, cause, true, errCtx...)
 }
 
-// FromStr() returns an error that associates the given message, with the given cause
+// FromStr returns an error that associates the given message, with the given cause
 // (an underlying error) unless nil, and the given context.
 // The returned error implements Is and Is(cause) returns true.
 func FromStr(msg string, cause error, errCtx ...interface{}) error {
 	return FromErrStackOpt(ErrMsg(msg), cause, false, errCtx...)
 }
 
-// FromStrWithStack() returns an error that associates the given message, with the given cause
+// FromStrWithStack returns an error that associates the given message, with the given cause
 // (an underlying error) unless nil, and the given context. A stack dump is added if cause isn't a
 // basicError. The returned error implements Is and Is(cause) returns true.
 func FromStrWithStack(msg string, cause error, errCtx ...interface{}) error {
 	return FromErrStackOpt(ErrMsg(msg), cause, true, errCtx...)
 }
 
-// New() creates a new error with the given message and context, with a stack dump.
+// New creates a new error with the given message and context, with a stack dump.
 // It is equivalent to FromMsgWithStack() but returns by reference as is expected of "New()".
 // Avoid using this in performance-critical code: it is the most expensive variant. If used to
 // construct other errors, such as with FromErr(), the embedded stack trace and context serve no
@@ -233,7 +233,7 @@ func New(msg string, errCtx ...interface{}) error {
 	}
 }
 
-// WithCtx() is deprecated. It should never have existed. Use FromErr() or FromStr() to create
+// Deprecated: WithCtx should never have existed. Use FromErr or FromStr to create
 // a new error with the original as the cause. This shim does it for you for the time being.
 // WithCtx used to attempt the merger of the given error into the newly created one with
 // semantically incorrect results. That feature is gone and the results differ only slightly in the
@@ -242,14 +242,14 @@ func WithCtx(err error, errCtx ...interface{}) error {
 	return FromErrStackOpt(ErrMsg("error"), err, false, errCtx...)
 }
 
-// Wrap() is deprecated. Use FromErr() instead. This shim has almost the same result.
-// As before, no stack dump is added. From now on, any trace that might be attached to err
-// will be ignored by the Error() method.
+// Deprecated: Wrap has been renamed FromErr. FromErr and the historical do differ very slightly:
+// any stack dump that might have be attached to err is ignored when logging. Like before, no stack
+// dump is added to the returned error.
 func Wrap(err, cause error, errCtx ...interface{}) error {
 	return FromErrStackOpt(err, cause, false, errCtx...)
 }
 
-// WrapStr() is deprecated. Use FromStrWithStack() instead.
+// Deprecated: WrapStr has been renamed FromStrWithStack.
 func WrapStr(msg string, cause error, errCtx ...interface{}) error {
 	return FromErrStackOpt(ErrMsg(msg), cause, true, errCtx...)
 }
