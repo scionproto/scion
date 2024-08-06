@@ -25,12 +25,14 @@ import (
 type mmsgHdr struct {
 	hdr unix.Msghdr
 	len uint32
+	pad [4]byte
 }
 
 // mpktSender is a helper class to add the ability of using the sendmmsg system call
 // with afpacket sockets.
 type mpktSender struct {
 	fd     int
+	tp     *afpacket.TPacket
 	msgs   []mmsgHdr
 	iovecs []unix.Iovec
 }
@@ -42,6 +44,8 @@ func newMpktSender(tp *afpacket.TPacket) *mpktSender {
 	// than this) to the afpacket project and get it merged.
 	fdv := reflect.ValueOf(tp).Elem().FieldByName("fd")
 	sender.fd = int(fdv.Int())
+	// This is to make sure that tp cannot be finalized before we're done abusing its file desc.
+	sender.tp = tp
 	return sender
 }
 
@@ -66,7 +70,7 @@ func (sender *mpktSender) sendAll() (int, error) {
 	// use case.
 	n, _, err := unix.Syscall6(unix.SYS_SENDMMSG,
 		uintptr(sender.fd),
-		(uintptr)(unsafe.Pointer(&sender.msgs[0])),
+		uintptr(unsafe.Pointer(&sender.msgs[0])),
 		uintptr(len(sender.msgs)),
 		0, 0, 0)
 	if err == 0 {

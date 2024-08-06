@@ -34,7 +34,7 @@ from random import randint
 logger = logging.getLogger(__name__)
 
 # Default packet length for CI testing
-BM_PACKET_SIZE = 172
+BM_PACKET_SIZE = 2048
 
 # Router profiling ON or OFF?
 PROFILING = False
@@ -262,7 +262,7 @@ class RouterBMTest(base.TestBase, RouterBM):
             self.brload_cpus = chosen
         else:
             self.router_cpus = chosen[:-1]
-            self.brload_cpus = chosen[-1:]
+            # self.brload_cpus = chosen[-1:]
 
         logger.info(f"router cpus: {self.router_cpus}")
         logger.info(f"brload cpus: {self.brload_cpus}")
