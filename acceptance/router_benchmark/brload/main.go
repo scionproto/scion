@@ -196,7 +196,7 @@ func run(cmd *cobra.Command) int {
 	binary.BigEndian.PutUint16(rawPkt[40:42], 0)
 
 	// Prepare a batch worth of packets.
-	batchSize := int(16)
+	batchSize := int(8)
 	allPkts := make([][]byte, batchSize)
 	for i := 0; i < batchSize; i++ {
 		allPkts[i] = make([]byte, len(rawPkt))
