@@ -18,10 +18,8 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rand"
-	"encoding/asn1"
 	"errors"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
@@ -131,21 +129,7 @@ func Verify(signed *cryptopb.SignedMessage, key crypto.PublicKey,
 
 	switch pub := key.(type) {
 	case *ecdsa.PublicKey:
-		type ecdsaSignature struct {
-			R, S *big.Int
-		}
-
-		// XXX(roosd): Copied from x509/x509.go:checkSignature.
-		var sig ecdsaSignature
-		if rest, err := asn1.Unmarshal(signed.Signature, &sig); err != nil {
-			return nil, err
-		} else if len(rest) != 0 {
-			return nil, serrors.New("trailing data after ECDSA signature")
-		}
-		if sig.R.Sign() <= 0 || sig.S.Sign() <= 0 {
-			return nil, errors.New("ECDSA signature contained zero or negative values")
-		}
-		if !ecdsa.Verify(pub, input, sig.R, sig.S) {
+		if !ecdsa.VerifyASN1(pub, input, signed.Signature) {
 			return nil, errors.New("ECDSA verification failure")
 		}
 	default:
