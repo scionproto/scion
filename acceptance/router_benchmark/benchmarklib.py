@@ -19,7 +19,6 @@
 
 import json
 import logging
-import time
 
 from collections import namedtuple
 from http.client import HTTPConnection
