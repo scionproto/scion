@@ -34,7 +34,7 @@ from random import randint
 logger = logging.getLogger(__name__)
 
 # Default packet length for CI testing
-BM_PACKET_SIZE = 2048
+BM_PACKET_SIZE = 1500
 
 # Router profiling ON or OFF?
 PROFILING = False
