@@ -167,11 +167,8 @@ func IsTemporary(err error) bool {
 func FromErrStackOpt(err error, cause error, addStack bool, errCtx ...interface{}) error {
 	r := basicError{
 		msg:    err,
+		cause:  cause, // If msg itself has a cause, we don't care about it.
 		fields: errCtxToFields(errCtx),
-	}
-	if cause != nil {
-		// In the odd case where err already has a causes, the new one takes precedence.
-		r.cause = cause
 	}
 	if !addStack {
 		return r
@@ -199,10 +196,10 @@ func FromErr(err, cause error, errCtx ...interface{}) error {
 	return FromErrStackOpt(err, cause, false, errCtx...)
 }
 
-// FromMsgWithStack returns an error that associates the given error, with the given cause
+// FromErrWithStack returns an error that associates the given error, with the given cause
 // (an underlying error) unless nil, and the given context. A stack dump is added if cause isn't
 // a basicError. The returned error implements Is. Is(err) returns true. Is(cause) returns true.
-func FromMsgWithStack(err, cause error, errCtx ...interface{}) error {
+func FromErrWithStack(err, cause error, errCtx ...interface{}) error {
 	return FromErrStackOpt(err, cause, true, errCtx...)
 }
 
