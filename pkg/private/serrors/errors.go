@@ -43,22 +43,15 @@ func (e ErrMsg) Error() string {
 	return string(e)
 }
 
-// basicError is an implementation of error that encapsulates various pieces of information besides
-// a message. The msg field is any kind of error, inluding a basicError. It receives no  particular
-// treatment in that case. Most notably constructing an basicError E, such that E.msg.msg == T does
-// *not* imply that E.Is(T) is true. The intended use of a basicError as msg is to support the
-// extent use of sentinel error created by New(). For that purpose simpler errors such as ErrMsg
-// would be preferable.
-type basicError struct {
-	msg    error
+// errorInfo is a base class for two implementations of error: basicError and joinedError.
+type errorInfo struct {
 	fields map[string]interface{}
 	cause  error
 	stack  *stack
 }
 
-func (e basicError) Error() string {
+func (e errorInfo) error() string {
 	var buf bytes.Buffer
-	buf.WriteString(e.msg.Error())
 	if len(e.fields) != 0 {
 		fmt.Fprint(&buf, " ")
 		encodeContext(&buf, e.ctxPairs())
@@ -71,8 +64,7 @@ func (e basicError) Error() string {
 
 // MarshalLogObject implements zapcore.ObjectMarshaler to have a nicer log
 // representation.
-func (e basicError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	enc.AddString("msg", e.msg.Error())
+func (e errorInfo) marshalLogObject(enc zapcore.ObjectEncoder) error {
 	if e.cause != nil {
 		if m, ok := e.cause.(zapcore.ObjectMarshaler); ok {
 			if err := enc.AddObject("cause", m); err != nil {
@@ -95,47 +87,15 @@ func (e basicError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return nil
 }
 
-func (e basicError) Is(err error) bool {
-	switch other := err.(type) {
-	case basicError:
-		// When error's underlying value isn't a pointer error.Is() calls us because basicError
-		// isn't comparable. This check is loose but about the only real use case is E.Is(E).
-		// We still need to make sure we don't panic if the two msg fields are non-comparable.
-		// (That's unlikely given how basicError is used, but entirely feasible).
-		if e.msg != nil && other.msg != nil && !(reflect.TypeOf(e.msg).Comparable() &&
-			reflect.TypeOf(other.msg).Comparable()) {
-			return false
-		}
-		return e.msg == other.msg
-
-		// No special case if the underlying value is a basicError pointer. For identical pointers,
-		// this method is never called. For different error pointers we want them to be always
-		// different, except for... see below.
-
-	default:
-		// If err was created with New(), its underlying value is a pointer, so it matches this
-		// case.
-		return e.msg == err // If true, e is the result of FromMsg(err, ...), so equal.
-	}
-}
-
-func (e basicError) As(as interface{}) bool {
-	return errors.As(e.msg, as)
-}
-
-func (e basicError) Unwrap() error {
-	return e.cause
-}
-
 // StackTrace returns the attached stack trace if there is any.
-func (e basicError) StackTrace() StackTrace {
+func (e errorInfo) StackTrace() StackTrace {
 	if e.stack == nil {
 		return nil
 	}
 	return e.stack.StackTrace()
 }
 
-func (e basicError) ctxPairs() []ctxPair {
+func (e errorInfo) ctxPairs() []ctxPair {
 	fields := make([]ctxPair, 0, len(e.fields))
 	for k, v := range e.fields {
 		fields = append(fields, ctxPair{Key: k, Value: v})
@@ -158,16 +118,9 @@ func IsTemporary(err error) bool {
 	return errors.As(err, &t) && t.Temporary()
 }
 
-// FromErrStackOpt returns an error that associates the given error, with the given cause
-// (an underlying error) unless nil, and the given context. A stack dump is added if requested and
-// cause isn't a basicError. The returned error implements Is. Is(err) returns true. Is(cause)
-// returns true. Any stack dump attached to err (if err is a basicError) is subsequently ignored.
-// The result of err.Error will be part of the result of Error. Most other constructors call
-// this one.
-func FromErrStackOpt(err error, cause error, addStack bool, errCtx ...interface{}) error {
-	r := basicError{
-		msg:    err,
-		cause:  cause, // If msg itself has a cause, we don't care about it.
+func mkErrorInfo(cause error, addStack bool, errCtx ...interface{}) errorInfo {
+	r := errorInfo{
+		cause:  cause,
 		fields: errCtxToFields(errCtx),
 	}
 	if !addStack {
@@ -188,67 +141,156 @@ func FromErrStackOpt(err error, cause error, addStack bool, errCtx ...interface{
 	return r
 }
 
-// FromMsg returns an error that associates the given error, with the given cause
-// (an underlying error) unless nil, and the given context.
-// The returned error implements Is. Is(err) returns true. Is(cause) returns true if cause is not
-// nil.
-func FromErr(err, cause error, errCtx ...interface{}) error {
-	return FromErrStackOpt(err, cause, false, errCtx...)
+// basicError is an implementation of error that encapsulates various pieces of information besides
+// a message. The msg field is strictly a string.
+type basicError struct {
+	errorInfo
+	msg string
 }
 
-// FromErrWithStack returns an error that associates the given error, with the given cause
-// (an underlying error) unless nil, and the given context. A stack dump is added if cause isn't
-// a basicError. The returned error implements Is. Is(err) returns true. Is(cause) returns true.
-func FromErrWithStack(err, cause error, errCtx ...interface{}) error {
-	return FromErrStackOpt(err, cause, true, errCtx...)
+func (e basicError) Error() string {
+	var buf bytes.Buffer
+	buf.WriteString(e.msg)
+	buf.WriteString(e.errorInfo.error())
+	return buf.String()
 }
 
-// FromStr returns an error that associates the given message, with the given cause
-// (an underlying error) unless nil, and the given context.
-// The returned error implements Is and Is(cause) returns true.
-func FromStr(msg string, cause error, errCtx ...interface{}) error {
-	return FromErrStackOpt(ErrMsg(msg), cause, false, errCtx...)
+func (e basicError) Is(err error) bool {
+	switch other := err.(type) {
+	case basicError:
+		// Two basic error values. They're not comparable, that's why errors.Is() called this.
+		return e.msg == other.msg
+	}
+	// Otherwise only possible equality is if e.cause.Is(err). That'll be tested after Unwrap().
+	return false
 }
 
-// FromStrWithStack returns an error that associates the given message, with the given cause
-// (an underlying error) unless nil, and the given context. A stack dump is added if cause isn't a
-// basicError. The returned error implements Is and Is(cause) returns true.
-func FromStrWithStack(msg string, cause error, errCtx ...interface{}) error {
-	return FromErrStackOpt(ErrMsg(msg), cause, true, errCtx...)
+func (e basicError) Unwrap() error {
+	return e.cause
 }
 
-// New creates a new error with the given message and context, with a stack dump.
-// It is equivalent to FromMsgWithStack() but returns by reference as is expected of "New()".
-// Avoid using this in performance-critical code: it is the most expensive variant. If used to
-// construct other errors, such as with FromErr(), the embedded stack trace and context serve no
-// purpose. Therefore to make sentinel errors, ErrMsg should be preferred.
-func New(msg string, errCtx ...interface{}) error {
-	return &basicError{
-		msg:    ErrMsg(msg),
-		fields: errCtxToFields(errCtx),
-		stack:  callers(),
+// MarshalLogObject implements zapcore.ObjectMarshaler to have a nicer log
+// representation.
+func (e basicError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddString("msg", e.msg)
+	return e.errorInfo.marshalLogObject(enc)
+}
+
+// Deprecated: WrapStr will be renamed Wrap, once the name Wrap becomes available.
+// WrapStr returns an error that associates the given error, with the given cause (an underlying
+// error) unless nil, and the given context. A stack dump is added unless cause is a basicError (in
+// which case it is assumed to contain a stack dump). The returned error supports Is. Is(cause)
+// returns true.
+func WrapStr(msg string, cause error, errCtx ...interface{}) error {
+	return basicError{
+		errorInfo: mkErrorInfo(cause, true, errCtx...),
+		msg:       msg,
 	}
 }
 
-// Deprecated: WithCtx should never have existed. Use FromErr or FromStr to create
-// a new error with the original as the cause. This shim does it for you for the time being.
-// WithCtx used to attempt the merger of the given error into the newly created one with
-// semantically incorrect results. That feature is gone and the results differ only slightly in the
-// formated string output. WithCtx still doesn't add a stack.
-func WithCtx(err error, errCtx ...interface{}) error {
-	return FromErrStackOpt(ErrMsg("error"), err, false, errCtx...)
+// WrapStrNoStack returns an error that associates the given error, with the given cause
+// (an underlying error) unless nil, and the given context. A stack dump is not added.
+// if cause is a basicError that contains a stack dump, that stack dump is preserved. The returned
+// error supports Is. Is(cause) returns true.
+func WrapStrNoStack(msg string, cause error, errCtx ...interface{}) error {
+	return basicError{
+		errorInfo: mkErrorInfo(cause, false, errCtx...),
+		msg:       msg,
+	}
 }
 
-// Deprecated: Wrap has been renamed FromErr. FromErr and the historical do differ very slightly:
+// New creates a new basicError with the given message and context, plus a stack dump.
+// It returns a pointer as the underlying type of the error interface object.
+// Avoid using this in performance-critical code: it is the most expensive variant. If used to
+// construct other errors, such as with Join, the embedded stack trace and context serve no
+// purpose. Therefore to make sentinel errors, ErrMsg should be preferred.
+func New(msg string, errCtx ...interface{}) error {
+	return &basicError{
+		errorInfo: mkErrorInfo(nil, true, errCtx...),
+		msg:       msg,
+	}
+}
+
+// joinedError is an implementation of error that aggregates various pieces of information, around
+// an existing error, the base error (for example a unique sentinel error). The base error isn't
+// assumed to be of any particular implementation.
+type joinedError struct {
+	errorInfo
+	error error
+}
+
+func (e joinedError) Error() string {
+	var buf bytes.Buffer
+	buf.WriteString(e.error.Error())
+	buf.WriteString(e.errorInfo.error())
+	return buf.String()
+}
+
+func (e joinedError) Is(err error) bool {
+	switch other := err.(type) {
+	case joinedError:
+		// Two joinedError values. They're not comparable, that's why errors.Is() called this.
+		// (That's unlikely given how joinedError is used, but entirely feasible).
+		if e.error != nil && other.error != nil && !(reflect.TypeOf(e.error).Comparable() &&
+			reflect.TypeOf(other.error).Comparable()) {
+			return false
+		}
+		return e.error == other.error
+	}
+	// Otherwise only possible equality is if e.cause.Is(err) or e.error.Is(err). Those'll be tested
+	// after Unwrap().
+	return false
+}
+
+func (e joinedError) Unwrap() []error {
+	return []error{e.error, e.cause}
+}
+
+// MarshalLogObject implements zapcore.ObjectMarshaler to have a nicer log
+// representation. The base error is not dissected. It is treated as a most generic error.
+func (e joinedError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddString("msg", e.error.Error())
+	return e.errorInfo.marshalLogObject(enc)
+}
+
+// Join returns an error that associates the given error, with the given cause
+// (an underlying error) unless nil, and the given context. A stack dump is added unless cause is a
+// basicError (in which case it is assume to contain a stack dump). The returned error supports
+// Is. If cause isn't nil, Is(cause) returns true. Is(error) returns true.
+func Join(err, cause error, errCtx ...interface{}) error {
+	return joinedError{
+		errorInfo: mkErrorInfo(cause, true, errCtx...),
+		error:     err,
+	}
+}
+
+// JoinNoStack returns an error that associates the given error, with the given cause
+// (an underlying error) unless nil, and the given context. A stack dump is not added. If cause
+// is a basicError and contain a stack dump. That stack dump is preserved. The returned error
+// supports Is. If cause isn't nil, Is(cause) returns true. Is(error) returns true.
+func JoinNoStack(err, cause error, errCtx ...interface{}) error {
+	return joinedError{
+		errorInfo: mkErrorInfo(cause, false, errCtx...),
+		error:     err,
+	}
+}
+
+// Deprecated: WithCtx should never have existed. Depending on intent, use:
+// Join(err, nil, errCtx): If err has no context to preserve.
+// WrapStr("some error with context added", err, errctx): if err is an error with error information
+// that needs to be preserved. This shim does the latter for you for the time being.
+// WithCtx used to attempt the merger of the given error into the newly created one with
+// semantically incorrect results. That feature is gone and the results differ only slightly in the
+// formated string output. WithCtx didn't try to add a stack, so this shim doesn't either.
+func WithCtx(err error, errCtx ...interface{}) error {
+	return WrapStrNoStack("error", err, errCtx...)
+}
+
+// Deprecated: Wrap has been renamed Join. Join and the historical Wrap do differ very slightly:
 // any stack dump that might have be attached to err is ignored when logging. Like before, no stack
 // dump is added to the returned error.
 func Wrap(err, cause error, errCtx ...interface{}) error {
-	return FromErrStackOpt(err, cause, false, errCtx...)
-}
-
-// Deprecated: WrapStr has been renamed FromStrWithStack.
-func WrapStr(msg string, cause error, errCtx ...interface{}) error {
-	return FromErrStackOpt(ErrMsg(msg), cause, true, errCtx...)
+	return JoinNoStack(err, cause, errCtx...)
 }
 
 // List is a slice of errors.
@@ -284,28 +326,6 @@ func (e List) MarshalLogArray(ae zapcore.ArrayEncoder) error {
 		}
 	}
 	return nil
-}
-
-// Join returns an error that wraps the given errors in a List error.
-// Any nil error values are discarded.
-// Join returns nil if errs contains no non-nil values.
-func Join(errs ...error) error {
-	n := 0
-	for _, err := range errs {
-		if err != nil {
-			n++
-		}
-	}
-	if n == 0 {
-		return nil
-	}
-	l := make(List, 0, n)
-	for _, err := range errs {
-		if err != nil {
-			l = append(l, err)
-		}
-	}
-	return l
 }
 
 func errCtxToFields(errCtx []interface{}) map[string]interface{} {
