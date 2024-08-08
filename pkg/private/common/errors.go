@@ -15,10 +15,10 @@
 
 package common
 
-import (
-	"github.com/scionproto/scion/pkg/private/serrors"
-)
+// Deprecated: ErrMsg is not usefull. It mimics errors.New() but fails to return a singleton. Just
+// use errors.New() if you need cheap sentinel errors.
+type ErrMsg string
 
-// ErrMsg should be used for error string constants. The constant can then be
-// used for Is checking in the calling code.
-type ErrMsg = serrors.ErrMsg
+func (e ErrMsg) Error() string {
+	return string(e)
+}

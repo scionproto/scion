@@ -395,9 +395,9 @@ func TestUncomparable(t *testing.T) {
 	t.Run("Is", func(t *testing.T) {
 		// We make two wrappers of uncomparable error objects. We could also create custom error
 		// types for the same result, but this is closer to our use cases.
-		errObject := serrors.Wrap(serrors.New("simple err"), nil, "dummy", "context")
-		wrapperA := serrors.Wrap(errObject, nil, "dummy", "context")
-		wrapperB := serrors.Wrap(errObject, nil, "dummy", "context")
+		errObject := serrors.WrapStr("simple err", nil, "dummy", "context")
+		wrapperA := serrors.Join(errObject, nil, "dummy", "context")
+		wrapperB := serrors.Join(errObject, nil, "dummy", "context")
 		assert.NotErrorIs(t, wrapperA, wrapperB)
 		// no panic
 	})

@@ -34,15 +34,6 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// ErrMsg is a custom error type used instead of strings in many places. It is a good type to use
-// for sentinel errors. There are basicError constructors for both string and error.
-type ErrMsg string
-
-// Error implements the Go error interface.
-func (e ErrMsg) Error() string {
-	return string(e)
-}
-
 // errorInfo is a base class for two implementations of error: basicError and joinedError.
 type errorInfo struct {
 	fields map[string]interface{}
@@ -203,7 +194,7 @@ func WrapStrNoStack(msg string, cause error, errCtx ...interface{}) error {
 // It returns a pointer as the underlying type of the error interface object.
 // Avoid using this in performance-critical code: it is the most expensive variant. If used to
 // construct other errors, such as with Join, the embedded stack trace and context serve no
-// purpose. Therefore to make sentinel errors, ErrMsg should be preferred.
+// purpose. Therefore, to make sentinel errors, errors.New() should be preferred.
 func New(msg string, errCtx ...interface{}) error {
 	return &basicError{
 		errorInfo: mkErrorInfo(nil, true, errCtx...),
