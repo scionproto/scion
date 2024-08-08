@@ -283,6 +283,10 @@ func TestList(t *testing.T) {
 	assert.NotNil(t, combinedErr)
 }
 
+func TestJoinNil(t *testing.T) {
+	assert.Nil(t, serrors.Join(nil, nil))
+}
+
 func TestAtMostOneStacktrace(t *testing.T) {
 	err := errors.New("core")
 	for i := range [20]int{} {

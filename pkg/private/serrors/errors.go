@@ -258,6 +258,11 @@ func (e joinedError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 // basicError (in which case it is assume to contain a stack dump). The returned error supports
 // Is. If cause isn't nil, Is(cause) returns true. Is(error) returns true.
 func Join(err, cause error, errCtx ...interface{}) error {
+	if err == nil && cause == nil {
+		// Pointless. Will not. Also, maintaining backward compatibility with
+		// a previous Join function.
+		return nil
+	}
 	return joinedError{
 		errorInfo: mkErrorInfo(cause, true, errCtx...),
 		error:     err,
@@ -269,6 +274,10 @@ func Join(err, cause error, errCtx ...interface{}) error {
 // is a basicError and contain a stack dump. That stack dump is preserved. The returned error
 // supports Is. If cause isn't nil, Is(cause) returns true. Is(error) returns true.
 func JoinNoStack(err, cause error, errCtx ...interface{}) error {
+	if err == nil && cause == nil {
+		// Pointless. Will not.
+		return nil
+	}
 	return joinedError{
 		errorInfo: mkErrorInfo(cause, false, errCtx...),
 		error:     err,
