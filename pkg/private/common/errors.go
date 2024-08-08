@@ -15,7 +15,7 @@
 
 package common
 
-// Deprecated: ErrMsg is not usefull. It mimics errors.New() but fails to return a singleton. Just
+// Deprecated: ErrMsg is not useful. It mimics errors.New() but fails to return a singleton. Just
 // use errors.New() if you need cheap sentinel errors.
 type ErrMsg string
 
