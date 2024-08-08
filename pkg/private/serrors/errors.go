@@ -27,25 +27,30 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"reflect"
 	"sort"
 	"strings"
 
 	"go.uber.org/zap/zapcore"
 )
 
+// ctxPair is one item of context info.
+type ctxPair struct {
+	Key   string
+	Value interface{}
+}
+
 // errorInfo is a base class for two implementations of error: basicError and joinedError.
 type errorInfo struct {
-	fields map[string]interface{}
-	cause  error
-	stack  *stack
+	ctx   *[]ctxPair
+	cause error
+	stack *stack
 }
 
 func (e errorInfo) error() string {
 	var buf bytes.Buffer
-	if len(e.fields) != 0 {
+	if len(*e.ctx) != 0 {
 		fmt.Fprint(&buf, " ")
-		encodeContext(&buf, e.ctxPairs())
+		encodeContext(&buf, *e.ctx)
 	}
 	if e.cause != nil {
 		fmt.Fprintf(&buf, ": %s", e.cause)
@@ -70,8 +75,8 @@ func (e errorInfo) marshalLogObject(enc zapcore.ObjectEncoder) error {
 			return err
 		}
 	}
-	for k, v := range e.fields {
-		if err := enc.AddReflected(k, v); err != nil {
+	for _, pair := range *e.ctx {
+		if err := enc.AddReflected(pair.Key, pair.Value); err != nil {
 			return err
 		}
 	}
@@ -84,17 +89,6 @@ func (e errorInfo) StackTrace() StackTrace {
 		return nil
 	}
 	return e.stack.StackTrace()
-}
-
-func (e errorInfo) ctxPairs() []ctxPair {
-	fields := make([]ctxPair, 0, len(e.fields))
-	for k, v := range e.fields {
-		fields = append(fields, ctxPair{Key: k, Value: v})
-	}
-	sort.Slice(fields, func(i, j int) bool {
-		return fields[i].Key < fields[j].Key
-	})
-	return fields
 }
 
 // IsTimeout returns whether err is or is caused by a timeout error.
@@ -110,9 +104,20 @@ func IsTemporary(err error) bool {
 }
 
 func mkErrorInfo(cause error, addStack bool, errCtx ...interface{}) errorInfo {
+	np := len(errCtx) / 2
+	ctx := make([]ctxPair, np)
+	for i := 0; i < np; i++ {
+		k := errCtx[2*i]
+		v := errCtx[2*i+1]
+		ctx[i] = ctxPair{Key: fmt.Sprint(k), Value: v}
+	}
+	sort.Slice(ctx, func(a, b int) bool {
+		return ctx[a].Key < ctx[b].Key
+	})
+
 	r := errorInfo{
-		cause:  cause,
-		fields: errCtxToFields(errCtx),
+		cause: cause,
+		ctx:   &ctx,
 	}
 	if !addStack {
 		return r
@@ -144,16 +149,6 @@ func (e basicError) Error() string {
 	buf.WriteString(e.msg)
 	buf.WriteString(e.errorInfo.error())
 	return buf.String()
-}
-
-func (e basicError) Is(err error) bool {
-	switch other := err.(type) {
-	case basicError:
-		// Two basic error values. They're not comparable, that's why errors.Is() called this.
-		return e.msg == other.msg
-	}
-	// Otherwise only possible equality is if e.cause.Is(err). That'll be tested after Unwrap().
-	return false
 }
 
 func (e basicError) Unwrap() error {
@@ -215,22 +210,6 @@ func (e joinedError) Error() string {
 	buf.WriteString(e.error.Error())
 	buf.WriteString(e.errorInfo.error())
 	return buf.String()
-}
-
-func (e joinedError) Is(err error) bool {
-	switch other := err.(type) {
-	case joinedError:
-		// Two joinedError values. They're not comparable, that's why errors.Is() called this.
-		// (That's unlikely given how joinedError is used, but entirely feasible).
-		if e.error != nil && other.error != nil && !(reflect.TypeOf(e.error).Comparable() &&
-			reflect.TypeOf(other.error).Comparable()) {
-			return false
-		}
-		return e.error == other.error
-	}
-	// Otherwise only possible equality is if e.cause.Is(err) or e.error.Is(err). Those'll be tested
-	// after Unwrap().
-	return false
 }
 
 func (e joinedError) Unwrap() []error {
@@ -326,22 +305,6 @@ func (e List) MarshalLogArray(ae zapcore.ArrayEncoder) error {
 		}
 	}
 	return nil
-}
-
-func errCtxToFields(errCtx []interface{}) map[string]interface{} {
-	if len(errCtx) == 0 {
-		return nil
-	}
-	fields := make(map[string]interface{}, len(errCtx)/2)
-	for i := 0; i < len(errCtx)-1; i += 2 {
-		fields[fmt.Sprint(errCtx[i])] = errCtx[i+1]
-	}
-	return fields
-}
-
-type ctxPair struct {
-	Key   string
-	Value interface{}
 }
 
 func encodeContext(buf io.Writer, pairs []ctxPair) {
