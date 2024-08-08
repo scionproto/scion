@@ -30,6 +30,7 @@ import (
 	"sort"
 	"strings"
 
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -98,9 +99,7 @@ func (e basicError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 		}
 	}
 	for k, v := range e.fields {
-		if err := enc.AddReflected(k, v); err != nil {
-			return err
-		}
+		zap.Any(k, v).AddTo(enc)
 	}
 	return nil
 }
