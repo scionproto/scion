@@ -1,5 +1,4 @@
-load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
-load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
 load("@bazel_gazelle//:def.bzl", "gazelle")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@io_bazel_rules_go//go:def.bzl", "nogo")
@@ -130,9 +129,10 @@ gazelle(
 go_lint_config(
     name = "go_lint_config",
     exclude_filter = [
-        "mock_",
-        ".pb.go",
+        ".connect.go",
         ".gen.go",
+        ".pb.go",
+        "mock_",
     ],
     visibility = [
         "//visibility:public",

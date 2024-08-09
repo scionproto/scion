@@ -14,6 +14,12 @@ def go_deps():
         version = "v0.4.5",
     )
     go_repository(
+        name = "com_connectrpc_connect",
+        importpath = "connectrpc.com/connect",
+        sum = "h1:ybd6y+ls7GOlb7Bh5C8+ghA6SvCBajHwxssO2CGFjqE=",
+        version = "v1.16.2",
+    )
+    go_repository(
         name = "com_github_ajstarks_svgo",
         importpath = "github.com/ajstarks/svgo",
         sum = "h1:wVe6/Ea46ZMeNkQjjBW6xcqyQA/j5e0D6GytH95g0gQ=",
