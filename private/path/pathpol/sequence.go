@@ -23,7 +23,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/antlr/antlr4/runtime/Go/antlr"
+	"github.com/antlr4-go/antlr/v4"
 
 	"github.com/scionproto/scion/antlr/sequence"
 	"github.com/scionproto/scion/pkg/addr"
@@ -61,7 +61,7 @@ func NewSequence(s string) (*Sequence, error) {
 	parser.RemoveErrorListeners()
 	parser.AddErrorListener(errListener)
 	listener := sequenceListener{}
-	antlr.ParseTreeWalkerDefault.Walk(&listener, parser.Start())
+	antlr.ParseTreeWalkerDefault.Walk(&listener, parser.Start_())
 	if errListener.msg != "" {
 		return nil, serrors.New("Failed to parse a sequence",
 			"sequence", s, "msg", errListener.msg)

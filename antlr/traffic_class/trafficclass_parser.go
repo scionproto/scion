@@ -3,114 +3,136 @@
 package traffic_class // TrafficClass
 import (
 	"fmt"
-	"reflect"
 	"strconv"
+	"sync"
 
-	"github.com/antlr/antlr4/runtime/Go/antlr"
+	"github.com/antlr4-go/antlr/v4"
 )
 
 // Suppress unused import errors
 var _ = fmt.Printf
-var _ = reflect.Copy
 var _ = strconv.Itoa
-
-var parserATN = []uint16{
-	3, 24715, 42794, 33075, 47597, 16764, 15335, 30598, 22884, 3, 27, 140,
-	4, 2, 9, 2, 4, 3, 9, 3, 4, 4, 9, 4, 4, 5, 9, 5, 4, 6, 9, 6, 4, 7, 9, 7,
-	4, 8, 9, 8, 4, 9, 9, 9, 4, 10, 9, 10, 4, 11, 9, 11, 4, 12, 9, 12, 4, 13,
-	9, 13, 4, 14, 9, 14, 4, 15, 9, 15, 4, 16, 9, 16, 4, 17, 9, 17, 4, 18, 9,
-	18, 4, 19, 9, 19, 3, 2, 3, 2, 3, 2, 3, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4,
-	3, 4, 3, 4, 3, 4, 3, 5, 3, 5, 3, 5, 3, 5, 3, 6, 3, 6, 3, 6, 3, 6, 3, 7,
-	3, 7, 3, 7, 3, 7, 3, 8, 3, 8, 3, 8, 3, 8, 3, 8, 3, 8, 3, 9, 3, 9, 3, 9,
-	3, 9, 3, 10, 3, 10, 3, 10, 3, 10, 3, 10, 3, 10, 3, 11, 3, 11, 3, 11, 3,
-	12, 3, 12, 3, 12, 3, 12, 3, 12, 7, 12, 87, 10, 12, 12, 12, 14, 12, 90,
-	11, 12, 3, 12, 3, 12, 3, 13, 3, 13, 3, 13, 3, 13, 3, 13, 7, 13, 99, 10,
-	13, 12, 13, 14, 13, 102, 11, 13, 3, 13, 3, 13, 3, 14, 3, 14, 3, 14, 3,
-	14, 3, 14, 3, 15, 3, 15, 3, 15, 3, 15, 3, 16, 3, 16, 3, 16, 3, 16, 3, 16,
-	5, 16, 120, 10, 16, 3, 17, 3, 17, 3, 17, 3, 17, 5, 17, 126, 10, 17, 3,
-	18, 3, 18, 3, 18, 3, 18, 3, 18, 3, 18, 3, 18, 5, 18, 135, 10, 18, 3, 19,
-	3, 19, 3, 19, 3, 19, 2, 2, 20, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22,
-	24, 26, 28, 30, 32, 34, 36, 2, 4, 3, 2, 13, 14, 3, 2, 10, 11, 2, 136, 2,
-	38, 3, 2, 2, 2, 4, 42, 3, 2, 2, 2, 6, 46, 3, 2, 2, 2, 8, 50, 3, 2, 2, 2,
-	10, 54, 3, 2, 2, 2, 12, 58, 3, 2, 2, 2, 14, 62, 3, 2, 2, 2, 16, 68, 3,
-	2, 2, 2, 18, 72, 3, 2, 2, 2, 20, 78, 3, 2, 2, 2, 22, 81, 3, 2, 2, 2, 24,
-	93, 3, 2, 2, 2, 26, 105, 3, 2, 2, 2, 28, 110, 3, 2, 2, 2, 30, 119, 3, 2,
-	2, 2, 32, 125, 3, 2, 2, 2, 34, 134, 3, 2, 2, 2, 36, 136, 3, 2, 2, 2, 38,
-	39, 7, 20, 2, 2, 39, 40, 7, 3, 2, 2, 40, 41, 7, 15, 2, 2, 41, 3, 3, 2,
-	2, 2, 42, 43, 7, 21, 2, 2, 43, 44, 7, 3, 2, 2, 44, 45, 7, 15, 2, 2, 45,
-	5, 3, 2, 2, 2, 46, 47, 7, 22, 2, 2, 47, 48, 7, 4, 2, 2, 48, 49, 9, 2, 2,
-	2, 49, 7, 3, 2, 2, 2, 50, 51, 7, 23, 2, 2, 51, 52, 7, 4, 2, 2, 52, 53,
-	9, 2, 2, 2, 53, 9, 3, 2, 2, 2, 54, 55, 7, 24, 2, 2, 55, 56, 7, 3, 2, 2,
-	56, 57, 7, 27, 2, 2, 57, 11, 3, 2, 2, 2, 58, 59, 7, 25, 2, 2, 59, 60, 7,
-	3, 2, 2, 60, 61, 7, 13, 2, 2, 61, 13, 3, 2, 2, 2, 62, 63, 7, 25, 2, 2,
-	63, 64, 7, 3, 2, 2, 64, 65, 7, 13, 2, 2, 65, 66, 7, 5, 2, 2, 66, 67, 7,
-	13, 2, 2, 67, 15, 3, 2, 2, 2, 68, 69, 7, 26, 2, 2, 69, 70, 7, 3, 2, 2,
-	70, 71, 7, 13, 2, 2, 71, 17, 3, 2, 2, 2, 72, 73, 7, 26, 2, 2, 73, 74, 7,
-	3, 2, 2, 74, 75, 7, 13, 2, 2, 75, 76, 7, 5, 2, 2, 76, 77, 7, 13, 2, 2,
-	77, 19, 3, 2, 2, 2, 78, 79, 7, 6, 2, 2, 79, 80, 7, 13, 2, 2, 80, 21, 3,
-	2, 2, 2, 81, 82, 7, 16, 2, 2, 82, 83, 7, 7, 2, 2, 83, 88, 5, 34, 18, 2,
-	84, 85, 7, 8, 2, 2, 85, 87, 5, 34, 18, 2, 86, 84, 3, 2, 2, 2, 87, 90, 3,
-	2, 2, 2, 88, 86, 3, 2, 2, 2, 88, 89, 3, 2, 2, 2, 89, 91, 3, 2, 2, 2, 90,
-	88, 3, 2, 2, 2, 91, 92, 7, 9, 2, 2, 92, 23, 3, 2, 2, 2, 93, 94, 7, 17,
-	2, 2, 94, 95, 7, 7, 2, 2, 95, 100, 5, 34, 18, 2, 96, 97, 7, 8, 2, 2, 97,
-	99, 5, 34, 18, 2, 98, 96, 3, 2, 2, 2, 99, 102, 3, 2, 2, 2, 100, 98, 3,
-	2, 2, 2, 100, 101, 3, 2, 2, 2, 101, 103, 3, 2, 2, 2, 102, 100, 3, 2, 2,
-	2, 103, 104, 7, 9, 2, 2, 104, 25, 3, 2, 2, 2, 105, 106, 7, 18, 2, 2, 106,
-	107, 7, 7, 2, 2, 107, 108, 5, 34, 18, 2, 108, 109, 7, 9, 2, 2, 109, 27,
-	3, 2, 2, 2, 110, 111, 7, 19, 2, 2, 111, 112, 7, 3, 2, 2, 112, 113, 9, 3,
-	2, 2, 113, 29, 3, 2, 2, 2, 114, 120, 5, 2, 2, 2, 115, 120, 5, 4, 3, 2,
-	116, 120, 5, 6, 4, 2, 117, 120, 5, 8, 5, 2, 118, 120, 5, 10, 6, 2, 119,
-	114, 3, 2, 2, 2, 119, 115, 3, 2, 2, 2, 119, 116, 3, 2, 2, 2, 119, 117,
-	3, 2, 2, 2, 119, 118, 3, 2, 2, 2, 120, 31, 3, 2, 2, 2, 121, 126, 5, 12,
-	7, 2, 122, 126, 5, 14, 8, 2, 123, 126, 5, 16, 9, 2, 124, 126, 5, 18, 10,
-	2, 125, 121, 3, 2, 2, 2, 125, 122, 3, 2, 2, 2, 125, 123, 3, 2, 2, 2, 125,
-	124, 3, 2, 2, 2, 126, 33, 3, 2, 2, 2, 127, 135, 5, 24, 13, 2, 128, 135,
-	5, 22, 12, 2, 129, 135, 5, 26, 14, 2, 130, 135, 5, 30, 16, 2, 131, 135,
-	5, 32, 17, 2, 132, 135, 5, 20, 11, 2, 133, 135, 5, 28, 15, 2, 134, 127,
-	3, 2, 2, 2, 134, 128, 3, 2, 2, 2, 134, 129, 3, 2, 2, 2, 134, 130, 3, 2,
-	2, 2, 134, 131, 3, 2, 2, 2, 134, 132, 3, 2, 2, 2, 134, 133, 3, 2, 2, 2,
-	135, 35, 3, 2, 2, 2, 136, 137, 5, 34, 18, 2, 137, 138, 7, 2, 2, 3, 138,
-	37, 3, 2, 2, 2, 7, 88, 100, 119, 125, 134,
-}
-var literalNames = []string{
-	"", "'='", "'=0x'", "'-'", "'cls='", "'('", "','", "')'", "'true'", "'false'",
-}
-var symbolicNames = []string{
-	"", "", "", "", "", "", "", "", "", "", "WHITESPACE", "DIGITS", "HEX_DIGITS",
-	"NET", "ANY", "ALL", "NOT", "BOOL", "SRC", "DST", "DSCP", "TOS", "PROTOCOL",
-	"SRCPORT", "DSTPORT", "STRING",
-}
-
-var ruleNames = []string{
-	"matchSrc", "matchDst", "matchDSCP", "matchTOS", "matchProtocol", "matchSrcPort",
-	"matchSrcPortRange", "matchDstPort", "matchDstPortRange", "condCls", "condAny",
-	"condAll", "condNot", "condBool", "condIPv4", "condPort", "cond", "trafficClass",
-}
+var _ = sync.Once{}
 
 type TrafficClassParser struct {
 	*antlr.BaseParser
 }
 
-// NewTrafficClassParser produces a new parser instance for the optional input antlr.TokenStream.
-//
-// The *TrafficClassParser instance produced may be reused by calling the SetInputStream method.
-// The initial parser configuration is expensive to construct, and the object is not thread-safe;
-// however, if used within a Golang sync.Pool, the construction cost amortizes well and the
-// objects can be used in a thread-safe manner.
-func NewTrafficClassParser(input antlr.TokenStream) *TrafficClassParser {
-	this := new(TrafficClassParser)
-	deserializer := antlr.NewATNDeserializer(nil)
-	deserializedATN := deserializer.DeserializeFromUInt16(parserATN)
-	decisionToDFA := make([]*antlr.DFA, len(deserializedATN.DecisionToState))
-	for index, ds := range deserializedATN.DecisionToState {
-		decisionToDFA[index] = antlr.NewDFA(ds, index)
-	}
-	this.BaseParser = antlr.NewBaseParser(input)
+var TrafficClassParserStaticData struct {
+	once                   sync.Once
+	serializedATN          []int32
+	LiteralNames           []string
+	SymbolicNames          []string
+	RuleNames              []string
+	PredictionContextCache *antlr.PredictionContextCache
+	atn                    *antlr.ATN
+	decisionToDFA          []*antlr.DFA
+}
 
-	this.Interpreter = antlr.NewParserATNSimulator(this, deserializedATN, decisionToDFA, antlr.NewPredictionContextCache())
-	this.RuleNames = ruleNames
-	this.LiteralNames = literalNames
-	this.SymbolicNames = symbolicNames
+func trafficclassParserInit() {
+	staticData := &TrafficClassParserStaticData
+	staticData.LiteralNames = []string{
+		"", "'='", "'=0x'", "'-'", "'cls='", "'('", "','", "')'", "'true'",
+		"'false'",
+	}
+	staticData.SymbolicNames = []string{
+		"", "", "", "", "", "", "", "", "", "", "WHITESPACE", "DIGITS", "HEX_DIGITS",
+		"NET", "ANY", "ALL", "NOT", "BOOL", "SRC", "DST", "DSCP", "TOS", "PROTOCOL",
+		"SRCPORT", "DSTPORT", "STRING",
+	}
+	staticData.RuleNames = []string{
+		"matchSrc", "matchDst", "matchDSCP", "matchTOS", "matchProtocol", "matchSrcPort",
+		"matchSrcPortRange", "matchDstPort", "matchDstPortRange", "condCls",
+		"condAny", "condAll", "condNot", "condBool", "condIPv4", "condPort",
+		"cond", "trafficClass",
+	}
+	staticData.PredictionContextCache = antlr.NewPredictionContextCache()
+	staticData.serializedATN = []int32{
+		4, 1, 25, 138, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
+		4, 2, 5, 7, 5, 2, 6, 7, 6, 2, 7, 7, 7, 2, 8, 7, 8, 2, 9, 7, 9, 2, 10, 7,
+		10, 2, 11, 7, 11, 2, 12, 7, 12, 2, 13, 7, 13, 2, 14, 7, 14, 2, 15, 7, 15,
+		2, 16, 7, 16, 2, 17, 7, 17, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 3, 1, 3, 1, 3, 1, 3, 1, 4, 1, 4, 1, 4, 1,
+		4, 1, 5, 1, 5, 1, 5, 1, 5, 1, 6, 1, 6, 1, 6, 1, 6, 1, 6, 1, 6, 1, 7, 1,
+		7, 1, 7, 1, 7, 1, 8, 1, 8, 1, 8, 1, 8, 1, 8, 1, 8, 1, 9, 1, 9, 1, 9, 1,
+		10, 1, 10, 1, 10, 1, 10, 1, 10, 5, 10, 85, 8, 10, 10, 10, 12, 10, 88, 9,
+		10, 1, 10, 1, 10, 1, 11, 1, 11, 1, 11, 1, 11, 1, 11, 5, 11, 97, 8, 11,
+		10, 11, 12, 11, 100, 9, 11, 1, 11, 1, 11, 1, 12, 1, 12, 1, 12, 1, 12, 1,
+		12, 1, 13, 1, 13, 1, 13, 1, 13, 1, 14, 1, 14, 1, 14, 1, 14, 1, 14, 3, 14,
+		118, 8, 14, 1, 15, 1, 15, 1, 15, 1, 15, 3, 15, 124, 8, 15, 1, 16, 1, 16,
+		1, 16, 1, 16, 1, 16, 1, 16, 1, 16, 3, 16, 133, 8, 16, 1, 17, 1, 17, 1,
+		17, 1, 17, 0, 0, 18, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26,
+		28, 30, 32, 34, 0, 2, 1, 0, 11, 12, 1, 0, 8, 9, 134, 0, 36, 1, 0, 0, 0,
+		2, 40, 1, 0, 0, 0, 4, 44, 1, 0, 0, 0, 6, 48, 1, 0, 0, 0, 8, 52, 1, 0, 0,
+		0, 10, 56, 1, 0, 0, 0, 12, 60, 1, 0, 0, 0, 14, 66, 1, 0, 0, 0, 16, 70,
+		1, 0, 0, 0, 18, 76, 1, 0, 0, 0, 20, 79, 1, 0, 0, 0, 22, 91, 1, 0, 0, 0,
+		24, 103, 1, 0, 0, 0, 26, 108, 1, 0, 0, 0, 28, 117, 1, 0, 0, 0, 30, 123,
+		1, 0, 0, 0, 32, 132, 1, 0, 0, 0, 34, 134, 1, 0, 0, 0, 36, 37, 5, 18, 0,
+		0, 37, 38, 5, 1, 0, 0, 38, 39, 5, 13, 0, 0, 39, 1, 1, 0, 0, 0, 40, 41,
+		5, 19, 0, 0, 41, 42, 5, 1, 0, 0, 42, 43, 5, 13, 0, 0, 43, 3, 1, 0, 0, 0,
+		44, 45, 5, 20, 0, 0, 45, 46, 5, 2, 0, 0, 46, 47, 7, 0, 0, 0, 47, 5, 1,
+		0, 0, 0, 48, 49, 5, 21, 0, 0, 49, 50, 5, 2, 0, 0, 50, 51, 7, 0, 0, 0, 51,
+		7, 1, 0, 0, 0, 52, 53, 5, 22, 0, 0, 53, 54, 5, 1, 0, 0, 54, 55, 5, 25,
+		0, 0, 55, 9, 1, 0, 0, 0, 56, 57, 5, 23, 0, 0, 57, 58, 5, 1, 0, 0, 58, 59,
+		5, 11, 0, 0, 59, 11, 1, 0, 0, 0, 60, 61, 5, 23, 0, 0, 61, 62, 5, 1, 0,
+		0, 62, 63, 5, 11, 0, 0, 63, 64, 5, 3, 0, 0, 64, 65, 5, 11, 0, 0, 65, 13,
+		1, 0, 0, 0, 66, 67, 5, 24, 0, 0, 67, 68, 5, 1, 0, 0, 68, 69, 5, 11, 0,
+		0, 69, 15, 1, 0, 0, 0, 70, 71, 5, 24, 0, 0, 71, 72, 5, 1, 0, 0, 72, 73,
+		5, 11, 0, 0, 73, 74, 5, 3, 0, 0, 74, 75, 5, 11, 0, 0, 75, 17, 1, 0, 0,
+		0, 76, 77, 5, 4, 0, 0, 77, 78, 5, 11, 0, 0, 78, 19, 1, 0, 0, 0, 79, 80,
+		5, 14, 0, 0, 80, 81, 5, 5, 0, 0, 81, 86, 3, 32, 16, 0, 82, 83, 5, 6, 0,
+		0, 83, 85, 3, 32, 16, 0, 84, 82, 1, 0, 0, 0, 85, 88, 1, 0, 0, 0, 86, 84,
+		1, 0, 0, 0, 86, 87, 1, 0, 0, 0, 87, 89, 1, 0, 0, 0, 88, 86, 1, 0, 0, 0,
+		89, 90, 5, 7, 0, 0, 90, 21, 1, 0, 0, 0, 91, 92, 5, 15, 0, 0, 92, 93, 5,
+		5, 0, 0, 93, 98, 3, 32, 16, 0, 94, 95, 5, 6, 0, 0, 95, 97, 3, 32, 16, 0,
+		96, 94, 1, 0, 0, 0, 97, 100, 1, 0, 0, 0, 98, 96, 1, 0, 0, 0, 98, 99, 1,
+		0, 0, 0, 99, 101, 1, 0, 0, 0, 100, 98, 1, 0, 0, 0, 101, 102, 5, 7, 0, 0,
+		102, 23, 1, 0, 0, 0, 103, 104, 5, 16, 0, 0, 104, 105, 5, 5, 0, 0, 105,
+		106, 3, 32, 16, 0, 106, 107, 5, 7, 0, 0, 107, 25, 1, 0, 0, 0, 108, 109,
+		5, 17, 0, 0, 109, 110, 5, 1, 0, 0, 110, 111, 7, 1, 0, 0, 111, 27, 1, 0,
+		0, 0, 112, 118, 3, 0, 0, 0, 113, 118, 3, 2, 1, 0, 114, 118, 3, 4, 2, 0,
+		115, 118, 3, 6, 3, 0, 116, 118, 3, 8, 4, 0, 117, 112, 1, 0, 0, 0, 117,
+		113, 1, 0, 0, 0, 117, 114, 1, 0, 0, 0, 117, 115, 1, 0, 0, 0, 117, 116,
+		1, 0, 0, 0, 118, 29, 1, 0, 0, 0, 119, 124, 3, 10, 5, 0, 120, 124, 3, 12,
+		6, 0, 121, 124, 3, 14, 7, 0, 122, 124, 3, 16, 8, 0, 123, 119, 1, 0, 0,
+		0, 123, 120, 1, 0, 0, 0, 123, 121, 1, 0, 0, 0, 123, 122, 1, 0, 0, 0, 124,
+		31, 1, 0, 0, 0, 125, 133, 3, 22, 11, 0, 126, 133, 3, 20, 10, 0, 127, 133,
+		3, 24, 12, 0, 128, 133, 3, 28, 14, 0, 129, 133, 3, 30, 15, 0, 130, 133,
+		3, 18, 9, 0, 131, 133, 3, 26, 13, 0, 132, 125, 1, 0, 0, 0, 132, 126, 1,
+		0, 0, 0, 132, 127, 1, 0, 0, 0, 132, 128, 1, 0, 0, 0, 132, 129, 1, 0, 0,
+		0, 132, 130, 1, 0, 0, 0, 132, 131, 1, 0, 0, 0, 133, 33, 1, 0, 0, 0, 134,
+		135, 3, 32, 16, 0, 135, 136, 5, 0, 0, 1, 136, 35, 1, 0, 0, 0, 5, 86, 98,
+		117, 123, 132,
+	}
+	deserializer := antlr.NewATNDeserializer(nil)
+	staticData.atn = deserializer.Deserialize(staticData.serializedATN)
+	atn := staticData.atn
+	staticData.decisionToDFA = make([]*antlr.DFA, len(atn.DecisionToState))
+	decisionToDFA := staticData.decisionToDFA
+	for index, state := range atn.DecisionToState {
+		decisionToDFA[index] = antlr.NewDFA(state, index)
+	}
+}
+
+// TrafficClassParserInit initializes any static state used to implement TrafficClassParser. By default the
+// static state used to implement the parser is lazily initialized during the first call to
+// NewTrafficClassParser(). You can call this function if you wish to initialize the static state ahead
+// of time.
+func TrafficClassParserInit() {
+	staticData := &TrafficClassParserStaticData
+	staticData.once.Do(trafficclassParserInit)
+}
+
+// NewTrafficClassParser produces a new parser instance for the optional input antlr.TokenStream.
+func NewTrafficClassParser(input antlr.TokenStream) *TrafficClassParser {
+	TrafficClassParserInit()
+	this := new(TrafficClassParser)
+	this.BaseParser = antlr.NewBaseParser(input)
+	staticData := &TrafficClassParserStaticData
+	this.Interpreter = antlr.NewParserATNSimulator(this, staticData.atn, staticData.decisionToDFA, staticData.PredictionContextCache)
+	this.RuleNames = staticData.RuleNames
+	this.LiteralNames = staticData.LiteralNames
+	this.SymbolicNames = staticData.SymbolicNames
 	this.GrammarFileName = "TrafficClass.g4"
 
 	return this
@@ -175,20 +197,29 @@ type IMatchSrcContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	SRC() antlr.TerminalNode
+	NET() antlr.TerminalNode
+
 	// IsMatchSrcContext differentiates from other interfaces.
 	IsMatchSrcContext()
 }
 
 type MatchSrcContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyMatchSrcContext() *MatchSrcContext {
 	var p = new(MatchSrcContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = TrafficClassParserRULE_matchSrc
 	return p
+}
+
+func InitEmptyMatchSrcContext(p *MatchSrcContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_matchSrc
 }
 
 func (*MatchSrcContext) IsMatchSrcContext() {}
@@ -196,7 +227,7 @@ func (*MatchSrcContext) IsMatchSrcContext() {}
 func NewMatchSrcContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *MatchSrcContext {
 	var p = new(MatchSrcContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = TrafficClassParserRULE_matchSrc
@@ -235,43 +266,45 @@ func (s *MatchSrcContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) MatchSrc() (localctx IMatchSrcContext) {
-	this := p
-	_ = this
-
 	localctx = NewMatchSrcContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 0, TrafficClassParserRULE_matchSrc)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(36)
 		p.Match(TrafficClassParserSRC)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(37)
 		p.Match(TrafficClassParserT__0)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(38)
 		p.Match(TrafficClassParserNET)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IMatchDstContext is an interface to support dynamic dispatch.
@@ -281,20 +314,29 @@ type IMatchDstContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	DST() antlr.TerminalNode
+	NET() antlr.TerminalNode
+
 	// IsMatchDstContext differentiates from other interfaces.
 	IsMatchDstContext()
 }
 
 type MatchDstContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyMatchDstContext() *MatchDstContext {
 	var p = new(MatchDstContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = TrafficClassParserRULE_matchDst
 	return p
+}
+
+func InitEmptyMatchDstContext(p *MatchDstContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_matchDst
 }
 
 func (*MatchDstContext) IsMatchDstContext() {}
@@ -302,7 +344,7 @@ func (*MatchDstContext) IsMatchDstContext() {}
 func NewMatchDstContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *MatchDstContext {
 	var p = new(MatchDstContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = TrafficClassParserRULE_matchDst
@@ -341,43 +383,45 @@ func (s *MatchDstContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) MatchDst() (localctx IMatchDstContext) {
-	this := p
-	_ = this
-
 	localctx = NewMatchDstContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 2, TrafficClassParserRULE_matchDst)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(40)
 		p.Match(TrafficClassParserDST)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(41)
 		p.Match(TrafficClassParserT__0)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(42)
 		p.Match(TrafficClassParserNET)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IMatchDSCPContext is an interface to support dynamic dispatch.
@@ -387,20 +431,30 @@ type IMatchDSCPContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	DSCP() antlr.TerminalNode
+	HEX_DIGITS() antlr.TerminalNode
+	DIGITS() antlr.TerminalNode
+
 	// IsMatchDSCPContext differentiates from other interfaces.
 	IsMatchDSCPContext()
 }
 
 type MatchDSCPContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyMatchDSCPContext() *MatchDSCPContext {
 	var p = new(MatchDSCPContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = TrafficClassParserRULE_matchDSCP
 	return p
+}
+
+func InitEmptyMatchDSCPContext(p *MatchDSCPContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_matchDSCP
 }
 
 func (*MatchDSCPContext) IsMatchDSCPContext() {}
@@ -408,7 +462,7 @@ func (*MatchDSCPContext) IsMatchDSCPContext() {}
 func NewMatchDSCPContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *MatchDSCPContext {
 	var p = new(MatchDSCPContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = TrafficClassParserRULE_matchDSCP
@@ -451,37 +505,26 @@ func (s *MatchDSCPContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) MatchDSCP() (localctx IMatchDSCPContext) {
-	this := p
-	_ = this
-
 	localctx = NewMatchDSCPContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 4, TrafficClassParserRULE_matchDSCP)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(44)
 		p.Match(TrafficClassParserDSCP)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(45)
 		p.Match(TrafficClassParserT__1)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(46)
@@ -495,7 +538,17 @@ func (p *TrafficClassParser) MatchDSCP() (localctx IMatchDSCPContext) {
 		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IMatchTOSContext is an interface to support dynamic dispatch.
@@ -505,20 +558,30 @@ type IMatchTOSContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	TOS() antlr.TerminalNode
+	HEX_DIGITS() antlr.TerminalNode
+	DIGITS() antlr.TerminalNode
+
 	// IsMatchTOSContext differentiates from other interfaces.
 	IsMatchTOSContext()
 }
 
 type MatchTOSContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyMatchTOSContext() *MatchTOSContext {
 	var p = new(MatchTOSContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = TrafficClassParserRULE_matchTOS
 	return p
+}
+
+func InitEmptyMatchTOSContext(p *MatchTOSContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_matchTOS
 }
 
 func (*MatchTOSContext) IsMatchTOSContext() {}
@@ -526,7 +589,7 @@ func (*MatchTOSContext) IsMatchTOSContext() {}
 func NewMatchTOSContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *MatchTOSContext {
 	var p = new(MatchTOSContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = TrafficClassParserRULE_matchTOS
@@ -569,37 +632,26 @@ func (s *MatchTOSContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) MatchTOS() (localctx IMatchTOSContext) {
-	this := p
-	_ = this
-
 	localctx = NewMatchTOSContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 6, TrafficClassParserRULE_matchTOS)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(48)
 		p.Match(TrafficClassParserTOS)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(49)
 		p.Match(TrafficClassParserT__1)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(50)
@@ -613,7 +665,17 @@ func (p *TrafficClassParser) MatchTOS() (localctx IMatchTOSContext) {
 		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IMatchProtocolContext is an interface to support dynamic dispatch.
@@ -623,20 +685,29 @@ type IMatchProtocolContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	PROTOCOL() antlr.TerminalNode
+	STRING() antlr.TerminalNode
+
 	// IsMatchProtocolContext differentiates from other interfaces.
 	IsMatchProtocolContext()
 }
 
 type MatchProtocolContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyMatchProtocolContext() *MatchProtocolContext {
 	var p = new(MatchProtocolContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = TrafficClassParserRULE_matchProtocol
 	return p
+}
+
+func InitEmptyMatchProtocolContext(p *MatchProtocolContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_matchProtocol
 }
 
 func (*MatchProtocolContext) IsMatchProtocolContext() {}
@@ -644,7 +715,7 @@ func (*MatchProtocolContext) IsMatchProtocolContext() {}
 func NewMatchProtocolContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *MatchProtocolContext {
 	var p = new(MatchProtocolContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = TrafficClassParserRULE_matchProtocol
@@ -683,43 +754,45 @@ func (s *MatchProtocolContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) MatchProtocol() (localctx IMatchProtocolContext) {
-	this := p
-	_ = this
-
 	localctx = NewMatchProtocolContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 8, TrafficClassParserRULE_matchProtocol)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(52)
 		p.Match(TrafficClassParserPROTOCOL)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(53)
 		p.Match(TrafficClassParserT__0)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(54)
 		p.Match(TrafficClassParserSTRING)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IMatchSrcPortContext is an interface to support dynamic dispatch.
@@ -729,20 +802,29 @@ type IMatchSrcPortContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	SRCPORT() antlr.TerminalNode
+	DIGITS() antlr.TerminalNode
+
 	// IsMatchSrcPortContext differentiates from other interfaces.
 	IsMatchSrcPortContext()
 }
 
 type MatchSrcPortContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyMatchSrcPortContext() *MatchSrcPortContext {
 	var p = new(MatchSrcPortContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = TrafficClassParserRULE_matchSrcPort
 	return p
+}
+
+func InitEmptyMatchSrcPortContext(p *MatchSrcPortContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_matchSrcPort
 }
 
 func (*MatchSrcPortContext) IsMatchSrcPortContext() {}
@@ -750,7 +832,7 @@ func (*MatchSrcPortContext) IsMatchSrcPortContext() {}
 func NewMatchSrcPortContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *MatchSrcPortContext {
 	var p = new(MatchSrcPortContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = TrafficClassParserRULE_matchSrcPort
@@ -789,43 +871,45 @@ func (s *MatchSrcPortContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) MatchSrcPort() (localctx IMatchSrcPortContext) {
-	this := p
-	_ = this
-
 	localctx = NewMatchSrcPortContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 10, TrafficClassParserRULE_matchSrcPort)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(56)
 		p.Match(TrafficClassParserSRCPORT)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(57)
 		p.Match(TrafficClassParserT__0)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(58)
 		p.Match(TrafficClassParserDIGITS)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IMatchSrcPortRangeContext is an interface to support dynamic dispatch.
@@ -835,20 +919,30 @@ type IMatchSrcPortRangeContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	SRCPORT() antlr.TerminalNode
+	AllDIGITS() []antlr.TerminalNode
+	DIGITS(i int) antlr.TerminalNode
+
 	// IsMatchSrcPortRangeContext differentiates from other interfaces.
 	IsMatchSrcPortRangeContext()
 }
 
 type MatchSrcPortRangeContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyMatchSrcPortRangeContext() *MatchSrcPortRangeContext {
 	var p = new(MatchSrcPortRangeContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = TrafficClassParserRULE_matchSrcPortRange
 	return p
+}
+
+func InitEmptyMatchSrcPortRangeContext(p *MatchSrcPortRangeContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_matchSrcPortRange
 }
 
 func (*MatchSrcPortRangeContext) IsMatchSrcPortRangeContext() {}
@@ -856,7 +950,7 @@ func (*MatchSrcPortRangeContext) IsMatchSrcPortRangeContext() {}
 func NewMatchSrcPortRangeContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *MatchSrcPortRangeContext {
 	var p = new(MatchSrcPortRangeContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = TrafficClassParserRULE_matchSrcPortRange
@@ -899,51 +993,61 @@ func (s *MatchSrcPortRangeContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) MatchSrcPortRange() (localctx IMatchSrcPortRangeContext) {
-	this := p
-	_ = this
-
 	localctx = NewMatchSrcPortRangeContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 12, TrafficClassParserRULE_matchSrcPortRange)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(60)
 		p.Match(TrafficClassParserSRCPORT)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(61)
 		p.Match(TrafficClassParserT__0)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(62)
 		p.Match(TrafficClassParserDIGITS)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(63)
 		p.Match(TrafficClassParserT__2)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(64)
 		p.Match(TrafficClassParserDIGITS)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IMatchDstPortContext is an interface to support dynamic dispatch.
@@ -953,20 +1057,29 @@ type IMatchDstPortContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	DSTPORT() antlr.TerminalNode
+	DIGITS() antlr.TerminalNode
+
 	// IsMatchDstPortContext differentiates from other interfaces.
 	IsMatchDstPortContext()
 }
 
 type MatchDstPortContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyMatchDstPortContext() *MatchDstPortContext {
 	var p = new(MatchDstPortContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = TrafficClassParserRULE_matchDstPort
 	return p
+}
+
+func InitEmptyMatchDstPortContext(p *MatchDstPortContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_matchDstPort
 }
 
 func (*MatchDstPortContext) IsMatchDstPortContext() {}
@@ -974,7 +1087,7 @@ func (*MatchDstPortContext) IsMatchDstPortContext() {}
 func NewMatchDstPortContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *MatchDstPortContext {
 	var p = new(MatchDstPortContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = TrafficClassParserRULE_matchDstPort
@@ -1013,43 +1126,45 @@ func (s *MatchDstPortContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) MatchDstPort() (localctx IMatchDstPortContext) {
-	this := p
-	_ = this
-
 	localctx = NewMatchDstPortContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 14, TrafficClassParserRULE_matchDstPort)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(66)
 		p.Match(TrafficClassParserDSTPORT)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(67)
 		p.Match(TrafficClassParserT__0)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(68)
 		p.Match(TrafficClassParserDIGITS)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IMatchDstPortRangeContext is an interface to support dynamic dispatch.
@@ -1059,20 +1174,30 @@ type IMatchDstPortRangeContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	DSTPORT() antlr.TerminalNode
+	AllDIGITS() []antlr.TerminalNode
+	DIGITS(i int) antlr.TerminalNode
+
 	// IsMatchDstPortRangeContext differentiates from other interfaces.
 	IsMatchDstPortRangeContext()
 }
 
 type MatchDstPortRangeContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyMatchDstPortRangeContext() *MatchDstPortRangeContext {
 	var p = new(MatchDstPortRangeContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = TrafficClassParserRULE_matchDstPortRange
 	return p
+}
+
+func InitEmptyMatchDstPortRangeContext(p *MatchDstPortRangeContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_matchDstPortRange
 }
 
 func (*MatchDstPortRangeContext) IsMatchDstPortRangeContext() {}
@@ -1080,7 +1205,7 @@ func (*MatchDstPortRangeContext) IsMatchDstPortRangeContext() {}
 func NewMatchDstPortRangeContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *MatchDstPortRangeContext {
 	var p = new(MatchDstPortRangeContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = TrafficClassParserRULE_matchDstPortRange
@@ -1123,51 +1248,61 @@ func (s *MatchDstPortRangeContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) MatchDstPortRange() (localctx IMatchDstPortRangeContext) {
-	this := p
-	_ = this
-
 	localctx = NewMatchDstPortRangeContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 16, TrafficClassParserRULE_matchDstPortRange)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(70)
 		p.Match(TrafficClassParserDSTPORT)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(71)
 		p.Match(TrafficClassParserT__0)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(72)
 		p.Match(TrafficClassParserDIGITS)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(73)
 		p.Match(TrafficClassParserT__2)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(74)
 		p.Match(TrafficClassParserDIGITS)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // ICondClsContext is an interface to support dynamic dispatch.
@@ -1177,20 +1312,28 @@ type ICondClsContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	DIGITS() antlr.TerminalNode
+
 	// IsCondClsContext differentiates from other interfaces.
 	IsCondClsContext()
 }
 
 type CondClsContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyCondClsContext() *CondClsContext {
 	var p = new(CondClsContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = TrafficClassParserRULE_condCls
 	return p
+}
+
+func InitEmptyCondClsContext(p *CondClsContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_condCls
 }
 
 func (*CondClsContext) IsCondClsContext() {}
@@ -1198,7 +1341,7 @@ func (*CondClsContext) IsCondClsContext() {}
 func NewCondClsContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *CondClsContext {
 	var p = new(CondClsContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = TrafficClassParserRULE_condCls
@@ -1233,39 +1376,37 @@ func (s *CondClsContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) CondCls() (localctx ICondClsContext) {
-	this := p
-	_ = this
-
 	localctx = NewCondClsContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 18, TrafficClassParserRULE_condCls)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(76)
 		p.Match(TrafficClassParserT__3)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(77)
 		p.Match(TrafficClassParserDIGITS)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // ICondAnyContext is an interface to support dynamic dispatch.
@@ -1275,20 +1416,30 @@ type ICondAnyContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	ANY() antlr.TerminalNode
+	AllCond() []ICondContext
+	Cond(i int) ICondContext
+
 	// IsCondAnyContext differentiates from other interfaces.
 	IsCondAnyContext()
 }
 
 type CondAnyContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyCondAnyContext() *CondAnyContext {
 	var p = new(CondAnyContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = TrafficClassParserRULE_condAny
 	return p
+}
+
+func InitEmptyCondAnyContext(p *CondAnyContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_condAny
 }
 
 func (*CondAnyContext) IsCondAnyContext() {}
@@ -1296,7 +1447,7 @@ func (*CondAnyContext) IsCondAnyContext() {}
 func NewCondAnyContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *CondAnyContext {
 	var p = new(CondAnyContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = TrafficClassParserRULE_condAny
@@ -1311,12 +1462,20 @@ func (s *CondAnyContext) ANY() antlr.TerminalNode {
 }
 
 func (s *CondAnyContext) AllCond() []ICondContext {
-	var ts = s.GetTypedRuleContexts(reflect.TypeOf((*ICondContext)(nil)).Elem())
-	var tst = make([]ICondContext, len(ts))
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(ICondContext); ok {
+			len++
+		}
+	}
 
-	for i, t := range ts {
-		if t != nil {
+	tst := make([]ICondContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(ICondContext); ok {
 			tst[i] = t.(ICondContext)
+			i++
 		}
 	}
 
@@ -1324,7 +1483,17 @@ func (s *CondAnyContext) AllCond() []ICondContext {
 }
 
 func (s *CondAnyContext) Cond(i int) ICondContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ICondContext)(nil)).Elem(), i)
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ICondContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1354,37 +1523,26 @@ func (s *CondAnyContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) CondAny() (localctx ICondAnyContext) {
-	this := p
-	_ = this
-
 	localctx = NewCondAnyContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 20, TrafficClassParserRULE_condAny)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(79)
 		p.Match(TrafficClassParserANY)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(80)
 		p.Match(TrafficClassParserT__4)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(81)
@@ -1392,12 +1550,19 @@ func (p *TrafficClassParser) CondAny() (localctx ICondAnyContext) {
 	}
 	p.SetState(86)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == TrafficClassParserT__5 {
 		{
 			p.SetState(82)
 			p.Match(TrafficClassParserT__5)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(83)
@@ -1406,14 +1571,31 @@ func (p *TrafficClassParser) CondAny() (localctx ICondAnyContext) {
 
 		p.SetState(88)
 		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
 		_la = p.GetTokenStream().LA(1)
 	}
 	{
 		p.SetState(89)
 		p.Match(TrafficClassParserT__6)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // ICondAllContext is an interface to support dynamic dispatch.
@@ -1423,20 +1605,30 @@ type ICondAllContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	ALL() antlr.TerminalNode
+	AllCond() []ICondContext
+	Cond(i int) ICondContext
+
 	// IsCondAllContext differentiates from other interfaces.
 	IsCondAllContext()
 }
 
 type CondAllContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyCondAllContext() *CondAllContext {
 	var p = new(CondAllContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = TrafficClassParserRULE_condAll
 	return p
+}
+
+func InitEmptyCondAllContext(p *CondAllContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_condAll
 }
 
 func (*CondAllContext) IsCondAllContext() {}
@@ -1444,7 +1636,7 @@ func (*CondAllContext) IsCondAllContext() {}
 func NewCondAllContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *CondAllContext {
 	var p = new(CondAllContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = TrafficClassParserRULE_condAll
@@ -1459,12 +1651,20 @@ func (s *CondAllContext) ALL() antlr.TerminalNode {
 }
 
 func (s *CondAllContext) AllCond() []ICondContext {
-	var ts = s.GetTypedRuleContexts(reflect.TypeOf((*ICondContext)(nil)).Elem())
-	var tst = make([]ICondContext, len(ts))
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(ICondContext); ok {
+			len++
+		}
+	}
 
-	for i, t := range ts {
-		if t != nil {
+	tst := make([]ICondContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(ICondContext); ok {
 			tst[i] = t.(ICondContext)
+			i++
 		}
 	}
 
@@ -1472,7 +1672,17 @@ func (s *CondAllContext) AllCond() []ICondContext {
 }
 
 func (s *CondAllContext) Cond(i int) ICondContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ICondContext)(nil)).Elem(), i)
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ICondContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1502,37 +1712,26 @@ func (s *CondAllContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) CondAll() (localctx ICondAllContext) {
-	this := p
-	_ = this
-
 	localctx = NewCondAllContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 22, TrafficClassParserRULE_condAll)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(91)
 		p.Match(TrafficClassParserALL)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(92)
 		p.Match(TrafficClassParserT__4)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(93)
@@ -1540,12 +1739,19 @@ func (p *TrafficClassParser) CondAll() (localctx ICondAllContext) {
 	}
 	p.SetState(98)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == TrafficClassParserT__5 {
 		{
 			p.SetState(94)
 			p.Match(TrafficClassParserT__5)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(95)
@@ -1554,14 +1760,31 @@ func (p *TrafficClassParser) CondAll() (localctx ICondAllContext) {
 
 		p.SetState(100)
 		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
 		_la = p.GetTokenStream().LA(1)
 	}
 	{
 		p.SetState(101)
 		p.Match(TrafficClassParserT__6)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // ICondNotContext is an interface to support dynamic dispatch.
@@ -1571,20 +1794,29 @@ type ICondNotContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	NOT() antlr.TerminalNode
+	Cond() ICondContext
+
 	// IsCondNotContext differentiates from other interfaces.
 	IsCondNotContext()
 }
 
 type CondNotContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyCondNotContext() *CondNotContext {
 	var p = new(CondNotContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = TrafficClassParserRULE_condNot
 	return p
+}
+
+func InitEmptyCondNotContext(p *CondNotContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_condNot
 }
 
 func (*CondNotContext) IsCondNotContext() {}
@@ -1592,7 +1824,7 @@ func (*CondNotContext) IsCondNotContext() {}
 func NewCondNotContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *CondNotContext {
 	var p = new(CondNotContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = TrafficClassParserRULE_condNot
@@ -1607,7 +1839,13 @@ func (s *CondNotContext) NOT() antlr.TerminalNode {
 }
 
 func (s *CondNotContext) Cond() ICondContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ICondContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ICondContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1637,36 +1875,24 @@ func (s *CondNotContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) CondNot() (localctx ICondNotContext) {
-	this := p
-	_ = this
-
 	localctx = NewCondNotContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 24, TrafficClassParserRULE_condNot)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(103)
 		p.Match(TrafficClassParserNOT)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(104)
 		p.Match(TrafficClassParserT__4)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(105)
@@ -1675,9 +1901,23 @@ func (p *TrafficClassParser) CondNot() (localctx ICondNotContext) {
 	{
 		p.SetState(106)
 		p.Match(TrafficClassParserT__6)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // ICondBoolContext is an interface to support dynamic dispatch.
@@ -1687,20 +1927,28 @@ type ICondBoolContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	BOOL() antlr.TerminalNode
+
 	// IsCondBoolContext differentiates from other interfaces.
 	IsCondBoolContext()
 }
 
 type CondBoolContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyCondBoolContext() *CondBoolContext {
 	var p = new(CondBoolContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = TrafficClassParserRULE_condBool
 	return p
+}
+
+func InitEmptyCondBoolContext(p *CondBoolContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_condBool
 }
 
 func (*CondBoolContext) IsCondBoolContext() {}
@@ -1708,7 +1956,7 @@ func (*CondBoolContext) IsCondBoolContext() {}
 func NewCondBoolContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *CondBoolContext {
 	var p = new(CondBoolContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = TrafficClassParserRULE_condBool
@@ -1743,37 +1991,26 @@ func (s *CondBoolContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) CondBool() (localctx ICondBoolContext) {
-	this := p
-	_ = this
-
 	localctx = NewCondBoolContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 26, TrafficClassParserRULE_condBool)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(108)
 		p.Match(TrafficClassParserBOOL)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(109)
 		p.Match(TrafficClassParserT__0)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(110)
@@ -1787,7 +2024,17 @@ func (p *TrafficClassParser) CondBool() (localctx ICondBoolContext) {
 		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // ICondIPv4Context is an interface to support dynamic dispatch.
@@ -1797,20 +2044,32 @@ type ICondIPv4Context interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	MatchSrc() IMatchSrcContext
+	MatchDst() IMatchDstContext
+	MatchDSCP() IMatchDSCPContext
+	MatchTOS() IMatchTOSContext
+	MatchProtocol() IMatchProtocolContext
+
 	// IsCondIPv4Context differentiates from other interfaces.
 	IsCondIPv4Context()
 }
 
 type CondIPv4Context struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyCondIPv4Context() *CondIPv4Context {
 	var p = new(CondIPv4Context)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = TrafficClassParserRULE_condIPv4
 	return p
+}
+
+func InitEmptyCondIPv4Context(p *CondIPv4Context) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_condIPv4
 }
 
 func (*CondIPv4Context) IsCondIPv4Context() {}
@@ -1818,7 +2077,7 @@ func (*CondIPv4Context) IsCondIPv4Context() {}
 func NewCondIPv4Context(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *CondIPv4Context {
 	var p = new(CondIPv4Context)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = TrafficClassParserRULE_condIPv4
@@ -1829,7 +2088,13 @@ func NewCondIPv4Context(parser antlr.Parser, parent antlr.ParserRuleContext, inv
 func (s *CondIPv4Context) GetParser() antlr.Parser { return s.parser }
 
 func (s *CondIPv4Context) MatchSrc() IMatchSrcContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IMatchSrcContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IMatchSrcContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1839,7 +2104,13 @@ func (s *CondIPv4Context) MatchSrc() IMatchSrcContext {
 }
 
 func (s *CondIPv4Context) MatchDst() IMatchDstContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IMatchDstContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IMatchDstContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1849,7 +2120,13 @@ func (s *CondIPv4Context) MatchDst() IMatchDstContext {
 }
 
 func (s *CondIPv4Context) MatchDSCP() IMatchDSCPContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IMatchDSCPContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IMatchDSCPContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1859,7 +2136,13 @@ func (s *CondIPv4Context) MatchDSCP() IMatchDSCPContext {
 }
 
 func (s *CondIPv4Context) MatchTOS() IMatchTOSContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IMatchTOSContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IMatchTOSContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1869,7 +2152,13 @@ func (s *CondIPv4Context) MatchTOS() IMatchTOSContext {
 }
 
 func (s *CondIPv4Context) MatchProtocol() IMatchProtocolContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IMatchProtocolContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IMatchProtocolContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1899,30 +2188,13 @@ func (s *CondIPv4Context) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) CondIPv4() (localctx ICondIPv4Context) {
-	this := p
-	_ = this
-
 	localctx = NewCondIPv4Context(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 28, TrafficClassParserRULE_condIPv4)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.SetState(117)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 
 	switch p.GetTokenStream().LA(1) {
 	case TrafficClassParserSRC:
@@ -1961,10 +2233,21 @@ func (p *TrafficClassParser) CondIPv4() (localctx ICondIPv4Context) {
 		}
 
 	default:
-		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		goto errorExit
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // ICondPortContext is an interface to support dynamic dispatch.
@@ -1974,20 +2257,31 @@ type ICondPortContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	MatchSrcPort() IMatchSrcPortContext
+	MatchSrcPortRange() IMatchSrcPortRangeContext
+	MatchDstPort() IMatchDstPortContext
+	MatchDstPortRange() IMatchDstPortRangeContext
+
 	// IsCondPortContext differentiates from other interfaces.
 	IsCondPortContext()
 }
 
 type CondPortContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyCondPortContext() *CondPortContext {
 	var p = new(CondPortContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = TrafficClassParserRULE_condPort
 	return p
+}
+
+func InitEmptyCondPortContext(p *CondPortContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_condPort
 }
 
 func (*CondPortContext) IsCondPortContext() {}
@@ -1995,7 +2289,7 @@ func (*CondPortContext) IsCondPortContext() {}
 func NewCondPortContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *CondPortContext {
 	var p = new(CondPortContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = TrafficClassParserRULE_condPort
@@ -2006,7 +2300,13 @@ func NewCondPortContext(parser antlr.Parser, parent antlr.ParserRuleContext, inv
 func (s *CondPortContext) GetParser() antlr.Parser { return s.parser }
 
 func (s *CondPortContext) MatchSrcPort() IMatchSrcPortContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IMatchSrcPortContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IMatchSrcPortContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -2016,7 +2316,13 @@ func (s *CondPortContext) MatchSrcPort() IMatchSrcPortContext {
 }
 
 func (s *CondPortContext) MatchSrcPortRange() IMatchSrcPortRangeContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IMatchSrcPortRangeContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IMatchSrcPortRangeContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -2026,7 +2332,13 @@ func (s *CondPortContext) MatchSrcPortRange() IMatchSrcPortRangeContext {
 }
 
 func (s *CondPortContext) MatchDstPort() IMatchDstPortContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IMatchDstPortContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IMatchDstPortContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -2036,7 +2348,13 @@ func (s *CondPortContext) MatchDstPort() IMatchDstPortContext {
 }
 
 func (s *CondPortContext) MatchDstPortRange() IMatchDstPortRangeContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IMatchDstPortRangeContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IMatchDstPortRangeContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -2066,31 +2384,15 @@ func (s *CondPortContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) CondPort() (localctx ICondPortContext) {
-	this := p
-	_ = this
-
 	localctx = NewCondPortContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 30, TrafficClassParserRULE_condPort)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.SetState(123)
 	p.GetErrorHandler().Sync(p)
-	switch p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 3, p.GetParserRuleContext()) {
+	if p.HasError() {
+		goto errorExit
+	}
+
+	switch p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 3, p.GetParserRuleContext()) {
 	case 1:
 		p.EnterOuterAlt(localctx, 1)
 		{
@@ -2119,9 +2421,21 @@ func (p *TrafficClassParser) CondPort() (localctx ICondPortContext) {
 			p.MatchDstPortRange()
 		}
 
+	case antlr.ATNInvalidAltNumber:
+		goto errorExit
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // ICondContext is an interface to support dynamic dispatch.
@@ -2131,20 +2445,34 @@ type ICondContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	CondAll() ICondAllContext
+	CondAny() ICondAnyContext
+	CondNot() ICondNotContext
+	CondIPv4() ICondIPv4Context
+	CondPort() ICondPortContext
+	CondCls() ICondClsContext
+	CondBool() ICondBoolContext
+
 	// IsCondContext differentiates from other interfaces.
 	IsCondContext()
 }
 
 type CondContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyCondContext() *CondContext {
 	var p = new(CondContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = TrafficClassParserRULE_cond
 	return p
+}
+
+func InitEmptyCondContext(p *CondContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_cond
 }
 
 func (*CondContext) IsCondContext() {}
@@ -2152,7 +2480,7 @@ func (*CondContext) IsCondContext() {}
 func NewCondContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *CondContext {
 	var p = new(CondContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = TrafficClassParserRULE_cond
@@ -2163,7 +2491,13 @@ func NewCondContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokin
 func (s *CondContext) GetParser() antlr.Parser { return s.parser }
 
 func (s *CondContext) CondAll() ICondAllContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ICondAllContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ICondAllContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -2173,7 +2507,13 @@ func (s *CondContext) CondAll() ICondAllContext {
 }
 
 func (s *CondContext) CondAny() ICondAnyContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ICondAnyContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ICondAnyContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -2183,7 +2523,13 @@ func (s *CondContext) CondAny() ICondAnyContext {
 }
 
 func (s *CondContext) CondNot() ICondNotContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ICondNotContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ICondNotContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -2193,7 +2539,13 @@ func (s *CondContext) CondNot() ICondNotContext {
 }
 
 func (s *CondContext) CondIPv4() ICondIPv4Context {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ICondIPv4Context)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ICondIPv4Context); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -2203,7 +2555,13 @@ func (s *CondContext) CondIPv4() ICondIPv4Context {
 }
 
 func (s *CondContext) CondPort() ICondPortContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ICondPortContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ICondPortContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -2213,7 +2571,13 @@ func (s *CondContext) CondPort() ICondPortContext {
 }
 
 func (s *CondContext) CondCls() ICondClsContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ICondClsContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ICondClsContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -2223,7 +2587,13 @@ func (s *CondContext) CondCls() ICondClsContext {
 }
 
 func (s *CondContext) CondBool() ICondBoolContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ICondBoolContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ICondBoolContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -2253,30 +2623,13 @@ func (s *CondContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) Cond() (localctx ICondContext) {
-	this := p
-	_ = this
-
 	localctx = NewCondContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 32, TrafficClassParserRULE_cond)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.SetState(132)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 
 	switch p.GetTokenStream().LA(1) {
 	case TrafficClassParserALL:
@@ -2329,10 +2682,21 @@ func (p *TrafficClassParser) Cond() (localctx ICondContext) {
 		}
 
 	default:
-		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		goto errorExit
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // ITrafficClassContext is an interface to support dynamic dispatch.
@@ -2342,20 +2706,29 @@ type ITrafficClassContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	Cond() ICondContext
+	EOF() antlr.TerminalNode
+
 	// IsTrafficClassContext differentiates from other interfaces.
 	IsTrafficClassContext()
 }
 
 type TrafficClassContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyTrafficClassContext() *TrafficClassContext {
 	var p = new(TrafficClassContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = TrafficClassParserRULE_trafficClass
 	return p
+}
+
+func InitEmptyTrafficClassContext(p *TrafficClassContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_trafficClass
 }
 
 func (*TrafficClassContext) IsTrafficClassContext() {}
@@ -2363,7 +2736,7 @@ func (*TrafficClassContext) IsTrafficClassContext() {}
 func NewTrafficClassContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *TrafficClassContext {
 	var p = new(TrafficClassContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = TrafficClassParserRULE_trafficClass
@@ -2374,7 +2747,13 @@ func NewTrafficClassContext(parser antlr.Parser, parent antlr.ParserRuleContext,
 func (s *TrafficClassContext) GetParser() antlr.Parser { return s.parser }
 
 func (s *TrafficClassContext) Cond() ICondContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ICondContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ICondContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -2408,28 +2787,8 @@ func (s *TrafficClassContext) ExitRule(listener antlr.ParseTreeListener) {
 }
 
 func (p *TrafficClassParser) TrafficClass() (localctx ITrafficClassContext) {
-	this := p
-	_ = this
-
 	localctx = NewTrafficClassContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 34, TrafficClassParserRULE_trafficClass)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(134)
@@ -2438,7 +2797,21 @@ func (p *TrafficClassParser) TrafficClass() (localctx ITrafficClassContext) {
 	{
 		p.SetState(135)
 		p.Match(TrafficClassParserEOF)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
