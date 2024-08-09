@@ -38,6 +38,8 @@ WIP
 .. toctree::
    :maxdepth: 1
 
+   NAT-address-discovery
+
 .. _design-docs-active:
 
 Active
