@@ -77,10 +77,7 @@ func (e errorInfo) marshalLogObject(enc zapcore.ObjectEncoder) error {
 		}
 	}
 	for _, pair := range *e.ctx {
-    		zap.Any(pair.Key, pair.Value).AddTo(enc)
-		if err := enc.AddReflected(); err != nil {
-			return err
-		}
+		zap.Any(pair.Key, pair.Value).AddTo(enc)
 	}
 	return nil
 }
