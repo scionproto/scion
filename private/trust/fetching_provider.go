@@ -122,7 +122,7 @@ func (p FetchingProvider) GetChains(ctx context.Context, query ChainQuery,
 	// recursion is allowed.
 	if err := p.Recurser.AllowRecursion(o.client); err != nil {
 		setProviderMetric(span, l.WithResult(metrics.ErrNotAllowed), err)
-		return nil, serrors.WrapStr("recursion not allowed", err)
+		return nil, serrors.WrapStr("checking whether recursion is allowed", err)
 	}
 	if o.server == nil {
 		if o.server, err = p.Router.ChooseServer(ctx, query.IA.ISD()); err != nil {
