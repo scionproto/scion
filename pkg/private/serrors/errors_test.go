@@ -219,6 +219,9 @@ func TestEncoding(t *testing.T) {
 			goldenFileBase: "testdata/wrapped-error",
 		},
 		"error with context": {
+			// WithCtx is deprecated. The shim does it the new way: sets err as the cause of a new
+			// error. The string output isn't exactly the same. Which almost nothing ever notices...
+			// except this test.
 			err:            serrors.WithCtx(serrors.New("simple err"), "someCtx", "someValue"),
 			goldenFileBase: "testdata/error-with-context",
 		},
@@ -281,33 +284,7 @@ func TestList(t *testing.T) {
 }
 
 func TestJoinNil(t *testing.T) {
-	assert.Nil(t, serrors.Join())
-	assert.Nil(t, serrors.Join(nil))
 	assert.Nil(t, serrors.Join(nil, nil))
-}
-
-func TestJoin(t *testing.T) {
-	err1 := serrors.New("err1")
-	err2 := serrors.New("err2")
-	for _, test := range []struct {
-		errs []error
-		want serrors.List
-	}{{
-		errs: []error{err1},
-		want: serrors.List{err1},
-	}, {
-		errs: []error{err1},
-		want: serrors.List{err1},
-	}, {
-		errs: []error{err1, err2},
-		want: serrors.List{err1, err2},
-	}, {
-		errs: []error{err1, nil, err2},
-		want: serrors.List{err1, err2},
-	}} {
-		got := serrors.Join(test.errs...)
-		assert.Equal(t, got, test.want)
-	}
 }
 
 func TestAtMostOneStacktrace(t *testing.T) {
@@ -353,13 +330,15 @@ func ExampleNew() {
 }
 
 func ExampleWithCtx() {
+	// It is not possible to augment the context of a basicError.
+	// WithCtx turns that into an error with a cause.
 	// ErrBadL4 is an error defined at package scope.
 	var ErrBadL4 = serrors.New("Unsupported L4 protocol")
 	addedCtx := serrors.WithCtx(ErrBadL4, "type", "SCTP")
 
 	fmt.Println(addedCtx)
 	// Output:
-	// Unsupported L4 protocol {type=SCTP}
+	// error {type=SCTP}: Unsupported L4 protocol
 }
 
 func ExampleWrapStr() {
@@ -410,4 +389,16 @@ func sanitizeLog(log []byte) []byte {
 		log = re.ReplaceAll(log, []byte(replacer.replace))
 	}
 	return log
+}
+
+func TestUncomparable(t *testing.T) {
+	t.Run("Is", func(t *testing.T) {
+		// We make two wrappers of uncomparable error objects. We could also create custom error
+		// types for the same result, but this is closer to our use cases.
+		errObject := serrors.WrapStr("simple err", nil, "dummy", "context")
+		wrapperA := serrors.Join(errObject, nil, "dummy", "context")
+		wrapperB := serrors.Join(errObject, nil, "dummy", "context")
+		assert.NotErrorIs(t, wrapperA, wrapperB)
+		// no panic
+	})
 }
