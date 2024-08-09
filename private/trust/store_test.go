@@ -317,3 +317,45 @@ func TestLoadTRCs(t *testing.T) {
 		})
 	}
 }
+
+func TestTRCLoaderLoad(t *testing.T) {
+	dir := genCrypto(t)
+
+	testCases := map[string]struct {
+		inputDir string
+		setupDB  func(ctrl *gomock.Controller) trust.DB
+		test     func(t *testing.T, loader *trust.TRCLoader)
+	}{
+		"repeated load": {
+			inputDir: filepath.Join(dir, "ISD1/trcs"),
+			setupDB: func(ctrl *gomock.Controller) trust.DB {
+				db := mock_trust.NewMockDB(ctrl)
+				db.EXPECT().InsertTRC(gomock.Any(), gomock.Any()).Times(2).Return(
+					true, nil,
+				)
+				return db
+			},
+			test: func(t *testing.T, loader *trust.TRCLoader) {
+				res, err := loader.Load(context.Background())
+				require.NoError(t, err)
+				assert.Len(t, res.Loaded, 2)
+				res, err = loader.Load(context.Background())
+				require.NoError(t, err)
+				assert.Len(t, res.Loaded, 0)
+			},
+		},
+	}
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ctrl := gomock.NewController(t)
+			db := tc.setupDB(ctrl)
+			loader := &trust.TRCLoader{
+				DB:  db,
+				Dir: tc.inputDir,
+			}
+			tc.test(t, loader)
+		})
+	}
+}

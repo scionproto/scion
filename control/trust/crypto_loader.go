@@ -18,6 +18,7 @@ import (
 	"context"
 	"crypto/x509"
 	"errors"
+	"sync"
 
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
@@ -33,9 +34,13 @@ type CryptoLoader struct {
 	Dir string
 	// TRCDirs are optional directories from which TRCs are loaded.
 	TRCDirs []string
+
+	trcLoaders        map[string]*trust.TRCLoader
+	trcLoadersInitMtx sync.Mutex
 }
 
-func (l CryptoLoader) SignedTRC(ctx context.Context, id cppki.TRCID) (cppki.SignedTRC, error) {
+func (l *CryptoLoader) SignedTRC(ctx context.Context, id cppki.TRCID) (cppki.SignedTRC, error) {
+	l.initTRCLoaders()
 	if err := l.loadTRCs(ctx); err != nil {
 		log.FromCtx(ctx).Info("Failed to load TRCs from disk, continuing", "err", err)
 	}
@@ -44,7 +49,7 @@ func (l CryptoLoader) SignedTRC(ctx context.Context, id cppki.TRCID) (cppki.Sign
 
 // Chains loads chains from disk, stores them to DB, and returns the result from
 // DB. The fallback mode is always the result of the DB.
-func (l CryptoLoader) Chains(ctx context.Context,
+func (l *CryptoLoader) Chains(ctx context.Context,
 	query trust.ChainQuery) ([][]*x509.Certificate, error) {
 
 	r, err := trust.LoadChains(ctx, l.Dir, l.DB)
@@ -70,7 +75,24 @@ func (l CryptoLoader) Chains(ctx context.Context,
 	return l.DB.Chains(ctx, query)
 }
 
-func (l CryptoLoader) loadTRCs(ctx context.Context) error {
+func (l *CryptoLoader) initTRCLoaders() {
+	l.trcLoadersInitMtx.Lock()
+	defer l.trcLoadersInitMtx.Unlock()
+	if l.trcLoaders != nil {
+		return
+	}
+	l.trcLoaders = make(map[string]*trust.TRCLoader, len(l.TRCDirs)+1)
+	for _, dir := range append([]string{l.Dir}, l.TRCDirs...) {
+		if _, ok := l.trcLoaders[dir]; !ok {
+			l.trcLoaders[dir] = &trust.TRCLoader{
+				DB:  l.DB,
+				Dir: dir,
+			}
+		}
+	}
+}
+
+func (l *CryptoLoader) loadTRCs(ctx context.Context) error {
 	var errs serrors.List
 	for _, dir := range append([]string{l.Dir}, l.TRCDirs...) {
 		if err := l.loadTRCsFromDir(ctx, dir); err != nil {
@@ -80,8 +102,8 @@ func (l CryptoLoader) loadTRCs(ctx context.Context) error {
 	return errs.ToError()
 }
 
-func (l CryptoLoader) loadTRCsFromDir(ctx context.Context, dir string) error {
-	r, err := trust.LoadTRCs(ctx, dir, l.DB)
+func (l *CryptoLoader) loadTRCsFromDir(ctx context.Context, dir string) error {
+	r, err := l.trcLoaders[dir].Load(ctx)
 	if err != nil {
 		return err
 	}

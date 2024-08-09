@@ -103,7 +103,7 @@ func newCachingSignerGen(
 
 	gen := trust.SignerGen{
 		IA: ia,
-		DB: cstrust.CryptoLoader{
+		DB: &cstrust.CryptoLoader{
 			Dir:     filepath.Join(cfgDir, "crypto/as"),
 			TRCDirs: []string{filepath.Join(cfgDir, "certs")},
 			DB:      db,
