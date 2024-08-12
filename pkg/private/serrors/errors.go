@@ -285,13 +285,6 @@ func WithCtx(err error, errCtx ...interface{}) error {
 	return WrapStrNoStack("error", err, errCtx...)
 }
 
-// Deprecated: Wrap has been renamed Join. Join and the historical Wrap do differ very slightly:
-// any stack dump that might have be attached to err is ignored when logging. Like before, no stack
-// dump is added to the returned error.
-func Wrap(err, cause error, errCtx ...interface{}) error {
-	return JoinNoStack(err, cause, errCtx...)
-}
-
 // List is a slice of errors.
 type List []error
 

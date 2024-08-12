@@ -110,11 +110,11 @@ func TestWithCtx(t *testing.T) {
 	})
 }
 
-func TestWrap(t *testing.T) {
+func TestJoinNostack(t *testing.T) {
 	t.Run("Is", func(t *testing.T) {
 		err := serrors.New("simple err")
 		msg := serrors.New("msg err")
-		wrappedErr := serrors.Wrap(msg, err, "someCtx", "someValue")
+		wrappedErr := serrors.JoinNoStack(msg, err, "someCtx", "someValue")
 		assert.ErrorIs(t, wrappedErr, err)
 		assert.ErrorIs(t, wrappedErr, msg)
 		assert.ErrorIs(t, wrappedErr, wrappedErr)
@@ -122,7 +122,7 @@ func TestWrap(t *testing.T) {
 	t.Run("As", func(t *testing.T) {
 		err := &testErrType{msg: "test err"}
 		msg := serrors.New("msg err")
-		wrappedErr := serrors.Wrap(msg, err, "someCtx", "someValue")
+		wrappedErr := serrors.JoinNoStack(msg, err, "someCtx", "someValue")
 		var errAs *testErrType
 		require.True(t, errors.As(wrappedErr, &errAs))
 		assert.Equal(t, err, errAs)
@@ -209,14 +209,14 @@ func TestEncoding(t *testing.T) {
 			),
 			goldenFileBase: "testdata/wrapped-with-string",
 		},
-		"wrapped error": {
-			err: serrors.Wrap(
+		"joined error no stack": {
+			err: serrors.JoinNoStack(
 				serrors.New("msg error"),
 				serrors.New("msg cause"),
 				"k0", "v0",
-				"k1", 1,
-			),
-			goldenFileBase: "testdata/wrapped-error",
+				"k1", 1),
+
+			goldenFileBase: "testdata/joined-error",
 		},
 		"error with context": {
 			// WithCtx is deprecated. The shim does it the new way: sets err as the cause of a new
@@ -354,12 +354,12 @@ func ExampleWrapStr() {
 	// wrap with more context {ctx=1}: no space
 }
 
-func ExampleWrap() {
+func ExampleJoinNoStack() {
 	// ErrNoSpace is an error defined at package scope.
 	var ErrNoSpace = serrors.New("no space")
 	// ErrDB is an error defined at package scope.
 	var ErrDB = serrors.New("db")
-	wrapped := serrors.Wrap(ErrDB, ErrNoSpace, "ctx", 1)
+	wrapped := serrors.JoinNoStack(ErrDB, ErrNoSpace, "ctx", 1)
 
 	// Now we can identify specific errors:
 	fmt.Println(errors.Is(wrapped, ErrNoSpace))

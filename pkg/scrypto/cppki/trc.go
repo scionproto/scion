@@ -108,7 +108,7 @@ func (trc *TRC) Validate() error {
 		return serrors.WithCtx(ErrInvalidTRCVersion, "expected", 1, "actual", trc.Version)
 	}
 	if err := trc.ID.Validate(); err != nil {
-		return serrors.Wrap(ErrInvalidID, err)
+		return serrors.JoinNoStack(ErrInvalidID, err)
 	}
 	if err := trc.Validity.Validate(); err != nil {
 		return err

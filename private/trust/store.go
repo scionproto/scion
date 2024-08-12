@@ -102,7 +102,7 @@ func LoadChains(ctx context.Context, dir string, db DB) (LoadResult, error) {
 			return res, serrors.WrapStr("inserting certificate chain", err, "file", f)
 		}
 		if !inserted {
-			res.Ignored[f] = serrors.Wrap(ErrAlreadyExists, err)
+			res.Ignored[f] = serrors.JoinNoStack(ErrAlreadyExists, err)
 			continue
 		}
 		res.Loaded = append(res.Loaded, f)
@@ -147,7 +147,7 @@ func LoadTRCs(ctx context.Context, dir string, db DB) (LoadResult, error) {
 			return res, serrors.WithCtx(err, "file", f)
 		}
 		if !inserted {
-			res.Ignored[f] = serrors.Wrap(ErrAlreadyExists, err)
+			res.Ignored[f] = serrors.JoinNoStack(ErrAlreadyExists, err)
 			continue
 		}
 		res.Loaded = append(res.Loaded, f)

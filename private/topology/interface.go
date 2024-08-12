@@ -246,7 +246,7 @@ func (t *topologyS) Multicast(svc addr.SVC) ([]*net.UDPAddr, error) {
 	for _, name := range names {
 		topoAddr, err := t.Topology.GetTopoAddr(name, st)
 		if err != nil {
-			return nil, serrors.Wrap(addr.ErrUnsupportedSVCAddress, err, "svc", svc)
+			return nil, serrors.JoinNoStack(addr.ErrUnsupportedSVCAddress, err, "svc", svc)
 		}
 		addrs = append(addrs, &net.UDPAddr{
 			IP:   topoAddr.SCIONAddress.IP,
@@ -287,7 +287,7 @@ func (t *topologyS) UnderlayMulticast(svc addr.SVC) ([]*net.UDPAddr, error) {
 	}
 	topoAddrs, err := t.Topology.getAllTopoAddrs(st)
 	if err != nil {
-		return nil, serrors.Wrap(addr.ErrUnsupportedSVCAddress, err, "svc", svc)
+		return nil, serrors.JoinNoStack(addr.ErrUnsupportedSVCAddress, err, "svc", svc)
 	}
 
 	if len(topoAddrs) == 0 {
@@ -319,7 +319,7 @@ func (t *topologyS) underlayByName(svc addr.SVC, name string) (*net.UDPAddr, err
 	}
 	topoAddr, err := t.Topology.GetTopoAddr(name, st)
 	if err != nil {
-		return nil, serrors.Wrap(addr.ErrUnsupportedSVCAddress, err, "svc", svc)
+		return nil, serrors.JoinNoStack(addr.ErrUnsupportedSVCAddress, err, "svc", svc)
 	}
 	underlayAddr := topoAddr.UnderlayAddr()
 	if underlayAddr == nil {

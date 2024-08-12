@@ -2436,17 +2436,17 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	}
 	decPath, err := path.ToDecoded()
 	if err != nil {
-		return nil, serrors.Wrap(cannotRoute, err, "details", "decoding raw path")
+		return nil, serrors.JoinNoStack(cannotRoute, err, "details", "decoding raw path")
 	}
 	revPathTmp, err := decPath.Reverse()
 	if err != nil {
-		return nil, serrors.Wrap(cannotRoute, err, "details", "reversing path for SCMP")
+		return nil, serrors.JoinNoStack(cannotRoute, err, "details", "reversing path for SCMP")
 	}
 	revPath := revPathTmp.(*scion.Decoded)
 
 	peering, err := determinePeer(revPath.PathMeta, revPath.InfoFields[revPath.PathMeta.CurrINF])
 	if err != nil {
-		return nil, serrors.Wrap(cannotRoute, err, "details", "peering cannot be determined")
+		return nil, serrors.JoinNoStack(cannotRoute, err, "details", "peering cannot be determined")
 	}
 
 	// Revert potential path segment switches that were done during processing.
@@ -2454,7 +2454,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		// An effective cross-over is a change of segment other than at
 		// a peering hop.
 		if err := revPath.IncPath(); err != nil {
-			return nil, serrors.Wrap(cannotRoute, err, "details", "reverting cross over for SCMP")
+			return nil, serrors.JoinNoStack(cannotRoute, err, "details", "reverting cross over for SCMP")
 		}
 	}
 	// If the packet is sent to an external router, we need to increment the
@@ -2467,7 +2467,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 			infoField.UpdateSegID(hopField.Mac)
 		}
 		if err := revPath.IncPath(); err != nil {
-			return nil, serrors.Wrap(cannotRoute, err, "details", "incrementing path for SCMP")
+			return nil, serrors.JoinNoStack(cannotRoute, err, "details", "incrementing path for SCMP")
 		}
 	}
 
@@ -2484,7 +2484,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	scionL.NextHdr = slayers.L4SCMP
 
 	if err := scionL.SetSrcAddr(addr.HostIP(p.d.internalIP)); err != nil {
-		return nil, serrors.Wrap(cannotRoute, err, "details", "setting src addr")
+		return nil, serrors.JoinNoStack(cannotRoute, err, "details", "setting src addr")
 	}
 	typeCode := slayers.CreateSCMPTypeCode(typ, code)
 	scmpH := slayers.SCMP{TypeCode: typeCode}
@@ -2536,7 +2536,7 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 	// XXX(matzf) could we use iovec gather to avoid copying quote?
 	err = gopacket.SerializeLayers(p.buffer, sopts, &scmpH, scmpP, gopacket.Payload(quote))
 	if err != nil {
-		return nil, serrors.Wrap(cannotRoute, err, "details", "serializing SCMP message")
+		return nil, serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCMP message")
 	}
 
 	if needsAuth {
@@ -2546,14 +2546,14 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		now := time.Now()
 		dstA, err := scionL.DstAddr()
 		if err != nil {
-			return nil, serrors.Wrap(cannotRoute, err, "details", "parsing destination address")
+			return nil, serrors.JoinNoStack(cannotRoute, err, "details", "parsing destination address")
 		}
 		key, err := p.drkeyProvider.GetASHostKey(now, scionL.DstIA, dstA)
 		if err != nil {
-			return nil, serrors.Wrap(cannotRoute, err, "details", "retrieving DRKey")
+			return nil, serrors.JoinNoStack(cannotRoute, err, "details", "retrieving DRKey")
 		}
 		if err := p.resetSPAOMetadata(key, now); err != nil {
-			return nil, serrors.Wrap(cannotRoute, err, "details", "resetting SPAO header")
+			return nil, serrors.JoinNoStack(cannotRoute, err, "details", "resetting SPAO header")
 		}
 
 		e2e.Options = []*slayers.EndToEndOption{p.optAuth.EndToEndOption}
@@ -2570,16 +2570,16 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 			p.optAuth.Authenticator(),
 		)
 		if err != nil {
-			return nil, serrors.Wrap(cannotRoute, err, "details", "computing CMAC")
+			return nil, serrors.JoinNoStack(cannotRoute, err, "details", "computing CMAC")
 		}
 		if err := e2e.SerializeTo(p.buffer, sopts); err != nil {
-			return nil, serrors.Wrap(cannotRoute, err, "details", "serializing SCION E2E headers")
+			return nil, serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCION E2E headers")
 		}
 	} else {
 		scionL.NextHdr = slayers.L4SCMP
 	}
 	if err := scionL.SerializeTo(p.buffer, sopts); err != nil {
-		return nil, serrors.Wrap(cannotRoute, err, "details", "serializing SCION header")
+		return nil, serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCION header")
 	}
 
 	log.Debug("scmp", "typecode", scmpH.TypeCode)

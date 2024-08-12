@@ -127,7 +127,7 @@ func (f *Fetcher) getLevel1Key(
 func (f *Fetcher) pathToDst(ctx context.Context, dst addr.IA) (snet.Path, error) {
 	paths, err := f.Router.AllRoutes(ctx, dst)
 	if err != nil {
-		return nil, serrors.Wrap(errNotReachable, err)
+		return nil, serrors.JoinNoStack(errNotReachable, err)
 	}
 	if len(paths) == 0 {
 		return nil, errNotReachable
