@@ -329,12 +329,10 @@ func ExampleNew() {
 	// false
 }
 
-// The new error is built around a cause. All the context, if any, of the cause is preserved,
-// while additional context is included in the new error. This most useful in cases where the
-// cause has interresting details and we want to add some more.
 func ExampleWrap() {
-	// ErrNoSpace is an error defined at package scope.
-	var ErrNoSpace = serrors.New("no space")
+	// ErrNoSpace is an error defined at package scope. It should be is an error from lower layers,
+	// with some context already attached.
+	var ErrNoSpace = serrors.New("no space", "dev", "sd0")
 	wrappedErr := serrors.Wrap("wrap with more context", ErrNoSpace, "ctx", 1)
 
 	fmt.Println(errors.Is(wrappedErr, ErrNoSpace))
@@ -342,17 +340,14 @@ func ExampleWrap() {
 	// Output:
 	// true
 	//
-	// wrap with more context {ctx=1}: no space
+	// wrap with more context {ctx=1}: no space {dev=sd0}
 }
 
-// The new error is built around an error and a cause. The error is just a message. All the context,
-// if any, of the cause is preserved, but not that of the message while additional context is
-// included in the new error. This is most useful when the error is a sentinel error. As for Wrap,
-// the cause is what carries details to be preserved.
 func ExampleJoin() {
-	// ErrNoSpace is an error defined at package scope.
-	var ErrNoSpace = serrors.New("no space")
-	// ErrDB is an error defined at package scope.
+	// ErrNoSpace is an error defined at package scope. It should be an error from a lower layer,
+	// with some context information attached.
+	var ErrNoSpace = serrors.New("no space", "dev", "sd0")
+	// ErrDB is an error defined at package scope. Here it figures a sentinel error.
 	var ErrDB = serrors.New("db")
 	wrapped := serrors.Join(ErrDB, ErrNoSpace, "ctx", 1)
 
@@ -366,14 +361,10 @@ func ExampleJoin() {
 	// true
 	// true
 	//
-	// db {ctx=1}: no space
+	// db {ctx=1}: no space {dev=sd0}
 }
 
-// Like Wrap but skips the inclusion of a Stack trace in the new error. That already attached to
-// the cause can be logged if present. That is not visible here.
 func ExampleWrapNoStack() {
-	// It is not possible to augment the context of a basicError.
-	// WrapNoStack turns that into an error with a cause.
 	// ErrBadL4 is an error defined at package scope.
 	var ErrBadL4 = serrors.New("Unsupported L4 protocol")
 	addedCtx := serrors.WrapNoStack("error", ErrBadL4, "type", "SCTP")
@@ -383,27 +374,16 @@ func ExampleWrapNoStack() {
 	// error {type=SCTP}: Unsupported L4 protocol
 }
 
-// Like Join but skips the inclusion of a Stack trace in the new error. That already attached to
-// the cause can be logged if present. That is not visible here. Any stack trace attached to the
-// first error will be ignored.
 func ExampleJoinNoStack() {
-	// ErrNoSpace is an error defined at package scope.
-	var ErrNoSpace = serrors.New("no space")
-	// ErrDB is an error defined at package scope.
-	var ErrDB = serrors.New("db")
-	wrapped := serrors.JoinNoStack(ErrDB, ErrNoSpace, "ctx", 1)
+	// errMsg is a sentinel error.
+	var brokenPacket = serrors.New("broken")
+	// ErrBadL4 is an error defined at package scope.
+	var ErrBadL4 = serrors.New("Unsupported L4 protocol")
+	addedCtx := serrors.JoinNoStack(brokenPacket, ErrBadL4, "type", "SCTP")
 
-	// Now we can identify specific errors:
-	fmt.Println(errors.Is(wrapped, ErrNoSpace))
-	// But we can also identify the broader error class ErrDB:
-	fmt.Println(errors.Is(wrapped, ErrDB))
-
-	fmt.Printf("\n%v", wrapped)
+	fmt.Println(addedCtx)
 	// Output:
-	// true
-	// true
-	//
-	// db {ctx=1}: no space
+	// broken {type=SCTP}: Unsupported L4 protocol
 }
 
 // sanitizeLog sanitizes the log output so that stack traces look the same on
