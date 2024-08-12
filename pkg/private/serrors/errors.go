@@ -273,8 +273,8 @@ func JoinNoStack(err, cause error, errCtx ...interface{}) error {
 
 // Deprecated: WithCtx should never have existed. Depending on intent, use:
 //   - Join(err, nil, errCtx): If err has no context to preserve.
-//   - WrapStr("some error with context added", err, errctx): if err is an error with error information
-//     that needs to be preserved.
+//   - WrapStr("some error with context added", err, errctx): if err is an error with error
+//     information that needs to be preserved.
 //
 // This shim does the latter for you for the time being.
 //
