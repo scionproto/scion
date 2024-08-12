@@ -372,7 +372,7 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
 		d.interfaces = make(map[uint16]BatchConn)
 	}
 	if _, exists := d.external[ifID]; exists {
-		return serrors.WithCtx(alreadySet, "ifID", ifID)
+		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
 	}
 	d.interfaces[ifID] = conn
 	d.external[ifID] = conn
@@ -392,7 +392,7 @@ func (d *DataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
 		return emptyValue
 	}
 	if _, exists := d.neighborIAs[ifID]; exists {
-		return serrors.WithCtx(alreadySet, "ifID", ifID)
+		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
 	}
 	if d.neighborIAs == nil {
 		d.neighborIAs = make(map[uint16]addr.IA)
@@ -406,7 +406,7 @@ func (d *DataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
 // be called on a not yet running dataplane.
 func (d *DataPlane) AddLinkType(ifID uint16, linkTo topology.LinkType) error {
 	if _, exists := d.linkTypes[ifID]; exists {
-		return serrors.WithCtx(alreadySet, "ifID", ifID)
+		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
 	}
 	if d.linkTypes == nil {
 		d.linkTypes = make(map[uint16]topology.LinkType)
@@ -421,10 +421,10 @@ func (d *DataPlane) AddLinkType(ifID uint16, linkTo topology.LinkType) error {
 // be called on a not yet running dataplane.
 func (d *DataPlane) AddRemotePeer(local, remote uint16) error {
 	if t, ok := d.linkTypes[local]; ok && t != topology.Peer {
-		return serrors.WithCtx(unsupportedPathType, "type", t)
+		return serrors.JoinNoStack(unsupportedPathType, nil, "type", t)
 	}
 	if _, exists := d.peerInterfaces[local]; exists {
-		return serrors.WithCtx(alreadySet, "local_interface", local)
+		return serrors.JoinNoStack(alreadySet, nil, "local_interface", local)
 	}
 	if d.peerInterfaces == nil {
 		d.peerInterfaces = make(map[uint16]uint16)
@@ -560,7 +560,7 @@ func (d *DataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control
 		d.internalNextHops = make(map[uint16]netip.AddrPort)
 	}
 	if _, exists := d.internalNextHops[ifID]; exists {
-		return serrors.WithCtx(alreadySet, "ifID", ifID)
+		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
 	}
 	d.internalNextHops[ifID] = dst
 	return nil
@@ -2420,19 +2420,22 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		var ok bool
 		path, ok = p.scionLayer.Path.(*scion.Raw)
 		if !ok {
-			return nil, serrors.WithCtx(cannotRoute, "details", "unsupported path type",
+			return nil, serrors.JoinNoStack(cannotRoute, nil, "details", "unsupported path type",
 				"path type", pathType)
+
 		}
 	case epic.PathType:
 		epicPath, ok := p.scionLayer.Path.(*epic.Path)
 		if !ok {
-			return nil, serrors.WithCtx(cannotRoute, "details", "unsupported path type",
+			return nil, serrors.JoinNoStack(cannotRoute, nil, "details", "unsupported path type",
 				"path type", pathType)
+
 		}
 		path = epicPath.ScionPath
 	default:
-		return nil, serrors.WithCtx(cannotRoute, "details", "unsupported path type",
+		return nil, serrors.JoinNoStack(cannotRoute, nil, "details", "unsupported path type",
 			"path type", pathType)
+
 	}
 	decPath, err := path.ToDecoded()
 	if err != nil {
@@ -2454,7 +2457,8 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		// An effective cross-over is a change of segment other than at
 		// a peering hop.
 		if err := revPath.IncPath(); err != nil {
-			return nil, serrors.JoinNoStack(cannotRoute, err, "details", "reverting cross over for SCMP")
+			return nil, serrors.JoinNoStack(cannotRoute, err,
+				"details", "reverting cross over for SCMP")
 		}
 	}
 	// If the packet is sent to an external router, we need to increment the
@@ -2467,7 +2471,8 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 			infoField.UpdateSegID(hopField.Mac)
 		}
 		if err := revPath.IncPath(); err != nil {
-			return nil, serrors.JoinNoStack(cannotRoute, err, "details", "incrementing path for SCMP")
+			return nil, serrors.JoinNoStack(cannotRoute, err,
+				"details", "incrementing path for SCMP")
 		}
 	}
 
@@ -2546,7 +2551,8 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 		now := time.Now()
 		dstA, err := scionL.DstAddr()
 		if err != nil {
-			return nil, serrors.JoinNoStack(cannotRoute, err, "details", "parsing destination address")
+			return nil, serrors.JoinNoStack(cannotRoute, err,
+				"details", "parsing destination address")
 		}
 		key, err := p.drkeyProvider.GetASHostKey(now, scionL.DstIA, dstA)
 		if err != nil {
@@ -2573,7 +2579,8 @@ func (p *slowPathPacketProcessor) prepareSCMP(
 			return nil, serrors.JoinNoStack(cannotRoute, err, "details", "computing CMAC")
 		}
 		if err := e2e.SerializeTo(p.buffer, sopts); err != nil {
-			return nil, serrors.JoinNoStack(cannotRoute, err, "details", "serializing SCION E2E headers")
+			return nil, serrors.JoinNoStack(cannotRoute, err,
+				"details", "serializing SCION E2E headers")
 		}
 	} else {
 		scionL.NextHdr = slayers.L4SCMP

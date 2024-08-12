@@ -417,8 +417,8 @@ func readFrom(conn *snet.Conn, pld []byte) (int, net.Addr, error) {
 	if !(errors.As(err, &opErr) && opErr.RevInfo() != nil) {
 		return n, remoteAddr, err
 	}
-	return n, remoteAddr, serrors.WithCtx(err,
+	return n, remoteAddr, serrors.WrapNoStack("error", err,
 		"isd_as", opErr.RevInfo().IA(),
-		"interface", opErr.RevInfo().IfID,
-	)
+		"interface", opErr.RevInfo().IfID)
+
 }

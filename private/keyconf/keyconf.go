@@ -52,7 +52,7 @@ func loadKey(file string, algo string) ([]byte, error) {
 	}
 	dbuf = dbuf[:n]
 	if strings.ToLower(algo) != RawKey {
-		return nil, serrors.WithCtx(ErrUnknown, "algo", algo)
+		return nil, serrors.JoinNoStack(ErrUnknown, nil, "algo", algo)
 	}
 	return dbuf, nil
 }

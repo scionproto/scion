@@ -246,7 +246,7 @@ func ValidateCert(c *x509.Certificate) (CertType, error) {
 	case AS:
 		return ct, validateAS(c)
 	default:
-		return Invalid, serrors.WithCtx(ErrInvalidCertType, "cert_type", ct)
+		return Invalid, serrors.JoinNoStack(ErrInvalidCertType, nil, "cert_type", ct)
 	}
 }
 

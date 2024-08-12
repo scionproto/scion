@@ -176,8 +176,9 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 	}
 	udp, ok := replyPacket.Payload.(snet.UDPPayload)
 	if !ok {
-		return nil, serrors.WithCtx(errUnsupportedPld,
+		return nil, serrors.JoinNoStack(errUnsupportedPld, nil,
 			"type", common.TypeOf(replyPacket.Payload))
+
 	}
 	var reply Reply
 	if err := reply.Unmarshal(udp.Payload); err != nil {

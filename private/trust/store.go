@@ -47,12 +47,12 @@ type LoadResult struct {
 // files that are not valid chains are ignored.
 func LoadChains(ctx context.Context, dir string, db DB) (LoadResult, error) {
 	if _, err := os.Stat(dir); err != nil {
-		return LoadResult{}, serrors.WithCtx(err, "dir", dir)
+		return LoadResult{}, serrors.WrapNoStack("error", err, "dir", dir)
 	}
 
 	files, err := filepath.Glob(fmt.Sprintf("%s/*.pem", dir))
 	if err != nil {
-		return LoadResult{}, serrors.WithCtx(err, "dir", dir)
+		return LoadResult{}, serrors.WrapNoStack("error", err, "dir", dir)
 	}
 
 	res := LoadResult{Ignored: map[string]error{}}
@@ -115,12 +115,12 @@ func LoadChains(ctx context.Context, dir string, db DB) (LoadResult, error) {
 // in the future are ignored.
 func LoadTRCs(ctx context.Context, dir string, db DB) (LoadResult, error) {
 	if _, err := os.Stat(dir); err != nil {
-		return LoadResult{}, serrors.WithCtx(err, "dir", dir)
+		return LoadResult{}, serrors.WrapNoStack("error", err, "dir", dir)
 	}
 
 	files, err := filepath.Glob(fmt.Sprintf("%s/*.trc", dir))
 	if err != nil {
-		return LoadResult{}, serrors.WithCtx(err, "dir", dir)
+		return LoadResult{}, serrors.WrapNoStack("error", err, "dir", dir)
 	}
 
 	res := LoadResult{Ignored: map[string]error{}}
@@ -128,7 +128,7 @@ func LoadTRCs(ctx context.Context, dir string, db DB) (LoadResult, error) {
 	for _, f := range files {
 		raw, err := os.ReadFile(f)
 		if err != nil {
-			return res, serrors.WithCtx(err, "file", f)
+			return res, serrors.WrapNoStack("error", err, "file", f)
 		}
 		block, _ := pem.Decode(raw)
 		if block != nil && block.Type == "TRC" {
@@ -136,7 +136,7 @@ func LoadTRCs(ctx context.Context, dir string, db DB) (LoadResult, error) {
 		}
 		trc, err := cppki.DecodeSignedTRC(raw)
 		if err != nil {
-			return res, serrors.WithCtx(err, "file", f)
+			return res, serrors.WrapNoStack("error", err, "file", f)
 		}
 		if time.Now().Before(trc.TRC.Validity.NotBefore) {
 			res.Ignored[f] = serrors.New("TRC in the future", "validity", trc.TRC.Validity)
@@ -144,7 +144,7 @@ func LoadTRCs(ctx context.Context, dir string, db DB) (LoadResult, error) {
 		}
 		inserted, err := db.InsertTRC(ctx, trc)
 		if err != nil {
-			return res, serrors.WithCtx(err, "file", f)
+			return res, serrors.WrapNoStack("error", err, "file", f)
 		}
 		if !inserted {
 			res.Ignored[f] = serrors.JoinNoStack(ErrAlreadyExists, err)

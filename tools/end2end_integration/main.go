@@ -256,7 +256,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 					Tester:   tester,
 				})
 				if err != nil {
-					err = serrors.WithCtx(err, "file", relFile(logFile))
+					err = serrors.WrapNoStack("error", err, "file", relFile(logFile))
 				}
 				clientResults <- err
 			}(src, dsts)

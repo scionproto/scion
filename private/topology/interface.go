@@ -264,7 +264,7 @@ func (t *topologyS) UnderlayAnycast(svc addr.SVC) (*net.UDPAddr, error) {
 		if supportedSVC(svc) {
 			return nil, serrors.New("no instances found for service", "svc", svc)
 		}
-		return nil, serrors.WithCtx(addr.ErrUnsupportedSVCAddress, "svc", svc)
+		return nil, serrors.JoinNoStack(addr.ErrUnsupportedSVCAddress, nil, "svc", svc)
 	}
 	underlay, err := t.underlayByName(svc, name)
 	if err != nil {
@@ -335,7 +335,7 @@ func toServiceType(svc addr.SVC) (ServiceType, error) {
 	case addr.SvcCS:
 		return Control, nil
 	default:
-		return 0, serrors.WithCtx(addr.ErrUnsupportedSVCAddress, "svc", svc)
+		return 0, serrors.JoinNoStack(addr.ErrUnsupportedSVCAddress, nil, "svc", svc)
 	}
 }
 

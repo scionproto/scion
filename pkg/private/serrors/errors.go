@@ -166,30 +166,35 @@ func (e basicError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return e.errorInfo.marshalLogObject(enc)
 }
 
-// WrapStr returns an error that associates the given error, with the given cause (an underlying
+// Wrap returns an error that associates the given error, with the given cause (an underlying
 // error) unless nil, and the given context.
 //
 // A stack dump is added unless cause is a basicError (in which case it is assumed to contain a
 // stack dump).
 //
 // The returned error supports Is. Is(cause)returns true.
-//
-// WrapStr will soon be renamed Wrap, once the name Wrap becomes available. Until then it is ok to
-// use wrapStr().
-func WrapStr(msg string, cause error, errCtx ...interface{}) error {
+func Wrap(msg string, cause error, errCtx ...interface{}) error {
 	return basicError{
 		errorInfo: mkErrorInfo(cause, true, errCtx...),
 		msg:       msg,
 	}
 }
 
-// WrapStrNoStack returns an error that associates the given error, with the given cause
+// WrapNoStack returns an error that associates the given error, with the given cause
 // (an underlying error) unless nil, and the given context. A stack dump is not added.
 // if cause is a basicError that contains a stack dump, that stack dump is preserved. The returned
 // error supports Is. Is(cause) returns true.
-func WrapStrNoStack(msg string, cause error, errCtx ...interface{}) error {
+func WrapNoStack(msg string, cause error, errCtx ...interface{}) error {
 	return basicError{
 		errorInfo: mkErrorInfo(cause, false, errCtx...),
+		msg:       msg,
+	}
+}
+
+// Deprecated: WrapStr has been renamed Wrap. This alias will be removed soon.
+func WrapStr(msg string, cause error, errCtx ...interface{}) error {
+	return basicError{
+		errorInfo: mkErrorInfo(cause, true, errCtx...),
 		msg:       msg,
 	}
 }
@@ -269,20 +274,6 @@ func JoinNoStack(err, cause error, errCtx ...interface{}) error {
 		errorInfo: mkErrorInfo(cause, false, errCtx...),
 		error:     err,
 	}
-}
-
-// Deprecated: WithCtx should never have existed. Depending on intent, use:
-//   - Join(err, nil, errCtx): If err has no context to preserve.
-//   - WrapStr("some error with context added", err, errctx): if err is an error with error
-//     information that needs to be preserved.
-//
-// This shim does the latter for you for the time being.
-//
-// WithCtx used to attempt the merger of the given error into the newly created one with
-// semantically incorrect results. That feature is gone and the results differ only slightly in the
-// formated string output. WithCtx didn't try to add a stack, so this shim doesn't either.
-func WithCtx(err error, errCtx ...interface{}) error {
-	return WrapStrNoStack("error", err, errCtx...)
 }
 
 // List is a slice of errors.

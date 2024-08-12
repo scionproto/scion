@@ -94,16 +94,16 @@ func TestIsTemporary(t *testing.T) {
 	assert.False(t, serrors.IsTemporary(noTempWrappingTemp))
 }
 
-func TestWithCtx(t *testing.T) {
+func TestWrapNoStack(t *testing.T) {
 	t.Run("Is", func(t *testing.T) {
 		err := serrors.New("simple err")
-		errWithCtx := serrors.WithCtx(err, "someCtx", "someValue")
+		errWithCtx := serrors.WrapNoStack("error", err, "someCtx", "someValue")
 		assert.ErrorIs(t, errWithCtx, err)
 		assert.ErrorIs(t, errWithCtx, errWithCtx)
 	})
 	t.Run("As", func(t *testing.T) {
 		err := &testErrType{msg: "test err"}
-		errWithCtx := serrors.WithCtx(err, "someCtx", "someVal")
+		errWithCtx := serrors.WrapNoStack("error", err, "someCtx", "someVal")
 		var errAs *testErrType
 		require.True(t, errors.As(errWithCtx, &errAs))
 		assert.Equal(t, err, errAs)
@@ -219,10 +219,10 @@ func TestEncoding(t *testing.T) {
 			goldenFileBase: "testdata/joined-error",
 		},
 		"error with context": {
-			// WithCtx is deprecated. The shim does it the new way: sets err as the cause of a new
-			// error. The string output isn't exactly the same. Which almost nothing ever notices...
-			// except this test.
-			err:            serrors.WithCtx(serrors.New("simple err"), "someCtx", "someValue"),
+			// WrapNoStack sets err as the cause of a new error.
+			// This is the standard way to add context to err.
+			err: serrors.WrapNoStack("error", serrors.New("simple err"), "someCtx", "someValue"),
+
 			goldenFileBase: "testdata/error-with-context",
 		},
 		"error list": {
@@ -329,12 +329,12 @@ func ExampleNew() {
 	// false
 }
 
-func ExampleWithCtx() {
+func ExampleWrapNoStack() {
 	// It is not possible to augment the context of a basicError.
-	// WithCtx turns that into an error with a cause.
+	// WrapNoStack turns that into an error with a cause.
 	// ErrBadL4 is an error defined at package scope.
 	var ErrBadL4 = serrors.New("Unsupported L4 protocol")
-	addedCtx := serrors.WithCtx(ErrBadL4, "type", "SCTP")
+	addedCtx := serrors.WrapNoStack("error", ErrBadL4, "type", "SCTP")
 
 	fmt.Println(addedCtx)
 	// Output:

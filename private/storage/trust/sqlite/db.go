@@ -231,8 +231,10 @@ func (e *executor) InsertChain(ctx context.Context, chain []*x509.Certificate) (
 	defer e.Unlock()
 
 	if len(chain) != 2 {
-		return false, serrors.WithCtx(db.ErrInvalidInputData, "msg", "invalid chain length",
+		return false, serrors.JoinNoStack(db.ErrInvalidInputData, nil,
+			"msg", "invalid chain length",
 			"expected", 2, "actual", len(chain))
+
 	}
 	ia, err := cppki.ExtractIA(chain[0].Subject)
 	if err != nil {

@@ -243,11 +243,11 @@ type CACertLoader struct {
 // an active TRC.
 func (l CACertLoader) CACerts(ctx context.Context) ([]*x509.Certificate, error) {
 	if _, err := os.Stat(l.Dir); err != nil {
-		return nil, serrors.WithCtx(err, "dir", l.Dir)
+		return nil, serrors.WrapNoStack("error", err, "dir", l.Dir)
 	}
 	files, err := filepath.Glob(fmt.Sprintf("%s/*.crt", l.Dir))
 	if err != nil {
-		return nil, serrors.WithCtx(err, "dir", l.Dir)
+		return nil, serrors.WrapNoStack("error", err, "dir", l.Dir)
 	}
 
 	trcs, err := activeTRCs(ctx, l.DB, l.IA.ISD())
