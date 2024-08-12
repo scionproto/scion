@@ -1,1 +1,1 @@
-simple err {someCtx=someValue}
+error {someCtx=someValue}: simple err
