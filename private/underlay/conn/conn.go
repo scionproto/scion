@@ -172,8 +172,9 @@ func (cc *connUDPBase) initConnUDP(
 	}
 	if !raddr.IsValid() {
 		if c, err = net.ListenUDP(network, net.UDPAddrFromAddrPort(laddr)); err != nil {
-			return serrors.WrapStr("Error listening on socket", err,
+			return serrors.Wrap("Error listening on socket", err,
 				"network", network, "listen", laddr)
+
 		}
 	} else {
 		if c, err = net.DialUDP(
@@ -181,8 +182,9 @@ func (cc *connUDPBase) initConnUDP(
 			net.UDPAddrFromAddrPort(laddr),
 			net.UDPAddrFromAddrPort(raddr),
 		); err != nil {
-			return serrors.WrapStr("Error setting up connection", err,
+			return serrors.Wrap("Error setting up connection", err,
 				"network", network, "listen", laddr, "remote", raddr)
+
 		}
 	}
 
@@ -190,24 +192,24 @@ func (cc *connUDPBase) initConnUDP(
 	if cfg.SendBufferSize != 0 {
 		before, err := sockctrl.GetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_SNDBUF)
 		if err != nil {
-			return serrors.WrapStr("Error getting SO_SNDBUF socket option (before)", err,
+			return serrors.Wrap("Error getting SO_SNDBUF socket option (before)", err,
 				"listen", laddr,
-				"remote", raddr,
-			)
+				"remote", raddr)
+
 		}
 		target := cfg.SendBufferSize
 		if err = c.SetWriteBuffer(target); err != nil {
-			return serrors.WrapStr("Error setting send buffer size", err,
+			return serrors.Wrap("Error setting send buffer size", err,
 				"listen", laddr,
-				"remote", raddr,
-			)
+				"remote", raddr)
+
 		}
 		after, err := sockctrl.GetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_SNDBUF)
 		if err != nil {
-			return serrors.WrapStr("Error getting SO_SNDBUF socket option (after)", err,
+			return serrors.Wrap("Error getting SO_SNDBUF socket option (after)", err,
 				"listen", laddr,
-				"remote", raddr,
-			)
+				"remote", raddr)
+
 		}
 		if after/2 < target {
 			// Note: kernel doubles value passed in SetSendBuffer, value
@@ -224,24 +226,24 @@ func (cc *connUDPBase) initConnUDP(
 	if cfg.ReceiveBufferSize != 0 {
 		before, err := sockctrl.GetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_RCVBUF)
 		if err != nil {
-			return serrors.WrapStr("Error getting SO_RCVBUF socket option (before)", err,
+			return serrors.Wrap("Error getting SO_RCVBUF socket option (before)", err,
 				"listen", laddr,
-				"remote", raddr,
-			)
+				"remote", raddr)
+
 		}
 		target := cfg.ReceiveBufferSize
 		if err = c.SetReadBuffer(target); err != nil {
-			return serrors.WrapStr("Error setting recv buffer size", err,
+			return serrors.Wrap("Error setting recv buffer size", err,
 				"listen", laddr,
-				"remote", raddr,
-			)
+				"remote", raddr)
+
 		}
 		after, err := sockctrl.GetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_RCVBUF)
 		if err != nil {
-			return serrors.WrapStr("Error getting SO_RCVBUF socket option (after)", err,
+			return serrors.Wrap("Error getting SO_RCVBUF socket option (after)", err,
 				"listen", laddr,
-				"remote", raddr,
-			)
+				"remote", raddr)
+
 		}
 		if after/2 < target {
 			// Note: kernel doubles value passed in SetReadBuffer, value

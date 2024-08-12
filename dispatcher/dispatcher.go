@@ -299,17 +299,17 @@ func (s *Server) reverseSCION() error {
 	s.scionLayer.DstIA, s.scionLayer.SrcIA = s.scionLayer.SrcIA, s.scionLayer.DstIA
 	src, err := s.scionLayer.SrcAddr()
 	if err != nil {
-		return serrors.WrapStr("parsing source address", err)
+		return serrors.Wrap("parsing source address", err)
 	}
 	dst, err := s.scionLayer.DstAddr()
 	if err != nil {
-		return serrors.WrapStr("parsing destination address", err)
+		return serrors.Wrap("parsing destination address", err)
 	}
 	if err := s.scionLayer.SetSrcAddr(dst); err != nil {
-		return serrors.WrapStr("setting source address", err)
+		return serrors.Wrap("setting source address", err)
 	}
 	if err := s.scionLayer.SetDstAddr(src); err != nil {
-		return serrors.WrapStr("setting destination address", err)
+		return serrors.Wrap("setting destination address", err)
 	}
 	if s.scionLayer.PathType == epic.PathType {
 		// Received packet with EPIC path type, hence extract the SCION path
@@ -321,7 +321,7 @@ func (s *Server) reverseSCION() error {
 		s.scionLayer.PathType = scion.PathType
 	}
 	if s.scionLayer.Path, err = s.scionLayer.Path.Reverse(); err != nil {
-		return serrors.WrapStr("reversing path", err)
+		return serrors.Wrap("reversing path", err)
 	}
 	return nil
 }

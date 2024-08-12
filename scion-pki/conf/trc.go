@@ -49,7 +49,7 @@ type TRC struct {
 func LoadTRC(file string) (TRC, error) {
 	var cfg TRC
 	if err := config.LoadFile(file, &cfg); err != nil {
-		return TRC{}, serrors.WrapStr("unable to load TRC config from file", err, "file", file)
+		return TRC{}, serrors.Wrap("unable to load TRC config from file", err, "file", file)
 	}
 	cfg.relPath = filepath.Dir(file)
 	return cfg, nil

@@ -63,7 +63,7 @@ set. The token must have the following permissions:
 				IncludeRetriedJobs: true,
 			})
 			if err != nil {
-				return serrors.WrapStr("fetching build", err)
+				return serrors.Wrap("fetching build", err)
 			}
 			d := buildkite.Downloader{
 				Client: client,

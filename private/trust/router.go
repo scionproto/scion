@@ -64,13 +64,13 @@ type AuthRouter struct {
 func (r AuthRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.Addr, error) {
 	dstISD, err := r.dstISD(ctx, subjectISD)
 	if err != nil {
-		return nil, serrors.WrapStr("unable to determine dest ISD to query", err)
+		return nil, serrors.Wrap("unable to determine dest ISD to query", err)
 	}
 	logger := log.FromCtx(ctx)
 	logger.Debug("Getting paths to any authoritative server", "isd", dstISD)
 	path, err := r.Router.Route(ctx, addr.MustIAFrom(dstISD, 0))
 	if err != nil || path == nil {
-		return nil, serrors.WrapStr("unable to find path to any core AS", err, "isd", dstISD)
+		return nil, serrors.Wrap("unable to find path to any core AS", err, "isd", dstISD)
 	}
 	ret := &snet.SVCAddr{
 		IA:      path.Destination(),
@@ -88,7 +88,7 @@ func (r AuthRouter) dstISD(ctx context.Context, destination addr.ISD) (addr.ISD,
 	logger := log.FromCtx(ctx)
 	sTRC, err := r.DB.SignedTRC(ctx, cppki.TRCID{ISD: destination})
 	if err != nil {
-		return 0, serrors.WrapStr("error querying DB for TRC", err)
+		return 0, serrors.Wrap("error querying DB for TRC", err)
 	}
 	if sTRC.IsZero() {
 		logger.Info("Direct to ISD-local authoritative servers",

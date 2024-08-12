@@ -67,7 +67,7 @@ func main() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dst, err := snet.ParseUDPAddr(args[0])
 			if err != nil {
-				return serrors.WrapStr("parsing destination addr", err)
+				return serrors.Wrap("parsing destination addr", err)
 			}
 			return run(cfg, dst)
 		},
@@ -98,20 +98,20 @@ func main() {
 func run(cfg flags, dst *snet.UDPAddr) error {
 	defer log.Flush()
 	if err := log.Setup(log.Config{Console: log.ConsoleConfig{Level: cfg.logLevel}}); err != nil {
-		return serrors.WrapStr("setting up log", err)
+		return serrors.Wrap("setting up log", err)
 	}
 
 	raw, err := os.ReadFile(cfg.config)
 	if err != nil {
-		return serrors.WrapStr("reading config file", err)
+		return serrors.Wrap("reading config file", err)
 	}
 	var layersCfg jsonConfig
 	if err := json.Unmarshal(raw, &layersCfg); err != nil {
-		return serrors.WrapStr("parsing layers config", err, "file", cfg.config)
+		return serrors.Wrap("parsing layers config", err, "file", cfg.config)
 	}
 	ethernetLayer, err := parseEthernet(&layersCfg)
 	if err != nil {
-		return serrors.WrapStr("parsing ethernet config", err, "file", cfg.config)
+		return serrors.Wrap("parsing ethernet config", err, "file", cfg.config)
 	}
 	ipv4Layer := parseIPv4(&layersCfg)
 	udpLayer := parseUDP(&layersCfg)
@@ -121,12 +121,12 @@ func run(cfg flags, dst *snet.UDPAddr) error {
 	ctx := app.WithSignal(context.Background(), os.Kill)
 	sdConn, err := daemon.NewService(cfg.daemon).Connect(ctx)
 	if err != nil {
-		return serrors.WrapStr("connecting to SCION daemon", err)
+		return serrors.Wrap("connecting to SCION daemon", err)
 	}
 	defer sdConn.Close()
 	localIA, err := sdConn.LocalIA(ctx)
 	if err != nil {
-		return serrors.WrapStr("determining local ISD-AS", err)
+		return serrors.Wrap("determining local ISD-AS", err)
 	}
 	path, err := path.Choose(ctx, sdConn, dst.IA,
 		path.WithInteractive(cfg.interactive),
@@ -135,13 +135,13 @@ func run(cfg flags, dst *snet.UDPAddr) error {
 		path.WithColorScheme(path.DefaultColorScheme(cfg.noColor)),
 	)
 	if err != nil {
-		return serrors.WrapStr("fetching paths", err)
+		return serrors.Wrap("fetching paths", err)
 	}
 	dst.NextHop = path.UnderlayNextHop()
 	dst.Path = path.Dataplane()
 	localIP, err := resolveLocal(dst)
 	if err != nil {
-		return serrors.WrapStr("resolving local IP", err)
+		return serrors.Wrap("resolving local IP", err)
 	}
 	scionPath, ok := path.Dataplane().(snetpath.SCION)
 	if !ok {
@@ -149,7 +149,7 @@ func run(cfg flags, dst *snet.UDPAddr) error {
 	}
 	decPath := &scion.Decoded{}
 	if err := decPath.DecodeFromBytes(scionPath.Raw); err != nil {
-		return serrors.WrapStr("decoding path", err)
+		return serrors.Wrap("decoding path", err)
 	}
 
 	scionLayer.PathType = scion.PathType
@@ -161,10 +161,10 @@ func run(cfg flags, dst *snet.UDPAddr) error {
 		return serrors.New("invalid destination host IP", "ip", dst.Host.IP)
 	}
 	if err := scionLayer.SetDstAddr(addr.HostIP(dstHostIP)); err != nil {
-		return serrors.WrapStr("setting SCION dest address", err)
+		return serrors.Wrap("setting SCION dest address", err)
 	}
 	if err := scionLayer.SetSrcAddr(addr.HostIP(localIP)); err != nil {
-		return serrors.WrapStr("setting SCION source address", err)
+		return serrors.Wrap("setting SCION source address", err)
 	}
 	scionudpLayer := &slayers.UDP{}
 	scionudpLayer.SrcPort = 40111
@@ -179,7 +179,7 @@ func run(cfg flags, dst *snet.UDPAddr) error {
 	}
 	if err := gopacket.SerializeLayers(input, options, ethernetLayer, ipv4Layer, udpLayer,
 		scionLayer, scionudpLayer, gopacket.Payload(payload)); err != nil {
-		return serrors.WrapStr("serializing go packet", err)
+		return serrors.Wrap("serializing go packet", err)
 	}
 	if err := pktgen.StorePcap(cfg.out, input.Bytes()); err != nil {
 		return err
@@ -196,7 +196,7 @@ func resolveLocal(dst *snet.UDPAddr) (netip.Addr, error) {
 	}
 	resolvedIP, err := addrutil.ResolveLocal(target)
 	if err != nil {
-		return netip.Addr{}, serrors.WrapStr("resolving local address", err)
+		return netip.Addr{}, serrors.Wrap("resolving local address", err)
 	}
 	localIP, ok := netip.AddrFromSlice(resolvedIP)
 	if !ok {

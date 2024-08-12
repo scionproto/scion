@@ -66,7 +66,7 @@ func (s *SegSelector) SelectSeg(ctx context.Context,
 		return revcache.NoRevokedHopIntf(ctx, s.RevCache, ps)
 	})
 	if err != nil {
-		return nil, serrors.WrapStr("failed to filter segments", err)
+		return nil, serrors.Wrap("failed to filter segments", err)
 	}
 	if len(segs) < 1 {
 		return nil, serrors.New("no segments found")

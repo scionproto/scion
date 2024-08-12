@@ -147,7 +147,7 @@ func (s StringSampler) ConfigName() string {
 func ValidateAll(validators ...Validator) error {
 	for _, v := range validators {
 		if err := v.Validate(); err != nil {
-			return serrors.WrapStr("Unable to validate", err, "type", fmt.Sprintf("%T", v))
+			return serrors.Wrap("Unable to validate", err, "type", fmt.Sprintf("%T", v))
 		}
 	}
 	return nil
@@ -228,14 +228,14 @@ func LoadResource(location string) (io.ReadCloser, error) {
 	if strings.HasPrefix(location, "http://") || strings.HasPrefix(location, "https://") {
 		response, err := http.Get(location)
 		if err != nil {
-			return nil, serrors.WrapStr("fetching config over HTTP", err)
+			return nil, serrors.Wrap("fetching config over HTTP", err)
 		}
 
 		return response.Body, nil
 	}
 	rc, err := os.Open(location)
 	if err != nil {
-		return nil, serrors.WrapStr("loading config from disk", err)
+		return nil, serrors.Wrap("loading config from disk", err)
 	}
 	return rc, nil
 }

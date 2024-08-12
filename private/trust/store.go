@@ -83,8 +83,9 @@ func LoadChains(ctx context.Context, dir string, db DB) (LoadResult, error) {
 			continue
 		}
 		if err != nil {
-			return res, serrors.WrapStr("loading TRC(s) to verify certificate chain", err,
+			return res, serrors.Wrap("loading TRC(s) to verify certificate chain", err,
 				"file", f)
+
 		}
 		var verifyErrors serrors.List
 		for _, trc := range trcs {
@@ -99,7 +100,7 @@ func LoadChains(ctx context.Context, dir string, db DB) (LoadResult, error) {
 		}
 		inserted, err := db.InsertChain(ctx, chain)
 		if err != nil {
-			return res, serrors.WrapStr("inserting certificate chain", err, "file", f)
+			return res, serrors.Wrap("inserting certificate chain", err, "file", f)
 		}
 		if !inserted {
 			res.Ignored[f] = serrors.JoinNoStack(ErrAlreadyExists, err)

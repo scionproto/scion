@@ -54,7 +54,7 @@ func (f ForwardingLookup) LookupSegments(ctx context.Context, src,
 		},
 	)
 	if err != nil {
-		return nil, serrors.WrapStr("expanding wildcard request", err)
+		return nil, serrors.Wrap("expanding wildcard request", err)
 	}
 	return f.Fetcher.Fetch(ctx, reqs, false)
 }

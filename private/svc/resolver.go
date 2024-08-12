@@ -191,7 +191,7 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 	}
 	replyPath, err := snet.DefaultReplyPather{}.ReplyPath(rpath)
 	if err != nil {
-		return nil, serrors.WrapStr("creating reply path", err)
+		return nil, serrors.Wrap("creating reply path", err)
 	}
 	reply.ReturnPath = &path{
 		dataplane:   replyPath,

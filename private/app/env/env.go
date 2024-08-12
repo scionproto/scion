@@ -38,7 +38,7 @@ func (s *SCION) Validate() error {
 	}
 	for ia, as := range s.ASes {
 		if err := as.Validate(); err != nil {
-			return serrors.WrapStr("validating AS", err, "isd-as", ia)
+			return serrors.Wrap("validating AS", err, "isd-as", ia)
 		}
 	}
 	return nil

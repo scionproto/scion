@@ -363,7 +363,7 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn,
 	}
 	err := d.addExternalInterfaceBFD(ifID, conn, src, dst, cfg)
 	if err != nil {
-		return serrors.WrapStr("adding external BFD", err, "if_id", ifID)
+		return serrors.Wrap("adding external BFD", err, "if_id", ifID)
 	}
 	if d.external == nil {
 		d.external = make(map[uint16]BatchConn)
@@ -554,7 +554,7 @@ func (d *DataPlane) AddNextHop(ifID uint16, src, dst netip.AddrPort, cfg control
 	}
 	err := d.addNextHopBFD(ifID, src, dst, cfg, sibling)
 	if err != nil {
-		return serrors.WrapStr("adding next hop BFD", err, "if_id", ifID)
+		return serrors.Wrap("adding next hop BFD", err, "if_id", ifID)
 	}
 	if d.internalNextHops == nil {
 		d.internalNextHops = make(map[uint16]netip.AddrPort)
@@ -1357,7 +1357,7 @@ func (p *slowPathPacketProcessor) packSCMP(
 		var scmpLayer slayers.SCMP
 		err := scmpLayer.DecodeFromBytes(p.lastLayer.LayerPayload(), gopacket.NilDecodeFeedback)
 		if err != nil {
-			return serrors.WrapStr("decoding SCMP layer", err)
+			return serrors.Wrap("decoding SCMP layer", err)
 		}
 		if !scmpLayer.TypeCode.InfoMsg() {
 			return serrors.New("SCMP error for SCMP error pkt -> DROP")
@@ -2169,12 +2169,12 @@ func (d *DataPlane) addEndhostPort(
 		err := scmpLayer.DecodeFromBytes(lastLayer.LayerPayload(), gopacket.NilDecodeFeedback)
 		if err != nil {
 			// TODO(JordiSubira): Treat this as a parameter problem.
-			return serrors.WrapStr("decoding SCMP layer for extracting endhost dst port", err)
+			return serrors.Wrap("decoding SCMP layer for extracting endhost dst port", err)
 		}
 		port, err = getDstPortSCMP(&scmpLayer)
 		if err != nil {
 			// TODO(JordiSubira): Treat this as a parameter problem.
-			return serrors.WrapStr("getting dst port from SCMP message", err)
+			return serrors.Wrap("getting dst port from SCMP message", err)
 		}
 		// if the SCMP dst port is outside the range, we send it to the EndhostPort
 		if port < d.dispatchedPortStart || port > d.dispatchedPortEnd {

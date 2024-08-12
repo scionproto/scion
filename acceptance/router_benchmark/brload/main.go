@@ -305,7 +305,7 @@ func openDevices(interfaceNames []string) (map[string]*afpacket.TPacket, error) 
 	for _, intf := range interfaceNames {
 		handle, err := afpacket.NewTPacket(afpacket.OptInterface(intf))
 		if err != nil {
-			return nil, serrors.WrapStr("creating TPacket", err)
+			return nil, serrors.Wrap("creating TPacket", err)
 		}
 		handles[intf] = handle
 	}

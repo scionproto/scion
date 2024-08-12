@@ -85,7 +85,7 @@ func (d *Downloader) ArtifactsFromBuild(build *buildkite.Build) error {
 		jobGroup.Go(func() error {
 			artifacts, err := d.artifactsByURL(*job.ArtifactsURL)
 			if err != nil {
-				return serrors.WrapStr("fetching artifacts", err, "job", job.Name)
+				return serrors.Wrap("fetching artifacts", err, "job", job.Name)
 			}
 
 			artifactsGroup, _ := errgroup.WithContext(ctx)
@@ -109,7 +109,7 @@ func (d *Downloader) ArtifactsFromBuild(build *buildkite.Build) error {
 					file := filepath.Join(d.Dir, base+".tar.gz")
 					d.info("Start downloading: %s\n", file)
 					if err := d.downloadArtifact(a, file); err != nil {
-						return serrors.WrapStr("downloading artifact", err, "job", job.Name)
+						return serrors.Wrap("downloading artifact", err, "job", job.Name)
 					}
 					d.info("Done downloading: %s (%s)\n", file, time.Since(start))
 

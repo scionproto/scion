@@ -26,7 +26,7 @@ import (
 func RunsInDocker() (bool, error) {
 	f, err := os.Open("/proc/self/cgroup")
 	if err != nil {
-		return false, serrors.WrapStr("Failed to open /proc/self/cgroup", err)
+		return false, serrors.Wrap("Failed to open /proc/self/cgroup", err)
 	}
 	defer f.Close()
 	scanner := bufio.NewScanner(f)

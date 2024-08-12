@@ -70,8 +70,9 @@ func NewSequence(s string) (*Sequence, error) {
 	re, err := regexp.Compile(restr)
 	if err != nil {
 		// This should never happen. Sequence parser should produce a valid regexp.
-		return nil, serrors.WrapStr("Error while parsing sequence regexp", err,
+		return nil, serrors.Wrap("Error while parsing sequence regexp", err,
 			"regexp", restr)
+
 	}
 	return &Sequence{re: re, srcstr: s, restr: restr}, nil
 }

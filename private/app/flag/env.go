@@ -115,10 +115,10 @@ func (e *SCIONEnvironment) LoadExternalVars() error {
 	defer e.mtx.Unlock()
 
 	if err := e.loadFile(); err != nil {
-		return serrors.WrapStr("loading environment file", err)
+		return serrors.Wrap("loading environment file", err)
 	}
 	if err := e.loadEnv(); err != nil {
-		return serrors.WrapStr("loading environment variables", err)
+		return serrors.Wrap("loading environment variables", err)
 	}
 	return nil
 }
@@ -137,10 +137,10 @@ func (e *SCIONEnvironment) loadFile() error {
 		return nil
 	}
 	if err != nil {
-		return serrors.WrapStr("loading file", err)
+		return serrors.Wrap("loading file", err)
 	}
 	if err := json.Unmarshal(raw, &e.file); err != nil {
-		return serrors.WrapStr("parsing file", err)
+		return serrors.Wrap("parsing file", err)
 	}
 	return nil
 }
@@ -156,7 +156,7 @@ func (e *SCIONEnvironment) loadEnv() error {
 	if l, ok := os.LookupEnv("SCION_LOCAL_ADDR"); ok {
 		a, err := netip.ParseAddr(l)
 		if err != nil {
-			return serrors.WrapStr("parsing SCION_LOCAL_ADDR", err)
+			return serrors.Wrap("parsing SCION_LOCAL_ADDR", err)
 		}
 		e.localEnv = &a
 	}

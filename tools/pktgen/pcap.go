@@ -28,20 +28,20 @@ import (
 func StorePcap(file string, pkt []byte) error {
 	f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		return serrors.WrapStr("creating file", err, "file", file)
+		return serrors.Wrap("creating file", err, "file", file)
 	}
 	defer f.Close()
 
 	w := pcapgo.NewWriter(f)
 	if err := w.WriteFileHeader(65535, layers.LinkTypeEthernet); err != nil {
-		return serrors.WrapStr("writing header", err, "file", file)
+		return serrors.Wrap("writing header", err, "file", file)
 	}
 	c := gopacket.CaptureInfo{
 		Length:        len(pkt),
 		CaptureLength: len(pkt),
 	}
 	if err := w.WritePacket(c, pkt); err != nil {
-		return serrors.WrapStr("writing packet", err, "file", file)
+		return serrors.Wrap("writing packet", err, "file", file)
 	}
 	return nil
 }

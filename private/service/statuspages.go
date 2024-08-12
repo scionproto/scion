@@ -99,7 +99,7 @@ func (s StatusPages) Register(serveMux *http.ServeMux, elemId string) error {
 	})
 	var mainBuf bytes.Buffer
 	if err := t.Execute(&mainBuf, mainData{ElemId: elemId, Pages: pages}); err != nil {
-		return serrors.WrapStr("executing template", err)
+		return serrors.Wrap("executing template", err)
 	}
 	serveMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, mainBuf.String())

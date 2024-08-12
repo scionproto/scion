@@ -274,11 +274,11 @@ func (trc *TRC) ValidateUpdate(predecessor *TRC) (Update, error) {
 	}
 	predCerts, err := classifyCerts(predecessor.Certificates)
 	if err != nil {
-		return Update{}, serrors.WrapStr("classifying certificates in predecessor", err)
+		return Update{}, serrors.Wrap("classifying certificates in predecessor", err)
 	}
 	thisCerts, err := classifyCerts(trc.Certificates)
 	if err != nil {
-		return Update{}, serrors.WrapStr("classifying certificates", err)
+		return Update{}, serrors.Wrap("classifying certificates", err)
 	}
 
 	// All votes in a regular update must be cast with a regular voting
@@ -287,7 +287,7 @@ func (trc *TRC) ValidateUpdate(predecessor *TRC) (Update, error) {
 	if _, ok := predCerts.Regular[trc.Votes[0]]; !ok {
 		votes, err := trc.validateSensitive(predCerts)
 		if err != nil {
-			return Update{}, serrors.WrapStr("validating sensitive update", err)
+			return Update{}, serrors.Wrap("validating sensitive update", err)
 		}
 		return Update{
 			Type:      SensitiveUpdate,
@@ -297,7 +297,7 @@ func (trc *TRC) ValidateUpdate(predecessor *TRC) (Update, error) {
 	}
 	votes, acks, err := trc.validateRegular(predecessor, predCerts, thisCerts)
 	if err != nil {
-		return Update{}, serrors.WrapStr("validating regular update", err)
+		return Update{}, serrors.Wrap("validating regular update", err)
 	}
 	return Update{
 		Type:                RegularUpdate,
@@ -326,10 +326,10 @@ func (trc *TRC) validateRegular(predecessor *TRC, predCerts, thisCerts classifie
 		return nil, nil, serrors.New("quorum changed", "predecessor", p, "this", n)
 	}
 	if err := equalASes(predecessor.CoreASes, trc.CoreASes); err != nil {
-		return nil, nil, serrors.WrapStr("core ASes changed", err)
+		return nil, nil, serrors.Wrap("core ASes changed", err)
 	}
 	if err := equalASes(predecessor.AuthoritativeASes, trc.AuthoritativeASes); err != nil {
-		return nil, nil, serrors.WrapStr("authoritative ASes changed", err)
+		return nil, nil, serrors.Wrap("authoritative ASes changed", err)
 	}
 
 	// Check all sensitive voting certificates are unchanged.

@@ -72,11 +72,11 @@ func (h RegistryServer) Register(ctx context.Context, reg Registration) error {
 
 	// verify segments
 	if err := h.Verifier.Verify(ctx, reg.Segments, reg.Peer); err != nil {
-		return serrors.WrapStr("verifying segments", err)
+		return serrors.Wrap("verifying segments", err)
 	}
 	// store segments in db
 	if err := h.DB.Put(ctx, reg.Segments, reg.GroupID); err != nil {
-		return serrors.WrapStr("writing segments", err)
+		return serrors.Wrap("writing segments", err)
 	}
 	return nil
 }

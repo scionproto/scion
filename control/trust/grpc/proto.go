@@ -29,7 +29,7 @@ func requestToChainQuery(req *cppb.ChainsRequest) (trust.ChainQuery, error) {
 	var validity cppki.Validity
 	if req.AtLeastValidUntil != nil {
 		if err := req.AtLeastValidUntil.CheckValid(); err != nil {
-			return trust.ChainQuery{}, serrors.WrapStr("validating at_least_valid_until", err)
+			return trust.ChainQuery{}, serrors.Wrap("validating at_least_valid_until", err)
 		}
 		validity.NotAfter = req.AtLeastValidUntil.AsTime()
 
@@ -43,7 +43,7 @@ func requestToChainQuery(req *cppb.ChainsRequest) (trust.ChainQuery, error) {
 	}
 	if req.AtLeastValidSince != nil {
 		if err := req.AtLeastValidSince.CheckValid(); err != nil {
-			return trust.ChainQuery{}, serrors.WrapStr("validating at_least_valid_since", err)
+			return trust.ChainQuery{}, serrors.Wrap("validating at_least_valid_since", err)
 		}
 		validity.NotBefore = req.AtLeastValidSince.AsTime()
 	}

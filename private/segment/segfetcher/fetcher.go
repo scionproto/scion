@@ -113,7 +113,7 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context,
 		r := f.ReplyHandler.Handle(ctx, replyToRecs(reply.Segments), reply.Peer)
 		if err := r.Err(); err != nil {
 			f.Metrics.SegRequests(labels.WithResult(metrics.ErrProcess)).Inc()
-			return segs, serrors.WrapStr("processing reply", err)
+			return segs, serrors.Wrap("processing reply", err)
 		}
 		if len(r.VerificationErrors()) > 0 {
 			log.FromCtx(ctx).Info("Errors during verification of segments/revocations",

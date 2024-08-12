@@ -63,7 +63,7 @@ func (e *WildcardExpander) ExpandSrcWildcard(ctx context.Context,
 func (e *WildcardExpander) coreASes(ctx context.Context, isd addr.ISD) ([]addr.IA, error) {
 	coreASes, err := e.Inspector.ByAttributes(ctx, isd, trust.Core)
 	if err != nil {
-		return nil, serrors.WrapStr("failed to get local core ASes", err)
+		return nil, serrors.Wrap("failed to get local core ASes", err)
 	}
 	return coreASes, nil
 }

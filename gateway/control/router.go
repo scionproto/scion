@@ -181,7 +181,7 @@ func (r *Router) handleEvent(ctx context.Context, event SessionEvent) error {
 				if err != nil {
 					// if the routing table doesn't know the index it means
 					// something was wrongly programmed.
-					panic(serrors.WrapStr("adding to routing table", err, "id", rtID))
+					panic(serrors.Wrap("adding to routing table", err, "id", rtID))
 				}
 				r.currentSessions[rtID] = event.SessionID
 				continue
@@ -199,7 +199,7 @@ func (r *Router) handleEvent(ctx context.Context, event SessionEvent) error {
 			if err != nil {
 				// if the routing table doesn't know the index it means
 				// something was wrongly programmed.
-				panic(serrors.WrapStr("adding to routing table", err, "id", rtID))
+				panic(serrors.Wrap("adding to routing table", err, "id", rtID))
 			}
 			r.currentSessions[rtID] = bestID
 		}
@@ -218,7 +218,7 @@ func (r *Router) handleEvent(ctx context.Context, event SessionEvent) error {
 				if err := r.RoutingTable.ClearSession(rtID); err != nil {
 					// if the routing table doesn't know the index it means
 					// something was wrongly programmed.
-					panic(serrors.WrapStr("deleting from routing table", err, "id", rtID))
+					panic(serrors.Wrap("deleting from routing table", err, "id", rtID))
 				}
 				delete(r.currentSessions, rtID)
 			} else {
@@ -227,7 +227,7 @@ func (r *Router) handleEvent(ctx context.Context, event SessionEvent) error {
 				if err := r.RoutingTable.SetSession(rtID, r.DataplaneSessions[newID]); err != nil {
 					// if the routing table doesn't know the index it means
 					// something was wrongly programmed.
-					panic(serrors.WrapStr("adding to routing table", err, "id", rtID))
+					panic(serrors.Wrap("adding to routing table", err, "id", rtID))
 				}
 				r.currentSessions[rtID] = newID
 			}

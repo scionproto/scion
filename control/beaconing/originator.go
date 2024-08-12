@@ -163,7 +163,7 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 	beacon, err := o.createBeacon(ctx)
 	if err != nil {
 		o.incrementMetrics(labels.WithResult("err_create"))
-		return serrors.WrapStr("creating beacon", err, "egress_interface", o.intf.TopoInfo().ID)
+		return serrors.Wrap("creating beacon", err, "egress_interface", o.intf.TopoInfo().ID)
 	}
 
 	senderStart := time.Now()
@@ -178,17 +178,18 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 	)
 	if err != nil {
 		o.incrementMetrics(labels.WithResult(prom.ErrNetwork))
-		return serrors.WrapStr("getting beacon sender", err,
+		return serrors.Wrap("getting beacon sender", err,
 			"waited_for", time.Since(senderStart).String())
+
 	}
 	defer sender.Close()
 
 	sendStart := time.Now()
 	if err := sender.Send(ctx, beacon); err != nil {
 		o.incrementMetrics(labels.WithResult(prom.ErrNetwork))
-		return serrors.WrapStr("sending beacon", err,
-			"waited_for", time.Since(sendStart).String(),
-		)
+		return serrors.Wrap("sending beacon", err,
+			"waited_for", time.Since(sendStart).String())
+
 	}
 	o.onSuccess(o.intf)
 	o.incrementMetrics(labels.WithResult(prom.Success))
@@ -202,11 +203,11 @@ func (o *beaconOriginator) createBeacon(ctx context.Context) (*seg.PathSegment, 
 	}
 	beacon, err := seg.CreateSegment(o.timestamp, uint16(segID.Uint64()))
 	if err != nil {
-		return nil, serrors.WrapStr("creating segment", err)
+		return nil, serrors.Wrap("creating segment", err)
 	}
 
 	if err := o.Extender.Extend(ctx, beacon, 0, o.intf.TopoInfo().ID, nil); err != nil {
-		return nil, serrors.WrapStr("extending segment", err)
+		return nil, serrors.Wrap("extending segment", err)
 	}
 	return beacon, nil
 }

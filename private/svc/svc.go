@@ -149,7 +149,7 @@ func (h *BaseHandler) reversePath(path snet.DataplanePath) (snet.DataplanePath, 
 	}
 	replyPath, err := snet.DefaultReplyPather{}.ReplyPath(rpath)
 	if err != nil {
-		return nil, serrors.WrapStr("creating reply path", err)
+		return nil, serrors.Wrap("creating reply path", err)
 	}
 	return replyPath, nil
 }

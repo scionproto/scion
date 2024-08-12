@@ -268,8 +268,9 @@ func (t *topologyS) UnderlayAnycast(svc addr.SVC) (*net.UDPAddr, error) {
 	}
 	underlay, err := t.underlayByName(svc, name)
 	if err != nil {
-		return nil, serrors.WrapStr("BUG! Selected random service name, but service info not found",
+		return nil, serrors.Wrap("BUG! Selected random service name, but service info not found",
 			err, "service_names", names, "selected_name", name)
+
 	}
 	// FIXME(scrye): This should return net.Addr
 	return underlay, nil

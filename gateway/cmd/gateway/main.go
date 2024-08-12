@@ -56,22 +56,22 @@ func realMain(ctx context.Context) error {
 	}
 	daemon, err := daemonService.Connect(ctx)
 	if err != nil {
-		return serrors.WrapStr("connecting to daemon", err)
+		return serrors.Wrap("connecting to daemon", err)
 	}
 	defer daemon.Close()
 	localIA, err := daemon.LocalIA(ctx)
 	if err != nil {
-		return serrors.WrapStr("retrieving local ISD-AS", err)
+		return serrors.Wrap("retrieving local ISD-AS", err)
 	}
 
 	controlAddress, err := net.ResolveUDPAddr("udp", globalCfg.Gateway.CtrlAddr)
 	if err != nil {
-		return serrors.WrapStr("parsing control address", err)
+		return serrors.Wrap("parsing control address", err)
 	}
 	if len(controlAddress.IP) == 0 {
 		controlAddress.IP, err = addrutil.DefaultLocalIP(ctx, daemon)
 		if err != nil {
-			return serrors.WrapStr("determine default local IP", err)
+			return serrors.Wrap("determine default local IP", err)
 		}
 	}
 	controlAddressIP, ok := netip.AddrFromSlice(controlAddress.IP)
@@ -80,7 +80,7 @@ func realMain(ctx context.Context) error {
 	}
 	dataAddress, err := net.ResolveUDPAddr("udp", globalCfg.Gateway.DataAddr)
 	if err != nil {
-		return serrors.WrapStr("parsing data address", err)
+		return serrors.Wrap("parsing data address", err)
 	}
 	if len(dataAddress.IP) == 0 {
 		dataAddress.IP = controlAddress.IP
@@ -88,7 +88,7 @@ func realMain(ctx context.Context) error {
 	}
 	probeAddress, err := net.ResolveUDPAddr("udp", globalCfg.Gateway.ProbeAddr)
 	if err != nil {
-		return serrors.WrapStr("parsing probe address", err)
+		return serrors.Wrap("parsing probe address", err)
 	}
 	if len(probeAddress.IP) == 0 {
 		probeAddress.IP = controlAddress.IP
@@ -119,7 +119,7 @@ func realMain(ctx context.Context) error {
 			defer log.HandlePanic()
 			err := mgmtServer.ListenAndServe()
 			if err != nil && !errors.Is(err, http.ErrServerClosed) {
-				return serrors.WrapStr("serving service management API", err)
+				return serrors.Wrap("serving service management API", err)
 			}
 			return nil
 		})

@@ -286,7 +286,7 @@ func (l *Loader) reload() error {
 	newTopo, err := l.load()
 	if err != nil {
 		metrics.CounterInc(l.cfg.Metrics.ReadErrors)
-		return serrors.WrapStr("loading topology", err)
+		return serrors.Wrap("loading topology", err)
 	}
 
 	l.mtx.Lock()
@@ -299,7 +299,7 @@ func (l *Loader) reload() error {
 
 	if err := l.validate(newTopo.Writable(), old); err != nil {
 		metrics.CounterInc(l.cfg.Metrics.ValidationErrors)
-		return serrors.WrapStr("validating update", err)
+		return serrors.Wrap("validating update", err)
 	}
 	l.topo = newTopo
 	metrics.CounterInc(l.cfg.Metrics.Updates)

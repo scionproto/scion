@@ -306,12 +306,12 @@ func (r Result) Alive() int {
 func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	sdConn, err := daemon.NewService(cfg.Daemon).Connect(ctx)
 	if err != nil {
-		return nil, serrors.WrapStr("connecting to the SCION Daemon", err, "addr", cfg.Daemon)
+		return nil, serrors.Wrap("connecting to the SCION Daemon", err, "addr", cfg.Daemon)
 	}
 	defer sdConn.Close()
 	localIA, err := sdConn.LocalIA(ctx)
 	if err != nil {
-		return nil, serrors.WrapStr("determining local ISD-AS", err)
+		return nil, serrors.Wrap("determining local ISD-AS", err)
 	}
 	if dst == localIA {
 		return &Result{
@@ -326,7 +326,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	allPaths, err := sdConn.Paths(ctx, dst, 0,
 		daemon.PathReqFlags{Refresh: cfg.Refresh})
 	if err != nil {
-		return nil, serrors.WrapStr("retrieving paths from the SCION Daemon", err)
+		return nil, serrors.Wrap("retrieving paths from the SCION Daemon", err)
 	}
 	paths, err := path.Filter(cfg.Sequence, allPaths)
 	if err != nil {
@@ -358,7 +358,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 			Topology: sdConn,
 		}.GetStatuses(ctx, p, pathprobe.WithEPIC(cfg.Epic))
 		if err != nil {
-			return nil, serrors.WrapStr("getting statuses", err)
+			return nil, serrors.Wrap("getting statuses", err)
 		}
 	}
 	path.Sort(paths)

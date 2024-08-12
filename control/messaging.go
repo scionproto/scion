@@ -27,7 +27,7 @@ import (
 func MACGenFactory(configDir string) (func() hash.Hash, error) {
 	mk, err := keyconf.LoadMaster(filepath.Join(configDir, "keys"))
 	if err != nil {
-		return nil, serrors.WrapStr("loading master key", err)
+		return nil, serrors.Wrap("loading master key", err)
 	}
 	hfMacFactory, err := scrypto.HFMacFactory(mk.Key0)
 	if err != nil {

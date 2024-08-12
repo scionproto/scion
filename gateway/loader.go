@@ -98,11 +98,11 @@ func (l *Loader) loadFiles(ctx context.Context) (control.SessionPolicies, *routi
 	var errors serrors.List
 	sp, err := control.LoadSessionPolicies(ctx, l.SessionPoliciesFile, l.SessionPolicyParser)
 	if err != nil {
-		errors = append(errors, serrors.WrapStr("loading session policies", err))
+		errors = append(errors, serrors.Wrap("loading session policies", err))
 	}
 	rp, err := l.loadRoutingPolicy()
 	if err != nil {
-		errors = append(errors, serrors.WrapStr("loading routing policiy", err))
+		errors = append(errors, serrors.Wrap("loading routing policiy", err))
 	}
 	return sp, rp, errors.ToError()
 }

@@ -68,7 +68,7 @@ func ASEntryFromPB(pb *cppb.ASEntry) (ASEntry, error) {
 	}
 	hopEntry, err := hopEntryFromPB(entry.HopEntry)
 	if err != nil {
-		return ASEntry{}, serrors.WrapStr("parsing hop entry", err)
+		return ASEntry{}, serrors.Wrap("parsing hop entry", err)
 	}
 
 	var peerEntries []PeerEntry
@@ -81,7 +81,7 @@ func ASEntryFromPB(pb *cppb.ASEntry) (ASEntry, error) {
 		}
 		peerEntry, err := peerEntryFromPB(peer)
 		if err != nil {
-			return ASEntry{}, serrors.WrapStr("parsing peer entry", err, "index", i)
+			return ASEntry{}, serrors.Wrap("parsing peer entry", err, "index", i)
 		}
 		peerEntries = append(peerEntries, peerEntry)
 	}

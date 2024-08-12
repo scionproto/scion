@@ -54,7 +54,7 @@ func loadPolicy(fn string, t beacon.PolicyType) (beacon.Policy, error) {
 	if fn != "" {
 		p, err := beacon.LoadPolicyFromYaml(fn, t)
 		if err != nil {
-			return policy, serrors.WrapStr("loading beaconing policy", err, "file", fn, "type", t)
+			return policy, serrors.Wrap("loading beaconing policy", err, "file", fn, "type", t)
 		}
 		policy = *p
 	}

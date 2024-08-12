@@ -125,11 +125,11 @@ func (o *Path) ToSCIONDecoded() (*scion.Decoded, error) {
 func (o *Path) Reverse() (path.Path, error) {
 	sp, err := o.ToSCIONDecoded()
 	if err != nil {
-		return nil, serrors.WrapStr("converting to scion path", err)
+		return nil, serrors.Wrap("converting to scion path", err)
 	}
 	// increment the path, since we are at the receiver side.
 	if err := sp.IncPath(); err != nil {
-		return nil, serrors.WrapStr("incrementing path", err)
+		return nil, serrors.Wrap("incrementing path", err)
 	}
 	return sp.Reverse()
 }

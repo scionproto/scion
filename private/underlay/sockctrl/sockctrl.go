@@ -28,17 +28,17 @@ import (
 func SockControl(c *net.UDPConn, f func(int) error) error {
 	rawConn, err := c.SyscallConn()
 	if err != nil {
-		return serrors.WrapStr("sockctrl: error accessing raw connection", err)
+		return serrors.Wrap("sockctrl: error accessing raw connection", err)
 	}
 	var ctrlErr error
 	err = rawConn.Control(func(fd uintptr) {
 		ctrlErr = f(int(fd))
 	})
 	if err != nil {
-		return serrors.WrapStr("sockctrl: RawConn.Control error", err)
+		return serrors.Wrap("sockctrl: RawConn.Control error", err)
 	}
 	if ctrlErr != nil {
-		return serrors.WrapStr("sockctrl: control function error", ctrlErr)
+		return serrors.Wrap("sockctrl: control function error", ctrlErr)
 	}
 	return nil
 }

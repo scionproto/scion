@@ -98,10 +98,10 @@ func (c *Connector) AddExternalInterface(localIfID common.IfIDType, link control
 		return serrors.JoinNoStack(errMultiIA, nil, "current", c.ia, "new", link.Local.IA)
 	}
 	if err := c.DataPlane.AddLinkType(intf, link.LinkTo); err != nil {
-		return serrors.WrapStr("adding link type", err, "if_id", localIfID)
+		return serrors.Wrap("adding link type", err, "if_id", localIfID)
 	}
 	if err := c.DataPlane.AddNeighborIA(intf, link.Remote.IA); err != nil {
-		return serrors.WrapStr("adding neighboring IA", err, "if_id", localIfID)
+		return serrors.Wrap("adding neighboring IA", err, "if_id", localIfID)
 	}
 
 	link.BFD = c.applyBFDDefaults(link.BFD)

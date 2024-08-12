@@ -145,7 +145,7 @@ func (d *QUICDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn,
 
 	addr, err := d.Rewriter.RedirectToQUIC(ctx, addr)
 	if err != nil {
-		return nil, serrors.WrapStr("resolving SVC address", err)
+		return nil, serrors.Wrap("resolving SVC address", err)
 	}
 	if _, ok := addr.(*snet.UDPAddr); !ok {
 		return nil, serrors.New("wrong address type after svc resolution",

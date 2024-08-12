@@ -55,7 +55,7 @@ If the flag \--format is set to "emoji", the format of the output is a string of
 
 			chain, err := cppki.ReadPEMCerts(args[0])
 			if err != nil {
-				return serrors.WrapStr("loading certificate chain", err)
+				return serrors.Wrap("loading certificate chain", err)
 			}
 
 			h := sha256.New()

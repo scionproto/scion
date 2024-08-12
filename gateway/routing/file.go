@@ -30,10 +30,10 @@ func LoadPolicy(path string) (Policy, error) {
 	p := Policy{}
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return Policy{}, serrors.WrapStr("reading file", err)
+		return Policy{}, serrors.Wrap("reading file", err)
 	}
 	if err := p.UnmarshalText(raw); err != nil {
-		return Policy{}, serrors.WrapStr("parsing file", err, "file", path)
+		return Policy{}, serrors.Wrap("parsing file", err, "file", path)
 	}
 	return p, nil
 }

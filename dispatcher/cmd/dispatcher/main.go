@@ -96,7 +96,7 @@ func realMain(ctx context.Context) error {
 			defer log.HandlePanic()
 			err := mgmtServer.ListenAndServe()
 			if err != nil && !errors.Is(err, http.ErrServerClosed) {
-				return serrors.WrapStr("serving service management API", err)
+				return serrors.Wrap("serving service management API", err)
 			}
 			return nil
 		})
@@ -109,7 +109,7 @@ func realMain(ctx context.Context) error {
 		"log/level": service.NewLogLevelStatusPage(),
 	}
 	if err := statusPages.Register(http.DefaultServeMux, globalCfg.Dispatcher.ID); err != nil {
-		return serrors.WrapStr("registering status pages", err)
+		return serrors.Wrap("registering status pages", err)
 	}
 
 	g.Go(func() error {
@@ -149,7 +149,7 @@ func requiredIPs() ([]net.IP, error) {
 	}
 	promAddr, err := net.ResolveTCPAddr("tcp", globalCfg.Metrics.Prometheus)
 	if err != nil {
-		return nil, serrors.WrapStr("parsing prometheus address", err)
+		return nil, serrors.Wrap("parsing prometheus address", err)
 	}
 	return []net.IP{promAddr.IP}, nil
 }

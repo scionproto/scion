@@ -240,7 +240,7 @@ func convertRawPath(r snet.RawPath) (snet.DataplanePath, error) {
 	case onehop.PathType:
 		p := onehop.Path{}
 		if err := p.DecodeFromBytes(r.Raw); err != nil {
-			return nil, serrors.WrapStr("decoding ohp", err)
+			return nil, serrors.Wrap("decoding ohp", err)
 		}
 		return snetpath.OneHop{
 			Info:      p.Info,

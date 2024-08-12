@@ -65,7 +65,7 @@ case, the host could have multiple SCION addresses.
 			defer cancelF()
 			sd, err := daemon.NewService(daemonAddr).Connect(ctx)
 			if err != nil {
-				return serrors.WrapStr("connecting to SCION Daemon", err)
+				return serrors.Wrap("connecting to SCION Daemon", err)
 			}
 			defer sd.Close()
 

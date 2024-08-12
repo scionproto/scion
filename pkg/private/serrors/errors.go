@@ -191,14 +191,6 @@ func WrapNoStack(msg string, cause error, errCtx ...interface{}) error {
 	}
 }
 
-// Deprecated: WrapStr has been renamed Wrap. This alias will be removed soon.
-func WrapStr(msg string, cause error, errCtx ...interface{}) error {
-	return basicError{
-		errorInfo: mkErrorInfo(cause, true, errCtx...),
-		msg:       msg,
-	}
-}
-
 // New creates a new basicError with the given message and context, plus a stack dump.
 // It returns a pointer as the underlying type of the error interface object.
 // Avoid using this in performance-critical code: it is the most expensive variant. If used to

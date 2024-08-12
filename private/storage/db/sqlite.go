@@ -48,8 +48,9 @@ func NewSqlite(path string, schema string, schemaVersion int) (*sql.DB, error) {
 	var existingVersion int
 	err = db.QueryRow("PRAGMA user_version;").Scan(&existingVersion)
 	if err != nil {
-		return nil, serrors.WrapStr("Failed to check schema version", err,
+		return nil, serrors.Wrap("Failed to check schema version", err,
 			"path", path)
+
 	}
 	if existingVersion == 0 {
 		if err = setup(db, schema, schemaVersion, path); err != nil {
@@ -66,7 +67,7 @@ func open(path string) (*sql.DB, error) {
 	var err error
 	u, err := url.Parse(path)
 	if err != nil {
-		return nil, serrors.WrapStr("invalid connection path", err, "path", path)
+		return nil, serrors.Wrap("invalid connection path", err, "path", path)
 
 	}
 	// Add foreign_key parameter to path to enable foreign key support.
@@ -76,7 +77,7 @@ func open(path string) (*sql.DB, error) {
 	path = u.String()
 	db, err := sql.Open(driverName(), path)
 	if err != nil {
-		return nil, serrors.WrapStr("Couldn't open SQLite database", err, "path", path)
+		return nil, serrors.Wrap("Couldn't open SQLite database", err, "path", path)
 	}
 	// On future errors, close the sql database before exiting
 	defer func() {
@@ -86,19 +87,22 @@ func open(path string) (*sql.DB, error) {
 	}()
 	// Make sure DB is reachable
 	if err = db.Ping(); err != nil {
-		return nil, serrors.WrapStr("Initial DB ping failed, connection broken?", err,
+		return nil, serrors.Wrap("Initial DB ping failed, connection broken?", err,
 			"path", path)
+
 	}
 	// Ensure foreign keys are supported and enabled.
 	var enabled bool
 	err = db.QueryRow("PRAGMA foreign_keys;").Scan(&enabled)
 	if err == sql.ErrNoRows {
-		return nil, serrors.WrapStr("Foreign keys not supported", err,
+		return nil, serrors.Wrap("Foreign keys not supported", err,
 			"path", path)
+
 	}
 	if err != nil {
-		return nil, serrors.WrapStr("Failed to check for foreign key support", err,
+		return nil, serrors.Wrap("Failed to check for foreign key support", err,
 			"path", path)
+
 	}
 	if !enabled {
 		db.Close()
@@ -111,12 +115,12 @@ func open(path string) (*sql.DB, error) {
 func setup(db *sql.DB, schema string, schemaVersion int, path string) error {
 	_, err := db.Exec(schema)
 	if err != nil {
-		return serrors.WrapStr("Failed to set up SQLite database", err, "path", path)
+		return serrors.Wrap("Failed to set up SQLite database", err, "path", path)
 	}
 	// Write schema version to database.
 	_, err = db.Exec(fmt.Sprintf("PRAGMA user_version = %d", schemaVersion))
 	if err != nil {
-		return serrors.WrapStr("Failed to write schema version", err, "path", path)
+		return serrors.Wrap("Failed to write schema version", err, "path", path)
 	}
 	return nil
 }
