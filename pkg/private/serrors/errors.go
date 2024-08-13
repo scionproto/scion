@@ -176,16 +176,18 @@ func (e basicError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 //
 // This is best used when adding context to an error that already has some. The existing error is
 // used as the cause; all its existing context and stack trace are preserved for printing and
-// logging. The new context is attached to the new error. It can be used without an underlying
-// cause by passing nil as the cause. In that case this behaves like New(), except that the
-// underlying type of the returned interface is basicError, rather than a *basicError. To enrich a
-// sentinel error, do not use
+// logging. The new context is attached to the new error.
+//
+// Passing nil as the cause is legal but of little use. In that case, prefer [New]. The only
+// difference is the underlying type of the returned interface.
+//
+// To enrich a sentinel error, do not use
 //
 //	Wrap("dummy message", sentinel, ...)
 //
 // instead use
 //
-//	Join(sentinel, nil, ...)
+//	[Join](sentinel, nil, ...)
 func Wrap(msg string, cause error, errCtx ...interface{}) error {
 	return basicError{
 		errorInfo: mkErrorInfo(cause, true, errCtx...),
@@ -251,7 +253,7 @@ func (e joinedError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 // The returned error supports Is. If cause isn't nil, Is(cause) returns true. Is(error) returns
 // true.
 //
-// This is best used as an alternative to Wrap when deriving an error from a sentinel error. If
+// This is best used as an alternative to [Wrap] when deriving an error from a sentinel error. If
 // there is an underlying error it may be used as the cause (with the same effect as Wrap(). If
 // creating a new error (not due to an underlying error) nil may be passed as the cause. In that
 // case the result is a sentinel error enriched with context. For such a purpose this is better than
