@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"github.com/patrickmn/go-cache"
+	"google.golang.org/protobuf/proto"
+
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
@@ -30,7 +32,6 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	infra "github.com/scionproto/scion/private/segment/verifier"
 	"github.com/scionproto/scion/private/trust"
-	"google.golang.org/protobuf/proto"
 )
 
 type ChainProvider interface {

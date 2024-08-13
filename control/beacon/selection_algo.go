@@ -19,6 +19,7 @@ import (
 	"math"
 
 	"github.com/patrickmn/go-cache"
+
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/private/segment/segverifier"
 )
