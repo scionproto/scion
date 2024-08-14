@@ -38,6 +38,8 @@ class SeedGenArgs(ArgsTopoDicts):
         """
         super().__init__(args, topo_dicts)
         self.networks = networks
+        print("SeedGenArgs\n")
+        print(args)
 
 
 # copyright
@@ -51,8 +53,6 @@ class ASNetworkAssigner:
         self.parentNet = ".".join(parentNet.split(".")[0:2])
     
     def get_net_by_as(self, asn):
-        if asn == 0:
-            raise Exception("AS number 0 is invalid")
         return f"{self.parentNet}.{asn}.0/24"
 
 class CrossConnectNetAssigner:
@@ -82,6 +82,7 @@ class SeedGenerator(SeedGenArgs):
     _SeedCompiler: str = "Docker"
     _skipIPv6Check: bool = False
     _parentNetwork: str = "10.3.0.0/16"
+    _as_network: str = "10.4.0.0/16"
     # dict containing mapping from ISD_AS to list of border router properties
     _brProperties: Dict[str, Dict[str, Dict]]
 
@@ -108,8 +109,11 @@ class SeedGenerator(SeedGenArgs):
             self._SeedCompiler = "Graphviz"
         if "SeedSkipIPv6Check" in self._args.features:
             self._skipIPv6Check = True
-        if self._args.network:
-            self._parentNetwork = self._args.network
+        if self._args.xconnect_network:
+            self._parentNetwork = self._args.xconnect_network
+        if self._args.as_network:
+            self._as_network = self._args.as_network
+        
 
     def generate(self):
         """
@@ -121,8 +125,7 @@ class SeedGenerator(SeedGenArgs):
             self._check_IPv6()
 
         # write header of seed file
-        self._out_file = """
-
+        self._out_file = """\
 from seedemu.compiler import Docker
 from seedemu.core import Emulator
 from seedemu.layers import ScionBase, ScionRouting, ScionIsd, Scion, Ospf
@@ -452,7 +455,7 @@ internetMapClientImage="bruol0/seedemu-client"), \
         """
         self._xc_nets = CrossConnectNetAssigner(self._parentNetwork)
 
-        self.as_nets = ASNetworkAssigner(self._parentNetwork)
+        self.as_nets = ASNetworkAssigner(self._as_network)
 
         for i in range(0, len(self._links)):
             link = self._links[i]
