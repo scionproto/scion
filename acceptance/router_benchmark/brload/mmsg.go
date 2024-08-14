@@ -25,7 +25,7 @@ import (
 type mmsgHdr struct {
 	hdr unix.Msghdr
 	len uint32
-	pad [4]byte
+	_   [4]byte
 }
 
 // mpktSender is a helper class to add the ability of using the sendmmsg system call
