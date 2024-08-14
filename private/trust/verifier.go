@@ -114,7 +114,6 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 			"query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID),
 			"query.validity", query.Validity.String(),
 		)
-
 	}
 	for _, c := range chains {
 		signedMsg, err := signed.Verify(signedMsg, c[0].PublicKey, associatedData...)
