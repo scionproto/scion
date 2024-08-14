@@ -158,7 +158,8 @@ func VerifySegment(ctx context.Context, verifier infra.Verifier, server net.Addr
 		}
 		verifier := verifier.WithServer(server).WithIA(asEntry.Local).WithValidity(validity)
 		if err := segment.VerifyASEntry(ctx, verifier, i); err != nil {
-			return serrors.JoinNoStack(ErrSegment, err, "seg", segment.String(), "as", asEntry.Local)
+			return serrors.JoinNoStack(ErrSegment, err,
+				"seg", segment.String(), "as", asEntry.Local)
 		}
 	}
 	return nil
