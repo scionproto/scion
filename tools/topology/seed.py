@@ -171,8 +171,9 @@ emu.dump("{self._args.output_dir}/{SEED_CONF.replace('.py', '.bin')}")
 emu.render()
 
 # Compilation
-emu.compile({self._SeedCompiler}{'(internetMapEnabled={self._internetMapEnabled}, \
-internetMapClientImage="bruol0/seedemu-client")' if self._SeedCompiler == "Docker" else "()"}, \
+emu.compile({self._SeedCompiler}{f'(internetMapEnabled={self._internetMapEnabled},'
+                                 f'internetMapClientImage="bruol0/seedemu-client")' 
+                                 if self._SeedCompiler == "Docker" else "()"}, \
 './{self._args.output_dir}/seed-compiled')
 """
         # write seed file
