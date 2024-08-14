@@ -51,9 +51,10 @@ class ASNetworkAssigner:
     def __init__(self, parentNet):
         assert "/16" in parentNet, "Parent network must be a /16 network"
         self.parentNet = ".".join(parentNet.split(".")[0:2])
-    
+
     def get_net_by_as(self, asn):
         return f"{self.parentNet}.{asn}.0/24"
+
 
 class CrossConnectNetAssigner:
     def __init__(self, parentNet):
@@ -113,7 +114,6 @@ class SeedGenerator(SeedGenArgs):
             self._parentNetwork = self._args.xconnect_network
         if self._args.as_network:
             self._as_network = self._args.as_network
-        
 
     def generate(self):
         """
@@ -508,13 +508,15 @@ as{as_num}.createControlService('cs_1').joinNetwork('net0')
                 cert_issuer = ""
 
             if as_int_mtu:  # default value 0 for latency, bandwidth, packetDrop will be ignored
-                set_link_properties = (f"as{as_num}.createNetwork('net0', prefix=\"{self.as_nets.get_net_by_as(as_num)}\")"
+                set_link_properties = (f"as{as_num}.createNetwork('net0', "
+                                       f"prefix=\"{self.as_nets.get_net_by_as(as_num)}\")"
                                        f".setDefaultLinkProperties("
                                        f"latency={as_int_lat},"
                                        f"bandwidth={as_int_bw},"
                                        f"packetDrop={as_int_drop}).setMtu({as_int_mtu})\n")
             else:
-                set_link_properties = (f"as{as_num}.createNetwork('net0', prefix=\"{self.as_nets.get_net_by_as(as_num)}\")"
+                set_link_properties = (f"as{as_num}.createNetwork('net0', "
+                                       f"prefix=\"{self.as_nets.get_net_by_as(as_num)}\")"
                                        f".setDefaultLinkProperties("
                                        f"latency={as_int_lat}, "
                                        f"bandwidth={as_int_bw}, "
