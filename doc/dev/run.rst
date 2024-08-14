@@ -181,10 +181,10 @@ The basic usage is ``./scion.sh <subcommand> <options>``. The main subcommands a
    .. option:: -h, --help
 
       Display help text, list all options
-   
+
    .. option:: -s, --seed
 
-      Generate a seed emulation from the topology file. 
+      Generate a seed emulation from the topology file.
       For more Information check out the :ref:`generating-seed-emulation` section.
 
 .. option:: run, start
@@ -219,7 +219,7 @@ The basic usage is ``./scion.sh <subcommand> <options>``. The main subcommands a
 generating seed emulation
 =========================
 
-To generate a seed emulation from a topology file, you need this version of the 
+To generate a seed emulation from a topology file, you need this version of the
 `seed-emulator <https://github.com/Bruol/seed-emulator/tree/master>`_ installed.
 
 The basic usage is ``./scion.sh topology -s -c /path/to/topology/file``.
@@ -228,9 +228,9 @@ This will generate the following files in the gen directory:
 
 1. A seed emulation file called ``scion-seed.py``. This file contains the seed emulation
 
-2. A seed emulation dump file called ``scion-seed.bin``. 
-   This is a binary dump of the seed emulation. 
-   You will need this for example if you want to use the 
+2. A seed emulation dump file called ``scion-seed.bin``.
+   This is a binary dump of the seed emulation.
+   You will need this for example if you want to use the
    `seed traffic generator <https://github.com/Bruol/traffic_gen/tree/master?tab=readme-ov-file>`_.
 
 3. A folder called ``seed-compiled``. This folder contains the compiled seed emulation.
@@ -238,19 +238,19 @@ This will generate the following files in the gen directory:
    Executing ``docker compose up --build`` in this folder will start the seed emulation.
 
 .. Note::
-   seed currently only supports IPv4 therefore the -s flag is not available if the 
+   seed currently only supports IPv4 therefore the -s flag is not available if the
    topology file contains IPv6 underlay networks.
 
 .. option:: -xcn, --xconnect-network
 
-   This flag allows you tho specify the subnet that the 
-   seed cross connect networks will be created in. 
+   This flag allows you tho specify the subnet that the
+   seed cross connect networks will be created in.
    The default is `10.3.0.0/16`.
 
 .. option:: -asn, --as-network
 
-   This flag allows you tho specify the subnet that the 
-   seed AS internal networks will be created in. 
+   This flag allows you tho specify the subnet that the
+   seed AS internal networks will be created in.
    The default is `10.4.0.0/16`.
 
 .. option:: --features
@@ -262,9 +262,9 @@ This will generate the following files in the gen directory:
    .. option:: SeedCompilerGraphviz
 
       This will enable the graphviz compiler of the seed compiler.
-      Instead of a docker compose file the ``gen/seed-compiled`` folder will contain a 
+      Instead of a docker compose file the ``gen/seed-compiled`` folder will contain a
       graphviz file which can be used to visualize the seed emulation.
-   
+
    .. option:: SeedSkipIPv6Check
 
       This will skip the IPv6 check and treat topology files with IPv6 underlay networks
