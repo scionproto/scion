@@ -50,14 +50,14 @@ func (s *Server) GetSegments(w http.ResponseWriter, r *http.Request, params GetS
 		if ia, err := addr.ParseIA(*params.StartIsdAs); err == nil {
 			q.StartsAt = []addr.IA{ia}
 		} else {
-			errs = append(errs, serrors.WithCtx(err, "parameter", "start_isd_as"))
+			errs = append(errs, serrors.WrapStr("invalid start ISD_AS", err))
 		}
 	}
 	if params.EndIsdAs != nil {
 		if ia, err := addr.ParseIA(*params.EndIsdAs); err == nil {
 			q.EndsAt = []addr.IA{ia}
 		} else {
-			errs = append(errs, serrors.WithCtx(err, "parameter", "end_isd_as"))
+			errs = append(errs, serrors.WrapStr("invalid end ISD_AS", err))
 		}
 	}
 	if err := errs.ToError(); err != nil {
