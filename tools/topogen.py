@@ -38,6 +38,10 @@ def add_arguments(parser):
                         help='Create a docker compose configuration')
     parser.add_argument('-n', '--network',
                         help='Network to create subnets in (E.g. "127.0.0.0/8")')
+    parser.add_argument("-xcn", "--xconnect-network",
+                        help='/16 Network to create seed cross-connects subnets in (E.g. "10.3.0.0/16")')
+    parser.add_argument('-asn', "--as-network",
+                        help='/16 Network to create seed AS subnets in (E.g. "10.4.0.0/16")')
     parser.add_argument('-o', '--output-dir', default=GEN_PATH,
                         help='Output directory')
     parser.add_argument('--random-ifids', action='store_true',
