@@ -45,6 +45,16 @@ class SeedGenArgs(ArgsTopoDicts):
 # class to generate IP addresses for cross connect links
 
 
+class ASNetworkAssigner:
+    def __init__(self, parentNet):
+        assert "/16" in parentNet, "Parent network must be a /16 network"
+        self.parentNet = ".".join(parentNet.split(".")[0:2])
+    
+    def get_net_by_as(self, asn):
+        if asn == 0:
+            raise Exception("AS number 0 is invalid")
+        return f"{self.parentNet}.{asn}.0/24"
+
 class CrossConnectNetAssigner:
     def __init__(self, parentNet):
         self.subnet_iter = IPv4Network(parentNet).subnets(new_prefix=29)
@@ -442,6 +452,8 @@ internetMapClientImage="bruol0/seedemu-client"), \
         """
         self._xc_nets = CrossConnectNetAssigner(self._parentNetwork)
 
+        self.as_nets = ASNetworkAssigner(self._parentNetwork)
+
         for i in range(0, len(self._links)):
             link = self._links[i]
 
@@ -493,13 +505,13 @@ as{as_num}.createControlService('cs_1').joinNetwork('net0')
                 cert_issuer = ""
 
             if as_int_mtu:  # default value 0 for latency, bandwidth, packetDrop will be ignored
-                set_link_properties = (f"as{as_num}.createNetwork('net0')"
+                set_link_properties = (f"as{as_num}.createNetwork('net0', prefix=\"{self.as_nets.get_net_by_as(as_num)}\")"
                                        f".setDefaultLinkProperties("
                                        f"latency={as_int_lat},"
                                        f"bandwidth={as_int_bw},"
                                        f"packetDrop={as_int_drop}).setMtu({as_int_mtu})\n")
             else:
-                set_link_properties = (f"as{as_num}.createNetwork('net0')"
+                set_link_properties = (f"as{as_num}.createNetwork('net0', prefix=\"{self.as_nets.get_net_by_as(as_num)}\")"
                                        f".setDefaultLinkProperties("
                                        f"latency={as_int_lat}, "
                                        f"bandwidth={as_int_bw}, "
