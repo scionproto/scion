@@ -126,7 +126,7 @@ class SeedGenerator(SeedGenArgs):
 
         # write header of seed file
         self._out_file = """\
-from seedemu.compiler import Docker
+from seedemu.compiler import Docker, Graphviz
 from seedemu.core import Emulator
 from seedemu.layers import ScionBase, ScionRouting, ScionIsd, Scion, Ospf
 from seedemu.layers.Scion import LinkType as ScLinkType
@@ -171,8 +171,8 @@ emu.dump("{self._args.output_dir}/{SEED_CONF.replace('.py', '.bin')}")
 emu.render()
 
 # Compilation
-emu.compile({self._SeedCompiler}(internetMapEnabled={self._internetMapEnabled}, \
-internetMapClientImage="bruol0/seedemu-client"), \
+emu.compile({self._SeedCompiler}{"(internetMapEnabled={self._internetMapEnabled}, \
+internetMapClientImage=\"bruol0/seedemu-client\")" if self._SeedCompiler == "Docker" else "()"}, \
 './{self._args.output_dir}/seed-compiled')
 """
         # write seed file
