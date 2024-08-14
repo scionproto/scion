@@ -112,7 +112,8 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 		return nil, serrors.Wrap("getting chains", err,
 			"query.isd_as", query.IA,
 			"query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID),
-			"query.validity", query.Validity.String())
+			"query.validity", query.Validity.String(),
+		)
 
 	}
 	for _, c := range chains {

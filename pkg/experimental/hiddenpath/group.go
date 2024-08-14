@@ -185,7 +185,7 @@ func LoadHiddenPathGroups(location string) (Groups, error) {
 	}
 	c, err := config.LoadResource(location)
 	if err != nil {
-		return nil, serrors.WrapNoStack("error", err, "location", location)
+		return nil, serrors.Wrap("reading", err, "location", location)
 	}
 	defer c.Close()
 	if err := yaml.NewDecoder(c).Decode(&ret); err != nil {

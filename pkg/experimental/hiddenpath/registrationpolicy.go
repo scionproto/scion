@@ -96,7 +96,7 @@ func LoadConfiguration(location string) (Groups, RegistrationPolicy, error) {
 	}
 	c, err := config.LoadResource(location)
 	if err != nil {
-		return nil, nil, serrors.WrapNoStack("error", err, "location", location)
+		return nil, nil, serrors.Wrap("reading", err, "location", location)
 	}
 	defer c.Close()
 	info := registrationPolicyInfo{}

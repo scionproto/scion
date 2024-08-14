@@ -344,15 +344,16 @@ func ExampleWrap() {
 }
 
 func ExampleJoin() {
-	// ErrNoSpace is an error defined at package scope. It should be an error from a lower layer,
-	// with some context information attached.
-	var ErrNoSpace = serrors.New("no space", "dev", "sd0")
-	// ErrDB is an error defined at package scope. Here it figures a sentinel error.
-	var ErrDB = serrors.New("db")
-	wrapped := serrors.Join(ErrDB, ErrNoSpace, "ctx", 1)
+	// ErrNoProgress is a sentinel error defined at package scope. cause is an error from a lower
+	// layer, based on ErrNoSpace, with an more specific message.
+	var cause = fmt.Errorf("sd0 unresponsive: %w", io.ErrNoProgress)
+	// ErrDB is a sentinel error defined at package scope in the upper layer.
+	var ErrDB = errors.New("db")
+	wrapped := serrors.Join(ErrDB, cause, "ctx", 1)
 
 	// Now we can identify specific errors:
-	fmt.Println(errors.Is(wrapped, ErrNoSpace))
+	fmt.Println(errors.Is(wrapped, io.ErrNoProgress))
+	fmt.Println(errors.Is(wrapped, cause))
 	// But we can also identify the broader error class ErrDB:
 	fmt.Println(errors.Is(wrapped, ErrDB))
 
@@ -360,30 +361,31 @@ func ExampleJoin() {
 	// Output:
 	// true
 	// true
+	// true
 	//
-	// db {ctx=1}: no space {dev=sd0}
+	// db {ctx=1}: sd0 unresponsive: multiple Read calls return no data or error
 }
 
 func ExampleWrapNoStack() {
-	// ErrBadL4 is an error defined at package scope.
-	var ErrBadL4 = serrors.New("Unsupported L4 protocol")
-	addedCtx := serrors.WrapNoStack("error", ErrBadL4, "type", "SCTP")
+	// ErrBadL4 is a sentinel defined at package scope.
+	var ErrBadL4 = errors.New("Unsupported L4 protocol")
+	addedCtx := serrors.WrapNoStack("parsing packet", ErrBadL4, "type", "SCTP")
 
 	fmt.Println(addedCtx)
 	// Output:
-	// error {type=SCTP}: Unsupported L4 protocol
+	// parsing packet {type=SCTP}: Unsupported L4 protocol
 }
 
 func ExampleJoinNoStack() {
-	// errMsg is a sentinel error.
-	var brokenPacket = serrors.New("broken")
-	// ErrBadL4 is an error defined at package scope.
+	// BrokenPacket is a sentinel error defined at package scope.
+	var brokenPacket = serrors.New("invalid packet")
+	// ErrBadL4 is a sentinel error defined at package scope.
 	var ErrBadL4 = serrors.New("Unsupported L4 protocol")
 	addedCtx := serrors.JoinNoStack(brokenPacket, ErrBadL4, "type", "SCTP")
 
 	fmt.Println(addedCtx)
 	// Output:
-	// broken {type=SCTP}: Unsupported L4 protocol
+	// invalid packet {type=SCTP}: Unsupported L4 protocol
 }
 
 // sanitizeLog sanitizes the log output so that stack traces look the same on

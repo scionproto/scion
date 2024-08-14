@@ -47,12 +47,12 @@ type LoadResult struct {
 // files that are not valid chains are ignored.
 func LoadChains(ctx context.Context, dir string, db DB) (LoadResult, error) {
 	if _, err := os.Stat(dir); err != nil {
-		return LoadResult{}, serrors.WrapNoStack("error", err, "dir", dir)
+		return LoadResult{}, serrors.Wrap("stating directory", err, "dir", dir)
 	}
 
 	files, err := filepath.Glob(fmt.Sprintf("%s/*.pem", dir))
 	if err != nil {
-		return LoadResult{}, serrors.WrapNoStack("error", err, "dir", dir)
+		return LoadResult{}, serrors.Wrap("searching for certificates", err, "dir", dir)
 	}
 
 	res := LoadResult{Ignored: map[string]error{}}
@@ -116,12 +116,12 @@ func LoadChains(ctx context.Context, dir string, db DB) (LoadResult, error) {
 // in the future are ignored.
 func LoadTRCs(ctx context.Context, dir string, db DB) (LoadResult, error) {
 	if _, err := os.Stat(dir); err != nil {
-		return LoadResult{}, serrors.WrapNoStack("error", err, "dir", dir)
+		return LoadResult{}, serrors.WrapNoStack("stating directory", err, "dir", dir)
 	}
 
 	files, err := filepath.Glob(fmt.Sprintf("%s/*.trc", dir))
 	if err != nil {
-		return LoadResult{}, serrors.WrapNoStack("error", err, "dir", dir)
+		return LoadResult{}, serrors.WrapNoStack("searching for TRCs", err, "dir", dir)
 	}
 
 	res := LoadResult{Ignored: map[string]error{}}

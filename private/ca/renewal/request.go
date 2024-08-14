@@ -168,8 +168,8 @@ func (r RequestVerifier) verifyClientChain(ctx context.Context, chain []*x509.Ce
 			return serrors.Wrap("verifying client chain with TRC in grace period "+
 				"after verification failure with latest TRC", err,
 				"trc_id", trc.TRC.ID,
-				"grace_trc_id", graceID)
-
+				"grace_trc_id", graceID,
+			)
 		}
 
 	}

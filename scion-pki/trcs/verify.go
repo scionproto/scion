@@ -130,7 +130,7 @@ func verifyInitial(trc cppki.SignedTRC, anchor string) error {
 	}
 	certs, err := loadAnchorCerts(anchor)
 	if err != nil {
-		return serrors.WrapNoStack("error", err, "anchor", anchor)
+		return serrors.Wrap("loading anchor", err, "anchor", anchor)
 	}
 	if err := verifyBundle(trc, certs); err != nil {
 		return serrors.Wrap("checking verifiable with bundled certificates", err)

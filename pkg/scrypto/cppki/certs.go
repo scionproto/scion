@@ -160,7 +160,8 @@ func VerifyChain(certs []*x509.Certificate, opts VerifyOptions) error {
 			errs = append(errs,
 				serrors.Wrap("verifying chain", err,
 					"trc_base", trc.ID.Base,
-					"trc_serial", trc.ID.Serial),
+					"trc_serial", trc.ID.Serial,
+				),
 			)
 		} else {
 			return nil

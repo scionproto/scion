@@ -133,8 +133,8 @@ func (s *DefaultExtender) Extend(
 		if err != nil {
 			return serrors.Wrap(
 				"calculating expiry time from signer expiration time", err,
-				"signer_expiration", signerExp)
-
+				"signer_expiration", signerExp,
+			)
 		}
 	} else {
 		metrics.GaugeSet(s.SegmentExpirationDeficient, 0)
@@ -236,7 +236,6 @@ func (s *DefaultExtender) createHopEntry(
 	if err != nil {
 		return seg.HopEntry{}, nil, serrors.Wrap("checking remote ingress interface (mtu)", err,
 			"interfaces", ingress)
-
 	}
 	hopF, epicMac := s.createHopF(ingress, egress, expTime, ts, beta)
 	return seg.HopEntry{
@@ -257,7 +256,6 @@ func (s *DefaultExtender) createPeerEntry(ingress, egress uint16, expTime uint8,
 	if err != nil {
 		return seg.PeerEntry{}, nil, serrors.Wrap("checking remote ingress interface", err,
 			"ingress_interface", ingress)
-
 	}
 	hopF, epicMac := s.createHopF(ingress, egress, expTime, ts, beta)
 	return seg.PeerEntry{

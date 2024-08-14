@@ -103,7 +103,7 @@ func resolve(ctx context.Context, ia addr.IA, discoverer Discoverer, router snet
 	}
 	a, err := extractAddr(hps)
 	if err != nil {
-		return nil, serrors.WrapNoStack("error", err, "isd_as", ia)
+		return nil, serrors.Wrap("extracting address", err, "isd_as", ia)
 	}
 	return &snet.UDPAddr{
 		IA:      ia,

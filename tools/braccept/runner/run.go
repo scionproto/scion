@@ -124,7 +124,7 @@ func (c *RunConfig) ExpectPacket(pkt ExpectedPacket, normalizeFn NormalizePacket
 				return errors.ToError()
 			}
 			// Timeout receiving packets
-			return serrors.WrapNoStack("error", errTimeout, "other err", errors.ToError())
+			return serrors.Join(errTimeout, nil, "other err", errors.ToError())
 		}
 		got, ok := pktV.Interface().(gopacket.Packet)
 		if !ok {

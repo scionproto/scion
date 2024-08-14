@@ -112,7 +112,7 @@ func LoadSessionPolicies(ctx context.Context, file string,
 	}
 	p, err := parser.Parse(ctx, raw)
 	if err != nil {
-		return nil, serrors.WrapNoStack("error", err, "file", file)
+		return nil, serrors.Wrap("parsing", err, "file", file)
 	}
 	return p, nil
 }

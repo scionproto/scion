@@ -67,12 +67,12 @@ func (cfg *TRC) Certificates() ([]*x509.Certificate, error) {
 		}
 		read, err := cppki.ReadPEMCerts(certFile)
 		if err != nil {
-			return nil, serrors.WrapNoStack("error", err, "file", certFile)
+			return nil, serrors.Wrap("reading certificate", err, "file", certFile)
 		}
 		for _, cert := range read {
 			ct, err := cppki.ValidateCert(cert)
 			if err != nil {
-				return nil, serrors.WrapNoStack("error", err, "file", certFile)
+				return nil, serrors.Wrap("validating certificate", err, "file", certFile)
 			}
 			if ct != cppki.Sensitive && ct != cppki.Regular && ct != cppki.Root {
 				return nil, serrors.New("invalid certificate type", "file", certFile)

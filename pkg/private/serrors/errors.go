@@ -169,25 +169,28 @@ func (e basicError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 // Wrap returns an error that associates the given error, with the given cause (an underlying
 // error) unless nil, and the given context.
 //
-// A stack dump is added unless cause is a basicError (in which case it is assumed to contain a
-// stack dump).
+// A stack dump is added unless cause is a basicError or joinedError (in which case it is assumed to
+// contain a stack dump).
 //
-// The returned error supports Is. Is(cause)returns true.
+// The returned error supports Is. Is(cause) returns true.
 //
 // This is best used when adding context to an error that already has some. The existing error is
-// used as the cause; all its existing context and stack trace are preserved for printing and
+// used as the cause; all of its existing context and stack trace are preserved for printing and
 // logging. The new context is attached to the new error.
 //
 // Passing nil as the cause is legal but of little use. In that case, prefer [New]. The only
 // difference is the underlying type of the returned interface.
 //
-// To enrich a sentinel error, do not use
+// To enrich a sentinel error with context only, do not use
 //
 //	Wrap("dummy message", sentinel, ...)
 //
-// instead use
+// instead use [Join]
 //
-//	[Join](sentinel, nil, ...)
+//	Join(sentinel, nil, ...)
+//
+// Wrap may be useful to enrich sentinel errors if the main message needs to be different than
+// that supplied by the sentinel error.
 func Wrap(msg string, cause error, errCtx ...interface{}) error {
 	return basicError{
 		errorInfo: mkErrorInfo(cause, true, errCtx...),
@@ -195,10 +198,8 @@ func Wrap(msg string, cause error, errCtx ...interface{}) error {
 	}
 }
 
-// WrapNoStack returns an error that associates the given error, with the given cause
-// (an underlying error) unless nil, and the given context. A stack dump is not added.
-// if cause is a basicError that contains a stack dump, that stack dump is preserved. The returned
-// error supports Is. Is(cause) returns true.
+// WrapNoStack behaves like [Wrap], except that no stack dump is added, regardless of cause's
+// underlying type.
 func WrapNoStack(msg string, cause error, errCtx ...interface{}) error {
 	return basicError{
 		errorInfo: mkErrorInfo(cause, false, errCtx...),
@@ -247,18 +248,18 @@ func (e joinedError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 // Join returns an error that associates the given error, with the given cause (an underlying error)
 // unless nil, and the given context.
 //
-// A stack dump is added unless cause is a basicError (in which case it is assume to contain a stack
-// dump).
+// A stack dump is added unless cause is a basicError or joinedError (in which case it is assumed to
+// contain a stack dump).
 //
 // The returned error supports Is. If cause isn't nil, Is(cause) returns true. Is(error) returns
 // true.
 //
 // This is best used as an alternative to [Wrap] when deriving an error from a sentinel error. If
-// there is an underlying error it may be used as the cause (with the same effect as Wrap(). If
+// there is an underlying error it may be used as the cause (with the same effect as [Wrap]. When
 // creating a new error (not due to an underlying error) nil may be passed as the cause. In that
 // case the result is a sentinel error enriched with context. For such a purpose this is better than
-// Wrap, since wrap would retain any irrelevant context possibly attached to the sentinel error and
-// store a redundant message string.
+// [Wrap], since [Wrap] would retain any irrelevant context possibly attached to the sentinel error
+// and store a redundant message string.
 func Join(err, cause error, errCtx ...interface{}) error {
 	if err == nil && cause == nil {
 		// Pointless. Will not. Also, maintaining backward compatibility with
@@ -271,14 +272,8 @@ func Join(err, cause error, errCtx ...interface{}) error {
 	}
 }
 
-// JoinNoStack returns an error that associates the given error, with the given cause
-// (an underlying error) unless nil, and the given context.
-//
-// A stack dump is not added. If cause is a basicError and contain a stack dump. That stack dump is
-// preserved.
-//
-// The returned error supports Is. If cause isn't nil, Is(cause) returns true. Is(error) returns
-// true.
+// JoinNoStack behaves like [Join] except that no stack dump is added regardless of cause's
+// underlying type.
 func JoinNoStack(err, cause error, errCtx ...interface{}) error {
 	if err == nil && cause == nil {
 		// Pointless. Will not.

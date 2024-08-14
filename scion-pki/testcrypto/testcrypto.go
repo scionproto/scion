@@ -486,7 +486,7 @@ func flatten(out outConfig) error {
 	for _, trc := range trcs {
 		_, name := filepath.Split(trc)
 		if err := copyFile(filepath.Join(out.base, "trcs", name), trc); err != nil {
-			return serrors.WrapNoStack("error", err, "file", trc)
+			return serrors.Wrap("copying", err, "file", trc)
 		}
 	}
 
@@ -506,7 +506,7 @@ func flatten(out outConfig) error {
 	for _, file := range append(pems, crts...) {
 		_, name := filepath.Split(file)
 		if err := copyFile(filepath.Join(out.base, "certs", name), file); err != nil {
-			return serrors.WrapNoStack("error", err, "file", file)
+			return serrors.Wrap("copying", err, "file", file)
 		}
 	}
 	return nil

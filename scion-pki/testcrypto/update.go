@@ -377,7 +377,7 @@ func signTRC(pld cppki.TRC, signers map[*x509.Certificate]crypto.Signer) (cppki.
 	}
 	for cert, key := range signers {
 		if err := sd.AddSignerInfo([]*x509.Certificate{cert}, key); err != nil {
-			return cppki.SignedTRC{}, serrors.WrapNoStack("error", err,
+			return cppki.SignedTRC{}, serrors.Wrap("adding signer info", err,
 				"common_name", cert.Subject.CommonName)
 		}
 
