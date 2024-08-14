@@ -162,7 +162,7 @@ func verifyBundle(signed cppki.SignedTRC, certs []*x509.Certificate) error {
 	}
 	for i, si := range signed.SignerInfos {
 		if err := verifySignerInfo(si, signed.TRC.Raw, certs); err != nil {
-			return serrors.WrapNoStack("error", err, "index", i)
+			return serrors.WrapNoStack("verifying signer info", err, "index", i)
 		}
 	}
 	return nil
