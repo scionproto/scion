@@ -185,6 +185,7 @@ class RouterBM():
         output = self.exec_br_load(case, map_args, 13)
         end = "0"
         for line in output.splitlines():
+            logger.info("BrLoad output: " + line)
             if line.startswith("metricsBegin"):
                 end = line.split()[3]  # "... metricsEnd: <end>"
 
@@ -322,7 +323,8 @@ class RouterBM():
         self.exec_br_load(test_cases[0], map_args, 5)
 
         # Fetch the core count once. It doesn't change while the router is running.
-        # We can't get it until the router has done some work, but the warmup is enough.
+        # We cannot get this until the router has been up for a few seconds. If you shorten
+        # the warmup for some reason, make sure to add a delay.
         cores = self.core_count()
 
         # At long last, run the tests.
