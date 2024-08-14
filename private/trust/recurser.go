@@ -53,7 +53,6 @@ func (r ASLocalRecurser) AllowRecursion(peer net.Addr) error {
 		if !r.IA.Equal(a.IA) {
 			return serrors.Wrap("client outside local AS", ErrRecursionNotAllowed,
 				"addr", peer)
-
 		}
 		return nil
 	case *net.TCPAddr:
@@ -62,7 +61,6 @@ func (r ASLocalRecurser) AllowRecursion(peer net.Addr) error {
 	default:
 		return serrors.Wrap("unable to determine AS of peer", ErrRecursionNotAllowed,
 			"addr", peer, "type", common.TypeOf(peer))
-
 	}
 }
 
