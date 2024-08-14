@@ -224,6 +224,7 @@ func run(cmd *cobra.Command) int {
 				binary.BigEndian.PutUint16(allPkts[j][44:46], uint16(numPkt%int(numStreams)))
 				numPkt++
 			}
+
 			if _, err := sender.sendAll(); err != nil {
 				log.Error("writing input packet", "case", string(caseToRun), "error", err)
 				return 1
@@ -303,7 +304,7 @@ func openDevices(interfaceNames []string) (map[string]*afpacket.TPacket, error) 
 	handles := make(map[string]*afpacket.TPacket)
 
 	for _, intf := range interfaceNames {
-		handle, err := afpacket.NewTPacket(afpacket.OptInterface(intf))
+		handle, err := afpacket.NewTPacket(afpacket.OptInterface(intf), afpacket.OptFrameSize(4096))
 		if err != nil {
 			return nil, serrors.Wrap("creating TPacket", err)
 		}

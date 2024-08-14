@@ -252,6 +252,13 @@ func realMain(ctx context.Context) error {
 		beaconDB,
 		topo.Core(),
 		globalCfg.BS.Policies,
+		trust.FetchingProvider{
+			DB:       trustDB,
+			Recurser: trust.NeverRecurser{},
+			// XXX(roosd): Do not set fetcher or router because they are not
+			// used and we rather panic if they are reached due to a implementation
+			// bug.
+		},
 	)
 	if err != nil {
 		return serrors.Wrap("initializing beacon store", err)
@@ -826,6 +833,7 @@ func createBeaconStore(
 	db storage.BeaconDB,
 	core bool,
 	policyConfig config.Policies,
+	provider beacon.ChainProvider,
 ) (cs.Store, bool, error) {
 
 	if core {
@@ -833,14 +841,14 @@ func createBeaconStore(
 		if err != nil {
 			return nil, false, err
 		}
-		store, err := beacon.NewCoreBeaconStore(policies, db)
+		store, err := beacon.NewCoreBeaconStore(policies, db, beacon.WithCheckChain(provider))
 		return store, *policies.Prop.Filter.AllowIsdLoop, err
 	}
 	policies, err := cs.LoadNonCorePolicies(policyConfig)
 	if err != nil {
 		return nil, false, err
 	}
-	store, err := beacon.NewBeaconStore(policies, db)
+	store, err := beacon.NewBeaconStore(policies, db, beacon.WithCheckChain(provider))
 	return store, *policies.Prop.Filter.AllowIsdLoop, err
 }
 

@@ -143,11 +143,17 @@ local function scion_proto_filter(tvbuf, pktinfo, root)
     local addr_type_src_valid = (addrTypes[bit.band(tvbuf(9, 1):uint(), 0xf)] ~= nil)
     local rsv_valid = (tvbuf(10, 2):uint() == 0)
     
-    if version_valid and next_hdr_valid and path_type_valid and addr_type_dst_valid and addr_type_src_valid and rsv_valid then
-       pktinfo.conversation = scion_proto
-       return true
+    if not (version_valid and next_hdr_valid and path_type_valid and addr_type_dst_valid and addr_type_src_valid and rsv_valid) then
+       return false
     end
-    return false
+
+    -- This looks like a SCION packet, dissect it.
+    scion_proto.dissector(tvbuf, pktinfo, root)
+    -- Set the scion_proto dissector for the conversation, so that all packets with the same
+    -- 4-tuple use directly the scion_proto dissector (instead of calling again this
+    -- heuristic function).
+    pktinfo.conversation = scion_proto
+    return true
 end
 
 function scion_proto.dissector(tvbuf, pktinfo, root)
