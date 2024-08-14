@@ -294,12 +294,8 @@ func (p *propagator) Propagate(ctx context.Context) error {
 			if err := p.extender.Extend(ctx, b.Segment, b.InIfID, egress, p.peers); err != nil {
 				logger.Error("Unable to extend beacon",
 					"egress_interface", egress,
-<<<<<<< Updated upstream
-					"beacon.ingress_interface", b.InIfID,
-=======
 					"beacon.id", id,
-					"beacon.ingress_interface", b.InIfId,
->>>>>>> Stashed changes
+					"beacon.ingress_interface", b.InIfID,
 					"beacon.segment", hopsDescription(b.Segment.ASEntries),
 					"err", err,
 				)
@@ -311,12 +307,8 @@ func (p *propagator) Propagate(ctx context.Context) error {
 			if err := sender.Send(ctx, b.Segment); err != nil {
 				logger.Info("Unable to send beacon",
 					"egress_interface", egress,
-<<<<<<< Updated upstream
-					"beacon.ingress_interface", b.InIfID,
-=======
 					"beacon.id", id,
-					"beacon.ingress_interface", b.InIfId,
->>>>>>> Stashed changes
+					"beacon.ingress_interface", b.InIfID,
 					"beacon.segment", hopsDescription(b.Segment.ASEntries),
 					"waited_for", time.Since(sendStart).String(),
 					"err", err,
