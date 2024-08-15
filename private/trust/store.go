@@ -129,7 +129,7 @@ func LoadTRCs(ctx context.Context, dir string, db DB) (LoadResult, error) {
 	for _, f := range files {
 		raw, err := os.ReadFile(f)
 		if err != nil {
-			return res, serrors.WrapNoStack("error", err, "file", f)
+			return res, serrors.WrapNoStack("reading TRC", err, "file", f)
 		}
 		block, _ := pem.Decode(raw)
 		if block != nil && block.Type == "TRC" {
@@ -137,7 +137,7 @@ func LoadTRCs(ctx context.Context, dir string, db DB) (LoadResult, error) {
 		}
 		trc, err := cppki.DecodeSignedTRC(raw)
 		if err != nil {
-			return res, serrors.WrapNoStack("error", err, "file", f)
+			return res, serrors.WrapNoStack("parsing TRC", err, "file", f)
 		}
 		if time.Now().Before(trc.TRC.Validity.NotBefore) {
 			res.Ignored[f] = serrors.New("TRC in the future", "validity", trc.TRC.Validity)
@@ -145,7 +145,7 @@ func LoadTRCs(ctx context.Context, dir string, db DB) (LoadResult, error) {
 		}
 		inserted, err := db.InsertTRC(ctx, trc)
 		if err != nil {
-			return res, serrors.WrapNoStack("error", err, "file", f)
+			return res, serrors.WrapNoStack("adding TRC to DB", err, "file", f)
 		}
 		if !inserted {
 			res.Ignored[f] = serrors.JoinNoStack(ErrAlreadyExists, err)
