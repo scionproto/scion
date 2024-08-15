@@ -38,11 +38,11 @@ var (
 func InitMac(key []byte) (hash.Hash, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, serrors.Wrap(ErrCipherFailure, err)
+		return nil, serrors.JoinNoStack(ErrCipherFailure, err)
 	}
 	mac, err := cmac.New(block)
 	if err != nil {
-		return nil, serrors.Wrap(ErrMacFailure, err)
+		return nil, serrors.JoinNoStack(ErrMacFailure, err)
 	}
 	return mac, nil
 }

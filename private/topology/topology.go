@@ -180,7 +180,7 @@ func RWTopologyFromJSONBytes(b []byte) (*RWTopology, error) {
 	}
 	ct, err := RWTopologyFromJSONTopology(rt)
 	if err != nil {
-		return nil, serrors.WrapStr("unable to convert raw topology to topology", err)
+		return nil, serrors.Wrap("unable to convert raw topology to topology", err)
 	}
 	return ct, nil
 }
@@ -262,7 +262,7 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 		}
 		intAddr, err := resolveAddrPort(rawBr.InternalAddr)
 		if err != nil {
-			return serrors.WrapStr("unable to extract underlay internal data-plane address", err)
+			return serrors.Wrap("unable to extract underlay internal data-plane address", err)
 		}
 		brInfo := BRInfo{
 			Name:         name,
@@ -310,12 +310,14 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 				continue
 			}
 			if ifinfo.Local, err = rawBRIntfLocalAddr(&rawIntf.Underlay); err != nil {
-				return serrors.WrapStr("unable to extract "+
+				return serrors.Wrap("unable to extract "+
 					"underlay external data-plane local address", err)
+
 			}
 			if ifinfo.Remote, err = resolveAddrPort(rawIntf.Underlay.Remote); err != nil {
-				return serrors.WrapStr("unable to extract "+
+				return serrors.Wrap("unable to extract "+
 					"underlay external data-plane remote address", err)
+
 			}
 			brInfo.IFs[ifID] = &ifinfo
 			t.IFInfoMap[ifID] = ifinfo
@@ -332,23 +334,23 @@ func (t *RWTopology) populateServices(raw *jsontopo.Topology) error {
 	var err error
 	t.CS, err = svcMapFromRaw(raw.ControlService)
 	if err != nil {
-		return serrors.WrapStr("unable to extract CS address", err)
+		return serrors.Wrap("unable to extract CS address", err)
 	}
 	t.SIG, err = gatewayMapFromRaw(raw.SIG)
 	if err != nil {
-		return serrors.WrapStr("unable to extract SIG address", err)
+		return serrors.Wrap("unable to extract SIG address", err)
 	}
 	t.DS, err = svcMapFromRaw(raw.DiscoveryService)
 	if err != nil {
-		return serrors.WrapStr("unable to extract DS address", err)
+		return serrors.Wrap("unable to extract DS address", err)
 	}
 	t.HiddenSegmentLookup, err = svcMapFromRaw(raw.HiddenSegmentLookup)
 	if err != nil {
-		return serrors.WrapStr("unable to extract hidden segment lookup address", err)
+		return serrors.Wrap("unable to extract hidden segment lookup address", err)
 	}
 	t.HiddenSegmentRegistration, err = svcMapFromRaw(raw.HiddenSegmentReg)
 	if err != nil {
-		return serrors.WrapStr("unable to extract hidden segment registration address", err)
+		return serrors.Wrap("unable to extract hidden segment registration address", err)
 	}
 	return nil
 }
@@ -512,8 +514,9 @@ func svcMapFromRaw(ras map[string]*jsontopo.ServerInfo) (IDAddrMap, error) {
 	for name, svc := range ras {
 		a, err := resolveAddrPort(svc.Addr)
 		if err != nil {
-			return nil, serrors.WrapStr("could not parse address", err,
+			return nil, serrors.Wrap("could not parse address", err,
 				"address", svc.Addr, "process_name", name)
+
 		}
 		svcTopoAddr := &TopoAddr{
 			SCIONAddress:    net.UDPAddrFromAddrPort(a),
@@ -529,13 +532,15 @@ func gatewayMapFromRaw(ras map[string]*jsontopo.GatewayInfo) (map[string]Gateway
 	for name, svc := range ras {
 		c, err := resolveAddrPort(svc.CtrlAddr)
 		if err != nil {
-			return nil, serrors.WrapStr("could not parse control address", err,
+			return nil, serrors.Wrap("could not parse control address", err,
 				"address", svc.CtrlAddr, "process_name", name)
+
 		}
 		d, err := resolveAddrPort(svc.DataAddr)
 		if err != nil {
-			return nil, serrors.WrapStr("could not parse data address", err,
+			return nil, serrors.Wrap("could not parse data address", err,
 				"address", svc.DataAddr, "process_name", name)
+
 		}
 		// backward compatibility: if no probe address is specified just use the
 		// default (ctrl address & port 30856):
@@ -543,8 +548,9 @@ func gatewayMapFromRaw(ras map[string]*jsontopo.GatewayInfo) (map[string]Gateway
 		if svc.ProbeAddr != "" {
 			probeAddr, err = resolveAddrPort(svc.ProbeAddr)
 			if err != nil {
-				return nil, serrors.WrapStr("could not parse probe address", err,
+				return nil, serrors.Wrap("could not parse probe address", err,
 					"address", svc.ProbeAddr, "process_name", name)
+
 			}
 		}
 

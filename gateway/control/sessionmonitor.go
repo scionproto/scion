@@ -190,7 +190,7 @@ func (m *SessionMonitor) setupInternalState(ctx context.Context) error {
 	}
 	raw, err := proto.Marshal(probe)
 	if err != nil {
-		return serrors.WrapStr("marshaling probe", err)
+		return serrors.Wrap("marshaling probe", err)
 	}
 	m.rawProbe = raw
 	m.receivedProbe = make(chan struct{})
@@ -298,7 +298,7 @@ func (m *SessionMonitor) drainConn(ctx context.Context) {
 func (m *SessionMonitor) handlePkt(raw []byte) error {
 	var ctrl gatewaypb.ControlResponse
 	if err := proto.Unmarshal(raw, &ctrl); err != nil {
-		return serrors.WrapStr("parsing control response", err)
+		return serrors.Wrap("parsing control response", err)
 	}
 	probe, ok := ctrl.Response.(*gatewaypb.ControlResponse_Probe)
 	if !ok {

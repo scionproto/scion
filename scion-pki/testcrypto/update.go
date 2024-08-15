@@ -91,7 +91,7 @@ Scenarios:
 			for _, file := range files {
 				trc, err := trcs.DecodeFromFile(file)
 				if err != nil {
-					return serrors.WrapStr("loading TRC", err, "file", file)
+					return serrors.Wrap("loading TRC", err, "file", file)
 				}
 				if trc.TRC.ID.Serial > isds[trc.TRC.ID.ISD].TRC.ID.Serial {
 					isds[trc.TRC.ID.ISD] = trc
@@ -108,11 +108,11 @@ Scenarios:
 				switch flags.scenario {
 				case "extend":
 					if err := extendTRC(now, out, predecessor); err != nil {
-						return serrors.WrapStr("generating extension", err, "isd", isd)
+						return serrors.Wrap("generating extension", err, "isd", isd)
 					}
 				case "re-sign":
 					if err := resignTRC(now, out, predecessor); err != nil {
-						return serrors.WrapStr("re-signing", err)
+						return serrors.Wrap("re-signing", err)
 					}
 				case "re-gen":
 					if err := regenTRC(now, out, predecessor); err != nil {
@@ -154,15 +154,15 @@ func extendTRC(now time.Time, out outConfig, predecessor cppki.SignedTRC) error 
 		case cppki.Regular:
 			key, err := findkey(cryptoVotingDir(ia, out), cert)
 			if err != nil {
-				return serrors.WrapStr("searching key", err, "isd_as", ia, "type", t)
+				return serrors.Wrap("searching key", err, "isd_as", ia, "type", t)
 			}
 			extended, err := extendCert(now, cert, key)
 			if err != nil {
-				return serrors.WrapStr("creating certificate", err, "isd_as", ia, "type", t)
+				return serrors.Wrap("creating certificate", err, "isd_as", ia, "type", t)
 			}
 			file := filepath.Join(out.base, "certs", regularCertName(ia, int(id.Serial)))
 			if err := writeCert(file, extended); err != nil {
-				return serrors.WrapStr("writing certificate", err, "isd_as", ia, "type", t)
+				return serrors.Wrap("writing certificate", err, "isd_as", ia, "type", t)
 			}
 			// Cast vote and show proof of possession.
 			signers[cert] = key
@@ -172,15 +172,15 @@ func extendTRC(now time.Time, out outConfig, predecessor cppki.SignedTRC) error 
 		case cppki.Root:
 			key, err := findkey(cryptoCADir(ia, out), cert)
 			if err != nil {
-				return serrors.WrapStr("searching key", err, "isd_as", ia, "type", t)
+				return serrors.Wrap("searching key", err, "isd_as", ia, "type", t)
 			}
 			extended, err := extendCert(now, cert, key)
 			if err != nil {
-				return serrors.WrapStr("creating certificate", err, "isd_as", ia, "type", t)
+				return serrors.Wrap("creating certificate", err, "isd_as", ia, "type", t)
 			}
 			file := filepath.Join(out.base, "certs", rootCertName(ia, int(id.Serial)))
 			if err := writeCert(file, extended); err != nil {
-				return serrors.WrapStr("writing certificate", err, "isd_as", ia, "type", t)
+				return serrors.Wrap("writing certificate", err, "isd_as", ia, "type", t)
 			}
 			// Show acknowledgment
 			signers[cert] = key
@@ -207,7 +207,7 @@ func extendTRC(now time.Time, out outConfig, predecessor cppki.SignedTRC) error 
 	}
 	trc, err := signTRC(pld, signers)
 	if err != nil {
-		return serrors.WrapStr("signing TRC", err)
+		return serrors.Wrap("signing TRC", err)
 	}
 	return writeTRC(out, trc)
 }
@@ -228,7 +228,7 @@ func resignTRC(now time.Time, out outConfig, predecessor cppki.SignedTRC) error 
 		if t == cppki.Regular {
 			key, err := findkey(cryptoVotingDir(ia, out), cert)
 			if err != nil {
-				return serrors.WrapStr("searching key", err, "isd_as", ia, "type", t)
+				return serrors.Wrap("searching key", err, "isd_as", ia, "type", t)
 			}
 			signers[cert] = key
 			votes = append(votes, i)
@@ -257,7 +257,7 @@ func resignTRC(now time.Time, out outConfig, predecessor cppki.SignedTRC) error 
 	}
 	trc, err := signTRC(pld, signers)
 	if err != nil {
-		return serrors.WrapStr("signing TRC", err)
+		return serrors.Wrap("signing TRC", err)
 	}
 	return writeTRC(out, trc)
 }
@@ -286,7 +286,7 @@ func regenTRC(now time.Time, out outConfig, predecessor cppki.SignedTRC) error {
 			dir := cryptoVotingDir(ia, out)
 			key, err := findkey(dir, cert)
 			if err != nil {
-				return serrors.WrapStr("searching key", err, "isd_as", ia, "type", t)
+				return serrors.Wrap("searching key", err, "isd_as", ia, "type", t)
 			}
 			newKey, err := createKey(fmt.Sprintf("%s/sensitive-voting.s%d.key", dir, id.Serial))
 			if err != nil {
@@ -294,11 +294,11 @@ func regenTRC(now time.Time, out outConfig, predecessor cppki.SignedTRC) error {
 			}
 			newCert, err := extendCert(now, cert, newKey)
 			if err != nil {
-				return serrors.WrapStr("creating certificate", err, "isd_as", ia, "type", t)
+				return serrors.Wrap("creating certificate", err, "isd_as", ia, "type", t)
 			}
 			file := filepath.Join(out.base, "certs", sensitiveCertName(ia, int(id.Serial)))
 			if err := writeCert(file, newCert); err != nil {
-				return serrors.WrapStr("writing certificate", err, "isd_as", ia, "type", t)
+				return serrors.Wrap("writing certificate", err, "isd_as", ia, "type", t)
 			}
 			// Cast vote and show proof of possession.
 			signers[cert] = key
@@ -313,11 +313,11 @@ func regenTRC(now time.Time, out outConfig, predecessor cppki.SignedTRC) error {
 			}
 			newCert, err := extendCert(now, cert, newKey)
 			if err != nil {
-				return serrors.WrapStr("creating certificate", err, "isd_as", ia, "type", t)
+				return serrors.Wrap("creating certificate", err, "isd_as", ia, "type", t)
 			}
 			file := filepath.Join(out.base, "certs", regularCertName(ia, int(id.Serial)))
 			if err := writeCert(file, newCert); err != nil {
-				return serrors.WrapStr("writing certificate", err, "isd_as", ia, "type", t)
+				return serrors.Wrap("writing certificate", err, "isd_as", ia, "type", t)
 			}
 			// Show proof of possession.
 			signers[newCert] = newKey
@@ -330,11 +330,11 @@ func regenTRC(now time.Time, out outConfig, predecessor cppki.SignedTRC) error {
 			}
 			newCert, err := extendCert(now, cert, newKey)
 			if err != nil {
-				return serrors.WrapStr("creating certificate", err, "isd_as", ia, "type", t)
+				return serrors.Wrap("creating certificate", err, "isd_as", ia, "type", t)
 			}
 			file := filepath.Join(out.base, "certs", rootCertName(ia, int(id.Serial)))
 			if err := writeCert(file, newCert); err != nil {
-				return serrors.WrapStr("writing certificate", err, "isd_as", ia, "type", t)
+				return serrors.Wrap("writing certificate", err, "isd_as", ia, "type", t)
 			}
 			include = append(include, newCert)
 		}
@@ -357,7 +357,7 @@ func regenTRC(now time.Time, out outConfig, predecessor cppki.SignedTRC) error {
 	}
 	trc, err := signTRC(pld, signers)
 	if err != nil {
-		return serrors.WrapStr("signing TRC", err)
+		return serrors.Wrap("signing TRC", err)
 	}
 	return writeTRC(out, trc)
 }
@@ -377,7 +377,8 @@ func signTRC(pld cppki.TRC, signers map[*x509.Certificate]crypto.Signer) (cppki.
 	}
 	for cert, key := range signers {
 		if err := sd.AddSignerInfo([]*x509.Certificate{cert}, key); err != nil {
-			return cppki.SignedTRC{}, serrors.WithCtx(err, "common_name", cert.Subject.CommonName)
+			return cppki.SignedTRC{}, serrors.Wrap("adding signer info", err,
+				"common_name", cert.Subject.CommonName)
 		}
 
 	}
@@ -435,7 +436,7 @@ func createKey(file string) (crypto.Signer, error) {
 		return nil, serrors.New("failed to pack private key")
 	}
 	if err := os.WriteFile(file, raw, 0644); err != nil {
-		return nil, serrors.WrapStr("writing private key", err)
+		return nil, serrors.Wrap("writing private key", err)
 	}
 	return key, nil
 }
@@ -446,7 +447,7 @@ func extendCert(now time.Time, cert *x509.Certificate,
 	// Choose random serial number.
 	serial := make([]byte, 20)
 	if _, err := rand.Read(serial); err != nil {
-		return nil, serrors.WrapStr("creating random serial number", err)
+		return nil, serrors.Wrap("creating random serial number", err)
 	}
 	// ExtraNames are used for marshaling
 	subject := cert.Subject
@@ -481,7 +482,7 @@ func writeCert(file string, cert *x509.Certificate) error {
 func writeTRC(out outConfig, trc cppki.SignedTRC) error {
 	raw, err := trc.Encode()
 	if err != nil {
-		return serrors.WrapStr("encoding TRC", err)
+		return serrors.Wrap("encoding TRC", err)
 	}
 	file := filepath.Join(out.base, "trcs",
 		fmt.Sprintf("ISD%d-B%d-S%d.trc", trc.TRC.ID.ISD, trc.TRC.ID.Base, trc.TRC.ID.Serial))

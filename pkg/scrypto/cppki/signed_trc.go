@@ -38,26 +38,27 @@ type SignedTRCs []SignedTRC
 func DecodeSignedTRC(raw []byte) (SignedTRC, error) {
 	ci, err := protocol.ParseContentInfo(raw)
 	if err != nil {
-		return SignedTRC{}, serrors.WrapStr("error parsing ContentInfo", err)
+		return SignedTRC{}, serrors.Wrap("error parsing ContentInfo", err)
 	}
 	sd, err := ci.SignedDataContent()
 	if err != nil {
-		return SignedTRC{}, serrors.WrapStr("error parsing SignedData", err)
+		return SignedTRC{}, serrors.Wrap("error parsing SignedData", err)
 	}
 	if sd.Version != 1 {
 		return SignedTRC{}, serrors.New("unsupported SignedData version", "version", 1)
 	}
 	if !sd.EncapContentInfo.IsTypeData() {
-		return SignedTRC{}, serrors.WrapStr("unsupported EncapContentInfo type", err,
+		return SignedTRC{}, serrors.Wrap("unsupported EncapContentInfo type", err,
 			"type", sd.EncapContentInfo.EContentType)
+
 	}
 	praw, err := sd.EncapContentInfo.EContentValue()
 	if err != nil {
-		return SignedTRC{}, serrors.WrapStr("error reading raw payload", err)
+		return SignedTRC{}, serrors.Wrap("error reading raw payload", err)
 	}
 	trc, err := DecodeTRC(praw)
 	if err != nil {
-		return SignedTRC{}, serrors.WrapStr("error parsing TRC payload", err)
+		return SignedTRC{}, serrors.Wrap("error parsing TRC payload", err)
 	}
 	return SignedTRC{Raw: raw, TRC: trc, SignerInfos: sd.SignerInfos}, nil
 }
@@ -113,7 +114,7 @@ func (s *SignedTRC) verifyBase() error {
 		return err
 	}
 	if err := s.verifyAll(detectNewVoters(classified{}, certs)); err != nil {
-		return serrors.WrapStr("verifying signatures for new voters", err)
+		return serrors.Wrap("verifying signatures for new voters", err)
 
 	}
 	return nil
@@ -125,13 +126,13 @@ func (s *SignedTRC) verifyUpdate(predecessor *TRC) error {
 		return err
 	}
 	if err := s.verifyAll(update.NewVoters); err != nil {
-		return serrors.WrapStr("verifying signatures by new voters", err, "type", update.Type)
+		return serrors.Wrap("verifying signatures by new voters", err, "type", update.Type)
 	}
 	if err := s.verifyAll(update.RootAcknowledgments); err != nil {
-		return serrors.WrapStr("verifying root acknowledgments", err, "type", update.Type)
+		return serrors.Wrap("verifying root acknowledgments", err, "type", update.Type)
 	}
 	if err := s.verifyAll(update.Votes); err != nil {
-		return serrors.WrapStr("verifying votes", err, "type", update.Type)
+		return serrors.Wrap("verifying votes", err, "type", update.Type)
 	}
 	return nil
 }

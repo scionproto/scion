@@ -63,7 +63,7 @@ the expected ISD-AS value.
 			cmd.SilenceUsage = true
 			chain, err := cppki.ReadPEMCerts(args[0])
 			if err != nil {
-				return serrors.WrapStr("reading chain", err, "file", args[0])
+				return serrors.Wrap("reading chain", err, "file", args[0])
 			}
 			if len(chain) == 0 {
 				return serrors.New("file does not contain any certificate")
@@ -101,7 +101,7 @@ the expected ISD-AS value.
 				}
 			}
 			if err := cppki.VerifyChain(chain, opts); err != nil {
-				return serrors.WrapStr("verification failed", err)
+				return serrors.Wrap("verification failed", err)
 			}
 
 			fmt.Printf("Successfully verified certificate chain: %q\n", args[0])
@@ -148,14 +148,14 @@ The CA certificate must be a PEM encoded.
 			cmd.SilenceUsage = true
 			certs, err := cppki.ReadPEMCerts(args[0])
 			if err != nil {
-				return serrors.WrapStr("reading certificate", err, "file", args[0])
+				return serrors.Wrap("reading certificate", err, "file", args[0])
 			}
 			if len(certs) != 1 {
 				return serrors.New("file contains multiple certificates", "count", len(certs))
 			}
 			ct, err := cppki.ValidateCert(certs[0])
 			if err != nil {
-				return serrors.WrapStr("validating CA certificate", err)
+				return serrors.Wrap("validating CA certificate", err)
 			}
 			if ct != cppki.CA {
 				return serrors.New("certificate of wrong type", "type", ct)
@@ -167,7 +167,7 @@ The CA certificate must be a PEM encoded.
 			}
 			rootPool, err := trc.TRC.RootPool()
 			if err != nil {
-				return serrors.WrapStr("failed to extract root certificates from TRC", err)
+				return serrors.Wrap("failed to extract root certificates from TRC", err)
 			}
 			var currTime time.Time
 			if flags.unixTime != 0 {
@@ -179,7 +179,7 @@ The CA certificate must be a PEM encoded.
 				CurrentTime: currTime,
 			})
 			if err != nil {
-				return serrors.WrapStr("verification failed", err)
+				return serrors.Wrap("verification failed", err)
 			}
 
 			fmt.Printf("Successfully verified CA certificate: %q\n", args[0])
@@ -202,7 +202,7 @@ func loadTRC(trcFile string) (cppki.SignedTRC, error) {
 		raw = block.Bytes
 	}
 	if err != nil {
-		return cppki.SignedTRC{}, serrors.WrapStr("reading TRC", err, "file", trcFile)
+		return cppki.SignedTRC{}, serrors.Wrap("reading TRC", err, "file", trcFile)
 	}
 	return cppki.DecodeSignedTRC(raw)
 }
@@ -219,7 +219,7 @@ func loadTRCs(trcFiles []string) ([]*cppki.TRC, error) {
 		}
 		files, err := filepath.Glob(trcFile)
 		if err != nil {
-			return nil, serrors.WrapStr("resolving TRC glob pattern", err)
+			return nil, serrors.Wrap("resolving TRC glob pattern", err)
 		}
 		resolvedTRCFiles = append(resolvedTRCFiles, files...)
 	}
@@ -228,14 +228,14 @@ func loadTRCs(trcFiles []string) ([]*cppki.TRC, error) {
 	for _, trcFile := range resolvedTRCFiles {
 		signedTRC, err := loadTRC(trcFile)
 		if err != nil {
-			return nil, serrors.WrapStr("loading from disk", err)
+			return nil, serrors.Wrap("loading from disk", err)
 		}
 		signedTRCs = append(signedTRCs, signedTRC)
 	}
 
 	latestSignedTRCs, err := selectLatestTRCs(signedTRCs)
 	if err != nil {
-		return nil, serrors.WrapStr("selecting latest TRCs", err)
+		return nil, serrors.Wrap("selecting latest TRCs", err)
 	}
 	return trcSlice(latestSignedTRCs), nil
 }

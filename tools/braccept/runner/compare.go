@@ -93,7 +93,7 @@ func comparePkts(got, want gopacket.Packet, normalizeFn NormalizePacketFn) error
 	for _, l := range got.Layers() {
 		err = compareLayers(l, want.Layer(l.LayerType()))
 		if err != nil {
-			errors = append(errors, serrors.WrapStr("layer mismatch", err))
+			errors = append(errors, serrors.Wrap("layer mismatch", err))
 		}
 	}
 	return errors.ToError()

@@ -342,7 +342,7 @@ func (e *Engine) initWorkers(ctx context.Context) error {
 
 		deviceHandle, err := e.DeviceManager.Get(ctx, remoteIA)
 		if err != nil {
-			return serrors.WrapStr("getting tun device handle", err)
+			return serrors.Wrap("getting tun device handle", err)
 		}
 		e.deviceHandles = append(e.deviceHandles, deviceHandle)
 

@@ -65,9 +65,9 @@ func (h *Handler) verifyAndStore(ctx context.Context,
 	result.stats.verificationErrs(result.verifyErrs)
 	switch {
 	case err != nil:
-		result.err = serrors.Wrap(ErrDB, err)
+		result.err = serrors.JoinNoStack(ErrDB, err)
 	case result.stats.SegVerifyErrors() == units:
-		result.err = serrors.Wrap(ErrVerification, result.verifyErrs.ToError())
+		result.err = serrors.JoinNoStack(ErrVerification, result.verifyErrs.ToError())
 	}
 	return result
 }

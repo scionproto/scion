@@ -45,7 +45,7 @@ type Querier struct {
 func (q Querier) Query(ctx context.Context, dst addr.IA) ([]snet.Path, error) {
 	paths, err := q.Connector.Paths(ctx, dst, q.IA, PathReqFlags{})
 	if err != nil {
-		return paths, serrors.WrapStr("querying paths", err, "local_isd_as", q.IA)
+		return paths, serrors.Wrap("querying paths", err, "local_isd_as", q.IA)
 	}
 	return paths, nil
 }

@@ -58,7 +58,7 @@ func (s *Server) GetCertificates(
 		if ia, err := addr.ParseIA(*params.IsdAs); err == nil {
 			q.IA = ia
 		} else {
-			errs = append(errs, serrors.WithCtx(err, "parameter", "isd_as"))
+			errs = append(errs, serrors.Wrap("parsing isd_as", err, "parameter", "isd_as"))
 		}
 	}
 	if params.ValidAt != nil {

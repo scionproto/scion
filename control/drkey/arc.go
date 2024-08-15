@@ -30,7 +30,7 @@ type Level1ARC struct {
 func NewLevel1ARC(size int) (*Level1ARC, error) {
 	cache, err := arc.NewARC[Level1PrefetchInfo, struct{}](size)
 	if err != nil {
-		return nil, serrors.WrapStr("creating Level1ARC cache", err)
+		return nil, serrors.Wrap("creating Level1ARC cache", err)
 	}
 	return &Level1ARC{
 		cache: cache,

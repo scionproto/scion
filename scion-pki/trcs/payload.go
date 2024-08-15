@@ -60,7 +60,7 @@ To inspect the created asn.1 file you can use the openssl tool::
 			cmd.SilenceUsage = true
 			cfg, err := conf.LoadTRC(flags.tmpl)
 			if err != nil {
-				return serrors.WrapStr("failed to load template file", err)
+				return serrors.Wrap("failed to load template file", err)
 			}
 
 			pred, err := loadPredecessor(cfg.SerialVersion == cfg.BaseVersion, flags.pred)
@@ -70,18 +70,18 @@ To inspect the created asn.1 file you can use the openssl tool::
 			prepareCfg(&cfg, pred)
 			trc, err := CreatePayload(cfg)
 			if err != nil {
-				return serrors.WrapStr("failed to marshal TRC", err)
+				return serrors.Wrap("failed to marshal TRC", err)
 			}
 			if pred != nil {
 				update, err := trc.ValidateUpdate(pred)
 				if err != nil {
-					return serrors.WrapStr("validating update", err)
+					return serrors.Wrap("validating update", err)
 				}
 				printUpdate(update)
 			}
 			raw, err := trc.Encode()
 			if err != nil {
-				return serrors.WrapStr("encoding payload", err)
+				return serrors.Wrap("encoding payload", err)
 			}
 			if flags.format == "pem" {
 				raw = pem.EncodeToMemory(&pem.Block{
@@ -91,7 +91,7 @@ To inspect the created asn.1 file you can use the openssl tool::
 			}
 			err = os.WriteFile(flags.out, raw, 0644)
 			if err != nil {
-				return serrors.WrapStr("failed to write file", err, "file", flags.out)
+				return serrors.Wrap("failed to write file", err, "file", flags.out)
 			}
 			fmt.Printf("Successfully created payload at %s\n", flags.out)
 			return nil
@@ -120,7 +120,7 @@ func loadPredecessor(base bool, pred string) (*cppki.TRC, error) {
 	}
 	trc, err := DecodeFromFile(pred)
 	if err != nil {
-		return nil, serrors.WrapStr("loading predecessor TRC", err, "file", pred)
+		return nil, serrors.Wrap("loading predecessor TRC", err, "file", pred)
 	}
 	fmt.Println("Generating payload for TRC update.")
 	return &trc.TRC, nil

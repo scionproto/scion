@@ -119,7 +119,7 @@ func realMain(ctx context.Context) error {
 		Metrics:   metrics.TopoLoader,
 	})
 	if err != nil {
-		return serrors.WrapStr("creating topology loader", err)
+		return serrors.Wrap("creating topology loader", err)
 	}
 	g, errCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
@@ -143,7 +143,7 @@ func realMain(ctx context.Context) error {
 
 	closer, err := cs.InitTracer(globalCfg.Tracing, globalCfg.General.ID)
 	if err != nil {
-		return serrors.WrapStr("initializing tracer", err)
+		return serrors.Wrap("initializing tracer", err)
 	}
 	defer closer.Close()
 
@@ -151,7 +151,7 @@ func realMain(ctx context.Context) error {
 	defer revCache.Close()
 	pathDB, err := storage.NewPathStorage(globalCfg.PathDB)
 	if err != nil {
-		return serrors.WrapStr("initializing path storage", err)
+		return serrors.Wrap("initializing path storage", err)
 	}
 	pathDB = pathstoragemetrics.WrapDB(pathDB, pathstoragemetrics.Config{
 		Driver:       string(storage.BackendSqlite),
@@ -166,7 +166,7 @@ func realMain(ctx context.Context) error {
 
 	trustDB, err := storage.NewTrustStorage(globalCfg.TrustDB)
 	if err != nil {
-		return serrors.WrapStr("initializing trust storage", err)
+		return serrors.Wrap("initializing trust storage", err)
 	}
 	defer trustDB.Close()
 	fileWrites := libmetrics.NewPromCounter(metrics.TrustTRCFileWritesTotal)
@@ -224,11 +224,11 @@ func realMain(ctx context.Context) error {
 	}
 	quicStack, err := nc.QUICStack()
 	if err != nil {
-		return serrors.WrapStr("initializing QUIC stack", err)
+		return serrors.Wrap("initializing QUIC stack", err)
 	}
 	tcpStack, err := nc.TCPStack()
 	if err != nil {
-		return serrors.WrapStr("initializing TCP stack", err)
+		return serrors.Wrap("initializing TCP stack", err)
 	}
 	dialer := &libgrpc.QUICDialer{
 		Rewriter: &onehop.AddressRewriter{
@@ -240,7 +240,7 @@ func realMain(ctx context.Context) error {
 
 	beaconDB, err := storage.NewBeaconStorage(globalCfg.BeaconDB, topo.IA())
 	if err != nil {
-		return serrors.WrapStr("initializing beacon storage", err)
+		return serrors.Wrap("initializing beacon storage", err)
 	}
 	defer beaconDB.Close()
 	beaconDB = beaconstoragemetrics.WrapDB(beaconDB, beaconstoragemetrics.Config{
@@ -261,7 +261,7 @@ func realMain(ctx context.Context) error {
 		},
 	)
 	if err != nil {
-		return serrors.WrapStr("initializing beacon store", err)
+		return serrors.Wrap("initializing beacon store", err)
 	}
 
 	trustengineCache := globalCfg.TrustEngine.Cache.New()
@@ -594,11 +594,11 @@ func realMain(ctx context.Context) error {
 		log.Debug("DRKey debug info", "epoch duration", epochDuration.String())
 		masterKey, err := loadMasterSecret(globalCfg.General.ConfigDir)
 		if err != nil {
-			return serrors.WrapStr("loading master secret in DRKey", err)
+			return serrors.Wrap("loading master secret in DRKey", err)
 		}
 		svBackend, err := storage.NewDRKeySecretValueStorage(globalCfg.DRKey.SecretValueDB)
 		if err != nil {
-			return serrors.WrapStr("initializing Secret Value DB", err)
+			return serrors.Wrap("initializing Secret Value DB", err)
 		}
 		svCounter := libmetrics.NewPromCounter(metrics.DRKeySecretValueQueriesTotal)
 		svDB := &secret.Database{
@@ -615,7 +615,7 @@ func realMain(ctx context.Context) error {
 		defer svDB.Close()
 		level1Backend, err := storage.NewDRKeyLevel1Storage(globalCfg.DRKey.Level1DB)
 		if err != nil {
-			return serrors.WrapStr("initializing DRKey DB", err)
+			return serrors.Wrap("initializing DRKey DB", err)
 		}
 		lvl1Counter := libmetrics.NewPromCounter(metrics.DRKeyLevel1QueriesTotal)
 		level1DB := &level1.Database{
@@ -670,7 +670,7 @@ func realMain(ctx context.Context) error {
 	g.Go(func() error {
 		defer log.HandlePanic()
 		if err := quicServer.Serve(quicStack.Listener); err != nil {
-			return serrors.WrapStr("serving gRPC/QUIC API", err)
+			return serrors.Wrap("serving gRPC/QUIC API", err)
 		}
 		return nil
 	})
@@ -678,7 +678,7 @@ func realMain(ctx context.Context) error {
 	g.Go(func() error {
 		defer log.HandlePanic()
 		if err := tcpServer.Serve(tcpStack); err != nil {
-			return serrors.WrapStr("serving gRPC/TCP API", err)
+			return serrors.Wrap("serving gRPC/TCP API", err)
 		}
 		return nil
 	})
@@ -720,7 +720,7 @@ func realMain(ctx context.Context) error {
 		g.Go(func() error {
 			defer log.HandlePanic()
 			if err := s.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				return serrors.WrapStr("serving service management API", err)
+				return serrors.Wrap("serving service management API", err)
 			}
 			return nil
 		})
@@ -810,7 +810,7 @@ func realMain(ctx context.Context) error {
 		EPIC:                      globalCfg.BS.EPIC,
 	})
 	if err != nil {
-		return serrors.WrapStr("starting periodic tasks", err)
+		return serrors.Wrap("starting periodic tasks", err)
 	}
 	defer tasks.Kill()
 	log.Info("Started periodic tasks")
@@ -1018,7 +1018,7 @@ func updateCAHealthMetrics(caHealthGauge libmetrics.Gauge, caStatus api.CAHealth
 func loadMasterSecret(dir string) (keyconf.Master, error) {
 	masterKey, err := keyconf.LoadMaster(filepath.Join(dir, "keys"))
 	if err != nil {
-		return keyconf.Master{}, serrors.WrapStr("error getting master secret", err)
+		return keyconf.Master{}, serrors.Wrap("error getting master secret", err)
 	}
 	return masterKey, nil
 }

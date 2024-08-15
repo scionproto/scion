@@ -78,7 +78,7 @@ func (i DBInspector) trcAttrs(ctx context.Context, isd addr.ISD) (map[addr.IA]At
 		Serial: scrypto.LatestVer,
 	})
 	if err != nil {
-		return nil, serrors.WrapStr("failed to load TRC from DB", err)
+		return nil, serrors.Wrap("failed to load TRC from DB", err)
 	}
 	if sTRC.IsZero() {
 		return nil, serrors.New("TRC not found")
@@ -104,13 +104,13 @@ func (i DBInspector) trcAttrs(ctx context.Context, isd addr.ISD) (map[addr.IA]At
 func rootIAs(trc cppki.TRC) ([]addr.IA, error) {
 	roots, err := trc.RootCerts()
 	if err != nil {
-		return nil, serrors.WrapStr("failed to extract root certs", err)
+		return nil, serrors.Wrap("failed to extract root certs", err)
 	}
 	rootIAs := make([]addr.IA, 0, len(roots))
 	for _, c := range roots {
 		ia, err := cppki.ExtractIA(c.Subject)
 		if err != nil {
-			return nil, serrors.WrapStr("failed to extract IA from root cert", err)
+			return nil, serrors.Wrap("failed to extract IA from root cert", err)
 		}
 		rootIAs = append(rootIAs, ia)
 	}

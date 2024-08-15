@@ -94,7 +94,7 @@ func (f *DefaultPathWatcherFactory) New(
 		Topology:          f.Topology,
 	}).OpenRaw(ctx, &net.UDPAddr{IP: f.LocalIP.AsSlice()})
 	if err != nil {
-		return nil, serrors.WrapStr("creating connection for probing", err)
+		return nil, serrors.Wrap("creating connection for probing", err)
 	}
 	return &pathWatcher{
 		remote:        remote,
@@ -348,7 +348,7 @@ func createPathWrap(path snet.Path) pathWrap {
 
 	var decoded scion.Decoded
 	if err := decoded.DecodeFromBytes(original.Raw); err != nil {
-		p.err = serrors.WrapStr("decoding path", err)
+		p.err = serrors.Wrap("decoding path", err)
 		return p
 	}
 	if len(decoded.InfoFields) > 0 {
@@ -362,7 +362,7 @@ func createPathWrap(path snet.Path) pathWrap {
 
 	alert, err := snetpath.NewSCIONFromDecoded(decoded)
 	if err != nil {
-		p.err = serrors.WrapStr("serializing path", err)
+		p.err = serrors.Wrap("serializing path", err)
 		return p
 	}
 	p.dpPath = alert

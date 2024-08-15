@@ -69,7 +69,7 @@ func (f *Fetcher) Fetch(ctx context.Context, reqs Requests, refresh bool) (Segme
 	// Load local and cached segments from DB
 	loadedSegs, fetchReqs, err := f.Resolver.Resolve(ctx, reqs, refresh)
 	if err != nil {
-		return Segments{}, serrors.Wrap(errDB, err)
+		return Segments{}, serrors.JoinNoStack(errDB, err)
 	}
 	if len(fetchReqs) == 0 {
 		return loadedSegs, nil
@@ -77,7 +77,7 @@ func (f *Fetcher) Fetch(ctx context.Context, reqs Requests, refresh bool) (Segme
 	// Forward and cache any requests that were not local / cached
 	fetchedSegs, err := f.Request(ctx, fetchReqs)
 	if err != nil {
-		err = serrors.Wrap(errFetch, err)
+		err = serrors.JoinNoStack(errFetch, err)
 	}
 	return append(loadedSegs, fetchedSegs...), err
 }
@@ -113,7 +113,7 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context,
 		r := f.ReplyHandler.Handle(ctx, replyToRecs(reply.Segments), reply.Peer)
 		if err := r.Err(); err != nil {
 			f.Metrics.SegRequests(labels.WithResult(metrics.ErrProcess)).Inc()
-			return segs, serrors.WrapStr("processing reply", err)
+			return segs, serrors.Wrap("processing reply", err)
 		}
 		if len(r.VerificationErrors()) > 0 {
 			log.FromCtx(ctx).Info("Errors during verification of segments/revocations",

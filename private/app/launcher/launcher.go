@@ -163,13 +163,15 @@ func (a *Application) executeCommand(ctx context.Context, shortName string) erro
 	a.config.SetConfigType("toml")
 	a.config.SetConfigFile(a.config.GetString(cfgConfigFile))
 	if err := a.config.ReadInConfig(); err != nil {
-		return serrors.WrapStr("loading generic server config from file", err,
+		return serrors.Wrap("loading generic server config from file", err,
 			"file", a.config.GetString(cfgConfigFile))
+
 	}
 
 	if err := libconfig.LoadFile(a.config.GetString(cfgConfigFile), a.TOMLConfig); err != nil {
-		return serrors.WrapStr("loading config from file", err,
+		return serrors.Wrap("loading config from file", err,
 			"file", a.config.GetString(cfgConfigFile))
+
 	}
 	a.TOMLConfig.InitDefaults()
 
@@ -187,13 +189,13 @@ func (a *Application) executeCommand(ctx context.Context, shortName string) erro
 	})
 
 	if err := log.Setup(a.getLogging(), opt); err != nil {
-		return serrors.WrapStr("initialize logging", err)
+		return serrors.Wrap("initialize logging", err)
 	}
 	defer log.Flush()
 	if a.RequiredIPs != nil {
 		ips, err := a.RequiredIPs()
 		if err != nil {
-			return serrors.WrapStr("loading required IPs", err)
+			return serrors.Wrap("loading required IPs", err)
 		}
 		WaitForNetworkReady(ctx, ips)
 	}
@@ -206,7 +208,7 @@ func (a *Application) executeCommand(ctx context.Context, shortName string) erro
 	exportBuildInfo()
 	prom.ExportElementID(a.config.GetString(cfgGeneralID))
 	if err := a.TOMLConfig.Validate(); err != nil {
-		return serrors.WrapStr("validate config", err)
+		return serrors.Wrap("validate config", err)
 	}
 
 	if a.Main == nil {

@@ -65,11 +65,11 @@ The output contains all the private keys that are authenticated by the certifica
 
 			certs, err := cppki.ReadPEMCerts(args[0])
 			if err != nil {
-				return serrors.WrapStr("parsing certificate", err, "file", args[0])
+				return serrors.Wrap("parsing certificate", err, "file", args[0])
 			}
 			certKey, err := x509.MarshalPKIXPublicKey(certs[0].PublicKey)
 			if err != nil {
-				return serrors.WrapStr("packing the certificate public key", err)
+				return serrors.Wrap("packing the certificate public key", err)
 			}
 
 			var keys []string
@@ -102,7 +102,7 @@ func loadPackedPublicFromPrivate(file string) ([]byte, error) {
 	}
 	pub, err := x509.MarshalPKIXPublicKey(key.Public())
 	if err != nil {
-		return nil, serrors.WrapStr("packing the public key", err)
+		return nil, serrors.Wrap("packing the public key", err)
 	}
 	return pub, nil
 }

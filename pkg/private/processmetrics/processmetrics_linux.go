@@ -202,8 +202,9 @@ func Init() error {
 	taskPath := filepath.Join(procfs.DefaultMountPoint, strconv.Itoa(me), "task")
 	taskDir, err := os.Open(taskPath)
 	if err != nil {
-		return serrors.WrapStr("Opening /proc/pid/task/ failed", err,
+		return serrors.Wrap("Opening /proc/pid/task/ failed", err,
 			"pid", me)
+
 	}
 
 	c := &procStatCollector{
@@ -214,13 +215,13 @@ func Init() error {
 	err = c.updateStat()
 	if err != nil {
 		// Ditch the broken collector. It won't do anything useful.
-		return serrors.WrapStr("First update failed", err)
+		return serrors.Wrap("First update failed", err)
 	}
 
 	// It works. Register it so prometheus milks it.
 	err = prometheus.Register(c)
 	if err != nil {
-		return serrors.WrapStr("Registration failed", err)
+		return serrors.Wrap("Registration failed", err)
 	}
 
 	return nil

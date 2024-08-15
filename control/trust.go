@@ -35,7 +35,7 @@ func LoadTrustMaterial(ctx context.Context, configDir string, db trust.DB) error
 	certsDir := filepath.Join(configDir, "certs")
 	loaded, err := trust.LoadTRCs(context.Background(), certsDir, db)
 	if err != nil {
-		return serrors.WrapStr("loading TRCs from disk", err)
+		return serrors.Wrap("loading TRCs from disk", err)
 	}
 	logger.Info("TRCs loaded", "files", loaded.Loaded)
 	for f, r := range loaded.Ignored {
@@ -48,7 +48,7 @@ func LoadTrustMaterial(ctx context.Context, configDir string, db trust.DB) error
 	localCertsDir := filepath.Join(configDir, "crypto/as")
 	loaded, err = trust.LoadChains(context.Background(), localCertsDir, db)
 	if err != nil {
-		return serrors.WrapStr("loading certificate chains from disk", err)
+		return serrors.Wrap("loading certificate chains from disk", err)
 	}
 	logger.Info("Certificate chains loaded", "files", loaded.Loaded)
 	for f, r := range loaded.Ignored {

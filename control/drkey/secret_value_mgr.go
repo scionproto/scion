@@ -56,7 +56,7 @@ func (s *secretValueBackend) getSecretValue(
 		return k, nil
 	}
 	if err != drkey.ErrKeyNotFound {
-		return drkey.SecretValue{}, serrors.WrapStr("retrieving SV from db", err)
+		return drkey.SecretValue{}, serrors.Wrap("retrieving SV from db", err)
 	}
 
 	idx := meta.Validity.Unix() / duration
@@ -65,11 +65,11 @@ func (s *secretValueBackend) getSecretValue(
 	epoch := drkey.NewEpoch(begin, end)
 	sv, err := drkey.DeriveSV(meta.ProtoId, epoch, s.masterKey)
 	if err != nil {
-		return drkey.SecretValue{}, serrors.WrapStr("deriving DRKey secret value", err)
+		return drkey.SecretValue{}, serrors.Wrap("deriving DRKey secret value", err)
 	}
 	err = s.db.InsertValue(ctx, sv.ProtoId, sv.Epoch)
 	if err != nil {
-		return drkey.SecretValue{}, serrors.WrapStr("inserting SV in persistence", err)
+		return drkey.SecretValue{}, serrors.Wrap("inserting SV in persistence", err)
 	}
 	return sv, nil
 }

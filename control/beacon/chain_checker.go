@@ -69,10 +69,10 @@ func (v chainChecker) Verify(ctx context.Context, signedMsg *cryptopb.SignedMess
 
 	var keyID cppb.VerificationKeyID
 	if err := proto.Unmarshal(hdr.VerificationKeyID, &keyID); err != nil {
-		return nil, serrors.WrapStr("parsing verification key ID", err)
+		return nil, serrors.Wrap("parsing verification key ID", err)
 	}
 	if len(keyID.SubjectKeyId) == 0 {
-		return nil, serrors.WrapStr("subject key ID must be set", err)
+		return nil, serrors.Wrap("subject key ID must be set", err)
 	}
 	ia := addr.IA(keyID.IsdAs)
 	if ia.IsWildcard() {
@@ -87,7 +87,7 @@ func (v chainChecker) Verify(ctx context.Context, signedMsg *cryptopb.SignedMess
 		Validity:     v.BoundValidity,
 	}
 	if err := v.checkChains(ctx, query); err != nil {
-		return nil, serrors.WrapStr("getting chains", err,
+		return nil, serrors.Wrap("getting chains", err,
 			"query.isd_as", query.IA,
 			"query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID),
 			"query.validity", query.Validity.String(),

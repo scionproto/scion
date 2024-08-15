@@ -392,11 +392,11 @@ func (p *Packet) Decode() error {
 	}
 	dstAddr, err := scionLayer.DstAddr()
 	if err != nil {
-		return serrors.WrapStr("extracting destination address", err)
+		return serrors.Wrap("extracting destination address", err)
 	}
 	srcAddr, err := scionLayer.SrcAddr()
 	if err != nil {
-		return serrors.WrapStr("extracting source address", err)
+		return serrors.Wrap("extracting source address", err)
 	}
 	p.Destination = SCIONAddress{IA: scionLayer.DstIA, Host: dstAddr}
 	p.Source = SCIONAddress{IA: scionLayer.SrcIA, Host: srcAddr}
@@ -407,7 +407,7 @@ func (p *Packet) Decode() error {
 	if l := scionLayer.Path.Len(); l != 0 {
 		rpath.Raw = make([]byte, l)
 		if err := scionLayer.Path.SerializeTo(rpath.Raw); err != nil {
-			return serrors.WrapStr("extracting path", err)
+			return serrors.Wrap("extracting path", err)
 		}
 	}
 	p.Path = rpath
@@ -566,10 +566,10 @@ func (p *Packet) Serialize() error {
 	scionLayer.DstIA = p.Destination.IA
 	scionLayer.SrcIA = p.Source.IA
 	if err := scionLayer.SetDstAddr(p.Destination.Host); err != nil {
-		return serrors.WrapStr("setting destination address", err)
+		return serrors.Wrap("setting destination address", err)
 	}
 	if err := scionLayer.SetSrcAddr(p.Source.Host); err != nil {
-		return serrors.WrapStr("setting source address", err)
+		return serrors.Wrap("setting source address", err)
 	}
 
 	// XXX(roosd): Currently, this does not take the extension headers
@@ -579,7 +579,7 @@ func (p *Packet) Serialize() error {
 	// At this point all the fields in the SCION header apart from the path
 	// and path type must be set already.
 	if err := p.Path.SetPath(&scionLayer); err != nil {
-		return serrors.WrapStr("setting path", err)
+		return serrors.Wrap("setting path", err)
 	}
 
 	packetLayers = append(packetLayers, &scionLayer)

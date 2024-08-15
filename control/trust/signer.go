@@ -43,7 +43,7 @@ func (s RenewingSigner) Sign(
 
 	signers, err := s.SignerGen.Generate(ctx)
 	if err != nil {
-		return nil, serrors.WrapStr("failed to generate signer", err)
+		return nil, serrors.Wrap("failed to generate signer", err)
 	}
 	now := time.Now()
 	signer, err := trust.LastExpiring(signers, cppki.Validity{
@@ -51,7 +51,7 @@ func (s RenewingSigner) Sign(
 		NotAfter:  now,
 	})
 	if err != nil {
-		return nil, serrors.WrapStr("selecting signer for current time", err)
+		return nil, serrors.Wrap("selecting signer for current time", err)
 	}
 	return signer.Sign(ctx, msg, associatedData...)
 }
@@ -60,7 +60,7 @@ func (s RenewingSigner) Sign(
 func (s RenewingSigner) SignCMS(ctx context.Context, msg []byte) ([]byte, error) {
 	signers, err := s.SignerGen.Generate(ctx)
 	if err != nil {
-		return nil, serrors.WrapStr("failed to generate signer", err)
+		return nil, serrors.Wrap("failed to generate signer", err)
 	}
 	now := time.Now()
 	signer, err := trust.LastExpiring(signers, cppki.Validity{
@@ -68,7 +68,7 @@ func (s RenewingSigner) SignCMS(ctx context.Context, msg []byte) ([]byte, error)
 		NotAfter:  now,
 	})
 	if err != nil {
-		return nil, serrors.WrapStr("selecting signer for current time", err)
+		return nil, serrors.Wrap("selecting signer for current time", err)
 	}
 	return signer.SignCMS(ctx, msg)
 }

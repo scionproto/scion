@@ -50,16 +50,16 @@ func (e *ClientEngine) GetASHostKey(
 		return k, nil
 	}
 	if err != drkey.ErrKeyNotFound {
-		return drkey.ASHostKey{}, serrors.WrapStr("looking up AS-HOST key in DB", err)
+		return drkey.ASHostKey{}, serrors.Wrap("looking up AS-HOST key in DB", err)
 	}
 
 	// if not, ask our CS for it
 	remoteKey, err := e.Fetcher.ASHostKey(ctx, meta)
 	if err != nil {
-		return drkey.ASHostKey{}, serrors.WrapStr("fetching AS-Host key from local CS", err)
+		return drkey.ASHostKey{}, serrors.Wrap("fetching AS-Host key from local CS", err)
 	}
 	if err = e.DB.InsertASHostKey(ctx, remoteKey); err != nil {
-		return drkey.ASHostKey{}, serrors.WrapStr("inserting AS-Host key in DB", err)
+		return drkey.ASHostKey{}, serrors.Wrap("inserting AS-Host key in DB", err)
 	}
 	return remoteKey, nil
 }
@@ -76,16 +76,16 @@ func (e *ClientEngine) GetHostASKey(
 		return k, nil
 	}
 	if err != drkey.ErrKeyNotFound {
-		return drkey.HostASKey{}, serrors.WrapStr("looking up Host-AS key in DB", err)
+		return drkey.HostASKey{}, serrors.Wrap("looking up Host-AS key in DB", err)
 	}
 
 	// if not, ask our CS for it
 	remoteKey, err := e.Fetcher.HostASKey(ctx, meta)
 	if err != nil {
-		return drkey.HostASKey{}, serrors.WrapStr("fetching Host-AS key from local CS", err)
+		return drkey.HostASKey{}, serrors.Wrap("fetching Host-AS key from local CS", err)
 	}
 	if err = e.DB.InsertHostASKey(ctx, remoteKey); err != nil {
-		return drkey.HostASKey{}, serrors.WrapStr("inserting Host-AS key in DB", err)
+		return drkey.HostASKey{}, serrors.Wrap("inserting Host-AS key in DB", err)
 	}
 	return remoteKey, nil
 }
@@ -103,16 +103,16 @@ func (e *ClientEngine) GetHostHostKey(
 		return k, nil
 	}
 	if err != drkey.ErrKeyNotFound {
-		return drkey.HostHostKey{}, serrors.WrapStr("looking up Host-Host key in DB", err)
+		return drkey.HostHostKey{}, serrors.Wrap("looking up Host-Host key in DB", err)
 	}
 
 	// if not, ask our CS for it
 	remoteKey, err := e.Fetcher.HostHostKey(ctx, meta)
 	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("fetching Host-Host key from local CS", err)
+		return drkey.HostHostKey{}, serrors.Wrap("fetching Host-Host key from local CS", err)
 	}
 	if err = e.DB.InsertHostHostKey(ctx, remoteKey); err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("inserting Host-Host key in DB", err)
+		return drkey.HostHostKey{}, serrors.Wrap("inserting Host-Host key in DB", err)
 	}
 	return remoteKey, nil
 }

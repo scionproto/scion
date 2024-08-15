@@ -56,18 +56,18 @@ The content is the symmetrics key in the specified format (base64 or pem with SY
 				return serrors.New("size must be a positive integer")
 			}
 			if err := file.CheckDirExists(filepath.Dir(filename)); err != nil {
-				return serrors.WrapStr("checking that directory of symmetric key exists", err)
+				return serrors.Wrap("checking that directory of symmetric key exists", err)
 			}
 			key, err := generatesymmetricKey(flags.size)
 			if err != nil {
-				return serrors.WrapStr("generating symmetric key", err)
+				return serrors.Wrap("generating symmetric key", err)
 			}
 			raw, err := encodesymmetricKey(key, flags.format)
 			if err != nil {
-				return serrors.WrapStr("encoding symmetric key", err)
+				return serrors.Wrap("encoding symmetric key", err)
 			}
 			if err := file.WriteFile(filename, raw, 0600, file.WithForce(flags.force)); err != nil {
-				return serrors.WrapStr("writing symmetric key", err)
+				return serrors.Wrap("writing symmetric key", err)
 			}
 			fmt.Printf("Symmetric key successfully written to %q\n", filename)
 			return nil

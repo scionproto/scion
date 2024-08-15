@@ -295,7 +295,7 @@ func (w *GatewayWatcher) validateParameters() error {
 		w.DiscoverTimeout = defaultGatewayDiscoveryTimeout
 	}
 	if err := w.Template.validateParameters(); err != nil {
-		return serrors.WrapStr("validating PrefixWatcher template", err)
+		return serrors.Wrap("validating PrefixWatcher template", err)
 	}
 	return nil
 }

@@ -71,7 +71,7 @@ func Sign(hdr Header, body []byte, signer crypto.Signer,
 		var err error
 		ts, err = ptypes.TimestampProto(hdr.Timestamp)
 		if err != nil {
-			return nil, serrors.WrapStr("converting timestamp", err)
+			return nil, serrors.Wrap("converting timestamp", err)
 		}
 	}
 
@@ -84,7 +84,7 @@ func Sign(hdr Header, body []byte, signer crypto.Signer,
 	}
 	rawHdr, err := proto.Marshal(inputHdr)
 	if err != nil {
-		return nil, serrors.WrapStr("packing header", err)
+		return nil, serrors.Wrap("packing header", err)
 	}
 	hdrAndBody := &cryptopb.HeaderAndBodyInternal{
 		Header: rawHdr,
@@ -92,7 +92,7 @@ func Sign(hdr Header, body []byte, signer crypto.Signer,
 	}
 	rawHdrAndBody, err := proto.Marshal(hdrAndBody)
 	if err != nil {
-		return nil, serrors.WrapStr("packing signature input", err)
+		return nil, serrors.Wrap("packing signature input", err)
 	}
 	input, algo := computeSignatureInput(hdr.SignatureAlgorithm, rawHdrAndBody, associatedData...)
 	signature, err := signer.Sign(rand.Reader, input, algo)
@@ -114,7 +114,7 @@ func Verify(signed *cryptopb.SignedMessage, key crypto.PublicKey,
 	}
 	hdr, body, err := extractHeaderAndBody(signed)
 	if err != nil {
-		return nil, serrors.WrapStr("extracting header", err)
+		return nil, serrors.Wrap("extracting header", err)
 	}
 	if l := associatedDataLen(associatedData...); l != hdr.AssociatedDataLength {
 		return nil, serrors.New("header specifies a different associated data length",

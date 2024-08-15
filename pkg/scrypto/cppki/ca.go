@@ -65,7 +65,7 @@ func (ca CAPolicy) CreateChain(csr *x509.CertificateRequest) ([]*x509.Certificat
 	// Choose random serial number.
 	serial := make([]byte, 20)
 	if _, err := rand.Read(serial); err != nil {
-		return nil, serrors.WrapStr("creating random serial number", err)
+		return nil, serrors.Wrap("creating random serial number", err)
 	}
 
 	// ExtraNames are used for marshaling
@@ -73,7 +73,7 @@ func (ca CAPolicy) CreateChain(csr *x509.CertificateRequest) ([]*x509.Certificat
 	subject.ExtraNames = subject.Names
 	skid, err := SubjectKeyID(csr.PublicKey)
 	if err != nil {
-		return nil, serrors.WrapStr("computing subject key ID", err)
+		return nil, serrors.Wrap("computing subject key ID", err)
 	}
 
 	// x509 stdlib selects the appropriate signature algorithm based on the curve.
@@ -100,15 +100,15 @@ func (ca CAPolicy) CreateChain(csr *x509.CertificateRequest) ([]*x509.Certificat
 	}
 	raw, err := x509.CreateCertificate(rand.Reader, tmpl, ca.Certificate, csr.PublicKey, ca.Signer)
 	if err != nil {
-		return nil, serrors.WrapStr("creating AS certificate", err)
+		return nil, serrors.Wrap("creating AS certificate", err)
 	}
 	as, err := x509.ParseCertificate(raw)
 	if err != nil {
-		return nil, serrors.WrapStr("parse created AS certificate", err)
+		return nil, serrors.Wrap("parse created AS certificate", err)
 	}
 	chain := []*x509.Certificate{as, ca.Certificate}
 	if err := ValidateChain(chain); err != nil {
-		return nil, serrors.WrapStr("created invalid AS certificate", err)
+		return nil, serrors.Wrap("created invalid AS certificate", err)
 	}
 	return chain, nil
 }

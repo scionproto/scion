@@ -197,11 +197,11 @@ A valid example for a JSON formatted template::
 			}
 			ct, err := parseCertType(flags.profile)
 			if err != nil {
-				return serrors.WrapStr("parsing profile", err)
+				return serrors.Wrap("parsing profile", err)
 			}
 			subject, err := createSubject(args[0], flags.commonName)
 			if err != nil {
-				return serrors.WrapStr("creating subject", err)
+				return serrors.Wrap("creating subject", err)
 			}
 
 			// Only check that the flags are set appropriately here.
@@ -224,14 +224,14 @@ A valid example for a JSON formatted template::
 			var encodedKey []byte
 			if flags.existingKey != "" {
 				if privKey, err = key.LoadPrivateKey(flags.existingKey); err != nil {
-					return serrors.WrapStr("loading existing private key", err)
+					return serrors.Wrap("loading existing private key", err)
 				}
 			} else {
 				if privKey, err = key.GeneratePrivateKey(flags.curve); err != nil {
-					return serrors.WrapStr("creating fresh private key", err)
+					return serrors.Wrap("creating fresh private key", err)
 				}
 				if encodedKey, err = key.EncodePEMPrivateKey(privKey); err != nil {
-					return serrors.WrapStr("encoding fresh private key", err)
+					return serrors.Wrap("encoding fresh private key", err)
 				}
 			}
 
@@ -240,13 +240,13 @@ A valid example for a JSON formatted template::
 			var caKey key.PrivateKey
 			if loadCA {
 				if caCertRaw, err = os.ReadFile(flags.ca); err != nil {
-					return serrors.WrapStr("read CA certificate", err)
+					return serrors.Wrap("read CA certificate", err)
 				}
 				if caCert, err = parseCertificate(caCertRaw); err != nil {
-					return serrors.WrapStr("parsing CA certificate", err)
+					return serrors.Wrap("parsing CA certificate", err)
 				}
 				if caKey, err = key.LoadPrivateKey(flags.caKey); err != nil {
-					return serrors.WrapStr("loading CA private key", err)
+					return serrors.Wrap("loading CA private key", err)
 				}
 			}
 			if isSelfSigned {
@@ -256,7 +256,7 @@ A valid example for a JSON formatted template::
 			if flags.csr {
 				csr, err := CreateCSR(ct, subject, privKey)
 				if err != nil {
-					return serrors.WrapStr("creating CSR", err)
+					return serrors.Wrap("creating CSR", err)
 				}
 				encodedCSR := pem.EncodeToMemory(&pem.Block{
 					Type:  "CERTIFICATE REQUEST",
@@ -268,7 +268,7 @@ A valid example for a JSON formatted template::
 				csrFile := args[1]
 				err = file.WriteFile(csrFile, encodedCSR, 0644, file.WithForce(flags.force))
 				if err != nil {
-					return serrors.WrapStr("writing CSR", err)
+					return serrors.Wrap("writing CSR", err)
 				}
 				fmt.Printf("CSR successfully written to %q\n", csrFile)
 			} else {
@@ -282,7 +282,7 @@ A valid example for a JSON formatted template::
 					CACert:    caCert,
 				})
 				if err != nil {
-					return serrors.WrapStr("creating certificate", err)
+					return serrors.Wrap("creating certificate", err)
 				}
 				encodedCert := pem.EncodeToMemory(&pem.Block{
 					Type:  "CERTIFICATE",
@@ -298,7 +298,7 @@ A valid example for a JSON formatted template::
 				certFile := args[1]
 				err = file.WriteFile(certFile, encodedCert, 0644, file.WithForce(flags.force))
 				if err != nil {
-					return serrors.WrapStr("writing certificate", err)
+					return serrors.Wrap("writing certificate", err)
 				}
 				fmt.Printf("Certificate successfully written to %q\n", certFile)
 			}
@@ -306,11 +306,11 @@ A valid example for a JSON formatted template::
 			if encodedKey != nil {
 				keyFile := args[2]
 				if err := file.CheckDirExists(filepath.Dir(keyFile)); err != nil {
-					return serrors.WrapStr("checking that directory of private key exists", err)
+					return serrors.Wrap("checking that directory of private key exists", err)
 				}
 				err := file.WriteFile(keyFile, encodedKey, 0600, file.WithForce(flags.force))
 				if err != nil {
-					return serrors.WrapStr("writing private key", err)
+					return serrors.Wrap("writing private key", err)
 				}
 				fmt.Printf("Private key successfully written to %q\n", keyFile)
 			}
@@ -519,11 +519,11 @@ func CreateCertificate(params CertParams) ([]byte, error) {
 	}
 	serial := make([]byte, 20)
 	if _, err := rand.Read(serial); err != nil {
-		return nil, serrors.WrapStr("creating random serial number", err)
+		return nil, serrors.Wrap("creating random serial number", err)
 	}
 	skid, err := cppki.SubjectKeyID(params.PubKey)
 	if err != nil {
-		return nil, serrors.WrapStr("computing subject key ID", err)
+		return nil, serrors.Wrap("computing subject key ID", err)
 	}
 
 	tmpl.SerialNumber = big.NewInt(0).SetBytes(serial)
@@ -557,11 +557,11 @@ func CreateCertificate(params CertParams) ([]byte, error) {
 	}
 	parsed, err := x509.ParseCertificate(cert)
 	if err != nil {
-		return nil, serrors.WrapStr("parsing new certificate", err)
+		return nil, serrors.Wrap("parsing new certificate", err)
 	}
 	ct, err := cppki.ValidateCert(parsed)
 	if err != nil {
-		return nil, serrors.WrapStr("validating new certificate", err)
+		return nil, serrors.Wrap("validating new certificate", err)
 	}
 	if ct != params.Type {
 		return nil, serrors.New("new certificate of invalid type", "type", ct)

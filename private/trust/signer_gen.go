@@ -63,7 +63,7 @@ func (s SignerGen) Generate(ctx context.Context) ([]Signer, error) {
 	trcs, res, err := activeTRCs(ctx, s.DB, s.IA.ISD())
 	if err != nil {
 		metrics.Signer.Generate(l.WithResult(res)).Inc()
-		return nil, serrors.WrapStr("loading TRC", err)
+		return nil, serrors.Wrap("loading TRC", err)
 	}
 
 	var bests []Signer

@@ -247,7 +247,7 @@ func (s *DaemonServer) as(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASRes
 	core, err := s.ASInspector.HasAttributes(ctx, reqIA, trust.Core)
 	if err != nil {
 		log.FromCtx(ctx).Error("Inspecting ISD-AS", "err", err, "isd_as", reqIA)
-		return nil, serrors.WrapStr("inspecting ISD-AS", err, "isd_as", reqIA)
+		return nil, serrors.Wrap("inspecting ISD-AS", err, "isd_as", reqIA)
 	}
 	reply := &sdpb.ASResponse{
 		IsdAs: uint64(reqIA),
@@ -346,7 +346,7 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 	if err != nil {
 		log.FromCtx(ctx).Error("Inserting revocation", "err", err, "req", req)
 		return nil, metricsError{
-			err:    serrors.WrapStr("inserting revocation", err),
+			err:    serrors.Wrap("inserting revocation", err),
 			result: prom.ErrDB,
 		}
 	}
@@ -376,12 +376,12 @@ func (s *DaemonServer) DRKeyASHost(
 	}
 	meta, err := requestToASHostMeta(req)
 	if err != nil {
-		return nil, serrors.WrapStr("parsing protobuf ASHostReq", err)
+		return nil, serrors.Wrap("parsing protobuf ASHostReq", err)
 	}
 
 	lvl2Key, err := s.DRKeyClient.GetASHostKey(ctx, meta)
 	if err != nil {
-		return nil, serrors.WrapStr("getting AS-Host from client store", err)
+		return nil, serrors.Wrap("getting AS-Host from client store", err)
 	}
 
 	return &sdpb.DRKeyASHostResponse{
@@ -401,12 +401,12 @@ func (s *DaemonServer) DRKeyHostAS(
 	}
 	meta, err := requestToHostASMeta(req)
 	if err != nil {
-		return nil, serrors.WrapStr("parsing protobuf HostASReq", err)
+		return nil, serrors.Wrap("parsing protobuf HostASReq", err)
 	}
 
 	lvl2Key, err := s.DRKeyClient.GetHostASKey(ctx, meta)
 	if err != nil {
-		return nil, serrors.WrapStr("getting Host-AS from client store", err)
+		return nil, serrors.Wrap("getting Host-AS from client store", err)
 	}
 
 	return &sdpb.DRKeyHostASResponse{
@@ -426,11 +426,11 @@ func (s *DaemonServer) DRKeyHostHost(
 	}
 	meta, err := requestToHostHostMeta(req)
 	if err != nil {
-		return nil, serrors.WrapStr("parsing protobuf HostHostReq", err)
+		return nil, serrors.Wrap("parsing protobuf HostHostReq", err)
 	}
 	lvl2Key, err := s.DRKeyClient.GetHostHostKey(ctx, meta)
 	if err != nil {
-		return nil, serrors.WrapStr("getting Host-Host from client store", err)
+		return nil, serrors.Wrap("getting Host-Host from client store", err)
 	}
 
 	return &sdpb.DRKeyHostHostResponse{
@@ -443,7 +443,7 @@ func (s *DaemonServer) DRKeyHostHost(
 func requestToASHostMeta(req *sdpb.DRKeyASHostRequest) (drkey.ASHostMeta, error) {
 	err := req.ValTime.CheckValid()
 	if err != nil {
-		return drkey.ASHostMeta{}, serrors.WrapStr("invalid valTime from pb request", err)
+		return drkey.ASHostMeta{}, serrors.Wrap("invalid valTime from pb request", err)
 	}
 	return drkey.ASHostMeta{
 		ProtoId:  drkey.Protocol(req.ProtocolId),
@@ -457,7 +457,7 @@ func requestToASHostMeta(req *sdpb.DRKeyASHostRequest) (drkey.ASHostMeta, error)
 func requestToHostASMeta(req *sdpb.DRKeyHostASRequest) (drkey.HostASMeta, error) {
 	err := req.ValTime.CheckValid()
 	if err != nil {
-		return drkey.HostASMeta{}, serrors.WrapStr("invalid valTime from pb request", err)
+		return drkey.HostASMeta{}, serrors.Wrap("invalid valTime from pb request", err)
 	}
 	return drkey.HostASMeta{
 		ProtoId:  drkey.Protocol(req.ProtocolId),
@@ -471,7 +471,7 @@ func requestToHostASMeta(req *sdpb.DRKeyHostASRequest) (drkey.HostASMeta, error)
 func requestToHostHostMeta(req *sdpb.DRKeyHostHostRequest) (drkey.HostHostMeta, error) {
 	err := req.ValTime.CheckValid()
 	if err != nil {
-		return drkey.HostHostMeta{}, serrors.WrapStr("invalid valTime from pb request", err)
+		return drkey.HostHostMeta{}, serrors.Wrap("invalid valTime from pb request", err)
 	}
 	return drkey.HostHostMeta{
 		ProtoId:  drkey.Protocol(req.ProtocolId),

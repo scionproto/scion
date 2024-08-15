@@ -83,7 +83,7 @@ func (f *IPForwarder) Run(ctx context.Context) error {
 		length, err := f.Reader.Read(buf)
 		if err != nil {
 			metrics.CounterInc(f.Metrics.ReceiveLocalErrors)
-			return serrors.WrapStr("read device error", err)
+			return serrors.Wrap("read device error", err)
 		}
 		metrics.CounterInc(f.Metrics.IPPktsLocalRecv)
 		metrics.CounterAdd(f.Metrics.IPPktBytesLocalRecv, float64(length))

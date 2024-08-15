@@ -79,18 +79,18 @@ func (f *Fetcher) Level1(
 		if err == nil {
 			lvl1Key, err := getLevel1KeyFromReply(meta, rep)
 			if err != nil {
-				return drkey.Level1Key{}, serrors.WrapStr("obtaining level 1 key from reply", err)
+				return drkey.Level1Key{}, serrors.Wrap("obtaining level 1 key from reply", err)
 			}
 			return lvl1Key, nil
 		}
 		errList = append(errList,
-			serrors.WrapStr("fetching level1", err, "try", i+1, "peer", meta.SrcIA),
+			serrors.Wrap("fetching level1", err, "try", i+1, "peer", meta.SrcIA),
 		)
 	}
-	return drkey.Level1Key{}, serrors.WrapStr(
+	return drkey.Level1Key{}, serrors.Wrap(
 		"reached max retry attempts fetching level1 key",
-		errList,
-	)
+		errList)
+
 }
 
 func (f *Fetcher) getLevel1Key(
@@ -113,13 +113,13 @@ func (f *Fetcher) getLevel1Key(
 	defer cancelF()
 	conn, err := f.Dialer.Dial(dialCtx, remote)
 	if err != nil {
-		return nil, serrors.WrapStr("dialing", err)
+		return nil, serrors.Wrap("dialing", err)
 	}
 	defer conn.Close()
 	client := cppb.NewDRKeyInterServiceClient(conn)
 	rep, err := client.DRKeyLevel1(ctx, req)
 	if err != nil {
-		return nil, serrors.WrapStr("requesting level 1 key", err)
+		return nil, serrors.Wrap("requesting level 1 key", err)
 	}
 	return rep, nil
 }
@@ -127,7 +127,7 @@ func (f *Fetcher) getLevel1Key(
 func (f *Fetcher) pathToDst(ctx context.Context, dst addr.IA) (snet.Path, error) {
 	paths, err := f.Router.AllRoutes(ctx, dst)
 	if err != nil {
-		return nil, serrors.Wrap(errNotReachable, err)
+		return nil, serrors.JoinNoStack(errNotReachable, err)
 	}
 	if len(paths) == 0 {
 		return nil, errNotReachable

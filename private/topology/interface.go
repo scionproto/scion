@@ -246,7 +246,7 @@ func (t *topologyS) Multicast(svc addr.SVC) ([]*net.UDPAddr, error) {
 	for _, name := range names {
 		topoAddr, err := t.Topology.GetTopoAddr(name, st)
 		if err != nil {
-			return nil, serrors.Wrap(addr.ErrUnsupportedSVCAddress, err, "svc", svc)
+			return nil, serrors.JoinNoStack(addr.ErrUnsupportedSVCAddress, err, "svc", svc)
 		}
 		addrs = append(addrs, &net.UDPAddr{
 			IP:   topoAddr.SCIONAddress.IP,
@@ -264,12 +264,13 @@ func (t *topologyS) UnderlayAnycast(svc addr.SVC) (*net.UDPAddr, error) {
 		if supportedSVC(svc) {
 			return nil, serrors.New("no instances found for service", "svc", svc)
 		}
-		return nil, serrors.WithCtx(addr.ErrUnsupportedSVCAddress, "svc", svc)
+		return nil, serrors.JoinNoStack(addr.ErrUnsupportedSVCAddress, nil, "svc", svc)
 	}
 	underlay, err := t.underlayByName(svc, name)
 	if err != nil {
-		return nil, serrors.WrapStr("BUG! Selected random service name, but service info not found",
+		return nil, serrors.Wrap("BUG! Selected random service name, but service info not found",
 			err, "service_names", names, "selected_name", name)
+
 	}
 	// FIXME(scrye): This should return net.Addr
 	return underlay, nil
@@ -287,7 +288,7 @@ func (t *topologyS) UnderlayMulticast(svc addr.SVC) ([]*net.UDPAddr, error) {
 	}
 	topoAddrs, err := t.Topology.getAllTopoAddrs(st)
 	if err != nil {
-		return nil, serrors.Wrap(addr.ErrUnsupportedSVCAddress, err, "svc", svc)
+		return nil, serrors.JoinNoStack(addr.ErrUnsupportedSVCAddress, err, "svc", svc)
 	}
 
 	if len(topoAddrs) == 0 {
@@ -319,7 +320,7 @@ func (t *topologyS) underlayByName(svc addr.SVC, name string) (*net.UDPAddr, err
 	}
 	topoAddr, err := t.Topology.GetTopoAddr(name, st)
 	if err != nil {
-		return nil, serrors.Wrap(addr.ErrUnsupportedSVCAddress, err, "svc", svc)
+		return nil, serrors.JoinNoStack(addr.ErrUnsupportedSVCAddress, err, "svc", svc)
 	}
 	underlayAddr := topoAddr.UnderlayAddr()
 	if underlayAddr == nil {
@@ -335,7 +336,7 @@ func toServiceType(svc addr.SVC) (ServiceType, error) {
 	case addr.SvcCS:
 		return Control, nil
 	default:
-		return 0, serrors.WithCtx(addr.ErrUnsupportedSVCAddress, "svc", svc)
+		return 0, serrors.JoinNoStack(addr.ErrUnsupportedSVCAddress, nil, "svc", svc)
 	}
 }
 

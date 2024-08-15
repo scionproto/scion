@@ -53,7 +53,7 @@ func (LegacySessionPolicyAdapter) Parse(ctx context.Context, raw []byte) (Sessio
 	}
 	cfg := &JSONFormat{}
 	if err := json.Unmarshal(raw, cfg); err != nil {
-		return nil, serrors.WrapStr("parsing JSON", err)
+		return nil, serrors.Wrap("parsing JSON", err)
 	}
 	policies := make(SessionPolicies, 0, len(cfg.ASes))
 	for ia, asEntry := range cfg.ASes {
@@ -83,7 +83,7 @@ func parsePrefixes(rawNets []string) ([]*net.IPNet, error) {
 	for _, s := range rawNets {
 		ip, ipnet, err := net.ParseCIDR(s)
 		if err != nil {
-			return nil, serrors.WrapStr("parsing CIDR", err)
+			return nil, serrors.Wrap("parsing CIDR", err)
 		}
 		if !ip.Equal(ipnet.IP) {
 			return nil, serrors.New("network must be canonical", "raw", s)
@@ -108,11 +108,11 @@ func LoadSessionPolicies(ctx context.Context, file string,
 
 	raw, err := os.ReadFile(file)
 	if err != nil {
-		return nil, serrors.WrapStr("reading file", err)
+		return nil, serrors.Wrap("reading file", err)
 	}
 	p, err := parser.Parse(ctx, raw)
 	if err != nil {
-		return nil, serrors.WithCtx(err, "file", file)
+		return nil, serrors.Wrap("parsing", err, "file", file)
 	}
 	return p, nil
 }

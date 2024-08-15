@@ -165,7 +165,7 @@ func (p *Propagator) beaconsPerInterface(
 
 	allBeacons, err := p.Provider.BeaconsToPropagate(ctx)
 	if err != nil {
-		return nil, serrors.WrapStr("fetching beacons to propagate", err)
+		return nil, serrors.Wrap("fetching beacons to propagate", err)
 	}
 	var beacons []beacon.Beacon
 	for _, b := range allBeacons {
@@ -273,9 +273,9 @@ func (p *propagator) Propagate(ctx context.Context) error {
 		for _, b := range p.beacons {
 			p.incMetric(b.Segment.FirstIA(), b.InIfID, egress, prom.ErrNetwork)
 		}
-		return serrors.WrapStr("getting beacon sender", err,
-			"waited_for", time.Since(senderStart).String(),
-		)
+		return serrors.Wrap("getting beacon sender", err,
+			"waited_for", time.Since(senderStart).String())
+
 	}
 	defer sender.Close()
 

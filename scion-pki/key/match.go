@@ -68,7 +68,7 @@ The output contains all certificates that authenticate the key.
 			}
 			pub, err := x509.MarshalPKIXPublicKey(key.Public())
 			if err != nil {
-				return serrors.WrapStr("packing the public key", err)
+				return serrors.Wrap("packing the public key", err)
 			}
 
 			var certificates []string
@@ -97,11 +97,11 @@ The output contains all certificates that authenticate the key.
 func loadPackedPublicFromCertificate(file string) ([]byte, error) {
 	certs, err := cppki.ReadPEMCerts(file)
 	if err != nil {
-		return nil, serrors.WrapStr("parsing certificate", err)
+		return nil, serrors.Wrap("parsing certificate", err)
 	}
 	pub, err := x509.MarshalPKIXPublicKey(certs[0].PublicKey)
 	if err != nil {
-		return nil, serrors.WrapStr("packing the public key", err)
+		return nil, serrors.Wrap("packing the public key", err)
 	}
 	return pub, nil
 }
