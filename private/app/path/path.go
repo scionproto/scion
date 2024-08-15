@@ -46,7 +46,7 @@ func Sort(paths []snet.Path) {
 			return len(intfA) < len(intfB)
 		}
 		for i := range intfA {
-			if iaA, iaB := intfA[i].IA, intfA[i].IA; iaA != iaB {
+			if iaA, iaB := intfA[i].IA, intfB[i].IA; iaA != iaB {
 				return iaA < iaB
 			}
 			if idA, idB := intfA[i].ID, intfB[i].ID; idA != idB {
