@@ -1,5 +1,4 @@
-load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
-load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
 load("@bazel_gazelle//:def.bzl", "gazelle")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@io_bazel_rules_go//go:def.bzl", "nogo")
@@ -7,7 +6,7 @@ load("//tools/lint:go_config.bzl", "go_lint_config")
 load("//tools/lint:write_source_files.bzl", "write_source_files")
 load("//tools/lint/python:flake8_config.bzl", "flake8_lint_config")
 load("//:nogo.bzl", "nogo_deps")
-load("@com_github_bazelbuild_buildtools//buildifier:def.bzl", "buildifier")
+load("@buildifier_prebuilt//:rules.bzl", "buildifier")
 load("@npm//private/mgmtapi/tools:@stoplight/spectral-cli/package_json.bzl", spectral_bin = "bin")
 
 # gazelle:prefix github.com/scionproto/scion

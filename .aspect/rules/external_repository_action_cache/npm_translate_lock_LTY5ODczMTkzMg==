@@ -1,0 +1,5 @@
+# @generated
+# Input hashes for repository rule npm_translate_lock(name = "npm", pnpm_lock = "@@//private/mgmtapi/tools:pnpm-lock.yaml").
+# This file should be checked into version control along with the pnpm-lock.yaml file.
+private/mgmtapi/tools/package.json=-1576747954
+private/mgmtapi/tools/pnpm-lock.yaml=-862104158
