@@ -52,17 +52,18 @@ func connectTun(name string) (netlink.Link, io.ReadWriteCloser, error) {
 	if err != nil {
 		tun.Close()
 		// Should clean up the tun device, but if we can't find it...
-		return nil, nil, serrors.WrapStr("unable to find new TUN device", err, "name", name)
+		return nil, nil, serrors.Wrap("unable to find new TUN device", err, "name", name)
 	}
 	err = netlink.LinkSetUp(link)
 	if err != nil {
-		err = serrors.WrapStr("unable to set new TUN device Up", err, "name", name)
+		err = serrors.Wrap("unable to set new TUN device Up", err, "name", name)
 		goto Cleanup
 	}
 	err = netlink.LinkSetTxQLen(link, SIGTxQlen)
 	if err != nil {
-		err = serrors.WrapStr("unable to set Tx queue length on new TUN device", err,
+		err = serrors.Wrap("unable to set Tx queue length on new TUN device", err,
 			"name", name)
+
 		goto Cleanup
 	}
 	return link, tun, nil
@@ -182,8 +183,9 @@ func addRoute(rTable int, link netlink.Link, dest *net.IPNet, src net.IP) error 
 		route.Src = src
 	}
 	if err := netlink.RouteAdd(route); err != nil {
-		return serrors.WrapStr("EgressReader: Unable to add SIG route", err,
+		return serrors.Wrap("EgressReader: Unable to add SIG route", err,
 			"route", route)
+
 	}
 	return nil
 }
@@ -199,8 +201,9 @@ func deleteRoute(rTable int, link netlink.Link, dest *net.IPNet, src net.IP) err
 		route.Src = src
 	}
 	if err := netlink.RouteDel(route); err != nil {
-		return serrors.WrapStr("EgressReader: Unable to delete SIG route", err,
+		return serrors.Wrap("EgressReader: Unable to delete SIG route", err,
 			"route", route)
+
 	}
 	return nil
 }

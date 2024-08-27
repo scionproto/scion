@@ -54,7 +54,7 @@ func (f ForwardingLookup) LookupSegments(ctx context.Context, src,
 		},
 	)
 	if err != nil {
-		return nil, serrors.WrapStr("expanding wildcard request", err)
+		return nil, serrors.Wrap("expanding wildcard request", err)
 	}
 	return f.Fetcher.Fetch(ctx, reqs, false)
 }
@@ -64,13 +64,15 @@ func (f ForwardingLookup) classify(ctx context.Context,
 	src, dst addr.IA) (seg.Type, error) {
 
 	if src.ISD() == 0 || dst.ISD() == 0 {
-		return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
+		return 0, serrors.JoinNoStack(segfetcher.ErrInvalidRequest, nil,
 			"src", src, "dst", dst, "reason", "zero ISD src or dst")
+
 	}
 	if dst == f.LocalIA {
 		// this could be an otherwise valid request, but probably the requester switched Src and Dst
-		return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
+		return 0, serrors.JoinNoStack(segfetcher.ErrInvalidRequest, nil,
 			"src", src, "dst", dst, "reason", "dst is local AS, confusion?")
+
 	}
 	srcCore, err := f.CoreChecker.IsCore(ctx, src)
 	if err != nil {
@@ -84,30 +86,35 @@ func (f ForwardingLookup) classify(ctx context.Context,
 	case srcCore && dstCore:
 		// core
 		if src.ISD() != f.LocalIA.ISD() {
-			return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
+			return 0, serrors.JoinNoStack(segfetcher.ErrInvalidRequest, nil,
 				"src", src, "dst", dst, "reason", "core segment request src ISD not local ISD")
+
 		}
 		return seg.TypeCore, nil
 	case srcCore:
 		// down
 		if src.ISD() != dst.ISD() {
-			return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
+			return 0, serrors.JoinNoStack(segfetcher.ErrInvalidRequest, nil,
 				"src", src, "dst", dst, "reason", "down segment request src/dst in different ISD")
+
 		}
 		return seg.TypeDown, nil
 	case dstCore:
 		// up
 		if src != f.LocalIA {
-			return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
+			return 0, serrors.JoinNoStack(segfetcher.ErrInvalidRequest, nil,
 				"src", src, "dst", dst, "reason", "up segment request src not local AS")
+
 		}
 		if dst.ISD() != f.LocalIA.ISD() {
-			return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
+			return 0, serrors.JoinNoStack(segfetcher.ErrInvalidRequest, nil,
 				"src", src, "dst", dst, "reason", "up segment request dst in different ISD")
+
 		}
 		return seg.TypeUp, nil
 	default:
-		return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
+		return 0, serrors.JoinNoStack(segfetcher.ErrInvalidRequest, nil,
 			"src", src, "dst", dst, "reason", "non-core src & dst")
+
 	}
 }

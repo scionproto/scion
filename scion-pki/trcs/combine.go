@@ -72,7 +72,7 @@ func RunCombine(files []string, pld, out string, format string) error {
 	for _, name := range files {
 		dec, err := DecodeFromFile(name)
 		if err != nil {
-			return serrors.WrapStr("error decoding part", err, "file", name)
+			return serrors.Wrap("error decoding part", err, "file", name)
 		}
 		trcs[name] = dec
 	}
@@ -90,7 +90,7 @@ func RunCombine(files []string, pld, out string, format string) error {
 		})
 	}
 	if err := os.WriteFile(out, packed, 0644); err != nil {
-		return serrors.WrapStr("error writing combined TRC", err)
+		return serrors.Wrap("error writing combined TRC", err)
 	}
 	fmt.Printf("Successfully combined TRC at %s\n", out)
 	return nil
@@ -114,7 +114,7 @@ func CombineSignedPayloads(trcs map[string]cppki.SignedTRC) ([]byte, error) {
 	}
 	eci, err := protocol.NewDataEncapsulatedContentInfo(pld)
 	if err != nil {
-		return nil, serrors.WrapStr("error encoding payload", err)
+		return nil, serrors.Wrap("error encoding payload", err)
 	}
 	sd := protocol.SignedData{
 		Version:          1,
@@ -125,7 +125,7 @@ func CombineSignedPayloads(trcs map[string]cppki.SignedTRC) ([]byte, error) {
 	// Write signed TRC.
 	packed, err := sd.ContentInfoDER()
 	if err != nil {
-		return nil, serrors.WrapStr("error packing combined TRC", err)
+		return nil, serrors.Wrap("error packing combined TRC", err)
 	}
 	return packed, nil
 }
@@ -200,7 +200,7 @@ func verifyPayload(pld string, trcs map[string]cppki.SignedTRC) error {
 		var err error
 		rawPld, err = os.ReadFile(pld)
 		if err != nil {
-			return serrors.WrapStr("error loading payload", err)
+			return serrors.Wrap("error loading payload", err)
 		}
 		block, _ := pem.Decode(rawPld)
 		if block != nil && block.Type == "TRC PAYLOAD" {

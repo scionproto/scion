@@ -342,7 +342,7 @@ func RegisterHTTPEndpoints(
 		statusPages["ca"] = caStatusPage(ca)
 	}
 	if err := statusPages.Register(http.DefaultServeMux, elemId); err != nil {
-		return serrors.WrapStr("registering status pages", err)
+		return serrors.Wrap("registering status pages", err)
 	}
 	return nil
 }

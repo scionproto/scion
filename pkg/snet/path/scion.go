@@ -30,7 +30,7 @@ type SCION struct {
 func NewSCIONFromDecoded(d scion.Decoded) (SCION, error) {
 	buf := make([]byte, d.Len())
 	if err := d.SerializeTo(buf); err != nil {
-		return SCION{}, serrors.WrapStr("serializing decoded SCION path", err)
+		return SCION{}, serrors.Wrap("serializing decoded SCION path", err)
 	}
 	return SCION{Raw: buf}, nil
 }

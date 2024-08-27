@@ -74,7 +74,7 @@ func (s Signer) Sign(
 	rawID, err := proto.Marshal(id)
 	if err != nil {
 		metrics.Signer.Sign(l.WithResult(metrics.ErrInternal)).Inc()
-		return nil, serrors.WrapStr("packing verification_key_id", err)
+		return nil, serrors.Wrap("packing verification_key_id", err)
 	}
 	hdr := signed.Header{
 		SignatureAlgorithm:   s.Algorithm,

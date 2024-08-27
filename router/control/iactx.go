@@ -64,7 +64,7 @@ func (cfg *Config) loadTopo(id string, confDir string) error {
 		return err
 	}
 	if err := cfg.initTopo(id, topo); err != nil {
-		return serrors.WrapStr("initializing topology", err, "file", topoPath)
+		return serrors.Wrap("initializing topology", err, "file", topoPath)
 	}
 	return nil
 }
@@ -87,7 +87,7 @@ func (cfg *Config) loadMasterKeys(confDir string) error {
 	var err error
 	cfg.MasterKeys, err = keyconf.LoadMaster(filepath.Join(confDir, "keys"))
 	if err != nil {
-		return serrors.WrapStr("loading master keys", err)
+		return serrors.Wrap("loading master keys", err)
 	}
 	return nil
 }
@@ -114,7 +114,7 @@ func (iac *IACtx) Configure() error {
 		if errDump != nil {
 			brConfDump = errDump.Error()
 		}
-		return serrors.WrapStr("config setup", err, "config", brConfDump)
+		return serrors.Wrap("config setup", err, "config", brConfDump)
 	}
 	log.Debug("Dataplane configured successfully", "config", cfg)
 	return nil

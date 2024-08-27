@@ -43,16 +43,16 @@ const (
 func loadKey(file string, algo string) ([]byte, error) {
 	b, err := os.ReadFile(file)
 	if err != nil {
-		return nil, serrors.Wrap(ErrOpen, err)
+		return nil, serrors.JoinNoStack(ErrOpen, err)
 	}
 	dbuf := make([]byte, base64.StdEncoding.DecodedLen(len(b)))
 	n, err := base64.StdEncoding.Decode(dbuf, b)
 	if err != nil {
-		return nil, serrors.Wrap(ErrParse, err)
+		return nil, serrors.JoinNoStack(ErrParse, err)
 	}
 	dbuf = dbuf[:n]
 	if strings.ToLower(algo) != RawKey {
-		return nil, serrors.WithCtx(ErrUnknown, "algo", algo)
+		return nil, serrors.JoinNoStack(ErrUnknown, nil, "algo", algo)
 	}
 	return dbuf, nil
 }

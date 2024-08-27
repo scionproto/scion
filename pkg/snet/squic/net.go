@@ -395,23 +395,23 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 		}
 		var transportErr *quic.TransportError
 		if !errors.As(err, &transportErr) || transportErr.ErrorCode != quic.ConnectionRefused {
-			return nil, serrors.WrapStr("dialing QUIC/SCION", err)
+			return nil, serrors.Wrap("dialing QUIC/SCION", err)
 		}
 
 		jitter := time.Duration(mrand.Int63n(int64(5 * time.Millisecond)))
 		select {
 		case <-time.After(sleep + jitter):
 		case <-ctx.Done():
-			return nil, serrors.WrapStr("timed out connecting to busy server", err)
+			return nil, serrors.Wrap("timed out connecting to busy server", err)
 		}
 	}
 	if err := ctx.Err(); err != nil {
-		return nil, serrors.WrapStr("dialing QUIC/SCION, after loop", err)
+		return nil, serrors.Wrap("dialing QUIC/SCION, after loop", err)
 	}
 	stream, err := session.OpenStreamSync(ctx)
 	if err != nil {
 		_ = session.CloseWithError(OpenStreamError, "")
-		return nil, serrors.WrapStr("opening stream", err)
+		return nil, serrors.Wrap("opening stream", err)
 	}
 	return &acceptedConn{
 		stream:  stream,

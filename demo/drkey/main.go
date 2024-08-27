@@ -206,15 +206,15 @@ func (s Server) DeriveHostHostKeySpecific(
 	var deriver specific.Deriver
 	lvl1, err := deriver.DeriveLevel1(meta.DstIA, sv.Key)
 	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("deriving level 1 key", err)
+		return drkey.HostHostKey{}, serrors.Wrap("deriving level 1 key", err)
 	}
 	asHost, err := deriver.DeriveHostAS(meta.SrcHost, lvl1)
 	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("deriving host-AS key", err)
+		return drkey.HostHostKey{}, serrors.Wrap("deriving host-AS key", err)
 	}
 	hosthost, err := deriver.DeriveHostHost(meta.DstHost, asHost)
 	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("deriving host-host key", err)
+		return drkey.HostHostKey{}, serrors.Wrap("deriving host-host key", err)
 	}
 	return drkey.HostHostKey{
 		ProtoId: sv.ProtoId,
@@ -237,7 +237,7 @@ func (s Server) DeriveHostHostKeyGeneric(
 	}
 	hosthost, err := deriver.DeriveHostHost(meta.DstHost, hostAS.Key)
 	if err != nil {
-		return drkey.HostHostKey{}, serrors.WrapStr("deriving host-host key", err)
+		return drkey.HostHostKey{}, serrors.Wrap("deriving host-host key", err)
 	}
 	return drkey.HostHostKey{
 		ProtoId: hostAS.ProtoId,
@@ -262,7 +262,7 @@ func (s Server) FetchSV(
 	// Obtain CS address from scion daemon
 	svcs, err := s.daemon.SVCInfo(ctx, nil)
 	if err != nil {
-		return drkey.SecretValue{}, serrors.WrapStr("obtaining control service address", err)
+		return drkey.SecretValue{}, serrors.Wrap("obtaining control service address", err)
 	}
 	cs := svcs[addr.SvcCS]
 	if len(cs) == 0 {
@@ -272,7 +272,7 @@ func (s Server) FetchSV(
 	// Contact CS directly for SV
 	conn, err := grpc.DialContext(ctx, cs[0], grpc.WithInsecure())
 	if err != nil {
-		return drkey.SecretValue{}, serrors.WrapStr("dialing control service", err)
+		return drkey.SecretValue{}, serrors.Wrap("dialing control service", err)
 	}
 	defer conn.Close()
 	client := cppb.NewDRKeyIntraServiceClient(conn)
@@ -282,12 +282,12 @@ func (s Server) FetchSV(
 		ProtocolId: dkpb.Protocol(meta.ProtoId),
 	})
 	if err != nil {
-		return drkey.SecretValue{}, serrors.WrapStr("requesting drkey secret value", err)
+		return drkey.SecretValue{}, serrors.Wrap("requesting drkey secret value", err)
 	}
 
 	key, err := getSecretFromReply(meta.ProtoId, rep)
 	if err != nil {
-		return drkey.SecretValue{}, serrors.WrapStr("validating drkey secret value reply", err)
+		return drkey.SecretValue{}, serrors.Wrap("validating drkey secret value reply", err)
 	}
 
 	return key, nil

@@ -111,19 +111,19 @@ On other errors, ping will exit with code 2.
 		RunE: func(cmd *cobra.Command, args []string) error {
 			remote, err := addr.ParseAddr(args[0])
 			if err != nil {
-				return serrors.WrapStr("parsing remote", err)
+				return serrors.Wrap("parsing remote", err)
 			}
 			if err := app.SetupLog(flags.logLevel); err != nil {
-				return serrors.WrapStr("setting up logging", err)
+				return serrors.Wrap("setting up logging", err)
 			}
 			closer, err := setupTracer("ping", flags.tracer)
 			if err != nil {
-				return serrors.WrapStr("setting up tracing", err)
+				return serrors.Wrap("setting up tracing", err)
 			}
 			defer closer()
 			printf, err := getPrintf(flags.format, cmd.OutOrStdout())
 			if err != nil {
-				return serrors.WrapStr("get formatting", err)
+				return serrors.Wrap("get formatting", err)
 			}
 
 			cmd.SilenceUsage = true
@@ -147,7 +147,7 @@ On other errors, ping will exit with code 2.
 			defer cancelF()
 			sd, err := daemon.NewService(daemonAddr).Connect(ctx)
 			if err != nil {
-				return serrors.WrapStr("connecting to SCION Daemon", err)
+				return serrors.Wrap("connecting to SCION Daemon", err)
 			}
 			defer sd.Close()
 
@@ -200,7 +200,7 @@ On other errors, ping will exit with code 2.
 					target = nextHop.IP
 				}
 				if localIP, err = addrutil.ResolveLocal(target); err != nil {
-					return serrors.WrapStr("resolving local address", err)
+					return serrors.Wrap("resolving local address", err)
 
 				}
 				printf("Resolved local address:\n  %s\n", localIP)

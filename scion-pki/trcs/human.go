@@ -126,7 +126,7 @@ func getHumanEncoding(raw []byte, predTRC *cppki.TRC, strict bool) (humanTRC, er
 		for i, info := range signed.SignerInfos {
 			d, err := newSignerInfo(info, predCerts)
 			if err != nil && strict {
-				return humanTRC{}, serrors.WrapStr("decoding signer info", err, "index", i)
+				return humanTRC{}, serrors.Wrap("decoding signer info", err, "index", i)
 			}
 			h.Signatures = append(h.Signatures, d)
 		}
@@ -194,7 +194,7 @@ func (h *humanTRC) setTRC(trc cppki.TRC) error {
 	for i, cert := range trc.Certificates {
 		if t, err := cppki.ValidateCert(cert); err != nil {
 			h.Certificates = append(h.Certificates, certDesc{Error: err.Error()})
-			errs = append(errs, serrors.WrapStr("classifying certificate", err, "index", i))
+			errs = append(errs, serrors.Wrap("classifying certificate", err, "index", i))
 		} else {
 			desc := certDesc{
 				CommonName:   cert.Subject.CommonName,

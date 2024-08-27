@@ -60,7 +60,7 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 
 	logger := log.FromCtx(ctx)
 	if dst.ISD() == 0 {
-		return nil, serrors.WithCtx(ErrBadDst, "dst", dst)
+		return nil, serrors.JoinNoStack(ErrBadDst, nil, "dst", dst)
 	}
 	src := p.IA
 	if dst.Equal(src) {

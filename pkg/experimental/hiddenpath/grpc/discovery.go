@@ -36,7 +36,7 @@ type Discoverer struct {
 func (d *Discoverer) Discover(ctx context.Context, dsAddr net.Addr) (hiddenpath.Servers, error) {
 	conn, err := d.Dialer.Dial(ctx, dsAddr)
 	if err != nil {
-		return hiddenpath.Servers{}, serrors.WrapStr("dialing", err)
+		return hiddenpath.Servers{}, serrors.Wrap("dialing", err)
 	}
 	defer conn.Close()
 	client := dspb.NewDiscoveryServiceClient(conn)
@@ -62,14 +62,14 @@ func (d *Discoverer) Discover(ctx context.Context, dsAddr net.Addr) (hiddenpath.
 	for _, l := range r.Lookup {
 		a, err := parseUDPAddr(l.Address)
 		if err != nil {
-			return hiddenpath.Servers{}, serrors.WrapStr("parsing address", err, "raw", l.Address)
+			return hiddenpath.Servers{}, serrors.Wrap("parsing address", err, "raw", l.Address)
 		}
 		reply.Lookup = append(reply.Lookup, a)
 	}
 	for _, l := range r.Registration {
 		a, err := parseUDPAddr(l.Address)
 		if err != nil {
-			return hiddenpath.Servers{}, serrors.WrapStr("parsing address", err, "raw", l.Address)
+			return hiddenpath.Servers{}, serrors.Wrap("parsing address", err, "raw", l.Address)
 		}
 		reply.Registration = append(reply.Registration, a)
 	}

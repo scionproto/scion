@@ -149,7 +149,7 @@ func (i BRInfo) String() string {
 func Load(b []byte) (*Topology, error) {
 	rt := &Topology{}
 	if err := json.Unmarshal(b, rt); err != nil {
-		return nil, serrors.WrapStr("unable to parse topology from JSON", err)
+		return nil, serrors.Wrap("unable to parse topology from JSON", err)
 	}
 	return rt, nil
 }
@@ -158,7 +158,7 @@ func Load(b []byte) (*Topology, error) {
 func LoadFromFile(path string) (*Topology, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return nil, serrors.WrapStr("unable to open topology", err, "path", path)
+		return nil, serrors.Wrap("unable to open topology", err, "path", path)
 	}
 	return Load(b)
 }

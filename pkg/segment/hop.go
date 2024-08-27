@@ -44,7 +44,7 @@ func hopEntryFromPB(pb *cppb.HopEntry) (HopEntry, error) {
 	}
 	hop, err := hopFieldFromPB(pb.HopField)
 	if err != nil {
-		return HopEntry{}, serrors.WrapStr("parsing hop field", err)
+		return HopEntry{}, serrors.Wrap("parsing hop field", err)
 	}
 	return HopEntry{
 		HopField:   hop,
@@ -83,7 +83,7 @@ func peerEntryFromPB(pb *cppb.PeerEntry) (PeerEntry, error) {
 	}
 	hop, err := hopFieldFromPB(pb.HopField)
 	if err != nil {
-		return PeerEntry{}, serrors.WrapStr("parsing hop field", err)
+		return PeerEntry{}, serrors.Wrap("parsing hop field", err)
 	}
 	return PeerEntry{
 		HopField:      hop,

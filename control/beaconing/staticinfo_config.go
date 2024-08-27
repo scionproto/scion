@@ -91,13 +91,15 @@ type StaticInfoCfg struct {
 func ParseStaticInfoCfg(file string) (*StaticInfoCfg, error) {
 	raw, err := os.ReadFile(file)
 	if err != nil {
-		return nil, serrors.WrapStr("failed to read static info config: ",
+		return nil, serrors.Wrap("failed to read static info config: ",
 			err, "file", file)
+
 	}
 	var cfg StaticInfoCfg
 	if err := json.Unmarshal(raw, &cfg); err != nil {
-		return nil, serrors.WrapStr("failed to parse static info config: ",
+		return nil, serrors.Wrap("failed to parse static info config: ",
 			err, "file ", file)
+
 	}
 	cfg.clean()
 	return &cfg, nil

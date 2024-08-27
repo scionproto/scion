@@ -49,7 +49,7 @@ type ISD uint16
 func ParseISD(s string) (ISD, error) {
 	isd, err := strconv.ParseUint(s, 10, ISDBits)
 	if err != nil {
-		return 0, serrors.WrapStr("parsing ISD", err)
+		return 0, serrors.Wrap("parsing ISD", err)
 	}
 	return ISD(isd), nil
 }
@@ -105,7 +105,7 @@ func parseAS(as string, sep string) (AS, error) {
 		parsed <<= asPartBits
 		v, err := strconv.ParseUint(parts[i], asPartBase, asPartBits)
 		if err != nil {
-			return 0, serrors.WrapStr("parsing AS part", err, "index", i, "value", as)
+			return 0, serrors.Wrap("parsing AS part", err, "index", i, "value", as)
 		}
 		parsed |= AS(v)
 	}
@@ -120,7 +120,7 @@ func parseAS(as string, sep string) (AS, error) {
 func asParseBGP(s string) (AS, error) {
 	as, err := strconv.ParseUint(s, 10, BGPASBits)
 	if err != nil {
-		return 0, serrors.WrapStr("parsing BGP AS", err)
+		return 0, serrors.Wrap("parsing BGP AS", err)
 	}
 	return AS(as), nil
 }

@@ -329,7 +329,7 @@ func (g *Graph) beacon(ifIDs []uint16, addStaticInfo bool) *seg.PathSegment {
 			asEntry.Extensions.StaticInfo = generateStaticInfo(g, currIA, inIF, outIF)
 		}
 		if err := segment.AddASEntry(context.Background(), asEntry, g.signers[currIA]); err != nil {
-			panic(serrors.WrapStr("adding AS entry", err))
+			panic(serrors.Wrap("adding AS entry", err))
 		}
 		inIF = remoteOutIF
 		currIA = g.parents[remoteOutIF]

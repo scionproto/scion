@@ -77,7 +77,7 @@ func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,
 			ps, err := seg.SegmentFromPB(pb)
 			if err != nil {
 				return segfetcher.SegmentsReply{},
-					serrors.WrapStr("parsing segments", err, "index", i)
+					serrors.Wrap("parsing segments", err, "index", i)
 			}
 			segs = append(segs, &seg.Meta{
 				Type:    seg.Type(segType),

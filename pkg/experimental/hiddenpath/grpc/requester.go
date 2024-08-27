@@ -147,11 +147,11 @@ func (r AuthoritativeRequester) HiddenSegments(ctx context.Context,
 	}
 	rawReq, err := proto.Marshal(pbReq)
 	if err != nil {
-		return nil, serrors.WrapStr("marshaling request", err)
+		return nil, serrors.Wrap("marshaling request", err)
 	}
 	signedReq, err := r.Signer.Sign(ctx, rawReq)
 	if err != nil {
-		return nil, serrors.WrapStr("signing request", err)
+		return nil, serrors.Wrap("signing request", err)
 	}
 
 	client := hspb.NewAuthoritativeHiddenSegmentLookupServiceClient(conn)
@@ -170,7 +170,7 @@ func unpackSegs(pbSegs map[int32]*hspb.Segments) ([]*seg.Meta, error) {
 		for i, pb := range segments.Segments {
 			ps, err := seg.SegmentFromPB(pb)
 			if err != nil {
-				return nil, serrors.WrapStr("parsing segments", err, "index", i)
+				return nil, serrors.Wrap("parsing segments", err, "index", i)
 			}
 			segs = append(segs, &seg.Meta{
 				Type:    seg.Type(segType),

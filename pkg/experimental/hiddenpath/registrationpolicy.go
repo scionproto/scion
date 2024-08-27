@@ -40,7 +40,7 @@ func (p RegistrationPolicy) Validate() error {
 	for ifID, p := range p {
 		for id, group := range p.Groups {
 			if err := group.Validate(); err != nil {
-				return serrors.WrapStr("validating group", err, "group_id", id, "interface", ifID)
+				return serrors.Wrap("validating group", err, "group_id", id, "interface", ifID)
 			}
 		}
 	}
@@ -71,7 +71,7 @@ func (p RegistrationPolicy) MarshalYAML() (interface{}, error) {
 func (p RegistrationPolicy) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	rawPolicy := &registrationPolicyInfo{}
 	if err := unmarshal(&rawPolicy); err != nil {
-		return serrors.WrapStr("parsing yaml", err)
+		return serrors.Wrap("parsing yaml", err)
 	}
 	groups, err := parseGroups(rawPolicy.Groups)
 	if err != nil {
@@ -96,26 +96,26 @@ func LoadConfiguration(location string) (Groups, RegistrationPolicy, error) {
 	}
 	c, err := config.LoadResource(location)
 	if err != nil {
-		return nil, nil, serrors.WithCtx(err, "location", location)
+		return nil, nil, serrors.Wrap("reading", err, "location", location)
 	}
 	defer c.Close()
 	info := registrationPolicyInfo{}
 	if err := yaml.NewDecoder(c).Decode(&info); err != nil {
-		return nil, nil, serrors.WrapStr("parsing", err, "location", location)
+		return nil, nil, serrors.Wrap("parsing", err, "location", location)
 	}
 	groups, err := parseGroups(info.Groups)
 	if err != nil {
-		return nil, nil, serrors.WrapStr("parsing groups", err, "location", location)
+		return nil, nil, serrors.Wrap("parsing groups", err, "location", location)
 	}
 	if err := groups.Validate(); err != nil {
-		return nil, nil, serrors.WrapStr("validating groups", err, "location", location)
+		return nil, nil, serrors.Wrap("validating groups", err, "location", location)
 	}
 	if len(info.Policies) == 0 {
 		return groups, nil, nil
 	}
 	pol, err := parsePolicies(groups, info.Policies)
 	if err != nil {
-		return nil, nil, serrors.WrapStr("parsing policies", err, "location", location)
+		return nil, nil, serrors.Wrap("parsing policies", err, "location", location)
 	}
 	return groups, pol, nil
 }
@@ -138,7 +138,7 @@ func parsePolicies(groups Groups, rawPolicies map[uint64][]string) (Registration
 			}
 			id, err := ParseGroupID(groupID)
 			if err != nil {
-				return nil, serrors.WrapStr("parsing group ID", err)
+				return nil, serrors.Wrap("parsing group ID", err)
 			}
 			group, ok := groups[id]
 			if !ok {

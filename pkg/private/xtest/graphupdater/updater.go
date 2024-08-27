@@ -38,12 +38,12 @@ type topo struct {
 func loadTopo(topoFile string) (*topo, error) {
 	buffer, err := os.ReadFile(topoFile)
 	if err != nil {
-		return nil, serrors.WrapStr("Unable to read from file", err, "name", topoFile)
+		return nil, serrors.Wrap("Unable to read from file", err, "name", topoFile)
 	}
 	var t topo
 	err = yaml.Unmarshal(buffer, &t)
 	if err != nil {
-		return nil, serrors.WrapStr("Unable to parse YAML data", err)
+		return nil, serrors.Wrap("Unable to parse YAML data", err)
 	}
 	return &t, nil
 }
@@ -51,7 +51,7 @@ func loadTopo(topoFile string) (*topo, error) {
 func LoadGraph(topoFile string) (*Graph, error) {
 	t, err := loadTopo(topoFile)
 	if err != nil {
-		return nil, serrors.WrapStr("Failed to load Topo", err)
+		return nil, serrors.Wrap("Failed to load Topo", err)
 	}
 	return newGraph(t.Links, graph.StaticIfaceIdMapping), nil
 }
@@ -65,11 +65,11 @@ func WriteGraphToFile(topoFile, destFile string) error {
 	var buf bytes.Buffer
 	_, err = g.Write(&buf)
 	if err != nil {
-		return serrors.WrapStr("Failed to write graph to byte buffer", err)
+		return serrors.Wrap("Failed to write graph to byte buffer", err)
 	}
 	fmtCode, err := format.Source(buf.Bytes())
 	if err != nil {
-		return serrors.WrapStr("Failed to fmt code", err)
+		return serrors.Wrap("Failed to fmt code", err)
 	}
 	return os.WriteFile(destFile, fmtCode, os.ModePerm)
 }

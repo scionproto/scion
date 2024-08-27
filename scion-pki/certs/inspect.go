@@ -48,7 +48,7 @@ request (CSR) in human readable format.`,
 			cmd.SilenceUsage = true
 			raw, err := os.ReadFile(args[0])
 			if err != nil {
-				return serrors.WrapStr("loading file", err)
+				return serrors.Wrap("loading file", err)
 			}
 			pemData, rest := pem.Decode(raw)
 			if pemData == nil {
@@ -69,7 +69,7 @@ request (CSR) in human readable format.`,
 				}
 				csr, err := x509.ParseCertificateRequest(pemData.Bytes)
 				if err != nil {
-					return serrors.WrapStr("parsing CSR", err)
+					return serrors.Wrap("parsing CSR", err)
 				}
 				return prettyPrintCSR(w, csr, flags.short)
 			default:
@@ -94,10 +94,10 @@ func prettyPrintCertificate(w io.Writer, certs []*x509.Certificate, short bool) 
 	for i, cert := range certs {
 		info, err := format(cert)
 		if err != nil {
-			return serrors.WrapStr("formatting certificate info", err, "index", i)
+			return serrors.Wrap("formatting certificate info", err, "index", i)
 		}
 		if _, err = fmt.Fprint(w, info); err != nil {
-			return serrors.WrapStr("writing certificate info", err, "index", i)
+			return serrors.Wrap("writing certificate info", err, "index", i)
 		}
 	}
 	return nil
@@ -111,10 +111,10 @@ func prettyPrintCSR(w io.Writer, csr *x509.CertificateRequest, short bool) error
 	}
 	info, err := format(csr)
 	if err != nil {
-		return serrors.WrapStr("formatting CSR info", err)
+		return serrors.Wrap("formatting CSR info", err)
 	}
 	if _, err = fmt.Fprint(w, info); err != nil {
-		return serrors.WrapStr("writing CSR info", err)
+		return serrors.Wrap("writing CSR info", err)
 	}
 	return nil
 }

@@ -183,7 +183,7 @@ func TestAPI(t *testing.T) {
 						}
 						rawHdr, err := proto.Marshal(inputHdr)
 						if err != nil {
-							return nil, serrors.WrapStr("packing header", err)
+							return nil, serrors.Wrap("packing header", err)
 						}
 						hdrAndBody := &cryptopb.HeaderAndBodyInternal{
 							Header: rawHdr,
@@ -191,7 +191,7 @@ func TestAPI(t *testing.T) {
 						}
 						rawHdrAndBody, err := proto.Marshal(hdrAndBody)
 						if err != nil {
-							return nil, serrors.WrapStr("packing signature input", err)
+							return nil, serrors.Wrap("packing signature input", err)
 						}
 						return &cryptopb.SignedMessage{
 							HeaderAndBody: rawHdrAndBody,

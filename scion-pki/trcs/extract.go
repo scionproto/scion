@@ -62,7 +62,7 @@ To inspect the created asn.1 file you can use the openssl tool::
 		RunE: func(cmd *cobra.Command, args []string) error {
 			signed, err := DecodeFromFile(args[0])
 			if err != nil {
-				return serrors.WrapStr("failed to load signed TRC", err)
+				return serrors.Wrap("failed to load signed TRC", err)
 			}
 			raw := signed.TRC.Raw
 			if flags.format == "pem" {
@@ -72,7 +72,7 @@ To inspect the created asn.1 file you can use the openssl tool::
 				})
 			}
 			if err := os.WriteFile(flags.out, raw, 0644); err != nil {
-				return serrors.WrapStr("failed to write extracted payload", err)
+				return serrors.Wrap("failed to write extracted payload", err)
 			}
 			fmt.Printf("Successfully extracted payload at %s\n", flags.out)
 			return nil
@@ -112,7 +112,7 @@ func newExtractCertificates(pather command.Pather) *cobra.Command {
 func runExtractCertificates(in, out string) error {
 	signed, err := DecodeFromFile(in)
 	if err != nil {
-		return serrors.WrapStr("failed to load signed TRC", err)
+		return serrors.Wrap("failed to load signed TRC", err)
 	}
 	return writeBundle(out, signed.TRC.Certificates)
 }
@@ -120,7 +120,7 @@ func runExtractCertificates(in, out string) error {
 func writeBundle(out string, certs []*x509.Certificate) error {
 	file, err := os.Create(out)
 	if err != nil {
-		return serrors.WrapStr("unable to create file", err)
+		return serrors.Wrap("unable to create file", err)
 	}
 	defer file.Close()
 	for i, cert := range certs {
@@ -129,7 +129,7 @@ func writeBundle(out string, certs []*x509.Certificate) error {
 			Bytes: cert.Raw,
 		}
 		if err := pem.Encode(file, &block); err != nil {
-			return serrors.WrapStr("unable to encode certificate", err, "index", i)
+			return serrors.Wrap("unable to encode certificate", err, "index", i)
 		}
 	}
 	return nil

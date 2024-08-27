@@ -49,7 +49,7 @@ type RunConfig struct {
 func NewRunConfig() (*RunConfig, error) {
 	devs, err := net.Interfaces()
 	if err != nil {
-		return nil, serrors.WrapStr("listing network interfaces", err)
+		return nil, serrors.Wrap("listing network interfaces", err)
 	}
 	var packetChans []reflect.SelectCase
 	handles := make(map[string]*afpacket.TPacket)
@@ -61,7 +61,7 @@ func NewRunConfig() (*RunConfig, error) {
 		}
 		handle, err := afpacket.NewTPacket(afpacket.OptInterface(dev.Name))
 		if err != nil {
-			return nil, serrors.WrapStr("creating TPacket", err)
+			return nil, serrors.Wrap("creating TPacket", err)
 		}
 		handles[dev.Name] = handle
 		deviceNames = append(deviceNames, dev.Name)
@@ -124,7 +124,7 @@ func (c *RunConfig) ExpectPacket(pkt ExpectedPacket, normalizeFn NormalizePacket
 				return errors.ToError()
 			}
 			// Timeout receiving packets
-			return serrors.WithCtx(errTimeout, "other err", errors.ToError())
+			return serrors.Join(errTimeout, nil, "other err", errors.ToError())
 		}
 		got, ok := pktV.Interface().(gopacket.Packet)
 		if !ok {
@@ -140,12 +140,12 @@ func (c *RunConfig) ExpectPacket(pkt ExpectedPacket, normalizeFn NormalizePacket
 			continue
 		}
 		if err := got.ErrorLayer(); err != nil {
-			errors = append(errors, serrors.WrapStr("error decoding packet", err.Error(),
+			errors = append(errors, serrors.Wrap("error decoding packet", err.Error(),
 				"pkt", i))
 			continue
 		}
 		if err := comparePkts(got, pkt.Pkt, normalizeFn); err != nil {
-			errors = append(errors, serrors.WrapStr("received mismatching packet", err,
+			errors = append(errors, serrors.Wrap("received mismatching packet", err,
 				"pkt", i))
 			continue
 		}
@@ -202,7 +202,7 @@ func (t *Case) Run(cfg *RunConfig) error {
 	}
 
 	if err := cfg.WritePacket(t.WriteTo, t.Input); err != nil {
-		return serrors.WrapStr("writing input packet", err)
+		return serrors.Wrap("writing input packet", err)
 	}
 	ePkt := ExpectedPacket{
 		Storer:            storer,
@@ -222,8 +222,9 @@ func (t *Case) Run(cfg *RunConfig) error {
 	if errors.Is(err, errTimeout) {
 		log.Debug(t.Name, "msg", "timeout occurred")
 	}
-	return serrors.WrapStr("Errors were found", err,
+	return serrors.Wrap("Errors were found", err,
 		"Packets are stored in", t.StoreDir)
+
 }
 
 type packetStorer struct {

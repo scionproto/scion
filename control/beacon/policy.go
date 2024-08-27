@@ -216,7 +216,7 @@ func (p *Policy) initDefaults(t PolicyType) {
 func ParsePolicyYaml(b []byte, t PolicyType) (*Policy, error) {
 	p := &Policy{}
 	if err := yaml.UnmarshalStrict(b, p); err != nil {
-		return nil, serrors.WrapStr("Unable to parse policy", err)
+		return nil, serrors.Wrap("Unable to parse policy", err)
 	}
 	if p.Type != "" && p.Type != t {
 		return nil, serrors.New("specified policy type does not match",
@@ -231,7 +231,7 @@ func ParsePolicyYaml(b []byte, t PolicyType) (*Policy, error) {
 func LoadPolicyFromYaml(path string, t PolicyType) (*Policy, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return nil, serrors.WrapStr("Unable to read policy file", err, "path", path)
+		return nil, serrors.Wrap("Unable to read policy file", err, "path", path)
 	}
 	return ParsePolicyYaml(b, t)
 }

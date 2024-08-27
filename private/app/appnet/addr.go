@@ -66,7 +66,7 @@ func (r AddressRewriter) RedirectToQUIC(ctx context.Context,
 
 		path, err := fa.GetPath()
 		if err != nil {
-			return nil, serrors.WrapStr("bad path", err)
+			return nil, serrors.Wrap("bad path", err)
 		}
 
 		// During One-Hop Path operation, use SVC resolution to also bootstrap the path.
@@ -116,7 +116,7 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context,
 	if len(p.Metadata().Interfaces) == 0 { //when local AS
 		ov, err := r.SVCRouter.GetUnderlay(s.SVC)
 		if err != nil {
-			return nil, serrors.WrapStr("Unable to resolve underlay", err)
+			return nil, serrors.Wrap("Unable to resolve underlay", err)
 		}
 		ret.NextHop = ov
 		ret.Path = path.Empty{}

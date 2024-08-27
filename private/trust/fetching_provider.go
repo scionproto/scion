@@ -96,7 +96,7 @@ func (p FetchingProvider) GetChains(ctx context.Context, query ChainQuery,
 		logger.Info("Failed to get chain from database",
 			"query", query, "err", err)
 		setProviderMetric(span, l.WithResult(metrics.ErrDB), err)
-		return nil, serrors.WrapStr("fetching chains from database", err)
+		return nil, serrors.Wrap("fetching chains from database", err)
 	}
 
 	if o.allowInactive && len(chains) > 0 {
@@ -109,7 +109,7 @@ func (p FetchingProvider) GetChains(ctx context.Context, query ChainQuery,
 		logger.Info("Failed to get TRC for chain verification",
 			"isd", query.IA.ISD(), "err", err)
 		setProviderMetric(span, l.WithResult(result), err)
-		return nil, serrors.WrapStr("fetching active TRCs from database", err)
+		return nil, serrors.Wrap("fetching active TRCs from database", err)
 	}
 
 	chains = filterVerifiableChains(chains, trcs)
@@ -122,17 +122,17 @@ func (p FetchingProvider) GetChains(ctx context.Context, query ChainQuery,
 	// recursion is allowed.
 	if err := p.Recurser.AllowRecursion(o.client); err != nil {
 		setProviderMetric(span, l.WithResult(metrics.ErrNotAllowed), err)
-		return nil, serrors.WrapStr("recursion not allowed", err)
+		return nil, serrors.Wrap("checking whether recursion is allowed", err)
 	}
 	if o.server == nil {
 		if o.server, err = p.Router.ChooseServer(ctx, query.IA.ISD()); err != nil {
 			setProviderMetric(span, l.WithResult(metrics.ErrInternal), err)
-			return nil, serrors.WrapStr("choosing server", err)
+			return nil, serrors.Wrap("choosing server", err)
 		}
 	}
 	if chains, err = p.Fetcher.Chains(ctx, query, o.server); err != nil {
 		setProviderMetric(span, l.WithResult(metrics.ErrInternal), err)
-		return nil, serrors.WrapStr("fetching chains from remote", err, "server", o.server)
+		return nil, serrors.Wrap("fetching chains from remote", err, "server", o.server)
 	}
 
 	// For simplicity, we ignore non-verifiable chains.
@@ -142,7 +142,7 @@ func (p FetchingProvider) GetChains(ctx context.Context, query ChainQuery,
 		for _, chain := range chains {
 			if _, err := p.DB.InsertChain(ctx, chain); err != nil {
 				setProviderMetric(span, l.WithResult(metrics.ErrInternal), err)
-				return nil, serrors.WrapStr("inserting chain into database", err)
+				return nil, serrors.Wrap("inserting chain into database", err)
 			}
 		}
 	}
@@ -203,12 +203,12 @@ func (p FetchingProvider) NotifyTRC(ctx context.Context, id cppki.TRCID, opts ..
 	}
 	if err := p.Recurser.AllowRecursion(o.client); err != nil {
 		setProviderMetric(span, l.WithResult(metrics.ErrNotAllowed), err)
-		return serrors.WrapStr("recursion not allowed", err)
+		return serrors.Wrap("recursion not allowed", err)
 	}
 	if o.server == nil {
 		if o.server, err = p.Router.ChooseServer(ctx, id.ISD); err != nil {
 			setProviderMetric(span, l.WithResult(metrics.ErrInternal), err)
-			return serrors.WrapStr("choosing server", err)
+			return serrors.Wrap("choosing server", err)
 		}
 	}
 	// In general, we expect only one TRC update missing, thus sequential
@@ -218,15 +218,15 @@ func (p FetchingProvider) NotifyTRC(ctx context.Context, id cppki.TRCID, opts ..
 		fetched, err := p.Fetcher.TRC(ctx, toFetch, o.server)
 		if err != nil {
 			setProviderMetric(span, l.WithResult(metrics.ErrInternal), err)
-			return serrors.WrapStr("resolving TRC update", err, "id", toFetch)
+			return serrors.Wrap("resolving TRC update", err, "id", toFetch)
 		}
 		if err := fetched.Verify(&trc.TRC); err != nil {
 			setProviderMetric(span, l.WithResult(metrics.ErrVerify), err)
-			return serrors.WrapStr("verifying TRC update", err, "id", toFetch)
+			return serrors.Wrap("verifying TRC update", err, "id", toFetch)
 		}
 		if _, err := p.DB.InsertTRC(ctx, fetched); err != nil {
 			setProviderMetric(span, l.WithResult(metrics.ErrInternal), err)
-			return serrors.WrapStr("inserting TRC update", err, "id", toFetch)
+			return serrors.Wrap("inserting TRC update", err, "id", toFetch)
 		}
 		trc = fetched
 	}

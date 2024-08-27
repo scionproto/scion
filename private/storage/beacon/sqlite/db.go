@@ -208,7 +208,7 @@ func (e *executor) GetBeacons(
 	stmt, args := e.buildQuery(params)
 	rows, err := e.db.QueryContext(ctx, stmt, args...)
 	if err != nil {
-		return nil, serrors.WrapStr("looking up beacons", err, "query", stmt)
+		return nil, serrors.Wrap("looking up beacons", err, "query", stmt)
 	}
 	defer rows.Close()
 	var res []storagebeacon.Beacon
@@ -220,11 +220,11 @@ func (e *executor) GetBeacons(
 		var InIfID uint16
 		err = rows.Scan(&RowID, &lastUpdated, &usage, &rawBeacon, &InIfID)
 		if err != nil {
-			return nil, serrors.WrapStr("reading row", err)
+			return nil, serrors.Wrap("reading row", err)
 		}
 		seg, err := beacon.UnpackBeacon(rawBeacon)
 		if err != nil {
-			return nil, serrors.WrapStr("parsing beacon", err)
+			return nil, serrors.Wrap("parsing beacon", err)
 		}
 		res = append(res, storagebeacon.Beacon{
 			Beacon: beacon.Beacon{

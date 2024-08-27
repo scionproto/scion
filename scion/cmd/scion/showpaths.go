@@ -73,14 +73,14 @@ On other errors, showpaths will exit with code 2.
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dst, err := addr.ParseIA(args[0])
 			if err != nil {
-				return serrors.WrapStr("invalid destination ISD-AS", err)
+				return serrors.Wrap("invalid destination ISD-AS", err)
 			}
 			if err := app.SetupLog(flags.logLevel); err != nil {
-				return serrors.WrapStr("setting up logging", err)
+				return serrors.Wrap("setting up logging", err)
 			}
 			closer, err := setupTracer("showpaths", flags.tracer)
 			if err != nil {
-				return serrors.WrapStr("setting up tracing", err)
+				return serrors.Wrap("setting up tracing", err)
 			}
 			defer closer()
 
@@ -89,7 +89,7 @@ On other errors, showpaths will exit with code 2.
 			}
 			printf, err := getPrintf(flags.format, cmd.OutOrStdout())
 			if err != nil {
-				return serrors.WrapStr("get formatting", err)
+				return serrors.Wrap("get formatting", err)
 			}
 
 			cmd.SilenceUsage = true
