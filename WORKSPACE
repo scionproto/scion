@@ -73,7 +73,6 @@ http_archive(
 )
 
 load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
-
 load("//:tool_deps.bzl", "tool_deps")
 
 tool_deps()

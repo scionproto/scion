@@ -258,7 +258,7 @@ func DefaultColorScheme(disable bool) ColorScheme {
 }
 
 func (cs ColorScheme) KeyValue(k, v string) string {
-	return fmt.Sprintf("%s: %s", cs.Keys.Sprintf(k), cs.Values.Sprintf(v))
+	return fmt.Sprintf("%s: %s", cs.Keys.Sprint(k), cs.Values.Sprint(v))
 }
 
 func (cs ColorScheme) KeyValues(kv ...string) []string {
