@@ -46,18 +46,20 @@ aspect_bazel_lib_register_toolchains()
 # Bazel rules for Golang
 http_archive(
     name = "io_bazel_rules_go",
-    sha256 = "91585017debb61982f7054c9688857a2ad1fd823fc3f9cb05048b0025c47d023",
+    sha256 = "af47f30e9cbd70ae34e49866e201b3f77069abb111183f2c0297e7e74ba6bbc0",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.42.0/rules_go-v0.42.0.zip",
-        "https://github.com/bazelbuild/rules_go/releases/download/v0.42.0/rules_go-v0.42.0.zip",
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.47.0/rules_go-v0.47.0.zip",
+        "https://github.com/bazelbuild/rules_go/releases/download/v0.47.0/rules_go-v0.47.0.zip",
     ],
 )
 
 load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")
 
+go_rules_dependencies()
+
 go_register_toolchains(
     nogo = "@//:nogo",
-    version = "1.21.10",
+    version = "1.23.0",
 )
 
 # Gazelle
@@ -71,9 +73,6 @@ http_archive(
 )
 
 load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
-
-go_rules_dependencies()
-
 load("//:tool_deps.bzl", "tool_deps")
 
 tool_deps()

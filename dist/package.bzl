@@ -77,7 +77,7 @@ def scion_pkg_deb(name, executables = {}, systemds = [], configs = [], **kwargs)
             "@platforms//cpu:x86_64": "amd64",
             "@platforms//cpu:x86_32": "i386",
             "@platforms//cpu:aarch64": "arm64",
-            "@platforms//cpu:arm": "armel",
+            "@platforms//cpu:armv7": "armel",
             "@platforms//cpu:s390x": "s390x",
             # Note: some rules_go toolchains don't (currently) seem to map (cleanly) to @platforms//cpu.
             # "@platforms//cpu:ppc": "ppc64",
