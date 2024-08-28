@@ -65,6 +65,14 @@ func requestToTRCQuery(req *cppb.TRCRequest) (cppki.TRCID, error) {
 		Base:   scrypto.Version(req.Base),
 		Serial: scrypto.Version(req.Serial),
 	}
+	// If the query is for the latest version don't validate the ID fully, only
+	// the ISD ID.
+	if id.Base.IsLatest() && id.Serial.IsLatest() {
+		if id.ISD == 0 {
+			return cppki.TRCID{}, cppki.ErrWildcardISD
+		}
+		return id, nil
+	}
 	if err := id.Validate(); err != nil {
 		return cppki.TRCID{}, err
 	}
