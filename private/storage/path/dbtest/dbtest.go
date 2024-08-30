@@ -27,9 +27,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/ifid"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/private/pathdb"
 	"github.com/scionproto/scion/private/pathdb/query"
@@ -603,7 +603,7 @@ func checkInterface(t *testing.T, ctx context.Context, ia addr.IA, ifID uint16,
 		Intfs: []*query.IntfSpec{
 			{
 				IA:   ia,
-				IfID: common.IfIDType(ifID),
+				IfID: ifid.IfIDType(ifID),
 			},
 		},
 	})

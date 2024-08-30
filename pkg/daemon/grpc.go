@@ -27,12 +27,12 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
 	dkpb "github.com/scionproto/scion/pkg/proto/drkey"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
+	"github.com/scionproto/scion/pkg/segment/ifid"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/private/topology"
@@ -260,7 +260,7 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 	interfaces := make([]snet.PathInterface, len(p.Interfaces))
 	for i, pi := range p.Interfaces {
 		interfaces[i] = snet.PathInterface{
-			ID: common.IfIDType(pi.Id),
+			ID: ifid.IfIDType(pi.Id),
 			IA: addr.IA(pi.IsdAs),
 		}
 	}

@@ -23,10 +23,10 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt/proto"
 	"github.com/scionproto/scion/pkg/private/util"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/ifid"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
@@ -146,8 +146,8 @@ func (g *dmg) traverseSegment(segment *inputSegment) {
 		}
 
 		for peerEntryIdx, peer := range asEntries[asEntryIndex].PeerEntries {
-			ingress := common.IfIDType(peer.HopField.ConsIngress)
-			remote := common.IfIDType(peer.PeerInterface)
+			ingress := ifid.IfIDType(peer.HopField.ConsIngress)
+			remote := ifid.IfIDType(peer.PeerInterface)
 			tuples = append(tuples, Tuple{
 				Src:  vertexFromIA(pinnedIA),
 				Dst:  vertexFromPeering(currentIA, ingress, peer.Peer, remote),
@@ -259,17 +259,17 @@ func (s *inputSegment) IsDownSeg() bool {
 type vertex struct {
 	IA       addr.IA
 	UpIA     addr.IA
-	UpIfID   common.IfIDType
+	UpIfID   ifid.IfIDType
 	DownIA   addr.IA
-	DownIfID common.IfIDType
+	DownIfID ifid.IfIDType
 }
 
 func vertexFromIA(ia addr.IA) vertex {
 	return vertex{IA: ia}
 }
 
-func vertexFromPeering(upIA addr.IA, upIfID common.IfIDType,
-	downIA addr.IA, downIfID common.IfIDType) vertex {
+func vertexFromPeering(upIA addr.IA, upIfID ifid.IfIDType,
+	downIA addr.IA, downIfID ifid.IfIDType) vertex {
 
 	return vertex{UpIA: upIA, UpIfID: upIfID, DownIA: downIA, DownIfID: downIfID}
 }
@@ -365,14 +365,14 @@ func (solution *pathSolution) Path() Path {
 			if hopField.ConsEgress != 0 {
 				intfs = append(intfs, snet.PathInterface{
 					IA: asEntry.Local,
-					ID: common.IfIDType(hopField.ConsEgress),
+					ID: ifid.IfIDType(hopField.ConsEgress),
 				})
 			}
 			// In a non-peer shortcut the AS is not traversed completely.
 			if hopField.ConsIngress != 0 && (!isShortcut || isPeer) {
 				intfs = append(intfs, snet.PathInterface{
 					IA: asEntry.Local,
-					ID: common.IfIDType(hopField.ConsIngress),
+					ID: ifid.IfIDType(hopField.ConsIngress),
 				})
 			}
 			hops = append(hops, hopField)

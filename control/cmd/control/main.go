@@ -56,13 +56,13 @@ import (
 	libgrpc "github.com/scionproto/scion/pkg/grpc"
 	"github.com/scionproto/scion/pkg/log"
 	libmetrics "github.com/scionproto/scion/pkg/metrics"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/prom"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	cppb "github.com/scionproto/scion/pkg/proto/control_plane"
 	dpb "github.com/scionproto/scion/pkg/proto/discovery"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
+	"github.com/scionproto/scion/pkg/segment/ifid"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/app"
 	infraenv "github.com/scionproto/scion/private/app/appnet"
@@ -852,7 +852,7 @@ func createBeaconStore(
 	return store, *policies.Prop.Filter.AllowIsdLoop, err
 }
 
-func adaptInterfaceMap(in map[common.IfIDType]topology.IFInfo) map[uint16]ifstate.InterfaceInfo {
+func adaptInterfaceMap(in map[ifid.IfIDType]topology.IFInfo) map[uint16]ifstate.InterfaceInfo {
 	converted := make(map[uint16]ifstate.InterfaceInfo, len(in))
 	for id, info := range in {
 		converted[uint16(id)] = ifstate.InterfaceInfo{

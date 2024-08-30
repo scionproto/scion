@@ -29,8 +29,8 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/segment/ifid"
 	jsontopo "github.com/scionproto/scion/private/topology/json"
 	"github.com/scionproto/scion/private/topology/underlay"
 )
@@ -95,25 +95,25 @@ type (
 		// InternalAddr is the local data-plane address.
 		InternalAddr netip.AddrPort
 		// IfIDs is a sorted list of the interface IDs.
-		IfIDs []common.IfIDType
+		IfIDs []ifid.IfIDType
 		// IFs is a map of interface IDs.
-		IFs map[common.IfIDType]*IFInfo
+		IFs map[ifid.IfIDType]*IFInfo
 	}
 
 	// IfInfoMap maps interface ids to the interface information.
-	IfInfoMap map[common.IfIDType]IFInfo
+	IfInfoMap map[ifid.IfIDType]IFInfo
 
 	// IFInfo describes a border router link to another AS, including the internal data-plane
 	// address applications should send traffic to and information about the link itself and the
 	// remote side of it.
 	IFInfo struct {
 		// ID is the interface ID. It is unique per AS.
-		ID           common.IfIDType
+		ID           ifid.IfIDType
 		BRName       string
 		InternalAddr netip.AddrPort
 		Local        netip.AddrPort
 		Remote       netip.AddrPort
-		RemoteIfID   common.IfIDType
+		RemoteIfID   ifid.IfIDType
 		IA           addr.IA
 		LinkType     LinkType
 		MTU          int
@@ -267,7 +267,7 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 		brInfo := BRInfo{
 			Name:         name,
 			InternalAddr: intAddr,
-			IFs:          make(map[common.IfIDType]*IFInfo),
+			IFs:          make(map[ifid.IfIDType]*IFInfo),
 		}
 		for ifID, rawIntf := range rawBr.Interfaces {
 			var err error
@@ -474,11 +474,11 @@ func (i *BRInfo) copy() *BRInfo {
 	}
 }
 
-func copyIFsMap(m map[common.IfIDType]*IFInfo) map[common.IfIDType]*IFInfo {
+func copyIFsMap(m map[ifid.IfIDType]*IFInfo) map[ifid.IfIDType]*IFInfo {
 	if m == nil {
 		return nil
 	}
-	newM := make(map[common.IfIDType]*IFInfo)
+	newM := make(map[ifid.IfIDType]*IFInfo)
 	for k, v := range m {
 		newM[k] = v.copy()
 	}

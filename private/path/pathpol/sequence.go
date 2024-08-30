@@ -28,8 +28,8 @@ import (
 	"github.com/scionproto/scion/antlr/sequence"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/segment/ifid"
 	"github.com/scionproto/scion/pkg/snet"
 )
 
@@ -294,7 +294,7 @@ func (l *sequenceListener) ExitIFace(c *sequence.IFaceContext) {
 	l.push(re)
 }
 
-func hop(ia addr.IA, ingress, egress common.IfIDType) string {
+func hop(ia addr.IA, ingress, egress ifid.IfIDType) string {
 	return fmt.Sprintf("%s#%d,%d", ia, ingress, egress)
 }
 

@@ -18,8 +18,8 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/ifid"
 	"github.com/scionproto/scion/private/storage/cleaner"
 )
 
@@ -46,10 +46,10 @@ func NoRevokedHopIntf(ctx context.Context, revCache RevCache,
 func addRevKeys(segs []*seg.PathSegment, keys KeySet, hopOnly bool) {
 	addIntfs := func(ia addr.IA, ingress, egress uint16) {
 		if ingress != 0 {
-			keys[Key{IA: ia, IfID: common.IfIDType(ingress)}] = struct{}{}
+			keys[Key{IA: ia, IfID: ifid.IfIDType(ingress)}] = struct{}{}
 		}
 		if egress != 0 {
-			keys[Key{IA: ia, IfID: common.IfIDType(egress)}] = struct{}{}
+			keys[Key{IA: ia, IfID: ifid.IfIDType(egress)}] = struct{}{}
 		}
 	}
 	for _, s := range segs {

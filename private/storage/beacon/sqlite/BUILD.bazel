@@ -11,9 +11,9 @@ go_library(
     deps = [
         "//control/beacon:go_default_library",
         "//pkg/addr:go_default_library",
-        "//pkg/private/common:go_default_library",
         "//pkg/private/serrors:go_default_library",
         "//pkg/private/util:go_default_library",
+        "//pkg/segment/ifid:go_default_library",
         "//private/storage/beacon:go_default_library",
         "//private/storage/db:go_default_library",
     ],

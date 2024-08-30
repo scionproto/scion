@@ -23,13 +23,13 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt/proto"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/ifid"
 	"github.com/scionproto/scion/private/revcache"
 	"github.com/scionproto/scion/private/revcache/mock_revcache"
 )
@@ -60,7 +60,7 @@ func TestNoRevokedHopIntf(t *testing.T) {
 		revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).Return(
 			revcache.Revocations{
 				revcache.Key{IA: addr.MustParseIA("2-ff00:0:211"),
-					IfID: common.IfIDType(graph.If_210_X_211_A)}: sRev,
+					IfID: ifid.IfIDType(graph.If_210_X_211_A)}: sRev,
 			}, nil,
 		)
 		noR, err := revcache.NoRevokedHopIntf(ctx, revCache, seg210_222_1)
@@ -79,7 +79,7 @@ func TestNoRevokedHopIntf(t *testing.T) {
 
 func defaultRevInfo(ia addr.IA, ifID uint16, ts time.Time) *path_mgmt.RevInfo {
 	return &path_mgmt.RevInfo{
-		IfID:         common.IfIDType(ifID),
+		IfID:         ifid.IfIDType(ifID),
 		RawIsdas:     ia,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(ts),

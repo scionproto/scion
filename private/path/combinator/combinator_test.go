@@ -28,10 +28,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/xtest"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/ifid"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
@@ -547,20 +547,20 @@ func TestFilterDuplicates(t *testing.T) {
 	// These look somewhat valid, but that doesn't matter at all -- we only look
 	// at the fingerprint anyway.
 	path0 := []snet.PathInterface{
-		{IA: addr.MustParseIA("1-ff00:0:110"), ID: common.IfIDType(10)},
-		{IA: addr.MustParseIA("1-ff00:0:111"), ID: common.IfIDType(10)},
+		{IA: addr.MustParseIA("1-ff00:0:110"), ID: ifid.IfIDType(10)},
+		{IA: addr.MustParseIA("1-ff00:0:111"), ID: ifid.IfIDType(10)},
 	}
 	path1 := []snet.PathInterface{
-		{IA: addr.MustParseIA("1-ff00:0:110"), ID: common.IfIDType(11)},
-		{IA: addr.MustParseIA("1-ff00:0:112"), ID: common.IfIDType(11)},
-		{IA: addr.MustParseIA("1-ff00:0:112"), ID: common.IfIDType(12)},
-		{IA: addr.MustParseIA("1-ff00:0:111"), ID: common.IfIDType(12)},
+		{IA: addr.MustParseIA("1-ff00:0:110"), ID: ifid.IfIDType(11)},
+		{IA: addr.MustParseIA("1-ff00:0:112"), ID: ifid.IfIDType(11)},
+		{IA: addr.MustParseIA("1-ff00:0:112"), ID: ifid.IfIDType(12)},
+		{IA: addr.MustParseIA("1-ff00:0:111"), ID: ifid.IfIDType(12)},
 	}
 	path2 := []snet.PathInterface{
-		{IA: addr.MustParseIA("1-ff00:0:110"), ID: common.IfIDType(11)},
-		{IA: addr.MustParseIA("1-ff00:0:112"), ID: common.IfIDType(11)},
-		{IA: addr.MustParseIA("1-ff00:0:112"), ID: common.IfIDType(22)},
-		{IA: addr.MustParseIA("1-ff00:0:111"), ID: common.IfIDType(22)},
+		{IA: addr.MustParseIA("1-ff00:0:110"), ID: ifid.IfIDType(11)},
+		{IA: addr.MustParseIA("1-ff00:0:112"), ID: ifid.IfIDType(11)},
+		{IA: addr.MustParseIA("1-ff00:0:112"), ID: ifid.IfIDType(22)},
+		{IA: addr.MustParseIA("1-ff00:0:111"), ID: ifid.IfIDType(22)},
 	}
 
 	// Define two expiry times for the paths: paths with latest expiry will be kept

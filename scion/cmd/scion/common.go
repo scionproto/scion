@@ -23,8 +23,8 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/segment/ifid"
 	"github.com/scionproto/scion/pkg/snet"
 )
 
@@ -43,8 +43,8 @@ type Path struct {
 
 // Hop represents an hop on the path.
 type Hop struct {
-	ID common.IfIDType `json:"interface" yaml:"interface"`
-	IA addr.IA         `json:"isd_as" yaml:"isd_as"`
+	ID ifid.IfIDType `json:"interface" yaml:"interface"`
+	IA addr.IA       `json:"isd_as" yaml:"isd_as"`
 }
 
 // getHops constructs a list of snet path interfaces from an snet path

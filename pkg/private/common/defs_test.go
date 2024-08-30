@@ -15,13 +15,10 @@
 package common_test
 
 import (
-	"encoding/json"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTypeOf(t *testing.T) {
@@ -39,31 +36,4 @@ func TestTypeOf(t *testing.T) {
 			assert.NotEmpty(t, result)
 		})
 	}
-}
-
-func TestIfIDTypeUnmarshalJSON(t *testing.T) {
-	t.Run("Simple Value", func(t *testing.T) {
-		type exampleStruct struct {
-			IfID common.IfIDType `json:"if_id"`
-		}
-		j := `{"if_id": 5}`
-		var f exampleStruct
-		require.NoError(t, json.Unmarshal([]byte(j), &f))
-		assert.Equal(t, exampleStruct{IfID: 5}, f)
-	})
-	t.Run("Map keys", func(t *testing.T) {
-		type exampleStruct struct {
-			IfMap map[common.IfIDType]string `json:"if_map"`
-		}
-		j := `{"if_map": {"5": "foo"}}`
-		var f exampleStruct
-		require.NoError(t, json.Unmarshal([]byte(j), &f))
-		assert.Equal(t, exampleStruct{IfMap: map[common.IfIDType]string{5: "foo"}}, f)
-	})
-}
-
-func TestIfIDTypeUnmarshalText(t *testing.T) {
-	var id common.IfIDType
-	assert.NoError(t, id.UnmarshalText([]byte("1")))
-	assert.Equal(t, common.IfIDType(1), id)
 }
