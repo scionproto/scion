@@ -593,7 +593,7 @@ func (m IDAddrMap) copy() IDAddrMap {
 func (i IFInfo) CheckLinks(isCore bool, brName string) error {
 	if isCore {
 		switch i.LinkType {
-		case Core, Child:
+		case Core, Child, Peer:
 		default:
 			return serrors.New("Illegal link type for core AS",
 				"type", i.LinkType, "br", brName)
