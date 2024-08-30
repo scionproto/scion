@@ -23,7 +23,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/segment/ifid"
+	"github.com/scionproto/scion/pkg/segment/iface"
 )
 
 func TestNewACL(t *testing.T) {
@@ -113,7 +113,7 @@ func TestACLEntryLoadFromString(t *testing.T) {
 			String: "+ 0",
 			ACLEntry: ACLEntry{
 				Action: Allow,
-				Rule:   &HopPredicate{IfIDs: []ifid.IfIDType{0}},
+				Rule:   &HopPredicate{IfIDs: []iface.IfIDType{0}},
 			},
 			ErrorAssertion: assert.NoError,
 		},
@@ -121,7 +121,7 @@ func TestACLEntryLoadFromString(t *testing.T) {
 			String: "+ 1-2#3",
 			ACLEntry: ACLEntry{
 				Action: Allow,
-				Rule:   &HopPredicate{ISD: 1, AS: 2, IfIDs: []ifid.IfIDType{3}},
+				Rule:   &HopPredicate{ISD: 1, AS: 2, IfIDs: []iface.IfIDType{3}},
 			},
 			ErrorAssertion: assert.NoError,
 		},
@@ -134,7 +134,7 @@ func TestACLEntryLoadFromString(t *testing.T) {
 			String: "- 0",
 			ACLEntry: ACLEntry{
 				Action: Deny,
-				Rule:   &HopPredicate{IfIDs: []ifid.IfIDType{0}},
+				Rule:   &HopPredicate{IfIDs: []iface.IfIDType{0}},
 			},
 			ErrorAssertion: assert.NoError,
 		},
@@ -161,7 +161,7 @@ func TestACLEntryLoadFromString(t *testing.T) {
 
 func TestACLEntryString(t *testing.T) {
 	aclEntryString := "+ 0-0#0"
-	aclEntry := &ACLEntry{Action: true, Rule: &HopPredicate{IfIDs: []ifid.IfIDType{0}}}
+	aclEntry := &ACLEntry{Action: true, Rule: &HopPredicate{IfIDs: []iface.IfIDType{0}}}
 	assert.Equal(t, aclEntryString, aclEntry.String())
 }
 

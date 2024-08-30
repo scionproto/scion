@@ -26,7 +26,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
-	"github.com/scionproto/scion/pkg/segment/ifid"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	storagebeacon "github.com/scionproto/scion/private/storage/beacon"
 	"github.com/scionproto/scion/private/storage/db"
 )
@@ -140,7 +140,7 @@ func (e *executor) CandidateBeacons(
 	beacons := make([]beacon.Beacon, 0, setSize)
 	for rows.Next() {
 		var rawBeacon sql.RawBytes
-		var inIfID ifid.IfIDType
+		var inIfID iface.IfIDType
 		if err = rows.Scan(&rawBeacon, &inIfID); err != nil {
 			return nil, db.NewReadError(beacon.ErrReadingRows, err)
 		}

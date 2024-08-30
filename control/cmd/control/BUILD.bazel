@@ -36,7 +36,7 @@ go_library(
         "//pkg/proto/discovery:go_default_library",
         "//pkg/scrypto:go_default_library",
         "//pkg/scrypto/cppki:go_default_library",
-        "//pkg/segment/ifid:go_default_library",
+        "//pkg/segment/iface:go_default_library",
         "//pkg/snet:go_default_library",
         "//private/app:go_default_library",
         "//private/app/appnet:go_default_library",

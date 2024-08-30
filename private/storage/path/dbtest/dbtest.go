@@ -29,7 +29,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
-	"github.com/scionproto/scion/pkg/segment/ifid"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/private/pathdb"
 	"github.com/scionproto/scion/private/pathdb/query"
@@ -603,7 +603,7 @@ func checkInterface(t *testing.T, ctx context.Context, ia addr.IA, ifID uint16,
 		Intfs: []*query.IntfSpec{
 			{
 				IA:   ia,
-				IfID: ifid.IfIDType(ifID),
+				IfID: iface.IfIDType(ifID),
 			},
 		},
 	})

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ifid_test
+package iface_test
 
 import (
 	"encoding/json"
@@ -21,13 +21,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/pkg/segment/ifid"
+	"github.com/scionproto/scion/pkg/segment/iface"
 )
 
 func TestIfIDTypeUnmarshalJSON(t *testing.T) {
 	t.Run("Simple Value", func(t *testing.T) {
 		type exampleStruct struct {
-			IfID ifid.IfIDType `json:"if_id"`
+			IfID iface.IfIDType `json:"if_id"`
 		}
 		j := `{"if_id": 5}`
 		var f exampleStruct
@@ -36,17 +36,17 @@ func TestIfIDTypeUnmarshalJSON(t *testing.T) {
 	})
 	t.Run("Map keys", func(t *testing.T) {
 		type exampleStruct struct {
-			IfMap map[ifid.IfIDType]string `json:"if_map"`
+			IfMap map[iface.IfIDType]string `json:"if_map"`
 		}
 		j := `{"if_map": {"5": "foo"}}`
 		var f exampleStruct
 		require.NoError(t, json.Unmarshal([]byte(j), &f))
-		assert.Equal(t, exampleStruct{IfMap: map[ifid.IfIDType]string{5: "foo"}}, f)
+		assert.Equal(t, exampleStruct{IfMap: map[iface.IfIDType]string{5: "foo"}}, f)
 	})
 }
 
 func TestIfIDTypeUnmarshalText(t *testing.T) {
-	var id ifid.IfIDType
+	var id iface.IfIDType
 	assert.NoError(t, id.UnmarshalText([]byte("1")))
-	assert.Equal(t, ifid.IfIDType(1), id)
+	assert.Equal(t, iface.IfIDType(1), id)
 }

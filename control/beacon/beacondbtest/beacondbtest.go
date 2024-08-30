@@ -26,7 +26,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
-	"github.com/scionproto/scion/pkg/segment/ifid"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/slayers/path"
 )
 
@@ -334,14 +334,14 @@ func InsertBeacon(t *testing.T, db beacon.DB, ases []IfInfo,
 
 type PeerEntry struct {
 	IA      addr.IA
-	Ingress ifid.IfIDType
+	Ingress iface.IfIDType
 }
 
 type IfInfo struct {
 	IA      addr.IA
 	Next    addr.IA
-	Ingress ifid.IfIDType
-	Egress  ifid.IfIDType
+	Ingress iface.IfIDType
+	Egress  iface.IfIDType
 	Peers   []PeerEntry
 }
 

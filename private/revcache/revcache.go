@@ -21,18 +21,18 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
-	"github.com/scionproto/scion/pkg/segment/ifid"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/private/storage/db"
 )
 
 // Key denotes the key for the revocation cache.
 type Key struct {
 	IA   addr.IA
-	IfID ifid.IfIDType
+	IfID iface.IfIDType
 }
 
 // NewKey creates a new key for the revocation cache.
-func NewKey(ia addr.IA, ifID ifid.IfIDType) Key {
+func NewKey(ia addr.IA, ifID iface.IfIDType) Key {
 	return Key{
 		IA:   ia,
 		IfID: ifID,
@@ -47,7 +47,7 @@ func (k Key) String() string {
 type KeySet map[Key]struct{}
 
 // SingleKey is a convenience function to return a KeySet with a single key.
-func SingleKey(ia addr.IA, ifID ifid.IfIDType) KeySet {
+func SingleKey(ia addr.IA, ifID iface.IfIDType) KeySet {
 	return KeySet{Key{IA: ia, IfID: ifID}: {}}
 }
 

@@ -26,7 +26,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/util"
-	"github.com/scionproto/scion/pkg/segment/ifid"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/mock_snet"
 )
@@ -69,7 +69,7 @@ func TestExpiredRevocation(t *testing.T) {
 	s.Cleanup(context.Background())
 }
 
-func createMockPath(ctrl *gomock.Controller, ia addr.IA, ifID ifid.IfIDType) snet.Path {
+func createMockPath(ctrl *gomock.Controller, ia addr.IA, ifID iface.IfIDType) snet.Path {
 	path := mock_snet.NewMockPath(ctrl)
 	path.EXPECT().Metadata().Return(&snet.PathMetadata{
 		Interfaces: []snet.PathInterface{{IA: ia, ID: ifID}},
@@ -77,7 +77,7 @@ func createMockPath(ctrl *gomock.Controller, ia addr.IA, ifID ifid.IfIDType) sne
 	return path
 }
 
-func createRevInfo(ia addr.IA, ifID ifid.IfIDType, expired bool) *path_mgmt.RevInfo {
+func createRevInfo(ia addr.IA, ifID iface.IfIDType, expired bool) *path_mgmt.RevInfo {
 	ri := &path_mgmt.RevInfo{
 		RawIsdas: ia,
 		IfID:     ifID,

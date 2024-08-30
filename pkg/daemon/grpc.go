@@ -32,7 +32,7 @@ import (
 	sdpb "github.com/scionproto/scion/pkg/proto/daemon"
 	dkpb "github.com/scionproto/scion/pkg/proto/drkey"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
-	"github.com/scionproto/scion/pkg/segment/ifid"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/private/topology"
@@ -260,7 +260,7 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 	interfaces := make([]snet.PathInterface, len(p.Interfaces))
 	for i, pi := range p.Interfaces {
 		interfaces[i] = snet.PathInterface{
-			ID: ifid.IfIDType(pi.Id),
+			ID: iface.IfIDType(pi.Id),
 			IA: addr.IA(pi.IsdAs),
 		}
 	}

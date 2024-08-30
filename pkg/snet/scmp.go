@@ -23,7 +23,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
-	"github.com/scionproto/scion/pkg/segment/ifid"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/slayers"
 )
 
@@ -73,7 +73,7 @@ func (h DefaultSCMPHandler) Handle(pkt *Packet) error {
 	case slayers.SCMPTypeExternalInterfaceDown:
 		msg := pkt.Payload.(SCMPExternalInterfaceDown)
 		return h.handleSCMPRev(typeCode, &path_mgmt.RevInfo{
-			IfID:         ifid.IfIDType(msg.Interface),
+			IfID:         iface.IfIDType(msg.Interface),
 			RawIsdas:     msg.IA,
 			RawTimestamp: util.TimeToSecs(time.Now()),
 			RawTTL:       10,
@@ -81,7 +81,7 @@ func (h DefaultSCMPHandler) Handle(pkt *Packet) error {
 	case slayers.SCMPTypeInternalConnectivityDown:
 		msg := pkt.Payload.(SCMPInternalConnectivityDown)
 		return h.handleSCMPRev(typeCode, &path_mgmt.RevInfo{
-			IfID:         ifid.IfIDType(msg.Egress),
+			IfID:         iface.IfIDType(msg.Egress),
 			RawIsdas:     msg.IA,
 			RawTimestamp: util.TimeToSecs(time.Now()),
 			RawTTL:       10,

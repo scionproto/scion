@@ -25,7 +25,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt/proto"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
-	"github.com/scionproto/scion/pkg/segment/ifid"
+	"github.com/scionproto/scion/pkg/segment/iface"
 )
 
 const MinRevTTL = 10 * time.Second // MinRevTTL is the minimum lifetime of a revocation
@@ -47,7 +47,7 @@ func (ee RevTimeError) Error() string {
 }
 
 type RevInfo struct {
-	IfID     ifid.IfIDType
+	IfID     iface.IfIDType
 	RawIsdas addr.IA
 	// LinkType of revocation
 	LinkType proto.LinkType

@@ -28,7 +28,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	"github.com/scionproto/scion/pkg/private/xtest/matchers"
 	seg "github.com/scionproto/scion/pkg/segment"
-	"github.com/scionproto/scion/pkg/segment/ifid"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/private/pathdb/mock_pathdb"
 	"github.com/scionproto/scion/private/pathdb/query"
 	"github.com/scionproto/scion/private/revcache"
@@ -411,11 +411,11 @@ func TestResolverWithRevocations(t *testing.T) {
 			ExpectRevcache: func(t *testing.T, revCache *mock_revcache.MockRevCache) {
 				key111_120 := revcache.Key{
 					IA:   non_core_111,
-					IfID: ifid.IfIDType(graph.If_111_B_120_X),
+					IfID: iface.IfIDType(graph.If_111_B_120_X),
 				}
 				key111_130 := revcache.Key{
 					IA:   non_core_111,
-					IfID: ifid.IfIDType(graph.If_111_A_130_B),
+					IfID: iface.IfIDType(graph.If_111_A_130_B),
 				}
 				revoke(t, revCache, key111_120)
 				revoke(t, revCache, key111_130)
@@ -446,7 +446,7 @@ func TestResolverWithRevocations(t *testing.T) {
 				db.EXPECT().Get(gomock.Any(), gomock.Any()).Times(2)
 			},
 			ExpectRevcache: func(t *testing.T, revCache *mock_revcache.MockRevCache) {
-				key110 := revcache.Key{IA: core_110, IfID: ifid.IfIDType(graph.If_110_X_130_A)}
+				key110 := revcache.Key{IA: core_110, IfID: iface.IfIDType(graph.If_110_X_130_A)}
 				ksMatcher := keySetContains{keys: []revcache.Key{key110}}
 				rev := &path_mgmt.RevInfo{}
 				revCache.EXPECT().Get(gomock.Any(), ksMatcher).Return(revcache.Revocations{

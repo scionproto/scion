@@ -23,7 +23,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/segment/ifid"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/private/topology"
 )
 
@@ -32,7 +32,7 @@ import (
 type Dataplane interface {
 	CreateIACtx(ia addr.IA) error
 	AddInternalInterface(ia addr.IA, local netip.AddrPort) error
-	AddExternalInterface(localIfID ifid.IfIDType, info LinkInfo, owned bool) error
+	AddExternalInterface(localIfID iface.IfIDType, info LinkInfo, owned bool) error
 	AddSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error
 	DelSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error
 	SetKey(ia addr.IA, index int, key []byte) error
@@ -57,7 +57,7 @@ type LinkInfo struct {
 type LinkEnd struct {
 	IA   addr.IA
 	Addr netip.AddrPort
-	IfID ifid.IfIDType
+	IfID iface.IfIDType
 }
 
 type ObservableDataplane interface {
@@ -169,7 +169,7 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 		// nothing to do
 		return nil
 	}
-	ifIDs := []ifid.IfIDType{}
+	ifIDs := []iface.IfIDType{}
 	for k := range infoMap {
 		ifIDs = append(ifIDs, k)
 	}

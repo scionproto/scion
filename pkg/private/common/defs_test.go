@@ -17,8 +17,9 @@ package common_test
 import (
 	"testing"
 
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/scionproto/scion/pkg/private/common"
 )
 
 func TestTypeOf(t *testing.T) {

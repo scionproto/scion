@@ -21,12 +21,12 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	seg "github.com/scionproto/scion/pkg/segment"
-	"github.com/scionproto/scion/pkg/segment/ifid"
+	"github.com/scionproto/scion/pkg/segment/iface"
 )
 
 type IntfSpec struct {
 	IA   addr.IA
-	IfID ifid.IfIDType
+	IfID iface.IfIDType
 }
 
 type Params struct {

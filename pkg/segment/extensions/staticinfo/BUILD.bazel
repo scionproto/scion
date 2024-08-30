@@ -7,7 +7,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/proto/control_plane:go_default_library",
-        "//pkg/segment/ifid:go_default_library",
+        "//pkg/segment/iface:go_default_library",
     ],
 )
 
@@ -16,7 +16,7 @@ go_test(
     srcs = ["staticinfo_test.go"],
     deps = [
         ":go_default_library",
-        "//pkg/segment/ifid:go_default_library",
+        "//pkg/segment/iface:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
     ],
 )

@@ -13,15 +13,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ifid
+package iface
 
 import (
 	"strconv"
 	"strings"
 )
 
-// IfIDType is the path-type-independant type for interface IDs. Interface IDs must fit in
-// 64 bits. There is a lot of path-type-independant code that manipulates interface IDs without
+// IfIDType is the path-type-independent type for interface IDs. Interface IDs must fit in
+// 64 bits. There is a lot of path-type-independent code that manipulates interface IDs without
 // interpreting them. This type is a container for them.
 type IfIDType uint64
 

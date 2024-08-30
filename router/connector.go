@@ -21,7 +21,7 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
-	"github.com/scionproto/scion/pkg/segment/ifid"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/private/underlay/conn"
 	"github.com/scionproto/scion/router/config"
 	"github.com/scionproto/scion/router/control"
@@ -80,7 +80,7 @@ func (c *Connector) AddInternalInterface(ia addr.IA, local netip.AddrPort) error
 }
 
 // AddExternalInterface adds a link between the local and remote address.
-func (c *Connector) AddExternalInterface(localIfID ifid.IfIDType, link control.LinkInfo,
+func (c *Connector) AddExternalInterface(localIfID iface.IfIDType, link control.LinkInfo,
 	owned bool) error {
 
 	c.mtx.Lock()
