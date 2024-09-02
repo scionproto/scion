@@ -23,7 +23,7 @@ package combinator
 import (
 	"crypto/sha256"
 	"encoding/binary"
-	"sort"
+	"slices"
 
 	"github.com/scionproto/scion/pkg/addr"
 	seg "github.com/scionproto/scion/pkg/segment"
@@ -61,8 +61,9 @@ func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment,
 
 	solutions := newDMG(ups, cores, downs).GetPaths(vertexFromIA(src), vertexFromIA(dst))
 	paths := make([]Path, len(solutions))
+	sumBuf := make([]byte, 0, sha256.Size)
 	for i, solution := range solutions {
-		paths[i] = solution.Path()
+		paths[i] = solution.Path(sumBuf)
 	}
 	paths = filterLongPaths(paths)
 	if !findAllIdentical {
@@ -72,10 +73,11 @@ func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment,
 }
 
 type Path struct {
-	Dst       addr.IA
-	SCIONPath path.SCION
-	Metadata  snet.PathMetadata
-	Weight    int // XXX(matzf): unused, drop this?
+	Dst         addr.IA
+	SCIONPath   path.SCION
+	Metadata    snet.PathMetadata
+	Weight      int // XXX(matzf): unused, drop this?
+	Fingerprint snet.PathFingerprint
 }
 
 // filterLongPaths returns a new slice containing only those paths that do not
@@ -112,10 +114,9 @@ func filterDuplicates(paths []Path) []Path {
 	// unique path interface sequence (== fingerprint).
 	uniquePaths := make(map[snet.PathFingerprint]int)
 	for i, p := range paths {
-		key := fingerprint(p.Metadata.Interfaces)
-		prev, dupe := uniquePaths[key]
+		prev, dupe := uniquePaths[p.Fingerprint]
 		if !dupe || p.Metadata.Expiry.After(paths[prev].Metadata.Expiry) {
-			uniquePaths[key] = i
+			uniquePaths[p.Fingerprint] = i
 		}
 	}
 
@@ -123,7 +124,7 @@ func filterDuplicates(paths []Path) []Path {
 	for _, idx := range uniquePaths {
 		toKeep = append(toKeep, idx)
 	}
-	sort.Ints(toKeep)
+	slices.Sort(toKeep)
 	filtered := make([]Path, 0, len(toKeep))
 	for _, i := range toKeep {
 		filtered = append(filtered, paths[i])
@@ -135,7 +136,7 @@ func filterDuplicates(paths []Path) []Path {
 // ASes and BRs, i.e. by its PathInterfaces.
 // XXX(matzf): copied from snet.Fingerprint. Perhaps snet.Fingerprint could be adapted to
 // take []snet.PathInterface directly.
-func fingerprint(interfaces []snet.PathInterface) snet.PathFingerprint {
+func fingerprint(interfaces []snet.PathInterface, sumBuf []byte) snet.PathFingerprint {
 	h := sha256.New()
 	for _, intf := range interfaces {
 		if err := binary.Write(h, binary.BigEndian, intf.IA); err != nil {
@@ -145,5 +146,5 @@ func fingerprint(interfaces []snet.PathInterface) snet.PathFingerprint {
 			panic(err)
 		}
 	}
-	return snet.PathFingerprint(h.Sum(nil))
+	return snet.PathFingerprint(h.Sum(sumBuf[:0]))
 }
