@@ -16,4 +16,5 @@ package combinator
 
 var (
 	FilterDuplicates = filterDuplicates
+	Fingerprint      = fingerprint
 )
