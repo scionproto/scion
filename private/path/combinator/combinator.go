@@ -23,6 +23,7 @@ package combinator
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"hash"
 	"slices"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -61,9 +62,9 @@ func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment,
 
 	solutions := newDMG(ups, cores, downs).GetPaths(vertexFromIA(src), vertexFromIA(dst))
 	paths := make([]Path, len(solutions))
-	sumBuf := make([]byte, 0, sha256.Size)
+	st := newHashState()
 	for i, solution := range solutions {
-		paths[i] = solution.Path(sumBuf)
+		paths[i] = solution.Path(st)
 	}
 	paths = filterLongPaths(paths)
 	if !findAllIdentical {
@@ -136,8 +137,9 @@ func filterDuplicates(paths []Path) []Path {
 // ASes and BRs, i.e. by its PathInterfaces.
 // XXX(matzf): copied from snet.Fingerprint. Perhaps snet.Fingerprint could be adapted to
 // take []snet.PathInterface directly.
-func fingerprint(interfaces []snet.PathInterface, sumBuf []byte) snet.PathFingerprint {
-	h := sha256.New()
+func fingerprint(interfaces []snet.PathInterface, st hashState) snet.PathFingerprint {
+	h := st.hash
+	h.Reset()
 	for _, intf := range interfaces {
 		if err := binary.Write(h, binary.BigEndian, intf.IA); err != nil {
 			panic(err)
@@ -146,5 +148,16 @@ func fingerprint(interfaces []snet.PathInterface, sumBuf []byte) snet.PathFinger
 			panic(err)
 		}
 	}
-	return snet.PathFingerprint(h.Sum(sumBuf[:0]))
+	// convert the snet.PathFingerprint, this is safe because the underlying
+	// type is string.
+	return snet.PathFingerprint(h.Sum(st.buf[:0]))
+}
+
+type hashState struct {
+	hash hash.Hash
+	buf  []byte
+}
+
+func newHashState() hashState {
+	return hashState{hash: sha256.New(), buf: make([]byte, 0, sha256.Size)}
 }

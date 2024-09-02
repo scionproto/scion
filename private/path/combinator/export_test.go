@@ -17,4 +17,5 @@ package combinator
 var (
 	FilterDuplicates = filterDuplicates
 	Fingerprint      = fingerprint
+	NewHashState     = newHashState
 )

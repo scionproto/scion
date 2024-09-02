@@ -196,7 +196,7 @@ func (g *dmg) AddEdge(src, dst vertex, segment *inputSegment, e *edge) {
 // GetPaths returns all the paths from src to dst, sorted according to weight.
 func (g *dmg) GetPaths(src, dst vertex) []*pathSolution {
 	var solutions []*pathSolution
-	queue := []*pathSolution{&pathSolution{currentVertex: src}}
+	queue := []*pathSolution{{currentVertex: src}}
 	for len(queue) > 0 {
 		currentPathSolution := queue[0]
 		queue = queue[1:]
@@ -341,7 +341,7 @@ type pathSolution struct {
 
 // Path builds the forwarding path with metadata by extracting it from a path
 // between source and destination in the DMG.
-func (solution *pathSolution) Path(sumBuf []byte) Path {
+func (solution *pathSolution) Path(hashState hashState) Path {
 	mtu := ^uint16(0)
 	var segments segmentList
 	var epicPathAuths [][]byte
@@ -459,7 +459,7 @@ func (solution *pathSolution) Path(sumBuf []byte) Path {
 			Notes:        staticInfo.Notes,
 		},
 		Weight:      solution.cost,
-		Fingerprint: fingerprint(interfaces, sumBuf),
+		Fingerprint: fingerprint(interfaces, hashState),
 	}
 
 	if authPHVF, authLHVF, ok := isEpicAvailable(epicPathAuths); ok {
