@@ -153,6 +153,14 @@ func fingerprint(interfaces []snet.PathInterface, st hashState) snet.PathFingerp
 	return snet.PathFingerprint(h.Sum(st.buf[:0]))
 }
 
+func checkUnderlyingType[S ~string](_ S) bool { return true }
+
+// This check ensures that the underlying type of the PathFingerprint
+// is string. This is required to create a copy of the buffer. If it were
+// to be moved to a []byte, we need to change the code to create
+// a proper copy.
+var _ = checkUnderlyingType(snet.PathFingerprint(""))
+
 type hashState struct {
 	hash hash.Hash
 	buf  []byte
