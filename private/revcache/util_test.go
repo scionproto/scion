@@ -57,14 +57,15 @@ func TestNoRevokedHopIntf(t *testing.T) {
 	t.Run("on segment revocation", func(t *testing.T) {
 		sRev := defaultRevInfo(ia211, graph.If_211_A_210_X, now)
 		revCache := mock_revcache.NewMockRevCache(ctrl)
-		revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).DoAndReturn(func(_ context.Context, key revcache.Key) (*path_mgmt.RevInfo, error) {
-			iaFmt := key.IA.String()
-			_ = iaFmt
-			if key.IA == ia211 && key.IfID == common.IfIDType(graph.If_211_A_210_X) {
-				return sRev, nil
-			}
-			return nil, nil
-		}).AnyTimes()
+		revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).DoAndReturn(
+			func(_ context.Context, key revcache.Key) (*path_mgmt.RevInfo, error) {
+				iaFmt := key.IA.String()
+				_ = iaFmt
+				if key.IA == ia211 && key.IfID == common.IfIDType(graph.If_211_A_210_X) {
+					return sRev, nil
+				}
+				return nil, nil
+			}).AnyTimes()
 		noR, err := revcache.NoRevokedHopIntf(ctx, revCache, seg210_222_1)
 		assert.NoError(t, err)
 		assert.False(t, noR, "revocation expected")
