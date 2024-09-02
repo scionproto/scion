@@ -577,7 +577,7 @@ func TestFilterDuplicates(t *testing.T) {
 				Interfaces: interfaces,
 				Expiry:     expiry,
 			},
-			Fingerprint: combinator.Fingerprint(interfaces, nil),
+			Fingerprint: combinator.Fingerprint(interfaces, combinator.NewHashState()),
 		}
 	}
 
