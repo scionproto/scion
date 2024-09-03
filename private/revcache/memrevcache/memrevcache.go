@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	cache "github.com/patrickmn/go-cache"
+	cache "zgo.at/zcache/v2"
 
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/private/revcache"
@@ -29,7 +29,7 @@ var _ revcache.RevCache = (*memRevCache)(nil)
 
 type memRevCache struct {
 	// Do not embed or use type directly to reduce the cache's API surface
-	c    *cache.Cache
+	c    *cache.Cache[revcache.Key, *path_mgmt.RevInfo]
 	lock sync.RWMutex
 }
 
@@ -38,20 +38,17 @@ func New() *memRevCache {
 	return &memRevCache{
 		// We insert all the items with expiration so no need to have a default expiration.
 		// The cleaning should happen manually using the DeleteExpired method.
-		c: cache.New(cache.NoExpiration, 0),
+		c: cache.New[revcache.Key, *path_mgmt.RevInfo](cache.NoExpiration, 0),
 	}
 }
 
-func (c *memRevCache) Get(_ context.Context, keys revcache.KeySet) (revcache.Revocations, error) {
+func (c *memRevCache) Get(_ context.Context, key revcache.Key) (*path_mgmt.RevInfo, error) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
-	revs := make(revcache.Revocations, len(keys))
-	for k := range keys {
-		if revInfo, ok := c.get(k.String()); ok {
-			revs[k] = revInfo
-		}
+	if revInfo, ok := c.c.Get(key); ok {
+		return revInfo, nil
 	}
-	return revs, nil
+	return nil, nil
 }
 
 func (c *memRevCache) GetAll(_ context.Context) (revcache.ResultChan, error) {
@@ -61,20 +58,10 @@ func (c *memRevCache) GetAll(_ context.Context) (revcache.ResultChan, error) {
 	items := c.c.Items()
 	resCh := make(chan revcache.RevOrErr, len(items))
 	for _, item := range items {
-		if rev, ok := item.Object.(*path_mgmt.RevInfo); ok {
-			resCh <- revcache.RevOrErr{Rev: rev}
-		}
+		resCh <- revcache.RevOrErr{Rev: item.Object}
 	}
 	close(resCh)
 	return resCh, nil
-}
-
-func (c *memRevCache) get(key string) (*path_mgmt.RevInfo, bool) {
-	obj, ok := c.c.Get(key)
-	if !ok {
-		return nil, false
-	}
-	return obj.(*path_mgmt.RevInfo), true
 }
 
 func (c *memRevCache) Insert(_ context.Context, rev *path_mgmt.RevInfo) (bool, error) {
@@ -84,15 +71,14 @@ func (c *memRevCache) Insert(_ context.Context, rev *path_mgmt.RevInfo) (bool, e
 	if ttl <= 0 {
 		return false, nil
 	}
-	k := revcache.NewKey(rev.IA(), rev.IfID)
-	key := k.String()
-	val, ok := c.get(key)
+	key := revcache.NewKey(rev.IA(), rev.IfID)
+	val, ok := c.c.Get(key)
 	if !ok {
-		c.c.Set(key, rev, ttl)
+		c.c.SetWithExpire(key, rev, ttl)
 		return true, nil
 	}
 	if rev.Timestamp().After(val.Timestamp()) {
-		c.c.Set(key, rev, ttl)
+		c.c.SetWithExpire(key, rev, ttl)
 		return true, nil
 	}
 	return false, nil
@@ -102,7 +88,7 @@ func (c *memRevCache) DeleteExpired(_ context.Context) (int64, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	var cnt int64
-	c.c.OnEvicted(func(string, interface{}) {
+	c.c.OnEvicted(func(revcache.Key, *path_mgmt.RevInfo) {
 		cnt++
 	})
 	c.c.DeleteExpired()

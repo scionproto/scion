@@ -43,14 +43,6 @@ func (k Key) String() string {
 	return fmt.Sprintf("%s#%s", k.IA, k.IfID)
 }
 
-// KeySet is a set of keys.
-type KeySet map[Key]struct{}
-
-// SingleKey is a convenience function to return a KeySet with a single key.
-func SingleKey(ia addr.IA, ifID common.IfIDType) KeySet {
-	return KeySet{Key{IA: ia, IfID: ifID}: {}}
-}
-
 // RevOrErr is either a revocation or an error.
 type RevOrErr struct {
 	Rev *path_mgmt.RevInfo
@@ -64,7 +56,7 @@ type ResultChan <-chan RevOrErr
 type RevCache interface {
 	// Get items with the given keys from the cache. Returns all present requested items that are
 	// not expired or an error if the query failed.
-	Get(ctx context.Context, keys KeySet) (Revocations, error)
+	Get(ctx context.Context, key Key) (*path_mgmt.RevInfo, error)
 	// GetAll returns a channel that will provide all items in the revocation cache. If the cache
 	// can't prepare the result channel a nil channel and the error are returned. If the querying
 	// succeeded the channel will contain the revocations in the cache, or an error if the stored
@@ -83,6 +75,3 @@ type RevCache interface {
 	db.LimitSetter
 	io.Closer
 }
-
-// Revocations is the map of revocations.
-type Revocations map[Key]*path_mgmt.RevInfo
