@@ -121,7 +121,7 @@ func (d *Downloader) ArtifactsFromBuild(build *buildkite.Build) error {
 					}
 					cmd := exec.Command("tar", "-xf", file, "-C", dir, "--strip-components", "1")
 					if out, err := cmd.CombinedOutput(); err != nil {
-						d.error("%s", string(out))
+						d.error(string(out))
 						return err
 					}
 					d.info("Done unpacking: %s (%s)\n", dir, time.Since(start))
