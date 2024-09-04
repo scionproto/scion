@@ -96,10 +96,12 @@ func TestBadPeering(t *testing.T) {
 	}
 }
 
-func TestMultiPeering(t *testing.T) {
+func TestMiscPeering(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	g := graph.NewDefaultGraph(ctrl)
+	// Add a core-core peering link. It can be used in some cases.
+	g.AddLink("1-ff00:0:130", 4001, "2-ff00:0:210", 4002, true)
 
 	testCases := []struct {
 		Name     string
@@ -111,7 +113,7 @@ func TestMultiPeering(t *testing.T) {
 		Downs    []*seg.PathSegment
 	}{
 		{
-			Name:     "two peerings between same ases",
+			Name:     "two peerings between same ases and core core peering",
 			FileName: "00_multi_peering.txt",
 			SrcIA:    addr.MustParseIA("1-ff00:0:112"),
 			DstIA:    addr.MustParseIA("2-ff00:0:212"),
@@ -125,8 +127,26 @@ func TestMultiPeering(t *testing.T) {
 				g.Beacon([]uint16{graph.If_210_X_211_A, graph.If_211_A_212_X}),
 			},
 		},
+		{
+			// In this case, the 130-210 peering link should not be used (the router would reject)
+			// because the hop through 210 would be assimilated to a valley path: one of the
+			// joined segments is a core segment, not a down segment.
+			Name:     "core to core peering forbidden",
+			FileName: "00_core_core_invalid_peering.txt",
+			SrcIA:    addr.MustParseIA("1-ff00:0:131"),
+			DstIA:    addr.MustParseIA("2-ff00:0:221"),
+			Ups: []*seg.PathSegment{
+				g.Beacon([]uint16{graph.If_130_A_131_X}),
+			},
+			Cores: []*seg.PathSegment{
+				g.Beacon([]uint16{graph.If_220_X_210_X, graph.If_210_X_110_X, graph.If_110_X_130_A}),
+			},
+			Downs: []*seg.PathSegment{
+				g.Beacon([]uint16{graph.If_220_X_221_X}),
+			},
+		},
 	}
-	t.Log("TestMultiPeering")
+	t.Log("TestMiscPeering")
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
