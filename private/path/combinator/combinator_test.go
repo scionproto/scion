@@ -139,7 +139,8 @@ func TestMiscPeering(t *testing.T) {
 				g.Beacon([]uint16{graph.If_130_A_131_X}),
 			},
 			Cores: []*seg.PathSegment{
-				g.Beacon([]uint16{graph.If_220_X_210_X, graph.If_210_X_110_X, graph.If_110_X_130_A}),
+				g.Beacon([]uint16{
+					graph.If_220_X_210_X, graph.If_210_X_110_X, graph.If_110_X_130_A}),
 			},
 			Downs: []*seg.PathSegment{
 				g.Beacon([]uint16{graph.If_220_X_221_X}),
