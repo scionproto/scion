@@ -13,25 +13,26 @@
 // limitations under the License.
 
 // In Windows, SetSockOptInt and GetSockOptInt require syscall.Handle instead of int.
-//go:build !windows
-// +build !windows
+//go:build windows
+// +build windows
 
 package sockctrl
 
 import (
 	"net"
+	"syscall"
 
 	"github.com/scionproto/scion/pkg/private/serrors"
 )
 
-func SockControl(c *net.UDPConn, f func(int) error) error {
+func SockControl(c *net.UDPConn, f func(syscall.Handle) error) error {
 	rawConn, err := c.SyscallConn()
 	if err != nil {
 		return serrors.Wrap("sockctrl: error accessing raw connection", err)
 	}
 	var ctrlErr error
 	err = rawConn.Control(func(fd uintptr) {
-		ctrlErr = f(int(fd))
+		ctrlErr = f(syscall.Handle(fd))
 	})
 	if err != nil {
 		return serrors.Wrap("sockctrl: RawConn.Control error", err)
