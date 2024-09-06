@@ -14,7 +14,6 @@
 
 // In Windows, SetSockOptInt and GetSockOptInt require syscall.Handle instead of int.
 //go:build windows
-// +build windows
 
 package sockctrl
 
