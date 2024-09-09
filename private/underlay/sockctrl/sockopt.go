@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// In Windows, SetSockOptInt and GetSockOptInt require syscall.Handle instead of int.
+//go:build !windows
+
 package sockctrl
 
 import (
