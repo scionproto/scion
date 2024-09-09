@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/private/periodic"
+	"github.com/scionproto/scion/private/topology"
 )
 
 var _ periodic.Task = (*Originator)(nil)
@@ -95,6 +96,9 @@ func (o *Originator) originateBeacons(ctx context.Context) {
 		return
 	}
 
+	// Core ases can have peering too. Fetch the peering interfaces.
+	peers := sortedIntfs(o.AllInterfaces, topology.Peer)
+
 	// Only log on info and error level every propagation period to reduce
 	// noise. The offending logs events are redirected to debug level.
 	silent := !o.Tick.Passed()
@@ -109,6 +113,7 @@ func (o *Originator) originateBeacons(ctx context.Context) {
 			intf:       intf,
 			timestamp:  o.Tick.Now(),
 			summary:    s,
+			peers:      peers,
 		}
 		go func() {
 			defer log.HandlePanic()
@@ -154,6 +159,7 @@ type beaconOriginator struct {
 	intf      *ifstate.Interface
 	timestamp time.Time
 	summary   *summary
+	peers     []uint16
 }
 
 // originateBeacon originates a beacon on the given ifID.
@@ -206,7 +212,7 @@ func (o *beaconOriginator) createBeacon(ctx context.Context) (*seg.PathSegment, 
 		return nil, serrors.Wrap("creating segment", err)
 	}
 
-	if err := o.Extender.Extend(ctx, beacon, 0, o.intf.TopoInfo().ID, nil); err != nil {
+	if err := o.Extender.Extend(ctx, beacon, 0, o.intf.TopoInfo().ID, o.peers); err != nil {
 		return nil, serrors.Wrap("extending segment", err)
 	}
 	return beacon, nil

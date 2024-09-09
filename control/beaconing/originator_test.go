@@ -104,6 +104,9 @@ func TestOriginatorRun(t *testing.T) {
 						hopF := b.ASEntries[b.MaxIdx()].HopEntry.HopField
 						// Check the interface matches.
 						assert.Equal(t, hopF.ConsEgress, egIfID)
+						// Check that the expected peering entry is there too.
+						peering := b.ASEntries[b.MaxIdx()].PeerEntries[0]
+						assert.Equal(t, peering.HopField.ConsIngress, uint16(4242))
 						// Check that the beacon is sent to the correct border router.
 						br := net.UDPAddrFromAddrPort(interfaceInfos(topo)[egIfID].InternalAddr)
 						assert.Equal(t, br, nextHop)
