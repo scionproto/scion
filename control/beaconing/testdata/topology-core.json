@@ -45,6 +45,16 @@
           "isd_as": "1-ff00:0:111",
           "link_to": "CHILD",
           "mtu": 1280
+        },
+        "4242": {
+          "underlay": {
+            "local": "127.0.0.5:0",
+            "remote": "127.0.0.4:0"
+          },
+          "isd_as": "2-ff00:0:220",
+          "link_to": "PEER",
+          "remote_interface_id": 2424,
+          "mtu": 1280
         }
       }
     }
