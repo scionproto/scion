@@ -1,4 +1,4 @@
-// Copyright 2017 ETH Zurich
+// Copyright 2024 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,30 +13,27 @@
 // limitations under the License.
 
 // In Windows, SetSockOptInt and GetSockOptInt require syscall.Handle instead of int.
-//go:build !windows
+//go:build windows
 
 package sockctrl
 
 import (
 	"net"
-
-	"github.com/scionproto/scion/pkg/private/serrors"
+	"syscall"
 )
 
-func SockControl(c *net.UDPConn, f func(int) error) error {
-	rawConn, err := c.SyscallConn()
-	if err != nil {
-		return serrors.Wrap("sockctrl: error accessing raw connection", err)
-	}
-	var ctrlErr error
-	err = rawConn.Control(func(fd uintptr) {
-		ctrlErr = f(int(fd))
+func GetsockoptInt(c *net.UDPConn, level, opt int) (int, error) {
+	var val int
+	err := SockControl(c, func(fd syscall.Handle) error {
+		var err error
+		val, err = syscall.GetsockoptInt(fd, level, opt)
+		return err
 	})
-	if err != nil {
-		return serrors.Wrap("sockctrl: RawConn.Control error", err)
-	}
-	if ctrlErr != nil {
-		return serrors.Wrap("sockctrl: control function error", ctrlErr)
-	}
-	return nil
+	return val, err
+}
+
+func SetsockoptInt(c *net.UDPConn, level, opt, value int) error {
+	return SockControl(c, func(fd syscall.Handle) error {
+		return syscall.SetsockoptInt(fd, level, opt, value)
+	})
 }
