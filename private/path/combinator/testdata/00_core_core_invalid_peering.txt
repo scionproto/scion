@@ -1,0 +1,25 @@
+Path #0:
+  Weight: 5
+  Fields:
+    IF ..
+      HF InIF=1613 OutIF=0
+      HF InIF=0 OutIF=1316
+    IF ..
+      HF InIF=1311 OutIF=0
+      HF InIF=1121 OutIF=1113
+      HF InIF=2122 OutIF=2111
+      HF InIF=0 OutIF=2221
+    IF C.
+      HF InIF=0 OutIF=2224
+      HF InIF=2422 OutIF=0
+  Interfaces:
+    1-ff00:0:131#1613
+    1-ff00:0:130#1316
+    1-ff00:0:130#1311
+    1-ff00:0:110#1113
+    1-ff00:0:110#1121
+    2-ff00:0:210#2111
+    2-ff00:0:210#2122
+    2-ff00:0:220#2221
+    2-ff00:0:220#2224
+    2-ff00:0:221#2422
