@@ -405,6 +405,11 @@ func (d *DataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
 // the given ID is already set, this method will return an error. This can only
 // be called on a not yet running dataplane.
 func (d *DataPlane) AddLinkType(ifID uint16, linkTo topology.LinkType) error {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	if d.IsRunning() {
+		return modifyExisting
+	}
 	if _, exists := d.linkTypes[ifID]; exists {
 		return serrors.JoinNoStack(alreadySet, nil, "ifID", ifID)
 	}
