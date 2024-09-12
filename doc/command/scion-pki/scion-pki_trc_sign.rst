@@ -43,6 +43,7 @@ Options
 ::
 
   -h, --help             help for sign
+      --kms string       The uri to configure a Cloud KMS or an HSM.
   -o, --out string       Output file path. If --out is set, --out-dir is ignored.
       --out-dir string   Output directory. If --out is set, --out-dir is ignored. (default ".")
 

@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/app/command"
 	"github.com/scionproto/scion/private/app/flag"
+	scionpki "github.com/scionproto/scion/scion-pki"
 	"github.com/scionproto/scion/scion-pki/key"
 )
 
@@ -39,6 +40,7 @@ func newSignCmd(pather command.Pather) *cobra.Command {
 		notAfter  flag.Time
 		ca        string
 		caKey     string
+		caKms     string
 		bundle    bool
 	}
 	flags.notBefore = flag.Time{
@@ -115,9 +117,14 @@ and not to \--not-before.
 			if err != nil {
 				return serrors.Wrap("parsing CA certificate", err)
 			}
-			caKey, err := key.LoadPrivateKey(flags.caKey)
+			caKey, err := key.LoadPrivateKey(flags.caKms, flags.caKey)
 			if err != nil {
 				return serrors.Wrap("loading CA private key", err)
+			}
+			if !key.IsX509Signer(caKey) {
+				return serrors.New("CA key cannot be used to create X.509 certificates",
+					"type", fmt.Sprintf("%T", caKey),
+				)
 			}
 
 			subject := csr.Subject
@@ -190,6 +197,7 @@ offset from the current time.`,
 	cmd.Flags().BoolVar(&flags.bundle, "bundle", false,
 		"Bundle the certificate with the issuer certificate as a certificate chain",
 	)
+	scionpki.BindFlagKmsCA(cmd.Flags(), &flags.caKms)
 	cmd.MarkFlagRequired("ca")
 	cmd.MarkFlagRequired("ca-key")
 
