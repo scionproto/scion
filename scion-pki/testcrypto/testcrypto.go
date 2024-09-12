@@ -366,12 +366,11 @@ func createTRCs(cfg config) error {
 }
 
 func loadVoterInfo(voter addr.IA, votingDir string) (*voterInfo, error) {
-	sensitiveKey, err := key.LoadPrivateKey(
-		filepath.Join(votingDir, "sensitive-voting.key"))
+	sensitiveKey, err := key.LoadPrivateKey("", filepath.Join(votingDir, "sensitive-voting.key"))
 	if err != nil {
 		return nil, serrors.Wrap("loading sensitive key", err)
 	}
-	regularKey, err := key.LoadPrivateKey(filepath.Join(votingDir, "regular-voting.key"))
+	regularKey, err := key.LoadPrivateKey("", filepath.Join(votingDir, "regular-voting.key"))
 	if err != nil {
 		return nil, serrors.Wrap("loading regular key", err)
 	}

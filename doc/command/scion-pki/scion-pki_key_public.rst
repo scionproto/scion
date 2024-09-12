@@ -35,6 +35,7 @@ Options
 
       --force        Force overwritting existing public key
   -h, --help         help for public
+      --kms string   The uri to configure a Cloud KMS or an HSM.
       --out string   Path to write public key
 
 SEE ALSO
