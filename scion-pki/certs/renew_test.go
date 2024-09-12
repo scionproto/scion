@@ -107,7 +107,7 @@ func TestExtractChain(t *testing.T) {
 	chain := xtest.LoadChain(t, "testdata/renew/ISD1-ASff00_0_111.pem")
 
 	caChain := xtest.LoadChain(t, "testdata/renew/ISD1-ASff00_0_110.pem")
-	key, err := key.LoadPrivateKey("testdata/renew/cp-as-110.key")
+	key, err := key.LoadPrivateKey("", "testdata/renew/cp-as-110.key")
 	require.NoError(t, err)
 	caSigner := trust.Signer{
 		PrivateKey:   key,

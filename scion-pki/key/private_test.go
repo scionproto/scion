@@ -91,7 +91,7 @@ func TestNewPrivateCmd(t *testing.T) {
 				return
 			}
 			filename := tc.Args[len(tc.Args)-1]
-			_, err = key.LoadPrivateKey(filename)
+			_, err = key.LoadPrivateKey("", filename)
 			require.NoError(t, err)
 
 			info, err := os.Stat(filename)

@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/private/app/command"
+	scionpki "github.com/scionproto/scion/scion-pki"
 )
 
 func newMatchCmd(pather command.Pather) *cobra.Command {
@@ -44,6 +45,7 @@ func newMatchCmd(pather command.Pather) *cobra.Command {
 func newMatchCertificate(pather command.Pather) *cobra.Command {
 	var flags struct {
 		separator string
+		kms       string
 	}
 	cmd := &cobra.Command{
 		Use:   "certificate <private-key> <certificate> [<certificate> ...]",
@@ -62,7 +64,7 @@ The output contains all certificates that authenticate the key.
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 
-			key, err := LoadPrivateKey(args[0])
+			key, err := LoadPrivateKey(flags.kms, args[0])
 			if err != nil {
 				return err
 			}
@@ -91,6 +93,7 @@ The output contains all certificates that authenticate the key.
 		},
 	}
 	cmd.Flags().StringVar(&flags.separator, "separator", "\n", "The separator between file names")
+	scionpki.BindFlagKms(cmd.Flags(), &flags.kms)
 	return cmd
 }
 
