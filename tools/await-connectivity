@@ -69,12 +69,21 @@ check_connectivity() {
     fi
   done
 
-  # non-core ASes: wait for at least one (up-)segment
+  # non-core ASes: wait for at least one up-segment and its matching down seg.
   for as in $noncores; do
-    curl --connect-timeout 5 -sfS $(cs_api_url_segments "$as") | jq -e 'length > 0' > /dev/null || { 
-      echo "$as waiting for up segment"
-      ret=1
-    }
+      found=0
+      tops=$(curl --connect-timeout 5 -sfS $(cs_api_url_segments "$as") | jq -r '.[] | select(.end_isd_as =="'${as}'") | .start_isd_as' | sort -u)
+      # Look for the matching down seg
+      for top in $tops; do
+	  curl --connect-timeout 5 -sfS $(cs_api_url_segments "$top") | jq -e '.[] | select(.end_isd_as =="'${as}'")' 2>&1 >/dev/null || break
+	  found=1
+      done
+      if [ $found == 0 ]; then
+	  echo "$as: Waiting for downseg. Upsegs exist to: [$tops]" 
+	  ret=1
+	  break
+      fi
+      echo "$as: Reachable from [$tops]"
   done
   return $ret
 }
@@ -87,10 +96,10 @@ main() {
   local cores=$(sed -n '1,/Non-core/{s/^- //p}' gen/as_list.yml)
   local noncores=$(sed -n '/Non-core/,${s/^- //p}' gen/as_list.yml)
 
-  for i in $(seq 1 "$QUIET"); do
-    check_connectivity "$cores" "$noncores" > /dev/null && return 0
-    sleep 1
-  done
+  # for i in $(seq 1 "$QUIET"); do
+  #   check_connectivity "$cores" "$noncores" > /dev/null && return 0
+  #   sleep 1
+  # done
   for i in $(seq "$QUIET" $((TIMEOUT-1))); do
     echo "Check after ${i}s"
     check_connectivity "$cores" "$noncores" && return 0
@@ -101,6 +110,3 @@ main() {
 }
 
 main "$@"
-
-# that is not enough. Down segment registrations don't seem to happen fast.
-sleep 10
