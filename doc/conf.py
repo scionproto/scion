@@ -97,3 +97,8 @@ html_static_path = [""]
 html_css_files = [
     "css/custom.css",
 ]
+
+html_js_files = [
+    "https://unpkg.com/@alpinejs/persist@3.14.1/dist/cdn.min.js",
+    "https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js",
+]

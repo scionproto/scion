@@ -92,7 +92,7 @@ in_docker() {
         -e TRCID=$TRCID \
         -e PREDID=$PREDID \
         nginx:1.27.1 \
-        sh -c "set -e && . /scripts/crypto_lib.sh && $@"
+        sh -c "set -ex && . /scripts/crypto_lib.sh && $@"
 }
 
 ######################
