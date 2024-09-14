@@ -79,9 +79,7 @@ protobuf:
 	rm -f pkg/proto/*/*.pb.go
 	cp -r bazel-bin/pkg/proto/*/go_default_library_/github.com/scionproto/scion/pkg/proto/* pkg/proto
 	cp -r bazel-bin/pkg/proto/*/*/go_default_library_/github.com/scionproto/scion/pkg/proto/* pkg/proto
-	chmod 0644 pkg/proto/*/*.pb.go
-
-	bazel run //tools/buf
+	chmod 0644 pkg/proto/*/*.pb.go pkg/proto/*/*/*.pb.go
 
 mocks:
 	tools/gomocks.py

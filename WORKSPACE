@@ -46,6 +46,8 @@ aspect_bazel_lib_register_toolchains()
 # Bazel rules for Golang
 http_archive(
     name = "io_bazel_rules_go",
+    patch_args = ["-p0"],
+    patches = ["//patches:io_bazel_rules_go/import.patch"],
     sha256 = "af47f30e9cbd70ae34e49866e201b3f77069abb111183f2c0297e7e74ba6bbc0",
     urls = [
         "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.47.0/rules_go-v0.47.0.zip",
@@ -204,10 +206,14 @@ load("@tester_debian10_packages//:packages.bzl", tester_debian_packages_install_
 
 tester_debian_packages_install_deps()
 
-# Buf CLI to generate connect-go
-load("//tools/buf:deps.bzl", "buf_dependencies")
-
-buf_dependencies()
+# Buf CLI
+http_archive(
+    name = "buf",
+    build_file_content = "exports_files([\"buf\"])",
+    sha256 = "16253b6702dd447ef941b01c9c386a2ab7c8d20bbbc86a5efa5953270f6c9010",
+    strip_prefix = "buf/bin",
+    urls = ["https://github.com/bufbuild/buf/releases/download/v1.32.2/buf-Linux-x86_64.tar.gz"],
+)
 
 # protobuf/gRPC
 http_archive(
@@ -260,7 +266,7 @@ load("@aspect_rules_js//js:repositories.bzl", "rules_js_dependencies")
 
 rules_js_dependencies()
 
-load("@rules_nodejs//nodejs:repositories.bzl", "DEFAULT_NODE_VERSION", "nodejs_register_toolchains")
+load("@rules_nodejs//nodejs:repositories.bzl", "nodejs_register_toolchains")
 
 nodejs_register_toolchains(
     name = "nodejs",
