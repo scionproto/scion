@@ -1,0 +1,15 @@
+#!/bin/bash
+
+GAZELLE_MODE="${GAZELLE_MODE:-fix}"
+
+bazel run @com_github_bazelbuild_buildtools//buildozer -- \
+   --root_dir $PWD \
+  "copy deps go_default_test" \
+  "copy srcs go_default_test" \
+  "add tags integration" \
+  $(bazel query 'attr(name, "go_integration_test$", //...)' | tr '\n' ' ')
+
+ret=$?
+
+script_path=$(dirname "$0")
+. "${script_path}/_check_gazelle_mode"

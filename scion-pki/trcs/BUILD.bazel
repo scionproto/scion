@@ -69,7 +69,7 @@ go_test(
         "decoded_test.go",
         "export_test.go",
         "format_test.go",
-        "human_test.go",
+        "inspect_test.go",
         "sign_test.go",
         "toasn_test.go",
         "verify_test.go",
