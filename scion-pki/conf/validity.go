@@ -59,7 +59,7 @@ type Validity struct {
 func (v *Validity) Validate() error {
 	switch {
 	case v.Validity.Duration == 0 && v.NotAfter.Time().IsZero():
-		return serrors.New("at least one of 'validity' or 'not_after' must be set")
+		return serrors.New("exactly one of 'validity' or 'not_after' must be set")
 	case v.Validity.Duration != 0 && !v.NotAfter.Time().IsZero():
 		return serrors.New("only one of 'validity' or 'not_after' must be set")
 	default:
