@@ -5,13 +5,13 @@
 scion-pki trc inspect
 ---------------------
 
-Represent TRC in a human readable form
+Print TRC details in a human readable format
 
 Synopsis
 ~~~~~~~~
 
 
-'inspect' outputs the TRC contents in a inspect readable form.
+'inspect' prints the details of a TRC a human-readable fromat.
 
 The input file can either be a TRC payload, or a signed TRC.
 The output can either be in yaml, or json.
