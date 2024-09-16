@@ -117,7 +117,7 @@ steps:
         - ./scion.sh run
         - tools/await-connectivity
         - ./bin/scion_integration || ( echo "^^^ +++" && false )
-        - ./bin/end2end_integration --attempts=3 || ( echo "^^^ +++" && false )
+        - ./bin/end2end_integration || ( echo "^^^ +++" && false )
       plugins: &scion-run-hooks
         - scionproto/metahook#v0.3.0:
             pre-command: .buildkite/cleanup-leftovers.sh
@@ -144,7 +144,7 @@ steps:
         - ./scion.sh topology -c topology/default-no-peers.topo
         - ./scion.sh run
         - tools/await-connectivity
-        - ./bin/end2end_integration --attempts=3 || ( echo "^^^ +++" && false )
+        - ./bin/end2end_integration || ( echo "^^^ +++" && false )
         - ./tools/integration/revocation_test.sh
       plugins: *scion-run-hooks
       artifact_paths: *scion-run-artifact-paths
@@ -161,7 +161,7 @@ steps:
         - ./scion.sh run
         - tools/await-connectivity
         - echo "--- run tests"
-        - ./bin/end2end_integration -d --attempts=3 || ( echo "^^^ +++" && false )
+        - ./bin/end2end_integration -d || ( echo "^^^ +++" && false )
       plugins: *scion-run-hooks
       artifact_paths: *scion-run-artifact-paths
       timeout_in_minutes: 15
