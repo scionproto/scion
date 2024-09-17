@@ -321,7 +321,7 @@ func createTRCs(cfg config) error {
 			CertificateFiles:  certFiles[isd],
 		}
 		sort.Strings(trcConf.CertificateFiles)
-		trc, err := trcs.CreatePayload(trcConf)
+		trc, err := trcs.CreatePayload(trcConf, nil)
 		if err != nil {
 			return serrors.Wrap("creating TRC payload", err, "isd", isd)
 		}

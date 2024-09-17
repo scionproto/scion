@@ -27,7 +27,7 @@ import (
 func TestMarshalPayload(t *testing.T) {
 	cfg, err := conf.LoadTRC("testdata/admin/ISD1-B1-S1.toml")
 	require.NoError(t, err)
-	trc, err := CreatePayload(cfg)
+	trc, err := CreatePayload(cfg, nil)
 	require.NoError(t, err)
 	raw, err := trc.Encode()
 	require.NoError(t, err)
