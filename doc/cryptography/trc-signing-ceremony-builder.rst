@@ -985,6 +985,16 @@ TRC Signing Ceremony - Script Builder
         <div>
             <h3>3. Inspect TRC</h3>
             <div class="highlight"><pre><div>scion-pki trc inspect <span x-text="trcSigned"></span> --predecessor <span x-text="predTrc"></span></div></pre></div>
+
+            <template x-if="showExpectedOutput"><div>
+                <div class="text-slate-500 text-sm">Expected Output:</div>
+                <div class="highlight"><pre><div>version: 1
+    id:
+      isd: <span x-text="trc.isd"></span>
+      base_number: <span x-text="trc.base"></span>
+      serial_number: <span x-text="trc.serial"></span>
+    ...</div></pre></div>
+            </div></template>
         </div>
 
         <div>
@@ -997,11 +1007,10 @@ TRC Signing Ceremony - Script Builder
 
             <template x-if="showExpectedOutput"><div>
                 <div class="text-slate-500 text-sm">Expected Output:</div>
-                <div class="highlight"><pre><div>version: 1
-    id:
-      isd: <span x-text="trc.isd"></span>
-      base_number: <span x-text="trc.base"></span>
-      serial_number: <span x-text="trc.serial"></span>
+                <div class="highlight"><pre><div>-----BEGIN TRC-----
+    MIIRpQYJKoZIhvcNAQcCoIIRljCCEZICAQExDTALBglghkgBZQMEAgEwggx0Bgkq
+    hkiG9w0BBwGgggxlBIIMYTCCDF0CAQAwCQIBAQIBAQIBATAiGA8yMDI0MDgyNjE1
+    MTUxNFoYDzIwMjUxMTE5MTUxNTE0WgIBAAEBADAAAgECMBgTCmZmMDA6MDoxMjAT
     ...</div></pre></div>
             </div></template>
         </div>
