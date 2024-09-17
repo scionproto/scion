@@ -68,7 +68,6 @@ go_library(
         "//private/trust/compat:go_default_library",
         "//private/trust/grpc:go_default_library",
         "//private/trust/metrics:go_default_library",
-        "//private/xhack:go_default_library",
         "@com_github_go_chi_chi_v5//:go_default_library",
         "@com_github_go_chi_cors//:go_default_library",
         "@com_github_grpc_ecosystem_go_grpc_prometheus//:go_default_library",

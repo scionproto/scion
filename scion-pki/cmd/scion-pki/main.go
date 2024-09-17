@@ -23,7 +23,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/private/app"
-	"github.com/scionproto/scion/private/xhack"
 	"github.com/scionproto/scion/scion-pki/certs"
 	"github.com/scionproto/scion/scion-pki/key"
 	"github.com/scionproto/scion/scion-pki/testcrypto"
@@ -36,8 +35,6 @@ type CommandPather interface {
 }
 
 func main() {
-	xhack.AsynctimerchanOn()
-
 	executable := filepath.Base(os.Args[0])
 	cmd := &cobra.Command{
 		Use:   executable,

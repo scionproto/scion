@@ -108,7 +108,6 @@ steps:
     key: e2e
     steps:
     - label: "E2E: default :man_in_business_suit_levitating: (scion, ping)"
-      parallelism: 20
       command:
         - echo "--- build"
         - make
@@ -136,7 +135,6 @@ steps:
       key: e2e_integration_tests_v2
       retry: *automatic-retry
     - label: "E2E: failing links :man_in_business_suit_levitating:"
-      parallelism: 20
       command:
         - echo "--- build"
         - make
@@ -152,7 +150,6 @@ steps:
       key: e2e_revocation_test_v2
       retry: *automatic-retry
     - label: "E2E: default :docker: (ping)"
-      parallelism: 20
       command:
         - echo "--- build"
         - make build-dev docker-images
