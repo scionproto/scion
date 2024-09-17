@@ -57,14 +57,10 @@ type Validity struct {
 
 // Validate checks that the validity is set.
 func (v *Validity) Validate() error {
-	switch {
-	case v.Validity.Duration == 0 && v.NotAfter.Time().IsZero():
+	if (v.Validity.Duration == 0) == (v.NotAfter.Time().IsZero()) {
 		return serrors.New("exactly one of 'validity' or 'not_after' must be set")
-	case v.Validity.Duration != 0 && !v.NotAfter.Time().IsZero():
-		return serrors.New("only one of 'validity' or 'not_after' must be set")
-	default:
-		return nil
 	}
+	return nil
 }
 
 // Eval returns the validity period. The not before parameter is only used if
