@@ -51,10 +51,10 @@ func newHuman(pather command.Pather) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "inspect",
 		Aliases: []string{"human"},
-		Short:   "Represent TRC in a human readable form",
-		Example: fmt.Sprintf(`  %[1]s human ISD1-B1-S1.pld.der
-  %[1]s human ISD1-B1-S1.trc`, pather.CommandPath()),
-		Long: `'human' outputs the TRC contents in a human readable form.
+		Short:   "Print TRC details in a human readable format",
+		Example: fmt.Sprintf(`  %[1]s inspect ISD1-B1-S1.pld.der
+  %[1]s inspect ISD1-B1-S1.trc`, pather.CommandPath()),
+		Long: `'inspect' prints the details of a TRC a human-readable fromat.
 
 The input file can either be a TRC payload, or a signed TRC.
 The output can either be in yaml, or json.

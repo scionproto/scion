@@ -23,7 +23,7 @@ import (
 )
 
 func newVersion() *cobra.Command {
-	major, minor, patch := 0, 5, 0
+	major, minor, patch := 0, 6, 0
 	cmd := &cobra.Command{
 		Use:   "version",
 		Short: "Show the scion-pki version information",
