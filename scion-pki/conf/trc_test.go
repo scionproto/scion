@@ -63,6 +63,7 @@ func TestLoadTRC(t *testing.T) {
 		file      string
 		cfg       conf.TRC
 		assertErr assert.ErrorAssertionFunc
+		check     func(*conf.TRC)
 	}{
 		"file not found": {
 			file:      "notfound.404",
@@ -71,14 +72,33 @@ func TestLoadTRC(t *testing.T) {
 		"valid": {
 			file:      "testdata/testcfg.toml",
 			assertErr: assert.NoError,
-			cfg:       *createTRC(t),
+			check: func(cfg *conf.TRC) {
+				assert.Equal(t, createTRC(t), cfg)
+				assert.True(t, cfg.Validity.NotBefore.Time().IsZero())
+			},
+		},
+		"unix": {
+			file:      "testdata/testcfg.unix.toml",
+			assertErr: assert.NoError,
+			check: func(cfg *conf.TRC) {
+				assert.Equal(t, int64(1719223994), cfg.Validity.NotBefore.Time().Unix())
+			},
+		},
+		"rfc3339": {
+			file:      "testdata/testcfg.rfc3339.toml",
+			assertErr: assert.NoError,
+			check: func(cfg *conf.TRC) {
+				assert.Equal(t, int64(1719223994), cfg.Validity.NotBefore.Time().Unix())
+			},
 		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			cfg, err := conf.LoadTRC(tc.file)
 			tc.assertErr(t, err)
-			assert.Equal(t, tc.cfg, cfg)
+			if tc.check != nil {
+				tc.check(&cfg)
+			}
 		})
 	}
 }
