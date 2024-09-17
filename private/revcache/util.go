@@ -17,7 +17,6 @@ package revcache
 import (
 	"context"
 
-	"github.com/scionproto/scion/pkg/addr"
 	seg "github.com/scionproto/scion/pkg/segment"
 	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/private/storage/cleaner"
