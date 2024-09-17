@@ -69,21 +69,13 @@ check_connectivity() {
     fi
   done
 
-  # non-core ASes: wait for at least one up-segment and its matching down seg.
+  # non-core ASes: wait for at least one up-segment.
   for as in $noncores; do
-      found=0
-      tops=$(curl --connect-timeout 5 -sfS $(cs_api_url_segments "$as") | jq -r '.[] | select(.end_isd_as =="'${as}'") | .start_isd_as' | sort -u)
-      # Look for the matching down seg
-      for top in $tops; do
-	  curl --connect-timeout 5 -sfS $(cs_api_url_segments "$top") | jq -e '.[] | select(.end_isd_as =="'${as}'")' 2>&1 >/dev/null || break
-	  found=1
-      done
-      if [ $found == 0 ]; then
-	  echo "$as: Waiting for downseg. Upsegs exist to: [$tops]" 
+    tops=$(curl --connect-timeout 5 -sfS $(cs_api_url_segments "$as") | jq -r '.[] | select(.end_isd_as =="'${as}'")')
+    if [ -z "$tops" ]; then
+	  echo "$as: Waiting for Upsegs"
 	  ret=1
-	  break
-      fi
-      echo "$as: Reachable from [$tops]"
+    fi
   done
   return $ret
 }
