@@ -15,8 +15,15 @@ Certificates.
 The process of creating new CA Certificates is described in section `CA Certificates`_.
 The process of creating new AS Certificates is described in section `AS Certificates`_.
 
-To follow the steps in this document, ``openssl`` version ``1.1.1d`` or later is
+To follow the steps in this document, ``openssl`` version ``3.0.14`` or later is
 required.
+
+.. note::
+
+   The following document is meant as an example for easily running a manual CA
+   for testing purposes. In productive environments, these processes should be
+   automated and proper CA software should be used.
+
 
 .. _ca-cert:
 
@@ -32,42 +39,49 @@ itself.
 Creating the initial CA Certificate
 -----------------------------------
 
-The steps in creating a new CA Certificate are:
+.. tab-set::
+   :sync-group: tool
 
-#. Define the configuration of the CA Certificate in accordance with
-   :ref:`the SCION requirements <cp-ca-certificate>`.
-#. Create a new key pair.
-#. Create a Certificate Signing Request using the key pair.
-#. Use the Root Key and the Certificate Signing Request to create the new CA Certificate.
+   .. tab-item:: scion-pki
+      :sync: scion-pki
 
-The configuration is defined in a file. OpenSSL reads the file and creates a
-certificate that is compatible with SCION. An example configuration file is
-included below. Note that the file includes the text ``{{.ShortOrg}}``; this
-text **must** be replaced with the shortname of your organization. For example,
-if your organization name is **ExampleCorp**, the line should contain ``name =
-ExampleCorp Secure CA Certificate``.
+      The steps in creating a new CA Certificate are:
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE ca_conf START
-   :end-before: LITERALINCLUDE ca_conf END
+      #. Define the subject of the CA Certificate.
+      #. Create the certificate using the Root Key.
+
+      The subject template has already been created in preparation for the TRC
+      ceremony. Here is a reminder how it looks like:
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE basic_conf_scion_pki START
+         :end-before: LITERALINCLUDE basic_conf_scion_pki END
+
+   .. tab-item:: openssl
+      :sync: openssl
+
+      The steps in creating a new CA Certificate are:
+
+      #. Define the configuration of the CA Certificate in accordance with
+         :ref:`the SCION requirements <cp-ca-certificate>`.
+      #. Create a new key pair.
+      #. Create a Certificate Signing Request using the key pair.
+      #. Use the Root Key and the Certificate Signing Request to create the new CA Certificate.
+
+      The configuration is defined in a file. OpenSSL reads the file and creates a
+      certificate that is compatible with SCION. An example configuration file is
+      included below. Note that the file includes the text ``{{.ShortOrg}}``; this
+      text **must** be replaced with the shortname of your organization. For example,
+      if your organization name is **ExampleCorp**, the line should contain ``name =
+      ExampleCorp Secure CA Certificate``.
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE ca_conf START
+         :end-before: LITERALINCLUDE ca_conf END
 
 .. attention::
 
    SCION CA certificates have short lifetimes (a lifetime of 11 days is recommended).
-
-Once the file is ready, the rest of the steps can be executed through a series
-of ``openssl`` commands.
-
-These commands contain must be configured using the following values:
-
-- CA Certificate validity start date. Prior to this date, the certificate is
-  not considered valid. To configure this, replace occurrences of ``$STARTDATE``
-  with the date in ``YYYYMMDDHHMMSSZ`` notation. For example, June 24th, 2020 UTC
-  at noon is formatted as ``20200624120000Z``.
-- CA Certificate validity end date. After this date, the certificate is no
-  longer valid. To configure this, replace occurrences of ``$ENDDATE`` with
-  the desired date. This uses the same notation as the ``$STARTDATE``.
-- Folder where the keys are contained. To configure this, replace ``$KEYDIR`` with the folder name.
 
 .. note::
 
@@ -75,19 +89,51 @@ These commands contain must be configured using the following values:
    ``$KEYDIR`` folder, and have the names ``cp-ca.key`` and ``cp-root.key``. If this
    is not the case, the commands should be adjusted with the proper key locations.
 
-Finally, to create the CA certificate, run the commands below.
+.. tab-set::
+   :sync-group: tool
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE gen_ca START
-   :end-before: LITERALINCLUDE gen_ca END
-   :dedent: 4
+   .. tab-item:: scion-pki
+      :sync: scion-pki
 
-After generating the certificate, check that the output is reasonable:
+      Once the file is ready, create the certificate using the ``scion-pki``
+      binary with the desired common name.
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE check_ca START
-   :end-before: LITERALINCLUDE check_ca END
-   :dedent: 4
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE gen_ca_scion_pki START
+         :end-before: LITERALINCLUDE gen_ca_scion_pki END
+         :dedent: 4
+
+   .. tab-item:: openssl
+      :sync: openssl
+
+      Once the file is ready, the rest of the steps can be executed through a series
+      of ``openssl`` commands.
+
+      These commands contain must be configured using the following values:
+
+      - CA Certificate validity start date. Prior to this date, the certificate is
+        not considered valid. To configure this, replace occurrences of ``$STARTDATE``
+        with the date in ``YYYYMMDDHHMMSSZ`` notation. For example, June 24th, 2020 UTC
+        at noon is formatted as ``20200624120000Z``.
+      - CA Certificate validity end date. After this date, the certificate is no
+        longer valid. To configure this, replace occurrences of ``$ENDDATE`` with
+        the desired date. This uses the same notation as the ``$STARTDATE``.
+      - Folder where the keys are contained. To configure this, replace ``$KEYDIR`` with the folder name.
+
+
+      Finally, to create the CA certificate, run the commands below.
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE gen_ca START
+         :end-before: LITERALINCLUDE gen_ca END
+         :dedent: 4
+
+      After generating the certificate, check that the output is reasonable:
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE check_ca START
+         :end-before: LITERALINCLUDE check_ca END
+         :dedent: 4
 
 The certificate can be validated with with the ``scion-pki`` binary:
 
@@ -151,69 +197,107 @@ The steps in creating a new AS Certificate are:
 #. The CA uses its CA Key and the Certificate Signing Request to create the new AS Certificate.
 #. (If the AS and CA are different entities) The CA sends the AS Certificate back to the AS.
 
-The configuration is defined in a file. OpenSSL reads the file and creates a
-certificate that is compatible with SCION. An example configuration file is
-included below. Note that the file includes the text ``{{.ShortOrg}}``; this
-text **must** be replaced with the shortname of your organization. For example,
-if your organization name is **ExampleCorp**, the line should contain ``name =
-ExampleCorp Secure CA Certificate``.
+.. tab-set::
+   :sync-group: tool
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE as_conf START
-   :end-before: LITERALINCLUDE as_conf END
+   .. tab-item:: scion-pki
+      :sync: scion-pki
 
-.. attention::
+      The subject template needs to be adapted to the entity that is creating the certificate
+      signing request. For simplicity, we reuse the same template for both the CA and the AS.
+      Adapt your template according to your needs.
 
-   SCION AS certificates have short lifetimes (a lifetime of 3 days is recommended).
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE gen_as_scion_pki_as_steps START
+         :end-before: LITERALINCLUDE gen_as_scion_pki_as_steps END
 
-To create the key pair and certificate signing request (CSR), the AS then runs
-the OpenSSL commands below. In these commands, replace ``$KEYDIR`` with the
-folder where private keys should be stored:
+   .. tab-item:: openssl
+      :sync: openssl
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE gen_as_as_steps START
-   :end-before: LITERALINCLUDE gen_as_as_steps END
-   :dedent: 4
+      The configuration is defined in a file. OpenSSL reads the file and creates a
+      certificate that is compatible with SCION. An example configuration file is
+      included below. Note that the file includes the text ``{{.ShortOrg}}``; this
+      text **must** be replaced with the shortname of your organization. For example,
+      if your organization name is **ExampleCorp**, the line should contain ``name =
+      ExampleCorp Secure CA Certificate``.
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE as_conf START
+         :end-before: LITERALINCLUDE as_conf END
+
+      .. attention::
+
+         SCION AS certificates have short lifetimes (a lifetime of 3 days is recommended).
+
+      To create the key pair and certificate signing request (CSR), the AS then runs
+      the OpenSSL commands below. In these commands, replace ``$KEYDIR`` with the
+      folder where private keys should be stored:
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE gen_as_as_steps START
+         :end-before: LITERALINCLUDE gen_as_as_steps END
+         :dedent: 4
 
 If the AS and CA are different entities, the certificate signing request can
 then be sent to a CA for signing.
 
 This step is performed by an entity that is a CA in the ISD. The CA creates
 the certificate using its private key and the certificate signing request
-received from the AS. The CA must also define the following:
-
-- CA Certificate validity start date. Prior to this date, the certificate is
-  not considered valid. To configure this, in the command below replace
-  occurrences of ``$STARTDATE`` with the date in ``YYYYMMDDHHMMSSZ`` notation.
-  For example, June 24th, 2020 UTC at noon is formatted as ``20200624120000Z``.
-- CA Certificate validity end date. After this date, the certificate is no
-  longer valid. To configure this, in the command below replace occurrences of
-  ``$ENDDATE`` with the desired date. This uses the same notation as the
-  ``$STARTDATE``.
-
-Additionally, the CA should set ``$KEYDIR`` to the folder in which the private
+received from the AS. The CA should set ``$KEYDIR`` to the folder in which the private
 key file (the file is called ``cp-ca.key``, in this example) is stored.
 
-To create the certificate, the CA runs:
+.. tab-set::
+   :sync-group: tool
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE gen_as_ca_steps START
-   :end-before: LITERALINCLUDE gen_as_ca_steps END
-   :dedent: 4
+   .. tab-item:: scion-pki
+      :sync: scion-pki
 
-After generating the certificate, check that the output is reasonable:
+      The CA must also define the following:
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE check_as START
-   :end-before: LITERALINCLUDE check_as END
-   :dedent: 4
+      - AS Certificate validity start date and end date in RFC3339 format.
 
-The certificate can be validated with with the ``scion-pki`` binary:
+      To create the certificate, the CA runs:
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE check_as_type START
-   :end-before: LITERALINCLUDE check_as_type END
-   :dedent: 4
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE gen_as_scion_pki_ca_steps START
+         :end-before: LITERALINCLUDE gen_as_scion_pki_ca_steps END
+         :dedent: 4
+
+
+   .. tab-item:: openssl
+      :sync: openssl
+
+      The CA must also define the following:
+
+      - AS Certificate validity start date. Prior to this date, the certificate is
+        not considered valid. To configure this, in the command below replace
+        occurrences of ``$STARTDATE`` with the date in ``YYYYMMDDHHMMSSZ`` notation.
+        For example, June 24th, 2020 UTC at noon is formatted as ``20200624120000Z``.
+      - AS Certificate validity end date. After this date, the certificate is no
+        longer valid. To configure this, in the command below replace occurrences of
+        ``$ENDDATE`` with the desired date. This uses the same notation as the
+        ``$STARTDATE``.
+
+      To create the certificate, the CA runs:
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE gen_as_ca_steps START
+         :end-before: LITERALINCLUDE gen_as_ca_steps END
+         :dedent: 4
+
+      After generating the certificate, check that the output is reasonable:
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE check_as START
+         :end-before: LITERALINCLUDE check_as END
+         :dedent: 4
+
+      The certificate can be validated with with the ``scion-pki`` binary:
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE check_as_type START
+         :end-before: LITERALINCLUDE check_as_type END
+         :dedent: 4
 
 If the AS and CA are different entities, the CA should then send the certificate
 back to the AS that request it.
