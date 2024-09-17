@@ -86,11 +86,11 @@ OS Setup
   .. code-block:: sh
 
      # additions to /etc/hosts
-     10.0.1.1 scion01
-     10.0.1.2 scion02
-     10.0.1.3 scion03
-     10.0.1.4 scion04
-     10.0.1.5 scion05
+     10.0.0.1 scion01
+     10.0.0.2 scion02
+     10.0.0.3 scion03
+     10.0.0.4 scion04
+     10.0.0.5 scion05
 
 
 .. _step1:
