@@ -135,3 +135,21 @@ Start with the :doc:`dev/contribute` to contribute to the open-source SCION impl
   :doc:`dev/testing/index`
 
 * :doc:`dev/design/index`
+
+Applications
+^^^^^^^^^^^^
+.. toctree::
+   :maxdepth: 1
+   :caption: Applications
+   :hidden:
+
+   Access and Host configuration <applications/access>
+   Browser extension <applications/browser-extension>
+   Bittorrent <applications/bittorrent>
+   Echo SCION <applications/echoscion>
+   Hercules <applications/hercules>
+   IFPS <applications/ipfs>
+
+Before you can use any of the SCION applications, you must have access to a SCION network and have a SCION endhost stack installed on your host. 
+Start with :doc:`Access and Host configuration <applications/access>` to learn how to configure your host.
+
