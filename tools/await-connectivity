@@ -89,12 +89,12 @@ main() {
   local noncores=$(sed -n '/Non-core/,${s/^- //p}' gen/as_list.yml)
 
   for i in $(seq 1 "$QUIET"); do
-    check_connectivity "$cores" "$noncores" > /dev/null && return 0
+    check_connectivity "$cores" "$noncores" > /dev/null && exit 0
     sleep 1
   done
   for i in $(seq "$QUIET" $((TIMEOUT-1))); do
     echo "Check after ${i}s"
-    check_connectivity "$cores" "$noncores" && return 0
+    check_connectivity "$cores" "$noncores" && exit 0
     sleep 1
   done
   echo "Check after ${TIMEOUT}s"
