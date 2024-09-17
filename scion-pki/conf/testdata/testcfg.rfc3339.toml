@@ -1,0 +1,13 @@
+isd = 1
+description = "test config"
+serial_version = 1
+base_version = 1
+voting_quorum = 1
+no_trust_reset = false
+core_ases = ["ff00:0:110"]
+authoritative_ases = ["ff00:0:120"]
+cert_files = ["regular-voting.crt", "sensitive-voting.crt"]
+
+[validity]
+  not_before = "2024-06-24T12:13:14+02:00"
+  validity = "1h"

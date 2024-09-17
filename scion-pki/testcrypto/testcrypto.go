@@ -313,7 +313,7 @@ func createTRCs(cfg config) error {
 			BaseVersion:   1,
 			VotingQuorum:  uint8(len(voters[isd])/2 + 1),
 			Validity: conf.Validity{
-				NotBefore: uint32(cfg.now.UTC().Unix()),
+				NotBefore: conf.Time(cfg.now.UTC()),
 				Validity:  util.DurWrap{Duration: 450 * 24 * time.Hour},
 			},
 			CoreASes:          cores[isd],
