@@ -10,7 +10,7 @@ preparation for the ceremony. This document outlines these steps.
 .. important::
 
    It is required that the machine used to execute the commands has openssl
-   version 1.1.1d or higher installed.
+   version 3.0.14 or higher installed.
 
 .. note::
 
@@ -83,29 +83,58 @@ Navigate to the public directory:
    :end-before: LITERALINCLUDE navigate_pubdir END
    :dedent: 4
 
-This directory stores the openssl configurations, the CSRs and the created
-certificates. To avoid duplicated information, create a ``basic.cnf`` that can
-be imported from the sensitive voting, regular voting and root certificate
-configuration files:
+This directory stores the necessary configurations and created certificates.
+Private keys are kept in a separate directory to avoid accidental disclosure.
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE basic_conf START
-   :end-before: LITERALINCLUDE basic_conf END
+.. tab-set::
+   :sync-group: tool
 
-Fill in the required fields.
+   .. tab-item:: scion-pki
+      :sync: scion-pki
 
-.. note::
+      To avoid duplicated information, create a ``subject.tmpl`` that can
+      be reused for the sensitive voting, regular voting and root certificate:
 
-   The ``{{.Country}}`` must be replaced with an ISO 3166-1 alpha-2 code.
-   Switzerland, for example, has the code ``CH``.
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE basic_conf_scion_pki START
+         :end-before: LITERALINCLUDE basic_conf_scion_pki END
 
-To set the start and end time of a X509 certificate using openssl, the ``ca``
-command is necessary. The directory needs to be prepared:
+      Fill in the required fields.
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE prepare_ca START
-   :end-before: LITERALINCLUDE prepare_ca END
-   :dedent: 4
+      .. note::
+
+         The ``{{.Country}}`` must be replaced with an ISO 3166-1 alpha-2 code.
+         Switzerland, for example, has the code ``CH``.
+
+      The ``{{.ShortOrg}}`` must be replaced with a short name for the
+      organization that will be used in the certificate common name.
+
+   .. tab-item:: openssl
+      :sync: openssl
+
+
+      To avoid duplicated information, create a ``basic.cnf`` that can
+      be imported from the sensitive voting, regular voting and root certificate
+      configuration files:
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE basic_conf START
+         :end-before: LITERALINCLUDE basic_conf END
+
+      Fill in the required fields.
+
+      .. note::
+
+         The ``{{.Country}}`` must be replaced with an ISO 3166-1 alpha-2 code.
+         Switzerland, for example, has the code ``CH``.
+
+      To set the start and end time of a X509 certificate using openssl, the ``ca``
+      command is necessary. The directory needs to be prepared:
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE prepare_ca START
+         :end-before: LITERALINCLUDE prepare_ca END
+         :dedent: 4
 
 
 Sensitive voting
@@ -119,12 +148,27 @@ This step creates a sensitive voting key and certificate.
    party has an AS identifier, the ISD number must match with the TRC this
    certificate will be used in.
 
-First, create the sensitive voting certificate configuration. In the file,
-replace ``{{.ShortOrg}}`` with the name of your organization:
+.. tab-set::
+   :sync-group: tool
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE sensitive_conf START
-   :end-before: LITERALINCLUDE sensitive_conf END
+   .. tab-item:: scion-pki
+      :sync: scion-pki
+
+      First, export the sensitive voting certificate common name.
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE sensitive_cn START
+         :end-before: LITERALINCLUDE sensitive_cn END
+
+   .. tab-item:: openssl
+      :sync: openssl
+
+      First, create the sensitive voting certificate configuration. In the file,
+      replace ``{{.ShortOrg}}`` with the name of your organization:
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE sensitive_conf START
+         :end-before: LITERALINCLUDE sensitive_conf END
 
 .. note::
 
@@ -145,33 +189,57 @@ replace ``{{.ShortOrg}}`` with the name of your organization:
       :end-before: LITERALINCLUDE version_sensitive END
       :dedent: 4
 
+.. tab-set::
+   :sync-group: tool
 
-Using this configuration, create the sensitive voting key and certificate. The
-start and end date need to be replaced with the time when the certificate
-becomes valid, and the time when it expires. The format is ``YYYYMMDDHHMMSSZ``.
-For example, June 24th, 2020 UTC at noon, is formatted as ``20200624120000Z``.
-The required commands are:
+   .. tab-item:: scion-pki
+      :sync: scion-pki
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE gen_sensitive START
-   :end-before: LITERALINCLUDE gen_sensitive END
-   :dedent: 4
+      Using the subject template, create the sensitive voting key and certificate. The
+      start and end date need to be replaced with the time when the certificate
+      becomes valid, and the time when it expires. The format is RFC3339 compliant.
+      For example, June 24th, 2020 UTC at noon, is formatted as ``2020-06-24T12:00:00Z``.
 
-After generating the certificate, check that the output is reasonable:
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE gen_sensitive_scion_pki START
+         :end-before: LITERALINCLUDE gen_sensitive_scion_pki END
+         :dedent: 4
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE check_sensitive START
-   :end-before: LITERALINCLUDE check_sensitive END
-   :dedent: 4
+   .. tab-item:: openssl
+      :sync: openssl
+
+      Using this configuration, create the sensitive voting key and certificate. The
+      start and end date need to be replaced with the time when the certificate
+      becomes valid, and the time when it expires. The format is ``YYYYMMDDHHMMSSZ``.
+      For example, June 24th, 2020 UTC at noon, is formatted as ``20200624120000Z``.
+      The required commands are:
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE gen_sensitive START
+         :end-before: LITERALINCLUDE gen_sensitive END
+         :dedent: 4
+
+      After generating the certificate, check that the output is reasonable:
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE check_sensitive START
+         :end-before: LITERALINCLUDE check_sensitive END
+         :dedent: 4
 
 The validity time must cover the agreed upon TRC validity period.
 
 The certificate can be validated with with the ``scion-pki`` binary:
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE check_sensitive_type START
-   :end-before: LITERALINCLUDE check_sensitive_type END
-   :dedent: 4
+.. tab-set::
+   :sync-group: tool
+
+   .. tab-item:: scion-pki
+      :sync: scion-pki
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE check_sensitive_type START
+         :end-before: LITERALINCLUDE check_sensitive_type END
+         :dedent: 4
 
 Regular voting
 --------------
@@ -184,11 +252,26 @@ This step creates a regular voting key and certificate.
    party has an AS identifier, the ISD number must match with the TRC this
    certificate will be used in.
 
-Create the regular voting certificate configuration:
+.. tab-set::
+   :sync-group: tool
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE regular_conf START
-   :end-before: LITERALINCLUDE regular_conf END
+   .. tab-item:: scion-pki
+      :sync: scion-pki
+
+      First, export the regular voting certificate common name.
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE regular_cn START
+         :end-before: LITERALINCLUDE regular_cn END
+
+   .. tab-item:: openssl
+      :sync: openssl
+
+      Create the regular voting certificate configuration:
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE regular_conf START
+         :end-before: LITERALINCLUDE regular_conf END
 
 .. note::
 
@@ -209,32 +292,57 @@ Create the regular voting certificate configuration:
       :end-before: LITERALINCLUDE version_regular END
       :dedent: 4
 
-Using this configuration, create the regular voting key and certificate. The
-start and end date need to be replaced with the time when the certificate
-becomes valid, and the time when it expires. The format is ``YYYYMMDDHHMMSSZ``.
-For example, June 24th, 2020 UTC at noon, is formatted as ``20200624120000Z``.
-The required commands are:
+.. tab-set::
+   :sync-group: tool
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE gen_regular START
-   :end-before: LITERALINCLUDE gen_regular END
-   :dedent: 4
+   .. tab-item:: scion-pki
+      :sync: scion-pki
 
-After generating the certificate, check that the output is reasonable:
+      Using the subject template, create the regular voting key and certificate. The
+      start and end date need to be replaced with the time when the certificate
+      becomes valid, and the time when it expires. The format is RFC3339 compliant.
+      For example, June 24th, 2020 UTC at noon, is formatted as ``2020-06-24T12:00:00Z``.
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE check_regular START
-   :end-before: LITERALINCLUDE check_regular END
-   :dedent: 4
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE gen_regular_scion_pki START
+         :end-before: LITERALINCLUDE gen_regular_scion_pki END
+         :dedent: 4
+
+   .. tab-item:: openssl
+      :sync: openssl
+
+      Using this configuration, create the regular voting key and certificate. The
+      start and end date need to be replaced with the time when the certificate
+      becomes valid, and the time when it expires. The format is ``YYYYMMDDHHMMSSZ``.
+      For example, June 24th, 2020 UTC at noon, is formatted as ``20200624120000Z``.
+      The required commands are:
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE gen_regular START
+         :end-before: LITERALINCLUDE gen_regular END
+         :dedent: 4
+
+      After generating the certificate, check that the output is reasonable:
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE check_regular START
+         :end-before: LITERALINCLUDE check_regular END
+         :dedent: 4
 
 The validity time must cover the agreed upon TRC validity period.
 
 The certificate can be validated with with the ``scion-pki`` binary:
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE check_regular_type START
-   :end-before: LITERALINCLUDE check_regular_type END
-   :dedent: 4
+.. tab-set::
+   :sync-group: tool
+
+   .. tab-item:: scion-pki
+      :sync: scion-pki
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE check_regular_type START
+         :end-before: LITERALINCLUDE check_regular_type END
+         :dedent: 4
 
 CP Root
 -------
@@ -245,11 +353,26 @@ This step creates a CP root key and certificate.
 
    This step only has to be executed by issuing ASes.
 
-Create the CP root certificate configuration:
+.. tab-set::
+   :sync-group: tool
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE root_conf START
-   :end-before: LITERALINCLUDE root_conf END
+   .. tab-item:: scion-pki
+      :sync: scion-pki
+
+      First, export the root certificate common name.
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE root_cn START
+         :end-before: LITERALINCLUDE root_cn END
+
+   .. tab-item:: openssl
+      :sync: openssl
+
+      Create the CP root certificate configuration:
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE root_conf START
+         :end-before: LITERALINCLUDE root_conf END
 
 .. note::
 
@@ -270,29 +393,54 @@ Create the CP root certificate configuration:
       :end-before: LITERALINCLUDE version_regular END
       :dedent: 4
 
-Using this configuration, create the CP root key and certificate. The start and
-end date need to be replaced with the time when the certificate becomes valid,
-and the time when it expires. The format is ``YYYYMMDDHHMMSSZ``. For example,
-June 24th, 2020 UTC at noon, is formatted as ``20200624120000Z``. The required
-commands are:
+.. tab-set::
+   :sync-group: tool
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE gen_root START
-   :end-before: LITERALINCLUDE gen_root END
-   :dedent: 4
+   .. tab-item:: scion-pki
+      :sync: scion-pki
 
-After generating the certificate, check that the output is reasonable:
+      Using the subject template, create the root key and certificate. The
+      start and end date need to be replaced with the time when the certificate
+      becomes valid, and the time when it expires. The format is RFC3339 compliant.
+      For example, June 24th, 2020 UTC at noon, is formatted as ``2020-06-24T12:00:00Z``.
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE check_root START
-   :end-before: LITERALINCLUDE check_root END
-   :dedent: 4
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE gen_root_scion_pki START
+         :end-before: LITERALINCLUDE gen_root_scion_pki END
+         :dedent: 4
+
+   .. tab-item:: openssl
+      :sync: openssl
+
+      Using this configuration, create the CP root key and certificate. The start and
+      end date need to be replaced with the time when the certificate becomes valid,
+      and the time when it expires. The format is ``YYYYMMDDHHMMSSZ``. For example,
+      June 24th, 2020 UTC at noon, is formatted as ``20200624120000Z``. The required
+      commands are:
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE gen_root START
+         :end-before: LITERALINCLUDE gen_root END
+         :dedent: 4
+
+      After generating the certificate, check that the output is reasonable:
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE check_root START
+         :end-before: LITERALINCLUDE check_root END
+         :dedent: 4
 
 The validity time must cover the agreed upon TRC validity period.
 
 The certificate can be validated with with the ``scion-pki`` binary:
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE check_root_type START
-   :end-before: LITERALINCLUDE check_root_type END
-   :dedent: 4
+.. tab-set::
+   :sync-group: tool
+
+   .. tab-item:: scion-pki
+      :sync: scion-pki
+
+      .. literalinclude:: crypto_lib.sh
+         :start-after: LITERALINCLUDE check_root_type START
+         :end-before: LITERALINCLUDE check_root_type END
+         :dedent: 4

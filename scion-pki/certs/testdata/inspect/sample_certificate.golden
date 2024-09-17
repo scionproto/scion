@@ -3,11 +3,11 @@ Certificate:
         Version: 3 (0x2)
         Serial Number: 236926349964825539132366110936757753936879769458 (0x2980251cdc8ab9152895adda753f4865173f5772)
     Signature Algorithm: ECDSA-SHA512
-        Issuer: C=CH,ST=Zürich,L=Zürich,O=1-ff00:0:110,OU=1-ff00:0:110 InfoSec Squad,CN=1-ff00:0:110 Secure CA Certificate,UnknownOID=1.3.6.1.4.1.55324.1.2.1
+        Issuer: C=CH,ST=Zürich,L=Zürich,O=1-ff00:0:110,OU=1-ff00:0:110 InfoSec Squad,CN=1-ff00:0:110 Secure CA Certificate,ISD-AS=1-ff00:0:110
         Validity
             Not Before: Mar 18 17:12:31 2021 UTC
             Not After : Mar 18 17:12:31 2022 UTC
-        Subject: C=CH,ST=Zürich,L=Zürich,O=1-ff00:0:110,OU=1-ff00:0:110 InfoSec Squad,CN=1-ff00:0:110 AS Certificate,UnknownOID=1.3.6.1.4.1.55324.1.2.1
+        Subject: C=CH,ST=Zürich,L=Zürich,O=1-ff00:0:110,OU=1-ff00:0:110 InfoSec Squad,CN=1-ff00:0:110 AS Certificate,ISD-AS=1-ff00:0:110
         Subject Public Key Info:
             Public Key Algorithm: ECDSA
                 Public-Key: (256 bit)
@@ -39,11 +39,11 @@ Certificate:
         Version: 3 (0x2)
         Serial Number: 667057667842995775975688328585225864023964590390 (0x74d7e67c8e2a0293b27d2b78b0e700eedc772136)
     Signature Algorithm: ECDSA-SHA512
-        Issuer: C=CH,ST=Zürich,L=Zürich,O=1-ff00:0:110,OU=1-ff00:0:110 InfoSec Squad,CN=1-ff00:0:110 High Security Root Certificate,UnknownOID=1.3.6.1.4.1.55324.1.2.1
+        Issuer: C=CH,ST=Zürich,L=Zürich,O=1-ff00:0:110,OU=1-ff00:0:110 InfoSec Squad,CN=1-ff00:0:110 High Security Root Certificate,ISD-AS=1-ff00:0:110
         Validity
             Not Before: Mar 18 17:12:31 2021 UTC
             Not After : Mar 18 17:12:31 2023 UTC
-        Subject: C=CH,ST=Zürich,L=Zürich,O=1-ff00:0:110,OU=1-ff00:0:110 InfoSec Squad,CN=1-ff00:0:110 Secure CA Certificate,UnknownOID=1.3.6.1.4.1.55324.1.2.1
+        Subject: C=CH,ST=Zürich,L=Zürich,O=1-ff00:0:110,OU=1-ff00:0:110 InfoSec Squad,CN=1-ff00:0:110 Secure CA Certificate,ISD-AS=1-ff00:0:110
         Subject Public Key Info:
             Public Key Algorithm: ECDSA
                 Public-Key: (256 bit)
