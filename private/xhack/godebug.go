@@ -16,11 +16,6 @@
 // standard library or other packages.
 package xhack
 
-import (
-	"os"
-	"strings"
-)
-
 // AsynctimerchanOn enables the asynctimerchan debug option. This option disable
 // the new timer behavior that was introduced in Go 1.23 (see
 // https://tip.golang.org/doc/go1.23#timer-changes).
@@ -31,7 +26,7 @@ import (
 // This function should be called at the beginning of the main function of the
 // applications that have a dependency (direct or indirect) on quic-go.
 func AsynctimerchanOn() {
-	if d := os.Getenv("GODEBUG"); !strings.Contains(d, "asynctimerchan") {
-		os.Setenv("GODEBUG", d+",asynctimerchan=1")
-	}
+	//FIXME if d := os.Getenv("GODEBUG"); !strings.Contains(d, "asynctimerchan") {
+	//	os.Setenv("GODEBUG", d+",asynctimerchan=1")
+	//}
 }
