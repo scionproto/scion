@@ -31,6 +31,28 @@ Path #1:
     2-ff00:0:211#2325
     2-ff00:0:212#2523
 Path #2:
+  Weight: 5
+  Fields:
+    IF .P
+      HF InIF=1714 OutIF=0
+      HF InIF=1432 OutIF=1417
+      HF InIF=4001 OutIF=3214
+    IF CP
+      HF InIF=4002 OutIF=2123
+      HF InIF=2321 OutIF=2325
+      HF InIF=2523 OutIF=0
+  Interfaces:
+    1-ff00:0:112#1714
+    1-ff00:0:111#1417
+    1-ff00:0:111#1432
+    1-ff00:0:130#3214
+    1-ff00:0:130#4001
+    2-ff00:0:210#4002
+    2-ff00:0:210#2123
+    2-ff00:0:211#2321
+    2-ff00:0:211#2325
+    2-ff00:0:212#2523
+Path #3:
   Weight: 6
   Fields:
     IF ..
