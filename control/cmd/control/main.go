@@ -94,11 +94,14 @@ import (
 	"github.com/scionproto/scion/private/trust/compat"
 	trustgrpc "github.com/scionproto/scion/private/trust/grpc"
 	trustmetrics "github.com/scionproto/scion/private/trust/metrics"
+	"github.com/scionproto/scion/private/xhack"
 )
 
 var globalCfg config.Config
 
 func main() {
+	xhack.AsynctimerchanOn()
+
 	application := launcher.Application{
 		TOMLConfig: &globalCfg,
 		ShortName:  "SCION Control Service",

@@ -37,11 +37,14 @@ import (
 	"github.com/scionproto/scion/private/app"
 	"github.com/scionproto/scion/private/app/launcher"
 	"github.com/scionproto/scion/private/service"
+	"github.com/scionproto/scion/private/xhack"
 )
 
 var globalCfg config.Config
 
 func main() {
+	xhack.AsynctimerchanOn()
+
 	application := launcher.Application{
 		TOMLConfig: &globalCfg,
 		ShortName:  "SCION IP Gateway",
