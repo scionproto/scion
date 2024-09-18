@@ -377,7 +377,7 @@ type topoWrap struct {
 }
 
 func (w topoWrap) UnderlayNextHop(id uint16) *net.UDPAddr {
-	a, _ := w.Topo.UnderlayNextHop(iface.IfIDType(id))
+	a, _ := w.Topo.UnderlayNextHop(iface.ID(id))
 	return a
 }
 

@@ -23,23 +23,23 @@ import (
 // IfIDType is the path-type-independent type for interface IDs. Interface IDs must fit in
 // 64 bits. There is a lot of path-type-independent code that manipulates interface IDs without
 // interpreting them. This type is a container for them.
-type IfIDType uint64
+type ID uint64
 
-func (ifID IfIDType) String() string {
+func (ifID ID) String() string {
 	return strconv.FormatUint(uint64(ifID), 10)
 }
 
 // UnmarshalJSON unmarshals the JSON data into the IfID.
-func (ifID *IfIDType) UnmarshalJSON(data []byte) error {
+func (ifID *ID) UnmarshalJSON(data []byte) error {
 	return ifID.UnmarshalText(data)
 }
 
 // UnmarshalText unmarshals the text into the IfID.
-func (ifID *IfIDType) UnmarshalText(text []byte) error {
+func (ifID *ID) UnmarshalText(text []byte) error {
 	i, err := strconv.ParseUint(strings.ReplaceAll(string(text), "\"", ""), 10, 64)
 	if err != nil {
 		return err
 	}
-	*ifID = IfIDType(i)
+	*ifID = ID(i)
 	return nil
 }

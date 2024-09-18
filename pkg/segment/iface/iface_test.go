@@ -27,7 +27,7 @@ import (
 func TestIfIDTypeUnmarshalJSON(t *testing.T) {
 	t.Run("Simple Value", func(t *testing.T) {
 		type exampleStruct struct {
-			IfID iface.IfIDType `json:"if_id"`
+			IfID iface.ID `json:"if_id"`
 		}
 		j := `{"if_id": 5}`
 		var f exampleStruct
@@ -36,17 +36,17 @@ func TestIfIDTypeUnmarshalJSON(t *testing.T) {
 	})
 	t.Run("Map keys", func(t *testing.T) {
 		type exampleStruct struct {
-			IfMap map[iface.IfIDType]string `json:"if_map"`
+			IfMap map[iface.ID]string `json:"if_map"`
 		}
 		j := `{"if_map": {"5": "foo"}}`
 		var f exampleStruct
 		require.NoError(t, json.Unmarshal([]byte(j), &f))
-		assert.Equal(t, exampleStruct{IfMap: map[iface.IfIDType]string{5: "foo"}}, f)
+		assert.Equal(t, exampleStruct{IfMap: map[iface.ID]string{5: "foo"}}, f)
 	})
 }
 
 func TestIfIDTypeUnmarshalText(t *testing.T) {
-	var id iface.IfIDType
+	var id iface.ID
 	assert.NoError(t, id.UnmarshalText([]byte("1")))
-	assert.Equal(t, iface.IfIDType(1), id)
+	assert.Equal(t, iface.ID(1), id)
 }

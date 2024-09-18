@@ -93,8 +93,8 @@ type ServerInfo struct {
 
 // BRInfo contains Border Router specific information.
 type BRInfo struct {
-	InternalAddr string                          `json:"internal_addr"`
-	Interfaces   map[iface.IfIDType]*BRInterface `json:"interfaces"`
+	InternalAddr string                    `json:"internal_addr"`
+	Interfaces   map[iface.ID]*BRInterface `json:"interfaces"`
 }
 
 // GatewayInfo contains SCION gateway information.
@@ -108,12 +108,12 @@ type GatewayInfo struct {
 // BRInterface contains the information for an data-plane BR socket that is external (i.e., facing
 // the neighboring AS).
 type BRInterface struct {
-	Underlay   Underlay       `json:"underlay,omitempty"`
-	IA         string         `json:"isd_as"`
-	LinkTo     string         `json:"link_to"`
-	MTU        int            `json:"mtu"`
-	BFD        *BFD           `json:"bfd,omitempty"`
-	RemoteIfID iface.IfIDType `json:"remote_interface_id,omitempty"`
+	Underlay   Underlay `json:"underlay,omitempty"`
+	IA         string   `json:"isd_as"`
+	LinkTo     string   `json:"link_to"`
+	MTU        int      `json:"mtu"`
+	BFD        *BFD     `json:"bfd,omitempty"`
+	RemoteIfID iface.ID `json:"remote_interface_id,omitempty"`
 }
 
 // Underlay is the underlay information for a BR interface.

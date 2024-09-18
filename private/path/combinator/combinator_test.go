@@ -568,20 +568,20 @@ func TestFilterDuplicates(t *testing.T) {
 	// These look somewhat valid, but that doesn't matter at all -- we only look
 	// at the fingerprint anyway.
 	path0 := []snet.PathInterface{
-		{IA: addr.MustParseIA("1-ff00:0:110"), ID: iface.IfIDType(10)},
-		{IA: addr.MustParseIA("1-ff00:0:111"), ID: iface.IfIDType(10)},
+		{IA: addr.MustParseIA("1-ff00:0:110"), ID: iface.ID(10)},
+		{IA: addr.MustParseIA("1-ff00:0:111"), ID: iface.ID(10)},
 	}
 	path1 := []snet.PathInterface{
-		{IA: addr.MustParseIA("1-ff00:0:110"), ID: iface.IfIDType(11)},
-		{IA: addr.MustParseIA("1-ff00:0:112"), ID: iface.IfIDType(11)},
-		{IA: addr.MustParseIA("1-ff00:0:112"), ID: iface.IfIDType(12)},
-		{IA: addr.MustParseIA("1-ff00:0:111"), ID: iface.IfIDType(12)},
+		{IA: addr.MustParseIA("1-ff00:0:110"), ID: iface.ID(11)},
+		{IA: addr.MustParseIA("1-ff00:0:112"), ID: iface.ID(11)},
+		{IA: addr.MustParseIA("1-ff00:0:112"), ID: iface.ID(12)},
+		{IA: addr.MustParseIA("1-ff00:0:111"), ID: iface.ID(12)},
 	}
 	path2 := []snet.PathInterface{
-		{IA: addr.MustParseIA("1-ff00:0:110"), ID: iface.IfIDType(11)},
-		{IA: addr.MustParseIA("1-ff00:0:112"), ID: iface.IfIDType(11)},
-		{IA: addr.MustParseIA("1-ff00:0:112"), ID: iface.IfIDType(22)},
-		{IA: addr.MustParseIA("1-ff00:0:111"), ID: iface.IfIDType(22)},
+		{IA: addr.MustParseIA("1-ff00:0:110"), ID: iface.ID(11)},
+		{IA: addr.MustParseIA("1-ff00:0:112"), ID: iface.ID(11)},
+		{IA: addr.MustParseIA("1-ff00:0:112"), ID: iface.ID(22)},
+		{IA: addr.MustParseIA("1-ff00:0:111"), ID: iface.ID(22)},
 	}
 
 	// Define two expiry times for the paths: paths with latest expiry will be kept

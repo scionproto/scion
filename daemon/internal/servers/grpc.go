@@ -337,7 +337,7 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 
 	revInfo := &path_mgmt.RevInfo{
 		RawIsdas:     addr.IA(req.IsdAs),
-		IfID:         iface.IfIDType(req.Id),
+		IfID:         iface.ID(req.Id),
 		LinkType:     proto.LinkType_core,
 		RawTTL:       10,
 		RawTimestamp: util.TimeToSecs(time.Now()),

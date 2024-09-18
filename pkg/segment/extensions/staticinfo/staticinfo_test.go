@@ -34,22 +34,22 @@ func TestRoundtripStaticInfoExtension(t *testing.T) {
 		},
 		"latency": {
 			Latency: staticinfo.LatencyInfo{
-				Intra: map[iface.IfIDType]time.Duration{
+				Intra: map[iface.ID]time.Duration{
 					10: 10 * time.Millisecond,
 					11: 11 * time.Millisecond,
 				},
-				Inter: map[iface.IfIDType]time.Duration{
+				Inter: map[iface.ID]time.Duration{
 					11: 111 * time.Millisecond,
 				},
 			},
 		},
 		"bandwidth": {
 			Bandwidth: staticinfo.BandwidthInfo{
-				Intra: map[iface.IfIDType]uint64{
+				Intra: map[iface.ID]uint64{
 					10: 1,              // 1Kbit/s
 					11: 10_000_000_000, // 10Tbit/s
 				},
-				Inter: map[iface.IfIDType]uint64{
+				Inter: map[iface.ID]uint64{
 					11: 2_000_000,
 				},
 			},
@@ -71,7 +71,7 @@ func TestRoundtripStaticInfoExtension(t *testing.T) {
 			},
 		},
 		"internal_hops": {
-			InternalHops: map[iface.IfIDType]uint32{
+			InternalHops: map[iface.ID]uint32{
 				10: 2,
 				11: 3,
 			},

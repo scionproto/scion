@@ -32,7 +32,7 @@ import (
 type Dataplane interface {
 	CreateIACtx(ia addr.IA) error
 	AddInternalInterface(ia addr.IA, local netip.AddrPort) error
-	AddExternalInterface(localIfID iface.IfIDType, info LinkInfo, owned bool) error
+	AddExternalInterface(localIfID iface.ID, info LinkInfo, owned bool) error
 	AddSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error
 	DelSvc(ia addr.IA, svc addr.SVC, a netip.AddrPort) error
 	SetKey(ia addr.IA, index int, key []byte) error
@@ -57,7 +57,7 @@ type LinkInfo struct {
 type LinkEnd struct {
 	IA   addr.IA
 	Addr netip.AddrPort
-	IfID iface.IfIDType
+	IfID iface.ID
 }
 
 type ObservableDataplane interface {
@@ -169,7 +169,7 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 		// nothing to do
 		return nil
 	}
-	ifIDs := []iface.IfIDType{}
+	ifIDs := []iface.ID{}
 	for k := range infoMap {
 		ifIDs = append(ifIDs, k)
 	}

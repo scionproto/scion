@@ -34,8 +34,8 @@ import (
 var (
 	ia110  = addr.MustParseIA("1-ff00:0:110")
 	ia120  = addr.MustParseIA("1-ff00:0:120")
-	ifID15 = iface.IfIDType(15)
-	ifID19 = iface.IfIDType(19)
+	ifID15 = iface.ID(15)
+	ifID19 = iface.ID(19)
 
 	TimeOut = 5 * time.Second
 )
@@ -100,7 +100,7 @@ func testGetMultikey(t *testing.T, revCache TestableRevCache) {
 	rev1 := defaultRevInfo(ia110, ifID15)
 	rev2 := defaultRevInfo(ia110, ifID19)
 	rev3 := defaultRevInfo(ia120, ifID15)
-	rev4 := defaultRevInfo(ia120, iface.IfIDType(10))
+	rev4 := defaultRevInfo(ia120, iface.ID(10))
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
 
@@ -143,7 +143,7 @@ func testGetAll(t *testing.T, revCache TestableRevCache) {
 	rev1 := defaultRevInfo(ia110, ifID15)
 	rev2 := defaultRevInfo(ia110, ifID19)
 	rev3 := defaultRevInfo(ia120, ifID15)
-	rev4 := defaultRevInfo(ia120, iface.IfIDType(20))
+	rev4 := defaultRevInfo(ia120, iface.ID(20))
 	_, err = revCache.Insert(ctx, rev1)
 	require.NoError(t, err)
 	_, err = revCache.Insert(ctx, rev2)
@@ -298,7 +298,7 @@ func testDeleteExpired(t *testing.T, revCache TestableRevCache) {
 	assert.EqualValues(t, 0, del, "DeleteExpired should delete 0 if entry is not expired")
 }
 
-func defaultRevInfo(ia addr.IA, ifID iface.IfIDType) *path_mgmt.RevInfo {
+func defaultRevInfo(ia addr.IA, ifID iface.ID) *path_mgmt.RevInfo {
 	return &path_mgmt.RevInfo{
 		IfID:         ifID,
 		RawIsdas:     ia,

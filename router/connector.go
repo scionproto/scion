@@ -80,7 +80,7 @@ func (c *Connector) AddInternalInterface(ia addr.IA, local netip.AddrPort) error
 }
 
 // AddExternalInterface adds a link between the local and remote address.
-func (c *Connector) AddExternalInterface(localIfID iface.IfIDType, link control.LinkInfo,
+func (c *Connector) AddExternalInterface(localIfID iface.ID, link control.LinkInfo,
 	owned bool) error {
 
 	c.mtx.Lock()

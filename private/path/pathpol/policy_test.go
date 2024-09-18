@@ -648,7 +648,7 @@ func (p PathProvider) GetPaths(src, dst addr.IA) []snet.Path {
 			ia := p.g.GetParent(ifID)
 			pathIntfs = append(pathIntfs, snet.PathInterface{
 				IA: ia,
-				ID: iface.IfIDType(ifID),
+				ID: iface.ID(ifID),
 			})
 		}
 		var srcIA, dstIA addr.IA

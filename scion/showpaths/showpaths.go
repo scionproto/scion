@@ -58,8 +58,8 @@ type Path struct {
 
 // Hop represents an hop on the path.
 type Hop struct {
-	IfID iface.IfIDType `json:"interface"`
-	IA   addr.IA        `json:"isd_as"`
+	IfID iface.ID `json:"interface"`
+	IA   addr.IA  `json:"isd_as"`
 }
 
 // Human writes human readable output to the writer.

@@ -28,11 +28,11 @@ import (
 // Key denotes the key for the revocation cache.
 type Key struct {
 	IA   addr.IA
-	IfID iface.IfIDType
+	IfID iface.ID
 }
 
 // NewKey creates a new key for the revocation cache.
-func NewKey(ia addr.IA, ifID iface.IfIDType) Key {
+func NewKey(ia addr.IA, ifID iface.ID) Key {
 	return Key{
 		IA:   ia,
 		IfID: ifID,

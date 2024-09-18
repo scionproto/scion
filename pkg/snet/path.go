@@ -70,7 +70,7 @@ type Path interface {
 // PathInterface is an interface of the path.
 type PathInterface struct {
 	// ID is the ID of the interface.
-	ID iface.IfIDType
+	ID iface.ID
 	// IA is the ISD AS identifier of the interface.
 	IA addr.IA
 }

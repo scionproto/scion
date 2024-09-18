@@ -334,14 +334,14 @@ func InsertBeacon(t *testing.T, db beacon.DB, ases []IfInfo,
 
 type PeerEntry struct {
 	IA      addr.IA
-	Ingress iface.IfIDType
+	Ingress iface.ID
 }
 
 type IfInfo struct {
 	IA      addr.IA
 	Next    addr.IA
-	Ingress iface.IfIDType
-	Egress  iface.IfIDType
+	Ingress iface.ID
+	Egress  iface.ID
 	Peers   []PeerEntry
 }
 

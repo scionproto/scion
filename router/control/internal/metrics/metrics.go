@@ -65,7 +65,7 @@ func (l IntfLabels) Values() []string {
 	return []string{l.Intf, l.NeighIA}
 }
 
-func IntfToLabel(ifID iface.IfIDType) string {
+func IntfToLabel(ifID iface.ID) string {
 	if ifID == 0 {
 		return "loc"
 	}

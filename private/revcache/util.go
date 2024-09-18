@@ -37,8 +37,8 @@ func NoRevokedHopIntf(ctx context.Context, revCache RevCache,
 	for _, asEntry := range s.ASEntries {
 		hop := asEntry.HopEntry.HopField
 		for _, key := range [2]Key{
-			{IA: asEntry.Local, IfID: iface.IfIDType(hop.ConsIngress)},
-			{IA: asEntry.Local, IfID: iface.IfIDType(hop.ConsEgress)},
+			{IA: asEntry.Local, IfID: iface.ID(hop.ConsIngress)},
+			{IA: asEntry.Local, IfID: iface.ID(hop.ConsEgress)},
 		} {
 			rev, err := revCache.Get(ctx, key)
 			if err != nil || rev != nil {

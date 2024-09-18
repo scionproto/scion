@@ -603,7 +603,7 @@ func checkInterface(t *testing.T, ctx context.Context, ia addr.IA, ifID uint16,
 		Intfs: []*query.IntfSpec{
 			{
 				IA:   ia,
-				IfID: iface.IfIDType(ifID),
+				IfID: iface.ID(ifID),
 			},
 		},
 	})

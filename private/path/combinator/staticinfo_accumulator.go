@@ -85,7 +85,7 @@ func collectLatency(p pathInfo) []time.Duration {
 		}
 		egIF := snet.PathInterface{
 			IA: asEntry.Local,
-			ID: iface.IfIDType(asEntry.HopEntry.HopField.ConsEgress),
+			ID: iface.ID(asEntry.HopEntry.HopField.ConsEgress),
 		}
 		latency := staticInfo.Latency
 		// Egress to sibling child, core or peer interfaces
@@ -140,7 +140,7 @@ func collectBandwidth(p pathInfo) []uint64 {
 		}
 		egIF := snet.PathInterface{
 			IA: asEntry.Local,
-			ID: iface.IfIDType(asEntry.HopEntry.HopField.ConsEgress),
+			ID: iface.ID(asEntry.HopEntry.HopField.ConsEgress),
 		}
 		bandwidth := staticInfo.Bandwidth
 		// Egress to other local interfaces
@@ -265,7 +265,7 @@ func collectInternalHops(p pathInfo) []uint32 {
 		}
 		egIF := snet.PathInterface{
 			IA: asEntry.Local,
-			ID: iface.IfIDType(asEntry.HopEntry.HopField.ConsEgress),
+			ID: iface.ID(asEntry.HopEntry.HopField.ConsEgress),
 		}
 		internalHops := staticInfo.InternalHops
 		for ifID, v := range internalHops {

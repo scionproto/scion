@@ -43,8 +43,8 @@ type Path struct {
 
 // Hop represents an hop on the path.
 type Hop struct {
-	ID iface.IfIDType `json:"interface" yaml:"interface"`
-	IA addr.IA        `json:"isd_as" yaml:"isd_as"`
+	ID iface.ID `json:"interface" yaml:"interface"`
+	IA addr.IA  `json:"isd_as" yaml:"isd_as"`
 }
 
 // getHops constructs a list of snet path interfaces from an snet path

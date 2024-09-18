@@ -61,7 +61,7 @@ func TestNoRevokedHopIntf(t *testing.T) {
 			func(_ context.Context, key revcache.Key) (*path_mgmt.RevInfo, error) {
 				iaFmt := key.IA.String()
 				_ = iaFmt
-				if key.IA == ia211 && key.IfID == iface.IfIDType(graph.If_211_A_210_X) {
+				if key.IA == ia211 && key.IfID == iface.ID(graph.If_211_A_210_X) {
 					return sRev, nil
 				}
 				return nil, nil
@@ -83,7 +83,7 @@ func TestNoRevokedHopIntf(t *testing.T) {
 
 func defaultRevInfo(ia addr.IA, ifID uint16, ts time.Time) *path_mgmt.RevInfo {
 	return &path_mgmt.RevInfo{
-		IfID:         iface.IfIDType(ifID),
+		IfID:         iface.ID(ifID),
 		RawIsdas:     ia,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(ts),

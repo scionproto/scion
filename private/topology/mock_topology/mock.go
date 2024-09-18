@@ -125,10 +125,10 @@ func (mr *MockTopologyMockRecorder) IFInfoMap() *gomock.Call {
 }
 
 // IfIDs mocks base method.
-func (m *MockTopology) IfIDs() []iface.IfIDType {
+func (m *MockTopology) IfIDs() []iface.ID {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IfIDs")
-	ret0, _ := ret[0].([]iface.IfIDType)
+	ret0, _ := ret[0].([]iface.ID)
 	return ret0
 }
 
@@ -256,7 +256,7 @@ func (mr *MockTopologyMockRecorder) UnderlayMulticast(arg0 interface{}) *gomock.
 }
 
 // UnderlayNextHop mocks base method.
-func (m *MockTopology) UnderlayNextHop(arg0 iface.IfIDType) (*net.UDPAddr, bool) {
+func (m *MockTopology) UnderlayNextHop(arg0 iface.ID) (*net.UDPAddr, bool) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UnderlayNextHop", arg0)
 	ret0, _ := ret[0].(*net.UDPAddr)

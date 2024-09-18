@@ -69,7 +69,7 @@ func TestExpiredRevocation(t *testing.T) {
 	s.Cleanup(context.Background())
 }
 
-func createMockPath(ctrl *gomock.Controller, ia addr.IA, ifID iface.IfIDType) snet.Path {
+func createMockPath(ctrl *gomock.Controller, ia addr.IA, ifID iface.ID) snet.Path {
 	path := mock_snet.NewMockPath(ctrl)
 	path.EXPECT().Metadata().Return(&snet.PathMetadata{
 		Interfaces: []snet.PathInterface{{IA: ia, ID: ifID}},
@@ -77,7 +77,7 @@ func createMockPath(ctrl *gomock.Controller, ia addr.IA, ifID iface.IfIDType) sn
 	return path
 }
 
-func createRevInfo(ia addr.IA, ifID iface.IfIDType, expired bool) *path_mgmt.RevInfo {
+func createRevInfo(ia addr.IA, ifID iface.ID, expired bool) *path_mgmt.RevInfo {
 	ri := &path_mgmt.RevInfo{
 		RawIsdas: ia,
 		IfID:     ifID,
