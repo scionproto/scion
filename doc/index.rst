@@ -44,7 +44,7 @@ The ideas and concepts behind SCION.
   :doc:`Control Plane <control-plane>` |
   :doc:`Data Plane <data-plane>` |
   SCION End Hosts |
-  :doc:`Applications <https://docs.scion.org/projects/scion-applications/en/latest>` 
+  :doc:`Applications <https://docs.scion.org/projects/scion-applications/en/latest>`_
 
 
 Reference Manuals
@@ -94,7 +94,7 @@ implementation <https://github.com/scionproto/scion>`_.
    For this, the package documentation needs to be streamlined a bit...
 
 * **For users of SCION applications**:
-  :doc:`Applications <https://docs.scion.org/projects/scion-applications/en/latest>`
+  :doc:`Applications <https://docs.scion.org/projects/scion-applications/en/latest>`_
 
 
 Guides and Tutorials
