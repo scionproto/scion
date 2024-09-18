@@ -14,6 +14,7 @@ go_library(
         "trcs.go",
         "verify.go",
     ],
+    embedsrcs = ["testdata/admin/ISD1-B1-S1.pld.der"],
     importpath = "github.com/scionproto/scion/scion-pki/trcs",
     visibility = ["//visibility:public"],
     deps = [
@@ -29,6 +30,7 @@ go_library(
         "//scion-pki/file:go_default_library",
         "//scion-pki/key:go_default_library",
         "@com_github_google_go_cmp//cmp:go_default_library",
+        "@com_github_mattn_go_isatty//:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
         "@in_gopkg_yaml_v2//:go_default_library",
     ],
