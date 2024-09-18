@@ -59,6 +59,9 @@ naming pattern::
 
 An alternative name can be specified with the \--out flag.
 
+If 'dummy' is provided as the payload file, a dummy TRC payload is signed. This is useful for
+testing access to the necessary cryptographic material, especially in preparation for
+a TRC signing ceremony.
 `,
 		Args: cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -77,8 +80,15 @@ An alternative name can be specified with the \--out flag.
 }
 
 func RunSign(pld, certfile, keyfile, out, outDir string) error {
+	dummy := pld == "dummy"
+
 	// Read TRC payload
-	rawPld, err := os.ReadFile(pld)
+	rawPld, err := func() ([]byte, error) {
+		if !dummy {
+			return os.ReadFile(pld)
+		}
+		return dummyPayload, nil
+	}()
 	if err != nil {
 		return serrors.Wrap("error loading payload", err)
 	}
@@ -133,7 +143,12 @@ func RunSign(pld, certfile, keyfile, out, outDir string) error {
 	if err := os.WriteFile(fname, signed, 0644); err != nil {
 		return serrors.Wrap("error writing signed TRC paylod", err)
 	}
-	fmt.Printf("Successfully signed TRC payload at %s\n", out)
+
+	if !dummy {
+		fmt.Printf("Successfully signed TRC payload at %s\n", out)
+	} else {
+		fmt.Println("Successfully signed dummy TRC payload")
+	}
 	return nil
 }
 
