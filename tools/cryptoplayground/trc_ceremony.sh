@@ -45,6 +45,7 @@ do
 
     if [ -z "$USE_SCION_PKI_SIGN" ]; then
         basic_conf && sensitive_conf && regular_conf && root_conf && ca_conf && as_conf
+        scion-pki trc payload dummy --format der > dummy.pld.der
         prepare_ca
         sed -i \
             -e 's/{{.Country}}/CH/g' \
