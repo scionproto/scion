@@ -425,6 +425,19 @@ gen_sensitive() {
         -startdate $STARTDATE -enddate $ENDDATE -preserveDN \
         -notext -batch -utf8 -out sensitive-voting.crt
 # LITERALINCLUDE gen_sensitive END
+# LITERALINCLUDE gen_sensitive_dummy START
+    openssl cms -sign -in dummy.pld.der -inform der \
+        -signer $PUBDIR/sensitive-voting.crt \
+        -inkey $KEYDIR/sensitive-voting.key \
+        -nodetach -nocerts -nosmimecap -binary -outform der \
+        > $TRCID.sensitive.dummy.trc
+
+    openssl cms -verify -in $TRCID.sensitive.dummy.trc -inform der \
+        -certfile $PUBDIR/sensitive-voting.crt \
+        -CAfile $PUBDIR/sensitive-voting.crt \
+        -purpose any -no_check_time \
+        > /dev/null
+# LITERALINCLUDE gen_sensitive_dummy END
 }
 
 gen_sensitive_scion_pki() {
@@ -443,6 +456,11 @@ gen_sensitive_scion_pki() {
         sensitive-voting.crt \
         $KEYDIR/sensitive-voting.key
 # LITERALINCLUDE gen_sensitive_scion_pki END
+# LITERALINCLUDE gen_sensitive_scion_pki_dummy START
+    scion-pki trc sign dummy \
+        sensitive-voting.crt \
+        $KEYDIR/sensitive-voting.key
+# LITERALINCLUDE gen_sensitive_scion_pki_dummy START
 }
 
 
@@ -489,6 +507,19 @@ gen_regular() {
         -startdate $STARTDATE -enddate $ENDDATE -preserveDN \
         -notext -batch -utf8 -out regular-voting.crt
 # LITERALINCLUDE gen_regular END
+# LITERALINCLUDE gen_regular_dummy START
+    openssl cms -sign -in dummy.pld.der -inform der \
+        -signer $PUBDIR/regular-voting.crt \
+        -inkey $KEYDIR/regular-voting.key \
+        -nodetach -nocerts -nosmimecap -binary -outform der \
+        > $TRCID.regular.dummy.trc
+
+    openssl cms -verify -in $TRCID.regular.dummy.trc -inform der \
+        -certfile $PUBDIR/regular-voting.crt \
+        -CAfile $PUBDIR/regular-voting.crt \
+        -purpose any -no_check_time \
+        > /dev/null
+# LITERALINCLUDE gen_regular_dummy END
 }
 
 gen_regular_scion_pki() {
@@ -507,6 +538,11 @@ gen_regular_scion_pki() {
         regular-voting.crt \
         $KEYDIR/regular-voting.key
 # LITERALINCLUDE gen_regular_scion_pki END
+# LITERALINCLUDE gen_regular_scion_pki_dummy START
+    scion-pki trc sign dummy \
+        regular-voting.crt \
+        $KEYDIR/regular-voting.key
+# LITERALINCLUDE gen_regular_scion_pki_dummy START
 }
 
 check_regular() {
@@ -552,6 +588,19 @@ gen_root() {
         -startdate $STARTDATE -enddate $ENDDATE -preserveDN \
         -notext -batch -utf8 -out cp-root.crt
 # LITERALINCLUDE gen_root END
+# LITERALINCLUDE gen_root_dummy START
+    openssl cms -sign -in dummy.pld.der -inform der \
+        -signer $PUBDIR/cp-root.crt \
+        -inkey $KEYDIR/cp-root.key \
+        -nodetach -nocerts -nosmimecap -binary -outform der \
+        > $TRCID.root.dummy.trc
+
+    openssl cms -verify -in $TRCID.root.dummy.trc -inform der \
+        -certfile $PUBDIR/cp-root.crt \
+        -CAfile $PUBDIR/cp-root.crt \
+        -purpose any -no_check_time \
+        > /dev/null
+# LITERALINCLUDE gen_root_dummy END
 }
 
 
@@ -571,6 +620,11 @@ gen_root_scion_pki() {
         cp-root.crt \
         $KEYDIR/cp-root.key
 # LITERALINCLUDE gen_root_scion_pki END
+# LITERALINCLUDE gen_root_scion_pki_dummy START
+    scion-pki trc sign dummy \
+        cp-root.crt \
+        $KEYDIR/cp-root.key
+# LITERALINCLUDE gen_root_scion_pki_dummy START
 }
 
 check_root() {

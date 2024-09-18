@@ -23,6 +23,9 @@ naming pattern::
 
 An alternative name can be specified with the \--out flag.
 
+If 'dummy' is provided as the payload file, a dummy TRC payload is signed. This is useful for
+testing access to the necessary cryptographic material, especially in preparation for
+a TRC signing ceremony.
 
 
 ::
