@@ -12,7 +12,7 @@ export USE_SCION_PKI_SIGN=${USE_SCION_PKI_SIGN:-}
 
 . $PLAYGROUND/crypto_lib.sh
 
-set -e
+set -ex
 
 if [ -z "$USE_SCION_PKI_SIGN" ]; then
     STARTDATE="20200624120000Z"
