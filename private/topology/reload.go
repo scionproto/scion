@@ -26,8 +26,8 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/metrics"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/segment/iface"
 )
 
 // Validator is used to validate that the topology update is permissible.
@@ -133,7 +133,7 @@ func (l *Loader) UnderlayNextHop(ifID uint16) *net.UDPAddr {
 	l.mtx.Lock()
 	defer l.mtx.Unlock()
 
-	addr, _ := l.topo.UnderlayNextHop(common.IfIDType(ifID))
+	addr, _ := l.topo.UnderlayNextHop(iface.ID(ifID))
 	return addr
 }
 
@@ -182,7 +182,7 @@ func (l *Loader) Gateways() ([]GatewayInfo, error) {
 	return l.topo.Gateways()
 }
 
-func (l *Loader) InterfaceInfoMap() map[common.IfIDType]IFInfo {
+func (l *Loader) InterfaceInfoMap() map[iface.ID]IFInfo {
 	l.mtx.Lock()
 	defer l.mtx.Unlock()
 

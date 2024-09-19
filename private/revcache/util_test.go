@@ -23,13 +23,13 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt/proto"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/private/revcache"
 	"github.com/scionproto/scion/private/revcache/mock_revcache"
 )
@@ -61,11 +61,12 @@ func TestNoRevokedHopIntf(t *testing.T) {
 			func(_ context.Context, key revcache.Key) (*path_mgmt.RevInfo, error) {
 				iaFmt := key.IA.String()
 				_ = iaFmt
-				if key.IA == ia211 && key.IfID == common.IfIDType(graph.If_211_A_210_X) {
+				if key.IA == ia211 && key.IfID == iface.ID(graph.If_211_A_210_X) {
 					return sRev, nil
 				}
 				return nil, nil
 			}).AnyTimes()
+
 		noR, err := revcache.NoRevokedHopIntf(ctx, revCache, seg210_222_1)
 		assert.NoError(t, err)
 		assert.False(t, noR, "revocation expected")
@@ -82,7 +83,7 @@ func TestNoRevokedHopIntf(t *testing.T) {
 
 func defaultRevInfo(ia addr.IA, ifID uint16, ts time.Time) *path_mgmt.RevInfo {
 	return &path_mgmt.RevInfo{
-		IfID:         common.IfIDType(ifID),
+		IfID:         iface.ID(ifID),
 		RawIsdas:     ia,
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(ts),

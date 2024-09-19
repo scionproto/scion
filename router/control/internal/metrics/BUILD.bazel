@@ -9,8 +9,8 @@ go_library(
     importpath = "github.com/scionproto/scion/router/control/internal/metrics",
     visibility = ["//router/control:__subpackages__"],
     deps = [
-        "//pkg/private/common:go_default_library",
         "//pkg/private/prom:go_default_library",
+        "//pkg/segment/iface:go_default_library",
         "@com_github_prometheus_client_golang//prometheus:go_default_library",
     ],
 )

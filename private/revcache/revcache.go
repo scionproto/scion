@@ -20,19 +20,19 @@ import (
 	"io"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/private/storage/db"
 )
 
 // Key denotes the key for the revocation cache.
 type Key struct {
 	IA   addr.IA
-	IfID common.IfIDType
+	IfID iface.ID
 }
 
 // NewKey creates a new key for the revocation cache.
-func NewKey(ia addr.IA, ifID common.IfIDType) Key {
+func NewKey(ia addr.IA, ifID iface.ID) Key {
 	return Key{
 		IA:   ia,
 		IfID: ifID,

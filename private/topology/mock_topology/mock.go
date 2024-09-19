@@ -10,7 +10,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/pkg/addr"
-	common "github.com/scionproto/scion/pkg/private/common"
+	iface "github.com/scionproto/scion/pkg/segment/iface"
 	topology "github.com/scionproto/scion/private/topology"
 )
 
@@ -125,10 +125,10 @@ func (mr *MockTopologyMockRecorder) IFInfoMap() *gomock.Call {
 }
 
 // IfIDs mocks base method.
-func (m *MockTopology) IfIDs() []common.IfIDType {
+func (m *MockTopology) IfIDs() []iface.ID {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IfIDs")
-	ret0, _ := ret[0].([]common.IfIDType)
+	ret0, _ := ret[0].([]iface.ID)
 	return ret0
 }
 
@@ -256,7 +256,7 @@ func (mr *MockTopologyMockRecorder) UnderlayMulticast(arg0 interface{}) *gomock.
 }
 
 // UnderlayNextHop mocks base method.
-func (m *MockTopology) UnderlayNextHop(arg0 common.IfIDType) (*net.UDPAddr, bool) {
+func (m *MockTopology) UnderlayNextHop(arg0 iface.ID) (*net.UDPAddr, bool) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UnderlayNextHop", arg0)
 	ret0, _ := ret[0].(*net.UDPAddr)
