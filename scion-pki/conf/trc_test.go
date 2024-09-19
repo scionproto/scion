@@ -114,10 +114,20 @@ func TestTRCCertificates(t *testing.T) {
 		prepareCfg   func(*conf.TRC)
 		errMsg       string
 		expectedCrts []*x509.Certificate
+		pred         *cppki.TRC
 	}{
 		"valid": {
 			prepareCfg:   func(_ *conf.TRC) {},
 			expectedCrts: []*x509.Certificate{rVoting, sVoting},
+		},
+		"load from predecessor": {
+			prepareCfg: func(cfg *conf.TRC) {
+				cfg.CertificateFiles[0] = "predecessor:4"
+			},
+			expectedCrts: []*x509.Certificate{rVoting, sVoting},
+			pred: &cppki.TRC{
+				Certificates: []*x509.Certificate{4: rVoting},
+			},
 		},
 		"file not found": {
 			prepareCfg: func(cfg *conf.TRC) { cfg.CertificateFiles = []string{"notfound"} },
@@ -128,7 +138,7 @@ func TestTRCCertificates(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			cfg := createTRC(t)
 			tc.prepareCfg(cfg)
-			crts, err := cfg.Certificates()
+			crts, err := cfg.Certificates(tc.pred)
 			if tc.errMsg != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tc.errMsg)
