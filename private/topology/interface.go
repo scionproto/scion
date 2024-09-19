@@ -22,8 +22,8 @@ import (
 	"sort"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/segment/iface"
 )
 
 // Topology is the topology type for applications and libraries that only need read access to AS
@@ -39,7 +39,7 @@ type Topology interface {
 	// Core returns whether the local AS is core.
 	Core() bool
 	// InterfaceIDs returns all interface IDS from the local AS.
-	IfIDs() []common.IfIDType
+	IfIDs() []iface.ID
 	// PortRange returns the first and last ports of the port range (both included),
 	// in which endhost listen for SCION/UDP application using the UDP/IP underlay.
 	PortRange() (uint16, uint16)
@@ -59,7 +59,7 @@ type Topology interface {
 	UnderlayMulticast(svc addr.SVC) ([]*net.UDPAddr, error)
 	// UnderlayNextHop returns the internal underlay address of the router
 	// containing the interface ID.
-	UnderlayNextHop(ifID common.IfIDType) (*net.UDPAddr, bool)
+	UnderlayNextHop(ifID iface.ID) (*net.UDPAddr, bool)
 
 	// MakeHostInfos returns the underlay addresses of all services for the specified service type.
 	MakeHostInfos(st ServiceType) ([]*net.UDPAddr, error)
@@ -144,8 +144,8 @@ func (t *topologyS) MTU() uint16 {
 	return uint16(t.Topology.MTU)
 }
 
-func (t *topologyS) IfIDs() []common.IfIDType {
-	intfs := make([]common.IfIDType, 0, len(t.Topology.IFInfoMap))
+func (t *topologyS) IfIDs() []iface.ID {
+	intfs := make([]iface.ID, 0, len(t.Topology.IFInfoMap))
 	for ifID := range t.Topology.IFInfoMap {
 		intfs = append(intfs, ifID)
 	}
@@ -156,7 +156,7 @@ func (t *topologyS) PortRange() (uint16, uint16) {
 	return t.Topology.DispatchedPortStart, t.Topology.DispatchedPortEnd
 }
 
-func (t *topologyS) UnderlayNextHop(ifID common.IfIDType) (*net.UDPAddr, bool) {
+func (t *topologyS) UnderlayNextHop(ifID iface.ID) (*net.UDPAddr, bool) {
 	ifInfo, ok := t.Topology.IFInfoMap[ifID]
 	if !ok {
 		return nil, false

@@ -26,8 +26,8 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/app/path"
 	"github.com/scionproto/scion/private/app/path/pathprobe"
@@ -58,8 +58,8 @@ type Path struct {
 
 // Hop represents an hop on the path.
 type Hop struct {
-	IfID common.IfIDType `json:"interface"`
-	IA   addr.IA         `json:"isd_as"`
+	IfID iface.ID `json:"interface"`
+	IA   addr.IA  `json:"isd_as"`
 }
 
 // Human writes human readable output to the writer.

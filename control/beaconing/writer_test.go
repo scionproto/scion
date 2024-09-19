@@ -37,12 +37,12 @@ import (
 	"github.com/scionproto/scion/control/beaconing/mock_beaconing"
 	"github.com/scionproto/scion/control/ifstate"
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/xtest/graph"
 	"github.com/scionproto/scion/pkg/scrypto"
 	"github.com/scionproto/scion/pkg/scrypto/cppki"
 	"github.com/scionproto/scion/pkg/scrypto/signed"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
@@ -377,7 +377,7 @@ type topoWrap struct {
 }
 
 func (w topoWrap) UnderlayNextHop(id uint16) *net.UDPAddr {
-	a, _ := w.Topo.UnderlayNextHop(common.IfIDType(id))
+	a, _ := w.Topo.UnderlayNextHop(iface.ID(id))
 	return a
 }
 

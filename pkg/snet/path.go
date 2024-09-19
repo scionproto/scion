@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/slayers"
 )
 
@@ -70,7 +70,7 @@ type Path interface {
 // PathInterface is an interface of the path.
 type PathInterface struct {
 	// ID is the ID of the interface.
-	ID common.IfIDType
+	ID iface.ID
 	// IA is the ISD AS identifier of the interface.
 	IA addr.IA
 }

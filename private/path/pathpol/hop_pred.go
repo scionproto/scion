@@ -22,8 +22,8 @@ import (
 	"strings"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
 )
 
@@ -32,11 +32,11 @@ import (
 type HopPredicate struct {
 	ISD   addr.ISD
 	AS    addr.AS
-	IfIDs []common.IfIDType
+	IfIDs []iface.ID
 }
 
 func NewHopPredicate() *HopPredicate {
-	return &HopPredicate{IfIDs: make([]common.IfIDType, 1)}
+	return &HopPredicate{IfIDs: make([]iface.ID, 1)}
 }
 
 func HopPredicateFromString(str string) (*HopPredicate, error) {
@@ -44,7 +44,7 @@ func HopPredicateFromString(str string) (*HopPredicate, error) {
 	if err = validateHopPredStr(str); err != nil {
 		return &HopPredicate{}, err
 	}
-	var ifIDs = make([]common.IfIDType, 1)
+	var ifIDs = make([]iface.ID, 1)
 	// Parse ISD
 	dashParts := strings.Split(str, "-")
 	isd, err := addr.ParseISD(dashParts[0])
@@ -136,12 +136,12 @@ func (hp *HopPredicate) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-func parseIfID(str string) (common.IfIDType, error) {
+func parseIfID(str string) (iface.ID, error) {
 	ifID, err := strconv.ParseUint(str, 10, 64)
 	if err != nil {
 		return 0, err
 	}
-	return common.IfIDType(ifID), nil
+	return iface.ID(ifID), nil
 }
 
 // validateHopPredStr checks if str has the correct amount of delimiters
