@@ -23,8 +23,8 @@ import (
 
 // CreatePayload creates the ASN.1 payload for the TRC from the given
 // configuration.
-func CreatePayload(cfg conf.TRC) (*cppki.TRC, error) {
-	certs, err := cfg.Certificates()
+func CreatePayload(cfg conf.TRC, pred *cppki.TRC) (*cppki.TRC, error) {
+	certs, err := cfg.Certificates(pred)
 	if err != nil {
 		return nil, err
 	}

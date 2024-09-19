@@ -70,7 +70,7 @@ To inspect the created asn.1 file you can use the openssl tool::
 				return err
 			}
 			prepareCfg(&cfg, pred)
-			trc, err := CreatePayload(cfg)
+			trc, err := CreatePayload(cfg, pred)
 			if err != nil {
 				return serrors.Wrap("failed to marshal TRC", err)
 			}
